@@ -33,7 +33,7 @@ until Michael lifts it.
 The only place for session, job, machine and test rules. `docs/systems/session-method.md` details the job lead's loop;
 `docs/ROADMAP.md` is state only (now, next, waiting on Michael, done).
 
-**Session titles** (Michael 2026-10-23 ~11:05, from the next account swap; titles are message addresses, so sessions never rename themselves mid-run): "Night Shift | Player Build" (formerly CT Core Build: movement, mocap, takedowns, co-op spare jobs), "Night Shift | Marlow Build" (formerly Menu Notes Build: marlow-final, then section-rating), "Night Shift | Sector Ops Build" (formerly Course Ready Build: sector-redesign, campus art), "Night Shift | Test Runner" (formerly Character Build: laptop GPU runs, guard-render), "Night Shift | Guard AI Build" (on the laptop from the 2026-10-23 ~13:50 swap, Michael ~13:00, to take desktop CPU load; its e2e still goes through Test Runner's queue), "Night Shift | Orchestrator". Older docs use the former names; read them as these. Message the title ListAgents shows.
+**Session titles** (Michael 2026-10-23 ~11:05, from the next account swap; titles are message addresses, so sessions never rename themselves mid-run; each session sets its own title as the first step of its start prompt with set_session_title "self", because the orchestrator cannot rename laptop sessions (Michael 2026-10-23 ~14:25)): "Night Shift | Player Build" (formerly CT Core Build: movement, mocap, takedowns, co-op spare jobs), "Night Shift | Marlow Build" (formerly Menu Notes Build: marlow-final, then section-rating), "Night Shift | Sector Ops Build" (formerly Course Ready Build: sector-redesign, campus art), "Night Shift | Test Runner" (formerly Character Build: laptop GPU runs, guard-render), "Night Shift | Guard AI Build" (on the laptop from the 2026-10-23 ~13:50 swap, Michael ~13:00, to take desktop CPU load; its e2e still goes through Test Runner's queue), "Night Shift | Orchestrator". Older docs use the former names; read them as these. Message the title ListAgents shows.
 
 **The orchestrator.** One session, "Night Shift | Orchestrator", runs the whole build: it owns `docs/ROADMAP.md` (the
 only session that edits it), plans and starts jobs, reviews PRs and merges green ones into master (Michael, 2026-10-19:
@@ -210,7 +210,7 @@ then `netstat -ano | grep ":4191 .*LISTENING"` must print nothing. The runner st
   `docs/templates/map-spec.md`. A map spec may tighten the standard, never loosen it without Michael's written
   approval. The standard and the template change only with Michael's approval.
 - Hot paths must not allocate (no closures, iterators or temporary vectors in AI / nav / anim loops); use `hyp2` / `hyp3`, never `Math.hypot` (`docs/systems/conventions.md`).
-- Gameplay never reads graphics state: presets, LOD, voxel layers, the governor. It reads collision, occupancy, anchors, the light bake and the noise model only.
+- Gameplay never reads graphics state: presets, LOD, the governor. It reads collision, occupancy, anchors, the light bake and the noise model only.
 - Light parity: what the player sees, the light meter and guard perception must agree.
 - IP: CT's mechanics, visual style and HUD layout are copied closely; names, characters, organisations, story, logos,
   UI art, art assets, the goggle and the music are original (G5, G69). No reference-game character, gear or organisation
@@ -254,7 +254,7 @@ then `netstat -ano | grep ":4191 .*LISTENING"` must print nothing. The runner st
 | `weapons/` | Data-driven weapons (the CT rifle and pistol, G76), ballistics, grenades, weapon carry (no aim assist, G16) |
 | `ai/` | Enemy brains, nav grid, perception, alert states, patrols, archetypes |
 | `world/` | Level builder, map builders, anchors, rooms, lights, light rig, doors, surfaces |
-| `voxel/` | Voxel level, characters and weapons, lamp bake and light volume, sky bake |
+| `voxel/` | Light bakes (the folder name is history): lamp bake and light volume, moon / sky bake, canonical light shapes, the bake worker pool |
 | `vfx/` | Pooled effects, post stack, TAAU, weather, silhouettes |
 | `net/` | Co-op: transports, protocol, session, host and client sims, lobby UI |
 | `progression/`, `cosmetics/` | XP, unlocks, upgrades, suit / HQ; avatar catalogue (parked behind `?legacy=1`) |
@@ -304,6 +304,6 @@ then `netstat -ano | grep ":4191 .*LISTENING"` must print nothing. The runner st
 | `docs/systems/combat.md` | Weapon data, firing, damage | Weapon work |
 | `docs/systems/coop.md` | Transports, host / client sims, sync, team moves | Co-op work |
 | `docs/systems/audio.md` | Audio engine, foley, weapon sounds, music | Sound work |
-| `docs/systems/graphics-quality.md` | Presets, governor, renderer, voxels, TAAU, weather | Render work |
+| `docs/systems/graphics-quality.md` | Presets, governor, renderer, TAAU, weather | Render work |
 | `docs/systems/performance.md` | Frame, CPU, draw and memory budgets; perf script budgets | Every job end |
 | `docs/systems/conventions.md` | Robustness rules, conventions, full module table, hot paths, project overview | Code conventions |

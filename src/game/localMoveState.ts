@@ -4,16 +4,13 @@
  * (`poseFromMoveState`, `AttachGrips`, `traversePath`). Built every fixed step a net session runs.
  */
 import { wrapPi } from '../anim/motion';
-import { packAttachSub, type ExitPose, type MoveMode, type MoveState } from '../player/moveState';
+import { packAttachSub, TAKEDOWN_SUB_BLOW, type ExitPose, type MoveMode, type MoveState } from '../player/moveState';
 import type { GameState } from './gameState';
 import { WALL_SUB } from '../player/wallController';
 
 const EXIT_OF: Partial<Record<string, ExitPose>> = { climbUp: 'climbUp', mantle: 'mantle', ventDrop: 'ventDrop', drop: 'drop' };
 
 let gpBuf: number[] | null = null;
-
-/** (anim-cleanup) Ground mode `sub` bit: the weapon on the left shoulder (the same bit as the wall's left hand). */
-export const SHOULDER_LEFT_SUB = 128;
 
 export function localMoveState(g: GameState, out: MoveState): MoveState {
   const p = g.player;
@@ -62,6 +59,9 @@ export function localMoveState(g: GameState, out: MoveState): MoveState {
     out.tid = td.e.id;
     // (anim-n4d) the blow's own phase (posed warped onto the kill, `killWarp`, here and on remotes)
     out.ph = Math.max(0, Math.min(1, g.takedown.blowPh));
+    // (pose-parity) whether the blow runs at all (`blowPh` -1: a choke, the lethal approach): `ph` cannot carry the -1, and
+    // a remote posing the arc at 0 held the elbow wind-up through every choke
+    out.sub = g.takedown.blowPh >= 0 ? TAKEDOWN_SUB_BLOW : 0;
     delete out.c;
     return out;
   }
@@ -141,7 +141,7 @@ export function localMoveState(g: GameState, out: MoveState): MoveState {
     return out;
   }
   out.m = 'ground';
-  // (anim-cleanup) aiming from the left shoulder (the shoulder swap, G17): the weapon in the left hand, as WALL_SUB.leftHand
-  if (p.cam.shoulder < 0 && g.weapons.handSwitchOk) out.sub = SHOULDER_LEFT_SUB;
+  // (pose-parity) aiming from the left shoulder (the shoulder swap, G17) is the player flag `PF.aimLeft` (every mode,
+  // `net/netShared.ts` localFlags), no longer the ground `sub` bit 128
   return out;
 }

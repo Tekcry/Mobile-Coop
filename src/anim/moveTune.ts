@@ -14,8 +14,8 @@
  *   window (`teamContactK`).
  *
  * Live in real play for the local player's OWN role only (GameState writes `MOVE_TUNE_TEAM` from the team controller;
- * the traversal groups follow the local pose). The remote partner (`net/remoteAvatar`) never reads these: it plays the
- * shared defaults until an export is folded into the code. Visual only: the capsule, the team-move paths and the wire
+ * the traversal groups follow the local pose). The remote partner (`net/remoteAvatar`) never reads the live values: it
+ * plays the base table (an export folded into the code, `moveTuneSelectBase`, pose-parity). Visual only: the capsule, the team-move paths and the wire
  * are unchanged. The Anim Studio poses both roles of a pair with the same calls (`studioPairs.ts`).
  */
 import '../player/speedTune'; // Body, Gun, Camera and Speed register first (the panel's section order)
@@ -294,6 +294,40 @@ export function moveTuneSelect(team: string, k: number, traverse: string, follow
   SEL.group = ref ? g : '';
   SEL.k = ref && ref.con ? Math.max(0, Math.min(1, k)) : 0;
   return SEL.group;
+}
+
+/**
+ * (pose-parity) The same pick for the co-op partner's rig (`net/remoteAvatar`): its role group from the wire
+ * (`teamRowOfWire`) or its posed traversal, from the BASE table only (the baked `sections.<team_move | trav>`, what the
+ * partner's own page plays untuned), never the viewer's live tuner values (those are the viewer's own role). No base
+ * value off identity: nothing (bit-identical). No panel follow. No allocation.
+ */
+export function moveTuneSelectBase(team: string, k: number, traverse: string): string {
+  const g = team !== '' ? team : travGroup(traverse);
+  const b = g !== '' ? BASE_REFS.get(g) : undefined;
+  const ref = b && b.live ? b : null;
+  SEL.ref = ref;
+  SEL.group = ref ? g : '';
+  SEL.k = ref && ref.con ? Math.max(0, Math.min(1, k)) : 0;
+  return SEL.group;
+}
+
+/**
+ * (pose-parity, A5) A partner's contact weight (0..1) from its wire phase (the wire has no team timer): the leg-up's
+ * and the throw's windows on `ph` (as `teamContactK`'s fractions), the hang-down and rope climber held on (1), else 0.
+ */
+export function teamContactKOfWire(group: string, ph: number): number {
+  switch (group) {
+    case 'team.boost.a':
+      return trapezoid(ph, 0.1, 0.25, 0.4, 0.6);
+    case 'team.throw.a':
+      return trapezoid(ph, 0, 0, 0.1, 0.35);
+    case 'team.hang.a':
+    case 'team.rope.a':
+      return 1;
+    default:
+      return 0;
+  }
 }
 
 /** The selected group ('' none). */

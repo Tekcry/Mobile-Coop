@@ -106,7 +106,10 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
   a no-op here (only the player's camera fades a head). Flag `guardMerge` (`?guardmerge=0`: the old instanced parts, for
   comparisons). Casters under 0.3 m are skipped by the lamp / moon shadows (`lightRig.ts`, `world.ts`): heads, hands,
   forearms and feet were, the merged body is not, so they cast shadows now. Measured (24 guards, laptop GPU, Epic):
-  `docs/guard-render/run-s1` against `run-s1-off`.
+  `docs/guard-render/run-s1` against `run-s1-off`. A body effect that will not finish compiling (Babylon's poll timed
+  out, the compile failed, its program was disposed under it, or 8 s / 30 frames unready) is dropped and recompiled,
+  at most 3 times per variant with a console warning (`bodyEffectRecovery.ts`, guard-ai carry fix: a stall during a
+  new variant's compile left guards invisible on the laptop GPU).
 - Rig: root -> body (tumble pivot) -> pelvis(`hips`) -> spine -> chest(`torso`) -> neck -> head(`headNode`, head
   centre); chest -> shoulder -> elbow -> wrist; pelvis -> hip -> knee -> ankle; sockets `weaponPivot` (aim
   pocket), `backSocket`, `hipSocket`. Joints use `rotationQuaternion` (root uses Euler `rotation.y`).
@@ -119,7 +122,7 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
   main menu's operator are Wren, the realistic operator from the offline pipeline (feature/operators, G68); guards,
   dummies and the VIP keep the part bodies above (G68: realistic guards later). No dev switch.
   - `operators/runtime/playerFigure.ts` `operatorRig()` builds a player's `CharacterRig` at Wren's height (1.68 m,
-    G74; build `average`, style `detailed`, no voxel body) and puts an `OperatorFigure` (`operators/runtime/figure.ts`)
+    G74; build `average`, style `detailed`) and puts an `OperatorFigure` (`operators/runtime/figure.ts`)
     on it. The rig stays the pose and gameplay body: animation, IK, sockets (weapons attach to the rig's sockets as
     before), the light-meter samples (`game/bodyHeight.ts` `lightSampleHeight(rig.height, crouch)`, local and partner
     via `PlayerRef.height`; the cover exposure points scale the same way) and the hit volumes (`playerTarget.ts`,

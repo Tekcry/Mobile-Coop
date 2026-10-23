@@ -2,8 +2,10 @@
 // Lobby (host, join by typed code, ready-up by controller), match start, snapshot replication,
 // a host guard's flashlight on, then off, on the client (coop-torches), host-validated client hits + kill credit,
 // downed/revive, results, back to lobby, guards and doors in co-op,
-// difficulty, a course restart at the checkpoint while a guard is held (Marlow Yard), a door peek and a wall medkit in
-// Free Roam, host leaving, malformed messages, and the offline state.
+// difficulty, (hang-down) the hanging joiner's pistol, grab and neck snap, a course restart at the checkpoint while a guard
+// is held (Marlow Yard), a door peek and a wall medkit in Free Roam, host leaving, malformed messages, and the offline
+// state. (guard-ai S9) The guard-ai state on the client: alarm stage gear, a bark, caution, a shield-led response team
+// and a client deflect (helmet off on both screens).
 // (co-op test fix, process audit section 2) The pages open legacy-off: the matches are Infiltration (the Ledger
 // mission on the Warehouse: guards, and detection costs only a bonus) and Free Roam, no Hunter. Two players only (G2).
 // Waits are e2e-net-lib's, on both pages' sim clocks: the sim runs slower than real time on software GL.
@@ -316,6 +318,130 @@ try {
   const tally = await GA((id) => window.__app.current.net.tallies.get(id)?.kills ?? 0, selfB);
   assert(tally >= 1, `host credits the kill to the client (${tally})`);
   await until(B, (id) => !window.__app.current.net.puppets.has(id), victim, 5000, 'client removes the dead puppet');
+
+  // (guard-ai S9, protocol 41) the guard-ai state reaches the client: the alarm stage's gear (armour + helmet) on the
+  // puppets, a host guard's radio line shown on the client word for word, a cautious guard's caution bit, a shield-led
+  // response team with the shield and the lead's helmet, and a client round on a helmet: predicted and confirmed as a
+  // deflect, the helmet off his head and on the floor on both screens
+  console.log('guard-ai S9: stage gear, a bark, caution, a shield-led team and a deflect on the client');
+  {
+    const geared = await GA(() => {
+      const em = window.__app.current.enemyMgr;
+      em.setAlarmStage(3);
+      const e = em.enemies.find((x) => x.alive && !x.def.quadruped && x.def.kind !== 'heavy' && x.def.kind !== 'enforcer');
+      return e ? { id: e.id, helmet: e.helmet, armour: e.armour, key: e.key } : null;
+    });
+    assert(!!geared && geared.helmet && geared.armour, `alarm stage 3 puts armour and a helmet on the host's guard (${JSON.stringify(geared)})`);
+    const gid = geared?.id ?? '';
+    const gearB = await until(B, (id) => { const s = window.__app.current.net.puppets.get(id)?.gearShown; return !!s && s.helmet && s.armour; }, gid, 10000, 'client puppet wears the stage gear').then(() => true, () => false);
+    assert(gearB, `the client's puppet shows the stage gear (${JSON.stringify(await GB((id) => window.__app.current.net.puppets.get(id)?.gearShown ?? null, gid))})`);
+
+    // a radio line (the missed check naming unit three): the client shows the host's exact text
+    const said = await GA((id) => {
+      const g = window.__app.current;
+      g.enemyMgr.enemies.find((x) => x.id === id)?.bark('missed', 3);
+      return g.hud.barks.shown.find((l) => l.includes('three')) ?? '';
+    }, gid);
+    assert(said !== '', `the host shows the guard's line (${said})`);
+    const heard = await until(B, (l) => window.__app.current.hud.barks.shown.includes(l) || window.__app.current.hud.barks.subtitle.endsWith(l), said, 5000, 'client shows the bark').then(() => true, () => false);
+    assert(heard, `the client shows the host guard's radio line (${JSON.stringify({ said, client: await GB(() => ({ shown: window.__app.current.hud.barks.shown, sub: window.__app.current.hud.barks.subtitle, n: window.__app.current.net.barksShown })) })})`);
+
+    // caution (S14's timed section alert on one guard): the caution bit reaches his puppet (calm: the low ready)
+    const cid = await GA(() => {
+      const em = window.__app.current.enemyMgr;
+      const e = em.enemies.find((x) => x.alive && x.key >= 0 && !x.def.quadruped);
+      if (!e) return '';
+      em.awareness.timedHold(e.key, 60, 2);
+      em['syncCaution']();
+      return e.caution > 0 ? e.id : '';
+    });
+    if (cid) {
+      const cautB = await until(B, (id) => window.__app.current.net.puppets.get(id)?.cautious === true, cid, 5000, 'client puppet cautious').then(() => true, () => false);
+      const pose = await GB((id) => { const p = window.__app.current.net.puppets.get(id); return p ? { aim: p['aim'], level: p.level } : null; }, cid);
+      assert(cautB, `a cautious host guard is cautious on the client (${JSON.stringify(pose)})`);
+    } else console.log('    (no keyed guard to make cautious: skipped)');
+
+    // a response team: the enforcer first (always helmeted), two behind; the client builds his shield by kind
+    const team = await GA(() => {
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const V = g.player.position.constructor;
+      const t = em.newTeam(0, null, [], []);
+      const out = [];
+      // (S9-CHECK) the Ledger keeps 9 alive and the live cap is 12: room for the three even after an alarm's reinforcements
+      em['s9Cap'] = em.maxAlive;
+      em.maxAlive = Math.max(em.maxAlive, em.alive + 3);
+      const kinds = ['enforcer', 'grunt', 'grunt'];
+      for (let i = 0; i < kinds.length; i++) {
+        const e = em.spawnReinforcement(kinds[i], new V(12 + i * 1.2, 0, -6.5), 0, 0);
+        if (!e) continue;
+        em.joinTeam(e, t);
+        e['stagger'] = 99;
+        out.push({ id: e.id, kind: e.def.kind, helmet: e.helmet });
+      }
+      return out;
+    });
+    const lead = team.find((m) => m.kind === 'enforcer');
+    assert(!!lead && lead.helmet && team.length === 3, `a shield-led team spawns on the host (${JSON.stringify(team)})`);
+    if (lead) {
+      const shieldB = await until(B, (id) => { const s = window.__app.current.net.puppets.get(id)?.gearShown; return !!s && s.shield && s.helmet; }, lead.id, 10000, 'client shows the shield lead').then(() => true, () => false);
+      assert(shieldB, `the client's enforcer carries his shield and the lead's helmet (${JSON.stringify(await GB((id) => window.__app.current.net.puppets.get(id)?.gearShown ?? null, lead.id))})`);
+    }
+    await GA((ids) => {
+      const em = window.__app.current.enemyMgr;
+      for (const id of ids) { const e = em.enemies.find((x) => x.id === id); if (e) em.despawn(e); }
+      em.teams.length = 0;
+      if (em['s9Cap'] !== undefined) em.maxAlive = em['s9Cap'];
+      // later spawns in this match carry no stage gear
+      em.setAlarmStage(0, false);
+    }, team.map((m) => m.id));
+
+    // a client round to the helmeted guard's head: no damage, a deflect at once on the client, the host's confirm, his
+    // helmet off on both screens and dropped on both floors
+    await GA((id) => {
+      const g = window.__app.current;
+      for (const r of g.net.remotes.values()) r.allowTeleport(5);
+      const v = g.enemyMgr.enemies.find((e) => e.id === id);
+      if (v) {
+        v['stagger'] = 99;
+        if (g.world.map.id === 'warehouse') v.pos.set(13, 0, -6.5);
+      }
+    }, gid);
+    await until(B, (id) => { const p = window.__app.current.net.puppets.get(id); return !!p && Math.hypot(p.pos.x - 13, p.pos.z + 6.5) < 1.5; }, gid, 15000, 'geared puppet moved');
+    await GB((id) => {
+      const g = window.__app.current;
+      const p = g.net.puppets.get(id);
+      g.player.controller.teleport(p.pos.add(new p.pos.constructor(0, 0.2, 2.2)), Math.PI);
+      g.player.forceAds = true;
+    }, gid);
+    await until(A, () => [...window.__app.current.net.remotes.values()].some((r) => r.state?.mv?.dw === 2), null, 5000, 'host sees the client drawn (deflect)');
+    let deflected = false;
+    let pred = null;
+    for (let i = 0; i < 20 && !deflected; i++) {
+      await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(2); });
+      pred = await GB((id) => {
+        const g = window.__app.current;
+        const p = g.net.puppets.get(id);
+        if (!p) return null;
+        const V = p.pos.constructor;
+        const src = g.player.position.add(new V(0, 1.58, 0));
+        const pt = p.pos.add(new V(0, 1.62 * p.def.scale, 0));
+        const res = p.applyDamage({ amount: 40, point: pt, dir: pt.subtract(src).normalize(), part: 'head', kind: 'bullet', attackerTeam: 'player', attackerId: 'local', weapon: 'rifle', sourcePos: src, impulse: 3 });
+        return { dealt: res.dealt, deflect: res.deflect === true };
+      }, gid);
+      // (S9-CHECK) wait for the host's verdict before the next round: a second round after the knock-off is a kill
+      await until(A, (id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); return !e || !e.alive || !e.helmet; }, gid, 800, 'host verdict').catch(() => {});
+      deflected = await GA((id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); return !!e && e.alive && !e.helmet; }, gid);
+    }
+    const hostSide = await GA((id) => { const em = window.__app.current.enemyMgr; const e = em.enemies.find((x) => x.id === id); return { alive: e?.alive, helmet: e?.helmet, armour: e?.armour, drops: em.helmetDrops.shown }; }, gid);
+    assert(!!pred && pred.deflect && pred.dealt === 0, `the client predicts the deflect on the helmeted puppet (${JSON.stringify(pred)})`);
+    assert(deflected && hostSide.alive && hostSide.drops >= 1, `the host's guard lives, his helmet knocked off and on the floor (${JSON.stringify(hostSide)})`);
+    const confirmed = await until(B, () => window.__app.current.net.deflectConfirms >= 1, null, 5000, 'client deflect confirm').then(() => true, () => false);
+    assert(confirmed, `the host confirms the client's deflect (hitConfirm deflect) (${await GB(() => window.__app.current.net.deflectConfirms)})`);
+    const fell = await until(B, (id) => { const g = window.__app.current; const s = g.net.puppets.get(id)?.gearShown; return !!s && !s.helmet && s.armour && (g.net.helmetDrops?.shown ?? 0) >= 1; }, gid, 5000, 'client helmet falls').then(() => true, () => false);
+    assert(fell, `the client's puppet loses the helmet and it lies on the client's floor too (${JSON.stringify(await GB((id) => ({ gear: window.__app.current.net.puppets.get(id)?.gearShown ?? null, drops: window.__app.current.net.helmetDrops?.shown ?? 0 }), gid))})`);
+    await GB(() => { window.__app.current.player.forceAds = false; });
+  }
 
   console.log('downed and revived');
   await GA(() => {
@@ -733,6 +859,10 @@ try {
   await GA(() => window.__app.current.net.ping(4, 0.5, -3, ''));
   await until(B, (id) => window.__app.current.pings.some((p) => p.by === id), hostId0, 5000, 'client shows the host ping');
   assert(true, 'a host ping reaches the client');
+  // (spare 9) interrogation intel: the host's feed lines reach the client
+  await GA(() => window.__app.current.events.emit('intel', { lines: ['Code: e2e relay'], codes: [] }));
+  await until(B, () => (document.querySelector('.hud-feed')?.textContent ?? '').includes('Code: e2e relay'), null, 4000, 'client sees the intel line');
+  assert(true, 'interrogation intel reaches the client');
   // gadgets: a client's gas cloud acts on the host's guards
   const gv = await GA(() => {
     const g = window.__app.current;
@@ -850,13 +980,35 @@ try {
     assert(solid >= 0 && (solid & 0x4) === 0, `the client's held guard is not solid to bodies there (membership ${solid})`);
     // (A4: the CT grab menu opens on the client; Knock out is the first entry, A picks it)
     await until(B, () => window.__app.current.grabMenu.open, null, 4000, 'the client grab menu opens');
-    await GB(() => { window.__app.current.grabMenu.sel = 0; window.__app.input.state.tap('interact'); });
-    await until(A, (id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); return !e || (!e.alive && e.ko); }, gg, 8000, 'host knocks the grabbed guard out');
-    assert(true, "the grab menu's Knock out knocks the client's hostage out on the host");
+    // (coop-walk-fixes P6, Michael 4.72: "if coop partner holds guard, host doesnt have option for takedown.") the host
+    // beside the client's hostage is offered the team takedown, and it knocks him out there: the hold ends, a dual takedown.
+    // (The client's own finisher from the hold goes the same td done path as the client takedown above.)
+    const d0 = await GA(() => window.__app.current.net.duals);
+    await GA((id) => {
+      const g = window.__app.current;
+      const e = g.enemyMgr.enemies.find((x) => x.id === id);
+      const yaw = [...g.net.remotes.values()][0].state.yaw;
+      // 1.1 m to the hostage's side (off the holder's line), facing him
+      const x = e.pos.x + Math.cos(yaw) * 1.1;
+      const z = e.pos.z - Math.sin(yaw) * 1.1;
+      g.player.controller.teleport(new g.player.position.constructor(x, e.pos.y + 0.05, z), Math.atan2(e.pos.x - x, e.pos.z - z));
+    }, gg);
+    // (started in the poll that sees the offer: it can come and go between two polls)
+    await until(A, (id) => { const td = window.__app.current.takedown; const o = td.offer; if (td.active?.plan.kind === 'assist') return true; if (o?.plan.kind !== 'assist' || o.e.id !== id) return false; td.start(false); return true; }, gg, 6000, "the host is offered the team takedown on the client's hostage");
+    await until(A, (id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); return !e || (!e.alive && e.ko); }, gg, 8000, "the team takedown knocks the client's hostage out on the host");
+    await until(B, () => !window.__app.current.takedown.active, null, 4000, "the client's hold ends with him");
+    assert((await GA(() => window.__app.current.net.duals)) === d0 + 1, 'the team takedown counts as a dual (co-op) takedown');
+    // (fix round 1) empty the client's HUD banner, so the dual step below proves its own banner reaches the client
+    await GB(() => { const b = document.querySelector('.hud-banner'); if (b) b.innerHTML = ''; });
   }
-  // dual takedown: two players finishing takedowns together
+  // dual takedown: two players finishing takedowns together (clock cleared first: the client's takedowns above would else pair with the host's)
+  // (fix round 1) counts relative to here: the team takedown above is already one dual takedown
+  const { k0, nd0, sd0 } = await GA(() => { const g = window.__app.current; g.net['dualClock'].reset(); window.__duals = []; g.events.on('dualTakedown', (e) => window.__duals.push(e)); return { k0: g.style.knockouts, nd0: g.net.duals, sd0: g.style.duals }; });
   await GA(([a, b]) => { const n = window.__app.current.net; n['takedownDone'](a); n['takedownDone'](b); }, [hostId0, clientId]);
-  assert((await GA(() => window.__app.current.net.duals)) === 1, 'two takedowns together count as a dual takedown');
+  assert((await GA(() => window.__app.current.net.duals)) === nd0 + 1, 'two takedowns together count as a dual takedown');
+  const dv = await GA(() => { const g = window.__app.current; const d = window.__duals; return { n: g.style.duals, k: g.style.knockouts, ev: d.length, a: d[0]?.a, b: d[0]?.b }; });
+  assert(dv.n === sd0 + 1 && dv.ev === 1 && dv.a === hostId0 && dv.b === clientId, `the dual takedown is counted and evented for section-rating (${JSON.stringify(dv)} h=${hostId0} c=${clientId})`);
+  assert(dv.k === k0, `a dual takedown adds no knockout of its own (${k0} -> ${dv.k})`);
   await until(B, () => /DUAL TAKEDOWN/.test(document.querySelector('.hud')?.textContent ?? document.body.textContent), null, 4000, 'client sees the dual takedown');
   assert(true, 'the dual takedown banner reaches the client');
   // the host goes down: a team-mate can revive (the client, through its mirrored revive point)
@@ -908,6 +1060,197 @@ try {
   await until(B, () => { const t = window.__app.current.hud.objectiveText; return t.length > 0 && !/Connecting to host|Waiting for host/.test(t); }, null, 10000, 'the mission objective on the client');
   const obj = await GB(() => window.__app.current.hud.objectiveText);
   assert(!/Connecting to host/.test(obj) && obj.length > 0, `client sees the mission's objectives (${obj})`);
+
+  // (hang-down) The joiner hangs head-first from the host's hands over the Warehouse's mezzanine lip. The offer and the
+  // request are made by their own calls (the drop search is skipped: a railing post can stand in its waist ray; the host
+  // still checks the request), the rest is the game: hanging, the client draws the pistol (LT; the host lets it hold it),
+  // grabs a guard with the hold-A menu and knocks him out (KBM Z), neck-snaps a second (RT held), grabs a third and the
+  // host pulls it up: the held guard is knocked out by default. The guards are statues on their spots (their brains off,
+  // as the takedown steps above: the start, the reach check and the outcome are the real code).
+  console.log('hang-down: the hanging joiner draws the pistol, grabs, neck-snaps; the pull-up knocks the held guard out');
+  {
+    await GA(() => { const g = window.__app.current; g.target.damageMul = 0; for (const r of g.net.remotes.values()) r.damageMul = 0; });
+    const lip = await GA(() => {
+      const g = window.__app.current;
+      const L = g.world.level.anchors.ledges.filter((l) => l.canHang && Math.abs(l.top - 2.6) < 0.1 && Math.abs(l.a.z - 12) < 0.25 && Math.abs(l.b.z - 12) < 0.25).sort((p, q) => q.len - p.len)[0];
+      return L ? { x: L.a.x + L.tx * (L.len / 2), y: L.top } : null;
+    });
+    assert(!!lip, `hang-down: the mezzanine lip (${JSON.stringify(lip)})`);
+    const HZ = 11.6;
+    const spot = { x: lip.x + 0.3, z: HZ - 0.3 };
+    const hdIds = await GB(() => [...window.__app.current.net.puppets.values()].filter((p) => p.alive && p.def.kind === 'grunt').slice(0, 3).map((p) => p.id));
+    assert(hdIds.length === 3, `hang-down: three calm guards (${hdIds.join(',')})`);
+    const hdState = (P) => P.evaluate(() => { const g = window.__app.current; const c = g.player.controller; return JSON.stringify({ st: g.team.state, why: g.team.endWhy, denied: g.team.lastDenied, cnt: g.team.count, depth: g.team.hang.depth, pos: [c.pos.x, c.pos.y, c.pos.z].map((n) => n.toFixed(2)), offer: g.takedown.offer ? { id: g.takedown.offer.e.id, kind: g.takedown.offer.plan.kind } : null, td: !!g.takedown.active, hostage: g.takedown.hostage?.id ?? null, draw: g.weapons.drawPhase }); });
+    // the guards: the one in play at the spot under the hang, the others well off it; all calm, the client unspotted
+    // (every host sim step, the loop's fixedUpdate hook, as the strike pin above)
+    const pinHd = (live) => GA(([ids, live, sp]) => {
+      const g = window.__app.current;
+      const gen = (window.__hdPinGen = (window.__hdPinGen ?? 0) + 1);
+      const vs = ids.map((id) => g.enemyMgr.enemies.find((e) => e.id === id));
+      const pin = () => {
+        for (const r of g.net.remotes.values()) r.ref.spotted = false;
+        for (const e of g.enemyMgr.enemies) {
+          e['stagger'] = 99;
+          if (e.alive && !e.taken) e.aware.set('unaware');
+        }
+        vs.forEach((v, i) => {
+          if (!v?.alive || v.taken) return;
+          v.update = () => {};
+          if (v.id === live) v.pos.set(sp.x, 0, sp.z);
+          else v.pos.set(sp.x - 6 - i * 1.5, 0, sp.z - 4);
+          v.yaw = 0;
+        });
+      };
+      const hooks = window.__app.loop['hooks'];
+      const orig = hooks.fixedUpdate;
+      const step = (dt) => {
+        if (window.__hdPinGen !== gen || window.__app.current !== g) {
+          if (hooks.fixedUpdate === step) hooks.fixedUpdate = orig;
+          orig(dt);
+          return;
+        }
+        pin();
+        orig(dt);
+        pin();
+      };
+      hooks.fixedUpdate = step;
+      pin();
+    }, [hdIds, live, spot]);
+    // (fix round) every host kill / knock-out from here on: a guard killed or knocked out leaves `enemyMgr.enemies` (the
+    // manager drops dead entries the same step), so the outcome is read from this log, not from the list
+    await GA(() => {
+      const em = window.__app.current.enemyMgr;
+      const prev = em.onKilled;
+      window.__hdKills = [];
+      window.__hdKillsPrev = prev;
+      em.onKilled = (e, h) => {
+        window.__hdKills.push({ id: e.id, ko: !!e.ko, kind: h.kind, by: h.attackerId, pos: [e.pos.x, e.pos.y, e.pos.z].map((n) => +n.toFixed(2)) });
+        prev?.(e, h);
+      };
+    });
+    const hostKo = (id) => GA((id) => window.__hdKills.some((k) => k.id === id && k.ko), id);
+    const hostKilled = (id) => GA((id) => window.__hdKills.some((k) => k.id === id && !k.ko), id);
+    // (fix round) why a guard is not offered: the client's offer search on his puppet, the host's guard and its log
+    const hdWhy = async (id) => {
+      const c = await GB((id) => {
+        const g = window.__app.current;
+        const p = g.net.puppets.get(id);
+        const o = p ? g.takedown['tryVictim'](p) : null;
+        const i = g.takedown['inp'];
+        return JSON.stringify({ sent: g.team.hang.sent, spotted: g.spottedLocal, puppet: p ? { pos: [p.pos.x, p.pos.y, p.pos.z].map((n) => +n.toFixed(2)), alive: p.alive, taken: p.taken, level: p.level } : null, plan: o?.plan.kind ?? null, ay: +i.ay.toFixed(2), los: i.los });
+      }, id).catch((e) => String(e));
+      const h = await GA((id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); return JSON.stringify({ found: !!e, pos: e && [e.pos.x, e.pos.y, e.pos.z].map((n) => +n.toFixed(2)), taken: e?.taken, level: e?.level, log: window.__hdKills }); }, id);
+      console.log('    client:', c, '\n    host:', h);
+    };
+    try {
+      await pinHd('');
+      for (const P of [A, B]) await P.evaluate(() => { window.__pad.connect(); for (let i = 0; i < 4; i++) window.__pad.axis(i, 0); for (let i = 0; i < 17; i++) window.__pad.set(i, 0); });
+      // the host on the mezzanine facing the lip, the client beside it
+      await GA(([x, y]) => { const g = window.__app.current; g.team.end(true); g.player.controller.teleport(new g.player.position.constructor(x, y + 0.05, 12.4), Math.PI); }, [lip.x, lip.y]);
+      await moveClient(B, lip.x + 0.8, lip.y + 0.05, 12.4, Math.PI);
+      await until(A, () => window.__app.current.player.controller.grounded, null, 8000, 'hang-down: the host stands on the mezzanine');
+      await until(A, ([x, y]) => { const r = window.__app.current.net.remotes.values().next().value; return Math.hypot(r.feet.x - x, r.feet.z - 12.4) < 0.4 && Math.abs(r.feet.y - y) < 0.4; }, [lip.x + 0.8, lip.y], 15000, 'hang-down: the host sees the client beside it');
+      const hostId = await GA(() => window.__coop.session.selfId);
+      let hanging = false;
+      for (let attempt = 0; attempt < 4 && !hanging; attempt++) {
+        // the host offers the hang-down at the lip (its own state, as the crouch + RB facing the drop sets it)
+        await GA(([x, y, z]) => {
+          const t = window.__app.current.team;
+          if (t.state === 'hangOffer' || t.state === 'hangHold') return;
+          t.end(true);
+          Object.assign(t.hang, { x, z, edgeY: y, floorY: 0, max: 2.3, sent: false, lostT: 0 });
+          t.state = 'hangOffer';
+          t['t'] = 0;
+          t.partner = '';
+        }, [lip.x, lip.y, HZ]);
+        await until(B, () => window.__app.current.net.teamMates().some((m) => m.mode === 'brace' && (m.sub & 2) !== 0), null, 8000, 'hang-down: the client sees the host offering');
+        await GB(([id, y, x, z]) => { const g = window.__app.current; g.team.partner = id; g.net.teamRequest('hang', id, -1, 0, y, x, z); }, [hostId, lip.y, lip.x, HZ]);
+        hanging = await until(B, () => window.__app.current.team.state === 'hanging', null, 15000, 'hang-down: the client hangs head-first').then(() => true, async () => { console.log('    client:', await hdState(B), 'host:', await hdState(A)); return false; });
+      }
+      assert(hanging, 'hang-down: the client hangs head-first from the host over the lip');
+      await until(A, () => window.__app.current.team.state === 'hangHold', null, 8000, 'hang-down: the host holds');
+      // the holder raises the client so the head is at a standing guard's neck (the stick's own depth, set)
+      await GA(() => { window.__app.current.team.hang.depth = 1.2; });
+      await until(B, () => Math.abs(window.__app.current.team.hang.depth - 1.2) < 0.02 && window.__app.current.team.hangActs, null, 10000, 'hang-down: the client follows the holder to 1.2 m');
+
+      // the pistol: LT draws it one-handed, aimed inverted; the host lets the hanging client hold it (no forced holster)
+      await B.evaluate(() => window.__pad.set(6, 1));
+      try {
+        await until(B, () => { const g = window.__app.current; return g.player.attachAim?.inverted === true && g.weapons.drawPhase === 2 && g.weapons.current.def.class === 'pistol'; }, null, 10000, 'hang-down: the hanging client draws the pistol (LT)');
+        await until(A, () => { const mv = window.__app.current.net.remotes.values().next().value.state?.mv; return mv?.m === 'boost' && (mv.sub & 2) !== 0 && mv.dw === 2; }, null, 8000, 'hang-down: the host sees the hanging client with the pistol drawn');
+        assert(true, 'hang-down: the hanging client aims the pistol, held as drawn on the host');
+      } finally {
+        await B.evaluate(() => window.__pad.set(6, 0));
+      }
+      await until(B, () => window.__app.current.weapons.drawPhase === 0 && !window.__app.current.player.adsWanted, null, 10000, 'hang-down: the pistol goes away');
+
+      // the grab: the guard by the head, the hold-A menu's GRAB CHARACTER (A held opens it, the release runs it)
+      const g1 = hdIds[0];
+      await pinHd(g1);
+      await until(B, (id) => window.__app.current.takedown.offer?.e.id === id && window.__app.current.takedown.offer.plan.kind === 'hangDown', g1, 15000, 'hang-down: the guard under the hang is offered').catch(async (e) => { console.log('    client:', await hdState(B)); throw e; });
+      await B.evaluate(() => window.__pad.set(0, 1));
+      try {
+        await until(B, () => { const m = window.__app.current['ctxMenu']; return m.state === 'active' && m.opts[m.sel]?.opt === 'grab'; }, null, 8000, 'hang-down: hold A lists GRAB CHARACTER');
+      } finally {
+        await B.evaluate(() => window.__pad.set(0, 0));
+      }
+      await until(B, (id) => window.__app.current.takedown.hostage?.id === id && window.__app.current.takedown.menuReady, g1, 8000, 'hang-down: the client holds the guard, lifted');
+      assert(await GB(() => window.__app.current.team.state === 'hanging'), 'hang-down: still hanging while holding');
+      // the host keeps the client's guard (no let-go after TD_MAX) under the hanging head
+      await wait(1500);
+      const near = await GA((id) => { const g = window.__app.current; const e = g.enemyMgr.enemies.find((x) => x.id === id); const r = g.net.remotes.values().next().value; return { taken: !!e?.taken, d: e ? Math.hypot(e.pos.x - r.feet.x, e.pos.z - r.feet.z) : -1 }; }, g1);
+      assert(near.taken && near.d >= 0 && near.d < 0.9, `hang-down: the host holds the guard under the hanging client (${JSON.stringify(near)})`);
+      // KBM Z (the knockout)
+      await GB(() => window.__app.input.state.tap('altFire'));
+      await until(A, (id) => window.__hdKills.some((k) => k.id === id && k.ko), g1, 10000, 'hang-down: the held guard knocked out on the host');
+      assert(await hostKo(g1), 'hang-down: grab and knock out from the hang');
+
+      // the neck snap: RT held on the next guard in reach (no menu row needed)
+      const g2 = hdIds[1];
+      await pinHd(g2);
+      await until(B, () => !window.__app.current.takedown.active, null, 5000, 'hang-down: the grab finished');
+      let snapped = false;
+      for (let attempt = 0; attempt < 3 && !snapped; attempt++) {
+        await until(B, (id) => window.__app.current.takedown.offer?.e.id === id, g2, 15000, 'hang-down: the second guard offered').catch(async (e) => { console.log('    client:', await hdState(B)); await hdWhy(g2).catch((x) => console.log('    (no diag)', x)); throw e; });
+        await B.evaluate(() => window.__pad.set(7, 1));
+        try {
+          snapped = await until(A, (id) => window.__hdKills.some((k) => k.id === id && !k.ko), g2, 12000, 'hang-down: RT held neck-snaps the guard').then(() => true, async () => { console.log('    client:', await hdState(B)); return false; });
+        } finally {
+          await B.evaluate(() => window.__pad.set(7, 0));
+        }
+      }
+      assert(snapped && (await hostKilled(g2)), 'hang-down: RT held from the hang kills (the neck snap)');
+
+      // KO by default: a third guard grabbed, the host pulls the client up (RB): the client's hold ends as a knockout
+      const g3 = hdIds[2];
+      await pinHd(g3);
+      await until(B, () => !window.__app.current.takedown.active, null, 5000, 'hang-down: the neck snap finished');
+      await until(B, (id) => window.__app.current.takedown.offer?.e.id === id, g3, 15000, 'hang-down: the third guard offered').catch(async (e) => { await hdWhy(g3).catch(() => {}); throw e; });
+      await B.evaluate(() => window.__pad.set(0, 1));
+      try {
+        await until(B, () => { const m = window.__app.current['ctxMenu']; return m.state === 'active' && m.opts[m.sel]?.opt === 'grab'; }, null, 8000, 'hang-down: hold A lists GRAB CHARACTER again');
+      } finally {
+        await B.evaluate(() => window.__pad.set(0, 0));
+      }
+      await until(B, (id) => window.__app.current.takedown.hostage?.id === id, g3, 8000, 'hang-down: the client holds the third guard');
+      await A.evaluate(() => window.__pad.set(5, 1));
+      try {
+        await until(A, () => window.__app.current.team.state === 'none', null, 10000, 'hang-down: the host pulls the client up (RB)');
+      } finally {
+        await A.evaluate(() => window.__pad.set(5, 0));
+      }
+      await until(A, (id) => window.__hdKills.some((k) => k.id === id && k.ko), g3, 10000, 'hang-down: the held guard knocked out by default');
+      assert(await hostKo(g3), 'hang-down: the hang ending while holding knocks the guard out (no let-go)');
+      await until(B, () => { const g = window.__app.current; return g.team.state === 'none' && g.player.pose.tumble === 0 && !g.takedown.active; }, null, 10000, 'hang-down: the client is back up, upright');
+      assert(true, 'hang-down: the client is pulled back onto the mezzanine');
+    } finally {
+      await GA(() => { const em = window.__app.current?.enemyMgr; if (em) em.onKilled = window.__hdKillsPrev; }).catch(() => {});
+      await GA((ids) => { window.__hdPinGen = (window.__hdPinGen ?? 0) + 1; for (const e of window.__app.current.enemyMgr.enemies) if (ids.includes(e.id)) delete e.update; }, hdIds).catch(() => {});
+      for (const P of [A, B]) await P.evaluate(() => { for (let i = 0; i < 17; i++) window.__pad?.set(i, 0); window.__app.current?.team?.end(true); }).catch(() => {});
+      // (the host had no pad before: back to keyboard and mouse there)
+      await GA(() => window.__pad?.disconnect()).catch(() => {});
+    }
+  }
   // (marlow-bays item 4, A1) "Return to lobby" from the host's pause menu takes both players back to the room lobby; the
   // client's row is disabled ("Host only") and it keeps its own Quit
   console.log('pause: return to lobby (host only) takes both players back to the lobby');

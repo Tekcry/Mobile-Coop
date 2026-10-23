@@ -12,6 +12,12 @@
  *   hold holds again. Held beats timed: a key in both reads 2 while his timer runs on underneath (`isSearching` still
  *   reports the search phase).
  *
+ * - (guard-ai S14) a timed section alert, also caution 1: a radio call got through that a guard of the section is not
+ *   answering (`MISSING.cautious`, 180 s) or that shots were heard (`SHOTS.cautious`, 120 s). `timedHold(k, s, kind)`
+ *   per receiver as the call reaches him; a later call refreshes it (the longer of the two runs on); it ends on its
+ *   own, or when the key goes down. Independent of the knockout phases above and of holds: held beats it (a missing
+ *   guard then found dead: the S4 held caution takes over), and it never counts as searching.
+ *
  * The module does not own incidents: a hold is a small record (`kind`, `aware`, `downAware`, the incident id it came from)
  * that the integration opens from the incident board (`holdKindFor`) and feeds (`addAware`, `onDown`, `onRevived`).
  *
@@ -46,6 +52,11 @@ export const MAX_KEYS = 32;
 
 export type HoldKind = 'dead' | 'witness' | 'contact' | 'missing';
 export const HOLD_KIND: readonly HoldKind[] = ['dead', 'witness', 'contact', 'missing'];
+
+/** (guard-ai S14) Timed section alert kinds (`Awareness.alertKind`): none, a missing guard, shots heard. */
+export const ALERT_NONE = 0;
+export const ALERT_MISSING = 1;
+export const ALERT_SHOTS = 2;
 
 /** Timed caution phases (`Awareness.phase`). */
 export const PHASE_NONE = 0;
@@ -87,6 +98,10 @@ export class Awareness {
   readonly cautionT = new Float32Array(MAX_KEYS);
   /** Timed phase: `PHASE_NONE`, `PHASE_SEARCH`, `PHASE_CAUTIOUS`. */
   readonly phase = new Uint8Array(MAX_KEYS);
+  /** (guard-ai S14) Seconds left on each key's timed section alert (0 none), and its kind (`ALERT_*`, the last to set
+   *  the longer time). */
+  readonly alertT = new Float32Array(MAX_KEYS);
+  readonly alertKind = new Uint8Array(MAX_KEYS);
 
   // ----- the hold pool (struct of arrays) -----
   readonly holdOpen = new Uint8Array(H);
@@ -118,6 +133,8 @@ export class Awareness {
     this.caution.fill(0);
     this.cautionT.fill(0);
     this.phase.fill(0);
+    this.alertT.fill(0);
+    this.alertKind.fill(0);
     this.holdOpen.fill(0);
     this.aware.fill(0);
     this.downAware.fill(0);
@@ -135,11 +152,39 @@ export class Awareness {
     this.dead = (this.dead & ~b) >>> 0;
     this.phase[k] = PHASE_NONE;
     this.cautionT[k] = 0;
+    this.alertT[k] = 0;
+    this.alertKind[k] = ALERT_NONE;
     for (let s = 0; s < H; s++) {
       this.aware[s] = this.aware[s]! & ~b;
       this.downAware[s] = this.downAware[s]! & ~b;
     }
     this.settle();
+  }
+
+  // ----- (guard-ai S14) the timed section alert -----
+
+  /** Key `k` hears that the section is on alert (`kind` `ALERT_MISSING` / `ALERT_SHOTS`): cautious `seconds` s (a key
+   *  already timed keeps the longer of the two: a later call refreshes it). False when the key is out of range or down
+   *  (dead, or knocked out and not woken). */
+  timedHold(k: number, seconds: number, kind: number): boolean {
+    const b = bit(k);
+    if (!b || (this.dead | this.ko) & b || !(seconds > 0)) return false;
+    if (seconds >= this.alertT[k]!) {
+      this.alertT[k] = seconds;
+      this.alertKind[k] = kind;
+    }
+    this.settle();
+    return true;
+  }
+
+  /** Seconds left on key `k`'s timed section alert (0 none). */
+  alertLeft(k: number): number {
+    return bit(k) ? this.alertT[k]! : 0;
+  }
+
+  /** The kind of key `k`'s timed section alert (`ALERT_*`; `ALERT_NONE` when it has none). */
+  alertOf(k: number): number {
+    return bit(k) && this.alertT[k]! > 0 ? this.alertKind[k]! : ALERT_NONE;
   }
 
   // ----- holds -----
@@ -198,6 +243,9 @@ export class Awareness {
     if (!b || this.dead & b) return;
     this.phase[k] = PHASE_NONE;
     this.cautionT[k] = 0;
+    // (S14) and his timed section alert (a woken guard is told again, or gets the knockout caution)
+    this.alertT[k] = 0;
+    this.alertKind[k] = ALERT_NONE;
     if (lethal) {
       this.dead = (this.dead | b) >>> 0;
       this.ko = (this.ko & ~b) >>> 0;
@@ -241,6 +289,13 @@ export class Awareness {
   /** Advance (5 Hz with the board): timed caution counts down; holds with nobody aware clear. */
   tick(dt: number): void {
     for (let k = 0; k < MAX_KEYS; k++) {
+      // (S14) the timed section alert
+      const a = this.alertT[k]!;
+      if (a > 0) {
+        const r = a - dt;
+        this.alertT[k] = r > 0 ? r : 0;
+        if (r <= 0) this.alertKind[k] = ALERT_NONE;
+      }
       const p = this.phase[k]!;
       if (p === PHASE_NONE) continue;
       const t = this.cautionT[k]! - dt;
@@ -379,7 +434,7 @@ export class Awareness {
     }
     this.held = held >>> 0;
     for (let k = 0; k < MAX_KEYS; k++) {
-      this.caution[k] = (held >>> k) & 1 ? 2 : this.phase[k] !== PHASE_NONE ? 1 : 0;
+      this.caution[k] = (held >>> k) & 1 ? 2 : this.phase[k] !== PHASE_NONE || this.alertT[k]! > 0 ? 1 : 0;
     }
   }
 }

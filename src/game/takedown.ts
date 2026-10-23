@@ -3,14 +3,15 @@
  * the victim within a few cm), how long each part takes. Blacklist rules: on the ground from behind or the
  * front at any awareness, from the side only on an unaware / suspicious enemy; over low cover; from above (a
  * ledge, pipe, zipline, a ceiling vent or any drop onto them); from below (pull a guard standing at a lip over
- * it while hanging); through a window (pull them through). Tap = non-lethal, hold = lethal.
+ * it while hanging); through a window (pull them through). Tap = non-lethal, hold = lethal. (hang-down) From the
+ * co-op hang-down (head-first under the partner's hands): a guard by the hanging head is grabbed (lifted) or neck-snapped.
  */
 import { hyp2 } from '../core/mathx';
 
-export type TakedownKind = 'behind' | 'front' | 'side' | 'overCover' | 'corner' | 'above' | 'below' | 'window' | 'drop' | 'inverted';
+export type TakedownKind = 'behind' | 'front' | 'side' | 'overCover' | 'corner' | 'above' | 'below' | 'window' | 'drop' | 'inverted' | 'hangDown' | 'assist';
 
 /** Where the attacker is. (3.2.0 phase 4: `split`, `pipe` (a horizontal pipe, hands / legs up), `inverted`, `rappel`.) */
-export type AttackerState = 'ground' | 'wallLow' | 'wall' | 'hang' | 'climb' | 'zipline' | 'duct' | 'window' | 'split' | 'pipe' | 'inverted' | 'rappel';
+export type AttackerState = 'ground' | 'wallLow' | 'wall' | 'hang' | 'climb' | 'zipline' | 'duct' | 'window' | 'split' | 'pipe' | 'inverted' | 'rappel' | 'hangDown';
 
 export const TAKEDOWN = {
   /** Ground reach (feet to feet, m) and height tolerance. */
@@ -47,7 +48,52 @@ export const TAKEDOWN = {
   invertedReach: 0.9,
   invertedMin: 0.6,
   invertedMax: 2.8,
+  /** (hang-down) From the co-op hang-down: the guard's neck (`HANG_GRAB.neck` over his feet) within this under / over
+   *  the hanging head (m) and within `hangReach` across of it (m). */
+  hangReach: 0.9,
+  hangBelow: 0.75,
+  hangAbove: 0.35,
 } as const;
+
+/** (hang-down) The grab and the neck snap from the hang-down (the guard lifted to the hanging player's hands). */
+export const HANG_GRAB = {
+  /** A guard's neck over his feet (m, 1.75 m body). */
+  neck: 1.5,
+  /** The hands hold the neck this far under the hanging head (m). */
+  hands: 0.35,
+  /** The guard is lifted at most this far off his floor (m). */
+  liftMax: 0.6,
+  /** The guard held this far from the hanging head across (m), in front of the chest. */
+  hold: 0.3,
+  /** Seconds from the press to the hands on him (his struggle starts there), then the lift. */
+  reach: 0.3,
+  lift: 0.5,
+  /** The quick takedown's strike (s): the choke (tap) / the neck snap (held). */
+  strike: 0.6,
+} as const;
+
+/** (hang-down) The guard's feet when his neck is at the hanging hands (the head at `headY`), lifted at most
+ *  `HANG_GRAB.liftMax` off his floor `floorY` and never under it. */
+export function hangLiftY(headY: number, floorY: number): number {
+  const y = headY - HANG_GRAB.hands - HANG_GRAB.neck;
+  return Math.max(floorY, Math.min(floorY + HANG_GRAB.liftMax, y));
+}
+
+/** (hang-down) Where a guard grabbed from the hang is held: `HANG_GRAB.hold` from the hang point (`ax`, `az`) along
+ *  `yaw` (the way to him at the grab), lifted (`hangLiftY`). Writes `out`. */
+export function hangHoldPoint(ax: number, az: number, headY: number, yaw: number, floorY: number, out: { x: number; y: number; z: number }): { x: number; y: number; z: number } {
+  out.x = ax + Math.sin(yaw) * HANG_GRAB.hold;
+  out.z = az + Math.cos(yaw) * HANG_GRAB.hold;
+  out.y = hangLiftY(headY, floorY);
+  return out;
+}
+
+/** (hang-down) A guard is in reach of the hanging hands: the head at `headY` over (`ax`, `az`), his feet at (`vx`,
+ *  `vy`, `vz`). */
+export function hangInReach(ax: number, az: number, headY: number, vx: number, vy: number, vz: number): boolean {
+  const dn = vy + HANG_GRAB.neck - headY;
+  return hyp2(vx - ax, vz - az) <= TAKEDOWN.hangReach && dn >= -TAKEDOWN.hangBelow && dn <= TAKEDOWN.hangAbove;
+}
 
 /** (3.2.0) The grab from behind and the human shield. */
 export const GRAB = {
@@ -82,8 +128,9 @@ export function grabDecides(toggle: boolean, pressed: boolean, holding: boolean)
   return toggle ? pressed : !holding;
 }
 
-/** Kinds that start a grab (held, then knocked out / killed / shoved / let go) instead of a strike. */
-export const GRAB_KINDS: readonly TakedownKind[] = ['behind'];
+/** Kinds that start a grab (held, then knocked out / killed / shoved / let go) instead of a strike. (hang-down) The grab
+ *  from the hang-down too (lifted, then the held rules). */
+export const GRAB_KINDS: readonly TakedownKind[] = ['behind', 'hangDown'];
 
 /**
  * (G7) Seconds from a takedown's press to the attacker's contact (the victim's struggle starts there, not at the press):
@@ -140,6 +187,19 @@ export interface TakedownPlan {
 
 function wrap(a: number): number {
   return Math.atan2(Math.sin(a), Math.cos(a));
+}
+
+/**
+ * (coop-walk-fixes P6) The co-op team takedown on a guard the partner holds as a hostage (Michael 4.72: "should trigger
+ * coop takedown"): from the ground within `TAKEDOWN.reach` across and `TAKEDOWN.dy` up / down, with line of sight, from
+ * any side (he cannot turn: he is held). The attacker stays where he stands facing the guard (approach 0; the holder
+ * keeps moving him), then the strike (tap = knockout, held = kill). Null when out of reach.
+ */
+export function assistPlan(ax: number, ay: number, az: number, vx: number, vy: number, vz: number, los: boolean): TakedownPlan | null {
+  const dx = vx - ax;
+  const dz = vz - az;
+  if (!los || Math.abs(vy - ay) > TAKEDOWN.dy || hyp2(dx, dz) > TAKEDOWN.reach) return null;
+  return { kind: 'assist', alignX: ax, alignY: ay, alignZ: az, faceYaw: Math.atan2(dx, dz), approach: 0, arc: 0, strike: TAKEDOWN.strike, victimTo: null };
 }
 
 /** The takedown the geometry allows, or null. */
@@ -218,6 +278,17 @@ export function pickTakedown(i: TakedownInput): TakedownPlan | null {
         strike: T.strike + 0.2,
         victimTo: { x: i.ax, y: i.vy + 0.12, z: i.az },
       };
+    }
+    case 'hangDown': {
+      // (hang-down) head-first under the partner's hands (`ay`: the hanging HEAD's height, the caller's root less
+      // `HANG_HEAD`): a guard by the head is grabbed (lifted) or neck-snapped where the hanger hangs; he comes up to
+      // the hands
+      const headY = i.ay;
+      if (!hangInReach(i.ax, i.az, headY, i.vx, i.vy, i.vz)) return null;
+      const yaw = d > 1e-3 ? face : i.vyaw + Math.PI;
+      const to = { x: 0, y: 0, z: 0 };
+      hangHoldPoint(i.ax, i.az, headY, yaw, i.vy, to);
+      return { kind: 'hangDown', alignX: i.ax, alignY: i.ay, alignZ: i.az, faceYaw: yaw, approach: 0, arc: 0, strike: HANG_GRAB.strike, victimTo: to };
     }
     case 'hang': {
       // (3.2.0) a guard below: drop on them

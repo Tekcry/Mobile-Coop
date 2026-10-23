@@ -43,8 +43,8 @@ const CLOUD_BUDGET = preset && PRESET_BUDGET[preset]
     // SwiftShader GL stalls land inside the render's JS). Draws / triangles: the regression check, measured 3.1.0
     // + ~15-25% (444 draws, 1.34 M triangles over every pass incl. shadows; the laptop's GPU budget is 600 / 8 M)
     { cpuP95Ms: 2, animPerCharMs: 0.04, drawCalls: 520, trisM: 1.7, kbPerSecond: 11520 }
-  : // the test-path check (gfx=min: no post stack, no voxel characters; 20 cm voxels until smooth-world, now the blockout's
-    // boxes unless `?voxels=1`); measured 3.1.0:
+  : // the test-path check (gfx=min: no post stack, no voxel look; the blockout's
+    // boxes); measured 3.1.0:
     // sim p95 1.5 ms, 43 draws, 0.14 M triangles
     { cpuP95Ms: 2.5, animPerCharMs: 0.04, drawCalls: 55, trisM: 0.2, kbPerSecond: 11520 };
 

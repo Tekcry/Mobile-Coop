@@ -1,5 +1,6 @@
 import { Vector3 } from '../core/babylon';
 import type { GameState, NetAttachment } from '../game/gameState';
+import type { TakedownVictim } from '../game/takedownController';
 import type { Blip } from '../ui/hud/minimap';
 import type { BlobShadows } from '../vfx/blobShadows';
 import { Ragdoll } from '../ai/ragdoll';
@@ -12,7 +13,7 @@ import type { HitInfo } from '../game/damage';
 import { Interactables, KIND_COLOR, type Interactable } from '../game/interactables';
 import { CRATE_DARK, applyCrateEvent } from '../game/crateLedger';
 import type { NetSession } from './session';
-import { PF, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, wirePlayerState } from './protocol';
+import { BARK_CAM, BARK_TEXT, PF, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, wirePlayerState } from './protocol';
 import { ClockSync } from './interp';
 import type { CKind } from '../game/committedMoves';
 import { RemoteAvatar } from './remoteAvatar';
@@ -38,6 +39,9 @@ import { dropBadWallMove, emptyMoveState, moveChanged } from '../player/moveStat
 import { CrackPrediction } from '../world/doorPeek';
 import { markCompleted } from '../save/sectorRecord';
 import { BOLT_DEPTH, SECTOR_RESTART_TITLE, boltById, boltHalfSpan } from '../game/sectors';
+import { barkLine, BARK_EVENTS, RADIO_BARKS } from '../ai/barks';
+import { HelmetDrops } from '../ai/helmetDrops';
+import { DeflectLedger } from './puppetGear';
 import { DESK_NONE, deskItemId, deskModeOf } from '../game/sectorDesks';
 
 const SEND_HZ = 20;
@@ -89,6 +93,13 @@ export class CoopClient implements NetAttachment {
   /** (sector-redesign slice L, protocol 31) Sector Ops: the host's fixed lights (switched, shot) on this page's registry,
    *  so the picture, the meter and the guards' torch reads match the host's; null elsewhere. */
   lamps: LampMirror | null = null;
+  /** (guard-ai S9, protocol 38) Dropped helmets shown here (built on the first drop), the deflect markers our puppets
+   *  predicted against the host's confirms, and the host's deflect confirms for us (tests / e2e). */
+  helmetDrops: HelmetDrops | null = null;
+  private readonly deflects = new DeflectLedger();
+  deflectConfirms = 0;
+  /** (guard-ai S9) The host's guard lines shown here (tests / e2e). */
+  barksShown = 0;
   /** The cue for a lamp the host reports newly shot out (the host's own sparks). */
   private readonly lampSparks = (l: LightDef): void => this.g.vfx.sparks(new Vector3(l.x, l.y, l.z), Vector3.Down(), 10, '#fff1c8');
 
@@ -264,7 +275,7 @@ export class CoopClient implements NetAttachment {
       if (!info) return null;
       const g = this.g;
       a = new RemoteAvatar(g.world, g.vfx, g.ballistics, info);
-      a.onFire = (cls, at) => g.events.emit('remoteShot', { cls, x: at.x, y: at.y, z: at.z });
+      a.onFire = (cls, at, gun, quiet) => g.events.emit('remoteShot', { cls, x: at.x, y: at.y, z: at.z, gun, quiet });
       this.avatars.set(st.id, a);
       setPlayerGlow(a.figure, [...this.s.players.values()], st.id);
       // course mode (D38): the partner can be shot (the host decides the damage, co-op rules)
@@ -321,6 +332,9 @@ export class CoopClient implements NetAttachment {
       if (!p) {
         const np = new EnemyPuppet(g.scene, g.world, g.registry, e.id, e.k);
         np.onShot = (h) => this.sendShot(np.id, h);
+        // (guard-ai S9) our own deflect shown at once; his helmet falling when the host's bit clears
+        np.onDeflect = () => this.deflects.predict(this.time);
+        np.onDropHelmet = (x, y, z, top, dx, dz, hex, w, h, d) => this.dropHelmet(x, y, z, top, dx, dz, hex, w, h, d);
         // (PR 3) the training guard's information: the course slot he appeared at (both sides load the same map; no wire data)
         np.info = infoAtSpawn(g.world.layout.course?.squads, e.x, e.z);
         // the kind of our own takedown (its 'start' event) goes with the result: the host ticks the course verb (A23)
@@ -489,6 +503,19 @@ export class CoopClient implements NetAttachment {
     return this.selfSpotted;
   }
 
+  /** (coop-walk-fixes P6) A partner (the host or another client) holds guard `v` as a hostage: his puppet is posed from
+   *  that partner's `grab` MoveState (`remoteHeld`). The team takedown on him is on offer here. */
+  partnerHolds(v: TakedownVictim): boolean {
+    const p = this.puppets.get(v.id);
+    return !!p && p === v && p.partnerHeld;
+  }
+
+  /** (P6) Our team takedown on a partner's hostage: the host checks and applies it (`td`, kind `assist`); the guard goes
+   *  down when the host's kill event comes back. */
+  assistTakedown(v: TakedownVictim, ph: 'start' | 'done' | 'abort', lethal: boolean): void {
+    this.s.toHost({ t: 'td', target: v.id, ph, lethal, kind: 'assist' });
+  }
+
   private applySelf(p: PlayerState): void {
     this.selfSpotted = (p.f & PF.spotted) !== 0;
     const g = this.g;
@@ -609,7 +636,8 @@ export class CoopClient implements NetAttachment {
         if (e.player !== me) break;
         const p = this.puppets.get(e.enemy);
         if (p && g.takedown.active?.e === p) g.takedown.abort();
-        p?.deny();
+        // (P6) a denied team takedown: the partner still holds him (his puppet stays posed from that hold)
+        if (!p?.partnerHeld) p?.deny();
         break;
       }
       case 'banner':
@@ -617,12 +645,17 @@ export class CoopClient implements NetAttachment {
         // (sector-restart, M9) the host restarted the section: our side of the clean start (loadout, gadgets, music)
         if (e.title === SECTOR_RESTART_TITLE && g.opts.mode === 'sector') {
           g.checkpointReset();
+          // (guard-ai S9) a clean start: the dropped helmets go, as the host's `clear`
+          this.helmetDrops?.clear();
           // (E9-crate, A105) every crate usable again
           this.clearCrates();
         }
         break;
       case 'feed':
+        // a radio line (subtitle), also kept in the feed: the host's interrogation intel arrives as these and the host
+        // shows it in its feed (`revealIntel`); a bark alone left the client's feed without it
         g.hud.barks.say('lantern', e.text, true);
+        g.hud.feedItem(e.text);
         break;
       case 'pickup':
         if (e.player !== me) break;
@@ -669,6 +702,9 @@ export class CoopClient implements NetAttachment {
         if (e.player !== me) break;
         g.player.controller.override = null;
         g.traversal.reset();
+        // (strike-pops, n4d polish 1) a bay or section restart brings an alive partner back too: no strike or kill
+        // follow-through carried onto the restarted player (the host's own respawn does the same)
+        g.strike.reset();
         g.player.controller.teleport(new Vector3(e.x, e.y, e.z), g.player.cam.yaw);
         g.target.revive();
         g.hud.setDownTimer(null);
@@ -683,7 +719,28 @@ export class CoopClient implements NetAttachment {
         g.player.cam.yaw = e.yaw;
         break;
       case 'hitConfirm':
+        // (guard-ai S9, protocol 38) hits and kills are shown from our puppets at once (kills by `kill`); a deflect we
+        // did not predict (his gear bit not here yet) shows as the host's own deflect does (marker and ping)
+        if (e.player !== me || e.kind !== 'deflect') break;
+        this.deflectConfirms++;
+        if (this.deflects.confirm(this.time)) {
+          g.hud.hitMarker('deflect');
+          g.app.sfx.hitMarker('deflect');
+        }
         break;
+      case 'bark': {
+        // (guard-ai S9, protocol 38) the host's guard lines, as the host shows them (over the speaker, the subtitle,
+        // the radio chirp)
+        const text = e.b === BARK_CAM || e.b === BARK_TEXT;
+        const line = text ? (e.t ?? null) : barkLine(e.b, e.n, e.u);
+        if (!line) break;
+        const ev = BARK_EVENTS[e.b];
+        const radio = text ? e.r : ev !== undefined && RADIO_BARKS.has(ev);
+        g.hud.barks.say(e.b === BARK_CAM ? `cam:${e.id}` : e.id, line, radio);
+        g.events.emit('bark', { radio });
+        this.barksShown++;
+        break;
+      }
       case 'gadget':
         if (e.player !== me) g.gadgets.remoteEffect(e.kind, new Vector3(e.x, e.y, e.z));
         break;
@@ -771,6 +828,7 @@ export class CoopClient implements NetAttachment {
         f: localFlags(g),
         w: g.weapons.current.def.id,
         hp: g.target.health.hp,
+        sc: g.weapons.shotCount & 255,
         mv,
       }),
     });
@@ -807,11 +865,27 @@ export class CoopClient implements NetAttachment {
     // (coop-torches) after the guards moved: their torches as the host's (placed from what is drawn)
     this.torches.update(this.puppetList);
     for (const p of this.dying) p.settle(dt);
+    this.helmetDrops?.update(dt);
     for (let i = this.ragdolls.length - 1; i >= 0; i--) {
       const r = this.ragdolls[i]!;
       r.update(dt);
       if (r.done) this.ragdolls.splice(i, 1);
     }
+  }
+
+  /** (guard-ai S9) A puppet's helmet falls (the pool is built on the first drop, as the host's). */
+  private dropHelmet(x: number, y: number, z: number, top: number, dx: number, dz: number, hex: string, w: number, h: number, d: number): void {
+    const world = this.g.world;
+    const drops = (this.helmetDrops ??= new HelmetDrops(world.parts, (m) => world.addShadowCaster(m)));
+    drops.drop(x, y, z, top, dx, dz, hex, w, h, d);
+  }
+
+  /** (guard-ai S9) Where guard `who`'s line shows: over his puppet's head (false: not here or down). */
+  barkAt(who: string, out: Vector3): boolean {
+    const p = this.puppets.get(who);
+    if (!p || p.dead) return false;
+    out.set(p.pos.x, p.pos.y + (p.def.quadruped ? 1.0 : 2.15 * p.def.scale), p.pos.z);
+    return true;
   }
 
   private dropBody(id: string): void {
@@ -871,6 +945,7 @@ export class CoopClient implements NetAttachment {
     for (const p of this.dying) p.dispose();
     for (const r of this.ragdolls) r.dispose();
     this.torches.clear();
+    this.helmetDrops?.clear();
     this.puppets.clear();
     this.puppetList = [];
     this.dying.length = 0;
