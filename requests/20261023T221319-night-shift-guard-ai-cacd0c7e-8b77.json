@@ -1,0 +1,13 @@
+{
+  "id": "20261023T221319-night-shift-guard-ai-cacd0c7e-8b77",
+  "sha": "cacd0c7ea2f73250a12824d6ee710cde5049348c",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-sectorops:1"
+  ],
+  "jobs": 1,
+  "set": "s13-master"
+}
