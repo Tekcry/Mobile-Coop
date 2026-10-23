@@ -367,6 +367,9 @@ try {
       const V = g.player.position.constructor;
       const t = em.newTeam(0, null, [], []);
       const out = [];
+      // (S9-CHECK) the Ledger keeps 9 alive and the live cap is 12: room for the three even after an alarm's reinforcements
+      em['s9Cap'] = em.maxAlive;
+      em.maxAlive = Math.max(em.maxAlive, em.alive + 3);
       const kinds = ['enforcer', 'grunt', 'grunt'];
       for (let i = 0; i < kinds.length; i++) {
         const e = em.spawnReinforcement(kinds[i], new V(12 + i * 1.2, 0, -6.5), 0, 0);
@@ -387,6 +390,7 @@ try {
       const em = window.__app.current.enemyMgr;
       for (const id of ids) { const e = em.enemies.find((x) => x.id === id); if (e) em.despawn(e); }
       em.teams.length = 0;
+      if (em['s9Cap'] !== undefined) em.maxAlive = em['s9Cap'];
       // later spawns in this match carry no stage gear
       em.setAlarmStage(0, false);
     }, team.map((m) => m.id));
@@ -424,7 +428,8 @@ try {
         const res = p.applyDamage({ amount: 40, point: pt, dir: pt.subtract(src).normalize(), part: 'head', kind: 'bullet', attackerTeam: 'player', attackerId: 'local', weapon: 'rifle', sourcePos: src, impulse: 3 });
         return { dealt: res.dealt, deflect: res.deflect === true };
       }, gid);
-      await wait(300);
+      // (S9-CHECK) wait for the host's verdict before the next round: a second round after the knock-off is a kill
+      await until(A, (id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); return !e || !e.alive || !e.helmet; }, gid, 800, 'host verdict').catch(() => {});
       deflected = await GA((id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); return !!e && e.alive && !e.helmet; }, gid);
     }
     const hostSide = await GA((id) => { const em = window.__app.current.enemyMgr; const e = em.enemies.find((x) => x.id === id); return { alive: e?.alive, helmet: e?.helmet, armour: e?.armour, drops: em.helmetDrops.shown }; }, gid);
