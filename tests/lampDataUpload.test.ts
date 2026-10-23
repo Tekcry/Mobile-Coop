@@ -2,12 +2,16 @@
  * (LR16-P F1) The lamp data texture re-sends only its dynamic rows each frame: every per-frame write (lamp colours and
  * flicker, capsule ids and character shadow slots, the pendants' t0, the capsules, the doors' shut flags) sits at or
  * after `lampBase`, so `frame()` uploads from the row holding it to the end (`texSubImage2D`); the static grid above it
- * goes up whole only at load, on a registry change and on a restored context. Same texels, same GLSL.
+ * goes up whole only at load, on a registry change and on a restored context. Same texels, same GLSL. Also driven here:
+ * a swinging pendant's t0 (`writeSway`, from the registry's `tickSway`) and a character shadow slot id (a stub link).
  */
 import { describe, expect, it, vi } from 'vitest';
 import { bakeLamps, LAMP_GRID_TEXELS, lampGrid } from '../src/voxel/lampBake';
 import { packShapes, type VoxelShape } from '../src/voxel/shapes';
 import { LightRegistry } from '../src/world/lights';
+import { claimHangers, SwaySet } from '../src/world/lampSway';
+import type { BoxPiece } from '../src/world/levelBuilder';
+import type { CharShadowLink } from '../src/world/charShadows';
 import { bakedLights } from '../src/world/lightBake';
 import { DOORS_PER_LAMP_ACCURATE, type FieldDoor } from '../src/world/lightField';
 import { LevelBuilder } from '../src/world/levelBuilder';
@@ -39,7 +43,7 @@ describe('(LR16-P F1) BakedLamps uploads the dynamic rows only', () => {
     const reg = new LightRegistry();
     const a = reg.add({ x: -3, y: 3, z: 0, radius: 6, intensity: 1 }).id;
     const b = reg.add({ x: 3, y: 3, z: 0, radius: 6, intensity: 1 }).id;
-    reg.add({ x: 0, y: 3, z: 6, radius: 5, intensity: 0.8 });
+    const c = reg.add({ x: 0, y: 3, z: 6, radius: 5, intensity: 0.8 });
     const baked = bakedLights(reg);
     const lo: [number, number, number] = [-10, -0.5, -10];
     const hi: [number, number, number] = [10, 6, 10];
@@ -105,6 +109,50 @@ describe('(LR16-P F1) BakedLamps uploads the dynamic rows only', () => {
     expect(full).toHaveBeenCalledTimes(1);
     expect(lamps.fullUploads).toBe(fulls + 1);
     for (let i = 0; i < buf.length; i++) if (buf[i] !== snap[i]) expect(i).toBeGreaterThanOrEqual(y0 * w * 4);
+
+    // (the pendant t0 step) lamp c hangs on two rods, kicked: its t0 xyz move, in the same one sub upload
+    // (the fixture is set after the bake so the bake itself is unchanged; `World.frame` calls `writeSway` before `frame`)
+    c.fixture = { sx: 1.2, sy: 0.08, sz: 0.22, oy: 0.08 };
+    const top = c.y + c.fixture.oy + c.fixture.sy / 2;
+    const rods: BoxPiece[] = [-0.5, 0.5].map((dx) => ({ c: [c.x + dx, top + 1.2, c.z], s: [0.04, 2.4, 0.04], yaw: 0, pitch: 0, color: '#888', collide: false, visible: true }));
+    reg.sway = new SwaySet([{ light: c, hangers: claimHangers(rods, c) }]);
+    const t0c = (lamps.lampBase + 2 * lamps.lampTexels) * 4;
+    snap = buf.slice();
+    subs.length = 0;
+    full.mockClear();
+    reg.swayImpulse(c.id, 1, 0.2, 0);
+    reg.tickSway(1.1);
+    expect(reg.swayVersion).toBeGreaterThan(0);
+    lamps.writeSway();
+    lamps.frame();
+    let swayChanged = 0;
+    for (let i = 0; i < buf.length; i++) {
+      if (buf[i] === snap[i]) continue;
+      swayChanged++;
+      expect(i, `texel ${Math.floor(i / 4)}`).toBeGreaterThanOrEqual(y0 * w * 4);
+    }
+    expect(swayChanged).toBeGreaterThanOrEqual(1);
+    expect([0, 1, 2].some((k) => buf[t0c + k] !== snap[t0c + k])).toBe(true);
+    expect(buf[t0c]).toBeCloseTo(c.x + c.swx, 5);
+    expect(full).not.toHaveBeenCalled();
+    expect(subs.length).toBe(1);
+    expect(subs[0]!.y).toBe(y0);
+
+    // (the character shadow slot id) lamp a holds slot 0: its t7.x = slot + 1, in the dynamic rows
+    const slots = new Int8Array(3).fill(-1);
+    slots[0] = 0;
+    lamps.charShadows = { on: true, lampSlot: slots, covers: () => false } as unknown as CharShadowLink;
+    const aLo = (lamps.lampBase + 0 * lamps.lampTexels) * 4;
+    expect(buf[aLo + 28]).toBe(0);
+    snap = buf.slice();
+    subs.length = 0;
+    lamps.frame();
+    expect(buf[aLo + 28]).toBe(1);
+    expect(aLo + 28).toBeGreaterThanOrEqual(y0 * w * 4);
+    for (let i = 0; i < buf.length; i++) if (buf[i] !== snap[i]) expect(i).toBeGreaterThanOrEqual(y0 * w * 4);
+    expect(full).not.toHaveBeenCalled();
+    expect(subs.length).toBe(1);
+    lamps.charShadows = null;
 
     // a restored context re-sends the whole texture
     full.mockClear();
