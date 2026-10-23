@@ -288,7 +288,7 @@ Non-net PR: at most 1-2 area suites (orchestrator 23:08). Every agent: CPU wait 
   (label + orchestrator told ~01:35). Polish 1-6 held for the next batch. Opus L-A
   finisher on -lr16l-a (ad4c74ad; checks/lr16l-a-build.md). Swap WIP pushed: -lr16pol-b 536581f1, -lr16pol-e 962efbbf
   (unchecked, finish later). Polish A + D check PASS (checks/lr16pol-ad-check.md). LR16-W brief still missing.
-QUEUED on the laptop: 82f9e1bb-6cfc (lr16int: coop + netmove).
+QUEUED on the laptop: 7a3b5815-a012 (lr16int: sectorops ctcourse lightbake darkness).
 OPEN PR #226 campus art: target head -artpol b5e93548 (#226 head still -art 2276483a, CONFLICTING). Green -> push -artpol
   (+ polish D, docs only) to -art; at train entry merge master (fold animFrozen.ts into animTier.ts) + artnext C7-C9;
   label train-ready + message the orchestrator. Fail -> Opus triage.
@@ -308,14 +308,16 @@ Chain (all agents die at the swap; each branch has a WIP commit; rerun from brie
    "INT"), one Opus checker (g + L-A + W), laptop sectorops + ctcourse + sheet.
    S1 DONE d63ccd38 (S1 12/12; C-entry: 4 S2 points at (-14.5, -5.4) 0.37), S2 DONE 678241fe (41 cleared, rack tops
    pass), S3 DONE b997a0fe (S3 11/11; S2 "C3 far door" 0.54 -> 0.50 accepted). Tolerance-edge passes accepted.
-   RUNNING ~02:55: Opus merge + INT on feature/sector-redesign-lr16w (worktree -lr16w; t, s1, s2, s3, not c2;
-   checks/lr16w-int.md). Then ONE Opus checker (g + L-A + W) in parallel with the laptop request (sectorops, ctcourse,
-   lightbake, darkness) on the INT head.
+   INT DONE -lr16w 7f81c2db (checks/lr16w-int.md): #56 beam 0.62 clears the 4 C2-door points; red list EMPTY;
+   325 tests. Stale warehouseLamps.test.ts:119 plantDeck -15.15 keys (polish).
    T DONE bef5ca5f (checks/lr16w-t-build.md): post at (17.55, 38.5) not 37 (lead call: accepted; 37 shades the cage
    west third), cage floor 0.29 -> 1.00, lint 0 errors. C2 DONE e2416712 but DROPPED: master already has Marlow's A1-A8
    ctcourse (no S7 stair, no ctcourseLight.tuned.json), so do not merge -lr16w-c2. RISK at the LR16 train entry: master's
    tests/ctcourseLight.test.ts gates Marlow's new map under LR16 lighting - run it on the merged tree first. Stale: -lr16wp worktree (detached 02419d1b, old planner probes; remove later).
-4. ONE Opus checker on g + L-A + W together; merge -lr16g -> -lr16l-a -> W parts into lr16int.
+4. lr16int 7a3b5815 = 82f9e1bb (laptop coop + netmove GREEN) + -lr16w 7f81c2db + pol-a 36547c1e (lead merge, clean; tsc
+   + 11 light files 136 pass). RUNNING: Opus checker (checks/lr16w-batch-check.md); laptop 7a3b5815-a012 (sectorops,
+   ctcourse, lightbake, darkness). Opus finisher for pol-b (536581f1) then pol-e (962efbbf), reports
+   checks/lr16pol-{b,e}-build.md; then one Opus checker B + E + L-B (7ed21ed6).
 Parallel (off lr16int 82f9e1bb, briefs/LR16-POLISH.md; builders started 23:20, WIP pushed): pol-a (Sonnet; skip the
   lampBounce.test.ts item -> F), pol-b (Opus torch picture), pol-e (Opus rig bulbs / comments), lr16l-b (Opus, LR16-L
   part B picture-only Low fixes), pol-d (Sonnet docs off artpol b5e93548). Checkers: Sonnet A + D, Opus B + C + L-B,
