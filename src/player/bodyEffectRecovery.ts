@@ -8,14 +8,20 @@ import { getStateObject, type Effect, type Mesh, type Scene } from '../core/baby
  * reduced defines or gives up, and the material keeps that effect: `isReadyForSubMesh` stays false, so the body is
  * not drawn for two minutes or for good (its weapons, other effects, still are). Seen on the laptop GPU after a long
  * stall (16.5 s of headless sim in one block) while a new body variant compiled. The watch below, run once per
- * render for each body mesh (no allocation), recompiles the body's effect at once when it can never become ready
- * (timed out, failed for good, or its program context disposed under it), and after `STUCK_MS` / `STUCK_FRAMES` of
- * rendering when it simply never finishes; at most `MAX_RECOMPILES` times per shader variant, with a log line.
- * Render side only: nothing in gameplay reads it.
+ * render for each body mesh (no allocation), recompiles the body's effect at once when it can never become ready:
+ * Babylon's own poll timed out (its onError), the compile failed for good, or its program context was disposed under
+ * it; at most `MAX_RECOMPILES` times per shader variant, with a log line.
+ * (body watchdog) A compile that is merely still running (KHR_parallel_shader_compile not done) is NOT stuck: a cold
+ * D3D11 compile of a big Epic body variant (LR16's lamp code, three browsers at once) takes well over 8 s, and the old
+ * 8 s cap restarted it and warned (e2e-lightbake's no-console-errors assert). Only a last-resort cap, `STUCK_MS` and
+ * `STUCK_FRAMES` together (still ahead of Babylon's own 120 s timeout), drops one that never finishes; nothing is
+ * logged before then. A recompile's own drop of the old program no longer reads as the new effect's program disposed:
+ * `src/core/babylon.ts` (`unlinkCachedPipeline`) keeps a late delete of the old context off the successor cached under
+ * the same key. Render side only: nothing in gameplay reads it.
  */
 
-/** Wall time (ms) and rendered frames a body effect may stay unready before it is recompiled anyway. */
-export const STUCK_MS = 8000;
+/** Last resort: wall time (ms) and rendered frames a body effect may stay unready (compiling) before it is recompiled. */
+export const STUCK_MS = 45000;
 export const STUCK_FRAMES = 30;
 /** Recompiles per shader variant (effect key) before the body is left to Babylon. */
 export const MAX_RECOMPILES = 3;
@@ -39,7 +45,10 @@ export function resetEffectRecovery(): void {
   RECOMPILES.clear();
 }
 
-/** Why `effect` (unready) will not become ready by itself, or null while it may still. */
+/**
+ * Why `effect` (unready) will not become ready by itself, or null while it may still (a compile still running is timed
+ * against the last-resort cap only).
+ */
 export function stuckReason(effect: Effect, w: EffectWatch, now: number): string | null {
   const err = effect.getCompilationError();
   if (err.includes('timed out')) return 'compile timed out';
@@ -101,7 +110,9 @@ export function recompileEffect(scene: Scene, effect: Effect, reason: string, la
     }
     if (held && m.skeleton && m.numBoneInfluencers > 0 && !m.computeBonesUsingShaders) m.computeBonesUsingShaders = true;
   }
-  // out of the engine's compiled effects (`createEffect` would hand it back) and its program released; the poll stops
+  // out of the engine's compiled effects (`createEffect` would hand it back) and its program released; the poll stops.
+  // (body watchdog) Its program's delete may run seconds later (still linking): `src/core/babylon.ts` unlinks it from
+  // the GL cache first, so that late delete can no longer dispose the new effect's program cached under the same key.
   effect.dispose(true);
   // a pipeline left cached under the key (the last fallback's, when the effect gave up) would be reused as compiled
   const engine = scene.getEngine() as unknown as { _gl?: WebGL2RenderingContext; _deletePipelineContext(p: unknown): void };
