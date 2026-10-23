@@ -3,7 +3,21 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
-**Test Runner SAVE 15 (2026-10-23 ~16:20, new account; wins over all below):**
+**Test Runner SAVE 16 (2026-10-23 ~17:05; wins over all below):**
+- SENT GREEN: train 27 e83f423a 39/39 (merged 4.76.0), train 28 3a2b1e9a 39/39 (JOBS=3); Guard AI S9 #229 3c49981e,
+  S16 #228 7f91bf3a, S22 301ade39, A126 267553bf; Sector Ops #226 08af0e9f sectorops:1, #232 273539ec sectorops:6 +
+  falloff=photo trio; Player stack 0d7f04ce coop (rest green on d86007b5), AF6 b1de49f5 coop + netmove.
+- Guard-render: orchestrator approved closing with #225; write M1 (SAVE 15 numbers) into docs/guard-render/STATE.md +
+  polish list in the voxel-retire batch PR after merging master.
+- voxel-retire: c8d1b5da built, Opus checker PASS (caa940e2 docs). Batch running runs/voxelretire-c8d1b5da (4191).
+- QUEUED (scheduled tasks): 4189 chain-1023mf Marlow full 64e64ef0 (running) -> chain-1023ap #226 2276483a coop, then
+  4189 alone: work/campus-view-perf2.mjs (guards + &guardfreeze=0; __sector.debug() guardFreeze* keys) + guard-cap
+  campus 24 -> chain-1023lr15 LR15 e60730c4 (suites Classic + photo, perf.mjs MAP/MODE x high/epic x EXTRA=falloff=photo
+  alone, scratch/campus-sheet.mjs S2 / S3 sheet). 4191 chain-1023gs2: calm-guard redo 267553bf (fixed
+  scratch/guard-calm-shots.mjs: Warehouse infiltration, 16.5 s calm, labels carryCalm()/carry.calmT) after vx.
+- First calm sheet (work/guardcalm-267553bf) missed framing; officer draw ok; grunt low ready was the parked mode.
+
+**Test Runner SAVE 15 (2026-10-23 ~16:20, new account):**
 - All SAVE 14 runs finished (DONE). SENT: Guard AI S16 fb192d45 FAIL sectorops:6 (armoured-window sight assert), S9
   f2fd1219 GREEN 4/4, walk 906765a4 GREEN 18/18. Sector Ops: art perf 5504e2e3 CPU p95 over at S3/S4/S5 (14.5 / 12.4 /
   15.6; 0 guards 7.0 / 6.7 / 7.4), GPU ok; perf.mjs cmd2 ran map warehouse (wrong flag, ignore); lighting f03bb0ea 6/7,
