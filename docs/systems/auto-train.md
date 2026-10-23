@@ -49,7 +49,7 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
 | Anything else (CI or laptop pending / missing) | pending | wait |
 | No open train, no `train-ready` PR with a green `check` | idle | none |
 | Candidates, but the last release is under `--min-interval` min old and the laptop queue is not idle (or `--max-per-day` reached) | waiting | none |
-| Candidates, paced to go | building / built | (build marker written) `merge-train build <n+1> <version> "<title>" <branches...>`; exit 2 -> failed (and an `auto-train/vitest` failure status on the head); exit 3 -> failed (every member left out); exit 4 (vitest not run: the heavy-lock wait timed out; the train is pushed and CI's `check` runs the unit tests) -> pending, the next tick goes on |
+| Candidates, paced to go | building / built | (build marker written) `merge-train build <n+1> <version> "<title>" <branches...>`; a member left out on a conflict loses `train-ready` and gets a comment; exit 2 -> failed (and an `auto-train/vitest` failure status on the head); exit 3 -> failed (every member left out); exit 4 (vitest not run: the heavy-lock wait timed out; the train is pushed and CI's `check` runs the unit tests) -> pending, the next tick goes on |
 | Any command error, or no version for the open train | error | none |
 
 - The `build` vitest step (under the heavy lock) is load-tolerant: when the full run fails and every failure is a `Test timed out in` or at most 3 test files failed, only those files rerun once with `npx vitest run --no-file-parallelism <files>`; a pass there is ok ("passed on isolated rerun: <files>"), a fail reports the rerun's tail. More than 3 failed files that are not all timeouts fail at once, no rerun.
@@ -64,9 +64,11 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
   kind line, or is missing; patch when all say `kind: patch`. Title: the fragments' `# ` titles (else the PR titles)
   joined with "; ", whole titles up to ~200 chars then "; +k more".
 - `<n>`: the highest `train/<k>` branch on origin or "train <k>" in a PR title / head, plus one.
-- Left out on a conflict: listed in the status `leftOut`, and the PR gets one comment per head
-  (`<!-- auto-train:left-out:<sha> -->`) asking the lead to fix the conflict; its label stays, so it joins the next
-  train once it merges cleanly.
+- Left out on a conflict: listed in the status `leftOut`; the PR loses its `train-ready` label
+  (`gh pr edit <pr> --remove-label train-ready`, logged; a failed removal is logged, not fatal), so it stops being a
+  candidate and no longer causes repeat empty builds (audit 2026-10-24), and it gets one comment per head
+  (`<!-- auto-train:left-out:<sha> -->`) saying the label was removed: the lead fixes the conflict and re-adds
+  `train-ready`. Under `--dry-run` both are printed only.
 - The pacing laptop queue: `origin/laptop-queue` read through the GitHub tree API. Busy while any `*.json` sits under a
   `pending/` folder (or is named `pending*`) or any `running*` file or `running/` folder exists; idle otherwise. No
   such branch: the interval alone paces.
@@ -94,7 +96,8 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
 
 ## Rules it keeps
 - Never forces anything (merge-train's own `build` force-pushes only `train/<n>`), never touches dev or master
-  directly (merge-train's `release` merges the PR, tags and moves dev), never removes labels or closes PRs.
+  directly (merge-train's `release` merges the PR, tags and moves dev), never closes PRs; the only label it removes is
+  `train-ready` from a member left out on a conflict.
 - Every gh or git write goes through one `act()` (and merge-train calls through `mergeTrain()`); both only print under
   `--dry-run`.
 

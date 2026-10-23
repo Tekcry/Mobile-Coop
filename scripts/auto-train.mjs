@@ -576,18 +576,33 @@ function nextN() {
   return nextTrainNumber(branches, titles);
 }
 
-/** One comment per PR head asking the lead to clear its conflict. */
+/**
+ * A left-out member: { remove: the `gh pr edit` argv dropping LABEL (null when the PR does not carry it), comment: the
+ * comment body (null when this head already has one, by its marker) }. The label goes so the member stops being a
+ * candidate (no repeat empty builds); the lead re-adds it after fixing the conflict (audit 2026-10-24 item 4).
+ */
+export function leftOutPlan({ pr, branch, head, n, why, labels = [], bodies = [] }) {
+  const marker = `<!-- auto-train:left-out:${head} -->`;
+  const comment = bodies.some((b) => String(b).includes(marker)) ? null : [
+    `Auto-train: \`${branch}\` (${short(head)}) was left out of train ${n}: ${why}.`,
+    `Please fix the conflict with master on this branch (or on train/${n}). The \`${LABEL}\` label has been removed, so this PR no longer joins trains: re-add \`${LABEL}\` once the conflict is fixed and \`check\` is green.`,
+    marker].join('\n\n');
+  const remove = labels.includes(LABEL) ? ['gh', 'pr', 'edit', String(pr), '--remove-label', LABEL] : null;
+  return { remove, comment };
+}
+
+/** Per left-out PR: drop its `train-ready` label (logged; a failure is logged, not fatal) and comment once per head. */
 function commentLeftOut(cands, left, n) {
   for (const l of left) {
     const c = cands.find((x) => x.branch === l.branch);
     if (!c?.pr) continue;
-    const marker = `<!-- auto-train:left-out:${c.head} -->`;
-    const bodies = readJson(['gh', 'pr', 'view', String(c.pr), '--json', 'comments']).comments.map((x) => x.body);
-    if (bodies.some((b) => b.includes(marker))) continue;
-    act(['gh', 'pr', 'comment', String(c.pr), '--body', [
-      `Auto-train: \`${c.branch}\` (${short(c.head)}) was left out of train ${n}: ${l.why}.`,
-      `Please fix the conflict with master on this branch (or on train/${n}); it keeps the \`${LABEL}\` label and joins the next train once \`check\` is green.`,
-      marker].join('\n\n')]);
+    const v = readJson(['gh', 'pr', 'view', String(c.pr), '--json', 'comments,labels']);
+    const lp = leftOutPlan({ pr: c.pr, branch: c.branch, head: c.head, n, why: l.why, labels: (v.labels ?? []).map((x) => x.name), bodies: (v.comments ?? []).map((x) => x.body) });
+    if (lp.remove) {
+      log(`  #${c.pr} ${c.branch}: left out of train ${n}, removing ${LABEL}`);
+      try { act(lp.remove); } catch (e) { log(`  #${c.pr}: label removal failed: ${e.message}`); }
+    }
+    if (lp.comment) act(['gh', 'pr', 'comment', String(c.pr), '--body', lp.comment]);
   }
 }
 

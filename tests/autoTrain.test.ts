@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   bumpVersion, ciGreenAt, ciState, contextStatus, decide, desktopFailSuites, docsOnly, fragmentInfo, fragmentPath, joinTitles, laptopMissing, laptopQueueState, membersFromSubjects,
   nextTrainNumber, pacing, parseChangelogHeading, parseLeftOut, parseTrainTitle, planBuild, rebuildSkip, releaseArgs, releaseKind, scratchFiles,
-  stackedTips, versionFromSubjects, rerunArgs, rerunContext, rerunPlan, buildMarkerPath, clearBuildMarker, withBuildMarker, writeBuildMarker,
+  stackedTips, versionFromSubjects, rerunArgs, rerunContext, rerunPlan, buildMarkerPath, clearBuildMarker, withBuildMarker, writeBuildMarker, leftOutPlan,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/auto-train.mjs';
 
@@ -343,5 +343,28 @@ describe('auto-train: build marker', () => {
     expect(m.files.size).toBe(0);
     await expect(withBuildMarker('S/b.json', { train: 47, version: '4.90.0' }, async () => { throw new Error('boom'); }, m)).rejects.toThrow('boom');
     expect(m.files.size).toBe(0);
+  });
+});
+
+describe('auto-train: left out on a conflict', () => {
+  const head = '0123456789abcdef';
+  const base = { pr: 288, branch: 'feature/a', head, n: 47, why: 'conflicts in src/x.ts' };
+
+  it('removes train-ready and comments once per head that the lead re-adds the label', () => {
+    const p = leftOutPlan({ ...base, labels: ['train-ready', 'other'], bodies: [] });
+    expect(p.remove).toEqual(['gh', 'pr', 'edit', '288', '--remove-label', 'train-ready']);
+    expect(p.comment).toMatch(/^Auto-train: `feature\/a` \(01234567\) was left out of train 47: conflicts in src\/x\.ts\./);
+    expect(p.comment).toMatch(/label has been removed/);
+    expect(p.comment).toMatch(/re-add `train-ready` once the conflict is fixed/);
+    expect(p.comment).not.toMatch(/keeps the/);
+    expect(p.comment).toMatch(/<!-- auto-train:left-out:0123456789abcdef -->$/);
+  });
+
+  it('skips the removal without the label and the comment when this head has one', () => {
+    const first = leftOutPlan({ ...base, labels: ['train-ready'] });
+    const again = leftOutPlan({ ...base, labels: [], bodies: ['hi', first.comment!] });
+    expect(again).toEqual({ remove: null, comment: null });
+    expect(leftOutPlan({ ...base, head: 'fedcba9876543210', labels: [], bodies: [first.comment!] }).comment).toMatch(/fedcba98/);
+    expect(leftOutPlan({ ...base, labels: ['train-ready'], bodies: [first.comment!] })).toMatchObject({ remove: expect.any(Array), comment: null });
   });
 });
