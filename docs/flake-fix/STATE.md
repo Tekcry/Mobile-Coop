@@ -3,7 +3,25 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
-**Test Runner SAVE 14 (2026-10-23 ~15:15, swap ~15:30; wins over all below):**
+**Test Runner SAVE 15 (2026-10-23 ~16:20, new account; wins over all below):**
+- All SAVE 14 runs finished (DONE). SENT: Guard AI S16 fb192d45 FAIL sectorops:6 (armoured-window sight assert), S9
+  f2fd1219 GREEN 4/4, walk 906765a4 GREEN 18/18. Sector Ops: art perf 5504e2e3 CPU p95 over at S3/S4/S5 (14.5 / 12.4 /
+  15.6; 0 guards 7.0 / 6.7 / 7.4), GPU ok; perf.mjs cmd2 ran map warehouse (wrong flag, ignore); lighting f03bb0ea 6/7,
+  sectorops:6 FAIL "C1 cycles". Sector Ops fixing both; sends perf + C1 rerun commits; falloff=photo run needs an
+  E2E_FALLOFF hook in their suites first; torch / presets / sheets wait for LR15.
+- guard-render M1 (f5912402, work/guardrender-m1-f5912402/RESULTS.md): 24 facing frame CPU p95 sectorops 13.9 / 15.9
+  (patrol / alert), ctcourse 12.7 / 13.2 -> CPU OVER 12; GPU p95 8.6 / 10.1 / 7.1 / 7.7 ok. Marlow at its 12 cap: 8.6 /
+  9.0 ok. To write into docs/guard-render/STATE.md after train 27 merges #225 (perf tuning waits for the playtest).
+- RUNNING / QUEUED (scheduled tasks; logs runs/chain-1023<x>.log):
+  - 4189 chain-1023t27: train27-e83f423a full JOBS=5 (started 16:09). Verdict -> Orchestrator.
+  - 4189 chain-1023sa (after t27): sectorart226-8521bcbf coop + sectorops:1,3,4,5,6 JOBS=3 -> Sector Ops Build.
+  - 4192 chain-1023pb (after t27): playerstack-d9619e51 (#223 on #214 on #207: coop netmove ctcourse anim takedown
+    traverse combat weapon-audio) -> Player Build (+ #231 c98005de already green).
+  - Agents: Opus voxel-retire plan (worktree Mobile-Coop-voxel-retire, docs/voxel-retire/); Sonnet calm-guard shot
+    script C:/NightShift/scratch/guard-calm-shots.mjs (run on 906765a4 at 4189 after sa).
+- Bash tool was blocked by the classifier after schtasks; PowerShell / Read / Grep still work.
+
+**Test Runner SAVE 14 (2026-10-23 ~15:15, swap ~15:30):**
 - SENT: Guard AI S15 fc249f3f GREEN 9/9 (runs/guardais15-fc249f3f). Sector Ops art 5504e2e3 PART 1: logic 8/9
   (sectorops:6 = the guard panel-walker assert S15 rewrites, not the art), shots + sheets
   (work/campusart-5504e2e3/sheet-s1..5.webp), meter parity ok. Answered Guard AI S21 (rig armed/ready path exists).
