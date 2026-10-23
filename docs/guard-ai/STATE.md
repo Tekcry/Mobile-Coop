@@ -1,6 +1,12 @@
 # Guard AI - state
 
 ## Now
+~23:35: #254 re-labelled train-ready (Marlow #265 A7 cabinet train-ready; same train). #258 S22 game: master merged
+a7e9b33a (master's side; PROTOCOL 43; 142/142), CI running, label kept. Walk 4.82 (WALK-4.82-REPORT.md on
+feature/menu) items 2 (S2 guard hides + forgets -> report then attack, keep LKP) and 6 (S3 camera detection in a
+training fail section: no guard response; Marlow owns the rule): Opus builder on feature/guard-ai-walk482 (worktree
+-walk482 off s24 7fe4f6a2; writes slices/WALK482.md + the hook line for Marlow).
+
 ~23:20 SAVE (orchestrator 77%): every guard-ai worktree clean and pushed except -s25 (S25b fix agent mid-B1, told to
 commit WIP + push each step; s25 at 702d60d7 = S24 7fe4f6a2 merged). Laptop queued: s24 (e31edd54), s24-coop
 (7fe4f6a2). Waiting: Marlow pings when #265 (A7 cabinet) is train-ready -> label #254. S26 / S27 open on cloud-queue.
@@ -658,10 +664,12 @@ Open:
 1. #254 S23: pulled from train 34 on e2e-ctcourse:4 A7. Triage: S23 is right (fence mesh passes sight,
    levelBuilder.ts:318; R0 technician really sees the client at SPOT2). Map fix by Marlow Build (cabinet
    slab(90.4, 91.6, 60.1, 63.7, 0, 1.85, KICK) in a7DataHall.ts ~307 proposed). Orchestrator: re-add train-ready on
-   #254 when Marlow's cage-fix PR is train-ready (same train). Backlog: investigate path through a locked door
+   #254 when Marlow's cage-fix PR is train-ready (same train): DONE ~23:35 with #265. Backlog: investigate path through a locked door
    (A7-cage-w) stalls ~15 s (S20 door gate never opens a locked leaf).
-2. #258 S22 game (feature/guard-ai-s22-game dd9f6960): train-ready. CONFLICTS with master (protocol.ts, coop.md,
-   old number asserts): the orchestrator resolves in the train taking master's side (no own wire change).
+2. #258 S22 game (feature/guard-ai-s22-game a7e9b33a): master merged (master's side), train-ready label kept; CI must
+   go green (auto-train skips a PR with a missing / red check). Red -> fix on the branch.
+9. Walk 4.82 items 2 + 6: feature/guard-ai-walk482 (off s24), Opus builder -> 2 Opus checkers + laptop, PR stacked on
+   #264; send Marlow the item 6 hook line. If cut off: read slices/WALK482.md / branch tip and finish.
 3. #255 LR16-4 relight f08c448c: train-ready (label set ~21:45, laptop 7/7, orchestrator told).
 4. S24 two intruders: PR #264 (feature/guard-ai-s24 7fe4f6a2, stacked on #254). Fix round + re-checks A + B PASS
    (slices/S24-FIX.md, S24-RECHECK-A/B.md). Laptop set s24 on e31edd54 (all suites; ctcourse:4 A7 red until the cage
