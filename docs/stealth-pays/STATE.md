@@ -1,19 +1,21 @@
 # stealth-pays state
 
 ## Now
-Planned (2026-10-23). Nothing built.
+S1, S2 and S3 done and checked (check FAIL B1 fixed by the lead). Docs and the single changelog fragment are in. Waiting on laptop `e2e-ctcourse` and `e2e-sectorops`, then the PR.
 
 ## Next
-Group A in parallel: S1 (course codes, Sonnet) and S2 (sector codes, Sonnet), then one fresh Sonnet checker for both,
-then S3 docs. Push, request `e2e-ctcourse` on the laptop, run `e2e-sectorops` on a desktop lane, open the PR.
+Push, request `e2e-ctcourse` and `e2e-sectorops` on the laptop (e2e-sectorops (a2) was reworked, not yet run), open the PR. P1 stays parked.
 
 ## Open
 - P1 (client hang-down interrogation) parked: needs a wire change and a PROTOCOL number from the orchestrator (A6).
+- Polish (CHECK.md): Sector co-op client never sees INTERROGATE on a Sector guard with `info` (`coopClient.ts:326`, `src/net`; noted in interrogation-intel REPORT); a code from an earlier section's guard is held for the live section (harmless).
 - Hand-offs (no action here): map owners author `GuardIntel.codes` (Sector Ops, Marlow Build); section-rating may read
   `dualTakedown` / `style.duals` instead of its own `SyncedDetector` (A2); the weapons crate refills quiet rounds (A3).
 
 ## Done
 - 2026-10-23: BRIEF, PLAN, STATE (planner, base 4f6db420).
+- 2026-10-23: S1 (course onIntelCode), S2 (sector grantCode, spawn info, onIntelCode), check (FAIL B1, fixed).
+- 2026-10-23: S3 docs: takedowns.md, interrogation-intel REPORT, TESTING.md; one fragment changes/feature-stealth-pays.md (slice fragments merged and deleted).
 
 ## Resume prompt
 ```
