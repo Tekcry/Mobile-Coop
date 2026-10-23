@@ -1,6 +1,10 @@
 # Guard AI - state
 
 ## Now
+~14:10: a resumed session started on the DESKTOP by mistake and stopped at the orchestrator's word: no agents, no
+code. Desktop worktrees all clean, nothing unpushed: s15 72a5091f, s16 d6b43740, s9 59c35d7f, walk 884b89c0 (so the
+S17-S19 walk agent's work, if any, is only on the laptop worktree ...-guard-ai-walk). Resume on the laptop per the block.
+
 ~14:30: S9 check PASS 59c35d7f (slices/S9-CHECK.md; 437 tests; e2e-coop block fixes: maxAlive for the team spawn,
 deflect loop waits for the host; polish list there). Waiting on the S15 laptop fix, then s9 <- s15, laptop run, PR S9.
 
