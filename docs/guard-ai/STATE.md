@@ -1,6 +1,12 @@
 # Guard AI - state
 
 ## Now
+~12:50: laptop GPU on s10 88a93584: 9/11. FAIL e2e-stealth-ai radio "everyone within the call + 4.5 s (8.10 s)"
+(passed on S8 alone: S5b / S6 suspect); e2e-sectorops:1 (a) panel scenario alarmBy 'radio' (radio command call beats
+the panel walk), (b) S5b sector tags find bound (3.93 m, found true), (c) S10 pairs find bound (4.44 m, found true).
+Log C:/NightShift/scratch/runs/guardais10-88a93584/ (laptop). Opus fix agent RUNNING on s10 (desktop lane allowed;
+report in slices/S10.md "Stack-tip e2e fix"); then rerun e2e-stealth-ai + e2e-sectorops:1 on the laptop (4189).
+
 ~12:30: s10 <- s6 merged (88a93584; patrolRoute duplicate removed from S10; 208 unit tests). PRs OPEN: #200 S8 (base
 s7) -> #201 S5b (base s8) -> #202 S6 (base s5b) -> #203 S10 (base s6); orchestrator told (not train-ready yet).
 Laptop GPU run moved to the s10 tip 88a935849824 (stealth-ai, sectorops all, ct-warehouse, levels, enemies, wall,
