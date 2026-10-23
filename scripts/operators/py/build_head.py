@@ -44,8 +44,8 @@ FILES_LIST = os.path.join(ROOT, 'scripts', 'operators', 'data', 'mpfb2-files.txt
 ZIP_DEFAULT = 'C:/NightShift/downloads/mpfb2-2.0.18/add-on-mpfb-v2.0.18.zip'
 
 LOD_TRIS = {'lod0': 4000, 'lod1': 1200, 'lod2': 400}      # PLAN 5; the kit's head `tris` override these
-EYE_RINGS = {  # polar angles (deg) of the rings between the poles, segments: ~250 / ~50 / ~24 triangles per eye
-    'lod0': ((6, 14, 24, 33, 45, 62, 85, 120, 150), 14),
+EYE_RINGS = {  # polar angles (deg) of the rings between the poles, segments: 224 / 48 / 24 triangles per eye
+    'lod0': ((6, 14, 24, 33, 45, 62, 85, 120), 14),   # 2 x 224 = 448 <= the kit's 500 (`face.eyes.tris`)
     'lod1': ((22, 45, 90), 8),
     'lod2': ((40, 90), 6),
 }
@@ -64,6 +64,10 @@ CAP_STYLE = {  # thickness (m) on top / at the sides, hairline changes
 }
 EDGE_T = 0.0004          # shell thickness at the hairline (m): the cap edge sits just off the scalp
 ENVELOPE_TRIS = 2000
+SRC_SUBDIV = 2           # Catmull-Clark levels of the bake source / the cap source (hm08 head ~5 mm -> ~1.3 mm)
+# Cranium lock (SPEC 7 "every head of a base keeps the base's cranium"): face-target offsets fade out from LOCK[0] to
+# LOCK[1] head units below the lowest hairline of any cap style, ears excepted (some face targets move the crown).
+LOCK = (-0.15, -0.05)
 log_t0 = time.time()
 
 
@@ -245,8 +249,12 @@ class Face:
         er = body.group_indices('helper-r-eye')
         self.eyes = []
         for g in (el, er):
-            c = co[g].mean(axis=0)
-            self.eyes.append((c, float(np.linalg.norm(co[g] - c, axis=1).mean())))
+            # the helper is the eyeball with its cornea: radius from the side and vertical extents, the centre set
+            # back from the cornea apex by radius x (1 + bulge), so the generated eye fills the hm08 socket exactly
+            lo, hi = co[g].min(axis=0), co[g].max(axis=0)
+            r = float((hi[0] - lo[0]) + (hi[1] - lo[1])) / 4.0
+            c = np.array([(lo[0] + hi[0]) / 2.0, (lo[1] + hi[1]) / 2.0, hi[2] - r * (1.0 + CORNEA_BULGE)])
+            self.eyes.append((c, r))
         self.E = (self.eyes[0][0] + self.eyes[1][0]) / 2.0
         p = co[hv]
         self.top = float(p[:, 1].max())
@@ -557,9 +565,13 @@ def bake_tile(scene, low, highs, sockets_list, size, prefix, extrusion, ray, ao_
     o[:, 2] = 0.0
     o[:, 3] = 1.0
     orm.pixels.foreach_set(o.ravel())
-    alb = px(imgs['albedo'])
-    stats = {'albedoMeanLinear': [round(float(x), 4) for x in alb[:, :3].mean(axis=0)],
-             'roughMean': round(float(o[:, 1].mean()), 3), 'aoMean': round(float(o[:, 0].mean()), 3)}
+    alb = px(imgs['albedo'])[:, :3]   # a byte sRGB image: pixels read back encoded
+    alb = np.where(alb <= 0.04045, alb / 12.92, np.power((np.clip(alb, 0, 1) + 0.055) / 1.055, 2.4))
+    cov = alb.sum(axis=1) > 1e-6       # texels the bake wrote (islands + margin); the rest stay black
+    cov = cov if cov.any() else np.ones(len(alb), dtype=bool)
+    stats = {'albedoMeanLinear': [round(float(x), 4) for x in alb[cov].mean(axis=0)],
+             'roughMean': round(float(o[cov, 1].mean()), 3), 'aoMean': round(float(o[cov, 0].mean()), 3),
+             'texelCoverage': round(float(cov.mean()), 3)}
     bpy.data.images.remove(imgs['ao'])
     bpy.data.images.remove(imgs['rough'])
     return {'albedo': imgs['albedo'], 'normal': imgs['normal'], 'orm': orm}, stats
@@ -685,14 +697,31 @@ def by_id(items, i, what):
     raise SystemExit(f'{what} "{i}" not in the kit')
 
 
-def shaped(body, base, recipe=None):
+def shaped(body, base, recipe=None, lock=None):
+    """The base's macro shape plus the head recipe's face targets; `lock` (per hm08 vertex, 0..1) holds the cranium."""
     m = base['macro']
-    co = body.macro(m['gender'], m['muscle'], m['weight'], proportions=m['proportions'])
+    co0 = body.macro(m['gender'], m['muscle'], m['weight'], proportions=m['proportions'])
+    co = co0.copy()
     for rel, w in (recipe or {}).items():
         if rel.startswith('targets/head/'):
             raise SystemExit(f'{rel}: head recipes use face-region targets only (SPEC 7)')
         body.apply(co, strip_targets(rel), float(w))
+    if lock is not None:
+        co = co0 + (co - co0) * (1.0 - lock)[:, None]
     return co
+
+
+def cranium_lock(body, co_base, hv):
+    """Per hm08 vertex: 1 on the cranium (at and above every cap style's hairline less a band), 0 on the face and
+    ears. Computed on the base shape, so it is the same for every head of a base."""
+    face = Face(body, co_base, hv)
+    az, h = face.frame(co_base)
+    hl = np.min([hairline(az, s) for s in [None] + list(CAP_STYLE)], axis=0)
+    ears = target_region(body, MASK_TARGETS['ears'], len(co_base))
+    lock = smooth(LOCK[0], LOCK[1], h - hl) * (1.0 - smooth(0.1, 0.4, ears))
+    out = np.zeros(len(co_base))
+    out[hv] = lock[hv]
+    return out
 
 
 class Frame:
@@ -708,6 +737,50 @@ class Frame:
         p = np.asarray(p, dtype=np.float64)
         g = np.stack([-p[..., 0] * 0.1 * self.k, (p[..., 1] - self.floor) * 0.1 * self.k, p[..., 2] * 0.1 * self.k], -1)
         return np.stack([-g[..., 0], -g[..., 2], g[..., 1]], -1)  # common.game_to_blender
+
+    def mh(self, b):
+        """Inverse of bl: Blender metres -> MakeHuman decimetres."""
+        b = np.asarray(b, dtype=np.float64)
+        s = 0.1 * self.k
+        return np.stack([b[..., 0] / s, b[..., 2] / s + self.floor, -b[..., 1] / s], -1)
+
+
+def subdivided(obj, levels):
+    """Apply Catmull-Clark `levels` to obj; returns (co, normals, quads) of the result in Blender metres."""
+    mod = obj.modifiers.new('sub', 'SUBSURF')
+    mod.levels = mod.render_levels = levels
+    mod.uv_smooth = 'PRESERVE_BOUNDARIES'
+    activate(obj)
+    bpy.ops.object.modifier_apply(modifier=mod.name)
+    me = obj.data
+    n = len(me.vertices)
+    co = np.empty(n * 3)
+    me.vertices.foreach_get('co', co)
+    nrm = np.empty(n * 3)
+    me.vertex_normals.foreach_get('vector', nrm)
+    tot = np.empty(len(me.polygons), dtype=np.int64)
+    me.polygons.foreach_get('loop_total', tot)
+    if (tot != 4).any():
+        raise SystemExit(f'{obj.name}: subdivision left non-quads')
+    lv = np.empty(len(me.loops), dtype=np.int64)
+    me.loops.foreach_get('vertex_index', lv)
+    return co.reshape(-1, 3), nrm.reshape(-1, 3), lv.reshape(-1, 4)
+
+
+def resample(src_pts, src_vals, pts, k=4):
+    """Inverse-distance interpolation of per-vertex values (rows of src_vals) at pts (KD-tree, k nearest)."""
+    from mathutils import kdtree
+    tree = kdtree.KDTree(len(src_pts))
+    for i, p in enumerate(src_pts):
+        tree.insert(p, i)
+    tree.balance()
+    vals = np.asarray(src_vals, dtype=np.float64)
+    out = np.zeros((len(pts),) + vals.shape[1:])
+    for i, p in enumerate(pts):
+        hits = tree.find_n(p, k)
+        w = np.array([1.0 / max(d, 1e-6) for _, _, d in hits])
+        out[i] = (vals[[j for _, j, _ in hits]] * w.reshape((-1,) + (1,) * (vals.ndim - 1))).sum(axis=0) / w.sum()
+    return out
 
 
 def setup(args, kit, base, recipes):
@@ -726,9 +799,51 @@ def setup(args, kit, base, recipes):
     faces = head_region(co_base, topo, seam)
     hv = np.array(sorted({v for f in faces for v in f}), dtype=np.int64)
     frame = Frame(body, co_base, base['refHeight'])
+    lock = cranium_lock(body, co_base, hv)
     log(f'hm08 head: {len(faces)} quads, {len(hv)} verts, seam {len(seam)} verts at MH y {co_base[seam, 1].mean():.3f} '
-        f'(target {seam_y:.3f}), scale {frame.k:.4f}')
-    return body, co_base, topo, seam, faces, hv, frame
+        f'(target {seam_y:.3f}), scale {frame.k:.4f}, cranium lock on {int((lock > 0.99).sum())} verts')
+    return body, co_base, topo, seam, faces, hv, frame, lock
+
+
+def eye_tris(lod):
+    rings, seg = EYE_RINGS[lod]
+    return 2 * seg + 2 * seg * (len(rings) - 1)
+
+
+def cap_styles(kit, base_id):
+    """The cap styles with a mesh that the base's kinds wear (kit `kinds[].hairCaps`; bald has no mesh)."""
+    styles = []
+    for k in kit.get('kinds', []):
+        if k.get('base') == base_id:
+            for s in k.get('hairCaps', []):
+                if s not in styles:
+                    styles.append(s)
+    return [c for c in kit['hairCaps'] if c['id'] in styles and c['tris'][0] > 0]
+
+
+def push_report(co_base, cos, hv, nrm, frame, inside=None):
+    """Max outward offset (mm) of each head from the base shape, over the head and inside the cap region."""
+    out = {}
+    for hid, co in cos.items():
+        d = ((co - co_base) * nrm).sum(axis=1) * 100.0 * frame.k
+        row = {'headMaxMm': round(float(d[hv].max()), 2)}
+        if inside is not None and inside.any():
+            row['capRegionMaxAbsMm'] = round(float(np.abs(d[inside]).max()), 3)
+        out[hid] = row
+    return out
+
+
+def make_envelope(name, co_u, faces, hv, frame, off):
+    """SPEC 7 head envelope: the union head (ears included) offset outward by `off` metres, ~2,000 triangles."""
+    nrm_u = vertex_normals(co_u, faces)
+    remap = {int(v): i for i, v in enumerate(hv)}
+    pos = co_u + nrm_u * (off * 10.0 / frame.k)
+    env = new_mesh_obj(name, frame.bl(pos[hv]), [[remap[v] for v in f] for f in faces])
+    tris = decimate(env, ENVELOPE_TRIS)
+    pe = np.array([v.co[:] for v in env.data.vertices])
+    env['piece'] = 'envelope'
+    return env, {'object': env.name, 'offset': off, 'tris': tris,
+                 'min': [round(float(x), 4) for x in pe.min(axis=0)], 'max': [round(float(x), 4) for x in pe.max(axis=0)]}
 
 
 def build_head_mesh(name, co, faces, hv, frame):
@@ -751,6 +866,22 @@ def back_seam_edges(obj, co, hv, face):
     return sel
 
 
+def ear_seam_edges(obj, ears):
+    """UV cut around each ear's root: the edges between faces on the ear (mean mask > 0.5) and faces off it."""
+    me = obj.data
+    ears = np.asarray(ears)
+    side = {}
+    for p in me.polygons:
+        on = bool(ears[list(p.vertices)].mean() > 0.5)
+        for ek in p.edge_keys:
+            side.setdefault(ek, set()).add(on)
+    sel = np.zeros(len(me.edges), dtype=bool)
+    for e in me.edges:
+        if len(side.get(e.key, ())) == 2:
+            sel[e.index] = True
+    return sel
+
+
 # ---------------------------------------------------------------- mode: one head variant
 def run_head(args, kit):
     t_start = time.time()
@@ -759,10 +890,13 @@ def run_head(args, kit):
     if head.get('base', args.base) != args.base:
         raise SystemExit(f'head {head["id"]} belongs to base {head["base"]}, not {args.base}')
     tris = dict(zip(('lod0', 'lod1', 'lod2'), head.get('tris') or [LOD_TRIS[k] for k in ('lod0', 'lod1', 'lod2')]))
-    body, co_base, topo, seam, faces, hv, frame = setup(args, kit, base, [head['targets']])
-    co = shaped(body, base, head['targets'])
+    # LOD1 / LOD2 budgets hold the merged eyes (PLAN 5: "in head"); LOD0's eyes are their own budget (kit face.eyes)
+    head_target = {'lod0': tris['lod0'], 'lod1': tris['lod1'] - 2 * eye_tris('lod1'),
+                   'lod2': tris['lod2'] - 2 * eye_tris('lod2')}
+    body, co_base, topo, seam, faces, hv, frame, lock = setup(args, kit, base, [head['targets']])
+    co = shaped(body, base, head['targets'], lock)
     face = Face(body, co, hv)
-    mk, marks = masks(face)
+    reg, marks = region_masks(face)
     dist = ring_distance(faces, seam)
     tile = int(kit.get('atlas', {}).get('faceTile', [1024])[0])
     scene = bpy.context.scene
@@ -771,8 +905,6 @@ def run_head(args, kit):
 
     # full-resolution source (the bake's high mesh): masks, skin weights, hm08 indices
     src, remap = build_head_mesh(f'guard-{head["id"]}-head-src', co, faces, hv, frame)
-    for k, v in mk.items():
-        set_attr(src.data, k, v[hv])
     blend_loops = kit['face']['neckSeam'].get('blendLoops', 2)
     w_head = np.array([min(1.0, 0.5 + 0.5 * dist[int(v)] / blend_loops) for v in hv])
     vg_h = src.vertex_groups.new(name='head')
@@ -784,22 +916,22 @@ def run_head(args, kit):
         if w_head[i] < 1.0:
             vg_n.add([i], float(1.0 - w_head[i]), 'REPLACE')
         keep.add([i], 0.0 if int(v) in seam_set else 1.0, 'REPLACE')
-    # UV on the full mesh (cut up the back of the head), carried through the decimation
+    # UV on the full mesh (cut up the back of the head, ears their own islands), carried through the decimation
     src.data.uv_layers.new(name='face')
-    seams = back_seam_edges(src, co, hv, face)
+    seams = back_seam_edges(src, co, hv, face) | ear_seam_edges(src, reg['ears'][hv])
     unwrap(src, seams=seams, margin=0.006)
     uvs_full = uv_stats(src.data)
 
     # LODs
     lods = {}
     lod0 = duplicate(src, f'guard-{head["id"]}-head-lod0')
-    got0 = decimate(lod0, tris['lod0'], protect='decimate')
+    decimate(lod0, head_target['lod0'], protect='decimate')
     lods['lod0'] = lod0
     lod1 = duplicate(lod0, f'guard-{head["id"]}-head-lod1')
-    decimate(lod1, tris['lod1'], protect='decimate')
+    decimate(lod1, head_target['lod1'], protect='decimate')
     lods['lod1'] = lod1
     lod2 = duplicate(lod1, f'guard-{head["id"]}-head-lod2')
-    decimate(lod2, tris['lod2'], protect='decimate')
+    decimate(lod2, head_target['lod2'], protect='decimate')
     lods['lod2'] = lod2
     seam_pos = frame.bl(co[seam])
 
@@ -819,19 +951,18 @@ def run_head(args, kit):
             eye_objs[(lod, side)] = eye_mesh(f'guard-{head["id"]}-eye{side}-{lod}', frame.bl(c), r * 0.1 * frame.k, lod, cell)
     eye_tris = {lod: sum(tri_count(eye_objs[(lod, s)].data) for s in 'LR') for lod in ('lod0', 'lod1', 'lod2')}
 
-    # bake source: the full mesh subdivided once, with the procedural skin
+    # bake source: the full mesh subdivided (SRC_SUBDIV), masks evaluated at its own vertices (brows, lashes and the
+    # lid line need ~1 mm, the hm08 face is ~5 mm), with the procedural skin
     hi = duplicate(src, f'guard-{head["id"]}-head-hi')
+    hi_co, _, _ = subdivided(hi, SRC_SUBDIV)
+    reg_hi = resample(frame.bl(co[hv]), np.stack([reg[k][hv] for k in REGIONS], axis=1), hi_co)
+    mk = geometric_masks(face, frame.mh(hi_co), {k: reg_hi[:, i] for i, k in enumerate(REGIONS)}, marks)
+    for k, v in mk.items():
+        set_attr(hi.data, k, v)
+    log(f'bake source: {len(hi.data.polygons)} quads, masks {sorted(mk)}')
     mat, sockets = guard_skin.skin(f'skin-{head["id"]}', head.get('facialHair', 'clean'))
     hi.data.materials.clear()
     hi.data.materials.append(mat)
-    sub = hi.modifiers.new('sub', 'SUBSURF')
-    sub.levels = sub.render_levels = 1
-    dg = bpy.context.evaluated_depsgraph_get()
-    ev = hi.evaluated_get(dg)
-    missing = [k for k in mk if k not in ev.data.attributes]
-    if missing:
-        log('subdivision dropped the masks', missing, '- baking from the unsubdivided mesh')
-        hi.modifiers.remove(sub)
     eyes_ao = [eye_objs[('lod0', s)] for s in 'LR']
     for o in list(lods.values()) + [src] + [e for (lod, _), e in eye_objs.items() if lod != 'lod0']:
         o.hide_render = True
@@ -891,6 +1022,21 @@ def run_head(args, kit):
     for img in imgs.values():
         img.pack()
 
+    # a base with no hair-cap job (broad: every kind balaclava) gets its envelope and eye block from its one head job
+    extra = {}
+    base_heads = [h for h in kit['heads'] if h.get('base') == args.base]
+    if not cap_styles(kit, args.base):
+        if len(base_heads) == 1:
+            ears = target_region(body, MASK_TARGETS['ears'], len(co))
+            env, env_info = make_envelope(f'guard-{args.base}-envelope', co, faces, hv, frame,
+                                          kit['face']['envelopeOffset'])
+            marks_env = envelope_landmarks(body, co, hv, frame, face, ears)
+            env_info['json'] = write_envelope_json(args.out, base, kit, env, env_info, marks_env, args.job)
+            extra['envelope'] = env_info
+            extra['eyeBlock'] = write_eye_block(out_dir, args.out, args.base, irises)
+        else:
+            log(f'WARNING: base {args.base} has no hair-cap job and {len(base_heads)} heads: no envelope written')
+
     blend = os.path.join(out_dir, f'guard-{head["id"]}-head.blend')
     bpy.ops.wm.save_as_mainfile(filepath=blend, compress=True)
     lod_counts = {k: tri_count(o.data) for k, o in lods.items()}
@@ -914,9 +1060,12 @@ def run_head(args, kit):
                  for c, r in face.eyes],
         'landmarks': {'eyeMid': [round(float(x), 5) for x in frame.bl(face.E)], 'noseBaseMhY': marks['noseBase']},
         'faceTile': {'size': tile, 'png': pngs, **stats, 'uv': uv_stats(lods['lod0'].data), 'uvFull': uvs_full},
-        'maskCoverage': {k: round(float(v[hv].mean()), 4) for k, v in mk.items()},
+        'maskCoverage': {k: round(float(v.mean()), 4) for k, v in mk.items()},   # over the bake source's vertices
+        'craniumLock': {'band': LOCK, 'lockedVerts': int((lock[hv] > 0.99).sum()),
+                        'shiftMaxMm': round(float(np.linalg.norm(co[hv] - co_base[hv], axis=1)[lock[hv] > 0.99].max(initial=0)
+                                                  * 100.0 * frame.k), 3)},
         'skinWeights': {'bones': ['neck', 'head'], 'blendLoops': blend_loops},
-        'device': device, 'seconds': round(time.time() - t_start, 1),
+        'device': device, 'seconds': round(time.time() - t_start, 1), **extra,
     }
     with open(os.path.join(out_dir, f'guard-{head["id"]}-head.json'), 'w', encoding='utf-8') as f:
         json.dump(report, f, indent=2)
@@ -937,62 +1086,166 @@ def union_shape(co_base, cos, hv, nrm):
     return out, best
 
 
+def envelope_landmarks(body, co_base, hv, frame, face, ears):
+    """Blender-frame landmarks G3 fits headwear by: joints, eye mid, brow line, ears, scalp crown."""
+    p = frame.bl(co_base[hv])
+    ear_pts = frame.bl(co_base[ears > 0.5])
+    eye = frame.bl(face.E)
+
+    def r(v):
+        return [round(float(x), 5) for x in v]
+    return {
+        'neckJoint': r(frame.bl(body.joint(co_base, 'joint-neck'))),
+        'headJoint': r(frame.bl(body.joint(co_base, 'joint-head'))),
+        'eyeMid': r(eye),
+        'browZ': round(float(eye[2] + 0.022 * frame.k), 5),   # the brow arc's centre line (geometric_masks)
+        'scalpCrownZ': round(float(p[:, 2].max()), 5),
+        'ears': {'zRange': r([ear_pts[:, 2].min(), ear_pts[:, 2].max()]),
+                 'yRange': r([ear_pts[:, 1].min(), ear_pts[:, 1].max()]),
+                 'halfWidth': round(float(np.abs(ear_pts[:, 0]).max()), 5)} if len(ear_pts) else None,
+    }
+
+
+def write_envelope_json(out, base, kit, env, info, marks, job):
+    """The per-base head envelope as a named bake output for G3: heads/<base>/envelope.json (Blender metres)."""
+    me = env.data
+    co = np.empty(len(me.vertices) * 3)
+    me.vertices.foreach_get('co', co)
+    co = co.reshape(-1, 3)
+    tris = []
+    for p in me.polygons:
+        vs = list(p.vertices)
+        for k in range(1, len(vs) - 1):
+            tris.append([vs[0], vs[k], vs[k + 1]])
+    lo, hi = co.min(axis=0), co.max(axis=0)
+    cy = float(lo[1] + hi[1]) / 2.0
+    caps = [c['offset'] for c in kit['hairCaps']]
+    data = {
+        'base': base['id'], 'job': job, 'refHeight': base['refHeight'],
+        'units': 'm', 'axes': "Blender (Z up, the face toward -Y, the head's left on +X), feet at z = 0, base refHeight",
+        'offset': info['offset'], 'thickestCap': max(caps), 'clearance': round(info['offset'] - max(caps), 4),
+        'crownZ': round(float(hi[2]), 5),
+        'centreY': round(cy, 5),
+        'maxRadii': {'x': round(float(np.abs(co[:, 0]).max()), 5), 'yFront': round(cy - float(lo[1]), 5),
+                     'yBack': round(float(hi[1]) - cy, 5), 'zAboveEyes': round(float(hi[2]) - marks['eyeMid'][2], 5)},
+        'bounds': {'min': info['min'], 'max': info['max']},
+        'landmarks': marks,
+        'mesh': {'tris': len(tris), 'verts': [[round(float(x), 5) for x in v] for v in co], 'faces': tris},
+    }
+    d = os.path.join(out, 'heads', base['id'])
+    os.makedirs(d, exist_ok=True)
+    path = os.path.join(d, 'envelope.json')
+    tmp = f'{path}.{os.getpid()}.tmp'
+    with open(tmp, 'w', encoding='utf-8') as f:
+        json.dump(data, f)
+    os.replace(tmp, path)
+    return os.path.relpath(path, out).replace('\\', '/')
+
+
+def write_eye_block(out_dir, out, base_id, irises):
+    """The shared eye block (SPEC 7) per base, so parallel jobs never share a file."""
+    eye_imgs = eye_block_images(irises)
+    pngs = {}
+    for k, img in eye_imgs.items():
+        p = os.path.join(out_dir, f'guard-{base_id}-eyes-{k}.png')
+        save_png(img, p)
+        pngs[k] = os.path.relpath(p, out).replace('\\', '/')
+    return {'size': 256, 'cells': irises, 'png': pngs, 'layout': 'cell i at column i % 2, row i // 2 (row 0 at v = 0)'}
+
+
+def quad_edges(quads):
+    e = np.concatenate([quads[:, [k, (k + 1) % 4]] for k in range(4)])
+    e.sort(axis=1)
+    return np.unique(e, axis=0)
+
+
+def cap_shell(cap, S_co, S_n, S_q, edges, az, h, ears, face, frame):
+    """One hair cap's shell on the subdivided union head: faces inside the style's hairline, the boundary snapped onto
+    the hairline contour (no staircase), thickness from the style, tapering to EDGE_T at the hairline."""
+    st = CAP_STYLE[cap['id']]
+    hl = hairline(az, cap['id'])
+    if 'sideLine' in st:
+        hl = np.maximum(hl, np.where(az > 55, st['sideLine'], hl))
+    depth = h - hl
+    inside = (depth > 0) & (ears < 0.3)
+    qsel = S_q[inside[S_q].all(axis=1)]
+    if not len(qsel):
+        raise SystemExit(f'cap {cap["id"]}: empty region')
+    pos = S_co.copy()
+    dep = depth.copy()
+    acc = np.zeros_like(S_co)
+    cnt = np.zeros(len(S_co))
+    for a, b in ((edges[:, 0], edges[:, 1]), (edges[:, 1], edges[:, 0])):
+        m = inside[a] & (depth[b] < 0)
+        aa, bb = a[m], b[m]
+        f = (depth[aa] / (depth[aa] - depth[bb]))[:, None]
+        np.add.at(acc, aa, S_co[aa] + f * (S_co[bb] - S_co[aa]))
+        np.add.at(cnt, aa, 1)
+    snap = cnt > 0
+    pos[snap] = acc[snap] / cnt[snap][:, None]
+    dep[snap] = 0.0
+    cv = np.unique(qsel)
+    _, h_cv = face.frame(frame.mh(pos[cv]))
+    top_t = cap['offset']
+    side_t = st.get('side') or top_t
+    t = side_t + (top_t - side_t) * smooth(0.45, 0.75, h_cv)
+    t = EDGE_T + (t - EDGE_T) * smooth(0.0, 0.10, dep[cv])
+    shell = pos[cv] + S_n[cv] * t[:, None]
+    remap = np.full(len(S_co), -1, dtype=np.int64)
+    remap[cv] = np.arange(len(cv))
+    return shell, remap[qsel], t, int(snap[cv].sum())
+
+
 def run_haircaps(args, kit):
     t_start = time.time()
     base = by_id(kit['bases'], args.base, 'base')
     heads = [h for h in kit['heads'] if h.get('base') == args.base]
-    styles = []
-    for k in kit.get('kinds', []):
-        if k.get('base') == args.base:
-            for s in k.get('hairCaps', []):
-                if s not in styles:
-                    styles.append(s)
-    caps = [c for c in kit['hairCaps'] if c['id'] in styles and c['tris'][0] > 0]
-    body, co_base, topo, seam, faces, hv, frame = setup(args, kit, base, [h['targets'] for h in heads])
+    caps = cap_styles(kit, args.base)
+    body, co_base, topo, seam, faces, hv, frame, lock = setup(args, kit, base, [h['targets'] for h in heads])
     nrm = vertex_normals(co_base, faces)
-    cos = [shaped(body, base, h['targets']) for h in heads]
-    co_u, push = union_shape(co_base, cos, hv, nrm)
+    cos = {h['id']: shaped(body, base, h['targets'], lock) for h in heads}
+    co_u, push = union_shape(co_base, list(cos.values()), hv, nrm)
     face = Face(body, co_base, hv)
     ears = target_region(body, MASK_TARGETS['ears'], len(co_base))
-    az, h = face.frame(co_base)
-    ear_c = co_base[ears > 0.5]
-    ear_az = float(face.frame(ear_c)[0].mean()) if len(ear_c) else None
-    ear_h = [float(x) for x in np.percentile(face.frame(ear_c)[1], [5, 95])] if len(ear_c) else None
-    log(f'base {args.base}: {len(heads)} heads, styles {[c["id"] for c in caps]}, ear azimuth {ear_az}, ear h {ear_h}')
+    az0, h0 = face.frame(co_base)
+    cap_region = np.zeros(len(co_base), dtype=bool)
+    cap_region[hv] = (h0[hv] - hairline(az0[hv]) > 0) & (ears[hv] < 0.3)
+    pushes = push_report(co_base, cos, hv, nrm, frame, cap_region)
+    log(f'base {args.base}: {len(heads)} heads, styles {[c["id"] for c in caps]}, push {pushes}')
     scene = bpy.context.scene
     device = use_gpu(scene)
     scene.world = bpy.data.worlds.new('bake')
     scene.world.light_settings.distance = 0.02
     out_dir = os.path.join(args.out, 'heads')
     os.makedirs(out_dir, exist_ok=True)
-    nrm_u = vertex_normals(co_u, faces)
-    crown = frame.bl(co_base[hv[np.argmax(co_base[hv, 1])]])
+    crown = frame.bl(co_u[hv[np.argmax(co_u[hv, 1])]])
+
+    # the cap source: the union head subdivided (hm08's scalp is ~15 mm quads; the hairline needs a few mm)
+    remap_h = {int(v): i for i, v in enumerate(hv)}
+    union = new_mesh_obj(f'guard-{args.base}-union-src', frame.bl(co_u[hv]), [[remap_h[v] for v in f] for f in faces])
+    S_co, S_n, S_q = subdivided(union, SRC_SUBDIV)
+    bpy.data.objects.remove(union, do_unlink=True)
+    az, h = face.frame(frame.mh(S_co))
+    ears_s = resample(frame.bl(co_u[hv]), ears[hv][:, None], S_co)[:, 0]
+    edges = quad_edges(S_q)
+    log(f'cap source: {len(S_q)} quads')
+
     report_caps = {}
-    hv_set = set(int(v) for v in hv)
+    baked = []
     for cap in caps:
-        st = CAP_STYLE[cap['id']]
-        hl = hairline(az, cap['id'])
-        if 'sideLine' in st:
-            hl = np.maximum(hl, np.where(az > 55, st['sideLine'], hl))
-        depth = h - hl
-        inside = (depth > -0.005) & (ears < 0.3)
-        cf = [f for f in faces if all(inside[v] for v in f)]
-        cv = np.array(sorted({v for f in cf for v in f}), dtype=np.int64)
-        top_t = cap['offset']
-        side_t = st.get('side') or top_t
-        t = side_t + (top_t - side_t) * smooth(0.45, 0.75, h)
-        t = EDGE_T + (t - EDGE_T) * smooth(0.0, 0.10, depth)
-        pos = co_u + nrm_u * (t * 10.0 / frame.k)[:, None]  # metres -> MakeHuman dm before the frame's scale
-        remap = {int(v): i for i, v in enumerate(cv)}
-        obj = new_mesh_obj(f'guard-{args.base}-cap-{cap["id"]}-lod0', frame.bl(pos[cv]), [[remap[v] for v in f] for f in cf])
+        shell, cf, t, snapped = cap_shell(cap, S_co, S_n, S_q, edges, az, h, ears_s, face, frame)
+        obj = new_mesh_obj(f'guard-{args.base}-cap-{cap["id"]}-lod0', shell, cf)
         vg = obj.vertex_groups.new(name='head')
-        vg.add(list(range(len(cv))), 1.0, 'REPLACE')
+        vg.add(list(range(len(shell))), 1.0, 'REPLACE')
+        src_tris = tri_count(obj.data)
         decimate(obj, cap['tris'][0])
         obj.data.uv_layers.new(name='face')
         unwrap(obj, seams=None, margin=0.01)
         mat, sockets = guard_skin.hair(f'hair-{cap["id"]}', cap['id'], tuple(crown),
-                                        part_x=(0.035 if cap['id'] == 'sidepart' else None))
+                                        part_x=(crown[0] + 0.035 if cap['id'] == 'sidepart' else None))
         obj.data.materials.append(mat)
+        for o in baked:  # one cap at a time in the AO bake (the shells overlap)
+            o.hide_render = True
         size = int(cap['texels'][0])
         imgs, stats = bake_tile(scene, obj, [], [sockets], size, f'guard-{args.base}-cap-{cap["id"]}', 0, 0, ao_samples=16)
         pngs = {}
@@ -1006,50 +1259,40 @@ def run_haircaps(args, kit):
         obj.data.materials.append(fm)
         obj['tint'] = 'hair'
         obj['piece'] = f'hair:{cap["id"]}'
+        baked.append(obj)
         lods = {'lod0': tri_count(obj.data)}
         if len(cap['tris']) > 1 and cap['tris'][1] > 0:
             o1 = duplicate(obj, f'guard-{args.base}-cap-{cap["id"]}-lod1')
             lods['lod1'] = decimate(o1, cap['tris'][1])
             o1['tint'] = 'hair'
             o1['piece'] = f'hair:{cap["id"]}'
-        thick = t[cv]
-        report_caps[cap['id']] = {'tris': lods, 'budget': cap['tris'], 'texels': size, 'png': pngs, **stats,
-                                  'thicknessMm': [round(float(thick.min()) * 1000, 2), round(float(thick.max()) * 1000, 2)],
+            baked.append(o1)
+        report_caps[cap['id']] = {'tris': lods, 'sourceTris': src_tris, 'budget': cap['tris'], 'texels': size, 'png': pngs,
+                                  **stats, 'snappedEdgeVerts': snapped,
+                                  'thicknessMm': [round(float(t.min()) * 1000, 2), round(float(t.max()) * 1000, 2)],
                                   'uv': uv_stats(obj.data)}
-        log(f'cap {cap["id"]}: {lods}, thickness {report_caps[cap["id"]]["thicknessMm"]} mm')
+        log(f'cap {cap["id"]}: {lods} from {src_tris}, thickness {report_caps[cap["id"]]["thicknessMm"]} mm')
+    for o in baked:
+        o.hide_render = False
 
-    # head envelope: union of the base's heads (ears included), offset outward
-    off = kit['face']['envelopeOffset']
-    remap = {int(v): i for i, v in enumerate(hv)}
-    env_pos = co_u + nrm_u * (off * 10.0 / frame.k)
-    env = new_mesh_obj(f'guard-{args.base}-envelope', frame.bl(env_pos[hv]), [[remap[v] for v in f] for f in faces])
-    env_tris = decimate(env, ENVELOPE_TRIS)
-    pe = np.array([v.co[:] for v in env.data.vertices])
-    env['piece'] = 'envelope'
-    # eye block (shared cells, SPEC 7): written per base so parallel jobs never share a file
-    eye_imgs = eye_block_images(kit['face']['irises'])
-    eye_png = {}
-    for k, img in eye_imgs.items():
-        p = os.path.join(out_dir, f'guard-{args.base}-eyes-{k}.png')
-        save_png(img, p)
-        eye_png[k] = os.path.relpath(p, args.out).replace('\\', '/')
+    env, env_info = make_envelope(f'guard-{args.base}-envelope', co_u, faces, hv, frame, kit['face']['envelopeOffset'])
+    marks = envelope_landmarks(body, co_u, hv, frame, face, ears)
+    env_info['json'] = write_envelope_json(args.out, base, kit, env, env_info, marks, args.job)
+    eye_block = write_eye_block(out_dir, args.out, args.base, kit['face']['irises'])
     blend = os.path.join(out_dir, f'guard-{args.base}-haircaps.blend')
     bpy.ops.wm.save_as_mainfile(filepath=blend, compress=True)
     report = {
         'base': args.base, 'seed': args.seed, 'blender': bpy.app.version_string, 'heads': [hh['id'] for hh in heads],
         'caps': report_caps, 'bald': 'no mesh: scalp and shave shadow in the face tile',
-        'variantPushMm': round(float(push[hv].max() * 100.0 * frame.k), 2),
-        'envelope': {'object': env.name, 'offset': off, 'tris': env_tris,
-                     'min': [round(float(x), 4) for x in pe.min(axis=0)], 'max': [round(float(x), 4) for x in pe.max(axis=0)]},
-        'eyeBlock': {'size': 256, 'cells': kit['face']['irises'], 'png': eye_png,
-                     'layout': 'cell i at column i % 2, row i // 2 (row 0 at v = 0)'},
-        'hairline': {'knots': HAIRLINE, 'earAzimuth': ear_az, 'earH': ear_h},
+        'variantPush': pushes, 'unionPushMaxMm': round(float(push[hv].max() * 100.0 * frame.k), 2),
+        'envelope': env_info, 'eyeBlock': eye_block,
+        'hairline': {'knots': HAIRLINE, 'styles': CAP_STYLE},
         'frame': {'units': 'm', 'axes': 'Blender (Z up, face -Y, left +X)', 'uniformScale': frame.k},
         'device': device, 'seconds': round(time.time() - t_start, 1),
     }
     with open(os.path.join(out_dir, f'guard-{args.base}-haircaps.json'), 'w', encoding='utf-8') as f:
         json.dump(report, f, indent=2)
-    log(f'{args.base}: caps {list(report_caps)}, envelope {env_tris} tris -> {blend}')
+    log(f'{args.base}: caps {list(report_caps)}, envelope {env_info["tris"]} tris -> {blend}')
 
 
 def main():
