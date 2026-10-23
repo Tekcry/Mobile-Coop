@@ -282,12 +282,20 @@ const heldLocks = new Set();
 
 /**
  * Takes a slot lock (exclusive create). A `laptop-queue |` line this process does not hold is stale (the pid lock means
- * no other service runs) and is deleted; any other holder (a manual run) is waited on.
+ * no other service runs) and is deleted; any other holder (a manual run) is waited on, logged once per holder line,
+ * and the wait in minutes is logged when the lock is finally taken (a long wait on a stale manual lock looked hung).
  */
 async function takeLock(port, label, sha) {
   const line = `laptop-queue | ${label} ${sha.slice(0, 8)} pid ${process.pid} | ${new Date().toISOString()}`;
+  let waitFrom = 0;
+  let waitOn = '';
   for (;;) {
-    try { fs.writeFileSync(SLOTS[port].lock, `${line}\n`, { flag: 'wx' }); heldLocks.add(line); return line; } catch (e) {
+    try {
+      fs.writeFileSync(SLOTS[port].lock, `${line}\n`, { flag: 'wx' });
+      heldLocks.add(line);
+      if (waitFrom) log(`${port} lock taken after a ${((Date.now() - waitFrom) / 60_000).toFixed(1)} min wait`);
+      return line;
+    } catch (e) {
       if (e.code !== 'EEXIST') throw e;
       let have = '';
       try { have = fs.readFileSync(SLOTS[port].lock, 'utf8').trim(); } catch { continue; /* gone: retry at once */ }
@@ -296,6 +304,8 @@ async function takeLock(port, label, sha) {
         try { fs.unlinkSync(SLOTS[port].lock); } catch { /* gone */ }
         continue;
       }
+      if (have !== waitOn) { waitOn = have; log(`${port} waiting on ${have.startsWith('laptop-queue |') ? 'own run' : 'manual lock'}: ${have}`); }
+      waitFrom ||= Date.now();
       await sleep(15_000);
     }
   }
