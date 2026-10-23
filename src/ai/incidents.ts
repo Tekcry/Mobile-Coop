@@ -14,7 +14,9 @@
  * merges into the light. An investigator who goes down (dead, knocked out) or is held (grabbed, hostage, interrogated)
  * for `silentEscalate` s turns the incident into `missing`: the 2 nearest calm guards go as a pair (a lead, and a cover
  * `pairBack` m short of the spot, G11). (S7) A body a camera saw (`reportBody`, one incident per body): the nearest 1
- * (knocked out) or 2 (dead) calm guards within `callR` by path walk to it (`MODE_BODY`).
+ * (knocked out) or 2 (dead) calm guards within `callR` by path walk to it (`MODE_BODY`). (S15) A circuit switched off
+ * (`breaker`, one incident per circuit while open): the one witness best by path walks to the switch and turns it back
+ * on (`MODE_BREAKER`), never a pair; the other witnesses ack.
  *
  * The board only reads a `GuardView` (struct of arrays filled by `EnemyManager`) and writes commands (`BoardOut`) the
  * manager applies to its guards. Guards are named by their stable id (`Enemy.num`), never by array index (the manager
@@ -24,14 +26,16 @@
 import { hyp2, hyp3 } from '../core/mathx';
 import { roleSendMul, TAGS } from './sectorTags';
 
-export type IncidentKind = 'noise' | 'shots' | 'light' | 'distraction' | 'missing' | 'bodyDead' | 'bodyKo' | 'camBody' | 'witnessKill' | 'contact';
+export type IncidentKind = 'noise' | 'shots' | 'light' | 'distraction' | 'missing' | 'bodyDead' | 'bodyKo' | 'camBody' | 'witnessKill' | 'contact' | 'breaker';
 
 /** Kind codes (the board's typed arrays). */
-export const KIND: readonly IncidentKind[] = ['noise', 'shots', 'light', 'distraction', 'missing', 'bodyDead', 'bodyKo', 'camBody', 'witnessKill', 'contact'];
+export const KIND: readonly IncidentKind[] = ['noise', 'shots', 'light', 'distraction', 'missing', 'bodyDead', 'bodyKo', 'camBody', 'witnessKill', 'contact', 'breaker'];
 const K_NOISE = 0;
 const K_LIGHT = 2;
 const K_MISSING = 4;
 const K_CAMBODY = 7;
+/** (guard-ai S15) A circuit switched off, seen as a fault: one witness walks to the switch and turns it back on. */
+const K_BREAKER = 10;
 
 export const INCIDENT = {
   /** Fixed pool per board (oldest closed first; all open: the oldest is dropped). */
@@ -180,6 +184,8 @@ export const MODE_LEAD = 2;
 export const MODE_COVER = 3;
 /** (guard-ai S7) Walk to a body a camera saw; there the body-found path takes over (wake him / search). */
 export const MODE_BODY = 4;
+/** (guard-ai S15) Walk to the switch at patrol pace and turn the circuit back on (`Enemy.resetBreaker`). */
+export const MODE_BREAKER = 5;
 
 /** The board's output for one tick / report (the manager applies and clears it). */
 export class BoardOut {
@@ -321,6 +327,12 @@ export class IncidentBoard {
     return s < 0 ? null : KIND[this.kind[s]!]!;
   }
 
+  /** (guard-ai S15) The dedupe key of an open incident by id (a light id, a circuit key), -1 when closed or none. */
+  keyOf(id: number): number {
+    const s = this.slotOf(id);
+    return s < 0 ? -1 : this.key[s]!;
+  }
+
   /** Investigators of an open incident by id (tests / debug): the ids, -1 for none. */
   investigatorsOf(id: number, out: [number, number]): [number, number] {
     const s = this.slotOf(id);
@@ -336,7 +348,7 @@ export class IncidentBoard {
   report(kind: IncidentKind, x: number, z: number, y: number, key: number, who: Int32Array, n: number, now = this.now): number {
     const k = KIND.indexOf(kind);
     let s = this.findMerge(k, x, y, z, key, now);
-    let saw = k === K_LIGHT ? 1 : 0;
+    let saw = k === K_LIGHT || k === K_BREAKER ? 1 : 0;
     if (s >= 0 && k !== K_LIGHT && this.kind[s] === K_LIGHT) saw = 0;
     else if (s >= 0 && k === K_LIGHT && this.kind[s] !== K_LIGHT) {
       // a light went out where a plain noise was just heard (the bulb's pop came first): the noise becomes the light
@@ -412,6 +424,11 @@ export class IncidentBoard {
       if (!this.open[s]) continue;
       const sk = this.kind[s]!;
       if (k === K_LIGHT && key >= 0 && sk === K_LIGHT && this.key[s] === key) return s;
+      // (guard-ai S15) a breaker fault: by its circuit only, while open
+      if (k === K_BREAKER) {
+        if (sk === K_BREAKER && this.key[s] === key) return s;
+        continue;
+      }
       // (guard-ai S7) a camera's body: by the body only, while open (two bodies side by side are two incidents)
       if (k === K_CAMBODY) {
         if (sk === K_CAMBODY && this.key[s] === key) return s;
@@ -520,7 +537,7 @@ export class IncidentBoard {
       const f = view.flags[bi]!;
       let score = len * (f & GV_OFFICER ? M.officerMul : 1) * (view.level[bi] === LEVEL.cooldown ? M.cautiousMul : 1);
       // (guard-ai S5b) the role (a supervisor sends someone; a rover checks a light first) and a secure zone
-      score *= roleSendMul(view.role[bi]!, this.kind[s] === K_LIGHT);
+      score *= roleSendMul(view.role[bi]!, this.kind[s] === K_LIGHT || this.kind[s] === K_BREAKER);
       if (inZone(view, bi, this.x[s]!, this.z[s]!)) score *= TAGS.secureFirst;
       if (score < pickScore || (score === pickScore && bi < pick)) {
         pickScore = score;
@@ -591,6 +608,17 @@ export class IncidentBoard {
         const second = this.best(s, view);
         if (second >= 0) this.send(s, view, second, MODE_LIGHT, 1, x, y, z);
       }
+      this.assigned[s] = 1;
+      return;
+    }
+    if (k === K_BREAKER) {
+      // (guard-ai S15, A42) a fault, not an attack: the one who saw it go (best by path) resets it, never a pair; the
+      // other witnesses ack. Nobody (free) saw it: let it go (late discovery may find it later)
+      if (this.mark(s, view, 0, true, Infinity, -1) === 0) {
+        if (this.now - this.lastT[s]! > M.mergeT) this.close(s);
+        return;
+      }
+      this.send(s, view, this.best(s, view), MODE_BREAKER, 0, x, y, z);
       this.assigned[s] = 1;
       return;
     }

@@ -127,6 +127,10 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   helmeted guard in the head: steel-blue hit marker and a ping, the helmet falls to the floor and stays, he reels and
   comes up shooting; a second head shot kills. An armoured guard shrugs off chest rounds (a short stagger, not every
   round); a takedown drops either in one move.
+- [ ] Breakers and dark lamps (guard-ai S15, Sector Ops): switch a room's lights off with two guards watching: one says
+  "Breaker's gone again.", walks over at his normal pace and the lights come back about 2 s later, both stay calm;
+  switch it off again at once: a full light check at the switch. Shoot a lamp out while no guard looks: the next guard
+  who walks into view of it (within ~12 m) comes to check it; it stays dark for good.
 - [ ] View tap switches the goggles; a guard's footsteps and your own sound right with the music in every alert state.
 - [ ] Night vision in a dark room: green, readable with grey steps, no flat murk; Wren and the guards are shaped and not
   glowing white; lamps and fixtures glow, lit walls do not. The goggle frame is wide and thin (almost the whole screen

@@ -38,7 +38,9 @@ export type BarkEvent =
   | 'covering'
   | 'flanking'
   // (guard-ai S12) a round stopped by his helmet or vest
-  | 'deflect';
+  | 'deflect'
+  // (guard-ai S15) a switched-off circuit taken for a fault: he goes to turn it back on
+  | 'breaker';
 
 export const BARKS: Record<BarkEvent, readonly string[]> = {
   suspicious: ['Huh?', 'What was that?', 'Hello?', 'Something there...'],
@@ -72,6 +74,7 @@ export const BARKS: Record<BarkEvent, readonly string[]> = {
   covering: ['Covering!', 'Got you covered!', 'Go, go!'],
   flanking: ['Flanking!', 'Going round!', 'Taking the side!'],
   deflect: ['Argh! Still up!', 'Took one! Still standing!', 'That was close!'],
+  breaker: ["Breaker's gone again."],
 };
 
 /** Radio lines (a chirp plays with them). */

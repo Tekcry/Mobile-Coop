@@ -224,8 +224,23 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   15 m. The bulb's pop and the round's impact merge into it (`shotRay` reports the light first). `Enemy.checkLight`: bark
   `lightOut`, walk at the investigate pace (a pair's second stops 2.2 m short), look at the fixture 2 s, a 4-point ring
   2-6 m round it (1.5 s at each; unreachable points skipped), bark `standDown`, back to the route unaware (no
-  cooldown; cooldown only if he has fought); a glimpse (meter >= `investigate`) drops the check. Parked modes: the old
-  rule (nearest calm enemy within 25 m investigates, others within 14 m `notice`). Flashlights:
+  cooldown; cooldown only if he has fought); a glimpse (meter >= `investigate`) drops the check. (guard-ai S15, stealth
+  over shooting item 8, A42 / A43; `ai/breaker.ts`, `BREAKER` / `LATE` in `ai/gear.ts`) A switch off with a witness is a
+  fault: a `breaker` incident (one per circuit while open), the one witness best by path (`MODE_BREAKER`, never a pair;
+  the others ack) runs `Enemy.resetBreaker`: bark `breaker`, walk at his patrol pace to the walkable cell by the switch
+  without leaving his calm level (suspicious and back keeps it; investigating or worse drops it), work it
+  `BREAKER.resetT` 2 s, `AiContext.breakerReset` -> `EnemyManager.breakers` (`BreakerHost`, set by `StealthSystems`) ->
+  `StealthSystems.resetCircuit` = the player's own `toggle`; no ring, no radio, back on his route. The circuit lit again by
+  other means (`BreakerHost.isOff` false: the player, an isolator) ends the walk; so does `BREAKER_WALK.giveUp` 30 s.
+  A second noticed cut of the circuit within `BREAKER.repeatT` 60 s (board clock, `lastFault`) is tampering: the S2
+  `light` incident at the switch. A cut nobody saw opens nothing. Shot lamps keep the S2 check and stay dark (`setGroup`
+  skips destroyed lamps). Late discovery (`EnemyManager.lateStep`, every 0.1 s over a round-robin share of the guards,
+  ~3 Hz each): `DarkList` holds the dark fixtures (shot, or cut at a switch that is off) no guard has reacted to
+  (rebuilt only on a registry `version` change or a mark); a calm free guard with one in his focused cone within
+  `LATE.range` 12 m and a clear ray reports it as its witness (shot: the S2 light check, one; cut: the breaker walk at
+  the circuit's switch, or tampering). Once per fixture / circuit state change (`DarkList.known`, cleared when lit, on
+  `clear` and `resetMemory`). Parked modes: the old rule (nearest calm enemy within 25 m investigates, others within 14 m
+  `notice`). Flashlights:
   `World` adds `FLASHLIGHTS` (4) on dark maps; human guards (`carriesTorch`: not dogs) get them while investigating / searching / hunting unseen where the
   static light is < `TORCH_DARK` 0.35 (kept to `TORCH_KEEP` 0.45; pure `torchRule` in `archetypes.ts`); `EnemyManager.beamReach` (centre + four edge rays, 15 Hz
   per torch) stops the beam at geometry.

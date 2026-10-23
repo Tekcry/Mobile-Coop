@@ -38,6 +38,10 @@ import { bodyNoticed } from './bodies';
 import { CoverGrid, coverSetFrom, type CoverSet } from './coverGrid';
 import { gearFromTag, mergeGear, type GearTag, type GuardGear } from './gear';
 import { HelmetDrops } from './helmetDrops';
+// (guard-ai S15) breaker faults and late discovery
+import { MODE_BREAKER } from './incidents';
+import { BREAKER, LATE } from './gear';
+import { CIRCUIT_KEY, DARK_SHOT, DarkList, LATE_SCAN, type BreakerHost } from './breaker';
 import { assignRoles, combatSeed, P_AGGRESSIVE, P_POST, P_STANDARD, R_NONE, R_REPORTER, RoleInput, RoleOutput, SQUAD } from './squadRoles';
 
 // Live guard cap. 12 = the Dead Line co-op peak of 10 chapter-active guards (furthest-behind and furthest-ahead
@@ -294,6 +298,23 @@ export class EnemyManager {
   /** (guard-ai S12) Scratch for `placeSlot`'s gear. */
   private readonly gearA: GuardGear = { helmet: false, armour: false };
   private readonly gearB: GuardGear = { helmet: false, armour: false };
+  // ----- (guard-ai S15, stealth over shooting item 8) breaker faults and late discovery -----
+  /** The match's wall switches as the guards use them (`StealthSystems` sets it; null: no switches, a cut stays the S2
+   *  light incident). */
+  breakers: BreakerHost | null = null;
+  /** The tables (tests / e2e read the numbers from here). */
+  readonly breakerTable = BREAKER;
+  readonly lateTable = LATE;
+  /** Dark fixtures no guard has reacted to (late discovery's list). */
+  private readonly dark = new DarkList();
+  /** Board time (s) of the last cut a guard noticed, per circuit: another inside `BREAKER.repeatT` is tampering. */
+  private readonly lastFault = new Map<number, number>();
+  private lateT = 0;
+  private lateK = 0;
+  private readonly swP = new Float32Array(3);
+  /** Breaker resets the guards made and late finds (tests / e2e). */
+  breakerResets = 0;
+  lateFinds = 0;
 
   constructor(
     private scene: Scene,
@@ -415,6 +436,11 @@ export class EnemyManager {
         this.radioNet.cut(e.num);
       },
       dropHelmet: (x, y, z, top, dx, dz, hex, w, h, d) => this.helmetDrops.drop(x, y, z, top, dx, dz, hex, w, h, d),
+      // (guard-ai S15) the breaker walk: is the circuit still off; he worked the switch
+      breakerOff: (group) => (this.breakers ? this.breakers.isOff(group) : true),
+      breakerReset: (_e, group) => {
+        if (this.breakers?.reset(group)) this.breakerResets++;
+      },
       searchSlot: (e) => {
         let n = 0;
         for (const o of this.enemies) if (o !== e && o.alive && o.level === 'searching' && o.num < e.num) n++;
@@ -688,8 +714,84 @@ export class EnemyManager {
     }
     // the incident sits on the floor under the light (rough storey pick: 2.5 m under the fixture), where guards walk to
     const floor = this.nav.heightAt(x, z, fy - 2.5);
-    const key = lightId >= 0 ? lightId : group >= 0 ? 100000 + group : -1;
+    // (guard-ai S15, A42) a circuit switched off at its switch: a fault (one goes to turn it back on), or tampering
+    // (a circuit cut some other way, its switches still on: the S2 light incident as before)
+    if (group >= 0 && lightId < 0 && BREAKER.reset && this.breakers?.isOff(group)) {
+      this.circuitOut(group, x, floor, z, n);
+      return;
+    }
+    const key = lightId >= 0 ? lightId : group >= 0 ? CIRCUIT_KEY + group : -1;
     this.report('light', x, floor, z, key, n);
+  }
+
+  /**
+   * (guard-ai S15, A42) Circuit `group` went dark at its switch (x, floor y, z), seen by the `n` guards in `hearWho`. The
+   * first cut the guards notice is a fault: a `breaker` incident (one of them walks over at patrol pace and turns it
+   * back on, `Enemy.resetBreaker`); another noticed within `BREAKER.repeatT` s of the last is tampering: the S2 light
+   * incident at the switch (1-2 check it and the ring). Nobody saw it: nothing now (late discovery may find it).
+   */
+  private circuitOut(group: number, x: number, y: number, z: number, n: number): void {
+    if (n === 0) return;
+    const now = this.board.now;
+    const last = this.lastFault.get(group);
+    const tamper = last !== undefined && now - last < BREAKER.repeatT;
+    this.lastFault.set(group, now);
+    this.report(tamper ? 'light' : 'breaker', x, y, z, CIRCUIT_KEY + group, n);
+  }
+
+  /**
+   * (guard-ai S15, A43) Late discovery, every `LATE_SCAN.tick` s: a share of the guards (round robin, each about
+   * `LATE_SCAN.perGuardHz` times a second) look for a dark fixture nobody has reacted to (`DarkList`: shot out, or its
+   * circuit switched off) inside their focused sight cone within `LATE.range` m, with one line-of-sight ray. The first
+   * found is reported as a witness would have: a shot lamp -> the S2 light check (he alone saw it: one goes); a cut ->
+   * the breaker walk at the circuit's switch (or tampering inside `BREAKER.repeatT`). Once per fixture / circuit state
+   * change (`DarkList.known`). Reads the light registry and collision only; no allocation.
+   */
+  private lateStep(): void {
+    const reg = this.world.level.lights;
+    const dl = this.dark;
+    dl.refresh(reg, this.breakers);
+    if (dl.n === 0) return;
+    const list = this.enemies;
+    const N = list.length;
+    if (N === 0) return;
+    const P = PERCEPTION;
+    const range = Math.min(LATE.range, P.focusRange);
+    const per = Math.min(N, Math.max(1, Math.ceil(N * LATE_SCAN.tick * LATE_SCAN.perGuardHz)));
+    const ls = reg.lights;
+    for (let j = 0; j < per; j++) {
+      if (this.lateK >= N) this.lateK = 0;
+      const e = list[this.lateK++]!;
+      if (!e.alive || e.alerted || e.passive || e.taken || e.def.melee || e.dog || e.secure || e.runningAlarm || e.incident >= 0) continue;
+      if (e.level !== 'unaware' && e.level !== 'cooldown') continue;
+      const ey = e.pos.y + EYE_STAND * e.def.scale;
+      for (let q = 0; q < dl.n; q++) {
+        const l = ls[dl.ids[q]!];
+        if (!l) continue;
+        if (hyp3(l.x - e.pos.x, l.y - ey, l.z - e.pos.z) > range) continue;
+        // a dark fixture is not a bright change: the focused cone only (no peripheral field)
+        if (!lightInView(e.pos.x, ey, e.pos.z, e.yaw, l.x, l.y, l.z, P.focusHalf, range, 0, 0)) continue;
+        if (!this.seesPoint(e, l.x, l.y, l.z)) continue;
+        this.lateFind(e, l);
+        return;
+      }
+    }
+  }
+
+  /** (guard-ai S15) Guard `e` found dark fixture `l` late: report it as its witness. */
+  private lateFind(e: Enemy, l: LightDef): void {
+    const reg = this.world.level.lights;
+    this.lateFinds++;
+    this.hearWho[0] = e.num;
+    if (l.destroyed) {
+      this.dark.markLight(l.id, DARK_SHOT);
+      this.report('light', l.x, this.nav.heightAt(l.x, l.z, l.y - 2.5), l.z, l.id, 1);
+      return;
+    }
+    this.dark.markGroup(reg, l.group);
+    const s = this.swP;
+    if (!this.breakers || !this.breakers.switchOf(l.group, e.pos.x, e.pos.z, s)) return;
+    this.circuitOut(l.group, s[0]!, this.nav.heightAt(s[0]!, s[2]!, s[1]! - 1), s[2]!, 1);
   }
 
   /** Is the point inside this guard's sight field and range (a light going out: the peripheral range counts)? */
@@ -1072,6 +1174,9 @@ export class EnemyManager {
     this.radioSeq = 0;
     const ps = this.players();
     for (let i = 0; i < ps.length; i++) ps[i]!.spotted = false;
+    // (guard-ai S15) the new guards know of no dark fixture or cut circuit
+    this.dark.clear();
+    this.lastFault.clear();
   }
 
   spawn(kind: EnemyKind, pos: Vector3, alerted = true, yaw = 0): Enemy | null {
@@ -1339,7 +1444,11 @@ export class EnemyManager {
       const inc = o.inc[k]!;
       if (o.cmd[k] === CMD_SEND) {
         const m = o.mode[k]!;
+        // (guard-ai S15) a guard reacts to this fixture / circuit going dark: late discovery leaves it alone
+        if (m === MODE_LIGHT || m === MODE_BREAKER) this.dark.markKey(this.world.level.lights, b.keyOf(inc));
         if (m === MODE_LIGHT) e.checkLight(o.x[k]!, o.z[k]!, inc, o.arg[k]!);
+        // (guard-ai S15, A42) a circuit switched off: walk to its switch and turn it back on
+        else if (m === MODE_BREAKER) e.resetBreaker(o.x[k]!, o.z[k]!, o.y[k]!, inc, b.keyOf(inc) - CIRCUIT_KEY);
         else if (m === MODE_LEAD || m === MODE_COVER) e.pairSearch(o.x[k]!, o.z[k]!, inc, m === MODE_LEAD);
         // (guard-ai S3, S2 check polish 2) a plain noise or a lure that finds nothing ends calm; gunfire keeps the cooldown
         else if (m === MODE_INVESTIGATE) e.sendTo(o.x[k]!, o.z[k]!, inc, b.kindOf(inc) !== 'shots');
@@ -1918,6 +2027,15 @@ export class EnemyManager {
         if (this.roleT <= 0) this.roleT = TACTICS.tick;
         this.rolesStep(TACTICS.tick);
       }
+      // (guard-ai S15, A43) late discovery of dark fixtures, a share of the guards per tick
+      if (LATE.enabled) {
+        this.lateT -= dt;
+        if (this.lateT <= 0) {
+          this.lateT += LATE_SCAN.tick;
+          if (this.lateT <= 0) this.lateT = LATE_SCAN.tick;
+          this.lateStep();
+        }
+      }
     }
     this.updateDrones(dt);
     const doors = this.world.doors;
@@ -2044,5 +2162,8 @@ export class EnemyManager {
     this.rolesActive = false;
     // (guard-ai S12) and the helmets on the floor
     this.helmetDrops.clear();
+    // (guard-ai S15) and what the guards knew of dark fixtures and cut circuits
+    this.dark.clear();
+    this.lastFault.clear();
   }
 }

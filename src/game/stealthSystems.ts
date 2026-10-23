@@ -9,7 +9,8 @@ import type { EnemyManager } from '../ai/enemyManager';
 import type { EnemyKind } from '../ai/enemyDefs';
 import type { Enemy } from '../ai/enemy';
 import type { ReinforceEntry } from '../ai/guardAiData';
-import { lightOnRay, type LightRegistry } from '../world/lights';
+import { groupBaseOn, lightOnRay, type LightRegistry } from '../world/lights';
+import type { BreakerHost } from '../ai/breaker';
 import type { Interactable, Interactables } from './interactables';
 import type { GameState } from './gameState';
 import { DOOR, type DoorState } from '../world/doors';
@@ -75,6 +76,8 @@ export class StealthSystems {
       ints.setEnabled(it, true);
       this.switches.push(sw);
     });
+    // (guard-ai S15) the guards reach the switches: a cut circuit is turned back on through the player's own toggle
+    em.breakers = this.breakerHost;
     layout.alarms?.forEach((a, i) => {
       const panel: AlarmPanel = { id: `alarm-${i}`, x: a.pos.x, y: a.pos.y, z: a.pos.z, yaw: a.yaw, disabled: false, ...(a.section !== undefined ? { section: a.section } : {}) };
       em.alarms.push(panel);
@@ -430,6 +433,56 @@ export class StealthSystems {
     }
   }
 
+  /** (guard-ai S15, A42) The switches as the guards use them (`EnemyManager.breakers`). No allocation. */
+  private readonly breakerHost: BreakerHost = {
+    switchOf: (group, x, z, out) => {
+      const sws = this.switches;
+      let best = -1;
+      let bd = Infinity;
+      for (let i = 0; i < sws.length; i++) {
+        const s = sws[i]!;
+        if (s.group !== group) continue;
+        const d = hyp2(s.it.pos.x - x, s.it.pos.z - z);
+        if (d < bd) {
+          bd = d;
+          best = i;
+        }
+      }
+      if (best < 0) return false;
+      const p = sws[best]!.it.pos;
+      out[0] = p.x;
+      out[1] = p.y;
+      out[2] = p.z;
+      return true;
+    },
+    // off at its switches and dark (a lamp of it lit again by other means, an isolator: no longer a cut)
+    isOff: (group) => {
+      const sws = this.switches;
+      for (let i = 0; i < sws.length; i++) {
+        const s = sws[i]!;
+        if (s.group === group) return !s.on && !groupBaseOn(this.g.world.level.lights, group);
+      }
+      return false;
+    },
+    reset: (group) => this.resetCircuit(group),
+  };
+
+  /**
+   * (guard-ai S15, A42) A guard worked the switch: circuit `group` back on through the player's own toggle, so the lamps,
+   * the light field and meter, the switch labels and the co-op light sync (Sector Ops `lamps`, Course `lights.groups`:
+   * both read the registry) all follow. Turning on wakes nobody. False when no switch of it was off.
+   */
+  resetCircuit(group: number): boolean {
+    const sws = this.switches;
+    for (let i = 0; i < sws.length; i++) {
+      const s = sws[i]!;
+      if (s.group !== group || s.on) continue;
+      this.toggle(s, this.g.world.level.lights);
+      return true;
+    }
+    return false;
+  }
+
   /**
    * (sector-redesign G22) After the lights were put back (a section restart): each switch reads its circuit again (on
    * while any unbroken light of its group is on by its switches) and its label and indicator follow. No guard reacts.
@@ -760,5 +813,6 @@ export class StealthSystems {
     this.em.onBodyAdded = this.em.onBodyRemoved = this.em.onBodyFound = null;
     this.em.onRevived = null;
     this.em.onAlarm = null;
+    if (this.em.breakers === this.breakerHost) this.em.breakers = null;
   }
 }

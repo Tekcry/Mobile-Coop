@@ -46,6 +46,8 @@ try {
           l.on = true;
         }
         reg.version++;
+        // (guard-ai S15) the wall switches read their circuits again (a switch left off by a scenario is on again)
+        g.stealth.syncSwitches();
         if (g.stealth.carry) g.stealth.dropCarried();
         // doors shut again
         const doors = g.world.doors;
@@ -719,8 +721,11 @@ try {
       const on1 = reg.countOn();
       t.step(2.8);
       const lv2 = e2.level;
+      // (guard-ai S15, A42) a switch cut is a fault: the one who saw it walks to the switch to turn it back on (calm)
+      const kind2 = e2.incident >= 0 ? em.board.kindOf(e2.incident) : null;
+      const brk2 = e2.breakerGroup;
       t.light(null);
-      return { before, out, end, lv, kind, goal, torch, torchLevel, swOffer, on0, on1, lv2, shot: g.stealth.lightsShot };
+      return { before, out, end, lv, kind, goal, torch, torchLevel, swOffer, on0, on1, lv2, kind2, brk2, shot: g.stealth.lightsShot };
     });
     assert(r.out, 'a shot through a bulb puts the light out');
     assert(r.end, 'a shot at the end of a lamp strip puts it out too');
@@ -729,7 +734,88 @@ try {
     assert(r.torch >= 1 && r.torchLevel < 0.35, `with a flashlight in the dark (${r.torch} on, light at his head ${r.torchLevel.toFixed(2)})`);
     assert(r.swOffer === 'Lights off', `a wall switch offers lights off (${r.swOffer})`);
     assert(r.on1 < r.on0, `switching turns the room's circuit off (${r.on0} -> ${r.on1})`);
-    assert(r.lv2 === 'investigating', `the room going dark is investigated (${r.lv2})`);
+    // (guard-ai S15) was "the room going dark is investigated": a switch off is now a fault he goes to reset, calm
+    assert(r.kind2 === 'breaker' && r.brk2 >= 0 && (r.lv2 === 'unaware' || r.lv2 === 'cooldown' || r.lv2 === 'suspicious'), `the room going dark sends him to the switch to reset it, calm (${r.kind2}, circuit ${r.brk2}, ${r.lv2})`);
+  });
+
+  await scen('breaker', async () => {
+    // (guard-ai S15, stealth over shooting item 8, A42) the factory floor circuit off at its wall switch with two guards
+    // on the floor seeing it go (their room goes dark, as in 'light pair'): a fault, not an attack. Exactly one walks to
+    // the switch at his patrol pace (never a pair), works it BREAKER.resetT s and the circuit is on again; neither goes
+    // past suspicious, both end calm with no task. The same switch again inside BREAKER.repeatT: tampering, the S2 light
+    // incident at the switch. Sim-time steps only; Math.random seeded as in 'lkp'.
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const reg = g.world.level.lights;
+      const rnd = Math.random;
+      let seed = 1515;
+      Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      try {
+        t.light(0);
+        t.tp(-22, -24, 0);
+        const sw = g.interactables.items.find((i) => i.id === 'switch-4');
+        const grp = g.world.layout.switches[4].group;
+        const lamp = reg.lights.find((l) => l.kind === 'lamp' && l.x === 0 && l.z === -3);
+        const a = t.spawn('grunt', 4, 1, 0);
+        const b = t.spawn('grunt', 3, -6.5, Math.PI / 2);
+        a.setPatrol({ points: [[a.pos.x, a.pos.z], [a.pos.x, a.pos.z + 5]], wait: 1 });
+        b.setPatrol({ points: [[b.pos.x, b.pos.z], [b.pos.x + 5, b.pos.z]], wait: 1 });
+        t.step(0.5);
+        const onCircuit = lamp?.group === grp;
+        const resets0 = em.breakerResets;
+        sw.onUse(sw, 'local');
+        const off = !g.stealth.switchOn(grp) && reg.lights.filter((l) => l.group === grp && !l.destroyed).every((l) => !l.on);
+        t.step(0.3);
+        const walkers = [a, b].map((e) => e.breakerGroup === grp);
+        const kinds = [a, b].map((e) => (e.incident >= 0 ? em.board.kindOf(e.incident) : null));
+        const w = walkers[0] ? a : walkers[1] ? b : null;
+        const rank = { unaware: 0, cooldown: 0, suspicious: 1, investigating: 2, searching: 3, alert: 4 };
+        const worst = ['unaware', 'unaware'];
+        let tt = 0.3;
+        let back = -1;
+        let atSwitch = 99;
+        let maxSpeed = 0;
+        let last = w ? [w.pos.x, w.pos.z] : null;
+        for (let k = 0; k < 240 && back < 0; k++) {
+          t.step(0.25);
+          tt += 0.25;
+          [a, b].forEach((e, i) => {
+            if (rank[e.level] > rank[worst[i]]) worst[i] = e.level;
+          });
+          if (w) {
+            maxSpeed = Math.max(maxSpeed, Math.hypot(w.pos.x - last[0], w.pos.z - last[1]) / 0.25);
+            last = [w.pos.x, w.pos.z];
+            atSwitch = Math.min(atSwitch, Math.hypot(w.pos.x - sw.pos.x, w.pos.z - sw.pos.z));
+          }
+          if (g.stealth.switchOn(grp)) back = tt;
+        }
+        const relit = reg.lights.filter((l) => l.group === grp && !l.destroyed).every((l) => l.on);
+        t.step(1);
+        const after = { levels: [a.level, b.level], inc: [a.incident, b.incident], brk: [a.breakerGroup, b.breakerGroup], resets: em.breakerResets - resets0 };
+        // the same switch again at once (inside repeatT): tampering, a light check at the switch
+        sw.onUse(sw, 'local');
+        t.step(0.3);
+        const second = [a, b].map((e) => ({ lv: e.level, kind: e.incident >= 0 ? em.board.kindOf(e.incident) : null, brk: e.breakerGroup }));
+        const sinceFirst = tt + 1.3;
+        t.light(null);
+        return { onCircuit, off, walkers, kinds, worst, back, atSwitch, maxSpeed, walkSpeed: w?.def.walkSpeed ?? 0, relit, after, second, sinceFirst, repeatT: em.breakerTable.repeatT };
+      } finally {
+        Math.random = rnd;
+      }
+    });
+    const f2 = (v) => v.toFixed(2);
+    assert(r.onCircuit && r.off, `the switch puts the factory floor circuit out (lamp (0, -3) on it ${r.onCircuit}, all off ${r.off})`);
+    assert(r.walkers.filter(Boolean).length === 1, `exactly one of the two who saw it goes to the switch (${JSON.stringify(r.walkers)}, tasks ${JSON.stringify(r.kinds)})`);
+    assert(r.kinds.filter((k) => k === 'breaker').length === 1 && !r.kinds.includes('light'), `a breaker fault, not a light check (${JSON.stringify(r.kinds)})`);
+    assert(r.maxSpeed < r.walkSpeed * 1.25, `he walks over at his patrol pace (max ${f2(r.maxSpeed)} m/s, walk speed ${f2(r.walkSpeed)})`);
+    assert(r.back > 0 && r.atSwitch < 1.6 && r.relit, `he reaches the switch and the circuit is on again (at ${f2(r.back)} s, ${f2(r.atSwitch)} m from it, all lit ${r.relit})`);
+    assert(r.worst.every((l) => l === 'unaware' || l === 'cooldown' || l === 'suspicious'), `neither goes past suspicious (${JSON.stringify(r.worst)})`);
+    assert(r.after.levels.every((l) => l === 'unaware' || l === 'cooldown') && r.after.inc.every((i) => i === -1) && r.after.brk.every((x) => x === -1), `both calm with no task after (${JSON.stringify(r.after)})`);
+    assert(r.after.resets === 1, `one reset (${r.after.resets})`);
+    assert(r.sinceFirst < r.repeatT, `the second cut is inside repeatT (${f2(r.sinceFirst)} < ${r.repeatT} s)`);
+    assert(r.second.some((s) => s.kind === 'light' && s.lv === 'investigating') && r.second.every((s) => s.brk === -1), `a second cut inside repeatT is tampering: a light incident at the switch (${JSON.stringify(r.second)})`);
   });
 
   await scen('light pair', async () => {
