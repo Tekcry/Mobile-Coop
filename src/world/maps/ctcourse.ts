@@ -76,12 +76,12 @@ export const HIGH_LAMP_Y = 7.5 - FLUSH;
 export const ANNEX_LAMP_Y = 4.0 - FLUSH;
 /** (marlow-bunker) Lamps that moved to a ceiling, compensated so the levels the course was tuned on hold
  *  (`tests/ctcourseLight.test.ts`, `docs/marlow-bunker/LIGHT.md`). */
-const LAMP_LOW = { intensity: 0.9, radius: 13 };
-const LAMP_S4 = { intensity: 0.85, radius: 13 };
-const S5_ROOF_LAMP = { intensity: 0.9, radius: 13 };
+const LAMP_LOW = { intensity: 1.5, radius: 13 };
+const LAMP_S4 = { intensity: 1.4, radius: 13 };
+const S5_ROOF_LAMP = { intensity: 1.4, radius: 13 };
 const AIRLOCK_LAMP = { intensity: 0.35, radius: 7 };
-const S2_TOP_LAMP = { intensity: 0.5, radius: 7.6 };
-const S7_TOP_LAMP = { intensity: 0.7, radius: 5 };
+const S2_TOP_LAMP = { intensity: 0.5, radius: 4.4 };
+const S7_TOP_LAMP = { intensity: 0.7, radius: 3.6 };
 const ANNEX_LAMP = 0.8;
 /** (marlow-jammer) Station 3's lamps [bay x, z, radius]: two over the hallway, one in each lobby. */
 const S3_LAMPS: readonly (readonly [number, number, number])[] = [
@@ -419,13 +419,13 @@ export const ctcourse: MapDef = {
       // 0.9 -> 0.83 for the shorter throw) and the laser cell (5 -> 5.35, faintly red)
       const ceilingLamps: number[] = [];
       if (high) {
-        pendant(x0 + 4, 5, ceil, 0.9, 13);
+        pendant(x0 + 4, 5, ceil, 1.6, 13);
         // (course-ready S2) station 5: lamp B is over the annex roof, so bodies on the roof (plates, relay lip, hatch) read
         // lit; now flush with the 7.5 m ceiling (6.8 -> 7.35)
         if (n === 5) {
           flush(x0 + 12.5, ceil, S5_ROOF_LAMP.intensity, S5_ROOF_LAMP.radius);
           ceilingLamps.push(x0 + 12.5);
-        } else pendant(x0 + 12.5, 5, ceil, 0.9, 13);
+        } else pendant(x0 + 12.5, 5, ceil, 1.6, 13);
       } else if (n === 3) {
         // (marlow-jammer) the hallway: two strips over it, one in each lobby; all jammable. The camera sees by its own IR
         // (M3), so these light the hallway for the players and the meter, not for the camera
