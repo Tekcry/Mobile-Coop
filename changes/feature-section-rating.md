@@ -10,4 +10,4 @@ kind: minor
 - Your best marks per section are saved. More marks wins. A tie goes to more synced takedowns.
 - The Sector Ops select screen shows each section's best marks as four pips. Unrated sections show no pips. Marlow Yard saves best marks too, but its select screen does not show them yet.
 - The results screen lists every rated section in order, with its marks (for example 4/4) and its synced count.
-- Co-op wire: protocol 37. The section rating adds the `rt` field to the sector and course messages. It builds on marlow-final's 36, so host and client must both run 37. Builds on 36 and below are refused.
+- Co-op wire: protocol 42. The section rating adds the `rt` field to the sector and course messages and `rh` to the course message. It rides marlow-final's 42 (one bump per train), so host and client must both run 42. Builds on 41 and below are refused.

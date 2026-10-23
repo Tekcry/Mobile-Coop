@@ -256,6 +256,47 @@ doesnt make sense". A32-A34 are S10's (on `feature/guard-ai-s10`).
 - **A51** (S12) The `deflect` hit marker is steel blue (`#8fb3d9`, `styles.css`) with a 2600 Hz ping (`sfx.hitMarker`);
   the HUD and sfx `hitMarker` signatures take the new kind. Undo: drop the CSS rule and the ping (falls back to the
   white hit marker).
+- **A80** (S16, Sector Ops E10) A guard never fires into armour: before the wind-up, a burst and every round
+  `Enemy.tryFire` casts the fire line (the muzzle `shoot` uses -> its aim point before spread, `MASK.ENEMY_SHOT`, plus
+  `G.ENEMY_HITBOX` against a human shield); a first hit with `G.GLASS_ARMOURED` (armoured pane or door leaf) drops the
+  wind-up and the burst. Aimed, suppressive and blind fire are all gated. Undo: drop the `armourBlocks` call in `tryFire`.
+- **A81** (S16) The verdict is cached per guard for `ARMOUR_FIRE.recheck` 0.25 s while his nav cell and the aim's stay the
+  same (a new cell recasts at once): at most ~4 rays a second per fighting guard, no allocation. Undo: `recheck` 0.
+- **A82** (S16) Held fire with the target in sight for `moveAfter` 1.0 s starts a reposition: a cover user takes the
+  existing cover pick in relocation range (5-22 m), clear-line spots only; no such spot, or no cover use, chases round by
+  the nav flow field at 0.75 x run, not stopping to engage while the line stays armoured. A reposition lasts at most
+  `moveT` 8 s and ends early on a clear line; the next may start `retry` 6 s after it; in between he holds. Undo: the
+  `ARMOUR_FIRE` table, or drop the plan branch in `Enemy.decide`. With S8 roles (merge of master 4.75.0): the role
+  step runs first (a bound the group starts is not cut short), then this check, for a role holder too (his rounds are
+  gated in `tryFire` whatever path calls it); a reposition blocks the cover he leaves for the role picks
+  (`blockCover`, `TACTICS.blockS` 5 s) and drops his role cover until the next roles tick, so the group does not send
+  him straight back. Undo: move the S16 block above the `roleStep` call.
+- **A83** (S16) The cover pick casts a spot's line (standing muzzle height -> the target's aim point) only for a spot that
+  would be the new best, at most `coverCasts` 6 per pick; an unverified spot is skipped. Undo: raise `coverCasts`.
+- **A84** (S16) A guard held to a room (`hold`) or a post leash with the target outside it only holds: he tracks and
+  faces him, never fires into the armour and never leaves. Undo: `plan(true)` in `Enemy.decide`.
+- **A85** (S16) Sight (`MASK.SIGHT`), hearing (`MASK.HEARING`), the alert level and reporting are unchanged: a guard behind
+  clear armour still spots, shouts and radios. Plain glass is unchanged (not in the shot mask: guards fire through it).
+- **A86** (S16) Co-op: host only (the host's guards decide), no wire change; a client player behind armour is a
+  `PlayerRef` like the host's and gets the same gate.
+- **A87** (S16) The ray is `Ballistics.armouredFirst` (src/weapons/ballistics.ts, a combat file): an additive,
+  allocation-free method in `ray`'s order (a hit volume or prop first is not armour). Sector Ops are told. Undo: remove
+  it with the gate.
+- **A88** (S16 fix round) The e2e block "guards hold fire at armour" (`e2e-sectorops.mjs` part 6) picks the player's
+  hall floor spot with the AI still frozen, by each NOC guard's own `Enemy.perceive` at his window post, then turns the
+  AI on and asserts `los` through the update path. The first run (fb192d45) failed in the test, not the game: three of
+  its five spots were inside pod P1 (racks under the 3.0 roof), and the pair, alerted without sight, walked off the
+  window toward the stairs before the one visible spot (-1.5, 32) came up; from the back of the NOC the 4.6 sill hides
+  the floor. New spots: the hall's west aisle (-2.5, 30), (-2, 31), (-1.5, 32), (-2.5, 29), pinned by
+  `tests/campusS4NocSight.test.ts` (clear from both posts +-0.3 m at chest / head 0.9-1.6, each line crosses arm-noc).
+  No game change. Undo: the old spot loop (alert first, then try spots).
+- **A89** (S16 fix 2) The same e2e block runs its timed part in sim time only: `loop.manual = true` before the alert
+  (rAF frames render, never step), as the other blocks with sim-time steps do. Without it every page round trip let rAF
+  step the sim on in real time, so the nominal 1.5 + 10 s ran past `ALERT.lostSight` (12 s; `sinceSeen` starts at 99,
+  so a guard who never sees again times out 12 s after the alert) and the pair, out of sight in their cover, dropped to
+  searching (the pre-existing combat timeout, not the gate). In sim time the window ends under 12 s, so a drop there
+  is something other than the timeout. The final assert prints each guard's level, time in it and time unseen. No game
+  change. Undo: drop the `manual` line.
 - **A52** (S13) A stage rise gives its gear to every living guard of the loaded section (Sector Ops loads one section)
   on top of what he wears, so a guard whose own helmet was shot off gets a new one when stage 3 arrives. Undo: in
   `EnemyManager.giveStageGear` skip the helmet for a guard who lost one (a flag set in `Enemy.knockHelmetOff`).

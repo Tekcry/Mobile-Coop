@@ -8,8 +8,8 @@ const evs = (events: unknown[]): unknown[] => {
 };
 
 describe('E9-crate wire (protocol 35)', () => {
-  it('PROTOCOL_VERSION is 37 (37 the section rating; 36 the merge of marlow-final 33 and master 35; 35 the weapons crate; 31 the Sector lamps)', () => {
-    expect(PROTOCOL_VERSION).toBe(37);
+  it('PROTOCOL_VERSION is 42 (42 marlow-final over train 30 (40); 41 reserved for guard-ai S9; 40 the stack at train 30; 39 guard-ai S9; 38 lamp falloff; was 36 pose-parity; 35 the weapons crate; 31 the Sector lamps)', () => {
+    expect(PROTOCOL_VERSION).toBe(42);
   });
 
   it('the crate item kind is appended at the end of ITEM_KINDS', () => {

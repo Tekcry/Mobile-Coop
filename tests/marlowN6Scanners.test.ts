@@ -126,8 +126,8 @@ describe('(N6) scanner glow placement and the wire entry (pure)', () => {
 
 describe('(N6) protocol 30: sec.sc is one entry per pair', () => {
   const base = { ck: [], j: ['', ''], ch: [5, 5], cd: [0, 0], dv: [], al: 0 };
-  it('PROTOCOL_VERSION is 37 (37 the section rating; 36 the merge of marlow-final 33 and master 35 the weapons crate; 33: 30 one scanner entry per pair, merged with the Sector lamps 31)', () => {
-    expect(PROTOCOL_VERSION).toBe(37);
+  it('PROTOCOL_VERSION is 42 (42 marlow-final over train 30 (40); 36 the merge of marlow-final 33 and master 35 the weapons crate; 33: 30 one scanner entry per pair, merged with the Sector lamps 31)', () => {
+    expect(PROTOCOL_VERSION).toBe(42);
   });
 
   it('two pairs round-trip', () => {

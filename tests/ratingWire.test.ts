@@ -8,7 +8,7 @@ import { ratingViewFromWire } from '../src/net/validate';
 import type { SectorRatingWire } from '../src/game/sectors';
 import { RH_HI, RH_MAX, packRated, unpackRated } from '../src/game/course/courseWire';
 
-/** (section-rating S3, protocol 37) The `sector` message's `rt` and the course stats' `synced`. */
+/** (section-rating S3, protocol 42) The `sector` message's `rt` and the course stats' `synced`. */
 
 function hub() {
   const peers = new Map<string, Transport & { deliver(m: unknown, from: string): void }>();
@@ -52,9 +52,9 @@ afterEach(async () => {
 const RT: SectorRatingWire = { sec: 1, marks: 13, synced: 1, gadget: 2, syringe: 1, medkit: 0, alarmStep: 0 };
 const sectorOf = (m: Msg | null) => (m && m.t === 'sector' ? m : null);
 
-describe('rating wire (protocol 37)', () => {
-  it('is protocol 37', () => {
-    expect(PROTOCOL_VERSION).toBe(37);
+describe('rating wire (protocol 42)', () => {
+  it('is protocol 42 (the rating rides marlow-final 42)', () => {
+    expect(PROTOCOL_VERSION).toBe(42);
   });
 
   it('a sector message round-trips its rt beside the other extras', () => {
@@ -141,13 +141,13 @@ describe('rating wire (protocol 37)', () => {
     expect(m?.rt).toEqual({ ...RT, marks: 15 });
   });
 
-  it('a peer on protocol 36 (marlow-final before this bump) is refused; 37 joins', () => {
+  it('a peer on protocol 41 is refused; 42 joins', () => {
     const h = hub();
     const host = sess(h.make('H'), 'host', 'ABCDE', prof('Host'));
     const old = h.make('O');
-    old.send({ t: 'hello', v: 36, name: 'Old', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: 41, name: 'Old', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(false);
-    old.send({ t: 'hello', v: 37, name: 'New', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: 42, name: 'New', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(true);
   });
 });

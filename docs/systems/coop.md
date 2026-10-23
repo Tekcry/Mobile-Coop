@@ -21,7 +21,9 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
 ## Protocol (`protocol.ts`)
 - Every inbound message goes through `parseMessage` (shape, clamps, string sanitising, caps); anything unknown is
   dropped. Add a message: type in `Msg`, case in `parseMessage`, a test in `tests/net.test.ts`.
-- `PROTOCOL_VERSION` 37 (37: the section rating `rt` (section-rating S3), over 36: `sector` `rt` and the course stat `synced`, below; 36: the merge of marlow-final (33: its 30 changes) and master's 35 (weapons crate), both wire changes kept; marlow-final's history: 33: the merge of marlow-final's 30 and Sector Ops' 31, both below; 30: several scanner pairs, `sec.sc` one entry per pair, marlow-final N6; also in 30: a client's noisy hold pulses the host through `use` with `pulse` and items carry the hold noise radius `hn`, so guards hear it (marlow-final, `src/net/holdPulse.ts`); master's history: 35: the weapons crate, sector-redesign E9-crate: `NetItem` kind `crate` and the `crate` event, host -> all, `{ player, id, fill }`: a player used a crate, `fill` false = a rejoin re-send that only hides the prompt; the host keeps the per-player ledger, `game/weaponCrates.ts`; 32-34: taken by guard-ai, marlow-final, hang-down; shared: 31: the Sector Ops lamps, sector-redesign slice L, below; 29: the lasers are jammed at their power panels, sector-fixes P: `jam` and `sec.dv` name panel ids; 28: the `jam` claim's camera eye `e`, jammer-fixes; 26: the jammer rules in `sec`, marlow-jammer: per-camera clocks `ck`, jam left `ch`, cooldown `cd`, jammed / recovering devices `dv`; 25: the guard torch bit in enemy `al`, below; 24: the `sector` message extras, below). A `hello` with another version is ignored by the host. History: 11 = the training course and
+- `PROTOCOL_VERSION` 42 (42: marlow-final (its 30 / 33 / 36 wire: scanner pairs, hold pulses) over train 30's 40; 41 reserved for guard-ai S9. 42 also carries the section rating `rt` / `rh` (section-rating): `sector` `rt`, `course` `rt` / `rh` and the course stat `synced`, below. Marlow-final's history: 36: the merge of marlow-final (33: its 30 changes) and master's 35 (weapons crate), both wire changes kept; marlow-final's history: 33: the merge of marlow-final's 30 and Sector Ops' 31, both below; 30: several scanner pairs, `sec.sc` one entry per pair, marlow-final N6; also in 30: a client's noisy hold pulses the host through `use` with `pulse` and items carry the hold noise radius `hn`, so guards hear it (marlow-final, `src/net/holdPulse.ts`); master's history: 35: the weapons crate, sector-redesign E9-crate: `NetItem` kind `crate` and the `crate` event, host -> all, `{ player, id, fill }`: a player used a crate, `fill` false = a rejoin re-send that only hides the prompt; the host keeps the per-player ledger, `game/weaponCrates.ts`; 32-34: taken by guard-ai, marlow-final, hang-down; shared: 31: the Sector Ops lamps, sector-redesign slice L, below; 29: the lasers are jammed at their power panels, sector-fixes P: `jam` and `sec.dv` name panel ids; 28: the `jam` claim's camera eye `e`, jammer-fixes; 26: the jammer rules in `sec`, marlow-jammer: per-camera clocks `ck`, jam left `ch`, cooldown `cd`, jammed / recovering devices `dv`; 25: the guard torch bit in enemy `al`, below; 24: the `sector` message extras, below; train 30's history: 40 = pose-parity + coop-walk-fixes, one bump for the stack at train 30; was 37: the partner's rounds, coop-walk-fixes P7: `PlayerState.sc` = rounds fired mod 256
+  (`PlayerWeapons.shotCount`), a remote plays one round per step with its weapon's sound, suppressed when `PF.quiet`
+  (`net/remoteShots.ts`); 36: partner pose parity, pose-parity: `PF.aimLeft` 64, the left-shoulder aim in every mode (the ground MoveState `sub` bit 128 dropped), and the `takedown` `sub` bit 1 = the blow is running (a choke and the lethal approach pose no arc on the partner); 39: guard-ai S9; 38: the host's lamp falloff, sector-redesign lightrev LR13: `start.lf` (`linear` | `photometric`, junk or missing reads `linear`), which every peer's match runs over its own setting (`NetSession.hostLampFalloff`, `StartInfo.lampFalloff`, `GameOptions.lampFalloff`); 31: the Sector Ops lamps, sector-redesign slice L, below; 30: marlow-final's Menu Notes; 29: the lasers are jammed at their power panels, sector-fixes P: `jam` and `sec.dv` name panel ids; 28: the `jam` claim's camera eye `e`, jammer-fixes; 26: the jammer rules in `sec`, marlow-jammer: per-camera clocks `ck`, jam left `ch`, cooldown `cd`, jammed / recovering devices `dv`; 25: the guard torch bit in enemy `al`, below; 24: the `sector` message extras, below). A `hello` with another version is ignored by the host. History: 11 = the training course and
   locomotion 10 together (G52); 12 = Wave, team deathmatch, free-for-all and PvP removed (`NetMode`, `team`, `ptd`,
   `frag`, snapshot `score` / `tl`, end `waves` / `winner`); 13 = emotes removed (`emote` message and event), then in the
   same version the custom difficulty (`dc`) and carried medkits (`PlayerState.mk`, MoveState `medkit`, `cmove` kind
@@ -31,7 +33,7 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   `COOP_MAX` 4; it gates joins and `startMatch`. Decided, not built yet (G2, G50): two players in every mode (`COOP_MAX`
   2 and the lobby's "Co-op for 2-4" text).
 - `lobby` / `start` carry the mode, map, `mission` (Infiltration), `weather`, the host's fixed difficulty level (shown
-  read-only on the client) and `bay` (course start).
+  read-only on the client) and `bay` (course start); `start` also the host's lamp falloff `lf` (38, LR13).
 - `PlayerState.mv` (`player/moveState.ts`): mode index (`MOVE_MODES`, append only), anchor, sub bits, phase, takedown
   target, gear, raise, aim twist, ready, grips, commit, `dw` (draw phase 0-3). The `wall` mode carries `a` (cover
   segment), `s` (metres along it) and `sub` (WALL_SUB). Decided, not built yet (G52): the SWAT-turn MoveState (`swat`)
@@ -108,7 +110,14 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   (`CoopHost.healAtStation`); the station shows spent on both pages. Stations exist only on Proving Grounds today;
   placing one in every map is decided, not built yet (G98).
 - Client takedowns: `GameState.takedownVictims` = puppets; `td start / done / abort` seizes the host enemy (denied ->
-  `tdDenied`). The host hears clients (footsteps by `noiseRadius`, shots by `PF.firing`, `PF.quiet` = suppressed).
+  `tdDenied`). (coop-walk-fixes P6) The team takedown on a partner's hostage (Michael 4.72: "should trigger coop
+  takedown"): `NetAttachment.partnerHolds` (host: a client's `seized` hostage whose MoveState still holds him; client:
+  the puppet posed from a partner's `grab`, `EnemyPuppet.partnerHeld`) puts a held guard on offer (`TakedownController`,
+  plan kind `assist`, row TEAM TAKEDOWN); it never seizes him (the holder keeps him). `assistTakedown`: the host's own
+  applies at done; a client sends `td` with kind `assist` (start checked: the guard held as a hostage by another player
+  (`net/assistTakedown.ts` `assistHolder`), in `TD_REACH`; done applied when still so). The host ends a client holder's
+  `seized` entry (the host's own grab sees him down and ends), knocks him out (kill when held), and credits the holder and
+  the striker: a dual takedown. No new field. The host hears clients (footsteps by `noiseRadius`, shots by `PF.firing`, `PF.quiet` = suppressed).
   (guard-ai S14, A46 / A77) A client's quiet shot is heard at `SHOT_NOISE x min(weapon noise, 0.6)` as a solo shot is
   (9.8 m for the CT guns; was a fixed 14 m), a loud one at `SHOT_NOISE x weapon noise` through `EnemyManager.noise`, so
   a client's unsuppressed shot is radioed as "shots fired" like the host's (section caution, host-only, no wire change).
@@ -127,9 +136,14 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   across of a guard and `throwKoLow`..`throwKoHigh` m over his feet (`teamMoves.throwKoHit`) knock him out through
   `Enemy.knockOut` (melee, `takedown: 'throw'`, the strike's noise), one guard per throw. Credit and the client's view
   ride the existing kill event and guard state sync: no wire change.
+- (spare 9) Interrogation intel: the host / solo `intel` game event becomes `feed` events for every client (`hookHud`). A client's
+  interrogation is seen on the host from its MoveState (`grab`, `sub` bit 2, `ph` >= `INTEL.donePh` then the bit drops:
+  `interrogationEnded`): the host spends the guard's information and reveals the intel once. A client interrogating from the
+  hang-down (`boost`) gives only the guard's own lines (gap). No wire change. A client shows every `feed` event as the radio
+  subtitle and as a feed line (the host's intel is in its feed).
 - (anim-studio-2) Team-move animation tuning: the tuner's Co-op sections (`anim/moveTune.ts`, one per move: role A, role
   B, contact) apply to the LOCAL player's own role only (`GameState` writes `MOVE_TUNE_TEAM` from `TeamController`).
-  `RemoteAvatar` never reads them: the partner always plays the shared defaults until an export is folded into the
+  `RemoteAvatar` never reads the live values: the partner plays the BASE table (pose-parity: `moveTuneSelectBase` with its role from the wire, `teamRowOfWire`, and its posed traversal; the Body root offsets and wall gap from its own applied base, `bodyRigRoot`), i.e. the shared defaults until an export is folded into the
   code. Nothing goes on the wire; visual only (the paths, timing and capsule are the game's). The Anim Studio plays both
   roles of each move on one clock with two local puppets (`anim/studioPairs.ts`).
 - (anim-n4b, track A) Team-move poses (`anim/clips/team.ts`, `TeamPoser`, one per rig: the local player, each
@@ -149,6 +163,14 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   lowering: the guard drops at the finish). The pistol: `hostHandsFree` lets `boost` + `HANG_SUB` (not the rope) hold
   it drawn, and a hanging client's shot may start `SHOT_UNDER_HANG` 2.2 m under its turned-over root (`checkShot`'s
   `under`; 1 m otherwise). The holder's pull-up or drop ends the hang; a guard still held is knocked out there (A4).
+- (team-climb) The rope top-out (CLIMB_UP_TEAM, `TEAM.ropeTop` 1.1 s, was 0.9): the climber is pulled in to 0.22 m off
+  the face over the rope's last 0.6 m by height (`ropeClimbPull`, the slide undoes it), then `ropeTopPath` rises
+  (quintic, the climb's speed carried in) and moves in (quintic from k 0.325): the root's per-frame velocity change
+  stays under 0.5 cm (was 5.7 cm at the rise's stop). The lip is found once per climb (`findRopeLip`); the hands start
+  for it on the rope's last 0.2 m (weight at most 0.4 into the top-out, so the team clip plays, not `ledgeClimb`),
+  hold it as lip ("hook") grips while the body rises past and lift off as the arms run out (`liftOff`, the rig's
+  `liftOffTarget`). The partner's avatar does the same with no wire change: its own lip search from the shown feet,
+  the top-out from the feet past the rope's top and the wire phase (`ropeSeenStep`).
 - Partners block each other (training D49, A49, G52: every co-op mode): each page gives each partner a
   `PartnerBlocker` (`partnerBlocker.ts`), an upright capsule at their shown (interpolated) feet in `G.PARTNER` that only
   the local controller collides with. Host: `RemotePlayer.blocker`; client: per `RemoteAvatar`. Parked while the
@@ -174,7 +196,7 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   resolves on it (traversal from `pstate.mv`, a client's takedown, thrown gadget, door use, team moves; A23). The
   `sprint` verb goes with the sprint in the CT prototype (M20).
 - The client mirrors the course (HUD, markers, toasts, results) and LANTERN's radio from `rl` / `rln`. The host sends a
-  final `course` before `end`. (protocol 37) The per-player bay stats gain `synced` (whole 0-1e4, missing 0; synced
+  final `course` before `end`. (protocol 42) The per-player bay stats gain `synced` (whole 0-1e4, missing 0; synced
   takedowns, section-rating) and the message gains `rt`, the last rated Marlow set (S6: the sector `rt` shape, `sec` its
   bay index; the finish's rating has its grant zeroed). The client mirror takes each new bay once: the results line, its
   own gadget top-up and the card (not for the last set); the first message after a join or rejoin only records it. `start` carries `bay` ("Start at bay N", D20); both players start in that bay's entry
@@ -286,7 +308,7 @@ client next to a device first.
   The client's `CtDevices` mirror runs `setLive(ls)` (other sections' cameras off, lasers dark, no jam targets), breaks
   or repairs cameras from `dn` and sets door locks from `lk`. The HUD line (section, alarm, syringes) comes with the
   snapshot's `info`. Objectives, markers and banners use the item and event mirror.
-- (section-rating, protocol 37) `rt` the last section rating `{ sec, marks, synced, gadget, syringe, medkit, alarmStep }`
+- (section-rating, protocol 42) `rt` the last section rating `{ sec, marks, synced, gadget, syringe, medkit, alarmStep }`
   (`SectorRatingWire`; `sec` -1 none yet, `marks` 0-15, the rest whole 0-99; junk drops `rt` only). The host rates a
   section as its connector unloads it (the extraction rates the last one, sent at once, its grant fields zeroed) and
   grants the next section as it begins; syringes through `CoopHost.addSyringes(n)` (`reviveClock.cap += n`). The client

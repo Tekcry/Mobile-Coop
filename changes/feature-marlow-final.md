@@ -12,7 +12,7 @@
   whose noise a joiner makes too (N4, protocol 30 `use.pulse`, `NetItem.hn`); several scanner pairs (N6, protocol 30
   `sec.sc` one entry per pair); one-player pass zones; sliding doors with Open only (N9); the course start list reads the
   course's bay count (N8). Course guards now run stealth rules (shout, search, cooldown, detection stat).
-- Co-op wire: `PROTOCOL_VERSION` 36 (this branch's 30 / 33 merged with master's 35, the weapons crate). Details: `docs/systems/coop.md`.
+- Co-op wire: `PROTOCOL_VERSION` 42 (this branch's 30 / 33 / 36 wire, scanner pairs and hold pulses, over train 30's 40; 41 reserved for guard-ai S9). Details: `docs/systems/coop.md`.
 - Fixes: the character controller no longer reads a stale floor for one step after a hang, climb or teleport
   (`staleSupport`); a client's wall switch press is taken only within the host's reach rule.
 - Course tests: one unit file per set (`tests/ctcourse/`), a whole-map light frame (`CTLIGHT_WRITE`), `e2e-ctcourse` now

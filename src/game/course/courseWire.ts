@@ -26,10 +26,10 @@ export interface CourseWire {
   rln?: number;
   /** (CT prototype B3) The cameras' clock, who jams what, the charges and the alarm stage. */
   sec?: SecWire;
-  /** (section-rating S6, protocol 37) The last rated set: `sec` its bay index (-1 none yet), the marks, synced and the
+  /** (section-rating S6, protocol 42) The last rated set: `sec` its bay index (-1 none yet), the marks, synced and the
    *  grant the client's own kit takes (zero for the course's last set, rated at the finish). */
   rt?: SectorRatingWire;
-  /** (section-rating S6 fix, inside protocol 37) Every set's rating so far, by bay (`packRated`): a late joiner or a
+  /** (section-rating S6 fix, inside protocol 42) Every set's rating so far, by bay (`packRated`): a late joiner or a
    *  reloaded rejoiner rebuilds its results lines from it (no grant). */
   rh?: number[];
 }

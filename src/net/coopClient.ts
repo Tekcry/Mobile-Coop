@@ -1,5 +1,6 @@
 import { Vector3 } from '../core/babylon';
 import type { GameState, NetAttachment } from '../game/gameState';
+import type { TakedownVictim } from '../game/takedownController';
 import type { Blip } from '../ui/hud/minimap';
 import type { BlobShadows } from '../vfx/blobShadows';
 import { Ragdoll } from '../ai/ragdoll';
@@ -305,7 +306,7 @@ export class CoopClient implements NetAttachment {
       if (!info) return null;
       const g = this.g;
       a = new RemoteAvatar(g.world, g.vfx, g.ballistics, info);
-      a.onFire = (cls, at) => g.events.emit('remoteShot', { cls, x: at.x, y: at.y, z: at.z });
+      a.onFire = (cls, at, gun, quiet) => g.events.emit('remoteShot', { cls, x: at.x, y: at.y, z: at.z, gun, quiet });
       this.avatars.set(st.id, a);
       setPlayerGlow(a.figure, [...this.s.players.values()], st.id);
       // course mode (D38): the partner can be shot (the host decides the damage, co-op rules)
@@ -536,6 +537,19 @@ export class CoopClient implements NetAttachment {
     return this.selfSpotted;
   }
 
+  /** (coop-walk-fixes P6) A partner (the host or another client) holds guard `v` as a hostage: his puppet is posed from
+   *  that partner's `grab` MoveState (`remoteHeld`). The team takedown on him is on offer here. */
+  partnerHolds(v: TakedownVictim): boolean {
+    const p = this.puppets.get(v.id);
+    return !!p && p === v && p.partnerHeld;
+  }
+
+  /** (P6) Our team takedown on a partner's hostage: the host checks and applies it (`td`, kind `assist`); the guard goes
+   *  down when the host's kill event comes back. */
+  assistTakedown(v: TakedownVictim, ph: 'start' | 'done' | 'abort', lethal: boolean): void {
+    this.s.toHost({ t: 'td', target: v.id, ph, lethal, kind: 'assist' });
+  }
+
   private applySelf(p: PlayerState): void {
     this.selfSpotted = (p.f & PF.spotted) !== 0;
     const g = this.g;
@@ -656,7 +670,8 @@ export class CoopClient implements NetAttachment {
         if (e.player !== me) break;
         const p = this.puppets.get(e.enemy);
         if (p && g.takedown.active?.e === p) g.takedown.abort();
-        p?.deny();
+        // (P6) a denied team takedown: the partner still holds him (his puppet stays posed from that hold)
+        if (!p?.partnerHeld) p?.deny();
         break;
       }
       case 'banner':
@@ -671,7 +686,10 @@ export class CoopClient implements NetAttachment {
         else if (e.title === COURSE_RESTART_TITLE && g.opts.mode === 'course') g.checkpointReset();
         break;
       case 'feed':
+        // a radio line (subtitle), also kept in the feed: the host's interrogation intel arrives as these and the host
+        // shows it in its feed (`revealIntel`); a bark alone left the client's feed without it
         g.hud.barks.say('lantern', e.text, true);
+        g.hud.feedItem(e.text);
         break;
       case 'pickup':
         if (e.player !== me) break;
@@ -887,6 +905,7 @@ export class CoopClient implements NetAttachment {
         f: localFlags(g),
         w: g.weapons.current.def.id,
         hp: g.target.health.hp,
+        sc: g.weapons.shotCount & 255,
         mv,
       }),
     });
