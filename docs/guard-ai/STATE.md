@@ -1,6 +1,10 @@
 # Guard AI - state
 
 ## Now
+~00:55: S25 'near' round 2 923be420 (tp harness leak: frameUpdate after tp; S25-SAI-TRIAGE.md) -> laptop
+s25-sai-fix2. S26 coop block 79f0de67 (copied S24's old seen hide spots; dark yard lane + leg picked at the look;
+S26-COOP-TRIAGE.md); s25 merged -> s26 c42e38f1, laptop s26-fix3 (stealth-ai, coop, netmove). Green -> label #266 + #271.
+
 ~00:40: s24-coop-fix, s27-sec1-fix, walk482-fix PASS -> #264, #270, #272 train-ready (labels, orchestrator told).
 s25-sai-fix b384befc FAIL stealth-ai, s26-fix2 97da4fdf FAIL coop + stealth-ai: both on the DESKTOP worker (logs
 desktop-only; asked the orchestrator for the asserts) -> Opus triage when they arrive.
