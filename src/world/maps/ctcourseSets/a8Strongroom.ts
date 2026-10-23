@@ -42,7 +42,7 @@
  *   office, the stairwell, the lobby, the beam curtain's plates, the time locks' cases and dials, the vault's inner surround;
  * - the props kit: 8 bank counters and the night desk stand over their greybox boxes (no box written), 5 sign plates hang on the walls,
  *   and the vault's 6 deposit walls are the dressing's only collision (their own six `noLedge` boxes, 0.56 m deep on the two flanks: the
- *   vault stays 6.5 m wide and the door's axis and swing are clear);
+ *   vault stays 6.58 m wide (the test floor is 6.5 m) and the door's axis and swing are clear);
  * - kit panels with accent coves from the 9.2 m slab's top to the roof on the four walls (81, 83, 84), accent slots under the gallery's
  *   front (82), on the office roof (83), the lobby's ceiling and the vault's roof (84). No lamp is added.
  */

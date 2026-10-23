@@ -374,6 +374,24 @@ describe('(sector-fixes P) CtDevices: jamming the panel cuts its lasers', () => 
     dev.dispose();
   });
 
+  it('(S3-7 S1) co-op: a client mirror tells the props renderer each laser\'s state too: dark when a snapshot jams the panel, lit again after the reboot', () => {
+    const h = make('host');
+    const c = make('client');
+    const calls: string[] = [];
+    (c.g.world as unknown as { facilityProps: unknown }).facilityProps = { setDevice: (id: string, on: boolean) => calls.push(`${id}:${on}`) };
+    step(h.dev, 0.3, 'p1');
+    c.dev.apply(h.dev.wire());
+    expect(calls.sort()).toEqual([`${L1.id}:false`, `${L2.id}:false`].sort());
+    calls.length = 0;
+    step(h.dev, 1 / 60);
+    c.dev.apply(h.dev.wire());
+    expect(calls).toEqual([]);
+    for (let t = 0; t < JAMMER.reboot + 0.1; t += 1 / 60) c.dev.frame(1 / 60);
+    expect(calls.sort()).toEqual([`${L1.id}:true`, `${L2.id}:true`].sort());
+    h.dev.dispose();
+    c.dev.dispose();
+  });
+
   it('Sector Ops: a panel of a section that is not live is dark like its lasers and no jam target', () => {
     const m = make('host', true);
     m.dev.setLive(0);
