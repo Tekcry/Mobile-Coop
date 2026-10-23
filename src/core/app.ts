@@ -28,7 +28,7 @@ import { Calibration, CALIBRATION, deviceKey, tierFromRenderer } from './deviceT
 import { PRESET_DISPLAY, PRESET_IDS, type FixedPreset } from './quality';
 import { controlsMigrationNotes, setAuto } from './settings';
 import { flags } from './flags';
-import { applyMocapSwitch } from '../anim/mocap';
+import { applyMocapSwitch, mocapWanted } from '../anim/mocap';
 
 /** A top-level app state owns a Babylon scene (menu, game). */
 export interface AppState {
@@ -132,13 +132,22 @@ export class App {
     this.input.events.on('padConnected', ({ id }) => this.toasts.show(`Controller connected: ${shortPadName(id)}`, 'ok'));
     this.input.events.on('padDisconnected', () => this.toasts.show('Controller disconnected', 'warn'));
     setAvatarStyle(this.settings.get().video.avatarStyle);
-    // (mocap-trial) the mocap locomotion switch: `?mocap=0/1` over the stored setting, resolved on every settings change
-    // (the load included), never per frame
-    applyMocapSwitch(flags.mocap, this.settings.get().gameplay.mocapLoco);
-    // (the animation tuner's "Mocap locomotion" box writes the same setting)
-    tune.mocapHost = { get: () => this.settings.get().gameplay.mocapLoco, set: (on) => this.settings.update((d) => void (d.gameplay.mocapLoco = on)) };
+    // (mocap-trial) the mocap locomotion switch, resolved on the load and every settings change, never per frame.
+    // (anim-fix-pass AF5, BRIEF A1) mocap is the player's only path: a stored `gameplay.mocapLoco: false` (the old
+    // Settings row) no longer turns it off; `?mocap=0/1`, then the tuner's "Mocap locomotion" box (this page only, not
+    // saved), are the developer rollback.
+    let mocapTuner: boolean | null = null;
+    const mocapApply = (): boolean => applyMocapSwitch(flags.mocap ?? mocapTuner, true);
+    mocapApply();
+    tune.mocapHost = {
+      get: () => mocapWanted(flags.mocap ?? mocapTuner, true),
+      set: (on) => {
+        mocapTuner = on;
+        mocapApply();
+      },
+    };
     this.settings.subscribe((s) => {
-      applyMocapSwitch(flags.mocap, s.gameplay.mocapLoco);
+      mocapApply();
       this.audio.setVolumes(s.audio);
       if (s.video.avatarStyle !== avatarStyle()) {
         setAvatarStyle(s.video.avatarStyle);
