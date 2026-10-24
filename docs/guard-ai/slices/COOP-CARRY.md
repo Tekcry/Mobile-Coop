@@ -135,3 +135,12 @@ Steps 1-3 done; the e2e is written, not run (laptop queue).
   (`CoopClient.bodyPrompt`).
 - Tests: `tests/coopCarry.test.ts` 17 (+2: letGoHeard / clientBodyPrompt with their wiring), crateWire 8: pass;
   `tsc --noEmit` clean; eslint clean. Laptop set coop-carry2: e2e-coop, e2e-takedown.
+
+## Recheck fixes (COOP-CARRY-RECHECK.md: PASS, findings 1-2)
+- 1. Only the client's own `drop-body` is the quiet early let-go (`remoteDrop(id, asked)`, `letGoHeard(onShoulder,
+  asked)`); a carrier down, held for rejoin or gone mid-lift drops with `DROP_NOISE`, as solo's `dropCarried`.
+- 2. `carryMirror` re-reads the "Pick up body" prompt after a put down / let-go (`bodyPrompt(eid)`): `syncItems` ran
+  while the body was still carried, so the prompt stayed off until the next 2 s item refresh.
+- Polish list (recheck 3, cosmetic): over the ragdoll budget `CarryView.letGo` lays the body flat at its hips point.
+- Tests: coopCarry 17 + crateWire 8 pass (letGoHeard's four cases, the asked-only call site, the prompt re-read);
+  tsc and eslint clean. Laptop set coop-carry3: e2e-coop, e2e-takedown.

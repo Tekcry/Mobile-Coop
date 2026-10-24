@@ -753,7 +753,7 @@ export class CoopHost implements NetAttachment {
   private onUse(r: RemotePlayer, id: string): void {
     // (coop-carry) body requests never reach the host's own carry items (they would carry for the host)
     if (id === DROP_BODY_ID) {
-      this.remoteDrop(r.id);
+      this.remoteDrop(r.id, true);
       return;
     }
     if (id.startsWith('body-')) {
@@ -1458,13 +1458,14 @@ export class CoopHost implements NetAttachment {
 
   /** (coop-carry) Client `id`'s body put down at its side (its put down's hand-over, its death, its drop-out): a ragdoll
    *  the guards hear (`DROP_NOISE`) and can find. */
-  private remoteDrop(id: string): void {
+  private remoteDrop(id: string, asked = false): void {
     const v = this.carries.get(id);
     if (!v) return;
     this.carries.delete(id);
     const ok = this.g.enemyMgr?.canRagdoll() ?? false;
-    // (fix round) a lift let go of before the hoist: laid back quietly, as the host's own crouch let-go
-    if (!letGoHeard(v.onShoulder)) {
+    // (fix round) a lift the client let go of before the hoist (its `drop-body`): laid back quietly, as the host's own
+    // crouch let-go; (recheck) down, held or gone mid-lift is heard, as solo
+    if (!letGoHeard(v.onShoulder, asked)) {
       v.letGo(ok);
       return;
     }

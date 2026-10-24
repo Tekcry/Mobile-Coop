@@ -60,9 +60,10 @@ export function hideOk(alive: boolean, carrying: boolean, inReach: boolean): boo
 
 /** (coop-carry fix round) A client's carry that ends before the body reached its shoulder (a crouch let-go, a lift the
  *  client could not start) lays it back where it lay, quiet, as the host's own let-go (`BodyCarry.liftStep`, no noise);
- *  only a put down from the shoulder is heard (`DROP_NOISE`). */
-export function letGoHeard(onShoulder: boolean): boolean {
-  return onShoulder;
+ *  only a put down from the shoulder is heard (`DROP_NOISE`). (recheck) Only the client's own `drop-body` (`asked`) is
+ *  quiet: a carrier down, held for rejoin or gone mid-lift is heard, as solo's `dropCarried` on the carrier's death. */
+export function letGoHeard(onShoulder: boolean, asked: boolean): boolean {
+  return onShoulder || !asked;
 }
 
 /** (coop-carry fix round) The client's "Pick up body" prompt: the host's lying state, and only for a body this page has

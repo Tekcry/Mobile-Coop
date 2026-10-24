@@ -140,13 +140,20 @@ describe('the client mirror', () => {
 
 describe('fix round: the quiet let-go and the late joiner prompt', () => {
   it('a client lift let go of before the hoist is quiet (as solo); a put down from the shoulder is heard', () => {
-    expect(letGoHeard(false)).toBe(false);
-    expect(letGoHeard(true)).toBe(true);
+    // the client's own drop-body (asked): quiet before the hoist, heard from the shoulder
+    expect(letGoHeard(false, true)).toBe(false);
+    expect(letGoHeard(true, true)).toBe(true);
+    // (recheck) the carrier down, held or gone mid-lift is heard, as solo's dropCarried
+    expect(letGoHeard(false, false)).toBe(true);
+    expect(letGoHeard(true, false)).toBe(true);
     const host = readFileSync('src/net/coopHost.ts', 'utf8');
     const i = host.indexOf('private remoteDrop(');
-    const body = host.slice(i, i + 700);
+    const body = host.slice(i, i + 900);
     // the quiet branch returns before the noise
-    expect(body).toMatch(/if \(!letGoHeard\(v\.onShoulder\)\) \{\s*v\.letGo\(ok\);\s*return;\s*\}[\s\S]*hear\(at, DROP_NOISE\)/);
+    expect(body).toMatch(/if \(!letGoHeard\(v\.onShoulder, asked\)\) \{\s*v\.letGo\(ok\);\s*return;\s*\}[\s\S]*hear\(at, DROP_NOISE\)/);
+    // only the client's own drop-body asks; death, hold, leave and the carry step keep asked false
+    expect(host).toMatch(/id === DROP_BODY_ID\) \{\s*this\.remoteDrop\(r\.id, true\);/);
+    expect(host.match(/this\.remoteDrop\([a-z.]+\)/g)?.length).toBe(4);
   });
 
   it('a body the client has no lying body for (never saw him fall) offers no pick up', () => {
@@ -155,6 +162,8 @@ describe('fix round: the quiet let-go and the late joiner prompt', () => {
     expect(clientBodyPrompt(false, true)).toBe(false);
     const client = readFileSync('src/net/coopClient.ts', 'utf8');
     expect(client).toMatch(/n\.k === 'body' \? clientBodyPrompt\(n\.on, !!n\.e && this\.kept\.get\(n\.e\)\?\.present === true\)/);
+    // (recheck) a put down re-reads the prompt (syncItems ran while the body was still carried)
+    expect(client).toMatch(/this\.letGo\(eid, prev\);\s*\/\/[^\n]*\n\s*this\.bodyPrompt\(eid\);/);
     // a body that falls after its item arrived gets its prompt then
     expect(client).toMatch(/this\.kept\.set\(e\.enemy, body\);[\s\S]{0,200}this\.bodyPrompt\(e\.enemy\)/);
   });

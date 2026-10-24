@@ -1152,7 +1152,11 @@ export class CoopClient implements NetAttachment {
       const now = n.by ?? '';
       const ch = carryChange(prev, true, now);
       if (ch === 'none') continue;
-      if (ch === 'drop' || ch === 'retake') this.letGo(eid, prev);
+      if (ch === 'drop' || ch === 'retake') {
+        this.letGo(eid, prev);
+        // (recheck) `syncItems` ran while our body was still carried: the prompt now that it lies
+        this.bodyPrompt(eid);
+      }
       if (now) this.carriers.set(eid, now);
       else this.carriers.delete(eid);
       if (ch === 'take' || ch === 'retake') this.takeUp(eid, now);
