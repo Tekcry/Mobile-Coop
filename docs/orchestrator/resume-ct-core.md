@@ -2,6 +2,12 @@
 
 RESUMED ~23:55 (new account; orchestrator: overnight mode, one slice at a time, testing backlog first, save at 5-hour ~95%):
 #247 laptop afp PASS on fd34263e + CI green -> train-ready label added, orchestrator told (joins train 39 with #269).
+~18:20: perf profile done (read-only): gap is render() CPU, not active meshes. Ours, after the master merge lands (same
+worktree): F1 freeze guard materials (guardFigure.ts:127 `p.freeze()` after the plugin; guardShield.ts; test: no
+prepareDefines after the first ready frame; est. -0.4-0.7 ms + GC), F2 pose lazily / visible-only (guardFigure.ts:617-691
+-> skeleton onBeforeComputeObservable like smoothBody.ts:161, keep LOD pick + half-rate; est. -0.2-0.3). Told Test
+Runner: S8b render.figure timer (G8 "poser PASS" was never measured: fix STATE), world.ts:328 updateSunCasters skip
+disabled (their S9), S13 = guns as ~13 instanced parts (weaponModel.ts:143-163, ours if their tally confirms).
 ~18:05: guard-models PR with flag OFF approved (orchestrator), conditions: conflict-free (merge master ourselves; master's
 protocol.ts + G6n look bits) and the 29 MB never precached / fetched while the flag is off. Opus agent doing the master
 merge (S11 items + thawPose figure.update line) + SW precache exclusion + build, on feature/guard-models. G9 request on
