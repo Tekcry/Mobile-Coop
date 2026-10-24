@@ -1,0 +1,15 @@
+{
+  "id": "20261024T130340-night-shift-player-b-dadacd58-f5f3",
+  "sha": "dadacd585c6e64751009d3d448fd43578176ab83",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove",
+    "e2e-ctcourse"
+  ],
+  "set": "cr-f1b",
+  "note": "coop-real F1b (Course client lamp shots, src/net)"
+}
