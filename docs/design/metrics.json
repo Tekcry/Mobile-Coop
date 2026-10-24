@@ -261,6 +261,7 @@
       6,
       10
     ],
+    "sector_alive_max": 32,
     "safe_drop_m": 4.5
   }
 }

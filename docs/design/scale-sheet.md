@@ -1,6 +1,6 @@
-# Scale sheet - Night Shift small map
+# Scale sheet - Night Shift
 
-Measured from the code (2026-10-10). "Derived" = worked out from code numbers, not run in a test. Never change the player to fit a map.
+Measured from the code (2026-10-10, speeds 2026-10-25). "Derived" = worked out from code numbers, not run in a test. Never change the player to fit a map. This sheet owns every size, speed, time and target `docs/level-design.md` names by its metrics key.
 
 ## 1. What the game has
 
@@ -9,14 +9,13 @@ Measured from the code (2026-10-10). "Derived" = worked out from code numbers, n
 | Player capsule | 1.75 m stand, 1.15 m crouch, radius 0.30 | `config/movement.ts` |
 | Eye height | 1.60 stand, 1.05 crouch | `playerController.ts:216` |
 | Camera | boom 2.2 m (ADS 1.5), shoulder offset 0.62 m, pivot 1.62 m, wall padding 0.16, min boom 0.28, FOV 75 | `config/camera.ts` |
-| Walk speeds (m/s) | stand 0.8 / 1.3 / 2.0 / 2.8 / 3.8 / 5.0; crouch 0.5 / 0.9 / 1.3 / 1.8 / 2.3 / 2.8 | `GEARS` |
+| Walk speeds (m/s) | stand 0.75 / 1.4 / 2.1 / 3.0 / 4.0; crouch 0.85 / 1.3 / 1.7 / 2.15 / 2.6 (creep, sneak, walk, jog, run; the stick sets the speed between them) | `GEARS`, `config/movement.ts:159-160` |
 | Guard walk speed | 0.75 - 0.9 (officer 0.85, grunt 0.9, heavy 0.75, sniper 0.85) | `enemies.json` |
 | Step limit | player 0.42 m, nav 0.45 m | `MOVEMENT.maxStep`, `navBuild.ts:72` |
 | Stairs and ramps | collide as a smooth ramp; nav accepts a surface if its normal.y > 0.65 (slope up to about 49 deg) | `levelBuilder.ts:191`, `navBuild.ts:88` |
 | Nav grid | cell 0.5 m, agent radius 0.32, headroom 1.7 m, up to 8 layers per column | `navBuild.ts`, `navGrid.ts` |
 | Ladder | 0.5 m wide, climbed from 0.32 m off the wall, nav link both ways | `levelBuilder.ts:226`, `navBuild.ts:106` |
 | Wall jump | up 3.8 m solo (the highest lip one player reaches alone) | `WALL_JUMP.maxUp`, `config/movement.ts:338` |
-| Exchange v2 | door 1.0 x 2.1, interior wall 0.30, exterior 0.45, basement storey 3.3, ground 0, first 4.5; stair rise 0.165 / run 0.28 (B), steep 0.75 slope (V, R, coke) | `exchange.ts` |
 
 The character is 1.75 m, so it is close to a real 1.8 m person. The ratio is already normal: a 2.1 m door is 1.20 x the character (real: 2.04 / 1.75 = 1.17). No in-map correction needed. Keep door height 2.1 m; do not go below 2.0 or above 2.2.
 
@@ -46,7 +45,7 @@ Camera needs 0.62 + 0.16 = 0.78 m from the spine to a wall on the shoulder side,
 | Ladder shaft | 1.0 x 1.0 m, ladder 0.5 wide, 0.6 m clear in front of the rungs |
 | Duct, trench, pipe subway (crouch) | 1.2 wide x 1.5 high clear (Michael, 2026-10-10; was 0.9 x 1.3, too low for the camera: `dead-line-v2-engine-check.md`). Player only: nav headroom is 1.7 so guards cannot enter. Walked crouched, no auto-crawl anchor |
 | Walk-in tunnel | 2.1 m clear minimum, 2.4 preferred; guards can enter |
-| Co-op lip | 4.3 - 4.5 m, above the solo wall jump (section 1); one band for the boost and the human ladder (level-design 11.3, 12.2 G57; `TEAM.boostMax` 4.5, `config/movement.ts:459`) |
+| Co-op lip | 4.3 - 4.5 m, above the solo wall jump (section 1); one band for the boost and the human ladder (level-design 11.8, 12.2 G57; `TEAM.boostMax` 4.5, `config/movement.ts:459`) |
 | Split-jump gap | 1.2 - 1.95 m between faces, faces at least 3.6 m tall (level-design 12.1: split gaps are found from these automatically) |
 | Low cover | 1.2 m high hides a crouched player; a 1.0 m rail does not |
 | Curb or step | 0.15 - 0.40 m; never between 0.40 and 0.45 (player and nav disagree) |
@@ -134,14 +133,14 @@ Added 2026-10-24 (Michael, changes M2 and M4). The speeds, times and targets the
 
 | Key | Value | Unit | Source |
 | --- | --- | --- | --- |
-| `split_speed_mps` | 1.3 | m/s | stealth pace, crouch gear 2 (`GEARS.crouch[1]`, `src/config/movement.ts:159`); used for split-leg traversal time |
+| `split_speed_mps` | 1.3 | m/s | stealth pace, crouched sneak, gear 2 (`GEARS.crouch[1]`, `src/config/movement.ts:159`); used for split-leg traversal time |
 | `reach_speed_mps` | 3.0 | m/s | standing jog (`GEARS.stand[3]`, `src/config/movement.ts:160`; the run is 4.0, so 3.0 is the stricter choice); used for reaching a downed partner |
 | `split_max_s` | 90 | s | longest planned split leg (Michael 4); about 117 m at `split_speed_mps` |
 | `split_parity_pct` | 20 | % | split legs within this of each other, by traversal time (Michael 4, M4) |
 | `reach_max_s` | 15 | s | a downed partner reachable within this (Michael 4); about 45 m at `reach_speed_mps` |
 | `shared_min_w_m` | 2.0 | m | link marked `shared` (both partners move together) is at least this wide |
-| `shadow_min_frac` | 0.4 | fraction of floor | encounter space floor in shadow, lower bound (Michael 3) |
-| `shadow_max_frac` | 0.6 | fraction of floor | encounter space floor in shadow, upper bound (Michael 3) |
+| `shadow_min_frac` | 0.4 | fraction of floor | encounter space floor in shadow, lower bound; INFO only since 2026-10-25 (the light band of section 9 wins; level-design 5.5) |
+| `shadow_max_frac` | 0.6 | fraction of floor | encounter space floor in shadow, upper bound; INFO only (level-design 5.5) |
 | `vantage_min_frac` | 0.7 | fraction of space | a vantage sees at least this share of the space (Michael 3) |
 | `los_break_max_s` | 5 | s | line of sight breakable within this from any point of a stealth route (Michael 3) |
 | `step_band_min_m` | 0.40 | m | level changes between this and `step_band_max_m` are forbidden (player 0.42 vs nav 0.45 disagree, section 3) |
@@ -150,6 +149,26 @@ Added 2026-10-24 (Michael, changes M2 and M4). The speeds, times and targets the
 | `dead_end_max_m` | 15 | m | a dead end (one neighbour) is allowed only for a reward or objective space no longer than this (level-validator BRIEF mapping, row "Dead ends"; level-design 3.4, 16.6.3) |
 | `guards_early` | 3 - 6 | guards | per encounter space and player count in the first half of the spine; WARN below the low end only, no upper limit (Michael 2026-10-24: "as many guards as realistically possible"; bounded by the guard-cap perf floor and passable routes; level-design 4.9) |
 | `guards_late` | 6 - 10 | guards | the same in the second half of the spine; WARN below the low end only (level-design 4.9) |
+| `sector_alive_max` | 32 | guards | Sector Ops: the most guards alive at once, a ceiling per section and player count, not a target (`SECTOR.maxAlive`, `src/game/sectors.ts:508`; G187); level-design 4.9 |
 | `safe_drop_m` | 4.5 | m | a drop above this ends in a heavy landing with a recovery (`LANDING.heavy`, `src/player/movement.ts:168`); no fall damage, so the validator only warns |
 
-Shadow, vantage and line-of-sight numbers are declared targets in the graph and are measured in greybox (M4); a map fails if the measurement misses the target.
+Vantage and line-of-sight numbers are declared targets in the graph and are measured in greybox (M4); a map fails if the measurement misses the target. Shadow share is measured too but only reported (INFO); the light band (section 9) is the light target.
+
+## 9. Light levels by space type (placeholder)
+
+Added 2026-10-25 (Michael ~09:05, "Real-world levels"; level-design 5.5). Each space type gets a real-world maintained
+illuminance band from the lighting standards; the engine light is calibrated to lux once and the bake is measured at
+greybox exit. **Values set by light-realism** (the Sector Ops Build job): until it fills them, every cell reads `TBD`
+and `scripts/metrics-gen.mjs` does not read this section.
+
+| Space type | Standard | Min lux | Max lux | Note |
+| --- | --- | --- | --- | --- |
+| Outdoor car park | AS/NZS 1158.3.1 | TBD | TBD | values set by light-realism |
+| Road, service lane | AS/NZS 1158.3.1 | TBD | TBD | values set by light-realism |
+| Yard, loading apron | AS/NZS 1158.3.1 | TBD | TBD | values set by light-realism |
+| Lobby, reception | AS/NZS 1680 / EN 12464-1 | TBD | TBD | values set by light-realism |
+| Corridor, stair | AS/NZS 1680 / EN 12464-1 | TBD | TBD | values set by light-realism |
+| Office, meeting room | AS/NZS 1680 / EN 12464-1 | TBD | TBD | values set by light-realism |
+| Lab, server room | AS/NZS 1680 / EN 12464-1 | TBD | TBD | values set by light-realism |
+| Warehouse, plant room | AS/NZS 1680 / EN 12464-1 | TBD | TBD | values set by light-realism |
+| After-hours interior (lights off) | - | TBD | TBD | values set by light-realism |
