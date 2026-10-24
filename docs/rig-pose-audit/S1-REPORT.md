@@ -147,3 +147,32 @@ Opus, 2026-10-24, branch `feature/rpf-s1fix` off `feature/rig-pose-fix` d10e4b09
   arithmetic in the same order (200k random inputs bit-identical to the old code, parity 262/262). The case reads 0.0 B
   in 7 of 7 runs; its limit drops to 1 x `HEAP_NUMBER` (a `{ x, y, z }` literal fails it) and its loop now reaches the
   wall and kneel branches (the old traverse index hid the wall). The old code fails the new case (46.3 / 58.5 B).
+
+## Fix round 2 (e2e-stealth-ai)
+
+Opus, 2026-10-24, on `feature/rig-pose-fix` d49097df. Laptop GPU, deterministic: `search area` near, "after the tp he
+never sees him again (seen at 0.3 s)".
+
+- Not a body-model lag. `PlayerTarget.sync` builds the body from `controller.pos` (`localBodyIn`,
+  `src/player/playerVolumes.ts:717`), and `GameState.fixedUpdate` runs it after `player.fixedUpdate` and before
+  `enemyMgr.update` (`src/game/gameState.ts:1961` / `:1965` / `:1985`), so the points and volumes are at a teleport's spot
+  in the first step a guard runs after it. Every real position set (respawn `gameState.ts:2031`, checkpoint / insertion,
+  co-op rejoin and placement `coopClient.ts` / `coopHost.ts:590`, hall-back `ctDevices.ts:953`, sector start) goes
+  through `controller.teleport`, read by the next step's sync before the guards. Nothing to change in `src/`.
+- Cause: the test's resight check. A guard perceives every 0.22-0.30 s (`src/ai/enemy.ts:2100-2104`, `thinkT`) and holds
+  `los` in between; `updateAwareness` (`:2300-2301`) zeroes `sinceSeen` every step while `los` holds. So for up to 0.3 s
+  after the tp `sinceSeen` stays 0 on the sighting made at the lit spot before it, and the check
+  (`sinceSeen < prevSince || (time > 0.2 && sinceSeen < 0.1)`) fires at time 0.25 (printed 0.3 by `toFixed(1)`) whenever
+  the next perceive falls after ~0.15 s. That phase is set by the seeded run; S1 / S3 / S7 change the fight (hit volumes,
+  part multipliers, sim gait clock), so the phase moved. The guard is near his post then; (0, -20) is out past the
+  z -8.8 and z -18 walls. The last known position did not move (a stale `los` writes no new one).
+- Fix (test only, `scripts/e2e-stealth-ai.mjs` ~:788 / :811): resight is a drop in the guard's `lastSeenT`, which only a
+  perceive with him in line of sight resets (`enemy.ts:2240`), so only a sighting made after the tp counts. Same check
+  for 'wall'.
+- New `tests/playerTargetTeleport.test.ts` (3): a real `PlayerController` and `PlayerTarget` (Havok, NullEngine):
+  teleport to (0, -20), one controller step, sync: `center` / `aimPoint` / `headPoint` within 0.5 m of the new feet and
+  equal to `playerBody` of that step's state; a sync right after a teleport (no step) already reads the new feet; the
+  `GameState.fixedUpdate` order (player step < target sync < guards), wiring.
+- Tests (desktop, one at a time): `playerTargetTeleport` 3/3, `playerVolumes` 10/10, `playerVolumesParity` 262/262,
+  `net` 78/78, `coopPerception` 8/8. `npx tsc --noEmit -p .` clean; eslint on the new test clean (the e2e script is
+  eslint-ignored; `node --check` clean). No e2e run here: rerun `e2e-stealth-ai` on the laptop.
