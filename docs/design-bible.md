@@ -1,9 +1,9 @@
 # Night Shift - Design Bible
 
-Version 2.0 - 2026-10-18. Rewritten to Michael's current decisions (docs/DECISIONS.md G1-G118, "Rewrite it now", G10).
-G124-G160 (the CT co-op research, 2026-10-18) are written into the sections they belong to. The 1.13 text, with the
-removed systems and the old process, is in `docs/archive/design-bible-history.md`. Owner: Michael. Location in the repo:
-`docs/design-bible.md`.
+Version 2.1 - 2026-10-25. States today's game, rewritten in place to Michael's decisions G1-G339 (`docs/DECISIONS.md`;
+"Rewrite it now", G10; "I want to make sure my vision is clear constantly", G337). `docs/VISION.md` is the one-page
+summary. The 1.13 text, with the removed systems and the old process, is in `docs/archive/design-bible-history.md`.
+Owner: Michael. Location in the repo: `docs/design-bible.md`.
 
 ---
 
@@ -20,13 +20,13 @@ removed systems and the old process, is in `docs/archive/design-bible-history.md
 6. Existing code and tests.
 
 **Numbers are starting values.** Every movement, camera, timing, health and tuning number in this bible is a starting
-value, tuned after Michael plays the CT prototype (G4, G10). Section 11 lists what is still open and where it is decided.
+value, tuned as Michael plays (G10); he tunes movement himself (G227). Section 11 lists what is still open and where it
+is decided.
 
-**Chaos Theory is the authority (G1).** Where this bible and Chaos Theory (CT) behaviour differ, CT behaviour, measured
-from Michael's footage and the CT research, wins. Several systems below are marked "research": the CT co-op research job
-(G3, G95) keeps those CT has and removes the rest (G1, G11).
-Where a 2026-10-18 decision departs from CT on purpose (revive and encounter checkpoints, world pings, both players
-extract, the perfect rating, any partner rejoins: G126, G135, G138, G146, G147), that decision wins.
+**Chaos Theory is the authority (G1).** Where this bible and Chaos Theory (CT) behaviour differ, CT behaviour, from the
+CT research, wins: "Pure ct, if it had it, we will use it." (G180). Several systems below are marked "research": they
+stay only if CT has them (G1, G3, G180). Michael's recorded decisions depart from CT on purpose and win; the list of
+those overrides is `docs/VISION.md` section 3.
 
 **History.** Older docs, prompts and code describe earlier directions: a Blacklist-style game (snap cover, Mark & Execute,
 sonar, the Ghost / Panther / Assault economy), phones and touch, Wave and PvP, a traitor finale, a solo campaign and a
@@ -50,16 +50,20 @@ exist." (G1)
 
 **Night Shift** (renamed from Silent But Deadly; internal ids keep the old names) is an original third-person stealth
 game that recreates Splinter Cell: Chaos Theory's co-op campaign: its mechanics and its look, with original assets,
-names and story.
+names and story. `docs/VISION.md` is the one-page summary.
 
-- **A 2-player co-op campaign only.** Michael: "2 player coop campaign only, unable to be completed solo." Exactly two
-  players; no solo route, no bot partner, no 3-4 player play (G2, G48, G50, G111, G132).
+- **Three modes** (5.8, 5.9 C1):
+  - **The campaign:** Michael: "2 player coop campaign only, unable to be completed solo." Exactly two players; no solo
+    route, no bot or AI partner (G2, G48, G132). Every campaign section forces a co-op traversal move with no solo bypass
+    (G292).
+  - **Marlow Yard:** the 2-player co-op training course: heavily guided, linear, one route until its later sections
+    teach split paths (G292, G308).
+  - **Sector Ops:** Saltmarsh Park, 1-4 players, solo always possible (G308, G280, G331).
 - **The CT co-op levels are recreated.** Their design, flow and moves are researched, and that experience is rebuilt
-  with original maps and story (G3). The research is the first job (G95).
-- **Prototype first.** Michael: "We must get a working prototype working, only the basics required to make it work and
-  functional to test features and gameplay. ... Refinement can come later." (G4) The core feel comes first: CT movement,
-  camera, back-to-wall, doors, palm strike and goggles are rebuilt and fine-tuned on Wren until Michael signs off, then
-  the co-op slices follow (G149, G150).
+  with original maps and story (G3). The research is done (2026-10-18, G124-G160).
+- **Prototype, then refine.** Michael: "We must get a working prototype working, only the basics required to make it
+  work and functional to test features and gameplay." (G4) Refining is allowed since 2026-10-24, paced by the walk cap
+  and gated by the one-click visual sign-off (G288). Michael tunes movement himself (G227).
 - **Story** (`docs/story.md`): a present-day (G124), standalone co-op story (G136); a grounded techno-thriller with dry
   humour. Two operators, Wren and Moth, of the deniable unit NIGHT SHIFT, with the handler LANTERN and the radio crew
   Tally and Sexton (G112), have nine nights to stop SUNDOWN, a staged blackout of the port city of Hollowmere. The team
@@ -68,7 +72,7 @@ names and story.
 - Darkness, silence, acrobatic movement (heightened: showpiece two-player moves beside grounded ones, G130), teamwork
   and patience are the tools. Combat is possible, but it is a sign that something went wrong.
 - **Desktop only** (G12): an installable PWA in the browser, pad first, then keyboard and mouse.
-- **Realistic** characters and a realistic look everywhere (G68).
+- **Realistic** characters and a realistic look everywhere, no voxels (G68, G282).
 
 The heart of the game is the light and shadow system. If a feature makes light less truthful, less readable or less
 controllable, it is wrong.
@@ -84,6 +88,7 @@ controllable, it is wrong.
   (Section 5.1).
 - Light is a toy: switches, breakable lamps, the pistol and its held jammer (G152), flashlights that guards carry into
   the dark.
+- Sites are lit like real sites; the players make the shadows by cutting lights and using real gaps (L17, G329).
 - **Test:** stand anywhere in any map at any graphics preset. The rendered brightness of the player, the meter and the
   guards' detection rate agree.
 
@@ -96,7 +101,8 @@ controllable, it is wrong.
 
 ### P3 - The players author the approach
 
-- Every space offers more than one route (high / traversal, low / shadow, loud) and lethal and non-lethal options.
+- Every space offers more than one route (high / traversal, low / shadow, loud) and lethal and non-lethal options
+  (G284, G285); Marlow Yard, the training course, is the exception: one guided route (G292).
   Ghosting (never seen, nobody harmed) is always possible. Violence is scored: non-lethal and ghost play are rewarded,
   and no mission forces a kill (G127).
 - **Test:** each mission can be completed with no kills, no alarms and every primary objective: the perfect rating
@@ -117,8 +123,9 @@ controllable, it is wrong.
 
 ### P6 - Co-op is the game
 
-- Two players, one mission. The levels are built for the pair: team moves and coordination are part of the route, as in
-  CT's co-op campaign (G2, G3).
+- Two players, one mission in the campaign and Marlow Yard; up to four in Sector Ops (5.9 C1). Campaign levels are
+  built for the pair: team moves and coordination are part of the route, as in CT's co-op campaign, and every section
+  needs a co-op move (G2, G3, G292).
 - Every feature works in co-op (5.9 C11, 5.17 D8).
 
 ### P7 - Desktop, pad first
@@ -133,13 +140,14 @@ controllable, it is wrong.
 
 ### Mission flow
 
-1. **Briefing:** text, an annotated top-down map and the pair's complementary kits, fixed per mission (G134, G153).
+1. **Briefing:** text and the pair's complementary kits, fixed per mission (G134, G153); the strict rules are
+   signposted here (G290). No map (G336).
 2. **Insertion:** where the mission offers more than one.
 3. **Space by space**, following the level design spine: scout from the entry vantage, plan, execute together, reach
    the next checkpoint.
 4. **Radio:** the handler and crew talk through text radio. Radio never blocks input.
-5. **Objectives** live in the menu, as in CT (G108). Primary objectives complete the mission; secondary and opportunity
-   objectives raise the rating.
+5. **Objectives** live in the menu, as in CT (G108), and name what and where; the level flows towards each one (G336).
+   Primary objectives complete the mission; secondary and opportunity objectives raise the rating.
 6. **Extraction:** both players must reach the exit (G138).
 7. **Results:** the stealth rating and its breakdown (Section 5.8).
 
@@ -148,11 +156,11 @@ controllable, it is wrong.
 - **Detection** escalates: suspicious, then investigating, then alert, then search.
 - **Breaking line of sight** works. Guards search the last known position, not the real one. Guards know only what
   they saw: no one knows a second intruder exists until one is seen or evidence suggests it (G139).
-- **Alarms** raise a shared alert tier that escalates the response; no mission fails on an alarm count. A mission has
-  at most one hard rule, and it is signposted (G125). Note 2026-10-24: up to 2 strict rules per mission, and breaking
-  one restarts the section, not the mission (G290).
-- **Downed:** the partner can revive within 30 seconds, at most twice per mission; both players down reloads the last
-  checkpoint. Encounter checkpoints cap replay loss at about 10 minutes (G126).
+- **Alarms** raise a shared alert tier that escalates the response; no mission fails on an alarm count (G125).
+- **Strict rules:** a mission has up to 2 strict rules, signposted in the briefing and the objective list; "ghost"
+  counts as one. Breaking one restarts the section from its checkpoint, and the mission continues (G290; 5.8).
+- **Downed:** the partner revives (5.9 C6 owns the rule). Encounter checkpoints cap replay loss at about 10 minutes
+  (G126).
 
 ### A good session feels like
 
@@ -203,9 +211,9 @@ finds it in CT (G1, G3, G11); the research also adds CT verbs missing here. Remo
 | --- | --- | --- |
 | Grab, then choose | Grab first, then knock out, kill or interrogate from CT's grab menu. No stealth / kill selector. | G23, G43 |
 | Drop, ledge, window and pipe takedowns | Tap = knock out, hold = kill | G43 |
-| Palm strike | One-hit knockout from any side on every human guard; co-op missions have no heavies or dogs. | loco M20 Q4, G42, G155 |
+| Palm strike | One-hit knockout from any side on every human guard; campaign missions have no heavies or dogs (Sector Ops: 5.8). | loco M20 Q4, G42, G155 |
 | Knife | Close lethal takedown; its full role follows the research. | G76 |
-| Dual takedown (co-op) | | G52 |
+| Synced takedown (co-op) | Two ordinary takedowns timed together; no dedicated dual move. Rewarded over shooting in Sector Ops. | G180, G307 |
 | Holster / draw | A mission starts holstered; holstered / low ready / aiming, LT held aims, X tap holsters (5.6). No hip fire. | G21, G103, G210 |
 
 ### Vision
@@ -229,10 +237,10 @@ finds it in CT (G1, G3, G11); the research also adds CT verbs missing here. Remo
 
 | Verb | Behaviour | Rule |
 | --- | --- | --- |
-| Brace, boost, human ladder | Free wherever the space allows, with a prompt naming the move. One ledge band of 4.3-4.5 m serves boost and human ladder. | G52, G57, G151 |
-| Dual takedown | | G52 |
-| CT's other team moves | Split-jump boost, back-to-back climb, pull-up, rappel anchor and any others CT has: added in the co-op job. Showpiece moves (partner launch, drop line) sit beside grounded ones. | G3, G52, G130 |
-| Revive, carry a downed partner | Revive within 30 s, at most twice per mission; carrying: research | G126, Research |
+| Boost (leg-up), human ladder | Free wherever the space allows, with a prompt naming the move. One ledge band of 4.3-4.5 m serves boost and human ladder. No brace. | G57, G151, G180 |
+| CT's team moves | Ledge relay, partner throw, hang-down, the two-person rope (the partner climbs the held rope), split-jump boost, back-to-back climb, pull-up, rappel anchor and any others CT has. Showpiece moves (partner launch, drop line) sit beside grounded ones. | G3, G130, G180 |
+| Campaign co-op traversal kit | Boost up a wall, throw over a gap, human ladder / pull-up, hold a shutter or door, rope brace / descent, vent unlock for the partner, and more; every campaign section needs one (5.9 C4). | G292, G293 |
+| Revive, carry a downed partner | Revive: 5.9 C6; carrying: research | G126, G188, Research |
 | Pings, Sync, clutch-save markers | World pings stay; sync windows never scale with difficulty; the rest: research | G131, G135, Research |
 
 ---
