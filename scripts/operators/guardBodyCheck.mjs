@@ -1,13 +1,22 @@
 // Guard base body check (docs/guard-models/PLAN.md G1 "Checks", PLAN 5 budgets, SPEC 1 / 6 / 7): reads the
 // bodies/guard-<base>-body.json a bodies job writes and lists every way it misses the contract. Pure (no fs) apart from
-// the CLI at the bottom; the lead runs it on the laptop bake's outputs:
-//   node --import ./scripts/operators/ts-resolve.mjs scripts/operators/guardBodyCheck.mjs --kit <guards.json> <body.json>...
-// Exit 1 when any report has a problem.
+// the CLI at the bottom; the lead runs it on the laptop bake's outputs (no loader flag needed):
+//   node scripts/operators/guardBodyCheck.mjs --kit <guards.json> <bodies/guard-*-body.json | body.json | bodies folder>...
+// The `*` is expanded here (cliFiles.mjs; cmd.exe, which runs the laptop bake's steps, passes it literally).
+// Exit 1 when any report has a problem, 2 on a bad argument or when no report is found.
+//
+// The game's TypeScript (guardJoints.mjs -> src/operators/operatorBody.ts -> '../player/proportions', extensionless)
+// needs ts-resolve.mjs's resolve hook. A static import graph is resolved before any module body runs, so the hook is
+// registered first (the side-effect import below) and the modules that reach the TypeScript load after it, by dynamic
+// import (as check-guards.mjs does). Running under `node --import ./scripts/operators/ts-resolve.mjs` too is harmless.
+import './ts-resolve.mjs';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { guardJoints } from './guardJoints.mjs';
-import { FING_LEN, FING_L, FING_R, fingerPose, fingerRig } from '../../src/anim/fingers.ts';
+import { expandFileArgs } from './cliFiles.mjs';
+
+const { guardJoints } = await import('./guardJoints.mjs');
+const { FING_LEN, FING_L, FING_R, fingerPose, fingerRig } = await import('../../src/anim/fingers.ts');
 
 /** Limits (metres unless named). */
 export const LIMITS = {
@@ -200,9 +209,12 @@ export function summary(report) {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const argv = process.argv.slice(2);
   const ki = argv.indexOf('--kit');
-  if (ki < 0 || !argv[ki + 1]) { console.error('usage: guardBodyCheck.mjs --kit <guards.json> <body.json>...'); process.exit(2); }
+  const usage = 'usage: guardBodyCheck.mjs --kit <guards.json> <bodies/guard-<base>-body.json | bodies/guard-*-body.json | bodies folder>...';
+  if (ki < 0 || !argv[ki + 1]) { console.error(usage); process.exit(2); }
   const kit = JSON.parse(readFileSync(argv[ki + 1], 'utf8'));
-  const files = argv.filter((_, i) => i !== ki && i !== ki + 1);
+  let files = [];
+  try { files = expandFileArgs(argv.filter((_, i) => i !== ki && i !== ki + 1), { dirMatch: /^guard-.+-body\.json$/ }); } catch (e) { console.error(`${e.message}\n${usage}`); process.exit(2); }
+  if (!files.length) { console.error(usage); process.exit(2); }
   const here = path.dirname(fileURLToPath(import.meta.url));
   const enemies = JSON.parse(readFileSync(path.join(here, '..', '..', 'src', 'config', 'enemies.json'), 'utf8'));
   const heights = Object.fromEntries(Object.entries(enemies).map(([k, v]) => [k, v.height]));

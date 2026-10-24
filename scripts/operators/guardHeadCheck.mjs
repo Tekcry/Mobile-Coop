@@ -80,6 +80,21 @@ export function headJobOutputs(kit, jobId) {
 
 /** Linear skin albedo mean the neutral must keep (SPEC 7: mean 0.75, the tone tints multiply it). */
 export const SKIN_ALBEDO = [0.55, 0.9];
+/**
+ * The band per facial hair (the head's kit `facialHair`, SPEC 7 face table) where it differs from SKIN_ALBEDO. A short
+ * beard paints dark strands (guard_skin.py FACIAL_HAIR beard cover 0.8) over the jaw, chin, upper lip and sideburns, about
+ * a quarter of the tile, so its face-island / tile means read ~0.50 / ~0.55 (first full bake a8ff2d45: average-3
+ * 0.498 / 0.546, lean-3 0.495 / 0.546) while the skin around it keeps the 0.75 neutral. Not a skin fault: the floor drops
+ * for beards only. It lives here, not in guards.json: every kit section joins the bake hashes (guardBakePlan normalizeKit
+ * `shared`), so a check-only value there would rebake every job.
+ */
+export const SKIN_ALBEDO_BY_FACIAL_HAIR = { beard: [0.45, 0.9] };
+
+/** The albedo band a head's report must meet: by the kit head's `facialHair` (else the report's), else SKIN_ALBEDO. */
+export function skinAlbedoBand(kit, r) {
+  const head = (kit.heads ?? []).find((h) => h.id === r.head);
+  return SKIN_ALBEDO_BY_FACIAL_HAIR[head?.facialHair ?? r.facialHair] ?? SKIN_ALBEDO;
+}
 /** Seam weld tolerance: head seam vs G1's body seam (mm; the job builds it at the body's positions) and across heads (m). */
 export const SEAM_EPS_MM = 0.01;
 export const SEAM_EPS_M = 1e-5;
@@ -118,14 +133,15 @@ export function checkHeadReport(r, kit) {
   const tile = kit.atlas?.faceTile?.[0] ?? 1024;
   if (r.faceTile?.size !== tile) f.push(`${r.head}: face tile ${r.faceTile?.size} != ${tile}`);
   for (const m of MAPS) if (!r.faceTile?.png?.[m]) f.push(`${r.head}: no face ${m} png`);
+  const band = skinAlbedoBand(kit, r);
   const alb = r.faceTile?.albedoMeanLinear;
   if (Array.isArray(alb)) {
     const mean = (alb[0] + alb[1] + alb[2]) / 3;
-    if (mean < SKIN_ALBEDO[0] || mean > SKIN_ALBEDO[1]) f.push(`${r.head}: neutral albedo mean ${mean.toFixed(3)} outside ${SKIN_ALBEDO.join('-')}`);
+    if (mean < band[0] || mean > band[1]) f.push(`${r.head}: neutral albedo mean ${mean.toFixed(3)} outside ${band.join('-')}`);
   } else f.push(`${r.head}: no albedo stats`);
   const face = faceAlbedo(r);
   if (face == null) f.push(`${r.head}: no face-island albedo`);
-  else if (face < SKIN_ALBEDO[0] || face > SKIN_ALBEDO[1]) f.push(`${r.head}: face-island albedo mean ${face.toFixed(3)} outside ${SKIN_ALBEDO.join('-')}`);
+  else if (face < band[0] || face > band[1]) f.push(`${r.head}: face-island albedo mean ${face.toFixed(3)} outside ${band.join('-')}`);
   const uv = r.faceTile?.uv;
   if (uv && uv.tris && uv.flippedTris / uv.tris > 0.01) f.push(`${r.head}: ${uv.flippedTris} of ${uv.tris} UV triangles flipped`);
   if (r.craniumLock && r.craniumLock.shiftMaxMm > 0.1) f.push(`${r.head}: cranium moved ${r.craniumLock.shiftMaxMm} mm`);
