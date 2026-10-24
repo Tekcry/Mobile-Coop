@@ -1,6 +1,10 @@
 # Guard AI - state
 
 ## Now
+~18:35: #313 checks A + B PASS, laptop 4/4 (e2e-coop flake = joint interrogation, Marlow's): TRAIN-READY. R1 (Marlow's
+guard-cap brief) PR #326: 9008f458 checker PASS + laptop PASS; fix round 099bf44d (no res.reset() per cast), laptop
+r1-rays2 pending. Resume block refreshed.
+
 ~18:15 (new account, laptop): #319 MERGED (06:52Z), #272 / #298 / #302 / #303 merged. #322 train-ready (labelled by the
 orchestrator: laptop auto mode blocks `gh pr edit --add-label` here). #313 conflicted with master 4.93.0 (rig-pose-fix S5):
 merge 1d2f3e1d pushed (S5 carry lie ported into src/game/bodyCarry.ts + carryView.ts; client kept `Body` at the host sim
@@ -898,46 +902,30 @@ behaviour code Opus; Sonnet only for tests / e2e scenarios / data from a strict 
 ## Resume prompt
 ```
 Guard AI Build resume (laptop; docs/orchestrator/PROMPTS.md section 6 + its common tail hold the rules). Read this
-block only. Branch guard before every write. Never merge master into a branch except for a real conflict (the train
-merges). 2 Opus checkers on AI / src/net PRs; Opus triage agent on every laptop failure at once; laptop runs:
-cd C:/NightShift/Mobile-Coop-laptop-queue-svc && node scripts/laptop-queue/request.mjs --sha <sha> --set <name>
---jobs 2 --requester "Night Shift | Guard AI Build" --suites "a b" (verdict = GitHub status laptop-e2e/<set>).
-Cloud builder briefs: orphan branch cloud-queue, briefs/guard-ai-<slice>.md (README there).
-Master 4.83.0 (train 36); train 38 #275 failed (A3), trains 39 / 40 = other jobs. PROTOCOL 42; asserts read the constant.
-Laptop worktrees (npm ci'd): C:/NightShift/Mobile-Coop-guard-ai (feature/guard-ai: STATE/PLAN/BRIEF/slices),
--s22-game, -s23, -s24, -s25, -s25a, -s26, -s27, -walk482, -relight, -carry-flake (some node_modules = junction to -s24's).
-Open (requests on branch laptop-queue, no cancel CLI: delete the JSON, commit, push. Verdict = GitHub status
-laptop-e2e/<set> on the sha; logs C:/NightShift/scratch/laptop-queue/runs/<id>/ (desktop-worker runs: ask the
-orchestrator). Green -> `gh pr edit <n> --add-label train-ready` + tell orchestrator; red -> Opus triage at once):
-1. MERGED: S23 (train 42), S24-S27 (train 43, master cacd0c7e). Closed: #281 (superseded), #294 (-> #302).
-2. TRAIN-READY (labels set, orchestrator told):
-   - #272 walk482 0dbadad0 (master merged for conflicts; 'near' staging fix; laptop w482-sai PASS).
-   - #295 body watchdog 8ada677d (unblocks LR16 #291; recover on failure only, 45 s cap from first poll of the
-     effect, bodyEffectRecovery.ts:59-61; laptop lightbake + guard-carry PASS; Opus check PASS).
-   - #298 sniper armour 338b4263 (armour = body mark, groups.ts; Havok container filter read -1; restores E10 thin-wall
-     penetration + impact effects; laptop enemies / stealth-ai / combat PASS; Opus check PASS).
-   - #303 watchdog cap 90 s 26e55a4e (feature/guard-ai-watchdog-90; LR16 compiles measured to 43.5 s; CI green; #295 merged).
-   - #302 S28 + sweep 55592902 (feature/guard-ai-sweep = master + S28 + sweep stall fix; S28.md, S13-SWEEP-FIX/-CHECK;
-     laptop sweep-fix2 PASS, looked 1 skipped 0). CI was running at label time.
-3. PR #313 co-op body carry TRAIN-READY (b1daa9a1; wire change, the train bumps PROTOCOL).
-   PR #319 coop4 AI side (feature/guard-ai-coop4 421509bb, worktree -coop4): AI1-AI6 per docs/coop4/briefs/AI.md
-   (A170-A181), checks A FAIL -> fix round, B PASS; laptop coop4-ai (e2e-stealth-ai incl. the 4-intruder block,
-   e2e-sectorops) PASS + AI6 staging fix e0062ae8 (coop4-ai2 PASS) -> TRAIN-READY. Sector Ops (coop4 lead) wires the hooks (AI5-BUILT.md "Fix round"); its
-   3-4 browser harness uses AI6-E2E-SPEC.md. Carries N0 playerSlots.ts unchanged (aa02e6af).
-   Guard-render: AI-side skipped (AI 0.004-0.013 ms / guard); Test Runner's PLAN2 may ask for a gameplay-only
-   "dormant" fact. G44 already on master.
-   On a train failure: bisect with single-suite laptop sets on master and the branch head (+ a test-only merge if the
-   branch is on an older master), Opus triage at once. Desktop-worker logs: ask the orchestrator for the asserts.
-4. Polish (S24-LEVELS-CHECK): redundant tell(alarmHunt) after spawn in reinforce (enemyManager.ts:979) and parked
-   joinReinforcement (:811). Mission reinforcements with nothing known stand at spawn (A148): Michael's call.
-5. After S28 (low, legacy suite, not in the full run; orchestrator ~07:45): e2e-enemies "sniper relocates after its
-   shots" fails, the sniper never fires (Player triage: not guard-models; suspects S16 / S21 tryFire gates or a stale
-   test; Player has a flag-off confirmation run queued: ask for its result first).
-6. Backlog: cover
-   picked by straight-line distance can send a guard behind a full wall (S24-COOP-TRIAGE.md; polish list).
-5. PLAN has no slice after S27 (S28 none). Next work: walk reports from Michael, polish lists only after his playtest.
-Questions for Michael (non-blocking, decision packs): S23 client arcs / LKP ghost; S25 searchers' flares.
-Polish lists only: WALK-CHECK 1-6, S16-CHECK, A126-CHECK, S22-CHECK 1-5, S22-GAME-CHECK(2), CARRY-FIX2-CHECK,
-S23-CHECK-A/B, LR16-4-POLISH, S24-RECHECK-A/B, S25B-CHECK-A/B. A-numbers: S23 A143-A145, S24 A146-A150, S25
-A151-A154, S26 A155-A160, S27 A161-A164 accepted (move into BRIEF.md).
+block only. Branch guard before every write. Never merge master into a branch unless the orchestrator asks for a
+conflict fix. 2 Opus checkers on AI / src/net PRs (1 on small hygiene slices); Opus triage on every laptop failure;
+laptop runs: cd C:/NightShift/Mobile-Coop-laptop-queue-svc && node scripts/laptop-queue/request.mjs --sha <sha>
+--pr <n> --set <name> --jobs 2 --requester "Night Shift | Guard AI Build" --suites "a b" (verdict = GitHub status
+laptop-e2e/<set>; wait with a background `until gh api .../commits/<sha>/statuses` loop, never polling turns).
+Laptop auto mode blocks `gh pr edit --add-label`: ask the orchestrator to label train-ready.
+Master 4.93.0 (6e8a450b), PROTOCOL 52 (tests read the constant; the train bumps).
+Open:
+1. #313 co-op client body carry (feature/guard-ai-coop-carry, worktree -coop-carry): master 4.93.0 merged 1d2f3e1d
+   (S5 carry lie ported into src/game/bodyCarry.ts + src/net/carryView.ts; merge A1-A3 in COOP-CARRY-MERGE-CHECK-A/B.md),
+   checks A + B PASS, laptop coop-carry-m93 4/4 (e2e-coop flake = Marlow's joint interrogation, not carry). Head
+   5d41abdc docs-only. TRAIN-READY (label kept). Polish: CarryView instant drop (carrier down) lands front on the
+   owner's page vs side on the others (~0.9 m, 90 deg; CHECK-B P1).
+2. #322 e2e-lightbake pending-compile wait: TRAIN-READY (orchestrator labelled).
+3. #326 R1 allocation-free sight rays (guard-cap brief docs/guard-cap/briefs/R1.md on feature/guard-cap; worktree
+   -r1-rays): 9008f458 laptop r1-rays PASS, checker PASS (slices/R1-CHECK.md on the branch); fix round 099bf44d
+   (Ballistics casts no longer call res.reset(): Havok resets; editor wording); laptop r1-rays2 (stealth-ai, enemies,
+   combat) pending -> ask orchestrator to label, tell Marlow Build (guard-cap lead) R1 done.
+4. Merged today: #272, #295, #298, #302, #303, #319 coop4 AI side (Sector Ops wires the hooks; AI6-E2E-SPEC.md).
+5. Polish (after Michael's playtest): S24-LEVELS-CHECK redundant tell(alarmHunt) (enemyManager.ts reinforce) and
+   parked joinReinforcement; A148 mission reinforcements stand at spawn (Michael's call); cover by straight-line
+   distance behind a full wall (S24-COOP-TRIAGE.md); e2e-enemies "sniper relocates" (legacy suite, low).
+6. Next work: the next AI item the orchestrator / guard-cap assigns; walk reports from Michael. PLAN has no slice
+   after S28. Questions for Michael (non-blocking): S23 client arcs / LKP ghost; S25 searchers' flares.
+Polish lists: WALK-CHECK 1-6, S16-CHECK, A126-CHECK, S22-CHECK 1-5, S22-GAME-CHECK(2), CARRY-FIX2-CHECK, S23-CHECK-A/B,
+LR16-4-POLISH, S24-RECHECK-A/B, S25B-CHECK-A/B, COOP-CARRY-MERGE-CHECK-A/B, R1-CHECK. A143-A164 accepted (move into BRIEF.md).
 ```
