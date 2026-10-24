@@ -355,6 +355,9 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   (the same host checks, `onLampShot`; a repeat round at a lamp the host already has out is dropped with no
   violation), and `lights.dead` includes it from the next `course` message (no `lamps` message in Course mode). (F1a)
   The client plays the sparks cue for a newly dead lamp, and none on the first message after a join or rejoin.
+  (coop-real F1c) A lamp round fired before the last set or section restart (`rt + CLIENT_INTERP_DELAY` earlier than
+  the restart's host time + `LAMP_RESTART_SLACK` 0.2 s; `lampShotStale`) is dropped with no violation, so a round in
+  flight across a restart never puts out a lamp the restart brought back (Sector Ops alike).
 - Drill ticks (`ctick`, client -> host `{ verb }`, `TickLimiter` 4 a second): `game/course/drillDetect.ts` is the one
   place course verbs are derived (edge-triggered); `CourseFeed` fills its snapshot each fixed step. The client sends
   only `CLIENT_VERBS` (gear, sprint, stance, vision, ping, aim, fire, reload, swap, dark, gadget); the host ticks what
