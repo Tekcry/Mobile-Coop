@@ -272,7 +272,7 @@ Polish: slice0-check.md, sliceL-check.md, slice1-check.md, e1/e3/e4-check.md pol
 - 2026-10-23 ~01:45: branch cut, BRIEF (M1-M5).
 - ~02:45 (orchestrator): guard BEHAVIOUR (src/ai: perception, alert, hearing, squads, radio, reinforcement behaviour, posts) belongs to the new job guard-ai (Night Shift | Guard AI Build); sector-redesign owns map data + sectorMode (placement, archetype per guard, dog allowance, post / zone tags as data, restart resets, camera cap). Data requests for guard-ai: end of research/ENGINE.md. Protocol 31 is sector-redesign's (Sector light sync); guard-ai takes 32. Guard-cap perf run requested on the laptop by the orchestrator.
 
-## Resume prompt
+## History: resume block 2026-10-24 ~23:10 (superseded)
 ```
 Night Shift | Sector Ops Build: RESUME (saved 2026-10-24 ~23:10, 5-hour cap; orchestrator resumes at the 03:10 reset).
 SAVE ~23:10: signoff WIP e41942bf (S1 DONE 8acf65d3: validator 13 -> 0, 15 guards; S2-S5 partial files committed as WIP,
@@ -346,4 +346,36 @@ on a separate entry branch the orchestrator approves); no e2e and no GPU probe o
 C:/NightShift/scratch/sr-slot-{1..4}.lock; agents wait while CPU > 90%; never two agents on one file; hot paths allocate
 nothing even un-inlined (no uint32 returns: 30-bit Smi). Detached worktrees: `cmd //c rmdir "<wt>\node_modules"` FIRST,
 then git worktree remove --force. Train-ready = message + `gh pr edit <n> --add-label train-ready`.
+```
+
+## Resume prompt
+```
+Night Shift | Sector Ops Build: RESUME (saved 2026-10-25 ~00:30; swap at 23:20 was unplanned; overnight mode: no
+question dialogs, decide and log; orchestrator resumes leads after each reset). git fetch; read CLAUDE.md "Sessions".
+Worktrees (node_modules junctions to Mobile-Coop-sector-redesign-bake2): -polish (this STATE), -signoff, -bake3,
+-visual-gate, -visual-gate-vg1 / -vg2 / -vg4. Disk 40 GB free (worktrees allowed again).
+1. PR #361 bake3 (feature/sector-redesign-bake3 @ 820480c3; Opus check PASS, `checker` status posted; lighting.md
+   Failures updated). Laptop set bake3 (e2e-lightbake e2e-sectorops:6) queued 23:35 -> status laptop-e2e/bake3.
+   Green + CI green -> `gh pr edit 361 --add-label train-ready` + message the orchestrator. Red -> Opus triage at once.
+2. CAMPUS SIGN-OFF (feature/sector-redesign-signoff @ c5ba9ff4+): S1-S5 pages + detail + plan SVGs + plan graphs all
+   written; five graphs `syncs` key, 0 errors / 117 warnings. S2 = 18 guards (41 -> 0 errors), Split Shift nodes for
+   Marlow (sync-s2-comms track A, sync-s2-power held 55 + 56, sync-s2-atrium, pairdoor `solo`, exfil as tracks.exfil).
+   IN FLIGHT ~00:20: Sonnet chore = `area` boxes on S1 / S3-S5 spaces, exfil on s4-cc (tag or tracks.exfil), SYNC.md
+   (uncommitted; rerun from this line if missing). Then: lead commits + pushes, messages Marlow Build ("all five
+   pushed"), ONE Opus checker over the five pages (template docs/templates/signoff.md on feature/intake-gates, rulebook
+   briefs/SIGNOFF-PLANNER.md on -polish, audit section 4), fix round, push, message the orchestrator "sign-off pages
+   up" (Michael picks per page; no greybox before he approves).
+3. VISUAL-GATE (docs/visual-gate/STATE.md "Now" holds the detail): VG1 / VG2 / VG4 checked, fixed, merged
+   (feature/visual-gate 7a235867). VG3 claimed by Cloud Builder 1 (cloud-queue). IN FLIGHT: Opus writer for briefs
+   VG5 (gate runner) + VG6 (train wiring) (uncommitted in -visual-gate; lead commits). Next: VG3 Sonnet check + merge,
+   M0 laptop request (checks/vg2-build.md :103-108), then VG5 / VG6 builders.
+4. Marlow Build mission-framework EN2 adds hook lines in sectorMode.ts / sectors.ts / campusOps.ts on master
+   (conflicts resolved in the train); no reply needed.
+Laptop requests: node C:/NightShift/scratch/lq/request.mjs (copied from origin/master with ../e2e-affected.mjs beside
+it) --sha <sha> --pr N --branch <b> --set <s> --suites "a b" --requester "Night Shift | Sector Ops Build".
+RULES: message the orchestrator only at PR open / train-ready / blocked / needs Michael; Opus plans / checks / engine,
+Sonnet from strict briefs; one checker per batch in parallel with the laptop request; one fix round; never merge master
+into a job branch; no desktop e2e / GPU; vitest --maxWorkers=2; agents wait while CPU > 90%; never two agents on one
+file. Older context (bake2 #354 4.98.1 and fog2 #357 4.98.2 RELEASED; LR16 / #307 released; held lists for Michael):
+the 23:10 block under "History: resume block 2026-10-24 ~23:10" above.
 ```
