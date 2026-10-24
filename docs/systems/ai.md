@@ -39,7 +39,7 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   some high routes (pipes, catwalks, vents) and paired patrols that check on each other. G44 (poor sight above) stays
   the base rule; a lookout is the deliberate exception on its route. Guard AI plans it first; not built yet.
 - Decided (2026-10-25 ~08:50, "Yes, shadow in view = seen"): a guard whose shadow falls in view animates at full rate
-  (`animTierView.ts`; replaces G294's assumption). Not built yet: shadow passes do not count as seen (`animTierView.ts`).
+  (`animTierView.ts`; replaces G294's assumption). Not built yet: shadow passes do not count as seen.
 - Decided (G47): the light parity test, long lamps and motion lights are sorted out when built.
 
 ## Stealth AI (2.0 phase 3a)
