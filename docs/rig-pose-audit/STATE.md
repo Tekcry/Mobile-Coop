@@ -1,6 +1,11 @@
 # rig-pose-fix: state
 
 ## Resume
+- ~14:00: S1 MERGED (bb750a5b); check S1 A FAIL B1 (host kneels the client during the tense sneak) -> fix round 6aafd7a7
+  MERGED (30a8ec81; tests/remoteKneelTense.test.ts). Decisions for the orchestrator (CHECK-S1-A.md): D-S1b client head x1.3 /
+  legs x0.75 on host (keep), D-S1c host judges the latest accepted client state (keep), roll x0.5 only for the client
+  (pre-existing; decide). TODO before PR: tests/playerVolumes.test.ts allocation case flaky (67.8 vs 64 B; base reads the
+  same): find the 16 B or make the measure robust (after S3, which may touch playerVolumes.ts). S3 building.
 - ~13:05: S7 MERGED (e1831c62) -> 6dcac873. Opus checker W1 on S2 / S5 / S6 / S7 running (CHECK-W1.md). S1 still building.
   After S1: merge, then S3 (guard head; S6-REPORT one-liner for enemyPuppet.ts; merge S2 shotEye with S1's head; S7's
   openLeft flag into weapons via gameState.ts), two Opus checkers on S1 + S3 (+ S5 / S7 src/net bits), then ONE laptop
