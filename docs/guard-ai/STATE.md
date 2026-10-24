@@ -13,6 +13,10 @@ C:/NightShift/Mobile-Coop-guard-ai-polish-a / -b / -c (branches feature/guard-ai
 -polish). Next: merge a/b/c into feature/guard-ai-polish, full CORE vitest (82 files, plan "Vitest per group"), 2 Opus
 checkers + laptop set (plan "e2e"), PR (minor).
 
+Waiting (Marlow, mission-framework, after Michael's sign-off): em.missionOrder(guardTag, 'reset' | 'walk', postId, via?)
+for Split Shift (breaker board reset via reception, wraps Enemy.resetBreaker enemy.ts:1285) and Code Relay (supervisor
+walk to S4 cage, wraps Enemy.sendTo :1138). Specs origin/feature/mission-framework docs/missions/prototypes/*/BEAT.md.
+
 ~22:35 (new account, laptop; OVERNIGHT mode from the orchestrator: no swap, full burn to the cap, save ~92%, no
 question dialogs: decide, log A-numbers in BRIEF). #317: alone-coop4-4p on 1b04e5bd PASS 3/3 (349 s); e2e-coop on
 bc96ecee (laptop-e2e/coop4-fix2) running, background wait. Green -> gh pr ready 317 + orchestrator train-ready.
