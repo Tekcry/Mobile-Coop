@@ -464,6 +464,16 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   read `ghostOf(id, out: Vector3): 0 | 1 | 2` (none / known / show). The player team-slot seam: `slotOf(ref, index)`
   in `intruders.ts` (`ref.slot` when N1 sets `TeamRef.slot`, else the index): `Enemy.seesIndex` bits are team slots.
   Undo: `INTRUDERS.reuse` false, `COOP4.from` Infinity. Tests: `intruders.test.ts`, `fourIntruders.test.ts`.
+  (coop4 AI2, A181) At 3+ players `perceive` starts players in `perceiveOrder` (target, hunted intruder, the rest
+  nearest first rotated per think) within `PERCEIVE.maxRays` 9 sight rays (3 calm, 2 alerted, 0 out of view); a player
+  left out reads unseen that think. 1-2 players: index order, uncapped. Counters: `Enemy.raysThink`,
+  `EnemyManager.raysThisStep`. Undo `PERCEIVE.maxRays` Infinity.
+  (coop4 AI3, A172 / A173) Hearing locates each intruder by its own noise; the radio net's receiver queue holds 128
+  entries per section (`RADIO.queue`, 4 contacts x 32 guards). A guest's hold noise names its holder (host line in
+  `coopHost.onHoldPulse`, Sector Ops N1).
+  (coop4 AI4, A174) From 3 players each reinforcement takes `nextAlarmHunt()`: round robin over `alarmHunts` (the
+  alarm's intruder first, then the freshest sightings, leavers skipped); a team shares one (AI5). Refusals at the live
+  cap keep the order. Undo `ALARM_HUNT.split = false`.
 - Search after combat: the probable area (guard-ai S25, M1, CT rule 9, A151-A154; `ai/searchArea.ts` pure:
   `SEARCH_AREA`, `SearchPlan`, `areaRadius`, `pointScore`, `orderByScore`). One plan per intruder slot
   (`EnemyManager.plans`). `buildPlan(slot)`, called when one of his searchers asks: due when never built, older than
