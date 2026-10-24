@@ -277,3 +277,15 @@ per remote, `r.state`); `removeRemote` calling `intruderLeft`; later the per-cli
 - 3-4 browser asserts for Sector Ops / Test Runner: `docs/coop4/briefs/AI6-E2E-SPEC.md` ((1)-(6) of section 1 "AI6",
   what to stage, read and pass, the 2-player control and the laptop measure).
 - Docs: `docs/systems/testing-tools.md` (e2e-stealth-ai line), `TESTING.md` (the S24 co-op line). Unit tests unchanged.
+
+### AI6 laptop fix (Opus builder, 2026-10-24)
+- Laptop run on 421509bb (run + rerun): 'four intruders (coop4)' failed its first assert, the staging search (no layout:
+  one fixed row of 4 players 6 m apart on x -2..22 plus a rays fan sharing the spot, two static rays at 0.9 / 1.5 m).
+- Fix (`scripts/e2e-stealth-ai.mjs`, staging only; every behaviour assert unchanged): two independent layouts searched
+  over every walkable storey (a 2 m lattice of nav cells, the ground floor round the factory floor first) with the
+  game's own sight ray (`Enemy.losTo` through a probe guard: MASK.SIGHT, 0.3 m slack, from the 1.55 m eye). Pairs: 4
+  players 4-8 m from the nearest other, each with his own guard 4-8 m off in 8 directions, chest / head / hips lines
+  clear, his own player nearest by 1.5 m, no body within 1 m of another pair's line (greedy, up to 80 starts). Rays: a
+  guard and 4 players fanned 6-9 m inside his focus (+-20.6 deg), crouched lines clear. None found: the assert prints the
+  candidates, the pairs found, the last blocked line (player, guard, which line) and the best rays candidate. New helpers
+  `t.tp3` / `t.spawn3` (a storey at y); `t.fakes` entries are now `[x, z, y?]`; the found layout is logged.

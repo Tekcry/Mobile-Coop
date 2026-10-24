@@ -34,19 +34,20 @@ try {
     window.__t = {
       V,
       fakeList,
-      /** (coop4 AI6, A180) Up to 3 stand-in `PlayerRef`s ([x, z] or [x, z, id]; ids `fake1..3`) as `g.remotePlayers()`
-       *  (the AI's `players()` = the local player, then these). Returns the live list (splice / push it for a leave or
-       *  a rejoin). `reset` restores the game's remotes. */
+      /** (coop4 AI6, A180) Up to 3 stand-in `PlayerRef`s ([x, z] or [x, z, y]: y picks the storey; ids `fake1..3`) as
+       *  `g.remotePlayers()` (the AI's `players()` = the local player, then these). Returns the live list (splice / push
+       *  it for a leave or a rejoin). `reset` restores the game's remotes. */
       fakes(list) {
         fakeList.length = 0;
-        for (let i = 0; i < list.length && i < 3; i++) fakeList.push(this.fake(list[i][2] ?? `fake${i + 1}`, list[i][0], list[i][1]));
+        for (let i = 0; i < list.length && i < 3; i++) fakeList.push(this.fake(`fake${i + 1}`, list[i][0], list[i][1], list[i][2] ?? 0));
         g.remotePlayers = () => fakeList;
         return fakeList;
       },
-      /** One stand-in: feet on the nav floor at (x, z), set by the test; alive; aim / head points at feet + 1.3 / 1.65
-       *  (crouched 0.95 / 1.15); damage a no-op; light pinned to `lit` (the game's light pass cannot overwrite it). */
-      fake(id, x, z) {
-        const cell = em.nav.cellOf(x, z, 0);
+      /** One stand-in: feet on the nav floor at (x, z) (the storey nearest `y`), set by the test; alive; aim / head points
+       *  at feet + 1.3 / 1.65 (crouched 0.95 / 1.15); damage a no-op; light pinned to `lit` (the light pass cannot
+       *  overwrite it). */
+      fake(id, x, z, y = 0) {
+        const cell = em.nav.cellOf(x, z, y);
         const feet = new V(x, cell >= 0 ? em.nav.height[cell] : 0, z);
         const ref = { id, feet, speed: 0, crouched: false, cover: null, coverT: 0, spotted: false, height: 1.75, head: null, shield: null, lit: 1 };
         Object.defineProperty(ref, 'light', { get: () => ref.lit, set: () => {}, enumerable: true });
@@ -109,6 +110,15 @@ try {
       },
       spawn(kind, x, z, yaw) {
         return em.spawn(kind, new V(x, 0, z), false, yaw);
+      },
+      /** (coop4 AI6) `tp` / `spawn` on the storey at height y. */
+      tp3(x, y, z, yaw) {
+        c.teleport(new V(x, y, z), yaw);
+        g.player.cam.yaw = yaw;
+        g.player.cam.pitch = 0;
+      },
+      spawn3(kind, x, y, z, yaw) {
+        return em.spawn(kind, new V(x, y, z), false, yaw);
       },
       crouch(v) {
         c['crouchToggled'] = v;
@@ -2802,34 +2812,143 @@ try {
       t.max0 = em.maxAlive;
     });
     try {
-      // the layout on the factory floor: 4 players in a row 6 m apart, a guard 6 m in front of each on a clear line; for
-      // 'rays' one guard 8 m in front of 4 players 2 m apart (all inside his focus)
+      // (AI6 laptop fix) Two independent layouts, searched over every walkable storey of the map (a 2 m lattice of nav
+      // cells, the ground floor round the factory floor (9, 0) first), with the game's own sight ray (`Enemy.losTo`:
+      // MASK.SIGHT, static geometry, 0.3 m slack at the target, from a guard's standing eye):
+      // - pairs ('four', 'two'): 4 players 4-8 m from the nearest other, each with his own guard 4-8 m off in any of 8
+      //   directions, clear lines to his chest, head and hips; each guard's own player the nearest to him by 1.5 m, no
+      //   other player or guard within 1 m of a pair's line;
+      // - rays: one guard and 4 players fanned 6-9 m in front of him inside his focus (+-20.6 deg), crouched lines clear.
+      // None found: the best candidate and the line that blocked it are returned for the assert.
       const L = await G(() => {
+        const t = window.__t;
         const g = window.__app.current;
-        const nav = g.enemyMgr.nav;
-        const V = window.__t.V;
-        const ray = (ax, ay, az, bx, by, bz) => g.ballistics.ray(new V(ax, ay, az), new V(bx, by, bz), 1).hit;
-        const lineClear = (a, b) => !ray(a[0], 1.5, a[1], b[0], 1.5, b[1]) && !ray(a[0], 0.9, a[1], b[0], 0.9, b[1]);
-        const floorOk = ([x, z]) => {
-          if (x < -3 || x > 23 || z < -8 || z > 11) return false;
-          const c = nav.cellOf(x, z, 0);
-          return c >= 0 && nav.isWalkable(c) && Math.abs(nav.height[c]) < 0.3;
+        const em = g.enemyMgr;
+        const nav = em.nav;
+        const V = t.V;
+        t.reset();
+        const EYE = 1.55;
+        const spot = (x, z, y) => {
+          const c = nav.cellOf(x, z, y);
+          return nav.isWalkable(c) && Math.abs(nav.height[c] - y) < 0.4 ? nav.height[c] : Number.NaN;
         };
-        for (const zp of [-6, -5, -4, -3, -2, -1, 0, 1, 2, 3]) {
-          for (const x0 of [-2, -1, 0, 1, 2, 3, 4]) {
-            const P = [0, 1, 2, 3].map((i) => [x0 + 6 * i, zp]);
-            const guards = P.map(([x, z]) => [x, z + 6]);
-            if (!P.every(floorOk) || !guards.every(floorOk) || !P.every((p, i) => lineClear(guards[i], p))) continue;
-            const RG = [x0 + 9, zp + 8];
-            const RP = [0, 1, 2, 3].map((i) => [x0 + 6 + 2 * i, zp]);
-            if (!floorOk(RG) || !RP.every(floorOk) || !RP.every((p) => lineClear(RG, p))) continue;
-            return { P, guards, RG, RP };
-          }
+        // candidates: one walkable cell per 2 m lattice square and storey
+        const seen = new Set();
+        const cand = [];
+        for (let i = 0; i < nav.height.length; i++) {
+          if (!nav.isWalkable(i)) continue;
+          const [x, z] = nav.center(i);
+          const y = nav.height[i];
+          const key = `${Math.round(x / 2)},${Math.round(z / 2)},${Math.round(y / 2)}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          cand.push([x, y, z]);
         }
-        return null;
+        cand.sort((a, b) => (Math.abs(a[1]) > 0.3 ? 1000 : 0) + Math.hypot(a[0] - 9, a[2]) - (Math.abs(b[1]) > 0.3 ? 1000 : 0) - Math.hypot(b[0] - 9, b[2]));
+        if (!cand.length) return { pairs: null, rays: null, diag: { cand: 0 } };
+        const probe = em.spawn('grunt', new V(cand[0][0], cand[0][1], cand[0][2]), false, 0);
+        if (!probe) return { pairs: null, rays: null, diag: { cand: cand.length, probe: false } };
+        const A = new V();
+        const B = new V();
+        const los = (ax, ay, az, bx, by, bz) => probe['losTo'](A.set(ax, ay, az), B.set(bx, by, bz), 0.3);
+        const h2 = (a, b) => Math.hypot(a[0] - b[0], a[2] - b[2]);
+        // horizontal distance from point p to the segment a-b
+        const seg = (p, a, b) => {
+          const dx = b[0] - a[0];
+          const dz = b[2] - a[2];
+          const l = dx * dx + dz * dz;
+          const k = l > 0 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[2] - a[2]) * dz) / l)) : 0;
+          return Math.hypot(p[0] - a[0] - k * dx, p[2] - a[2] - k * dz);
+        };
+        const DIST = [6, 5, 7, 4, 8];
+        // ---- pairs: greedy from a first player at cand[s0] (nearest the factory floor first), the next start when it
+        // gets stuck short of 4
+        const pd = { tried: 0, blocked: 0, last: null, starts: 0, most: 0 };
+        let pairs = [];
+        for (let s0 = 0; s0 < Math.min(cand.length, 80) && pairs.length < 4; s0++) {
+          pd.starts++;
+          pairs = [];
+          for (let ci = s0; ci < cand.length + s0; ci++) {
+            const p = cand[ci % cand.length];
+            if (pairs.length === 4) break;
+            if (pairs.length) {
+              let near = Infinity;
+              for (const q of pairs) near = Math.min(near, h2(q.p, p));
+              if (near < 4 || near > 8) continue;
+            }
+            let got = null;
+            for (const d of DIST) {
+              for (let k = 0; k < 8 && !got; k++) {
+                const a = (k * Math.PI) / 4;
+                const gx = p[0] + Math.sin(a) * d;
+                const gz = p[2] + Math.cos(a) * d;
+                const gy = spot(gx, gz, p[1]);
+                if (gy !== gy) continue;
+                const q = [gx, gy, gz];
+                const own = h2(q, p);
+                let sep = true;
+                for (const o of pairs) {
+                  if (h2(q, o.p) < own + 1.5 || h2(o.g, p) < h2(o.g, o.p) + 1.5 || h2(q, o.g) < 2.5) sep = false;
+                  if (seg(o.p, q, p) < 1 || seg(o.g, q, p) < 1 || seg(p, o.g, o.p) < 1 || seg(q, o.g, o.p) < 1) sep = false;
+                }
+                if (!sep) continue;
+                pd.tried++;
+                const lines = [['chest', 1.3], ['head', 1.65], ['hips', 0.9]];
+                const bad = lines.find(([, hh]) => !los(gx, gy + EYE, gz, p[0], p[1] + hh, p[2]));
+                if (bad) {
+                  pd.blocked++;
+                  pd.last = { player: p.map((v) => +v.toFixed(2)), guard: q.map((v) => +v.toFixed(2)), line: bad[0] };
+                  continue;
+                }
+                got = { p, g: q, yaw: Math.atan2(p[0] - gx, p[2] - gz) };
+              }
+              if (got) break;
+            }
+            if (got) pairs.push(got);
+            else if (!pairs.length) break;
+          }
+          pd.most = Math.max(pd.most, pairs.length);
+        }
+        // ---- rays: a guard and 4 players fanned in his focus
+        let rays = null;
+        let best = null;
+        const FAN = [-0.36, -0.12, 0.12, 0.36];
+        for (const q of cand) {
+          for (const d of [8, 7, 9, 6]) {
+            for (let k = 0; k < 8 && !rays; k++) {
+              const a = (k * Math.PI) / 4;
+              const pts = FAN.map((o) => [q[0] + Math.sin(a + o) * d, 0, q[2] + Math.cos(a + o) * d]);
+              let floor = true;
+              for (const pt of pts) {
+                pt[1] = spot(pt[0], pt[2], q[1]);
+                if (pt[1] !== pt[1]) floor = false;
+              }
+              if (!floor) continue;
+              let ok = 0;
+              let block = null;
+              for (const pt of pts) {
+                const c1 = los(q[0], q[1] + EYE, q[2], pt[0], pt[1] + 0.9, pt[2]);
+                const c2 = los(q[0], q[1] + EYE, q[2], pt[0], pt[1] + 1.15, pt[2]);
+                if (c1 && c2) ok++;
+                else block ??= { player: pt.map((v) => +v.toFixed(2)), line: c1 ? 'head' : 'chest' };
+              }
+              if (!best || ok > best.ok) best = { ok, guard: q.map((v) => +v.toFixed(2)), d, dir: k, block };
+              if (ok === 4) rays = { g: q, yaw: a, p: pts };
+            }
+            if (rays) break;
+          }
+          if (rays) break;
+        }
+        return {
+          pairs: pairs.length === 4 ? pairs : null,
+          rays,
+          diag: { cand: cand.length, pairs: pd.most, starts: pd.starts, pairTries: pd.tried, pairBlocked: pd.blocked, lastBlocked: pd.last, raysBest: best },
+        };
       });
-      assert(L, 'a factory-floor layout: 4 players 6 m apart, a guard 6 m in front of each, and a rays guard 8 m from 4 players, all on clear lines');
-      if (!L) return;
+      assert(L.pairs, `a layout of 4 players 4-8 m apart, each with his own guard 4-8 m off on clear sight lines (found ${L.diag.pairs} of 4: ${JSON.stringify(L.diag)})`);
+      assert(L.rays, `a rays layout: one guard, 4 players fanned 6-9 m in his focus on clear crouched sight lines (best ${JSON.stringify(L.diag.raysBest)}; ${L.diag.cand} candidates)`);
+      if (!L.pairs || !L.rays) return;
+      console.log(`  (layout: players ${L.pairs.map((q) => q.p.map((v) => v.toFixed(1)).join('/')).join(' ')}; rays guard ${L.rays.g.map((v) => v.toFixed(1)).join('/')})`);
 
       // ---- rays: one calm guard, 4 (then 2) crouched players still in the dark in his focus at ~8 m ----
       const R = await G((L) => {
@@ -2843,13 +2962,14 @@ try {
           em.alarmRaised = true;
           t.light(0);
           t.crouch(true);
-          t.tp(L.RP[0][0], L.RP[0][1], 0);
-          const fs = [...t.fakes(L.RP.slice(1, 1 + nFakes))];
+          const RP = L.rays.p;
+          t.tp3(RP[0][0], RP[0][1], RP[0][2], L.rays.yaw + Math.PI);
+          const fs = [...t.fakes(RP.slice(1, 1 + nFakes).map((q) => [q[0], q[2], q[1]]))];
           for (const f of fs) {
             f.lit = 0;
             f.crouched = true;
           }
-          const e = t.spawn('grunt', L.RG[0], L.RG[1], Math.PI);
+          const e = t.spawn3('grunt', L.rays.g[0], L.rays.g[1], L.rays.g[2], L.rays.yaw);
           t.step(0.5);
           const rays = [];
           let maxSeen = 0;
@@ -2903,10 +3023,11 @@ try {
           em.maxAlive = 32;
           em.alarmRaised = true;
           t.light(1);
-          t.tp(L.P[0][0], L.P[0][1], 0);
-          const fs = [...t.fakes(L.P.slice(1))];
+          const P = L.pairs.map((q) => q.p);
+          t.tp3(P[0][0], P[0][1], P[0][2], 0);
+          const fs = [...t.fakes(P.slice(1).map((q) => [q[0], q[2], q[1]]))];
           for (const f of fs) f.speed = 1;
-          const guards = L.guards.map(([x, z]) => t.spawn('grunt', x, z, Math.PI));
+          const guards = L.pairs.map((q) => t.spawn3('grunt', q.g[0], q.g[1], q.g[2], q.yaw));
           const ids = ['local', 'fake1', 'fake2', 'fake3'];
           const known = () => ids.every((id) => ib.find(id) >= 0 && ib.valid[ib.find(id)] === 1);
           // each player sways a little (the local one strafes, the stand-ins' feet move each step) until all 4 are known
@@ -2915,13 +3036,13 @@ try {
           while (!known() && k++ < 400) {
             const w = k % 20 < 10 ? 0.25 : -0.25;
             st.setMove('t', w > 0 ? 0.6 : -0.6, 0);
-            for (let i = 0; i < fs.length; i++) fs[i].feet.x = L.P[i + 1][0] + w;
+            for (let i = 0; i < fs.length; i++) fs[i].feet.x = P[i + 1][0] + w;
             t.step(0.05);
             for (const e of guards) maxRays = Math.max(maxRays, e.raysThink);
           }
           st.setMove('t', 0, 0);
           for (let i = 0; i < fs.length; i++) {
-            fs[i].feet.x = L.P[i + 1][0];
+            fs[i].feet.x = P[i + 1][0];
             fs[i].speed = 0;
           }
           const feet = [g.localRef.feet, ...fs.map((f) => f.feet)];
@@ -2970,7 +3091,7 @@ try {
           const teams = [];
           const T = [];
           for (let j = 0; j < 2; j++) {
-            const tm = em.newTeam(0, null, [], L.P, 6);
+            const tm = em.newTeam(0, null, [], P.map((q) => [q[0], q[2]]), 6);
             const members = [];
             for (let i = 0; i < 2; i++) {
               const e = reinf();
@@ -3072,21 +3193,22 @@ try {
           em.maxAlive = 32;
           em.alarmRaised = true;
           t.light(1);
-          t.tp(L.P[0][0], L.P[0][1], 0);
-          const fs = [...t.fakes(L.P.slice(1, 2))];
+          const P = L.pairs.map((q) => q.p);
+          t.tp3(P[0][0], P[0][1], P[0][2], 0);
+          const fs = [...t.fakes([[P[1][0], P[1][2], P[1][1]]])];
           fs[0].speed = 1;
-          const guards = L.guards.slice(0, 2).map(([x, z]) => t.spawn('grunt', x, z, Math.PI));
+          const guards = L.pairs.slice(0, 2).map((q) => t.spawn3('grunt', q.g[0], q.g[1], q.g[2], q.yaw));
           const ids = ['local', 'fake1'];
           const known = () => ids.every((id) => ib.find(id) >= 0 && ib.valid[ib.find(id)] === 1);
           let k = 0;
           while (!known() && k++ < 400) {
             const w = k % 20 < 10 ? 0.25 : -0.25;
             st.setMove('t', w > 0 ? 0.6 : -0.6, 0);
-            fs[0].feet.x = L.P[1][0] + w;
+            fs[0].feet.x = P[1][0] + w;
             t.step(0.05);
           }
           st.setMove('t', 0, 0);
-          fs[0].feet.x = L.P[1][0];
+          fs[0].feet.x = P[1][0];
           fs[0].speed = 0;
           const slots = ids.map((id) => ib.find(id));
           const raiser = guards.find((e) => e.alive && e.hunt >= 0) ?? null;
@@ -3108,7 +3230,7 @@ try {
             const e = reinf();
             lone.push(e ? told(e) : null);
           }
-          const tm = em.newTeam(0, null, [], L.P, 3);
+          const tm = em.newTeam(0, null, [], P.map((q) => [q[0], q[2]]), 3);
           const members = [];
           for (let i = 0; i < 2; i++) {
             const e = reinf();
