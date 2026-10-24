@@ -1003,6 +1003,8 @@ pick): keep ONE open request at a time, in priority order; withdraw = delete req
 Before pushing a PR head: vitest the tests importing the changed modules AND their direct importers (--maxWorkers=2).
 OVERNIGHT mode: no swap, full burn to each cap, save ~92%, no question dialogs (decide, log A-numbers in BRIEF).
 Open (save 2026-10-25 ~00:05; agents die at the cap: relaunch each from its brief + WIP):
+WIP snapshots (branches untouched): origin/wip/guard-ai-polish-fix ba1dc579 (fix round, 13 files), origin/wip/guard-ai-t1-look
+45c00990 (scripts/t1-shadow-look.mjs, 501 lines). If the worktree is behind, `git checkout <wip> -- .` then finish.
 1. #317 coop4 (feature/coop4, worktree C:/NightShift/Mobile-Coop-coop4): fix3 52e3dc13 request ...-6504 (set coop4-fix3)
    is the ONLY open request. Green -> `gh pr ready 317` + orchestrator train-ready. Red -> Opus triage at once.
    CONFLICT with master (one hunk src/net/protocol.ts): orchestrator agreed no master merge; if auto-train leaves #317
