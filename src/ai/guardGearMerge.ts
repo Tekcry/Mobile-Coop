@@ -110,12 +110,13 @@ function source(scene: Scene, lib: SmoothBodyLibrary, d: MergedBody, name: strin
  * The armour `parts` (library instances on the rig's joints) as one mesh skinned on his S1 body's skeleton (its low
  * LOD tracked), the parts disposed; null (the parts stay) when off or anything does not fit.
  */
-export function mergeRigGear(scene: Scene, rig: CharacterRig, parts: readonly InstancedMesh[], name: string): Mesh | null {
+export function mergeRigGear(rig: CharacterRig, parts: readonly InstancedMesh[], name: string): Mesh | null {
   const body = rig.voxel;
   if (!flags.guardMerge || !body || !parts.length) return null;
   const from = libraryOf(parts[0]);
   if (!from) return null;
   const { lib, src: src0 } = from;
+  const scene = src0.getScene();
   const hiParts: MergePart[] = [];
   const loParts: MergePart[] = [];
   const key: string[] = [];
@@ -169,11 +170,12 @@ export function mergeRigGear(scene: Scene, rig: CharacterRig, parts: readonly In
  * source under `parent`, the parts disposed; null (the parts stay) when off or a part does not fit. `id` keys the
  * shared source with the parts' places and instance values.
  */
-export function mergeStaticParts(scene: Scene, parent: TransformNode, parts: readonly InstancedMesh[], id: string, name: string): InstancedMesh | null {
+export function mergeStaticParts(parent: TransformNode, parts: readonly InstancedMesh[], id: string, name: string): InstancedMesh | null {
   if (!flags.guardMerge || !parts.length) return null;
   const from = libraryOf(parts[0]);
   if (!from) return null;
   const { lib, src: src0 } = from;
+  const scene = src0.getScene();
   parent.computeWorldMatrix(true);
   const inv = parent.getWorldMatrix().clone().invert();
   const hiParts: MergePart[] = [];

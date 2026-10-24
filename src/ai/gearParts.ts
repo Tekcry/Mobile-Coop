@@ -58,7 +58,7 @@ export function buildArmourParts(world: GearWorld, rig: CharacterRig, hex: strin
     m.rotation.set(0, 0, -side * 0.35);
     out.push(m);
   }
-  const merged = mergeRigGear(rig.root.getScene(), rig, out, 'enemy-armour');
+  const merged = mergeRigGear(rig, out, 'enemy-armour');
   if (merged) {
     world.addShadowCaster(merged);
     const lo = merged.getLODLevels()[0]?.mesh;
@@ -81,5 +81,5 @@ export function buildShieldPart(world: Pick<World, 'parts'>, root: TransformNode
   visor.parent = sh;
   visor.scaling.set(0.6, 0.12, 0.5);
   visor.position.set(0, 0.32, 0.4);
-  return mergeStaticParts(root.getScene(), root, [sh, visor], `shield-${scale.toFixed(4)}`, 'shield') ?? sh;
+  return mergeStaticParts(root, [sh, visor], `shield-${scale.toFixed(4)}`, 'shield') ?? sh;
 }
