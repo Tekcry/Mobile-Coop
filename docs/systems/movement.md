@@ -1,32 +1,23 @@
 # Movement, camera and traversal
 Purpose: the operator's movement, camera, back-to-wall, door peek, traversal anchors and attached states.
-Design authority: docs/DECISIONS.md (G1, G25-G39), then docs/design-bible.md (Sections 4 and 5.3).
+Design authority: docs/DECISIONS.md (G1, G210, G227; G25-G39 where not replaced), then docs/design-bible.md (Sections 4 and 5.3).
 
-Every number in this file is a starting value, tuned after Michael plays the CT prototype (G4, G10). The CT research is
-docs/locomotion/CT-RESEARCH.md; the prototype plan is docs/locomotion/PROTOTYPE-PLAN.md. History of how the code got here:
-docs/archive/ct-movement.md and the git log.
+Michael tunes movement himself as needed; movement slices and movement research are stopped (G227, replacing G150's
+tune-until-sign-off and G4's "tuned after Michael plays"). CT movement references are ignored (G210: "the ct movement is
+getting worse. Can you ignore CT movement references."): analogue speed from the stick, LT held aims, three weapon
+states, RT tap knocks out / hold kills, traversal auto-holsters (docs/anim-rework/BRIEF.md). History of how the code got
+here: docs/archive/ct-movement.md, docs/locomotion/ and the git log.
 
-## Decided direction (the CT prototype builds it)
-The code below is the locomotion run's build. Where Michael has decided otherwise, the line says so:
-- Decided, not built yet (loco M20 Q8, G62): no sprint. Code: gear 6 is a sprint on `dash` (L3 / Left Shift).
-- Decided, not built yet (G18, G96): back-to-wall on L3 and the exact CT pad layout. Code: back-to-wall is on A.
-- Decided, not built yet (G25): an on-the-spot turn is a tight walking circle; a run reversal is one smooth turn of about
-  0.4 s; no planted pivot. Code: reversals over `pivotSpeed` brake into a planted `pivot`.
-- Decided, not built yet (G26, G27): stops freeze mid-stride at every speed (from a run the body slides up to about 0.3 m);
-  the frozen stride holds about 1.7 s, then eases to a feet-together idle.
-- Decided, not built yet (G32): holding crouch while running rolls; a tap just crouches. Code: a crouch tap at gear >= 5.
-- Decided, not built yet (G33): no special quick 180; a stick flick turns in about 0.4 s while walking.
-- Decided, not built yet (G31): no fast ladder climb, fast rappel descent, small gap hops or sprint door bash. A bash is a
-  door-menu choice only (G97).
-- Decided, not built yet (G28, G29, G38): CT camera framing (about 1.8 m boom, the head at screen centre, legs partly out of
-  frame), rigid follow, a gentle swing toward travel, no bob, no zoom when aiming, one camera height for every operator.
-- Decided, not built yet (G17): the shoulder swap works only while aiming. Code: R3 / V swaps at any time.
-- Decided, not built yet (G30): of the modern layer keep only start lean, head look-at, hands on doors and ledges, feet on
-  stairs and faster vaults from a run.
+## Decided direction
+Replaced, do not build (G210, G227): the CT footage movement rules G17 (shoulder swap only while aiming), G18 / G96
+(back-to-wall on L3, the exact CT pad layout; controls are G210's), G25 (walking-circle turns, no pivot), G26 / G27
+(freeze mid-stride, ease after 1.7 s), G30 (modern layer limited to CT), G31 (sprint-only moves removed), G32 (roll on
+held crouch), G33 (flick turn), G35 / G36 (0.35 m/s wall shuffle, peek at once) and the CT camera framing and behaviour
+of G28 / G29. The code below is what is built; Michael changes it by hand. Still standing:
 - Decided and built (G16): no aim assist on any input (the pad setting `gamepad.aimAssist` was removed, no-aim-assist).
-- Decided, not built yet (G35, G36, loco M25 (3)-(4)): wall slide is the CT shuffle, about 0.35 m/s; peek as soon as the
-  operator reaches the edge while pushing; only the button or aiming leaves the wall; flat back standing, sideways
-  crouched. Code: 0.9 / 0.6 m/s, a 0.25 s push to peek, a held pull-away also leaves.
+- Decided (G38): one camera height for every operator (the shared body capsule).
+- Decided and built (G62, CT prototype M1): no sprint; the `dash` action id stays for photo mode's fast pan
+  (input-and-loop.md).
 - Decided, not built yet (loco M20 Q1, G52): the lean-out aim and the SWAT turn are removed, with their network fields.
   Code: both still exist (Wall edge verbs below).
 - Decided, not built yet (G97, G41): a CT door menu (open, stealth open, bash, optic cable); a door past about 15% open
@@ -184,8 +175,10 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
   brace; B ends brace / bottom / top. Y order in `GameState`: takedown > team > traversal > interact.
 - Net: `tmove` (client -> host), `tstart` / `tdeny` / `tend`; `CoopHost.onTeamMove` checks both sides (`teamSide`: MoveState
   mode, 1 s rate) and starts it on both. MoveState modes `brace`, `boost`, `stacked`. A teleport drops a committed move.
-- Decided (G52, G57, G81): the four team moves that exist (brace, boost, human ladder, dual takedown) are the set until the
-  co-op phase; one co-op ledge band 4.3-4.5 m; boosts only at marked spots (not built yet).
+- Decided (G52, G57, G151): team moves work anywhere with room, with a prompt naming the move (G151 replaced G81's
+  marked spots); one co-op ledge band 4.3-4.5 m. The campaign's co-op traversal kit adds throw over a gap, hold a
+  shutter or door, rope brace / descent and vent unlock for the partner, "plus any other creative coop ideas" (G293);
+  every campaign section forces one with no solo bypass (G292).
 
 ## Weapon carry
 - `weapons/weaponCarry.ts` (pure): ready position from context (`pickReady`: compressed near walls, doorways, sprinting,

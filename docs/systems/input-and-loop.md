@@ -1,6 +1,6 @@
 # Game loop and input
 Purpose: the fixed-step game loop, the action map and the gamepad and keyboard / mouse sources.
-Design authority: docs/DECISIONS.md (G16-G24, G96), then docs/design-bible.md (Sections 4 and 8).
+Design authority: docs/DECISIONS.md (G16-G24, G210, G227), then docs/design-bible.md (Sections 4 and 8).
 
 Desktop only: pad first, then keyboard and mouse (loco D1, G12). No touch movement or combat (M21).
 
@@ -14,11 +14,10 @@ Game touch (marlow-bays item 29, Michael's scope "Menus + camera"; `input/touchL
   class `touch-play`; a mouse press, a key or the pad hides it); a tap pauses. Hidden in the Anim Studio.
 
 ## Decided direction
-- Decided, not built yet (G96): CT's default pad layout, copied button for button. The CT prototype rebinds the table
-  below; until then it is the locomotion run's layout.
-- Decided, not built yet (G18): back-to-wall on L3 (code: A, `cover`); A stays for doors and other actions.
+- Replaced, do not build (G210, G227): G96's exact CT pad layout and G18's back-to-wall on L3. Controls follow the
+  anim-rework (G210, below); Michael tunes the rest himself (G227). The binding table below is what is built.
 - Built in the CT prototype M1 (loco M20 Q8): no sprint. The `dash` action id stays (photo mode's fast pan) but nothing in the
-  game binds it: L3 is unbound until M3 puts back-to-wall there.
+  game binds it.
 - Built (G19, G97, G23; one menu since CT prototype G5, Michael 2026-10-19: "identical"): the CT context action menu.
   See "The context action menu (G5)" below.
 - Decided, not built yet (G22): remap capture cancels with Menu / Start or Esc; B stays bindable. Code: B held 1 s or Esc.

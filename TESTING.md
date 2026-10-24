@@ -4,7 +4,9 @@ Desktop only (G12): pad first, then keyboard and mouse. One current checklist pl
 on the build under test: the live game, the one chosen preview (G85) or a local `npm run dev`. F3 (or `?debug=1`) shows
 the debug overlay. Tick each item; note anything off in Pause > Report feedback.
 
-Items marked (CT prototype) describe today's movement, which the CT prototype replaces; the prototype job rewrites them.
+Items marked (CT prototype) describe today's movement as built. The CT movement rules they came from are replaced:
+CT movement references are ignored (G210) and Michael tunes movement himself (G227), so test what is built, never a CT
+target.
 Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-version lists:
 [docs/archive/testing-history.md](docs/archive/testing-history.md) (3.0.0 to the consolidation) and
 [docs/archive/TESTING-pre-3.0.md](docs/archive/TESTING-pre-3.0.md).
