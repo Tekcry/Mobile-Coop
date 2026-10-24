@@ -417,7 +417,7 @@
 <text x="486" y="34" fill="#1a9a3a" font-size="8" font-weight="bold" text-anchor="start">EXIT E</text>
 <polyline points="265,160 296,160" fill="none" stroke="#e07b00" stroke-width="2" stroke-linejoin="round" opacity="0.9"/>
 <polyline points="298,168 278,168" fill="none" stroke="#1f4fbf" stroke-width="2" stroke-linejoin="round" opacity="0.9" stroke-dasharray="6 3"/>
-<text x="202" y="166" fill="#7a4a10" font-size="6" text-anchor="start">well: CR7 rope lands (L1 pair bolt)</text>
+<text x="202" y="166" fill="#7a4a10" font-size="6" text-anchor="start">well: CR7 rappel lands, rope up (L1 pair bolt)</text>
 <polyline points="474,89 486,89" fill="none" stroke="#1f4fbf" stroke-width="2" stroke-linejoin="round" opacity="0.9" stroke-dasharray="6 3"/>
 <text x="451" y="85" fill="#1f4fbf" font-size="7" font-weight="bold" text-anchor="start">CR10</text>
 <polygon points="330,129 336,135 330,141 324,135" fill="#7b2fbe" stroke="#fff" stroke-width="1"/>

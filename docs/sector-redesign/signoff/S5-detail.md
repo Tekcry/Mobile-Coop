@@ -61,13 +61,17 @@ anteroom's hall door.
 
 ## 2. The CR7 fix (the validator's worst find)
 - **Two players only:** the hoist door (L4) is an E3 pair bolt. `SectorBolt.pair` (sectors.ts:243) "One player alone can
-  never draw it, from either side." Shut, the sill is a closed door: no solo step-off, no solo rope. Opened by two, the
-  holder braces and lowers the climber 4.2 m (`ropeRoom(4.2, 0)` = ok, TEAM.ropeMin 2.2 / ropeMax 6.0). It is a co-op
+  never draw it, from either side." Shut, the sill is a closed door: no solo step-off, no solo rope. Opened by two, each
+  rappels 4.2 m off the hoist beam into the well (`RAPPEL`, src/config/movement.ts:370); the engine's two-person rope
+  climbs only, so the rope is the way back up: the holder at the open door lets it down and the climber climbs 4.2 m
+  (`ropeRoom(4.2, 0)` = ok, TEAM.ropeMin 2.2 / ropeMax 6.0; Marlow mission-validator 0c62a921 flagged a rope written as
+  a descent). It is a co-op
   route, NOT a sync node: no solo timer fallback (G280: "true 2-player pathways that cannot be used solo").
 - **Solo has its own longer route:** archive -> rooflight ladder -> roof (behind #19's back, behind chimney (-53, 36))
   -> rim gate -> cleaning ladder 8.4 m -> the well: 11.5 + 17.5 = **29 s** against the rope's **6 s**, on the high /
   shadow route kinds and 30.5 m against 4.5 m, so the validator's solo-twin check no longer fires.
-- Graph: the `s5-arch -> s5-well` drop is gone; `team_rope` stays; `s5-well <-> s5-roof` ladder added.
+- Graph: the `s5-arch -> s5-well` drop is gone; `s5-arch -> s5-well` is a one-way `rappel` behind the pair-bolt door and
+  `s5-well -> s5-arch` a one-way `team_rope` climb; `s5-well <-> s5-roof` ladder added.
 - Alternative (was S5.md option 2 before the fix round; now held item 6): no cleaning ladder and a 1.9 rim, the SPEC's
   "solo cannot"; solo then meets K4 only through the side door and the hall.
 
@@ -161,7 +165,7 @@ first.
   posts: **~+8 h**. Screen cap at 36: the roof's north-west view reaches 12 (roof 3 + lawn 6 + garden 3), at the cap.
 
 ## 7. Co-op moves, split, solo
-- **Co-op moves:** CR6 pair gate (arch <-> cage); CR7 team rope (arch -> well, pair-bolted hoist); NEW CR8 boost lawn ->
+- **Co-op moves:** CR6 pair gate (arch <-> cage); CR7 pair-bolted hoist (rappel arch -> well, team rope well -> arch); NEW CR8 boost lawn ->
   low roof (gutter kerb 4.4); NEW CR9 boost low roof -> roof (coping 4.4); NEW CR10 boost kitchen -> low roof (smoke
   hatch kerb 4.4); K4 dual takedown (sync_pair). Co-op touches 4 of 7 S5 encounter spaces (arch, kitchen, lawn, roof).
   Each lip has no solo stand-on within reach (counter 9 m away; low roof kerb 0.2; 1.9 parapets 6 m away).
