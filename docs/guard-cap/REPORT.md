@@ -159,3 +159,105 @@ Method note for M2 / the next rerun: on campus and ctcourse the patrol cells rea
 - Caps: `SECTOR.maxAlive` stays 32 (`sectors.ts:508`): it equals `MAX_ENEMIES` 32 (`protocol.ts:25`), so it cannot rise without a wire change, and 32 fails today. No K1 yet: K1 waits for T1 + guard-render-2 + gm-perf on master and a 32 (+ new 28) rerun still over. `MAX_ALIVE` stays 12 (`enemyManager.ts:81`, Marlow Yard = ctcourse): at 12, alert frame CPU 10.8 leaves 1.2 ms and patrol sim p95 reads 4.2 / 5.1 (both over; see the method note); 24 alert sim 4.1 fails; no ctcourse 16 cell exists. A rise to 16 needs a ctcourse 16 cell after T1.
 - Pending: campus `perf.mjs` (real sections, step 4; retry set guard-cap-m0-perf): no output on the results branch at 6b9efc8f.
 - M1 must still confirm for clients: client frame CPU p95 <= 12 and client minus host <= 1.0 ms at 24 and 32 (else C1, then C2); host snap <= 6 KB steady at 4 players and upload <= 1.7 Mbit/s (else N1). Until M1, 24 holds on the host only.
+
+## 2026-10 co-op measure (M1) and run 4100
+Opus read, 2026-10-25, vs PLAN section 2. Data (copied here from `origin/feature/guard-cap-results` 2540ea38):
+`run-m1/` (`scripts/guard-cap-coop.mjs` on a55a12b3 = master 6e8a450b + script, laptop 4189 alone, 2026-10-24 13:42-13:57,
+882 s, Epic, 1280x720 per page, host and client in one headless browser on one GPU) and `run-4100/` (`scripts/guard-cap.mjs`
+on train 74 head 3be7d1a2, 4.100.0, laptop 4189 alone, 1920x1080, 35 cells, campus 32 alert x3). ms; frame CPU p95 is
+the rule's number. M1 compares host and client inside M1 only (its resolution and shared GPU differ from guard-cap's solo cells).
+
+### Data quality
+- M1 is one clean repeat (A7 wants two). `run-m1/step1.txt` also holds three aborted starts (11:30, 11:51, 12:31) under
+  load: their 0-guard host alert p95 read 9.4-11.7 vs 5.4 in the final run, so they are excluded.
+- M1's 4-player cells all failed ("host sees client"): on master Sector Ops' room capacity is `COURSE_MAX` 2
+  (`protocol.ts:41`, `capacity()`); coop4 #317 (OPEN) adds `SECTOR_MAX`. No 4-player or 3-client wire figures exist yet.
+- M1 patrol cells spike p95 on BOTH pages at every N >= 12 (host 16-26, client 16-25; medians 6-10): the first cell after
+  spawn on a fresh browser, as M0's method note. Not judged; run 4100's patrol cells are clean (campus 32 8.6).
+- Run 4100 is one repeat except campus 32 alert (x3). Guard models flag off in both runs.
+
+### Co-op host vs client (M1, 2 players; frame CPU med / p95, render() CPU med, draws med)
+| Map | N | cell | host frame CPU | client frame CPU | client - host p95 | render() host / client | draws host / client |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| campus | 0 | away | 3.2 / 4.0 | 2.9 / 3.6 | -0.4 | 2.6 / 2.3 | 114 / 112 |
+| campus | 12 | away | 4.4 / 5.4 | 4.9 / 5.8 | +0.4 | 3.5 / 3.7 | 133 / 168 |
+| campus | 24 | away | 4.5 / 5.7 | 6.5 / 7.6 | **+1.9** | 3.5 / 4.6 | 133 / 200 |
+| campus | 32 | away | 4.7 / 6.2 | 7.5 / 8.8 | **+2.6** | 3.8 / 5.3 | 133 / 221 |
+| campus | 24 | alert | 9.1 / 10.9 | 9.1 / 10.7 | -0.2 | 6.6 / 6.5 | 444 / 485 |
+| campus | 32 | alert | 10.2 / **12.2** | 10.5 / **12.5** | +0.3 | 7.4 / 7.5 | 474 / 536 |
+| sectorops | 0 | away | 3.1 / 4.1 | 3.1 / 4.1 | 0 | 2.4 / 2.4 | 111 / 106 |
+| sectorops | 12 | away | 4.5 / 5.7 | 5.4 / 6.4 | +0.7 | 3.5 / 4.0 | 164 / 178 |
+| sectorops | 24 | away | 4.9 / 6.1 | 6.7 / 7.9 | **+1.8** | 3.9 / 4.8 | 159 / 248 |
+| sectorops | 32 | away | 4.9 / 6.2 | 7.2 / 8.4 | **+2.2** | 3.9 / 5.0 | 164 / 268 |
+| sectorops | 24 | alert | 8.2 / 10.3 | 8.0 / 9.7 | -0.6 | 5.7 / 5.5 | 284 / 311 |
+| sectorops | 32 | alert | 9.0 / 11.3 | 8.5 / 10.3 | -1.0 | 6.2 / 5.8 | 320 / 358 |
+
+GPU p95 <= 9.84 on every page and cell (alert <= 6.26). Puppets: 12 / 24 / 32 alive on the client in every cell (no drops).
+
+### Wire (M1 host, 2 players = 1 client; `JSON.stringify` characters)
+| Map | N | cell | snap med / max | all types per s med / max | upload, 1 client (Mbit/s, max) | x3 clients (Mbit/s, med / max) |
+| --- | --- | --- | --- | --- | --- | --- |
+| campus | 24 | alert | 3744 / 5976 | 54206 / 56651 | 0.45 | 1.30 / 1.36 |
+| campus | 32 | alert | 4691 / 6915 | 67353 / 72254 | 0.58 | 1.62 / 1.73 |
+| sectorops | 24 | alert | 3912 / 9054 | 57043 / 64550 | 0.52 | 1.37 / 1.55 |
+| sectorops | 32 | alert | 5014 / 10170 | 71372 / 77836 | 0.62 | 1.71 / 1.87 |
+
+~120-133 characters a guard. The snap max sits a fixed ~2.2 K (campus) / ~5.1 K (Sector Ops) over the median at every N,
+0 guards included (one large snap a window), so it is not guard growth; steady = median. Host stringify 0.33 ms a second.
+The x3 column is an extrapolation (no 4-player run), before coop4's rounding (`snapEnemyState`, not in this build) and
+without the two extra players' entries.
+
+### Run 4100 (4.100.0) vs M0 (6e8a450b), host / solo, alert/facing
+| Map | N | sim p95 M0 -> 4100 | frame CPU p95 M0 -> 4100 | render() p95 (4100) | GPU p95 (4100) | draws (4100) | ai.anim / ai.manager mean (4100, share of step growth) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| campus | 32 | 3.4 -> **2.8** (2.8 / 3.8 / 2.5) | 14.8 -> **9.7** (9.7 / 9.7 / 9.6) | 7.0 (M0 10.95) | 6.9 (M0 9.73) | ~450 (M0 484.5) | 0.77-0.92 (~55%) / 0.27 (~19%) |
+| sectorops | 32 | 4.4 -> **3.4** | 10.55 -> 8.3 | 5.4 | 6.79 | 289 | 1.00 (~53%, N 12 -> 32) / 0.3 |
+| ctcourse | 24 | 4.1 -> **3.1** | 11.0 -> 8.2 | 5.6 | 7.95 | 433 | 0.81 (~50%) / 0.2 (~12%) |
+| ctcourse | 12 | 2.6 -> 2.0 | 10.8 -> 6.9 | 5.1 | 7.15 | 384 | - |
+
+**Which campus number to trust: run 4100's 9.7, not M0's 14.8.** (Test Runner's 8.5 is frame ms median; the rule reads
+frame CPU p95, 9.7.) 4100 is the build the cap ships on: it has guard-render-2 (merged in train 64; not in 6e8a450b)
+and R1 allocation-free rays (#326, train 60); render() p95 fell 10.95 -> 7.0 and draws 484 -> ~450, which is
+guard-render-2's work. Its three repeats agree (9.6-9.7); M0's two did not (17.5 / 12.1). Same rig and script. M0's 14.8
+stays as the pre-guard-render-2 baseline. Caveat: both are figures off; gm-flip #375 turns guard models on by default,
+and G8 measured +1.1 to +2.5 ms frame p95 at 24 with figures, so campus 32 alert would read ~11-12 after #375.
+
+### Verdict (PLAN section 2)
+- **Host: 32 holds on render, sim sits at the line.** 4.100.0: frame CPU p95 <= 9.7, GPU <= 6.9, draws <= 456 at 32 on
+  both maps. Sim p95 campus 32 2.8 (median of 3, one repeat 3.8), Sector Ops 32 3.4 and ctcourse 24 3.1 (one repeat
+  each): 0.2-0.5 over 2.9. `ai.anim` is still ~50-55% of the growth, `ai.manager` 12-19%: the anim rule (T1) stands,
+  D1 / D2 stay closed. Render no longer needs a PLAN2 addition for campus 32 (M0's 14.8 is superseded).
+- **Co-op client: facing costs what the host does; off-screen guards cost the client ~2 ms more.** Facing alert: client
+  = host within +-1 ms at 24 and 32 (campus 32 12.5 vs 12.2, both just over 12 on the old build with two pages on one
+  GPU; Sector Ops 10.3 vs 11.3). Away (every guard behind the page): client minus host +1.9 / +2.6 (campus 24 / 32),
+  +1.8 / +2.2 (Sector Ops) -> **C1 TRIGGERED** (rule: > 1.0 at the same N). At 0 guards the client is not dearer. The
+  extra splits about evenly (medians at 32): render() +1.1 to +1.5 with +88 to +104 draws while active meshes match
+  (host 35 / client 33): the puppets still cast into the shadow maps because the client has no render freeze -> C2's
+  share; outside render +1.2 to +1.3: puppet rigs solve every frame (no anim tier on the client) -> C1's share.
+  `enemyPuppet.ts` on 4.100.0 still has no tier or freeze. Where it breaks: off-screen puppets from 24 up; facing,
+  campus 32 (old build).
+- **Buckets that grow.** Host: `ai.anim` (sim) and draws (render). Client: puppet anim (C1) and puppet shadow draws (C2).
+  Net: no (stringify 0.33 ms a second, client GPU low). `ai.manager`: no.
+- **Wire: N1 NOT triggered on measured data.** 2 players: snap median <= 5.0 K, upload <= 0.62 Mbit/s. 4 players
+  unmeasured (capacity 2); the x3 extrapolation at 32 alert reads 1.62-1.71 Mbit/s median, 1.73-1.87 max, at A24's 1.7
+  before coop4's rounding: decide on a real 4-player M1 after coop4 merges.
+- **Caps.** `SECTOR.maxAlive` stays 32 (host passes render, sim is 0.2-0.5 over with T1 pending; client facing = host;
+  = `MAX_ENEMIES` 32). No K1. `MAX_ALIVE` stays 12: ctcourse 12 alert now has room (sim 2.0, frame CPU 6.9); no
+  ctcourse 16 cell exists, and no one asked for a rise.
+- **T1 (#360, held for the shadow case, guard-ai BRIEF A183).** M1 bears on it twice. (1) The host sim is still 0.2-0.5
+  over with anim the largest share, so T1's saving is still wanted. (2) The client pays the same off-screen cost on
+  puppets, and M1's extra client draws show off-screen puppets DO reach the shadow maps: the "shadow in view counts as
+  seen" problem applies to C1 too. C1 reads `ANIM_TIER_OFFSCREEN` from `animTier.ts`, so Michael's T1 call (ship 8 /
+  count shadow-in-view as seen / close) also sets C1's off-screen rule. Recommend "shadow in view counts as seen" for
+  both: it keeps light parity, and C2 then removes the shadow draws of puppets that cannot reach the screen.
+
+### Next slices and gate state (2026-10-25, origin/master 833db92e)
+| Slice | Trigger | Gate branches | State today |
+| --- | --- | --- | --- |
+| C1 puppet anim tiers | M1: client - host +1.8 to +2.6 off-screen | guard-models (#318 merged), gm-perf (only in gm-flip #375, OPEN), coop4 (#317 OPEN), optic-coop (#314 merged), guard-ai-coop-carry (#313 merged) | WAITS #375 + #317; off-screen "seen" rule waits Michael's T1 call |
+| C2 puppets in render freeze (Test Runner, PLAN2 addition) | M1: render half of the client extra (+88 to +104 draws) | guard-render-2 (merged, train 64), coop4 #317 OPEN, optic + carry merged; after C1 | brief can go to Test Runner now; build WAITS #317 + C1 |
+| T1 (#360) | M0 + 4100: anim ~50-55% of sim growth, sim 0.2-0.5 over | none (built) | HELD for Michael (A183) |
+| M1b rerun | 4-player cells, second repeat, figures on | coop4 #317, gm-flip #375 on master | WAITS; with an M0 rerun on the same head (M2 script, also waits gm-perf) |
+| N1 | only if M1b breaks A24 | coop4, optic, carry, guard-models | NOT triggered |
+| K1 / D1 / D2 | - | - | NOT triggered / CLOSED |
+| DOC | last | guard-models merged | after the above |
