@@ -217,6 +217,11 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   searches the device room again (A1). Cut a breaker, let a guard relight it, cut it again inside a minute: after the
   light check it is relit, never dark for good (B1). Co-op: a guard who only heard player 1 never walks to player 2;
   hunted by one guard, show him player 2: one radio call names player 2 (A3 / A4).
+- [ ] Guard AI polish 2 (Sector Ops): make a noise behind a locked door a guard cannot open: he walks to the near side
+  of it and looks, he does not stand still (A184). Make one noise with three guards searching: one "I heard
+  something." line, all three still go (A185). Break sight with a squad: the covering guard behind a high wall steps to
+  his edge and fires at your last spot while a mate moves up (A186). Three guards searching after a fight: one looks
+  at your last known spot, the others go to their search points at once (A188).
 - [ ] Report, then attack (guard-ai walk 4.82 items 2 and 6, Marlow Yard): get spotted by the station 2 guard and break
   line of sight: he takes cover and radios it in, then (call done, a few seconds with no sight of you) leaves cover and
   moves up on where he last saw you, still in the fight, and searches from there; he does not sit in cover and go
