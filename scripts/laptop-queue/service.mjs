@@ -36,6 +36,10 @@
 // plain pr request already in its suites when a train head is pending is killed and queued again (claim released,
 // status "queued, preempted by train <n>"). Train reruns, full and alone runs are never preempted.
 // Pinned requests (request.mjs --pin, "pin": true; A/B and baseline runs) are never superseded.
+// Train soon (laptop, lib trainSoon): no new non-train claim (train reruns still start) while an open train PR has no
+// version head yet (building, up to LQ_TRAIN_BUILD_MAX_MIN 20 min) or for LQ_TRAIN_GAP_MIN (3) min after a train PR
+// merged while train-ready PRs with a green check wait. Manual locks (lib manualLocks): a slot whose lock is not the
+// service's takes no new request claim (logged once per holder); trains still wait on it as before.
 // Task guard (Michael 2026-10-24 07:13, after 87 stale NightShift-chain-* one-shots fired at 23:59 and held the slot
 // locks): at start and every LQ_TASK_GUARD_MIN (10; 0 = off) min, disables (never stops, kills or deletes) each stale
 // scheduled task (lib staleTasks; allowlist + env LQ_TASK_ALLOW, a comma list) and pushes alerts/<ts>-<worker>-tasks.json to the
@@ -44,7 +48,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, dupKey, duplicates, failureExcerpt, flakeStands, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo } from './lib.mjs';
+import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, trainSoon, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, dupKey, duplicates, failureExcerpt, flakeStands, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo } from './lib.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
 const DESKTOP = process.env.LQ_WORKER === 'desktop';
@@ -68,6 +72,8 @@ const LAPTOP_SILENT_MS = Number(process.env.LQ_LAPTOP_SILENT_MIN ?? 10) * 60_000
 const TRAIN_GRACE_MS = 2 * 60_000; // a live idle laptop claims a new train head within one pass (30 s)
 // a train that has held some slots this long while another stays locked (a manual run) runs unsharded on the ones it holds
 const TRAIN_SOLO_MS = Number(process.env.LQ_TRAIN_SOLO_MIN ?? 10) * 60_000;
+const TRAIN_GAP_MS = Number(process.env.LQ_TRAIN_GAP_MIN ?? 3) * 60_000;
+const TRAIN_BUILD_MAX_MS = Number(process.env.LQ_TRAIN_BUILD_MAX_MIN ?? 20) * 60_000;
 const POLL_MS = 30_000;
 const FLAKE_WINDOW_MS = 24 * 3600_000;
 const DUP_WINDOW_MS = Number(process.env.LQ_DUP_WINDOW_MIN ?? 60) * 60_000;
@@ -350,13 +356,32 @@ const buildFailLogged = new Set();
 /** The open train holding alone requests back this pass (lib trainHold), or null; a failed PR list holds them too. */
 let aloneHold = null;
 let aloneHoldLogged = '';
+/** Why no new non-train work starts this pass (lib trainSoon), '' when it may; set by pendingTrains (laptop). */
+let soon = '';
+let soonLogged = '';
+let manualLogged = '';
+/** lib trainSoon from GitHub: a building train PR (no version head yet), else the last train release and its candidates. */
+function trainSoonNow(openPrs) {
+  const isVersion = (p) => new RegExp(`^\\d+\\.\\d+\\.\\d+: version at merge, train ${p.n} \\(G183\\)$`).test(git(['show', '-s', '--format=%s', p.sha], { soft: true }));
+  const b = openPrs.find((p) => !isVersion(p));
+  if (b) return trainSoon({ building: { n: b.n, ageMs: Date.now() - Date.parse(b.createdAt) } }, { gapMs: TRAIN_GAP_MS, buildMaxMs: TRAIN_BUILD_MAX_MS });
+  if (openPrs.length) return '';
+  try {
+    const last = JSON.parse(gh(['pr', 'list', '-R', REPO, '--state', 'merged', '--limit', '30', '--json', 'headRefName,mergedAt', '--jq', '[.[] | select(.headRefName | startswith("train/"))][0] // null']) || 'null');
+    const ageMs = last ? Date.now() - Date.parse(last.mergedAt) : Infinity;
+    if (!(ageMs < TRAIN_GAP_MS)) return '';
+    const candidates = Number(gh(['pr', 'list', '-R', REPO, '--state', 'open', '--label', 'train-ready', '--json', 'statusCheckRollup', '--jq', '[.[] | select([.statusCheckRollup[]? | select(.name == "check") | .conclusion] | first == "SUCCESS")] | length']) || 0);
+    return trainSoon({ release: { n: String(last.headRefName).replace(/^train\//, ''), ageMs }, candidates }, { gapMs: TRAIN_GAP_MS, buildMaxMs: TRAIN_BUILD_MAX_MS });
+  } catch { return ''; /* unreadable: no hold (never block on a GitHub error) */ }
+}
+
 function pendingTrains() {
   const out = [];
   const maxAge = Number(process.env.LQ_TRAIN_MAX_AGE_H ?? 24) * 3600;
   let open;
   let openPrs;
   try {
-    openPrs = JSON.parse(gh(['pr', 'list', '-R', REPO, '--state', 'open', '--limit', '200', '--json', 'number,headRefName,headRefOid', '--jq', '[.[] | select(.headRefName | startswith("train/")) | {n: (.headRefName | ltrimstr("train/")), sha: .headRefOid, pr: .number}]']) || '[]');
+    openPrs = JSON.parse(gh(['pr', 'list', '-R', REPO, '--state', 'open', '--limit', '200', '--json', 'number,headRefName,headRefOid,createdAt', '--jq', '[.[] | select(.headRefName | startswith("train/")) | {n: (.headRefName | ltrimstr("train/")), sha: .headRefOid, pr: .number, createdAt}]']) || '[]');
     open = new Set(openPrs.map((p) => p.sha));
   } catch (e) {
     log(`train PR list failed, trains skipped this pass: ${String(e.message).split('\n')[0]}`);
@@ -364,6 +389,7 @@ function pendingTrains() {
     return out;
   }
   git(['fetch', '-q', 'origin', '+refs/heads/train/*:refs/remotes/origin/train/*'], { soft: true });
+  if (!DESKTOP) soon = trainSoonNow(openPrs);
   // every open train PR head without a laptop-e2e success holds alone requests (a status read error counts as none),
   // except heads that can never get one here: older than LQ_TRAIN_MAX_AGE_H or a failed auto-train/* build (as below)
   aloneHold = trainHold(openPrs.flatMap((p) => {
@@ -986,7 +1012,19 @@ async function pass() {
     log(`queue: ${backlog} request(s), ${queue.requests.length} pr${waits.length ? `; waiting: ${waits.join('; ')}` : ''}${dt.why ? `; trains: ${dt.why}` : ''}`);
     if (queue.requests.length === 0 || PORTS.every((p) => busy[p] || why[p])) return;
   } else log(`queue: ${queue.trains.length} train(s), ${queue.requests.length} request(s)`);
+  // a train about to need both slots: no new non-train claim, so the slots drain for it (lib trainSoon)
+  if (!DESKTOP && soon && queue.trains.length === 0) {
+    if (soon !== soonLogged) { soonLogged = soon; log(`${soon}: no new request claims`); }
+    queue.requests = queue.requests.filter((r) => r.trainRerun);
+  } else if (!soon) soonLogged = '';
   const virtual = { ...desktopWait };
+  // a slot under a manual lock takes no new request (a train keeps its own wait in runTrain)
+  if (queue.trains.length === 0) {
+    const held = manualLocks(Object.fromEntries(PORTS.map((p) => { try { return [p, fs.readFileSync(SLOTS[p].lock, 'utf8')]; } catch { return [p, null]; } })));
+    const key = JSON.stringify(held);
+    if (key !== manualLogged) { manualLogged = key; for (const [p, line] of Object.entries(held)) log(`${p} under a manual lock, no new claims there: ${line}`); }
+    for (const p of Object.keys(held)) virtual[p] = true;
+  }
   let started = false;
   for (let i = 0; i < 4 && !started; i++) {
     const slots = PORTS.map((port) => ({ port, busy: Boolean(busy[port] || virtual[port]) }));

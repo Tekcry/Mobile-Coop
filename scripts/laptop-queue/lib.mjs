@@ -396,6 +396,33 @@ export function trainHold(heads) {
 }
 
 /**
+ * Why the laptop should start no new non-train work now because a train is about to need both slots, or '' (Orchestrator
+ * audit 2026-10-24: the laptop claimed an alone run 51 s before train 60's build began, so the train waited ~4.5 min).
+ * building = an open train PR whose head is not its version commit yet ({ n, ageMs }; merge-train opens the PR before it
+ * pushes the version commit), held while younger than buildMaxMs; release = the newest merged train PR ({ n, ageMs }),
+ * held for gapMs after it while candidates (open train-ready PRs with a green check) > 0, the next build being due.
+ */
+export function trainSoon({ building = null, release = null, candidates = 0 } = {}, { gapMs, buildMaxMs }) {
+  if (building && building.ageMs < buildMaxMs) return `train ${building.n} building`;
+  if (release && release.ageMs < gapMs && candidates > 0) return `train ${release.n} released, ${candidates} train-ready PR(s) waiting`;
+  return '';
+}
+
+/**
+ * The slots a manual lock (any holder line not written by the queue service: `laptop-queue |`) holds now: { port: line }.
+ * locks = { port: lock file text, or null when absent }. A pr / alone request is not claimed onto such a slot (a
+ * requester's own heavy.lock left its claimed run waiting 12.9 min, audit 2026-10-24); trains keep their own wait.
+ */
+export function manualLocks(locks) {
+  const out = {};
+  for (const [port, text] of Object.entries(locks ?? {})) {
+    const line = String(text ?? '').trim();
+    if (line && !line.startsWith('laptop-queue |')) out[port] = line;
+  }
+  return out;
+}
+
+/**
  * Whether an aged alone request may stop new pr claims under this train hold: only while the holding train can still
  * clear by running here (laptop-e2e none or pending). A failed train, an error or an unreadable PR list ('unknown')
  * may hold for hours, so pr requests keep running then (checker FIX 2026-10-24: no starvation the other way).

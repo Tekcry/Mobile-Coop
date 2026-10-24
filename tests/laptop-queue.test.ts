@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, flakeStands, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, flakeStands, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, trainSoon, manualLocks } from '../scripts/laptop-queue/lib.mjs';
 
 const NOW = Date.UTC(2026, 9, 23, 20, 0, 0);
 const idAt = (min: number, tag: string): string => {
@@ -509,6 +509,27 @@ describe('agedAlone', () => {
     const q = { trains: [], requests: [req(35, 'alone', 'a'), req(5, 'pr', 'p')] };
     expect(pick(q, NOW, slots(true, false))).toBeNull();
     expect(pick(q, NOW, slots(false, false))?.request.id).toBe(q.requests[0]?.id);
+  });
+});
+
+describe('trainSoon', () => {
+  const lim = { gapMs: 3 * 60_000, buildMaxMs: 20 * 60_000 };
+  it('holds while a train builds, up to buildMaxMs', () => {
+    expect(trainSoon({ building: { n: '61', ageMs: 60_000 } }, lim)).toBe('train 61 building');
+    expect(trainSoon({ building: { n: '61', ageMs: 21 * 60_000 } }, lim)).toBe('');
+  });
+  it('holds gapMs after a release only while train-ready PRs wait', () => {
+    expect(trainSoon({ release: { n: '60', ageMs: 60_000 }, candidates: 2 }, lim)).toMatch(/^train 60 released, 2 /);
+    expect(trainSoon({ release: { n: '60', ageMs: 60_000 }, candidates: 0 }, lim)).toBe('');
+    expect(trainSoon({ release: { n: '60', ageMs: 4 * 60_000 }, candidates: 2 }, lim)).toBe('');
+    expect(trainSoon({}, lim)).toBe('');
+  });
+});
+
+describe('manualLocks', () => {
+  it('lists slots whose lock is not the service own', () => {
+    expect(manualLocks({ 4189: 'Player | perf | 2026', 4192: 'laptop-queue | x pid 1 | t', 4191: null })).toEqual({ 4189: 'Player | perf | 2026' });
+    expect(manualLocks({ 4189: '', 4192: undefined })).toEqual({});
   });
 });
 
