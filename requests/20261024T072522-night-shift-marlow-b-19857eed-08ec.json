@@ -1,0 +1,14 @@
+{
+  "id": "20261024T072522-night-shift-marlow-b-19857eed-08ec",
+  "sha": "19857eed07d41b1c5c6d4e50a721dfa8efc7f32e",
+  "branch": "feature/guard-cap-m1",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Marlow Build",
+  "steps": [
+    "node scripts/guard-cap-coop.mjs --maps=campus --counts=0,12 --players=2 --secs=3 --out=C:/NightShift/scratch/guard-cap/m1-smoke-19857eed"
+  ],
+  "env": {},
+  "set": "guard-cap-m1-smoke",
+  "note": "guard-cap M1 smoke (new script scripts/guard-cap-coop.mjs); send the FLAG / error lines + RESULTS.md"
+}
