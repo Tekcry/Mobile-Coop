@@ -1,9 +1,23 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { parseMessage, type Msg } from '../src/net/protocol';
-import { applyCourseLights, deadLamps } from '../src/game/modes/courseMode';
+import { applyCourseLights, applyCourseWire, deadLamps } from '../src/game/modes/courseMode';
 import type { CourseWire } from '../src/game/course/courseWire';
+import type { GameState } from '../src/game/gameState';
 import { LightRegistry, type LightDef } from '../src/world/lights';
 import { addTorchSlots } from '../src/world/torches';
+
+// `applyCourseWire`'s client mirror without a DOM or scene: stand-ins for the course state, devices, HUD and card
+vi.mock('../src/game/course/courseState', async (orig) => ({
+  ...(await orig<object>()),
+  CourseState: class {
+    bay = 0;
+    currentBay = { drills: [] };
+    apply(): void {}
+  },
+}));
+vi.mock('../src/game/ctDevices', async (orig) => ({ ...(await orig<object>()), CtDevices: class { apply(): void {} } }));
+vi.mock('../src/ui/hud/courseHud', async (orig) => ({ ...(await orig<object>()), CourseHud: class {} }));
+vi.mock('../src/ui/hud/ratingCard', async (orig) => ({ ...(await orig<object>()), RatingCard: class {} }));
 
 /** One page's level lights (host and client build the same, in the same order). */
 function level(): LightRegistry {
@@ -108,5 +122,45 @@ describe('Course mode client lamp shots (coop-real F1a, S2)', () => {
     expect(n).toBe(1);
     expect(shots).toEqual([1]);
     expect(client.lights[1]!.destroyed).toBe(true);
+  });
+
+  it('applyCourseWire: no cue on the first course message, one when a later message adds a newly dead lamp', () => {
+    const host = level();
+    const client = level();
+    const sparks = vi.fn();
+    const g = {
+      world: { doors: { list: [] }, layout: { course: { def: { airlocks: [], bays: [] }, consoles: [] } }, level: { lights: client } },
+      traversal: { attachCtl: { disabled: new Set<number>() } },
+      hud: { el: {}, banner: vi.fn() },
+      vfx: { sparks },
+      sectionRatings: [],
+    } as unknown as GameState;
+    const msg = (): CourseWire => {
+      const m = parseMessage(JSON.parse(JSON.stringify({ t: 'course', s: { bay: 0 }, locks: [], anchors: [], lights: hostLights(host, true), ref: '', rn: 0 })));
+      expect(m).not.toBeNull();
+      return m as unknown as CourseWire;
+    };
+    const win = globalThis as { window?: unknown };
+    const hadWindow = 'window' in win;
+    if (!hadWindow) win.window = {};
+    try {
+      // a join: lamp 1 is already out on the host, so it goes dark here with no sparks
+      host.destroy(1);
+      applyCourseWire(g, msg());
+      expect(client.lights[1]!.destroyed).toBe(true);
+      expect(sparks).not.toHaveBeenCalled();
+      // the next message adds lamp 0, newly dead: one cue, at that lamp
+      host.destroy(0);
+      applyCourseWire(g, msg());
+      expect(client.lights[0]!.destroyed).toBe(true);
+      expect(sparks).toHaveBeenCalledTimes(1);
+      const at = sparks.mock.calls[0]![0] as { x: number; y: number; z: number };
+      expect([at.x, at.y, at.z]).toEqual([0, 3, 0]);
+      // the keepalive repeats it: no second cue
+      applyCourseWire(g, msg());
+      expect(sparks).toHaveBeenCalledTimes(1);
+    } finally {
+      if (!hadWindow) delete win.window;
+    }
   });
 });
