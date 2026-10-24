@@ -1,0 +1,41 @@
+{
+  "_about": "Three Grey Coats mission nodes (mission-framework TGC). Mission part only: validate with the Tallow Wharf map graph, `node scripts/level-validate.mjs <abs>/docs/missions/prototypes/campaign-map/graph.json <abs>/docs/missions/prototypes/three-grey-coats/graph.json` (mission-validator branch). Space ids are the map's (campaign-map/graph.json). Not validator fields: `target`, `decoys`, `bolt` on the interrogate step (MissionStep, PLAN 2; bolt = the clock-mender's back loft w2-clock-loft, A11) and the top-level `route` (the spaces both players use, highlighted in PLAN.svg). Beat chart: BEAT.md; renames and the W3 crossing: BEAT.md 'Graph notes'.",
+  "mission": { "id": "threeGreyCoats", "mode": "campaign", "players": [2], "start": "w1-canal-steps",
+    "sections": ["W1", "W2", "W3", "W4"], "budget": 20 },
+  "objectives": [
+    { "id": "tgc-1", "section": "W1", "space": "w1-market", "team": "all", "kind": "reach",
+      "lead": "w1-canal-steps", "seen_from": "w1-canal-steps", "minutes": 3,
+      "text": "Find the three grey coats under the fish hall clock",
+      "hint": "The fish hall clock is the tallest light in the market. The coats stand under it." },
+    { "id": "tgc-2", "section": "W1", "space": "w1-warden-office", "team": "all", "kind": "intel", "gives": "tgc-courier",
+      "after": ["tgc-1"], "lead": "w1-tea-stall", "seen_from": "w1-gallery", "minutes": 4, "new_mechanic": "split_leads",
+      "text": "Learn which grey coat is Pell's: the warden's tally book, the tea stall talk",
+      "hint": "Tally book: the warden's desk, gallery level. Tea stall: by the canal steps." },
+    { "id": "tgc-3", "section": "W2", "space": "w2-reading-room", "team": "all", "kind": "interrogate",
+      "needs": "tgc-courier", "gives": "tgc-chest", "after": ["tgc-2"], "lead": "w2-arcade", "seen_from": "w2-walkway",
+      "minutes": 5, "new_mechanic": "named_target",
+      "target": "tgc-teale", "decoys": ["tgc-fenn", "tgc-garrow"], "bolt": [65, 4.5, 76.75],
+      "text": "Take the grey coat with the black umbrella in the reading room loft",
+      "hint": "He went up the arcade stair to the reading room loft. Climb, don't take the stair." },
+    { "id": "tgc-opt", "section": "W2", "space": "w2-pawn-loft", "team": "all", "kind": "interact",
+      "optional": { "reward": "gadget" }, "after": ["tgc-2"], "lead": "w2-walkway", "seen_from": "w2-walkway", "minutes": 2,
+      "text": "Optional: read Pell's courier rota in the pawnbroker's loft",
+      "hint": "The lit desk beside the pawnbroker's walkway door. Fenn sits with his back to it." },
+    { "id": "tgc-4", "section": "W4", "space": "w4-shed-three", "team": "all", "kind": "exploit", "twist": true,
+      "needs": "tgc-chest", "after": ["tgc-3"], "lead": "w2-reading-room", "seen_from": "w4-gantry", "minutes": 4,
+      "text": "Find the chest stencilled with a candle in shed three",
+      "hint": "Shed three has the lit loading door. The chest has a candle stencilled on the lid." },
+    { "id": "tgc-5", "section": "W4", "space": "w4-boat", "team": "all", "kind": "extract", "after": ["tgc-4"],
+      "lead": "w4-gantry", "minutes": 3,
+      "text": "Both of you, over the gangway to the boat under the crane",
+      "hint": "The boat waits at the jetty under the crane. The gangway is the quiet way aboard. Both of you must be aboard." }
+  ],
+  "rules": [
+    { "kind": "namedTarget", "scope": "mission", "step": "tgc-3", "text": "Rule - question only Pell's courier" }
+  ],
+  "route": ["w1-canal-steps", "w1-tea-stall", "w1-market", "w1-gallery", "w1-warden-office", "w1-fish-hall",
+    "w1-service-passage", "w2-arcade", "w2-walkway", "w2-pawn-loft", "w2-reading-room", "w2-arcade", "w2-walkway", "w2-lane-window",
+    "w2-arcade-roof", "w3-roof", "w3-east-wing", "w3-passage", "w3-chute", "w3-coal-yard", "w3-cartway",
+    "w4-back-lane", "w4-gantry", "w4-shed-three",
+    "w4-shed-two", "w4-shed-yard", "w4-canal-ledge", "w4-jetty", "w4-boat"]
+}
