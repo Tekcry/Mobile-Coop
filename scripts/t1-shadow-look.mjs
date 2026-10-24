@@ -1,16 +1,21 @@
 // guard-ai T1 look capture (test script only): the shadow of a guard just OUTSIDE the camera view, whose lamp shadow
-// lands IN the view, frame by frame, with the anim tiers on (off-screen: a pose solve every `ANIM_TIER_OFFSCREEN` th
-// frame) and with `&animtier=0` (every frame), same scene and frame timing, so the freeze-then-snap of his shadow's limbs
-// can be judged against full rate on ONE build (T1-CHECK-A / T1-CHECK-B item 1).
+// lands IN the view, frame by frame, in three passes on ONE build, same scene and frame timing: `tier` (the default URL:
+// the anim tiers with the T1-SHADOW rule, A195, a guard whose shadow can be in view counts as seen), `full`
+// (`&animtier=0`, every frame) and `cam` (`&animshadow=0`: camera-only seen, a pose solve every `ANIM_TIER_OFFSCREEN` th
+// frame off-screen, which proves the spot stages the shadow's freeze-then-snap) (T1-CHECK-A / B item 1, T1-SHADOW-BRIEF).
 // Usage (repo root, after `npm run build`; headless, never headed; laptop queue: E2E_GPU=1, its own E2E_PORT):
 //   E2E_GPU=1 E2E_PORT=4189 node scripts/t1-shadow-look.mjs [outDir] [frames=24] [--fps=60,30] [--gfx=epic]
-//     [--viewport=1280x720] [--map=autostart=ctcourse&mode=course] [--query=guardmodels=1] [--select-only]
-//   outDir: default C:/NightShift/scratch/t1-shadow-look/<sha8>/. Per fps: <fps>-tier.png and <fps>-full.png (contact
-//   sheets, rows of frames, each tile labelled S = pose solved / . = skipped, a display gain for the dark map),
-//   <fps>-compare.png (tier row over full row), <fps>-shadow.png (his shadow alone: each frame against the view without
+//     [--viewport=1280x720] [--map=autostart=ctcourse&mode=course] [--query=guardmodels=1] [--need=hip] [--select-only]
+//   outDir: default C:/NightShift/scratch/t1-shadow-look/<sha8>/. Per fps: <fps>-tier.png, <fps>-full.png, <fps>-cam.png
+//   (contact sheets, rows of frames, each tile labelled S = pose solved / . = skipped, a display gain for the dark map),
+//   <fps>-compare.png (tier / full / cam rows), <fps>-shadow.png (his shadow alone: each frame against the view without
 //   him, x8), <fps>-<pass>-view.png (the whole view, crop outlined), <fps>-<pass>-standin(-shadow).png (a stand-in guard
 //   IN view at that spot: how his shadow looks there), raw crops and shadow masks in frames/, run.json (every number).
 //   --select-only: the scene pick and the stand-in pictures only. Software GL (no E2E_GPU) is a dry run only.
+//   --need=hip (T1-SHADOW): only legs whose hip shadow lands in view while he is culled (low lamps, long legs); with
+//   none, the error lists the best hip-shadow offsets tried (R x 0.95 / (lh - 0.95), about 2.3 m needed).
+//   run.json per frame: `drawn` (his tracked body drawn by the camera: `seen.camFrame`), `shadowSeen` (the shadow rule
+//   counted him seen this frame).
 // Scene: Marlow Yard (default), the map's guards removed, one passive grunt walking a straight 4 m patrol leg past a lit
 // lamp 2.2-4.5 m over the floor; the 8 best lamps (this lamp's light where his chest and head shadows land, nav grid
 // fit) are tried with a stand-in in view and the one whose shadow darkens the most pixels is kept. The player is parked
@@ -47,6 +52,8 @@ const GFX = opt('gfx', 'epic');
 const [VW, VH] = opt('viewport', '1280x720').split('x').map(Number);
 const QUERY = opt('query', '').replace(/^[?&]/, '');
 const SELECT_ONLY = argv.includes('--select-only');
+// (T1-SHADOW) --need=hip: only legs whose hip shadow is in view while he is culled
+const NEED_HIP = opt('need', '') === 'hip';
 const PORT = Number(process.env.E2E_PORT ?? 4179);
 const URL = `http://127.0.0.1:${PORT}/`;
 // --map=<query>: the map (default Marlow Yard); e.g. --map=autostart=warehouseOps&mode=sector&sectorGuards=0
@@ -85,7 +92,7 @@ const kill = setTimeout(() => fail(`timed out after ${KILL_S} s`), KILL_S * 1000
 
 /** Pick the lamp, the guard's leg, the player's spot and a first camera (no guard yet); park the player; install the
  *  camera override (`window.__t1cam`, applied after the player's frame update and before every render). */
-function pageSelect([vw, vh, camGiven, choice]) {
+function pageSelect([vw, vh, camGiven, choice, needHip]) {
   const g = window.__app.current;
   const em = g.enemyMgr;
   const L = g.world.lamps;
@@ -155,6 +162,8 @@ function pageSelect([vw, vh, camGiven, choice]) {
   // first leg that fits the nav grid (leg, shadow floor, camera, player) per direction; the best lit shadow floor wins
   const tried = { lamps: 0, legs: 0, fit: 0 };
   const top = [];
+  // (T1-SHADOW) every leg's hip-shadow offset beyond his feet, R x 0.95 / (lh - 0.95): [offset, lamp, R, lh]
+  const hipOffs = [];
   const best = new Map();
   for (let i = 0; i < L.count; i++) {
     const lx = L.spheres[i * 4], ly = L.spheres[i * 4 + 1], lz = L.spheres[i * 4 + 2], reach = L.spheres[i * 4 + 3];
@@ -170,9 +179,10 @@ function pageSelect([vw, vh, camGiven, choice]) {
       const lh = ly - fy;
       if (lh < 2.2 || lh > 4.5) break;
       const rMax = Math.sqrt(Math.max(0, reach * reach - (lh - 1) * (lh - 1))) - 0.8;
-      for (const R of [5.5, 4.5, 3.8, 3.2, 2.6]) {
+      for (const R of [6.5, 5.5, 4.5, 3.8, 3.2, 2.6]) {
         if (R > rMax) continue;
         tried.legs++;
+        hipOffs.push([(R * 0.95) / (lh - 0.95), i, R, lh]);
         const M = [lx + s[0] * R, lz + s[1] * R];
         const at = (u, v) => [M[0] + s[0] * u + t[0] * v, M[1] + s[1] * u + t[1] * v];
         let ok = true;
@@ -198,6 +208,7 @@ function pageSelect([vw, vh, camGiven, choice]) {
         if (!c) continue;
         const P = planes(c);
         const hip = ptIn(P, ...shadowAt(pl, 0.95)), knee = ptIn(P, ...shadowAt(pl, 0.5)), chest = ptIn(P, ...shadowAt(pl, 1.35));
+        if (needHip && !hip) continue;
         // how much of his silhouette's shadow can be in view: hips, waist, chest, shoulders, head (of 5)
         const parts = [0.95, 1.15, 1.35, 1.45, 1.7].filter((h) => ptIn(P, ...shadowAt(pl, h))).length;
         const cf = at(c.side, 0.6);
@@ -230,7 +241,10 @@ function pageSelect([vw, vh, camGiven, choice]) {
   }
   // the best leg per lamp, the 8 best lamps: the run tries each with a stand-in and keeps the darkest shadow
   const cands = [...best.values()].sort((p, q) => q.score - p.score).slice(0, 8);
-  if (!cands.length) throw new Error(`no lamp fits (${tried.lamps} lamps, ${tried.legs} legs tried)`);
+  if (!cands.length) {
+    const hipTop = hipOffs.sort((p, q) => q[0] - p[0]).slice(0, 5).map((q) => `#${q[1]} R ${q[2]} lh ${q[3].toFixed(2)}: ${q[0].toFixed(2)} m`);
+    throw new Error(`no lamp fits (${tried.lamps} lamps, ${tried.legs} legs tried)${needHip ? `; --need=hip: best hip-shadow offsets tried (need ~2.3 m) ${hipTop.join(', ') || 'none'}` : ''}`);
+  }
   const pick = cands[Math.min(cands.length - 1, Math.max(0, choice | 0))];
   pick.choice = Math.min(cands.length - 1, Math.max(0, choice | 0));
   pick.cands = cands.map((q) => `#${q.lamp} R ${q.R} (${q.score.toFixed(2)})`);
@@ -279,7 +293,9 @@ function pageDummy([pick, phase]) {
   }
   const e = window.__t1dummy;
   const cv = window.__app.engine.getRenderingCanvas();
-  const seen = !!e?.animTier?.seen && e.animTier.seen.frame === g.scene.getFrameId();
+  // (T1-SHADOW) camera-drawn, not "seen" (which the shadow rule also sets): `camFrame`, `frame` on older builds
+  const sd = e?.animTier?.seen;
+  const seen = !!sd && (sd.camFrame ?? sd.frame) === g.scene.getFrameId();
   const mesh = e?.animTier?.seen?.mesh?.name ?? null;
   // the stand-in in view: what a guard's shadow looks like at this spot (render one frame, copy it in the same task)
   g.scene.render();
@@ -470,7 +486,9 @@ async function pageCapture([pick, fps, n, crop]) {
       i,
       fid,
       solved: !e.animTier.skipped,
-      drawn: !!seen && seen.frame === fid,
+      // (T1-SHADOW) drawn by the camera (`camFrame`; `frame` on older builds), and seen by the shadow rule
+      drawn: !!seen && (seen.camFrame ?? seen.frame) === fid,
+      shadowSeen: !!seen && seen.shadowFrame === fid,
       inFrustum: e.rig.root.getChildMeshes(false).filter((mm) => mm.isEnabled() && mm.isVisible && mm.getTotalVertices() > 0 && cam.isInFrustum(mm)).length,
       slot: cs ? cs.picker.slotOf(pick.lamp) : -1,
       pos: [e.pos.x, e.pos.y, e.pos.z],
@@ -577,7 +595,7 @@ if (!GPU) log('E2E_GPU is not 1: software GL, a dry run (the picture is not a lo
 
 let SCENE_CHOICE = null;
 async function pass(fps, mode, shared) {
-  const params = mode === 'full' ? `${BASE}&animtier=0` : BASE;
+  const params = mode === 'full' ? `${BASE}&animtier=0` : mode === 'cam' ? `${BASE}&animshadow=0` : BASE;
   log(`${fps} fps ${mode}: boot (${params})`);
   const l = await launch({ url: URL, params, viewport: { width: VW, height: VH } });
   browser = l.browser;
@@ -589,11 +607,11 @@ async function pass(fps, mode, shared) {
     // the most pixels; the later passes take that choice
     let choice = shared?.choice ?? SCENE_CHOICE;
     if (choice === null) {
-      const n = (await page.evaluate(pageSelect, [VW, VH, null, 0])).cands.length;
+      const n = (await page.evaluate(pageSelect, [VW, VH, null, 0, NEED_HIP])).cands.length;
       let bestPx = -1;
       const tried = [];
       for (let k = 0; k < n; k++) {
-        const pk = await page.evaluate(pageSelect, [VW, VH, null, k]);
+        const pk = await page.evaluate(pageSelect, [VW, VH, null, k, NEED_HIP]);
         await page.evaluate(pageDummy, [pk, 'spawn']);
         await page.waitForTimeout(GPU ? 1500 : 4000);
         const d = await page.evaluate(pageDummy, [pk, 'check']);
@@ -605,7 +623,7 @@ async function pass(fps, mode, shared) {
       SCENE_CHOICE = choice;
       log(`${fps} fps ${mode}: stand-in shadow per lamp (body + shadow px at half size): ${tried.join(', ')}; keeps ${choice}`);
     }
-    const pick = await page.evaluate(pageSelect, [VW, VH, shared?.cam ?? null, choice]);
+    const pick = await page.evaluate(pageSelect, [VW, VH, shared?.cam ?? null, choice, NEED_HIP]);
     if (shared) pick.camFixed = true;
     log(`${fps} fps ${mode}: lamp #${pick.lamp} leg ${pick.R} m out, lamp light on the shadow ${pick.light.toFixed(2)}, ${Math.round(pick.share * 100)}% of the lamps' light there (${pick.tried.fit} legs fit of ${pick.tried.legs}, ${pick.tried.lamps} lamps; candidates ${pick.cands.join(', ')}; this ${pick.choice}; ${pick.parts}/5 silhouette parts' shadows in view), camera ${pick.cam0.side.toFixed(2)} m to the side; hip / knee shadow in view ${pick.hipShadowInView} / ${pick.kneeShadowInView}`);
     await page.evaluate(pageDummy, [pick, 'spawn']);
@@ -657,7 +675,9 @@ try {
       tier = await pass(fps, 'tier', { cam: tier.start.cam, warm: tier.start.warm, crop: null, choice: tier.pick.choice });
     }
     const full = await pass(fps, 'full', { cam: tier.start.cam, warm: tier.start.warm, crop: tier.cap.crop, choice: tier.pick.choice });
-    for (const [mode, r] of [['tier', tier], ['full', full]]) {
+    // (T1-SHADOW) the camera-only rule (`&animshadow=0`): the same spot must reproduce the slide
+    const camOnly = await pass(fps, 'cam', { cam: tier.start.cam, warm: tier.start.warm, crop: tier.cap.crop, choice: tier.pick.choice });
+    for (const [mode, r] of [['tier', tier], ['full', full], ['cam', camOnly]]) {
       const f = r.cap.frames;
       f.forEach((fr, k) => {
         savePng(join(OUT, 'frames', `${fps}-${mode}-${String(k).padStart(3, '0')}.png`), fr.png);
@@ -666,6 +686,7 @@ try {
       const st = footStats(f);
       const solved = f.filter((fr) => fr.solved).map((fr) => fr.i);
       const drawn = f.filter((fr) => fr.drawn || fr.inFrustum).map((fr) => fr.i);
+      const shadowSeen = f.filter((fr) => fr.shadowSeen).map((fr) => fr.i);
       const p = r.pick;
       if (mode === 'tier') {
         log(`scene: ${MAP_NAME}, lamp #${p.lamp} at (${p.L.map((v) => v.toFixed(2)).join(', ')}), ${p.lh.toFixed(2)} m over the floor, reach ${p.reach.toFixed(2)} m, lamp light on the shadow ${p.light.toFixed(2)} (${Math.round(p.share * 100)}% of the lamps' light there); guard leg ${p.R.toFixed(2)} m out, walking (${p.t.map((v) => v.toFixed(2)).join(', ')}); player at (${p.player.map((v) => v.toFixed(1)).join(', ')}); char-shadow slots ${p.slots}`);
@@ -673,12 +694,12 @@ try {
         log(`stand-in guard in view: body drawn ${r.dummy.seen} (${r.dummy.mesh}; the seen test works), his body + shadow ${r.dummy.shadowPx} px at half size, scene ready ${r.dummy.ready}`);
       }
       log(`${fps} fps ${mode}: guard #${r.start.num} (${r.start.kind}, tracked mesh ${r.start.tracked}), warm-up ${r.start.warm} frames, at ${r.start.along.toFixed(2)} m along his leg, ${r.start.speed.toFixed(2)} m/s, pos (${r.start.pos.map((v) => v.toFixed(3)).join(', ')}); his meshes in the frustum at the start: ${r.start.inViewNow.length ? r.start.inViewNow.join(' ') : 'none'}`);
-      log(`${fps} fps ${mode}: ${f.length} frames, pose solved on [${solved.join(' ')}]; body drawn on [${drawn.join(' ') || 'none'}]; lamp slot ${[...new Set(f.map((fr) => fr.slot))].join('/')}; ankle/knee/hip shadow points in view ${Math.min(...f.map((fr) => fr.shadowPtsInView))}-${Math.max(...f.map((fr) => fr.shadowPtsInView))} of ${Object.keys(f[0]?.j ?? {}).length} (ankles, knees, hips, shoulders, neck); his shadow in the crop ${Math.min(...f.map((fr) => fr.shadowPx))}-${Math.max(...f.map((fr) => fr.shadowPx))} px (3+ levels darker than the view without him)`);
+      log(`${fps} fps ${mode}: ${f.length} frames, pose solved on [${solved.join(' ')}]; body drawn on [${drawn.join(' ') || 'none'}]; shadow-seen on [${shadowSeen.join(' ') || 'none'}]; lamp slot ${[...new Set(f.map((fr) => fr.slot))].join('/')}; ankle/knee/hip shadow points in view ${Math.min(...f.map((fr) => fr.shadowPtsInView))}-${Math.max(...f.map((fr) => fr.shadowPtsInView))} of ${Object.keys(f[0]?.j ?? {}).length} (ankles, knees, hips, shoulders, neck); his shadow in the crop ${Math.min(...f.map((fr) => fr.shadowPx))}-${Math.max(...f.map((fr) => fr.shadowPx))} px (3+ levels darker than the view without him)`);
       log(`${fps} fps ${mode}: planted-foot slide mean ${st.slideMean.toFixed(1)} cm, max ${st.slideMax.toFixed(1)} cm per frame; ankle-shadow step mean ${st.shadowStepMean.toFixed(1)} cm, max ${st.shadowStepMax.toFixed(1)} cm (on solve frames ${st.shadowStepOnSolve.toFixed(1)}, on skipped ${st.shadowStepOnSkip.toFixed(1)})`);
       if (r.errors.length) log(`${fps} fps ${mode}: console errors: ${r.errors.join(' | ').slice(0, 400)}`);
-      run.passes.push({ fps, mode, pick: r.pick, dummy: { ...r.dummy, view: undefined, shadowView: undefined }, start: r.start, crop: r.cap.crop, size: r.cap.size, canvas: r.cap.canvas, stats: st, solved, drawn, errors: r.errors, frames: f.map(({ png, diff, ...rest }) => rest) });
+      run.passes.push({ fps, mode, pick: r.pick, dummy: { ...r.dummy, view: undefined, shadowView: undefined }, start: r.start, crop: r.cap.crop, size: r.cap.size, canvas: r.cap.canvas, stats: st, solved, drawn, shadowSeen, errors: r.errors, frames: f.map(({ png, diff, ...rest }) => rest) });
     }
-    sheets.push({ fps, tier, full });
+    sheets.push({ fps, tier, full, cam: camOnly });
   }
   // the sheets (one blank page)
   const lo = launchOptions();
@@ -686,7 +707,7 @@ try {
   const sp = await browser.newPage();
   await sp.setContent('<html><body></body></html>');
   const perRow = Math.min(12, N);
-  for (const { fps, tier, full } of sheets) {
+  for (const { fps, tier, full, cam } of sheets) {
     const tiles = (r) => r.cap.frames.map((fr) => ({ png: fr.png, tag: `${String(fr.i).padStart(2, '0')} ${fr.solved ? 'S' : '.'}${fr.drawn || fr.inFrustum ? ' DRAWN' : ''}`, hot: fr.solved }));
     const gain = await sp.evaluate(pageGain, tier.cap.frames[0].png);
     // the two passes frame by frame: where the tier rule's picture differs from full rate (his stale pose, nothing else)
@@ -695,13 +716,13 @@ try {
     log(`${fps} fps: tier vs full, pixels 3+ levels apart per frame [${pair.map((q) => q.big).join(' ')}] of ${tier.cap.size[0] * tier.cap.size[1]} (mean ${(pair.reduce((p, q) => p + q.mean, 0) / Math.max(1, pair.length)).toFixed(3)} levels)`);
     run.passes.filter((q) => q.fps === fps).forEach((q) => { q.tierVsFull = pair; });
     const head = `guard-ai T1 shadow look, ${sha8}, ${MAP_NAME}, ${GFX} ${VW}x${VH}, ${fps} fps, guard #${tier.start.num} off-view (S = pose solved, . = skipped), display gain x${gain.toFixed(1)}${GPU ? '' : ', SOFTWARE GL DRY RUN'}`;
-    for (const [mode, r] of [['tier', tier], ['full', full]]) {
+    for (const [mode, r] of [['tier', tier], ['full', full], ['cam', cam]]) {
       if (r.cap.view) savePng(join(OUT, `${fps}-${mode}-view.png`), await sp.evaluate(pageGained, [r.cap.view, gain]));
       if (r.dummy.view) savePng(join(OUT, `${fps}-${mode}-standin.png`), await sp.evaluate(pageGained, [r.dummy.view, gain]));
       if (r.dummy.shadowView) savePng(join(OUT, `${fps}-${mode}-standin-shadow.png`), r.dummy.shadowView);
     }
-    for (const [mode, r] of [['tier', tier], ['full', full]]) {
-      const label = mode === 'tier' ? 'tier rule\n(default URL)' : 'full rate\n(&animtier=0)';
+    for (const [mode, r] of [['tier', tier], ['full', full], ['cam', cam]]) {
+      const label = mode === 'tier' ? 'tier rule\n(default URL)' : mode === 'full' ? 'full rate\n(&animtier=0)' : 'camera only\n(&animshadow=0)';
       savePng(join(OUT, `${fps}-${mode}.png`), await sp.evaluate(pageSheet, [head, [{ label, tiles: tiles(r) }], perRow, 240, gain]));
     }
     // compare: tier row over full row, per chunk of frames
@@ -709,6 +730,7 @@ try {
     for (let k = 0; k < N; k += perRow) {
       rows.push({ label: `tier rule\nframes ${k}-${Math.min(N, k + perRow) - 1}`, tiles: tiles(tier).slice(k, k + perRow), sep: true });
       rows.push({ label: 'full rate', tiles: tiles(full).slice(k, k + perRow) });
+      rows.push({ label: 'camera only', tiles: tiles(cam).slice(k, k + perRow) });
     }
     savePng(join(OUT, `${fps}-compare.png`), await sp.evaluate(pageSheet, [head, rows, perRow, 240, gain]));
     // the shadow alone (each frame against the view without him, x8): the freeze and the snap without the floor
@@ -718,6 +740,7 @@ try {
       drows.push({ label: `tier rule
 frames ${k}-${Math.min(N, k + perRow) - 1}`, tiles: dtiles(tier).slice(k, k + perRow), sep: true });
       drows.push({ label: 'full rate', tiles: dtiles(full).slice(k, k + perRow) });
+      drows.push({ label: 'camera only', tiles: dtiles(cam).slice(k, k + perRow) });
     }
     savePng(join(OUT, `${fps}-shadow.png`), await sp.evaluate(pageSheet, [`${head.replace(/, display gain x[0-9.]+/, '')}: his shadow alone (darker than the view without him, x8)`, drows, perRow, 240, 1]));
   }
@@ -729,6 +752,6 @@ frames ${k}-${Math.min(N, k + perRow) - 1}`, tiles: dtiles(tier).slice(k, k + pe
 }
 writeFileSync(join(OUT, 'run.json'), JSON.stringify(run, null, 1));
 clearTimeout(kill);
-log(`wrote ${FPS.map((f) => `${f}-tier.png ${f}-full.png ${f}-compare.png ${f}-shadow.png`).join(' ')}, frames/ and run.json to ${OUT}`);
+log(`wrote ${FPS.map((f) => `${f}-tier.png ${f}-full.png ${f}-cam.png ${f}-compare.png ${f}-shadow.png`).join(' ')}, frames/ and run.json to ${OUT}`);
 stopServer();
 process.exit(0);
