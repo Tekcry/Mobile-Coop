@@ -54,3 +54,4 @@ its gate branch has merged (re-check: git fetch -q origin; git diff --name-only 
 Briefs for other sessions: T1 / D1 Guard AI, C2 Test Runner. Progress in STATE.md; message the orchestrator only at
 PR / train-ready / blocked / Michael needed. One batch PR per train; tests per PLAN slice rows.
 ```
+- BRIEFS WRITTEN AHEAD (a9742192): docs/guard-cap/briefs/M2, C1, N1, K1 (on gate heads; re-check lines after each merge). Scope changes folded into PLAN rows / BRIEF A4: C1 also waits for coop4 + optic + carry; K1 floor 26; M2 smaller; N1 3 h. Preview of guard-models + gm-perf merged: origin/feature/gm-flip 979a02b3.

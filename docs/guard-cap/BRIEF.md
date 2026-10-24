@@ -68,8 +68,8 @@ Never measured: any count above 24; the co-op client (its guard puppets); real s
   and client pages alike. Undo: re-judge the same numbers against other targets.
 - **A4. Caps per mode stay.** `MAX_ALIVE` 12 (Marlow, others), `SECTOR.maxAlive` 32 (Sector Ops, = `MAX_ENEMIES`,
   `src/net/protocol.ts:25`). If 32 still fails after guard-render-2 and this job's slices, K1 lowers `SECTOR.maxAlive` to
-  the largest measured N that passes, never below 24 (Michael's 24 per section): fewer alarm reinforcements, no section
-  guard removed. Undo: set it back to 32.
+  the largest measured N that passes, never below 26 (Michael's 24 per section + coop4's 2 tagged guards: campus S5 at 4
+  players spawns 26; briefs/K1.md): fewer alarm reinforcements, no section guard removed; under 26 goes to Michael. Undo: set it back to 32.
 - **A5. Render stays with guard-render-2.** Guard LOD, cascades, torch shadows, active meshes: Test Runner's PLAN2
   (S9-S13). New render findings at 32 go to Test Runner as PLAN2 additions. The WebGPU trial stays ROADMAP "Later" (not
   before the core-loop playtest). Undo: none needed.
