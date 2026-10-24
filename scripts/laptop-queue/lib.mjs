@@ -49,6 +49,19 @@ export function rerunPassed(suites) {
 }
 
 /** The problem with a request object, or '' when it is fine. */
+/**
+ * The branch a request names when --branch is not given (Orchestrator 2026-10-25: 171 open requests had branch ""):
+ * the ref asked for; else the requester's checkout branch when it holds the sha; else the one remote work branch that
+ * contains it (master, train/*, dev, laptop-queue and HEAD never count); '' when none or several.
+ */
+const NOT_WORK_BRANCH = /^(HEAD|master|main|dev|laptop-queue|cloud-queue|ct-movement|train\/.*)$/;
+export function pickBranch({ ref = '', headBranch = '', headHasSha = false, containing = [] } = {}) {
+  if (ref) return ref.replace(/^origin\//, '');
+  if (headBranch && headHasSha && !NOT_WORK_BRANCH.test(headBranch)) return headBranch;
+  const work = [...new Set(containing.map((b) => b.trim().replace(/^origin\//, '')).filter((b) => b && !b.includes(' -> ') && !NOT_WORK_BRANCH.test(b)))];
+  return work.length === 1 ? work[0] : '';
+}
+
 export function requestProblem(r) {
   if (!r || typeof r !== 'object') return 'not an object';
   if (typeof r.id !== 'string' || !r.id) return 'no id';
