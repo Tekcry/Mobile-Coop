@@ -314,6 +314,9 @@ const ALERT_RECALL = true;
 /** (polish2 A193) A heard spot (`hearSearch`) snaps to the storey nearest the noise's height, not his own. Undo: false
  *  (his own storey, A11). */
 const HEAR_STOREY = true;
+/** (polish2 A190) A calm guard instantly detects any player in his instant range and focus (`instantDetect`), not only
+ *  the one he picked: the nearest such player is his target. Combat unchanged. Undo: false (the picked player only). */
+const INSTANT_ANY = true;
 /** (polish A2) `pickCover`'s best candidates (index, score), best first; module scratch (one pick at a time). */
 const CV_IDX = new Int32Array(8);
 const CV_SCORE = new Float64Array(8);
@@ -2374,6 +2377,9 @@ export class Enemy implements Damageable {
     // wraps at 12 (a multiple of every tail length 1-4: the rotation never skips a step)
     if (capped) this.perRR = this.perRR >= 11 ? 0 : this.perRR + 1;
     let used = 0;
+    // (polish2 A190) calm: the nearest player he instantly detects (-1 none)
+    const instAny = INSTANT_ANY && !alerted && !this.passive;
+    let inst = -1;
     for (let j = 0; j < m; j++) {
       const i = capped ? P_ORDER[j]! : j;
       const d = P_DIST[i]!;
@@ -2435,6 +2441,7 @@ export class Enemy implements Damageable {
       P_EXPO[i] = expo;
       P_LIGHT[i] = light;
       P_RATE[i] = rate;
+      if (instAny && instantDetect(si) && (inst < 0 || d < P_DIST[inst]!)) inst = i;
       // (coop4 AI1) the bit is the player's team slot (the one seam, `slotOf`; today his index)
       if (expo > 0) mask |= 1 << slotOf(p, i);
     }
@@ -2444,7 +2451,8 @@ export class Enemy implements Damageable {
     // nearest only (before S23)
     // (polish A10) a dog in combat keeps to a player he smells as well as one he sees
     const seenBy = dog && DOG_SMELL_PICK ? P_SEEN : P_LOS;
-    const k = near < 0 ? -1 : TARGETS.all ? pickTarget(n, alerted, TARGETS.sticky ? cur : -1, hi, seenBy, P_RATE, P_DIST) : near;
+    // (polish2 A190) a player he instantly detects is the pick (over `pickTarget` and its calm keep)
+    const k = inst >= 0 ? inst : near < 0 ? -1 : TARGETS.all ? pickTarget(n, alerted, TARGETS.sticky ? cur : -1, hi, seenBy, P_RATE, P_DIST) : near;
     this.seenMask = mask;
     const best = k >= 0 ? players[k]! : null;
     // (polish A9) another player: the aim settle on him starts again
