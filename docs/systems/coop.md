@@ -348,9 +348,9 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
 ## Training course wire (`course`)
 - `NetMode` `course`, `COURSE_MAX` 2 (host P1, client P2). The host runs `CourseMode` and sends `course` (host -> all;
   `CourseWire` in `game/course/courseWire.ts`) when it changes or every `COURSE_SEND`: the packed `CourseState`, locked
-  door indices (`Doors.setLocked`), locked anchor ids, light state (`lights.groups`, `lights.dead`) and P2's last
-  refusal (`ref` / `rn`). A door the host reports locked is shut on the client too; nothing on the client unlocks a
-  course door by itself. Clients press and hold course devices through `use`.
+  door indices (`Doors.setLocked`), locked anchor ids, light state (`lights.groups`, `lights.dead`, which includes the
+  lamps a client shot out, coop-real F1b) and P2's last refusal (`ref` / `rn`). A door the host reports locked is shut
+  on the client too; nothing on the client unlocks a course door by itself. Clients press and hold course devices through `use`.
 - Drill ticks (`ctick`, client -> host `{ verb }`, `TickLimiter` 4 a second): `game/course/drillDetect.ts` is the one
   place course verbs are derived (edge-triggered); `CourseFeed` fills its snapshot each fixed step. The client sends
   only `CLIENT_VERBS` (gear, sprint, stance, vision, ping, aim, fire, reload, swap, dark, gadget); the host ticks what
@@ -462,7 +462,9 @@ client next to a device first.
   origin at the shooter, the lamp first on the ray in the host's registry, a clear static line; `lampShotOk`), which
   shoots it out as its own round would (`StealthSystems.shootLight`). (rig-pose-fix S7) The origin may be up to
   `LAMP_SHOT_ORIGIN` 2.1 m (was 2) from feet + 1.2, so an inverted-hang claim (up to 2.013 m) is taken. Switches are items (`use`) as before. Change
-  detection reads the registry only when its `version` moved (no allocation unless it sends). Course mode unchanged.
+  detection reads the registry only when its `version` moved (no allocation unless it sends). Course mode takes the
+  client's lamp round the same way (`lt-<id>`, the same host checks) and the client sees the lamp dark from the next
+  `course` message's `lights.dead` (no `lamps` message in Course mode; coop-real F1b).
 - `NetMode` `sector`, two players. The host runs `SectorMode` and sends `sector` (host -> all) on a device change and
   every 0.5 s: `sec` (`SecWire`: (26) each camera's clock, jams, each player's jam left `ch` and cooldown `cd`, the
   jammed / recovering devices `dv`, alarm stage; the same field rides the course message) and (protocol 24) `ls` the live section (-1
