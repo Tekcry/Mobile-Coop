@@ -7,8 +7,9 @@
 // (default 10: a train holding some slots that long while the rest stay locked runs unsharded on the ones it holds).
 // LQ_WORKER=desktop: the desktop overflow lane (Michael ~20:45): pr requests only, two GPU slots at E2E_JOBS=1, each only
 // while the backlog is over LQ_DESKTOP_BACKLOG (3) requests, its lock is free and CPU is under its limit at the start:
-// 4191 (LQ_DESKTOP_DIR, default C:/NightShift/Mobile-Coop-testrun-4191) under C:/NightShift/heavy.lock, CPU < LQ_DESKTOP_CPU (60) %;
-// 4192 (LQ_DESKTOP_DIR2, default ...-testrun-4192) under heavy2.lock, CPU < LQ_DESKTOP_CPU2 (50) %, and its dir must exist.
+// 4191 (LQ_DESKTOP_DIR, default C:/NightShift/Mobile-Coop-testrun-4191) under C:/NightShift/heavy.lock, CPU < LQ_DESKTOP_CPU (80) %;
+// 4192 (LQ_DESKTOP_DIR2, default ...-testrun-4192) under heavy2.lock, CPU < LQ_DESKTOP_CPU2 (80) %, and its dir must exist
+// (both 80 since the Orchestrator audit 2026-10-24: the queue's own 4191 run kept 4192 under the old 50 % gate for ~8 min).
 // At most one new start per pass, so CPU is re-read before the second slot. No alone. Trains only while the laptop is
 // silent: no claim / done push by 'laptop' on the branch for LQ_LAPTOP_SILENT_MIN (10) min, the laptop service claims
 // trains itself and the head is over 2 min old; then the backlog gate is dropped (lock, dir and CPU gates stay) and the
@@ -43,7 +44,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { assertKey, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, dupKey, duplicates, failureExcerpt, flakeStands, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo } from './lib.mjs';
+import { agedAlone, assertKey, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, dupKey, duplicates, failureExcerpt, flakeStands, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo } from './lib.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
 const DESKTOP = process.env.LQ_WORKER === 'desktop';
@@ -59,7 +60,7 @@ const SLOTS = DESKTOP
       4192: { dir: 'C:/NightShift/Mobile-Coop-testrun-4192', lock: 'C:/NightShift/heavy-4192.lock' },
     };
 const DESKTOP_BACKLOG = Number(process.env.LQ_DESKTOP_BACKLOG ?? 3);
-const DESKTOP_CPU = { 4191: Number(process.env.LQ_DESKTOP_CPU ?? 60), 4192: Number(process.env.LQ_DESKTOP_CPU2 ?? 50) };
+const DESKTOP_CPU = { 4191: Number(process.env.LQ_DESKTOP_CPU ?? 80), 4192: Number(process.env.LQ_DESKTOP_CPU2 ?? 80) };
 const CLAIM_MAX_MS = Number(process.env.LQ_CLAIM_MAX_H ?? 3) * 3600_000;
 const PORTS = Object.keys(SLOTS);
 const TRAIN_JOBS = process.env.LQ_TRAIN_JOBS ?? (DESKTOP ? '1' : '3');
@@ -940,10 +941,13 @@ async function pass() {
   // claims on the branch like its gate does
   else if (!(DESKTOP && claimCount === 0)) queue.requests = applyDuplicates(applySupersedes(queue.requests));
   // alone runs wait while any open train lacks a laptop-e2e success (trains and their reruns first; CLAUDE.md laptop order)
+  // an alone request held past ALONE_AGE_MIN still stops new pr / full claims (only train reruns start), so the slots
+  // drain for it while the train runs (Orchestrator audit 2026-10-24: 3 newer PR requests went first at 07:25Z)
   if (!DESKTOP && aloneHold && queue.requests.some((r) => r.kind === 'alone')) {
-    const key = `${aloneHold.n} ${aloneHold.sha} ${aloneHold.laptop}`;
-    if (key !== aloneHoldLogged) { aloneHoldLogged = key; log(`alone requests held: train ${aloneHold.n} ${String(aloneHold.sha).slice(0, 8)} open, laptop-e2e ${aloneHold.laptop || 'none'}`); }
-    queue.requests = queue.requests.filter((r) => r.kind !== 'alone');
+    const aged = agedAlone(queue.requests, Date.now());
+    const key = `${aloneHold.n} ${aloneHold.sha} ${aloneHold.laptop} ${aged?.id ?? ''}`;
+    if (key !== aloneHoldLogged) { aloneHoldLogged = key; log(`alone requests held: train ${aloneHold.n} ${String(aloneHold.sha).slice(0, 8)} open, laptop-e2e ${aloneHold.laptop || 'none'}${aged ? `; ${aged.id} waited over 30 min: no new pr claims` : ''}`); }
+    queue.requests = queue.requests.filter((r) => (aged ? r.trainRerun : r.kind !== 'alone'));
   } else if (!aloneHold) aloneHoldLogged = '';
   const desktopWait = {};
   if (DESKTOP) {
@@ -1019,7 +1023,7 @@ function takePidLock() {
   process.on('exit', () => { try { if (fs.readFileSync(file('service.pid'), 'utf8') === String(process.pid)) fs.unlinkSync(file('service.pid')); } catch { /* gone */ } });
 }
 
-/** When idle: fast-forward this checkout to LQ_FOLLOW; exit (the 5-min task restarts us) if the service files changed. */
+/** When idle: fast-forward this checkout to LQ_FOLLOW; exit (the task's 1-min trigger restarts us) if the service files changed. */
 function selfUpdate() {
   const follow = process.env.LQ_FOLLOW ?? 'origin/master';
   const head = git(['rev-parse', 'HEAD'], { soft: true });

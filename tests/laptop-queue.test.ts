@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, flakeStands, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, flakeStands, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN } from '../scripts/laptop-queue/lib.mjs';
 
 const NOW = Date.UTC(2026, 9, 23, 20, 0, 0);
 const idAt = (min: number, tag: string): string => {
@@ -491,6 +491,24 @@ describe('duplicates', () => {
     expect(m.get(b.id)).toBe(a.id);
     expect(m.get(c.id)).toBe(a.id);
     expect(m.has(a.id)).toBe(false);
+  });
+});
+
+describe('agedAlone', () => {
+  it('the oldest alone request past ALONE_AGE_MIN, else null', () => {
+    expect(ALONE_AGE_MIN).toBe(30);
+    const young = req(20, 'alone', 'y');
+    const old = req(40, 'alone', 'o');
+    const older = req(90, 'alone', 'oo');
+    expect(agedAlone([young], NOW)).toBeNull();
+    expect(agedAlone([young, old, older], NOW)).toBe(older);
+    expect(agedAlone([req(90, 'pr', 'p')], NOW)).toBeNull();
+    expect(agedAlone([], NOW)).toBeNull();
+  });
+  it('pick: an alone request over 30 min blocks new pr work until both slots drain', () => {
+    const q = { trains: [], requests: [req(35, 'alone', 'a'), req(5, 'pr', 'p')] };
+    expect(pick(q, NOW, slots(true, false))).toBeNull();
+    expect(pick(q, NOW, slots(false, false))?.request.id).toBe(q.requests[0].id);
   });
 });
 

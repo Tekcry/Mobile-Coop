@@ -1,8 +1,11 @@
 // Laptop queue (docs/laptop-queue/PLAN.md): the pure logic, no fs, no child_process, no network. service.mjs (the loop)
 // and request.mjs (the desktop CLI) import it; tests/laptop-queue.test.ts covers it.
 
-/** Minutes an alone-measurement may wait before it goes ahead of PR suites (BRIEF A5). */
-export const ALONE_AGE_MIN = 45;
+/**
+ * Minutes an alone-measurement may wait before it goes ahead of PR suites (BRIEF A5; 45 -> 30, Orchestrator audit
+ * 2026-10-24: coop4's alone gate waited 106 min while newer PR requests kept the slots busy).
+ */
+export const ALONE_AGE_MIN = 30;
 
 const sortById = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 
@@ -110,10 +113,7 @@ export function pick(queue, now, slots) {
   const rerun = reqs.find((r) => r.trainRerun);
   if (rerun) return idle[0] ? { kind: 'request', request: rerun, slot: idle[0].port } : null;
   const alone = reqs.filter((r) => r.kind === 'alone');
-  const aged = alone.find((r) => {
-    const t = idTime(r.id);
-    return Number.isFinite(t) && now - t > ALONE_AGE_MIN * 60_000;
-  });
+  const aged = agedAlone(alone, now);
   if (aged) return bothIdle ? { kind: 'alone', request: aged } : null;
   const nonAlone = reqs.filter((r) => r.kind !== 'alone');
   const newest = new Map(); // requester -> its newest request (reqs is sorted, so the last wins)
@@ -123,6 +123,19 @@ export function pick(queue, now, slots) {
   if (next && idle[0]) return { kind: 'request', request: next, slot: idle[0].port };
   if (!next && alone[0] && bothIdle) return { kind: 'alone', request: alone[0] };
   return null;
+}
+
+/**
+ * The oldest alone request that has waited over ALONE_AGE_MIN (by its id time), or null. While there is one no new pr /
+ * full request starts (pick; the service applies it also while the train hold keeps alone requests back), so the
+ * slots drain for it; trains and train reruns still go first.
+ */
+export function agedAlone(requests, now) {
+  return [...(requests ?? [])].sort(sortById).find((r) => {
+    if (r.kind !== 'alone') return false;
+    const t = idTime(r.id);
+    return Number.isFinite(t) && now - t > ALONE_AGE_MIN * 60_000;
+  }) ?? null;
 }
 
 const suiteBase = (s) => String(s).replace(/:.*$/, '');
