@@ -970,39 +970,36 @@ behaviour code Opus; Sonnet only for tests / e2e scenarios / data from a strict 
 ## Resume prompt
 ```
 Guard AI Build resume (laptop; docs/orchestrator/PROMPTS.md section 6 + its common tail hold the rules). Read this
-block only. Branch guard before every write. Never merge master into a branch unless the orchestrator asks for a
-conflict fix. 2 Opus checkers on AI / src/net PRs (1 on small hygiene slices); Opus triage on every laptop failure;
-laptop runs: cd C:/NightShift/Mobile-Coop-laptop-queue-svc && node scripts/laptop-queue/request.mjs --sha <sha>
---pr <n> --set <name> --jobs 2 --requester "Night Shift | Guard AI Build" --suites "a b" (verdict = GitHub status
-laptop-e2e/<set>; wait with a background `until gh api .../commits/<sha>/statuses` loop, never polling turns).
-Laptop auto mode blocks `gh pr edit --add-label`: tell the orchestrator at train-ready (normal process) and flag the
-block to Michael (laptop allow rule); never ask a peer to do the blocked action for you.
-Before pushing a PR head: vitest every test file importing the changed modules AND their direct importers (an
-src/ai change: also the tests importing enemy.ts / enemyManager.ts; catch-all Proxy doubles miss new methods: R1
-#326 missed train 59 on consoleNoticeA4). Put this line in every builder brief.
-Master 4.95.0 (d91d0e00), PROTOCOL 54 (tests read the constant; the train bumps).
+block only. Branch guard before every write. Never merge master into a branch. 2 Opus checkers on AI / src/net PRs;
+Opus triage on every laptop failure; laptop runs: cd C:/NightShift/Mobile-Coop-laptop-queue-svc && node
+scripts/laptop-queue/request.mjs --sha <sha> --pr <n> --set <name> --jobs 2 --requester "Night Shift | Guard AI Build"
+--suites "a b" (verdict = GitHub status laptop-e2e/<set>; background wait loop that breaks only on
+success|failure|error, never on null). Laptop auto mode blocks `gh pr edit --add-label`: tell the orchestrator at
+train-ready. Before pushing a PR head: vitest the tests importing the changed modules AND their direct importers
+(src/ai: also tests importing enemy.ts / enemyManager.ts; Proxy doubles hide new methods). OVERNIGHT mode (orchestrator
+2026-10-24 ~22:30): no swap, full burn to each cap, save ~92%, no question dialogs (decide, log A-numbers in BRIEF).
+No-refining rule LIFTED (ROADMAP Decided ~21:50). Laptop CPU shared with Test Runner: keep agents' vitest at
+--maxWorkers=1-2 while a train runs.
 Open:
-1. #317 coop4 (feature/coop4, worktree C:/NightShift/Mobile-Coop-coop4; taken from Sector Ops 2026-10-24): master
-   4.95.0 merged 1b04e5bd (PROTOCOL 54), checks A + B PASS. Laptop on 1b04e5bd: coop4 set 11/12 (e2e-coop AI6 FAIL =
-   test bug, scripts/e2e-coop.mjs:2378 r.speed -> r.ref.speed, fixed d0f574cb, docs/coop4/checks/ai6-e2e-coop-triage.md);
-   coop4-4p (alone sectorops 7-9) pending. e2e-coop on d0f574cb FAIL: AI6 (1) LKP 10.28 m > 2 m (Opus triage 2:
-   test bug: hide in sight; fixed bc96ecee, docs/coop4/checks/ai6-lkp-triage.md). e2e-coop queued on bc96ecee
-   (status laptop-e2e/coop4-fix2); 4p status is laptop-e2e/alone-coop4-4p on 1b04e5bd. Both green ->
-   `gh pr ready 317`, tell the orchestrator train-ready (label). Red -> Opus triage at once (AI6 (1)-(3) never ran
-   before the merge: untried hide spots, seesIndex slot vs index). #317 src/net files: coopClient, coopHost, coopUi,
-   holdPulse, joinWatch, protocol, remoteAvatar, remotePlayer, session (Player coop-real F1 / F2 go after #317 or
-   coordinate). Polish: snapBudget 4-player headroom ~127 B (CHECK-A P1), stale comment coopHost.ts:589, teamSizeOf TODO
-   sectorMode.ts:201. After #317 merges: feature/coop4-pol (Sector Ops' polish + UI2, head 134f6abe) needs master
-   merged + its own alone 7-9.
-2. Cloud briefs T1 + D1/D2 on cloud-queue (876237aa): status blocked waiting M0 verdict (guard-cap, Marlow Build);
-   on its verdict set the named one to `status: open`. D1 also needs gm-perf (d729e490) on master.
-3. #313 coop-carry and #326 R1 RELEASED / train-ready (313 in 4.95.0); #322 train-ready.
-4. Merged today: #272, #295, #298, #302, #303, #319 coop4 AI side (Sector Ops wires the hooks; AI6-E2E-SPEC.md).
-5. Polish (after Michael's playtest): S24-LEVELS-CHECK redundant tell(alarmHunt) (enemyManager.ts reinforce) and
-   parked joinReinforcement; A148 mission reinforcements stand at spawn (Michael's call); cover by straight-line
-   distance behind a full wall (S24-COOP-TRIAGE.md); e2e-enemies "sniper relocates" (legacy suite, low).
-6. Next work: the next AI item the orchestrator / guard-cap assigns; walk reports from Michael. PLAN has no slice
-   after S28. Questions for Michael (non-blocking): S23 client arcs / LKP ghost; S25 searchers' flares.
-Polish lists: WALK-CHECK 1-6, S16-CHECK, A126-CHECK, S22-CHECK 1-5, S22-GAME-CHECK(2), CARRY-FIX2-CHECK, S23-CHECK-A/B,
-LR16-4-POLISH, S24-RECHECK-A/B, S25B-CHECK-A/B, COOP-CARRY-MERGE-CHECK-A/B, R1-CHECK. A143-A164 accepted (move into BRIEF.md).
+1. #317 coop4 (feature/coop4, worktree C:/NightShift/Mobile-Coop-coop4): alone-coop4-4p PASS on 1b04e5bd. e2e-coop
+   failed 3x on test bugs (triage notes docs/coop4/checks/ai6-e2e-coop-triage.md, ai6-lkp-triage.md, ai6-triage-3.md:
+   staging radio alarm spawned a response team in the hide lane). Fix 52e3dc13 queued: status laptop-e2e/coop4-fix3
+   (orchestrator asked Test Runner for a laptop lane). Green -> `gh pr ready 317` + orchestrator train-ready (it adds
+   big-pr). Red -> Opus triage at once (AI6 (3) crouch / run / hold legs never ran yet).
+2. Polish batch (feature/guard-ai-polish, plan docs/guard-ai/POLISH-PLAN.md fda75ca8: A1-A17 enemy.ts, B1-B10
+   enemyManager / squadRoles / searchArea / breaker, C1-C4 targetPick / doors / docs). Builders on worktrees
+   C:/NightShift/Mobile-Coop-guard-ai-polish-a / -b / -c (branches feature/guard-ai-polish-a/b/c; node_modules junction
+   to -polish). C DONE 73f10cc7. A / B were mid-build at the save (WIP 1c9fafd9 / 63fbb29d): if their agents are gone,
+   start an Opus builder per group "finish from WIP: git log + diff vs fda75ca8, plan items left". Then merge a, b, c
+   into feature/guard-ai-polish, trim fragment + ai.md for skipped items (C's note: drop the S15 "keeps what it was first
+   taken for" sentence if B1 landed), run CORE vitest (82 files, plan "Vitest per group", chunks of ~20,
+   --maxWorkers=2), 2 Opus checkers in parallel with the laptop set (plan "e2e": e2e-stealth-ai e2e-sectorops e2e-coop
+   e2e-ctcourse e2e-enemies e2e-tactics e2e-ct-warehouse), PR to master (minor), train-ready.
+3. T1 OPEN on cloud-queue (3e3f38a3; M0: ai.anim 55-59% of sim growth). Cloud Builder 1 builds it; on `status: done`
+   review the branch feature/guard-ai-t1-anim-tier, then laptop e2e-sectorops + e2e-enemies, PR. D1-D2 CLOSED.
+4. Mission hooks (Marlow, after Michael signs off the mission specs): em.missionOrder(guardTag, 'reset' | 'walk',
+   postId, via?) wrapping Enemy.resetBreaker (enemy.ts:1285) / Enemy.sendTo (:1138). Wait for Marlow's go.
+5. Polish still deferred / Michael's calls: A148 reinforcements at spawn; S23 client arcs / LKP ghost; S25 flares;
+   POLISH-PLAN "Deferred". After #317 merges: feature/coop4-pol (Sector Ops polish + UI2, 134f6abe) needs its own
+   alone 7-9 set. #317 polish: snapBudget headroom, stale comment coopHost.ts:589, teamSizeOf TODO sectorMode.ts:201.
 ```
