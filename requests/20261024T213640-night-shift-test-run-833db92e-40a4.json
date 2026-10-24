@@ -1,0 +1,25 @@
+{
+  "id": "20261024T213640-night-shift-test-run-833db92e-40a4",
+  "sha": "833db92ecf4d494bb88eec5698843089e6cb2c2e",
+  "branch": "",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Test Runner",
+  "steps": [
+    "node scripts/run-e2e.mjs e2e-course",
+    "node scripts/run-e2e.mjs e2e-netmove",
+    "node scripts/run-e2e.mjs e2e-ctcourse:1",
+    "node scripts/run-e2e.mjs e2e-ctcourse:3",
+    "node scripts/run-e2e.mjs e2e-course",
+    "node scripts/run-e2e.mjs e2e-netmove",
+    "node scripts/run-e2e.mjs e2e-ctcourse:1",
+    "node scripts/run-e2e.mjs e2e-ctcourse:3",
+    "node scripts/run-e2e.mjs e2e-course",
+    "node scripts/run-e2e.mjs e2e-netmove",
+    "node scripts/run-e2e.mjs e2e-ctcourse:1",
+    "node scripts/run-e2e.mjs e2e-ctcourse:3"
+  ],
+  "env": {},
+  "set": "flake-repeat-t76",
+  "note": "train 76 flake reruns: e2e-course, netmove, ctcourse:1/:3 x3 each"
+}
