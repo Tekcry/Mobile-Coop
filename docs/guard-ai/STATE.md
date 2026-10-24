@@ -1,6 +1,12 @@
 # Guard AI - state
 
 ## Now
+~14:20 (Michael ~13:40 via orchestrator): (1) 24-guard rendering: Test Runner leads; Guard AI takes AI-side slices.
+Proposed split to Test Runner: mine = brain LOD (calm guards far from every player think at a lower rate, wake rules;
+gameplay facts only, never off-screen / render state: hard rule); asked for the per-guard CPU split (AI vs anim /
+render) before building (nothing speculative). (2) Spare job #4 G44: ALREADY ON MASTER (perception.ts pitchFactor,
+f24e1adc, 4.65.0): told the orchestrator, nothing to build.
+
 ~14:00: #303 (watchdog cap 45 -> 90 s) TRAIN-READY. Ready from me: #272, #298, #302, #303 (#295 merged).
 
 ~13:30: #302 (S28 + sweep) TRAIN-READY, #294 closed; ready from me: #272, #295, #298, #302. Nothing running.
