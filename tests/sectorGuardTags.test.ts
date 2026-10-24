@@ -16,7 +16,7 @@ import {
   TAGS,
   zoneRadius,
 } from '../src/ai/sectorTags';
-import { DEFAULT_SQUAD_BASE, squadId, validateGuardAi, validatePosts } from '../src/ai/guardAiData';
+import { DEFAULT_SQUAD_BASE, defaultSquads, squadId, validateGuardAi, validatePosts } from '../src/ai/guardAiData';
 import { Vector3, type Scene } from '../src/core/babylon';
 import type { AiContext, Enemy } from '../src/ai/enemy';
 import type { AlarmPanel } from '../src/ai/alarm';
@@ -616,6 +616,25 @@ describe('coop4 DATA: minPlayers guard tags (campus S1-S5, warehouse sections)',
       const n = tagged(s.def).length;
       expect(n, s.label).toBeGreaterThanOrEqual(1);
       expect(n, s.label).toBeLessThanOrEqual(2);
+    }
+  });
+});
+
+describe('coop4 A8: the minPlayers tags never change a small team', () => {
+  it('every section: the base guards keep the squads they have without the tags (team of 1-2 plays master)', () => {
+    for (const s of [...CAMPUS_SECTORS, ...WAREHOUSE_SECTORS]) {
+      const full = s.guards;
+      const base = full.filter((g) => g.minPlayers === undefined);
+      const outFull: number[] = [];
+      const outBase: number[] = [];
+      defaultSquads(full, outFull);
+      defaultSquads(base, outBase);
+      let bi = 0;
+      for (let i = 0; i < full.length; i++) {
+        if (full[i]!.minPlayers !== undefined) continue;
+        expect(outFull[i], `${s.id} guard ${i + 1}`).toBe(outBase[bi]);
+        bi++;
+      }
     }
   });
 });

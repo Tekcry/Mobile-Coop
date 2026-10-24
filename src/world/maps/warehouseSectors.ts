@@ -125,9 +125,9 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
       { kind: 'grunt', x: -6.0, z: 16.2, yaw: 0, takedownSpot: [-6.0, 16.2] },
       // coop4 A8 (`minPlayers`: spawned only for a team of 3 / 4; appended, so the base numbering is unchanged)
       // 9 the second stocktaker (3+): the A1 count from the cage end
-      { kind: 'officer', x: -21.4, z: 11.0, yaw: Math.PI / 2, route: [[-21.4, 11.0], [-21.4, 2.0]], wait: 5, waits: [8, 2], faces: [Math.PI / 2, -Math.PI / 2], takedownSpot: [-21.4, 11.0], minPlayers: 3, reason: 'West route up A1 (past the VNA through-bay gate, the team door): with 3+ players the aisle is cleared from both ends, so a second counter works it from the cage end' },
+      { kind: 'officer', x: -21.4, z: 11.0, yaw: Math.PI / 2, route: [[-21.4, 11.0], [-21.4, 2.0]], wait: 5, waits: [8, 2], faces: [Math.PI / 2, -Math.PI / 2], takedownSpot: [-21.4, 11.0], squad: 0, minPlayers: 3, reason: 'West route up A1 (past the VNA through-bay gate, the team door): with 3+ players the aisle is cleared from both ends, so a second counter works it from the cage end' },
       // 10 the second picker (4+): the east gangway round from the goods-out end
-      { kind: 'grunt', x: -7.4, z: 0.5, yaw: -Math.PI / 2, route: [[-7.4, 0.5], [-7.4, 14.6]], wait: 4, waits: [4, 4], faces: [-Math.PI / 2, Math.PI / 2], takedownSpot: [-7.4, 14.6], minPlayers: 4, reason: 'The sprinkler-main route drops into the east gangway and the VNA team comes out at the issue gate: with 4 players both arrive together, so a second picker works the gangway from the south end' },
+      { kind: 'grunt', x: -7.4, z: 0.5, yaw: -Math.PI / 2, route: [[-7.4, 0.5], [-7.4, 14.6]], wait: 4, waits: [4, 4], faces: [-Math.PI / 2, Math.PI / 2], takedownSpot: [-7.4, 14.6], squad: 0, minPlayers: 4, reason: 'The sprinkler-main route drops into the east gangway and the VNA team comes out at the issue gate: with 4 players both arrive together, so a second picker works the gangway from the south end' },
     ],
     // alarm reinforcements: the west fire exit and the charge bay
     reinforce: [[-22.5, 5.5], [-6.2, -5.0]],
