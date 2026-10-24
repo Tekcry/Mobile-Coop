@@ -1,0 +1,18 @@
+{
+  "id": "20261024T212344-night-shift-test-run-833db92e-b82d",
+  "sha": "833db92ecf4d494bb88eec5698843089e6cb2c2e",
+  "branch": "",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Test Runner",
+  "steps": [
+    "node scripts/run-e2e.mjs e2e-coop",
+    "node scripts/run-e2e.mjs e2e-coop",
+    "node scripts/run-e2e.mjs e2e-coop",
+    "node scripts/run-e2e.mjs e2e-coop",
+    "node scripts/run-e2e.mjs e2e-coop"
+  ],
+  "env": {},
+  "set": "soak-coop-41002",
+  "note": "flake rate: host holds its guard in front of the client (b1fd)"
+}
