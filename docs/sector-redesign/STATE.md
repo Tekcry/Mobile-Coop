@@ -274,7 +274,19 @@ Polish: slice0-check.md, sliceL-check.md, slice1-check.md, e1/e3/e4-check.md pol
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (saved 2026-10-24 ~22:50). OVERNIGHT MODE (orchestrator ~22:40): no swap, Michael
+Night Shift | Sector Ops Build: RESUME (saved 2026-10-24 ~23:10, 5-hour cap; orchestrator resumes at the 03:10 reset).
+SAVE ~23:10: signoff WIP e41942bf (S1 DONE 8acf65d3: validator 13 -> 0, 15 guards; S2-S5 partial files committed as WIP,
+their planners die with the window -> on resume: for each S<N> missing S<N>.md / S<N>-detail.md / plan SVG, rerun its
+planner from briefs/SIGNOFF-PLANNER.md + the section line in this block's item 5 + the messages below). Planner messages
+sent ~23:00 (resend to reruns): sync nodes as a top-level "sync" array (id / kind / space / src / lead / track A|B, as S1);
+guard ramp S1 15 < S2 > 15 < S3 ~20+ < S4 ~24+ < S5 most; Marlow's nodes - S2 Split Shift: sync-s2-comms (camera_loop,
+comms patch panel loops cam-turnstile / cam-lift / cam-bridge), sync-s2-switchgear (power_cut, plant breaker, groups 55+56),
+optional sync-s2-atrium (board campusS2.ts:192), kp-fac keypad (planned), leads kitchen overheard line + mail-room plant
+log + post-room note; S4 Code Relay (Marlow's pick): sync-s4-dockboard (code_source, built), sync-s4-desk (camera_loop,
+desk-sec4), sync-s4-noc (code_source) + sync-s4-cagekp (code_sink) 30 s / 90 s solo, riser-side kp-deck keypad, leads deck
+radio line + duty roster + seat placard, spook bolt by the riser door, footage wipe (optional); S5 code pair = reserved spare.
+VG1 built + pushed 84ddc14c (38 tests); Opus VG1 checker was running (-> docs/visual-gate/checks/vg1-check.md; rerun if
+missing). Disk: orchestrator cleanup approved by Michael ~22:55 (10.9 GB free at 23:05). OVERNIGHT MODE (orchestrator ~22:40): no swap, Michael
 asleep, full burn to the cap each window, save at ~92%, the orchestrator resumes you after each reset; no question
 dialogs: decide, log assumed decisions in the BRIEF. coop4 / #317 / feature/coop4-pol are GUARD AI BUILD's: do not push there.
 1. #354 bake2 (feature/sector-redesign-bake2 @ 54cdb9e1, fragment added) OPEN + train-ready; laptop bake2 3/3 PASS on
