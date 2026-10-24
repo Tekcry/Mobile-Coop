@@ -14,9 +14,11 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   run-41002/ and run-41003/; perf medians into the guard-render PLAN2 note.
 - feature/laptop-queue-5 (worktree C:/NightShift/Mobile-Coop-laptop-queue-5, stacked on #374 283daf5d), pushed
   d3f77714: request.mjs --suites split + unknown-suite refusal, auto-train tier-2/3 confirm rerun before a drop,
-  laptop spare work after LQ_SPARE_IDLE_MIN idle (docs/laptop-queue/spare-jobs.json). 302 unit tests pass. A fresh
-  Opus checker was running at the save: if no verdict in git, rerun the checker on 283daf5d..origin/feature/laptop-queue-5,
-  then PR (base master once #374 merges, else base feature/laptop-queue-4), train-ready message to the Orchestrator.
+  laptop spare work after LQ_SPARE_IDLE_MIN idle (docs/laptop-queue/spare-jobs.json). 302 unit tests pass. Checker 1
+  (Opus) FIX on d3f77714: (1) spare job blocks a train (cutShort / sparePass ignore soon / aloneHold / aloneSoon), (2) spare
+  jumps PR requests in pick (agedAlone / front), (3) request.mjs ls-tree needs --full-tree, (4) confirm rerun success
+  can wait forever on a lost laptop-e2e post. Fix round running at the save; on resume check the branch for the fix
+  commits, finish any not pushed (Opus), one fresh Opus checker on the fix delta, then PR (base master once #374 merges, else base feature/laptop-queue-4), train-ready message to the Orchestrator.
 - Desktop svc (Orchestrator's): it follows origin/feature/laptop-queue; steps sent (checkout origin/master, re-run
   install-task.ps1 -Worker desktop -DesktopCpu 80 -DesktopBacklog 0).
 - Laptop cleanup DONE: 54 worktrees removed (scratch/wt-removed.log), C:/NightShift 70.2 -> 43.7 GB.
