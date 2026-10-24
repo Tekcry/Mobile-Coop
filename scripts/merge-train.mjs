@@ -109,6 +109,22 @@ export function syntheticFragment(branch, title, pr) {
   return { file: `changes/${branch.replace(/\//g, '-')}.md`, text: `# ${title}\nkind: patch\n- ${title} (#${pr})\n` };
 }
 
+/**
+ * The fragment plan (writes nothing): members with an open PR whose branch adds no changes/*.md each get a synthetic
+ * fragment. `added(branch)` lists the files the branch adds under changes/ (null: no merge base, skipped); `title(pr)`
+ * is the PR title. Returns the fragments ({ pr, file, text }) and the build log lines (also the train PR body notes).
+ */
+export function fragmentPlan(members, added, title) {
+  const frags = [], notes = [];
+  for (const m of members.filter((x) => x.pr)) {
+    const files = added(m.branch);
+    if (!files || hasFragment(files)) continue;
+    frags.push({ pr: m.pr, ...syntheticFragment(m.branch, title(m.pr), m.pr) });
+    notes.push(`fragment synthesised for #${m.pr}`);
+  }
+  return { frags, notes };
+}
+
 /** Branches a train merged, oldest first, from its first-parent merge subjects ("Merge origin/<b> into train/<n>"). */
 export function membersFromLog(subjects) {
   const out = [];
@@ -635,27 +651,30 @@ function trainMembers(head) {
 }
 
 /**
- * Members with an open PR whose branch adds no changes/*.md (a test-only PR): writes a patch fragment for each into the
- * checked-out train tree (a dry run only prints), so the version step has something to assemble. Returns the files
- * written and the build log lines (also the train PR body notes).
+ * Read only (git diffs, gh titles; a failure throws before anything is written): the patch fragments for members with
+ * an open PR whose branch adds no changes/*.md (a test-only PR), printed. `files` collects what writeFragments writes.
  */
-function synthesiseFragments(members) {
-  const files = [], notes = [];
-  for (const m of members.filter((x) => x.pr)) {
-    const mb = exec(['git', 'merge-base', 'origin/master', `origin/${m.branch}`]);
-    if (mb.status !== 0) continue;
-    const added = run(['git', 'diff', '--name-only', '--diff-filter=A', mb.out.trim(), `origin/${m.branch}`, '--', 'changes']).split('\n').filter(Boolean);
-    if (hasFragment(added)) continue;
-    const frag = syntheticFragment(m.branch, run(['gh', 'pr', 'view', String(m.pr), '--json', 'title', '--jq', '.title']), m.pr);
-    notes.push(`fragment synthesised for #${m.pr}`);
-    console.log(`fragment synthesised for #${m.pr}: ${frag.file}${DRY ? ' (dry run: not written)' : ''}`);
-    if (DRY) continue;
-    const at = path.join(run(['git', 'rev-parse', '--show-toplevel']), frag.file);
+function planFragments(members) {
+  const added = (branch) => {
+    const mb = exec(['git', 'merge-base', 'origin/master', `origin/${branch}`]);
+    if (mb.status !== 0) return null;
+    return run(['git', 'diff', '--name-only', '--diff-filter=A', mb.out.trim(), `origin/${branch}`, '--', 'changes']).split('\n').filter(Boolean);
+  };
+  const plan = fragmentPlan(members, added, (pr) => run(['gh', 'pr', 'view', String(pr), '--json', 'title', '--jq', '.title']));
+  for (const f of plan.frags) console.log(`fragment synthesised for #${f.pr}: ${f.file}${DRY ? ' (dry run: not written)' : ''}`);
+  return { ...plan, files: [] };
+}
+
+/** Writes the planned fragments into the checked-out train tree (a dry run writes nothing), each path recorded in `synth.files` first. */
+function writeFragments(synth) {
+  if (DRY) return;
+  const top = run(['git', 'rev-parse', '--show-toplevel']);
+  for (const f of synth.frags) {
+    const at = path.join(top, f.file);
     if (fs.existsSync(at)) continue;
-    fs.writeFileSync(at, frag.text);
-    files.push(at);
+    synth.files.push(at);
+    fs.writeFileSync(at, f.text);
   }
-  return { files, notes };
 }
 
 /** The train PR number: the open one, or a new one (null in a dry run). */
@@ -729,13 +748,14 @@ async function build({ n, version, title, branches, keep, noTest }) {
   act(['git', 'checkout', '-B', branch, head]);
   act(keep ? ['git', 'push', 'origin', branch] : ['git', 'push', '--force', 'origin', branch]);
   const members = trainMembers(head);
-  const synth = synthesiseFragments(members);
+  const synth = planFragments(members); // read only: fragments are written first thing inside the try below
   const pr = ensurePr(n, version, title, members, synth.notes);
   const protocol = planWire(wireCandidates(kept, members), head);
   if (protocol && DRY) console.log('  [dry-run] would write src/net/protocol.ts and add it to the version commit');
   else if (protocol) fs.writeFileSync(path.join(run(['git', 'rev-parse', '--show-toplevel']), 'src/net/protocol.ts'), protocol);
   let v;
   try {
+    writeFragments(synth);
     v = versionCommit({ branch, head, checkout: null, version, title: `Train ${n}: ${title}`, pr,
       members: members.filter((m) => m.pr).map((m) => m.pr), subject: versionSubject(n, version), push: false,
       extraAdd: protocol ? ['src/net/protocol.ts'] : [] });

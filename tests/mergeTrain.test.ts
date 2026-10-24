@@ -10,7 +10,7 @@ import {
   failedTestFiles, vitestRerunPlan, vitestRerunCmd,
   lockIsOurs, wireCandidates, membersFromLog, parseArgs, protocolValue, releaseHeavyLock,
   resolveKeepBoth, resumeCheck, tailLines, takeHeavyLock, touchesWire, trainPrBody, trainPrTitle, versionSubject, vitestVerdict, wirePaths,
-  hasTrainMember, buildExitCode, hasFragment, syntheticFragment,
+  hasTrainMember, buildExitCode, hasFragment, syntheticFragment, fragmentPlan,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/merge-train.mjs';
 
@@ -61,6 +61,20 @@ describe('merge-train', () => {
     expect(hasFragment(['tests/a.test.ts'])).toBe(false);
     expect(hasFragment(['changes/README.md', 'changes/readme.md', 'changes/sub/x.md', 'changes/x.txt', 'docs/changes/x.md'])).toBe(false);
     expect(hasFragment([])).toBe(false);
+  });
+
+  it('plans fragments only for open-PR members whose branch adds none, skipping a branch with no merge base', () => {
+    const members = [{ branch: 'test/flake', pr: 322 }, { branch: 'feature/a', pr: 125 }, { branch: 'fix/b', pr: null }, { branch: 'gone/c', pr: 9 }];
+    const added: Record<string, string[] | null> = { 'test/flake': [], 'feature/a': ['changes/feature-a.md'], 'fix/b': [], 'gone/c': null };
+    const asked: number[] = [];
+    const plan = fragmentPlan(members, (b: string) => added[b], (pr: number) => { asked.push(pr); return `Title ${pr}`; });
+    expect(plan.notes).toEqual(['fragment synthesised for #322']);
+    expect(plan.frags).toEqual([{ pr: 322, ...syntheticFragment('test/flake', 'Title 322', 322) }]);
+    expect(asked).toEqual([322]);
+  });
+
+  it('throws from the fragment plan when a title lookup fails (before anything could be written)', () => {
+    expect(() => fragmentPlan([{ branch: 'test/x', pr: 1 }], () => [], () => { throw new Error('gh down'); })).toThrow('gh down');
   });
 
   it('puts the build notes in the train PR body, above the footer', () => {
