@@ -1,0 +1,38 @@
+{
+  "meta": {
+    "name": "Harbour Customs Depot",
+    "mode": "campaign",
+    "players": [1, 2],
+    "beats": [1, 3, 4, 2, 4, 5, 2, 3, 1]
+  },
+  "spaces": [
+    {"id": "perimeter", "type": "exterior", "room_class": "custom", "function": "Fenced yard, gate booth, floodlit parking", "floor": 0, "size": [40, 60, 12], "tags": ["start"]},
+    {"id": "loading_dock", "type": "encounter", "room_class": "loading_dock", "function": "Container unloading and inspection", "floor": 0, "size": [20, 30, 8], "shadow_pct": 0.5, "guards": {"solo": 4, "coop": 6}, "tags": []},
+    {"id": "security_post", "type": "utility", "room_class": "security_room", "function": "Dock guard post with CCTV monitors", "floor": 0, "size": [5, 6, 3], "tags": []},
+    {"id": "intel_office", "type": "reward", "room_class": "private_office", "function": "Shift supervisor office with manifests", "floor": 0, "size": [3, 4, 3], "tags": ["reward", "objective_secondary"]},
+    {"id": "warehouse", "type": "encounter", "room_class": "warehouse", "function": "Bonded storage for seized cargo", "floor": 0, "size": [30, 50, 10], "shadow_pct": 0.55, "guards": {"solo": 5, "coop": 7}, "tags": []},
+    {"id": "maintenance_corridor", "type": "connector", "room_class": "corridor", "function": "Service corridor behind warehouse racks", "floor": 0, "size": [2, 30, 3], "tags": ["split_a"]},
+    {"id": "catwalk", "type": "connector", "room_class": "custom", "function": "Crane maintenance catwalk under roof trusses", "floor": 1, "size": [2, 28, 3], "tags": ["split_b", "coop_overwatch"]},
+    {"id": "server_room", "type": "encounter", "room_class": "server_room", "function": "Customs database servers", "floor": 0, "size": [8, 12, 3.5], "shadow_pct": 0.4, "guards": {"solo": 3, "coop": 4}, "tags": ["objective_primary"]},
+    {"id": "plant_room", "type": "utility", "room_class": "plant_room", "function": "HVAC and electrical for warehouse and servers", "floor": 0, "size": [8, 10, 4], "tags": []},
+    {"id": "roof", "type": "exterior", "room_class": "custom", "function": "Warehouse roof with rooftop plant and helipad", "floor": 2, "size": [30, 40, 10], "tags": ["exfil"]}
+  ],
+  "links": [
+    {"from": "perimeter", "to": "loading_dock", "kind": "double_door", "route": "ground", "width": 4.0, "height": 4.5},
+    {"from": "perimeter", "to": "loading_dock", "kind": "pipe", "route": "vertical"},
+    {"from": "loading_dock", "to": "security_post", "kind": "door", "route": "ground", "width": 1.0, "height": 2.2},
+    {"from": "security_post", "to": "intel_office", "kind": "door", "route": "ground", "width": 1.0, "height": 2.2},
+    {"from": "loading_dock", "to": "warehouse", "kind": "double_door", "route": "aggressive", "width": 3.5, "height": 4.0},
+    {"from": "loading_dock", "to": "warehouse", "kind": "coop_boost", "route": "vertical", "solo": false},
+    {"from": "loading_dock", "to": "warehouse", "kind": "ladder", "route": "vertical", "coop": true},
+    {"from": "warehouse", "to": "maintenance_corridor", "kind": "door", "route": "utility", "width": 1.0, "height": 2.2},
+    {"from": "warehouse", "to": "catwalk", "kind": "ladder", "route": "vertical"},
+    {"from": "maintenance_corridor", "to": "server_room", "kind": "door", "route": "utility", "width": 1.0, "height": 2.2},
+    {"from": "catwalk", "to": "server_room", "kind": "vent", "route": "utility", "width": 0.9, "height": 0.9},
+    {"from": "warehouse", "to": "server_room", "kind": "door", "route": "aggressive", "width": 1.0, "height": 2.2},
+    {"from": "server_room", "to": "plant_room", "kind": "vent", "route": "utility", "width": 0.9, "height": 0.9},
+    {"from": "plant_room", "to": "roof", "kind": "ladder", "route": "vertical"},
+    {"from": "catwalk", "to": "roof", "kind": "split_jump", "route": "vertical", "solo": false},
+    {"from": "warehouse", "to": "roof", "kind": "pipe", "route": "vertical"}
+  ]
+}
