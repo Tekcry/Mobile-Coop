@@ -4,6 +4,7 @@ import { W1 } from './tallowWharfW1';
 import { W2, W2_ROTA_DESK } from './tallowWharfW2';
 import { W3, W3_KEY_POSTS } from './tallowWharfW3';
 import { W4 } from './tallowWharfW4';
+import type { WharfSection } from './tallowWharfKit';
 
 /**
  * Tallow Wharf's sector data (mission-framework GB5): the four sections W1-W4 in play order, from the campaign graph
@@ -18,6 +19,31 @@ const PI = Math.PI;
 const at2 = (d: readonly [number, number, number]): [number, number] => [d[0], d[2]];
 
 const r2 = (v: number): number => Math.round(v * 100) / 100;
+
+/** A section's debug point by id (throws when the section file renames it). */
+function dbg(sec: WharfSection, id: string): { x: number; y: number; z: number } {
+  const p = sec.debugPoints.find((d) => d.id === id);
+  if (!p) throw new Error(`tallowWharf: debug point ${id} missing in ${sec.id}`);
+  return p.pos;
+}
+/** A plan point [x, z] from an exported mark ({ x, z } or [x, y, z]). */
+const xz = (p: { x: number; z: number } | readonly [number, number, number]): [number, number] => ('x' in p ? [p.x, p.z] : [p[0], p[2]]);
+/** A route point [x, z, y] on a raised floor from an exported mark. */
+const xzy = (p: { x: number; y: number; z: number }): [number, number, number] => [p.x, p.z, p.y];
+const pose = (p: readonly [number, number, number] | { x: number; y: number; z: number }, yaw: number, dx = 0, dz = 0): { x: number; y: number; z: number; yaw: number } =>
+  'x' in p ? { x: p.x + dx, y: p.y, z: p.z + dz, yaw } : { x: p[0] + dx, y: p[1], z: p[2] + dz, yaw };
+
+// ---- the starts and restart points, read from the section exports (each section starts at the previous one's checkpoint) ----
+/** The W2 restart: the head of the W3 roof bulkhead stair. */
+const BULKHEAD_HEAD = dbg(W3, 'w3-bulkhead-head');
+const W1_START = pose(W1.entry, 0);
+const W1_START2 = pose(W1.entry, 0, 1.5);
+const W2_START = pose(W2.entry, PI / 2);
+const W2_START2 = pose(W2.entry, PI / 2, 0, 1.5);
+const W3_START = pose(BULKHEAD_HEAD, PI / 2);
+const W3_START2 = pose(BULKHEAD_HEAD, PI / 2, 0, -1.4);
+const W4_START = pose(W4.entry, -PI / 2);
+const W4_START2 = pose(W4.entry, -PI / 2, 1.5);
 
 /** A guard's takedown spot: 1.5 m behind him (against his facing). */
 function behind(x: number, z: number, yaw: number): [number, number] {
@@ -220,13 +246,13 @@ const W3_INTEL: SectorIntel[] = [
 const W1_ROUTES: SectorRoute[] = [
   {
     name: "Gallery and the warden's hatch",
-    pts: [[7, 10], [4, 13.5], [4, 16, 4.5], [4, 44, 4.5], [4, 47.5, 4.5], [3, 50, 4.5], [6, 53, 4.5], [9.5, 53], [22, 56.8], [22, 59.2], [37, 60]],
+    pts: [xz(W1.entry), xz(W1.legUps[0]!), [4, 16, 4.5], [4, 44, 4.5], [4, 47.5, 4.5], [3, 50, 4.5], [6, 53, 4.5], [9.5, 53], [22, 56.8], [22, 59.2], [37, 60]],
     obj: 5,
     climbs: [1, 6, 8],
   },
   {
     name: "Stall backs, the market lip and the warden's stair",
-    pts: [[7, 10], [9, 15], [12, 27], [6.5, 29], [5, 29, 4.5], [4, 44, 4.5], [4, 47.5, 4.5], [3, 50, 4.5], [7, 51.5, 4.5], [7, 44.6], [7, 43.4], [33, 43.4], [33, 45], [22, 56.8], [22, 59.2], [37, 60]],
+    pts: [xz(W1.entry), [9, 15], [12, 27], xz(W1.legUps[1]!), [5, 29, 4.5], [4, 44, 4.5], [4, 47.5, 4.5], [3, 50, 4.5], [7, 51.5, 4.5], [7, 44.6], [7, 43.4], [33, 43.4], [33, 45], [22, 56.8], [22, 59.2], [37, 60]],
     obj: 7,
     climbs: [3, 13],
   },
@@ -234,13 +260,13 @@ const W1_ROUTES: SectorRoute[] = [
 const W2_ROUTES: SectorRoute[] = [
   {
     name: 'West pier and the lofts',
-    pts: [[42, 55], [46, 58.5], [46, 60.5, 4.5], [61, 60.5, 4.5], [61, 63, 4.5], [59, 66.5, 4.5], [58.6, 67.8, 4.5], [61, 63, 4.5], [72, 60.5, 4.5], [72, 63, 4.5], [72, 65, 4.5], [72, 66, 8.4], [78.9, 66, 8.4], [83, 66, 8.4]],
+    pts: [xz(W2.entry), xz(W2.legUps[0]!), [46, 60.5, 4.5], [61, 60.5, 4.5], [61, 63, 4.5], [59, 66.5, 4.5], [58.6, 67.8, 4.5], [61, 63, 4.5], [72, 60.5, 4.5], [72, 63, 4.5], [72, 65, 4.5], [72, 66, 8.4], [78.9, 66, 8.4], [83, 66, 8.4]],
     obj: 6,
     climbs: [1, 10, 12],
   },
   {
     name: 'East lip and the corner loft',
-    pts: [[42, 55], [73.5, 58.3], [73.5, 60.5, 4.5], [72, 63, 4.5], [69, 66, 4.5], [64, 66, 4.5], [58.6, 67.8, 4.5], [64, 66, 4.5], [72, 65, 4.5], [72, 66, 8.4], [78.9, 66, 8.4], [83, 66, 8.4]],
+    pts: [xz(W2.entry), xz(W2.pulls[0]!.partner), [73.5, 60.5, 4.5], [72, 63, 4.5], [69, 66, 4.5], [64, 66, 4.5], [58.6, 67.8, 4.5], [64, 66, 4.5], [72, 65, 4.5], [72, 66, 8.4], [78.9, 66, 8.4], [83, 66, 8.4]],
     obj: 6,
     climbs: [1, 8, 10],
   },
@@ -248,13 +274,13 @@ const W2_ROUTES: SectorRoute[] = [
 const W3_ROUTES: SectorRoute[] = [
   {
     name: 'Bulkhead, passage and the chute',
-    pts: [[111.4, 68, 8.4], [113.8, 66, 8.4], [113.8, 60, 0], [111.4, 60], [108, 54], [106.6, 53.75], [101, 53.75], [101, 56.2], [101, 62.5], [101, 53.75], [97.1, 53.2], [97.1, 51, 4.4], [97.1, 49.2], [99.5, 51.2], [90, 46], [90, 38.6], [90, 36]],
+    pts: [xzy(BULKHEAD_HEAD), [113.8, 66, 8.4], [113.8, 60, 0], [111.4, 60], [108, 54], [106.6, 53.75], [101, 53.75], [101, 56.2], [101, 62.5], [101, 53.75], xz(W3.legUps[0]!), [97.1, 51, 4.4], [97.1, 49.2], [99.5, 51.2], xz(dbg(W3, 'w3-coal-yard')), [90, 38.6], xz(dbg(W3, 'w3-cartway'))],
     obj: 8,
     climbs: [1, 10, 11],
   },
   {
     name: 'Fire escape and the east gate',
-    pts: [[111.4, 68, 8.4], [107, 52.6, 8.4], [101, 50, 4.2], [108.4, 50], [112, 51.2], [112, 53], [108, 54], [106.6, 53.75], [101, 53.75], [101, 56.2], [101, 62.5], [101, 53.75], [97.1, 53.2], [97.1, 51, 4.4], [97.1, 49.2], [99.5, 51.2], [90, 46], [90, 36]],
+    pts: [xzy(BULKHEAD_HEAD), [107, 52.6, 8.4], [101, 50, 4.2], [108.4, 50], [112, 51.2], [112, 53], [108, 54], [106.6, 53.75], [101, 53.75], [101, 56.2], [101, 62.5], [101, 53.75], xz(W3.legUps[0]!), [97.1, 51, 4.4], [97.1, 49.2], [99.5, 51.2], xz(dbg(W3, 'w3-coal-yard')), xz(dbg(W3, 'w3-cartway'))],
     obj: 10,
     climbs: [12, 13],
   },
@@ -262,13 +288,13 @@ const W3_ROUTES: SectorRoute[] = [
 const W4_ROUTES: SectorRoute[] = [
   {
     name: 'Clerestory and the loading door',
-    pts: [[90, 32], [79, 29.2], [79, 27, 2.0], [79, 24], [75.5, 15], [79, 11], [79, 9], [86.5, 8], [88, 5.6], [88, 3, -1]],
+    pts: [xz(W4.entry), xz(W4.legUps[0]!), [79, 27, 2.0], [79, 24], [75.5, 15], [79, 11], [79, 9], [86.5, 8], [88, 5.6], [88, 3, -1]],
     obj: 4,
     climbs: [1, 2],
   },
   {
     name: 'Shed two shutter and the canal door',
-    pts: [[90, 32], [92, 29.2], [92, 26.8], [90, 20], [86.4, 19], [80, 17], [75.5, 15], [86.4, 19], [93, 11], [93, 9], [88, 6.5], [88, 3, -1]],
+    pts: [xz(W4.entry), xz(dbg(W4, 'w4-shutter')), [92, 26.8], [90, 20], [86.4, 19], [80, 17], [75.5, 15], [86.4, 19], [93, 11], [93, 9], [88, 6.5], [88, 3, -1]],
     obj: 6,
     climbs: [1],
   },
@@ -279,16 +305,16 @@ export const WHARF_SECTORS: SectorDef[] = [
   {
     id: 'W1',
     name: 'Night market',
-    start: { x: 7, y: 0, z: 10, yaw: 0 },
-    start2: { x: 8.5, y: 0, z: 10, yaw: 0 },
+    start: { ...W1_START },
+    start2: { ...W1_START2 },
     objective: { kind: 'grab', label: "Take the warden's tally book", x: 2.5, y: 4.5, z: 50, yaw: 0 },
     connector: {
       label: 'Service passage to the arcade',
       box: [36.2, 58.2, 39.8, 61.8],
       floorY: 0,
       nearAt: at2(W1.doors['w1-conn-near']!),
-      checkpoint: { x: 42, y: 0, z: 55, yaw: PI / 2 },
-      checkpoint2: { x: 42, y: 0, z: 56.5, yaw: PI / 2 },
+      checkpoint: { ...W2_START },
+      checkpoint2: { ...W2_START2 },
     },
     guards: W1_GUARDS,
     reinforce: [[34, 60.5], [36, 16]],
@@ -301,16 +327,16 @@ export const WHARF_SECTORS: SectorDef[] = [
   {
     id: 'W2',
     name: 'Arcade lofts',
-    start: { x: 42, y: 0, z: 55, yaw: PI / 2 },
-    start2: { x: 42, y: 0, z: 56.5, yaw: PI / 2 },
+    start: { ...W2_START },
+    start2: { ...W2_START2 },
     objective: { kind: 'grab', label: "Lift the clerk's notebook in the pie shop loft", x: 58.6, y: 4.5, z: 68.4, yaw: 0 },
     connector: {
       label: 'Over the arcade lane to the counting house roof',
       box: [82.2, 64.5, 86.5, 67.5],
       floorY: 8.4,
       // the restart point is the head of the roof bulkhead stair (the roof fire escape into the east wing)
-      checkpoint: { x: 111.4, y: 8.4, z: 68, yaw: PI / 2 },
-      checkpoint2: { x: 111.4, y: 8.4, z: 66.6, yaw: PI / 2 },
+      checkpoint: { ...W3_START },
+      checkpoint2: { ...W3_START2 },
     },
     guards: W2_GUARDS,
     reinforce: [[74, 50], [42, 50]],
@@ -323,16 +349,16 @@ export const WHARF_SECTORS: SectorDef[] = [
   {
     id: 'W3',
     name: 'Counting house',
-    start: { x: 111.4, y: 8.4, z: 68, yaw: PI / 2 },
-    start2: { x: 111.4, y: 8.4, z: 66.6, yaw: PI / 2 },
+    start: { ...W3_START },
+    start2: { ...W3_START2 },
     objective: { kind: 'grab', label: 'Take the ledger from the strongroom', x: 101, y: 0, z: 62.5, yaw: 0 },
     connector: {
       label: 'Cartway to the wharf sheds',
       box: [88.2, 34.2, 91.8, 37.8],
       floorY: 0,
       nearAt: at2(W3.doors['w3-conn-near']!),
-      checkpoint: { x: 90, y: 0, z: 32, yaw: -PI / 2 },
-      checkpoint2: { x: 91.5, y: 0, z: 32, yaw: -PI / 2 },
+      checkpoint: { ...W4_START },
+      checkpoint2: { ...W4_START2 },
     },
     guards: W3_GUARDS,
     reinforce: [[103, 40], [94, 46]],
@@ -354,8 +380,8 @@ export const WHARF_SECTORS: SectorDef[] = [
   {
     id: 'W4',
     name: 'Wharf sheds',
-    start: { x: 90, y: 0, z: 32, yaw: -PI / 2 },
-    start2: { x: 91.5, y: 0, z: 32, yaw: -PI / 2 },
+    start: { ...W4_START },
+    start2: { ...W4_START2 },
     objective: { kind: 'grab', label: 'Take the packet from the candle chest in shed three', x: 75.5, y: 0, z: 14, yaw: 0 },
     extract: { label: 'The boat at the jetty steps', box: [84, 1, 96, 5], floorY: -1 },
     guards: W4_GUARDS,
