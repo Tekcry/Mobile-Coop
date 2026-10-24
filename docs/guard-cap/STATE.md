@@ -13,15 +13,7 @@
 - SIDE (orchestrator ~18:35): e2e-coop joint interrogation flake -> PR #328 (feature/joint-flake 240addc2, test only: the
   client hold starts at the bluff; JOINT.window 6 s host time was spent by sequential polls). Laptop e2e-coop queued
   (20261024T072944-...-d2f1, set joint-flake). TRAIN-READY ~18:45 (CI green, laptop e2e-coop 1/1 PASS 150 s on 240addc2); rides with #314 (orchestrator resolves any conflict in the train). Nothing owed.
-- R1 TAKEN by Guard AI Build (~18:30): Opus builder on feature/guard-ai-r1-rays off 6e8a450b (brief docs/guard-cap/briefs/R1.md);
-  Opus checker + laptop e2e-stealth-ai / e2e-enemies, PR into the next train; it copies Marlow at train-ready. Marlow does not touch src/ai.
-
-## Next (lead: Night Shift | Marlow Build)
-1. M1 checker -> merge -> laptop alone request (smoke: --maps=campus --counts=0,12 --players=2 --secs=3; then the full run).
-2. One Opus read of M0 + gr2 + M1 against the decision rule (PLAN section 2) -> REPORT.md "2026-10 re-measure" -> the
-   triggered slices as their gates open (PLAN section 4).
-
-## Open
+- R1 DONE (Guard AI): PR #326 (feature/guard-ai-r1-rays 321ef486), checker PASS, laptop stealth-ai / enemies / combat PASS, CI green; train-ready via the orchestrator. Extra: Ballistics casts no longer res.reset() (2 Vector3.Zero per cast); losClear keeps the ray path at slack 0 (a miss reads blocked there).
 - Gates: guard-models + gm-perf (Player), guard-render-2 (Test Runner), coop4 (Sector Ops), optic-coop (Player),
   guard-ai-coop-carry (Guard AI) must merge before C1 / C2 / D1 / N1 / K1 / M2 / DOC.
 - M0 noise: guard-render-2 saw a 0-guard p95 of 13.6 vs 3.4; decide on medians of r1 / r2 only.
