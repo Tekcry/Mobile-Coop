@@ -10,7 +10,7 @@
  * - off (`?animtier=0`), pinned (in a takedown / held / carried, a scripted emote, climbing) or within
  *   `ANIM_TIER_NEAR_PLAYER` of any player (local or remote): every frame;
  * - off-screen (a render happened since the last update and the guard's merged body was drawn in no local view):
- *   every `ANIM_TIER_OFFSCREEN` th frame;
+ *   every `ANIM_TIER_OFFSCREEN` th frame (guard-cap T1: 8);
  * - beyond `ANIM_TIER_FAR` from the nearest local camera (the rig's anim LOD distance, never scaled by the Detail
  *   setting: PLAN S3): every `ANIM_TIER_FAR_PERIOD` th frame;
  * - else every frame.
@@ -24,8 +24,8 @@
 export const ANIM_TIER_FAR = 22;
 /** Within this horizontal distance (m) of any player a guard always solves every frame. */
 export const ANIM_TIER_NEAR_PLAYER = 4;
-/** Solve every Nth frame off-screen. */
-export const ANIM_TIER_OFFSCREEN = 4;
+/** Solve every Nth frame off-screen (guard-cap T1: 4 -> 8, off-screen only; the far tier is visible and stays 2). */
+export const ANIM_TIER_OFFSCREEN = 8;
 /** Solve every Nth frame when far. */
 export const ANIM_TIER_FAR_PERIOD = 2;
 /** (perfg) The FROZEN tier's period: never solve while frozen. */
