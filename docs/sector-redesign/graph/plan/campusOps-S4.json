@@ -76,6 +76,12 @@
   "spaces": [
     {
       "id": "s4-dock",
+      "area": [
+        14,
+        16,
+        34,
+        22
+      ],
       "section": "S4",
       "type": "encounter",
       "room_class": "storage",
@@ -103,6 +109,12 @@
     },
     {
       "id": "s4-lobby",
+      "area": [
+        -4,
+        16,
+        14,
+        22
+      ],
       "section": "S4",
       "type": "encounter",
       "room_class": "security_room",
@@ -128,6 +140,12 @@
     },
     {
       "id": "s4-mantrap",
+      "area": [
+        8,
+        19,
+        11,
+        22
+      ],
       "section": "S4",
       "type": "connector",
       "room_class": "custom",
@@ -144,6 +162,12 @@
     },
     {
       "id": "s4-plenum",
+      "area": [
+        -4,
+        16,
+        14,
+        22
+      ],
       "section": "S4",
       "type": "connector",
       "room_class": "custom",
@@ -160,6 +184,12 @@
     },
     {
       "id": "s4-batt",
+      "area": [
+        -10,
+        16,
+        -4,
+        27.5
+      ],
       "section": "S4",
       "type": "encounter",
       "room_class": "plant_room",
@@ -185,6 +215,12 @@
     },
     {
       "id": "s4-yard",
+      "area": [
+        34,
+        16,
+        40,
+        48
+      ],
       "section": "S4",
       "type": "encounter",
       "room_class": "plant_room",
@@ -210,6 +246,12 @@
     },
     {
       "id": "s4-riser",
+      "area": [
+        30.5,
+        42,
+        34,
+        48
+      ],
       "section": "S4",
       "type": "stair_core",
       "room_class": "stair_core",
@@ -226,6 +268,12 @@
     },
     {
       "id": "s4-deck",
+      "area": [
+        -10,
+        16,
+        34,
+        48
+      ],
       "section": "S4",
       "type": "encounter",
       "room_class": "yard",
@@ -251,6 +299,12 @@
     },
     {
       "id": "s4-noc",
+      "area": [
+        -4,
+        42,
+        8,
+        48
+      ],
       "section": "S4",
       "type": "encounter",
       "room_class": "security_room",
@@ -278,6 +332,12 @@
     },
     {
       "id": "s4-nc",
+      "area": [
+        8,
+        42,
+        30.5,
+        48
+      ],
       "section": "S4",
       "type": "connector",
       "room_class": "corridor",
@@ -294,6 +354,12 @@
     },
     {
       "id": "s4-sec",
+      "area": [
+        -4,
+        42,
+        8,
+        48
+      ],
       "section": "S4",
       "type": "encounter",
       "room_class": "security_room",
@@ -321,6 +387,12 @@
     },
     {
       "id": "s4-hall",
+      "area": [
+        -4,
+        22,
+        34,
+        42
+      ],
       "section": "S4",
       "type": "encounter",
       "room_class": "server_room",
@@ -348,6 +420,12 @@
     },
     {
       "id": "s4-ups",
+      "area": [
+        -10,
+        31,
+        -4,
+        48
+      ],
       "section": "S4",
       "type": "utility",
       "room_class": "plant_room",
@@ -364,6 +442,12 @@
     },
     {
       "id": "s4-baskets",
+      "area": [
+        3.1,
+        40.8,
+        32.6,
+        41.8
+      ],
       "section": "S4",
       "type": "connector",
       "room_class": "custom",
@@ -380,6 +464,12 @@
     },
     {
       "id": "s4-cage",
+      "area": [
+        14,
+        34,
+        22,
+        40
+      ],
       "section": "S4",
       "type": "objective",
       "room_class": "storage",
@@ -398,6 +488,12 @@
     },
     {
       "id": "s4-cc",
+      "area": [
+        -10,
+        27.5,
+        -4,
+        31
+      ],
       "section": "S4",
       "type": "connector",
       "room_class": "corridor",
@@ -410,7 +506,8 @@
       ],
       "tension": 3,
       "tags": [
-        "exit"
+        "exit",
+        "exfil"
       ],
       "note": "PLAN. Widened: x -10..-4, z 27.5..31 (box 3.5, clear 3.3; was 2.4 / 2.2), with a 3.0 ceiling slab (3.0-3.2). Doors: C4 near (-10, 29) unchanged; battCC (-8.5, 27.5) and ccUps (-5.5, 31), 3.0 m offset; hallCC walled up, so no two doors face each other. Guard #19 (K3) re-posted at (-8.8, 30.0) facing east, leash 5, guards c4-gate (the choke), counted in the note."
     }

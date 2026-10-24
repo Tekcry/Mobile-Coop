@@ -20,6 +20,12 @@
   "spaces": [
     {
       "id": "s3-c2",
+      "area": [
+        10,
+        -30,
+        14,
+        -11
+      ],
       "section": "S3",
       "type": "connector",
       "room_class": "corridor",
@@ -38,6 +44,12 @@
     },
     {
       "id": "s3-walkway",
+      "area": [
+        14,
+        -29.85,
+        52,
+        -28.35
+      ],
       "section": "S3",
       "type": "connector",
       "room_class": "custom",
@@ -54,6 +66,12 @@
     },
     {
       "id": "s3-hall",
+      "area": [
+        10,
+        -30,
+        52,
+        -11
+      ],
       "section": "S3",
       "type": "encounter",
       "room_class": "lab",
@@ -82,6 +100,12 @@
     },
     {
       "id": "s3-chamber",
+      "area": [
+        30,
+        -22,
+        36,
+        -14
+      ],
       "section": "S3",
       "type": "connector",
       "room_class": "custom",
@@ -98,6 +122,12 @@
     },
     {
       "id": "s3-gallery",
+      "area": [
+        28,
+        -12.5,
+        44,
+        -11
+      ],
       "section": "S3",
       "type": "connector",
       "room_class": "custom",
@@ -114,6 +144,12 @@
     },
     {
       "id": "s3-view",
+      "area": [
+        10,
+        -11,
+        52,
+        -7
+      ],
       "section": "S3",
       "type": "connector",
       "room_class": "corridor",
@@ -133,6 +169,12 @@
     },
     {
       "id": "s3-hoist",
+      "area": [
+        10,
+        -7,
+        21,
+        0
+      ],
       "section": "S3",
       "type": "utility",
       "room_class": "storage",
@@ -149,6 +191,12 @@
     },
     {
       "id": "s3-writeup",
+      "area": [
+        21,
+        -7,
+        30,
+        0
+      ],
       "section": "S3",
       "type": "utility",
       "room_class": "meeting_room",
@@ -167,6 +215,12 @@
     },
     {
       "id": "s3-nstair",
+      "area": [
+        30,
+        -7,
+        33.5,
+        -0.5
+      ],
       "section": "S3",
       "type": "stair_core",
       "room_class": "stair_core",
@@ -183,6 +237,12 @@
     },
     {
       "id": "s3-gown",
+      "area": [
+        33.5,
+        -7,
+        37.5,
+        0
+      ],
       "section": "S3",
       "type": "utility",
       "room_class": "storage",
@@ -199,6 +259,12 @@
     },
     {
       "id": "s3-clean",
+      "area": [
+        37.5,
+        -7,
+        47,
+        0
+      ],
       "section": "S3",
       "type": "utility",
       "room_class": "lab",
@@ -215,6 +281,12 @@
     },
     {
       "id": "s3-store",
+      "area": [
+        47,
+        -7,
+        58,
+        0
+      ],
       "section": "S3",
       "type": "objective",
       "room_class": "storage",
@@ -234,6 +306,12 @@
     },
     {
       "id": "s3-void",
+      "area": [
+        21,
+        -7,
+        58,
+        0
+      ],
       "section": "S3",
       "type": "duct",
       "room_class": "custom",
@@ -250,6 +328,12 @@
     },
     {
       "id": "s3-estair",
+      "area": [
+        58,
+        -7,
+        61.5,
+        -0.5
+      ],
       "section": "S3",
       "type": "stair_core",
       "room_class": "stair_core",
@@ -266,6 +350,12 @@
     },
     {
       "id": "s3-east",
+      "area": [
+        52,
+        -11,
+        64,
+        -7
+      ],
       "section": "S3",
       "type": "connector",
       "room_class": "corridor",
@@ -282,6 +372,12 @@
     },
     {
       "id": "s3-sec",
+      "area": [
+        53,
+        -18,
+        64,
+        -11
+      ],
       "section": "S3",
       "type": "utility",
       "room_class": "security_room",
@@ -300,6 +396,12 @@
     },
     {
       "id": "s3-control",
+      "area": [
+        30,
+        -11,
+        52,
+        0
+      ],
       "section": "S3",
       "type": "utility",
       "room_class": "lab",
@@ -318,6 +420,12 @@
     },
     {
       "id": "s3-plant",
+      "area": [
+        52,
+        -30,
+        64,
+        -7
+      ],
       "section": "S3",
       "type": "utility",
       "room_class": "plant_room",
@@ -336,6 +444,12 @@
     },
     {
       "id": "s3-dock",
+      "area": [
+        10,
+        -11,
+        30,
+        0
+      ],
       "section": "S3",
       "type": "encounter",
       "room_class": "storage",
