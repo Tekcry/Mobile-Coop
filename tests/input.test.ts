@@ -223,7 +223,7 @@ describe('binding table (docs/systems/input-and-loop.md)', () => {
     L3: PAD.LS, R3: PAD.RS, 'D-pad up': PAD.UP, 'D-pad down': PAD.DOWN, 'D-pad left': PAD.LEFT, 'D-pad right': PAD.RIGHT,
   };
   const KEY_LABEL = (code: string): string =>
-    ({ ControlLeft: 'Left Ctrl', ShiftLeft: 'Left Shift', AltLeft: 'Left Alt', CapsLock: 'Caps Lock', Equal: '=', Minus: '-', Space: 'Space', Tab: 'Tab' })[code] ?? code.replace(/^Key/, '');
+    ({ ControlLeft: 'Left Ctrl', ShiftLeft: 'Left Shift', AltLeft: 'Left Alt', CapsLock: 'Caps Lock', Equal: '=', Minus: '-', Space: 'Space', Tab: 'Tab', Mouse1: 'Middle mouse' })[code] ?? code.replace(/^Key/, '');
 
   it('has a row per verb', () => {
     expect(rows.length).toBeGreaterThanOrEqual(19);

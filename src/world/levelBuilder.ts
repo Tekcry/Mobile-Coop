@@ -38,6 +38,7 @@ import { generateLedges, makeLedge, suppressLedgesNear, TraversalAnchors, type F
 import { LightRegistry, type LightInit } from './lights';
 import { canonicalLightSet } from '../voxel/lightShapes';
 import { sheetMesh, type SheetPiece } from './roofSheets';
+import { addOpticPoint, OPTIC_POINT_MAX, type OpticKind, type OpticPoint } from '../player/opticCable';
 
 /** Gap between a body in cover and the surface (shared by the player and AI). */
 export const COVER_STANDOFF = coverStandoff(MOVEMENT.radius, proportions('broad').bodyDepthHalf);
@@ -112,6 +113,9 @@ export interface BuiltLevel {
   coverSegments: CoverSegment[];
   /** Traversal anchors: generated ledges plus the map's ladders, pipes, ducts, windows, doors, ziplines. */
   anchors: TraversalAnchors;
+  /** (ct-toolkit 3.2 / 5, optic-coop) The optic cable's gaps other than doors (map field `optic`): hatches, ceiling
+   *  panels, grilles, shaft tops, in map order (the index is MoveState `a` for mode `optic` subs 1-3). */
+  opticPoints: readonly OpticPoint[];
   /** Every light of the level (gameplay light sampling + the renderer's capped real-light set). */
   lights: LightRegistry;
   /** Marked floor surfaces (footstep loudness / sound); unmarked floor is the map theme's default. */
@@ -155,6 +159,8 @@ export class LevelBuilder {
   bounds = { minX: -20, maxX: 20, minZ: -20, maxZ: 20 };
   /** Placed anchors (ledges are generated at build time and added after these). */
   readonly anchors = new TraversalAnchors();
+  /** (optic-coop) The optic cable's gaps other than doors (`opticGap`). */
+  readonly opticPoints: OpticPoint[] = [];
   readonly lights = new LightRegistry();
   readonly surfaces: SurfaceArea[] = [];
   /** (warehouse-lamps) Translucent roof sheets (drawn as one see-through mesh; each also has a collision-only box). */
@@ -313,6 +319,22 @@ export class LevelBuilder {
     // (E10) an armoured leaf: rounds stop on it, never through it (`doorMembership`); it opens, locks and bashes as any door
     if (opts.armoured) d.armoured = true;
     return this.anchors.add<Door>(d);
+  }
+
+  /**
+   * (ct-toolkit 3.2 / 5, optic-coop) A gap the optic cable goes through (map field `optic: true`): a floor hatch, a
+   * ceiling panel, a vent grille or a shaft top. (gx, gy, gz) the point in the opening, (nx, ny, nz) the unit normal into
+   * the space beyond (floor (0, -1, 0), ceiling (0, 1, 0), wall horizontal), `tip` the checked tip point (default
+   * `OPTIC.into` along the normal). Data only: no mesh, no collision (the hatch, panel or grille is the map's own piece).
+   * (optic-coop M1) `trap`: the breakable panel key that covers the gap and opens (the menu's OPEN TRAP); none, nothing
+   * opens. (check A polish 2) At most `OPTIC_POINT_MAX` gaps (the wire's bound): past it the gap is refused with a warning.
+   */
+  opticGap(kind: OpticKind, gx: number, gy: number, gz: number, nx: number, ny: number, nz: number, tip?: P3, trap?: string): OpticPoint {
+    const p: OpticPoint = { kind, gap: { x: gx, y: gy, z: gz }, nx, ny, nz };
+    if (tip) p.tip = { x: tip.x, y: tip.y, z: tip.z };
+    if (trap) p.trap = trap;
+    if (!addOpticPoint(this.opticPoints, p)) console.warn(`opticGap: past ${OPTIC_POINT_MAX} gaps (the wire's bound); gap at ${gx}, ${gy}, ${gz} refused`);
+    return p;
   }
 
   /**
@@ -753,6 +775,7 @@ export class LevelBuilder {
       cover,
       coverSegments,
       anchors,
+      opticPoints: this.opticPoints,
       lights: this.lights,
       surfaces: this.surfaces,
       bounds: this.bounds,

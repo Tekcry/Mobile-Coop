@@ -122,7 +122,7 @@ Edit the table and the code together.
 | Fire / strike | `fire` | RT | R2 / ZR | LMB | A3: fires only while aiming. Holstered or holding a guard (M3): tap knockout, hold 0.35 s kill |
 | Knockout (keyboard) | `altFire` | - | - | `knockout` (Z) | Holstered or holding a guard: the knockout. No pad button |
 | Reload | `reload` | X (hold, gun out) | Square / Y (hold) | `reload` (R) | A2 (Michael 14:55): X held only on the pad; A always interacts |
-| Zoom | `zoom` | R3 | R3 / RS | `zoom` (B) | Aiming with a scoped weapon only; normal aim never zooms (G29) |
+| Zoom | `zoom` | R3 | R3 / RS | `zoom` (B) | Aiming with a scoped weapon only; normal aim never zooms (G29). R3 is shared with Ping by context (optic-coop M2): aiming a scoped weapon R3 is Zoom only |
 | Crouch | `crouch` | B | Circle / A | `crouch` (C, Left Ctrl) | Toggle by default; also `drop` |
 | Jump / traverse | `jump` | Y | Triangle / X | `jump` (Space) | Team move > traversal. M4: a gun out goes away for the move and comes back after. A closed vent: the press starts it, a tap kicks, a hold unscrews (vent-kick, M1, pad and keyboard alike: Y / Space held is no kick and carries into A / E, so Y / Space held, or Y / Space then A / E held, unscrews; A / E let go mid-way stops) |
 | Interact / context (doors, takedown) | `interact` | A | Cross / B | `interact` (E) | G5: the context action menu (hold = the list, release = run the highlighted row; below). Every weapon state ("Interact always") |
@@ -136,6 +136,7 @@ Edit the table and the code together.
 | Vision on / off | `vision` | D-pad left | D-pad left | `goggles` (N) | F1a, G181: toggles the mode picked on the wheel (night first), never cycles between modes |
 | Shoulder swap | `shoulderSwap` | L3 | L3 / LS | `shoulder` (V) | G17: only while aiming; L3 is the wall button when not aiming (F1a) |
 | Mission device | `none` | View (not in yet) | Create / Minus | - | CT's Back button; no action yet |
+| Ping (co-op) | `ping` | R3 | R3 / RS | `ping` (Middle mouse) | optic-coop M2 (Michael 2026-10-24: "Bind ping: middle mouse on keyboard, R3 on pad; it works from the optic view too"): marks the spot or guard under the crosshair for the team; in the optic view it casts from the tip from the view's first step (`OpticSystem.tipRay`). R3 is also Zoom, by context (Michael 2026-10-24 ~14:55: "contextual: R3 pings normally and zooms only while aiming a scoped weapon (no ping while scoped). Keyboard: middle mouse pings."): aiming a scoped weapon R3 zooms and does not ping, otherwise it pings and does not zoom (`contextPing` / `contextZoom`, `input/conflicts.ts`); an allowed pair, no conflict. Middle mouse pings in any state |
 | Pause | `pause` | Menu | Options / Plus | `pause` (P); Esc | - |
 
 ### The context action menu (CT prototype G5, `game/contextMenu.ts`, AUDIT-ACTIONMENU)
@@ -144,8 +145,10 @@ Edit the table and the code together.
   menu), and no BACK TO GAME (Michael 2026-10-20 08:10 / 08:25; `grabMenu.ts`); else the takedown on offer (GRAB
   CHARACTER from behind; one named row, a knockout, for the other takedowns; none where only a lethal one is allowed),
   the door set of the closed, unlocked door faced (OPEN DOOR, OPEN DOOR
-  STEALTH when the peek is on offer, BASH DOOR, OPTIC CABLE (stub); `doorMenu.ts`), then the item in reach or the carry
-  target (its label; a door's own item reads OPEN DOOR / CLOSE DOOR).
+  STEALTH when the peek is on offer, BASH DOOR, OPTIC CABLE; `doorMenu.ts`), else (optic-coop M1) the set of the optic
+  gap in reach (a hatch, ceiling panel, grille or shaft top within 1.6 m, in front unless at the feet: OPEN TRAP only
+  where a closed panel covers it (`OpticPoint.trap`), then OPTIC CABLE; `gapMenu.ts`; refusals "Too far" / "No gap" as
+  at a door), then the item in reach or the carry target (its label; a door's own item reads OPEN DOOR / CLOSE DOOR).
 - States: none (nothing in reach); passive (the list shows, header INTERACT, no highlight, walking free); active (A
   held: header BACK TO GAME, row 1 highlighted in the press step, the operator stands still, the camera is free). The
   highlight moves one row per step, no wrap: D-pad up / down and the mouse wheel (`ctxUp` / `ctxDown`) always; the stick, W / S and the arrows once the
@@ -179,8 +182,11 @@ Edit the table and the code together.
   under the pad (`docs/systems/gadgets.md`, Wheel). The look rate still comes from `look`.
 - Shared-by-design verbs are one row: X = holster / draw (tap) + reload (held, gun out), RT = fire (aiming) / the
   strike's tap knockout and hold kill (holstered). The tap / hold splits follow the button. A3 split the old shared Y (jump + interact) and A (context) into Y = jump, A = interact.
-- Conflicts (`input/conflicts.ts`, `findConflicts(binds, groups)`): two verbs of one group on one input, once per pair;
-  menu keys are their own group; no pair may share (A3 removed the Traverse + Use pair). A conflict is shared, warned on both
+- Conflicts (`input/conflicts.ts`, `findConflicts(binds, groups)`): two verbs of one group on one input, once per pair
+  (the defaults have none; middle mouse was free for Ping); menu keys are their own group. `ALLOWED_PAIRS` holds the
+  pairs that may share an input: only Zoom + Ping (optic-coop M2, Michael "contextual": one press is Zoom while aiming a
+  scoped weapon, else Ping, `contextPing`; the controls screen's pad note says so); A3 removed the Traverse + Use pair.
+  Any other verb on their input (a player's remap) is still a conflict with each. A conflict is shared, warned on both
   rows and in a summary, and saved (A71).
 - Capture: 5 s timeout; keyboard Esc cancels, Backspace clears; pad binds on release, B held `CAPTURE_CANCEL_HOLD` 1 s or
   Esc cancels (G22 changes this), Y on a slot clears. Reset per device with a confirm.

@@ -57,6 +57,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   tab and rejoin from its menu (or toggle its network off and on): the joiner comes back in the A3 entry airlock (or
   beside the host if that airlock is shut off), with A1-A2 done, the A3 doors as the host has them and the HUD on A3,
   never at the yard start. Same in Sector Ops in section 2 or 3.
+- [ ] (coop-carry) Co-op, two pages: the joiner knocks a guard out, walks to the body and picks it up (Pick up body): the 2 s lift, then it rides on the joiner's shoulder on both screens (the joiner bent, slow); the joiner hides it at a hiding spot (gone on both) or puts it down (a ragdoll on both, a guard nearby hears it). The host's own carry now shows on the joiner's screen too.
 - [ ] (pose-parity) Co-op, two pages: a partner aiming from the left shoulder while holding a hostage or on a rope shows the gun in the left hand; a partner's choke shows no elbow wind-up.
 - [ ] Lamp light (LR16a: one photometric model, no Lamp falloff row in Settings > Gameplay): start Sector Ops: the S1
   goods-in floor between the strips reads lit (meter and picture agree), Marlow station 2 still reads; a guard's torch
@@ -486,6 +487,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Optic cable (ct-toolkit 3.2): at a closed door hold A, OPTIC CABLE: she kneels, after about 1.2 s the view is
   under the door on the far side at floor height (feed overlay); the stick turns it (+-75 deg, -10..+60 deg), D-pad
   left toggles vision, B or the stick pulled back leaves; a guard on your side still sees you kneeling.
+- [ ] (optic-coop M1) At an optic gap (a hatch, ceiling panel, grille or shaft top; none placed on a map yet, so a dev
+  level with `opticGap`): hold A: OPEN TRAP (only where a panel covers the gap) and OPTIC CABLE, the door menu's list;
+  OPEN TRAP opens the panel quietly; OPTIC CABLE feeds the cable ("Too far" / "No gap" as at a door). Keyboard: E.
 - [ ] Drainpipe: one reach per hand about a second, feet together; shimmy slow with the legs swinging; ledge climb-up
   ends crouched (hold the stick to stand); ladder slower up, faster down; rappel 0.6 m/s.
 
@@ -645,6 +649,13 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   and `style.knockouts` did not rise from the pairing (e2e-coop).
 - [ ] The Fallow bunker: open `?net=local&autostart=bunker&mode=course` in both tabs. The objective list shows for both;
   one player on an airlock pad shows "Waiting for partner"; both seal it; the rear door stays locked.
+- [ ] (optic-coop) Optic cable seen by the partner: one tab, at a closed door hold A, OPTIC CABLE. The other tab sees her
+  kneel in front of the leaf, her right hand down at the door's foot and a thin dark cable running out under the door;
+  her view is not shared. When she pulls out (B) the cable shortens and goes, and she stands. Works both ways (host and
+  joiner). (M2) R3 / middle mouse pings; a ping from the view marks what the tip sees on both tabs, also in the
+  view's first moment. R3 while aiming a scoped weapon zooms and sends no ping; R3 otherwise pings and does not zoom;
+  middle mouse pings while scoped too. Controls screen: Zoom and Ping both on R3 show no conflict (the pad note names
+  the context); put another verb on R3 and it shows as a conflict.
 - [ ] Close the host tab: the client is told and returns to the menu.
 - [ ] (marlow-bays B+M) Marlow Yard in two tabs (`?net=local&autostart=ctcourse&mode=course`): as the joiner, grab a
   guard and walk: full hold speed, no shoving or jitter; on the host the guard stays in front of the joiner's body.

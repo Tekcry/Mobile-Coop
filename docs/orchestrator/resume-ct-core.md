@@ -1,4 +1,4 @@
-# Resume - Night Shift | Player Build (2026-10-24 ~18:10 local, resumed on the new account; older log: history at the end)
+# Resume - Night Shift | Player Build (2026-10-24 ~19:00 local; older log: history at the end)
 
 Rules: CLAUDE.md "Sessions" ("Heavy-usage throughput", "Token rules", "Account swap"). Opus builds / checks anim, net, AI;
 Sonnet strict briefs / data checks. No desktop e2e: laptop queue (C:/NightShift/scratch/ctcore/lq/request.mjs --sha <full>
@@ -8,12 +8,12 @@ Message the orchestrator only at PR open / train-ready / blocked / Michael. Push
 ## Now (master 6e8a450b train 56; resumed 2026-10-24 ~18:00 local on the new account)
 | Job | Branch (worktree C:/NightShift/Mobile-Coop-<x>) | Head | Next |
 | --- | --- | --- | --- |
-| #318 guard-models | feature/guard-models | dbfec6ad + merge in flight | Laptop green: G9 16/17 on 89c10827 + e2e-offline (set guard-models-sw) on aba0953a. Was CONFLICTING (src/ai/body.ts, enemyManager.ts) + CI test FAIL (visionIsolation: guardBody.ts setHeat; render-only like dogModel -> exempt). Opus agent merging master + test fix. Then: merge gm-perf (after its checker), flip src/core/flags.ts guardModels `!== '0'`, flag-on laptop suites (enemies, coop, ctcourse, combat, guard-carry), label train-ready. |
-| guard-models perf | feature/gm-perf | a64fb335 | Cap A/B on 408ab154 = GATE PASS (origin/shots/gm-perf-408ab154): 24 guards frame p95 ON/OFF sectorops patrol 6.5/6.5, alert 7.2/7.4; campus patrol 9.0/9.7, alert 9.2/10.0. Opus checker running (reports/GM-PERF-CHECK.md). S13 armour merge not measured (fewer meshes; optional perf.mjs). |
-| #314 optic-coop | feature/optic-coop | 979da9d7 + merge in flight | Checks A/B/R3 PASS, laptop coop+netmove 52258028 + pad+mouse c69b698c PASS, CI green. Was CONFLICTING (src/net/remotePlayer.ts, tests/net.test.ts): Opus agent merging master. Then CI -> label train-ready. |
-| G10a guard defects (plan) | - | - | Opus plan of the lead-found sheet defects (shield missing, debug markers, seam gaps) -> C:/NightShift/scratch/ctcore/briefs/gm-g10a.md. Look items wait on Michael's sheet notes (G10). |
+| #318 guard-models (flag OFF) | feature/guard-models | 1569b0f8 | TRAIN-READY (label, orchestrator told ~18:15). Master merged c105ccb4 + visionIsolation exempts render-only guardBody.ts. CI green. Laptop G9 on 89c10827 + offline on aba0953a. |
+| gm-flip (follow-up PR) | feature/gm-flip (gm-flip; node_modules = junction to guard-models) | 7abe33c0 | = guard-models + gm-perf (checker PASS d729e490, GM-PERF-CHECK.md polish 1-8) + guardActiveMeshes stub fix. Cap gate PASS (origin/shots/gm-perf-408ab154: 24 guards ON/OFF p95 sectorops 6.5/6.5, 7.2/7.4; campus 9.0/9.7, 9.2/10.0). Waits for G10a D3 + D6, then merge gm-g10a, flip src/core/flags.ts guardModels `!== '0'`, docs + changes/ fragment, laptop flag-on suites (enemies coop ctcourse combat guard-carry), open PR to master. |
+| G10a guard defects | feature/gm-g10a (gm-g10a) | 1569b0f8 + builder | Opus builder running from C:/NightShift/scratch/ctcore/briefs/gm-g10a.md (D1 sheet goggle markers, D1c mirrored tile, D2 tone-0 clamp, D3 uniforms ~10x dark, D4 hairline, D5 colour out of bake hashes, D6 balaclava half-face). Then Sonnet checker + one laptop full rebake (~55 min). Look items wait on Michael (G10). |
+| #314 optic-coop | feature/optic-coop | 762b479f | TRAIN-READY (~19:00, orchestrator told). Master merged 3f5292e9; e2e-coop dual-takedown flake hardened 762b479f (laptop pass 156 s); CI green. |
 
-#308 rig-pose-fix: DONE (4.92.0; e2e-course pass; tuner-phone solo pass on 23353993, so the train-54 failure was a flake: fix the e2e-tuner-phone drawer scroll wait in the next Player batch PR).
+#308 rig-pose-fix: DONE (4.92.0). Owed: e2e-tuner-phone drawer-scroll flake fix (train 54 fail, solo pass 23353993) in the next Player batch PR.
 
 ## Open
 - guard-models STATE.md top: G8 numbers, S11 merge notes (in master merge now), G10 look list (no sheet notes from Michael yet), garment seam gaps, MERGE-CHECK-A/B polish (lightRig caster refill not behind the flag; `die` figure update after frozen solveNow).

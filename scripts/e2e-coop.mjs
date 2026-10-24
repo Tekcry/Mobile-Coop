@@ -754,6 +754,78 @@ try {
   // the knocked-out guard lies on the client as long as the host has the body
   await until(B, (id) => window.__app.current.net.kept.has(id), tdv, 6000, 'client keeps the body');
   assert(true, 'client keeps the body the host has lying');
+  // (coop-carry) the client carries the body: its mirrored "Pick up body" item asks the host, the host lifts it (carried:
+  // no guard finds it) and both pages show it on the client's shoulder after the lift; then the client hides it at the
+  // map's nearest hiding spot (or, with none, puts it down) and no guard ever finds a hidden body. Sim-time waits only.
+  // (fix round) Every other live guard on the host is frozen for the block (nobody finds and wakes him before the lift;
+  // the takedown pin runs on rAF, which stops on the backgrounded host), and each client teleport is allowed on the host
+  // and waited for there (its copy of the client's feet otherwise walks ~0.8 m a state and the hide is out of reach).
+  {
+    const cid = await GA(() => window.__app.current.net.remotes.values().next().value?.id ?? '');
+    const bodyItemId = await GA((id) => { const b = window.__app.current.enemyMgr.bodies.find((x) => x.enemyId === id); return b && b.present ? `body-${b.id}` : ''; }, tdv);
+    assert(!!cid && !!bodyItemId, `a lying body and the client (${bodyItemId}, ${cid})`);
+    await GA(() => {
+      const em = window.__app.current.enemyMgr;
+      window.__carryFrozen = [];
+      for (const e of em.enemies) {
+        if (!e.alive || Object.prototype.hasOwnProperty.call(e, 'update')) continue;
+        e.update = () => {};
+        window.__carryFrozen.push(e);
+      }
+    });
+    /** The client stands at (x, y, z) facing yaw: allowed on the host, then the host's copy of its feet is there. */
+    const tp = async (x, y, z, yaw) => {
+      await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(3); });
+      await GB(([x, y, z, yaw]) => { const g = window.__app.current; g.player.controller.teleport(new g.player.position.constructor(x, y, z), yaw); }, [x, y, z, yaw]);
+      await until(A, ([c, x, z]) => { const r = window.__app.current.net.remotes.get(c); return !!r && Math.hypot(r.feet.x - x, r.feet.z - z) < 0.6; }, [cid, x, z], 6000, 'the host has the client where it teleported');
+    };
+    /** The guard is still down (never woken) and his body is off the floor list (carried or hidden). */
+    const stillDownOffFloor = () => GA((id) => {
+      const g = window.__app.current;
+      const e = g.enemyMgr.enemies.find((x) => x.id === id);
+      const b = g.enemyMgr.bodies.find((x) => x.enemyId === id);
+      return (!e || !e.alive) && !!b && !b.present;
+    }, tdv);
+    try {
+      await until(B, (iid) => !!window.__app.current.interactables.items.find((i) => i.id === iid && i.enabled), bodyItemId, 6000, 'client mirrors the body item');
+      const at = await GB((iid) => { const it = window.__app.current.interactables.items.find((i) => i.id === iid); return [it.pos.x, it.pos.y, it.pos.z]; }, bodyItemId);
+      // stand the client beside the host's body (both pages read the host's spot for the reach)
+      await tp(at[0] + 0.9, at[1] + 0.1, at[2], -Math.PI / 2);
+      await GB((iid) => window.__app.current.interactables.items.find((i) => i.id === iid)?.onUse?.(undefined, 'local'), bodyItemId);
+      await until(A, ([id, c]) => { const g = window.__app.current; const b = g.enemyMgr.bodies.find((x) => x.enemyId === id); return !!b && b.carried && g.net.carries.has(c); }, [tdv, cid], 6000, 'host lifts the body for the client');
+      assert(true, 'the host takes the client pick up (body carried, off the floor list)');
+      await until(B, () => window.__app.current.carrier?.carrying === true, null, 6000, 'client starts its lift');
+      await waitHostSim(A, 2600);
+      await until(B, () => { const c = window.__app.current.carrier; return !!c && c.carrying && !c.busy; }, null, 8000, 'client lift done (carrying)');
+      await until(A, (c) => window.__app.current.net.carries.get(c)?.onShoulder === true, cid, 6000, 'host shows the body on the client');
+      assert(true, 'both pages show the client carrying the body');
+      assert(await stillDownOffFloor(), 'a carried body: the guard still down, his body off the floor list (never found)');
+      const hide = await GB(() => {
+        const g = window.__app.current;
+        const hs = g.world.layout.hideSpots ?? [];
+        const p = g.player.position;
+        let k = -1;
+        let bd = Infinity;
+        hs.forEach((h, i) => { const d = Math.hypot(h.pos.x - p.x, h.pos.z - p.z); if (d < bd && Math.abs(h.pos.y - p.y) < 2) { bd = d; k = i; } });
+        return k < 0 ? null : [hs[k].pos.x, hs[k].pos.y, hs[k].pos.z];
+      });
+      if (hide) {
+        await tp(hide[0] + 0.6, hide[1] + 0.1, hide[2], 0);
+        await GB(() => { const g = window.__app.current; g.carrier.carryTarget(g.player.position)?.onUse?.(undefined, 'local'); });
+        await until(A, (id) => window.__app.current.enemyMgr.bodies.find((x) => x.enemyId === id)?.hidden === true, tdv, 6000, 'host hides the client body');
+        await until(B, () => !window.__app.current.carrier.carrying, null, 6000, 'client carry ends at the hide');
+        await waitHostSim(A, 3000);
+        assert(await stillDownOffFloor(), 'a body the client hid: the guard still down, never found');
+      } else {
+        await GB(() => { const g = window.__app.current; g.carrier.carryTarget(g.player.position)?.onUse?.(undefined, 'local'); });
+        await until(A, (id) => { const b = window.__app.current.enemyMgr.bodies.find((x) => x.enemyId === id); return !!b && !b.carried && b.present; }, tdv, 6000, 'host puts the client body down');
+        await until(B, () => !window.__app.current.carrier.carrying, null, 6000, 'client put down ends');
+        assert(true, 'the client puts the body down on both pages (no hiding spot on this map)');
+      }
+    } finally {
+      await GA(() => { for (const e of window.__carryFrozen ?? []) delete e.update; window.__carryFrozen = []; });
+    }
+  }
   await GA((id) => { const b = window.__app.current.enemyMgr.bodies.find((x) => x.enemyId === id); if (b) b.hidden = true; }, tdv);
   await until(B, (id) => !window.__app.current.net.kept.has(id), tdv, 8000, 'client drops the hidden body');
   assert(true, 'a body hidden on the host leaves the client');
@@ -1013,6 +1085,22 @@ try {
     }
     await GA((id) => { const v = window.__app.current.enemyMgr.enemies.find((e) => e.id === id); if (v) delete v.update; }, gg);
     assert(grabbed, 'client grabs a host guard from behind');
+    // (optic-coop merge triage) the other guards stay calm on the host until the team takedown below has landed: the
+    // grab pin above stops once he is taken, and a guard re-alerted by the earlier steps shoots at the client, whose
+    // hostage is his shield (`Enemy.shoot`, `shieldHit`): he died to that fire before the team takedown landed, the host's
+    // takedown aborted (`!e.alive`) and no dual was counted (laptop GPU run after the master merge, the joint block below
+    // stretching the window). The held guard's own brain, the hold, the bluff, the read and the team takedown are real.
+    await GA((id) => {
+      const g = window.__app.current;
+      const gen = (window.__calmGen = (window.__calmGen ?? 0) + 1);
+      const calm = () => {
+        if (window.__calmGen !== gen || !g.enemyMgr.enemies.some((e) => e.id === id && e.alive)) return;
+        for (const r of g.net.remotes.values()) r.ref.spotted = false;
+        for (const e of g.enemyMgr.enemies) if (e.id !== id) e.aware.set('unaware');
+        requestAnimationFrame(calm);
+      };
+      calm();
+    }, gg);
     await until(A, (id) => { const g = window.__app.current; const r = [...g.net.remotes.values()][0]; return r.state?.mv?.m === 'grab' && r.ref.shield?.id === id; }, gg, 8000, 'host sees the grab');
     const held = await GA((id) => {
       const g = window.__app.current;
@@ -1058,15 +1146,26 @@ try {
         await GA(() => window.__app.input.state.set('e2e', 'interact', false));
       }
       await until(A, (id) => { const b = window.__app.current.net.bluffs.values().next().value; return !!b && b.eid === id; }, gg, 4000, 'joint: the host stores its bluff on the guard');
-      await until(B, () => (document.querySelector('.hud-feed')?.textContent ?? '').includes('Bluff on'), null, 4000, 'joint: the client sees the bluff line');
-      // the client holds A on its hostage: the list opens on INTERROGATE (he has information); the release runs the read
+      // the client holds A on its hostage: the list opens on INTERROGATE (he has information); the release runs the read.
+      // (flake fix) The bluff lives JOINT.window (6 s) of host time until the read ENDS: the hold starts at once and the
+      // client's bluff line is checked alongside, so sequential Node polls under load do not spend the window (a 28 fps
+      // host timed out here on the joint count).
       await GB(() => window.__app.input.state.set('e2e', 'interact', true));
       try {
-        await until(B, () => { const m = window.__app.current.ctxMenu; return m.state === 'active' && m.opts[m.sel]?.opt === 'interrogate'; }, null, 6000, 'joint: hold A on the client highlights INTERROGATE');
+        await Promise.all([
+          until(B, () => (document.querySelector('.hud-feed')?.textContent ?? '').includes('Bluff on'), null, 4000, 'joint: the client sees the bluff line'),
+          until(B, () => { const m = window.__app.current.ctxMenu; return m.state === 'active' && m.opts[m.sel]?.opt === 'interrogate'; }, null, 6000, 'joint: hold A on the client highlights INTERROGATE'),
+        ]);
       } finally {
         await GB(() => window.__app.input.state.set('e2e', 'interact', false));
       }
-      await until(A, (n) => window.__app.current.net.joints === n + 1, j0, 10000, 'joint: the host counts the joint read');
+      try {
+        await until(A, (n) => window.__app.current.net.joints === n + 1, j0, 10000, 'joint: the host counts the joint read');
+      } catch (err) {
+        // name the cause next time: a bluff aged past JOINT.window (6 s host time) is dropped at the read's end
+        const why = await GA(() => { const n = window.__app.current.net; const b = n.bluffs.values().next().value; return { bluffs: n.bluffs.size, age: b ? +(n.time - b.t0).toFixed(2) : null }; }).catch(() => null);
+        throw new Error(`${err.message} (host bluff state ${JSON.stringify(why)})`);
+      }
       for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
         await until(P, () => (document.querySelector('.hud-feed')?.textContent ?? '').includes('e2e joint'), null, 5000, `joint: the ${tag} feed shows the joint line`);
       }
@@ -1101,7 +1200,13 @@ try {
     await until(A, (id) => { const td = window.__app.current.takedown; const o = td.offer; if (td.active?.plan.kind === 'assist') return true; if (o?.plan.kind !== 'assist' || o.e.id !== id) return false; td.start(false); return true; }, gg, 6000, "the host is offered the team takedown on the client's hostage");
     await until(A, (id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); return !e || (!e.alive && e.ko); }, gg, 8000, "the team takedown knocks the client's hostage out on the host");
     await until(B, () => !window.__app.current.takedown.active, null, 4000, "the client's hold ends with him");
+    // (optic-coop merge triage) he went down to the host's team takedown (a knockout by the host's player), not to fire
+    // (the until above also passes on any death: a dead guard leaves the host's list)
+    const down = await GA((id) => JSON.stringify((window.__kills ?? []).filter((k) => k.id === id)), gg);
+    const dk = JSON.parse(down)[0];
+    assert(!!dk && dk.ko && dk.team === 'player' && dk.by === 'local' && dk.kind === 'melee', `the host's team takedown is what knocks him out (${down})`);
     assert((await GA(() => window.__app.current.net.duals)) === d0 + 1, 'the team takedown counts as a dual (co-op) takedown');
+    await GA(() => { window.__calmGen = (window.__calmGen ?? 0) + 1; });
     // (fix round 1) empty the client's HUD banner, so the dual step below proves its own banner reaches the client
     await GB(() => { const b = document.querySelector('.hud-banner'); if (b) b.innerHTML = ''; });
   }

@@ -1,6 +1,6 @@
 /**
  * CT toolkit numbers (pure, `docs/systems/ct-toolkit.md` section 1 "Numbers"). Every value is a (TUNE) starting value
- * from the spec (G10). Only the optic cable is built so far (3.2, doors only).
+ * from the spec (G10). Only the optic cable is built so far (3.2: doors; hatches, panels, grilles and shaft tops engine side).
  */
 
 const DEG = Math.PI / 180;
@@ -27,4 +27,18 @@ export const OPTIC = {
   near: 0.02,
   /** The stick / move keys pulled back this far leaves the view. */
   leaveBack: -0.6,
+  /** (optic-coop) Hatches, panels, grilles, shaft tops: the tip this far into the space past the gap (m). */
+  into: 0.3,
+  /** (optic-coop) Reach to the gap: within 1.0 m (spec) horizontally; the gap from 0.6 m under the feet to 2.4 m over. */
+  reach: 1.0,
+  reachDown: 0.6,
+  reachUp: 2.4,
+  /** (optic-coop) The body off a ceiling panel's gap (standing under it, m); hatches and grilles use `kneel`. */
+  stand: 0.3,
+  /** (optic-coop) The look's centre pitch through a floor or ceiling gap (CT's trap view looks down about 50 deg). */
+  vertPitch: 50 * DEG,
+  /** (optic-coop) The feeding hand this far short of the gap (m; the cable prop runs from the hand to the tip). */
+  hand: 0.2,
+  /** (optic-coop) The cable prop's radius (m; render only). */
+  cableR: 0.006,
 } as const;
