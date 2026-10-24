@@ -508,7 +508,30 @@ export const SECTOR = {
   maxAlive: 32,
   /** Revive syringes per op by difficulty (M7, A10): co-op only; solo restarts the section at its checkpoint. */
   syringes: { rookie: 3, normal: 2, realistic: 1, perfectionist: 1 } as Readonly<Record<DifficultyPreset, number>>,
+  /** (coop4 A4) Extra syringes in the team pool per player beyond 2 (counted when the op starts). Undo: 0. */
+  syringeExtra: 1,
+  /** (coop4 A9) Extra reinforcements per alarm stage per player beyond 2, within `maxAlive`. Undo: 0. */
+  reinforcePerExtra: 1,
 } as const;
+
+/** (coop4 A4, A9) Players beyond the 2 the sections were tuned for (0 for 1 or 2 players). */
+export function extraPlayers(players: number): number {
+  return Number.isFinite(players) ? Math.max(0, Math.floor(players) - 2) : 0;
+}
+
+/** (coop4 A8, A10) Does a section guard spawn for a team of `players`? Untagged always; tagged from `minPlayers` up. */
+export function guardForTeam(slot: { readonly minPlayers?: number }, players: number): boolean {
+  return (slot.minPlayers ?? 0) <= players;
+}
+
+/**
+ * (coop4 A9, lead decision) An alarm's `send` held to the live guard cap: the section's own `base` (`perStage`) always
+ * goes (pending until there is room, as at 2 players); the 3-4 player extras only up to `headroom` (the cap less the
+ * guards alive and waiting). `send` 0 (the stage was capped) stays 0.
+ */
+export function capReinforce(send: number, base: number, headroom: number): number {
+  return Math.min(send, Math.max(base, Math.floor(headroom)));
+}
 
 /**
  * (sector-restart, M9) The banner of a checkpoint restart. The co-op host's banners reach the client as `banner` events;
@@ -721,6 +744,8 @@ export class SectorRun {
   readonly marks: number[];
   /** (section-rating S2) Revive syringes the ratings granted this op (co-op, over the difficulty's preset). */
   syringeBonus = 0;
+  /** (coop4 A10) Players in the session (connected plus held) when the current section loaded or restarted (the mode sets it). */
+  teamSize = 1;
 
   constructor(readonly defs: readonly SectorDef[]) {
     this.marks = defs.map(() => -1);
@@ -783,9 +808,9 @@ export class SectorRun {
     return true;
   }
 
-  /** An alarm (A3): up one stage (capped); returns how many guards it sends in (0 once capped). */
+  /** An alarm (A3): up one stage (capped); returns how many guards it sends in (0 once capped; coop4 A9: + the extras for `teamSize`). */
   raiseAlarm(): number {
-    const a = alarmStep(this.alarm, this.current?.perStage ?? SECTOR.perStage);
+    const a = alarmStep(this.alarm, this.current?.perStage ?? SECTOR.perStage, this.teamSize);
     this.alarm = a.stage;
     return a.send;
   }
@@ -837,10 +862,13 @@ function setPose(out: Pose, p: Pose): void {
   out.yaw = p.yaw;
 }
 
-/** The next alarm stage (capped) and how many guards it sends in (0 once capped; `perStage` per section, A3). */
-export function alarmStep(stage: number, perStage: number = SECTOR.perStage): { stage: number; send: number } {
+/**
+ * The next alarm stage (capped) and how many guards it sends in (0 once capped; `perStage` per section, A3; coop4 A9:
+ * + `reinforcePerExtra` per player beyond 2, before the live cap `capReinforce`).
+ */
+export function alarmStep(stage: number, perStage: number = SECTOR.perStage, players = 2): { stage: number; send: number } {
   if (stage >= SECTOR.alarmMax) return { stage, send: 0 };
-  return { stage: stage + 1, send: perStage };
+  return { stage: stage + 1, send: perStage + SECTOR.reinforcePerExtra * extraPlayers(players) };
 }
 
 export interface SectorTally {
@@ -873,9 +901,12 @@ function marksText(marks: readonly number[] | undefined): string {
   return out;
 }
 
-/** Co-op revive syringes for an op on `preset` (M7, A10); an unknown preset reads as Normal. */
-export function syringesFor(preset: DifficultyPreset | undefined): number {
-  return SECTOR.syringes[preset ?? 'normal'] ?? SECTOR.syringes.normal;
+/**
+ * Co-op revive syringes for an op on `preset` (M7, A10); an unknown preset reads as Normal. (coop4 A4) The team pool:
+ * + `syringeExtra` per player beyond 2 (`players`: the team when the op starts; default 2 = the preset).
+ */
+export function syringesFor(preset: DifficultyPreset | undefined, players = 2): number {
+  return (SECTOR.syringes[preset ?? 'normal'] ?? SECTOR.syringes.normal) + SECTOR.syringeExtra * extraPlayers(players);
 }
 
 /**

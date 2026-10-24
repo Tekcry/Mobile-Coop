@@ -6,6 +6,7 @@
  * new kit. All numbers sit in the tables below.
  */
 import type { GadgetId } from '../gadgets';
+import { PLAYER_SLOTS, isPlayerSlot } from '../playerSlots';
 
 /**
  * The gadgets a rating's charges top up, in order: the noisemaker first, then sleeping gas (the stealth tools; the
@@ -187,19 +188,35 @@ export const MARK_LABELS: readonly { bit: number; label: string }[] = [
   { bit: BODIES_HIDDEN, label: RATING_LABEL[BODIES_HIDDEN] },
 ];
 
-/** Detects two takedowns by two different players within SYNC_WINDOW. Fixed slots, no allocation. */
+/**
+ * Detects two takedowns by two different players within SYNC_WINDOW. Fixed slots, no allocation. (coop4 A13) Over
+ * `PLAYER_SLOTS`: a takedown by slot p pairs with the most recent unused one by any other slot within the window and
+ * both are used; a third in the window starts a new pair. With slots 0 and 1 only (the course) it is the 2-player rule.
+ */
 export class SyncedDetector {
-  /** Last unused takedown time per player (P1, P2), -Infinity when none or used. */
-  private readonly last: [number, number] = [-Infinity, -Infinity];
+  /** Last unused takedown time per slot, -Infinity when none or used. */
+  private readonly last: number[] = [];
   private count = 0;
 
-  /** Record a takedown by `player` (0 or 1) at time `t` (s). True when it completes a synced pair. */
+  constructor() {
+    for (let s = 0; s < PLAYER_SLOTS; s++) this.last.push(-Infinity);
+  }
+
+  /** Record a takedown by `player` (its slot 0..3; anything else reads as 1, as before) at time `t` (s). True when it completes a synced pair. */
   onTakedown(player: number, t: number): boolean {
-    const me = player === 0 ? 0 : 1;
-    const other = me === 0 ? 1 : 0;
-    const o = this.last[other] ?? -Infinity;
-    if (t >= o && t - o <= SYNC_WINDOW) {
-      this.last[other] = -Infinity;
+    const me = isPlayerSlot(player) ? player : 1;
+    let best = -1;
+    let bt = -Infinity;
+    for (let s = 0; s < PLAYER_SLOTS; s++) {
+      if (s === me) continue;
+      const o = this.last[s] ?? -Infinity;
+      if (t >= o && t - o <= SYNC_WINDOW && o > bt) {
+        bt = o;
+        best = s;
+      }
+    }
+    if (best >= 0) {
+      this.last[best] = -Infinity;
       this.last[me] = -Infinity;
       this.count++;
       return true;
@@ -218,8 +235,7 @@ export class SyncedDetector {
   }
 
   reset(): void {
-    this.last[0] = -Infinity;
-    this.last[1] = -Infinity;
+    for (let s = 0; s < PLAYER_SLOTS; s++) this.last[s] = -Infinity;
     this.count = 0;
   }
 }

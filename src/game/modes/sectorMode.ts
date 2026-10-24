@@ -1,6 +1,7 @@
 import { Vector3 } from '../../core/babylon';
 import type { Enemy } from '../../ai/enemy';
 import type { PlayerRef } from '../../ai/enemy';
+import type { TeamFields } from '../playerSlots';
 import type { HitInfo } from '../damage';
 import type { GameState } from '../gameState';
 import type { GameMode } from './gameMode';
@@ -34,7 +35,9 @@ import {
   type SectorBolts,
   type SectorPairGates,
   SectorRun,
+  capReinforce,
   exitZone,
+  guardForTeam,
   intelItemId,
   keypadItemId,
   inDoorway,
@@ -168,6 +171,32 @@ const BOARD_LABEL = 'Read';
 const SEC_SEND = 0.5;
 
 /**
+ * (coop4 SM, until N1) The team size: `GameState.teamSize()` (connected + held, N1) when it exists, else the players
+ * listed now. TODO(coop4 N1): replace with `g.teamSize()` once gameState.ts has it.
+ */
+export function teamSizeOf(g: GameState, refs: PlayerRef[]): number {
+  return (g as { teamSize?(): number }).teamSize?.() ?? g.playerRefsInto(refs).length;
+}
+
+/** (coop4 SM, until N1) A listed player's slot: `TeamRef.slot` (N1) when set, else its list index. */
+export function refSlot(r: PlayerRef, index: number): number {
+  return (r as Partial<TeamFields>).slot ?? index;
+}
+
+/** (coop4 SM) The slot of player `id` ('local' or '' = this machine's player), or `none` when it is not listed. No allocation. */
+export function slotOfId(g: GameState, refs: PlayerRef[], id: string, none: number): number {
+  const want = id === '' ? 'local' : id;
+  const rs = g.playerRefsInto(refs);
+  for (let i = 0; i < rs.length; i++) if (rs[i]!.id === want) return refSlot(rs[i]!, i);
+  return none;
+}
+
+/** (coop4 D1) The devices' jam intent with the sender's slot (D1 adds the third argument; until then it is ignored). */
+interface SlotJam {
+  onRemoteJam(tgt: string, eye: readonly [number, number, number] | undefined, slot: number): void;
+}
+
+/**
  * Sector Ops (feature/sector-ops A12, M7): the map's sections in order. A section's guards spawn when it loads
  * (unaware, on their routes); its objective (hack, grab or download) unlocks its connector's near door; every living
  * player inside the connector cycles it: the near door locks behind them, the section unloads (guards, bodies, devices),
@@ -221,6 +250,8 @@ export class SectorMode implements GameMode {
   private infoSy = -2;
   /** Players, reused every tick (no allocation). */
   private readonly refs: PlayerRef[] = [];
+  /** (coop4 A4) The team when the op started: the syringe pool's size (a late joiner does not change it). */
+  private opTeam = 2;
 
   /** (section-rating S2) The current section's counters (host / solo): reset in place after a rating and on a restart. */
   readonly secStats: SectionStats = newSectionStats();
@@ -360,6 +391,7 @@ export class SectorMode implements GameMode {
       g.player.cam.yaw = s.start.yaw;
     }
     g.letterbox(2.8);
+    this.opTeam = teamSizeOf(g, this.refs);
     this.loadSection(this.run.index);
     this.beginSection();
   }
@@ -696,8 +728,15 @@ export class SectorMode implements GameMode {
     if (s && import.meta.env.DEV) reportGuardAi(s.id, validatePosts(s.guards, s.id));
     if (!s) return;
     this.slotEnemy.length = 0;
+    // (coop4 A8, A10) the team as the section loads (or restarts) scales it: guards tagged `minPlayers` above it stay
+    // out (their index stays theirs: desks and overhear read `slotEnemy[k]`), and the alarms send its extras
+    this.run.teamSize = teamSizeOf(this.g, this.refs);
     const n = flags.sectorGuards ?? s.guards.length;
-    for (let k = 0; k < s.guards.length && k < n; k++) this.pending.push({ k, slot: s.guards[k]!, alerted: false });
+    for (let k = 0; k < s.guards.length && k < n; k++) {
+      const slot = s.guards[k]!;
+      if (guardForTeam(slot, this.run.teamSize)) this.pending.push({ k, slot, alerted: false });
+    }
+    // TODO(coop4 AI5): pass run.teamSize to Guard AI's team-size hook here once feature/guard-ai-coop4 names it.
     this.fill();
   }
 
@@ -922,9 +961,15 @@ export class SectorMode implements GameMode {
   }
 
   /** The stage went from `from` to `run.alarm`: the banner, the devices' stage, `send` guards in from the section's points. */
-  private raised(from: number, send: number, banner: boolean): void {
+  private raised(from: number, want: number, banner: boolean): void {
     const g = this.g;
     const stage = this.run.alarm;
+    // (coop4 A9, lead decision) the 3-4 player extras fit under the live cap (SECTOR.maxAlive) or are refused; the
+    // section's own perStage goes as at 2 players (waiting in `pending` for room)
+    const em0 = g.enemyMgr;
+    const base = this.run.current?.perStage ?? SECTOR.perStage;
+    const send = em0 ? capReinforce(want, base, em0.maxAlive - em0.alive - this.pending.length) : want;
+    if (send < want) console.info(`[sector] alarm stage ${stage}: ${want - send} extra reinforcement(s) refused at the live cap ${em0?.maxAlive}`);
     if (this.ct) this.ct.alarm = stage;
     if (stage > from && banner) g.hud.banner(`ALARM STAGE ${stage}`, send ? 'Reinforcements coming' : '', 2200);
     // (guard-ai S13, item 4, A37) every living guard of the live section gets the stage's gear at once; no camera is
@@ -1027,7 +1072,8 @@ export class SectorMode implements GameMode {
     this.ratedSynced[i] = synced;
     let gadgetsAtStart = 0;
     for (const id of GRANT_GADGETS) gadgetsAtStart += GADGETS[id].carry;
-    const preset = syringesFor(g.opts.difficulty);
+    // (coop4 A4) the team pool as the op started
+    const preset = syringesFor(g.opts.difficulty, this.opTeam);
     const r = rewardsFor(marks, synced, {
       coop: coopRating(g.net !== null, g.playerRefsInto(this.refs).length),
       preset,
@@ -1199,7 +1245,8 @@ export class SectorMode implements GameMode {
   }
 
   /** (coop-rejoin) The checkpoint's slot points: the run's checkpoint (slot 0) and the partner's point when the map gives
-   *  one (slot 1; else the host places the partner beside the checkpoint). */
+   *  one (slot 1; else the host places the partner beside the checkpoint). (coop4 A14) Slots 2-3 have no point: the
+   *  host places them beside it (`besideSpot`). */
   checkpointSpawns(): SlotPoint[] {
     if (!this.run.current) return [];
     const a = this.run.checkpoint;
@@ -1310,7 +1357,8 @@ export class SectorMode implements GameMode {
       return;
     }
     st.knockouts++;
-    const p = h.attackerId === 'local' || h.attackerId === '' ? 0 : 1;
+    // (coop4 A13) the attacker's slot ('local' / '' = this machine's); one no longer listed reads as 1 (as before)
+    const p = slotOfId(this.g, this.refs, h.attackerId, 1);
     if (this.syncDet.onTakedown(p, this.t)) st.synced = this.syncDet.synced;
   }
 
@@ -1339,9 +1387,10 @@ export class SectorMode implements GameMode {
     return { ls: ct.liveSection, lk, dn: ct.destroyedIds([]), sy: this.g.net?.revivesLeft?.() ?? 0, rt: { ...this.rt }, ...(rh ? { rh } : {}) };
   }
 
-  /** Co-op host: the client's held jammer target. */
-  onRemoteJam(_id: string, tgt: string, eye?: readonly [number, number, number]): void {
-    this.ct?.onRemoteJam(tgt, eye);
+  /** Co-op host: a client's held jammer target, on the sender's slot (coop4 D1; one no longer listed reads as 1). */
+  onRemoteJam(id: string, tgt: string, eye?: readonly [number, number, number]): void {
+    const ct: SlotJam | null = this.ct;
+    ct?.onRemoteJam(tgt, eye, slotOfId(this.g, this.refs, id, 1));
   }
 
   blips(): Blip[] {
