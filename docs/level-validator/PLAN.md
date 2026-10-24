@@ -6,7 +6,7 @@ Model rule (Michael): Sonnet builds from strict briefs; Opus writes the graph sc
 one fresh Opus checker for the batch; one PR to master. Docs tier: CI `npm run check` only, no e2e (V1 adds one Vitest
 file, which CI runs).
 
-## Michael's changes M1-M4 (~20:18; OVERRIDE the slice text below where they differ)
+## Michael's changes M1-M5 (~20:18, M5 ~20:12; OVERRIDE the slice text below where they differ)
 - **M1 -> V2**: room table values = the skill's real sizes x 1.3-1.5 (match corridor 3.5-4.0 vs real ~2.4, door 1.2 vs
   0.9), floored by the camera rule (6 m short side for encounter, 3.5 m for any walk-through room). The draft V2 table
   below is superseded: V2's builder computes each row as real x 1.4 (rounded to 0.5), then applies the floor; the
@@ -30,6 +30,10 @@ file, which CI runs).
 - **Guard counts**: V1 prints 3-6 / 6-10 as `INFO:` lines only (no exit code); V5d compares them with campus guard
   sheets (`campusSectors.ts`) and Marlow Yard, and recommends rule or no rule to Michael.
 - **Arena** parked; Michael's own Node port, if it arrives, is reference only.
+- **M5 -> V5** (~20:12 "Do the entire campus"): V5a-e = S1 Gatehouse, S2 HQ, S3 Labs, S4 Data hall, S5 Old House graphs
+  (Sonnet, one per section, parallel after V0; one graph file each, `docs/sector-redesign/graph/campusOps-S<n>.json`);
+  V5f (was V5d) = the run on all five + REPORT. S4 / S5 data lives in `campusS4Data.ts` / `campusS5Data.ts` too, and
+  coop4's minPlayers-tagged guards (feature/coop4) count only once coop4 is on master: note which base was read.
 
 ## File ownership (two agents never edit the same file)
 | File | Owner slice |
@@ -57,8 +61,8 @@ file, which CI runs).
 | V6 | Greybox measurement step (M4): light-bake shadow %, vantage, nav-grid LOS / revive / link times | Opus | no: next step after this PR, needs `src/` | V1 | plan later |
 | V4 | Section 11 two-player co-op rewrite | Opus | yes | - | 45 min |
 | V3 | Numeric targets + the validator gate in level-design | Sonnet rules, written by the V4 Opus agent in the same pass | yes (with V4, same agent) | - | 30 min |
-| V5a-c | Campus S1 / S2 / S3 graphs + per-section findings | Sonnet x3 (strict brief per section) | after V0 lands | V0 (V2 for room classes) | 45 min each, parallel |
-| V5d | First validator run + REPORT with patch / re-plan verdicts | Opus | after V1 + V5a-c | V1, V5a-c | 30 min |
+| V5a-e | Campus S1 Gatehouse / S2 HQ / S3 Labs / S4 Data hall / S5 Old House graphs + per-section findings (M5) | Sonnet x5 (strict brief per section) | after V0 lands | V0 (V2 for room classes) | 45 min each, parallel |
+| V5f | First validator run on all five + REPORT with patch / re-plan verdicts | Opus | after V1 + V1a + V5a-e | V1, V1a, V5a-e | 30 min |
 | DOC | testing-tools entry, changelog fragment, TESTING line | Sonnet (or Haiku) | yes | the CLI interface below | 15 min |
 | CHK | One fresh Opus checker over the batch, then one PR | Opus | last | all | 30 min |
 
@@ -215,7 +219,7 @@ A map's graph is one JSON object, or several files (one per section) the CLI mer
 - Gate: the Opus checker diffs the file: additions only outside section 11 and the Open items entry 1; no number
   loosened; every Michael number present (90 s, 20%, 15 s, 2.0 m, 70%, 40-60%, 5 s, 3-6 / 6-10).
 
-## V5 - campus S1-S3 first run (replaces the paused campus-audit)
+## V5 - campus S1-S5 first run (replaces the paused campus-audit; M5: all five sections, V5a-e graphs, V5f run + REPORT)
 - V5a / V5b / V5c (Sonnet, parallel, one per section, after V0 lands): write
   `docs/sector-redesign/graph/campusOps-S<n>.json` by hand (A9) from `docs/sector-redesign/SPEC.md` (S1 line 186, S2
   273, S3 327; the element register, the co-op routes table line 516, the posted-guards table line 499) and the built

@@ -12,8 +12,8 @@ Opus PLAN agent started; it pushes BRIEF.md / PLAN.md as WIP. If cut off at the 
 - Start now, in parallel (PLAN slice + ownership tables): V0 graph schema (Opus), V1 validator port + Vitest (Sonnet,
   cloud-queue brief; builds against a test metrics object until V1a), V2 scale-sheet room table x1.4 + section 8
   "Validator numbers" (Sonnet), V4 then V3 in level-design.md (one Opus agent, same file), DOC (Sonnet / Haiku).
-- Then: V1a metrics-gen + metrics.json + test (Sonnet, cloud, after V2); V5a-c campus S1 / S2 / S3 graphs (Sonnet x3,
-  after V0); V5d first run + REPORT (Opus, after V1 + V1a + V5a-c); one Opus checker; one PR. V6 (greybox measurement,
+- Then: V1a metrics-gen + metrics.json + test (Sonnet, cloud, after V2); V5a-e campus S1-S5 graphs (M5, Sonnet x5,
+  after V0); V5f first run on all five + REPORT (Opus, after V1 + V1a + V5a-e); one Opus checker; one PR. V6 (greybox measurement,
   src/) is the step after this PR.
 - Known gap: BRIEF mapping-table rows and V1's constant list still show the old rules; the M block wins (V1's brief
   writer follows it). Safe-drop height constant TODO (V1 greps; WARN above 3.5 m fallback).

@@ -42,6 +42,9 @@ they become rules; arena mode parked for the later co-op modes idea."
 - **Guard counts**: 3-6 early / 6-10 late are compared with our guard sheets (campus `campusSectors.ts`, Marlow Yard)
   before they become rules: until then the validator reports them as INFO, not WARN / ERR.
 - **Arena mode parked** (for the later co-op modes idea). If Michael's own Node port arrives, it is reference only.
+- **M5** (~20:12, via the orchestrator): "Do the entire campus." The first run covers all five campus sections (S1
+  Gatehouse, S2 HQ, S3 Labs, S4 Data hall, S5 Old House): graphs V5a-e, one agent each after V0, then V5f the run and
+  REPORT with patch / re-plan per section. Supersedes A10.
 
 ## Approval record (CLAUDE.md hard rule)
 "The standard and the template change only with Michael's approval." Michael's choice "Add 1-4 as extras" IS that
@@ -130,7 +133,7 @@ campus-audit (feature/campus-audit 618cdd69).
 - A9 The campus graphs are written by hand from `docs/sector-redesign/SPEC.md` and the element register, sizes cross-read
   from `S1_ROOMS` / `S2_ROOMS` / `S3_*` boxes, `C1_BOX`, `C2_BOX`, `S2_FLOORS`. The map data has no link list (only named
   door centres, co-op lips and flights), so nothing is extracted automatically. Undo: an extractor job later.
-- A10 S4 / S5 are out of scope (Michael named S1-S3), as in campus-audit A2.
+- A10 SUPERSEDED by M5 (Michael ~20:12 "Do the entire campus"): all five sections S1-S5 get graphs and the first run.
 - A11 The campus-audit's NCC yardstick (its A1) is not carried: the validator's numbers are the yardstick now; V5 still
   lists door-swing-into-corridor findings it sees by hand. Undo: re-open campus-audit.
 - A12 The validator gate sits between level-design Phase 2 (gameplay design) and Phase 3 (build), i.e. "before greybox".
