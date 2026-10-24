@@ -1,6 +1,7 @@
 # mission-framework - STATE
 
 ## Now (2026-10-24 ~23:55)
+- ~00:15 EN1 DONE d0532377 (36/36; API in its report: MissionRunner snapshot/restore, RuleTracker, objectiveRows, pack/parseMissionWire); Opus checker running. KIT0 DONE 6a202677 (registry src/game/kit/registry.ts, import.meta.glob load; 342 tests green); KIT-PULL + KIT-SHUT running (worktrees -mission-kit-pull / -kit-shut off kit0); batch checker after both. NET must: fold KitKind into TeamKind (teamMoves.ts, one line) + drop the cast in TeamController.kitRequest; tuner moveTune.ts sections + coop.md text later (FRAG / docs). guard-cap M0 REPORT verdict agent running (feature/guard-cap).
 - Wave 1 DONE so far: KITS 71977e5d; GSVG 6d731e69 + checker fix 074c55c0 (checker FIX 1 must-fix, done; polish: grid 10 m vs plan-svg 6 m, --base id prefixes, = option form, --dump-rooms needs repo cwd, extent cap); BEAT TGC + TKL 95a23229; BEAT SS + CR 7bb695ad. Running: EN1, KIT0, VAL, CMG.
 - PLAN 4c clip list AGREED with Player Build (e3c1eb0c); forwarded to KIT0.
 - Sent Sector Ops the SS / CR nodes-needed; Guard AI the two walk-to behaviours (SS facilities officer -> new board; CR supervisor -> cage).
