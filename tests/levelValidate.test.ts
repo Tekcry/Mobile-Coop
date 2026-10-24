@@ -17,12 +17,14 @@ interface Space {
   id: string; section: string; type: string; room_class: string; function: string; storey: number;
   size: number[]; tension: number; tags: string[]; shadow_pct?: number; los_break_s?: number;
   vantage?: { from: string; sees_pct?: number }; guards?: Record<string, number>; phase?: string;
+  measured?: Record<string, unknown>;
 }
 interface Link {
   from: string; to: string; kind: string; route: string; width?: number; height?: number; length?: number;
   time_s?: number; level_change?: number; shared?: boolean; one_way?: boolean; assist?: string;
+  measured?: Record<string, unknown>;
 }
-interface Graph { meta: { map: string; name: string; mode: string; players: number[]; sections: string[] }; spaces: Space[]; links: Link[] }
+interface Graph { meta: { map: string; name: string; mode: string; players: number[]; sections: string[]; measured?: Record<string, unknown> }; spaces: Space[]; links: Link[] }
 type Metrics = Record<string, unknown> & { sizes: Record<string, unknown>; rules: Record<string, unknown>; rooms: Record<string, Record<string, unknown>> };
 
 const REAL_METRICS = JSON.parse(fs.readFileSync(path.join(ROOT, 'docs/design/metrics.json'), 'utf8')) as Metrics;
@@ -103,7 +105,9 @@ const link = (g: Graph, from: string, to: string, kind: string): Link => {
 const drop = (g: Graph, from: string, to: string, kind: string): void => {
   g.links = g.links.filter((x) => !(x.from === from && x.to === to && x.kind === kind));
 };
-const check = (g: Graph, metrics: unknown = METRICS): Report => validate(g, { metrics }) as Report;
+const check = (g: Graph, metrics: unknown = METRICS, requireMeasured = false): Report => validate(g, { metrics, requireMeasured }) as Report;
+/** Infos other than the V6 "pending" lines (every encounter space with no `measured` prints one). */
+const otherInfos = (r: Report): string[] => r.infos.filter((i) => !i.includes('pending V6'));
 const expectErr = (r: Report, ...frags: string[]): void => {
   for (const f of frags) expect(r.errors, `no ERROR containing "${f}"`).toContainEqual(expect.stringContaining(f));
 };
@@ -116,14 +120,15 @@ describe('level-validate: passing graphs', () => {
     const r = check(base());
     expect(r.errors).toEqual([]);
     expect(r.warns).toEqual([]);
-    expect(r.infos).toEqual([]);
+    expect(otherInfos(r)).toEqual([]);
+    expect(r.infos).toEqual(['a-court: pending V6 (no measured values)', 'b-vault: pending V6 (no measured values)']);
   });
 
   it('the real metrics.json carries every key the validator reads (no missing-key WARN)', () => {
     const r = check(withKinds(), REAL_METRICS);
     expect(r.errors).toEqual([]);
     expect(r.warns).toEqual([]);
-    expect(r.infos).toEqual([]);
+    expect(otherInfos(r)).toEqual([]);
   });
 
   it('every link kind with a size rule passes at the sheet sizes (tunnel, open stair, wall jump, split jump, drop)', () => {
@@ -137,7 +142,7 @@ describe('level-validate: passing graphs', () => {
     const r = check(g, REAL_METRICS);
     expect(r.errors).toEqual([]);
     expect(r.warns.filter((w) => w.startsWith('metrics:'))).toEqual([]);
-    expect(r.infos).toEqual([]);
+    expect(otherInfos(r)).toEqual([]);
   });
 
   it('no metrics: one WARN, size and time checks skipped (presence checks still run)', () => {
@@ -674,7 +679,7 @@ describe('level-validate: merge and CLI', () => {
       };
       const ok = cli(write(base()));
       expect(ok.status).toBe(0);
-      expect(ok.out.trim()).toBe('0 error(s), 0 warning(s).');
+      expect(ok.out.trim().split(/\r?\n/).pop()).toBe('0 error(s), 0 warning(s).');
       const bad = base();
       link(bad, 'b-hall', 'b-dock', 'door').width = 0.9;
       const fail = cli(write(bad));
@@ -686,8 +691,8 @@ describe('level-validate: merge and CLI', () => {
   });
 
   it('parseArgs: files, --metrics, usage errors', () => {
-    expect(parseArgs(['a.json', 'b.json', '--metrics', 'm.json'])).toEqual({ files: ['a.json', 'b.json'], metrics: 'm.json' });
-    expect(parseArgs(['a.json'])).toEqual({ files: ['a.json'], metrics: null });
+    expect(parseArgs(['a.json', 'b.json', '--metrics', 'm.json'])).toEqual({ files: ['a.json', 'b.json'], metrics: 'm.json', requireMeasured: false });
+    expect(parseArgs(['a.json'])).toEqual({ files: ['a.json'], metrics: null, requireMeasured: false });
     expect(parseArgs([])).toEqual({ error: 'no graph file given' });
     expect(parseArgs(['a.json', '--metrics'])).toEqual({ error: '--metrics needs a file' });
     expect(parseArgs(['a.json', '--rooms', 'x.md'])).toEqual({ error: 'unknown flag --rooms' });
@@ -721,12 +726,170 @@ describe('level-validate: merge and CLI', () => {
       const okPath = path.join(dir, 'ok.json');
       fs.writeFileSync(okPath, JSON.stringify(base()));
       expect(run([okPath, '--metrics', metricsPath], { log, root: ROOT })).toBe(0);
-      expect(lines).toEqual(['\n0 error(s), 0 warning(s).']);
+      expect(lines.filter((l) => !l.startsWith('INFO:'))).toEqual(['\n0 error(s), 0 warning(s).']);
 
       expect(run([], { log, root: ROOT })).toBe(2);
       expect(run([path.join(dir, 'missing.json')], { log, root: ROOT })).toBe(2);
       fs.writeFileSync(path.join(dir, 'broken.json'), '{ nope');
       expect(run([path.join(dir, 'broken.json')], { log, root: ROOT })).toBe(2);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('level-validate: greybox measurements (V6d checkMeasured)', () => {
+  /** base() with both encounter spaces measured at their declared values, and a measured split reach. */
+  const measured = (): Graph => {
+    const g = base();
+    space(g, 'a-court').measured = { shadow_pct: 0.5, sees_pct: 0.75, los_break_s: 4, vantage_at: [1, 0, 2], cells: 800 };
+    space(g, 'b-vault').measured = { shadow_pct: 0.45, sees_pct: 0.8, los_break_s: 3 };
+    g.meta.measured = { tool: 'level-measure 1', splits: { x: { a_s: 40, b_s: 38, reach_s: 10 } } };
+    return g;
+  };
+
+  it('measured values on target: no ERR, no WARN, no pending INFO', () => {
+    const r = check(measured());
+    expect(r.errors).toEqual([]);
+    expect(r.warns).toEqual([]);
+    expect(r.infos).toEqual([]);
+    expect(check(measured(), METRICS, true).errors).toEqual([]);
+  });
+
+  it('shadow_pct outside the band is an ERR (below and above), read from the metrics', () => {
+    const g = measured();
+    space(g, 'a-court').measured = { shadow_pct: 0.31 };
+    space(g, 'b-vault').measured = { shadow_pct: 0.72 };
+    expectErr(check(g), 'a-court: measured shadow_pct 0.31 below 0.4 (declared 0.5)', 'b-vault: measured shadow_pct 0.72 above 0.6 (declared 0.45)');
+    const m = fullMetrics();
+    m.rules.shadow_min_frac = 0.2;
+    m.rules.shadow_max_frac = 0.8;
+    expect(check(g, m).errors).toEqual([]);
+  });
+
+  it('sees_pct below the vantage minimum is an ERR', () => {
+    const g = measured();
+    space(g, 'a-court').measured = { sees_pct: 0.55 };
+    expectErr(check(g), 'a-court: measured sees_pct 0.55 below 0.7 (declared 0.75)');
+    const m = fullMetrics();
+    m.rules.vantage_min_frac = 0.5;
+    expect(check(g, m).errors).toEqual([]);
+  });
+
+  it('los_break_s over the limit is an ERR', () => {
+    const g = measured();
+    space(g, 'b-vault').measured = { los_break_s: 6.5 };
+    expectErr(check(g), 'b-vault: measured los_break_s 6.5 s above 5 s (declared 3 s)');
+    space(g, 'b-vault').measured = { los_break_s: 5 };
+    expect(check(g).errors).toEqual([]);
+  });
+
+  it('a split reach over the limit is an ERR; a null reach is a WARN, not an ERR', () => {
+    const g = measured();
+    g.meta.measured = { splits: { x: { reach_s: 17.2 } } };
+    expectErr(check(g), 'split x: measured reach_s 17.2 s above 15 s');
+    g.meta.measured = { splits: { x: { reach_s: 15 } } };
+    expect(check(g).errors).toEqual([]);
+    g.meta.measured = { splits: { x: { reach_s: null } } };
+    const r = check(g);
+    expect(r.errors).toEqual([]);
+    expectWarn(r, 'split x: measured reach_s is null');
+    g.meta.measured = { splits: { nope: { reach_s: 1 } } };
+    expectWarn(check(g), 'meta.measured.splits.nope: names no split');
+  });
+
+  it('a non-number measured value is an ERR', () => {
+    const g = measured();
+    space(g, 'a-court').measured = { shadow_pct: '0.5' };
+    expectErr(check(g), 'a-court: measured shadow_pct must be a number');
+  });
+
+  it('measured away from the declared target by more than 0.10 (fractions) or 1.5 s is a WARN; within it is silent', () => {
+    const g = measured();
+    space(g, 'a-court').measured = { shadow_pct: 0.57, sees_pct: 0.88, los_break_s: 2.4 };
+    const r = check(g);
+    expect(r.errors).toEqual([]);
+    expectWarn(r, 'a-court: measured sees_pct 0.88 vs declared 0.75');
+    expectWarn(r, 'a-court: measured los_break_s 2.4 s vs declared 4 s');
+    expect(r.warns.some((w) => w.includes('shadow_pct'))).toBe(false);
+    space(g, 'a-court').measured = { shadow_pct: 0.59, sees_pct: 0.85, los_break_s: 5 };
+    expect(check(g).warns).toEqual([]);
+    const l = link(g, 'a-gate', 'a-roof', 'ladder');
+    l.measured = { time_s: 13.4 };
+    expect(check(g).warns).toEqual([]);
+    l.measured = { time_s: 13.7 };
+    expectWarn(check(g), 'link a-gate -> a-roof (ladder): measured time_s 13.7 s vs declared 12 s');
+    l.measured = { time_s: null, why: 'ladder not modelled' };
+    expect(check(g).warns).toEqual([]);
+  });
+
+  it('INFO pending V6 per encounter space with no measured; only encounter spaces; none once measured', () => {
+    const g = base();
+    expect(check(g).infos).toEqual(['a-court: pending V6 (no measured values)', 'b-vault: pending V6 (no measured values)']);
+    space(g, 'a-court').measured = { shadow_pct: 0.5 };
+    expect(check(g).infos).toEqual(['b-vault: pending V6 (no measured values)']);
+  });
+
+  it('--require-measured turns pending into an ERR for each unmeasured encounter space', () => {
+    const g = base();
+    const r = check(g, METRICS, true);
+    expectErr(r, 'a-court: no measured values (--require-measured)', 'b-vault: no measured values (--require-measured)');
+    expect(r.infos.filter((i) => i.includes('pending V6'))).toEqual([]);
+    space(g, 'a-court').measured = { shadow_pct: 0.5 };
+    space(g, 'b-vault').measured = { shadow_pct: 0.5 };
+    expect(check(g, METRICS, true).errors).toEqual([]);
+  });
+
+  it('split legs read measured.time_s before time_s: the 90 s limit and the 20% parity fail on the measurement', () => {
+    const g = base();
+    expect(check(g).errors).toEqual([]);
+    // leg a runs hall -> dock (door) -> vault (door); a measured door time pushes it over the limit
+    link(g, 'b-hall', 'b-dock', 'door').measured = { time_s: 95, path_m: 120 };
+    expectErr(check(g), 'split x leg a:', 's over the 90 s limit');
+    // a declared time_s alone is overridden by a measured one
+    const h = base();
+    link(h, 'b-hall', 'b-walk', 'fire_stair').time_s = 200;
+    expectErr(check(h), 'split x leg b:');
+    link(h, 'b-hall', 'b-walk', 'fire_stair').measured = { time_s: 8 };
+    expect(check(h).errors).toEqual([]);
+    // a measured time_s of null falls back to the declared time_s
+    link(h, 'b-hall', 'b-walk', 'fire_stair').measured = { time_s: null, why: 'stair off the nav grid' };
+    expectErr(check(h), 'split x leg b:');
+    // parity: leg a far slower than leg b by measurement
+    const p = base();
+    link(p, 'b-hall', 'b-dock', 'door').measured = { time_s: 40 };
+    expectErr(check(p), 'split x: legs');
+  });
+
+  it('measured link times also feed the partner reach path', () => {
+    const g = base();
+    expect(check(g).errors).toEqual([]);
+    link(g, 'b-walk', 'b-vault', 'ladder').measured = { time_s: 30 };
+    link(g, 'b-vault', 'b-walk', 'coop_boost').measured = { time_s: 30 };
+    link(g, 'b-hall', 'b-dock', 'door').measured = { time_s: 30 };
+    link(g, 'b-dock', 'b-vault', 'door').measured = { time_s: 30 };
+    link(g, 'b-hall', 'b-walk', 'fire_stair').measured = { time_s: 30 };
+    expectErr(check(g), 'a downed partner is');
+  });
+
+  it('CLI: --require-measured is parsed, listed in the usage line, and fails an unmeasured map (spawned node)', () => {
+    expect(parseArgs(['g.json', '--require-measured'])).toMatchObject({ files: ['g.json'], requireMeasured: true });
+    expect(parseArgs(['g.json'])).toMatchObject({ requireMeasured: false });
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'level-validate-measured-'));
+    try {
+      const lines: string[] = [];
+      const log = (x: string): void => { lines.push(x); };
+      expect(run([], { log, root: ROOT })).toBe(2);
+      expect(lines.join('\n')).toContain('[--require-measured]');
+      const file = path.join(dir, 'g.json');
+      fs.writeFileSync(file, JSON.stringify(base()));
+      const node = (...args: string[]) => spawnSync(process.execPath, [path.join(ROOT, 'scripts/level-validate.mjs'), file, ...args], { encoding: 'utf8' });
+      const plain = node();
+      expect(plain.status).toBe(0);
+      expect(plain.stdout).toContain('INFO:  a-court: pending V6');
+      const strict = node('--require-measured');
+      expect(strict.status).toBe(1);
+      expect(strict.stdout).toContain('ERROR: a-court: no measured values (--require-measured)');
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }

@@ -7,8 +7,10 @@
 // with no metrics file at all, one WARN and every size / time check is skipped. Rule structure (3 approaches, 2 kinds,
 // 2 routes, half the encounters, the 1-5 tension scale) is the standard's wording and lives here.
 //
-//   node scripts/level-validate.mjs <graph.json> [more.json ...] [--metrics <file>]
+//   node scripts/level-validate.mjs <graph.json> [more.json ...] [--metrics <file>] [--require-measured]
 //   --metrics: default docs/design/metrics.json (repo root). Several files are one map, one file per section (merged).
+//   --require-measured: an encounter space with no `measured` (V6 greybox measurement) is an ERROR, not an INFO
+//   "pending V6" line (the greybox gate).
 //   Prints ERROR: / WARN: / INFO: lines, then "N error(s), M warning(s)."
 //   Exit: 0 no error, 1 any error, 2 bad usage (no file, unreadable or invalid JSON, unknown flag).
 //
@@ -804,8 +806,11 @@ export function checkCoop(graph, metrics) {
   const parityPct = splits.size ? c.num('rules.split_parity_pct', 'the split parity check') : undefined;
   const reachSpeed = splits.size ? c.num('rules.reach_speed_mps', 'partner reach times') : undefined;
   const reachMax = splits.size ? c.num('rules.reach_max_s', 'the partner reach limit') : undefined;
-  /** Seconds for one link: `time_s`, else `length` / speed for a walked kind; untimed otherwise (lead decision 5). */
+  /** Seconds for one link: the greybox `measured.time_s`, else `time_s`, else `length` / speed for a walked kind;
+   *  untimed otherwise (lead decision 5). A measured `time_s` of null (a kind the nav grid does not model) falls
+   *  through to the declared time. */
   const timeOf = (l, speed) => {
+    if (typeof l.measured?.time_s === 'number') return { t: l.measured.time_s, untimed: false };
     if (typeof l.time_s === 'number') return { t: l.time_s, untimed: false };
     if (WALK_KINDS.has(l.kind) && typeof l.length === 'number') return { t: l.length / speed, untimed: false };
     return { t: 0, untimed: true };
@@ -965,6 +970,94 @@ function shortestByLength(adj, src, dst, max) {
   return path;
 }
 
+/** Greybox measurements (V6, docs/level-validator/V6-PLAN.md): the `measured` values `level-measure` writes beside the
+ *  declared targets are held to the same limits. ERR a measured shadow share outside the shadow band, a vantage share
+ *  below the minimum, a LOS break over the limit, a split's partner reach over the limit; WARN a null reach (legs
+ *  joined only by moves the nav grid does not model) and a measurement that has drifted from the declared target
+ *  (the design doc is out of date). INFO "pending V6" per encounter space with no `measured`; with `requireMeasured`
+ *  (the greybox gate) that is an ERR. Measured link times feed the split leg checks in `checkCoop`. */
+export function checkMeasured(graph, metrics, { requireMeasured = false } = {}) {
+  // tooling tolerance, not a level size: how far a measurement may sit from its declared target before the target is
+  // called out of date (fractions for the shares, seconds for the times).
+  const DRIFT_FRAC = 0.10;
+  const DRIFT_S = 1.5;
+  const c = collector(metrics);
+  const { spaces, links, meta } = index(graph);
+  const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+  /** A finite number at `o[key]`; ERR (naming `name`) for any other non-null value. */
+  const numAt = (o, key, name) => {
+    const v = o[key];
+    if (v === undefined || v === null) return undefined;
+    if (typeof v === 'number' && Number.isFinite(v)) return v;
+    c.err(`${name}: measured ${key} must be a number`);
+    return undefined;
+  };
+  const drift = (name, what, measured, declared, tol, unit) => {
+    if (typeof declared !== 'number' || Math.abs(measured - declared) <= tol + EPS) return;
+    c.warn(`${name}: measured ${what} ${fmt(measured)}${unit} vs declared ${fmt(declared)}${unit} (apart by more than ${fmt(tol)}${unit}; update the declared target)`);
+  };
+
+  for (const s of spaces) {
+    const m = s.measured;
+    if (!isObj(m)) {
+      if (s.type !== 'encounter') continue;
+      if (requireMeasured) c.err(`${s.id}: no measured values (--require-measured)`);
+      else c.info(`${s.id}: pending V6 (no measured values)`);
+      continue;
+    }
+    const shadow = numAt(m, 'shadow_pct', s.id);
+    if (shadow !== undefined) {
+      const lo = c.num('rules.shadow_min_frac', 'the measured shadow check');
+      const hi = c.num('rules.shadow_max_frac', 'the measured shadow check');
+      const decl = typeof s.shadow_pct === 'number' ? ` (declared ${fmt(s.shadow_pct)})` : '';
+      if (lo !== undefined && shadow < lo - EPS) c.err(`${s.id}: measured shadow_pct ${fmt(shadow)} below ${fmt(lo)}${decl}`);
+      else if (hi !== undefined && shadow > hi + EPS) c.err(`${s.id}: measured shadow_pct ${fmt(shadow)} above ${fmt(hi)}${decl}`);
+      drift(s.id, 'shadow_pct', shadow, s.shadow_pct, DRIFT_FRAC, '');
+    }
+    const sees = numAt(m, 'sees_pct', s.id);
+    if (sees !== undefined) {
+      const min = c.num('rules.vantage_min_frac', 'the measured vantage check');
+      const decl = typeof s.vantage?.sees_pct === 'number' ? ` (declared ${fmt(s.vantage.sees_pct)})` : '';
+      if (min !== undefined && sees < min - EPS) c.err(`${s.id}: measured sees_pct ${fmt(sees)} below ${fmt(min)}${decl}`);
+      drift(s.id, 'sees_pct', sees, s.vantage?.sees_pct, DRIFT_FRAC, '');
+    }
+    const los = numAt(m, 'los_break_s', s.id);
+    if (los !== undefined) {
+      const max = c.num('rules.los_break_max_s', 'the measured line-of-sight check');
+      const decl = typeof s.los_break_s === 'number' ? ` (declared ${fmt(s.los_break_s)} s)` : '';
+      if (max !== undefined && los > max + EPS) c.err(`${s.id}: measured los_break_s ${fmt(los)} s above ${fmt(max)} s${decl}`);
+      drift(s.id, 'los_break_s', los, s.los_break_s, DRIFT_S, ' s');
+    }
+  }
+
+  // Link times: only the drift against the declared `time_s` (the split leg limits read the measured time in checkCoop).
+  for (const l of links) {
+    if (!isObj(l.measured)) continue;
+    const t = numAt(l.measured, 'time_s', linkName(l));
+    if (t !== undefined) drift(linkName(l), 'time_s', t, l.time_s, DRIFT_S, ' s');
+  }
+
+  // Partner reach per split (meta.measured.splits.<id>.reach_s).
+  const splits = isObj(meta.measured) && isObj(meta.measured.splits) ? meta.measured.splits : {};
+  const ids = new Set(spaces.flatMap((s) => s.tags.map((t) => SPLIT_TAG.exec(t)?.[1]).filter((x) => x !== undefined)));
+  for (const [id, m] of Object.entries(splits)) {
+    if (!isObj(m)) continue;
+    if (!ids.has(id)) {
+      c.warn(`meta.measured.splits.${id}: names no split`);
+      continue;
+    }
+    if (m.reach_s === null) {
+      c.warn(`split ${id}: measured reach_s is null (legs joined only by moves the nav grid does not model); not checked`);
+      continue;
+    }
+    const reach = numAt(m, 'reach_s', `split ${id}`);
+    if (reach === undefined) continue;
+    const max = c.num('rules.reach_max_s', 'the measured partner reach check');
+    if (max !== undefined && reach > max + EPS) c.err(`split ${id}: measured reach_s ${fmtS(reach)} s above ${fmt(max)} s`);
+  }
+  return c.r;
+}
+
 /** Beat chart over the spine order (sections in order, spaces in file order, each spine link a release): ERR three
  *  high beats in a row; WARN the map opens above a release; WARN a peak with no release after it. */
 export function checkPacing(graph) {
@@ -1005,7 +1098,7 @@ export function checkPacing(graph) {
 
 /** Every check over one (merged) graph. `metrics` null: one WARN, every size and time check skipped. Duplicate lines
  *  (a missing metrics key asked by two checks) print once. */
-export function validate(graph, { metrics = null, metricsPath = null } = {}) {
+export function validate(graph, { metrics = null, metricsPath = null, requireMeasured = false } = {}) {
   const structure = checkStructure(graph);
   const out = { errors: [...structure.errors], warns: [], infos: [] };
   if (!metrics) {
@@ -1015,7 +1108,8 @@ export function validate(graph, { metrics = null, metricsPath = null } = {}) {
   if (structure.errors.length) return out;
   const reports = [
     checkDimensions(graph, metrics), checkReach(graph), checkSpine(graph), checkEncounters(graph, metrics),
-    checkRedundancy(graph), checkCoop(graph, metrics), checkPacing(graph),
+    checkRedundancy(graph), checkCoop(graph, metrics),
+    checkMeasured(graph, metrics, { requireMeasured }), checkPacing(graph),
   ];
   for (const r of reports) {
     out.errors.push(...r.errors);
@@ -1031,15 +1125,18 @@ export function validate(graph, { metrics = null, metricsPath = null } = {}) {
 // ---------------------------------------------------------------------------------------------------------------
 // CLI
 
-const USAGE = 'usage: node scripts/level-validate.mjs <graph.json> [more.json ...] [--metrics <file>]';
+const USAGE = 'usage: node scripts/level-validate.mjs <graph.json> [more.json ...] [--metrics <file>] [--require-measured]';
 
-/** { files, metrics } or { error }. */
+/** { files, metrics, requireMeasured } or { error }. */
 export function parseArgs(argv) {
   const files = [];
   let metrics = null;
+  let requireMeasured = false;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a === '--metrics') {
+    if (a === '--require-measured') {
+      requireMeasured = true;
+    } else if (a === '--metrics') {
       const v = argv[i + 1];
       if (!v || v.startsWith('--')) return { error: '--metrics needs a file' };
       metrics = v;
@@ -1054,7 +1151,7 @@ export function parseArgs(argv) {
     }
   }
   if (!files.length) return { error: 'no graph file given' };
-  return { files, metrics };
+  return { files, metrics, requireMeasured };
 }
 
 /** The CLI: prints the report through `log`, returns the exit code (0 clean, 1 errors, 2 bad usage). */
@@ -1083,7 +1180,8 @@ export function run(argv, { log = console.log, root = path.resolve(path.dirname(
       return 2;
     }
   }
-  const report = validate(mergeGraphs(graphs), { metrics, metricsPath: args.metrics ?? DEFAULT_METRICS });
+  const report = validate(mergeGraphs(graphs), { metrics, metricsPath: args.metrics ?? DEFAULT_METRICS,
+    requireMeasured: args.requireMeasured });
   for (const e of report.errors) log(`ERROR: ${e}`);
   for (const w of report.warns) log(`WARN:  ${w}`);
   for (const i of report.infos) log(`INFO:  ${i}`);
