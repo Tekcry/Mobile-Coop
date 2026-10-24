@@ -69,6 +69,12 @@ run), S9 + S10 builders in parallel once Sector Ops confirms the freeze / world.
   f86b4520 + S10b is running (if no verdict on resume, start a new one); it also checks open branches for conflicts in
   those two atlas files. Expect MORE guards drawn in sectorops alert (torches sweep the view): correct for parity, A/B it.
 
+- 2026-10-24 ~18:05 (new account): the S9b-fix + S10b checker was lost in the swap; a new Opus checker runs on 6a6b5e58
+  (read-only, also scans open branches for torchShadows.ts / charShadows.ts conflicts). gr2-e2e was never queued: now
+  20261024T070452-...-6a6b5e58-c47a (smoke sectorops darkness lightbake stealth-ai on the head). The 6 diag / rep alone
+  runs (47041500, 9f7dddbb, 3360b85b x2, 6b44efb8 x2) are queued and run after the 4189 PR run. Then: the final A/B on
+  the head, look shots, PR.
+
 ## Phase 1 (history)
 ## Now
 **CLOSED 2026-10-23 ~17:10** (orchestrator approved: close with #225, M1 CPU overage to the polish list; perf tuning
