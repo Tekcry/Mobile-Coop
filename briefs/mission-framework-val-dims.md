@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-24T17:33Z
+status: done feature/mission-validator-dims 0c62a921
 
 # mission-framework VAL-DIMS: validator checks co-op kit link dimensions against engine limits (unit tests only)
 Lead: Night Shift | Marlow Build.
@@ -52,3 +52,13 @@ The validator must ERR on those.
 - The regression counts are in the report.
 - Branch pushed.
 - `status: done feature/mission-validator-dims <sha>`.
+
+## Report (Night Shift | Cloud Builder 1, 2026-10-24)
+- `feature/mission-validator-dims` @ 0c62a921 (base 4ea5d26b). 7 files, +272 -33.
+- Code values all match the brief: TEAM.boostMax 4.5 (movement.ts:459), ladderGrab 4.1 (:464), ropeMin 2.2 / ropeMax 6.0 (:513-514), throwDist 3.2 (:483); PULL.min = WALL_JUMP.maxUp 3.8 + 0.5 = 4.3, PULL.max 4.5 (pullUp.ts:52-53 on kit-pull); SHUTTER.holdGap 0.9 (shutter.ts:37 on kit-shut).
+- metrics.json: hand-kept `kit` block with `_src` per number (+ `throwMargin` 0.5, `shutterTol` 0.05 so the validator holds no constant). New `checkKit`: ERR past the limit for coop_boost (4.5), human_ladder (4.1), team_rope (2.2-6.0, plus "rope climbs up only" by storey), team_throw (`width` up to 3.2 - 0.5 = 2.7), team_pull (4.3-4.5, "a solo climb exists" below); WARN on a shutter `gap` off 0.9 +- 0.05 and on any missing dimension. graph-schema.md: new `gap` field (shutter only) and a "Kit limits" table. Field names: vertical moves use `level_change` (schema `height` is the clear opening), throws use `width` (already the throw gap).
+- Changed existing checks (no double messages): the upper co-op lip ERR moved into checkKit ("leg-up reach (kit.boostMax)"); human_ladder lost its 4.3-4.5 band check (every legal 4.1 ladder would WARN); kit kinds print "dimension missing" instead of "level_change missing" / "width missing".
+- OFF-LIST EDITS (needed to keep existing tests green): `scripts/metrics-gen.mjs` + `tests/metricsGen.test.ts` (metricsGen asserts metrics.json == a fresh generation, and regeneration would wipe the hand block: a `withKit` helper carries `kit` over, 1 new test); `docs/level-validator/example.mission.json` shutter `"gap": 0.9` (else the new missing-dimension WARN breaks 3 missionValidate 0-warning tests).
+- Tests: levelValidate + missionValidate + metricsGen 157/157 (rerun by the builder session: 157/157); typecheck:fast clean; eslint clean on the test files (.mjs scripts are eslint-ignored).
+- Regression: campus S1-S5 merged 1 ERR / 119 WARN (baseline 0 / 119): new ERR `s5-arch -> s5-well (team_rope): rope climbs up only` (storey 4.2 down to 0; CR7 says the holder "lowers the climber 4.2 m", which the code cannot do). Per file 1/2/2/2/1 ERR, same as baseline (structure stops first). Tallow Wharf 0 ERR / 8 WARN (baseline 6): "dimension missing (gap)" on `w1-fish-hall -> w1-service-passage` and `w4-back-lane -> w4-shed-two` shutters.
+- Open: G57 says the human ladder reaches 4.5 but `TEAM.ladderGrab` is 4.1 (raise `kit.ladderGrab` when code ships G57); S5 CR7 needs a Sector Ops redesign (rope from the well up, or rappel / drop); Tallow's two shutters need `"gap": 0.9`; no changelog fragment (not on the file list).
