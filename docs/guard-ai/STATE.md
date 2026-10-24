@@ -1,6 +1,18 @@
 # Guard AI - state
 
 ## Now
+~23:20: #317 e2e-coop on bc96ecee FAIL #3 (AI6 (1) LKP 27.75 m + AI6 (3) spawn). Opus triage 3: both TEST bugs, one
+cause: AI6 staging left the radio alarm on, a yard response team (spawn ~18, -24.5) saw B at his hide and filled the
+guard cap. Fixed 52e3dc13 (alarmRaised staged, (3) starts clean, per-player LKP / report diagnostics;
+docs/coop4/checks/ai6-triage-3.md). Laptop e2e-coop on 52e3dc13 queued (set coop4-fix3), background wait.
+4p (alone-coop4-4p) PASS on 1b04e5bd. Green -> gh pr ready 317 + train-ready.
+M0 read (guard-cap-results 6b9efc8f): T1 OPEN on cloud-queue 3e3f38a3 (ai.anim 55-59% of sim growth, sim p95 3.4-4.4);
+D1-D2 CLOSED (ai.manager 15-24% < 40%). Orchestrator told (Marlow writes the guard-cap REPORT verdict).
+Polish batch: POLISH-PLAN fda75ca8 (3 groups, 31 items, 28 dropped). Opus builders RUNNING in worktrees
+C:/NightShift/Mobile-Coop-guard-ai-polish-a / -b / -c (branches feature/guard-ai-polish-a/b/c, node_modules junction to
+-polish). Next: merge a/b/c into feature/guard-ai-polish, full CORE vitest (82 files, plan "Vitest per group"), 2 Opus
+checkers + laptop set (plan "e2e"), PR (minor).
+
 ~22:35 (new account, laptop; OVERNIGHT mode from the orchestrator: no swap, full burn to the cap, save ~92%, no
 question dialogs: decide, log A-numbers in BRIEF). #317: alone-coop4-4p on 1b04e5bd PASS 3/3 (349 s); e2e-coop on
 bc96ecee (laptop-e2e/coop4-fix2) running, background wait. Green -> gh pr ready 317 + orchestrator train-ready.
