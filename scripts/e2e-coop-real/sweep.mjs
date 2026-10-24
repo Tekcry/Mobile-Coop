@@ -77,7 +77,7 @@ export function pageHash() {
     }
     for (const [id, a] of net.avatars ?? []) out[`p.${id}`] = `${a.mode ?? ''}`;
   }
-  for (const d of g.world?.doors?.list ?? []) out[`d.${d.index}`] = `${d.target}${d.open > 0.01 ? 1 : 0}${d.locked ? 1 : 0}${d.cracked ? 1 : 0}`;
+  for (const d of g.world?.doors?.list ?? []) out[`d.${d.index}`] = `${d.target}${d.open > 0.01 ? 1 : 0}${d.anchor?.locked ? 1 : 0}${d.cracked ? 1 : 0}`;
   const reg = g.world?.level?.lights;
   if (reg?.lights) out.lamps = reg.lights.map((l) => (l.kind === 'flashlight' ? 1 : l.destroyed ? 2 : reg.baseOn?.(l) ? 1 : 0)).join('');
   for (const it of g.interactables?.items ?? []) out[`i.${it.id}`] = `${it.enabled ? 1 : 0}${it.done ? 1 : 0}|${it.label}`;
