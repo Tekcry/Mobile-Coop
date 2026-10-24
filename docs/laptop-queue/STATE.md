@@ -1,6 +1,12 @@
 # laptop-queue - state
 
 ## Now (2026-10-24, laptop-queue batch, local commits, not pushed)
+- 2026-10-24 ~18:30 (Orchestrator audit: withdrawn aab8f4f0 held 4191 16:55-18:02, aabc5a31 held 4192 to 17:55,
+  train 56 waited 11 min): e48a735d - lib `cutShort`; runRequest kills the command tree (sh `ctl`, `cut`) when the
+  request file left the branch on two listings in a row (error status, done) or, for a plain pr request in its suites,
+  when a train head is pending (claim released, queued again). `request.mjs --pin` / `pin: true`: never superseded.
+  #252 merged at e9363533 only: the 11 later audit commits (f0b9ea20..61171362) had no PR; they ride in the new PR
+  with this fix. Opus checker on e48a735d running; train-ready on CI green + checker PASS (Orchestrator).
 - 2026-10-24 (Orchestrator audit 2026-10-23 20:30-23:35Z, ~56 + ~10 min of train time lost): duplicates (lib
   `dupKey` / `duplicates`, `LQ_DUP_WINDOW_MIN` 60) are marked done unrun; pr / full / alone runs not yet in their
   suites or steps yield to a pending train (lib `yieldTo`); train reruns (`request.mjs --train-rerun`, lib `pick`,
