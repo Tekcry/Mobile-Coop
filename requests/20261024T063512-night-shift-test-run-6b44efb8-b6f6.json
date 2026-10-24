@@ -1,0 +1,14 @@
+{
+  "id": "20261024T063512-night-shift-test-run-6b44efb8-b6f6",
+  "sha": "6b44efb8ecc85352d87e21d4742a2c0d759eed34",
+  "branch": "",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Test Runner",
+  "steps": [
+    "node scripts/guard-cap.mjs --maps=sectorops --counts=0,24 --cells=alert,patrol --out=C:/NightShift/scratch/gr2/rep-r3-base"
+  ],
+  "env": {},
+  "set": "gr2-rep-r3-base",
+  "note": "guard-render-2 sectorops noise repeat r3-base (interleaved)"
+}
