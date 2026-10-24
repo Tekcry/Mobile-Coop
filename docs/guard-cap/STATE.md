@@ -6,8 +6,13 @@
   r1 + r2, plus campus perf.mjs (step 4). Queue order: train 57, Test Runner gr2 alone runs, then this. Test Runner pushes
   results to origin/feature/guard-cap-results docs/guard-cap/run-m0/ and the gr2 baseline (sectorops 0/24 alert+patrol;
   base r1/r3/r5 = master 6b44efb8, r2 = 3360b85b, r4 = #323 head 6a6b5e58) to docs/guard-cap/run-gr2/<set>/, one message.
-- M1 BUILDING: Sonnet, worktree C:/NightShift/Mobile-Coop-guard-cap-m1, branch feature/guard-cap-m1 -> scripts/guard-cap-coop.mjs.
-  Next: Sonnet checker, merge into feature/guard-cap, laptop GPU smoke then the full M1 run (alone).
+- M1 BUILT + CHECKED: scripts/guard-cap-coop.mjs (Sonnet, checker PASS + should-fixes da3b0b0d: hidden / <10 fps page FLAG,
+  SIGINT, orphan guard), merged here a7f81390. Laptop smoke queued on 19857eed (20261024T072522-...-08ec, set
+  guard-cap-m1-smoke, campus 0/12, 2 players, 3 s; out C:/NightShift/scratch/guard-cap/m1-smoke-19857eed). Next: on a clean
+  smoke, ONE alone request for the full M1 run on this branch head (campus + sectorops, 0/12/24/32, players 2 and 4).
+- SIDE (orchestrator ~18:35): e2e-coop joint interrogation flake -> PR #328 (feature/joint-flake 240addc2, test only: the
+  client hold starts at the bluff; JOINT.window 6 s host time was spent by sequential polls). Laptop e2e-coop queued
+  (20261024T072944-...-d2f1, set joint-flake). On PASS: label train-ready + message the orchestrator.
 - R1 TAKEN by Guard AI Build (~18:30): Opus builder on feature/guard-ai-r1-rays off 6e8a450b (brief docs/guard-cap/briefs/R1.md);
   Opus checker + laptop e2e-stealth-ai / e2e-enemies, PR into the next train; it copies Marlow at train-ready. Marlow does not touch src/ai.
 
