@@ -32,6 +32,8 @@ joints with the fingers folded onto the wrists (`fold`); influences 4 / 4 / 2. T
 skin albedo is used as baked (its 0.69 mean is scalp shadow, lead ruling: no divide here). Fabric-tinted garment
 regions are rescaled per channel to the fabric neutral (x 0.78 for trousers; SPEC 8, G10a D3) and every region's linear
 albedo mean over its covered texels goes into the bake JSON's `albedoMean` (guard-check.mjs checks the garments').
+A head whose kinds all wear the balaclava for good (faceCovered: broad-1) loses the triangles the balaclava covers, the
+eye slot and one ring kept (G10a D6; `coveredHeadTris` in the bake JSON).
 Writes <out>/lods/guard-<id>-lod{0,1,2}.glb (PNG inside; guard-lods.mjs then fixes the attributes, encodes KTX2 and
 writes the report), <out>/lods/textures/guard-<id>-lod<n>-{albedo,normal,orm}.png, <out>/lods/guard-<id>.bake.json.
 """
@@ -58,6 +60,7 @@ LODS = (0, 1, 2)
 CAGE = (0.003, 0.012, 0.03)          # selected-to-active cage per LOD (m): the ray starts this far out
 COPY_CAGE = 0.0015                   # a LOD0 piece that is its source unchanged (no decimation)
 COVER_REACH = 0.08                   # body faces whose outward ray meets a garment within this are covered
+POKE_REACH = 0.03                    # (G10a D6) a covered-face head face this far in front of the balaclava pokes through
 SEAM_TOL = 0.002                     # head seam vertex to body seam vertex (m)
 SCALP_REACH = 0.010                  # LOD2: head vertices this close to the buzz cap take the hair slot
 ISLAND_MIN = 0.02                    # LOD meshes drop loose islands smaller than this (stitches, rivets; they bake in)
@@ -670,6 +673,53 @@ def run_base(args, kit, L):
         gear[pid] = src
     log('sources:', len(heads), 'heads,', len(caps), 'cap objects,', len(garments), 'garment parts,', len(gear), 'gear pieces')
 
+    # ---- (G10a D6) heads whose kinds all wear the balaclava for good (faceCovered, SPEC A14): the head's front pokes
+    # through the membrane (the 20-column ring cuts inside the nose, lips and chin; the throat rows ride the neck), which
+    # showed skin from brow to chin. Drop every head face the balaclava covers (the body cover test's rays: outward
+    # within COVER_REACH, or inward within POKE_REACH for a face in front of it), keeping the eye slot, one ring of
+    # margin, the eyes and the seam ring (the body weld).
+    covered_report = {}
+    bal = gear.get('balaclava')
+    for hid, got in heads.items():
+        kinds = [k for k in kit.get('kinds', []) if hid in (k.get('heads') or [])]
+        if not kinds or not all(k.get('faceCovered') for k in kinds):
+            continue
+        if bal is None:
+            note(f'head {hid}: face covered but no balaclava built: head kept whole')
+            continue
+        bco = world_co(bal)
+        tree = BVHTree.FromPolygons([Vector(p) for p in bco], [list(p.vertices) for p in bal.data.polygons])
+        for lod in LODS:
+            o = got.get(f'guard-{hid}-head-lod{lod}')
+            if o is None:
+                continue
+            me = o.data
+            mw = o.matrix_world
+            rot = mw.to_3x3()
+            mi = np.zeros(len(me.polygons), np.int32)
+            me.polygons.foreach_get('material_index', mi)
+            seam = seam_pairing(o, 'head')[0] >= 0
+            covered = np.zeros(len(me.polygons), bool)
+            for p in me.polygons:
+                if mi[p.index] == 1 or seam[list(p.vertices)].any():
+                    continue
+                c = mw @ p.center
+                n = (rot @ p.normal).normalized()
+                pts = [c] + [c + ((mw @ me.vertices[v].co) - c) * 0.8 for v in p.vertices]
+                covered[p.index] = all(tree.ray_cast(q + n * 0.0005, n, COVER_REACH)[0] is not None
+                                       or tree.ray_cast(q - n * 0.0005, -n, POKE_REACH)[0] is not None for q in pts)
+            vis_v = np.zeros(len(me.vertices), bool)
+            for p in me.polygons:
+                if not covered[p.index]:
+                    vis_v[list(p.vertices)] = True
+            keep = np.array([not covered[p.index] or vis_v[list(p.vertices)].any() for p in me.polygons])
+            tris = lambda m: [len(p.vertices) - 2 for p in m.polygons]   # noqa: E731
+            t_all = sum(tris(me))
+            drop_faces(o, keep)
+            t_kept = sum(tris(o.data))
+            covered_report.setdefault(f'lod{lod}', {})[hid] = {'dropped': t_all - t_kept, 'kept': t_kept}
+            log(f'head {hid} LOD{lod}: {t_all - t_kept} of {t_all} tris under the balaclava dropped')
+
     # ---- the visible body: faces some outfit leaves uncovered (+ one ring)
     body0 = duplicate(body_src, f'g-{b}-body-lod0')
     outfit_trees = []
@@ -1050,6 +1100,7 @@ def run_base(args, kit, L):
     report.pop('_seamRows', None)
     report['bakeCoverage'] = {f'lod{k[0]}.{k[1]}': v['coverage'] for k, v in baked.items()}
     report['albedoMean'] = {f'lod{k[0]}.{k[1]}': v['albedoMean'] for k, v in baked.items()}   # linear, covered texels (G10a D3)
+    report['coveredHeadTris'] = covered_report   # (G10a D6) per LOD, per face-covered head: tris dropped / kept
     report['seconds'] = round(time.time() - T0, 1)
     with open(os.path.join(lods_dir, f'guard-{b}.bake.json'), 'w', encoding='utf-8') as f:
         json.dump(report, f, indent=1)
