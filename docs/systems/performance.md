@@ -65,6 +65,24 @@ Warehouse, 10 guards (`STEALTH=1`: unaware and perceiving). Options: `docs/syste
   thread and frame pacing enforced; draws, triangles and allocations keep the script's limits). Cloud sessions never
   claim a perf result: they mark it "pending PC run".
 
+## Guard models (2026-10-24)
+Realistic guard models are on by default (`?guardmodels=0` is off). Gate: frame CPU p95 with the models on within
++0.5 ms of off at 24 guards. Measured on the laptop RTX 4090, 1080p epic, `E2E_GPU=1`, `scripts/guard-cap.mjs`
+(branch `shots/gm-perf-408ab154`, after frozen guard materials and the lazy visible-only pose): PASS.
+
+| Map, cell (24 guards) | Frame p95 ON (ms) | Frame p95 OFF (ms) |
+| --- | --- | --- |
+| sectorops patrol | 6.5 | 6.5 |
+| sectorops away | 4.6 | 4.7 |
+| sectorops alert | 7.2 | 7.4 |
+| campusops patrol | 9.0 | 9.7 |
+| campusops away | 4.5 | 4.8 |
+| campusops alert | 9.2 | 10.0 |
+
+At 12 guards campusops ON is +0.4 to +0.6 ms. The merged armour, shield and visor meshes (S13) came after this run and
+have no GPU number yet (they only act on the flag-off and fallback path). Detail: `docs/guard-models/reports/PERF-REPORT.md`,
+`GM-PERF-CHECK.md`.
+
 ## What keeps the frame inside the budget
 - Static level geometry: thin instances, `freezeWorldMatrix()`, frozen materials. (marlow-final S9) The facility kit and
   props bake their static opaque pieces into one mesh per material and draw ahead of the level boxes they cover

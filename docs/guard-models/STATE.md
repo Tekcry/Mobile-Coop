@@ -1,6 +1,7 @@
 # Guard models: state
 
 ## Resume
+- ~19:10: gm-perf merged into feature/gm-flip (checker PASS d729e490); cap gate PASS (shots/gm-perf-408ab154); flip waits for G10a D3 / D6 (feature/gm-g10a)
 - ~19:30: PR prep: master 4.90 merged (8809aab9), assets never precached (89c10827), SW runtime-caching rules self-contained (aba0953a; MERGE-CHECK-B B1: the guard rule threw in sw.js and broke offline caching for everyone). MERGE-CHECK-A PASS. Laptop: G9 set on 89c10827 (20261024T043619-...-6637), e2e-offline on aba0953a. Perf batch on feature/gm-perf (408ab154; PERF-REPORT.md), its cap A/B queued (gm-perf-cap). CORRECTION: the G8 "Poser solve PASS" line is NOT MEASURED (ai.anim timed stepHeadless only, the figure poses inside render()); guard-cap now has render.figure (on gm-perf).
 - Open for the look pass (G10): green debug markers on the sheet's faces (sheet overlay), low face variety, tone 0 too pale, jagged hair-cap hairline, very dark uniforms, enforcer shield missing on the sheet ("not in the broad file"), garment seam gaps (see Open), beard baked into the skin tile (takes the skin tint). No sheet notes from Michael yet.
 - ~17:55: G8 after S11 (origin/shots/g8c-0fd85e2b): still HOLD. 24 guards p95 ON vs OFF: sectorops alert 11.1 vs 9.4 (+1.7), sectorops patrol +1.1, campus patrol 9.5 vs 8.1 (+1.4), campus alert 12.0 vs 9.5 (+2.5; ON at the 12 ms target), campus away +0.5. S11a (frozen skip) only acts after the master merge. Plan (told the orchestrator): guard-models PR with the flag OFF (G9 e2e set queued 20261024T042137-player-build-b25947e6-a888); perf follow-up: read-only Opus profile of per-guard Babylon cost (PLAN2 S13 active meshes) running, then a fix and the flip.
@@ -110,7 +111,7 @@ Mean guard distance ~6.8-9.3 m (mostly LOD1); 12 of 24 in sight at sectorops, 24
 | Buffer tris per LOD (PLAN 5) | 45 k / 14 k / 5 k | bundled GLBs: average 32.3 k / 11.8 k / 3.7 k, lean 30.7 k / 11.5 k / 3.5 k, broad 11.1 k / 4.9 k / 1.6 k | PASS |
 | VRAM | <= 12 GB (guards ~112 MB est.) | not in guard-cap; from the bundled KTX2 headers: ~64 MB of textures at BC7 (~258 MB if transcoded to RGBA8) | PASS (estimate) |
 | Download | <= 75 MB | 29.3 MB (12 GLBs + 3 json) | PASS |
-| Poser solve per guard | <= 0.01 ms | `ai.anim` ON - OFF at 24: -0.06 to +0.18 ms a step (<= 0.0074 ms a guard) | PASS |
+| Poser solve per guard | <= 0.01 ms | `ai.anim` ON - OFF at 24: -0.06 to +0.18 ms a step (<= 0.0074 ms a guard); that bucket is `stepHeadless`, which never calls `render()`, where the figure poses (PERF-REPORT, STATE correction) | NOT MEASURED (guard-cap `render.figure` reports it) |
 | `near` cell (24 inside 8 m, LOD0 worst) | GPU <= 15 ms | not in guard-cap (open) | NOT MEASURED |
 | campusops | GPU, draws (thinnest map) | did not boot: guard-cap had no `campusops` alias, fallback `autostart=campusops&mode=sandbox` (wrong-case id, no enemy manager) timed out 3 x 180 s | NOT MEASURED (alias added: `autostart=campusOps&mode=sector&sectorGuards=0`) |
 
@@ -130,6 +131,13 @@ OFF with `--maps=sectorops,ctcourse,campusops` and a `near` cell; flip (flags.ts
 within +0.5 ms and campusops 24 alert stays <= 600 draws.
 
 ## Open
+- Polish (after the flip), from GM-PERF-CHECK (a64fb335):
+  - guardGearMerge.ts:180-187: `mergeStaticParts` derives the shield's root-local matrix as world x inverse(root world) in float32; far from the origin the `toFixed(4)` key can split enforcers into an extra source (geometry off ~10 um). Compose the local chain (`visor` local x `sh` local, `sh` local) as `mergeRigGear` does.
+  - gearParts.ts:61 / guardGearMerge.ts:110-171: the armour merge first runs mid-play at alarm stage 2 (`GEAR_BY_STAGE`); many guards gaining armour at once is one frame of merges. If a hitch shows, prewarm one merge per build at section load.
+  - guardGearMerge.ts:73 / :140: `SOURCES` keeps every (build, colour) source until the part library's skin material is disposed; bounded by the number of builds. Revisit if section restarts ever rebuild the part library.
+  - guardGearMerge.ts:101 / :152: merged gear takes `receiveShadows` from the part base, the S1 body hard-sets true; the armour may receive shadows differently from the body under it. Check in the visual pass.
+  - enemy.ts:3757 (`thawPose`): when the skeleton was already prepared in this render id, the thawed pose shows a frame late (same as before F2). S11-CHECK P2 (killed while frozen) is still open.
+  - S13 itself (armour, shield merge) has no GPU number: the 408ab154 gate run predates it. It only touches the flag-off and fallback path, so it does not gate the flip; the `perf.mjs` geared-section A/B in PERF-REPORT still applies.
 - G8: frame CPU gate fails at sectorops 24 (map-light shadow casters, fix list in "G8 budget run"); campusops and the
   `near` cell unmeasured (guard-cap has no `near` cell: all 24 placed inside 8 m); G8 look check not run. Flag default
   stays off until the rerun passes.
