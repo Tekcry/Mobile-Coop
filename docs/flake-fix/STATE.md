@@ -12,6 +12,13 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   overlap slice 3 + alone preemption < 10 min + audit items (heartbeat, no pr cut past 80%, alone hold before a train,
   alone yields between steps, install-task -DesktopCpu / -DesktopBacklog). Two Opus checkers, both FIX rounds done.
   Open non-blocking notes: state.aloneSteps not pruned on nosha / supersede; 4192 has no install-task CPU switch.
+- NEXT JOB (Orchestrator ~21:55, Michael approved process-audit findings 5 + 12; docs/orchestrator/PROCESS-AUDIT-2026-10-24.md
+  on feature/menu): start once #342 (train 66) and #251 (train 65) are on master, one branch off master, Opus checker:
+  (1) auto affected-e2e: when a PR head moves (and on label) the queue enqueues request --affected for it and posts
+  commit status `affected-e2e` on that sha; a newer head supersedes the older request. (2) flake budget: per-suite
+  flake rate from state.flakes in a file + PR comment summary; quarantine list (suite, owner, expiry, reason) that
+  run-e2e treats as KNOWN FLAKY until expiry, replacing "flake stands"; fix order ctcourse:1, sectorops:1 / :6.
+  A commit after train-ready drops the label (watchdog does it; do not fight it).
 - Still open from SAVE 38: guard-cap m0 / m1 results to feature/guard-cap-results, then ONE message to Marlow.
 
 **Test Runner SAVE 38 (2026-10-24 ~20:50, after the swap; wins over SAVE 37 where they differ):**
