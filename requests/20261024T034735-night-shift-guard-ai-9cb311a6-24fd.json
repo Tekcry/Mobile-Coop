@@ -1,0 +1,13 @@
+{
+  "id": "20261024T034735-night-shift-guard-ai-9cb311a6-24fd",
+  "sha": "9cb311a62e81d42c2dcb9a4de6c7f2c48ccb4b1a",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-takedown"
+  ],
+  "set": "coop-carry2"
+}
