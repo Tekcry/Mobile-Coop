@@ -159,3 +159,17 @@ None yet. Open questions: PLAN.md "Questions for Michael" (asked later, native m
   directly. F1 / F8 need `upper.contrast` to separate (veil alone does not count: VG1 check polish 2). Proof builders
   write only `docs/visual-gate/proofs/P<n>.md`, in the job worktree (docs only, no new worktree). Undo: VG8 recomputes
   from the pushed JSONs with its own test.
+- A31 (vg5t triage, 2026-10-25) PLAN 7 ladder: no step taken after M0. VG5's gate run on master 46a7cf85 took 176.6 s
+  (Epic browser; Low 107.2 s) alone on the laptop, 98% of the 180 s target; 4 of its Epic renders sat out the 8 s
+  converge cap on TAAU shimmer, which vg5t's noisy-steady converge ends in ~1-2 s (expected wall ~150 s). Step 1 (1 card
+  per map) would keep only each map's first card, the lit one on 3 of 4 maps, and drop the dark / mid cards F6 needs.
+  Trigger: the vg5b rerun's wall over 165 s (a train post-step can share the laptop with 4191 / 4192) -> step 1 before
+  VG7, keeping the mid card per map (`docs/visual-gate/M0.md`). Undo: take step 1 now (`--cards 1` as the default).
+- A32 (vg5t triage, 2026-10-25; supersedes A15's off-row rule) Parity ranges between the DARK_TARGETS rows: each bound
+  is linear between the two rows around the card's level (+-0.02); below 0.12 the 0.12 row's range, above 0.70 the 0.70
+  row's; the row match (within 0.03) and the band-edge skip stay as A15. Why: the bible pins the curve at 4 levels; the
+  mid band has one row (0.40: 12-35%), and A15 stretched it over 0.31-0.57, so VG5's laptop run flagged 3 cards the curve
+  renders as designed (0.466 -> 0.417, 0.484 -> 0.412, 0.324 -> 0.085). The bounds rise with the level, so a dark mid
+  card is caught sooner (0.5: floor 0.21, A15 0.10), a bright one later (0.5: ceiling 0.59, A15 0.37). This is A15's
+  own undo (the first PLAN draft; C0 P15 allowed it as an A entry). Undo: `metrics.mjs` `parityRange` back to the band
+  union (vg5t commit `visual-gate vg5t: parity ranges between rows (A32)`).

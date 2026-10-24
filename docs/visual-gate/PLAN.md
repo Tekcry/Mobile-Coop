@@ -124,7 +124,8 @@ Input: `{ w, h, luma: Uint8Array }` (Rec. 709 Y' of sRGB bytes) and a `Uint8Arra
 - `arc`: Sobel magnitude of a 2 px blur; share of mask pixels whose gradient > max(6/255, 4 x the mask's median gradient)
   and that sit in a run of >= 12 such pixels along the gradient's normal (a ridge, not noise).
 - `leak(on, off, mask)`: per pixel max(0, on - off); mean and p95.
-- `parityRange(level)` per A15 (no interpolation); a test asserts the mirror equals `src/world/darkCurve.ts` DARK_TARGETS.
+- `parityRange(level)` per A15, off-row levels per A32 (vg5t: linear between the rows); a test asserts the mirror
+  equals `src/world/darkCurve.ts` DARK_TARGETS.
 - `measure`, `compare(key, base, cur, tol)`, `checkRules(key, item, cur, preset)`; `FLOORS` exported (C0 P8: VG5 uses them until
   VG7's `tolerances.mjs` exists).
 Spec tolerance floors (A13; final = max(floor, 4 x spread)): whole / region mean |d| >= 0.03 and >= 20% relative;
