@@ -1,0 +1,23 @@
+{
+  "id": "20261024T215815-affected-e2e-82236fa9-7830",
+  "sha": "82236fa9448d50f76a41ac212abaef483ead23d5",
+  "branch": "feature/client-intel",
+  "pr": 389,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-coop",
+    "e2e-ctcourse",
+    "e2e-gadgets",
+    "e2e-guard-carry",
+    "e2e-netmove",
+    "e2e-park",
+    "e2e-sectorops:1",
+    "e2e-stealth-ai",
+    "e2e-tactics",
+    "e2e-takedown",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #389"
+}
