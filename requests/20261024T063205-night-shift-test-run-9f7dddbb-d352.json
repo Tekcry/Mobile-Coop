@@ -1,0 +1,14 @@
+{
+  "id": "20261024T063205-night-shift-test-run-9f7dddbb-d352",
+  "sha": "9f7dddbb78fb3e82e13a7002e7764510829d56e0",
+  "branch": "",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Test Runner",
+  "steps": [
+    "node scripts/guard-cap.mjs --counts=0,24 --cells=alert --maps=\"warehouseOps:sector&sectorGuards=0&guardfreeze=0\" --out=C:/NightShift/scratch/gr2/diag-b-nofreeze"
+  ],
+  "env": {},
+  "set": "gr2-diag-b-nofreeze",
+  "note": "guard-render-2 sectorops regression diag b-nofreeze"
+}
