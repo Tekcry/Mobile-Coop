@@ -26,14 +26,14 @@
     { "id": "ss-4b", "section": "S2", "space": "s2-plant-g", "team": "b", "kind": "sync", "twist": true, "after": ["ss-3"],
       "lead": "s2-foyer", "seen_from": "s2-foyer", "minutes": 3, "sync": "sync-s2-power", "assist": "sync-s2-atrium",
       "text": "Hold the plant room dark until Ghost is out of the office",
-      "hint": "Two of them now. The atrium board is on the foyer wall. He always fixes his own lights first." },
+      "hint": "Two of them now. The atrium board is on the foyer wall. He fixes his own lights first." },
     { "id": "ss-opt", "section": "S2", "space": "s2-l2-board", "team": "all", "kind": "interact",
       "optional": { "reward": "syringe" }, "lead": "s2-l1-facilities", "seen_from": "s2-l2-wing", "minutes": 3,
       "text": "Optional: photograph the lighting schedule on the board room wall, second floor",
-      "hint": "Second floor, north-east corner. The north-strip guard turns back at the wing door. Go in behind him." },
+      "hint": "Second floor, north-east corner. The north-strip guard turns back at the wing door." },
     { "id": "ss-5", "section": "S2", "space": "s2-l1-landing", "team": "all", "kind": "extract", "after": ["ss-4a", "ss-4b"],
       "minutes": 2, "assist": "sync-s2-pairdoor", "text": "Everyone to the bridge landing and over the glazed bridge",
-      "hint": "Shadow: the north-east fire stair from the hall. The bridge officer faces the comms door; the west door is on his blind side." }
+      "hint": "Shadow: NE fire stair from the hall. The west door is on the bridge officer's blind side." }
   ],
   "rules": [
     { "kind": "ghost", "scope": "a", "text": "Team Ghost - never seen" },
