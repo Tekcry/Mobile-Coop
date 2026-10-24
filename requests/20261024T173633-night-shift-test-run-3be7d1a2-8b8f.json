@@ -1,0 +1,18 @@
+{
+  "id": "20261024T173633-night-shift-test-run-3be7d1a2-8b8f",
+  "sha": "3be7d1a20b0b6392f681806a426af4c9e0183c38",
+  "branch": "",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Test Runner",
+  "steps": [
+    "node scripts/run-e2e.mjs e2e-coop",
+    "node scripts/run-e2e.mjs e2e-coop",
+    "node scripts/run-e2e.mjs e2e-coop",
+    "node scripts/run-e2e.mjs e2e-coop",
+    "node scripts/run-e2e.mjs e2e-coop"
+  ],
+  "env": {},
+  "set": "soak-coop",
+  "note": "flake soak: e2e-coop x5 on 4.100.0 (includes #365 joint-read fix)"
+}
