@@ -1,6 +1,10 @@
 # Guard AI - state
 
 ## Now
+~09:20 SAVE (orchestrator: weekly 90%, save ~17:20; no new feature this account): every guard-ai worktree clean
+and pushed, nothing running. Next account: watch the trains for #272, #298, #302, #303, #313, #319 (bisect + Opus
+triage on a failure), answer Sector Ops on coop4 wiring, then the next AI item the orchestrator assigns.
+
 ~09:10: #319 coop4 AI TRAIN-READY (laptop: sectorops all parts + stealth-ai incl. the 4-intruder block PASS).
 Ready from me: #272, #298, #302, #303, #313, #319. Nothing running. Coop4 net / SM wiring is Sector Ops'.
 
