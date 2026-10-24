@@ -10,7 +10,12 @@
 // stops both at the end. Exit 0 when report.json is written (flagged shots are data); 2 = setup (no dist, port taken by
 // another build); 1 = a crash or the whole-run cap.
 // Optional env: LR8_OUT (default C:/NightShift/scratch/lighting/lr16-8), LR8_ONLY=campusOps:s2,warehouse (maps or
-// map:unit), LR8_SKIP=coop,bake,perf,probe,epic, LR8_CAP_MIN (whole-run cap, default 170).
+// map:unit), LR8_SKIP=coop,bake,perf,probe,epic, LR8_CAP_MIN (whole-run cap, default 170), LR8_SHOTS=04,07,08 (only
+// those shots; the probe, bakes, perf and co-op stay skipped unless named: probe, bake, perf, coop or 10).
+// Fix round (Sector Ops Build triage lr16-8-triage.md, code at 5c20c538): 04 reads the ceiling's linear level from the
+// light field (lamp kind cone / downward, ceiling height logged); 07 compares torch ON / OFF at one frozen pose with TAA
+// off (and a haze-off variant), masked to the far side of the occluder per 8x8 block, distinct frames checked; 08 stands
+// the player in the shot lamp's pool and logs its lampAt at the body before the shot.
 // Modelled on scripts/sector-lights-shots.mjs, lamps-shots.mjs, nv-shots.mjs, campus-art-shots.mjs (photo freeze
 // views), lamp-audit.mjs (the framing method), e2e-darkness.mjs (the grey card read-back), shots-ctcourse.mjs (meter vs
 // field), guard-cap.mjs (guard spawn, frame timing) and e2e-net-lib.mjs (the two-page pair).
@@ -29,6 +34,18 @@ const URL = `http://127.0.0.1:${PORT}/`;
 const ONLY = (process.env.LR8_ONLY ?? '').split(',').map((s) => s.trim()).filter(Boolean);
 const SKIP = new Set((process.env.LR8_SKIP ?? '').split(',').map((s) => s.trim()).filter(Boolean));
 const CAP_MIN = Number(process.env.LR8_CAP_MIN ?? 170);
+/** LR8_SHOTS: only these shots ('01'..'10'); the probe, bakes, perf and co-op run only when named too. */
+const SHOTS = (process.env.LR8_SHOTS ?? '').split(',').map((s) => s.trim()).filter(Boolean).map((s) => (/^\d$/.test(s) ? `0${s}` : s));
+const shotOn = (nn) => !SHOTS.length || SHOTS.includes(nn);
+const skipped = (k) => SKIP.has(k) || (SHOTS.length > 0 && !SHOTS.includes(k) && !(k === 'coop' && SHOTS.includes('10')));
+/** Shot 07 (fix round): a pixel's linear luminance rise that counts as torch light, the share of the far-side mask
+ *  that makes a leak, the mask's block size (px), torch-visible pixels that make a corner beam "seen". */
+const TORCH_RISE = 0.02;
+const LEAK_SHARE = 0.005;
+const BLOCK = 8;
+const SEEN_PX = 200;
+/** Shot 04 (fix round): a ceiling reads lit when its field level 0.25 m under it is at least this (triage C). */
+const CEIL_FIELD = 0.02;
 const VIEW = { width: 1280, height: 720 };
 /** Display luma (Rec. 709 of the sRGB pixel, 0..1) of a "lit pool" pixel and a "dark" pixel: the L5 bands of the
  *  audit's field lines (lit > 0.45 -> about 0.2 on screen; dark < 0.28 -> under 0.09, e2e-darkness TARGETS). */
@@ -89,11 +106,11 @@ let head = null;
 try { head = (await import('node:child_process')).execSync('git rev-parse HEAD', { cwd: ROOT, encoding: 'utf8' }).trim(); } catch { /* not a git tree */ }
 const HOOKS = {
   '01-03': 'window.__app.current (GameState): player.controller.teleport, photoFreeze / photoCamera (photo mode), vision.set("off"); the spot planner: nav (NavGrid cells), ballistics.cast + world.lightField.levelAt (the lamp-audit framing rays); screenshot luma histograms',
-  '04': 'world.level.lights (LightRegistry), ballistics.cast (the nearest wall face and the ceiling over the lamp), photo camera; ceiling luma',
+  '04': 'world.level.lights (LightRegistry), ballistics.cast (the nearest wall face and the ceiling over the lamp; lamps with a ceiling first), photo camera; the lamp kind from world.lightBake.lamps.baked.lights[i*10+7] (> -1.5 cone, else downward: lampBounce.ts:318 / :418 uplight for downward only), the ceiling height (cast) and world.lightField.levelAt / bounceAt / lampAt 0.25 m under the ceiling (pass at >= 0.02); ceiling screen luma for reference',
   '05': 'player teleport with the rig shown, world.charShadows (silhouette slots, stats()), Epic pass: app.quality.setOverride({ preset: "epic" })',
   '06': 'world.level.boxes / world.layout.props (crate / rack), world.doors.setOpen (the leaf open), the lamp registry',
-  '07': 'enemyMgr.spawn (passive grunts), Enemy.torchOverride (the coop-torches test hook), enemyMgr.torchesOn, world.doors.setOpen(false); on / off screenshot diff',
-  '08': 'stealth.shotRay (the round on the fitting; shootLight fallback), the circuit wall switch item (StealthSystems switch onUse = the player toggle; LightRegistry.setGroup fallback), GameState.lightLevel (the HUD meter), LightRegistry.restore',
+  '07': 'enemyMgr.spawn (passive grunts), Enemy.torchOverride (the coop-torches test hook), enemyMgr.torchesOn + torches / torchOwner (each slot\'s registry light on), world.doors.setOpen(false); app.quality.setOverride({ scale: 1, gfx: { aa: "fxaa" (TAA off), volumetrics: false (haze off) } }); scene.getFrameId (distinct frames); far-side mask per 8x8 block: Vector3.TransformCoordinates through the inverted transform matrix, ballistics.cast + lightField.doorBlocks from the camera and from the torch; linear-luminance rise > 0.02 ON vs OFF, OFF vs OFF2 as the noise floor',
+  '08': 'stealth.shotRay (the round on the fitting; shootLight fallback), the circuit wall switch item (StealthSystems switch onUse = the player toggle; LightRegistry.setGroup fallback), GameState.lightLevel (the HUD meter, sampled at LIGHT.playerHz 10 Hz), LightRegistry.restore; the stand spot in the pool by world.lightField.lampAt(<baked index>) at chest / head, logged with bounceAt / levelAt before the shot; the meter read >= 0.2 s sim after',
   '09': 'vision.set("night" / "thermal"), enemyMgr.spawn (a warm body in view); the darkest room from the audit file',
   '10': 'two pages over ?net=local in one context (the host / join menu flow of e2e-net-lib hostAndJoin, startMode, until), RemotePlayer.allowTeleport, the remote avatar rig headNode, Vector3.TransformCoordinates for the crop',
   probe: 'GameState.lightLevel (the meter) vs world.lightField.bodyLevel (shots-ctcourse parity); World.addLightProbe grey card + centre display-luma read-back against the L5 band (e2e-darkness)',
@@ -111,6 +128,8 @@ const DEVIATIONS = [
   'Shot 09: the thermal ghost through a shut door is LR16-6 (not built): the note says what thermal shows (a warm guard is placed in view).',
   'Shot 10: vision is never sent to the partner (D8): what A sees of B\'s goggles is the same in every mode of B.',
   'Pass / flag: 01-03, 04, 07, 08, 09, 10 and the probe have cheap automated checks; 05 and 06 (shadow softness) are "review": the sheet is the result.',
+  'Fix round 07: the wall / door / corner pairs run under a quality override (scale 1, aa fxaa: no TAA / TAAU; then also volumetrics off), which also stops the frame governor for those captures; the override in force before (Auto: none, the Epic pass: epic) is put back after. A surface leak is judged on the haze-off variant; a rise only with the haze on is the known volumetric spill (triage A3) and reads "review". The four-torch frame is unchanged.',
+  'Fix round 04: a ceiling below 0.02 in the field over a cone fitting or in a room taller than 4.2 m reads "review" (the LR16-1 model as built, triage C); only a downward lamp in a room <= 4.2 m under 0.02 is a flag.',
 ];
 const report = {
   script: 'C:/NightShift/scratch/work/lr16-8/sheets.mjs',
@@ -119,7 +138,9 @@ const report = {
   started: new Date().toISOString(),
   gpu: GPU,
   port: PORT,
-  thresholds: { LIT_LUMA, DARK_LUMA, MIN_SHARE, fieldLit: 0.45, fieldDark: 0.28, parity: 0.02 },
+  thresholds: { LIT_LUMA, DARK_LUMA, MIN_SHARE, fieldLit: 0.45, fieldDark: 0.28, parity: 0.02, torchRise: TORCH_RISE, leakShare: LEAK_SHARE, maskBlock: BLOCK, cornerSeenPx: SEEN_PX, ceilField: CEIL_FIELD },
+  shots: SHOTS.length ? SHOTS : 'all',
+  only: ONLY.length ? ONLY : 'all',
   hooks: HOOKS,
   deviations: DEVIATIONS,
   auditFile: existsSync(AUDIT_PATH) ? 'docs/sector-redesign/checks/lr16-lamp-audit.md' : 'MISSING',
@@ -292,15 +313,18 @@ function pageLib() {
   /** Shot 4: the lamp nearest a wall face (ceiling fittings first), the view of that wall and of the ceiling over it. */
   L.wallLamp = (lamps) => {
     let best = null;
-    const order = [...lamps.filter((l) => l.base !== 'wall'), ...lamps.filter((l) => l.base === 'wall')];
-    for (const l of order) {
-      if (best && l.base === 'wall' && best.base !== 'wall') break;
+    // (fix round) lamps with a ceiling over them first (the triage's "rerun 04 on an indoor ceiling lamp"), then the
+    // ceiling fittings before the wall ones, as before
+    const ceilOver = (l) => !!L.cast([l.x, l.y + 0.1, l.z], [l.x, l.y + 10, l.z]);
+    const order = lamps.map((l) => ({ l, rank: (ceilOver(l) ? 0 : 2) + (l.base === 'wall' ? 1 : 0) })).sort((a, b) => a.rank - b.rank);
+    for (const { l, rank } of order) {
+      if (best && rank > best.rank) break;
       const o = [l.x, l.y - 0.3, l.z];
       for (let k = 0; k < 16; k++) {
         const a = (k / 16) * Math.PI * 2;
         const h = L.cast(o, add(o, [Math.sin(a), 0, Math.cos(a)], 6));
         if (!h || Math.abs(h.n[1]) > 0.5 || h.d < 0.12 || (l.base === 'wall' && h.d < 0.45)) continue;
-        if (!best || h.d < best.d - 1e-6) best = { lamp: l, d: h.d, W: h.p, n: norm([h.n[0], 0, h.n[2]]), base: l.base };
+        if (!best || h.d < best.d - 1e-6) best = { lamp: l, d: h.d, W: h.p, n: norm([h.n[0], 0, h.n[2]]), base: l.base, rank };
       }
     }
     if (!best) return null;
@@ -322,7 +346,7 @@ function pageLib() {
       const f = L.standAt([l.x + n[0] * k, l.floor[1], l.z + n[2] * k]);
       if (f) { ccam = [f[0], f[1] + 1.5, f[2]]; break; }
     }
-    return { lamp: l.id, lampPos: P([l.x, l.y, l.z]), model: l.model, base: l.base, wallDist: r3(best.d), wall: P(W), normal: P(n), cam: cam && P(cam), target: P(tgt), ceilY: ceilY === null ? null : r3(ceilY), ccam: ccam && P(ccam), ctarget: P([(l.x + W[0]) / 2, ceilY ?? l.y + 3, (l.z + W[2]) / 2]) };
+    return { lamp: l.id, lampPos: P([l.x, l.y, l.z]), floor: P(l.floor), model: l.model, base: l.base, wallDist: r3(best.d), wall: P(W), normal: P(n), cam: cam && P(cam), target: P(tgt), ceilY: ceilY === null ? null : r3(ceilY), ccam: ccam && P(ccam), ctarget: P([(l.x + W[0]) / 2, ceilY ?? l.y + 3, (l.z + W[2]) / 2]) };
   };
   /** Shot 5: a ceiling lamp with open floor 1 m and 4 m off it in one direction, a side-on camera for each. */
   L.charLamp = (lamps) => {
@@ -533,18 +557,54 @@ function pageLib() {
     const groupSize = (gr) => reg.lights.filter((l) => l.group === gr && (l.kind === 'lamp' || l.kind === 'spot')).length;
     const cands = lamps.filter((l) => l.destructible && l.base !== 'wall').map((l) => ({ l, sw: l.group >= 0 && sws.some((s) => s.group === l.group) ? 1 : 0, n: l.group >= 0 ? groupSize(l.group) : 0 }));
     cands.sort((a, b) => b.sw - a.sw || Math.min(b.n, 4) - Math.min(a.n, 4) || a.l.id - b.l.id);
+    // (fix round) the player stands IN the lamp's pool: the floor points 0-3 m round it ranked by this lamp's own light
+    // at the meter's chest / head samples (lightField.lampAt, the baked index), an unsaturated body level first (the
+    // meter clamps at 1, so a drop shows only under it); a lamp that puts < 0.05 on a body anywhere is passed over
+    const f = G().world.lightField;
+    const ids = Array.from(G().world.lightBake?.lamps?.baked?.ids ?? []);
+    const H = G().player.rig?.height ?? 1.68;
+    const skippedLamps = [];
     for (const { l, sw, n } of cands) {
       const F = l.floor;
+      const bi = ids.indexOf(l.id);
+      let spots = [];
+      if (bi >= 0) {
+        for (const r of [0, 0.5, 0.8, 1.2, 1.6, 2.2, 3.0]) {
+          for (let k = 0; k < (r ? 8 : 1); k++) {
+            const a = (k / 8) * Math.PI * 2;
+            const s = L.standAt(add(F, [Math.sin(a), 0, Math.cos(a)], r), 0.3);
+            if (!s || spots.some((q) => dist(q.s, s) < 0.05)) continue;
+            const c = Math.max(f.lampAt(bi, s[0], s[1] + H * 0.6, s[2]), f.lampAt(bi, s[0], s[1] + H * 0.95, s[2]));
+            const lv = Math.max(f.levelAt(s[0], s[1] + H * 0.6, s[2]), f.levelAt(s[0], s[1] + H * 0.95, s[2]));
+            spots.push({ s, c, lv, ok: lv < 0.99 && c >= 0.05 });
+          }
+        }
+        spots.sort((a, b) => Number(b.ok) - Number(a.ok) || b.c - a.c);
+        if (!spots.length || spots[0].c < 0.05) {
+          skippedLamps.push({ lamp: l.id, best: spots.length ? r3(spots[0].c) : null });
+          continue;
+        }
+        spots = spots.slice(0, 1);
+      } else {
+        // (not a baked lamp: no lampAt; the old 0.8 m spot)
+        for (let k = 0; k < 8 && !spots.length; k++) {
+          const a = (k / 8) * Math.PI * 2;
+          const s = L.standAt(add(F, [Math.sin(a), 0, Math.cos(a)], 0.8), 0.3);
+          if (s) spots.push({ s, c: NaN, lv: NaN, ok: false });
+        }
+      }
+      if (!spots.length) continue;
+      const sp = spots[0];
+      const s = sp.s;
       for (let k = 0; k < 8; k++) {
         const a = (k / 8) * Math.PI * 2;
         const d = [Math.sin(a), 0, Math.cos(a)];
-        const s = L.standAt(add(F, d, 0.8), 0.3);
         const c = L.standAt(add(F, d, 4.2), 0.3);
-        if (!s || !c) continue;
+        if (!c || dist2(c, s) < 2.5) continue;
         const eye = [c[0], c[1] + 1.6, c[2]];
         const lp = [l.x, l.y + l.oy, l.z];
         if (!L.clear(eye, add(lp, norm([eye[0] - lp[0], eye[1] - lp[1], eye[2] - lp[2]]), 0.3))) continue;
-        return { lamp: l.id, lampPos: P([l.x, l.y, l.z]), group: l.group, groupLamps: n, hasSwitch: !!sw, stand: P(s), cam: P(eye), target: P([F[0], (F[1] + l.y) / 2, F[2]]), from: P([s[0], s[1] + 1.5, s[2]]) };
+        return { lamp: l.id, lampPos: P([l.x, l.y, l.z]), group: l.group, groupLamps: n, hasSwitch: !!sw, bakedIndex: bi, stand: P(s), standFromLamp: r3(dist2(s, F)), standLampAt: r3(sp.c), standLevel: r3(sp.lv), passedOver: skippedLamps, cam: P(eye), target: P([F[0], (F[1] + l.y) / 2, F[2]]), from: P([s[0], s[1] + 1.5, s[2]]) };
       }
     }
     return null;
@@ -847,6 +907,107 @@ function pageLib() {
     return { level: r3(f.levelAt(x, y, z)), light, cam: P(cam), target: P([x, y, z]), dir: P(dir) };
   };
   L.cardOff = () => { window.__lr8card?.dispose(); window.__lr8card = null; };
+  // ---- fix round (triage lr16-8) ----
+  /** The render frame counter and the sim clock (distinct ON / OFF frames). */
+  L.tick = () => ({ frame: G().scene.getFrameId(), t: G().time });
+  /** A lamp's kind: the registry's, and the bake's (lights[i*10+7] > -1.5: a cone, else downward - only a downward
+   *  lamp gets the housing uplight, lampBounce.ts:418). */
+  L.lampInfo = (id) => {
+    const w = G().world;
+    const l = w.level.lights.lights[id];
+    const B = w.lightBake?.lamps;
+    const bi = B ? Array.from(B.baked.ids).indexOf(id) : -1;
+    const c7 = bi >= 0 ? B.baked.lights[bi * 10 + 7] : null;
+    return { id, kind: l?.kind ?? null, registryCone: !!l?.cone, coneHalfDeg: l?.cone ? r3(Math.acos(Math.max(-1, Math.min(1, l.cone.cosOuter))) / D2R) : null, model: l?.fixture?.model ?? null, base: l?.fixture?.base ?? null, bakedIndex: bi, bakeKind: bi < 0 ? null : c7 > -1.5 ? 'cone' : 'downward', uplight: bi >= 0 && !(c7 > -1.5) };
+  };
+  /** Shot 04: the ceiling's linear light from the field, 0.25 m under it (as the shader reads the bounce), at plan points. */
+  L.ceilField = (id, ceilY, floorY, pts) => {
+    const w = G().world;
+    const f = w.lightField;
+    const info = L.lampInfo(id);
+    const l = w.level.lights.lights[id];
+    const y = ceilY - 0.25;
+    const samples = pts.map(([x, z]) => ({ at: P([x, y, z]), level: r3(f.levelAt(x, y, z)), bounce: r3(f.bounceAt(x, y, z)), lamp: info.bakedIndex >= 0 ? r3(f.lampAt(info.bakedIndex, x, y, z)) : null }));
+    return { ...info, ceilY: r3(ceilY), floorY: r3(floorY), roomHeight: r3(ceilY - floorY), lampBelowCeil: r3(ceilY - l.y), samples };
+  };
+  /** Shot 07: each torch slot (enemyMgr.torches / torchOwner) and whether its registry light is on. */
+  L.torchState = () => {
+    const g = G();
+    const em = g.enemyMgr;
+    const reg = g.world.level.lights;
+    const own = em?.torchOwner ?? [];
+    const slots = (em?.torches ?? []).map((l, i) => {
+      const o = own[i];
+      return { i, id: l.id, on: !!reg.lights[l.id]?.on, owned: !!o, ownerAlive: !!o?.alive, override: o ? o.torchOverride : null, pos: P([l.x, l.y, l.z]), dir: l.cone ? P([l.cone.dx, l.cone.dy, l.cone.dz]) : null, cosOuter: l.cone ? r3(l.cone.cosOuter) : null, radius: r3(l.radius), reach: l.reach === undefined ? null : r3(l.reach) };
+    });
+    return { torchesOn: em?.torchesOn ?? 0, alive: em?.alive ?? 0, frame: g.scene.getFrameId(), t: r3(g.time), slots };
+  };
+  /**
+   * Shot 07: the far-side mask, one ray per `block` x `block` screen block of the frozen photo camera. The block's
+   * visible point is the first static hit (ballistics.cast) or, before it, a shut door leaf (lightField.doorBlocks,
+   * the field's and the shaders' door test; doors are not static bodies). Classes: 0 nothing hit, 1 occluded from the
+   * torch (static or a shut door between) and inside its cone and radius (where a leak would land), 2 seen by the torch
+   * inside its cone and radius, 3 occluded outside the cone / radius, 4 seen outside it.
+   */
+  L.farMask = ([tp, dir, cosOuter, radius, W, H, block]) => {
+    const g = G();
+    const f = g.world.lightField;
+    const cp = g.photoCamera().position;
+    const ce = [cp.x, cp.y, cp.z];
+    const inv = g.scene.getTransformMatrix().clone().invert();
+    const cols = Math.ceil(W / block);
+    const rows = Math.ceil(H / block);
+    const m = new Array(cols * rows).fill(0);
+    const counts = [0, 0, 0, 0, 0];
+    let doorPx = 0;
+    const doorAt = (a, b) => f.doorBlocks(a[0], a[1], a[2], b[0], b[1], b[2]);
+    for (let by = 0; by < rows; by++) {
+      for (let bx = 0; bx < cols; bx++) {
+        const sx = Math.min(W - 1, bx * block + block / 2);
+        const sy = Math.min(H - 1, by * block + block / 2);
+        const q = VC().TransformCoordinates(new (VC())((sx / W) * 2 - 1, 1 - (sy / H) * 2, 0.5), inv);
+        const d = norm([q.x - ce[0], q.y - ce[1], q.z - ce[2]]);
+        const end = add(ce, d, 60);
+        const h = L.cast(ce, end);
+        let vp = h ? h.p : null;
+        const tgt = vp ?? end;
+        if (doorAt(ce, tgt)) {
+          // the leaf's crossing by bisection (doorBlocks is a segment test)
+          let lo = 0;
+          let hi = 1;
+          for (let k = 0; k < 14; k++) {
+            const mid = (lo + hi) / 2;
+            if (doorAt(ce, [ce[0] + (tgt[0] - ce[0]) * mid, ce[1] + (tgt[1] - ce[1]) * mid, ce[2] + (tgt[2] - ce[2]) * mid])) hi = mid;
+            else lo = mid;
+          }
+          vp = [ce[0] + (tgt[0] - ce[0]) * lo, ce[1] + (tgt[1] - ce[1]) * lo, ce[2] + (tgt[2] - ce[2]) * lo];
+          doorPx++;
+        }
+        if (!vp) continue;
+        // (4 cm back toward the camera: the visible face, not inside it)
+        const Q = add(vp, d, -0.04);
+        const v = [Q[0] - tp[0], Q[1] - tp[1], Q[2] - tp[2]];
+        const dl = Math.hypot(v[0], v[1], v[2]);
+        const th = L.cast(tp, Q);
+        const blocked = (!!th && th.d < dl - 0.05) || doorAt(tp, Q);
+        const inCone = dl <= radius && (!dir || (v[0] * dir[0] + v[1] * dir[1] + v[2] * dir[2]) / (dl || 1) >= cosOuter);
+        const c = blocked ? (inCone ? 1 : 3) : inCone ? 2 : 4;
+        m[by * cols + bx] = c;
+        counts[c]++;
+      }
+    }
+    return { cols, rows, block, mask: m.join(''), counts, doorBlocks: doorPx, cam: P(ce), torch: P(tp) };
+  };
+  /** Shot 08: the shot lamp's own light at the player's meter samples (chest 0.6 h, head 0.95 h), the bounce and level. */
+  L.contrib = (id) => {
+    const g = G();
+    const f = g.world.lightField;
+    const q = g.player.position;
+    const H = g.player.rig?.height ?? 1.68;
+    const bi = Array.from(g.world.lightBake?.lamps?.baked?.ids ?? []).indexOf(id);
+    const ys = [q.y + H * 0.6, q.y + H * 0.95];
+    return { bakedIndex: bi, lampAt: bi < 0 ? null : ys.map((y) => r3(f.lampAt(bi, q.x, y, q.z))), bounceAt: ys.map((y) => r3(f.bounceAt(q.x, y, q.z))), levelAt: ys.map((y) => r3(f.levelAt(q.x, y, q.z))), at: P([q.x, q.y, q.z]), t: r3(g.time) };
+  };
   window.__lr8 = L;
   return true;
 }
@@ -1076,6 +1237,60 @@ function lumaDiff(tool, a, b) {
     return { meanAbs: +(s / n).toFixed(4), changed: +(big / n).toFixed(4) };
   }, [a.toString('base64'), b.toString('base64')]);
 }
+/**
+ * (fix round, 07) ON vs OFF per mask class: decoded in the tool page, each pixel's linear luminance (sRGB decoded,
+ * Rec. 709) ON minus OFF; per class of `m` (L.farMask: one digit per block) the pixel count, the pixels that rose by
+ * more than TORCH_RISE and the largest rise.
+ */
+function maskedRise(tool, on, off, m) {
+  return tool.evaluate(async ([ab, bb, mask, cols, block, RISE, VW, VH]) => {
+    const dec = async (b64) => {
+      const img = await createImageBitmap(await (await fetch(`data:image/png;base64,${b64}`)).blob());
+      const c = new OffscreenCanvas(img.width, img.height);
+      const x = c.getContext('2d');
+      x.drawImage(img, 0, 0);
+      return { px: x.getImageData(0, 0, img.width, img.height).data, w: img.width, h: img.height };
+    };
+    const A = await dec(ab);
+    const B = await dec(bb);
+    const lut = new Float32Array(256);
+    for (let i = 0; i < 256; i++) {
+      const c = i / 255;
+      lut[i] = c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    }
+    const Y = (p, i) => 0.2126 * lut[p[i]] + 0.7152 * lut[p[i + 1]] + 0.0722 * lut[p[i + 2]];
+    const cls = [0, 1, 2, 3, 4].map(() => ({ px: 0, rise: 0, max: 0 }));
+    const w = Math.min(A.w, B.w);
+    const h = Math.min(A.h, B.h);
+    let all = 0;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = (y * A.w + x) * 4;
+        const j = (y * B.w + x) * 4;
+        const d = Y(A.px, i) - Y(B.px, j);
+        // (the mask is in CSS pixels of the VIEW: a screenshot at another device scale maps back)
+        const k = Number(mask[Math.floor((y * VH) / A.h / block) * cols + Math.floor((x * VW) / A.w / block)] ?? 0);
+        const c = cls[k];
+        c.px++;
+        if (d > RISE) { c.rise++; all++; }
+        if (d > c.max) c.max = d;
+      }
+    }
+    return { cls: cls.map((c) => ({ px: c.px, rise: c.rise, max: +c.max.toFixed(4) })), riseAll: all, px: w * h };
+  }, [on.toString('base64'), off.toString('base64'), m.mask, m.cols, m.block, TORCH_RISE, VIEW.width, VIEW.height]);
+}
+/** (fix round) Wait until the render frame counter advanced `n` frames and the sim clock `sim` s. */
+async function waitFrames(page, n, sim = 0, cap = 15000) {
+  const s0 = await L8(page, (L) => L.tick());
+  const w0 = Date.now();
+  let s = s0;
+  while (Date.now() - w0 < cap) {
+    s = await L8(page, (L) => L.tick());
+    if (s.frame - s0.frame >= n && s.t - s0.t >= sim) return { ok: true, frames: s.frame - s0.frame, sim: r3(s.t - s0.t) };
+    await page.waitForTimeout(50);
+  }
+  return { ok: false, frames: s.frame - s0.frame, sim: r3(s.t - s0.t) };
+}
 const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
 /** A labelled grid of PNG files on the tool page, saved as one PNG. */
 async function sheet(tool, cells, cols, file, title = '', width = 1600) {
@@ -1132,6 +1347,7 @@ async function unitShots(M, unit) {
   // 01-03: the 4-way spin from three spots
   for (let s = 0; s < 3; s++) {
     const nn = nn2(s + 1);
+    if (!shotOn(nn)) continue;
     await guard(nn, async () => {
       const sp = plan.spin?.spots?.[s];
       if (!sp) return notPossible(nn, 'no standing spot with 4 framed views in the unit', `${tag}-${nn}`);
@@ -1155,7 +1371,7 @@ async function unitShots(M, unit) {
   }
 
   // 04: the wall behind a lamp and the ceiling over it
-  await guard('04', async () => {
+  if (shotOn('04')) await guard('04', async () => {
     const w = plan.wall;
     if (!w || !w.cam) return notPossible('04', plan.lamps ? 'no lamp with a wall face in reach and a standing spot facing it' : 'no lit fixed lamp in the unit', `${tag}-04`);
     await free(page);
@@ -1170,18 +1386,40 @@ async function unitShots(M, unit) {
       const bc = await snap(page, w.ccam, w.ctarget, fc);
       sc = await lumaStats(tool, bc, [0, 0, VIEW.width, Math.round(VIEW.height * 0.45)]);
     }
+    // (fix round) the ceiling's linear light from the field, not the screen (a ceiling at 0.06-0.1 still shows near-black
+    // through the darkness curve): over the lamp and at the view's ceiling target; the lamp kind and the room height
+    const info = await L8(page, (L, id) => L.lampInfo(id), w.lamp);
+    const cf = w.ceilY === null ? null : await L8(page, (L, a) => L.ceilField(...a), [w.lamp, w.ceilY, w.floor[1], [[w.lampPos[0], w.lampPos[2]], [w.ctarget[0], w.ctarget[2]]]]);
+    const kind = `${info.bakeKind ?? info.kind}${info.model ? ` ${info.model}` : ''}${info.uplight ? ', uplight' : ', no uplight'}`;
+    const lv = cf ? cf.samples[0].level : null;
     await sheet(tool, [
-      { file: fw, label: `wall ${w.wallDist} m behind lamp ${w.lampId ?? w.lamp} (${w.model ?? 'box'}): bands top->bottom ${sw.bands.join(' / ')}` },
-      { file: w.ccam ? fc : null, miss: 'no standing spot under the lamp', label: w.ceilY === null ? 'no ceiling over the lamp (open)' : `ceiling y ${w.ceilY}: top 45% mean luma ${sc ? r3(sc.mean) : '-'}` },
+      { file: fw, label: `wall ${w.wallDist} m behind lamp ${w.lampId ?? w.lamp} (${kind}): bands top->bottom ${sw.bands.join(' / ')}` },
+      { file: w.ccam ? fc : null, miss: 'no standing spot under the lamp', label: w.ceilY === null ? 'no ceiling over the lamp (open)' : `ceiling y ${w.ceilY} (room ${cf.roomHeight} m, lamp ${cf.lampBelowCeil} m under it): field ${lv} (bounce ${cf.samples[0].bounce}); screen top 45% luma ${sc ? r3(sc.mean) : '-'}` },
     ], 2, `${OUT}/${tag}-04.png`, `${tag}-04: wall behind lamp ${w.lamp} at (${w.lampPos.join(', ')}) and the ceiling over it`);
-    const ceilOk = !!sc && sc.mean > 0.03;
-    const what = w.ceilY === null ? 'open above the lamp (no ceiling)' : !sc ? 'no standing spot under the lamp for the ceiling view' : ceilOk ? 'ceiling not black' : 'ceiling reads black';
-    set('04', w.ceilY === null || !sc ? 'review' : ceilOk ? 'pass' : 'flag', `${what} (top mean ${sc ? r3(sc.mean) : '-'}); wall ${w.wallDist} m, gradient bands ${sw.bands.join('/')}`, { plan: w, wallBands: sw.bands, ceilMean: sc ? r3(sc.mean) : null });
+    let st;
+    let what;
+    if (!cf) {
+      st = 'review';
+      what = 'open above the lamp (no ceiling)';
+    } else if (lv >= CEIL_FIELD) {
+      st = 'pass';
+      what = `ceiling lit in the field (${lv} over the lamp, bounce ${cf.samples[0].bounce})`;
+    } else if (info.bakeKind === 'cone') {
+      st = 'review';
+      what = `ceiling ${lv} in the field: a cone fitting gets no uplight (lampBounce.ts:418, triage C, design)`;
+    } else if (cf.roomHeight > 4.2) {
+      st = 'review';
+      what = `ceiling ${lv} in the field: room ${cf.roomHeight} m, past the 4 m bounce reach (triage C, design)`;
+    } else {
+      st = 'flag';
+      what = `ceiling dark in the field (${lv}) over a ${info.bakeKind ?? info.kind} lamp in a ${cf.roomHeight} m room`;
+    }
+    set('04', st, `${what}; lamp ${w.lamp} ${kind}; screen top mean ${sc ? r3(sc.mean) : '-'}; wall ${w.wallDist} m, gradient bands ${sw.bands.join('/')}`, { plan: w, lamp: info, ceiling: cf, wallBands: sw.bands, ceilMean: sc ? r3(sc.mean) : null });
   });
 
   // 05 (Auto) and 06
-  await guard('05', () => shot05(M, unit, ''));
-  await guard('06', async () => {
+  if (shotOn('05')) await guard('05', () => shot05(M, unit, ''));
+  if (shotOn('06')) await guard('06', async () => {
     const c = plan.crate;
     const d = plan.door;
     if (!c && !d) return notPossible('06', 'no crate / rack box and no door under a lit lamp in the unit', `${tag}-06`);
@@ -1213,24 +1451,30 @@ async function unitShots(M, unit) {
   });
 
   // 07 (Auto)
-  await guard('07', () => shot07(M, unit, ''));
+  if (shotOn('07')) await guard('07', () => shot07(M, unit, ''));
 
   // 08: shoot a lamp, then its circuit off
-  await guard('08', async () => {
+  if (shotOn('08')) await guard('08', async () => {
     const s = plan.shoot;
     if (!s) return notPossible('08', plan.lamps ? 'no destructible ceiling lamp with a standing spot in its pool' : 'no lit fixed lamp in the unit', `${tag}-08`);
     await free(page);
     await L8(page, (L, [p, y]) => L.tp(p, y), [s.stand, 0]);
     await simWait(page, 0.45);
     const m0 = await L8(page, (L) => L.meter());
+    // (fix round) the shot lamp's own light at the player's meter samples before the shot: the shot must drop the meter
+    // by about that much (below the meter's clamp at 1)
+    const c0 = await L8(page, (L, id) => L.contrib(id), s.lamp);
     const f0 = `${FR}/${tag}-08-a-lit.png`;
     const f1 = `${FR}/${tag}-08-b-shot.png`;
     const f2 = `${FR}/${tag}-08-c-off.png`;
     const b0 = await snap(page, s.cam, s.target, f0);
     const shotRes = await L8(page, (L, [id, from]) => L.shoot(id, from), [s.lamp, s.from]);
+    const tShot = (await L8(page, (L) => L.tick())).t;
+    // (the meter samples at LIGHT.playerHz = 10 Hz: read it >= 0.2 s of sim after the shot)
     await simWait(page, 0.45);
     await page.waitForTimeout(500);
     const m1 = await L8(page, (L) => L.meter());
+    const c1 = await L8(page, (L, id) => L.contrib(id), s.lamp);
     const b1 = await page.screenshot({ path: f1, timeout: 120_000 });
     const how = await L8(page, (L, g) => L.groupOff(g), s.group);
     await simWait(page, 0.45);
@@ -1241,17 +1485,25 @@ async function unitShots(M, unit) {
     await free(page);
     const [s0, s1, s2] = [await lumaStats(tool, b0), await lumaStats(tool, b1), await lumaStats(tool, b2)];
     await sheet(tool, [
-      { file: f0, label: `lit: meter ${r3(m0.meter)} (field ${r3(m0.field)}), frame mean ${r3(s0.mean)}` },
+      { file: f0, label: `lit: meter ${r3(m0.meter)} (field ${r3(m0.field)}; lamp ${s.lamp} lampAt ${c0.lampAt ? c0.lampAt.join(' / ') : 'n/a'}), frame mean ${r3(s0.mean)}` },
       { file: f1, label: `lamp ${s.lamp} shot (${shotRes.how}): meter ${r3(m1.meter)}, frame mean ${r3(s1.mean)}` },
       { file: f2, label: `circuit ${s.group} off (${how}): meter ${r3(m2.meter)}, frame mean ${r3(s2.mean)}` },
     ], 3, `${OUT}/${tag}-08.png`, `${tag}-08: shoot lamp ${s.lamp} at (${s.lampPos.join(', ')}), then switch circuit ${s.group} off (${s.groupLamps} lamps); the player stands in its pool`);
     const drop1 = m0.meter - m1.meter;
-    const ok = shotRes.destroyed && drop1 > 0.02 && m2.meter <= m1.meter + 0.005 && s1.mean < s0.mean;
-    set('08', ok ? 'pass' : 'flag', `meter ${r3(m0.meter)} -> ${r3(m1.meter)} (shot) -> ${r3(m2.meter)} (circuit off); frame mean ${r3(s0.mean)} -> ${r3(s1.mean)} -> ${r3(s2.mean)}${shotRes.destroyed ? '' : '; the lamp did not break'}${drop1 > 0.02 ? '' : '; the meter did not drop on the shot'}${back ? '' : '; lamp not restored'}`, { plan: s, meter: [r3(m0.meter), r3(m1.meter), r3(m2.meter)], field: [r3(m0.field), r3(m1.field), r3(m2.field)], frameMean: [r3(s0.mean), r3(s1.mean), r3(s2.mean)], shot: shotRes, switch: how, restored: back });
+    const lampC = c0.lampAt ? Math.max(...c0.lampAt) : null;
+    const after = r3(m1.t - tShot);
+    const saturated = m0.meter >= 0.99;
+    // the expected drop: the lamp's own light at the body (the meter is the brighter of chest / head; clamped at 1)
+    const want = lampC === null ? 0.02 : saturated ? 0.02 : Math.max(0.02, 0.5 * lampC);
+    const dropOk = drop1 >= want;
+    const inPool = lampC === null || lampC >= 0.05;
+    const ok = shotRes.destroyed && dropOk && after >= 0.2 && m2.meter <= m1.meter + 0.005 && s1.mean < s0.mean;
+    const st = ok ? 'pass' : !inPool && shotRes.destroyed ? 'review' : 'flag';
+    set('08', st, `meter ${r3(m0.meter)} -> ${r3(m1.meter)} (shot, read ${after} s after) -> ${r3(m2.meter)} (circuit off); lamp ${s.lamp} lampAt at the body ${c0.lampAt ? c0.lampAt.join(' / ') : 'n/a (not baked)'} (chest / head), bounce ${c0.bounceAt.join(' / ')}, expected drop >= ${r3(want)}${saturated ? ' (meter at its clamp)' : ''}; frame mean ${r3(s0.mean)} -> ${r3(s1.mean)} -> ${r3(s2.mean)}${shotRes.destroyed ? '' : '; the lamp did not break'}${dropOk ? '' : '; the meter did not drop by the lamp\'s share'}${inPool ? '' : '; the player is not in the lamp\'s pool (lampAt < 0.05)'}${after >= 0.2 ? '' : '; meter read under 0.2 s after the shot'}${back ? '' : '; lamp not restored'}`, { plan: s, contribBefore: c0, contribAfter: c1, expectedDrop: r3(want), drop: r3(drop1), readAfterShot: after, meter: [r3(m0.meter), r3(m1.meter), r3(m2.meter)], field: [r3(m0.field), r3(m1.field), r3(m2.field)], frameMean: [r3(s0.mean), r3(s1.mean), r3(s2.mean)], shot: shotRes, switch: how, restored: back });
   });
 
   // 09: night vision and thermal in the darkest room
-  await guard('09', async () => {
+  if (shotOn('09')) await guard('09', async () => {
     const d = plan.dark;
     if (!d) return notPossible('09', 'no dark spot found', `${tag}-09`);
     await free(page);
@@ -1314,6 +1566,58 @@ async function shot05(M, unit, sfx) {
   writeReport();
 }
 
+/**
+ * (fix round) Shot 07, one case under one quality variant: a passive guard with his torch forced on, the view frozen;
+ * ON captured once the frame counter and the sim moved on and the game says the slot is lit; the torch forced off and
+ * OFF captured the same way (the game says every slot is dark, the frame counter past ON's); OFF2 a few frames later
+ * (the noise floor). The far-side mask is cast from the ON frame's camera and torch pose.
+ */
+async function torchPair(M, base, k, p, vn, meta) {
+  const { page, tool } = M;
+  await free(page);
+  await L8(page, (L) => L.clearGuards());
+  if (k === 'door') {
+    await L8(page, (L, i) => L.door(i, false), p.door);
+    const t0 = Date.now();
+    while (Date.now() - t0 < 5000 && ((await L8(page, (L, i) => L.doorOpen(i), p.door)) ?? 0) > 0.001) await page.waitForTimeout(150);
+  }
+  await L8(page, (L, c) => L.tp([c[0], c[1] - 1.6, c[2]], 0), p.cam);
+  const spawned = await L8(page, (L, [g, y]) => L.spawn(g, y, true), [p.guard, p.yaw]);
+  await page.waitForTimeout(1200);
+  await L8(page, (L, [c, t]) => { L.hide = true; return L.freeze(c, t); }, [p.cam, p.target]);
+  await waitReady(page);
+  const fOn = `${FR}/${base}-${k}-${vn}-on.png`;
+  const fOff = `${FR}/${base}-${k}-${vn}-off.png`;
+  const fOff2 = `${FR}/${base}-${k}-${vn}-off2.png`;
+  const wOn = await waitFrames(page, 12, 0.3);
+  const sOn = await L8(page, (L) => L.torchState());
+  const bOn = await page.screenshot({ path: fOn, timeout: 120_000 });
+  const lit = sOn.slots.find((x) => x.on && x.owned && x.ownerAlive) ?? null;
+  const mask = lit ? await L8(page, (L, a) => L.farMask(a), [lit.pos, lit.dir, lit.cosOuter ?? -1, lit.radius, VIEW.width, VIEW.height, BLOCK]) : null;
+  await L8(page, (L) => L.torch(false));
+  const wOff = await waitFrames(page, 12, 0.3);
+  const sOff = await L8(page, (L) => L.torchState());
+  const bOff = await page.screenshot({ path: fOff, timeout: 120_000 });
+  const wOff2 = await waitFrames(page, 6, 0);
+  const sOff2 = await L8(page, (L) => L.tick());
+  const bOff2 = await page.screenshot({ path: fOff2, timeout: 120_000 });
+  await free(page);
+  await L8(page, (L) => L.clearGuards());
+  const why = [];
+  if (!spawned) why.push('guard not spawned');
+  if (!lit || sOn.torchesOn < 1) why.push(`the torch was not on in the ON frame (torchesOn ${sOn.torchesOn})`);
+  if (sOff.torchesOn !== 0 || sOff.slots.some((x) => x.on)) why.push(`a torch still on in the OFF frame (torchesOn ${sOff.torchesOn})`);
+  if (!wOn.ok || !wOff.ok || !(sOff.frame > sOn.frame)) why.push(`the frame counter did not advance (ON ${sOn.frame}, OFF ${sOff.frame})`);
+  if (!(sOff.t > sOn.t)) why.push('the sim clock did not advance between ON and OFF');
+  const rise = mask ? await maskedRise(tool, bOn, bOff, mask) : null;
+  const noise = mask ? await maskedRise(tool, bOff2, bOff, mask) : null;
+  if (!mask) why.push('no far-side mask (no lit torch)');
+  const valid = !why.length;
+  const slim = (x) => ({ torchesOn: x.torchesOn, alive: x.alive, frame: x.frame, t: x.t, slots: x.slots.filter((q) => q.owned || q.on) });
+  log(`${base} ${k} ${vn}: ${valid ? 'valid' : `INVALID (${why.join('; ')})`}; frames ON ${sOn.frame} OFF ${sOff.frame} OFF2 ${sOff2.frame}; torchesOn ${sOn.torchesOn} -> ${sOff.torchesOn}; mask ${mask ? mask.counts.join('/') : '-'}; rise far ${rise ? `${rise.cls[1].rise}/${rise.cls[1].px}` : '-'}, noise ${noise ? noise.cls[1].rise : '-'}`);
+  return { valid, why, ...meta, file: fOn, files: { on: path.basename(fOn), off: path.basename(fOff), off2: path.basename(fOff2) }, torchOn: slim(sOn), torchOff: slim(sOff), frames: { on: sOn.frame, off: sOff.frame, off2: sOff2.frame, waitOn: wOn, waitOff: wOff, waitOff2: wOff2 }, sameBytes: bOn.equals(bOff), mask: mask ? { counts: mask.counts, doorBlocks: mask.doorBlocks, cols: mask.cols, rows: mask.rows, block: mask.block, cam: mask.cam, torch: mask.torch } : null, rise, noise };
+}
+
 /** Shot 07: guard torches behind a wall, a shut door, round a corner, then four at once. */
 async function shot07(M, unit, sfx) {
   const { page, tool, map, rep } = M;
@@ -1332,38 +1636,76 @@ async function shot07(M, unit, sfx) {
   const cells = [];
   const parts = {};
   const flags = [];
-  for (const [k, p] of [['wall', t.wall], ['door', t.door], ['corner', t.corner]]) {
+  // (fix round, triage A2) torch ON vs OFF at one frozen pose and camera, TAA (and TAAU) off, then also the haze off;
+  // the rise is counted on the far side of the occluder only (L.farMask), the OFF-OFF2 pair is the noise floor
+  const cases = [['wall', t.wall], ['door', t.door], ['corner', t.corner]];
+  const VARIANTS = [['noTaa', { aa: 'fxaa' }], ['noTaaNoHaze', { aa: 'fxaa', volumetrics: false }]];
+  const prevOv = await page.evaluate(() => window.__app.quality.override ?? null);
+  const runs = {};
+  try {
+    for (const [vn, gfx] of VARIANTS) {
+      await page.evaluate(([o, g]) => window.__app.quality.setOverride({ preset: o?.preset ?? null, scale: 1, gfx: { ...(o?.gfx ?? {}), ...g } }), [prevOv, gfx]);
+      await waitReady(page, 120_000);
+      await page.waitForTimeout(1500);
+      for (const [k, p] of cases) {
+        if (!p) continue;
+        try {
+          (runs[k] ??= {})[vn] = await torchPair(M, `${tag}-07${sfx}`, k, p, vn, { variant: vn, override: await page.evaluate(() => window.__app.quality.override) });
+        } catch (e) {
+          if (page.isClosed()) throw e;
+          (runs[k] ??= {})[vn] = { valid: false, why: [`error: ${String(e?.message ?? e).split('\n')[0]}`], variant: vn };
+          await free(page).catch(() => {});
+        }
+      }
+    }
+  } finally {
+    await free(page).catch(() => {});
+    await L8(page, (L) => L.clearGuards()).catch(() => {});
+    await page.evaluate((o) => window.__app.quality.setOverride(o), prevOv).catch(() => {});
+    await waitReady(page, 120_000);
+  }
+  for (const [k, p] of cases) {
     if (!p) {
       cells.push({ miss: `no ${k} layout found in the unit`, label: `${k}: not possible` });
       parts[k] = { status: 'not-possible' };
       continue;
     }
-    await free(page);
-    await L8(page, (L) => L.clearGuards());
-    if (k === 'door') {
-      await L8(page, (L, i) => L.door(i, false), p.door);
-      const t0 = Date.now();
-      while (Date.now() - t0 < 5000 && ((await L8(page, (L, i) => L.doorOpen(i), p.door)) ?? 0) > 0.001) await page.waitForTimeout(150);
-    }
-    await L8(page, (L, c) => L.tp([c[0], c[1] - 1.6, c[2]], 0), p.cam);
-    const ok = await L8(page, (L, [g, y]) => L.spawn(g, y, true), [p.guard, p.yaw]);
-    await page.waitForTimeout(1200);
-    const on = await L8(page, (L) => L.guards());
-    const fOn = `${FR}/${tag}-07${sfx}-${k}-on.png`;
-    const fOff = `${FR}/${tag}-07${sfx}-${k}-off.png`;
-    const bOn = await snap(page, p.cam, p.target, fOn);
-    await L8(page, (L) => L.torch(false));
-    await simWait(page, 0.3);
-    await page.waitForTimeout(700);
-    const bOff = await page.screenshot({ path: fOff, timeout: 120_000 });
-    const d = await lumaDiff(tool, bOn, bOff);
-    const seen = d.changed > 0.005 || d.meanAbs > 0.004;
+    const r = runs[k] ?? {};
+    const A = r.noTaa;
+    const B = r.noTaaNoHaze;
+    const bad = [A, B].filter((x) => x && !x.valid);
     const want = k === 'corner';
-    const st = !ok || on.torchesOn < 1 ? 'flag' : seen === want ? 'pass' : 'flag';
-    const note = !ok ? 'guard not spawned' : on.torchesOn < 1 ? 'the torch did not come on' : want ? (seen ? `beam reads round the corner (${pc(d.changed)} of pixels changed)` : 'beam not seen round the corner') : seen ? `light through the ${k} (${pc(d.changed)} of pixels changed, mean ${d.meanAbs})` : `nothing through the ${k}`;
+    let st;
+    let note;
+    if (!A || !B || bad.length) {
+      st = 'flag';
+      note = `INVALID capture: ${[...new Set(bad.flatMap((x) => x.why))].join(', ') || 'a variant did not run'}`;
+    } else if (want) {
+      // the beam on surfaces the torch sees (class 2), haze off
+      const seen = B.rise.cls[2].rise >= SEEN_PX;
+      st = seen ? 'pass' : 'flag';
+      note = `${seen ? 'beam reads round the corner' : 'beam not seen round the corner'} (${B.rise.cls[2].rise} of ${B.rise.cls[2].px} torch-lit px rose > ${TORCH_RISE}, haze off; ${A.rise.cls[2].rise} with haze)`;
+    } else {
+      const leakOf = (x) => x.rise.cls[1].px > 0 && x.rise.cls[1].rise / x.rise.cls[1].px > LEAK_SHARE && x.rise.cls[1].rise > 3 * x.noise.cls[1].rise;
+      const shareOf = (x) => (x.rise.cls[1].px ? pc(x.rise.cls[1].rise / x.rise.cls[1].px) : '-');
+      const nums = `far side in the cone ${B.rise.cls[1].px} px: ${B.rise.cls[1].rise} rose > ${TORCH_RISE} haze off (${shareOf(B)}, noise ${B.noise.cls[1].rise}), ${A.rise.cls[1].rise} with haze (${shareOf(A)}, noise ${A.noise.cls[1].rise})`;
+      if (!B.rise.cls[1].px) {
+        st = 'review';
+        note = `no far-side pixel of the ${k} inside the torch cone in view (mask ${B.mask.counts.join('/')})`;
+      } else if (leakOf(B)) {
+        st = 'flag';
+        note = `light through the ${k} on surfaces: ${nums}`;
+      } else if (leakOf(A)) {
+        st = 'review';
+        note = `haze spill only past the ${k} (triage A3): ${nums}`;
+      } else {
+        st = 'pass';
+        note = `nothing through the ${k}: ${nums}`;
+      }
+    }
     if (st === 'flag') flags.push(`${k}: ${note}`);
-    parts[k] = { status: st, note, diff: d, plan: p };
-    cells.push({ file: fOn, label: `${k}: ${note}` });
+    parts[k] = { status: st, note, plan: p, noTaa: A, noTaaNoHaze: B };
+    cells.push({ file: A?.file ?? null, miss: `${k}: no capture`, label: `${k}: ${note}` });
   }
   // four at once
   const f4 = t.four;
@@ -1589,7 +1931,7 @@ async function perfPass() {
 }
 
 // ---------- the run ----------
-log(`out ${OUT}; commit ${head ?? '?'}; ${GPU ? 'hardware GPU' : 'software GL'}; maps ${MAPS.filter((m) => wanted(m.id)).map((m) => m.id).join(', ')}`);
+log(`out ${OUT}; commit ${head ?? '?'}; ${GPU ? 'hardware GPU' : 'software GL'}; maps ${MAPS.filter((m) => wanted(m.id)).map((m) => m.id).join(', ')}; shots ${SHOTS.length ? SHOTS.join(',') : 'all'}; probe / bake / perf / co-op ${['probe', 'bake', 'perf', 'coop'].filter((k) => !skipped(k)).join(', ') || 'none'}`);
 writeReport();
 for (const map of MAPS) {
   if (!wanted(map.id)) continue;
@@ -1629,12 +1971,13 @@ for (const map of MAPS) {
           const U = (rep.units[unit.name] ??= { unit: { ...unit }, shots: {} });
           for (let i = 1; i <= 10; i++) {
             const nn = nn2(i);
+            if (!shotOn(nn)) continue;
             await sheet(tool, [{ miss: `not possible: ${noNav}`, label: '' }], 1, `${OUT}/${tag}-${nn}.png`, `${tag}-${nn}`, 800).catch(() => {});
             U.shots[nn] = { file: `${tag}-${nn}.png`, status: 'not-possible', note: `not possible: ${noNav}` };
           }
-          log(`${tag} 01-10 NOT-POSSIBLE: ${noNav}`);
+          log(`${tag} ${SHOTS.length ? SHOTS.filter((x) => /^\d\d$/.test(x)).join(',') : '01-10'} NOT-POSSIBLE: ${noNav}`);
         }
-        rep.probe = [{ map: map.id, status: 'not-possible', note: `not possible: ${noNav}` }];
+        if (!skipped('probe')) rep.probe = [{ map: map.id, status: 'not-possible', note: `not possible: ${noNav}` }];
         writeReport();
       }
       for (const unit of noNav ? [] : units) {
@@ -1650,22 +1993,23 @@ for (const map of MAPS) {
         }
       }
       // the starred shots at Epic (one switch per map)
-      if (!SKIP.has('epic') && !noNav) {
+      const starred = [['05-epic', shot05], ['07-epic', shot07]].filter(([k]) => shotOn(k.slice(0, 2)));
+      if (!SKIP.has('epic') && !noNav && starred.length) {
         if (rep.settings.preset === 'epic' && !rep.settings.override) {
-          for (const unit of units) for (const k of ['05-epic', '07-epic']) {
+          for (const unit of units) for (const [k] of starred) {
             const U = rep.units[unit.name];
             if (U) U.shots[k] = { status: 'same-as-auto', note: 'Auto is Epic on this device: the Auto shot is the Epic shot' };
           }
-          log(`${map.id}: Auto is Epic: no second pass for 05 / 07`);
+          log(`${map.id}: Auto is Epic: no second pass for ${starred.map(([k]) => k.slice(0, 2)).join(' / ')}`);
         } else {
-          log(`${map.id}: Epic pass for the starred shots (05, 07)`);
+          log(`${map.id}: Epic pass for the starred shots (${starred.map(([k]) => k.slice(0, 2)).join(', ')})`);
           await page.evaluate(() => window.__app.quality.setOverride({ preset: 'epic', scale: null }));
           await waitReady(page, 120_000);
           await page.waitForTimeout(2000);
           rep.settingsEpic = await L8(page, (L) => L.settings());
           for (const unit of units) {
             if (!M.plans[unit.name]) continue;
-            for (const [k, fn] of [['05-epic', shot05], ['07-epic', shot07]]) {
+            for (const [k, fn] of starred) {
               try {
                 await withTimeout(fn(M, unit, '-epic'), 6 * 60_000, `${map.id}-${unit.name} ${k}`);
               } catch (e) {
@@ -1678,11 +2022,11 @@ for (const map of MAPS) {
           await waitReady(page, 120_000);
         }
       }
-      if (!SKIP.has('probe') && !noNav) await probe(M);
+      if (!skipped('probe') && !noNav) await probe(M);
       const errs = l.errors.filter((e) => e.startsWith('[error]') || e.startsWith('[pageerror]'));
       if (errs.length) rep.consoleErrors = errs.slice(0, 5).map((e) => e.slice(0, 300));
       await l.ctx.close().catch(() => {});
-      if (!SKIP.has('coop') && !noNav) {
+      if (!skipped('coop') && !noNav) {
         try {
           await withTimeout(pairPass(browser, M, units), 25 * 60_000, `${map.id} co-op pair`);
         } catch (e) {
@@ -1695,7 +2039,7 @@ for (const map of MAPS) {
           }
         }
       }
-      if (!SKIP.has('bake')) {
+      if (!skipped('bake')) {
         for (const preset of ['epic', 'low']) {
           try {
             log(`${map.id}: cold bake at ${preset}`);
@@ -1724,7 +2068,7 @@ for (const map of MAPS) {
     writeReport();
   }
 }
-if (!SKIP.has('perf') && wanted('campusOps')) {
+if (!skipped('perf') && wanted('campusOps')) {
   try {
     log('perf: campus S2 and S5-worst, 24 guards, Auto and Epic (uncapped browser, 1920x1080)');
     await withTimeout(perfPass(), 15 * 60_000, 'perf');

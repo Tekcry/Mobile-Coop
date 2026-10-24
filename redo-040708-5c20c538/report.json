@@ -1,0 +1,7639 @@
+{
+ "script": "C:/NightShift/scratch/work/lr16-8/sheets.mjs",
+ "commit": "5c20c5388eb4829f119eab0e44c63249c5c0ab58",
+ "cwd": "C:\\NightShift\\Mobile-Coop-testrun-4189",
+ "started": "2026-10-24T00:32:06.988Z",
+ "gpu": true,
+ "port": 4189,
+ "thresholds": {
+  "LIT_LUMA": 0.2,
+  "DARK_LUMA": 0.09,
+  "MIN_SHARE": 0.05,
+  "fieldLit": 0.45,
+  "fieldDark": 0.28,
+  "parity": 0.02,
+  "torchRise": 0.02,
+  "leakShare": 0.005,
+  "maskBlock": 8,
+  "cornerSeenPx": 200,
+  "ceilField": 0.02
+ },
+ "shots": [
+  "04",
+  "07",
+  "08"
+ ],
+ "only": [
+  "campusOps:s1",
+  "campusOps:s5",
+  "warehouseOps",
+  "ctcourse"
+ ],
+ "hooks": {
+  "10": "two pages over ?net=local in one context (the host / join menu flow of e2e-net-lib hostAndJoin, startMode, until), RemotePlayer.allowTeleport, the remote avatar rig headNode, Vector3.TransformCoordinates for the crop",
+  "01-03": "window.__app.current (GameState): player.controller.teleport, photoFreeze / photoCamera (photo mode), vision.set(\"off\"); the spot planner: nav (NavGrid cells), ballistics.cast + world.lightField.levelAt (the lamp-audit framing rays); screenshot luma histograms",
+  "04": "world.level.lights (LightRegistry), ballistics.cast (the nearest wall face and the ceiling over the lamp; lamps with a ceiling first), photo camera; the lamp kind from world.lightBake.lamps.baked.lights[i*10+7] (> -1.5 cone, else downward: lampBounce.ts:318 / :418 uplight for downward only), the ceiling height (cast) and world.lightField.levelAt / bounceAt / lampAt 0.25 m under the ceiling (pass at >= 0.02); ceiling screen luma for reference",
+  "05": "player teleport with the rig shown, world.charShadows (silhouette slots, stats()), Epic pass: app.quality.setOverride({ preset: \"epic\" })",
+  "06": "world.level.boxes / world.layout.props (crate / rack), world.doors.setOpen (the leaf open), the lamp registry",
+  "07": "enemyMgr.spawn (passive grunts), Enemy.torchOverride (the coop-torches test hook), enemyMgr.torchesOn + torches / torchOwner (each slot's registry light on), world.doors.setOpen(false); app.quality.setOverride({ scale: 1, gfx: { aa: \"fxaa\" (TAA off), volumetrics: false (haze off) } }); scene.getFrameId (distinct frames); far-side mask per 8x8 block: Vector3.TransformCoordinates through the inverted transform matrix, ballistics.cast + lightField.doorBlocks from the camera and from the torch; linear-luminance rise > 0.02 ON vs OFF, OFF vs OFF2 as the noise floor",
+  "08": "stealth.shotRay (the round on the fitting; shootLight fallback), the circuit wall switch item (StealthSystems switch onUse = the player toggle; LightRegistry.setGroup fallback), GameState.lightLevel (the HUD meter, sampled at LIGHT.playerHz 10 Hz), LightRegistry.restore; the stand spot in the pool by world.lightField.lampAt(<baked index>) at chest / head, logged with bounceAt / levelAt before the shot; the meter read >= 0.2 s sim after",
+  "09": "vision.set(\"night\" / \"thermal\"), enemyMgr.spawn (a warm body in view); the darkest room from the audit file",
+  "probe": "GameState.lightLevel (the meter) vs world.lightField.bodyLevel (shots-ctcourse parity); World.addLightProbe grey card + centre display-luma read-back against the L5 band (e2e-darkness)",
+  "bake": "World.lightInfo() (bake ms, lamp visibility bytes), BakedLamps.atlasDims (R8 atlas), a fresh context per preset (?gfx=epic / ?gfx=low: a cold bake)",
+  "perf": "guard-cap pageSpawn (24 passive grunts in a wedge in front of the camera) + loop.onFrameEnd frame intervals + EXT_disjoint_timer_query_webgl2 GPU ms, in an E2E_UNCAP=1 browser, 1920x1080"
+ },
+ "deviations": [
+  "No `__game` hook exists on this commit: `window.__app.current` is the game (every shot script uses it); `__course` is not needed (no course-only shot).",
+  "campusOps has no Workshop room: the Workshop unit is the Sector Ops Workshop on warehouseOps (room `workshop`, the 4.78 wall-arc room). Maps without sectors are one unit, `all`.",
+  "Parity probe: there is no hook reading the shader light level back on this commit (BakedLamps.volumeAt needs the editor-only volume; the e2e-lightbake parity probe named in lr16-5b-build.md is not in the script). The probe is the meter vs the light field (shots-ctcourse, |diff| < 0.02) plus the grey card display luma checked against the L5 band of its field level (e2e-darkness).",
+  "Auto graphics = `?gfx=user&detect=1` (the saved defaults; automation skips the detection without detect=1). The starred shots (05, 07) are taken again at Epic through app.quality.setOverride, skipped when Auto already is Epic.",
+  "Realistic is the only light model (LR16a removed the switch): nothing to set.",
+  "Each map's own guards are removed and its security cameras paused (security.fixedUpdate replaced), so no alarm stage changes the lights mid-shot; the guards of shots 07 / 09 and the perf cells are spawned passive grunts.",
+  "Free Roam (sandbox) builds no nav grid or EnemyManager (gameState.ts:667): warehouse boots `mode=clear` (e2e-stealth-ai) and proving `mode=mission` (e2e-tactics), their mode fixedUpdate replaced so it spawns, alarms and ends nothing; their co-op pair runs `clear` (Mission is no NetMode). Kestrel boots only in sandbox: its shots and probe are \"not possible\", its bakes run. A boot without a nav grid after 30 s is recorded as \"no nav grid in <mode>\" and the map moves on.",
+  "Shot 09: the thermal ghost through a shut door is LR16-6 (not built): the note says what thermal shows (a warm guard is placed in view).",
+  "Shot 10: vision is never sent to the partner (D8): what A sees of B's goggles is the same in every mode of B.",
+  "Pass / flag: 01-03, 04, 07, 08, 09, 10 and the probe have cheap automated checks; 05 and 06 (shadow softness) are \"review\": the sheet is the result.",
+  "Fix round 07: the wall / door / corner pairs run under a quality override (scale 1, aa fxaa: no TAA / TAAU; then also volumetrics off), which also stops the frame governor for those captures; the override in force before (Auto: none, the Epic pass: epic) is put back after. A surface leak is judged on the haze-off variant; a rise only with the haze on is the known volumetric spill (triage A3) and reads \"review\". The four-torch frame is unchanged.",
+  "Fix round 04: a ceiling below 0.02 in the field over a cone fitting or in a room taller than 4.2 m reads \"review\" (the LR16-1 model as built, triage C); only a downward lamp in a room <= 4.2 m under 0.02 is a flag."
+ ],
+ "auditFile": "docs/sector-redesign/checks/lr16-lamp-audit.md",
+ "maps": {
+  "campusOps": {
+   "query": "autostart=campusOps&mode=sector&sectorGuards=0",
+   "mode": "sector",
+   "units": {
+    "s1": {
+     "unit": {
+      "name": "s1",
+      "rooms": [
+       "verge",
+       "gatehouse",
+       "lane",
+       "park",
+       "bins",
+       "bikes",
+       "smoke",
+       "dyard",
+       "forecourt",
+       "plantroof",
+       "c1"
+      ]
+     },
+     "shots": {
+      "04": {
+       "file": "campusOps-s1-04.png",
+       "status": "not-possible",
+       "note": "not possible: no lamp with a wall face in reach and a standing spot facing it"
+      },
+      "07": {
+       "file": "campusOps-s1-07.png",
+       "status": "pass",
+       "note": "nothing through walls or the shut door; the beam reads round the corner; four torches on",
+       "parts": {
+        "wall": {
+         "status": "review",
+         "note": "haze spill only past the wall (triage A3): far side in the cone 23424 px: 0 rose > 0.02 haze off (0%, noise 0), 23424 with haze (100%, noise 0)",
+         "plan": {
+          "cam": [
+           -15.75,
+           1.6,
+           -41.75
+          ],
+          "target": [
+           -14.643,
+           1.2,
+           -39.536
+          ],
+          "guard": [
+           -13.75,
+           0,
+           -37.75
+          ],
+          "yaw": -2.678,
+          "wallAt": [
+           -14.643,
+           1.6,
+           -39.536
+          ]
+         },
+         "noTaa": {
+          "valid": true,
+          "why": [],
+          "variant": "noTaa",
+          "override": {
+           "preset": null,
+           "scale": 1,
+           "gfx": {
+            "aa": "fxaa"
+           }
+          },
+          "file": "C:/NightShift/scratch/lighting/lr16-8/redo-040708-5c20c538/frames/campusOps-s1-07-wall-noTaa-on.png",
+          "files": {
+           "on": "campusOps-s1-07-wall-noTaa-on.png",
+           "off": "campusOps-s1-07-wall-noTaa-off.png",
+           "off2": "campusOps-s1-07-wall-noTaa-off2.png"
+          },
+          "torchOn": {
+           "torchesOn": 1,
+           "alive": 1,
+           "frame": 1983,
+           "t": 15.4,
+           "slots": [
+            {
+             "i": 0,
+             "id": 134,
+             "on": true,
+             "owned": true,
+             "ownerAlive": true,
+             "override": true,
+             "pos": [
+              -14.041,
+              1.467,
+              -37.996
+             ],
+             "dir": [
+              -0.441,
+              -0.159,
+              -0.883
+             ],
+             "cosOuter": 0.943,
+             "radius": 13,
+             "reach": 13
+            }
+           ]
+          },
+          "torchOff": {
+           "torchesOn": 0,
+           "alive": 1,
+           "frame": 2073,
+           "t": 16,
+           "slots": []
+          },
+          "frames": {
+           "on": 1983,
+           "off": 2073,
+           "off2": 2104,
+           "waitOn": {
+            "ok": true,
+            "frames": 50,
+            "sim": 0.3
+           },
+           "waitOff": {
+            "ok": true,
+            "frames": 52,
+            "sim": 0.317
+           },
+           "waitOff2": {
+            "ok": true,
+            "frames": 9,
+            "sim": 0.05
+           }
+          },
+          "sameBytes": false,
+          "mask": {
+           "counts": [
+            0,
+            366,
+            0,
+            1229,
+            12791
+           ],
+           "doorBlocks": 0,
+           "cols": 160,
+           "rows": 90,
+           "block": 8,
+           "cam": [
+            -15.75,
+            1.6,
+            -41.75
+           ],
+           "torch": [
+            -14.041,
+            1.467,
+            -37.996
+           ]
+          },
+          "rise": {
+           "cls": [
+            {
+             "px": 896,
+             "rise": 0,
+             "max": 0.0101
+            },
+            {
+             "px": 23424,
+             "rise": 23424,
+             "max": 0.0963
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 78656,
+             "rise": 27904,
+             "max": 0.0993
+            },
+            {
+             "px": 818624,
+             "rise": 508326,
+             "max": 0.1848
+            }
+           ],
+           "riseAll": 559654,
+           "px": 921600
+          },
+          "noise": {
+           "cls": [
+            {
+             "px": 896,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 23424,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 78656,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 818624,
+             "rise": 0,
+             "max": 0
+            }
+           ],
+           "riseAll": 0,
+           "px": 921600
+          }
+         },
+         "noTaaNoHaze": {
+          "valid": true,
+          "why": [],
+          "variant": "noTaaNoHaze",
+          "override": {
+           "preset": null,
+           "scale": 1,
+           "gfx": {
+            "aa": "fxaa",
+            "volumetrics": false
+           }
+          },
+          "file": "C:/NightShift/scratch/lighting/lr16-8/redo-040708-5c20c538/frames/campusOps-s1-07-wall-noTaaNoHaze-on.png",
+          "files": {
+           "on": "campusOps-s1-07-wall-noTaaNoHaze-on.png",
+           "off": "campusOps-s1-07-wall-noTaaNoHaze-off.png",
+           "off2": "campusOps-s1-07-wall-noTaaNoHaze-off2.png"
+          },
+          "torchOn": {
+           "torchesOn": 1,
+           "alive": 1,
+           "frame": 3079,
+           "t": 22.217,
+           "slots": [
+            {
+             "i": 0,
+             "id": 134,
+             "on": true,
+             "owned": true,
+             "ownerAlive": true,
+             "override": true,
+             "pos": [
+              -14.041,
+              1.467,
+              -37.996
+             ],
+             "dir": [
+              -0.441,
+              -0.159,
+              -0.883
+             ],
+             "cosOuter": 0.943,
+             "radius": 13,
+             "reach": 13
+            }
+           ]
+          },
+          "torchOff": {
+           "torchesOn": 0,
+           "alive": 1,
+           "frame": 3160,
+           "t": 22.733,
+           "slots": []
+          },
+          "frames": {
+           "on": 3079,
+           "off": 3160,
+           "off2": 3185,
+           "waitOn": {
+            "ok": true,
+            "frames": 52,
+            "sim": 0.317
+           },
+           "waitOff": {
+            "ok": true,
+            "frames": 63,
+            "sim": 0.367
+           },
+           "waitOff2": {
+            "ok": true,
+            "frames": 9,
+            "sim": 0.067
+           }
+          },
+          "sameBytes": false,
+          "mask": {
+           "counts": [
+            0,
+            366,
+            0,
+            1229,
+            12791
+           ],
+           "doorBlocks": 0,
+           "cols": 160,
+           "rows": 90,
+           "block": 8,
+           "cam": [
+            -15.75,
+            1.6,
+            -41.75
+           ],
+           "torch": [
+            -14.041,
+            1.467,
+            -37.996
+           ]
+          },
+          "rise": {
+           "cls": [
+            {
+             "px": 896,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 23424,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 78656,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 818624,
+             "rise": 0,
+             "max": 0.0003
+            }
+           ],
+           "riseAll": 0,
+           "px": 921600
+          },
+          "noise": {
+           "cls": [
+            {
+             "px": 896,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 23424,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 78656,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 818624,
+             "rise": 0,
+             "max": 0
+            }
+           ],
+           "riseAll": 0,
+           "px": 921600
+          }
+         }
+        },
+        "door": {
+         "status": "not-possible"
+        },
+        "corner": {
+         "status": "pass",
+         "note": "beam reads round the corner (19387 of 25216 torch-lit px rose > 0.02, haze off; 20595 with haze)",
+         "plan": {
+          "cam": [
+           -15.75,
+           1.6,
+           -41.75
+          ],
+          "target": [
+           -13.75,
+           0.945,
+           -34
+          ],
+          "guard": [
+           -13.75,
+           0,
+           -37.75
+          ],
+          "yaw": 0,
+          "beamAt": [
+           -13.75,
+           0.945,
+           -34
+          ]
+         },
+         "noTaa": {
+          "valid": true,
+          "why": [],
+          "variant": "noTaa",
+          "override": {
+           "preset": null,
+           "scale": 1,
+           "gfx": {
+            "aa": "fxaa"
+           }
+          },
+          "file": "C:/NightShift/scratch/lighting/lr16-8/redo-040708-5c20c538/frames/campusOps-s1-07-corner-noTaa-on.png",
+          "files": {
+           "on": "campusOps-s1-07-corner-noTaa-on.png",
+           "off": "campusOps-s1-07-corner-noTaa-off.png",
+           "off2": "campusOps-s1-07-corner-noTaa-off2.png"
+          },
+          "torchOn": {
+           "torchesOn": 1,
+           "alive": 1,
+           "frame": 2416,
+           "t": 18.1,
+           "slots": [
+            {
+             "i": 0,
+             "id": 134,
+             "on": true,
+             "owned": true,
+             "ownerAlive": true,
+             "override": true,
+             "pos": [
+              -13.6,
+              1.467,
+              -37.4
+             ],
+             "dir": [
+              0,
+              -0.159,
+              0.987
+             ],
+             "cosOuter": 0.943,
+             "radius": 13,
+             "reach": 4.037
+            }
+           ]
+          },
+          "torchOff": {
+           "torchesOn": 0,
+           "alive": 1,
+           "frame": 2493,
+           "t": 18.617,
+           "slots": []
+          },
+          "frames": {
+           "on": 2416,
+           "off": 2493,
+           "off2": 2526,
+           "waitOn": {
+            "ok": true,
+            "frames": 61,
+            "sim": 0.367
+           },
+           "waitOff": {
+            "ok": true,
+            "frames": 52,
+            "sim": 0.317
+           },
+           "waitOff2": {
+            "ok": true,
+            "frames": 11,
+            "sim": 0.067
+           }
+          },
+          "sameBytes": false,
+          "mask": {
+           "counts": [
+            0,
+            21,
+            394,
+            1895,
+            12090
+           ],
+           "doorBlocks": 0,
+           "cols": 160,
+           "rows": 90,
+           "block": 8,
+           "cam": [
+            -15.75,
+            1.6,
+            -41.75
+           ],
+           "torch": [
+            -13.6,
+            1.467,
+            -37.4
+           ]
+          },
+          "rise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 1344,
+             "rise": 0,
+             "max": 0.0012
+            },
+            {
+             "px": 25216,
+             "rise": 20595,
+             "max": 0.1845
+            },
+            {
+             "px": 121280,
+             "rise": 0,
+             "max": 0.0009
+            },
+            {
+             "px": 773760,
+             "rise": 299,
+             "max": 0.0953
+            }
+           ],
+           "riseAll": 20894,
+           "px": 921600
+          },
+          "noise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 1344,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 25216,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 121280,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 773760,
+             "rise": 0,
+             "max": 0
+            }
+           ],
+           "riseAll": 0,
+           "px": 921600
+          }
+         },
+         "noTaaNoHaze": {
+          "valid": true,
+          "why": [],
+          "variant": "noTaaNoHaze",
+          "override": {
+           "preset": null,
+           "scale": 1,
+           "gfx": {
+            "aa": "fxaa",
+            "volumetrics": false
+           }
+          },
+          "file": "C:/NightShift/scratch/lighting/lr16-8/redo-040708-5c20c538/frames/campusOps-s1-07-corner-noTaaNoHaze-on.png",
+          "files": {
+           "on": "campusOps-s1-07-corner-noTaaNoHaze-on.png",
+           "off": "campusOps-s1-07-corner-noTaaNoHaze-off.png",
+           "off2": "campusOps-s1-07-corner-noTaaNoHaze-off2.png"
+          },
+          "torchOn": {
+           "torchesOn": 1,
+           "alive": 1,
+           "frame": 3483,
+           "t": 24.7,
+           "slots": [
+            {
+             "i": 0,
+             "id": 134,
+             "on": true,
+             "owned": true,
+             "ownerAlive": true,
+             "override": true,
+             "pos": [
+              -13.6,
+              1.467,
+              -37.4
+             ],
+             "dir": [
+              0,
+              -0.159,
+              0.987
+             ],
+             "cosOuter": 0.943,
+             "radius": 13,
+             "reach": 4.037
+            }
+           ]
+          },
+          "torchOff": {
+           "torchesOn": 0,
+           "alive": 1,
+           "frame": 3561,
+           "t": 25.217,
+           "slots": []
+          },
+          "frames": {
+           "on": 3483,
+           "off": 3561,
+           "off2": 3587,
+           "waitOn": {
+            "ok": true,
+            "frames": 62,
+            "sim": 0.367
+           },
+           "waitOff": {
+            "ok": true,
+            "frames": 59,
+            "sim": 0.35
+           },
+           "waitOff2": {
+            "ok": true,
+            "frames": 10,
+            "sim": 0.067
+           }
+          },
+          "sameBytes": false,
+          "mask": {
+           "counts": [
+            0,
+            21,
+            394,
+            1895,
+            12090
+           ],
+           "doorBlocks": 0,
+           "cols": 160,
+           "rows": 90,
+           "block": 8,
+           "cam": [
+            -15.75,
+            1.6,
+            -41.75
+           ],
+           "torch": [
+            -13.6,
+            1.467,
+            -37.4
+           ]
+          },
+          "rise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 1344,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 25216,
+             "rise": 19387,
+             "max": 0.1355
+            },
+            {
+             "px": 121280,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 773760,
+             "rise": 25,
+             "max": 0.0868
+            }
+           ],
+           "riseAll": 19412,
+           "px": 921600
+          },
+          "noise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 1344,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 25216,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 121280,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 773760,
+             "rise": 0,
+             "max": 0
+            }
+           ],
+           "riseAll": 0,
+           "px": 921600
+          }
+         }
+        },
+        "four": {
+         "status": "pass",
+         "note": "4 of 4 torches on (slots 4); soft beam rim is a visual check",
+         "plan": {
+          "cam": [
+           -15.75,
+           1.6,
+           -41.75
+          ],
+          "target": [
+           -8.82,
+           -0.387,
+           -34.82
+          ],
+          "viewYaw": 0.785,
+          "guards": [
+           {
+            "p": [
+             -14.25,
+             0,
+             -38.25
+            ],
+            "yaw": 3.027
+           },
+           {
+            "p": [
+             -10.75,
+             0,
+             -39.25
+            ],
+            "yaw": 4.827
+           },
+           {
+            "p": [
+             -11.75,
+             0,
+             -36.75
+            ],
+            "yaw": 3.027
+           },
+           {
+            "p": [
+             -7.75,
+             0,
+             -38.75
+            ],
+            "yaw": 4.827
+           }
+          ]
+         },
+         "torchesOn": 4
+        }
+       }
+      },
+      "08": {
+       "file": "campusOps-s1-08.png",
+       "status": "pass",
+       "note": "meter 0.328 -> 0.256 (shot, read 1.017 s after) -> 0.246 (circuit off); lamp 2 lampAt at the body 0.025 / 0.072 (chest / head), bounce 0.009 / 0.009, expected drop >= 0.036; frame mean 0.477 -> 0.247 -> 0.034",
+       "plan": {
+        "lamp": 2,
+        "lampPos": [
+         -34,
+         6,
+         -62
+        ],
+        "group": 40,
+        "groupLamps": 8,
+        "hasSwitch": true,
+        "bakedIndex": 2,
+        "stand": [
+         -30.25,
+         0,
+         -61.75
+        ],
+        "standFromLamp": 3,
+        "standLampAt": 0.07,
+        "standLevel": 0.326,
+        "passedOver": [],
+        "cam": [
+         -33.25,
+         1.6,
+         -57.75
+        ],
+        "target": [
+         -33.25,
+         3,
+         -61.75
+        ],
+        "from": [
+         -30.25,
+         1.5,
+         -61.75
+        ]
+       },
+       "contribBefore": {
+        "bakedIndex": 2,
+        "lampAt": [
+         0.025,
+         0.072
+        ],
+        "bounceAt": [
+         0.009,
+         0.009
+        ],
+        "levelAt": [
+         0.286,
+         0.328
+        ],
+        "at": [
+         -30.25,
+         0.02,
+         -61.75
+        ],
+        "t": 29.833
+       },
+       "contribAfter": {
+        "bakedIndex": 2,
+        "lampAt": [
+         0,
+         0
+        ],
+        "bounceAt": [
+         0.005,
+         0.004
+        ],
+        "levelAt": [
+         0.256,
+         0.251
+        ],
+        "at": [
+         -30.25,
+         0.02,
+         -61.75
+        ],
+        "t": 32.2
+       },
+       "expectedDrop": 0.036,
+       "drop": 0.071,
+       "readAfterShot": 1.017,
+       "meter": [
+        0.328,
+        0.256,
+        0.246
+       ],
+       "field": [
+        0.328,
+        0.256,
+        0.246
+       ],
+       "frameMean": [
+        0.477,
+        0.247,
+        0.034
+       ],
+       "shot": {
+        "how": "stealth.shotRay",
+        "destroyed": true
+       },
+       "switch": "wall switch (the player toggle)",
+       "restored": true
+      },
+      "07-epic": {
+       "status": "same-as-auto",
+       "note": "Auto is Epic on this device: the Auto shot is the Epic shot"
+      }
+     },
+     "darkPick": {
+      "source": "audit room",
+      "room": "lane",
+      "roomName": "Barrier Lane (`lane`)",
+      "darkShare": 0.92,
+      "views": 12,
+      "view": null
+     },
+     "plan": {
+      "rooms": [
+       "verge",
+       "gatehouse",
+       "lane",
+       "park",
+       "bins",
+       "bikes",
+       "smoke",
+       "dyard",
+       "forecourt",
+       "plantroof",
+       "c1"
+      ],
+      "lamps": 28,
+      "errors": [],
+      "lampIds": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7,
+       8,
+       9,
+       10,
+       11,
+       12,
+       13,
+       14,
+       15,
+       18,
+       19,
+       20,
+       21,
+       22,
+       23,
+       24,
+       25,
+       26,
+       27,
+       28,
+       29
+      ],
+      "spin": {
+       "step": 2,
+       "cells": 426,
+       "scored": 408,
+       "spots": [
+        {
+         "p": [
+          -15.75,
+          0,
+          -41.75
+         ],
+         "score": 0.25,
+         "mean": 0.309,
+         "yaws": [
+          [
+           0.467,
+           0.4
+          ],
+          [
+           0.25,
+           0.5
+          ],
+          [
+           0.5,
+           0.3
+          ],
+          [
+           0.5,
+           0.286
+          ]
+         ]
+        },
+        {
+         "p": [
+          -23.75,
+          0,
+          -43.75
+         ],
+         "score": 0.182,
+         "mean": 0.267,
+         "yaws": [
+          [
+           0.6,
+           0.2
+          ],
+          [
+           0.636,
+           0.182
+          ],
+          [
+           0.5,
+           0.4
+          ],
+          [
+           0.286,
+           0.5
+          ]
+         ]
+        },
+        {
+         "p": [
+          -3.75,
+          0,
+          -43.75
+         ],
+         "score": 0,
+         "mean": 0.275,
+         "yaws": [
+          [
+           0,
+           1
+          ],
+          [
+           0.3,
+           0.5
+          ],
+          [
+           0.417,
+           0.5
+          ],
+          [
+           0.385,
+           0.385
+          ]
+         ]
+        }
+       ]
+      },
+      "cells": 1804,
+      "wall": {
+       "lamp": 27,
+       "lampPos": [
+        -23,
+        4.1,
+        -35.6
+       ],
+       "floor": [
+        -22.75,
+        0,
+        -35.75
+       ],
+       "model": null,
+       "base": null,
+       "wallDist": 1.6,
+       "wall": [
+        -23,
+        3.8,
+        -34
+       ],
+       "normal": [
+        0,
+        0,
+        -1
+       ],
+       "cam": null,
+       "target": [
+        -23,
+        2.25,
+        -34
+       ],
+       "ceilY": 4.2,
+       "ccam": [
+        -22.75,
+        1.5,
+        -37.25
+       ],
+       "ctarget": [
+        -23,
+        4.2,
+        -34.8
+       ]
+      },
+      "char": {
+       "lamp": 0,
+       "lampPos": [
+        17,
+        2.9,
+        -76
+       ],
+       "floor": [
+        17.25,
+        0,
+        -75.75
+       ],
+       "dir": [
+        1,
+        0,
+        0
+       ],
+       "frames": [
+        {
+         "m": 1,
+         "feet": [
+          18.25,
+          0,
+          -75.75
+         ],
+         "yaw": 2.897,
+         "cam": [
+          18.75,
+          1.35,
+          -77.75
+         ],
+         "target": [
+          18.25,
+          0.85,
+          -75.75
+         ],
+         "nearest": {
+          "id": 0,
+          "d": 1.275
+         }
+        },
+        {
+         "m": 4,
+         "feet": [
+          21.25,
+          0,
+          -75.75
+         ],
+         "yaw": 0.165,
+         "cam": [
+          21.75,
+          1.35,
+          -72.75
+         ],
+         "target": [
+          21.25,
+          0.85,
+          -75.75
+         ],
+         "nearest": {
+          "id": 0,
+          "d": 4.257
+         }
+        }
+       ]
+      },
+      "crate": null,
+      "door": null,
+      "torch": {
+       "wall": {
+        "cam": [
+         -15.75,
+         1.6,
+         -41.75
+        ],
+        "target": [
+         -14.643,
+         1.2,
+         -39.536
+        ],
+        "guard": [
+         -13.75,
+         0,
+         -37.75
+        ],
+        "yaw": -2.678,
+        "wallAt": [
+         -14.643,
+         1.6,
+         -39.536
+        ]
+       },
+       "door": null,
+       "corner": {
+        "cam": [
+         -15.75,
+         1.6,
+         -41.75
+        ],
+        "target": [
+         -13.75,
+         0.945,
+         -34
+        ],
+        "guard": [
+         -13.75,
+         0,
+         -37.75
+        ],
+        "yaw": 0,
+        "beamAt": [
+         -13.75,
+         0.945,
+         -34
+        ]
+       },
+       "four": {
+        "cam": [
+         -15.75,
+         1.6,
+         -41.75
+        ],
+        "target": [
+         -8.82,
+         -0.387,
+         -34.82
+        ],
+        "viewYaw": 0.785,
+        "guards": [
+         {
+          "p": [
+           -14.25,
+           0,
+           -38.25
+          ],
+          "yaw": 3.027
+         },
+         {
+          "p": [
+           -10.75,
+           0,
+           -39.25
+          ],
+          "yaw": 4.827
+         },
+         {
+          "p": [
+           -11.75,
+           0,
+           -36.75
+          ],
+          "yaw": 3.027
+         },
+         {
+          "p": [
+           -7.75,
+           0,
+           -38.75
+          ],
+          "yaw": 4.827
+         }
+        ]
+       }
+      },
+      "shoot": {
+       "lamp": 2,
+       "lampPos": [
+        -34,
+        6,
+        -62
+       ],
+       "group": 40,
+       "groupLamps": 8,
+       "hasSwitch": true,
+       "bakedIndex": 2,
+       "stand": [
+        -30.25,
+        0,
+        -61.75
+       ],
+       "standFromLamp": 3,
+       "standLampAt": 0.07,
+       "standLevel": 0.326,
+       "passedOver": [],
+       "cam": [
+        -33.25,
+        1.6,
+        -57.75
+       ],
+       "target": [
+        -33.25,
+        3,
+        -61.75
+       ],
+       "from": [
+        -30.25,
+        1.5,
+        -61.75
+       ]
+      },
+      "dark": {
+       "p": [
+        10.25,
+        0,
+        -63.75
+       ],
+       "yaw": 0,
+       "source": "darkest point of room lane",
+       "room": "lane",
+       "level": 0.149,
+       "cam": [
+        10.25,
+        1.6,
+        -63.75
+       ],
+       "target": [
+        10.25,
+        0.403,
+        -53.822
+       ],
+       "guard": {
+        "p": [
+         10.25,
+         0,
+         -59.75
+        ],
+        "yaw": 3.142
+       }
+      },
+      "ms": 133
+     }
+    },
+    "s5": {
+     "unit": {
+      "name": "s5",
+      "prefix": "s5-"
+     },
+     "shots": {
+      "04": {
+       "file": "campusOps-s5-04.png",
+       "status": "pass",
+       "note": "ceiling lit in the field (0.31 over the lamp, bounce 0.127); lamp 106 downward, uplight; screen top mean 0; wall 1.2 m, gradient bands 0.116/0.278/0.4/0.409/0.34/0.248",
+       "plan": {
+        "lamp": 106,
+        "lampPos": [
+         -42,
+         6.6,
+         30.7
+        ],
+        "floor": [
+         -41.75,
+         4.2,
+         30.75
+        ],
+        "model": null,
+        "base": null,
+        "wallDist": 1.2,
+        "wall": [
+         -42,
+         6.3,
+         31.9
+        ],
+        "normal": [
+         0,
+         0,
+         -1
+        ],
+        "cam": [
+         -41.75,
+         5.8,
+         29.75
+        ],
+        "target": [
+         -42,
+         5.6,
+         31.9
+        ],
+        "ceilY": 8.2,
+        "ccam": [
+         -41.75,
+         5.7,
+         29.75
+        ],
+        "ctarget": [
+         -42,
+         8.2,
+         31.3
+        ]
+       },
+       "lamp": {
+        "id": 106,
+        "kind": "lamp",
+        "registryCone": false,
+        "coneHalfDeg": null,
+        "model": null,
+        "base": null,
+        "bakedIndex": 106,
+        "bakeKind": "downward",
+        "uplight": true
+       },
+       "ceiling": {
+        "id": 106,
+        "kind": "lamp",
+        "registryCone": false,
+        "coneHalfDeg": null,
+        "model": null,
+        "base": null,
+        "bakedIndex": 106,
+        "bakeKind": "downward",
+        "uplight": true,
+        "ceilY": 8.2,
+        "floorY": 4.2,
+        "roomHeight": 4,
+        "lampBelowCeil": 1.6,
+        "samples": [
+         {
+          "at": [
+           -42,
+           7.95,
+           30.7
+          ],
+          "level": 0.31,
+          "bounce": 0.127,
+          "lamp": 0
+         },
+         {
+          "at": [
+           -42,
+           7.95,
+           31.3
+          ],
+          "level": 0.269,
+          "bounce": 0.086,
+          "lamp": 0
+         }
+        ]
+       },
+       "wallBands": [
+        0.116,
+        0.278,
+        0.4,
+        0.409,
+        0.34,
+        0.248
+       ],
+       "ceilMean": 0
+      },
+      "07": {
+       "file": "campusOps-s5-07.png",
+       "status": "flag",
+       "note": "corner: beam not seen round the corner (0 of 0 torch-lit px rose > 0.02, haze off; 0 with haze)",
+       "parts": {
+        "wall": {
+         "status": "pass",
+         "note": "nothing through the wall: far side in the cone 135296 px: 0 rose > 0.02 haze off (0%, noise 0), 0 with haze (0%, noise 0)",
+         "plan": {
+          "cam": [
+           -29.75,
+           1.6,
+           40.25
+          ],
+          "target": [
+           -31.85,
+           1.2,
+           38.675
+          ],
+          "guard": [
+           -33.75,
+           0,
+           37.25
+          ],
+          "yaw": 0.927,
+          "wallAt": [
+           -31.85,
+           1.6,
+           38.675
+          ]
+         },
+         "noTaa": {
+          "valid": true,
+          "why": [],
+          "variant": "noTaa",
+          "override": {
+           "preset": null,
+           "scale": 1,
+           "gfx": {
+            "aa": "fxaa"
+           }
+          },
+          "file": "C:/NightShift/scratch/lighting/lr16-8/redo-040708-5c20c538/frames/campusOps-s5-07-wall-noTaa-on.png",
+          "files": {
+           "on": "campusOps-s5-07-wall-noTaa-on.png",
+           "off": "campusOps-s5-07-wall-noTaa-off.png",
+           "off2": "campusOps-s5-07-wall-noTaa-off2.png"
+          },
+          "torchOn": {
+           "torchesOn": 1,
+           "alive": 1,
+           "frame": 6120,
+           "t": 40.9,
+           "slots": [
+            {
+             "i": 0,
+             "id": 134,
+             "on": true,
+             "owned": true,
+             "ownerAlive": true,
+             "override": true,
+             "pos": [
+              -33.38,
+              1.467,
+              37.34
+             ],
+             "dir": [
+              0.79,
+              -0.159,
+              0.593
+             ],
+             "cosOuter": 0.943,
+             "radius": 13,
+             "reach": 1.744
+            }
+           ]
+          },
+          "torchOff": {
+           "torchesOn": 0,
+           "alive": 1,
+           "frame": 6216,
+           "t": 41.517,
+           "slots": []
+          },
+          "frames": {
+           "on": 6120,
+           "off": 6216,
+           "off2": 6256,
+           "waitOn": {
+            "ok": true,
+            "frames": 58,
+            "sim": 0.35
+           },
+           "waitOff": {
+            "ok": true,
+            "frames": 62,
+            "sim": 0.367
+           },
+           "waitOff2": {
+            "ok": true,
+            "frames": 10,
+            "sim": 0.067
+           }
+          },
+          "sameBytes": false,
+          "mask": {
+           "counts": [
+            0,
+            2114,
+            0,
+            12286,
+            0
+           ],
+           "doorBlocks": 0,
+           "cols": 160,
+           "rows": 90,
+           "block": 8,
+           "cam": [
+            -29.75,
+            1.6,
+            40.25
+           ],
+           "torch": [
+            -33.38,
+            1.467,
+            37.34
+           ]
+          },
+          "rise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 135296,
+             "rise": 0,
+             "max": 0.0014
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 786304,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            }
+           ],
+           "riseAll": 0,
+           "px": 921600
+          },
+          "noise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 135296,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 786304,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            }
+           ],
+           "riseAll": 0,
+           "px": 921600
+          }
+         },
+         "noTaaNoHaze": {
+          "valid": true,
+          "why": [],
+          "variant": "noTaaNoHaze",
+          "override": {
+           "preset": null,
+           "scale": 1,
+           "gfx": {
+            "aa": "fxaa",
+            "volumetrics": false
+           }
+          },
+          "file": "C:/NightShift/scratch/lighting/lr16-8/redo-040708-5c20c538/frames/campusOps-s5-07-wall-noTaaNoHaze-on.png",
+          "files": {
+           "on": "campusOps-s5-07-wall-noTaaNoHaze-on.png",
+           "off": "campusOps-s5-07-wall-noTaaNoHaze-off.png",
+           "off2": "campusOps-s5-07-wall-noTaaNoHaze-off2.png"
+          },
+          "torchOn": {
+           "torchesOn": 1,
+           "alive": 1,
+           "frame": 7789,
+           "t": 51.2,
+           "slots": [
+            {
+             "i": 0,
+             "id": 134,
+             "on": true,
+             "owned": true,
+             "ownerAlive": true,
+             "override": true,
+             "pos": [
+              -33.38,
+              1.467,
+              37.34
+             ],
+             "dir": [
+              0.79,
+              -0.159,
+              0.593
+             ],
+             "cosOuter": 0.943,
+             "radius": 13,
+             "reach": 1.744
+            }
+           ]
+          },
+          "torchOff": {
+           "torchesOn": 0,
+           "alive": 1,
+           "frame": 7869,
+           "t": 51.733,
+           "slots": []
+          },
+          "frames": {
+           "on": 7789,
+           "off": 7869,
+           "off2": 7895,
+           "waitOn": {
+            "ok": true,
+            "frames": 57,
+            "sim": 0.35
+           },
+           "waitOff": {
+            "ok": true,
+            "frames": 60,
+            "sim": 0.35
+           },
+           "waitOff2": {
+            "ok": true,
+            "frames": 10,
+            "sim": 0.067
+           }
+          },
+          "sameBytes": true,
+          "mask": {
+           "counts": [
+            0,
+            2114,
+            0,
+            12286,
+            0
+           ],
+           "doorBlocks": 0,
+           "cols": 160,
+           "rows": 90,
+           "block": 8,
+           "cam": [
+            -29.75,
+            1.6,
+            40.25
+           ],
+           "torch": [
+            -33.38,
+            1.467,
+            37.34
+           ]
+          },
+          "rise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 135296,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 786304,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            }
+           ],
+           "riseAll": 0,
+           "px": 921600
+          },
+          "noise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 135296,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 786304,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            }
+           ],
+           "riseAll": 0,
+           "px": 921600
+          }
+         }
+        },
+        "door": {
+         "status": "pass",
+         "note": "nothing through the door: far side in the cone 59136 px: 0 rose > 0.02 haze off (0%, noise 0), 0 with haze (0%, noise 0)",
+         "plan": {
+          "door": 95,
+          "cam": [
+           -52.75,
+           1.6,
+           33.25
+          ],
+          "target": [
+           -50,
+           1.1,
+           33
+          ],
+          "guard": [
+           -48.25,
+           0,
+           33.25
+          ],
+          "yaw": -1.713
+         },
+         "noTaa": {
+          "valid": true,
+          "why": [],
+          "variant": "noTaa",
+          "override": {
+           "preset": null,
+           "scale": 1,
+           "gfx": {
+            "aa": "fxaa"
+           }
+          },
+          "file": "C:/NightShift/scratch/lighting/lr16-8/redo-040708-5c20c538/frames/campusOps-s5-07-door-noTaa-on.png",
+          "files": {
+           "on": "campusOps-s5-07-door-noTaa-on.png",
+           "off": "campusOps-s5-07-door-noTaa-off.png",
+           "off2": "campusOps-s5-07-door-noTaa-off2.png"
+          },
+          "torchOn": {
+           "torchesOn": 1,
+           "alive": 1,
+           "frame": 6610,
+           "t": 43.917,
+           "slots": [
+            {
+             "i": 0,
+             "id": 134,
+             "on": true,
+             "owned": true,
+             "ownerAlive": true,
+             "override": true,
+             "pos": [
+              -48.618,
+              1.467,
+              33.349
+             ],
+             "dir": [
+              -0.977,
+              -0.159,
+              -0.14
+             ],
+             "cosOuter": 0.943,
+             "radius": 13,
+             "reach": 1.871
+            }
+           ]
+          },
+          "torchOff": {
+           "torchesOn": 0,
+           "alive": 1,
+           "frame": 6688,
+           "t": 44.433,
+           "slots": []
+          },
+          "frames": {
+           "on": 6610,
+           "off": 6688,
+           "off2": 6716,
+           "waitOn": {
+            "ok": true,
+            "frames": 51,
+            "sim": 0.317
+           },
+           "waitOff": {
+            "ok": true,
+            "frames": 59,
+            "sim": 0.35
+           },
+           "waitOff2": {
+            "ok": true,
+            "frames": 11,
+            "sim": 0.067
+           }
+          },
+          "sameBytes": false,
+          "mask": {
+           "counts": [
+            0,
+            924,
+            0,
+            13476,
+            0
+           ],
+           "doorBlocks": 40,
+           "cols": 160,
+           "rows": 90,
+           "block": 8,
+           "cam": [
+            -52.75,
+            1.6,
+            33.25
+           ],
+           "torch": [
+            -48.618,
+            1.467,
+            33.349
+           ]
+          },
+          "rise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 59136,
+             "rise": 0,
+             "max": 0.0013
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 862464,
+             "rise": 0,
+             "max": 0.0004
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            }
+           ],
+           "riseAll": 0,
+           "px": 921600
+          },
+          "noise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 59136,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 862464,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            }
+           ],
+           "riseAll": 0,
+           "px": 921600
+          }
+         },
+         "noTaaNoHaze": {
+          "valid": true,
+          "why": [],
+          "variant": "noTaaNoHaze",
+          "override": {
+           "preset": null,
+           "scale": 1,
+           "gfx": {
+            "aa": "fxaa",
+            "volumetrics": false
+           }
+          },
+          "file": "C:/NightShift/scratch/lighting/lr16-8/redo-040708-5c20c538/frames/campusOps-s5-07-door-noTaaNoHaze-on.png",
+          "files": {
+           "on": "campusOps-s5-07-door-noTaaNoHaze-on.png",
+           "off": "campusOps-s5-07-door-noTaaNoHaze-off.png",
+           "off2": "campusOps-s5-07-door-noTaaNoHaze-off2.png"
+          },
+          "torchOn": {
+           "torchesOn": 1,
+           "alive": 1,
+           "frame": 8233,
+           "t": 53.95,
+           "slots": [
+            {
+             "i": 0,
+             "id": 134,
+             "on": true,
+             "owned": true,
+             "ownerAlive": true,
+             "override": true,
+             "pos": [
+              -48.618,
+              1.467,
+              33.349
+             ],
+             "dir": [
+              -0.977,
+              -0.159,
+              -0.14
+             ],
+             "cosOuter": 0.943,
+             "radius": 13,
+             "reach": 1.871
+            }
+           ]
+          },
+          "torchOff": {
+           "torchesOn": 0,
+           "alive": 1,
+           "frame": 8306,
+           "t": 54.433,
+           "slots": []
+          },
+          "frames": {
+           "on": 8233,
+           "off": 8306,
+           "off2": 8323,
+           "waitOn": {
+            "ok": true,
+            "frames": 58,
+            "sim": 0.35
+           },
+           "waitOff": {
+            "ok": true,
+            "frames": 62,
+            "sim": 0.367
+           },
+           "waitOff2": {
+            "ok": true,
+            "frames": 9,
+            "sim": 0.05
+           }
+          },
+          "sameBytes": false,
+          "mask": {
+           "counts": [
+            0,
+            924,
+            0,
+            13476,
+            0
+           ],
+           "doorBlocks": 40,
+           "cols": 160,
+           "rows": 90,
+           "block": 8,
+           "cam": [
+            -52.75,
+            1.6,
+            33.25
+           ],
+           "torch": [
+            -48.618,
+            1.467,
+            33.349
+           ]
+          },
+          "rise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 59136,
+             "rise": 0,
+             "max": 0.0003
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 862464,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            }
+           ],
+           "riseAll": 0,
+           "px": 921600
+          },
+          "noise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 59136,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 862464,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            }
+           ],
+           "riseAll": 0,
+           "px": 921600
+          }
+         }
+        },
+        "corner": {
+         "status": "flag",
+         "note": "beam not seen round the corner (0 of 0 torch-lit px rose > 0.02, haze off; 0 with haze)",
+         "plan": {
+          "cam": [
+           -51.75,
+           5.8,
+           26.25
+          ],
+          "target": [
+           -49.95,
+           4.822,
+           26.561
+          ],
+          "guard": [
+           -47.75,
+           4.2,
+           21.25
+          ],
+          "yaw": 5.89,
+          "beamAt": [
+           -49.95,
+           4.822,
+           26.561
+          ]
+         },
+         "noTaa": {
+          "valid": true,
+          "why": [],
+          "variant": "noTaa",
+          "override": {
+           "preset": null,
+           "scale": 1,
+           "gfx": {
+            "aa": "fxaa"
+           }
+          },
+          "file": "C:/NightShift/scratch/lighting/lr16-8/redo-040708-5c20c538/frames/campusOps-s5-07-corner-noTaa-on.png",
+          "files": {
+           "on": "campusOps-s5-07-corner-noTaa-on.png",
+           "off": "campusOps-s5-07-corner-noTaa-off.png",
+           "off2": "campusOps-s5-07-corner-noTaa-off2.png"
+          },
+          "torchOn": {
+           "torchesOn": 1,
+           "alive": 1,
+           "frame": 7055,
+           "t": 46.65,
+           "slots": [
+            {
+             "i": 0,
+             "id": 134,
+             "on": true,
+             "owned": true,
+             "ownerAlive": true,
+             "override": true,
+             "pos": [
+              -47.746,
+              5.667,
+              21.631
+             ],
+             "dir": [
+              -0.378,
+              -0.159,
+              0.912
+             ],
+             "cosOuter": 0.943,
+             "radius": 13,
+             "reach": 9.913
+            }
+           ]
+          },
+          "torchOff": {
+           "torchesOn": 0,
+           "alive": 1,
+           "frame": 7142,
+           "t": 47.233,
+           "slots": []
+          },
+          "frames": {
+           "on": 7055,
+           "off": 7142,
+           "off2": 7181,
+           "waitOn": {
+            "ok": true,
+            "frames": 60,
+            "sim": 0.35
+           },
+           "waitOff": {
+            "ok": true,
+            "frames": 61,
+            "sim": 0.367
+           },
+           "waitOff2": {
+            "ok": true,
+            "frames": 10,
+            "sim": 0.067
+           }
+          },
+          "sameBytes": false,
+          "mask": {
+           "counts": [
+            0,
+            14400,
+            0,
+            0,
+            0
+           ],
+           "doorBlocks": 34,
+           "cols": 160,
+           "rows": 90,
+           "block": 8,
+           "cam": [
+            -51.75,
+            5.8,
+            26.25
+           ],
+           "torch": [
+            -47.746,
+            5.667,
+            21.631
+           ]
+          },
+          "rise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 921600,
+             "rise": 137520,
+             "max": 0.289
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            }
+           ],
+           "riseAll": 137520,
+           "px": 921600
+          },
+          "noise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 921600,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            }
+           ],
+           "riseAll": 0,
+           "px": 921600
+          }
+         },
+         "noTaaNoHaze": {
+          "valid": true,
+          "why": [],
+          "variant": "noTaaNoHaze",
+          "override": {
+           "preset": null,
+           "scale": 1,
+           "gfx": {
+            "aa": "fxaa",
+            "volumetrics": false
+           }
+          },
+          "file": "C:/NightShift/scratch/lighting/lr16-8/redo-040708-5c20c538/frames/campusOps-s5-07-corner-noTaaNoHaze-on.png",
+          "files": {
+           "on": "campusOps-s5-07-corner-noTaaNoHaze-on.png",
+           "off": "campusOps-s5-07-corner-noTaaNoHaze-off.png",
+           "off2": "campusOps-s5-07-corner-noTaaNoHaze-off2.png"
+          },
+          "torchOn": {
+           "torchesOn": 1,
+           "alive": 1,
+           "frame": 8648,
+           "t": 56.5,
+           "slots": [
+            {
+             "i": 0,
+             "id": 134,
+             "on": true,
+             "owned": true,
+             "ownerAlive": true,
+             "override": true,
+             "pos": [
+              -47.746,
+              5.667,
+              21.631
+             ],
+             "dir": [
+              -0.378,
+              -0.159,
+              0.912
+             ],
+             "cosOuter": 0.943,
+             "radius": 13,
+             "reach": 9.913
+            }
+           ]
+          },
+          "torchOff": {
+           "torchesOn": 0,
+           "alive": 1,
+           "frame": 8729,
+           "t": 57.033,
+           "slots": []
+          },
+          "frames": {
+           "on": 8648,
+           "off": 8729,
+           "off2": 8759,
+           "waitOn": {
+            "ok": true,
+            "frames": 58,
+            "sim": 0.35
+           },
+           "waitOff": {
+            "ok": true,
+            "frames": 60,
+            "sim": 0.35
+           },
+           "waitOff2": {
+            "ok": true,
+            "frames": 10,
+            "sim": 0.05
+           }
+          },
+          "sameBytes": false,
+          "mask": {
+           "counts": [
+            0,
+            14400,
+            0,
+            0,
+            0
+           ],
+           "doorBlocks": 34,
+           "cols": 160,
+           "rows": 90,
+           "block": 8,
+           "cam": [
+            -51.75,
+            5.8,
+            26.25
+           ],
+           "torch": [
+            -47.746,
+            5.667,
+            21.631
+           ]
+          },
+          "rise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 921600,
+             "rise": 2597,
+             "max": 0.2459
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            }
+           ],
+           "riseAll": 2597,
+           "px": 921600
+          },
+          "noise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 921600,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            }
+           ],
+           "riseAll": 0,
+           "px": 921600
+          }
+         }
+        },
+        "four": {
+         "status": "not-possible"
+        }
+       }
+      },
+      "08": {
+       "file": "campusOps-s5-08.png",
+       "status": "pass",
+       "note": "meter 1 -> 0.201 (shot, read 1 s after) -> 0.18 (circuit off); lamp 103 lampAt at the body 3.196 / 5.434 (chest / head), bounce 0.673 / 0.709, expected drop >= 0.02 (meter at its clamp); frame mean 0.178 -> 0.021 -> 0.01",
+       "plan": {
+        "lamp": 103,
+        "lampPos": [
+         -48.7,
+         6.6,
+         21
+        ],
+        "group": 81,
+        "groupLamps": 6,
+        "hasSwitch": true,
+        "bakedIndex": 103,
+        "stand": [
+         -48.75,
+         4.2,
+         21.25
+        ],
+        "standFromLamp": 0,
+        "standLampAt": 5.346,
+        "standLevel": 1,
+        "passedOver": [],
+        "cam": [
+         -48.75,
+         5.8,
+         25.25
+        ],
+        "target": [
+         -48.75,
+         5.4,
+         21.25
+        ],
+        "from": [
+         -48.75,
+         5.7,
+         21.25
+        ]
+       },
+       "contribBefore": {
+        "bakedIndex": 103,
+        "lampAt": [
+         3.196,
+         5.434
+        ],
+        "bounceAt": [
+         0.673,
+         0.709
+        ],
+        "levelAt": [
+         1,
+         1
+        ],
+        "at": [
+         -48.75,
+         4.22,
+         21.25
+        ],
+        "t": 58.417
+       },
+       "contribAfter": {
+        "bakedIndex": 103,
+        "lampAt": [
+         0,
+         0
+        ],
+        "bounceAt": [
+         0.01,
+         0.01
+        ],
+        "levelAt": [
+         0.201,
+         0.159
+        ],
+        "at": [
+         -48.75,
+         4.22,
+         21.25
+        ],
+        "t": 60.683
+       },
+       "expectedDrop": 0.02,
+       "drop": 0.799,
+       "readAfterShot": 1,
+       "meter": [
+        1,
+        0.201,
+        0.18
+       ],
+       "field": [
+        1,
+        0.201,
+        0.18
+       ],
+       "frameMean": [
+        0.178,
+        0.021,
+        0.01
+       ],
+       "shot": {
+        "how": "stealth.shotRay",
+        "destroyed": true
+       },
+       "switch": "wall switch (the player toggle)",
+       "restored": true
+      },
+      "07-epic": {
+       "status": "same-as-auto",
+       "note": "Auto is Epic on this device: the Auto shot is the Epic shot"
+      }
+     },
+     "darkPick": {
+      "source": "audit room",
+      "room": "s5-board",
+      "roomName": "Boardroom (`s5-board`)",
+      "darkShare": 1,
+      "views": 8,
+      "view": null
+     },
+     "plan": {
+      "rooms": [
+       "s5-ctl",
+       "s5-draw",
+       "s5-hall",
+       "s5-pass",
+       "s5-ante",
+       "s5-strong",
+       "s5-vest",
+       "s5-back",
+       "s5-plant",
+       "s5-lobby",
+       "s5-kitchen",
+       "s5-board",
+       "s5-ceo",
+       "s5-gal",
+       "s5-arch",
+       "s5-landing",
+       "s5-low",
+       "s5-roof",
+       "s5-garden",
+       "s5-terrace",
+       "s5-lawn",
+       "s5-jetty"
+      ],
+      "lamps": 28,
+      "errors": [],
+      "lampIds": [
+       102,
+       103,
+       104,
+       105,
+       106,
+       107,
+       108,
+       109,
+       110,
+       111,
+       112,
+       117,
+       118,
+       119,
+       120,
+       121,
+       122,
+       123,
+       124,
+       125,
+       126,
+       127,
+       128,
+       129,
+       130,
+       131,
+       132,
+       133
+      ],
+      "spin": {
+       "step": 2,
+       "cells": 557,
+       "scored": 537,
+       "spots": [
+        {
+         "p": [
+          -29.75,
+          0,
+          40.25
+         ],
+         "score": 0.2,
+         "mean": 0.317,
+         "yaws": [
+          [
+           0.267,
+           0.4
+          ],
+          [
+           0.4,
+           0.4
+          ],
+          [
+           0.533,
+           0.4
+          ],
+          [
+           0.2,
+           0.4
+          ]
+         ]
+        },
+        {
+         "p": [
+          -51.75,
+          4.2,
+          26.25
+         ],
+         "score": 0.133,
+         "mean": 0.267,
+         "yaws": [
+          [
+           0.2,
+           0.533
+          ],
+          [
+           0.133,
+           0.267
+          ],
+          [
+           0.4,
+           0.4
+          ],
+          [
+           0.333,
+           0.467
+          ]
+         ]
+        },
+        {
+         "p": [
+          -43.75,
+          0,
+          34.25
+         ],
+         "score": 0.133,
+         "mean": 0.217,
+         "yaws": [
+          [
+           0.467,
+           0.2
+          ],
+          [
+           0.333,
+           0.467
+          ],
+          [
+           0.467,
+           0.133
+          ],
+          [
+           0.2,
+           0.467
+          ]
+         ]
+        }
+       ]
+      },
+      "cells": 2650,
+      "wall": {
+       "lamp": 106,
+       "lampPos": [
+        -42,
+        6.6,
+        30.7
+       ],
+       "floor": [
+        -41.75,
+        4.2,
+        30.75
+       ],
+       "model": null,
+       "base": null,
+       "wallDist": 1.2,
+       "wall": [
+        -42,
+        6.3,
+        31.9
+       ],
+       "normal": [
+        0,
+        0,
+        -1
+       ],
+       "cam": [
+        -41.75,
+        5.8,
+        29.75
+       ],
+       "target": [
+        -42,
+        5.6,
+        31.9
+       ],
+       "ceilY": 8.2,
+       "ccam": [
+        -41.75,
+        5.7,
+        29.75
+       ],
+       "ctarget": [
+        -42,
+        8.2,
+        31.3
+       ]
+      },
+      "char": {
+       "lamp": 105,
+       "lampPos": [
+        -46,
+        6.6,
+        30.7
+       ],
+       "floor": [
+        -45.75,
+        4.2,
+        30.75
+       ],
+       "dir": [
+        1,
+        0,
+        0
+       ],
+       "frames": [
+        {
+         "m": 1,
+         "feet": [
+          -44.75,
+          4.2,
+          30.75
+         ],
+         "yaw": 2.944,
+         "cam": [
+          -44.25,
+          5.166,
+          28.25
+         ],
+         "target": [
+          -44.75,
+          5.05,
+          30.75
+         ],
+         "nearest": {
+          "id": 105,
+          "d": 1.251
+         }
+        },
+        {
+         "m": 4,
+         "feet": [
+          -41.75,
+          4.2,
+          30.75
+         ],
+         "yaw": 2.601,
+         "cam": [
+          -40.25,
+          5.55,
+          28.25
+         ],
+         "target": [
+          -41.75,
+          5.05,
+          30.75
+         ],
+         "nearest": {
+          "id": 106,
+          "d": 0.255
+         }
+        }
+       ]
+      },
+      "crate": {
+       "what": "box 1493",
+       "at": [
+        -50.35,
+        0.945,
+        20.25
+       ],
+       "size": [
+        0.48,
+        1.89
+       ],
+       "lamp": 103,
+       "lampDist": 1.812,
+       "cam": [
+        -52.75,
+        1.3,
+        20.25
+       ],
+       "target": [
+        -50.35,
+        0.2,
+        20.25
+       ]
+      },
+      "door": null,
+      "torch": {
+       "wall": {
+        "cam": [
+         -29.75,
+         1.6,
+         40.25
+        ],
+        "target": [
+         -31.85,
+         1.2,
+         38.675
+        ],
+        "guard": [
+         -33.75,
+         0,
+         37.25
+        ],
+        "yaw": 0.927,
+        "wallAt": [
+         -31.85,
+         1.6,
+         38.675
+        ]
+       },
+       "door": {
+        "door": 95,
+        "cam": [
+         -52.75,
+         1.6,
+         33.25
+        ],
+        "target": [
+         -50,
+         1.1,
+         33
+        ],
+        "guard": [
+         -48.25,
+         0,
+         33.25
+        ],
+        "yaw": -1.713
+       },
+       "corner": {
+        "cam": [
+         -51.75,
+         5.8,
+         26.25
+        ],
+        "target": [
+         -49.95,
+         4.822,
+         26.561
+        ],
+        "guard": [
+         -47.75,
+         4.2,
+         21.25
+        ],
+        "yaw": 5.89,
+        "beamAt": [
+         -49.95,
+         4.822,
+         26.561
+        ]
+       },
+       "four": null
+      },
+      "shoot": {
+       "lamp": 103,
+       "lampPos": [
+        -48.7,
+        6.6,
+        21
+       ],
+       "group": 81,
+       "groupLamps": 6,
+       "hasSwitch": true,
+       "bakedIndex": 103,
+       "stand": [
+        -48.75,
+        4.2,
+        21.25
+       ],
+       "standFromLamp": 0,
+       "standLampAt": 5.346,
+       "standLevel": 1,
+       "passedOver": [],
+       "cam": [
+        -48.75,
+        5.8,
+        25.25
+       ],
+       "target": [
+        -48.75,
+        5.4,
+        21.25
+       ],
+       "from": [
+        -48.75,
+        5.7,
+        21.25
+       ]
+      },
+      "dark": {
+       "p": [
+        -50.75,
+        4.2,
+        24.25
+       ],
+       "yaw": 4.712,
+       "source": "darkest point of room s5-board",
+       "room": "s5-board",
+       "level": 0.252,
+       "cam": [
+        -50.75,
+        5.8,
+        24.25
+       ],
+       "target": [
+        -60.678,
+        4.603,
+        24.25
+       ],
+       "guard": {
+        "p": [
+         -54.75,
+         4.2,
+         24.25
+        ],
+        "yaw": 1.571
+       }
+      },
+      "ms": 102
+     }
+    }
+   },
+   "probe": [],
+   "bake": {
+    "auto": {
+     "preset": "auto (epic)",
+     "ms": 20957,
+     "lights": 134,
+     "visMB": 133.43,
+     "atlasDims": [
+      2045,
+      519,
+      193
+     ],
+     "atlasMB": 204.84,
+     "moonCells": 3276288,
+     "hash": "1yb23w",
+     "bakedLampsDrawn": true
+    }
+   },
+   "errors": [],
+   "settings": {
+    "preset": "epic",
+    "auto": true,
+    "device": {
+     "key": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4090 Laptop GPU (0x00002757) Direct3D11 vs_5_0 ps_5_0, D3D11)|desktop|1280x720",
+     "tier": "epic",
+     "source": "gpu"
+    },
+    "renderScale": 1,
+    "upscaler": "off",
+    "governor": 3,
+    "override": null,
+    "bakedLamps": true,
+    "charShadows": true,
+    "torchSlots": 4,
+    "mode": "sector",
+    "ambient": 0.3,
+    "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4090 Laptop GPU (0x00002757) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "canvas": [
+     972,
+     547
+    ]
+   },
+   "minutes": 1.5
+  },
+  "warehouseOps": {
+   "query": "autostart=warehouseOps&mode=sector&sectorGuards=0",
+   "mode": "sector",
+   "units": {
+    "workshop": {
+     "unit": {
+      "name": "workshop",
+      "rooms": [
+       "workshop"
+      ],
+      "note": "campusOps has no Workshop room: this is the Sector Ops Workshop on warehouseOps (room `workshop`, the 4.78 wall-arc room)"
+     },
+     "shots": {
+      "04": {
+       "file": "warehouseOps-workshop-04.png",
+       "status": "pass",
+       "note": "ceiling lit in the field (1 over the lamp, bounce 0.005); lamp 25 cone strip, no uplight; screen top mean 0.011; wall 2.05 m, gradient bands 0.054/0.064/0.016/0.025/0.064/0.047",
+       "plan": {
+        "lamp": 25,
+        "lampPos": [
+         10.7,
+         5.58,
+         -15.8
+        ],
+        "floor": [
+         10.75,
+         0.02,
+         -15.75
+        ],
+        "model": "strip",
+        "base": "ceiling",
+        "wallDist": 2.05,
+        "wall": [
+         10.7,
+         5.28,
+         -17.85
+        ],
+        "normal": [
+         0,
+         0,
+         1
+        ],
+        "cam": [
+         10.75,
+         1.62,
+         -14.75
+        ],
+        "target": [
+         10.7,
+         3,
+         -17.85
+        ],
+        "ceilY": 5.8,
+        "ccam": [
+         10.75,
+         1.52,
+         -13.75
+        ],
+        "ctarget": [
+         10.7,
+         5.8,
+         -16.825
+        ]
+       },
+       "lamp": {
+        "id": 25,
+        "kind": "spot",
+        "registryCone": true,
+        "coneHalfDeg": 45,
+        "model": "strip",
+        "base": "ceiling",
+        "bakedIndex": 25,
+        "bakeKind": "cone",
+        "uplight": false
+       },
+       "ceiling": {
+        "id": 25,
+        "kind": "spot",
+        "registryCone": true,
+        "coneHalfDeg": 45,
+        "model": "strip",
+        "base": "ceiling",
+        "bakedIndex": 25,
+        "bakeKind": "cone",
+        "uplight": false,
+        "ceilY": 5.8,
+        "floorY": 0.02,
+        "roomHeight": 5.78,
+        "lampBelowCeil": 0.22,
+        "samples": [
+         {
+          "at": [
+           10.7,
+           5.55,
+           -15.8
+          ],
+          "level": 1,
+          "bounce": 0.005,
+          "lamp": 5.779
+         },
+         {
+          "at": [
+           10.7,
+           5.55,
+           -16.825
+          ],
+          "level": 0.194,
+          "bounce": 0.006,
+          "lamp": 0
+         }
+        ]
+       },
+       "wallBands": [
+        0.054,
+        0.064,
+        0.016,
+        0.025,
+        0.064,
+        0.047
+       ],
+       "ceilMean": 0.011
+      },
+      "07": {
+       "file": "warehouseOps-workshop-07.png",
+       "status": "pass",
+       "note": "nothing through walls or the shut door; the beam reads round the corner; four torches on",
+       "parts": {
+        "wall": {
+         "status": "not-possible"
+        },
+        "door": {
+         "status": "not-possible"
+        },
+        "corner": {
+         "status": "not-possible"
+        },
+        "four": {
+         "status": "pass",
+         "note": "4 of 4 torches on (slots 4); soft beam rim is a visual check",
+         "plan": {
+          "cam": [
+           20.25,
+           1.62,
+           -13.75
+          ],
+          "target": [
+           10.449,
+           -0.367,
+           -13.75
+          ],
+          "viewYaw": 4.712,
+          "guards": [
+           {
+            "p": [
+             16.75,
+             0.02,
+             -15.25
+            ],
+            "yaw": 6.954
+           },
+           {
+            "p": [
+             15.25,
+             0.02,
+             -12.25
+            ],
+            "yaw": 8.754
+           },
+           {
+            "p": [
+             13.25,
+             0.02,
+             -15.25
+            ],
+            "yaw": 6.954
+           },
+           {
+            "p": [
+             12.75,
+             0.02,
+             -10.25
+            ],
+            "yaw": 8.754
+           }
+          ]
+         },
+         "torchesOn": 4
+        }
+       }
+      },
+      "08": {
+       "file": "warehouseOps-workshop-08.png",
+       "status": "pass",
+       "note": "meter 0.51 -> 0.145 (shot, read 0.983 s after) -> 0.122 (circuit off); lamp 25 lampAt at the body 0.232 / 0.322 (chest / head), bounce 0.078 / 0.067, expected drop >= 0.161; frame mean 0.029 -> 0.019 -> 0.018",
+       "plan": {
+        "lamp": 25,
+        "lampPos": [
+         10.7,
+         5.58,
+         -15.8
+        ],
+        "group": 36,
+        "groupLamps": 10,
+        "hasSwitch": false,
+        "bakedIndex": 25,
+        "stand": [
+         10.75,
+         0.02,
+         -15.75
+        ],
+        "standFromLamp": 0,
+        "standLampAt": 0.318,
+        "standLevel": 0.507,
+        "passedOver": [],
+        "cam": [
+         10.75,
+         1.62,
+         -11.75
+        ],
+        "target": [
+         10.75,
+         2.8,
+         -15.75
+        ],
+        "from": [
+         10.75,
+         1.52,
+         -15.75
+        ]
+       },
+       "contribBefore": {
+        "bakedIndex": 25,
+        "lampAt": [
+         0.232,
+         0.322
+        ],
+        "bounceAt": [
+         0.078,
+         0.067
+        ],
+        "levelAt": [
+         0.443,
+         0.51
+        ],
+        "at": [
+         10.75,
+         0.04,
+         -15.75
+        ],
+        "t": 22.183
+       },
+       "contribAfter": {
+        "bakedIndex": 25,
+        "lampAt": [
+         0,
+         0
+        ],
+        "bounceAt": [
+         0.012,
+         0.011
+        ],
+        "levelAt": [
+         0.145,
+         0.133
+        ],
+        "at": [
+         10.75,
+         0.04,
+         -15.75
+        ],
+        "t": 24.367
+       },
+       "expectedDrop": 0.161,
+       "drop": 0.365,
+       "readAfterShot": 0.983,
+       "meter": [
+        0.51,
+        0.145,
+        0.122
+       ],
+       "field": [
+        0.51,
+        0.145,
+        0.122
+       ],
+       "frameMean": [
+        0.029,
+        0.019,
+        0.018
+       ],
+       "shot": {
+        "how": "stealth.shotRay",
+        "destroyed": true
+       },
+       "switch": "LightRegistry.setGroup (no wall switch on this circuit)",
+       "restored": true
+      },
+      "07-epic": {
+       "status": "same-as-auto",
+       "note": "Auto is Epic on this device: the Auto shot is the Epic shot"
+      }
+     },
+     "darkPick": {
+      "source": "audit view",
+      "room": "workshop",
+      "roomName": "Workshop (`workshop`)",
+      "darkShare": 0.63,
+      "views": 23,
+      "view": {
+       "x": 12,
+       "y": 0,
+       "z": -14,
+       "yaw": 0
+      }
+     },
+     "plan": {
+      "rooms": [
+       "workshop"
+      ],
+      "lamps": 10,
+      "errors": [],
+      "lampIds": [
+       22,
+       23,
+       24,
+       25,
+       26,
+       27,
+       28,
+       29,
+       30,
+       53
+      ],
+      "spin": {
+       "step": 2,
+       "cells": 69,
+       "scored": 69,
+       "spots": [
+        {
+         "p": [
+          20.25,
+          0.02,
+          -13.75
+         ],
+         "score": 0.067,
+         "mean": 0.15,
+         "yaws": [
+          [
+           0.133,
+           0.333
+          ],
+          [
+           0.067,
+           0.2
+          ],
+          [
+           0.533,
+           0.133
+          ],
+          [
+           0.267,
+           0.467
+          ]
+         ]
+        },
+        {
+         "p": [
+          12.25,
+          0.02,
+          -11.75
+         ],
+         "score": 0,
+         "mean": 0.083,
+         "yaws": [
+          [
+           0,
+           1
+          ],
+          [
+           0.067,
+           0.667
+          ],
+          [
+           0.267,
+           0.4
+          ],
+          [
+           0,
+           0.467
+          ]
+         ]
+        },
+        {
+         "p": [
+          8.25,
+          6,
+          -17.75
+         ],
+         "score": 0,
+         "mean": 0,
+         "yaws": [
+          [
+           0,
+           0.7
+          ],
+          [
+           0,
+           0.9
+          ],
+          [
+           0,
+           0.7
+          ],
+          [
+           0,
+           0.667
+          ]
+         ]
+        }
+       ]
+      },
+      "cells": 252,
+      "wall": {
+       "lamp": 25,
+       "lampPos": [
+        10.7,
+        5.58,
+        -15.8
+       ],
+       "floor": [
+        10.75,
+        0.02,
+        -15.75
+       ],
+       "model": "strip",
+       "base": "ceiling",
+       "wallDist": 2.05,
+       "wall": [
+        10.7,
+        5.28,
+        -17.85
+       ],
+       "normal": [
+        0,
+        0,
+        1
+       ],
+       "cam": [
+        10.75,
+        1.62,
+        -14.75
+       ],
+       "target": [
+        10.7,
+        3,
+        -17.85
+       ],
+       "ceilY": 5.8,
+       "ccam": [
+        10.75,
+        1.52,
+        -13.75
+       ],
+       "ctarget": [
+        10.7,
+        5.8,
+        -16.825
+       ]
+      },
+      "char": {
+       "lamp": 25,
+       "lampPos": [
+        10.7,
+        5.58,
+        -15.8
+       ],
+       "floor": [
+        10.75,
+        0.02,
+        -15.75
+       ],
+       "dir": [
+        0,
+        0,
+        1
+       ],
+       "frames": [
+        {
+         "m": 1,
+         "feet": [
+          10.75,
+          0.02,
+          -14.75
+         ],
+         "yaw": -1.326,
+         "cam": [
+          8.75,
+          1.37,
+          -14.25
+         ],
+         "target": [
+          10.75,
+          0.87,
+          -14.75
+         ],
+         "nearest": {
+          "id": 25,
+          "d": 1.051
+         }
+        },
+        {
+         "m": 4,
+         "feet": [
+          10.75,
+          0.02,
+          -11.75
+         ],
+         "yaw": -1.326,
+         "cam": [
+          8.75,
+          1.37,
+          -11.25
+         ],
+         "target": [
+          10.75,
+          0.87,
+          -11.75
+         ],
+         "nearest": {
+          "id": 28,
+          "d": 0.071
+         }
+        }
+       ]
+      },
+      "crate": {
+       "what": "box 232",
+       "at": [
+        17,
+        0.65,
+        -11.8
+       ],
+       "size": [
+        0.8,
+        1.3
+       ],
+       "lamp": 29,
+       "lampDist": 0.4,
+       "cam": [
+        17.75,
+        1.32,
+        -14.75
+       ],
+       "target": [
+        17,
+        0.2,
+        -11.8
+       ]
+      },
+      "door": null,
+      "torch": {
+       "wall": null,
+       "door": null,
+       "corner": null,
+       "four": {
+        "cam": [
+         20.25,
+         1.62,
+         -13.75
+        ],
+        "target": [
+         10.449,
+         -0.367,
+         -13.75
+        ],
+        "viewYaw": 4.712,
+        "guards": [
+         {
+          "p": [
+           16.75,
+           0.02,
+           -15.25
+          ],
+          "yaw": 6.954
+         },
+         {
+          "p": [
+           15.25,
+           0.02,
+           -12.25
+          ],
+          "yaw": 8.754
+         },
+         {
+          "p": [
+           13.25,
+           0.02,
+           -15.25
+          ],
+          "yaw": 6.954
+         },
+         {
+          "p": [
+           12.75,
+           0.02,
+           -10.25
+          ],
+          "yaw": 8.754
+         }
+        ]
+       }
+      },
+      "shoot": {
+       "lamp": 25,
+       "lampPos": [
+        10.7,
+        5.58,
+        -15.8
+       ],
+       "group": 36,
+       "groupLamps": 10,
+       "hasSwitch": false,
+       "bakedIndex": 25,
+       "stand": [
+        10.75,
+        0.02,
+        -15.75
+       ],
+       "standFromLamp": 0,
+       "standLampAt": 0.318,
+       "standLevel": 0.507,
+       "passedOver": [],
+       "cam": [
+        10.75,
+        1.62,
+        -11.75
+       ],
+       "target": [
+        10.75,
+        2.8,
+        -15.75
+       ],
+       "from": [
+        10.75,
+        1.52,
+        -15.75
+       ]
+      },
+      "dark": {
+       "p": [
+        13.25,
+        0.02,
+        -12.75
+       ],
+       "yaw": 0,
+       "source": "audit view",
+       "room": "workshop",
+       "level": 0.318,
+       "cam": [
+        13.25,
+        1.62,
+        -12.75
+       ],
+       "target": [
+        13.25,
+        0.423,
+        -2.822
+       ],
+       "guard": {
+        "p": [
+         13.25,
+         0.02,
+         -9.75
+        ],
+        "yaw": 3.142
+       }
+      },
+      "ms": 25
+     }
+    },
+    "all": {
+     "unit": {
+      "name": "all",
+      "all": true
+     },
+     "shots": {
+      "04": {
+       "file": "warehouseOps-all-04.png",
+       "status": "pass",
+       "note": "ceiling lit in the field (1 over the lamp, bounce 0.188); lamp 14 downward strip, uplight; screen top mean 0; wall 0.45 m, gradient bands 0.111/0.376/0.538/0.483/0.4/0.174",
+       "plan": {
+        "lamp": 14,
+        "lampPos": [
+         -22,
+         5.58,
+         -6.6
+        ],
+        "floor": [
+         -22.25,
+         3.2,
+         -6.75
+        ],
+        "model": "strip",
+        "base": "ceiling",
+        "wallDist": 0.45,
+        "wall": [
+         -22,
+         5.28,
+         -6.15
+        ],
+        "normal": [
+         0,
+         0,
+         -1
+        ],
+        "cam": [
+         -21.75,
+         4.8,
+         -8.75
+        ],
+        "target": [
+         -22,
+         4.59,
+         -6.15
+        ],
+        "ceilY": 5.8,
+        "ccam": [
+         -21.75,
+         4.7,
+         -8.25
+        ],
+        "ctarget": [
+         -22,
+         5.8,
+         -6.375
+        ]
+       },
+       "lamp": {
+        "id": 14,
+        "kind": "lamp",
+        "registryCone": false,
+        "coneHalfDeg": null,
+        "model": "strip",
+        "base": "ceiling",
+        "bakedIndex": 14,
+        "bakeKind": "downward",
+        "uplight": true
+       },
+       "ceiling": {
+        "id": 14,
+        "kind": "lamp",
+        "registryCone": false,
+        "coneHalfDeg": null,
+        "model": "strip",
+        "base": "ceiling",
+        "bakedIndex": 14,
+        "bakeKind": "downward",
+        "uplight": true,
+        "ceilY": 5.8,
+        "floorY": 3.2,
+        "roomHeight": 2.6,
+        "lampBelowCeil": 0.22,
+        "samples": [
+         {
+          "at": [
+           -22,
+           5.55,
+           -6.6
+          ],
+          "level": 1,
+          "bounce": 0.188,
+          "lamp": 3.765
+         },
+         {
+          "at": [
+           -22,
+           5.55,
+           -6.375
+          ],
+          "level": 0.393,
+          "bounce": 0.192,
+          "lamp": 0.06
+         }
+        ]
+       },
+       "wallBands": [
+        0.111,
+        0.376,
+        0.538,
+        0.483,
+        0.4,
+        0.174
+       ],
+       "ceilMean": 0
+      },
+      "07": {
+       "file": "warehouseOps-all-07.png",
+       "status": "flag",
+       "note": "corner: beam not seen round the corner (0 of 5184 torch-lit px rose > 0.02, haze off; 812 with haze)",
+       "parts": {
+        "wall": {
+         "status": "review",
+         "note": "haze spill only past the wall (triage A3): far side in the cone 464640 px: 0 rose > 0.02 haze off (0%, noise 0), 9042 with haze (2%, noise 0)",
+         "plan": {
+          "cam": [
+           10.25,
+           1.62,
+           4.25
+          ],
+          "target": [
+           11,
+           1.22,
+           2.75
+          ],
+          "guard": [
+           12.25,
+           0.02,
+           0.25
+          ],
+          "yaw": -0.464,
+          "wallAt": [
+           11,
+           1.62,
+           2.75
+          ]
+         },
+         "noTaa": {
+          "valid": true,
+          "why": [],
+          "variant": "noTaa",
+          "override": {
+           "preset": null,
+           "scale": 1,
+           "gfx": {
+            "aa": "fxaa"
+           }
+          },
+          "file": "C:/NightShift/scratch/lighting/lr16-8/redo-040708-5c20c538/frames/warehouseOps-all-07-wall-noTaa-on.png",
+          "files": {
+           "on": "warehouseOps-all-07-wall-noTaa-on.png",
+           "off": "warehouseOps-all-07-wall-noTaa-off.png",
+           "off2": "warehouseOps-all-07-wall-noTaa-off2.png"
+          },
+          "torchOn": {
+           "torchesOn": 1,
+           "alive": 1,
+           "frame": 5182,
+           "t": 32.583,
+           "slots": [
+            {
+             "i": 0,
+             "id": 134,
+             "on": true,
+             "owned": true,
+             "ownerAlive": true,
+             "override": true,
+             "pos": [
+              12.228,
+              1.487,
+              0.63
+             ],
+             "dir": [
+              -0.442,
+              -0.159,
+              0.883
+             ],
+             "cosOuter": 0.943,
+             "radius": 13,
+             "reach": 9.913
+            }
+           ]
+          },
+          "torchOff": {
+           "torchesOn": 0,
+           "alive": 1,
+           "frame": 5268,
+           "t": 33.167,
+           "slots": []
+          },
+          "frames": {
+           "on": 5182,
+           "off": 5268,
+           "off2": 5291,
+           "waitOn": {
+            "ok": true,
+            "frames": 56,
+            "sim": 0.333
+           },
+           "waitOff": {
+            "ok": true,
+            "frames": 61,
+            "sim": 0.367
+           },
+           "waitOff2": {
+            "ok": true,
+            "frames": 10,
+            "sim": 0.067
+           }
+          },
+          "sameBytes": false,
+          "mask": {
+           "counts": [
+            0,
+            7260,
+            0,
+            2199,
+            4941
+           ],
+           "doorBlocks": 0,
+           "cols": 160,
+           "rows": 90,
+           "block": 8,
+           "cam": [
+            10.25,
+            1.62,
+            4.25
+           ],
+           "torch": [
+            12.228,
+            1.487,
+            0.63
+           ]
+          },
+          "rise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 464640,
+             "rise": 9042,
+             "max": 0.0302
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 140736,
+             "rise": 10220,
+             "max": 0.0895
+            },
+            {
+             "px": 316224,
+             "rise": 183183,
+             "max": 0.1766
+            }
+           ],
+           "riseAll": 202445,
+           "px": 921600
+          },
+          "noise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 464640,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 140736,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 316224,
+             "rise": 0,
+             "max": 0
+            }
+           ],
+           "riseAll": 0,
+           "px": 921600
+          }
+         },
+         "noTaaNoHaze": {
+          "valid": true,
+          "why": [],
+          "variant": "noTaaNoHaze",
+          "override": {
+           "preset": null,
+           "scale": 1,
+           "gfx": {
+            "aa": "fxaa",
+            "volumetrics": false
+           }
+          },
+          "file": "C:/NightShift/scratch/lighting/lr16-8/redo-040708-5c20c538/frames/warehouseOps-all-07-wall-noTaaNoHaze-on.png",
+          "files": {
+           "on": "warehouseOps-all-07-wall-noTaaNoHaze-on.png",
+           "off": "warehouseOps-all-07-wall-noTaaNoHaze-off.png",
+           "off2": "warehouseOps-all-07-wall-noTaaNoHaze-off2.png"
+          },
+          "torchOn": {
+           "torchesOn": 1,
+           "alive": 1,
+           "frame": 6650,
+           "t": 41.65,
+           "slots": [
+            {
+             "i": 0,
+             "id": 134,
+             "on": true,
+             "owned": true,
+             "ownerAlive": true,
+             "override": true,
+             "pos": [
+              12.228,
+              1.487,
+              0.63
+             ],
+             "dir": [
+              -0.442,
+              -0.159,
+              0.883
+             ],
+             "cosOuter": 0.943,
+             "radius": 13,
+             "reach": 9.913
+            }
+           ]
+          },
+          "torchOff": {
+           "torchesOn": 0,
+           "alive": 1,
+           "frame": 6726,
+           "t": 42.167,
+           "slots": []
+          },
+          "frames": {
+           "on": 6650,
+           "off": 6726,
+           "off2": 6748,
+           "waitOn": {
+            "ok": true,
+            "frames": 62,
+            "sim": 0.367
+           },
+           "waitOff": {
+            "ok": true,
+            "frames": 61,
+            "sim": 0.367
+           },
+           "waitOff2": {
+            "ok": true,
+            "frames": 9,
+            "sim": 0.067
+           }
+          },
+          "sameBytes": true,
+          "mask": {
+           "counts": [
+            0,
+            7260,
+            0,
+            2199,
+            4941
+           ],
+           "doorBlocks": 0,
+           "cols": 160,
+           "rows": 90,
+           "block": 8,
+           "cam": [
+            10.25,
+            1.62,
+            4.25
+           ],
+           "torch": [
+            12.228,
+            1.487,
+            0.63
+           ]
+          },
+          "rise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 464640,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 140736,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 316224,
+             "rise": 0,
+             "max": 0
+            }
+           ],
+           "riseAll": 0,
+           "px": 921600
+          },
+          "noise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 464640,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 140736,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 316224,
+             "rise": 0,
+             "max": 0
+            }
+           ],
+           "riseAll": 0,
+           "px": 921600
+          }
+         }
+        },
+        "door": {
+         "status": "pass",
+         "note": "nothing through the door: far side in the cone 18816 px: 0 rose > 0.02 haze off (0%, noise 0), 0 with haze (0%, noise 0)",
+         "plan": {
+          "door": 0,
+          "cam": [
+           -0.75,
+           1.62,
+           15.25
+          ],
+          "target": [
+           -0.95,
+           1.12,
+           12
+          ],
+          "guard": [
+           -0.75,
+           0.02,
+           10.75
+          ],
+          "yaw": -0.159
+         },
+         "noTaa": {
+          "valid": true,
+          "why": [],
+          "variant": "noTaa",
+          "override": {
+           "preset": null,
+           "scale": 1,
+           "gfx": {
+            "aa": "fxaa"
+           }
+          },
+          "file": "C:/NightShift/scratch/lighting/lr16-8/redo-040708-5c20c538/frames/warehouseOps-all-07-door-noTaa-on.png",
+          "files": {
+           "on": "warehouseOps-all-07-door-noTaa-on.png",
+           "off": "warehouseOps-all-07-door-noTaa-off.png",
+           "off2": "warehouseOps-all-07-door-noTaa-off2.png"
+          },
+          "torchOn": {
+           "torchesOn": 1,
+           "alive": 1,
+           "frame": 5585,
+           "t": 35.083,
+           "slots": [
+            {
+             "i": 0,
+             "id": 134,
+             "on": true,
+             "owned": true,
+             "ownerAlive": true,
+             "override": true,
+             "pos": [
+              -0.657,
+              1.487,
+              11.119
+             ],
+             "dir": [
+              -0.156,
+              -0.159,
+              0.975
+             ],
+             "cosOuter": 0.943,
+             "radius": 13,
+             "reach": 1.32
+            }
+           ]
+          },
+          "torchOff": {
+           "torchesOn": 0,
+           "alive": 1,
+           "frame": 5668,
+           "t": 35.633,
+           "slots": []
+          },
+          "frames": {
+           "on": 5585,
+           "off": 5668,
+           "off2": 5698,
+           "waitOn": {
+            "ok": true,
+            "frames": 59,
+            "sim": 0.35
+           },
+           "waitOff": {
+            "ok": true,
+            "frames": 59,
+            "sim": 0.35
+           },
+           "waitOff2": {
+            "ok": true,
+            "frames": 10,
+            "sim": 0.05
+           }
+          },
+          "sameBytes": false,
+          "mask": {
+           "counts": [
+            0,
+            294,
+            0,
+            14106,
+            0
+           ],
+           "doorBlocks": 39,
+           "cols": 160,
+           "rows": 90,
+           "block": 8,
+           "cam": [
+            -0.75,
+            1.62,
+            15.25
+           ],
+           "torch": [
+            -0.657,
+            1.487,
+            11.119
+           ]
+          },
+          "rise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 18816,
+             "rise": 0,
+             "max": 0.0016
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 902784,
+             "rise": 0,
+             "max": 0.001
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            }
+           ],
+           "riseAll": 0,
+           "px": 921600
+          },
+          "noise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 18816,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 902784,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            }
+           ],
+           "riseAll": 0,
+           "px": 921600
+          }
+         },
+         "noTaaNoHaze": {
+          "valid": true,
+          "why": [],
+          "variant": "noTaaNoHaze",
+          "override": {
+           "preset": null,
+           "scale": 1,
+           "gfx": {
+            "aa": "fxaa",
+            "volumetrics": false
+           }
+          },
+          "file": "C:/NightShift/scratch/lighting/lr16-8/redo-040708-5c20c538/frames/warehouseOps-all-07-door-noTaaNoHaze-on.png",
+          "files": {
+           "on": "warehouseOps-all-07-door-noTaaNoHaze-on.png",
+           "off": "warehouseOps-all-07-door-noTaaNoHaze-off.png",
+           "off2": "warehouseOps-all-07-door-noTaaNoHaze-off2.png"
+          },
+          "torchOn": {
+           "torchesOn": 1,
+           "alive": 1,
+           "frame": 7040,
+           "t": 44.067,
+           "slots": [
+            {
+             "i": 0,
+             "id": 134,
+             "on": true,
+             "owned": true,
+             "ownerAlive": true,
+             "override": true,
+             "pos": [
+              -0.657,
+              1.487,
+              11.119
+             ],
+             "dir": [
+              -0.156,
+              -0.159,
+              0.975
+             ],
+             "cosOuter": 0.943,
+             "radius": 13,
+             "reach": 1.32
+            }
+           ]
+          },
+          "torchOff": {
+           "torchesOn": 0,
+           "alive": 1,
+           "frame": 7121,
+           "t": 44.6,
+           "slots": []
+          },
+          "frames": {
+           "on": 7040,
+           "off": 7121,
+           "off2": 7152,
+           "waitOn": {
+            "ok": true,
+            "frames": 60,
+            "sim": 0.367
+           },
+           "waitOff": {
+            "ok": true,
+            "frames": 59,
+            "sim": 0.35
+           },
+           "waitOff2": {
+            "ok": true,
+            "frames": 10,
+            "sim": 0.05
+           }
+          },
+          "sameBytes": false,
+          "mask": {
+           "counts": [
+            0,
+            294,
+            0,
+            14106,
+            0
+           ],
+           "doorBlocks": 39,
+           "cols": 160,
+           "rows": 90,
+           "block": 8,
+           "cam": [
+            -0.75,
+            1.62,
+            15.25
+           ],
+           "torch": [
+            -0.657,
+            1.487,
+            11.119
+           ]
+          },
+          "rise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 18816,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 902784,
+             "rise": 0,
+             "max": 0.0011
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            }
+           ],
+           "riseAll": 0,
+           "px": 921600
+          },
+          "noise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 18816,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 902784,
+             "rise": 0,
+             "max": 0.0011
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            }
+           ],
+           "riseAll": 0,
+           "px": 921600
+          }
+         }
+        },
+        "corner": {
+         "status": "flag",
+         "note": "beam not seen round the corner (0 of 5184 torch-lit px rose > 0.02, haze off; 812 with haze)",
+         "plan": {
+          "cam": [
+           10.25,
+           1.62,
+           4.25
+          ],
+          "target": [
+           11,
+           0.965,
+           -2.75
+          ],
+          "guard": [
+           7.25,
+           0.02,
+           -2.75
+          ],
+          "yaw": 1.571,
+          "beamAt": [
+           11,
+           0.965,
+           -2.75
+          ]
+         },
+         "noTaa": {
+          "valid": true,
+          "why": [],
+          "variant": "noTaa",
+          "override": {
+           "preset": null,
+           "scale": 1,
+           "gfx": {
+            "aa": "fxaa"
+           }
+          },
+          "file": "C:/NightShift/scratch/lighting/lr16-8/redo-040708-5c20c538/frames/warehouseOps-all-07-corner-noTaa-on.png",
+          "files": {
+           "on": "warehouseOps-all-07-corner-noTaa-on.png",
+           "off": "warehouseOps-all-07-corner-noTaa-off.png",
+           "off2": "warehouseOps-all-07-corner-noTaa-off2.png"
+          },
+          "torchOn": {
+           "torchesOn": 1,
+           "alive": 1,
+           "frame": 6003,
+           "t": 37.667,
+           "slots": [
+            {
+             "i": 0,
+             "id": 134,
+             "on": true,
+             "owned": true,
+             "ownerAlive": true,
+             "override": true,
+             "pos": [
+              7.6,
+              1.487,
+              -2.9
+             ],
+             "dir": [
+              0.987,
+              -0.159,
+              0
+             ],
+             "cosOuter": 0.943,
+             "radius": 13,
+             "reach": 9.036
+            }
+           ]
+          },
+          "torchOff": {
+           "torchesOn": 0,
+           "alive": 1,
+           "frame": 6082,
+           "t": 38.2,
+           "slots": []
+          },
+          "frames": {
+           "on": 6003,
+           "off": 6082,
+           "off2": 6105,
+           "waitOn": {
+            "ok": true,
+            "frames": 60,
+            "sim": 0.35
+           },
+           "waitOff": {
+            "ok": true,
+            "frames": 60,
+            "sim": 0.35
+           },
+           "waitOff2": {
+            "ok": true,
+            "frames": 10,
+            "sim": 0.067
+           }
+          },
+          "sameBytes": false,
+          "mask": {
+           "counts": [
+            0,
+            623,
+            81,
+            9162,
+            4534
+           ],
+           "doorBlocks": 0,
+           "cols": 160,
+           "rows": 90,
+           "block": 8,
+           "cam": [
+            10.25,
+            1.62,
+            4.25
+           ],
+           "torch": [
+            7.6,
+            1.487,
+            -2.9
+           ]
+          },
+          "rise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 39872,
+             "rise": 0,
+             "max": 0.0063
+            },
+            {
+             "px": 5184,
+             "rise": 812,
+             "max": 0.0504
+            },
+            {
+             "px": 586368,
+             "rise": 0,
+             "max": 0.0044
+            },
+            {
+             "px": 290176,
+             "rise": 13601,
+             "max": 0.0502
+            }
+           ],
+           "riseAll": 14413,
+           "px": 921600
+          },
+          "noise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 39872,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 5184,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 586368,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 290176,
+             "rise": 0,
+             "max": 0
+            }
+           ],
+           "riseAll": 0,
+           "px": 921600
+          }
+         },
+         "noTaaNoHaze": {
+          "valid": true,
+          "why": [],
+          "variant": "noTaaNoHaze",
+          "override": {
+           "preset": null,
+           "scale": 1,
+           "gfx": {
+            "aa": "fxaa",
+            "volumetrics": false
+           }
+          },
+          "file": "C:/NightShift/scratch/lighting/lr16-8/redo-040708-5c20c538/frames/warehouseOps-all-07-corner-noTaaNoHaze-on.png",
+          "files": {
+           "on": "warehouseOps-all-07-corner-noTaaNoHaze-on.png",
+           "off": "warehouseOps-all-07-corner-noTaaNoHaze-off.png",
+           "off2": "warehouseOps-all-07-corner-noTaaNoHaze-off2.png"
+          },
+          "torchOn": {
+           "torchesOn": 1,
+           "alive": 1,
+           "frame": 7495,
+           "t": 46.867,
+           "slots": [
+            {
+             "i": 0,
+             "id": 134,
+             "on": true,
+             "owned": true,
+             "ownerAlive": true,
+             "override": true,
+             "pos": [
+              7.6,
+              1.487,
+              -2.9
+             ],
+             "dir": [
+              0.987,
+              -0.159,
+              0
+             ],
+             "cosOuter": 0.943,
+             "radius": 13,
+             "reach": 9.036
+            }
+           ]
+          },
+          "torchOff": {
+           "torchesOn": 0,
+           "alive": 1,
+           "frame": 7568,
+           "t": 47.367,
+           "slots": []
+          },
+          "frames": {
+           "on": 7495,
+           "off": 7568,
+           "off2": 7590,
+           "waitOn": {
+            "ok": true,
+            "frames": 58,
+            "sim": 0.35
+           },
+           "waitOff": {
+            "ok": true,
+            "frames": 58,
+            "sim": 0.35
+           },
+           "waitOff2": {
+            "ok": true,
+            "frames": 9,
+            "sim": 0.05
+           }
+          },
+          "sameBytes": false,
+          "mask": {
+           "counts": [
+            0,
+            623,
+            81,
+            9162,
+            4534
+           ],
+           "doorBlocks": 0,
+           "cols": 160,
+           "rows": 90,
+           "block": 8,
+           "cam": [
+            10.25,
+            1.62,
+            4.25
+           ],
+           "torch": [
+            7.6,
+            1.487,
+            -2.9
+           ]
+          },
+          "rise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 39872,
+             "rise": 0,
+             "max": 0.0052
+            },
+            {
+             "px": 5184,
+             "rise": 0,
+             "max": 0.0198
+            },
+            {
+             "px": 586368,
+             "rise": 0,
+             "max": 0.0015
+            },
+            {
+             "px": 290176,
+             "rise": 0,
+             "max": 0.0028
+            }
+           ],
+           "riseAll": 0,
+           "px": 921600
+          },
+          "noise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 39872,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 5184,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 586368,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 290176,
+             "rise": 0,
+             "max": 0
+            }
+           ],
+           "riseAll": 0,
+           "px": 921600
+          }
+         }
+        },
+        "four": {
+         "status": "pass",
+         "note": "4 of 4 torches on (slots 4); soft beam rim is a visual check",
+         "plan": {
+          "cam": [
+           -15.75,
+           5.6,
+           12.25
+          ],
+          "target": [
+           -22.68,
+           3.613,
+           5.32
+          ],
+          "viewYaw": 3.927,
+          "guards": [
+           {
+            "p": [
+             -17.75,
+             4,
+             8.75
+            ],
+            "yaw": 6.169
+           },
+           {
+            "p": [
+             -19.75,
+             4,
+             7.25
+            ],
+            "yaw": 7.969
+           },
+           {
+            "p": [
+             -23.25,
+             4,
+             9.25
+            ],
+            "yaw": 6.169
+           },
+           {
+            "p": [
+             -18.25,
+             4,
+             3.25
+            ],
+            "yaw": 7.969
+           }
+          ]
+         },
+         "torchesOn": 4
+        }
+       }
+      },
+      "08": {
+       "file": "warehouseOps-all-08.png",
+       "status": "pass",
+       "note": "meter 0.73 -> 0.164 (shot, read 1.017 s after) -> 0.122 (circuit off); lamp 6 lampAt at the body 0.366 / 0.487 (chest / head), bounce 0.135 / 0.12, expected drop >= 0.244; frame mean 0.049 -> 0.005 -> 0.002",
+       "plan": {
+        "lamp": 6,
+        "lampPos": [
+         -22,
+         5.58,
+         -15.4
+        ],
+        "group": 30,
+        "groupLamps": 8,
+        "hasSwitch": true,
+        "bakedIndex": 6,
+        "stand": [
+         -21.75,
+         0.02,
+         -15.25
+        ],
+        "standFromLamp": 0,
+        "standLampAt": 0.482,
+        "standLevel": 0.727,
+        "passedOver": [],
+        "cam": [
+         -21.75,
+         1.62,
+         -11.25
+        ],
+        "target": [
+         -21.75,
+         2.8,
+         -15.25
+        ],
+        "from": [
+         -21.75,
+         1.52,
+         -15.25
+        ]
+       },
+       "contribBefore": {
+        "bakedIndex": 6,
+        "lampAt": [
+         0.366,
+         0.487
+        ],
+        "bounceAt": [
+         0.135,
+         0.12
+        ],
+        "levelAt": [
+         0.645,
+         0.73
+        ],
+        "at": [
+         -21.75,
+         0.04,
+         -15.25
+        ],
+        "t": 51.633
+       },
+       "contribAfter": {
+        "bakedIndex": 6,
+        "lampAt": [
+         0,
+         0
+        ],
+        "bounceAt": [
+         0.021,
+         0.016
+        ],
+        "levelAt": [
+         0.164,
+         0.14
+        ],
+        "at": [
+         -21.75,
+         0.04,
+         -15.25
+        ],
+        "t": 53.867
+       },
+       "expectedDrop": 0.244,
+       "drop": 0.567,
+       "readAfterShot": 1.017,
+       "meter": [
+        0.73,
+        0.164,
+        0.122
+       ],
+       "field": [
+        0.73,
+        0.164,
+        0.122
+       ],
+       "frameMean": [
+        0.049,
+        0.005,
+        0.002
+       ],
+       "shot": {
+        "how": "stealth.shotRay",
+        "destroyed": true
+       },
+       "switch": "wall switch (the player toggle)",
+       "restored": true
+      },
+      "07-epic": {
+       "status": "same-as-auto",
+       "note": "Auto is Epic on this device: the Auto shot is the Epic shot"
+      }
+     },
+     "darkPick": {
+      "source": "audit room",
+      "room": "reception",
+      "roomName": "Reception (`reception`)",
+      "darkShare": 0.93,
+      "views": 4,
+      "view": null
+     },
+     "plan": {
+      "rooms": [
+       "yard",
+       "goodsIn",
+       "goodsInOffice",
+       "lobby",
+       "charging",
+       "reception",
+       "transport",
+       "security",
+       "officeCorridor",
+       "comms",
+       "wc",
+       "mess",
+       "workshop",
+       "storage",
+       "hvCage",
+       "assembly",
+       "stores",
+       "plant",
+       "fireLobby",
+       "partsStore",
+       "office",
+       "manager",
+       "mezzDeck",
+       "prodOffice"
+      ],
+      "lamps": 102,
+      "errors": [],
+      "lampIds": [
+       0,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7,
+       8,
+       9,
+       10,
+       11,
+       12,
+       13,
+       14,
+       15,
+       16,
+       20,
+       21,
+       22,
+       23,
+       24,
+       25,
+       26,
+       27,
+       28,
+       29,
+       30,
+       32,
+       33,
+       34,
+       35,
+       36,
+       37,
+       38,
+       39,
+       40,
+       41,
+       42,
+       44,
+       49,
+       51,
+       52,
+       53,
+       54,
+       55,
+       56,
+       57,
+       58,
+       59,
+       60,
+       61,
+       62,
+       63,
+       64,
+       65,
+       66,
+       67,
+       69,
+       70,
+       71,
+       72,
+       73,
+       74,
+       75,
+       76,
+       77,
+       79,
+       80,
+       82,
+       83,
+       84,
+       85,
+       86,
+       87,
+       91,
+       100,
+       101,
+       102,
+       104,
+       106,
+       108,
+       109,
+       110,
+       111,
+       112,
+       113,
+       114,
+       115,
+       119,
+       120,
+       121,
+       122,
+       123,
+       125,
+       126,
+       127,
+       128,
+       129,
+       130,
+       131,
+       132,
+       133
+      ],
+      "spin": {
+       "step": 2,
+       "cells": 513,
+       "scored": 513,
+       "spots": [
+        {
+         "p": [
+          -15.75,
+          4,
+          12.25
+         ],
+         "score": 0.267,
+         "mean": 0.333,
+         "yaws": [
+          [
+           0.4,
+           0.4
+          ],
+          [
+           0.4,
+           0.267
+          ],
+          [
+           0.333,
+           0.467
+          ],
+          [
+           0.6,
+           0.333
+          ]
+         ]
+        },
+        {
+         "p": [
+          10.25,
+          0.02,
+          4.25
+         ],
+         "score": 0.133,
+         "mean": 0.233,
+         "yaws": [
+          [
+           0.267,
+           0.4
+          ],
+          [
+           0.667,
+           0.133
+          ],
+          [
+           0.333,
+           0.333
+          ],
+          [
+           0.733,
+           0.2
+          ]
+         ]
+        },
+        {
+         "p": [
+          -19.75,
+          4,
+          0.25
+         ],
+         "score": 0.067,
+         "mean": 0.183,
+         "yaws": [
+          [
+           0.333,
+           0.467
+          ],
+          [
+           0.2,
+           0.533
+          ],
+          [
+           0.133,
+           0.733
+          ],
+          [
+           0.067,
+           0.933
+          ]
+         ]
+        }
+       ]
+      },
+      "cells": 2172,
+      "wall": {
+       "lamp": 14,
+       "lampPos": [
+        -22,
+        5.58,
+        -6.6
+       ],
+       "floor": [
+        -22.25,
+        3.2,
+        -6.75
+       ],
+       "model": "strip",
+       "base": "ceiling",
+       "wallDist": 0.45,
+       "wall": [
+        -22,
+        5.28,
+        -6.15
+       ],
+       "normal": [
+        0,
+        0,
+        -1
+       ],
+       "cam": [
+        -21.75,
+        4.8,
+        -8.75
+       ],
+       "target": [
+        -22,
+        4.59,
+        -6.15
+       ],
+       "ceilY": 5.8,
+       "ccam": [
+        -21.75,
+        4.7,
+        -8.25
+       ],
+       "ctarget": [
+        -22,
+        5.8,
+        -6.375
+       ]
+      },
+      "char": {
+       "lamp": 6,
+       "lampPos": [
+        -22,
+        5.58,
+        -15.4
+       ],
+       "floor": [
+        -21.75,
+        0.02,
+        -15.25
+       ],
+       "dir": [
+        0,
+        0,
+        1
+       ],
+       "frames": [
+        {
+         "m": 1,
+         "feet": [
+          -21.75,
+          0.02,
+          -14.25
+         ],
+         "yaw": 1.249,
+         "cam": [
+          -18.75,
+          1.37,
+          -13.25
+         ],
+         "target": [
+          -21.75,
+          0.87,
+          -14.25
+         ],
+         "nearest": {
+          "id": 6,
+          "d": 1.177
+         }
+        },
+        {
+         "m": 4,
+         "feet": [
+          -21.75,
+          0.02,
+          -11.25
+         ],
+         "yaw": 1.406,
+         "cam": [
+          -18.75,
+          1.37,
+          -10.75
+         ],
+         "target": [
+          -21.75,
+          0.87,
+          -11.25
+         ],
+         "nearest": {
+          "id": 10,
+          "d": 0.354
+         }
+        }
+       ]
+      },
+      "crate": null,
+      "door": null,
+      "torch": {
+       "wall": {
+        "cam": [
+         10.25,
+         1.62,
+         4.25
+        ],
+        "target": [
+         11,
+         1.22,
+         2.75
+        ],
+        "guard": [
+         12.25,
+         0.02,
+         0.25
+        ],
+        "yaw": -0.464,
+        "wallAt": [
+         11,
+         1.62,
+         2.75
+        ]
+       },
+       "door": {
+        "door": 0,
+        "cam": [
+         -0.75,
+         1.62,
+         15.25
+        ],
+        "target": [
+         -0.95,
+         1.12,
+         12
+        ],
+        "guard": [
+         -0.75,
+         0.02,
+         10.75
+        ],
+        "yaw": -0.159
+       },
+       "corner": {
+        "cam": [
+         10.25,
+         1.62,
+         4.25
+        ],
+        "target": [
+         11,
+         0.965,
+         -2.75
+        ],
+        "guard": [
+         7.25,
+         0.02,
+         -2.75
+        ],
+        "yaw": 1.571,
+        "beamAt": [
+         11,
+         0.965,
+         -2.75
+        ]
+       },
+       "four": {
+        "cam": [
+         -15.75,
+         5.6,
+         12.25
+        ],
+        "target": [
+         -22.68,
+         3.613,
+         5.32
+        ],
+        "viewYaw": 3.927,
+        "guards": [
+         {
+          "p": [
+           -17.75,
+           4,
+           8.75
+          ],
+          "yaw": 6.169
+         },
+         {
+          "p": [
+           -19.75,
+           4,
+           7.25
+          ],
+          "yaw": 7.969
+         },
+         {
+          "p": [
+           -23.25,
+           4,
+           9.25
+          ],
+          "yaw": 6.169
+         },
+         {
+          "p": [
+           -18.25,
+           4,
+           3.25
+          ],
+          "yaw": 7.969
+         }
+        ]
+       }
+      },
+      "shoot": {
+       "lamp": 6,
+       "lampPos": [
+        -22,
+        5.58,
+        -15.4
+       ],
+       "group": 30,
+       "groupLamps": 8,
+       "hasSwitch": true,
+       "bakedIndex": 6,
+       "stand": [
+        -21.75,
+        0.02,
+        -15.25
+       ],
+       "standFromLamp": 0,
+       "standLampAt": 0.482,
+       "standLevel": 0.727,
+       "passedOver": [],
+       "cam": [
+        -21.75,
+        1.62,
+        -11.25
+       ],
+       "target": [
+        -21.75,
+        2.8,
+        -15.25
+       ],
+       "from": [
+        -21.75,
+        1.52,
+        -15.25
+       ]
+      },
+      "dark": {
+       "p": [
+        -6.75,
+        3.3,
+        -16.75
+       ],
+       "yaw": 4.712,
+       "source": "darkest point of room reception",
+       "room": "reception",
+       "level": 0.122,
+       "cam": [
+        -6.75,
+        4.9,
+        -16.75
+       ],
+       "target": [
+        -16.678,
+        3.703,
+        -16.75
+       ],
+       "guard": null
+      },
+      "ms": 98
+     }
+    }
+   },
+   "probe": [],
+   "bake": {
+    "auto": {
+     "preset": "auto (epic)",
+     "ms": 2995,
+     "lights": 134,
+     "visMB": 29.04,
+     "atlasDims": [
+      1013,
+      55,
+      994
+     ],
+     "atlasMB": 55.38,
+     "moonCells": 256256,
+     "hash": "1f88xs7",
+     "bakedLampsDrawn": true
+    }
+   },
+   "errors": [],
+   "settings": {
+    "preset": "epic",
+    "auto": true,
+    "device": {
+     "key": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4090 Laptop GPU (0x00002757) Direct3D11 vs_5_0 ps_5_0, D3D11)|desktop|1280x720",
+     "tier": "epic",
+     "source": "gpu"
+    },
+    "renderScale": 1,
+    "upscaler": "off",
+    "governor": 3,
+    "override": null,
+    "bakedLamps": true,
+    "charShadows": true,
+    "torchSlots": 4,
+    "mode": "sector",
+    "ambient": 0.3,
+    "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4090 Laptop GPU (0x00002757) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "canvas": [
+     972,
+     547
+    ]
+   },
+   "minutes": 1
+  },
+  "ctcourse": {
+   "query": "autostart=ctcourse&mode=course",
+   "mode": "course",
+   "units": {
+    "all": {
+     "unit": {
+      "name": "all",
+      "all": true
+     },
+     "shots": {
+      "04": {
+       "file": "ctcourse-all-04.png",
+       "status": "pass",
+       "note": "ceiling lit in the field (0.197 over the lamp, bounce 0.004); lamp 140 downward, uplight; screen top mean 0; wall 0.15 m, gradient bands 0.099/0.219/0.234/0.099/0.052/0.036",
+       "plan": {
+        "lamp": 140,
+        "lampPos": [
+         126,
+         6.6,
+         77.6
+        ],
+        "floor": [
+         126.25,
+         4.4,
+         77.25
+        ],
+        "model": null,
+        "base": null,
+        "wallDist": 0.15,
+        "wall": [
+         126,
+         6.3,
+         77.75
+        ],
+        "normal": [
+         0,
+         0,
+         -1
+        ],
+        "cam": [
+         126.25,
+         6,
+         75.75
+        ],
+        "target": [
+         126,
+         5.7,
+         77.75
+        ],
+        "ceilY": 9,
+        "ccam": [
+         126.25,
+         5.9,
+         75.75
+        ],
+        "ctarget": [
+         126,
+         9,
+         77.675
+        ]
+       },
+       "lamp": {
+        "id": 140,
+        "kind": "lamp",
+        "registryCone": false,
+        "coneHalfDeg": null,
+        "model": null,
+        "base": null,
+        "bakedIndex": 140,
+        "bakeKind": "downward",
+        "uplight": true
+       },
+       "ceiling": {
+        "id": 140,
+        "kind": "lamp",
+        "registryCone": false,
+        "coneHalfDeg": null,
+        "model": null,
+        "base": null,
+        "bakedIndex": 140,
+        "bakeKind": "downward",
+        "uplight": true,
+        "ceilY": 9,
+        "floorY": 4.4,
+        "roomHeight": 4.6,
+        "lampBelowCeil": 2.4,
+        "samples": [
+         {
+          "at": [
+           126,
+           8.75,
+           77.6
+          ],
+          "level": 0.197,
+          "bounce": 0.004,
+          "lamp": 0
+         },
+         {
+          "at": [
+           126,
+           8.75,
+           77.675
+          ],
+          "level": 0.206,
+          "bounce": 0.004,
+          "lamp": 0
+         }
+        ]
+       },
+       "wallBands": [
+        0.099,
+        0.219,
+        0.234,
+        0.099,
+        0.052,
+        0.036
+       ],
+       "ceilMean": 0
+      },
+      "07": {
+       "file": "ctcourse-all-07.png",
+       "status": "pass",
+       "note": "nothing through walls or the shut door; the beam reads round the corner; four torches on",
+       "parts": {
+        "wall": {
+         "status": "pass",
+         "note": "nothing through the wall: far side in the cone 115520 px: 0 rose > 0.02 haze off (0%, noise 0), 0 with haze (0%, noise 0)",
+         "plan": {
+          "cam": [
+           68.25,
+           1.6,
+           32.25
+          ],
+          "target": [
+           69.75,
+           1.2,
+           31.75
+          ],
+          "guard": [
+           71.25,
+           0,
+           31.25
+          ],
+          "yaw": -1.249,
+          "wallAt": [
+           69.75,
+           1.6,
+           31.75
+          ]
+         },
+         "noTaa": {
+          "valid": true,
+          "why": [],
+          "variant": "noTaa",
+          "override": {
+           "preset": null,
+           "scale": 1,
+           "gfx": {
+            "aa": "fxaa"
+           }
+          },
+          "file": "C:/NightShift/scratch/lighting/lr16-8/redo-040708-5c20c538/frames/ctcourse-all-07-wall-noTaa-on.png",
+          "files": {
+           "on": "ctcourse-all-07-wall-noTaa-on.png",
+           "off": "ctcourse-all-07-wall-noTaa-off.png",
+           "off2": "ctcourse-all-07-wall-noTaa-off2.png"
+          },
+          "torchOn": {
+           "torchesOn": 1,
+           "alive": 1,
+           "frame": 2388,
+           "t": 17.383,
+           "slots": [
+            {
+             "i": 0,
+             "id": 149,
+             "on": true,
+             "owned": true,
+             "ownerAlive": true,
+             "override": true,
+             "pos": [
+              70.965,
+              1.467,
+              31.503
+             ],
+             "dir": [
+              -0.937,
+              -0.159,
+              0.312
+             ],
+             "cosOuter": 0.943,
+             "radius": 13,
+             "reach": 1.266
+            }
+           ]
+          },
+          "torchOff": {
+           "torchesOn": 0,
+           "alive": 1,
+           "frame": 2463,
+           "t": 17.883,
+           "slots": []
+          },
+          "frames": {
+           "on": 2388,
+           "off": 2463,
+           "off2": 2488,
+           "waitOn": {
+            "ok": true,
+            "frames": 61,
+            "sim": 0.367
+           },
+           "waitOff": {
+            "ok": true,
+            "frames": 59,
+            "sim": 0.35
+           },
+           "waitOff2": {
+            "ok": true,
+            "frames": 11,
+            "sim": 0.067
+           }
+          },
+          "sameBytes": false,
+          "mask": {
+           "counts": [
+            0,
+            1805,
+            0,
+            12595,
+            0
+           ],
+           "doorBlocks": 71,
+           "cols": 160,
+           "rows": 90,
+           "block": 8,
+           "cam": [
+            68.25,
+            1.6,
+            32.25
+           ],
+           "torch": [
+            70.965,
+            1.467,
+            31.503
+           ]
+          },
+          "rise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 115520,
+             "rise": 0,
+             "max": 0.0191
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 806080,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            }
+           ],
+           "riseAll": 0,
+           "px": 921600
+          },
+          "noise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 115520,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 806080,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            }
+           ],
+           "riseAll": 0,
+           "px": 921600
+          }
+         },
+         "noTaaNoHaze": {
+          "valid": true,
+          "why": [],
+          "variant": "noTaaNoHaze",
+          "override": {
+           "preset": null,
+           "scale": 1,
+           "gfx": {
+            "aa": "fxaa",
+            "volumetrics": false
+           }
+          },
+          "file": "C:/NightShift/scratch/lighting/lr16-8/redo-040708-5c20c538/frames/ctcourse-all-07-wall-noTaaNoHaze-on.png",
+          "files": {
+           "on": "ctcourse-all-07-wall-noTaaNoHaze-on.png",
+           "off": "ctcourse-all-07-wall-noTaaNoHaze-off.png",
+           "off2": "ctcourse-all-07-wall-noTaaNoHaze-off2.png"
+          },
+          "torchOn": {
+           "torchesOn": 1,
+           "alive": 1,
+           "frame": 3840,
+           "t": 26.35,
+           "slots": [
+            {
+             "i": 0,
+             "id": 149,
+             "on": true,
+             "owned": true,
+             "ownerAlive": true,
+             "override": true,
+             "pos": [
+              70.965,
+              1.467,
+              31.503
+             ],
+             "dir": [
+              -0.937,
+              -0.159,
+              0.312
+             ],
+             "cosOuter": 0.943,
+             "radius": 13,
+             "reach": 1.266
+            }
+           ]
+          },
+          "torchOff": {
+           "torchesOn": 0,
+           "alive": 1,
+           "frame": 3917,
+           "t": 26.883,
+           "slots": []
+          },
+          "frames": {
+           "on": 3840,
+           "off": 3917,
+           "off2": 3942,
+           "waitOn": {
+            "ok": true,
+            "frames": 58,
+            "sim": 0.333
+           },
+           "waitOff": {
+            "ok": true,
+            "frames": 61,
+            "sim": 0.367
+           },
+           "waitOff2": {
+            "ok": true,
+            "frames": 11,
+            "sim": 0.067
+           }
+          },
+          "sameBytes": false,
+          "mask": {
+           "counts": [
+            0,
+            1805,
+            0,
+            12595,
+            0
+           ],
+           "doorBlocks": 71,
+           "cols": 160,
+           "rows": 90,
+           "block": 8,
+           "cam": [
+            68.25,
+            1.6,
+            32.25
+           ],
+           "torch": [
+            70.965,
+            1.467,
+            31.503
+           ]
+          },
+          "rise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 115520,
+             "rise": 0,
+             "max": 0.0191
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 806080,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            }
+           ],
+           "riseAll": 0,
+           "px": 921600
+          },
+          "noise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 115520,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 806080,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            }
+           ],
+           "riseAll": 0,
+           "px": 921600
+          }
+         }
+        },
+        "door": {
+         "status": "pass",
+         "note": "nothing through the door: far side in the cone 121728 px: 0 rose > 0.02 haze off (0%, noise 0), 0 with haze (0%, noise 0)",
+         "plan": {
+          "door": 20,
+          "cam": [
+           88.25,
+           1.6,
+           10.75
+          ],
+          "target": [
+           88.25,
+           1.1,
+           7.85
+          ],
+          "guard": [
+           88.25,
+           0,
+           6.25
+          ],
+          "yaw": 0
+         },
+         "noTaa": {
+          "valid": true,
+          "why": [],
+          "variant": "noTaa",
+          "override": {
+           "preset": null,
+           "scale": 1,
+           "gfx": {
+            "aa": "fxaa"
+           }
+          },
+          "file": "C:/NightShift/scratch/lighting/lr16-8/redo-040708-5c20c538/frames/ctcourse-all-07-door-noTaa-on.png",
+          "files": {
+           "on": "ctcourse-all-07-door-noTaa-on.png",
+           "off": "ctcourse-all-07-door-noTaa-off.png",
+           "off2": "ctcourse-all-07-door-noTaa-off2.png"
+          },
+          "torchOn": {
+           "torchesOn": 1,
+           "alive": 1,
+           "frame": 2783,
+           "t": 19.817,
+           "slots": [
+            {
+             "i": 0,
+             "id": 149,
+             "on": true,
+             "owned": true,
+             "ownerAlive": true,
+             "override": true,
+             "pos": [
+              88.4,
+              1.467,
+              6.6
+             ],
+             "dir": [
+              0,
+              -0.159,
+              0.987
+             ],
+             "cosOuter": 0.943,
+             "radius": 13,
+             "reach": 1.711
+            }
+           ]
+          },
+          "torchOff": {
+           "torchesOn": 0,
+           "alive": 1,
+           "frame": 2864,
+           "t": 20.367,
+           "slots": []
+          },
+          "frames": {
+           "on": 2783,
+           "off": 2864,
+           "off2": 2894,
+           "waitOn": {
+            "ok": true,
+            "frames": 57,
+            "sim": 0.35
+           },
+           "waitOff": {
+            "ok": true,
+            "frames": 61,
+            "sim": 0.367
+           },
+           "waitOff2": {
+            "ok": true,
+            "frames": 11,
+            "sim": 0.067
+           }
+          },
+          "sameBytes": false,
+          "mask": {
+           "counts": [
+            0,
+            1902,
+            0,
+            12498,
+            0
+           ],
+           "doorBlocks": 35,
+           "cols": 160,
+           "rows": 90,
+           "block": 8,
+           "cam": [
+            88.25,
+            1.6,
+            10.75
+           ],
+           "torch": [
+            88.4,
+            1.467,
+            6.6
+           ]
+          },
+          "rise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 121728,
+             "rise": 0,
+             "max": 0.0005
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 799872,
+             "rise": 0,
+             "max": 0.0005
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            }
+           ],
+           "riseAll": 0,
+           "px": 921600
+          },
+          "noise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 121728,
+             "rise": 0,
+             "max": 0.0187
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 799872,
+             "rise": 0,
+             "max": 0.0022
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            }
+           ],
+           "riseAll": 0,
+           "px": 921600
+          }
+         },
+         "noTaaNoHaze": {
+          "valid": true,
+          "why": [],
+          "variant": "noTaaNoHaze",
+          "override": {
+           "preset": null,
+           "scale": 1,
+           "gfx": {
+            "aa": "fxaa",
+            "volumetrics": false
+           }
+          },
+          "file": "C:/NightShift/scratch/lighting/lr16-8/redo-040708-5c20c538/frames/ctcourse-all-07-door-noTaaNoHaze-on.png",
+          "files": {
+           "on": "ctcourse-all-07-door-noTaaNoHaze-on.png",
+           "off": "ctcourse-all-07-door-noTaaNoHaze-off.png",
+           "off2": "ctcourse-all-07-door-noTaaNoHaze-off2.png"
+          },
+          "torchOn": {
+           "torchesOn": 1,
+           "alive": 1,
+           "frame": 4238,
+           "t": 28.817,
+           "slots": [
+            {
+             "i": 0,
+             "id": 149,
+             "on": true,
+             "owned": true,
+             "ownerAlive": true,
+             "override": true,
+             "pos": [
+              88.4,
+              1.467,
+              6.6
+             ],
+             "dir": [
+              0,
+              -0.159,
+              0.987
+             ],
+             "cosOuter": 0.943,
+             "radius": 13,
+             "reach": 1.711
+            }
+           ]
+          },
+          "torchOff": {
+           "torchesOn": 0,
+           "alive": 1,
+           "frame": 4317,
+           "t": 29.35,
+           "slots": []
+          },
+          "frames": {
+           "on": 4238,
+           "off": 4317,
+           "off2": 4345,
+           "waitOn": {
+            "ok": true,
+            "frames": 58,
+            "sim": 0.35
+           },
+           "waitOff": {
+            "ok": true,
+            "frames": 60,
+            "sim": 0.35
+           },
+           "waitOff2": {
+            "ok": true,
+            "frames": 11,
+            "sim": 0.067
+           }
+          },
+          "sameBytes": true,
+          "mask": {
+           "counts": [
+            0,
+            1902,
+            0,
+            12498,
+            0
+           ],
+           "doorBlocks": 35,
+           "cols": 160,
+           "rows": 90,
+           "block": 8,
+           "cam": [
+            88.25,
+            1.6,
+            10.75
+           ],
+           "torch": [
+            88.4,
+            1.467,
+            6.6
+           ]
+          },
+          "rise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 121728,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 799872,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            }
+           ],
+           "riseAll": 0,
+           "px": 921600
+          },
+          "noise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 121728,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 799872,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            }
+           ],
+           "riseAll": 0,
+           "px": 921600
+          }
+         }
+        },
+        "corner": {
+         "status": "pass",
+         "note": "beam reads round the corner (198666 of 867136 torch-lit px rose > 0.02, haze off; 200013 with haze)",
+         "plan": {
+          "cam": [
+           68.25,
+           1.6,
+           32.25
+          ],
+          "target": [
+           69.75,
+           0.24,
+           31.357
+          ],
+          "guard": [
+           62.25,
+           0,
+           28.25
+          ],
+          "yaw": 1.178,
+          "beamAt": [
+           69.75,
+           0.24,
+           31.357
+          ]
+         },
+         "noTaa": {
+          "valid": true,
+          "why": [],
+          "variant": "noTaa",
+          "override": {
+           "preset": null,
+           "scale": 1,
+           "gfx": {
+            "aa": "fxaa"
+           }
+          },
+          "file": "C:/NightShift/scratch/lighting/lr16-8/redo-040708-5c20c538/frames/ctcourse-all-07-corner-noTaa-on.png",
+          "files": {
+           "on": "ctcourse-all-07-corner-noTaa-on.png",
+           "off": "ctcourse-all-07-corner-noTaa-off.png",
+           "off2": "ctcourse-all-07-corner-noTaa-off2.png"
+          },
+          "torchOn": {
+           "torchesOn": 1,
+           "alive": 1,
+           "frame": 3188,
+           "t": 22.333,
+           "slots": [
+            {
+             "i": 0,
+             "id": 149,
+             "on": true,
+             "owned": true,
+             "ownerAlive": true,
+             "override": true,
+             "pos": [
+              62.631,
+              1.467,
+              28.245
+             ],
+             "dir": [
+              0.912,
+              -0.159,
+              0.378
+             ],
+             "cosOuter": 0.943,
+             "radius": 13,
+             "reach": 8.206
+            }
+           ]
+          },
+          "torchOff": {
+           "torchesOn": 0,
+           "alive": 1,
+           "frame": 3269,
+           "t": 22.867,
+           "slots": []
+          },
+          "frames": {
+           "on": 3188,
+           "off": 3269,
+           "off2": 3294,
+           "waitOn": {
+            "ok": true,
+            "frames": 51,
+            "sim": 0.317
+           },
+           "waitOff": {
+            "ok": true,
+            "frames": 62,
+            "sim": 0.367
+           },
+           "waitOff2": {
+            "ok": true,
+            "frames": 9,
+            "sim": 0.05
+           }
+          },
+          "sameBytes": false,
+          "mask": {
+           "counts": [
+            0,
+            347,
+            13549,
+            0,
+            504
+           ],
+           "doorBlocks": 50,
+           "cols": 160,
+           "rows": 90,
+           "block": 8,
+           "cam": [
+            68.25,
+            1.6,
+            32.25
+           ],
+           "torch": [
+            62.631,
+            1.467,
+            28.245
+           ]
+          },
+          "rise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 22208,
+             "rise": 0,
+             "max": 0.0066
+            },
+            {
+             "px": 867136,
+             "rise": 200013,
+             "max": 0.2053
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 32256,
+             "rise": 0,
+             "max": 0.0129
+            }
+           ],
+           "riseAll": 200013,
+           "px": 921600
+          },
+          "noise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 22208,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 867136,
+             "rise": 0,
+             "max": 0.0038
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 32256,
+             "rise": 0,
+             "max": 0
+            }
+           ],
+           "riseAll": 0,
+           "px": 921600
+          }
+         },
+         "noTaaNoHaze": {
+          "valid": true,
+          "why": [],
+          "variant": "noTaaNoHaze",
+          "override": {
+           "preset": null,
+           "scale": 1,
+           "gfx": {
+            "aa": "fxaa",
+            "volumetrics": false
+           }
+          },
+          "file": "C:/NightShift/scratch/lighting/lr16-8/redo-040708-5c20c538/frames/ctcourse-all-07-corner-noTaaNoHaze-on.png",
+          "files": {
+           "on": "ctcourse-all-07-corner-noTaaNoHaze-on.png",
+           "off": "ctcourse-all-07-corner-noTaaNoHaze-off.png",
+           "off2": "ctcourse-all-07-corner-noTaaNoHaze-off2.png"
+          },
+          "torchOn": {
+           "torchesOn": 1,
+           "alive": 1,
+           "frame": 4643,
+           "t": 31.333,
+           "slots": [
+            {
+             "i": 0,
+             "id": 149,
+             "on": true,
+             "owned": true,
+             "ownerAlive": true,
+             "override": true,
+             "pos": [
+              62.631,
+              1.467,
+              28.245
+             ],
+             "dir": [
+              0.912,
+              -0.159,
+              0.378
+             ],
+             "cosOuter": 0.943,
+             "radius": 13,
+             "reach": 8.206
+            }
+           ]
+          },
+          "torchOff": {
+           "torchesOn": 0,
+           "alive": 1,
+           "frame": 4721,
+           "t": 31.85,
+           "slots": []
+          },
+          "frames": {
+           "on": 4643,
+           "off": 4721,
+           "off2": 4746,
+           "waitOn": {
+            "ok": true,
+            "frames": 58,
+            "sim": 0.35
+           },
+           "waitOff": {
+            "ok": true,
+            "frames": 61,
+            "sim": 0.367
+           },
+           "waitOff2": {
+            "ok": true,
+            "frames": 10,
+            "sim": 0.067
+           }
+          },
+          "sameBytes": false,
+          "mask": {
+           "counts": [
+            0,
+            347,
+            13549,
+            0,
+            504
+           ],
+           "doorBlocks": 50,
+           "cols": 160,
+           "rows": 90,
+           "block": 8,
+           "cam": [
+            68.25,
+            1.6,
+            32.25
+           ],
+           "torch": [
+            62.631,
+            1.467,
+            28.245
+           ]
+          },
+          "rise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 22208,
+             "rise": 0,
+             "max": 0.0065
+            },
+            {
+             "px": 867136,
+             "rise": 198666,
+             "max": 0.2009
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 32256,
+             "rise": 0,
+             "max": 0.0043
+            }
+           ],
+           "riseAll": 198666,
+           "px": 921600
+          },
+          "noise": {
+           "cls": [
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 22208,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 867136,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 0,
+             "rise": 0,
+             "max": 0
+            },
+            {
+             "px": 32256,
+             "rise": 0,
+             "max": 0
+            }
+           ],
+           "riseAll": 0,
+           "px": 921600
+          }
+         }
+        },
+        "four": {
+         "status": "pass",
+         "note": "4 of 4 torches on (slots 4); soft beam rim is a visual check",
+         "plan": {
+          "cam": [
+           68.25,
+           1.6,
+           32.25
+          ],
+          "target": [
+           68.25,
+           -0.387,
+           42.051
+          ],
+          "viewYaw": 0,
+          "guards": [
+           {
+            "p": [
+             66.75,
+             0,
+             35.75
+            ],
+            "yaw": 2.242
+           },
+           {
+            "p": [
+             69.25,
+             0,
+             37.25
+            ],
+            "yaw": 4.042
+           },
+           {
+            "p": [
+             67.25,
+             0,
+             39.25
+            ],
+            "yaw": 2.242
+           },
+           {
+            "p": [
+             63.75,
+             0,
+             40.25
+            ],
+            "yaw": 4.042
+           }
+          ]
+         },
+         "torchesOn": 4
+        }
+       }
+      },
+      "08": {
+       "file": "ctcourse-all-08.png",
+       "status": "pass",
+       "note": "meter 0.589 -> 0.141 (shot, read 1 s after) -> 0.141 (circuit off); lamp 56 lampAt at the body 0.307 / 0.393 (chest / head), bounce 0.073 / 0.054, expected drop >= 0.197; frame mean 0.309 -> 0.005 -> 0",
+       "plan": {
+        "lamp": 56,
+        "lampPos": [
+         34,
+         6.5,
+         11
+        ],
+        "group": 20,
+        "groupLamps": 6,
+        "hasSwitch": true,
+        "bakedIndex": 56,
+        "stand": [
+         33.25,
+         0.3,
+         10.75
+        ],
+        "standFromLamp": 0,
+        "standLampAt": 0.39,
+        "standLevel": 0.586,
+        "passedOver": [],
+        "cam": [
+         33.25,
+         1.9,
+         14.75
+        ],
+        "target": [
+         33.25,
+         3.4,
+         10.75
+        ],
+        "from": [
+         33.25,
+         1.8,
+         10.75
+        ]
+       },
+       "contribBefore": {
+        "bakedIndex": 56,
+        "lampAt": [
+         0.307,
+         0.393
+        ],
+        "bounceAt": [
+         0.073,
+         0.054
+        ],
+        "levelAt": [
+         0.521,
+         0.589
+        ],
+        "at": [
+         33.25,
+         0.32,
+         10.75
+        ],
+        "t": 36.3
+       },
+       "contribAfter": {
+        "bakedIndex": 56,
+        "lampAt": [
+         0,
+         0
+        ],
+        "bounceAt": [
+         0,
+         0
+        ],
+        "levelAt": [
+         0.141,
+         0.141
+        ],
+        "at": [
+         33.25,
+         0.32,
+         10.75
+        ],
+        "t": 38.633
+       },
+       "expectedDrop": 0.197,
+       "drop": 0.447,
+       "readAfterShot": 1,
+       "meter": [
+        0.589,
+        0.141,
+        0.141
+       ],
+       "field": [
+        0.589,
+        0.141,
+        0.141
+       ],
+       "frameMean": [
+        0.309,
+        0.005,
+        0
+       ],
+       "shot": {
+        "how": "stealth.shotRay",
+        "destroyed": true
+       },
+       "switch": "wall switch (the player toggle)",
+       "restored": true
+      },
+      "07-epic": {
+       "status": "same-as-auto",
+       "note": "Auto is Epic on this device: the Auto shot is the Epic shot"
+      }
+     },
+     "darkPick": {
+      "source": "audit room",
+      "room": null,
+      "roomName": "(outside rooms)",
+      "darkShare": 0,
+      "views": 196,
+      "view": null
+     },
+     "plan": {
+      "rooms": [],
+      "lamps": 124,
+      "errors": [],
+      "lampIds": [
+       13,
+       15,
+       16,
+       19,
+       27,
+       28,
+       29,
+       30,
+       31,
+       32,
+       33,
+       34,
+       35,
+       36,
+       37,
+       38,
+       39,
+       40,
+       41,
+       42,
+       43,
+       44,
+       45,
+       46,
+       47,
+       48,
+       49,
+       50,
+       51,
+       52,
+       53,
+       54,
+       55,
+       56,
+       57,
+       58,
+       59,
+       60,
+       61,
+       62,
+       63,
+       64,
+       65,
+       66,
+       67,
+       68,
+       69,
+       70,
+       71,
+       72,
+       73,
+       74,
+       75,
+       76,
+       77,
+       78,
+       79,
+       80,
+       81,
+       82,
+       83,
+       84,
+       85,
+       86,
+       87,
+       88,
+       89,
+       90,
+       91,
+       92,
+       93,
+       94,
+       95,
+       96,
+       97,
+       98,
+       99,
+       100,
+       101,
+       102,
+       103,
+       104,
+       105,
+       106,
+       107,
+       108,
+       109,
+       110,
+       111,
+       113,
+       114,
+       115,
+       116,
+       117,
+       118,
+       119,
+       120,
+       121,
+       122,
+       123,
+       124,
+       125,
+       126,
+       127,
+       128,
+       129,
+       130,
+       131,
+       132,
+       133,
+       134,
+       136,
+       137,
+       138,
+       139,
+       140,
+       141,
+       142,
+       143,
+       144,
+       145,
+       146,
+       147,
+       148
+      ],
+      "spin": {
+       "step": 2.8,
+       "cells": 474,
+       "scored": 473,
+       "spots": [
+        {
+         "p": [
+          68.25,
+          0,
+          32.25
+         ],
+         "score": 0.143,
+         "mean": 0.202,
+         "yaws": [
+          [
+           0.667,
+           0.2
+          ],
+          [
+           0.4,
+           0.2
+          ],
+          [
+           0.6,
+           0.267
+          ],
+          [
+           0.143,
+           0.429
+          ]
+         ]
+        },
+        {
+         "p": [
+          83.25,
+          0,
+          62.25
+         ],
+         "score": 0.133,
+         "mean": 0.217,
+         "yaws": [
+          [
+           0.2,
+           0.6
+          ],
+          [
+           0.133,
+           0.4
+          ],
+          [
+           0.267,
+           0.467
+          ],
+          [
+           0.333,
+           0.267
+          ]
+         ]
+        },
+        {
+         "p": [
+          128.25,
+          0,
+          68.25
+         ],
+         "score": 0.067,
+         "mean": 0.238,
+         "yaws": [
+          [
+           0.333,
+           0.533
+          ],
+          [
+           0.733,
+           0.067
+          ],
+          [
+           0.6,
+           0.267
+          ],
+          [
+           0.286,
+           0.571
+          ]
+         ]
+        }
+       ]
+      },
+      "cells": 4146,
+      "wall": {
+       "lamp": 140,
+       "lampPos": [
+        126,
+        6.6,
+        77.6
+       ],
+       "floor": [
+        126.25,
+        4.4,
+        77.25
+       ],
+       "model": null,
+       "base": null,
+       "wallDist": 0.15,
+       "wall": [
+        126,
+        6.3,
+        77.75
+       ],
+       "normal": [
+        0,
+        0,
+        -1
+       ],
+       "cam": [
+        126.25,
+        6,
+        75.75
+       ],
+       "target": [
+        126,
+        5.7,
+        77.75
+       ],
+       "ceilY": 9,
+       "ccam": [
+        126.25,
+        5.9,
+        75.75
+       ],
+       "ctarget": [
+        126,
+        9,
+        77.675
+       ]
+      },
+      "char": {
+       "lamp": 13,
+       "lampPos": [
+        101.25,
+        5.9,
+        22
+       ],
+       "floor": [
+        101.75,
+        0,
+        22.25
+       ],
+       "dir": [
+        0.707,
+        0,
+        0.707
+       ],
+       "frames": [
+        {
+         "m": 1,
+         "feet": [
+          102.25,
+          0,
+          22.75
+         ],
+         "yaw": -0.675,
+         "cam": [
+          100.25,
+          1.35,
+          25.25
+         ],
+         "target": [
+          102.25,
+          0.85,
+          22.75
+         ],
+         "nearest": {
+          "id": 13,
+          "d": 1.25
+         }
+        },
+        {
+         "m": 4,
+         "feet": [
+          104.75,
+          0,
+          25.25
+         ],
+         "yaw": -0.785,
+         "cam": [
+          103.25,
+          1.35,
+          26.75
+         ],
+         "target": [
+          104.75,
+          0.85,
+          25.25
+         ],
+         "nearest": {
+          "id": 13,
+          "d": 4.776
+         }
+        }
+       ]
+      },
+      "crate": {
+       "what": "box 1826",
+       "at": [
+        80,
+        0.5,
+        33
+       ],
+       "size": [
+        0.8,
+        1
+       ],
+       "lamp": 83,
+       "lampDist": 0.5,
+       "cam": [
+        81.25,
+        1.3,
+        30.25
+       ],
+       "target": [
+        80,
+        0.2,
+        33
+       ]
+      },
+      "door": null,
+      "torch": {
+       "wall": {
+        "cam": [
+         68.25,
+         1.6,
+         32.25
+        ],
+        "target": [
+         69.75,
+         1.2,
+         31.75
+        ],
+        "guard": [
+         71.25,
+         0,
+         31.25
+        ],
+        "yaw": -1.249,
+        "wallAt": [
+         69.75,
+         1.6,
+         31.75
+        ]
+       },
+       "door": {
+        "door": 20,
+        "cam": [
+         88.25,
+         1.6,
+         10.75
+        ],
+        "target": [
+         88.25,
+         1.1,
+         7.85
+        ],
+        "guard": [
+         88.25,
+         0,
+         6.25
+        ],
+        "yaw": 0
+       },
+       "corner": {
+        "cam": [
+         68.25,
+         1.6,
+         32.25
+        ],
+        "target": [
+         69.75,
+         0.24,
+         31.357
+        ],
+        "guard": [
+         62.25,
+         0,
+         28.25
+        ],
+        "yaw": 1.178,
+        "beamAt": [
+         69.75,
+         0.24,
+         31.357
+        ]
+       },
+       "four": {
+        "cam": [
+         68.25,
+         1.6,
+         32.25
+        ],
+        "target": [
+         68.25,
+         -0.387,
+         42.051
+        ],
+        "viewYaw": 0,
+        "guards": [
+         {
+          "p": [
+           66.75,
+           0,
+           35.75
+          ],
+          "yaw": 2.242
+         },
+         {
+          "p": [
+           69.25,
+           0,
+           37.25
+          ],
+          "yaw": 4.042
+         },
+         {
+          "p": [
+           67.25,
+           0,
+           39.25
+          ],
+          "yaw": 2.242
+         },
+         {
+          "p": [
+           63.75,
+           0,
+           40.25
+          ],
+          "yaw": 4.042
+         }
+        ]
+       }
+      },
+      "shoot": {
+       "lamp": 56,
+       "lampPos": [
+        34,
+        6.5,
+        11
+       ],
+       "group": 20,
+       "groupLamps": 6,
+       "hasSwitch": true,
+       "bakedIndex": 56,
+       "stand": [
+        33.25,
+        0.3,
+        10.75
+       ],
+       "standFromLamp": 0,
+       "standLampAt": 0.39,
+       "standLevel": 0.586,
+       "passedOver": [],
+       "cam": [
+        33.25,
+        1.9,
+        14.75
+       ],
+       "target": [
+        33.25,
+        3.4,
+        10.75
+       ],
+       "from": [
+        33.25,
+        1.8,
+        10.75
+       ]
+      },
+      "dark": {
+       "p": [
+        1.25,
+        0,
+        3.25
+       ],
+       "yaw": 1.571,
+       "source": "darkest point of the unit",
+       "room": null,
+       "level": 0.141,
+       "cam": [
+        1.25,
+        1.6,
+        3.25
+       ],
+       "target": [
+        11.178,
+        0.403,
+        3.25
+       ],
+       "guard": {
+        "p": [
+         5.25,
+         0,
+         3.25
+        ],
+        "yaw": -1.571
+       }
+      },
+      "ms": 175
+     }
+    }
+   },
+   "probe": [],
+   "bake": {
+    "auto": {
+     "preset": "auto (epic)",
+     "ms": 6508,
+     "lights": 149,
+     "visMB": 46.86,
+     "atlasDims": [
+      1024,
+      70,
+      1638
+     ],
+     "atlasMB": 117.41,
+     "moonCells": 1506176,
+     "hash": "1fu3gcy",
+     "bakedLampsDrawn": true
+    }
+   },
+   "errors": [],
+   "settings": {
+    "preset": "epic",
+    "auto": true,
+    "device": {
+     "key": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4090 Laptop GPU (0x00002757) Direct3D11 vs_5_0 ps_5_0, D3D11)|desktop|1280x720",
+     "tier": "epic",
+     "source": "gpu"
+    },
+    "renderScale": 1,
+    "upscaler": "off",
+    "governor": 3,
+    "override": null,
+    "bakedLamps": true,
+    "charShadows": true,
+    "torchSlots": 4,
+    "mode": "course",
+    "ambient": 0.3,
+    "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4090 Laptop GPU (0x00002757) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "canvas": [
+     972,
+     547
+    ]
+   },
+   "minutes": 0.8
+  }
+ },
+ "probeTable": [],
+ "bakeTable": [],
+ "perf": [],
+ "errors": [],
+ "updated": "2026-10-24T00:35:27.086Z",
+ "minutes": 3.3,
+ "summary": {
+  "shots": 20,
+  "pass": 12,
+  "flag": 2,
+  "review": 0,
+  "notPossible": 1,
+  "error": 0,
+  "sameAsAuto": 5,
+  "probeFails": 0,
+  "probeMaxDiff": 0,
+  "perfP95": []
+ },
+ "finished": "2026-10-24T00:35:27.086Z"
+}
