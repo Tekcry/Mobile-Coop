@@ -2690,6 +2690,19 @@ console.log('coop4 guard AI (AI6): three intruders over four pages - each pair h
         await despawn(spawned);
         spawned = [];
         await GH(() => { const em = window.__app.current.enemyMgr; for (const x of [...em.enemies]) if (x.alive && !x['ai6Statue']) em.despawn(x); });
+        // (ai6 triage 5) the statues' section radio goes quiet for (3): fix4's grunt went unaware -> cooldown 4.5 s after his
+        // spawn with meter 0 (no sight, no hearing), i.e. `AlertInput.cautious` (`alertState.ts:162`): a section alert
+        // reached him. His key is a clean slate at spawn (`resetKey`, enemyManager.ts:1872-1873) and the radio queues only
+        // guards alive when a call completes (radioNet.ts header), so a call completed after his spawn: the statues still
+        // run the manager-level section checks (squad radio checks every 40 +- 8 s, `radioCheckNow`; talking pairs,
+        // `pairStep` -> `pairMissing`, a partner that never walks to the meet), whose `missing` call makes every receiver
+        // cautious 180 s (`radioDeliver` -> `alertHold`). Open calls and queued receivers dropped, no check, no pair.
+        await GH(() => {
+          const em = window.__app.current.enemyMgr;
+          window.__ai6Quiet = { radioT: em['radioT'], pairs: em.pairs.splice(0) };
+          em['radioT'] = 1e9;
+          em.radioNet.clear();
+        });
         // fresh slots: nothing known about anybody (the board's public fields)
         await GH(() => { const b = window.__app.current.enemyMgr.intruders; for (let s = 0; s < b.valid.length; s++) { b.forget(s); b.seenT[s] = 99; b.locT[s] = 99; } });
         await lit({});
@@ -2757,7 +2770,7 @@ console.log('coop4 guard AI (AI6): three intruders over four pages - each pair h
             const em = g.enemyMgr;
             const b = em.intruders;
             const e = em.enemies.find((x) => x.id === a.gid);
-            if (!st.init) { st.init = true; Object.assign(st, { phase: 'crouch', maxMeter: 0, nonCalm: 0, cValid: 0, hostSlot: 0, tTurn: -1, loc: null, sawC: false, err: '', runT0: -1, cSpd: { crouch: 0, run: 0 }, dMin: { crouch: 99, run: 99 }, levels: [], lastLv: '' }); }
+            if (!st.init) { st.init = true; Object.assign(st, { phase: 'crouch', maxMeter: 0, nonCalm: 0, cautionSteps: 0, turnSteps: 0, cValid: 0, hostSlot: 0, tTurn: -1, turnBy: '', loc: null, sawC: false, err: '', runT0: -1, cSpd: { crouch: 0, run: 0 }, dMin: { crouch: 99, run: 99 }, levels: [], lastLv: '' }); }
             if (!e) return;
             const s = b.find(a.idC);
             st.maxMeter = Math.max(st.maxMeter, e.meter);
@@ -2768,15 +2781,28 @@ console.log('coop4 guard AI (AI6): three intruders over four pages - each pair h
               st.cSpd[st.phase] = Math.max(st.cSpd[st.phase] ?? 0, rC.state.speed ?? 0);
               st.dMin[st.phase] = Math.min(st.dMin[st.phase] ?? 99, Math.hypot(rC.feet.x - e.pos.x, rC.feet.z - e.pos.z));
             }
-            if (e.level !== st.lastLv && st.levels.length < 24) { st.lastLv = e.level; st.levels.push([st.phase, +g.time.toFixed(2), e.level, +e.meter.toFixed(2)]); }
+            // (ai6 triage 5) and what could have caused each change: his caution (0 / 1 timed / 2 held), his timed section
+            // alert (kind 1 missing / 2 shots, s left), his board incident, the section's radio counters and open calls
+            if (e.level !== st.lastLv && st.levels.length < 24) {
+              st.lastLv = e.level;
+              const aw = em.awareness;
+              st.levels.push([st.phase, +g.time.toFixed(2), e.level, +e.meter.toFixed(2), { caution: e.caution, alert: e.key >= 0 ? aw.alertOf(e.key) : -1, alertLeft: e.key >= 0 ? +aw.alertLeft(e.key).toFixed(1) : -1, inc: e.incident, turnT: +(e.turnT ?? 0).toFixed(2), checks: em.radioChecks, misses: em.radioMisses, pairMisses: em.pairMisses, calls: em.radioNet.openCalls, bodiesFound: em.bodiesFound, cam: em.camReports }]);
+            }
+            // calm = the alert machine's own `calmNow` (unaware or cooldown, `alertState.ts:127`): a cautious guard is on
+            // edge but calm by design (docs/systems/ai.md "Caution per guard"); counted apart so a stray caution shows
+            const calm = e.level === 'unaware' || e.level === 'cooldown';
+            if (e.level === 'cooldown') st.cautionSteps++;
+            if ((e.turnT ?? 0) > 0) st.turnSteps++;
             if (a.idxC >= 0 && e.seesIndex(a.idxC)) st.sawC = true;
             const hs = b.find(a.idHost);
             if (hs >= 0 && b.valid[hs] === 1) st.hostSlot++;
             if (st.phase === 'crouch') {
-              if (e.level !== 'unaware') st.nonCalm++;
+              if (!calm) st.nonCalm++;
               if (s >= 0 && b.valid[s] === 1) st.cValid++;
             } else if (st.phase === 'run') {
-              if (st.tTurn < 0 && e.level !== 'unaware') st.tTurn = g.time - st.runT0;
+              // (ai6 triage 5) "turns / investigates": a heard step at tier 1 only turns him (`Enemy.hearTurn`: `turnT`
+              // set, meter capped under `suspicious`, the level kept), tier 2 gets him sent (investigating); either counts
+              if (st.tTurn < 0 && (!calm || (e.turnT ?? 0) > 0)) { st.tTurn = g.time - st.runT0; st.turnBy = !calm ? e.level : 'turn'; }
               if (!st.loc && s >= 0 && b.valid[s] === 1 && b.locT[s] < 1) {
                 const x0 = a.a[0], z0 = a.a[1], x1 = a.b[0], z1 = a.b[1];
                 const t = Math.max(0, Math.min(1, ((b.x[s] - x0) * (x1 - x0) + (b.z[s] - z0) * (z1 - z0)) / ((x1 - x0) ** 2 + (z1 - z0) ** 2)));
@@ -2843,7 +2869,7 @@ console.log('coop4 guard AI (AI6): three intruders over four pages - each pair h
         await stop();
         const c3 = await GH(() => ({ ...window.__ai6s }));
         const loc = c3.loc;
-        const why3 = jl({ hr: Math.round(hr), tTurn: f2(c3.tTurn), loc, sawC: c3.sawC, hostValidSteps: c3.hostSlot, err: c3.err, cSpd: c3.cSpd, dMin: c3.dMin, levels: c3.levels, at: leg.at });
+        const why3 = jl({ hr: Math.round(hr), tTurn: f2(c3.tTurn), turnBy: c3.turnBy, turnSteps: c3.turnSteps, cautionSteps: c3.cautionSteps, loc, sawC: c3.sawC, hostValidSteps: c3.hostSlot, err: c3.err, cSpd: c3.cSpd, dMin: c3.dMin, levels: c3.levels, at: leg.at });
         assert(c3.tTurn >= 0 && c3.tTurn <= 2.5, `AI6 (3): within 2 s the guard turns / investigates (not calm after ${f2(c3.tTurn)} s of the run) (${why3})`);
         assert(!!loc && loc.locT < 1, `AI6 (3): a heard step locates C's slot (locT < 1) (${why3})`);
         if (loc) {
@@ -2855,17 +2881,23 @@ console.log('coop4 guard AI (AI6): three intruders over four pages - each pair h
         }
         assert(c3.hostSlot === 0, `AI6 (3): the host never has a valid slot (${c3.hostSlot} steps) (${why3})`);
         // a noisy hold: the pulse coopHost's onHoldPulse makes (`em.hear(item, r, 'noise', null, id)`), in a fight
+        // (ai6 triage 5) the holder stands at his item: C (wherever the run left him, 0-3 m along the leg) goes to the leg's
+        // end and the item is there (walkable, checked). The guard in a fight needs no light, so if he sees C the sighting
+        // puts C's slot at C's feet: before, up to 4.5 m from an item 1.6 m past the leg's end, failing `dItem < 2.5`
+        // whether or not the hold was heard. The teleport also outlasts the 1.5 s re-aim gap (`COMBAT_HEAR.gap`).
+        const item = [leg.b[0], leg.b[1]];
+        await teleP(2, item[0], item[1], faceTo(leg.a, leg.b));
         await GH((id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); if (e && !e.alerted) e.alert(); }, leg.id);
-        const item = [leg.b[0] + 1.5, leg.b[1] + 0.5];
         await GH((id) => { const b0 = window.__app.current.enemyMgr.intruders; const s = b0.find(id); if (s >= 0) { b0.forget(s); b0.seenT[s] = 99; b0.locT[s] = 99; } }, idC);
         await GH(([id, it]) => { const g = window.__app.current; g.enemyMgr.hear(new g.player.position.constructor(it[0], 0.1, it[1]), 8, 'noise', null, id); }, [idC, item]);
         await waitHostSim(HA, 600);
-        const d5 = await GH(([idc, idh, it]) => {
+        const d5 = await GH(([idc, idh, it, gid]) => {
           const b = window.__app.current.enemyMgr.intruders;
           const s = b.find(idc);
           const hs = b.find(idh);
-          return { s, valid: s >= 0 ? b.valid[s] : -1, locT: s >= 0 ? b.locT[s] : 99, dItem: s >= 0 ? Math.hypot(b.x[s] - it[0], b.z[s] - it[1]) : 99, hostValid: hs >= 0 ? b.valid[hs] : 0 };
-        }, [idC, idHost, item]);
+          const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === gid);
+          return { s, valid: s >= 0 ? b.valid[s] : -1, locT: s >= 0 ? b.locT[s] : 99, seenT: s >= 0 ? b.seenT[s] : 99, dItem: s >= 0 ? Math.hypot(b.x[s] - it[0], b.z[s] - it[1]) : 99, hostValid: hs >= 0 ? b.valid[hs] : 0, level: e?.level, sees: e?.seesTarget, heardAt: e?.heardAt };
+        }, [idC, idHost, item, leg.id]);
         assert(d5.s >= 0 && d5.valid === 1 && d5.dItem < 2.5 && d5.hostValid === 0, `AI6 (3): in a fight a noisy hold by C is located on C's slot at the item, never the host's (${jl(d5)})`);
       } catch (e) {
         failed = true;
@@ -2874,6 +2906,7 @@ console.log('coop4 guard AI (AI6): three intruders over four pages - each pair h
       await unhook();
       await despawn(spawned);
       spawned = [];
+      await GH(() => { const em = window.__app.current?.enemyMgr; const q = window.__ai6Quiet; if (!em || !q) return; em['radioT'] = q.radioT; em.pairs.push(...q.pairs); window.__ai6Quiet = null; }).catch(() => {});
     }
   } catch (e) {
     failed = true;
