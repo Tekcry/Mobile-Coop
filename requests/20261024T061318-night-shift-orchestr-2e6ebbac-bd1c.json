@@ -1,0 +1,14 @@
+{
+  "id": "20261024T061318-night-shift-orchestr-2e6ebbac-bd1c",
+  "sha": "2e6ebbac84875635d21fccf192ea1a4a9866d45c",
+  "branch": "",
+  "pr": 320,
+  "kind": "pr",
+  "requester": "Night Shift | Orchestrator",
+  "suites": [
+    "e2e-lightbake"
+  ],
+  "trainRerun": true,
+  "set": "train55-rerun",
+  "note": "train 55 lightbake: 14 textures with 5 shaders pending (test timing?)"
+}
