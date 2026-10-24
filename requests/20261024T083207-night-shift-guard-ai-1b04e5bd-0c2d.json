@@ -1,0 +1,25 @@
+{
+  "id": "20261024T083207-night-shift-guard-ai-1b04e5bd-0c2d",
+  "sha": "1b04e5bd6037c86644207eb358ed91eb57bd818b",
+  "branch": "",
+  "pr": 317,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove",
+    "e2e-ctcourse",
+    "e2e-course",
+    "e2e-section-rating",
+    "e2e-guard-carry",
+    "e2e-sectorops:1",
+    "e2e-sectorops:2",
+    "e2e-sectorops:3",
+    "e2e-sectorops:4",
+    "e2e-sectorops:5",
+    "e2e-sectorops:6"
+  ],
+  "jobs": 2,
+  "set": "coop4",
+  "note": "coop4 + master 4.95.0 merge"
+}
