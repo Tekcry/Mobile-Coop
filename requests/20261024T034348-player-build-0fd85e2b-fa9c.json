@@ -1,0 +1,19 @@
+{
+  "id": "20261024T034348-player-build-0fd85e2b-fa9c",
+  "sha": "0fd85e2bd4590918cc791c39b466388aa776615b",
+  "branch": "",
+  "pr": null,
+  "kind": "alone",
+  "requester": "player-build",
+  "steps": [
+    "npm run build",
+    "node scripts/guard-cap.mjs --maps=sectorops,campusops --counts=0,12,24 --cells=patrol,away,alert --query=guardmodels=1 --out=C:/NightShift/scratch/g8c/run-on",
+    "node scripts/guard-cap.mjs --maps=sectorops,campusops --counts=0,12,24 --cells=patrol,away,alert --query=guardmodels=0 --out=C:/NightShift/scratch/g8c/run-off"
+  ],
+  "env": {
+    "E2E_GPU": "1",
+    "E2E_PORT": "4189"
+  },
+  "set": "gm-g8-cap3",
+  "note": "guard-models G8 after S11 (frozen skip, LOD2 folds + half rate, LOD0 6 m). Please push like shots/g8b-c76cf326"
+}
