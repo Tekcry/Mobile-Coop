@@ -4,7 +4,7 @@ import { GUARD_INFO_LINE_MAX, takeInfo, type HasInfo } from '../src/ai/guardInfo
 import { ENEMIES } from '../src/ai/enemyDefs';
 import { PACE } from '../src/ai/response';
 import { patrolPeriod, type GuardIntel } from '../src/game/intel';
-import { bluffLive, checkJoint, hasJoint, JOINT, JOINT_BLUFF_FEED, jointBluffer, jointLines, jointOf, type Bluff } from '../src/game/jointInterrogation';
+import { bluffLive, checkJoint, hasJoint, JOINT, JOINT_BLUFF_FEED, jointBluffer, jointHasLines, jointLines, jointOf, type Bluff } from '../src/game/jointInterrogation';
 import { parseMessage } from '../src/net/protocol';
 import { LevelBuilder } from '../src/world/levelBuilder';
 import { buildCtcourse } from '../src/world/maps/ctcourse';
@@ -75,6 +75,14 @@ describe('joint interrogation: the information', () => {
   });
   it('the bluff line fits the radio', () => {
     expect(JOINT_BLUFF_FEED.length).toBeLessThanOrEqual(GUARD_INFO_LINE_MAX);
+  });
+});
+
+describe('joint interrogation: a bluff pays only with lines to reveal (check should-fix)', () => {
+  it('jointHasLines is false for no record or an empty one, true with a line', () => {
+    expect(jointHasLines(null)).toBe(false);
+    expect(jointHasLines({ lines: [] })).toBe(false);
+    expect(jointHasLines({ lines: ['a'], flag: 'f' })).toBe(true);
   });
 });
 
