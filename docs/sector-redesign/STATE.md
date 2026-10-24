@@ -288,8 +288,14 @@ dialogs: decide, log assumed decisions in the BRIEF. coop4 / #317 / feature/coop
    IN FLIGHT: Opus fix round + group A briefs docs/visual-gate/briefs/VG1-VG4.md on feature/visual-gate. Then: VG1 / VG4
    (pure scripts + vitest) as cloud-queue briefs, VG2 (Opus) / VG3 (Sonnet) as desktop agents in worktrees
    -visual-gate-vg2 / -vg3 (stale branches feature/visual-gate-vg1 / -vg4 at 69cb185a hold nothing: reset them).
-5. Campus S1-S5 fixes / S3 re-plan WAIT for the mission-framework job (ROADMAP Decided 22:12 + 22:00): planned against
-   it with Michael's one-click sign-off. No campus walk notes exist yet (none on feature/menu).
+5. CAMPUS SIGN-OFF PAGES (orchestrator ~22:50; Marlow Build leads mission-framework): branch feature/sector-redesign-signoff
+   (worktree -signoff, cut from feature/level-validator = PR #346; c088b7e9). Done: plan-svg --floors / --bounds / --out /
+   --prefix; before plans signoff/before/S<N>-<y>.svg; plan graphs docs/sector-redesign/graph/plan/ (players [1,2,3,4]);
+   signoff/README.md = the sync-node contract AGREED with Marlow (~22:55: fields id / kind / space / src / lead, tracks A / B,
+   S2 Split Shift, S4 + S5 Code Relay candidates). IN FLIGHT: 5 Opus planners (rulebook briefs/SIGNOFF-PLANNER.md on this branch;
+   ) writing signoff/S<N>.md + S<N>-detail.md + S<N>-plan-<y>.svg + plan graph; they do
+   NOT commit: the lead commits all, compiles signoff/SYNC.md, runs one checker, pushes, messages Marlow + the
+   orchestrator ("sign-off pages up"). No greybox before Michael approves. Rerun a missing planner from that rulebook.
 The no-refining rule is LIFTED (ROADMAP Decided ~21:50): held polish lists may now be built (cloud briefs preferred).
 Cloud: tsc / vitest-only builder slices go to cloud-queue briefs. Older context (sector-redesign idle until Michael's playtest):
 worktree C:/NightShift/Mobile-Coop-sector-redesign-polish (feature/sector-redesign-polish: STATE / PLAN / checks / briefs).
