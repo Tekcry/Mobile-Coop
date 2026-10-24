@@ -17,6 +17,12 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   not jump other requesters, one-line change in pick if the Orchestrator wants that). Train conflict notes in
   docs/laptop-queue/STATE.md. Checker 2 PASS; added 'dev' to the merge / release fetches (f464fa11). PR #366 opened
   to master, train-ready sent to the Orchestrator (it labels). After merge: update the laptop service first.
+- 00:30: train 72 released (4.99.0, #356 in master). Orchestrator asked me to resolve #366 so CI runs: merged master
+  (f3eaceed, 262 tests pass), PR MERGEABLE. Auto mode blocks my gh status / label posts: Orchestrator posts checker +
+  train-ready. #367 (Sector Ops visual gate) conflicts with #366 in service.mjs: the second train resolves it.
+- feature/test-flakes (worktree C:/NightShift/Mobile-Coop-test-flakes, off master bd8920c2): Opus agent making
+  tests/lightField.test.ts "allocation-free under a loop" deterministic (failed CI on train/71 and #361). Then checker,
+  PR, train-ready message.
 - Marlow asked (00:13) to drop request ...-2d8f201e-96b3 (superseded by ...-0fe98298-0388, set joint-flake-3, #365); the
   service's own superseded() should retire it; if it runs anyway, withdraw it (request.mjs has no withdraw: commit
   "withdraw <id>" on the laptop-queue branch like Guard AI did).
