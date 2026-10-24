@@ -60,14 +60,15 @@ audit_one() {
     # One `git diff-tree --stdin` for ALL candidate branches (was one `git diff` each). Each input line is "<branch tip> <sha>":
     # the header it prints is the (unique) tip, and an empty diff prints nothing (= 0 files). -M matches `git diff` renames.
     local cbs tips full t n_ i=0; local -A cnt=(); local -a tl
-    cbs=$(git branch -r --contains $sha 2>/dev/null | grep -v HEAD | grep -vE 'train/|/master$|/dev$' | tr -d ' ')
+    cbs=$(git branch -r --contains $sha 2>/dev/null | grep -v HEAD | grep -vE 'train/|/dev$' | tr -d ' ')
     if [ -n "$cbs" ]; then
       full=$(git rev-parse $sha); tips=$(git rev-parse $cbs); tl=($tips)
       while read -r t n_; do cnt[$t]=$n_; done < <(printf "%s $full\n" $tips | git diff-tree --stdin -r -M --name-only |
         awk '/^[0-9a-f]{40}$/ { h=$0; seen[h]=1; next } $0 !~ /^(docs\/|tests\/|scripts\/e2e|changes\/|CHANGELOG)|\.md$/ { cnt[h]++ } END { for (h in seen) print h, cnt[h]+0 }')
       for cb in $cbs; do
         cc=${cnt[${tl[i]}]:-0}; i=$((i + 1))
-        if [ "$cc" -eq 0 ]; then b=""; c=0; break; fi
+        if [ "$cc" -eq 0 ]; then b=""; c=0; break; fi   # master counts only as a clean (0-file) holder: a request on the master tip is never STALE
+        [ "$cb" = origin/master ] && continue
         if [ -z "$b" ] || [ "$cc" -lt "$c" ]; then b=$cb; c=$cc; fi
       done
     fi
