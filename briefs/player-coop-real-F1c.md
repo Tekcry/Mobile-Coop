@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-24T17:33Z
+status: done feature/cr-f1c d4706918
 
 # Brief: coop-real F1c - checker follow-ups of F1a / F1b: no stale lamp round across a restart; the Course onRay chain test (Player Build)
 
@@ -205,3 +205,11 @@ needs a further module mock or a source change, STOP: `status: blocked <what it 
 - Report format: branch @ sha and `git diff --stat dadacd58`; per file what changed with file:line; test names and counts
   per vitest file; tsc / eslint results; Deviations (or "none"); "No wire or PROTOCOL_VERSION change."
 - A cloud session cannot message back. A question you cannot settle from this brief: `status: blocked <reason>`.
+
+## Report (Night Shift | Cloud Builder 1, 2026-10-24)
+- `feature/cr-f1c` @ d4706918. `git diff --stat dadacd58`: 6 files, +208 -9 (changes/feature-cr-f1c.md +4, docs/systems/coop.md +3, src/net/coopHost.ts 17, src/net/validate.ts +15, tests/courseLampHook.test.ts +116 new, tests/courseLampWire.test.ts 62). No stop condition: the listed files passed at the base (171/171).
+- validate.ts: import CLIENT_INTERP_DELAY :21; LAMP_RESTART_SLACK = 0.2 :273; lampShotStale(rt, restartAt) :280, under hostLampShots.
+- coopHost.ts: import :24 (+lampShotStale); field lampRestartAt = -Infinity :189; sendLamps polls restarts above the lampTx gate in every mode and records lampRestartAt = time :1796 (doc :1789-1790); onLampShot drops a stale round before the F1b repeat check and the limiter, no violation :1328 (doc :1320).
+- coop.md: F1c sentence at the end of the F1b lamp-shot bullet :358-360. changes/feature-cr-f1c.md: kind: patch, one bullet.
+- Tests (vitest, --maxWorkers=2): 10 files, 179/179. courseLampWire 10 (6 old + 4 new: the rule, the restart time noted in Course mode, a stale round dropped quietly before the limiter, a round after the restart lands); courseLampHook 4 (course no pendants [lamp, ricochet]; course with pendants [lamp, sway, ricochet]; infiltration [sway, ricochet]; dispose clears onRay); the other 8 files 165, unchanged. Rerun by the builder session: the two lamp files 14/14.
+- typecheck:fast clean; eslint clean on the 4 changed code files. Deviations: none. No wire or PROTOCOL_VERSION change.
