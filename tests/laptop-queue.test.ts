@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, flakeStands, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, trainSoon, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, trainSoon, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS } from '../scripts/laptop-queue/lib.mjs';
+// @ts-expect-error plain .mjs module without types
+import { selectSuites, WIDE_COVERS } from '../scripts/e2e-affected.mjs';
 
 const NOW = Date.UTC(2026, 9, 23, 20, 0, 0);
 const idAt = (min: number, tag: string): string => {
@@ -452,24 +454,75 @@ describe('overlapping trains (queue)', () => {
   });
 });
 
-describe('assertKey / flakeStands', () => {
+describe('assertKey', () => {
   const lantern = "Error: timed out waiting for A3: LANTERN's line reaches the client [host: sim 90.45 s in 90.1 s wall (x1.00), 60 fps]";
   const grilleStop = 'timed out waiting for A8: N2 is at the grille stop (route index 2)';
-  const relock = 'Error: ASSERT: A8 pass 2: the grille is locked again on the host';
   it('drops bracketed timing and numbers', () => {
     expect(assertKey(lantern)).toBe(assertKey(lantern.replace('90.45', '90.30').replace('60 fps', '120 fps')));
     expect(assertKey(grilleStop)).toBe('timed out waiting for A#: N# is at the grille stop (route index #)');
     expect(assertKey('')).toBe('');
   });
-  it('a failure stands only on the same suite and assert within the window', () => {
-    const flakes = [{ suite: 'e2e-ctcourse:4', key: assertKey(grilleStop), date: new Date(NOW - 3600_000).toISOString() }];
-    const day = 24 * 3600_000;
-    expect(flakeStands(flakes, 'e2e-ctcourse:4', assertKey(grilleStop), NOW, day)).toBe(true);
-    expect(flakeStands(flakes, 'e2e-ctcourse:4', assertKey(relock), NOW, day)).toBe(false);
-    expect(flakeStands(flakes, 'e2e-ctcourse:2', assertKey(grilleStop), NOW, day)).toBe(false);
-    expect(flakeStands(flakes, 'e2e-ctcourse:4', assertKey(grilleStop), NOW + day, day)).toBe(false);
-    expect(flakeStands(flakes, 'e2e-ctcourse:4', '', NOW, day)).toBe(false);
-    expect(flakeStands([{ suite: 'e2e-ctcourse:4', date: new Date(NOW).toISOString() }], 'e2e-ctcourse:4', assertKey(grilleStop), NOW, day)).toBe(false);
+});
+
+describe('flake budget and quarantine', () => {
+  const day = 86400_000;
+  const at = (ms: number) => new Date(NOW - ms).toISOString();
+  it('quarantined matches a part or a whole suite, never past expiry', () => {
+    const list = [{ suite: 'e2e-pad', owner: 'P', expiry: at(-day), reason: 'r' }, { suite: 'e2e-sectorops:6', owner: 'S', expiry: at(-day), reason: 'r' }, { suite: 'e2e-menus', owner: 'O', expiry: at(day), reason: 'old' }];
+    expect(quarantined(list, 'e2e-pad', NOW)?.owner).toBe('P');
+    expect(quarantined(list, 'e2e-sectorops:6', NOW)?.owner).toBe('S');
+    expect(quarantined(list, 'e2e-sectorops:1', NOW)).toBeNull();
+    expect(quarantined(list, 'e2e-menus', NOW)).toBeNull();
+    expect(quarantined(undefined, 'e2e-pad', NOW)).toBeNull();
+  });
+  it('suiteOwner: the part, then the suite, then the orchestrator', () => {
+    const owners = { 'e2e-sectorops': 'S', 'e2e-sectorops:6': 'S6' };
+    expect(suiteOwner(owners, 'e2e-sectorops:6')).toBe('S6');
+    expect(suiteOwner(owners, 'e2e-sectorops:1')).toBe('S');
+    expect(suiteOwner(owners, 'smoke')).toBe(DEFAULT_OWNER);
+  });
+  it('countRuns adds today and drops days past the window', () => {
+    const old = new Date(NOW - 9 * day).toISOString().slice(0, 10);
+    const today = new Date(NOW).toISOString().slice(0, 10);
+    const days = countRuns({ [old]: { smoke: 4 }, [today]: { smoke: 1 } }, ['smoke', 'e2e-pad'], NOW);
+    expect(days).toEqual({ [today]: { smoke: 2, 'e2e-pad': 1 } });
+  });
+  it('flakeBudget: flaked suites only, over past the budget, worst first, old flakes ignored', () => {
+    const today = new Date(NOW).toISOString().slice(0, 10);
+    const flakes = [
+      ...Array.from({ length: FLAKE_BUDGET + 1 }, (_, i) => ({ suite: 'e2e-ctcourse:1', date: at(i * 3600_000) })),
+      { suite: 'e2e-sectorops:6', date: at(3600_000) },
+      { suite: 'e2e-menus', date: at(8 * day) },
+    ];
+    const rows = flakeBudget(flakes, { [today]: { 'e2e-ctcourse:1': 10, 'e2e-sectorops:6': 4 } }, NOW);
+    expect(rows.map((r: { suite: string; flakes: number; runs: number; over: boolean }) => [r.suite, r.flakes, r.runs, r.over])).toEqual([['e2e-ctcourse:1', FLAKE_BUDGET + 1, 10, true], ['e2e-sectorops:6', 1, 4, false]]);
+    // runs never below flakes (runs counted before the budget existed)
+    expect(flakeBudget([{ suite: 'x', date: at(0) }], {}, NOW)[0]).toMatchObject({ runs: 1, rate: 1 });
+  });
+  it('autoQuarantine: over-budget suites not already quarantined, owner from the map, 48 h', () => {
+    const rows = [{ suite: 'e2e-ctcourse:1', runs: 10, flakes: 3, rate: 0.3, over: true }, { suite: 'e2e-pad', runs: 9, flakes: 5, rate: 0.5, over: true }, { suite: 'smoke', runs: 9, flakes: 1, rate: 0.1, over: false }];
+    const repo = [{ suite: 'e2e-pad', owner: 'P', expiry: at(-day), reason: 'r' }];
+    const out = autoQuarantine(rows, [repo, []], { 'e2e-ctcourse': 'Marlow' }, NOW);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ suite: 'e2e-ctcourse:1', owner: 'Marlow', auto: true, expiry: new Date(NOW + QUARANTINE_TTL_MS).toISOString() });
+    expect(autoQuarantine(rows, [repo, out], {}, NOW)).toEqual([]);
+  });
+  it('an expired auto quarantine does not renew on the flakes that made it (checker FIX)', () => {
+    const flakes = Array.from({ length: FLAKE_BUDGET + 1 }, (_, i) => ({ suite: 'e2e-ctcourse:1', date: at(3 * day + i * 60_000) }));
+    const started = { 'e2e-ctcourse:1': at(3 * day - 3600_000) };
+    expect(flakeBudget(flakes, {}, NOW)[0].over).toBe(true);
+    const after = flakeBudget(flakes, {}, NOW, undefined, undefined, started);
+    expect(after).toEqual([]);
+    expect(autoQuarantine(after, [[]], {}, NOW)).toEqual([]);
+    const later = [...flakes, ...Array.from({ length: FLAKE_BUDGET + 1 }, (_, i) => ({ suite: 'e2e-ctcourse:1', date: at(day - i * 60_000) }))];
+    expect(flakeBudget(later, {}, NOW, undefined, undefined, started)[0]).toMatchObject({ flakes: FLAKE_BUDGET + 1, over: true });
+  });
+  it('flakeSummary: a table row per suite with its quarantine, empty for no rows', () => {
+    expect(flakeSummary([], [], {}, NOW)).toBe('');
+    const q = [{ suite: 'e2e-ctcourse:1', owner: 'Marlow', expiry: new Date(NOW + day).toISOString(), reason: 'r' }];
+    const md = flakeSummary([{ suite: 'e2e-ctcourse:1', runs: 10, flakes: 3, rate: 0.3, over: true }, { suite: 'smoke', runs: 4, flakes: 1, rate: 0.25, over: false }], q, {}, NOW);
+    expect(md).toContain('| e2e-ctcourse:1 | 3 / 10 (30%) | Marlow | until ');
+    expect(md).toContain(`| smoke | 1 / 4 (25%) | ${DEFAULT_OWNER} | - |`);
   });
 });
 
@@ -791,5 +844,70 @@ describe('buildMarker', () => {
   it('the key changes per marker (logged once each)', () => {
     expect(buildMarker(text(5), NaN, NOW, MAX)?.key).not.toBe(buildMarker(text(4), NaN, NOW, MAX)?.key);
     expect(buildMarker(text(5), NaN, NOW + 1000, MAX)?.key).toBe(buildMarker(text(5), NaN, NOW, MAX)?.key);
+  });
+});
+
+describe('affected e2e on every PR head', () => {
+  const SHA = (c: string) => c.repeat(40);
+  const pr = (n: number, o: Record<string, unknown> = {}) => ({ number: n, headRefName: `feature/p${n}`, headRefOid: SHA(String(n % 10)), isDraft: false, labels: [], statusCheckRollup: [], ...o });
+
+  it('affectedSuites: merge-base diff through the DIRECT map, wide through WIDE, null on a git failure', () => {
+    const calls: string[][] = [];
+    const run = (files: string) => (args: string[]) => { calls.push(args); return args[0] === 'merge-base' ? 'b'.repeat(40) : files; };
+    const got = affectedSuites(run('docs/x.md\nsrc/game/sectors/a.ts\n'), SHA('1'));
+    expect(calls).toEqual([['merge-base', 'origin/master', SHA('1')], ['diff', '--name-only', '--no-renames', 'b'.repeat(40), SHA('1')]]);
+    expect(got.files).toEqual(['docs/x.md', 'src/game/sectors/a.ts']);
+    expect(got.suites).toContain('smoke');
+    expect(got.suites).toContain('e2e-sectorops');
+    expect(affectedSuites(run('docs/a.md\ntests/b.test.ts'), SHA('1')).suites).toEqual([]);
+    expect(affectedSuites(run(''), SHA('1')).suites).toEqual([]);
+    expect(affectedSuites(() => { throw new Error('no'); }, SHA('1'))).toBeNull();
+    expect(affectedSuites(() => '', SHA('1'))).toBeNull();
+    const wide = affectedSuites(run('src/game/sectors/a.ts'), SHA('1'), { wide: true });
+    expect(wide.suites).toEqual(selectSuites(['src/game/sectors/a.ts'], WIDE_COVERS));
+  });
+  it('affectedNeeds: skips trains, drafts, the skip label, heads with a status, open requests and enqueued shas', () => {
+    const prs = [
+      pr(1),
+      pr(2, { headRefName: 'train/66' }),
+      pr(3, { isDraft: true }),
+      pr(4, { labels: [{ name: AFFECTED_SKIP_LABEL }] }),
+      pr(5, { statusCheckRollup: [{ context: AFFECTED_CTX, state: 'PENDING' }] }),
+      pr(6, { statusCheckRollup: [{ name: 'check', conclusion: 'SUCCESS' }, { context: 'laptop-e2e/affected', state: 'SUCCESS' }] }),
+      pr(7),
+      pr(8),
+      pr(9, { headRefOid: 'not-a-sha' }),
+    ];
+    const open = [{ requester: AFFECTED_REQUESTER, sha: SHA('7') }, { requester: 'lead', sha: SHA('8') }];
+    expect(affectedNeeds(prs, open, new Set([SHA('1')]))).toEqual([
+      { pr: 6, sha: SHA('6'), branch: 'feature/p6' },
+      { pr: 8, sha: SHA('8'), branch: 'feature/p8' },
+    ]);
+    expect(affectedNeeds([pr(1)]).map((x: { pr: number }) => x.pr)).toEqual([1]);
+  });
+  it('affectedRequest: the request.mjs --affected shape, valid for requestProblem', () => {
+    const r = affectedRequest({ now: NOW, pr: 12, sha: SHA('a'), branch: 'feature/x', suites: ['smoke', 'e2e-coop'], suffix: 'beef' });
+    expect(r).toEqual({ id: `20261023T200000-affected-e2e-aaaaaaaa-beef`, sha: SHA('a'), branch: 'feature/x', pr: 12, kind: 'pr', requester: AFFECTED_REQUESTER, suites: ['smoke', 'e2e-coop'], set: 'affected', note: 'auto affected-e2e, PR #12' });
+    expect(requestProblem(r)).toBe('');
+    expect(contextName(r.kind, r.set, r.suites)).toBe('laptop-e2e/affected');
+  });
+  it('supersede: a newer head on the same branch retires the older, another PR never does', () => {
+    const a = (min: number, tag: string, branch: string, sha: string) => ({ id: idAt(min, tag), requester: AFFECTED_REQUESTER, kind: 'pr', set: 'affected', sha, branch, suites: ['smoke'] });
+    const old = a(30, 'o', 'feature/x', SHA('1'));
+    const other = a(20, 'p', 'feature/y', SHA('2'));
+    const newer = a(10, 'n', 'feature/x', SHA('3'));
+    const m = superseded([old, other, newer], () => false);
+    expect([...m]).toEqual([[old.id, newer.id]]);
+    expect(superseded([old, other], () => true).size).toBe(0);
+    expect(queueRequester(old)).toBe('affected-e2e:feature/x');
+    expect(queueRequester({ requester: 'lead', branch: 'feature/x' })).toBe('lead');
+  });
+  it('pick: each PR branch queues as its own requester (arrival order kept with the leads)', () => {
+    const a = (min: number, tag: string, branch: string) => ({ id: idAt(min, tag), requester: AFFECTED_REQUESTER, kind: 'pr', branch });
+    const x1 = a(50, 'x1', 'feature/x');
+    const lead = req(40, 'pr', 'l1', 'Lead');
+    const y1 = a(30, 'y1', 'feature/y');
+    expect(pick({ trains: [], requests: [y1, lead, x1] }, NOW, slots(false, false))?.request).toBe(x1);
+    expect(pick({ trains: [], requests: [y1, lead] }, NOW, slots(false, false))?.request).toBe(lead);
   });
 });
