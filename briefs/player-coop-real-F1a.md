@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-24T11:36Z
 
 # Brief: coop-real F1a - Course mode client applies a shot-out lamp from `lights.dead` (walk bug S2, apply half) (Player Build)
 

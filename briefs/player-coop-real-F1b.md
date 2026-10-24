@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-24T11:36Z
 
 # Brief: coop-real F1b - Course mode client lamp shots reach the host (walk bug S2, wire half) (Player Build)
 
