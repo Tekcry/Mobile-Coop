@@ -40,7 +40,7 @@ player characters after all levels): `docs/orchestrator/archive/ROADMAP-history.
 
 ## Inbox
 Michael's new ideas, verbatim, with the time; the orchestrator triages each cron run onto Now, Waiting or Decided.
-- (empty)
+- 2026-10-25 ~09:40: Michael pasted a level-design framework prompt ("linear sequence of braided sandbox zones"; campaign strict 2-player with forced co-op; Sector Ops 1-4 players, solo-navigable, "DO NOT scale down ... fixed at maximum difficulty", near 32 guards per zone, un-shootable fixtures at choke points, helmets prevent single headshots, 30-second lockdown scripts, five-zone section template) and asked "How does this compare to our current design?" Orchestrator compared it; conflicts go to Michael before anything changes.
 
 ## Waiting on Michael
 | Item | Since | Blocks |
