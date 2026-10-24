@@ -1,6 +1,11 @@
 # Campus layout audit - state
 
-## Now (2026-10-24 ~19:45)
+## PAUSED (Michael ~19:55, "Stop the campus review for now"; via the orchestrator)
+The three section agents were stopped at ~19:56 before writing any file: the -s1 / -s2 / -s3 branches hold only this
+brief and state (98a31ade). Do not resume, merge or write REPORT.md until the orchestrator says so; then rerun from
+"Agent prompt" below.
+
+## Was (2026-10-24 ~19:45)
 Three Opus section agents running, one per section, each in its own worktree and branch, writing only its own files in
 docs/campus-audit/:
 - S1: C:/NightShift/Mobile-Coop-campus-audit-s1, feature/campus-audit-s1 (S1.md, S1.svg)
