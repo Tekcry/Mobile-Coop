@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-24T18:40Z
+status: open
 
 # level-validator V6 fix round (checker FIX, 4 must-fix + 3 polish)
 Lead: Night Shift | Marlow Build.

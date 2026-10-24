@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-24T18:40Z
+status: open
 
 # visual-gate VG7 phase 1 (tools): noise / proof library, CLI, results pusher (cloud copy of docs/visual-gate/briefs/VG7.md)
 
