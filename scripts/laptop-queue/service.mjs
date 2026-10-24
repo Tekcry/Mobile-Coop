@@ -80,12 +80,12 @@
 // queueRequester): a newer head on the same branch supersedes the older request (its affected-e2e gets error
 // "superseded"), and pick takes PR branches in arrival order beside the leads. Heads older than LQ_AFFECTED_MAX_AGE_H
 // (24; 0 = no limit) and heads with no merge-base here (forks) are skipped, logged once.
-import { execFile, execFileSync, spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, trainSoon, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS } from './lib.mjs';
+import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, trainSoon, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS } from './lib.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
 const DESKTOP = process.env.LQ_WORKER === 'desktop';
@@ -927,14 +927,17 @@ async function runRequest(r, port) {
   let startedAt = NaN; // an alone run's steps start: under ALONE_PREEMPT_MIN a pending train still cuts it (lib cutShort)
   let yieldedSteps = false; // an alone run gave the slots to a train between steps (not done)
   let progress = () => NaN; // a pr run's share of its expected wall: past PREEMPT_MAX_PROGRESS it is never cut
-  // desktop: CPU % every watch tick once the suites start (one sample in flight at a time); the median goes into a
-  // handed-off failure's status (lib desktopFailDesc)
+  // desktop: whole-machine CPU % over each watch tick once the suites start (in-process os.cpus() deltas, no PowerShell;
+  // every process counts here, BelowNormal ones too, since this is load the run actually shared the machine with); the
+  // median goes into a handed-off failure's status (lib desktopFailDesc, "; desktop cpu>90%")
   const cpuSamples = [];
-  let cpuReading = false;
+  let cpuPrev = null;
   const watch = DRY ? null : setInterval(() => {
-    if (DESKTOP && started && !cpuReading) {
-      cpuReading = true;
-      cpuLoadAsync().then((v) => { if (Number.isFinite(v)) cpuSamples.push(v); }).finally(() => { cpuReading = false; });
+    if (DESKTOP && started) {
+      const now = os.cpus();
+      const v = cpuTotalPct(cpuPrev, now);
+      if (Number.isFinite(v)) cpuSamples.push(v);
+      cpuPrev = now;
     }
     const trains = trainsNow();
     const others = [...activeReqs.values()].filter((a) => a.id !== r.id);
@@ -1130,22 +1133,36 @@ function planTrain(sha = '<train sha>', ports = PORTS) {
   return Promise.resolve();
 }
 
-/** Average CPU load % now (NaN when unreadable). */
-function cpuLoad() {
-  return Number(cmd('powershell', ['-NoProfile', '-NonInteractive', '-Command', '(Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average'], { soft: true }));
+// Two Get-Process snapshots 1 s apart of the processes below Normal base priority (BelowNormal 6, Idle 4), with the wall
+// time between them; lib backgroundCpuMs reads it. Get-Process is ~0.15 s (the per-process WMI perf class took ~18 s
+// under load). Processes whose CPU time is unreadable (other users' / protected) print nothing: they stay in the load.
+const BG_CPU_PS = [
+  "$f = { Get-Process | Where-Object { $_.Id -ne 0 -and $_.BasePriority -lt 8 -and $_.TotalProcessorTime -ne $null } }",
+  "& $f | ForEach-Object { \"a $($_.Id) $([long]$_.TotalProcessorTime.TotalMilliseconds)\" }",
+  '$sw = [Diagnostics.Stopwatch]::StartNew()',
+  'Start-Sleep -Milliseconds 1000',
+  "& $f | ForEach-Object { \"b $($_.Id) $([long]$_.TotalProcessorTime.TotalMilliseconds)\" }",
+  '"el $($sw.ElapsedMilliseconds)"',
+].join('; ');
+
+/**
+ * Desktop gate CPU: { gated, total } %. total = whole machine (os.cpus() deltas over the ~2 s call); gated = total minus
+ * the processes below Normal priority (lib gatedCpu; Orchestrator waste audit 2026-10-24: a BelowNormal Blender bake held
+ * 4192 for ~62 min). gated is NaN when the PowerShell read fails (the gate then says 'cpu unknown').
+ */
+function cpuGated() {
+  const before = os.cpus();
+  const out = cmd('powershell', ['-NoProfile', '-NonInteractive', '-Command', BG_CPU_PS], { soft: true });
+  const after = os.cpus();
+  const total = cpuTotalPct(before, after);
+  const { bgMs, elapsedMs } = backgroundCpuMs(out);
+  return { gated: gatedCpu({ total, bgMs, elapsedMs, cores: after.length }), total };
 }
 
-/** cpuLoad without blocking the loop (the desktop samples it every watch tick during a run); NaN when unreadable. */
-function cpuLoadAsync() {
-  return new Promise((resolve) => {
-    execFile('powershell', ['-NoProfile', '-NonInteractive', '-Command', '(Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average'], { windowsHide: true, timeout: 30_000 }, (err, out) => resolve(err ? NaN : Number(String(out).trim())));
-  });
-}
-
-/** A CPU reader that samples once, on first use (one sample per pass). */
+/** A gate CPU reader (cpuGated) that samples once, on first use (one sample per pass). */
 function lazyCpu() {
   let v;
-  return () => (v === undefined ? (v = cpuLoad()) : v);
+  return () => (v === undefined ? (v = cpuGated()) : v);
 }
 
 const ancestorMemo = new Map();
@@ -1289,7 +1306,7 @@ async function pass() {
       // it blocks new requests meanwhile so busy slots drain (as pick does on the laptop)
       const cpu = lazyCpu();
       const ports = PORTS.filter((p) => fs.existsSync(SLOTS[p].dir));
-      for (const port of ports) why[port] = busy[port] ? 'busy' : desktopSlotGate({ lockName: path.basename(SLOTS[port].lock), lockHeld: fs.existsSync(SLOTS[port].lock), dirOk: true, backlog: Infinity, cpu: cpu(), minBacklog: 0, maxCpu: DESKTOP_CPU[port] });
+      for (const port of ports) why[port] = busy[port] ? 'busy' : desktopSlotGate({ lockName: path.basename(SLOTS[port].lock), lockHeld: fs.existsSync(SLOTS[port].lock), dirOk: true, backlog: Infinity, cpu: cpu().gated, cpuTotal: cpu().total, minBacklog: 0, maxCpu: DESKTOP_CPU[port] });
       const waits = Object.entries(why).filter(([, w]) => w).map(([p, w]) => `${p} ${w}`);
       log(`queue: train ${train.n} ${train.sha.slice(0, 8)} (laptop silent or on another train), ${backlog} request(s)${ports.length === 0 ? '; no desktop worktree' : ''}${waits.length ? `; waiting: ${waits.join('; ')}` : ''}`);
       if (ports.length === 0 || waits.length) return;
@@ -1305,7 +1322,7 @@ async function pass() {
         if (busy[port]) continue;
         // no claims yet: the laptop runs an older service and its finished requests are not marked; never rerun them
         if (claimCount === 0) why[port] = 'no claims on the branch yet (laptop service not updated)';
-        else why[port] = desktopSlotGate({ lockName: path.basename(SLOTS[port].lock), lockHeld: fs.existsSync(SLOTS[port].lock), dirOk: fs.existsSync(SLOTS[port].dir), backlog, cpu: cpu(), minBacklog: DESKTOP_BACKLOG, maxCpu: DESKTOP_CPU[port] });
+        else why[port] = desktopSlotGate({ lockName: path.basename(SLOTS[port].lock), lockHeld: fs.existsSync(SLOTS[port].lock), dirOk: fs.existsSync(SLOTS[port].dir), backlog, cpu: cpu().gated, cpuTotal: cpu().total, minBacklog: DESKTOP_BACKLOG, maxCpu: DESKTOP_CPU[port] });
         if (why[port]) desktopWait[port] = true;
       }
     }

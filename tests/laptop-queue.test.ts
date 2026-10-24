@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, trainSoon, releasingTrain, readyOrPending, RELEASE_HOLD_MS, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, trainSoon, releasingTrain, readyOrPending, RELEASE_HOLD_MS, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS } from '../scripts/laptop-queue/lib.mjs';
 // @ts-expect-error plain .mjs module without types
 import { selectSuites, WIDE_COVERS } from '../scripts/e2e-affected.mjs';
 
@@ -329,6 +329,34 @@ describe('claims and the desktop lane', () => {
     expect(desktopSlotGate({ ...base, dirOk: false })).toBe('worktree missing');
     expect(desktopSlotGate({ ...base, backlog: 3 })).toMatch(/backlog/);
     expect(desktopSlotGate({ ...base, cpu: NaN })).toBe('cpu unknown');
+    expect(desktopSlotGate({ ...base, cpu: 55, cpuTotal: 97 })).toBe('cpu 55% >= 50% (Normal+ priority; total 97%)');
+  });
+});
+
+describe('gate cpu (BelowNormal / Idle left out)', () => {
+  const snap = (busy: number, idle: number, n = 2) => Array.from({ length: n }, () => ({ times: { user: busy, nice: 0, sys: 0, irq: 0, idle } }));
+  it('cpuTotalPct is busy over all time between two os.cpus() snapshots', () => {
+    expect(cpuTotalPct(snap(0, 0), snap(750, 250))).toBe(75);
+    expect(cpuTotalPct(snap(100, 100), snap(100, 1100))).toBe(0);
+    expect(cpuTotalPct(null, snap(1, 1))).toBeNaN();
+    expect(cpuTotalPct(snap(0, 0, 2), snap(1, 1, 4))).toBeNaN();
+    expect(cpuTotalPct(snap(5, 5), snap(5, 5))).toBeNaN();
+  });
+  it('backgroundCpuMs sums deltas of pids in both snapshots and reads the window', () => {
+    const out = ['a 100 5000', 'a 200 10', 'a 0 999', 'a 300 50', '', 'b 100 13000', 'b 200 10', 'b 0 5000', 'b 400 900', 'el 1012', 'junk line'].join('\r\n');
+    // 100: 8000 ms (the Blender bake), 200: idle, 0 left out, 300 ended, 400 new: skipped
+    expect(backgroundCpuMs(out)).toEqual({ bgMs: 8000, elapsedMs: 1012 });
+    expect(backgroundCpuMs('').elapsedMs).toBeNaN();
+    expect(backgroundCpuMs('a 1 10\nb 1 5\nel 0')).toEqual({ bgMs: 0, elapsedMs: NaN });
+  });
+  it('gatedCpu takes the background share off the total: the 22:34 Blender bake no longer holds 4192', () => {
+    // 20 cores at 95%, a BelowNormal bake using 10 cores' worth for 1 s: 95 - 50 = 45 < 50, the slot starts
+    expect(gatedCpu({ total: 95, bgMs: 10_000, elapsedMs: 1000, cores: 20 })).toBe(45);
+    expect(gatedCpu({ total: 30, bgMs: 20_000, elapsedMs: 1000, cores: 10 })).toBe(0);
+    expect(gatedCpu({ total: 60, bgMs: 0, elapsedMs: 1000, cores: 8 })).toBe(60);
+    expect(gatedCpu({ total: NaN, bgMs: 0, elapsedMs: 1000, cores: 8 })).toBeNaN();
+    expect(gatedCpu({ total: 60, bgMs: 0, elapsedMs: NaN, cores: 8 })).toBeNaN();
+    expect(gatedCpu({ total: 60, bgMs: 0, elapsedMs: 1000, cores: 0 })).toBeNaN();
   });
 });
 

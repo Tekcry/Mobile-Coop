@@ -81,22 +81,85 @@ export function claimBlocks(claim, worker, now, maxMs) {
   return now - Date.parse(claim.at) < maxMs;
 }
 
-/** Desktop overflow lane gate: start new work only while the backlog is over minBacklog and CPU under maxCpu. */
-export function desktopGate(backlog, cpu, minBacklog, maxCpu) {
+/**
+ * Desktop overflow lane gate: start new work only while the backlog is over minBacklog and CPU under maxCpu. cpu is the
+ * gated load (gatedCpu: BelowNormal / Idle processes left out); total (optional, the whole machine) only goes into the
+ * reason so the log explains a wait, e.g. "cpu 62% >= 50% (Normal+ priority; total 95%)".
+ */
+export function desktopGate(backlog, cpu, minBacklog, maxCpu, total) {
   if (!(backlog > minBacklog)) return `backlog ${backlog} <= ${minBacklog}`;
   if (!Number.isFinite(cpu)) return 'cpu unknown';
-  if (cpu >= maxCpu) return `cpu ${cpu}% >= ${maxCpu}%`;
+  if (cpu >= maxCpu) return `cpu ${cpu}% >= ${maxCpu}%${Number.isFinite(total) ? ` (Normal+ priority; total ${total}%)` : ''}`;
   return '';
 }
 
 /**
  * Per-slot desktop gate: '' when the slot may start, else why it waits. s = { lockName, lockHeld, dirOk, backlog, cpu,
- * minBacklog, maxCpu } (the slot's own lock file, worktree dir and max CPU); lock and dir are checked before desktopGate.
+ * cpuTotal?, minBacklog, maxCpu } (the slot's own lock file, worktree dir and max CPU; cpu the gated load, cpuTotal the
+ * whole machine for the reason only); lock and dir are checked before desktopGate.
  */
 export function desktopSlotGate(s) {
   if (s.lockHeld) return `${s.lockName} held`;
   if (!s.dirOk) return 'worktree missing';
-  return desktopGate(s.backlog, s.cpu, s.minBacklog, s.maxCpu);
+  return desktopGate(s.backlog, s.cpu, s.minBacklog, s.maxCpu, s.cpuTotal);
+}
+
+/**
+ * Whole-machine busy % between two os.cpus() snapshots (user+nice+sys+irq over all times, idle included), rounded and
+ * clamped 0-100; NaN when either is missing, the core count differs or no time passed.
+ */
+export function cpuTotalPct(before, after) {
+  if (!Array.isArray(before) || !Array.isArray(after) || !before.length || before.length !== after.length) return NaN;
+  let busy = 0;
+  let all = 0;
+  for (let i = 0; i < after.length; i++) {
+    const a = before[i]?.times;
+    const b = after[i]?.times;
+    if (!a || !b) return NaN;
+    const d = (k) => (Number(b[k]) || 0) - (Number(a[k]) || 0);
+    const work = d('user') + d('nice') + d('sys') + d('irq');
+    busy += work;
+    all += work + d('idle');
+  }
+  if (!(all > 0)) return NaN;
+  return Math.round(Math.min(100, Math.max(0, (busy / all) * 100)));
+}
+
+/**
+ * Background CPU from service.mjs BG_CPU_PS output: "a <pid> <ms>" lines (first Get-Process snapshot) and "b <pid> <ms>"
+ * (second) for processes below Normal base priority (< 8: BelowNormal 6, Idle 4; pid 0 is left out), plus "el <ms>" (wall
+ * time between the snapshots). Returns { bgMs, elapsedMs }: CPU ms the background processes used in the window, summed
+ * over pids in both snapshots (a pid in only one started, ended or changed priority in the window and is skipped, so
+ * the gate leans toward counting load). elapsedMs is NaN when the el line is missing or not positive.
+ */
+export function backgroundCpuMs(text) {
+  const a = new Map();
+  const b = new Map();
+  let elapsedMs = NaN;
+  for (const line of String(text ?? '').split(/\r?\n/)) {
+    const m = /^\s*([ab])\s+(\d+)\s+(\d+(?:\.\d+)?)\s*$/.exec(line);
+    if (m) {
+      if (m[2] !== '0') (m[1] === 'a' ? a : b).set(m[2], Number(m[3]));
+      continue;
+    }
+    const e = /^\s*el\s+(\d+(?:\.\d+)?)\s*$/.exec(line);
+    if (e && Number(e[1]) > 0) elapsedMs = Number(e[1]);
+  }
+  let bgMs = 0;
+  for (const [pid, ms] of b) if (a.has(pid)) bgMs += Math.max(0, ms - a.get(pid));
+  return { bgMs, elapsedMs };
+}
+
+/**
+ * The CPU % the desktop gates use: total (cpuTotalPct over the same window) minus the background processes' share
+ * (bgMs / (elapsedMs * cores)), rounded and clamped 0-100; NaN when total, elapsedMs or cores is unusable. 2026-10-24
+ * 22:34-23:36: port 4192 started nothing for ~62 min with 5 requests waiting because a BelowNormal Blender bake kept the
+ * machine over its 50% gate; work below Normal priority yields to the e2e run, so it no longer blocks a start.
+ */
+export function gatedCpu({ total, bgMs, elapsedMs, cores }) {
+  if (!Number.isFinite(total) || !(elapsedMs > 0) || !(cores > 0)) return NaN;
+  const bg = ((Number(bgMs) || 0) / (elapsedMs * cores)) * 100;
+  return Math.round(Math.min(100, Math.max(0, total - bg)));
 }
 
 /**
