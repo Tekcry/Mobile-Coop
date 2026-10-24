@@ -1,6 +1,9 @@
 # Guard AI - state
 
 ## Now
+~14:55 SAVE (orchestrator 88%, swap at 100%): every worktree clean and pushed except -coop-carry (agent told to WIP
+commit + push now). Ready from me: #272, #298, #302, #303. Resume block current.
+
 ~14:45: spare job #14 (orchestrator, Marlow's list feature/menu 0bbc71b5): co-op body carry on the CLIENT. Worktree
 C:/NightShift/Mobile-Coop-guard-ai-coop-carry, feature/guard-ai-coop-carry off master 6b44efb8 (npm ci'd; PROTOCOL 48,
 the train bumps). Opus planner + builder RUNNING (slices/COOP-CARRY.md: plan, then build, unit, e2e-coop block). Then 2 Opus
@@ -847,7 +850,13 @@ orchestrator). Green -> `gh pr edit <n> --add-label train-ready` + tell orchestr
    - #303 watchdog cap 90 s 26e55a4e (feature/guard-ai-watchdog-90; LR16 compiles measured to 43.5 s; CI green; #295 merged).
    - #302 S28 + sweep 55592902 (feature/guard-ai-sweep = master + S28 + sweep stall fix; S28.md, S13-SWEEP-FIX/-CHECK;
      laptop sweep-fix2 PASS, looked 1 skipped 0). CI was running at label time.
-3. On a train failure: bisect with single-suite laptop sets on master and the branch head (+ a test-only merge if the
+3. IN PROGRESS: spare job #14 co-op body carry on the client (worktree C:/NightShift/Mobile-Coop-guard-ai-coop-carry,
+   feature/guard-ai-coop-carry off master 6b44efb8, npm ci'd; PROTOCOL 48, the train bumps it). Plan + state in
+   docs/guard-ai/slices/COOP-CARRY.md on that branch (WIP pushed per step). Resume: read COOP-CARRY.md, finish the
+   build with a fresh Opus builder, then 2 Opus checkers (src/net) + laptop e2e-coop, e2e-netmove, e2e-guard-carry;
+   one PR (minor). Guard-render: AI-side skipped (AI 0.004-0.013 ms / guard); Test Runner's PLAN2 may ask for a
+   gameplay-only "dormant" fact. G44 already on master.
+   On a train failure: bisect with single-suite laptop sets on master and the branch head (+ a test-only merge if the
    branch is on an older master), Opus triage at once. Desktop-worker logs: ask the orchestrator for the asserts.
 4. Polish (S24-LEVELS-CHECK): redundant tell(alarmHunt) after spawn in reinforce (enemyManager.ts:979) and parked
    joinReinforcement (:811). Mission reinforcements with nothing known stand at spawn (A148): Michael's call.
