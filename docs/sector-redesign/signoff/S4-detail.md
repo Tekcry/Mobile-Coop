@@ -1,7 +1,7 @@
 # S4 data hall - plan detail (backing for `S4.md`)
 
 Planner: Opus, overnight 2026-10-24. Graph: `docs/sector-redesign/graph/plan/campusOps-S4.json` (17 spaces, 37 links, a
-top-level `sync` array). Plans: `S4-plan-0.svg`, `S4-plan-3.6.svg`, `S4-plan-7.3.svg` (1 m = 10 px, px = (x + 16) * 10,
+top-level `syncs` array). Plans: `S4-plan-0.svg`, `S4-plan-3.6.svg`, `S4-plan-7.3.svg` (1 m = 10 px, px = (x + 16) * 10,
 py = (54 - z) * 10). Before: `before/S4-*.svg`. Source as built: `src/world/maps/campusS4.ts`, `campusS4Data.ts`.
 Code Relay: Marlow's beat chart `origin/feature/mission-framework:docs/missions/prototypes/code-relay/BEAT.md`. Its ids are
 used as given. Relay = Team A, Vault = Team B.
@@ -72,7 +72,7 @@ All shadow, vantage and line-of-sight values are declared targets, measured in g
 - Landmark (one): the NOC window band. It is an 11 m lit strip of screens at 4.6-6.6 m on the hall's north wall, and it frames "the control suite on the north side" from anywhere on the hall floor.
 - Dark by reason: the plenum (nobody works there), the goods lane (on the dock circuit, off after the 03:00 unload), the battery aisles (only the monitor lamp burns), the north corridor, the riser, the hot aisles, and the compound north end (the generator panel is on standby).
 
-## 3. Sync nodes (graph `sync` array; Marlow's ids where he named them)
+## 3. Sync nodes (graph `syncs` array; Marlow's ids where he named them)
 
 | id | kind | space | src | lead | track | helps |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -187,7 +187,7 @@ The remaining S4 WARNs are justified:
    - The named interrogation and the release window are his.
    - So are per-area alarm stages (EN2) and the #20 twist (Guard AI).
    - So are the footage wipe, the leads and the bolt point.
-3. **Marlow's step 2B names `s4-svc`.** That space no longer exists: it is now s4-lobby's goods lane (C1). Marlow's chart needs that id updated.
+3. **CLOSED 2026-10-25:** Marlow's step 2B now runs the s4-lobby goods lane (C1), not the old `s4-svc` (feature/mission-sync 9cb3a627).
 4. **The hall vantage** is the basket run as a whole. No single point reaches 0.7 over 3.0 m pods; one would need a hall gantry at 6 m (+2 h).
 5. **No-alarm rule and the mantrap.** cam-mantrap sees anyone using CR9 unless the desk loop is up. That makes CR9 Relay-dependent for Vault (intended).
 
