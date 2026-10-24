@@ -57,7 +57,7 @@ import { interrogationEnded } from '../game/intel';
 import type { TeamMate } from '../game/teamController';
 import type { PlayerRef } from '../ai/enemy';
 import { joinSpawn, slotSpawn, type SlotPoint, type SpawnBody } from '../game/spawnSlots';
-import { canWalk, spawnProbe, startSlotPoints } from '../game/spawnPlace';
+import { canWalk, offSection, spawnProbe, startSlotPoints } from '../game/spawnPlace';
 import { HALL_BACK_HOLD } from '../game/jammer';
 import { hostTrapKey, openTrapGaps } from '../game/gapMenu';
 import { JOIN_PLACE, JOIN_RESYNC, JOIN_REVIVE_QUIET_S, JoinWatch } from './joinWatch';
@@ -440,6 +440,19 @@ export class CoopHost implements NetAttachment {
     r.allowTeleport(3);
   }
 
+  /**
+   * (mission-framework NET3, belt and braces) Remote `r`'s first state of the match, at (x, y, z): in Sector Ops, a body
+   * outside the current section (`offSection`: away from the checkpoint and no walk to it, e.g. a client that started
+   * at section 0 of a later-start mission) is put at the checkpoint (`joinSpot`), repeated as a `restore` until it
+   * stands there. Every other mode, and a remote in the section, is untouched.
+   */
+  private firstPlace(r: RemotePlayer, x: number, y: number, z: number): void {
+    const mode = this.g.mode;
+    if (mode?.id !== 'sector' || !offSection(this.g, mode.checkpointSpawns?.() ?? [], x, y, z)) return;
+    this.joins.place(r.id, this.joinSpot(r, null), this.time);
+    r.allowTeleport(3);
+  }
+
   /** (coop-rejoin) Where the host puts remote `r` as it (re)joins mid-run (`joinSpawn`, `held`: its held spot). */
   private joinSpot(r: RemotePlayer, held: SlotPoint | null): SlotPoint {
     const g = this.g;
@@ -688,6 +701,8 @@ export class CoopHost implements NetAttachment {
         if (this.rejoining.has(from)) this.resume(r);
         // (coop-rejoin) a client the match went to again: watched for its reload (its old match may still send first)
         if (this.joins.watching(from)) this.joinStep(r, msg.s.x, msg.s.z);
+        // (mission-framework NET3) a remote's first state of the match, outside the current section: placed there
+        else if (!r.state && !this.joins.restoring(from)) this.firstPlace(r, msg.s.x, msg.s.y, msg.s.z);
         if (this.joins.restoring(from)) r.allowTeleport(3);
         r.accept({ ...msg.s, id: from }, this.time, this.g.world.level.anchors, this.g.world.level.coverSegments, this.g.world.doors.list.length, this.g.world.level.opticPoints.length);
         r.avatar.buf.push(this.stateTime(r.id, msg.s.t), r.state!);
@@ -1127,8 +1142,10 @@ export class CoopHost implements NetAttachment {
       return;
     }
     if (kind === 'end') {
+      // (NET3, NET2 check B1) an end's `ss` is its attempt key too (the kit pair's or the hang / rope pair's start; 0
+      // unknown: the host's own, a player down): a stale end crossing a new start is ignored
       const other = this.teamPairs.get(by);
-      if (!other) return;
+      if (!other || !sameAttempt(this.kitPairs.get(by)?.t0 ?? this.pairT0.get(by), ss)) return;
       this.unpair(by, other);
       this.s.send({ t: 'tend', a: by, b: other });
       if (other === self) this.g.team.ended();

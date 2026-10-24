@@ -4,7 +4,7 @@ import { MOVEMENT } from '../config/movement';
 import { G } from '../physics/groups';
 import type { GameState } from './gameState';
 import { SightWorld } from './sectorCheck';
-import { slotSpawn, walkCrossesLocked, type LeafSeg, type SlotPoint, type SlotSpawnKind, type SpawnBody, type SpawnProbe } from './spawnSlots';
+import { JOIN_START_M, slotSpawn, walkCrossesLocked, type LeafSeg, type SlotPoint, type SlotSpawnKind, type SpawnBody, type SpawnProbe } from './spawnSlots';
 import { courseSlotPoints, courseStartCheckpoint } from './modes/courseMode';
 import { missionParam, missionStartSector } from './mission/sectorMission';
 
@@ -92,15 +92,29 @@ export function canWalk(g: GameState, from: SlotPoint, to: { x: number; y: numbe
 }
 
 /**
+ * (mission-framework NET3) A player at (x, y, z) is outside the current section: farther than `JOIN_START_M` from every
+ * point of the `checkpoint` slot points and unable to walk to the first (`canWalk`: a locked connector door between, or
+ * no path). The host's check on a remote's first state in Sector Ops (a client that started in another section).
+ */
+export function offSection(g: GameState, checkpoint: readonly SlotPoint[], x: number, y: number, z: number): boolean {
+  const cp = checkpoint[0];
+  if (!cp) return false;
+  for (const p of checkpoint) if (hyp2(p.x - x, p.z - z) < JOIN_START_M) return false;
+  return !canWalk(g, { x, y, z, yaw: 0 }, cp);
+}
+
+/**
  * (coop-rejoin, walk item 4) The slot points of the area a match starts in: a course's start checkpoint (bay 1: the
  * map's spawns; a bay-N start: that bay's entry airlock), Sector Ops' first section start (`start`, `start2`), else the
  * map's first two player spawns. Slot 0 is the host's, slot 1 the partner's. `bay`: the course bay the match starts at
- * (default this match's; the host passes the bay a late `start` sent the client, `NetSession.lateBay`).
+ * (default this match's; the host passes the bay a late `start` sent the client, `NetSession.lateBay`). `mission`: the
+ * Sector Ops mission whose start section it is (default this page's `?mission=`; (NET3) a co-op client passes the one
+ * the host's `start` carried, null for none).
  */
-export function startSlotPoints(g: GameState, bay = g.opts.courseBay ?? 1): SlotPoint[] {
+export function startSlotPoints(g: GameState, bay = g.opts.courseBay ?? 1, mission: string | null = missionParam()): SlotPoint[] {
   if (g.opts.mode === 'course' && g.world.layout.course) return courseSlotPoints(g, courseStartCheckpoint(g, bay));
   // (mission-framework EN4, A23) a `?mission=` that starts at a later section starts there
-  const s = g.opts.mode === 'sector' ? missionStartSector(g.world.map.sectors, g.world.map.missions, missionParam()) : undefined;
+  const s = g.opts.mode === 'sector' ? missionStartSector(g.world.map.sectors, g.world.map.missions, mission) : undefined;
   if (s) return s.start2 ? [{ ...s.start }, { ...s.start2 }] : [{ ...s.start }];
   return g.world.layout.playerSpawns.slice(0, 2).map((p) => ({ x: p.pos.x, y: p.pos.y, z: p.pos.z, yaw: p.yaw }));
 }
