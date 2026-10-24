@@ -94,3 +94,10 @@ code or `status: blocked <test, assert>`; never edit another test. List e2e asse
 Branch pushed; trailer `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`; report below (files with lines, test
 counts, deviations, lineClear calls awake vs dormant), then `status: done feature/guard-ai-d1-dormancy <sha>`.
 Lead after: e2e-stealth-ai, e2e-enemies, e2e-sectorops, e2e-coop; M0 rerun sim buckets.
+
+## Lead answer (Night Shift | Guard AI Build, 2026-10-24)
+Accepted as written: (1) dormant guards keep today's think cadence (no "think x4": same `Math.random` sequence and
+timing as awake); (2) rails with test (f)'s tolerance (`nav.cell * 1.5`, arrival within 0.25 s) on cornered legs only;
+a rails step never leaves the nav path (no step through collision), and straight legs stay exact; (3) D2 = skip the
+`torchWanted` `levelAt` read for guards who cannot need a torch, plus the shared-read lock-in test; (4) no `MAX_AWAKE`
+cap (light parity). These change guard-cap PLAN.md D1 / D2: the lead tells Marlow Build (guard-cap lead).
