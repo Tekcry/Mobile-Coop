@@ -1,9 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="740" height="1105" viewBox="0 0 740 1105" font-family="monospace" font-size="9">
-<title>Code Relay - S4 Data hall (over S4-plan-0.svg; blue Relay, orange Vault)</title>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="740" height="1013" viewBox="0 0 740 1013" font-family="monospace" font-size="9">
+<title>Code Relay - S4, storey 0 (orange Relay, blue Vault)</title>
 <defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#444"/></marker><marker id="arrowC" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#d0198c"/></marker></defs>
-<rect width="740" height="1105" fill="#ffffff"/>
-<text x="20" y="24" font-size="16" font-weight="bold">Code Relay - S4 Data hall (over S4-plan-0.svg; blue Relay, orange Vault)</text>
-<text x="20" y="40" font-size="10" fill="#444">graph: campusOps-S4.plan-with-areas.json, graph.json   |   16 spaces, 37 links, mode sector, sections S1 S2 S3 S4 S5</text>
+<rect width="740" height="1013" fill="#ffffff"/>
+<text x="20" y="24" font-size="16" font-weight="bold">Code Relay - S4, storey 0 (orange Relay, blue Vault)</text>
+<text x="20" y="40" font-size="10" fill="#444">graph: campusOps-S4-plan-0.json, code-relay-0.json   |   12 spaces, 18 links, mode sector, sections S4</text>
 <text x="20" y="54" font-size="10" fill="#444">scale 1 m = 10 px | north up: +z up the page, +x to the right | grid every 10 m, labels in world metres (x along the top, z down the left)</text>
 <text x="20" y="68" font-size="10" fill="#1f4e9c">mission codeRelay | sector | players [1,2,3,4] | start s4-dock | budget 17</text>
 <g id="plan" transform="translate(20,72)">
@@ -420,7 +420,7 @@
 <path d="M400,376 L452.0,346.0 A60,60 0 0 0 348.0,346.0 Z" fill="#2a8fd8" fill-opacity="0.12" stroke="#2a8fd8" stroke-width="0.8" stroke-dasharray="2,2"/>
 <polygon points="400,371 405,380 395,380" fill="#2a8fd8" stroke="#fff" stroke-width="0.8"/>
 <text x="407" y="370" fill="#1a5f98" font-size="7">dock</text>
-<path d="M293,372 L235.1,303.1 A90,90 0 0 0 208.4,402.8 Z" fill="#2a8fd8" fill-opacity="0.12" stroke="#2a8fd8" stroke-width="0.8" stroke-dasharray="2,2"/>
+<path d="M293,372 L213.5,329.7 A90,90 0 0 0 205.0,390.7 Z" fill="#2a8fd8" fill-opacity="0.12" stroke="#2a8fd8" stroke-width="0.8" stroke-dasharray="2,2"/>
 <polygon points="293,367 298,376 288,376" fill="#2a8fd8" stroke="#fff" stroke-width="0.8"/>
 <text x="300" y="366" fill="#1a5f98" font-size="7">lobby</text>
 <path d="M114,355 L154.2,297.7 A70,70 0 0 0 64.5,305.5 Z" fill="#2a8fd8" fill-opacity="0.12" stroke="#2a8fd8" stroke-width="0.8" stroke-dasharray="2,2"/>
@@ -502,8 +502,8 @@
 <g transform="translate(498,32)"><polygon points="7,-6 9,-2 13,-2 10,1 11,6 7,3 3,6 4,1 1,-2 5,-2" fill="#f2c200" stroke="#222"/><text x="20" y="3" font-size="8" fill="#111">landmark</text></g>
 <g transform="translate(10,43)"><polygon points="7,-5 12,4 2,4" fill="#2a8fd8"/><text x="20" y="3" font-size="8" fill="#111">vantage + view</text></g>
 <g transform="translate(132,43)"><circle cx="7" cy="0" r="5" fill="none" stroke="#000" stroke-width="2.5"/><text x="20" y="3" font-size="8" fill="#111">choke</text></g>
-<g transform="translate(254,43)"><circle cx="7" cy="0" r="3.5" fill="#d01818"/><text x="20" y="3" font-size="8" fill="#111">guard (* new, hollow dormant)</text></g>
-<g transform="translate(376,43)"><rect x="4" y="-3" width="6" height="6" fill="#fff" stroke="#222"/><text x="20" y="3" font-size="8" fill="#111">new / moved door</text></g>
+<g transform="translate(254,43)"><circle cx="7" cy="0" r="3.5" fill="#d01818"/><text x="20" y="3" font-size="8" fill="#111">guard (*new, o dormant)</text></g>
+<g transform="translate(376,43)"><rect x="4" y="-3" width="6" height="6" fill="#fff" stroke="#222"/><text x="20" y="3" font-size="8" fill="#111">new/moved door</text></g>
 <text x="8" y="57" font-size="8" fill="#111" font-weight="bold">S4 PLAN y 0 - Code Relay: Relay = A (orange), Vault = B (blue), both out by the UPS room and C4</text>
 </g>
 </svg></g>
@@ -521,20 +521,18 @@
 <line x1="0" y1="200" x2="700" y2="200" stroke="#d6d2c4" stroke-width="0.5"/><text x="2" y="198" font-size="7" fill="#9a9482">40</text>
 <line x1="0" y1="100" x2="700" y2="100" stroke="#d6d2c4" stroke-width="1"/><text x="2" y="98" font-size="7" fill="#9a9482">50</text>
 <line x1="0" y1="0" x2="700" y2="0" stroke="#d6d2c4" stroke-width="0.5"/><text x="2" y="-2" font-size="7" fill="#9a9482">60</text>
-<rect x="340" y="380" width="200" height="60" fill="#e6a93c" fill-opacity="0.6" stroke="#333" stroke-width="1.2" data-space="s4-dock"/>
-<rect x="160" y="380" width="180" height="60" fill="#e6a93c" fill-opacity="0.6" stroke="#333" stroke-width="1.2" data-space="s4-lobby"/>
+<rect x="340" y="380" width="200" height="60" fill="#5b9bea" fill-opacity="0.6" stroke="#333" stroke-width="1.2" data-space="s4-dock"/>
+<rect x="160" y="380" width="180" height="60" fill="#5b9bea" fill-opacity="0.6" stroke="#333" stroke-width="1.2" data-space="s4-lobby"/>
 <rect x="280" y="380" width="30" height="30" fill="#9fb4c7" fill-opacity="0.6" stroke="#333" stroke-width="1.2" data-space="s4-mantrap"/>
-<rect x="100" y="325" width="60" height="115" fill="#e6a93c" fill-opacity="0.6" stroke="#333" stroke-width="1.2" data-space="s4-batt"/>
-<rect x="540" y="120" width="60" height="320" fill="#5b9bea" fill-opacity="0.6" stroke="#333" stroke-width="1.2" data-space="s4-yard"/>
-<rect x="505" y="120" width="35" height="60" fill="#5b9bea" fill-opacity="0.6" stroke="#333" stroke-width="1.2" data-space="s4-riser"/>
-<rect x="280" y="120" width="225" height="60" fill="#5b9bea" fill-opacity="0.6" stroke="#333" stroke-width="1.2" data-space="s4-nc"/>
-<rect x="160" y="120" width="120" height="60" fill="#5b9bea" fill-opacity="0.6" stroke="#333" stroke-width="1.2" data-space="s4-sec"/>
-<rect x="160" y="180" width="380" height="200" fill="#e6a93c" fill-opacity="0.6" stroke="#333" stroke-width="1.2" data-space="s4-hall"/>
+<rect x="100" y="325" width="60" height="115" fill="#5b9bea" fill-opacity="0.6" stroke="#333" stroke-width="1.2" data-space="s4-batt"/>
+<rect x="540" y="120" width="60" height="320" fill="#e6a93c" fill-opacity="0.6" stroke="#333" stroke-width="1.2" data-space="s4-yard"/>
+<rect x="505" y="120" width="35" height="60" fill="#e6a93c" fill-opacity="0.6" stroke="#333" stroke-width="1.2" data-space="s4-riser"/>
+<rect x="280" y="120" width="225" height="60" fill="#e6a93c" fill-opacity="0.6" stroke="#333" stroke-width="1.2" data-space="s4-nc"/>
+<rect x="160" y="120" width="120" height="60" fill="#e6a93c" fill-opacity="0.6" stroke="#333" stroke-width="1.2" data-space="s4-sec"/>
+<rect x="160" y="180" width="380" height="200" fill="#5b9bea" fill-opacity="0.6" stroke="#333" stroke-width="1.2" data-space="s4-hall"/>
 <rect x="100" y="120" width="60" height="170" fill="#9fb4c7" fill-opacity="0.6" stroke="#333" stroke-width="1.2" data-space="s4-ups"/>
-<rect x="340" y="200" width="80" height="60" fill="#e6a93c" fill-opacity="0.6" stroke="#333" stroke-width="1.2" data-space="s4-cage"/>
+<rect x="340" y="200" width="80" height="60" fill="#5b9bea" fill-opacity="0.6" stroke="#333" stroke-width="1.2" data-space="s4-cage"/>
 <rect x="100" y="290" width="60" height="35" fill="#9fb4c7" fill-opacity="0.6" stroke="#333" stroke-width="1.2" data-space="s4-cc"/>
-<rect x="160" y="120" width="120" height="60" fill="#5b9bea" fill-opacity="0.5" stroke="#333" stroke-width="1" stroke-dasharray="4 2" data-space="s4-noc"/>
-<rect x="440" y="120" width="100" height="320" fill="#5b9bea" fill-opacity="0.5" stroke="#333" stroke-width="1" stroke-dasharray="4 2" data-space="s4-deck"/>
 <polyline points="440,410 345,410 250,410" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="345" cy="410" r="1.8" fill="#444"/>
 <polyline points="440,410 505,345 570,280" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="505" cy="345" r="1.8" fill="#444"/>
 <polyline points="250,410 272.5,402.5 295,395" fill="none" stroke="#d0198c" stroke-width="2.2" stroke-opacity="0.85"/><circle cx="272.5" cy="402.5" r="2.6" fill="#d0198c"/>
@@ -550,11 +548,6 @@
 <polyline points="220,150 306.3,150 392.5,150" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="306.3" cy="150" r="1.8" fill="#444"/>
 <polyline points="392.5,150 457.5,150 522.5,150" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="457.5" cy="150" r="1.8" fill="#444"/>
 <polyline points="570,280 460,280 350,280" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="460" cy="280" r="1.8" fill="#444"/>
-<polyline points="220,150 220,150 220,150" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="220" cy="150" r="1.8" fill="#444"/>
-<polyline points="220,150 355,215 490,280" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="355" cy="215" r="1.8" fill="#444"/>
-<polyline points="220,150 306.3,150 392.5,150" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="306.3" cy="150" r="1.8" fill="#444"/>
-<polyline points="570,280 530,280 490,280" fill="none" stroke="#d0198c" stroke-width="2.2" stroke-opacity="0.85" marker-end="url(#arrowC)"/><circle cx="530" cy="280" r="2.6" fill="#d0198c"/>
-<polyline points="490,280 530,268 570,280" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85" marker-end="url(#arrow)"/><circle cx="530" cy="268" r="1.8" fill="#444"/>
 <polyline points="570,280 546.3,215 522.5,150" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="546.3" cy="215" r="1.8" fill="#444"/>
 <polyline points="350,280 365,255 380,230" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="365" cy="255" r="1.8" fill="#444"/>
 <polyline points="350,280 354.7,248.8 380,230" fill="none" stroke="#d0198c" stroke-width="2.2" stroke-opacity="0.85"/><circle cx="354.7" cy="248.8" r="2.6" fill="#d0198c"/>
@@ -573,11 +566,6 @@
 <rect x="296.3" y="139" width="20" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="306.3" y="146" text-anchor="middle" font-size="7" fill="#333">door</text>
 <rect x="447.5" y="139" width="20" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="457.5" y="146" text-anchor="middle" font-size="7" fill="#333">door</text>
 <rect x="450" y="269" width="20" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="460" y="276" text-anchor="middle" font-size="7" fill="#333">door</text>
-<rect x="204" y="139" width="32" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="220" y="146" text-anchor="middle" font-size="7" fill="#333">f-stair</text>
-<rect x="341" y="204" width="28" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="355" y="211" text-anchor="middle" font-size="7" fill="#333">ladder</text>
-<rect x="292.3" y="139" width="28" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="306.3" y="146" text-anchor="middle" font-size="7" fill="#333">ladder</text>
-<rect x="518" y="269" width="24" height="9" rx="2" fill="#fde1f1" fill-opacity="0.85" stroke="#d0198c" stroke-width="0.6"/><text x="530" y="276" text-anchor="middle" font-size="7" font-weight="bold" fill="#d0198c">boost</text>
-<rect x="520" y="257" width="20" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="530" y="264" text-anchor="middle" font-size="7" fill="#333">drop</text>
 <rect x="536.3" y="204" width="20" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="546.3" y="211" text-anchor="middle" font-size="7" fill="#333">door</text>
 <rect x="355" y="244" width="20" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="365" y="251" text-anchor="middle" font-size="7" fill="#333">door</text>
 <rect x="334.7" y="237.8" width="40" height="9" rx="2" fill="#fde1f1" fill-opacity="0.85" stroke="#d0198c" stroke-width="0.6"/><text x="354.7" y="244.8" text-anchor="middle" font-size="7" font-weight="bold" fill="#d0198c">pair-gate</text>
@@ -593,36 +581,29 @@
 <text x="130" y="208" text-anchor="middle" font-size="8" font-weight="bold" fill="#111" stroke="#fff" stroke-width="2.5" paint-order="stroke">s4-ups</text>
 <text x="380" y="233" text-anchor="middle" font-size="8" font-weight="bold" fill="#111" stroke="#fff" stroke-width="2.5" paint-order="stroke">s4-cage</text>
 <text x="130" y="310.5" text-anchor="middle" font-size="8" font-weight="bold" fill="#111" stroke="#fff" stroke-width="2.5" paint-order="stroke">s4-cc</text>
-<text x="220" y="162" text-anchor="middle" font-size="8" font-weight="bold" fill="#111" stroke="#fff" stroke-width="2.5" paint-order="stroke">s4-noc @3.6</text>
-<text x="490" y="283" text-anchor="middle" font-size="8" font-weight="bold" fill="#111" stroke="#fff" stroke-width="2.5" paint-order="stroke">s4-deck @7.3</text>
-<circle cx="481.5" cy="267" r="7" fill="#1f4e9c" stroke="#fff" stroke-width="1.2"/><text x="481.5" y="270" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">1</text>
-<circle cx="406" cy="397" r="7" fill="#1f4e9c" stroke="#fff" stroke-width="1.2"/><text x="406" y="400" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">2</text>
-<circle cx="194.5" cy="137" r="7" fill="#1f4e9c" stroke="#fff" stroke-width="1.2"/><text x="194.5" y="140" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">3</text>
-<circle cx="363" cy="217" r="7" fill="#1f4e9c" stroke="#fff" stroke-width="1.2"/><text x="363" y="220" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">4</text>
-<circle cx="203" cy="137" r="7" fill="#1f4e9c" stroke="#fff" stroke-width="1.2"/><text x="203" y="140" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">5</text>
-<circle cx="380" cy="217" r="7" fill="#1f4e9c" stroke="#fff" stroke-width="1.2"/><text x="380" y="220" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">6</text>
-<circle cx="324.5" cy="267" r="7" fill="#1f4e9c" stroke="#fff" stroke-width="1.2"/><text x="324.5" y="270" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">7</text>
-<circle cx="211.5" cy="137" r="7" fill="#1f4e9c" stroke="#fff" stroke-width="1.2"/><text x="211.5" y="140" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">8</text>
-<circle cx="130" cy="294.5" r="7" fill="#1f4e9c" stroke="#fff" stroke-width="1.2"/><text x="130" y="297.5" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">9</text>
-<polygon points="423,389 431,397 423,405 415,397" fill="#7a3fa0" stroke="#fff" stroke-width="1.2"/><text x="423" y="400" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">10</text>
-<polygon points="228.5,129 236.5,137 228.5,145 220.5,137" fill="#7a3fa0" stroke="#fff" stroke-width="1.2"/><text x="228.5" y="140" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">11</text>
-<polygon points="220,129 228,137 220,145 212,137" fill="#7a3fa0" stroke="#fff" stroke-width="1.2"/><text x="220" y="140" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">12</text>
-<polygon points="397,209 405,217 397,225 389,217" fill="#7a3fa0" stroke="#fff" stroke-width="1.2"/><text x="397" y="220" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">13</text>
-<polygon points="121.5,361.5 129.5,369.5 121.5,377.5 113.5,369.5" fill="#7a3fa0" stroke="#fff" stroke-width="1.2"/><text x="121.5" y="372.5" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">14</text>
-<polygon points="440,389 448,397 440,405 432,397" fill="#7a3fa0" stroke="#fff" stroke-width="1.2"/><text x="440" y="400" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">15</text>
-<rect x="563.5" y="260.5" width="13" height="13" fill="#0b7a75" stroke="#fff" stroke-width="1.2"/><text x="570" y="270" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">16</text>
-<rect x="369" y="130.5" width="13" height="13" fill="#0b7a75" stroke="#fff" stroke-width="1.2"/><text x="375.5" y="140" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">18</text>
-<rect x="335" y="260.5" width="13" height="13" fill="#0b7a75" stroke="#fff" stroke-width="1.2"/><text x="341.5" y="270" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">19</text>
-<rect x="239" y="130.5" width="13" height="13" fill="#0b7a75" stroke="#fff" stroke-width="1.2"/><text x="245.5" y="140" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">20</text>
-<rect x="352" y="260.5" width="13" height="13" fill="#0b7a75" stroke="#fff" stroke-width="1.2"/><text x="358.5" y="270" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">21</text>
-<rect x="230.5" y="130.5" width="13" height="13" fill="#0b7a75" stroke="#fff" stroke-width="1.2"/><text x="237" y="140" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">22</text>
-<rect x="386" y="130.5" width="13" height="13" fill="#0b7a75" stroke="#fff" stroke-width="1.2"/><text x="392.5" y="140" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">23</text>
-<rect x="450.5" y="390.5" width="13" height="13" fill="#0b7a75" stroke="#fff" stroke-width="1.2"/><text x="457" y="400" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">24</text>
-<rect x="403" y="130.5" width="13" height="13" fill="#0b7a75" stroke="#fff" stroke-width="1.2"/><text x="409.5" y="140" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">25</text>
-<rect x="492" y="260.5" width="13" height="13" fill="#0b7a75" stroke="#fff" stroke-width="1.2"/><text x="498.5" y="270" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">26</text>
-<rect x="369" y="260.5" width="13" height="13" fill="#0b7a75" stroke="#fff" stroke-width="1.2"/><text x="375.5" y="270" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">27</text>
-<rect x="132" y="363" width="13" height="13" fill="#0b7a75" stroke="#fff" stroke-width="1.2"/><text x="138.5" y="372.5" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">28</text>
-<rect x="467.5" y="390.5" width="13" height="13" fill="#0b7a75" stroke="#fff" stroke-width="1.2"/><text x="474" y="400" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">29</text>
+<text x="130" y="318.5" text-anchor="middle" font-size="7" font-weight="bold" fill="#0a6a2a" stroke="#fff" stroke-width="2" paint-order="stroke">EXFIL</text>
+<circle cx="406" cy="397" r="7" fill="#1f4e9c" stroke="#fff" stroke-width="1.2"/><text x="406" y="400" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">1</text>
+<circle cx="203" cy="137" r="7" fill="#1f4e9c" stroke="#fff" stroke-width="1.2"/><text x="203" y="140" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">2</text>
+<circle cx="363" cy="217" r="7" fill="#1f4e9c" stroke="#fff" stroke-width="1.2"/><text x="363" y="220" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">3</text>
+<circle cx="380" cy="217" r="7" fill="#1f4e9c" stroke="#fff" stroke-width="1.2"/><text x="380" y="220" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">4</text>
+<circle cx="324.5" cy="267" r="7" fill="#1f4e9c" stroke="#fff" stroke-width="1.2"/><text x="324.5" y="270" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">5</text>
+<circle cx="220" cy="137" r="7" fill="#1f4e9c" stroke="#fff" stroke-width="1.2"/><text x="220" y="140" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">6</text>
+<circle cx="130" cy="294.5" r="7" fill="#1f4e9c" stroke="#fff" stroke-width="1.2"/><text x="130" y="297.5" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">7</text>
+<polygon points="423,389 431,397 423,405 415,397" fill="#7a3fa0" stroke="#fff" stroke-width="1.2"/><text x="423" y="400" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">8</text>
+<polygon points="237,129 245,137 237,145 229,137" fill="#7a3fa0" stroke="#fff" stroke-width="1.2"/><text x="237" y="140" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">9</text>
+<polygon points="397,209 405,217 397,225 389,217" fill="#7a3fa0" stroke="#fff" stroke-width="1.2"/><text x="397" y="220" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">10</text>
+<polygon points="121.5,361.5 129.5,369.5 121.5,377.5 113.5,369.5" fill="#7a3fa0" stroke="#fff" stroke-width="1.2"/><text x="121.5" y="372.5" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">11</text>
+<polygon points="440,389 448,397 440,405 432,397" fill="#7a3fa0" stroke="#fff" stroke-width="1.2"/><text x="440" y="400" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">12</text>
+<rect x="243.5" y="390.5" width="13" height="13" fill="#0b7a75" stroke="#fff" stroke-width="1.2"/><text x="250" y="400" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">13</text>
+<rect x="369" y="130.5" width="13" height="13" fill="#0b7a75" stroke="#fff" stroke-width="1.2"/><text x="375.5" y="140" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">14</text>
+<rect x="335" y="260.5" width="13" height="13" fill="#0b7a75" stroke="#fff" stroke-width="1.2"/><text x="341.5" y="270" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">15</text>
+<rect x="352" y="260.5" width="13" height="13" fill="#0b7a75" stroke="#fff" stroke-width="1.2"/><text x="358.5" y="270" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">16</text>
+<rect x="386" y="130.5" width="13" height="13" fill="#0b7a75" stroke="#fff" stroke-width="1.2"/><text x="392.5" y="140" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">18</text>
+<rect x="450.5" y="390.5" width="13" height="13" fill="#0b7a75" stroke="#fff" stroke-width="1.2"/><text x="457" y="400" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">19</text>
+<rect x="403" y="130.5" width="13" height="13" fill="#0b7a75" stroke="#fff" stroke-width="1.2"/><text x="409.5" y="140" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">20</text>
+<rect x="369" y="260.5" width="13" height="13" fill="#0b7a75" stroke="#fff" stroke-width="1.2"/><text x="375.5" y="270" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">21</text>
+<rect x="132" y="363" width="13" height="13" fill="#0b7a75" stroke="#fff" stroke-width="1.2"/><text x="138.5" y="372.5" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">22</text>
+<rect x="467.5" y="390.5" width="13" height="13" fill="#0b7a75" stroke="#fff" stroke-width="1.2"/><text x="474" y="400" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">23</text>
 <rect x="4" y="474" width="118" height="22" fill="#fff" fill-opacity="0.85" stroke="#999" stroke-width="0.5"/><line x1="10" y1="488" x2="110" y2="488" stroke="#111" stroke-width="2"/><line x1="10" y1="484" x2="10" y2="492" stroke="#111" stroke-width="1.5"/><line x1="110" y1="484" x2="110" y2="492" stroke="#111" stroke-width="1.5"/><text x="60" y="484" text-anchor="middle" font-size="8" fill="#111">10 m</text>
 <g transform="translate(684,24)"><polygon points="0,-12 5,4 0,1 -5,4" fill="#111"/><text y="16" text-anchor="middle" font-size="8" fill="#111">N</text></g>
 </g>
@@ -640,36 +621,29 @@
 <ellipse cx="8" cy="41" rx="7" ry="4" fill="#fff" stroke="#222"/><circle cx="8" cy="41" r="2" fill="#222"/><text x="22" y="45" font-size="9">vantage.at (dashed line to the observed space, sees %)</text>
 <circle cx="330" cy="41" r="6" fill="#1f4e9c"/><text x="342" y="45" font-size="9">objective</text><polygon points="400,34 408,41 400,48 392,41" fill="#7a3fa0"/><text x="414" y="45" font-size="9">sync</text><rect x="452" y="35" width="12" height="12" fill="#0b7a75"/><text x="470" y="45" font-size="9">lead</text>
 <text x="0" y="67" font-size="9" font-weight="bold">#</text><text x="26" y="67" font-size="9" font-weight="bold">node</text><text x="86" y="67" font-size="9" font-weight="bold">id</text><text x="250" y="67" font-size="9" font-weight="bold">space</text><text x="400" y="67" font-size="9" font-weight="bold">detail</text><line x1="0" y1="71" x2="660" y2="71" stroke="#999" stroke-width="0.5"/>
-<text x="0" y="81" font-size="9" fill="#1f4e9c" font-weight="bold">1</text><text x="26" y="81" font-size="9">objective</text><text x="86" y="81" font-size="9">cr-1a</text><text x="250" y="81" font-size="9">s4-deck</text><text x="400" y="81" font-size="9" fill="#333">intel, team a, S4</text>
-<text x="0" y="94" font-size="9" fill="#1f4e9c" font-weight="bold">2</text><text x="26" y="94" font-size="9">objective</text><text x="86" y="94" font-size="9">cr-1b</text><text x="250" y="94" font-size="9">s4-dock</text><text x="400" y="94" font-size="9" fill="#333">intel, team b, S4</text>
-<text x="0" y="107" font-size="9" fill="#1f4e9c" font-weight="bold">3</text><text x="26" y="107" font-size="9">objective</text><text x="86" y="107" font-size="9">cr-2a</text><text x="250" y="107" font-size="9">s4-sec</text><text x="400" y="107" font-size="9" fill="#333">sync, team a, S4, after cr-1a,cr-1b</text>
-<text x="0" y="120" font-size="9" fill="#1f4e9c" font-weight="bold">4</text><text x="26" y="120" font-size="9">objective</text><text x="86" y="120" font-size="9">cr-2b</text><text x="250" y="120" font-size="9">s4-cage</text><text x="400" y="120" font-size="9" fill="#333">reach, team b, S4, after cr-1b</text>
-<text x="0" y="133" font-size="9" fill="#1f4e9c" font-weight="bold">5</text><text x="26" y="133" font-size="9">objective</text><text x="86" y="133" font-size="9">cr-3a</text><text x="250" y="133" font-size="9">s4-noc</text><text x="400" y="133" font-size="9" fill="#333">interrogate, team a, S4, after cr-2a</text>
-<text x="0" y="146" font-size="9" fill="#1f4e9c" font-weight="bold">6</text><text x="26" y="146" font-size="9">objective</text><text x="86" y="146" font-size="9">cr-3b</text><text x="250" y="146" font-size="9">s4-cage</text><text x="400" y="146" font-size="9" fill="#333">exploit, team b, S4, after cr-3a,cr-2b</text>
-<text x="0" y="159" font-size="9" fill="#1f4e9c" font-weight="bold">7</text><text x="26" y="159" font-size="9">objective</text><text x="86" y="159" font-size="9">cr-4</text><text x="250" y="159" font-size="9">s4-hall</text><text x="400" y="159" font-size="9" fill="#333">interact, team all, S4, after cr-3a, twist</text>
-<text x="0" y="172" font-size="9" fill="#1f4e9c" font-weight="bold">8</text><text x="26" y="172" font-size="9">objective</text><text x="86" y="172" font-size="9">cr-opt</text><text x="250" y="172" font-size="9">s4-sec</text><text x="400" y="172" font-size="9" fill="#333">interact, team a, S4, after cr-2a, optional</text>
-<text x="0" y="185" font-size="9" fill="#1f4e9c" font-weight="bold">9</text><text x="26" y="185" font-size="9">objective</text><text x="86" y="185" font-size="9">cr-5</text><text x="250" y="185" font-size="9">s4-cc</text><text x="400" y="185" font-size="9" fill="#333">extract, team all, S4, after cr-3b,cr-4</text>
-<text x="0" y="198" font-size="9" fill="#7a3fa0" font-weight="bold">10</text><text x="26" y="198" font-size="9">sync</text><text x="86" y="198" font-size="9">sync-s4-dockboard</text><text x="250" y="198" font-size="9">s4-dock</text><text x="400" y="198" font-size="9" fill="#333">code_source, src campusS4Data.ts:202 (S4_SECTOR.intel board a~</text>
-<text x="0" y="211" font-size="9" fill="#7a3fa0" font-weight="bold">11</text><text x="26" y="211" font-size="9">sync</text><text x="86" y="211" font-size="9">sync-s4-desk</text><text x="250" y="211" font-size="9">s4-sec</text><text x="400" y="211" font-size="9" fill="#333">camera_loop, src campusS4Data.ts:164-166 (S4_DESKS desk-sec4:~</text>
-<text x="0" y="224" font-size="9" fill="#7a3fa0" font-weight="bold">12</text><text x="26" y="224" font-size="9">sync</text><text x="86" y="224" font-size="9">sync-s4-noc</text><text x="250" y="224" font-size="9">s4-noc</text><text x="400" y="224" font-size="9" fill="#333">code_source, src planned (the NOC console release, issued by ~</text>
-<text x="0" y="237" font-size="9" fill="#7a3fa0" font-weight="bold">13</text><text x="26" y="237" font-size="9">sync</text><text x="86" y="237" font-size="9">sync-s4-cagekp</text><text x="250" y="237" font-size="9">s4-cage</text><text x="400" y="237" font-size="9" fill="#333">code_sink, src planned (release prompt on the cage terminal (~</text>
-<text x="0" y="250" font-size="9" fill="#7a3fa0" font-weight="bold">14</text><text x="26" y="250" font-size="9">sync</text><text x="86" y="250" font-size="9">sync-s4-ess-board</text><text x="250" y="250" font-size="9">s4-batt</text><text x="400" y="250" font-size="9" fill="#333">power_cut, src planned (BoardDef pattern of S4_BOARDS, campus~</text>
-<text x="0" y="263" font-size="9" fill="#7a3fa0" font-weight="bold">15</text><text x="26" y="263" font-size="9">sync</text><text x="86" y="263" font-size="9">sync-s4-yard-board</text><text x="250" y="263" font-size="9">s4-dock</text><text x="400" y="263" font-size="9" fill="#333">power_cut, src campusS4.ts:164 (S4_BOARDS compound board, win~</text>
-<text x="0" y="276" font-size="9" fill="#0b7a75" font-weight="bold">16</text><text x="26" y="276" font-size="9">lead</text><text x="86" y="276" font-size="9">lead:cr-1a</text><text x="250" y="276" font-size="9">s4-yard</text><text x="400" y="276" font-size="9" fill="#333">lead for objective 1 (cr-1a)</text>
-<text x="0" y="289" font-size="9" fill="#0b7a75" font-weight="bold">17</text><text x="26" y="289" font-size="9">lead</text><text x="86" y="289" font-size="9">lead:cr-1b</text><text x="250" y="289" font-size="9" fill="#b00020">s3-dock (not drawn)</text><text x="400" y="289" font-size="9" fill="#333">lead for objective 2 (cr-1b)</text>
-<text x="0" y="302" font-size="9" fill="#0b7a75" font-weight="bold">18</text><text x="26" y="302" font-size="9">lead</text><text x="86" y="302" font-size="9">lead:cr-2a</text><text x="250" y="302" font-size="9">s4-nc</text><text x="400" y="302" font-size="9" fill="#333">lead for objective 3 (cr-2a)</text>
-<text x="0" y="315" font-size="9" fill="#0b7a75" font-weight="bold">19</text><text x="26" y="315" font-size="9">lead</text><text x="86" y="315" font-size="9">lead:cr-2b</text><text x="250" y="315" font-size="9">s4-hall</text><text x="400" y="315" font-size="9" fill="#333">lead for objective 4 (cr-2b)</text>
-<text x="0" y="328" font-size="9" fill="#0b7a75" font-weight="bold">20</text><text x="26" y="328" font-size="9">lead</text><text x="86" y="328" font-size="9">lead:cr-3a</text><text x="250" y="328" font-size="9">s4-sec</text><text x="400" y="328" font-size="9" fill="#333">lead for objective 5 (cr-3a)</text>
-<text x="0" y="341" font-size="9" fill="#0b7a75" font-weight="bold">21</text><text x="26" y="341" font-size="9">lead</text><text x="86" y="341" font-size="9">lead:cr-3b</text><text x="250" y="341" font-size="9">s4-hall</text><text x="400" y="341" font-size="9" fill="#333">lead for objective 6 (cr-3b)</text>
-<text x="0" y="354" font-size="9" fill="#0b7a75" font-weight="bold">22</text><text x="26" y="354" font-size="9">lead</text><text x="86" y="354" font-size="9">lead:cr-4</text><text x="250" y="354" font-size="9">s4-noc</text><text x="400" y="354" font-size="9" fill="#333">lead for objective 7 (cr-4)</text>
-<text x="0" y="367" font-size="9" fill="#0b7a75" font-weight="bold">23</text><text x="26" y="367" font-size="9">lead</text><text x="86" y="367" font-size="9">lead:cr-opt</text><text x="250" y="367" font-size="9">s4-nc</text><text x="400" y="367" font-size="9" fill="#333">lead for objective 8 (cr-opt)</text>
-<text x="0" y="380" font-size="9" fill="#0b7a75" font-weight="bold">24</text><text x="26" y="380" font-size="9">lead</text><text x="86" y="380" font-size="9">lead:sync-s4-dockboard</text><text x="250" y="380" font-size="9">s4-dock</text><text x="400" y="380" font-size="9" fill="#333">lead for sync sync-s4-dockboard</text>
-<text x="0" y="393" font-size="9" fill="#0b7a75" font-weight="bold">25</text><text x="26" y="393" font-size="9">lead</text><text x="86" y="393" font-size="9">lead:sync-s4-desk</text><text x="250" y="393" font-size="9">s4-nc</text><text x="400" y="393" font-size="9" fill="#333">lead for sync sync-s4-desk</text>
-<text x="0" y="406" font-size="9" fill="#0b7a75" font-weight="bold">26</text><text x="26" y="406" font-size="9">lead</text><text x="86" y="406" font-size="9">lead:sync-s4-noc</text><text x="250" y="406" font-size="9">s4-deck</text><text x="400" y="406" font-size="9" fill="#333">lead for sync sync-s4-noc</text>
-<text x="0" y="419" font-size="9" fill="#0b7a75" font-weight="bold">27</text><text x="26" y="419" font-size="9">lead</text><text x="86" y="419" font-size="9">lead:sync-s4-cagekp</text><text x="250" y="419" font-size="9">s4-hall</text><text x="400" y="419" font-size="9" fill="#333">lead for sync sync-s4-cagekp</text>
-<text x="0" y="432" font-size="9" fill="#0b7a75" font-weight="bold">28</text><text x="26" y="432" font-size="9">lead</text><text x="86" y="432" font-size="9">lead:sync-s4-ess-board</text><text x="250" y="432" font-size="9">s4-batt</text><text x="400" y="432" font-size="9" fill="#333">lead for sync sync-s4-ess-board</text>
-<text x="0" y="445" font-size="9" fill="#0b7a75" font-weight="bold">29</text><text x="26" y="445" font-size="9">lead</text><text x="86" y="445" font-size="9">lead:sync-s4-yard-board</text><text x="250" y="445" font-size="9">s4-dock</text><text x="400" y="445" font-size="9" fill="#333">lead for sync sync-s4-yard-board</text>
-<text x="0" y="464" font-size="9" fill="#333">rules: noAlarms (mission); namedTarget (a); noBodies (b)</text>
-<text x="0" y="478" font-size="9" fill="#b00020">not drawn (no usable area): s4-plenum, s4-baskets | 14 link(s) skipped (an end has no area)</text>
+<text x="0" y="81" font-size="9" fill="#1f4e9c" font-weight="bold">1</text><text x="26" y="81" font-size="9">objective</text><text x="86" y="81" font-size="9">cr-1b</text><text x="250" y="81" font-size="9">s4-dock</text><text x="400" y="81" font-size="9" fill="#333">intel, team b, S4</text>
+<text x="0" y="94" font-size="9" fill="#1f4e9c" font-weight="bold">2</text><text x="26" y="94" font-size="9">objective</text><text x="86" y="94" font-size="9">cr-2a</text><text x="250" y="94" font-size="9">s4-sec</text><text x="400" y="94" font-size="9" fill="#333">sync, team a, S4, after cr-1a,cr-1b</text>
+<text x="0" y="107" font-size="9" fill="#1f4e9c" font-weight="bold">3</text><text x="26" y="107" font-size="9">objective</text><text x="86" y="107" font-size="9">cr-2b</text><text x="250" y="107" font-size="9">s4-cage</text><text x="400" y="107" font-size="9" fill="#333">reach, team b, S4, after cr-1b</text>
+<text x="0" y="120" font-size="9" fill="#1f4e9c" font-weight="bold">4</text><text x="26" y="120" font-size="9">objective</text><text x="86" y="120" font-size="9">cr-3b</text><text x="250" y="120" font-size="9">s4-cage</text><text x="400" y="120" font-size="9" fill="#333">exploit, team b, S4, after cr-3a,cr-2b</text>
+<text x="0" y="133" font-size="9" fill="#1f4e9c" font-weight="bold">5</text><text x="26" y="133" font-size="9">objective</text><text x="86" y="133" font-size="9">cr-4</text><text x="250" y="133" font-size="9">s4-hall</text><text x="400" y="133" font-size="9" fill="#333">interact, team all, S4, after cr-3a, twist</text>
+<text x="0" y="146" font-size="9" fill="#1f4e9c" font-weight="bold">6</text><text x="26" y="146" font-size="9">objective</text><text x="86" y="146" font-size="9">cr-opt</text><text x="250" y="146" font-size="9">s4-sec</text><text x="400" y="146" font-size="9" fill="#333">interact, team a, S4, after cr-2a, optional</text>
+<text x="0" y="159" font-size="9" fill="#1f4e9c" font-weight="bold">7</text><text x="26" y="159" font-size="9">objective</text><text x="86" y="159" font-size="9">cr-5</text><text x="250" y="159" font-size="9">s4-cc</text><text x="400" y="159" font-size="9" fill="#333">extract, team all, S4, after cr-3b,cr-4</text>
+<text x="0" y="172" font-size="9" fill="#7a3fa0" font-weight="bold">8</text><text x="26" y="172" font-size="9">sync</text><text x="86" y="172" font-size="9">sync-s4-dockboard</text><text x="250" y="172" font-size="9">s4-dock</text><text x="400" y="172" font-size="9" fill="#333">code_source, src campusS4Data.ts:202 (S4_SECTOR.intel board a~</text>
+<text x="0" y="185" font-size="9" fill="#7a3fa0" font-weight="bold">9</text><text x="26" y="185" font-size="9">sync</text><text x="86" y="185" font-size="9">sync-s4-desk</text><text x="250" y="185" font-size="9">s4-sec</text><text x="400" y="185" font-size="9" fill="#333">camera_loop, src campusS4Data.ts:164-166 (S4_DESKS desk-sec4:~</text>
+<text x="0" y="198" font-size="9" fill="#7a3fa0" font-weight="bold">10</text><text x="26" y="198" font-size="9">sync</text><text x="86" y="198" font-size="9">sync-s4-cagekp</text><text x="250" y="198" font-size="9">s4-cage</text><text x="400" y="198" font-size="9" fill="#333">code_sink, src planned (release prompt on the cage terminal (~</text>
+<text x="0" y="211" font-size="9" fill="#7a3fa0" font-weight="bold">11</text><text x="26" y="211" font-size="9">sync</text><text x="86" y="211" font-size="9">sync-s4-ess-board</text><text x="250" y="211" font-size="9">s4-batt</text><text x="400" y="211" font-size="9" fill="#333">power_cut, src planned (BoardDef pattern of S4_BOARDS, campus~</text>
+<text x="0" y="224" font-size="9" fill="#7a3fa0" font-weight="bold">12</text><text x="26" y="224" font-size="9">sync</text><text x="86" y="224" font-size="9">sync-s4-yard-board</text><text x="250" y="224" font-size="9">s4-dock</text><text x="400" y="224" font-size="9" fill="#333">power_cut, src campusS4.ts:164 (S4_BOARDS compound board, win~</text>
+<text x="0" y="237" font-size="9" fill="#0b7a75" font-weight="bold">13</text><text x="26" y="237" font-size="9">lead</text><text x="86" y="237" font-size="9">lead:cr-1b</text><text x="250" y="237" font-size="9">s4-lobby</text><text x="400" y="237" font-size="9" fill="#333">lead for objective 1 (cr-1b)</text>
+<text x="0" y="250" font-size="9" fill="#0b7a75" font-weight="bold">14</text><text x="26" y="250" font-size="9">lead</text><text x="86" y="250" font-size="9">lead:cr-2a</text><text x="250" y="250" font-size="9">s4-nc</text><text x="400" y="250" font-size="9" fill="#333">lead for objective 2 (cr-2a)</text>
+<text x="0" y="263" font-size="9" fill="#0b7a75" font-weight="bold">15</text><text x="26" y="263" font-size="9">lead</text><text x="86" y="263" font-size="9">lead:cr-2b</text><text x="250" y="263" font-size="9">s4-hall</text><text x="400" y="263" font-size="9" fill="#333">lead for objective 3 (cr-2b)</text>
+<text x="0" y="276" font-size="9" fill="#0b7a75" font-weight="bold">16</text><text x="26" y="276" font-size="9">lead</text><text x="86" y="276" font-size="9">lead:cr-3b</text><text x="250" y="276" font-size="9">s4-hall</text><text x="400" y="276" font-size="9" fill="#333">lead for objective 4 (cr-3b)</text>
+<text x="0" y="289" font-size="9" fill="#0b7a75" font-weight="bold">17</text><text x="26" y="289" font-size="9">lead</text><text x="86" y="289" font-size="9">lead:cr-4</text><text x="250" y="289" font-size="9" fill="#b00020">s4-noc (not drawn)</text><text x="400" y="289" font-size="9" fill="#333">lead for objective 5 (cr-4)</text>
+<text x="0" y="302" font-size="9" fill="#0b7a75" font-weight="bold">18</text><text x="26" y="302" font-size="9">lead</text><text x="86" y="302" font-size="9">lead:cr-opt</text><text x="250" y="302" font-size="9">s4-nc</text><text x="400" y="302" font-size="9" fill="#333">lead for objective 6 (cr-opt)</text>
+<text x="0" y="315" font-size="9" fill="#0b7a75" font-weight="bold">19</text><text x="26" y="315" font-size="9">lead</text><text x="86" y="315" font-size="9">lead:sync-s4-dockboard</text><text x="250" y="315" font-size="9">s4-dock</text><text x="400" y="315" font-size="9" fill="#333">lead for sync sync-s4-dockboard</text>
+<text x="0" y="328" font-size="9" fill="#0b7a75" font-weight="bold">20</text><text x="26" y="328" font-size="9">lead</text><text x="86" y="328" font-size="9">lead:sync-s4-desk</text><text x="250" y="328" font-size="9">s4-nc</text><text x="400" y="328" font-size="9" fill="#333">lead for sync sync-s4-desk</text>
+<text x="0" y="341" font-size="9" fill="#0b7a75" font-weight="bold">21</text><text x="26" y="341" font-size="9">lead</text><text x="86" y="341" font-size="9">lead:sync-s4-cagekp</text><text x="250" y="341" font-size="9">s4-hall</text><text x="400" y="341" font-size="9" fill="#333">lead for sync sync-s4-cagekp</text>
+<text x="0" y="354" font-size="9" fill="#0b7a75" font-weight="bold">22</text><text x="26" y="354" font-size="9">lead</text><text x="86" y="354" font-size="9">lead:sync-s4-ess-board</text><text x="250" y="354" font-size="9">s4-batt</text><text x="400" y="354" font-size="9" fill="#333">lead for sync sync-s4-ess-board</text>
+<text x="0" y="367" font-size="9" fill="#0b7a75" font-weight="bold">23</text><text x="26" y="367" font-size="9">lead</text><text x="86" y="367" font-size="9">lead:sync-s4-yard-board</text><text x="250" y="367" font-size="9">s4-dock</text><text x="400" y="367" font-size="9" fill="#333">lead for sync sync-s4-yard-board</text>
+<text x="0" y="386" font-size="9" fill="#333">rules: noAlarms (mission); namedTarget (a); noBodies (b)</text>
 </g>
 </svg>

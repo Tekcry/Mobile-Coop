@@ -3,9 +3,9 @@
 Map: Saltmarsh Park (`campusOps`), section S2 HQ atrium and offices only (`sections: ['s2']`, start = C1's checkpoint
 (-20, 0, -32), `campusSectors.ts:356`). Sources: BRIEF A9 / A14 / A16, PLAN 2-3, audit 4-5 ("Team Ghost undetected
 upstairs while Team Shadow holds a power cut"), `docs/story.md`. Layout: Sector Ops' plan graph
-`origin/feature/sector-redesign-signoff:docs/sector-redesign/graph/plan/campusOps-S2.json` (space ids below). Its sign-off
-pages `S2.md` / `S2-detail.md` and sync table are not pushed yet: every node marked **(pending)** is assumed from the
-campus code and must be confirmed by Sector Ops' S2 page.
+`origin/feature/sector-redesign-signoff:docs/sector-redesign/graph/plan/campusOps-S2.json` (space and sync ids below, at 6b13cd32).
+Sector Ops' S2 page, `S2-detail.md` and `SYNC.md` now carry every node this chart asked for; **(pending)** marks a
+device that is still planned, not built.
 
 ## Premise
 Orrin's facilities officer runs every light and lock in the HQ block from one BMS terminal on the first floor. Hacking it
@@ -42,7 +42,7 @@ east wing at the plant room and keeps it dark long enough for the hack, without 
 | 1A | Ghost | s2-core-sw -> s2-l1-plan -> s2-l1-kitchen door | 3 | Up the post room's fire stair; listen at the first-floor kitchen for the facilities code | Overheard: the coffee pair (#5-6, `campusSectors.ts:93-125`) rehearse the code at the kitchen door (pending: intel entry) | - | gives `s2-fac-code` | "The kitchen is the lit room off the west balcony. Stand at its door, out of the lamp." |
 | 1B | Shadow | s2-post -> s2-mail | 3 | Take the plant log from the mail room cages, behind the goods-door guard | Document: the sorting-table note in the post room, "Plant log - cage 3 for facilities" (pending) | - | gives `s2-board` (which breaker feeds the east wing) | "He faces into the room. The cages are behind his left shoulder." |
 | 2 | Ghost | s2-l1-wing -> s2-l1-comms | 3 | Loop the ground-floor cameras at the comms room patch panel | Overheard: the comms checker (#8, :129) reads "UPS green, cameras green" at the panel each round | **sync-s2-comms** (camera_loop): cam-turnstile, cam-lift, cam-bridge report nothing; opens the foyer crossing behind reception for Shadow, and the landing for both | - (new mechanic: camera loop from a panel) | "Wait for the checker to leave the panel. He comes back every forty seconds." |
-| 3 | Shadow | s2-foyer -> s2-plant-g | 3 | Cut the east wing at the switchgear in the east plant room | Reception officer's radio (#1, :86): "Facilities, your east boards tripped again." + `s2-board` | **sync-s2-switchgear** (power_cut): the facilities office and the L1 wing go dark; the facilities officer (#7, :127) leaves the BMS desk for the plant room. Opens the hack for Ghost | needs `s2-board` (new mechanic: holding a cut) | "The plant room door is in the foyer's east wall, behind the desk's back." |
+| 3 | Shadow | s2-foyer -> s2-plant-g | 3 | Cut the east wing at the switchgear in the east plant room | Reception officer's radio (#1, :86): "Facilities, your east boards tripped again." + `s2-board` | **sync-s2-power** (power_cut, held, no timer): the facilities office and the L1 wing go dark; the facilities officer (#7, :127) leaves the BMS desk for the plant room. Opens the hack for Ghost | needs `s2-board` (new mechanic: holding a cut) | "The plant room door is in the foyer's east wall, behind the desk's back." |
 | 4A | Ghost | s2-l1-wing -> s2-l1-facilities | 3 | Into the dark facilities office and hack the BMS terminal | The office's cold lamp goes out (the light language: the dark is the way in) | - (the existing objective opens C2) | needs `s2-fac-code` (kp-fac, pending) | "The office door is beside the corridor light switch. Leave the switch alone." |
 | 4B | Shadow | s2-hall -> s2-foyer -> s2-plant-g | 3 | Hold the plant room dark until Ghost is out of the office | **Twist:** the facilities officer stops at reception and brings the reception officer with him | optional assist **sync-s2-atrium** (power_cut, built: S2_BOARDS `campusS2.ts:192`): pulling the atrium board sends #1 to his own board (guard-ai LR16-4), splitting the pair | - | "Two of them now. The atrium board is on the foyer wall. He always fixes his own lights first." |
 | 5 | All | s2-core-ne -> s2-l1-landing | 2 | Everyone to the bridge landing and over the glazed bridge | The bridge officer (K2, #11, :135) at the card door; the BMS hack opened it | - | - | "Shadow: the north-east fire stair from the hall. K2 faces the doorways." |
@@ -55,7 +55,7 @@ east wing at the plant room and keeps it dark long enough for the hack, without 
   never comes this far."
 - **Parallel objectives on separate routes:** 1A (SW stair, L1) and 1B (post / mail, G) run at once; 3 (G east) and the
   Ghost approach to the wing (L1 north plan) run at once. **Sync points:** sync-s2-comms (Ghost -> Shadow) and
-  sync-s2-switchgear (Shadow -> Ghost), plus the optional sync-s2-atrium.
+  sync-s2-power (Shadow -> Ghost), plus the optional sync-s2-atrium.
 
 ## Alarm escalation per area (EN2: per-area stages; today one site stage, reinforcements `campusSectors.ts:372`)
 - **Upstairs area** (Ghost's zones): a detection raises the upstairs stage 1: balcony downlights full (groups 51, 52),
@@ -85,7 +85,7 @@ A player in the C1 checkpoint after a restart must make the landing too; the mis
 | Node | Kind | Room (space) | Device / spot | Src | Lead spot |
 | --- | --- | --- | --- | --- | --- |
 | sync-s2-comms | camera_loop | s2-l1-comms | patch panel on the UPS cabinet wall, loops cam-turnstile, cam-lift, cam-bridge | planned | s2-l1-wing: #8's panel stop (1, -6.5) |
-| sync-s2-switchgear | power_cut | s2-plant-g | a breaker board (BoardDef, no window) on the switchgear, groups 55 + 56 | planned | s2-foyer: #1's desk (-20, -24.9) radio line |
+| sync-s2-power (was sync-s2-switchgear) | power_cut | s2-plant-g | a breaker board (BoardDef, no window) on the switchgear, groups 55 + 56 | planned | s2-foyer: #1's desk (-20, -24.9) radio line |
 | sync-s2-atrium | power_cut | s2-foyer | the reception board, group 50 (built) | `campusS2.ts:192` | s2-foyer: the board itself, lit by the desk lamp |
 | kp-fac | keypad (code `s2-fac-code`) | s2-l1-facilities | keypad on the office door (-4, 0); EW5 is not built (`campusSectors.ts:360`) | planned | s2-l1-plan: the kitchen door (-28.5, -26) |
 | lead-s2-kitchen | intel (overheard) | s2-l1-plan | the coffee pair's line at the kitchen door, grants `s2-fac-code` | planned | - |
@@ -94,42 +94,45 @@ A player in the C1 checkpoint after a restart must make the landing too; the mis
 
 Approve this beat chart?
 
-## Graph notes (SS graph, 2026-10-24 ~23:40)
+## Graph notes (SS graph, 2026-10-25 ~00:05, over Sector Ops 6b13cd32)
 - `graph.json` encodes this chart on Sector Ops' plan graph `graph/plan/campusOps-S2.json`
-  (origin/feature/sector-redesign-signoff e41942bf6). Steps: ss-1a, ss-1b, ss-2, ss-3, ss-4a, ss-4b (the twist), ss-opt,
+  (origin/feature/sector-redesign-signoff 6b13cd32). Steps: ss-1a, ss-1b, ss-2, ss-3, ss-4a, ss-4b (the twist), ss-opt,
   ss-5. Teams: a = Ghost, b = Shadow. Start: s2-foyer.
-- Id changes: `s2-hall` no longer exists. The plan merges it into `s2-foyer` (reception + hall + NE lobby), so 4B's
-  route and every foyer lead read s2-foyer. The kitchen code and the comms board are compatible: Sector Ops' coffee-pair
-  line points at the comms handover board (sync-s2-code), and kp-fac is their sync-s2-kpfac.
-- Tracks: L1 and L2 share the ground floor's plan footprint, so `tracks` carries a `y` band per team (Ghost y 4.4-12.3,
-  Shadow 0-4.4). EN2 needs that height test. Plan boxes alone cannot split this section.
-- Validator (mission-validator branch, the five plan graphs + this file):
-  - Mission errors: 4 as run. All 4 come from the validator not reading Sector Ops' `sync` key: "0 sync nodes", and
-    ss-2 / ss-3 / ss-4b "sync step with no sync node". A fix is in progress.
-  - With the key read: 1 error, the pair door's missing `solo`. With that filled in: 0.
-  - Mission warnings: 6.
-    - ss-5's s2-l1-landing is not tagged `exfil` (Sector Ops: tag it).
-    - "No choke node" in S2. This is by design: the two tracks meet at the landing through two doors (the pair gate and
-      the comms door).
-    - "No choke node" in S1, S3, S4 and S5. The validator checks every merged section, not only the mission's. VAL
-      should limit that check to the mission's sections.
-  - The other 116 warnings are the campus graphs' own (the same with no mission).
-- PLAN.svg: made with `scripts/graph-svg.mjs` with no base, because Sector Ops has not pushed an `S2-plan-*.svg`.
-  - The plan graph has no `area` boxes, so a scratch render copy adds them from each space's note (box x / z). It also
-    adds the track colours and the 2 needed devices, marked NEEDED.
-  - Only the ground floor, the first floor and the L2 board room are drawn. The rest of L2 and the roof are listed as
-    not drawn.
-- Node needs for Sector Ops (S2):
-  1. **sync-s2-comms** (camera_loop, s2-l1-comms): the patch panel for step 2. Today the loop is sync-s2-desk at the
-     reception desk, worked by Shadow. One device should own the three cameras: either move it to the comms room, or
-     the lead re-cuts step 2 onto sync-s2-desk.
-  2. **sync-s2-power** (s2-plant-g) as this chart needs it: a held cut, with no window, on the facilities office and L1
-     east wing circuits (55 + 56), so the facilities officer #7 leaves his desk. Today it is IS-2: a 45 s window on the
-     balcony lights (51 / 52).
-  3. **sync-s2-atrium** (power_cut, s2-foyer): the built reception board (campusS2.ts:192, group 50) as a graph node.
-     It is 4B's optional assist.
-  4. **sync-s2-pairdoor**: add `solo` (the PLAN C18 solo window, named in the briefing).
-  5. Leads, both planned: lead-s2-kitchen (the coffee pair's line grants `s2-fac-code`) and lead-s2-plantlog (the plant
-     log in the s2-mail cages grants `s2-board`, pointed to by the note on the s2-post sorting table).
-  6. Tag `exfil` on s2-l1-landing.
-  7. For Guard AI, not Sector Ops: #7 walks to the plant room through reception when 55 / 56 go dark (the twist).
+- Every node this chart asked for is now a real node in that graph's `syncs`, placed as the chart wrote it. The
+  objectives name them in `sync` (the node the step uses) and `assist` (an optional one); neither is a validator field.
+  - ss-1a: `lead-s2-kitchen` (the coffee pair's line outside the kitchen west door, s2-l1-plan, grants s2-fac-code).
+  - ss-1b: `lead-s2-plantlog` (cage 3 in s2-mail, grants s2-board; its lead is the note on the s2-post sorting table).
+  - ss-2: `sync-s2-comms` (camera_loop in s2-l1-comms, track A, the checker #8 at the panel). Ghost loops the cameras at
+    the comms panel, as the chart has it. The first pass's alternative (Shadow at the reception desk) is gone.
+  - ss-3 and ss-4b: `sync-s2-power` (the held cut on circuits 55 + 56, no timer; Sector Ops' `aka` sync-s2-switchgear).
+    ss-4b's optional assist is `sync-s2-atrium` (the built reception board, group 50).
+  - ss-4a: `kp-fac` (code_sink on both facilities doors).
+  - ss-5: assist `sync-s2-pairdoor` (pg-brg, now with `solo`: one player turns both keys within 8 s, an engine cost; without
+    it, the comms door facing K2).
+  - ss-5's extraction s2-l1-landing is Sector Ops' `tracks.exfil`, not a space tag. A tag in S2 would break the five-file
+    campus spine check (start to exfil would skip S3 and S4). The validator now reads `tracks.exfil` (VAL 4ea5d26bf).
+- Id change kept from the first pass: `s2-hall` is part of `s2-foyer`, so 4B's route and the foyer leads read s2-foyer.
+- Tracks: `tracks` keeps a `y` band per team (Ghost 4.4-12.3, Shadow 0-4.4), because L1 and L2 sit over the ground
+  floor's footprint (EN2 needs the height test). Sector Ops' own `tracks` object (A / B routes, meet and exfil at the
+  landing) agrees with it.
+- Validator (mission-validator 4ea5d26bf, the five plan graphs + this file): 4 errors, 118 warnings. All of them are
+  the campus graphs' own: the run without a mission gives the same 4 / 118. Mission errors 0, mission warnings 0.
+  - The 4 errors are in Sector Ops' S2 `syncs`. `kp-fac`, `lead-s2-kitchen` and `lead-s2-plantlog` do not use the
+    contract's `sync-s2-<name>` id, and `lead-s2-kitchen` has `lead: "-"`, which is not a space. Sector Ops: rename the
+    three (for example sync-s2-kpfac, sync-s2-kitchen, sync-s2-plantlog) and give the kitchen lead a space
+    (s2-l1-plan). In a scratch copy with those changes the run has 0 errors. This file's `sync` names then follow the
+    rename.
+  - The first pass's 6 mission warnings are gone. The extraction counts as exfil (tracks.exfil). S2 now has a choke,
+    s2-l1-wing (the comms room is only reached through it). The choke check now covers only the mission's sections.
+- Plans: one per storey, `scripts/graph-svg.mjs` over Sector Ops' `S2-plan-<y>.svg` (`--base-bounds -50,-36,34,12`),
+  drawn from the plan graph's real `area` boxes. A scratch render copy only wraps each `area` box as a one-box list
+  (graph-svg reads a list), keeps one storey's spaces, links and nodes, and colours the teams (blue Ghost, orange Shadow,
+  replacing Sector Ops' validator split tags).
+  - `PLAN-0.svg`: the ground floor, Shadow's steps 1B, 3, 4B, and Ghost's SW stair.
+  - `PLAN-4.4.svg`: the first floor, Ghost's steps 1A, 2, 4A and the landing (5).
+  - `PLAN-8.4.svg`: the second floor, the optional board room. The roof (12.3) is not drawn: no step uses it.
+  - A lead pin on another storey is listed as not drawn. `lead-s2-kitchen`'s own lead is '-' (the error above).
+- Still for others:
+  1. Sector Ops: the 3 sync ids and the kitchen lead space (the 4 errors above).
+  2. Guard AI: #7 walks to the plant room through reception when 55 / 56 go dark (the twist).
+  3. Engine (EN2): the held cut, the patch-panel camera loop, the pair door's solo window, per-team restart.

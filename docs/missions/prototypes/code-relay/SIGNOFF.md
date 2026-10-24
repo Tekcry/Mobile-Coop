@@ -1,12 +1,19 @@
 # mission-framework: sign-off - Code Relay (Sector Ops, campus S4)
 
 ## Picture
-- Plan: [`PLAN.svg`](PLAN.svg) (scale 1 m = 10 px, north up). It sits over Sector Ops' ground-floor plan
-  `S4-plan-0.svg`. Blue = Team Relay's rooms, orange = Team Vault's. Pins: objectives (circles), devices (diamonds),
-  leads (squares), with a table below the plan.
+- Plans, one per storey (scale 1 m = 10 px, north up), each over Sector Ops' plan of that storey; orange = Team
+  Relay's rooms, blue = Team Vault's (Sector Ops' S4 colours). Pins: objectives (circles), devices (diamonds), leads
+  (squares), with a table below each plan.
+  - Ground floor: [`PLAN-0.svg`](PLAN-0.svg) (the dock, battery room, hall, cage, security room and colonnade).
+  - NOC mezzanine: [`PLAN-3.6.svg`](PLAN-3.6.svg) (the duty officer's step).
+  - Roof deck: [`PLAN-7.3.svg`](PLAN-7.3.svg) (where Relay hears the duty officer's name).
 - Detail: [`BEAT.md`](BEAT.md) (beat chart, radio lines, Graph notes), [`graph.json`](graph.json) (the mission graph).
 
-![Code Relay plan](PLAN.svg)
+![Code Relay ground floor](PLAN-0.svg)
+
+![Code Relay NOC mezzanine](PLAN-3.6.svg)
+
+![Code Relay roof deck](PLAN-7.3.svg)
 
 ## Intent check
 1. Michael asked (2026-10-24 ~22:12, decision 4): first Sector Ops prototypes Split Shift and Code Relay, 4 players,
@@ -33,9 +40,9 @@
    - A solo player carries all three rules.
 5. What it costs: paper only until you pick. Sector Ops' S4 plan already reserves every device. 7 of them are marked
    planned (the NOC release, the cage code prompt, the roster, the deck radio line, the seat placard, the footage
-   drive, the riser-side keypad). Guard AI adds the supervisor's walk to the cage. The mission engine handles the named interrogation, the 30 s window and the
-   per-team restart. Validator: 0 mission errors once it reads Sector Ops' `sync` key (a fix is in progress). There are
-   7 warnings, each explained.
+   drive, the riser-side keypad). Guard AI adds the supervisor's walk to the cage. The mission engine handles the
+   named interrogation, the 30 s window and the per-team restart. Validator: 0 mission errors and 2 mission warnings,
+   both by design (the solo player's 3 rules; the colonnade exit is the section's choke). BEAT.md Graph notes explain them.
 
 ## The decision
 Q: Approve Code Relay as specced?

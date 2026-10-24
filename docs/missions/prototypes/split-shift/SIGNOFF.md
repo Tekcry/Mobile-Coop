@@ -1,11 +1,18 @@
 # mission-framework: sign-off - Split Shift (Sector Ops, campus S2)
 
 ## Picture
-- Plan: [`PLAN.svg`](PLAN.svg) (scale 1 m = 10 px, north up). Ground floor and first floor drawn together; blue = Team
-  Ghost's rooms, orange = Team Shadow's. Pins: objectives (circles), devices (diamonds), leads (squares), table below the plan.
+- Plans, one per storey (scale 1 m = 10 px, north up), each over Sector Ops' plan of that storey; blue = Team Ghost's
+  rooms, orange = Team Shadow's. Pins: objectives (circles), devices (diamonds), leads (squares), table below each plan.
+  - Ground floor: [`PLAN-0.svg`](PLAN-0.svg) (Shadow: mail room, plant room, foyer; Ghost's stair up).
+  - First floor: [`PLAN-4.4.svg`](PLAN-4.4.svg) (Ghost: kitchen, comms room, facilities office; the bridge landing).
+  - Second floor: [`PLAN-8.4.svg`](PLAN-8.4.svg) (the optional board room).
 - Detail: [`BEAT.md`](BEAT.md) (beat chart, radio lines, Graph notes), [`graph.json`](graph.json) (the mission graph).
 
-![Split Shift plan](PLAN.svg)
+![Split Shift ground floor](PLAN-0.svg)
+
+![Split Shift first floor](PLAN-4.4.svg)
+
+![Split Shift second floor](PLAN-8.4.svg)
 
 ## Intent check
 1. Michael asked (2026-10-24 ~22:12, decision 4): first Sector Ops prototypes Split Shift and Code Relay, 4 players,
@@ -25,15 +32,15 @@
    - Ghost: never seen. That includes Shadow being seen upstairs.
    - Shadow: no alarms (no panel, no camera).
    - A broken rule sends that team back to the section checkpoint.
-5. What it costs: paper only until you pick. After that, Sector Ops adds 2 devices and changes 1 to the HQ plan (BEAT.md
-   Graph notes), Guard AI adds 1 reaction, and the mission engine handles a per-team restart. Validator: 0 mission
-   errors once the validator reads Sector Ops' `sync` key (a fix is in progress) and the bridge pair door gets its solo
-   line. There are 6 warnings, each explained.
+5. What it costs: paper only until you pick. Sector Ops' HQ plan already holds every device this needs, as planned
+   devices: the comms-room camera panel, the held east-wing cut, the facilities keypad, the two leads and the bridge pair
+   door's solo line. After you pick, Sector Ops builds them, Guard AI adds 1 reaction, and the mission engine handles a
+   per-team restart. Validator: 0 mission errors and 0 mission warnings. The campus plan's own 4 errors are 3 device
+   ids and 1 lead for Sector Ops to fix (BEAT.md Graph notes).
 
 ## The decision
 Q: Approve Split Shift as specced?
-- "Approve as specced (Sector Ops adds the comms-room camera panel and the held east-wing cut)"
-- "Approve, but move it onto Sector Ops' planned S2 devices (Shadow loops the cameras at the reception desk, the cut is a 45 s timer)"
+- "Approve as specced"
 - "Rework: send it back with my notes"
 
 ## Michael's pick

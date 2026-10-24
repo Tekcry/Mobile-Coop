@@ -3,9 +3,9 @@
 Map: Saltmarsh Park (`campusOps`), section S4 Data hall only (`sections: ['s4']`, start = C3's checkpoint (24, 0, 8),
 `campusS4Data.ts:176`). Sources: BRIEF A9 / A14 / A16, PLAN 2-3, audit 4-5 ("interrogate a code, the vault team enters
 it in 30 s"), `docs/story.md`. Layout: Sector Ops' plan graph
-`origin/feature/sector-redesign-signoff:docs/sector-redesign/graph/plan/campusOps-S4.json` (space ids below). Its sign-off
-pages `S4.md` / `S4-detail.md` and sync table are not pushed yet: every node marked **(pending)** is assumed from the
-campus code and must be confirmed by Sector Ops' S4 page.
+`origin/feature/sector-redesign-signoff:docs/sector-redesign/graph/plan/campusOps-S4.json` (space and sync ids below, at 6b13cd32).
+Sector Ops' S4 page, `S4-detail.md` and `SYNC.md` now carry every node this chart asked for; **(pending)** marks a
+device that is still planned, not built.
 
 ## Premise
 Orrin's build and signing logs for the Tidewater controllers sit on one terminal in a mesh cage on the data-hall floor
@@ -98,41 +98,43 @@ sent back to C3 by a restart crosses the dock and the hall again; the mission do
 
 Approve this beat chart?
 
-## Graph notes (CR graph, 2026-10-24 ~23:40)
+## Graph notes (CR graph, 2026-10-25 ~00:05, over Sector Ops 6b13cd32)
 - `graph.json` encodes this chart on Sector Ops' plan graph `graph/plan/campusOps-S4.json`
-  (origin/feature/sector-redesign-signoff e41942bf6), which already carries this chart's devices. Steps: cr-1a, cr-1b,
-  cr-2a, cr-2b, cr-3a, cr-3b, cr-4 (the twist), cr-opt, cr-5. Teams: a = Relay, b = Vault. Start: s4-dock.
-- Id changes: `s4-svc` no longer exists. The plan merges the service corridor into `s4-lobby`, so 2B's route is dock,
-  lobby, battery room, hall, cage, and 1B's hint now names the goods door into the lobby.
-- 1B sits in the start room. The validator wants its lead and view outside the objective's own space, so both name
-  `s3-dock`: the C3 stub, the near end of the spine link, whose far door opens onto the dock board's lamp. The graph has
-  no stub space, so PLAN.svg lists that lead pin as not drawn.
+  (origin/feature/sector-redesign-signoff 6b13cd32). Steps: cr-1a, cr-1b, cr-2a, cr-2b, cr-3a, cr-3b, cr-4 (the twist),
+  cr-opt, cr-5. Teams: a = Relay, b = Vault. Start: s4-dock.
+- Changes in this pass:
+  - cr-1b's lead and view are now `s4-lobby`: the dark goods lane at the dock's goods door (Sector Ops' lobby vantage,
+    0.8), which looks onto the dock board under its own lamp at the dock's west end. This replaces the first pass's
+    `s3-dock`, which is S3's own goods dock, not where the board is read. The board's own lead is the board itself
+    (`sync-s4-dockboard`, lead s4-dock), but 1B is in the start room and the validator wants the lead outside the
+    step's room, so the next real space that sees the board is named.
+  - cr-5's s4-cc now carries Sector Ops' `exfil` tag.
+  - Sync ids are unchanged: sync-s4-dockboard, sync-s4-desk, sync-s4-noc, sync-s4-cagekp. Sector Ops' two extra nodes,
+    `sync-s4-ess-board` (Vault darkens the NOC and the security room, 25 s) and `sync-s4-yard-board` (the compound flood,
+    20 s), are optional openers: no step needs them, so no objective names them.
+  - Sector Ops made the plant ladder a co-op climb (CR10). A lone Relay player (2 players) goes in by kp-riser (34, 46.5)
+    with Vault's dock-board code. The validator's solo run passes.
+- Id change kept from the first pass: `s4-svc` is part of `s4-lobby` (its goods lane), so 2B runs dock, lobby, battery
+  room, hall, cage.
 - MissionDef fields kept in the graph for EN2: cr-3a has `target` #14 Dunmore, `decoys` #15 Pryce and `bolt`
-  (28, 0, 45.8). cr-3b has `window` 30 and `soloWindow` 90. Tracks: the roof deck covers the whole block, so Relay owns
-  it by height (y >= 7.3, EN2).
-- Validator (mission-validator branch, the five plan graphs + this file):
-  - Mission errors: 2 as run. Both come from the validator not reading Sector Ops' `sync` key: "0 sync nodes", and
-    cr-2a "sync step with no sync node". A fix is in progress. With the key read: 0.
-  - Mission warnings: 7.
-    - cr-5's s4-cc is not tagged `exfil` (Sector Ops: tag it).
-    - A solo player carries 3 rules. This is by design (named in the briefing); the sign-off offers the 2-rule option.
-    - "No choke node" in S4. The colonnade (s4-cc) is the exit and the choke itself, reached from both the battery room
-      and the UPS room.
-    - "No choke node" in S1, S2, S3 and S5. The validator checks every merged section; VAL should limit it to the
-      mission's sections.
-  - The other 116 warnings are the campus graphs' own.
-- PLAN.svg: made with `scripts/graph-svg.mjs --base S4-plan-0.svg --base-bounds -16,10,46,54` (Sector Ops' ground plan).
-  The `area` boxes come from each space's note, in a scratch render copy.
-  - The roof deck is drawn as its east band only (x 24-34, from the plant ladder top to the riser hatch), so it does
-    not cover the hall.
-  - The plenum and the cable baskets have no box and are listed as not drawn.
-- Node needs for Sector Ops (S4): none new. Their plan already holds every node this chart asked for. The 7 still
-  marked planned need building:
-  - sync-s4-noc
-  - sync-s4-cagekp
-  - lead-s4-deckradio
-  - lead-s4-roster
-  - the seat placard
-  - the footage drive
-  - the second keypad on the riser side of kp-deck
-  Also tag `exfil` on s4-cc. #20's walk to the cage is Guard AI's.
+  (28, 0, 45.8). cr-3b has `window` 30 and `soloWindow` 90. Tracks: Relay owns the roof deck by height (y >= 7.3, EN2).
+- Validator (mission-validator 4ea5d26bf, the five plan graphs + this file): 4 errors, 120 warnings. The 4 errors and
+  118 of the warnings are the campus graphs' own (the run without a mission gives the same 4 / 118). The 4 errors are
+  Sector Ops' S2 sync ids (see Split Shift's Graph notes), not this mission's. Mission errors 0, mission warnings 2:
+  - A solo player carries 3 rules. This is by design and named in the briefing; the sign-off offers the 2-rule option.
+  - "No choke node" in S4. The colonnade (s4-cc) is the exit and the choke itself (K3), reached from both the battery
+    room and the UPS room: the two tracks meet at the exit (A16).
+  - In the campus 118: "exfil 's4-cc' is not in the last section S5". That is the map's spine check, which reads the five
+    files as one walk that ends in S5. It is right for that walk, so the validator is not changed for it. Sector Ops can
+    name s4-cc in an S4 `tracks.exfil` instead of the tag, as S2 does: the mission check reads that now, and this WARN goes.
+  - The first pass's other warnings are gone: the extraction is tagged, and the choke check covers only S4.
+- Plans: one per storey, `scripts/graph-svg.mjs` over Sector Ops' `S4-plan-<y>.svg` (`--base-bounds -16,10,46,54`),
+  drawn from the plan graph's real `area` boxes. A scratch render copy only wraps each `area` box as a one-box list
+  (graph-svg reads a list), keeps one storey's spaces, links and nodes, and colours the teams as Sector Ops' S4 plan
+  does (orange Relay, blue Vault).
+  - `PLAN-0.svg`: the ground floor, every step but 1A and 3A.
+  - `PLAN-3.6.svg`: the NOC mezzanine (3A), with the plenum (3.2) and the cable baskets (4.4).
+  - `PLAN-7.3.svg`: the roof deck (1A), now its full box over the block on its own storey.
+  - A lead pin on another storey is listed as not drawn.
+- Node needs for Sector Ops (S4): none new. Still planned, to build: sync-s4-noc, sync-s4-cagekp, lead-s4-deckradio,
+  lead-s4-roster, the seat placard, the footage drive, kp-riser. #20's walk to the cage is Guard AI's.
