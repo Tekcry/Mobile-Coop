@@ -144,6 +144,13 @@ export const MISSION = {
   stepsWireMax: 30,
 } as const;
 
+/**
+ * (NET4) The mission ids the co-op `start` message carries (`sectorMissionId`, src/net/protocol.ts, holds the same
+ * pattern; a test keeps them equal). Copied, not imported: game code never imports src/net statically. A host binding
+ * an id outside it would send no mission and the client would start at sectors[0].
+ */
+export const MISSION_ID_RE = /^[A-Za-z0-9_-]{0,64}$/;
+
 function cond(c: unknown, path: string, out: string[], flags?: string[]): void {
   if (typeof c !== 'object' || c === null) {
     out.push(`${path}: condition is not an object`);
@@ -177,6 +184,7 @@ export function checkMission(d: MissionDef, guards: ReadonlySet<string>, talkers
   const out: string[] = [];
   const tag = `mission ${d.id || '?'}`;
   if (!d.id) out.push(`${tag}: no id`);
+  else if (!MISSION_ID_RE.test(d.id)) out.push(`${tag}: id must be letters, digits, _ or -, at most 64 (the co-op start message drops it)`);
   if (d.mode !== 'campaign' && d.mode !== 'sector') out.push(`${tag}: mode must be campaign or sector`);
   const campaign = d.mode === 'campaign';
   if (!Array.isArray(d.players) || d.players.length === 0) out.push(`${tag}: no players`);

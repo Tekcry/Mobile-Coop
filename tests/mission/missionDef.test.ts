@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { checkMission, condFlags, factsOf, stepCond, teamForSlot, type MissionDef } from '../../src/game/mission/missionDef';
+import { checkMission, condFlags, factsOf, MISSION_ID_RE, stepCond, teamForSlot, type MissionDef } from '../../src/game/mission/missionDef';
+import { sectorMissionId } from '../../src/net/protocol';
+import { DEV_MAPS, MAPS } from '../../src/world/maps';
 
 // (mission-framework EN1) the data model's structural checks (PLAN section 2)
 
@@ -150,6 +152,37 @@ describe('checkMission', () => {
     expect(e).toMatch(/soloWindow > 0/);
     expect(e).toMatch(/over 90 characters/);
     expect(e).toMatch(/a required step after the optional roof/);
+  });
+
+  it('(NET4) holds the id to what the co-op start message carries (sectorMissionId)', () => {
+    for (const id of ['bad id!', 'x'.repeat(65), '<script>']) {
+      const d = op();
+      d.id = id;
+      expect(checkMission(d, GUARDS).join('\n')).toMatch(/id must be letters, digits, _ or -, at most 64/);
+      expect(sectorMissionId(id)).toBe('');
+    }
+    const d = op();
+    d.id = 'campus-test_2';
+    expect(checkMission(d, GUARDS)).toEqual([]);
+  });
+
+  it('(NET4) every mission on every map has an id the co-op start message carries', () => {
+    let n = 0;
+    for (const m of [...MAPS, ...DEV_MAPS]) {
+      for (const d of m.missions ?? []) {
+        n++;
+        expect(sectorMissionId(d.id), `${m.id}: ${d.id}`).toBe(d.id);
+        expect(checkMission(d, new Set()).filter((e) => /id must/.test(e)), `${m.id}: ${d.id}`).toEqual([]);
+      }
+    }
+    expect(n).toBeGreaterThan(0);
+  });
+
+  it('(NET4) MISSION_ID_RE is the pattern sectorMissionId clamps with', () => {
+    expect(sectorMissionId.toString()).toContain(MISSION_ID_RE.source);
+    for (const v of ['', 'twoKeyLedger', 'a-b_C9', 'x'.repeat(64), 'x'.repeat(65), 'a b', 'a.b', 'é', '-']) {
+      expect(sectorMissionId(v) === v, v).toBe(MISSION_ID_RE.test(v));
+    }
   });
 });
 
