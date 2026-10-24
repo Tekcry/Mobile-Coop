@@ -7,12 +7,15 @@
 //   node scripts/cloud-queue-expire.mjs [--dry-run|--yes] [--max-min <n>] [--repo <path>] [--no-fetch]
 // --dry-run (the default) lists what would reopen; --yes commits on top of origin/cloud-queue (temp index, no checkout)
 // and pushes, never --force: a rejected push refetches and re-plans (a builder may have re-stamped meanwhile), 3 tries.
-// --repo: any checkout of the repo (env SWAP_REPO, default C:/NightShift/Mobile-Coop). Exit 0 ok, 1 push failed, 2 usage.
+// Fetches with --prune; under --yes a failed fetch reopens nothing (exit 1).
+// --repo: any checkout of the repo (env SWAP_REPO, default C:/NightShift/Mobile-Coop). Exit 0 ok, 1 push or fetch
+// failed, 2 usage.
 import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { catFiles } from './swap.mjs';
 
 // ---------------------------------------------------------------- pure helpers (tests/swap.test.ts)
 
@@ -97,9 +100,11 @@ function git(repo, args, { input, env, soft = false } = {}) {
   });
 }
 
+/** Briefs at `sha` in one `git cat-file --batch`, raw text (line endings kept: the reopen rewrites line 1 only). */
 async function readBriefs(repo, sha) {
   const names = (await git(repo, ['ls-tree', '-r', '--name-only', sha, 'briefs/'])).split('\n').filter((n) => n.endsWith('.md'));
-  return Promise.all(names.map(async (p) => ({ path: p, text: (await git(repo, ['show', `${sha}:${p}`])).replace(/\r\n/g, '\n') })));
+  const texts = await catFiles(repo, names.map((p) => `${sha}:${p}`));
+  return names.map((p) => ({ path: p, text: texts[`${sha}:${p}`] ?? '' }));
 }
 
 export async function plan(o) {
@@ -139,7 +144,10 @@ export async function pushReopen(o, parent, briefs, list) {
 async function main(argv) {
   const o = parseExpireArgs(argv, process.env);
   for (let attempt = 1; attempt <= 3; attempt++) {
-    if (o.fetch || attempt > 1) await git(o.repo, ['fetch', '-q', 'origin'], { soft: true });
+    if ((o.fetch || attempt > 1) && await git(o.repo, ['fetch', '-q', '--prune', 'origin'], { soft: true }) === null) {
+      if (o.yes) { console.error('cloud-queue-expire: fetch failed; nothing reopened (a stale cloud-queue could reopen a live claim)'); return 1; }
+      console.log('fetch failed: dry run on the refs as they are');
+    }
     const { sha, briefs, list } = await plan(o);
     const claimed = briefs.filter((b) => parseStatusLine(b.text.split('\n')[0]).kind === 'claimed').length;
     console.log(`cloud-queue: ${briefs.length} briefs, ${claimed} claimed, ${list.length} expired (claim ${o.maxMin} min+, no push since)`);

@@ -5,21 +5,26 @@
 //   node scripts/swap.mjs status [--all] [--no-fetch] [--stale-hours <h>]   report only (exit 0)
 //   node scripts/swap.mjs save [--commit-wip] [--all]                       report; exit 0 SAFE, 1 NOT SAFE
 //   node scripts/swap.mjs prune --dry-run|--yes [--idle-hours <h>]
-// Flags: --repo <path> (env SWAP_REPO, default C:/NightShift/Mobile-Coop: any checkout of the repo; its worktree list is
-// read), --root <path> (env NS_ROOT, default C:/NightShift: heavy.lock / heavy2.lock live there), --scratch <path> (env
+// Flags: --repo <path> (repeatable; env SWAP_REPO: one path): any checkout of a clone, whose worktree list is read. With
+// none, every clone under --root is found (`git rev-parse --git-common-dir` of each folder, deduped) and all are
+// scanned; --root <path> (env NS_ROOT, default C:/NightShift: heavy.lock / heavy2.lock live there), --scratch <path> (env
 // SWAP_SCRATCH, default <root>/scratch: auto-train files, swap-status.json), --out <file>, --machine <desktop|laptop>
 // (env SWAP_MACHINE or LQ_WORKER: marks this machine's laptop-queue claims), --jobs <n> (parallel git, default 6).
 // States per worktree: dirty (uncommitted changes; stale-dirty when every dirty file is untouched --stale-hours, default
 // 12, 0 off: old debris that already survived swaps on disk, reported, not an item), unpushed (branch commits on no origin ref; no upstream counts),
 // detached-local (detached HEAD with commits on no origin ref), prunable (clean branch merged into origin/master or whose
 // upstream is gone, nothing unpushed: skipped), missing (folder gone: `git worktree prune` territory), detached, clean.
-// dirty / unpushed / detached-local count as items, and so does a heavy lock whose pid is dead on this host.
+// Local branches checked out nowhere are rows too: unpushed, or stale-branch (tip commit --stale-hours old, not an item).
+// dirty / unpushed / detached-local count as items, and so does a heavy lock whose pid is dead on this host, and under
+// --commit-wip a failed fetch.
 // --commit-wip (save only, opt-in): each dirty worktree on a job branch gets `git add -A` + commit "WIP: swap save <iso>"
 // (hooks run; a staged new file over 10 MB aborts that worktree), then every job branch with unpushed commits is pushed to
 // origin under its own name (never master / dev / train/* / the queue branches, never --force).
 // prune: removes (`git worktree remove`, no --force) clean worktrees whose branch is merged into origin/master and whose
-// git dir has been idle --idle-hours (default 24); never the main worktree, a locked one, a protected branch or a
-// detached HEAD, and never deletes a branch.
+// git dir has been idle --idle-hours (default 24); never the main worktree, a locked one, a protected branch, a detached
+// HEAD, one that holds another registered worktree or a .claude/worktrees entry, the node_modules link target of another
+// worktree, one with ignored files beyond node_modules / dist / test-results, or one in use (rename probe); never
+// deletes a branch.
 import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -131,7 +136,7 @@ export function dirtyAge(files, mtime, now) {
 
 /** Counts by state, every state present (0 when none). */
 export function countStates(rows) {
-  const c = { dirty: 0, unpushed: 0, 'detached-local': 0, 'stale-dirty': 0, prunable: 0, missing: 0, detached: 0, clean: 0 };
+  const c = { dirty: 0, unpushed: 0, 'detached-local': 0, 'stale-dirty': 0, 'stale-branch': 0, prunable: 0, missing: 0, detached: 0, clean: 0 };
   for (const r of rows) c[r.state] = (c[r.state] ?? 0) + 1;
   return c;
 }
@@ -187,10 +192,40 @@ export function safeVerdict(rows, locks = [], extra = []) {
   return { safe: items.length === 0, items, line: items.length ? `NOT SAFE: ${items.length} items` : 'SAFE' };
 }
 
-/** Clean worktrees prune may remove: merged branch (not protected), not main / locked / detached, idle >= idleHours. */
-export function pruneCandidates(rows, { idleHours = 24 } = {}) {
+/** A path with forward slashes and no trailing slash. */
+export const norm = (p) => String(p).replace(/\\/g, '/').replace(/\/+$/, '');
+
+/** True when `inner` is `outer` or lies under it (case-insensitive: Windows paths). */
+export const within = (inner, outer) => { const i = norm(inner).toLowerCase(), o = norm(outer).toLowerCase(); return i === o || i.startsWith(`${o}/`); };
+
+/**
+ * Clean worktrees prune may remove: merged branch (not protected), not main / locked / detached, idle >= idleHours, and
+ * not holding another registered worktree (`registered`: every worktree path of every clone), which plain
+ * `git worktree remove` would delete with it, uncommitted work included.
+ */
+export function pruneCandidates(rows, { idleHours = 24, registered = [] } = {}) {
   return rows.filter((r) => r.state === 'prunable' && r.merged && !r.main && !r.locked && !r.detached
-    && !protectedBranch(r.branch) && r.idleHours !== null && r.idleHours >= idleHours);
+    && !protectedBranch(r.branch) && r.idleHours !== null && r.idleHours >= idleHours
+    && !registered.some((p) => norm(p).toLowerCase() !== norm(r.path).toLowerCase() && within(p, r.path)));
+}
+
+/** Ignored entries prune may delete with a worktree; anything else ignored (.mocap-cache, build/, ...) blocks it. */
+export const DISPOSABLE_IGNORED = ['node_modules', 'dist', 'test-results'];
+
+/** Ignored paths of `git status --porcelain -z --ignored` outside DISPOSABLE_IGNORED. */
+export const keptIgnored = (entries) => entries.filter((e) => e.xy === '!!' && !e.file.split('/').some((s) => DISPOSABLE_IGNORED.includes(s))).map((e) => e.file);
+
+/**
+ * In-use probe: rename `p` to `<p>.swap-probe` and back. True (in use) on EBUSY / EPERM / EACCES. A failed rename back
+ * throws "STOP", which ends the whole prune.
+ */
+export function probeInUse(p, fsx = fs) {
+  const tmp = `${p}.swap-probe`;
+  try { fsx.renameSync(p, tmp); } catch (e) { if (['EBUSY', 'EPERM', 'EACCES'].includes(e?.code)) return true; throw e; }
+  let back = null;
+  try { fsx.renameSync(tmp, p); } catch (e) { back = e; }
+  if (back) throw new Error(`STOP: ${p} was renamed to ${tmp} and could not be renamed back (${back.code ?? back.message}); rename it by hand before anything else`);
+  return false;
 }
 
 /** Fixed-width table: rows of string cells, the first row the header. */
@@ -205,7 +240,7 @@ const USAGE = [
   '  node scripts/swap.mjs status [--all] [--no-fetch] [--stale-hours <h>]',
   '  node scripts/swap.mjs save [--commit-wip] [--all] [--no-fetch] [--stale-hours <h>]',
   '  node scripts/swap.mjs prune --dry-run|--yes [--idle-hours <h>]',
-  '  common: --repo <path> --root <path> --scratch <path> --out <file> --machine <name> --jobs <n>',
+  '  common: --repo <path> (repeatable; none: every clone under --root) --root <path> --scratch <path> --out <file> --machine <name> --jobs <n>',
 ].join('\n');
 
 /** argv (after `node script`) + env -> options; throws an Error carrying the usage text. */
@@ -213,14 +248,18 @@ export function parseArgs(argv, env = {}) {
   const bad = (why) => new Error(`${why}\n${USAGE}`);
   const o = {
     cmd: null, all: false, fetch: true, commitWip: false, dryRun: false, yes: false, idleHours: 24, staleHours: 12, jobs: 6,
-    repo: env.SWAP_REPO || 'C:/NightShift/Mobile-Coop', root: env.NS_ROOT || 'C:/NightShift', scratch: env.SWAP_SCRATCH || null,
+    repos: [], root: env.NS_ROOT || 'C:/NightShift', scratch: env.SWAP_SCRATCH || null,
     out: null, machine: env.SWAP_MACHINE || env.LQ_WORKER || null,
   };
-  const val = { '--repo': 'repo', '--root': 'root', '--scratch': 'scratch', '--out': 'out', '--machine': 'machine', '--jobs': 'jobs', '--idle-hours': 'idleHours', '--stale-hours': 'staleHours' };
+  const val = { '--root': 'root', '--scratch': 'scratch', '--out': 'out', '--machine': 'machine', '--jobs': 'jobs', '--idle-hours': 'idleHours', '--stale-hours': 'staleHours' };
   const flag = { '--all': 'all', '--commit-wip': 'commitWip', '--dry-run': 'dryRun', '--yes': 'yes' };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a in val) {
+    if (a === '--repo') {
+      const v = argv[++i];
+      if (v === undefined || v.startsWith('--')) throw bad('--repo needs a value');
+      o.repos.push(v);
+    } else if (a in val) {
       const v = argv[++i];
       if (v === undefined || v.startsWith('--')) throw bad(`${a} needs a value`);
       const num = ['--jobs', '--idle-hours', '--stale-hours'].includes(a);
@@ -236,6 +275,7 @@ export function parseArgs(argv, env = {}) {
   if (o.commitWip && o.cmd !== 'save') throw bad('--commit-wip applies to save only');
   if (o.cmd === 'prune' && o.dryRun === o.yes) throw bad('prune needs exactly one of --dry-run or --yes');
   if (o.cmd !== 'prune' && (o.dryRun || o.yes)) throw bad('--dry-run / --yes apply to prune only');
+  if (!o.repos.length && env.SWAP_REPO) o.repos.push(env.SWAP_REPO);
   o.jobs = Math.max(1, Math.floor(o.jobs));
   o.scratch ??= path.join(o.root, 'scratch');
   o.out ??= path.join(o.scratch, 'swap-status.json');
@@ -308,7 +348,8 @@ export async function wipCommit(wt, others, iso) {
   if (hasUnmerged(entries)) return { committed: false, problem: `WIP skipped: ${wt} has unmerged paths` };
   const paths = stagePaths(entries);
   if (!paths.length) return { committed: false, problem: null };
-  await git(wt, ['add', '-A', '--pathspec-from-file=-', '--pathspec-file-nul'], { input: `${paths.join('\0')}\0` });
+  // literal: a file named `*.ts` or `:(exclude)x` stages only itself, never a glob or magic match
+  await git(wt, ['--literal-pathspecs', 'add', '-A', '--pathspec-from-file=-', '--pathspec-file-nul'], { input: `${paths.join('\0')}\0` });
   const added = (await git(wt, ['diff', '--cached', '--name-only', '--diff-filter=A', '-z'])).split('\0').filter(Boolean);
   const big = added.find((f) => { try { return fs.statSync(path.join(wt, f)).size > MAX_NEW_FILE; } catch { return false; } });
   if (big) {
@@ -329,28 +370,55 @@ async function unpushedSet(repo, heads) {
   return set;
 }
 
-/** Facts and state for every worktree. */
-async function scanWorktrees(o, log) {
-  const list = parsePorcelain(await git(o.repo, ['worktree', 'list', '--porcelain']));
-  const repoGitDir = path.resolve(o.repo, (await git(o.repo, ['rev-parse', '--git-common-dir'])).trim());
-  const merged = new Set((await git(o.repo, ['branch', '--format=%(refname:short)', '--merged', 'origin/master'])).split('\n').map((s) => s.trim()).filter(Boolean));
-  const gone = new Set();
-  for (const l of (await git(o.repo, ['for-each-ref', 'refs/heads', '--format=%(refname:short)\t%(upstream:short)\t%(upstream:track)'])).split('\n')) {
-    const [b, up, track] = l.split('\t');
-    if (b && up && /\bgone\b/.test(track ?? '')) gone.add(b);
+/**
+ * Distinct clones of the checkouts `dirs`: [{ repo (absolute common git dir), label }], one per clone in first-seen
+ * order. Folders that are no git checkout are skipped. The common dir serves as `git -C` for clone-wide commands.
+ */
+export async function resolveClones(dirs, jobs = 6) {
+  const dirsOut = await mapLimit(dirs, jobs, async (d) => (await git(d, ['rev-parse', '--path-format=absolute', '--git-common-dir'], { soft: true }))?.trim() || null);
+  const seen = new Map();
+  for (const c of dirsOut) {
+    if (!c || seen.has(norm(c).toLowerCase())) continue;
+    const repo = norm(c);
+    seen.set(repo.toLowerCase(), { repo, label: path.posix.basename(repo === '.git' || repo.endsWith('/.git') ? path.posix.dirname(repo) : repo) });
   }
-  const heads = [...new Set(list.filter((w) => w.head && !w.missing).map((w) => w.head))];
-  const local = await unpushedSet(o.repo, heads);
+  return [...seen.values()];
+}
+
+/** Folders directly under `root` (auto-discovery input). */
+const subdirs = (root) => fs.readdirSync(root, { withFileTypes: true })
+  .filter((d) => (d.isDirectory() || d.isSymbolicLink()) && !d.name.endsWith('.swap-probe')).map((d) => norm(path.join(root, d.name)));
+
+/** Facts and state for every worktree of one clone, plus its local branches checked out nowhere. */
+async function scanWorktrees(o, clone, list, registered, log) {
+  const repo = clone.repo;
+  const merged = new Set(((await git(repo, ['branch', '--format=%(refname:short)', '--merged', 'origin/master'], { soft: true })) ?? '').split('\n').map((s) => s.trim()).filter(Boolean));
+  const gone = new Set();
+  const branchTips = [];
+  const inWorktree = new Set(list.map((w) => w.branch).filter(Boolean));
+  for (const l of (await git(repo, ['for-each-ref', 'refs/heads', '--format=%(refname)\t%(objectname)\t%(committerdate:unix)\t%(upstream:short)\t%(upstream:track)'])).split('\n')) {
+    const [ref, sha, ct, up, track] = l.split('\t');
+    if (!ref) continue;
+    const b = ref.replace(/^refs\/heads\//, '');
+    if (up && /\bgone\b/.test(track ?? '')) gone.add(b);
+    if (!inWorktree.has(b)) branchTips.push({ branch: b, head: sha, tipAt: Number(ct) * 1000 });
+  }
+  const heads = [...new Set([...list.filter((w) => w.head && !w.missing).map((w) => w.head), ...branchTips.map((t) => t.head)])];
+  const local = await unpushedSet(repo, heads);
   const counts = new Map();
-  for (const h of heads.filter((x) => local.has(x))) counts.set(h, Number((await git(o.repo, ['rev-list', '--count', h, '--not', '--remotes=origin'])).trim()));
-  log(`  ${list.length} worktrees, ${counts.size} heads with local-only commits; reading status (${o.jobs} at a time)...`);
-  const all = list.map((w) => w.path.replace(/\\/g, '/'));
-  return mapLimit(list, o.jobs, async (w) => {
+  await mapLimit(heads.filter((x) => local.has(x)), o.jobs, async (h) => counts.set(h, Number((await git(repo, ['rev-list', '--count', h, '--not', '--remotes=origin'])).trim())));
+  const branchRows = branchTips.filter((t) => counts.has(t.head)).map((t) => ({
+    repo, label: clone.label, path: `(branch only) ${clone.label}`, branchOnly: true, head: t.head, branch: t.branch, detached: false, bare: false,
+    locked: false, missing: false, main: false, dirty: 0, unpushed: counts.get(t.head), merged: false, upstreamGone: gone.has(t.branch), sample: [], idleHours: null,
+    state: o.staleHours > 0 && Date.now() - t.tipAt >= o.staleHours * 3_600_000 ? 'stale-branch' : 'unpushed',
+  }));
+  log(`  ${clone.label}: ${list.length} worktrees, ${counts.size} heads with local-only commits (${branchRows.length} on branches checked out nowhere); reading status (${o.jobs} at a time)...`);
+  const rows = await mapLimit(list, o.jobs, async (w) => {
     const missing = w.missing || !fs.existsSync(w.path);
     let dirtyFiles = [];
     let error = null;
     if (!missing && !w.bare) {
-      const entries = await readDirty(w.path, all);
+      const entries = await readDirty(w.path, registered);
       if (entries === null) error = 'git status failed';
       else dirtyFiles = entries.map((e) => e.file);
     }
@@ -359,8 +427,44 @@ async function scanWorktrees(o, log) {
       ...w, missing, dirty: error ? 1 : dirtyFiles.length, dirtyAgeHours: error ? null : age,
       unpushed: counts.get(w.head) ?? 0, merged: !!w.branch && merged.has(w.branch), upstreamGone: !!w.branch && gone.has(w.branch),
     };
-    return { ...facts, state: classifyWorktree(facts, { staleHours: o.staleHours }), sample: error ? [error] : dirtyFiles.slice(0, 3), idleHours: missing ? null : idleHours(w, repoGitDir) };
+    return { repo, label: clone.label, ...facts, state: classifyWorktree(facts, { staleHours: o.staleHours }), sample: error ? [error] : dirtyFiles.slice(0, 3), idleHours: missing ? null : idleHours(w, repo) };
   });
+  return [...rows, ...branchRows];
+}
+
+/** Rows of every clone (worktree lists read first, so each status skips every clone's registered worktrees). */
+export async function scanAll(o, clones, log = () => {}) {
+  const lists = await Promise.all(clones.map(async (c) => parsePorcelain(await git(c.repo, ['worktree', 'list', '--porcelain']))));
+  const registered = lists.flat().map((w) => norm(w.path));
+  const rows = [];
+  for (let i = 0; i < clones.length; i++) rows.push(...await scanWorktrees(o, clones[i], lists[i], registered, log));
+  return { rows, registered };
+}
+
+/** Real paths that some worktree's node_modules links to (a session sharing another worktree's install). */
+export function nodeModulesTargets(registered) {
+  const out = [];
+  for (const p of registered) {
+    const nm = path.join(p, 'node_modules');
+    try { if (fs.lstatSync(nm).isSymbolicLink()) out.push(norm(fs.realpathSync.native(nm))); } catch { /* none / broken link */ }
+  }
+  return out;
+}
+
+/**
+ * Why prune must keep this candidate (null: removable): it holds another worktree's node_modules link target, its
+ * .claude/worktrees has entries, or it has ignored files beyond node_modules / dist / test-results.
+ */
+export async function pruneBlocker(r, linkTargets = []) {
+  const t = linkTargets.find((x) => within(x, r.path));
+  if (t) return `holds ${t}, the node_modules link target of another worktree`;
+  let nested = [];
+  try { nested = fs.readdirSync(path.join(r.path, '.claude', 'worktrees')); } catch { /* none */ }
+  if (nested.length) return `.claude/worktrees holds ${nested.length} entries`;
+  const s = await git(r.path, ['--no-optional-locks', 'status', '--porcelain', '-z', '--ignored'], { soft: true });
+  if (s === null) return 'git status failed';
+  const kept = keptIgnored(parseStatusEntries(s));
+  return kept.length ? `ignored files would be deleted: ${kept.slice(0, 4).join(', ')}${kept.length > 4 ? ', ...' : ''}` : null;
 }
 
 async function scanLocks(o) {
@@ -381,7 +485,7 @@ async function scanLocks(o) {
 }
 
 /** Blob texts for `refs` (rev:path) in one `git cat-file --batch`; missing ones are null. */
-async function catFiles(repo, refs) {
+export async function catFiles(repo, refs) {
   if (!refs.length) return {};
   const out = await git(repo, ['cat-file', '--batch'], { input: `${refs.join('\n')}\n` });
   const buf = Buffer.from(out, 'utf8');
@@ -400,11 +504,11 @@ async function catFiles(repo, refs) {
   return res;
 }
 
-async function scanQueue(o) {
-  const ls = await git(o.repo, ['ls-tree', '-r', '--name-only', 'origin/laptop-queue', 'requests/'], { soft: true });
+async function scanQueue(repo) {
+  const ls = await git(repo, ['ls-tree', '-r', '--name-only', 'origin/laptop-queue', 'requests/'], { soft: true });
   if (ls === null) return { error: 'no origin/laptop-queue' };
   const ids = ls.split('\n').filter((n) => n.endsWith('.json')).map((n) => path.posix.basename(n, '.json'));
-  const texts = await catFiles(o.repo, ids.map((id) => `origin/laptop-queue:claims/${id}.json`));
+  const texts = await catFiles(repo,ids.map((id) => `origin/laptop-queue:claims/${id}.json`));
   const claims = {};
   for (const id of ids) {
     try { const c = JSON.parse(texts[`origin/laptop-queue:claims/${id}.json`] ?? 'null'); claims[id] = c && typeof c.worker === 'string' ? c : null; } catch { claims[id] = null; }
@@ -420,15 +524,17 @@ function scanAutoTrain(o) {
   return { status, building };
 }
 
-/** --commit-wip: WIP commits in dirty job worktrees, then pushes of every job branch with local-only commits. */
-async function commitWip(o, rows, iso, log) {
+/**
+ * --commit-wip: WIP commits in dirty job worktrees, then pushes (from the row's clone, no force) of every job branch
+ * with local-only commits, whatever its row state (branch-only and stale rows included).
+ */
+export async function commitWip(o, rows, iso, log = () => {}, registered = rows.filter((x) => !x.branchOnly).map((x) => norm(x.path))) {
   const problems = [];
   const touched = [];
-  const others = rows.map((x) => x.path.replace(/\\/g, '/'));
   for (const r of rows.filter((x) => x.state === 'dirty')) {
     if (!wipAllowed(r)) { log(`  skip WIP in ${r.path}: ${r.branch ? `protected branch ${r.branch}` : 'detached HEAD'}`); continue; }
     try {
-      const res = await wipCommit(r.path, others, iso);
+      const res = await wipCommit(r.path, registered, iso);
       if (res.problem) { problems.push(res.problem); continue; }
       if (!res.committed) continue;
       log(`  WIP committed: ${r.branch} (${r.path})`);
@@ -436,12 +542,12 @@ async function commitWip(o, rows, iso, log) {
     } catch (e) { problems.push(`WIP commit failed: ${r.path}: ${e.message.split('\n')[0]}`); }
   }
   const toPush = new Map();
-  for (const r of [...touched, ...rows.filter((x) => x.state === 'unpushed')]) if (wipAllowed(r)) toPush.set(r.branch, r);
-  for (const [branch, r] of toPush) {
+  for (const r of [...touched, ...rows.filter((x) => x.unpushed > 0)]) if (wipAllowed(r)) toPush.set(`${r.repo}\0${r.branch}`, r);
+  for (const r of toPush.values()) {
     try {
-      await git(r.path, ['push', '-q', 'origin', `HEAD:refs/heads/${branch}`]);
-      log(`  pushed ${branch}`);
-    } catch (e) { problems.push(`push failed (no force used): ${branch}: ${e.message.split('\n').slice(-1)[0]}`); }
+      await git(r.repo, ['push', '-q', 'origin', `refs/heads/${r.branch}:refs/heads/${r.branch}`]);
+      log(`  pushed ${r.branch}${r.label ? ` (${r.label})` : ''}`);
+    } catch (e) { problems.push(`push failed (no force used): ${r.branch}: ${e.message.split('\n').slice(-1)[0]}`); }
   }
   return { problems, changed: [...new Set([...touched, ...toPush.values()].map((r) => r.path))] };
 }
@@ -449,8 +555,8 @@ async function commitWip(o, rows, iso, log) {
 function printReport(o, rows, locks, queue, autoTrain, verdict, log) {
   const shown = o.all ? rows : rows.filter((r) => RISK_STATES.includes(r.state));
   if (shown.length) {
-    log(table([['STATE', 'BRANCH', 'DIRTY', 'UNPUSHED', 'PATH / SAMPLE'],
-      ...shown.map((r) => [r.state, r.branch ?? `(detached ${String(r.head).slice(0, 8)})`, r.dirty, r.unpushed,
+    log(table([['STATE', 'REPO', 'BRANCH', 'DIRTY', 'UNPUSHED', 'PATH / SAMPLE'],
+      ...shown.map((r) => [r.state, r.label ?? '', r.branch ?? `(detached ${String(r.head).slice(0, 8)})`, r.dirty, r.unpushed,
         `${r.path}${r.sample?.length ? `  [${r.sample.join(', ')}${r.dirty > r.sample.length ? ', ...' : ''}]` : ''}`])]));
   }
   const c = countStates(rows);
@@ -473,31 +579,51 @@ function printReport(o, rows, locks, queue, autoTrain, verdict, log) {
 async function main(argv) {
   const o = parseArgs(argv, process.env);
   const log = (s) => console.log(s);
+  const clones = await resolveClones(o.repos.length ? o.repos : subdirs(o.root), o.jobs * 2);
+  if (!clones.length) throw new Error(`no git clone found (${o.repos.length ? o.repos.join(', ') : `no folder under ${o.root} is a checkout`})`);
+  log(`clones: ${clones.map((c) => `${c.label} (${c.repo})`).join(', ')}`);
+  const extra = [];
   if (o.fetch) {
-    log(`fetching origin in ${o.repo}...`);
-    await git(o.repo, ['fetch', '-q', 'origin'], { soft: true }) ?? log('  fetch failed: using the refs as they are');
-  }
-  let rows = await scanWorktrees(o, log);
-  if (o.cmd === 'prune') {
-    const cands = pruneCandidates(rows, { idleHours: o.idleHours });
-    log(`${cands.length} prunable worktrees (clean, merged into origin/master, idle ${o.idleHours} h+)${o.dryRun ? ' - dry run' : ''}:`);
-    let removed = 0, failed = 0;
-    for (const r of cands) {
-      if (o.dryRun) { log(`  would remove ${r.path} (${r.branch}, idle ${Math.round(r.idleHours)} h)`); continue; }
-      const ok = await git(o.repo, ['worktree', 'remove', r.path], { soft: true });
-      if (ok === null) { failed++; log(`  NOT removed (git refused): ${r.path}`); } else { removed++; log(`  removed ${r.path} (${r.branch}; branch kept)`); }
+    for (const c of clones) {
+      log(`fetching origin in ${c.label}...`);
+      if (await git(c.repo, ['fetch', '-q', '--prune', 'origin'], { soft: true }) !== null) continue;
+      log('  fetch failed: using the refs as they are');
+      if (o.commitWip) extra.push(`fetch failed in ${c.repo}: unpushed counts and pushes are not trustworthy`);
     }
-    if (!o.dryRun) log(`removed ${removed}, refused ${failed}; branches untouched`);
+  }
+  const scan = await scanAll(o, clones, log);
+  const registered = scan.registered;
+  let rows = scan.rows;
+  if (o.cmd === 'prune') {
+    const cands = pruneCandidates(rows, { idleHours: o.idleHours, registered });
+    const linkTargets = nodeModulesTargets(registered);
+    log(`${cands.length} prunable worktrees (clean, merged into origin/master, idle ${o.idleHours} h+)${o.dryRun ? ' - dry run' : ''}:`);
+    let removed = 0, failed = 0, kept = 0;
+    for (const r of cands) {
+      const why = await pruneBlocker(r, linkTargets);
+      if (why) { kept++; log(`  keep ${r.path}: ${why}`); continue; }
+      if (o.dryRun) { log(`  would remove ${r.path} (${r.label} ${r.branch}, idle ${Math.round(r.idleHours)} h)`); continue; }
+      if (probeInUse(r.path)) { kept++; log(`  keep ${r.path}: in use (rename probe refused)`); continue; }
+      const nm = path.join(r.path, 'node_modules'); // a linked install: drop the link, never what it points at
+      let linkTo = null;
+      try { if (fs.lstatSync(nm).isSymbolicLink()) { linkTo = fs.readlinkSync(nm); fs.unlinkSync(nm); } } catch { /* none */ }
+      const ok = await git(r.repo, ['worktree', 'remove', r.path], { soft: true });
+      if (ok === null) {
+        failed++;
+        log(`  NOT removed (git refused): ${r.path}`);
+        if (linkTo) try { fs.symlinkSync(linkTo, nm, 'junction'); } catch (e) { log(`  node_modules link not restored (${e.code ?? e.message}): was -> ${linkTo}`); }
+      } else { removed++; log(`  removed ${r.path} (${r.branch}; branch kept)`); }
+    }
+    log(o.dryRun ? `kept ${kept}` : `removed ${removed}, refused ${failed}, kept ${kept}; branches untouched`);
     return 0;
   }
   const iso = new Date().toISOString();
-  let extra = [];
   if (o.commitWip) {
-    const r = await commitWip(o, rows, iso, log);
-    extra = r.problems;
-    if (r.changed.length) rows = await scanWorktrees({ ...o }, () => {}); // re-read after commits / pushes
+    const r = await commitWip(o, rows, iso, log, registered);
+    extra.push(...r.problems);
+    if (r.changed.length) rows = (await scanAll(o, clones)).rows; // re-read after commits / pushes
   }
-  const [locks, queue] = await Promise.all([scanLocks(o), scanQueue(o)]);
+  const [locks, queue] = await Promise.all([scanLocks(o), scanQueue(clones[0].repo)]);
   const autoTrain = scanAutoTrain(o);
   const verdict = safeVerdict(rows, locks, extra);
   printReport(o, rows, locks, queue, autoTrain, verdict, log);

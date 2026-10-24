@@ -4,8 +4,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
-  classifyWorktree, countStates, dirtyAge, hasUnmerged, lockState, opInProgress, parseArgs, parseLockHolder, parsePorcelain, parseStatusEntries, parseStatusZ,
-  protectedBranch, pruneCandidates, readDirty, safeVerdict, stagePaths, summarizeQueue, wipAllowed, wipCommit,
+  classifyWorktree, commitWip, countStates, dirtyAge, hasUnmerged, keptIgnored, lockState, nodeModulesTargets, opInProgress, parseArgs, parseLockHolder,
+  parsePorcelain, parseStatusEntries, parseStatusZ, probeInUse, protectedBranch, pruneBlocker, pruneCandidates, readDirty, resolveClones, safeVerdict,
+  scanAll, stagePaths, summarizeQueue, wipAllowed, wipCommit,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/swap.mjs';
 import {
@@ -143,12 +144,32 @@ describe('pruneCandidates', () => {
     const rows = [r({}), r({ main: true }), r({ locked: true }), r({ merged: false }), r({ idleHours: 2 }), r({ idleHours: null }), r({ state: 'dirty' }), r({ branch: 'dev' })];
     expect(pruneCandidates(rows, { idleHours: 24 })).toEqual([rows[0]]);
   });
+  it('never a worktree that holds another registered worktree (any clone); a sibling with a longer name is fine', () => {
+    const rows = [r({ path: 'C:/NS/Mobile-Coop-a' }), r({ path: 'C:/NS/Mobile-Coop-b' })];
+    const registered = ['C:/NS/Mobile-Coop', 'C:/NS/Mobile-Coop-a', 'C:\\NS\\mobile-coop-a\\.claude\\worktrees\\agent-1', 'C:/NS/Mobile-Coop-b', 'C:/NS/Mobile-Coop-bb'];
+    expect(pruneCandidates(rows, { idleHours: 24, registered })).toEqual([rows[1]]);
+  });
+  it('ignored entries: node_modules / dist / test-results go, anything else is kept', () => {
+    const e = parseStatusEntries(['!! node_modules/', '!! sub/dist/', '!! test-results/', '!! .mocap-cache/', '!! tools/__pycache__/', '?? x.txt', ''].join('\0'));
+    expect(keptIgnored(e)).toEqual(['.mocap-cache/', 'tools/__pycache__/']);
+  });
+  it('in-use probe: a refused rename means in use; a failed rename back stops the prune', () => {
+    const calls: string[] = [];
+    const err = (code: string): Error => Object.assign(new Error(code), { code });
+    expect(probeInUse('C:/w', { renameSync: (a: string, b: string) => { calls.push(`${a}>${b}`); } })).toBe(false);
+    expect(calls).toEqual(['C:/w>C:/w.swap-probe', 'C:/w.swap-probe>C:/w']);
+    for (const code of ['EBUSY', 'EPERM', 'EACCES']) expect(probeInUse('C:/w', { renameSync: () => { throw err(code); } })).toBe(true);
+    let n = 0;
+    expect(() => probeInUse('C:/w', { renameSync: () => { if (n++) throw err('EBUSY'); } })).toThrow(/^STOP/);
+  });
 });
 
 describe('parseArgs', () => {
   it('defaults from env and per-command flag rules', () => {
     const o = parseArgs(['status'], { NS_ROOT: 'D:/ns', SWAP_REPO: 'D:/ns/repo', LQ_WORKER: 'laptop' });
-    expect(o).toMatchObject({ cmd: 'status', repo: 'D:/ns/repo', root: 'D:/ns', machine: 'laptop', staleHours: 12, fetch: true });
+    expect(o).toMatchObject({ cmd: 'status', repos: ['D:/ns/repo'], root: 'D:/ns', machine: 'laptop', staleHours: 12, fetch: true });
+    expect(parseArgs(['status'], {}).repos).toEqual([]);
+    expect(parseArgs(['status', '--repo', 'A', '--repo', 'B'], { SWAP_REPO: 'C' }).repos).toEqual(['A', 'B']);
     expect(o.scratch.replace(/\\/g, '/')).toBe('D:/ns/scratch');
     expect(o.out.replace(/\\/g, '/')).toBe('D:/ns/scratch/swap-status.json');
     expect(parseArgs(['save', '--commit-wip', '--stale-hours', '0', '--no-fetch'], {})).toMatchObject({ commitWip: true, staleHours: 0, fetch: false });
@@ -351,4 +372,72 @@ describe('cloud-queue-expire plan / push use one sha', () => {
       expect(execFileSync('git', ['-C', bare, 'show', 'cloud-queue:briefs/a.md'], { encoding: 'utf8' }).split('\n')[0]).toBe('status: open');
     } finally { rm(root); }
   });
+});
+
+describe('clones, --commit-wip pushes, prune blockers (real git)', () => {
+  it('finds each clone once under a root, scans all, and --commit-wip pushes WIP and branch-only commits', async () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'swapmc-'));
+    try {
+      const bare = path.join(tmp, 'origin.git');
+      const ns = path.join(tmp, 'ns');
+      const seed = path.join(tmp, 'seed');
+      execFileSync('git', ['init', '-q', '--bare', '-b', 'master', bare]);
+      fs.mkdirSync(ns);
+      fs.mkdirSync(seed);
+      g(seed, 'init', '-q', '-b', 'master');
+      fs.writeFileSync(path.join(seed, 'a.txt'), 'a\n');
+      g(seed, 'add', '.');
+      g(seed, 'commit', '-q', '-m', 'base');
+      g(seed, 'push', '-q', bare, 'master');
+      const A = path.join(ns, 'A'), B = path.join(ns, 'B'), Awt = path.join(ns, 'A-wt');
+      for (const d of [A, B]) execFileSync('git', ['clone', '-q', '-c', 'core.autocrlf=false', bare, d], { stdio: 'ignore' });
+      g(A, 'worktree', 'add', '-q', '-b', 'feature/a', Awt);
+      fs.writeFileSync(path.join(Awt, 'wip.txt'), 'w\n');
+      g(B, 'checkout', '-q', '-b', 'feature/b-only');
+      fs.writeFileSync(path.join(B, 'b.txt'), 'b\n');
+      g(B, 'add', 'b.txt');
+      g(B, 'commit', '-q', '-m', 'b');
+      g(B, 'checkout', '-q', 'master');
+      fs.mkdirSync(path.join(ns, 'not-a-repo'));
+      const clones = await resolveClones(fs.readdirSync(ns).map((n) => path.join(ns, n)));
+      expect(clones.map((c: { label: string }) => c.label)).toEqual(['A', 'B']);
+      const o = { jobs: 4, staleHours: 12 };
+      type Row = { branch: string | null; state: string; label: string };
+      const { rows, registered } = await scanAll(o, clones);
+      expect(rows.find((r: Row) => r.branch === 'feature/a')).toMatchObject({ label: 'A', state: 'dirty' });
+      expect(rows.find((r: Row) => r.branch === 'feature/b-only')).toMatchObject({ label: 'B', state: 'unpushed', unpushed: 1, branchOnly: true });
+      const res = await commitWip(o, rows, 'iso', () => {}, registered);
+      expect(res.problems).toEqual([]);
+      const onOrigin = (b: string): string => execFileSync('git', ['-C', bare, 'log', '-1', '--format=%s', b], { encoding: 'utf8' }).trim();
+      expect(onOrigin('feature/a')).toBe('WIP: swap save iso');
+      expect(onOrigin('feature/b-only')).toBe('b');
+      expect((await scanAll(o, clones)).rows.filter((r: Row) => ['dirty', 'unpushed'].includes(r.state))).toEqual([]);
+    } finally { rm(tmp); }
+  }, 60_000);
+  it('prune keeps a worktree with a .claude/worktrees entry, kept ignored files or another worktree\'s node_modules link target', async () => {
+    const dir = fs.realpathSync.native(tmpRepo());
+    const other = fs.mkdtempSync(path.join(os.tmpdir(), 'swaplink-'));
+    try {
+      fs.writeFileSync(path.join(dir, '.gitignore'), 'node_modules/\ndist/\n.mocap-cache/\n.claude/\n');
+      g(dir, 'add', '.gitignore');
+      g(dir, 'commit', '-q', '-m', 'ignore');
+      fs.mkdirSync(path.join(dir, 'node_modules'));
+      fs.writeFileSync(path.join(dir, 'node_modules', 'x.js'), '');
+      fs.mkdirSync(path.join(dir, 'dist'));
+      fs.writeFileSync(path.join(dir, 'dist', 'i.html'), '');
+      expect(await pruneBlocker({ path: dir }, [])).toBeNull();
+      fs.mkdirSync(path.join(dir, '.mocap-cache'));
+      fs.writeFileSync(path.join(dir, '.mocap-cache', 'c.bin'), '');
+      expect(await pruneBlocker({ path: dir }, [])).toMatch(/ignored files would be deleted: \.mocap-cache/);
+      rm(path.join(dir, '.mocap-cache'));
+      fs.mkdirSync(path.join(dir, '.claude', 'worktrees', 'agent-1'), { recursive: true });
+      expect(await pruneBlocker({ path: dir }, [])).toMatch(/\.claude\/worktrees holds 1/);
+      rm(path.join(dir, '.claude'));
+      fs.symlinkSync(path.join(dir, 'node_modules'), path.join(other, 'node_modules'), 'junction');
+      const targets = nodeModulesTargets([other, dir]);
+      expect(targets).toHaveLength(1);
+      expect(await pruneBlocker({ path: dir }, targets)).toMatch(/node_modules link target/);
+      expect(await pruneBlocker({ path: other }, targets)).not.toMatch(/link target/); // the linking side is not held
+    } finally { fs.unlinkSync(path.join(other, 'node_modules')); rm(other); rm(dir); }
+  }, 30_000);
 });

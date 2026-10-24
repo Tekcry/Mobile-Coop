@@ -39,7 +39,11 @@ node scripts/swap.mjs save --commit-wip
 - Also printed (not items): heavy.lock / heavy2.lock / auto-train.lock holders with pid liveness, laptop-queue requests
   queued and claimed (per worker; `--machine laptop` or env `SWAP_MACHINE` / `LQ_WORKER` marks this machine's), and the
   auto-train status line. Check that the next ~2 hours of runs are queued.
-- On the laptop: same commands; paths come from `--repo` / env `SWAP_REPO` (default `C:/NightShift/Mobile-Coop`),
+- Every clone is scanned: with no `--repo`, each folder under `--root` is resolved to its clone (`git rev-parse
+  --git-common-dir`, deduped), so separate clones such as `Mobile-Coop-locomotion` and their worktrees are covered;
+  `--repo <path>` (repeatable) or env `SWAP_REPO` limits the scan. Local branches checked out nowhere with local-only
+  commits are rows too (`unpushed`, or `stale-branch` when the tip is `--stale-hours` old).
+- On the laptop: same commands; paths come from `--repo` / env `SWAP_REPO`,
   `--root` / `NS_ROOT` (default `C:/NightShift`, where the heavy locks live) and `--scratch` / `SWAP_SCRATCH`.
 
 Re-run `save` until it prints `SAFE`, then keep working to 100% as CLAUDE.md says. At 95% the orchestrator posts the next
@@ -76,5 +80,9 @@ node scripts/swap.mjs prune --dry-run            # list: clean, merged into orig
 node scripts/swap.mjs prune --yes [--idle-hours 48]
 ```
 
-Never touched: the main checkout, locked worktrees, detached HEADs (e.g. Mobile-Coop-testrun), protected branches, and
-any worktree git refuses to remove without `--force`.
+Never touched: the main checkout, locked worktrees, detached HEADs (e.g. Mobile-Coop-testrun), protected branches, a
+worktree that holds another registered worktree or a non-empty `.claude/worktrees`, a worktree another worktree's
+`node_modules` junction points into, one with ignored files beyond `node_modules` / `dist` / `test-results`, one in use
+(under `--yes` the folder is renamed and back first; a refused rename means a process has it open), and any worktree
+git refuses to remove without `--force`. A candidate whose own `node_modules` is a junction has the link dropped first
+(never the target), and restored if git then refuses.
