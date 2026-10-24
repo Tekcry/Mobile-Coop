@@ -15,7 +15,6 @@ import { OPERATORS } from '../operatorBody';
 import { LOD_0, LOD_2, playLodUrls } from './manifest';
 import { pageLeaving, warmPlayLods } from './offline';
 import { OperatorFigure, OperatorLibrary } from './figure';
-import { goggleColour, goggleSlot } from './goggle';
 import { wrenManifest } from './assets';
 import { WREN_BACK_MOUNT, WREN_HANDS, WREN_HOLSTER, WREN_SLING } from '../handFrame';
 
@@ -125,13 +124,4 @@ export function partnerFigureFrame(figure: OperatorFigure, rig: CharacterRig, dt
   figure.setVision('off', dt);
   figure.setHeat(rig.heat);
   figure.update(camera);
-}
-
-/**
- * (G135) A player's goggle colour from their slot in the session's player list (`goggleSlot`: the host 0, the partner
- * 1): the partner beacon. Slot 0 keeps the lens asset's own green. Kept here so src/net never touches render state.
- */
-export function setPlayerGlow(figure: OperatorFigure, players: readonly { readonly id: string; readonly host: boolean }[], id: string): void {
-  const slot = goggleSlot(players, id);
-  figure.setGlowColour(slot === 0 ? null : goggleColour(slot));
 }

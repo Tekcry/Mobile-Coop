@@ -209,8 +209,8 @@ Plan and rules: `docs/sector-redesign/briefs/ART-PLAN.md`; builds: `docs/sector-
   - Two Wren bodies share geometry, materials and textures per scene (`OperatorLibrary`); each has its own skeleton
     and goggle glow. Goggle (G73): the glow is dim with vision off, full with a vision mode on (`setVision(shown)`);
     the stowed goggle on the brow waits for its export (cleanup), so the goggle sits over the eyes in both states.
-    Colour per player (G135, ops A112): `goggleSlot` / `goggleColour` (goggle.ts, pure) give the host (and solo) the
-    lens's own green and the partner cyan; the co-op host and client apply it with `setPlayerGlow` (playerFigure.ts)
+    Colour per player (G135, ops A112, coop4 A15): `goggleColour` (goggle.ts, pure) by player slot gives the host
+    (and solo) the lens's own green and the partner cyan; the co-op host and client apply it by each body's slot
     through `OperatorFigure.setGlowColour` (the per-body glow material).
     The partner's vision is not sent: its glow stays dim. The glow is emissive only, never a light (light parity).
     Thermal warms Wren with a white per-mesh overlay (`setHeat`, from the rig's `heat`). The camera fade's head hide

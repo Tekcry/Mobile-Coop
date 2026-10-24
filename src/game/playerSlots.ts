@@ -33,7 +33,7 @@ export function isPlayerSlot(n: unknown): n is PlayerSlot {
 }
 
 /**
- * The list-order fallback (a lobby message without slots): the same rule as `goggleSlot` (operators/runtime/goggle.ts):
+ * The list-order fallback (a lobby message without slots; the rule of the old `goggleSlot`, removed in coop4 pol):
  * the host is 0, the others 1, 2, ... in list order; an id not in the list is 0. Clamped to the last slot (lists are at
  * most `PLAYER_SLOTS` long, so it never clamps in practice).
  */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GOGGLE_COLOURS, goggleColour, goggleSlot } from '../src/operators/runtime/goggle';
+import { GOGGLE_COLOURS, goggleColour } from '../src/operators/runtime/goggle';
 
 // (G135) Each player's goggle light is a distinct colour: the partner beacon.
 
@@ -49,20 +49,5 @@ describe('goggle colour per player (G135)', () => {
     expect(goggleColour(-1)).toBe(goggleColour(0));
     expect(goggleColour(0.5)).toBe(goggleColour(0));
     expect(goggleColour(Number.NaN)).toBe(goggleColour(0));
-  });
-
-  it('slots from the session player list: host 0, the others 1, 2 in list order; unknown 0', () => {
-    const ps = [
-      { id: 'h', host: true },
-      { id: 'a', host: false },
-      { id: 'b', host: false },
-    ];
-    expect(goggleSlot(ps, 'h')).toBe(0);
-    expect(goggleSlot(ps, 'a')).toBe(1);
-    expect(goggleSlot(ps, 'b')).toBe(2);
-    expect(goggleSlot(ps, 'x')).toBe(0);
-    // the host need not be first: the partner is still 1
-    expect(goggleSlot([{ id: 'a', host: false }, { id: 'h', host: true }], 'a')).toBe(1);
-    expect(goggleSlot([], 'h')).toBe(0);
   });
 });

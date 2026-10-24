@@ -145,20 +145,3 @@ export function goggleColour(slot: number): readonly [number, number, number] {
   const i = Number.isInteger(slot) && slot > 0 ? slot % n : 0;
   return GOGGLE_COLOURS[i]!;
 }
-
-/**
- * A player's goggle slot from the session's player list (the host's order, which every peer shares): the host is 0,
- * the others 1, 2, ... in list order. An id not in the list is 0.
- */
-export function goggleSlot(players: readonly { readonly id: string; readonly host: boolean }[], id: string): number {
-  let k = 0;
-  for (const p of players) {
-    if (p.host) {
-      if (p.id === id) return 0;
-      continue;
-    }
-    k++;
-    if (p.id === id) return k;
-  }
-  return 0;
-}

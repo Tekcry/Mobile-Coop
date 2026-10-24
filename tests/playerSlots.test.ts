@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { isPlayerSlot, PLAYER_SLOTS, SlotTable, slotFromList } from '../src/game/playerSlots';
 import { MAX_PLAYERS } from '../src/net/protocol';
 import { MAX_INTRUDERS } from '../src/ai/targetPick';
-import { goggleSlot } from '../src/operators/runtime/goggle';
 
 function table(...joiners: string[]): SlotTable {
   const t = new SlotTable();
@@ -193,8 +192,16 @@ describe('slotFromList', () => {
     ],
   ];
 
-  it('matches goggleSlot (host 0, the others 1, 2, ... in list order) for every list of 1-4 players', () => {
-    for (const list of lists) for (const id of ['h', 'a', 'b', 'c', 'zz']) expect(slotFromList(list, id)).toBe(goggleSlot(list, id));
+  it('host 0, the others 1, 2, ... in list order (the host need not be first) for every list of 0-4 players', () => {
+    // (coop4 pol) was checked against the old list rule `goggleSlot`, removed with its last caller
+    const want = [
+      [0, 0, 0, 0, 0],
+      [0, 1, 0, 0, 0],
+      [0, 1, 2, 0, 0],
+      [0, 1, 2, 3, 0],
+    ];
+    lists.forEach((list, i) => expect(['h', 'a', 'b', 'c', 'zz'].map((id) => slotFromList(list, id))).toEqual(want[i]));
+    expect(slotFromList([], 'h')).toBe(0);
   });
 
   it('host 0, unknown id 0, the others in list order', () => {
