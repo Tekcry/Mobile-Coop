@@ -47,7 +47,10 @@ const REPORT = ['anim-audit'];
 // `e2e-desktop:1`, `:2`, `:4` (part 3 is in GPU). `node scripts/e2e-desktop.mjs --part=N`; the script run directly with no --part runs whole.
 // (marlow-final 0d) e2e-ctcourse = four pairs of sets (A1-A2, A3-A4, A5-A6, A7-A8), each its own pair of pages.
 // (sector-fixes-r RE) e2e-sectorops = part 1 (sections, alarms, restarts, nav, the co-op mirror), 2 (solo: co-op lips refused, route links, team doors), 3-5 (co-op routes and team doors of sections 1-3), 6 (campusOps: S1-S3 greybox routes)
-const PARTS = { 'e2e-desktop': ['1', '2', '4'], 'e2e-ctcourse': ['1', '2', '3', '4'], 'e2e-sectorops': ['1', '2', '3', '4', '5', '6'] };
+// (mission-framework EN2) e2e-sectorops:mission = the campus test mission (`scripts/e2e-sectorops-mission.mjs`, its own script: PART_SCRIPT)
+const PARTS = { 'e2e-desktop': ['1', '2', '4'], 'e2e-ctcourse': ['1', '2', '3', '4'], 'e2e-sectorops': ['1', '2', '3', '4', '5', '6', 'mission'] };
+/** A part that lives in its own script (run with no `--part`). */
+const PART_SCRIPT = { 'e2e-sectorops:mission': 'e2e-sectorops-mission' };
 const expand = (list) => list.flatMap((s) => (PARTS[s] ? PARTS[s].map((n) => `${s}:${n}`) : [s]));
 const REQUIRED_JOBS = new Set(expand(REQUIRED));
 
@@ -199,7 +202,8 @@ async function runOne(s) {
   else console.log(`[start] ${s}`);
   const [script, part] = s.split(':');
   const childEnv = NEEDS_LEGACY_FLAG.has(script) ? { ...env, LEGACY: '1' } : env;
-  const child = spawn(process.execPath, [`scripts/${script}.mjs`, url, ...(part ? [`--part=${part}`] : []), ...(selective && script === 'anim-audit' ? ['--quick'] : [])], { windowsHide: true, stdio: streamed ? 'inherit' : ['ignore', 'pipe', 'pipe'], env: childEnv });
+  const own = PART_SCRIPT[s];
+  const child = spawn(process.execPath, [`scripts/${own ?? script}.mjs`, url, ...(part && !own ? [`--part=${part}`] : []), ...(selective && script === 'anim-audit' ? ['--quick'] : [])], { windowsHide: true, stdio: streamed ? 'inherit' : ['ignore', 'pipe', 'pipe'], env: childEnv });
   let log = '';
   if (!streamed) {
     child.stdout.on('data', (d) => (log += d));
