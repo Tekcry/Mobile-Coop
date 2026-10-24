@@ -423,8 +423,9 @@ export class NetSession {
     for (const p of this.bySlot()) order.push(p.id);
     this.slots.compact(order);
     this.start = { mode: this.mode, map: this.map, seed: Math.floor(Math.random() * 1e9), difficulty: this.difficulty, mission: this.mission, weather: this.weather, bay: this.mode === 'course' ? this.courseBay : 1 };
-    this.send(startMsg(this.start));
+    // (coop4 pol, net-batch P2) the lobby with the compacted slots first: a client's `start` handler reads its slot
     this.broadcastLobby();
+    this.send(startMsg(this.start));
     this.events.emit('start', this.start);
     return this.start;
   }

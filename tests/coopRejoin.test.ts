@@ -343,7 +343,12 @@ describe('coop4 N1: slots across join, leave, drop and rejoin (A18, A19)', () =>
     const bs = sessions.find((s) => s.selfId === 'B')!;
     await bs.leave();
     expect(host.slotOf('C')).toBe(3);
+    // (pol, net-batch P2) the client already holds its compacted slot when its `start` fires (the lobby goes first)
+    const cs0 = sessions.find((s) => s.selfId === 'C')!;
+    const atStart: number[] = [];
+    cs0.events.on('start', () => atStart.push(cs0.selfSlot));
     host.startMatch();
+    expect(atStart).toEqual([2]);
     expect([host.slotOf('H'), host.slotOf('D'), host.slotOf('C')]).toEqual([0, 1, 2]);
     const cs = sessions.find((s) => s.selfId === 'C')!;
     expect(cs.selfSlot).toBe(2);
