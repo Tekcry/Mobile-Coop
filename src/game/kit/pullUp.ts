@@ -62,6 +62,12 @@ export const PULL = {
   catchClose: APEX_T + CATCH_HALF,
   haul: TEAM.hangPull,
   scramble: TEAM.ropeTop,
+  /** (NET) The host's allowance for a client holder's catch on its way in (s): a claim up to `catchClose` + this after
+   *  the host's start is a catch (covers a round trip of 300 ms). */
+  claimLag: 0.3,
+  /** (NET) The partner holds its landing this long for the host's verdict (s): landT + this is past the latest catch the
+   *  host takes (catchClose + claimLag 0.74 < 0.87), so a host partner never lands before its verdict. */
+  verdictWait: 0.25,
 } as const;
 
 // ---- the pure rules ----
@@ -424,6 +430,12 @@ export const PULL_UP: KitMove<PullRun> = {
         g.player.pose.traverse = 'hop';
         g.player.pose.traverseT = Math.min(1, h.t / PULL.landT);
         if (run.fall ? y <= run.floorY + 1e-3 : h.t >= PULL.landT) {
+          // (NET) landed with no verdict yet: held on the floor for it a moment (the holder's catch may still be on
+          // its way through the host); then a miss, said to the host so a catch arriving after this lets go
+          if (!run.fall && run.verdict === 0) {
+            if (h.t < PULL.landT + PULL.verdictWait) return;
+            send(h, run, 'drop');
+          }
           // back on the floor: missed (or dropped)
           if (!run.fall) run.misses++;
           h.endWhy = run.fall ? 'pull: dropped from the hang' : 'pull: missed catch';

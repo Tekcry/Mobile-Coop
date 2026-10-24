@@ -366,12 +366,29 @@ describe('the partner (KIT-PULL)', () => {
     expect(pullMissLanding().harm).toBe(false);
   });
 
-  it('no verdict at all (lost): the jump still lands and ends', () => {
+  it('no verdict at all (lost): the jump lands, waits verdictWait on the floor, then ends and says drop (NET)', () => {
     const f = partnerGame();
     f.tm.begin({ kind: 'pull', a: 'me', b: 'm', target: -1, s: 0, l: [0.85, H, 0] }, 'me');
     f.tick(Math.ceil(PULL.landT / DT) + 1);
+    expect(f.tm.state).toBe('pullJump');
+    expect(f.controller.pos.y).toBeCloseTo(0, 5);
+    expect(f.ends).toEqual([]);
+    f.tick(Math.ceil(PULL.verdictWait / DT) + 1);
     expect(f.tm.state).toBe('none');
     expect(f.controller.pos.y).toBeCloseTo(0, 5);
+    // the partner's answer: a catch reaching the host after this lets go (kitNet)
+    expect(f.ends).toEqual(['drop']);
+  });
+
+  it('(NET) a catch that reaches the landed partner inside the wait still hauls it up', () => {
+    const f = partnerGame();
+    f.tm.begin({ kind: 'pull', a: 'me', b: 'm', target: -1, s: 0, l: [0.85, H, 0] }, 'me');
+    f.tick(Math.ceil(PULL.landT / DT) + 2);
+    expect(f.tm.state).toBe('pullJump');
+    f.tm.ended('pull');
+    f.tick(1);
+    expect(f.tm.state).toBe('pullHang');
+    expect(f.ends).toEqual([]);
   });
 
   it('the holder gone mid-haul (left, or the host ends the pair): let go, a plain fall to the floor, crouched', () => {

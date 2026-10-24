@@ -18,7 +18,8 @@ import type { HitInfo } from '../game/damage';
 import { Interactables, KIND_COLOR, type Interactable } from '../game/interactables';
 import { CRATE_DARK, applyCrateEvent } from '../game/crateLedger';
 import type { NetSession } from './session';
-import { BARK_CAM, BARK_TEXT, DROP_BODY_ID, gaitWire, motionWire, PF, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, wirePlayerState } from './protocol';
+import { BARK_CAM, BARK_TEXT, DROP_BODY_ID, gaitWire, motionWire, PF, USE_ONLY_GADGETS, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, type UseOnlyGadget, wirePlayerState } from './protocol';
+import { MissionMirror } from './missionMirror';
 import { CT } from '../config/movement';
 import { CLIENT_INTERP_DELAY, ClockSync, sendClock } from './interp';
 import type { CKind } from '../game/committedMoves';
@@ -29,7 +30,7 @@ import { infoAtSpawn } from '../ai/guardInfo';
 import { PartnerTarget } from './partnerTarget';
 import { PartnerBlocker, partnerPassable } from './partnerBlocker';
 import type { TeamMate } from '../game/teamController';
-import type { TeamKind } from '../game/teamMoves';
+import type { TeamMoveKind } from '../game/teamMoves';
 import { clampEnd, clientForcedHolster, coopSessionStats, ratingViewFromWire, ratingViewsFromRh } from './validate';
 import { RatingCard, type RatingView } from '../ui/hud/ratingCard';
 import { GADGETS } from '../game/gadgets';
@@ -115,6 +116,8 @@ export class CoopClient implements NetAttachment {
   private readonly crateSpent = new Set<string>();
   /** Sector Ops: the client's mirror of the cameras and lasers. */
   private sec: CtDevices | null = null;
+  /** (mission NET) The host's mission as applied here (`mission.runner`; null runner: none). */
+  readonly mission = new MissionMirror();
   /** (sector-restart) The section our checkpoint loadout was recorded for (the host's live section only moves on). */
   private kitSection = 0;
   /** (section-rating S3) The host's last section rating as the HUD card shows it (null before the first). */
@@ -232,6 +235,13 @@ export class CoopClient implements NetAttachment {
     g.gadgets.onLocal = (kind, at) => {
       if (kind === 'gas' || kind === 'flash' || kind === 'emp' || kind === 'noise') s.toHost({ t: 'gadget', kind, x: at.x, y: at.y, z: at.z });
     };
+    // (mission NET) a frag, mine or sticky cam of ours thrown / placed: no effect message carries it, so the host's mode
+    // hears of the use (`gused`: a mission's No gadgets rule)
+    this.offs.push(
+      g.events.on('gadget', (e) => {
+        if ((e.phase === 'throw' || e.phase === 'place') && USE_ONLY_GADGETS.includes(e.kind as UseOnlyGadget)) s.toHost({ t: 'gused', kind: e.kind as UseOnlyGadget });
+      }),
+    );
     g.takedownVictims = () => this.puppetList;
     // (LR16-6 fix) our kept bodies cool as the host's do (render-only body heat)
     g.bodyStamp = (f) => this.stampBodies(f);
@@ -308,8 +318,9 @@ export class CoopClient implements NetAttachment {
   }
 
   /** (3.2.0 phase 5) Team-mates for team moves (co-op: every other player; TDM: the same side). */
-  teamRequest(kind: TeamKind, partner: string, target: number, ss: number, gy: number, lx?: number, lz?: number): void {
-    this.s.toHost((kind === 'throw' || kind === 'hang' || kind === 'rope') && lx !== undefined && lz !== undefined ? { t: 'tmove', kind, partner, target, s: ss, gy, lx, lz } : { t: 'tmove', kind, partner, target, s: ss, gy });
+  teamRequest(kind: TeamMoveKind, partner: string, target: number, ss: number, gy: number, lx?: number, lz?: number): void {
+    // a claimed point (the throw / hang / rope's, the pull-up's catch point) rides as lx, gy, lz
+    this.s.toHost(lx !== undefined && lz !== undefined ? { t: 'tmove', kind, partner, target, s: ss, gy, lx, lz } : { t: 'tmove', kind, partner, target, s: ss, gy });
   }
 
   /** (locomotion step 10, A5) Ask the host for a committed move. */
@@ -960,6 +971,12 @@ export class CoopClient implements NetAttachment {
    */
   private onSector(msg: Extract<Msg, { t: 'sector' }>): void {
     const ct = this.sec;
+    // (mission NET) the host's mission state on our runner (never evaluated here); a late joiner's first one with breaks
+    // shows the last rule line (a live client had it as the host's radio line)
+    if (msg.ms) {
+      const line = this.mission.take(this.g.world.map.missions, msg.ms);
+      if (line) this.g.hud.feedItem(line);
+    }
     // (section-rating fix) the rating first: a top-up in the same message as a new `ls` goes into that checkpoint loadout
     if (!this.sawSector) {
       // (integration) a late join / rejoin: a rating already on the wire was shown and granted before we came; it
