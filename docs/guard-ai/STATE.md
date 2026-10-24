@@ -1022,9 +1022,10 @@ WIP snapshots (branches untouched): origin/wip/guard-ai-polish-fix ba1dc579 (fix
    shadow in view; contact sheets tier on vs &animtier=0) + a software-GL dry run; then queue it as an alone GPU request
    on the T1 head AND on master (tier 4) for Michael's morning pack. After gm-flip lands: shadow-in-view counts as seen
    in animTierView.ts, measure the saving left. Requeue T1's e2e-sectorops + e2e-enemies only if Michael picks ship 8.
-4. Polish batch 2: Opus planner was writing docs/guard-ai/POLISH2-PLAN.md (polish worktree, uncommitted: commit it) from
-   POLISH-PLAN "Deferred" + POLISH-CHECK-A polish 1-4; stacked on feature/guard-ai-polish (new branch off its fix head);
-   builders after #363's fix round.
+4. Polish batch 2: PLAN DONE docs/guard-ai/POLISH2-PLAN.md (on feature/guard-ai; A184-A194 + test T1; group A Opus
+   enemy.ts / enemyManager.ts / searchArea.ts / navGrid.ts, A184-A188 first; group B Sonnet docs + reconDroneSight test).
+   Branch feature/guard-ai-polish2 off #363's FIX head (copy the plan in), builders after the fix round lands; line
+   numbers move: find spots by name. Michael look item: A186 overwatch at his cover's edge.
 5. Mission hooks (Marlow, after Michael signs off the mission specs): em.missionOrder(guardTag, 'reset' | 'walk',
    postId, via?) wrapping Enemy.resetBreaker / Enemy.sendTo. Wait for Marlow's go.
 6. Michael's calls: A148 reinforcements at spawn; S23 client arcs / LKP ghost; S25 flares. After #317 merges:
