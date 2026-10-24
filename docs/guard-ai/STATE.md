@@ -1,6 +1,12 @@
 # Guard AI - state
 
 ## Now
+~21:35: coop4 AI6 triage: test bug, scripts/e2e-coop.mjs:2378 teleP read r.speed on a RemotePlayer (no such field;
+r.ref.speed). The block first ran after the master merge brought em.coop4 hooks. Fixed d0f574cb (test-only; triage
+docs/coop4/checks/ai6-e2e-coop-triage.md). Laptop e2e-coop on d0f574cb queued (set coop4-fix, id ...-c404); coop4-4p
+on 1b04e5bd pending (counts for d0f574cb: test-script delta only). Both green -> gh pr ready 317 + tell orchestrator.
+Risk: AI6 (1)-(3) never ran before; a second, different fail is possible (untried hide spots, seesIndex slot vs index).
+
 ~21:30: laptop coop4 on 1b04e5bd FAIL 14/15: e2e-coop AI6 block (1)-(3) deterministic (run + rerun): "timed out
 waiting for AI6: the host sees page 3 at -15.75, -24.75" (logs C:/NightShift/scratch/laptop-queue/runs/
 20261024T083207-night-shift-guard-ai-1b04e5bd-0c2d). Opus triage RUNNING -> docs/coop4/checks/ai6-e2e-coop-triage.md
