@@ -2,7 +2,16 @@
 
 Brief: `docs/coop4/BRIEF.md`. Plan: `docs/coop4/PLAN.md`. Branch `feature/coop4` (from master a10382bc, 4.89.x, `PROTOCOL_VERSION` 49). Lead: Night Shift | Sector Ops Build.
 
-## Now (2026-10-24, round fix)
+## Now (2026-10-24 ~18:10, after the account swap)
+- #317 laptop on 3f1c946f: laptop-e2e/coop4 RUNNING (since 17:47); alone set (sectorops 7-9) queued behind it.
+- POLISH BATCH DONE: feature/coop4-pol @ 1f61b0af = 5 items (72771798, 50ebbb37, 55a13cef, 06375cec, 28b9e8c8 dead glow
+  code, finished by the lead) + UI2 merged (57ec3f70); tsc clean, 12 vitest files 186 pass; report checks/pol-build.md.
+  RUNNING: two Opus checkers (checks/pol-check-A.md logic, pol-check-B.md engine / tests) + laptop set coop4-pol
+  (coop netmove ctcourse course section-rating, id 20261024T070522-...-ed50). OWED: alone sectorops 7-9 on the pol head,
+  queued only AFTER the 3f1c946f alone run finishes (a descendant request with the same suites would supersede #317's).
+- Follow-up PR (pol -> master) after #317 merges.
+
+## Earlier (2026-10-24, round fix)
 - Round checks A + B on f685cb21..aabc5a31: both FIX (one must-fix). Opus round fix DONE (`checks/round-fix.md`):
   - a held OUT player now comes back at the connector (`CoopHost.returnOut`, its hold re-pointed with `JoinWatch.rehold`);
   - an OUT leaver leaves `outs` / `ot` at once (`GameMode.onPlayerLeft`);
