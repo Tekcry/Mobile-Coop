@@ -1,15 +1,18 @@
 # Guard cap: state
 
-## Now (2026-10-24 ~18:30)
-Opus plan written: `BRIEF.md` (ask, baseline, A1-A7), `PLAN.md` (M0 / M1 measure, decision rule, slices). Branch
-`feature/guard-cap` off master 6e8a450b (4.93.0). No src change. Waiting for the orchestrator's go.
+## Now (2026-10-24 ~18:25; orchestrator go ~18:15 for M0 + M1 + the R1 brief; gated slices wait for merges)
+- M0 QUEUED: laptop alone request 20261024T071756-night-shift-marlow-b-6e8a450b-650d (set guard-cap-m0, master 6e8a450b):
+  only the cells #323 gr2-rep does not cover: sectorops 12/16/32, campus 0-32, ctcourse 0/12/24, cells patrol/away/alert,
+  r1 + r2, plus campus perf.mjs (step 4). Queue order: train 57, Test Runner gr2 alone runs, then this. Test Runner pushes
+  results to origin/feature/guard-cap-results docs/guard-cap/run-m0/ and the gr2 baseline (sectorops 0/24 alert+patrol;
+  base r1/r3/r5 = master 6b44efb8, r2 = 3360b85b, r4 = #323 head 6a6b5e58) to docs/guard-cap/run-gr2/<set>/, one message.
+- M1 BUILDING: Sonnet, worktree C:/NightShift/Mobile-Coop-guard-cap-m1, branch feature/guard-cap-m1 -> scripts/guard-cap-coop.mjs.
+  Next: Sonnet checker, merge into feature/guard-cap, laptop GPU smoke then the full M1 run (alone).
+- R1 BRIEF SENT to Guard AI Build (docs/guard-cap/briefs/R1.md); it starts after its #313 master merge. Marlow does not touch src/ai.
 
 ## Next (lead: Night Shift | Marlow Build)
-1. In parallel: M0 request to Test Runner's queue (PLAN section 1, alone on 4189, two repeats); M1 Sonnet builder
-   (`scripts/guard-cap-coop.mjs`, PLAN "M1 brief"); R1 brief to Guard AI Build (PLAN "R1 brief"; or build it here with
-   Guard AI's OK).
-2. M1 checker (Sonnet), then its laptop run.
-3. One Opus read of M0 + M1 against the decision rule (PLAN section 2) -> `REPORT.md` "2026-10 re-measure" -> the
+1. M1 checker -> merge -> laptop alone request (smoke: --maps=campus --counts=0,12 --players=2 --secs=3; then the full run).
+2. One Opus read of M0 + gr2 + M1 against the decision rule (PLAN section 2) -> REPORT.md "2026-10 re-measure" -> the
    triggered slices as their gates open (PLAN section 4).
 
 ## Open
@@ -45,10 +48,9 @@ Facts (master 6e8a450b, 4.93.0):
 - snapshot coopHost.ts:1441-1455 (SNAP_HZ 15, :65); client drops a missing guard after 0.5 s coopClient.ts:450-457.
 - render belongs to Test Runner's origin/feature/guard-render-2 docs/guard-render/PLAN2.md (S9-S13).
 Do now, in parallel (desktop CPU < 80%):
-1. M0: send Test Runner the PLAN section 1 commands (master head, 4189 alone, r1 + r2, ~70 min).
-2. M1: Sonnet builder from PLAN "M1 brief" -> scripts/guard-cap-coop.mjs; Sonnet checker; laptop run.
-3. R1: send Guard AI Build PLAN "R1 brief" (files free: perception.ts, reconDrone.ts, tests/perception.test.ts);
-   build here only with its OK (Opus builder + Opus checker; e2e-stealth-ai, e2e-enemies on the laptop queue).
+1. M0: queued (STATE Now); results come on origin/feature/guard-cap-results (Test Runner messages).
+2. M1: feature/guard-cap-m1 (STATE Now): check, merge, laptop smoke + run.
+3. R1: brief docs/guard-cap/briefs/R1.md is with Guard AI Build; build here only with its OK.
 Then: Opus read of M0 + M1 vs PLAN section 2 -> REPORT.md "2026-10 re-measure"; start each triggered slice only when
 its gate branch has merged (re-check: git fetch -q origin; git diff --name-only origin/master...origin/<b> -- src).
 Briefs for other sessions: T1 / D1 Guard AI, C2 Test Runner. Progress in STATE.md; message the orchestrator only at
