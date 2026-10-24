@@ -1,0 +1,20 @@
+{
+  "id": "20261024T081820-night-shift-sector-o-4813dbf2-c03f",
+  "sha": "4813dbf21ac3be3a3e3c5a62578557eef84b5ff9",
+  "branch": "feature/sector-redesign-fog",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Sector Ops Build",
+  "steps": [
+    "npm run build",
+    "set \"VOL=\" && set \"VOLFIX=\" && set \"BLOOM=\" && set \"PROBE=\" && set \"ONLY=s1-f,s2-b,s2-d,s3-a,s3-c,s5-a\" && set \"GFX=epic\" && set \"SUFFIX=-epic\" && set \"PROBE=1\" && node scripts/campus-art-shots.mjs C:/NightShift/scratch/fog-shots/4813dbf2 after",
+    "set \"VOL=\" && set \"VOLFIX=\" && set \"BLOOM=\" && set \"PROBE=\" && set \"ONLY=s1-f,s2-b,s2-d,s3-a,s3-c,s5-a\" && set \"GFX=high\" && set \"SUFFIX=-high\" && set \"PROBE=1\" && node scripts/campus-art-shots.mjs C:/NightShift/scratch/fog-shots/4813dbf2 after",
+    "set \"VOL=\" && set \"VOLFIX=\" && set \"BLOOM=\" && set \"PROBE=\" && set \"ONLY=s1-f,s2-b,s2-d,s3-a,s3-c,s5-a\" && set \"GFX=medium\" && set \"SUFFIX=-medium\" && node scripts/campus-art-shots.mjs C:/NightShift/scratch/fog-shots/4813dbf2 after"
+  ],
+  "env": {
+    "E2E_GPU": "1",
+    "E2E_PORT": "4189"
+  },
+  "set": "fog-shots-after",
+  "note": "campus fog fix after-shots (HIGH; pairs with fog-shots 28cbd98b). Please push C:/NightShift/scratch/fog-shots/4813dbf2 as branch shots/fog-4813dbf2 (like shots/g8c-*)."
+}
