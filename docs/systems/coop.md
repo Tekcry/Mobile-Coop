@@ -42,6 +42,8 @@ are host-approved; vision, camera and rumble stay local; partners never pass thr
   guards' `MAX_INTRUDERS`).
 - `lobby` / `start` carry the mode, map, `mission` (Infiltration), `weather`, the host's fixed difficulty level (shown
   read-only on the client) and `bay` (course start). (`start.lf`, the host's lamp falloff, LR13, is gone since LR16a.)
+  `startMatch` sends the lobby (with the compacted slots) before `start`, so a client's `start` handler reads its slot
+  from it (coop4 pol).
 - `PlayerState.mv` (`player/moveState.ts`): mode index (`MOVE_MODES`, append only), anchor, sub bits, phase, takedown
   target, gear, raise, aim twist, ready, grips, commit, `dw` (draw phase 0-3). The `wall` mode carries `a` (cover
   segment), `s` (metres along it) and `sub` (WALL_SUB). Decided, not built yet (G52): the SWAT-turn MoveState (`swat`)
@@ -154,7 +156,8 @@ snapshot to everyone. Join, leave, late join and rejoin work in any slot.
     match always has slots 0 and 1). Slots never move during a match.
   - `NetSession.slotOf(id)` and `selfSlot` read it (a client reads its slot from the lobby list); `GameState.localSlot`
     (`setLocalSlot`) is the local player's. `TeamRef` = `PlayerRef` + `slot` + `mv` (the player's `MoveState`, from each
-    accepted `pstate` on the host; null on a client). `GameState.playerRefsInto` / `teamRefsInto` list the players in slot
+    accepted `pstate` on the host; null on a client). The local player's `mv` is built on demand: each fixed step only
+    marks it stale and the first read in a step fills the same buffer (no allocation; nothing reads it yet, coop4 pol). `GameState.playerRefsInto` / `teamRefsInto` list the players in slot
     order (connected, downed included, held left out); `teamSize()` counts connected plus held.
   - Spawns, respawns, revives and late joins are placed by slot (`CoopHost.slotOf`, `joinSpot`, `onRespawn`): slot 0 on the
     area's point, slots 1-3 on the first free ring spot beside it.
@@ -171,7 +174,8 @@ snapshot to everyone. Join, leave, late join and rejoin work in any slot.
   (id -> partner and end time) is set for both players at `tstart` (a timed move lasts its length + `TEAM_BUSY_SLACK` 0.5 s;
   a hang-down or rope lasts until its end) and cleared at `tend`, on a denial, a drop or a leave. A second claimant on a busy
   partner is denied `taken` (`TeamRequest.bBusy`, set by the host, is checked first in `checkTeamRequest`); the line reads
-  "Your partner is busy with someone else". Two pairs can run moves at the same time. With 2 players there is no third
+  "Your partner is busy with someone else". A new move first clears both players' earlier marks (`teamMark`), so a hang / rope
+  that ended silently cannot leave its old holder `taken` or a stale pair. Two pairs can run moves at the same time. With 2 players there is no third
   claimant, so Marlow Yard's moves are unchanged.
 - **Snapshots and bandwidth.** One broadcast `snap` at 15 Hz to every client, with no per-client deltas or interest
   filtering; `players[]` holds up to 4. A Sector Ops snapshot's numbers go rounded to 1 mm / 1 mrad (`wireNum`,
@@ -194,7 +198,7 @@ snapshot to everyone. Join, leave, late join and rejoin work in any slot.
 - **Lobby (L1).** The lobby shows `capacity(mode)` seats (Sector Ops 4, Campaign 2). Start is blocked with "Too many players
   for this mode (N)" while `overCapacity` (a 4-seat room switched to Campaign with 3 in it). A refused page shows "Room full"
   with the room's cap ("That room already has its N players ..."): the refusal carries `bye.mode` and the client takes
-  `session.mode` from it before `full` fires. The host's status line reads "Share the code to invite your teammates." The
+  `session.mode` from it before `full` fires. Lobby rows are listed by slot, each with its beacon colour swatch (UI2). The host's status line reads "Share the code to invite your teammates." The
   same-device autostart (`?net=local&autostart=...&mode=sector`) starts when `flags.players` (`?players=2..4`, dev and tests;
   default 2) players are in. A new room is Campaign (cap 2), so a 3rd player can join only after the host picks Sector Ops.
 - **Team scale (SM, DATA).** Marks, grants and the section rating stay per team. The syringe pool is per team:

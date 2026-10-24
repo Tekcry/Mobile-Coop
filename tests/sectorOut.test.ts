@@ -57,7 +57,7 @@ describe('OUT: the pure rules', () => {
     expect(run([[false, true], [true, true], [true, true]])).toEqual([1]);
     // the rejoin order (P5): `ot` first while the snapshot still has us up, then the down state; was skipped before
     expect(run([[true, false], [true, false], [true, true], [true, true]])).toEqual([2]);
-    // our slot known late (slotOut reads -1 until the lobby): out turns true while down
+    // our slot known late (slotOut reads 1 until the lobby): out turns true while down
     expect(run([[false, true], [false, true], [true, true]])).toEqual([2]);
     // a revive before `ot` clears: no second restore; the return clears `ot` and re-arms for the next spell
     expect(run([[true, true], [true, false], [true, true], [false, false], [true, true]])).toEqual([0, 4]);
