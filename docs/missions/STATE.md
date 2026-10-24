@@ -1,5 +1,13 @@
 # mission-framework - STATE
 
+## RESUME 2026-10-25 ~04:20 (window reset; next 09:10)
+- PR #365: checker B PASS, A FIX -> fix 0fe98298; CI + laptop 2/2 green. Orchestrator re-checks the fix and labels (self-approval blocked here).
+- Engine 9e87b4b3 laptop e2e 13/13 PASS (sectorops 1-6 + mission, section-rating, ctcourse, menus). EN2+EN3 checker FIX (double restart, oneChance end skippable) -> EN2 fix round RUNNING (EN2 builder, feature/mission-engine; also hold-exit during pending restart, objective codes before gate, decoy slot, spook-while-held, namedTarget intel lines, flags.mission, Hints text).
+- NET RUNNING (Opus, worktree -mission-net, feature/mission-net off 9e87b4b3): mission wire ms + intel eid + client apply; kit kinds pull / shutter on tmove / tstart, claimsPoint l, teamSide crouch, hangEnd verdicts, pull latency hold, remote poses. Then TWO Opus checkers + laptop e2e-coop / netmove / sectorops:1 + mission / ctcourse.
+- Cloud-queue OPEN (Marlow): briefs/mission-framework-kit-tick.md (KitMove tick + kit polish, branch feature/mission-kit-tick off engine 9e87b4b3), briefs/mission-framework-val-dims.md (validator kit dimension checks, feature/mission-validator-dims off 4ea5d26b).
+- Resumed after the cap: spec batch checker (C:/NightShift/scratch/mission-spec-check.md) and GB briefs writer (docs/missions/slices/GB-briefs.md, uncommitted until done).
+- NEXT: spec PASS -> PR A; GB0 then GB1-4 (Sonnet from GB-briefs.md; greybox may proceed, orchestrator 04:14).
+
 - ~00:40 EN2 DONE (2109b102, 57010ebb, 0f0f8c2a; world restarts whole, mission state per team; MissionTrack.y; missionEvent {name,guardTag,postId,via?}: c1 / c1-door, c2 / c2-door). Merged EN3 + KIT0 + kit-pull + kit-shut into feature/mission-engine -> 9e87b4b3 (tsc clean). Laptop: e2e-sectorops (1-6 + mission) + section-rating + ctcourse + menus on 9e87b4b3 (set mission-engine-en23). RUNNING: EN2+EN3 checker (C:/NightShift/scratch/mission-en23-check.md), spec batch checker (C:/NightShift/scratch/mission-spec-check.md). Graph engine-fit DONE a643558d (rope up only; throws 2.5 m; ladder -> boost; jetty 4.4). NEXT: spec PASS -> PR A; EN23 PASS + laptop green -> NET (Opus, TWO checkers; lists in kit + en23 reports; + KitMove tick fix) and GB0 (Sonnet, Opus brief) -> GB1-4.
 
 ## SAVE 2026-10-25 ~00:05 (orchestrator save, cap ~00:15, resume at the 04:10 reset)
