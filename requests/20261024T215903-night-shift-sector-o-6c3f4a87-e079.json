@@ -1,0 +1,17 @@
+{
+  "id": "20261024T215903-night-shift-sector-o-6c3f4a87-e079",
+  "sha": "6c3f4a879f3d574a4a136f08c5f3a93af9db0b99",
+  "branch": "",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Sector Ops Build",
+  "steps": [
+    "git fetch -q origin feature/visual-gate && git archive FETCH_HEAD scripts/e2e-visual.mjs scripts/visual-gate scripts/laptop-queue/serve.mjs | tar -xf - && node scripts/laptop-queue/serve.mjs scripts/e2e-visual.mjs http://127.0.0.1:4189/ --rules-only --no-record --json C:/NightShift/scratch/visual-gate/vg7/run1/result.json",
+    "git fetch -q origin feature/visual-gate && git archive FETCH_HEAD scripts/e2e-visual.mjs scripts/visual-gate scripts/laptop-queue/serve.mjs | tar -xf - && node scripts/laptop-queue/serve.mjs scripts/e2e-visual.mjs http://127.0.0.1:4189/ --rules-only --no-record --json C:/NightShift/scratch/visual-gate/vg7/run2/result.json",
+    "git fetch -q origin feature/visual-gate && git archive FETCH_HEAD scripts/e2e-visual.mjs scripts/visual-gate scripts/laptop-queue/serve.mjs | tar -xf - && node scripts/laptop-queue/serve.mjs scripts/e2e-visual.mjs http://127.0.0.1:4189/ --rules-only --record --json C:/NightShift/scratch/visual-gate/vg7/run3/result.json",
+    "git fetch -q origin feature/visual-gate && git archive FETCH_HEAD scripts/visual-gate | tar -xf - && node scripts/visual-gate/push-results.mjs --dir C:/NightShift/scratch/visual-gate/vg7 --branch shots/visual-gate-vg7 --prefix 6c3f4a87"
+  ],
+  "env": {},
+  "set": "visual-vg7",
+  "note": "visual-gate VG7 noise x3 + initial record"
+}
