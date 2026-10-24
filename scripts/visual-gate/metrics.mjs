@@ -342,8 +342,8 @@ const ARC_RUN = 12;
 /**
  * Hard light arcs: G = Sobel magnitude (divided by 8, so G is the per-pixel luma slope 0..1) of a box blur r 1;
  * T = max(6 / 255, 4 x the median G over the mask); a ridge pixel has G > T and lies in a run of >= 12 consecutive
- * G > T pixels along its edge's tangent (perpendicular to its gradient; one pixel per step on the rounded tangent, both
- * ways, inside the image). Returns ridge pixels / mask pixels (0 when the mask is empty).
+ * G > T samples along its edge's tangent (perpendicular to its gradient; sample k = round(p + k x unit tangent),
+ * k = +-1..11, both ways, inside the image). Returns ridge pixels / mask pixels (0 when the mask is empty).
  * @param {LumaImage} img
  * @param {Mask} mask
  * @returns {number}
@@ -377,16 +377,16 @@ export function arc(img, mask) {
       const gx = b[i - w + 1] + 2 * b[i + 1] + b[i + w + 1] - b[i - w - 1] - 2 * b[i - 1] - b[i + w - 1];
       const gy = b[i + w - 1] + 2 * b[i + w] + b[i + w + 1] - b[i - w - 1] - 2 * b[i - w] - b[i - w + 1];
       const m = Math.sqrt(gx * gx + gy * gy);
-      const dx = Math.round(-gy / m); // tangent = gradient turned 90 degrees
-      const dy = Math.round(gx / m);
+      const tx = -gy / m; // unit tangent = gradient turned 90 degrees
+      const ty = gx / m;
       let run = 1;
       for (let sgn = 1; sgn >= -1 && run < ARC_RUN; sgn -= 2) {
-        let px = x + sgn * dx;
-        let py = y + sgn * dy;
-        while (run < ARC_RUN && px >= 0 && py >= 0 && px < w && py < h && g[py * w + px] > t) {
+        // exact tangent, accumulated position rounded per step (no rounded unit step: that walks off slanted edges)
+        for (let k = 1; run < ARC_RUN; k++) {
+          const px = Math.round(x + sgn * k * tx);
+          const py = Math.round(y + sgn * k * ty);
+          if (px < 0 || py < 0 || px >= w || py >= h || !(g[py * w + px] > t)) break;
           run++;
-          px += sgn * dx;
-          py += sgn * dy;
         }
       }
       if (run >= ARC_RUN) ridge++;
@@ -472,7 +472,8 @@ const clean = (x) => Math.round(x * 1e9) / 1e9;
 /**
  * The display range a grey card at gameplay `level` must read in (BRIEF A15): within 0.03 of a DARK row's level, that
  * row's min / max +-0.02 (`row` = its index); otherwise the band's union range +-0.02 (`row` null). `skip` when the level
- * is within 0.03 (strictly) of a band edge. min clamped at 0, max at 1. No interpolation.
+ * is within 0.03 (strictly, less a 1e-9 slack, so exactly 0.03 never skips) of a band edge. min clamped at 0, max at 1.
+ * No interpolation.
  * @param {number} level
  * @returns {{ min: number, max: number, band: 'dark' | 'mid' | 'lit', row: number | null, skip: boolean }}
  */
@@ -503,7 +504,8 @@ export function parityRange(level) {
       max = Math.max(max, r.max);
     }
   }
-  const skip = Math.abs(level - lo) < PARITY_EDGE || Math.abs(level - hi) < PARITY_EDGE;
+  // 1e-9 slack: a level exactly 0.03 from an edge (0.25, 0.31, 0.57, 0.63) never skips, whatever the float rounding
+  const skip = Math.abs(level - lo) < PARITY_EDGE - 1e-9 || Math.abs(level - hi) < PARITY_EDGE - 1e-9;
   return {
     min: clean(Math.max(0, min - PARITY_PAD)),
     max: clean(Math.min(1, max + PARITY_PAD)),

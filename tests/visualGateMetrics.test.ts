@@ -217,6 +217,28 @@ describe('arc', () => {
   it('an empty mask -> 0', () => {
     expect(arc(img(W, H, disc(0)), new Uint8Array(W * H))).toBe(0);
   });
+
+  // a straight hard edge through the centre at `deg` from the x axis, S levels high (vg1-check polish 1)
+  const line = (deg: number, s: number, soft = 0) => {
+    const c = Math.cos((deg * Math.PI) / 180);
+    const sn = Math.sin((deg * Math.PI) / 180);
+    return img(W, H, (x, y) => {
+      const d = -(x - 128) * sn + (y - 80) * c;
+      if (soft === 0) return d < 0 ? 40 + s : 40;
+      return 40 + s * (1 - smooth(d / soft + 0.5));
+    });
+  };
+
+  it('a straight hard edge (S = 60) at 25 and 64 deg -> > 0 (no blind orientation sector)', () => {
+    expect(arc(line(25, 60), m)).toBeGreaterThan(0.005);
+    expect(arc(line(64, 60), m)).toBeGreaterThan(0.005);
+    for (let deg = 0; deg <= 90; deg += 5) expect(arc(line(deg, 60), m)).toBeGreaterThan(0.005);
+  });
+
+  it('the same slanted edges soft (40 px smoothstep) -> 0', () => {
+    expect(arc(line(25, 60, 40), m)).toBe(0);
+    expect(arc(line(64, 60, 40), m)).toBe(0);
+  });
 });
 
 describe('leak', () => {
@@ -288,6 +310,16 @@ describe('parity', () => {
     expect(parityRange(0.29).skip).toBe(true);
     expect(parityRange(0.61).skip).toBe(true);
     expect(parityRange(0.4).skip).toBe(false);
+  });
+
+  it('levels exactly 0.03 from a band edge never skip, on repeat and under +-1e-12 (1e-9 slack)', () => {
+    for (const l of [0.25, 0.31, 0.57, 0.63]) {
+      const p = parityRange(l);
+      expect(p.skip).toBe(false);
+      expect(parityRange(l)).toEqual(p);
+      expect(parityRange(l + 1e-12)).toEqual(p);
+      expect(parityRange(l - 1e-12)).toEqual(p);
+    }
   });
 });
 
