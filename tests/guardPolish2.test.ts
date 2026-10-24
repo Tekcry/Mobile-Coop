@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Enemy } from '../src/ai/enemy';
+import { AlertMachine } from '../src/ai/alertState';
+import { NavGrid } from '../src/ai/navGrid';
 import { DIFFICULTY } from '../src/ai/archetypes';
 import { ENEMIES } from '../src/ai/enemyDefs';
 import { P_STANDARD, R_NONE, R_OVERWATCH, Rng } from '../src/ai/squadRoles';
@@ -234,5 +236,123 @@ describe('A186: a high-cover overwatch suppresses from his peek point while a ma
       if (r.p.stateT % 4.2 <= 2.4) expect(r.p.pos.x).toBeCloseTo(1, 5);
     }
     expect(r.p.suppressRounds).toBe(0);
+  });
+});
+
+// ----- the calm searcher (guardPolishA's stand-in) -----
+
+interface Searcher {
+  aware: AlertMachine;
+  pos: Vector3;
+  spot: [number, number];
+  hearSearch(x: number, y: number, z: number, mayBark?: boolean): boolean;
+}
+
+function searcher(at: [number, number, number?], o: Record<string, unknown> = {}, ctxO: Record<string, unknown> = {}): Searcher {
+  const e = Object.create(Enemy.prototype) as Enemy;
+  Object.assign(e, {
+    aware: new AlertMachine(),
+    health: { alive: true },
+    passive: false,
+    taken: false,
+    incident: -1,
+    incMode: 0,
+    turnT: 0,
+    caution: 0,
+    brkGroup: -1,
+    stimulus: [0, 0],
+    hasStimulus: false,
+    searchReq: false,
+    searchOwn: false,
+    searchRoom: null,
+    reviving: null,
+    camBody: null,
+    combatSearch: false,
+    spot: [0, 0],
+    spotSet: false,
+    spotArrived: false,
+    spotLookT: 0,
+    lookBase: 0,
+    searchK: 0,
+    planN: 0,
+    planPoint: false,
+    heardSpot: false,
+    spotClamped: false,
+    hearBarkT: 99,
+    heardT: 99,
+    routePath: [],
+    routeGoal: [NaN, NaN],
+    routeT: 0,
+    routeVer: -1,
+    routeMiss: false,
+    meP: [0, 0],
+    entry: null,
+    crew: null,
+    hold: null,
+    postDef: null,
+    post: [0, 0],
+    hunt: -1,
+    pendingHunt: -1,
+    calledMask: 0,
+    yaw: 0,
+    responder: false,
+    pos: new Vector3(at[0], at[2] ?? 0, at[1]),
+    def: { walkSpeed: 0.9, runSpeed: 3.2, kind: 'grunt', scale: 1 },
+    ctx: {
+      coordinated: () => true,
+      stealth: () => true,
+      lkpValid: () => false,
+      searchSlot: () => 0,
+      nav: { nearestWalkable: () => -1, lineClear: () => true, version: 0 },
+      ...ctxO,
+    },
+    lc: { active: false, stop() {} },
+    lure: { cancel() {}, active: false },
+    walker: { rejoin() {} },
+    alertIn: { called: false },
+    bark() {},
+    setState() {},
+    ...o,
+  });
+  return e as unknown as Searcher;
+}
+
+
+describe("A193: a heard spot snaps to the noise's storey", () => {
+  /** A 10 x 10 m ground floor and an upper floor at 4 m over x >= 6 only (two seeds: no stairs modelled). */
+  function twoStorey(): NavGrid {
+    return new NavGrid({
+      minX: 0,
+      maxX: 10,
+      minZ: 0,
+      maxZ: 10,
+      cell: 0.5,
+      sample: () => ({ h: 0, ok: true }),
+      sampleLayers: (x) => (x >= 6 ? [{ h: 0, ok: true }, { h: 4, ok: true }] : [{ h: 0, ok: true }]),
+      layers: 2,
+      blockers: [],
+      agentRadius: 0.3,
+      stepHeight: 0.4,
+      seed: [2, 5],
+      extraSeeds: [[8, 4, 5]],
+    });
+  }
+
+  it('a step on the ground floor heard from the upper floor (x >= 6 only): the spot by the step on the ground (A11: the upper floor past x 6)', () => {
+    const nav = twoStorey();
+    const e = searcher([8, 5, 4], {}, { nav });
+    e.aware.set('searching');
+    e.hearSearch(5.2, 0, 5.2);
+    expect(e.spot[0]).toBeLessThan(5.5);
+    // the noise on his own storey: his storey, as A11
+    const g = searcher([8, 5, 4], {}, { nav });
+    g.aware.set('searching');
+    g.hearSearch(6.2, 4, 5.2);
+    expect(g.spot[0]).toBeGreaterThan(6);
+    // no height given (NaN): his own storey, as A11
+    const h = searcher([8, 5, 4], {}, { nav });
+    h.aware.set('searching');
+    h.hearSearch(5.2, Number.NaN, 5.2);
+    expect(h.spot[0]).toBeGreaterThan(6);
   });
 });

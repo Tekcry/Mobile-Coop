@@ -310,6 +310,9 @@ const OW_HIGH_PEEK = true;
  *  one only when it is the told one, and he calls the seen one in once (a contact naming him), so that fight has a
  *  reporter. Undo: false (no call; the seen one marked called). */
 const ALERT_RECALL = true;
+/** (polish2 A193) A heard spot (`hearSearch`) snaps to the storey nearest the noise's height, not his own. Undo: false
+ *  (his own storey, A11). */
+const HEAR_STOREY = true;
 /** (polish A2) `pickCover`'s best candidates (index, score), best first; module scratch (one pick at a time). */
 const CV_IDX = new Int32Array(8);
 const CV_SCORE = new Float64Array(8);
@@ -1173,14 +1176,14 @@ export class Enemy implements Damageable {
    * plan / ring (`searchK` kept). The spot is not a plan point: arriving or skipping it marks nothing done (the manager
    * released his claim). "I heard something." at most once per `COMBAT_HEAR.bark` s. Not searching: nothing.
    * (polish2 A185) `mayBark` false: no line (a searcher nearer the manager's list already said it for this noise).
-   * Returns true when he barked.
+   * Returns true when he barked. (polish2 A193) `y`: the noise's height (NaN: his own); the spot snaps to its storey.
    */
-  hearSearch(x: number, z: number, mayBark = true): boolean {
+  hearSearch(x: number, y: number, z: number, mayBark = true): boolean {
     if (!this.alive || this.aware.level !== 'searching') return false;
     this.spot[0] = x;
     this.spot[1] = z;
-    // (polish A11) on his own storey (the noise's height is not passed: S26-CHECK-B 9 remainder)
-    this.snapSpot(SNAP_STOREY ? this.pos.y : Number.NaN);
+    // (polish A11) on his own storey; (polish2 A193) on the noise's when it is given
+    this.snapSpot(!SNAP_STOREY ? Number.NaN : HEAR_STOREY && y === y ? y : this.pos.y);
     // (polish A12) its look does not use up a ring index (nor the last known position visit)
     this.heardSpot = HEARD_KEEPS_K;
     this.spotSet = true;

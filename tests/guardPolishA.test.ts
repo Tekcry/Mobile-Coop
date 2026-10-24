@@ -409,7 +409,7 @@ interface Searcher {
   joinAsResponder(route: null, x: number, z: number, room: RoomRect | null): void;
   calmDecide(dt: number): Goal;
   onLevel(a: AlertLevel, b: AlertLevel): void;
-  hearSearch(x: number, z: number): void;
+  hearSearch(x: number, y: number, z: number): void;
 }
 
 function searcher(at: [number, number, number?], o: Record<string, unknown> = {}, ctxO: Record<string, unknown> = {}): Searcher {
@@ -556,13 +556,13 @@ describe('A11: search spots snap to the right storey', () => {
     const nav = twoStorey();
     const e = searcher([8, 5, 4], {}, { nav });
     e.aware.set('searching');
-    e.hearSearch(5.2, 5.2);
+    e.hearSearch(5.2, Number.NaN, 5.2);
     // the nearest upper-floor cell is past x = 6
     expect(e.spot[0]).toBeGreaterThan(6);
     // a guard on the ground floor keeps the cell under the noise
     const g = searcher([8, 5, 0], {}, { nav });
     g.aware.set('searching');
-    g.hearSearch(5.2, 5.2);
+    g.hearSearch(5.2, Number.NaN, 5.2);
     expect(g.spot[0]).toBeLessThan(5.5);
   });
 
@@ -580,7 +580,7 @@ describe('A12: a heard spot keeps the ring place', () => {
   it('heard at searchK 0: after its look the next point is still the search centre', () => {
     const e = searcher([3, 3], { hasStimulus: true, stimulus: [10, 0] });
     e.aware.set('searching');
-    e.hearSearch(3, 3);
+    e.hearSearch(3, Number.NaN, 3);
     // there: the look runs out
     for (let t = 0; t < searchSpec(SEARCH_PLAIN).look + 0.2; t += DT) e.calmDecide(DT);
     expect(e.searchK).toBe(0);

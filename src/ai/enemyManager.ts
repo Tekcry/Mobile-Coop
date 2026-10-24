@@ -2885,7 +2885,8 @@ export class EnemyManager {
       // (S25b) his plan point is given up: the heard spot comes first
       if (e.hunt >= 0 && e.hunt < MAX_INTRUDERS) this.plans[e.hunt]!.release(e.num);
       // (polish2 A185) one line per noise: the first searcher who barks speaks for the rest
-      if (e.hearSearch(pos.x, pos.z, !(POLISH2.oneHeardBark && this.hearBarked))) this.hearBarked = true;
+      // (polish2 A193) the noise's height: its storey, not his
+      if (e.hearSearch(pos.x, pos.y, pos.z, !(POLISH2.oneHeardBark && this.hearBarked))) this.hearBarked = true;
     } else if (state === 2 && !POLISH_B.hearSlot) e.heardInFight();
     if (act !== 2 || by === null) return;
     const slot = this.slotForId(by);
