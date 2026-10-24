@@ -139,3 +139,11 @@ Opus, 2026-10-24, branch `feature/rpf-s1fix` off `feature/rig-pose-fix` d10e4b09
 - Open: the `playerVolumes` allocation bound (64 B) sits on the edge of the 67.8 B reading; the owner of the next train
   should raise it to 5 x `HEAP_NUMBER` or find the extra boxed double. e2e still to run on the laptop: `e2e-coop`,
   `e2e-netmove` (the S1 list).
+- Allocation bound fixed (Opus, 2026-10-24, `feature/rpf-alloc`): the flaky reading was boxed doubles at the calls
+  from `playerBody` into its helpers (`knot`, `add`, `add1`, `add2`, `addMove`, `put` took the value, weight, fraction
+  and frame as double parameters). Which helpers Turbofan inlined varied run to run (all rounds 0x51, but 51.9, 67.8 or
+  80.5 B a call on the same code), and each one left out boxed its doubles. Now the helpers take every double through a
+  module `Float64Array` scratch (`sc`, knot index in an `Int32Array`); only Smis and objects cross a call, same
+  arithmetic in the same order (200k random inputs bit-identical to the old code, parity 262/262). The case reads 0.0 B
+  in 7 of 7 runs; its limit drops to 1 x `HEAP_NUMBER` (a `{ x, y, z }` literal fails it) and its loop now reaches the
+  wall and kneel branches (the old traverse index hid the wall). The old code fails the new case (46.3 / 58.5 B).

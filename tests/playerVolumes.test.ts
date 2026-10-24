@@ -177,9 +177,11 @@ describe('player body model (pure)', () => {
     expect([off.x, off.y, off.z]).toEqual([0, 0, 0]);
   });
 
-  // (tests/helpers/allocPerCall.ts) only the doubles V8 boxes across calls it does not inline (16 B each, about 52 B a
-  // call measured); one { x, y, z } literal would add 48-64 B
-  it('allocates nothing per call (boxed doubles only)', async () => {
+  // (tests/helpers/allocPerCall.ts) reads 0.0 B a call: the helpers take their doubles through a typed scratch, so no
+  // double is boxed whatever Turbofan inlines (it read 51.9, 67.8 or 80.5 B run to run when they were parameters). The
+  // limit is one HeapNumber: one { x, y, z } literal (48-64 B) fails it. Every branch runs: free (holstered, drawn,
+  // moving, kneeling), the wall, a phased and a cyclic traversal.
+  it('allocates nothing per call', async () => {
     const i = emptyPlayerBodyIn();
     const o = emptyPlayerBodyOut();
     const C = inputs(2000, (k) => (k % 11) / 10);
@@ -194,13 +196,14 @@ describe('player body model (pure)', () => {
         i.drawn = (k & 1) === 0;
         i.raise = C[k]!;
         i.peek = C[k]!;
-        i.traverse = kinds[k & 3]!;
+        i.kneel = k % 5 === 2;
+        i.traverse = kinds[(k >> 1) & 3]!;
         i.traverseT = C[k]!;
         sink[0]! += playerBody(i, o).head.y;
       }
-    }, 4 * HEAP_NUMBER);
+    }, HEAP_NUMBER);
     console.info(`bytes per playerBody: ${per.toFixed(1)}`);
     expect(sink[0]!).toBeGreaterThan(0);
-    expect(per).toBeLessThanOrEqual(4 * HEAP_NUMBER);
+    expect(per).toBeLessThanOrEqual(HEAP_NUMBER);
   });
 });
