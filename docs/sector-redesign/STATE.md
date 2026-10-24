@@ -365,11 +365,10 @@ Worktrees (node_modules junctions to Mobile-Coop-sector-redesign-bake2): -polish
    DONE 6b13cd32: area boxes on all spaces, exfil tag on s4-cc, SYNC.md; Marlow told (re-runs Split Shift + Code
    Relay over all five). Opus check FIX d6cc89d4 (signoff/checks-signoff.md: 1 S5 36+6 over the 32 live cap -> plan
    <= 32 as option 1, raise-cap as option 2; 2 S5-plan-0.svg frame to z 70; 3 S1 lips count; 4 S4 basket downed
-   reach 25 s; 5 S2 lead-s2-kitchen). IN FLIGHT 00:00: Opus fix round (uncommitted in -signoff; if the report lacks a
-   "Fix round" section on resume, rerun it from checks-signoff.md + Marlow 00:10: rename kp-fac / lead-s2-kitchen /
-   lead-s2-plantlog -> sync-s2-kpfac / sync-s2-kitchen / sync-s2-plantlog, kitchen lead a real space, S4 exfil ->
-   tracks.exfil; send Marlow the final ids + sha). Then: validate (0 errors), commit, push, message
-   Marlow (graph changes) + the orchestrator "sign-off pages up" (Michael picks per page; no greybox before).
+   reach 25 s; 5 S2 lead-s2-kitchen). FIX ROUND DONE fe3ef35f: S5 26 guards (26 + 6 = 32 cap; option 2 raise cap +8 h),
+   S5 ground plan to z 70, S1 two lips, S4 25 s basket exception stated on S4.md, S2 ids sync-s2-kpfac / -kitchen /
+   -plantlog (aka old), S4 exfil in tracks; 0 errors / 119 warnings. Marlow + orchestrator told ("sign-off pages up").
+   WAITING on Michael's picks (one per page). After picks: greybox slices per S<N>-detail.md build cost.
 3. VISUAL-GATE (docs/visual-gate/STATE.md "Now" holds the detail): VG1 / VG2 / VG4 checked, fixed, merged
    (feature/visual-gate 5c8e38c2). VG5 (gate runner, Opus) + VG6 (train wiring, Opus, own PR off master,
    feature/visual-gate-train, A17) briefs DONE, A17-A23 in BRIEF. VG3 claimed by Cloud Builder 1 (cloud-queue). Next:
