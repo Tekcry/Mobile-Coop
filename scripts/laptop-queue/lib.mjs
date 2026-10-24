@@ -498,6 +498,8 @@ const preemptible = (r) => r?.kind === 'pr' && !r.trainRerun;
 const youngAlone = (r, startedAt, now) => r?.kind === 'alone' && Number.isFinite(startedAt) && now - startedAt < ALONE_PREEMPT_MIN * 60_000;
 export function cutShort(r, { withdrawn = false, trains = [], started = false, others = [], startedAt = NaN, now = NaN, progress = NaN } = {}) {
   if (withdrawn) return 'withdrawn';
+  // spare work (laptop-queue-5) never holds a train: cut whatever its kind, age or progress (the service marks it done)
+  if (r?.requester === SPARE_REQUESTER && (trains ?? []).length) return 'train';
   const mayCut = (preemptible(r) && !(progress >= PREEMPT_MAX_PROGRESS)) || youngAlone(r, startedAt, now);
   if (started && mayCut && (trains ?? []).length && (others ?? []).every(preemptible)) return 'train';
   return '';

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
 import { assertKey, pickBranch, supersedeStatuses, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, trainSoon, releasingTrain, readyOrPending, RELEASE_HOLD_MS, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest } from '../scripts/laptop-queue/lib.mjs';
+
+const spareReq = (min: number, kind: string) => ({ ...req(min, kind, 'spare', 'laptop-queue spare') });
 // @ts-expect-error plain .mjs module without types
 import { selectSuites, WIDE_COVERS } from '../scripts/e2e-affected.mjs';
 
@@ -1161,5 +1163,18 @@ describe('spare work when the laptop is idle', () => {
     const known = knownSuites(fs.readdirSync('scripts').map((f: string) => `scripts/${f}`));
     expect(new Set(list.map((j) => j.set)).size).toBe(list.length);
     for (const job of list) expect(requestProblem(spareRequest({ now: NOW, job, sha, n: 1, suffix: 'abcd' }), { known })).toBe('');
+  });
+});
+
+describe('spare work never holds a train or jumps a real request', () => {
+  const t = { sha: 'c'.repeat(40), n: '70' };
+  it('cutShort: a pending train stops a spare run whatever its kind, age or progress', () => {
+    for (const kind of ['pr', 'full', 'alone']) {
+      const r = { kind, requester: SPARE_REQUESTER };
+      expect(cutShort(r, { trains: [t], started: true, progress: 0.99, startedAt: NOW - 60 * 60_000, now: NOW })).toBe('train');
+      expect(cutShort(r, { trains: [t], started: false, others: [{ kind: 'full' }] })).toBe('train');
+      expect(cutShort(r, { trains: [], started: true })).toBe('');
+    }
+    expect(cutShort({ kind: 'full', requester: 'lead' }, { trains: [t], started: true })).toBe('');
   });
 });

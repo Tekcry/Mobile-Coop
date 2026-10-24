@@ -431,14 +431,18 @@ function affectedPass() {
 /** When both slots went idle with an empty queue (null: not idle), and the last spare wait reason logged. */
 let spareIdleSince = null;
 let spareLogged = '';
+let spareDryLogged = false; // --dry-run: "would enqueue" once per idle spell
 
 /**
  * Spare work (lib spareNext): after LQ_SPARE_IDLE_MIN idle minutes (both slots free, no open request, no pending
  * train) the next spare job is pushed as a request on the origin/master head and recorded in state.spare. Never throws.
+ * Not idle either while a train is building or releasing (trainSoon), an open train lacks its laptop pass (aloneHold) or
+ * green train-ready PRs wait for a train (aloneSoon): a spare job must never hold a train.
  */
 function sparePass() {
   try {
-    if (Object.values(busy).some(Boolean) || openListed.length || pendingNow.length) { spareIdleSince = null; return; }
+    const notIdle = () => { spareIdleSince = null; spareDryLogged = false; };
+    if (Object.values(busy).some(Boolean) || openListed.length || pendingNow.length || soon || aloneHold) return notIdle();
     spareIdleSince ??= Date.now();
     let jobs = [];
     try { jobs = JSON.parse(fs.readFileSync(path.join(HERE, 'docs/laptop-queue/spare-jobs.json'), 'utf8')).jobs ?? []; } catch { /* no list: nothing to do */ }
@@ -446,12 +450,15 @@ function sparePass() {
     const openSpare = [...openListed, ...activeReqs.values(), ...otherActive].some((r) => r.requester === SPARE_REQUESTER);
     const nx = spareNext({ now: Date.now(), idleSince: spareIdleSince, idleMin: SPARE_IDLE_MIN, openSpare, sha, jobs, history: state.spare });
     if (!nx.job) { if (!nx.why.startsWith('idle ') && nx.why !== spareLogged) { spareLogged = nx.why; log(`spare: ${nx.why}`); } return; }
+    // checked only once a job is due: one gh call (green train-ready PRs while no train PR is open)
+    const trainNext = openTrainCount === 0 ? aloneSoon(0, readyCandidates()) : '';
+    if (trainNext) { log(`spare: ${trainNext}: no spare work`); return notIdle(); }
     spareLogged = '';
     const n = (state.spare?.n ?? 0) + 1;
     const r = spareRequest({ now: Date.now(), job: nx.job, sha, n, suffix: randomBytes(2).toString('hex') });
     const problem = requestProblem(r);
     if (problem) { log(`spare: ${nx.job.set}: bad request (${problem}), skipped`); state.spare = spareRecord(state.spare, sha, nx.index, nx.job.set); saveState(); return; }
-    if (DRY) { log(`dry-run: spare: would enqueue ${r.id} (${nx.job.set}) on ${sha.slice(0, 8)}`); return; }
+    if (DRY) { if (!spareDryLogged) log(`dry-run: spare: would enqueue ${r.id} (${nx.job.set}) on ${sha.slice(0, 8)}`); spareDryLogged = true; return; }
     if (!pushFile(`requests/${r.id}.json`, `${JSON.stringify(r, null, 2)}\n`, `request ${r.id}`)) { log('spare: request push failed, retried next pass'); return; }
     state.spare = spareRecord(state.spare, sha, nx.index, nx.job.set);
     saveState();
@@ -1064,7 +1071,16 @@ async function runRequest(r, port) {
   }, 5_000);
   const stop = () => Boolean(ctl.why) || Boolean(yielded ??= yieldTo(r, false, trainsNow()));
   let posted = false;
+  const spare = r.requester === SPARE_REQUESTER;
+  // spare work yielding or cut by a train is done, never queued again (laptop-queue-5)
+  const spareDone = (n) => {
+    log(`${r.id}: spare work stopped for train ${n}: done, not queued again`);
+    if (posted) postStatus(r.sha, 'error', ctx, `stopped for train ${n} (spare work, not rerun)`);
+    state.done[r.id] = { result: 'spare-cut', date: new Date().toISOString() };
+    if (state.aloneSteps) delete state.aloneSteps[r.id];
+  };
   const giveBack = () => {
+    if (spare) return spareDone(yielded.n);
     log(`${r.id}: yields to train ${yielded.n}`);
     if (posted) postStatus(r.sha, 'pending', ctx, `queued, yielded to train ${yielded.n}`);
     writeClaims([r.id], 'release', `release ${r.id} (yields to train ${yielded.n})`);
@@ -1079,6 +1095,7 @@ async function runRequest(r, port) {
       return;
     }
     const n = ctl.by?.n ?? '?';
+    if (spare) return spareDone(n);
     log(`${r.id}: preempted by train ${n}, queued again${r.kind === 'alone' ? ' (head of the alone queue)' : ''}`);
     if (r.kind === 'alone') preemptedAlone.add(r.id);
     if (posted) postStatus(r.sha, 'pending', ctx, `queued, preempted by train ${n}`);
@@ -1128,6 +1145,7 @@ async function runRequest(r, port) {
         if (ctl.why) break;
         // between steps: a pending train head takes the slots; the finished steps are kept for the rerun
         const tr = i > from ? trainsNow()[0] : null;
+        if (tr && spare) { ctl.by = tr; ctl.why = 'train'; return cutEnd(); }
         if (tr) {
           (state.aloneSteps ??= {})[r.id] = { sha: r.sha, n: r.steps.length, done: i, ok: okSteps, date: new Date().toISOString() };
           log(`${r.id}: yields to train ${tr.n} after step ${i}/${r.steps.length}, queued again (head of the alone queue)`);
