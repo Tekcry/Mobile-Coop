@@ -1,6 +1,11 @@
 # rig-pose-fix: state
 
 ## Resume
+- ~13:05: S7 MERGED (e1831c62) -> 6dcac873. Opus checker W1 on S2 / S5 / S6 / S7 running (CHECK-W1.md). S1 still building.
+  After S1: merge, then S3 (guard head; S6-REPORT one-liner for enemyPuppet.ts; merge S2 shotEye with S1's head; S7's
+  openLeft flag into weapons via gameState.ts), two Opus checkers on S1 + S3 (+ S5 / S7 src/net bits), then ONE laptop
+  batch run on the final head (e2e-combat, e2e-wall, e2e-netmove, e2e-coop, e2e-stealth-ai, e2e-guard-carry, e2e-stealth,
+  e2e-ctcourse, e2e-sectorops, e2e-weapons-carry), changelog fragment changes/feature-rig-pose-fix.md, PR.
 - ~12:20: MERGED S6 (dog head, 0fa92807), S5 (body pos / lie, e9a5eb35), S2 (shot origin, 9485eaaf) -> b189ed6a. Running: S1
   (rpf-s1, player volumes + wall head), S7 (rpf-s7, off b189ed6a: hand-switch timer, dummy head, mocap out of sim clock,
   RAGDOLL out of PLAYER_SHOT, LAMP_SHOT_ORIGIN 2.1 m for inverted claims). After S1: S3 (guard head + S6's enemyPuppet
