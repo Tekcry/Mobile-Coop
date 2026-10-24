@@ -3,7 +3,7 @@
 // that exact commit, and only on a green run the merge, the tag and the dev pointer. It replaces the orchestrator's
 // hand-run "Merge procedure" (docs/orchestrator/STATE.md on feature/menu).
 // `build` does the slow work once, in order: merge the members, checkout + push train/<n>, open the train PR, bump
-// PROTOCOL_VERSION to master+1 when a member touches the wire (src/net and what protocol.ts imports), make the version
+// PROTOCOL_VERSION to master+1 (a stacked build: its base head's + 1) when a member touches the wire (src/net and what protocol.ts imports), make the version
 // commit (CHANGELOG heading with the PR number), push it (CI and the laptop start at once) and end: no local vitest and
 // no heavy.lock wait (audit 2026-10-24: CI's `test` job runs the full vitest on that head and release waits for green
 // CI; AUTO_TRAIN_BUILD_MARKER, set by auto-train, is deleted right after that push). `release` then only checks, waits for green CI on that head, merges, tags and moves dev. A train built by the
@@ -13,7 +13,7 @@
 // The merges are computed on git objects (`git merge-tree`, `git commit-tree`), so --dry-run moves no ref, worktree
 // or remote (it only fetches) and prints what a real run would do.
 // Usage:
-//   node scripts/merge-train.mjs build <n> <version> "<title>" <branch>... [--keep] [--no-test] [--dry-run]
+//   node scripts/merge-train.mjs build <n> <version> "<title>" <branch>... [--on <sha>] [--keep] [--no-test] [--dry-run]
 //   node scripts/merge-train.mjs release <n> <version> "<title>" [--resume] [--head <sha>] [--no-fallback] [--dry-run]
 //   node scripts/merge-train.mjs single <branch> <version> "<title>" [--dry-run]
 // --head <sha> (release): STOP unless origin/train/<n> is that sha after the fetch (the head CI and the laptop passed
@@ -31,11 +31,24 @@
 // --resume: release a train with fix commits after its version commit (package.json at the head must still be
 // <version>, no new changes/*.md). After a merge, `release` closes member PRs
 // whose head is in origin/master with "Merged in <version> (train <n>, #<pr>)".
+// --on <sha> (build; overlapping trains, docs/orchestrator/overlap-trains-PLAN.md on feature/menu): build train <n> on
+// the head of another unreleased train <m> (sha = origin/train/<m>'s head, m < n, origin/master in it, train m's
+// version commit on it, no third train's) instead of origin/master. <version> must be above train m's too; members are
+// only the branches merged into train/<n> (train m's are not repeated); PROTOCOL_VERSION is bumped to train m's + 1;
+// the train PR body carries `<!-- auto-train:base train/<m> <sha> -->`. Release of a stacked train (master not in its
+// head) checks, after train m merged: the marker's base is in the head and in origin/master, tag v<m's version> is on
+// origin and its merge commit's second parent is that base, and `git merge-tree --write-tree origin/master <head>` is the
+// head's own tree (GitHub's merge then changes nothing that was tested); `gh pr merge` is retried ~2 min on "not
+// mergeable" / "base branch was modified"; after the merge the merge commit's tree must equal the head's (exit 5 if not).
+// Foreign-version guard (release / single, always on): a first-parent commit of origin/master..head that is another
+// train's version commit means the head would pull an unreleased train into master: STOP, exit 4.
 // Exit: 0 built / merged (or dry run done), 1 usage or other error (also: --keep over a version commit, a fix commit
 // without --resume, release of an already merged train, release with a version other than the train's version
-// commit, --head mismatch, --no-fallback with no version commit, version not above master's, train lock held),
-// 2 CI failed on release / single (nothing merged), 3 conflict stop (build with no member merged; release when master
-// moved since build).
+// commit, --head mismatch, --no-fallback with no version commit, version not above master's, train lock held, a bad
+// --on base), 2 CI failed on release / single (nothing merged), 3 conflict stop (build with no member merged; release
+// when master moved since build, or a stacked train whose base or merge tree no longer matches: rebuild), 4 base train
+// not merged (foreign version commit, or a stacked train's base / its tag not on origin yet: wait), 5 merged, but the
+// merge commit's tree differs from the tested head (stacked release; tagged, dev moved: check master by hand).
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -89,9 +102,31 @@ export const hasTrainMember = (included) => included.some((b) => b.replace(/^ori
 
 export const trainPrTitle = (n, version, title) => `${version}: Train ${n}: ${title}`;
 
-/** The train PR body: members in merge order, `notes` (build log lines), then the footer line. */
-export function trainPrBody(n, title, members, notes = []) {
-  return [`Train ${n}: ${title}`, '', 'Members (merged into train/' + n + ' in this order):',
+/** The stacked-base marker of a train PR body (`--on`): the base train and its head sha at build. */
+export const baseMarker = (train, sha) => `<!-- auto-train:base train/${train} ${sha} -->`;
+const MARKER_RE = /^<!-- auto-train:base train\/(\d+) ([0-9a-f]{40}) -->$/m;
+const MARKER_LINES = /^<!-- auto-train:base train\/\S* \S* -->\r?\n?/gm;
+
+/** The stacked-base marker in a PR body -> { train, sha } (sha lower case, 40 hex), or null. */
+export function parseBaseMarker(body) {
+  const m = MARKER_RE.exec(String(body ?? '').toLowerCase());
+  return m ? { train: Number(m[1]), sha: m[2] } : null;
+}
+
+/** `body` with every base marker removed and, when `base` ({ train, sha }) is set, the new one as the first line. */
+export function withBaseMarker(body, base) {
+  const rest = String(body ?? '').replace(MARKER_LINES, '');
+  return base ? `${baseMarker(base.train, base.sha)}\n${rest}` : rest;
+}
+
+/**
+ * The train PR body: members in merge order, `notes` (build log lines), then the footer line. A stacked train (`base`:
+ * { train, sha, version }) starts with the base marker and says which train it waits for.
+ */
+export function trainPrBody(n, title, members, notes = [], base = null) {
+  return [...(base ? [baseMarker(base.train, base.sha)] : []), `Train ${n}: ${title}`, '',
+    ...(base ? [`Stacked on train/${base.train} at ${base.sha.slice(0, 8)}${base.version ? ` (${base.version})` : ''}: released only after train ${base.train} merges.`, ''] : []),
+    'Members (merged into train/' + n + ' in this order):',
     ...members.map((m) => `- ${m.pr ? `#${m.pr}` : '(no open PR)'} \`${m.branch}\``), '',
     ...(notes.length ? [...notes, ''] : []),
     'Built and released by `scripts/merge-train.mjs`: one version commit (G183) with the CHANGELOG assembled from',
@@ -122,11 +157,15 @@ export function fragmentPlan(members, added, title) {
   return { frags, notes };
 }
 
-/** Branches a train merged, oldest first, from its first-parent merge subjects ("Merge origin/<b> into train/<n>"). */
-export function membersFromLog(subjects) {
+/**
+ * Branches a train merged, oldest first, from its first-parent merge subjects ("Merge origin/<b> into train/<n>").
+ * With `n`, only merges into train/<n>: a stacked train's log also holds its base train's merges, never its members.
+ */
+export function membersFromLog(subjects, n = null) {
   const out = [];
+  const re = new RegExp(`^Merge origin/(.+) into train/${n == null ? '\\d+' : Number(n)}$`);
   for (const s of subjects) {
-    const m = /^Merge origin\/(.+) into train\/\d+$/.exec(s.trim());
+    const m = re.exec(s.trim());
     if (m && m[1] !== 'master' && !out.includes(m[1])) out.push(m[1]);
   }
   return out;
@@ -151,8 +190,92 @@ export function findTrainVersionCommit(subjects, n) {
   return { idx: -1, version: null };
 }
 
+/** Every train version commit in first-parent subjects (newest first): [{ idx, n, version }]. */
+export function trainVersionCommits(subjects) {
+  const out = [];
+  subjects.forEach((s, idx) => {
+    const m = /^(\d+\.\d+\.\d+): version at merge, train (\d+) \(G183\)$/.exec(String(s).trim());
+    if (m) out.push({ idx, n: Number(m[2]), version: m[1] });
+  });
+  return out;
+}
+
+/**
+ * Guard (a), always on: the first-parent subjects of origin/master..<head> must hold no version commit of a train other
+ * than `n` (null for a lone branch: any train's is foreign). One there means merging the head pulls that unreleased
+ * train into master. The STOP text (exit 4), or null.
+ */
+export function foreignVersionStop(subjects, n, branch) {
+  const foreign = trainVersionCommits(subjects).filter((v) => n == null || v.n !== Number(n));
+  if (!foreign.length) return null;
+  const list = foreign.map((v) => `train ${v.n} ${v.version}`).join(', ');
+  return `STOP: base train not merged: origin/${branch} carries the version commit of ${list}, not in origin/master; release it first (nothing merged)`;
+}
+
+/**
+ * The `--on <sha>` base check of `build` (pure; the caller gathers the facts): `trains` are the origin/train/<m> heads
+ * ([{ n, sha }], full shas), `subjects` the first-parent subjects of origin/master..<sha>. -> { m, version } (the base
+ * train and its version) or { error }.
+ */
+export function onBaseCheck({ n, sha, trains, masterInBase, baseInMaster, subjects }) {
+  const short = sha.slice(0, 8);
+  const heads = trains.filter((t) => t.sha === sha && t.n !== Number(n));
+  if (!heads.length) return { error: `--on ${short} is not the head of any other origin/train/<m>` };
+  const m = Math.max(...heads.map((t) => t.n));
+  if (m >= Number(n)) return { error: `--on: the base train/${m} must be below train ${n}` };
+  if (baseInMaster) return { error: `--on: train/${m} (${short}) is already in origin/master: build without --on` };
+  if (!masterInBase) return { error: `--on: origin/master is not in train/${m} (${short}): train ${m} must be rebuilt first` };
+  const vcs = trainVersionCommits(subjects);
+  const own = vcs.find((v) => v.n === m);
+  if (!own) return { error: `--on: train/${m} (${short}) has no version commit of train ${m} (not built yet?)` };
+  const other = vcs.filter((v) => v.n !== m);
+  if (other.length) return { error: `--on: train/${m} is itself stacked on train ${other.map((v) => v.n).join(', ')}: depth 2 at most` };
+  return { m, version: own.version };
+}
+
+/**
+ * Check (b) of a stacked release (pure): `marker` is the PR's base marker ({ train, sha } or null), the rest are git
+ * facts about it: base in the head / in origin/master, the base train's version and the commit its tag v<version>
+ * names on origin (null: no tag), that commit's second parent (the head GitHub merged), and the tree of
+ * `git merge-tree --write-tree origin/master <head>` (null: conflict) against the head's tree.
+ * -> { ok: true, message } or { ok: false, code (3 rebuild, 4 wait), message }.
+ */
+export function stackedDecision({ branch, marker, baseInHead, baseInMaster, baseVersion, tagCommit, tagParent, mergeTree, headTree }) {
+  const stop = (code, why) => ({ ok: false, code, message: `STOP: ${why}` });
+  if (!marker) return stop(3, `master moved since build: rebuild with the next version (origin/master is not in origin/${branch})`);
+  const b = `train/${marker.train} ${marker.sha.slice(0, 8)}`;
+  if (!baseInHead) return stop(3, `the recorded base ${b} is not in origin/${branch}: rebuild`);
+  if (!baseInMaster) return stop(4, `base train not merged: ${b} is not in origin/master yet; release train ${marker.train} first`);
+  if (!tagCommit) return stop(4, `base train not released: tag v${baseVersion} (train ${marker.train}) is not on origin yet`);
+  if (tagParent !== marker.sha) {
+    return stop(3, `train ${marker.train} merged at ${String(tagParent ?? 'no second parent').slice(0, 8)}, not at the recorded base ${marker.sha.slice(0, 8)}: rebuild`);
+  }
+  if (!mergeTree || mergeTree !== headTree) {
+    return stop(3, `merging origin/${branch} into origin/master would ${mergeTree ? 'change the tested tree' : 'conflict'}: rebuild`);
+  }
+  return { ok: true, message: `stacked on ${b} (v${baseVersion} merged, tagged): the merge into origin/master keeps the tested tree` };
+}
+
+/** True when a failed `gh pr merge` may pass on a retry (GitHub still recomputing after the base train merged). */
+export const mergeRetryable = (text) => /not mergeable|base branch was modified/i.test(text) && !/head branch was modified/i.test(text);
+
+/**
+ * Runs `once()` (-> { ok, why }) until it passes, retrying a mergeRetryable failure every `stepMs` while `budgetMs`
+ * lasts. -> { ok, tries, why }.
+ */
+export async function retryMerge(once, { budgetMs = 120_000, stepMs = 15_000, now = Date.now, wait = (ms) => new Promise((r) => setTimeout(r, ms)), log = () => {} } = {}) {
+  const t0 = now();
+  for (let tries = 1; ; tries++) {
+    const r = once();
+    if (r.ok) return { ok: true, tries, why: '' };
+    if (!mergeRetryable(r.why) || now() - t0 + stepMs > budgetMs) return { ok: false, tries, why: r.why };
+    log(`merge not accepted yet (${String(r.why).trim().split('\n')[0]}): retry ${tries + 1} in ${Math.round(stepMs / 1000)} s`);
+    await wait(stepMs);
+  }
+}
+
 /** The --keep STOP text over a version commit: the pre-version head (`<version commit>^`) and the exact commands. */
-export function keepStopMessage({ n, version, title, versionSha, pre, members, after = 0 }) {
+export function keepStopMessage({ n, version, title, versionSha, pre, members, after = 0, on = null }) {
   const b = `train/${n}`;
   return [
     `STOP: origin/${b} already holds the version commit for ${version} (${versionSha.slice(0, 8)}); --keep builds on a head without it.`,
@@ -160,7 +283,7 @@ export function keepStopMessage({ n, version, title, versionSha, pre, members, a
     `  git checkout -B ${b} ${pre}`,
     `  git merge --no-ff origin/<b> -m "Merge origin/<b> into ${b}"   (resolve, git add, git commit --no-edit)`,
     `  git push --force origin ${b}`,
-    `  node scripts/merge-train.mjs build ${n} ${version} ${JSON.stringify(title)} ${[...members, '<b>'].join(' ')} --keep`,
+    `  node scripts/merge-train.mjs build ${n} ${version} ${JSON.stringify(title)} ${[...members, '<b>'].join(' ')}${on ? ` --on ${on}` : ''} --keep`,
     ...(after ? [`(${after} commit(s) after the version commit are not on that head: cherry-pick them again after the merge)`] : []),
   ].join('\n');
 }
@@ -209,15 +332,18 @@ export function protocolValue(text) {
   return Number(m[1]);
 }
 
-/** protocol.ts text with PROTOCOL_VERSION set to masterValue + 1 (always master+1, whatever the head holds). */
-export function bumpProtocol(text, masterValue) {
+/**
+ * protocol.ts text with PROTOCOL_VERSION set to baseValue + 1, whatever the head holds. The base is origin/master's
+ * value, or for a stacked train (`--on`) its base train head's (which may already carry that train's bump).
+ */
+export function bumpProtocol(text, baseValue) {
   protocolValue(text);
-  return text.replace(PROTOCOL_LINE, `export const PROTOCOL_VERSION = ${masterValue + 1};`);
+  return text.replace(PROTOCOL_LINE, `export const PROTOCOL_VERSION = ${baseValue + 1};`);
 }
 
 const USAGE = [
   'usage:',
-  '  node scripts/merge-train.mjs build <n> <version> "<title>" <branch>... [--keep] [--no-test] [--dry-run]',
+  '  node scripts/merge-train.mjs build <n> <version> "<title>" <branch>... [--on <sha>] [--keep] [--no-test] [--dry-run]',
   '  node scripts/merge-train.mjs release <n> <version> "<title>" [--resume] [--head <sha>] [--no-fallback] [--dry-run]',
   '  node scripts/merge-train.mjs single <branch> <version> "<title>" [--dry-run]',
 ].join('\n');
@@ -243,18 +369,19 @@ export function headPinCheck(actual, want, branch) {
 
 /** argv (after `node script`) -> { cmd, ...fields, dry }; throws an Error carrying the usage text. */
 export function parseArgs(argv0) {
-  const FLAGS = ['--dry-run', '--keep', '--no-test', '--resume', '--no-fallback', '--head'];
+  const FLAGS = ['--dry-run', '--keep', '--no-test', '--resume', '--no-fallback', '--head', '--on'];
   const bad = (why) => new Error(`${why}\n${USAGE}`);
-  // --head <sha> takes a value: pull it out before the positional parse.
-  let headSha = null;
+  // --head <sha> / --on <sha> take a value: pull it out before the positional parse.
+  const shas = { '--head': null, '--on': null };
   const argv = [];
   for (let i = 0; i < argv0.length; i++) {
-    if (argv0[i] !== '--head') { argv.push(argv0[i]); continue; }
-    const v = argv0[++i];
-    if (!/^[0-9a-f]{7,40}$/i.test(v ?? '')) throw bad(`--head needs a commit sha, got "${v ?? ''}"`);
-    headSha = v.toLowerCase();
-    argv.push('--head');
+    if (!(argv0[i] in shas)) { argv.push(argv0[i]); continue; }
+    const f = argv0[i], v = argv0[++i];
+    if (!/^[0-9a-f]{7,40}$/i.test(v ?? '')) throw bad(`${f} needs a commit sha, got "${v ?? ''}"`);
+    shas[f] = v.toLowerCase();
+    argv.push(f);
   }
+  const headSha = shas['--head'];
   const unknown = argv.find((x) => x.startsWith('--') && !FLAGS.includes(x));
   if (unknown) throw bad(`unknown flag ${unknown}`);
   const has = (f) => argv.includes(f);
@@ -263,11 +390,11 @@ export function parseArgs(argv0) {
   const only = (...ok) => { for (const f of FLAGS.slice(1)) if (has(f) && !ok.includes(f)) throw bad(`${f} does not apply to ${cmd}`); };
   const dry = has('--dry-run');
   if (cmd === 'build') {
-    only('--keep', '--no-test');
+    only('--keep', '--no-test', '--on');
     if (!/^\d+$/.test(a[0] ?? '')) throw bad('build needs a train number');
     if (!a[2]) throw bad('build needs <version> "<title>"');
     if (a.length < 4) throw bad('build needs at least one branch');
-    return { cmd, n: a[0], version: ver(a[1]), title: a[2], branches: a.slice(3), keep: has('--keep'), noTest: has('--no-test'), dry };
+    return { cmd, n: a[0], version: ver(a[1]), title: a[2], branches: a.slice(3), keep: has('--keep'), noTest: has('--no-test'), on: shas['--on'], dry };
   }
   if (cmd === 'release') {
     only('--resume', '--no-fallback', '--head');
@@ -287,8 +414,8 @@ export function parseArgs(argv0) {
 // ---- shell helpers ----------------------------------------------------------------------------------------------
 
 /** Runs an argv array (no shell) or a string (through the shell); never throws: { status, out, err }. */
-function exec(cmd, { input, env, timeout = 600_000 } = {}) {
-  const opt = { encoding: 'utf8', input, env, timeout, windowsHide: true, maxBuffer: 256 << 20 };
+function exec(cmd, { input, env, cwd, timeout = 600_000 } = {}) {
+  const opt = { encoding: 'utf8', input, env, cwd, timeout, windowsHide: true, maxBuffer: 256 << 20 };
   const r = Array.isArray(cmd) ? spawnSync(cmd[0], cmd.slice(1), opt) : spawnSync(cmd, { ...opt, shell: true });
   if (r.error) return { status: -1, out: '', err: String(r.error.message) };
   return { status: r.status ?? -1, out: r.stdout ?? '', err: r.stderr ?? '' };
@@ -337,6 +464,25 @@ function act(cmd, opts) {
 const rev = (ref) => run(['git', 'rev-parse', '--verify', '--quiet', `${ref}^{commit}`]);
 const exists = (ref) => exec(['git', 'rev-parse', '--verify', '--quiet', `${ref}^{commit}`]).status === 0;
 const isAncestor = (a, b) => exec(['git', 'merge-base', '--is-ancestor', a, b]).status === 0;
+
+/** The tree sha of commit `ref` (`cwd`: the repository, default the current directory). */
+export const treeOf = (ref, cwd) => run(['git', 'rev-parse', `${ref}^{tree}`], { cwd });
+
+/** The tree `git merge-tree --write-tree <ours> <theirs>` writes (what a merge of the two would hold), or null on a conflict. */
+export function mergedTree(ours, theirs, cwd) {
+  const r = exec(['git', 'merge-tree', '--write-tree', '--no-messages', ours, theirs], { cwd });
+  if (r.status === 1) return null;
+  if (r.status !== 0) throw new Error(`git merge-tree failed: ${r.err.trim()}`);
+  return r.out.split('\n')[0].trim();
+}
+
+/** The commit tag `tag` names on origin (peeled), or null when origin has no such tag. */
+function remoteTagCommit(tag) {
+  const lines = run(['git', 'ls-remote', 'origin', `refs/tags/${tag}`, `refs/tags/${tag}^{}`]).split('\n').filter(Boolean)
+    .map((l) => l.split(/\s+/));
+  const peeled = lines.find((l) => l[1] === `refs/tags/${tag}^{}`) ?? lines.find((l) => l[1] === `refs/tags/${tag}`);
+  return peeled ? peeled[0] : null;
+}
 const today = () => new Date().toLocaleDateString('en-CA');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -350,6 +496,12 @@ function requireClean() {
 function openPr(branch) {
   const n = run(['gh', 'pr', 'list', '--head', branch, '--state', 'open', '--json', 'number', '--jq', '.[0].number // empty']);
   return n ? Number(n) : null;
+}
+
+/** The open PR for a head branch with its body: { number, body }, or null. */
+function openPrInfo(branch) {
+  const list = JSON.parse(run(['gh', 'pr', 'list', '--head', branch, '--state', 'open', '--json', 'number,body']) || '[]');
+  return list.length ? { number: Number(list[0].number), body: String(list[0].body ?? '') } : null;
 }
 
 // ---- merging on git objects ---------------------------------------------------------------------------------------
@@ -452,17 +604,31 @@ function versionCommit({ branch, head, checkout, version, title, pr, members, su
 /** The `gh pr merge` argv: always pinned to the head that passed (`--match-head-commit`), so a push after CI cannot merge. */
 export const mergeCmd = (pr, sha) => ['gh', 'pr', 'merge', String(pr ?? 'NEW'), '--merge', '--match-head-commit', sha ?? '<tested head>'];
 
+/** `gh pr merge` pinned to `sha`; a stacked release retries ~2 min while GitHub settles after the base train merged. */
+async function mergePinned(pr, sha, stacked) {
+  const cmd = mergeCmd(pr, sha);
+  if (DRY || !stacked) { act(cmd); return; }
+  console.log(`  > ${show(cmd)} (retried up to ~2 min on "not mergeable" / "base branch was modified")`);
+  const r = await retryMerge(() => {
+    const x = exec(cmd);
+    return { ok: x.status === 0, why: (x.err || x.out).trim() };
+  }, { wait: sleep, log: (l) => console.warn(`  ${l}`) });
+  if (!r.ok) throw new Error(`${show(cmd)} failed after ${r.tries} tries: ${r.why.slice(-2000)}`);
+}
+
 /**
  * The shared tail of release / single: merge the PR at exactly `sha` (the head CI passed on), tag the merge commit,
- * move dev. Returns the merge commit (null in a dry run).
+ * move dev. A stacked release then asserts (c): the merge commit's tree is the tested head's (else exit 5, loud).
+ * Returns { merge (null in a dry run), code (0, or 5 on a tree mismatch) }.
  */
-function mergeAndTag({ pr, version, sha }) {
+async function mergeAndTag({ pr, version, sha, stacked = false }) {
   if (!DRY && !sha) throw new Error('mergeAndTag: no head sha to pin the merge to');
-  act(mergeCmd(pr, sha));
+  await mergePinned(pr, sha, stacked);
   if (DRY) {
     for (const c of [['git', 'tag', `v${version}`, '<merge commit>'], ['git', 'push', 'origin', `v${version}`],
       ['git', 'push', 'origin', '<merge commit>:refs/heads/dev']]) act(c);
-    return null;
+    if (stacked) console.log('  [dry-run] would assert tree(merge commit) == tree(tested head)');
+    return { merge: null, code: 0 };
   }
   const merge = run(['gh', 'pr', 'view', String(pr), '--json', 'mergeCommit', '--jq', '.mergeCommit.oid']);
   run(['git', 'fetch', 'origin']);
@@ -470,15 +636,23 @@ function mergeAndTag({ pr, version, sha }) {
   act(['git', 'push', 'origin', `v${version}`]);
   act(['git', 'push', 'origin', `${merge}:refs/heads/dev`]);
   console.log(`\nMERGED #${pr} as ${merge}, tagged v${version}, dev moved`);
-  return merge;
+  if (stacked) {
+    const [got, want] = [treeOf(merge), treeOf(sha)];
+    if (got !== want) {
+      console.error(`\n!!! TREE MISMATCH: merge commit ${merge.slice(0, 8)} has tree ${got.slice(0, 8)}, the tested head ${sha.slice(0, 8)} has ${want.slice(0, 8)}.`);
+      console.error('!!! origin/master now holds a tree no run tested: check it by hand (state error, exit 5).');
+      return { merge, code: 5 };
+    }
+    console.log(`tree check: merge commit tree == tested head tree (${got.slice(0, 8)})`);
+  }
+  return { merge, code: 0 };
 }
 
-/** CI on commit `sha` of `branch`, then mergeAndTag: 0 merged, 2 CI failed (nothing merged). */
-async function ciAndMerge({ branch, sha, pr, version }) {
+/** CI on commit `sha` of `branch`, then mergeAndTag: 0 merged, 2 CI failed (nothing merged), 5 merged with a tree mismatch. */
+async function ciAndMerge({ branch, sha, pr, version, stacked = false }) {
   if (DRY) console.log(`  [dry-run] would wait for CI on ${sha ? sha.slice(0, 8) : 'that commit'} (gh run list --branch ${branch}, gh run watch --exit-status)`);
   else if (!(await waitCi(branch, sha))) { console.error(`NOT merged: CI failed on ${sha}`); return 2; }
-  mergeAndTag({ pr, version, sha });
-  return 0;
+  return (await mergeAndTag({ pr, version, sha, stacked })).code;
 }
 
 // ---- commands -----------------------------------------------------------------------------------------------------
@@ -489,10 +663,10 @@ function firstParentSubjects(head) {
   return out ? out.split('\n') : [];
 }
 
-/** The train's members (merge order) with their open PRs, printed. */
-function trainMembers(head) {
+/** Train `n`'s members (merge order) with their open PRs, printed (a stacked base train's merges are not its members). */
+function trainMembers(head, n) {
   const subjects = run(['git', 'log', '--first-parent', '--merges', '--reverse', '--format=%s', `origin/master..${head}`]).split('\n');
-  const members = membersFromLog(subjects).map((b) => ({ branch: b, pr: openPr(b) }));
+  const members = membersFromLog(subjects, n).map((b) => ({ branch: b, pr: openPr(b) }));
   for (const m of members) console.log(`member ${m.branch}: ${m.pr ? `#${m.pr}` : 'no open PR'}`);
   return members;
 }
@@ -524,18 +698,34 @@ function writeFragments(synth) {
   }
 }
 
-/** The train PR number: the open one, or a new one (null in a dry run). */
-function ensurePr(n, version, title, members, notes = []) {
+/**
+ * The train PR number: the open one, or a new one (null in a dry run). A stacked build (`base`: { train, sha, version })
+ * writes its base marker into the PR body (an open PR's body is edited when its marker differs).
+ */
+function ensurePr(n, version, title, members, notes = [], base = null) {
   const branch = `train/${n}`;
-  const pr = openPr(branch);
-  if (pr) { console.log(`train PR: #${pr}`); return pr; }
+  if (base) {
+    const open = openPrInfo(branch);
+    if (open) {
+      console.log(`train PR: #${open.number}`);
+      const want = withBaseMarker(open.body, base);
+      if (want !== open.body) act(['gh', 'pr', 'edit', String(open.number), '--body', want]);
+      return open.number;
+    }
+  } else {
+    const pr = openPr(branch);
+    if (pr) { console.log(`train PR: #${pr}`); return pr; }
+  }
   const url = act(['gh', 'pr', 'create', '--base', 'master', '--head', branch, '--title', trainPrTitle(n, version, title),
-    '--body', trainPrBody(n, title, members, notes)]);
+    '--body', trainPrBody(n, title, members, notes, base)]);
   return url ? Number(url.split('/').pop()) : null;
 }
 
-/** The wire decision: members whose diff against master touches a wire path -> the protocol.ts text with master+1, else null. */
-function planWire(kept, head) {
+/**
+ * The wire decision: members whose diff against master touches a wire path -> the protocol.ts text with the base's
+ * value + 1, else null. The base is origin/master, or a stacked train's base head (`--on`).
+ */
+function planWire(kept, head, baseRef = 'origin/master') {
   const protoAt = (ref) => run(['git', 'show', `${ref}:src/net/protocol.ts`], { raw: true });
   const atHead = protoAt(head);
   const paths = wirePaths(atHead);
@@ -546,20 +736,48 @@ function planWire(kept, head) {
     const files = run(['git', 'diff', '--name-only', mb.out.trim(), `origin/${b}`]).split('\n').filter(Boolean);
     if (touchesWire(files, paths)) wire.push(b);
   }
-  const master = protocolValue(protoAt('origin/master'));
-  if (!wire.length) { console.log(`PROTOCOL_VERSION ${master}: unchanged (no member touches the wire)`); return null; }
+  const master = protocolValue(protoAt(baseRef));
+  const of = baseRef === 'origin/master' ? '' : ` (base ${baseRef.slice(0, 8)})`;
+  if (!wire.length) { console.log(`PROTOCOL_VERSION ${master}${of}: unchanged (no member touches the wire)`); return null; }
   const text = bumpProtocol(atHead, master);
   if (text === atHead) { console.log(`PROTOCOL_VERSION already ${master + 1} at the train head (wire: ${wire.join(', ')})`); return null; }
-  console.log(`PROTOCOL_VERSION ${master} -> ${master + 1} (wire: ${wire.join(', ')})`);
+  console.log(`PROTOCOL_VERSION ${master}${of} -> ${master + 1} (wire: ${wire.join(', ')})`);
   return text;
 }
 
-async function build({ n, version, title, branches, keep }) {
+/**
+ * The `--on <sha>` base of a build, after the fetch: { m, sha (full), version } or { error }. The sha must be another
+ * origin/train/<m> head (m < n) with origin/master and train m's version commit in it, and no third train's.
+ */
+function resolveOnBase(n, on) {
+  if (!exists(on)) return { error: `--on ${on}: no such commit (after git fetch origin)` };
+  const sha = rev(on);
+  const trains = run(['git', 'for-each-ref', '--format=%(refname:short) %(objectname)', 'refs/remotes/origin/train/'])
+    .split('\n').filter(Boolean).map((l) => {
+      const [ref, s] = l.split(' ');
+      const m = /^origin\/train\/(\d+)$/.exec(ref);
+      return m ? { n: Number(m[1]), sha: s } : null;
+    }).filter(Boolean);
+  const r = onBaseCheck({ n, sha, trains, masterInBase: isAncestor('origin/master', sha), baseInMaster: isAncestor(sha, 'origin/master'),
+    subjects: firstParentSubjects(sha) });
+  return r.error ? r : { ...r, sha };
+}
+
+async function build({ n, version, title, branches, keep, on = null }) {
   requireClean();
   run(['git', 'fetch', 'origin']);
   const branch = `train/${n}`;
   const race = versionRace(version, versionAt('origin/master'));
   if (race) { console.error(race); return 1; }
+  let base = null; // a stacked build (--on): { m, sha, version } of the base train head
+  if (on) {
+    const r = resolveOnBase(n, on);
+    if (r.error) { console.error(`STOP: ${r.error}`); return 1; }
+    base = r;
+    const above = versionRace(version, base.version);
+    if (above) { console.error(`${above.replace("master's package.json", `train ${base.m}'s version`)}`); return 1; }
+    console.log(`--on: stacked on train/${base.m} at ${base.sha.slice(0, 8)} (${base.version}); released only after train ${base.m} merges`);
+  }
   let head;
   if (keep) {
     if (!exists(`origin/${branch}`)) throw new Error(`--keep: origin/${branch} does not exist`);
@@ -568,17 +786,19 @@ async function build({ n, version, title, branches, keep }) {
     if (vc.idx >= 0) {
       const versionSha = rev(`${head}~${vc.idx}`);
       const merged = run(['git', 'log', '--first-parent', '--merges', '--reverse', '--format=%s', `origin/master..${head}`]).split('\n');
-      const members = [...new Set([...membersFromLog(merged), ...branches])];
-      console.error(keepStopMessage({ n, version: vc.version, title, versionSha, pre: rev(`${versionSha}^`), members, after: vc.idx }));
+      const members = [...new Set([...membersFromLog(merged, n), ...branches])];
+      console.error(keepStopMessage({ n, version: vc.version, title, versionSha, pre: rev(`${versionSha}^`), members, after: vc.idx, on: base?.sha }));
       return 1;
     }
-    console.log(`--keep: starting from origin/${branch} (${head.slice(0, 8)}), not origin/master`);
+    console.log(`--keep: starting from origin/${branch} (${head.slice(0, 8)}), not ${base ? `train/${base.m}` : 'origin/master'}`);
+    if (base && !isAncestor(base.sha, head)) { console.error(`STOP: --keep --on: the base ${base.sha.slice(0, 8)} is not in origin/${branch}`); return 1; }
     if (!isAncestor('origin/master', head)) console.warn('WARNING: origin/master is not in that head; release will STOP (exit 3) until the train is rebuilt');
-  } else head = rev('origin/master');
+  } else head = base ? base.sha : rev('origin/master');
   const included = [], kept = [], left = [];
   for (const b of branches) {
     console.log(`merging origin/${b}`);
     if (!exists(`origin/${b}`)) { left.push({ b, why: 'no such branch on origin' }); continue; }
+    if (base && isAncestor(`origin/${b}`, base.sha)) { console.log(`  already in the base train/${base.m}: not a member of train ${n}`); continue; }
     if (isAncestor(`origin/${b}`, head)) { console.log('  already in (nothing to merge)'); kept.push(b); continue; }
     const m = mergeObjects(head, rev(`origin/${b}`), `Merge origin/${b} into train/${n}`);
     if (m.blocking) { left.push({ b, why: `conflicts in ${m.blocking.join(', ')}` }); console.log(`  LEFT OUT: ${m.blocking.join(', ')}`); continue; }
@@ -593,10 +813,10 @@ async function build({ n, version, title, branches, keep }) {
   }
   act(['git', 'checkout', '-B', branch, head]);
   act(keep ? ['git', 'push', 'origin', branch] : ['git', 'push', '--force', 'origin', branch]);
-  const members = trainMembers(head);
+  const members = trainMembers(head, n);
   const synth = planFragments(members); // read only: fragments are written first thing inside the try below
-  const pr = ensurePr(n, version, title, members, synth.notes);
-  const protocol = planWire(wireCandidates(kept, members), head);
+  const pr = ensurePr(n, version, title, members, synth.notes, base && { train: base.m, sha: base.sha, version: base.version });
+  const protocol = planWire(wireCandidates(kept, members), head, base ? base.sha : 'origin/master');
   if (protocol && DRY) console.log('  [dry-run] would write src/net/protocol.ts and add it to the version commit');
   else if (protocol) fs.writeFileSync(path.join(run(['git', 'rev-parse', '--show-toplevel']), 'src/net/protocol.ts'), protocol);
   let v;
@@ -650,7 +870,7 @@ async function releaseOld(n, version, title, head0) {
   if (race) { console.error(race); return 1; }
   const head = mergeMaster(head0, branch);
   if (!head) return 3;
-  const members = trainMembers(head);
+  const members = trainMembers(head, n);
   const pr = ensurePr(n, version, title, members);
   const v = versionCommit({ branch, head, checkout: ['git', 'checkout', '-B', branch, head], version, title: `Train ${n}: ${title}`, pr,
     members: members.filter((m) => m.pr).map((m) => m.pr), subject: versionSubject(n, version) });
@@ -684,6 +904,8 @@ async function release({ n, version, title, resume, head: wantHead, noFallback }
   if (pin) { console.error(pin); return 1; }
   if (isAncestor(head, 'origin/master')) { console.error(`STOP: origin/${branch} is already merged into origin/master`); return 1; }
   const subjects = firstParentSubjects(head);
+  const foreign = foreignVersionStop(subjects, n, branch); // guard (a): never pull an unreleased train into master
+  if (foreign) { console.error(foreign); return 4; }
   const idx = findVersionCommit(subjects, n, version);
   if (idx < 0) {
     const other = findTrainVersionCommit(subjects, n);
@@ -695,9 +917,13 @@ async function release({ n, version, title, resume, head: wantHead, noFallback }
     if (noFallback) { console.error(`STOP: origin/${branch} has no version commit for ${version} and --no-fallback is set: rebuild it`); return 1; }
     return releaseOld(n, version, title, head);
   }
-  if (!isAncestor('origin/master', head)) {
-    console.error(`STOP: master moved since build: rebuild with the next version (origin/master is not in origin/${branch})`);
-    return 3;
+  // A train built on master has master in its head; one without it is accepted only as a stacked train (--on) whose
+  // base train merged exactly at the recorded base, so GitHub's merge keeps the tested tree (check b).
+  const stacked = !isAncestor('origin/master', head);
+  if (stacked) {
+    const d = stackedDecision({ branch, ...stackedFacts(branch, head) });
+    if (!d.ok) { console.error(d.message); return d.code; }
+    console.log(d.message);
   }
   const race = versionRace(version, versionAt('origin/master'));
   if (race) { console.error(race); return 1; }
@@ -711,12 +937,32 @@ async function release({ n, version, title, resume, head: wantHead, noFallback }
       .split('\n').filter((f) => f.endsWith('.md') && !/(^|\/)readme\.md$/i.test(f));
     if (added.length) { console.error(`STOP: changes added after the version commit (${added.join(', ')}); rebuild`); return 1; }
   }
-  console.log(`origin/${branch} ${head.slice(0, 8)}: version commit ${idx ? `at ~${idx}` : 'at the head'}, package.json ${at}, master is in`);
-  const members = trainMembers(head);
+  console.log(`origin/${branch} ${head.slice(0, 8)}: version commit ${idx ? `at ~${idx}` : 'at the head'}, package.json ${at}, ${stacked ? 'stacked (base merged)' : 'master is in'}`);
+  const members = trainMembers(head, n);
   const pr = ensurePr(n, version, title, members);
-  const code = await ciAndMerge({ branch, sha: head, pr, version });
-  if (code === 0) closeMembers(members, { n, version, pr });
+  const code = await ciAndMerge({ branch, sha: head, pr, version, stacked });
+  if (code === 0 || code === 5) closeMembers(members, { n, version, pr });
   return code;
+}
+
+/** The git / gh facts of check (b) for a stacked train head (read only); see stackedDecision. */
+function stackedFacts(branch, head) {
+  const open = openPrInfo(branch);
+  const marker = parseBaseMarker(open?.body);
+  if (!marker) return { marker: null };
+  const known = exists(marker.sha);
+  const baseVersion = known ? versionAt(marker.sha) : '?';
+  const tagCommit = known ? remoteTagCommit(`v${baseVersion}`) : null;
+  const parent2 = tagCommit && exists(tagCommit) ? exec(['git', 'rev-parse', '--verify', '--quiet', `${tagCommit}^2`]) : null;
+  return {
+    marker,
+    baseInHead: known && isAncestor(marker.sha, head),
+    baseInMaster: known && isAncestor(marker.sha, 'origin/master'),
+    baseVersion, tagCommit,
+    tagParent: parent2 && parent2.status === 0 ? parent2.out.trim() : null,
+    mergeTree: mergedTree('origin/master', head),
+    headTree: treeOf(head),
+  };
 }
 
 async function single({ branch, version, title }) {
@@ -727,6 +973,8 @@ async function single({ branch, version, title }) {
   if (race) { console.error(race); return 1; }
   const pr = openPr(branch);
   if (!pr) throw new Error(`no open PR has head ${branch}`);
+  const foreign = foreignVersionStop(firstParentSubjects(`origin/${branch}`), null, branch); // guard (a)
+  if (foreign) { console.error(foreign); return 4; }
   const head = mergeMaster(rev(`origin/${branch}`), branch);
   if (!head) return 3;
   console.log(`PR #${pr} (${branch})`);
