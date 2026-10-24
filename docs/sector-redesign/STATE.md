@@ -283,6 +283,7 @@ Night Shift | Sector Ops Build: RESUME (saved 2026-10-24 ~20:05). coop4 / #317 /
    lightbake / darkness / sectorops:6, train-ready + message the orchestrator.
 2. #333 section bake @ 5cc02048 (checks A PASS, B fixed, master merged): laptop set bake queued (5cc02048-8d0d); green ->
    gh pr ready 333, label train-ready, message the orchestrator. Polish held.
+HOLD (orchestrator ~20:12): Michael walks all of campus on 4.95.1 (no fog fix); his notes come via the orchestrator. NO S1-S3 layout changes until Marlow's level-validator job lands; then the campus S1-S3 redesign runs against it plus the walk notes.
 Cloud: tsc / vitest-only builder slices go to cloud-queue briefs. Older context (sector-redesign idle until Michael's playtest):
 worktree C:/NightShift/Mobile-Coop-sector-redesign-polish (feature/sector-redesign-polish: STATE / PLAN / checks / briefs).
 git fetch; read CLAUDE.md; PLAN.md "LR16". Laptop: copy scripts/laptop-queue/request.mjs + lib.mjs from origin/master to
