@@ -1,4 +1,4 @@
-status: blocked waits for V6c + V6e-1 to merge into feature/level-validator-v6 (the lead reopens this with the base sha)
+status: open
 
 # level-validator V6e-2: campus measure run, drift test, V6 report (Marlow Build, job level-validator)
 
@@ -10,6 +10,9 @@ Lead: Night Shift | Marlow Build (desktop). Node + Vitest only: no src/ change, 
 - New branch: `feature/level-validator-v6e2`. Edit ONLY: `docs/sector-redesign/graph/campusOps-S1..S5.json` (only the
   `measured` / `meta.measured` the CLI writes; never hand-edit them), `tests/levelMeasureCampus.test.ts` (new),
   `docs/level-validator/campus-run/V6-REPORT.md` (new).
+
+## Answer (lead, reopened)
+Base: origin/feature/level-validator-v6 220596bc (V6a-d + V6c CLI 44ad33e5 + V6e-1 areas a1bc1e57). V6e-1 / V6c notes: s5-well has 0 floor cells (sill 0.5 over the 0.45 step: report it, do not change the map); s5-shaft / -vest / -pass / -core-r and s4-mantrap are small rooms (< or = 20 cells: report "small room", not an error of yours); pin link `at` on the drops S4 baskets->hall, S5 gal->hall, S5 roof->terrace if the measure reports 2+ gaps (graph edit allowed for `at` only); meta.measured.splits is per file: validate each graph alone for split reach and also all five together. The campus bake took ~150 s per section on a loaded desktop (plan said ~25 s idle); use a 600 s test timeout per section or one test per section.
 
 ## Read
 `docs/systems/agent-preamble.md`; `docs/level-validator/V6-PLAN.md` (whole, ~110 lines: "Measurement definitions",
