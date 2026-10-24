@@ -8,7 +8,9 @@ validator is the same file the V1 checker passed (7c54018c on `feature/level-val
 node scripts/level-validate.mjs docs/sector-redesign/graph/campusOps-S1.json ...-S2.json ...-S3.json ...-S4.json ...-S5.json
 ```
 
-Result: **147 errors, 150 warnings, exit 1.** The graphs describe the map AS BUILT (base c7784fc9; coop4's two
+Rerun by the lead after V1b (all 16 metrics keys in, step band and no-softlock fixes, safe drop 4.5): **147 errors,
+146 warnings, exit 1**; run.txt now holds this rerun. The per-section tables below are from the first run (150 WARN:
+7 missing-key WARNs gone, safe-drop WARNs added). First run result: **147 errors, 150 warnings, exit 1.** The graphs describe the map AS BUILT (base c7784fc9; coop4's two
 `minPlayers` S4 guards are not on that base and are not counted). Every shadow / vantage / LOS value is an estimate,
 pending V6.
 

@@ -1,6 +1,3 @@
-# node scripts/level-validate.mjs docs/sector-redesign/graph/campusOps-S1.json docs/sector-redesign/graph/campusOps-S2.json docs/sector-redesign/graph/campusOps-S3.json docs/sector-redesign/graph/campusOps-S4.json docs/sector-redesign/graph/campusOps-S5.json
-# (default --metrics docs/design/metrics.json; exit code 1)
-
 ERROR: s1-gatehouse: encounter space 5.5 m on its short side, under the 6 m camera floor
 ERROR: s1-dyard: 4.5 x 14 m below yard minimum 14 x 14
 ERROR: s1-dyard: encounter space 4.5 m on its short side, under the 6 m camera floor
@@ -149,7 +146,6 @@ ERROR: section S3: 1 independent route(s) from entry 's3-c2' to exit 's3-dock' (
 ERROR: co-op links reach 6 of 25 encounter spaces (need at least half)
 ERROR: pacing: three high beats (4+) in a row: s5-ante, s5-strong, s5-hall
 WARN:  s1-verge: room_class custom (justify the size in the design doc)
-WARN:  metrics: sizes.ceiling_min is missing from the metrics; the absolute ceiling minimum skipped
 WARN:  s1-lane: room_class custom (justify the size in the design doc)
 WARN:  s1-carpark: ceiling 12 m outside car_park 2.4-3.3 m
 WARN:  s1-bins: room_class custom (justify the size in the design doc)
@@ -260,8 +256,6 @@ WARN:  s5-core-r: size 2.6 is off the 0.5 m grid
 WARN:  s5-core-r: size 5.6 is off the 0.5 m grid
 WARN:  s5-core-r: ceiling 2.4 m outside stair_core 3.3-3.3 m
 WARN:  s5-lowroof: room_class custom (justify the size in the design doc)
-WARN:  metrics: sizes.door_h_min is missing from the metrics; the door height check skipped
-WARN:  metrics: sizes.door_h_max is missing from the metrics; the door height check skipped
 WARN:  link s1-verge -> s1-lane (opening): width 13 m outside 2.5-3.5 m
 WARN:  link s1-verge -> s1-lawn (opening): width 6 m outside 2.5-3.5 m
 WARN:  link s1-lane -> s1-carpark (opening): width 16 m outside 2.5-3.5 m
@@ -273,8 +267,6 @@ WARN:  link s1-dyard -> s1-forecourt (opening): width 4.5 m outside 2.5-3.5 m
 WARN:  link s1-plantroof -> s1-canopy (opening): width 6 m outside 2.5-3.5 m
 WARN:  link s1-plantroof -> s1-pavilion (opening): width 14 m outside 2.5-3.5 m
 WARN:  link s1-canopy -> s1-pavilion (opening): width 12 m outside 2.5-3.5 m
-WARN:  metrics: sizes.coop_lip is missing from the metrics; the co-op lip check skipped
-WARN:  metrics: rules.safe_drop_m is missing from the metrics; the safe drop check skipped
 WARN:  link s2-foyer -> s2-hall (opening): width 1.2 is off the 0.5 m grid
 WARN:  link s2-foyer -> s2-hall (opening): width 1.2 m outside 2.5-3.5 m
 WARN:  link s2-l1-plan -> s2-l1-mr1 (opening): width 1.2 is off the 0.5 m grid
@@ -292,13 +284,34 @@ WARN:  link s3-dock -> s4-dock (corridor): width 3.7 is off the 0.5 m grid
 WARN:  link s4-cc -> s5-lobby (corridor): width 5.7 is off the 0.5 m grid
 WARN:  link s4-cc -> s5-lobby (corridor): corridor width 5.7 m outside the 3.5-4 m target
 WARN:  link s5-hall -> s5-gal (open_stair): width 2 m below 2.4 m
-WARN:  metrics: rules.guards_max is missing from the metrics; the guard maximum check skipped
+WARN:  link s5-roof -> s5-garden (drop): drop 8.4 m above the 4.5 m safe drop
+WARN:  link s5-roof -> s5-terrace (drop): drop 8.4 m above the 4.5 m safe drop
+WARN:  link s5-roof -> s5-well (drop): drop 8.4 m above the 4.5 m safe drop
 WARN:  secret approach in 3 of 25 guarded encounter spaces (aim for half)
-WARN:  metrics: rules.dead_end_max_m is missing from the metrics; the dead-end depth check skipped
 WARN:  pacing: no release (1-2) after the peak at s4-mantrap before s4-yard
 WARN:  pacing: no release (1-2) after the peak at s4-hall before s4-noc
 WARN:  pacing: no release (1-2) after the peak at s5-cage before s5-roof
-INFO:  metrics: rules.guards_early is missing from the metrics; the guard band report skipped
-INFO:  metrics: rules.guards_late is missing from the metrics; the guard band report skipped
+INFO:  s1-gatehouse: 2 guards (2 players) outside the early band 3-6
+INFO:  s1-dyard: 1 guards (2 players) outside the early band 3-6
+INFO:  s1-forecourt: 2 guards (2 players) outside the early band 3-6
+INFO:  s2-foyer: 1 guards (2 players) outside the early band 3-6
+INFO:  s2-hall: 1 guards (2 players) outside the early band 3-6
+INFO:  s2-l1-plan: 1 guards (2 players) outside the early band 3-6
+INFO:  s2-l1-wing: 1 guards (2 players) outside the early band 3-6
+INFO:  s2-l1-facilities: 1 guards (2 players) outside the early band 3-6
+INFO:  s3-dock: 2 guards (2 players) outside the early band 3-6
+INFO:  s4-dock: 2 guards (2 players) outside the late band 6-10
+INFO:  s4-lobby: 1 guards (2 players) outside the late band 6-10
+INFO:  s4-batt: 1 guards (2 players) outside the late band 6-10
+INFO:  s4-yard: 3 guards (2 players) outside the late band 6-10
+INFO:  s4-deck: 1 guards (2 players) outside the late band 6-10
+INFO:  s5-ante: 3 guards (2 players) outside the late band 6-10
+INFO:  s5-hall: 2 guards (2 players) outside the late band 6-10
+INFO:  s5-garden: 2 guards (2 players) outside the late band 6-10
+INFO:  s5-terrace: 2 guards (2 players) outside the late band 6-10
+INFO:  s5-lawn: 2 guards (2 players) outside the late band 6-10
+INFO:  s5-kitchen: 1 guards (2 players) outside the late band 6-10
+INFO:  s5-arch: 1 guards (2 players) outside the late band 6-10
+INFO:  s5-roof: 1 guards (2 players) outside the late band 6-10
 
-147 error(s), 150 warning(s).
+147 error(s), 146 warning(s).
