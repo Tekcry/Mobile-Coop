@@ -3,6 +3,8 @@
 ## SWAP RESUME 2026-10-24 ~23:25 (wall clock; new account, 5-hour 0%)
 - Found: VAL done 50988ac8 (feature/mission-validator); guard-cap M0 verdict a2c4dd7b; EN1 fix cut off (WIP committed 51101b28 on feature/mission-en1); CMG / KIT-PULL / KIT-SHUT had no files.
 - RUNNING (Opus, all relaunched ~23:25): EN1 fix (-mission-en1, from 51101b28), KIT-PULL (-mission-kit-pull), KIT-SHUT (-mission-kit-shut), CMG (this worktree, graph.json only, lead commits), SS + CR graphs / PLAN.svg / SIGNOFF (this worktree, lead commits), VAL checker (report C:/NightShift/scratch/mission-val-check.md). If cut off: rerun from PLAN rows; builders commit + push their own branches.
+- ~23:55 VAL DONE: checker FIX (sync key) -> fix round 6936a6e4 (reads `sync` + `syncs`, choke WARN scoped to mission sections; 138/138) + fragment a8a7f77a. PR B opens (base feature/level-validator-v6) when the V6 PR opens (V6e-2 still open on cloud-queue).
+- ~23:50 SS + CR graphs / PLAN.svg / SIGNOFF committed 522533f7 (0 mission ERR once Sector Ops' S2 data lands). Sector Ops took all S2 node needs (comms panel, held 55 / 56 cut, sync-s2-atrium, pairdoor solo, two leads, exfil tags, `syncs` key, area boxes, S2-plan svg); they message when pushed -> re-run SS / CR validate + SVG over their data.
 - NEXT: EN1 PASS -> merge EN1 into feature/mission-engine (create on origin) -> EN2 (Opus) + EN3 (Sonnet); KIT-PULL + KIT-SHUT -> one Opus batch checker KIT0+PULL+SHUT; CMG -> CMS + TGC / TKL graphs; spec batch checker -> PR A.
 
 ## SAVE ~00:25 (orchestrator 85%; no swap, resume at the 03:10 reset)
