@@ -107,8 +107,8 @@ an Opus plan; the orchestrator assigns it (G283).
   once). The watchdog's `--fix labels` adds the `train-ready` label when all three hold (ROADMAP Decided 2026-10-25
   ~08:45; `docs/systems/watchdog.md` "The label convention"); a ready head the watchdog has not labelled is labelled by
   the orchestrator. Commits after the label keep it only when they touch docs, `*.md` or fragments alone, or when a new
-  `checker` success is on the new head; otherwise the watchdog removes it. The `no-affected-e2e` label
-  waives the e2e part for one PR.
+  `checker` success is on the new head; otherwise the watchdog removes it. The `no-affected-e2e` label waives the e2e
+  part for one PR.
 - Auto-train (scheduled task every minute, G286; `docs/systems/auto-train.md`) builds `train/<n>` from labelled PRs
   with a green check, makes the version commit (fragments into `CHANGELOG.md`, the next version, the one
   `PROTOCOL_VERSION` bump when a member touches a wire path), and the queue runs one full e2e on the train head. CI and
@@ -127,7 +127,7 @@ an Opus plan; the orchestrator assigns it (G283).
 | A PR | CI `check` + `affected-e2e` (the DIRECT tier: `node scripts/run-e2e.mjs --affected origin/master --list` names the suites; `src/net`, `src/save` and wire changes include `e2e-coop` + `e2e-netmove`); a `src/player` or `src/game` change also requests `e2e-coop` + `e2e-netmove` (`request.mjs`), and its checker passes only when they are green | laptop queue |
 | Tuner / Anim Studio / tests only | CI `check` + `affected-e2e` | laptop queue |
 | A train | one full `npm run e2e` on the train head | laptop queue |
-| Look or perf | `npm run e2e:gpu`, perf budgets, contact sheets, look videos; slot-alone measures right after a release | laptop 4189 (desktop under `heavy.lock`) |
+| Look or perf | `npm run e2e:gpu`, perf budgets, contact sheets, look videos; slot-alone measures right after a release | laptop 4189 (a one-off on the desktop under `heavy.lock`) |
 - Every e2e run is `E2E_GPU=1` and a GPU failure counts; a software-GL rerun only tells a test-timing bug from a game
   bug. CI is `npm run check` only (software GL, no e2e). Cloud sessions run unit tests, logic e2e and design only.
 - A crash or timeout mid-suite is not a pass. Flaky suites, quarantine and what counts as a flake:
@@ -141,7 +141,8 @@ an Opus plan; the orchestrator assigns it (G283).
 - Desktop (Orchestrator, Player, Marlow, Sector Ops): CPU target under ~80% (G306); over 90% the orchestrator trims
   the heaviest session (G304); under ~60% leads with independent slices left start more builders. Agents run tsc and
   single vitest files, never a full `npm run check` (CI runs it).
-- The desktop runs e2e only as the queue's overflow worker (task `NightShift-desktop-queue`), never by hand: pr requests
+- The desktop runs e2e suites only as the queue's overflow worker (task `NightShift-desktop-queue`), never by hand; a
+  one-off GPU, perf or Blender job runs there only when the job lead says, under `heavy.lock`. The worker takes pr requests
   on 4191 (`heavy.lock`) and 4192 (`heavy2.lock`) at `E2E_JOBS=1`, one new start per pass, each only while a request
   waits (installed backlog gate 0; `LQ_DESKTOP_BACKLOG`), the slot's lock is free and the desktop CPU of Normal-priority
   processes is under 80% (`LQ_DESKTOP_CPU` / `LQ_DESKTOP_CPU2`; below-Normal work such as a Blender bake does not
