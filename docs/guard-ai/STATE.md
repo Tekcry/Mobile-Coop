@@ -1,6 +1,13 @@
 # Guard AI - state
 
 ## Now
+~18:15 (new account, laptop): #319 MERGED (06:52Z), #272 / #298 / #302 / #303 merged. #322 train-ready (labelled by the
+orchestrator: laptop auto mode blocks `gh pr edit --add-label` here). #313 conflicted with master 4.93.0 (rig-pose-fix S5):
+merge 1d2f3e1d pushed (S5 carry lie ported into src/game/bodyCarry.ts + carryView.ts; client kept `Body` at the host sim
+lie; PROTOCOL 52 kept; tsc / lint clean, 21 files 315 tests). Merge A1: CarryView.letGo keeps the body's own lie; A2:
+keptBodies reads `view` not `rig`; A3: client Body lethal=false. RUNNING: Opus checkers A (wire) + B (parity) ->
+slices/COOP-CARRY-MERGE-CHECK-A/B.md (lead commits); laptop set coop-carry-m93 (coop, netmove, guard-carry, takedown).
+
 ~10:20 FINAL SAVE (5-hour 91%): PR #322 e2e-lightbake pending-compile wait (feature/guard-ai-lightbake-wait 74cd0683, test
 only): laptop PASS (0 pending after 9.4 s); CI 'test' failed on an unrelated tests/lightField.test.ts allocation
 measurement (173 > 144 bytes, heap noise; master green): failed job rerun -> label train-ready when green. Answered Sector
