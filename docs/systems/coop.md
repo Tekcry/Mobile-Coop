@@ -369,7 +369,7 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   bay index; the finish's rating has its grant zeroed). The client mirror takes each new bay once: the results line, its
   own gadget top-up and the card (not for the last set); the first message after a join or rejoin only records it. `start` carries `bay` ("Start at bay N", D20); both players start in that bay's entry
   airlock, each on its own slot (coop-rejoin: `courseSlotPoints` / `startSlotPoints`).
-- Friendly fire in the course (D38, G49 pending the research): `playersHostile(friendlyFire, a, b)` (pure, `validate.ts`)
+- Friendly fire (G141: a host option, on by default; built so far as always on in Course mode, no option yet): `playersHostile(friendlyFire, a, b)` (pure, `validate.ts`)
   makes partners hostile in course mode; host `Hitboxes` + `RemotePlayer.shootable`, client `PartnerTarget`, `blast`
   carry team damage; a partner at zero is downed and revivable.
 - The CT devices (`game/ctDevices.ts`) ride `course` as `sec` (see Sector Ops below). The client sends its jam intent as

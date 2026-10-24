@@ -18,12 +18,27 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
 - Decided, not built yet (G45): clear glass passes light and sight; frosted glass and blinds pass light only.
 - Decided, not built yet (G40): the two slowest standing and the three slowest crouched speeds are silent (code:
   `NOISE_QUIET`, `docs/systems/movement.md`); level rules and sensor rules are re-checked with it.
-- Decided (G46): the 12-awake limit (`MAX_ALIVE`) is reviewed against desktop performance; how it is set is open (FU-11).
-- Decided (G42, G49): every human guard can be palm-struck; dogs cannot; heavies, friendly fire and similar details follow
-  the CT co-op research (`docs/systems/takedowns.md`).
+- Decided, built (G46, G187, G254): guard counts are measured per mode. `MAX_ALIVE` 12 stays for the other modes;
+  Sector Ops has its own cap, 32 alive (`SECTOR.maxAlive`), a ceiling, not a target. Michael wants "as many guards as
+  realistically possible" (G289, G254), limited by the guard-cap perf floor and passable routes; room to manoeuvre
+  beats count (G190). Per-space bands are info; the validator WARNs only below them (G289).
+- Decided (G42, G155, G297, G307): every human guard can be palm-struck; dogs cannot. Per mode:
+  - Campaign co-op missions: no heavy or dog archetypes; armour and helmets come with the alarm stages (G155, "Adopt
+    CT's way"; kept 2026-10-25 ~09:45 "Keep CT way").
+  - Sector Ops: guard dogs (G297); later sections add body armour (torso shots only stagger), riot shields only in
+    alert response teams, and armour / helmets per alarm stage (G307).
+  - Helmets by difficulty, every mode (2026-10-25 ~10:20, Michael: "Base it off difficulty, harder difficulties always
+    have helmets, and hardest difficulty you can't shoot the helmet off"). Asked for Sector Ops; the campaign keeps the
+    CT alarm-stage helmets plus the same difficulty rule (assumed, undoable). It replaces G307's first-headshot helmet
+    where they differ. Not built yet.
+  - Friendly fire: a host option, on by default (G141; coop.md).
 - Decided (G106, built): CT's fixed difficulty levels; no sliders, no alarm-tolerance setting.
-- Decided (G11): of the movement run's AI ideas (guards relight lamps, paired searches, eavesdropping and the rest) only
-  those CT has survive, settled by the research.
+- Decided (G11, 2026-10-25): of the movement run's AI ideas (guards relight lamps, paired searches, eavesdropping and
+  the rest) only those CT has survive, with one exception: Michael "Add both" (2026-10-25 ~09:45) - static lookouts on
+  some high routes (pipes, catwalks, vents) and paired patrols that check on each other. G44 (poor sight above) stays
+  the base rule; a lookout is the deliberate exception on its route. Guard AI plans it first; not built yet.
+- Decided (2026-10-25 ~08:50, "Yes, shadow in view = seen"): a guard whose shadow falls in view animates at full rate
+  (`animTierView.ts`; replaces G294's assumption).
 - Decided (G47): the light parity test, long lamps and motion lights are sorted out when built.
 
 ## Stealth AI (2.0 phase 3a)
@@ -195,6 +210,8 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   normal hit reaction (combat on the shot's origin, contact call) and a `deflect` bark. Both return
   `DamageResult.deflect`. Placeholder parts (A45): the rig's combat-helmet part on the head node, the armour plates on
   the torso and shoulders, built on first use and toggled. Host-only (S9 carries the gear bits and the confirm).
+  Decided 2026-10-25, not built yet: helmets by difficulty (harder levels always helmeted; on the hardest the helmet
+  cannot be shot off), see "Decided direction".
 - Section alert (guard-ai S14, stealth over shooting items 6 and 7, A40 / A41, A70-A76; `ai/sectionAlert.ts` pure:
   `AlertCallLog`, `SectionCounters`, `unitOf`; numbers `MISSING` / `SHOTS` in `ai/gear.ts`). A missed check-in (a
   radio check's miss, one call per check; a talking pair's partner who never came) -> the caller's `missing` call
@@ -620,7 +637,7 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
 - `EnemyManager`: `ReconDrone`s (`ai/reconDrone.ts`: the `droneOp` guard's own drone; Damageable sphere, orbit, camera
   cone, `onDroneSpot`, `empAt`), officer buffs (2 Hz), the alarm runner weighted to officers, `joinSquad` +
   `radioCheckNow` (period `ARCHETYPE.radio`, stealth only), radio delays x reaction x officer.
-- Which archetypes stay is settled by the CT co-op research (G1, G49).
+- Which archetypes each mode uses: "Decided direction" above (G155, G297, G307).
 - (marlow-bays item 24) Every guard rig (`buildEnemyRig`: the host's guards and the co-op client's puppets) reads its
   tuned base table (`anim/animBaseGuard.ts`) plus the tuner's guard rows (`anim/tuneGuard.ts`; `rig.guardRows`), never
   Wren's; the brain reads only the posed rig (the head is the eye), as before. Untuned: bit-identical.
