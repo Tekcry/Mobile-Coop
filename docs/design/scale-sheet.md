@@ -15,6 +15,7 @@ Measured from the code (2026-10-10). "Derived" = worked out from code numbers, n
 | Stairs and ramps | collide as a smooth ramp; nav accepts a surface if its normal.y > 0.65 (slope up to about 49 deg) | `levelBuilder.ts:191`, `navBuild.ts:88` |
 | Nav grid | cell 0.5 m, agent radius 0.32, headroom 1.7 m, up to 8 layers per column | `navBuild.ts`, `navGrid.ts` |
 | Ladder | 0.5 m wide, climbed from 0.32 m off the wall, nav link both ways | `levelBuilder.ts:226`, `navBuild.ts:106` |
+| Wall jump | up 3.8 m solo (the highest lip one player reaches alone) | `WALL_JUMP.maxUp`, `config/movement.ts:338` |
 | Exchange v2 | door 1.0 x 2.1, interior wall 0.30, exterior 0.45, basement storey 3.3, ground 0, first 4.5; stair rise 0.165 / run 0.28 (B), steep 0.75 slope (V, R, coke) | `exchange.ts` |
 
 The character is 1.75 m, so it is close to a real 1.8 m person. The ratio is already normal: a 2.1 m door is 1.20 x the character (real: 2.04 / 1.75 = 1.17). No in-map correction needed. Keep door height 2.1 m; do not go below 2.0 or above 2.2.
@@ -31,18 +32,22 @@ Camera needs 0.62 + 0.16 = 0.78 m from the spine to a wall on the shoulder side,
 | Item | Size |
 | --- | --- |
 | Single door | 1.2 x 2.1 (always passes nav, see 4). 1.0 x 2.1 only on half-metre centres |
+| Door height | 2.0 - 2.2 m, build 2.1 (section 1: the door-to-character ratio) |
 | Double door | 1.8 or 2.0 x 2.1 |
 | Wide opening, no door | 2.5 - 3.5 m, lintel 2.1 or a full-height arch |
 | Roller door | 3.0 x 3.0 (open gap, or a locked door) |
 | Corridor | 3.5 - 4.0 m wide (never under 3.0) |
 | Play space | at least 6 m on the short side |
 | Ceiling | 3.0 m rooms and corridors; 4.5 - 6.0 m halls. Storey height (floor to floor) 3.3 m with a 0.3 slab |
+| Ceiling minimum | 2.4 m clear wherever a player walks; ducts and open sky exempt (level-validator BRIEF mapping, row "Ceiling") |
 | Fire stair (enclosed) | 1.3 m wide, two flights and a 1.3 m landing, fire door top and bottom (1.2 wide), the only stairs with doors |
 | Open feature stair | 2.4 m wide, rise 0.165, run 0.285 (slope 0.58, 30 deg), mid landing 2.0 m, no door, rails on open sides |
 | Stair height rule | floor to floor 3.3 m = 20 risers, so two flights of 10 (NCC allows 2 - 18 per flight) |
 | Ladder shaft | 1.0 x 1.0 m, ladder 0.5 wide, 0.6 m clear in front of the rungs |
 | Duct, trench, pipe subway (crouch) | 1.2 wide x 1.5 high clear (Michael, 2026-10-10; was 0.9 x 1.3, too low for the camera: `dead-line-v2-engine-check.md`). Player only: nav headroom is 1.7 so guards cannot enter. Walked crouched, no auto-crawl anchor |
 | Walk-in tunnel | 2.1 m clear minimum, 2.4 preferred; guards can enter |
+| Co-op lip | 4.3 - 4.5 m, above the solo wall jump (section 1); one band for the boost and the human ladder (level-design 11.3, 12.2 G57; `TEAM.boostMax` 4.5, `config/movement.ts:459`) |
+| Split-jump gap | 1.2 - 1.95 m between faces, faces at least 3.6 m tall (level-design 12.1: split gaps are found from these automatically) |
 | Low cover | 1.2 m high hides a crouched player; a 1.0 m rail does not |
 | Curb or step | 0.15 - 0.40 m; never between 0.40 and 0.45 (player and nav disagree) |
 | Recess, locker bay, pillar niche | 1.0 deep x 1.2 wide minimum, opening faces away from the guard's approach |
@@ -125,7 +130,7 @@ In the table every cell holds one value; units are in the header; `w` is the sho
 
 ## 8. Validator numbers
 
-Added 2026-10-24 (Michael, changes M2 and M4). The speeds, times and targets the level validator (`scripts/level-validate.mjs`) uses. One value per row; the unit is in the key and in the Unit column; keys are fixed (the generator reads them by key).
+Added 2026-10-24 (Michael, changes M2 and M4). The speeds, times and targets the level validator (`scripts/level-validate.mjs`) uses. One value per row; the unit is in the key and in the Unit column; keys are fixed (the generator reads them by key). A value is one number or a `min - max` range (two numbers).
 
 | Key | Value | Unit | Source |
 | --- | --- | --- | --- |
@@ -142,5 +147,10 @@ Added 2026-10-24 (Michael, changes M2 and M4). The speeds, times and targets the
 | `step_band_min_m` | 0.40 | m | level changes between this and `step_band_max_m` are forbidden (player 0.42 vs nav 0.45 disagree, section 3) |
 | `step_band_max_m` | 0.45 | m | upper edge of the forbidden step band |
 | `grid_m` | 0.5 | m | snap grid for every size, width, height and length (nav cell, section 1) |
+| `dead_end_max_m` | 15 | m | a dead end (one neighbour) is allowed only for a reward or objective space no longer than this (level-validator BRIEF mapping, row "Dead ends"; level-design 3.4, 16.6.3) |
+| `guards_early` | 3 - 6 | guards | per encounter space and player count in the first half of the spine; INFO only until Michael rules on the guard sheets (level-design 4.9) |
+| `guards_late` | 6 - 10 | guards | the same in the second half of the spine; INFO only (level-design 4.9) |
+| `guards_max` | 10 | guards | never above this per encounter space and player count (level-design 4.9) |
+| `safe_drop_m` | 4.5 | m | a drop above this ends in a heavy landing with a recovery (`LANDING.heavy`, `src/player/movement.ts:168`); no fall damage, so the validator only warns |
 
 Shadow, vantage and line-of-sight numbers are declared targets in the graph and are measured in greybox (M4); a map fails if the measurement misses the target.

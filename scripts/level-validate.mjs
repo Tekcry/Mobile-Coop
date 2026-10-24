@@ -381,8 +381,9 @@ export function checkDimensions(graph, metrics) {
         c.warn(`${name}: width ${fmt(width)} is off the ${fmt(grid)} m grid`);
       }
     }
-    if (lc !== undefined && bandMin !== undefined && bandMax !== undefined && lc >= bandMin - EPS && lc <= bandMax + EPS) {
-      c.err(`${name}: level change ${fmt(lc)} m in the ${fmt(bandMin)}-${fmt(bandMax)} m step band (player and nav disagree)`);
+    // The band is above its lower edge up to its upper edge: the sheet allows curbs up to 0.40 (section 3).
+    if (lc !== undefined && bandMin !== undefined && bandMax !== undefined && lc > bandMin + EPS && lc <= bandMax + EPS) {
+      c.err(`${name}: level change ${fmt(lc)} m in the forbidden step band, over ${fmt(bandMin)} up to ${fmt(bandMax)} m (player and nav disagree)`);
     }
     const below = (v, key, what, sev = 'err') => {
       const min = c.num(key, `the ${l.kind} ${what} check`);
@@ -462,8 +463,8 @@ export function checkDimensions(graph, metrics) {
         below(height, 'sizes.split_jump_h', 'face height');
         break;
       case 'drop': {
-        // No fall-damage or landing height exists in src/ (grep of src/config/movement.ts and src/player, 2026-10-24:
-        // only FALL_GRAB and the hang-down's hangDrop), so a drop above the sheet's safe height is a WARN, not an ERR.
+        // src/ has landing bands (`LANDING`, src/player/movement.ts:168: a heavy landing with a recovery above 4.5 m) but
+        // no fall damage, so a drop above the sheet's safe height (`safe_drop_m` = LANDING.heavy) is a WARN, not an ERR.
         const max = c.num('rules.safe_drop_m', 'the safe drop check');
         if (lc !== undefined && max !== undefined && lc > max + EPS) c.warn(`${name}: drop ${fmt(lc)} m above the ${fmt(max)} m safe drop`);
         break;
@@ -476,7 +477,8 @@ export function checkDimensions(graph, metrics) {
 }
 
 /** Two-player reach from `start` of every space, exfil from every objective; no softlock (every space a co-op link
- *  reaches is also reachable without co-op links). Solo completability is not checked (A1; G2, G50). */
+ *  reaches is also reachable without co-op links from the spaces already reached, so a mandatory pair_gate earlier on
+ *  the route flags its own target, not the co-op moves behind it). Solo completability is not checked (A1; G2, G50). */
 export function checkReach(graph) {
   const c = collector(null);
   const { spaces, links, start, exfils } = index(graph);
@@ -491,12 +493,20 @@ export function checkReach(graph) {
       if (!exfils.some((e) => on.has(e))) c.err(`${s.id}: no way from this objective to exfil`);
     }
   }
-  const solo = reachable(adjacency(links, (l) => !COOP_KINDS.has(l.kind)), start);
-  const flagged = new Set();
-  for (const a of arcsOf(links, (l) => COOP_KINDS.has(l.kind))) {
-    if (!seen.has(a.to) || solo.has(a.to) || flagged.has(a.to)) continue;
-    flagged.add(a.to);
-    c.err(`${a.to}: reached only through co-op links (${a.link.kind}); add a route without one (no softlock)`);
+  // Grow the solo region: start, then whatever a co-op move opens. A co-op link out of the region into a space the
+  // region does not reach solo is the only way there (a softlock if that partner goes down); the space and what is
+  // solo-reachable from it join the region, so the co-op moves behind it are judged from there, in file order.
+  const soloAdj = adjacency(links, (l) => !COOP_KINDS.has(l.kind));
+  const coopArcs = arcsOf(links, (l) => COOP_KINDS.has(l.kind));
+  const region = reachable(soloAdj, start);
+  for (let grown = true; grown;) {
+    grown = false;
+    for (const a of coopArcs) {
+      if (!region.has(a.from) || region.has(a.to)) continue;
+      c.err(`${a.to}: reached only through co-op links (${a.link.kind}); add a route without one (no softlock)`);
+      for (const id of reachable(soloAdj, a.to)) region.add(id);
+      grown = true;
+    }
   }
   return c.r;
 }

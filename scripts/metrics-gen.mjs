@@ -2,7 +2,7 @@
 // metrics-gen: docs/design/scale-sheet.md -> docs/design/metrics.json (level-validator M2, slice V1a).
 // The scale sheet is the one source of truth for every size and timing the level validator uses; this script reads
 // sections 1 and 3 (named rows, numbers read out of the cell text), section 7 (parameter table + room table, GAME
-// sizes) and section 8 (Key / Value / Unit, keys verbatim) into one JSON. A row that is missing from the sheet is
+// sizes) and section 8 (Key / Value / Unit, keys verbatim; a value is a number or a `min - max` range) into one JSON. A row that is missing from the sheet is
 // omitted, never invented; a row that is present but cannot be read is a parse error naming the section and row.
 //
 //   node scripts/metrics-gen.mjs           write docs/design/metrics.json
@@ -32,6 +32,14 @@ const DASH = '\\s*[-\u2013]\\s*';
 
 /** Strict number cell: "1.3", "90", "0.40". */
 const toNumber = (text) => (/^-?\d+(?:\.\d+)?$/.test(text) ? Number(text) : null);
+const RANGE = new RegExp(`^${NUM}${DASH}${NUM}$`);
+/** A Key / Value cell: a number, or "3 - 6" as [3, 6]. */
+const toValue = (text) => {
+  const n = toNumber(text);
+  if (n !== null) return n;
+  const m = RANGE.exec(text);
+  return m ? [Number(m[1]), Number(m[2])] : null;
+};
 /** Key cells are written as `key` in code style. */
 const stripTicks = (text) => text.replace(/^`(.*)`$/, '$1').trim();
 
@@ -77,16 +85,27 @@ const SIZE_RULES = [
   { key: 'door_w', sec: '3', row: 'Single door', re: new RegExp(`^${NUM}\\s*x\\s*${NUM}`), pick: (m) => Number(m[1]) },
   { key: 'door_min_w', sec: '3', row: 'Single door', re: new RegExp(`${NUM}\\s*x\\s*${NUM}\\s+only\\b`), pick: (m) => Number(m[1]) },
   { key: 'door_h', sec: '3', row: 'Single door', re: new RegExp(`^${NUM}\\s*x\\s*${NUM}`), pick: (m) => Number(m[2]) },
+  { key: 'door_h_min', sec: '3', row: 'Door height', re: new RegExp(`^${NUM}${DASH}${NUM}\\s*m`), pick: (m) => Number(m[1]) },
+  { key: 'door_h_max', sec: '3', row: 'Door height', re: new RegExp(`^${NUM}${DASH}${NUM}\\s*m`), pick: (m) => Number(m[2]) },
   { key: 'door_double_w', sec: '3', row: 'Double door', re: new RegExp(`^${NUM}\\s+or\\s+${NUM}\\s*x`), pick: (m) => [Number(m[1]), Number(m[2])] },
   { key: 'opening_w', sec: '3', row: 'Wide opening, no door', re: new RegExp(`^${NUM}${DASH}${NUM}\\s*m\\b`), pick: (m) => [Number(m[1]), Number(m[2])] },
+  { key: 'roller_door_w', sec: '3', row: 'Roller door', re: new RegExp(`^${NUM}\\s*x\\s*${NUM}`), pick: (m) => Number(m[1]) },
   { key: 'corridor_min_w', sec: '3', row: 'Corridor', re: new RegExp(`never under\\s+${NUM}`), pick: (m) => Number(m[1]) },
   { key: 'corridor_w', sec: '3', row: 'Corridor', re: new RegExp(`^${NUM}${DASH}${NUM}\\s*m wide`), pick: (m) => [Number(m[1]), Number(m[2])] },
   { key: 'play_space_min_short', sec: '3', row: 'Play space', re: new RegExp(`at least\\s+${NUM}\\s*m`), pick: (m) => Number(m[1]) },
   { key: 'ceiling_room', sec: '3', row: 'Ceiling', re: new RegExp(`^${NUM}\\s*m rooms`), pick: (m) => Number(m[1]) },
   { key: 'ceiling_hall', sec: '3', row: 'Ceiling', re: new RegExp(`${NUM}${DASH}${NUM}\\s*m halls`), pick: (m) => [Number(m[1]), Number(m[2])] },
+  { key: 'ceiling_min', sec: '3', row: 'Ceiling minimum', re: new RegExp(`^${NUM}\\s*m clear`), pick: (m) => Number(m[1]) },
   { key: 'storey_h', sec: '3', row: 'Ceiling', re: new RegExp(`[Ss]torey height[^0-9]*${NUM}\\s*m`), pick: (m) => Number(m[1]) },
   { key: 'fire_stair_w', sec: '3', row: 'Fire stair (enclosed)', re: new RegExp(`^${NUM}\\s*m wide`), pick: (m) => Number(m[1]) },
   { key: 'open_stair_w', sec: '3', row: 'Open feature stair', re: new RegExp(`^${NUM}\\s*m wide`), pick: (m) => Number(m[1]) },
+  { key: 'duct_w', sec: '3', row: 'Duct, trench, pipe subway (crouch)', re: new RegExp(`^${NUM}\\s*wide\\s*x\\s*${NUM}\\s*high`), pick: (m) => Number(m[1]) },
+  { key: 'duct_h', sec: '3', row: 'Duct, trench, pipe subway (crouch)', re: new RegExp(`^${NUM}\\s*wide\\s*x\\s*${NUM}\\s*high`), pick: (m) => Number(m[2]) },
+  { key: 'tunnel_h', sec: '3', row: 'Walk-in tunnel', re: new RegExp(`^${NUM}\\s*m clear minimum`), pick: (m) => Number(m[1]) },
+  { key: 'coop_lip', sec: '3', row: 'Co-op lip', re: new RegExp(`^${NUM}${DASH}${NUM}\\s*m`), pick: (m) => [Number(m[1]), Number(m[2])] },
+  { key: 'split_jump_w', sec: '3', row: 'Split-jump gap', re: new RegExp(`^${NUM}${DASH}${NUM}\\s*m between faces`), pick: (m) => [Number(m[1]), Number(m[2])] },
+  { key: 'split_jump_h', sec: '3', row: 'Split-jump gap', re: new RegExp(`at least\\s+${NUM}\\s*m tall`), pick: (m) => Number(m[1]) },
+  { key: 'wall_jump_max_up', sec: '1', row: 'Wall jump', re: new RegExp(`^up\\s+${NUM}\\s*m`), pick: (m) => Number(m[1]) },
   { key: 'step_player', sec: '1', row: 'Step limit', re: new RegExp(`player\\s+${NUM}\\s*m`), pick: (m) => Number(m[1]) },
   { key: 'step_nav', sec: '1', row: 'Step limit', re: new RegExp(`nav\\s+${NUM}\\s*m`), pick: (m) => Number(m[1]) },
   { key: 'nav_cell', sec: '1', row: 'Nav grid', re: new RegExp(`cell\\s+${NUM}\\s*m`), pick: (m) => Number(m[1]) },
@@ -109,7 +128,8 @@ function parseSizes(sections) {
   return sizes;
 }
 
-/** A Key / Value table (section 7 parameters, section 8): keys verbatim, every value a plain number. */
+/** A Key / Value table (section 7 parameters, section 8): keys verbatim, every value a plain number or a
+ *  `min - max` range ([min, max]). */
 function parseKeyValue(sec, table) {
   const out = {};
   if (!table) return out;
@@ -120,8 +140,8 @@ function parseKeyValue(sec, table) {
     const label = `${i + 1} ${key || '(no key)'}`;
     if (!/^[a-z][a-z0-9_]*$/.test(key)) throw new MetricsParseError(sec, label, `bad key "${r.cells[0] ?? ''}" (line ${r.line})`);
     if (r.cells.length !== table.header.length) throw new MetricsParseError(sec, label, `has ${r.cells.length} cells, the header has ${table.header.length} (line ${r.line})`);
-    const v = toNumber(r.cells[vi] ?? '');
-    if (v === null) throw new MetricsParseError(sec, label, `value "${r.cells[vi] ?? ''}" is not a number (line ${r.line})`);
+    const v = toValue(r.cells[vi] ?? '');
+    if (v === null) throw new MetricsParseError(sec, label, `value "${r.cells[vi] ?? ''}" is not a number or a min - max range (line ${r.line})`);
     if (key in out) throw new MetricsParseError(sec, label, `duplicate key (line ${r.line})`);
     out[key] = v;
   });

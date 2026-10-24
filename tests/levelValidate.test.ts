@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -25,16 +26,8 @@ interface Graph { meta: { map: string; name: string; mode: string; players: numb
 type Metrics = Record<string, unknown> & { sizes: Record<string, unknown>; rules: Record<string, unknown>; rooms: Record<string, Record<string, unknown>> };
 
 const REAL_METRICS = JSON.parse(fs.readFileSync(path.join(ROOT, 'docs/design/metrics.json'), 'utf8')) as Metrics;
-/** The real sheet numbers plus the keys the sheet does not carry yet (each one skips its check with a WARN). */
-const fullMetrics = (): Metrics => {
-  const m = structuredClone(REAL_METRICS);
-  Object.assign(m.sizes, {
-    ceiling_min: 2.4, door_h_min: 2.0, door_h_max: 2.2, roller_door_w: 3.0, duct_w: 1.2, duct_h: 1.5, tunnel_h: 2.1,
-    wall_jump_max_up: 3.8, coop_lip: [4.3, 4.5], split_jump_w: [1.2, 1.95], split_jump_h: 3.6,
-  });
-  Object.assign(m.rules, { safe_drop_m: 3.5, dead_end_max_m: 15, guards_early: [3, 6], guards_late: [6, 10], guards_max: 10 });
-  return m;
-};
+/** A fresh copy of the real sheet numbers (tests mutate their own copy). */
+const fullMetrics = (): Metrics => structuredClone(REAL_METRICS);
 const METRICS = fullMetrics();
 
 const sp = (id: string, section: string, type: string, room_class: string, size: number[], tension: number, tags: string[] = [], extra: Partial<Space> = {}): Space =>
@@ -83,6 +76,19 @@ const base = (): Graph => ({
   ],
 });
 
+/** base() plus one valid link of each kind the base lacks, at the sheet sizes. */
+const withKinds = (): Graph => {
+  const g = base();
+  g.links.push(
+    ln('a-court', 'a-hut', 'tunnel', 'secret', { width: 2.5, height: 2.4, length: 13 }),
+    ln('a-gate', 'a-roof', 'open_stair', 'high', { width: 2.4, level_change: 4.5, length: 10 }),
+    ln('a-court', 'a-roof', 'wall_jump', 'high', { level_change: 3.5, length: 6, time_s: 4 }),
+    ln('a-court', 'a-roof', 'split_jump', 'high', { width: 1.5, height: 4, level_change: 4.5, length: 6, time_s: 6 }),
+    ln('a-roof', 'a-court', 'drop', 'high', { level_change: 4.5, length: 4, time_s: 2 }),
+  );
+  return g;
+};
+
 const space = (g: Graph, id: string): Space => {
   const s = g.spaces.find((x) => x.id === id);
   if (!s) throw new Error(`no space ${id}`);
@@ -112,18 +118,25 @@ describe('level-validate: passing graphs', () => {
     expect(r.infos).toEqual([]);
   });
 
-  it('with the real metrics.json it passes; each key the sheet lacks is one WARN, the check skipped', () => {
-    const r = check(base(), REAL_METRICS);
+  it('the real metrics.json carries every key the validator reads (no missing-key WARN)', () => {
+    const r = check(withKinds(), REAL_METRICS);
     expect(r.errors).toEqual([]);
-    expect(r.warns.length).toBeGreaterThan(0);
-    for (const w of r.warns) expect(w).toMatch(/^metrics: \S+ is missing from the metrics; .* skipped$/);
-    expect(new Set(r.warns).size).toBe(r.warns.length);
+    expect(r.warns).toEqual([]);
+    expect(r.infos).toEqual([]);
+  });
+
+  it('every link kind with a size rule passes at the sheet sizes (tunnel, open stair, wall jump, split jump, drop)', () => {
+    const r = check(withKinds());
+    expect(r.errors).toEqual([]);
+    expect(r.warns).toEqual([]);
   });
 
   it('docs/level-validator/example.graph.json passes with the real metrics (V0 smoke fixture)', () => {
     const g = JSON.parse(fs.readFileSync(path.join(ROOT, 'docs/level-validator/example.graph.json'), 'utf8')) as Graph;
-    expect(check(g, REAL_METRICS).errors).toEqual([]);
-    expect(check(g).errors).toEqual([]);
+    const r = check(g, REAL_METRICS);
+    expect(r.errors).toEqual([]);
+    expect(r.warns.filter((w) => w.startsWith('metrics:'))).toEqual([]);
+    expect(r.infos).toEqual([]);
   });
 
   it('no metrics: one WARN, size and time checks skipped (presence checks still run)', () => {
@@ -246,7 +259,49 @@ describe('level-validate: failing fixtures (PLAN V1 list)', () => {
   it('step 0.42', () => {
     const g = base();
     link(g, 'a-gate', 'a-roof', 'ladder').level_change = 0.42;
-    expectErr(check(g), 'level change 0.42 m in the 0.4-0.45 m step band');
+    expectErr(check(g), 'level change 0.42 m in the forbidden step band, over 0.4 up to 0.45 m');
+    link(g, 'a-gate', 'a-roof', 'ladder').level_change = 0.45;
+    expectErr(check(g), 'level change 0.45 m in the forbidden step band');
+    link(g, 'a-gate', 'a-roof', 'ladder').level_change = 0.4; // a curb: the sheet allows 0.15 - 0.40
+    expect(check(g).errors).toEqual([]);
+  });
+
+  // Per-kind sizes (checker should-fix 4): each fails just past the sheet number; withKinds() is the pass case.
+  const KIND_FAILS: [string, (g: Graph) => void, string][] = [
+    ['roller door 2.5', (g) => { link(g, 'a-gate', 'a-court', 'roller_door').width = 2.5; }, 'link a-gate -> a-court (roller_door): width 2.5 m below 3 m'],
+    ['duct 1.0 wide', (g) => { link(g, 'a-gate', 'a-court', 'duct').width = 1.0; }, 'link a-gate -> a-court (duct): width 1 m below 1.2 m'],
+    ['duct 1.3 high', (g) => { link(g, 'a-gate', 'a-court', 'duct').height = 1.3; }, 'link a-gate -> a-court (duct): height 1.3 m below 1.5 m'],
+    ['tunnel 2.0 high', (g) => { link(g, 'a-court', 'a-hut', 'tunnel').height = 2.0; }, 'link a-court -> a-hut (tunnel): height 2 m below 2.1 m'],
+    ['fire stair 1.2', (g) => { link(g, 'b-hall', 'b-walk', 'fire_stair').width = 1.2; }, 'link b-hall -> b-walk (fire_stair): width 1.2 m below 1.3 m'],
+    ['double door 1.6', (g) => { link(g, 'a-court', 'a-hut', 'double_door').width = 1.6; }, 'link a-court -> a-hut (double_door): width 1.6 m below 1.8 m'],
+    ['door 1.9 high', (g) => { link(g, 'a-court', 'a-hut', 'door').height = 1.9; }, 'link a-court -> a-hut (door): height 1.9 m below 2 m'],
+    ['door 2.4 high', (g) => { link(g, 'a-court', 'a-hut', 'door').height = 2.4; }, 'link a-court -> a-hut (door): height 2.4 m above 2.2 m'],
+    ['wall jump 4.0', (g) => { link(g, 'a-court', 'a-roof', 'wall_jump').level_change = 4; }, 'link a-court -> a-roof (wall_jump): level change 4 m above the 3.8 m solo reach'],
+    ['co-op lip 5.0', (g) => { link(g, 'a-court', 'a-roof', 'coop_boost').level_change = 5; }, 'link a-court -> a-roof (coop_boost): lip 5 m above the 4.5 m co-op reach'],
+    ['split jump gap 2.2', (g) => { link(g, 'a-court', 'a-roof', 'split_jump').width = 2.2; }, 'link a-court -> a-roof (split_jump): gap 2.2 m outside 1.2-1.95 m'],
+    ['split jump face 3.0', (g) => { link(g, 'a-court', 'a-roof', 'split_jump').height = 3; }, 'link a-court -> a-roof (split_jump): face height 3 m below 3.6 m'],
+    ['door width missing', (g) => { delete link(g, 'a-court', 'a-hut', 'door').width; }, 'link a-court -> a-hut (door): width missing'],
+  ];
+  for (const [name, mutate, frag] of KIND_FAILS) {
+    it(`kind size: ${name}`, () => {
+      const g = withKinds();
+      mutate(g);
+      expectErr(check(g), frag);
+    });
+  }
+
+  it('kind size WARNs: open stair 2.0, opening 4.0, drop 5.0 (no fall damage), co-op lip 4.0', () => {
+    const g = withKinds();
+    link(g, 'a-gate', 'a-roof', 'open_stair').width = 2;
+    link(g, 'a-gate', 'a-court', 'opening').width = 4;
+    link(g, 'a-roof', 'a-court', 'drop').level_change = 5;
+    link(g, 'a-court', 'a-roof', 'coop_boost').level_change = 4;
+    const r = check(g);
+    expect(r.errors).toEqual([]);
+    expectWarn(r, 'link a-gate -> a-roof (open_stair): width 2 m below 2.4 m');
+    expectWarn(r, 'link a-gate -> a-court (opening): width 4 m outside 2.5-3.5 m');
+    expectWarn(r, 'link a-roof -> a-court (drop): drop 5 m above the 4.5 m safe drop');
+    expectWarn(r, 'link a-court -> a-roof (coop_boost): lip 4 m under the 4.3-4.5 m co-op band');
   });
 
   it('ceiling 2.3', () => {
@@ -416,6 +471,54 @@ describe('level-validate: declared targets (M4)', () => {
   });
 });
 
+describe('level-validate: reach, references, rejoin (checker should-fix 2, 4)', () => {
+  it('no softlock: a mandatory pair_gate flags its own target, not the co-op moves behind it that have a solo route', () => {
+    const g: Graph = {
+      meta: { map: 'probe', name: 'Probe', mode: 'campaign', players: [2], sections: ['S1'] },
+      spaces: [
+        sp('s', 'S1', 'exterior', 'yard', [14, 14, 12], 1, ['start', 'entry']),
+        sp('a', 'S1', 'hub', 'lobby', [14, 17, 4.5], 2),
+        sp('b', 'S1', 'hub', 'lobby', [14, 17, 4.5], 2),
+        sp('c', 'S1', 'exterior', 'yard', [14, 14, 12], 2, ['exit', 'exfil']),
+      ],
+      links: [
+        ln('s', 'a', 'door', 'shadow', DOOR),
+        ln('a', 'b', 'pair_gate', 'shadow', DOOR),
+        ln('b', 'c', 'open_stair', 'high', { width: 2.4 }),
+        ln('b', 'c', 'coop_boost', 'high', { level_change: 4.5 }),
+      ],
+    };
+    const errs = (checkReach(g) as Report).errors;
+    expect(errs).toEqual(['b: reached only through co-op links (pair_gate); add a route without one (no softlock)']);
+  });
+
+  it('objective cannot reach exfil', () => {
+    const g = base();
+    g.spaces.push(sp('a-pit', 'S1', 'objective', 'storage', [4, 4, 3], 2, ['objective']));
+    g.links.push(ln('a-roof', 'a-pit', 'drop', 'high', { level_change: 3, length: 4 }));
+    expectErr(check(g), 'a-pit: no way from this objective to exfil');
+  });
+
+  it('duplicate space id', () => {
+    const g = base();
+    g.spaces.push({ ...space(g, 'a-hut') });
+    expectErr(check(g), 'a-hut: duplicate space id');
+  });
+
+  it('assist and overwatch naming no split', () => {
+    const g = base();
+    link(g, 'a-court', 'a-hut', 'door').assist = 'y';
+    space(g, 'a-roof').tags = ['overwatch:y'];
+    expectErr(check(g), "link a-court -> a-hut (door): assist 'y' names no split", 'a-roof: overwatch:y names no split');
+  });
+
+  it('split legs never rejoin', () => {
+    const g = base();
+    drop(g, 'b-walk', 'b-vault', 'ladder');
+    expectErr(checkCoop(g, METRICS) as Report, 'split x: legs never rejoin (no space both b-dock and b-walk lead to)');
+  });
+});
+
 describe('level-validate: coverage, routes, structure', () => {
   it('co-op coverage: half the encounters and every section', () => {
     const g = base();
@@ -478,6 +581,33 @@ describe('level-validate: merge and CLI', () => {
     expect(merged).toEqual(g);
     expect(check(merged).errors).toEqual([]);
     expect(() => mergeGraphs([])).toThrow();
+  });
+
+  it('CLI (spawned node) on two per-section files: the cross-file spine link resolves; exit 0, then 1 on an error', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'level-validate-cli-'));
+    try {
+      const write = (g: Graph): [string, string] => {
+        const s1 = path.join(dir, 'S1.json');
+        const s2 = path.join(dir, 'S2.json');
+        fs.writeFileSync(s1, JSON.stringify({ meta: { ...g.meta, sections: ['S1'] }, spaces: g.spaces.filter((s) => s.section === 'S1'), links: g.links.slice(0, 9) }));
+        fs.writeFileSync(s2, JSON.stringify({ meta: { ...g.meta, sections: ['S2'] }, spaces: g.spaces.filter((s) => s.section === 'S2'), links: g.links.slice(9) }));
+        return [s1, s2];
+      };
+      const cli = (files: string[]): { status: number | null; out: string } => {
+        const r = spawnSync(process.execPath, [path.join(ROOT, 'scripts/level-validate.mjs'), ...files], { cwd: ROOT, encoding: 'utf8', timeout: 30000 });
+        return { status: r.status, out: r.stdout };
+      };
+      const ok = cli(write(base()));
+      expect(ok.status).toBe(0);
+      expect(ok.out.trim()).toBe('0 error(s), 0 warning(s).');
+      const bad = base();
+      link(bad, 'b-hall', 'b-dock', 'door').width = 0.9;
+      const fail = cli(write(bad));
+      expect(fail.status).toBe(1);
+      expect(fail.out).toContain('ERROR: link b-hall -> b-dock (door): width 0.9 m below 1 m');
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('parseArgs: files, --metrics, usage errors', () => {
