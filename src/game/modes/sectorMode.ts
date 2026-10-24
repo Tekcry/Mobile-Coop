@@ -72,7 +72,9 @@ import {
 } from '../rating/sectionRating';
 import { packRated } from '../course/courseWire';
 import { RatingCard } from '../../ui/hud/ratingCard';
-import { bindSectorMission, type SectorMission } from '../mission/sectorMission';
+import { applyMissionStart, bindSectorMission, type SectorMission } from '../mission/sectorMission';
+import { MissionHud } from '../../ui/hud/missionHud';
+import { MissionHudMount } from '../../ui/hud/missionHudMount';
 
 /** (section-rating S2) The last rated section, as the rating card reads it (S4's `RatingView` shape). */
 export interface SectionRatingView {
@@ -272,6 +274,8 @@ export class SectorMode implements GameMode {
 
   /** (mission-framework EN2) The `?mission=<id>` mission (host / solo); null: none, Sector Ops as before. */
   readonly mission: SectorMission | null;
+  /** (mission-framework EN4) The mission's objective list on this machine's HUD (host / solo; the client has its own). */
+  private missionHud: MissionHudMount | null = null;
 
   private readonly checkpoint = new Vector3();
   private readonly tmp = new Vector3();
@@ -302,6 +306,7 @@ export class SectorMode implements GameMode {
       },
     });
     this.mission = bindSectorMission(g, this, this.slotEnemy, (s) => this.objectiveDone(s), () => this.complete());
+    if (this.mission) applyMissionStart(this.run, this.mission.startIndex); // (mission-framework EN4, A23) a later start section
   }
 
   /** (sector-fixes-r RT) The bolts' state (tests, e2e). */
@@ -358,6 +363,7 @@ export class SectorMode implements GameMode {
     this.detSeen = g.style.detections;
     (window as unknown as { __sectionRating?: SectionRatingHook }).__sectionRating = this.hook;
     this.card = new RatingCard(g.hud.el);
+    if (this.mission) this.missionHud = new MissionHudMount(() => new MissionHud(g.hud.el)); // (mission-framework EN4)
     setOnRated(this.rated);
     this.findDoors();
     this.team.build();
@@ -710,7 +716,7 @@ export class SectorMode implements GameMode {
     if (!s) return;
     this.slotEnemy.length = 0;
     const n = flags.sectorGuards ?? s.guards.length;
-    for (let k = 0; k < s.guards.length && k < n; k++) this.pending.push({ k, slot: s.guards[k]!, alerted: false, look: em?.lookOfSlot(s.id, k) });
+    for (let k = 0; k < s.guards.length && k < n; k++) if (!this.mission || this.mission.spawns(i, k)) this.pending.push({ k, slot: s.guards[k]!, alerted: false, look: em?.lookOfSlot(s.id, k) });
     this.fill();
   }
 
@@ -1318,6 +1324,8 @@ export class SectorMode implements GameMode {
   frameUpdate(dt: number): void {
     // (integration) the rating card's countdown (no DOM work until its fade)
     this.card?.update(dt);
+    // (mission-framework EN4) the objective list: the local player's team (slot 0, A9), hidden once the mission is over
+    if (this.missionHud && this.mission) this.missionHud.frame(this.mission.over ? null : this.mission.runner, this.mission.viewer(), this.g.app.settings.get().gameplay.hints);
     const n = this.run.defs.length;
     const i = Math.min(n, this.run.index + 1);
     const a = this.run.alarm;
@@ -1429,6 +1437,7 @@ export class SectorMode implements GameMode {
 
   dispose(): void {
     this.mission?.dispose();
+    this.missionHud?.dispose(); // (mission-framework EN4)
     this.freeze?.dispose();
     this.freeze = null;
     this.ct?.dispose();

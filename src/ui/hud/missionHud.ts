@@ -2,8 +2,9 @@
  * (mission-framework EN3) The mission objective list HUD (PLAN section 3): the title, the rules line under it, then one
  * row per listed step (`objectiveRows`), done rows ticked, the viewer's current row carrying its hint line only when
  * the hint setting is on. DOM only (no Babylon). `update` is safe to call every frame: it compares a cheap numeric key
- * (`missionHudKey`) and returns before touching the DOM or allocating when nothing changed. Not wired into the game
- * yet (EN2 / a later slice owns that); the course HUD and its drill markers are separate and untouched.
+ * (`missionHudKey`) and returns before touching the DOM or allocating when nothing changed. Mounted by
+ * `MissionHudMount` (EN4: SectorMode on the host / solo, CoopClient from its mission mirror); the course HUD and its
+ * drill markers are separate and untouched.
  */
 import { h } from '../dom';
 import type { MissionDef, TeamId } from '../../game/mission/missionDef';

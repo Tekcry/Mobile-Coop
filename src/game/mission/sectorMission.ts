@@ -21,6 +21,8 @@
  *   again). With the named-target rule the decoy read also breaks it.
  * - Per-area alarm stages (beside SectorRun's one site stage, untouched): a camera / laser stage rise counts for the
  *   tracks whose boxes (and height band) hold the device, a guard's alarm for both; `onAlarm` hears every rise.
+ * - (EN4, A23) `MissionDef.start`: the run begins at that section (`applyMissionStart`, before the mode starts; the
+ *   start slot points follow, `missionStartSector`). `MissionDef.guards`: only the listed guards spawn (`spawns`).
  * No allocation per tick: flags, states and stages sit in arrays sized at construction.
  */
 import type { Enemy, PlayerRef } from '../../ai/enemy';
@@ -28,8 +30,8 @@ import { flags } from '../../core/flags';
 import type { GameEvents } from '../gameEvents';
 import type { GameState } from '../gameState';
 import type { SectorMode } from '../modes/sectorMode';
-import { SECTOR, type SectorDef, type SectorPhase } from '../sectors';
-import type { MissionDef, MissionEvent } from './missionDef';
+import { SECTOR, type SectorDef, type SectorPhase, type SectorRun } from '../sectors';
+import { missionSpawnsGuard, teamForSlot, type MissionDef, type MissionEvent, type TeamId } from './missionDef';
 import { INTERROGATE_DECOY, MissionRunner } from './missionRunner';
 import { RULE_END, RULE_HOLD, RULE_RESTART, RuleTracker, TEAM_A_BIT, TEAM_B_BIT, TEAM_BOTH, type ZoneGuard } from './ruleTracker';
 import { packMission, type MissionWire } from './missionWire';
@@ -73,6 +75,38 @@ export function missionParam(): string | null {
 export function pickMission(missions: readonly MissionDef[] | undefined, id: string | null): MissionDef | null {
   if (!id || !missions) return null;
   return missions.find((m) => m.id === id) ?? null;
+}
+
+/**
+ * (EN4, A23) The run section index the mission starts at: its `start` among the run's sections; no start (or one the run
+ * does not have): 0, as before.
+ */
+export function missionStartIndex(def: MissionDef | null, defs: readonly SectorDef[]): number {
+  if (!def?.start) return 0;
+  return Math.max(0, defs.findIndex((d) => d.id === def.start));
+}
+
+/** (EN4) The section the run starts at with the map's `?mission=<id>` mission (`startSlotPoints`; none: section 0). */
+export function missionStartSector(sectors: readonly SectorDef[] | undefined, missions: readonly MissionDef[] | undefined, id: string | null): SectorDef | undefined {
+  if (!sectors) return undefined;
+  return sectors[missionStartIndex(pickMission(missions, id), sectors)];
+}
+
+/**
+ * (EN4, A23) The run begins at section `i` (before the mode starts): its index, and the checkpoint at that section's
+ * `start` (and `start2`), as SectorRun's constructor does for section 0. The earlier sections are never loaded: their
+ * objectives and connectors are skipped, their marks stay unrated.
+ */
+export function applyMissionStart(run: SectorRun, i: number): void {
+  const s = run.defs[i];
+  if (i <= 0 || !s || run.phase !== 'objective' || run.index !== 0) return;
+  run.index = i;
+  const cp = run.checkpoint;
+  cp.x = s.start.x;
+  cp.y = s.start.y;
+  cp.z = s.start.z;
+  cp.yaw = s.start.yaw;
+  run.checkpoint2 = s.start2 ?? null;
 }
 
 /** A section guard as the adapter reads it (an `Enemy` fits it). */
@@ -148,6 +182,8 @@ export class SectorMission {
   ruleRestarts = 0;
   /** The mission is over (extracted or failed): the tick does nothing more. */
   over = false;
+  /** (EN4, A23) The run section index the mission starts at (`missionStartIndex`). */
+  readonly startIndex: number;
 
   private readonly host: SectorMissionHost;
   /** Run section index -> mission section index (-1: not the mission's). */
@@ -156,6 +192,8 @@ export class SectorMission {
   private readonly objFlag: string[];
   /** Run section index -> its guard ids by guard index. */
   private readonly guardIds: string[][];
+  /** (EN4, A23) Run section index -> 1 per guard index the mission spawns (null: every guard; no guard list). */
+  private readonly spawnMask: (Uint8Array | null)[];
   private readonly pollFlag: string[] = [];
   private readonly pollKind: number[] = [];
   private readonly pollSec: number[] = [];
@@ -195,6 +233,8 @@ export class SectorMission {
     this.secMap = Int32Array.from(defs.map((d) => def.sections.indexOf(d.id)));
     this.objFlag = defs.map((d) => `${d.id}-obj`);
     this.guardIds = defs.map((d) => d.guards.map((_, k) => sectorGuardId(d.id, k)));
+    this.spawnMask = def.guards ? this.guardIds.map((ids) => Uint8Array.from(ids, (id) => (missionSpawnsGuard(def, id) ? 1 : 0))) : defs.map(() => null);
+    this.startIndex = missionStartIndex(def, defs);
     const reads = new Set(this.runner.flags);
     const codes = new Set<string>();
     defs.forEach((d, sec) => {
@@ -262,6 +302,17 @@ export class SectorMission {
    */
   get holding(): boolean {
     return this.pendT >= 0;
+  }
+
+  /** (EN4, A23) The run section `sec`'s guard `k` spawns with this mission (`loadSection`). */
+  spawns(sec: number, k: number): boolean {
+    const m = this.spawnMask[sec];
+    return !m || m[k] === 1;
+  }
+
+  /** (EN4, A9) The objective list's viewer on this machine (host / solo: slot 0; solo carries both teams). No allocation. */
+  viewer(): TeamId {
+    return teamForSlot(0, this.runner.players, this.def.mode);
   }
 
   // ---- hooks from SectorMode ----
