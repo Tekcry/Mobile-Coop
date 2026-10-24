@@ -9,6 +9,11 @@ run), S9 + S10 builders in parallel once Sector Ops confirms the freeze / world.
 - S9 built (2026-10-24): moon cascades cull casters by view depth too (shadow reach vs split + blend band,
   `sunCascadeCull.ts` `SunCascadeLists.setDepth` / `fill`, wired in `world.ts` `cascadeList`); unit tests pass. Next: GPU
   A/B (guard-cap sectorops,campusops 0 / 12 / 24 vs `?guardsun=0`), e2e smoke sectorops darkness lightbake.
+- S10 built (2026-10-24, 0f010bcf): the freeze's lamp rule tests each guard's own lamp shadow volume (caster cone away
+  from the lamp to its reach, none outside a spot cone) vs the frustum, then occlusion rays at the landings
+  (`sectorGuardFreeze.ts` `guardFrustum` / `lampProbe`, view `occluded3`); unit tests pass. Next: GPU A/B (guard-cap
+  away / patrol / alert at 24, sectorops + campusops vs `?guardfreeze=0`), e2e sectorops stealth-ai darkness, a look
+  shot of an off-screen guard's lamp shadow sliding into view.
 
 ## Phase 1 (history)
 ## Now
