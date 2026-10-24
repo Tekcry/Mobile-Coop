@@ -36,3 +36,13 @@ whose branch had since changed real code (verdict cannot count): 0981cae6, 6eb6a
 Oldest-first pick runs the stalest requests first. Fixes: leads withdraw superseded requests (told 23:08); Test
 Runner builds auto-supersede + newest-first per requester + stale-claim drop; desktop second slot 4192 (cc56baed) and
 4191 CPU gate 80 (Michael 23:05) go live at the desktop service's next restart; leads held to 1-2 suites per non-net PR.
+
+## 2026-10-24 ~21:00 (orchestrator, Michael: "a lot of bottlenecks caused by trains")
+Trains 44-64 (13 h): green train 14-25 min (CI ~15 min, full e2e 705-768 s); train-ready label -> master median ~43 min, tail 154-227 min. 5 of 20 trains closed (11-61 min each).
+
+| # | Wait | Cost | Cause | Fix | Who |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Failed trains | 5/20, 11-61 min each for every member | 3 process bugs (fixed #293, #330); 2 member bugs caught only in the train; auto-train then waits for the orchestrator to pick the culprit | auto-drop on failure; #251 affected suites before the label | orchestrator (agent) / Test Runner |
+| 2 | One train in flight | ~half the 43 min median | next train built only after release | overlapping trains (N+1 on N, other machine) | orchestrator (Opus plan) |
+| 3 | 5-min task ticks | up to ~15 min per train (pickup, verdict -> release, release -> build) | auto-train and desktop queue tasks every 5 min; desktop queue still follows origin/feature/laptop-queue | auto-train 1 min (done 21:00); #335 install-task commands | orchestrator / Michael |
+| 4 | Train-ready PR conflicting with master | #313 227 min | owner must merge master | cron flags CONFLICTING within 10 min | orchestrator |
