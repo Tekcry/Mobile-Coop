@@ -120,6 +120,7 @@ Gameplay first with existing or placeholder clips; Player Build owns animation (
 SIGNOFF question: "Which proposed moves join the kit?" (multi-select; default none: the approved six already cover the map).
 
 ### 4c. Anim list for Player Build (the lead agrees it with "Night Shift | Player Build")
+AGREED with Player Build ~23:30 (supersedes the 4a clip names): roles as team.ts, b = top / holder, a = partner / climber; holder ids `<move>Offer` / `<move>Hold`. Pull: b pullOffer, pullCatch, pullHaul; a pullJump, pullHang, pullScramble. Shutter: b shutterOffer, shutterLift, shutterHold (loop), shutterDrop; a crawlUnder. `TeamPoseMove` gains 'pull' | 'shutter'. Holder poses are procedural in TeamPoser (brace clip + bend / bendDrop / reachL/R / root offset), not clip files; phase on the shared team clock (`k`, TEAM_LINK); shutter exposes the gap height to TeamPoseIn (`depth` or a new field). Player's poses land after Michael walks AF0-AF6; placeholders until then.
 KIT-PULL: 6 clips; KIT-SHUT: 4 clips (above). Proposed moves only after Michael picks. Each clip: role (a / b), loop or
 one-shot, ~duration, the existing placeholder the slice uses until the clip lands (`src/anim/clips/team.ts`,
 `TeamPoseMove` :29 gains the new move ids in KIT0).
