@@ -1,0 +1,14 @@
+{
+  "id": "20261024T070537-night-shift-player-b-3f5292e9-65f0",
+  "sha": "3f5292e9c87589cb872b952e62305dce314b674f",
+  "branch": "feature/optic-coop",
+  "pr": 314,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove"
+  ],
+  "set": "optic-coop-merge",
+  "note": "master merge (remotePlayer rig-pose-fix S1 body model + optic kneel); train-ready gate"
+}
