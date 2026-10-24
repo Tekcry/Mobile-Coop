@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-24T08:17Z
+status: done feature/guard-cap-m2 15e596f9
 
 # guard-cap M2: guard-cap.mjs light buckets, `near` cell, alive count (Marlow Build, job guard-cap)
 
@@ -37,3 +37,45 @@ scripts/guard-cap-coop.mjs.
 Push `feature/guard-cap-m2`. Then add a report at the end of this file (what changed per item, hooks with file:line,
 deviations) and set `status: done feature/guard-cap-m2 <sha>`. Marlow Build then runs a Sonnet checker and the laptop
 smoke, and cherry-picks the commit onto `feature/guard-cap` after gm-perf merges.
+
+## Report (Night Shift | Cloud Builder 1, 2026-10-24)
+Branch `feature/guard-cap-m2`, ONE commit 15e596f9 off 979a02b3, touching only `scripts/guard-cap.mjs` (+132 / -12).
+
+What changed, per item:
+1. Light buckets: `light.body` (bodyLevel), `light.level` (levelAt), `light.dynamic` (dynamicAt), wrapped on
+   `g.world.lightField` beside `light.totalAt`; added to KEYS, the CSV bucket list and the end of the RESULTS sim table
+   (header, separator, row; the bucket footnote names the four). Not nested: bodyLevel and totalAt call the private
+   `totalInto`, levelAt `levelInto`, dynamicAt `dynamicInto` (lightField.ts:176-243), so no read counts twice.
+2. `near` cell (`pageNear`): runs after alert (last), only when `--cells` names it and N > 0. Despawns the K =
+   min(alive, 8) guards nearest the player (horizontal), respawns them on walkable cells 1.6-3.8 m from him (rings at
+   0.4 m steps, nav sight first then any; same storey within 1.5 m; 1.6 m from each other and from the guards that
+   stay), `em.spawn(kind, pos, false, face)` facing him, `passive`, no patrol. Records `near: { k, despawned,
+   candidates, respawned, inSight, nearIn4, alive }`; the literal 4 is commented as ANIM_TIER_NEAR_PLAYER
+   (animTier.ts:26). Then `measure(true)`. Flag when respawned < K.
+3. Header usage: `--query=animtier=0` = the all-rigs-solve worst case (`flags.animTier`, src/core/flags.ts:61,133). No code.
+4. `alive` on every cell record (read with `pageAlive` at the cell's end, 10 s timeout, also after a failed cell);
+   RESULTS sim / render / guard-render rows show "N (alive M)" when M < N; the cell gets the flag "alive M of N asked"
+   (rec.flags, results.flags, logged). Spawn ring not widened.
+5. Header comment: the near cell under the cell list, the light buckets, the alive note, the cells / `--query` usage.
+
+Hooks on the base (gm-flip 979a02b3): `LightField.levelAt` src/world/lightField.ts:176, `dynamicAt` :207, `totalAt` :213,
+`bodyLevel` :224 (seven parameters); `World.lightField` readonly src/world/world.ts:88; `EnemyManager.enemies`
+src/ai/enemyManager.ts:125, `maxAlive` :127, `get alive` :1693, `despawn(e)` :1705, `spawn(kind, pos, alerted, yaw)`
+:1864; `Enemy.pos` src/ai/enemy.ts:269, `get alive` :603, `passive` :921; `NavGrid.height` src/ai/navGrid.ts:158,
+`center` :405, `nearestWalkable(x, z, maxRing, y)` :528, `lineClear(a, b, ya, yb)` :566; `ANIM_TIER_NEAR_PLAYER = 4`
+src/ai/animTier.ts:26.
+
+Deviations (all small, undo by deleting the lines):
+- The shared `wrap` now forwards seven arguments, not five: `bodyLevel(x, feetY, z, height, occluded, hx, hz)` would
+  otherwise lose the head offset while measuring (a light parity change under the wrapper). Extra trailing undefined
+  arguments are a no-op for the other wrapped methods.
+- Extra fields: `nearIn4End` (guards within 4 m at the near cell's end), and CSV columns at the end of the spawn group
+  after `mean_dist_m`: `cell_alive`, `near_k`, `near_respawned`, `near_in_4`, `near_in_4_end` (the existing `alive`
+  column stays the spawn-time count). RESULTS gets one "Near cell, N ..." line per near cell before the pass list.
+- The near cell restores nothing (as briefed): after an alert cell the N - K guards that stay remain alerted.
+- REPORT.md's table keeps plain N (the brief named RESULTS rows); its flag count includes the alive flag.
+
+Checks: `node --check scripts/guard-cap.mjs` OK. Not linted (eslint ignores `scripts/**/*.mjs`). A node harness ran
+`resultsMd` / `resultsCsv` on a mock near cell (alive 10 of 12): sim table 23 header / 23 row columns, CSV 134 / 134,
+"12 (alive 10)" labels, the near line and the new columns filled. No vitest / tsc / e2e (script only); the GPU smoke is
+pending the laptop.
