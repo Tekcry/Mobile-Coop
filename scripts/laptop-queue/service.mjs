@@ -386,6 +386,7 @@ function pendingTrains() {
   } catch (e) {
     log(`train PR list failed, trains skipped this pass: ${String(e.message).split('\n')[0]}`);
     aloneHold = { n: '?', sha: '', laptop: 'unknown' };
+    soon = ''; // never hold new claims on a GitHub error (checker FIX)
     return out;
   }
   git(['fetch', '-q', 'origin', '+refs/heads/train/*:refs/remotes/origin/train/*'], { soft: true });
