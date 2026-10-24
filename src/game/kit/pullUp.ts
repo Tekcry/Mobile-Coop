@@ -181,14 +181,9 @@ function newPullRun(): PullRun {
   };
 }
 
-/** The team controller's drop search (`TeamController.hangPoint`: the hang-down's, reused for the catch point). */
-interface DropProbe {
-  hangPoint(px: number, py: number, pz: number, yaw: number): { x: number; z: number; floorY: number } | null;
-}
-
+/** The team controller's drop search (`KitHost.hangPoint`: the hang-down's, reused for the catch point). */
 function dropAhead(h: KitHost, px: number, py: number, pz: number, yaw: number): { x: number; z: number; floorY: number } | null {
-  const p = h as KitHost & Partial<DropProbe>;
-  return p.hangPoint ? p.hangPoint(px, py, pz, yaw) : null;
+  return h.hangPoint(px, py, pz, yaw);
 }
 
 const smooth5 = (x: number): number => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * x * (x * (x * 6 - 15) + 10));

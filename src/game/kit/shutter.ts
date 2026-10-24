@@ -62,8 +62,9 @@ export const SHUTTER = {
   sideIn: 0.35,
   /** The crawl lane is at least this far along the shutter from the holder (m). */
   laneMin: 0.6,
-  /** Under the shutter: this far either side of its plane (m; the curtain and a crawling body). */
-  underZone: 0.4,
+  /** Under the shutter: this far either side of its plane (m; the curtain and a crawling body; a partner standing
+   *  against the curtain, ~0.3 m off it, is not under it). */
+  underZone: 0.3,
   /** The device's reach past its half width (`KitDevice.reach`, m). */
   useReach: 1.0,
   /** Host: the partner within this of the holder (m, plan) and this of its height (m). */
@@ -394,11 +395,6 @@ function crawling(m: TeamMate): boolean {
   return m.mode === 'boost' && ((m.sub ?? 0) & SHUTTER_SUB) !== 0;
 }
 
-function hpOf(h: KitHost): number {
-  const t = (h.g as unknown as { target?: { health?: { hp: number } } }).target;
-  return t?.health?.hp ?? NaN;
-}
-
 function netEnd(h: KitHost, k: 'pull' | 'drop'): void {
   h.g.net?.teamHangEnd?.(k);
 }
@@ -416,7 +412,8 @@ function dropFloor(h: KitHost, d: ShutterDevice, loc: ShutterLocal): number {
 }
 
 /**
- * Every shutter on this page, each fixed step (idle and in a state): ours (the local holder's) is stepped by `step`; a
+ * Every shutter on this page, each fixed step (`SHUTTER_MOVE.tick`: whatever the state, alive or not; no holder
+ * MoveState, e.g. a holder who disconnected mid-hold, = it drops): ours (the local holder's) is stepped by `step`; a
  * mate holding one is followed from their `s`; one nobody holds any more drops (no crush). Allocation-free.
  */
 export function syncShutters(h: KitHost, run: ShutterRun, dt: number): void {
@@ -487,7 +484,7 @@ function holderStep(h: KitHost, run: ShutterRun, dt: number, coopPressed: boolea
   const d = run.dev!;
   const c = h.g.player.controller;
   const off = pin(h, run, dt);
-  const hp = hpOf(h);
+  const hp = h.health();
   const hurt = hp < run.hp;
   run.hp = hp;
   const forced = hurt || !c.grounded || off > SHUTTER.shove;
@@ -615,7 +612,7 @@ function holderIdle(h: KitHost, run: ShutterRun, coopPressed: boolean): boolean 
   run.side = l.across >= 0 ? 1 : -1;
   run.along = along;
   run.paired = run.sent = run.letGo = false;
-  run.hp = hpOf(h);
+  run.hp = h.health();
   d.user = LOCAL_USER;
   h.partner = '';
   h.state = 'shutterOffer';
@@ -666,11 +663,16 @@ export const SHUTTER_MOVE: KitMove<ShutterRun> = {
   times: { shutterLift: SHUTTER.liftTime, shutterDrop: SHUTTER.dropTime, crawlUnder: SHUTTER.crawlTime },
   paired: true,
   claimsPoint: false,
+  // the grip pins the holder to the bar: weapons and interact stay off
+  busyOffer: true,
   newRun,
   check: checkShutter,
 
+  tick(h, run, dt) {
+    syncShutters(h, run, dt);
+  },
+
   idle(h, run, coopPressed, free) {
-    syncShutters(h, run, 1 / 60);
     if (run.asked >= 0 && (run.asked += 1 / 60) > SHUTTER.askWait) run.asked = -1;
     const crawl = crawlIdle(h, run, coopPressed, free);
     if (crawl !== null) return crawl;
@@ -736,7 +738,6 @@ export const SHUTTER_MOVE: KitMove<ShutterRun> = {
   },
 
   step(h, run, dt, coopPressed, bPressed) {
-    syncShutters(h, run, dt);
     h.t += dt;
     if (!run.dev) {
       h.endWhy = 'shutter: no device';

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { Vector3 } from '../../src/core/babylon';
 import { TEAM } from '../../src/config/movement';
 import { checkTeamRequest, isKitKind, KIT_CHECKS, KIT_KINDS, KIT_SUB, KIT_SUB_MASK, PULL_SUB, ROPE_SUB, SHUTTER_SUB, HANG_SUB, THROW_SUB, type TeamRequest, type TeamSide } from '../../src/game/teamMoves';
-import { isKitState, KitDevices, kitKindOf, kitMove, kitMoveOfState, kitMoves, kitPoseK, kitStateOffer, kitStateRole, kitStateSub, kitStateWireMode, registerKitMove, unregisterKitMove, type KitDevice, type KitHost, type KitMove } from '../../src/game/kit/registry';
+import { isKitState, KitDevices, kitKindOf, kitMove, kitMoveOfState, kitMoves, kitOfferFree, kitPoseK, kitStateOffer, kitStateRole, kitStateSub, kitStateWireMode, registerKitMove, unregisterKitMove, type KitDevice, type KitHost, type KitMove } from '../../src/game/kit/registry';
 import { KIT_POSE_IDS, KIT_POSE_LOCAL, KIT_POSE_OF, KIT_POSE_PLACEHOLDER, newTeamPoseIn, teamPoseOfState, teamPoseOfWire, TEAM_LINK, teamLinkFrame, type KitPoseId } from '../../src/anim/clips/team';
 import { TeamController } from '../../src/game/teamController';
 
@@ -318,6 +318,60 @@ describe('team controller hand-off (KIT0)', () => {
     tm.fixedUpdate(1 / 60, false, false);
     expect(tm.offer?.mate.id).toBe('m');
     expect(tm.offer?.toss).toBe(true);
+  });
+
+  it('(KIT-TICK) tick runs on every fixed step: idle, during a built-in offer, while dead, in its own states', () => {
+    const ticks: { n: number; dt: number; states: string[] } = { n: 0, dt: 0, states: [] };
+    // a move with no idle (the built-ins keep the press) and a tick that records the controller state
+    const m: KitMove<FakeRun> = {
+      ...fakePull([]),
+      idle: undefined,
+      tick(h, _run, dt) {
+        ticks.n++;
+        ticks.dt += dt;
+        ticks.states.push(h.state);
+      },
+    };
+    registerKitMove(m);
+    const { g, tm, mate } = fakeGame();
+    mate.pos.set(2, 0, 0);
+    tm.fixedUpdate(1 / 60, false, false);
+    expect(ticks.n).toBe(1);
+    // a built-in offer (the throw): ticked every step
+    expect(tm.fixedUpdate(1 / 60, true, false)).toBe(true);
+    expect(tm.state).toBe('throwOffer');
+    for (let i = 0; i < 5; i++) tm.fixedUpdate(1 / 60, false, false);
+    expect(tm.state).toBe('throwOffer');
+    expect(ticks.n).toBe(7);
+    expect(ticks.states.filter((s) => s === 'throwOffer')).toHaveLength(5);
+    // dead: the controller ends the offer and returns early, the tick still runs (before the end)
+    g.player.alive = false;
+    for (let i = 0; i < 4; i++) tm.fixedUpdate(1 / 60, false, false);
+    expect(tm.state).toBe('none');
+    expect(ticks.n).toBe(11);
+    expect(ticks.states[7]).toBe('throwOffer');
+    // in its own states
+    g.player.alive = true;
+    tm.begin({ kind: 'pull', a: 'm', b: 'me', target: -1, s: 0 }, 'me');
+    tm.fixedUpdate(0.25, false, false);
+    expect(ticks.n).toBe(12);
+    expect(ticks.states[11]).toBe('pullCatch');
+    expect(ticks.dt).toBeCloseTo(11 / 60 + 0.25);
+  });
+
+  it('(KIT-TICK) a busyOffer move\'s offer holds the player (busy); a plain kit offer stays free', () => {
+    expect(kitOfferFree('pullOffer')).toBe(true);
+    expect(kitOfferFree('shutterOffer')).toBe(true);
+    registerKitMove({ ...fakePull([]), busyOffer: true });
+    expect(kitOfferFree('pullOffer')).toBe(false);
+    expect(kitOfferFree('pullCatch')).toBe(false);
+    expect(kitOfferFree('offer')).toBe(false);
+    // the pose clock still reads it as an offer
+    expect(kitPoseK('pullOffer', 0.2)).toBe(-1);
+    const { tm } = fakeGame();
+    tm.fixedUpdate(1 / 60, true, false);
+    expect(tm.state).toBe('pullOffer');
+    expect([tm.active, tm.busy]).toEqual([true, true]);
   });
 
   it('kit requests go to the net hook with the kit kind', () => {
