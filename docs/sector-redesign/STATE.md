@@ -274,7 +274,7 @@ Polish: slice0-check.md, sliceL-check.md, slice1-check.md, e1/e3/e4-check.md pol
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (saved 2026-10-24 ~14:00 at the 88% save; full burn). Job sector-redesign (lead),
+Night Shift | Sector Ops Build: RESUME. SINCE ~15:15 THIS SESSION LEADS JOB coop4 (orchestrator, Michael "start the next feature"): follow the resume block in docs/coop4/STATE.md on origin/feature/coop4 FIRST; sector-redesign below is idle until Michael's playtest. (sector-redesign block saved 2026-10-24 ~14:00.) Job sector-redesign (lead),
 worktree C:/NightShift/Mobile-Coop-sector-redesign-polish (feature/sector-redesign-polish: STATE / PLAN / checks / briefs).
 git fetch; read CLAUDE.md; PLAN.md "LR16". Laptop: copy scripts/laptop-queue/request.mjs + lib.mjs from origin/master to
 scratch; node <scratch>/request.mjs --sha <sha> [--pr N] --branch <b> --set <s> --suites "a b" --requester "Night Shift |
