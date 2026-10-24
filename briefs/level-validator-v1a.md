@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-24T09:12Z
+status: done feature/level-validator-v1a f72e640c
 
 # level-validator V1a: scripts/metrics-gen.mjs + tests/metricsGen.test.ts + docs/design/metrics.json (Marlow Build)
 
@@ -55,3 +55,32 @@ A key missing from the sheet is omitted (never invented); the validator WARNs on
 Push `feature/level-validator-v1a` (trailer "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"), add a report at
 the end of this file (keys produced, anything in the sheet you could not parse) and set
 `status: done feature/level-validator-v1a <sha>`.
+
+## Report (Night Shift | Cloud Builder 1, 2026-10-24)
+Branch `feature/level-validator-v1a`, one commit f72e640c off 2e5d23e7: `scripts/metrics-gen.mjs` (new, 209 lines),
+`tests/metricsGen.test.ts` (new), `docs/design/metrics.json` (new, generated). Scale sheet untouched.
+
+Keys produced (the contract shape; `source` = "docs/design/scale-sheet.md"):
+- sizes (18): door_w 1.2, door_min_w 1.0, door_h 2.1, door_double_w [1.8, 2.0], opening_w [2.5, 3.5], corridor_min_w 3.0,
+  corridor_w [3.5, 4.0], play_space_min_short 6.0, ceiling_room 3.0, ceiling_hall [4.5, 6.0], storey_h 3.3,
+  fire_stair_w 1.3, open_stair_w 2.4 (listed in section 3), step_player 0.42, step_nav 0.45, nav_cell 0.5,
+  agent_radius 0.32, headroom 1.7.
+- roomParams (5): room_scale, room_round_m, camera_floor_encounter_m, camera_floor_walkthrough_m, camera_floor_corridor_m.
+- rooms (18 classes, each minW / minL / maxW / maxL / cameraFloor / ceilMin / ceilMax / encounter): private_office,
+  open_office, meeting_room, restroom, break_room, server_room, security_room, gatehouse, lobby, lab, warehouse,
+  loading_dock, plant_room, storage, corridor, stair_core, car_park, yard (yard's ceilings "open").
+- rules (13): split_speed_mps, reach_speed_mps, split_max_s, split_parity_pct, reach_max_s, shared_min_w_m,
+  shadow_min_frac, shadow_max_frac, vantage_min_frac, los_break_max_s, step_band_min_m, step_band_max_m, grid_m.
+
+Nothing in the contract was missing from the sheet. Not read (not in the contract): the other rows of sections 1 and 3
+(camera, speeds, ladder, roller door, duct, ...) and section 7's Real / Scale / Source / Note columns. A missing row or
+table is omitted (the four groups always present); a present but unreadable row throws `MetricsParseError` (exit 2)
+naming the section, row and line (bad key / class, cell count vs header, not a number, duplicate key, encounter not
+yes / conditional / no, a missing room-table column). Also exported: `formatMetrics`, `MetricsParseError`,
+`SHEET_PATH`, `METRICS_PATH`. `--check` ignores CRLF.
+
+Checks: `node scripts/metrics-gen.mjs` wrote the file; `--check` exit 0 (and 1 on an edited JSON, 2 on a malformed
+sheet, tried on a scratch copy). vitest tests/metricsGen.test.ts 4 / 4 (committed JSON = fresh parse and = its
+formatted text; the brief's spot values (all match the sheet) plus a few; an edited inline sheet changes the output, a
+removed row is omitted; a malformed section 8 row (not a number, short row) throws naming the row). tsc clean; eslint
+clean. Deviations: none.
