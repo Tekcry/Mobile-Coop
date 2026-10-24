@@ -4,7 +4,8 @@
  * Step states (locked / open / done) from the DAG and a flag set. A step opens when its section is the current one,
  * every `after` step is done and its `needs` fact is held; an open step is done (latched) the first update its condition
  * holds (`stepCond`). A done step with `gives` sets its fact flag. `snapshot(section)` at a section's begin saves the
- * state; `restore(section)` on a restart puts it back (the steps and facts of that section go; earlier sections stay).
+ * state; `restore(section)` on a restart puts it back (the steps and facts of that section go; earlier sections stay;
+ * with a team only that team's steps and facts, M1).
  * One player carries both teams: team A's and B's steps open alike (he does them one after another; no forced order, a
  * team's step may wait on the other's) and a sync step takes his `soloWindow`. The co-op client never evaluates
  * conditions: it applies the host's done bits and facts (`applyWire`). Every state sits in typed arrays sized at
@@ -24,6 +25,9 @@ interface Cond {
 }
 
 const NONE = -1;
+const TEAM_BIT_A = 1;
+const TEAM_BIT_B = 2;
+const TEAM_BIT_ALL = 4;
 
 export class MissionRunner {
   readonly def: MissionDef;
@@ -62,12 +66,22 @@ export class MissionRunner {
   private readonly afterList: Int32Array;
   private readonly conds: (Cond | null)[];
   private readonly extractIdx: number;
+  /** Team bit per step (TEAM_BIT_A / _B / _ALL). */
+  private readonly teamBit: Uint8Array;
+  /** Per flag: the team bits of the steps that read it (condition, needs) or give it. */
+  private readonly flagUsers: Uint8Array;
+  /** Per flag: the team bits of the steps that give it. */
+  private readonly flagGivers: Uint8Array;
+  /** Steps in DAG order (after + needs; ties by index): the client's done order within one wire. */
+  private readonly topo: Int32Array;
+  /** Done order per step (0: not done). */
+  private readonly doneSeq: Float64Array;
+  private seq = 0;
 
   // per-section snapshots
   private readonly snapFlag: Uint8Array;
   private readonly snapState: Uint8Array;
   private readonly snapHalf: Float64Array;
-  private readonly snapLastDone: Int32Array;
   private readonly snapTaken: Uint8Array;
 
   constructor(def: MissionDef, players: number) {
@@ -131,8 +145,46 @@ export class MissionRunner {
     this.snapFlag = new Uint8Array(ns * nf);
     this.snapState = new Uint8Array(ns * n);
     this.snapHalf = new Float64Array(ns * n * 2);
-    this.snapLastDone = new Int32Array(ns).fill(NONE);
     this.snapTaken = new Uint8Array(ns);
+    this.doneSeq = new Float64Array(n);
+    this.teamBit = new Uint8Array(n);
+    this.flagUsers = new Uint8Array(nf);
+    this.flagGivers = new Uint8Array(nf);
+    const mark = (c: Cond, bit: number): void => {
+      if (c.op === 0) this.flagUsers[c.idx]! |= bit;
+      else for (const k of c.kids) mark(k, bit);
+    };
+    for (let i = 0; i < n; i++) {
+      const t = steps[i]!.team;
+      const bit = t === 'a' ? TEAM_BIT_A : t === 'b' ? TEAM_BIT_B : TEAM_BIT_ALL;
+      this.teamBit[i] = bit;
+      const c = this.conds[i];
+      if (c) mark(c, bit);
+      if (this.needsFlag[i]! >= 0) this.flagUsers[this.needsFlag[i]!]! |= bit;
+      const g = this.givesFlag[i]!;
+      if (g >= 0) {
+        this.flagUsers[g]! |= bit;
+        this.flagGivers[g]! |= bit;
+      }
+    }
+    // DAG order: repeatedly the lowest-index step whose after-steps and fact givers are placed (a cycle: index order)
+    const placed = new Uint8Array(n);
+    const topo: number[] = [];
+    while (topo.length < n) {
+      let pick = NONE;
+      for (let i = 0; i < n && pick < 0; i++) {
+        if (placed[i]) continue;
+        let ready = true;
+        for (let k = this.afterStart[i]!; k < this.afterStart[i + 1]!; k++) if (!placed[this.afterList[k]!]) ready = false;
+        const nd = this.needsFlag[i]!;
+        if (nd >= 0) for (let j = 0; j < n; j++) if (j !== i && this.givesFlag[j] === nd && !placed[j]) ready = false;
+        if (ready) pick = i;
+      }
+      if (pick < 0) for (let i = 0; i < n && pick < 0; i++) if (!placed[i]) pick = i;
+      placed[pick] = 1;
+      topo.push(pick);
+    }
+    this.topo = Int32Array.from(topo);
   }
 
   /** Step count. */
@@ -248,29 +300,38 @@ export class MissionRunner {
     this.snapFlag.set(this.flagOn, si * nf);
     this.snapState.set(this.state, si * n);
     this.snapHalf.set(this.half, si * n * 2);
-    this.snapLastDone[si] = this.lastDone;
     this.snapTaken[si] = 1;
     return true;
   }
 
   /**
-   * A restart of the section (host on a rule break or everyone down; client on the restart banner): its steps and facts
-   * go back to the section's snapshot, earlier sections' work stays; the open steps restart their clocks at `now`.
-   * False when the section has no snapshot.
+   * A restart of the section (host on a rule break or everyone down; client on the restart banner) back to its
+   * snapshot; the open steps restart their clocks at `now`. No `team` (the campaign, a mission-scope rule, one player):
+   * every step and fact of the section goes back, earlier sections' work stays. With `team` (Sector Ops, that team's
+   * rule broke, M1): only that team's steps of the section, the facts they give and the flags only its steps read go
+   * back; the shared 'all' steps and the other team's work stay. False when the section has no snapshot.
    */
-  restore(section: string | number, now = this.now): boolean {
+  restore(section: string | number, now = this.now, team?: 'a' | 'b'): boolean {
     const si = typeof section === 'number' ? section : this.def.sections.indexOf(section);
     if (si < 0 || si >= this.def.sections.length || this.snapTaken[si] !== 1) return false;
     const nf = this.flagOn.length;
     const n = this.n;
-    this.flagOn.set(this.snapFlag.subarray(si * nf, si * nf + nf));
-    this.state.set(this.snapState.subarray(si * n, si * n + n));
-    this.half.set(this.snapHalf.subarray(si * n * 2, si * n * 2 + n * 2));
-    this.lastDone = this.snapLastDone[si]!;
+    const bit = team === undefined || this.players <= 1 ? 0 : team === 'a' ? TEAM_BIT_A : TEAM_BIT_B;
+    for (let f = 0; f < nf; f++) {
+      if (bit === 0 || (this.flagGivers[f]! & bit) !== 0 || this.flagUsers[f] === bit) this.flagOn[f] = this.snapFlag[si * nf + f]!;
+    }
+    for (let i = 0; i < n; i++) {
+      if (bit !== 0 && (this.secOf[i] !== si || this.teamBit[i] !== bit)) continue;
+      const st = this.snapState[si * n + i]!;
+      this.state[i] = st === STEP_OPEN ? STEP_LOCKED : st;
+      this.half[i * 2] = this.snapHalf[si * n * 2 + i * 2]!;
+      this.half[i * 2 + 1] = this.snapHalf[si * n * 2 + i * 2 + 1]!;
+      if (st !== STEP_DONE) this.doneSeq[i] = 0;
+    }
     this.section = si;
     this.now = now;
-    for (let i = 0; i < n; i++) if (this.state[i] === STEP_OPEN) this.state[i] = STEP_LOCKED;
     this.reopen();
+    this.relast();
     this.version++;
     return true;
   }
@@ -368,7 +429,8 @@ export class MissionRunner {
         changed = true;
       }
     }
-    for (let i = 0; i < this.n; i++) {
+    for (let k = 0; k < this.n; k++) {
+      const i = this.topo[k]!;
       const d = ((done >>> i) & 1) === 1;
       const was = this.state[i] === STEP_DONE;
       if (d === was) continue;
@@ -376,11 +438,15 @@ export class MissionRunner {
       if (d) {
         this.state[i] = STEP_DONE;
         if (this.openT[i]! < 0) this.openT[i] = this.now;
-        this.lastDone = i;
-      } else this.state[i] = STEP_LOCKED;
+        this.doneSeq[i] = ++this.seq;
+      } else {
+        this.state[i] = STEP_LOCKED;
+        this.doneSeq[i] = 0;
+      }
     }
     if (!changed) return false;
     this.reopen();
+    this.relast();
     this.version++;
     return true;
   }
@@ -388,9 +454,23 @@ export class MissionRunner {
   private finish(i: number): void {
     this.state[i] = STEP_DONE;
     this.lastDone = i;
+    this.doneSeq[i] = ++this.seq;
     const g = this.givesFlag[i]!;
     if (g >= 0) this.flagOn[g] = 1;
     this.version++;
+  }
+
+  /** `lastDone`: the step done latest that is still done (-1 none). */
+  private relast(): void {
+    let best = NONE;
+    let bs = -1;
+    for (let i = 0; i < this.n; i++) {
+      if (this.state[i] === STEP_DONE && this.doneSeq[i]! > bs) {
+        bs = this.doneSeq[i]!;
+        best = i;
+      }
+    }
+    this.lastDone = best;
   }
 
   /** Locked steps of the current section whose `after` are done and `needs` held open at `now`. */

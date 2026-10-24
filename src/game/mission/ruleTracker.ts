@@ -8,7 +8,9 @@
  * take by its player's slot (one player carries both teams); team ghost by the alerted guard's track zone (spotFail's
  * test, per track); an alarm, camera alarm or found body by its position in a track's boxes, else against both teams.
  * The other rules: no gadgets, named target (a decoy read), plant-not-take (a take), a named window (the step not done
- * `seconds` after it opened) and one chance (a failure; it ends the mission, A12). A break restarts the section; while a
+ * `seconds` after it opened) and one chance (a failure; it ends the mission, A12). A break restarts the section: a team
+ * rule's break only that team (`lastScope`; `MissionRunner.restore(.., team)`, `resetSection(.., scope)`, M1), a
+ * mission rule's everyone; while a
  * mission has a one-chance rule without a step, any restart ends the mission instead. After `resetSection` the tracker
  * holds RULE_HOLD s so a rule cannot fire again before both players respawn. Feeds and `update` do not allocate.
  */
@@ -82,7 +84,8 @@ export class RuleTracker {
   /** The mission ended on a one-chance break. */
   ended = false;
   private now = 0;
-  private holdUntil = -Infinity;
+  /** Hold end per scope (s). */
+  private readonly holdUntil = new Float64Array(SCOPES).fill(-Infinity);
   private readonly ratingRules: Readonly<RatingRules>;
   private readonly scope: Int32Array;
   private readonly mark: Int32Array;
@@ -115,9 +118,19 @@ export class RuleTracker {
     this.endsOnRestart = ends;
   }
 
-  /** Is the tracker holding after a restart (feeds ignored, nothing breaks)? */
+  /** Is the tracker holding after a whole-section restart (the mission scope: its feeds ignored, its rules quiet)? */
   get held(): boolean {
-    return this.now < this.holdUntil;
+    return this.isHeld(SCOPE_MISSION);
+  }
+
+  /** Is a scope holding after its restart (SCOPE_MISSION / SCOPE_A / SCOPE_B)? */
+  isHeld(scope: number): boolean {
+    return this.now < this.holdUntil[scope]!;
+  }
+
+  /** The last broken rule's scope: who goes back (a team, or 'mission': everyone); null before any break. */
+  get lastScope(): MissionRule['scope'] | null {
+    return this.lastRule >= 0 ? (this.def.rules[this.lastRule]?.scope ?? null) : null;
   }
 
   /** Team bits a player slot plays for (A9; one player or the campaign: both). */
@@ -167,70 +180,68 @@ export class RuleTracker {
 
   /** Guard detections of a player (the stealth tally's rise): mission-scope ghost. */
   onDetections(n: number): void {
-    if (this.held || !(n > 0)) return;
+    if (this.isHeld(SCOPE_MISSION) || !(n > 0)) return;
     this.stats[SCOPE_MISSION].detections += n;
   }
 
   /** Team ghost (spotFail's test per track): a live, non-passive guard of a track's zones is alerted. Per tick is fine. */
   scanGuards(guards: readonly ZoneGuard[]): void {
-    if (this.held || !this.def.tracks) return;
+    if (!this.def.tracks) return;
+    const ha = this.isHeld(SCOPE_A);
+    const hb = this.isHeld(SCOPE_B);
     for (let i = 0; i < guards.length; i++) {
       const g = guards[i]!;
       if (!g.alive || g.passive || !g.alerted) continue;
       const m = this.zoneTeams(g.zone);
-      if (m & TEAM_A_BIT && this.stats[SCOPE_A].detections === 0) this.stats[SCOPE_A].detections = 1;
-      if (m & TEAM_B_BIT && this.stats[SCOPE_B].detections === 0) this.stats[SCOPE_B].detections = 1;
+      if (m & TEAM_A_BIT && !ha && this.stats[SCOPE_A].detections === 0) this.stats[SCOPE_A].detections = 1;
+      if (m & TEAM_B_BIT && !hb && this.stats[SCOPE_B].detections === 0) this.stats[SCOPE_B].detections = 1;
     }
   }
 
   /** A camera alarm / broken laser at (x, z) (NaN: unknown, both teams). */
   onCameraAlarm(x: number, z: number): void {
-    if (this.held) return;
     this.each(this.teamsAt(x, z), 1);
   }
 
   /** An alarm raised at (x, z) (a guard's radio call or a stage a device raised; NaN: both teams). */
   onAlarm(x: number, z: number): void {
-    if (this.held) return;
     this.each(this.teamsAt(x, z), 2);
   }
 
   /** A guard found a body at (x, z). */
   onBodyFound(x: number, z: number): void {
-    if (this.held) return;
     this.each(this.teamsAt(x, z), 3);
   }
 
   /** A kill (`ko` false) or a knock-out by the player in `slot`. */
   onKill(slot: number, ko: boolean): void {
-    if (this.held) return;
     this.each(this.slotTeams(slot), ko ? 5 : 4);
   }
 
   /** A gadget used by the player in `slot` (the `gadget` event, `onRemoteGadget`). */
   onGadget(slot: number): void {
-    if (this.held) return;
     this.hitRules('noGadgets', this.slotTeams(slot), -1);
   }
 
-  /** An interrogation by `slot`; `decoy` when it read a decoy (a named-target rule on that step breaks). */
-  onInterrogate(slot: number, decoy: boolean, step = -1): void {
-    if (this.held || !decoy) return;
-    this.hitRules('namedTarget', this.slotTeams(slot), step);
+  /**
+   * An interrogation by `slot`; `decoy` when it read a decoy: a named-target rule on that step breaks whoever asked
+   * (a team's rule too: Code Relay's code holder may be questioned by either team), attributed to the rule's scope.
+   */
+  onInterrogate(_slot: number, decoy: boolean, step = -1): void {
+    if (!decoy) return;
+    this.hitRules('namedTarget', TEAM_BOTH, step);
   }
 
   /** An item taken by `slot` where the mission says plant, not take. */
   onTake(slot: number): void {
-    if (this.held) return;
     this.hitRules('plantNotTake', this.slotTeams(slot), -1);
   }
 
   /** A failure: everyone down (`step` -1) or a one-try step failed (its index). One-chance rules read it. */
   onFail(step = -1): void {
-    if (this.held) return;
     const rules = this.def.rules;
     for (let i = 0; i < rules.length; i++) {
-      if (rules[i]!.kind !== 'oneChance') continue;
+      if (rules[i]!.kind !== 'oneChance' || this.isHeld(this.scope[i]!)) continue;
       const rs = this.ruleStep[i]!;
       if (rs < 0 || rs === step) this.hit[i] = 1;
     }
@@ -242,7 +253,7 @@ export class RuleTracker {
    */
   update(now: number, runner?: MissionRunner): number {
     this.now = now;
-    if (this.tripped || this.ended || this.held) return RULE_OK;
+    if (this.tripped || this.ended) return RULE_OK;
     const rules = this.def.rules;
     const s = this.stats;
     const m0 = rateSection(s[SCOPE_MISSION], this.ratingRules);
@@ -250,6 +261,7 @@ export class RuleTracker {
     const m2 = rateSection(s[SCOPE_B], this.ratingRules);
     for (let i = 0; i < rules.length; i++) {
       const r = rules[i]!;
+      if (this.isHeld(this.scope[i]!)) continue;
       let hit = this.hit[i] === 1;
       const mk = this.mark[i]!;
       if (mk !== 0) {
@@ -277,15 +289,21 @@ export class RuleTracker {
   }
 
   /**
-   * The section restarted (or a new section began): every scope's stats back to zero, the event hits cleared, and a
-   * RULE_HOLD s hold from `now` (`hold` false: a section begin, no hold). The mission's break count and line stay.
+   * The section restarted (or a new section began). No `scope` or 'mission': every scope's stats back to zero and every
+   * rule's event hits cleared (everyone went back). A team scope ('a' / 'b', its rule broke, M1): only that team's
+   * stats and the hits of its rules; the mission's and the other team's keep counting. `hold` (default) starts a
+   * RULE_HOLD s hold from `now` on the scopes reset (false: a section begin). The mission's break count and line stay.
    */
-  resetSection(now: number, hold = true): void {
-    for (let k = 0; k < SCOPES; k++) resetSectionStats(this.stats[k as 0 | 1 | 2]);
-    this.hit.fill(0);
+  resetSection(now: number, hold = true, scope?: MissionRule['scope']): void {
+    const only = scope === 'a' ? SCOPE_A : scope === 'b' ? SCOPE_B : -1;
+    for (let k = 0; k < SCOPES; k++) {
+      if (only >= 0 && k !== only) continue;
+      resetSectionStats(this.stats[k as 0 | 1 | 2]);
+      this.holdUntil[k] = hold ? now + RULE_HOLD : -Infinity;
+    }
+    for (let i = 0; i < this.hit.length; i++) if (only < 0 || this.scope[i] === only) this.hit[i] = 0;
     this.tripped = false;
     this.now = now;
-    this.holdUntil = hold ? now + RULE_HOLD : -Infinity;
   }
 
   /** Marks bitmask of a scope's live stats (Sector Ops' per-team marks on the rating card). */
@@ -307,9 +325,9 @@ export class RuleTracker {
 
   /** Stat `field` (1 cam alarm, 2 alarm, 3 body found, 4 kill, 5 knock-out) up one on the mission and `teams`. */
   private each(teams: number, field: number): void {
-    this.bump(this.stats[SCOPE_MISSION], field);
-    if (teams & TEAM_A_BIT) this.bump(this.stats[SCOPE_A], field);
-    if (teams & TEAM_B_BIT) this.bump(this.stats[SCOPE_B], field);
+    if (!this.isHeld(SCOPE_MISSION)) this.bump(this.stats[SCOPE_MISSION], field);
+    if (teams & TEAM_A_BIT && !this.isHeld(SCOPE_A)) this.bump(this.stats[SCOPE_A], field);
+    if (teams & TEAM_B_BIT && !this.isHeld(SCOPE_B)) this.bump(this.stats[SCOPE_B], field);
   }
 
   private bump(s: SectionStats, field: number): void {
@@ -340,6 +358,7 @@ export class RuleTracker {
     for (let i = 0; i < rules.length; i++) {
       if (rules[i]!.kind !== kind) continue;
       const sc = this.scope[i]!;
+      if (this.isHeld(sc)) continue;
       if (sc === SCOPE_A && (teams & TEAM_A_BIT) === 0) continue;
       if (sc === SCOPE_B && (teams & TEAM_B_BIT) === 0) continue;
       const rs = this.ruleStep[i]!;

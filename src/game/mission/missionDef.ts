@@ -129,7 +129,8 @@ function cond(c: unknown, path: string, out: string[], flags?: string[]): void {
 }
 
 /**
- * Structural checks (PLAN section 2): ids unique, sections known, 3-6 steps, the DAG acyclic and in section order,
+ * Structural checks (PLAN section 2): ids unique, sections known, 3-6 steps (campaign: the mission; Sector Ops: each
+ * team's steps plus the shared 'all' ones; at most 30 in all, wire bits), the DAG acyclic and in section order,
  * every `needs` given by a step that is not after it, the last step the one `extract` (in the last section), interrogate
  * targets and decoys among `guards` (SectorGuard ids), sync windows, at most 2 rules per scope (a team's scope counts the
  * mission's rules too), rule steps that exist and fit, tracks. Returns error lines (empty = ok).
@@ -151,7 +152,16 @@ export function checkMission(d: MissionDef, guards: ReadonlySet<string>): string
   for (const line of d.briefing) if (!line) out.push(`${tag}: empty briefing line`);
 
   const n = d.steps.length;
-  if (n < MISSION.stepsMin || n > MISSION.stepsMax) out.push(`${tag}: ${n} steps (${MISSION.stepsMin}-${MISSION.stepsMax})`);
+  // step budget: the campaign counts the whole mission; Sector Ops each team's steps plus the shared 'all' steps
+  if (campaign) {
+    if (n < MISSION.stepsMin || n > MISSION.stepsMax) out.push(`${tag}: ${n} steps (${MISSION.stepsMin}-${MISSION.stepsMax})`);
+  } else {
+    for (const t of ['a', 'b'] as const) {
+      let k = 0;
+      for (const s of d.steps) if (s.team === t || s.team === 'all') k++;
+      if (k < MISSION.stepsMin || k > MISSION.stepsMax) out.push(`${tag}: team ${t} has ${k} steps with the shared ones (${MISSION.stepsMin}-${MISSION.stepsMax})`);
+    }
+  }
   const idx = new Map<string, number>();
   for (let i = 0; i < n; i++) {
     const s = d.steps[i]!;
@@ -284,6 +294,7 @@ export function checkMission(d: MissionDef, guards: ReadonlySet<string>): string
   }
   if (perScope.mission + perScope.a > MISSION.rulesPerScope) out.push(`${tag}: team a carries ${perScope.mission + perScope.a} rules (max ${MISSION.rulesPerScope})`);
   if (perScope.mission + perScope.b > MISSION.rulesPerScope) out.push(`${tag}: team b carries ${perScope.mission + perScope.b} rules (max ${MISSION.rulesPerScope})`);
+  if (!campaign && perScope.a + perScope.b > 0 && !d.tracks) out.push(`${tag}: team rules need tracks (attribution, A9)`);
 
   // tracks
   if (d.tracks) {
