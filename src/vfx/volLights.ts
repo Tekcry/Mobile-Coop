@@ -59,3 +59,31 @@ export function writeVolLight(l: LightDef, k: number, pos: Float32Array, dir: Fl
   col[o + 2] = l.color[2] * g;
   col[o + 3] = 1;
 }
+
+/** A map's `theme.lampBeams` (default true): whether its cone lights without an LED fitting draw the long beam
+ *  (`volBeam`). `GameState` passes it to the post stack. Allocation-free. */
+export function mapLampBeams(theme: { lampBeams?: boolean } | undefined): boolean {
+  return theme?.lampBeams ?? true;
+}
+
+/** `PostStack.frame`'s vol-light loop: write the first `n` lights of `ids` (indices into `lights`, nearest first) into
+ *  slots 0..n-1 (`writeVolLight`); returns the count written (the shader's `count`). `lampBeams`: `mapLampBeams`.
+ *  Allocation-free. */
+export function writeVolLights(
+  lights: readonly LightDef[],
+  ids: Int32Array,
+  n: number,
+  lampBeams: boolean,
+  pos: Float32Array,
+  dir: Float32Array,
+  col: Float32Array,
+): number {
+  let k = 0;
+  for (let i = 0; i < n; i++) {
+    // lamps and LED fittings scatter under their shade (a short cone), torches and floods along the beam
+    // (stopped by geometry): vol-cone-fix
+    writeVolLight(lights[ids[i]!]!, k, pos, dir, col, lampBeams);
+    k++;
+  }
+  return k;
+}

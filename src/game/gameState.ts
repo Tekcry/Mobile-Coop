@@ -15,6 +15,7 @@ import { Player } from '../player/player';
 import { defaultLook, type AvatarLook } from '../cosmetics/avatarLook';
 import { PauseScreen, type ObjectiveLine } from '../ui/screens/pauseScreen';
 import { PauseLook } from '../vfx/pauseLook';
+import { mapLampBeams } from '../vfx/volLights';
 import { DamageRegistry, type Damageable } from './damage';
 import { Vfx } from '../vfx/vfx';
 import { Ballistics } from '../weapons/ballistics';
@@ -611,7 +612,7 @@ export class GameState implements AppState {
       sky: world.lamps?.moonTex && world.lamps.moon ? { tex: world.lamps.moonTex, origin: world.lamps.moon.origin, cell: world.lamps.moon.cell, dims: world.lamps.moon.n } : null,
       shafts: wx === 'fog' ? [sun.r * 0.03, sun.g * 0.03, sun.b * 0.035] : [0, 0, 0],
       // (fog triage) Saltmarsh Park: its cone fittings haze under their shade, only torches beam
-      lampBeams: world.map.theme.lampBeams ?? true,
+      lampBeams: mapLampBeams(world.map.theme),
     });
     // 3.2 baked lamps: the characters' soft shadows from every lamp
     if (world.lamps) world.lamps.capsules = this.rtCapsules;
