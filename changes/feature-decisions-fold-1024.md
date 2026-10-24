@@ -3,3 +3,5 @@ kind: patch
 - docs/DECISIONS.md: roadmap decisions of 2026-10-24 ~15:10 to ~23:46 folded in as G283-G294 (idle-lead rule, level
   validator and standard extras, train speed-ups, test jobs, process audit, mission rules and prototypes, Marlow Yard
   and campaign co-op traversal, guard off-screen animation tier).
+- docs/design-bible.md: dated notes for G283-G294 (failure and recovery, mission rules, Sector Ops, C4 co-op traversal,
+  HUD guidance, Marlow Yard and the validator, performance, how we build).
