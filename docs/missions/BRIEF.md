@@ -85,3 +85,13 @@ These override the brief where they differ (decision 3's "Marlow's stripes go" i
   mark) is an ERR outside the training profile. Undo: docs only, no validator change.
 - A18 The campaign map is "Tallow Wharf" (original name), 4 sections W1-W4, about 120 x 80 m; Three Grey Coats runs
   W1 -> W2 -> W4, Two-Key Ledger W2 -> W3 -> W4. Undo: rename or re-cut at the spec sign-off.
+- A19 (lead, 2026-10-25 ~05:00, greybox briefs `slices/GB-briefs.md` 0.1) The three 2.5 m throw gaps can be jumped solo,
+  so the loft-side doors are bolted from the far side and the W2 walkway boost keeps W2 forced. Undo: narrow the gaps
+  below a solo jump, or drop the bolts.
+- A20 There is no fall damage, so the roof drops that would skip the coal chute and jetty moves get 2.2 m drop guards
+  (a W3 roof-edge parapet, a caged gantry). Undo: remove the guards once a fall-damage rule exists.
+- A21 The W3 restart point is the head of the roof bulkhead stair, shared by both missions. Undo: one point per mission.
+- A22 Shutters are reserved as data (a closed stand-in panel) until the kit `tick` hook, world wiring and NET land; until
+  then W1's shutter exit and TKL's shed two way are closed, and playtests use debug teleports. Undo: none (temporary).
+- A23 Two engine follow-ups before GB6 (slice EN4): a mission may start at a later section (TKL starts at W2; the sector
+  run always starts at section 0 today), and per-mission guard lists (one map, two missions). Undo: one mission per map.
