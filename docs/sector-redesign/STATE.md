@@ -373,10 +373,12 @@ Worktrees (node_modules junctions to Mobile-Coop-sector-redesign-bake2): -polish
    head fe16741b, checker status posted; orchestrator labels on green CI; Test Runner #366 overlaps service.mjs (the
    later train resolves). #366 released (train 74): import line resolved 05:05, head 3cb88b3f, 153 tests; orchestrator labels on green CI. CLOUD: briefs visual-gate-vg5 (gate runner, off a3362896) + visual-gate-vg1-polish (metrics
    polish 1 / 5 / 6) open on cloud-queue bcbc3608; + sector-redesign-polish3 (fog P1-P3, bake2 polish 5 lightBake
-   held.dead; off master fc4dc9ab; 24e7949b). ALL THREE DONE by cloud ~05:00: vg5 4a32654c, vg1p a925aafc, polish3
-   62aa2320 (PR #379 open 05:15). IN FLIGHT 05:12: three Opus checkers in worktrees -visual-gate-vg5 / -vg1p /
-   -sector-redesign-polish3 -> checks/vg5-check.md, vg1p-check.md, polish3-check.md (uncommitted; rerun if missing).
-   PASS -> merge vg5 / vg1p into feature/visual-gate; #379 checker status + train-ready on green affected-e2e.
+   held.dead; off master fc4dc9ab; 24e7949b). ALL THREE DONE + CHECKED: vg1p PASS merged d38acf7e; VG5 PASS merged
+   2fd31847 (polish 1-5 held in checks/vg5-check.md); polish3 = PR #379, checker IN FLIGHT -> checks/polish3-check.md in
+   -sector-redesign-polish3 (uncommitted; rerun if missing) -> checker status + train-ready on green affected-e2e.
+   Laptop: M0 (visual-m0, fc4dc9ab) and VG5 rules-only gate run (visual-vg5, master 46a7cf85, json + png to
+   C:/NightShift/scratch/visual-gate/vg5 on the laptop) queued -> write M0.md + VG5 laptop verdict into vg5-check.md.
+   S5 CR7 rope fixed a2cf369a (rappel down, rope up); Marlow validator 0 errors over all five + both missions.
    Also IN FLIGHT 05:15: Opus writer for briefs VG7.md + P1-P7.md in -visual-gate (uncommitted; lead commits; rerun if
    missing). CLOUD open 5b0acb04: sector-redesign-bake4 (stacked on #361: Math.min retry cap, held-order test, bake2
    polish 3) + visual-gate-vg3-polish (regions >= 60 px, gallery wall). #367 VG6 TRAIN-READY (orchestrator 05:08).
