@@ -1,0 +1,16 @@
+{
+  "id": "20261024T181926-night-shift-test-run-46a7cf85-0c27",
+  "sha": "46a7cf855492b21e25a78e78714067048684555f",
+  "branch": "",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Test Runner",
+  "steps": [
+    "set MAP=campusOps&& set MODE=sector&& node scripts/perf.mjs --desktop --json",
+    "set MAP=campusOps&& set MODE=sector&& node scripts/perf.mjs --desktop --json",
+    "set MAP=campusOps&& set MODE=sector&& node scripts/perf.mjs --desktop --json"
+  ],
+  "env": {},
+  "set": "perf-campus-x3",
+  "note": "session-free gap: campus perf x3 on master (alone, post-release)"
+}
