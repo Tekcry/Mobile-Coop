@@ -22,7 +22,7 @@ save: <save fields, or none>
 ```
 
 ## Slices
-<!-- Each slice is one PR: <= ~1.5k changed lines (not counting generated assets, snapshots, lockfiles, docs) or ~4 h.
+<!-- Each slice is one PR: <= ~1.5k changed lines (not counting generated assets, baked data, snapshots, lockfiles, docs) or ~4 h.
      Bigger: split it. A slice that is not playable on its own ships dark behind a flag (table below). -->
 **S1 <name> (<builder model>).** <What it builds, one paragraph.>
 - Files: <paths>. Est. lines: <n>.

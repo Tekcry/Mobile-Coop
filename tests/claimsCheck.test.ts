@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  PLAN_PATH, checkClaims, formatReport, overlapOf, parseArgs, parseClaims, parsePair,
+  PLAN_PATH, checkClaims, formatReport, isShared, lintClaims, overlapOf, parseArgs, parseClaims, parsePair, planJob,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/claims-check.mjs';
 
@@ -20,6 +20,29 @@ describe('claims-check: parsing', () => {
   it('returns null without a claims block and ignores unknown keys', () => {
     expect(parseClaims('# Plan\n```ts\nfiles: x\n```\n')).toBe(null);
     expect(parseClaims(plan('owner: Player Build\nfiles: src/a.ts'))).toEqual({ files: ['src/a.ts'], maps: [], protocol: [], save: [] });
+  });
+
+  it('rejects template placeholders as errors and drops them', () => {
+    const r = lintClaims(plan('files:\n  - <src/area/**>\n  - src/real.ts\nmaps: <map ids, or none>\nprotocol: none\nsave: none'));
+    expect(r.claims).toEqual({ files: ['src/real.ts'], maps: [], protocol: [], save: [] });
+    expect(r.errors).toHaveLength(2);
+    expect(r.errors[0]).toMatch(/files: template placeholder "<src\/area\/\*\*>"/);
+    expect(lintClaims(plan('files: src/a.ts\nmaps: none')).errors).toEqual([]);
+  });
+
+  it('warns on indented lines without "- " and on claimed shared files', () => {
+    const r = lintClaims(plan('files:\n  src/forgot-dash.ts\n  - src/ok.ts\n  - changes/feature-x.md\nmaps: none'));
+    expect(r.claims.files).toEqual(['src/ok.ts', 'changes/feature-x.md']);
+    expect(r.errors).toEqual([]);
+    expect(r.warnings).toEqual([
+      'files: "src/forgot-dash.ts" ignored (list items start with "- ")',
+      'files: "changes/feature-x.md" is a shared file (ignored; do not claim it)',
+    ]);
+  });
+
+  it('reads a claims block indented as a whole (inside a list)', () => {
+    const text = '# Plan\n- Claims:\n  ```claims\n  files:\n    - src/a.ts\n  maps: campusOps\n  ```\n';
+    expect(lintClaims(text)).toEqual({ claims: { files: ['src/a.ts'], maps: ['campusOps'], protocol: [], save: [] }, errors: [], warnings: [] });
   });
 
   it('knows PLAN paths and branch:path pairs', () => {
@@ -50,6 +73,17 @@ describe('claims-check: overlaps', () => {
     expect(o.save).toEqual({ a: ['settings.a'], b: ['settings.b'], shared: [] });
   });
 
+  it('never overlaps on shared files (changelog fragments, package files, STATE / HANDOFF, ROADMAP)', () => {
+    for (const f of ['CHANGELOG.md', 'changes/feature-a.md', 'changes/**', 'package.json', 'package-lock.json', 'docs/coop4/STATE.md',
+      'docs/a/b/STATE-S2.md', 'docs/orchestrator/HANDOFF.md', 'docs/orchestrator/HANDOFF-2.md', 'docs/ROADMAP.md']) {
+      expect(isShared(f), f).toBe(true);
+      expect(overlapOf(C({ files: [f] }), C({ files: [f] })), f).toBe(null);
+    }
+    for (const f of ['docs/coop4/PLAN.md', 'src/package.ts', 'docs/ROADMAP-old.md']) expect(isShared(f), f).toBe(false);
+    const o = overlapOf(C({ files: ['package.json', 'src/a.ts', 'docs/x/STATE.md'] }), C({ files: ['package.json', 'src/a.ts', 'docs/x/STATE.md'] }));
+    expect(o.files).toEqual([['src/a.ts', 'src/a.ts']]);
+  });
+
   it('returns null for disjoint claims', () => {
     expect(overlapOf(C({ files: ['src/a/*'], maps: ['x'], protocol: ['M'] }), C({ files: ['src/b/*'], maps: ['y'] }))).toBe(null);
   });
@@ -71,6 +105,47 @@ describe('claims-check: overlaps', () => {
     expect(text).toContain('OVERLAP origin/feature/a (docs/a/PLAN.md) x origin/feature/b (docs/b/PLAN.md)');
     expect(text).toContain('src/world/** ~ src/world/lamps.ts');
     expect(text).toContain('no claims block: origin/feature/d:docs/d/PLAN.md');
+  });
+
+  it('treats plans with the same PLAN path as one job (slice branches never flag each other)', () => {
+    const coop4 = plan('files: src/net/**\nprotocol: BodyCarry');
+    const plans = [
+      { branch: 'origin/feature/coop4', path: 'docs/coop4/PLAN.md', text: coop4 },
+      ...['a', 'b', 'c'].map((s) => ({ branch: `origin/feature/coop4-${s}`, path: 'docs/coop4/PLAN.md', text: coop4 })),
+      { branch: 'origin/feature/cr-1', path: 'docs/coop-real/PLAN.md', text: plan('files: src/ui/menu.ts') },
+      { branch: 'origin/feature/cr-2', path: 'docs/coop-real/PLAN.md', text: plan('files: src/ui/menu.ts') },
+      { branch: 'origin/feature/other', path: 'docs/other/PLAN.md', text: plan('files: src/net/session.ts') },
+    ];
+    const r = checkClaims(plans);
+    expect(r.overlaps.map((o: { a: { branch: string }; b: { branch: string } }) => `${o.a.branch}|${o.b.branch}`)).toEqual([
+      'origin/feature/coop4|origin/feature/other', 'origin/feature/coop4-a|origin/feature/other',
+      'origin/feature/coop4-b|origin/feature/other', 'origin/feature/coop4-c|origin/feature/other',
+    ]);
+    expect(checkClaims(plans, { focus: 'origin/feature/coop4' }).overlaps).toHaveLength(1);
+  });
+
+  it('treats PLANs in one folder as one job (PLAN2 beside PLAN), a PLAN directly in docs/ as its own job', () => {
+    expect(planJob('docs/guard-render/PLAN2.md')).toBe('docs/guard-render');
+    expect(planJob('./docs/guard-render/PLAN.md')).toBe('docs/guard-render');
+    expect(planJob('docs/PLAN.md')).toBe('docs/PLAN.md');
+    const claims = plan('files: src/render/**');
+    const r = checkClaims([
+      { branch: 'origin/feature/gr', path: 'docs/guard-render/PLAN.md', text: claims },
+      { branch: 'origin/feature/gr-2', path: 'docs/guard-render/PLAN2.md', text: claims },
+      { branch: 'origin/feature/top-a', path: 'docs/PLAN.md', text: claims },
+      { branch: 'origin/feature/top-b', path: 'docs/PLAN2.md', text: claims },
+    ]);
+    expect(r.overlaps.map((o: { a: { branch: string }; b: { branch: string } }) => `${o.a.branch}|${o.b.branch}`)).toEqual([
+      'origin/feature/gr|origin/feature/top-a', 'origin/feature/gr|origin/feature/top-b',
+      'origin/feature/gr-2|origin/feature/top-a', 'origin/feature/gr-2|origin/feature/top-b',
+      'origin/feature/top-a|origin/feature/top-b',
+    ]);
+  });
+
+  it('lists plan problems in the report', () => {
+    const r = checkClaims([{ branch: 'origin/feature/a', path: 'docs/a/PLAN.md', text: plan('files: <src/x/**>\nmaps: none') }]);
+    expect(r.problems).toEqual([{ branch: 'origin/feature/a', path: 'docs/a/PLAN.md', errors: [expect.stringMatching(/placeholder/)], warnings: [] }]);
+    expect(formatReport(r)).toContain('ERROR origin/feature/a:docs/a/PLAN.md: files: template placeholder');
   });
 
   it('with a focus branch reports only pairs that include it', () => {

@@ -30,14 +30,15 @@ templates are in `docs/templates/`.
    against every other open branch (`node scripts/claims-check.mjs --plan docs/<job>/PLAN.md --name feature/<job>`), and
    slice sizes. Verdict PASS or FIX in `docs/<job>/PLAN-CHECK.md`. FIX: one revision of the PLAN, then a fresh checker;
    still FIX goes to the orchestrator. A claims overlap is settled by the orchestrator (order the jobs, split the files
-   or hand one job the files) before build.
+   or hand one job the files) before build. Slice branches of one job (PLANs in one `docs/<job>/` folder) never
+   overlap each other, and shared files (changelog fragments, package files, STATE / HANDOFF, ROADMAP) never overlap.
 4. **Sign-off for maps and looks** (a new map or section, a layout change, a new look: lighting, art direction, a
    character, HUD art): a one-page `docs/<job>/SIGNOFF.md` from `docs/templates/signoff.md`, with a to-scale plan image
    (or the look render), a 5-line intent check and ONE decision for Michael to click. No greybox, detail art or look
    build starts until he clicks it. Other jobs skip this gate.
 5. **Build**: the loop below, slice by slice.
 
-**Slice size.** Each PR is at most ~1.5k changed lines (generated assets, snapshots, lockfiles and docs not counted) or
+**Slice size.** Each PR is at most ~1.5k changed lines (generated assets, baked data, snapshots, lockfiles and docs not counted) or
 ~4 h of work, whichever comes first. CI enforces the line cap (`scripts/pr-size.mjs`, the `pr-size` job inside `check`):
 over it, the PR fails unless the orchestrator adds the `big-pr` label (train PRs and docs-only PRs are exempt).
 Unfinished work ships dark behind a flag (a URL query or a config switch, off by default), each flag listed in the PLAN
