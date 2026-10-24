@@ -1,0 +1,17 @@
+{
+  "id": "20261024T071120-night-shift-guard-ai-1d2f3e1d-f66a",
+  "sha": "1d2f3e1d505cad4c1e9cb6de90d260c2898d9ce8",
+  "branch": "",
+  "pr": 313,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove",
+    "e2e-guard-carry",
+    "e2e-takedown"
+  ],
+  "jobs": 2,
+  "set": "coop-carry-m93",
+  "note": "master 4.93.0 merged into #313 (rig-pose-fix S5 conflicts)"
+}
