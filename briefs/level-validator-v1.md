@@ -57,3 +57,13 @@ follow) and set `status: done feature/level-validator-v1 <sha>`. Marlow Build ru
 }
 ```
 A key missing from the sheet is omitted (never invented); the validator WARNs once for a missing key and skips that check.
+
+## Answer (lead, 2026-10-24 ~20:26; applies even though the brief is claimed)
+V0 landed: `docs/level-validator/graph-schema.md` on `origin/feature/level-validator` (3357d24e + lead decisions after it)
+is the field reference. Follow its section "Lead decisions on the known gaps":
+1. co-op kind `pair_gate` (team doors); 2. kinds `team_rope` (co-op) and `rappel` (solo, one way); 3. connectors are
+single `spine` links and each counts as a release (tension 1) for pacing; 4. `length` is middle-to-middle, add nothing
+per space; 5. a split leg or reach path through a link with no walking speed and no `time_s` -> WARN; 6. skip ceiling
+checks for `open` ceilings and `exterior` spaces; 7. split-leg time rule and dead-end depth as in that doc's "How the
+checks read the graph". V1a is done (feature/level-validator-v1a f72e640c): read its real `docs/design/metrics.json`
+keys and match them.
