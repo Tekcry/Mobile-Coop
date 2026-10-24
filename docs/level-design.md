@@ -28,16 +28,19 @@ The core loop every space must support: **observe, plan, execute, improvise, rel
 ## 3. Space structure
 A level is a linear spine of encounter spaces joined by connectors.
 1. **Entry vantage.** Every encounter space opens on a dark vantage, outside every guard's view for the whole patrol
-   cycle, from which every guard in the space can be seen within one cycle.
+   cycle, from which every guard in the space can be seen within one cycle. The vantage sees about 70% of the space's
+   floor (target `sees_pct` >= 0.7 in the map's graph, measured in greybox). (Michael 2026-10-24, "Add 1-4 as extras".)
 2. **Three routes plus a secret.** Each guarded space has a shadow route (patience, timing), a high route (movement
    skill) and a loud route (force, fastest). At least half of the guarded spaces also have a secret route that
    rewards exploring (a crawlspace, a shaft, a back room). No route is strictly best: each trades speed, risk and
    reward.
 3. **Rejoin at a pinch point.** All routes through a space rejoin at its exit before the next space. No route skips a
-   space.
+   space. Between entry and exit the routes cross at least once: they share a room or junction where a player can
+   switch route (checked per section). (Michael 2026-10-24, "Add 1-4 as extras".)
 4. **Loops, not dead ends.** Every guarded space has at least one loop on its shadow route (around a blocker, through
    two doors of the same room) so a seen player can break line of sight and re-hide. A dead end on a stealth route is a
-   design fault.
+   design fault. From any point of a stealth route, line of sight can be broken within about 5 s (target `los_break_s`
+   <= 5 per encounter space, measured in greybox on the nav grid). (Michael 2026-10-24, "Add 1-4 as extras".)
 5. **Stepping stones.** Along shadow routes, darkness, cover or a hide spot at least every 4-8 m. Open lit ground is a
    deliberate crossing that needs timing, a light out or a tool.
 6. **Height is safety and information.** Guards do not look up; the high route gives overwatch and takedowns from
@@ -65,7 +68,11 @@ A level is a linear spine of encounter spaces joined by connectors.
    left in the open.
 8. **Survivable searches.** Every place a player can be spotted on a stealth route has a hide spot or a dark escape
    within the guards' search area.
-9. **Archetype limits.** A map's guard count respects the spawn caps (section 12).
+9. **Archetype limits.** A map's guard count respects the spawn caps (section 12). Guard counts per encounter space,
+   as INFO targets, not rules: 3-6 early, 6-10 late (first or second half of the spine by section), never above 10,
+   rising with the player count, inside the 12.1 caps. The graph records them per player count and the validator
+   prints them as INFO; they are compared with our guard sheets (campus `campusSectors.ts`, Marlow Yard) before Michael
+   decides whether they become rules. (Michael 2026-10-24, "Add 1-4 as extras".)
 
 ## 5. Light and sound
 1. **Every lit pool has a visible source** (a lamp, a tube, a floodlight, moonlight through a window) and a switch
@@ -77,12 +84,16 @@ A level is a linear spine of encounter spaces joined by connectors.
    (an open window beside a glazed one, a door opened or bashed, a vent unscrewed or kicked, a hang-and-drop or a jump
    down).
 4. **Readable at a glance on desktop at the Low preset:** lit and dark areas match the light meter.
+5. **Shadow share.** 40-60% of an encounter space's floor is in shadow (target `shadow_pct` 0.4-0.6 in the map's graph,
+   measured in greybox by sampling the light bake). (Michael 2026-10-24, "Add 1-4 as extras".)
 
 ## 6. Pacing
 1. **Teach, test, twist.** One new mechanic per space: introduce it safely, test it alone, then combine it with earlier
    ones. The level ends in a set piece that uses everything.
 2. **Tension and release.** Tension rises across the level; every peak is followed by a release. The beat chart (section
-   13) proves it.
+   13) proves it. In spine order, no three spaces in a row sit at tension 4-5, the map opens at 1-2, and a 1-2 follows
+   every peak (the validator reads the graph's `tension`: three in a row is an error; an opening above 2 or a peak
+   with no 1-2 after it is a warning justified in the design doc). (Michael 2026-10-24, "Add 1-4 as extras".)
 3. **The player sets the pace.** No forced timers in stealth sections. Pressure comes from guards, light and noise.
 4. **Guide without waypoints.** Landmarks visible from afar, light leading the eye towards the way on, sightlines into
    the next space.
@@ -232,6 +243,14 @@ against them, and re-confirm against the code when the prototype lands.
 ## 13. Required design deliverables (templates)
 Phase 1 and 2 of every map produce these in `docs/prompts/<map>-design.md` and `docs/prompts/<map>-plans/*.svg`.
 
+**Connectivity graph** (first, before any geometry and before the floor plans; Michael 2026-10-24, "Add 1-4 as
+extras"). One JSON file per map, `<map>.graph.json` (it may be split one file per section), in the format of
+`docs/level-validator/graph-schema.md`: every space (section, type, room class, function, size, tension, and for
+encounter spaces the targets: shadow share, vantage view, line-of-sight break, guards per player count) and every link
+(kind, route, width, height, length or time, reason). Phase 1 writes the spaces and links with the building brief;
+Phase 2 adds the routes, splits, overwatch spots, assists and targets. It passes `node scripts/level-validate.mjs
+<graph>` (every size from `docs/design/metrics.json`) before Phase 3 (section 14).
+
 **Building brief.** Purpose, era, location and site, construction (grid, wall thicknesses, storey heights, windows,
 materials), every room with its original purpose, size and present-day contents, vertical circulation, services (how
 people, goods, cables, air, water moved), palette and lighting character.
@@ -302,12 +321,24 @@ Every new map follows these phases, stopping for Michael after each:
 1. **Architectural design** (docs only): building brief and floor plans. Review.
 2. **Gameplay design** (docs only): space sheets, guard sheets, gameplay overlays, beat chart, coverage table, tool /
    problem matrix, metrics check, self-critique. Approval makes the docs the build contract.
+   **Validator gate** (Michael 2026-10-24, "Add 1-4 as extras"): Phase 2 ends with the map's connectivity graph (13)
+   passing `node scripts/level-validate.mjs` with 0 errors, every warning justified in the design doc, the output saved
+   with the design docs. No map enters Phase 3 (greybox) without it. The validator checks two-player reach, the spine
+   and per-section routes, room and opening sizes, the 0.5 m grid, ceilings, encounter routes and targets, co-op rules
+   (11) and pacing (6.2) against `docs/design/metrics.json`; guard counts print as INFO (4.9). A map already greyboxed
+   runs it as an audit; the campus (Sector Ops) is its first run.
 3. **Build** (one storey or area per phase, no guards): geometry, anchors, lights, zones, surfaces, doors, windows, hide
    spots; `scripts/plan-svg.mjs` renders the built level to compare with the approved plans.
 4. **Guards and mission**.
 5. **Dressing, readability and verification**.
 
 ## 15. Acceptance tests every map has
+- The map's connectivity graph passes the validator (`node scripts/level-validate.mjs`, 0 errors, warnings justified)
+  and matches the built map. (Michael 2026-10-24, "Add 1-4 as extras".)
+- Greybox measurements meet the graph's targets: shadow share (5.5), vantage view (3.1), line-of-sight break (3.4),
+  downed-partner reach (11.6) and split leg times (11.3), measured from the light bake and the nav grid; a measured
+  value that misses its target fails the map. The measuring step is a later job; until it lands, record each as "pending".
+  (Michael 2026-10-24, "Add 1-4 as extras".)
 - Every planned traversal element engages from its planned approach (pad).
 - `e2e-anchors.mjs` covers the map.
 - The split gaps on the map are exactly the planned ones.
