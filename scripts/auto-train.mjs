@@ -8,7 +8,15 @@
 //     request.mjs, which runs it as a plain pr request and posts only that context), its failure -> "failed", no
 //     verdict AUTO_TRAIN_RERUN_STALE_MIN (60) min after the request -> "rerun-stale", a request that failed 6 times ->
 //     "rerun-request-failed";
-//     any other failure -> state "failed" (nothing destructive: the orchestrator decides which member leaves); pending ->
+//     a laptop `laptop-e2e` failure (or a failed laptop rerun) -> auto-drop (Michael 2026-10-24 ~21:00, "Auto-drop on
+//     failure"): the member(s) whose change maps to a failing suite (pickDrops: the --affected DIRECT_COVERS map
+//     in scripts/e2e-affected.mjs, then most src/ files under the suite's folders, then the newest-labelled; never
+//     feature/menu) lose `train-ready` with a comment (suite + assert), the train PR is closed with a comment and the
+//     next train is built in the same tick ("DROPPED" log lines, `dropped: [{ pr, branch, suite }]` in the status);
+//     what it cannot work out stays "failed" for the orchestrator (also: a desktop failure with a cut FAIL list, a rerun
+//     failure with no FAIL list, over AUTODROP_MAX_SUITES suites, tier 1 taking every code member, a suite the last
+//     auto-dropped train also failed: `lastDrop` in the status), as does every failure under --no-autodrop;
+//     CI / build-time vitest failures stay "failed" (nothing destructive); pending ->
 //     wait; no laptop status 3 h after the head was pushed -> state "stale"; CI green but no laptop status 10 min
 //     after (AUTO_TRAIN_LAPTOP_MISSING_MIN) -> state "laptop-missing" (waitingMin in the status).
 //   no open train: open PRs to master labelled `train-ready` with a green `check` on their head (plus feature/menu
@@ -20,7 +28,7 @@
 // (--worktree, default C:/NightShift/Mobile-Coop-train). It reads GitHub through gh / ls-remote (no fetch of its own),
 // never forces a push, never touches dev or master; every write (gh or merge-train) goes through act(), which only
 // prints under --dry-run. Contract and states: docs/systems/auto-train.md.
-// Usage: node scripts/auto-train.mjs tick [--dry-run] [--worktree <dir>] [--min-interval <min>] [--max-per-day <n>]
+// Usage: node scripts/auto-train.mjs tick [--dry-run] [--no-autodrop] [--worktree <dir>] [--min-interval <min>] [--max-per-day <n>]
 // --preview-next (with --dry-run only): ignore an open train and show the build the next tick without one would make.
 // Fast poll: a tick that ends waiting (pending, laptop-rerun, holding) keeps its lock and runs the step again every
 // AUTO_TRAIN_FAST_POLL_S (60) s up to AUTO_TRAIN_FAST_POLL_MAX_MIN (4) min from its start, stopping on any state
@@ -41,6 +49,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { takeTouchLock } from './heavy-lock.mjs';
+import { coverFolders, DIRECT_COVERS, suiteSetFor } from './e2e-affected.mjs';
 
 export const LABEL = 'train-ready';
 export const LAPTOP_CONTEXT = 'laptop-e2e';
@@ -424,7 +433,16 @@ export const rerunContext = (n) => `${LAPTOP_CONTEXT}/${rerunSet(n)}`;
 export function desktopFailSuites(description) {
   const d = String(description ?? '').trim();
   if (!d.startsWith(DESKTOP_PREFIX)) return null;
-  const m = /;\s*FAIL:\s*(.*)$/.exec(d);
+  return failSuites(d);
+}
+
+/**
+ * The failed suites of any `laptop-e2e` description, the laptop's or the desktop's ("[desktop: ]37/39 pass, 512 s;
+ * known flaky: x; FAIL: a,b"): [] when no suite list can be trusted (no "FAIL:" part, a list cut by the 140-char limit
+ * ("..."), or an odd name).
+ */
+export function failSuites(description) {
+  const m = /;\s*FAIL:\s*(.*)$/.exec(String(description ?? '').trim());
   if (!m || m[1].trim().endsWith('...')) return [];
   const suites = m[1].split(',').map((s) => s.trim()).filter(Boolean);
   if (!suites.every((s) => /^[A-Za-z0-9._:+-]+$/.test(s))) return [];
@@ -513,6 +531,148 @@ export function fastPollPlan(state, startedAt, now, { pollS = FAST_POLL_S, maxMi
 
 /** True when every path is documentation (Markdown anywhere or under docs/). */
 export const docsOnly = (files) => files.length > 0 && files.every((f) => /\.md$/i.test(f) || f.startsWith('docs/'));
+
+// ---- auto-drop on a failed train (Michael 2026-10-24 ~21:00, "Auto-drop on failure"; --no-autodrop: the old wait) ----
+
+/** A suite job name without its part ("e2e-ctcourse:4" -> "e2e-ctcourse"). */
+export const suiteBase = (s) => String(s ?? '').trim().split(':')[0];
+
+/**
+ * The failing asserts of the newest laptop-queue failure comment on this head (scripts/laptop-queue/service.mjs
+ * failureComment: "laptop-e2e failed on <sha8> (<ref>)." then "**<suite>**\nFailing assert: `<line>`" per suite).
+ * `bodies` = the PR's comment bodies, oldest first. -> { [suite]: assert ('' for "none found") }, {} without one.
+ */
+export function failureAsserts(bodies, head) {
+  const tag = `laptop-e2e failed on ${short(head)}`;
+  const body = [...(bodies ?? [])].reverse().find((b) => head && String(b).startsWith(tag));
+  const out = {};
+  for (const m of String(body ?? '').replace(/\r\n/g, '\n').matchAll(/^\*\*(\S+)\*\*\nFailing assert: `(.*)`$/gm)) {
+    if (!(m[1] in out)) out[m[1]] = m[2] === 'none found' ? '' : m[2];
+  }
+  return out;
+}
+
+/**
+ * Whether a failed open train is auto-dropped: `d` = decide(), `rp` = rerunPlan(). -> null (not a laptop failure: CI
+ * red, build-time vitest, a desktop failure still on its laptop rerun, rerun-stale, ...) or { failing, reason }:
+ * failing = the description's FAIL list (the rerun's own description, else the suites it reran), [] when unknown.
+ */
+export function autoDropCase(train, d, rp) {
+  if (!train) return null;
+  if (rp) {
+    if (rp.state !== 'failed') return null;
+    // a rerun with no FAIL list (service error, a slot gave no result, build failed) is no member's failure
+    const own = failSuites(train.rerun?.description);
+    if (!own.length) return null;
+    return { failing: own, reason: rp.reason };
+  }
+  if (d?.state !== 'failed' || train.laptop?.state !== 'failure' || train.ci === 'failure' || train.vitest === 'failure') return null;
+  // a desktop failure whose FAIL list is cut (no laptop rerun was possible) stays "failed" for the orchestrator
+  if (desktopFailSuites(train.laptop.description) !== null) return null;
+  return { failing: failSuites(train.laptop.description), reason: d.reason };
+}
+
+/** At most this many failing suites (distinct, parts as their suite) are auto-dropped; more is master / the machine, not a member. */
+export const AUTODROP_MAX_SUITES = 3;
+
+/**
+ * The failing suites (as their base suite) that the last auto-dropped train (`lastDrop: { train, failing }`, carried in
+ * the status) also failed: a repeat points at master or a flake, not a member, so no drop. A record of train `n`
+ * itself (a retried drop of the same train) never counts.
+ */
+export function repeatedSuites(lastDrop, failing, n) {
+  if (!lastDrop?.failing?.length || lastDrop.train === n) return [];
+  const before = new Set(lastDrop.failing.map(suiteBase));
+  return [...new Set((failing ?? []).map(suiteBase))].filter((s) => before.has(s));
+}
+
+/** The status after a step: keeps the last auto-drop record (`lastDrop`) until a release or a newer drop replaces it. */
+export function carryLastDrop(prev, status) {
+  if (!status || status.lastDrop || status.released || !prev?.lastDrop) return status;
+  return { ...status, lastDrop: prev.lastDrop };
+}
+
+/**
+ * Which members leave a train whose laptop run failed `failing` (suite names, parts allowed). members = [{ pr, branch,
+ * files, labeledAt }] (files: the member's `git diff --name-only origin/master...<head>`; labeledAt: ms the
+ * `train-ready` label was last added, or null). Never the docs member (feature/menu) nor a member without a PR.
+ * Tier 1: every member whose `--affected` suites (scripts/e2e-affected.mjs DIRECT_COVERS, the narrow map: fewer
+ * over-drops than the --quick map; `map` overrides it) include a failing suite.
+ * Tier 2 (none matched): the member with the most src/ files under the failing suites' folders (coverFolders: any
+ * QUICK_COVERS row naming the suite, the broad map).
+ * Tier 3 (all zero, or a tie at the top: then among the tied): the newest-labelled member (higher PR number on a tie).
+ * Docs-only members never leave in tiers 2-3; a train with one code member drops it (tier 3).
+ * -> { drops: [{ pr, branch, suite, tier }], reason } (drops [] when nothing can be dropped: reason says why).
+ */
+export function pickDrops(members, failing, { map = DIRECT_COVERS } = {}) {
+  const fails = [...new Set((failing ?? []).map(suiteBase).filter(Boolean))];
+  const pool = (members ?? []).filter((m) => m?.pr && m.branch !== MENU_BRANCH);
+  if (!fails.length) return { drops: [], reason: 'no failing suite named' };
+  if (!pool.length) return { drops: [], reason: 'no member with a PR besides the docs member' };
+  if (fails.length > AUTODROP_MAX_SUITES) return { drops: [], reason: `${fails.length} suites failed (over ${AUTODROP_MAX_SUITES}: master or the machine, not one member)` };
+  const code = pool.filter((m) => !docsOnly(m.files ?? []));
+  const tier1 = pool.flatMap((m) => {
+    const s = suiteSetFor(m.files ?? [], map);
+    const hit = fails.find((f) => s.has(f));
+    return hit ? [{ pr: m.pr, branch: m.branch, suite: hit, tier: 1 }] : [];
+  });
+  if (tier1.length && code.length >= 2 && code.every((m) => tier1.some((x) => x.pr === m.pr))) {
+    return { drops: [], reason: `every code member (${code.map((m) => `#${m.pr}`).join(', ')}) touches ${fails.join(',')}: not dropping the whole train` };
+  }
+  if (tier1.length) return { drops: tier1, reason: `${tier1.map((x) => `#${x.pr}`).join(', ')} touch the failing suite (--affected map)` };
+  if (!code.length) return { drops: [], reason: 'every member is docs-only' };
+  const scored = code.map((m) => {
+    const src = (m.files ?? []).filter((f) => f.startsWith('src/'));
+    let best = { suite: fails[0], n: 0 };
+    for (const s of fails) {
+      const folders = coverFolders(s);
+      const n = src.filter((f) => folders.some((p) => f.startsWith(p))).length;
+      if (n > best.n) best = { suite: s, n };
+    }
+    return { m, ...best };
+  });
+  const top = Math.max(...scored.map((x) => x.n));
+  const lead = scored.filter((x) => x.n === top);
+  if (top > 0 && lead.length === 1) {
+    const x = lead[0];
+    return { drops: [{ pr: x.m.pr, branch: x.m.branch, suite: x.suite, tier: 2 }], reason: `no member maps to ${fails.join(',')}; #${x.m.pr} has the most src/ files under its folders (${top})` };
+  }
+  const among = top > 0 ? lead : scored;
+  const x = [...among].sort((a, b) => (b.m.labeledAt ?? -Infinity) - (a.m.labeledAt ?? -Infinity) || b.m.pr - a.m.pr)[0];
+  const why = code.length === 1 ? 'the only code member' : top > 0 ? `a tie at ${top} src/ files under its folders, newest ${LABEL}` : `no member touches its folders, newest ${LABEL}`;
+  return { drops: [{ pr: x.m.pr, branch: x.m.branch, suite: x.suite, tier: 3 }], reason: `no member maps to ${fails.join(',')}; #${x.m.pr}: ${why}` };
+}
+
+/** The `gh pr edit` argv dropping LABEL (null without it) and the comment (null when one with `marker` exists). */
+function memberLabelPlan({ pr, labels = [], bodies = [], marker, paragraphs }) {
+  const comment = bodies.some((b) => String(b).includes(marker)) ? null : [...paragraphs, marker].join('\n\n');
+  const remove = labels.includes(LABEL) ? ['gh', 'pr', 'edit', String(pr), '--remove-label', LABEL] : null;
+  return { remove, comment };
+}
+
+const TIER_WHY = {
+  1: (s) => `its change touches \`${s}\` (the \`--affected\` folder map, scripts/e2e-affected.mjs)`,
+  2: (s) => `no member's change maps to \`${s}\`; this one has the most \`src/\` files under that suite's folders`,
+  3: (s) => `no member's change maps to \`${s}\`; dropped as the newest \`${LABEL}\` member (or the only one)`,
+};
+
+/**
+ * A member dropped from failed train n: { remove, comment } as leftOutPlan, one comment per train and head
+ * (`<!-- auto-train:dropped:train<n>:<head> -->`), naming the train, the failing suite and its assert line.
+ */
+export function dropPlan({ pr, branch, head, n, suite, tier, assert = '', labels = [], bodies = [] }) {
+  return memberLabelPlan({ pr, labels, bodies, marker: `<!-- auto-train:dropped:train${n}:${head} -->`, paragraphs: [
+    `Auto-train: \`${branch}\` (${short(head)}) was dropped from train ${n}: \`${suite}\` failed there; ${(TIER_WHY[tier] ?? TIER_WHY[3])(suite)}.`,
+    `Failing assert: \`${String(assert || 'none found').replace(/`/g, "'").slice(0, 500)}\``,
+    `Train ${n} is closed and the next train is built from the other members. The \`${LABEL}\` label has been removed: fix the failure on this branch, then re-add \`${LABEL}\` once \`check\` is green.`] });
+}
+
+/** The comment closing failed train n (head, failing suites, the dropped members). */
+export function closeTrainBody({ n, head, failing, drops }) {
+  return [`Auto-train: train ${n} failed ${failing.join(', ')} on ${short(head)}; closed without merging.`,
+    `Dropped (\`${LABEL}\` removed, commented): ${drops.map((d) => `#${d.pr} \`${d.branch}\` (${d.suite})`).join(', ')}.`,
+    'The next train is built at once from the remaining train-ready PRs.'].join('\n\n');
+}
 
 const short = (sha) => String(sha ?? '').slice(0, 8);
 
@@ -630,13 +790,14 @@ function contains(a, b) {
 
 function parseOpts(argv) {
   const [cmd, ...rest] = argv;
-  if (cmd !== 'tick') throw new Error('usage: node scripts/auto-train.mjs tick [--dry-run] [--once] [--worktree <dir>] [--min-interval <min>] [--max-per-day <n>] [--preview-next]');
+  if (cmd !== 'tick') throw new Error('usage: node scripts/auto-train.mjs tick [--dry-run] [--once] [--no-autodrop] [--worktree <dir>] [--min-interval <min>] [--max-per-day <n>] [--preview-next]');
   const o = { minInterval: 60, maxPerDay: 0, worktree: CWD };
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     const num = () => { const v = Number(rest[++i]); if (!Number.isFinite(v) || v < 0) throw new Error(`${a} needs a number >= 0`); return v; };
     if (a === '--dry-run') continue;
     else if (a === '--once') o.once = true;
+    else if (a === '--no-autodrop') o.noAutodrop = true;
     else if (a === '--min-interval') o.minInterval = num();
     else if (a === '--max-per-day') o.maxPerDay = num();
     else if (a === '--worktree') o.worktree = rest[++i];
@@ -763,13 +924,24 @@ function nextN() {
  * candidate (no repeat empty builds); the lead re-adds it after fixing the conflict (audit 2026-10-24 item 4).
  */
 export function leftOutPlan({ pr, branch, head, n, why, labels = [], bodies = [] }) {
-  const marker = `<!-- auto-train:left-out:${head} -->`;
-  const comment = bodies.some((b) => String(b).includes(marker)) ? null : [
+  return memberLabelPlan({ pr, labels, bodies, marker: `<!-- auto-train:left-out:${head} -->`, paragraphs: [
     `Auto-train: \`${branch}\` (${short(head)}) was left out of train ${n}: ${why}.`,
-    `Please fix the conflict with master on this branch (or on train/${n}). The \`${LABEL}\` label has been removed, so this PR no longer joins trains: re-add \`${LABEL}\` once the conflict is fixed and \`check\` is green.`,
-    marker].join('\n\n');
-  const remove = labels.includes(LABEL) ? ['gh', 'pr', 'edit', String(pr), '--remove-label', LABEL] : null;
-  return { remove, comment };
+    `Please fix the conflict with master on this branch (or on train/${n}). The \`${LABEL}\` label has been removed, so this PR no longer joins trains: re-add \`${LABEL}\` once the conflict is fixed and \`check\` is green.`] });
+}
+
+/** A PR's labels and comment bodies (for leftOutPlan / dropPlan). */
+function prLabelsBodies(pr) {
+  const v = readJson(['gh', 'pr', 'view', String(pr), '--json', 'comments,labels']);
+  return { labels: (v?.labels ?? []).map((x) => x.name), bodies: (v?.comments ?? []).map((x) => x.body) };
+}
+
+/** Applies a leftOutPlan / dropPlan: label removal (a failure is logged, not fatal), then the comment. */
+function applyMemberPlan(pr, branch, p, what) {
+  if (p.remove) {
+    log(`  #${pr} ${branch}: ${what}, removing ${LABEL}`);
+    try { act(p.remove); } catch (e) { log(`  #${pr}: label removal failed: ${e.message}`); }
+  }
+  if (p.comment) act(['gh', 'pr', 'comment', String(pr), '--body', p.comment]);
 }
 
 /** Per left-out PR: drop its `train-ready` label (logged; a failure is logged, not fatal) and comment once per head. */
@@ -777,14 +949,69 @@ function commentLeftOut(cands, left, n) {
   for (const l of left) {
     const c = cands.find((x) => x.branch === l.branch);
     if (!c?.pr) continue;
-    const v = readJson(['gh', 'pr', 'view', String(c.pr), '--json', 'comments,labels']);
-    const lp = leftOutPlan({ pr: c.pr, branch: c.branch, head: c.head, n, why: l.why, labels: (v.labels ?? []).map((x) => x.name), bodies: (v.comments ?? []).map((x) => x.body) });
-    if (lp.remove) {
-      log(`  #${c.pr} ${c.branch}: left out of train ${n}, removing ${LABEL}`);
-      try { act(lp.remove); } catch (e) { log(`  #${c.pr}: label removal failed: ${e.message}`); }
-    }
-    if (lp.comment) act(['gh', 'pr', 'comment', String(c.pr), '--body', lp.comment]);
+    applyMemberPlan(c.pr, c.branch, leftOutPlan({ pr: c.pr, branch: c.branch, head: c.head, n, why: l.why, ...prLabelsBodies(c.pr) }), `left out of train ${n}`);
   }
+}
+
+/** A member head's changed files vs master: `git diff --name-only origin/master...<head>` when the head is local, else the compare API; null when unreadable. */
+function memberFiles(head) {
+  try {
+    if (exec(['git', 'cat-file', '-e', `${head}^{commit}`]).status === 0) {
+      const r = exec(['git', 'diff', '--name-only', `origin/master...${head}`]);
+      if (r.status === 0) return r.out.split('\n').map((s) => s.trim()).filter(Boolean);
+    }
+    const s = api(`repos/{owner}/{repo}/compare/master...${head}`, '[.files[].filename]');
+    return s ? JSON.parse(s) : null;
+  } catch (e) { log(`  diff of ${short(head)} unreadable: ${e.message}`); return null; }
+}
+
+/** When `train-ready` was last added to a PR (ms), or null. */
+function labeledAt(pr) {
+  try {
+    // every page (oldest first): the last labelled time wins
+    const r = exec(['gh', 'api', '--paginate', `repos/{owner}/{repo}/issues/${pr}/events?per_page=100`, '--jq', `.[] | select(.event == "labeled" and .label.name == "${LABEL}") | .created_at`]);
+    if (r.status !== 0) return null;
+    return Date.parse(r.out.trim().split('\n').filter(Boolean).pop() ?? '') || null;
+  } catch { return null; }
+}
+
+/**
+ * Auto-drop (Michael 2026-10-24 ~21:00): a failed laptop run drops the member(s) pickDrops names (label removed, one
+ * comment each with the failing suite and assert), closes the train PR with a comment and builds the next train from
+ * the remaining train-ready PRs in this tick (pacing skipped: the failed train already passed it). Anything it cannot
+ * work out (no failing suite, an unreadable diff, nothing to drop) keeps the old state "failed" for the orchestrator.
+ */
+async function autoDrop(t, o, labelExists, base, c) {
+  const left = (why) => { log(`autodrop: ${why}: left for the orchestrator`); return { ...base, state: 'failed', reason: `${c.reason}; autodrop: ${why}, left for the orchestrator` }; };
+  const asserts = failureAsserts(prLabelsBodies(t.pr).bodies, t.head);
+  const failing = c.failing.length ? c.failing : Object.keys(asserts);
+  if (!failing.length) return left('no failing suite in the description or a failure comment');
+  const again = repeatedSuites(base.lastDrop, failing, t.n);
+  if (again.length) return left(`${again.join(',')} also failed train ${base.lastDrop.train}, which was auto-dropped (master or a flake, not a member)`);
+  const prs = readJson(['gh', 'pr', 'list', '--state', 'open', '--base', 'master', '--limit', '100', '--json', 'number,headRefName,headRefOid']);
+  const members = [];
+  for (const b of t.members) {
+    const p = prs.find((x) => x.headRefName === b);
+    if (b === MENU_BRANCH || !p) continue;
+    const files = memberFiles(p.headRefOid);
+    if (!files) return left(`the diff of ${b} is unreadable`);
+    members.push({ pr: p.number, branch: b, head: p.headRefOid, files, labeledAt: labeledAt(p.number) });
+  }
+  const pick = pickDrops(members, failing);
+  if (!pick.drops.length) return left(pick.reason);
+  log(`autodrop: train ${t.n} failed ${failing.join(',')}: ${pick.reason}`);
+  for (const d of pick.drops) {
+    const m = members.find((x) => x.pr === d.pr);
+    const assert = asserts[d.suite] ?? Object.entries(asserts).find(([s]) => suiteBase(s) === d.suite)?.[1] ?? '';
+    log(`DROPPED #${d.pr} ${d.branch} from train ${t.n}: ${d.suite} (tier ${d.tier})${assert ? `: ${assert.slice(0, 200)}` : ''}`);
+    try { applyMemberPlan(d.pr, d.branch, dropPlan({ ...d, head: m.head, n: t.n, assert, ...prLabelsBodies(d.pr) }), `dropped from train ${t.n}`); } catch (e) { log(`  #${d.pr}: drop comment failed: ${e.message}`); }
+  }
+  act(['gh', 'pr', 'close', String(t.pr), '--comment', closeTrainBody({ n: t.n, head: t.head, failing, drops: pick.drops })]);
+  log(`closed train ${t.n} #${t.pr}; building the next train now`);
+  const dropped = pick.drops.map(({ pr, branch, suite }) => ({ pr, branch, suite }));
+  const next = await noTrain(o, labelExists, { exclude: dropped.map((d) => d.branch), afterDrop: true });
+  return { ...next, dropped, closedTrain: { train: t.n, pr: t.pr, head: t.head, failing }, dropReason: pick.reason,
+    lastDrop: { train: t.n, failing: [...new Set(failing.map(suiteBase))], at: new Date().toISOString() } };
 }
 
 /** Builds train n from `cands`; returns the status fields. */
@@ -819,11 +1046,18 @@ async function build(n, cands, { rebuildOf } = {}) {
   return { ...base, head, state: 'error', reason: `merge-train build exit ${r.code}: ${r.out.trim().split('\n').slice(-3).join(' | ')}`, leftOut };
 }
 
-/** No open train: candidates, pacing, build. */
-async function noTrain(o, labelExists) {
-  const { cands, waiting } = candidates(labelExists);
+/**
+ * No open train: candidates, pacing, build. After an auto-drop: `exclude` = the dropped branches (also when their label
+ * removal failed or under --dry-run), `afterDrop` skips pacing (the failed train already passed it).
+ */
+async function noTrain(o, labelExists, { exclude = [], afterDrop = false } = {}) {
+  const pick = () => {
+    const r = candidates(labelExists);
+    return { ...r, cands: r.cands.filter((c) => !exclude.includes(c.branch)), waiting: r.waiting.filter((c) => !exclude.includes(c.branch)) };
+  };
+  const { cands, waiting } = pick();
   const queue = laptopQueue();
-  const paceReason = pacing({ now: Date.now(), releases: releaseTimes(), minIntervalMin: o.minInterval, maxPerDay: o.maxPerDay, queue });
+  const paceReason = afterDrop ? null : pacing({ now: Date.now(), releases: releaseTimes(), minIntervalMin: o.minInterval, maxPerDay: o.maxPerDay, queue });
   const d = decide({ train: null, candidates: cands, paceReason });
   // audit 2 item 1: a train-ready PR whose check is still running holds the build up to CHECK_WAIT per head (first
   // seen waiting: `checkWait` in the status, carried across ticks)
@@ -838,7 +1072,7 @@ async function noTrain(o, labelExists) {
   if (d.state === 'idle') selfUpdate();
   if (d.action !== 'build') return { state: d.state, reason: d.reason, candidates: cands.map((c) => c.branch), ...checkWait };
   // re-read the candidates right before the build, so the member list is fresh (a PR that just went green rides along)
-  const fresh = candidates(labelExists).cands;
+  const fresh = pick().cands;
   const fd = decide({ train: null, candidates: fresh, paceReason });
   if (fd.action !== 'build') { log(`decision (re-read): ${fd.state} - ${fd.reason}`); return { state: fd.state, reason: fd.reason, candidates: fresh.map((c) => c.branch) }; }
   const added = fresh.filter((c) => !cands.some((x) => x.branch === c.branch && x.head === c.head)).map((c) => c.branch);
@@ -849,14 +1083,24 @@ async function noTrain(o, labelExists) {
 async function step(o) {
   const labelExists = ensureLabel();
   const t = o.previewNext ? null : openTrain();
-  if (!t) return noTrain(o, labelExists);
+  const prev = readStatus(FILES.realStatus);
+  if (!t) {
+    // a build held right after an auto-drop (fast poll / next tick) keeps the drop's exclusions and skips pacing
+    const ad = prev?.state === 'holding' && prev.dropped?.length ? prev : null;
+    const next = await noTrain(o, labelExists, ad ? { exclude: ad.dropped.map((x) => x.branch), afterDrop: true } : {});
+    return ad ? { ...next, dropped: ad.dropped, closedTrain: ad.closedTrain, dropReason: ad.dropReason } : next;
+  }
   const d = decide({ train: t, laptopMissingMin: LAPTOP_MISSING });
   log(`train ${t.n} #${t.pr} ${short(t.head)} ${t.version ?? '?'}: CI ${t.ci}, laptop ${t.laptop.state}${t.laptop.description ? ` (${t.laptop.description})` : ''}, age ${Math.round(t.ageMin)} min -> ${d.state}: ${d.reason}`);
-  const prev = readStatus(FILES.realStatus);
-  // The rerun record rides along in every status of the same head, so that head never requests twice.
-  const base = { train: t.n, version: t.version, head: t.head, pr: t.pr, ...(prev?.rerun?.head === t.head ? { rerun: prev.rerun } : {}) };
+  // The rerun record rides along in every status of the same head, so that head never requests twice; the last
+  // auto-drop record (lastDrop) rides along until a release (carryLastDrop).
+  const base = { train: t.n, version: t.version, head: t.head, pr: t.pr, ...(prev?.rerun?.head === t.head ? { rerun: prev.rerun } : {}),
+    ...(prev?.lastDrop ? { lastDrop: prev.lastDrop } : {}) };
   // a releasable train (a laptop-e2e pass, or a desktop failure whose laptop rerun passed) goes the normal release way
   const rp = d.action === 'release' ? null : rerunPlan(t, prev, { now: Date.now(), staleMin: RERUN_STALE });
+  // a laptop failure (or a failed laptop rerun) drops the culprit and rebuilds at once; --no-autodrop: wait as before
+  const drop = o.noAutodrop ? null : autoDropCase(t, d, rp);
+  if (drop) return autoDrop(t, o, labelExists, base, drop);
   if (rp) return rerunStep(t, rp, base);
   if (d.action !== 'release') return { ...base, state: d.state, reason: d.reason, ...(d.waitingMin != null ? { waitingMin: d.waitingMin } : {}) };
   const master = exec(['git', 'ls-remote', 'origin', 'refs/heads/master']).out.split('\t')[0].trim() || null;
@@ -960,12 +1204,13 @@ async function main(argv) {
 
 /** step() with errors turned into an error status that keeps the rerun record (no second request), the failed-request count and checkWait. */
 async function safeStep(o) {
-  try { return await step(o); } catch (e) {
+  const before = readStatus(FILES.realStatus);
+  try { return carryLastDrop(before, await step(o)); } catch (e) {
     const prevStatus = readStatus(FILES.realStatus);
     log(`ERROR: ${e.message}`);
     return { state: 'error', reason: e.message.slice(0, 500), ...(prevStatus?.rerun ? { rerun: prevStatus.rerun } : {}),
       ...(prevStatus?.rerunRequestFailed ? { rerunRequestFailed: prevStatus.rerunRequestFailed } : {}),
-      ...(prevStatus?.checkWait ? { checkWait: prevStatus.checkWait } : {}) };
+      ...(prevStatus?.checkWait ? { checkWait: prevStatus.checkWait } : {}), ...(prevStatus?.lastDrop ? { lastDrop: prevStatus.lastDrop } : {}) };
   }
 }
 

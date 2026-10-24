@@ -62,7 +62,8 @@ Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then
 - The folder -> suites maps live in `scripts/e2e-affected.mjs` (pure, tested by `tests/e2eAffected.test.ts`): `QUICK_COVERS`
   (`--quick`, master's map and rules unchanged; the test holds a frozen copy and checks it row by row), `DIRECT_COVERS`
   (`--affected`) and `WIDE_COVERS` (`--affected --wide`). Edit them there and keep their rule comments true. A name with a
-  part (`e2e-sectorops:1`) is one job; a whole suite absorbs its parts.
+  part (`e2e-sectorops:1`) is one job; a whole suite absorbs its parts. `scripts/auto-train.mjs` reads them too (auto-drop:
+  `suiteSetFor` over `DIRECT_COVERS` picks the failed train's culprit, `coverFolders` over `QUICK_COVERS` is its fallback).
 - The lists (process audit, 2026-10-19): REQUIRED = the co-op training level (Marlow Yard) and the systems it stands
   on. LEGACY (`--legacy`): `e2e-progression`, `e2e-cosmetics`, `e2e-clear`, `e2e-bunker` (these four get `LEGACY=1`, so
   `e2e-lib` adds `legacy=1`), `e2e-missions`, `e2e-modes`, `e2e-enemies`, `e2e-ct-warehouse`, `e2e-wall:flanker`,
