@@ -24,16 +24,28 @@ await Promise.all(CONFIGS.map(async ([name, q], k) => {
     // every PBR material has the plugin, so a material made just before the read is not counted unplugged (a real miss
     // still fails the assert). (load-latent-ui1) 120 s cap: four browsers bake side by side, and under CPU load the
     // loaders and the next frame ran past 5 s
+    // (marlow-final e2e-fix4) and the PBR count unchanged over ~1 s: the laptop GPU run read 10 / 11 (a loader made a
+    // material between this wait and the read; a desktop run reads 20 / 20 once loading ends)
     await page.waitForFunction(() => {
       const pbr = window.__app.current.world.scene.materials.filter((m) => m.getClassName() === 'PBRMaterial');
-      return pbr.every((m) => !!m.pluginManager?.getPlugin('BakedLamps'));
-    }, null, { timeout: 120000 }).catch(() => {});
-    const info = await page.evaluate(() => {
+      const ok = pbr.every((m) => !!m.pluginManager?.getPlugin('BakedLamps'));
+      const s = (window.__lbStable ??= { n: -1, k: 0 });
+      s.k = ok && pbr.length === s.n ? s.k + 1 : 0;
+      s.n = pbr.length;
+      return s.k >= 4;
+    }, null, { timeout: 120000, polling: 250 }).catch(() => {});
+    const read = () => page.evaluate(() => {
       const w = window.__app.current.world;
       const q = window.__app.quality.level;
       const pbr = w.scene.materials.filter((m) => m.getClassName() === 'PBRMaterial');
-      return { ...w.lightInfo(), minimal: !!q.minimal, lamps: !!w.lamps, pbr: pbr.length, plugged: pbr.filter((m) => !!m.pluginManager?.getPlugin('BakedLamps')).length };
+      return { ...w.lightInfo(), minimal: !!q.minimal, lamps: !!w.lamps, pbr: pbr.length, plugged: pbr.filter((m) => !!m.pluginManager?.getPlugin('BakedLamps')).length, unplugged: pbr.filter((m) => !m.pluginManager?.getPlugin('BakedLamps')).map((m) => m.name).join(',') };
     });
+    let info = await read();
+    // (a material made just before the read gets the plugin on the next frame: read again; a real miss stays unplugged)
+    for (let t = 0; t < 3 && info.plugged !== info.pbr; t++) {
+      await frames(page, 6);
+      info = await read();
+    }
     if (name === 'gfx=epic') {
       // (fix round) the level material compiles the lamp plugin with LAMP_LEVEL (no night-vision body fill cap); no other
       // material does (bodies, weapons and props keep the cap)
@@ -67,7 +79,8 @@ await Promise.all(CONFIGS.map(async ([name, q], k) => {
       info.lampLevel = lvl;
       // (LR14) character silhouette shadows: on at Epic (4 lamp slots, one atlas), the level shader compiles
       // LAMP_CSHADOW, the slots near the player copy maps into the atlas, and every drawn shader still fits WebGL's 16
-      // textures with the guards alerted (their flashlights take the rig's shadow pool)
+      // textures with the guards alerted (LR16t: their flashlights are drawn by the baked lamps and shadowed through the
+      // torch atlas, one sampler; the rig's shadow pool stays empty while the atlas is on)
       info.cs = await page.evaluate(async () => {
         const g = window.__app.current;
         const cs = g.world.charShadows;
@@ -139,7 +152,7 @@ try {
   const epic = infos.find(([n]) => n === 'gfx=epic')[1];
   for (const [n, i] of [['gfx=epic', epic]]) {
     assert(i.lamps, `${n}: draws the bake (the baked lamps)`);
-    assert(i.pbr > 0 && i.plugged === i.pbr, `${n}: the lamp plugin is on every PBR material (${i.plugged} / ${i.pbr})`);
+    assert(i.pbr > 0 && i.plugged === i.pbr, `${n}: the lamp plugin is on every PBR material (${i.plugged} / ${i.pbr}${i.unplugged ? `; unplugged: ${i.unplugged}` : ''})`);
   }
   assert(epic.lampLevel?.sky === true, `smooth Epic: the level material takes the fill and probe light by sky visibility (LAMP_SKY, ${JSON.stringify(epic.lampLevel)})`);
   assert(epic.lampLevel?.level === true && epic.lampLevel.others === 0, `smooth Epic: only the level material compiles LAMP_LEVEL (${JSON.stringify(epic.lampLevel)})`);

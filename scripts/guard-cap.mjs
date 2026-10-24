@@ -88,6 +88,8 @@ const MAP_Q = {
   // (guard-models G8) Saltmarsh Park in Sector mode; `sectorGuards=0` as for sectorops (the fallback
   // `autostart=campusops&mode=sandbox` never booted: wrong-case map id, and sandbox has no enemy manager)
   campusops: 'autostart=campusOps&mode=sector&sectorGuards=0',
+  // (sector-redesign ART-KIT) Saltmarsh Park (campusOps), no section guards spawn; section 1's start
+  campus: 'autostart=campusOps&mode=sector&sectorGuards=0',
 };
 const mapQuery = (m) => MAP_Q[m] ?? (m.includes(':') ? `autostart=${m.split(':')[0]}&mode=${m.split(':')[1]}` : `autostart=${m}&mode=sandbox`);
 
@@ -467,13 +469,16 @@ async function pageRender([secs, counted]) {
 function pageAlert() {
   const g = window.__app.current;
   const em = g.enemyMgr;
+  // (guard-ai S24, A146/A148) one last known position per player, and no walk to the real feet without one: the
+  // player is reported seen where he stands (his slot, the mirrored lkp) and every guard is told of him before combat,
+  // so they chase as before S24 (the old direct `em.lkp` write gave no guard an intruder: they stood still)
+  const slot = em.ctx.reportSighting({ id: g.localRef.id, feet: g.player.position.clone(), spotted: false });
   for (const e of em.enemies) {
     if (!e.alive) continue;
     e.passive = false;
+    e.tell(slot);
     e.alert();
   }
-  em.lkp.copyFrom(g.player.position);
-  em.lkpValid = true;
   return em.alive;
 }
 

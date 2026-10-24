@@ -1,20 +1,19 @@
 /**
- * Marlow Yard light pass (course-ready S2, `docs/course-ready/LIGHT.md` 4a): the real ctcourse light field, baked in node
- * with the pure bakers as `World.create` + `bakeLevelLight` do. Every must-see spot reads lit enough to see on screen,
- * the dark between the yard's pools stays dark, the airlock lamps stay inside their airlocks with the doors shut, the
- * station 3 camera bay is untouched and no 2 m column lists more lamps than the shaders hold.
- * (marlow-bunker) The bunker's ceilings, lids and fittings keep those levels: no moon, the 0.30 floor is all fill, and every
- * point stays within 0.08 of the course-ready tuning (`ctcourseLight.tuned.json`, `docs/marlow-bunker/LIGHT.md`).
- * `CTLIGHT_PRINT=1` prints every point's level (the table in LIGHT.md section 3).
+ * Marlow Yard light frame (marlow-final slice 0d; SPEC section 7, LIGHTING-PLAN sections 2-5): the real ctcourse light
+ * field, baked in node with the pure bakers as `World.create` + `bakeLevelLight` do, read at every part's light-test
+ * spots (`LIGHT_SPOTS`: the facility's and each set's `SetPart.lightSpots`) against the plan's bands (`MARLOW_LEVEL`):
+ * lit pools >= 0.60, read floor >= 0.40, dark pockets <= 0.22 crouched, a cut circuit's area <= 0.24, the sets' standby
+ * 0.14 and the facility rooms' house 0.30 with every lamp off. No house or gallery lamp reaches a set's spot, no 2 m
+ * column lists more lamps than the shaders hold, no moon. Each set's tuned levels live in its own
+ * `tests/ctcourse/<set>.light.json` (one file per set, so parallel builders never share one): every spot within 0.08 of
+ * its tuning and no band change but at a band's edge. `CTLIGHT_PRINT=1` prints each set's json to paste after a re-tune.
  */
 import { beforeAll, describe, expect, it } from 'vitest';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { LevelBuilder } from '../src/world/levelBuilder';
-import { AIRLOCK_LAMP_Y, ANNEX_LAMP_Y, bayX, ctcourse, CT_BAY, CT_CEIL, CT_OBST, HIGH_LAMP_Y, S3_CAMERA, S3_CAMERA_AIM, S3_HALL, S3_PANEL_X, S3_SEC_POST, S3_SEC_ROOM, S5_PANEL } from '../src/world/maps/ctcourse';
-import { camRange, cameraRate, newMeter, stepCamMeter } from '../src/security/camera';
-import { sightRate } from '../src/ai/perception';
-import { SENSITIVITY } from '../src/ai/alertState';
-import { CAMERA } from '../src/config/security';
-import { GEARS } from '../src/config/movement';
+import { buildCtcourse, ctcourse, LIGHT_SPOTS } from '../src/world/maps/ctcourse';
+import { SET_IDS, inSet, type LightSpot, type SetId } from '../src/world/maps/ctcourseSets/types';
+import { MOVEMENT } from '../src/config/movement';
 import { dressingOn } from '../src/world/detailPass';
 import { canonicalLightSet } from '../src/voxel/lightShapes';
 import { bakeLamps, LAMP_GRID, LAMP_GRID_SLOTS, LAMP_STRIDE } from '../src/voxel/lampBake';
@@ -24,10 +23,10 @@ import { buildAmbientGrid } from '../src/world/ambientGrid';
 import { LightField, type FieldDoor } from '../src/world/lightField';
 import { moonLight } from '../src/world/lampMath';
 import { LIGHT } from '../src/world/lights';
-import tuned from './ctcourseLight.tuned.json';
+import { MARLOW_LEVEL } from '../src/world/lighting/levels';
 
 const b = new LevelBuilder();
-ctcourse.build(b, 0);
+const built = buildCtcourse(b);
 const reg = b.lights;
 let bake: LightBake;
 let open: LightField;
@@ -55,166 +54,69 @@ beforeAll(() => {
   bakeMs = performance.now() - t0;
 }, 120_000);
 
-const body = (f: LightField, x: number, y: number, z: number): number => f.bodyLevel(x, y, z, 1.7);
-/** Bake index of the lamp at (x, y, z), -1 when there is none. */
-const lampIdx = (x: number, y: number, z: number): number =>
-  bake.lamps!.baked.ids.findIndex((id) => {
-    const l = reg.lights[id]!;
-    return Math.abs(l.x - x) < 0.01 && Math.abs(l.y - y) < 0.01 && Math.abs(l.z - z) < 0.01;
-  });
-/** Registry id of the lamp at (x, y, z). */
-const lampId = (x: number, y: number, z: number): number => bake.lamps!.baked.ids[lampIdx(x, y, z)] ?? -1;
-
-const MID = 7;
-/** The airlock lamps (L1-L7), the station 5 medkit lamp (L10), the station 7 and station 2 wall-top lamps (L11, L12). */
-const AIRLOCK_LAMPS = Array.from({ length: 7 }, (_, i) => [bayX(i) + CT_BAY + 3, AIRLOCK_LAMP_Y, MID] as const);
-const S5_MEDKIT_LAMP = [bayX(4) + 14.6, ANNEX_LAMP_Y, 11.5] as const;
-const S7_TOP_LAMP = [bayX(6) + CT_OBST, HIGH_LAMP_Y, MID] as const;
-const S2_TOP_LAMP = [bayX(1) + CT_OBST + 0.9, HIGH_LAMP_Y, 5.0] as const;
-const NEW_LAMPS = [...AIRLOCK_LAMPS, S5_MEDKIT_LAMP, S7_TOP_LAMP, S2_TOP_LAMP];
-
-/** A must-see point: a standing body (feet at y) or a surface point, its minimum, and whether the doors are shut. */
-interface Spot { name: string; kind: 'body' | 'surf'; x: number; y: number; z: number; min: number; shut?: boolean }
-const spot = (name: string, kind: Spot['kind'], x: number, y: number, z: number, min: number, isShut = false): Spot => ({ name, kind, x, y, z, min, shut: isShut });
-const readSpot = (p: Spot): number => {
+/** A spot's level: a standing body (crouched in a pocket) or a surface point, doors open unless the spot says shut. */
+const read = (p: LightSpot): number => {
   const f = p.shut ? shut : open;
-  return p.kind === 'body' ? body(f, p.x, p.y, p.z) : f.levelAt(p.x, p.y, p.z);
+  if (p.kind === 'surf') return f.levelAt(p.x, p.y, p.z);
+  return f.bodyLevel(p.x, p.y, p.z, p.band === 'pocket' ? MOVEMENT.crouchHeight : 1.7);
 };
-
-/** (marlow-jammer) Station 3's route is its camera hallway along the south wall (the camera's line, z 1.6); its panel
- *  is in the entry lobby. The S3 levels in the tuned table were re-taken for the hallway (REPORT.md). */
-const routeZ = (i: number): number => (i === 2 ? S3_CAMERA.z : MID);
-const SPOTS: Spot[] = [];
-for (let i = 0; i < 8; i++) {
-  const x0 = bayX(i);
-  const n = i + 1;
-  const px = i === 2 ? S3_PANEL_X : x0 + 3.5;
-  for (const dx of [0.6, 4, 7, 9.8, 12.5, 15.4]) SPOTS.push(spot(`S${n} route x0+${dx}`, 'body', x0 + dx, 0, routeZ(i), 0.6));
-  SPOTS.push(spot(`S${n} route x0+8.4`, 'body', x0 + 8.4, 0, routeZ(i), 0.55));
-  SPOTS.push(spot(`S${n} panel reader`, 'body', px, 0, 12.8, 0.45));
-  SPOTS.push(spot(`S${n} panel face`, 'surf', px, 1.4, 13.55, 0.4));
-  if (i < 7) {
-    SPOTS.push(spot(`A${n} centre (shut)`, 'body', x0 + 19, 0, MID, 0.55, true));
-    SPOTS.push(spot(`A${n} pad (shut)`, 'surf', x0 + 19, 0.3, MID, 0.45, true));
-    SPOTS.push(spot(`A${n} corner (shut)`, 'body', x0 + 16.6, 0, 4.6, 0.38, true));
-    SPOTS.push(spot(`A${n} far door (shut)`, 'body', x0 + 21.6, 0, MID, 0.42, true));
-  }
-}
-SPOTS.push(
-  // station 2: the leg-up square (S1 moved it to x0 + 8, z 3.5), the wall top where the boosted player arrives and stands
-  // (assumed decision A3), the far-side drop and the bolt at the door
-  spot('S2 leg-up square', 'body', 30, 0, 3.5, 0.5),
-  spot('S2 leg-up square floor', 'surf', 30, 0.05, 3.5, 0.4),
-  spot('S2 wall top z 3.5', 'body', 31, 4.4, 3.5, 0.45),
-  spot('S2 wall top z 7', 'body', 31, 4.4, MID, 0.45),
-  spot('S2 wall top surface z 4', 'surf', 31, 4.45, 4, 0.4),
-  spot('S2 far drop (32, 3.5)', 'body', 32, 0, 3.5, 0.5),
-  spot('S2 far door side (32, 6.4)', 'body', 32, 0, 6.4, 0.6),
-  spot('S2 far door side (33, 8)', 'body', 33, 0, 8, 0.6),
-  spot('S2 bolt', 'surf', 31.9, 1.2, MID, 0.6),
-  spot('S4 release reader', 'body', 78, 0, 12.8, 0.45),
-  spot('S4 release face', 'surf', 78, 1.3, 13.55, 0.4),
-  spot('S5 leg-up square', 'body', 96, 0, 3.5, 0.5),
-  spot('S5 leg-up square floor', 'surf', 96, 0.05, 3.5, 0.4),
-  spot('S5 plate A body', 'body', 99, 4.45, 3.6, 0.55),
-  spot('S5 plate B body', 'body', 99, 4.45, 10.4, 0.55),
-  spot('S5 plate A surface', 'surf', 99, 4.7, 3.6, 0.6),
-  spot('S5 hatch holder', 'body', 102.4, 4.45, 2.3, 0.45),
-  spot('S5 hatch frame', 'surf', 102.4, 4.7, 1.8, 0.45),
-  spot('S5 roof lip', 'body', 97.5, 4.45, MID, 0.6),
-  spot('S5 hack panel', 'surf', S5_PANEL.x, 1.4, 0.45, 0.55),
-  spot('S5 hanging head', 'surf', 102.4, 2.3, 1.3, 0.55),
-  spot('S5 medkit user', 'body', 103, 0, 12.8, 0.6),
-  spot('S5 medkit face', 'surf', 103, 1.2, 13.5, 0.5),
-  spot('S5 back room centre', 'body', 102.3, 0, MID, 0.45),
-  spot('S6 scanner A user', 'body', 115, 0, 1.0, 0.5),
-  spot('S6 scanner B user', 'body', 115, 0, 13.0, 0.45),
-  spot('S7 leg-up square', 'body', 140, 0, 3.5, 0.5),
-  spot('S7 leg-up square floor', 'surf', 140, 0.05, 3.5, 0.4),
-  spot('S7 rope holder', 'body', 141, 4.45, MID, 0.75),
-  spot('S7 strip', 'surf', 141, 4.7, MID, 0.7),
-  spot('S7 stair step 1 (top)', 'body', 142, 3.3, 1.0, 0.33),
-  spot('S7 stair step 2', 'body', 143, 2.2, 1.0, 0.4),
-  spot('S7 stair step 3', 'body', 144, 1.1, 1.0, 0.45),
-  spot('S8 exit centre', 'body', 167.5, 0, MID, 0.9),
-  spot('S8 exit corner SE', 'body', 169.4, 0, 3.1, 0.55),
-  spot('S8 exit corner NW', 'body', 165.6, 0, 10.9, 0.55),
-);
-
-/** The dark between the pools: each bay's yard corners and fence-line points (station 5's back room excepted). */
-const CORNERS: [string, number, number][] = [];
-for (let i = 0; i < 8; i++) {
-  const x0 = bayX(i);
-  // (marlow-jammer) station 3: the hallway (z 0.6) is lit on purpose and x0 + 8.3 / 9.8 at z 13.4 are sealed void; its
-  // corners are the two lobbies' far corners
-  const dxs = i === 4 ? [0.6, 8.3] : [0.6, 8.3, 9.8, 15.4];
-  for (const dx of dxs) for (const z of [0.6, 13.4]) if (i !== 2 || ((dx === 0.6 || dx === 15.4) && z === 13.4)) CORNERS.push([`S${i + 1} corner x0+${dx} z${z}`, x0 + dx, z]);
-}
-
-describe('Marlow Yard light pass (course-ready S2)', () => {
-  it('bakes in node fast enough for the unit run', () => {
-    expect(bakeMs).toBeLessThan(60_000);
-  });
-
-  it('every new lamp is in the bake', () => {
-    for (const [x, y, z] of NEW_LAMPS) expect(lampIdx(x, y, z), `lamp at ${x}, ${y}, ${z}`).toBeGreaterThanOrEqual(0);
-  });
-
-  it('every must-see spot reads lit enough to see', () => {
-    const low: string[] = [];
-    for (const p of SPOTS) {
-      const v = readSpot(p);
-      if (!(v >= p.min)) low.push(`${p.name}: ${v.toFixed(2)} < ${p.min}`);
-    }
-    expect(low).toEqual([]);
-  });
-
-  it('the dark between the pools stays: the new lamps add nothing at the yard corners, and no corner is a lit pool', () => {
-    const ids = NEW_LAMPS.map(([x, y, z]) => lampId(x, y, z));
-    const on = CORNERS.map(([, x, z]) => body(open, x, 0, z));
-    for (const id of ids) reg.setOn(id, false);
-    const off = CORNERS.map(([, x, z]) => body(open, x, 0, z));
+/** Read with the lamps `ids` switched off (restored after). */
+const withOff = <T>(ids: readonly number[], fn: () => T): T => {
+  for (const id of ids) reg.setOn(id, false);
+  try {
+    return fn();
+  } finally {
     for (const id of ids) reg.setOn(id, true);
-    CORNERS.forEach(([name], k) => {
-      expect(Math.abs(on[k]! - off[k]!), name).toBeLessThanOrEqual(0.02);
-      expect(on[k]!, name).toBeLessThan(LIGHT.lit + 0.05);
-    });
+  }
+};
+const lampIds = (): number[] => bake.lamps!.baked.ids;
+const groupIds = (groups: readonly number[]): number[] => reg.lights.filter((l) => l.kind !== 'flashlight' && groups.includes(l.group)).map((l) => l.id);
+/** The level a spot is tuned on: its band's own state (every lamp off for standby / house, its circuits off for a cut). */
+const levelOf = (p: LightSpot): number =>
+  p.band === 'standby' || p.band === 'house' ? withOff(lampIds(), () => read(p)) : p.band === 'cut' ? withOff(groupIds(p.off ?? []), () => read(p)) : read(p);
+
+const ALL: [SetId | 'facility', LightSpot][] = (Object.entries(LIGHT_SPOTS) as [SetId | 'facility', readonly LightSpot[]][]).flatMap(([k, spots]) => spots.map((p) => [k, p] as [SetId | 'facility', LightSpot]));
+const tunedFile = (id: SetId): string => `tests/ctcourse/${id}.light.json`;
+
+describe('Marlow Yard light frame (marlow-final 0d)', () => {
+  it('bakes in node fast enough for the unit run; every lamp is in the bake', () => {
+    expect(bakeMs).toBeLessThan(60_000);
+    const ids = new Set(lampIds());
+    for (const l of reg.lights) if (l.kind !== 'flashlight') expect(ids.has(l.id), `lamp ${l.id}`).toBe(true);
   });
 
-  it('the airlock lamps stay inside their airlock with the doors shut; the wall-top lamps light no ground', () => {
-    for (let i = 0; i < 7; i++) {
-      const x0 = bayX(i);
-      const k = lampIdx(...AIRLOCK_LAMPS[i]!);
-      for (const [x, z] of [[x0 + 15.4, MID], [x0 + 22.6, MID], [x0 + 15.4, 4.6], [x0 + 22.6, 9.4]] as const) {
-        for (const y of [1.0, 1.6]) expect(shut.lampAt(k, x, y, z), `A${i + 1} lamp at ${x}, ${y}, ${z}`).toBe(0);
-      }
-    }
-    const s7 = lampIdx(...S7_TOP_LAMP);
-    expect(shut.lampAt(s7, 139.5, 1.6, MID)).toBe(0);
-    expect(shut.lampAt(s7, 142.5, 1.6, MID)).toBe(0);
-    // station 2: the wall-top lamp adds (almost) nothing on the near-side approach (the wall top shades it)
-    const s2 = lampIdx(...S2_TOP_LAMP);
-    for (const [x, z] of [[29.4, MID], [28, 3.5], [30, 3.5], [29.4, 10]] as const) {
-      for (const y of [1.02, 1.6]) expect(open.lampAt(s2, x, y, z), `S2 lamp near side ${x}, ${y}, ${z}`).toBeLessThanOrEqual(0.05);
-    }
+  it('the spots the frame reads are the ones the build gives (LIGHT_SPOTS = the parts\' spots)', () => {
+    expect(LIGHT_SPOTS.facility.map((p) => p.name)).toEqual(built.facility.lightSpots.map((p) => p.name));
+    for (const p of built.parts) expect(LIGHT_SPOTS[p.id].map((s) => s.name)).toEqual(p.lightSpots.map((s) => s.name));
+    for (const id of SET_IDS) expect(LIGHT_SPOTS[id].some((p) => p.band === 'read' || p.band === 'pool'), `${id} has a lit spot`).toBe(true);
   });
 
-  it('the station 3 camera bay reads the same with the new lamps off and on', () => {
-    const ids = NEW_LAMPS.map(([x, y, z]) => lampId(x, y, z));
-    const x0 = bayX(2);
-    // (marlow-jammer) the camera hallway along the south wall, and the two lobbies
-    const pts: [number, number][] = [];
-    for (let x = x0 + 0.6; x <= x0 + 15.4; x += 0.8) pts.push([x, S3_CAMERA.z]);
-    for (const [dx, z] of [[0.6, 13.4], [1.6, MID], [15.4, 13.4], [14.8, MID]] as const) pts.push([x0 + dx, z]);
-    for (const f of [open, shut]) {
-      const on = pts.map(([x, z]) => body(f, x, 0, z));
-      for (const id of ids) reg.setOn(id, false);
-      const off = pts.map(([x, z]) => body(f, x, 0, z));
-      for (const id of ids) reg.setOn(id, true);
-      // guards and the meter see through `visibilityFromLight`, which saturates at LIGHT.lit: compare what they see (the
-      // camera has its own IR, marlow-jammer M3)
-      pts.forEach(([x, z], k) => expect(Math.abs(Math.min(on[k]!, LIGHT.lit) - Math.min(off[k]!, LIGHT.lit)), `S3 ${x.toFixed(1)}, ${z}`).toBeLessThanOrEqual(0.005));
+  it('every spot reads in its band: pools lit, floors read, pockets dark, cut circuits dark, standby and house fills', () => {
+    const bad: string[] = [];
+    for (const [, p] of ALL) {
+      const v = levelOf(p);
+      const why =
+        p.band === 'pool' ? (v >= MARLOW_LEVEL.poolMin ? '' : `< pool ${MARLOW_LEVEL.poolMin}`)
+        : p.band === 'read' ? (v >= MARLOW_LEVEL.readMin ? '' : `< read ${MARLOW_LEVEL.readMin}`)
+        : p.band === 'pocket' ? (v <= MARLOW_LEVEL.pocketMax ? '' : `> pocket ${MARLOW_LEVEL.pocketMax}`)
+        : p.band === 'cut' ? (v <= MARLOW_LEVEL.cutMax ? '' : `> cut ${MARLOW_LEVEL.cutMax}`)
+        : p.band === 'standby' ? (Math.abs(v - MARLOW_LEVEL.standby) <= 0.03 ? '' : `not standby ${MARLOW_LEVEL.standby}`)
+        : p.band === 'house' ? (Math.abs(v - MARLOW_LEVEL.house) <= 0.03 ? '' : `not house ${MARLOW_LEVEL.house}`)
+        : '';
+      if (why) bad.push(`${p.name}: ${v.toFixed(3)} ${why}`);
     }
+    expect(bad).toEqual([]);
+  });
+
+  it('no house or gallery lamp (groups 90-98) reaches any set spot, doors open or shut', () => {
+    const house = bake.lamps!.baked.ids.map((id, i) => [id, i] as const).filter(([id]) => reg.lights[id]!.group >= 90);
+    expect(house.length).toBeGreaterThan(20);
+    const bad: string[] = [];
+    for (const [k, p] of ALL) {
+      if (k === 'facility' || !inSet(k, p.x, p.z)) continue;
+      for (const f of [open, shut]) for (const [id, i] of house) for (const y of [p.y + 0.3, p.y + 1.0, p.y + 1.6]) if (f.lampAt(i, p.x, y, p.z) > 0) bad.push(`${p.name}: lamp ${id} (group ${reg.lights[id]!.group})`);
+    }
+    expect([...new Set(bad)]).toEqual([]);
   });
 
   it('no 2 m column has more lamps in reach than the shaders list', () => {
@@ -240,106 +142,51 @@ describe('Marlow Yard light pass (course-ready S2)', () => {
     expect(worst).toBeLessThanOrEqual(LAMP_GRID_SLOTS);
   });
 
-  it('keeps every lamp under the bake box top', () => {
+  it('indoor: no moon; every lamp under the bake box top', () => {
+    expect(moonLight(ctcourse.theme)).toBe(0);
+    expect(bake.moonLight).toBe(0);
     for (const l of reg.lights) if (l.kind !== 'flashlight') expect(l.y + 0.2).toBeLessThanOrEqual(bake.hi[1]);
   });
 
-  it('(marlow-bunker) underground: no moon, and the open floor still reads 0.30 (Michael kept it): all fill now', () => {
-    expect(moonLight(ctcourse.theme)).toBe(0);
-    expect(bake.moonLight).toBe(0);
-    const ids = bake.lamps!.baked.ids;
-    for (const id of ids) reg.setOn(id, false);
-    const pts: [number, number][] = [];
-    for (let i = 0; i < 8; i++) for (const [dx, z] of [[0.6, 0.6], [4, MID], [8.3, 13.4], [12.5, 3], [15.4, 13.4]] as const) pts.push([bayX(i) + dx, z]);
-    const lv = pts.map(([x, z]) => body(open, x, 0, z));
-    for (const id of ids) reg.setOn(id, true);
-    pts.forEach(([x, z], k) => expect(lv[k]!, `fill at ${x}, ${z}`).toBeCloseTo(0.3, 2));
+  // CTLIGHT_PRINT=1 prints each set's tuned block; CTLIGHT_WRITE=<set id> (or `all`) writes that set's json (run it
+  // before the tuned-levels case: `npx vitest run tests/ctcourseLight.test.ts`, then rerun without it)
+  it.runIf(process.env.CTLIGHT_PRINT === '1' || !!process.env.CTLIGHT_WRITE)('prints / writes the levels (one json per set)', () => {
+    const out: string[] = [`bake ${(bakeMs / 1000).toFixed(1)} s, ${lampIds().length} lamps`];
+    const write = process.env.CTLIGHT_WRITE ?? '';
+    for (const [k, spots] of Object.entries(LIGHT_SPOTS)) {
+      const levels: Record<string, number> = {};
+      for (const p of spots) levels[p.name] = Number(levelOf(p).toFixed(2));
+      const text = `${JSON.stringify({ levels }, null, 1)}\n`;
+      out.push(`--- ${k === 'facility' ? 'facility (band checks only)' : tunedFile(k as SetId)}\n${text}`);
+      if (k !== 'facility' && (write === 'all' || write === k)) {
+        mkdirSync('tests/ctcourse', { recursive: true });
+        writeFileSync(tunedFile(k as SetId), text);
+      }
+    }
+    console.info(out.join('\n'));
   });
 
-  it('(marlow-bunker) the levels the course was tuned on hold: every spot within 0.08, no band change but at its edge', () => {
-    const before = tuned.levels as Record<string, number>;
-    const now = new Map<string, number>([...SPOTS.map((p) => [p.name, readSpot(p)] as const), ...CORNERS.map(([name, x, z]) => [name, body(open, x, 0, z)] as const)]);
-    expect(now.size).toBe(Object.keys(before).length);
+  it('each set holds its tuned levels: every spot within 0.08, no band change but at its edge', () => {
     const band = (v: number): number => (v < LIGHT.shadow ? 0 : v < LIGHT.lit ? 1 : 2);
     const nearEdge = (v: number): boolean => Math.min(Math.abs(v - LIGHT.shadow), Math.abs(v - LIGHT.lit)) <= 0.05;
     const bad: string[] = [];
-    for (const [name, v] of now) {
-      const was = before[name];
-      if (was === undefined) bad.push(`${name}: not in the tuned table`);
-      else if (Math.abs(v - was) > 0.08) bad.push(`${name}: ${was} -> ${v.toFixed(2)}`);
-      // a band change only where both levels sit at the band's edge (the former moon shadows lift 0.25 -> 0.30)
-      else if (band(v) !== band(was) && !(nearEdge(v) && nearEdge(was))) bad.push(`${name}: band ${was} -> ${v.toFixed(2)}`);
+    for (const id of SET_IDS) {
+      const spots = LIGHT_SPOTS[id];
+      if (!existsSync(tunedFile(id))) {
+        bad.push(`${id}: no ${tunedFile(id)} (run CTLIGHT_PRINT=1 and paste its block)`);
+        continue;
+      }
+      const before = (JSON.parse(readFileSync(tunedFile(id), 'utf8')) as { levels: Record<string, number> }).levels;
+      if (Object.keys(before).length !== spots.length) bad.push(`${id}: ${spots.length} spots, ${Object.keys(before).length} tuned`);
+      for (const p of spots) {
+        const v = levelOf(p);
+        const was = before[p.name];
+        if (was === undefined) bad.push(`${p.name}: not in ${tunedFile(id)}`);
+        else if (Math.abs(v - was) > 0.08) bad.push(`${p.name}: ${was} -> ${v.toFixed(2)}`);
+        else if (band(v) !== band(was) && !(nearEdge(v) && nearEdge(was))) bad.push(`${p.name}: band ${was} -> ${v.toFixed(2)}`);
+      }
     }
     expect(bad).toEqual([]);
   });
 
-  it('(marlow-jammer M3) every station 3 lamp out: the hallway goes dark, yet the camera (its own IR) still catches an unjammed runner', () => {
-    const x0 = bayX(2);
-    const s3 = reg.lights.filter((l) => l.x > x0 - 0.5 && l.x < x0 + CT_BAY + 0.5 && l.kind !== 'flashlight');
-    // every station 3 lamp can be put out (a jam, an EMP or a shot): no hardened lamp (J4 undone). (sector-fixes S) 4 -> 5:
-    // the security room's panel
-    expect(s3.length).toBe(5);
-    for (const l of s3) expect(l.electric && l.destructible).toBe(true);
-    for (const l of s3) reg.setOn(l.id, false);
-    // (sector-fixes C) the frame's lower edge is half the field below the camera's pitch (aimed at the hallway floor)
-    const blind = (S3_CAMERA.y - 1.7) / Math.tan(CAMERA.vFov / 2 + Math.atan2(S3_CAMERA.y, S3_CAMERA_AIM));
-    let darkest = 1;
-    // `guard`: the same walk scored by the lamps (what a guard / the old camera saw), to show the dark is real
-    const caughtAt = (speed: number, crouched: boolean, guard: boolean): number => {
-      const m = newMeter();
-      const dt = 1 / 30;
-      for (let x = S3_HALL.x0; x < x0 + 13.8; x += speed * dt) {
-        const dist = Math.hypot(S3_CAMERA.x - x, S3_CAMERA.y - (crouched ? 1.05 : 1.6));
-        const light = body(open, x, 0, S3_CAMERA.z);
-        darkest = Math.min(darkest, light);
-        const inView = S3_CAMERA.x - x > blind;
-        const rate = !inView ? 0 : guard ? sightRate({ dist, angle: 0, light, crouched, speed, exposure: 1, sensitivity: SENSITIVITY.unaware }) : cameraRate(dist, crouched, speed, camRange({ aim: S3_CAMERA_AIM }));
-        stepCamMeter(m, rate, dt);
-        if (m.stage === 2) return x - x0;
-      }
-      return -1;
-    };
-    const run = caughtAt(GEARS.stand[4], false, false);
-    const crouch = caughtAt(0.8, true, false);
-    const runByLamps = caughtAt(GEARS.stand[4], false, true);
-    for (const l of s3) reg.setOn(l.id, true);
-    if (process.env.CTLIGHT_PRINT === '1') console.info(`S3 lamps out: hallway light >= ${darkest.toFixed(2)}, runner caught at bay x ${run.toFixed(1)}, crouch ${crouch.toFixed(1)}, by the lamps ${runByLamps.toFixed(1)}`);
-    expect(darkest).toBeLessThan(LIGHT.lit);
-    expect(runByLamps).toBe(-1);
-    expect(run).toBeGreaterThan(0);
-    expect(run).toBeLessThan(13.8);
-    expect(crouch).toBeGreaterThan(0);
-  });
-
-  it('(sector-fixes S) the security room lamp: baked, lights the duty guard, leaves the tuned station 3 spots alone', () => {
-    const R = S3_SEC_ROOM;
-    const roomLamps = reg.lights.filter((l) => l.kind !== 'flashlight' && l.x > R.x0 && l.x < R.x1 && l.z > R.z0 && l.z < R.z1);
-    expect(roomLamps).toHaveLength(1);
-    const lamp = roomLamps[0]!;
-    expect(lamp.y).toBeCloseTo(CT_CEIL[2]! - 0.15, 6);
-    expect(lamp.electric && lamp.destructible).toBe(true);
-    expect(lampIdx(lamp.x, lamp.y, lamp.z)).toBeGreaterThanOrEqual(0);
-    // the room reads lit where the guard stands (door open or shut): out of the dark band, what the meter and guards see
-    const guard = [body(open, S3_SEC_POST.x, 0, S3_SEC_POST.z), body(shut, S3_SEC_POST.x, 0, S3_SEC_POST.z)];
-    if (process.env.CTLIGHT_PRINT === '1') console.info(`S3 security room at the guard: open ${guard[0]!.toFixed(2)}, shut ${guard[1]!.toFixed(2)}`);
-    for (const v of guard) expect(v).toBeGreaterThan(LIGHT.lit);
-    // every tuned spot of station 3 and its airlock outside the room moves 0.08 at most with the room lamp on or off
-    const x0 = bayX(2);
-    const pts = [...SPOTS.map((p) => [p.name, p.x, p.y, p.z, p.kind] as const), ...CORNERS.map(([name, x, z]) => [name, x, 0, z, 'body'] as const)]
-      .filter(([, x, , z]) => x > x0 - 0.5 && x < x0 + CT_BAY + 6.5 && !(x > R.x0 && x < R.x1 && z > R.z0 && z < R.z1));
-    expect(pts.length).toBeGreaterThan(10);
-    for (const f of [open, shut]) {
-      const read = (): number[] => pts.map(([, x, y, z, kind]) => (kind === 'body' ? body(f, x, y, z) : f.levelAt(x, y, z)));
-      const on = read();
-      reg.setOn(lamp.id, false);
-      const off = read();
-      reg.setOn(lamp.id, true);
-      pts.forEach(([name], k) => expect(Math.abs(on[k]! - off[k]!), `${name} (${f === open ? 'open' : 'shut'})`).toBeLessThanOrEqual(0.08));
-    }
-  });
-
-  it.runIf(process.env.CTLIGHT_PRINT === '1')('prints the levels', () => {
-    const rows = [...SPOTS.map((p) => `${p.name}\t${readSpot(p).toFixed(2)}`), ...CORNERS.map(([name, x, z]) => `${name}\t${body(open, x, 0, z).toFixed(2)}`)];
-    console.info(`bake ${(bakeMs / 1000).toFixed(1)} s, ${bake.lamps!.baked.ids.length} lamps\n${rows.join('\n')}`);
-  });
 });

@@ -1,5 +1,12 @@
 # Marlow Yard (`ctcourse`) - spec (CT prototype B1, 2026-10-18; built state updated by course-ready and marlow-bunker, 2026-10-20)
 
+> **Superseded (marlow-final, 2026-10-23).** Marlow Yard was rebuilt as Vellan & Rook's rehearsal centre: eight
+> mock-up sets (A1-A8) joined by holding rooms L1-L7 under an instructor gallery, ending at the cash dock. The build
+> contract is `docs/marlow-final/SPEC.md`; who builds what is `docs/marlow-final/PLAN.md`; the map is
+> `src/world/maps/ctcourse.ts` (the merge) with `src/world/maps/ctcourseSets/` (the facility and one file per set). The
+> bunker bays below (stations S1-S8, airlocks A1-A7, `bayX`, `ctcourseBunker.ts`, `ctcourseVariety.ts`) are retired
+> (slice 0d); this file is kept as history.
+
 Prototype greybox under G117: every number is a starting value (G10). The level standard review (G157, `docs/level-design.md`) comes later; this spec follows the map-spec template only where it applies (id, setting, flow, footprints, gates, tests). Map rules are the bunker's (G117 / training D41): linear, no station skippable, anti-stuck resets (G80: the course framework restarts a bay when both are down or one goes out; the thrown / hung partner always gets a way back, built in B4 / B5).
 
 - **Id / name / setting:** `ctcourse`, Marlow Yard. The training floor of a Cold War signals bunker (marlow-bunker, below): a 170 m cut-and-cover gallery refitted as a two-operator assessment course, eight test cells under concrete ceilings, a plywood kill-house mock-up at station 5. Cool white fittings, dark between their pools (`lightLevel` 0.3, all fill: no moon underground). Not listed; course mode only.

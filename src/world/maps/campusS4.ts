@@ -413,7 +413,9 @@ export function buildCampusS4(b: LevelBuilder): void {
   basket(b, b1x0, 32.4, b1x1, 35.6, true);
   basket(b, b1x0, 35.6, b1x1, b1z1);
   for (const q of [S4_BOX.b2, S4_BOX.b3, S4_BOX.bN, S4_BOX.bCage, S4_BOX.stub]) basket(b, q[0], q[1], q[2], q[3]);
-  for (const [x, z] of [[3.6, 26], [3.6, 38], [9.2, 26], [9.2, 38], [26.8, 26], [26.8, 38], [18, 37], [8, 41.3], [14, 41.3], [24, 41.3], [30, 41.3]] as const) b.box(x, S4_BASKET / 2 - 0.2, z, 0.1, S4_BASKET - 0.4, 0.1, STEEL, 0, 0, false);
+  // (LR16-W) B-cage's support hangs from the basket's west rail at z 38.5: clear of the cage downlight (18, 2.8, 37) and
+  // its beam (it stood through the lamp at (18, 37)), and of the rear gate's swing (hinge (17.4, 40), 1.2 m leaf)
+  for (const [x, z] of [[3.6, 26], [3.6, 38], [9.2, 26], [9.2, 38], [26.8, 26], [26.8, 38], [17.55, 38.5], [8, 41.3], [14, 41.3], [24, 41.3], [30, 41.3]] as const) b.box(x, S4_BASKET / 2 - 0.2, z, 0.1, S4_BASKET - 0.4, 0.1, STEEL, 0, 0, false);
 
   // ---- the cage (x 14..22, z 34..40): solid 3.0 walls 0.1 thick, open top (A83); the front gate south, the rear gate north (pg-cage)
   const [kx0, kz0, kx1, kz1] = S4_BOX.cage;
@@ -494,12 +496,12 @@ export function buildCampusS4(b: LevelBuilder): void {
   for (const [x, z] of [[26.8, 25], [26.8, 29], [32.7, 26], [32.7, 34]] as const) lamp(b, x, 3.6, z, { r: 4.5, i: 0.8, group: S4_GROUPS.cold3, cone: down });
   lamp(b, 5, 2.8, 20, { r: 5, i: 0.8, group: S4_GROUPS.lobby, cone: down });
   for (const x of [20, 29]) lamp(b, x, 6.0, 19, { r: 8, i: 0.9, group: S4_GROUPS.dock, w: 0.6 });
-  for (const z of [24, 40]) lamp(b, 34.3, 6.0, z, { r: 9, i: 0.9, group: S4_GROUPS.yard, w: 0.6 });
+  for (const z of [24, 40]) lamp(b, 35.35, 6.0, z, { r: 9, i: 0.9, group: S4_GROUPS.yard, w: 0.6 });
   for (const x of [0, 5]) lamp(b, x, 6.4, 45, { r: 6, i: 0.8, group: S4_GROUPS.noc, w: 0.5 });
   for (const x of [0, 5]) lamp(b, x, 3.1, 44.5, { r: 5, i: 0.8, group: S4_GROUPS.sec, w: 0.5 });
   for (const z of [34, 41]) lamp(b, -7, 3.4, z, { r: 5, i: 0.7, group: S4_GROUPS.ups, cone: down });
   lamp(b, -7, 2.8, 29, { r: 5, i: 0.7, group: S4_GROUPS.ups, cone: down });
-  for (const x of [6, 14, 22, 28]) lamp(b, x, 8.8, 33.6, { r: 3.5, i: 0.7, group: S4_GROUPS.deck, w: 0.5 });
+  for (const x of [6, 14, 22, 28]) lamp(b, x, 8.8, 34.2, { r: 3.5, i: 0.7, group: S4_GROUPS.deck, w: 0.5 });
 
   // ---- ambient: the section at the standby fill 0.14 (true dark with a circuit cut); C3 and C4 keep their 0.30
   b.ambientZone(-10, 40, 16, 48, 0.14, -1, 9.5);

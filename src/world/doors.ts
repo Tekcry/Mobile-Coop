@@ -12,10 +12,10 @@ import {
   type Mesh,
   type Scene,
 } from '../core/babylon';
-import { G, doorMembership } from '../physics/groups';
+import { G, doorMembership, markArmoured } from '../physics/groups';
 import type { Door, TraversalAnchors } from './anchors';
 import { hyp2 } from '../core/mathx';
-import { DOOR_CRACK, stepCrack } from './doorPeek';
+import { DOOR_CRACK, isSlideDoor, stepCrack } from './doorPeek';
 
 /** How a door was opened: quietly by hand, bashed open at a sprint, or by an enemy walking through. */
 export type DoorHow = 'quiet' | 'bash' | 'enemy' | 'close' | 'crack' | 'drive';
@@ -118,6 +118,9 @@ export class Doors {
   private s = new Vector3();
   private p = new Vector3();
   onSound: ((d: DoorState, how: DoorHow) => void) | null = null;
+  /** (guard-ai S28) A door's lock changed (`setLocked`), or a locked door was shut (`setOpen`): the guards' nav grid
+   *  shuts or opens its doorway at once (`EnemyManager`, `ai/lockedDoors.ts`). */
+  onLocked: ((d: DoorState) => void) | null = null;
 
   constructor(
     private scene: Scene,
@@ -151,6 +154,11 @@ export class Doors {
   /** Leaf matrix at its current swing. */
   private write(d: DoorState): void {
     const a = d.anchor;
+    // (marlow-final kit) a sliding door's leaves are the facility kit's (world/kit/kitRender.ts): no hinged leaf drawn
+    if (a.leaf === 'slide') {
+      this.buf!.fill(0, d.index * 16, d.index * 16 + 16);
+      return;
+    }
     const yaw = a.yaw + a.swing * DOOR.openAngle * leafFraction(d);
     Quaternion.RotationYawPitchRollToRef(yaw, 0, 0, this.q);
     const w = a.width - 0.04;
@@ -178,6 +186,8 @@ export class Doors {
     shape.filterMembershipMask = doorMembership(a.armoured === true);
     shape.filterCollideMask = 0xffffffff & ~G.STATIC;
     body.shape = shape;
+    // (sniper triage) armour is the body's mark (`isArmouredBody`, what ballistics reads)
+    if (a.armoured === true) markArmoured(body);
     d.body = body;
     d.node = node;
   }
@@ -193,7 +203,9 @@ export class Doors {
 
   /** Lock or unlock a door at run time (pure state on the anchor; a locked door refuses `open`, `setOpen` ignores it). */
   setLocked(d: DoorState, on: boolean): void {
+    if (d.anchor.locked === on) return;
     d.anchor.locked = on;
+    this.onLocked?.(d);
   }
 
   /** Open a door (`how` sets the swing speed and the sound). False when locked or already opening. */
@@ -234,7 +246,8 @@ export class Doors {
    * clients see a held door as open).
    */
   drive(d: DoorState, amount: number): void {
-    if (d.anchor.locked) return;
+    // (marlow-final N9) a sliding door has no stealth drive (it opens only through `open` / `setOpen`)
+    if (d.anchor.locked || isSlideDoor(d.anchor)) return;
     const a = Math.max(DOOR.crack, Math.min(DOOR.driveMax, amount));
     if (a <= DOOR.driveShut) {
       if (d.target === 1) {
@@ -276,6 +289,8 @@ export class Doors {
     d.drift = 0;
     d.target = open ? 1 : 0;
     d.rate = 1 / (open ? DOOR.quietTime : DOOR.closeTime);
+    // (guard-ai S28) lock then shut (`courseMode.applyLocks`, `sectorMode.lockDoor`): the doorway shuts on the grid now
+    if (!open && d.anchor.locked) this.onLocked?.(d);
     // (closed: the body comes back when the leaf is shut, in `update`)
     if (open) {
       this.uncrackOpen(d);
@@ -288,7 +303,8 @@ export class Doors {
    * stays 0); only the drawn leaf moves. False when nothing changes (open, locked, already so).
    */
   crack(d: DoorState, on: boolean): boolean {
-    if (on && (d.target !== 0 || d.anchor.locked || d.cracked)) return false;
+    // (marlow-final N9) a sliding door never cracks (host, client prediction and solo all land here)
+    if (on && (d.target !== 0 || d.anchor.locked || d.cracked || isSlideDoor(d.anchor))) return false;
     if (!on && !d.cracked) return false;
     d.cracked = on;
     d.held = false;
@@ -318,6 +334,41 @@ export class Doors {
     }
     this.mesh?.thinInstanceBufferUpdated('matrix');
     this.mesh?.thinInstanceRefreshBoundingInfo(false);
+  }
+
+  /**
+   * (sector-redesign perf, render only: the guard freeze's occlusion rays) Is `body` a door leaf drawn not shut (cracked
+   * for a peek, easing, driven ajar, or opening / closing)? Gameplay rays never ask: the body stays solid for them.
+   * Allocation-free.
+   */
+  seeThrough(body: unknown): boolean {
+    for (let i = 0; i < this.list.length; i++) {
+      const d = this.list[i]!;
+      if (d.body === body) return leafSeeThrough(d);
+    }
+    return false;
+  }
+
+  /** (frzpol) Per door: its leaf no longer hid the view at the last `viewVersion` read (1). */
+  private viewClear = new Uint8Array(0);
+  private viewV = 0;
+
+  /**
+   * (sector-redesign frzpol, render only: the guard freeze's view epoch) A count that grows each time a door stops
+   * hiding what is behind it (a leaf cracked, eased or driven ajar, swung, or its body removed). Read once per camera
+   * evaluation; a shut leaf going back up does not count. Allocation-free after the first read.
+   */
+  viewVersion(): number {
+    const l = this.list;
+    if (this.viewClear.length !== l.length) this.viewClear = new Uint8Array(l.length);
+    const v = this.viewClear;
+    for (let i = 0; i < l.length; i++) {
+      const d = l[i]!;
+      const clear = d.body === null || leafSeeThrough(d) ? 1 : 0;
+      if (clear && !v[i]) this.viewV++;
+      v[i] = clear;
+    }
+    return this.viewV;
   }
 
   /** Leaves shown or hidden (the benchmark flight: open doorways, no leaf standing out into a corridor). */
@@ -386,6 +437,11 @@ export class Doors {
     this.mesh?.material?.dispose();
     this.mesh?.dispose();
   }
+}
+
+/** (sector-redesign perf, render only) A leaf the camera can see past: cracked, drawn ajar, or swung at all. */
+export function leafSeeThrough(d: Pick<DoorState, 'cracked' | 'ajar' | 'open'>): boolean {
+  return d.cracked || d.ajar > 0 || d.open > 0;
 }
 
 function smooth(t: number): number {

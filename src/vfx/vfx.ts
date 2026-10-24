@@ -8,9 +8,11 @@ import {
   StandardMaterial,
   Vector3,
   type InstancedMesh,
+  type PBRMaterial,
   type Mesh,
   type Scene,
 } from '../core/babylon';
+import { levelIsPbr, levelPbrMaterial } from '../world/levelLitMaterial';
 
 interface Particle {
   m: InstancedMesh;
@@ -48,7 +50,7 @@ const UP = new Vector3(0, 1, 0);
  */
 export class Vfx {
   private mat: StandardMaterial;
-  private decalMat: StandardMaterial;
+  private decalMat: StandardMaterial | PBRMaterial;
   private boxBase: Mesh;
   private sphereBase: Mesh;
   private planeBase: Mesh;
@@ -74,13 +76,21 @@ export class Vfx {
     m.fogEnabled = true;
     m.freeze();
     this.mat = m;
-    const dm = new StandardMaterial('decalMat', scene);
-    dm.diffuseColor = new Color3(0.08, 0.08, 0.09);
-    dm.specularColor = Color3.Black();
+    // (lr16pol B) bullet decals: PBR where the level is, so the guard torches light them as the wall they sit on
+    // (`levelLitMaterial.ts`); the standard path keeps the standard material
+    const decalCol = new Color3(0.08, 0.08, 0.09);
+    let dm: StandardMaterial | PBRMaterial;
+    if (levelIsPbr(scene)) dm = levelPbrMaterial('decalMat', scene, decalCol);
+    else {
+      const sd = new StandardMaterial('decalMat', scene);
+      sd.diffuseColor = decalCol;
+      sd.specularColor = Color3.Black();
+      dm = sd;
+    }
     dm.zOffset = -2;
     dm.freeze();
     this.decalMat = dm;
-    const prep = (mesh: Mesh, mat: StandardMaterial): Mesh => {
+    const prep = (mesh: Mesh, mat: StandardMaterial | PBRMaterial): Mesh => {
       mesh.material = mat;
       mesh.isPickable = false;
       mesh.isVisible = false;

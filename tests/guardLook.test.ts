@@ -56,6 +56,8 @@ vi.mock('../src/ai/enemy', async (orig) => {
       readonly yaw: number,
     ) {}
     alert(): void {}
+    // (guard-ai S24, master) `spawn(..., alerted)` tells him command's intruder first (`sendIn`)
+    tell(_slot: number): void {}
     dispose(): void {}
     setGear(g: { helmet: boolean; armour: boolean }): void {
       this.helmet = g.helmet;

@@ -1,0 +1,26 @@
+{
+ "levels": {
+  "A4 secroom": 0.92,
+  "A4 secroom cut": 0.14,
+  "A4 passage": 0.14,
+  "A4 mouth": 0.14,
+  "A4 back aisle": 0.14,
+  "A4 back aisle west end": 0.14,
+  "A4 crossing": 0.14,
+  "A4 main aisle": 0.83,
+  "A4 main aisle east": 0.83,
+  "A4 dock": 0.68,
+  "A4 aisle 2": 0.45,
+  "A4 aisle 2 east": 0.45,
+  "A4 east lane": 0.6,
+  "A4 mezzanine": 0.89,
+  "A4 main aisle cut": 0.14,
+  "A4 dock cut": 0.14,
+  "A4 kettle cut": 0.14,
+  "A4 aisle 2 cut": 0.14,
+  "A4 mezzanine cut": 0.14,
+  "A4 kettle": 0.14,
+  "A4 floor": 0.59,
+  "A4 standby": 0.14
+ }
+}

@@ -8,7 +8,8 @@ import { GOGGLE_GLSL, SENSOR_GRAIN, THERMAL, VISION_GLSL } from './visionLook';
 Effect.ShadersStore['cinematicFragmentShader'] = `
 precision mediump float;
 varying vec2 vUV;
-uniform sampler2D textureSampler;
+// (LR16-L B1) highp samplers: HDR colour must not ride on the default lowp sampler
+uniform highp sampler2D textureSampler;
 uniform float vignette;
 uniform float grain;
 uniform float bars;
@@ -21,13 +22,12 @@ uniform vec3 tint;
 uniform float sat;
 uniform float contrast;
 uniform float bright;
-uniform sampler2D glowSampler;
+uniform highp sampler2D glowSampler;
 uniform float glowScale;
 uniform float veil;
-uniform float flip;
 uniform float vk;
 uniform float nvLift;
-uniform sampler2D exposureSampler;
+uniform highp sampler2D exposureSampler;
 uniform vec4 expo;
 ${NV_GLSL}
 ${EXPOSURE_GLSL}
@@ -114,12 +114,6 @@ void main(void) {
     c.rgb = mix(c.rgb, f, feed);
   }
   c.rgb = mix(c.rgb, vec3(1.0), flash);
-  if (flip > -5.0) {
-    // (Step 4b fix round 3) the goggles flipping down / up: their housing passes the eyes as a dark band with a curved,
-    // soft edge (\`VisionState.flipCentre\`); night vision switches while it covers the view
-    float fx = vUV.x - 0.5;
-    c.rgb *= smoothstep(0.58, 0.7, abs(vUV.y + fx * fx * 0.35 - flip));
-  }
   float v = smoothstep(0.95, 0.3, length(d));
   c.rgb *= mix(1.0, v, vignette);
   c.rgb += (n - 0.5) * grain;
@@ -143,8 +137,6 @@ export class CinematicPost {
   /** Night vision's bloom (`NightBloom`) and auto-gain (`NightAutoGain.veil`). */
   private bloom: NightBloom | null = null;
   private veil = 0;
-  /** The goggles' flip: the housing's centre in screen height (-9 = none). */
-  private flip = -9;
   /** Flashbang white-out 0..1 (decays in `update`). */
   private flash = 0;
   /** Remote camera feed look (sticky cam) 0..1. */
@@ -232,14 +224,6 @@ export class CinematicPost {
     this.veil = veil;
   }
 
-  /** The goggles flipping (Step 4b fix round 3): the housing's centre in screen height, NaN when no flip runs. */
-  setFlip(centre: number): void {
-    const f = Number.isNaN(centre) ? -9 : centre;
-    if (f === this.flip) return;
-    this.flip = f;
-    this.sync();
-  }
-
   /** White-out (a flashbang in view); fades over ~2 s. */
   whiteOut(k: number): void {
     this.flash = Math.max(this.flash, Math.min(1, k));
@@ -260,9 +244,9 @@ export class CinematicPost {
   }
 
   private sync(force = false): void {
-    const needed = this.graded || this.vignette > 0 || this.grain > 0 || this.bars > 0.001 || this.barsTarget > 0 || this.nv > 0 || this.vk > 0 || this.flash > 0 || this.feed > 0 || this.flip > -5 || force;
+    const needed = this.graded || this.vignette > 0 || this.grain > 0 || this.bars > 0.001 || this.barsTarget > 0 || this.nv > 0 || this.vk > 0 || this.flash > 0 || this.feed > 0 || force;
     if (needed && !this.pp) {
-      const pp = new PostProcess('cinematic', 'cinematic', ['vignette', 'grain', 'bars', 'time', 'aspect', 'nv', 'flash', 'feed', 'tint', 'sat', 'contrast', 'bright', 'glowScale', 'veil', 'flip', 'vk', 'nvLift', 'expo'], ['glowSampler', 'exposureSampler'], 1, this.camera);
+      const pp = new PostProcess('cinematic', 'cinematic', ['vignette', 'grain', 'bars', 'time', 'aspect', 'nv', 'flash', 'feed', 'tint', 'sat', 'contrast', 'bright', 'glowScale', 'veil', 'vk', 'nvLift', 'expo'], ['glowSampler', 'exposureSampler'], 1, this.camera);
       pp.onApply = (e) => {
         e.setFloat('vignette', this.vignette);
         e.setFloat('grain', this.grain);
@@ -282,7 +266,6 @@ export class CinematicPost {
         e._bindTexture('glowSampler', glow ? glow.texture : pp.inputTexture.texture);
         e.setFloat('glowScale', glow ? this.bloom!.glowScale : 0);
         e.setFloat('veil', this.veil);
-        e.setFloat('flip', this.flip);
         e.setFloat('vk', this.vk);
         e.setFloat('nvLift', this.nvLift);
         // (nv-pass fix round) the frame auto-gain's eased mean; before the first measure the scene stands in, with a

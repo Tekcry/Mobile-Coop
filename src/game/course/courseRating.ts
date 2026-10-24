@@ -7,7 +7,7 @@
  * ties.
  */
 import type { CourseDef } from './courseDef';
-import type { BayStats } from './courseState';
+import { newStats, type BayStats } from './courseState';
 
 export type GhostTier = 'ghost' | 'silent' | 'loud';
 
@@ -53,7 +53,7 @@ export interface CourseSummary {
 
 /** The results panel's numbers from the course's stats (per bay, team and per player). */
 export function summarise(def: CourseDef, stats: readonly BayStats[], pstats: readonly [BayStats, BayStats], startBay = 0): CourseSummary {
-  const team: BayStats = { time: 0, detections: 0, alarms: 0, knockouts: 0, kills: 0, revives: 0, teamMoves: 0, bodies: 0 };
+  const team: BayStats = newStats();
   const bays: { id: string; time: number }[] = [];
   def.bays.forEach((b, i) => {
     const s = stats[i];

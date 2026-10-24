@@ -62,6 +62,11 @@ Design authority: docs/DECISIONS.md (G23, G42, G43, G49), then docs/design-bible
   pure part `game/intel.ts`): `Code: <label>` per authored code (`GuardIntel.codes`, flag to `GameMode.onIntelCode`), then
   `Cameras near: n, sweep a-b s` and `Patrols near: n, loop a-b s` within `INTEL.reach` 30 m on his storey (patrol lines read each
   guard's route through the Guard AI `Enemy.patrolRoute` getter, `intelGuard`). Feed lines (<= 60 chars), event `intel`; a guard with none: unchanged. One use per guard per bay start (a restart spawns a fresh guard).
+  (stealth-pays S1, S2) Part B: the code flag now acts. Course: `CourseMode.onIntelCode` sets it as a course flag
+  (`state.setFlag`; a gate reads it when it lists the flag in `def.externalFlags`; a bay restart drops it). Sector Ops: the
+  spawn copies the slot's `info` onto the guard, and `SectorMode.onIntelCode` holds the code for the live section
+  (`SectorCodes.grantCode(flag, run.index)`, host only), so the matching keypad opens; the section's restart drops it.
+  Host / solo only (a puppet never reveals). Play is unchanged until map owners author guard `info` codes; no Sector map has any yet.
   There is no let-go (the shove is removed): the hold ends only in the knockout or the
   kill, or cleanly when the holder dies, the guard dies to something else (`abort`) or the match restarts (`reset`; a
   co-op host still frees a client's guard when that client drops out or the section restarts). Carry (the knockout,
@@ -93,6 +98,15 @@ Design authority: docs/DECISIONS.md (G23, G42, G43, G49), then docs/design-bible
   row TEAM TAKEDOWN. The attacker stays put facing him for `TAKEDOWN.strike` (the row: a knockout; a held direct press: the kill);
   the guard is never seized or moved by him; the partner letting go first ends it. The host applies it and ends the
   hold; holder and striker are credited together (a dual takedown). Net: `docs/systems/coop.md` (client takedowns).
+- (joint-interrogation, G148) Joint interrogation: on the same `assist` offer, a guard with joint information
+  (`GuardIntel.joint`, `hasJoint`) lists BLUFF (row kind `joint`) above TEAM TAKEDOWN. Roles: the holder reads his face
+  (the existing INTERROGATE, `CQ.interrogate` 1.5 s); the partner bluffs (speech only: no pose, no strike, no lock; the
+  bluffer may walk, A3). Either order works: only the read's end is checked, on the host: a bluff started at most
+  `JOINT.window` 6 s before by a player other than the holder, alive and within `JOINT.reach` 3 m, adds the joint lines
+  for both (`revealJoint`). A1: one chance, a solo read spends the joint part too (`takeInfo` clears `info`). A2: the
+  holder's RT finisher stays live during a bluff and ends the questioning. A4: the holder's row stays INTERROGATE. Net and
+  host rules: `docs/systems/coop.md` (client takedowns). Pure rules: `src/game/jointInterrogation.ts`,
+  `tests/jointInterrogation.test.ts`; e2e-coop "joint interrogation: host bluffs, client reads".
 
 ## From the co-op hang-down (hang-down job; `docs/hang-down/BRIEF.md`)
 CT 1.5 Drop Line: the hanging player can grab and neck-snap a guard below (the only grab entry while hanging) and use

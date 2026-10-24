@@ -40,7 +40,7 @@ describe('net message validation', () => {
     expect(m && m.t === 'pstate' && m.s).toMatchObject({ x: 400, hp: 100, speed: 0, pitch: 1.6 });
   });
   it('sanitises strings (names, ids, looks) and caps lengths', () => {
-    const m = parseMessage({ t: 'hello', v: 1, name: '<img src=x onerror=alert(1)>Mallory-the-long-name', tag: { title: '<b>', color: 'red', emblem: 'x' }, look: { hair: 'laser' } });
+    const m = parseMessage({ t: 'hello', v: PROTOCOL_VERSION, name: '<img src=x onerror=alert(1)>Mallory-the-long-name', tag: { title: '<b>', color: 'red', emblem: 'x' }, look: { hair: 'laser' } });
     expect(m?.t).toBe('hello');
     if (m?.t !== 'hello') return;
     expect(m.name).not.toMatch(/[<>]/);
@@ -50,10 +50,10 @@ describe('net message validation', () => {
     expect(parseMessage({ t: 'pstate', s: { ...ps, id: '../../etc' } })).toBeNull();
   });
   it('loadout: known weapons only, no repeats, capped', () => {
-    const m = parseMessage({ t: 'hello', v: 1, name: 'A', tag: {}, look: {}, loadout: ['rifle', 'rifle', 'railgun', 7, 'pistol', 'smg', 'pistolSd', 'sniper', 'pistolSd'] });
+    const m = parseMessage({ t: 'hello', v: PROTOCOL_VERSION, name: 'A', tag: {}, look: {}, loadout: ['rifle', 'rifle', 'railgun', 7, 'pistol', 'smg', 'pistolSd', 'sniper', 'pistolSd'] });
     // the deleted guns (G115) are unknown ids now
     expect(m?.t === 'hello' && m.loadout).toEqual(['rifle', 'pistolSd']);
-    const n = parseMessage({ t: 'hello', v: 1, name: 'A', tag: {}, look: {}, loadout: 'rifle' });
+    const n = parseMessage({ t: 'hello', v: PROTOCOL_VERSION, name: 'A', tag: {}, look: {}, loadout: 'rifle' });
     expect(n?.t === 'hello' && n.loadout).toEqual([]);
   });
   it('caps array sizes and drops bad entries', () => {
@@ -115,8 +115,6 @@ describe('room codes', () => {
 import { SnapshotBuffer, ClockSync, lerpAngle } from '../src/net/interp';
 import { RateLimiter, checkShot, checkBlast, clampEnd, coopSessionStats, maxHitDamage, playersHostile, shotLimiter, rayPointDistance } from '../src/net/validate';
 import { NetSession, type StartInfo } from '../src/net/session';
-import { matchLampFalloff } from '../src/world/lampMath';
-import { defaultSettings } from '../src/core/settings';
 import type { Transport } from '../src/net/transport';
 import { WEAPONS } from '../src/weapons/weaponDefs';
 import { emptyStats } from '../src/game/modes/gameMode';
@@ -397,48 +395,27 @@ describe('net session', () => {
     cli.toHost({ t: 'door', i: 0, crack: true });
     expect(got).toEqual([{ t: 'door', i: 0, crack: true }]);
   });
-  it('a peer on protocol version 40 is refused; version 41 joins (41 = guard-ai S9 + A126 carry on train 30: barks, caution and gear bits, deflect confirms; 40 the Player stack at train 30: PF.aimLeft, the takedown blow bit, PlayerState.sc; 39 guard-ai S9 on train 29; 38 the lamp falloff, lightrev LR13; 37 Player #231; 36 pose-parity; 35 the weapons crate, sector-redesign E9-crate; 31 the Sector Ops lamps, slice L; 30 marlow-final)', () => {
-    expect(PROTOCOL_VERSION).toBe(41);
+  it('a peer one protocol version behind is refused; the current version joins', () => {
     const h = hub();
     const host = new NetSession(h.make('H'), 'host', 'ABCDE', prof('Host'));
     const old = h.make('O');
-    old.send({ t: 'hello', v: 40, name: 'Old', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: PROTOCOL_VERSION - 1, name: 'Old', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(false);
-    old.send({ t: 'hello', v: 41, name: 'New', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: PROTOCOL_VERSION, name: 'New', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(true);
   });
-  it("(38, lightrev LR13) the host's lamp falloff reaches the client's match over its own setting; junk or a missing lf reads Classic", () => {
+  it("(LR16a, one light model) the start message carries no lamp falloff; an old peer's lf is dropped", () => {
     const h = hub();
     const host = new NetSession(h.make('H'), 'host', 'ABCDE', prof('Host'));
     const cli = new NetSession(h.make('C'), 'client', 'ABCDE', prof('Cli'));
-    // the host's choice (coopUi: its setting or ?falloff=photo); the client's own setting is Classic
-    host.hostLampFalloff = () => matchLampFalloff('photometric', false);
     let started = null as StartInfo | null;
     cli.events.on('start', (s) => (started = s));
     host.startMatch();
-    expect(started).toMatchObject({ lampFalloff: 'photometric' });
-    // the client's sim (GameState.create) runs the host's, never its own
-    const clientSetting = defaultSettings().gameplay.lampFalloff;
-    expect(clientSetting).toBe('linear');
-    expect(matchLampFalloff(clientSetting, false, started!.lampFalloff)).toBe('photometric');
-    expect(matchLampFalloff('photometric', true, 'linear')).toBe('linear');
-    // a reconnect / rejoin gets the same start re-sent, lf kept (a re-hello triggers it again)
-    let again = null as StartInfo | null;
-    cli.events.on('start', (s) => (again = s));
-    cli.transport.send({ t: 'hello', v: PROTOCOL_VERSION, name: 'Cli', tag: {}, look: {} });
-    expect(again).toMatchObject({ lampFalloff: 'photometric' });
-    // the wire: lf round-trips; junk and a missing field read Classic
-    expect(parseMessage({ t: 'start', mode: 'clear', map: 'warehouse', seed: 1, difficulty: 'normal', lf: 'photometric' })).toMatchObject({ lf: 'photometric' });
-    expect(parseMessage({ t: 'start', mode: 'clear', map: 'warehouse', seed: 1, difficulty: 'normal', lf: 'bright' })).toMatchObject({ lf: 'linear' });
-    expect(parseMessage({ t: 'start', mode: 'clear', map: 'warehouse', seed: 1, difficulty: 'normal' })).toMatchObject({ lf: 'linear' });
-    // a host left on the default starts Classic
-    const h2 = hub();
-    const host2 = new NetSession(h2.make('H'), 'host', 'ABCDE', prof('Host'));
-    const cli2 = new NetSession(h2.make('C'), 'client', 'ABCDE', prof('Cli'));
-    let s2 = null as StartInfo | null;
-    cli2.events.on('start', (s) => (s2 = s));
-    host2.startMatch();
-    expect(s2).toMatchObject({ lampFalloff: 'linear' });
+    expect(started).not.toBeNull();
+    expect('lampFalloff' in started!).toBe(false);
+    const msg = parseMessage({ t: 'start', mode: 'clear', map: 'warehouse', seed: 1, difficulty: 'normal', lf: 'linear' });
+    expect(msg).not.toBeNull();
+    expect('lf' in msg!).toBe(false);
   });
   it('clients ignore authority claims from non-hosts and handle the host leaving', async () => {
     const h = hub();
@@ -484,6 +461,48 @@ describe('pstate movement state (3.2.0)', () => {
   });
 });
 
+import { clientStepNoise, MAX_FREE_SPEED } from '../src/net/validate';
+import { noiseRadius } from '../src/player/movement';
+import { NOISE_QUIET } from '../src/config/movement';
+import { PF } from '../src/net/protocol';
+
+describe('guard-ai S26 fix: the client step noise on the host (its own sent speed and stance)', () => {
+  const G = PF.grounded;
+  const st = (speed: number, f: number, m?: string) =>
+    ({ ...ps, speed, f, ...(m ? { mv: { ...emptyMoveState(), m } } : {}) }) as unknown as Parameters<typeof clientStepNoise>[0];
+  it('a crouch-walk is never heard (G40 silent band), crouched, wall slide or a crouched traversal run', () => {
+    for (let i = 0; i <= 40; i++) {
+      const v = (NOISE_QUIET.crouch * i) / 40;
+      expect(clientStepNoise(st(v, G | PF.crouch), true), `crouch ${v}`).toBe(0);
+      expect(clientStepNoise(st(v, G | PF.driven), true), `driven ${v}`).toBe(0);
+      expect(clientStepNoise(st(v, G, 'wall'), true), `wall ${v}`).toBe(0);
+    }
+    for (let i = 0; i <= 40; i++) expect(clientStepNoise(st((NOISE_QUIET.stand * i) / 40, G), true), `walk ${i}`).toBe(0);
+  });
+  it('the host player rule: noiseRadius(speed, crouched) on the same speed and stance', () => {
+    for (let v = 0; v <= MAX_FREE_SPEED; v += 0.25) {
+      expect(clientStepNoise(st(v, G), true)).toBe(noiseRadius(v, false));
+      expect(clientStepNoise(st(v, G | PF.crouch), true)).toBe(noiseRadius(v, true));
+      // (steps 'crouched': a traversal-driven move that is not silent) and a back-to-wall slide: the crouch band
+      expect(clientStepNoise(st(v, G | PF.driven), true)).toBe(noiseRadius(v, true));
+      expect(clientStepNoise(st(v, G, 'wall'), true)).toBe(noiseRadius(v, true));
+    }
+    expect(clientStepNoise(st(5, G), true)).toBeGreaterThan(6);
+  });
+  it('silent steps, in the air, or a state that jumped (teleport / respawn / send-back): no step at any speed', () => {
+    expect(clientStepNoise(st(6, G | PF.silent), true)).toBe(0);
+    expect(clientStepNoise(st(6, G | PF.driven | PF.silent), true)).toBe(0);
+    expect(clientStepNoise(st(6, 0), true)).toBe(0);
+    expect(clientStepNoise(st(6, G), false)).toBe(0);
+  });
+  it('reads the wire speed (sanitised 0..20), capped at the old bound', () => {
+    const m = parseMessage({ t: 'pstate', s: { ...ps, speed: 20, f: G } });
+    expect(m && m.t === 'pstate' && clientStepNoise(m.s, true)).toBe(noiseRadius(MAX_FREE_SPEED, false));
+    const crouchWalk = parseMessage({ t: 'pstate', s: { ...ps, speed: NOISE_QUIET.crouch, f: G | PF.crouch } });
+    expect(crouchWalk && crouchWalk.t === 'pstate' && clientStepNoise(crouchWalk.s, true)).toBe(0);
+  });
+});
+
 describe('team moves (3.2.0 phase 5)', () => {
   it('tmove: boost / ladder / end, a valid partner id, clamped numbers', () => {
     expect(parseMessage({ t: 'tmove', kind: 'boost', partner: 'peerB', target: 12, s: 1.5, gy: 4.2 })).toEqual({ t: 'tmove', kind: 'boost', partner: 'peerB', target: 12, s: 1.5, gy: 4.2 });
@@ -524,9 +543,6 @@ import { MOVE_MODES, dropBadWallMove, packMoveState, sanitizeMoveState, emptyMov
 import { strikeWarp } from '../src/anim/strikeBody';
 
 describe('step 09: host-authoritative drawn state (D8)', () => {
-  it('protocol 7 (step 12 raised it)', () => {
-    expect(PROTOCOL_VERSION).toBe(41);
-  });
   it('(step 11) wall packs and sanitizes: `a` a segment in range, `sub` a u8', () => {
     const mv = { ...emptyMoveState(), m: 'wall' as const, a: 3, s: 2.25, sub: 1 | 2 | 64, ph: 1 };
     const wire = JSON.parse(JSON.stringify(packMoveState(mv)));
@@ -708,9 +724,7 @@ describe('A3: the wall wire after the SWAT turn and the lean-out are gone (proto
     const q = poseFromMoveState({ ...emptyMoveState(), m: 'wall', a: 0, sub: 32 | 8, r: 1 }, 0, emptyMovePose());
     expect(q.lean).toBe(0);
   });
-  it('PROTOCOL_VERSION is 17; leftHand (128) and low (64) round-trip on a wall state', async () => {
-    const { PROTOCOL_VERSION } = await import('../src/net/protocol');
-    expect(PROTOCOL_VERSION).toBe(41);
+  it('leftHand (128) and low (64) round-trip on a wall state', async () => {
     const mv = { ...emptyMoveState(), m: 'wall' as const, a: 2, s: 1, sub: 1 | 4 | 16 | 64 | 128 };
     const back = sanitizeMoveState(JSON.parse(JSON.stringify(packMoveState(mv))), 4096, 8)!;
     expect(back.sub).toBe(1 | 4 | 16 | 64 | 128);
@@ -753,9 +767,6 @@ describe('step 13: door peek on the wire', () => {
     expect((m2 as Extract<typeof m2, { t: 'snap' }>).dcr).toEqual([]);
     expect(dcr.length).toBeLessThanOrEqual(MAX_DOORS);
     expect(new Set(dcr).size).toBe(dcr.length);
-  });
-  it('PROTOCOL_VERSION is 24', () => {
-    expect(PROTOCOL_VERSION).toBe(41);
   });
 });
 
@@ -828,9 +839,8 @@ describe('course messages (T1b)', () => {
     expect(parseMessage({ t: 'ctick', verb: 'gear' })).toEqual({ t: 'ctick', verb: 'gear' });
     expect(parseMessage({ t: 'ctick', verb: 'takedown' })).toBeNull();
   });
-  it('the course takes two players and the protocol was bumped', () => {
+  it('the course takes two players', () => {
     expect(capacity('course')).toBe(2);
-    expect(PROTOCOL_VERSION).toBe(41);
   });
   it('the ctick limiter allows 4 a second', () => {
     const l = new TickLimiter();

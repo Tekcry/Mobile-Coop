@@ -11,13 +11,21 @@ import { CT } from '../../src/config/movement';
 import { HEEL_BACK, HEEL_DOWN, TOE_BALL } from '../../src/anim/footGeom';
 import type { CharacterRig, RigPose } from '../../src/player/characterRig';
 import { JOINTS, type Rec } from './mocapMeasure';
+import { KNEEL_STILL } from '../../src/player/playerController';
+import { wallTurnRate, wallYawOffset } from '../../src/player/wallController';
 import type { Mode } from './mocapPlayer';
 
 const DT = 1 / 60;
+const wrapPi = (a: number): number => Math.atan2(Math.sin(a), Math.cos(a));
 
 /** The stick at time t: the wanted velocity in the body's frame (m/s; x right, z forward); `aim` the raise (default 1). */
 /** `mocap` (mode 'on' only): the switch this frame (a toggle mid-run; the carrier's driver follows it). */
-export interface AimStick { x: number; z: number; aim?: number; mocap?: boolean }
+export interface AimStick { x: number; z: number; aim?: number; mocap?: boolean; crouch?: number }
+/** (afp AF0) `crouch` 0 / 1: the stance asked (eased over 0.22 s as player.ts eases it); crouched with the stick still for
+ *  KNEEL_STILL the carrier kneels (playerController.ts's rule). Under `AimOpts.wall` the stick's x is the slide along the
+ *  wall (m/s). `AimOpts.weight`: the weapon mass factor (1 rifle, 0.7 pistol); `AimOpts.wall`: a drawn back-to-wall slide
+ *  (the wall behind the root, outward normal +z, the body side-on as the crouch blends in, `aim` defaulting to 0). */
+export interface AimOpts { weight?: number; wall?: boolean }
 export type AimTarget = (t: number) => AimStick;
 
 function contactPts(n: CharacterRig['ankleL'], heel: number[], ball: number[]): void {
@@ -30,7 +38,7 @@ function contactPts(n: CharacterRig['ankleL'], heel: number[], ball: number[]): 
 
 /** Run an aimed plan for `steps` 60 Hz steps, recording from `recFrom` s; mode 'off' / 'on' (the switch); `carrier` false:
  *  a guard-style rig (the switch must not reach it; its driver never asks the mocap side-step). */
-export async function aimRun(target: AimTarget, steps: number, recFrom: number, mode: Mode, onStep?: (rig: CharacterRig, k: number) => void, carrier = true): Promise<Rec> {
+export async function aimRun(target: AimTarget, steps: number, recFrom: number, mode: Mode, onStep?: (rig: CharacterRig, k: number) => void, carrier = true, opts: AimOpts = {}): Promise<Rec> {
   const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
   const { Scene, TransformNode, Quaternion } = await import('../../src/core/babylon');
   const { PartLibrary } = await import('../../src/world/partLibrary');
@@ -60,6 +68,8 @@ export async function aimRun(target: AimTarget, steps: number, recFrom: number, 
     mi.aiming = true;
     mi.faceTravel = true;
     mi.mocapSide = mode === 'on' && carrier;
+    p.weight = opts.weight ?? 1;
+    let crouchK = 0, stillT = 0, visYaw = 0, wallSide = 1;
     for (let k = 0; k < steps; k++) {
       const t = k * DT;
       const s = target(t);
@@ -67,19 +77,42 @@ export async function aimRun(target: AimTarget, steps: number, recFrom: number, 
         setMocapLocomotion(s.mocap);
         mi.mocapSide = s.mocap && carrier;
       }
+      const cw = s.crouch ?? 0;
+      crouchK = Math.max(0, Math.min(1, crouchK + (cw > crouchK ? 1 : cw < crouchK ? -1 : 0) * DT / 0.22));
+      const cs = crouchK * crouchK * (3 - 2 * crouchK);
+      if (cs > 0) mi.crouch = cs;
       mi.vx = s.x;
-      mi.vz = s.z;
-      mi.yaw = 0;
+      mi.vz = opts.wall ? 0 : s.z;
+      if (opts.wall) {
+        if (Math.abs(s.x) > 0.05) wallSide = s.x > 0 ? 1 : -1;
+        const d = wrapPi(wallYawOffset(cs, wallSide) - visYaw);
+        const mx = wallTurnRate(Math.abs(d), true, true, cs) * DT;
+        visYaw += Math.max(-mx, Math.min(mx, d));
+      }
+      mi.yaw = visYaw;
       drv.step(DT, mi);
-      rig.root.rotation.y = 0;
+      rig.root.rotation.y = visYaw;
       rig.root.position.x += drv.outX * DT;
       rig.root.position.z += drv.outZ * DT;
       const sp = Math.hypot(drv.outX, drv.outZ);
+      const cy = Math.cos(visYaw);
+      const sy = Math.sin(visYaw);
       p.speed = sp;
-      p.localX = sp > 0.01 ? drv.outX / sp : 0;
-      p.localZ = sp > 0.01 ? drv.outZ / sp : 0;
-      p.aim = s.aim ?? 1;
-      p.phase = drv.phase;
+      p.localX = sp > 0.01 ? (drv.outX * cy - drv.outZ * sy) / sp : 0;
+      p.localZ = sp > 0.01 ? (drv.outX * sy + drv.outZ * cy) / sp : 0;
+      p.crouch = cs;
+      stillT = cw > 0.5 && Math.hypot(s.x, s.z) < 0.05 && drv.state === 'idle' ? stillT + DT : 0;
+      p.kneel = stillT > KNEEL_STILL;
+      p.aim = s.aim ?? (opts.wall ? 0 : 1);
+      if (opts.wall) {
+        p.wall = true;
+        p.wallSide = wallSide;
+        p.wallNx = 0;
+        p.wallNz = 1;
+        p.wallFace = -0.3;
+        p.wallTurn = Math.abs(sy);
+      }
+      p.phase = opts.wall && Math.abs(sy) > 0.5 ? -1 : drv.phase;
       p.motion = drv.state;
       p.motionT = drv.stateT;
       p.quickStop = CT.stopBlend;
@@ -99,7 +132,7 @@ export async function aimRun(target: AimTarget, steps: number, recFrom: number, 
       }
       R.n++;
       R.root.push(rig.root.position.x, rig.root.position.y, rig.root.position.z);
-      R.yaw.push(0);
+      R.yaw.push(visYaw);
       R.speed.push(sp);
       const PL = rig.planner;
       R.contactL.push(PL.L.contact ? 1 : 0);
@@ -136,6 +169,30 @@ export const STRAFE_PLANS = {
   startStop: (sg: number, v: number): [AimTarget, number, number] => [(t) => ({ x: t > 1 && t % 3 < 1.7 && t % 3 > 0.2 ? sg * v : 0, z: 0 }), 600, 0.5],
   flip: (v: number, per: number): [AimTarget, number, number] => [(t) => ({ x: Math.floor(t / per) % 2 ? v : -v, z: 0 }), 420, 1],
   snap: (sg: number, fwd: number): [AimTarget, number, number] => [(t) => (Math.floor(t / 1.5) % 2 ? { x: 0, z: fwd } : { x: sg * 0.7, z: 0 }), 480, 1],
+};
+
+/** (afp AF0) Crouched aimed plans (`crouch` 1 from t = 0, eased in; pass `AimOpts.weight` 0.7 for the pistol) and the drawn
+ *  crouched back-to-wall slide (pass `{ wall: true }`; `wallSlide`: steady, `wallReverse`: the slide reverses every `per` s).
+ *  [target, steps, record from s]: the crouch settles before the record starts. */
+export const CROUCH_PLANS = {
+  steady: (sg: number, v: number): [AimTarget, number, number] => [() => ({ x: sg * v, z: 0, crouch: 1 }), 420, 2],
+  /** `n` stop-go cycles: the stick on `on` s, off `off` s (the carrier kneels each stop). */
+  stopGo: (sg: number, v: number, n = 10, on = 1.0, off = 0.8): [AimTarget, number, number] => [
+    (t) => ({ x: t > 1 && (t - 1) % (on + off) < on ? sg * v : 0, z: 0, crouch: 1 }),
+    Math.round(60 * (1 + n * (on + off) + 0.5)),
+    1,
+  ],
+  /** L <-> R flips every `per` s through the stick's centre: `gap` s of zero between (a thumb crossing the dead zone). */
+  flip: (v: number, per: number, gap = 0.15): [AimTarget, number, number] => [
+    (t) => {
+      const u = t % per;
+      return { x: u < gap || t < 1 ? 0 : Math.floor(t / per) % 2 ? v : -v, z: 0, crouch: 1 };
+    },
+    480,
+    1,
+  ],
+  wallSlide: (sg: number, v: number): [AimTarget, number, number] => [(t) => ({ x: t < 1 ? 0 : sg * v, z: 0, crouch: 1 }), 360, 2],
+  wallReverse: (v: number, per = 1.4): [AimTarget, number, number] => [(t) => ({ x: t < 1 ? 0 : Math.floor((t - 1) / per) % 2 ? -v : v, z: 0, crouch: 1 }), 480, 1.5],
 };
 
 /** The feet's smallest sideways gap (m): the right ankle's x less the left's (the body faces +z: under 0 they cross). */

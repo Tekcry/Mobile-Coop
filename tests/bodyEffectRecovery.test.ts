@@ -106,6 +106,25 @@ describe('guard-ai carry fix: body effect recovery', () => {
     rig.dispose();
   });
 
+  it("undoes Babylon's CPU-skinning fallback on the meshes holding the recompiled effect", async () => {
+    const { mesh, ready, rec, rig } = await setup();
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(await ready()).toBe(true);
+    expect(mesh.skeleton).toBeTruthy();
+    expect(mesh.computeBonesUsingShaders).toBe(true);
+    const lod = rig.renderMeshes[1] as Mesh;
+    // as EffectFallbacks.reduce does on a failed compile: the holders drop to CPU skinning
+    mesh.computeBonesUsingShaders = false;
+    timeOut(mesh.subMeshes[0]!.effect!);
+    const lodHeld = lod.subMeshes[0]!.effect === mesh.subMeshes[0]!.effect;
+    expect(rec.watchBodyEffect(mesh, rec.newEffectWatch(), 0)).toBe(true);
+    expect(mesh.computeBonesUsingShaders).toBe(true);
+    if (lodHeld) expect(lod.computeBonesUsingShaders).toBe(true);
+    expect(await ready()).toBe(true);
+    expect(mesh.subMeshes[0]!.effect!.defines).toContain(`#define NUM_BONE_INFLUENCERS ${mesh.numBoneInfluencers}`);
+    rig.dispose();
+  });
+
   it('gives up after MAX_RECOMPILES per variant (one log line), leaving the effect to Babylon', async () => {
     const { mesh, ready, rec, rig } = await setup();
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -150,5 +169,155 @@ describe('guard-ai carry fix: body effect recovery', () => {
     expect(await ready()).toBe(true);
     expect(mesh.subMeshes[0]!.effect).not.toBe(e1);
     rig.dispose();
+  });
+});
+
+/** Make `e` look like a parallel compile still running (program not linked yet, no error). */
+function compiling(e: Effect): { _isReady: boolean; _pipelineContext: unknown; _compilationError: string; _allFallbacksProcessed: boolean } {
+  const x = e as unknown as { _isReady: boolean; _pipelineContext: unknown; _compilationError: string; _allFallbacksProcessed: boolean };
+  x._isReady = false;
+  x._pipelineContext = { isReady: false, _isDisposed: false };
+  x._compilationError = '';
+  x._allFallbacksProcessed = false;
+  return x;
+}
+
+describe('guard-ai body watchdog: recover on a real failure only', () => {
+  it('a slow compile (pending 20 s at 60 fps, then ready) is never recovered and logs nothing', async () => {
+    const { mesh, ready, rec, rig } = await setup();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(await ready()).toBe(true);
+    expect(rec.STUCK_MS).toBeGreaterThanOrEqual(60000); // LR16 Epic compiles measured up to 43.5 s (3 browsers)
+    const e1 = mesh.subMeshes[0]!.effect!;
+    const x = compiling(e1);
+    const w = rec.newEffectWatch();
+    for (let t = 0; t <= 20000; t += 16) expect(rec.watchBodyEffect(mesh, w, t)).toBe(false);
+    expect(w.frames).toBeGreaterThan(rec.STUCK_FRAMES);
+    expect(warn).not.toHaveBeenCalled();
+    // the compile finishes: same effect, nothing dropped
+    x._isReady = true;
+    expect(rec.watchBodyEffect(mesh, w, 20016)).toBe(false);
+    expect(w.effect).toBeNull();
+    expect(e1.isDisposed).toBe(false);
+    expect(mesh.subMeshes[0]!.effect).toBe(e1);
+    expect(warn).not.toHaveBeenCalled();
+    rig.dispose();
+  });
+
+  it('a real compile error is recovered once Babylon has used its fallbacks', async () => {
+    const { mesh, ready, rec, rig } = await setup();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(await ready()).toBe(true);
+    const e1 = mesh.subMeshes[0]!.effect!;
+    const x = compiling(e1);
+    x._pipelineContext = null;
+    x._compilationError = "FRAGMENT SHADER ERROR: 0:1: 'x' : undeclared identifier";
+    // (Babylon is still on its fallbacks: not yet)
+    const w = rec.newEffectWatch();
+    expect(rec.watchBodyEffect(mesh, w, 0)).toBe(false);
+    x._allFallbacksProcessed = true;
+    expect(rec.watchBodyEffect(mesh, w, 16)).toBe(true);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('compile failed, recompiling (1/3)'));
+    expect(e1.isDisposed).toBe(true);
+    expect(await ready()).toBe(true);
+    expect(mesh.subMeshes[0]!.effect).not.toBe(e1);
+    rig.dispose();
+  });
+
+  it("Babylon's timeout (the e2e-guard-carry forced fault) is recovered at once, its next fallback still compiling", async () => {
+    const { mesh, ready, rec, rig } = await setup();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(await ready()).toBe(true);
+    const e1 = mesh.subMeshes[0]!.effect!;
+    // as `_processCompilationErrors` leaves it: the timeout error recorded, the next fallback's program compiling
+    const x = compiling(e1);
+    x._compilationError = TIMEOUT;
+    expect(rec.watchBodyEffect(mesh, rec.newEffectWatch(), 0)).toBe(true);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('compile timed out, recompiling (1/3)'));
+    expect(e1.isDisposed).toBe(true);
+    expect(await ready()).toBe(true);
+    rig.dispose();
+  });
+
+  it("a recompile's late drop of the old program never disposes the new effect's (same key): no second recovery", async () => {
+    const { engine, mesh, ready, rec, rig } = await setup();
+    const { getStateObject } = await import('../src/core/babylon');
+    const { WebGLPipelineContext } = await import('@babylonjs/core/Engines/WebGL/webGLPipelineContext');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(await ready()).toBe(true);
+    // a GL stand-in (KHR_parallel_shader_compile): each program reports linked when its flag says so
+    const linked = new Set<object>();
+    const deleted: object[] = [];
+    const gl = {
+      getExtension: () => null,
+      isContextLost: () => false,
+      isProgram: () => true,
+      getProgramParameter: (p: object) => linked.has(p),
+      deleteProgram: (p: object) => deleted.push(p),
+    } as unknown as WebGL2RenderingContext;
+    const eng = engine as unknown as { _gl: WebGL2RenderingContext | null; _deletePipelineContext(p: unknown): void };
+    const e = mesh.subMeshes[0]!.effect!;
+    const name = e.key.replace(/\r/g, '').replace(/\n/g, '|');
+    const cached = getStateObject(gl).cachedPipelines;
+    const ctxOf = (): InstanceType<typeof WebGLPipelineContext> => {
+      const c = new WebGLPipelineContext();
+      c.context = gl;
+      c.program = {} as WebGLProgram;
+      c.isParallelCompiled = true;
+      (c as { _name?: string })._name = name;
+      return c;
+    };
+    eng._gl = gl;
+    try {
+      // the dropped effect's program, still linking, cached under the body key: its delete is deferred (gl-warning-fix)
+      const old = ctxOf();
+      cached[name] = old;
+      eng._deletePipelineContext(old);
+      expect(old._isDisposed).toBe(true);
+      expect(cached[name]).toBeUndefined();
+      expect(deleted).toHaveLength(0);
+      // the recompile's new effect (same key) is compiling: its context is cached under the same name
+      const succ = ctxOf();
+      cached[name] = succ;
+      const x = e as unknown as { _isReady: boolean; _pipelineContext: unknown };
+      x._isReady = false;
+      x._pipelineContext = succ;
+      // the old program finishes linking: its deferred delete runs (Babylon's name-keyed reset used to dispose `succ`)
+      linked.add(old.program!);
+      await new Promise((r) => setTimeout(r, 60));
+      expect(deleted).toContain(old.program);
+      expect(succ._isDisposed).toBe(false);
+      expect(cached[name]).toBe(succ);
+      const w = rec.newEffectWatch();
+      for (let f = 0; f < 10; f++) expect(rec.watchBodyEffect(mesh, w, f * 16)).toBe(false);
+      expect(warn).not.toHaveBeenCalled();
+      // the recompile's own swap: its effect's context (here linked) is dropped and the key's cache entry cleared
+      const mine = ctxOf();
+      linked.add(mine.program!);
+      cached[name] = mine;
+      x._pipelineContext = mine;
+      expect(rec.recompileEffect(mesh.getScene(), e, 'compile stuck', mesh.name)).toBe(true);
+      expect(mine._isDisposed).toBe(true);
+      expect(deleted).toContain(mine.program);
+      expect(cached[name]).toBeUndefined();
+      expect(warn).toHaveBeenCalledTimes(1);
+    } finally {
+      eng._gl = null;
+      for (const k of Object.keys(cached)) delete cached[k];
+    }
+    // the new effect compiles and is watched as itself: no second recovery
+    expect(await ready()).toBe(true);
+    const fresh = mesh.subMeshes[0]!.effect!;
+    expect(fresh).not.toBe(e);
+    const w2 = rec.newEffectWatch();
+    for (let f = 0; f < 40; f++) expect(rec.watchBodyEffect(mesh, w2, f * 16)).toBe(false);
+    expect(warn).toHaveBeenCalledTimes(1);
+    rig.dispose();
+  });
+
+  it('the recompile cap is unchanged: 3 per variant', async () => {
+    const rec = await import('../src/player/bodyEffectRecovery');
+    expect(rec.MAX_RECOMPILES).toBe(3);
+    expect(rec.STUCK_FRAMES).toBe(30);
   });
 });

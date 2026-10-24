@@ -9,7 +9,7 @@ import { BLOOM, BRIGHT_GLSL } from './nightVision';
 const BRIGHT = `
 precision highp float;
 varying vec2 vUV;
-uniform sampler2D src;
+uniform highp sampler2D src;
 uniform vec2 srcTexel;
 // threshold, knee, 1 / store range, half-float source (1) or 8-bit (0)
 uniform vec4 bright;
@@ -34,7 +34,7 @@ void main(void) {
 const MEASURE = `
 precision highp float;
 varying vec2 vUV;
-uniform sampler2D src;
+uniform highp sampler2D src;
 // x, y: a quarter of a measure texel (uv); z: half-float source (1) or 8-bit (0)
 uniform vec3 measure;
 ${BRIGHT_GLSL}

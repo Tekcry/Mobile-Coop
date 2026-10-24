@@ -1,0 +1,17 @@
+{
+ "levels": {
+  "A3 corridor centre": 0.83,
+  "A3 corridor centre cut": 0.14,
+  "A3 west lobby": 0.61,
+  "A3 east lobby": 0.61,
+  "A3 office 1 middle": 1,
+  "A3 office 2 middle": 1,
+  "A3 office 3 middle": 1,
+  "A3 office 1 cut": 0.14,
+  "A3 office 2 cut": 0.14,
+  "A3 office 3 cut": 0.14,
+  "A3 far desk": 0.48,
+  "A3 corridor floor": 0.56,
+  "A3 corridor standby": 0.14
+ }
+}

@@ -45,6 +45,25 @@ export const R_FLANK = 3;
 export const R_REPORTER = 4;
 export const R_SEARCH = 5;
 
+/** (guard-ai walk 4.82 item 2) `peekWait`: seconds in cover with no sight of him (one whole hide / peek cycle, the
+ *  `inCover` 4.2 s cycle) before a guard with no holding role leaves it to close on the last known position. */
+export const ENGAGE = { peekWait: 4.2 } as const;
+
+/**
+ * (guard-ai walk 4.82 item 2, Michael: "He should report then attack you instead of hiding") A guard in combat, in
+ * cover, his target out of sight: once his radio call is through (`callOpen` false) he moves up on his intruder's last
+ * known position (the out-of-sight advance, cover to cover) instead of sitting in cover until the lost-sight timer turns
+ * the fight into a search. Only a guard with no holding role: a lone guard (`R_NONE`) or a group's `search`; the point,
+ * overwatch, flank and the reporter (who holds the role only while his call is open) keep theirs. A high-security post
+ * (`secure`) holds his leash. `unseen`: seconds since he last saw him; `inCoverT`: seconds in this cover; both at least
+ * `ENGAGE.peekWait`, so one peek has come up empty (a crouched hide phase is not a lost target). Pure.
+ */
+export function closeFromCover(role: number, callOpen: boolean, secure: boolean, unseen: number, inCoverT: number): boolean {
+  if (role !== R_NONE && role !== R_SEARCH) return false;
+  if (callOpen || secure) return false;
+  return unseen >= ENGAGE.peekWait && inCoverT >= ENGAGE.peekWait;
+}
+
 export type ProfileId = 'standard' | 'aggressive' | 'post';
 
 /** How a guard fights (design section 7). Weights and thresholds, never dice: the seeded RNG reads them. */
@@ -159,6 +178,12 @@ export const SQUAD = {
   wProtect: 2,
   /** Overwatch on low cover can fire over it. */
   lowOverwatch: 0.5,
+  /** (guard-ai S27) A role guard out of sight in the open waits for the group at most this long (s), crouched; then he
+   *  takes today's cover pick. Infinity: the S8 wait. */
+  openWait: 3,
+  /** (guard-ai S27) Suppressive fire only along a clear static line from the muzzle to the spot (one cached ray per
+   *  think). false: the S8 rule. */
+  suppressView: true,
 } as const;
 
 /** cos(flankMinDeg): a flank cover's bearing cos to the point's must be <= this. */

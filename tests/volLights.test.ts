@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LightRegistry, makeCone, type LightInit } from '../src/world/lights';
 import { addTorchSlots, TORCH } from '../src/world/torches';
+import { PHOTO } from '../src/world/lampMath';
 import { VOL_BEAM_GAIN, VOL_LAMP_COS, volBeam, writeVolLight } from '../src/vfx/volLights';
 
 const pos = new Float32Array(16);
@@ -36,7 +37,7 @@ describe('volumetric pass per-light values (vol-cone-fix)', () => {
     expect(tilted.d[1]).toBeCloseTo(-0.819, 3);
     expect(tilted.d[2]).toBeCloseTo(-0.574, 3);
     expect(tilted.d[3]).toBeCloseTo(VOL_LAMP_COS, 5);
-    expect(tilted.p[3]).toBeCloseTo(2.5, 5); // half the radius
+    expect(tilted.p[3]).toBeCloseTo(Math.min(5 * PHOTO.reach * 0.5, 3), 5); // half the reach (LR16a: radius x PHOTO.reach), at most its height
     const narrow = write({ kind: 'spot', x: 0, y: 8, z: 0, radius: 13, intensity: 1, color: COOL, cone: makeCone(0, -1, 0, 0.3), fixture: BULKHEAD });
     expect(narrow.d[3]).toBeCloseTo(Math.cos(0.3), 5);
   });
@@ -72,7 +73,7 @@ describe('volumetric pass per-light values (vol-cone-fix)', () => {
 
   it('a flood without an LED fitting model keeps the beam it had (base Warehouse facade floods, warehouse.ts ~:408)', () => {
     const { p, d, c } = write({ kind: 'spot', x: -18.5, y: 5.6, z: -18.6, radius: 7.5, intensity: 0.9, color: [0.85, 0.9, 1], cone: makeCone(0, -1, -0.25, 0.7), fixture: HOUSING });
-    expect(p[3]).toBeCloseTo(7.5, 5);
+    expect(p[3]).toBeCloseTo(7.5 * PHOTO.reach, 5); // (LR16a) the reach: radius x PHOTO.reach
     expect(d[3]).toBeCloseTo(Math.cos(0.7), 5);
     expect(c[0]).toBeCloseTo(0.85 * 0.9 * VOL_BEAM_GAIN, 5);
   });

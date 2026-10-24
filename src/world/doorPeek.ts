@@ -55,6 +55,14 @@ export interface PeekDoorAnchor {
   height: number;
   swing: number;
   locked: boolean;
+  /** (marlow-final N9) 'slide': the facility kit's motorised sliding door (no crack, peek, bash or committed swing). */
+  leaf?: 'swing' | 'slide';
+}
+
+/** (marlow-final N9) A sliding door: it offers Open only (no crack / peek, bash, stealth drive or committed swing);
+ *  its leaves slide on the same `DoorState` (`open`, `target`), so collision, light, sight, locks and co-op are unchanged. */
+export function isSlideDoor(a: { leaf?: 'swing' | 'slide' }): boolean {
+  return a.leaf === 'slide';
 }
 
 /** The door state fields the peek reads (`DoorState`). */
@@ -132,7 +140,7 @@ export function leafDistance(a: PeekDoorAnchor, px: number, pz: number): number 
  * within `DOOR_PEEK.reach` and faced within the cone, grounded and free (`busy`: another state); with `py`, the feet within `floorGap` of the door's base.
  */
 export function doorPeekEligible(d: PeekDoor, peekedByOther: boolean, px: number, pz: number, faceYaw: number, grounded: boolean, busy: boolean, py = Number.NaN): boolean {
-  if (busy || !grounded || d.target !== 0 || d.anchor.locked || peekedByOther) return false;
+  if (busy || !grounded || d.target !== 0 || d.anchor.locked || peekedByOther || isSlideDoor(d.anchor)) return false;
   const a = d.anchor;
   if (leafDistance(a, px, pz) > DOOR_PEEK.reach || Math.abs(a.hinge.y - py) > DOOR_PEEK.floorGap) return false;
   const nx = Math.cos(a.yaw);
@@ -146,7 +154,7 @@ export function doorPeekEligible(d: PeekDoor, peekedByOther: boolean, px: number
 export function hostCrackOk(d: PeekDoor, fx: number, fz: number, on: boolean): boolean {
   if (d.target !== 0) return false;
   if (!on) return hyp2(d.cx - fx, d.cz - fz) <= DOOR_PEEK.hostReach;
-  return !d.anchor.locked && hyp2(d.cx - fx, d.cz - fz) <= DOOR_PEEK.hostReach;
+  return !d.anchor.locked && !isSlideDoor(d.anchor) && hyp2(d.cx - fx, d.cz - fz) <= DOOR_PEEK.hostReach;
 }
 
 export type DoorPeekPhase = 'off' | 'settle' | 'ready' | 'crack' | 'peek' | 'closing';

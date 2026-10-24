@@ -1,5 +1,5 @@
 import { Vector3, type Camera, type Observer, type Scene } from '../core/babylon';
-import { GLARE, abcWeight, easeGlare, easeVeil, glareY, pickGlare, type GlareLamp } from './nightVision';
+import { GLARE, abcWeight, easeGlare, easeVeil, glareTarget, glareY, pickGlare, type GlareLamp } from './nightVision';
 
 /**
  * Night vision's auto-gain (Phase 1 Step 4b fix; rendering only): while the goggles are on, the nearest lamps in view
@@ -69,7 +69,7 @@ export class NightAutoGain {
       const dz = l.z - c.z;
       const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
       const s = Math.max(0, len - GLARE.clearance) / len;
-      t[this.idx[i]!] = this.blocked(c.x, c.y, c.z, c.x + dx * s, c.y + dy * s, c.z + dz * s) ? 0 : 1;
+      t[this.idx[i]!] = glareTarget(this.blocked(c.x, c.y, c.z, c.x + dx * s, c.y + dy * s, c.z + dz * s), l.flicker);
     }
     const w = this.weight;
     for (let i = 0; i < w.length; i++) w[i] = easeGlare(w[i]!, t[i]!, dt);

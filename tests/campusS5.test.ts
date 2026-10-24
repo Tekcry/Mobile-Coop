@@ -3,11 +3,11 @@
  * Data and geometry only (the pure `LevelBuilder`): 24 guards (two dogs), three cameras, the shaft beams and their panel,
  * the three routes on an analytic nav grid (stair ramps included) and on the runtime grid, K4 (the keyholders), CR6 (the
  * pair gate), CR7 (the rope well), no leg-up lip, the light circuits, sealing, door separation, M8 isolation, the dormant
- * rule and A64.
+ * rule and the A99 screen count (lifts A64).
  */
 import { describe, expect, it } from 'vitest';
 import { LevelBuilder, type BoxPiece } from '../src/world/levelBuilder';
-import { campusOps } from '../src/world/maps/campusOps';
+import { buildCampus, campusOps } from '../src/world/maps/campusOps';
 import {
   S5_AMMO_CRATE,
   S5_ARMOURED,
@@ -30,7 +30,7 @@ import {
   S5_BULKHEAD_TOP,
   coreFlights,
 } from '../src/world/maps/campusS5';
-import { CAMPUS_ALARMS, CAMPUS_SECTORS, CAMPUS_SECURITY } from '../src/world/maps/campusSectors';
+import { CAMPUS_ALARMS, CAMPUS_SCREEN_CAP, CAMPUS_SECTORS, CAMPUS_SECURITY } from '../src/world/maps/campusSectors';
 import { SECTOR, checkSectorGuards, checkSectors, inZone, intelItemId, type SectorGuard } from '../src/game/sectors';
 import { addDoorClosure, checkStageActions, doorFinder } from '../src/game/sectorStage';
 import { validateSecurity, WIRE_CAMERAS } from '../src/security/data';
@@ -52,6 +52,9 @@ import { runtimeNav } from './helpers/runtimeNav';
 const PI = Math.PI;
 const b = new LevelBuilder();
 const lay = campusOps.build(b, 0);
+/** The undressed greybox: the screen count (A99) reads its sight lines here, as invisible dressing (chairs, shelves) must not block them. */
+const bG = new LevelBuilder();
+buildCampus(bG, { dress: false });
 const S5 = CAMPUS_SECTORS[4]!;
 const G = S5.guards;
 /** The S5 footprint and the C4 box. */
@@ -716,7 +719,7 @@ describe('M8: isolation in time at each takedown spot', () => {
   });
 });
 
-describe('A64: the screen count (no player point sees more than 6 awake guards)', () => {
+describe('A99: the screen count (no player point sees more than CAMPUS_SCREEN_CAP guards, every guard counted)', () => {
   /** Shut leaves on every door no guard route passes (open: the control room door, the side door, the kitchen and plant doors). */
   const open = [S5_DOORS.hallWest, S5_DOORS.anteSide, S5_DOORS.lobbyNorth, S5_DOORS.lobbySouth];
   const routePasses = (cx: number, cz: number, y: number): boolean =>
@@ -742,11 +745,11 @@ describe('A64: the screen count (no player point sees more than 6 awake guards)'
     leaves.push({ c: [cx, d.hinge.y + d.height / 2, cz], s: alongX ? [d.width, d.height, 0.1] : [0.1, d.height, d.width], yaw: 0, pitch: 0, color: '#000', collide: true });
   }
   const near = (p: BoxPiece): boolean => p.c[0] + p.s[0] > FOOT.x0 - 2 && p.c[0] - p.s[0] < FOOT.x1 + 8 && p.c[2] + p.s[2] > FOOT.z0 - 2 && p.c[2] - p.s[2] < FOOT.z1 + 2;
-  const world = new SightWorld([...b.boxes.filter(near), ...leaves], b.cylinders);
+  const world = new SightWorld([...bG.boxes.filter(near), ...leaves], bG.cylinders);
   const HALF = ((CAMERA_VIEW.fov / 2) * PI) / 180;
   const YAWS = Array.from({ length: 32 }, (_, k) => (k * PI) / 16);
-  it('at every walkable nav cell (0.5 m) on every S5 level, 32 facings: at most 6 awake guards (dogs count) in the 86 deg view with a clear line within 40 m', () => {
-    const awake = G.map((g, i) => ({ g, i })).filter((q) => !q.g.dormant);
+  it('at every walkable nav cell (0.5 m) on every S5 level, 32 facings: at most CAMPUS_SCREEN_CAP guards (dogs and dormant guards count) in the 86 deg view with a clear line within 40 m', () => {
+    const awake = G.map((g, i) => ({ g, i }));
     const pts = awake.map(({ g }) => guardPoints({ x: g.x, z: g.z, y: g.y, route: g.route as readonly (readonly [number, number])[] | undefined }).map(([px, py, pz]) => [px, py + 1.2, pz] as const));
     let worst = { n: -1, at: '', who: [] as number[] };
     let samples = 0;
@@ -777,14 +780,14 @@ describe('A64: the screen count (no player point sees more than 6 awake guards)'
           if (who.length > worst.n) worst = { n: who.length, at: `(${x}, ${h.toFixed(2)}, ${z}) facing ${((yaw * 180) / PI).toFixed(0)}`, who };
         }
         hist.set(best, (hist.get(best) ?? 0) + 1);
-        if (best > 6) over++;
+        if (best > CAMPUS_SCREEN_CAP) over++;
       }
     }
     // eslint-disable-next-line no-console
-    if (process.env.CAMPUS_PRINT) console.log(`A64 worst ${worst.n} at ${worst.at}: #${worst.who.join(', #')} (${samples} points, ${l1} on L1, ${roof} on the roof, ${over} over 6) histogram ${JSON.stringify([...hist.entries()].sort((p, q) => p[0] - q[0]))}`);
+    if (process.env.CAMPUS_PRINT) console.log(`A99 worst ${worst.n} at ${worst.at}: #${worst.who.join(', #')} (${samples} points, ${l1} on L1, ${roof} on the roof, ${over} over ${CAMPUS_SCREEN_CAP}) histogram ${JSON.stringify([...hist.entries()].sort((p, q) => p[0] - q[0]))}`);
     expect(samples).toBeGreaterThan(8000);
     expect(l1).toBeGreaterThan(300);
     expect(roof).toBeGreaterThan(300);
-    expect(worst.n, `worst ${worst.at}: #${worst.who.join(', #')}`).toBeLessThanOrEqual(6);
+    expect(worst.n, `worst ${worst.at}: #${worst.who.join(', #')}`).toBeLessThanOrEqual(CAMPUS_SCREEN_CAP);
   }, 600_000);
 });

@@ -4,19 +4,20 @@
  * (`lightBake.ts`: lamp visibility boxes, moon visibility, the ambient grid) and the registry's live state (on,
  * destroyed, EMP), with the formula the renderers use (`lampMath.ts`):
  *
- *   level = ambient grid + moon x moon visibility + sum over the lamps listed for the point's 2 m column (as the
- *           shaders list them) of `LAMP_LEVEL_GAIN` x intensity x falloff x cone x baked visibility, with closed
- *           doors cutting lamps
+ *   level = ambient grid + bounce grid (LR16-1, the lit lamps' one-bounce fill, never blended across a wall:
+ *           `BounceGrid.sampleInto`) + moon x moon visibility + sum over the
+ *           lamps listed for the point's 2 m column (as the shaders list them) of `LAMP_LEVEL_GAIN` x intensity x
+ *           falloff x cone x baked visibility, with closed doors cutting lamps
  *
  * Visibility is read trilinearly between cell centres and clamped to each box, as the GPU samples the atlas. Lights
  * that are not baked (flashlights) come from `dynamicAt` with the caller's ray test. Everything is allocation-free.
  */
 import { AMBIENT_CELL } from './ambientGrid';
-import { LAMP_CONE_COS, LAMP_EXP, LAMP_LEVEL_GAIN, lampFalloffMode, lampTerm, PHOTO, SPOT_EXP } from './lampMath';
+import { BounceGrid } from './bounceGrid';
+import { LAMP_CONE_COS, LAMP_EXP, LAMP_FEATHER, LAMP_LEVEL_GAIN, PHOTO_NEAR2, PHOTO_NUM, SPOT_EXP, SPOT_FEATHER } from './lampMath';
 import type { LightBake } from './lightBake';
-import type { LightRegistry, Occluder } from './lights';
-import { BOX_STRIDE, LAMP_CELL, LAMP_GRID, LAMP_GRID_SLOTS, LAMP_STRIDE, lampGrid, type LampResult } from '../voxel/lampBake';
-import { shadowAccuracyOn } from './shadowAccuracy';
+import { lightTerm, type LightRegistry, type Occluder } from './lights';
+import { BOX_STRIDE, LAMP_CELL, LAMP_GRID, LAMP_GRID_SLOTS, LAMP_STRIDE, lampGrid, lampGridBase, type LampResult } from '../voxel/lampBake';
 
 /** A door leaf as the field needs it (`Doors.list` entries fit): closed when `open` is below `DOOR_SHUT`. */
 export interface FieldDoor {
@@ -26,8 +27,11 @@ export interface FieldDoor {
 
 /** A door this far open or less stops light (its collision body is there until it starts to swing). */
 export const DOOR_SHUT = 0.05;
-/** Doors a baked lamp tests (the GPU's lamp data holds this many per lamp; the field tests the same list). */
+/** Doors per door texel of the GPU's lamp data (`lampDoorLists`' default list length). */
 export const DOORS_PER_LAMP = 4;
+/** (LR15, shadow audit 2) Doors a baked lamp tests: two door texels in the GPU's lamp data, so a 5th-8th shut door in a
+ *  lamp's view stops its light in the meter and on screen alike (the field tests the same list). */
+export const DOORS_PER_LAMP_ACCURATE = 8;
 
 /** Lamp `i`'s baked visibility at a point (0..1), read as `LightField.visAt` reads it. */
 export type BakeVisSampler = (i: number, x: number, y: number, z: number) => number;
@@ -73,14 +77,14 @@ export function doorSeen(seen: BakeVisSampler, i: number, d: FieldDoor): boolean
 
 /**
  * Per baked lamp (`LAMP_STRIDE` lights), the doors whose leaf can come between it and what it lights - the leaf's
- * middle within the lamp's reach plus the leaf's width - nearest first, up to `DOORS_PER_LAMP` (-1: none). The
+ * middle within the lamp's reach plus the leaf's width - nearest first, up to `slots` (-1: none; `DOORS_PER_LAMP_ACCURATE`). The
  * shaders and the field read this one list. (shadow audit) With `seen` (the bake's visibility) the doors whose doorway
  * the lamp cannot see (`doorSeen`) are left out, so a lamp with more doors in reach than slots keeps the ones that can
  * cut its light.
  */
-export function lampDoorLists(lights: Float32Array, doors: readonly FieldDoor[], seen?: BakeVisSampler): Int16Array {
+export function lampDoorLists(lights: Float32Array, doors: readonly FieldDoor[], seen?: BakeVisSampler, slots = DOORS_PER_LAMP): Int16Array {
   const n = lights.length / LAMP_STRIDE;
-  const out = new Int16Array(n * DOORS_PER_LAMP).fill(-1);
+  const out = new Int16Array(n * slots).fill(-1);
   const near: { k: number; d: number }[] = [];
   for (let i = 0; i < n; i++) {
     const o = i * LAMP_STRIDE;
@@ -96,7 +100,7 @@ export function lampDoorLists(lights: Float32Array, doors: readonly FieldDoor[],
       if (d < lights[o + 3]! + a.width && (!seen || doorSeen(seen, i, doors[k]!))) near.push({ k, d });
     }
     near.sort((p, q) => p.d - q.d);
-    for (let j = 0; j < Math.min(DOORS_PER_LAMP, near.length); j++) out[i * DOORS_PER_LAMP + j] = near[j]!.k;
+    for (let j = 0; j < Math.min(slots, near.length); j++) out[i * slots + j] = near[j]!.k;
   }
   return out;
 }
@@ -115,11 +119,10 @@ export class LightField {
   private readonly gz: number;
   /** `lampDoorLists` for the baked lamps. */
   private readonly lampDoors: Int16Array;
-  /** (lightrev prototype) the baked lamps' falloff is photometric (`lampMath.photoFalloff`), read once at construction. */
-  private readonly photo = lampFalloffMode() === 'photometric';
-  /** (shadow audit, `shadowAccuracy.ts`) the ambient fill read trilinearly, as the shaders' bilinear texture reads it;
-   *  the door lists skip doorways their lamp cannot see. Read once at construction. */
-  private readonly accurate = shadowAccuracyOn();
+  /** (LR15) Door slots per lamp, as the shaders' two door texels. */
+  private readonly doorSlots = DOORS_PER_LAMP_ACCURATE;
+  /** (LR16-1) The lit lamps' one-bounce fill on the ambient grid's cells; `BakedLamps` packs the same bytes. */
+  readonly bounce: BounceGrid;
 
   constructor(
     readonly bake: LightBake | null,
@@ -156,9 +159,11 @@ export class LightField {
       at += B[bi + 3]! * B[bi + 4]! * B[bi + 5]!;
     }
     this.grid = lamps && bake ? lampGrid(lamps.baked.lights, bake.lo, bake.hi) : null;
-    this.lampDoors = lamps ? lampDoorLists(lamps.baked.lights, doors, this.accurate ? bakeVisSampler(lamps.r) : undefined) : new Int16Array(0);
+    this.lampDoors = lamps ? lampDoorLists(lamps.baked.lights, doors, bakeVisSampler(lamps.r), this.doorSlots) : new Int16Array(0);
     this.gx = bake?.lo[0] ?? 0;
     this.gz = bake?.lo[2] ?? 0;
+    this.bounce = new BounceGrid(lamps?.r.bounce, lamps ? lamps.baked.ids : [], bake ? bake.ambient : { origin: [0, 0, 0], n: [1, 1, 1] });
+    this.bounce.sync(reg);
   }
 
   /**
@@ -182,6 +187,13 @@ export class LightField {
   /** Baked visibility of lamp `i` at a point (0..1): trilinear between cell centres, clamped to its box. */
   visAt(i: number, x: number, y: number, z: number): number {
     this.visInto(i, x, y, z);
+    return this.res;
+  }
+
+  /** (LR16-1) The one-bounce fill at a point (0..1): the bounce grid read by `BounceGrid.sampleInto` (the walls kept),
+   *  as `levelAt` adds it. */
+  bounceAt(x: number, y: number, z: number): number {
+    this.bounceInto(x, y, z);
     return this.res;
   }
 
@@ -238,17 +250,14 @@ export class LightField {
       return;
     }
     const ag = b.ambient;
-    let v: number;
-    if (this.accurate) {
-      this.triInto(ag.data, 0, ag.origin[0], ag.origin[1], ag.origin[2], ag.n[0], ag.n[1], ag.n[2], AMBIENT_CELL, x, y, z);
-      v = this.res;
-    } else {
-      const ax = ag.n[0];
-      const ay = ag.n[1];
-      const cx = Math.min(ax - 1, Math.max(0, Math.floor((x - ag.origin[0]) / AMBIENT_CELL)));
-      const cy = Math.min(ay - 1, Math.max(0, Math.floor((y - ag.origin[1]) / AMBIENT_CELL)));
-      const cz = Math.min(ag.n[2] - 1, Math.max(0, Math.floor((z - ag.origin[2]) / AMBIENT_CELL)));
-      v = ag.data[cx + ax * (cy + ay * cz)]! / 255;
+    // (shadow audit) the ambient fill read trilinearly, as the shaders' bilinear `lampAmb` texture reads it
+    this.triInto(ag.data, 0, ag.origin[0], ag.origin[1], ag.origin[2], ag.n[0], ag.n[1], ag.n[2], AMBIENT_CELL, x, y, z);
+    let v = this.res;
+    // (LR16-1) the lit lamps' bounce: the same cells, read without blending across a wall (fix round), as the shader
+    // reads the fill texture's green channel
+    if (this.bounce.active) {
+      this.bounceInto(x, y, z);
+      v += this.res;
     }
     if (b.moonLight > 0) {
       this.moonInto(x, y, z);
@@ -259,7 +268,7 @@ export class LightField {
       const q = Math.floor((x - this.gx) / LAMP_GRID);
       const r = Math.floor((z - this.gz) / LAMP_GRID);
       if (q >= 0 && r >= 0 && q < g.cols && r < g.rows) {
-        const base = (r * g.cols * 2 + q * 2) * 4;
+        const base = lampGridBase(g.cols, q, r);
         for (let s = 0; s < LAMP_GRID_SLOTS; s++) {
           const fid = g.data[base + s]!;
           if (fid === 0) break;
@@ -281,11 +290,14 @@ export class LightField {
     if (!l || !l.on || l.destroyed || l.intensity <= 0) return;
     const o = i * LS;
     const P = this.lamp;
-    const lx = P[o]!;
-    const ly = P[o + 1]!;
-    const lz = P[o + 2]!;
-    // falloff x cone: `lampMath.lampTerm` written out (this path must not box a returned double; change both together -
-    // the brute-force test in `tests/lightField.test.ts` compares them)
+    // (LR16-5b) where it hangs now: a swinging pendant's offset (0 for every other lamp), as the data texture's t0;
+    // its visibility stays the rest bake, read at the receiver point (`visInto`)
+    const lx = P[o]! + l.swx;
+    const ly = P[o + 1]! + l.swy;
+    const lz = P[o + 2]! + l.swz;
+    // falloff x cone: `lampMath.photoTerm` (`photoFalloff` x the feathered `lampCone`, LR16b) written out (this path
+    // must not box a returned double; change both together - the brute-force tests in `tests/lightField.test.ts` /
+    // `lampFalloff.test.ts` compare them)
     const vx = x - lx;
     const vy = y - ly;
     const vz = z - lz;
@@ -293,38 +305,52 @@ export class LightField {
     if (vx > rr || vx < -rr || vy > rr || vy < -rr || vz > rr || vz < -rr) return;
     const d = Math.sqrt(vx * vx + vy * vy + vz * vz);
     if (d >= rr) return;
-    let t = 1 - d / rr;
-    if (this.photo) {
-      // `lampMath.photoFalloff` written out (as above)
-      const q = (d * d) / (rr * rr);
-      const w = 1 - q * q;
-      const nd = d > PHOTO.near ? d : PHOTO.near;
-      t = ((PHOTO.ref * PHOTO.ref) / (nd * nd)) * w * w;
-    }
+    const q = (d * d) / (rr * rr);
+    const w = 1 - q * q;
+    let t = (PHOTO_NUM / (d * d + PHOTO_NEAR2)) * w * w;
     if (d >= 1e-4) {
       const ca = (vx * P[o + 4]! + vy * P[o + 5]! + vz * P[o + 6]!) / d;
-      if (ca < P[o + 7]!) return;
+      const cut = P[o + 7]!;
+      if (ca <= cut) return;
       const c = ca > 1e-4 ? ca : 1e-4;
       const e = P[o + 8]!;
       t *= e === 1 ? c : e === 2 ? c * c : Math.pow(c, e);
+      // (LR16b) the feathered edge: a smoothstep over `coneFeather(e)` x (1 - cut)
+      const band = (e < 1.5 ? LAMP_FEATHER : SPOT_FEATHER) * (1 - cut);
+      const ft = band > 1e-6 ? (ca - cut) / band : 1;
+      if (ft < 1) t *= ft * ft * (3 - 2 * ft);
     }
     this.visInto(i, x, y, z);
     const vis = this.res;
     this.res = 0;
     if (vis <= 0) return;
     // (the lamp's own door list, as the shaders test it)
-    for (let j = 0; j < DOORS_PER_LAMP; j++) {
-      const k = this.lampDoors[i * DOORS_PER_LAMP + j]!;
+    const ns = this.doorSlots;
+    for (let j = 0; j < ns; j++) {
+      const k = this.lampDoors[i * ns + j]!;
       if (k < 0) break;
       if (this.doorBlocksOne(k, lx, ly, lz, x, y, z)) return;
     }
-    this.res = LAMP_LEVEL_GAIN * l.intensity * t * vis;
+    // (LR16-5) x the lamp's live flicker (1 steady), the value the shader's lamp colour carries
+    this.res = LAMP_LEVEL_GAIN * l.intensity * l.flicker * t * vis;
   }
 
   private visInto(i: number, x: number, y: number, z: number): void {
     const o = i * LS;
     const P = this.lamp;
     this.triInto(this.bake!.lamps!.r.vis, P[o + 9]!, P[o + 10]!, P[o + 11]!, P[o + 12]!, P[o + 13]!, P[o + 14]!, P[o + 15]!, LAMP_CELL, x, y, z);
+  }
+
+  /** The bounce grid (synced to the registry first: one compare when nothing changed) into `res`. */
+  private bounceInto(x: number, y: number, z: number): void {
+    const bg = this.bounce;
+    if (!bg.active) {
+      this.res = 0;
+      return;
+    }
+    bg.sync(this.reg);
+    bg.sampleInto(x, y, z);
+    this.res = bg.out;
   }
 
   private moonInto(x: number, y: number, z: number): void {
@@ -375,8 +401,8 @@ export class LightField {
       const l = ls[i]!;
       if (i < this.isBaked.length && this.isBaked[i]) continue;
       if (!l.on || l.destroyed || l.intensity <= 0) continue;
-      const c = l.cone;
-      const t = LAMP_LEVEL_GAIN * l.intensity * lampTerm(x - l.x, y - l.y, z - l.z, l.radius, c ? c.dx : 0, c ? c.dy : -1, c ? c.dz : 0, c ? c.cosOuter : LAMP_CONE_COS, c ? SPOT_EXP : LAMP_EXP);
+      // (LR16 fix) a fixed lamp photometric, a flashlight linear: `lights.lightTerm`, as `contribution`
+      const t = LAMP_LEVEL_GAIN * l.intensity * l.flicker * lightTerm(l, x, y, z);
       if (t <= 0.01) continue;
       if (occluded && occluded(l, x, y, z)) continue;
       if (this.doors.length && this.doorBlocks(l.x, l.y, l.z, x, y, z)) continue;

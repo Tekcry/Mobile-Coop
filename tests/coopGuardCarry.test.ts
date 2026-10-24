@@ -11,7 +11,6 @@ import {
   alertCarry,
   packAlert,
   parseMessage,
-  PROTOCOL_VERSION,
   WIRE_CARRY_DRAWING,
   WIRE_CARRY_DRAWN,
   WIRE_CARRY_HOLSTERED,
@@ -32,11 +31,7 @@ const snapEnemies = (enemies: EnemyState[]): EnemyState[] => {
 
 const PHASES: CarryPhase[] = [CARRY_HOLSTERED, CARRY_DRAWING, CARRY_DRAWN, CARRY_HOLSTERING];
 
-describe('guard-ai A126: the carry bits (protocol 41)', () => {
-  it('is protocol 41 (S9 and A126 ride the same train, 30; 40 is the Player stack, 38 is the lamp falloff, 37 Player #231)', () => {
-    expect(PROTOCOL_VERSION).toBe(41);
-  });
-
+describe('guard-ai A126: the carry bits', () => {
   it('the carry is bits 7-8 over every S9 bit; drawn is 0, so old packAlert callers are unchanged', () => {
     expect([AL_CARRY_SHIFT, AL_CARRY, AL_MAX]).toEqual([7, 384, 65535]);
     expect(AL_CARRY & (3 | AL_SEIZED | AL_TORCH | AL_CAUTION | AL_HELMET | AL_ARMOUR)).toBe(0);

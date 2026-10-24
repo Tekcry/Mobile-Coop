@@ -1,4 +1,5 @@
-import { Color3, CreateBox, StandardMaterial, Vector3, type Mesh, type Scene } from '../core/babylon';
+import { Color3, CreateBox, StandardMaterial, Vector3, type Mesh, type PBRMaterial, type Scene } from '../core/babylon';
+import { levelIsPbr, levelPbrMaterial } from '../world/levelLitMaterial';
 import { hyp2, hyp3 } from '../core/mathx';
 import type { TeamController } from './teamController';
 import { ropeGripWorld } from '../anim/clips/team';
@@ -21,9 +22,16 @@ export class RopeLine {
   private readonly mid = new Vector3();
 
   constructor(scene: Scene) {
-    const mat = new StandardMaterial('ropeLineMat', scene);
-    mat.diffuseColor = new Color3(0.55, 0.45, 0.3);
-    mat.specularColor = new Color3(0, 0, 0);
+    // (lr16pol B) PBR where the level is: the guard torches light it (`levelLitMaterial.ts`)
+    const col = new Color3(0.55, 0.45, 0.3);
+    let mat: StandardMaterial | PBRMaterial;
+    if (levelIsPbr(scene)) mat = levelPbrMaterial('ropeLineMat', scene, col);
+    else {
+      const sm = new StandardMaterial('ropeLineMat', scene);
+      sm.diffuseColor = col;
+      sm.specularColor = new Color3(0, 0, 0);
+      mat = sm;
+    }
     this.a = CreateBox('ropeLineA', { width: ROPE_W, height: ROPE_W, depth: 1 }, scene);
     this.b = CreateBox('ropeLineB', { width: ROPE_W, height: ROPE_W, depth: 1 }, scene);
     for (const m of [this.a, this.b]) {

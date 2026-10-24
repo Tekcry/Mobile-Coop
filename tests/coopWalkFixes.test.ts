@@ -9,7 +9,7 @@ import { DualClock } from '../src/game/dualTakedown';
 import type { GameState, NetAttachment } from '../src/game/gameState';
 import { assistHolder, type SeizedHold } from '../src/net/assistTakedown';
 import { RemoteShots, SHOTS_QUEUE_MAX } from '../src/net/remoteShots';
-import { parseMessage, PROTOCOL_VERSION, type PlayerState } from '../src/net/protocol';
+import { parseMessage, type PlayerState } from '../src/net/protocol';
 import { remoteGun } from '../src/audio/weapons/guns';
 
 describe('P6 assistPlan (pure)', () => {
@@ -237,8 +237,7 @@ describe('P7 the partner weapon sound and the wire', () => {
     expect(remoteGun('rifle', 'nope')).toBe('rifle');
   });
 
-  it('PROTOCOL_VERSION is 41 (41 guard-ai S9 on train 30; 40 the stack, 37 the stack tip, one bump at train 30); pstate carries sc (clamped to 0..255, dropped when not a number)', () => {
-    expect(PROTOCOL_VERSION).toBe(41);
+  it('pstate carries sc (clamped to 0..255, dropped when not a number)', () => {
     const ps: PlayerState = { id: 'c1', x: 0, y: 0, z: 0, yaw: 0, pitch: 0, speed: 0, f: 0, w: 'pistolSd', hp: 100, sc: 42 };
     const m = parseMessage(JSON.parse(JSON.stringify({ t: 'pstate', s: ps })));
     expect(m && m.t === 'pstate' && m.s.sc).toBe(42);
