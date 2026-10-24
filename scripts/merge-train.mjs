@@ -488,6 +488,7 @@ const USAGE = [
   '  node scripts/merge-train.mjs build <n> <version> "<title>" <branch>... [--on <sha>] [--keep] [--no-test] [--dry-run]',
   '  node scripts/merge-train.mjs release <n> <version> "<title>" [--resume] [--head <sha>] [--no-fallback] [--dry-run]',
   '  node scripts/merge-train.mjs single <branch> <version> "<title>" [--dry-run]',
+  '  node scripts/merge-train.mjs repair [--dry-run]',
 ].join('\n');
 
 /** -1 / 0 / 1 comparing two "X.Y.Z" versions numerically. */
@@ -546,6 +547,11 @@ export function parseArgs(argv0) {
     if (!/^\d+$/.test(a[0] ?? '') || !a[2]) throw bad('release needs <n> <version> "<title>"');
     if (a.length > 3) throw bad(`unexpected argument "${a[3]}"`);
     return { cmd, n: trainNo(a[0]), version: ver(a[1]), title: a[2], resume: has('--resume'), head: headSha, noFallback: has('--no-fallback'), dry };
+  }
+  if (cmd === 'repair') {
+    only();
+    if (a.length) throw bad(`unexpected argument "${a[0]}"`);
+    return { cmd, dry };
   }
   if (cmd === 'single') {
     only();
@@ -747,7 +753,8 @@ function versionCommit({ branch, head, checkout, version, title, pr, members, su
 }
 
 /** The `gh pr merge` argv: always pinned to the head that passed (`--match-head-commit`), so a push after CI cannot merge. */
-export const mergeCmd = (pr, sha) => ['gh', 'pr', 'merge', String(pr ?? 'NEW'), '--merge', '--match-head-commit', sha ?? '<tested head>'];
+export const mergeCmd = (pr, sha) => ['gh', 'pr', 'merge', String(pr ?? 'NEW'), '--merge', '--match-head-commit', sha ?? '<tested head>',
+  '--body', DEPLOY_MARKER]; // the push deploy and dev's Preview check skip this merge: the tail dispatches the one deploy
 
 /** `gh pr merge` pinned to `sha`; a stacked release retries ~2 min while GitHub settles after the base train merged. */
 async function mergePinned(pr, sha, stacked) {
@@ -766,21 +773,21 @@ async function mergePinned(pr, sha, stacked) {
  * move dev. A stacked release then asserts (c): the merge commit's tree is the tested head's (else exit 5, loud).
  * Returns { merge (null in a dry run), code (0, or 5 on a tree mismatch) }.
  */
-async function mergeAndTag({ pr, version, sha, stacked = false }) {
+async function mergeAndTag({ pr, version, sha, stacked = false, n = null, members = [] }) {
   if (!DRY && !sha) throw new Error('mergeAndTag: no head sha to pin the merge to');
   await mergePinned(pr, sha, stacked);
   if (DRY) {
-    for (const c of [['git', 'tag', `v${version}`, '<merge commit>'], ['git', 'push', 'origin', `v${version}`],
+    for (const c of [['git', 'push', 'origin', `<merge commit>:refs/tags/v${version}`],
       ['git', 'push', 'origin', '<merge commit>:refs/heads/dev']]) act(c);
+    closeMembers(members, { n, version, pr });
+    act(deployDispatchCmd(version, sha));
     if (stacked) console.log('  [dry-run] would assert tree(merge commit) == tree(tested head)');
     return { merge: null, code: 0 };
   }
   const merge = run(['gh', 'pr', 'view', String(pr), '--json', 'mergeCommit', '--jq', '.mergeCommit.oid']);
   run(['git', 'fetch', 'origin']);
-  act(['git', 'tag', `v${version}`, merge]);
-  act(['git', 'push', 'origin', `v${version}`]);
-  act(['git', 'push', 'origin', `${merge}:refs/heads/dev`]);
-  console.log(`\nMERGED #${pr} as ${merge}, tagged v${version}, dev moved`);
+  console.log(`\nMERGED #${pr} as ${merge}`);
+  releaseTail({ n, version, pr, head: sha, merge, members });
   if (stacked) {
     const [got, want] = [treeOf(merge), treeOf(sha)];
     if (got !== want) {
@@ -794,10 +801,128 @@ async function mergeAndTag({ pr, version, sha, stacked = false }) {
 }
 
 /** CI on commit `sha` of `branch`, then mergeAndTag: 0 merged, 2 CI failed (nothing merged), 5 merged with a tree mismatch. */
-async function ciAndMerge({ branch, sha, pr, version, stacked = false }) {
+async function ciAndMerge({ branch, sha, pr, version, stacked = false, n = null, members = [] }) {
   if (DRY) console.log(`  [dry-run] would wait for CI on ${sha ? sha.slice(0, 8) : 'that commit'} (gh run list --branch ${branch}, gh run watch --exit-status)`);
   else if (!(await waitCi(branch, sha))) { console.error(`NOT merged: CI failed on ${sha}`); return 2; }
-  return (await mergeAndTag({ pr, version, sha, stacked })).code;
+  return (await mergeAndTag({ pr, version, sha, stacked, n, members })).code;
+}
+
+// ---- the idempotent tail: tag, dev, member PRs, one Pages deploy (safe to re-run after dying at any point) -------
+
+/** Work run after the train lock is released (the deploy wait): a hand run does not hold the lock for it. */
+const AFTER_LOCK = [];
+
+/** The deploy dispatch: deploy.yml on master with the tested head, so it skips lint / vitest on that tree. */
+export const deployDispatchCmd = (version, head) =>
+  ['gh', 'workflow', 'run', 'deploy.yml', '--ref', 'master', '-f', `tested_sha=${head ?? '<tested head>'}`, '-f', `version=${version}`];
+
+/**
+ * After the merge (or found merged by `release` / `repair`): tag v<version> on the merge when origin has no such
+ * tag, move dev to the merge when dev does not contain it, close member PRs whose heads are in origin/master, and
+ * (when dev moved now, or `deploy`) dispatch the one Pages deploy and queue its bounded wait + /preview/ check.
+ */
+function releaseTail({ n, version, pr, head, merge, members, deploy = false }) {
+  const tagCommit = remoteTagCommit(`v${version}`);
+  const devHasMerge = exists('origin/dev') && isAncestor(merge, 'origin/dev');
+  const plan = tailPlan({ merge, tagCommit, devHasMerge });
+  if (plan.tagWrong) console.warn(`WARNING: tag v${version} on origin names ${tagCommit.slice(0, 8)}, not the merge ${merge.slice(0, 8)}: left as it is`);
+  if (plan.tag) act(['git', 'push', 'origin', `${merge}:refs/tags/v${version}`]);
+  else console.log(`tag v${version}: already on origin`);
+  if (plan.dev) act(['git', 'push', 'origin', `${merge}:refs/heads/dev`]);
+  else console.log('dev: already contains the merge');
+  closeMembers(members, { n, version, pr });
+  console.log(`tail done: v${version} ${plan.tag ? 'tagged now' : 'tagged'}, dev ${plan.dev ? 'moved now' : 'current'}`);
+  if (plan.dev || deploy) {
+    const since = Date.now();
+    act(deployDispatchCmd(version, head));
+    if (!DRY) AFTER_LOCK.push(() => waitDeploy({ version, since }));
+  }
+  return plan;
+}
+
+/** The deploy wait budget (minutes): MERGE_TRAIN_DEPLOY_WAIT_MIN, default 20; 0 = dispatch only. */
+export const deployWaitMin = (env = process.env) => {
+  const v = Number(env.MERGE_TRAIN_DEPLOY_WAIT_MIN ?? 20);
+  return Number.isFinite(v) && v >= 0 ? v : 20;
+};
+
+/** The /preview/ version.json URL (MERGE_TRAIN_PAGES_URL overrides the site root), cache-busted. */
+function previewVersionUrl() {
+  const root = process.env.MERGE_TRAIN_PAGES_URL
+    || pagesRoot(run(['gh', 'repo', 'view', '--json', 'nameWithOwner', '--jq', '.nameWithOwner']));
+  return `${root.replace(/\/?$/, '/')}preview/version.json?t=${Date.now()}`;
+}
+
+/**
+ * Waits (bounded) for the dispatched deploy run, then fetches /preview/version.json until it names `version`. Prints
+ * one "PREVIEW: OK | STALE | UNKNOWN" line; never throws and never changes the exit code (the release is done).
+ */
+async function waitDeploy({ version, since }) {
+  const budget = deployWaitMin() * 60_000;
+  if (!budget) { console.log('PREVIEW: UNKNOWN - deploy dispatched, no wait (MERGE_TRAIN_DEPLOY_WAIT_MIN=0)'); return; }
+  const t0 = Date.now(), left = () => budget - (Date.now() - t0);
+  try {
+    let id = null;
+    while (!id && left() > 0 && Date.now() - t0 < 180_000) {
+      const list = JSON.parse(exec(['gh', 'run', 'list', '--workflow', 'deploy.yml', '--event', 'workflow_dispatch', '--limit', '5',
+        '--json', 'databaseId,createdAt']).out || '[]');
+      id = list.find((r) => Date.parse(r.createdAt) >= since - 60_000)?.databaseId ?? null;
+      if (!id) await sleep(10_000);
+    }
+    if (!id) { console.warn('PREVIEW: UNKNOWN - no deploy run appeared within 3 min of the dispatch'); return; }
+    console.log(`watching deploy run ${id} (up to ${Math.round(left() / 60_000)} min)`);
+    const w = await execTree(show(['gh', 'run', 'watch', String(id), '--exit-status', '--interval', '30']), { timeout: Math.max(left(), 1000) });
+    if (w.status !== 0) { console.warn(`PREVIEW: STALE - deploy run ${id} ${w.status === -1 ? 'still running at the wait limit' : 'failed'}`); return; }
+    let seen = null;
+    for (let i = 0; i < 12; i++) { // Pages may take a minute or two to serve the new artifact
+      const r = await fetch(previewVersionUrl(), { cache: 'no-store' }).then((x) => (x.ok ? x.text() : null), () => null);
+      seen = parsePreviewVersion(r);
+      if (seen?.version === version) { console.log(`PREVIEW: OK - /preview/ serves ${version}${seen.sha ? ` (${seen.sha})` : ''}`); return; }
+      await sleep(15_000);
+    }
+    console.warn(`PREVIEW: STALE - /preview/ serves ${seen ? seen.version : 'no version.json'}, expected ${version}`);
+  } catch (e) { console.warn(`PREVIEW: UNKNOWN - ${e.message}`); }
+}
+
+/** Train `n`'s members (merge order) between `from` and `head` (after a merge: `<merge>^1`), with their PRs. */
+function membersBetween(from, head, n) {
+  if (n == null) return [];
+  const subjects = run(['git', 'log', '--first-parent', '--merges', '--reverse', '--format=%s', `${from}..${head}`]).split('\n');
+  return membersFromLog(subjects, n).map((b) => ({ branch: b, pr: openPr(b) }));
+}
+
+/**
+ * The tail for a head already in origin/master: finds the merge commit whose second parent is `head` (recent
+ * first-parent merges), then releaseTail. 0 done, 1 no such merge or the version does not match.
+ */
+function repairHead({ n, version, head, deploy = false }) {
+  const lines = run(['git', 'rev-list', '--first-parent', '--merges', '--parents', '-n', '200', 'origin/master']).split('\n');
+  const merge = mergeOfHead(lines, head);
+  if (!merge) { console.error(`STOP: ${head.slice(0, 8)} is in origin/master but no recent merge has it as its second parent: repair by hand`); return 1; }
+  const at = versionAt(merge);
+  if (at !== version) { console.error(`STOP: package.json at the merge ${merge.slice(0, 8)} is ${at}, not ${version}`); return 1; }
+  const pr = /^Merge pull request #(\d+)/.exec(run(['git', 'log', '-1', '--format=%s', merge]))?.[1] ?? null;
+  console.log(`repair: ${version}${n != null ? ` (train ${n})` : ''} merged as ${merge.slice(0, 8)}${pr ? ` (#${pr})` : ''}`);
+  releaseTail({ n, version, pr, head, merge, members: membersBetween(`${merge}^1`, head, n), deploy });
+  return 0;
+}
+
+/** `repair`: the tail for the latest released version (origin/master's package.json): tag, dev, members, deploy. */
+async function repair() {
+  run(['git', 'fetch', 'origin']);
+  const version = versionAt('origin/master');
+  const hit = run(['git', 'log', 'origin/master', '-n', '1', '--format=%H%x09%s', '-F', `--grep=${version}: version at merge`]);
+  if (!hit) { console.error(`STOP: no version commit for ${version} in origin/master`); return 1; }
+  const [vsha, subject] = hit.split('\t');
+  const n = /, train (\d+) \(G183\)$/.exec(subject)?.[1] ?? null;
+  const lines = run(['git', 'rev-list', '--first-parent', '--merges', '--parents', '-n', '200', 'origin/master']).split('\n');
+  const row = lines.map((l) => l.trim().split(/\s+/)).find(([, p1, p2]) => p2 && isAncestor(vsha, p2) && !isAncestor(vsha, p1));
+  if (!row) { console.error(`STOP: no merge on origin/master brings in the version commit ${vsha.slice(0, 8)}`); return 1; }
+  // deploy: dispatch when dev moved now, or when /preview/ does not serve the version yet
+  let stale = true;
+  try { stale = parsePreviewVersion(await fetch(previewVersionUrl(), { cache: 'no-store' }).then((x) => (x.ok ? x.text() : null)))?.version !== version; } catch { /* unknown: deploy */ }
+  if (!stale) console.log(`/preview/ already serves ${version}`);
+  return repairHead({ n, version, head: row[2], deploy: stale });
 }
 
 // ---- commands -----------------------------------------------------------------------------------------------------
@@ -836,7 +961,7 @@ function planFragments(members) {
  * The train PR number: the open one, or a new one (null in a dry run). A stacked build (`base`: { train, sha, version })
  * writes its base marker into the PR body (an open PR's body is edited when its marker differs).
  */
-function ensurePr(n, version, title, members, notes = [], base = null) {
+function ensurePr(n, version, title, members, notes = [], base = null, { strip = false } = {}) {
   const branch = `train/${n}`;
   if (base) {
     const open = openPrInfo(branch);
@@ -848,10 +973,10 @@ function ensurePr(n, version, title, members, notes = [], base = null) {
     }
   } else {
     const open = openPrInfo(branch);
-    if (open) { // a non-stacked build reusing a PR a stacked build opened: drop the stale base marker
+    if (open) { // `strip` (a non-stacked build reusing a PR a stacked build opened): drop the stale base marker
       console.log(`train PR: #${open.number}`);
       const want = withBaseMarker(open.body, null);
-      if (want !== open.body) act(['gh', 'pr', 'edit', String(open.number), '--body', want]);
+      if (strip && want !== open.body) act(['gh', 'pr', 'edit', String(open.number), '--body', want]);
       return open.number;
     }
   }
@@ -980,7 +1105,7 @@ async function build({ n, version, title, branches, keep, on = null }) {
   // One push: the version commit (CI and the laptop start on it); no pre-version push for CI to cancel.
   act(['git', 'push', ...(keep ? [] : ['--force']), 'origin', `${v.sha}:refs/heads/${branch}`]);
   clearBuildMarker();
-  const pr = ensurePr(n, v.version, v.title, members, synth.notes, base && { train: base.m, sha: base.sha, version: base.version });
+  const pr = ensurePr(n, v.version, v.title, members, synth.notes, base && { train: base.m, sha: base.sha, version: base.version }, { strip: !base });
   if (!DRY && open && trainPrTitle(n, v.version, v.title) !== trainPrTitle(n, version, title)) {
     act(['gh', 'pr', 'edit', String(pr), '--title', trainPrTitle(n, v.version, v.title)]);
   }
@@ -1038,8 +1163,7 @@ async function releaseOld(n, version, title, head0) {
   const v = versionCommit({ branch, head, checkout: ['git', 'checkout', '-B', branch, head], version, title: `Train ${n}: ${title}`, pr,
     members: members.filter((m) => m.pr).map((m) => m.pr), subject: versionSubject(n, version) });
   if (v.code) return v.code;
-  const code = await ciAndMerge({ branch, sha: v.sha, pr, version });
-  if (code === 0) closeMembers(members, { n, version, pr });
+  return ciAndMerge({ branch, sha: v.sha, pr, version, n, members });
   return code;
 }
 
@@ -1065,7 +1189,10 @@ async function release({ n, version, title, resume, head: wantHead, noFallback }
   const head = rev(`origin/${branch}`);
   const pin = headPinCheck(head, wantHead, branch);
   if (pin) { console.error(pin); return 1; }
-  if (isAncestor(head, 'origin/master')) { console.error(`STOP: origin/${branch} is already merged into origin/master`); return 1; }
+  if (isAncestor(head, 'origin/master')) { // died after the merge: only the idempotent tail is left
+    console.log(`origin/${branch} ${head.slice(0, 8)} is already in origin/master: running the tail only (tag, dev, member PRs, deploy)`);
+    return repairHead({ n, version, head });
+  }
   const subjects = firstParentSubjects(head);
   const foreign = foreignVersionStop(subjects, n, branch); // guard (a): never pull an unreleased train into master
   if (foreign) { console.error(foreign); return 4; }
@@ -1103,9 +1230,7 @@ async function release({ n, version, title, resume, head: wantHead, noFallback }
   console.log(`origin/${branch} ${head.slice(0, 8)}: version commit ${idx ? `at ~${idx}` : 'at the head'}, package.json ${at}, ${stacked ? 'stacked (base merged)' : 'master is in'}`);
   const members = trainMembers(head, n);
   const pr = ensurePr(n, version, title, members);
-  const code = await ciAndMerge({ branch, sha: head, pr, version, stacked });
-  if (code === 0 || code === 5) closeMembers(members, { n, version, pr });
-  return code;
+  return ciAndMerge({ branch, sha: head, pr, version, stacked, n, members });
 }
 
 /** The git / gh facts of check (b) for a stacked train head (read only); see stackedDecision. */
@@ -1157,18 +1282,22 @@ export const heldByParent = (lockText, parentText) => !!parentText && lockText !
 async function main(argv) {
   const args = parseArgs(argv);
   if (DRY) console.log('DRY RUN: nothing is pushed, merged, tagged or checked out\n');
-  const go = () => (args.cmd === 'build' ? build(args) : args.cmd === 'release' ? release(args) : single(args));
+  const cmds = { build, release, single, repair };
+  const go = () => cmds[args.cmd](args);
+  const after = async (code) => { for (const f of AFTER_LOCK.splice(0)) await f(); return code; };
   if (DRY) return go(); // a dry run moves no ref: no train lock
   const lock = trainLockPath();
   let cur = null;
   try { cur = fs.readFileSync(lock, 'utf8'); } catch { /* absent */ }
-  if (heldByParent(cur, process.env.AUTO_TRAIN_LOCK_TEXT)) return go();
+  if (heldByParent(cur, process.env.AUTO_TRAIN_LOCK_TEXT)) return after(await go()); // the caller's lock: the wait runs inside it
   const t = takeTouchLock(lock, `merge-train ${args.cmd}`, { staleMin: TRAIN_LOCK_STALE_MIN });
   if (!t.release) {
     console.error(`STOP: the train lock ${lock} is held ("${t.holder}", touched ${Math.round(t.ageMin)} min ago): an auto-train tick or another merge-train is running; retry later`);
     return 1;
   }
-  try { return await go(); } finally { t.release(); }
+  let code;
+  try { code = await go(); } finally { t.release(); }
+  return after(code); // the deploy wait runs after the train lock is released
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
