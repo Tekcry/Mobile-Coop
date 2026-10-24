@@ -1,0 +1,22 @@
+{
+  "id": "20261024T172059-affected-e2e-36f827ae-d09b",
+  "sha": "36f827aebef4df68b91a2fedea3437521b7ebae9",
+  "branch": "feature/coop-lamp-fix",
+  "pr": 371,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-coop",
+    "e2e-course",
+    "e2e-ctcourse",
+    "e2e-gadgets",
+    "e2e-netmove",
+    "e2e-park",
+    "e2e-section-rating",
+    "e2e-tactics",
+    "e2e-takedown",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #371"
+}
