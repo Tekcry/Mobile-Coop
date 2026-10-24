@@ -260,8 +260,9 @@ const EXPOSE_HIPS = 0.52;
  *  (its spot and room). Undo: false (he stands with no route). */
 const RESPONDER_RESUME = true;
 /** (polish A2, A167) A cover is rejected when its A* walk is longer than `k` x the straight line + `add` m (a cover
- *  behind a full wall). Undo: `k` Infinity. */
-export const COVER_DETOUR = { k: 1.5, add: 3 };
+ *  behind a full wall). Undo: `k` Infinity. (polish2 A189) A flank bound (`R_FLANK`, `boundTo`) tests `flankK`: a flank
+ *  bends round the player's cover by design. Undo: `flankK` 1.5. */
+export const COVER_DETOUR = { k: 1.5, add: 3, flankK: 2.5 };
 /** (polish A2, A167) The best this many covers are tried in order (one a mate holds, no path or a detour: the next).
  *  Undo: 1. */
 export const COVER_TRIES = 3;
@@ -3020,7 +3021,8 @@ export class Enemy implements Damageable {
     if (!c) return false;
     const path = this.ctx.nav.findPath([this.pos.x, this.pos.z], [c.pos.x, c.pos.z], 3000, this.pos.y, c.pos.y);
     // (polish A2, A167) a walk round a wall to it is no bound: skipped like a cover with no path (re-picked next tick)
-    if (!path || this.detour(path, c.pos.x, c.pos.z)) {
+    // (polish2 A189) a flank's walk may bend further round (`COVER_DETOUR.flankK`)
+    if (!path || this.detour(path, c.pos.x, c.pos.z, this.role === R_FLANK ? COVER_DETOUR.flankK : COVER_DETOUR.k)) {
       this.ctx.blockCover?.(idx);
       return false;
     }
@@ -3485,8 +3487,9 @@ export class Enemy implements Damageable {
   }
 
   /** (polish A2, A167) The A* walk `path` (from where he stands) to the cover at (x, z) is a detour: longer than
-   *  `COVER_DETOUR.k` x the straight line + `COVER_DETOUR.add` m (a cover behind a full wall). No allocation. */
-  private detour(path: readonly Waypoint[], x: number, z: number): boolean {
+   *  `k` (`COVER_DETOUR.k`; a flank bound `flankK`) x the straight line + `COVER_DETOUR.add` m (a cover behind a full
+   *  wall). No allocation. */
+  private detour(path: readonly Waypoint[], x: number, z: number, k = COVER_DETOUR.k): boolean {
     let len = 0;
     let px = this.pos.x;
     let pz = this.pos.z;
@@ -3496,7 +3499,7 @@ export class Enemy implements Damageable {
       px = w[0];
       pz = w[1];
     }
-    return len > COVER_DETOUR.k * hyp2(x - this.pos.x, z - this.pos.z) + COVER_DETOUR.add;
+    return len > k * hyp2(x - this.pos.x, z - this.pos.z) + COVER_DETOUR.add;
   }
 
   /** Today's cover pick: the nearest protecting cover in range, reserved (`reserveCover`) with its path. (polish A2,

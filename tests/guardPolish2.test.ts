@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { Enemy } from '../src/ai/enemy';
+import { COVER_DETOUR, Enemy } from '../src/ai/enemy';
 import { AlertMachine } from '../src/ai/alertState';
 import { NavGrid } from '../src/ai/navGrid';
 import { DIFFICULTY } from '../src/ai/archetypes';
 import { ENEMIES } from '../src/ai/enemyDefs';
-import { P_STANDARD, R_NONE, R_OVERWATCH, Rng } from '../src/ai/squadRoles';
+import { P_STANDARD, R_FLANK, R_NONE, R_OVERWATCH, R_POINT, Rng } from '../src/ai/squadRoles';
 import { Vector3 } from '../src/core/babylon';
 
 // (guard-ai polish batch 2, group A) The brain's polish2 fixes on stand-in guards built on Enemy's prototype (no rig, no
@@ -354,5 +354,36 @@ describe("A193: a heard spot snaps to the noise's storey", () => {
     h.aware.set('searching');
     h.hearSearch(5.2, Number.NaN, 5.2);
     expect(h.spot[0]).toBeGreaterThan(6);
+  });
+});
+
+describe('A189: a flank bound may bend further round than a point bound', () => {
+  /** A role guard at (0, -16) sent to cover 2 (12, -4) along a walk of 2 x the straight line + 3 m (one bend). */
+  function bound(role: number) {
+    const r = roleProbe({ role, cover: 2, moving: true, state: 'chase' });
+    const c = COVERS[2]!.pos;
+    const sx = 0;
+    const sz = -16;
+    const straight = Math.hypot(c.x - sx, c.z - sz);
+    const leg = (2 * straight + 3) / 2;
+    const half = straight / 2;
+    const off = Math.sqrt(leg * leg - half * half);
+    // the bend on the straight line's bisector
+    const wx = (sx + c.x) / 2 - ((c.z - sz) / straight) * off;
+    const wz = (sz + c.z) / 2 + ((c.x - sx) / straight) * off;
+    r.ctx.nav.findPath = vi.fn(() => [[wx, wz], [c.x, c.z]]);
+    return r;
+  }
+
+  it(`flankK ${COVER_DETOUR.flankK}: the flank starts (seekCover to his role cover); the same walk for a point is rejected`, () => {
+    expect(COVER_DETOUR.flankK).toBe(2.5);
+    const f = bound(R_FLANK);
+    f.step();
+    expect([f.p.state, f.p.coverIdx]).toEqual(['seekCover', 2]);
+    expect(f.ctx.blockCover).not.toHaveBeenCalled();
+    const p = bound(R_POINT);
+    p.step();
+    expect(p.ctx.blockCover).toHaveBeenCalledWith(2);
+    expect(p.p.coverIdx).not.toBe(2);
   });
 });

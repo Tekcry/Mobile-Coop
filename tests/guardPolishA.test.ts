@@ -207,7 +207,8 @@ function pickWith(held: number[], detours: number[] = []): { ok: boolean; idx: n
 
 describe('A2 / A167: the cover pick tries its best 3 and rejects a detour', () => {
   it(`the numbers: COVER_DETOUR ${COVER_DETOUR.k} x straight + ${COVER_DETOUR.add} m, COVER_TRIES ${COVER_TRIES}`, () => {
-    expect(COVER_DETOUR).toEqual({ k: 1.5, add: 3 });
+    // (polish2 A189) a flank bound's own factor
+    expect(COVER_DETOUR).toEqual({ k: 1.5, add: 3, flankK: 2.5 });
     expect(COVER_TRIES).toBe(3);
   });
 
