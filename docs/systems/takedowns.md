@@ -98,6 +98,15 @@ Design authority: docs/DECISIONS.md (G23, G42, G43, G49), then docs/design-bible
   row TEAM TAKEDOWN. The attacker stays put facing him for `TAKEDOWN.strike` (the row: a knockout; a held direct press: the kill);
   the guard is never seized or moved by him; the partner letting go first ends it. The host applies it and ends the
   hold; holder and striker are credited together (a dual takedown). Net: `docs/systems/coop.md` (client takedowns).
+- (joint-interrogation, G148) Joint interrogation: on the same `assist` offer, a guard with joint information
+  (`GuardIntel.joint`, `hasJoint`) lists BLUFF (row kind `joint`) above TEAM TAKEDOWN. Roles: the holder reads his face
+  (the existing INTERROGATE, `CQ.interrogate` 1.5 s); the partner bluffs (speech only: no pose, no strike, no lock; the
+  bluffer may walk, A3). Either order works: only the read's end is checked, on the host: a bluff started at most
+  `JOINT.window` 6 s before by a player other than the holder, alive and within `JOINT.reach` 3 m, adds the joint lines
+  for both (`revealJoint`). A1: one chance, a solo read spends the joint part too (`takeInfo` clears `info`). A2: the
+  holder's RT finisher stays live during a bluff and ends the questioning. A4: the holder's row stays INTERROGATE. Net and
+  host rules: `docs/systems/coop.md` (client takedowns). Pure rules: `src/game/jointInterrogation.ts`,
+  `tests/jointInterrogation.test.ts`; e2e-coop "joint interrogation: host bluffs, client reads".
 
 ## From the co-op hang-down (hang-down job; `docs/hang-down/BRIEF.md`)
 CT 1.5 Drop Line: the hanging player can grab and neck-snap a guard below (the only grab entry while hanging) and use

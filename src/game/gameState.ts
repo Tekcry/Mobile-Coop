@@ -42,6 +42,7 @@ import { WeaponCrates } from './weaponCrates';
 import { addDoorRows, DOOR_KIND, DoorMenuView, guardBehindDoor, type DoorOpt } from './doorMenu';
 import { addGrabRows, GRAB_KIND, GRAB_OPT_LABEL, GRAB_OPTS, GRAB_PASS, GrabMenuView, grabTriggerPick, hasInfo, type GrabOpt } from './grabMenu';
 import { ContextMenu, CtxNav, emptyCtxInput } from './contextMenu';
+import { hasJoint, JOINT_BLUFF_LABEL, JOINT_KIND } from './jointInterrogation';
 import { StrikeTrigger } from '../player/weaponStance';
 import { DRAW_HOLSTERED } from '../weapons/drawState';
 import { emptyStats, type GameMode, type ModeId, type SessionStats } from './modes/gameMode';
@@ -227,6 +228,12 @@ export interface NetAttachment {
   /** (P6) This player's team takedown on a partner's hostage: `start`, `done` (`lethal`: the kill) or `abort`. The host
    *  applies its own at `done`; a client asks the host (`td`, kind `assist`), which checks and applies it. */
   assistTakedown?(v: TakedownVictim, ph: 'start' | 'done' | 'abort', lethal: boolean): void;
+  /** (joint-interrogation, G148) This player bluffs the guard `v` a partner holds (the BLUFF row): the host checks and
+   *  stores its own; a client asks the host (`td`, kind `bluff`). A denied bluff shows nothing (A6). */
+  jointBluff?(v: TakedownVictim): void;
+  /** (joint-interrogation) Host only: the host's own read of `v` ends now; true when another player's bluff on him is
+   *  live (that bluff is spent and counted: one read pays once). */
+  jointLive?(v: TakedownVictim): boolean;
   /** (camera-cue fix) Client: the other living players' bodies for the camera cue's own sight test, written into
    *  `out` from index `from` (entries added when missing); returns how many. */
   partnerBodies?(out: SeenBody[], from: number): number;
@@ -1378,6 +1385,9 @@ export class GameState implements AppState {
         // the guard first (CT lists GRAB CHARACTER above a door's set, 052607)
         const o = td.offer;
         if (o && !this.strike.active && !o.lethalOnly) {
+          // (joint-interrogation, G148) the partner's hostage with joint information: BLUFF lists above TEAM TAKEDOWN
+          // (`assist` is only on offer in co-op: `net.partnerHolds`)
+          if (o.plan.kind === 'assist' && hasJoint(o.e)) m.add(JOINT_KIND, 'bluff', -1, JOINT_BLUFF_LABEL);
           if (GRAB_KINDS.includes(o.plan.kind) && !o.e.def.quadruped) m.add(TD_KIND, 'grab', -1, 'Grab character');
           else m.add(TD_KIND, 'ko', -1, TD_LABEL[o.plan.kind]);
         }
@@ -1436,6 +1446,8 @@ export class GameState implements AppState {
       if (!td.offer || td.active) return;
       if (opt === 'grab') td.start();
       else td.start(false);
+    } else if (kind === JOINT_KIND) {
+      if (td.offer && !td.active) this.net?.jointBluff?.(td.offer.e);
     } else if (kind === GRAB_KIND) {
       const g: GrabOpt | undefined = GRAB_OPTS[ref];
       if (g === 'device') this.hud.feedItem(`${GRAB_OPT_LABEL[g]}: not built yet`, 'warn');

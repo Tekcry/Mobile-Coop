@@ -627,6 +627,12 @@ export class CoopClient implements NetAttachment {
     this.s.toHost({ t: 'td', target: v.id, ph, lethal, kind: 'assist' });
   }
 
+  /** (joint-interrogation, G148) Our bluff on a partner's hostage (the BLUFF row): the host checks and stores it, and its
+   *  `feed` line comes back; a denial (`tdDenied` on a partner-held puppet) changes nothing here (A6). */
+  jointBluff(v: TakedownVictim): void {
+    this.s.toHost({ t: 'td', target: v.id, ph: 'start', lethal: false, kind: 'bluff' });
+  }
+
   private applySelf(p: PlayerState): void {
     this.selfSpotted = (p.f & PF.spotted) !== 0;
     const g = this.g;
