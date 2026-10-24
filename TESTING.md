@@ -36,6 +36,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   through a ceiling; a lamp switched off or shot goes dark on its diffuser. The roof's open strips are pale corrugated
   sheets (moonlight still comes through); the walls carry pipes, trays, signs and fire points, trusses span the roof,
   and the halls' dead corners hold pallets, drums and cartons, none on a route or patrol.
+- [ ] (fog fix) Saltmarsh Park on Epic, then High: the atrium, the S3 hall and the L1 offices read clear across the room;
+  ceiling lights glow with a short, faint haze under their shade (no long beams), guard torches still beam, and the
+  light meter reads as before.
 - [ ] Sector Ops stars: finish a run on a difficulty; back on the menu that difficulty's star is filled beside Sector Ops
   and in the op list (best time in the context panel). Co-op Sector Ops: the HUD shows Syringes (2 on Normal); a downed
   partner is revived until they run out, then a down restarts the section with both players at the room.
