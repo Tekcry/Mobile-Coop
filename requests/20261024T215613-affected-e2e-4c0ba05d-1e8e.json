@@ -1,0 +1,20 @@
+{
+  "id": "20261024T215613-affected-e2e-4c0ba05d-1e8e",
+  "sha": "4c0ba05d07fbd09ae418028686308717a9efbae1",
+  "branch": "feature/guard-ai-t1-anim-tier",
+  "pr": 360,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-gadgets",
+    "e2e-guard-carry",
+    "e2e-park",
+    "e2e-sectorops:1",
+    "e2e-stealth-ai",
+    "e2e-tactics",
+    "e2e-takedown",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #360"
+}
