@@ -1,0 +1,17 @@
+{
+  "id": "20261024T034510-night-shift-test-run-9f7dddbb-77d9",
+  "sha": "9f7dddbb78fb3e82e13a7002e7764510829d56e0",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Test Runner",
+  "suites": [
+    "smoke",
+    "e2e-sectorops",
+    "e2e-darkness",
+    "e2e-lightbake",
+    "e2e-stealth-ai"
+  ],
+  "set": "gr2-e2e",
+  "note": "guard-render-2 S9+S10 area suites"
+}
