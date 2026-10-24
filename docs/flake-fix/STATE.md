@@ -19,6 +19,11 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   guard-cap-4100 (campus / ctcourse / sectorops full cells + campus 32 alert x2 -> scratch/guard-cap/r4100-*), ...-b1fd
   full-4100-r2. Results: soaks give flake rates (owners: e2e-coop Marlow; ctcourse / sectorops Sector Ops / Marlow);
   guard-cap -> feature/guard-cap-results docs/guard-cap/run-4100/ + guard-render PLAN2 note.
+- 05:20 save (cap ~05:35, resume 09:10): none of the 04:37 requests had run yet (trains 75 / 76 first). Added on master
+  46a7cf85 (4.100.1): ...-ebb0 full-master-soak (full e2e), ...-0c27 perf-campus-x3 (alone, perf.mjs campusOps x3;
+  results in the run folder step logs). On resume: read each run folder (scratch/laptop-queue/runs/<id>/), report
+  soak flake rates to the suite owners (one message each), push guard-cap r4100-* to feature/guard-cap-results
+  docs/guard-cap/run-4100/, check #369 / #374 labelled and in a train.
 - feature/laptop-queue-4 (worktree C:/NightShift/Mobile-Coop-laptop-queue-4, stacked on #366 f3eaceed): Opus agent
   audit fixes (1) desktop 4191 heavy.lock gate logs the holder + dead-pid stale break, (2) auto-train "CI running" vs
   "CI missing", (3) request.mjs fills branch / pr (pickBranch; checker FIX round done, PASS on f0cacfaed). Carries
