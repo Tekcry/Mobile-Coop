@@ -7,6 +7,7 @@ map that is already greyboxed (campus) the graph describes the map AS BUILT and 
 
 - Mission nodes (`mission`, `objectives[]`, `rules[]`, `syncs[]`) and their checks: `docs/level-validator/mission-schema.md`
   (mission-framework VAL; worked example `docs/level-validator/example.mission.json`).
+  The sync nodes may sit under `syncs` or `sync` (singular, Sector Ops' plan graphs); both are read into `syncs`.
 - Worked example: `docs/level-validator/example.graph.json` (two sections, one spine link, one split with an overwatch
   and an assist; V1's CLI smoke fixture, 0 errors; V6 fields: `area` box lists, one `vantage.at`, one link `at`).
 - Rules: `docs/level-validator/BRIEF.md` mapping table and M1-M4; numbers: `docs/design/metrics.json`, generated from
@@ -111,7 +112,6 @@ walking speed (climbs, crawls, co-op moves) carry `time_s` on any split leg or r
 | `pair_gate` | **yes** | a team door (pair gate / pair bolt, CR5 / CR6): `door` sizes; opens only with both players (lead decision 1) |
 | `team_rope` | **yes** | the two-person rope (G180 over G110, CR7): `level_change` = the climb; needs `time_s` (lead decision 2) |
 | `rappel` | no | one way down (`RAPPEL`, `src/config/movement.ts:370`); `level_change` = the descent; needs `time_s` (lead decision 2) |
-
 | `team_throw` | **yes** | throw over a gap (B4, `teamMoves.ts` throw; M3); `width` = the gap (WARN missing; the landing rule is the kit's `throwLandingOk`, no sheet number) |
 | `team_hang` | **yes** | human ladder / hang-down relay (climb the hanging partner); `level_change` = the climb (WARN missing) |
 | `team_pull` | **yes** | pull-up: catch a jumping partner at a lip and haul (KIT-PULL); `level_change` = the lip (WARN missing; no sheet number until KIT-PULL sets one) |

@@ -233,8 +233,8 @@ const otherEnd = (l, id) => (l.from === id ? l.to : l.from);
 
 /** One map from several files (one per section): `meta` from the first, `spaces` and `links` concatenated in file
  *  order, `meta.sections` unioned in file order. Mission nodes (A17): `objectives`, `rules`, `syncs` concatenated
- *  (each key only when a file has it); `mission` is the one file's node, or the list of them when 2+ files carry one
- *  (`checkMission` reports that). */
+ *  (each key only when a file has it; a top-level `sync` key counts as `syncs`); `mission` is the one file's node,
+ *  or the list of them when 2+ files carry one (`checkMission` reports that). */
 export function mergeGraphs(graphs) {
   if (!Array.isArray(graphs) || graphs.length === 0) throw new Error('mergeGraphs: no graph given');
   const first = graphs[0] ?? {};
@@ -252,7 +252,10 @@ export function mergeGraphs(graphs) {
   const missions = graphs.filter((g) => g?.mission !== undefined).map((g) => g.mission);
   if (missions.length) merged.mission = missions.length === 1 ? missions[0] : missions;
   for (const key of ['objectives', 'rules', 'syncs']) {
-    const parts = graphs.filter((g) => g?.[key] !== undefined).map((g) => g[key]);
+    // Sector Ops' plan graphs keep their sync nodes under `sync` (singular): both keys are read, `syncs` then `sync`
+    // per file, into `merged.syncs`.
+    const keys = key === 'syncs' ? ['syncs', 'sync'] : [key];
+    const parts = graphs.flatMap((g) => keys.filter((k) => g?.[k] !== undefined).map((k) => g[k]));
     if (parts.length) merged[key] = parts.length === 1 ? parts[0] : parts.flatMap((v) => (Array.isArray(v) ? v : [v]));
   }
   return merged;

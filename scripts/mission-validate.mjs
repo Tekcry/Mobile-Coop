@@ -425,8 +425,11 @@ export function checkMission(graph, metrics) {
 
   // Choke node per section (audit 4): a space other than entry and exit, or a link, every entry -> exit path passes.
   // WARN: the two-route rule (checkRedundancy) and Sector Ops' two tracks meeting at the exit (A16) pull against it;
-  // justify a section without one in the design doc.
+  // justify a section without one in the design doc. Only the mission's own sections (`mission.sections` when given,
+  // else its objectives' sections): a mission merged over a whole map is not judged on sections it never uses.
+  const chokeSecs = Array.isArray(mission.sections) ? new Set(mission.sections) : new Set(objectives.map((o) => o.section));
   for (const sec of meta.sections) {
+    if (!chokeSecs.has(sec)) continue;
     const inSec = spaces.filter((s) => s.section === sec);
     const entry = inSec.filter((s) => s.tags.includes('entry'));
     const exit = inSec.filter((s) => s.tags.includes('exit'));

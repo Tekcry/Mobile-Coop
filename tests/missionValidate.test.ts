@@ -409,6 +409,19 @@ describe('mission-validate: sections (choke node, forced co-op M3)', () => {
     expectWarn(mc(g), "section S2: no choke node (no space or link that every route from 's2-arcade' to 's2-yard' passes)");
   });
 
+  it('choke node: only the mission\'s sections are judged (objectives\' sections, or mission.sections when given)', () => {
+    // A merged map with a section S3 the mission never uses: two ways from its entry to its exit, no choke.
+    const g = campaign();
+    g.meta.sections.push('S3');
+    const sp = (id: string, tags: string[]): Space => ({ id, section: 'S3', type: 'connector', room_class: 'corridor', storey: 0, size: [4, 10, 3], tension: 1, tags });
+    g.spaces.push(sp('s3-in', ['entry']), sp('s3-left', []), sp('s3-right', []), sp('s3-out', ['exit']));
+    const door = (from: string, to: string): Link => ({ from, to, kind: 'door', route: 'shadow', width: 1.2, height: 2.1, length: 10 });
+    g.links.push(door('s3-in', 's3-left'), door('s3-left', 's3-out'), door('s3-in', 's3-right'), door('s3-right', 's3-out'));
+    expect(mc(g).warns.filter((w) => w.includes('choke'))).toEqual([]);
+    mis(g).sections = ['S1', 'S2', 'S3'];
+    expectWarn(mc(g), "section S3: no choke node (no space or link that every route from 's3-in' to 's3-out' passes)");
+  });
+
   it('forced co-op: a campaign section one player crosses alone is an ERR; a bolted door is opened only from its far side', () => {
     const g = campaign();
     delete lnk(g, 's1-market', 's1-office', 'door').bolted;
@@ -484,5 +497,20 @@ describe('mission-validate: Sector Ops (parallel objectives, syncs, solo)', () =
       "sync sync-s2-y: kind 'laser_off' is not", "sync sync-s2-y: space 'nowhere' is not a space", 'sync sync-s2-y: src missing',
       "sync sync-s2-y: lead 'nowhere' is not a space", 'sync sync-s2-y: solo must be', 'sync sync-s1-z: lead missing');
     expectWarn(r, "sync sync-s1-z: id names section 1 but its space 's2-loft' is in S2");
+  });
+
+  it('a top-level `sync` key (Sector Ops plan graphs) is read as `syncs` and merged with it', () => {
+    const g = sector();
+    const syncs = g.syncs ?? [];
+    delete g.syncs;
+    const mapPart = { ...g, sync: syncs.slice(0, 3) } as Obj;
+    const more = { meta: g.meta, spaces: [], links: [], syncs: syncs.slice(3) };
+    const merged = mergeGraphs([mapPart, more]) as Graph;
+    expect(merged.syncs?.map((s) => s.id)).toEqual(syncs.map((s) => s.id));
+    noErr(mc(merged), 'sync nodes');
+    // One file with only `sync`: still read, and its nodes get the field checks.
+    const solo = mergeGraphs([{ ...g, sync: [{ ...syncs[1], solo: undefined }, syncs[0]] }]) as Graph;
+    expect(solo.syncs?.length).toBe(2);
+    expectErr(mc(solo), 'sync sync-s1-door: a pair sync needs solo');
   });
 });

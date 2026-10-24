@@ -59,6 +59,9 @@ profile, `bolted`, `requires_kill`, `mark`) is `docs/level-validator/graph-schem
 
 ## `syncs[]` (Sector Ops sync-node contract, A16; Sector Ops owns them in `campusOps-S<N>.json`)
 
+The key may be `syncs` or `sync` (singular, as in Sector Ops' plan graphs): the merge reads both and concatenates them
+into `syncs`, `syncs` before `sync` within a file.
+
 | Field | Type | Req | Meaning | Checks (always, with or without a mission) |
 | --- | --- | --- | --- | --- |
 | `id` | `sync-s<N>-<name>` | yes | Unique | ERR pattern or duplicate; WARN `<N>` differs from the space's section number |
@@ -85,7 +88,7 @@ profile, `bolted`, `requires_kill`, `mark`) is `docs/level-validator/graph-schem
 | Lead and goal seen before reach: `lead` and `seen_from` present, a space, not the objective's own, reachable from the mission start without passing the objective's space (two players, all links) | ERR |
 | Ghost run: start -> every objective -> the extraction over no `loud` link | ERR |
 | Pacifist run: the same over no `requires_kill` link | ERR |
-| Choke node per section: a space (not entry / exit) or a link that every entry -> exit route passes | WARN (pulls against the two-route rule and Sector Ops' two tracks; justify) |
+| Choke node per mission section (the objectives' sections, or `mission.sections` when it lists them; sections the mission does not use are skipped): a space (not entry / exit) or a link that every entry -> exit route passes | WARN (pulls against the two-route rule and Sector Ops' two tracks; justify) |
 | Campaign forced co-op (M3): in every section, with no co-op link and `bolted` links only from their far side, the entry does not reach the exit (no solo twin is checkCoop's ERR) | ERR |
 | Sector Ops parallel objectives: required team a and team b steps that neither waits on, at least `sector_parallel_min` (2) | ERR |
 | Sector Ops sync nodes in the mission's sections: at least `sector_syncs_min` (2) | ERR; WARN a mission section with fewer (A16 promises 2+ per section) |
