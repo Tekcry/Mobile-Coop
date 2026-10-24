@@ -1,6 +1,11 @@
 # Guard AI - state
 
 ## Now
+~06:45: coop4 AI2 a5927b28 + AI3 d6c8cf13 + AI4 b9786d39 merged into feature/guard-ai-coop4 (b49daa0b: ai.md notes +
+changelog; tsc clean, 144 tests). AI3 hold-noise line sent to Sector Ops (N1). AI5 (response teams, L) Opus builder
+RUNNING in -coop4 (AI5-BUILT.md; owes Sector Ops the team-size hook; closes AI4's split-team risk). Then AI6, then
+Opus checker pair + laptop, one PR. AI2-AI4 worktrees removed (branches kept).
+
 ~06:10: coop4 AI1 DONE d530ebe0 (feature/guard-ai-coop4; N0 cherry-picked aa02e6af; hooks intruderLeft(id), ghostOf(id,out)
 sent to Sector Ops). RUNNING in parallel (Opus): AI2 perception (worktree -coop4-ai2, feature/guard-ai-coop4-ai2), AI3
 hearing (-coop4-ai3), AI4 alarm split (-coop4-ai4); logs docs/coop4/briefs/AI<n>-BUILT.md. Then the lead merges the three
