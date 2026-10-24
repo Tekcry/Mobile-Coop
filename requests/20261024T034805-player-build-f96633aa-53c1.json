@@ -1,0 +1,16 @@
+{
+  "id": "20261024T034805-player-build-f96633aa-53c1",
+  "sha": "f96633aa246e25b821aac6e84185207630e0af8f",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "player-build",
+  "suites": [
+    "e2e-pad",
+    "e2e-mouse",
+    "e2e-netmove",
+    "e2e-coop"
+  ],
+  "set": "optic-coop-2",
+  "note": "#15 optic-coop after M1 / M2 (gap menu, ping middle mouse / R3)"
+}
