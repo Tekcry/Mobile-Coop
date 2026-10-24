@@ -1,117 +1,123 @@
-import { Color3, CreateSphere, StandardMaterial, Vector3, type Mesh, type Scene } from '../core/babylon';
+import { Color3, Vector3, type Scene } from '../core/babylon';
 import { THERMAL } from './visionLook';
 import { G } from '../physics/groups';
 import type { Doors } from '../world/doors';
+import type { CharacterRig } from '../player/characterRig';
+import { Silhouettes, type PointWarp } from './silhouettes';
+import { closedDoorIndex, doorPlaneFactor, ghostEmissive, ghostWarm, inGhostRange, type GhostDoor } from './thermalGhost';
 
-/** The door fields the thermal rule reads. */
-export interface GhostDoor {
-  open: number;
-  anchor: { yaw: number; width: number; hinge: { x: number; z: number } };
-}
+export { closedDoorCrossing, type GhostDoor } from './thermalGhost';
 
-/** (G102, pure) A closed door leaf crossing the floor segment (cx,cz) -> (gx,gz)? True and the crossing point in `out` (x, z). No allocation. */
-export function closedDoorCrossing(list: readonly GhostDoor[], cx: number, cz: number, gx: number, gz: number, out: { x: number; z: number }): boolean {
-  const dx = gx - cx;
-  const dz = gz - cz;
-  for (let i = 0; i < list.length; i++) {
-    const d = list[i]!;
-    if (d.open > 0) continue;
-    const a = d.anchor;
-    const ex = Math.sin(a.yaw) * a.width;
-    const ez = Math.cos(a.yaw) * a.width;
-    const den = dx * ez - dz * ex;
-    if (Math.abs(den) < 1e-6) continue;
-    const hx = a.hinge.x - cx;
-    const hz = a.hinge.z - cz;
-    const t = (hx * ez - hz * ex) / den;
-    const u = (hx * dz - hz * dx) / den;
-    if (t > 0.02 && t < 0.98 && u > 0 && u < 1) {
-      out.x = cx + dx * t;
-      out.z = cz + dz * t;
-      return true;
-    }
-  }
-  return false;
-}
+/** Thermal never sees through walls or glass (G45, G102): what stops the silhouette's sight line. */
+const GHOST_BLOCK = G.STATIC | G.GLASS;
+/** How far (m) the two rays stop short of the leaf on each side, and the slack at the body. */
+const LEAF_GAP = 0.2;
+const BODY_SLACK = 0.3;
 
 /**
- * (prototype A5, G102) Thermal's dim silhouette of a guard behind a closed door (CT: a soft low-ramp figure). Render
- * only: it reads gameplay state (guard positions, closed doors) to place a blob and writes nothing back; perception never
- * reads it. A blob is drawn (rendering group 1: over the leaf) only when the sight line camera -> guard is stopped by a
- * closed door and by nothing else (two static rays), so a wall or anything else still hides the guard (G45: thermal never
- * sees through glass or walls). Every number is a starting value.
+ * (prototype A5, G102; LR16-6 polish) Thermal's dim silhouette of a person behind a shut door (CT: a soft low-ramp
+ * figure, 052901 12.5 s). Render only: it reads each warm rig's pose and thermal heat, the doors' state and static rays,
+ * and writes nothing back; perception, the meter and the light field never read it. Each peer draws its own (vision is
+ * never sent, D8).
+ *
+ * Which rigs: every rig in `LIVE_RIGS` but the local player's and hidden stand-ins (a dog's humanoid rig), warm
+ * enough (`ghostWarm`: guards, partners, a fresh body), within `THERMAL.doorRange` of the camera, whose floor line from
+ * the camera crosses a fully shut leaf, with nothing else static or glass on the sight line (two rays, the leaf left out).
+ * Guards the sector render freeze disabled still count (their root follows the sim): a figure stamps its rig's
+ * `ghostFrame`, and the anim tier keeps solving a stamped frozen rig (`GuardAnimTier.animate`), so it walks, not glides.
+ *
+ * How: the figure is the rig's posed limbs and head (`Silhouettes`: one thin-instanced limb mesh and one head mesh, 2
+ * draw calls for all of them, no texture, no new pass), each joint slid along its own camera ray to `THERMAL.doorFront`
+ * in front of the leaf (`doorPlaneFactor`): it looks exactly like the body would, drawn with the normal depth test, so
+ * the player or a crate in front still covers it and the wall faces round the frame clip what spills past the leaf. The
+ * thermal pass reads it at `THERMAL.doorGhost` (`ghostEmissive` takes out the exposure): low on the ramp, dim blue; the
+ * pass's 4-tap soften blurs its edge. No allocation per frame: the rays are `Ballistics.hitDistance` (shared result).
  */
-export class DoorGhosts {
-  private readonly blobs: Mesh[] = [];
-  private readonly mat: StandardMaterial;
+export class DoorGhosts implements PointWarp {
+  private readonly fig: Silhouettes;
   private readonly a = new Vector3();
   private readonly b = new Vector3();
+  private readonly x = { x: 0, z: 0 };
+  /** The warp's camera and door for the figure being captured. */
+  private cam: Vector3 | null = null;
+  private door: GhostDoor | null = null;
+  /** Figures uploaded last frame (skip the upload while both are 0). */
+  private last = 0;
 
   constructor(
     private scene: Scene,
     private doors: Doors,
-    private ray: (from: Vector3, to: Vector3, mask: number) => { hit: boolean; distance: number },
+    /** The first hit's distance from `from` in `mask`, or the full `from` -> `to` length on a miss (`Ballistics.hitDistance`). */
+    private ray: (from: Vector3, to: Vector3, mask: number) => number,
   ) {
-    const m = new StandardMaterial('doorGhost', scene);
-    m.disableLighting = true;
-    m.diffuseColor = Color3.Black();
-    m.specularColor = Color3.Black();
-    m.emissiveColor = new Color3(THERMAL.doorGhost, THERMAL.doorGhost, THERMAL.doorGhost);
-    m.fogEnabled = false;
-    this.mat = m;
+    const k = THERMAL.doorGhost;
+    this.fig = new Silhouettes(scene, 'doorGhost', THERMAL.doorMax, new Color3(k, k, k), false, false);
   }
 
-  private blob(i: number): Mesh {
-    let m = this.blobs[i];
-    if (!m) {
-      m = CreateSphere('doorGhost', { diameter: 1, segments: 6 }, this.scene);
-      m.material = this.mat;
-      m.scaling.set(0.65, 1.85, 0.5);
-      m.renderingGroupId = 1;
-      m.isPickable = false;
-      m.setEnabled(false);
-      this.blobs[i] = m;
-    }
-    return m;
+  /** Silhouettes drawn this frame (tests). */
+  get count(): number {
+    return this.fig.count;
   }
 
-  private n = 0;
-  private readonly x = { x: 0, z: 0 };
-
-  /** Per render frame: `guards` are the live guards, `partners` the remote players (co-op), both by feet; `on` is thermal showing. */
-  update(
-    on: boolean,
-    cam: Vector3,
-    guards: readonly { pos: Vector3; alive: boolean }[] | undefined,
-    partners?: readonly { feet: Vector3; target: { alive: boolean } }[],
-  ): void {
-    this.n = 0;
+  /** Per render frame: `on` is thermal showing, `cam` the view's position, `rigs` the live rigs (`LIVE_RIGS`), `self` the
+   *  local player's rig (never ghosted). */
+  update(on: boolean, cam: Vector3, rigs: readonly CharacterRig[], self: CharacterRig | null): void {
+    this.fig.begin();
     if (on && this.doors.list.length) {
-      if (guards) for (let i = 0; i < guards.length; i++) if (guards[i]!.alive) this.consider(cam, guards[i]!.pos);
-      if (partners) for (let i = 0; i < partners.length; i++) if (partners[i]!.target.alive) this.consider(cam, partners[i]!.feet);
+      for (let i = 0; i < rigs.length; i++) {
+        const r = rigs[i]!;
+        if (r === self || r.standIn || !ghostWarm(r.heat)) continue;
+        if (!this.consider(cam, r)) break;
+      }
     }
-    for (let i = this.n; i < this.blobs.length; i++) this.blobs[i]!.setEnabled(false);
+    const n = this.fig.count;
+    if (n > 0 || this.last > 0) this.fig.end();
+    this.last = n;
+    // the grey the thermal pass reads stays `THERMAL.doorGhost` whatever the image-processing exposure
+    if (n > 0) this.fig.setGrey(ghostEmissive(this.scene.imageProcessingConfiguration.exposure));
+    this.fig.setAlpha(n > 0 ? 1 : 0);
   }
 
-  private consider(cam: Vector3, p: Vector3): void {
-    const dx = p.x - cam.x;
-    const dz = p.z - cam.z;
-    if (dx * dx + dz * dz > THERMAL.doorRange * THERMAL.doorRange) return;
+  /** One rig: a figure when a shut leaf (and nothing else) stands between it and the camera. False once full. */
+  private consider(cam: Vector3, r: CharacterRig): boolean {
+    const hips = r.hips.getAbsolutePosition();
+    if (!inGhostRange(cam.x, cam.z, hips.x, hips.z)) return true;
     const x = this.x;
-    if (!closedDoorCrossing(this.doors.list, cam.x, cam.z, p.x, p.z, x)) return;
-    // the sight line must be stopped by the door and nothing else: camera -> just before the door, just past it -> body
+    const list = this.doors.list;
+    const di = closedDoorIndex(list, cam.x, cam.z, hips.x, hips.z, x);
+    if (di < 0) return true;
+    // the sight line must be stopped by the leaf and nothing else: camera -> just before it, just past it -> the chest
+    const dx = hips.x - cam.x;
+    const dz = hips.z - cam.z;
     const len = Math.sqrt(dx * dx + dz * dz) || 1;
-    const k = 0.2 / len;
-    const y = p.y + 1.2;
-    this.a.set(cam.x, cam.y, cam.z);
+    const k = LEAF_GAP / len;
+    const y = (hips.y + r.neck.getAbsolutePosition().y) * 0.5;
+    this.a.copyFrom(cam);
     this.b.set(x.x - dx * k, y, x.z - dz * k);
-    if (this.ray(this.a, this.b, G.STATIC).hit) return;
+    if (this.ray(this.a, this.b, GHOST_BLOCK) < Vector3.Distance(this.a, this.b) - 1e-3) return true;
     this.a.set(x.x + dx * k, y, x.z + dz * k);
-    this.b.set(p.x, y, p.z);
-    const h = this.ray(this.a, this.b, G.STATIC);
-    if (h.hit && h.distance < Vector3.Distance(this.a, this.b) - 0.3) return;
-    const m = this.blob(this.n++);
-    m.position.set(p.x, p.y + 0.9, p.z);
-    m.setEnabled(true);
+    this.b.set(hips.x, y, hips.z);
+    if (this.ray(this.a, this.b, GHOST_BLOCK) < Vector3.Distance(this.a, this.b) - BODY_SLACK) return true;
+    this.cam = cam;
+    this.door = list[di]!;
+    // (a render-frozen guard keeps solving while he is a figure: `GuardAnimTier.animate`)
+    r.ghostFrame = this.scene.getFrameId();
+    return this.fig.add(r, this);
+  }
+
+  /** `PointWarp`: slide a captured joint along its camera ray to just in front of the leaf. */
+  warp(p: Vector3): number {
+    const c = this.cam!;
+    const f = doorPlaneFactor(this.door!, c.x, c.z, p.x, p.z, THERMAL.doorFront);
+    if (f !== 1) {
+      p.x = c.x + (p.x - c.x) * f;
+      p.y = c.y + (p.y - c.y) * f;
+      p.z = c.z + (p.z - c.z) * f;
+    }
+    return f;
+  }
+
+  dispose(): void {
+    this.fig.dispose();
   }
 }

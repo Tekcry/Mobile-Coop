@@ -49,7 +49,8 @@ import { ReviveClock } from '../game/reviveClock';
 import type { CourseMode } from '../game/modes/courseMode';
 import type { PickupKind } from '../game/pickups';
 import { takeInfo } from '../ai/guardInfo';
-import { revealIntel } from '../game/intelReveal';
+import { revealIntel, revealJoint } from '../game/intelReveal';
+import { hasJoint, JOINT, JOINT_BLUFF_FEED, jointBluffer, jointOf, type Bluff } from '../game/jointInterrogation';
 import { interrogationEnded } from '../game/intel';
 import type { TeamMate } from '../game/teamController';
 import type { PlayerRef } from '../ai/enemy';
@@ -128,6 +129,18 @@ export class CoopHost implements NetAttachment {
   private seized = new Map<string, { by: string; t: number; hostage?: boolean; hang?: HangSpot } & HoldFeed>();
   /** (coop-walk-fixes P6) A client's team takedown under way on a partner's hostage: client id -> enemy id. */
   private assists = new Map<string, string>();
+  /** (joint-interrogation, G148) Live bluffs: bluffer id -> the guard and the host time it started. Stale entries go at
+   *  the next read's check (`jointBluffer`); nothing per step. Public for the e2e. */
+  readonly bluffs = new Map<string, Bluff>();
+  /** (joint-interrogation) A bluffer's distance to the guard being read (Infinity: gone or down); bound once. */
+  private jointEid = '';
+  private readonly bluffDist = (id: string): number => {
+    const e = this.g.enemyMgr?.enemies.find((x) => x.id === this.jointEid);
+    if (!e) return Infinity;
+    if (id === this.s.selfId) return this.g.player.alive ? hyp2(e.pos.x - this.g.player.position.x, e.pos.z - this.g.player.position.z) : Infinity;
+    const r = this.remotes.get(id);
+    return r && r.alive ? hyp2(e.pos.x - r.feet.x, e.pos.z - r.feet.z) : Infinity;
+  };
   /** (P6) A client's `grab` MoveState target ('' none), for `assistHolder` (bound once: no closure per call). */
   private readonly grabTid = (id: string): string => {
     const mv = this.remotes.get(id)?.state?.mv;
@@ -320,6 +333,8 @@ export class CoopHost implements NetAttachment {
   private readonly dualClock = new DualClock();
   /** Dual takedowns this match (tests). */
   duals = 0;
+  /** (joint-interrogation) Joint reads this match (tests). */
+  joints = 0;
 
   private takedownDone(by: string): void {
     const first = this.dualClock.note(by, this.time);
@@ -817,6 +832,12 @@ export class CoopHost implements NetAttachment {
       this.onAssist(r, m, e, deny);
       return;
     }
+    // (joint-interrogation, G148) a bluff on a partner's hostage: speech only, never the seize path below (an older
+    // host would seize him: the wire-semantics change the train's PROTOCOL_VERSION bump covers)
+    if (m.kind === 'bluff') {
+      if (m.ph === 'start') this.onBluff(r.id, r.alive, r.feet.x, r.feet.z, e, deny);
+      return;
+    }
     const held = this.seized.get(e.id);
     if (m.ph === 'start') {
       if (!r.alive || (held && held.by !== r.id) || (!held && e.taken) || (r.ref.spotted && e.level === 'alert') || hyp2(e.pos.x - r.feet.x, e.pos.z - r.feet.z) > TD_REACH) {
@@ -864,6 +885,49 @@ export class CoopHost implements NetAttachment {
     const e = this.g.enemyMgr?.enemies.find((x) => x.id === v.id);
     const holder = e && e.alive ? this.holderOf(e, this.s.selfId) : null;
     if (e && holder) this.assistApply(this.s.selfId, e, lethal, holder, this.g.player.position);
+  }
+
+  /** (joint-interrogation) A bluff by `by` (alive, feet at x, z) on guard `e`: another player holds him as a hostage
+   *  (`holderOf`, the assist rule), he has joint information left, the bluffer within `JOINT.reach`; else `deny`. Accepted:
+   *  stored with the host time, and both players see the bluff line. */
+  private onBluff(by: string, alive: boolean, x: number, z: number, e: Enemy, deny: () => void): void {
+    if (!alive || !e.alive || !this.holderOf(e, by) || !hasJoint(e) || hyp2(e.pos.x - x, e.pos.z - z) > JOINT.reach) {
+      deny();
+      return;
+    }
+    const b = this.bluffs.get(by);
+    if (b) {
+      b.eid = e.id;
+      b.t0 = this.time;
+    } else this.bluffs.set(by, { eid: e.id, t0: this.time });
+    this.radioLine(JOINT_BLUFF_FEED);
+    this.g.hud.feedItem(JOINT_BLUFF_FEED);
+  }
+
+  /** (joint-interrogation) NetAttachment: the host's own bluff (the BLUFF row), the same checks; a denial shows nothing. */
+  jointBluff(v: TakedownVictim): void {
+    const e = this.g.enemyMgr?.enemies.find((x) => x.id === v.id);
+    if (!e) return;
+    const p = this.g.player.position;
+    this.onBluff(this.s.selfId, this.g.player.alive, p.x, p.z, e, () => {});
+  }
+
+  /** (joint-interrogation) NetAttachment: the host's own read of `v` ends; another player's live bluff on him counts
+   *  (spent and counted). */
+  jointLive(v: TakedownVictim): boolean {
+    return this.jointFor(v.id, this.s.selfId);
+  }
+
+  /** (joint-interrogation) A read of guard `eid` held by `holder` ends now: a live bluff by another player on him (the
+   *  holder's own entry never counts) is spent (`bluffs.delete`) and counted (`joints`). Runs on the read's end only. */
+  private jointFor(eid: string, holder: string): boolean {
+    if (this.bluffs.size === 0) return false;
+    this.jointEid = eid;
+    const by = jointBluffer(this.bluffs, eid, holder, this.time, this.bluffDist);
+    if (by === null) return false;
+    this.bluffs.delete(by);
+    this.joints++;
+    return true;
   }
 
   /** (P6) A client's team takedown: `start` checks it (alive, in reach, the guard held as a hostage by another player),
@@ -1509,7 +1573,10 @@ export class CoopHost implements NetAttachment {
           // (spare 9) the client's interrogation ended: the host spends his information and gives the team the intel
           if (interrogationEnded(this.interPh.get(eid) ?? -1, mv.sub)) {
             const info = e.info;
+            // (joint-interrogation) checked before `takeInfo` spends him; the holder (s.by) is never his own bluffer
+            const joint = !!info && info.lines.length > 0 && this.jointFor(eid, s.by);
             if (takeInfo(e)) revealIntel(this.g, e.pos, info);
+            if (joint) revealJoint(this.g, e.pos, jointOf(info));
           }
           this.interPh.set(eid, mv.sub & 2 ? mv.ph : -1);
           if (mv.sub & 2) e.holdPose('interrogate', mv.ph);

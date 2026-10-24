@@ -1,5 +1,68 @@
 # Changelog
 
+## 4.90.0 - Train 52: Joint interrogation (G148); Gameplay reads game state, not the animated body (rig-pose fix) (2026-10-24, PR #312; #310)
+- Co-op joint interrogation (G148, CT: both players question one captive; some intel comes only this way). Beside a
+  guard your partner holds, hold A: a guard with joint information lists BLUFF above TEAM TAKEDOWN. The host accepts the
+  bluff and both see "Bluff on. Read his face now."; when the holder's INTERROGATE ends within 6 s of the bluff, with the
+  bluffer alive and within 3 m, the guard also gives his joint-only lines to both players (radio subtitle and feed) and
+  sets his joint flag. A solo read gives only his usual lines and spends the joint part too. Speech only: no strike, no
+  threat, no pose. Single player is unchanged.
+- Marlow Yard A8: the duty officer has two joint lines (the request-to-exit button in the lobby; night two's grille stop,
+  5 s every 40 s) and the flag `a8-joint`; the radio teaches it as A reaches the gallery ("Two of you, he might say more.").
+- Wire-semantics change: a client's bluff is a `td` message with kind `bluff` (the field existed; protocol.ts is not
+  edited), and an older host would take it as a takedown and seize the guard. The branch touches `src/net`, so the train
+  bumps `PROTOCOL_VERSION` once.
+
+## 4.89.0 - Train 51: sector-redesign: LR16-4 reception board, LR16-6 vision polish, LR16 polish batch 2; Auto-train audit fixes (2026-10-24, PR #309; #307)
+
+### The S2 reception panel is a breaker board (LR16-4)
+- Campus S2 (HQ atrium): the reception panel is now a real untimed breaker board on the atrium circuit (the three
+  pendants and the reception downlight). Cut it and the officer in reception sees his room go dark, walks to the board
+  and switches the lights back on; take him down at the board first and the atrium stays dark. A shot pendant stays dark.
+  The yard and garden isolators keep their timed windows. No wire or save change.
+
+### Thermal through shut doors (LR16-6)
+- Thermal shows anyone warm behind a shut door as a dim blue figure in their own pose, drawn on the door: guards, your
+  partner and a fresh body (its first half minute). Never through a wall, glass or an open door (the body itself
+  shows then), and only within about 14 m. Your own body in front of the door still covers it. Picture only: guards
+  and the light meter are unchanged; in co-op each player sees their own.
+- Every goggle change is an instant cut; switching modes on the wheel with the goggles on now flashes the HUD label too.
+- Co-op: bodies now cool in thermal on the joining player's screen as they do on the host's, and a guard walking behind a
+  shut door in Sector Ops moves as a figure instead of sliding in his last pose.
+
+## 4.88.3 - Train 50: Auto-train audit fixes (2026-10-24, PR #306; #304)
+- Auto-train queues one laptop rerun of the failed suites when the desktop worker fails a train
+  (`laptop-e2e` "desktop: ...; FAIL: a,b"): `request.mjs --train-rerun`, set `train<n>-rerun`, state `laptop-rerun`,
+  one request per train head (recorded in the status JSON); a pass of the rerun (`laptop-e2e/train<n>-rerun` success
+  with CI green) releases through the normal release path, also on master's request.mjs; no verdict 60 min after the
+  request (`AUTO_TRAIN_RERUN_STALE_MIN`) is state `rerun-stale`, and 6 failed requests per head `rerun-request-failed`
+  (audit 2026-10-24, checker FIX).
+- Auto-train writes the build marker `C:/NightShift/scratch/auto-train-building.json` (`{ train, version, pid, at }`)
+  just before `merge-train build` and deletes it when the build ends, errors included (audit 2026-10-24).
+- A train member left out on a conflict loses its `train-ready` label (no more repeat empty builds); the comment tells
+  the lead to re-add the label after fixing the conflict (audit 2026-10-24).
+- Auto-train holds a build up to 3 min (`AUTO_TRAIN_CHECK_WAIT_MIN`, per head, state `holding`) while a `train-ready`
+  PR's `check` is still running, and re-reads the candidates right before `merge-train build` (audit 2: PR #299 missed
+  train 47 by 43 s).
+- `merge-train build` pushes the train head before it runs vitest, so CI and the laptop start ~6 min sooner; a vitest
+  failure still exits 2 and blocks the release through `auto-train/vitest` (audit 2).
+- A waiting auto-train tick (`pending`, `laptop-rerun`, `holding`) re-checks every 60 s for up to 4 min
+  (`AUTO_TRAIN_FAST_POLL_S`, `AUTO_TRAIN_FAST_POLL_MAX_MIN`; `--once` turns it off), so a green train releases within
+  about a minute instead of at the next 5-min run (audit 2).
+
+## 4.88.2 - Train 49: Guard body compile cap 90 s; Response team sweep never stalls (2026-10-24, PR #305; #303, #302)
+
+### Guards route round locked doors
+- Guards no longer stall at a locked door on their way (Marlow Yard A7's cage door): a locked, shut door is a wall to
+  their pathing and they go round it; unlocked, the way through opens again (guard-ai S28).
+
+### Response team sweep never stalls
+- A response team sweeping a Sector Ops section no longer stalls behind a jam: a leader held short of a sweep point
+  plans again, then moves on to the next point, and a guard pressed into a wall's edge walks free (guard-ai sweep fix).
+
+### Guard body compile cap 90 s
+- Guard bodies: the last-resort cap for a body shader still compiling is now 90 s (was 45 s), so the bigger lighting shaders are never restarted while still compiling with several browsers at once.
+
 ## 4.88.1 - Train 48: e2e-ctcourse A2 crossing settle (2026-10-24, PR #301; #299)
 - Tests: e2e-ctcourse:1 A2 waits up to 6 s for the neck crossing to read dark and equal on both pages after the cut, and names the host's baked / dynamic level and lit torches on a miss (a host-only torch is named as the known co-op torch parity gap) (train 45 / 46 flake: host 1.000, client 0.141).
 

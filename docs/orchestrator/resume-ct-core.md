@@ -2,6 +2,47 @@
 
 RESUMED ~23:55 (new account; orchestrator: overnight mode, one slice at a time, testing backlog first, save at 5-hour ~95%):
 #247 laptop afp PASS on fd34263e + CI green -> train-ready label added, orchestrator told (joins train 39 with #269).
+RESUMED ~16:45 (window reset; weekly 78%, binds tonight): #308 TRAIN-READY (label added; 667cbd80 CI green + laptop all
+pass). optic-coop: checks A + B PASS, laptop 7/7 on f32aaf17; optic-coop-2 builder (M1 gap menu, M2 ping middle mouse /
+R3, polish 256 cap + first-frame ping) RESUMED after the limit cut it off; then merge into feature/optic-coop, small Opus
+check of the delta, netmove + coop rerun on the new head, PR (wire), train-ready. guard-models: S11 MERGED (0fd85e2b),
+Opus checker running (S11-CHECK.md), G8 cap A/B queued 20261024T034348-player-build-0fd85e2b-fa9c (flip flags.ts:131 if
+sectorops 24 alert and campus 24 patrol are within +0.5 ms p95). S12 not needed.
+~16:10: optic-coop BUILT (feature/optic-coop f32aaf17; docs/optic-coop/REPORT.md; wire mv.m 'optic' + sub / a / ph): two
+Opus checkers (CHECK-A.md wire, CHECK-B.md gameplay) + laptop netmove / coop / stealth-ai / ctcourse
+(20261024T030538-player-build-f32aaf17-7c2a) in parallel; then PR + train-ready. Michael questions sent via orchestrator:
+gap entry input (F taken), ping binding. S11 builder still running (gm-s11).
+SAVE ~16:00 (orchestrator 88%): WIP pushed feature/gm-s11 82d12dc1 (S11 Opus builder was running: resume it from its head
+with docs/guard-models/reports/S11-REPORT.md as the target; brief in guard-models STATE ~15:55) and feature/optic-coop
+b930cdc4 (#15 optic cable rest, Opus builder running: target docs/optic-coop/REPORT.md). Laptop queued: #308
+e2e-stealth-ai alone on 667cbd80 (20261024T025416-player-build-667cbd80-9eff): pass + CI green -> gh pr edit 308
+--add-label train-ready + message orchestrator. G8 rerun c76cf326 (20261024T020601-player-build-c76cf326-e643): verdict
+-> flip flags.ts:131 or S11 / S12. All other worktrees clean + pushed.
+~15:40: #308 CI test stub fixed (d49097df); laptop 18/19, e2e-stealth-ai "search area / near" FAIL (guard sees the player
+0.3 s after a tp): Opus fix running on feature/rig-pose-fix, then e2e-stealth-ai alone on the fix head. Spare jobs #2 #3 #7
+#11 #16 all already on master (told orchestrator); #12 = #308. NEW: #15 optic cable rest (co-op MoveState optic + team
+pings + non-door anchors), Opus builder in worktree optic-coop (feature/optic-coop off master; docs/optic-coop/REPORT.md);
+wire change expected (train bumps PROTOCOL). guard-models: G8 rerun queued 20261024T020601-...-e643.
+~15:00: PR #308 rig-pose-fix OPEN (4adf3785; alloc fix merged; checks W1 / S1-A fixed / net B PASS). Laptop 11 suites
+20261024T014839-player-build-4adf3785-d290 (status laptop-e2e/rig-pose-fix): pass -> label train-ready + orchestrator;
+fail -> Opus triage at once. guard-models G8 shadow-cull builder running (gm-g8cull), then cap rerun sectorops +
+campusops, flip decision, guard-models e2e set, guard-models PR.
+~14:40: rig-pose-fix ALL 7 slices merged (988869a8; S1 fix round incl.); checks W1 PASS, S1-A FAIL->fixed; checker B on
+all src/net running (CHECK-NET-B.md). WAITING for CPU < 80% (93% at 14:40) to start: (a) playerVolumes alloc test fix
+(worktree rpf-alloc, branch feature/rpf-alloc: 67.8 B vs 4 x 16 B; find the extra box, do not raise the limit), (b)
+guard-models G8 shadow-cull fix (worktree gm-g8cull: G8 HOLD, sectorops CPU +0.6-1.7 ms p95 vs +0.5; lamp shadow draws
+24->50: figure culling box vs lightRig.ts fillCasters; then rerun cap sectorops + campusops). Then rig-pose laptop batch run
++ fragment + PR. guard-models e2e set after the flip decision.
+~13:30 rig-pose-fix: S1, S2, S5, S6, S7 MERGED (bb750a5b); W1 check PASS (S2/S5/S6/S7). Running: S3 (rpf-s3: guard head,
+dog puppet, one sim eye, hand side, body floor probe), checker A on S1 (CHECK-S1-A.md). Then checker B on all src/net,
+one laptop batch run, fragment, PR. S1 decisions for the orchestrator: client headshot-able on host (x1.3, legs x0.75),
+host uses latest accepted client state (not the 0.1 s drawn copy). guard-models: bake BUNDLED ae211857; checks rerun
+20261024T004757-...-e911 + G8 cap 20261024T004923-...-820d queued (Test Runner relays); MPFB2 now on the laptop.
+~11:40 NEW JOB rig-pose-fix (Michael ~11:25 approved; on ROADMAP): branch feature/rig-pose-fix (worktree
+rig-pose-fix, own npm ci; off master 4.88.1 0fab0afa; docs/rig-pose-audit/ BRIEF / PLAN / STATE / REPORT). Wave 1 Opus
+builders running: S1 player body model + wall head (rpf-s1), S2 shot origin (rpf-s2), S5 body pos (rpf-s5), S6 dog head
+(rpf-s6). Then merge each into feature/rig-pose-fix, one Opus checker for the wave (+ a second on src/net), laptop suites,
+wave 2 (S3 guard head incl. S6's enemyPuppet one-liner, S7 small batch), one batch PR. guard-models: full bake queued.
 ~08:00: #269 + #282 RELEASED in 4.85.0 (train 42): coop-rejoin done. MPFB2 zip confirmed on the laptop (Michael):
 the full bake 20261023T202119-...-a8ff2d45-5e1d can run (not started yet; status laptop-e2e/alone-guard-bake-all).
 ~07:50 FULL BURN: #269 + #282 laptop coop + netmove 2/2 PASS on 0e65c3eb (post master merge) -> train 42 ready.

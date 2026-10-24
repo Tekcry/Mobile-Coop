@@ -125,6 +125,7 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
     this.gun = built.gun;
     this.rig.setEnabled(false);
     if (this.def.quadruped) {
+      this.rig.standIn = true;
       this.dog = new DogModel(scene, world.parts, this.def.look.colors.torso, this.def.look.colors.accent);
       this.dog.setVisible(false);
     }

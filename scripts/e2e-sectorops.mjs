@@ -657,6 +657,8 @@ await run(PARAMS, async ({ G, sim }) => {
     const g = window.__app.current;
     const nav = g.nav;
     const S = g.world.map.sectors;
+    // (guard-ai S28) a locked shut door is shut on the guards' grid: this level read unlocks the doors for its queries and locks them back in the same evaluate (no frame between) (the connectors' near, far and seal doors are locked at load: sectorMode.findDoors)
+    const held = g.world.doors.list.filter((d) => d.anchor.locked); for (const d of held) g.world.doors.setLocked(d, false);
     const legs = [];
     const fails = [];
     // (a nav waypoint is an [x, z] pair)
@@ -707,6 +709,7 @@ await run(PARAMS, async ({ G, sim }) => {
       const toExit = nav.findPath([s.objective.x, s.objective.z], [(ex[0] + ex[2]) / 2, (ex[1] + ex[3]) / 2], 60000, s.objective.y, 0);
       return { id: s.id, obj: !!toObj, exit: !!toExit };
     });
+    for (const d of held) g.world.doors.setLocked(d, true);
     return { legs: legs.length, fails, seals, reach };
   });
   console.log(`  ${out.legs} route legs checked`);
@@ -1937,7 +1940,7 @@ if (want(5)) {
 // co-op legs (leg-up onto the canopy, the drop takedown), the verge vantage and cam-walk coverage, the revive on the roof.
 // (slice 2) Section 2, the HQ atrium and offices (SPEC "S2"): in the same first run (a) S2 loads with 12 guards (3 G, 6 L1, 3 L2) and its
 // three cameras, (b) the stealth route C1 far door -> post room -> SW stair -> L1 north open plan -> facilities office, the 3 s BMS hack
-// opens C2's card door, (d) the reception panel switch cuts s2-atrium and #1 walks to it; in the probe run (c) the CR2 nose is never held
+// opens C2's card door, (d) the reception panel board (LR16-4, untimed) cuts s2-atrium and #1 walks to it; in the probe run (c) the CR2 nose is never held
 // alone (cafe floor, cafe table, feature stair, a wall jump off the hall's east wall). Skipped: the co-op leg-up + human ladder at CR2 (this
 // part has no co-op helper), the balustrade probe (the balustrade is on L1: a solo up there is already on the slab).
 const CAMPUS = 'autostart=campusOps&mode=sector';
@@ -1964,6 +1967,8 @@ if (want(6)) {
       const g = window.__app.current;
       const fails = [];
       let legs = 0;
+      // (guard-ai S28) a locked shut door is shut on the guards' grid: this level read unlocks the doors for its queries and locks them back in the same evaluate (no frame between)
+      const held = g.world.doors.list.filter((d) => d.anchor.locked); for (const d of held) g.world.doors.setLocked(d, false);
       for (const r of g.world.map.sectors[0].routes) {
         for (let i = 0; i + 1 < r.pts.length; i++) {
           if ((r.climbs ?? []).includes(i)) continue;
@@ -1973,6 +1978,7 @@ if (want(6)) {
           if (!g.nav.findPath([a[0], a[1]], [c[0], c[1]], 60000, a[2] ?? 0, c[2] ?? 0)) fails.push(`${r.name} leg ${i}`);
         }
       }
+      for (const d of held) g.world.doors.setLocked(d, true);
       return { legs, fails };
     });
     console.log(`  ${nv.legs} route legs checked`);
@@ -2043,6 +2049,8 @@ if (want(6)) {
       const g = window.__app.current;
       const fails = [];
       let legs = 0;
+      // (guard-ai S28) a locked shut door is shut on the guards' grid: this level read unlocks the doors for its queries and locks them back in the same evaluate (no frame between)
+      const held = g.world.doors.list.filter((d) => d.anchor.locked); for (const d of held) g.world.doors.setLocked(d, false);
       for (const r of g.world.map.sectors[1].routes) {
         for (let i = 0; i + 1 < r.pts.length; i++) {
           const a = r.pts[i];
@@ -2051,6 +2059,7 @@ if (want(6)) {
           if (!g.nav.findPath([a[0], a[1]], [c[0], c[1]], 200000, a[2] ?? 0, c[2] ?? 0)) fails.push(`${r.name} leg ${i}`);
         }
       }
+      for (const d of held) g.world.doors.setLocked(d, true);
       return { legs, fails };
     });
     console.log(`  ${nv2.legs} S2 route legs checked`);
@@ -2085,45 +2094,48 @@ if (want(6)) {
     await sim(0.3);
     const hk = await G(() => window.__sector.debug());
     assert(hk.phase === 'connector' && hk.nearLocked === false && hk.farLocked === true, `the 3 s hack opens C2's card door (${JSON.stringify([hk.phase, hk.nearLocked, hk.farLocked])})`);
-    // (d) the reception panel: the switch cuts s2-atrium (the three pendants and the reception downlight: #1 sees his own room go dark) and #1 walks to it (the guards run again; the player waits in the dark plant room)
+    // (d) the reception panel (LR16-4: an untimed breaker board, `board-<k>`): the cut takes s2-atrium (the three pendants and the reception downlight: #1 sees his own room go dark) and #1 walks to it (the guards run again; the player waits in the dark plant room)
     await G(() => { const g = window.__app.current; delete g.enemyMgr.update; const P = g.player.position.constructor; g.player.controller.teleport(new P(2.5, 0, -24), 0); });
     await sim(0.5);
     const pn = await G(() => {
       const g = window.__app.current;
-      const sws = g.world.layout.switches;
-      const k = sws.findIndex((q) => q.group === 50);
+      const bds = g.world.layout.boards;
+      const k = bds.findIndex((q) => q.groups.includes(50) && !q.window);
+      const onGroup = g.world.layout.switches.filter((q) => q.group === 50).length;
       const es = g.enemyMgr.enemies;
       let idx = -1;
       let bd = 1e9;
       es.forEach((q, i) => { if (!q.alive || q.pos.y > 2) return; const d = Math.hypot(q.pos.x + 20, q.pos.z + 24.9); if (d < bd) { bd = d; idx = i; } });
       const e = es[idx];
-      return { k, idx, d0: Math.hypot(e.pos.x - sws[k].pos.x, e.pos.z - sws[k].pos.z), on: g.world.level.lights.lights.filter((l) => l.group === 50 && l.on).length };
+      return { k, idx, d0: Math.hypot(e.pos.x - bds[k].pos.x, e.pos.z - bds[k].pos.z), onGroup, on: g.world.level.lights.lights.filter((l) => l.group === 50 && l.on).length };
     });
-    assert(pn.k >= 0 && pn.on === 4 && pn.d0 > 9, `the reception panel is a switch on s2-atrium (3 pendants and the reception downlight lit), #1 stands ${pn.d0.toFixed(1)} m off it (${JSON.stringify(pn)})`);
-    await G((k) => { const g = window.__app.current; const it = g.interactables.items.find((x) => x.id === `switch-${k}`); it.onUse(it, 'local'); }, pn.k);
+    assert(pn.k >= 0 && pn.onGroup === 0 && pn.on === 4 && pn.d0 > 9, `the reception panel is an untimed breaker board on s2-atrium, no switch on it (3 pendants and the reception downlight lit), #1 stands ${pn.d0.toFixed(1)} m off it (${JSON.stringify(pn)})`);
+    await G((k) => { const g = window.__app.current; const it = g.interactables.items.find((x) => x.id === `board-${k}`); it.onUse(it, 'local'); }, pn.k);
     // (guard-ai S15, A42; laptop fix 884b89c0) the cut is a breaker fault: #1, the witness nearest the panel by path, walks
     // to it at his patrol pace and turns s2-atrium back on (master's light check sent a pair and left it dark): his
     // nearest approach and the relight over 25 s of sim, half-second steps
     const pa = await G(([k, idx]) => {
       const g = window.__app.current;
-      const sw = g.world.layout.switches[k];
+      const sw = g.world.layout.boards[k];
       const e = g.enemyMgr.enemies[idx];
       const lit = () => g.world.level.lights.lights.filter((l) => l.group === 50 && l.on).length;
       const off = lit();
       let task = -1;
       let dMin = 1e9;
       let back = -1;
+      let cut1 = -1;
       for (let t = 0.5; t <= 25; t += 0.5) {
         window.__app.loop.stepHeadless(0.5);
         if (t === 0.5) task = e.breakerGroup;
         dMin = Math.min(dMin, Math.hypot(e.pos.x - sw.pos.x, e.pos.z - sw.pos.z));
         if (back < 0 && lit() === 4) back = t;
       }
-      return { off, task, dMin, back, alive: e.alive, on: lit() };
+      cut1 = g.stealth.boards.cut[k];
+      return { off, task, dMin, back, cut1, alive: e.alive, on: lit() };
     }, [pn.k, pn.idx]);
     await sim(0.1);
     assert(pa.off === 0 && pa.task === 50, `the panel cut s2-atrium (lamps on ${pa.off}) and sends #1 to reset it (breaker task, circuit ${pa.task})`);
-    assert(pa.alive && pa.dMin < 2 && pa.back > 0 && pa.on === 4, `#1 walked to the panel and turned s2-atrium back on (${pn.d0.toFixed(1)} m -> ${pa.dMin.toFixed(1)} m, relit at ${pa.back} s, lamps on ${pa.on})`);
+    assert(pa.alive && pa.dMin < 2 && pa.back > 0 && pa.on === 4 && pa.cut1 === 0, `#1 walked to the board and switched s2-atrium back on (board cut ${pa.cut1}, ${pn.d0.toFixed(1)} m -> ${pa.dMin.toFixed(1)} m, relit at ${pa.back} s, lamps on ${pa.on})`);
   });
 
   console.log('campus ops (S1): the feeder pillar board cuts s1-park-w; the west half goes dark');
@@ -2307,6 +2319,8 @@ async function campusS3Part(page) {
     const g = window.__app.current;
     const fails = [];
     let legs = 0;
+    // (guard-ai S28) a locked shut door is shut on the guards' grid: this level read unlocks the doors for its queries and locks them back in the same evaluate (no frame between)
+    const held = g.world.doors.list.filter((d) => d.anchor.locked); for (const d of held) g.world.doors.setLocked(d, false);
     for (const r of g.world.map.sectors[2].routes) {
       for (let i = 0; i + 1 < r.pts.length; i++) {
         if ((r.climbs ?? []).includes(i)) continue;
@@ -2316,6 +2330,7 @@ async function campusS3Part(page) {
         if (!g.nav.findPath([a[0], a[1]], [c[0], c[1]], 60000, a[2] ?? 0, c[2] ?? 0)) fails.push(`${r.name} leg ${i}`);
       }
     }
+    for (const d of held) g.world.doors.setLocked(d, true);
     return { legs, fails };
   });
   console.log(`  S3: ${nv.legs} route legs checked`);
@@ -3023,6 +3038,8 @@ async function campusS4Part(page) {
     const g = window.__app.current;
     const fails = [];
     let legs = 0;
+    // (guard-ai S28) a locked shut door is shut on the guards' grid: this level read unlocks the doors for its queries and locks them back in the same evaluate (no frame between)
+    const held = g.world.doors.list.filter((d) => d.anchor.locked); for (const d of held) g.world.doors.setLocked(d, false);
     for (const r of g.world.map.sectors[3].routes) {
       for (let i = 0; i + 1 < r.pts.length; i++) {
         if ((r.climbs ?? []).includes(i)) continue;
@@ -3032,6 +3049,7 @@ async function campusS4Part(page) {
         if (!g.nav.findPath([a[0], a[1]], [c[0], c[1]], 200000, a[2] ?? 0, c[2] ?? 0)) fails.push(`${r.name} leg ${i}`);
       }
     }
+    for (const d of held) g.world.doors.setLocked(d, true);
     return { legs, fails };
   });
   console.log(`  S4: ${nv.legs} route legs checked`);
@@ -3374,6 +3392,8 @@ async function campusS5Part(page) {
     const g = window.__app.current;
     const fails = [];
     let legs = 0;
+    // (guard-ai S28) a locked shut door is shut on the guards' grid: this level read unlocks the doors for its queries and locks them back in the same evaluate (no frame between)
+    const held = g.world.doors.list.filter((d) => d.anchor.locked); for (const d of held) g.world.doors.setLocked(d, false);
     for (const r of g.world.map.sectors[4].routes) {
       for (let i = 0; i + 1 < r.pts.length; i++) {
         if ((r.climbs ?? []).includes(i)) continue;
@@ -3383,6 +3403,7 @@ async function campusS5Part(page) {
         if (!g.nav.findPath([a[0], a[1]], [c[0], c[1]], 200000, a[2] ?? 0, c[2] ?? 0)) fails.push(`${r.name} leg ${i}`);
       }
     }
+    for (const d of held) g.world.doors.setLocked(d, true);
     return { legs, fails };
   });
   console.log(`  S5: ${nv.legs} route legs checked`);
@@ -3621,7 +3642,7 @@ if (want(1)) {
       out.camN = ct.cams.length;
       out.camSame = cams() === cam0.s;
       out.ctAlarm = ct.alarm;
-      window.__s13 = { x, z, t: 1.8, firstSweep: -1, maxVisited: 0, lead0: null, moved: 0 };
+      window.__s13 = { x, z, t: 1.8, firstSweep: -1, maxVisited: 0, maxLooked: 0, lead0: null, moved: 0 };
       return out;
     }, S[0].obj);
     // (the warehouse sections set no `gear` default and no slot tags: only the stage gives armour)
@@ -3647,6 +3668,8 @@ if (want(1)) {
           s.t += 0.5;
           if (t.sweeping && s.firstSweep < 0) s.firstSweep = s.t;
           s.maxVisited = Math.max(s.maxVisited, t.visited);
+          // (guard-ai sweep fix round) looked at = visited less the points given up after two stalls (`SweepTeam.skipped`)
+          s.maxLooked = Math.max(s.maxLooked, t.visited - t.skipped);
           const L = t.leader;
           if (L && t.sweeping) {
             if (!s.lead0) s.lead0 = [L.pos.x, L.pos.z];
@@ -3654,8 +3677,23 @@ if (want(1)) {
           }
         }
         const all = em.teams.flatMap((q) => q.members);
-        return { t: s.t, firstSweep: s.firstSweep, visited: s.maxVisited, moved: s.moved, switches: t.switches, count: t.count, lv: all.map((e) => (e.alive ? e.level : 'down')), lead: t.members[0]?.def.kind };
+        const L = t.leader;
+        return { t: s.t, firstSweep: s.firstSweep, visited: s.maxVisited, looked: s.maxLooked, skipped: t.skipped, stallN: t.stallN, leadAt: L ? [Math.round(L.pos.x * 100) / 100, Math.round(L.pos.z * 100) / 100, em.nav.isWalkable(em.nav.cellOf(L.pos.x, L.pos.z, L.pos.y))] : null, moved: s.moved, switches: t.switches, count: t.count, lv: all.map((e) => (e.alive ? e.level : 'down')), lead: t.members[0]?.def.kind };
       });
+    }
+    // (guard-ai S28, train 45) no sweep point looked at: where each team stands (its point, the leader, the members, the
+    // locked shut doors on the grid) for the log
+    console.log(`  S13 sweep: looked at ${w.looked}, visited ${w.visited}, skipped ${w.skipped}, stalls ${w.stallN}, leader at ${JSON.stringify(w.leadAt)}`);
+    if (!(w.looked >= 1 && w.moved > 2)) {
+      const diag = await G(() => {
+        const g = window.__app.current;
+        const em = g.enemyMgr;
+        const f1 = (v) => Math.round(v * 10) / 10;
+        const teams = em.teams.map((t) => ({ i: t.index, pt: t.point, at: t.point >= 0 ? [t.pts[2 * t.point], t.pts[2 * t.point + 1]] : null, n: t.count, visited: t.visited, dwell: f1(t.dwellT), sweeping: t.sweeping, pts: t.pts.slice(0, 2 * t.count).map(f1), m: t.members.map((e) => [f1(e.pos.x), f1(e.pos.z), e.alive ? e.level : 'down', em.nav.isWalkable(em.nav.cellOf(e.pos.x, e.pos.z, e.pos.y)), e.routePath.length]), lead: t.leader ? t.members.indexOf(t.leader) : -1, stallN: t.stallN, skipped: t.skipped }));
+        const shut = g.world.doors.list.filter((d) => d.anchor.locked && d.target === 0).map((d) => [d.index, f1(d.cx), f1(d.cz)]);
+        return { lkp: [f1(em.lkp.x), f1(em.lkp.z), em.lkpValid], teams, shut, ver: em.nav.version };
+      });
+      console.log(`  S13 diag: ${JSON.stringify(diag)}`);
     }
     await G(() => {
       const g = window.__app.current;
@@ -3664,7 +3702,7 @@ if (want(1)) {
     });
     const searchT = 60;
     assert(w.count > 0 && w.firstSweep >= searchT, `S13: the team sweeps only after its search of the last known position (${searchT} s; first sweep at ${w.firstSweep} s, ${w.count} points)`);
-    assert(w.visited >= 1 && w.moved > 2, `S13: the team moves between sweep points (looked at ${w.visited}, the leader moved ${w.moved.toFixed(1)} m; switches ${w.switches})`);
+    assert(w.looked >= 1 && w.moved > 2, `S13: the team moves between sweep points (looked at ${w.looked}, skipped ${w.skipped}, the leader moved ${w.moved.toFixed(1)} m; switches ${w.switches})`);
     assert(w.t >= 120 && w.lv.every((l) => l === 'searching' || l === 'alert' || l === 'down') && !w.lv.includes('cooldown') && !w.lv.includes('unaware'), `S13: still hunting at ${w.t} s, none calm (${w.lv})`);
     assert(w.lead === 'enforcer', `S13: the shield guard still first in the team (${w.lead})`);
   });

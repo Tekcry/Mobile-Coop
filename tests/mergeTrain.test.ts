@@ -8,7 +8,7 @@ import {
   failedTestFiles, vitestRerunPlan, vitestRerunCmd,
   lockIsOurs, wireCandidates, membersFromLog, parseArgs, protocolValue, releaseHeavyLock,
   resolveKeepBoth, resumeCheck, tailLines, takeHeavyLock, touchesWire, trainPrBody, trainPrTitle, versionSubject, vitestVerdict, wirePaths,
-  hasTrainMember,
+  hasTrainMember, buildExitCode,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/merge-train.mjs';
 
@@ -388,5 +388,23 @@ describe('hasTrainMember', () => {
     expect(hasTrainMember(['origin/feature/menu'])).toBe(false);
     expect(hasTrainMember(['feature/menu', 'feature/guard-ai-s25'])).toBe(true);
     expect(hasTrainMember(['feature/guard-ai-s25'])).toBe(true);
+  });
+});
+
+describe('merge-train build exit after the push (audit 2 item 2)', () => {
+  it('buildExitCode: 0 passed or skipped, 2 failed, 4 not run (heavy lock wait)', () => {
+    expect(buildExitCode({ ok: true, message: '' })).toBe(0);
+    expect(buildExitCode({ ok: true, message: 'passed on isolated rerun: tests/a.test.ts' })).toBe(0);
+    expect(buildExitCode({ ok: false, message: 'vitest FAILED' })).toBe(2);
+    expect(buildExitCode({ ok: false, notRun: true, message: 'vitest NOT run' })).toBe(4);
+  });
+
+  it('build pushes the version commit before vitest runs', () => {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'merge-train.mjs'), 'utf8');
+    const body = src.slice(src.indexOf('async function build('), src.indexOf('export const buildExitCode'));
+    const push = body.lastIndexOf("act(['git', 'push', 'origin', branch]);");
+    const vitest = body.indexOf('await runVitest(');
+    expect(push).toBeGreaterThan(0);
+    expect(vitest).toBeGreaterThan(push);
   });
 });

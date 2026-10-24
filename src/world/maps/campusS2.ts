@@ -2,6 +2,7 @@ import { Vector3 } from '../../core/babylon';
 import type { LevelBuilder } from '../levelBuilder';
 import type { RoomDef } from '../rooms';
 import type { MapLayout } from '../mapDef';
+import type { BoardDef } from '../../game/isolators';
 import { makeCone } from '../lights';
 import { C1_GAP, type CoopLip } from './campusS1';
 
@@ -173,8 +174,6 @@ export const S2_NAV_SEEDS: Vector3[] = [new Vector3(-20, 0, -27.5), new Vector3(
 
 /** Light switches. Y is the floor the switch stands on (the interact test is within 1.5 m of it). */
 export const S2_SWITCHES: NonNullable<MapLayout['switches']> = [
-  // the reception panel: cuts the atrium pendants and the reception downlight (lure #1: his own room goes dark), on the foyer's east wall
-  { pos: new Vector3(-8.4, 0, -28.5), yaw: -PI / 2, group: S2_GROUPS.atrium },
   // one switch at each stair door for the balconies' downlights: L1 (SW, NE), L2 (SW, NE)
   { pos: new Vector3(-38.8, 4.4, -24.6), yaw: PI / 2, group: S2_GROUPS.l1Bal },
   { pos: new Vector3(2.4, 4.4, -0.6), yaw: PI, group: S2_GROUPS.l1Bal },
@@ -184,6 +183,13 @@ export const S2_SWITCHES: NonNullable<MapLayout['switches']> = [
   { pos: new Vector3(-27.7, 4.4, -24.4), yaw: PI / 2, group: S2_GROUPS.kitchen },
   { pos: new Vector3(-5.6, 4.4, -0.5), yaw: PI, group: S2_GROUPS.l1Cor },
 ];
+
+/**
+ * (LR16-4) The reception panel: an untimed breaker board (EW8, no `window`) on `s2-atrium` (the three pendants and the
+ * reception downlight), on the foyer's east wall. Lure #1: he sees his own room go dark, walks to the board and
+ * switches it back (guard-ai LR16-4, #255); taken down at the board, the atrium stays dark.
+ */
+export const S2_BOARDS: BoardDef[] = [{ pos: new Vector3(-8.4, 0, -28.5), yaw: -PI / 2, groups: [S2_GROUPS.atrium] }];
 
 /** The atrium pendants (x, z) at y 9.0 over the south half of the void (the cafe in the north half stays unlit). */
 export const PENDANTS: readonly (readonly [number, number])[] = [[-22, -17], [-18, -17], [-14, -17]];

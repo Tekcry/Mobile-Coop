@@ -187,7 +187,7 @@ describe('guard-ai body watchdog: recover on a real failure only', () => {
     const { mesh, ready, rec, rig } = await setup();
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     expect(await ready()).toBe(true);
-    expect(rec.STUCK_MS).toBeGreaterThanOrEqual(30000);
+    expect(rec.STUCK_MS).toBeGreaterThanOrEqual(60000); // LR16 Epic compiles measured up to 43.5 s (3 browsers)
     const e1 = mesh.subMeshes[0]!.effect!;
     const x = compiling(e1);
     const w = rec.newEffectWatch();

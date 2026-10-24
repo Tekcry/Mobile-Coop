@@ -132,6 +132,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   z-fighting; the frame time of each set (A2 685 skins, A4 667, A6 725 are the heaviest).
 - [ ] (interrogation-intel) Interrogate a guard with information: after his lines the feed shows `Code: ...` (when authored), `Cameras near: n, sweep a-b s` and `Patrols near: n, loop a-b s`; in co-op the partner sees the same lines (a client's interrogation too).
 - [ ] (stealth-pays) An interrogation's door code now acts: Course mode sets it as a course flag (a gate listing it in `externalFlags` opens); Sector Ops holds it for the section (the matching keypad prompt turns to "Enter code" and opens; a section restart drops it). Pending until a map authors guard `info` codes. Checks: `tests/intelPartB.test.ts` (Course flag, repeat is one `flagSet`), `tests/sectorIntelCode.test.ts` (`grantCode`, restart drops it, keypad opens); `e2e-ctcourse` (appended check: `onIntelCode` sets `hasFlag`) and `e2e-sectorops` (check (a2): `onIntelCode('s4-codes')` turns kp-batt to "Enter code") drive the mode hook directly; the real interrogate chain stays in `e2e-takedown` `grab-interrogate-intel`.
+- [ ] (joint-interrogation) Co-op: the partner beside a held A8 officer holds A, BLUFF; the holder INTERROGATEs within 6 s: both see the two joint lines; a solo read gives only his two lines.
 - [ ] (hang-down) Co-op hang-down over a guard (any edge with a drop, e.g. a Sector Ops mezzanine): hanging, LT draws
   the pistol (never the rifle) and aims upside down, RT fires; hold A lists GRAB CHARACTER on a guard by your head (he is
   lifted, then RT tap / Z knocks him out, RT hold kills, no let-go); RT on him without the menu: tap chokes, hold snaps
@@ -232,7 +233,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Guards relight (guard-ai LR16-4, Sector Ops): switch off a hall at its switch with a guard
   watching: a guard comes and switches it back on (a shot lamp stays dark); a timed isolator's lights stay off for its
   window (guards only come to look) and come back on their own.
-  (An untimed Sector Ops breaker board uses the same walk; no map defines one yet.)
+  Campus S2: cut the reception panel board; #1 walks over and switches the atrium back on; take him at the board and it stays dark.
 - [ ] Lasers (guard-ai S17, Sector Ops campus S3 or the warehouse): break a beam near guards, then climb out of the room
   unseen: two guards come to the middle of the beam and search that room only; the reinforcements search there too and
   never head for where you went unless one sees you.
@@ -242,7 +243,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   report get through: a calm guard nearby jogs over to help search; throw a bottle: the one sent still walks over.
 - [ ] Guards and doors (guard-ai S20): watch two patrols cross in a corridor and a guard pass a talking pair: they step
   round, never through each other; close a door on a patrol route: the guard opens it and waits for the swing, never
-  walks through the leaf; a locked door is never crossed (he stops at it).
+  walks through the leaf; a locked door is never crossed (guard-ai S28: his route goes round it; with no other way he
+  stops short). Marlow A7: a guard whose round passes the locked cage door (`A7-cage-w`) takes the way round, no stall
+  at the leaf; once the cage doors unlock, guards may path through them.
 - [ ] Weapon carry (guard-ai S21): a calm patrol walks with his rifle slung on his back (an officer's pistol on his thigh),
   hands empty; make a noise: he draws (the rifle off the back in the right hand, under a second) and walks at low ready;
   seen, he fires only once drawn; calm again, he holsters after about 15 s. A high-security post, and every guard once
@@ -258,6 +261,10 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   feet cast shadows now (accepted).
 - [ ] Wheel carousel: hold LB (Tab), put the cursor on the vision slot, A (E) cycles night, thermal, electro; release
   selects it. The wheel reopens on that mode. A off the vision slot does nothing.
+- [ ] (LR16-6) Thermal behind a shut door: in Sector Ops or Marlow Yard pick thermal, stand a few metres from a shut door
+  with a guard (or your partner) behind it: a dim blue figure in his pose shows on the door, moves as he moves, and goes
+  when the door opens (his body shows instead), behind a wall or glass, or past ~14 m; your own body in front of the
+  door still covers it. Every vision change (button or wheel) is an instant cut with the HUD label.
 - [ ] (sector-fixes W) The wheel opens on the vision slot: hold LB and tap A with the right stick untouched, the mode
   cycles. Push the stick onto a gun, then let go of the stick: the vision slot lights again (nothing stays picked). Push
   onto a gun and let go of the stick and LB together: the gun is picked. Keys: hold Tab, E cycles; move the mouse out to

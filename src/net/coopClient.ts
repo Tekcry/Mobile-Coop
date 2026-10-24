@@ -51,6 +51,7 @@ import { BOLT_DEPTH, SECTOR_RESTART_TITLE, boltById, boltHalfSpan, type SectorRa
 import { barkLine, BARK_EVENTS, RADIO_BARKS } from '../ai/barks';
 import { HelmetDrops } from '../ai/helmetDrops';
 import { DeflectLedger } from './puppetGear';
+import { stampKeptBodies } from './keptBodies';
 import { DESK_NONE, deskItemId, deskModeOf } from '../game/sectorDesks';
 import { placeSlot, startSlotPoints } from '../game/spawnPlace';
 import type { SlotPoint } from '../game/spawnSlots';
@@ -79,6 +80,8 @@ export class CoopClient implements NetAttachment {
   private kept = new Map<string, Ragdoll>();
   /** (rig-pose-fix S5) Scratch for a kill's body lie (the host's `Body` lie, P13). */
   private deathLie = newLie();
+  /** (LR16-6 fix) When each kept body went down (`time`): its body-heat cooling (`stampBodies`). Render only. */
+  private readonly keptAt = new Map<string, number>();
   private dying: EnemyPuppet[] = [];
   private clock = new ClockSync();
   private sendT = 0;
@@ -217,6 +220,9 @@ export class CoopClient implements NetAttachment {
       if (kind === 'gas' || kind === 'flash' || kind === 'emp' || kind === 'noise') s.toHost({ t: 'gadget', kind, x: at.x, y: at.y, z: at.z });
     };
     g.takedownVictims = () => this.puppetList;
+    // (LR16-6 fix) our kept bodies cool as the host's do (render-only body heat)
+    g.bodyStamp = (f) => this.stampBodies(f);
+    this.offs.push(() => (g.bodyStamp = null));
     // wall medkit stations are the host's, mirrored (the host heals: health is host-authoritative)
     const own = g.interactables;
     if (own) for (const it of own.items.filter((x) => x.kind === 'medkitWall')) own.remove(it);
@@ -625,6 +631,12 @@ export class CoopClient implements NetAttachment {
     this.s.toHost({ t: 'td', target: v.id, ph, lethal, kind: 'assist' });
   }
 
+  /** (joint-interrogation, G148) Our bluff on a partner's hostage (the BLUFF row): the host checks and stores it, and its
+   *  `feed` line comes back; a denial (`tdDenied` on a partner-held puppet) changes nothing here (A6). */
+  jointBluff(v: TakedownVictim): void {
+    this.s.toHost({ t: 'td', target: v.id, ph: 'start', lethal: false, kind: 'bluff' });
+  }
+
   private applySelf(p: PlayerState): void {
     this.selfSpotted = (p.f & PF.spotted) !== 0;
     const g = this.g;
@@ -761,6 +773,7 @@ export class CoopClient implements NetAttachment {
               r.snapTo(lie.x, lie.y, lie.z, lie.headYaw);
               this.ragdolls.push(r);
               this.kept.set(e.enemy, r);
+              this.keptAt.set(e.enemy, this.time);
             } else rig.dispose();
           } else this.dying.push(p);
           this.puppets.delete(e.enemy);
@@ -1118,10 +1131,17 @@ export class CoopClient implements NetAttachment {
     return true;
   }
 
+  /** (LR16-6 fix) `GameState.bodyStamp`: mark the kept bodies' rigs as bodies this render frame with their age, so
+   *  their body heat cools as the host cools its own (`paintHeat`). Render only, no allocation (`keptBodies.ts`). */
+  stampBodies(f: number): void {
+    stampKeptBodies(this.kept, this.keptAt, this.time, f);
+  }
+
   private dropBody(id: string): void {
     const r = this.kept.get(id);
     if (!r) return;
     this.kept.delete(id);
+    this.keptAt.delete(id);
     r.dispose();
   }
 
@@ -1181,6 +1201,7 @@ export class CoopClient implements NetAttachment {
     this.dying.length = 0;
     this.ragdolls.length = 0;
     this.kept.clear();
+    this.keptAt.clear();
     this.holdPulses.clear();
     this.ints?.dispose();
     this.g.explosions.onLocalBlast = null;
