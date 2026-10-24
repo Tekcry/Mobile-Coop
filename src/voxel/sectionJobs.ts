@@ -123,6 +123,8 @@ export class SectionBaker {
   private inlineTimer: ReturnType<typeof setTimeout> | null = null;
   private draining = false;
   private warnedInline = false;
+  /** (bake5) The first capped first try was logged with its elapsed ms. */
+  private warnedCap = false;
   private stallTimer: ReturnType<typeof setInterval> | null = null;
   /** Per lamp bounce parts until `complete` (check B 8: dropped there). */
   private parts: (BouncePart | null)[];
@@ -229,6 +231,7 @@ export class SectionBaker {
    * tried again on the pool, then inline. Called by a timer while the bake runs (tests call it with a clock of their own).
    * (bake4) The retry's cap never exceeds the first try's (a `capMs` under 20 s bounds both), and the stalled job is
    * cancelled on the pool: its hung worker is terminated and replaced, so the pool keeps its full size.
+   * (bake5) The first first try past its cap is logged once per baker with its elapsed ms.
    */
   checkStalled(now = performance.now()): void {
     if (this.disposed || this.done) return;
@@ -242,6 +245,12 @@ export class SectionBaker {
         this.jobs[i] = null;
         // (its rejection is dropped by the token: `failed1` below starts the retry or bumps the token first)
         if (job && this.pool) this.pool.cancel(job);
+        // (read before `failed1`: its retry `dispatch` resets the start time)
+        if (this.tries[i] === 0 && !this.warnedCap) {
+          this.warnedCap = true;
+          const ms = Math.round(now - T[i]!);
+          console.warn(`[section-bake] a worker job ran past its cap (${ms} ms): cancelled, tried again on the pool`, i);
+        }
         this.failed1(i, new Error(`job in flight over ${cap} ms`));
       }
     }

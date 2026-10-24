@@ -9,6 +9,8 @@
  * bake skips the idle wait during play, a held lamp bakes once its section goes live, the pool retry has a 20 s cap.
  * (bake4, bake3 check polish 2, 4; robust check polish 3) A smaller `capMs` bounds the retry too, held lamps keep their
  * queued order behind a live lamp pulled forward, a stalled job is cancelled on the pool (its worker replaced).
+ * (bake5, bake4 check polish 1-4, 8) Disposing the pool settles its running jobs too, a cancelled or disposed worker's
+ * handlers are cut, a replacement that fails to start leaves the pool one short, the first capped first try is logged.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type * as LampBakeModule from '../src/voxel/lampBake';
@@ -91,6 +93,36 @@ function handPool(slots: number, opts: { reject?: (id: number, n: number) => boo
 
 /** Every promise callback and zero-delay timer queued so far has run. */
 const settle = () => new Promise<void>((r) => setTimeout(r, 0));
+
+/** (bake4, bake5) A stand-in `Worker` for `WorkerPool`: records its posts; `failSpawn` makes the constructor throw. */
+class FakeWorker {
+  static made: FakeWorker[] = [];
+  static failSpawn = false;
+  posted: LampJob[] = [];
+  terminated = false;
+  onmessage: ((e: { data: unknown }) => void) | null = null;
+  onerror: ((e: unknown) => void) | null = null;
+  constructor() {
+    if (FakeWorker.failSpawn) throw new Error('worker failed to start');
+    FakeWorker.made.push(this);
+  }
+  postMessage(m: LampJob): void {
+    this.posted.push(m);
+  }
+  terminate(): void {
+    this.terminated = true;
+  }
+}
+
+const fakeJob = (id: number): LampJob => ({ kind: 'lamps', id, shapes: new Float32Array(1), lights: new Float32Array(1), lo: [0, 0, 0], hi: [1, 1, 1] });
+
+/** Run `j` on `pool`, its outcome into `out` (`ok <id>` or the error's text). */
+function runInto(out: Map<number, string>, pool: WorkerPool, j: LampJob): void {
+  void pool.lamps(j).then(
+    (r) => out.set(j.id, `ok ${r.id}`),
+    (e: unknown) => out.set(j.id, String(e)),
+  );
+}
 
 function baker(f: ReturnType<typeof fixture>, pool: WorkerPool, key: string | null = null): SectionBaker {
   return new SectionBaker({ shapes: f.set.shapes, lights: f.baked.lights, lo: f.set.lo, hi: f.set.hi, masks: MASKS, sections: 3, key, pool });
@@ -375,40 +407,23 @@ describe('section bake robust bake4: the retry cap, held order, stalled jobs can
   }, 60_000);
 
   it('WorkerPool.cancel drops a queued job, or terminates and replaces the worker running it; a stale answer is ignored', async () => {
-    class FakeWorker {
-      static made: FakeWorker[] = [];
-      posted: LampJob[] = [];
-      terminated = false;
-      onmessage: ((e: { data: unknown }) => void) | null = null;
-      onerror: ((e: unknown) => void) | null = null;
-      constructor() {
-        FakeWorker.made.push(this);
-      }
-      postMessage(m: LampJob): void {
-        this.posted.push(m);
-      }
-      terminate(): void {
-        this.terminated = true;
-      }
-    }
+    FakeWorker.made = [];
     vi.stubGlobal('Worker', FakeWorker);
     try {
-      const job = (id: number): LampJob => ({ kind: 'lamps', id, shapes: new Float32Array(1), lights: new Float32Array(1), lo: [0, 0, 0], hi: [1, 1, 1] });
       const out = new Map<number, string>();
-      const run = (pool: WorkerPool, j: LampJob) =>
-        void pool.lamps(j).then(
-          (r) => out.set(j.id, `ok ${r.id}`),
-          (e: unknown) => out.set(j.id, String(e)),
-        );
+      const run = (pool: WorkerPool, j: LampJob) => runInto(out, pool, j);
       const pool = new WorkerPool(2);
       expect(pool.inline).toBe(false);
       expect(FakeWorker.made.length).toBe(2);
-      const [jA, jB, jC, jD, jE] = [1, 2, 3, 4, 5].map(job) as [LampJob, LampJob, LampJob, LampJob, LampJob];
+      const [jA, jB, jC, jD, jE, jF] = [1, 2, 3, 4, 5, 6].map(fakeJob) as [LampJob, LampJob, LampJob, LampJob, LampJob, LampJob];
       run(pool, jA);
       run(pool, jB);
       run(pool, jC);
       const wA = FakeWorker.made.find((w) => w.posted[0] === jA)!;
       expect(wA).toBeDefined();
+      // (bake5) the handlers the pool gave wA, kept to replay a late event after it is retired
+      const lateMsg = wA.onmessage!;
+      const lateErr = wA.onerror!;
       // a queued job: dropped, no worker touched
       expect(pool.cancel(jC)).toBe(true);
       await settle();
@@ -420,27 +435,126 @@ describe('section bake robust bake4: the retry cap, held order, stalled jobs can
       await settle();
       expect(out.get(1)).toContain('cancelled');
       expect(wA.terminated).toBe(true);
+      // (bake5) the retired worker's handlers are cut
+      expect(wA.onmessage).toBeNull();
+      expect(wA.onerror).toBeNull();
       expect(FakeWorker.made.length).toBe(3);
       expect(pool.size).toBe(2);
       const nw = FakeWorker.made[2]!;
       expect(nw.posted).toEqual([jD]);
       nw.onmessage!({ data: { kind: 'lamps', id: 4 } });
       // (a late answer from the terminated worker: ignored, and that worker never takes a job again)
-      wA.onmessage!({ data: { kind: 'lamps', id: 1 } });
+      lateMsg({ data: { kind: 'lamps', id: 1 } });
       await settle();
       expect(out.get(4)).toBe('ok 4');
       expect(out.get(1)).toContain('cancelled');
       run(pool, jE);
       expect(nw.posted).toEqual([jD, jE]);
       expect(wA.posted).toEqual([jA]);
+      // (bake5, polish 8) a late error from wA (jE on nw, jB on wB): wA never goes idle, so jF waits queued
+      lateErr(new Error('late'));
+      await settle();
+      run(pool, jF);
+      expect(wA.posted).toEqual([jA]);
+      expect(nw.posted).toEqual([jD, jE]);
+      expect(out.get(1)).toContain('cancelled');
+      expect(out.get(1)).not.toContain('late');
+      expect(out.has(5)).toBe(false);
       // (not here any more, or the pool is disposed: false)
       expect(pool.cancel(jA)).toBe(false);
       pool.dispose();
       expect(pool.cancel(jB)).toBe(false);
+      // (bake5) disposing settles the running jobs (jB, jE) and the queued one (jF)
+      await settle();
+      for (const id of [2, 5, 6]) expect(out.get(id)).toContain('disposed');
     } finally {
       vi.unstubAllGlobals();
     }
   });
+});
+
+describe('section bake robust bake5: pool teardown and the cap warning (bake4 check polish 1-5, 8)', () => {
+  it('WorkerPool.dispose rejects the running jobs as well as the queued one; a late answer changes nothing', async () => {
+    FakeWorker.made = [];
+    vi.stubGlobal('Worker', FakeWorker);
+    try {
+      const out = new Map<number, string>();
+      const pool = new WorkerPool(2);
+      const [jA, jB, jC] = [1, 2, 3].map(fakeJob) as [LampJob, LampJob, LampJob];
+      runInto(out, pool, jA);
+      runInto(out, pool, jB);
+      runInto(out, pool, jC);
+      const [w0, w1] = FakeWorker.made as [FakeWorker, FakeWorker];
+      expect(w0.posted.length + w1.posted.length).toBe(2);
+      const late = (w0.posted[0] === jA ? w0 : w1).onmessage!;
+      pool.dispose();
+      await settle();
+      for (const id of [1, 2, 3]) expect(out.get(id)).toContain('disposed');
+      expect(w0.terminated && w1.terminated).toBe(true);
+      expect([w0.onmessage, w0.onerror, w1.onmessage, w1.onerror]).toEqual([null, null, null, null]);
+      // (a captured answer from a disposed worker: no double settle)
+      late({ data: { kind: 'lamps', id: 1 } });
+      await settle();
+      expect(out.get(1)).toContain('disposed');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('WorkerPool.cancel with a replacement that fails to start: the job settles, the pool runs one short, warned once', async () => {
+    FakeWorker.made = [];
+    vi.stubGlobal('Worker', FakeWorker);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      const out = new Map<number, string>();
+      const pool = new WorkerPool(2);
+      const [jA, jB, jC] = [1, 2, 3].map(fakeJob) as [LampJob, LampJob, LampJob];
+      runInto(out, pool, jA);
+      runInto(out, pool, jB);
+      runInto(out, pool, jC);
+      const wA = FakeWorker.made.find((w) => w.posted[0] === jA)!;
+      const wB = FakeWorker.made.find((w) => w.posted[0] === jB)!;
+      FakeWorker.failSpawn = true;
+      expect(pool.cancel(jA)).toBe(true);
+      await settle();
+      expect(out.get(1)).toContain('cancelled');
+      expect(wA.terminated).toBe(true);
+      expect(pool.size).toBe(1);
+      expect(FakeWorker.made.length).toBe(2);
+      // the one worker left takes the queue once it answers
+      wB.onmessage!({ data: { kind: 'lamps', id: 2 } });
+      await settle();
+      expect(out.get(2)).toBe('ok 2');
+      expect(wB.posted).toEqual([jB, jC]);
+      expect(warn.mock.calls.filter((c) => String(c[0]).includes('failed to start')).length).toBe(1);
+      pool.dispose();
+    } finally {
+      FakeWorker.failSpawn = false;
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('the first capped first try is logged once with its elapsed ms; the retries and the inline bake finish the bake', async () => {
+    const f = fixture();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const hp = handPool(2, { hang: (id) => id <= 1 });
+    const sb = baker(f, hp.pool);
+    sb.start();
+    const capWarns = () => warn.mock.calls.filter((c) => String(c[0]).includes('ran past its cap'));
+    // (both first tries past the cap: one warn)
+    sb.checkStalled(performance.now() + JOB_CAP_MS + 1);
+    expect(capWarns().length).toBe(1);
+    const ms = Number(/\((\d+) ms\)/.exec(String(capWarns()[0]![0]))![1]);
+    expect(ms).toBeGreaterThan(JOB_CAP_MS);
+    // (both retries past theirs: still one cap warn, one main-thread fallback warn)
+    sb.checkStalled(performance.now() + JOB_RETRY_CAP_MS + 1);
+    expect(capWarns().length).toBe(1);
+    expect(warn.mock.calls.filter((c) => String(c[0]).includes('failed twice')).length).toBe(1);
+    await hp.finishAll();
+    await sb.finished;
+    expect(sb.done).toBe(true);
+    expect(sameBytes(sb.result.vis, f.full().vis)).toBe(true);
+  }, 60_000);
 });
 
 describe('section bake robust: a failed load (check A P8)', () => {
