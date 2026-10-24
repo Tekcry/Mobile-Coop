@@ -276,25 +276,20 @@ Polish: slice0-check.md, sliceL-check.md, slice1-check.md, e1/e3/e4-check.md pol
 ```
 Night Shift | Sector Ops Build: RESUME (saved 2026-10-24 ~22:05). coop4 / #317 / feature/coop4-pol are GUARD AI BUILD's now
 (handed over at afc616f0): do not push there. Your work, in this order:
-1. CAMPUS FOG: PR #339 TRAIN-READY (~20:45; label added, orchestrator told): laptop fog set 3/3 PASS on 513a7121, head
-   031b54f1 docs only, CI green, checker PASS (polish: no wiring test, governor can undo VOL=off). Act on the train verdict.
-2. #333 section bake: CI test was red (tests/responseWiring.test.ts stand-in game had no `world`; sectorMode.ts:681 reads
-   world.lightBake). Fixed 305ddd11 (test only; laptop bake set PASS on 5cc02048 still counts). CI green: TRAIN-READY
-   ~21:00 (ready, label, orchestrator told). Act on the train verdict. Polish held.
+1-2. #339 campus fog fix and #333 section bake RELEASED in 4.97.0 (train 65 #345, master 7ae1eda1). Polish held.
 2b. BAKE2: feature/sector-redesign-bake2 @ 53e0d2c5 (cloud build 90bf843b + check). Opus check PASS (polish 1-7 held,
    checks/section-bake-robust-check.md). WAITING: laptop set bake2 (lightbake darkness sectorops:6, request
-   90bf843b-1f35; status laptop-e2e/bake2 on 90bf843b). Green -> PR (base master, stacked on #333: it carries #333's
-   commits until #333 merges; same train or the next), label train-ready, message the orchestrator. Red -> Opus triage.
+   90bf843b-1f35; status laptop-e2e/bake2 on 90bf843b). Green -> PR to master (#333 is in master, so it shows only
+   bake2), label train-ready, message the orchestrator. Red -> Opus triage.
 2c. FOG WIRING (orchestrator ~21:35, fog check P1 released): cloud brief briefs/sector-redesign-fog-wiring.md (open,
    b445992b) -> feature/sector-redesign-fog2 off 031b54f1. On done: checker, PR after #339 (unit tests only, CI check).
 4. NEW JOB visual-gate (orchestrator ~21:35): automated picture check (viewpoints per map x Low / Epic, luma / near-black /
    haze / blotch metrics, per-release baselines flagged in the train, L5 parity grid per map, <= 3 min per train). Branch
-   feature/visual-gate (worktree C:/NightShift/Mobile-Coop-visual-gate off master bd54dfcd). IN FLIGHT at the 22:06 save:
-   Opus planner -> docs/visual-gate/BRIEF + PLAN + STATE (nothing committed yet; if docs/visual-gate/ is missing or
-   partial on origin, rerun the planner from the orchestrator's ask quoted in this item + "Targets that should go red:
-   'Marlow seems dark', Low-preset blotchy walls, campus fog beams, torches through walls, hard light arcs"; sources:
-   bible L5 ~:255, scripts/e2e-darkness.mjs, shot.mjs, campus-art-shots.mjs, WALK-*.md on origin/feature/menu). Then one plan checker, tell the orchestrator (it adds the ROADMAP line), then
-   slices in parallel. Its own STATE holds its resume block from then on.
+   feature/visual-gate (worktree C:/NightShift/Mobile-Coop-visual-gate off master bd54dfcd). PLAN UP f70a222a (docs/visual-gate/BRIEF,
+   PLAN, STATE; orchestrator told ~22:10, it adds the ROADMAP line). IN FLIGHT: C0 Opus plan checker ->
+   docs/visual-gate/checks/c0-plan-check.md (rerun from PLAN "C0" if missing). PASS -> group A (VG1 metrics, VG2 shotPin +
+   harness + M0 timing, VG3 viewpoints, VG4 baseline branch) in parallel per PLAN; FIX -> one Opus plan fix round first.
+   From here docs/visual-gate/STATE.md holds that job's resume block.
 3. Michael's campus walk S1-S3 notes: none on origin yet (no WALK file on feature/menu); they come via the orchestrator -> PLAN "Walk campus".
 HOLD (orchestrator ~20:12): Michael walks all of campus on 4.95.1 (no fog fix); his notes come via the orchestrator. NO S1-S3 layout changes until Marlow's level-validator job lands; then the campus S1-S3 redesign runs against it plus the walk notes.
 Cloud: tsc / vitest-only builder slices go to cloud-queue briefs. Older context (sector-redesign idle until Michael's playtest):
