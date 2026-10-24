@@ -11,7 +11,7 @@ Brief: `docs/coop4/BRIEF.md`. Plan: `docs/coop4/PLAN.md`. Branch `feature/coop4`
 - Guard AI Build: AI slice from `docs/coop4/briefs/AI.md` on `feature/guard-ai-coop4` (src/ai only), coded against N0's types.
 
 ## Open
-- M1 asked of Michael (operator out at 3-4 players). Default (a): one out restarts the section; the job carries on with it.
+- M1 ANSWERED (Michael ~15:35): (b) "Wait for connector" -> slice OUT (PLAN), after the net checker, in one sectorMode round with the AI5 wiring.
 - Marlow guard on every checker: empty diff in `src/game/course`, `src/game/modes/courseMode.ts`, `src/world/maps/ctcourse*`; `e2e-ctcourse`, `e2e-course` and `e2e-section-rating` pass.
 - Polish list: A21 observer pose of a third-party team move (T1, optional); client feed lines for team doors (host-only feed today).
 

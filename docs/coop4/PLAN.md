@@ -73,6 +73,7 @@ export class SlotTable { /* assign(id), host(id), hold(id), unhold(id), release(
 | DATA | Campus / Warehouse rebalance tags | Sonnet | coop4 | SM (`minPlayers`) | `src/world/maps/campusSectors.ts`, `campusS4Data.ts`, `campusS5Data.ts`, `warehouseSectors.ts`, `tests/sectorGuardTags.test.ts` |
 | E2E | 4-page harness + Sector Ops suites | Sonnet (Opus fix round) | coop4 | N1, D1, SM, TM, H1, L1 (DATA, AI for the full pass) | `scripts/e2e-sectorops.mjs` (parts 7-8), `scripts/e2e-net-lib.mjs`, `scripts/run-e2e.mjs` (`PARTS`) |
 | DOC | Docs, changelog fragment, checklist | Sonnet | coop4 | all | `docs/systems/coop.md`, `TESTING.md`, `changes/feature-coop4.md`, `docs/systems/testing-tools.md`, `docs/coop4/STATE.md` |
+| OUT | M1 (b): out operator waits, returns at the next connector (3-4 players) | Opus | coop4 | N1, SM; same sectorMode.ts round as the AI5 wiring | `src/game/modes/sectorMode.ts`, `src/game/sectors.ts`, `src/net/coopHost.ts`, `src/net/coopClient.ts`, `src/net/protocol.ts` (an out flag if needed), the follow-view camera hook (its owner file), `tests/sectorOut.test.ts` (new), e2e part 9 |
 | T1 | (optional, after the playtest) observer pose of a third-party team move | Opus | coop4 or Player Build | N1 | `src/anim/clips/team.ts`, `src/net/remoteAvatar.ts` |
 
 Rules for every slice: never edit `src/game/course/`, `src/game/modes/courseMode.ts`, `src/world/maps/ctcourse*` (checker: `git diff --stat master -- src/game/course src/game/modes/courseMode.ts src/world/maps/ctcourse*` is empty). Never edit `src/ai/**` outside AI. Never write `PROTOCOL_VERSION`. Hot paths do not allocate.
@@ -135,6 +136,14 @@ In `campusSectors.ts` (S1-S3), `campusS4Data.ts`, `campusS5Data.ts`, `warehouseS
 
 ### DOC (Sonnet, ~1 h)
 `docs/systems/coop.md` (cap table, slots / `PlayerInfo.slot`, `SecWire` arrays, team-move `taken`, bandwidth, protocol history "the train after 49"); `docs/systems/testing-tools.md` (parts 7-8, `?players=N`); `TESTING.md` (4-tab Sector Ops check); `changes/feature-coop4.md`; `docs/coop4/STATE.md` polish list; note for the orchestrator: CLAUDE.md line 8, bible 5.9 and DECISIONS at the merge.
+
+### OUT - Operator out waits for the connector (M1 b, Opus, ~4 h)
+- Rule (`SECTOR.outWaitsMin` 3): with team size >= 3, `SectorMode.onPlayerOut` (sectorMode.ts ~:1323) marks the player OUT instead of restarting: the body stays (no revive), they leave `playerRefsInto` for the AI and the connector count (A7: an out player neither blocks nor counts), and keep their slot and loadout record. The section restarts only when every connected operator is down or out. With 1-2 players the old rule (restart) is unchanged.
+- At the next connector cycle (or extraction) every OUT player respawns beside the host at the new checkpoint on their slot (`besideSpot`), with the section's loadout and full health; a section restart also clears OUT.
+- View: an OUT player gets a follow view on a living teammate (cycle targets with the existing switch-target input) and the HUD line "Out - you rejoin at the next connector"; no free camera. A client learns its OUT state from the host (one field on the player entry or the sector wire; the train bumps PROTOCOL once with the rest).
+- Guards: an OUT player is not a target (out of the refs list); the body is a body as today.
+- Rating: an OUT counts like a down for the section grade (no new mark).
+- Tests `tests/sectorOut.test.ts`: team 3: one out -> no restart, out leaves refs and the connector count, the connector cycle brings them back at the checkpoint on their slot; all out -> restart; team 2: one out -> restart (unchanged). e2e part 9 (campusOps, 3 pages): slot 2 goes out, the section continues, the connector cycles with slots 0 + 1, slot 2 reappears beside the host.
 
 ### T1 - Observer team pose (optional, after Michael's playtest)
 `teamPoseOfWire` (anim/clips/team.ts:419-454) links two remote avatars of one pair from `tstart` / `tend`, as `TEAM_LINK` links our own. Visual only, no wire change. Polish list until then (A21).
