@@ -3279,7 +3279,8 @@ export class Enemy implements Damageable {
       if (gb) this.animTier.watch(gb.viewMesh);
       const tierDt = this.animTier.dt(dt, r.position, this.ctx.players(), this.taken || this.climbing || this.rig.emote !== null);
       this.rig.animate(dt, rp, tierDt);
-      if (gb) gb.skip = tierDt < 0;
+      // (S11) the tier's own state, so the line survives master's `animTier.animate` (frozen: skipped as well)
+      if (gb) gb.skip = this.animTier.skipped;
     }
     if (this.laser) this.sniperFx();
   }

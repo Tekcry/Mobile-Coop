@@ -48,6 +48,13 @@ export class GuardAnimTier {
   private readonly st: AnimTierState;
   private readonly inp: AnimTierIn = newAnimTierIn();
   private lastFrame = -1;
+  private lastDt = 0;
+
+  /** (guard-models S11) The last update skipped the solve (`dt` returned -1; on master also the FROZEN tier, which
+   *  updates through `dt` before `animate` returns): the guard figure skips its pose (`GuardBody.skip`). */
+  get skipped(): boolean {
+    return this.lastDt < 0;
+  }
 
   /** `body`: the merged body's full mesh (`rig.voxel.meshes[0]`); null (no merged body): never off-screen. */
   constructor(
@@ -96,6 +103,7 @@ export class GuardAnimTier {
       cd = (c.x - pos.x) ** 2 + (c.z - pos.z) ** 2;
     }
     i.camDist2 = cd;
-    return animTierStep(this.st, animTierPeriod(i), dt);
+    this.lastDt = animTierStep(this.st, animTierPeriod(i), dt);
+    return this.lastDt;
   }
 }

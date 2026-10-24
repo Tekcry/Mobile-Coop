@@ -10,7 +10,8 @@ import { CAMERA } from '../src/config/camera';
 import { vfovFor } from '../src/core/display';
 import { ENEMIES } from '../src/ai/enemyDefs';
 import { HAIR_COLOURS, HAIR_STYLES, HEAD_VARIANTS, HEADWEAR, EYEWEAR } from '../src/operators/guards/gearMask';
-import { LOD_EDGES, LOD_HYSTERESIS } from '../src/operators/runtime/lodPick';
+import { LOD_HYSTERESIS } from '../src/operators/runtime/lodPick';
+import { GUARD_LOD } from '../src/operators/runtime/guardLod';
 
 interface Fig { kind: string; base: string; seed: number; look: Record<string, unknown>; helmet: boolean; armour: boolean; lod: 'game' | number; x: number; z: number; drop: number[] | null }
 interface Tile {
@@ -62,7 +63,7 @@ describe('camera maths', () => {
     for (const t of allTiles) {
       for (const f of t.figures.filter((x) => x.lod === 'game')) {
         const d = Math.hypot(t.view.distance, f.x);
-        expect(d, `${t.id} ${f.kind}`).toBeLessThan(LOD_EDGES[0] * (1 + LOD_HYSTERESIS));
+        expect(d, `${t.id} ${f.kind}`).toBeLessThan(GUARD_LOD.edges[0] * (1 + LOD_HYSTERESIS));
       }
     }
   });

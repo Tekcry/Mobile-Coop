@@ -203,6 +203,54 @@ describe('flag on: the guard figure over the rig', () => {
     expect(heat).toHaveBeenLastCalledWith(0.5);
   });
 
+  it('(S11) the render freeze (rig root disabled): no figure update whatever `skip` says, its first show excepted; the thaw resumes it', async () => {
+    const { render, buildEnemyRig, scene, world, ENEMIES } = await setup();
+    const { rig, figure } = buildEnemyRig(scene, world as never, ENEMIES.grunt, 'g3f');
+    const gb = figure!;
+    await vi.waitFor(() => expect(gb.shown).toBe(true));
+    const up = vi.spyOn(gb.figure, 'update');
+    // frozen before the first show: the first show still picks a LOD
+    rig.root.setEnabled(false);
+    render();
+    expect(up).toHaveBeenCalledTimes(1);
+    expect(gb.figure.current).toBeGreaterThanOrEqual(1);
+    // frozen, the owner's frame never set `skip` (master's `animate` returns first): still no update
+    for (let i = 0; i < 3; i++) render();
+    expect(up).toHaveBeenCalledTimes(1);
+    // thawed: every frame again
+    rig.root.setEnabled(true);
+    render();
+    render();
+    expect(up).toHaveBeenCalledTimes(3);
+  });
+
+  it('(S11) the tier\'s own skipped state gates the figure: `GuardAnimTier.skipped` after each update', async () => {
+    const { B, scene } = await setup();
+    const { GuardAnimTier } = await import('../src/ai/animTierView');
+    const { flags } = await import('../src/core/flags');
+    const was = flags.animTier;
+    flags.animTier = true;
+    const body = new B.Mesh('tierbody', scene);
+    const cam = new B.FreeCamera('tiercam', new B.Vector3(0, 1.6, 0), scene);
+    scene.activeCamera = cam;
+    const t = new GuardAnimTier(scene, body, 0);
+    const pos = new B.Vector3(0, 0, 60); // far from the camera: half rate (the far tier)
+    let frame = 0;
+    const fid = vi.spyOn(scene, 'getFrameId').mockImplementation(() => frame);
+    const got: boolean[] = [];
+    for (frame = 1; frame <= 6; frame++) {
+      // (seen every frame: the far tier, not the off-screen one)
+      (t as unknown as { seen: { frame: number } }).seen.frame = frame;
+      const dt = t.dt(1 / 60, pos, [], false);
+      expect(t.skipped).toBe(dt < 0);
+      got.push(t.skipped);
+    }
+    expect(got.filter(Boolean).length).toBe(3);
+    expect(got.some((s) => !s)).toBe(true);
+    fid.mockRestore();
+    flags.animTier = was;
+  });
+
   it('despawn: the owner frees the figure first; a rig disposed alone frees it too (the client ragdoll path)', async () => {
     const { scene, world, buildEnemyRig, GB, ENEMIES } = await setup();
     const a = buildEnemyRig(scene, world as never, ENEMIES.grunt, 'g4');

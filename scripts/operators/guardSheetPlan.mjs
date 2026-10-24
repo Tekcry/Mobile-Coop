@@ -279,8 +279,8 @@ export function sheetPlan(kit, { reports = {}, ready = null } = {}) {
 
   // 8. Hollowmere night and night vision: every kind in a line-up at gameplay distance
   const across = k.kinds.length * SHEET.lineupSpacing + 0.6;
-  const lineup = () => k.kinds.map((kd, i) => figure(kd.id, kd.base, { helmet: true, armour: true, x: (i - (k.kinds.length - 1) / 2) * SHEET.lineupSpacing }));
-  add('night', 'Hollowmere night and night vision', "Every kind, gear on, at about 7 m (LOD0 as in play). Left: sodium against moonlight. Right: the same under the game's night-vision phosphor ramp (src/vfx/nightVision.ts NV_GLSL, no baked-lamp gain: the tube's postLift).", [
+  const lineup = () => k.kinds.map((kd, i) => figure(kd.id, kd.base, { helmet: true, armour: true, lod: 0, x: (i - (k.kinds.length - 1) / 2) * SHEET.lineupSpacing }));
+  add('night', 'Hollowmere night and night vision', "Every kind, gear on, at about 7 m, LOD0 forced (in play LOD0 ends at 6 m since S11: the LOD0 look under each light). Left: sodium against moonlight. Right: the same under the game's night-vision phosphor ramp (src/vfx/nightVision.ts NV_GLSL, no baked-lamp gain: the tube's postLift).", [
     bodyTile('night-hollowmere', 'night', 'Hollowmere night', lineup(), { draw: SHEET.lineupDraw, across, rig: SHEET.nightRig, yaw: 0 }),
     bodyTile('night-nv', 'night', 'Night vision', lineup(), { draw: SHEET.lineupDraw, across, rig: SHEET.nvRig, post: 'nv', yaw: 0 }),
   ]);
