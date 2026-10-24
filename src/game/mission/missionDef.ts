@@ -50,6 +50,19 @@ export interface MissionStep {
   twist?: boolean;
   /** Paid through section-rating's Grant (`rewardsFor` caps), never a new currency. Never blocks the section. */
   optional?: { reward: RewardKind };
+  /** (EN2) Guard AI walk-to hooks, raised (host, gameEvents `missionEvent`) when the step is done; again when a restart redoes it. */
+  events?: MissionEvent[];
+}
+
+/**
+ * (EN2, agreed with Guard AI) A mission event for Guard AI's walk-to hooks: the guards tagged `guardTag` walk to the post
+ * `postId` (by `via`, a waypoint or post id, when given). Raised through gameEvents `missionEvent`; src/ai reads it.
+ */
+export interface MissionEvent {
+  name: string;
+  guardTag: string;
+  postId: string;
+  via?: string;
 }
 
 export type RuleKind = 'ghost' | 'noKills' | 'noAlarms' | 'noBodies' | 'namedTarget' | 'noGadgets' | 'plantNotTake' | 'oneChance' | 'window';
@@ -66,11 +79,16 @@ export interface MissionRule {
   seconds?: number;
 }
 
-/** A team's track (Sector Ops, A9 / A16): SectorGuard.zone tags and plan boxes [x0, z0, x1, z1] (either corner order). */
+/**
+ * A team's track (Sector Ops, A9 / A16): SectorGuard.zone tags and plan boxes [x0, z0, x1, z1] (either corner order).
+ * (EN2) `y`: the boxes' height band [min, max] (world m): a position with a known y outside it is not in the track
+ * (stacked floors: Split Shift's team A upstairs and team B on the ground floor share x / z). None: every height.
+ */
 export interface MissionTrack {
   team: 'a' | 'b';
   zones: string[];
   boxes: [number, number, number, number][];
+  y?: [number, number];
 }
 
 export interface MissionDef {
@@ -207,6 +225,7 @@ export function checkMission(d: MissionDef, guards: ReadonlySet<string>): string
       if (!REWARD_KINDS.includes(s.optional.reward)) out.push(`${p}: optional reward ${String(s.optional.reward)}`);
       if (s.kind === 'extract') out.push(`${p}: the extraction cannot be optional`);
     }
+    for (const ev of s.events ?? []) if (!ev.name || !ev.guardTag || !ev.postId) out.push(`${p}: an event needs name, guardTag and postId`);
   }
   if (extracts !== 1) out.push(`${tag}: ${extracts} extract steps (exactly 1)`);
   const last = d.steps[n - 1];
@@ -305,6 +324,7 @@ export function checkMission(d: MissionDef, guards: ReadonlySet<string>): string
       else if (teams.has(t.team)) out.push(`${tag}: two tracks for team ${t.team}`);
       teams.add(t.team);
       for (const b of t.boxes) if (b.length !== 4 || !b.every(Number.isFinite)) out.push(`${tag}: track ${t.team} has a bad box`);
+      if (t.y !== undefined && (t.y.length !== 2 || !t.y.every(Number.isFinite) || t.y[0] > t.y[1])) out.push(`${tag}: track ${t.team} has a bad height band`);
     }
   }
   return out;

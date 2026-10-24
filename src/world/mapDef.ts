@@ -11,6 +11,7 @@ import type { ScannerDef } from '../game/scanners';
 import type { CampusArtLayout } from './maps/campusDress';
 import type { CourseLayout } from '../game/course/courseDef';
 import type { SectorDef } from '../game/sectors';
+import type { MissionDef } from '../game/mission/missionDef';
 import type { BoardDef } from '../game/isolators';
 import type { GuardAiLayout } from '../ai/guardAiData';
 import type { CamSize, CamSpace } from './camSpaces';
@@ -128,6 +129,8 @@ export interface MapDef {
   modes: ('mission' | 'sandbox' | 'clear' | 'infiltration' | 'course' | 'sector')[];
   /** Sector Ops (feature/sector-ops): the sectors in play order (maps that run the `sector` mode). */
   sectors?: readonly SectorDef[];
+  /** (mission-framework EN2, A7) Missions over the sectors, picked by `?mission=<id>`; none picked: Sector Ops as before. */
+  missions?: readonly MissionDef[];
   build(b: LevelBuilder, seed: number): MapLayout;
   /** 3.0: weather the Play screen / lobby offers on this map (none: the theme's own). */
   weathers?: readonly WeatherChoice[];

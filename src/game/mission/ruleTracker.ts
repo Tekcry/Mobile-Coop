@@ -148,13 +148,18 @@ export class RuleTracker {
     return t === 'a' ? TEAM_A_BIT : t === 'b' ? TEAM_B_BIT : TEAM_BOTH;
   }
 
-  /** Team bits whose track boxes hold (x, z); none (or no position): both. */
-  teamsAt(x: number, z: number): number {
+  /**
+   * Team bits whose track boxes hold (x, z); none (or no position): both. (EN2) With a known `y` a track's height band
+   * (`MissionTrack.y`) must hold it too (stacked floors); y NaN (a camera's floor, a found body): the band is not read.
+   */
+  teamsAt(x: number, z: number, y = Number.NaN): number {
     const tracks = this.def.tracks;
     if (!tracks || !Number.isFinite(x) || !Number.isFinite(z)) return TEAM_BOTH;
     let m = 0;
     for (let t = 0; t < tracks.length; t++) {
       const tr = tracks[t]!;
+      const band = tr.y;
+      if (band && Number.isFinite(y) && (y < band[0] || y > band[1])) continue;
       const boxes = tr.boxes;
       for (let b = 0; b < boxes.length; b++) {
         const bx = boxes[b]!;
@@ -207,19 +212,19 @@ export class RuleTracker {
     }
   }
 
-  /** A camera alarm / broken laser at (x, z) (NaN: unknown, both teams). */
-  onCameraAlarm(x: number, z: number): void {
-    this.each(this.teamsAt(x, z), 1);
+  /** A camera alarm / broken laser at (x, z) (NaN: unknown, both teams); `y` the height when known (`teamsAt`). */
+  onCameraAlarm(x: number, z: number, y = Number.NaN): void {
+    this.each(this.teamsAt(x, z, y), 1);
   }
 
-  /** An alarm raised at (x, z) (a guard's radio call or a stage a device raised; NaN: both teams). */
-  onAlarm(x: number, z: number): void {
-    this.each(this.teamsAt(x, z), 2);
+  /** An alarm raised at (x, z) (a guard's radio call or a stage a device raised; NaN: both teams); `y` as `teamsAt`. */
+  onAlarm(x: number, z: number, y = Number.NaN): void {
+    this.each(this.teamsAt(x, z, y), 2);
   }
 
-  /** A guard found a body at (x, z). */
-  onBodyFound(x: number, z: number): void {
-    this.each(this.teamsAt(x, z), 3);
+  /** A guard found a body at (x, z); `y` as `teamsAt`. */
+  onBodyFound(x: number, z: number, y = Number.NaN): void {
+    this.each(this.teamsAt(x, z, y), 3);
   }
 
   /** A kill (`ko` false) or a knock-out by the player in `slot`. */

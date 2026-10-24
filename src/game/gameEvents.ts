@@ -4,7 +4,12 @@ import type { PickupKind } from './pickups';
 export interface GameEvents {
   objective: { id: string };
   /** (spare 9) Interrogation intel (host / solo): the feed lines and the code flags; the co-op host relays the lines. */
-  intel: { lines: readonly string[]; codes: readonly string[] };
+  /** (mission-framework EN2) `eid`: the interrogated guard's `Enemy.id` (a mission's named target / decoys); none: a
+   *  joint read, or a caller that does not pass it yet (the co-op host's client read, NET slice). */
+  intel: { lines: readonly string[]; codes: readonly string[]; eid?: string };
+  /** (mission-framework EN2, agreed with Guard AI) A mission's walk-to hook (host / solo): the guards tagged `guardTag`
+   *  walk to the post `postId` (by `via` when given). `name`: the mission's event name (`MissionEvent`). */
+  missionEvent: { name: string; guardTag: string; postId: string; via?: string };
   /** Clear mode: a room was secured (n of total). */
   /** Clear mode: every hostile down (the only feedback the mode gives). */
   operationComplete: Record<string, never>;

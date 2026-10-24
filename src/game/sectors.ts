@@ -8,6 +8,7 @@ import { markCount } from './rating/sectionRating';
 import { checkStageActions, type SectorStageAction, type StageNavCheck } from './sectorStage';
 import { checkDesks } from './sectorDesks';
 import type { SecurityData } from '../security/data';
+import type { MissionWire } from './mission/missionWire';
 
 /**
  * Sector Ops (feature/sector-ops): a map split into sections played in order. Each section has one objective (a hack,
@@ -901,6 +902,8 @@ export interface SectorNetExtra {
   /** (marlow-polish, inside protocol 42) Every section's rating so far, by index (`packRated`, the course's `rh`): a late
    *  joiner or a reloaded rejoiner rebuilds its results lines from it (no card, no top-up, no grant). */
   rh?: number[];
+  /** (mission-framework EN2) The running mission (`packMission`); none without one. NET puts it on the wire. */
+  ms?: MissionWire;
 }
 
 /**
