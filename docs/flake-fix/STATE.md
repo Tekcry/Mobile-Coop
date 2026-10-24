@@ -3,6 +3,23 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 35 (2026-10-24 ~14:05, 88% swap save; wins over SAVE 34 where they differ):**
+- NEW JOB (Michael ~13:40): guard-render phase 2 is Test Runner's. Plan docs/guard-render/PLAN2.md, state
+  docs/guard-render/STATE.md "Now: phase 2", branch feature/guard-render-2 (worktree
+  C:/NightShift/Mobile-Coop-guard-render-2, from master 6b44efb8). Split agreed: me S8 measure / S9 / S10; Player S11
+  (feature/gm-s11) + S12 (only if maplight >= 40 draws); Guard AI nothing (dormancy dropped). Sector Ops handed over
+  world.ts / sunCascadeCull.ts / sectorGuardFreeze*.ts; keep PR #307's ghostFrame test block and animTierView rule.
+- S9 DONE + pushed (3fed552c, 3de76863): cascade depth cull, 13/13 unit, tsc / eslint clean, no checker yet. Risk to
+  check: SHADOW_DROP 4 m for guards on high walkways (shadow clipped near a split).
+- S10 building (Opus agent; WIP commit asked at the save): per-guard lamp shadow volume vs frustum in the freeze.
+- NEXT on resume: if S10 is unfinished, finish it from its WIP commit (a new Opus agent, brief in PLAN2 S10). Then ONE
+  Opus checker on S9 + S10; push; queue on the head: guard-cap alone (sectorops,campusops 0/12/24 patrol,away,alert;
+  A/B ?guardsun=0 and ?guardfreeze=0; campus alias needs origin/feature/guard-models' guard-cap or --maps=campus on
+  master) + e2e smoke sectorops darkness lightbake stealth-ai; a look shot at the cascade breaks; then the PR.
+- Player asks: push the G8 cull rerun results (20261020601... c76cf326-e643) to a shots/ branch like shots/g8-cf5a2bf8
+  (it decides S12); e2e-stealth-ai alone on 667cbd80 (#308) is queued by them.
+- Audit batches: #252 + #304 pushed, train-ready. #293 merge-train fix train-ready.
+
 **Test Runner SAVE 34 (2026-10-24 ~11:45 laptop clock; wins over SAVE 33 where they differ):**
 - Audit 1 pushed: #252 (feature/laptop-queue, through 61171362: duplicates, yield to trains, --train-rerun priority,
   desktop build-marker gate, state.done pruning) + #304 (feature/auto-train-audit, worktree
@@ -957,7 +974,7 @@ puts it in CLAUDE.md on feature/menu). Laptop full runs: `RUN_GPU=1` (E2E_GPU=1)
 
 ## Resume prompt
 ```
-Night Shift | Test Runner (laptop, the MAIN test machine). First call mcp__ccd_session_mgmt__set_session_title with session_id "self" and title "Night Shift | Test Runner" (ToolSearch if deferred). Read CLAUDE.md "Sessions" on origin/master ("Main test machine: the laptop", "Heavy-usage throughput" incl. "Token rules"), then the newest "Test Runner SAVE" block (SAVE 34 or later) at the top of docs/flake-fix/STATE.md on origin/feature/flake-fix (git fetch; git show origin/feature/flake-fix:docs/flake-fix/STATE.md). Do what it lists, in order. If two Test Runner sessions show in ListAgents, close the older one.
+Night Shift | Test Runner (laptop, the MAIN test machine). First call mcp__ccd_session_mgmt__set_session_title with session_id "self" and title "Night Shift | Test Runner" (ToolSearch if deferred). Read CLAUDE.md "Sessions" on origin/master ("Main test machine: the laptop", "Heavy-usage throughput" incl. "Token rules"), then the newest "Test Runner SAVE" block (SAVE 35 or later) at the top of docs/flake-fix/STATE.md on origin/feature/flake-fix (git fetch; git show origin/feature/flake-fix:docs/flake-fix/STATE.md). Do what it lists, in order. If two Test Runner sessions show in ListAgents, close the older one.
 
 The queue is the SERVICE now (no hand-run chains, Orchestrator 20:26): task NightShift-laptop-queue runs scripts/laptop-queue/service.mjs from C:/NightShift/Mobile-Coop-laptop-queue-svc (follows origin/feature/laptop-queue, self-updates when idle); log + state C:/NightShift/scratch/laptop-queue/ (log.txt, runs/<id>/); verdicts are GitHub statuses laptop-e2e[/<set>] + PR comments on failure. Requests: node scripts/laptop-queue/request.mjs --sha <ref> (--suites "a b" | --full | --alone --step "<cmd>" [--env K=V]) --requester "<title>" (alone = perf / sheets, after trains and PR suites). Desktop overflow worker NightShift-desktop-queue (LQ_WORKER=desktop, pr only) claims via claims/<id>.json on the laptop-queue branch. Locks C:/NightShift/heavy-4189.lock / heavy-4192.lock (service lines "laptop-queue | ..."; a lock with no live node is stale). Restarting the service: Stop-ScheduledTask leaves the node child alive, so a restart also needs that node pid killed (needs Michael's OK).
 
