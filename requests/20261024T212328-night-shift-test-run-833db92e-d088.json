@@ -1,0 +1,10 @@
+{
+  "id": "20261024T212328-night-shift-test-run-833db92e-d088",
+  "sha": "833db92ecf4d494bb88eec5698843089e6cb2c2e",
+  "branch": "",
+  "pr": null,
+  "kind": "full",
+  "requester": "Night Shift | Test Runner",
+  "set": "full-41002",
+  "note": "full burn: full e2e on master 4.100.2"
+}
