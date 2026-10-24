@@ -1,0 +1,13 @@
+{
+  "id": "20261024T015155-night-shift-sector-o-bf7879f8-d988",
+  "sha": "bf7879f8f5ff2d9205afabfe0dce0ec718d9f2f2",
+  "branch": "feature/sector-redesign-lr16b2",
+  "pr": 307,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-darkness"
+  ],
+  "set": "lr16b2-merge",
+  "note": "PR 307 merge ref (with master's #295 watchdog): the 9602eed0 darkness red was the pre-#295 8 s watchdog warning only"
+}
