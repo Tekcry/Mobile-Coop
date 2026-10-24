@@ -1,6 +1,13 @@
 # Guard AI - state
 
 ## Now
+~23:50: #317 CONFLICTING with master 4.98.3 (one hunk src/net/protocol.ts: master PROTOCOL_VERSION 55 next to coop4's
+MAX_PLAYERS comment). Orchestrator agreed: NO master merge. fix3 green -> `gh pr ready 317` + train-ready; if
+auto-train leaves #317 out, by-hand train merge: keep master's `PROTOCOL_VERSION = 55` + coop4's comment and
+`slotFromList` import; build bumps to 56. PR #363 polish (4ea3f562: 96 files 1507 tests, tsc / eslint clean; big-pr
+labelled) laptop set laptop-e2e/polish queued + Opus checkers -> slices/POLISH-CHECK-A/B.md. T1 #360: check B FIX 1
+(off-screen guard's on-screen shadow limbs at 7.5 Hz; seen = camera pass only, animTierView.ts:30,38): decide after
+check A.
 ~23:35 (swap 23:20, new account, laptop; OVERNIGHT). #317 fix3 52e3dc13 request ...-6504 still unclaimed (train 70
 on both laptop slots); background wait on laptop-e2e/coop4-fix3. T1 DONE by Cloud Builder 1 (bbbfbecf, 54 files
 750/750): worktree C:/NightShift/Mobile-Coop-guard-ai-t1, fragment 3871722d, PR #360, laptop e2e-sectorops +
