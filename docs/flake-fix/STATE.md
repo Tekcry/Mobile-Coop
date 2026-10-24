@@ -12,8 +12,8 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
 - Queued 20261024T171542-night-shift-test-run-fc4dc9ab-f4a0 (alone, set guard-cap-ct24): ctcourse 24 patrol x3 on
   master -> C:/NightShift/scratch/guard-cap/ct24-r{1,2,3}. When done: push to feature/guard-cap-results
   docs/guard-cap/run-ct24/ and add the p95s to the guard-render PLAN2 note (SAVE 41).
-- feature/test-flakes: Opus agent resumed (cut by the cap) on the lightField allocation test. Then checker, PR,
-  train-ready message (the Orchestrator posts status / label; mine are blocked).
+- feature/test-flakes: PR #369 (head 7abba919): lightField bodyLevel limit = 2 x levelAt + 56 from the same run (CI
+  per-process mode 173.2 vs 126.8). Opus checker PASS; train-ready sent; the Orchestrator posts checker + label.
 - Watchdog install is a desktop scheduled task: Orchestrator / Michael runs
   `powershell -NoProfile -ExecutionPolicy Bypass -File C:\NightShift\Mobile-Coop\scripts\watchdog-task.ps1`
   (alerts only by default) after pulling C:/NightShift/Mobile-Coop to master.
