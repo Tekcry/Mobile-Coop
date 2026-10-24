@@ -7,7 +7,7 @@ C:/NightShift/scratch/laptop-queue-desktop/runs/<request id>/.
 Walk cap 3 (ROADMAP Decided ~21:50): no new animation features until Michael walks AF0-AF6; every anim PR carries a ~1-2 min look video path in its body. Checker PASS -> `gh api repos/Tekcry/Mobile-Coop/statuses/<sha> -f state=success -f context=checker -f description="Opus PASS"`.
 Message the orchestrator only at PR open / train-ready / blocked / Michael. Push this file with push-resume.sh.
 
-## Now (2026-10-25 ~08:40, FULL BURN per orchestrator ~08:25. 5 Opus agents running; worktrees pushed at creation.)
+## Now (2026-10-25 ~09:05 SAVE before the 100% swap; meter resets 13:10. All branches pushed. Laptop queued: player-batch-25, gm-polish, coop-real-c2 (:3), coop-real-c1b-logs (smoke), client-intel. Cloud-queue open: player-gm-polish-p2, player-batch-25-polish. Agents at the save: coop-real triage, gm-look (bake), client-intel checkers A/B: on resume read their reports / branch heads, not their transcripts.)
 | Job | Branch (worktree C:/NightShift/Mobile-Coop-<x>) | Head | Next |
 | --- | --- | --- | --- |
 | #371 lamp-fix, #318, #314, #331 | - | - | MERGED. |
@@ -19,7 +19,7 @@ Message the orchestrator only at PR open / train-ready / blocked / Michael. Push
 | coop-real C2 part 3 | feature/coop-real-c2 | d2f1d940 | Built, not run (B1 = minimize + spoofHidden, B2 = CDP Debugger.pause; lib wants in C2-REPORT.md; likely > 120 s: B3/B4 -> part 4). Laptop set coop-real-c2 (:3, --pr 388) queued. Merge into coop-real after the triage agent lands, then K1. |
 | gm-look | feature/gm-look (from gm-flip) | a76fa924 | AGENT: lean elbow poke-through + hem shards in the garment build, D6-style assertion, desktop rebake (heavy.lock), crops in scratch/ctcore/gm-look/. Follow-up PR after #375. |
 | gm-polish | feature/gm-polish (from gm-flip) | 7945363b | checker PASS posted (polish: scratch/ctcore/gm-polish-CHECK.md; P2 gfx=min warm lacks average-lod1 for the helmet drop). Laptop set gm-polish (e2e-offline e2e-menus) queued. STATE.md: mark Offline (~:156) + polish items 2-3 done. PR after #375. |
-| client-intel (ROADMAP Now 15; cloud 8bbd6d54, unreviewed since 10-23) | feature/client-intel (from master) | - | AGENT: Opus port onto master (wire-additive EnemyState.in). Then 2 Opus checkers + laptop (coop netmove sectorops), PR. |
+| client-intel PR #389 (ROADMAP Now 15) | feature/client-intel | 82236fa9 | Ported (3 conflicts by intent, AL_MAX clamp), 394/394 vitest. 2 Opus checkers started 09:03 -> scratch/ctcore/ci-CHECK-A.md / -B.md (missing = rerun them). Both PASS -> post `checker` "Opus PASS x2 (src/net)". Laptop set client-intel (coop netmove sectorops, --pr 389) queued. Then train-ready (wire change: train bumps PROTOCOL_VERSION). |
 | rig-pose fixes (ROADMAP Now 14) | - | - | STALE ROW: all 8 REPORT slices shipped in #308 (merged, train 54). Orchestrator told ~09:15 to close it. Empty branch feature/rig-pose-fix-2 pushed by mistake (worktree removed; deleting it is Michael's call). |
 | player-batch-25 | feature/player-batch-25 (#384 + #380 merged in) | b16c0ee7 | checker PASS x2 posted (polish: scratch/ctcore/b25-CHECK-A.md / -B.md). Laptop set player-batch-25 queued. PR after #384 / #380 merge. |
 
