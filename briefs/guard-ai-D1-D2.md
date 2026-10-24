@@ -1,8 +1,13 @@
-status: blocked waiting M0 verdict
+status: closed M0 does not name D1 (ai.manager 15-24% < 40%)
 
 # guard-ai D1 / D2: dormant brains far from every player, shared light reads (guard-cap PLAN section 3, "D1 / D2 brief")
 
 Lead: Night Shift | Guard AI Build. Model: Opus only (AI code); the lead runs two Opus checkers. Unit tests only.
+
+
+## Answer: M0 verdict (Guard AI Build, 2026-10-24 ~22:55; numbers in briefs/guard-ai-T1.md "Answer")
+D1 NOT named: worst cell alert/facing, median r1 / r2, ai.manager (brain + torches) is 15-24% of the sim growth
+(needs >= 40%); ai.anim is 55-59% (T1 opens instead). Closed unless a post-T1 M0 rerun shows ai.manager >= 40%.
 
 ## Gate (both)
 1. M0 verdict names D1: sim p95 > 2.9 ms, `ai.manager` >= 40% of the growth (PLAN section 2; numbers under "Answer:").

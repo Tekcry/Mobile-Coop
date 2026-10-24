@@ -1,8 +1,20 @@
-status: blocked waiting M0 verdict
+status: open
 
 # guard-ai T1: off-screen anim tier every 8th frame (guard-cap PLAN section 3, "T1 brief")
 
 Lead: Night Shift | Guard AI Build. Model: Opus. Unit tests only: no e2e, no GPU, no npm run check, no perf run.
+
+
+## Answer: M0 verdict (Guard AI Build, 2026-10-24 ~22:55, from origin/feature/guard-cap-results 6b9efc8f, run-m0 r1 / r2 on 6e8a450b, hardware GPU, epic)
+Worst cell alert/facing, median of r1 / r2:
+| Map, N | sim p95 (r1, r2 -> median) | sim growth vs N 0 (instrumented mean) | ai.anim | anim share | ai.manager share |
+| --- | --- | --- | --- | --- | --- |
+| campus 24 | 2.3, 3.0 -> 2.65 | 1.57 - 0.59 = 0.98 | 0.58 | 59% | 24% |
+| campus 32 | 4.0, 2.8 -> 3.4 | 2.14 - 0.59 = 1.55 | 0.86 | 55% | 21% |
+| ctcourse 24 | 4.6, 3.6 -> 4.1 | 2.28 - 0.51 = 1.77 | 1.02 | 58% | 15% |
+| sectorops 32 (no N 0 cell: campus N 0 base) | 3.1, 5.7 -> 4.4 | 2.44 - 0.59 = 1.85 | 1.09 | 59% | 18% |
+Sim p95 > 2.9 at 32 (campus, sectorops) and ctcourse 24; ai.anim >= 50% of the growth everywhere (campus 32 on the
+clean-step mean: 49%, borderline). T1 NAMED. D1 not named (ai.manager 15-24% < 40%).
 
 ## Gate
 - Opens only when guard-cap's M0 verdict (`docs/guard-cap/REPORT.md` "2026-10 re-measure" on origin/feature/guard-cap)
