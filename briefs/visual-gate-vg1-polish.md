@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-24T17:33Z
+status: done feature/visual-gate-vg1p a925aafc
 
 # visual-gate: VG1 metrics polish (arc orientation, cost, float slack)
 
@@ -30,3 +30,10 @@ Build:
 Hot loops allocate nothing per pixel (typed arrays reused across calls where the module already does so).
 Run: `npx vitest run tests/visualGateMetrics.test.ts --maxWorkers=2` and `npx tsc --noEmit -p .`; no e2e, no GPU.
 Done: branch pushed, 38+ tests green with counts in the report, status line `done feature/visual-gate-vg1p <sha>`.
+
+## Report (Night Shift | Cloud Builder 1, 2026-10-24)
+- `feature/visual-gate-vg1p` @ a925aafc (base a3362896; commits 991d6d34 steps 1-2, a925aafc step 3 + report). Full write-up: docs/visual-gate/checks/vg1-build.md "Polish (vg1p)". Files: metrics.mjs, visualGateMetrics.test.ts, vg1-build.md.
+- 1. arc: exact unit tangent, rounded accumulated position (k = +-1..11). Straight hard edge S = 60 reads > 0 at every 5 deg from 0-90 (was 0 at 20-30 / 60-70); soft edges and noise still 0. Hard disc S = 100 0.0253 -> 0.0300 (run = 11 px of arc length at every angle); no arc baselines exist yet (VG7 sets them), nothing to retake.
+- 2. parityRange edge skip `< 0.03 - 1e-9`: exactly-0.03 levels (0.25 / 0.31 / 0.57 / 0.63) never skip, stable under +-1e-12 (0.31 used to skip by float rounding).
+- 3. measure shares one summed-area table and one r 1 blur per call (also with blotch); haze reuses the region's p5; arc median by a 256-bin histogram, exact (only the median's bin is sorted, floor shortcut below 1.5/255). Old vs new: |diff| 0 on 4770 numbers / 18 images (scratch comparison; tests pin pre-step-3 values within 1e-6 and measure == standalone metrics on 3 images). Benchmark 960 x 540, 3 regions: ~61-66 ms -> ~28-31 ms per shot.
+- Tests 43/43 (was 38; rerun by the builder session: 43/43), tsc 0, eslint clean (metrics.mjs is eslint-ignored), no imports in metrics.mjs. Public API unchanged. Open: polish items 2-4 left for VG5.
