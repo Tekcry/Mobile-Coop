@@ -4,9 +4,9 @@
 // hand-run "Merge procedure" (docs/orchestrator/STATE.md on feature/menu).
 // `build` does the slow work once, in order: merge the members, checkout + push train/<n>, open the train PR, bump
 // PROTOCOL_VERSION to master+1 when a member touches the wire (src/net and what protocol.ts imports), make the version
-// commit (CHANGELOG heading with the PR number), push it (CI and the laptop start at once), then run vitest under the
-// heavy lock (audit 2: it used to run before the push, ~6 min per train); a failed vitest still exits 2 on the pushed
-// head (auto-train posts auto-train/vitest failure, which blocks release and the laptop run). `release` then only checks, waits for green CI on that head, merges, tags and moves dev. A train built by the
+// commit (CHANGELOG heading with the PR number), push it (CI and the laptop start at once) and end: no local vitest and
+// no heavy.lock wait (audit 2026-10-24: CI's `test` job runs the full vitest on that head and release waits for green
+// CI; AUTO_TRAIN_BUILD_MARKER, set by auto-train, is deleted right after that push). `release` then only checks, waits for green CI on that head, merges, tags and moves dev. A train built by the
 // older script (no version commit) is still released the old way (merge master, version commit, push, CI, merge).
 // Conflicts: CHANGELOG.md and changes/* are resolved (both sides kept, incoming block first, never a block dropped);
 // any other conflicting file leaves that branch out (build) or stops the run (release / single, exit 3).
@@ -27,25 +27,22 @@
 // merged by hand on the pre-version head: `git checkout -B train/<n> <version commit>^`, `git merge origin/<b>` with
 // the subject "Merge origin/<b> into train/<n>", `git push --force origin train/<n>`, then
 // `build <n> <version> "<title>" <all members> --keep` (a --keep over a version commit stops and prints these commands
-// with the sha). --no-test: skip vitest.
+// with the sha). --no-test: accepted, does nothing (build runs no vitest).
 // --resume: release a train with fix commits after its version commit (package.json at the head must still be
-// <version>, no new changes/*.md). HEAVY_LOCK env: the lock file (default C:/NightShift/heavy.lock), taken through
-// scripts/heavy-lock.mjs (a lock whose pid is dead on this host is broken). After a merge, `release` closes member PRs
+// <version>, no new changes/*.md). After a merge, `release` closes member PRs
 // whose head is in origin/master with "Merged in <version> (train <n>, #<pr>)".
 // Exit: 0 built / merged (or dry run done), 1 usage or other error (also: --keep over a version commit, a fix commit
 // without --resume, release of an already merged train, release with a version other than the train's version
 // commit, --head mismatch, --no-fallback with no version commit, version not above master's, train lock held),
-// 2 vitest failed on build or CI failed on release / single
-// (nothing merged; a failed build still pushes so a fix can go on train/<n>), 3 conflict stop (build with no member
-// merged; release when master moved since build), 4 vitest NOT run on build (heavy lock wait of 5 min (TRAIN_LOCK_WAIT_MIN) timed out; the train is
-// pushed, CI's check still runs the unit tests: pending, not a failure).
+// 2 CI failed on release / single (nothing merged), 3 conflict stop (build with no member merged; release when master
+// moved since build).
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { assemble, assembleDir, parseFragment, releaseHeading, summary } from './changelog-assemble.mjs';
-import { formatLock, takeLockText, takeTouchLock } from './heavy-lock.mjs';
+import { takeTouchLock } from './heavy-lock.mjs';
 
 const DRY = process.argv.includes('--dry-run');
 const TRAIN_LOCK_STALE_MIN = 30; // the same staleness as auto-train's tick lock
@@ -171,20 +168,6 @@ export function keepStopMessage({ n, version, title, versionSha, pre, members, a
 /** The branches whose wire diff decides the PROTOCOL_VERSION bump: the kept command-line branches plus every train member. */
 export const wireCandidates = (kept, members) => [...new Set([...kept, ...members.map((m) => m.branch)])];
 
-/** package-lock.json text without its own version (`version`, `packages[""].version`), for an npm ci decision. */
-export function lockfileKey(text) {
-  const j = JSON.parse(text);
-  delete j.version;
-  if (j.packages?.['']) delete j.packages[''].version;
-  return JSON.stringify(j);
-}
-
-/** True when two package-lock.json texts differ beyond the version `npm version` writes (a missing one differs). */
-export function lockfilesDiffer(a, b) {
-  if (a == null || b == null) return true;
-  try { return lockfileKey(a) !== lockfileKey(b); } catch { return true; }
-}
-
 /** The comment on a member PR that a train merged. */
 export const closeComment = (version, n, pr) => `Merged in ${version} (train ${n}, #${pr})`;
 
@@ -231,69 +214,6 @@ export function bumpProtocol(text, masterValue) {
   protocolValue(text);
   return text.replace(PROTOCOL_LINE, `export const PROTOCOL_VERSION = ${masterValue + 1};`);
 }
-
-/** The last `count` lines of command output. */
-export const tailLines = (out, count) => out.trimEnd().split('\n').slice(-count).join('\n');
-
-/** The vitest run's verdict from its exit status (-1 = timeout / killed) and output: { ok, kind, tail }. */
-export function vitestVerdict(status, out) {
-  const tail = tailLines(out ?? '', 60);
-  if (status === 0) return { ok: true, kind: 'pass', tail };
-  return { ok: false, kind: status === -1 ? 'timeout' : 'fail', tail };
-}
-
-/** Output with ANSI colour / cursor escape codes removed. */
-export const stripAnsi = (text) => String(text ?? '').replace(/\u001b\[[0-9;?]*[ -/]*[@-~]/g, '');
-
-const FAIL_LINE = /^\s*FAIL\s+(\S+?\.(?:test|spec)\.[cm]?[jt]sx?)(?:\s|$)/;
-
-/**
- * The failed tests in a vitest run's output: [{ file, key, timedOut }], each distinct failure once.
- * Reads the " FAIL  tests/foo.test.ts > suite > test" lines (ANSI codes stripped; vitest prints each in the progress
- * and again in the summary; a line with no " > " is a file-level failure). timedOut: a block under that line (up to
- * the next FAIL line) holds "Test timed out in".
- */
-export function failedTests(out) {
-  const byKey = new Map();
-  let cur = null;
-  for (const line of stripAnsi(out).split(/\r?\n/)) {
-    const m = FAIL_LINE.exec(line);
-    if (m) {
-      const key = line.trim().replace(/\s+/g, ' ');
-      cur = byKey.get(key) ?? { file: m[1], key, timedOut: false };
-      byKey.set(key, cur);
-    } else if (cur && line.includes('Test timed out in')) cur.timedOut = true;
-  }
-  return [...byKey.values()];
-}
-
-/** The failed test files in a vitest run's output (first-seen order, each once). */
-export const failedTestFiles = (out) => [...new Set(failedTests(out).map((t) => t.file))];
-
-/** Failed files above this count (when not all timeouts) are not rerun. */
-export const RERUN_MAX_FILES = 3;
-
-/**
- * Whether a failed full vitest run is rerun on its failed files only: { rerun, files, reason }.
- * Rerun when files failed and either every failure is a timeout ("Test timed out in") or at most 3 files failed.
- * Never after a pass or a killed run (status -1).
- */
-export function vitestRerunPlan(status, out) {
-  if (status === 0) return { rerun: false, files: [], reason: 'passed' };
-  if (status === -1) return { rerun: false, files: [], reason: 'timed out or killed' };
-  const tests = failedTests(out);
-  const files = [...new Set(tests.map((t) => t.file))];
-  if (!files.length) return { rerun: false, files, reason: 'no failed test files in the output' };
-  if (tests.every((t) => t.timedOut)) return { rerun: true, files, reason: 'every failure is a timeout' };
-  if (files.length <= RERUN_MAX_FILES) return { rerun: true, files, reason: `${files.length} failed file(s)` };
-  return { rerun: false, files, reason: `${files.length} failed files, not all timeouts` };
-}
-
-/** The isolated rerun command for failed files (no file parallelism: one file at a time). */
-export const vitestRerunCmd = (files) => `npx vitest run --no-file-parallelism ${files.join(' ')}`;
-
-/** True when the heavy lock's text names merge-train (so merge-train may remove it). */
-export const lockIsOurs = (text) => /^merge-train\s*\|/.test(text.trim());
 
 const USAGE = [
   'usage:',
@@ -561,79 +481,6 @@ async function ciAndMerge({ branch, sha, pr, version }) {
   return 0;
 }
 
-// ---- the heavy lock and the vitest run (item 3) -------------------------------------------------------------------
-
-/** The build's heavy-lock wait in ms: TRAIN_LOCK_WAIT_MIN minutes (a number, 0 or more), 5 when absent or invalid. */
-export function heavyLockWaitMs(env = process.env) {
-  const raw = env.TRAIN_LOCK_WAIT_MIN;
-  const min = raw === undefined || String(raw).trim() === '' ? NaN : Number(raw);
-  return (Number.isFinite(min) && min >= 0 ? min : 5) * 60_000;
-}
-
-/**
- * Takes the lock atomically (`wx`, scripts/heavy-lock.mjs: a lock whose pid is dead on this host is broken),
- * retrying every `retryMs` up to `maxMs`; throws when it stays held.
- */
-export async function takeHeavyLock(lock, text, { retryMs = 30_000, maxMs = heavyLockWaitMs(), sleepFn = sleep, alive } = {}) {
-  return takeLockText(lock, text, { retryMs, maxMs, sleepFn, alive });
-}
-
-/** Removes the lock only while it names merge-train; true when removed. */
-export function releaseHeavyLock(lock) {
-  try {
-    if (!lockIsOurs(fs.readFileSync(lock, 'utf8'))) return false;
-    fs.rmSync(lock, { force: true });
-    return true;
-  } catch { return false; }
-}
-
-/** Runs the whole vitest suite on the checked-out train head under the heavy lock: { ok, message }. */
-async function runVitest(n, head, prev) {
-  const lock = process.env.HEAVY_LOCK || 'C:/NightShift/heavy.lock';
-  if (DRY) {
-    console.log('  [dry-run] would run npm ci when package-lock.json (version fields ignored) differs from the previous HEAD or node_modules is missing');
-    console.log(`  [dry-run] would take ${lock} (wx, stale pid broken, retry 30 s up to ${heavyLockWaitMs() / 60_000} min), run npx vitest run (20 min timeout, tree killed), release it`);
-    console.log(`  [dry-run] when it fails: if every failure is a timeout or at most ${RERUN_MAX_FILES} test files failed, would rerun only those files once (${vitestRerunCmd(['<failed files>'])}, 20 min timeout); a pass there counts as ok`);
-    return { ok: true, message: '' };
-  }
-  const root = run(['git', 'rev-parse', '--show-toplevel']);
-  const lockAt = (ref) => { const r = exec(['git', 'show', `${ref}:package-lock.json`]); return r.status === 0 ? r.out : null; };
-  const lockChanged = prev && lockfilesDiffer(lockAt(prev), lockAt(head));
-  if (lockChanged || !fs.existsSync(path.join(root, 'node_modules'))) act('npm ci', { timeout: 15 * 60_000 });
-  else console.log('  package-lock.json unchanged (version fields ignored): no npm ci');
-  let taken = false;
-  try {
-    if (fs.existsSync(path.dirname(lock))) {
-      await takeHeavyLock(lock, formatLock(`merge-train | train ${n}`, { pid: process.pid }));
-      taken = true;
-    } else console.log(`  no heavy lock folder (${path.dirname(lock)}): running without it`);
-    console.log('  > npx vitest run');
-    const r = await execTree('npx vitest run', { timeout: 20 * 60_000 });
-    const full = `${r.out}\n${r.err}`;
-    const v = vitestVerdict(r.status, full);
-    if (v.ok) { console.log('vitest passed'); return { ok: true, message: '' }; }
-    const plan = vitestRerunPlan(r.status, full);
-    if (plan.rerun) {
-      console.error(`vitest failed (${plan.reason}); rerunning once in isolation: ${plan.files.join(' ')}`);
-      const cmd = vitestRerunCmd(plan.files);
-      console.log(`  > ${cmd}`);
-      const rr = await execTree(cmd, { timeout: 20 * 60_000 });
-      const rv = vitestVerdict(rr.status, `${rr.out}\n${rr.err}`);
-      if (rv.ok) {
-        console.log(`vitest passed on isolated rerun: ${plan.files.join(' ')}`);
-        return { ok: true, message: `passed on isolated rerun: ${plan.files.join(' ')}` };
-      }
-      console.error(`isolated rerun ${rv.kind === 'timeout' ? 'TIMED OUT or was killed' : 'failed'}; last lines:\n${rv.tail}`);
-      return { ok: false, message: `vitest FAILED on ${head.slice(0, 8)} (isolated rerun of ${plan.files.join(' ')} also failed): fix on train/${n} then release --resume, or drop the member and rebuild` };
-    }
-    if (plan.files.length) console.error(`no isolated rerun: ${plan.reason}`);
-    console.error(`vitest ${v.kind === 'timeout' ? 'TIMED OUT or was killed' : 'failed'}; last lines:\n${v.tail}`);
-    return { ok: false, message: `vitest FAILED on ${head.slice(0, 8)}: fix on train/${n} then release --resume, or drop the member and rebuild` };
-  } catch (e) {
-    return { ok: false, notRun: true, message: `vitest NOT run on ${head.slice(0, 8)} (${e.message}): the train is pushed; CI's check runs the unit tests, or run vitest by hand` };
-  } finally { if (taken) releaseHeavyLock(lock); }
-}
-
 // ---- commands -----------------------------------------------------------------------------------------------------
 
 /** First-parent subjects of `origin/master..head`, newest first (the version commit sits at the head of a built train). */
@@ -707,13 +554,12 @@ function planWire(kept, head) {
   return text;
 }
 
-async function build({ n, version, title, branches, keep, noTest }) {
+async function build({ n, version, title, branches, keep }) {
   requireClean();
   run(['git', 'fetch', 'origin']);
   const branch = `train/${n}`;
   const race = versionRace(version, versionAt('origin/master'));
   if (race) { console.error(race); return 1; }
-  const prev = DRY ? null : rev('HEAD');
   let head;
   if (keep) {
     if (!exists(`origin/${branch}`)) throw new Error(`--keep: origin/${branch} does not exist`);
@@ -769,24 +615,27 @@ async function build({ n, version, title, branches, keep, noTest }) {
   }
   if (v.code) return v.code;
   const sha = v.sha ?? head;
-  // Audit 2 item 2: push the version commit FIRST, so CI and the laptop start on it now, not ~6 min later after vitest.
-  // Nothing here waits on the push. A failed vitest still exits 2 (auto-train then posts auto-train/vitest failure on
-  // this head, which blocks the release and makes the laptop skip the head); not run (heavy lock wait) still exits 4.
+  // Audit 2026-10-24 (trains 58 / 59): push the version commit and end the build; no local vitest, no heavy.lock wait.
+  // CI's `test` job runs the full vitest on this head and release waits for green CI; the laptop starts on the push.
   act(['git', 'push', 'origin', branch]);
-  let verdict = { ok: true, message: '' };
-  if (noTest) console.log('--no-test: vitest skipped');
-  else verdict = await runVitest(n, sha, prev);
+  clearBuildMarker();
   console.log(`\ntrain/${n} head: ${DRY ? `${head} (dry run: an unreferenced commit; the version commit would sit on it)` : sha}`);
   console.log(`members: ${kept.join(', ') || '(none)'}${pr ? ` | train PR #${pr}` : ''}`);
   for (const l of left) console.log(`LEFT OUT: ${l.b} - ${l.why}`);
-  const code = buildExitCode(verdict);
-  if (code) { console.error(`\n${verdict.message}`); return code; }
   console.log(`\nnext: node scripts/merge-train.mjs release ${n} ${version} ${JSON.stringify(title)}`);
   return 0;
 }
 
-/** merge-train build's exit from the vitest verdict (run after the push): 0 passed / skipped, 4 not run (heavy lock wait), 2 failed. */
-export const buildExitCode = (verdict) => (verdict?.ok ? 0 : verdict?.notRun ? 4 : 2);
+/**
+ * auto-train's build marker (AUTO_TRAIN_BUILD_MARKER, set by the tick): deleted as soon as the version commit is
+ * pushed, so the desktop queue claims the train head at once, not when the tick's build call returns. Never throws.
+ */
+export function clearBuildMarker(env = process.env) {
+  const file = env.AUTO_TRAIN_BUILD_MARKER;
+  if (!file) return;
+  if (DRY) { console.log(`  [dry-run] would delete the build marker ${file}`); return; }
+  try { fs.rmSync(file, { force: true }); console.log(`build marker ${file} deleted (version commit pushed)`); } catch { /* the tick's finally deletes it */ }
+}
 
 /** The package.json version at `ref`. */
 function versionAt(ref) {

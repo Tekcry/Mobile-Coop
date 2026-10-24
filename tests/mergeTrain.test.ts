@@ -6,11 +6,10 @@ import os from 'node:os';
 import path from 'node:path';
 import {
   bumpProtocol, classifyConflicts, closeComment, cmpVersion, findTrainVersionCommit, headPinCheck, heldByParent, mergeCmd, trainLockPath, versionRace,
-  findVersionCommit, heavyLockWaitMs, keepStopMessage, killTreeCmd, lockfilesDiffer,
-  failedTestFiles, vitestRerunPlan, vitestRerunCmd,
-  lockIsOurs, wireCandidates, membersFromLog, parseArgs, protocolValue, releaseHeavyLock,
-  resolveKeepBoth, resumeCheck, tailLines, takeHeavyLock, touchesWire, trainPrBody, trainPrTitle, versionSubject, vitestVerdict, wirePaths,
-  hasTrainMember, buildExitCode, hasFragment, syntheticFragment, fragmentPlan,
+  findVersionCommit, keepStopMessage, killTreeCmd,
+  wireCandidates, membersFromLog, parseArgs, protocolValue,
+  resolveKeepBoth, resumeCheck, touchesWire, trainPrBody, trainPrTitle, versionSubject, wirePaths,
+  hasTrainMember, hasFragment, syntheticFragment, fragmentPlan, clearBuildMarker,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/merge-train.mjs';
 
@@ -155,15 +154,6 @@ describe('merge-train --keep, wrong version and member PRs', () => {
     expect(wireCandidates([], [])).toEqual([]);
   });
 
-  it('lockfilesDiffer ignores the version fields npm version writes', () => {
-    const lock = (v: string, dep = '1.0.0'): string => JSON.stringify({ name: 'x', version: v, lockfileVersion: 3,
-      packages: { '': { name: 'x', version: v }, 'node_modules/a': { version: dep } } }, null, 2);
-    expect(lockfilesDiffer(lock('4.80.0'), lock('4.81.0'))).toBe(false);
-    expect(lockfilesDiffer(lock('4.80.0'), lock('4.80.0', '1.0.1'))).toBe(true);
-    expect(lockfilesDiffer(lock('4.80.0'), null)).toBe(true);
-    expect(lockfilesDiffer('{', lock('4.80.0'))).toBe(true);
-  });
-
   it('closeComment and the Windows tree kill', () => {
     expect(closeComment('4.80.0', 31, 250)).toBe('Merged in 4.80.0 (train 31, #250)');
     expect(killTreeCmd(1234, 'win32')).toEqual(['taskkill', '/T', '/F', '/PID', '1234']);
@@ -215,113 +205,6 @@ describe('merge-train wire bump', () => {
     const v: number = protocolValue(protocolTs);
     expect(Number.isInteger(v)).toBe(true);
     expect(protocolValue(bumpProtocol(protocolTs, v))).toBe(v + 1);
-  });
-});
-
-describe('merge-train vitest verdict and heavy lock', () => {
-  it('vitestVerdict: pass, fail, timeout', () => {
-    expect(vitestVerdict(0, 'ok').ok).toBe(true);
-    expect(vitestVerdict(0, 'ok').kind).toBe('pass');
-    const fail = vitestVerdict(1, 'x');
-    expect([fail.ok, fail.kind]).toEqual([false, 'fail']);
-    const timeout = vitestVerdict(-1, '');
-    expect([timeout.ok, timeout.kind]).toEqual([false, 'timeout']);
-  });
-
-  it('vitestVerdict keeps the last 60 lines', () => {
-    const out = Array.from({ length: 100 }, (_, i) => `line ${i}`).join('\n');
-    const v = vitestVerdict(1, out);
-    expect(v.tail.split('\n')).toHaveLength(60);
-    expect(v.tail.split('\n')[59]).toBe('line 99');
-    expect(tailLines('a\nb\n', 5)).toBe('a\nb');
-  });
-
-  it('failedTestFiles: reads FAIL lines through ANSI codes, each file once', () => {
-    const out = [
-      '\u001b[31m FAIL \u001b[39m tests/cameraReach.test.ts > reach > far',
-      '\u001b[31mError: Test timed out in 120000ms.\u001b[39m',
-      ' \u001b[41m\u001b[1m FAIL \u001b[22m\u001b[49m  tests/cameraReach.test.ts > reach > near',
-      'Error: Test timed out in 120000ms.',
-      ' FAIL  tests/mocapShortStart.test.ts > start',
-      'Error: Test timed out in 120000ms.',
-      ' FAIL  tests/cameraReach.test.ts > reach > far',
-      'Error: Test timed out in 120000ms.',
-      ' \u001b[2m✓ tests/ok.test.ts (3 tests)\u001b[22m',
-    ].join('\n');
-    expect(failedTestFiles(out)).toEqual(['tests/cameraReach.test.ts', 'tests/mocapShortStart.test.ts']);
-    expect(failedTestFiles('all good')).toEqual([]);
-  });
-
-  it('vitestRerunPlan: timeouts only, at most 3 files, more than 3 non-timeout files = no rerun', () => {
-    const timeout = (f: string) => ` FAIL  ${f} > t\nError: Test timed out in 120000ms.\n`;
-    const assertion = (f: string) => ` FAIL  ${f} > t\nAssertionError: expected 1 to be 2\n`;
-    const many = (fn: (f: string) => string, n: number) => Array.from({ length: n }, (_, i) => fn(`tests/f${i}.test.ts`)).join('\n');
-    const t5 = vitestRerunPlan(1, many(timeout, 5));
-    expect([t5.rerun, t5.files.length, t5.reason]).toEqual([true, 5, 'every failure is a timeout']);
-    expect(vitestRerunPlan(1, many(assertion, 3))).toMatchObject({ rerun: true, files: ['tests/f0.test.ts', 'tests/f1.test.ts', 'tests/f2.test.ts'] });
-    expect(vitestRerunPlan(1, many(assertion, 4)).rerun).toBe(false);
-    // 4 files, one a real assertion failure: not all timeouts, over 3 files
-    expect(vitestRerunPlan(1, `${many(timeout, 3)}\n${assertion('tests/real.test.ts')}`).rerun).toBe(false);
-    expect(vitestRerunPlan(0, many(timeout, 1)).rerun).toBe(false);
-    expect(vitestRerunPlan(-1, many(timeout, 1)).rerun).toBe(false);
-    expect(vitestRerunPlan(1, 'boom, no FAIL lines').rerun).toBe(false);
-    expect(vitestRerunCmd(['a.test.ts', 'b.test.ts'])).toBe('npx vitest run --no-file-parallelism a.test.ts b.test.ts');
-  });
-
-  it('lockIsOurs: only a lock naming merge-train', () => {
-    expect(lockIsOurs('merge-train | train 31 | 2026-10-23T08:00:00Z\n')).toBe(true);
-    expect(lockIsOurs('Marlow Build | marlow-final | 18:32')).toBe(false);
-    expect(lockIsOurs('')).toBe(false);
-  });
-
-  it('takeHeavyLock creates with wx, waits while held, gives up after maxMs; release only while ours', async () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mt-lock-'));
-    const lock = path.join(dir, 'heavy.lock');
-    try {
-      await takeHeavyLock(lock, 'merge-train | train 1 | t', { retryMs: 1, maxMs: 50 });
-      expect(fs.readFileSync(lock, 'utf8')).toBe('merge-train | train 1 | t');
-      await expect(takeHeavyLock(lock, 'merge-train | train 2 | t', { retryMs: 1, maxMs: 20 })).rejects.toThrow(/stayed held/);
-      expect(fs.readFileSync(lock, 'utf8')).toBe('merge-train | train 1 | t');
-      expect(releaseHeavyLock(lock)).toBe(true);
-      expect(fs.existsSync(lock)).toBe(false);
-      fs.writeFileSync(lock, 'Marlow Build | marlow-final | 18:32');
-      expect(releaseHeavyLock(lock)).toBe(false);
-      expect(fs.existsSync(lock)).toBe(true);
-      expect(releaseHeavyLock(path.join(dir, 'none.lock'))).toBe(false);
-    } finally { fs.rmSync(dir, { recursive: true, force: true }); }
-  });
-
-  it('heavyLockWaitMs: 5 min by default, TRAIN_LOCK_WAIT_MIN overrides, invalid falls back', () => {
-    expect(heavyLockWaitMs({})).toBe(5 * 60_000);
-    expect(heavyLockWaitMs({ TRAIN_LOCK_WAIT_MIN: '12' })).toBe(12 * 60_000);
-    expect(heavyLockWaitMs({ TRAIN_LOCK_WAIT_MIN: '0.5' })).toBe(30_000);
-    expect(heavyLockWaitMs({ TRAIN_LOCK_WAIT_MIN: '0' })).toBe(0);
-    for (const bad of ['', ' ', 'abc', '-3', 'NaN', 'Infinity']) expect(heavyLockWaitMs({ TRAIN_LOCK_WAIT_MIN: bad })).toBe(5 * 60_000);
-  });
-
-  it('takeHeavyLock breaks a lock whose pid is dead on this host', async () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mt-lock-'));
-    const lock = path.join(dir, 'heavy.lock');
-    try {
-      fs.writeFileSync(lock, `merge-train | train 1 | t | pid 999999 | host ${os.hostname()}`);
-      await takeHeavyLock(lock, 'merge-train | train 2 | t', { retryMs: 1, maxMs: 0, alive: () => false });
-      expect(fs.readFileSync(lock, 'utf8')).toBe('merge-train | train 2 | t');
-    } finally { fs.rmSync(dir, { recursive: true, force: true }); }
-  });
-
-  it('takeHeavyLock retries until the holder releases', async () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mt-lock-'));
-    const lock = path.join(dir, 'heavy.lock');
-    try {
-      fs.writeFileSync(lock, 'someone | job | t');
-      let waits = 0;
-      await takeHeavyLock(lock, 'merge-train | train 3 | t', {
-        retryMs: 1, maxMs: 10_000,
-        sleepFn: async () => { if (++waits === 2) fs.rmSync(lock); },
-      });
-      expect(waits).toBe(2);
-      expect(fs.readFileSync(lock, 'utf8')).toBe('merge-train | train 3 | t');
-    } finally { fs.rmSync(dir, { recursive: true, force: true }); }
   });
 });
 
@@ -428,20 +311,29 @@ describe('hasTrainMember', () => {
   });
 });
 
-describe('merge-train build exit after the push (audit 2 item 2)', () => {
-  it('buildExitCode: 0 passed or skipped, 2 failed, 4 not run (heavy lock wait)', () => {
-    expect(buildExitCode({ ok: true, message: '' })).toBe(0);
-    expect(buildExitCode({ ok: true, message: 'passed on isolated rerun: tests/a.test.ts' })).toBe(0);
-    expect(buildExitCode({ ok: false, message: 'vitest FAILED' })).toBe(2);
-    expect(buildExitCode({ ok: false, notRun: true, message: 'vitest NOT run' })).toBe(4);
+describe('merge-train build ends at the version-commit push (audit 2026-10-24)', () => {
+  it('build runs no local vitest and takes no heavy lock; the marker goes right after the version-commit push', () => {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'merge-train.mjs'), 'utf8');
+    const body = src.slice(src.indexOf('async function build('), src.indexOf('export function clearBuildMarker'));
+    expect(body).not.toMatch(/runVitest|takeHeavyLock|HEAVY_LOCK|npx vitest/);
+    const push = body.lastIndexOf("act(['git', 'push', 'origin', branch]);");
+    const vc = body.indexOf('versionCommit(');
+    expect(vc).toBeGreaterThan(0);
+    expect(push).toBeGreaterThan(vc);
+    expect(body.indexOf('clearBuildMarker();')).toBeGreaterThan(push);
+    expect(body.slice(push, body.indexOf('clearBuildMarker();'))).not.toMatch(/await |run\(|exec\(/);
   });
 
-  it('build pushes the version commit before vitest runs', () => {
-    const src = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'merge-train.mjs'), 'utf8');
-    const body = src.slice(src.indexOf('async function build('), src.indexOf('export const buildExitCode'));
-    const push = body.lastIndexOf("act(['git', 'push', 'origin', branch]);");
-    const vitest = body.indexOf('await runVitest(');
-    expect(push).toBeGreaterThan(0);
-    expect(vitest).toBeGreaterThan(push);
+  it('clearBuildMarker deletes AUTO_TRAIN_BUILD_MARKER and is a no-op without it', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mt-marker-'));
+    try {
+      const file = path.join(dir, 'auto-train-building.json');
+      fs.writeFileSync(file, '{}');
+      clearBuildMarker({});
+      expect(fs.existsSync(file)).toBe(true);
+      clearBuildMarker({ AUTO_TRAIN_BUILD_MARKER: file });
+      expect(fs.existsSync(file)).toBe(false);
+      expect(() => clearBuildMarker({ AUTO_TRAIN_BUILD_MARKER: file })).not.toThrow();
+    } finally { fs.rmSync(dir, { recursive: true, force: true }); }
   });
 });

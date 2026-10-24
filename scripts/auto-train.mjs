@@ -26,14 +26,15 @@
 // AUTO_TRAIN_FAST_POLL_S (60) s up to AUTO_TRAIN_FAST_POLL_MAX_MIN (4) min from its start, stopping on any state
 // change; --once and --dry-run never poll.
 // Release is `merge-train release ... --head <the tested head> --no-fallback` (pinned; never the old-style path); a
-// train without a version commit is state "error" ("rebuild"). merge-train build exit 4 (vitest not run) is pending.
+// train without a version commit is state "error" ("rebuild"). merge-train build runs no vitest (CI's `test` does).
 // A failed rebuild after release exit 3 is recorded (`rebuildFailed`) and skipped until the train head or master moves.
 // Files: lock C:/NightShift/scratch/auto-train.lock (wx, stale when untouched 30 min; a heartbeat keeps a long build's
 // lock fresh; merge-train takes the same lock for a hand run), log C:/NightShift/scratch/runs/auto-train.log, status
 // C:/NightShift/scratch/auto-train-status.json (one line: state, train, version, head, reason, time, ...); --dry-run
 // uses auto-train.dryrun.lock, runs/auto-train.dryrun.log and auto-train-status.dryrun.json. Build marker
 // C:/NightShift/scratch/auto-train-building.json ({ train, version, pid, at }; dry: auto-train-building.dryrun.json),
-// written just before `merge-train build` and deleted in a finally. AUTO_TRAIN_SCRATCH env moves them all.
+// written just before `merge-train build`, deleted by merge-train as soon as the version commit is pushed
+// (AUTO_TRAIN_BUILD_MARKER) and again in a finally. AUTO_TRAIN_SCRATCH env moves them all.
 // Exit: 0 tick done (the outcome is the status state; also when another tick holds the lock), 1 usage or error.
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -382,7 +383,7 @@ export function scratchFiles(scratch, dry) {
   };
 }
 
-// ---- build marker (audit 2026-10-24 item 3): the laptop queue sees a `merge-train build` (vitest under heavy.lock) --
+// ---- build marker (audit 2026-10-24 item 3): the laptop queue sees a `merge-train build` until its version commit is pushed
 
 /** The build marker in `scratch`: auto-train-building.json (a dry run: auto-train-building.dryrun.json). */
 export const buildMarkerPath = (scratch, dry) => path.join(scratch, `auto-train-building${dry ? '.dryrun' : ''}.json`);
@@ -588,13 +589,13 @@ function act(cmd) {
 }
 
 /** merge-train through its CLI (async, so the lock heartbeat keeps running): { code, out }. Printed only under --dry-run. */
-function mergeTrain(args) {
+function mergeTrain(args, extraEnv = {}) {
   const script = process.env.MERGE_TRAIN || path.join(HERE, 'merge-train.mjs');
   const cmd = ['node', script, ...args];
   if (DRY) { log(`  [dry-run] would run (cwd ${CWD}): ${show(cmd)}`); return Promise.resolve({ code: 0, out: '', dry: true }); }
   log(`  > (cwd ${CWD}) ${show(cmd)}`);
   return new Promise((resolve) => {
-    const env = { ...process.env, AUTO_TRAIN_LOCK: LOCK, AUTO_TRAIN_LOCK_TEXT: LOCK_TEXT ?? '' };
+    const env = { ...process.env, AUTO_TRAIN_LOCK: LOCK, AUTO_TRAIN_LOCK_TEXT: LOCK_TEXT ?? '', ...extraEnv };
     const p = spawn(cmd[0], cmd.slice(1), { cwd: CWD, windowsHide: true, env });
     let out = '';
     const take = (d) => { const s = d.toString(); out += s; process.stdout.write(s); try { fs.appendFileSync(LOG, s); } catch { /* best effort */ } };
@@ -790,8 +791,9 @@ function commentLeftOut(cands, left, n) {
 async function build(n, cands, { rebuildOf } = {}) {
   const p = plan(cands);
   log(`build train ${n}: ${p.version} (${p.kind}, master ${p.masterVersion}) "${p.title}" <- ${p.branches.join(' ')}`);
-  log(`  build marker ${FILES.building} (deleted when the build ends)`);
-  const r = await withBuildMarker(FILES.building, { train: n, version: p.version }, () => mergeTrain(['build', String(n), p.version, p.title, ...p.branches]));
+  log(`  build marker ${FILES.building} (deleted once the version commit is pushed)`);
+  const r = await withBuildMarker(FILES.building, { train: n, version: p.version },
+    () => mergeTrain(['build', String(n), p.version, p.title, ...p.branches], { AUTO_TRAIN_BUILD_MARKER: FILES.building }));
   const base = { train: n, version: p.version, members: p.branches };
   if (r.dry) return { ...base, state: 'building', reason: `${rebuildOf ? 'rebuild' : 'build'} would run (dry run)` };
   const head = exec(['git', 'ls-remote', 'origin', `refs/heads/train/${n}`]).out.split('\t')[0].trim() || null;
@@ -813,15 +815,7 @@ async function build(n, cands, { rebuildOf } = {}) {
     }
     return { ...base, head, state: 'built', reason: `train ${n} built; waiting for CI and ${LAPTOP_CONTEXT}`, leftOut };
   }
-  if (r.code === 2) {
-    if (head) act(['gh', 'api', '-X', 'POST', `repos/{owner}/{repo}/statuses/${head}`, '-f', 'state=failure', '-f', `context=${VITEST_CONTEXT}`, '-f', 'description=vitest failed at train build']);
-    return { ...base, head, state: 'failed', reason: `train ${n}: vitest failed at build (merge-train exit 2)`, leftOut };
-  }
   if (r.code === 3) return { ...base, head, state: 'failed', reason: `train ${n}: every member left out on conflicts (merge-train exit 3)`, leftOut };
-  if (r.code === 4) {
-    // vitest not run (heavy lock busy): the train is pushed and CI's check runs the unit tests; the next tick goes on.
-    return { ...base, head, state: 'pending', reason: `train ${n} built; vitest not run at build (heavy lock busy, merge-train exit 4): retry next tick`, leftOut };
-  }
   return { ...base, head, state: 'error', reason: `merge-train build exit ${r.code}: ${r.out.trim().split('\n').slice(-3).join(' | ')}`, leftOut };
 }
 
