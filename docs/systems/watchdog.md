@@ -8,7 +8,7 @@ Script: `scripts/watchdog.mjs` (pure helpers tested in `tests/watchdog.test.ts`;
 edges). Patterns copied from `scripts/auto-train.mjs` (tick, status, touch lock, self-update).
 
 ## Running it
-- `node scripts/watchdog.mjs tick [--dry-run] [--fix <list>] [--checks <list>] [--require-affected] [--self-update | --no-self-update]`.
+- `node scripts/watchdog.mjs tick [--dry-run] [--fix <list>] [--checks <list>] [--require-affected | --no-require-affected] [--self-update | --no-self-update]`.
 - Alerts only by default. `--fix` takes a comma list of `locks, orphans, prs, labels, release, cloud` and turns on the
   fixes of those checks only, so the orchestrator can enable them one at a time. `pages`, `autotrain` and `laptop` have
   no fixes. `--checks` limits the checks run (default all nine).
@@ -31,7 +31,8 @@ edges). Patterns copied from `scripts/auto-train.mjs` (tick, status, touch lock,
   10 min). Optional `watch-owners.json`: `{ "<branch or prefix>": "<session title>" }` overrides owner names.
 - Env: `WATCHDOG_REPO` (Tekcry/Mobile-Coop), `WATCHDOG_LOCKS` (comma list, default heavy.lock, heavy2.lock),
   `WATCHDOG_PAGES_URL`, `WATCHDOG_AUTOTRAIN_STATUS`, `WATCHDOG_AUTOTRAIN_DIR` (else read from
-  `scratch/auto-train-task.vbs`), `WATCHDOG_LQ_DESKTOP_DIR`, `WATCHDOG_LIVE_DIR`.
+  `scratch/auto-train-task.vbs`), `WATCHDOG_LQ_DESKTOP_DIR`, `WATCHDOG_LIVE_DIR`, `WATCHDOG_REQUIRE_AFFECTED` (`1` / `0`:
+  overrides the affected-e2e default, below).
 - Exit 0 (also when another tick holds the lock), 1 on a usage error or a crash outside the checks. A check that
   throws becomes a `check-error` alert; the other checks still run.
 
@@ -50,10 +51,10 @@ edges). Patterns copied from `scripts/auto-train.mjs` (tick, status, touch lock,
 ## Checks
 | Check | Alert (kind, severity) | Fix (`--fix`) |
 | --- | --- | --- |
-| locks | `lock-dead-pid` high: heavy.lock / heavy2.lock names a pid not running on this host; `lock-stale` warn: no pid, 60+ min old, no node process at all; `lock-old` info: live pid, 240+ min | `locks`: break a dead-pid lock only when a known writer wrote it (heavy-lock.mjs, the laptop-queue service, a touch lock); re-read, rename aside, verify, delete (the heavy-lock break pattern). A pid-less lock is never broken |
-| orphans | `orphan` warn: tail.exe / grep.exe / node e2e runner (`scripts/run-e2e.mjs`, `scripts/e2e-*.mjs`, the runner's `vite preview`) whose parent pid is gone or reused, 30+ min old | `orphans`: `taskkill /PID <pid> /T /F` only when the command line matches Night Shift (`NightShift`, `Mobile-Coop`, its scripts, `vite preview --port 41xx`) and the pid still has the same start time and command line |
-| prs | `pr-conflict` high: a `train-ready` PR is CONFLICTING (owner named); `pr-commit-after-label` warn: the head moved from the labelled head (first seen labelled, else the newest commit at or before the label event, else by commit time), the commits since touch more than docs / `*.md` / fragments, and no `checker` success on the new head | `prs`: remove `train-ready` and comment once per head (`<!-- watchdog:unlabel:<sha> -->`). Conflicts stay alert only |
-| labels | `pr-label-ready`: an unlabelled PR meets the label convention (below); warn after `check` has been green 30 min, info at once when the fix is on | `labels`: add `train-ready` (head and label re-read first) and comment once per head |
+| locks | `lock-dead-pid` high: heavy.lock / heavy2.lock names a pid not running on this host; `lock-stale` warn: no pid, 60+ min old, no node process at all; `lock-old` info: live pid, 240+ min; `lock-old` warn: no pid, 240+ min by file time (alert only) | `locks`: break a dead-pid lock only when a known writer wrote it (heavy-lock.mjs, the laptop-queue service, a touch lock); re-read, rename aside, verify, delete (the heavy-lock break pattern). A pid-less lock is never broken |
+| orphans | `orphan` warn: a node e2e runner (`scripts/run-e2e.mjs`, `scripts/e2e-*.mjs`, the runner's `vite preview`) whose parent pid is gone or reused, 30+ min old; `orphan` info: tail.exe / grep.exe the same (MSYS tools in a Git Bash pipeline show a dead parent for their whole life, so a live `tail -f` looks orphaned: never killed) | `orphans`: `taskkill /PID <pid> /T /F` only for a node e2e runner 120+ min old whose command line matches Night Shift (`NightShift`, `Mobile-Coop`, its scripts, `vite preview --port 41xx`), whose pid and parent pid no heavy lock names, and that still has the same start time and command line |
+| prs | `pr-conflict` high: a `train-ready` PR is CONFLICTING (owner named); `pr-commit-after-label` warn: the head moved from the labelled head (first seen labelled, else the newest commit pushed at or before the label event: push time = its earliest check suite, else a newer commit's, else its commit time; else by commit time), the commits since touch more than docs / `*.md` / fragments, and no `checker` success on the new head | `prs`: remove `train-ready` and comment once per head (`<!-- watchdog:unlabel:<sha> -->`). Conflicts stay alert only |
+| labels | `pr-label-ready`: an unlabelled PR meets the label convention (below); warn after `check` has been green 30 min, info at once when the fix is on | `labels`: add `train-ready` (head and label re-read first; the head re-read after labelling, and the label removed again if it moved), record that head as the labelled head, and comment once per head |
 | release | `release-dev-lag` warn (5-min grace): dev behind master; `release-dev-diverged` high: dev not an ancestor; `release-tag-missing` warn (5 min): no `v<master version>` tag; `release-member-open` warn (10 min): an open non-train PR whose head is in master | `release`: `git push origin <master>:refs/heads/dev` (fast-forward only, refs re-read), `git push origin <release commit>:refs/tags/v<version>` (the oldest first-parent commit carrying master's version: the train merge), `gh pr close <n>` with a comment (re-checked open, same head, in master) |
 | pages | `pages-behind` high: `/preview/` serves another version 15+ min after master's release commit; `pages-unreadable` warn (15 min) | none |
 | autotrain | `autotrain-stale` high (status 10+ min old or missing), `autotrain-failed` high, `autotrain-error` warn (5-min grace: transient gh timeouts), `autotrain-<rerun-stale / rerun-request-failed / stale / laptop-missing>` warn, `autotrain-behind` warn (60-min grace): its checkout (from `auto-train-task.vbs`) is not origin/master | none |
@@ -65,18 +66,21 @@ edges). Patterns copied from `scripts/auto-train.mjs` (tick, status, touch lock,
   `(desktop)` subjects) and, for the desktop worker, its service log / run files' mtimes. A long laptop run with no other
   push can show `lq-claim-silent` before it finishes.
 - Owners (conflict and label alerts): `watch-owners.json`, else the newest laptop-queue request naming the branch or PR
-  (its requester), else a cloud brief's `Lead:` for its "New branch:", else `job <branch>`.
+  (its requester; the service's auto `affected-e2e` requests are skipped), else a cloud brief's `Lead:` for its "New branch:", else `job <branch>`.
 - Pages version: the main menu label baked into the preview bundle (`v<version> PREVIEW · <sha>`,
   `src/ui/screens/mainMenu.ts` from `__APP_VERSION__` / `__BUILD_SHA__` in `vite.config.ts`), read from the module
   script of `/preview/index.html` (cache-busted); the bundle is fetched again only when the script name changes.
 
 ## The label convention (checker verdict status)
-A PR gets `train-ready` from the watchdog (with `--fix labels`) only when all hold on its current head:
+A PR gets `train-ready` from the watchdog (with `--fix labels`) only when all hold on its current head (checks and
+statuses are read from `headRefOid` only: a lagging commit list counts as `check` missing):
 - CI `check` success;
 - a commit status `checker` = success. The lead's fresh checker posts it on PASS:
   `gh api repos/{owner}/{repo}/statuses/<sha> -f state=success -f context=checker -f description="<who> PASS"`
   (a FIX verdict may post `-f state=failure ... description="<who> FIX: <one line>"`);
-- once present, `affected-e2e` = success (PR #251's affected suites); `--require-affected` makes it mandatory;
+- `affected-e2e` = success when present; required (missing blocks) by default once the laptop service posts it on every
+  PR head (PR #356, detected from `scripts/laptop-queue/lib.mjs` in the watchdog's checkout), except on PRs labelled
+  `no-affected-e2e`; `--require-affected` / `--no-require-affected` or `WATCHDOG_REQUIRE_AFFECTED=1` / `0` override;
 - not a draft, not CONFLICTING, not a `train/<n>` head.
 A commit after the label removes the label (with `--fix prs`) unless the new head also has `checker` success or the
 commits since the labelled head touch only docs, `*.md`, `changes/` fragments or CHANGELOG.

@@ -5,9 +5,9 @@
 // action }], ... }. The orchestrator's cron reads only that file. Contract, checks and fixes: docs/systems/watchdog.md.
 // Checks (pure helpers below, tests/watchdog.test.ts; gh / git / fs / process I/O in the shell part):
 //   locks      heavy.lock / heavy2.lock: a dead pid, or no pid and old with no node running
-//   orphans    tail.exe / grep.exe / node e2e runners whose parent process is gone
+//   orphans    tail.exe / grep.exe (alert only) / node e2e runners whose parent process is gone
 //   prs        train-ready PRs CONFLICTING (owner by branch), commits after the label
-//   labels     PRs ready for train-ready (CI check green + `checker` status success + `affected-e2e` when present)
+//   labels     PRs ready for train-ready (CI check green + `checker` status success + `affected-e2e`, required once #356 is in)
 //   release    dev behind master, master's version tag missing, member PRs whose head is in master still open
 //   pages      /preview/ serves master's version within 15 min of the release
 //   autotrain  auto-train status stale / failed / error, its checkout behind origin/master
@@ -15,7 +15,7 @@
 //   cloud      cloud-queue briefs claimed 90+ min with no branch push
 // Alerts only by default. `--fix <list>` (comma list of locks, orphans, prs, labels, release, cloud) turns on the fixes
 // of those checks, one at a time; every fix re-reads what it acts on right before acting and is idempotent.
-// Usage: node scripts/watchdog.mjs tick [--dry-run] [--fix <list>] [--checks <list>] [--require-affected] [--self-update | --no-self-update]
+// Usage: node scripts/watchdog.mjs tick [--dry-run] [--fix <list>] [--checks <list>] [--require-affected | --no-require-affected] [--self-update | --no-self-update]
 // --dry-run: no write anywhere (no push, label, comment, close, kill, lock break, self-update); fixes are printed as
 // "[dry-run] would ..."; the status and log go to watch-status.dryrun.json / runs/watchdog.dryrun.log. It still runs
 // `git fetch origin` (local refs only) so the queues and ancestry are current.
@@ -29,16 +29,17 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { takeTouchLock, pidAlive } from './heavy-lock.mjs';
 import { ciState, ciGreenAt, selfUpdatePlan } from './auto-train.mjs';
-import { idTime, parseClaim, workerActivity } from './laptop-queue/lib.mjs';
+import * as lq from './laptop-queue/lib.mjs';
 
 export const CHECKS = ['locks', 'orphans', 'prs', 'labels', 'release', 'pages', 'autotrain', 'laptop', 'cloud'];
 export const FIXABLE = ['locks', 'orphans', 'prs', 'labels', 'release', 'cloud'];
 export const LABEL = 'train-ready';
 export const CHECKER_CONTEXT = 'checker';
-export const AFFECTED_CONTEXT = 'affected-e2e';
+export const AFFECTED_CONTEXT = 'affected-e2e'; // also the requester of the laptop service's auto affected requests (#356)
+export const NO_AFFECTED_LABEL = 'no-affected-e2e';
 /** Thresholds in minutes (docs/systems/watchdog.md). */
 export const LIMITS = {
-  lockStaleMin: 60, lockOldMin: 240, orphanMin: 30, greenMin: 30, devGraceMin: 5, tagGraceMin: 5, memberGraceMin: 10,
+  lockStaleMin: 60, lockOldMin: 240, orphanMin: 30, orphanKillMin: 120, greenMin: 30, devGraceMin: 5, tagGraceMin: 5, memberGraceMin: 10,
   pagesMin: 15, autoTrainStaleMin: 10, autoTrainErrorMin: 5, autoTrainBehindMin: 60, claimSilentMin: 15,
   claimStuckMin: 90, requestOldMin: 60, cloudClaimMin: 90, actionMarkerMin: 15,
 };
@@ -48,7 +49,7 @@ const mins = (ms) => Math.floor(ms / 60_000);
 
 // ---- options ---------------------------------------------------------------------------------------------------
 
-const USAGE = 'usage: node scripts/watchdog.mjs tick [--dry-run] [--fix <list>] [--checks <list>] [--require-affected] [--self-update | --no-self-update]\n'
+const USAGE = 'usage: node scripts/watchdog.mjs tick [--dry-run] [--fix <list>] [--checks <list>] [--require-affected | --no-require-affected] [--self-update | --no-self-update]\n'
   + `  --fix: comma list of ${FIXABLE.join(', ')}; --checks: comma list of ${CHECKS.join(', ')} (default all)`;
 
 /** A comma list of names, each one of `allowed` -> Set; throws on an unknown name. */
@@ -58,17 +59,18 @@ export function parseList(text, allowed, flag) {
   return new Set(names);
 }
 
-/** argv (after `node script`) -> { cmd, dry, fix: Set, checks: Set, requireAffected, selfUpdate: 'auto' | 'on' | 'off' }. */
+/** argv (after `node script`) -> { cmd, dry, fix: Set, checks: Set, requireAffected (null: default), selfUpdate: 'auto' | 'on' | 'off' }. */
 export function parseArgs(argv) {
   const [cmd, ...rest] = argv;
   if (cmd !== 'tick') throw new Error(USAGE);
-  const o = { cmd, dry: false, fix: new Set(), checks: new Set(CHECKS), requireAffected: false, selfUpdate: 'auto' };
+  const o = { cmd, dry: false, fix: new Set(), checks: new Set(CHECKS), requireAffected: null, selfUpdate: 'auto' };
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     if (a === '--dry-run') o.dry = true;
     else if (a === '--fix') o.fix = parseList(rest[++i], FIXABLE, '--fix');
     else if (a === '--checks') o.checks = parseList(rest[++i], CHECKS, '--checks');
     else if (a === '--require-affected') o.requireAffected = true;
+    else if (a === '--no-require-affected') o.requireAffected = false;
     else if (a === '--self-update') o.selfUpdate = 'on';
     else if (a === '--no-self-update') o.selfUpdate = 'off';
     else throw new Error(`unknown argument ${a}\n${USAGE}`);
@@ -143,7 +145,8 @@ export const KNOWN_LOCK_WRITERS = ['heavy-lock', 'laptop-queue', 'touch'];
 /**
  * Alerts for one lock: `l` = { path, text (null = absent), mtimeMs }; `env` = { now, host, alive(pid), nodeLive }.
  * A pid that is not running (on this host) -> high, fixable (break) only when a known writer wrote it; no pid and over
- * lockStaleMin with no node process at all -> warn, alert only; a live pid over lockOldMin -> info.
+ * lockStaleMin with no node process at all -> warn, alert only; a live pid over lockOldMin -> info; no pid over
+ * lockOldMin (file time) with node running -> warn, alert only.
  */
 export function lockAlerts(l, { now, host = os.hostname(), alive = pidAlive, nodeLive = true, limits = LIMITS }) {
   if (l.text == null) return [];
@@ -163,11 +166,15 @@ export function lockAlerts(l, { now, host = os.hostname(), alive = pidAlive, nod
       advice: 'alert only (no pid to verify: remove it by hand when its owner is gone)' })];
   }
   if (p.pid != null && age >= limits.lockOldMin) return [alert('lock-old', l.path, 'info', `${desc}: held ${age} min (pid ${p.pid} alive)`)];
+  if (p.pid == null && age >= limits.lockOldMin) {
+    return [alert('lock-old', l.path, 'warn', `${desc}: no pid, ${age} min old (file time)`, { advice: 'alert only (no pid to verify: ask its owner)' })];
+  }
   return [];
 }
 
 // ---- 2. orphans --------------------------------------------------------------------------------------------------
 
+/** MSYS tools: a Git Bash pipeline member shows a dead parent pid for its whole life, so these are alert only (info). */
 export const ORPHAN_NAMES = ['tail.exe', 'grep.exe'];
 /** A node e2e runner: scripts/run-e2e.mjs, scripts/e2e-*.mjs, or the runner's `vite preview` server. */
 export const E2E_CMD = /(?:^|[\s"'\\/])scripts[\\/](?:run-e2e|e2e-[\w-]+)\.mjs\b|vite(?:\.js)?["']?\s+preview\b/i;
@@ -177,9 +184,11 @@ export const NS_CMD = /NightShift|Mobile-Coop|(?:^|[\s"'\\/])scripts[\\/](?:run-
 /**
  * Orphans in a process list [{ pid, ppid, name, cmd, created (ms) }]: tail.exe / grep.exe / node e2e runners whose
  * parent is gone (no such pid, or that pid started after the child: reused) and that are at least `minAgeMin` old (a
- * Git Bash pipeline's short-lived fork parent makes young pipeline members look parentless). killable = NS_CMD.
+ * Git Bash pipeline's short-lived fork parent makes young pipeline members look parentless). killable only for a node
+ * e2e runner with a Night Shift command line (NS_CMD), killMin+ old, whose pid / parent pid no heavy lock names
+ * (`lockPids`); `why` says why not.
  */
-export function findOrphans(procs, now, { minAgeMin = LIMITS.orphanMin } = {}) {
+export function findOrphans(procs, now, { minAgeMin = LIMITS.orphanMin, killMin = LIMITS.orphanKillMin, lockPids = new Set() } = {}) {
   const byPid = new Map(procs.map((p) => [p.pid, p]));
   const out = [];
   for (const p of procs) {
@@ -191,16 +200,20 @@ export function findOrphans(procs, now, { minAgeMin = LIMITS.orphanMin } = {}) {
     if (!gone || !p.created) continue;
     const ageMin = (now - p.created) / 60_000;
     if (ageMin < minAgeMin) continue;
-    out.push({ ...p, ageMin, killable: NS_CMD.test(cmd) });
+    const why = name !== 'node.exe' ? 'MSYS tool, its parent reads dead for life: never killed'
+      : !NS_CMD.test(cmd) ? 'not a Night Shift command line: never killed'
+        : lockPids.has(p.pid) || lockPids.has(p.ppid) ? 'a heavy lock names it'
+          : ageMin < killMin ? `killed from ${killMin} min` : '';
+    out.push({ ...p, ageMin, killable: !why, why });
   }
   return out;
 }
 
 export function orphanAlerts(orphans) {
-  return orphans.map((o) => alert('orphan', `pid ${o.pid}`, 'warn',
+  return orphans.map((o) => alert('orphan', `pid ${o.pid}`, o.name.toLowerCase() === 'node.exe' ? 'warn' : 'info',
     `${o.name}, parent ${o.ppid} gone, ${Math.floor(o.ageMin)} min old: ${String(o.cmd).replace(/\s+/g, ' ').slice(0, 200)}`, {
       fix: o.killable ? { check: 'orphans', type: 'kill', pid: o.pid, created: o.created, cmd: o.cmd, desc: `taskkill /PID ${o.pid} /T /F (${o.name})` } : null,
-      advice: o.killable ? '' : 'alert only (not a Night Shift command line: never killed)',
+      advice: o.killable ? '' : `alert only (${o.why})`,
     }));
 }
 
@@ -212,7 +225,9 @@ export function orphanAlerts(orphans) {
  */
 export function normalizePr(node) {
   const commit = node?.commits?.nodes?.[0]?.commit ?? {};
-  const rollup = commit.statusCheckRollup?.contexts?.nodes ?? [];
+  // commits(last:1) can lag headRefOid: its checks and statuses count only when it is the head
+  const onHead = commit.oid === node.headRefOid;
+  const rollup = onHead ? commit.statusCheckRollup?.contexts?.nodes ?? [] : [];
   const statuses = {};
   for (const s of rollup) {
     if (s?.__typename !== 'StatusContext') continue;
@@ -226,12 +241,19 @@ export function normalizePr(node) {
   for (const e of node?.timelineItems?.nodes ?? []) {
     if (e?.__typename === 'LabeledEvent' && e.label?.name === LABEL) labeledAt = Math.max(labeledAt ?? 0, Date.parse(e.createdAt) || 0);
   }
+  // push time of each recent commit (newest first): its earliest check suite (made by the push), else the newest such
+  // time of a newer commit (pushed with it or later), else its commit time
+  let pushAt = Infinity;
+  const pushed = (node?.recent?.nodes ?? []).map((n) => n?.commit).filter((c) => c?.oid).reverse().map((c) => {
+    for (const s of c.checkSuites?.nodes ?? []) pushAt = Math.min(pushAt, Date.parse(s?.createdAt) || Infinity);
+    return { oid: c.oid, at: pushAt < Infinity ? pushAt : Date.parse(c.committedDate) || 0 };
+  });
   return {
     number: node.number, title: node.title ?? '', branch: node.headRefName, head: node.headRefOid, draft: !!node.isDraft,
     mergeable: node.mergeable ?? 'UNKNOWN', labels, labeled: labels.includes(LABEL), labeledAt,
-    headAt: Date.parse(commit.committedDate || '') || null,
-    // the head when the label was added: the newest of the recent commits committed at or before the label event
-    labelHead: labeledAt != null ? ((node?.recent?.nodes ?? []).map((n) => n?.commit).filter((c) => c?.oid && (Date.parse(c.committedDate) || 0) <= labeledAt).pop()?.oid ?? null) : null,
+    headAt: onHead ? Date.parse(commit.committedDate || '') || null : null,
+    // the head when the label was added: the newest recent commit pushed at or before the label event
+    labelHead: labeledAt != null ? pushed.find((c) => c.at <= labeledAt)?.oid ?? null : null,
     check: ciState(rollup, 'check'), checkGreenAt: ciGreenAt(rollup, null, 'check'), statuses,
   };
 }
@@ -245,7 +267,7 @@ export const isTrain = (branch) => /^train\/\d+$/.test(String(branch ?? ''));
 /**
  * Whether a PR may get `train-ready` (the label convention, docs/systems/watchdog.md): not a train, not a draft, not
  * CONFLICTING, CI `check` success, commit status `checker` success on the head, and `affected-e2e` success when the
- * head has one (or always, with requireAffected). -> { ready, why }.
+ * head has one (or always, with requireAffected, unless the PR has NO_AFFECTED_LABEL). -> { ready, why }.
  */
 export function labelReady(pr, { requireAffected = false } = {}) {
   const no = (why) => ({ ready: false, why });
@@ -256,7 +278,7 @@ export function labelReady(pr, { requireAffected = false } = {}) {
   const checker = statusOf(pr, CHECKER_CONTEXT);
   if (checker !== 'success') return no(`${CHECKER_CONTEXT} ${checker}`);
   const aff = statusOf(pr, AFFECTED_CONTEXT);
-  if (aff === 'missing' && requireAffected) return no(`${AFFECTED_CONTEXT} missing`);
+  if (aff === 'missing' && requireAffected && !pr.labels?.includes(NO_AFFECTED_LABEL)) return no(`${AFFECTED_CONTEXT} missing`);
   if (aff !== 'missing' && aff !== 'success') return no(`${AFFECTED_CONTEXT} ${aff}`);
   const desc = pr.statuses[CHECKER_CONTEXT].description;
   return { ready: true, why: `check green, ${CHECKER_CONTEXT} success${desc ? ` (${desc})` : ''}${aff === 'success' ? `, ${AFFECTED_CONTEXT} success` : ''}` };
@@ -328,7 +350,7 @@ export function ownerMap({ requests = [], briefs = [], override = {} } = {}) {
   const byPr = new Map();
   for (const b of briefs) if (b.branch && b.lead) byBranch.set(b.branch, b.lead);
   for (const r of [...requests].sort((a, b) => String(a.id).localeCompare(String(b.id)))) {
-    if (!r.requester) continue;
+    if (!r.requester || r.requester === AFFECTED_CONTEXT) continue; // the service's auto affected requests name no owner
     if (r.branch) byBranch.set(r.branch, r.requester);
     if (r.pr) byPr.set(Number(r.pr), r.requester);
   }
@@ -469,7 +491,7 @@ export function laptopAlerts(q, { limits = LIMITS } = {}) {
     const st = q.stale?.[r.id];
     if (st && !r.pin) out.push(alert('lq-request-stale', r.id, 'warn', `${who} [${r.set ?? ''}]: ${st.ref} moved past ${short(r.sha)} in ${st.files} non-test file(s); the verdict cannot count`, { advice: `alert only (${who}: withdraw it)` }));
     if (c) continue; // claimed: the claim checks cover it
-    const age = mins(q.now - idTime(r.id));
+    const age = mins(q.now - lq.idTime(r.id));
     if (age >= limits.requestOldMin) out.push(alert('lq-request-old', r.id, 'warn', `${who} [${r.set ?? ''}]: queued ${age} min, unclaimed`));
   }
   return out;
@@ -541,6 +563,8 @@ const AUTOTRAIN_STATUS = process.env.WATCHDOG_AUTOTRAIN_STATUS || path.join(proc
 const AUTOTRAIN_VBS = path.join(SCRATCH, 'auto-train-task.vbs');
 const DESKTOP_LQ_DIR = process.env.WATCHDOG_LQ_DESKTOP_DIR || path.join(SCRATCH, 'laptop-queue-desktop');
 const OWNERS_FILE = path.join(SCRATCH, 'watch-owners.json');
+// affected-e2e required by default once the laptop service posts it on every PR head (#356 on this checkout)
+const REQUIRE_AFFECTED = process.env.WATCHDOG_REQUIRE_AFFECTED ? process.env.WATCHDOG_REQUIRE_AFFECTED === '1' : !!lq.AFFECTED_REQUESTER;
 let DRY = false;
 let FILES = scratchFiles(SCRATCH, false);
 
@@ -597,7 +621,7 @@ function processes(filter = '') {
   return (Array.isArray(j) ? j : [j]).map((p) => ({ pid: Number(p.pid), ppid: Number(p.ppid), name: p.name ?? '', cmd: p.cmd ?? '', created: Number(p.created) || 0 }));
 }
 
-const OPEN_PRS_QUERY = `query($owner:String!,$name:String!){ repository(owner:$owner,name:$name){ pullRequests(states:OPEN,first:100,baseRefName:"master",orderBy:{field:CREATED_AT,direction:DESC}){ nodes{ number title headRefName headRefOid isDraft mergeable labels(first:30){nodes{name}} timelineItems(last:40,itemTypes:[LABELED_EVENT]){nodes{__typename ... on LabeledEvent{createdAt label{name}}}} recent: commits(last:40){nodes{commit{oid committedDate}}} commits(last:1){nodes{commit{oid committedDate statusCheckRollup{contexts(first:100){nodes{__typename ... on CheckRun{name status conclusion completedAt startedAt} ... on StatusContext{context state description createdAt}}}}}}} } } } }`;
+const OPEN_PRS_QUERY = `query($owner:String!,$name:String!){ repository(owner:$owner,name:$name){ pullRequests(states:OPEN,first:100,baseRefName:"master",orderBy:{field:CREATED_AT,direction:DESC}){ nodes{ number title headRefName headRefOid isDraft mergeable labels(first:30){nodes{name}} timelineItems(last:40,itemTypes:[LABELED_EVENT]){nodes{__typename ... on LabeledEvent{createdAt label{name}}}} recent: commits(last:40){nodes{commit{oid committedDate checkSuites(first:5){nodes{createdAt}}}}} commits(last:1){nodes{commit{oid committedDate statusCheckRollup{contexts(first:100){nodes{__typename ... on CheckRun{name status conclusion completedAt startedAt} ... on StatusContext{context state description createdAt}}}}}}} } } } }`;
 
 // ---- context: everything the checks read, gathered once per tick ---------------------------------------------------
 
@@ -637,10 +661,10 @@ function gather(o) {
       for (const n of names) {
         const t = blobs.get(`origin/laptop-queue:${n}`)?.text;
         if (n.startsWith('requests/')) { try { const r = JSON.parse(t); if (r?.id) requests.push(r); } catch { /* bad request: the service flags it */ } }
-        else claims[path.posix.basename(n, '.json')] = parseClaim(t);
+        else claims[path.posix.basename(n, '.json')] = lq.parseClaim(t);
       }
       const logText = git(['log', '-n', '500', '--format=%ct %s', 'origin/laptop-queue']);
-      const activity = { laptop: workerActivity(logText, 'laptop').last || 0, desktop: workerActivity(logText, 'desktop').last || 0 };
+      const activity = { laptop: lq.workerActivity(logText, 'laptop').last || 0, desktop: lq.workerActivity(logText, 'desktop').last || 0 };
       return { requests, claims, activity };
     });
   }
@@ -679,12 +703,14 @@ function checkLocks(ctx) {
 
 function checkOrphans(ctx) {
   if (!ctx.procs) throw new Error(`process list unavailable: ${ctx.errors.processes}`);
-  return orphanAlerts(findOrphans(ctx.procs, ctx.now));
+  return orphanAlerts(findOrphans(ctx.procs, ctx.now, { lockPids: lockPids() }));
 }
+/** The pids the heavy locks name (an orphan they name is never killed). */
+const lockPids = () => new Set(LOCKS.map((f) => { try { return parseLockText(fs.readFileSync(f, 'utf8')).pid; } catch { return null; } }).filter((x) => x != null));
 
 function checkPrs(ctx, o, state, which) {
   if (!ctx.prs) throw new Error(`PR list unavailable: ${ctx.errors.prs}`);
-  const r = prAlerts(ctx.prs, { now: ctx.now, labelHeads: state.labelHeads ?? {}, owner: ctx.owner, labelFix: o.fix.has('labels'), requireAffected: o.requireAffected });
+  const r = prAlerts(ctx.prs, { now: ctx.now, labelHeads: state.labelHeads ?? {}, owner: ctx.owner, labelFix: o.fix.has('labels'), requireAffected: o.requireAffected ?? REQUIRE_AFFECTED });
   ctx.labelHeads = r.labelHeads;
   return r.alerts.filter((a) => (which === 'labels' ? a.kind === 'pr-label-ready' : a.kind !== 'pr-label-ready'));
 }
@@ -801,6 +827,7 @@ async function runFix(f) {
       const p = processes(`-Filter 'ProcessId=${f.pid}'`)[0];
       if (!p) return 'already gone';
       if (p.created !== f.created || p.cmd !== f.cmd || !NS_CMD.test(p.cmd)) return 'skipped: pid now names another process';
+      if (lockPids().has(f.pid)) return 'skipped: a heavy lock names it';
       const r = exec(['taskkill', '/PID', String(f.pid), '/T', '/F']);
       log(`  taskkill ${f.pid}: exit ${r.status} ${String(r.out).trim()} ${r.err.trim()}`);
       return r.status === 0 ? 'fixed: killed' : `fix failed: taskkill exit ${r.status}`;
@@ -814,6 +841,11 @@ async function runFix(f) {
       if (v.state !== 'OPEN' || v.headRefOid !== f.head) return 'skipped: the PR changed since it was read';
       if (add === has) return `skipped: label already ${add ? 'there' : 'gone'}`;
       read(['gh', 'pr', 'edit', String(f.pr), '--repo', REPO, add ? '--add-label' : '--remove-label', LABEL]);
+      if (add && ghPr(f.pr).headRefOid !== f.head) { // a push landed while labelling: the label would cover an unchecked head
+        read(['gh', 'pr', 'edit', String(f.pr), '--repo', REPO, '--remove-label', LABEL]);
+        log(`  #${f.pr}: head moved while labelling, ${LABEL} removed again`);
+        return 'skipped: the head moved while labelling (label removed again)';
+      }
       const marker = `<!-- watchdog:${f.type}:${f.head} -->`;
       if (!(v.comments ?? []).some((c) => String(c.body).includes(marker))) {
         read(['gh', 'pr', 'comment', String(f.pr), '--repo', REPO, '--body', add ? labelComment(f.head, f.why) : unlabelComment(f.head)]);
@@ -914,6 +946,8 @@ async function tick(o) {
   for (const a of toFix) {
     log(`fix ${a.id}: ${a.fix.desc}`);
     try { results.set(a.id, await runFix(a.fix)); } catch (e) { results.set(a.id, `fix failed: ${e.message.slice(0, 300)}`); log(`  fix failed: ${e.message}`); }
+    // the head we labelled is the labelled head (a later commit is then caught as a commit after the label)
+    if (a.fix.type === 'label' && results.get(a.id) === 'fixed: labelled') (ctx.labelHeads ??= { ...state.labelHeads })[a.fix.pr] = a.fix.head;
   }
   delete state.action;
   const alerts = shown.map((a) => ({ id: a.id, severity: a.severity, kind: a.kind, subject: a.subject, detail: a.detail, since: a.since, action: actionText(a, o.fix, results.get(a.id)) }));

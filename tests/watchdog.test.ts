@@ -24,6 +24,8 @@ describe('watchdog: options and alert bookkeeping', () => {
     expect([...f.checks]).toEqual(['prs', 'labels']);
     expect(f.requireAffected).toBe(true);
     expect(f.selfUpdate).toBe('off');
+    expect(o.requireAffected).toBeNull();
+    expect(parseArgs(['tick', '--no-require-affected']).requireAffected).toBe(false);
     expect(() => parseArgs(['tick', '--fix', 'pages'])).toThrow(/unknown name "pages"/);
     expect(() => parseArgs(['tick', '--fix', 'all'])).toThrow();
     expect(() => parseArgs(['run'])).toThrow(/usage/);
@@ -92,6 +94,7 @@ describe('watchdog: locks', () => {
     const [a] = lockAlerts(l, { now: NOW, nodeLive: false });
     expect(a).toMatchObject({ kind: 'lock-stale', severity: 'warn', fix: null });
     expect(lockAlerts({ ...l, mtimeMs: NOW - 30 * MIN }, { now: NOW, nodeLive: false })).toEqual([]);
+    expect(lockAlerts({ ...l, mtimeMs: NOW - 241 * MIN }, { now: NOW, nodeLive: true })[0]).toMatchObject({ kind: 'lock-old', severity: 'warn', fix: null });
     expect(lockAlerts({ path: 'L', text: 'auto-train | pid 7 | 2026-10-24T06:00:00.000Z', mtimeMs: 0 }, { now: NOW, alive: () => true })[0].kind).toBe('lock-old');
   });
 });
@@ -108,19 +111,25 @@ describe('watchdog: orphans', () => {
     { pid: 16, ppid: 995, name: 'grep.exe', cmd: 'grep x /c/NightShift/a', created: NOW - 5 * MIN }, // young: a live pipeline
     { pid: 20, ppid: 1, name: 'cmd.exe', cmd: 'cmd', created: NOW - MIN },
     { pid: 17, ppid: 20, name: 'tail.exe', cmd: 'tail -f /c/NightShift/b', created: t0 }, // parent pid reused (newer)
+    { pid: 18, ppid: 994, name: 'node.exe', cmd: 'node scripts/run-e2e.mjs e2e-move', created: NOW - 150 * MIN },
   ];
 
   it('finds parentless tail / grep / e2e runners past the minimum age', () => {
     const o = findOrphans(procs, NOW);
-    expect(o.map((x: { pid: number }) => x.pid)).toEqual([12, 13, 14, 17]);
-    expect(o.map((x: { killable: boolean }) => x.killable)).toEqual([true, false, true, true]);
+    expect(o.map((x: { pid: number }) => x.pid)).toEqual([12, 13, 14, 17, 18]);
+    expect(o.map((x: { killable: boolean }) => x.killable)).toEqual([false, false, false, false, true]);
+    expect(o.map((x: { why: string }) => x.why)).toEqual([expect.stringMatching(/^MSYS/), expect.stringMatching(/^MSYS/), 'killed from 120 min', expect.stringMatching(/^MSYS/), '']);
+    // a heavy lock naming the runner or its (gone) parent keeps it alive
+    expect(findOrphans(procs, NOW, { lockPids: new Set([18]) })[4].killable).toBe(false);
+    expect(findOrphans(procs, NOW, { lockPids: new Set([994]) })[4].why).toBe('a heavy lock names it');
   });
 
-  it('kills only Night Shift command lines, by pid', () => {
+  it('kills only old Night Shift e2e runners, by pid; MSYS tools are info, alert only', () => {
     const a = orphanAlerts(findOrphans(procs, NOW));
-    expect(a[0].fix).toMatchObject({ check: 'orphans', type: 'kill', pid: 12 });
-    expect(a[1].fix).toBeNull();
+    expect(a[0]).toMatchObject({ severity: 'info', fix: null });
     expect(a[1].advice).toMatch(/never killed/);
+    expect(a[2]).toMatchObject({ severity: 'warn', fix: null });
+    expect(a[4].fix).toMatchObject({ check: 'orphans', type: 'kill', pid: 18 });
     expect(NS_CMD.test('node node_modules/vite/bin/vite.js preview --port 4191 --strictPort')).toBe(true);
     expect(NS_CMD.test('node node_modules/vite/bin/vite.js preview --port 5000')).toBe(false);
     expect(E2E_CMD.test('node scripts/run-e2e.mjs e2e-move')).toBe(true);
@@ -132,7 +141,7 @@ describe('watchdog: orphans', () => {
 const ctxNode = (name: string, state: string, createdAt = '2026-10-24T10:00:00Z', description = '') => ({ __typename: 'StatusContext', context: name, state, description, createdAt });
 const runNode = (name: string, conclusion: string, completedAt = '2026-10-24T10:00:00Z') => ({ __typename: 'CheckRun', name, status: 'COMPLETED', conclusion, completedAt, startedAt: completedAt });
 function prNode({ number = 7, branch = 'feature/x', head = SHA('a'), labels = [] as string[], labeledAt = null as string | null, committedDate = '2026-10-24T09:00:00Z',
-  contexts = [runNode('check', 'SUCCESS')] as unknown[], mergeable = 'MERGEABLE', isDraft = false, recent = [] as { oid: string; committedDate: string }[] } = {}) {
+  contexts = [runNode('check', 'SUCCESS')] as unknown[], mergeable = 'MERGEABLE', isDraft = false, recent = [] as { oid: string; committedDate: string; checkSuites?: { nodes: { createdAt: string }[] } }[] } = {}) {
   return {
     number, title: 't', headRefName: branch, headRefOid: head, isDraft, mergeable,
     labels: { nodes: labels.map((name) => ({ name })) },
@@ -159,6 +168,11 @@ describe('watchdog: PRs and the label convention', () => {
     expect(labelReady(normalizePr(prNode({ contexts: [...base.contexts, ctxNode('affected-e2e', 'PENDING')] }))).why).toBe('affected-e2e pending');
     expect(labelReady(normalizePr(prNode({ contexts: [...base.contexts, ctxNode('affected-e2e', 'SUCCESS')] }))).why).toMatch(/affected-e2e success$/);
     expect(labelReady(normalizePr(prNode(base)), { requireAffected: true }).why).toBe('affected-e2e missing');
+    expect(labelReady(normalizePr(prNode({ ...base, labels: ['no-affected-e2e'] })), { requireAffected: true }).ready).toBe(true);
+    // commits(last:1) lagging the head: its checks do not count
+    const lag = prNode(base);
+    lag.headRefOid = SHA('n');
+    expect(normalizePr(lag)).toMatchObject({ head: SHA('n'), check: 'missing', checkGreenAt: null, statuses: {}, headAt: null });
     expect(labelReady(normalizePr(prNode({ ...base, isDraft: true }))).why).toBe('draft');
     expect(labelReady(normalizePr(prNode({ ...base, mergeable: 'CONFLICTING' }))).why).toBe('conflicting');
     expect(labelReady(normalizePr(prNode({ ...base, branch: 'train/65' }))).why).toBe('train PR');
@@ -204,6 +218,10 @@ describe('watchdog: PRs and the label convention', () => {
     const recent = [{ oid: SHA('1'), committedDate: '2026-10-24T09:00:00Z' }, { oid: SHA('2'), committedDate: '2026-10-24T09:20:00Z' }, { oid: SHA('3'), committedDate: '2026-10-24T09:45:00Z' }];
     const p = normalizePr(prNode({ head: SHA('3'), labels: ['train-ready'], labeledAt: '2026-10-24T09:30:00Z', committedDate: '2026-10-24T09:45:00Z', recent }));
     expect(p.labelHead).toBe(SHA('2'));
+    // push time beats commit time: 2 was committed before the label but its check suite (the push) came after it
+    const suite = (t: string) => ({ nodes: [{ createdAt: `2026-10-24T${t}:00Z` }] });
+    const pushed = [{ ...recent[0], checkSuites: suite('09:01') }, { ...recent[1], checkSuites: suite('09:40') }, recent[2]];
+    expect(normalizePr(prNode({ head: SHA('3'), labels: ['train-ready'], labeledAt: '2026-10-24T09:30:00Z', recent: pushed })).labelHead).toBe(SHA('1'));
     const r = prAlerts([p], { now: NOW });
     expect(r.alerts[0].kind).toBe('pr-commit-after-label');
     expect(r.labelHeads).toEqual({ 7: SHA('2') });
@@ -221,7 +239,8 @@ describe('watchdog: PRs and the label convention', () => {
 
   it('names owners: override, newest queue request, cloud brief lead, else the job', () => {
     const owner = ownerMap({
-      requests: [{ id: '20261024T01', branch: 'feature/a', requester: 'Old' }, { id: '20261024T02', branch: 'feature/a', requester: 'New' }, { id: '20261024T03', branch: '', pr: 317, requester: 'Guard AI' }],
+      requests: [{ id: '20261024T01', branch: 'feature/a', requester: 'Old' }, { id: '20261024T02', branch: 'feature/a', requester: 'New' }, { id: '20261024T03', branch: '', pr: 317, requester: 'Guard AI' },
+        { id: '20261024T04', branch: 'feature/a', pr: 317, requester: 'affected-e2e' }],
       briefs: [{ branch: 'feature/b', lead: 'Sector Ops' }],
       override: { 'feature/guard-': 'Night Shift | Guard AI Build' },
     });

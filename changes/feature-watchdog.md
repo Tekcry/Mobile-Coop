@@ -7,4 +7,5 @@ kind: patch
   missing tag, merged members still open), a stale `/preview/`, auto-train health, laptop-queue claims and requests,
   and stuck cloud-queue claims. Fixes are opt-in per check (`--fix locks,labels,release,...`).
 - Label convention: `train-ready` is added only on CI `check` green plus a `checker` commit status of success (posted by
-  the lead's checker) and, once present, `affected-e2e` success (`docs/systems/watchdog.md`).
+  the lead's checker) and `affected-e2e` success: when present, and required once the laptop service posts it on
+  every PR head (#356) unless the PR is labelled `no-affected-e2e` (`docs/systems/watchdog.md`).
