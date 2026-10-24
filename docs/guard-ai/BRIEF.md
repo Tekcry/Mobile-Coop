@@ -632,3 +632,39 @@ A170-A181 are coop4's (already on master), so this batch takes A165-A169, then A
   pass only, so an off-view guard's shadow in view refreshes at 7.5 Hz (3.75 Hz at 30 fps; feet slide up to 21 / 75 cm).
   Light and shadow is the core pillar, so the lead does not ship it blind. Options: ship 8; count shadow-in-view as
   seen (after gm-flip; the saving then mostly goes); close T1. Undo: mark #360 train-ready (Michael picks ship 8).
+
+## Guard AI polish batch 2 (`feature/guard-ai-polish2`, `POLISH2-PLAN.md`, Opus planner 2026-10-25)
+A184-A194, ranked by player-visible impact; the source ids are the checkers' (S28-CHECK-B, POLISH-CHECK-A, ...). Host
+only, no protocol or save change. T1 (the recon drone's sight verdict) is a test only: `tests/reconDroneSight.test.ts`.
+- **A184** (S28-CHECK-B F2) An investigating guard whose spot is behind a locked door with no way round walks to the
+  nearest reachable point (the A* cell nearest the goal: `findPath` partial, `goTo` partial) and looks from there;
+  before: he stood where he was until `ALERT.investigateMax` 20 s. Search, patrol and combat chase are unchanged. Undo:
+  `NEAR_SIDE = false` in `src/ai/enemy.ts`.
+- **A185** (S26-CHECK-B 7) One "I heard something." per noise however many searchers hear it (all of them still go):
+  `hearSearch` returns whether he barked and the manager passes `!hearBarked`. Undo: `POLISH2.oneHeardBark = false` in
+  `src/ai/enemyManager.ts`.
+- **A186** (S27-CHECK-B 7) A high-cover overwatch holds his peek edge while a squadmate bounds, so his suppression line
+  starts there, not behind his wall. Low cover unchanged (S27-CHECK-B 6 is Michael's). Undo: `OW_HIGH_PEEK = false` in
+  `src/ai/enemy.ts`.
+- **A187** (POLISH-CHECK-A 1) A guard who goes alert on a call about one intruder while he sees another calls the
+  second in once (A166 at the alert step), and `calledMask` marks only the slot he was told of and his hunt. Undo:
+  `ALERT_RECALL = false` in `src/ai/enemy.ts`.
+- **A188** (S25B-CHECK-B P5) In a combat plan search only the first searcher looks at the last known position
+  (`SearchPlan.lkpBy`, `AiContext.searchLkp`); the rest take plan points at once. A lone searcher and the parked modes
+  are unchanged. Undo: `POLISH2.lkpOnce = false` in `src/ai/enemyManager.ts`.
+- **A189** (POLISH-CHECK-A 3) A flank bound may be up to 2.5 x the straight line + 3 m (`COVER_DETOUR.flankK`), since a
+  flank bends round the player's cover by design; point bounds, `pickCover` and open waits keep 1.5. Undo:
+  `COVER_DETOUR.flankK = 1.5` in `src/ai/enemy.ts`.
+- **A190** (S23-CHECK-B 1, part 1) A calm guard instantly detects any player in his instant range and focus, and that
+  player becomes his target (over `pickTarget` and A169's `CALM_KEEP`). Combat unchanged; `spotted` stays for the picked
+  player (S23-CHECK-B 1 part 2 is by design). Undo: `INSTANT_ANY = false` in `src/ai/enemy.ts`.
+- **A191** (POLISH-CHECK-A 5) A responder going back to his device search says no "Clear." / "Standing down."; the
+  task's `standDown` radio call stays. Undo: `RESUME_QUIET = false` in `src/ai/enemy.ts`.
+- **A192** (POLISH-CHECK-A 4) An armour pick casts the fire line for its best candidates in score order (at most
+  `ARMOUR_FIRE.coverCasts` 6, and at most `COVER_TRIES` A*), not for any top-3 entrant in index order. Without armour:
+  unchanged. Undo: `ARMOUR_CAST_LATE = false` in `src/ai/enemy.ts`.
+- **A193** (S26-CHECK-B 9 remainder) A heard spot snaps to the noise's storey, not the searcher's (`hearSearch` takes the
+  noise `y`; NaN: his own). Undo: `HEAR_STOREY = false` in `src/ai/enemy.ts`.
+- **A194** (POLISH-CHECK-A 2) The in-cover known-spot exits (`blockCover`, too close) need a spot: a hunt position, a
+  sighting or a stimulus; else today's feet rule. Hardening, not reachable today. Undo: `KNOWN_NEEDS_SPOT = false` in
+  `src/ai/enemy.ts`.
