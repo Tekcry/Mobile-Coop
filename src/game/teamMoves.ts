@@ -58,6 +58,8 @@ export interface TeamSide {
   anchor?: number;
   s?: number;
   sub?: number;
+  /** (mission KIT-SHUT) Crouched (the host's PF.crouch): the shutter's crawl needs it (`kit/shutter.ts`). */
+  crouch?: boolean;
 }
 
 export interface TeamRequest {
