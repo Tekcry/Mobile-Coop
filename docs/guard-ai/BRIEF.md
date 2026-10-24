@@ -627,3 +627,8 @@ A170-A181 are coop4's (already on master), so this batch takes A165-A169, then A
   `spawn(.., true)` already binds a valid slot, and with nothing valid the extra call only bound a positionless alarm
   slot. Such a guard now binds on the next call or sighting (`hunt` -1 until then); the freshest fallback in `sendIn`
   is for the parked modes only. Undo: `POLISH_B.alarmTell = false` in `src/ai/enemyManager.ts` (restores the two calls).
+- **A183** (guard-cap T1, PR #360) T1 (off-screen anim tier 4 -> 8) is HELD, not train-ready, for Michael's look call:
+  both checkers (`slices/T1-CHECK-A.md` / `-B.md` on feature/guard-ai-t1-anim-tier) found that "seen" is the camera
+  pass only, so an off-view guard's shadow in view refreshes at 7.5 Hz (3.75 Hz at 30 fps; feet slide up to 21 / 75 cm).
+  Light and shadow is the core pillar, so the lead does not ship it blind. Options: ship 8; count shadow-in-view as
+  seen (after gm-flip; the saving then mostly goes); close T1. Undo: mark #360 train-ready (Michael picks ship 8).
