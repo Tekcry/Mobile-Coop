@@ -24,6 +24,9 @@
 // ai.anim (EnemyManager.frameUpdate: the guards' rigs); nav.findPath / nav.lineClear / nav.flowField; ray.perceive /
 // ray.torch / ray.ai (other guard rays) / ray.other (player, weapons): physics raycastToRef calls and ms; light.totalAt.
 // Render extras: the light rig's shadow pool size and the shadow casters lit, flashlights on, guards per alert level.
+// (guard-models perf T1) In the counted sample: render.figure (GuardBody.frame + GuardFigure.posePending per frame: the
+// figures' render-side CPU, which ai.anim never saw) beside render.s1 (SmoothBody.frame + pose), and the camera pass's
+// active meshes per guard by class (S1 body / figure LOD / gear / gun parts / helmet / shield / other).
 //
 // Usage (the laptop, port 4189, after `npm ci` + `npm run build`, from the repo root; headless, never headed; ~2 min per
 // map x count):
@@ -370,6 +373,59 @@ async function pageRender([secs, counted]) {
   // (review G3) shadow-map renders counted a second way, from each light's shadow map itself (not its RT label)
   let smRenders = 0;
   const smObs = [];
+  // (guard-models perf T1) render.figure: the guard bodies' render-side CPU per frame, timed in the counted sample only
+  // (the clean sample stays unwrapped). Figures (flag on): GuardBody.frame (the scene's onBeforeRender observer: heat,
+  // flash, LOD pick, the pose request; before the perf batch also the pose itself) + GuardFigure.posePending (the pose,
+  // run in each figure skeleton's compute: only for a guard some pass draws). S1 merged bodies (flag off, and the
+  // disabled ones under figures): SmoothBody.frame (static, the per-render mark) + SmoothBody.pose (its skeleton compute).
+  const fig = { frame: 0, pose: 0, poseN: 0, s1frame: 0, s1pose: 0, s1poseN: 0 };
+  const figRows = [];
+  const figInfo = [];
+  const figRestore = [];
+  // per-guard active meshes (camera pass) by name: total, guard-owned (under a guard's rig root), and per class
+  const TALLY = ['total', 'guard', 'body', 'lod', 'gear', 'gun', 'helmet', 'shield', 'other'];
+  const tallyRows = [];
+  const otherNames = new Map();
+  const rigRoots = new Set();
+  let tallyFrame = 0;
+  const classify = (name) => {
+    if (/-smooth(-lod)?$/.test(name)) return 'body';
+    if (/shield/.test(name)) return 'shield';
+    if (/-lod[0-3]-\d+$/.test(name)) return 'lod';
+    if (/^wpn-/.test(name)) return 'gun';
+    if (/helmet/.test(name)) return 'helmet';
+    if (/^enemy-(armour|accent)/.test(name)) return 'gear';
+    return 'other';
+  };
+  if (counted) {
+    const time = (obj, name, key, nKey, label) => {
+      const orig = obj?.[name];
+      if (typeof orig !== 'function') { figInfo.push(`MISSING ${label}`); return; }
+      obj[name] = function (a, b, c) {
+        const t = performance.now();
+        try {
+          return orig.call(this, a, b, c);
+        } finally {
+          fig[key] += performance.now() - t;
+          if (nKey) fig[nKey]++;
+        }
+      };
+      figRestore.push(() => { obj[name] = orig; });
+      figInfo.push(label);
+    };
+    const ens = em0.enemies;
+    for (const e of ens) if (e.rig?.root) rigRoots.add(e.rig.root);
+    const gb = ens.find((e) => e.gbody)?.gbody;
+    if (gb) {
+      time(Object.getPrototypeOf(gb), 'frame', 'frame', null, 'GuardBody.frame');
+      time(Object.getPrototypeOf(gb.figure), 'posePending', 'pose', 'poseN', 'GuardFigure.posePending');
+    } else figInfo.push('no guard figure (flag off or not loaded)');
+    const sb = ens.find((e) => e.rig?.voxel)?.rig.voxel;
+    if (sb) {
+      time(Object.getPrototypeOf(sb).constructor, 'frame', 's1frame', null, 'SmoothBody.frame');
+      time(Object.getPrototypeOf(sb), 'pose', 's1pose', 's1poseN', 'SmoothBody.pose');
+    } else figInfo.push('no S1 merged body');
+  }
   if (counted) {
     for (const l of scene.lights) {
       try {
@@ -406,6 +462,25 @@ async function pageRender([secs, counted]) {
       tris = 0;
       evalMs = 0;
       shadowRts.clear();
+      // (perf T1) this frame's guard render CPU (the observers and skeleton computes of this render)
+      figRows.push([fig.frame, fig.pose, fig.poseN, fig.s1frame, fig.s1pose, fig.s1poseN]);
+      fig.frame = fig.pose = fig.poseN = fig.s1frame = fig.s1pose = fig.s1poseN = 0;
+      // (perf T1) active meshes by owner and class, every 4th frame (the parent walk is measurement cost)
+      if ((tallyFrame++ & 3) !== 0) return;
+      const am = scene.getActiveMeshes();
+      const row = TALLY.map(() => 0);
+      row[0] = am.length;
+      for (let i = 0; i < am.length; i++) {
+        const m = am.data[i];
+        let own = false;
+        for (let p = m.parent, k = 0; p && k < 24; p = p.parent, k++) if (rigRoots.has(p)) { own = true; break; }
+        if (!own) continue;
+        row[1]++;
+        const cls = classify(m.name);
+        row[TALLY.indexOf(cls)]++;
+        if (cls === 'other') { const k = m.name.replace(/[0-9]+/g, '#'); otherNames.set(k, (otherNames.get(k) ?? 0) + 1); }
+      }
+      tallyRows.push(row);
     });
   }
   const t0 = performance.now();
@@ -430,8 +505,23 @@ async function pageRender([secs, counted]) {
       scene.onAfterActiveMeshesEvaluationObservable.remove(o2);
       scene.onAfterRenderObservable.remove(o3);
       for (const [sm, o] of smObs) sm.onBeforeRenderObservable.remove(o);
+      for (const r of figRestore) r();
     }
     if (q) gl.deleteQuery(q);
+  }
+  // (perf T1) the tally's per-class median over the sampled frames, per guard alive too
+  let tally = null;
+  if (counted && tallyRows.length) {
+    const alive = Math.max(1, em0.enemies.filter((e) => e.alive).length);
+    const med = {};
+    TALLY.forEach((k, j) => {
+      const s = tallyRows.map((r) => r[j]).sort((a, b) => a - b);
+      med[k] = s[Math.floor(s.length / 2)];
+    });
+    const perGuard = {};
+    for (const k of TALLY.slice(1)) perGuard[k] = +(med[k] / alive).toFixed(2);
+    const n = tallyRows.length;
+    tally = { frames: n, alive, med, perGuard, otherTop: [...otherNames].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k, v]) => [k, +(v / n).toFixed(1)]) };
   }
   const em = g.enemyMgr;
   const rig = g.world.lightRig;
@@ -449,6 +539,9 @@ async function pageRender([secs, counted]) {
     gpuTimer: !!ext,
     counts,
     passes: [...byPass].sort((a, b) => b[1] - a[1]).slice(0, 14).map(([k, v]) => [k, +v.toFixed(1)]),
+    figRows,
+    figInfo,
+    tally,
     state: {
       alive: em.alive,
       levels,
@@ -542,6 +635,21 @@ function renderSummary(clean, counted) {
     activeMeshes: counted ? summary(col(counted.counts, 3)) : null,
     evalMs: counted ? summary(col(counted.counts, 4)) : null,
     shadowMapRenders: counted ? summary(col(counted.counts, 5)) : null,
+    // (guard-models perf T1) per frame of the counted sample: `figure` = GuardBody.frame + GuardFigure.posePending
+    // (render.figure), `s1` = SmoothBody.frame + SmoothBody.pose; poses = skeleton computes that posed
+    figure: counted?.figRows?.length ? {
+      totalMs: summary(counted.figRows.map((r) => r[0] + r[1])),
+      frameMs: summary(col(counted.figRows, 0)),
+      poseMs: summary(col(counted.figRows, 1)),
+      posesPerFrame: summary(col(counted.figRows, 2)),
+      s1TotalMs: summary(counted.figRows.map((r) => r[3] + r[4])),
+      s1FrameMs: summary(col(counted.figRows, 3)),
+      s1PoseMs: summary(col(counted.figRows, 4)),
+      s1PosesPerFrame: summary(col(counted.figRows, 5)),
+      timed: counted.figInfo,
+    } : null,
+    // (guard-models perf T1) active meshes (camera pass) by owner and class: medians over every 4th counted frame
+    activeTally: counted?.tally ?? null,
     passes: counted?.passes ?? [],
     state: clean.state,
   };
@@ -598,7 +706,7 @@ async function runPage(map, n, ctl) {
       const rec = { ...base, cell: name, spawn, wrenLoaded: opT >= 0, timer: info };
       try {
         Object.assign(rec, await withTimeout(fn(), CELL_TIMEOUT, `${map} x ${n} ${name}`));
-        log(`${map} x ${n} ${name}: ${rec.sim ? `sim step med ${rec.sim.stepClean.med} p95 ${rec.sim.stepClean.p95} ms (ai ${rec.sim.buckets['ai.manager'].med}); ` : ''}frame med ${rec.render.frameMs.med} ms (${rec.render.fps} fps), cpu ${rec.render.frameCpuMs.med} (sim frames ${rec.render.frameCpuMsWithSim.med}, ${rec.render.cpuMsPerSimStep} per 1/60 s of sim), gpu ${rec.render.gpuMs?.med ?? 'n/a'}, draws ${rec.render.draws?.med}, shadow passes ${rec.render.shadowPasses?.med} / maps ${rec.render.shadowMapRenders?.med}`);
+        log(`${map} x ${n} ${name}: ${rec.sim ? `sim step med ${rec.sim.stepClean.med} p95 ${rec.sim.stepClean.p95} ms (ai ${rec.sim.buckets['ai.manager'].med}); ` : ''}frame med ${rec.render.frameMs.med} ms (${rec.render.fps} fps), cpu ${rec.render.frameCpuMs.med} (sim frames ${rec.render.frameCpuMsWithSim.med}, ${rec.render.cpuMsPerSimStep} per 1/60 s of sim), gpu ${rec.render.gpuMs?.med ?? 'n/a'}, draws ${rec.render.draws?.med}, shadow passes ${rec.render.shadowPasses?.med} / maps ${rec.render.shadowMapRenders?.med}, render.figure ${rec.render.figure?.totalMs.mean ?? '-'} (s1 ${rec.render.figure?.s1TotalMs.mean ?? '-'}) ms, active ${rec.render.activeTally ? `${rec.render.activeTally.med.guard} guard-owned (gun ${rec.render.activeTally.perGuard.gun} / guard)` : '-'}`);
         for (const fl of rec.flags ?? []) {
           log(`${map} x ${n} ${name}: FLAG ${fl}`);
           results.flags.push(`${map} x ${n} ${name}: ${fl}`);
@@ -764,6 +872,18 @@ function csvCols() {
   ['shadow_map_renders_med', (c) => c.render?.shadowMapRenders?.med],
   ['active_meshes_med', (c) => c.render?.activeMeshes?.med],
   ['eval_med_ms', (c) => c.render?.evalMs?.med],
+  // (guard-models perf T1) render.figure per frame (counted sample) and the S1 bodies' equivalent
+  ['render.figure_mean_ms', (c) => c.render?.figure?.totalMs.mean],
+  ['render.figure_p95_ms', (c) => c.render?.figure?.totalMs.p95],
+  ['render.figure.frame_mean_ms', (c) => c.render?.figure?.frameMs.mean],
+  ['render.figure.pose_mean_ms', (c) => c.render?.figure?.poseMs.mean],
+  ['render.figure_poses_per_frame', (c) => c.render?.figure?.posesPerFrame.mean],
+  ['render.s1_mean_ms', (c) => c.render?.figure?.s1TotalMs.mean],
+  ['render.s1_p95_ms', (c) => c.render?.figure?.s1TotalMs.p95],
+  ['render.s1_poses_per_frame', (c) => c.render?.figure?.s1PosesPerFrame.mean],
+  ...['total', 'guard', 'body', 'lod', 'gear', 'gun', 'helmet', 'shield', 'other'].map((k) => [`active_${k}`, (c) => c.render?.activeTally?.med[k]]),
+  ['active_gun_per_guard', (c) => c.render?.activeTally?.perGuard.gun],
+  ['active_guard_per_guard', (c) => c.render?.activeTally?.perGuard.guard],
   ['shadow_pool', (c) => c.render?.state.shadowPool],
   ['shadow_lit', (c) => c.render?.state.shadowLit],
   ['torches_on', (c) => c.render?.state.torchesOn],
@@ -879,6 +999,20 @@ function resultsMd(R) {
       L.push(`Per added guard, ${cellName}, N ${a.count} -> ${z.count}: sim step ${sl((c) => c.sim?.stepClean.med)} ms, AI manager ${sl((c) => c.sim?.buckets['ai.manager'].mean)} ms, perceive ${sl((c) => c.sim?.buckets['ai.perceive'].mean)} ms, frame ${sl((c) => c.render.frameMs.med)} ms, frame CPU ${sl((c) => c.render.frameCpuMs.med)} ms, frame CPU (sim frames) ${sl((c) => c.render.frameCpuMsWithSim?.med)} ms, CPU per 1/60 s sim ${sl((c) => c.render.cpuMsPerSimStep)} ms, GPU ${sl((c) => c.render.gpuMs?.med)} ms, draws ${sl((c) => c.render.draws?.med)}.`);
     }
     L.push('');
+    // (guard-models perf T1) the guard bodies' render CPU and their active meshes, per cell
+    const gr = ok.filter((x) => x.map === m && (x.render.figure || x.render.activeTally));
+    if (gr.length) {
+      L.push('### Guard render CPU and active meshes (counted sample)', '');
+      L.push('| N | cell | render.figure ms mean / p95 | of it frame / pose | poses / frame | render.s1 ms mean / p95 | S1 poses / frame | active total | guard-owned | body | lod | gear | gun parts | helmet | shield | other | per guard: owned / gun | other top |');
+      L.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
+      for (const c of gr) {
+        const fg = c.render.figure;
+        const t = c.render.activeTally;
+        const tm = (k) => (t ? t.med[k] : '-');
+        L.push(`| ${c.count} | ${c.cell} | ${fg ? `${f(fg.totalMs, 'mean')} / ${f(fg.totalMs, 'p95')}` : '-'} | ${fg ? `${f(fg.frameMs, 'mean')} / ${f(fg.poseMs, 'mean')}` : '-'} | ${fg ? f(fg.posesPerFrame, 'mean') : '-'} | ${fg ? `${f(fg.s1TotalMs, 'mean')} / ${f(fg.s1TotalMs, 'p95')}` : '-'} | ${fg ? f(fg.s1PosesPerFrame, 'mean') : '-'} | ${tm('total')} | ${tm('guard')} | ${tm('body')} | ${tm('lod')} | ${tm('gear')} | ${tm('gun')} | ${tm('helmet')} | ${tm('shield')} | ${tm('other')} | ${t ? `${t.perGuard.guard} / ${t.perGuard.gun}` : '-'} | ${t ? t.otherTop.map(([k, v]) => `${k} ${v}`).join(', ') : ''} |`);
+      }
+      L.push('', '(render.figure: GuardBody.frame + GuardFigure.posePending per frame; render.s1: SmoothBody.frame + SmoothBody.pose; both wrapped only in the 2 s counted sample. Active meshes: the camera pass, guard-owned = under a guard rig root; gun parts = `wpn-*` instances.)', '');
+    }
     const passes = ok.filter((x) => x.map === m && x.render.passes.length);
     if (passes.length) {
       L.push('Draws per pass (last cell of each count):', '');
