@@ -1,0 +1,13 @@
+{
+  "id": "20261024T025416-player-build-667cbd80-9eff",
+  "sha": "667cbd8092158eb6932115fcb1a4b346ef0a8180",
+  "branch": "",
+  "pr": 308,
+  "kind": "pr",
+  "requester": "player-build",
+  "suites": [
+    "e2e-stealth-ai"
+  ],
+  "set": "rig-pose-fix-sai",
+  "note": "#308: e2e-stealth-ai after the test-only resight fix (other 18 suites passed on 4adf3785; diff since is tests / docs only)"
+}
