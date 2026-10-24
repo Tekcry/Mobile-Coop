@@ -374,7 +374,9 @@ Worktrees (node_modules junctions to Mobile-Coop-sector-redesign-bake2): -polish
    head fe16741b, checker status posted; orchestrator labels on green CI; Test Runner #366 overlaps service.mjs (the
    later train resolves). #366 is in train 74: when it releases, merge master into feature/visual-gate-train again,
    keep #366 lib.mjs import + add the visual.mjs import (~:92; the only clash), node --check, push; orchestrator labels. CLOUD: briefs visual-gate-vg5 (gate runner, off a3362896) + visual-gate-vg1-polish (metrics
-   polish 1 / 5 / 6) open on cloud-queue bcbc3608; on done: one checker each (Opus), merge.
+   polish 1 / 5 / 6) open on cloud-queue bcbc3608; + sector-redesign-polish3 (fog P1-P3, bake2 polish 5 lightBake
+   held.dead; off master fc4dc9ab; 24e7949b). On done: one checker each (Opus), merge / PR (polish3 = own patch PR).
+   After #361 lands: bake3 check polish (Math.min retry cap, held-order test) + bake2 polish 3 in a later batch.
 4. Marlow Build mission-framework EN2 adds hook lines in sectorMode.ts / sectors.ts / campusOps.ts on master
    (conflicts resolved in the train); no reply needed.
 Laptop requests: node C:/NightShift/scratch/lq/request.mjs (copied from origin/master with ../e2e-affected.mjs beside
