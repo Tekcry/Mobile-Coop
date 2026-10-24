@@ -8,6 +8,15 @@ C:/NightShift/Mobile-Coop-level-validator. Michael's uploaded skill (reference, 
 ## Now (2026-10-24 ~20:00, account cap ~20:10)
 Opus PLAN agent started; it pushes BRIEF.md / PLAN.md as WIP. If cut off at the swap: rerun it (prompt below).
 
+## Running (2026-10-24 ~20:11; orchestrator: start now, cap ~21:00)
+- V0 Opus: C:/NightShift/Mobile-Coop-level-validator-v0, feature/level-validator-v0
+- V2 Sonnet: -v2, feature/level-validator-v2 (scale-sheet.md only)
+- V4 then V3 Opus: -v34, feature/level-validator-v34 (level-design.md only)
+- DOC Sonnet: -doc, feature/level-validator-doc (testing-tools, changelog fragment, TESTING line)
+- V1: cloud-queue briefs/level-validator-v1.md (open, 276f32ff), branch feature/level-validator-v1
+Each slice branch is off b89a2a67 and touches only its own files: merge each into feature/level-validator after its hand-back (no conflicts expected). If cut off: rerun the slice from PLAN with the same worktree / branch.
+Then: V1a (cloud, after V2), V5a-e (after V0; M5 all five sections), V5f, CHK, PR.
+
 ## PLAN DONE 96d03285 (20:07): BRIEF M1-M4 + PLAN "M1-M4 (override the slice text below)" block; ready to build
 - Start now, in parallel (PLAN slice + ownership tables): V0 graph schema (Opus), V1 validator port + Vitest (Sonnet,
   cloud-queue brief; builds against a test metrics object until V1a), V2 scale-sheet room table x1.4 + section 8
