@@ -159,3 +159,10 @@ None yet. Open questions: PLAN.md "Questions for Michael" (asked later, native m
   directly. F1 / F8 need `upper.contrast` to separate (veil alone does not count: VG1 check polish 2). Proof builders
   write only `docs/visual-gate/proofs/P<n>.md`, in the job worktree (docs only, no new worktree). Undo: VG8 recomputes
   from the pushed JSONs with its own test.
+- A32 VG8 threshold rule (briefs/VG8.md): noise per row = max(VG7 spread sd, drift floor / 4), calibrated against the
+  worse of the fixed build and master; >= 6 noise units from good -> rule set; 4-6 -> THIN (set, flagged in RULES.md);
+  < 4 -> no rule (bound stays null, numbers reported). A rule that fails the VG8 rerun returns to null, no retune.
+  Undo: change the bands in VG8.md and rescore the pushed JSONs. (A31 is reserved for the M0 / PLAN 7 ladder decision.)
+- A33 The job lands as 6 stacked PRs (metrics, viewpoints, store + harness, gate, noise, e2e-visual last; briefs/VG9.md),
+  since it is ~5.6k counted lines over master before VG7 / VG8; shared files go in as patches on master's copies; the
+  train wiring (VG6, on master) stays inert until the last PR adds scripts/e2e-visual.mjs. Undo: one PR with `big-pr`.
