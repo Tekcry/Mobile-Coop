@@ -329,6 +329,9 @@ Every new map follows these phases, stopping for Michael after each:
    runs it as an audit; the campus (Sector Ops) is its first run.
 3. **Build** (one storey or area per phase, no guards): geometry, anchors, lights, zones, surfaces, doors, windows, hide
    spots; `scripts/plan-svg.mjs` renders the built level to compare with the approved plans.
+   **Greybox exit** (Michael 2026-10-24, "Yes, require it"): the greybox is done only when `npm run level-measure -- <graph> --write`
+   has written the measured values into the graph and `node scripts/level-validate.mjs --require-measured <graph>` ends
+   with 0 errors (every encounter space measured, every measured value inside its target, every warning justified).
 4. **Guards and mission**.
 5. **Dressing, readability and verification**.
 
@@ -337,7 +340,9 @@ Every new map follows these phases, stopping for Michael after each:
   and matches the built map. (Michael 2026-10-24, "Add 1-4 as extras".)
 - Greybox measurements meet the graph's targets: shadow share (5.5), vantage view (3.1), line-of-sight break (3.4),
   downed-partner reach (11.6) and split leg times (11.3), measured from the light bake and the nav grid; a measured
-  value that misses its target fails the map. The measuring step is a later job; until it lands, record each as "pending".
+  value that misses its target fails the map. Measured by `npm run level-measure -- <graph> --write` (the built
+  level in node: the light field the meter reads, the guards' nav grid, static sight lines; `--check` re-measures and
+  exits 1 on a missed target or a drift over 0.05), then `node scripts/level-validate.mjs --require-measured` must pass.
   (Michael 2026-10-24, "Add 1-4 as extras".)
 - Every planned traversal element engages from its planned approach (pad).
 - `e2e-anchors.mjs` covers the map.
