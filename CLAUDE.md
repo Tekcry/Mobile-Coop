@@ -9,6 +9,7 @@ stale; origin/master wins. Module map and doc index: `docs/INDEX.md` (read on de
 
 **Authority order (G86):** Michael > `docs/DECISIONS.md` > `docs/design-bible.md` > job and map docs
 (`docs/level-design.md`, the map's documents) > `docs/RULES.md` > code. Every decision is also written into the bible.
+docs/VISION.md summarises DECISIONS and the bible; where it differs, DECISIONS wins and the orchestrator fixes VISION.
 
 ## Hard rules (code)
 - No runtime CDN or network dependency. All assets are bundled; Havok WASM is imported with `?url`.
