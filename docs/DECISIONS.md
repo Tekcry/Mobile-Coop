@@ -1467,3 +1467,318 @@ and G249.)
 three campus props: "nothing should be voxel"): "Retire it". The `?voxels=1` render path, voxel characters / weapons and
 their tests are removed (#236); the lamp / sky / light bakes in `src/voxel` stay as light grids (not drawn). Replaces
 G68's "voxels only as the way the world is drawn" and G223's voxel comparison flag.
+
+**G283. An idle lead starts the next feature.** Michael (2026-10-24 ~15:10, standing rule): "if you ever run out of
+tasks, start making progress on the next feature/task." A lead with no PLAN slice left starts the next roadmap feature
+in its area (Opus plan first) instead of idling; the orchestrator assigns it. First use: Sector Ops 4-player co-op.
+
+**G284. Level standard extras: a connectivity graph and a validator per map.** Michael (2026-10-24 ~20:05, native
+multiple choice after the review of his stealth-level-design skill): "Add 1-4 as extras". `docs/level-design.md` stays
+and gains (1) a connectivity-graph JSON per map before any geometry, checked by a Node validator (port of its
+validate_level.py with our scale-sheet metrics: reachability, solo / co-op completability, 3+ approaches of 2+ kinds,
+dead ends, room sizes, openings, 0.5 m grid, ceilings, 2+ independent routes, co-op coverage, split parity, beat
+pacing); (2) a room-size-by-type table in the scale sheet; (3) numeric targets (routes cross at least once, vantage sees
+~70%, 40-60% of floor in shadow, line of sight breakable within ~5 s, guard counts per space early / late and per player
+count); (4) co-op rules for level-design section 11 (splits <= 90 s, path parity within 20%, partners act for each
+other, an overwatch spot per split, a downed partner reachable within 15 s, shared routes >= 2.0 m wide). A linear
+spine between sections, loops inside them. Every map passes the validator before greybox. Campus is the first run,
+~20:12: "Do the entire campus" (S1-S5). Guard counts (3-6 early, 6-10 late) are checked against our guard sheets before
+they become rules. Arena mode is parked.
+
+**G285. The validator: scaled rooms, one metrics source, routes per section, measured targets.** Michael (2026-10-24
+~20:18) approved G284's plan with four changes: (a) the room table is scaled too (start ~1.3-1.5x real, tuned in
+greybox); (b) every size comes from one metrics JSON generated from `docs/design/scale-sheet.md`, none hardcoded in the
+script; (c) route redundancy per section: 2+ independent routes from each section's entry to its exit; (d) the declared
+numbers (shadow %, 70% vantage, 5 s line-of-sight break, 15 s revive reach) are targets in the layout check and are
+measured in greybox, and the map fails if the measure differs; split parity uses traversal time, not room length.
+
+**G286. Train speed-ups: auto-drop, 1-minute ticks, overlapping trains.** Michael (2026-10-24 ~21:00, native multiple
+choice; label to master median ~43 min, 5 of 20 trains failed) picked all three: (1) a failing member is dropped and
+the train rebuilds at once; (2) auto-train runs every minute (Michael runs the #335 install-task commands for the queue
+workers); (3) train N+1 builds on train N and tests on the other machine while N runs (Opus plan first, built after
+auto-drop). (Refines G318; replaces G322's 5-minute tick.)
+
+**G287. Two test jobs from the process audit: visual-gate and coop-real.** Orchestrator, under G283 (2026-10-24
+~21:32 / ~21:35; ~8 of Michael's ~30 walk finds were visual and 5 were co-op bugs, all passing every test). Assumed,
+undoable. Sector Ops builds visual-gate: fixed viewpoints per map at Low / Epic, picture metrics against the last
+accepted release, a light-parity grid per map; its own status, flags and does not block a release; a look change is
+accepted by Michael or by the orchestrator citing his words. Player Build builds coop-real: an input-only co-op e2e
+(real client inputs, no state pokes, background tab, rejoin, E2E_NETSIM=typical), then its fixes. Test jobs, not
+refining.
+
+**G288. Process audit: four fix packages, refining allowed, walk pacing, one-click sign-off.** Michael (2026-10-24
+~21:50, native multiple choice on `docs/orchestrator/PROCESS-AUDIT-2026-10-24.md`): (1) all four fix packages start
+(watchdog and release path, one rulebook and lean docs, cheap swaps, intake gates and small PRs); (2) the "no refining
+until Michael playtests the core loop" rule is lifted; (3) "Cap 3 + walk card": at most 3 unwalked features per area (a
+lead at the cap works on tests, fixes and automation), and every release gets a 10-minute risk-ranked walk card with
+look videos for animation and lighting; (4) "Yes, one-click sign-off": before greybox or art on a map, or a big look
+change, Michael approves a one-page to-scale plan and a 5-line intent check with one click. (Replaces G179's "No fine
+tuning until that loop plays".)
+
+**G289. Level validator: campus waits for the mission audit; measured pass at greybox exit; dense guards.** Michael
+(2026-10-24 ~22:00, native multiple choice on PR #346): (1) the campus S1-S5 fixes and the S3 re-plan wait for the
+mission design audit, then are planned with its rules and his one-click sign-off; (2) "Yes, require it": a measured
+validator pass (V6 `--require-measured`) is part of the greybox exit; (3) guard density: "I would prefer having as many
+guards as realistically possible to make it challenging." Assumed, undoable: no upper band; each space gets the guards a
+real site would post, pushed high, limited only by the guard-cap perf floor and every route staying passable; the
+validator WARNs only below the 3-6 early / 6-10 late bands. (Extends G254.)
+
+**G290. Mission rules: section restart, up to 2 strict rules, no markers.** Michael (2026-10-24 ~22:12, native multiple
+choice on `docs/orchestrator/MISSION-DESIGN-AUDIT-2026-10-24.md`): (1) breaking a mission rule restarts the section
+(the team goes back to that section's checkpoint, the mission continues); (2) up to 2 strict rules per mission,
+signposted in the briefing and the objective list, "ghost" counting as one; (3) no markers plus an optional hint layer
+(off by default); guidance is in-world only (objective text names places, leads, light language, landmarks). (Replaces
+G125's "at most one hard rule"; Marlow Yard's guidance is settled by G292.)
+
+**G291. Mission modes and the first prototypes.** Michael (2026-10-24, the same evening and ~22:12): campaign missions
+are 2-player co-op only with strict rules; Sector Ops is 4-player co-op with parallel objectives for two teams (or one
+player doing them all), strict rules allowed globally, per team or per split. First prototypes: Three Grey Coats and
+Two-Key Ledger (campaign, 2p), Split Shift and Code Relay (Sector Ops, 4p). Next: a mission-framework job (objective
+chains with parallel tracks, rules per mission / team with section restart, an interrogate-a-named-target objective,
+validator objective and rule nodes), then the four prototypes; the campus S1-S5 fixes are planned against it with
+one-click sign-off.
+
+**G292. Marlow Yard is a guided linear course; campaign sections force co-op traversal.** Michael (2026-10-24 ~22:45):
+"Marlow is a training course and may have different rules to standard mission, ie its heavily guided and must teach the
+players the basics of coop gameplay. All campaign missions are strictly coop and cannot be completed solo, must have
+forced coop traversal to proceed (help player climb a wall, throw coop player over a gap to open a locked pathway for
+the other player, and any suggestions you have). Marlow should be very linear, 1 route (until later sections where it
+teaches multiple objectives/split paths for players to help each other)". Marlow Yard keeps its guidance marks and one
+linear route, with split paths and multiple objectives only in its later sections as teaching; G290's no-markers rule
+and the multi-route rules bind campaign missions and Sector Ops, not Marlow. Every campaign section forces a co-op
+traversal move with no solo bypass. (Extends G253 and G272.)
+
+**G293. The campaign prototypes get a new small map; the co-op traversal kit.** Michael (2026-10-24 ~22:50, native
+multiple choice): Three Grey Coats and Two-Key Ledger go on a new small campaign map, "If it's ready before I'm awake,
+continue to make progress": greybox may proceed overnight before his sign-off; the sign-off page is still made. The
+traversal kit: boost up a wall, throw over a gap, human ladder / pull-up, hold a shutter or door, rope brace / descent,
+vent unlock for the partner, plus "Any other creative coop ideas". (Applies G292; an exception to G288's sign-off before
+greybox.)
+
+**G294. Guard off-screen animation tier stays at 4 for now.** Orchestrator (2026-10-24 ~23:46, Michael asleep). Assumed,
+undoable. PR #360 (tier 4 -> 8) is held: its "seen" test counts only the camera pass, so a guard just out of view whose
+shadow falls in view updates at 7.5 Hz and the shadow's feet slide 21-75 cm; a visible shadow artefact loses to the CPU
+win. After gm-flip, Guard AI tries "shadow-in-view counts as seen" (`animTierView.ts`) and measures the saving left; a
+GPU look of the case goes in Michael's morning pack. Undo: label #360 train-ready to ship 8 as is.
+
+**G295. Sector Ops redesign: larger, up to 5 sections, harder security that makes sense.** Michael (2026-10-23 ~01:08):
+"regarding sector ops, i want to make it larger and with more sections (5 max), accomodate more guards in each section,
+more security that gradually gets harder, cameras need to have less range (they currently pick the player up well
+outside of the intended area), should have coop only pathways but still able to complete solo if someone wanted to.
+doesnt have to keep the same layout or warehouse map. level design must be well flowing, no random lasers or cameras for
+the sake of having them, why would they be there in that location, what are they protecting, why would there be melee
+only guards they should all have weapons, guards should interact with eachother and have reason to what they are doing
+or protecting. must take careful planning and observation to pass. review lighting also, i think the rules may be too
+strict and the levels are very dark and unrealistic. there shouldnt always be shadows, the player may have to make
+shadows (disabling lights etc). ask me questions as needed". Job sector-redesign. (Replaces G186's three sections and
+G266's warehouse rebuild; extends G280.)
+
+**G296. Sector Ops redesign: r2 folded in, its own session, plan then build.** Michael (2026-10-23 ~01:10): "Stop r2,
+fold into redesign" (the r2-nav / r2-bolt engine fixes kept, the warehouse geometry work stopped); "Parallel, own
+session" (Course Ready leads sector-redesign and drops the marlow-final second-builder role; Marlow Yard and mocap keep
+first claim on tests); "Plan, then build" (a spec for all sections, then greybox straight on; he reviews both in the
+morning); the camera-range cut and the lighting rule review on "All maps" (one engine change, one level-design lighting
+proposal for Michael).
+
+**G297. Sector Ops: a corporate research campus, 30-45 min, up to 24 guards, dogs.** Michael (2026-10-23 ~01:20):
+setting "Corporate research campus"; one co-op run "30-45 min"; guards "up to 24, each section should gradually get
+harder with more guards and more security."; security "Include guard dogs" (cameras, lasers, alarm panels, keypads,
+then dogs and armed response). Lighting, the orchestrator's reading of his G295 words: lit like a real site, players
+cut lights to make shadows, dark zones only where believable. (Refines G187's per-section counts for this map.)
+
+**G298. Cameras keep IR; every guard armed; both Sector Ops maps; mocap on by default.** Michael (2026-10-23 ~01:25):
+cameras "Keep IR everywhere" (G240 stands: cutting lights beats guards and the light meter, never cameras); no
+melee-only guards on "Every map" (Marlow Yard and Sector Ops guards all armed); old warehouse "Keep both" (the research
+campus is a new Sector Ops map, the warehouse stays selectable); mocap "On by default" once mocap-trial-2 and the new
+clips pass their checker, the hand-keyed set behind the switch. (Replaces G264's default off.)
+
+**G299. Guard AI: realistic hearing, caution, investigation and teamwork.** Michael (2026-10-23 ~01:30; job guard-ai,
+plan base `docs/reviews/guards-review.md`): "also note that right now every guard hears when things break or someone
+gets shot which is unrealistic. if they are within range they should hear it, depending on whether they are near
+something noisey, and if they see a guard get killed or find one dead/knocked out they should wake them up (if knocked
+out), report them dead, and become cautious. the only way to clear the cautious guards should be to eliminate any that
+are aware of what happened, but if they were knocked out the caution can be limited. if its a broken or distrupted
+light, one or two people should investigate (if only one is nearby then only one investigates), but they should return
+back to normal after investigating the light and general vicinity of the light. guards that get alerted should alert
+other guards, either by voice proximity or radio., but not everyone should be alerted at once. any guards in a highly
+secure zone should not leave their post or area if they are protecting something of high value or a security door that
+shouldnt be accessed, but they should still be able to be distracted at least. always want to improve enemy ai in
+general, making them smarter, work together, flank, use cover to hide and report, they should be smart and tactical,
+not just rush the player, but any reinforcements must be aggressive. ask me questions if needed"
+
+**G300. Guard AI answers: timed KO caution, reinforcements after a raised alarm, staggered radio, cameras report
+bodies.** Michael (2026-10-23 ~01:35): builder "New session" (Night Shift | Guard AI Build); KO caution "Timed, then
+search ends" (the woken guard and the one who woke him search, stay cautious a few minutes, then normal); reinforcements
+"After a raised alarm" (an alarm panel hit or a radio report that gets through; killing the caller first stops it);
+radio "Own section, staggered" (voice range first, then that section over a few seconds; other sections stay normal).
+~01:37: "cameras should also see dead or knocked out guards, and report to other nearby guards to investigate if so."
+(Applies G299.)
+
+**G301. Overnight: proposed rule loosenings applied, logged and undoable; finished big jobs merge.** Michael
+(2026-10-23 ~01:42; lighting LR1-LR12 `docs/lighting-review/PROPOSAL.md`, marlow-final P1-P17, sector-redesign
+P1-P10): "Apply, logged and undoable": builders use them as assumed decisions, each listed for his morning review with
+its undo. Big jobs finished overnight (Marlow Yard, Sector Ops campus, Guard AI) that pass their tests: "Merge to
+master" (next train, `/preview/`).
+
+**G302. Opus plans and checks, Sonnet builds from strict briefs, Haiku does chores.** Michael (2026-10-23 ~01:45):
+"after the reset, i want to make sure you use 99% of each 5 hour limit, but as effectively and efficiently as possible
+to make as much progress but as lean as possible on token usage, without sacrificing quality. if opus makes a strict,
+comprehensive plan that a lower model can use then you can proceed with agents running on different models. i am open
+to your recommendations." He chose "Apply it": Opus 5.5 plans, writes strict slice briefs, reviews and runs every fresh
+checker; Sonnet 5.5 builds slices from those briefs (map greybox and data, tests, wiring); Haiku 5.5 does mechanical
+chores; leads stay Opus; tricky engine / AI / animation code stays Opus; a failed Sonnet slice gets its fix round from
+Opus. (Replaces G88's "Opus builds", G245's all-Opus and G281's 100%; its 99% pacing is replaced by G304.)
+
+**G303. Sector Ops: some guards are unavoidable.** Michael (2026-10-23 ~01:50): "regarding new sector ops map also, make
+sure there are sections where at least one guard is unavoidable to reach the objective/exit. they must be distracted,
+knocked out, or killed. flexible to your suggestions with that also."
+
+**G304. Pacing: hit the cap as soon as possible, with the model split.** Michael (2026-10-23 ~09:00): "Aim to hit the
+cap ASAP, but be efficient with usage between opus, sonnet; and haiku. Use as many agents and laptop/desktop as you need
+to progress quickly". Full burn to 100% each window with G302's model split; agents limited only by desktop CPU (trim
+when over 90%); both machines test. (Replaces G302's 99% windows.)
+
+**G305. Token efficiency: fewer messages and checkers, more parallel slices.** Michael (2026-10-23 ~09:40): "i want it
+running full burn all day, i will change accounts at 99%", then "apply all. maximise token usage during full burn where
+possible to achieve more". Orchestrator messages only for PR / train-ready / blocked / needs Michael; clear at ~25-30%
+context; spare jobs bundled into one batch PR per train; one checker per batch of slices (Sonnet for greybox / data,
+Opus for AI / anim / net); no polling turns; master merged into a branch only when it enters a train. The tokens saved
+go to more parallel slices and spare jobs up to the CPU cap (CLAUDE.md "Heavy-usage throughput" at the time).
+
+**G306. Throughput for heavy usage.** Michael (2026-10-23 ~09:50): "update with your token suggestions to accomodate
+heavy usage (desktop e2e and merge PRs)". Desktop agents capped so CPU stays under ~80% (3 tsc / vitest agents per
+session); the heavy.lock desktop lane runs single GPU suites under 80% CPU; PRs outside src/net / protocol / save enter
+trains on CI plus at most two area suites; stacked series share a train; trains at 3+ ready or a 2-hour wait. (Replaces
+G246's 2+ trigger; its train trigger and desktop lane are replaced by G318.)
+
+**G307. Reward stealth over shooting as sections get harder.** Michael (2026-10-23 ~10:10, native multiple choice in
+Character Build, relayed): theme "reward stealth over shooting as sections get harder". (1) bulletproof cameras in later
+sections (shots only ricochet; jam, cut power or slip the sweep; early sections keep shootable cameras); (2) no instant
+headshot kills later (a helmet: the first headshot knocks it off and staggers, the second kills; takedowns stay one
+move); (3) riot-shield enemies only in alert response teams; (4) alarms escalate (armour / helmets and a response team
+per stage; "dont add cameras, that doesnt make sense"); (5) a section rating (undetected / no kills / no alarms /
+bodies hidden) with real rewards; (6) missed patrol check-ins and found bodies raise alert; (7) gunfire alerts the
+section, limited suppressor ammo, no ammo inside a section and one refill between sections: ~10:20 "there should be ammo
+refill inbetween sections for now, but none within sections. and multiple players must be able to use it only once
+each. it should look like a weapons crate" (replaces his ~10:15 "only what you start with" and "scarcer ammo later").
+Assumed, undoable: the crate tops up to the starting loadout, never above; weapon ammo only, gadgets unchanged; it sits
+at the section start / checkpoint; a section restart resets it; a used crate shows per player (that player's slot
+empty, prompt gone). (8) shot lamps draw an investigation, breaker cuts are cleaner; (9) interrogation gives door codes,
+camera routes, patrol timing; (10) armoured routes (bulletproof glass / doors) with a quiet bypass (vent, hack,
+hang-down); (11) response teams stay and search, no stand-down; (12) synced co-op takedowns reward more than shooting;
+(13) heavier late guards: body armour, torso shots only stagger; (14) thermal / night-vision cameras late. Not chosen:
+ghost-run bonus gear.
+
+**G308. Sector Ops goes to 4 players after the redesign; Marlow Yard stays at 2.** Michael (2026-10-23 ~10:25): "make a
+note to increase sector ops to 4 player coop after the redesigned map is completed. marlow yard stays at 2." Sector Ops
+only, up to 4 players, after sector-redesign; Marlow Yard (the campaign training level) stays 2 players. (Replaces
+G50's two-player maximum for Sector Ops only; G2 and G50 stand for the campaign and Marlow Yard.)
+
+**G309. Campus gets the full detail-art lift.** Michael (2026-10-23 ~10:40): "add the full detail-art lift of campus as
+efficiently as possible". G278's detail-art lift (marlow-final only) extends to `campusOps`: full finish, not greybox
+only. (Extends G278.)
+
+**G310. Realistic guards after Sector Ops: all male, larger than Wren, clear variety.** Michael (2026-10-23 ~11:45, on
+building guards from Wren's Blender operator pipeline, bible 5.14): "after sector ops. i would prefer clear variety in
+guards. They can all be male, and larger build than Wren as she is quite small. Different types of guards should look
+different where needed (some may have armour, some without, some helmets etc), and also need to build additional coop
+player characters, but would rather fix this after all levels are completed". Job guard-models after sector-redesign
+(incl. campus detail art); archetypes look different (armour / helmets per type, matching G307's gear); extra co-op
+player characters after all levels are done; guard-render S1 ships meanwhile. (Its order is replaced by G321.)
+
+**G311. The iPad fit: menus and HUD.** Michael (2026-10-23 ~13:05, iPad screenshots of 4.72.0): "what ever happened to
+the ipad display fix?" (no earlier record found); "Yes, in Player batch 23". Menus and HUD only: version label inside
+the screen, safe-area insets, the Windows GPU banner only on Windows, the pause room-code line no longer clipped (#214).
+(Applies G182.)
+
+**G312. Walk 4.72 / 4.73: animations, guards, Marlow Yard restart, real light fittings.** Michael (2026-10-23 ~13:55;
+`docs/orchestrator/WALK-4.72-REPORT.md`): "animations are not great, very wonky and unbelieveable"; "we need to fix all
+animations anyway, even the normal ones arent good". Guards: lasers draw a search of the laser spot and room, not the
+player's real position; body investigations last longer; urgency to alarms and reported bodies; no walking through
+each other or doors; holstered in calm areas. Marlow Yard: a checkpoint restart is a full reset (guards, bodies,
+cameras, doors); the S3 hallway camera bulletproof. Lighting "not realistic": lights spread like real fittings
+(measure and propose). (Extends G239.)
+
+**G313. Anim Studio only from the main menu.** Michael (2026-10-23 ~14:00): "remove anim studio from in game menu, only
+accessible via main menu. animation tuner in game menu as is".
+
+**G314. Realistic lamp falloff: try it first; a shadow parity audit.** Michael (2026-10-23 ~14:35, native multiple
+choice on LR13, `docs/lighting-review/PROPOSAL.md` section 7): "Try it first": inverse-square lamp falloff (level at
+3 m, smooth to 0 at 1.6x radius) behind an in-game settings toggle, default off; the meter, guard perception and the
+picture switch together (light parity). ~14:45: "Audit + parity fixes": one Opus audit of shadow-edge parity, moving
+occluders (doors, shutters, crates, bodies) updating the bake, and unshadowed flashlights and lamps lighting through
+walls; fix what fails; penumbra width and one-bounce fill go on the polish list. (The toggle is removed by G316.)
+
+**G315. Real-time character shadows from the nearest lamps.** Michael (2026-10-23 ~14:42, on CT's key lamps casting
+character shadow maps where ours used capsule blobs): "yes i want to include this system now as its one of the main
+focus of the game". Slice LR14: the 2-4 lamps nearest the players get real-time character shadow maps in one shared
+atlas (WebGL2, inside the 16-texture cap); static geometry stays baked; other lamps keep capsules; render only (meter
+and perception keep their model, the parity effect logged); on at High+ presets, capsules at Low / Medium, plus a
+settings toggle; a GPU and perf run before the train.
+
+**G316. One lighting system on every map: realistic, diffused, a showcase.** Michael (2026-10-23 ~18:08, after 4.78.0):
+"Character shadows and new lighting is a huge improvement. Approve updating lighting throughout maps, however light
+positioning needs to be improved to prevent all the sharp light bleeding on the walls, the edge of lights should
+diffuse against walls/floors/etc unless something directly cuts off the light ray, depending on how far away it is.
+Must be realistic depiction of light." ~18:12: "Disable returning to original lighting system, focus on only the one
+new system". ~18:15: "I want to make sure we emphasis the light/shadow system like chaos theory did, like a showcase no
+matter where you look"; chose "Fold into LR16". ~18:20: "Also, there was still guards torches showing through
+walls/doors, and their torches also need to be diffused and not so sharp." Realistic falloff and character shadows on
+every map; the Lamp falloff setting and the Classic path are removed (character shadows keep Auto / On / Off); no hard
+bright arcs on nearby walls; soft light edges, hard only where an occluder cuts the ray, softer the farther the
+occluder (contact-hardening); guard torches stop at walls and shut doors, with soft beam edges; meter and perception
+follow the picture. LR16 starts with an Opus audit of every CT light / shadow feature against ours, with GPU sheets of
+every map. Sector Ops Build leads. (Replaces G314's toggle and default off.)
+
+**G317. Release speed-ups as the orchestrator recommended.** Michael (2026-10-23 ~18:25): "Approve as per your
+recommendations - whichever speed up the process and reduce bottlenecks to achieve faster progress." Job release-speed:
+(1) merge-train `build` makes the version commit so CI runs on the train head beside the laptop run, and `release` only
+merges / tags / moves dev; (2) PROTOCOL_VERSION asserts read the constant, so one train may carry several wire changes;
+(3) `build` runs vitest on the train head first; (4) `release --resume` after a CI fix; (5) CI lint / test / build in
+parallel with a node_modules cache and per-branch cancel-in-progress; (6) leads stop merging master before
+train-ready (the train build merges and resolves conflicts).
+
+**G318. Pipeline speed-ups: laptop queue, fixed prompts, automatic trains, no desktop e2e.** Michael (2026-10-23 ~19:10,
+native multiple choice on `docs/orchestrator/BOTTLENECKS.md`; ~18:55: "be more proactive with identifying bottlenecks
+... make it part of your routine somewhere to constantly find bottlenecks") started all four: (1) the laptop queue
+service (JSON requests, priority order, trains preempt the second slot, `laptop-e2e` commit statuses); (2) fixed swap
+prompts (`docs/orchestrator/PROMPTS.md`); (3) automatic suite selection (`run-e2e.mjs --affected`); (4) housekeeping
+(locks carry a PID, stale ones break themselves; `release` closes merged member PRs; alone-measures right after each
+release). Rolling trains: "Yes, fully automatic" (a script builds and releases on CI + laptop green, no 3-PR wait).
+Laptop on the same account: "No, same account". Desktop: "i dont think software gl is worth it due to it being so much
+slower"; ~19:15 "Yes, all three steps": no e2e on the desktop (all suites to the laptop queue), agent CPU cut, hardware
+only if still pegged; checkers in parallel with the laptop run: "Yes, parallel". Release pace, after "which one saves
+the most time?": the orchestrator's pick at Michael's ask, undoable: at most one release every 60 min or earlier when
+the laptop queue is idle. (Replaces G306's train trigger and desktop lane, and G246's batching; one PR per train, G247,
+still holds.)
+
+**G319. Tokens for progress: cloud builders, two checkers on AI and net, plan ahead, high effort.** Michael (2026-10-23
+~19:25, native multiple choice): "i dont mind how fast we use tokens, only that its making significant progress"; all
+four applied: (1) tsc / vitest-heavy builder slices run in cloud sessions (e2e stays on the laptop; Michael creates the
+cloud environment); (2) two independent checkers on AI and `src/net` PRs, an Opus triage agent on every laptop failure
+the moment it lands, and a decision pack with every question to Michael; (3) Opus briefs the next 2-3 slices and plans
+the next roadmap jobs ahead (plans and briefs only, no code; replaces "nothing speculative" for plans); (4) effort high
+for every lead; a slice that fails its checker gets Opus for the fix round and Opus builders for its siblings. (Extends
+G302 and G305.)
+
+**G320. Guard models look: mid-detail faces, balaclavas on heavies, one look per guard.** Michael (2026-10-23 ~19:45,
+native multiple choice on the guard-models plan): faces on most guard kinds, balaclavas on heavy / armoured; "Why do the
+faces have to be low-detail? I don't think hero style detail but at least half decent": mid-detail LOD0 faces, lower at
+LOD1 / LOD2; the look review is a contact sheet after the bake, no stop, notes into a fix pass; "Same look always" after
+a section restart (a per-guard look seed on the wire, one PROTOCOL bump by the train build). (Extends G310.)
+
+**G321. Player Build takes guard models now; a desktop overflow lane.** Michael (2026-10-23 ~20:45, native multiple
+choice while AF7-AF9 wait on his walk of AF0-AF6): Player Build takes the guard-models build now, ahead of G310's
+"after sector-redesign" order. Desktop overflow: "Yes, overflow only" (the desktop is laptop-queue slot 3, PR requests
+only, backlog over 3, CPU under 60%; trains stay on the laptop). (Replaces G310's order; refines G318's no desktop e2e.)
+
+**G322. Auto-train live.** Michael (2026-10-23 ~20:55) ran the register command: the task "NightShift auto-train" runs
+every 5 min from `C:/NightShift/Mobile-Coop-autotrain` (a master checkout, pulled when auto-train.mjs changes).
+(Applies G318; its 5-minute tick is replaced by G286.)
+
+**G323. Moving lights: flicker and stutter; swinging pendants in Marlow Yard only.** Michael (2026-10-23 ~21:08, native
+multiple choice on LR16-5): "Flicker + stutter": fires flicker and one failing tube stutters per main map, through the
+light registry so the meter and guard perception follow (light parity); no lightning windows (not in CT co-op). ~21:12:
+"Yes to Marlow yard only, campus later if applicable": swinging pendants (sway when shot near or bumped, a
+character-shadow slot kept) on Marlow Yard only, campus later only if its perf headroom returns, not the warehouse.
+Sector Ops Build, Opus slices and a GPU perf check.
