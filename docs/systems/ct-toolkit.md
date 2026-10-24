@@ -1,6 +1,9 @@
 # Chaos Theory toolkit - spec (V0)
 Status: spec; built so far: the optic cable at doors (3.2, prototype: `player/opticCable.ts`, `game/opticSystem.ts`,
-`config/tools.ts`; open: hatches, panels, grilles, the partner's kneel over the wire, the camera's ease back).
+`config/tools.ts`), the partner's kneel and cable over the wire (MoveState mode `optic`, optic-coop) and the engine side
+of hatches, panels, grilles and shaft tops (`OpticPoint`, `LevelBuilder.opticGap`, `OpticSystem.pickPoint`, optic-coop);
+open: an input for the gaps (F is the co-op action: Michael's call, section 2), placing gaps on a map (no spec names
+one), a bound ping input, the camera's ease back.
 The rest is not built. Approved by Michael on 2026-10-11 for Kestrel's Mission 1 (Dead Line, the
 Kestrel map), pistol secondary revision. Kestrel is paused until after the CT co-op research (G53), and CT's gadget and
 attachment set is settled by that research (G76), so this set may change before V1 starts.
@@ -49,7 +52,7 @@ if one is taken.
 | Use | Keyboard and mouse | Gamepad |
 | --- | --- | --- |
 | Contextual use (pick, hack, cut, question) | E (existing interact) | Y (existing) |
-| Optic cable (new action `optic`) | Door menu at a door (G97); F (proposal) at hatches, panels, grilles | Door menu at a door; a free button elsewhere (proposal) |
+| Optic cable (new action `optic`) | Door menu at a door (G97); F (proposal) at hatches, panels, grilles. (optic-coop) F is taken by the co-op action (`keyBindings.ts` `coop`): not bound, open for Michael; CT's footage shows OPEN TRAP / OPTIC CABLE in the action menu at a floor trap (AUDIT-ACTIONMENU), an alternative to a new key | Door menu at a door; a free button elsewhere (proposal; D-pad up / down are free in play) |
 | Launcher rounds (shocker, airfoil) | Tab wheel to select, G hold to aim, release to fire | D-pad left hold (wheel), D-pad right hold / release (existing `grenade`) |
 | Pistol secondary (new action `secondary`, always available) | H (proposal; free) with the pistol drawn: hold to aim, release to fire | A while aiming (proposal) |
 | Lockpick minigame | Mouse moves the pick round a dial (A / D also turn it) | Left stick angle |
@@ -78,7 +81,7 @@ and `docs/systems/takedowns.md`.
 | Noticed by | The tip is not a body and is never perceived. The player's own body on the near side is perceived as normal. |
 | Security (S0) | With night vision on, the view shows beam lines behind the door (S0 3: beams show only in night vision). Cameras, PIR and readers behind the door are seen, not affected. |
 | Ghost rule | Ghost-safe. |
-| Co-op | `MoveState` mode `optic` (sub: door, hatch, panel, grille) so partners see the kneel and the cable. The view is local. Pings from the view go to the team (existing ping). |
+| Co-op | `MoveState` mode `optic` (sub: door, hatch, panel, grille) so partners see the kneel and the cable. The view is local. Pings from the view go to the team (existing ping). Built (optic-coop): `a` the door or gap index, `ph` the cable fed out; the partner kneels, the right hand on the feed point, a thin cable from the hand toward the tip (`opticPlaceOf`, `opticCableEnd`, the owner's own cable is the same); a shaft top sends sub grille; the ping casts from the tip (`cam.gamePos`), but no ping input is bound yet. |
 | Camera | The camera leaves the body and sits at the tip; the scene renders once (no second camera). The tool places the tip only after a sphere cast (F23 padding 0.16) from the gap to the tip point is clear; otherwise "No gap". Near plane at its minimum, the camera safety chain is off while in the view, and the normal camera eases back in on leaving. A round vignette and a grain overlay mark the view (render only). |
 
 ### 3.3 Lockpick
@@ -217,7 +220,7 @@ contract.
 | --- | --- | --- | --- |
 | `lock` | doors, containers (lockers, cupboards, drawers, key cabinet, rack doors, cage padlocks, car doors) | `none`, `reader` (S0), `wafer`, `pin`, `high` | 3.3 |
 | `seal` | doors | `true` refuses the optic | 3.2 |
-| `optic` | hatches, ceiling panels, grilles, shaft tops | `true`, with a tip point the builder checks | 3.2 |
+| `optic` | hatches, ceiling panels, grilles, shaft tops | `true`, with a tip point the builder checks | 3.2 (engine: `LevelBuilder.opticGap(kind, gap, normal into the space, tip?)`, default tip `OPTIC.into` 0.3 m along the normal; refusals "Too far" (1.0 m, the gap 0.6 m under to 2.4 m over the feet), "No gap" (the collision check gap -> tip); none placed yet) |
 | `alarm` | cars | `true` / `false` | 3.3 |
 | `hack` | terminals, keypads | `{ tier: terminal or keypad, services: [ "intel:<flag>", "unlock:<doorId>", "fault:<faultId>" ] }` | 3.4 |
 | `cut` | tarps, sheeting, screens | `true` | 3.10 |
@@ -252,7 +255,7 @@ files in `scripts/run-e2e.mjs`), extended by each session. Test space: a debug m
 
 | Session | Builds | Files (new / changed) | Unit tests | e2e (e2e-toolkit) | Michael tries |
 | --- | --- | --- | --- | --- | --- |
-| V1 | Optic cable (doors through the door menu, hatches, panels, grilles, shaft top) | New `src/player/opticCable.ts` (pure tip placement), `src/config/tools.ts`, `src/world/maps/toollab.ts`. Changed: `src/player/moveState.ts` (mode `optic`), `src/player/shoulderCamera.ts` (tip pose), input files (`optic` action), `src/ui/prompts.ts` | tip placement and refusal (sealed, no gap, wall behind) | optic view under a door shows a guard; sealed door refused; 2-player pose sync | Optic under a door, through a raised-floor hatch and a grille, on pad and keyboard |
+| V1 | Optic cable (doors through the door menu, hatches, panels, grilles, shaft top). Done so far: doors (PR #239), the 2-player kneel and cable (optic-coop, e2e-netmove "optic cable"), the gaps' engine side (optic-coop); left: the gaps' input and map placement | New `src/player/opticCable.ts` (pure tip placement), `src/config/tools.ts`, `src/world/maps/toollab.ts`. Changed: `src/player/moveState.ts` (mode `optic`), `src/player/shoulderCamera.ts` (tip pose), input files (`optic` action), `src/ui/prompts.ts` | tip placement and refusal (sealed, no gap, wall behind) | optic view under a door shows a guard; sealed door refused; 2-player pose sync | Optic under a door, through a raised-floor hatch and a grille, on pad and keyboard |
 | V2 | Lockpick (tiers, minigame); hacking (terminals, keypads, services, failure); lock and hack map fields; the security event hook | New `src/game/lockpick.ts`, `src/game/hack.ts` (pure), `src/ui/hud/` minigame overlays, `locks` net list. Changed: `src/world/doors.ts` (`lock` tiers), interactables, `src/net/protocol.ts` (`use` kinds `pick`, `hack`) | pin model and sweet spot; slip; kept progress; minimum-time check; hack columns, wrong lock, lockout; services applied only from data; tamper and failure events | wafer locker opens; `high` and reader refused; slip noise heard by a guard at 2 m, not at 4 m; car alarm on an alarmed car only; hack reads an intel flag; failure locks out and logs an event; client pick accepted, too-fast pick rejected | Pick a locker, a door and a car on pad and keyboard; hack a terminal and a keypad |
 | V3 | Mission kit (section 4); pistol secondary (3.5); the rifle launcher with the shock round; interrogation. Not the airfoil or knife | New `src/game/tools.ts`, `src/game/pistolSecondary.ts` (pure recharge, range and target filter), shocker rounds in the weapon data. Changed: `src/game/missions.ts` (`kit`, `validateMissions`), `src/game/gadgets.ts` callers, `loadoutScreen.ts`, wheel, `src/security/camera.ts` (timed disable), `src/input/` (`secondary` action, `keyBindings.ts`, `gamepadMapping.ts`), `LightRegistry` callers, `src/game/takedown.ts` (the grab menu's interrogate) | kit validation and defaults; wheel and loadout filtering; recharge and range; target filter (lamps and cameras only); disabled camera stops the meter and comes back; no alarm or event raised; shocker outcome; interrogation lines and flags | kit hides out-of-kit prompts and wheel slots; one shot disables a camera and a lamp and both come back by themselves; recharge blocks a second shot; no alarm level change; out-of-range client request rejected; shocker knocks out; question sets a flag for both players | Pick a mission with a kit and see the loadout; shoot a lamp and a sweeping camera with the pistol secondary; shock and question a guard in toollab |
 

@@ -612,6 +612,10 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   and `style.knockouts` did not rise from the pairing (e2e-coop).
 - [ ] The Fallow bunker: open `?net=local&autostart=bunker&mode=course` in both tabs. The objective list shows for both;
   one player on an airlock pad shows "Waiting for partner"; both seal it; the rear door stays locked.
+- [ ] (optic-coop) Optic cable seen by the partner: one tab, at a closed door hold A, OPTIC CABLE. The other tab sees her
+  kneel in front of the leaf, her right hand down at the door's foot and a thin dark cable running out under the door;
+  her view is not shared. When she pulls out (B) the cable shortens and goes, and she stands. Works both ways (host and
+  joiner). A ping from the view (if a ping input is bound) marks what the tip sees on both tabs.
 - [ ] Close the host tab: the client is told and returns to the menu.
 - [ ] (marlow-bays B+M) Marlow Yard in two tabs (`?net=local&autostart=ctcourse&mode=course`): as the joiner, grab a
   guard and walk: full hold speed, no shoving or jitter; on the host the guard stays in front of the joiner's body.
