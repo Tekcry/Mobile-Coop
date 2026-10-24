@@ -467,6 +467,12 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Drainpipe: one reach per hand about a second, feet together; shimmy slow with the legs swinging; ledge climb-up
   ends crouched (hold the stick to stand); ladder slower up, faster down; rappel 0.6 m/s.
 
+### Hits come from game state (rig-pose fix)
+- [ ] Co-op: let a guard shoot each player in turn, standing, crouched and on a wall; both take head / body / leg hits the same way.
+- [ ] Co-op: headshot a guard as the client, also one peeking from cover; it counts as a headshot.
+- [ ] Shoot from a wall edge and while hanging upside down: rounds leave from the gun side and hit where aimed.
+- [ ] Kill a guard at a ledge lip: the body lies on the floor below; pick it up on both machines.
+
 ### Keyboard and mouse
 - [ ] A click captures the mouse (it never fires); W A S D move, the mouse looks, the wheel or = / - change the gear.
 - [ ] RMB aims, LMB fires, C crouches, Space backs to a wall, E traverses, F uses, R reloads, X / Q swap, G gadget, Tab

@@ -108,8 +108,18 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
 - Objective line (coop-fix, `net/objectiveMirror.ts`): the client shows "Connecting to host…" until the first
   snapshot, which always replaces it (an empty course-mode objective included), and "Waiting for host…" after 2 s
   without one, until the next. The host seeds its copy from the HUD when it hooks it (Free Roam sets it earlier).
-- `CoopHost`: remote players (`RemotePlayer` = Damageable + hitbox + PlayerRef), 15 Hz snapshots, event queue, enemy
+- `CoopHost`: remote players (`RemotePlayer` = Damageable + split hit volumes from the sim body model, rig-pose-fix S1:
+  `PlayerHitVolumes` on `playerBody(wireBodyIn(accepted state))`, the client's own model, headshots x1.3 and legs x0.75 as
+  the local player's + PlayerRef), 15 Hz snapshots, event queue, enemy
   position history for lag compensation, shot / blast checks via pure `validate.ts`, per-player kill tallies in `end`.
+  (rig-pose-fix S3, G7 / G20) One guard head for every judge: the history (`net/shotHistory.ts`, 20 Hz) keeps each
+  guard's sim feet, crouch, sim head (`Enemy.simHead`: `guardHead` / `dogHead`) and the head the client is shown
+  (`Enemy.wireHead`: `guardHead` on the inputs the wire carries, `wireHeadIn`); a client's head claim passes within
+  `checkShot`'s head tolerance (0.7 x 1.1 m x scale, kept: interpolation, crouch ease, bob, head radius) of either rewound
+  head, never `feet + 1.62 / 1.15`. The lean round an edge is not on the wire (up to ~1 m), hence the second head. The
+  client's `EnemyPuppet` head volume is `guardHead` on the inputs it gives its rig (`net/puppetHead.ts`, no `headNode`
+  read; the dog's `dogHead` at `DOG_MEAN_PHASE`): the same as the host's `wireHead` for the same state, 1.2 cm from the
+  host's sim head at any gait phase.
   `CoopClient`: `EnemyPuppet`s + `RemoteAvatar`s interpolated with `SnapshotBuffer` / `ClockSync` (`interp.ts`), sends
   `pstate` at 20 Hz and hits as `shot`; rewards come from `clampEnd` + `coopSessionStats` of the host report.
 - Drawn state (D8, A20 / A41): the host keeps `w` only if it is in the player's lobby `loadout` and forces `dw` 0 while
@@ -206,6 +216,10 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   walks to it / turns his hunt to it; the host's slot never moves for it. Host only, no wire change.
 - Downed: `revive` interactables on bodies (`NetAttachment.onLocalDeath` / `onRespawn`); everyone down -> the mode.
 - Bodies: the host lists lying bodies in `snap.bodies` when they change; clients keep those ragdolls and drop the rest.
+  (rig-pose-fix S5, P13) The wire carries no body position: a client ragdoll eases onto the host's sim lie computed from
+  the puppet's last host state (`buf.latest()` feet and yaw) and the fall away from the killer (`deathLieOn`).
+  (rig-pose-fix S3) `deathLieOn` probes the floor under the settled pelvis on both machines (one down ray on the static
+  collision): a guard killed at a ledge lip or mid-air lies on the floor below.
 - Pings (action `ping`: D-pad left tap, Z): `GameState.sendPing` (aim ray) -> `ping` msg / event (host rate 0.8 s) ->
   `ui/hud/pings.ts` (follows a pinged guard, edge arrows off screen).
 - Gadgets: `GadgetSystem.onLocal` reports gas / flash / EMP / noise effects; the host relays them (`gadget`, 1 s rate,
@@ -259,7 +273,8 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   `PartnerBlocker` (`partnerBlocker.ts`), an upright capsule at their shown (interpolated) feet in `G.PARTNER` that only
   the local controller collides with. Host: `RemotePlayer.blocker`; client: per `RemoteAvatar`. Parked while the
   partner is down or in a boost / human ladder (`partnerPassable`); brace keeps it (reach 1.2 m). Course friendly fire's
-  partner hit boxes (`PartnerTarget`, host `partnerBoxes`) are bullets only.
+  partner hit boxes (`PartnerTarget`, host `partnerBoxes`) are bullets only; (rig-pose-fix S1, G11 / G12) they sit on the
+  sim body model of the drawn copy's state (`RemoteAvatar.bodyIn`), not on its rig.
 - Teleports: `SnapshotBuffer` holds the old spot and then shows the new one when two states are more than `SNAP_MIN`
   (2 m) apart and either faster than `SNAP_SPEED` (25 m/s) or, across a gap over `SNAP_GAP` (0.3 s), further than
   max(`SNAP_MIN`, sqrt(2) x |v| x gap) from where the velocity before the gap would carry the partner. The blocker parks
@@ -383,7 +398,8 @@ client next to a device first.
   `resetTo` / `kill` (`LampMirror`), so its picture, meter and guard-torch reads use the host's lamps; a newly shot lamp
   sparks there. A client's round through a lamp goes to the host as a `shot` at `lt-<id>` (draw, weapon, 4 a second,
   origin at the shooter, the lamp first on the ray in the host's registry, a clear static line; `lampShotOk`), which
-  shoots it out as its own round would (`StealthSystems.shootLight`). Switches are items (`use`) as before. Change
+  shoots it out as its own round would (`StealthSystems.shootLight`). (rig-pose-fix S7) The origin may be up to
+  `LAMP_SHOT_ORIGIN` 2.1 m (was 2) from feet + 1.2, so an inverted-hang claim (up to 2.013 m) is taken. Switches are items (`use`) as before. Change
   detection reads the registry only when its `version` moved (no allocation unless it sends). Course mode unchanged.
 - `NetMode` `sector`, two players. The host runs `SectorMode` and sends `sector` (host -> all) on a device change and
   every 0.5 s: `sec` (`SecWire`: (26) each camera's clock, jams, each player's jam left `ch` and cooldown `cd`, the

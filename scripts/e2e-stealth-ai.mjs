@@ -785,9 +785,13 @@ try {
           let builtAt = -2;
           // (S25-SAI-TRIAGE) he sees him again after the tp (alerted: line of sight alone), and his walk, once a second
           let resight = -1;
-          // (S25-SAI-TRIAGE 3) a sight resets his `sinceSeen` to 0; it was ~0 at the tp (he watched the lit player till
-          // then), so a new sight is a drop, not a low value (round 2 flagged 0.05 s, the clock just counting on)
-          let prevSince = e.sinceSeen;
+          // (S25-SAI-TRIAGE 3) a new sight is a drop, not a low value (round 2 flagged 0.05 s, the clock just counting on)
+          // (rig-pose-fix fix round 2) read from his perception, not from `sinceSeen`: he perceives every 0.22-0.30 s
+          // (enemy.ts `thinkT`) and holds `los` in between, so `sinceSeen` stays 0 for up to 0.3 s after the tp on the
+          // sighting made before it (the lit spot: the last known position does not move). `lastSeenT` is reset only by
+          // a perceive that has him in line of sight, so a drop is a sighting made after the tp. (The sim body follows
+          // the tp the same step: tests/playerTargetTeleport.test.ts.)
+          let prevSeenT = e['lastSeenT'];
           let lkpMoved = null;
           const trace = [];
           // ('near') the first plan built in the search, and the nearest a searcher comes to the spot from then on
@@ -808,10 +812,11 @@ try {
                 g.frameUpdate(1 / 60, 1);
               }
             }
-            // (or still in sight: 0.2 s on, the clock would be past 0.1 without one)
+            // (still in sight: every perceive with him in view resets it, at most 0.3 s apart, so that is a drop too)
             // (walk 4.82 laptop triage 2) the premise is the fight: once the search runs, a find is a pass ('near' found)
-            if (tS < 0 && resight < 0 && e.alerted && (e.sinceSeen < prevSince || (time > 0.2 && e.sinceSeen < 0.1))) resight = r1(time);
-            prevSince = e.sinceSeen;
+            const seenT = e['lastSeenT'];
+            if (tS < 0 && resight < 0 && e.alerted && seenT < prevSeenT) resight = +time.toFixed(2);
+            prevSeenT = seenT;
             {
               const lk = em.lkpOf(s);
               if (tS < 0 && !lkpMoved && lk && Math.hypot(lk.x - Lx, lk.z - Lz) > 0.5) lkpMoved = { t: r1(time), at: [r1(lk.x), r1(lk.z)] };

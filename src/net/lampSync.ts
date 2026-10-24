@@ -106,8 +106,10 @@ export function applyLamps(reg: LightRegistry, st: Uint8Array, n: number, onShot
   return changed;
 }
 
-/** A client's lamp shot (a `shot` with target `lt-<id>`): its round left within this of the shooter's chest (m). */
-export const LAMP_SHOT_ORIGIN = 2;
+/** A client's lamp shot (a `shot` with target `lt-<id>`): its round left within this of the shooter's chest (m).
+ *  (rig-pose-fix S7, S2 host check) 2.1, was 2: hanging inverted the sim shot origin is up to 2.013 m from feet + 1.2
+ *  (the suppressed pistol at pitch -0.6, `tests/shotOrigin.test.ts`); upright it is at most 1.48 m. */
+export const LAMP_SHOT_ORIGIN = 2.1;
 /** Slack (m) of the host's static line-of-sight check from the round's origin to the lamp (a fitting under a slab). */
 export const LAMP_LOS_SLACK = 0.6;
 /** The `shot` target naming a light (the jam devices' `lt-<registry id>`, the same on both pages). */

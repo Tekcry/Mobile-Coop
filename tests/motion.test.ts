@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { emptyMotionInput, MotionDriver, rootModulation, stepLength, wrapPi, type MotionTuning } from '../src/anim/motion';
+import { emptyMotionInput, GLIDE_SIDE, MotionDriver, rootModulation, stepLength, wrapPi, type MotionTuning } from '../src/anim/motion';
 import { CT, ENEMY_CALM_MOTION, ENEMY_MOTION, GEARS, MOVEMENT } from '../src/config/movement';
 
 const run = (
@@ -199,6 +199,57 @@ describe('motion driver: gait clock and root modulation', () => {
     const cycles = (d.phase - p0 + 1) % 1;
     const expected = (MOVEMENT.walkSpeed / (2 * stepLength(MOVEMENT.walkSpeed))) % 1;
     expect(cycles).toBeCloseTo(expected, 2);
+  });
+});
+
+// (rig-pose-fix S7, audit G17) The mocap strafe's side-step (`mocapSide`, from the per-machine mocap setting) moves the drawn
+// gait clock only: the root modulation of the sim velocity runs on `simPhase`, so the same input gives the same velocity
+// with mocap on or off (the controller's position trace: tests/mocapSimParity.test.ts).
+describe('motion driver: the mocap side-step stays out of the sim clock (G17)', () => {
+  it('aimed strafe, standing: the same velocity trace with mocapSide on and off; the drawn clock differs', () => {
+    const was = { ...GLIDE_SIDE };
+    // the mocap set's strafe captures (mocap.ts sets these at import): a side-step unlike the glide's
+    GLIDE_SIDE.stride = 0.82;
+    GLIDE_SIDE.cycle = 0.983;
+    GLIDE_SIDE.exp = 0.25;
+    try {
+      const trace = (mside: boolean): { out: number[]; phase: number; sim: number } => {
+        const d = new MotionDriver();
+        const out: number[] = [];
+        // a strafe left, a pause, a strafe right with a turn of the aim, at 60 Hz
+        run(d, 1.5, (i) => {
+          i.vx = -0.9;
+          i.aiming = true;
+          i.ct = true;
+          i.mocapSide = mside;
+        }, 60, () => out.push(d.outX, d.outZ));
+        run(d, 0.3, (i) => {
+          i.aiming = true;
+          i.ct = true;
+          i.mocapSide = mside;
+        }, 60, () => out.push(d.outX, d.outZ));
+        run(d, 1.5, (i) => {
+          i.vx = 0.7;
+          i.yaw = 0.4;
+          i.aiming = true;
+          i.ct = true;
+          i.mocapSide = mside;
+        }, 60, () => out.push(d.outX, d.outZ));
+        return { out, phase: d.phase, sim: d.simPhase };
+      };
+      const on = trace(true);
+      const off = trace(false);
+      expect(on.out.length).toBe(off.out.length);
+      for (let k = 0; k < on.out.length; k++) expect(on.out[k]).toBe(off.out[k]);
+      // the strafe really modulated the root (the trace is not flat) and the drawn clock took the mocap side-step
+      expect(Math.max(...off.out.map(Math.abs))).toBeGreaterThan(0.5);
+      expect(Math.abs(on.phase - off.phase)).toBeGreaterThan(0.02);
+      // without mocapSide the drawn clock is the sim clock
+      expect(off.phase).toBe(off.sim);
+      expect(on.sim).toBe(off.sim);
+    } finally {
+      Object.assign(GLIDE_SIDE, was);
+    }
   });
 });
 
