@@ -216,8 +216,17 @@ export async function openPage(ctx, url = 'http://localhost:4173/', params = '')
     }).catch(() => {});
   }
   // autostart: the match itself (the level builds before it starts)
+  // (e2e-boot) a `?net=local` co-op autostart (course / sector, `autoLocalCourse`): the first page hosts the room and its
+  // match starts only once a second page joins, which a suite opens after this returns, so the wait ends as soon as the
+  // page hosts alone in the lobby (it sat out the whole 120 s before: every co-op course boot). A joining page still
+  // waits for its match; single-player pages (no co-op session) are unchanged.
   if (/(^|&)autostart=/.test(params)) {
-    await timed('match', () => page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 120000 }).catch(() => {}));
+    const why = await timed('match', () => page.waitForFunction(() => {
+      if (window.__app?.current?.player) return 'match';
+      const s = window.__coop?.session;
+      return s?.isHost && s.phase === 'lobby' && s.players.size < 2 ? 'lobby' : false;
+    }, null, { timeout: 120000 }).then((h) => h.jsonValue()).catch(() => 'timeout'));
+    if (why === 'lobby') return { page, errors };
     // (section-bake, SB12) a map baking its lamps per section (campusOps on a cold cache): the match starts once the
     // live section is in and the rest lands in the background; suites drive sections in sim time, so wait for all of it
     // (what the load waited for before). No-op on every other map.
