@@ -35,10 +35,18 @@
 // (withdrawn; missing from two listings in a row) has its command tree killed, posts error "withdrawn" and is done; a
 // plain pr request already in its suites when a train head is pending is killed and queued again (claim released,
 // status "queued, preempted by train <n>"). Train reruns and full runs are never preempted; an alone run only in its first 10 min (below).
+// Desktop failures (Orchestrator waste audit 2026-10-24, laptop-queue-3): a desktop pr run whose suites fail (after its
+// own flake rerun) posts pending "desktop FAIL <suites> (cpu N%), laptop rerun queued" (plus "; desktop cpu>90%" when
+// the median of the CPU samples taken every watch tick was over 90) instead of failure, no PR comment, and pushes a
+// laptop-only request (lib laptopRerunRequest: same sha / set / pr / requester, the failed suites, "laptopRerun": true;
+// with no set its set is the old suites joined by "+", so it posts on the same context). The desktop never claims it;
+// the laptop's verdict is final. A failed push leaves the desktop failure as before.
 // Pinned requests (request.mjs --pin, "pin": true; A/B and baseline runs) are never superseded.
 // Train soon (laptop, lib trainSoon): no new non-train claim (train reruns still start) while an open train PR has no
 // version head yet (building, up to LQ_TRAIN_BUILD_MAX_MIN 20 min) or for LQ_TRAIN_GAP_MIN (3) min after a train PR
-// merged while train-ready PRs with a green check wait. Manual locks (lib manualLocks): a slot whose lock is not the
+// merged while train-ready PRs with a green check wait, or (releasing, laptop-queue-3) for LQ_RELEASE_HOLD_MIN (10) min
+// after an open train's laptop-e2e success while train-ready PRs not in it have a green or running check (aged alone
+// requests are held too: auto-train releases and builds the next train within minutes). Manual locks (lib manualLocks): a slot whose lock is not the
 // service's takes no new request claim (logged once per holder); trains still wait on it as before.
 // Task guard (Michael 2026-10-24 07:13, after 87 stale NightShift-chain-* one-shots fired at 23:59 and held the slot
 // locks): at start and every LQ_TASK_GUARD_MIN (10; 0 = off) min, disables (never stops, kills or deletes) each stale
@@ -72,12 +80,12 @@
 // queueRequester): a newer head on the same branch supersedes the older request (its affected-e2e gets error
 // "superseded"), and pick takes PR branches in arrival order beside the leads. Heads older than LQ_AFFECTED_MAX_AGE_H
 // (24; 0 = no limit) and heads with no merge-base here (forks) are skipped, logged once.
-import { execFileSync, spawn } from 'node:child_process';
+import { execFile, execFileSync, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, trainSoon, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS } from './lib.mjs';
+import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, trainSoon, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS } from './lib.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
 const DESKTOP = process.env.LQ_WORKER === 'desktop';
@@ -105,6 +113,7 @@ const TRAIN_VOID_POLL_MS = Number(process.env.LQ_TRAIN_VOID_POLL_S ?? 60) * 1000
 const TRAIN_SOLO_MS = Number(process.env.LQ_TRAIN_SOLO_MIN ?? 10) * 60_000;
 const TRAIN_GAP_MS = Number(process.env.LQ_TRAIN_GAP_MIN ?? 3) * 60_000;
 const TRAIN_BUILD_MAX_MS = Number(process.env.LQ_TRAIN_BUILD_MAX_MIN ?? 20) * 60_000;
+const RELEASE_HOLD_MS = Number(process.env.LQ_RELEASE_HOLD_MIN ?? 10) * 60_000; // trainSoon releasing (laptop-queue-3)
 const POLL_MS = 30_000;
 const DUP_WINDOW_MS = Number(process.env.LQ_DUP_WINDOW_MIN ?? 60) * 60_000;
 const AFFECTED_POLL_MS = Number(process.env.LQ_AFFECTED_POLL_MIN ?? 2) * 60_000; // laptop: the affected pass (0 = off)
@@ -456,17 +465,33 @@ function readyCandidates() {
   } catch { return 0; }
 }
 
-function trainSoonNow(openPrs) {
+/**
+ * Train-ready PRs whose check passed or still runs, minus the open trains' members (a head an open train head
+ * contains), for the releasing hold (lib readyOrPending); 0 when unreadable: never hold on a GitHub error.
+ */
+function readyOrPendingCandidates(openPrs) {
+  try {
+    const prs = JSON.parse(gh(['pr', 'list', '-R', REPO, '--state', 'open', '--label', 'train-ready', '--json', 'headRefOid,statusCheckRollup', '--jq', '[.[] | {head: .headRefOid, check: ([.statusCheckRollup[]? | select(.name == "check") | {status, conclusion}] | first)}]']) || '[]');
+    return readyOrPending(prs, (head) => openPrs.some((p) => isAncestor(head, p.sha)));
+  } catch { return 0; }
+}
+
+/** heads: the open train heads with their laptop-e2e state and its updated_at (pendingTrains), for the releasing case. */
+function trainSoonNow(openPrs, heads = []) {
+  const lim = { gapMs: TRAIN_GAP_MS, buildMaxMs: TRAIN_BUILD_MAX_MS, releaseMs: RELEASE_HOLD_MS };
   const isVersion = (p) => new RegExp(`^\\d+\\.\\d+\\.\\d+: version at merge, train ${p.n} \\(G183\\)$`).test(git(['show', '-s', '--format=%s', p.sha], { soft: true }));
   const b = openPrs.find((p) => !isVersion(p));
-  if (b) return trainSoon({ building: { n: b.n, ageMs: Date.now() - Date.parse(b.createdAt) } }, { gapMs: TRAIN_GAP_MS, buildMaxMs: TRAIN_BUILD_MAX_MS });
+  if (b) return trainSoon({ building: { n: b.n, ageMs: Date.now() - Date.parse(b.createdAt) } }, lim);
+  // a train with its laptop-e2e success is released (and the next one built) within minutes: hold the slots for it
+  const rel = releasingTrain(heads, Date.now());
+  if (rel && rel.ageMs < RELEASE_HOLD_MS) return trainSoon({ releasing: rel, candidates: readyOrPendingCandidates(openPrs) }, lim);
   if (openPrs.length) return '';
   try {
     const last = JSON.parse(gh(['pr', 'list', '-R', REPO, '--state', 'merged', '--limit', '30', '--json', 'headRefName,mergedAt', '--jq', '[.[] | select(.headRefName | startswith("train/"))][0] // null']) || 'null');
     const ageMs = last ? Date.now() - Date.parse(last.mergedAt) : Infinity;
     if (!(ageMs < TRAIN_GAP_MS)) return '';
     const candidates = readyCandidates();
-    return trainSoon({ release: { n: String(last.headRefName).replace(/^train\//, ''), ageMs }, candidates }, { gapMs: TRAIN_GAP_MS, buildMaxMs: TRAIN_BUILD_MAX_MS });
+    return trainSoon({ release: { n: String(last.headRefName).replace(/^train\//, ''), ageMs }, candidates }, lim);
   } catch { return ''; /* unreadable: no hold (never block on a GitHub error) */ }
 }
 
@@ -486,18 +511,21 @@ function pendingTrains() {
     return out;
   }
   git(['fetch', '-q', 'origin', '+refs/heads/train/*:refs/remotes/origin/train/*'], { soft: true });
-  if (!DESKTOP) soon = trainSoonNow(openPrs);
   openTrainCount = openPrs.length;
   // every open train PR head without a laptop-e2e success holds alone requests (a status read error counts as none),
   // except heads that can never get one here: older than LQ_TRAIN_MAX_AGE_H or a failed auto-train/* build (as below)
-  aloneHold = trainHold(openPrs.flatMap((p) => {
+  const heads = openPrs.flatMap((p) => {
     const ct = Number(git(['show', '-s', '--format=%ct', p.sha], { soft: true }));
     if (ct && !(Date.now() / 1000 - ct < maxAge)) return [];
     let sts = null;
-    try { sts = JSON.parse(gh(['api', `repos/${REPO}/commits/${p.sha}/status`, '--jq', '[.statuses[] | {context, state}]']) || '[]'); } catch { /* unknown: holds */ }
+    try { sts = JSON.parse(gh(['api', `repos/${REPO}/commits/${p.sha}/status`, '--jq', '[.statuses[] | {context, state, updated_at}]']) || '[]'); } catch { /* unknown: holds */ }
     if (sts && trainBuildFailed(sts)) return [];
-    return [{ ...p, laptop: sts ? (sts.find((s) => s.context === 'laptop-e2e')?.state ?? '') : 'unknown' }];
-  }));
+    const l = sts?.find((s) => s.context === 'laptop-e2e');
+    return [{ ...p, laptop: sts ? (l?.state ?? '') : 'unknown', laptopAt: l?.updated_at ?? '' }];
+  });
+  aloneHold = trainHold(heads);
+  // after the status reads: the releasing case needs each head's laptop-e2e success time (lib releasingTrain)
+  if (!DESKTOP) soon = trainSoonNow(openPrs, heads);
   for (const line of git(['ls-remote', 'origin', 'refs/heads/train/*'], { soft: true }).split('\n')) {
     const m = /^([0-9a-f]{40})\trefs\/heads\/train\/(\S+)$/.exec(line);
     if (!m || state.trains[m[1]] || !open.has(m[1])) continue;
@@ -727,15 +755,20 @@ function updateBudget(result) {
   return { summary: flakeSummary(mine, quarantine, repo.owners, now), fresh: (result.flakes ?? []).length > 0 };
 }
 
-/** Posts the verdict on ctx (a context or a list: an affected request posts affected-e2e too), comments a failure, folds the times. */
-function finish(job, ctx, result, runDir, prNumber) {
+/**
+ * Posts the verdict on ctx (a context or a list: an affected request posts affected-e2e too), comments a failure, folds
+ * the times. handedOff (desktop): a failure whose laptop rerun is queued posts pending with this description instead,
+ * and no failure comment (the laptop rerun's verdict is the final one).
+ */
+function finish(job, ctx, result, runDir, prNumber, { handedOff = '' } = {}) {
   const bad = result.suites.filter((s) => !s.ok && !s.flaky && !s.report);
   const ok = result.suites.length > 0 && bad.length === 0;
   const full = `${DESKTOP ? 'desktop: ' : ''}${result.suites.length ? describe(result) : 'no result parsed, see log'}`;
   const desc = full.length > 140 ? `${full.slice(0, 137)}...` : full; // GitHub rejects a status description over 140
-  for (const c of [ctx].flat()) postStatus(job.sha, ok ? 'success' : 'failure', c, desc); // an affected request: also affected-e2e
+  const late = !ok && handedOff;
+  for (const c of [ctx].flat()) postStatus(job.sha, ok ? 'success' : late ? 'pending' : 'failure', c, late ? handedOff : desc); // an affected request: also affected-e2e
   const { summary: budget, fresh } = updateBudget(result);
-  if (!ok && prNumber && !DRY) postComment(prNumber, failureComment(job, result, runDir) + (budget ? `
+  if (late) { /* the laptop rerun comments its own failure */ } else if (!ok && prNumber && !DRY) postComment(prNumber, failureComment(job, result, runDir) + (budget ? `
 
 ${budget}` : ''));
   // a pass comments only when it recorded a new flake, not on every quarantined failure (e2e-pad would comment every train)
@@ -837,6 +870,10 @@ async function runTrain(train, ports = PORTS) {
     const list = cmd('node', ['scripts/run-e2e.mjs', '--list'], { cwd: SLOTS[ports[0]].dir }).split('\n').map((x) => x.trim()).filter(Boolean);
     const bins = shard(list, times, ports.length);
     bins.forEach((b, i) => log(`bin ${ports[i]}: ${b.suites.length} suites, weight ${Math.round(b.weight)} s`));
+    // the expected e2e wall (heaviest shard at TRAIN_JOBS) restamps the pending status: auto-train polls every 30 s
+    // once this status is older than it (laptop-queue-3; auto-train's laptopLate)
+    const expS = Math.max(...bins.filter((b) => b.suites.length).map((b) => expectedWallS(b.suites, times, TRAIN_JOBS)));
+    if (Number.isFinite(expS)) postStatus(train.sha, 'pending', 'laptop-e2e', `${DESKTOP ? 'desktop: ' : ''}${ports.length > 1 ? 'sharded' : 'unsharded on'} ${ports.join('+')}, expect ~${Math.round(expS)} s`);
     const t0 = Date.now();
     const runs = await Promise.all(ports.map((p, i) => e2e(p, bins[i].suites, TRAIN_JOBS, path.join(runDir, `${p}.log`), ctls[p])));
     if (voided) return closedEnd();
@@ -890,7 +927,15 @@ async function runRequest(r, port) {
   let startedAt = NaN; // an alone run's steps start: under ALONE_PREEMPT_MIN a pending train still cuts it (lib cutShort)
   let yieldedSteps = false; // an alone run gave the slots to a train between steps (not done)
   let progress = () => NaN; // a pr run's share of its expected wall: past PREEMPT_MAX_PROGRESS it is never cut
+  // desktop: CPU % every watch tick once the suites start (one sample in flight at a time); the median goes into a
+  // handed-off failure's status (lib desktopFailDesc)
+  const cpuSamples = [];
+  let cpuReading = false;
   const watch = DRY ? null : setInterval(() => {
+    if (DESKTOP && started && !cpuReading) {
+      cpuReading = true;
+      cpuLoadAsync().then((v) => { if (Number.isFinite(v)) cpuSamples.push(v); }).finally(() => { cpuReading = false; });
+    }
     const trains = trainsNow();
     const others = [...activeReqs.values()].filter((a) => a.id !== r.id);
     const why = cutShort(r, { withdrawn: withdrawnIds.has(r.id), trains, started, others, startedAt, now: Date.now(), progress: progress() });
@@ -1007,11 +1052,26 @@ async function runRequest(r, port) {
     result.flakes = await rerunFlakes(result, {}, job, runDir, port, ctl);
     if (ctl.why) return cutEnd();
     result.wall = (Date.now() - t0) / 1000;
-    const ok = finish(job, verdictCtx, result, runDir, r.pr);
+    // desktop: failed suites go to the laptop (a laptop-only request, lib laptopRerunRequest), whose verdict is final;
+    // this run posts pending meanwhile (Orchestrator waste audit 2026-10-24: desktop failures under load were noise)
+    const bad = result.suites.filter((s) => !s.ok && !s.flaky && !s.report).map((s) => s.s);
+    let handedOff = '';
+    let rerunId = '';
+    if (DESKTOP && bad.length) {
+      const rr = laptopRerunRequest(r, bad, { now: Date.now(), suffix: randomBytes(2).toString('hex') });
+      const desc = desktopFailDesc(bad, median(cpuSamples));
+      if (DRY) log(`dry-run: ${r.id}: would queue the laptop rerun ${rr.id} (${bad.join(' ')}): ${desc}`);
+      else if (pushFile(`requests/${rr.id}.json`, `${JSON.stringify(rr, null, 2)}\n`, `request ${rr.id}`)) {
+        handedOff = desc;
+        rerunId = rr.id;
+        log(`${r.id}: ${desc} as ${rr.id}`);
+      } else log(`${r.id}: laptop rerun push failed, the desktop failure stands`);
+    }
+    const ok = finish(job, verdictCtx, result, runDir, r.pr, { handedOff });
     // a train rerun that passed also turns the train's own context green (the latest status per context wins in the
     // combined status, so it replaces the desktop's laptop-e2e failure); a failed one leaves laptop-e2e red
     if (ok && r.trainRerun) postStatus(r.sha, 'success', 'laptop-e2e', rerunPassed(r.suites));
-    state.done[r.id] = { result: ok ? 'success' : 'failure', wall: result.wall, date: new Date().toISOString() };
+    state.done[r.id] = { result: ok ? 'success' : rerunId ? 'laptop-rerun' : 'failure', wall: result.wall, date: new Date().toISOString(), ...(rerunId ? { rerun: rerunId } : {}) };
   } finally {
     if (watch) clearInterval(watch);
     missing.delete(r.id);
@@ -1073,6 +1133,13 @@ function planTrain(sha = '<train sha>', ports = PORTS) {
 /** Average CPU load % now (NaN when unreadable). */
 function cpuLoad() {
   return Number(cmd('powershell', ['-NoProfile', '-NonInteractive', '-Command', '(Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average'], { soft: true }));
+}
+
+/** cpuLoad without blocking the loop (the desktop samples it every watch tick during a run); NaN when unreadable. */
+function cpuLoadAsync() {
+  return new Promise((resolve) => {
+    execFile('powershell', ['-NoProfile', '-NonInteractive', '-Command', '(Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average'], { windowsHide: true, timeout: 30_000 }, (err, out) => resolve(err ? NaN : Number(String(out).trim())));
+  });
 }
 
 /** A CPU reader that samples once, on first use (one sample per pass). */
@@ -1213,7 +1280,8 @@ async function pass() {
       queue.requests = [];
     }
     const backlog = queue.requests.length;
-    queue.requests = queue.requests.filter((r) => r.kind === 'pr' && !r.trainRerun); // a train rerun is the laptop's (desktop failed)
+    // a train rerun and a laptop rerun of a desktop failure are the laptop's (the desktop failed them)
+    queue.requests = queue.requests.filter((r) => r.kind === 'pr' && !r.trainRerun && !r.laptopRerun);
     const why = {};
     const train = queue.trains[0];
     if (train) {
