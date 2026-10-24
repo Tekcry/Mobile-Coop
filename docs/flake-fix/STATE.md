@@ -3,6 +3,17 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 36 (2026-10-24 ~17:45, weekly 91% swap save; wins over SAVE 35 where they differ):**
+- guard-render-2: S9 + S10 + checker fixes + S9b pushed (head = origin/feature/guard-render-2). GPU A/B done: S9 cuts
+  moon CSM draws ~45% and campus is faster, BUT sectorops 24 alert regressed (p95 8.5 -> 11.8, torch draws 17.9 -> 45.1).
+  The exact next steps are in docs/guard-render/STATE.md "Now: phase 2" (newest line). Do those first.
+- Queued: gr2-e2e (smoke sectorops darkness lightbake stealth-ai on 9f7dddbb) - read its verdict.
+- Train 55 lightbake: laptop rerun PASS via the first live --train-rerun (laptop-e2e success posted, #320 green).
+  Test fix for its owner: the "16 textures" check must wait for 0 pending shaders.
+- Player: S11 results pushed (shots/g8c-0fd85e2b; figures still +1.4-2.5 ms p95); Player adds the render.figure bucket
+  and the per-name mesh tally in its guard-cap hunk; guns -> one mesh is its S13.
+- MPFB2 zip downloaded (Michael's OK, SHA-256 verified): C:/NightShift/downloads/mpfb2-2.0.18/add-on-mpfb-v2.0.18.zip.
+
 **Test Runner SAVE 35 (2026-10-24 ~14:05, 88% swap save; wins over SAVE 34 where they differ):**
 - NEW JOB (Michael ~13:40): guard-render phase 2 is Test Runner's. Plan docs/guard-render/PLAN2.md, state
   docs/guard-render/STATE.md "Now: phase 2", branch feature/guard-render-2 (worktree
@@ -974,7 +985,7 @@ puts it in CLAUDE.md on feature/menu). Laptop full runs: `RUN_GPU=1` (E2E_GPU=1)
 
 ## Resume prompt
 ```
-Night Shift | Test Runner (laptop, the MAIN test machine). First call mcp__ccd_session_mgmt__set_session_title with session_id "self" and title "Night Shift | Test Runner" (ToolSearch if deferred). Read CLAUDE.md "Sessions" on origin/master ("Main test machine: the laptop", "Heavy-usage throughput" incl. "Token rules"), then the newest "Test Runner SAVE" block (SAVE 35 or later) at the top of docs/flake-fix/STATE.md on origin/feature/flake-fix (git fetch; git show origin/feature/flake-fix:docs/flake-fix/STATE.md). Do what it lists, in order. If two Test Runner sessions show in ListAgents, close the older one.
+Night Shift | Test Runner (laptop, the MAIN test machine). First call mcp__ccd_session_mgmt__set_session_title with session_id "self" and title "Night Shift | Test Runner" (ToolSearch if deferred). Read CLAUDE.md "Sessions" on origin/master ("Main test machine: the laptop", "Heavy-usage throughput" incl. "Token rules"), then the newest "Test Runner SAVE" block (SAVE 36 or later) at the top of docs/flake-fix/STATE.md on origin/feature/flake-fix (git fetch; git show origin/feature/flake-fix:docs/flake-fix/STATE.md). Do what it lists, in order. If two Test Runner sessions show in ListAgents, close the older one.
 
 The queue is the SERVICE now (no hand-run chains, Orchestrator 20:26): task NightShift-laptop-queue runs scripts/laptop-queue/service.mjs from C:/NightShift/Mobile-Coop-laptop-queue-svc (follows origin/feature/laptop-queue, self-updates when idle); log + state C:/NightShift/scratch/laptop-queue/ (log.txt, runs/<id>/); verdicts are GitHub statuses laptop-e2e[/<set>] + PR comments on failure. Requests: node scripts/laptop-queue/request.mjs --sha <ref> (--suites "a b" | --full | --alone --step "<cmd>" [--env K=V]) --requester "<title>" (alone = perf / sheets, after trains and PR suites). Desktop overflow worker NightShift-desktop-queue (LQ_WORKER=desktop, pr only) claims via claims/<id>.json on the laptop-queue branch. Locks C:/NightShift/heavy-4189.lock / heavy-4192.lock (service lines "laptop-queue | ..."; a lock with no live node is stale). Restarting the service: Stop-ScheduledTask leaves the node child alive, so a restart also needs that node pid killed (needs Michael's OK).
 
