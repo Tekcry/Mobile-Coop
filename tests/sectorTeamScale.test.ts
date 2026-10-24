@@ -4,7 +4,7 @@ import { ENEMIES, type EnemyKind } from '../src/ai/enemyDefs';
 import { DIFFICULTIES, DIFFICULTY } from '../src/ai/archetypes';
 import type { Enemy, PlayerRef } from '../src/ai/enemy';
 import { SectorMode, refSlot, slotOfId, teamSizeOf } from '../src/game/modes/sectorMode';
-import { SECTOR, SectorRun, alarmStep, capReinforce, extraPlayers, guardForTeam, syringesFor, type SectorDef } from '../src/game/sectors';
+import { SECTOR, SectorRun, alarmStep, capReinforce, extraPlayers, guardForTeam, responseTeamSize, syringesFor, type SectorDef, type SectorResponseOut } from '../src/game/sectors';
 import { SectorDesks } from '../src/game/sectorDesks';
 import { SyncedDetector, newSectionStats } from '../src/game/rating/sectionRating';
 import { Vector3, type Scene } from '../src/core/babylon';
@@ -343,5 +343,125 @@ describe('slots: the attacker (A13) and the jammer (D1)', () => {
     expect(ct.onRemoteJam).toHaveBeenLastCalledWith('cam-1', eye, 3);
     m.onRemoteJam('gone', 'cam-1');
     expect(ct.onRemoteJam).toHaveBeenLastCalledWith('cam-1', undefined, 1);
+  });
+});
+
+describe('Guard AI AI5 response shape, wired optionally (coop4 AI5)', () => {
+  type Hooked = EnemyManager & { shapeResponse?: (st: number, per: number, out: SectorResponseOut) => SectorResponseOut; setResponseShape?: (o: unknown) => void };
+  const crewOf = (f: unknown) => (f as { crew: unknown }).crew;
+
+  it('responseTeamSize: an even split, the first teams one more', () => {
+    expect([0, 1].map((k) => responseTeamSize(k, 4, 2))).toEqual([2, 2]);
+    expect([0, 1].map((k) => responseTeamSize(k, 5, 2))).toEqual([3, 2]);
+    expect(responseTeamSize(0, 3, 1)).toBe(3);
+    expect(responseTeamSize(2, 4, 2)).toBe(0);
+    expect(responseTeamSize(0, 0, 1)).toBe(0);
+    expect(responseTeamSize(0, 4, 0)).toBe(0);
+  });
+
+  it('fallback (no shapeResponse): today\'s path, one team of perStage + our extras, newTeam without a spread', () => {
+    const { m, load, em, spawned } = sector([sec('s1', 0, true)], [player('local')], () => 4);
+    const nt = vi.spyOn(em, 'newTeam');
+    load(0);
+    const placed = spawned.length;
+    m.onAlarm();
+    expect(m.reinforced).toBe(SECTOR.perStage + 2);
+    expect(nt).toHaveBeenCalledTimes(1);
+    expect(nt.mock.calls[0]!.length).toBe(4);
+    const crews = spawned.slice(placed).map(crewOf);
+    expect(new Set(crews).size).toBe(1);
+    // 2 players: perStage, one team (master)
+    const two = sector([sec('s1', 0, true)], [player('local'), player('b')]);
+    const nt2 = vi.spyOn(two.em, 'newTeam');
+    two.load(0);
+    two.m.onAlarm();
+    expect(two.m.reinforced).toBe(SECTOR.perStage);
+    expect(nt2).toHaveBeenCalledTimes(1);
+  });
+
+  it('with shapeResponse: the UNSCALED base goes in, its size comes out (no double count), one team per shape team, members together', () => {
+    const { m, load, em, spawned } = sector([sec('s1', 0, true)], [player('local')], () => 4);
+    const hem = em as Hooked;
+    const shape = vi.fn((_st: number, per: number, out: SectorResponseOut) => {
+      out.size = per + 2;
+      out.teams = 2;
+      return out;
+    });
+    hem.shapeResponse = shape;
+    const nt = vi.spyOn(em, 'newTeam');
+    load(0);
+    const placed = spawned.length;
+    m.onAlarm();
+    expect(shape).toHaveBeenCalledTimes(1);
+    expect(shape.mock.calls[0]![0]).toBe(1);
+    expect(shape.mock.calls[0]![1]).toBe(SECTOR.perStage);
+    // perStage + 2 from the shape, not perStage + 2 + our own 2
+    expect(m.reinforced).toBe(SECTOR.perStage + 2);
+    expect(nt).toHaveBeenCalledTimes(2);
+    for (const c of nt.mock.calls) expect((c as unknown[])[4]).toBe(SECTOR.alarmMax * 2);
+    const got = spawned.slice(placed);
+    expect(got.length).toBe(4);
+    const crews = got.map(crewOf);
+    expect(crews[0]).toBe(crews[1]);
+    expect(crews[2]).toBe(crews[3]);
+    expect(crews[0]).not.toBe(crews[2]);
+    // a shield lead per team (the same kinds in each team)
+    expect(got[0]!.def.kind).toBe(got[2]!.def.kind);
+    expect(got[1]!.def.kind).toBe(got[3]!.def.kind);
+  });
+
+  it('with shapeResponse: size 0 sends nobody and makes no team; a capped stage never asks', () => {
+    const { m, load, em, spawned } = sector([sec('s1', 0, true)], [player('local')], () => 4);
+    const hem = em as Hooked;
+    const shape = vi.fn((_st: number, _per: number, out: SectorResponseOut) => {
+      out.size = 0;
+      out.teams = 0;
+      return out;
+    });
+    hem.shapeResponse = shape;
+    const nt = vi.spyOn(em, 'newTeam');
+    load(0);
+    const placed = spawned.length;
+    m.onAlarm();
+    expect(m.reinforced).toBe(0);
+    expect(spawned.length).toBe(placed);
+    expect(nt).not.toHaveBeenCalled();
+    m.onAlarm();
+    m.onAlarm();
+    shape.mockClear();
+    m.onAlarm(); // past alarmMax: nothing to send, the hook is not asked
+    expect(shape).not.toHaveBeenCalled();
+  });
+
+  it('with shapeResponse: the live cap still holds the extras (capReinforce on the shape size)', () => {
+    const info = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+    const { m, load, em } = sector([sec('s1', 0, true)], [player('local')], () => 4);
+    (em as Hooked).shapeResponse = (_st, per, out) => {
+      out.size = per + 2;
+      out.teams = 2;
+      return out;
+    };
+    em.maxAlive = 4 + SECTOR.perStage + 1;
+    load(0);
+    m.onAlarm();
+    expect(m.reinforced).toBe(SECTOR.perStage + 1);
+    expect(em.alive).toBe(em.maxAlive);
+    info.mockRestore();
+  });
+
+  it('setResponseShape on every section load and restart: the section override, else null', () => {
+    const over = { splitAt: 3 };
+    const { load, em } = sector([sec('s1', 0, false, { responseShape: over }), sec('s2', 1, true)], [player('local')], () => 3);
+    const set = vi.fn();
+    (em as Hooked).setResponseShape = set;
+    load(0);
+    expect(set).toHaveBeenLastCalledWith(over);
+    em.despawnAll();
+    load(0);
+    expect(set).toHaveBeenCalledTimes(2);
+    expect(set).toHaveBeenLastCalledWith(over);
+    em.despawnAll();
+    load(1);
+    expect(set).toHaveBeenLastCalledWith(null);
   });
 });

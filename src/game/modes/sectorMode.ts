@@ -38,6 +38,7 @@ import {
   capReinforce,
   exitZone,
   guardForTeam,
+  responseTeamSize,
   intelItemId,
   keypadItemId,
   inDoorway,
@@ -49,6 +50,8 @@ import {
   type SectorRatingWire,
   type SectorNetExtra,
   type SectorDef,
+  type SectorResponseOut,
+  type SectorResponseShape,
 } from '../sectors';
 import { killScore } from './score';
 import { SectionStartState } from '../sectorReset';
@@ -75,6 +78,25 @@ import {
 } from '../rating/sectionRating';
 import { packRated } from '../course/courseWire';
 import { RatingCard } from '../../ui/hud/ratingCard';
+
+/**
+ * (coop4 AI5) Guard AI's response hooks on the enemy manager (feature/guard-ai-coop4, `docs/coop4/briefs/AI5-BUILT.md`),
+ * read structurally: without that branch the optional ones are absent and the alarm runs today's path (our own
+ * `alarmStep` / `reinforcePerExtra` scaling); with it, Guard AI shapes the response (never both scalings).
+ */
+interface ResponseHooks {
+  setResponseShape?(over: SectorResponseShape | null): void;
+  shapeResponse?(stage: number, perStage: number, out: SectorResponseOut): SectorResponseOut;
+  newTeam(
+    section: number,
+    override: readonly (readonly [number, number])[] | null,
+    routes: readonly (readonly (readonly [number, number])[])[],
+    posts: readonly (readonly [number, number])[],
+    spread?: number,
+  ): SweepTeam<Enemy>;
+}
+/** (coop4 AI5) Scratch for `shapeResponse` (no allocation at an alarm). */
+const SHAPE: SectorResponseOut = { teams: 0, size: 0 };
 
 /** (section-rating S2) The last rated section, as the rating card reads it (S4's `RatingView` shape). */
 export interface SectionRatingView {
@@ -716,6 +738,8 @@ export class SectorMode implements GameMode {
     const em = this.g.enemyMgr;
     // (guard-ai S6, S3-CHECK) the radio net serves the live section (its command call raises this section's alarm)
     if (em && s) em.setSection(i);
+    // (coop4 AI5) the section's response numbers for Guard AI, on every load and restart (none: its default)
+    if (em) (em as unknown as ResponseHooks).setResponseShape?.(s?.responseShape ?? null);
     if (em) em.setNoisy(s?.noisy ?? em.mapNoisy);
     // (guard-ai S13, A37) the stage's gear for every guard this load places (the stage carried in, or the section's
     // start stage on a restart: a restart drops what the dropped stage gave)
@@ -731,7 +755,6 @@ export class SectorMode implements GameMode {
       const slot = s.guards[k]!;
       if (guardForTeam(slot, this.run.teamSize)) this.pending.push({ k, slot, alerted: false });
     }
-    // TODO(coop4 AI5): pass run.teamSize to Guard AI's team-size hook here once feature/guard-ai-coop4 names it.
     this.fill();
   }
 
@@ -963,8 +986,15 @@ export class SectorMode implements GameMode {
     // section's own perStage goes as at 2 players (waiting in `pending` for room)
     const em0 = g.enemyMgr;
     const base = this.run.current?.perStage ?? SECTOR.perStage;
-    const send = em0 ? capReinforce(want, base, em0.maxAlive - em0.alive - this.pending.length) : want;
-    if (send < want) console.info(`[sector] alarm stage ${stage}: ${want - send} extra reinforcement(s) refused at the live cap ${em0?.maxAlive}`);
+    // (coop4 AI5) with Guard AI's hook the response is its shape of the UNSCALED base (it adds the per-player extras and
+    // splits the teams; `want` only says whether the stage sends at all); without it, today's path (`want` carries our
+    // own `reinforcePerExtra` extras). Never both scalings.
+    const hooks = em0 as unknown as ResponseHooks | null;
+    const sh = want > 0 && hooks?.shapeResponse ? hooks.shapeResponse(stage, base, SHAPE) : null;
+    const ask = sh ? sh.size : want;
+    const send = em0 && ask > 0 ? capReinforce(ask, base, em0.maxAlive - em0.alive - this.pending.length) : ask;
+    if (send < ask) console.info(`[sector] alarm stage ${stage}: ${ask - send} extra reinforcement(s) refused at the live cap ${em0?.maxAlive}`);
+    const teams = sh ? Math.max(1, Math.min(sh.teams, send)) : 1;
     if (this.ct) this.ct.alarm = stage;
     if (stage > from && banner) g.hud.banner(`ALARM STAGE ${stage}`, send ? 'Reinforcements coming' : '', 2200);
     // (guard-ai S13, item 4, A37) every living guard of the live section gets the stage's gear at once; no camera is
@@ -980,23 +1010,36 @@ export class SectorMode implements GameMode {
     // (guard-ai S13, items 3 and 11, A38) the stage's response team: a shield guard first, the rest armed guards (the
     // same count, so the live cap holds); it sweeps the section after its search (the section's sweep list, else its
     // route points and posts). Made with the first guard that has a slot (none: no team).
-    const nt = responseTeam(stage, send, this.teamKinds);
-    let team: SweepTeam<Enemy> | null = null;
+    // (coop4 AI5) with Guard AI's shape: one response team per `sh.teams` (a shield lead each, the members split evenly),
+    // each made with its first slotted guard and spread over the section's most teams; a team's members queue together
+    // so `fill` joins them back to back (`joinReinforcement` then `joinTeam`). Without it: one team, today.
+    const ht = em as unknown as ResponseHooks | null;
     let n = 0;
-    for (let i = 0; i < send; i++) {
-      const en = ents ? ents[this.reinforceK++ % ents.length]! : null;
-      // (sector-redesign G3) armed guards, never heavies (G155); the count is the section's `perStage`; (E5) at the
-      // stage's response route (its patrol) when it has one
-      const slot: SquadSlot | null = en
-        ? { kind: SECTOR_REINFORCE_KIND, x: en.at[0] + (i % 2) * 1.3, z: en.at[1], yaw: en.yaw ?? 0 }
-        : reinforceSlot(s, stage, i, this.reinforceK++, SECTOR_REINFORCE_KIND);
-      if (!slot) break;
-      // (S13) the team's kinds (a fresh slot either way)
-      if (i < nt) slot.kind = this.teamKinds[i]!;
-      if (en?.y !== undefined) slot.y = en.y;
-      if (!team && em && nt > 0) team = em.newTeam(this.run.index, s.sweep ?? null, ...this.sweepSource(s));
-      this.pending.push({ k: -1, slot, alerted: true, reinforce: true, route: en?.route ?? null, team });
-      n++;
+    let i = 0;
+    for (let k = 0; k < teams; k++) {
+      const size = sh ? responseTeamSize(k, send, teams) : send;
+      const nt = responseTeam(stage, size, this.teamKinds);
+      let team: SweepTeam<Enemy> | null = null;
+      let j = 0;
+      for (; j < size; j++, i++) {
+        const en = ents ? ents[this.reinforceK++ % ents.length]! : null;
+        // (sector-redesign G3) armed guards, never heavies (G155); the count is the section's `perStage`; (E5) at the
+        // stage's response route (its patrol) when it has one
+        const slot: SquadSlot | null = en
+          ? { kind: SECTOR_REINFORCE_KIND, x: en.at[0] + (i % 2) * 1.3, z: en.at[1], yaw: en.yaw ?? 0 }
+          : reinforceSlot(s, stage, i, this.reinforceK++, SECTOR_REINFORCE_KIND);
+        if (!slot) break;
+        // (S13) the team's kinds (a fresh slot either way)
+        if (j < nt) slot.kind = this.teamKinds[j]!;
+        if (en?.y !== undefined) slot.y = en.y;
+        if (!team && ht && nt > 0) {
+          const [routes, posts] = this.sweepSource(s);
+          team = sh ? ht.newTeam(this.run.index, s.sweep ?? null, routes, posts, SECTOR.alarmMax * teams) : ht.newTeam(this.run.index, s.sweep ?? null, routes, posts);
+        }
+        this.pending.push({ k: -1, slot, alerted: true, reinforce: true, route: en?.route ?? null, team });
+        n++;
+      }
+      if (j < size) break;
     }
     if (!n) return;
     this.reinforced += n;

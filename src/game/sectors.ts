@@ -101,6 +101,27 @@ export interface SectorGuard extends SquadSlot {
   dormant?: boolean;
 }
 
+/** (coop4 AI5) A section's response numbers, the same shape as Guard AI's `ResponseShapeOverride` (src/ai/gear.ts on
+ *  feature/guard-ai-coop4), kept structural here so Sector Ops compiles and runs without that branch. */
+export interface SectorResponseShape {
+  readonly extraPerPlayer?: number;
+  readonly splitAt?: number;
+}
+
+/** (coop4 AI5) What an alarm stage sends in Guard AI's shape: `size` guards in `teams` response teams. */
+export interface SectorResponseOut {
+  teams: number;
+  size: number;
+}
+
+/** (coop4 AI5) How many of `size` guards go to response team `k` of `teams`: evenly, the first teams one more on a
+ *  remainder (Guard AI's `responseTeamSize`, kept here so this file needs no symbol from that branch). */
+export function responseTeamSize(k: number, size: number, teams: number): number {
+  if (!(teams >= 1) || !(size >= 1) || k < 0 || k >= teams) return 0;
+  const q = Math.floor(size / teams);
+  return q + (k < size % teams ? 1 : 0);
+}
+
 export interface SectorDef {
   id: string;
   name: string;
@@ -127,6 +148,9 @@ export interface SectorDef {
   sweep?: readonly (readonly [number, number])[];
   /** Guards each alarm stage sends in here (A3): armed guards (`SECTOR_REINFORCE_KIND`, no heavies, G155). */
   perStage: number;
+  /** (coop4 AI5) This section's own response-shape numbers for Guard AI's `setResponseShape` (a field left out: Guard
+   *  AI's default); none = the default. Read only when the Guard AI hook is present. */
+  responseShape?: SectorResponseShape;
   /**
    * (sector-redesign G20, M10) How many dogs the section may have (default 0: none). Every dog needs a `handler`.
    * Sector Ops only (M10 "Include guard dogs"); G155 (no dogs) still holds for the co-op missions elsewhere.
