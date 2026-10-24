@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-24T17:33Z
 
 # visual-gate VG5: the gate runner (cloud copy of docs/visual-gate/briefs/VG5.md on feature/visual-gate @ a3362896)
 

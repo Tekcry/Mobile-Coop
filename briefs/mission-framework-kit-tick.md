@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-24T17:33Z
 
 # mission-framework KIT-TICK: per-tick kit hook + kit polish (unit tests only)
 Lead: Night Shift | Marlow Build. Source: the KIT batch checker report (copied below, "Checker notes").

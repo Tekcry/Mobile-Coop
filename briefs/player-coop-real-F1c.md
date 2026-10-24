@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-24T17:33Z
 
 # Brief: coop-real F1c - checker follow-ups of F1a / F1b: no stale lamp round across a restart; the Course onRay chain test (Player Build)
 

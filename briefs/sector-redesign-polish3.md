@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-24T17:33Z
 
 # Sector Ops: polish batch 3 (fog2 check P1-P3, bake2 check polish 5)
 

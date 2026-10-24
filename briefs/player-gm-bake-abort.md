@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-24T17:33Z
 
 # Brief: gm-bake-abort - the guard bake stops a stage on a lost console instead of failing every job in 0 s (Player Build)
 

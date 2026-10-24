@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-24T17:33Z
 
 # mission-framework VAL-DIMS: validator checks co-op kit link dimensions against engine limits (unit tests only)
 Lead: Night Shift | Marlow Build.

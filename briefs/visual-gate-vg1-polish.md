@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-24T17:33Z
 
 # visual-gate: VG1 metrics polish (arc orientation, cost, float slack)
 
