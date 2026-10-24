@@ -48,7 +48,7 @@ export class MissionsScreen extends MenuScreen {
 
 /** The maps that are Sector Ops ops (a `sectors` list and the `sector` mode), in map order. */
 // (sector-redesign A68) campusOps listed from slice 3 (after the Warehouse, MAPS order)
-export const sectorOps = (): MapDef[] => MAPS.filter((m) => m.modes.includes('sector') && (m.sectors?.length ?? 0) > 0);
+export const sectorOps = (): MapDef[] => MAPS.filter((m) => !m.unlisted && m.modes.includes('sector') && (m.sectors?.length ?? 0) > 0);
 
 /** An op's context: name, sections, and per difficulty its star and best time. */
 function opCtx(m: MapDef, rec: SectorRecord, rating: RatingRecord | null = null): string {

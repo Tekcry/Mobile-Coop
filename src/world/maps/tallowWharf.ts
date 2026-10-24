@@ -62,6 +62,8 @@ export const tallowWharf: MapDef = {
   sectors: WHARF_SECTORS,
   missions: WHARF_MISSIONS,
   navLayers: 4,
+  // registered, not listed: off the Sector Ops menu, the Play screen and the co-op lobby (`?autostart=tallowWharf&mode=sector&mission=<id>`)
+  unlisted: true,
   // greybox: no generated skirting, vents or clutter
   detail: false,
   theme: {

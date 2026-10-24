@@ -142,4 +142,6 @@ export interface MapDef {
    * purpose. Default true.
    */
   detail?: boolean;
+  /** (mission-framework GB5) True: registered in `MAPS` (so `?autostart=<id>` and `getMap` find it) but off every menu and co-op lobby list. */
+  unlisted?: boolean;
 }

@@ -392,7 +392,7 @@ function lobbyModes(current: NetMode): typeof MODE_OPTS {
 }
 /** The maps the host can pick for a mode: the campaign is Marlow Yard only (the course lab and bunker with `?legacy=1`). */
 function lobbyMaps(mode: NetMode): typeof MAPS {
-  const all = MAPS.filter((m) => m.modes.includes(mode));
+  const all = MAPS.filter((m) => !m.unlisted && m.modes.includes(mode));
   if (mode !== 'course' || flags.legacy) return all;
   return all.filter((m) => m.id === CAMPAIGN_MAP);
 }

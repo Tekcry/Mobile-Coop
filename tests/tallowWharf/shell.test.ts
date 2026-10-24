@@ -136,10 +136,10 @@ describe('tallowWharf: the stub sections', () => {
     ]);
   });
 
-  it('the sector stub boots one section; the mission list is empty', () => {
-    expect(tallowWharf.sectors).toHaveLength(1);
+  it('the sector data is the GB5 data: four sections starting on the canal steps, and the two missions (tests/tallowWharf/sectors.test.ts)', () => {
+    expect(tallowWharf.sectors!.map((x) => x.id)).toEqual(['W1', 'W2', 'W3', 'W4']);
     expect(tallowWharf.sectors![0]!.start).toEqual({ x: 7, y: 0, z: 10, yaw: 0 });
-    expect(tallowWharf.missions).toEqual([]);
+    expect(tallowWharf.missions!.map((m) => m.id)).toEqual(['threeGreyCoats', 'twoKeyLedger']);
   });
 
   it('the graph has the links the sections build (a smoke read of the helper)', () => {
