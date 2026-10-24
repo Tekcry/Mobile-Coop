@@ -274,60 +274,35 @@ Polish: slice0-check.md, sliceL-check.md, slice1-check.md, e1/e3/e4-check.md pol
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (saved 2026-10-24 ~04:15, 5-hour save; overnight mode, Michael asleep). Job
-sector-redesign (lead), worktree C:/NightShift/Mobile-Coop-sector-redesign-polish (feature/sector-redesign-polish:
-STATE / PLAN / checks / briefs). git fetch; read CLAUDE.md; PLAN.md "LR16". Laptop: scripts/laptop-queue/request.mjs +
-lib.mjs from origin/master copied to scratch; node <scratch>/request.mjs --sha <sha> --branch <b> --set <s> --suites "a b"
---requester "Night Shift | Sector Ops Build"; verdict = GitHub status laptop-e2e/<set>. Orchestrator overnight: testing
-backlog first, then PLAN slices one at a time.
-DONE this window: #226 TRAIN-READY (1da8849d: master merged, animFrozen -> animTier, C7-C9; laptop 7/7; check PASS).
-LR16 batch on lr16int e7cec732 = LR16g + LR16-L A (bake box on the lamp, LAMP 6) + LR16-W layout (warehouse S1-S3 + T;
-C2 dropped: master has Marlow A1-A8) + lead fix 85b7ff10 + polish A, B, E + LR16-L B. Checks PASS: lr16w-batch-check
-(FIX 1 done), lr16-render-batch-check, lr16pol-ad-check.
-LAPTOP: e7cec732 lr16w RED 9/12 (desktop:3, darkness, lightbake). Cause (checks/lr16-laptop-triage.md on -lr16fix
-83136f2c): LR16-1 nsGrid2 flood loop indexes bool c[8] past its end under HLSL (no short-circuit) -> fxc X3504 / X3696,
-every lamp-plugin PBR draw fails on ANGLE D3D11 at smooth Epic. Fix = cherry-pick of LR16-P F3 79d2e9b9 (no local
-arrays). 2798e57d lr16cf lightbake RED (same bug, expected). #226 MERGED in 4.84.0.
-NOW: lr16int 809c25f4 (fix + C / F / P + changelog) laptop GREEN 12/12 (pr 287). DRAFT PR Tekcry/Mobile-Coop#287 is
-CONFLICTING with master; per master's CLAUDE.md (never merge master into a job branch) the resolution is on
-feature/sector-redesign-lr16-entry f85ef736 (checks/lr16-train-entry.md: 23 files, PROTOCOL 45, master's Marlow map,
-tuned.json dropped, rtReflections deleted; 110 / 111 test files green). BLOCKER: master's ctcourseLight RED under LR16
-(57 Marlow points move, 13 bands break). Orchestrator (~06:15): Sector Ops plans LR16-M, Marlow Build builds it (owns
-ctcourse.ts), #287 trains with the entry resolution once LR16-M is green. Laptop f85ef736-021e (coop netmove lightbake
-darkness sectorops) queued; LR16-P perf requeued: 1c22b913-74eb, 83136f2c-ce41, 809c25f4-6cde.
-NEXT:
-1. LR16-M BUILT by Marlow: PR #291 feature/marlow-lr16m 606630ed (= -lr16-entry 6e53e036 + M1-M4 + INT; ctcourseLight green, 731 tests); laptop ctcourse:1-4 + lightbake (set lr16m) + Sonnet checker on their side. #291 holds all of #287 + the entry resolution. Orchestrator ~07:30: #291 alone carries LR16; Marlow labels it; do NOT label #287 (marked merged when #291 releases). #291 shows CONFLICTING vs the current master (master moved past 5d1e8e3e): the train resolves it. After #291 releases: open the LR16-4 PR from -lr16-4 (base f85ef736 is inside #291), close CI-only #290. Was: send the path to Marlow Build
-   and copy the orchestrator. When Marlow's LR16-M branch is green: tell the orchestrator #287 trains with
-   -lr16-entry + LR16-M; mark #287 ready + label train-ready.
-2. #291 laptop (Marlow): ctcourse:1-4 PASS, e2e-lightbake FAIL at 900 s on 606630ed (flaked on f85ef736; passed pre-merge on
-   809c25f4); checker PASS. RUNNING ~08:30: Opus lightbake triage (fix branch -lr16lb off -lr16-entry if any;
-   checks/lr16-lightbake-triage.md); Marlow reruns lightbake --pr 291 (set lr16m-lb). #291 / -lr16-entry CONFLICT again
-   with master (enemy.ts, protocol.ts, session.ts): asked the orchestrator train vs refresh. #290 CLOSED (no CI while
-   conflicting); full vitest on -lr16-entry 6e53e036: 5806 pass, 4 fail = ctcourseLight x2 (fixed by LR16-M #291), editor/lamps.test.ts:53 (900 lm calibration lamp moved by LR16g/W), laserPanels panel-workshop (seen from (23.4, -13.6)); FIXED on -lr16fix2 f21f797f (calibration regex; warehouseS1.ts:275 wall +0.15 m closes a real floor-jam leak at panel-workshop, already on master) -> -lr16-entry fast-forwarded to f21f797f  -> merged by Marlow (#291 7fcd73e3, laptop 5/5). CI red on lampFlicker / lightRigFlicker alloc = REAL per-tick boxing (hash2 uint32 un-inlined): fixed in src (hash2 30-bit Smi) on -lr16fix3 -> -lr16-entry 1d598394 (~10:05), Marlow merged: #291 5c20c538 CI GREEN, laptop ctcourse:1-4 + sectorops:6 5/5, LABELLED train-ready (~10:30); trains after Guard AI #295 (body watchdog). Body-compile timing (Test Runner, campus Epic cold x3): compile 29.3 s on LR16 = master; LR16 body meshes appear ~22 s later (bake) -> boot-to-ready 61 s vs 39 s; fits #295's 45 s cap if it counts from the material (asked the orchestrator to confirm with Guard AI); 3-at-once campus: slowest 43.5 s (old watchdog restart included; 1.5 s under the cap) -> orchestrator: train 47 (on the laptop, #291 on master + #295) is the measurement; Guard AI raising the cap to 90 s anyway; shader-cost slice held until after Michael's playtest. LR16-6 laptop GREEN on 34ae51d0 (3/3). Combined branch feature/sector-redesign-lr16b2 = -lr16-entry 1d598394 + lr16-4 + pol2 + lr16-6 (clean merges; tsc, lint 0 errors, 18 files 286 pass). pol2 part C DONE on it (9602eed0: cone fixture vis hash old == new; lampBake 24/24). #291 RELEASED 4.88.0 (train 47). PR Tekcry/Mobile-Coop#307 OPEN (~11:45, lr16b2 9602eed0, clean vs 4.88.2); laptop 9602eed0: sectorops:6 + coop PASS, darkness FAIL only on the pre-#295 8 s watchdog warning (all darkness + thermal checks ok; branch carries STUCK_MS 8000, master 90000). Rerun e2e-darkness on the PR merge commit bf7879f8 (has #295; pushed as test/pr307-merge) PASS; CI green; #307 TRAIN-READY (labelled + orchestrator told ~12:00). Was: open the PR (lr16b2 -> master), laptop sectorops:6 + darkness + coop on its head (with --pr), label, message. Entry REFRESHED vs master 4.86.0: -lr16-entry 87bd1c5b (enemy.ts master side + fieldLight line; protocol master 46; session.ts lateBay kept). Marlow told to wait for the final entry sha (fix2 + lightbake fix) and re-merge once. Lightbake red CAUSE (checks/lr16-lightbake-triage.md): LR16 Epic body shader ~5-6x bigger vs master's 8 s body-effect watchdog (src/player/bodyEffectRecovery.ts:18, Guard AI code) -> warn + recompile. Orchestrator ~09:05: Guard AI fixes the watchdog (+ the recompile self-catch bug) in its own PR off master; #291 trains after it; do NOT touch it on -lr16-entry. Guard AI #295 (~09:35): watchdog recovers only on Babylon timeout / failed / disposed, 45 s last-resort cap, self-catch fixed; #291 rides with or after it. Asked Test Runner (~09:40) to time LR16's cold Epic body compile (3 cold runs LR16 vs master + 1 run 3 browsers at once): over 45 s -> the shader-cost slice is needed after all. Shader-cost slice HELD (perf tuning, after Michael's playtest): polish item "LR16 body shader compile cost": plan = one laptop GPU probe timing the Epic body compile, then dynamic-bounded torch / PCSS loops (same picture, keep LAMP_TSHADOW on bodies). LR16-6 check B PASS (allocating rays + client bodies never cool -> fix round with A).
-   ENTRY branch fixes (-lr16-entry): 2f719ac9 campusArtGameplay greybox re-pin (S4 post); 6e53e036 lampLevel -> LR16 formula (marlowLightingLevels 7/7; Marlow merged: #291 5c20c538 CI GREEN, laptop ctcourse:1-4 + sectorops:6 5/5, LABELLED train-ready (~10:30); trains after Guard AI #295 (body watchdog). Body-compile timing (Test Runner, campus Epic cold x3): compile 29.3 s on LR16 = master; LR16 body meshes appear ~22 s later (bake) -> boot-to-ready 61 s vs 39 s; fits #295's 45 s cap if it counts from the material (asked the orchestrator to confirm with Guard AI); 3-at-once campus: slowest 43.5 s (old watchdog restart included; 1.5 s under the cap) -> orchestrator: train 47 (on the laptop, #291 on master + #295) is the measurement; Guard AI raising the cap to 90 s anyway; shader-cost slice held until after Michael's playtest. LR16-6 laptop GREEN on 34ae51d0 (3/3). Combined branch feature/sector-redesign-lr16b2 = -lr16-entry 1d598394 + lr16-4 + pol2 + lr16-6 (clean merges; tsc, lint 0 errors, 18 files 286 pass). pol2 part C DONE on it (9602eed0: cone fixture vis hash old == new; lampBake 24/24). #291 RELEASED 4.88.0 (train 47). PR Tekcry/Mobile-Coop#307 OPEN (~11:45, lr16b2 9602eed0, clean vs 4.88.2); laptop 9602eed0: sectorops:6 + coop PASS, darkness FAIL only on the pre-#295 8 s watchdog warning (all darkness + thermal checks ok; branch carries STUCK_MS 8000, master 90000). Rerun e2e-darkness on the PR merge commit bf7879f8 (has #295; pushed as test/pr307-merge) PASS; CI green; #307 TRAIN-READY (labelled + orchestrator told ~12:00). Was: open the PR (lr16b2 -> master), laptop sectorops:6 + darkness + coop on its head (with --pr), label, message.it into feature/marlow-lr16m); CI-only draft PR #290 on -lr16-entry runs the full test list (close it after). Read f85ef736 verdict (wire change protocol 45) and the perf verdicts (logs on the laptop: checks/lr16p-perf-request.md).
-3. LR16-4 DONE -lr16-4 eb2c62c2 (board-2; checks/lr16-4-build.md), check PASS (checks/lr16-4-check.md); laptop eb2c62c2-0cb6 (sectorops:6 coop). Was: one checker
-   (two on src/ai if touched) + laptop sectorops:6 + coop.
-4. FULL BURN. LR16-6 DONE -lr16-6 543cb6da (G100 label on every cut; G102 dim-blue door figures, doorGhosts.ts /
-   thermalGhost.ts; one line each in ai/enemy.ts + net/enemyPuppet.ts); checkers A FIX / B PASS -> fix round DONE 34ae51d0 (client body cooling via src/net/keptBodies.ts, walking door figures, hitDistance rays, chest colour read; 250 tests); laptop 543cb6da FAILED e2e-darkness (asked Test Runner for the assert), requeued 34ae51d0-c617. LR16-4 eb2c62c2 laptop GREEN 2/2. Was: two Opus checkers
-   + laptop 543cb6da-a297 (darkness incl. new thermal leg, coop, netmove). pol2 = A + B merged 35b8ab7b + a0fe26a0 (check
-   PASS, pol2-ab-check). PR for LR16-4 + pol2 + LR16-6 after #291 releases. Was: Opus LR16-6 vision polish
-   (-lr16-6 off 6e53e036; G100 instant cut, G102 thermal through shut doors; checks/lr16-6-build.md); Opus planner
-   briefs/LR16-POLISH2.md DONE (d9982b9f: 7 build / 18 held / 7 dropped); RUNNING Sonnet pol2-a (warehouseS3 overhead
-   mark, LR16D_MOVED stale keys) + pol2-b (bounce / lamp-upload tests), off 6e53e036; then one Sonnet checker, merge
-   into feature/sector-redesign-pol2; part C after #291 releases; PR after #291 (with LR16-4). LR16-8 sheets SENT to Test Runner on
-   606630ed (reply = one message with pass / flag list, probe table, perf, sheet folder).
-LR16-8 sheets (606630ed, scratch/lighting/lr16-8/): parity probe 0 diff, perf p95 9.6 / 10.2 ms (S5-worst only 14 / 24 guards), bakes 3.5 / 8 / 27 s. Flags: torch light through walls (S1, warehouseOps 07), shot lamp meter unchanged (S1 08), black ceilings (04) -> triage DONE (checks/lr16-8-triage.md, 6eaa1bdf): no lighting bug - 07 = metric (TAA / haze noise; real but minor: torch HAZE has no occlusion, a faint wedge round a corner, polish), 08 = the shot lamp put 0 on the player, 04 = bounce design limits (cone fittings no up-glow, 4 m reach; downward-lamp ceilings 0.08-0.09). REDO 04 / 07 / 08 on 5c20c538 DONE (shots/lr16-8 redo-040708-5c20c538): 08 meter drops everywhere, 04 ceilings lit in the field, 07 nothing through walls / doors with haze off; 2 corner flags = script framing / mask (lead read the PNGs). LR16-8 CLOSED: no light leak or parity break; only the torch haze spill (A3) on the polish list; all sheets shared on git branch shots/lr16-8 (a7a3ec69). warehouse / proving / kestrel done on 5c20c538: probes 0 diff; proving moonlit ground card 0.294 for level 0.749 (band 0.42-1; darkness curve vs moon, parked mode, polish check); warehouse / proving / kestrel shots rerunning on 5c20c538 (Test Runner).
-Guard AI #298 (armour = body mark from Door.armoured / armoured glass group): our E10 pieces (S4 mantrap door, NOC window; S5 front, ante doors) already set the flags; 117 tests pass on #298 head (~11:05).
-Polish (after Michael's playtest, his call ~11:45): per-section lamp bake on campus (bake section 1 + connector lamps first, the rest in background workers before each connector opens; ~2 slices, 3-4 h, one laptop run; parity: a lamp whose box spans two sections counts for both; the IndexedDB cache already makes it first-load only).
-For Michael: ceilings over cone fittings / halls > 4 m read black (options: cone up-glow, 6-7 m bounce reach ~3x bake, more albedo); partner beacon is a 1.4-2 cm unlit sphere (needs a min screen size or halo); LR16 adds ~22 s to campus cold first load (lamp bake ~27 s); LR16-8 look flags (views with no pool / no dark, S3 lit everywhere, NV too dark in S3 / S4 darkest rooms, partner beacon unreadable at 10-20 m); Realistic dimmer (S2 atrium 0.47); S3 hall-lit white fog; R2N ladder foot 0.44 (layout cannot fix); warehouse
-fittings at 0.1-0.3x (GPU sheet judges); lamp-loop cost.
-Polish held: art-train-entry-check 1-6, lr16w-batch-check list, lr16-render-batch-check 1-4 (rtReflections highp),
-lr16pol-cf-check 1-4, warehouseLamps.test.ts:119 plantDeck keys, lr15 / lrpolish / perf / lr16dx / lr16t / lr16-1 /
-lr16e / lr16-5 / artnext (LR16-POLISH "Held"). Stale worktree -lr16wp (detached, probes): remove (rmdir node_modules first).
+Night Shift | Sector Ops Build: RESUME (saved 2026-10-24 ~14:00 at the 88% save; full burn). Job sector-redesign (lead),
+worktree C:/NightShift/Mobile-Coop-sector-redesign-polish (feature/sector-redesign-polish: STATE / PLAN / checks / briefs).
+git fetch; read CLAUDE.md; PLAN.md "LR16". Laptop: copy scripts/laptop-queue/request.mjs + lib.mjs from origin/master to
+scratch; node <scratch>/request.mjs --sha <sha> [--pr N] --branch <b> --set <s> --suites "a b" --requester "Night Shift |
+Sector Ops Build"; verdict = GitHub status laptop-e2e/<set>; with --pr a failure posts its excerpt on the PR (always pass
+--pr when a PR exists). The laptop fetches branches only: to test a PR's merge with master, push its merge commit to a
+test/ branch first.
+RELEASED: #226 campus art (4.84.0); #291 = all of LR16 + Marlow LR16-M + train-entry fixes (4.88.0; #287 marked merged).
+OPEN: PR Tekcry/Mobile-Coop#307 (feature/sector-redesign-lr16b2 9602eed0 = LR16-4 reception board + LR16-6 vision polish
+  + LR16-POLISH2 A-C), TRAIN-READY: CI green; laptop sectorops:6 + coop PASS on the head, darkness PASS on the merge commit
+  bf7879f8 (test/pr307-merge; the head's red is the pre-#295 8 s watchdog only). Act on the train's verdict; one Opus
+  triage on any failure. After release: Michael may delete test/pr307-merge, feature/sector-redesign-lr16-entry,
+  -lr16fix*, -lr16b2 parts (his call).
+HANDOVER: Test Runner (guard-render phase 2) owns src/world/world.ts, sunCascadeCull.ts, src/game/sectorGuardFreeze*.ts
+  this window; keep off them. It must keep #307's ghostFrame rule (animTierView) and test case.
+PLAN: every slice built. HELD for Michael's playtest (docs only until then): per-section campus bake (~2 slices, 3-4 h;
+  a lamp spanning two sections counts for both); body-shader compile cost (one laptop GPU probe, then dynamic-bounded
+  torch / PCSS loops; cold Epic compile 29.3 s solo, 43.5 s with 3 browsers, cap now 90 s); torch haze spill past a wall at
+  corners (volLights / torches reach, checks/lr16-8-triage.md A3); polish held lists (checks/*-check.md polish).
+For Michael: ceilings over cone fittings / halls > 4 m read black (cone up-glow, 6-7 m bounce ~3x bake, albedo); partner
+  beacon a 1.4-2 cm unlit sphere (min screen size or halo); NV too dark in S3 / S4 darkest rooms; views with no pool / no
+  dark, S3 lit everywhere; LR16 +22 s campus cold first load; proving moonlit ground card 0.29 vs band 0.42 (parked mode);
+  Realistic dimmer (S2 atrium 0.47); S3 hall-lit white fog; R2N ladder foot 0.44.
+Sheets: git branch shots/lr16-8 (LR16-8 showcase, redo-040708-5c20c538): no light leak, no parity break.
 RULES: message the orchestrator only at PR open / train-ready / blocked / needs Michael; Opus plans / checks / engine,
-Sonnet from strict briefs; one checker per batch in parallel with the laptop request; Opus triage on any laptop failure;
-one fix round; every e2e E2E_GPU=1 on the laptop queue, none on the desktop; no desktop GPU probe or shader compile while heavy.lock / heavy2.lock names a train (orchestrator ~05:40); vitest --maxWorkers=2 under
-C:/NightShift/scratch/sr-slot-{1..4}.lock; agents wait while CPU > 90%; never two agents on one file; agents push explicit
-refs. Detached worktrees: `cmd //c rmdir "<wt>\node_modules"` FIRST, then git worktree remove --force. Master merges only
-at train entry. Train-ready = message + `gh pr edit <n> --add-label train-ready`.
+Sonnet from strict briefs; two checkers on src/ai or src/net; one checker per batch in parallel with the laptop request;
+Opus triage on any laptop failure; one fix round; never merge master into a job branch (conflicts resolve in the train or
+on a separate entry branch the orchestrator approves); no e2e and no GPU probe on the desktop; vitest --maxWorkers=2 under
+C:/NightShift/scratch/sr-slot-{1..4}.lock; agents wait while CPU > 90%; never two agents on one file; hot paths allocate
+nothing even un-inlined (no uint32 returns: 30-bit Smi). Detached worktrees: `cmd //c rmdir "<wt>\node_modules"` FIRST,
+then git worktree remove --force. Train-ready = message + `gh pr edit <n> --add-label train-ready`.
 ```
