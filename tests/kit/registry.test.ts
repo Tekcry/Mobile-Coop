@@ -1,12 +1,18 @@
 // (mission KIT0) The co-op kit's plumbing: the pull / shutter ids, the move registry, the host rule hook, the kit device
 // hook, the pose ids and the team controller's hand-off to a registered move. Headless (a fake GameState).
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { Vector3 } from '../../src/core/babylon';
 import { TEAM } from '../../src/config/movement';
 import { checkTeamRequest, isKitKind, KIT_CHECKS, KIT_KINDS, KIT_SUB, KIT_SUB_MASK, PULL_SUB, ROPE_SUB, SHUTTER_SUB, HANG_SUB, THROW_SUB, type TeamRequest, type TeamSide } from '../../src/game/teamMoves';
 import { isKitState, KitDevices, kitKindOf, kitMove, kitMoveOfState, kitMoves, kitOfferFree, kitPoseK, kitStateOffer, kitStateRole, kitStateSub, kitStateWireMode, registerKitMove, unregisterKitMove, type KitDevice, type KitHost, type KitMove } from '../../src/game/kit/registry';
 import { KIT_POSE_IDS, KIT_POSE_LOCAL, KIT_POSE_OF, KIT_POSE_PLACEHOLDER, newTeamPoseIn, teamPoseOfState, teamPoseOfWire, TEAM_LINK, teamLinkFrame, type KitPoseId } from '../../src/anim/clips/team';
 import { TeamController } from '../../src/game/teamController';
+import { flags } from '../../src/core/flags';
+
+// (mission-framework FLG) the kit is dark behind `flags.coopKit` (`?coopkit=1`): these tests drive its offers
+const coopKit0 = flags.coopKit;
+beforeAll(() => void (flags.coopKit = true));
+afterAll(() => void (flags.coopKit = coopKit0));
 
 const side = (id: string, mode: string, sub = 0, x = 0, y = 0): TeamSide => ({ id, x, y, z: 0, mode, alive: true, sub });
 const req = (kind: TeamRequest['kind'], a: TeamSide, b: TeamSide, extra: Partial<TeamRequest> = {}): TeamRequest => ({ kind, a, b, target: 3, targetUp: 4.4, sinceLast: 9, ...extra });

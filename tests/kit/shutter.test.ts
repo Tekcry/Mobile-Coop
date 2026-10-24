@@ -1,7 +1,7 @@
 // (mission KIT-SHUT) The hold shutter: the host's rule, the device's lift / hold / drop, the holder's and the crawler's
 // moves on the team controller (headless, a fake GameState), no crush, solo cannot hold and pass, the world piece's
 // pure rules.
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { Vector3 } from '../../src/core/babylon';
 import { checkTeamRequest, SHUTTER_SUB, type TeamRequest, type TeamSide } from '../../src/game/teamMoves';
 import { kitOfferFree, registerKitMove, unregisterKitMove, type KitMove } from '../../src/game/kit/registry';
@@ -11,6 +11,12 @@ import { KIT_POSE_LOCAL, newTeamPoseIn, teamPoseOfState } from '../../src/anim/c
 import { TeamController } from '../../src/game/teamController';
 import { BODY_STEP, curtainBodyBottom, curtainBox, placeShutter } from '../../src/world/shutterDoor';
 import { LevelBuilder } from '../../src/world/levelBuilder';
+import { flags } from '../../src/core/flags';
+
+// (mission-framework FLG) the kit is dark behind `flags.coopKit` (`?coopkit=1`): these tests drive its offers
+const coopKit0 = flags.coopKit;
+beforeAll(() => void (flags.coopKit = true));
+afterAll(() => void (flags.coopKit = coopKit0));
 
 const DT = 1 / 60;
 const SPEC: ShutterSpec = { id: 'sh1', x: 0, y: 0, z: 0, yaw: 0, width: 3, height: 2.4 };
