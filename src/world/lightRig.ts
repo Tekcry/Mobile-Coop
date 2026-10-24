@@ -293,17 +293,29 @@ export class LightRig {
   /** No longer a caster (3.1: the voxels hand over to the shadow proxy below Epic). */
   removeCaster(m: AbstractMesh): void {
     if (!this.casterSet.delete(m)) return;
+    m.onEffectiveEnabledStateChangedObservable.removeCallback(this.markCasters);
     const i = this.casters.indexOf(m);
     if (i >= 0) this.casters.splice(i, 1);
     this.pickT = 0;
     this.version = -1;
   }
 
+  /**
+   * (G8 cull) A caster was enabled or disabled (a figure's LOD switch, the merged body giving way to the figure): the
+   * placed shadow maps refill their lists on the next frame, so a disabled mesh never sits in one and a newly shown one
+   * casts at once (not at the next pick). One closure per rig.
+   */
+  private castersDirty = false;
+  private readonly markCasters = (): void => {
+    this.castersDirty = true;
+  };
+
   /** A mesh that casts shadows (level geometry, characters, props); deduplicated. */
   addCaster(m: AbstractMesh): void {
     if (this.casterSet.has(m)) return;
     this.casterSet.add(m);
     this.casters.push(m);
+    m.onEffectiveEnabledStateChangedObservable.add(this.markCasters);
     m.onDisposeObservable.addOnce(() => {
       this.casterSet.delete(m);
       const i = this.casters.indexOf(m);
@@ -377,8 +389,10 @@ export class LightRig {
       // moving lights follow every frame between picks
       this.follow(this.pool);
       this.follow(this.shadowPool);
+      if (this.castersDirty) this.refillCasters();
       return;
     }
+    this.castersDirty = false;
     this.pickT = PICK_INTERVAL;
     if (changed) {
       this.version = this.reg.version;
@@ -413,6 +427,16 @@ export class LightRig {
       this.put(this.pool[k++]!, this.reg.lights[ids[i]!]!);
     }
     for (let i = k; i < this.pool.length; i++) this.idle(this.pool[i]!);
+  }
+
+  /** (G8 cull) The placed shadow maps' lists again (a caster's enabled state changed since the pick). No allocation
+   *  unless a list changes. */
+  private refillCasters(): void {
+    this.castersDirty = false;
+    for (let i = 0; i < this.shadowPool.length; i++) {
+      const s = this.shadowPool[i]!;
+      if (s.id >= 0 && s.sg) this.fillCasters(s, this.reg.lights[s.id]!);
+    }
   }
 
   private follow(pool: Slot[]): void {
@@ -450,7 +474,9 @@ export class LightRig {
 
   /**
    * Shadow maps draw every caster in their list (no culling): keep only what this light can reach - its sphere
-   * (+ a margin for moving characters) against each caster's world bounds. Allocation-free.
+   * (+ a margin for moving characters) against each caster's world bounds. Disabled meshes are left out (G8 cull: a
+   * guard figure's other LODs and the merged body it replaced draw nothing, and their world boxes are stale), so a
+   * guard is one mesh in each list. Allocation-free.
    */
   private fillCasters(s: Slot, l: LightDef): void {
     // (built in a scratch array; the shadow map's list - an observed array - only changes when the set does)
@@ -460,6 +486,7 @@ export class LightRig {
     const cs = this.casters;
     for (let i = 0; i < cs.length; i++) {
       const m = cs[i]!;
+      if (!m.isEnabled()) continue;
       // (small things - pickups, switches, mags - are not worth a draw per shadow map)
       if (m.getBoundingInfo().boundingSphere.radiusWorld < 0.3) continue;
       const b = m.getBoundingInfo().boundingBox;

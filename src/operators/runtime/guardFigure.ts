@@ -13,7 +13,8 @@
  *   hidden piece is drawn by no pass. `gvis` is rewritten only on a spawn, gear, tint, flash or thermal heat change
  *   (heat is in gvis, not an overlay: one draw per guard in every vision mode).
  * - Culling: guard-render S1's fixed root-local box (the bind pose plus S1's margins), not `alwaysSelectAsActiveMesh`,
- *   so camera and cascade culling work. While any rig joint is re-parented (a ragdoll) the box no longer bounds the
+ *   so camera and cascade culling work; in the game it is the merged S1 body's own box (`box`, G8 cull), so the figure
+ *   joins exactly the shadow lists that body did. While any rig joint is re-parented (a ragdoll) the box no longer bounds the
  *   body: the meshes go always-active, and a world-matrix path poses the bones (each operator joint rides its rig
  *   joint's world matrix with its rest offset) because the rig's local transforms no longer chain.
  *
@@ -259,6 +260,13 @@ export interface GuardFigureOptions {
   pieces?: readonly string[];
   /** Tint table, rgb bytes per slot (default: white). */
   tints?: ArrayLike<number>;
+  /**
+   * (G8 cull) The culling box in the rig root's space (min x y z, max x y z; m): the merged S1 body's (its rest box plus
+   * S1's margins, `SmoothBody`), so the figure is culled by the camera and the cascades and joins the lamp, torch and
+   * character shadow lists exactly as the body it replaces. Default: the LOD's bind box plus the same margins (the
+   * bind pose's A-pose arms make that 0.34 m wider each side than the body at rest).
+   */
+  box?: ArrayLike<number>;
 }
 
 const ONE = new Vector3(1, 1, 1);
@@ -300,6 +308,8 @@ export class GuardFigure {
   private have = 0;
   private enabled = true;
   private disposed = false;
+  /** (G8 cull) The culling box in this figure's root space (null: each LOD's bind box plus margins). */
+  private readonly cullBox: Float32Array | null = null;
 
   /** Build it right after the rig, before the rig's first pose: the rig's rest is measured here. */
   constructor(private readonly lib: GuardLibrary, rig: RigLike, readonly manifest: GuardManifest, readonly name: string, opts: GuardFigureOptions = {}) {
@@ -310,6 +320,12 @@ export class GuardFigure {
     this.root = new TransformNode(`${name}-guard`, lib.scene);
     this.root.parent = rig.root;
     this.root.scaling.setAll(opts.scale ?? 1);
+    // (G8 cull) the rig root's box into the figure root's space (the figure root only scales)
+    if (opts.box && opts.box.length >= 6) {
+      const k = 1 / (opts.scale ?? 1);
+      this.cullBox = new Float32Array(6);
+      for (let i = 0; i < 6; i++) this.cullBox[i] = opts.box[i]! * k;
+    }
     readRig(this.rig, this.rigRest);
     this.parents = this.rig.map((n) => n.parent);
     rig.root.computeWorldMatrix(true);
@@ -422,8 +438,9 @@ export class GuardFigure {
     }
     const parts: GuardPart[] = [];
     const meshes: Mesh[] = [];
-    const bmin = new Vector3(a.box[0], a.box[1], a.box[2]);
-    const bmax = new Vector3(a.box[3], a.box[4], a.box[5]);
+    const box = this.cullBox ?? a.box;
+    const bmin = new Vector3(box[0], box[1], box[2]);
+    const bmax = new Vector3(box[3], box[4], box[5]);
     a.prims.forEach((prim, i) => {
       const m = new Mesh(`${label}-${i}`, scene);
       for (const vb of prim.vbs) {
@@ -448,7 +465,7 @@ export class GuardFigure {
       fingIn: new Float64Array(FING_LEN).fill(Number.NaN), visVer: -1, tintVer: -1, flash: -1, heat: -1,
     };
     this.sync(inst);
-    // the rest box plus margins, root-local: culled like any mesh (skinned bounds never refresh)
+    // the rest box plus margins, root-local (the S1 body's when given): culled like any mesh (skinned bounds never refresh)
     for (const m of meshes) m.setBoundingInfo(new BoundingInfo(bmin, bmax));
     return inst;
   }
