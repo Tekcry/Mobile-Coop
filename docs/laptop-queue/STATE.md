@@ -4,8 +4,9 @@
 - 2026-10-25 ~04:40: laptop-queue-4 (feature/laptop-queue-4, worktree C:/NightShift/Mobile-Coop-laptop-queue-4, stacked on
   feature/laptop-queue-3 = PR #366 head f3eaceed; PR #374), Orchestrator waste audit (gap 00:20-04:10), three fixes:
   - request.mjs fills `branch` and `pr` by default (171 open requests had branch ""): lib `pickBranch` (lib.mjs, above
-    requestProblem): the ref, else the checkout branch holding the sha, else the one remote work branch containing it;
-    `pr` from `gh pr list --head <branch>`. Carries master's scripts/pr-size.mjs + glob-match.mjs (identical) for CI.
+    requestProblem): the ref; '' for a sha on master; the checkout branch when the sha is its HEAD; else the one remote
+    work branch whose tip is the sha, then the one containing it; `pr` from `gh pr list --head <branch>` (checker FIX:
+    master / stacked-parent shas took the requester's branch and PR). Used by failure comments, job.ref and dupKey. Carries master's scripts/pr-size.mjs + glob-match.mjs (identical) for CI.
   - Dead-pid heavy.lock at the desktop gate (4191 blocked 21:57 to 01:20+): lib `slotLockDecision` (lib.mjs:118; reuses
     heavy-lock.mjs `parseLock`): break only when the pid is dead on this host and two reads match; no pid / other host /
     live pid / changed text = hold. service.mjs `breakIfStale` (:653; rename to `staleName`, copy back when a fresh taker

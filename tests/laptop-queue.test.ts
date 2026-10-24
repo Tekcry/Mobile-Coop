@@ -93,13 +93,17 @@ describe('pick oldest first per requester (priority first)', () => {
     const al = req(5, 'alone', 'al', 'A');
     expect(pick({ trains: [], requests: [al, p1] }, NOW, slots(false, false))).toEqual({ kind: 'request', request: p1, slot: '4189' });
   });
-  it('pickBranch: the ref, else the checkout holding the sha, else the one remote work branch', () => {
-    expect(pickBranch({ ref: 'origin/feature/a' })).toBe('feature/a');
-    expect(pickBranch({ headBranch: 'feature/b', headHasSha: true, containing: ['  origin/feature/c'] })).toBe('feature/b');
-    expect(pickBranch({ headBranch: 'feature/b', headHasSha: false, containing: ['  origin/feature/c', '  origin/master', '  origin/HEAD -> origin/master'] })).toBe('feature/c');
-    expect(pickBranch({ headBranch: 'master', headHasSha: true, containing: ['  origin/train/74', '  origin/dev'] })).toBe('');
+  it('pickBranch: the ref, never for a master sha, the checkout at the sha, then a tip, then the one containing branch', () => {
+    expect(pickBranch({ ref: 'origin/feature/a', onMaster: true })).toBe('feature/a');
+    expect(pickBranch({ onMaster: true, headBranch: 'feature/b', headIsSha: true, pointsAt: ['  origin/feature/b'] })).toBe('');
+    expect(pickBranch({ headBranch: 'feature/b', headIsSha: true, containing: ['  origin/feature/c'] })).toBe('feature/b');
+    // a stacked parent's head under the child's checkout: the parent's tip wins, not the checkout
+    expect(pickBranch({ headBranch: 'feature/child', headIsSha: false, pointsAt: ['  origin/feature/parent'], containing: ['  origin/feature/parent', '  origin/feature/child'] })).toBe('feature/parent');
+    expect(pickBranch({ headBranch: 'feature/b', headIsSha: false, containing: ['  origin/feature/c', '  origin/master', '  origin/HEAD -> origin/master'] })).toBe('feature/c');
+    expect(pickBranch({ headBranch: 'master', headIsSha: true, containing: ['  origin/train/74', '  origin/dev'] })).toBe('');
     expect(pickBranch({ containing: ['  origin/feature/c', '  origin/feature/d'] })).toBe('');
-    expect(pickBranch({ headBranch: 'HEAD', headHasSha: true })).toBe('');
+    expect(pickBranch({ pointsAt: ['  origin/feature/c', '  origin/feature/d'], containing: ['  origin/feature/c'] })).toBe('');
+    expect(pickBranch({ headBranch: 'HEAD', headIsSha: true })).toBe('');
   });
 
   it('requestProblem: priority must be an integer when given', () => {

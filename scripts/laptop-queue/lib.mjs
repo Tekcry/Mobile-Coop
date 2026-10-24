@@ -48,20 +48,26 @@ export function rerunPassed(suites) {
   return `laptop rerun passed: ${list}${tail}`;
 }
 
-/** The problem with a request object, or '' when it is fine. */
 /**
- * The branch a request names when --branch is not given (Orchestrator 2026-10-25: 171 open requests had branch ""):
- * the ref asked for; else the requester's checkout branch when it holds the sha; else the one remote work branch that
- * contains it (master, train/*, dev, laptop-queue and HEAD never count); '' when none or several.
+ * The branch a request names when --branch is not given (Orchestrator 2026-10-25: 171 open requests had branch ""), so
+ * its failure comments reach the right PR: the ref asked for; else nothing for a sha already on master (every later
+ * branch contains it); else the requester's checkout branch when the sha IS its head; else the one remote work branch
+ * whose tip is the sha, then the one that contains it (master, train/*, dev, laptop-queue and HEAD never count); ''
+ * when none or several (checker FIX: a master or stacked-parent sha took the requester's branch and PR).
  */
 const NOT_WORK_BRANCH = /^(HEAD|master|main|dev|laptop-queue|cloud-queue|ct-movement|train\/.*)$/;
-export function pickBranch({ ref = '', headBranch = '', headHasSha = false, containing = [] } = {}) {
+export function pickBranch({ ref = '', onMaster = false, headBranch = '', headIsSha = false, pointsAt = [], containing = [] } = {}) {
   if (ref) return ref.replace(/^origin\//, '');
-  if (headBranch && headHasSha && !NOT_WORK_BRANCH.test(headBranch)) return headBranch;
-  const work = [...new Set(containing.map((b) => b.trim().replace(/^origin\//, '')).filter((b) => b && !b.includes(' -> ') && !NOT_WORK_BRANCH.test(b)))];
-  return work.length === 1 ? work[0] : '';
+  if (onMaster) return '';
+  if (headBranch && headIsSha && !NOT_WORK_BRANCH.test(headBranch)) return headBranch;
+  const work = (lines) => [...new Set(lines.map((b) => b.trim().replace(/^origin\//, '')).filter((b) => b && !b.includes(' -> ') && !NOT_WORK_BRANCH.test(b)))];
+  const tips = work(pointsAt);
+  if (tips.length) return tips.length === 1 ? tips[0] : '';
+  const all = work(containing);
+  return all.length === 1 ? all[0] : '';
 }
 
+/** The problem with a request object, or '' when it is fine. */
 export function requestProblem(r) {
   if (!r || typeof r !== 'object') return 'not an object';
   if (typeof r.id !== 'string' || !r.id) return 'no id';
