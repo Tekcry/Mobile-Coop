@@ -508,7 +508,7 @@ describe('agedAlone', () => {
   it('pick: an alone request over 30 min blocks new pr work until both slots drain', () => {
     const q = { trains: [], requests: [req(35, 'alone', 'a'), req(5, 'pr', 'p')] };
     expect(pick(q, NOW, slots(true, false))).toBeNull();
-    expect(pick(q, NOW, slots(false, false))?.request.id).toBe(q.requests[0].id);
+    expect(pick(q, NOW, slots(false, false))?.request.id).toBe(q.requests[0]?.id);
   });
 });
 
