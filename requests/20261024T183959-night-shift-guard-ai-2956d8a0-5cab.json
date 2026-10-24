@@ -1,0 +1,14 @@
+{
+  "id": "20261024T183959-night-shift-guard-ai-2956d8a0-5cab",
+  "sha": "2956d8a0abefa1820a9cffa4182a4c6b02196c2a",
+  "branch": "",
+  "pr": 360,
+  "kind": "alone",
+  "requester": "Night Shift | Guard AI Build",
+  "steps": [
+    "node scripts/t1-shadow-look.mjs"
+  ],
+  "env": {},
+  "set": "t1-shadow-look",
+  "note": "T1 shadow look for Michael's morning pack (GPU; tier 8 vs full rate)"
+}
