@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-24T09:44Z
+status: done feature/sector-redesign-bake2 90bf843b
 
 # Sector Ops: section bake robustness (follow-up to PR #333)
 
@@ -35,3 +35,32 @@ Done when: tsc clean (`npx tsc --noEmit -p .`), eslint clean on the changed file
 your new tests pass (`npx vitest run <files> --maxWorkers=2`), report written with file:line per item and counts, branch
 pushed. Deviations: list them in the report. If an item needs a design choice not settled here, do the rest and set
 `status: blocked <item: question>`.
+
+## Report (Night Shift | Cloud Builder 1, 2026-10-24)
+Branch `feature/sector-redesign-bake2` @ 90bf843b (one commit on 5cc02048). Full report with file:line per item:
+`docs/sector-redesign/checks/section-bake-robust.md`.
+1. P6: `sectionJobs.ts` - a lamp whose pool retry and inline bake both fail lands dark, `failed++`, one warning;
+   `complete` saves only when `failed === 0`; new `incomplete` getter.
+2. B3: per-try token + start time; first failure (error or `JOB_CAP_MS = 60_000`) retries on the pool, second queues
+   an inline bake; inline runs at once during load, during play only while no pool job is in flight (one lamp per
+   task). `checkStalled` every 5 s from `start`, cleared at complete/dispose; a late failure is ignored by token.
+3. P8: `world.ts` makes the baker, so `sectionJobs.ts` keeps a registry: `sectionBakerMark()` /
+   `disposeSectionBakersSince(mark)`; `gameState.ts` wraps `World.create` in try/catch (plus one import line).
+   `lightBake.ts` also disposes its baker if the moon bake rejects.
+4. B2: `bakedLamps.ts` - after the first false `uploadTile`, background batches only queue; one whole-atlas upload at
+   the end (live-section landings still upload next frame so picture = meter).
+5. B4: during play live landings go to the queue head (`queueFirst`); tile progress per lamp (`tileZ` Int32Array).
+6. B5: baker `onLive` listeners -> `BakedLamps.liveChanged`: the live section's fading lamps jump to 1, queued ones
+   go to 1 and the queue head (stable order, preallocated scratch).
+7. B8: `parts` dropped at `complete`.
+8. B10: `e2e-lib.mjs` bake wait logs a `console.warn` on timeout/failure.
+Tests (`--maxWorkers=2`): new `sectionBakeRobust` 9/9, `sectionBake` 11/11, `sectionBakeCampus` 3 passed + 1 skipped
+(heavy), `bounceGrid` 11/11, `lampDataUpload` 3/3. `npx tsc --noEmit -p .` clean; eslint clean on changed src/tests;
+`node --check` on e2e-lib. Reverting P6 / retry / queue-head / end-upload fails 6 of the 9 new tests.
+Deviations: gameState.ts +1 import; lightBake.ts moon-failure dispose; test hooks `capMs` input and public
+`checkStalled(now)`; item 4 keeps the live-section whole-atlas upload (WebGL never reaches this path).
+Open (for the lead / Michael, not blocking): an inline bake held for "pool idle" still runs one lamp on the main
+thread, so a big flood lamp failing twice is one 2-5 s hitch after the background bake ends; alternative is to hold it
+to the connector cycle, but a late joiner's live lamp would then wait for a section change. Kept "pool idle" per brief.
+`disposeSectionBakersSince` stops every baker made after the mark (two concurrent `GameState.create` would interfere;
+does not happen today).
