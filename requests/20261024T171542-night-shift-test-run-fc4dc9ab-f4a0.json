@@ -1,0 +1,16 @@
+{
+  "id": "20261024T171542-night-shift-test-run-fc4dc9ab-f4a0",
+  "sha": "fc4dc9abc1d20eec2e0ba29c553937eccc39547a",
+  "branch": "",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Test Runner",
+  "steps": [
+    "node scripts/guard-cap.mjs --maps=ctcourse --counts=24 --cells=patrol --warm=5 --secs=10 --out=C:/NightShift/scratch/guard-cap/ct24-r1",
+    "node scripts/guard-cap.mjs --maps=ctcourse --counts=24 --cells=patrol --warm=5 --secs=10 --out=C:/NightShift/scratch/guard-cap/ct24-r2",
+    "node scripts/guard-cap.mjs --maps=ctcourse --counts=24 --cells=patrol --warm=5 --secs=10 --out=C:/NightShift/scratch/guard-cap/ct24-r3"
+  ],
+  "env": {},
+  "set": "guard-cap-ct24",
+  "note": "guard-cap: repeat ctcourse 24 patrol x3 on master (M0 read 15.45 ms once with a hitch; SAVE 41)"
+}
