@@ -72,6 +72,28 @@ function reach(adj, start, blocked = null) {
   return seen;
 }
 
+/** Space ids a `tracks` value names as an extraction: `exfil` (an id or a list of ids) on the tracks object itself
+ *  (Sector Ops: `tracks.exfil`), on each of its track objects (`tracks.A.exfil`), or on each entry of a track list; a
+ *  merged list of several files' values is walked the same way. A section op whose extraction is not the map's last
+ *  section names it here instead of tagging the space (a mid-map `exfil` tag breaks the map's spine checks). */
+export function trackExfils(tracks) {
+  const out = new Set();
+  const add = (v) => {
+    for (const id of Array.isArray(v) ? v : [v]) if (isStr(id)) out.add(id);
+  };
+  const walk = (t, top) => {
+    if (Array.isArray(t)) {
+      for (const x of t) walk(x, top);
+      return;
+    }
+    if (!isObj(t)) return;
+    add(t.exfil);
+    if (top) for (const v of Object.values(t)) if (isObj(v)) walk(v, false);
+  };
+  walk(tracks, true);
+  return out;
+}
+
 // ---------------------------------------------------------------------------------------------------------------
 // Field checks
 
@@ -286,8 +308,8 @@ export function checkMission(graph, metrics) {
     const late = objectives.filter((o) => o !== extract && !o.optional && !ancestors.get(extract.id).has(o.id)).map((o) => o.id);
     if (late.length) c.err(`objective ${extract.id}: the extraction is not after ${late.join(', ')} (the last step is the extraction)`);
   }
-  if (extract && !(byId.get(extract.space)?.tags ?? []).includes('exfil')) {
-    c.warn(`objective ${extract.id}: extraction space '${extract.space}' is not tagged exfil`);
+  if (extract && !(byId.get(extract.space)?.tags ?? []).includes('exfil') && !trackExfils(graph.tracks).has(extract.space)) {
+    c.warn(`objective ${extract.id}: extraction space '${extract.space}' is not tagged exfil (or named in a track's exfil)`);
   }
 
   // Intel -> exploit: every `needs` has a `gives` step before it; at least one pair.

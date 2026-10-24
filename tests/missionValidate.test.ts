@@ -225,6 +225,30 @@ describe('mission-validate: steps (DAG, extraction, intel -> exploit, twist, opt
     expectWarn(mc(x), "objective out: extraction space 's2-strong' is not tagged exfil");
   });
 
+  it("a space named in a track's exfil counts as exfil (Sector Ops' tracks.exfil, a track's own exfil, merged files)", () => {
+    const untagged = (): Graph => {
+      const g = sector();
+      for (const s of g.spaces) s.tags = s.tags.filter((t) => t !== 'exfil');
+      return g;
+    };
+    const warn = "objective out: extraction space 's2-yard' is not tagged exfil";
+    expectWarn(mc(untagged()), warn);
+    // Sector Ops' object form: tracks.exfil (S2 plan graph), and an exfil on one track.
+    const top = { ...untagged(), tracks: { A: { team: 'Ghost' }, B: { team: 'Shadow' }, meet: 's2-yard', exfil: 's2-yard' } };
+    expect(mc(top as Graph).warns.filter((w) => w.includes('not tagged exfil'))).toEqual([]);
+    const inner = { ...untagged(), tracks: { A: { team: 'Ghost', exfil: ['s2-yard'] } } };
+    expect(mc(inner as Graph).warns.filter((w) => w.includes('not tagged exfil'))).toEqual([]);
+    // Merged: the map file's tracks object beside the mission file's track list.
+    const g = untagged();
+    const mapPart = { meta: g.meta, spaces: g.spaces, links: g.links, syncs: g.syncs, tracks: { exfil: 's2-yard' } };
+    const missionPart = { meta: g.meta, spaces: [], links: [], mission: g.mission, objectives: g.objectives, rules: g.rules,
+      tracks: [{ team: 'a', zones: ['loft'] }, { team: 'b', zones: ['strong'] }] };
+    const merged = mergeGraphs([mapPart, missionPart]) as Graph;
+    expect(mc(merged).warns.filter((w) => w.includes('not tagged exfil'))).toEqual([]);
+    // Another space's exfil does not count, and the map checks still read only the tag.
+    expectWarn(mc({ ...untagged(), tracks: { exfil: 's2-loft' } } as Graph), warn);
+  });
+
   it('intel -> exploit: a need with no giver, a giver not before it, no pair at all', () => {
     const g = campaign();
     obj(g, 'strongroom').needs = 'keys';

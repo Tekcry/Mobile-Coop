@@ -75,7 +75,7 @@ into `syncs`, `syncs` before `sync` within a file.
 
 | Check | Severity |
 | --- | --- |
-| Extraction: exactly one `extract` step, not optional, after every other required step (the last step) | ERR; WARN its space is not tagged `exfil` |
+| Extraction: exactly one `extract` step, not optional, after every other required step (the last step) | ERR; WARN its space is neither tagged `exfil` nor named in a track's `exfil` (`tracks.exfil` as in Sector Ops' S2 plan graph, or `exfil` on one track; this check only: the map checks still read the tag) |
 | Intel -> exploit: every `needs` has a `gives` step before it (through `after`); at least one such pair | ERR |
 | One twist step | ERR none; WARN two or more |
 | One optional objective with a reward | ERR none; WARN two or more |
