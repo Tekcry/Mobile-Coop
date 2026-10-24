@@ -154,6 +154,7 @@ export class SettingsScreen extends MenuScreen {
         build: () =>
           rowList(
             desc(toggle('Course markers', () => s().gameplay.courseMarkers, (v) => upd((d) => void (d.gameplay.courseMarkers = v))), 'Shows the markers on training and test courses.'),
+            desc(toggle('Hints', () => s().gameplay.hints, (v) => upd((d) => void (d.gameplay.hints = v))), 'Show a hint line under the current objective'),
             desc(toggle('Last-guard slow motion', () => s().gameplay.slowBeat, (v) => upd((d) => void (d.gameplay.slowBeat = v))), 'A short slow-motion beat when the last guard in a room goes down.'),
             // (anim-fix-pass AF5, BRIEF A1) no "Mocap locomotion" row: mocap is the only player path (app.ts; `?mocap=0`
             // or the tuner box turn it off for one page); (LR16a) no Lamp falloff row: one photometric light model
@@ -212,6 +213,7 @@ export class SettingsScreen extends MenuScreen {
       fromDefaults((d, def) => {
         d.gameplay.courseMarkers = def.gameplay.courseMarkers;
         d.gameplay.slowBeat = def.gameplay.slowBeat;
+        d.gameplay.hints = def.gameplay.hints;
       }),
     );
     this.resets.set('video', () => st.reset('video'));

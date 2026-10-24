@@ -301,3 +301,36 @@ describe('(LR14) Graphics > Character shadows', () => {
     expect('charShadows' in defaultSettings().gameplay).toBe(false);
   });
 });
+
+// (mission-framework EN3) gameplay.hints: the hint line under the current mission objective, off by default
+describe('settings: gameplay.hints (mission-framework EN3)', () => {
+  beforeEach(() => resetDbCache());
+
+  it('defaults to false, also for a stored block without it', () => {
+    expect(defaultSettings().gameplay.hints).toBe(false);
+    expect(sanitizeSettings(structuredClone(PRE_STEP_18)).gameplay.hints).toBe(false);
+    expect(sanitizeSettings({}).gameplay.hints).toBe(false);
+  });
+
+  it('keeps a stored true and sanitizes a non-boolean to false', () => {
+    expect(sanitizeSettings({ gameplay: { hints: true } }).gameplay.hints).toBe(true);
+    for (const bad of ['yes', 1, 0, null, {}, []]) expect(sanitizeSettings({ gameplay: { hints: bad } }).gameplay.hints).toBe(false);
+  });
+
+  it('round trip through SettingsStore and fake-indexeddb kv/settings', async () => {
+    let saved!: () => void;
+    const done = new Promise<void>((r) => (saved = r));
+    const st = new SettingsStore(async (v) => {
+      await dbPut('kv', 'settings', v);
+      saved();
+    });
+    st.load(await dbGet('kv', 'settings'));
+    expect(st.get().gameplay.hints).toBe(false);
+    st.update((d) => void (d.gameplay.hints = true));
+    await dbPut('kv', 'settings', st.get());
+    const back = new SettingsStore();
+    back.load(await dbGet('kv', 'settings'));
+    expect(back.get().gameplay.hints).toBe(true);
+    await done;
+  });
+});
