@@ -10,7 +10,8 @@ import { BUDGET, G, MASK } from '../physics/groups';
 import type { CharacterRig } from '../player/characterRig';
 import type { Grenades } from '../weapons/grenades';
 import { GRAVITY } from '../physics/havok';
-import { Body } from './body';
+import { Body, deathLieOn } from './body';
+import { newLie } from './bodyLie';
 import { BODY } from './bodies';
 import type { LightDef, Occluder } from '../world/lights';
 import { rayOccluder } from '../world/shadowAccuracy';
@@ -657,7 +658,10 @@ export class EnemyManager {
       searchPoint: (e, out) => this.searchPointFor(e, out),
       searchDone: (e) => this.searchDoneFor(e),
       addBody: (e, rig: CharacterRig, imp: Vector3, lethal: boolean) => {
-        const b = new Body(scene, world, e.def, lethal, rig, imp, this.canRagdoll());
+        // (rig-pose-fix S5) where he lies is sim: his feet and yaw at death, the fall along the impulse, the room on the
+        // static collision (rig.p: static proportions); the ragdoll eases onto it
+        const lie = deathLieOn(this.deathLie, this.ballistics, e.pos.x, e.pos.y, e.pos.z, e.yaw, imp.x, imp.z, rig.p);
+        const b = new Body(scene, world, e.def, lethal, rig, imp, this.canRagdoll(), lie);
         b.enemyId = e.id;
         b.guardKey = e.key;
         b.guard = e;
@@ -673,6 +677,9 @@ export class EnemyManager {
     };
     this.refreshFlow();
   }
+
+  /** (rig-pose-fix S5) Scratch for a death's lie (the Body copies it). */
+  private readonly deathLie = newLie();
 
   /** Bodies still simulating as ragdolls are under the budget. */
   canRagdoll(): boolean {

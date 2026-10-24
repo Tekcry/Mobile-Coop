@@ -80,7 +80,8 @@ Design authority: docs/DECISIONS.md (G23, G42, G43, G49), then docs/design-bible
   bend over him: `TakedownController.bend` / `bendDrop` / `sway` -> `PlayerPose` -> `AnimInput.bend` (eased in the graph).
 - Bodies (G7, AUDIT-WALLS rows 6-8): `StealthSystems` picks up through a 2.0 s committed lift (`liftCurve`: step in to the
   chest, crouch with the hands under its shoulders to 0.8 s (crouch lets go), the hoist to the shoulder to 1.6 s,
-  settled at 2.0 s); the shoulder is the side the head lies (`carrySide`: a right-shoulder hoist of a body lying head to
+  settled at 2.0 s; rig-pose-fix S5: the step-in target is the body's sim lie, `Body.lieChest`, the hands still read its drawn
+  shoulders); the shoulder is the side the head lies (`bodyLie.carrySide` from the lie's head yaw: a right-shoulder hoist of a body lying head to
   the left swung its head through the carrier's back). `ai/carryPose.ts` poses the fresh carried rig (lying, the hoist
   pivoting at the hips with a 0.3 m bow out in front, the socket, the slide off). Carry: `BODY.carrySpeed` 0.8 m/s, bent
   0.38 rad; while carrying the interact is a hide spot, else a door in reach the operator faces (open / close only),

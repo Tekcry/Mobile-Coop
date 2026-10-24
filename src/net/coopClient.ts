@@ -4,6 +4,8 @@ import type { TakedownVictim } from '../game/takedownController';
 import type { Blip } from '../ui/hud/minimap';
 import type { BlobShadows } from '../vfx/blobShadows';
 import { Ragdoll } from '../ai/ragdoll';
+import { deathLieOn } from '../ai/body';
+import { newLie } from '../ai/bodyLie';
 import { BUDGET, G } from '../physics/groups';
 import { TorchMirror } from './torchMirror';
 import { LAMP_TARGET, LampMirror, SWAY_TARGET } from './lampSync';
@@ -76,6 +78,8 @@ export class CoopClient implements NetAttachment {
   private ragdolls: Ragdoll[] = [];
   /** Bodies the host still has lying, by enemy id (dropped when its `snap.bodies` leaves one out). */
   private kept = new Map<string, Ragdoll>();
+  /** (rig-pose-fix S5) Scratch for a kill's body lie (the host's `Body` lie, P13). */
+  private deathLie = newLie();
   /** (LR16-6 fix) When each kept body went down (`time`): its body-heat cooling (`stampBodies`). Render only. */
   private readonly keptAt = new Map<string, number>();
   private dying: EnemyPuppet[] = [];
@@ -753,10 +757,20 @@ export class CoopClient implements NetAttachment {
             if (this.kept.size >= BODY.max) this.dropBody(this.kept.keys().next().value!);
             const falling = this.ragdolls.filter((r) => !r.done && !r.settled).length;
             if (falling < BUDGET.maxRagdolls) {
-              const away = p.pos.subtract(g.player.position);
-              away.y = 0;
-              away.normalize().scaleInPlace(12).addInPlaceFromFloats(0, 3, 0);
+              // (rig-pose-fix S5, P13) the host's Body lies at his sim feet and yaw at death plus the settle along the fall
+              // (`bodyLie.ts`). The wire carries no body position, so the same lie from the puppet's last host state, the
+              // fall away from his killer (the host's is the killing round's or blow's way); the ragdoll eases onto it
+              const s = p.buf.latest();
+              const fx = s ? s.x : p.pos.x;
+              const fy = s ? s.y : p.pos.y;
+              const fz = s ? s.z : p.pos.z;
+              const src = e.by === me ? g.player.position : (this.avatars.get(e.by)?.pos ?? g.player.position);
+              const away = new Vector3(fx - src.x, 0, fz - src.z);
+              const lie = deathLieOn(this.deathLie, g.ballistics, fx, fy, fz, s ? s.yaw : p.yaw, away.x, away.z, rig.p);
+              if (away.lengthSquared() > 1e-6) away.normalize();
+              away.scaleInPlace(12).addInPlaceFromFloats(0, 3, 0);
               const r = new Ragdoll(g.scene, rig, away, true);
+              r.snapTo(lie.x, lie.y, lie.z, lie.headYaw);
               this.ragdolls.push(r);
               this.kept.set(e.enemy, r);
               this.keptAt.set(e.enemy, this.time);
