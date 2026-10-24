@@ -1,6 +1,8 @@
 # Guard AI - state
 
 ## Now
+~14:00: #303 (watchdog cap 45 -> 90 s) TRAIN-READY. Ready from me: #272, #298, #302, #303 (#295 merged).
+
 ~13:30: #302 (S28 + sweep) TRAIN-READY, #294 closed; ready from me: #272, #295, #298, #302. Nothing running.
 PLAN has no slices left; next: train failures, Michael's walk reports.
 
@@ -824,6 +826,7 @@ orchestrator). Green -> `gh pr edit <n> --add-label train-ready` + tell orchestr
      effect, bodyEffectRecovery.ts:59-61; laptop lightbake + guard-carry PASS; Opus check PASS).
    - #298 sniper armour 338b4263 (armour = body mark, groups.ts; Havok container filter read -1; restores E10 thin-wall
      penetration + impact effects; laptop enemies / stealth-ai / combat PASS; Opus check PASS).
+   - #303 watchdog cap 90 s 26e55a4e (feature/guard-ai-watchdog-90; LR16 compiles measured to 43.5 s; CI green; #295 merged).
    - #302 S28 + sweep 55592902 (feature/guard-ai-sweep = master + S28 + sweep stall fix; S28.md, S13-SWEEP-FIX/-CHECK;
      laptop sweep-fix2 PASS, looked 1 skipped 0). CI was running at label time.
 3. On a train failure: bisect with single-suite laptop sets on master and the branch head (+ a test-only merge if the
