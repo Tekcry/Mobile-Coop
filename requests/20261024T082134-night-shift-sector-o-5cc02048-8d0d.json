@@ -1,0 +1,17 @@
+{
+  "id": "20261024T082134-night-shift-sector-o-5cc02048-8d0d",
+  "sha": "5cc02048a49434272e351096d7bfa7749ce8a41f",
+  "branch": "feature/sector-redesign-bake",
+  "pr": 333,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-lightbake",
+    "e2e-darkness",
+    "e2e-sectorops:6",
+    "e2e-coop",
+    "e2e-netmove"
+  ],
+  "set": "bake",
+  "note": "section bake: fix round + master merge"
+}
