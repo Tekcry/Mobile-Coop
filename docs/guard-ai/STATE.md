@@ -1,6 +1,11 @@
 # Guard AI - state
 
 ## Now
+~07:20: coop4 AI5 DONE f1d517b2 (response shape hook setResponseShape / shapeResponse, team shares one hunt, own-LKP
+sweeps; hooks sent to Sector Ops). RUNNING: AI6 e2e builder (four-intruders block in e2e-stealth-ai + AI6-E2E-SPEC.md),
+Opus checkers A + B on AI1-AI5 (docs/coop4/briefs/AI-CHECK-A/B.md, uncommitted: lead commits). Then laptop
+e2e-stealth-ai (+ sectorops, coop) and one PR (minor).
+
 ~06:45: coop4 AI2 a5927b28 + AI3 d6c8cf13 + AI4 b9786d39 merged into feature/guard-ai-coop4 (b49daa0b: ai.md notes +
 changelog; tsc clean, 144 tests). AI3 hold-noise line sent to Sector Ops (N1). AI5 (response teams, L) Opus builder
 RUNNING in -coop4 (AI5-BUILT.md; owes Sector Ops the team-size hook; closes AI4's split-team risk). Then AI6, then
