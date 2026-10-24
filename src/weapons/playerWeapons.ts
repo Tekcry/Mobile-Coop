@@ -34,6 +34,7 @@ import { STANCE } from '../player/weaponStance';
 import { computeStats, damageAt, playerSpreadDeg, recoilKick, sampleSpread, NO_UPGRADES, type EffectiveStats, type StatMods, type WeaponUpgrades } from './weaponStats';
 import { addSd, sdStart, spendShot, SUPPRESSED_NOISE } from './sdRounds';
 import { emptyShotPose, shotEye, shotOrigin } from './shotOrigin';
+import { HandSwitch } from '../player/handSwitch';
 
 export interface LoadoutEntry {
   id: WeaponId;
@@ -176,6 +177,12 @@ export class PlayerWeapons {
   private shotO = new Vector3();
   private shotE = new Vector3();
   private readonly shotPose = emptyShotPose();
+  /**
+   * (rig-pose-fix S7, audit G15) The weapon changing hands, in sim: stepped in the fixed step toward the hand the wall edge /
+   * left-shoulder rule picked (`rig.openLeft`, a flag `gameState.ts` wallStep writes in the fixed step; never the rig's
+   * eased pose). The swap's hold reads this; the rig eases its own copy toward the same target (`HandSwitch`).
+   */
+  readonly hand = new HandSwitch();
 
   /** (rig-pose-fix S2) Where a round of the current weapon fired along `dir` (unit) starts (sim: `shotOrigin`) and the
    *  sim eye the wall-poke test runs from. Writes `outO` / `outE`; no allocation. */
@@ -628,6 +635,7 @@ export class PlayerWeapons {
     const s = this.current;
     // (anim-natural N3) the Draw section's values for this step (identity unless a slider moved)
     drawTuneApply(drawClass(s.def.class));
+    this.hand.step(dt, this.player.rig.openLeft);
     this.player.reload = this.reloading ? this.reloadProgress : -1;
     this.player.reloadEmpty = this.reloadEmpty;
     this.player.reloadQueued = this.reloadQueued;
@@ -771,11 +779,11 @@ export class PlayerWeapons {
       // (anim-cleanup) the outgoing gun travels to its slot in the trigger hand (no teleport, never across the face)
       const out = this.held >= 0 ? this.slots[this.held] : undefined;
       // (check fix r1) a gun still in (or easing out of) the left hand waits in the pocket until it is back in the right
-      if (this.swapPhase === 0 && f >= TRAVEL_OUT && !out?.model.travelling && (this.player.rig.weaponHand < 0 || this.player.rig.handSwitching)) {
+      if (this.swapPhase === 0 && f >= TRAVEL_OUT && !out?.model.travelling && (this.hand.hand < 0 || this.hand.switching)) {
         this.swapT = SWAP_TIME * TRAVEL_OUT;
         f = TRAVEL_OUT;
       }
-      if (this.swapPhase === 0 && out && f >= TRAVEL_OUT && f < SWAP_HOLSTER && out.model.canTravel(this.carrySlots[this.held] ?? null) && this.player.rig.weaponHand > 0 && !this.player.rig.handSwitching) {
+      if (this.swapPhase === 0 && out && f >= TRAVEL_OUT && f < SWAP_HOLSTER && out.model.canTravel(this.carrySlots[this.held] ?? null) && this.hand.hand > 0 && !this.hand.switching) {
         if (!out.model.travelling) out.model.beginTravel(this.player.rig, this.carrySlots[this.held]!, false);
         out.model.travel(this.player.rig, (f - TRAVEL_OUT) / (SWAP_HOLSTER - TRAVEL_OUT));
       }

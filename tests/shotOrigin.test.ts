@@ -95,7 +95,7 @@ describe('shotOrigin: the pure model', () => {
 });
 
 describe('shotOrigin: the host accepts the claimed origin (src/net/validate.ts checkShot, lampSync LAMP_SHOT_ORIGIN)', () => {
-  it('every stance, both weapons, the aim range: inside checkShot; upright inside the lamp / pendant origin check, inverted not', () => {
+  it('every stance, both weapons, the aim range: inside checkShot and the lamp / pendant origin check (inverted too, S7)', () => {
     const worst = { up: 0, inv: 0 };
     for (const w of ['rifle', 'pistolSd'] as const)
       for (const inverted of w === 'pistolSd' ? [false, true] : [false])
@@ -121,9 +121,9 @@ describe('shotOrigin: the host accepts the claimed origin (src/net/validate.ts c
                 }
     console.info(`shot origin vs the lamp check's chest point (feet + 1.2): upright max ${worst.up.toFixed(3)} m, inverted max ${worst.inv.toFixed(3)} m (limit ${LAMP_SHOT_ORIGIN})`);
     expect(worst.up).toBeLessThan(LAMP_SHOT_ORIGIN - 0.5);
-    // (open item, S2-REPORT) hanging inverted the round starts up to ~2.02 m from feet + 1.2 (the rig's muzzle did too: the
-    // fit is within 0.4 cm there): a client's lamp / pendant shot from an inverted pipe can fail the host's 2 m check
-    expect(worst.inv).toBeLessThan(2.1);
+    // hanging inverted the round starts up to ~2.02 m from feet + 1.2 (the rig's muzzle did too: the fit is within 0.4 cm
+    // there); (rig-pose-fix S7) the host's lamp / pendant check takes it (LAMP_SHOT_ORIGIN 2.1, was 2)
+    expect(worst.inv).toBeLessThan(LAMP_SHOT_ORIGIN);
   });
 });
 

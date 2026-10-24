@@ -9,6 +9,7 @@ import {
   LAMP_OFF,
   LAMP_ON,
   LAMP_SHOT,
+  LAMP_SHOT_ORIGIN,
   LampMirror,
   LampSender,
   lampShotOk,
@@ -254,6 +255,32 @@ describe('Sector Ops lamp sync (slice L, protocol 31)', () => {
     expect(lampShotOk(reg, 2, { x: 20, y: 1.6, z: 4 }, d, 10, { x: 20, y: 0, z: 4 }, 60)).toBe(false);
     reg.destroy(0);
     expect(lampShotOk(reg, 0, o, d, 10, feet, 60)).toBe(false);
+  });
+
+  it('(rig-pose-fix S7, S2 host check) accepts an inverted-hang claim: the round up to ~2.02 m from feet + 1.2', () => {
+    const reg = level();
+    const feet = { x: 0, y: 0, z: 4 };
+    const o = { x: 0, y: 1.6, z: 4 };
+    const d = { x: 0, y: 1.4 / Math.hypot(1.4, 4), z: -4 / Math.hypot(1.4, 4) };
+    // the same ray to lamp 0, its origin moved back along it until it is r from the chest point (feet + 1.2)
+    const back = (r: number): { o: { x: number; y: number; z: number }; t: number } => {
+      let t = 0;
+      const p = { x: o.x, y: o.y, z: o.z };
+      while (Math.hypot(p.x - feet.x, p.y - (feet.y + 1.2), p.z - feet.z) < r) {
+        t += 0.001;
+        p.x = o.x - d.x * t;
+        p.y = o.y - d.y * t;
+        p.z = o.z - d.z * t;
+      }
+      return { o: p, t };
+    };
+    expect(LAMP_SHOT_ORIGIN).toBeGreaterThan(2.05);
+    // S2's worst inverted origin (2.013 m, the suppressed pistol at pitch -0.6) with room to spare
+    const inv = back(2.05);
+    expect(lampShotOk(reg, 0, inv.o, d, 10 + inv.t, feet, 60)).toBe(true);
+    // a round from further off the body is still refused
+    const far = back(LAMP_SHOT_ORIGIN + 0.05);
+    expect(lampShotOk(reg, 0, far.o, d, 10 + far.t, feet, 60)).toBe(false);
   });
 
   it("(walk 4.72 S2) the host takes a client's round that lands on a street lamp pole just under its head", () => {
