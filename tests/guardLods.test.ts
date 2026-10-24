@@ -9,7 +9,7 @@ import { fixGuardGlb, glbStats, readGlb, writeGlb } from '../scripts/operators/g
 // @ts-expect-error plain JS module (scripts/operators), no types
 import { baseReport, fileDataFile, guardFileData, pieceReport, REPORT_VERSION, reportDrift, shownOfKind } from '../scripts/operators/guardLodReport.mjs';
 // @ts-expect-error plain JS module (scripts/operators), no types
-import { checkFileData, checkGuardFiles } from '../scripts/operators/guard-check.mjs';
+import { checkAlbedoMeans, checkFileData, checkGuardFiles } from '../scripts/operators/guard-check.mjs';
 // @ts-expect-error plain JS module (scripts/operators), no types
 import { shippable } from '../scripts/operators/guardBakePlan.mjs';
 import { resolveGuardAsset, type GuardFileData } from '../src/operators/guards/guardAssets';
@@ -302,21 +302,28 @@ describe('guard bake report (measured)', () => {
   });
 });
 
+/** (G10a D3) Every fabric-tinted garment part at its SPEC 8 neutral at every LOD (trousers at 0.78), boots / gloves dark. */
+const neutralMeans = (L: Layout, fabric = 0.4): Record<string, number[]> => Object.fromEntries(L.garments.flatMap((g) => [0, 1, 2].map((lod) => {
+  const v = g.partTint === 'none' ? 0.03 : fabric * (['trousers', 'work_trousers'].includes(g.part) ? 0.78 : 1);
+  return [`lod${lod}.garment:${g.part}`, [v, v, v]];
+})));
+
 describe('guard check (files)', () => {
   it('passes a clean base and lists the file-level problems', () => {
     const L = layout('broad');
     const stats = [0, 1, 2].map((l) => statsFor(L, l));
     const written = { ...baseReport(KIT, L, stats), bake: { seamKept: [0, 1, 2].map(() => ({ body: 42, 'broad-1': 42 })) } };
     const fileData = guardFileData(L);
-    expect(checkGuardFiles({ kit: KIT, layout: L, stats, written, fileData }).problems).toEqual([]);
-    expect(checkGuardFiles({ kit: KIT, layout: L, stats, written }).problems).toEqual([`${fileDataFile('broad')} missing (the runtime falls back to the stand-in without it)`]);
+    const albedoMean = neutralMeans(L);
+    expect(checkGuardFiles({ kit: KIT, layout: L, stats, written, fileData, albedoMean }).problems).toEqual([]);
+    expect(checkGuardFiles({ kit: KIT, layout: L, stats, written, albedoMean }).problems).toEqual([`${fileDataFile('broad')} missing (the runtime falls back to the stand-in without it)`]);
     const s2 = JSON.parse(JSON.stringify(stats));
     s2[0].mixedTris = 3;
     s2[1].pieceAttrUint8 = false;
     s2[2].extras = { pieces: ['broad'] };
     s2[0].pieceTris[L.pieces.indexOf('pouch_belt')] = 0;
     const w2 = { ...written, bake: { seamKept: [{ body: 40, 'broad-1': 42 }, null, null] }, notes: ['garment shirt missing'] };
-    const p = checkGuardFiles({ kit: KIT, layout: L, stats: s2, written: w2, fileData }).problems;
+    const p = checkGuardFiles({ kit: KIT, layout: L, stats: s2, written: w2, fileData, albedoMean }).problems;
     for (const re of [/span two pieces/, /not UNSIGNED_BYTE/, /extras.guard.pieces/, /pouch_belt has no triangles/, /body seam ring 40/, /bake note: garment shirt missing/, /report drift/]) {
       expect(p.some((x: string) => re.test(x)), String(re)).toBe(true);
     }
@@ -329,16 +336,46 @@ describe('guard check (files)', () => {
     const fileData = guardFileData(L);
     const cap = L.caps[0]!.id;
     expect(stats[2]!.pieceTris[L.pieces.indexOf(cap)]).toBe(0);
-    expect(checkGuardFiles({ kit: KIT, layout: L, stats, written, fileData }).problems).toEqual([]);
+    const albedoMean = neutralMeans(L);
+    expect(checkGuardFiles({ kit: KIT, layout: L, stats, written, fileData, albedoMean }).problems).toEqual([]);
     const s2 = JSON.parse(JSON.stringify(stats));
     s2[1].pieceTris[L.pieces.indexOf('radio')] = 0;
     s2[2].pieceTris[L.pieces.indexOf('glasses_dark')] = 0;
     s2[1].pieceTris[L.pieces.indexOf(cap)] = 0;
-    const p = checkGuardFiles({ kit: KIT, layout: L, stats: s2, written: baseReport(KIT, L, s2), fileData }).problems;
+    const p = checkGuardFiles({ kit: KIT, layout: L, stats: s2, written: baseReport(KIT, L, s2), fileData, albedoMean }).problems;
     expect(p).toContain('average LOD1: piece radio has no triangles (decimated away?)');
     expect(p).toContain('average LOD2: piece glasses_dark has no triangles (decimated away?)');
     expect(p).toContain(`average LOD1: piece ${cap} has no triangles (decimated away?)`);
     expect(p.filter((x: string) => x.includes('has no triangles'))).toHaveLength(3);
+  });
+
+  it('(G10a D3) fabric garment albedo at the SPEC 8 neutral: pass, too dark fails, legs at 0.312, none-slot ignored, missing fails', () => {
+    const L = layout('average');
+    const shirt = L.garments.find((g) => g.part === 'shirt')!;
+    const legs = L.garments.find((g) => g.part === 'trousers')!;
+    const boots = L.garments.find((g) => g.part === 'boots')!;
+    expect([shirt.partTint, legs.partTint, boots.partTint]).toEqual(['uniform', 'uniform', 'none']);
+    const ok = neutralMeans(L);
+    expect(ok['lod0.garment:trousers']).toEqual([0.312, 0.312, 0.312].map((v) => expect.closeTo(v, 6)));
+    expect(checkAlbedoMeans(KIT, L, ok)).toEqual([]);
+    // Wren's dark cloth as baked before D3 (~0.03 linear): every fabric region fails, by name
+    const dark = { ...ok, 'lod1.garment:shirt': [0.03, 0.03, 0.035] };
+    expect(checkAlbedoMeans(KIT, L, dark)).toEqual(['average lod1.garment:shirt: albedo mean 0.030, 0.030, 0.035 not within 15 % of the fabric neutral 0.400 (SPEC 8)']);
+    // trousers at the shirt's 0.4 are 28 % over their 0.312: a problem; inside 15 % passes
+    expect(checkAlbedoMeans(KIT, L, { ...ok, 'lod0.garment:trousers': [0.4, 0.4, 0.4] })).toHaveLength(1);
+    expect(checkAlbedoMeans(KIT, L, { ...ok, 'lod0.garment:trousers': [0.34, 0.29, 0.312] })).toEqual([]);
+    // boots (none slot) keep their own dark leather: never checked
+    expect(checkAlbedoMeans(KIT, L, { ...ok, 'lod0.garment:boots': [0.01, 0.01, 0.01] })).toEqual([]);
+    // a region or the whole field missing
+    const gone = { ...ok };
+    delete gone['lod2.garment:shirt'];
+    expect(checkAlbedoMeans(KIT, L, gone)).toEqual(['average lod2.garment:shirt: no albedo mean']);
+    expect(checkAlbedoMeans(KIT, L, null)).toEqual(['average: no albedoMean in the bake (lods/guard-average.bake.json): the garment fabric neutral (SPEC 8) is unchecked']);
+    const stats = [0, 1, 2].map((l) => statsFor(L, l));
+    const written = { ...baseReport(KIT, L, stats), bake: {} };
+    expect(checkGuardFiles({ kit: KIT, layout: L, stats, written, fileData: guardFileData(L) }).problems).toContain(checkAlbedoMeans(KIT, L, null)[0]);
+    // the shield (a piece file, no garments) is not checked
+    expect(checkAlbedoMeans(KIT, pieceLayout(KIT, 'shield_riot'), null)).toEqual([]);
   });
 });
 

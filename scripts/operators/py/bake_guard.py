@@ -29,7 +29,9 @@ bake into each other): tangent normal, AO, albedo, roughness / metal; heads, cap
 tiles, resized into their rects. Albedo alpha = the tint mask (1 where the face's slot is not `none`, G5 / SPEC 8).
 Normal / ORM at half the albedo size. Skin: LOD0 the 33 bones of the body report's `lodBones`, LOD1 / LOD2 its rig
 joints with the fingers folded onto the wrists (`fold`); influences 4 / 4 / 2. The clavicle split is G1's (kept). The
-skin albedo is used as baked (its 0.69 mean is scalp shadow, lead ruling: no divide here).
+skin albedo is used as baked (its 0.69 mean is scalp shadow, lead ruling: no divide here). Fabric-tinted garment
+regions are rescaled per channel to the fabric neutral (x 0.78 for trousers; SPEC 8, G10a D3) and every region's linear
+albedo mean over its covered texels goes into the bake JSON's `albedoMean` (guard-check.mjs checks the garments').
 Writes <out>/lods/guard-<id>-lod{0,1,2}.glb (PNG inside; guard-lods.mjs then fixes the attributes, encodes KTX2 and
 writes the report), <out>/lods/textures/guard-<id>-lod<n>-{albedo,normal,orm}.png, <out>/lods/guard-<id>.bake.json.
 """
@@ -60,6 +62,11 @@ SEAM_TOL = 0.002                     # head seam vertex to body seam vertex (m)
 SCALP_REACH = 0.010                  # LOD2: head vertices this close to the buzz cap take the hair slot
 ISLAND_MIN = 0.02                    # LOD meshes drop loose islands smaller than this (stitches, rivets; they bake in)
 AO_SAMPLES = 32
+# (G10a D3) SPEC 8 tints a fabric texel by target / tintNeutral.fabric, so a fabric-tinted garment's baked albedo must
+# average that neutral (linear); G2's garments keep Wren's dark procedural cloth (~0.03), so the bake rescales them
+FABRIC_SLOTS = ('uniform', 'kit', 'headwear')
+LEGS_SHARE = 0.78                    # SPEC 8 (uniform row): trousers baked at 0.78 of the shirt's neutral
+LEG_PARTS = ('trousers', 'work_trousers')
 NOTES = []
 
 
@@ -401,6 +408,38 @@ def pixels(img):
     a = np.empty(w * h * 4, np.float32)
     img.pixels.foreach_get(a)
     return a.reshape(h, w, 4)
+
+
+def srgb_to_linear(a):
+    a = np.clip(a, 0.0, 1.0)
+    return np.where(a <= 0.04045, a / 12.92, ((a + 0.055) / 1.055) ** 2.4)
+
+
+def linear_to_srgb(a):
+    a = np.clip(a, 0.0, 1.0)
+    return np.where(a <= 0.0031308, a * 12.92, 1.055 * a ** (1 / 2.4) - 0.055)
+
+
+def albedo_to_neutral(alb, cov, want, rounds=3):
+    """(G10a D3) Scales an sRGB-encoded albedo (h, w, 4; `Image.pixels` of a byte sRGB image) per channel, in linear,
+    so the mean over the covered texels is `want`: the weave, grid and wear keep their relative variation; clamped to
+    [0, 1] (a few rounds, so texels the clamp caps do not pull the mean under the target). Returns (albedo, mean)."""
+    lin = srgb_to_linear(alb[..., :3]).astype(np.float64)
+    if not cov.any():
+        return alb, [0.0, 0.0, 0.0]
+    for _ in range(rounds):
+        m = lin[cov].mean(axis=0)
+        lin = np.clip(lin * (want / np.maximum(m, 1e-6)), 0.0, 1.0)
+    out = alb.copy()
+    out[..., :3] = linear_to_srgb(lin).astype(np.float32)
+    return out, albedo_mean(out, cov)
+
+
+def albedo_mean(alb, cov):
+    """The linear mean RGB of an sRGB-encoded albedo over the covered texels (the bake report's `albedoMean`)."""
+    if not cov.any():
+        return [0.0, 0.0, 0.0]
+    return [round(float(v), 4) for v in srgb_to_linear(alb[..., :3])[cov].mean(axis=0)]
 
 
 def load_png(path, data):
@@ -788,6 +827,10 @@ def run_base(args, kit, L):
             done.add(key)
             cage = COPY_CAGE if r['copy'] else CAGE[lod]
             baker.bake('EMIT', r['obj'], r['source'], [], imgs[key][ik], cage, 2)
+    rec_of = {}
+    for lod, r in bake_jobs:
+        rec_of.setdefault((lod, r['region']), r)
+    fabric = float((kit.get('tintNeutral') or {}).get('fabric', 0.4))
     for key, im in imgs.items():
         nrm = pixels(im['normal'])
         ao = pixels(im['ao'])
@@ -799,9 +842,18 @@ def run_base(args, kit, L):
         nrm = U.fill_missed(nrm, cov, (0.5, 0.5, 1.0, 1.0))
         cov_alb = U.resize(cov[..., None].astype(np.float32), alb.shape[1], alb.shape[0])[..., 0] > 0.5
         alb = U.fill_missed(alb, cov_alb)
+        rec = rec_of[key]
+        if rec['kind'] == 'garment' and rec['tint'] in FABRIC_SLOTS:
+            part = key[1].split(':', 1)[1]
+            want = fabric * (LEGS_SHARE if part in LEG_PARTS else 1.0)
+            before = albedo_mean(alb, cov_alb)
+            alb, mean = albedo_to_neutral(alb, cov_alb, want)
+            log(f'{key[1]} LOD{key[0]}: albedo mean {before} -> {mean} (fabric neutral {want:.3f})')
+        else:
+            mean = albedo_mean(alb, cov_alb)
         bad = cov & ((nrm[..., 2] * 2 - 1) < 0.35)   # rays that met an edge wall: flatten (bake_lods.py rule)
         nrm[bad] = (0.5, 0.5, 1.0, 1.0)
-        baked[key] = {'albedo': alb, 'normal': nrm, 'orm': orm, 'coverage': round(float(cov.mean()), 3)}
+        baked[key] = {'albedo': alb, 'normal': nrm, 'orm': orm, 'coverage': round(float(cov.mean()), 3), 'albedoMean': mean}
         for k in im.values():
             bpy.data.images.remove(k)
     log('baked', len(baked), 'piece rects in', round(time.time() - t_bake, 1), 's')
@@ -997,6 +1049,7 @@ def run_base(args, kit, L):
         final.hide_render = True
     report.pop('_seamRows', None)
     report['bakeCoverage'] = {f'lod{k[0]}.{k[1]}': v['coverage'] for k, v in baked.items()}
+    report['albedoMean'] = {f'lod{k[0]}.{k[1]}': v['albedoMean'] for k, v in baked.items()}   # linear, covered texels (G10a D3)
     report['seconds'] = round(time.time() - T0, 1)
     with open(os.path.join(lods_dir, f'guard-{b}.bake.json'), 'w', encoding='utf-8') as f:
         json.dump(report, f, indent=1)
