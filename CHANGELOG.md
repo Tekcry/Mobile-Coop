@@ -1,5 +1,14 @@
 # Changelog
 
+## 4.99.1 - Train 73: Watchdog: deterministic pipeline alerts (2026-10-25, PR #368; #350)
+- Pipeline: `scripts/watchdog.mjs tick` (every 2 min via `scripts/watchdog-task.ps1` from the self-updating checkout
+  `C:/NightShift/Mobile-Coop-watchdog-live`) writes `C:/NightShift/scratch/watch-status.json`: dead or stale heavy
+  locks, orphaned e2e runners, CONFLICTING / re-committed / red `train-ready` PRs, PRs ready for the label, release-tail
+  gaps (dev behind, missing tag, merged members still open: alert only), a stale `/preview/`, auto-train health,
+  laptop-queue claims and requests, stuck cloud-queue claims. Fixes are opt-in per check (`--fix locks,labels,...`).
+- Label convention: `train-ready` only on CI `check` green + a `checker` commit status success + `affected-e2e`
+  success (required unless opted out: `no-affected-e2e` label or `WATCHDOG_REQUIRE_AFFECTED=0`). See `docs/systems/watchdog.md`.
+
 ## 4.99.0 - Train 72: Auto affected-e2e and flake budget; Swap tools; Rulebook: current rules only (process audit 2026-10-24) (2026-10-24, PR #364; #356, #349, #347)
 
 ### Rulebook: current rules only (process audit 2026-10-24)
