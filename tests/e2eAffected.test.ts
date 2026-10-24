@@ -11,7 +11,7 @@ const wide = WIDE_COVERS as Covers;
 const core = CORE as string[];
 const coreSet = [...core, 'smoke'].sort();
 
-// Frozen copy of master's --quick map (scripts/run-e2e.mjs on origin/master 41204e30, before this branch): --quick must keep
+// Frozen copy of master's --quick map (scripts/run-e2e.mjs on origin/master d7a1b6c0, train 62, merged into this branch at 16f932a7): --quick must keep
 // master's picks exactly. Change it only together with a deliberate change to QUICK_COVERS.
 const MASTER_QUICK: [string, string[]][] = [
   ['src/anim/studio', ['e2e-studio', 'anim-audit', 'e2e-anim']],
@@ -32,11 +32,14 @@ const MASTER_QUICK: [string, string[]][] = [
   ['src/core/flags', ['e2e-park', 'e2e-move', 'e2e-combat', 'e2e-anim']],
   ['src/core/', ['e2e-offline', 'e2e-move', 'e2e-combat', 'e2e-anim']],
   ['src/input/', ['e2e-pad', 'e2e-mouse', 'e2e-move', 'e2e-menus']],
+  ['src/ui/hud/ratingCard', ['e2e-section-rating']],
   ['src/ui/screens/missionsScreen', ['e2e-sectorops', 'e2e-menus', 'e2e-pad', 'e2e-park']],
   ['src/ui/', ['e2e-pad', 'e2e-desktop', 'e2e-feedback', 'e2e-park', 'e2e-menus']],
   ['src/game/course/', ['e2e-course', 'e2e-ctcourse', 'e2e-coop']],
-  ['src/game/modes/courseMode.ts', ['e2e-course', 'e2e-ctcourse', 'e2e-coop']],
-  ['src/game/modes/sectorMode.ts', ['e2e-sectorops', 'e2e-park']],
+  ['src/game/modes/courseMode.ts', ['e2e-course', 'e2e-ctcourse', 'e2e-coop', 'e2e-section-rating']],
+  ['src/game/modes/sectorMode.ts', ['e2e-sectorops', 'e2e-park', 'e2e-section-rating']],
+  ['src/game/rating/', ['e2e-section-rating', 'e2e-sectorops', 'e2e-course']],
+  ['src/save/ratingRecord', ['e2e-section-rating']],
   ['src/game/sectors', ['e2e-sectorops']],
   ['src/world/maps/warehouseOps.ts', ['e2e-sectorops']],
   ['src/world/maps/warehouseSectors.ts', ['e2e-sectorops']],
@@ -55,6 +58,8 @@ const MASTER_QUICK: [string, string[]][] = [
   ['src/world/maps/courselab.ts', ['e2e-course']],
   ['src/world/maps/bunker', ['e2e-course']],
   ['src/world/maps/ctcourse.ts', ['e2e-ctcourse']],
+  ['src/world/maps/ctcourseSets/', ['e2e-ctcourse']],
+  ['src/world/maps/ctcourseGreybox.ts', ['e2e-ctcourse']],
   ['src/world/', ['e2e-lightbake', 'e2e-guard-carry', 'e2e-levels', 'e2e-anchors', 'e2e-ctcourse']],
   ['src/voxel/', ['e2e-lightbake', 'e2e-desktop']],
   ['src/vfx/', ['e2e-desktop']],
@@ -80,7 +85,7 @@ const masterPick = (f: string): string[] => MASTER_QUICK.find(([p]) => f.startsW
 const OPTIC_CABLE = ['TESTING.md', 'changes/feature-optic-cable.md', 'docs/optic-cable/CHECK.md', 'docs/systems/ct-toolkit.md', 'docs/systems/testing-tools.md', 'scripts/e2e-stealth-ai.mjs', 'src/config/tools.ts', 'src/game/doorMenu.ts', 'src/game/gameState.ts', 'src/game/opticSystem.ts', 'src/player/opticCable.ts', 'src/world/anchors.ts', 'tests/opticCable.test.ts'];
 const GUARD_CARRY_FIX = ['changes/feature-guard-ai-carry-fix.md', 'docs/guard-ai/slices/CARRY-FIX-CHECK.md', 'docs/systems/testing-tools.md', 'docs/systems/world-and-characters.md', 'scripts/e2e-guard-carry.mjs', 'scripts/run-e2e.mjs', 'src/core/babylon.ts', 'src/player/bodyEffectRecovery.ts', 'src/player/smoothBody.ts', 'tests/bodyEffectRecovery.test.ts'];
 // jobs on the laptop: a suite in parts is one job per part (run-e2e.mjs PARTS)
-const PARTS: Record<string, number> = { 'e2e-desktop': 3, 'e2e-ctcourse': 3, 'e2e-sectorops': 6 };
+const PARTS: Record<string, number> = { 'e2e-desktop': 3, 'e2e-ctcourse': 4, 'e2e-sectorops': 6 };
 const jobs = (suites: string[]): number => suites.reduce((n, s) => n + (PARTS[s] ?? 1), 0);
 
 describe('--quick keeps master picks', () => {
@@ -106,6 +111,11 @@ describe('--quick keeps master picks', () => {
     for (const f of ['docs/a.md', 'README.md', 'changes/x.md', 'tests/a.test.ts', 'scripts/e2e-times.json']) expect(forFile(f, quick), f).toBeNull();
     expect(forFile('scripts/e2e-net-lib.mjs', quick)).toEqual(['e2e-netmove', 'anim-audit']);
     expect(forFile('scripts/e2e-wall.mjs', quick)).toEqual(['e2e-wall']);
+  });
+
+  it('master SUITE_DIRS rule: a set step module of e2e-ctcourse reruns it', () => {
+    expect(forFile('scripts/e2e-ctcourse/a1Gate.mjs', quick)).toEqual(['e2e-ctcourse']);
+    expect(select(['scripts/e2e-ctcourse/a8Strongroom.mjs'], quick)).toEqual(['e2e-ctcourse', 'smoke']);
   });
 });
 
@@ -136,7 +146,8 @@ describe('--affected: the DIRECT tier (default)', () => {
       ['src/anim/footPlanner.ts', ['e2e-anim', 'e2e-clip', 'e2e-move']],
       ['src/game/takedowns.ts', ['e2e-gadgets', 'e2e-park', 'e2e-tactics', 'e2e-takedown']],
       ['src/game/sectors.ts', ['e2e-gadgets', 'e2e-park', 'e2e-sectorops', 'e2e-tactics', 'e2e-takedown']],
-      ['src/game/modes/sectorMode.ts', ['e2e-gadgets', 'e2e-park', 'e2e-sectorops', 'e2e-tactics', 'e2e-takedown']],
+      ['src/game/modes/sectorMode.ts', ['e2e-gadgets', 'e2e-park', 'e2e-section-rating', 'e2e-sectorops', 'e2e-tactics', 'e2e-takedown']],
+      ['src/game/modes/gameMode.ts', ['e2e-gadgets', 'e2e-park', 'e2e-sectorops', 'e2e-tactics', 'e2e-takedown']],
       ['src/game/course/station.ts', ['e2e-course', 'e2e-ctcourse', 'e2e-gadgets', 'e2e-park', 'e2e-tactics', 'e2e-takedown']],
       ['src/world/doors.ts', ['e2e-anchors', 'e2e-levels']],
       ['src/ai/hearing.ts', ['e2e-guard-carry', 'e2e-sectorops:1', 'e2e-stealth-ai']],
@@ -148,9 +159,9 @@ describe('--affected: the DIRECT tier (default)', () => {
     for (const [f, suites] of rows) expect(select([f]), f).toEqual([...suites, 'smoke'].sort());
   });
 
-  it('light, lamp and voxel files pick the bake suite and the desktop', () => {
+  it('light, lamp and voxel files pick the bake suite, the desktop and the GPU darkness read-back', () => {
     for (const f of ['src/world/lights.ts', 'src/world/lightBake.ts', 'src/world/lampMath.ts', 'src/world/bakedLamps.ts', 'src/world/ambientGrid.ts', 'src/world/darkCurve.ts', 'src/voxel/lampBake.ts']) {
-      expect(select([f]), f).toEqual(['e2e-desktop', 'e2e-lightbake', 'smoke']);
+      expect(select([f]), f).toEqual(['e2e-darkness', 'e2e-desktop', 'e2e-lightbake', 'smoke']);
     }
   });
 
@@ -167,6 +178,47 @@ describe('--affected: the DIRECT tier (default)', () => {
     expect(select(['scripts/e2e-net-lib.mjs'])).toEqual(['anim-audit', 'e2e-netmove', 'smoke']);
     for (const f of ['scripts/e2e-lib.mjs', 'scripts/run-e2e.mjs', 'scripts/e2e-affected.mjs', 'package.json', 'package-lock.json', 'index.html', 'vite.config.ts', 'public/icon.png']) {
       expect(select([f]), f).toEqual(coreSet);
+    }
+  });
+
+  it('section rating: the card, the rules, the record and the two modes that rate', () => {
+    expect(select(['src/ui/hud/ratingCard.ts'])).toEqual(['e2e-section-rating', 'smoke']);
+    expect(select(['src/game/rating/sectionRating.ts'])).toEqual(['e2e-section-rating', 'smoke']);
+    expect(select(['src/save/ratingRecord.ts'])).toEqual(['e2e-section-rating', 'smoke']);
+    expect(select(['src/game/modes/courseMode.ts'])).toContain('e2e-section-rating');
+    expect(select(['src/game/modes/sectorMode.ts'])).toContain('e2e-section-rating');
+  });
+
+  it('Marlow Yard sets, the greybox helpers and the e2e-ctcourse step modules pick e2e-ctcourse', () => {
+    for (const f of ['src/world/maps/ctcourseSets/a3OfficeRange.ts', 'src/world/maps/ctcourseSets/facility.ts', 'src/world/maps/ctcourseGreybox.ts', 'scripts/e2e-ctcourse/a1Gate.mjs', 'scripts\\e2e-ctcourse\\revive.mjs']) {
+      expect(select([f]), f).toEqual(['e2e-ctcourse', 'smoke']);
+    }
+  });
+
+  it('the smooth body and its effect recovery pick e2e-guard-carry', () => {
+    for (const f of ['src/player/smoothBody.ts', 'src/player/smoothBodyMerge.ts', 'src/player/bodyEffectRecovery.ts']) expect(select([f]), f).toContain('e2e-guard-carry');
+    expect(select(['src/player/controller.ts'])).not.toContain('e2e-guard-carry');
+  });
+
+  it('the legacy and GPU suites are reachable from the area that owns them', () => {
+    const rows: [string, string][] = [
+      ['src/progression/xp.ts', 'e2e-progression'],
+      ['src/cosmetics/catalogue.ts', 'e2e-cosmetics'],
+      ['src/game/modes/clearMode.ts', 'e2e-clear'],
+      ['src/world/maps/bunkerDeep.ts', 'e2e-bunker'],
+      ['src/game/missions.ts', 'e2e-missions'],
+      ['src/game/modes/infiltrationMode.ts', 'e2e-missions'],
+      ['src/game/modes/missionMode.ts', 'e2e-modes'],
+      ['src/ai/archetypes.ts', 'e2e-enemies'],
+      ['src/world/maps/warehouse.ts', 'e2e-ct-warehouse'],
+      ['src/player/shoulderCamera.ts', 'e2e-camera-bounds'],
+      ['src/config/camera.ts', 'e2e-camera-bounds'],
+      ['src/world/lightBake.ts', 'e2e-darkness'],
+      ['src/net/remoteAvatar.ts', 'e2e-coop-gpu'],
+    ];
+    for (const [f, s] of rows) {
+      expect(select([f]), f).toContain(s);
+      expect(select([f], wide), f).toContain(s);
     }
   });
 
@@ -188,7 +240,7 @@ describe('--affected --wide: the cross-area readers', () => {
       const w = select(files, wide);
       for (const s of select(files)) expect(w, s).toContain(s);
     }
-    expect(jobs(select(OPTIC_CABLE, wide))).toBe(29);
+    expect(jobs(select(OPTIC_CABLE, wide))).toBe(30); // e2e-ctcourse is 4 parts since marlow-final 0d
     expect(jobs(select(GUARD_CARRY_FIX, wide))).toBe(15);
   });
 
@@ -197,6 +249,17 @@ describe('--affected --wide: the cross-area readers', () => {
     expect(select(['src/ai/hearing.ts'], wide)).toEqual(expect.arrayContaining(['e2e-weapons-carry', 'e2e-takedown', 'e2e-coop', 'e2e-sectorops:6']));
     expect(select(['src/world/lights.ts'], wide)).toEqual(expect.arrayContaining(['e2e-stealth-ai', 'e2e-security', 'e2e-darkness', 'e2e-levels']));
     expect(select(['src/save/schema.ts'], wide)).toEqual(expect.arrayContaining(['e2e-coop', 'e2e-park', 'e2e-offline']));
+  });
+
+  it('section rating and Marlow Yard: the cross-area readers', () => {
+    expect(select(['src/game/rating/sectionRating.ts'], wide)).toEqual(['e2e-course', 'e2e-section-rating', 'e2e-sectorops', 'smoke']);
+    expect(select(['src/save/ratingRecord.ts'], wide)).toEqual(['e2e-menus', 'e2e-section-rating', 'e2e-sectorops', 'smoke']);
+    expect(select(['src/ui/hud/ratingCard.ts'], wide)).toEqual(['e2e-section-rating', 'smoke']);
+    for (const f of ['src/world/maps/ctcourseSets/a5Substation.ts', 'src/world/maps/ctcourseGreybox.ts', 'src/world/maps/ctcourse.ts']) {
+      expect(select([f], wide), f).toEqual(['e2e-ctcourse', 'e2e-section-rating', 'smoke']);
+    }
+    expect(select(['scripts/e2e-ctcourse/a1Gate.mjs'], wide)).toEqual(['e2e-ctcourse', 'smoke']);
+    expect(select(['src/player/smoothBody.ts'], wide)).toContain('e2e-guard-carry');
   });
 
   it('the first matching prefix wins', () => {

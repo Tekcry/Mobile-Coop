@@ -40,13 +40,17 @@ export const QUICK_COVERS = {
   'src/core/flags': ['e2e-park', ...CORE],
   'src/core/': ['e2e-offline', ...CORE],
   'src/input/': ['e2e-pad', 'e2e-mouse', 'e2e-move', 'e2e-menus'],
+  'src/ui/hud/ratingCard': ['e2e-section-rating'],
   'src/ui/screens/missionsScreen': ['e2e-sectorops', 'e2e-menus', 'e2e-pad', 'e2e-park'],
   'src/ui/': ['e2e-pad', 'e2e-desktop', 'e2e-feedback', 'e2e-park', 'e2e-menus'],
   // the training course (T1b): its own suite on top of co-op
   'src/game/course/': ['e2e-course', 'e2e-ctcourse', 'e2e-coop'],
-  'src/game/modes/courseMode.ts': ['e2e-course', 'e2e-ctcourse', 'e2e-coop'],
+  'src/game/modes/courseMode.ts': ['e2e-course', 'e2e-ctcourse', 'e2e-coop', 'e2e-section-rating'],
   // Sector Ops (feature/sector-ops): its mode, sectors and Warehouse copy
-  'src/game/modes/sectorMode.ts': ['e2e-sectorops', 'e2e-park'],
+  'src/game/modes/sectorMode.ts': ['e2e-sectorops', 'e2e-park', 'e2e-section-rating'],
+  // (section-rating) the rating rules, the card and the record: their suite on top of the modes'
+  'src/game/rating/': ['e2e-section-rating', 'e2e-sectorops', 'e2e-course'],
+  'src/save/ratingRecord': ['e2e-section-rating'],
   'src/game/sectors': ['e2e-sectorops'],
   'src/world/maps/warehouseOps.ts': ['e2e-sectorops'],
   'src/world/maps/warehouseSectors.ts': ['e2e-sectorops'],
@@ -68,6 +72,9 @@ export const QUICK_COVERS = {
   'src/world/maps/courselab.ts': ['e2e-course'],
   'src/world/maps/bunker': ['e2e-course'],
   'src/world/maps/ctcourse.ts': ['e2e-ctcourse'],
+  // (marlow-final 0d) the set parts, the facility and the greybox helpers of Marlow Yard
+  'src/world/maps/ctcourseSets/': ['e2e-ctcourse'],
+  'src/world/maps/ctcourseGreybox.ts': ['e2e-ctcourse'],
   'src/world/': ['e2e-lightbake', 'e2e-guard-carry', 'e2e-levels', 'e2e-anchors', 'e2e-ctcourse'],
   'src/voxel/': ['e2e-lightbake', 'e2e-desktop'],
   'src/vfx/': ['e2e-desktop'],
@@ -120,22 +127,35 @@ export const WIDE_COVERS = {
   'src/core/flags': ['e2e-park', ...CORE],
   'src/core/': ['e2e-offline', ...CORE],
   'src/input/': ['e2e-pad', 'e2e-mouse', 'e2e-move', 'e2e-menus'],
+  // (section-rating) the rating card: only its suite shows it
+  'src/ui/hud/ratingCard': ['e2e-section-rating'],
   'src/ui/screens/missionsScreen': ['e2e-sectorops', 'e2e-menus', 'e2e-pad', 'e2e-park'],
   'src/ui/': ['e2e-pad', 'e2e-desktop', 'e2e-feedback', 'e2e-park', 'e2e-menus'],
   // the training course (T1b): its own suite on top of co-op
   'src/game/course/': ['e2e-course', 'e2e-ctcourse', 'e2e-coop'],
-  'src/game/modes/courseMode.ts': ['e2e-course', 'e2e-ctcourse', 'e2e-coop'],
+  'src/game/modes/courseMode.ts': ['e2e-course', 'e2e-ctcourse', 'e2e-coop', 'e2e-section-rating'],
   // Sector Ops (feature/sector-ops): its mode, sectors and Warehouse copy
-  'src/game/modes/sectorMode.ts': ['e2e-sectorops', 'e2e-park'],
+  'src/game/modes/sectorMode.ts': ['e2e-sectorops', 'e2e-park', 'e2e-section-rating'],
+  // (section-rating) the rating rules: their suite and the two modes that rate (master's --quick row); the record: its suite,
+  // Sector Ops and the missions screen that reads it (a kv key, no save shape change: not the co-op group)
+  'src/game/rating/': ['e2e-section-rating', 'e2e-sectorops', 'e2e-course'],
+  'src/save/ratingRecord': ['e2e-section-rating', 'e2e-sectorops', 'e2e-menus'],
   'src/game/sectors': ['e2e-sectorops'],
   'src/world/maps/warehouseOps.ts': ['e2e-sectorops'],
   'src/world/maps/warehouseSectors.ts': ['e2e-sectorops'],
   // (sector-fixes-r RE) the Sector Ops section files (warehouseS1-S3: the co-op routes and team doors) and the usual world
   // suites; (sector-fixes-r fix) not e2e-ctcourse: Marlow Yard never loads warehouseOps
   'src/world/maps/warehouseS': ['e2e-sectorops', 'e2e-lightbake', 'e2e-levels', 'e2e-anchors'],
+  'src/game/modes/clearMode.ts': ['e2e-takedown', 'e2e-gadgets', 'e2e-tactics', 'e2e-park', 'e2e-ctcourse', 'e2e-sectorops', 'e2e-clear'],
+  'src/game/modes/missionMode.ts': ['e2e-takedown', 'e2e-gadgets', 'e2e-tactics', 'e2e-park', 'e2e-ctcourse', 'e2e-sectorops', 'e2e-modes'],
+  'src/game/modes/infiltrationMode.ts': ['e2e-takedown', 'e2e-gadgets', 'e2e-tactics', 'e2e-park', 'e2e-ctcourse', 'e2e-sectorops', 'e2e-missions'],
+  'src/game/missions.ts': ['e2e-takedown', 'e2e-gadgets', 'e2e-tactics', 'e2e-park', 'e2e-ctcourse', 'e2e-sectorops', 'e2e-missions'],
   'src/game/': ['e2e-takedown', 'e2e-gadgets', 'e2e-tactics', 'e2e-park', 'e2e-ctcourse', 'e2e-sectorops'],
   'src/physics/': ['e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-ct'],
   // the camera files (CAM): the camera bounds suite on top of what their folders run
+  // (guard-ai carry fix) the smooth body and its effect recovery: e2e-guard-carry draws the guards' bodies, on top of src/player
+  'src/player/smoothBody': ['e2e-guard-carry', 'anim-audit', 'e2e-wall', 'e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-stealth', 'e2e-anim', 'e2e-ct', 'e2e-clip', 'e2e-weapons-carry', 'e2e-takedown'],
+  'src/player/bodyEffectRecovery': ['e2e-guard-carry', 'anim-audit', 'e2e-wall', 'e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-stealth', 'e2e-anim', 'e2e-ct', 'e2e-clip', 'e2e-weapons-carry', 'e2e-takedown'],
   'src/player/shoulderCamera': ['e2e-camera-bounds', 'e2e-move', 'e2e-stealth', 'e2e-anim', 'e2e-ct', 'e2e-clip', 'e2e-mouse'],
   'src/player/cameraBounds': ['e2e-camera-bounds', 'e2e-move', 'e2e-anim', 'e2e-clip'],
   'src/config/camera': ['e2e-camera-bounds', 'e2e-anim', 'e2e-clip', ...CORE],
@@ -147,8 +167,13 @@ export const WIDE_COVERS = {
   'src/ai/': ['e2e-stealth-ai', 'e2e-guard-carry', 'e2e-levels', 'e2e-tactics', 'e2e-takedown', 'e2e-enemies', 'e2e-weapons-carry', 'e2e-coop', 'e2e-sectorops:1', 'e2e-sectorops:6'],
   'src/world/maps/kestrel': ['e2e-kestrel'],
   'src/world/maps/courselab.ts': ['e2e-course'],
-  'src/world/maps/bunker': ['e2e-course'],
-  'src/world/maps/ctcourse.ts': ['e2e-ctcourse'],
+  'src/world/maps/bunker': ['e2e-course', 'e2e-bunker'],
+  'src/world/maps/warehouse.ts': ['e2e-ct-warehouse', 'e2e-lightbake', 'e2e-guard-carry', 'e2e-levels', 'e2e-anchors', 'e2e-ctcourse'],
+  'src/world/maps/warehouseDress': ['e2e-ct-warehouse', 'e2e-lightbake', 'e2e-guard-carry', 'e2e-levels', 'e2e-anchors', 'e2e-ctcourse'],
+  'src/world/maps/ctcourse.ts': ['e2e-ctcourse', 'e2e-section-rating'],
+  // (marlow-final 0d) the Marlow Yard set parts, facility and greybox helpers: e2e-ctcourse, and e2e-section-rating (rates A2-A8)
+  'src/world/maps/ctcourseSets/': ['e2e-ctcourse', 'e2e-section-rating'],
+  'src/world/maps/ctcourseGreybox.ts': ['e2e-ctcourse', 'e2e-section-rating'],
   // the lamp files (lights, lightBake, lightField, lightRig, bakedLamps, lampMath, lampMount, ambientGrid, darkCurve): the bake suite and the light readers
   'src/world/light': lightSuites(),
   'src/world/lamp': lightSuites(),
@@ -160,12 +185,14 @@ export const WIDE_COVERS = {
   'src/vfx/': ['e2e-desktop'],
   'src/net/coopUi': ['e2e-park', 'e2e-coop', 'e2e-netmove', 'e2e-ctcourse'],
   // the wire (protocol.ts holds PROTOCOL_VERSION): the co-op group
+  'src/net/remoteAvatar': ['anim-audit', 'e2e-coop', 'e2e-netmove', 'e2e-ctcourse', 'e2e-sectorops', 'e2e-coop-gpu'],
+  'src/net/remotePlayer': ['anim-audit', 'e2e-coop', 'e2e-netmove', 'e2e-ctcourse', 'e2e-sectorops', 'e2e-coop-gpu'],
   'src/net/': ['anim-audit', 'e2e-coop', 'e2e-netmove', 'e2e-ctcourse', 'e2e-sectorops'],
   // the wire's mirrored camera count (a change needs a PROTOCOL_VERSION bump)
   'src/security/data': ['e2e-security', 'e2e-sectorops', 'e2e-coop', 'e2e-netmove', 'e2e-ctcourse'],
   'src/security/': ['e2e-security', 'e2e-sectorops'],
-  'src/progression/': ['e2e-park'],
-  'src/cosmetics/': ['e2e-park'],
+  'src/progression/': ['e2e-park', 'e2e-progression'],
+  'src/cosmetics/': ['e2e-park', 'e2e-cosmetics'],
   'src/save/sectorRecord': ['e2e-sectorops', 'e2e-menus', 'e2e-coop', 'e2e-netmove', 'e2e-ctcourse'],
   // the save shape (schema, migrations, db, saveManager, courseRecord): the co-op group carries it in the session
   'src/save/': ['e2e-park', 'e2e-offline', 'e2e-feedback', 'e2e-coop', 'e2e-netmove', 'e2e-ctcourse'],
@@ -178,7 +205,7 @@ export const WIDE_COVERS = {
 // --affected (the default tier): the suites that drive the changed area directly, no cross-area readers (those are --wide).
 // A path under `src/` not listed here runs smoke + CORE. The first matching prefix wins.
 const GAME = ['e2e-gadgets', 'e2e-tactics', 'e2e-takedown', 'e2e-park'];
-const LIGHT = ['e2e-lightbake', 'e2e-desktop'];
+const LIGHT = ['e2e-lightbake', 'e2e-desktop', 'e2e-darkness'];
 const COOP = ['e2e-coop', 'e2e-netmove', 'e2e-ctcourse'];
 export const DIRECT_COVERS = {
   // the studio and tuner files: their own suites (the tuner / Anim Studio test tier), not their folder's
@@ -195,32 +222,55 @@ export const DIRECT_COVERS = {
   'src/ui/animTune': ['e2e-studio', 'e2e-tuner-phone', 'e2e-menus'],
   'src/ui/tuner': ['e2e-studio', 'e2e-tuner-phone', 'e2e-menus'],
   'src/core/': CORE,
+  // the legacy suites in LEGACY / GPU are reachable from the area that owns them (the runner prints them REPORT ONLY)
+  'src/config/camera': ['e2e-camera-bounds', ...CORE],
   'src/config/': CORE,
   'src/input/': ['e2e-pad', 'e2e-mouse', 'e2e-move', 'e2e-menus'],
+  'src/ui/hud/ratingCard': ['e2e-section-rating'],
   'src/ui/screens/missionsScreen': ['e2e-sectorops', 'e2e-menus'],
   'src/ui/': ['e2e-pad', 'e2e-desktop', 'e2e-feedback', 'e2e-park', 'e2e-menus'],
   // src/game: the game suites; course suites only for the course, Sector Ops only for sectors and modes
   'src/game/course/': [...GAME, 'e2e-course', 'e2e-ctcourse'],
-  'src/game/modes/courseMode.ts': [...GAME, 'e2e-course', 'e2e-ctcourse'],
+  'src/game/modes/courseMode.ts': [...GAME, 'e2e-course', 'e2e-ctcourse', 'e2e-section-rating'],
+  'src/game/modes/sectorMode.ts': [...GAME, 'e2e-sectorops', 'e2e-section-rating'],
+  'src/game/modes/clearMode.ts': [...GAME, 'e2e-sectorops', 'e2e-clear'],
+  'src/game/modes/missionMode.ts': [...GAME, 'e2e-sectorops', 'e2e-modes'],
+  'src/game/modes/infiltrationMode.ts': [...GAME, 'e2e-sectorops', 'e2e-missions'],
   'src/game/modes/': [...GAME, 'e2e-sectorops'],
+  'src/game/missions.ts': [...GAME, 'e2e-missions'],
   'src/game/sectors': [...GAME, 'e2e-sectorops'],
+  // (section-rating) the rating rules and record: their own suite (the modes that rate are --wide)
+  'src/game/rating/': ['e2e-section-rating'],
   'src/game/': GAME,
   'src/physics/': ['e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-ct'],
+  // (guard-ai carry fix) the smooth body and its effect recovery: e2e-guard-carry draws the guards' bodies
+  'src/player/smoothBody': ['e2e-guard-carry', 'e2e-move', 'e2e-anim', 'e2e-stealth', 'e2e-clip'],
+  'src/player/bodyEffectRecovery': ['e2e-guard-carry', 'e2e-move', 'e2e-anim', 'e2e-stealth', 'e2e-clip'],
+  'src/player/shoulderCamera': ['e2e-camera-bounds', 'e2e-move', 'e2e-anim', 'e2e-stealth', 'e2e-clip'],
+  'src/player/cameraBounds': ['e2e-camera-bounds', 'e2e-move', 'e2e-anim', 'e2e-clip'],
   'src/player/': ['e2e-move', 'e2e-anim', 'e2e-stealth', 'e2e-clip'],
   'src/anim/': ['e2e-anim', 'e2e-clip', 'e2e-move'],
   'src/cover/': ['e2e-stealth', 'e2e-clip', 'e2e-tactics', 'e2e-wall'],
   // (train 30) weapons.lastShotNoise drives guard hearing: e2e-stealth-ai and Sector Ops part 1 read it
   'src/weapons/': ['e2e-combat', 'e2e-weapons-carry', 'e2e-stealth-ai', 'e2e-sectorops:1'],
+  // the enemy archetypes (heavy, enforcer, sniper, dog): their legacy suite
+  'src/ai/archetypes': ['e2e-enemies', 'e2e-stealth-ai', 'e2e-guard-carry', 'e2e-sectorops:1'],
+  'src/ai/enemyDefs': ['e2e-enemies', 'e2e-stealth-ai', 'e2e-guard-carry', 'e2e-sectorops:1'],
   'src/ai/': ['e2e-stealth-ai', 'e2e-guard-carry', 'e2e-sectorops:1'],
   // the map files with their own suite
   'src/world/maps/kestrel': ['e2e-kestrel'],
   'src/world/maps/courselab.ts': ['e2e-course'],
-  'src/world/maps/bunker': ['e2e-course'],
+  'src/world/maps/bunker': ['e2e-course', 'e2e-bunker'],
   'src/world/maps/ctcourse.ts': ['e2e-ctcourse'],
+  'src/world/maps/ctcourseSets/': ['e2e-ctcourse'],
+  'src/world/maps/ctcourseGreybox.ts': ['e2e-ctcourse'],
   'src/world/maps/warehouseOps.ts': ['e2e-sectorops'],
   'src/world/maps/warehouseSectors.ts': ['e2e-sectorops'],
   'src/world/maps/warehouseS': ['e2e-sectorops', 'e2e-levels', 'e2e-anchors'],
-  // the lamp files: the bake suite and the desktop renderer
+  // the Warehouse map itself: its routes suite (legacy) and the usual world suites
+  'src/world/maps/warehouse.ts': ['e2e-ct-warehouse', 'e2e-levels', 'e2e-anchors'],
+  'src/world/maps/warehouseDress': ['e2e-ct-warehouse', 'e2e-levels', 'e2e-anchors'],
+  // the lamp files: the bake suite, the desktop renderer and the GPU darkness read-back (dropped outside --gpu)
   'src/world/light': LIGHT,
   'src/world/lamp': LIGHT,
   'src/world/bakedLamps': LIGHT,
@@ -230,12 +280,17 @@ export const DIRECT_COVERS = {
   'src/voxel/': LIGHT,
   'src/vfx/': ['e2e-desktop'],
   // the wire, the save shape and the mirrored camera count: the co-op group
+  // the partner's figure on the joiner: the GPU co-op read-back (dropped outside --gpu)
+  'src/net/remoteAvatar': [...COOP, 'e2e-coop-gpu'],
+  'src/net/remotePlayer': [...COOP, 'e2e-coop-gpu'],
   'src/net/': COOP,
   'src/security/data': COOP,
   'src/security/': ['e2e-security', 'e2e-sectorops'],
+  // (section-rating) a kv key, no save shape change: its own suite
+  'src/save/ratingRecord': ['e2e-section-rating'],
   'src/save/': COOP,
-  'src/progression/': ['e2e-park'],
-  'src/cosmetics/': ['e2e-park'],
+  'src/progression/': ['e2e-park', 'e2e-progression'],
+  'src/cosmetics/': ['e2e-park', 'e2e-cosmetics'],
   'src/feedback/': ['e2e-feedback'],
   'src/audio/': ['e2e-foley', 'e2e-music', 'e2e-score', 'e2e-weapon-audio'],
   'src/pwa/': ['e2e-offline'],
@@ -245,6 +300,9 @@ export const DIRECT_COVERS = {
 // need no browser (the -lib helpers are not suites: e2e-lib reruns CORE, e2e-net-lib the two-page suites in HELPERS)
 export const SCRIPT = /^scripts\/(smoke|anim-audit|e2e-(?!affected\.mjs$|(?:[\w-]*-)?lib\.mjs$)[\w-]+)\.mjs$/;
 export const HELPERS = { 'scripts/e2e-net-lib.mjs': ['e2e-netmove', 'anim-audit'] };
+// (marlow-final 0d) the set step modules of e2e-ctcourse (scripts/e2e-ctcourse/<set>.mjs) rerun it; master's --quick rule too
+export const SUITE_DIRS = { 'scripts/e2e-ctcourse/': ['e2e-ctcourse'] };
+const inDir = (f) => Object.entries(SUITE_DIRS).find(([d]) => f.startsWith(d))?.[1];
 const CORE_FILES = /^(scripts\/(e2e-lib|e2e-affected|run-e2e)\.mjs|package(-lock)?\.json|index\.html|vite\.config\.\w+|public\/)/;
 // no browser run: docs, markdown, changelog fragments (docs/**, *.md, changes/**), unit tests, the e2e timings file
 const NO_BROWSER = /^(docs\/|changes\/|tests\/|scripts\/e2e-times\.json$)|\.md$/i;
@@ -252,10 +310,11 @@ const NO_BROWSER = /^(docs\/|changes\/|tests\/|scripts\/e2e-times\.json$)|\.md$/
 const norm = (f) => f.replace(/\\/g, '/').replace(/^\.\//, '');
 const inMap = (map, f) => Object.entries(map).find(([p]) => f.startsWith(p))?.[1];
 
-/** --quick, master's rules unchanged: any `src/` file (markdown too) takes its map row or CORE; outside src/, a suite script, a helper, or the runner / build files. */
+/** --quick, master's rules unchanged: any `src/` file (markdown too) takes its map row or CORE; outside src/, a helper, a suite's step module (SUITE_DIRS), a suite script, or the runner / build files. */
 function quickSuitesForFile(f) {
   if (f.startsWith('src/')) return inMap(QUICK_COVERS, f) ?? CORE;
   if (HELPERS[f]) return HELPERS[f];
+  if (inDir(f)) return inDir(f);
   if (QUICK_SCRIPT.test(f)) return [f.replace(/^scripts\/|\.mjs$/g, '')];
   if (QUICK_CORE_FILES.test(f)) return CORE;
   return null;
@@ -268,6 +327,7 @@ export function suitesForFile(file, map = DIRECT_COVERS) {
   if (NO_BROWSER.test(f)) return null;
   if (f.startsWith('src/')) return inMap(map, f) ?? [...CORE]; // an unknown src path: smoke + the default set
   if (HELPERS[f]) return HELPERS[f];
+  if (inDir(f)) return inDir(f);
   if (SCRIPT.test(f)) return [f.replace(/^scripts\/|\.mjs$/g, '')];
   if (CORE_FILES.test(f)) return [...CORE];
   return null;
