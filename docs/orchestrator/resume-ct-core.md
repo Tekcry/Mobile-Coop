@@ -2,6 +2,10 @@
 
 RESUMED ~23:55 (new account; orchestrator: overnight mode, one slice at a time, testing backlog first, save at 5-hour ~95%):
 #247 laptop afp PASS on fd34263e + CI green -> train-ready label added, orchestrator told (joins train 39 with #269).
+~15:00: PR #308 rig-pose-fix OPEN (4adf3785; alloc fix merged; checks W1 / S1-A fixed / net B PASS). Laptop 11 suites
+20261024T014839-player-build-4adf3785-d290 (status laptop-e2e/rig-pose-fix): pass -> label train-ready + orchestrator;
+fail -> Opus triage at once. guard-models G8 shadow-cull builder running (gm-g8cull), then cap rerun sectorops +
+campusops, flip decision, guard-models e2e set, guard-models PR.
 ~14:40: rig-pose-fix ALL 7 slices merged (988869a8; S1 fix round incl.); checks W1 PASS, S1-A FAIL->fixed; checker B on
 all src/net running (CHECK-NET-B.md). WAITING for CPU < 80% (93% at 14:40) to start: (a) playerVolumes alloc test fix
 (worktree rpf-alloc, branch feature/rpf-alloc: 67.8 B vs 4 x 16 B; find the extra box, do not raise the limit), (b)
