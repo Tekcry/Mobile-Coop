@@ -2,6 +2,10 @@
 
 RESUMED ~23:55 (new account; orchestrator: overnight mode, one slice at a time, testing backlog first, save at 5-hour ~95%):
 #247 laptop afp PASS on fd34263e + CI green -> train-ready label added, orchestrator told (joins train 39 with #269).
+~16:55: PR #314 optic-coop OPEN (f96633aa = base f32aaf17 + optic-coop-2 34b3116e M1 / M2 / polish): CHECK-M.md Opus
+check running + laptop e2e-pad / mouse / netmove / coop 20261024T034805-player-build-f96633aa-53c1. Michael asked (via
+orchestrator): R3 ping shares Zoom (a keep / b contextual / c move Zoom / d move Ping). Train-ready after check + laptop +
+his answer.
 RESUMED ~16:45 (window reset; weekly 78%, binds tonight): #308 TRAIN-READY (label added; 667cbd80 CI green + laptop all
 pass). optic-coop: checks A + B PASS, laptop 7/7 on f32aaf17; optic-coop-2 builder (M1 gap menu, M2 ping middle mouse /
 R3, polish 256 cap + first-frame ping) RESUMED after the limit cut it off; then merge into feature/optic-coop, small Opus
