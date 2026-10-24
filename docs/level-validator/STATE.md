@@ -11,7 +11,10 @@ Opus PLAN agent started; it pushes BRIEF.md / PLAN.md as WIP. If cut off at the 
 ## Merged so far
 - DOC 2282fcd4 (4b0cae74), V2 6a697f49 (2e5d23e7), V4 0e0362ce + V3 3ef64512 (6b8fb90a). V1 + V1a OPEN on cloud-queue (contract for metrics.json in both briefs, 1531ff0f).
 - For the checker / Michael (V4/V3 clashes, resolved additions-only): 11.6 states the 30 s REVIVE_WINDOW (src/game/reviveClock.ts:8, G126; old text said no bleed-out); 11.8 cites G151 (replaced G81) but 12.2 still names G81 marked spots (left: additions only outside 11); 11.1 "no fewer than two" scoped to campaign maps (G280 Sector Ops solo play); 6.2 pacing line added beyond PLAN V3 (the validator checks pacing). V2: 8 room classes use "Marlow estimate" real sizes.
-- Next: V0 hands back -> merge -> V5a-e (5 Sonnet, after desktop CPU < 80%, orchestrator ~20:20) -> V5f after V1 + V1a.
+- V0 merged (036b39b6) + lead decisions on its gaps in graph-schema.md (46f09d60): pair_gate, team_rope, rappel, spine link = release, middle-to-middle length, time_s WARN, open ceilings skip. Sent to V1 as an Answer on its cloud brief (9f1003f0).
+- V1a DONE on cloud (feature/level-validator-v1a f72e640c): Sonnet checker running. V1 claimed by Cloud Builder 1 (09:12Z).
+- RUNNING (~20:28, CPU 10%): V5a-e Sonnet, worktrees C:/NightShift/Mobile-Coop-level-validator-v5s1..5, branches feature/level-validator-v5s1..5; each writes docs/sector-redesign/graph/campusOps-S<n>.json + docs/level-validator/campus-run/S<n>.md only. If cut off: rerun that section from PLAN V5 + graph-schema.md.
+- Next: merge V1a (on PASS), V5a-e, V1 (after an Opus checker) -> V5f run on all five + REPORT -> CHK -> PR.
 
 ## Running (2026-10-24 ~20:11; orchestrator: start now, cap ~21:00)
 - V0 Opus: C:/NightShift/Mobile-Coop-level-validator-v0, feature/level-validator-v0
