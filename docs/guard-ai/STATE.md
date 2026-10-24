@@ -1,6 +1,10 @@
 # Guard AI - state
 
 ## Now
+~20:45 (new account, laptop; swap live 20:50): laptop coop4 / coop4-4p on 1b04e5bd preempted by train 64 #341, both
+requests still open (background status wait running). M0 (guard-cap) claimed, no results yet: T1 / D1-D2 stay blocked.
+Open PRs from me: #317 only (draft). #313 / #322 / #326 merged.
+
 ~19:55 SAVE (orchestrator, 80%): coop4 master-merge checks A + B PASS (1f5e8c07); laptop coop4 + coop4-4p on
 1b04e5bd queued / running. All worktrees clean and pushed. Resume block current.
 
