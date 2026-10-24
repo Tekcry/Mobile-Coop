@@ -1331,41 +1331,130 @@ def cap_shell(cap, S_co, S_n, S_q, edges, az, h, ears, face, frame):
 # polyline carries the shell's EDGE_T taper, so a snapped edge still sits EDGE_T off the scalp. Protection in the
 # decimator alone cannot do it: the dense boundary has more vertices (~500) than the buzz budget.
 def boundary_loops(polys):
-    """The closed boundary loops (vertex index lists in walk order) of a mesh given as polygon index lists."""
+    """The closed boundary loops (vertex index lists in walk order) of a mesh given as polygon index lists, walked by
+    boundary half-edges (an edge used by one face, in that face's order), so a vertex two loops touch (a pinch) is
+    passed through by each loop rather than ending one."""
     cnt = {}
     for p in polys:
         for k in range(len(p)):
             a, b = int(p[k]), int(p[(k + 1) % len(p)])
             key = (a, b) if a < b else (b, a)
             cnt[key] = cnt.get(key, 0) + 1
-    adj = {}
-    for (a, b), c in cnt.items():
-        if c == 1:
-            adj.setdefault(a, []).append(b)
-            adj.setdefault(b, []).append(a)
-    loops, seen = [], set()
-    for s in sorted(adj):
-        if s in seen:
-            continue
-        loop, prev, cur = [s], None, s
-        seen.add(s)
-        while True:
-            nxt = [v for v in adj[cur] if v != prev and v not in seen]
-            if not nxt:
-                break
-            prev, cur = cur, nxt[0]
-            loop.append(cur)
-            seen.add(cur)
-        if len(loop) >= 3:
-            loops.append(loop)
+    out_of = {}
+    for p in polys:
+        for k in range(len(p)):
+            a, b = int(p[k]), int(p[(k + 1) % len(p)])
+            if cnt[(a, b) if a < b else (b, a)] == 1:
+                out_of.setdefault(a, []).append(b)
+    used = set()
+    loops = []
+    for a0 in sorted(out_of):
+        for b0 in out_of[a0]:
+            if (a0, b0) in used:
+                continue
+            loop, a, b = [], a0, b0
+            while (a, b) not in used:
+                used.add((a, b))
+                loop.append(a)
+                nxt = [c for c in out_of.get(b, []) if (b, c) not in used]
+                if not nxt:
+                    break
+                a, b = b, nxt[0]
+            if len(loop) >= 3:
+                loops.append(loop)
     return loops
 
 
-def hairline_polylines(co, polys):
-    """The dense cap's boundary loops as closed polylines: (points (M, 3), cumulative length (M + 1), length)."""
+def drop_cap_islands(co, faces, t, min_faces=8):
+    """The cap without its stray islands (a lone quad or two left where the hairline dips at a temple: a separate
+    4-vertex boundary loop that turns 90 deg at each corner), loose vertices compacted. Returns (co, faces, t, how many
+    islands were dropped)."""
+    faces = [list(map(int, p)) for p in faces]
+    parent = list(range(len(co)))
+
+    def root(v):
+        while parent[v] != v:
+            parent[v] = parent[parent[v]]
+            v = parent[v]
+        return v
+    for p in faces:
+        for v in p[1:]:
+            a, b = root(p[0]), root(v)
+            if a != b:
+                parent[b] = a
+    size = {}
+    for p in faces:
+        r = root(p[0])
+        size[r] = size.get(r, 0) + 1
+    keep = [p for p in faces if size[root(p[0])] >= min_faces]
+    used = np.unique(np.array([v for p in keep for v in p], dtype=np.int64))
+    remap = np.full(len(co), -1, dtype=np.int64)
+    remap[used] = np.arange(len(used))
+    dropped = sum(1 for r, n in size.items() if n < min_faces)
+    return np.asarray(co)[used], [[int(remap[v]) for v in p] for p in keep], np.asarray(t)[used], dropped
+
+
+def fill_small_holes(faces, max_verts=4):
+    """The cap faces with every hole of at most `max_verts` boundary vertices closed by one face (a pinhole where the
+    hairline dips at a temple: a loop of 4 that turns 90 deg at each corner and shows the scalp). The hole's boundary
+    half-edges run the way their faces do, so the new face takes the loop reversed. Returns (faces, holes closed)."""
+    faces = [list(map(int, p)) for p in faces]
+    holes = [lp for lp in boundary_loops(faces) if len(lp) <= max_verts]
+    return faces + [lp[::-1] for lp in holes], len(holes)
+
+
+def close_pinholes(obj, max_verts=4):
+    """fill_small_holes on a (decimated) cap object, in place: the decimator can open a pinhole again."""
+    import bmesh
+    _, polys = mesh_arrays(obj)
+    holes = [lp for lp in boundary_loops(polys) if len(lp) <= max_verts]
+    if holes:
+        bm = bmesh.new()
+        bm.from_mesh(obj.data)
+        bm.verts.ensure_lookup_table()
+        for lp in holes:
+            try:
+                bm.faces.new([bm.verts[v] for v in lp[::-1]])
+            except ValueError:   # the face exists already
+                pass
+        bm.to_mesh(obj.data)
+        bm.free()
+        obj.data.update()
+    return len(holes)
+
+
+def despike(P, spike_deg):
+    """Drops the polyline vertex with the sharpest turn while any turn is over `spike_deg` (a snap that landed behind
+    its neighbours: a reversal, not part of the hairline), keeping at least 8 points."""
+    P = np.asarray(P, dtype=np.float64)
+    while len(P) > 8:
+        t = turn_degs_all(P)
+        i = int(np.argmax(t))
+        if t[i] <= spike_deg:
+            break
+        P = np.delete(P, i, axis=0)
+    return P
+
+
+def hairline_polylines(co, polys, on=None, spike_deg=60.0):
+    """The dense cap's boundary loops as closed polylines: (points (M, 3), cumulative length (M + 1), length). `on`:
+    the vertices cap_shell snapped onto the contour; a boundary vertex it left at its grid position (a staircase
+    corner whose quad was cut) is skipped, and spikes over `spike_deg` are dropped, so the polyline is the contour."""
     out = []
     for loop in boundary_loops(polys):
-        P = np.asarray(co, dtype=np.float64)[loop]
+        if on is not None:   # an unsnapped vertex alone or in a pair between snapped ones: a staircase corner
+            n = len(loop)
+            off = [not on[v] for v in loop]
+            drop = set()
+            for i in range(n):
+                if off[i] and not off[i - 1] and (not off[(i + 1) % n] or (off[(i + 1) % n] and not off[(i + 2) % n])):
+                    drop.add(i)
+                    if off[(i + 1) % n]:
+                        drop.add((i + 1) % n)
+            loop = [v for i, v in enumerate(loop) if i not in drop]
+        if len(loop) < 3:
+            continue
+        P = despike(np.asarray(co, dtype=np.float64)[loop], spike_deg)   # staircase corners and folds out
         seg = np.linalg.norm(np.roll(P, -1, axis=0) - P, axis=1)
         cum = np.concatenate([[0.0], np.cumsum(seg)])
         out.append((P, cum, float(cum[-1])))
@@ -1413,11 +1502,38 @@ def match_line(X, lines):
     return min(lines, key=lambda ln: float(np.mean([polyline_nearest(x, ln)[2] for x in X])))
 
 
+SNAP_RELAX = 3          # (G10a D4) spacing passes along the contour after the snap
+CAP_PINHOLE_RESERVE = 8  # tris kept free under each cap budget for the pinholes close_pinholes may fill after a decimate
+
+
+def increasing_run(u):
+    """Indices of a longest strictly increasing subsequence of u (patience sorting)."""
+    tails, prev, at = [], [-1] * len(u), []
+    for i, x in enumerate(u):
+        lo, hi = 0, len(tails)
+        while lo < hi:
+            mid = (lo + hi) // 2
+            if u[tails[mid]] < x:
+                lo = mid + 1
+            else:
+                hi = mid
+        prev[i] = tails[lo - 1] if lo else -1
+        if lo == len(tails):
+            tails.append(i)
+        else:
+            tails[lo] = i
+    i = tails[-1] if tails else -1
+    while i >= 0:
+        at.append(i)
+        i = prev[i]
+    return at[::-1]
+
+
 def snap_loops(co, polys, lines):
-    """Moves every boundary vertex (of the mesh `co` / `polys`) onto its nearest point of the dense hairline polyline,
-    keeping loop order: a run of vertices whose nearest points would fold the loop back is spread evenly, in loop
-    order, along the arc between its good neighbours' points; a vertex with no such arc keeps its own position.
-    Returns (co, how many kept theirs)."""
+    """Moves every boundary vertex (of the mesh `co` / `polys`) onto the dense hairline polyline, keeping loop order:
+    the longest run of vertices whose nearest polyline points already follow the loop's order go to those points; every
+    other vertex (its nearest point would fold the loop back, or repeat a neighbour's) is spread evenly, in loop order,
+    along the arc between the placed vertices around it. Returns (co, how many kept their own position)."""
     co = co.copy()
     kept = 0
     if not lines:
@@ -1432,29 +1548,42 @@ def snap_loops(co, polys, lines):
         if step.sum() < 0:     # walk the dense loop's way
             loop, X, near, s = loop[::-1], X[::-1], near[::-1], s[::-1]
         n = len(loop)
-        good = np.zeros(n, bool)
+        k0 = int(np.argmin([q[2] for q in near]))      # start at the vertex nearest the contour
+        order = [(k0 + i) % n for i in range(n)]
+        u = [(s[k] - s[k0]) % L for k in order]
+        good = set(increasing_run(u))
+        par = [u[i] if i in good else None for i in range(n)]   # arc parameter from the start, rising along the loop
         for i in range(n):
-            a, b = s[i - 1], s[(i + 1) % n]
-            span = (b - a) % L
-            good[i] = span < L / 2 and ((s[i] - a) % L) <= span
-        new = X.copy()
-        for i in range(n):
-            if good[i]:
-                new[i] = near[i][0]
+            if i in good:
                 continue
-            j = next((k for k in range(1, n) if good[(i - k) % n]), None)
-            m = next((k for k in range(1, n) if good[(i + k) % n]), None)
-            span = (s[(i + m) % n] - s[(i - j) % n]) % L if j is not None and m is not None else L
-            if span >= L / 2:
+            j = next(d for d in range(1, n) if (i - d) % n in good)
+            m = next(d for d in range(1, n) if (i + d) % n in good)
+            a, b = u[(i - j) % n], u[(i + m) % n]
+            span = (b - a) % L or (L if j + m >= n else 0.0)
+            if span >= L / 2 and j + m < n:
                 kept += 1
                 continue
-            new[i] = polyline_point(line, s[(i - j) % n] + span * j / (j + m))   # its place in the run, in order
+            par[i] = (a + span * j / (j + m)) % L   # its place in the run, in order
+        for _ in range(SNAP_RELAX):   # even out the spacing along the contour (order kept): no short edge at a corner
+            q = list(par)
+            for i in range(n):
+                pa, pb = par[i - 1], par[(i + 1) % n]
+                if par[i] is None or pa is None or pb is None:
+                    continue
+                q[i] = 0.5 * par[i] + 0.25 * ((pa - L if i == 0 else pa) + (pb + L if i == n - 1 else pb))
+            par = q
+        new = X.copy()
+        for i, k in enumerate(order):
+            if par[i] is not None:
+                new[k] = polyline_point(line, s[k0] + par[i])
         co[loop] = new
     return co, kept
 
 
 def snap_hairline(obj, lines):
-    """snap_loops on a decimated cap object, in place. Returns how many boundary vertices kept their own position."""
+    """snap_loops on a decimated cap object, in place (pinholes the decimator opened closed first). Returns how many
+    boundary vertices kept their own position."""
+    close_pinholes(obj)
     co, polys = mesh_arrays(obj)
     co, kept = snap_loops(co, polys, lines)
     obj.data.vertices.foreach_set('co', co.ravel())
@@ -1462,14 +1591,18 @@ def snap_hairline(obj, lines):
     return kept
 
 
-def turn_degs(P):
-    """The turn (deg) at each vertex of a closed loop between its incoming and outgoing edge (0 = straight)."""
+def turn_degs_all(P):
+    """The turn (deg) at each vertex of a closed loop between its incoming and outgoing edge (0 = straight; 0 where an
+    edge has no length)."""
     e = np.roll(P, -1, axis=0) - P
     a, b = np.roll(e, 1, axis=0), e
     na, nb = np.linalg.norm(a, axis=1), np.linalg.norm(b, axis=1)
-    ok = (na > 1e-9) & (nb > 1e-9)
     c = np.clip((a * b).sum(axis=1) / np.maximum(na * nb, 1e-18), -1.0, 1.0)
-    return np.degrees(np.arccos(c))[ok]
+    return np.where((na > 1e-9) & (nb > 1e-9), np.degrees(np.arccos(c)), 0.0)
+
+
+def turn_degs(P):
+    return turn_degs_all(P)
 
 
 def loops_measure(co, polys, lines, kept=0):
@@ -1496,9 +1629,9 @@ def hairline_measure(obj, lines, kept=0):
 
 
 def contour_measure(lines):
-    """The dense contour itself (for comparison): vertices, loops and its own largest turn."""
+    """The dense contour polyline (for comparison): vertices per loop and its own largest turn."""
     t = [turn_degs(P) for P, _, _ in lines]
-    return {'verts': int(sum(len(P) for P, _, _ in lines)), 'loops': len(lines),
+    return {'verts': int(sum(len(P) for P, _, _ in lines)), 'loops': len(lines), 'loopVerts': [len(P) for P, _, _ in lines],
             'maxTurnDeg': round(float(max((x.max() for x in t if len(x)), default=0.0)), 1)}
 
 
@@ -1544,12 +1677,16 @@ def run_haircaps(args, kit):
     baked = []
     for cap in caps:
         shell, cf, t, snapped = cap_shell(cap, S_co, S_n, S_q, edges, az, h, ears_s, face, frame)
-        lines = hairline_polylines(shell, cf.tolist())   # (G10a D4) the dense hairline, before any decimate
-        obj = new_mesh_obj(f'guard-{args.base}-cap-{cap["id"]}-lod0', shell.tolist(), cf.tolist())
+        # (G10a D4) stray islands out, then the dense hairline before any decimate (staircase corners cap_shell left
+        # unsnapped and folds taken out)
+        shell, cf, t, islands = drop_cap_islands(shell, cf.tolist(), t)
+        cf, holes = fill_small_holes(cf)
+        lines = hairline_polylines(shell, cf, on=t <= EDGE_T * 1.0001)
+        obj = new_mesh_obj(f'guard-{args.base}-cap-{cap["id"]}-lod0', shell.tolist(), cf)
         vg = obj.vertex_groups.new(name='head')
         vg.add(list(range(len(shell))), 1.0, 'REPLACE')
         src_tris = tri_count(obj.data)
-        decimate(obj, cap['tris'][0])
+        decimate(obj, cap['tris'][0] - CAP_PINHOLE_RESERVE)
         hairline_q = {'lod0': hairline_measure(obj, lines, snap_hairline(obj, lines))}
         obj.data.uv_layers.new(name='face')
         unwrap(obj, seams=None, margin=0.01)
@@ -1575,14 +1712,16 @@ def run_haircaps(args, kit):
         lods = {'lod0': tri_count(obj.data)}
         if len(cap['tris']) > 1 and cap['tris'][1] > 0:
             o1 = duplicate(obj, f'guard-{args.base}-cap-{cap["id"]}-lod1')
-            lods['lod1'] = decimate(o1, cap['tris'][1])
+            decimate(o1, cap['tris'][1] - CAP_PINHOLE_RESERVE)
             hairline_q['lod1'] = hairline_measure(o1, lines, snap_hairline(o1, lines))
+            lods['lod1'] = tri_count(o1.data)
             o1['tint'] = 'hair'
             o1['piece'] = f'hair:{cap["id"]}'
             baked.append(o1)
         report_caps[cap['id']] = {'tris': lods, 'sourceTris': src_tris, 'budget': cap['tris'], 'texels': size, 'png': pngs,
                                   **stats, 'snappedEdgeVerts': snapped,
-                                  'hairline': {**hairline_q, 'contour': contour_measure(lines)},
+                                  'hairline': {**hairline_q, 'contour': contour_measure(lines), 'islandsDropped': islands,
+                                               'holesClosed': holes},
                                   'thicknessMm': [round(float(t.min()) * 1000, 2), round(float(t.max()) * 1000, 2)],
                                   'uv': uv_stats(obj.data)}
         log(f'cap {cap["id"]}: {lods} from {src_tris}, thickness {report_caps[cap["id"]]["thicknessMm"]} mm, '
