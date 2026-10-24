@@ -145,7 +145,7 @@ describe('levelMeasure (V6b)', () => {
     expect(m.los_break_s!).toBeCloseTo(((6 * Math.SQRT2 + 6) * 0.5) / R.reach_speed_mps, 3);
   });
 
-  it('a 20 m corridor link: 15.4 s at the split speed; edge point, off-nav kinds, partner reach', () => {
+  it('a 20 m corridor link: 15.4 s at the split speed; edge point, off-nav kinds, unlinked drop / ladder, partner reach', () => {
     const b = new LevelBuilder();
     b.floor(0, 0, 30, 10, '#555');
     // rooms A (x -14.25..-6) and B (6..14.25), a 3.5 m corridor between them (open at both ends); with the grid on
@@ -173,6 +173,9 @@ describe('levelMeasure (V6b)', () => {
         { from: 'f', to: 'b', kind: 'door', length: 13 },
         { from: 'hall', to: 'r', kind: 'door', length: 13 },
         { from: 'b', to: 'r', kind: 'door', length: 13 },
+        // a drop / ladder whose nav path takes no link of its kind is a walk round, not its time
+        { from: 'a', to: 'b', kind: 'drop', at: [0, 0, 0] },
+        { from: 'a', to: 'b', kind: 'ladder', at: [0, 0, 0] },
       ],
     };
     const { res } = run(b, 0.75, [{ x: 0, y: 0, z: 0 }], graph);
@@ -192,6 +195,8 @@ describe('levelMeasure (V6b)', () => {
     expect(res.meta.splits.x!.a_s!).toBeCloseTo(13 / s + 10 / s + 13 / s, 6);
     expect(res.meta.splits.x!.b_s!).toBeCloseTo(26 / s, 6);
     expect(res.links[3]).toMatchObject({ time_s: null, why: 'no area / floor cells on f' });
+    expect(res.links[7]).toEqual({ time_s: null, why: 'drop not on the guard nav (1.0-2.2 m only)' });
+    expect(res.links[8]).toEqual({ time_s: null, why: 'ladder not on the guard nav (no ladder link on its path)' });
   });
 });
 

@@ -364,11 +364,9 @@ export function measureGraph(graph: MeasureGraphInput, opts: MeasureOptions): Me
     const p1 = pathLength(nav, a, at);
     const p2 = pathLength(nav, at, b);
     if (p1 === null || p2 === null) return { time_s: null, why: `no nav path ${p1 === null ? `${l.from} centre -> at` : `at -> ${l.to} centre`}` };
-    // a drop or ladder the nav does not link is walked round by the stairs: that is not its time
-    if (!p1.links && !p2.links) {
-      if (l.kind === 'drop') return { time_s: null, why: 'drop not on the guard nav (1.0-2.2 m only)' };
-      if (l.kind === 'ladder') return { time_s: null, why: 'ladder not on the guard nav (no nav link on its path)' };
-    }
+    // a drop or ladder whose path takes no nav link of its own kind is a walk round (stairs, another ladder): not its time
+    if (l.kind === 'drop' && !p1.drops && !p2.drops) return { time_s: null, why: 'drop not on the guard nav (1.0-2.2 m only)' };
+    if (l.kind === 'ladder' && !p1.ladders && !p2.ladders) return { time_s: null, why: 'ladder not on the guard nav (no ladder link on its path)' };
     const path = p1.len + p2.len;
     return { time_s: path / splitSpeed, path_m: path };
   });
@@ -520,12 +518,13 @@ function edgePoint(nav: NavGrid, a: Area, b: Area, ya: number, yb: number, ca: V
 }
 
 /** The nav path a -> b: its length (m; the smoothed waypoints in plan, a ladder / drop by its own 3D run) and how many
- *  nav links (ladders, drops) it takes; null = no path. */
-function pathLength(nav: NavGrid, a: V3, b: V3): { len: number; links: number } | null {
+ *  ladder and drop links it takes; null = no path. */
+function pathLength(nav: NavGrid, a: V3, b: V3): { len: number; ladders: number; drops: number } | null {
   const wps: Waypoint[] | null = nav.findPath([a[0], a[2]], [b[0], b[2]], nav.walk.length, a[1], b[1]);
   if (!wps) return null;
   let len = 0;
-  let links = 0;
+  let ladders = 0;
+  let drops = 0;
   let px = a[0];
   let pz = a[2];
   for (const w of wps) {
@@ -534,14 +533,15 @@ function pathLength(nav: NavGrid, a: V3, b: V3): { len: number; links: number } 
     pz = w[1];
     const lk = w.link;
     if (!lk) continue;
-    links++;
+    if (lk.kind === 'drop') drops++;
+    else ladders++;
     // the next waypoint lies past the link's far end: the run along the link, then on from its end
     const p = lk.pts;
     for (let j = 3; j < p.length; j += 3) len += hyp3(p[j]! - p[j - 3]!, p[j + 1]! - p[j - 2]!, p[j + 2]! - p[j - 1]!);
     px = p[p.length - 3]!;
     pz = p[p.length - 1]!;
   }
-  return { len, links };
+  return { len, ladders, drops };
 }
 
 /**
