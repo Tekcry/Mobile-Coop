@@ -33,6 +33,9 @@ Last updated: 2026-10-22 20:05 Sydney (master 4.58.0, train 7; train 8 next: #11
 ## Now: guard-render (2026-10-23 ~03:00)
 Guard-cap measured (#180, laptop 4090, Epic): 12 awake guards on screen 27.5 fps, 24 at 17 fps; render-bound (active meshes 123 -> 1429), AI only 0.02-0.06 ms per guard. Michael's 24 guards per section needs a guard render LOD and dormant / culled off-screen guards. Job guard-render (Character Build, laptop GPU): report + PLAN first; A1: the no-perf-tuning rule lifted for guard render cost only (undo: drop the job; sector-redesign then caps visible guards).
 
+## Now: rig-pose-audit (Player Build, Michael 2026-10-24 ~11:25 "Yes, add to roadmap")
+The 8 ranked fix slices on feature/rig-pose-audit, in rank order; one batch PR per train.
+
 ## Spare jobs (full burn, 2026-10-23 ~01:25)
 Ranked list in docs/orchestrator/spare-jobs.md (15 items: sw-reload, hang-down moves, partner throw KO, G44, anim pops,
 partner pose parity, crouch pops, traversal, joint interrogation, test chores, ...). Idle agent slots take them in order,
