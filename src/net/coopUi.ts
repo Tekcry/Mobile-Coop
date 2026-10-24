@@ -496,7 +496,7 @@ class LobbyScreen extends MenuScreen {
         h(
           'div',
           { class: `lobby-player${p.id === s.selfId ? ' me' : ''}` },
-          h('span', { class: 'lp-beacon', title: 'Your marker colour in the match', style: { background: LobbyScreen.SLOT_CSS[p.slot] ?? LobbyScreen.SLOT_CSS[0]!, display: 'inline-block', width: '10px', height: '10px', borderRadius: '2px', marginRight: '6px' } }),
+          h('span', { class: 'lp-beacon', title: 'Marker colour in the match', style: { background: LobbyScreen.SLOT_CSS[p.slot] ?? LobbyScreen.SLOT_CSS[0]! } }),
           h('span', { class: 'lp-dot', style: { background: p.tag.color } }),
           h('span', { class: 'lp-name', text: p.name }),
           h('span', { class: 'lp-tag', text: p.tag.title }),
