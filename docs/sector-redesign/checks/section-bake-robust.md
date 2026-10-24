@@ -178,13 +178,13 @@ timing or bake order change.
 2. **`cancel` retires and settles before it spawns** (polish 2, 5). `workerPool.ts:117-140`: `busy.delete`, `retire`,
    `k = all.indexOf(w)` (the unreachable `all.push` branch dropped), reject, then `spawn` in `try`; on a throw the slot
    is spliced out (the pool runs one short, `size` drops), one warn per pool (`warnedSpawn`, :29), `pump`, true. JSDoc
-   :101-106.
+   :102-107.
 3. **`retire(w)`** (polish 4). `workerPool.ts:144-149`: handlers nulled, then `terminate`; used by `cancel` (:120) and
    `dispose` (:153). The `done` guard (:91) stays.
 4. **Late `onerror`** (polish 8): test only (below).
-5. **Cap warning** (polish 3). `sectionJobs.ts:127` `warnedCap`; `checkStalled` (:247-253) warns once per baker when a
+5. **Cap warning** (polish 3). `sectionJobs.ts:127` `warnedCap`; `checkStalled` (:248-253) warns once per baker when a
    first try passes its cap, `ms` read before `failed1` resets the start time: `[section-bake] a worker job ran past its
-   cap (<ms> ms): cancelled, tried again on the pool`. JSDoc line at :235.
+   cap (<ms> ms): cancelled, tried again on the pool`. JSDoc line at :234.
 6. **Fake pools** (polish 6). `tests/sectionBake.test.ts` `handPool` and the one-line pool gain `cancel: () => false`.
    The `as unknown as WorkerPool` cast hides the gap from tsc, so no new test: the file staying green is the proof.
 7. **Docs** (polish 7). `docs/systems/lighting.md` "Failures": one sentence (a capped job is cancelled on the pool, a
