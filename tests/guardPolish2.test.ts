@@ -452,3 +452,23 @@ describe('A192: an armour pick casts its fire lines best first', () => {
   });
 
 });
+
+describe('A194: in cover with no spot of any kind he keeps his cover', () => {
+  it('out of sight, no hunt position, no sighting, no stimulus: stays in cover (4.98: his own feet as the spot, attack)', () => {
+    const r = roleProbe({ role: R_OVERWATCH, cover: 1, moving: false, x: 1, z: -12, state: 'inCover' });
+    Object.assign(r.e, { coverIdx: 1, hunt: -1, sawOnce: false, hasStimulus: false });
+    r.owner[1] = r.e.num;
+    for (let i = 0; i < 60; i++) {
+      r.step();
+      expect(r.p.state).toBe('inCover');
+    }
+  });
+
+  it('with his own sighting: the known-spot rule (A5) as before (the spot behind him and close: he leaves)', () => {
+    const r = roleProbe({ role: R_OVERWATCH, cover: 1, moving: false, x: 1, z: -12, state: 'inCover' });
+    Object.assign(r.e, { coverIdx: 1, hunt: -1, sawOnce: true, lastKnown: new Vector3(1, 1.1, -13.5) });
+    r.owner[1] = r.e.num;
+    r.step();
+    expect(r.p.state).toBe('attack');
+  });
+});

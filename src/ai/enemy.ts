@@ -324,6 +324,9 @@ const RESUME_QUIET = true;
  *  the try loop, best first (at most `coverCasts` casts, at most `COVER_TRIES` A*). Undo: false (a cast for any top-3
  *  entrant in cover-index order inside the score loop). */
 const ARMOUR_CAST_LATE = true;
+/** (polish2 A194) In cover out of sight, the known-spot exits (A5) need a spot: a hunt position, a sighting or a
+ *  stimulus; with none his known spot is his own feet, so the player's feet rule stays. Undo: false. */
+const KNOWN_NEEDS_SPOT = true;
 /** (polish A2) `pickCover`'s best candidates (index, score), best first; module scratch (one pick at a time). */
 const CV_IDX = new Int32Array(8);
 const CV_SCORE = new Float64Array(8);
@@ -3327,7 +3330,8 @@ export class Enemy implements Damageable {
         this.advancing = false;
         // flanked? leave (guard-ai S8: a guard with a role does not step out after 5 peeks: he holds and reports)
         // (polish A5) out of sight in stealth: from where he believes the target is (`knownPt`), never the real feet
-        const blindCover = COVER_KNOWN && !this.los && !this.smelled && this.ctx.stealth();
+        // (polish2 A194) only with a spot of some kind (else `knownSpot` is his own position: `near` 0, he would leave)
+        const blindCover = COVER_KNOWN && !this.los && !this.smelled && this.ctx.stealth() && (!KNOWN_NEEDS_SPOT || this.sawOnce || this.hasStimulus || this.huntPos() !== null);
         const dirX = (blindCover ? this.knownPt[0] : t.feet.x) - cp.pos.x;
         const dirZ = (blindCover ? this.knownPt[1] : t.feet.z) - cp.pos.z;
         const l = hyp2(dirX, dirZ) || 1;
