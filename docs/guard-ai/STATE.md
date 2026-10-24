@@ -1,6 +1,10 @@
 # Guard AI - state
 
 ## Now
+~14:30: brain LOD SKIPPED (orchestrator: guard-cap #180 shows AI 0.02-0.06 ms per guard, render-bound); Test Runner told.
+Next: Marlow's corrected spare-jobs.md on feature/menu -> take an open row in src/ai if any; else idle until Michael's walk.
+Ready from me: #272, #298, #302, #303.
+
 ~14:20 (Michael ~13:40 via orchestrator): (1) 24-guard rendering: Test Runner leads; Guard AI takes AI-side slices.
 Proposed split to Test Runner: mine = brain LOD (calm guards far from every player think at a lower rate, wake rules;
 gameplay facts only, never off-screen / render state: hard rule); asked for the per-guard CPU split (AI vs anim /
