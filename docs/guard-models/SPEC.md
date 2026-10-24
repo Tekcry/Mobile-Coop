@@ -208,10 +208,12 @@ Brows, lashes and stubble are painted into the face tile. LOD2 hair is in the al
 **Skin tones** (linear RGB tints over a neutral skin albedo with mean 0.75, slot `skin`):
 | Tone | Tint | Reads as |
 | --- | --- | --- |
-| 0 | 0.98, 0.58, 0.43 | light |
-| 1 | 0.76, 0.36, 0.20 | medium |
+| 0 | 0.75, 0.444, 0.329 | light |
+| 1 | 0.75, 0.355, 0.197 | medium |
 | 2 | 0.42, 0.17, 0.08 | brown |
 | 3 | 0.17, 0.07, 0.035 | dark |
+Every target is at or under its slot's neutral (a tint above 1 clamps and greys the colour). G10a D2 scaled tones 0
+and 1 so their largest channel equals the neutral (hue kept); `guardKit.ts` rejects a channel over the neutral.
 The neutral albedo carries redness (nose, cheeks, ears) as relative variation. The head report's
 `faceTile.faceIslandAlbedoMeanLinear` is the face skin's mean; the whole-tile mean (~0.69) is lower only because the
 scalp's shave shadow is in it, so G4 does not divide the tints by it. PLAN 8 lists the risk that the darkest

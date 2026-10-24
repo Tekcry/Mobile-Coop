@@ -67,11 +67,24 @@ describe('guardGarmentCheck', () => {
     expect(check(noHero, layers).problems).toContain('no guard-average-shirt-hero');
   });
 
-  it("seam gaps: over Wren's 10 mm warns (chain copies too), a torn seam fails", () => {
+  it("seam gaps before the weld only warn (Wren's 10 mm, large past 30 mm, chain copies too); a weld move past the relax cap fails", () => {
     const r = sewn('average', 'jacket', { seamGapBeforeWeldMm: 17.6 });
-    expect(check(r, layers)).toEqual({ problems: [], warnings: [expect.stringContaining('jacket: seam gap before the weld 17.6 mm')] });
+    expect(check(r, layers)).toEqual({ problems: [], warnings: [expect.stringContaining("jacket: seam gap before the weld 17.6 mm > 10 mm (Wren's limit)")] });
     (r.steps as { part: string; seamGapBeforeWeldMm?: number }[])[0]!.seamGapBeforeWeldMm = 40;
-    expect(check(r, layers).problems).toEqual([expect.stringContaining('shirt (chain copy): seam gap before the weld 40 mm')]);
+    r.seamGapBeforeWeldMm = 52.5;
+    expect(check(r, layers)).toEqual({ problems: [], warnings: [
+      expect.stringContaining('jacket: seam gap before the weld 52.5 mm > 30 mm (large, check the gusset'),
+      expect.stringContaining('shirt (chain copy): seam gap before the weld 40 mm > 30 mm'),
+    ] });
+    // the bake's lean trousers (52.5 mm gap, weld move 49 mm) pass; past the 60 mm relax cap fails
+    r.sim = { weldMoveMaxMm: 49 };
+    expect(check(r, layers).problems).toEqual([]);
+    r.sim = { weldMoveMaxMm: 61 };
+    expect(check(r, layers).problems).toEqual([expect.stringContaining('jacket: weld moved a seam 61 mm > 60 mm')]);
+    // only the part's own sim counts, never a chain copy's step
+    r.sim = { weldMoveMaxMm: 12 };
+    (r.steps as Record<string, unknown>[])[0]!.sim = { weldMoveMaxMm: 90 };
+    expect(check(r, layers).problems).toEqual([]);
   });
 
   it('a boot top with no measured girth fails the boots and every part drafted over them', () => {

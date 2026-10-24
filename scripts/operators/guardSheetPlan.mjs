@@ -208,8 +208,9 @@ export function sheetPlan(kit, { reports = {}, ready = null } = {}) {
   const sections = [];
   const add = (id, title, note, tiles) => sections.push({ id, title, note, tiles });
 
-  // 1. the three bases, side by side, gear off, look seed 0
-  const baseFigs = k.bases.map((b, i) => figure(k.refKind[b], b, { x: (i - (k.bases.length - 1) / 2) * SHEET.basesSpacing }));
+  // 1. the three bases, side by side, gear off, look seed 0; left to right in caption order (the camera looks down -z
+  // from +z, so +x is screen-left: figure i at x = ((n - 1) / 2 - i) * spacing; G10a D1c)
+  const baseFigs = k.bases.map((b, i) => figure(k.refKind[b], b, { x: ((k.bases.length - 1) / 2 - i) * SHEET.basesSpacing }));
   add('bases', 'The three bases', `Each base's first kind, look seed 0, gear off, at its kind's height (${k.bases.map((b) => `${b}: ${k.refKind[b]} ${kindOf(k.refKind[b])?.height ?? '?'} m`).join(', ')}).`, [
     bodyTile('bases', 'bases', k.bases.join(' / '), baseFigs, { draw: SHEET.basesDraw, across: k.bases.length * SHEET.basesSpacing + 0.6, yaw: 0.15 }),
   ]);
@@ -277,9 +278,10 @@ export function sheetPlan(kit, { reports = {}, ready = null } = {}) {
   const shieldNote = shieldId ? ` ${shieldId}: ${sh ? [0, 1, 2].map((n) => thousands(sh.lods?.[n]?.bufferTris ?? sh.lods?.[String(n)]?.bufferTris ?? 0)).join(' / ') : 'no bake report'} tris at LOD0 / 1 / 2 (the game draws LOD1 at every distance).` : '';
   add('lods', 'LOD strip with triangle counts', `Each LOD forced at the same 4.5 m framing (in play: LOD0 under 8 m, LOD1 to 25 m, LOD2 beyond). Counts from the bake reports (lods/guard-<base>.report.json): buffer = the whole file, shown = the kind's visible pieces.${shieldNote}`, lods);
 
-  // 8. Hollowmere night and night vision: every kind in a line-up at gameplay distance
+  // 8. Hollowmere night and night vision: every kind in a line-up at gameplay distance, left to right in kind order (+x is
+  // screen-left, as for the bases)
   const across = k.kinds.length * SHEET.lineupSpacing + 0.6;
-  const lineup = () => k.kinds.map((kd, i) => figure(kd.id, kd.base, { helmet: true, armour: true, lod: 0, x: (i - (k.kinds.length - 1) / 2) * SHEET.lineupSpacing }));
+  const lineup = () => k.kinds.map((kd, i) => figure(kd.id, kd.base, { helmet: true, armour: true, lod: 0, x: ((k.kinds.length - 1) / 2 - i) * SHEET.lineupSpacing }));
   add('night', 'Hollowmere night and night vision', "Every kind, gear on, at about 7 m, LOD0 forced (in play LOD0 ends at 6 m since S11: the LOD0 look under each light). Left: sodium against moonlight. Right: the same under the game's night-vision phosphor ramp (src/vfx/nightVision.ts NV_GLSL, no baked-lamp gain: the tube's postLift).", [
     bodyTile('night-hollowmere', 'night', 'Hollowmere night', lineup(), { draw: SHEET.lineupDraw, across, rig: SHEET.nightRig, yaw: 0 }),
     bodyTile('night-nv', 'night', 'Night vision', lineup(), { draw: SHEET.lineupDraw, across, rig: SHEET.nvRig, post: 'nv', yaw: 0 }),

@@ -3,6 +3,13 @@ kind: minor
 - Guards are now drawn with the baked realistic models by default (three builds, faces, outfits, gear, helmet knock-off:
   see the Guard models entry). `?guardmodels=0` turns them off and returns the merged body. The model files (about
   29 MB) load on demand, never precached, and stay in the service worker's own `guards` cache for offline play.
+- Guard look fixes (G10a, a fresh bake of every guard file): uniforms baked at the tint's neutral (the faction colour,
+  no longer near-black), the lightest skin tones keep their hue instead of washing out, no face showing through the
+  heavy's and enforcer's balaclava (only the eye slot), smooth hair-cap hairlines (no saw teeth, a clean receding
+  temple); the variety sheet draws guards with the game's rig (no goggle glow), and a colour change in
+  the kit now costs a sheet run, not a full bake.
+- Guard bake check: a garment's seam gap before the weld only warns (the weld closes it); a seam the weld has to move
+  more than 60 mm fails.
 - Guard render cost cut so the models fit the frame budget (render only; gameplay reads none of it):
   - Frozen guard materials: the operator material and the enforcer shield's materials skip the per-mesh define
     preparation and rebind every frame.

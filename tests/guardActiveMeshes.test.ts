@@ -142,6 +142,8 @@ const ENEMY_GUN = { body: '#2a2d31', grip: '#17191c', accent: '#3a3f45' };
 
 describe('S13: active meshes per on-screen guard', () => {
   it('flag off (S1 body): a grunt with gun + helmet + armour <= 4 (7 before S13, 23 as measured before perfg); enforcer 5 (9)', async () => {
+    const { flags } = await import('../src/core/flags');
+    flags.guardModels = false; // the default is on since gm-flip
     const { guard, scene, level } = await setup();
     const g = await guard('grunt');
     console.info(`S13 count flag off grunt: ${g.total} ${JSON.stringify(g.by)} [${g.names.join(', ')}]`);

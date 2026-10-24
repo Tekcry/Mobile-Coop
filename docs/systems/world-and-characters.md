@@ -175,8 +175,8 @@ Plan and rules: `docs/sector-redesign/briefs/ART-PLAN.md`; builds: `docs/sector-
   at most 3 times per variant with a console warning (`bodyEffectRecovery.ts`, guard-ai carry fix: a stall during a
   new variant's compile left guards invisible on the laptop GPU); the meshes holding it are switched back to GPU
   skinning (Babylon's first fallback had set `computeBonesUsingShaders` false, drawing the body unskinned; carry fix 2).
-- Guard figures (guard-models, `docs/guard-models/`; `flags.guardModels`: `?guardmodels=1` turns it on and the default is
-  OFF for now, G8 flips it to `!== '0'` after its budget run; `?guardmodels=0` is the merged S1 body above, A10). The
+- Guard figures (guard-models, `docs/guard-models/`; `flags.guardModels`: on by default since gm-flip (`!== '0'`, after
+  the G8 gate passed); `?guardmodels=0` is the merged S1 body above, A10). The
   seven human kinds (grunt, runner, heavy, sniper, enforcer, droneOp, officer; the dog keeps its model) draw as a
   `GuardFigure` (`operators/runtime/guardFigure.ts`, on Wren's `OperatorLibrary` / `OperatorPoser`) that `GuardBody`
   (`ai/guardBody.ts`) builds over the rig in `buildEnemyRig` and `buildBodyRig`; the merged body stays until the
@@ -226,8 +226,8 @@ Plan and rules: `docs/sector-redesign/briefs/ART-PLAN.md`; builds: `docs/sector-
     `guard-<base>-lod0..2.glb`, `guard-<base>.json`, `guard-shield_riot-lod0..2.glb`; KTX2 textures inside the GLBs);
     `operators/guards/guardAssets.ts` is the one seam (two eager `import.meta.glob` lines: the GLBs as `?url` strings
     only, nothing fetched; the three JSON files, under 1 KB together, inlined). A base without all its files resolves
-    to the stand-in (Wren's play LODs, untinted, one piece). Guard figures are off by default; their files load only
-    with `?guardmodels=1`, never precached: every fetch is behind `flags.guardModels` (`GuardBody` via
+    to the stand-in (Wren's play LODs, untinted, one piece). Guard figures are on by default; their files load on demand
+    (none with `?guardmodels=0`), never precached: every fetch is behind `flags.guardModels` (`GuardBody` via
     `guardModelsFor`, `warmGuardModels`, the helmet drop's mesh, the shield), the precache lists
     (`src/pwa/precacheGlobs.ts`, used by `vite.config.ts`) take no `.glb` and ignore `**/guard-*.glb` /
     `**/guard-*.ktx2`, and the runtime rule (`src/pwa/runtimeCaching.ts`) keeps a fetched `/assets/guard-*.glb` in the
@@ -240,7 +240,7 @@ Plan and rules: `docs/sector-redesign/briefs/ART-PLAN.md`; builds: `docs/sector-
     Kit data: `scripts/operators/data/guards.json` (ids and budgets, `operators/guards/guardKit.ts` validates).
   - Tests: `guardKit`, `guardVariant`, `gearMask`, `guardLook`, `guardFigure` (NullEngine), `guardBody`,
     `guardResolve`, `guardAssets` (the bundled files against the budgets), `guardAssetsOffline`; `e2e-coop` checks the
-    seed and pieces on host and client (`E2E_GUARDMODELS=1`).
+    seed and pieces on host and client (pieces skipped with `E2E_GUARDMODELS=0`).
 - Rig: root -> body (tumble pivot) -> pelvis(`hips`) -> spine -> chest(`torso`) -> neck -> head(`headNode`, head
   centre); chest -> shoulder -> elbow -> wrist; pelvis -> hip -> knee -> ankle; sockets `weaponPivot` (aim
   pocket), `backSocket`, `hipSocket`. Joints use `rotationQuaternion` (root uses Euler `rotation.y`).
@@ -251,7 +251,7 @@ Plan and rules: `docs/sector-redesign/briefs/ART-PLAN.md`; builds: `docs/sector-
   vision mode). Enemy looks get the map's faction colours (`ai/factions.ts` `factionLook`, `MapTheme.faction`).
 - **Players are Wren (operators step 11e, G123: "Both play as Wren").** The local player, the co-op partner and the
   main menu's operator are Wren, the realistic operator from the offline pipeline (feature/operators, G68); dummies
-  and the VIP keep the part bodies above, and guards keep the merged body unless `?guardmodels=1` (guard figures below). No dev switch.
+  and the VIP keep the part bodies above, and guards draw as guard figures (below) unless `?guardmodels=0` (the merged body). No dev switch.
   - `operators/runtime/playerFigure.ts` `operatorRig()` builds a player's `CharacterRig` at Wren's height (1.68 m,
     G74; build `average`, style `detailed`) and puts an `OperatorFigure` (`operators/runtime/figure.ts`)
     on it. The rig stays the pose and gameplay body: animation, IK, sockets (weapons attach to the rig's sockets as

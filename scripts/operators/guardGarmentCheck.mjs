@@ -9,10 +9,17 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expandFileArgs } from './cliFiles.mjs';
 
-/** Limits. seamGap: Wren's check_garment.py (10 mm) warns; past `seamGapFail` the weld is closing a torn seam. */
+/**
+ * Limits. The seam gap is measured BEFORE build_garment.py's weld (every seam pair is merged to its mean,
+ * build_garment.py:1308-1348), so it never reaches the GLB: it only warns, at Wren's check_garment.py limit (10 mm) and
+ * as large (30 mm, check the gusset on the sheet). What can reach the GLB is the weld's move: the relax round a moved
+ * seam reaches 3 x the move, capped at 60 mm (build_garment.py:1344); past the cap the fabric round the join keeps a
+ * pinch, so the garment's own `sim.weldMoveMaxMm` over `weldMoveFailMm` fails. (G10a triage, 2026-10-25.)
+ */
 export const LIMITS = {
   seamGapWarnMm: 10,
-  seamGapFailMm: 30,
+  seamGapLargeMm: 30,
+  weldMoveFailMm: 60,
   bootTopGirthMin: 0.2, // m x s: a boot shaft's top girth (a guard ankle is ~0.25-0.3 m); 0 means nothing was measured
   hemOverBootMin: 1.0, // a trousers hem drafted over the boots is at least the boot's top girth (x boot girth)
 };
@@ -64,12 +71,17 @@ export function checkGarment(r, layers) {
     else if (shell.shown) problems.push(`shell ${stem} renders (it must be hidden)`);
   }
   if (!(r.shownTris > 0)) problems.push('no shown triangles');
-  // the cloth: Wren's seam gap limit as a warning, a torn seam as a problem; the same for every chain copy
+  // the cloth: the pre-weld seam gap only warns (the weld closes it), for the part and every chain copy (a chain copy is
+  // not this part's object: finish() deletes it, guard_garment.py:342-344); the part's own weld move past the relax cap fails
   const gaps = [[r.part, r.method === 'sewn' ? r.seamGapBeforeWeldMm : null], ...(r.steps ?? []).filter((s) => s.part !== r.part).map((s) => [`${s.part} (chain copy)`, s.seamGapBeforeWeldMm])];
   for (const [who, g] of gaps) {
     if (g == null) continue;
-    if (g > LIMITS.seamGapFailMm) problems.push(`${who}: seam gap before the weld ${g} mm > ${LIMITS.seamGapFailMm} mm`);
+    if (g > LIMITS.seamGapLargeMm) warnings.push(`${who}: seam gap before the weld ${g} mm > ${LIMITS.seamGapLargeMm} mm (large, check the gusset on the sheet)`);
     else if (g > LIMITS.seamGapWarnMm) warnings.push(`${who}: seam gap before the weld ${g} mm > ${LIMITS.seamGapWarnMm} mm (Wren's limit)`);
+  }
+  const weldMove = r.sim?.weldMoveMaxMm;
+  if (weldMove != null && weldMove > LIMITS.weldMoveFailMm) {
+    problems.push(`${r.part}: weld moved a seam ${weldMove} mm > ${LIMITS.weldMoveFailMm} mm (past the relax cap, build_garment.py:1344)`);
   }
   const s = scaleOf(r);
   if (r.part === 'boots') {
@@ -90,7 +102,7 @@ export function checkGarment(r, layers) {
 /** One line of numbers for the report. */
 export function summary(r) {
   const hero = (r.objects ?? []).find((o) => o.name.endsWith('-hero'));
-  const gap = r.method === 'sewn' ? `, seam gap ${r.seamGapBeforeWeldMm} mm` : '';
+  const gap = r.method === 'sewn' ? `, seam gap ${r.seamGapBeforeWeldMm} mm, weld move ${r.sim?.weldMoveMaxMm ?? '-'} mm` : '';
   const chain = r.chain?.length ? `, chain ${r.chain.join('+')}` : '';
   return `${r.base} ${r.part}: ${r.shownTris} tris shown (hero ${hero?.tris ?? '-'}), ${(r.objects ?? []).length} objects${gap}${chain}, ${r.seconds} s`;
 }
