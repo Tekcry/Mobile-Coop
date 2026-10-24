@@ -84,3 +84,9 @@ Warehouse, 10 guards (`STEALTH=1`: unaware and perceiving). Options: `docs/syste
 - Render scale: native DPR x `renderScale` (0.5-2), with the frame governor (graphics-quality.md) inside it; with TAAU
   the canvas stays native and the scene renders at the scale.
 - Awake guards: `MAX_ALIVE` 12, to be reviewed against desktop performance (G46; how it is set is open, FU-11).
+- Guard anim tiers (`src/ai/animTier.ts`, `animTierView.ts`): a guard's rig solves every `ANIM_TIER_OFFSCREEN` th (8)
+  frame when no local camera drew him and (guard-cap T1-SHADOW, A195) no shadow of his can be in a view (the render
+  freeze's `guardFrustum`: the moon capsule, lamp, torch and character-atlas shadow volumes, frustum only); every 2nd
+  past 22 m; else, pinned or within 4 m of a player every frame. `?animtier=0` off, `?animshadow=0` camera only,
+  `?animoff=N` the off-screen period (A/B). Saving at tier 8 with the shadow rule: pending the laptop measure
+  (`docs/guard-ai/slices/T1-SHADOW-REPORT.md`; `scripts/guard-cap.mjs` anim tally).
