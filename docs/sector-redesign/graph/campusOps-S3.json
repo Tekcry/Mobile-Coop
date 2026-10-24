@@ -32,12 +32,11 @@
       "function": "North fire stair with its ground vestibule: joins the hall, the dock and both L1 doors (viewing corridor, back corridor)",
       "storey": 0, "size": [2.6, 7.7, 4.3], "tension": 2, "tags": [],
       "note": "size = core x 40..42.6, z -6..-0.15 (5.85) plus the ground vestibule z -7.85..-6 (1.85), inside faces (campusS3.ts:359-369); h = vestibule ceiling (L1 slab underside 4.3), the core above the flights is open to the roof 9.0. The L1 top landing is 1.25 x 1.3. tension: estimate." },
-    { "id": "s3-view", "section": "S3", "type": "encounter", "room_class": "corridor",
+    { "id": "s3-view", "section": "S3", "type": "connector", "room_class": "corridor",
       "function": "Glass viewing corridor along the hall's north edge: the doubled guard pair walks it, the keyholder stands at the store hatch, cam-view watches it",
       "storey": 4.5, "size": [2, 30, 4.5], "tension": 4,
-      "shadow_pct": 0.15, "los_break_s": 1.0, "vantage": { "from": "s3-nstair", "sees_pct": 0.1 },
-      "guards": { "2": 3 }, "tags": ["sync_pair"],
-      "note": "size = S3_ROOMS box s3-view (campusS3.ts:121): 2.0 x 30; clear between wall faces 1.7 (south wall face -7.85, north walls -6.15, glass -6.05). Guards #2, #3 (z -7.4 / -6.6, x 30..44) and #5 (47.8, -7.0) stand in it. ESTIMATES, pending V6: shadow_pct 0.15 = three lamps (y 8.8, range 6, so floor discs of 4.2 m) leave 4.8 m of 30 unlit; sees_pct 0.1 = the stair landing behind the door (a 1.2 m aperture through a 0.3 wall sees about 4 m each way; standing in the doorway sees all but is inside the pair's patrol); los_break_s 1.0 = 2.4 m to the nearest door on the loud route (the stealth route does not use the corridor). tension: estimate." },
+      "tags": ["sync_pair"],
+      "note": "V5f-3 (one encounter rule): retyped encounter -> connector: a corridor is not a play space (sheet 7 corridor Encounter? no), so its 3 guards (#2, #3, #5) are counted here in the note, not in `guards`; former declared targets shadow_pct 0.15, los_break_s 1.0, vantage s3-nstair 0.1. The loud route is forced past all three in a 1.7 m corridor (S3.md H6). size = S3_ROOMS box s3-view (campusS3.ts:121): 2.0 x 30; clear between wall faces 1.7 (south wall face -7.85, north walls -6.15, glass -6.05). Guards #2, #3 (z -7.4 / -6.6, x 30..44) and #5 (47.8, -7.0) stand in it. ESTIMATES, pending V6: shadow_pct 0.15 = three lamps (y 8.8, range 6, so floor discs of 4.2 m) leave 4.8 m of 30 unlit; sees_pct 0.1 = the stair landing behind the door (a 1.2 m aperture through a 0.3 wall sees about 4 m each way; standing in the doorway sees all but is inside the pair's patrol); los_break_s 1.0 = 2.4 m to the nearest door on the loud route (the stealth route does not use the corridor). tension: estimate." },
     { "id": "s3-writeup", "section": "S3", "type": "utility", "room_class": "private_office",
       "function": "Write-up office where the test reports are read over the radio; the desk officer faces the corridor glass",
       "storey": 4.5, "size": [6, 8, 4.5], "tension": 3, "tags": [],
@@ -122,6 +121,9 @@
       "length": 10, "reason": "Gallery service spur ends 0.5 m off the chamber's north face, 0.1 above the roof: a hop across the plant's maintenance gap",
       "note": "No schema kind for a hop across a 0.5 m gap; written as an opening of width 0.5 (WARN by design) so the chamber roof is solo-reachable from the gallery (LS 11.4)." },
     { "from": "s3-gallery", "to": "s3-view", "kind": "door", "route": "high", "width": 1.2, "height": 2.1,
-      "length": 10, "reason": "Gallery door at (41.3, -8) in the hall's north wall on L1, opposite the north stair's L1 door" }
+      "length": 10, "reason": "Gallery door at (41.3, -8) in the hall's north wall on L1, opposite the north stair's L1 door" },
+    { "from": "s3-dock", "to": "s4-dock", "kind": "corridor", "route": "spine", "width": 3.7, "height": 3.0, "length": 27,
+      "reason": "C3 stub connector x 22..26, z 0..16 (campusOps.ts:45): near door 1.2 x 2.1 at (24, 0) in the dock's north wall (campusS3.ts:324,327), far door (24, 16) into S4's loading dock",
+      "note": "V5f-1: spine link added from S3.md \"Spine links for the merge\" (S3 owns the link to S4). Width 3.7 = the stub's clear width (S3.md), off the 0.5 grid as built; both doors 1.2 x 2.1. length 27 = dock middle (31, -4) to the far door about 24 m (S3.md) + 3 m to the S4 dock middle (24, 19)." }
   ]
 }

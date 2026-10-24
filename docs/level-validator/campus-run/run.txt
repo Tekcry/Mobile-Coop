@@ -1,0 +1,304 @@
+# node scripts/level-validate.mjs docs/sector-redesign/graph/campusOps-S1.json docs/sector-redesign/graph/campusOps-S2.json docs/sector-redesign/graph/campusOps-S3.json docs/sector-redesign/graph/campusOps-S4.json docs/sector-redesign/graph/campusOps-S5.json
+# (default --metrics docs/design/metrics.json; exit code 1)
+
+ERROR: s1-gatehouse: encounter space 5.5 m on its short side, under the 6 m camera floor
+ERROR: s1-dyard: 4.5 x 14 m below yard minimum 14 x 14
+ERROR: s1-dyard: encounter space 4.5 m on its short side, under the 6 m camera floor
+ERROR: s1-forecourt: 12 x 32 m below yard minimum 14 x 14
+ERROR: s1-plantroom: 5.5 x 13.5 m below plant_room minimum 6 x 8.5
+ERROR: s2-foyer: 7 x 22 m below lobby minimum 14 x 17
+ERROR: s2-l1-kitchen: 7.5 x 7.5 m below break_room minimum 7 x 8.5
+ERROR: s2-l1-meet4: 5.5 x 7.5 m below meeting_room minimum 5.5 x 8.5
+ERROR: s2-l1-mr1: 6 x 8 m below meeting_room minimum 5.5 x 8.5
+ERROR: s2-l1-mr2: 4 x 10 m below meeting_room minimum 5.5 x 8.5
+ERROR: s2-l1-mr3: 4 x 10 m below meeting_room minimum 5.5 x 8.5
+ERROR: s2-l1-comms: 5 x 6 m below server_room minimum 8.5 x 11
+ERROR: s2-l1-landing: 4 x 6 m below security_room minimum 5.5 x 7
+ERROR: s2-l2-wing: 11.5 x 36 m below open_office minimum 14 x 21
+ERROR: s2-l2-board: 6 x 7.5 m below meeting_room minimum 5.5 x 8.5
+ERROR: s2-roof-plant: 4.5 x 8 m below plant_room minimum 6 x 8.5
+ERROR: s3-c2: 12 x 30 m below lobby minimum 14 x 17
+ERROR: s3-lobby: 12 x 30 m below lobby minimum 14 x 17
+ERROR: s3-view: 2 x 30 m below corridor minimum 3 x 3
+ERROR: s3-gown: 3 x 6 m below storage minimum 4 x 4
+ERROR: s3-clean: 6 x 7 m below lab minimum 7 x 8.5
+ERROR: s3-back: 2 x 6 m below corridor minimum 3 x 3
+ERROR: s3-strip: 1.6 x 19.4 m below corridor minimum 3 x 3
+ERROR: s3-dock: 8 x 18 m below loading_dock minimum 21 x 28
+ERROR: s3-yard: 6 x 30 m below yard minimum 14 x 14
+ERROR: s4-dock: 6 x 20 m below loading_dock minimum 21 x 28
+ERROR: s4-svc: 2 x 18 m below corridor minimum 3 x 3
+ERROR: s4-lobby: 4 x 13 m below lobby minimum 14 x 17
+ERROR: s4-lobby: encounter space 4 m on its short side, under the 6 m camera floor
+ERROR: s4-yard: 6 x 32 m below yard minimum 14 x 14
+ERROR: s4-cc: 2.4 x 6 m below corridor minimum 3 x 3
+ERROR: s5-vest: 2 x 3 m below corridor minimum 3 x 3
+ERROR: s5-ante: 5 x 6 m below meeting_room minimum 5.5 x 8.5
+ERROR: s5-ante: encounter space 5 m on its short side, under the 6 m camera floor
+ERROR: s5-hall: 12 x 14 m below lobby minimum 14 x 17
+ERROR: s5-pass: 2 x 4 m below corridor minimum 3 x 3
+ERROR: s5-terrace: 6 x 44 m below yard minimum 14 x 14
+ERROR: s5-plant: 6 x 8 m below plant_room minimum 6 x 8.5
+ERROR: s5-kitchen: 6 x 12 m below break_room minimum 7 x 8.5
+ERROR: link s3-c2 -> s3-lobby (fire_stair): width 1.25 m below 1.3 m
+ERROR: link s3-nstair -> s3-view (fire_stair): width 1.25 m below 1.3 m
+ERROR: link s3-nstair -> s3-back (fire_stair): width 1.25 m below 1.3 m
+ERROR: link s4-sec -> s4-noc (fire_stair): width 1.2 m below 1.3 m
+ERROR: unreachable from start 's1-verge': s3-yard
+ERROR: s1-gatehouse: no high approach
+ERROR: s1-gatehouse: shadow_pct 0 outside 0.4-0.6
+ERROR: s1-gatehouse: vantage sees_pct 0.4 below 0.7
+ERROR: s1-carpark: no high approach
+ERROR: s1-carpark: shadow_pct 0.2 outside 0.4-0.6
+ERROR: s1-dyard: no loud approach
+ERROR: s2-foyer: no high approach
+ERROR: s2-foyer: shadow_pct 0.7 outside 0.4-0.6
+ERROR: s2-hall: shadow_pct 0.65 outside 0.4-0.6
+ERROR: s2-l1-plan: shadow_pct 0.8 outside 0.4-0.6
+ERROR: s2-l1-plan: vantage sees_pct 0.3 below 0.7
+ERROR: s2-l1-wing: no high approach
+ERROR: s2-l1-wing: shadow_pct 0.95 outside 0.4-0.6
+ERROR: s2-l1-wing: vantage sees_pct 0.2 below 0.7
+ERROR: s2-l1-facilities: 1 approaches (need 3+)
+ERROR: s2-l1-facilities: approaches use 1 route kind(s) (need 2+)
+ERROR: s2-l1-facilities: no high approach
+ERROR: s2-l1-facilities: no loud approach
+ERROR: s2-l1-facilities: shadow_pct 0.05 outside 0.4-0.6
+ERROR: s3-hall: no loud approach
+ERROR: s3-hall: shadow_pct 0.02 outside 0.4-0.6
+ERROR: s3-hall: vantage sees_pct 0.45 below 0.7
+ERROR: s3-dock: 2 approaches (need 3+)
+ERROR: s3-dock: approaches use 1 route kind(s) (need 2+)
+ERROR: s3-dock: no high approach
+ERROR: s3-dock: no loud approach
+ERROR: s3-dock: shadow_pct 0.12 outside 0.4-0.6
+ERROR: s4-dock: 2 approaches (need 3+)
+ERROR: s4-dock: no loud approach
+ERROR: s4-dock: shadow_pct 0 outside 0.4-0.6
+ERROR: s4-lobby: 2 approaches (need 3+)
+ERROR: s4-lobby: approaches use 1 route kind(s) (need 2+)
+ERROR: s4-lobby: no shadow approach
+ERROR: s4-lobby: no high approach
+ERROR: s4-lobby: shadow_pct 0.39 outside 0.4-0.6
+ERROR: s4-batt: approaches use 1 route kind(s) (need 2+)
+ERROR: s4-batt: no high approach
+ERROR: s4-batt: no loud approach
+ERROR: s4-batt: shadow_pct 1 outside 0.4-0.6
+ERROR: s4-yard: no shadow approach
+ERROR: s4-yard: shadow_pct 0 outside 0.4-0.6
+ERROR: s4-deck: 2 approaches (need 3+)
+ERROR: s4-deck: approaches use 1 route kind(s) (need 2+)
+ERROR: s4-deck: no shadow approach
+ERROR: s4-deck: no loud approach
+ERROR: s4-deck: shadow_pct 0.95 outside 0.4-0.6
+ERROR: s4-hall: vantage sees_pct 0.45 below 0.7
+ERROR: s5-ante: no high approach
+ERROR: s5-ante: shadow_pct 0 outside 0.4-0.6
+ERROR: s5-ante: vantage sees_pct 0.4 below 0.7
+ERROR: s5-hall: shadow_pct 0 outside 0.4-0.6
+ERROR: s5-hall: vantage sees_pct 0.25 below 0.7
+ERROR: s5-garden: no loud approach
+ERROR: s5-garden: shadow_pct 0.15 outside 0.4-0.6
+ERROR: s5-terrace: shadow_pct 0.25 outside 0.4-0.6
+ERROR: s5-lawn: 2 approaches (need 3+)
+ERROR: s5-lawn: no high approach
+ERROR: s5-lawn: shadow_pct 0.9 outside 0.4-0.6
+ERROR: s5-kitchen: 2 approaches (need 3+)
+ERROR: s5-kitchen: approaches use 1 route kind(s) (need 2+)
+ERROR: s5-kitchen: no shadow approach
+ERROR: s5-kitchen: no high approach
+ERROR: s5-kitchen: shadow_pct missing (declared target)
+ERROR: s5-kitchen: los_break_s missing (declared target)
+ERROR: s5-kitchen: vantage missing (declared target)
+ERROR: s5-arch: no high approach
+ERROR: s5-arch: no loud approach
+ERROR: s5-arch: shadow_pct 1 outside 0.4-0.6
+ERROR: s5-arch: vantage sees_pct 0.2 below 0.7
+ERROR: s5-roof: approaches use 1 route kind(s) (need 2+)
+ERROR: s5-roof: no shadow approach
+ERROR: s5-roof: no loud approach
+ERROR: s5-roof: shadow_pct 0.95 outside 0.4-0.6
+ERROR: s1-bins: dead end (one neighbour) not tagged reward or objective
+ERROR: s1-plantroom: dead end (one neighbour) not tagged reward or objective
+ERROR: s2-lift-g: dead end (one neighbour) not tagged reward or objective
+ERROR: s2-store: dead end (one neighbour) not tagged reward or objective
+ERROR: s2-plant-g: dead end (one neighbour) not tagged reward or objective
+ERROR: s2-l1-kitchen: dead end (one neighbour) not tagged reward or objective
+ERROR: s2-l1-print: dead end (one neighbour) not tagged reward or objective
+ERROR: s2-l1-meet4: dead end (one neighbour) not tagged reward or objective
+ERROR: s2-l1-mr1: dead end (one neighbour) not tagged reward or objective
+ERROR: s2-l1-mr2: dead end (one neighbour) not tagged reward or objective
+ERROR: s2-l1-mr3: dead end (one neighbour) not tagged reward or objective
+ERROR: s2-l1-comms: dead end (one neighbour) not tagged reward or objective
+ERROR: s2-l1-se-meet: dead end (one neighbour) not tagged reward or objective
+ERROR: s2-l2-exec: dead end (one neighbour) not tagged reward or objective
+ERROR: s2-l2-offa: dead end (one neighbour) not tagged reward or objective
+ERROR: s2-l2-offb: dead end (one neighbour) not tagged reward or objective
+ERROR: s2-l2-board: dead end (one neighbour) not tagged reward or objective
+ERROR: s2-roof-plant: dead end (one neighbour) not tagged reward or objective
+ERROR: s3-walkway: dead end (one neighbour) not tagged reward or objective
+ERROR: s3-writeup: dead end (one neighbour) not tagged reward or objective
+ERROR: s3-clean: dead end (one neighbour) not tagged reward or objective
+ERROR: s3-sec: dead end (one neighbour) not tagged reward or objective
+ERROR: s4-noc: dead end (one neighbour) not tagged reward or objective
+ERROR: s5-plant: dead end (one neighbour) not tagged reward or objective
+ERROR: s5-ctl: dead end (one neighbour) not tagged reward or objective
+ERROR: s5-board: dead end (one neighbour) not tagged reward or objective
+ERROR: s5-ceo: dead end (one neighbour) not tagged reward or objective
+ERROR: section S3: 1 independent route(s) from entry 's3-c2' to exit 's3-dock' (need 2 edge-disjoint)
+ERROR: co-op links reach 6 of 25 encounter spaces (need at least half)
+ERROR: pacing: three high beats (4+) in a row: s5-ante, s5-strong, s5-hall
+WARN:  s1-verge: room_class custom (justify the size in the design doc)
+WARN:  metrics: sizes.ceiling_min is missing from the metrics; the absolute ceiling minimum skipped
+WARN:  s1-lane: room_class custom (justify the size in the design doc)
+WARN:  s1-carpark: ceiling 12 m outside car_park 2.4-3.3 m
+WARN:  s1-bins: room_class custom (justify the size in the design doc)
+WARN:  s1-plantroof: room_class custom (justify the size in the design doc)
+WARN:  s1-pavilion: room_class custom (justify the size in the design doc)
+WARN:  s1-canopy: room_class custom (justify the size in the design doc)
+WARN:  s2-foyer: ceiling 4 m outside lobby 4.5-9 m
+WARN:  s2-hall: ceiling 4 m outside lobby 4.5-9 m
+WARN:  s2-lift-g: room_class custom (justify the size in the design doc)
+WARN:  s2-core-sw: size 2.6 is off the 0.5 m grid
+WARN:  s2-core-sw: size 5.6 is off the 0.5 m grid
+WARN:  s2-core-sw: ceiling 4 m outside stair_core 3.3-3.3 m
+WARN:  s2-core-ne: size 2.6 is off the 0.5 m grid
+WARN:  s2-core-ne: size 5.6 is off the 0.5 m grid
+WARN:  s2-core-ne: ceiling 4 m outside stair_core 3.3-3.3 m
+WARN:  s2-l1-plan: ceiling 3.8 m outside open_office 3-3.3 m
+WARN:  s2-l1-kitchen: ceiling 3.8 m outside break_room 3-3 m
+WARN:  s2-l1-meet4: ceiling 3.8 m outside meeting_room 3-3 m
+WARN:  s2-l1-mr1: ceiling 3.8 m outside meeting_room 3-3 m
+WARN:  s2-l1-mr2: ceiling 3.8 m outside meeting_room 3-3 m
+WARN:  s2-l1-mr3: ceiling 3.8 m outside meeting_room 3-3 m
+WARN:  s2-l1-wing: room_class custom (justify the size in the design doc)
+WARN:  s2-l1-facilities: ceiling 3.8 m outside security_room 3-3 m
+WARN:  s2-l1-se-meet: ceiling 3.8 m outside meeting_room 3-3 m
+WARN:  s2-l1-landing: ceiling 3.8 m outside security_room 3-3 m
+WARN:  s2-l2-plan: ceiling 3.6 m outside open_office 3-3.3 m
+WARN:  s2-l2-exec: 10 x 14 m above meeting_room maximum 8.5 x 14
+WARN:  s2-l2-exec: ceiling 3.6 m outside meeting_room 3-3 m
+WARN:  s2-l2-offa: 7.5 x 15.5 m above private_office maximum 5.5 x 7
+WARN:  s2-l2-offa: ceiling 3.6 m outside private_office 3-3 m
+WARN:  s2-l2-offb: 5.5 x 7.5 m above private_office maximum 5.5 x 7
+WARN:  s2-l2-offb: ceiling 3.6 m outside private_office 3-3 m
+WARN:  s2-l2-wing: ceiling 3.6 m outside open_office 3-3.3 m
+WARN:  s2-l2-board: ceiling 3.6 m outside meeting_room 3-3 m
+WARN:  s2-roof-plant: ceiling 2.4 m outside plant_room 4-6 m
+WARN:  s3-lobby: ceiling 4.3 m outside lobby 4.5-9 m
+WARN:  s3-hall: 22 x 30 m above lab maximum 12.5 x 25
+WARN:  s3-hall: ceiling 9 m outside lab 3-4.5 m
+WARN:  s3-walkway: size 1.25 is off the 0.5 m grid
+WARN:  s3-walkway: size 29.7 is off the 0.5 m grid
+WARN:  s3-walkway: room_class custom (justify the size in the design doc)
+WARN:  s3-chamber: room_class custom (justify the size in the design doc)
+WARN:  s3-gallery: size 1.35 is off the 0.5 m grid
+WARN:  s3-gallery: room_class custom (justify the size in the design doc)
+WARN:  s3-nstair: size 2.6 is off the 0.5 m grid
+WARN:  s3-nstair: size 7.7 is off the 0.5 m grid
+WARN:  s3-nstair: ceiling 4.3 m outside stair_core 3.3-3.3 m
+WARN:  s3-view: ceiling 4.5 m outside corridor 3-3 m
+WARN:  s3-writeup: 6 x 8 m above private_office maximum 5.5 x 7
+WARN:  s3-writeup: ceiling 4.5 m outside private_office 3-3 m
+WARN:  s3-back: ceiling 4.5 m outside corridor 3-3 m
+WARN:  s3-store: size 4.4 is off the 0.5 m grid
+WARN:  s3-store: size 7.4 is off the 0.5 m grid
+WARN:  s3-strip: size 1.6 is off the 0.5 m grid
+WARN:  s3-strip: size 19.4 is off the 0.5 m grid
+WARN:  s3-strip: ceiling 4.5 m outside corridor 3-3 m
+WARN:  s3-sec: size 6.4 is off the 0.5 m grid
+WARN:  s3-sec: 6.4 x 12 m above security_room maximum 8.5 x 11
+WARN:  s3-sec: ceiling 4.5 m outside security_room 3-3 m
+WARN:  s3-dock: ceiling 4.3 m outside loading_dock 4.5-8 m
+WARN:  s4-lobby: ceiling 3 m outside lobby 4.5-9 m
+WARN:  s4-mantrap: room_class custom (justify the size in the design doc)
+WARN:  s4-batt: size 11.8 is off the 0.5 m grid
+WARN:  s4-batt: ceiling 7 m outside plant_room 4-6 m
+WARN:  s4-riser: size 3.4 is off the 0.5 m grid
+WARN:  s4-riser: ceiling 7 m outside stair_core 3.3-3.3 m
+WARN:  s4-baskets: room_class custom (justify the size in the design doc)
+WARN:  s4-baskets: ceiling 2.6 m below the 3 m room ceiling
+WARN:  s4-hall: 20 x 38 m above server_room maximum 21 x 28
+WARN:  s4-hall: ceiling 7 m outside server_room 3-4.5 m
+WARN:  s4-nc: size 22.6 is off the 0.5 m grid
+WARN:  s4-nc: 6 x 22.6 m above corridor maximum 4 x 84
+WARN:  s4-nc: ceiling 7 m outside corridor 3-3 m
+WARN:  s4-sec: 6 x 12 m above security_room maximum 8.5 x 11
+WARN:  s4-sec: ceiling 3.4 m outside security_room 3-3 m
+WARN:  s4-noc: 6 x 12 m above security_room maximum 8.5 x 11
+WARN:  s4-noc: ceiling 3.4 m outside security_room 3-3 m
+WARN:  s4-cage: ceiling 7 m outside storage 3-6 m
+WARN:  s4-ups: size 17.8 is off the 0.5 m grid
+WARN:  s4-ups: ceiling 7 m outside plant_room 4-6 m
+WARN:  s4-cc: size 2.4 is off the 0.5 m grid
+WARN:  s4-cc: ceiling 7 m outside corridor 3-3 m
+WARN:  s5-lobby: ceiling 4 m outside gatehouse 3-3 m
+WARN:  s5-back: 6 x 20 m above corridor maximum 4 x 84
+WARN:  s5-back: ceiling 4 m outside corridor 3-3 m
+WARN:  s5-vest: ceiling 4 m outside corridor 3-3 m
+WARN:  s5-ante: ceiling 4 m outside meeting_room 3-3 m
+WARN:  s5-pass: ceiling 4 m outside corridor 3-3 m
+WARN:  s5-draw: ceiling 4 m outside meeting_room 3-3 m
+WARN:  s5-kitchen: ceiling 4 m outside break_room 3-3 m
+WARN:  s5-ctl: 6 x 12 m above security_room maximum 8.5 x 11
+WARN:  s5-ctl: ceiling 4 m outside security_room 3-3 m
+WARN:  s5-core-g: size 2.6 is off the 0.5 m grid
+WARN:  s5-core-g: size 5.6 is off the 0.5 m grid
+WARN:  s5-core-g: ceiling 4 m outside stair_core 3.3-3.3 m
+WARN:  s5-core-1: size 2.6 is off the 0.5 m grid
+WARN:  s5-core-1: size 5.6 is off the 0.5 m grid
+WARN:  s5-core-1: ceiling 4 m outside stair_core 3.3-3.3 m
+WARN:  s5-landing: room_class custom (justify the size in the design doc)
+WARN:  s5-gal: ceiling 4 m outside corridor 3-3 m
+WARN:  s5-board: ceiling 4 m outside meeting_room 3-3 m
+WARN:  s5-ceo: ceiling 4 m outside meeting_room 3-3 m
+WARN:  s5-cage: size 4.8 is off the 0.5 m grid
+WARN:  s5-cage: room_class custom (justify the size in the design doc)
+WARN:  s5-shaft: room_class custom (justify the size in the design doc)
+WARN:  s5-well: room_class custom (justify the size in the design doc)
+WARN:  s5-core-r: size 2.6 is off the 0.5 m grid
+WARN:  s5-core-r: size 5.6 is off the 0.5 m grid
+WARN:  s5-core-r: ceiling 2.4 m outside stair_core 3.3-3.3 m
+WARN:  s5-lowroof: room_class custom (justify the size in the design doc)
+WARN:  metrics: sizes.door_h_min is missing from the metrics; the door height check skipped
+WARN:  metrics: sizes.door_h_max is missing from the metrics; the door height check skipped
+WARN:  link s1-verge -> s1-lane (opening): width 13 m outside 2.5-3.5 m
+WARN:  link s1-verge -> s1-lawn (opening): width 6 m outside 2.5-3.5 m
+WARN:  link s1-lane -> s1-carpark (opening): width 16 m outside 2.5-3.5 m
+WARN:  link s1-lawn -> s1-carpark (opening): width 4 m outside 2.5-3.5 m
+WARN:  link s1-lawn -> s1-forecourt (opening): width 12 m outside 2.5-3.5 m
+WARN:  link s1-carpark -> s1-forecourt (opening): width 32 m outside 2.5-3.5 m
+WARN:  link s1-carpark -> s1-bins (opening): width 9.5 m outside 2.5-3.5 m
+WARN:  link s1-dyard -> s1-forecourt (opening): width 4.5 m outside 2.5-3.5 m
+WARN:  link s1-plantroof -> s1-canopy (opening): width 6 m outside 2.5-3.5 m
+WARN:  link s1-plantroof -> s1-pavilion (opening): width 14 m outside 2.5-3.5 m
+WARN:  link s1-canopy -> s1-pavilion (opening): width 12 m outside 2.5-3.5 m
+WARN:  metrics: sizes.coop_lip is missing from the metrics; the co-op lip check skipped
+WARN:  metrics: rules.safe_drop_m is missing from the metrics; the safe drop check skipped
+WARN:  link s2-foyer -> s2-hall (opening): width 1.2 is off the 0.5 m grid
+WARN:  link s2-foyer -> s2-hall (opening): width 1.2 m outside 2.5-3.5 m
+WARN:  link s2-l1-plan -> s2-l1-mr1 (opening): width 1.2 is off the 0.5 m grid
+WARN:  link s2-l1-plan -> s2-l1-mr1 (opening): width 1.2 m outside 2.5-3.5 m
+WARN:  link s2-l1-plan -> s2-l1-mr2 (opening): width 1.2 is off the 0.5 m grid
+WARN:  link s2-l1-plan -> s2-l1-mr2 (opening): width 1.2 m outside 2.5-3.5 m
+WARN:  link s2-l1-plan -> s2-l1-mr3 (opening): width 1.2 is off the 0.5 m grid
+WARN:  link s2-l1-plan -> s2-l1-mr3 (opening): width 1.2 m outside 2.5-3.5 m
+WARN:  link s3-gown -> s3-clean (opening): width 1.2 is off the 0.5 m grid
+WARN:  link s3-gown -> s3-clean (opening): width 1.2 m outside 2.5-3.5 m
+WARN:  link s3-back -> s3-strip (opening): width 1.3 is off the 0.5 m grid
+WARN:  link s3-back -> s3-strip (opening): width 1.3 m outside 2.5-3.5 m
+WARN:  link s3-chamber -> s3-gallery (opening): width 0.5 m outside 2.5-3.5 m
+WARN:  link s3-dock -> s4-dock (corridor): width 3.7 is off the 0.5 m grid
+WARN:  link s4-cc -> s5-lobby (corridor): width 5.7 is off the 0.5 m grid
+WARN:  link s4-cc -> s5-lobby (corridor): corridor width 5.7 m outside the 3.5-4 m target
+WARN:  link s5-hall -> s5-gal (open_stair): width 2 m below 2.4 m
+WARN:  metrics: rules.guards_max is missing from the metrics; the guard maximum check skipped
+WARN:  secret approach in 3 of 25 guarded encounter spaces (aim for half)
+WARN:  metrics: rules.dead_end_max_m is missing from the metrics; the dead-end depth check skipped
+WARN:  pacing: no release (1-2) after the peak at s4-mantrap before s4-yard
+WARN:  pacing: no release (1-2) after the peak at s4-hall before s4-noc
+WARN:  pacing: no release (1-2) after the peak at s5-cage before s5-roof
+INFO:  metrics: rules.guards_early is missing from the metrics; the guard band report skipped
+INFO:  metrics: rules.guards_late is missing from the metrics; the guard band report skipped
+
+147 error(s), 150 warning(s).
