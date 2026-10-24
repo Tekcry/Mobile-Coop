@@ -24,7 +24,8 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
   `C:/NightShift/scratch/runs/auto-train.log` (merge-train output included), status
   `C:/NightShift/scratch/auto-train-status.json`: one JSON line `{ state, train, version, head, reason, time, ... }`
   (extra keys: `pr`, `members`, `leftOut`, `candidates`, `released`, `rebuildFailed`, `rerun`, `rerunRequestFailed`,
-  `dryRun`; `rerun` is carried into every status of the same train head, error ticks included), build marker
+  `dryRun`; `rerun` is carried into every status of the same train head, error ticks included, and so is
+  `rerunRequestFailed` on error ticks), build marker
   `C:/NightShift/scratch/auto-train-building.json` (`{ train, version, pid, at }`, written just before
   `merge-train build` (its vitest runs under `heavy.lock`) and deleted in a finally, also on errors; the laptop queue
   reads it). A `--dry-run` tick uses `auto-train.dryrun.lock`, `runs/auto-train.dryrun.log`,
@@ -39,8 +40,12 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
 | --- | --- | --- |
 | Open train PR (head `train/<n>`), `auto-train/vitest` failure on its head | failed | none |
 | CI `check` failed on the head | failed | none |
-| `laptop-e2e` failure from the desktop worker (description starts `desktop:`, with a `FAIL: a,b` list), no rerun recorded for this head | laptop-rerun | `node scripts/laptop-queue/request.mjs --sha <head> --suites "a b" --pr <train PR> --set train<n>-rerun --requester auto-train --train-rerun` (runs right after trains); the request is recorded in the status (`rerun: { head, id, suites, set, at }`) so the head never requests twice; a non-zero exit (request.mjs without `--train-rerun`, before laptop-queue PR #252) is logged (`rerunRequestFailed`) and retried next tick, never fatal |
-| Desktop failure with a rerun recorded for this head | laptop-rerun | wait; the laptop's pass posts `laptop-e2e` success ("laptop rerun passed: ...") and the next tick releases; its fail posts only `laptop-e2e/train<n>-rerun` -> failed |
+| `laptop-e2e` failure from the desktop worker (description starts `desktop:`, with a `FAIL: a,b` list), no rerun recorded for this head | laptop-rerun | `node scripts/laptop-queue/request.mjs --sha <head> --suites "a b" --pr <train PR> --set train<n>-rerun --requester auto-train --train-rerun` (runs right after trains); the request is recorded in the status (`rerun: { head, id, suites, set, at }`) so the head never requests twice. On master's `request.mjs` (before laptop-queue PR #252) `--train-rerun` is silently ignored: the request is a plain pr request with set `train<n>-rerun` (normal pr order, either worker may run it), it exits 0, and a pass posts only `laptop-e2e/train<n>-rerun`, never `laptop-e2e`; with PR #252 it runs right after trains on the laptop and a pass also posts `laptop-e2e` success. A failed request (non-zero exit or no id printed) is logged (`rerunRequestFailed: { head, exit, why, count }`, kept on error ticks) and retried next tick, never fatal |
+| Desktop failure, no rerun recorded, the request failed 6 times on this head (`RERUN_REQUEST_MAX`) | rerun-request-failed | none (orchestrator alert; a new head starts again) |
+| Desktop failure, `laptop-e2e/train<n>-rerun` success on the same head, CI `check` success, vitest not failed | releasing | the normal release path below (decide -> `merge-train release`), logged "released on the laptop rerun of <suites>" (Orchestrator: "treat a laptop pass as releasable"); this is how a pass releases on master's `request.mjs`; with CI still pending: laptop-rerun, wait |
+| Desktop failure with a rerun recorded for this head, no rerun verdict yet | laptop-rerun | wait (with PR #252 the pass also posts `laptop-e2e` success and the train releases as a plain green train) |
+| Desktop failure, `laptop-e2e/train<n>-rerun` failure | failed | none |
+| Desktop failure, rerun recorded, no `laptop-e2e/train<n>-rerun` success or failure `AUTO_TRAIN_RERUN_STALE_MIN` (60) min after the request (`rerun.at`) | rerun-stale | none (the reason names the request id; orchestrator chases the laptop queue) |
 | `laptop-e2e` failure or error from the laptop itself (no `desktop:` prefix), or a desktop failure whose suites cannot be parsed (no `FAIL:` part, a list cut at 140 chars) | failed | none (the orchestrator decides which member leaves) |
 | Open train with no `"<version>: version at merge, train <n> (G183)"` commit (its build died before it) | error | none ("train <n> has no version commit: rebuild"); it is never released |
 | `check` success and `laptop-e2e` success | releasing | `merge-train release <n> <version> "<title>" --head <tested head> --no-fallback` (`--resume` when commits follow the version commit); release STOPs unless `origin/train/<n>` is still that head, merges with `gh pr merge --match-head-commit <head>`, and never takes the old-style path; exit 0 -> released, then the no-train path in the same tick; exit 3 (master moved) -> `build` the same members with the next version on the same `<n>` and retitle the PR; a failed rebuild is recorded (`rebuildFailed: { head, master }`, reason "rebuild failed for <head>") and later ticks skip the release (state failed) until the train head or master changes; exit 2 -> failed; head moved (the `--head` STOP) -> pending |
@@ -76,8 +81,10 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
 ## What the orchestrator does
 - `failed`: drop the culprit (remove its `train-ready` label, close the train PR; the next tick builds a new train
   from the rest), or push a fix to `train/<n>` (the next green tick releases with `--resume`).
-- `laptop-rerun`: nothing (audit 2026-10-24: a desktop failure used to wait ~36 min for the orchestrator); chase only a
-  `rerunRequestFailed` that repeats.
+- `laptop-rerun`: nothing (audit 2026-10-24: a desktop failure used to wait ~36 min for the orchestrator).
+- `rerun-stale`: find the named request on the laptop-queue branch (claimed? done? duplicate?) and chase the queue.
+- `rerun-request-failed`: `request.mjs` failed 6 times for this head (`rerunRequestFailed.why`): fix it and queue the
+  rerun by hand, or decide the train.
 - `stale`: chase the laptop queue (the train needs a `laptop-e2e` status).
 - `error`: read the log; a dirty train worktree or a merge-train usage change are the usual causes.
 - Throttle with `--max-per-day` / `--min-interval` in the task's `-TickArgs`.
@@ -88,7 +95,9 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
   "12/39"), then `success` or `failure` (or `error` when the run itself broke), description "<passed>/<total>" plus the
   failing suites on a failure. A rerun posts a new status on the same sha; the newest one counts.
 - A train rerun request (`request.mjs ... --train-rerun`, laptop-queue PR #252) runs right after trains; a full pass
-  posts `laptop-e2e` success "laptop rerun passed: ..." on the sha, a fail only `laptop-e2e/<set>`. The desktop worker
+  posts `laptop-e2e` success "laptop rerun passed: ..." on the sha (plus `laptop-e2e/<set>`), a fail only `laptop-e2e/<set>`
+  (`laptop-e2e/train<n>-rerun` here). Master's `request.mjs` drops `--train-rerun`: the plain pr request posts only
+  `laptop-e2e/<set>`, which auto-train also releases on. The desktop worker
   prefixes its own `laptop-e2e` descriptions with `desktop: ` (`scripts/laptop-queue/service.mjs`; the failed suites
   follow `FAIL:` as in `lib.mjs describe`).
 - Optional, for pacing: `origin/laptop-queue` with one JSON file per pending request under `pending/` and a `running*`

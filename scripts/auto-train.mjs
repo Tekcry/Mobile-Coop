@@ -3,8 +3,11 @@
 //   open train (an open PR whose head is train/<n>): CI `check` + the laptop's commit status `laptop-e2e` on its head
 //     both success -> `merge-train release` (exit 3, master moved -> `merge-train build` the same members, next version);
 //     a desktop `laptop-e2e` failure ("desktop: ...; FAIL: a,b") -> ONE laptop rerun of those suites per head
-//     (request.mjs --train-rerun, state "laptop-rerun", recorded as `rerun` in the status; its pass posts `laptop-e2e`
-//     success and releases, its fail `laptop-e2e/train<n>-rerun` -> "failed");
+//     (request.mjs --set train<n>-rerun --train-rerun, state "laptop-rerun", recorded as `rerun` in the status); a
+//     `laptop-e2e/train<n>-rerun` success on the head with CI green releases through decide() (also on master's
+//     request.mjs, which runs it as a plain pr request and posts only that context), its failure -> "failed", no
+//     verdict AUTO_TRAIN_RERUN_STALE_MIN (60) min after the request -> "rerun-stale", a request that failed 6 times ->
+//     "rerun-request-failed";
 //     any other failure -> state "failed" (nothing destructive: the orchestrator decides which member leaves); pending ->
 //     wait; no laptop status 3 h after the head was pushed -> state "stale"; CI green but no laptop status 10 min
 //     after (AUTO_TRAIN_LAPTOP_MISSING_MIN) -> state "laptop-missing" (waitingMin in the status).
@@ -40,6 +43,10 @@ export const MENU_BRANCH = 'feature/menu';
 export const STALE_HOURS = 3;
 export const LOCK_STALE_MIN = 30;
 export const LAPTOP_MISSING_MIN = 10;
+/** Minutes a recorded laptop rerun may go without a verdict before the state turns "rerun-stale". */
+export const RERUN_STALE_MIN = 60;
+/** Failed rerun requests (request.mjs non-zero exit) per head before the state turns "rerun-request-failed". */
+export const RERUN_REQUEST_MAX = 6;
 
 // ---- pure helpers (tests/autoTrain.test.ts) -----------------------------------------------------------------------
 
@@ -240,6 +247,14 @@ export function decide({ train, candidates = [], paceReason = null, now = Date.n
     if (!train.versionCommit) return { state: 'error', action: 'none', reason: `train ${train.n} has no version commit: rebuild` };
     if (train.vitest === 'failure') return { state: 'failed', action: 'none', reason: `${t}: vitest failed at build on ${short(train.head)}` };
     if (train.ci === 'failure') return { state: 'failed', action: 'none', reason: `${t}: CI check failed on ${short(train.head)}` };
+    // A desktop failure whose laptop rerun passed on this head (`laptop-e2e/train<n>-rerun` success in the head's
+    // combined status) is releasable: Orchestrator, "treat a laptop pass as releasable". On master's request.mjs the
+    // rerun posts only that context, never `laptop-e2e` success, so without this the train would wait forever.
+    const rerunSuites = train.laptop.state === 'failure' && train.rerun?.state === 'success' ? desktopFailSuites(train.laptop.description) : null;
+    if (rerunSuites?.length && train.ci === 'success') {
+      return { state: 'releasing', action: 'release', rerunRelease: rerunSuites,
+        reason: `${t}: CI green and the laptop rerun of ${rerunSuites.join(',')} passed (${rerunContext(train.n)} success on ${short(train.head)}; desktop ${LAPTOP_CONTEXT} failure)` };
+    }
     if (train.laptop.state === 'failure') {
       return { state: 'failed', action: 'none', reason: `${t}: ${LAPTOP_CONTEXT} failed on ${short(train.head)}${train.laptop.description ? ` (${train.laptop.description})` : ''}` };
     }
@@ -340,23 +355,44 @@ export function desktopFailSuites(description) {
 
 /**
  * One laptop rerun per train head after a desktop failure. `train` as in decide() plus `rerun` (the
- * `laptop-e2e/train<n>-rerun` status); `prev` = the last status JSON (its `rerun: { head, id, suites, set }`).
- * -> null (not a desktop laptop failure, or no suites: decide() keeps "failed"), or { action: 'request' | 'wait' |
- * 'none', state, reason, suites, set } (+ `rerun` = the recorded request for this head).
+ * `laptop-e2e/train<n>-rerun` status); `prev` = the last status JSON (its `rerun: { head, id, suites, set, at }` and
+ * `rerunRequestFailed: { head, exit, why, count }`); `now` and `staleMin` time a recorded rerun out.
+ * -> null (not a desktop laptop failure, or no suites: decide() keeps "failed"; or the rerun passed on this head with
+ * CI green: decide() releases), or { action: 'request' | 'wait' | 'none', state, reason, suites, set } (+ `rerun` =
+ * the recorded request for this head, `requestFailed` = the failed-request record for this head).
+ * States: laptop-rerun (request / wait), failed (the rerun failed), rerun-stale (no verdict `staleMin` min after the
+ * request), rerun-request-failed (RERUN_REQUEST_MAX failed requests on this head).
  */
-export function rerunPlan(train, prev) {
+export function rerunPlan(train, prev, { now = Date.now(), staleMin = RERUN_STALE_MIN } = {}) {
   if (!train || train.laptop?.state !== 'failure' || train.vitest === 'failure' || train.ci === 'failure') return null;
   const suites = desktopFailSuites(train.laptop.description);
   if (!suites?.length) return null;
   const t = `train ${train.n}`;
   const set = rerunSet(train.n);
+  const r = train.rerun ?? { state: 'missing', description: '' };
+  // the rerun passed on this head and CI is green: decide() releases (the normal release path)
+  if (r.state === 'success' && train.ci === 'success') return null;
   const rec = prev?.rerun && prev.rerun.head === train.head ? prev.rerun : null;
   if (!rec) {
-    return { action: 'request', state: 'laptop-rerun', suites, set,
-      reason: `${t}: desktop failed ${suites.join(',')} on ${short(train.head)}: requesting one laptop rerun (${set})` };
+    const failed = prev?.rerunRequestFailed && prev.rerunRequestFailed.head === train.head ? prev.rerunRequestFailed : null;
+    const tries = failed ? Number(failed.count) || 1 : 0;
+    if (tries >= RERUN_REQUEST_MAX) {
+      return { action: 'none', state: 'rerun-request-failed', suites, set, requestFailed: failed,
+        reason: `${t}: the laptop rerun request of ${suites.join(',')} on ${short(train.head)} failed ${tries} times (last: exit ${failed.exit}: ${failed.why}); not retried` };
+    }
+    return { action: 'request', state: 'laptop-rerun', suites, set, ...(failed ? { requestFailed: failed } : {}),
+      reason: `${t}: desktop failed ${suites.join(',')} on ${short(train.head)}: requesting one laptop rerun (${set})${tries ? `, try ${tries + 1}/${RERUN_REQUEST_MAX}` : ''}` };
   }
   const recSuites = rec.suites ?? suites;
-  const r = train.rerun ?? { state: 'missing', description: '' };
+  if (r.state === 'success') {
+    return { action: 'wait', state: 'laptop-rerun', suites: recSuites, set, rerun: rec,
+      reason: `${t}: laptop rerun ${rec.id} of ${recSuites.join(',')} passed on ${short(train.head)}; waiting for CI check (${train.ci})` };
+  }
+  const ageMin = (now - Date.parse(rec.at)) / 60_000;
+  if (r.state !== 'failure' && ageMin >= staleMin) {
+    return { action: 'none', state: 'rerun-stale', suites: recSuites, set, rerun: rec,
+      reason: `${t}: laptop rerun ${rec.id} of ${recSuites.join(',')} on ${short(train.head)}: no ${rerunContext(train.n)} verdict ${Math.floor(ageMin)} min after the request (${r.state === 'missing' ? 'no status' : r.state})` };
+  }
   if (r.state === 'failure') {
     return { action: 'none', state: 'failed', suites: recSuites, set, rerun: rec,
       reason: `${t}: laptop rerun ${rec.id} of ${recSuites.join(',')} failed on ${short(train.head)}${r.description ? ` (${r.description})` : ''}` };
@@ -384,7 +420,9 @@ const LOCK = FILES.lock;
 const LOG = FILES.log;
 const STATUS = FILES.status;
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const LAPTOP_MISSING = (() => { const v = Number(process.env.AUTO_TRAIN_LAPTOP_MISSING_MIN); return process.env.AUTO_TRAIN_LAPTOP_MISSING_MIN && Number.isFinite(v) && v >= 0 ? v : LAPTOP_MISSING_MIN; })();
+const envMin = (name, dflt) => { const v = Number(process.env[name]); return process.env[name] && Number.isFinite(v) && v >= 0 ? v : dflt; };
+const LAPTOP_MISSING = envMin('AUTO_TRAIN_LAPTOP_MISSING_MIN', LAPTOP_MISSING_MIN);
+const RERUN_STALE = envMin('AUTO_TRAIN_RERUN_STALE_MIN', RERUN_STALE_MIN);
 let CWD = 'C:/NightShift/Mobile-Coop-train';
 let LOCK_TEXT = null; // our tick lock's text, handed to merge-train (AUTO_TRAIN_LOCK_TEXT) so it runs under it
 
@@ -665,7 +703,8 @@ async function step(o) {
   const prev = readStatus(FILES.realStatus);
   // The rerun record rides along in every status of the same head, so that head never requests twice.
   const base = { train: t.n, version: t.version, head: t.head, pr: t.pr, ...(prev?.rerun?.head === t.head ? { rerun: prev.rerun } : {}) };
-  const rp = rerunPlan(t, prev);
+  // a releasable train (a laptop-e2e pass, or a desktop failure whose laptop rerun passed) goes the normal release way
+  const rp = d.action === 'release' ? null : rerunPlan(t, prev, { now: Date.now(), staleMin: RERUN_STALE });
   if (rp) return rerunStep(t, rp, base);
   if (d.action !== 'release') return { ...base, state: d.state, reason: d.reason, ...(d.waitingMin != null ? { waitingMin: d.waitingMin } : {}) };
   const master = exec(['git', 'ls-remote', 'origin', 'refs/heads/master']).out.split('\t')[0].trim() || null;
@@ -674,11 +713,12 @@ async function step(o) {
     return { ...base, state: 'failed', reason: prev.reason, rebuildFailed: prev.rebuildFailed };
   }
   const r = await mergeTrain(releaseArgs(t));
-  if (r.dry) return { ...base, state: 'releasing', reason: `${d.reason}; release would run (dry run)` };
+  if (r.dry) return { ...base, state: 'releasing', reason: `${d.reason}; release would run (dry run)${d.rerunRelease ? `: released on the laptop rerun of ${d.rerunRelease.join(',')}` : ''}` };
   if (r.code === 0) {
-    log(`RELEASED train ${t.n} as ${t.version}`);
+    const onRerun = d.rerunRelease ? `released on the laptop rerun of ${d.rerunRelease.join(',')}` : '';
+    log(`RELEASED train ${t.n} as ${t.version}${onRerun ? `: ${onRerun}` : ''}`);
     const next = await noTrain(o, labelExists);
-    return { ...next, released: `${t.version} (train ${t.n})` };
+    return { ...next, released: `${t.version} (train ${t.n}${onRerun ? `, ${onRerun}` : ''})` };
   }
   if (r.code === 3) {
     log(`master moved since train ${t.n} was built: rebuilding ${t.members.join(', ')} with the next version`);
@@ -699,12 +739,13 @@ async function step(o) {
 
 /**
  * A desktop failure: queue one laptop rerun of the failed suites (request.mjs --train-rerun), or report the one already
- * queued for this head. A failed request (non-zero exit, e.g. request.mjs without --train-rerun) is logged in the status
- * and retried next tick; it is never fatal.
+ * queued for this head. A failed request (non-zero exit or no id printed) is logged in the status (`rerunRequestFailed`
+ * with its count for this head) and retried next tick, up to RERUN_REQUEST_MAX tries (then "rerun-request-failed");
+ * it is never fatal.
  */
 function rerunStep(t, rp, base) {
   log(`laptop rerun: ${rp.reason}`);
-  if (rp.action !== 'request') return { ...base, state: rp.state, reason: rp.reason };
+  if (rp.action !== 'request') return { ...base, state: rp.state, reason: rp.reason, ...(rp.requestFailed ? { rerunRequestFailed: rp.requestFailed } : {}) };
   const cmd = ['node', path.join(HERE, 'laptop-queue', 'request.mjs'), ...rerunArgs({ sha: t.head, suites: rp.suites, pr: t.pr, set: rp.set })];
   if (DRY) { log(`  [dry-run] would run (cwd ${CWD}): ${show(cmd)}`); return { ...base, state: rp.state, reason: `${rp.reason} (dry run)` }; }
   log(`  > (cwd ${CWD}) ${show(cmd)}`);
@@ -712,9 +753,10 @@ function rerunStep(t, rp, base) {
   const id = r.out.trim().split('\n').pop()?.trim() ?? '';
   if (r.status !== 0 || !id) {
     const why = (r.err || r.out).trim().split('\n').slice(-2).join(' | ').slice(0, 300) || 'no request id printed';
-    log(`  rerun request failed (exit ${r.status}): ${why}`);
-    return { ...base, state: rp.state, reason: `${rp.reason}; request failed (exit ${r.status}): ${why}; retry next tick`,
-      rerunRequestFailed: { head: t.head, exit: r.status, why } };
+    const count = (rp.requestFailed ? Number(rp.requestFailed.count) || 1 : 0) + 1;
+    log(`  rerun request failed (exit ${r.status}, ${count}/${RERUN_REQUEST_MAX}): ${why}`);
+    return { ...base, state: rp.state, reason: `${rp.reason}; request failed (exit ${r.status}): ${why}; ${count < RERUN_REQUEST_MAX ? 'retry next tick' : 'no more retries'} (${count}/${RERUN_REQUEST_MAX})`,
+      rerunRequestFailed: { head: t.head, exit: r.status, why, count } };
   }
   const rerun = { head: t.head, id, suites: rp.suites, set: rp.set, at: new Date().toISOString() };
   return { ...base, state: rp.state, reason: `train ${t.n}: laptop rerun ${id} of ${rp.suites.join(',')} queued (${rp.set})`, rerun };
@@ -746,8 +788,10 @@ async function main(argv) {
   log(`tick${DRY ? ' (dry run: nothing is created, pushed, merged, labelled or commented)' : ''} in ${CWD}`);
   let status;
   try { status = await step(o); } catch (e) {
-    const prevRerun = readStatus(FILES.realStatus)?.rerun; // an error tick keeps the rerun record (no second request)
-    status = { state: 'error', reason: e.message.slice(0, 500), ...(prevRerun ? { rerun: prevRerun } : {}) };
+    // an error tick keeps the rerun record (no second request) and the failed-request count
+    const prevStatus = readStatus(FILES.realStatus);
+    status = { state: 'error', reason: e.message.slice(0, 500), ...(prevStatus?.rerun ? { rerun: prevStatus.rerun } : {}),
+      ...(prevStatus?.rerunRequestFailed ? { rerunRequestFailed: prevStatus.rerunRequestFailed } : {}) };
     log(`ERROR: ${e.message}`);
   }
   finally { unlock(); }

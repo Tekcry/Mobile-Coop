@@ -2,7 +2,10 @@
 kind: patch
 - Auto-train queues one laptop rerun of the failed suites when the desktop worker fails a train
   (`laptop-e2e` "desktop: ...; FAIL: a,b"): `request.mjs --train-rerun`, set `train<n>-rerun`, state `laptop-rerun`,
-  one request per train head (recorded in the status JSON); a laptop pass releases as usual (audit 2026-10-24).
+  one request per train head (recorded in the status JSON); a pass of the rerun (`laptop-e2e/train<n>-rerun` success
+  with CI green) releases through the normal release path, also on master's request.mjs; no verdict 60 min after the
+  request (`AUTO_TRAIN_RERUN_STALE_MIN`) is state `rerun-stale`, and 6 failed requests per head `rerun-request-failed`
+  (audit 2026-10-24, checker FIX).
 - Auto-train writes the build marker `C:/NightShift/scratch/auto-train-building.json` (`{ train, version, pid, at }`)
   just before `merge-train build` and deletes it when the build ends, errors included (audit 2026-10-24).
 - A train member left out on a conflict loses its `train-ready` label (no more repeat empty builds); the comment tells

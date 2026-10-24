@@ -2,11 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
   bumpVersion, ciGreenAt, ciState, contextStatus, decide, desktopFailSuites, docsOnly, fragmentInfo, fragmentPath, joinTitles, laptopMissing, laptopQueueState, membersFromSubjects,
   nextTrainNumber, pacing, parseChangelogHeading, parseLeftOut, parseTrainTitle, planBuild, rebuildSkip, releaseArgs, releaseKind, scratchFiles,
-  stackedTips, versionFromSubjects, rerunArgs, rerunContext, rerunPlan, buildMarkerPath, clearBuildMarker, withBuildMarker, writeBuildMarker, leftOutPlan,
+  stackedTips, versionFromSubjects, rerunArgs, rerunContext, rerunPlan, buildMarkerPath, clearBuildMarker, withBuildMarker, writeBuildMarker, leftOutPlan, RERUN_STALE_MIN, RERUN_REQUEST_MAX,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/auto-train.mjs';
 
 const MIN = 60_000;
+const NOW = Date.parse('2026-10-24T10:00:00Z');
 const frag = (title: string, kind?: string) => `# ${title}\n${kind ? `kind: ${kind}\n` : ''}- entry\n`;
 
 describe('auto-train: versions and titles', () => {
@@ -308,6 +309,53 @@ describe('auto-train: laptop rerun after a desktop failure', () => {
     const passed = train({ laptop: { state: 'success', description: 'laptop rerun passed: 2/2' } });
     expect(rerunPlan(passed, { rerun: { head, id: 'r1', suites: ['e2e-coop'] } })).toBeNull();
     expect(decide({ train: passed })).toMatchObject({ state: 'releasing', action: 'release' });
+  });
+
+  it('a rerun-context pass with CI green releases through decide() (master request.mjs posts only that context)', () => {
+    const rerunOk = train({ rerun: { state: 'success', description: '2/2 pass, 140 s' } });
+    const prev = { rerun: { head, id: 'r1', suites: ['e2e-coop', 'ctcourse:4'], set: 'train47-rerun', at: new Date(NOW - 30 * MIN).toISOString() } };
+    expect(rerunPlan(rerunOk, prev, { now: NOW })).toBeNull();
+    expect(rerunPlan(rerunOk, null, { now: NOW })).toBeNull(); // no record (status lost): still no second request
+    const d = decide({ train: rerunOk });
+    expect(d).toMatchObject({ state: 'releasing', action: 'release', rerunRelease: ['e2e-coop', 'ctcourse:4'] });
+    expect(d.reason).toMatch(/laptop rerun of e2e-coop,ctcourse:4 passed \(laptop-e2e\/train47-rerun success on abcdef12/);
+  });
+
+  it('a rerun pass waits for CI, and never releases a CI / vitest failure or a non-desktop laptop failure', () => {
+    const prev = { rerun: { head, id: 'r1', suites: ['e2e-coop'], set: 'train47-rerun', at: new Date(NOW - 90 * MIN).toISOString() } };
+    const ok = { rerun: { state: 'success', description: '1/1' } };
+    expect(rerunPlan(train({ ...ok, ci: 'pending' }), prev, { now: NOW })).toMatchObject({ action: 'wait', state: 'laptop-rerun',
+      reason: expect.stringMatching(/rerun r1 of e2e-coop passed on abcdef12; waiting for CI check \(pending\)/) });
+    expect(decide({ train: train({ ...ok, ci: 'pending' }) }).action).toBe('none');
+    expect(decide({ train: train({ ...ok, ci: 'failure' }) })).toMatchObject({ state: 'failed', action: 'none' });
+    expect(decide({ train: train({ ...ok, vitest: 'failure' }) })).toMatchObject({ state: 'failed', action: 'none' });
+    expect(decide({ train: train({ ...ok, laptop: { state: 'failure', description: '37/39 pass, 512 s; FAIL: e2e-coop' } }) })).toMatchObject({ state: 'failed' });
+    expect(decide({ train: train({ ...ok, laptop: { state: 'failure', description: 'desktop: no result parsed, see log' } }) })).toMatchObject({ state: 'failed' });
+    expect(decide({ train: train() })).toMatchObject({ state: 'failed', action: 'none' }); // no rerun verdict yet
+  });
+
+  it('a recorded rerun with no verdict for AUTO_TRAIN_RERUN_STALE_MIN turns rerun-stale, naming the request', () => {
+    expect(RERUN_STALE_MIN).toBe(60);
+    const prev = (min: number) => ({ rerun: { head, id: 'r1', suites: ['e2e-coop'], set: 'train47-rerun', at: new Date(NOW - min * MIN).toISOString() } });
+    expect(rerunPlan(train(), prev(59), { now: NOW })).toMatchObject({ action: 'wait', state: 'laptop-rerun' });
+    expect(rerunPlan(train(), prev(61), { now: NOW })).toMatchObject({ action: 'none', state: 'rerun-stale',
+      reason: expect.stringMatching(/laptop rerun r1 of e2e-coop on abcdef12: no laptop-e2e\/train47-rerun verdict 61 min after the request \(no status\)/) });
+    expect(rerunPlan(train({ rerun: { state: 'pending', description: 'running' } }), prev(61), { now: NOW })).toMatchObject({ state: 'rerun-stale', reason: expect.stringMatching(/\(pending\)/) });
+    expect(rerunPlan(train(), prev(15), { now: NOW, staleMin: 10 })).toMatchObject({ state: 'rerun-stale' });
+    expect(rerunPlan(train({ rerun: { state: 'failure', description: '0/1' } }), prev(61), { now: NOW })).toMatchObject({ state: 'failed' });
+    expect(rerunPlan(train(), { rerun: { head, id: 'r0', suites: ['e2e-coop'] } }, { now: NOW })).toMatchObject({ action: 'wait' }); // no time recorded
+  });
+
+  it('retries a failed request up to RERUN_REQUEST_MAX times per head, then rerun-request-failed', () => {
+    expect(RERUN_REQUEST_MAX).toBe(6);
+    const failed = (count: number | undefined, h = head) => ({ rerunRequestFailed: { head: h, exit: 1, why: 'push rejected', ...(count == null ? {} : { count }) } });
+    expect(rerunPlan(train(), failed(undefined), { now: NOW })).toMatchObject({ action: 'request', requestFailed: { head }, reason: expect.stringMatching(/try 2\/6/) });
+    expect(rerunPlan(train(), failed(5), { now: NOW })).toMatchObject({ action: 'request', reason: expect.stringMatching(/try 6\/6/) });
+    expect(rerunPlan(train(), failed(6), { now: NOW })).toMatchObject({ action: 'none', state: 'rerun-request-failed',
+      requestFailed: { count: 6 }, reason: expect.stringMatching(/failed 6 times \(last: exit 1: push rejected\); not retried/) });
+    const other = rerunPlan(train(), failed(6, 'otherhead'), { now: NOW });
+    expect(other).toMatchObject({ action: 'request' });
+    expect(other.requestFailed).toBeUndefined();
   });
 });
 
