@@ -168,7 +168,8 @@ No zipline. The core schema's "no rope (G110)" line is out of date: G180 restore
 - **Pacing (checkPacing).** Over the spine order of spaces; see `tension`.
 - **Dimensions (checkDimensions).** Every `size`, `width`, `height`, `length` on the 0.5 m grid (WARN); class and kind
   rules above; ERR any `level_change` over 0.40 up to 0.45 (the step band: player 0.42 vs nav 0.45 disagree; a 0.40 curb passes).
-- **Guard counts.** Per encounter space and player count, never per section; per-section caps (spawn and alive caps
+- **Guard counts.** Per encounter space and player count, never per section; WARN below the early / late band, no upper
+  limit (Michael 2026-10-24: as many as realistically possible, bounded by the guard-cap perf floor); per-section caps (spawn and alive caps
   of the map) are checked against the guard sheets, not the graph.
 
 ## Estimating the targets before geometry (M4, A8)

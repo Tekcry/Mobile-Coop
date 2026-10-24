@@ -325,7 +325,7 @@ Every new map follows these phases, stopping for Michael after each:
    passing `node scripts/level-validate.mjs` with 0 errors, every warning justified in the design doc, the output saved
    with the design docs. No map enters Phase 3 (greybox) without it. The validator checks two-player reach, the spine
    and per-section routes, room and opening sizes, the 0.5 m grid, ceilings, encounter routes and targets, co-op rules
-   (11) and pacing (6.2) against `docs/design/metrics.json`; guard counts print as INFO (4.9). A map already greyboxed
+   (11) and pacing (6.2) against `docs/design/metrics.json`; guard counts below the 4.9 bands WARN, with no upper limit (Michael 2026-10-24). A map already greyboxed
    runs it as an audit; the campus (Sector Ops) is its first run.
 3. **Build** (one storey or area per phase, no guards): geometry, anchors, lights, zones, surfaces, doors, windows, hide
    spots; `scripts/plan-svg.mjs` renders the built level to compare with the approved plans.

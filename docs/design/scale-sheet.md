@@ -148,9 +148,8 @@ Added 2026-10-24 (Michael, changes M2 and M4). The speeds, times and targets the
 | `step_band_max_m` | 0.45 | m | upper edge of the forbidden step band |
 | `grid_m` | 0.5 | m | snap grid for every size, width, height and length (nav cell, section 1) |
 | `dead_end_max_m` | 15 | m | a dead end (one neighbour) is allowed only for a reward or objective space no longer than this (level-validator BRIEF mapping, row "Dead ends"; level-design 3.4, 16.6.3) |
-| `guards_early` | 3 - 6 | guards | per encounter space and player count in the first half of the spine; INFO only until Michael rules on the guard sheets (level-design 4.9) |
-| `guards_late` | 6 - 10 | guards | the same in the second half of the spine; INFO only (level-design 4.9) |
-| `guards_max` | 10 | guards | never above this per encounter space and player count (level-design 4.9) |
+| `guards_early` | 3 - 6 | guards | per encounter space and player count in the first half of the spine; WARN below the low end only, no upper limit (Michael 2026-10-24: "as many guards as realistically possible"; bounded by the guard-cap perf floor and passable routes; level-design 4.9) |
+| `guards_late` | 6 - 10 | guards | the same in the second half of the spine; WARN below the low end only (level-design 4.9) |
 | `safe_drop_m` | 4.5 | m | a drop above this ends in a heavy landing with a recovery (`LANDING.heavy`, `src/player/movement.ts:168`); no fall damage, so the validator only warns |
 
 Shadow, vantage and line-of-sight numbers are declared targets in the graph and are measured in greybox (M4); a map fails if the measurement misses the target.
