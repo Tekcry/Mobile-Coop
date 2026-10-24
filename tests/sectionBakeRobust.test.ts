@@ -5,7 +5,8 @@
  * measured), driven by a hand-run pool: worker errors retry once on the pool, a hung job counts as failed past the cap,
  * an inline bake waits for an idle pool once the match plays, a lamp that fails every way is never cached, a failed load
  * stops its bakers; the picture's tile queue: no per-batch whole-atlas re-upload without sub-uploads, live landings at
- * the queue head during play, a live change snaps its lamps in.
+ * the queue head during play, a live change snaps its lamps in. (bake3, check polish 1, 2, 4) A live-section lamp's inline
+ * bake skips the idle wait during play, a held lamp bakes once its section goes live, the pool retry has a 20 s cap.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type * as LampBakeModule from '../src/voxel/lampBake';
@@ -35,7 +36,7 @@ import { canonicalLightSet } from '../src/voxel/lightShapes';
 import { bakeLamps, BOX_STRIDE, type LampJob, type LampResult } from '../src/voxel/lampBake';
 import { saveLamps } from '../src/voxel/lampJobs';
 import { bakedLights } from '../src/world/lightBake';
-import { disposeSectionBakersSince, JOB_CAP_MS, SectionBaker, sectionBakerMark } from '../src/voxel/sectionJobs';
+import { disposeSectionBakersSince, JOB_CAP_MS, JOB_RETRY_CAP_MS, SectionBaker, sectionBakerMark } from '../src/voxel/sectionJobs';
 import type { WorkerPool } from '../src/voxel/workerPool';
 import type { BakedLamps } from '../src/world/bakedLamps';
 
@@ -212,6 +213,79 @@ describe('section bake robust: worker failures (check B 3, check A P6)', () => {
     expect(sb.incomplete).toBe(false);
     expect(saveLamps).toHaveBeenCalledTimes(1);
     expect(vi.mocked(saveLamps).mock.calls[0]![0]).toBe('lamps:robust');
+  }, 60_000);
+});
+
+describe('section bake robust bake3: live inline lamps and the retry cap (check polish 1, 2, 4)', () => {
+  it('during play a live-section lamp that failed twice bakes inline while another pool job is in flight', async () => {
+    const f = fixture();
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    // (lamp 0 counts for the live section 0)
+    const hp = handPool(2, { reject: (id) => id === 0 });
+    const sb = baker(f, hp.pool);
+    sb.markPlaying();
+    sb.start();
+    await settle();
+    expect(hp.tries.get(0)).toBe(2);
+    expect(hp.q.length).toBeGreaterThan(0);
+    expect(sb.inlineRetries).toBe(1);
+    expect(sb.plan.landed[0]).toBe(1);
+    await hp.finishAll();
+    await sb.finished;
+    expect(sb.done).toBe(true);
+    expect(sameBytes(sb.result.vis, f.full().vis)).toBe(true);
+  }, 60_000);
+
+  it('during play a non-live lamp that failed twice waits while a pool job runs, then bakes once setLive makes it live', async () => {
+    const f = fixture();
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    // (lamp 2 counts for section 1, not live)
+    const hp = handPool(2, { reject: (id) => id === 2 });
+    const sb = baker(f, hp.pool);
+    sb.markPlaying();
+    sb.start();
+    while (hp.tries.get(2) !== 2) expect(await hp.finishOne()).toBeGreaterThanOrEqual(0);
+    await settle();
+    expect(hp.q.length).toBeGreaterThan(0);
+    expect(sb.inlineRetries).toBe(0);
+    expect(sb.plan.landed[2]).toBe(0);
+    // (another landing while jobs still run: still held)
+    await hp.finishOne();
+    expect(hp.q.length).toBeGreaterThan(0);
+    expect(sb.plan.landed[2]).toBe(0);
+    sb.setLive(1);
+    expect(sb.inlineRetries).toBe(1);
+    expect(sb.plan.landed[2]).toBe(1);
+    expect(hp.q.length).toBeGreaterThan(0);
+    await hp.finishAll();
+    await sb.finished;
+    expect(sb.done).toBe(true);
+    expect(sameBytes(sb.result.vis, f.full().vis)).toBe(true);
+  }, 60_000);
+
+  it('a retry job past JOB_RETRY_CAP_MS counts as failed while a first try at 30 s does not', async () => {
+    const f = fixture();
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    // (lamp 0: the first try errors, the retry never answers; lamp 1: the first try never answers)
+    const hp = handPool(2, { reject: (id, n) => id === 0 && n === 1, hang: (id) => id === 0 || id === 1 });
+    const sb = baker(f, hp.pool);
+    sb.start();
+    await settle();
+    const t = performance.now();
+    expect(JOB_RETRY_CAP_MS).toBe(20_000);
+    expect(sb.poolRetries).toBe(1);
+    expect(hp.tries.get(0)).toBe(2);
+    expect(hp.tries.get(1)).toBe(1);
+    sb.checkStalled(t + JOB_RETRY_CAP_MS - 1000);
+    expect(sb.inlineRetries).toBe(0);
+    sb.checkStalled(t + 30_000);
+    // (lamp 0's retry is over its cap: the load bakes it inline at once; lamp 1's first try is under 60 s)
+    expect(sb.inlineRetries).toBe(1);
+    expect(sb.plan.landed[0]).toBe(1);
+    expect(sb.poolRetries).toBe(1);
+    expect(hp.tries.get(1)).toBe(1);
+    expect(sb.plan.landed[1]).toBe(0);
+    sb.dispose();
   }, 60_000);
 });
 

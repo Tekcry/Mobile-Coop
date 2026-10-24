@@ -38,6 +38,7 @@ interface FakeGuard {
   caution: number;
   squad: number;
   coverIdx: number;
+  roleBound: boolean;
   def: { melee: object | null; kind: string; scale: number };
   pos: Vector3;
   yaw: number;
@@ -72,6 +73,7 @@ function guard(x: number, z: number, key: number, o: Partial<FakeGuard> = {}): F
     caution: 0,
     squad: -1,
     coverIdx: -1,
+    roleBound: false,
     def: { melee: null, kind: 'grunt', scale: 1 },
     pos: new Vector3(x, 0, z),
     yaw: 0,

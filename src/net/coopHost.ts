@@ -647,6 +647,7 @@ export class CoopHost implements NetAttachment {
     this.push({ e: 'kill', enemy: e.id, kind: e.def.kind, by, head: h.part === 'head' });
     this.history.delete(e.id);
     this.seized.delete(e.id);
+    this.interPh.delete(e.id);
     const t = this.tallies.get(by);
     if (t && by !== this.s.selfId) {
       t.kills++;
@@ -895,10 +896,14 @@ export class CoopHost implements NetAttachment {
       // (G7) the struggle from the client's contact (derived from where it stands: no wire data)
       e.beginTakedown(!m.lethal, contactDelay(r.feet.x, r.feet.z, e.pos.x, e.pos.z, e.yaw, !!e.def.quadruped));
       this.seized.set(e.id, { by: r.id, t: 0, ...holdFeed() });
+      // (joint-flake-3 check) a td 'start' resets interPh: a read aborted mid-way (the td 'abort' ends the seize before
+      // a seized step sees the hold go) never counts as ended on this new hold's first step (`interrogationEnded`)
+      this.interPh.delete(e.id);
       return;
     }
     if (!held || held.by !== r.id) return;
     this.seized.delete(e.id);
+    this.interPh.delete(e.id);
     if (m.ph === 'abort') {
       e.releaseTakedown();
       return;
@@ -1752,6 +1757,9 @@ export class CoopHost implements NetAttachment {
         }
       }
       s.hfOn = false;
+      // (joint-flake-3) no grab on him this step: a grab that ended mid-read leaves a stale ph, which
+      // `interrogationEnded` (any progress counts) would count as a finished read on a re-grab within TD_MAX
+      this.interPh.delete(eid);
       if (s.t > TD_MAX || !by || !by.alive) this.release(eid);
     }
     this.remoteNoise(dt);

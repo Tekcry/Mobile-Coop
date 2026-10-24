@@ -1,5 +1,82 @@
 # Changelog
 
+## 4.100.1 - Train 75: lightField allocation test deterministic in CI; Saltmarsh Park section bake: live lamps first (2026-10-25, PR #376; #369, #361)
+
+### Saltmarsh Park section bake: live lamps first
+- A lamp of the section you are in whose bake failed twice now bakes at once during play instead of waiting for every
+  other lamp, so that spot is no longer dark for the rest of the background bake. Lamps elsewhere still wait for the
+  workers to go idle, or bake as soon as their section goes live. A stuck second try now gives up after 20 s, so a
+  silently dead worker holds the load about 85 s at worst instead of about 125 s.
+
+### lightField allocation test deterministic in CI
+#### Changed
+- `tests/lightField.test.ts` "allocation-free under a loop": bodyLevel is judged against the run's own levelAt
+  (2 x levelAt + 56 B) instead of an absolute 144 B. About 1 CI run in 15 (Node 22) reads exactly 173.2 B for the
+  whole process (normal 126.8), so the old limit failed train/71 and PR #361 on code that never touched it. A vector,
+  object or closure per query is still caught (an injected object in totalInto read 296.9 B against 169.6).
+
+## 4.100.0 - Train 74: Laptop queue: release hold, desktop failures rechecked on the laptop, faster release poll; Co-op interrogation read under host load; Guard AI polish batch; Intake gates and the PR size cap (2026-10-25, PR #370; #366, #365, #363, #351)
+
+### Guard AI polish batch
+- Guard AI polish: a guard picks cover by the walk, not the straight line (A167). Up to 3 candidates are tried; a
+  cover a mate holds is skipped and one behind a long detour (over 1.5 x the straight line + 3 m) is passed over, so
+  he no longer walks the long way round to cover he cannot fight from, or freezes on a mate's cover. A failed open-wait
+  pick retries every 3 s.
+- Guard AI polish: a device responder who hears a noise goes back to searching the device room after the look,
+  instead of standing still.
+- Guard AI polish: a circuit cut twice inside 60 s, or one whose reset walk never finished (the walker knocked out, the
+  alarm, the 30 s give-up), is found and relit again after 20 s instead of staying dark for good (A168).
+- Guard AI polish: a guard in cover with the player out of sight judges his cover against where he last knew the
+  player was, not the player's real position, so he no longer pops up into an upright strafe and re-picks cover.
+- Guard AI polish (co-op): a guard with no intruder of his own heads for what he himself sensed, not for the partner
+  nobody told him about (A165). A guard hunting one player who sees the other calls him in once, so that fight gets a
+  reporter (A166).
+- Guard AI polish: the search plan hands out new points on each rebuild and never re-looks the last known position
+  as its second point; heard spots no longer skip a search point; search points snap to the right floor; a clamped
+  plan point is not counted as searched.
+- Guard AI polish: one-mover rule counts only a trip to the role's own cover (fixes a squad e2e flake); a fighter who
+  hears the other player keeps hearing his own target; two intruder groups are never sent to the same free cover; a
+  blinded calm guard no longer turns to or reports noises.
+- Guard AI polish: overwatch suppress rechecks its line each episode and counts crates as blocking, so no rounds go
+  into a wall or a crate; a stale advance after an open-wait pick no longer churns cover / chase.
+- Guard AI polish (co-op): first shots at a newly picked target use a fresh aim settle; a dog in a fight follows a
+  partner he can smell.
+- Guard AI polish: a calm guard with two players in view keeps looking at the one he picked until the other is seen
+  clearly better (25%, A169), instead of switching every think.
+- Guard AI polish: a still-locked door forced open opens its doorway on the guards' nav grid at once, not one update
+  late.
+- Guard AI polish: an alerted reinforcement with no valid intruder binds on the next call or sighting, not to an alarm
+  slot with no position (A182).
+- Guard AI polish (code health): fewer allocations and cheaper checks in `pickCover`, `consoleStep`, `boardStep` and
+  the per-step manager loops; new tests for the locked-door open, the calm target hold and the sight-ray miss.
+
+### Intake gates and the PR size cap
+- Intake gates (process audit 2026-10-24): BRIEF splits "Michael said" from "Michael picked", PLAN carries a claims
+  block, a fresh Opus plan checker runs before build, maps and looks get a one-page sign-off, and slices stay at
+  ~1.5k lines or ~4 h with unfinished work dark behind a flag (`docs/systems/session-method.md` "Intake").
+- Templates: `docs/templates/brief.md`, `plan.md`, `plan-check.md`, `signoff.md`, `walk-card.md` (walk pacing: at most 3
+  unwalked features per area, a 10-minute risk-ranked walk card per release).
+- CI: a `pr-size` job inside `check` fails a PR over 1500 counted changed lines (generated assets, snapshots,
+  lockfiles and docs not counted) unless it has the `big-pr` label; train and docs-only PRs are exempt
+  (`scripts/pr-size.mjs`).
+- `scripts/claims-check.mjs` reports overlapping file globs, maps, wire and save claims between open job PLANs.
+
+### Co-op interrogation read under host load
+- Fix: co-op: a client's interrogation read is no longer lost when the host frame rate dips. The host counted the end
+  only when one of its frames caught the read's last 0.3 s; it now counts any seen read whose bit drops while the hold
+  goes on, and forgets it when the hold ends (the e2e-coop joint interrogation flake at x0.3 host speed).
+- Tests: `interrogationEnded` cases for a read whose tail fell between host frames (ph 0.4 straight to the bit dropped).
+
+### Laptop queue: release hold, desktop failures rechecked on the laptop, faster release poll
+#### Changed
+- Laptop queue: for up to 10 min after an open train's laptop-e2e success (while train-ready PRs not in it have a green or running check) no new request is claimed, aged alone requests included, so the next train is not preempting a fresh alone run; train reruns still start (`LQ_RELEASE_HOLD_MIN`).
+- Laptop queue: a desktop PR run whose suites fail posts pending "desktop FAIL <suites> (cpu N%), laptop rerun queued" (plus "; desktop cpu>90%" when its median CPU was over 90) and queues a laptop-only rerun of the failed suites; the laptop's verdict is final.
+- Auto train: the fast poll runs every 30 s (was 60) once the train's laptop-e2e pending status is older than its expected wall (the laptop's "expect ~N s", else 10 min), so a release follows the laptop verdict within a minute.
+- Laptop queue: the desktop CPU gates leave out processes at BelowNormal or Idle priority (a background Blender bake no longer holds the desktop slots); the wait reason shows the gated and the total load.
+- Laptop queue: a superseded laptop rerun closes the desktop's "desktop FAIL ..., laptop rerun queued" pending status.
+- Merge train: `git fetch` takes only the branches each step reads and retries up to 5 times when another worktree's fetch holds a ref lock (also auto-train's self-update).
+- Laptop queue: each requester's oldest open request runs first (was newest), unless one of its requests has a higher `--priority N` (request.mjs); the order between requesters is unchanged.
+
 ## 4.99.1 - Train 73: Watchdog: deterministic pipeline alerts (2026-10-25, PR #368; #350)
 - Pipeline: `scripts/watchdog.mjs tick` (every 2 min via `scripts/watchdog-task.ps1` from the self-updating checkout
   `C:/NightShift/Mobile-Coop-watchdog-live`) writes `C:/NightShift/scratch/watch-status.json`: dead or stale heavy

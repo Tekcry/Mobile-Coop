@@ -370,3 +370,38 @@ describe('guard-ai S24: no walk to the real feet', () => {
     expect(p.los).toBe(false);
   });
 });
+
+describe('guard-ai polish A9 / A10: a new target in combat', () => {
+  it('A9: B lost, A seen: the target is A and his aim settle (losT) starts again at 0', () => {
+    const A = player('a', 1, 8);
+    const B = player('b', 0, 12, { hidden: true });
+    const { p } = guard([A, B], { alerted: true });
+    const k = p as unknown as { losT: number };
+    p.target = B.ref;
+    k.losT = 1.5;
+    p.perceive();
+    expect(p.target).toBe(A.ref);
+    expect(k.losT).toBe(0);
+    // the same target: the settle runs on
+    k.losT = 0.8;
+    p.perceive();
+    expect(k.losT).toBe(0.8);
+  });
+
+  it('A10: a dog fighting A, A gone from sight and smell, B smelled close by: the dog takes B and keeps the fight on him', () => {
+    const A = player('a', 1, 30, { hidden: true });
+    const B = player('b', 2, 2, { hidden: true });
+    const { p } = guard([A, B], { alerted: true, dog: true });
+    p.target = A.ref;
+    p.perceive();
+    expect(p.target).toBe(B.ref);
+    expect(p.los).toBe(false);
+    expect(p.smelled).toBe(true);
+    // a dog with A still smelled stays on A
+    const near = player('a2', -2, 2, { hidden: true });
+    const d2 = guard([near, B], { alerted: true, dog: true });
+    d2.p.target = near.ref;
+    d2.p.perceive();
+    expect(d2.p.target).toBe(near.ref);
+  });
+});
