@@ -21,7 +21,8 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   guard-cap -> feature/guard-cap-results docs/guard-cap/run-4100/ + guard-render PLAN2 note.
 - feature/laptop-queue-4 (worktree C:/NightShift/Mobile-Coop-laptop-queue-4, stacked on #366 f3eaceed): Opus agent
   audit fixes (1) desktop 4191 heavy.lock gate logs the holder + dead-pid stale break, (2) auto-train "CI running" vs
-  "CI missing". Checker PASS; PR #374 open (train 74 = 4.100.0 released #366); train-ready sent (Orchestrator labels).
+  "CI missing", (3) request.mjs fills branch / pr (pickBranch; checker FIX round done, PASS on f0cacfaed). Carries
+  master's pr-size.mjs + glob-match.mjs (identical) so CI runs without waiting for #378. PR #374, train-ready sent.
 - Watchdog install is a desktop scheduled task: Orchestrator / Michael runs
   `powershell -NoProfile -ExecutionPolicy Bypass -File C:\NightShift\Mobile-Coop\scripts\watchdog-task.ps1`
   (alerts only by default) after pulling C:/NightShift/Mobile-Coop to master.
