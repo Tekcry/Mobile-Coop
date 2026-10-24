@@ -1,0 +1,13 @@
+{
+  "id": "20261024T051717-player-build-23353993-cb4a",
+  "sha": "23353993d613e6d2de8e0ad9b8f7a94364204b5c",
+  "branch": "",
+  "pr": 308,
+  "kind": "pr",
+  "requester": "player-build",
+  "suites": [
+    "e2e-tuner-phone"
+  ],
+  "set": "rig-pose-tuner",
+  "note": "train 54 failed e2e-tuner-phone (drawer scroll); solo flake check on #308 head"
+}
