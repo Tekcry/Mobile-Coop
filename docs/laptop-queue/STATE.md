@@ -1,6 +1,20 @@
 # laptop-queue - state
 
 ## Now (2026-10-24, laptop-queue batch, local commits, not pushed)
+- 2026-10-25 ~04:40: laptop-queue-4 (feature/laptop-queue-4, worktree C:/NightShift/Mobile-Coop-laptop-queue-4, stacked on
+  feature/laptop-queue-3 = PR #366 head f3eaceed; PR #374), Orchestrator waste audit (gap 00:20-04:10), three fixes:
+  - request.mjs fills `branch` and `pr` by default (171 open requests had branch ""): lib `pickBranch` (lib.mjs, above
+    requestProblem): the ref; '' for a sha on master; the checkout branch when the sha is its HEAD; else the one remote
+    work branch whose tip is the sha, then the one containing it; `pr` from `gh pr list --head <branch>` (checker FIX:
+    master / stacked-parent shas took the requester's branch and PR). Used by failure comments, job.ref and dupKey. Carries master's scripts/pr-size.mjs + glob-match.mjs (identical) for CI.
+  - Dead-pid heavy.lock at the desktop gate (4191 blocked 21:57 to 01:20+): lib `slotLockDecision` (lib.mjs:118; reuses
+    heavy-lock.mjs `parseLock`): break only when the pid is dead on this host and two reads match; no pid / other host /
+    live pid / changed text = hold. service.mjs `breakIfStale` (:653; rename to `staleName`, copy back when a fresh taker
+    raced; --dry-run only logs), `slotLockHeld` (:678; holder logged once per change), used by both desktop gate calls
+    (:1352 train, :1368 requests) and in takeLock's wait (:633). Tests: tests/laptop-queue.test.ts:368.
+  - "CI running": auto-train.mjs `ciLabel` (:233; ciState, but 'running' while `checkWaitReason` sees CI working, own
+    laptop-e2e / auto-train / checker statuses ignored), used for train.ci (:902) and the candidate log (:926).
+    Tests: tests/autoTrain.test.ts:126.
 - 2026-10-24 ~23:40: laptop-queue-3 (feature/laptop-queue-3, worktree C:/NightShift/Mobile-Coop-laptop-queue-3, stacked on
   feature/affected-flake f89751fd), Orchestrator waste audit, five fixes (pushed):
   - Release gap hold: lib `trainSoon` releasing case (lib.mjs:541), `releasingTrain` (:504), `readyOrPending` (:522),

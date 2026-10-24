@@ -3,7 +3,7 @@ import {
   bumpVersion, ciGreenAt, ciState, contextStatus, decide, desktopFailSuites, docsOnly, fragmentInfo, fragmentPath, joinTitles, laptopMissing, laptopQueueState, membersFromSubjects,
   nextTrainNumber, pacing, parseChangelogHeading, parseLeftOut, parseTrainTitle, planBuild, rebuildSkip, releaseArgs, releaseKind, scratchFiles,
   stackedTips, versionFromSubjects, rerunArgs, rerunContext, rerunPlan, buildMarkerPath, clearBuildMarker, withBuildMarker, writeBuildMarker, leftOutPlan, RERUN_STALE_MIN, RERUN_REQUEST_MAX,
-  checkWaitReason, holdForChecks, selfUpdatePlan, CHECK_WAIT_MIN, fastPollPlan, FAST_POLL_S, FAST_POLL_MAX_MIN, LOCK_STALE_MIN, FAST_POLL_LATE_S, LAPTOP_EXPECT_MIN, pendingSince, laptopLate,
+  checkWaitReason, ciLabel, holdForChecks, selfUpdatePlan, CHECK_WAIT_MIN, fastPollPlan, FAST_POLL_S, FAST_POLL_MAX_MIN, LOCK_STALE_MIN, FAST_POLL_LATE_S, LAPTOP_EXPECT_MIN, pendingSince, laptopLate,
   failSuites, failureAsserts, autoDropCase, pickDrops, dropPlan, closeTrainBody, suiteBase, repeatedSuites, carryLastDrop, AUTODROP_MAX_SUITES,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/auto-train.mjs';
@@ -121,6 +121,30 @@ describe('auto-train: parsing', () => {
     expect(ciState([run('check', 'SKIPPED', '2026-10-23T07:40:00Z'), run('check', 'SUCCESS', '2026-10-23T07:39:00Z')])).toBe('success');
     expect(ciState([{ __typename: 'StatusContext', context: 'check', state: 'ERROR', createdAt: '2026-10-23T07:40:00Z' }])).toBe('failure');
     expect(ciState(undefined)).toBe('missing');
+  });
+
+  it('ciLabel: "running" while a CI run has no conclusion yet, "missing" only with no run or check at all', () => {
+    const run = (name: string, conclusion: string, status = 'COMPLETED', at = '2026-10-25T00:20:00Z') => ({ __typename: 'CheckRun', name, status, conclusion, completedAt: at, startedAt: at });
+    const ctx = (context: string, state: string) => ({ __typename: 'StatusContext', context, state, createdAt: '2026-10-25T00:20:00Z' });
+    // the waste-audit case: lint / test / build-check running, the aggregate `check` not created yet
+    expect(ciLabel([run('lint', '', 'IN_PROGRESS'), run('test', '', 'QUEUED'), run('build-check', '', 'PENDING')])).toBe('running');
+    expect(ciLabel([run('lint', 'SUCCESS'), run('test', '', 'IN_PROGRESS')])).toBe('running');
+    expect(ciLabel([run('lint', 'SUCCESS'), run('check', '', 'QUEUED')])).toBe('running');
+    expect(ciLabel([run('check', 'SUCCESS'), run('check', '', '', 'IN_PROGRESS')])).toBe('running');
+    expect(ciLabel([run('lint', 'SUCCESS'), run('test', 'SUCCESS'), run('build-check', 'SUCCESS')])).toBe('running');
+    expect(ciLabel([ctx('ci/external', 'PENDING')])).toBe('running');
+    // no CI at all
+    expect(ciLabel([])).toBe('missing');
+    expect(ciLabel(undefined)).toBe('missing');
+    // our own statuses are not CI: a pending laptop-e2e alone is still "missing"
+    expect(ciLabel([ctx('laptop-e2e', 'PENDING'), ctx('auto-train/vitest', 'PENDING'), ctx('laptop-e2e/train72-rerun', 'PENDING')])).toBe('missing');
+    // finished states pass through
+    expect(ciLabel([run('check', 'SUCCESS')])).toBe('success');
+    expect(ciLabel([run('check', 'FAILURE'), run('lint', '', 'IN_PROGRESS')])).toBe('failure');
+    expect(ciLabel([run('check', 'CANCELLED')])).toBe('pending');
+    // decide() treats "running" like any non-final CI word
+    const train = { n: 9, head: 'abcdef1234567', version: '1.2.3', versionCommit: true, ci: 'running', laptop: { state: 'pending', description: '' }, vitest: 'success', ageMin: 5, ciGreenAt: null };
+    expect(decide({ train })).toMatchObject({ state: 'pending', action: 'none', reason: 'train 9: CI running, laptop pending' });
   });
 
   it('reads the newest laptop-e2e commit status', () => {

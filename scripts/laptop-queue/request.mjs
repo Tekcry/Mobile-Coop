@@ -16,7 +16,7 @@ import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { affectedSuites, requestId, requestProblem } from './lib.mjs';
+import { affectedSuites, pickBranch, requestId, requestProblem } from './lib.mjs';
 
 const argv = process.argv.slice(2);
 const opts = { step: [], env: [] };
@@ -63,12 +63,26 @@ function prSuites() {
   return suites;
 }
 
-const branch = opts.branch ?? (isRef ? opts.sha.replace(/^origin\//, '') : opts.sha === 'HEAD' ? git(['rev-parse', '--abbrev-ref', 'HEAD'], { soft: true }) : '');
+// branch and pr filled by default, so a failure comment reaches the right PR (lib pickBranch)
+const headBranch = git(['rev-parse', '--abbrev-ref', 'HEAD'], { soft: true });
+const remoteLines = (args) => (isRef ? [] : git(['branch', '-r', ...args, sha], { soft: true }).split('\n'));
+const branch = opts.branch ?? pickBranch({
+  ref: isRef ? opts.sha : '',
+  onMaster: !isRef && (() => { try { git(['merge-base', '--is-ancestor', sha, 'origin/master']); return true; } catch { return false; } })(),
+  headBranch,
+  headIsSha: git(['rev-parse', 'HEAD'], { soft: true }) === sha,
+  pointsAt: remoteLines(['--points-at']),
+  containing: remoteLines(['--contains']),
+});
+const prFor = (b) => {
+  try { return Number(execFileSync('gh', ['pr', 'list', '--head', b, '--state', 'open', '--json', 'number', '--jq', '.[0].number // empty'], { encoding: 'utf8', windowsHide: true, timeout: 30_000 }).trim()) || null; } catch { return null; }
+};
+const pr = opts.pr ? Number(opts.pr) : branch ? prFor(branch) : null;
 const requester = opts.requester ?? 'unknown';
 // 4 random hex so two requests in the same second never collide
 const id = `${requestId(Date.now(), requester, sha)}-${randomBytes(2).toString('hex')}`;
 const kind = opts.alone ? 'alone' : opts.full ? 'full' : 'pr';
-const req = { id, sha, branch, pr: opts.pr ? Number(opts.pr) : null, kind, requester };
+const req = { id, sha, branch, pr, kind, requester };
 if (kind === 'pr') req.suites = opts.affected ? prSuites() : String(opts.suites ?? '').split(/\s+/).filter(Boolean);
 if (opts['train-rerun']) req.trainRerun = true;
 if (kind === 'alone') {
