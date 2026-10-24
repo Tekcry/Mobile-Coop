@@ -374,9 +374,10 @@ Worktrees (node_modules junctions to Mobile-Coop-sector-redesign-bake2): -polish
    (feature/visual-gate 5c8e38c2). VG5 (gate runner, Opus) + VG6 (train wiring, Opus, own PR off master,
    feature/visual-gate-train, A17) briefs DONE, A17-A23 in BRIEF. VG3 claimed by Cloud Builder 1 (cloud-queue). Next:
    VG3 Sonnet check + merge, M0 laptop request (checks/vg2-build.md :103-108), VG5 + VG6 builders in parallel
-   (VG5 rules-only laptop line in VG5.md). IN FLIGHT 00:08: Opus VG6 builder on feature/visual-gate-train (worktree
-   -visual-gate-train off master bd8920c2, pushes WIP per step; report checks/vg6-build.md; rerun from VG6.md if
-   unfinished). Done -> Opus checker, then its own PR (A17).
+   (VG5 rules-only laptop line in VG5.md). VG6 BUILT: feature/visual-gate-train @ 58f2ac6f (worktree
+   -visual-gate-train, off master bd8920c2; 124 tests; service dry run not run). IN FLIGHT 00:20: Opus VG6 checker
+   (edits the laptop-queue service: strict) -> checks/vg6-check.md (uncommitted; rerun if missing). PASS -> commit
+   check, PR to master (own PR, A17; tell Test Runner it touches service.mjs), laptop affected suites, train-ready.
 4. Marlow Build mission-framework EN2 adds hook lines in sectorMode.ts / sectors.ts / campusOps.ts on master
    (conflicts resolved in the train); no reply needed.
 Laptop requests: node C:/NightShift/scratch/lq/request.mjs (copied from origin/master with ../e2e-affected.mjs beside
