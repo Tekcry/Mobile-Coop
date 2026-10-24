@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-24T22:06Z
 
 # mission-framework NET4: NET3 polish (unit tests only)
 Lead: Night Shift | Marlow Build. Source: the NET3 checker reports A + B (both PASS; polish lists summarised below).
