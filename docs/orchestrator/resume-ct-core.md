@@ -20,7 +20,7 @@ Message the orchestrator only at PR open / train-ready / blocked / Michael. Push
 | gm-look | feature/gm-look (from gm-flip) | a76fa924 | AGENT: lean elbow poke-through + hem shards in the garment build, D6-style assertion, desktop rebake (heavy.lock), crops in scratch/ctcore/gm-look/. Follow-up PR after #375. |
 | gm-polish | feature/gm-polish (from gm-flip) | 7945363b | checker PASS posted (polish: scratch/ctcore/gm-polish-CHECK.md; P2 gfx=min warm lacks average-lod1 for the helmet drop). Laptop set gm-polish (e2e-offline e2e-menus) queued. STATE.md: mark Offline (~:156) + polish items 2-3 done. PR after #375. |
 | client-intel (ROADMAP Now 15; cloud 8bbd6d54, unreviewed since 10-23) | feature/client-intel (from master) | - | AGENT: Opus port onto master (wire-additive EnemyState.in). Then 2 Opus checkers + laptop (coop netmove sectorops), PR. |
-| rig-pose fixes (ROADMAP Now 14) | feature/rig-pose-fix | - | Opus PLAN from docs/rig-pose-audit/REPORT.md. Gate: gameplay pose from sim-side anim (src/anim, deterministic host + client), never LOD / governor / render state; plan says which side computes each volume in co-op; wire change -> PROTOCOL_VERSION + 2 Opus checkers. Then plan checker. |
+| rig-pose fixes (ROADMAP Now 14) | - | - | STALE ROW: all 8 REPORT slices shipped in #308 (merged, train 54). Orchestrator told ~09:15 to close it. Empty branch feature/rig-pose-fix-2 pushed by mistake (worktree removed; deleting it is Michael's call). |
 | player-batch-25 | feature/player-batch-25 (#384 + #380 merged in) | b16c0ee7 | checker PASS x2 posted (polish: scratch/ctcore/b25-CHECK-A.md / -B.md). Laptop set player-batch-25 queued. PR after #384 / #380 merge. |
 
 ## Open
