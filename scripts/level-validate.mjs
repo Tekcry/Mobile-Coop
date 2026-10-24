@@ -606,7 +606,7 @@ export function checkEncounters(graph, metrics) {
       }
     }
 
-    // Guards: per player count; bands are INFO until Michael rules on the guard sheets.
+    // Guards: per player count; WARN below the band, no upper limit (Michael 2026-10-24).
     const g = s.guards;
     if (!g || typeof g !== 'object' || Array.isArray(g) || !Object.keys(g).length) {
       c.err(`${s.id}: guards missing ({ "<players>": n })`);
@@ -810,7 +810,11 @@ export function checkCoop(graph, metrics) {
    *  untimed otherwise (lead decision 5). A measured `time_s` of null (a kind the nav grid does not model) falls
    *  through to the declared time. */
   const timeOf = (l, speed) => {
-    if (typeof l.measured?.time_s === 'number') return { t: l.measured.time_s, untimed: false };
+    if (typeof l.measured?.time_s === 'number') {
+      // measured.time_s is path_m at the split speed: another speed (partner reach) re-times the measured path
+      if (speed !== splitSpeed && typeof l.measured.path_m === 'number') return { t: l.measured.path_m / speed, untimed: false };
+      return { t: l.measured.time_s, untimed: false };
+    }
     if (typeof l.time_s === 'number') return { t: l.time_s, untimed: false };
     if (WALK_KINDS.has(l.kind) && typeof l.length === 'number') return { t: l.length / speed, untimed: false };
     return { t: 0, untimed: true };
@@ -971,8 +975,9 @@ function shortestByLength(adj, src, dst, max) {
 }
 
 /** Greybox measurements (V6, docs/level-validator/V6-PLAN.md): the `measured` values `level-measure` writes beside the
- *  declared targets are held to the same limits. ERR a measured shadow share outside the shadow band, a vantage share
- *  below the minimum, a LOS break over the limit, a split's partner reach over the limit; WARN a null reach (legs
+ *  declared targets are held to the same limits. On encounter spaces (the targets are encounter rules), ERR a
+ *  measured shadow share outside the shadow band, a vantage share below the minimum, a LOS break over the limit; ERR a
+ *  split's partner reach over the limit; WARN a null reach (legs
  *  joined only by moves the nav grid does not model) and a measurement that has drifted from the declared target
  *  (the design doc is out of date). INFO "pending V6" per encounter space with no `measured`; with `requireMeasured`
  *  (the greybox gate) that is an ERR. Measured link times feed the split leg checks in `checkCoop`. */
@@ -1005,27 +1010,36 @@ export function checkMeasured(graph, metrics, { requireMeasured = false } = {}) 
       else c.info(`${s.id}: pending V6 (no measured values)`);
       continue;
     }
+    // The targets (shadow band, vantage minimum, LOS-break maximum) are encounter rules (graph-schema); other spaces
+    // keep only the drift WARN, where they declare a target.
+    const target = s.type === 'encounter';
     const shadow = numAt(m, 'shadow_pct', s.id);
-    if (shadow !== undefined) {
+    if (shadow !== undefined && target) {
       const lo = c.num('rules.shadow_min_frac', 'the measured shadow check');
       const hi = c.num('rules.shadow_max_frac', 'the measured shadow check');
       const decl = typeof s.shadow_pct === 'number' ? ` (declared ${fmt(s.shadow_pct)})` : '';
       if (lo !== undefined && shadow < lo - EPS) c.err(`${s.id}: measured shadow_pct ${fmt(shadow)} below ${fmt(lo)}${decl}`);
       else if (hi !== undefined && shadow > hi + EPS) c.err(`${s.id}: measured shadow_pct ${fmt(shadow)} above ${fmt(hi)}${decl}`);
+    }
+    if (shadow !== undefined) {
       drift(s.id, 'shadow_pct', shadow, s.shadow_pct, DRIFT_FRAC, '');
     }
     const sees = numAt(m, 'sees_pct', s.id);
-    if (sees !== undefined) {
+    if (sees !== undefined && target) {
       const min = c.num('rules.vantage_min_frac', 'the measured vantage check');
       const decl = typeof s.vantage?.sees_pct === 'number' ? ` (declared ${fmt(s.vantage.sees_pct)})` : '';
       if (min !== undefined && sees < min - EPS) c.err(`${s.id}: measured sees_pct ${fmt(sees)} below ${fmt(min)}${decl}`);
+    }
+    if (sees !== undefined) {
       drift(s.id, 'sees_pct', sees, s.vantage?.sees_pct, DRIFT_FRAC, '');
     }
     const los = numAt(m, 'los_break_s', s.id);
-    if (los !== undefined) {
+    if (los !== undefined && target) {
       const max = c.num('rules.los_break_max_s', 'the measured line-of-sight check');
       const decl = typeof s.los_break_s === 'number' ? ` (declared ${fmt(s.los_break_s)} s)` : '';
       if (max !== undefined && los > max + EPS) c.err(`${s.id}: measured los_break_s ${fmt(los)} s above ${fmt(max)} s${decl}`);
+    }
+    if (los !== undefined) {
       drift(s.id, 'los_break_s', los, s.los_break_s, DRIFT_S, ' s');
     }
   }

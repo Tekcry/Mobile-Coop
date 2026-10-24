@@ -870,6 +870,30 @@ describe('level-validate: greybox measurements (V6d checkMeasured)', () => {
     link(g, 'b-dock', 'b-vault', 'door').measured = { time_s: 30 };
     link(g, 'b-hall', 'b-walk', 'fire_stair').measured = { time_s: 30 };
     expectErr(check(g), 'a downed partner is');
+    // measured.time_s is the path at the split speed (1.3 m/s): reach re-times path_m at the reach speed (3 m/s)
+    const retime = (pathM: number): void => {
+      for (const [from, to, kind] of [['b-walk', 'b-vault', 'ladder'], ['b-vault', 'b-walk', 'coop_boost'], ['b-hall', 'b-dock', 'door'], ['b-dock', 'b-vault', 'door'], ['b-hall', 'b-walk', 'fire_stair']] as const) {
+        link(g, from, to, kind).measured = { time_s: 30, path_m: pathM };
+      }
+    };
+    retime(39);
+    expectErr(check(g), 'a downed partner is 26.0 s away (from b-dock');
+    retime(21);
+    expect(check(g).errors.filter((e) => e.includes('downed partner'))).toEqual([]);
+  });
+
+  it('target ERRs are encounter rules: a measured non-encounter space only drift-WARNs where it declares a target', () => {
+    const g = measured();
+    const hall = space(g, 'b-hall');
+    expect(hall.type).not.toBe('encounter');
+    hall.measured = { shadow_pct: 0, sees_pct: 0.1, los_break_s: 20 };
+    let r = check(g);
+    expect(r.errors).toEqual([]);
+    expect(r.warns).toEqual([]);
+    hall.shadow_pct = 0.5;
+    r = check(g);
+    expect(r.errors).toEqual([]);
+    expectWarn(r, 'b-hall: measured shadow_pct 0 vs declared 0.5');
   });
 
   it('CLI: --require-measured is parsed, listed in the usage line, and fails an unmeasured map (spawned node)', () => {

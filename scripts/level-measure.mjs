@@ -11,9 +11,9 @@
 //   --write        write `measured` on every measured space and link and `meta.measured` back into the graph file
 //                  (numbers to 2 decimals, stable key order; the rest of the file is left byte-identical: only the
 //                  `measured` members are replaced or appended).
-//   --check        exit 1 when a measured value crosses a target (shadow band, vantage minimum, LOS-break maximum,
-//                  partner reach maximum) or has drifted more than 0.05 from the stored `measured`, or the measure
-//                  step reported an ERR. A space with no stored `measured` is noted, not failed (`level-validate.mjs
+//   --check        exit 1 when a measured value crosses a target (on encounter spaces: shadow band, vantage minimum,
+//                  LOS-break maximum; on splits: partner reach maximum) or has drifted from the stored `measured` by more
+//                  than 0.05 (fractions) / 1.5 s (seconds), or the measure step reported an ERR. A space with no stored `measured` is noted, not failed (`level-validate.mjs
 //                  --require-measured` is the presence gate).
 //   --doors shut   bake the light with every door shut (default: open, as the nav grid has no door bodies). The numbers
 //                  are the shut-door ones: use it to see whether a space that fails open passes shut; `--write` stores them.
@@ -27,8 +27,10 @@ import { fileURLToPath } from 'node:url';
 import { createServer } from 'vite';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-/** Tooling tolerance, not a level number: a stored value this far from a re-measure has drifted (`--check`). */
-const DRIFT_TOL = 0.05;
+/** Tooling tolerances, not level numbers: a stored value this far from a re-measure has drifted (`--check`); fractions
+ *  and seconds as the campus drift test. */
+const DRIFT_FRAC = 0.05;
+const DRIFT_S = 1.5;
 /** V6-PLAN "Area mapping": a space with fewer floor cells than this is a wrong area, an ERR line in the report. */
 const MIN_CELLS = 20;
 const EPS = 1e-9;
@@ -245,14 +247,17 @@ function measureFile(file, text, graph, ctx, mod, rules) {
       continue;
     }
     const bad = [];
-    if (m.shadow_pct !== null && (m.shadow_pct < lim.shadowMin - EPS || m.shadow_pct > lim.shadowMax + EPS)) bad.push(`shadow_pct ${f2(m.shadow_pct)} outside ${f2(lim.shadowMin)}-${f2(lim.shadowMax)}`);
-    if (m.sees_pct !== null && m.sees_pct < lim.sees - EPS) bad.push(`sees_pct ${f2(m.sees_pct)} below ${f2(lim.sees)}`);
-    if (m.los_break_s !== null && m.los_break_s > lim.los + EPS) bad.push(`los_break_s ${f2(m.los_break_s)} above ${f2(lim.los)}`);
+    // the targets are encounter rules (graph-schema): other spaces are measured and drift-checked, never failed
+    const target = s.type === 'encounter';
+    if (target && m.shadow_pct !== null && (m.shadow_pct < lim.shadowMin - EPS || m.shadow_pct > lim.shadowMax + EPS)) bad.push(`shadow_pct ${f2(m.shadow_pct)} outside ${f2(lim.shadowMin)}-${f2(lim.shadowMax)}`);
+    if (target && m.sees_pct !== null && m.sees_pct < lim.sees - EPS) bad.push(`sees_pct ${f2(m.sees_pct)} below ${f2(lim.sees)}`);
+    if (target && m.los_break_s !== null && m.los_break_s > lim.los + EPS) bad.push(`los_break_s ${f2(m.los_break_s)} above ${f2(lim.los)}`);
     for (const b of bad) fails.push(`${rel}: ${s.id}: ${b}`);
     if (m.cells > 0 && m.cells < MIN_CELLS) errors.push(`ERR ${s.id}: only ${m.cells} floor cells (< ${MIN_CELLS}): is the area right?`);
     const st = s.measured;
     if (st && typeof st === 'object') {
-      for (const k of ['shadow_pct', 'sees_pct', 'los_break_s']) driftOf(drifts, `${rel}: ${s.id}: ${k}`, st[k], m[k]);
+      for (const k of ['shadow_pct', 'sees_pct']) driftOf(drifts, `${rel}: ${s.id}: ${k}`, st[k], m[k], DRIFT_FRAC);
+      driftOf(drifts, `${rel}: ${s.id}: los_break_s`, st.los_break_s, m.los_break_s, DRIFT_S);
       if (typeof st.geom === 'string' && st.geom !== m.geom) notes.push(`${rel}: ${s.id}: stored geom ${st.geom} is stale (now ${m.geom})`);
     } else if (m.cells > 0) unstored++;
     spaceRows.push([s.id, s.type ?? '', m.cells, pair(s.shadow_pct, m.shadow_pct), pair(s.vantage?.sees_pct, m.sees_pct), pair(s.los_break_s, m.los_break_s), m.cells === 0 ? 'no floor' : bad.length ? `FAIL ${bad.length}` : 'ok']);
@@ -267,7 +272,7 @@ function measureFile(file, text, graph, ctx, mod, rules) {
     for (const k of ['a_s', 'b_s']) if (sp[k] !== null && sp[k] > lim.split + EPS) notes.push(`${rel}: split ${id}: ${k} ${f2(sp[k])} above ${f2(lim.split)} (the validator's leg limit)`);
     for (const b of bad) fails.push(`${rel}: split ${id}: ${b}`);
     const st = storedSplits[id];
-    if (st && typeof st === 'object') for (const k of ['a_s', 'b_s', 'reach_s']) driftOf(drifts, `${rel}: split ${id}: ${k}`, st[k], sp[k]);
+    if (st && typeof st === 'object') for (const k of ['a_s', 'b_s', 'reach_s']) driftOf(drifts, `${rel}: split ${id}: ${k}`, st[k], sp[k], DRIFT_S);
     splitRows.push([id, f2(sp.a_s), f2(sp.b_s), pair(lim.reach, sp.reach_s), bad.length ? 'FAIL' : 'ok']);
   }
 
@@ -282,7 +287,7 @@ function measureFile(file, text, graph, ctx, mod, rules) {
       return;
     }
     const lm = res.links[k];
-    if (l.measured && typeof l.measured === 'object') driftOf(drifts, `${rel}: link ${l.from} -> ${l.to} (${l.kind})`, l.measured.time_s, lm.time_s);
+    if (l.measured && typeof l.measured === 'object') driftOf(drifts, `${rel}: link ${l.from} -> ${l.to} (${l.kind})`, l.measured.time_s, lm.time_s, DRIFT_S);
     linkRows.push([`${l.from} -> ${l.to}`, l.kind, pair(l.time_s, lm.time_s), pair(l.length, lm.path_m), lm.time_s === null ? lm.why : '']);
     edits.push({ kind: 'links', index: k, value: lm.time_s === null ? { time_s: null, why: lm.why } : { time_s: lm.time_s, path_m: lm.path_m } });
   });
@@ -318,13 +323,13 @@ function measureFile(file, text, graph, ctx, mod, rules) {
   return { report: o.join('\n'), errors, fails, drifts, notes, newText, measured: measuredAny };
 }
 
-/** A stored value that is not within DRIFT_TOL of the new one (null against a number counts). */
-function driftOf(list, name, stored, now) {
+/** A stored value that is not within `tol` of the new one (null against a number counts). */
+function driftOf(list, name, stored, now, tol) {
   if (stored === undefined) return;
   const a = typeof stored === 'number' ? stored : null;
   const b = typeof now === 'number' ? now : null;
   if (a === null && b === null) return;
-  if (a === null || b === null || Math.abs(a - b) > DRIFT_TOL + EPS) list.push(`${name} stored ${f2(a)} now ${f2(b)}`);
+  if (a === null || b === null || Math.abs(a - b) > tol + EPS) list.push(`${name} stored ${f2(a)} now ${f2(b)} (> ${tol})`);
 }
 
 async function main() {
@@ -414,7 +419,7 @@ async function main() {
       }
       if (args.check) {
         for (const f of r.fails) out(`FAIL ${f}`);
-        for (const d of r.drifts) out(`DRIFT ${d} (> ${DRIFT_TOL})`);
+        for (const d of r.drifts) out(`DRIFT ${d}`);
         for (const e of r.errors) out(`FAIL ${relative(root, g.file).replace(/\\/g, '/')}: ${e}`);
         failed += r.fails.length + r.drifts.length + r.errors.length;
       }

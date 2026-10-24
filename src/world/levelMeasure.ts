@@ -364,7 +364,12 @@ export function measureGraph(graph: MeasureGraphInput, opts: MeasureOptions): Me
     const p1 = pathLength(nav, a, at);
     const p2 = pathLength(nav, at, b);
     if (p1 === null || p2 === null) return { time_s: null, why: `no nav path ${p1 === null ? `${l.from} centre -> at` : `at -> ${l.to} centre`}` };
-    const path = p1 + p2;
+    // a drop or ladder the nav does not link is walked round by the stairs: that is not its time
+    if (!p1.links && !p2.links) {
+      if (l.kind === 'drop') return { time_s: null, why: 'drop not on the guard nav (1.0-2.2 m only)' };
+      if (l.kind === 'ladder') return { time_s: null, why: 'ladder not on the guard nav (no nav link on its path)' };
+    }
+    const path = p1.len + p2.len;
     return { time_s: path / splitSpeed, path_m: path };
   });
 
@@ -514,11 +519,13 @@ function edgePoint(nav: NavGrid, a: Area, b: Area, ya: number, yb: number, ca: V
   return { at: [tmp[0], nav.height[best]!, tmp[1]], gaps };
 }
 
-/** The nav path length a -> b (m): the smoothed waypoints in plan, a ladder / drop by its own 3D run; null = no path. */
-function pathLength(nav: NavGrid, a: V3, b: V3): number | null {
+/** The nav path a -> b: its length (m; the smoothed waypoints in plan, a ladder / drop by its own 3D run) and how many
+ *  nav links (ladders, drops) it takes; null = no path. */
+function pathLength(nav: NavGrid, a: V3, b: V3): { len: number; links: number } | null {
   const wps: Waypoint[] | null = nav.findPath([a[0], a[2]], [b[0], b[2]], nav.walk.length, a[1], b[1]);
   if (!wps) return null;
   let len = 0;
+  let links = 0;
   let px = a[0];
   let pz = a[2];
   for (const w of wps) {
@@ -527,13 +534,14 @@ function pathLength(nav: NavGrid, a: V3, b: V3): number | null {
     pz = w[1];
     const lk = w.link;
     if (!lk) continue;
+    links++;
     // the next waypoint lies past the link's far end: the run along the link, then on from its end
     const p = lk.pts;
     for (let j = 3; j < p.length; j += 3) len += hyp3(p[j]! - p[j - 3]!, p[j + 1]! - p[j - 2]!, p[j + 2]! - p[j - 1]!);
     px = p[p.length - 3]!;
     pz = p[p.length - 1]!;
   }
-  return len;
+  return { len, links };
 }
 
 /**
