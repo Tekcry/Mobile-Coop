@@ -42,6 +42,14 @@ try {
   assert(d0.mission && d0.mission.id === 'campusMissionTest' && d0.mission.section === 0 && d0.mission.done === 0 && d0.index === 0, `the test mission runs on section 1 (${JSON.stringify(d0.mission)})`);
   const blips = await G(() => window.__sector.blips().length);
   assert(blips === 0, `no objective blip while a mission runs (${blips})`);
+  // (EN4) the objective list is on the HUD: visible, with section 1's rows (the badge step open)
+  await frames(page, 3);
+  const mh = await G(() => {
+    const el = document.querySelector('.mission-hud');
+    const rows = el ? [...el.querySelectorAll('.mh-row')].map((r) => r.textContent ?? '') : [];
+    return { shown: !!el && !el.hidden && el.getBoundingClientRect().width > 0, rows };
+  });
+  assert(mh.shown && mh.rows.length >= 1 && mh.rows.some((t) => t.includes('courier badge')), `the mission HUD shows its objective rows (${JSON.stringify(mh)})`);
 
   // (b) section 1: the download from the open rear window is the intel step; its Guard AI event goes out
   await tp(20.6, 0, -76, -Math.PI / 2);

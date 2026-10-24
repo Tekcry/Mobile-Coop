@@ -20,6 +20,9 @@ import { CRATE_DARK, applyCrateEvent } from '../game/crateLedger';
 import type { NetSession } from './session';
 import { BARK_CAM, BARK_TEXT, DROP_BODY_ID, gaitWire, motionWire, PF, USE_ONLY_GADGETS, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, type UseOnlyGadget, wirePlayerState } from './protocol';
 import { MissionMirror } from './missionMirror';
+import type { TeamId } from '../game/mission/missionDef';
+import { MissionHud } from '../ui/hud/missionHud';
+import { MissionHudMount, missionViewerTeam } from '../ui/hud/missionHudMount';
 import { CT } from '../config/movement';
 import { CLIENT_INTERP_DELAY, ClockSync, sendClock } from './interp';
 import type { CKind } from '../game/committedMoves';
@@ -118,6 +121,9 @@ export class CoopClient implements NetAttachment {
   private sec: CtDevices | null = null;
   /** (mission NET) The host's mission as applied here (`mission.runner`; null runner: none). */
   readonly mission = new MissionMirror();
+  /** (mission-framework EN4) The mirrored mission's objective list (Sector Ops) and our team (A9, set per `sector` message). */
+  private missionHud: MissionHudMount | null = null;
+  private missionViewer: TeamId = 'all';
   /** (sector-restart) The section our checkpoint loadout was recorded for (the host's live section only moves on). */
   private kitSection = 0;
   /** (section-rating S3) The host's last section rating as the HUD card shows it (null before the first). */
@@ -211,6 +217,13 @@ export class CoopClient implements NetAttachment {
         card.el.remove();
         this.card = null;
         this.onRating = null;
+      });
+      // (mission-framework EN4) the host's mission (`mission.runner`) on our own objective list
+      const mh = new MissionHudMount(() => new MissionHud(g.hud.el));
+      this.missionHud = mh;
+      this.offs.push(() => {
+        mh.dispose();
+        this.missionHud = null;
       });
     }
     // (39, LR16-5b) Marlow Yard's swinging pendants: our round past one asks the host to kick it (no local kick: the
@@ -976,6 +989,8 @@ export class CoopClient implements NetAttachment {
     if (msg.ms) {
       const line = this.mission.take(this.g.world.map.missions, msg.ms);
       if (line) this.g.hud.feedItem(line);
+      const mr = this.mission.runner;
+      if (mr && this.missionHud) this.missionViewer = missionViewerTeam(mr.def, this.slot(), this.s.players.size);
     }
     // (section-rating fix) the rating first: a top-up in the same message as a new `ls` goes into that checkpoint loadout
     if (!this.sawSector) {
@@ -1144,6 +1159,10 @@ export class CoopClient implements NetAttachment {
     if (this.inCourse) clientCourseFrame(this.g, dt);
     this.sec?.frame(dt);
     this.card?.update(dt);
+    if (this.missionHud) {
+      const mr = this.mission.runner;
+      this.missionHud.frame(mr && !mr.finished ? mr : null, this.missionViewer, this.g.app.settings.get().gameplay.hints);
+    }
     const t = this.renderTime;
     for (const a of this.avatars.values()) a.update(dt, t);
     // (G7 fix) the partner holding one of the host's guards: his puppet posed from the partner's MoveState (hostage,
