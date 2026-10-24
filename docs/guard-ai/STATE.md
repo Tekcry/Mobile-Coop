@@ -1016,11 +1016,13 @@ origin/wip/guard-ai-t1-look 2e43ff61 (scripts/t1-shadow-look.mjs + docs line). I
    CONFLICT with master (one hunk src/net/protocol.ts): orchestrator agreed no master merge; if auto-train leaves #317
    out, by-hand train merge: master's PROTOCOL_VERSION line + coop4's MAX_PLAYERS comment and `slotFromList` import.
 2. #363 polish RELEASED in 4.100.0 (train 74).
-3. #360 T1 HELD (ROADMAP Decided, assumed: keep tier 4; BRIEF A183; checker status failure posted). Worktree
-   C:/NightShift/Mobile-Coop-guard-ai-t1. The Opus agent writing scripts/t1-shadow-look.mjs (guard just out of view,
-   shadow in view; contact sheets tier on vs &animtier=0) was resumed at 04:15, WIP above: finish + software-GL dry run
-   (E2E_PORT=4179, after npm run build), commit, push, then an alone GPU request on the T1 head AND one on master (tier
-   4) for Michael's morning pack. After gm-flip lands: shadow-in-view counts as seen in animTierView.ts, measure.
+3. #360 T1 HELD (ROADMAP Decided, assumed: keep tier 4; BRIEF A183; checker status failure posted). Look script DONE
+   2956d8a0 (scripts/t1-shadow-look.mjs: Marlow, one grunt on a 4 m leg past lamp #105, camera off his body, 60 / 30
+   fps, tier vs &animtier=0). Software-GL dry run drew no lamp shadow at all (inconclusive; foot slide 3.6 / 6.9 cm per
+   frame at 60 / 30 fps vs 0.3 / 0.9 full rate). GPU alone run queued (set t1-shadow-look, ...-5cab) -> output
+   C:/NightShift/scratch/t1-shadow-look/2956d8a0/ (*-compare.png, run.json "pixels 3+ levels apart"): put the sheets
+   + verdict in Michael's morning pack via the orchestrator. Near 0 px apart on GPU = the artefact does not show in
+   Marlow (case for option 1). After gm-flip: shadow-in-view counts as seen in animTierView.ts, measure.
 4. Polish batch 2 = PR #377 (feature/guard-ai-polish2, worktree C:/NightShift/Mobile-Coop-guard-ai-polish2; base
    master). Checks on 80f42ee66 (checker status failure): A FIX 1 (A184 partial end on another storey: height term in
    findPath partial + nav.test two-storey case), B FIX 2 (A193 edge pin: HEAR_STOREY = false, deferred in BRIEF /
