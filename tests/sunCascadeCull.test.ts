@@ -4,6 +4,7 @@ import { NullEngine } from '@babylonjs/core/Engines/nullEngine';
 import { CascadedShadowGenerator, CreateBox, DirectionalLight, FreeCamera, Matrix, Scene, Vector3 } from '../src/core/babylon';
 import {
   GUARD_SUN_REACH,
+  SHADOW_DROP,
   SHADOW_LEN_CAP,
   SunCascadeLists,
   cascadeFar,
@@ -170,8 +171,8 @@ describe('depth-split culling (S9)', () => {
   });
 
   it('a steep moon shortens the reach, a low one lengthens it (capped)', () => {
-    expect(moonShadowLen(-1)).toBeCloseTo(4);
-    expect(moonShadowLen(-0.5)).toBeCloseTo(8);
+    expect(moonShadowLen(-1)).toBeCloseTo(SHADOW_DROP);
+    expect(moonShadowLen(-0.5)).toBeCloseTo(2 * SHADOW_DROP);
     expect(moonShadowLen(-0.1)).toBe(SHADOW_LEN_CAP);
     expect(moonShadowLen(0)).toBe(SHADOW_LEN_CAP);
     // at 11 m, a moon behind the camera: steep (60 deg down) stays in layer 1, low (~17 deg) reaches layer 2

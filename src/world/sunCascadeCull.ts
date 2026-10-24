@@ -42,12 +42,13 @@ export function keepNearCamera(wasIn: boolean, d2: number, reach: number): boole
 }
 
 /**
- * (guard-render S9) The moon shadow's length along the light (m): the drop `SHADOW_DROP` (a guard's height plus a step or
- * a low ledge) over the light's steepness, capped. `ly` is the normalised light direction's y. A steep moon -> short.
+ * (guard-render S9) The moon shadow's length along the light (m): the drop `SHADOW_DROP` (a guard's height plus ~4 m,
+ * an outdoor ledge or roof edge over open ground; checker note 2026-10-24) over the light's steepness, capped. `ly` is
+ * the normalised light direction's y. A steep moon -> short.
  */
-export const SHADOW_DROP = 4;
+export const SHADOW_DROP = 6;
 /** (S9) Cap (m) on the moon shadow's length (a low moon). */
-export const SHADOW_LEN_CAP = 12;
+export const SHADOW_LEN_CAP = 16; // refinery |ly| 0.38: 6 / 0.38 = 15.8 m
 export function moonShadowLen(ly: number): number {
   const a = Math.abs(ly);
   return a * SHADOW_LEN_CAP <= SHADOW_DROP ? SHADOW_LEN_CAP : SHADOW_DROP / a;

@@ -304,7 +304,9 @@ export class SectorGuardFreeze {
           this.from.set(pr[0]!, pr[1]!, pr[2]!);
           this.to.set(pr[3]!, pr[4]!, pr[5]!);
           this.rays++;
-          if (!lampLanding(pr, this.ray!(this.from, this.to))) continue;
+          // no landing within reach (a low or wall lamp, or near the reach edge): his shadow may still show, so draw
+          // him (light parity over the saving; checker note 2026-10-24)
+          if (!lampLanding(pr, this.ray!(this.from, this.to))) return false;
           if (this.seen(c, pr[6]!, pr[7]!, pr[8]!)) return false;
         }
       }
