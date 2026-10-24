@@ -225,10 +225,11 @@ describe('settings: the analogue speed and weapon state layout (anim-rework S1, 
     expect(notes[0]).toMatch(/left stick sets the speed/);
     expect(notes).toContain('Keyboard: Creep (hold) and Crouch share Alt.');
     expect(notes.some((n) => /Controller: Co-op action .* and Aim share LT/.test(n))).toBe(true);
-    // the plain old layout: what moved, no clash
+    // the plain old layout: what moved; (optic-coop M2, "contextual") Zoom and Ping on R3 are an allowed pair: no clash named
     const plain = controlsMigrationNotes(OLD_413, sanitizeSettings(structuredClone(OLD_413)));
     expect(plain).toHaveLength(2);
     expect(plain[1]).toMatch(/Caps Lock/);
+    expect(plain.some((n) => /Zoom|Ping/.test(n))).toBe(false);
     // a fresh profile or a current save: nothing to say
     expect(controlsMigrationNotes(undefined, defaultSettings())).toEqual([]);
     expect(controlsMigrationNotes(defaultSettings(), defaultSettings())).toEqual([]);

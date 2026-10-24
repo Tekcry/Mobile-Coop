@@ -407,12 +407,19 @@ describe('light field (3.6)', async () => {
       }
       out[0] = s;
     }, -Infinity, 2000);
-    const level = await per((n) => {
+    // A query over its limit is measured once more from a fresh warm-up and keeps the smaller reading: #322's CI read
+    // bodyLevel 173.2 B against 144 once under load and passed on the rerun (cost train 57 ~15 min). A query that
+    // allocates an object reads its size in both measurements, so the retry cannot hide one.
+    const retry = async (fn: (n: number) => void, goal: number): Promise<number> => {
+      const first = await per(fn, goal);
+      return first <= goal ? first : Math.min(first, await per(fn, goal));
+    };
+    const level = await retry((n) => {
       let s = 0;
       for (let i = 0; i < n; i++) s += f.levelAt((i % 40) * 0.5 - 10, 1, ((i * 7) % 40) * 0.5 - 10);
       out[0] = s;
     }, Math.min(BOXED_BUDGET, ctl - 33));
-    const body = await per((n) => {
+    const body = await retry((n) => {
       let s = 0;
       for (let i = 0; i < n; i++) s += f.bodyLevel((i % 40) * 0.5 - 10, 0, ((i * 7) % 40) * 0.5 - 10, 1.75, occ);
       out[0] = s;

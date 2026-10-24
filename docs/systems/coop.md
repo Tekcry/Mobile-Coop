@@ -39,6 +39,29 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
 - Door peek (locomotion step 13): MoveState `doorPeek`, client -> host `door {i, crack}` (reach 1.5 m, closed and
   unlocked doors only), snapshot `dcr` (cracked doors). Decided, not built yet (G97): the CT door menu (open, stealth
   open, bash, optic cable) replaces the crack peek.
+- Optic cable (ct-toolkit 3.2, optic-coop): MoveState mode `optic` (appended to `MOVE_MODES`): `sub` the kind
+  (`OPTIC_SUBS`: 0 door, 1 hatch, 2 panel, 3 grille; a shaft top sends 3), `a` the door index (sub 0) or the level's
+  optic gap index (`BuiltLevel.opticPoints`, wire bound `OPTIC_POINT_MAX` 256), `ph` the cable fed out 0..1
+  (`OpticCore.extension`). `sanitizeMoveState` drops an unknown sub or an index out of range; the receive paths drop a
+  door this level does not have (`dropBadDoorMove`, host) and a gap it does not have (`dropBadOpticMove`, host and
+  client). The partner's copy (`remoteAvatar`) kneels from the crouch bit (`moveKneels`; a ceiling panel is fed
+  standing), settles its feet (`poseFromMoveState`), puts its right hand on the feed point and draws the cable from
+  the hand toward the tip as far as `ph` (`opticPlaceOf`, `opticCableEnd`: the same code as the owner's own cable,
+  `world.ropes` slot `<remote>-optic`). The view at the tip is local, never sent. A ping from the view uses the
+  existing ping: `sendPing` casts from `cam.gamePos`, which `OpticSystem.frameUpdate` sets to the tip, and the hit goes
+  to the host (`ping` message) and to every player (`ping` event); no ping input is bound yet (`gameState.ts`
+  "pings are unbound for now").
+- OPEN TRAP (optic-coop M1, CHECK-M B1): the trap panel over an optic gap is collision (`Breakables`, `G.STATIC`:
+  movement, shots, perception rays), so its open goes through the host like a door. A client's pick sends client ->
+  host `panel {g}` (`g` the gap index, wire bound `OPTIC_POINT_MAX`; `NetAttachment.panelOpen`, client only) and
+  opens nothing itself. The host checks it (`hostTrapKey`, `game/gapMenu.ts`: the gap exists, its `trap` names a panel
+  still closed, the client alive with its feet within `GAP_MENU.reach` 1.6 m and the height band plus
+  `GAP_HOST_SLACK` 0.5 m, no facing test), else drops it (a bad index, a far client, a trap already open), and opens it
+  in its world (`breakables.open(key, 'unscrew')`). The host's own pick opens directly. The snapshot's `trp` lists the
+  gaps whose trap is open (`openTrapGaps`), sent with `doors` (on a change, every `ITEMS_EVERY` and at a rejoin's
+  resync), so a late joiner or a rejoin opens them from its first such snapshot; the client applies it with
+  `applyOpenTraps` (idempotent; a gap the level lacks is skipped; a trap never closes). Single player opens locally as
+  before. Duct grates and window glass still open on one page only (pre-existing, backlog).
 
 ## Session and sims
 - `NetSession`: lobby state (each `PlayerInfo` carries name, tag, look and the validated weapon `loadout`), ready /
@@ -146,10 +169,31 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
 - Guard-ai state (guard-ai S9, protocol 41 (39 before the train 30 merge, 38 before the train 29 merge, 37 before the train 28 merge, 32 before 4.75.0); the AI stays host-only):
   - `al` gains `AL_CAUTION` 16 (S4 / S14 caution), `AL_HELMET` 32 and `AL_ARMOUR` 64 (S12 / S13 gear), packed by
     `packAlert(level, seized, torch, cautious, helmet, armour, carry)` (`coopHost.alertCode`); the parser clamps `al`
-    to 0-511. (A126) Bits 7-8 (`AL_CARRY`) are the guard's S21 weapon carry (`WIRE_CARRY_*`: 0 drawn, 1 holstered,
+    to 0-`AL_MAX`. (A126) Bits 7-8 (`AL_CARRY`) are the guard's S21 weapon carry (`WIRE_CARRY_*`: 0 drawn, 1 holstered,
     2 drawing, 3 holstering; the host's `Enemy.carry.phase` through `wireCarry`); `EnemyPuppet` follows it with
     `net/puppetCarry.ts` `PuppetCarry` (the clips on its own clock at the host's times) and poses the gun and rig through
     the host's `GuardGunCarry`, `RigPose.ready` / `swap` and `carryRaise`.
+  - (guard-models G6n) Bits 9-15 (`AL_LOOK`, `packAlert`'s last argument, read with `alertLook`; `AL_MAX` is now
+    65535) carry the guard's look seed `Enemy.look` (0-127, `ai/guardLook.ts`: set once at spawn from his
+    spawn slot, so a section restart keeps every slot's look), which `EnemyPuppet.look` exposes for the guard figure.
+    - Layout: `al` = level (bits 0-1, `level & 3`), `AL_SEIZED` 4, `AL_TORCH` 8, `AL_CAUTION` 16, `AL_HELMET` 32, `AL_ARMOUR` 64, `AL_CARRY`
+      bits 7-8, then `AL_LOOK_SHIFT` 9 and `AL_LOOK` = 127 << 9 (the seed). `AL_MAX` is 65535 (the parser clamps to it).
+      `packAlert`'s last parameter is `look` (default 0, so an older caller sends seed 0); `alertLook(al)` reads it. The
+      doc comment lists the bits without a version number: the `PROTOCOL_VERSION` line is bumped by the train build.
+    - Seed rule: `lookSeed(key, index) = (hash(key) + index * 79) & 127` (FNV-1a + murmur finaliser; the odd stride makes
+      the slots of one key distinct up to 128). Sector Ops authored guards key on (map, section, slot index); response
+      teams on (map, section, team index, member index); every other spawn on (map, authored point to 0.1 m), so Course
+      squads keep their looks over a bay restart. It never reads `Enemy.num` or the spawn order, so a section restart or a
+      reload gives the same slot the same seed on the host, and the client reads whatever the host packs.
+    - The look bits are the guard's whole look: the client builds the same variant with `guardVariant(seed, kind, mapId)`
+      (a pure function, so both peers agree) and the visible pieces with `applyGear` from the gear bits `AL_HELMET` /
+      `AL_ARMOUR`. A helmet knocked off clears `AL_HELMET` on the host; the client hides the piece and drops its own
+      helmet. No second message carries the look.
+    - Bodies: `snap.bodies` carries enemy ids only, so no record carries a seed: a client's ragdoll is its own puppet's
+      rig (it had the seed), a carried body is never mirrored, and the host reads `body.guard.look`.
+    - Tests: `tests/guardLook.test.ts` (round trip of every seed with every other bit, parser clamp, restart, team
+      distinctness, a peer at `PROTOCOL_VERSION - 1` refused); `e2e-coop` (seed equal on both screens, same seed after a
+      course bay restart, helmet bit drop on both; the visible-piece asserts with `E2E_GUARDMODELS=1`).
   - `bark` event: `{ id, b, n, u, r, t? }`. The host wraps `EnemyManager.onBark` / `onCameraLine`
     (`CoopHost.hookCombat`): a table line goes as `b` = its `BARK_EVENTS` index, `n` = `BarkVoice.lastLine`, `u` = the
     unit it names; a talking pair's line as `BARK_TEXT` 255 and the desk's camera line as `BARK_CAM` 254 with the text
@@ -215,11 +259,29 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   (`hear(.., 'noise', null, r.ref.id)`): a searching or alerted guard who hears one locates the client's slot only and
   walks to it / turns his hunt to it; the host's slot never moves for it. Host only, no wire change.
 - Downed: `revive` interactables on bodies (`NetAttachment.onLocalDeath` / `onRespawn`); everyone down -> the mode.
-- Bodies: the host lists lying bodies in `snap.bodies` when they change; clients keep those ragdolls and drop the rest.
-  (rig-pose-fix S5, P13) The wire carries no body position: a client ragdoll eases onto the host's sim lie computed from
-  the puppet's last host state (`buf.latest()` feet and yaw) and the fall away from the killer (`deathLieOn`).
+- Bodies: the host lists lying bodies in `snap.bodies` when they change; clients keep those bodies (`Body`, coop-carry) and drop the rest.
+  (rig-pose-fix S5, P13) The wire carries no body position: a client `Body` lies on the host's sim lie computed from
+  the puppet's last host state (`buf.latest()` feet and yaw) and the fall away from the killer (`deathLieOn`), its
+  ragdoll easing onto it (laid straight on it over the budget); a carry's put down lies along the carrier's side, head
+  toward his back, as the host's (`BodyCarry`, `CarryView`).
   (rig-pose-fix S3) `deathLieOn` probes the floor under the settled pelvis on both machines (one down ray on the static
   collision): a guard killed at a ledge lip or mid-air lies on the floor below.
+- (coop-carry, protocol: the train after master's number) Body carry for every player. The host's item mirror carries
+  one item per body not hidden: kind `body` (appended to `ITEM_KINDS`), id `body-<Body.id>`, `e` the enemy id,
+  `on` lying and nobody's, `by` the carrier's player id (the host's own from its lift; a client's from the host's
+  accept); gone from the list = hidden. A client asks through `use`: `body-*` pick up (`bodyCarryNet.pickupDenied`:
+  alive, not held, not carrying, no guard held, MoveState `ground`, the body present and nobody's, `BODY.reach` +
+  0.75 m), `drop-body` (`DROP_BODY_ID`, sent at its put down's hand-over) and `hide-<i>` (carrying, in the spot's
+  reach); the host never runs its own carry items for these. Accepted, the host lifts the body (`Body.beginHoist`:
+  carried, so guards and cameras never find it) and shows it on the client's avatar (`net/carryView.ts`, on the
+  shoulder at `CQ.liftRise`); put down, it ragdolls at the carrier's side with the 3 m drop noise; a carrier down,
+  held for rejoin or gone drops it where he stood. The client carries with the host's own code: `StealthSystems`'
+  carry moved to `game/bodyCarry.ts` (`BodyCarry`), the client's `net/clientCarry.ts` runs it on its own lying
+  `Body` when the mirror names it (`CoopClient.carryMirror`, pure `carryChange`), and `GameState.carrier`
+  (`stealth` or `net.carry`) gives both the speed cap, weapon stow, blocks, interact target (its map's hiding spots,
+  a door faced, Drop body) and pose. A partner's carry shows on both pages through `RemoteAvatar.carryLoad` /
+  `carrySide` / `carryKnees` (the bend, the carry lean, the hands on the knees). Save shape unchanged. Tests:
+  `tests/coopCarry.test.ts`; e2e-coop "client carries a body".
 - Pings (action `ping`: D-pad left tap, Z): `GameState.sendPing` (aim ray) -> `ping` msg / event (host rate 0.8 s) ->
   `ui/hud/pings.ts` (follows a pinged guard, edge arrows off screen).
 - Gadgets: `GadgetSystem.onLocal` reports gas / flash / EMP / noise effects; the host relays them (`gadget`, 1 s rate,

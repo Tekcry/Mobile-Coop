@@ -77,7 +77,7 @@ export class StrikeController {
       !tr.committed &&
       !g.takedown.active &&
       !g.team.active &&
-      !(g.stealth?.carrying ?? false)
+      !(g.carrier?.carrying ?? false)
     );
   }
 

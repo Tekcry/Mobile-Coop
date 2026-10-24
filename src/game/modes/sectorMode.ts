@@ -140,6 +140,8 @@ interface Pending {
   route?: readonly (readonly [number, number])[] | null;
   /** (guard-ai S13) The response team it joins at spawn. */
   team?: SweepTeam<Enemy> | null;
+  /** (guard-models G6n) His look seed from the slot (`EnemyManager.lookOfSlot`); none: `spawn` / `joinTeam` give it. */
+  look?: number;
 }
 
 /** The doors of one connector, found by position at the start. */
@@ -699,7 +701,7 @@ export class SectorMode implements GameMode {
     if (!s) return;
     this.slotEnemy.length = 0;
     const n = flags.sectorGuards ?? s.guards.length;
-    for (let k = 0; k < s.guards.length && k < n; k++) this.pending.push({ k, slot: s.guards[k]!, alerted: false });
+    for (let k = 0; k < s.guards.length && k < n; k++) this.pending.push({ k, slot: s.guards[k]!, alerted: false, look: em?.lookOfSlot(s.id, k) });
     this.fill();
   }
 
@@ -882,7 +884,7 @@ export class SectorMode implements GameMode {
       }
       this.tmp.set(p.slot.x, p.slot.y ?? Number.NaN, p.slot.z);
       // (guard-ai S6) a reinforcement is told by command (`joinReinforcement`), not spawned alerted (no contact call)
-      const e = em.spawn(p.slot.kind, this.tmp, p.alerted && !(p.reinforce && em.coordinated), p.slot.yaw);
+      const e = em.spawn(p.slot.kind, this.tmp, p.alerted && !(p.reinforce && em.coordinated), p.slot.yaw, p.look);
       if (!e) break;
       if (p.slot.info) e.info = p.slot.info; // (stealth-pays S2) what INTERROGATE gets out of him
       if (p.slot.route) e.setPatrol({ points: p.slot.route, wait: p.slot.wait, waits: p.slot.waits, faces: p.slot.faces, start: p.slot.start, loop: p.slot.loop });

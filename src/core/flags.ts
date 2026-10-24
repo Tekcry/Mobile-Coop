@@ -53,6 +53,10 @@ export interface Flags {
   mocap: boolean | null;
   /** (guard-render S1) Guards draw as one merged smooth mesh each (`SmoothBody`); `?guardmerge=0`: the parts, for comparisons. */
   guardMerge: boolean;
+  /** (guard-models G7, A10) Guards draw as the operator-pipeline figure (`src/ai/guardBody.ts`); `?guardmodels=0` keeps
+   *  the merged S1 body (comparisons, and the fallback while a guard's files load). DEFAULT OFF on the guard-models
+   *  branch until G8 measures (`?guardmodels=1` turns it on); G8 flips the default. */
+  guardModels: boolean;
   /** (guard-render S4) Guard anim tiers (off-screen every 4th frame, far every 2nd: `src/ai/animTier.ts`); `?animtier=0` off. */
   animTier: boolean;
   /** (guard-render S6) Per-cascade sun caster lists and the guards' sun reach; `?guardsun=0`: off, for comparisons. */
@@ -124,6 +128,8 @@ export const flags: Flags = {
   sectorGuards: /^\d{1,2}$/.test(params.get('sectorGuards') ?? '') ? Number(params.get('sectorGuards')) : null,
   mocap: onOffFlag(params.get('mocap')),
   guardMerge: params.get('guardmerge') !== '0',
+  // (guard-models G7) default off until G8's budget run: `?guardmodels=1` on; G8 makes it `!== '0'`
+  guardModels: params.get('guardmodels') === '1',
   animTier: params.get('animtier') !== '0',
   guardSun: params.get('guardsun') !== '0',
   guardFreeze: params.get('guardfreeze') !== '0',

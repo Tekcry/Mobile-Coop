@@ -768,10 +768,18 @@ try {
       const pad = () => G(() => window.__app.settings.get().pad);
       const view = () => G((p) => ({ tab: document.querySelector('.controls-screen .tab.active')?.textContent, rows: [...document.querySelectorAll(`${p} .bind-row.conflict`)].map((r) => r.dataset.row).sort().join(), sum: document.querySelector(`${p} .bind-summary`)?.hidden ? '' : document.querySelector(`${p} .bind-summary`)?.textContent, cap: window.__app.input.gamepad.capturing, screen: !!document.querySelector('.controls-screen') }), panel);
       assert((await view()).tab === 'Controller', `the Controller tab first (${(await view()).tab})`);
+      // (optic-coop M2, Michael 2026-10-24 "contextual") Zoom and Ping share R3 by default as an allowed pair: no conflict
+      const v0 = await view();
+      assert(v0.rows === '' && !v0.sum, `the defaults show no conflict (Zoom / Ping on R3 allowed; "${v0.rows}")`);
       // X on a slot clears it (menu-ui SPEC 7.12): R3 off Zoom
       await focusSlot('zoom:0');
       await press(P, BTN.X);
       assert((await pad()).zoom.length === 0, 'X clears the focused slot (R3 off Zoom)');
+      // (optic-coop M2) R3 is also Ping by default: clear it too, so R3 is free for the draw (draw on Ping's R3 would be
+      // the player's own conflict, still reported)
+      await focusSlot('ping:0');
+      await press(P, BTN.X);
+      assert((await pad()).ping.length === 0, 'X clears the focused slot (R3 off Ping)');
       // A, then R3: draw / holster moves from X to R3
       await focusSlot('draw:0');
       // (load-latent-ui1) A and R3 in one evaluate (pressPair): the capture's 5 s timeout is wall clock and under CPU load
@@ -902,7 +910,8 @@ try {
       await P.waitForTimeout(200);
       v = await view();
       const def = await pad();
-      assert(JSON.stringify(def.draw) === '[2]' && JSON.stringify(def.zoom) === '[11]' && v.rows === '' && v.screen, `reset restores the controller defaults (${JSON.stringify(def.draw)})`);
+      // (optic-coop M2, "contextual") the defaults share R3 between Zoom and Ping as an allowed pair: no conflict after the reset
+      assert(JSON.stringify(def.draw) === '[2]' && JSON.stringify(def.zoom) === '[11]' && JSON.stringify(def.ping) === '[11]' && v.rows === '' && v.screen, `reset restores the controller defaults (${JSON.stringify(def.draw)}, conflicts "${v.rows}")`);
     } finally {
       await R.browser.close();
     }

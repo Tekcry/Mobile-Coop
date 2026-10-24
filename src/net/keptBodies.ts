@@ -6,16 +6,19 @@
  * nothing is sent, nothing in gameplay reads it. No allocation (no iterator, no closure per call).
  */
 
-/** The rig fields `paintHeat` reads for a body. */
+/** The rig fields `paintHeat` reads for a body: a kept `Body`'s `view` (coop-carry: the client keeps `Body`s, was
+ *  bare ragdolls; null once hidden, skipped). */
 export interface KeptBody {
-  readonly rig: { bodyFrame: number; bodyAge: number };
+  readonly view: { bodyFrame: number; bodyAge: number } | null;
 }
 
 const S = { f: 0, t: 0, at: null as ReadonlyMap<string, number> | null };
 
-function stampOne(r: KeptBody, id: string): void {
-  r.rig.bodyFrame = S.f;
-  r.rig.bodyAge = S.t - (S.at!.get(id) ?? S.t);
+function stampOne(b: KeptBody, id: string): void {
+  const r = b.view;
+  if (!r) return;
+  r.bodyFrame = S.f;
+  r.bodyAge = S.t - (S.at!.get(id) ?? S.t);
 }
 
 /** Mark every kept body's rig a body at render frame `frame`, aged `time` minus when it went down (`at`, by id). */

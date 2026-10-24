@@ -33,7 +33,7 @@ const PHASES: CarryPhase[] = [CARRY_HOLSTERED, CARRY_DRAWING, CARRY_DRAWN, CARRY
 
 describe('guard-ai A126: the carry bits', () => {
   it('the carry is bits 7-8 over every S9 bit; drawn is 0, so old packAlert callers are unchanged', () => {
-    expect([AL_CARRY_SHIFT, AL_CARRY, AL_MAX]).toEqual([7, 384, 511]);
+    expect([AL_CARRY_SHIFT, AL_CARRY, AL_MAX]).toEqual([7, 384, 65535]);
     expect(AL_CARRY & (3 | AL_SEIZED | AL_TORCH | AL_CAUTION | AL_HELMET | AL_ARMOUR)).toBe(0);
     expect([WIRE_CARRY_DRAWN, WIRE_CARRY_HOLSTERED, WIRE_CARRY_DRAWING, WIRE_CARRY_HOLSTERING]).toEqual([0, 1, 2, 3]);
     expect(packAlert(3, true, true)).toBe(15);
