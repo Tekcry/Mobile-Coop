@@ -139,6 +139,59 @@ describe('RuleTracker', () => {
     expect(t.update(100, r)).toBe(RULE_OK);
   });
 
+  it('per-team reset (M1): a team rule break resets and holds only that team; the other team and the mission keep counting', () => {
+    const rules: MissionRule[] = [
+      { kind: 'noKills', scope: 'a', text: 'Team A kills nobody.' },
+      { kind: 'noKills', scope: 'b', text: 'Team B kills nobody.' },
+    ];
+    const t = new RuleTracker(op(rules), 2);
+    expect(t.restartTeam).toBeUndefined();
+    t.onKill(0, true); // a knock-out: counted on A, not a kill
+    t.onKill(1, false);
+    expect(t.update(1)).toBe(RULE_RESTART);
+    expect(t.lastScope).toBe('b');
+    expect(t.restartTeam).toBe('b');
+    t.resetSection(2, true, t.restartTeam);
+    expect(t.stats[SCOPE_B].kills).toBe(0);
+    expect(t.stats[SCOPE_A].knockouts).toBe(1);
+    expect(t.stats[SCOPE_MISSION].kills).toBe(1);
+    expect(t.isHeld(SCOPE_B)).toBe(true);
+    expect(t.isHeld(SCOPE_A)).toBe(false);
+    expect(t.held).toBe(false);
+    // team B's hold swallows its kill; team A still breaks at once
+    t.onKill(1, false);
+    expect(t.update(2.5)).toBe(RULE_OK);
+    expect(t.stats[SCOPE_B].kills).toBe(0);
+    t.onKill(2, false);
+    expect(t.update(3)).toBe(RULE_RESTART);
+    expect(t.restartTeam).toBe('a');
+  });
+
+  it('per-team reset clears only the event hits of that team; solo and no scope reset everyone', () => {
+    const rules: MissionRule[] = [
+      { kind: 'noGadgets', scope: 'a', text: 'Team A, no gadgets.' },
+      { kind: 'noGadgets', scope: 'b', text: 'Team B, no gadgets.' },
+    ];
+    const t = new RuleTracker(op(rules), 2);
+    t.onGadget(0);
+    t.onGadget(1);
+    expect(t.update(0)).toBe(RULE_RESTART);
+    expect(t.lastRule).toBe(0);
+    t.resetSection(1, true, 'a');
+    // team B's hit was left alone: it fires next
+    expect(t.update(1.5)).toBe(RULE_RESTART);
+    expect(t.lastRule).toBe(1);
+    t.resetSection(2, false);
+    expect(t.update(2)).toBe(RULE_OK);
+    const solo = new RuleTracker(op(rules), 1);
+    solo.onGadget(0);
+    expect(solo.update(0)).toBe(RULE_RESTART);
+    expect(solo.restartTeam).toBeUndefined();
+    solo.resetSection(1, true, 'a');
+    expect(solo.isHeld(SCOPE_A) && solo.isHeld(SCOPE_B) && solo.held).toBe(true);
+    expect(solo.update(5)).toBe(RULE_OK);
+  });
+
   it('one chance ends the mission: on a failure, and any break while it is held', () => {
     const t = new RuleTracker(op([{ kind: 'oneChance', scope: 'mission', text: 'One go.' }]), 2);
     t.onFail();

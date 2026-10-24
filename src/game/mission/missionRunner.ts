@@ -41,13 +41,19 @@ export class MissionRunner {
   lastDone = NONE;
   /** The time `update` last ran (s). */
   now = 0;
-  /** The step a decoy read spooked (its target runs to `bolt`), -1 none. */
+  /**
+   * The step a decoy read spooked (its target runs to `bolt`), -1 none. Not part of the snapshot: `restore` never
+   * resets it (a spooked target stays spooked across a restart; EN2 reads it). A spook fact the mission reads as a flag
+   * survives too when the mode marks it with `keepOnRestore`.
+   */
   spookStep = NONE;
 
   /** Flag names the mission reads (conditions, gives, needs) and their index. */
   readonly flags: readonly string[];
   private readonly flagIdx: ReadonlyMap<string, number>;
   private readonly flagOn: Uint8Array;
+  /** Per flag: 1 when `restore` leaves it as it is (`keepOnRestore`). */
+  private readonly flagKeep: Uint8Array;
   /** Facts (distinct `gives`, wire bit order) as flag indices. */
   readonly facts: readonly string[];
   private readonly factFlag: Int32Array;
@@ -138,6 +144,7 @@ export class MissionRunner {
     this.factFlag = Int32Array.from(this.facts.map((f) => idx.get(f) ?? NONE));
     const nf = names.length;
     this.flagOn = new Uint8Array(nf);
+    this.flagKeep = new Uint8Array(nf);
     this.state = new Uint8Array(n);
     this.openT = new Float64Array(n).fill(-1);
     this.half = new Float64Array(n * 2).fill(-Infinity);
@@ -281,6 +288,17 @@ export class MissionRunner {
   }
 
   /**
+   * Setup: `restore` leaves this flag as it is (a fact that must outlive a restart, e.g. EN2's spook: a spooked target
+   * stays spooked). False for a flag the mission does not read.
+   */
+  keepOnRestore(flag: string): boolean {
+    const i = this.flagIdx.get(flag);
+    if (i === undefined) return false;
+    this.flagKeep[i] = 1;
+    return true;
+  }
+
+  /**
    * The section begins (host and client): it becomes the current one, its steps open from the DAG at `now`, and the
    * state is saved for `restore`. A section the mission does not run in makes no step open (section -1). True when
    * the section is the mission's.
@@ -309,7 +327,9 @@ export class MissionRunner {
    * snapshot; the open steps restart their clocks at `now`. No `team` (the campaign, a mission-scope rule, one player):
    * every step and fact of the section goes back, earlier sections' work stays. With `team` (Sector Ops, that team's
    * rule broke, M1): only that team's steps of the section, the facts they give and the flags only its steps read go
-   * back; the shared 'all' steps and the other team's work stay. False when the section has no snapshot.
+   * back; the shared 'all' steps and the other team's work (its done steps, open clocks, facts) stay. One player
+   * carries both teams, so a team there means everyone. Flags marked `keepOnRestore` and `spookStep` never go back.
+   * False when the section has no snapshot.
    */
   restore(section: string | number, now = this.now, team?: 'a' | 'b'): boolean {
     const si = typeof section === 'number' ? section : this.def.sections.indexOf(section);
@@ -318,6 +338,7 @@ export class MissionRunner {
     const n = this.n;
     const bit = team === undefined || this.players <= 1 ? 0 : team === 'a' ? TEAM_BIT_A : TEAM_BIT_B;
     for (let f = 0; f < nf; f++) {
+      if (this.flagKeep[f] === 1) continue;
       if (bit === 0 || (this.flagGivers[f]! & bit) !== 0 || this.flagUsers[f] === bit) this.flagOn[f] = this.snapFlag[si * nf + f]!;
     }
     for (let i = 0; i < n; i++) {
@@ -327,6 +348,13 @@ export class MissionRunner {
       this.half[i * 2] = this.snapHalf[si * n * 2 + i * 2]!;
       this.half[i * 2 + 1] = this.snapHalf[si * n * 2 + i * 2 + 1]!;
       if (st !== STEP_DONE) this.doneSeq[i] = 0;
+    }
+    if (bit !== 0) {
+      // a fact a kept done step gave stays held
+      for (let i = 0; i < n; i++) {
+        const g = this.givesFlag[i]!;
+        if (g >= 0 && this.state[i] === STEP_DONE) this.flagOn[g] = 1;
+      }
     }
     this.section = si;
     this.now = now;

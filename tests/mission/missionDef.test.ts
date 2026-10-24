@@ -79,11 +79,40 @@ describe('checkMission', () => {
     const d = op();
     d.steps = d.steps.slice(0, 2);
     const e = checkMission(d, GUARDS).join('\n');
-    expect(e).toMatch(/2 steps/);
+    expect(e).toMatch(/team a has 1 steps/);
     expect(e).toMatch(/0 extract steps/);
     const f = op();
     f.steps.push({ id: 'late', section: 'S2', team: 'a', kind: 'reach', text: 'One more' });
     expect(checkMission(f, GUARDS).join('\n')).toMatch(/last step is not the extraction/);
+  });
+
+  it('step budget: Sector Ops per team (its steps + the shared ones), the campaign over the whole mission', () => {
+    // 5 per team with the shared ones, 8 in all: fine in Sector Ops (the solo sum is not an error)
+    const d = op();
+    d.steps.splice(5, 0, { id: 'vent', section: 'S2', team: 'a', kind: 'reach', text: 'Into the vent' }, { id: 'desk', section: 'S2', team: 'b', kind: 'reach', text: 'Past the desk' });
+    expect(d.steps.length).toBe(8);
+    expect(checkMission(d, GUARDS)).toEqual([]);
+    // team a at 7 with the shared ones: over
+    d.steps.splice(5, 0, { id: 'a1', section: 'S2', team: 'a', kind: 'reach', text: 'One' }, { id: 'a2', section: 'S2', team: 'a', kind: 'reach', text: 'Two' });
+    const e = checkMission(d, GUARDS).join('\n');
+    expect(e).toMatch(/team a has 7 steps with the shared ones \(3-6\)/);
+    expect(e).not.toMatch(/team b has/);
+    // team b at 2 with the shared ones: under
+    const u = op();
+    u.steps = u.steps.filter((s) => s.id !== 'ask' && s.id !== 'board');
+    u.steps[1]!.after = ['roof'];
+    delete u.steps[2]!.needs;
+    u.steps[3]!.after = ['cage'];
+    expect(checkMission(u, GUARDS).join('\n')).toMatch(/team b has 2 steps/);
+    // the campaign counts every step: 7 is over
+    const c = op();
+    c.mode = 'campaign';
+    c.players = [2];
+    delete c.tracks;
+    c.rules = [];
+    for (const s of c.steps) s.team = 'all';
+    c.steps.splice(5, 0, { id: 'extra', section: 'S2', team: 'all', kind: 'reach', text: 'One more' });
+    expect(checkMission(c, GUARDS).join('\n')).toMatch(/: 7 steps \(3-6\)/);
   });
 
   it('caps rules at 2 per team scope, the mission rules counted in', () => {

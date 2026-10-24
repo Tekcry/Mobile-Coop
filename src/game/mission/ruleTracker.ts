@@ -9,10 +9,10 @@
  * test, per track); an alarm, camera alarm or found body by its position in a track's boxes, else against both teams.
  * The other rules: no gadgets, named target (a decoy read), plant-not-take (a take), a named window (the step not done
  * `seconds` after it opened) and one chance (a failure; it ends the mission, A12). A break restarts the section: a team
- * rule's break only that team (`lastScope`; `MissionRunner.restore(.., team)`, `resetSection(.., scope)`, M1), a
- * mission rule's everyone; while a
- * mission has a one-chance rule without a step, any restart ends the mission instead. After `resetSection` the tracker
- * holds RULE_HOLD s so a rule cannot fire again before both players respawn. Feeds and `update` do not allocate.
+ * rule's break only that team in Sector Ops (`restartTeam`; `MissionRunner.restore(.., team)`, `resetSection(.., scope)`,
+ * M1), a mission rule's everyone; while a mission has a one-chance rule without a step, any restart ends the mission
+ * instead. After `resetSection` the reset scopes hold RULE_HOLD s so a rule cannot fire again before the players
+ * respawn. Feeds and `update` do not allocate.
  */
 import { DEFAULT_RULES, UNDETECTED, NO_KILLS, NO_ALARMS, BODIES_HIDDEN, newSectionStats, rateSection, resetSectionStats, type RatingRules, type SectionStats } from '../rating/sectionRating';
 import { teamForSlot, type MissionDef, type MissionRule, type RuleKind } from './missionDef';
@@ -131,6 +131,15 @@ export class RuleTracker {
   /** The last broken rule's scope: who goes back (a team, or 'mission': everyone); null before any break. */
   get lastScope(): MissionRule['scope'] | null {
     return this.lastRule >= 0 ? (this.def.rules[this.lastRule]?.scope ?? null) : null;
+  }
+
+  /**
+   * Who the last break sends back: 'a' / 'b' for a team rule in Sector Ops with 2+ players, else undefined (everyone).
+   * Pass it to `MissionRunner.restore(section, now, team)` and `resetSection(now, true, team)`.
+   */
+  get restartTeam(): 'a' | 'b' | undefined {
+    const s = this.lastScope;
+    return (s === 'a' || s === 'b') && this.def.mode === 'sector' && this.players > 1 ? s : undefined;
   }
 
   /** Team bits a player slot plays for (A9; one player or the campaign: both). */
@@ -291,11 +300,13 @@ export class RuleTracker {
   /**
    * The section restarted (or a new section began). No `scope` or 'mission': every scope's stats back to zero and every
    * rule's event hits cleared (everyone went back). A team scope ('a' / 'b', its rule broke, M1): only that team's
-   * stats and the hits of its rules; the mission's and the other team's keep counting. `hold` (default) starts a
-   * RULE_HOLD s hold from `now` on the scopes reset (false: a section begin). The mission's break count and line stay.
+   * stats and the hits of its rules; the mission's and the other team's keep counting (one player or the campaign:
+   * everyone, as `MissionRunner.restore`). `hold` (default) starts a RULE_HOLD s hold from `now` on the scopes reset
+   * (false: a section begin). The mission's break count and line stay.
    */
   resetSection(now: number, hold = true, scope?: MissionRule['scope']): void {
-    const only = scope === 'a' ? SCOPE_A : scope === 'b' ? SCOPE_B : -1;
+    const teams = this.def.mode === 'sector' && this.players > 1;
+    const only = !teams ? -1 : scope === 'a' ? SCOPE_A : scope === 'b' ? SCOPE_B : -1;
     for (let k = 0; k < SCOPES; k++) {
       if (only >= 0 && k !== only) continue;
       resetSectionStats(this.stats[k as 0 | 1 | 2]);

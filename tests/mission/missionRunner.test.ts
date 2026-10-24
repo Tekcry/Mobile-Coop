@@ -132,6 +132,82 @@ describe('MissionRunner', () => {
     expect(r.restore('S9')).toBe(false);
   });
 
+  /** S1 done, S2 begun at 10, team b's interrogation done (route) at 11, team a's cage done at 12. */
+  function inS2(players: number): MissionRunner {
+    const r = new MissionRunner(op(), players);
+    r.snapshot('S1', 0);
+    r.setFlag('roof');
+    r.setFlag('code-cage');
+    r.update(1);
+    r.complete(2);
+    r.snapshot('S2', 10);
+    r.now = 11;
+    r.interrogated('officer');
+    r.setFlag('cage-pad');
+    r.setFlag('door-1');
+    r.update(12);
+    return r;
+  }
+
+  it('restore with a team (Sector Ops, M1): only that team goes back; the other team, shared steps and earlier sections stay', () => {
+    const r = inS2(2);
+    expect(r.isDone(3) && r.isDone(4)).toBe(true);
+    expect(r.isOpen(5)).toBe(true);
+    expect(r.lastDone).toBe(3);
+    expect(r.restore('S2', 20, 'a')).toBe(true);
+    // team a: its step, the flags only it reads go back; the step reopens on a fresh clock
+    expect(r.isDone(3)).toBe(false);
+    expect(r.isOpen(3)).toBe(true);
+    expect(r.openedAt(3)).toBe(20);
+    expect(r.hasFlag('cage-pad') || r.hasFlag('door-1')).toBe(false);
+    // team b: its done step and its fact stay; earlier sections too
+    expect(r.isDone(4)).toBe(true);
+    expect(r.hasFlag('route')).toBe(true);
+    expect(r.openedAt(4)).toBe(10);
+    expect(r.isDone(0) && r.isDone(1) && r.isDone(2)).toBe(true);
+    expect(r.hasFlag('code-cage')).toBe(true);
+    // the shared extraction waits on team a again; lastDone is the latest still-done step
+    expect(r.isOpen(5)).toBe(false);
+    expect(r.lastDone).toBe(4);
+  });
+
+  it('restore with team b leaves team a alone; one player: a team means everyone', () => {
+    const r = inS2(2);
+    expect(r.restore('S2', 20, 'b')).toBe(true);
+    expect(r.isDone(4)).toBe(false);
+    expect(r.isOpen(4)).toBe(true);
+    expect(r.hasFlag('route')).toBe(false);
+    expect(r.isDone(3)).toBe(true);
+    expect(r.hasFlag('cage-pad') && r.hasFlag('door-1')).toBe(true);
+    const solo = inS2(1);
+    expect(solo.restore('S2', 20, 'a')).toBe(true);
+    expect(solo.isDone(3) || solo.isDone(4)).toBe(false);
+    expect(solo.hasFlag('route') || solo.hasFlag('cage-pad')).toBe(false);
+    expect(solo.isDone(2)).toBe(true);
+  });
+
+  it('spook survives restore: spookStep and keepOnRestore flags (EN2)', () => {
+    const r = new MissionRunner(op(), 2);
+    r.snapshot('S1', 0);
+    r.setFlag('roof');
+    r.setFlag('code-cage');
+    r.update(1);
+    r.complete(2);
+    r.snapshot('S2', 10);
+    expect(r.keepOnRestore('nope')).toBe(false);
+    expect(r.keepOnRestore('door-2')).toBe(true);
+    expect(r.interrogated('clerk')).toBe(INTERROGATE_DECOY);
+    r.setFlag('door-2');
+    r.setFlag('cage-pad');
+    r.restore('S2', 20);
+    expect(r.spookStep).toBe(4);
+    expect(r.hasFlag('door-2')).toBe(true);
+    expect(r.hasFlag('cage-pad')).toBe(false);
+    r.restore('S2', 30, 'a');
+    expect(r.hasFlag('door-2')).toBe(true);
+    expect(r.spookStep).toBe(4);
+  });
+
   it('client applyWire: done bits and facts, no condition evaluated', () => {
     const host = new MissionRunner(op(), 2);
     const client = new MissionRunner(op(), 2);
