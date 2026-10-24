@@ -1,0 +1,13 @@
+{
+  "id": "20261024T015455-night-shift-sector-o-bf7879f8-94bf",
+  "sha": "bf7879f8f5ff2d9205afabfe0dce0ec718d9f2f2",
+  "branch": "test/pr307-merge",
+  "pr": 307,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-darkness"
+  ],
+  "set": "lr16b2-merge",
+  "note": "PR 307 merge commit (with #295) pushed as test/pr307-merge so the laptop can fetch it"
+}
