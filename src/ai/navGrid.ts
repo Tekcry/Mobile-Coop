@@ -592,8 +592,10 @@ export class NavGrid {
   /**
    * A* returning smoothed world waypoints (excluding the start), or null if unreachable. A waypoint carrying a
    * `link` is where a ladder / drop starts; the next one is past its far end.
-   * (polish2 A184) `partial`: with no path, the path ends at the reached cell nearest the goal (lowest octile; its
-   * centre is the last waypoint); that cell is the start: null. `partialEnd` says whether the last call ended short.
+   * (polish2 A184) `partial`: with no path, the path ends at the reached cell nearest the goal (its centre is the
+   * last waypoint): the lowest octile among cells within `LAYER_PICK` of the goal cell's height, so it stays on the
+   * goal's storey, not straight above / below; with none reached, the lowest octile plus the height gap in cells.
+   * That cell is the start: null. `partialEnd` says whether the last call ended short.
    */
   findPath(from: P2, to: P2, maxExpand = 6000, fromY = Number.NaN, toY = Number.NaN, partial = false): Waypoint[] | null {
     this.partialEnd = false;
@@ -609,9 +611,16 @@ export class NavGrid {
     this.gScore[s] = 0;
     this.came[s] = -1;
     this.cameLink[s] = -1;
-    let bestH = this.octile(s, gx, gz);
+    // (polish2 A184 fix) the partial end keeps the goal's storey: a reached cell within LAYER_PICK of the goal's
+    // height (lowest octile) beats any other; with none, the lowest octile plus the height gap in cells
+    const gy = this.height[g]!;
+    const h0 = this.octile(s, gx, gz);
+    const dh0 = Math.abs(this.height[s]! - gy);
+    let bestH = h0 + dh0 / this.cell;
     let best = s;
-    heap.push(s, bestH);
+    let bestOnH = dh0 <= LAYER_PICK ? h0 : Infinity;
+    let bestOn = dh0 <= LAYER_PICK ? s : -1;
+    heap.push(s, h0);
     let expanded = 0;
     let found = false;
     while (heap.size && expanded++ < maxExpand) {
@@ -631,9 +640,17 @@ export class NavGrid {
           this.came[j] = cur;
           this.cameLink[j] = this.nbLink[k]!;
           const h = this.octile(j, gx, gz);
-          if (h < bestH) {
-            bestH = h;
-            best = j;
+          if (partial) {
+            const dh = Math.abs(this.height[j]! - gy);
+            if (dh <= LAYER_PICK) {
+              if (h < bestOnH) {
+                bestOnH = h;
+                bestOn = j;
+              }
+            } else if (h + dh / this.cell < bestH) {
+              bestH = h + dh / this.cell;
+              best = j;
+            }
           }
           heap.push(j, ng + h);
         }
@@ -645,6 +662,7 @@ export class NavGrid {
     if (!found) {
       if (!partial) return null;
       this.partialEnd = true;
+      if (bestOn >= 0) best = bestOn;
       if (best === s) return null;
       g = best;
       const c = this.centerInto(best, this.endP);
