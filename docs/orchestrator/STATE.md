@@ -133,6 +133,7 @@ Train 1 merged as #111 (#99 + #108; #105 left on a real e2e-menus failure, fixed
   fixes this).
 
 ## How Michael works with the orchestrator
+- 2026-10-24 ~18:52 (native multiple choice, "Always label for them"): when auto mode on the laptop blocks a lead's `gh pr edit <n> --add-label train-ready`, the orchestrator checks `gh pr checks <n>` and the lead's checker verdict, then adds the label from the desktop without asking. Desktop allow rules now also cover `gh pr close` (Michael ~18:25, for failed train PRs).
 - Short, plain replies. Native multiple-choice questions only. Hyphens, not em dashes.
 - ALWAYS state the session title, the model and the effort next to every prompt you give Michael (Michael 2026-10-20 18:30: "You should be showing me exactly which model and effort alongside any prompt, make sure you always do that."). One prompt at a time; he does not remember earlier ones.
 - He tests through the menus, never direct links: give menu paths and the version label to expect.
