@@ -1,0 +1,14 @@
+{
+  "id": "20261024T084755-night-shift-marlow-b-a55a12b3-6a46",
+  "sha": "a55a12b3f8274bea2d22ce5a03c519ca85fe26cd",
+  "branch": "feature/guard-cap",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Marlow Build",
+  "steps": [
+    "node scripts/guard-cap-coop.mjs --maps=campus,sectorops --counts=0,12,24,32 --cells=patrol,away,alert --players=2,4 --warm=5 --secs=10 --out=C:/NightShift/scratch/guard-cap/m1-a55a12b3"
+  ],
+  "env": {},
+  "set": "guard-cap-m1",
+  "note": "guard-cap M1 full run (co-op client frame cost + snapshot bytes; desktop smoke clean 74a90c1c). Results: push RESULTS.md/json/csv to feature/guard-cap-results docs/guard-cap/run-m1/"
+}
