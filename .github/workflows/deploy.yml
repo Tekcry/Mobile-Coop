@@ -26,8 +26,8 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # pull requests: check the change only (no deploy). lint, test and build-check run in parallel; `check` is the one
-  # status name merge-train and CLAUDE.md use, and it fails unless all three passed (a skipped need must not pass).
+  # pull requests: check the change only (no deploy). lint, test, build-check and pr-size run in parallel; `check` is the
+  # one status name merge-train and CLAUDE.md use, and it fails unless all four passed (a skipped need must not pass).
   lint:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -82,17 +82,44 @@ jobs:
         run: npm ci
       - run: npm run build
 
+  # PR size cap (intake gates, 2026-10-24; docs/systems/session-method.md "Intake"): <= 1500 changed lines vs the merge
+  # base, excluding generated assets, snapshots, lockfiles and docs; train/* and docs-only PRs are exempt. Over the cap
+  # it fails unless the PR has the `big-pr` label (orchestrator-approved). The label is read live, so after adding it
+  # `gh run rerun <run id> --failed` reruns this job and `check`.
+  pr-size:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: PR size (<= 1500 counted lines, or the big-pr label)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+          PR: ${{ github.event.pull_request.number }}
+        run: node scripts/pr-size.mjs --base "origin/$BASE_REF" --head HEAD --branch "$HEAD_REF" --pr "$PR"
+
   check:
-    needs: [lint, test, build-check]
+    needs: [lint, test, build-check, pr-size]
     if: always() && github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - name: All of lint, test and build-check passed
+      - name: All of lint, test, build-check and pr-size passed
         run: |
-          echo "lint=${{ needs.lint.result }} test=${{ needs.test.result }} build-check=${{ needs['build-check'].result }}"
+          echo "lint=${{ needs.lint.result }} test=${{ needs.test.result }} build-check=${{ needs['build-check'].result }} pr-size=${{ needs['pr-size'].result }}"
           test "${{ needs.lint.result }}" = success
           test "${{ needs.test.result }}" = success
           test "${{ needs['build-check'].result }}" = success
+          test "${{ needs['pr-size'].result }}" = success
 
   build:
     if: github.event_name != 'pull_request' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
