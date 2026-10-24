@@ -465,6 +465,12 @@ describe('losClear (guard-ai R1: allocation-free sight rays)', () => {
     expect(b.hitDistance).not.toHaveBeenCalled();
     expect(losClear(rayOnly(false, 0), eye, to, 0)).toBe(true);
   });
+  it('(polish C3) a ray-only miss reporting distance 0 is still clear: the !hit branch ignores the distance', () => {
+    const ray = vi.fn(() => ({ hit: false, distance: 0 }));
+    expect(losClear({ ray }, eye, to, slack)).toBe(true);
+    expect(losClear({ ray }, eye, to, 0)).toBe(true);
+    expect(ray).toHaveBeenCalledTimes(2);
+  });
   it('a ray-only double still works (the ray is cast with the sight mask)', () => {
     const ray = vi.fn(() => ({ hit: true, distance: 2 }));
     expect(losClear({ ray }, eye, to, slack)).toBe(false);
