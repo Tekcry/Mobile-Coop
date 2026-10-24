@@ -632,12 +632,12 @@ export function checkEncounters(graph, metrics) {
     }
     if (s.phase !== undefined && s.phase !== 'early' && s.phase !== 'late') c.err(`${s.id}: phase '${s.phase}' is not early or late`);
     const early = s.phase ? s.phase === 'early' : secIndex.get(s.section) < sections.length / 2;
-    const max = c.num('rules.guards_max', 'the guard maximum check');
-    const band = c.range(early ? 'rules.guards_early' : 'rules.guards_late', 'the guard band report', 'info');
+    // Michael 2026-10-24 ~22:00: "as many guards as realistically possible": no upper limit (the guard-cap perf floor
+    // and passable routes bound it); WARN only below the band's low end.
+    const band = c.range(early ? 'rules.guards_early' : 'rules.guards_late', 'the guard band check');
     for (const [p, n] of counts) {
-      if (max !== undefined && n > max) c.err(`${s.id}: ${n} guards (${p} players) over the ${fmt(max)} maximum`);
-      if (band && (n < band[0] || n > band[1])) {
-        c.info(`${s.id}: ${n} guards (${p} players) outside the ${early ? 'early' : 'late'} band ${fmt(band[0])}-${fmt(band[1])}`);
+      if (band && n < band[0]) {
+        c.warn(`${s.id}: ${n} guards (${p} players) below the ${early ? 'early' : 'late'} band ${fmt(band[0])}-${fmt(band[1])}`);
       }
     }
   }

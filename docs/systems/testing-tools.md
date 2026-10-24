@@ -458,8 +458,7 @@ behind a VPN adapter).
   `sees_pct`, `los_break_s` and partner reach are targets (missing or outside = ERROR); the greybox measurement step
   (V6, later) will write `measured` values beside them. It holds no size or time constant: every number comes from
   `docs/design/metrics.json` (`--metrics <path>` overrides it). Output: `ERROR: ...` / `WARN:  ...` / `INFO:  ...` lines,
-  then `N error(s), M warning(s).` (guard counts 3-6 early / 6-10 late print as `INFO:` only until compared with the
-  guard sheets). Exit codes: 0 no errors (WARNs allowed, justify them in the map's design doc), 1 any ERROR, 2 bad
+  then `N error(s), M warning(s).` (guard counts below 3-6 early / 6-10 late WARN; no upper limit, Michael 2026-10-24). Exit codes: 0 no errors (WARNs allowed, justify them in the map's design doc), 1 any ERROR, 2 bad
   usage. When it runs: for every map, before Phase 3 (greybox), as the gate at the end of Phase 2 (`docs/level-design.md`
   sections 11, 14 and 15; `docs/templates/map-spec.md`). Schema and an example graph: `docs/level-validator/graph-schema.md`,
   `docs/level-validator/example.graph.json`. First run: campus Sector Ops, all five sections (S1-S5).

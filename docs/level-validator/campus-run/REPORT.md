@@ -8,15 +8,15 @@ validator is the same file the V1 checker passed (7c54018c on `feature/level-val
 node scripts/level-validate.mjs docs/sector-redesign/graph/campusOps-S1.json ...-S2.json ...-S3.json ...-S4.json ...-S5.json
 ```
 
-Latest rerun by the lead (after V1b: all 16 metrics keys, step band, no-softlock, safe drop 4.5; after the fix round: approaches count only entering links, dead ends count links out, new solo-twin check; after the V5 check: S2 facilities and S5 anteroom at clear size): **149 errors,
-151 warnings, exit 1**; run.txt holds this rerun. The per-section tables below are from the first run (rerun deltas: the new solo-twin WARN on S5 CR7, s5-roof now ERR with 1 approach, s5-lowroof a dead end, s3-walkway and s2-l2-exec no longer dead ends, facilities under the 6.0 floor;
+Latest rerun by the lead (after V1b: all 16 metrics keys, step band, no-softlock, safe drop 4.5; after the fix round: approaches count only entering links, dead ends count links out, new solo-twin check; after the V5 check: S2 facilities and S5 anteroom at clear size; after Michael's guard decision: 23 spaces WARN below the guard band): **149 errors,
+173 warnings, exit 1**; run.txt holds this rerun. The per-section tables below are from the first run (rerun deltas: the new solo-twin WARN on S5 CR7, s5-roof now ERR with 1 approach, s5-lowroof a dead end, s3-walkway and s2-l2-exec no longer dead ends, facilities under the 6.0 floor;
 7 missing-key WARNs gone, safe-drop WARNs added). First run result: **147 errors, 150 warnings, exit 1.** The graphs describe the map AS BUILT (base c7784fc9; coop4's two
 `minPlayers` S4 guards are not on that base and are not counted). Every shadow / vantage / LOS value is an estimate,
 pending V6.
 
 ## For Michael
 
-1. No campus section passes: 149 errors, 151 warnings (latest rerun; first run 147 / 150). The errors fall into four groups:
+1. No campus section passes: 149 errors, 173 warnings (latest rerun, 23 of them guard counts below the band; first run 147 / 150). The errors fall into four groups:
    - Sizes (43): rooms and corridors were built at real-world size, before the 1.4x room table.
    - Missing ways in (41).
    - Light and view targets (32, all estimates).
@@ -36,7 +36,10 @@ pending V6.
    has no collision). Out of bounds - found in S1 and S3 (open ground inside the map edge). Poor flow - found in every
    section. Rooms placed randomly - only partly, in S1 and S3.
 9. Guard counts: only 3 of 25 encounter spaces fall in the 3-6 / 6-10 bands. Campus and Marlow Yard run 1-3 guards per
-   space. My advice: do not make the band a rule yet.
+   space. My advice was: do not make the band a rule yet. MICHAEL DECIDED (2026-10-24 ~22:00): "as many guards as
+   realistically possible": no upper limit; WARN only below the band; each space gets the guards a real site would
+   post, bounded by the guard-cap perf floor and passable routes. The campus fixes (after the mission design audit) add
+   guards.
 
 ## Lead decisions applied (V5f-n)
 
@@ -368,7 +371,7 @@ Encounter spaces only (V5f-3), key `"2"`. Early = S1-S3, late = S4-S5 (A3).
 | S5 | late 6-10 | ante 3, hall 2, garden 2, terrace 2, lawn 2, roof 1, arch 1, kitchen 1 | 0 of 8 | 24 (14) |
 | Marlow Yard (A1-A8 sets) | early 3-6 | 1, 2, 1, 3, 1, 1, 1, 3 | 2 of 8 | 13 |
 
-**Recommendation: no per-space rule.** The band would fail 22 of 25 campus spaces and 6 of 8 Marlow sets. Both maps
+**Superseded by Michael (2026-10-24 ~22:00): WARN below the band, no upper limit, as many guards as realistic.** Original recommendation: no per-space rule. The band would fail 22 of 25 campus spaces and 6 of 8 Marlow sets. Both maps
 are built on purpose to CT density: 1-3 guards per space, with a mixed patrol and clockwork cycles (level-design 4).
 What does hold is the ramp: section totals rise 8 -> 12 -> 16 -> 20 -> 24 as the SPEC intends.
 

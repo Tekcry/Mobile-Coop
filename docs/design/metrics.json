@@ -261,7 +261,6 @@
       6,
       10
     ],
-    "guards_max": 10,
     "safe_drop_m": 4.5
   }
 }

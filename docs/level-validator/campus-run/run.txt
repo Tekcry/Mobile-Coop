@@ -293,32 +293,32 @@ WARN:  link s5-hall -> s5-gal (open_stair): width 2 m below 2.4 m
 WARN:  link s5-roof -> s5-garden (drop): drop 8.4 m above the 4.5 m safe drop
 WARN:  link s5-roof -> s5-terrace (drop): drop 8.4 m above the 4.5 m safe drop
 WARN:  link s5-roof -> s5-well (drop): drop 8.4 m above the 4.5 m safe drop
+WARN:  s1-gatehouse: 2 guards (2 players) below the early band 3-6
+WARN:  s1-dyard: 1 guards (2 players) below the early band 3-6
+WARN:  s1-forecourt: 2 guards (2 players) below the early band 3-6
+WARN:  s2-foyer: 1 guards (2 players) below the early band 3-6
+WARN:  s2-hall: 1 guards (2 players) below the early band 3-6
+WARN:  s2-l1-plan: 1 guards (2 players) below the early band 3-6
+WARN:  s2-l1-wing: 1 guards (2 players) below the early band 3-6
+WARN:  s2-l1-facilities: 1 guards (2 players) below the early band 3-6
+WARN:  s3-dock: 2 guards (2 players) below the early band 3-6
+WARN:  s4-dock: 2 guards (2 players) below the late band 6-10
+WARN:  s4-lobby: 1 guards (2 players) below the late band 6-10
+WARN:  s4-batt: 1 guards (2 players) below the late band 6-10
+WARN:  s4-yard: 3 guards (2 players) below the late band 6-10
+WARN:  s4-deck: 1 guards (2 players) below the late band 6-10
+WARN:  s5-ante: 3 guards (2 players) below the late band 6-10
+WARN:  s5-hall: 2 guards (2 players) below the late band 6-10
+WARN:  s5-garden: 2 guards (2 players) below the late band 6-10
+WARN:  s5-terrace: 2 guards (2 players) below the late band 6-10
+WARN:  s5-lawn: 2 guards (2 players) below the late band 6-10
+WARN:  s5-kitchen: 1 guards (2 players) below the late band 6-10
+WARN:  s5-arch: 1 guards (2 players) below the late band 6-10
+WARN:  s5-roof: 1 guards (2 players) below the late band 6-10
 WARN:  secret approach in 2 of 25 guarded encounter spaces (aim for half)
 WARN:  link s5-arch -> s5-well (team_rope) has a solo twin: link s5-arch -> s5-well (drop); one player makes this move alone (make the co-op move the only way at this spot, or remove the solo link)
 WARN:  pacing: no release (1-2) after the peak at s4-mantrap before s4-yard
 WARN:  pacing: no release (1-2) after the peak at s4-hall before s4-noc
 WARN:  pacing: no release (1-2) after the peak at s5-cage before s5-roof
-INFO:  s1-gatehouse: 2 guards (2 players) outside the early band 3-6
-INFO:  s1-dyard: 1 guards (2 players) outside the early band 3-6
-INFO:  s1-forecourt: 2 guards (2 players) outside the early band 3-6
-INFO:  s2-foyer: 1 guards (2 players) outside the early band 3-6
-INFO:  s2-hall: 1 guards (2 players) outside the early band 3-6
-INFO:  s2-l1-plan: 1 guards (2 players) outside the early band 3-6
-INFO:  s2-l1-wing: 1 guards (2 players) outside the early band 3-6
-INFO:  s2-l1-facilities: 1 guards (2 players) outside the early band 3-6
-INFO:  s3-dock: 2 guards (2 players) outside the early band 3-6
-INFO:  s4-dock: 2 guards (2 players) outside the late band 6-10
-INFO:  s4-lobby: 1 guards (2 players) outside the late band 6-10
-INFO:  s4-batt: 1 guards (2 players) outside the late band 6-10
-INFO:  s4-yard: 3 guards (2 players) outside the late band 6-10
-INFO:  s4-deck: 1 guards (2 players) outside the late band 6-10
-INFO:  s5-ante: 3 guards (2 players) outside the late band 6-10
-INFO:  s5-hall: 2 guards (2 players) outside the late band 6-10
-INFO:  s5-garden: 2 guards (2 players) outside the late band 6-10
-INFO:  s5-terrace: 2 guards (2 players) outside the late band 6-10
-INFO:  s5-lawn: 2 guards (2 players) outside the late band 6-10
-INFO:  s5-kitchen: 1 guards (2 players) outside the late band 6-10
-INFO:  s5-arch: 1 guards (2 players) outside the late band 6-10
-INFO:  s5-roof: 1 guards (2 players) outside the late band 6-10
 
-149 error(s), 151 warning(s).
+149 error(s), 173 warning(s).

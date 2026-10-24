@@ -438,10 +438,12 @@ describe('level-validate: failing fixtures (PLAN V1 list)', () => {
     expect((checkPacing(g2) as Report).warns.filter((w) => w.includes('a-hut'))).toEqual([]);
   });
 
-  it('guards 11', () => {
+  it('guards 11: no upper limit', () => {
     const g = base();
     space(g, 'b-vault').guards = { 2: 11 };
-    expectErr(check(g), 'b-vault: 11 guards (2 players) over the 10 maximum');
+    const r = check(g);
+    expect(r.errors).toEqual([]);
+    expect(r.warns).toEqual([]);
   });
 
   it('co-op guards below the 2-player count', () => {
@@ -452,19 +454,20 @@ describe('level-validate: failing fixtures (PLAN V1 list)', () => {
     expectErr(check(g), 'a-court: 4 guards at 3 players, fewer than 5 at 2');
   });
 
-  it('guard bands (3-6 early, 6-10 late) are INFO only', () => {
+  it('guard bands (3-6 early, 6-10 late) WARN only below', () => {
     const g = base();
     space(g, 'a-court').guards = { 2: 2 };
     space(g, 'b-vault').guards = { 2: 4 };
     const r = check(g);
     expect(r.errors).toEqual([]);
-    expect(r.warns).toEqual([]);
-    expect(r.infos).toEqual([
-      'a-court: 2 guards (2 players) outside the early band 3-6',
-      'b-vault: 4 guards (2 players) outside the late band 6-10',
+    expect(r.warns).toEqual([
+      'a-court: 2 guards (2 players) below the early band 3-6',
+      'b-vault: 4 guards (2 players) below the late band 6-10',
     ]);
     space(g, 'b-vault').phase = 'early';
-    expect(check(g).infos).toHaveLength(1);
+    expect(check(g).warns).toHaveLength(1);
+    space(g, 'a-court').guards = { 2: 9 };
+    expect(check(g).warns).toEqual([]);
   });
 
   it('room-class too small (real table, and an inline table)', () => {

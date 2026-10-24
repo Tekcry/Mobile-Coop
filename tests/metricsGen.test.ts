@@ -46,7 +46,7 @@ describe('metrics-gen', () => {
       ceiling_min: 2.4, door_h_min: 2.0, door_h_max: 2.2, roller_door_w: 3.0, duct_w: 1.2, duct_h: 1.5, tunnel_h: 2.1,
       wall_jump_max_up: 3.8, coop_lip: [4.3, 4.5], split_jump_w: [1.2, 1.95], split_jump_h: 3.6,
     });
-    expect(m.rules).toMatchObject({ dead_end_max_m: 15, guards_early: [3, 6], guards_late: [6, 10], guards_max: 10, safe_drop_m: 4.5 });
+    expect(m.rules).toMatchObject({ dead_end_max_m: 15, guards_early: [3, 6], guards_late: [6, 10], safe_drop_m: 4.5 });
     const changed = parse(SHEET.replace('| `guards_late` | 6 - 10 |', '| `guards_late` | 5 - 9 |'));
     expect(changed.rules.guards_late).toEqual([5, 9]);
     expect(() => parse(SHEET.replace('| `guards_late` | 6 - 10 |', '| `guards_late` | 6 to 10 |'))).toThrow(/section 8, row "\d+ guards_late".*not a number or a min - max range/);
