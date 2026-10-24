@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-24T11:50Z
+status: open
 
 # level-validator V6e-2: campus measure run, drift test, V6 report (Marlow Build, job level-validator)
 
