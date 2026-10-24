@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-24T21:50Z
 
 # Sector Ops: section-bake polish 5 (bake4 check held polish 1-8), stacked on #385
 
