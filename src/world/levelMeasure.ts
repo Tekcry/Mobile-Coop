@@ -293,10 +293,14 @@ export function measureGraph(graph: MeasureGraphInput, opts: MeasureOptions): Me
       for (const p of pts) if (inArea(area, p[0], p[1], fy, 0)) eyes.push([p[0], fy + EYE_STAND, p[1]]);
     }
     if (!eyes.length) continue;
+    const exp = new Map<number, boolean>();
     const exposed = (i: number): boolean => {
-      if (!lit(i)) return false;
-      for (const e of eyes) if (sees(e, i)) return true;
-      return false;
+      let v = exp.get(i);
+      if (v === undefined) {
+        v = lit(i) && eyes.some((e) => sees(e, i));
+        exp.set(i, v);
+      }
+      return v;
     };
     const ring = cellsIn(nav, area, MEASURE_DEF.ring, () => true);
     const goals: P2[] = [];
