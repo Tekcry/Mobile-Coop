@@ -2,6 +2,11 @@
 
 RESUMED ~23:55 (new account; orchestrator: overnight mode, one slice at a time, testing backlog first, save at 5-hour ~95%):
 #247 laptop afp PASS on fd34263e + CI green -> train-ready label added, orchestrator told (joins train 39 with #269).
+~18:05: guard-models PR with flag OFF approved (orchestrator), conditions: conflict-free (merge master ourselves; master's
+protocol.ts + G6n look bits) and the 29 MB never precached / fetched while the flag is off. Opus agent doing the master
+merge (S11 items + thawPose figure.update line) + SW precache exclusion + build, on feature/guard-models. G9 request on
+b25947e6 withdrawn (stale). Then: G9 e2e set on the merged head, Opus checker on the merge, PR, train-ready. Perf profile
+(read-only Opus, PLAN2 S13 mesh count) running.
 ~17:40: #314 R3 contextual (Michael ~14:55) c69b698c + CHECK-R3 PASS (979da9d7). Pending: CI on 979da9d7, laptop
 coop + netmove on 52258028 (40217-...-60f5), pad + mouse on c69b698c (41745-...-47f6); all green -> gh pr edit 314
 --add-label train-ready + orchestrator. guard-models G8 cap3 on 0fd85e2b DONE (3/3 steps): waiting for Test Runner's
