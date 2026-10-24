@@ -2,6 +2,11 @@
 
 RESUMED ~23:55 (new account; orchestrator: overnight mode, one slice at a time, testing backlog first, save at 5-hour ~95%):
 #247 laptop afp PASS on fd34263e + CI green -> train-ready label added, orchestrator told (joins train 39 with #269).
+~19:10: perf batch DONE (feature/gm-perf 408ab154; PERF-REPORT.md): F1 frozen base / shield materials, F2 pose in the LOD
+skeleton's onBeforeCompute (culled + no shadow list = no pose; moon CSM casters still pose), T1 guard-cap render.figure vs
+render.s1 + active-mesh tally per class. Cap A/B queued (set gm-perf-cap). STATE fix: G8 "Poser solve PASS" = NOT MEASURED
+(ai.anim never rendered). If gun tally ~13 / guard -> S13 merge guns (weaponModel.ts). gm-perf merges into guard-models
+after the PR (or rides it if the numbers pass the gate first: then flip flags.ts:131).
 ~19:00: guard-models MERGE-CHECK-A PASS (4f2e1a57); PR CHECK-B FAIL B1 (14ebd55a): vite.config.ts:115 SW urlPattern uses an
 imported regex that workbox serialises without the import -> every same-origin runtime-cache match throws, offline cache
 broken for everyone. Opus fix round running (self-contained urlPatterns, sw.js pin test, build, doc polish). Then rerun
