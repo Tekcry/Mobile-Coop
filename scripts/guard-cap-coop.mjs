@@ -29,7 +29,11 @@
 // GPU smoke: --maps=campus --counts=0,12 --players=2 --secs=3):
 //   E2E_GPU=1 E2E_PORT=4189 node scripts/guard-cap-coop.mjs [--maps=campus,sectorops] [--counts=0,12,24,32]
 //     [--cells=patrol,away,alert] [--players=2,4] [--warm=5] [--secs=10] [--out=docs/guard-cap/coop] [--gfx=epic]
-//     [--viewport=1280x720] [--kind=grunt]
+//     [--viewport=1280x720] [--kind=grunt] [--query=<k=v&k=v>]
+//   --query appends extra URL query parameters to EVERY page URL (host and clients), after the script's own
+//   (`net=local&sectorGuards=0&gfx=...`), e.g. `--query=flags=puppetFreeze` or `--query="a=1&b=2"`; a leading `?` or `&`
+//   is dropped. It is recorded in guard-cap-coop.json (`query`), as a `query` CSV column and in RESULTS.md, so A/B runs
+//   are labelled. `--help` prints this usage and exits.
 //   --maps also takes a bare map id (`warehouseOps`, run in Sector Ops mode). Exits at once (code 2) without E2E_GPU=1
 //   or with E2E_HEADED=1. --warm is raised to at least 5 s. The snapshot lists at most 32 guards (`MAX_ENEMIES`), so a
 //   client shows at most 32 puppets however many the host runs. Each page's viewport is --viewport (default 1280x720,
@@ -43,6 +47,13 @@ import { spawn } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
+if (process.argv.includes('--help') || process.argv.includes('-h')) {
+  const src = readFileSync(process.argv[1], 'utf8').split('\n');
+  const from = src.findIndex((l) => l.startsWith('// Usage'));
+  const to = src.findIndex((l) => l.startsWith('// Writes <out>'));
+  console.log(src.slice(from, to + 2).map((l) => l.replace(/^\/\/ ?/, '')).join('\n'));
+  process.exit(0);
+}
 if (process.env.E2E_UNCAP === undefined) process.env.E2E_UNCAP = '1';
 // run from the repo root with its packages installed (the preview server and Playwright come from node_modules)
 if (!existsSync('node_modules/vite/bin/vite.js') || !existsSync('node_modules/playwright-core')) {
@@ -58,6 +69,8 @@ const { until, setSimPages, startMode, LOAD_MS } = await import('./e2e-net-lib.m
 
 const argv = process.argv.slice(2);
 const opt = (k, d) => argv.find((a) => a.startsWith(`--${k}=`))?.slice(k.length + 3) ?? d;
+const QUERY = opt('query', '').trim().replace(/^[?&]+/, '').replace(/&+$/, '');
+if (/[\s#]/.test(QUERY)) throw new Error(`bad --query ${JSON.stringify(QUERY)} (no spaces or #: use k=v&k=v, URL-encoded)`);
 const MAPS = opt('maps', 'campus,sectorops').split(',').filter(Boolean);
 const COUNTS = opt('counts', '0,12,24,32').split(',').filter(Boolean).map(Number);
 const PLAYERS = opt('players', '2,4').split(',').filter(Boolean).map(Number);
@@ -88,7 +101,8 @@ if (!GPU) {
 const MAP_ID = { sectorops: 'warehouseOps', campus: 'campusOps' };
 const mapId = (m) => MAP_ID[m] ?? m;
 // every page: the local transport, no section guards (the page spawns its own), the epic preset (not the saved settings)
-const roomParams = () => `net=local&sectorGuards=0&gfx=${GFX}`;
+// (--query goes last: the script's own params stay as they are)
+const roomParams = () => `net=local&sectorGuards=0&gfx=${GFX}${QUERY ? `&${QUERY}` : ''}`;
 
 const log = (...a) => console.log(`[guard-cap-coop ${new Date().toISOString().slice(11, 19)}]`, ...a);
 
@@ -454,6 +468,7 @@ const results = {
   gpu: GPU,
   uncapped: process.env.E2E_UNCAP === '1',
   gfx: GFX,
+  query: QUERY,
   viewport: [VW, VH],
   kind: KIND,
   warm: WARM,
@@ -657,6 +672,7 @@ function writeOutputs() {
 // (a function, not a const: the run above calls the writers before a top-level const below it would be initialised)
 function csvCols() {
   const cols = [
+    ['query', () => QUERY],
     ['map', (c) => c.map],
     ['players', (c) => c.players],
     ['count', (c) => c.count],
@@ -734,7 +750,7 @@ function resultsMd(R) {
   const mm = (s) => (s ? `${f(s)} / ${f(s, 'max')}` : '-');
   const L = [];
   L.push('# Guard cap, co-op: results', '');
-  L.push(`Run ${R.started} - ${R.finished ?? '?'} (${R.minutes ?? '?'} min), version ${R.version ?? '?'}, hardware GPU (E2E_GPU=1), ${R.uncapped ? 'frame rate uncapped' : 'display-capped'}, gfx=${R.gfx}, ${R.viewport.join('x')} per page, guards: ${R.kind}, warm ${R.warm} s${R.warmAsked !== R.warm ? ` (asked ${R.warmAsked}, raised to the 5 s minimum)` : ''}, sample ${R.secs} s on every page at once.`);
+  L.push(`Run ${R.started} - ${R.finished ?? '?'} (${R.minutes ?? '?'} min), version ${R.version ?? '?'}, hardware GPU (E2E_GPU=1), ${R.uncapped ? 'frame rate uncapped' : 'display-capped'}, gfx=${R.gfx}, ${R.query ? `extra query \`${R.query}\`, ` : ''}${R.viewport.join('x')} per page, guards: ${R.kind}, warm ${R.warm} s${R.warmAsked !== R.warm ? ` (asked ${R.warmAsked}, raised to the 5 s minimum)` : ''}, sample ${R.secs} s on every page at once.`);
   L.push('Medians / p95 in ms unless named. Script: `scripts/guard-cap-coop.mjs`; method and decision rule: `docs/guard-cap/PLAN.md`. Guards are spawned on the host page; every client page faces them (the `away` cell turns every page 180 degrees). Frame CPU is the loop\'s own per-frame CPU (sim + update + render submit); uncapped, most frames run no 60 Hz step, so the frames that ran one are shown too. Wire sizes are `JSON.stringify(msg).length` characters. The host\'s frame CPU includes the wire wrapper\'s own `JSON.stringify` cost (reported as stringify ms per s in the wire table).', '');
   const ok = R.cells.filter((c) => !c.error && c.pages);
   const groups = [];
