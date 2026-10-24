@@ -84,11 +84,12 @@ import { BlobShadows } from '../vfx/blobShadows';
 import { LkpGhost } from '../vfx/lkpGhost';
 import { VisionState } from './vision';
 import { DoorGhosts } from '../vfx/doorGhosts';
+import { bodyHeat } from '../vfx/thermalGhost';
 import { VISION_GAIN } from '../world/darkCurve';
 import { NV_TONE } from '../vfx/nightVision';
 import { ELECTRO_BULB } from '../world/lightRig';
 import { THERMAL, ELECTRO, ELECTRO_KINDS } from '../vfx/visionLook';
-import { visionLabel } from './vision';
+import { visionLabel, type VisionMode } from './vision';
 import { StealthSystems } from './stealthSystems';
 import { SecuritySystem } from '../security/securitySystem';
 import type { CtDevices, SecWire } from './ctDevices';
@@ -2528,11 +2529,15 @@ export class GameState implements AppState {
   readonly vision = new VisionState();
   /** Seconds since the last vision switch (the HUD label shows for `VISION_LABEL_TIME`). */
   private visionLabelT = 99;
+  /** (LR16-6) The mode on screen at the last render frame (a change, from the button or the wheel, flashes the label). */
+  private visionShown: VisionMode = 'off';
   /** (Step 14) the render frame's stamp (bodies mark their rigs with it), and electro's live device parts. */
   private visionFrame = 0;
   private electroParts: InstancedMesh[] = [];
   private electroK = 0;
   private doorGhosts: DoorGhosts | null = null;
+  /** (LR16-6 fix) Co-op client: stamps its kept bodies (it has no enemy manager) so they cool as the host's do. Render only. */
+  bodyStamp: ((frame: number) => void) | null = null;
 
   /** Goggles per fixed step: the button cycles the modes. */
   private updateVision(_dt: number): void {
@@ -2565,10 +2570,17 @@ export class GameState implements AppState {
     this.post.setVisionKind(kind);
     this.paintHeat(kind === 1);
     this.paintElectro(kind === 2 ? 1 : 0);
-    // (A5, G102) thermal: a dim silhouette of a guard behind a closed door (render only)
-    const gh = (this.doorGhosts ??= new DoorGhosts(this.scene, this.world.doors, (a, b, m) => this.ballistics.ray(a, b, m)));
-    gh.update(kind === 1, this.player.cam.camera.position, this.enemyMgr?.enemies, this.remotePlayers());
+    // (A5, G102; LR16-6) thermal: a dim posed silhouette of anyone warm behind a shut door, from every live rig (guards,
+    // partners, fresh bodies; host and client alike, each peer's own view). Render only: after paintHeat, which sets the heat
+    const gh = (this.doorGhosts ??= new DoorGhosts(this.scene, this.world.doors, (a, b, m) => this.ballistics.hitDistance(a, b, m)));
+    gh.update(kind === 1, this.player.cam.camera.position, LIVE_RIGS, this.player.rig);
     this.world.lightRig.setVisionBoost(Math.max(v.night, kind === 2 ? ELECTRO_BULB : 0));
+    // (LR16-6, G100 / G181) every change of the picture is an instant cut; a wheel switch between modes with the goggles on
+    // flashes the HUD label as the button does (no goggle flip or sound between modes)
+    if (v.mode !== this.visionShown) {
+      this.visionShown = v.mode;
+      this.visionLabelT = 0;
+    }
     this.visionLabelT += dt;
     this.hud.setVision(this.visionLabelT < VISION_LABEL_TIME ? visionLabel(v.mode) : '', v.mode);
   }
@@ -2585,13 +2597,16 @@ export class GameState implements AppState {
         r.bodyAge = bodies[i]!.age;
       }
     }
+    // (LR16-6 fix) the co-op client's kept bodies (no enemy manager there): the same cooling, so a body behind a shut
+    // door stops showing when the host's does
+    if (on && !bodies) this.bodyStamp?.(f);
     for (let i = 0; i < LIVE_RIGS.length; i++) {
       const r = LIVE_RIGS[i]!;
       let k = 0;
       if (on) {
         k = THERMAL.bodyEmit;
         // (a body cools in 1/16 steps: its buffers change a few times a minute, not every frame)
-        if (r.bodyFrame === f) k *= Math.round(16 * Math.max(0, 1 - r.bodyAge / THERMAL.coolTime)) / 16;
+        if (r.bodyFrame === f) k = bodyHeat(r.bodyAge);
       }
       r.setHeat(k);
     }
@@ -2601,7 +2616,7 @@ export class GameState implements AppState {
       let k = 0;
       if (on) {
         k = THERMAL.bodyEmit;
-        if (d.isDown) k *= Math.round(16 * Math.max(0, 1 - d.downAge / THERMAL.coolTime)) / 16;
+        if (d.isDown) k = bodyHeat(d.downAge);
       }
       d.setHeat(k);
     }
