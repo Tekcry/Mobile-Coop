@@ -1503,7 +1503,46 @@ def match_line(X, lines):
 
 
 SNAP_RELAX = 3          # (G10a D4) spacing passes along the contour after the snap
+CORNER_DEG = 65.0       # (G10a D4b) corner_slide works on a boundary vertex turning more than this
 CAP_PINHOLE_RESERVE = 8  # tris kept free under each cap budget for the pinholes close_pinholes may fill after a decimate
+
+
+def corner_slide(line, s0, par, own, iters=None):
+    """(G10a D4b) A real contour corner (the receding temple) sampled by one coarse-LOD vertex turns ~100 deg there:
+    while the sharpest vertex turns over CORNER_DEG, slides its two neighbours halfway toward it along the contour, so
+    the corner's turn is shared by three vertices. `par`: arc parameters (from `s0`, rising in loop order, None = the
+    vertex keeps its own position `own[i]`). A slide is kept only if the largest turn over i-2..i+2 drops below the
+    corner's; else it is undone and the loop stops. Neighbours never pass the corner, so order holds; every vertex stays
+    on the line; at most `iters` (default 4 n) steps. Returns (par wrapped to [0, L), slides kept)."""
+    L = line[2]
+    n = len(par)
+    par = [None if p is None else float(p) for p in par]
+    slides = 0
+    if n < 5:
+        return par, slides
+
+    def pos(p):
+        return np.array([polyline_point(line, s0 + p[i]) if p[i] is not None else own[i] for i in range(n)])
+
+    for _ in range(iters or 4 * n):
+        t = turn_degs_all(pos(par))
+        i = int(np.argmax(t))
+        if t[i] <= CORNER_DEG or par[i] is None:
+            break
+        q = list(par)
+        for j, back in (((i - 1) % n, True), ((i + 1) % n, False)):
+            if par[j] is None:
+                continue
+            gap = ((par[i] - par[j]) if back else (par[j] - par[i])) % L   # unwrapped: across the seam it is +- L
+            q[j] = ((par[i] - gap / 2) if back else (par[i] + gap / 2)) % L
+        if q == par:
+            break
+        t2 = turn_degs_all(pos(q))
+        if max(t2[(i + d) % n] for d in range(-2, 3)) >= t[i]:
+            break
+        par = q
+        slides += 1
+    return [None if p is None else p % L for p in par], slides
 
 
 def increasing_run(u):
@@ -1533,11 +1572,12 @@ def snap_loops(co, polys, lines):
     """Moves every boundary vertex (of the mesh `co` / `polys`) onto the dense hairline polyline, keeping loop order:
     the longest run of vertices whose nearest polyline points already follow the loop's order go to those points; every
     other vertex (its nearest point would fold the loop back, or repeat a neighbour's) is spread evenly, in loop order,
-    along the arc between the placed vertices around it. Returns (co, how many kept their own position)."""
+    along the arc between the placed vertices around it; then the spacing passes and corner_slide. Returns (co, how many
+    kept their own position, corner slides kept)."""
     co = co.copy()
-    kept = 0
+    kept = slides = 0
     if not lines:
-        return co, 0
+        return co, 0, 0
     for loop in boundary_loops(polys):
         X = co[loop]
         line = match_line(X, lines)
@@ -1572,23 +1612,25 @@ def snap_loops(co, polys, lines):
                     continue
                 q[i] = 0.5 * par[i] + 0.25 * ((pa - L if i == 0 else pa) + (pb + L if i == n - 1 else pb))
             par = q
+        par, sl = corner_slide(line, s[k0], par, X[order])   # (G10a D4b) one coarse vertex on a real corner
+        slides += sl
         new = X.copy()
         for i, k in enumerate(order):
             if par[i] is not None:
                 new[k] = polyline_point(line, s[k0] + par[i])
         co[loop] = new
-    return co, kept
+    return co, kept, slides
 
 
 def snap_hairline(obj, lines):
     """snap_loops on a decimated cap object, in place (pinholes the decimator opened closed first). Returns how many
-    boundary vertices kept their own position."""
+    boundary vertices kept their own position, and how many corner slides were kept."""
     close_pinholes(obj)
     co, polys = mesh_arrays(obj)
-    co, kept = snap_loops(co, polys, lines)
+    co, kept, slides = snap_loops(co, polys, lines)
     obj.data.vertices.foreach_set('co', co.ravel())
     obj.data.update()
-    return kept
+    return kept, slides
 
 
 def turn_degs_all(P):
@@ -1605,9 +1647,10 @@ def turn_degs(P):
     return turn_degs_all(P)
 
 
-def loops_measure(co, polys, lines, kept=0):
+def loops_measure(co, polys, lines, kept=0, slides=0):
     """The haircaps JSON `hairline` entry of one cap LOD: boundaryVerts, maxDevMm (boundary vertex to the dense contour
-    polyline), maxTurnDeg (largest turn between consecutive boundary edges; a sawtooth tooth turns ~150)."""
+    polyline), maxTurnDeg (largest turn between consecutive boundary edges; a sawtooth tooth turns ~150); diagnostics the
+    check ignores: pinchVerts (a vertex a loop passes twice), cornerSlides (corner_slide steps kept)."""
     loops = boundary_loops(polys)
     nv, dev, turn = 0, 0.0, 0.0
     for loop in loops:
@@ -1620,12 +1663,12 @@ def loops_measure(co, polys, lines, kept=0):
         if len(t):
             turn = max(turn, float(t.max()))
     return {'boundaryVerts': nv, 'loops': len(loops), 'maxDevMm': round(dev * 1000.0, 3), 'maxTurnDeg': round(turn, 1),
-            'keptOwn': kept}
+            'keptOwn': kept, 'pinchVerts': sum(len(l) - len(set(l)) for l in loops), 'cornerSlides': slides}
 
 
-def hairline_measure(obj, lines, kept=0):
+def hairline_measure(obj, lines, kept=0, slides=0):
     co, polys = mesh_arrays(obj)
-    return loops_measure(co, polys, lines, kept)
+    return loops_measure(co, polys, lines, kept, slides)
 
 
 def contour_measure(lines):
@@ -1687,7 +1730,7 @@ def run_haircaps(args, kit):
         vg.add(list(range(len(shell))), 1.0, 'REPLACE')
         src_tris = tri_count(obj.data)
         decimate(obj, cap['tris'][0] - CAP_PINHOLE_RESERVE)
-        hairline_q = {'lod0': hairline_measure(obj, lines, snap_hairline(obj, lines))}
+        hairline_q = {'lod0': hairline_measure(obj, lines, *snap_hairline(obj, lines))}
         obj.data.uv_layers.new(name='face')
         unwrap(obj, seams=None, margin=0.01)
         mat, sockets = guard_skin.hair(f'hair-{cap["id"]}', cap['id'], tuple(crown),
@@ -1713,7 +1756,7 @@ def run_haircaps(args, kit):
         if len(cap['tris']) > 1 and cap['tris'][1] > 0:
             o1 = duplicate(obj, f'guard-{args.base}-cap-{cap["id"]}-lod1')
             decimate(o1, cap['tris'][1] - CAP_PINHOLE_RESERVE)
-            hairline_q['lod1'] = hairline_measure(o1, lines, snap_hairline(o1, lines))
+            hairline_q['lod1'] = hairline_measure(o1, lines, *snap_hairline(o1, lines))
             lods['lod1'] = tri_count(o1.data)
             o1['tint'] = 'hair'
             o1['piece'] = f'hair:{cap["id"]}'
