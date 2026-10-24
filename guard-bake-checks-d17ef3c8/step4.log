@@ -1,0 +1,33 @@
+
+$ node scripts/operators/guardGarmentCheck.mjs C:/NightShift/scratch/guard-bake/garments/guard-*.json
+ok   average boots: 179208 tris shown (hero 86856), 9 objects, 20.1 s
+ok   average gloves: 299116 tris shown (hero 217932), 7 objects, 437.3 s
+FAIL average jacket: 1237596 tris shown (hero 1077680), 16 objects, seam gap 32.9 mm, chain shirt+boots+trousers, 606.3 s
+     jacket: seam gap before the weld 32.9 mm > 30 mm
+     warn: shirt (chain copy): seam gap before the weld 21.4 mm > 10 mm (Wren's limit)
+     warn: trousers (chain copy): seam gap before the weld 20.1 mm > 10 mm (Wren's limit)
+ok   average shirt: 1065836 tris shown (hero 954304), 14 objects, seam gap 21.4 mm, 208 s
+     warn: shirt: seam gap before the weld 21.4 mm > 10 mm (Wren's limit)
+ok   average trousers: 1024608 tris shown (hero 880440), 18 objects, seam gap 20.1 mm, chain shirt+boots, 386.7 s
+     warn: trousers: seam gap before the weld 20.1 mm > 10 mm (Wren's limit)
+     warn: shirt (chain copy): seam gap before the weld 21.4 mm > 10 mm (Wren's limit)
+ok   broad boots: 181244 tris shown (hero 87380), 9 objects, 26.4 s
+ok   broad gloves: 302616 tris shown (hero 217032), 7 objects, 242.1 s
+FAIL broad shirt: 1228274 tris shown (hero 1110912), 14 objects, seam gap 41.8 mm, 254.7 s
+     shirt: seam gap before the weld 41.8 mm > 30 mm
+FAIL broad trousers: 1139628 tris shown (hero 989168), 18 objects, seam gap 22 mm, chain shirt+boots, 398.4 s
+     shirt (chain copy): seam gap before the weld 41.8 mm > 30 mm
+     warn: trousers: seam gap before the weld 22 mm > 10 mm (Wren's limit)
+ok   lean boots: 178236 tris shown (hero 85908), 9 objects, 28.3 s
+ok   lean gloves: 299284 tris shown (hero 218212), 7 objects, 387.2 s
+ok   lean shirt_rolled: 790252 tris shown (hero 695624), 13 objects, seam gap 20.3 mm, 180.3 s
+     warn: shirt_rolled: seam gap before the weld 20.3 mm > 10 mm (Wren's limit)
+FAIL lean trousers: 977656 tris shown (hero 835336), 18 objects, seam gap 52.5 mm, chain shirt_rolled+boots, 371.7 s
+     trousers: seam gap before the weld 52.5 mm > 30 mm
+     warn: shirt_rolled (chain copy): seam gap before the weld 20.3 mm > 10 mm (Wren's limit)
+ok   lean work_gloves: 290848 tris shown (hero 218648), 7 objects, 358.2 s
+FAIL lean work_jacket: 1059924 tris shown (hero 930088), 11 objects, seam gap 10.7 mm, chain boots+work_trousers, 361.1 s
+     work_trousers (chain copy): seam gap before the weld 35.7 mm > 30 mm
+     warn: work_jacket: seam gap before the weld 10.7 mm > 10 mm (Wren's limit)
+FAIL lean work_trousers: 1006968 tris shown (hero 886976), 13 objects, seam gap 35.7 mm, chain boots, 199.8 s
+     work_trousers: seam gap before the weld 35.7 mm > 30 mm

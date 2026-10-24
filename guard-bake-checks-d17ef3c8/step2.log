@@ -1,0 +1,5 @@
+
+$ node scripts/operators/guardBodyCheck.mjs --kit scripts/operators/data/guards.json C:/NightShift/scratch/guard-bake/bodies/guard-*-body.json
+ok   average: 18568 tris, 9306 verts, 33 bones, 4 influences, stature 1.766 m (-4.45 mm), shoulders 0.515, chest girth 1.064, neck girth 0.401 m, dims worst 0.00 mm, round trip 5.0e-8 m, 2.2 s
+ok   broad: 18568 tris, 9306 verts, 33 bones, 4 influences, stature 1.820 m (-5.33 mm), shoulders 0.582, chest girth 1.240, neck girth 0.476 m, dims worst 2.41 mm, round trip 5.6e-8 m, 2.2 s
+ok   lean: 18568 tris, 9306 verts, 33 bones, 4 influences, stature 1.756 m (-4.28 mm), shoulders 0.487, chest girth 0.974, neck girth 0.351 m, dims worst 0.00 mm, round trip 5.7e-8 m, 2.2 s

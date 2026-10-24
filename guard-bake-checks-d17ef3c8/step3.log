@@ -1,0 +1,13 @@
+
+$ node scripts/operators/guardHeadCheck.mjs --out C:/NightShift/scratch/guard-bake --kit scripts/operators/data/guards.json
+guard heads: 17 reports checked (average/envelope.json, broad/envelope.json, guard-average-1-head.json, guard-average-2-head.json, guard-average-3-head.json, guard-average-4-head.json, guard-average-haircaps.json, guard-broad-1-head.json, guard-lean-1-head.json, guard-lean-2-head.json, guard-lean-3-head.json, guard-lean-4-head.json, guard-lean-haircaps.json, lean/envelope.json, bodies/guard-average-body.json (seam), bodies/guard-lean-body.json (seam), bodies/guard-broad-body.json (seam))
+  average-1: albedo mean (linear) face island 0.697, whole tile 0.692 (the tile includes the scalp shadow: not the neutral)
+  average-2: albedo mean (linear) face island 0.643, whole tile 0.654 (the tile includes the scalp shadow: not the neutral)
+  average-3: albedo mean (linear) face island 0.498, whole tile 0.546 (the tile includes the scalp shadow: not the neutral)
+  average-4: albedo mean (linear) face island 0.646, whole tile 0.655 (the tile includes the scalp shadow: not the neutral)
+  broad-1: albedo mean (linear) face island 0.696, whole tile 0.692 (the tile includes the scalp shadow: not the neutral)
+  lean-1: albedo mean (linear) face island 0.697, whole tile 0.692 (the tile includes the scalp shadow: not the neutral)
+  lean-2: albedo mean (linear) face island 0.645, whole tile 0.655 (the tile includes the scalp shadow: not the neutral)
+  lean-3: albedo mean (linear) face island 0.495, whole tile 0.546 (the tile includes the scalp shadow: not the neutral)
+  lean-4: albedo mean (linear) face island 0.697, whole tile 0.692 (the tile includes the scalp shadow: not the neutral)
+all pass

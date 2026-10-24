@@ -1,0 +1,7 @@
+
+$ node scripts/operators/guard-bake.mjs --probe
+ok      blender: C:/Program Files/Blender Foundation/Blender 5.2/blender.exe (Blender 5.2.2 LTS)
+ok      toktx: C:\Program Files\KTX-Software\bin\toktx.exe (KTX_BIN default)
+MISSING MPFB2 zip: none of C:/NightShift/downloads/mpfb2-2.0.18/add-on-mpfb-v2.0.18.zip
+info    cpu cores 20, default --par 6, kit data present
+probe: 1 missing
