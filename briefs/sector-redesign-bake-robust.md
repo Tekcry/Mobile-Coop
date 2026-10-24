@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-24T09:44Z
 
 # Sector Ops: section bake robustness (follow-up to PR #333)
 

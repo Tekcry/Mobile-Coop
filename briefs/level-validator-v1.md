@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-24T09:44Z
 
 # level-validator V1: scripts/level-validate.mjs + tests/levelValidate.test.ts (Marlow Build, job level-validator)
 
