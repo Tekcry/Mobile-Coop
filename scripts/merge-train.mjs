@@ -55,6 +55,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { assemble, assembleDir, parseFragment, releaseHeading, summary } from './changelog-assemble.mjs';
+import { fetchOrigin } from './fetch-retry.mjs';
 import { takeTouchLock } from './heavy-lock.mjs';
 
 const DRY = process.argv.includes('--dry-run');
@@ -631,7 +632,8 @@ async function mergeAndTag({ pr, version, sha, stacked = false }) {
     return { merge: null, code: 0 };
   }
   const merge = run(['gh', 'pr', 'view', String(pr), '--json', 'mergeCommit', '--jq', '.mergeCommit.oid']);
-  run(['git', 'fetch', 'origin']);
+  // the merge commit (and the member heads closeMembers checks) are in master; narrow + lock-race retry (fetch-retry.mjs)
+  fetchOrigin(exec, ['master']);
   act(['git', 'tag', `v${version}`, merge]);
   act(['git', 'push', 'origin', `v${version}`]);
   act(['git', 'push', 'origin', `${merge}:refs/heads/dev`]);
@@ -765,7 +767,9 @@ function resolveOnBase(n, on) {
 
 async function build({ n, version, title, branches, keep, on = null }) {
   requireClean();
-  run(['git', 'fetch', 'origin']);
+  // master, every train head (--keep reads train/<n>, --on checks the base against all origin/train/*) and the members
+  // (one missing on origin is left out below, as before); narrow + lock-race retry (fetch-retry.mjs)
+  fetchOrigin(exec, ['master', 'train/*'], branches);
   const branch = `train/${n}`;
   const race = versionRace(version, versionAt('origin/master'));
   if (race) { console.error(race); return 1; }
@@ -896,7 +900,8 @@ function closeMembers(members, { n, version, pr }) {
 
 async function release({ n, version, title, resume, head: wantHead, noFallback }) {
   requireClean();
-  run(['git', 'fetch', 'origin']);
+  // master and the train heads (train/<n>; a stacked train's base is another train head); narrow + lock-race retry
+  fetchOrigin(exec, ['master', 'train/*']);
   const branch = `train/${n}`;
   if (!exists(`origin/${branch}`)) throw new Error(`origin/${branch} does not exist (run build first)`);
   const head = rev(`origin/${branch}`);
@@ -967,7 +972,7 @@ function stackedFacts(branch, head) {
 
 async function single({ branch, version, title }) {
   requireClean();
-  run(['git', 'fetch', 'origin']);
+  fetchOrigin(exec, ['master'], [branch]); // narrow + lock-race retry (fetch-retry.mjs); a missing branch throws below
   if (!exists(`origin/${branch}`)) throw new Error(`origin/${branch} does not exist`);
   const race = versionRace(version, versionAt('origin/master'));
   if (race) { console.error(race); return 1; }

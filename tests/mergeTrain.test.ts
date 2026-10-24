@@ -15,6 +15,8 @@ import {
   mergeRetryable, retryMerge, mergedTree, treeOf,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/merge-train.mjs';
+// @ts-expect-error plain .mjs process script without types
+import { FETCH_LOCK_RE, shouldRetryFetch, fetchBackoffMs, fetchRefspecs, fetchWithRetry, fetchOrigin } from '../scripts/fetch-retry.mjs';
 
 describe('merge-train', () => {
   it('classifies conflicts: CHANGELOG.md and changes/* resolvable, everything else blocking', () => {
@@ -544,5 +546,46 @@ describe('merge-train stacked trains on a real git repo', () => {
       git('checkout', '-q', '-b', 'm3', m64); const clash = commitFile('b.txt', 'b-other\n', 'clash');
       expect(mergedTree(clash, t65, dir)).toBeNull();
     } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+  });
+});
+
+describe('fetch-retry (23:30:50 "cannot lock ref" release failure)', () => {
+  const LOCK = "error: cannot lock ref 'refs/remotes/origin/master': is at abc but expected def";
+  it('retries only ref-lock races, up to 5 tries, 2-5 s apart', () => {
+    expect(FETCH_LOCK_RE.test(LOCK)).toBe(true);
+    expect(FETCH_LOCK_RE.test("error: Unable to create 'C:/x/.git/refs/remotes/origin/train/7.lock': File exists.")).toBe(true);
+    expect(FETCH_LOCK_RE.test('error: unable to update local ref: lock failed')).toBe(true);
+    expect(FETCH_LOCK_RE.test("fatal: couldn't find remote ref refs/heads/nope")).toBe(false);
+    expect(FETCH_LOCK_RE.test('fatal: unable to access https://github.com/: Could not resolve host')).toBe(false);
+    expect(shouldRetryFetch(LOCK, 1)).toBe(true);
+    expect(shouldRetryFetch(LOCK, 4)).toBe(true);
+    expect(shouldRetryFetch(LOCK, 5)).toBe(false);
+    expect(shouldRetryFetch('fatal: network down', 1)).toBe(false);
+    expect([1, 2, 3, 4, 5].map(fetchBackoffMs)).toEqual([2000, 3000, 4000, 5000, 5000]);
+  });
+  it('fetches only the named branches, globs allowed', () => {
+    expect(fetchRefspecs(['master', 'train/*'])).toEqual(['+refs/heads/master:refs/remotes/origin/master', '+refs/heads/train/*:refs/remotes/origin/train/*']);
+  });
+  it('fetchWithRetry rides out a lock race and gives up on other errors', () => {
+    const calls: string[][] = [];
+    const waits: number[] = [];
+    const script = [{ status: 1, out: '', err: LOCK }, { status: 1, out: '', err: LOCK }, { status: 0, out: '', err: '' }];
+    const r = fetchWithRetry((c: string[]) => { calls.push(c); return script[calls.length - 1]; }, ['master'], { wait: (ms: number) => waits.push(ms), log: () => {} });
+    expect(r).toMatchObject({ status: 0, tries: 3 });
+    expect(calls[0]).toEqual(['git', 'fetch', '-q', 'origin', '+refs/heads/master:refs/remotes/origin/master']);
+    expect(waits).toEqual([2000, 3000]);
+    let n = 0;
+    expect(fetchWithRetry(() => { n++; return { status: 128, out: '', err: 'fatal: network down' }; }, ['master'], { wait: () => {}, log: () => {} })).toMatchObject({ status: 128, tries: 1 });
+    n = 0;
+    expect(fetchWithRetry(() => { n++; return { status: 1, out: '', err: LOCK }; }, ['master'], { wait: () => {}, log: () => {} }).tries).toBe(5);
+    expect(n).toBe(5);
+  });
+  it('fetchOrigin skips a member branch origin does not have, throws on anything else', () => {
+    const quiet = { wait: () => {}, log: () => {} };
+    const missing = (c: string[]) => (c.some((x) => x.includes('heads/gone')) ? { status: 128, out: '', err: "fatal: couldn't find remote ref refs/heads/gone" } : { status: 0, out: '', err: '' });
+    expect(fetchOrigin(missing, ['master', 'train/*'], ['feature/a', 'gone'], quiet)).toEqual(['gone']);
+    expect(fetchOrigin(missing, ['master'], [], quiet)).toEqual([]);
+    expect(() => fetchOrigin(missing, ['gone'], [], quiet)).toThrow(/couldn't find remote ref/);
+    expect(() => fetchOrigin(() => ({ status: 128, out: '', err: 'fatal: network down' }), ['master'], ['feature/a'], quiet)).toThrow(/network down/);
   });
 });

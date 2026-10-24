@@ -41,6 +41,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fetchWithRetry } from './fetch-retry.mjs';
 import { takeTouchLock } from './heavy-lock.mjs';
 
 export const LABEL = 'train-ready';
@@ -592,7 +593,8 @@ function execHere(cmd) {
 function selfUpdate() {
   try {
     if (DRY) { log('  [dry-run] would self-update this checkout to origin/master when idle'); return; }
-    if (execHere(['git', 'fetch', '-q', 'origin']).status !== 0) { log('self-update skipped: git fetch failed'); return; }
+    // only master is read; narrow + lock-race retry (fetch-retry.mjs: another worktree's fetch holds a ref lock)
+    if (fetchWithRetry(execHere, ['master'], { log }).status !== 0) { log('self-update skipped: git fetch failed'); return; }
     const head = execHere(['git', 'rev-parse', 'HEAD']).out.trim();
     const master = execHere(['git', 'rev-parse', 'origin/master']).out.trim();
     const dirty = execHere(['git', 'status', '--porcelain']).out.trim() !== '';
