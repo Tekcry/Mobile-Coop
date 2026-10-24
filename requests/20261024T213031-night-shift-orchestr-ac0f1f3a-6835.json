@@ -1,0 +1,16 @@
+{
+  "id": "20261024T213031-night-shift-orchestr-ac0f1f3a-6835",
+  "sha": "ac0f1f3a368e82b16d6b1260f21a8cd25ae1afcc",
+  "branch": "",
+  "pr": 379,
+  "kind": "pr",
+  "requester": "Night Shift | Orchestrator",
+  "suites": [
+    "e2e-darkness",
+    "e2e-desktop",
+    "e2e-lightbake",
+    "smoke"
+  ],
+  "set": "affected-orch-379",
+  "note": "re-queue: stale desktop service retired the affected run"
+}
