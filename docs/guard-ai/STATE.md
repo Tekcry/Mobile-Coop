@@ -1,6 +1,9 @@
 # Guard AI - state
 
 ## Now
+~19:55 SAVE (orchestrator, 80%): coop4 master-merge checks A + B PASS (1f5e8c07); laptop coop4 + coop4-4p on
+1b04e5bd queued / running. All worktrees clean and pushed. Resume block current.
+
 ~19:40: TOOK feature/coop4 (#317) from Sector Ops (orchestrator; worktree C:/NightShift/Mobile-Coop-coop4, laptop,
 npm ci'd). p8 rejoin = test fix by Sector Ops afc616f0 (rejoin goes to the checkpoint on its slot by design). Master
 4.95.0 merged 1b04e5bd (PROTOCOL 54; #313 carry / #314 optic / bluffs per slot; A1 goOut drops the bluff, A2 hold
@@ -929,14 +932,16 @@ src/ai change: also the tests importing enemy.ts / enemyManager.ts; catch-all Pr
 #326 missed train 59 on consoleNoticeA4). Put this line in every builder brief.
 Master 4.93.0 (6e8a450b), PROTOCOL 52 (tests read the constant; the train bumps).
 Open:
-1. #313 co-op client body carry (feature/guard-ai-coop-carry, worktree -coop-carry): master 4.93.0 merged 1d2f3e1d
-   (S5 carry lie ported into src/game/bodyCarry.ts + src/net/carryView.ts; merge A1-A3 in COOP-CARRY-MERGE-CHECK-A/B.md),
-   checks A + B PASS, laptop coop-carry-m93 4/4 (e2e-coop flake = Marlow's joint interrogation, not carry). Head
-   5d41abdc docs-only. TRAIN-READY (label kept). Polish: CarryView instant drop (carrier down) lands front on the
-   owner's page vs side on the others (~0.9 m, 90 deg; CHECK-B P1).
-2. #322 e2e-lightbake pending-compile wait: TRAIN-READY (orchestrator labelled).
-3. #326 R1 allocation-free sight rays (worktree -r1-rays, guard-cap brief docs/guard-cap/briefs/R1.md): TRAIN-READY
-   321ef486 (checker PASS, fix round 099bf44d no res.reset() per cast, laptop r1-rays2 3/3, CI green).
+1. #317 coop4 (feature/coop4, worktree C:/NightShift/Mobile-Coop-coop4; taken from Sector Ops 2026-10-24): p8 test fix
+   afc616f0 (Sector Ops), master 4.95.0 merged 1b04e5bd (PROTOCOL 54), Opus checks A + B PASS (docs/coop4/checks/
+   master-merge-check-A/B.md, head 1f5e8c07 docs-only). Laptop on 1b04e5bd: set coop4 (12 suites) + coop4-4p (alone
+   sectorops 7-9): verdicts = statuses laptop-e2e/coop4, laptop-e2e/coop4-4p. Green -> `gh pr ready 317`, tell the
+   orchestrator train-ready (label). Red -> Opus triage at once. Polish: snapBudget 4-player headroom ~127 B with look
+   bits (CHECK-A P1), stale "optional until guard-ai-coop4" comment coopHost.ts:589, teamSizeOf TODO sectorMode.ts:201.
+   After #317 merges: feature/coop4-pol (Sector Ops' polish + UI2, head 134f6abe) needs master merged + its own alone 7-9.
+2. Cloud briefs T1 + D1/D2 on cloud-queue (876237aa): status blocked waiting M0 verdict (guard-cap, Marlow Build);
+   on its verdict set the named one to `status: open`. D1 also needs gm-perf (d729e490) on master.
+3. #313 coop-carry and #326 R1 RELEASED / train-ready (313 in 4.95.0); #322 train-ready.
 4. Merged today: #272, #295, #298, #302, #303, #319 coop4 AI side (Sector Ops wires the hooks; AI6-E2E-SPEC.md).
 5. Polish (after Michael's playtest): S24-LEVELS-CHECK redundant tell(alarmHunt) (enemyManager.ts reinforce) and
    parked joinReinforcement; A148 mission reinforcements stand at spawn (Michael's call); cover by straight-line
