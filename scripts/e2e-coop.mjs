@@ -2004,6 +2004,10 @@ console.log('lobby caps: slots by mode, Start blocked over the cap, Room full, M
     const LA = H.A;
     const LG = (f, a) => LA.evaluate(f, a);
     const rows = (P) => P.evaluate(() => ({ all: document.querySelectorAll('.lobby-screen .lobby-player').length, empty: document.querySelectorAll('.lobby-screen .lobby-player.empty').length }));
+    /** (coop4-ui2) The filled rows in order: each one's beacon swatch colour and whether it is the host. */
+    const swatches = (P) => P.evaluate(() => [...document.querySelectorAll('.lobby-screen .lobby-player:not(.empty)')].map((r) => ({ c: getComputedStyle(r.querySelector('.lp-beacon') ?? r).backgroundColor, host: !!r.querySelector('.lp-state.host') })));
+    /** The BEACON idle colours (goggleGlow.ts) as the swatches draw them: slot 0 blue, 1 red, 2 amber, 3 violet. */
+    const SLOT_RGB = ['rgb(31, 77, 255)', 'rgb(255, 26, 20)', 'rgb(255, 140, 13)', 'rgb(153, 51, 255)'];
     const lcode = await LG(() => window.__coop.session.code);
     /** Open a page and join the room by its code (the Join with code screen). */
     const joinPage = async () => {
@@ -2030,6 +2034,8 @@ console.log('lobby caps: slots by mode, Start blocked over the cap, Room full, M
     for (const [n, P] of [['host', LA], ['joiner', LB]]) {
       const r = await rows(P);
       assert(r.all === 2 && r.empty === 0, `lobby caps: Campaign lobby for 2 shows 2 players, no open slot, on the ${n} (${JSON.stringify(r)})`);
+      const sw = await swatches(P);
+      assert(sw.length === 2 && sw[0].host && !sw[1].host && sw[0].c === SLOT_RGB[0] && sw[1].c === SLOT_RGB[1], `lobby caps: rows in slot order, host first, blue then red swatch, on the ${n} (${JSON.stringify(sw)})`);
     }
 
     // a 3rd page joining a Campaign room is refused: Room full, with the cap
@@ -2067,6 +2073,8 @@ console.log('lobby caps: slots by mode, Start blocked over the cap, Room full, M
         await until(P, () => document.querySelectorAll('.lobby-screen .lobby-player').length === 4, null, 10000, `lobby caps: ${n} shows 4 slots`);
         const r = await rows(P);
         assert(r.all === 4 && r.empty === 1, `lobby caps: Sector Ops lobby shows 4 slots, 1 open, on ${n} (${JSON.stringify(r)})`);
+        const sw = await swatches(P);
+        assert(sw.length === 3 && sw[0].host && sw.every((x, i) => x.c === SLOT_RGB[i]), `lobby caps: 3 rows in slot order, blue / red / amber swatches, on ${n} (${JSON.stringify(sw)})`);
       }
       for (const P of trio.slice(1)) await P.evaluate(() => window.__coop.session.setReady(true));
       await until(LA, () => window.__coop.session.allReady && !document.querySelector('.lobby-actions [data-key="start"]')?.classList.contains('blocked'), null, 10000, 'lobby caps: Start unblocked for 3 ready players');

@@ -1852,6 +1852,13 @@ body {
   height: 12px;
   border-radius: 50%;
 }
+/* (coop4) the player's beacon colour by slot (blue, red, amber, violet); the colour is set inline */
+.lp-beacon {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
 .lp-name {
   font-weight: 800;
 }
