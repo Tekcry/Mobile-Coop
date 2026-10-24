@@ -1,0 +1,143 @@
+// PR size cap (intake gates, Michael 2026-10-24 ~21:50; process audit finding 10): a PR changes at most ~1.5k lines
+// against its merge base, not counting generated assets, snapshots, lockfiles and docs. Bigger work ships as slices,
+// unfinished parts dark behind a flag (docs/systems/session-method.md "Intake"). Over the cap the CI step fails
+// unless the PR carries the label `big-pr` (set by the orchestrator only). Train PRs (head `train/*`) and docs-only
+// PRs are exempt. The label is read live (gh), so after adding it a rerun of the failed job passes.
+// Usage: node scripts/pr-size.mjs [--base origin/master] [--head HEAD] [--branch <head ref>] [--pr <n> | --labels a,b]
+//          [--cap 1500] [--json]
+// Exit: 0 within the cap, exempt or labelled; 1 over the cap; 2 a git / argument error.
+import { execFileSync } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
+import { matchesAny } from './glob-match.mjs';
+
+export const PR_SIZE_CAP = 1500;
+export const BIG_PR_LABEL = 'big-pr';
+
+/** Docs: never counted, and a PR of only these is exempt. */
+export const DOC_GLOBS = ['docs/**', '**/*.md', 'changes/**'];
+/** Lockfiles, snapshots and generated assets: never counted. Binary files (numstat `-`) are never counted either. */
+export const EXCLUDE_GLOBS = [
+  ...DOC_GLOBS,
+  '**/package-lock.json', '**/npm-shrinkwrap.json', '**/yarn.lock', '**/pnpm-lock.yaml', '**/*.lock',
+  '**/__snapshots__/**', '**/*.snap',
+  'public/**', '**/generated/**', '**/*.generated.*', '**/*.gen.*', '**/*.min.js', '**/*.map',
+  '**/*.{glb,gltf,bin,ktx2,png,jpg,jpeg,webp,avif,gif,svg,ico,wav,ogg,mp3,m4a,flac,mp4,webm,blend,fbx,bvh,hdr,exr,wasm,ttf,otf,woff,woff2}',
+  'scripts/e2e-times.json',
+];
+
+export const isDoc = (file) => matchesAny(file, DOC_GLOBS);
+export const isExcluded = (file) => matchesAny(file, EXCLUDE_GLOBS);
+export const isTrainBranch = (branch) => /^(?:origin\/|refs\/heads\/)?train\//.test(String(branch ?? ''));
+
+/**
+ * Parses `git diff --numstat -z` output. A rename / copy entry is `add\tdel\t\0old\0new\0` (counted under the new
+ * path); a plain one is `add\tdel\tpath\0`. Binary files show `-` and become `binary: true` with 0 lines.
+ */
+export function parseNumstatZ(text) {
+  const parts = String(text).split('\0');
+  const out = [];
+  for (let i = 0; i < parts.length; i++) {
+    const head = parts[i].replace(/^\n+/, '');
+    if (!head) continue;
+    const m = /^(-|\d+)\t(-|\d+)\t(.*)$/s.exec(head);
+    if (!m) continue;
+    const binary = m[1] === '-' || m[2] === '-';
+    let file = m[3];
+    let from;
+    if (file === '') { from = parts[++i]; file = parts[++i] ?? ''; }
+    out.push({ file, ...(from !== undefined ? { from } : {}), added: binary ? 0 : Number(m[1]), deleted: binary ? 0 : Number(m[2]), binary });
+  }
+  return out;
+}
+
+/** Plain `git diff --numstat` lines (no -z); renames as `a => b` or `dir/{a => b}/f` resolve to the new path. */
+export function parseNumstat(text) {
+  return String(text).split(/\r?\n/).filter(Boolean).map((line) => {
+    const [a, d, ...rest] = line.split('\t');
+    let file = rest.join('\t');
+    file = file.replace(/\{([^{}]*) => ([^{}]*)\}/g, (_, _x, y) => y).replace(/\/\//g, '/');
+    if (file.includes(' => ')) file = file.split(' => ').pop();
+    const binary = a === '-' || d === '-';
+    return { file, added: binary ? 0 : Number(a), deleted: binary ? 0 : Number(d), binary };
+  });
+}
+
+/** Splits entries into counted and excluded lines. */
+export function countLines(entries) {
+  let counted = 0;
+  let excluded = 0;
+  const countedFiles = [];
+  for (const e of entries) {
+    const lines = e.added + e.deleted;
+    if (e.binary || isExcluded(e.file)) { excluded += lines; continue; }
+    counted += lines;
+    countedFiles.push({ file: e.file, lines });
+  }
+  countedFiles.sort((x, y) => y.lines - x.lines || x.file.localeCompare(y.file));
+  return { counted, excluded, files: entries.length, countedFiles };
+}
+
+/**
+ * The verdict for one PR: `{ ok, exempt, counted, excluded, cap, labelled, reason }`.
+ * exempt: 'train' (head train/*), 'docs' (every file is docs) or null.
+ */
+export function verdict({ branch, entries, labels = [], cap = PR_SIZE_CAP }) {
+  const c = countLines(entries);
+  const labelled = labels.includes(BIG_PR_LABEL);
+  const base = { counted: c.counted, excluded: c.excluded, files: c.files, cap, labelled, top: c.countedFiles.slice(0, 10) };
+  if (isTrainBranch(branch)) return { ...base, ok: true, exempt: 'train', reason: `train PR (${branch}): exempt` };
+  if (entries.length > 0 && entries.every((e) => isDoc(e.file))) return { ...base, ok: true, exempt: 'docs', reason: 'docs-only PR: exempt' };
+  if (c.counted <= cap) return { ...base, ok: true, exempt: null, reason: `${c.counted} changed lines <= ${cap}` };
+  if (labelled) return { ...base, ok: true, exempt: null, reason: `${c.counted} changed lines > ${cap}, passed on the "${BIG_PR_LABEL}" label (orchestrator-approved)` };
+  return {
+    ...base, ok: false, exempt: null,
+    reason: `${c.counted} changed lines > ${cap}: split into slices <= ${cap} lines (unfinished parts dark behind a flag), or the orchestrator adds the "${BIG_PR_LABEL}" label and reruns this job`,
+  };
+}
+
+export function formatReport(v) {
+  const lines = [`pr-size: ${v.ok ? 'PASS' : 'FAIL'} - ${v.reason}`,
+    `  counted ${v.counted}, excluded ${v.excluded} (generated assets, snapshots, lockfiles, docs, binaries), ${v.files} files`];
+  if (!v.exempt && v.top.length) lines.push('  largest counted files:', ...v.top.map((f) => `    ${String(f.lines).padStart(6)}  ${f.file}`));
+  return lines.join('\n');
+}
+
+export function parseArgs(argv) {
+  const o = { base: 'origin/master', head: 'HEAD', branch: null, pr: null, labels: null, cap: PR_SIZE_CAP, json: false };
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    const next = () => { const v = argv[++i]; if (v === undefined) throw new Error(`${a} needs a value`); return v; };
+    if (a === '--base') o.base = next();
+    else if (a === '--head') o.head = next();
+    else if (a === '--branch') o.branch = next();
+    else if (a === '--pr') o.pr = next().replace(/^#/, '');
+    else if (a === '--labels') o.labels = next().split(',').map((s) => s.trim()).filter(Boolean);
+    else if (a === '--cap') o.cap = Number(next());
+    else if (a === '--json') o.json = true;
+    else throw new Error(`unknown argument ${a}`);
+  }
+  if (!Number.isFinite(o.cap) || o.cap <= 0) throw new Error('--cap must be a positive number');
+  return o;
+}
+
+const git = (args) => execFileSync('git', args, { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
+
+function liveLabels(pr) {
+  const out = execFileSync('gh', ['pr', 'view', String(pr), '--json', 'labels', '--jq', '.labels[].name'], { encoding: 'utf8' });
+  return out.split(/\r?\n/).filter(Boolean);
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  let o;
+  try { o = parseArgs(process.argv.slice(2)); } catch (e) { console.error(`pr-size: ${e.message}`); process.exit(2); }
+  let v;
+  try {
+    const branch = o.branch ?? process.env.GITHUB_HEAD_REF ?? git(['rev-parse', '--abbrev-ref', 'HEAD']).trim();
+    const mb = git(['merge-base', o.base, o.head]).trim();
+    const entries = parseNumstatZ(git(['diff', '--numstat', '-z', '-M', mb, o.head]));
+    const labels = o.labels ?? (o.pr ? liveLabels(o.pr) : []);
+    v = { ...verdict({ branch, entries, labels, cap: o.cap }), branch, mergeBase: mb };
+  } catch (e) { console.error(`pr-size: ${e.message}`); process.exit(2); }
+  console.log(o.json ? JSON.stringify(v) : formatReport(v));
+  process.exit(v.ok ? 0 : 1);
+}
