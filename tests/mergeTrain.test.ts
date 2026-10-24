@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
 import { parseFragment } from '../scripts/changelog-assemble.mjs';
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -10,6 +11,8 @@ import {
   wireCandidates, membersFromLog, parseArgs, protocolValue,
   resolveKeepBoth, resumeCheck, touchesWire, trainPrBody, trainPrTitle, versionSubject, wirePaths,
   hasTrainMember, hasFragment, syntheticFragment, fragmentPlan, clearBuildMarker,
+  baseMarker, parseBaseMarker, withBaseMarker, trainVersionCommits, foreignVersionStop, onBaseCheck, stackedDecision,
+  mergeRetryable, retryMerge, mergedTree, treeOf,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/merge-train.mjs';
 
@@ -211,7 +214,7 @@ describe('merge-train wire bump', () => {
 describe('merge-train parseArgs', () => {
   it('build: number, version, title, branches, flags', () => {
     expect(parseArgs(['build', '31', '4.80.0', 'Lamps', 'feature/a', 'fix/b'])).toEqual({
-      cmd: 'build', n: '31', version: '4.80.0', title: 'Lamps', branches: ['feature/a', 'fix/b'], keep: false, noTest: false, dry: false });
+      cmd: 'build', n: '31', version: '4.80.0', title: 'Lamps', branches: ['feature/a', 'fix/b'], keep: false, noTest: false, on: null, dry: false });
     const f = parseArgs(['build', '31', '4.80.0', 'Lamps', '--keep', 'feature/a', '--no-test', '--dry-run']);
     expect([f.keep, f.noTest, f.dry, f.branches]).toEqual([true, true, true, ['feature/a']]);
   });
@@ -334,6 +337,212 @@ describe('merge-train build ends at the version-commit push (audit 2026-10-24)',
       clearBuildMarker({ AUTO_TRAIN_BUILD_MARKER: file });
       expect(fs.existsSync(file)).toBe(false);
       expect(() => clearBuildMarker({ AUTO_TRAIN_BUILD_MARKER: file })).not.toThrow();
+    } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+  });
+});
+
+describe('merge-train stacked builds (--on, overlapping trains)', () => {
+  const base = 'abcdef0123456789abcdef0123456789abcdef01';
+  const other = '1111111111111111111111111111111111111111';
+  const v64 = versionSubject(64, '4.96.0');
+  const v65 = versionSubject(65, '4.97.0');
+  // first-parent subjects of origin/master..<train 65 head> while train 64 is unreleased, newest first
+  const stackedSubjects = [v65, 'Merge origin/fix/c into train/65', 'Merge origin/feature/b into train/65', v64,
+    'Merge origin/feature/a into train/64', 'Merge origin/feature/menu into train/64'];
+
+  it('membersFromLog with n: only the merges into train/<n>, never the base train\'s', () => {
+    const oldestFirst = [...stackedSubjects].reverse();
+    expect(membersFromLog(oldestFirst, 65)).toEqual(['feature/b', 'fix/c']);
+    expect(membersFromLog(oldestFirst, '64')).toEqual(['feature/menu', 'feature/a']);
+    expect(membersFromLog(oldestFirst)).toEqual(['feature/menu', 'feature/a', 'feature/b', 'fix/c']);
+    expect(membersFromLog(['Merge origin/feature/x into train/650'], 65)).toEqual([]);
+  });
+
+  it('parseArgs: build --on <sha>, rejected on release / single, needs a sha', () => {
+    const b = parseArgs(['build', '65', '4.97.0', 'Next', 'feature/b', '--on', base.toUpperCase(), '--dry-run']);
+    expect([b.on, b.branches, b.dry, b.keep]).toEqual([base, ['feature/b'], true, false]);
+    expect(parseArgs(['build', '65', '4.97.0', 'Next', '--on', 'abc1234', 'feature/b', '--keep']).on).toBe('abc1234');
+    expect(() => parseArgs(['build', '65', '4.97.0', 'Next', 'feature/b', '--on'])).toThrow(/--on needs a commit sha/);
+    expect(() => parseArgs(['build', '65', '4.97.0', 'Next', 'feature/b', '--on', 'train/64'])).toThrow(/--on needs a commit sha/);
+    expect(() => parseArgs(['release', '65', '4.97.0', 'Next', '--on', 'abc1234'])).toThrow(/--on does not apply/);
+    expect(() => parseArgs(['single', 'feature/b', '4.97.0', 'Next', '--on', 'abc1234'])).toThrow(/--on does not apply/);
+  });
+
+  it('the PR body marker: first line of a stacked body, parsed back, replaced or stripped', () => {
+    expect(baseMarker(64, base)).toBe(`<!-- auto-train:base train/64 ${base} -->`);
+    const body: string = trainPrBody(65, 'Next', [{ branch: 'feature/b', pr: 351 }], [], { train: 64, sha: base, version: '4.96.0' });
+    expect(body.split('\n')[0]).toBe(baseMarker(64, base));
+    expect(body).toContain('Stacked on train/64 at abcdef01 (4.96.0): released only after train 64 merges.');
+    expect(body).toContain('- #351 `feature/b`');
+    expect(body.split('\n').pop()).toBe('🤖 Generated with [Claude Code](https://claude.com/claude-code)');
+    expect(parseBaseMarker(body)).toEqual({ train: 64, sha: base });
+    expect(parseBaseMarker(trainPrBody(65, 'Next', []))).toBeNull();
+    expect(trainPrBody(65, 'Next', [])).not.toContain('auto-train:base');
+    expect(parseBaseMarker(`x\n<!-- auto-train:base train/64 abcdef01 -->\n`)).toBeNull(); // short sha: not a marker
+    expect(parseBaseMarker(null)).toBeNull();
+    const moved: string = withBaseMarker(body, { train: 64, sha: other });
+    expect(parseBaseMarker(moved)).toEqual({ train: 64, sha: other });
+    expect(moved.match(/auto-train:base/g)).toHaveLength(1);
+    expect(withBaseMarker(body, null)).not.toContain('auto-train:base');
+    expect(withBaseMarker(body, { train: 64, sha: base })).toBe(body);
+  });
+
+  it('trainVersionCommits finds every train version commit; an old lone-PR subject is none', () => {
+    expect(trainVersionCommits(stackedSubjects)).toEqual([{ idx: 0, n: 65, version: '4.97.0' }, { idx: 3, n: 64, version: '4.96.0' }]);
+    expect(trainVersionCommits(['4.80.0: version at merge (G183)', 'Merge origin/a into train/3'])).toEqual([]);
+  });
+
+  it('guard (a): another train\'s version commit in origin/master..head is a STOP (exit 4 in release / single)', () => {
+    const stop: string | null = foreignVersionStop(stackedSubjects, 65, 'train/65');
+    expect(stop).toMatch(/^STOP: base train not merged: origin\/train\/65 carries the version commit of train 64 4\.96\.0/);
+    expect(foreignVersionStop(stackedSubjects.slice(0, 3), 65, 'train/65')).toBeNull(); // train 64 merged: out of the range
+    expect(foreignVersionStop(['fix', v65, 'Merge origin/feature/b into train/65'], '65', 'train/65')).toBeNull();
+    expect(foreignVersionStop([v64], null, 'feature/x')).toMatch(/train 64 4\.96\.0/); // a lone branch: any train is foreign
+    expect(foreignVersionStop(['Merge origin/master into feature/x'], null, 'feature/x')).toBeNull();
+  });
+
+  it('release checks guard (a) before anything else reads the version commit, also on the single path', () => {
+    const src = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'merge-train.mjs'), 'utf8');
+    const rel = src.slice(src.indexOf('async function release('), src.indexOf('function stackedFacts('));
+    expect(rel.indexOf('foreignVersionStop(')).toBeGreaterThan(0);
+    expect(rel.indexOf('foreignVersionStop(')).toBeLessThan(rel.indexOf('findVersionCommit('));
+    expect(rel).toMatch(/if \(foreign\) \{ console\.error\(foreign\); return 4; \}/);
+    expect(rel).toMatch(/ciAndMerge\(\{ branch, sha: head, pr, version, stacked \}\)/);
+    const single = src.slice(src.indexOf('async function single('), src.indexOf('export const trainLockPath'));
+    expect(single.indexOf('foreignVersionStop(')).toBeGreaterThan(0);
+    expect(single.indexOf('foreignVersionStop(')).toBeLessThan(single.indexOf('mergeMaster('));
+  });
+
+  it('onBaseCheck: the --on sha must be another, lower train head with master and only its own version commit', () => {
+    const ok = { n: 65, sha: base, trains: [{ n: 63, sha: other }, { n: 64, sha: base }], masterInBase: true, baseInMaster: false,
+      subjects: stackedSubjects.slice(3) };
+    expect(onBaseCheck(ok)).toEqual({ m: 64, version: '4.96.0' });
+    expect(onBaseCheck({ ...ok, n: '65' })).toEqual({ m: 64, version: '4.96.0' });
+    expect(onBaseCheck({ ...ok, trains: [{ n: 64, sha: other }] }).error).toMatch(/not the head of any other origin\/train/);
+    expect(onBaseCheck({ ...ok, trains: [{ n: 65, sha: base }] }).error).toMatch(/not the head of any other/);
+    expect(onBaseCheck({ ...ok, n: 63, trains: [{ n: 64, sha: base }] }).error).toMatch(/must be below train 63/);
+    expect(onBaseCheck({ ...ok, baseInMaster: true }).error).toMatch(/already in origin\/master: build without --on/);
+    expect(onBaseCheck({ ...ok, masterInBase: false }).error).toMatch(/origin\/master is not in train\/64/);
+    expect(onBaseCheck({ ...ok, subjects: ['Merge origin/feature/a into train/64'] }).error).toMatch(/no version commit of train 64/);
+    expect(onBaseCheck({ ...ok, subjects: [v64, 'Merge origin/a into train/64', versionSubject(63, '4.95.4')] }).error).toMatch(/depth 2 at most/);
+  });
+
+  it('bumpProtocol from the base head: a base that already bumped gives base + 1', () => {
+    const text = (v: number): string => `export const PROTOCOL_VERSION = ${v};\n`;
+    expect(bumpProtocol(text(41), 41)).toBe(text(42)); // train 64 bumped 40 -> 41, train 65 on it -> 42
+    expect(bumpProtocol(text(40), 40)).toBe(text(41)); // train 64 did not bump: 41
+  });
+
+  it('keepStopMessage keeps --on in the rebuild command', () => {
+    expect(keepStopMessage({ n: 65, version: '4.97.0', title: 'Next', versionSha: 'abcdef12', pre: 'p', members: ['feature/b'], on: base }))
+      .toContain(`build 65 4.97.0 "Next" feature/b <b> --on ${base} --keep`);
+  });
+
+  describe('stackedDecision (check b)', () => {
+    const facts = { branch: 'train/65', marker: { train: 64, sha: base }, baseInHead: true, baseInMaster: true, baseVersion: '4.96.0',
+      tagCommit: other, tagParent: base, mergeTree: 'tree1', headTree: 'tree1' };
+
+    it('accepts a stacked head whose base merged exactly there, tagged, with an unchanged merge tree', () => {
+      const d = stackedDecision(facts);
+      expect(d.ok).toBe(true);
+      expect(d.message).toMatch(/stacked on train\/64 abcdef01 \(v4\.96\.0 merged, tagged\)/);
+    });
+
+    it('no marker: the old "master moved" stop, exit 3', () => {
+      expect(stackedDecision({ branch: 'train/65', marker: null })).toEqual({ ok: false, code: 3,
+        message: 'STOP: master moved since build: rebuild with the next version (origin/master is not in origin/train/65)' });
+    });
+
+    it('waits (exit 4) while the base train is not merged or not tagged', () => {
+      expect(stackedDecision({ ...facts, baseInMaster: false })).toMatchObject({ ok: false, code: 4, message: expect.stringMatching(/base train not merged/) });
+      expect(stackedDecision({ ...facts, tagCommit: null })).toMatchObject({ ok: false, code: 4, message: expect.stringMatching(/tag v4\.96\.0 \(train 64\) is not on origin/) });
+    });
+
+    it('rebuild (exit 3): base not in the head, base merged at another head, merge tree differs or conflicts', () => {
+      expect(stackedDecision({ ...facts, baseInHead: false })).toMatchObject({ ok: false, code: 3 });
+      expect(stackedDecision({ ...facts, tagParent: other })).toMatchObject({ ok: false, code: 3, message: expect.stringMatching(/merged at 11111111, not at the recorded base abcdef01/) });
+      expect(stackedDecision({ ...facts, tagParent: null })).toMatchObject({ ok: false, code: 3 });
+      expect(stackedDecision({ ...facts, mergeTree: 'tree2' })).toMatchObject({ ok: false, code: 3, message: expect.stringMatching(/change the tested tree/) });
+      expect(stackedDecision({ ...facts, mergeTree: null })).toMatchObject({ ok: false, code: 3, message: expect.stringMatching(/conflict/) });
+    });
+  });
+
+  it('mergeRetryable: not mergeable / base modified retry; head modified (a push after CI) never', () => {
+    expect(mergeRetryable('GraphQL: Pull Request is not mergeable (mergePullRequest)')).toBe(true);
+    expect(mergeRetryable('Base branch was modified. Review and try the merge again.')).toBe(true);
+    expect(mergeRetryable('Head branch was modified. Review and try the merge again.')).toBe(false);
+    expect(mergeRetryable('HTTP 401: Bad credentials')).toBe(false);
+  });
+
+  it('retryMerge: retries a retryable failure every step within ~2 min, stops at once on any other', async () => {
+    let t = 0;
+    const clock = { now: () => t, wait: async (ms: number) => { t += ms; } };
+    let calls = 0;
+    const flaky = await retryMerge(() => (++calls < 3 ? { ok: false, why: 'not mergeable' } : { ok: true, why: '' }), clock);
+    expect([flaky.ok, flaky.tries, t]).toEqual([true, 3, 30_000]);
+    t = 0; calls = 0;
+    const stuck = await retryMerge(() => { calls++; return { ok: false, why: 'Base branch was modified' }; }, clock);
+    expect([stuck.ok, stuck.tries, calls]).toEqual([false, 9, 9]); // tries at 0, 15, ..., 120 s
+    expect(t).toBeLessThanOrEqual(120_000);
+    t = 0;
+    const hard = await retryMerge(() => ({ ok: false, why: 'Head branch was modified' }), clock);
+    expect([hard.ok, hard.tries, t]).toEqual([false, 1, 0]);
+  });
+});
+
+describe('merge-train stacked trains on a real git repo', () => {
+  let dir = '';
+  const git = (...a: string[]): string => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'core.autocrlf=false', ...a],
+    { cwd: dir, encoding: 'utf8' }).trim();
+  const commitFile = (file: string, text: string, msg: string): string => {
+    fs.writeFileSync(path.join(dir, file), text);
+    git('add', file);
+    git('commit', '-q', '-m', msg);
+    return git('rev-parse', 'HEAD');
+  };
+  const mergeInto = (target: string, from: string, msg: string): string => {
+    git('checkout', '-q', target);
+    git('merge', '-q', '--no-ff', from, '-m', msg);
+    return git('rev-parse', 'HEAD');
+  };
+
+  it('N+1 on N\'s head: after N merges, merge-tree keeps tree(T); a foreign commit on master changes it; guard (a) clears', () => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mt-stack-'));
+    try {
+      git('init', '-q', '-b', 'master');
+      commitFile('a.txt', 'a0\n', 'root');
+      fs.writeFileSync(path.join(dir, 'b.txt'), 'b0\n');
+      commitFile('c.txt', 'c0\n', 'more');
+      git('add', 'b.txt'); git('commit', '-q', '-m', 'b');
+      const master0 = git('rev-parse', 'HEAD');
+      // members a and b, cut from master
+      git('checkout', '-q', '-b', 'feature/a'); commitFile('a.txt', 'a1\n', 'a work');
+      git('checkout', '-q', master0); git('checkout', '-q', '-b', 'feature/b'); commitFile('b.txt', 'b1\n', 'b work');
+      // train 64 = master + a + version commit; train 65 on its head = + b + version commit
+      git('checkout', '-q', '-b', 'train/64', master0);
+      mergeInto('train/64', 'feature/a', 'Merge origin/feature/a into train/64');
+      const v64 = commitFile('version.txt', '4.96.0\n', versionSubject(64, '4.96.0'));
+      git('checkout', '-q', '-b', 'train/65', v64);
+      mergeInto('train/65', 'feature/b', 'Merge origin/feature/b into train/65');
+      const t65 = commitFile('version.txt', '4.97.0\n', versionSubject(65, '4.97.0'));
+      const fp = (range: string): string[] => git('log', '--first-parent', '--format=%s', range).split('\n').filter(Boolean);
+      // before train 64 merges: guard (a) stops train 65, and its members are b only
+      expect(foreignVersionStop(fp(`master..${t65}`), 65, 'train/65')).toMatch(/train 64 4\.96\.0/);
+      expect(membersFromLog(fp(`master..${t65}`).reverse(), 65)).toEqual(['feature/b']);
+      // train 64 merges (GitHub --merge: a merge commit, first parent master)
+      const m64 = mergeInto('master', v64, 'Merge pull request #350 from train/64');
+      expect(git('rev-parse', `${m64}^2`)).toBe(v64); // the tag's second parent is the recorded base
+      expect(foreignVersionStop(fp(`master..${t65}`), 65, 'train/65')).toBeNull();
+      expect(treeOf(m64, dir)).toBe(treeOf(v64, dir)); // tree(M_N) == tree(V_N)
+      expect(mergedTree(m64, t65, dir)).toBe(treeOf(t65, dir)); // check (b): zero delta between tested and merged
+      const m65 = mergeInto('master', t65, 'Merge pull request #351 from train/65');
+      expect(treeOf(m65, dir)).toBe(treeOf(t65, dir)); // assert (c) holds for a real merge
+      // a commit that landed on master in between (not train 64): the merge tree is no longer the tested one
+      git('checkout', '-q', '-b', 'm2', m64); const moved = commitFile('c.txt', 'c-hotfix\n', 'hotfix');
+      expect(mergedTree(moved, t65, dir)).not.toBe(treeOf(t65, dir));
+      // and one that conflicts with a member: null
+      git('checkout', '-q', '-b', 'm3', m64); const clash = commitFile('b.txt', 'b-other\n', 'clash');
+      expect(mergedTree(clash, t65, dir)).toBeNull();
     } finally { fs.rmSync(dir, { recursive: true, force: true }); }
   });
 });
