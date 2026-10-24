@@ -546,3 +546,20 @@ describe('merge-train stacked trains on a real git repo', () => {
     } finally { fs.rmSync(dir, { recursive: true, force: true }); }
   });
 });
+
+describe('merge-train carry-overs (overlap-trains slice 4)', () => {
+  it('parseArgs normalises the train number: build 063 -> 63, release 007 -> 7', () => {
+    expect(parseArgs(['build', '063', '4.80.0', 'Lamps', 'feature/a']).n).toBe('63');
+    expect(parseArgs(['release', '007', '4.80.0', 'Lamps']).n).toBe('7');
+    expect(membersFromLog(['Merge origin/feature/a into train/63'], parseArgs(['build', '063', '4.80.0', 'L', 'x']).n)).toEqual(['feature/a']);
+  });
+
+  it('withBaseMarker(body, null) strips a stale base marker from a reused PR body', () => {
+    const sha = 'a'.repeat(40);
+    const body = trainPrBody(66, 'Next', [{ branch: 'feature/b', pr: 9 }], [], { train: 65, sha, version: '4.97.0' });
+    expect(parseBaseMarker(body)).toEqual({ train: 65, sha });
+    const stripped = withBaseMarker(body, null);
+    expect(parseBaseMarker(stripped)).toBeNull();
+    expect(stripped).toContain('Train 66: Next');
+  });
+});

@@ -367,6 +367,9 @@ export function headPinCheck(actual, want, branch) {
   return `STOP: origin/${branch} is ${actual.slice(0, 8)}, not the tested head ${want.slice(0, 8)}: nothing merged`;
 }
 
+/** A train number as typed ("063") -> its canonical text ("63"): branch names, merge subjects and members agree. */
+export const trainNo = (n) => String(Number(n));
+
 /** argv (after `node script`) -> { cmd, ...fields, dry }; throws an Error carrying the usage text. */
 export function parseArgs(argv0) {
   const FLAGS = ['--dry-run', '--keep', '--no-test', '--resume', '--no-fallback', '--head', '--on'];
@@ -394,13 +397,13 @@ export function parseArgs(argv0) {
     if (!/^\d+$/.test(a[0] ?? '')) throw bad('build needs a train number');
     if (!a[2]) throw bad('build needs <version> "<title>"');
     if (a.length < 4) throw bad('build needs at least one branch');
-    return { cmd, n: a[0], version: ver(a[1]), title: a[2], branches: a.slice(3), keep: has('--keep'), noTest: has('--no-test'), on: shas['--on'], dry };
+    return { cmd, n: trainNo(a[0]), version: ver(a[1]), title: a[2], branches: a.slice(3), keep: has('--keep'), noTest: has('--no-test'), on: shas['--on'], dry };
   }
   if (cmd === 'release') {
     only('--resume', '--no-fallback', '--head');
     if (!/^\d+$/.test(a[0] ?? '') || !a[2]) throw bad('release needs <n> <version> "<title>"');
     if (a.length > 3) throw bad(`unexpected argument "${a[3]}"`);
-    return { cmd, n: a[0], version: ver(a[1]), title: a[2], resume: has('--resume'), head: headSha, noFallback: has('--no-fallback'), dry };
+    return { cmd, n: trainNo(a[0]), version: ver(a[1]), title: a[2], resume: has('--resume'), head: headSha, noFallback: has('--no-fallback'), dry };
   }
   if (cmd === 'single') {
     only();
@@ -713,8 +716,13 @@ function ensurePr(n, version, title, members, notes = [], base = null) {
       return open.number;
     }
   } else {
-    const pr = openPr(branch);
-    if (pr) { console.log(`train PR: #${pr}`); return pr; }
+    const open = openPrInfo(branch);
+    if (open) { // a non-stacked build reusing a PR a stacked build opened: drop the stale base marker
+      console.log(`train PR: #${open.number}`);
+      const want = withBaseMarker(open.body, null);
+      if (want !== open.body) act(['gh', 'pr', 'edit', String(open.number), '--body', want]);
+      return open.number;
+    }
   }
   const url = act(['gh', 'pr', 'create', '--base', 'master', '--head', branch, '--title', trainPrTitle(n, version, title),
     '--body', trainPrBody(n, title, members, notes, base)]);
