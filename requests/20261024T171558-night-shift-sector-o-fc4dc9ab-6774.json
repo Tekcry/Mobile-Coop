@@ -1,0 +1,14 @@
+{
+  "id": "20261024T171558-night-shift-sector-o-fc4dc9ab-6774",
+  "sha": "fc4dc9abc1d20eec2e0ba29c553937eccc39547a",
+  "branch": "",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Sector Ops Build",
+  "steps": [
+    "git fetch -q origin feature/visual-gate && git archive FETCH_HEAD scripts/e2e-visual.mjs scripts/visual-gate | tar -xf - && node scripts/laptop-queue/serve.mjs scripts/e2e-visual.mjs http://127.0.0.1:4189/ --time --json C:/NightShift/scratch/visual-gate/m0/m0.json --png C:/NightShift/scratch/visual-gate/m0/png"
+  ],
+  "env": {},
+  "set": "visual-m0",
+  "note": "visual-gate M0"
+}
