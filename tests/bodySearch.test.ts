@@ -231,4 +231,27 @@ describe('Enemy.bodySearch: the finders do not give up so easily', () => {
     e.updateAwareness(0.05);
     expect(e.aware.level).toBe('searching');
   });
+
+  it('(rig-pose-fix S5) the guard sent to a body walks to its sim lie (Body.pos from deathLie), then searches round it', async () => {
+    const { deathLie, newLie, settleMax } = await import('../src/ai/bodyLie');
+    const { proportions } = await import('../src/player/proportions');
+    const p = proportions('average', 1.8);
+    // he died at (20, 0, 0) facing +Z, shot from the -X side: he falls +X, the pelvis settles settleMax along it
+    const lie = deathLie(newLie(), 20, 0, 0, 0, 1, 0, p);
+    expect(lie.x).toBeCloseTo(20 + settleMax(p), 9);
+    const body = { pos: new Vector3(lie.x, lie.y, lie.z), found: false, lethal: true, present: true, carried: false, hidden: false };
+    const e = (await searcher()) as Searcher & { stimulus: [number, number] };
+    e.aware.set('investigating');
+    e.camBody = body;
+    e.stepCamBody(0.05);
+    expect(e.stimulus).toEqual([lie.x, lie.z]);
+    // found (by the other guard): the body search centres on the same sim point
+    body.found = true;
+    const f = (await searcher()) as Searcher & { stimulus: [number, number] };
+    f.aware.set('investigating');
+    f.camBody = body;
+    f.stepCamBody(0.05);
+    expect(f.searchKind).toBe(SEARCH_BODY);
+    expect(f.stimulus).toEqual([lie.x, lie.z]);
+  });
 });

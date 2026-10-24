@@ -258,7 +258,11 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   fixtures: `LightDef.fixture` (box size + offset) is the shot target (`rayBox`), drawn by the light rig as a box that
   goes dark with the light.
 - Bodies: `Enemy.die` / `knockOut` hand the rig to `EnemyManager.addBody` -> `ai/body.ts` `Body` (a settled `Ragdoll`, or
-  laid flat when out of budget; `BODY.max` kept). Enemies not in combat look for bodies each think (`bodyNoticed`: field x
+  laid flat when out of budget; `BODY.max` kept). (rig-pose-fix S5) `Body.pos` and `Body.lie` (pelvis, chest point, head yaw)
+  are sim: `ai/bodyLie.ts` `deathLie` from his feet and yaw at death, the fall along the impulse settling the pelvis
+  `LIE.settle` x hip height (held back by a static wall: `body.ts` `deathLieOn`), `dropLie` at the drop point; never read
+  from the rig. The ragdoll is visual and eases onto the lie when it settles (`Ragdoll.snapTo`, `SNAP_EASE` 0.3 s); out
+  of budget the rig is laid straight on it (`carryPose.layAt`). Enemies not in combat look for bodies each think (`bodyNoticed`: field x
   `lightFactor(body.light)` x distance; one ray) -> `bodyFound`: the finder searches; a non-lethal body is revived
   (`BODY.reviveTime`; the woken guard is the same guard: `Enemy.inherit`); coordinated modes: awareness and caution
   below; parked modes: the squad within `RADIO` searches. Cameras see bodies (guard-ai S7, design 9, M6; host only, coordinated
