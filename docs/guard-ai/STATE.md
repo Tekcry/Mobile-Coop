@@ -1,6 +1,17 @@
 # Guard AI - state
 
 ## Now
+~19:40: TOOK feature/coop4 (#317) from Sector Ops (orchestrator; worktree C:/NightShift/Mobile-Coop-coop4, laptop,
+npm ci'd). p8 rejoin = test fix by Sector Ops afc616f0 (rejoin goes to the checkpoint on its slot by design). Master
+4.95.0 merged 1b04e5bd (PROTOCOL 54; #313 carry / #314 optic / bluffs per slot; A1 goOut drops the bluff, A2 hold
+drops it, A3 body items via snapItem, A4 sectorOut / sectorTeamScale doubles; 66 files 1181 tests). RUNNING: Opus
+checkers A + B -> docs/coop4/checks/master-merge-check-A/B.md (lead commits); laptop coop4 (regular 12 suites, id
+...-0c2d) + coop4-4p (alone sectorops 7-9, E2E_LOAD_MS=240000, id ...-6448). Green -> #317 ready (undraft) + tell
+orchestrator to label. Then feature/coop4-pol (follow-up PR: polish + UI2, head 134f6abe) needs the p8 fix +
+master merged and its own alone 7-9 set.
+Cloud briefs T1 + D1/D2 on cloud-queue (876237aa), status blocked waiting M0 verdict (D1 also gm-perf d729e490 on
+master); lead answer accepted decisions 1-4; Marlow told.
+
 ~18:55: #326 R1 TRAIN-READY (head 321ef486: + consoleNoticeA4 double gets hitDistance, its noop proxy answered
 undefined; CI green; laptop r1-rays2 3/3 on 099bf44d); orchestrator asked to label, Marlow told. #313 CI green. Nothing
 running. Next: the next AI item the orchestrator / guard-cap assigns.
