@@ -44,7 +44,8 @@ Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then
   set through the host session's `courseBay`; named alone (`node scripts/run-e2e.mjs e2e-ctcourse`) it runs all eight
   sets in sequence (test-speed A3). `scripts/e2e-times.json` holds 150 s per part as an estimate until a clean full run
   rewrites it (pending laptop run). `e2e-sectorops` runs as `e2e-sectorops:1` to `:5` (sector-fixes-r RE: the suite before slice R, the
-  solo route checks, the co-op routes of sections 1-3); named alone it runs all five in sequence.
+  solo route checks, the co-op routes of sections 1-3); named alone it runs all five in sequence. (coop4) `PARTS` lists the
+  jobs `:1` to `:8`; `:7` and `:8` are the 4-page parts and run alone in a laptop slot (`PART_TIMEOUT` 1800 s each).
 - Pool size: default min(5, cores / 3) (`--jobs=N` / `E2E_JOBS`); use `E2E_JOBS=2` on Michael's 8-thread desktop and on
   cloud VMs (two suites at a time, G94).
 - A suite past `E2E_SUITE_TIMEOUT` (default 600 s) is killed and fails. Full runs on this desktop use
@@ -71,7 +72,9 @@ Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then
   at least 60 s; `E2E_SIM_CAP`) is the hang guard, and a timeout names each page's sim seconds, sim rate and fps.
   e2e-netmove and e2e-ctcourse open at 960 x 480; e2e-coop and e2e-course keep 1280 x 640 (they click through the
   lobby, which lays out at 1280 x 720 at least). Match loads (map build, light bake, both pages joining) run outside
-  the sim clock: they wait up to `LOAD_MS` (`e2e-net-lib`, 120 s wall, `E2E_LOAD_MS`). Timed in-page input chains use
+  the sim clock: they wait up to `LOAD_MS` (`e2e-net-lib`, 120 s wall, `E2E_LOAD_MS`; (coop4) a room of 3 or more pages
+  waits `LOAD_MS_4`, the same variable with a default of 240 s, because 4 Sector Ops pages in one browser take minutes to
+  load; the 2-page suites keep `LOAD_MS`; set `E2E_LOAD_MS=240000` for the 4-page parts). Timed in-page input chains use
   `window.__afterSim(sec, fn)` (`e2e-lib`): `fn` runs once the match clock has moved `sec` on, never an in-page
   `setTimeout`.
 - Load safety (test-speed, 2026-10-20): every suite's browser launches without background throttling (a two-page
@@ -219,6 +222,27 @@ behind a VPN adapter).
   host's relay or two-person rope; both on the 4.4 m top; S1 C1 on to the deck, S1 C2 over the checker and let go)
   and the section's team door unbolted by the client from the far side for both pages (refused from the near side) and
   re-bolted on both pages by the host's checkpoint restart.
+  (coop4) Parts 7 and 8 are Sector Ops with 3-4 players: "four pages" means four pages of one headless browser over
+  `?net=local` (`hostAndJoin(url, 4)`, the host's page and three joiners, each driven by its own pad or teleports; every page
+  but the one in front is stepped by `pumpPages`). Run each alone: `E2E_GPU=1 E2E_LOAD_MS=240000 E2E_PORT=<port> node
+  scripts/run-e2e.mjs e2e-sectorops:7` (or `:8`). A hook a build lacks prints `SKIP: <hook> missing` and is listed at the end
+  of the part; a failed leg prints every page's team log and the next leg still runs.
+  - Part 7, `campusOps`, 4 pages: all load with the device mirror, one host and three clients; slots 0-3 are distinct and
+    agree on every page's lobby list; each page sees 3 avatars; the beacon of each rig and avatar equals its slot, all four
+    different; spawns at least 0.9 m apart at the start and after a checkpoint restart; the guard count at team 4 is the base
+    list plus the `minPlayers` tags (alive + pending), at the start, after the restart and in the pair-gate section; slot 2's
+    wall switch darkens its lamps on all 4 pages and the light under it agrees; slot 3's jam of a camera is `sec.j[3]` on the
+    host and latched on every client; each slot uses the weapons crate once; slot 1 downed and revived by slot 3 with the
+    syringe pool at preset + 2 (Normal 4, one used); the connector does not cycle with 3 inside and cycles with 4, door locks
+    mirrored; the S4 pair gate opened by slots 2 and 3 while 0 and 1 stand more than 3 m away.
+  - Part 8, `warehouseOps` (`sectorGuards=4`), 3 pages then a late 4th: slot 2 drops (`__coop.leave()`) and rejoins from
+    "Rejoin <code>" into slot 2 with the same beacon colour and place (within 1.5 m); a 4th page late-joins the running op into
+    slot 3 and stands within 3.2 m of the checkpoint with a loadout, every page sees 3 avatars; pairs 0+1 (leg-up) and 2+3
+    (partner throw) are both approved with no denial (the overlap is logged and `CoopHost.teamActive` read, not asserted);
+    two climbers on one busy brace: one is served, the other is denied `taken`.
+  - `?players=N` (`flags.players`, 2-4, clamped; dev and tests): the same-device autostart room (`?net=local&autostart=<map>&mode=sector`)
+    waits for N players before it starts (default 2). The parts above use `hostAndJoin`, not this flag; it is for the 4-tab
+    check in TESTING.md.
 - `e2e-section-rating` (section-rating S7 / S6) the stealth rating: solo Sector Ops (a clean section: 4 ticks; a kill:
   No kills missed; the extraction: results lines), co-op (a synced pair on both cards, the client top-up, the host syringe,
   a rejoin with no second grant) and solo Marlow Yard (A1 unrated, A2 rated with the gadget grant, A3 rated clean after a
@@ -232,7 +256,11 @@ behind a VPN adapter).
   P6) the host's team takedown on that hostage, a dual takedown, a client
   reviving the host, the team wipe), validated hits, revive, results; Infiltration objectives on the client; the host's
   fixed difficulty level read-only on the client and running on both; a client using the host's wall medkit station;
-  host leaving, offline (known flaky)
+  host leaving, offline (known flaky). (coop4) The "lobby caps" block (one page, then up to 3): a new room is Campaign and
+  its lobby shows 2 seats, 1 open, with "Share the code to invite your teammates."; a 2nd page fills it (2 seats, none
+  open); a 3rd page is refused with "Room full" naming 2 players; the host switches the room to Free Roam (4 seats) so a 3rd
+  page joins, then to Campaign: Start is blocked with "Too many players for this mode (2)" and does nothing; then to Sector
+  Ops: every page shows 4 seats, 1 open, and 3 ready players start the match.
 - `e2e-netmove` two pages, Free Roam on Proving: the client on a ladder, drainpipe, pipe, ledge, duct (hands / feet /
   head within 10 cm on the host), zipline and a roll mirrored; CT moves (split, wall jump, pipe legs up / inverted,
   rappel + rope, fence); team moves (the client braces and boosts the host onto the 4.2 m lip, the human ladder, a
