@@ -41,6 +41,10 @@ export interface MapTheme {
   weather?: 'rain' | 'dust' | 'haze';
   /** Colour grade (cinematic post): tint multiplier, saturation, contrast (defaults 1). */
   grade?: { tint?: [number, number, number]; saturation?: number; contrast?: number };
+  /** (fog triage, rendering only) Fixed cone lights without an LED fitting model draw a long volumetric beam (default
+   *  true: the base Warehouse floods, Marlow Yard's set floods); false: every fixed light scatters a short haze under
+   *  its shade and only torches beam (`vfx/volLights.ts`; Saltmarsh Park). */
+  lampBeams?: boolean;
 }
 
 export type Faction = 'urban' | 'desert' | 'maritime';

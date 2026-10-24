@@ -230,7 +230,10 @@ change.
   `docs/research/night-vision-and-lamps.md`.
 - Volumetric beams (post stack, `src/vfx/volLights.ts`, vol-cone-fix): torches (`kind: 'flashlight'`) and cone lights
   without an LED fitting model (floods) draw a long beam; lamps and LED fittings (`fixture.model`: strips, panels,
-  bulkheads, with or without a beam optic) scatter a short haze under their shade.
+  bulkheads, with or without a beam optic) scatter a short haze under their shade. A map whose `theme.lampBeams` is
+  false (Saltmarsh Park; fog triage, Michael on 4.95.0: "Campus lights look very foggy, can't see through them") beams
+  torches only: its 76 glowing-box cone fittings haze like lamps (`PostStackOptions.lampBeams`; Marlow Yard and the base
+  Warehouse keep their flood beams). Report: `docs/sector-redesign/checks/fog-triage.md`; test `tests/volLights.test.ts`.
 - Brightness calibration (`BrightnessScreen`, Settings > Display): an exposure multiplier in the grade, `BRIGHTNESS_MIN` ..
   `MAX`. `GameState.brightnessLocked` (nothing sets it now; its mission was the Confrontation, removed by G9).
 
