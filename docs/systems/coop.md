@@ -145,7 +145,7 @@ snapshot to everyone. Join, leave, late join and rejoin work in any slot.
   - The host takes slot 0. A new hello takes the lowest free slot (`assign`); a player the table already knows keeps its own.
   - A lobby leave, a drop with no hold and the end of a hold (`REJOIN_HOLD_S` 600 s) free the slot (`release`), so the next
     joiner takes the lowest free one.
-  - A joiner dropping mid-match is held (`hold`): its slot, colour and place are kept. Its rejoin (the hello's token) takes
+  - A joiner dropping mid-match is held (`hold`): its slot, colour and place are kept (in Course and Sector Ops a reloaded rejoin still goes to the checkpoint on its slot, see "Host-decided (re)join spawn" above). Its rejoin (the hello's token) takes
     the same slot back (`unhold`).
   - A tokenless hello in a full room takes the only held slot. With two or more slots held it is refused with "Room is full":
     a page's first hello is always tokenless, so the host answers it once with the lobby (`probed`), the page learns the host

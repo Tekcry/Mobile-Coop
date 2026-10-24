@@ -4198,8 +4198,9 @@ if (want(8)) {
     const teamView = (P) => P.evaluate(() => { const t = window.__app.current.team; return { st: t.state, b: t.count.boosts, t: t.count.throws, d: t.count.denied, last: t.lastDenied }; });
     const cleanAll = () => Promise.all(pages.map((P) => P.evaluate(() => { for (let i = 0; i < 4; i++) window.__pad.axis(i, 0); for (let i = 0; i < 17; i++) window.__pad.set(i, 0); const g = window.__app.current; g.team.end(true); g.traversal.reset(); }).catch(() => {})));
 
-    // (A18, A19) slot 2 closes its game and reopens it with its token: the same player, slot 2, its colour, where it stood
-    await leg('slot 2 drops and rejoins into slot 2 with its colour and its spot', async () => {
+    // (A18, A19) slot 2 closes its game and reopens it with its token: the same player, slot 2, its colour, placed at the
+    // checkpoint on its slot (the coop-rejoin rule for Course and Sector Ops)
+    await leg('slot 2 drops and rejoins into slot 2 with its colour, at the checkpoint on its slot', async () => {
       const i2 = idxOf(2);
       const P2 = pages[i2];
       const id2 = h.ids[i2];
@@ -4221,7 +4222,16 @@ if (want(8)) {
       if (!h.haveSlots) skip('GameState.localSlot / NetSession.selfSlot (N1)');
       else assert(h.slots[i2] === 2, `the rejoined page is slot 2 again (${h.slots[i2]})`);
       if (slot0 !== null) assert((await slotOnHost(id2)) === slot0, 'the host lists it in slot 2');
-      await until(P2, ([x, z]) => { const q = window.__app.current.player.position; return Math.hypot(q.x - x, q.z - z) < 1.5; }, [before[0], before[2]], 30000, 'the rejoined page is put back where it stood');
+      // (coop-rejoin, walk item 7; docs/systems/coop.md "Host-decided (re)join spawn") a Sector Ops rejoin whose match
+      // reloads is placed by the host like any late join: the current checkpoint on its slot (`joinSpawn`, sectioned),
+      // not its held spot; the held spot only counts when the reload lands within 3 m of it. It dropped ~18 m from the
+      // section start, so the checkpoint ring it is (p8-rejoin-fix: the old "where it stood" contradicted that rule).
+      const cp = await GA(() => window.__sector.debug().checkpoint);
+      await until(P2, ([x, z]) => { const q = window.__app.current.player.position; return Math.hypot(q.x - x, q.z - z) < 3.2; }, [cp.x, cp.z], 30000, 'the rejoined page is placed at the checkpoint on its slot');
+      const p2 = await posOf(i2);
+      assert(Math.hypot(p2[0] - cp.x, p2[2] - cp.z) < 3.2, `the rejoined page stands at the section's checkpoint ring (${Math.hypot(p2[0] - cp.x, p2[2] - cp.z).toFixed(2)} m from (${cp.x.toFixed(1)}, ${cp.z.toFixed(1)}); held at (${before[0].toFixed(1)}, ${before[2].toFixed(1)}))`);
+      const near = await GA((id) => { const me = window.__app.current.net.remotes.get(id); const ps = [window.__app.current.player.position]; for (const r of window.__app.current.net.remotes.values()) if (r !== me && !r.held) ps.push(r.feet); let m = 99; for (const q of ps) m = Math.min(m, Math.hypot(q.x - me.feet.x, q.z - me.feet.z)); return m; }, id2);
+      assert(near > 0.5, `the rejoined page does not stand on another operator (${near.toFixed(2)} m)`);
       await until(A, (id) => { const r = window.__app.current.net.remotes.get(id); return !!r && !r.held; }, id2, 15000, 'the host has it back in play');
       const bc1 = await hostBeacon(id2);
       const own = await GP(i2, `(() => { const bc = ${BC.toString()}; return bc(window.__app.current.player.rig); })()`);
