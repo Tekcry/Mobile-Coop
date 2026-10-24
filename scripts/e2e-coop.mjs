@@ -2816,15 +2816,28 @@ console.log('coop4 guard AI (AI6): three intruders over four pages - each pair h
         // C at the leg's start, dark, then the pad: crouch, left stick forward along the leg, back and forth
         await teleP(2, leg.a[0], leg.a[1], faceTo(leg.a, leg.b));
         const padReady = (P) => P.evaluate(() => { window.__pad.connect(); for (let i = 0; i < 4; i++) window.__pad.axis(i, 0); for (let i = 0; i < 17; i++) window.__pad.set(i, 0); window.__app.current.player.controller.clearCrouchToggle(); });
+        // (ai6 triage 6) `padReady` clears the crouch toggle, which by itself stands a crouched C up on his NEXT frame
+        // (`crouchWanted` -> `applyCrouch`, playerController.ts:537-541 / :745-751). Read before that frame, `crouched` was
+        // still true, so the press re-toggled him crouched (:525) and "C stands" waited 6 s on a crouch that held. Let a
+        // few of C's frames run after the clear, then press only if still not there; up to 3 tries (each press flips)
+        const crouchSt = (P) => P.evaluate(() => { const c = window.__app.current.player.controller; let head = null; try { head = c['hasHeadroom'](); } catch { /* private */ } return { crouched: c.crouched, toggled: c['crouchToggled'], intent: c.crouchIntent, pend: c.crouchPend, auto: c.autoCrouch, frozen: c.frozen, grounded: c.grounded, head, pos: [+c.pos.x.toFixed(2), +c.pos.y.toFixed(2), +c.pos.z.toFixed(2)] }; });
         const setCrouch = async (want) => {
           await padReady(P4[2]);
-          if ((await P4[2].evaluate(() => window.__app.current.player.controller.crouched)) === want) return;
-          await P4[2].evaluate(() => window.__pad.set(1, 1));
-          try {
-            await until(P4[2], (w) => window.__app.current.player.controller.crouched === w, want, 6000, `AI6 (3): C ${want ? 'crouches' : 'stands'}`);
-          } finally {
-            await P4[2].evaluate(() => window.__pad.set(1, 0));
+          const tries = [];
+          for (let k = 0; k < 3; k++) {
+            await waitSim(150);
+            if ((await P4[2].evaluate(() => window.__app.current.player.controller.crouched)) === want) break;
+            await P4[2].evaluate(() => window.__pad.set(1, 1));
+            try {
+              await until(P4[2], (w) => window.__app.current.player.controller.crouched === w, want, 3000, `AI6 (3): C ${want ? 'crouches' : 'stands'}`);
+            } catch (x) {
+              tries.push({ k, ...(await crouchSt(P4[2])), err: String(x).slice(0, 400) });
+            } finally {
+              await P4[2].evaluate(() => window.__pad.set(1, 0));
+            }
           }
+          const st = await crouchSt(P4[2]);
+          if (st.crouched !== want) throw new Error(`AI6 (3): C ${want ? 'crouches' : 'stands'}: still ${st.crouched ? 'crouched' : 'standing'} after 3 presses (${jl({ st, tries })})`);
           await waitSim(200);
         };
         const stop = () => P4[2].evaluate(() => { for (let i = 0; i < 4; i++) window.__pad.axis(i, 0); });
