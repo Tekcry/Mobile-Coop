@@ -1,0 +1,14 @@
+{
+  "id": "20261024T174746-night-shift-guard-ai-c740ac86-9d6d",
+  "sha": "c740ac861ec45d2e0d475f2e243b9de733a6b33d",
+  "branch": "",
+  "pr": 317,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-coop"
+  ],
+  "jobs": 2,
+  "set": "coop4-fix5",
+  "note": "AI6 (3) statues' radio quiet, calm = unaware|cooldown, run / hold legs pre-fixed (test-only; triage 5)"
+}
