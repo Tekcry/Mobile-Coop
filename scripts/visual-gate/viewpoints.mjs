@@ -508,8 +508,10 @@ export const VIEWS = [
       // the perimeter wall x 24 (warehouse.ts:212), 2.0 - 3.7, 14 m out
       upper: [[24, 2, -15.5], [24, 2, -9.5], [24, 3.7, -9.5], [24, 3.7, -15.5]],
       // F4: the compartment wall z -8.8, face -8.95 (warehouseS1.ts:245 [:212]), under the wall spots (15.6, 5.5, -9.25) and
-      // (22.6, 5.5, -9.25) whose cones graze it (the workshop wall the hard arcs land on), 0.3 - 4.8, 9 m out
-      wall: [[18.2, 0.3, -8.95], [14.2, 0.3, -8.95], [14.2, 4.8, -8.95], [18.2, 4.8, -8.95]],
+      // (22.6, 5.5, -9.25) whose cones graze it (the workshop wall the hard arcs land on), 0.3 - 2.6, 9 m out: stops under
+      // the catwalk (warehouseS1.ts:344), which hides wall y ~2.8 - 3.27 from this camera (vg3p check; 3.3 - 4.8 if P5
+      // shows the arcs sit high)
+      wall: [[18.2, 0.3, -8.95], [14.2, 0.3, -8.95], [14.2, 2.6, -8.95], [18.2, 2.6, -8.95]],
     },
     metrics: { upper: ['haze'], wall: ['blotch', 'arc'] },
     rules: { 'wall.arc': { max: null, presets: ['epic'] } },
