@@ -16,3 +16,8 @@ kind: minor
   full mesh (drawn through the full mesh's entry) stays out of the moon's caster list, and the list refills the frame
   after a caster is enabled or disabled (`src/world/sunCascadeCull.ts` `sunCasterDrawn`, `src/world/world.ts`). CPU
   only: Babylon already skipped these at draw time, so the shadows look the same.
+- guard-render S10b: the Sector guard freeze now also counts the guard-torch and character shadow maps' slots as
+  shadow lights (they light nothing themselves, so it skipped them): an off-screen guard whose shadow from a partner's
+  flashlight or from a nearby lamp's character shadow would land on screen stays drawn, and a guard thawed for it is in
+  that frame's shadow map (the maps keep frozen guards listed and re-render when one is thawed). A guard's own
+  flashlight never counts for him. Render only; `?guardfreeze=0` still turns the freeze off.

@@ -52,6 +52,16 @@ run), S9 + S10 builders in parallel once Sector Ops confirms the freeze / world.
   is being built by an Opus agent and pushed as WIP; if unfinished on resume, finish it from the WIP commit (brief:
   PLAN2 S10 + this line). Then one checker on S9b-fix + S10b, the diag / repeat runs (out C:/NightShift/scratch/gr2/
   diag-*, rep-*: decide the sectorops "regression" on medians), a final A/B on the head, look shots, PR.
+- S10b built (2026-10-24, 3bce2ea4 + b659bfa3 + docs): the freeze reads each ACTIVE torch / char atlas slot as a
+  shadowing light (`sectorGuardFreezeView.ts` `readLights` / `addSpotLight`, `FreezeAtlas` wired in `sectorMode.ts`):
+  torch slot = its spot as placed this frame (`TorchShadows.slotLight`, null when unused; never for its own holder:
+  `FREEZE.holderR`), char slot = its lamp's whole reach (`CharShadows.slotLamp`; the cone is fitted round drawn
+  casters). Timing: both atlases now list a frozen guard's casters at a stand-in sphere round his rig root
+  (`src/world/frozenCaster.ts`; Babylon skips disabled meshes at map render) and re-render a slot after the camera
+  evaluation in which a listed frozen caster was thawed (`onThaw`), so his shadow is in that frame's map. Up to 8 slot
+  lights (4 + 4); the 2-lamp cap and ray budget unchanged. Unit tests pass (tests/sectorGuardFreezeAtlas.test.ts). Next:
+  checker with S9b-fix; GPU look shot (an off-screen guard in a partner's torch beam, his shadow on a lit wall in view,
+  turning the camera so he stays frozen / thaws); A/B sectorops 24 alert (more guards drawn when torches sweep the view).
 
 ## Phase 1 (history)
 ## Now
