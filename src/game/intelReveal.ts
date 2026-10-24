@@ -7,8 +7,9 @@ import type { GameState } from './gameState';
 import { jointLines, type JointIntel } from './jointInterrogation';
 
 /** (mission-framework EN2) `eid`: the interrogated guard's `Enemy.id`, carried on the `intel` event (a mission's named
- *  target / decoys); none: not passed (the co-op host's client read until the NET slice passes it). */
-export function revealIntel(g: GameState, at: { x: number; y: number; z: number }, info: GuardInfo | null | undefined, eid?: string): IntelResult | null {
+ *  target / decoys); none: not passed (the co-op host's client read until the NET slice passes it). `by`: the asker's
+ *  player id (none: the host / solo player). */
+export function revealIntel(g: GameState, at: { x: number; y: number; z: number }, info: GuardInfo | null | undefined, eid?: string, by?: string): IntelResult | null {
   if (!info || info.lines.length === 0) return null;
   const cams: IntelCam[] = [];
   for (const c of g.security?.cameras ?? []) cams.push({ x: c.x, y: c.y, z: c.z, cycle: sweepCycle(c.def.sweep), live: c.mode !== 'destroyed' });
@@ -18,7 +19,7 @@ export function revealIntel(g: GameState, at: { x: number; y: number; z: number 
   const r = gatherIntel(at, info, cams, guards);
   for (const line of r.lines) g.hud.feedItem(line);
   for (const flag of r.codes) g.mode?.onIntelCode?.(flag);
-  g.events.emit('intel', eid === undefined ? { lines: r.lines, codes: r.codes } : { lines: r.lines, codes: r.codes, eid });
+  g.events.emit('intel', eid === undefined ? { lines: r.lines, codes: r.codes } : by === undefined ? { lines: r.lines, codes: r.codes, eid } : { lines: r.lines, codes: r.codes, eid, by });
   return r;
 }
 

@@ -24,6 +24,7 @@
  * No allocation per tick: flags, states and stages sit in arrays sized at construction.
  */
 import type { Enemy, PlayerRef } from '../../ai/enemy';
+import { flags } from '../../core/flags';
 import type { GameEvents } from '../gameEvents';
 import type { GameState } from '../gameState';
 import type { SectorMode } from '../modes/sectorMode';
@@ -45,6 +46,13 @@ export function sectorGuardIds(defs: readonly SectorDef[]): Set<string> {
   return out;
 }
 
+/** The guard ids with GuardInfo lines (`checkMission`'s `talkers`: only they can be interrogated). */
+export function sectorGuardTalkers(defs: readonly SectorDef[]): Set<string> {
+  const out = new Set<string>();
+  for (const d of defs) for (let k = 0; k < d.guards.length; k++) if ((d.guards[k]!.info?.lines.length ?? 0) > 0) out.add(sectorGuardId(d.id, k));
+  return out;
+}
+
 /** The section index and guard index of a guard id, null when it names none of `defs`. */
 export function parseGuardId(defs: readonly SectorDef[], id: string | undefined): { sec: number; k: number } | null {
   if (!id) return null;
@@ -56,11 +64,9 @@ export function parseGuardId(defs: readonly SectorDef[], id: string | undefined)
   return { sec, k };
 }
 
-/** `?mission=<id>` from the page URL (null: none, or no page). */
+/** `?mission=<id>` (`flags.mission`, shared with Infiltration's autostart; null: none). */
 export function missionParam(): string | null {
-  const loc = (globalThis as { location?: { search?: unknown } }).location;
-  if (!loc || typeof loc.search !== 'string') return null;
-  return new URLSearchParams(loc.search).get('mission');
+  return flags.mission;
 }
 
 /** The map's mission named `id` (null: no id, or the map has none of that id). */
@@ -73,6 +79,8 @@ export function pickMission(missions: readonly MissionDef[] | undefined, id: str
 export interface MissionGuard extends ZoneGuard {
   readonly id: string;
   readonly ko: boolean;
+  /** Held by a player (grabbed, taken down, a hostage). */
+  readonly taken: boolean;
 }
 
 /** What the adapter reads of and asks of the mode (`bindSectorMission` builds it over `SectorMode`; tests fake it). */
@@ -234,7 +242,7 @@ export class SectorMission {
       events.on('gadget', (e) => {
         if (e.phase === 'throw' || e.phase === 'place') this.gadget(local());
       }),
-      events.on('intel', (e) => this.intel(e.eid)),
+      events.on('intel', (e) => this.intel(e.eid, e.by)),
     );
   }
 
@@ -369,8 +377,11 @@ export class SectorMission {
     this.gadget(this.host.slotOf(id));
   }
 
-  /** An interrogation's `intel` event (`eid`: the guard's Enemy id): the target's step is done; a decoy spooks him. */
-  intel(eid: string | undefined): void {
+  /**
+   * An interrogation's `intel` event (`eid`: the guard's Enemy id; `by`: the asker's player id, none the host): the
+   * target's step is done; a decoy spooks him and breaks a named-target rule for the asker's team (A9).
+   */
+  intel(eid: string | undefined, by?: string): void {
     if (!eid || this.over) return;
     const ri = this.host.index();
     const ids = this.guardIds[ri];
@@ -380,7 +391,7 @@ export class SectorMission {
     if (k < 0) return;
     if (this.runner.interrogated(ids[k]!) !== INTERROGATE_DECOY) return;
     const st = this.runner.spookStep;
-    this.tracker.onInterrogate(-1, true, st);
+    this.tracker.onInterrogate(this.host.slotOf(by ?? 'local'), true, st);
     this.spook();
   }
 
@@ -527,7 +538,8 @@ export class SectorMission {
     const k = this.targetK[st]!;
     if (k < 0 || this.targetSec[st] !== this.host.index()) return;
     const e = this.host.slotGuard(k);
-    if (!e || e === this.bolted || !e.alive || e.ko) return;
+    // (fix round) never while a player holds him (a grab, a takedown, a hostage): he bolts once let go
+    if (!e || e === this.bolted || !e.alive || e.ko || e.taken) return;
     const at = this.def.steps[st]!.bolt;
     if (at) this.bolted = this.host.bolt(k, at);
   }

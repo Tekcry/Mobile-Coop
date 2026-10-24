@@ -806,7 +806,12 @@ export class SectorMode implements GameMode {
 
   private objectiveDone(s: SectorDef): void {
     const g = this.g;
-    if (this.mission?.gate()) return;
+    // (mission-framework EN2) a mission holds the exit until its section's steps are done; the objective's codes come now
+    // (a step may read one; once each, so the later pass grants nothing again)
+    if (this.mission?.gate()) {
+      for (const k of this.codes.objectiveDone(this.run.index, this.granted)) this.learned(this.run.index, k);
+      return;
+    }
     if (this.run.phase === 'objective' && !this.run.objectiveDone()) return;
     // (EW5) an objective that gives codes (the S2 BMS hack): each once
     for (const k of this.codes.objectiveDone(this.run.index, this.granted)) this.learned(this.run.index, k);

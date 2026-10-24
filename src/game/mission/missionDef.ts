@@ -152,8 +152,10 @@ function cond(c: unknown, path: string, out: string[], flags?: string[]): void {
  * every `needs` given by a step that is not after it, the last step the one `extract` (in the last section), interrogate
  * targets and decoys among `guards` (SectorGuard ids), sync windows, at most 2 rules per scope (a team's scope counts the
  * mission's rules too), rule steps that exist and fit, tracks. Returns error lines (empty = ok).
+ * (EN2 fix round) `talkers`: the guards with GuardInfo lines (`sectorGuardTalkers`): only they offer INTERROGATE and
+ * raise `intel`, so an interrogate target or decoy outside it could never complete or spook. Omitted: not checked.
  */
-export function checkMission(d: MissionDef, guards: ReadonlySet<string>): string[] {
+export function checkMission(d: MissionDef, guards: ReadonlySet<string>, talkers?: ReadonlySet<string>): string[] {
   const out: string[] = [];
   const tag = `mission ${d.id || '?'}`;
   if (!d.id) out.push(`${tag}: no id`);
@@ -210,8 +212,10 @@ export function checkMission(d: MissionDef, guards: ReadonlySet<string>): string
     if (s.kind === 'interrogate') {
       if (!s.target) out.push(`${p}: interrogate has no target`);
       else if (!guards.has(s.target)) out.push(`${p}: target ${s.target} is not a guard`);
+      else if (talkers && !talkers.has(s.target)) out.push(`${p}: target ${s.target} has no GuardInfo lines (he cannot be interrogated)`);
       for (const g of s.decoys ?? []) {
         if (!guards.has(g)) out.push(`${p}: decoy ${g} is not a guard`);
+        else if (talkers && !talkers.has(g)) out.push(`${p}: decoy ${g} has no GuardInfo lines (he cannot be interrogated)`);
         if (g === s.target) out.push(`${p}: decoy ${g} is the target`);
       }
       if ((s.decoys?.length ?? 0) > 0 && !s.bolt) out.push(`${p}: decoys need a bolt point`);

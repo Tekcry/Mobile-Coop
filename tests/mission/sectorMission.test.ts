@@ -9,6 +9,7 @@ import {
   pickMission,
   sectorGuardId,
   sectorGuardIds,
+  sectorGuardTalkers,
   type MissionGuard,
   type SectorMissionHost,
 } from '../../src/game/mission/sectorMission';
@@ -27,10 +28,11 @@ interface FakeGuard {
   passive: boolean;
   zone?: string;
   ko: boolean;
+  taken: boolean;
 }
 
 let guardSeq = 0;
-const guard = (zone?: string): FakeGuard => ({ id: `e${++guardSeq}`, alive: true, alerted: false, passive: false, zone, ko: false });
+const guard = (zone?: string): FakeGuard => ({ id: `e${++guardSeq}`, alive: true, alerted: false, passive: false, zone, ko: false, taken: false });
 
 function sec(id: string, guards: number, extra: Partial<SectorDef> = {}): SectorDef {
   return { id, guards: Array.from({ length: guards }, () => ({ kind: 'grunt', x: 0, z: 0, yaw: 0, takedownSpot: [0, 0] })), ...extra } as unknown as SectorDef;
@@ -58,8 +60,11 @@ class FakeHost implements SectorMissionHost {
     this.spawn();
   }
 
+  /** Guards spawned held by a player (the spook waits while one holds the target). */
+  held = false;
+
   spawn(): void {
-    this.slots = this.defs[this.idx]!.guards.map((g) => guard((g as { zone?: string }).zone));
+    this.slots = this.defs[this.idx]!.guards.map((g) => ({ ...guard((g as { zone?: string }).zone), taken: this.held }));
   }
 
   /** The mode's section begin (start, a connector seal). */
@@ -350,6 +355,13 @@ describe('SectorMission (adapter over the mode)', () => {
       rules: [{ kind: 'namedTarget', scope: 'mission', text: 'Question only the officer.', step: 'ask' }],
     };
     expect(checkMission(def, sectorGuardIds(DEFS()))).toEqual([]);
+    // (fix round) a target or decoy with no GuardInfo lines could never be interrogated
+    expect(sectorGuardTalkers(DEFS()).size).toBe(0);
+    expect(checkMission(def, sectorGuardIds(DEFS()), sectorGuardTalkers(DEFS()))).toEqual([
+      'mission spook step ask: target s1:0 has no GuardInfo lines (he cannot be interrogated)',
+      'mission spook step ask: decoy s1:1 has no GuardInfo lines (he cannot be interrogated)',
+    ]);
+    expect(checkMission(def, sectorGuardIds(DEFS()), new Set(['s1:0', 's1:1']))).toEqual([]);
     const h = make(def, DEFS());
     const m = h.m;
     const target = h.slots[0]!;
@@ -363,10 +375,16 @@ describe('SectorMission (adapter over the mode)', () => {
     expect(h.slots[0]).not.toBe(target);
     run(h, 0.1);
     expect(h.log).toContain('say Named target broken. Back to the section checkpoint.');
+    // (fix round) the restart spawns him held by a player: he stays put while held
+    h.held = true;
     run(h, RULE_HOLD + 0.1);
+    h.held = false;
     expect(h.restarts).toEqual([undefined]);
-    // the restart spawned him at his post again: still spooked, the next tick bolts him again
+    // the restart spawned him at his post again: still spooked; let go, the next tick bolts him again
     expect(m.runner.spookStep).toBe(0);
+    run(h, 0.3);
+    expect(h.bolts.length).toBe(1);
+    h.slots[0]!.taken = false;
     run(h, 0.1);
     expect(h.bolts.length).toBe(2);
     run(h, 0.5);
@@ -375,6 +393,37 @@ describe('SectorMission (adapter over the mode)', () => {
     m.intel(h.slots[0]!.id);
     expect(m.runner.isDone(0)).toBe(true);
     expect(m.runner.spookStep).toBe(-1);
+  });
+
+  it('(fix round) a decoy read breaks a team named-target rule only for the team of the one who asked (A9)', () => {
+    const def: MissionDef = {
+      id: 'teamAsk',
+      mode: 'sector',
+      players: [1, 2, 3, 4],
+      sections: ['s1', 's2'],
+      briefing: [],
+      steps: [
+        { id: 'ask', section: 's1', team: 'a', kind: 'interrogate', text: 'A questions the officer', target: 's1:0', decoys: ['s1:1', 's1:2'], bolt: [5, 0, 6] },
+        { id: 'out', section: 's2', team: 'all', kind: 'extract', text: 'Out' },
+      ],
+      rules: [{ kind: 'namedTarget', scope: 'a', text: 'Team A questions only the officer.', step: 'ask' }],
+      tracks: [
+        { team: 'a', zones: [], boxes: [[0, 0, 10, 10]] },
+        { team: 'b', zones: [], boxes: [[20, 0, 30, 10]] },
+      ],
+    };
+    const h = make(def, DEFS(), 2);
+    h.m.intel(h.slots[1]!.id, 'p1');
+    run(h, 0.2);
+    expect(h.log.some((l) => l.startsWith('say'))).toBe(false);
+    h.m.intel(h.slots[2]!.id);
+    run(h, 0.1);
+    expect(h.log).toContain('say Named target broken. Back to the section checkpoint.');
+    // (fix round) the exits hold while the restart waits out its hold
+    expect(h.m.holding).toBe(true);
+    run(h, RULE_HOLD + 0.1);
+    expect(h.restarts).toEqual(['a']);
+    expect(h.m.holding).toBe(false);
   });
 
   it('one chance (A12): a break ends the mission instead of a restart; so does everyone down', () => {
@@ -392,6 +441,34 @@ describe('SectorMission (adapter over the mode)', () => {
     d.restart();
     run(d, RULE_HOLD + 0.2);
     expect(d.log.some((l) => l.startsWith('fail One chance broken'))).toBe(true);
+    // (fix round) a pause-menu restart during the end's hold does not skip it
+    const p = make(twoSections(rules), DEFS());
+    p.m.kill(false, 'local');
+    run(p, 0.5);
+    p.restart();
+    run(p, RULE_HOLD);
+    expect(p.log).toContain('fail No kills broken. The mission is over.');
+    expect(p.m.over).toBe(true);
+  });
+
+  it('(fix round) a restart that lands on a pending team restart keeps it that team\'s', () => {
+    const def = twoSections([{ kind: 'noKills', scope: 'b', text: 'Team B kills nobody.' }]);
+    def.tracks = [
+      { team: 'a', zones: [], boxes: [[0, 0, 10, 10]] },
+      { team: 'b', zones: [], boxes: [[20, 0, 30, 10]] },
+    ];
+    def.steps[0]!.team = 'a';
+    const h = make(def, DEFS(), 2);
+    h.codes.add('code1');
+    run(h, 0.2);
+    expect(h.m.runner.isDone(0)).toBe(true);
+    h.m.kill(false, 'p1');
+    run(h, 0.5);
+    // everyone down meanwhile: the mode's restart (not the mission's) comes first
+    h.restart();
+    expect(h.m.runner.isDone(0)).toBe(true);
+    run(h, RULE_HOLD + 0.5);
+    expect(h.restarts).toEqual([undefined]);
   });
 
   it('per-area alarm stages: a device in a track\'s box (and height band) raises that track; a guard alarm both; onAlarm hears it', () => {

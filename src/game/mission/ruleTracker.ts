@@ -238,12 +238,12 @@ export class RuleTracker {
   }
 
   /**
-   * An interrogation by `slot`; `decoy` when it read a decoy: a named-target rule on that step breaks whoever asked
-   * (a team's rule too: Code Relay's code holder may be questioned by either team), attributed to the rule's scope.
+   * An interrogation by `slot`; `decoy` when it read a decoy: a named-target rule on that step breaks for the asker's
+   * team (A9, by slot; the mission's rule for anyone). `slot` < 0 (the asker unknown): both teams.
    */
-  onInterrogate(_slot: number, decoy: boolean, step = -1): void {
+  onInterrogate(slot: number, decoy: boolean, step = -1): void {
     if (!decoy) return;
-    this.hitRules('namedTarget', TEAM_BOTH, step);
+    this.hitRules('namedTarget', slot >= 0 ? this.slotTeams(slot) : TEAM_BOTH, step);
   }
 
   /** An item taken by `slot` where the mission says plant, not take. */
