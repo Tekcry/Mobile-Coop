@@ -11,6 +11,31 @@ import { ATTACH_SUB } from '../player/moveState';
 /** 'boost' = the leg-up; 'ladder' = the ledge relay (the wire names stay, protocol 16); 'throw' = the partner throw (B4, protocol 19); 'hang' = the hang-down (B5, protocol 20). */
 export type TeamKind = 'boost' | 'ladder' | 'throw' | 'hang' | 'rope';
 
+/**
+ * (mission KIT0) The co-op traversal kit's team kinds (PLAN 4a, M5): 'pull' = the pull-up (KIT-PULL, `kit/pullUp.ts`),
+ * 'shutter' = hold a shutter while the partner crawls under (KIT-SHUT, `kit/shutter.ts`). Each lives in its own file
+ * under `game/kit/` and plugs in through `kit/registry.ts`. They are not wire kinds yet: `TeamKind` above is what
+ * `tmove` / `tstart` carry (protocol.ts); the NET slice folds `KitKind` into `TeamKind` when the wire takes them.
+ */
+export type KitKind = 'pull' | 'shutter';
+export const KIT_KINDS: readonly KitKind[] = ['pull', 'shutter'];
+/** Every team move: the built-in (wire) kinds and the kit's. */
+export type TeamMoveKind = TeamKind | KitKind;
+
+export function isKitKind(k: string): k is KitKind {
+  return k === 'pull' || k === 'shutter';
+}
+
+/** (mission KIT0) The kit moves' sub bits on the `brace` / `boost` wire modes (after THROW 1, HANG 2, ROPE 4). */
+export const PULL_SUB = 8;
+export const SHUTTER_SUB = 16;
+export const KIT_SUB: Readonly<Record<KitKind, number>> = { pull: PULL_SUB, shutter: SHUTTER_SUB };
+/** Any kit sub bit: a `brace` mate with one offers a kit move, never a leg-up / throw / hang / rope. */
+export const KIT_SUB_MASK = PULL_SUB | SHUTTER_SUB;
+
+/** (mission KIT0) The host's rule per kit kind, filled by `kit/registry.ts` `registerKitMove` (none = not offering). */
+export const KIT_CHECKS: Partial<Record<KitKind, (r: TeamRequest) => TeamDenial | null>> = {};
+
 /** (B7) The `brace` (holder at the top) and `boost` (climber) sub bit for the two-person rope (protocol 22). */
 export const ROPE_SUB = 4;
 
@@ -36,7 +61,7 @@ export interface TeamSide {
 }
 
 export interface TeamRequest {
-  kind: TeamKind;
+  kind: TeamMoveKind;
   /** The one asking (the climber) and the braced partner. */
   a: TeamSide;
   b: TeamSide;
@@ -56,6 +81,12 @@ export function checkTeamRequest(r: TeamRequest): TeamDenial | null {
   if (r.sinceLast < 1 / TEAM.rate) return 'rate';
   if (!r.a.alive || !r.b.alive) return 'dead';
   if (r.a.id === r.b.id) return 'notMates';
+  if (isKitKind(r.kind)) {
+    // (mission KIT0) a kit move's own rule (its file, via the registry), before the ground check: the pull-up's
+    // partner asks in the air
+    const check = KIT_CHECKS[r.kind];
+    return check ? check(r) : 'notOffering';
+  }
   if (r.a.mode !== 'ground') return 'busy';
   if (r.kind === 'ladder') {
     // the relay: the partner hangs on a ledge and offered it; the climber stands under them
@@ -85,6 +116,7 @@ export function checkTeamRequest(r: TeamRequest): TeamDenial | null {
     return null;
   }
   if (hangOffer) return 'notBraced';
+  if (r.b.mode === 'brace' && ((r.b.sub ?? 0) & KIT_SUB_MASK) !== 0) return 'notBraced'; // (KIT0) offering a kit move
   const throwOffer = r.b.mode === 'brace' && ((r.b.sub ?? 0) & THROW_SUB) !== 0;
   if (r.kind === 'throw') {
     // the throw: the partner stands offering it; the runner is in reach; the landing lies the throw's length past them

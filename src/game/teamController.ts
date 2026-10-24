@@ -5,9 +5,15 @@ import { TEAM } from '../config/movement';
 import { findJumpTarget, anchorLength, type JumpTarget } from '../world/anchors';
 import { attachPose, GAMEPLAY_HEIGHT } from '../player/attach';
 import { ATTACH_SUB } from '../player/moveState';
-import { boostPath, inBoostBand, legUpRoom, relayPath, relaySlot, throwArc, throwLanding, throwRoom, THROW_SUB, HANG_SUB, HANG_HEAD, hangDepth, hangDepthMax, hangEndOf, hangFollow, hangRootY, ROPE_SUB, ropeClimb, ropeEndOf, ropeRoom, ropeSlide, ropeTopY, findRopeLip, ropeClimbPull, newRopeLip, ropeClimbGripW, ropeLipHands, ropeTopGripW, ropeTopPath, ROPE_TOP_HANDS, ROPE_TOP_PATH, type TeamKind } from './teamMoves';
+import { boostPath, inBoostBand, legUpRoom, relayPath, relaySlot, throwArc, throwLanding, throwRoom, THROW_SUB, HANG_SUB, HANG_HEAD, hangDepth, hangDepthMax, hangEndOf, hangFollow, hangRootY, ROPE_SUB, ropeClimb, ropeEndOf, ropeRoom, ropeSlide, ropeTopY, findRopeLip, ropeClimbPull, newRopeLip, ropeClimbGripW, ropeLipHands, ropeTopGripW, ropeTopPath, ROPE_TOP_HANDS, ROPE_TOP_PATH, KIT_SUB_MASK, isKitKind, type KitKind, type TeamKind, type TeamMoveKind } from './teamMoves';
 import { clearGripAxis } from '../player/attachGrips';
 import type { GameState } from './gameState';
+import { KIT_POSE_LOCAL } from '../anim/clips/team';
+import { KitDevices, isKitState, kitMove, kitMoveOfState, kitMoves, kitPoseK, kitStateOffer, kitStateSub, kitStateWireMode, type KitHost, type KitMove, type KitState } from './kit/registry';
+
+// (mission KIT0) every co-op kit move file registers itself with the registry (`kit/registry.ts`): a new move is a new
+// file in `game/kit/`, no edit here
+import.meta.glob('./kit/*.ts', { eager: true });
 
 /** A team-mate as the team moves see them (from the net layer). */
 export interface TeamMate {
@@ -24,7 +30,7 @@ export interface TeamMate {
 
 /** A team move the host started: `a` climbs, `b` offers (crouched for a leg-up, hanging for a relay). */
 export interface TeamStart {
-  kind: TeamKind;
+  kind: TeamMoveKind;
   a: string;
   b: string;
   target: number;
@@ -56,7 +62,9 @@ export type TeamState =
   | 'ropeHold'
   | 'ropeClimb'
   | 'ropeTop'
-  | 'ropeSlide';
+  | 'ropeSlide'
+  // (mission KIT0) a co-op kit move's state: its pose id (`KIT_POSE_IDS`), run by its own file (`kit/registry.ts`)
+  | KitState;
 
 const HOLDER_STATES: readonly TeamState[] = ['hangOffer', 'hangHold', 'ropeOffer', 'ropeHold'];
 const ROPE_HOLDER: readonly TeamState[] = ['ropeOffer', 'ropeHold'];
@@ -77,7 +85,7 @@ const REFUSE_SHOW = 2;
  *   meanwhile (`relayHold`) and then pulls up with the normal climb.
  * The host checks every request (`teamMoves.ts` `checkTeamRequest`) on both players' movement states. No brace, no stack.
  */
-export class TeamController {
+export class TeamController implements KitHost {
   state: TeamState = 'none';
   /** The partner in the current move (or the offering team-mate). */
   partner = '';
@@ -90,8 +98,8 @@ export class TeamController {
   /** The world prompt now (names the move and who starts it) and where it is drawn; null = none. */
   prompt: string | null = null;
   readonly promptAt = new Vector3();
-  /** Seconds into the current committed part. */
-  private t = 0;
+  /** Seconds into the current committed part (public for the kit moves, `KitHost`). */
+  t = 0;
   private start: TeamStart | null = null;
   private from = new Vector3();
   private kin = new Vector3();
@@ -111,11 +119,16 @@ export class TeamController {
   private b = new Vector3();
   private land = { x: 0, z: 0, dx: 0, dz: 0 };
   private to = new Vector3();
+  /** (mission KIT0) This level's kit devices (the kit device hook; `kit/registry.ts`). */
+  readonly devices = new KitDevices();
+  /** (KIT0) Each kit move's run data on this controller, and the level its devices were set up for. */
+  private kitRuns = new Map<KitKind, object>();
+  private kitLevel: unknown = null;
 
-  constructor(private g: GameState) {}
+  constructor(readonly g: GameState) {}
 
   /** Team-mates from the net layer (none in single player). */
-  private mates(): readonly TeamMate[] {
+  mates(): readonly TeamMate[] {
     return this.g.net?.teamMates?.() ?? [];
   }
 
@@ -135,7 +148,7 @@ export class TeamController {
   }
 
   get busy(): boolean {
-    return this.active && this.state !== 'offer' && this.state !== 'hangOffer' && this.state !== 'ropeOffer';
+    return this.active && this.state !== 'offer' && this.state !== 'hangOffer' && this.state !== 'ropeOffer' && !kitStateOffer(this.state);
   }
 
   /** (B5) Hanging head-first from the partner's hands (the interact button stays free: the hack). */
@@ -168,7 +181,7 @@ export class TeamController {
     return legUpRoom(up, this.sides);
   }
 
-  private refused(text: string): void {
+  refused(text: string): void {
     this.refuse = text;
     this.refuseT = REFUSE_SHOW;
     this.g.app.toasts.show(text, 'warn');
@@ -292,7 +305,85 @@ export class TeamController {
       case 'ropeSlide':
         this.runRope(dt, coopPressed, bPressed, moveY);
         return true;
+      default:
+        return this.kitStep(dt, coopPressed, bPressed, moveY);
     }
+  }
+
+  // ---- (mission KIT0) the co-op kit: each move in its own file (`kit/registry.ts`) ----
+
+  private kitRunOf(m: KitMove): object {
+    let r = this.kitRuns.get(m.kind);
+    if (!r) {
+      r = m.newRun();
+      this.kitRuns.set(m.kind, r);
+    }
+    return r;
+  }
+
+  /** The kit device hook: the registered moves add their devices once per level. */
+  private kitSync(): void {
+    // (a headless test's GameState may have no world: no devices then)
+    const level: unknown = this.g.world?.level ?? null;
+    if (level === this.kitLevel) return;
+    this.kitLevel = level;
+    this.devices.clear();
+    const ms = kitMoves();
+    for (let i = 0; i < ms.length; i++) {
+      const m = ms[i]!;
+      m.setupDevices?.(this, this.kitRunOf(m), this.devices, level);
+    }
+  }
+
+  /** No move running: the registered kit moves first (null = none applies here, the built-ins run). */
+  private kitIdle(coopPressed: boolean, free: boolean, near: number): boolean | null {
+    const ms = kitMoves();
+    if (!ms.length) return null;
+    this.kitSync();
+    for (let i = 0; i < ms.length; i++) {
+      const m = ms[i]!;
+      if (!m.idle) continue;
+      const took = m.idle(this, this.kitRunOf(m), coopPressed, free, near);
+      if (took !== null) {
+        this.kitPose(m);
+        return took;
+      }
+    }
+    return null;
+  }
+
+  /** A kit state's fixed step (its move's `step`); a state whose move is not registered ends. */
+  private kitStep(dt: number, coopPressed: boolean, bPressed: boolean, moveY: number): boolean {
+    const m = kitMoveOfState(this.state);
+    if (!m) {
+      this.endWhy = 'kit: no move registered';
+      this.end(true);
+      return false;
+    }
+    this.kitSync();
+    m.step(this, this.kitRunOf(m), dt, coopPressed, bPressed, moveY);
+    this.kitPose(m);
+    return true;
+  }
+
+  /** The kit pose clock and gap for `teamPoseOfState` (`KIT_POSE_LOCAL`). */
+  private kitPose(m: KitMove | null): void {
+    const st = this.state;
+    if (m && isKitState(st)) {
+      KIT_POSE_LOCAL.k = kitPoseK(st, this.t, m.times);
+      KIT_POSE_LOCAL.gap = m.gap ? m.gap(this, this.kitRunOf(m)) : NaN;
+    } else {
+      KIT_POSE_LOCAL.k = -1;
+      KIT_POSE_LOCAL.gap = NaN;
+    }
+  }
+
+  /** (KitHost) Ask the host for a kit move. */
+  kitRequest(kind: KitKind, partner: string, target: number, s: number, gy: number, lx?: number, lz?: number): void {
+    this.partner = partner;
+    // NET: GameState's hook takes `TeamKind` until the wire carries the kit kinds (then this cast goes)
+    const net = this.g.net as { teamRequest?(kind: TeamMoveKind, partner: string, target: number, s: number, gy: number, lx?: number, lz?: number): void } | null | undefined;
+    net?.teamRequest?.(kind, partner, target, s, gy, lx, lz);
   }
 
   // ---- (CT prototype B7) the two-person rope (CT 1.4 Belay Line) ----
@@ -673,10 +764,14 @@ export class TeamController {
     const free = !g.traversal.committed && !g.traversal.attached && c.grounded && !c.override;
     let near = Infinity;
     for (const m of mates) near = Math.min(near, hyp2(m.pos.x - c.pos.x, m.pos.z - c.pos.z));
+    // (mission KIT0) the co-op kit's moves first: one that applies here takes the press
+    const kit = this.kitIdle(coopPressed, free, near);
+    if (kit !== null) return kit;
     if (free) {
       // a mate crouched in reach (a leg-up) or hanging right over us (the relay)
       let bd: number = TEAM.relayReach;
       for (const m of mates) {
+        if (m.mode === 'brace' && ((m.sub ?? 0) & KIT_SUB_MASK) !== 0) continue; // (KIT0) offering a kit move
         const d = hyp2(m.pos.x - c.pos.x, m.pos.z - c.pos.z);
         const toss = m.mode === 'brace' && ((m.sub ?? 0) & THROW_SUB) !== 0;
         const hang = m.mode === 'brace' && ((m.sub ?? 0) & HANG_SUB) !== 0;
@@ -882,7 +977,7 @@ export class TeamController {
   }
 
   /** Crouched, still, back to the cupped-hands pose. */
-  private hold(): void {
+  hold(): void {
     const c = this.g.player.controller;
     c.override = { velocity: { x: 0, z: 0 }, yaw: c.yaw, turnRate: 0, crouch: true };
     this.g.player.pose.traverse = 'brace';
@@ -915,6 +1010,15 @@ export class TeamController {
     this.start = s;
     this.t = 0;
     this.from.copyFrom(c.pos);
+    if (isKitKind(s.kind)) {
+      // (mission KIT0) a kit move: its own file sets the state (an unregistered kind is ignored)
+      const m = kitMove(s.kind);
+      if (m) {
+        m.begin(this, this.kitRunOf(m), s, self);
+        this.kitPose(m);
+      }
+      return;
+    }
     const boost = s.kind === 'boost';
     if (s.kind === 'rope') {
       // (B7) `a` climbs the rope `b` holds; `l` = the rope's foot (x, the edge's y, z)
@@ -1006,6 +1110,13 @@ export class TeamController {
 
   /** The partner (or the host) ended the move. */
   ended(k?: 'pull' | 'drop'): void {
+    if (isKitState(this.state)) {
+      // (mission KIT0) its move decides (default: free)
+      const m = kitMoveOfState(this.state);
+      if (m?.ended) m.ended(this, this.kitRunOf(m), k);
+      else this.end(false);
+      return;
+    }
     if (k && ROPE_CLIMBER.includes(this.state)) {
       // (B7) the holder let go: slide down; topped out: already over the edge
       if (this.state === 'ropeClimb' && k === 'drop') this.slideNow('holder let go');
@@ -1122,8 +1233,15 @@ export class TeamController {
   }
 
   /** Back to free movement. */
-  end(_aborted: boolean): void {
+  end(aborted: boolean): void {
     const g = this.g;
+    if (isKitState(this.state)) {
+      // (mission KIT0) the kit move undoes its own overrides first
+      const m = kitMoveOfState(this.state);
+      if (m?.end) m.end(this, this.kitRunOf(m), aborted);
+      KIT_POSE_LOCAL.k = -1;
+      KIT_POSE_LOCAL.gap = NaN;
+    }
     if (this.state !== 'none') this.count.ends++;
     if (HANGER_STATES.includes(this.state) || ROPE_CLIMBER.includes(this.state)) {
       this.dropRopeGrips();
@@ -1162,12 +1280,15 @@ export class TeamController {
       case 'ropeSlide':
         return 'boost';
       default:
-        return null;
+        // (mission KIT0) a kit state: the holder `brace`, the partner `boost`
+        return isKitState(this.state) ? kitStateWireMode(this.state) : null;
     }
   }
 
-  /** (B4) The team mode's sub on the wire: `THROW_SUB` for the throw (offer, throwing, thrown), else 0. */
+  /** (B4) The team mode's sub on the wire: `THROW_SUB` for the throw (offer, throwing, thrown), else 0. (KIT0) A kit
+   *  state: its move's bit (`KIT_SUB`). */
   get wireSub(): number {
+    if (isKitState(this.state)) return kitStateSub(this.state);
     if (ROPE_HOLDER.includes(this.state) || ROPE_CLIMBER.includes(this.state)) return ROPE_SUB;
     if (HOLDER_STATES.includes(this.state) || HANGER_STATES.includes(this.state)) return HANG_SUB;
     return this.state === 'throwOffer' || this.state === 'throwAssist' || this.state === 'throw' ? THROW_SUB : 0;
@@ -1175,6 +1296,11 @@ export class TeamController {
 
   /** (B5) The team mode's `s` on the wire: the holder's hang depth (m), else 0. */
   get wireS(): number {
+    if (isKitState(this.state)) {
+      // (mission KIT0) its move's (the shutter: the gap)
+      const m = kitMoveOfState(this.state);
+      return m?.wireS ? m.wireS(this, this.kitRunOf(m)) : 0;
+    }
     return this.state === 'hangHold' ? this.hang.depth : this.state === 'hangOffer' ? TEAM.hangStart : 0;
   }
 
