@@ -166,6 +166,11 @@ export async function hostStepResult(A, key, timeout = 8000, what = 'host step h
  * (ms; `E2E_LOAD_MS`); a hang still ends there. */
 export const LOAD_MS = Number(process.env.E2E_LOAD_MS ?? 120000);
 
+/** (coop4 E2E) The same load wait for the 3-4 page parts (four pages build a map at once; the laptop GPU queue runs
+ * them alone): `E2E_LOAD_MS`, default 240000. The two-page suites keep `LOAD_MS`. */
+export const LOAD_MS_4 = Number(process.env.E2E_LOAD_MS ?? 240000);
+const loadMs = (pages) => (pages.length > 2 ? LOAD_MS_4 : LOAD_MS);
+
 /** The two-page suites' viewport where no lobby is clicked after the join (e2e-netmove, e2e-ctcourse): fewer pixels a
  * frame on software GL. The menus lay out at 1280 x 720 at least, so suites that click through the lobby (e2e-coop,
  * e2e-course) keep e2e-lib's default 1280 x 640. */
@@ -187,13 +192,16 @@ export async function hostAndJoin(url, n = 2, launchOpts = {}) {
   await A.click('.btn:has-text("Host a room")');
   await until(A, () => !!document.querySelector('.lobby-screen') && !!window.__coop, null, 15000, 'host lobby');
   const code = await A.evaluate(() => window.__coop.session.code);
+  // (coop4 E2E) a new room is Campaign (2 seats): a 3rd page would be refused. A 3-4 page room is hosted in a 4-seat
+  // legacy mode and the caller's `startMode` switches it (e2e-coop's lobby caps block does the same)
+  if (n > 2) await A.evaluate(() => window.__coop.session.setSettings('sandbox', 'warehouse', 'normal', ''));
   for (let i = 1; i < n; i++) {
     const { page, errors: e } = await openPage(ctx, url, 'net=local');
     await page.click('.main-menu .btn:has-text("Co-op")');
     await page.click('.btn:has-text("Join with code")');
     await page.keyboard.type(code.toLowerCase());
     await page.keyboard.press('Enter');
-    await until(A, (k) => window.__coop.session.players.size === k, i + 1, 15000, 'host sees client');
+    await until(A, (k) => window.__coop.session.players.size === k, i + 1, n > 2 ? 30000 : 15000, 'host sees client');
     pages.push(page);
     errors.push(e);
   }
@@ -208,7 +216,7 @@ export async function startMode(pages, mode, map) {
   for (const P of clients) await P.evaluate(() => window.__coop.session.setReady(true));
   await until(A, () => window.__coop.session.allReady, null, 8000, 'everyone ready');
   await A.evaluate(() => window.__coop.session.startMatch());
-  for (const P of pages) await until(P, (m) => window.__app.current?.opts?.mode === m && !!window.__app.current.net && !window.__app.current.isEnded, mode, LOAD_MS, `${mode} match on both pages`);
+  for (const P of pages) await until(P, (m) => window.__app.current?.opts?.mode === m && !!window.__app.current.net && !window.__app.current.isEnded, mode, loadMs(pages), `${mode} match on every page`);
   await until(A, () => [...window.__app.current.net.remotes.values()].every((r) => r.state), null, 15000, 'client state reaches the host');
   await A.evaluate(() => { window.__app.current.target.damageMul = 0; for (const r of window.__app.current.net.remotes.values()) r.damageMul = 0; });
 }
@@ -291,3 +299,73 @@ export const teamLog = (P) =>
       },
     });
   });
+
+// ---------------------------------------------------------------------------------------------------------------------
+// (coop4 E2E) Helpers for the 3-4 page parts (e2e-sectorops parts 7-8). Slots are N1's: `GameState.localSlot` /
+// `NetSession.selfSlot` for a page's own, `PlayerInfo.slot` in the lobby list. A build without them reads null.
+// ---------------------------------------------------------------------------------------------------------------------
+
+/** Each page's own player slot in the match (0 host, 1-3 joiners), null where the build has no slot hook yet. */
+export const slotsOf = (pages) =>
+  Promise.all(
+    pages.map((P) =>
+      P.evaluate(() => {
+        const v = window.__app?.current?.localSlot ?? window.__coop?.session?.selfSlot;
+        return typeof v === 'number' ? v : null;
+      }).catch(() => null),
+    ),
+  );
+
+/** Run `fn(page, index)` on every page at once; the results in page order. */
+export const eachPage = (pages, fn) => Promise.all(pages.map((P, i) => fn(P, i)));
+
+/** The room's player list as page `P` reads it: its own id, and each player's id, slot (null when the build has none), host / away flags. */
+export const slotTable = (P) =>
+  P.evaluate(() => {
+    const s = window.__coop?.session;
+    if (!s) return { selfId: null, players: [] };
+    return { selfId: s.selfId, players: [...s.players.values()].map((p) => ({ id: p.id, slot: typeof p.slot === 'number' ? p.slot : null, host: !!p.host, away: !!p.away })) };
+  });
+
+/**
+ * Pump every page in `getPages()` (a function, so a late joiner is included): a page whose rAF did not run since the
+ * last pump (a background page) steps its sim headless, the e2e-ctcourse pattern, so every page but the one in front
+ * keeps its clock going. Returns a stop function.
+ */
+export function pumpPages(getPages) {
+  const busy = new WeakSet();
+  const step = () => {
+    if (window.__raf === undefined) {
+      window.__raf = 0;
+      const f = () => { window.__raf++; requestAnimationFrame(f); };
+      requestAnimationFrame(f);
+    }
+    const now = performance.now();
+    const last = window.__pumpT ?? now;
+    const idle = window.__pumpRaf === window.__raf;
+    window.__pumpT = now;
+    window.__pumpRaf = window.__raf;
+    if (idle && window.__app.current) window.__app.loop.stepHeadless(Math.min(0.1, Math.max(1 / 60, (now - last) / 1000)));
+  };
+  const t = setInterval(() => {
+    for (const P of getPages()) {
+      if (busy.has(P)) continue;
+      busy.add(P);
+      P.evaluate(step).catch(() => {}).finally(() => busy.delete(P));
+    }
+  }, 40);
+  return () => clearInterval(t);
+}
+
+/**
+ * Open one more page and join the running room `code` (a late join: the match is already playing). Returns { page, errors };
+ * the caller waits for the match on that page and adds it to its page list (`setSimPages`).
+ */
+export async function joinLate(ctx, url, code, params = 'net=local') {
+  const { page, errors } = await openPage(ctx, url, params);
+  await page.click('.main-menu .btn:has-text("Co-op")');
+  await page.click('.btn:has-text("Join with code")');
+  await page.keyboard.type(code.toLowerCase());
+  await page.keyboard.press('Enter');
+  return { page, errors };
+}
