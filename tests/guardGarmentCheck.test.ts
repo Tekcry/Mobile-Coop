@@ -67,7 +67,7 @@ describe('guardGarmentCheck', () => {
     expect(check(noHero, layers).problems).toContain('no guard-average-shirt-hero');
   });
 
-  it("seam gaps before the weld only warn (Wren's 10 mm, large past 30 mm, chain copies too); a weld move past the relax cap fails", () => {
+  it("seam gaps before the weld only warn (Wren's 10 mm, large past 30 mm, chain copies too); a weld move past the relax cap (20 mm) warns, past 60 mm fails", () => {
     const r = sewn('average', 'jacket', { seamGapBeforeWeldMm: 17.6 });
     expect(check(r, layers)).toEqual({ problems: [], warnings: [expect.stringContaining("jacket: seam gap before the weld 17.6 mm > 10 mm (Wren's limit)")] });
     (r.steps as { part: string; seamGapBeforeWeldMm?: number }[])[0]!.seamGapBeforeWeldMm = 40;
@@ -76,11 +76,20 @@ describe('guardGarmentCheck', () => {
       expect.stringContaining('jacket: seam gap before the weld 52.5 mm > 30 mm (large, check the gusset'),
       expect.stringContaining('shirt (chain copy): seam gap before the weld 40 mm > 30 mm'),
     ] });
-    // the bake's lean trousers (52.5 mm gap, weld move 49 mm) pass; past the 60 mm relax cap fails
+    // relax radius min(60 mm, 3 x move): up to 20 mm nothing; the bake's lean trousers (weld move 49 mm) warn; past 60 mm fails
+    const weldWarns = () => check(r, layers).warnings.filter((q) => q.includes('weld moved'));
+    r.sim = { weldMoveMaxMm: 20 };
+    expect(check(r, layers).problems).toEqual([]);
+    expect(weldWarns()).toEqual([]);
     r.sim = { weldMoveMaxMm: 49 };
     expect(check(r, layers).problems).toEqual([]);
+    expect(weldWarns()).toEqual([expect.stringContaining('jacket: weld moved a seam 49 mm > 20 mm (weld relax capped, check for a pinch on a close view)')]);
+    r.sim = { weldMoveMaxMm: 60 };
+    expect(check(r, layers).problems).toEqual([]);
+    expect(weldWarns()).toHaveLength(1);
     r.sim = { weldMoveMaxMm: 61 };
     expect(check(r, layers).problems).toEqual([expect.stringContaining('jacket: weld moved a seam 61 mm > 60 mm')]);
+    expect(weldWarns()).toEqual([]);
     // only the part's own sim counts, never a chain copy's step
     r.sim = { weldMoveMaxMm: 12 };
     (r.steps as Record<string, unknown>[])[0]!.sim = { weldMoveMaxMm: 90 };

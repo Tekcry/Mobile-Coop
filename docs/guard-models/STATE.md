@@ -118,6 +118,10 @@ Mean guard distance ~6.8-9.3 m (mostly LOD1); 12 of 24 in sight at sectorops, 24
 | `near` cell (24 inside 8 m, LOD0 worst) | GPU <= 15 ms | not in guard-cap (open) | NOT MEASURED |
 | campusops | GPU, draws (thinnest map) | did not boot: guard-cap had no `campusops` alias, fallback `autostart=campusops&mode=sandbox` (wrong-case id, no enemy manager) timed out 3 x 180 s | NOT MEASURED (alias added: `autostart=campusOps&mode=sector&sectorGuards=0`) |
 
+**SUPERSEDED 2026-10-25 by the gm-perf gate and the flip:** shots/gm-perf-408ab154, 24 grunts frame p95 ON vs OFF
+sectorops 6.5 / 6.5, 4.6 / 4.7, 7.2 / 7.4 ms, campusops ON faster; feature/gm-flip sets the default ON (flags.ts
+`!== '0'`, `?guardmodels=0` off). The HOLD text below is history.
+
 **Flag decision: HOLD** (default stays off; `?guardmodels=1` on). Why: the frame CPU gate fails at sectorops 24, and
 campusops (the map nearest the 600-draw line) and the `near` worst case are unmeasured.
 Cause (from the per-pass draws, 24 alert/facing): main passes are neutral (gBuffer 60.6 vs 60.5, TAA 63.6 vs 63.5),
@@ -141,19 +145,35 @@ within +0.5 ms and campusops 24 alert stays <= 600 draws.
   - guardGearMerge.ts:101 / :152: merged gear takes `receiveShadows` from the part base, the S1 body hard-sets true; the armour may receive shadows differently from the body under it. Check in the visual pass.
   - enemy.ts:3757 (`thawPose`): when the skeleton was already prepared in this render id, the thawed pose shows a frame late (same as before F2). S11-CHECK P2 (killed while frozen) is still open.
   - S13 itself (armour, shield merge) has no GPU number: the 408ab154 gate run predates it. It only touches the flag-off and fallback path, so it does not gate the flip; the `perf.mjs` geared-section A/B in PERF-REPORT still applies.
-- G8: frame CPU gate fails at sectorops 24 (map-light shadow casters, fix list in "G8 budget run"); campusops and the
+- ~~G8: frame CPU gate fails at sectorops 24 (map-light shadow casters, fix list in "G8 budget run"); campusops and the
   `near` cell unmeasured (guard-cap has no `near` cell: all 24 placed inside 8 m); G8 look check not run. Flag default
-  stays off until the rerun passes.
+  stays off until the rerun passes.~~ SUPERSEDED 2026-10-25: the gm-perf gate passed (shots/gm-perf-408ab154: 24 grunts
+  frame p95 ON vs OFF sectorops 6.5 / 6.5, 4.6 / 4.7, 7.2 / 7.4 ms; campusops ON faster) and feature/gm-flip turns the
+  default ON.
+- Known unmeasured gaps after the flip: the `near` cell (24 inside 8 m, LOD0 worst; guard-cap has none), VRAM (still the
+  KTX2-header estimate), S13 (armour / shield merge) GPU cost.
+- Offline: a base's guard files are cached only once a map has used it, so a first offline play of a new base shows the
+  merged body. Option: warm all 12 GLBs at the menu, as Wren's are.
 - G10 look-pass items, garment seam gaps before the weld (guard-bake-checks-d17ef3c8 step4.log; the bake's weld closes
   them and the final operators check passed, so no fix now). FAIL over 30 mm: average jacket 32.9 mm; broad shirt
   41.8 mm (also fails broad trousers through its chain copy; trousers own 22 mm); lean trousers 52.5 mm; lean
   work_trousers 35.7 mm (also fails lean work_jacket through its chain copy; work_jacket own 10.7 mm). Warn over 10 mm
   (Wren's limit): average shirt 21.4, average trousers 20.1, broad trousers 22, lean shirt_rolled 20.3, lean
   work_jacket 10.7. The G10a bake (2026-10-25) measured the identical numbers; since then the gap only warns (over 30 mm
-  "large, check the gusset on the sheet") and the gate fails on the weld move over 60 mm instead (Resume 2026-10-25).
+  "large, check the gusset on the sheet") and the gate checks the part's own weld move instead: warn over 20 mm (the
+  relax radius min(60 mm, 3 x move) caps there, build_garment.py:1343), fail over 60 mm (PR #375 check fix). G10a bake:
+  warns on average trousers 32.5, broad shirt 20.9, lean trousers 49 mm; none fails.
 - G10 look items for Michael (from the G10a sheet, scratch/ctcore/guard-sheet-g10a.png):
   - runner / lean work outfit: skin shows through both inner elbows (already on the #318 sheet; not a G10a regression).
   - sniper: the shirt hem overlaps the trousers as jagged triangles at the waist.
+  - runner (lean work_jacket): skin visible at both elbows / inner forearms, worse with G10a's lighter skin tint (crops
+    C:/NightShift/scratch/ctcore/seam-crop-lean.png, seam-crop-outfits.png; #318 had it: seam-crop-bases-old318.png).
+    Fix options: rebuild the lean work_jacket sleeve (the arm pushes through it); a GLB-level body-through-garment
+    assertion like D6 (tests/guardAssets.test.ts) so it cannot come back unseen.
+  - jagged hem shards at the jacket hem / hips on lean and broad (C:/NightShift/scratch/ctcore/seam-crop-broad-shirt.png).
+  - close-view seam check needed: lean LOD0 trousers crotch gusset (weld move 49 mm, warns past the 20 mm relax cap) and
+    broad shirt underarm (seam gap 41.8 mm, weld move 20.9 mm); the 470 px sheet cannot show a pucker. Michael's look
+    check decides whether guardGarmentCheck's 60 mm weld-move fail line comes down.
 
 ## Done
 - 2026-10-23: BRIEF.md (ask, goal, limits, A1-A11) and PLAN.md (G0-G9, budgets, fit, estimate) written.

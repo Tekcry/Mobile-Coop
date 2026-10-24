@@ -12,13 +12,17 @@ import { expandFileArgs } from './cliFiles.mjs';
 /**
  * Limits. The seam gap is measured BEFORE build_garment.py's weld (every seam pair is merged to its mean,
  * build_garment.py:1308-1348), so it never reaches the GLB: it only warns, at Wren's check_garment.py limit (10 mm) and
- * as large (30 mm, check the gusset on the sheet). What can reach the GLB is the weld's move: the relax round a moved
- * seam reaches 3 x the move, capped at 60 mm (build_garment.py:1344); past the cap the fabric round the join keeps a
- * pinch, so the garment's own `sim.weldMoveMaxMm` over `weldMoveFailMm` fails. (G10a triage, 2026-10-25.)
+ * as large (30 mm, check the gusset on the sheet). What can reach the GLB is the weld's move: the relax radius round a
+ * moved seam is min(60 mm, 3 x the move) (build_garment.py:1343), so the cap binds from a 20 mm move and past it the
+ * fabric round the join may keep a pinch. The garment's own `sim.weldMoveMaxMm` over `weldMoveWarnMm` (20) warns (check
+ * for a pinch on a close view); over `weldMoveFailMm` (60) fails. 60 stays the fail line because no close view yet shows
+ * a pinch between 20 and 60 mm (the bake's lean trousers move 49 mm): Michael's look check decides whether it comes
+ * down. (G10a triage, 2026-10-25; PR #375 check.)
  */
 export const LIMITS = {
   seamGapWarnMm: 10,
   seamGapLargeMm: 30,
+  weldMoveWarnMm: 20,
   weldMoveFailMm: 60,
   bootTopGirthMin: 0.2, // m x s: a boot shaft's top girth (a guard ankle is ~0.25-0.3 m); 0 means nothing was measured
   hemOverBootMin: 1.0, // a trousers hem drafted over the boots is at least the boot's top girth (x boot girth)
@@ -72,7 +76,8 @@ export function checkGarment(r, layers) {
   }
   if (!(r.shownTris > 0)) problems.push('no shown triangles');
   // the cloth: the pre-weld seam gap only warns (the weld closes it), for the part and every chain copy (a chain copy is
-  // not this part's object: finish() deletes it, guard_garment.py:342-344); the part's own weld move past the relax cap fails
+  // not this part's object: finish() deletes it, guard_garment.py:342-344); the part's own weld move past the relax cap
+  // (20 mm) warns, past 60 mm fails
   const gaps = [[r.part, r.method === 'sewn' ? r.seamGapBeforeWeldMm : null], ...(r.steps ?? []).filter((s) => s.part !== r.part).map((s) => [`${s.part} (chain copy)`, s.seamGapBeforeWeldMm])];
   for (const [who, g] of gaps) {
     if (g == null) continue;
@@ -81,7 +86,9 @@ export function checkGarment(r, layers) {
   }
   const weldMove = r.sim?.weldMoveMaxMm;
   if (weldMove != null && weldMove > LIMITS.weldMoveFailMm) {
-    problems.push(`${r.part}: weld moved a seam ${weldMove} mm > ${LIMITS.weldMoveFailMm} mm (past the relax cap, build_garment.py:1344)`);
+    problems.push(`${r.part}: weld moved a seam ${weldMove} mm > ${LIMITS.weldMoveFailMm} mm (relax capped, a pinch is likely, build_garment.py:1343)`);
+  } else if (weldMove != null && weldMove > LIMITS.weldMoveWarnMm) {
+    warnings.push(`${r.part}: weld moved a seam ${weldMove} mm > ${LIMITS.weldMoveWarnMm} mm (weld relax capped, check for a pinch on a close view)`);
   }
   const s = scaleOf(r);
   if (r.part === 'boots') {
