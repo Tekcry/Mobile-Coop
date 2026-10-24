@@ -89,12 +89,13 @@ import {
 export interface SecWire {
   /** (26) Each camera's clock (s), in the map's camera order (a jammed camera's clock stops: its sweep is frozen). */
   ck: number[];
-  /** Target id each player (0 host, 1 client) is actively jamming ('' none). */
-  j: [string, string];
-  /** (26) Jam seconds left of each player (`jamLeft`: the rest of the jam, `useMax` when ready, 0 cooling). */
-  ch: [number, number];
-  /** (26) Cooldown seconds left of each player. */
-  cd: [number, number];
+  /** Target id each player slot (0 host, 1..3 the clients) is actively jamming ('' none). (coop4 D1, A11) One entry per
+   *  slot, length 1..PLAYER_SLOTS: the host sends max(2, highest slot in use + 1) entries (the course always 2). */
+  j: string[];
+  /** (26) Jam seconds left of each player slot (`jamLeft`: the rest of the jam, `useMax` when ready, 0 cooling). */
+  ch: number[];
+  /** (26) Cooldown seconds left of each player slot. */
+  cd: number[];
   /** (26) The devices that are not idle: [id, phase (1 jammed, 2 recovering), seconds in the phase]. */
   dv: [string, number, number][];
   /** Alarm stage 0..ALARM_MAX. */
@@ -1151,8 +1152,8 @@ export class CtDevices {
 
   /** Client: the host's device state. */
   apply(s: SecWire): void {
-    this.jamId[0] = s.j[0];
-    this.jamId[1] = s.j[1];
+    this.jamId[0] = s.j[0] ?? '';
+    this.jamId[1] = s.j[1] ?? '';
     for (let k = 0; k < 2; k++) {
       const st = this.jam[k as 0 | 1];
       st.active = s.j[k] !== '';
