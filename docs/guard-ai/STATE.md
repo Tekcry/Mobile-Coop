@@ -1010,9 +1010,11 @@ WIP snapshots (branches untouched): origin/wip/guard-ai-polish-fix ba1dc579 (fix
    CONFLICT with master (one hunk src/net/protocol.ts): orchestrator agreed no master merge; if auto-train leaves #317
    out, by-hand train merge: master's `PROTOCOL_VERSION = 55` + coop4's MAX_PLAYERS comment and `slotFromList` import.
 2. #363 polish (feature/guard-ai-polish, worktree C:/NightShift/Mobile-Coop-guard-ai-polish; big-pr labelled): check A
-   PASS, check B FIX 1 (B2) FIXED 09d16b80 (roleBound flag; 87 files green). Laptop set polish2s on 09d16b80 queued
-   (...-0a80: e2e-stealth-ai e2e-sectorops only, orchestrator queue audit: area suites, the train runs the rest). Opus re-check of
-   B2 RUNNING -> docs/guard-ai/slices/POLISH-RECHECK-B2.md (lead commits). Both green -> orchestrator train-ready.
+   PASS; check B FIX 1 (B2) fixed 09d16b80 (roleBound); re-check FIX 1 (setRole cleared it on a mid-walk role switch)
+   fixed by the lead 4bf05803 (+ squadWiring test that fails before; 14 files 236 tests; tsc / eslint clean). Laptop
+   set polish3s on 4bf05803 (...-4bd0: e2e-stealth-ai e2e-sectorops; orchestrator: area suites only), background wait.
+   Green -> orchestrator train-ready (no further re-check: the re-check's own smallest fix, applied as written).
+   Batch 2 (polish2) is based on 09d16b80: merge origin/feature/guard-ai-polish into it at its merge step.
 3. #360 T1 HELD (ROADMAP Decided, assumed: keep tier 4; BRIEF A183 on the polish branch). Worktree
    C:/NightShift/Mobile-Coop-guard-ai-t1. An Opus agent was writing scripts/t1-shadow-look.mjs (guard just out of view,
    shadow in view; contact sheets tier on vs &animtier=0) + a software-GL dry run; then queue it as an alone GPU request
@@ -1020,8 +1022,8 @@ WIP snapshots (branches untouched): origin/wip/guard-ai-polish-fix ba1dc579 (fix
    in animTierView.ts, measure the saving left. Requeue T1's e2e-sectorops + e2e-enemies only if Michael picks ship 8.
 4. Polish batch 2 (feature/guard-ai-polish2 off 09d16b80, plan 8897f212 docs/guard-ai/POLISH2-PLAN.md): builders
    RUNNING: group A Opus in C:/NightShift/Mobile-Coop-guard-ai-polish2 (enemy.ts / enemyManager.ts / searchArea.ts /
-   navGrid.ts, A184-A194, commits + pushes per item), group B Sonnet in -polish2-b (branch feature/guard-ai-polish2-b:
-   reconDroneSight test + ai.md / BRIEF / fragment / TESTING). Relaunch from the pushed branch heads if cut off. Then
+   navGrid.ts, A184-A194, commits + pushes per item), group B Sonnet DONE 21c328f4 on feature/guard-ai-polish2-b
+   (reconDroneSight test 6 cases + ai.md / BRIEF / fragment / TESTING; docs follow the plan, reconcile with A). Relaunch from the pushed branch heads if cut off. Then
    merge -b into -polish2, reconcile docs with A's report, vitest (plan "Vitest per group"), 2 Opus checkers + laptop
    set (plan "e2e"), PR stacked on #363 (base master; lands after #363). Michael look item: A186.
 5. Mission hooks (Marlow, after Michael signs off the mission specs): em.missionOrder(guardTag, 'reset' | 'walk',
