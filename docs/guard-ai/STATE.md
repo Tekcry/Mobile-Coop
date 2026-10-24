@@ -1010,22 +1010,20 @@ WIP snapshots (branches untouched): origin/wip/guard-ai-polish-fix ba1dc579 (fix
    CONFLICT with master (one hunk src/net/protocol.ts): orchestrator agreed no master merge; if auto-train leaves #317
    out, by-hand train merge: master's `PROTOCOL_VERSION = 55` + coop4's MAX_PLAYERS comment and `slotFromList` import.
 2. #363 polish (feature/guard-ai-polish, worktree C:/NightShift/Mobile-Coop-guard-ai-polish; big-pr labelled): check A
-   PASS, check B FIX 1 (docs/guard-ai/slices/POLISH-CHECK-B.md "Blocking": B2 two movers after a mid-bound re-pick).
-   Opus FIX ROUND was RUNNING (roleBound flag on Enemy, set in boundTo, cleared on open-wait / other pickCover trips /
-   stop; manager point / flank going test + e2e-stealth-ai.mjs:2745 movers use it; guardPolishB re-pick case; ai.md B2
-   lines). Its WIP is committed at the save: if not finished, relaunch "finish the fix round from WIP, brief =
-   POLISH-CHECK-B Blocking". Then vitest (POLISH-PLAN "Vitest per group" CORE + group lists, chunks of 24), push,
-   request set polish: e2e-stealth-ai e2e-sectorops e2e-coop e2e-ctcourse e2e-enemies e2e-tactics e2e-ct-warehouse
-   (AFTER fix3 is claimed: newest-first rule), one re-check of B2 only, train-ready.
+   PASS, check B FIX 1 (B2) FIXED 09d16b80 (roleBound flag; 87 files green). Laptop set polish on 09d16b80 queued
+   (...-74a7: e2e-stealth-ai sectorops coop ctcourse enemies tactics ct-warehouse), background wait. Opus re-check of
+   B2 RUNNING -> docs/guard-ai/slices/POLISH-RECHECK-B2.md (lead commits). Both green -> orchestrator train-ready.
 3. #360 T1 HELD (ROADMAP Decided, assumed: keep tier 4; BRIEF A183 on the polish branch). Worktree
    C:/NightShift/Mobile-Coop-guard-ai-t1. An Opus agent was writing scripts/t1-shadow-look.mjs (guard just out of view,
    shadow in view; contact sheets tier on vs &animtier=0) + a software-GL dry run; then queue it as an alone GPU request
    on the T1 head AND on master (tier 4) for Michael's morning pack. After gm-flip lands: shadow-in-view counts as seen
    in animTierView.ts, measure the saving left. Requeue T1's e2e-sectorops + e2e-enemies only if Michael picks ship 8.
-4. Polish batch 2: PLAN DONE docs/guard-ai/POLISH2-PLAN.md (on feature/guard-ai; A184-A194 + test T1; group A Opus
-   enemy.ts / enemyManager.ts / searchArea.ts / navGrid.ts, A184-A188 first; group B Sonnet docs + reconDroneSight test).
-   Branch feature/guard-ai-polish2 off #363's FIX head (copy the plan in), builders after the fix round lands; line
-   numbers move: find spots by name. Michael look item: A186 overwatch at his cover's edge.
+4. Polish batch 2 (feature/guard-ai-polish2 off 09d16b80, plan 8897f212 docs/guard-ai/POLISH2-PLAN.md): builders
+   RUNNING: group A Opus in C:/NightShift/Mobile-Coop-guard-ai-polish2 (enemy.ts / enemyManager.ts / searchArea.ts /
+   navGrid.ts, A184-A194, commits + pushes per item), group B Sonnet in -polish2-b (branch feature/guard-ai-polish2-b:
+   reconDroneSight test + ai.md / BRIEF / fragment / TESTING). Relaunch from the pushed branch heads if cut off. Then
+   merge -b into -polish2, reconcile docs with A's report, vitest (plan "Vitest per group"), 2 Opus checkers + laptop
+   set (plan "e2e"), PR stacked on #363 (base master; lands after #363). Michael look item: A186.
 5. Mission hooks (Marlow, after Michael signs off the mission specs): em.missionOrder(guardTag, 'reset' | 'walk',
    postId, via?) wrapping Enemy.resetBreaker / Enemy.sendTo. Wait for Marlow's go.
 6. Michael's calls: A148 reinforcements at spawn; S23 client arcs / LKP ghost; S25 flares. After #317 merges:
