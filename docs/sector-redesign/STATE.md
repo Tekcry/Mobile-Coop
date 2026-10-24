@@ -366,7 +366,9 @@ Worktrees (node_modules junctions to Mobile-Coop-sector-redesign-bake2): -polish
    Relay over all five). Opus check FIX d6cc89d4 (signoff/checks-signoff.md: 1 S5 36+6 over the 32 live cap -> plan
    <= 32 as option 1, raise-cap as option 2; 2 S5-plan-0.svg frame to z 70; 3 S1 lips count; 4 S4 basket downed
    reach 25 s; 5 S2 lead-s2-kitchen). IN FLIGHT 00:00: Opus fix round (uncommitted in -signoff; if the report lacks a
-   "Fix round" section on resume, rerun it from checks-signoff.md). Then: validate (0 errors), commit, push, message
+   "Fix round" section on resume, rerun it from checks-signoff.md + Marlow 00:10: rename kp-fac / lead-s2-kitchen /
+   lead-s2-plantlog -> sync-s2-kpfac / sync-s2-kitchen / sync-s2-plantlog, kitchen lead a real space, S4 exfil ->
+   tracks.exfil; send Marlow the final ids + sha). Then: validate (0 errors), commit, push, message
    Marlow (graph changes) + the orchestrator "sign-off pages up" (Michael picks per page; no greybox before).
 3. VISUAL-GATE (docs/visual-gate/STATE.md "Now" holds the detail): VG1 / VG2 / VG4 checked, fixed, merged
    (feature/visual-gate 5c8e38c2). VG5 (gate runner, Opus) + VG6 (train wiring, Opus, own PR off master,
