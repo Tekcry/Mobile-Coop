@@ -223,6 +223,22 @@ export function checkWaitReason(rollup, name = 'check', siblings = CHECK_SIBLING
 }
 
 /**
+ * Waste audit 2026-10-25 (the status said "CI missing" while CI ran): the CI word for a status / reason line.
+ * ciState(), but 'running' while CI is still working toward `name` (checkWaitReason: `name` queued / in progress, any
+ * other check run or status without a conclusion yet, or the sibling jobs green and `name` not created yet); 'missing'
+ * stays only when the head has no check run or status at all (or nothing is running and `name` never appeared), and
+ * 'pending' only for a lone cancelled / skipped `name` with nothing else going. Our own statuses (laptop-e2e*,
+ * auto-train/*, checker) are not CI and never make it 'running'. decide() reads success / failure only.
+ */
+export function ciLabel(rollup, name = 'check') {
+  const s = ciState(rollup, name);
+  if (s === 'success' || s === 'failure') return s;
+  const ci = (rollup ?? []).filter((r) => r?.__typename !== 'StatusContext' || !isOwnContext(r.context));
+  return checkWaitReason(ci, name) ? 'running' : s;
+}
+const isOwnContext = (c) => String(c).startsWith(LAPTOP_CONTEXT) || String(c).startsWith('auto-train/') || c === 'checker';
+
+/**
  * Audit 2 item 1: hold the build while a train-ready PR's `check` is still running, so it rides this train.
  * `waiting` = [{ pr, branch, head, why }] (train-ready PRs whose check is not success, `why` = checkWaitReason, null
  * when not running); `firstSeen` = { [head]: ISO } from the last status (`checkWait`). Each head waits at most `waitMin`
@@ -883,7 +899,7 @@ function openTrain() {
     versionCommit: !!vc,
     resume: !!vc && vc.index < subjects.length - 1,
     members: membersFromSubjects(subjects, n),
-    ci: ciState(p.statusCheckRollup, 'check'),
+    ci: ciLabel(p.statusCheckRollup, 'check'),
     ciGreenAt: ciGreenAt(p.statusCheckRollup, combined, 'check'),
     laptop: contextStatus(combined, LAPTOP_CONTEXT),
     laptopSince: pendingSince(combined, LAPTOP_CONTEXT),
@@ -907,7 +923,7 @@ function candidates(labelExists) {
       const ci = ciState(p.statusCheckRollup, 'check');
       if (ci !== 'success') {
         const why = checkWaitReason(p.statusCheckRollup, 'check');
-        log(`  #${p.number} ${p.headRefName}: check ${ci}, not a candidate${why ? ` (CI still running: ${why})` : ''}`);
+        log(`  #${p.number} ${p.headRefName}: check ${ciLabel(p.statusCheckRollup, 'check')}, not a candidate${why ? ` (CI still running: ${why})` : ''}`);
         waiting.push({ pr: p.number, branch: p.headRefName, head: p.headRefOid, why });
         continue;
       }
