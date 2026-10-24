@@ -8,9 +8,9 @@ DONE since 04:20: EN2 fix d1c3ad4c; NET 5d3f7ae1 (checkers A + B PASS) merged in
 Laptop queued: mission-engine-gb on cf3532f4 (coop, netmove, sectorops, ctcourse, section-rating, menus, levels); mission-net on 5d3f7ae1; mission-engine-en2fix on d1c3ad4c.
 RUNNING at save (rerun any whose result is missing; reports in C:/NightShift/scratch/):
 1. Greybox checker GB0-4 (Sonnet, read-only) -> greybox-check.md -> one fix round (Opus) in the engine worktree, incl. the rooms overlap; then GB5 (Sonnet, GB-briefs.md GB5 + W3 cart-gate both leaves bolted, W3_KEY_POSTS, unlisted map filter) -> GB6 / GBM.
-2. V6 checker (Opus) -> v6-check.md -> PR (level-validator V6, base master) -> then retarget PR B (feature/mission-validator) after V6 opens.
+2. V6 checker FIX (v6-check.md: shadow band on non-encounters, reach speed, drop times, guard-band docs) -> fix round POSTED on cloud-queue briefs/level-validator-V6-fix.md (pushes to feature/level-validator-v6). On done: review, then PR (V6, base master); then PR B (feature/mission-validator, now incl. VAL-DIMS 0c62a921) stacked on it.
 3. KIT-TICK checker (Opus) -> kit-tick-check.md (uses -mission-kit-pull, may leave it on branch zz-tickcheck: switch back to feature/mission-kit-pull, delete zz-tickcheck) -> merge feature/mission-kit-tick into engine.
-4. VAL-DIMS checker (Sonnet) -> val-dims-check.md (uses -mission-validator detached: switch back to feature/mission-validator) -> merge feature/mission-validator-dims into feature/mission-validator.
+4. VAL-DIMS PASS -> merged into feature/mission-validator 0c62a921. Tallow shutters gap 0.9 added. Sector Ops told: S5 s5-arch -> s5-well rope is a descent (1 campus ERR until they flip it).
 5. EN4 + MissionHud mount (Opus, -mission-en4, feature/mission-en4, WIP 2c4ffd0c): mission.start section, per-mission guard lists, HUD on host + client, e2e HUD assert.
 6. NET2 (Opus, -mission-net2, feature/mission-net2, WIP 2d388309): stale kit pair unpair, shutter pair lapse, attempt id on hangEnd, host-holder catch tick, per-kind gused window, behavioural revealIntel test.
 After 5 + 6: merge both into engine; one Opus checker on EN4 + NET2 (+ second Opus on NET2 src/net); laptop coop / netmove / sectorops.
