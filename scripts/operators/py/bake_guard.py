@@ -64,6 +64,18 @@ HEAD_COVER_REACH = 1.0               # (G10a D6) a face-covered head's face whos
 SEAM_TOL = 0.002                     # head seam vertex to body seam vertex (m)
 SCALP_REACH = 0.010                  # LOD2: head vertices this close to the buzz cap take the hair slot
 ISLAND_MIN = 0.02                    # LOD meshes drop loose islands smaller than this (stitches, rivets; they bake in)
+# (gm-look) garment LOD fit. A sewn part's LOD meshes are decimated from its welded cloth shell (the hero's subdivision
+# cage, one surface), never from the hero: the hero is two surfaces 1.1 mm apart (solidify) plus a million triangles of
+# detail, a collapse decimate stalls on it, and the vertex clustering that then took it to the budget fused the two
+# surfaces into folded shards (the G10a sheet's hem shards: over half of every outfit's LOD triangles cut through
+# another). After decimation each LOD is pushed clear of the body and of the layers under it (inner layers first), then
+# any body / inner-layer point still poking through a LOD surface lifts that surface (the runner's elbows).
+CLEAR_BODY = (0.004, 0.006, 0.010)   # per LOD: a garment LOD surface at least this far outside the body
+CLEAR_LAYER = (0.003, 0.005, 0.008)  # per LOD: an outer garment LOD at least this far outside the LOD under it
+PUSH_CAP = 0.02                      # no vertex is pushed further (a deeper poke is not a fit error: left alone)
+LIFT_REACH = 0.015                   # a point this far out of the cloth surface still counts as poking through it
+LIFT_ROUNDS = 4
+GARMENT_LAYERS = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'guard_garments.json')
 AO_SAMPLES = 32
 # (G10a D3) SPEC 8 tints a fabric texel by target / tintNeutral.fabric, so a fabric-tinted garment's baked albedo must
 # average that neutral (linear); G2's garments keep Wren's dark procedural cloth (~0.03), so the bake rescales them
@@ -302,6 +314,140 @@ def drop_faces(obj, keep_mask):
     bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
     bm.to_mesh(obj.data)
     bm.free()
+
+
+def bvh_world(o):
+    bm = bmesh.new()
+    bm.from_mesh(o.data)
+    bm.transform(o.matrix_world)
+    t = BVHTree.FromBMesh(bm)
+    bm.free()
+    return t
+
+
+def set_world_co(o, co):
+    inv = np.array(o.matrix_world.inverted())
+    loc = co @ inv[:3, :3].T + inv[:3, 3]
+    o.data.vertices.foreach_set('co', np.ascontiguousarray(loc, np.float64).ravel())
+    o.data.update()
+
+
+def vertex_neighbours(me):
+    e = np.empty(len(me.edges) * 2, np.int64)
+    me.edges.foreach_get('vertices', e)
+    nb = [[] for _ in range(len(me.vertices))]
+    for a, b in e.reshape(-1, 2):
+        nb[a].append(b)
+        nb[b].append(a)
+    return nb
+
+
+def out_dir_at(body_tree, p):
+    """The body's outward normal at its nearest point to p (world), or None when the body is far."""
+    hit = body_tree.find_nearest(Vector(p), 0.3)
+    if hit[0] is None:
+        return None, None
+    return hit[0], hit[1].normalized()
+
+
+def push_clear(o, body_tree, unders, clear_body, clear_layer):
+    """(gm-look) Moves a garment LOD's vertices out along the body normal so the surface sits `clear_body` outside the
+    body and `clear_layer` outside the outer surface of every LOD mesh under it (`unders`: BVH trees), each push at
+    most PUSH_CAP; the pushes are feathered one ring out (half) so no single vertex spikes. Returns (moved, max mm)."""
+    co = world_co(o)
+    disp = np.zeros(len(co))
+    dirs = np.zeros((len(co), 3))
+    for i, p in enumerate(co):
+        loc, n = out_dir_at(body_tree, p)
+        if loc is None:
+            continue
+        need = clear_body - (Vector(p) - loc).dot(n)
+        start = Vector(p) + n * PUSH_CAP
+        for t in unders:
+            h = t.ray_cast(start, -n, PUSH_CAP + clear_layer)
+            if h[0] is not None:
+                need = max(need, (PUSH_CAP - h[3]) + clear_layer)
+        if 0 < need <= PUSH_CAP:
+            disp[i] = need
+        dirs[i] = n
+    nb = vertex_neighbours(o.data)
+    feather = disp.copy()
+    for i, ns in enumerate(nb):
+        if disp[i] == 0 and ns:
+            m = max(disp[j] for j in ns)
+            if m > 0 and np.any(dirs[i]):
+                feather[i] = 0.5 * m
+    co = co + dirs * feather[:, None]
+    set_world_co(o, co)
+    return int((feather > 0).sum()), round(float(feather.max(initial=0.0)) * 1000, 1)
+
+
+def sample_points(o, body_tree):
+    """Vertices and face centres of a mesh (world) with the body's outward direction at each."""
+    co = world_co(o)
+    pts = list(co)
+    for p in o.data.polygons:
+        pts.append(co[list(p.vertices)].mean(axis=0))
+    out = []
+    for p in pts:
+        loc, n = out_dir_at(body_tree, p)
+        if loc is not None:
+            out.append((Vector(p), n))
+    return out
+
+
+def lift_over(o, points, clear):
+    """(gm-look) Points of the body / an inner layer (with outward directions) that poke out through the garment LOD `o`
+    (its surface right behind the point, within LIFT_REACH, and none in front of it within COVER_REACH) lift the
+    triangle behind them clear by `clear`. A few rounds (a lift can uncover a neighbour). Returns points lifted."""
+    me = o.data
+    lifted = 0
+    for _ in range(LIFT_ROUNDS):
+        tree = bvh_world(o)
+        co = world_co(o)
+        disp = np.zeros((len(co), 3))
+        n_round = 0
+        for x, n in points:
+            back = tree.ray_cast(x, -n, LIFT_REACH)
+            if back[0] is None:
+                continue
+            if tree.ray_cast(x + n * 0.0002, n, COVER_REACH)[0] is not None:
+                continue
+            step = n * (back[3] + clear)
+            for v in me.polygons[back[2]].vertices:
+                if step.length > np.linalg.norm(disp[v]):
+                    disp[v] = step[:]
+            n_round += 1
+        if not n_round:
+            break
+        lifted += n_round
+        set_world_co(o, co + disp)
+    return lifted
+
+
+def interpolated_rows(body_bind_tree, body_polys, body_co, body_w, p):
+    """Skin weights at p from the nearest body face: its corners' weight rows blended by inverse distance (smoother at
+    the elbow / knee bend than the nearest body vertex alone, so the cloth follows the skin under it)."""
+    hit = body_bind_tree.find_nearest(Vector(p))
+    if hit[0] is None:
+        return {}
+    vs = body_polys[hit[2]]
+    w = 1.0 / (np.linalg.norm(body_co[vs] - np.array(hit[0]), axis=1) + 1e-4)
+    w = w / w.sum()
+    row = {}
+    for k, v in zip(w, vs):
+        for b, x in body_w[v].items():
+            row[b] = row.get(b, 0.0) + float(k) * x
+    return row
+
+
+def garment_method(out, b, part):
+    """'sewn' / 'fitted' from the garment's own report (G2, garments/guard-<b>-<part>.json), None when it has none."""
+    try:
+        with open(os.path.join(out, 'garments', f'guard-{b}-{part}.json'), encoding='utf-8') as f:
+            return json.load(f).get('method')
+    except (OSError, ValueError):
+        return None
 
 
 def world_co(o):
@@ -600,6 +746,8 @@ def run_base(args, kit, L):
     for i, p in enumerate(body_co):
         kd_body.insert(Vector(p), i)
     kd_body.balance()
+    body_polys = [list(p.vertices) for p in body.data.polygons]
+    body_bind_tree = BVHTree.FromPolygons([Vector(p) for p in body_co], body_polys)   # (gm-look) garment weights
     seam_idx = BR['neckSeam']['bodyVerts']
     seam_mh = [int(v) for v in BR['neckSeam']['mhVerts']]   # same order as bodyVerts
     seam_pts = body_co[seam_idx]
@@ -645,6 +793,7 @@ def run_base(args, kit, L):
             note(f'hair caps: heads/guard-{b}-haircaps.blend missing: left out')
         caps = got
     garments = {}
+    garment_geo = {}
     for g in L['garments']:
         part = g['part']
         path = os.path.join(out, 'garments', f'guard-{b}-{part}.blend')
@@ -657,6 +806,14 @@ def run_base(args, kit, L):
             continue
         src = join([evaluated_copy(o, f'src-{b}-{part}-{o.name}') for o in shown], f'src-{b}-garment-{part}')
         weld(src.data)
+        # (gm-look) a sewn part's LOD geometry: its welded cloth shell (+ the rolled cuffs), not the hero (see CLEAR_BODY)
+        shell = got.get(f'guard-{b}-{part}')
+        if garment_method(out, b, part) == 'sewn' and shell is not None and shell.type == 'MESH' and len(shell.data.polygons):
+            rolls = [o for o in shown if o.name.endswith('-roll')]
+            geo = join([evaluated_copy(o, f'geo-{b}-{part}-{o.name}') for o in [shell, *rolls]], f'geo-{b}-garment-{part}')
+            weld(geo.data)
+            geo.hide_render = True
+            garment_geo[part] = geo
         for o in got.values():
             bpy.data.objects.remove(o, do_unlink=True)
         garments[part] = src
@@ -803,19 +960,46 @@ def run_base(args, kit, L):
         add(lod, o, b, 'body', 'body', 'skin', body_src, occluders=ctx_occluders)
         prev = o
 
-    # garments: one LOD chain per part, copied per outfit piece at assembly
+    # garments: one LOD chain per part, copied per outfit piece at assembly (a sewn part from its shell, gm-look)
+    garment_lod = {}
     for g in L['garments']:
         src = garments.get(g['part'])
         if src is None:
             continue
-        prev = src
+        prev = garment_geo.get(g['part'], src)
         for lod in LODS:
             o = duplicate(prev, f'g-{b}-garment-{g["part"]}-lod{lod}')
             n = decimate_piece(o, g['tris'][lod], f'garment {g["part"]} LOD{lod}')
             copy = lod == 0 and n == tri_count(src.data)
             occ = [s for s in ctx_occluders if s is not src] + [body_src]
             add(lod, o, None, 'garment', f'garment:{g["part"]}', g['partTint'], src, copy=copy, occluders=occ)
+            garment_lod[(g['part'], lod)] = o
             prev = o
+
+    # (gm-look) the fit: per LOD, inner layers first, each garment LOD pushed clear of the body and of the LODs under
+    # it, then lifted wherever a body LOD point or an under-layer point still pokes through it
+    with open(GARMENT_LAYERS, encoding='utf-8') as f:
+        layer_spec = json.load(f)['parts']
+    body_tree = bvh_world(body_src)
+    shares = lambda p, q: any(p in o['parts'] and q in o['parts'] for o in L['outfits'])  # noqa: E731
+    built = sorted({p for p, _ in garment_lod}, key=lambda p: (layer_spec.get(p, {}).get('layer', 9), p))
+    fit_report = {}
+    for lod in LODS:
+        body_lod = next((r['obj'] for r in records[lod] if r['kind'] == 'body'), None)
+        body_pts = sample_points(body_lod, body_tree) if body_lod is not None else []
+        for part in built:
+            o = garment_lod.get((part, lod))
+            if o is None:
+                continue
+            unders = [q for q in layer_spec.get(part, {}).get('under', []) if (q, lod) in garment_lod and shares(part, q)]
+            moved, worst = push_clear(o, body_tree, [bvh_world(garment_lod[(q, lod)]) for q in unders], CLEAR_BODY[lod], CLEAR_LAYER[lod])
+            lifted = lift_over(o, body_pts, CLEAR_BODY[lod])
+            for q in unders:
+                lifted += lift_over(o, sample_points(garment_lod[(q, lod)], body_tree), CLEAR_LAYER[lod])
+            fit_report.setdefault(f'lod{lod}', {})[part] = {'pushed': moved, 'pushMaxMm': worst, 'lifted': lifted,
+                                                            'under': unders, 'tris': tri_count(o.data)}
+            log(f'fit {part} LOD{lod}: {moved} verts pushed (max {worst} mm) clear of the body'
+                + (f' and {",".join(unders)}' if unders else '') + f', {lifted} poking points lifted')
 
     # gear
     for gp in L['gear']:
@@ -1031,7 +1215,8 @@ def run_base(args, kit, L):
                 set_point_attr(me, '_PIECE', np.full(nv, piece_index[pid], np.float32))
                 # weights
                 if r['kind'] == 'garment':
-                    rows = [body_w[kd_body.find(Vector(p))[1]] for p in world_co(o)]
+                    rows = [interpolated_rows(body_bind_tree, body_polys, body_co, body_w, p) or body_w[kd_body.find(Vector(p))[1]]
+                            for p in world_co(o)]
                 elif r['kind'] == 'gear':
                     rows = nearest_rows(o, r['source'])
                 else:
@@ -1113,6 +1298,7 @@ def run_base(args, kit, L):
     report['bakeCoverage'] = {f'lod{k[0]}.{k[1]}': v['coverage'] for k, v in baked.items()}
     report['albedoMean'] = {f'lod{k[0]}.{k[1]}': v['albedoMean'] for k, v in baked.items()}   # linear, covered texels (G10a D3)
     report['coveredHeadTris'] = covered_report   # (G10a D6) per LOD, per face-covered head: tris dropped / kept
+    report['garmentFit'] = fit_report            # (gm-look) per LOD, per garment part: pushed / lifted, its LOD tris
     report['seconds'] = round(time.time() - T0, 1)
     with open(os.path.join(lods_dir, f'guard-{b}.bake.json'), 'w', encoding='utf-8') as f:
         json.dump(report, f, indent=1)

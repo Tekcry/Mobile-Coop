@@ -14,6 +14,7 @@ import raw from '../scripts/operators/data/guards.json';
 import { GUARD_BASES, GUARD_LIMITS, shownTris, type GuardKit } from '../src/operators/guards/guardKit';
 import { validateGuardManifest, type GuardBase, type GuardManifest } from '../src/operators/guards/gearMask';
 import { RIG_JOINTS } from '../src/operators/runtime/pose';
+import { clothCrossings, skinThrough } from './helpers/guardClothCheck';
 import { guardGlb } from './helpers/guardGlb';
 
 const KIT = raw as unknown as GuardKit;
@@ -436,6 +437,46 @@ describe.skipIf(present.length === 0)('bundled guard files (PLAN section 5)', ()
         expect(shown, `${h.id} LOD${lod}: head triangles showing in front of the balaclava below the eye slot`).toBeLessThanOrEqual(MAX_SHOWN[lod]!);
       }
     }
+  });
+
+  // gm-look: every outfit on its base, per LOD, in the bind pose (tests/helpers/guardClothCheck.ts). Skin through the
+  // cloth = body triangles (above the soles, which never show) with the outfit right behind them and none in front: the
+  // G10a sheet's runner elbows. Cloth through cloth = outfit triangles cutting through another outfit triangle: the
+  // G10a hem shards (the LODs were decimated from the two-sided hero, then clustered). Measured on the G10a bake
+  // (bf8fdfeb), worst outfit per LOD: skin 268 / 93 / 24 above the soles (lean work elbows 134 at LOD0), crossings
+  // 1853 / 1326 / 496; the gm-look bake: see LOOK_LIMITS.
+  const LOOK_LIMITS = { skin: [40, 20, 10], crossings: [150, 120, 60] } as const;
+  const SOLE_Y = 0.1; // body triangles below this are the soles inside the boots
+  const outfitIds = new Set(KIT.pieces.filter((p) => p.kind === 'outfit').map((p) => p.id));
+  it('outfits: no skin through the cloth, no cloth cutting through cloth (gm-look)', () => {
+    const fails: string[] = [];
+    for (const base of present) {
+      const data = JSON.parse(readFileSync(`${DIR}guard-${base}.json`, 'utf8')) as { pieces: string[] };
+      const bi = data.pieces.indexOf(base);
+      for (const lod of [0, 1, 2] as const) {
+        const g = parseGlbChunks(new Uint8Array(readFileSync(`${DIR}guard-${base}-lod${lod}.glb`)).buffer as ArrayBuffer, DIR);
+        const p = g.gltf.meshes![0]!.primitives[0]!;
+        const m = { idx: readAccessor(g, p.indices!), pos: readAccessor(g, p.attributes.POSITION!), nrm: readAccessor(g, p.attributes.NORMAL!) };
+        const piece = readAccessor(g, p.attributes._PIECE!);
+        const of = new Map<number, number[]>();
+        for (let t = 0; t < m.idx.length; t += 3) {
+          const k = piece[m.idx[t]!]!;
+          if (!of.has(k)) of.set(k, []);
+          of.get(k)!.push(t);
+        }
+        const y = (t: number): number => (m.pos[3 * m.idx[t]! + 1]! + m.pos[3 * m.idx[t + 1]! + 1]! + m.pos[3 * m.idx[t + 2]! + 1]!) / 3;
+        const body = (of.get(bi) ?? []).filter((t) => y(t) > SOLE_Y);
+        data.pieces.forEach((id, oi) => {
+          if (!outfitIds.has(id)) return;
+          const cloth = of.get(oi) ?? [];
+          const skin = skinThrough(m, body, cloth).count;
+          const cross = clothCrossings(m, cloth).count;
+          if (skin > LOOK_LIMITS.skin[lod]) fails.push(`${base} LOD${lod} ${id}: ${skin} body triangles through the cloth (limit ${LOOK_LIMITS.skin[lod]})`);
+          if (cross > LOOK_LIMITS.crossings[lod]) fails.push(`${base} LOD${lod} ${id}: ${cross} cloth triangles cutting through cloth (limit ${LOOK_LIMITS.crossings[lod]})`);
+        });
+      }
+    }
+    expect(fails).toEqual([]);
   });
 
   it('the riot shield (its own GLB, when present): inside the shield piece budget and KTX2 only', () => {
