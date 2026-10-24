@@ -992,7 +992,8 @@ behaviour code Opus; Sonnet only for tests / e2e scenarios / data from a strict 
 
 ## Resume prompt
 ```
-Guard AI Build resume (laptop; docs/orchestrator/PROMPTS.md section 6 + its common tail hold the rules). Read this
+Guard AI Build resume (laptop; rules: CLAUDE.md "Sessions" on origin/master + docs/orchestrator/BOOT.md "Common start"
+and "Guard AI Build" on origin/feature/menu). Leads post a `checker` commit status on the checked head. Read this
 block only. Branch guard before every write. Never merge master into a branch. 2 Opus checkers on AI / src/net PRs;
 Opus triage on every laptop failure; laptop runs: cd C:/NightShift/Mobile-Coop-laptop-queue-svc && node
 scripts/laptop-queue/request.mjs --sha <sha> --pr <n> --set <name> --jobs 2 --requester "Night Shift | Guard AI Build"
@@ -1005,16 +1006,14 @@ OVERNIGHT mode: no swap, full burn to each cap, save ~92%, no question dialogs (
 Open (save 2026-10-25 ~00:05; agents die at the cap: relaunch each from its brief + WIP):
 WIP snapshots (branches untouched): origin/wip/guard-ai-polish-fix ba1dc579 (fix round, 13 files), origin/wip/guard-ai-t1-look
 45c00990 (scripts/t1-shadow-look.mjs, 501 lines). If the worktree is behind, `git checkout <wip> -- .` then finish.
-1. #317 coop4 (feature/coop4, worktree C:/NightShift/Mobile-Coop-coop4): fix3 52e3dc13 request ...-6504 (set coop4-fix3)
-   is the ONLY open request. Green -> `gh pr ready 317` + orchestrator train-ready. Red -> Opus triage at once.
+1. #317 coop4 (feature/coop4, worktree C:/NightShift/Mobile-Coop-coop4): fix3 52e3dc13 e2e-coop FAIL further on:
+   AI6 (1) + (2) PASS; AI6 (3) "a calm grunt facing the wall ... spawns" fails at all 4 tried spots (cap [9,17]).
+   Opus TRIAGE 4 RUNNING -> docs/coop4/checks/ai6-triage-4.md (fixes + pushes a clear test bug itself). Then requeue
+   e2e-coop on the new head (set coop4-fix4). Green -> `gh pr ready 317` + orchestrator train-ready.
    CONFLICT with master (one hunk src/net/protocol.ts): orchestrator agreed no master merge; if auto-train leaves #317
-   out, by-hand train merge: master's `PROTOCOL_VERSION = 55` + coop4's MAX_PLAYERS comment and `slotFromList` import.
-2. #363 polish (feature/guard-ai-polish, worktree C:/NightShift/Mobile-Coop-guard-ai-polish; big-pr labelled): check A
-   PASS; check B FIX 1 (B2) fixed 09d16b80 (roleBound); re-check FIX 1 (setRole cleared it on a mid-walk role switch)
-   fixed by the lead 4bf05803 (+ squadWiring test that fails before; 14 files 236 tests; tsc / eslint clean). Laptop
-   set polish3s on 4bf05803 (...-4bd0: e2e-stealth-ai e2e-sectorops; orchestrator: area suites only), background wait.
-   Green -> orchestrator train-ready (no further re-check: the re-check's own smallest fix, applied as written).
-   Batch 2 (polish2) is based on 09d16b80: merge origin/feature/guard-ai-polish into it at its merge step.
+   out, by-hand train merge: master's PROTOCOL_VERSION line + coop4's MAX_PLAYERS comment and `slotFromList` import.
+2. #363 polish TRAIN-READY at 4bf05803 (CI green, checker status success, laptop polish3s 7/7 PASS; orchestrator asked
+   to label 04:20). Batch 2 is based on 09d16b80: merge origin/feature/guard-ai-polish into it at its merge step.
 3. #360 T1 HELD (ROADMAP Decided, assumed: keep tier 4; BRIEF A183 on the polish branch). Worktree
    C:/NightShift/Mobile-Coop-guard-ai-t1. An Opus agent was writing scripts/t1-shadow-look.mjs (guard just out of view,
    shadow in view; contact sheets tier on vs &animtier=0) + a software-GL dry run; then queue it as an alone GPU request
