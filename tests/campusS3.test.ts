@@ -43,7 +43,9 @@ const lay = campusOps.build(b, 0);
 const bG = new LevelBuilder();
 buildCampus(bG, { dress: false });
 const S3 = CAMPUS_SECTORS[2]!;
-const G = S3.guards;
+/** The base list (the coop4 minPlayers tags are appended and checked in sectorGuardTags.test.ts); ALL = base + tags. */
+const G = S3.guards.filter((g) => g.minPlayers === undefined);
+const ALL = S3.guards;
 /** The S3 footprint. */
 const FOOT = { x0: 10, x1: 64, z0: -30, z1: 0 };
 const inFoot = (x: number, z: number): boolean => x >= FOOT.x0 && x <= FOOT.x1 && z >= FOOT.z0 && z <= FOOT.z1;
@@ -175,7 +177,7 @@ describe('S3 guards (SPEC "S3" guard table)', () => {
     expect(checkSectorGuards(S3)).toEqual([]);
     expect(S3.dogs ?? 0).toBe(0);
     expect(S3.perStage).toBe(2);
-    expect(G.length + SECTOR.alarmMax * S3.perStage).toBeLessThanOrEqual(SECTOR.maxAlive);
+    expect(ALL.length + SECTOR.alarmMax * S3.perStage).toBeLessThanOrEqual(SECTOR.maxAlive);
   });
 
   it('every guard has a role, a zone, a reason and a squad; #2-#3 are a pair; no posted guard and no post block (A60: S3 has no choke)', () => {
@@ -226,7 +228,7 @@ describe('S3 guards (SPEC "S3" guard table)', () => {
   });
 
   it('every slot is >= 7 m from the start and on the nav grid (its storey); every route point and takedown spot too', () => {
-    for (const [i, g] of G.entries()) {
+    for (const [i, g] of ALL.entries()) {
       const y = g.y ?? 0;
       expect(hyp2(g.x - S3.start.x, g.z - S3.start.z), `#${i + 1}`).toBeGreaterThanOrEqual(7);
       expect(onNav(g.x, g.z, y), `#${i + 1} slot (${g.x}, ${y}, ${g.z})`).toBe(true);
@@ -238,7 +240,7 @@ describe('S3 guards (SPEC "S3" guard table)', () => {
       expect([0, S3_L1]).toContain(y);
     }
     // the hall patrols' routes and each walked leg have a nav path (the guards really can walk them)
-    for (const [i, g] of G.entries()) {
+    for (const [i, g] of ALL.entries()) {
       const r = g.route;
       if (!r) continue;
       const y = g.y ?? 0;
@@ -566,7 +568,7 @@ describe('A99: the screen count (no player point sees more than CAMPUS_SCREEN_CA
   const HALF = ((CAMERA.fov / 2) * PI) / 180;
   const YAWS = Array.from({ length: 32 }, (_, k) => (k * PI) / 16);
   it('at every walkable nav cell centre (0.5 m) on every S3 level, 32 facings: at most CAMPUS_SCREEN_CAP guards (dormant too) anywhere on their routes in the 86 deg view with a clear line within 40 m', () => {
-    const awake = G.map((g, i) => ({ g, i }));
+    const awake = ALL.map((g, i) => ({ g, i }));
     // every point a guard stands on or walks through (the post, then each route leg every 1 m): guards start out of
     // phase in play, so any combination of positions can line up
     const pts = awake.map(({ g }) => guardPoints({ x: g.x, z: g.z, y: g.y, route: g.route as readonly (readonly [number, number])[] | undefined }).map(([px, py, pz]) => [px, py + 1.2, pz] as const));

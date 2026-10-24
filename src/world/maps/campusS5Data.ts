@@ -72,6 +72,11 @@ export const S5_GUARDS: GearGuard[] = [
   { kind: 'grunt', x: -31.4, z: 53.5, yaw: -PI / 2, takedownSpot: [-32.0, 54.3], role: 'driver', zone: 'lane', squad: 4, reason: "The team's van; overlooks the jetty path" },
   // 24 the clocking round
   { kind: 'officer', x: -35, z: 37.2, yaw: PI, route: [[-35, 37.2], [-35, 19.6]], waits: [3, 3], takedownSpot: [-35, 37.6], role: 'tour', zone: 'back', squad: 5, reason: 'Clocking round of the back stair door and the hall door' },
+  // coop4 A8: spawned only for a team of 3 / 4 (`minPlayers`); appended, so the base list keeps its numbers
+  // 25 the second archive round (3+): the same loop as #18, from the north-east corner, same direction
+  { kind: 'grunt', x: -42.2, y: Y1, z: 43, yaw: PI, route: [[-42.2, 43], [-42.2, 33], [-45, 33], [-45, 43]], waits: [3, 3, 3, 3], takedownSpot: [-42.2, 43], role: 'patrol', zone: 'archive', squad: 3, minPlayers: 3, reason: 'Archive pair gate (the team door): with 3+ players one pair works the gate while another clears the stacks, so a second round walks the archive' },
+  // 26 the second service round (4+): the same wing round as #21 from the front-door end
+  { kind: 'grunt', x: -29, z: 23.5, yaw: 0, route: [[-29, 23.5], [-29, 42.5]], waits: [3, 3], takedownSpot: [-30.4, 23.3], role: 'patrol', zone: 'wing', squad: 5, minPlayers: 4, reason: 'Loud route (hall, kitchen, terrace gate): 4 players run the service wing and the hall at once, so a second service round walks the wing from the hall end' },
 ];
 
 /** The ways in (M8): stealth by the back corridor, the side door and the garden; loud by the hall, the kitchen and the terrace gate; high by the service stair, the roof and the rappel. */

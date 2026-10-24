@@ -54,6 +54,11 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
       { kind: 'grunt', x: -22.6, z: -7.0, yaw: 2.6, takedownSpot: [-22.6, -7.0] },
       // 8 the office patrol: a night tour clocking the two corridor fire doors (starts and is taken at the east end: the west end is in the bay's line of sight, so its isolation window would not survive patrol drift)
       { kind: 'grunt', x: 7.0, z: -12.3, yaw: Math.PI / 2, route: [[7.0, -12.3], [-7.0, -12.3]], wait: 4, faces: [Math.PI / 2, -Math.PI / 2], takedownSpot: [7.0, -12.3] },
+      // coop4 A8 (`minPlayers`: spawned only for a team of 3 / 4; appended, so `?sectorGuards=4` and the base numbering are unchanged)
+      // 9 the second yard patrol (3+): the gatehouse <-> front entrance round from the entrance end
+      { kind: 'grunt', x: -6.5, z: -19.6, yaw: 0, route: [[-6.5, -19.6], [10.5, -21.0]], wait: 3, waits: [4, 4], faces: [0, Math.PI], takedownSpot: [10.5, -21.0], minPlayers: 3, reason: 'Shutter and drainpipe routes both cross the yard: with 3+ players they go in together, so a second yard patrol walks the round from the entrance end' },
+      // 10 the second office patrol (4+): the corridor round from the west end
+      { kind: 'grunt', x: -7.0, z: -12.3, yaw: -Math.PI / 2, route: [[-7.0, -12.3], [7.0, -12.3]], wait: 4, faces: [-Math.PI / 2, Math.PI / 2], takedownSpot: [7.0, -12.3], minPlayers: 4, reason: 'Mess back door (the team door): with 4 players two come through the workshop and unbolt it while two take the corridor, so a second patrol walks the corridor from the west end' },
     ],
     // alarm reinforcements come in at the vehicle gate
     reinforce: [[5.0, -25.0], [8.0, -25.0]],
@@ -118,6 +123,11 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
       { kind: 'grunt', x: -5.3, z: -5.2, yaw: Math.PI / 2, takedownSpot: [-5.3, -5.2] },
       // 8 the loader: wraps and labels the picked orders for C3, facing the wrapper (static)
       { kind: 'grunt', x: -6.0, z: 16.2, yaw: 0, takedownSpot: [-6.0, 16.2] },
+      // coop4 A8 (`minPlayers`: spawned only for a team of 3 / 4; appended, so the base numbering is unchanged)
+      // 9 the second stocktaker (3+): the A1 count from the cage end
+      { kind: 'officer', x: -21.4, z: 11.0, yaw: Math.PI / 2, route: [[-21.4, 11.0], [-21.4, 2.0]], wait: 5, waits: [8, 2], faces: [Math.PI / 2, -Math.PI / 2], takedownSpot: [-21.4, 11.0], minPlayers: 3, reason: 'West route up A1 (past the VNA through-bay gate, the team door): with 3+ players the aisle is cleared from both ends, so a second counter works it from the cage end' },
+      // 10 the second picker (4+): the east gangway round from the goods-out end
+      { kind: 'grunt', x: -7.4, z: 0.5, yaw: -Math.PI / 2, route: [[-7.4, 0.5], [-7.4, 14.6]], wait: 4, waits: [4, 4], faces: [-Math.PI / 2, Math.PI / 2], takedownSpot: [-7.4, 14.6], minPlayers: 4, reason: 'The sprinkler-main route drops into the east gangway and the VNA team comes out at the issue gate: with 4 players both arrive together, so a second picker works the gangway from the south end' },
     ],
     // alarm reinforcements: the west fire exit and the charge bay
     reinforce: [[-22.5, 5.5], [-6.2, -5.0]],
@@ -177,6 +187,11 @@ export const WAREHOUSE_SECTORS: SectorDef[] = [
       { kind: 'officer', x: 4.7, z: -5.0, yaw: 0, route: [[4.7, -5.0], [0.6, -7.6]], wait: 8, waits: [8, 8], faces: [0, Math.PI], takedownSpot: [0.6, -7.6] },
       // 9 the plant engineer: the hourly plant check, the AHU panel, both doors, the valve set
       { kind: 'grunt', x: 19.4, z: -3.0, yaw: Math.PI, route: [[19.4, -3.0], [20.0, 0.6], [14.9, 0.6], [15.0, -3.3]], wait: 6, waits: [6, 2, 2, 2], faces: [Math.PI, 0, -Math.PI / 2, Math.PI / 2], takedownSpot: [19.4, -3.0] },
+      // coop4 A8 (`minPlayers`: spawned only for a team of 3 / 4; appended, so `?sectorGuards=4` and the base numbering are unchanged)
+      // 10 the second plant engineer (3+): the same hourly round as #9, from the opposite corner
+      { kind: 'grunt', x: 14.9, z: 0.6, yaw: -Math.PI / 2, route: [[14.9, 0.6], [15.0, -3.3], [19.4, -3.0], [20.0, 0.6]], wait: 6, waits: [2, 2, 6, 2], faces: [-Math.PI / 2, Math.PI / 2, Math.PI, 0], takedownSpot: [19.4, -3.0], minPlayers: 3, reason: 'Plant room service door (the team door): with 3+ players one pair unbolts it while another works the duct, so a second engineer walks the plant check from the opposite corner' },
+      // 11 the second crane operator (4+): the die rack <-> press round from the press end
+      { kind: 'grunt', x: 14.0, z: -6.8, yaw: Math.PI, route: [[14.0, -6.8], [7.3, -7.5]], wait: 7, waits: [7, 7], faces: [Math.PI, 0], takedownSpot: [7.3, -7.5], minPlayers: 4, reason: 'The crane-walkway route passes over the die rack lane: with 4 players the high team and the floor team arrive together, so a second crane hand works the lane from the press end' },
     ],
     reinforce: [[-2.5, 10.5], [20.8, 6.5], [13, -7.0]],
     // (sector-fixes-r RT) team doors (warehouseS3.ts)
