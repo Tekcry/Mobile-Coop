@@ -474,6 +474,16 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   (coop4 AI4, A174) From 3 players each reinforcement takes `nextAlarmHunt()`: round robin over `alarmHunts` (the
   alarm's intruder first, then the freshest sightings, leavers skipped); a team shares one (AI5). Refusals at the live
   cap keep the order. Undo `ALARM_HUNT.split = false`.
+  (coop4 AI5, A175-A179) From 3 players: a stage's response grows `RESPONSE_N.extraPerPlayer` (1) per player past 2,
+  the extras within the live cap's room, two teams from `splitAt` (4) guards (`responseShape` in `gear.ts`; Sector Ops:
+  `EnemyManager.setResponseShape(over)` at section load, `shapeResponse(stage, perStage, out)` at the alarm, `newTeam(..,
+  spread)`); a team shares one intruder (its first member's alarm draw, `SweepTeam.hunt`; later members `retell`, their
+  draws given back) and sweeps round that intruder's last known position (unknown: the freshest); team starts spread
+  over `spread` teams (`sweepStart`), a point another sweeping team holds within `SWEEP.thin` is passed over
+  (`pointBusy`; all held: taken anyway; the #302 stall skip kept). Squad groups take cover in rotation (`rolesRR`); the
+  flank trigger reads the slot's own player's cover time; `spotted` clears per player once nobody fights his slot.
+  1-2 players: today. Undo `RESPONSE_N { extraPerPlayer: 0, splitAt: Infinity }`, `SWEEP4.own / dedupe`,
+  `FIGHTS4.rotate / ownCover / spotted` false. Log `docs/coop4/briefs/AI5-BUILT.md`.
 - Search after combat: the probable area (guard-ai S25, M1, CT rule 9, A151-A154; `ai/searchArea.ts` pure:
   `SEARCH_AREA`, `SearchPlan`, `areaRadius`, `pointScore`, `orderByScore`). One plan per intruder slot
   (`EnemyManager.plans`). `buildPlan(slot)`, called when one of his searchers asks: due when never built, older than

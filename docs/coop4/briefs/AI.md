@@ -226,3 +226,12 @@ per remote, `r.state`); `removeRemote` calling `intruderLeft`; later the per-cli
   new `tests/fourIntruders.test.ts` (FakeGuard harness: 4 slots; rejoin keeps slot and hunters; reuse releases plan,
   caller, chase field, heard throttle, alarm / contact hunt and hunters; reuse via a located shot; 2 players no reuse;
   `ghostOf` 0 / 1 / 2). `tests/twoIntruders.test.ts` unedited and green.
+
+### AI5 built (Opus builder, 2026-10-24)
+- Response size hook `responseShape` / `responseTeamSize` / `RESPONSE_N` (gear.ts) with manager wrappers
+  `EnemyManager.setResponseShape(over: ResponseShapeOverride | null): void` (section load) and
+  `shapeResponse(stage: number, perStage: number, out: ResponseShape): ResponseShape` (alarm), `newTeam(.., spread = 3)`;
+  team hunt shared per team (closes AI4's split-team risk: `joinTeam` keeps the first member's draw, retells the rest and
+  gives their draws back); own-LKP sweep, `sweepStart` spread + `pointBusy` dedupe (#302 kept); roles rotation,
+  `targetCoverT(slot)`, `spotted` per slot. Flags `SWEEP4`, `FIGHTS4`. All gated at 3+ players; 2-player identity test.
+  Sector Ops wiring of sectorMode.ts:943-960 and `SectorDef.responseShape` pending. Log: `docs/coop4/briefs/AI5-BUILT.md`.

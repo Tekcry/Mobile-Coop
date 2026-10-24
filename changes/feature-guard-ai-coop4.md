@@ -10,3 +10,7 @@ kind: minor
   4-player fight; hearing locates each of up to 4 intruders by its own noise.
 - With 3-4 players the alarm's reinforcements split over the known intruders: the alarm raiser's intruder first, then
   each other by freshest sighting, round robin; 1-2 players unchanged.
+- With 3-4 players a stage's response grows by one guard per player past 2 (two teams from 4 guards, a shield lead
+  each, never past the live cap); each team hunts and sweeps round its own intruder's last known position and keeps off
+  the points another team holds; fights take cover in turn, and the flank trigger and `spotted` follow each player's
+  own fight; 1-2 players unchanged.
