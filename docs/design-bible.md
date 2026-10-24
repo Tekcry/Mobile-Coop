@@ -1,6 +1,6 @@
 # Night Shift - Design Bible
 
-Version 2.1 - 2026-10-25. States today's game, rewritten in place to Michael's decisions G1-G339 (`docs/DECISIONS.md`;
+Version 2.1 - 2026-10-25. States today's game, rewritten in place to Michael's decisions G1-G343 (`docs/DECISIONS.md`;
 "Rewrite it now", G10; "I want to make sure my vision is clear constantly", G337). `docs/VISION.md` is the one-page
 summary. The 1.13 text, with the removed systems and the old process, is in `docs/archive/design-bible-history.md`.
 Owner: Michael. Location in the repo: `docs/design-bible.md`.
@@ -146,8 +146,10 @@ controllable, it is wrong.
 3. **Space by space**, following the level design spine: scout from the entry vantage, plan, execute together, reach
    the next checkpoint.
 4. **Radio:** the handler and crew talk through text radio. Radio never blocks input.
-5. **Objectives** live in the menu, as in CT (G108), and name what and where; the level flows towards each one (G336).
-   Primary objectives complete the mission; secondary and opportunity objectives raise the rating.
+5. **Objectives** are short, plain English lines that name what and where; the level flows towards each one (G336,
+   G343). The current objective fades in on every update and on a tap of View / Select (pad) or O (keyboard) for
+   about 5 s; the menu holds the full list (G108, G343). Primary objectives complete the mission; secondary and
+   opportunity objectives raise the rating.
 6. **Extraction:** both players must reach the exit (G138).
 7. **Results:** the stealth rating and its breakdown (Section 5.8).
 
@@ -508,8 +510,8 @@ Implementation: `docs/systems/combat.md`.
   second kills (G307), except on the hardest difficulty, where the helmet cannot be shot off (G338).
 - **Helmets and armour per mode.** Sector Ops: "harder difficulties always have helmets, and hardest difficulty you
   can't shoot the helmet off" (G338); later sections add body armour that makes torso shots stagger (G307).
-  The campaign: no heavies (G155); helmets and armour come with the alarm levels (5.7), plus the same difficulty rule
-  (assumed, undoable, G338).
+  The campaign: no heavies (G155); the same helmet rule: harder difficulties always have helmets, the hardest cannot
+  be shot off, and on the easier ones helmets and armour come with the alarm levels (5.7) (G341).
 - **Ammo in Sector Ops (G307):** limited suppressor ammo, no ammo inside a section and one weapons-crate refill per
   player between sections.
 - Aiming from attached states stays (split, pipes, rappel, ledge, human ladder top).
@@ -581,8 +583,9 @@ radio script, checkpoints, kits (G153) and co-op moments. It is validated by a s
 
 **Objectives:** primary (required), secondary (optional, rated), opportunity (revealed mid-mission by intel,
 interrogation or radio; optional, rated). Types: terminal / download, plant, intel, rescue / escort, sabotage, extract,
-interrogate a named target. They are read in the menu (G108) and name what and where; there is no map, and the level
-design flows towards each objective (G336).
+interrogate a named target. Each is a short, plain English line that names what and where; there is no map, and the
+level design flows towards each objective (G336). The current objective fades in and out in game: on every update and
+on a tap of View / Select (pad, CT's Back) or O (keyboard), for about 5 s; the menu keeps the full list (G108, G343).
 
 **Rules:** `noAlarms`, `noKills`, `noBodiesFound`, `maxAlarmLevel`. Each rule is a bonus or a strict rule. A mission
 has up to 2 strict rules, signposted in the briefing and the objective list; "ghost" counts as one. Breaking a strict
@@ -592,9 +595,10 @@ fails the mission, with a clear warning first (G145). Both players must reach th
 
 **Triggers and actions.** Triggers: enter area, objective state, alert level, alarm level, interrogation, item taken,
 light group state. Actions: radio line, add / complete / fail objective, enable / disable a squad, lock / unlock door, set
-light group, spawn reinforcements, checkpoint, end mission. Soft windows only: predictable windows (shift changes,
-fixed patrol cycles, signposted in the world) are allowed; no countdown closes a route and stealth sections have no
-forced timers (G334).
+light group, spawn reinforcements, checkpoint, end mission. In the campaign and Sector Ops, soft windows only:
+predictable windows (shift changes, fixed patrol cycles, signposted in the world) are allowed; no countdown closes a
+route and stealth sections have no forced timers (G334). Marlow Yard may use timed drills that force the players into
+situations, as training (G342).
 
 **No quicksave.** Checkpoints only. The pause menu offers "Restart from checkpoint".
 
@@ -615,12 +619,11 @@ is shown, plus each player's stats.
 players. Choosing a mission beyond your own progress shows "Story spoilers ahead". Saved per player, per mission:
 completed, best rating, intel found.
 
-**Missions** recreate the CT co-op levels (G3); the research decides their number, length and flow. The bible does not
-take Kestrel's Mission 1 size until Kestrel is decided after the research (G53, G118). Story, sites and names:
-`docs/story.md` (site and company names are decided with the missions). The first campaign prototypes, Three Grey Coats
-and Two-Key Ledger, go on a new small campaign map (G293; Tallow Wharf in the mission-framework plan), built on the
-mission framework: objective chains with parallel tracks, strict rules with section restart, an
-interrogate-a-named-target objective (G291).
+**Missions** recreate the CT co-op levels (G3); the research decides their number, length and flow. Mission 1 is Tallow
+Wharf, the new small campaign map; Kestrel stays paused (G340, G53). Story, sites and names: `docs/story.md` (site and
+company names are decided with the missions). The first campaign prototypes, Three Grey Coats and Two-Key Ledger, go on
+Tallow Wharf (G293, G340), built on the mission framework: objective chains with parallel tracks, strict rules with
+section restart, an interrogate-a-named-target objective (G291).
 
 **Mission 8** has no traitor and no player-versus-player finale (G9; Section 5.15).
 
@@ -714,8 +717,9 @@ Implementation: `docs/systems/ui.md`; the menu plan: `docs/menu-ui/SPEC.md`.
 
 - **The in-game HUD follows CT's layout (G77):** light meter, sound meter, health bar, ammo, selected gadget, contextual
   prompts (a team move names itself, G151), radio subtitles. No partner marker (G135). No stance or gear icons: the
-  operator's body shows the stance (G107). No medkit count (G98). Objectives live in the menu (G108); Marlow Yard keeps
-  its always-on objective list (G277, G292).
+  operator's body shows the stance (G107). No medkit count (G98). The current objective fades in for about 5 s on every
+  update and on a tap of View / Select or O; the menu keeps the full list (G108, G343). Marlow Yard keeps its
+  always-on objective list (G277, G292).
 - **Menus follow the Arkham Knight style plan** (feature/menu-ui-spec, G77). The menu job comes after the prototype
   (G113); its open calls are in Section 11.
 - **No maps at all, in any mode:** no briefing map, no field-menu map, no minimap, compass or objective blip, no world
@@ -996,7 +1000,7 @@ Every feature works smoothly in co-op (2 players; up to 4 in Sector Ops), to 5.9
 - Parked maps (Embassy, Mansion, Port, Refinery, Dust Depot). The Warehouse stays selectable as the old Sector Ops map
   (G298).
 
-**Paused:** Kestrel (Mission 1, branch `feature/kestrel`); its future is decided after the CT co-op research (G53).
+**Paused:** Kestrel (branch `feature/kestrel`; G53). Campaign Mission 1 is Tallow Wharf, not Kestrel (G340).
 
 **Never:**
 
@@ -1005,8 +1009,9 @@ Every feature works smoothly in co-op (2 players; up to 4 in Sector Ops), to 5.9
   (G75): a CC0 base human body, built into each operator offline by in-repo Blender scripts and bundled. Audio may use
   CC0 recordings for any sound (S7). CMU motion-capture takes for the mocap set are allowed (converted clips bundled,
   raw files not committed, credited in `docs/art-credits.md`; G264, G268, G276).
-- Random patrols that defeat planning; forced timers in stealth sections and countdowns that close a route (soft
-  windows only, G334); world waypoints and maps (G336); kill cams; monetisation.
+- Random patrols that defeat planning; in the campaign and Sector Ops, forced timers in stealth sections and countdowns
+  that close a route (soft windows only, G334; Marlow Yard's timed drills are allowed, G342); world waypoints and maps
+  (G336); kill cams; monetisation.
 - Voiced story lines now: they are a later idea (G82). Voice chat is not out of scope: it comes after the prototype
   (G156, 5.2 S10).
 
@@ -1020,11 +1025,12 @@ spec template) and the standard's phases and gates.
 - **Campaign maps recreate the CT co-op levels** (G3): their design, flow and moves, with original sites and story. The
   research job writes what each level teaches and how the pair moves through it.
 - **Campaign maps** are co-op only (G253): every section forces a co-op traversal move with no solo bypass (G292). A
-  linear spine joins the sections, with loops inside them (G284). The first prototypes go on a new small campaign map
-  (G293).
+  linear spine joins the sections, with loops inside them (G284). Mission 1 and the first prototypes are on
+  Tallow Wharf, a new small campaign map (G293, G340).
 - **Marlow Yard** (map `ctcourse`, Course mode) is the 2-player co-op training course, replacing Fallow (G184, G292):
   heavily guided and very linear, one route, with split paths and multiple objectives only in its later sections, as
-  teaching (G292). It keeps its guidance marks and an always-on objective list; no explainer pads (G277, G292). The
+  teaching (G292). It keeps its guidance marks and an always-on objective list; no explainer pads (G277, G292). Timed
+  drills that force the players into situations are allowed, as training (G342). The
   final pass rebuilt it freely around co-op scenarios, one co-op run 15-20 min (G272): a believable, luxurious training
   facility, dressed straight after each greybox (G278), with the Marlow Yard audit's shortlist (ceilings, lamp
   fittings, airlocks, dressing, walls to ceilings, paint, lifts, fiction; G225). Lit by default: the players cut the
@@ -1137,9 +1143,9 @@ The live job list, ranked, with owners and gates, is `docs/ROADMAP.md` "Now" on 
 2. **The goal** (CLAUDE.md "Current goal"): Marlow Yard fully playable by two players end to end, with all co-op moves
    and light parity; refining allowed, paced by the walk cap (G288).
 3. **In parallel:** Sector Ops' Saltmarsh Park S1-S5 greybox (signed off, G328) with light-realism (G329); the mission
-   framework, then the four prototypes: Three Grey Coats and Two-Key Ledger on the new small campaign map, Split Shift
-   and Code Relay on the campus (G291, G293); guard AI (G299, G335); guard models (G310, G321); the animation passes;
-   the test jobs (G287) and route-runs (G330).
+   framework, then the four prototypes: Three Grey Coats and Two-Key Ledger on Tallow Wharf (Mission 1, G340), Split
+   Shift and Code Relay on the campus (G291, G293); guard AI (G299, G335); guard models (G310, G321); the animation
+   passes; the test jobs (G287) and route-runs (G330).
 4. **Later**, each its own job: menus, the music revision and the art guide (G113); missing sounds (G66); voice chat
    (G156); Kestrel's future (paused, G53); the rest of the campaign missions; more co-op player characters after all
    levels (G310).
@@ -1174,8 +1180,8 @@ confirming the long menu theme and the Calm / Cautious alternatives.
 **The operators branch** (G75): the operator file size limit, its technical assumptions, re-checking Wren's kit on the
 real CT poses.
 
-**Kestrel, after the research:** Mission 1 size (G118), the editor, mission and level technical items, and its own open
-items (`docs/kestrel/progress.md`).
+**Kestrel, if it returns** (paused, G53; Mission 1 is Tallow Wharf, G340): the editor, mission and level technical
+items, and its own open items (`docs/kestrel/progress.md`).
 
 **Parked with Fallow** (Section 6): the bunker rebuild items (G79): drills on CT moves, the bunker's exceptions, small
 design calls and technical assumptions.
@@ -1184,7 +1190,6 @@ design calls and technical assumptions.
 
 **Still unanswered** (asked again later):
 - The guard cap per mode: measured by the guard-cap job (G187, G274, G289; 5.7).
-- Helmets in the campaign: CT's alarm-stage helmets plus the Sector Ops difficulty rule are assumed, undoable (G338).
 - Head look-at order, muzzle rule near a team-mate, body cooling in thermal, the electro device list.
 - Which gun comes out first; how guns are carried when put away; what Wren's kit shows (the magazine look); what Wren's
   hip pod holds now the drone is removed.

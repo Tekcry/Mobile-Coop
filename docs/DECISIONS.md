@@ -1,6 +1,6 @@
 # Night Shift - decisions
 
-Started 2026-10-17 (consolidation run, M26 / M27). Current to G339 (2026-10-25).
+Started 2026-10-17 (consolidation run, M26 / M27). Current to G343 (2026-10-25).
 
 This file is the single source of Michael's current decisions for Night Shift. Authority order: Michael > this file >
 `docs/design-bible.md` > job and map docs > code. Every entry below is also written into the bible; where the bible and
@@ -494,7 +494,8 @@ D7's custom difficulty.)
 **G107. No stance or gear icons on the HUD.** The operator's body shows the stance, as in CT. Directive: "Anything that
 isn't a part of the original chaos theory shouldn't exist." (settles UI-01; with loco M25 (7).)
 
-**G108. Objectives in the menu.** (Marlow Yard keeps the always-on list, not Fallow: G277, G292; objectives name what
+**G108. Objectives in the menu.** (Replaced as the only place by G343, 2026-10-25: objectives also fade in and out in
+game. Marlow Yard keeps the always-on list, not Fallow: G277, G292; objectives name what
 and where, G336.) Mission objectives live in the menu, as in CT; the Fallow course keeps its always-on list
 (training D45). Directive: "Anything that isn't a part of the original chaos theory shouldn't exist." (settles UI-02.)
 
@@ -554,7 +555,7 @@ To the operators branch (chat 28, G75):
 - Re-checking Wren's kit on the real CT poses (ART-09 option text).
 
 To Kestrel, after the research (chat 4, chat 30):
-- LEVEL-01 Mission 1 size: Michael picked "Kestrel size" with the note "Will require review once all questions are
+- LEVEL-01 Mission 1 size (settled by G340: Tallow Wharf is Mission 1): Michael picked "Kestrel size" with the note "Will require review once all questions are
   answered. A full vertical slice plan must be made." The bible does not take Kestrel's Mission 1 numbers now: Michael: "No, wait" (U7, G118).
 - LEVEL-08-1 to LEVEL-08-5 (editor items), LEVEL-09-1 to LEVEL-09-11 (mission details), LEVEL-10-1 to LEVEL-10-10 (level
   technical items): Michael: "Defer with Kestrel" (chat 30; replaces his page picks "One by one" and "Show me each").
@@ -653,7 +654,8 @@ replaces CTRL-10's "Unbind until return"; with G111 the Fallow course is the onl
 **G117. Training D41 binds only the bunker.** Its linear, unavoidable map rules apply to the Fallow bunker; campaign maps
 follow the CT co-op research (G3). Michael: "CT research replaces it" (U6, 2026-10-17.)
 
-**G118. The bible waits for Kestrel's Mission 1 size.** The bible does not take Kestrel's Mission 1 numbers until Kestrel
+**G118. The bible waits for Kestrel's Mission 1 size.** (Replaced by G340, 2026-10-25: Tallow Wharf is campaign Mission
+1.) The bible does not take Kestrel's Mission 1 numbers until Kestrel
 is decided after the research (G53). Michael: "No, wait" (U7, 2026-10-17; LEVEL-01 stays deferred.)
 
 U8 (UI-04 to UI-06 go to the menu job) was not asked; chat 32 ("menu calls decided in the menu job") covers it.
@@ -1312,7 +1314,9 @@ N3 weapons (Menu Notes), N4 the rest. Top priority.
 **G240. Cameras see in the dark.** Michael (2026-10-22 ~09:05): "Cameras should still work in the dark." Every security
 camera sees in the dark (IR) on every map, Sector Ops included; light still matters for guards and the meter.
 
-**G241. Full speed on the weekly; swap accounts at ~98%.** Michael (2026-10-22 ~09:20; weekly at 61%, rising ~5.5%/h):
+**G241. Full speed on the weekly; swap accounts at ~98%.** (Replaced by the current swap rule: swap at 100% of the meter
+that caps first, CLAUDE.md "Swaps and context" / docs/RULES.md.) Michael (2026-10-22 ~09:20; weekly at 61%, rising
+~5.5%/h):
 chose "Full speed, swap account": work keeps going, and at weekly ~98% everything is saved and handed off to another
 account with docs/orchestrator/HANDOFF.md (prompts one at a time, as on 2026-10-21).
 
@@ -1880,7 +1884,8 @@ room to manoeuvre comes first (G190); the campus counts stand as signed off (G32
 and guarded or locked breakers are allowed at choke points in the campaign and Sector Ops; a route around stays.
 (Loosens `docs/level-design.md`'s "every lit chokepoint can be darkened at least two ways" and bible L8.)
 
-**G334. Soft time windows only.** Michael (2026-10-25 ~09:45, after two examples: a hard route-closing lockdown and a
+**G334. Soft time windows only.** (Marlow Yard may use timed drills: G342.) Michael (2026-10-25 ~09:45, after two
+examples: a hard route-closing lockdown and a
 soft shift-change window): "Soft windows only". Predictable windows (shift changes, fixed patrol cycles, signposted in
 the world) are allowed; no countdown closes a route; the no-forced-timers rule stays.
 
@@ -1901,7 +1906,8 @@ replaced entries marked, one owner per process rule) and D (the level standard p
 approved; "Once this has been completed, I want another audit run and review the rules/vision/level design and anything
 to make sure the vision is clear."
 
-**G338. Helmets by difficulty.** Michael (2026-10-25 ~09:45): "Keep CT way" (G155); then, asked again after the docs
+**G338. Helmets by difficulty.** (Campaign part settled by G341, 2026-10-25: the same rule.) Michael (2026-10-25
+~09:45): "Keep CT way" (G155); then, asked again after the docs
 audit about G307's first-headshot helmet (~10:20): "Base it off difficulty, harder difficulties always have helmets, and
 hardest difficulty you can't shoot the helmet off." Asked for Sector Ops. Assumed for the campaign, undoable: CT's
 alarm-stage helmets (G155) plus the same difficulty rule. (Refines G307 (2).)
@@ -1910,3 +1916,24 @@ alarm-stage helmets (G155) plus the same difficulty rule. (Refines G307 (2).)
 objective blip in any mode. mission-framework A10 is void; its A12 one-chance mission end and window rule kinds conflict
 with section restart (G290) and soft windows only (G334): Marlow Build re-plans them. (Extends G336; replaces the
 bible's parked minimap.)
+
+**G340. Tallow Wharf is campaign Mission 1.** Michael (2026-10-25 ~10:45, native multiple choice) asked "Which is better
+and faster to adapt into campaign mission 1? Kestrel and redesign for today's standards, or new tallow wharf map?"; told
+Tallow Wharf is already specced to today's rules (the 2026-10-24 mission research) while Kestrel would be a re-plan, he
+chose "Tallow Wharf". Tallow Wharf, the new small campaign map of G293, is campaign Mission 1; Kestrel stays paused
+(G53). (Replaces G118's wait for Kestrel's Mission 1 size and the deferred LEVEL-01.)
+
+**G341. Campaign helmets: the same rule as Sector Ops.** Michael (2026-10-25 ~10:45): "Same rule": harder difficulties
+always have helmets and on the hardest the helmet cannot be shot off; on the easier difficulties helmets come with CT's
+alarm stages (G155). (Settles the campaign part of G338, no longer an assumption.)
+
+**G342. Marlow Yard may use timed drills.** Michael (2026-10-25 ~10:45): "Marlow can use timed drills, it must force
+players into situations as a way of training them." Soft windows only (G334) binds the campaign and Sector Ops, not
+Marlow Yard. (Narrows G334.)
+
+**G343. Objectives fade in and out in game; View / Select or O shows the current one.** Michael (2026-10-25 ~10:45):
+"Objectives can fade in/out in game, must be a short, plain English objective. Can we bind to a button to show
+temporarily? Should also should up when updating objective"; binding "View (Select) + O": a tap on View / Select (pad,
+CT's Back) or O (keyboard) shows the current objective for ~5 s, and it also shows on every objective update. Each
+objective is a short, plain English line. Owner: menu / HUD (to assign). (Replaces G108's "objectives live in the menu"
+as the only place; the menu keeps the full list.)
