@@ -5,7 +5,7 @@
   {
    "lod": 0,
    "file": "lods/guard-lean-lod0.glb",
-   "bufferTris": 30737,
+   "bufferTris": 30701,
    "draws": 1,
    "bones": [
     "root",
@@ -73,12 +73,12 @@
      "format": "ktx2"
     }
    ],
-   "vertices": 24832,
+   "vertices": 25197,
    "mixedTris": 0,
    "pieceAttrUint8": true,
    "shownTris": {
-    "runner": 11419,
-    "sniper": 11780
+    "runner": 11411,
+    "sniper": 11772
    },
    "bodyTris": 1194,
    "headTris": {
@@ -89,11 +89,11 @@
    },
    "eyeTris": 448,
    "hairCapTris": {
-    "buzz": 498,
-    "crop": 800,
-    "sidepart": 1000,
-    "receding": 800,
-    "fade": 698
+    "buzz": 492,
+    "crop": 790,
+    "sidepart": 992,
+    "receding": 796,
+    "fade": 690
    },
    "pieceTris": {
     "uniform_rolled": 1712,
@@ -111,7 +111,7 @@
   {
    "lod": 1,
    "file": "lods/guard-lean-lod1.glb",
-   "bufferTris": 11463,
+   "bufferTris": 11417,
    "draws": 1,
    "bones": [
     "root",
@@ -169,12 +169,12 @@
      "format": "ktx2"
     }
    ],
-   "vertices": 12936,
+   "vertices": 12739,
    "mixedTris": 0,
    "pieceAttrUint8": true,
    "shownTris": {
-    "runner": 4841,
-    "sniper": 4921
+    "runner": 4833,
+    "sniper": 4913
    },
    "bodyTris": 398,
    "headTris": {
@@ -185,11 +185,11 @@
    },
    "eyeTris": 0,
    "hairCapTris": {
-    "buzz": 200,
-    "crop": 250,
-    "sidepart": 298,
-    "receding": 250,
-    "fade": 248
+    "buzz": 192,
+    "crop": 238,
+    "sidepart": 290,
+    "receding": 238,
+    "fade": 242
    },
    "pieceTris": {
     "uniform_rolled": 1489,
@@ -340,8 +340,8 @@
  "notes": [],
  "bake": {
   "leftScale": 1,
-  "seconds": 1222.6,
-  "device": "OPTIX: NVIDIA GeForce RTX 4090 Laptop GPU",
+  "seconds": 1980.4,
+  "device": "OPTIX: NVIDIA GeForce GTX 1080 Ti",
   "seamKept": [
    {
     "body": 42,
