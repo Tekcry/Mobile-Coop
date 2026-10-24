@@ -1,8 +1,9 @@
 # Kit, audio and design findings - digest (scrubbed)
 
 > Research record (2026-10-18). Where it disagrees with docs/DECISIONS.md or docs/VISION.md, those win. Superseded
-> points: 3.2 A14 "Show timers" and the visible-timer row (2026-10-25: soft windows only, signposted in the world; no
-> countdown that closes a route, no forced timers in stealth); 3.2 A15 "At most one signposted hard rule" (G290: up to 2
+> points: 3.2 A14 "Show timers" and the visible-timer row (2026-10-25: campaign and Sector Ops use soft windows only,
+> signposted in the world, no countdown that closes a route, no forced timers in stealth; Marlow Yard may use timed
+> drills); 3.2 A15 "At most one signposted hard rule" (G290: up to 2
 > strict rules, breaking one restarts the section); A9's authored fixed spots (G151: team moves anywhere with room);
 > section 6's movement-run ideas: G11's cut of paired behaviour is lifted for static lookouts and paired patrols that
 > check on each other (2026-10-25).

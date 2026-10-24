@@ -5,8 +5,9 @@ Design authority: docs/DECISIONS.md (G2, G7, G8, G78, G111, G116), then docs/des
 
 The decided modes (current rules: docs/DECISIONS.md, the newest entry wins):
 - Campaign: exactly 2 players, cannot be completed solo, no bot (G2, G253); every section forces a co-op traversal move
-  with no solo bypass (G292, G293). The first prototypes (Three Grey Coats, Two-Key Ledger) go on a new small campaign
-  map (G293; the mission-framework job). The campaign mission framework is not built yet: today's missions run in
+  with no solo bypass (G292, G293). Campaign Mission 1 is Tallow Wharf, the new small campaign map, with the first
+  prototypes Three Grey Coats and Two-Key Ledger (G293; 2026-10-25 ~10:45; the mission-framework job); Kestrel is
+  paused (G53). The campaign mission framework is not built yet: today's missions run in
   Infiltration.
 - Marlow Yard (`ctcourse`, Course mode): the 2-player co-op training course; guided and linear, it keeps its guidance
   marks and objective list (G292).

@@ -7,7 +7,7 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
   restate them. Read it, then docs/DECISIONS.md, before laying out a map.
 - `docs/templates/map-spec.md`: the template for a new map's spec (fill it, then run its phases).
 - Map specs: Marlow Yard in `docs/marlow-final/` (SPEC.md, PLAN.md), Saltmarsh Park in `docs/sector-redesign/`
-  (SPEC.md, PLAN.md), the new small campaign map and the first four mission prototypes in `docs/missions/` (the
+  (SPEC.md, PLAN.md), Tallow Wharf (campaign Mission 1) and the first four mission prototypes in `docs/missions/` (the
   mission-framework job, PR #372), Kestrel in `docs/kestrel/` (paused, G53), the Fallow bunker in `docs/training/`.
   Decided, not built yet (G55): one folder per map under one maps folder. The retired maps (the 1934 Exchange, Trunk
   Annex, Dead Line v1 and v2) are deleted; their design files are in `docs/archive/maps/`.

@@ -232,7 +232,7 @@ Every placed item keeps a `reason` (docs/kestrel/RULES.md section 5): why a real
 
 ## 6. Dead Line's kit (history: approved by Michael, 2026-10-11)
 History, not a build target: Mission 1 "Dead Line" on the Kestrel map is paused (G53) and the first campaign missions go
-on a new small campaign map (G293). A mission's kit is chosen per mission (section 4). The table is kept as a worked
+on Tallow Wharf, campaign Mission 1 (G293; 2026-10-25 ~10:45). A mission's kit is chosen per mission (section 4). The table is kept as a worked
 example.
 Judged against the control ladder and the ghost rule (docs/kestrel/RULES.md section 1). The kit must give every
 critical-path control a no-contact answer without letting a tool skip a control the mission depends on.

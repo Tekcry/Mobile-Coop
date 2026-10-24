@@ -22,8 +22,11 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   on a hold row. It writes the DOM only when `ContextMenu.version` changes. Logic: `docs/systems/input-and-loop.md`.
 - Speed gear pips (`hud.setGear(gear, changes, max)`, shown `GEARS.pipsShow` 1.5 s after a change). Decided, not built
   yet: no gear or stance indicator on the HUD (loco M25 (7), G107: the body shows the stance).
-- Decided, not built yet: mission objectives live in the menu, as in CT (G108); Marlow Yard and the Fallow course keep
-  their always-on list (below; G292). The HUD layout follows CT (G77).
+- Decided, not built yet (2026-10-25 ~10:45): the current objective fades in and out in game as a short, plain-English
+  line. A tap on View / Select (pad; CT's Back) or O (keyboard) shows it for about 5 s, and it also shows on every
+  objective update (Michael: "Objectives can fade in/out in game, must be a short, plain English objective"; binding
+  "View (Select) + O"). The full list stays in the menu (G108). Marlow Yard and the Fallow course keep their always-on
+  list (below; G292). The HUD layout follows CT (G77).
 - Decided, not built yet (2026-10-25, every mode): no maps at all, no minimap, no compass, no objective blip. Michael:
   "No maps at all" (the briefing's annotated top-down map and the field-menu map of known intel, bible 5.10, are removed)
   and, for the minimap, "Remove it too" (no minimap, compass or objective blip in any mode). As built the HUD still draws

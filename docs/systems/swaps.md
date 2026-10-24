@@ -49,7 +49,7 @@ node scripts/swap.mjs save --commit-wip
   `--root` / `NS_ROOT` (default `C:/NightShift`, where the heavy locks live) and `--scratch` / `SWAP_SCRATCH`.
 
 Re-run `save` until it prints `SAFE`, then keep working to 100% as `docs/RULES.md` says. At 95% the orchestrator posts the next
-orchestrator prompt; it is safe to log out once the meter is at 99-100% and the last `save` said `SAFE`.
+orchestrator prompt; it is safe to log out once the binding meter is at 100% and the last `save` said `SAFE` (`docs/RULES.md`).
 
 ## After the swap: boot
 Michael pastes one short boot line per session title; each session resumes from its own STATE resume block on origin, not
