@@ -522,6 +522,17 @@ e2e for you and posts the verdict as a commit status on the tested sha. No messa
 - Statuses: `laptop-e2e` (trains), `laptop-e2e/<set>` (pr, set defaults to the suites joined by `+`), `laptop-e2e/full`,
   `laptop-e2e/alone-<set>`. Description "N/N pass, <s> s", plus "; flake: x" and "; FAIL: y". A failure also comments on the
   PR (suite, failing line, log path on the laptop). Logs: `C:/NightShift/scratch/laptop-queue/runs/<id>/`.
+- Affected e2e on every PR head (process audit 2026-10-24, finding 5; laptop service only, every `LQ_AFFECTED_POLL_MIN`
+  (2; 0 = off) min): each open non-train, non-draft PR head with no `affected-e2e` status and no open affected request
+  gets the suites `request.mjs --affected` picks (merge-base with `origin/master`, `git diff --name-only --no-renames`,
+  the DIRECT tier; the same code, `affectedSuites` in `scripts/laptop-queue/lib.mjs`). No browser suite reached: the
+  head gets `affected-e2e` success "no browser suites (docs / unit only)". Otherwise the service enqueues a pr request
+  itself (requester `affected-e2e`, set `affected`, the PR number and branch) and posts `affected-e2e` pending; the run
+  posts its verdict on `laptop-e2e/affected` and on `affected-e2e` (failures comment on the PR as usual). A newer head
+  on the same branch supersedes the older open request (its `affected-e2e` gets error "superseded"); other PRs' requests
+  never supersede each other, and each PR branch takes its turn in arrival order beside the leads' requests. Opt out
+  per PR with the label `no-affected-e2e`. Heads older than `LQ_AFFECTED_MAX_AGE_H` (24 h; 0 = no limit) and fork heads
+  (no merge-base on the laptop) are skipped. A lead's own `request.mjs --affected` still works as before.
 - Flakes: a failed suite reruns once alone on the same sha; a pass counts as a pass and is logged as a flake (state.json,
   for its owner to fix); a suite that flaked in the last 24 h is not rerun again.
 - Manual runs keep working: the service uses the `C:/NightShift/heavy-<slot>.lock` files and waits while one is held; its

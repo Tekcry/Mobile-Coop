@@ -61,11 +61,23 @@
 // - an alone run yields between steps while a train head is pending: claim released, queued at the head of the alone
 //   queue, and its finished steps are skipped when it runs again (state.aloneSteps; steps must not rely on worktree
 //   files an earlier step left, since prepare cleans the worktree).
+// Affected e2e on every PR head (process audit 2026-10-24 finding 5; laptop only, after each pass, every
+// LQ_AFFECTED_POLL_MIN (2; 0 = off) min, affectedPass): one `gh pr list` (rollup included) of the open PRs; each non-train,
+// non-draft head without the label no-affected-e2e, without an affected-e2e status and without an open / claimed /
+// running affected request (lib affectedNeeds) gets the suites of request.mjs --affected (lib affectedSuites: merge-base
+// with origin/master, diff --name-only --no-renames, DIRECT_COVERS). None: affected-e2e success "no browser suites (docs
+// / unit only)". Else a pr request (lib affectedRequest: requester affected-e2e, set affected, the PR number and branch)
+// is pushed to requests/ and affected-e2e goes pending; the run posts its verdict on laptop-e2e/affected AND affected-e2e
+// (build failed, no result, withdrawn and service errors too; either worker). Affected requests queue per branch (lib
+// queueRequester): a newer head on the same branch supersedes the older request (its affected-e2e gets error
+// "superseded"), and pick takes PR branches in arrival order beside the leads. Heads older than LQ_AFFECTED_MAX_AGE_H
+// (24; 0 = no limit) and heads with no merge-base here (forks) are skipped, logged once.
 import { execFileSync, spawn } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, trainSoon, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, dupKey, duplicates, failureExcerpt, flakeStands, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, aloneSoon } from './lib.mjs';
+import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, trainSoon, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, dupKey, duplicates, failureExcerpt, flakeStands, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest } from './lib.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
 const DESKTOP = process.env.LQ_WORKER === 'desktop';
@@ -96,6 +108,8 @@ const TRAIN_BUILD_MAX_MS = Number(process.env.LQ_TRAIN_BUILD_MAX_MIN ?? 20) * 60
 const POLL_MS = 30_000;
 const FLAKE_WINDOW_MS = 24 * 3600_000;
 const DUP_WINDOW_MS = Number(process.env.LQ_DUP_WINDOW_MIN ?? 60) * 60_000;
+const AFFECTED_POLL_MS = Number(process.env.LQ_AFFECTED_POLL_MIN ?? 2) * 60_000; // laptop: the affected pass (0 = off)
+const AFFECTED_MAX_AGE_MS = Number(process.env.LQ_AFFECTED_MAX_AGE_H ?? 24) * 3600_000; // older PR heads get no auto request (0 = no limit)
 const argv = process.argv.slice(2);
 const ONCE = argv.includes('--once');
 const DRY = argv.includes('--dry-run');
@@ -174,6 +188,8 @@ const doneElsewhere = new Set();
 let claimCount = 0;
 /** Requests the other worker holds an open claim on (claimed or running there), from the last listRequests. */
 let otherActive = [];
+/** The open requests of the last listRequests (the affected pass reads which heads already have one). */
+let openListed = [];
 /** Running request id -> listings in a row it was missing from; ids missing from two are withdrawn (lib cutShort). */
 const missing = new Map();
 const withdrawnIds = new Set();
@@ -215,6 +231,7 @@ function listRequests() {
     if (problem) { badSeen.add(id); log(`bad request ${id}: ${problem}`); continue; }
     out.push(r);
   }
+  openListed = out;
   return out;
 }
 
@@ -338,6 +355,55 @@ function taskGuard() {
     if (pushFile(rel, body, `task guard disabled ${alertPending.length} task(s)`)) { log(`task guard: alert pushed ${rel}`); alertPending.length = 0; }
     else log(`task guard: alert push failed for ${alertPending.length} task(s), retried at the next guard pass`);
   } catch (e) { log(`task guard failed: ${String(e.message).split('\n')[0]}`); }
+}
+
+// ---------- affected e2e on every PR head (laptop; process audit 2026-10-24, finding 5) ----------
+
+let lastAffected = 0;
+/** PR head shas this process enqueued (the next listing may not show the request yet); dropped once not an open head. */
+const affectedSeen = new Set();
+/** Heads skipped with a log line once (no merge-base here, too old). */
+const affectedLogged = new Set();
+
+/**
+ * One affected pass (lib affectedNeeds): every open non-train, non-draft PR head with no affected-e2e status and no
+ * affected request gets the suites request.mjs --affected would pick (lib affectedSuites). None: affected-e2e success
+ * "no browser suites (docs / unit only)". Else a pr request (lib affectedRequest) is pushed to the laptop-queue branch
+ * and affected-e2e goes pending; runRequest posts the verdict. A head older than LQ_AFFECTED_MAX_AGE_H or one whose
+ * merge-base is unreadable here (a fork, not fetched) is skipped, logged once. Never throws.
+ */
+function affectedPass() {
+  lastAffected = Date.now();
+  try {
+    const prs = JSON.parse(gh(['pr', 'list', '-R', REPO, '--state', 'open', '--limit', '200', '--json', 'number,headRefName,headRefOid,isDraft,labels,statusCheckRollup']) || '[]');
+    const heads = new Set(prs.map((p) => p.headRefOid));
+    for (const s of affectedSeen) if (!heads.has(s)) affectedSeen.delete(s);
+    const needs = affectedNeeds(prs, [...openListed, ...activeReqs.values(), ...otherActive], affectedSeen);
+    for (const n of needs) {
+      const tag = `affected: #${n.pr} ${n.sha.slice(0, 8)} (${n.branch})`;
+      const ct = Number(git(['show', '-s', '--format=%ct', n.sha], { soft: true })) * 1000;
+      if (AFFECTED_MAX_AGE_MS > 0 && ct && Date.now() - ct > AFFECTED_MAX_AGE_MS) {
+        if (!affectedLogged.has(n.sha)) { affectedLogged.add(n.sha); log(`${tag}: head older than ${AFFECTED_MAX_AGE_MS / 3600_000} h, no auto request`); }
+        continue;
+      }
+      const got = affectedSuites((args) => git(args), n.sha);
+      if (!got) {
+        if (!affectedLogged.has(n.sha)) { affectedLogged.add(n.sha); log(`${tag}: no merge-base with origin/master here (fork or not fetched), skipped`); }
+        continue;
+      }
+      if (got.suites.length === 0) {
+        postStatus(n.sha, 'success', AFFECTED_CTX, 'no browser suites (docs / unit only)');
+        affectedSeen.add(n.sha);
+        continue;
+      }
+      const r = affectedRequest({ now: Date.now(), ...n, suites: got.suites, suffix: randomBytes(2).toString('hex') });
+      if (DRY) { log(`dry-run: ${tag}: would enqueue ${r.id}: ${got.files.length} file(s), ${got.suites.join(' ')}`); continue; }
+      if (!pushFile(`requests/${r.id}.json`, `${JSON.stringify(r, null, 2)}\n`, `request ${r.id}`)) { log(`${tag}: request push failed, retried next affected pass`); continue; }
+      affectedSeen.add(n.sha);
+      log(`${tag}: enqueued ${r.id}: ${got.files.length} file(s), ${got.suites.join(' ')}`);
+      postStatus(n.sha, 'pending', AFFECTED_CTX, `queued: ${got.suites.length} suite(s), laptop-e2e/affected`);
+    }
+  } catch (e) { log(`affected pass failed: ${String(e.message).split('\n')[0]}`); }
 }
 
 /** Ids whose done claim is confirmed on the branch. */
@@ -631,12 +697,13 @@ function failureComment(job, result, runDir) {
   return parts.join('\n');
 }
 
+/** Posts the verdict on ctx (a context or a list: an affected request posts affected-e2e too), comments a failure, folds the times. */
 function finish(job, ctx, result, runDir, prNumber) {
   const bad = result.suites.filter((s) => !s.ok && !s.flaky && !s.report);
   const ok = result.suites.length > 0 && bad.length === 0;
   const full = `${DESKTOP ? 'desktop: ' : ''}${result.suites.length ? describe(result) : 'no result parsed, see log'}`;
   const desc = full.length > 140 ? `${full.slice(0, 137)}...` : full; // GitHub rejects a status description over 140
-  postStatus(job.sha, ok ? 'success' : 'failure', ctx, desc);
+  for (const c of [ctx].flat()) postStatus(job.sha, ok ? 'success' : 'failure', c, desc); // an affected request: also affected-e2e
   if (!ok && prNumber && !DRY) postComment(prNumber, failureComment(job, result, runDir));
   times = mergeTimes(times, result.suites);
   writeJson('times.json', times);
@@ -771,6 +838,9 @@ async function runTrain(train, ports = PORTS) {
 async function runRequest(r, port) {
   const runDir = path.join(STATE_DIR, 'runs', r.id);
   const ctx = contextName(r.kind, r.set, r.suites, r.trainRerun);
+  // an auto affected request (lib AFFECTED_REQUESTER) posts each verdict on affected-e2e too (the PR head's own check)
+  const verdictCtx = r.requester === AFFECTED_REQUESTER ? [ctx, AFFECTED_CTX] : [ctx];
+  const verdict = (st, desc) => { for (const c of verdictCtx) postStatus(r.sha, st, c, desc); };
   const job = { sha: r.sha, ref: r.branch || r.sha.slice(0, 8) };
   log(`${r.id}: ${r.kind} on ${port}`);
   const ports = r.kind === 'alone' ? PORTS : [port];
@@ -800,7 +870,7 @@ async function runRequest(r, port) {
   const cutEnd = () => {
     if (ctl.why === 'withdrawn') {
       log(`${r.id}: withdrawn by the requester, run stopped`);
-      if (posted) postStatus(r.sha, 'error', ctx, 'withdrawn by the requester, run stopped');
+      for (const c of verdictCtx) if (posted || c === AFFECTED_CTX) postStatus(r.sha, 'error', c, 'withdrawn by the requester, run stopped');
       state.done[r.id] = { result: 'withdrawn', date: new Date().toISOString() };
       if (state.aloneSteps) delete state.aloneSteps[r.id];
       return;
@@ -837,7 +907,7 @@ async function runRequest(r, port) {
       return;
     }
     if (prep !== 'ok') {
-      postStatus(r.sha, prep === 'nosha' ? 'error' : 'failure', ctx, prep === 'nosha' ? 'sha not found' : 'build failed');
+      verdict(prep === 'nosha' ? 'error' : 'failure', prep === 'nosha' ? 'sha not found' : 'build failed');
       state.done[r.id] = { result: prep, date: new Date().toISOString() };
       return;
     }
@@ -890,7 +960,7 @@ async function runRequest(r, port) {
     // same completeness rule as a train shard; at least the listed suites (a named suite may expand into parts)
     if (!runComplete(run, list.length)) {
       log(`${r.id}: run incomplete (exit ${run.code}, ${run.suites.length}/${list.length} suites, summary ${run.complete ? 'seen' : 'missing'})`);
-      postStatus(r.sha, 'failure', ctx, `slot ${port} gave no result`);
+      verdict('failure', `slot ${port} gave no result`);
       if (r.pr) postComment(r.pr, `${ctx} failed on ${r.sha.slice(0, 8)} (${job.ref}): slot ${port} gave no result (exit ${run.code}, ${run.suites.length}/${list.length} suites).\nLog on the ${WORKER}: ${path.join(runDir, `${port}.log`)}\n\`\`\`\n${capTail(run.tail40 || '(empty log)', 8_000)}\n\`\`\``);
       state.done[r.id] = { result: 'incomplete', date: new Date().toISOString() };
       return;
@@ -900,7 +970,7 @@ async function runRequest(r, port) {
     result.flakes = await rerunFlakes(result, {}, job, runDir, port, ctl);
     if (ctl.why) return cutEnd();
     result.wall = (Date.now() - t0) / 1000;
-    const ok = finish(job, ctx, result, runDir, r.pr);
+    const ok = finish(job, verdictCtx, result, runDir, r.pr);
     // a train rerun that passed also turns the train's own context green (the latest status per context wins in the
     // combined status, so it replaces the desktop's laptop-e2e failure); a failed one leaves laptop-e2e red
     if (ok && r.trainRerun) postStatus(r.sha, 'success', 'laptop-e2e', rerunPassed(r.suites));
@@ -943,6 +1013,7 @@ function dispatch(p) {
   const run = runRequest(p.request, p.slot ?? PORTS[0]).catch((e) => {
     log(`${p.request.id} service error: ${e.stack ?? e.message}`);
     postStatus(p.request.sha, 'error', contextName(p.request.kind, p.request.set, p.request.suites, p.request.trainRerun), 'service error, see log');
+    if (p.request.requester === AFFECTED_REQUESTER) postStatus(p.request.sha, 'error', AFFECTED_CTX, 'service error, see log');
     writeClaims([p.request.id], 'release', `release ${p.request.id}`);
     claimed.delete(p.request.id);
   }).finally(() => activeReqs.delete(p.request.id));
@@ -1001,6 +1072,9 @@ function applySupersedes(requests) {
     if (DRY) continue;
     state.done[id] = { result: 'superseded', by, date };
     doneSynced.add(id);
+    // an auto affected request's older head: its pending affected-e2e is closed (the newer head has its own)
+    const old = requests.find((r) => r.id === id);
+    if (old?.requester === AFFECTED_REQUESTER) postStatus(old.sha, 'error', AFFECTED_CTX, `superseded by a newer head (${by})`);
   }
   saveState();
   return requests.filter((r) => !sup.has(r.id));
@@ -1201,8 +1275,10 @@ async function main() {
   if (!DRY) takePidLock();
   log(`service start (${WORKER})${ONCE ? ' --once' : ''}${DRY ? ' --dry-run' : ''} in ${HERE}`);
   if (TASK_GUARD_MS > 0) taskGuard(); // before the first pass: a stale task must not race the service for the slot locks
+  const affectedDue = () => !DESKTOP && AFFECTED_POLL_MS > 0 && Date.now() - lastAffected >= AFFECTED_POLL_MS;
   if (ONCE || DRY) {
     await pass();
+    if (affectedDue()) affectedPass(); // after pass: its listing is the one affectedNeeds reads
     await Promise.all(Object.values(busy).filter(Boolean));
     return;
   }
@@ -1213,6 +1289,7 @@ async function main() {
       if (!Object.values(busy).some(Boolean)) selfUpdate();
       heartbeat();
       await pass();
+      if (affectedDue()) affectedPass();
       if (!Object.values(busy).some(Boolean)) selfUpdate();
     } catch (e) { log(`pass failed: ${e.message}`); }
     await sleep(POLL_MS);
