@@ -63,6 +63,12 @@ run), S9 + S10 builders in parallel once Sector Ops confirms the freeze / world.
   checker with S9b-fix; GPU look shot (an off-screen guard in a partner's torch beam, his shadow on a lit wall in view,
   turning the camera so he stays frozen / thaws); A/B sectorops 24 alert (more guards drawn when torches sweep the view).
 
+- 2026-10-24 ~18:10: S10b DONE (3bce2ea4 code, b659bfa3 tests, 5d5cafde docs; 95 freeze / atlas tests pass). It went
+  past "getters only": torchShadows.ts / charShadows.ts gathers keep frozen guards listed (stand-in sphere,
+  src/world/frozenCaster.ts) and reset a slot's refresh counter when its frozen caster thaws. An Opus checker on
+  f86b4520 + S10b is running (if no verdict on resume, start a new one); it also checks open branches for conflicts in
+  those two atlas files. Expect MORE guards drawn in sectorops alert (torches sweep the view): correct for parity, A/B it.
+
 ## Phase 1 (history)
 ## Now
 **CLOSED 2026-10-23 ~17:10** (orchestrator approved: close with #225, M1 CPU overage to the polish list; perf tuning
