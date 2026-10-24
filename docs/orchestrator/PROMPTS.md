@@ -5,8 +5,9 @@ One short line per session title. The lines carry no state and never change at a
 which says where its resume block is. Change a line here only when a title is added or removed; change BOOT.md when a
 session's resume location, model or effort changes. Old prompts: archive/PROMPTS-history.md.
 
-At the ~92% save the old orchestrator prints ONLY line 1. In the new account the new orchestrator prints lines 2-7 in
-one message (each with title, model, effort and machine, from the table), as the last thing in that message.
+At the ~92% save the old orchestrator prints ONLY line 1, and every save prints it even when no swap is planned
+(Michael 2026-10-24 ~23:20). In the new account the new orchestrator prints lines 2-7 in one message (each with title,
+model, effort and machine, from the table), as the last thing in that message.
 
 | # | Session title | Model | Effort | Where |
 | --- | --- | --- | --- | --- |

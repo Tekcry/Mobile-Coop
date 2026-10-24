@@ -1,4 +1,4 @@
-# Resume - Night Shift | Player Build (2026-10-24 ~20:25 local; older log: history at the end)
+# Resume - Night Shift | Player Build (2026-10-24 ~22:35 local; older log: history at the end)
 
 Rules: CLAUDE.md "Sessions" ("Heavy-usage throughput", "Token rules", "Account swap"). Opus builds / checks anim, net, AI;
 Sonnet strict briefs / data checks. No desktop e2e: laptop queue (C:/NightShift/scratch/ctcore/lq/request.mjs --sha <full>
@@ -6,19 +6,24 @@ Sonnet strict briefs / data checks. No desktop e2e: laptop queue (C:/NightShift/
 Walk cap 3 (ROADMAP Decided ~21:50): no new animation features until Michael walks AF0-AF6; every anim PR carries a ~1-2 min look video path in its body. Checker PASS -> `gh api repos/Tekcry/Mobile-Coop/statuses/<sha> -f state=success -f context=checker -f description="Opus PASS"`.
 Message the orchestrator only at PR open / train-ready / blocked / Michael. Push this file with push-resume.sh.
 
-## Now (master bd54dfcd 4.95.3; resumed 2026-10-24 ~20:40 local, new account)
+## Now (2026-10-24 ~23:30, resumed after the unplanned 23:20 swap; 5-hour resets 2026-10-25 04:10. OVERNIGHT: burn to the cap per window, save at ~92%; no question dialogs: assume, log in BRIEF, carry on)
+- 23:30: G10a bake RESTART 3 (scratch/ctcore/g10a-desktop-bake3.sh, steps g10a-bake/steps3.txt, logs run3.log + r3-step1..6.log): garments 10 ok / 6 failed before (average-jacket numpy OOM at par 2; 5 spawn 0xC0000142 after the swap), so garments par 2, then a par 1 pass, then gear / lods / check / sheet. Dies with this session's console: restart the same way (unchanged jobs skip).
+- 23:30: coop-real: Opus H1 finisher relaunched on feature/cr-h1 (probe + smoke on the desktop dev lane heavy2.lock / 4189, CPU < 60% gate; fills H1-REPORT). Cloud F1a (feature/cr-f1a f3fc26ec) + F1b (feature/cr-f1b b49f79fc) DONE: two Opus checkers running (A tests both merged, B wire + #317 conflict map).
 | Job | Branch (worktree C:/NightShift/Mobile-Coop-<x>) | Head | Next |
 | --- | --- | --- | --- |
 | #318 guard-models, #314 optic-coop, #331 player-batch-24 | - | - | MERGED (trains 58 / 59 / 62). |
 | gm-flip (follow-up PR, open it from THIS branch, never from gm-perf) | feature/gm-flip (node_modules junction) | 7c0c0456 | guard-models + gm-perf + gm-mc-polish + gm-perf-polish + gm-look-seeds (all PASS) + MERGE-CHECK polish, ONE fragment changes/feature-gm-flip.md. Next: merge gm-g10a after its rebake passes and the GLBs are copied in, flip src/core/flags.ts guardModels `!== '0'`, laptop flag-on suites (enemies coop ctcourse combat guard-carry), PR to master. |
-| G10a guard defects | feature/gm-g10a | 81a1f3b8 | Laptop request WITHDRAWN 21:30 (orchestrator OK: full bake on the DESKTOP, heavy.lock, BelowNormal, release at once). Desktop haircaps smoke 21:32: receding LOD1 102.6 / 100.8 deg FAIL (> 75), all other caps pass. Opus builder on the fix (briefs/gm-g10a-hairline-fix.md: corner_slide). Then full desktop bake (the 8 steps of request 7ccf), copy 12 GLBs + 3 JSON into src/operators/assets/guards/, D6 assertion in tests/guardAssets.test.ts, sheet to Michael, merge into gm-flip. |
-| coop-real (NEW, orchestrator 21:30: input-only co-op e2e; P6 hostage prompt, P7 doubled audio, S2 client lamp shots, rejoin after multitasking) | feature/coop-real (node_modules junction to gm-flip: lock differs, npm ci before builders) | master | Opus planner writing docs/coop-real BRIEF / PLAN / STATE; then tell the orchestrator (it adds the ROADMAP line), one Opus checker, slices in parallel. |
+| G10a guard defects | feature/gm-g10a | fd366d86 (D4b PASS) | Full desktop bake (heavy.lock, BelowNormal): steps 1-3 OK (heads all pass; bake/guard-models d9271aa901). Step 4 garments: the old console died at the 22:20 swap (exit 0xC0000142 on every spawn); only average shirt + trousers done. RESTARTED 22:25 from this session: scratch/ctcore/g10a-desktop-bake2.sh (steps 4-8 = g10a-bake/steps2.txt; logs g10a-bake/run2.log, r-step4..8.log). A bake started from a session dies with that session's console: restart the same way after a swap. Then copy 12 GLBs + 3 JSON into src/operators/assets/guards/, D6 assertion tests/guardAssets.test.ts, sheet to Michael, merge into gm-flip. |
+| coop-real (orchestrator 21:30; ROADMAP line in) | feature/coop-real (own npm ci) | a174b082 | Plan check applied; H2 + H2b done. H1 on feature/cr-h1 2fe0c510 (23:05 WIP save): the Opus finisher (probe + smoke, desktop dev lane heavy2.lock port 4189, H1-REPORT.md) may be cut at the cap: if H1-REPORT still has PROBE_RESULT / SMOKE_RESULT placeholders, restart it from that report. C1 brief DONE (docs/coop-real/briefs/C1.md c6c70d94; STATE 56b176c3, A10 / A11). Cloud F1a / F1b briefs on cloud-queue ad3a025b: check status lines. Next: merge H1, C1 (Sonnet, Opus brief) + C2 (Opus), K1 + laptop run 1. F1 / F2: #317 coop4 (d0f574cb) owns coopClient, coopHost, coopUi, holdPulse, joinWatch, protocol, remoteAvatar, remotePlayer, session: build F1 / F2 ON TOP of feature/coop4 or ask Guard AI first. Checker PASS -> checker commit status. |
 
 ## Open
 - guard-models STATE.md top: G8 numbers, S11 merge notes (in master merge now), G10 look list (no sheet notes from Michael yet), garment seam gaps, MERGE-CHECK-A/B polish (lightRig caster refill not behind the flag; `die` figure update after frozen solveNow).
 - Test Runner owns guard-render phase 2 (feature/guard-render-2 PLAN2: S9 sun cascades, S9b updateSunCasters skip disabled, S10 freeze); guard-cap.mjs is ours until guard-models merges.
 - Spare jobs #2 #3 #7 #11 #16 already on master; #12 = #308; #15 = #314.
 - AF7-AF9 (briefs/afp-next-pass.md) wait for Michael's walk of AF0-AF6.
+- Long bakes (orchestrator audit 22:55): launch the NEXT one through a scheduled task (hidden, like the laptop-queue service) so it survives a session / console exit; the current G10a restart stays as is.
+- Owed to Marlow (mission-framework, agreed 22:55): team poses pull (b pullOffer/pullCatch/pullHaul, a pullJump/pullHang/pullScramble) and shutter (b shutterOffer/Lift/Hold/Drop, a crawlUnder), after Michael walks AF0-AF6.
+- Disk: scratch copies (mt2 7.3 GB, b22chk, msc3chk*, psc, tfc, n12-fix, vk-check, n2-check5) wait for Michael (auto mode denied rm; his OK covered worktrees only).
 
 ## Resume prompt
 ```
