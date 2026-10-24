@@ -63,6 +63,13 @@ export function alarmHunts(alarm: number, valid: Uint8Array, seenT: Float32Array
   return n;
 }
 
+/** (coop4 AI5) Fights with 3-4 players (from `COOP4.from`): `rotate` (A178) the intruders' squad groups take cover in
+ *  turn (`EnemyManager.rolesStep` starts one slot later each roles tick), not slot 0's first every tick; `ownCover`
+ *  (A178) a group's flank trigger reads its own intruder's cover time, not the longest of all players; `spotted` (A179)
+ *  a player's `spotted` clears once no guard in combat hunts his slot (and none hunts nobody), not only when nobody
+ *  at all fights. Undo: false (today). */
+export const FIGHTS4: { readonly rotate: boolean; readonly ownCover: boolean; readonly spotted: boolean } = { rotate: true, ownCover: true, spotted: true };
+
 /** `slotFor`'s "is anybody hunting slot s" (the manager's `huntingOf`, bound once). */
 export type SlotHunted = (slot: number) => boolean;
 

@@ -13,7 +13,7 @@
  */
 import { hyp2 } from '../core/mathx';
 import { ALERT } from './alertState';
-import { SWEEP, sweepPoints, sweepStart } from './gear';
+import { SWEEP, SWEEP4, sweepPoints, sweepStart } from './gear';
 
 /** The leader is at a sweep point within this (m). */
 export const SWEEP_NEAR = 1.1;
@@ -30,9 +30,41 @@ export interface SweepMember {
 
 type Pts = readonly (readonly [number, number])[];
 
+/** (coop4 AI5) What `pointBusy` reads of another team (a `SweepTeam`). */
+export interface SweepPeer {
+  readonly section: number;
+  readonly sweeping: boolean;
+  readonly count: number;
+  readonly point: number;
+  readonly pts: readonly number[];
+}
+
+/**
+ * (coop4 AI5, A177) Is the sweep point (`x`, `z`) taken: another team of `self`'s section (in `others`, the manager's
+ * team list) sweeping and heading for or looking at a point within `SWEEP.thin` m of it. Pure, no allocation.
+ */
+export function pointBusy(x: number, z: number, others: readonly SweepPeer[], self: SweepPeer): boolean {
+  for (let i = 0; i < others.length; i++) {
+    const o = others[i]!;
+    if (o === self || o.section !== self.section || !o.sweeping) continue;
+    const j = o.point;
+    if (j < 0) continue;
+    if (hyp2(o.pts[2 * j]! - x, o.pts[2 * j + 1]! - z) < SWEEP.thin) return true;
+  }
+  return false;
+}
+
 export class SweepTeam<M extends SweepMember = SweepMember> {
   /** The members in team order (the shield guard first). */
   readonly members: M[] = [];
+  /** (coop4 AI5, A176) The intruder slot this team hunts (-1 none): its first member's alarm hunt, shared by every
+   *  member (`EnemyManager.joinTeam`); from 3 players the team sweeps from that slot's last known position. */
+  hunt = -1;
+  /** (coop4 AI5, A177) The section's other teams (the manager's list) while the coop4 dedupe applies; null: off (1-2
+   *  players, today). Set by the manager every step before `tick`. */
+  peers: readonly SweepPeer[] | null = null;
+  /** (coop4 AI5) Points passed over because another team held them (tests / debug). */
+  busySkips = 0;
   /** The sweep points as flat x, z pairs, nearest the last known position at the switch first. */
   readonly pts: number[] = [];
   /** How many points. */
@@ -78,6 +110,8 @@ export class SweepTeam<M extends SweepMember = SweepMember> {
     readonly override: Pts | null,
     readonly routes: readonly Pts[],
     readonly posts: Pts,
+    /** (coop4 AI5, A177) How many teams the section may hold (`sweepStart`'s spread; 3 = today). */
+    readonly spread = 3,
   ) {}
 
   /** The current point's index into `pts` (pairs); -1 none. */
@@ -112,7 +146,7 @@ export class SweepTeam<M extends SweepMember = SweepMember> {
     const ov = this.override;
     // an override list is the section's own choice: every point kept (thin 0), only ordered
     this.count = ov && ov.length ? sweepPoints([ov], [], lkpX, lkpZ, 0, this.pts) : sweepPoints(this.routes, this.posts, lkpX, lkpZ, SWEEP.thin, this.pts);
-    this.start = sweepStart(this.index, this.count);
+    this.start = sweepStart(this.index, this.count, this.spread);
     this.k = 0;
     this.dwellT = 0;
     this.passes = 0;
@@ -121,6 +155,16 @@ export class SweepTeam<M extends SweepMember = SweepMember> {
     this.unstall();
     this.sweeping = this.count > 0;
     if (!this.sweeping) return;
+    // (coop4 AI5, A177) the start point another team holds: the first free one after it (all held: the start)
+    if (this.dedupeOn()) {
+      for (let j = 0; j < this.count; j++) {
+        const p = (this.start + j) % this.count;
+        if (pointBusy(this.pts[2 * p]!, this.pts[2 * p + 1]!, this.peers!, this)) continue;
+        if (j > 0) this.busySkips++;
+        this.start = p;
+        break;
+      }
+    }
     this.switches++;
     const i = this.point;
     this.behind(x - this.pts[2 * i]!, z - this.pts[2 * i + 1]!);
@@ -167,15 +211,44 @@ export class SweepTeam<M extends SweepMember = SweepMember> {
     return true;
   }
 
-  /** On to the next point (looked at, or unreachable); after the last, the same order again. */
+  /** On to the next point (looked at, or unreachable); after the last, the same order again. (coop4 AI5, A177) A point
+   *  another team of the section holds is passed over (not looked at, not counted); all held: the next one anyway. */
   next(): void {
     this.dwellT = 0;
     this.unstall();
     this.visited++;
+    this.step();
+    if (!this.dedupeOn() || this.count < 2) return;
+    const k0 = this.k;
+    const p0 = this.passes;
+    for (let j = 1; j < this.count; j++) {
+      const i = this.point;
+      if (!pointBusy(this.pts[2 * i]!, this.pts[2 * i + 1]!, this.peers!, this)) {
+        this.busySkips += j - 1;
+        return;
+      }
+      this.step();
+    }
+    const i = this.point;
+    if (!pointBusy(this.pts[2 * i]!, this.pts[2 * i + 1]!, this.peers!, this)) {
+      this.busySkips += this.count - 1;
+      return;
+    }
+    // every point held: the next one anyway
+    this.k = k0;
+    this.passes = p0;
+  }
+
+  private step(): void {
     if (++this.k >= this.count) {
       this.k = 0;
       this.passes++;
     }
+  }
+
+  /** (coop4 AI5) The dedupe applies: `SWEEP4.dedupe` and the manager gave the peers (3+ players). */
+  private dedupeOn(): boolean {
+    return SWEEP4.dedupe && this.peers !== null;
   }
 
   private unstall(): void {

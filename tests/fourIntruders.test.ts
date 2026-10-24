@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { EnemyManager, TACTICS } from '../src/ai/enemyManager';
 import { DIFFICULTY } from '../src/ai/archetypes';
-import { COOP4 } from '../src/ai/intruders';
+import { COOP4, FIGHTS4 } from '../src/ai/intruders';
+import { RESPONSE_N, SWEEP4 } from '../src/ai/gear';
+import type { SweepTeam } from '../src/ai/sweepTeam';
 import { Vector3, type Scene } from '../src/core/babylon';
 import { Enemy, type AiContext, type PlayerRef } from '../src/ai/enemy';
 import type { World } from '../src/world/world';
@@ -119,9 +121,9 @@ type Priv = {
   slotFlowStep(dt: number): void;
 };
 
-function manager(gs: FakeGuard[], players: PlayerRef[]) {
+function manager(gs: FakeGuard[], players: PlayerRef[], covers = COVERS) {
   const world = {
-    level: { lights: { lights: [], setOn: vi.fn() }, cover: COVERS, coverSegments: [] },
+    level: { lights: { lights: [], setOn: vi.fn() }, cover: covers, coverSegments: [] },
     layout: { rooms: [] },
     doors: { list: [] },
   };
@@ -327,5 +329,312 @@ describe('coop4 AI4: the alarm draw, which intruders the reinforcements hunt (A1
     expect(em.nextAlarmHunt()).toBe(1);
     em.intruders.forget(1);
     expect([join(), join()]).toEqual([1, 1]);
+  });
+});
+
+describe('coop4 AI5: response teams and fights with 4 (A174 / A176-A179)', () => {
+  type Alarm = { raiseAlarm(e: Enemy, p: null): void; alarmHunt: number };
+  type Team = SweepTeam<Enemy>;
+  type Member = FakeGuard & { crew: Team | null; retell: ReturnType<typeof vi.fn> };
+
+  /** `live` players seen one second apart (a the oldest); b's hunter raises the alarm (as AI4's `alarmed`). */
+  function alarmed(live: number) {
+    const ps = [player('a', 0, 0), player('b', 30, 0), player('c', 60, 0), player('d', 90, 0)].slice(0, live);
+    const gs = ps.map((p) => guard(p.feet.x, -10));
+    const m = manager(gs, ps);
+    ps.forEach((p, i) => {
+      if (i) m.em.intruders.step(1);
+      sees(gs[i]!, p);
+    });
+    (m.em as unknown as Alarm).raiseAlarm(E(gs[1]!), null);
+    /** Sector Ops' `fill` for one reinforcement: `joinReinforcement`, then `joinTeam` when he has a team. `told()`: the
+     *  slot he ends up told (a retell replaces his draw). */
+    const spawn = (t: Team | null): { g: Member; told: () => number } => {
+      const g = guard(40, 40, { alerted: false, level: 'unaware' }) as Member;
+      g.ctx = m.ctx;
+      g.crew = null;
+      g.joinAsReinforcement = vi.fn();
+      g.retell = vi.fn();
+      m.em.joinReinforcement(E(g), 0, null);
+      if (t) m.em.joinTeam(E(g), t);
+      const told = (): number => (g.retell.mock.calls.length ? (g.retell.mock.calls.at(-1)![0] as number) : (g.joinAsReinforcement!.mock.calls[0]![1] as number));
+      return { g, told };
+    };
+    return { ...m, ps, gs, spawn };
+  }
+
+  it("A174 / A176: each team shares one intruder (its first member's draw); the others' draws go back to the split", () => {
+    const { em, spawn } = alarmed(3);
+    const tA = em.newTeam(0, null, [], []);
+    const a = [spawn(tA), spawn(tA)];
+    const tB = em.newTeam(0, null, [], []);
+    const b = [spawn(tB), spawn(tB), spawn(tB)];
+    expect([tA.hunt, tB.hunt]).toEqual([1, 2]);
+    expect(a.map((m) => m.told())).toEqual([1, 1]);
+    expect(b.map((m) => m.told())).toEqual([2, 2, 2]);
+    // the first member is never retold; the later ones are, with the team's
+    expect(a[0]!.g.retell).not.toHaveBeenCalled();
+    expect(a[1]!.g.retell).toHaveBeenCalledWith(1);
+    expect(b[2]!.g.retell).toHaveBeenCalledWith(2);
+    // the round robin moved one per team: a lone reinforcement next hunts 0, the next team 1 again
+    expect(spawn(null).told()).toBe(0);
+    const tC = em.newTeam(0, null, [], []);
+    expect([spawn(tC).told(), spawn(tC).told(), tC.hunt]).toEqual([1, 1, 1]);
+    expect(tA.members.length + tB.members.length + tC.members.length).toBe(7);
+  });
+
+  it('fewer than asked (the cap refuses members): the team takes its hunt from the first member that spawns', () => {
+    const { em, spawn } = alarmed(3);
+    const tA = em.newTeam(0, null, [], []);
+    em.maxAlive = 0;
+    expect(em.spawnReinforcement('grunt', new Vector3(40, 0, 40), 0, 0, null)).toBeNull();
+    em.maxAlive = 32;
+    expect([spawn(tA).told(), tA.hunt]).toEqual([1, 1]);
+    const tB = em.newTeam(0, null, [], []);
+    expect([spawn(tB).told(), tB.hunt]).toEqual([2, 2]);
+  });
+
+  it("A170: at 2 players no team hunt, nobody retold: every member hunts the alarm caller's intruder (today)", () => {
+    const { em, spawn } = alarmed(2);
+    expect(em.coop4()).toBe(false);
+    const tA = em.newTeam(0, null, [], []);
+    const a = [spawn(tA), spawn(tA), spawn(tA)];
+    expect(tA.hunt).toBe(-1);
+    expect(a.map((m) => m.told())).toEqual([1, 1, 1]);
+    for (const m of a) expect(m.g.retell).not.toHaveBeenCalled();
+  });
+
+  it("A176: from 3 players a team sweeps round its own intruder's last known position; unknown: the freshest; 2 players: the freshest", () => {
+    for (const live of [4, 2]) {
+      const { em, priv } = four(live);
+      const t = em.newTeam(0, null, [], []);
+      t.hunt = 2;
+      const tick = vi.spyOn(t, 'tick').mockImplementation(() => undefined);
+      const step = (): void => (priv as unknown as { teamsStep(): void }).teamsStep();
+      step();
+      // the mirror is the freshest: d (90, 0)
+      expect(tick.mock.calls[0]).toEqual(live === 4 ? [true, 60, 0] : [true, 90, 0]);
+      expect(t.peers).toBe(live === 4 ? em.teams : null);
+      em.intruders.forget(2);
+      step();
+      expect(tick.mock.calls[1]).toEqual([true, 90, 0]);
+    }
+  });
+
+  it('A177: newTeam passes the spread on (3 = today)', () => {
+    const { em } = four();
+    expect(em.newTeam(0, null, [], []).spread).toBe(3);
+    const t = em.newTeam(0, null, [], [], 6);
+    expect([t.index, t.spread]).toEqual([1, 6]);
+  });
+
+  it('a reused slot drops its team hunt (the team sweeps round the freshest again)', () => {
+    const { em, gs } = four();
+    const t = em.newTeam(0, null, [], []);
+    t.hunt = 3;
+    em.intruderLeft('d');
+    const g5 = guard(200, -10);
+    em.enemies.push(E(g5));
+    g5.ctx = gs[0]!.ctx;
+    sees(g5, player('e', 200, 0));
+    expect([em.intruders.find('e'), t.hunt]).toEqual([3, -1]);
+  });
+
+  it('A175: shapeResponse reads the live players, the cap room and the section override', () => {
+    const out = { teams: 0, size: 0 };
+    const four4 = four(4);
+    four4.em.maxAlive = 32;
+    // four stand-in guards alive: room 28
+    expect(four4.em.shapeResponse(1, 2, out)).toEqual({ teams: 2, size: 4 });
+    four4.em.maxAlive = 7;
+    expect(four4.em.shapeResponse(1, 2, out)).toEqual({ teams: 1, size: 3 });
+    four4.em.maxAlive = 32;
+    four4.em.setResponseShape({ splitAt: Infinity });
+    expect(four4.em.shapeResponse(1, 2, out)).toEqual({ teams: 1, size: 4 });
+    four4.em.setResponseShape(null);
+    expect(four4.em.shapeResponse(1, 2, out)).toEqual({ teams: 2, size: 4 });
+    const two = four(2);
+    expect(two.em.shapeResponse(1, 2, out)).toEqual({ teams: 1, size: 2 });
+  });
+
+  /** Four fights, two guards each, `live` players; covers round each player (or all round the origin: `shared`). */
+  function fights(live: number, shared = false) {
+    const ps = [player('a', 0, 0), player('b', 30, 0), player('c', 60, 0), player('d', 90, 0)];
+    if (shared) ps.forEach((p, i) => p.feet.set(i * 2, 0, 0));
+    const gs: FakeGuard[] = [];
+    for (const p of ps) gs.push(guard(p.feet.x, -16), guard(p.feet.x + 2, -17));
+    const covers = shared ? AROUND(0) : [...AROUND(0), ...AROUND(30), ...AROUND(60), ...AROUND(90)];
+    const m = manager(gs, ps.slice(0, live), covers);
+    // the real reservation as the guard takes his role's cover (`reserveCover`: `coverSet.owner`)
+    for (const g of gs) {
+      const set = g.setRole as unknown as (role: number, cover: number) => void;
+      g.setRole = vi.fn((role: number, cover: number) => {
+        set(role, cover);
+        if (cover >= 0) m.ctx.reserveCover(E(g), cover);
+      });
+    }
+    ps.forEach((p, i) => {
+      sees(gs[2 * i]!, p);
+      sees(gs[2 * i + 1]!, p);
+    });
+    const order: number[] = [];
+    const pr = m.em as unknown as { rolesFor(s: number): boolean; targetCoverT(s: number): number; spottedStep(): void; rolesActive: boolean };
+    const orig = pr.rolesFor.bind(m.em);
+    pr.rolesFor = (s: number): boolean => {
+      order.push(s);
+      return orig(s);
+    };
+    return { ...m, ps, gs, order, pr };
+  }
+
+  it('A178: four fights, four groups, no cover taken twice; the first pick rotates each roles tick (2 players: slot 0 first)', () => {
+    const { gs, roles, order, pr } = fights(4);
+    roles();
+    expect(pr.rolesActive).toBe(true);
+    expect(order).toEqual([0, 1, 2, 3]);
+    const taken = gs.map((g) => g.cover).filter((c) => c >= 0);
+    expect(taken.length).toBeGreaterThanOrEqual(4);
+    expect(new Set(taken).size).toBe(taken.length);
+    order.length = 0;
+    roles();
+    roles();
+    expect(order).toEqual([1, 2, 3, 0, 2, 3, 0, 1]);
+    const two = fights(2);
+    two.roles();
+    two.roles();
+    expect(two.order).toEqual([0, 1, 2, 3, 0, 1, 2, 3]);
+  });
+
+  it('S24 (b) with 4: four groups on one set of covers never share one, whichever picks first', () => {
+    const { gs, roles } = fights(4, true);
+    for (let k = 0; k < 4; k++) {
+      roles();
+      const taken = gs.map((g) => g.cover).filter((c) => c >= 0);
+      expect(taken.length).toBeGreaterThan(0);
+      expect(new Set(taken).size).toBe(taken.length);
+    }
+  });
+
+  it("A178: the flank trigger reads the slot's own player's cover time (2 players: the longest of all, today)", () => {
+    const { ps, pr } = fights(4);
+    const c = ps[2] as unknown as { cover: unknown; coverT: number };
+    c.cover = {};
+    c.coverT = 12;
+    expect([0, 1, 2, 3].map((s) => pr.targetCoverT(s))).toEqual([0, 0, 12, 0]);
+    const two = fights(2);
+    const b = two.ps[1] as unknown as { cover: unknown; coverT: number };
+    b.cover = {};
+    b.coverT = 7;
+    expect([0, 1].map((s) => two.pr.targetCoverT(s))).toEqual([7, 7]);
+  });
+
+  it("A179: a player's spotted clears once no guard fights his slot (2 players: only once nobody fights at all)", () => {
+    const { ps, gs, pr } = fights(4);
+    expect(ps.map((p) => p.spotted)).toEqual([true, true, true, true]);
+    gs[2]!.level = 'searching';
+    gs[3]!.level = 'searching';
+    pr.spottedStep();
+    expect(ps.map((p) => p.spotted)).toEqual([true, false, true, true]);
+    // a guard in combat on nobody in particular: nobody else clears
+    gs[4]!.level = 'searching';
+    gs[5]!.hunt = -1;
+    pr.spottedStep();
+    expect(ps.map((p) => p.spotted)).toEqual([true, false, true, true]);
+    // nobody fights: all clear (today)
+    for (const g of gs) g.level = 'searching';
+    pr.spottedStep();
+    expect(ps.map((p) => p.spotted)).toEqual([false, false, false, false]);
+    const two = fights(2);
+    two.gs[2]!.level = 'searching';
+    two.gs[3]!.level = 'searching';
+    two.pr.spottedStep();
+    expect(two.ps.slice(0, 2).map((p) => p.spotted)).toEqual([true, true]);
+  });
+});
+
+describe('coop4 AI5: 2-player identity (A170)', () => {
+  type Flags = Record<string, number | boolean>;
+  const ALL: Flags[] = [FIGHTS4 as unknown as Flags, SWEEP4 as unknown as Flags, RESPONSE_N as unknown as Flags];
+  /** Every AI5 rule undone (its A175-A179 undo), or back to the defaults. */
+  function rules(on: boolean): void {
+    const [f, s, r] = ALL as [Flags, Flags, Flags];
+    f.rotate = f.ownCover = f.spotted = on;
+    s.own = s.dedupe = on;
+    r.extraPerPlayer = on ? 1 : 0;
+    r.splitAt = on ? 4 : Infinity;
+  }
+
+  /** One scripted 2-player fight and response through every AI5 path; the state it ends in. */
+  function script(): unknown {
+    const ps = [player('a', 0, 0), player('b', 30, 0)];
+    const gs: FakeGuard[] = [];
+    for (const p of ps) gs.push(guard(p.feet.x, -16), guard(p.feet.x + 2, -17), guard(p.feet.x - 2, -17));
+    const m = manager(gs, ps);
+    for (const g of gs) {
+      const set = g.setRole as unknown as (role: number, cover: number) => void;
+      g.setRole = vi.fn((role: number, cover: number) => {
+        set(role, cover);
+        if (cover >= 0) m.ctx.reserveCover(E(g), cover);
+      });
+    }
+    ps.forEach((p, i) => gs.slice(3 * i, 3 * i + 3).forEach((g) => sees(g, p)));
+    (ps[1] as unknown as { cover: unknown; coverT: number }).cover = {};
+    (ps[1] as unknown as { coverT: number }).coverT = 9;
+    const pr = m.em as unknown as { spottedStep(): void; teamsStep(): void; raiseAlarm(e: Enemy, p: null): void; roleIn: { targetCoverT: number } };
+    const roles: unknown[] = [];
+    for (let k = 0; k < 4; k++) {
+      m.roles();
+      roles.push(gs.map((g) => [g.role, g.cover]), pr.roleIn.targetCoverT);
+    }
+    // the alarm and two teams of reinforcements
+    pr.raiseAlarm(E(gs[3]!), null);
+    const told: number[] = [];
+    const teams = [m.em.newTeam(0, null, [[[0, 0], [20, 0], [40, 0]]], []), m.em.newTeam(0, null, [[[0, 0], [20, 0], [40, 0]]], [])];
+    for (const t of teams) {
+      for (let k = 0; k < 3; k++) {
+        const g = guard(40, 40, { alerted: false, level: 'unaware' }) as FakeGuard & { crew: unknown; retell: ReturnType<typeof vi.fn> };
+        g.ctx = m.ctx;
+        g.joinAsReinforcement = vi.fn((_r: unknown, h: number) => told.push(h));
+        g.retell = vi.fn((h: number) => told.push(100 + h));
+        m.em.joinReinforcement(E(g), 0, null);
+        m.em.joinTeam(E(g), t);
+      }
+    }
+    const ticks: unknown[] = [];
+    for (const t of teams) vi.spyOn(t, 'tick').mockImplementation((v: boolean, x: number, z: number) => void ticks.push([v, x, z]));
+    pr.teamsStep();
+    // a sweep on: the second team's next point (no dedupe at 2 players)
+    for (const t of teams) {
+      t.begin(0, 0, 0, 0);
+      t.next();
+    }
+    gs[0]!.level = 'searching';
+    gs[1]!.level = 'searching';
+    gs[2]!.level = 'searching';
+    pr.spottedStep();
+    const shape = m.em.shapeResponse(2, 2, { teams: 0, size: 0 });
+    return {
+      roles,
+      told,
+      ticks,
+      teams: teams.map((t) => [t.hunt, t.start, t.point, t.busySkips, t.peers === null]),
+      spotted: ps.map((p) => p.spotted),
+      shape: { ...shape },
+      hunts: gs.map((g) => g.hunt),
+    };
+  }
+
+  it('every AI5 rule on (defaults) or undone: the same 2-player fight, alarm, teams, sweep and spotted', () => {
+    rules(true);
+    const on = script();
+    rules(false);
+    const off = script();
+    rules(true);
+    expect(on).toEqual(off);
+    // and it did run through the paths
+    const o = on as { told: number[]; ticks: unknown[]; spotted: boolean[] };
+    expect(o.told).toEqual([1, 1, 1, 1, 1, 1]);
+    expect(o.ticks.length).toBe(2);
+    expect(o.spotted).toEqual([true, true]);
   });
 });

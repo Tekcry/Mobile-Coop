@@ -1334,6 +1334,14 @@ export class Enemy implements Damageable {
     } else if (this.pendingHunt < 0) this.pendingHunt = slot;
   }
 
+  /** (coop4 AI5) His response team shares one intruder: he is told `slot` in place of what he was told (`tell` keeps
+   *  the first); calm, taken when he goes to combat; in combat, at once. -1: nothing. */
+  retell(slot: number): void {
+    if (slot < 0 || !this.alive) return;
+    if (this.alerted) this.hunt = slot;
+    else this.pendingHunt = slot;
+  }
+
   /** (guard-ai S24) His intruder's last known position (null: none, or no longer valid). */
   private huntPos(): Vector3 | null {
     return this.hunt >= 0 && this.ctx.lkpOf ? this.ctx.lkpOf(this.hunt) : null;
