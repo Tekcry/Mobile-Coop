@@ -9,9 +9,10 @@
  * (the connector cycle), or the match's end.
  * Landing runs in promise callbacks between frames, never per frame.
  * (section-bake robust) A failed worker job is tried once more on the pool, then baked inline (held while the match plays
- * until the pool is idle); a job in flight past `JOB_CAP_MS` counts as failed. A lamp that fails every way lands dark for
- * this match and the result is not cached. Every running baker is listed, so a load that fails after the bake started
- * can stop it (`disposeSectionBakersSince`).
+ * until the pool is idle, unless it counts for the live section); a job in flight past `JOB_CAP_MS` (its retry past
+ * `JOB_RETRY_CAP_MS`) counts as failed. A lamp that fails every way lands dark for this match and the result is not
+ * cached. Every running baker is listed, so a load that fails after the bake started can stop it
+ * (`disposeSectionBakersSince`).
  */
 import { bakeLamps, BOX_STRIDE, LAMP_STRIDE, type LampResult } from './lampBake';
 import { saveLamps } from './lampJobs';
@@ -27,6 +28,8 @@ export type LiveListener = (live: number) => void;
 const FLUSH_LAMPS = 8;
 /** (section-bake robust) A worker job in flight longer than this counts as failed (a worker that died without `onerror`). */
 export const JOB_CAP_MS = 60_000;
+/** (bake3) The pool retry's shorter cap: a silently dead worker holds the load ~85 s at worst, not ~125 s. */
+export const JOB_RETRY_CAP_MS = 20_000;
 /** How often the in-flight jobs are checked against `JOB_CAP_MS`. */
 const STALL_CHECK_MS = 5_000;
 
@@ -44,7 +47,7 @@ export interface SectionBakerInput {
   live?: number;
   /** Tests: a pool to use (default a new `WorkerPool()`; in node it runs inline). */
   pool?: WorkerPool;
-  /** Tests: the in-flight cap (default `JOB_CAP_MS`). */
+  /** Tests: the first try's in-flight cap (default `JOB_CAP_MS`; the retry's is `JOB_RETRY_CAP_MS`). */
   capMs?: number;
 }
 
@@ -108,7 +111,7 @@ export class SectionBaker {
   private readonly jobT0: Float64Array;
   private readonly token: Int32Array;
   private readonly tries: Uint8Array;
-  /** (check B 3) Lamps waiting for an inline bake (FIFO; held while playing until the pool is idle). */
+  /** (check B 3) Lamps waiting for an inline bake (FIFO; held while playing until the pool is idle, live-section lamps excepted). */
   private readonly inlineQ: Int32Array;
   private inlineHead = 0;
   private inlineTail = 0;
@@ -173,6 +176,8 @@ export class SectionBaker {
     this.saveIfDue();
     // (check B 5) the picture puts the new live section's waiting lamps first
     for (const fn of this.liveListeners) fn(this.plan.live);
+    // (bake3) a held inline lamp of the new live section bakes now
+    this.drainInline();
   }
 
   /** The match starts playing (`GameState.create`): from now on the cache write waits for a quiet moment. */
@@ -214,14 +219,15 @@ export class SectionBaker {
   }
 
   /**
-   * (check B 3) A job in flight past the cap (default `JOB_CAP_MS`) counts as failed: tried again on the pool, then
-   * inline. Called by a timer while the bake runs (tests call it with a clock of their own).
+   * (check B 3) A job in flight past the cap (default `JOB_CAP_MS`; bake3: a retry `JOB_RETRY_CAP_MS`) counts as failed:
+   * tried again on the pool, then inline. Called by a timer while the bake runs (tests call it with a clock of their own).
    */
   checkStalled(now = performance.now()): void {
     if (this.disposed || this.done) return;
-    const cap = this.inp.capMs ?? JOB_CAP_MS;
+    const cap0 = this.inp.capMs ?? JOB_CAP_MS;
     const T = this.jobT0;
     for (let i = 0; i < T.length; i++) {
+      const cap = this.tries[i] === 1 ? JOB_RETRY_CAP_MS : cap0;
       if (T[i]! > 0 && now - T[i]! > cap) this.failed1(i, new Error(`job in flight over ${cap} ms`));
     }
   }
@@ -302,14 +308,24 @@ export class SectionBaker {
 
   /**
    * (SB13, check B 3) Bake the waiting lamps here (a hitch, never a wrong light). During the load at once; once the match
-   * plays only while the pool is idle, one lamp per task (frames run between them).
+   * plays only while the pool is idle, one lamp per task (frames run between them). (bake3) A live-section lamp does not
+   * wait for the idle pool: it is moved to the queue head (a stable shift in place, so the held lamps keep their order)
+   * and bakes now (the live section's meter, guards and picture are dark at that lamp until it lands).
    */
   private drainInline(): void {
     if (this.draining || this.inlineTimer !== null || this.disposed) return;
     this.draining = true;
+    const Q = this.inlineQ;
     while (this.inlineTail > this.inlineHead && !this.disposed && !this.done) {
-      if (this.playing && this.poolJobs > 0) break;
-      const i = this.inlineQ[this.inlineHead++]!;
+      if (this.playing && this.poolJobs > 0) {
+        let j = this.inlineHead;
+        while (j < this.inlineTail && (this.plan.landed[Q[j]!] || !this.plan.liveMember(Q[j]!))) j++;
+        if (j === this.inlineTail) break;
+        const live = Q[j]!;
+        Q.copyWithin(this.inlineHead + 1, this.inlineHead, j);
+        Q[this.inlineHead] = live;
+      }
+      const i = Q[this.inlineHead++]!;
       if (this.plan.landed[i]) continue;
       this.retryInline(i);
       if (this.playing && this.inlineTail > this.inlineHead && !this.disposed && !this.done) {
