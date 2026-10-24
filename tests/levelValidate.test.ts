@@ -37,10 +37,11 @@ const DOOR = { width: 1.2, height: 2.1 };
 const DDOOR = { width: 2.0, height: 2.1 };
 const DUCT = { width: 1.2, height: 1.5 };
 
-/** Minimal valid map: S1 (a gate, an encounter court with a roof walk, the exit hut), one spine corridor, S2 (a hall
- *  that splits into dock (leg a) and walk (leg b, the overwatch) around the vault encounter, then the exfil yard). */
+/** Minimal valid map (Sector Ops profile, two players): S1 (a gate, an encounter court with a roof walk, the exit hut),
+ *  one spine corridor, S2 (a hall that splits into dock (leg a) and walk (leg b, the overwatch) around the vault
+ *  encounter, then the exfil yard). */
 const base = (): Graph => ({
-  meta: { map: 'testMap', name: 'Test Map', mode: 'campaign', players: [2], sections: ['S1', 'S2'] },
+  meta: { map: 'testMap', name: 'Test Map', mode: 'sector', players: [2], sections: ['S1', 'S2'] },
   spaces: [
     sp('a-gate', 'S1', 'exterior', 'yard', [14, 14, 12], 1, ['start', 'entry']),
     sp('a-court', 'S1', 'encounter', 'yard', [14, 20, 12], 3, [],
@@ -86,6 +87,22 @@ const withKinds = (): Graph => {
     ln('a-court', 'a-roof', 'wall_jump', 'high', { level_change: 3.5, length: 8, time_s: 4 }),
     ln('a-court', 'a-roof', 'split_jump', 'high', { width: 1.5, height: 4, level_change: 4.5, length: 8, time_s: 6 }),
     ln('a-roof', 'a-court', 'drop', 'high', { level_change: 4.5, length: 4, time_s: 2 }),
+  );
+  return g;
+};
+
+/** base() as a campaign map: each section's exit is behind forced co-op gates (level-design 11.10): S1's hut doors are
+ *  team doors (pair_gate), S2's yard is reached by a throw over the dock pit or the team door the thrown partner opens. */
+const campaignBase = (): Graph => {
+  const g = base();
+  g.meta.mode = 'campaign';
+  for (const l of g.links) {
+    if (l.from === 'a-court' && l.to === 'a-hut') l.kind = 'pair_gate';
+  }
+  g.links = g.links.filter((l) => !(l.from === 'b-vault' && l.to === 'b-out'));
+  g.links.push(
+    ln('b-vault', 'b-out', 'pair_gate', 'shadow', { ...DOOR, length: 18 }),
+    ln('b-vault', 'b-out', 'coop_throw', 'loud', { width: 3, length: 18, time_s: 4 }),
   );
   return g;
 };
@@ -147,8 +164,8 @@ describe('level-validate: passing graphs', () => {
     const r = check(g, null);
     expect(r.errors).toEqual([]);
     expect(r.warns).toEqual([expect.stringContaining('size and time checks skipped')]);
-    delete space(g, 'a-court').shadow_pct;
-    expectErr(check(g, null), 'a-court: shadow_pct missing');
+    delete space(g, 'a-court').los_break_s;
+    expectErr(check(g, null), 'a-court: los_break_s missing');
   });
 
   it('a missing metrics key: one WARN and that check is skipped', () => {
@@ -448,7 +465,6 @@ describe('level-validate: failing fixtures (PLAN V1 list)', () => {
 
   it('co-op guards below the 2-player count', () => {
     const g = base();
-    g.meta.mode = 'sector';
     g.meta.players = [2, 3];
     space(g, 'a-court').guards = { 2: 5, 3: 4 };
     expectErr(check(g), 'a-court: 4 guards at 3 players, fewer than 5 at 2');
@@ -494,27 +510,32 @@ describe('level-validate: failing fixtures (PLAN V1 list)', () => {
 });
 
 describe('level-validate: declared targets (M4)', () => {
-  it('missing targets are errors', () => {
+  it('missing targets are errors; shadow_pct is optional (the light band is the target, G329)', () => {
     const g = base();
     const s = space(g, 'a-court');
     delete s.shadow_pct;
     delete s.los_break_s;
     delete s.vantage;
     delete s.guards;
-    expectErr(check(g), 'a-court: shadow_pct missing', 'a-court: los_break_s missing', 'a-court: vantage missing', 'a-court: guards missing');
+    const r = check(g);
+    expectErr(r, 'a-court: los_break_s missing', 'a-court: vantage missing', 'a-court: guards missing');
+    expect(r.errors.some((e) => e.includes('shadow_pct'))).toBe(false);
   });
 
-  it('declared values outside the metrics targets are errors', () => {
+  it('declared values outside the metrics targets are errors; shadow share outside its band is INFO only', () => {
     const g = base();
     Object.assign(space(g, 'a-court'), { shadow_pct: 0.7, los_break_s: 6, vantage: { from: 'a-roof', sees_pct: 0.6 } });
-    expectErr(check(g), 'a-court: shadow_pct 0.7 outside 0.4-0.6', 'a-court: los_break_s 6 above 5 s', 'a-court: vantage sees_pct 0.6 below 0.7');
+    const r = check(g);
+    expectErr(r, 'a-court: los_break_s 6 above 5 s', 'a-court: vantage sees_pct 0.6 below 0.7');
+    expect(r.errors.some((e) => e.includes('shadow_pct'))).toBe(false);
+    expect(r.infos).toContainEqual(expect.stringContaining('a-court: shadow_pct 0.7 outside 0.4-0.6 (information'));
   });
 });
 
 describe('level-validate: reach, references, rejoin (checker should-fix 2, 4)', () => {
   it('no softlock: a mandatory pair_gate flags its own target, not the co-op moves behind it that have a solo route', () => {
     const g: Graph = {
-      meta: { map: 'probe', name: 'Probe', mode: 'campaign', players: [2], sections: ['S1'] },
+      meta: { map: 'probe', name: 'Probe', mode: 'sector', players: [2], sections: ['S1'] },
       spaces: [
         sp('s', 'S1', 'exterior', 'yard', [14, 14, 12], 1, ['start', 'entry']),
         sp('a', 'S1', 'hub', 'lobby', [14, 17, 4.5], 2),
@@ -570,7 +591,7 @@ describe('level-validate: coverage, routes, structure', () => {
 
   it('solo twin: a co-op move one player can make by a solo link or path on its route, no longer (campus CR7)', () => {
     const twin = 'link a-court -> a-roof (coop_boost) has a solo twin: link a-court -> a-roof (ladder)';
-    const g = base();
+    const g = campaignBase();
     g.links.push(ln('a-court', 'a-roof', 'ladder', 'high', { level_change: 4.5, length: 6, time_s: 6 }));
     expectErr(check(g), twin);
     // A longer solo way up, or one on another route kind, is the no-softlock alternative, not a twin.
@@ -581,7 +602,7 @@ describe('level-validate: coverage, routes, structure', () => {
     l.route = 'loud';
     expect(check(g).errors.filter((e) => e.includes('solo twin'))).toEqual([]);
     // A two-link solo path that does not pass the target counts; the message names every link.
-    const h = base();
+    const h = campaignBase();
     h.spaces.push(sp('a-stack', 'S1', 'connector', 'corridor', [3.5, 14, 3], 2));
     h.links.push(ln('a-court', 'a-stack', 'ledge', 'high', { length: 2 }), ln('a-stack', 'a-roof', 'ledge', 'high', { length: 3 }));
     expectErr(check(h), 'link a-court -> a-roof (coop_boost) has a solo twin: link a-court -> a-stack (ledge), then link a-stack -> a-roof (ledge)');
@@ -589,6 +610,7 @@ describe('level-validate: coverage, routes, structure', () => {
 
   it('solo twin: a pair_gate is judged both ways; Sector Ops gets a WARN, not an ERR', () => {
     const g = base();
+    g.meta.mode = 'campaign';
     g.links.push(ln('a-court', 'a-hut', 'pair_gate', 'shadow', { ...DOOR, length: 13 }));
     expectErr(check(g), 'link a-court -> a-hut (pair_gate) has a solo twin: link a-court -> a-hut (door)',
       'link a-court -> a-hut (pair_gate) (a-hut -> a-court) has a solo twin: link a-court -> a-hut (door)');
@@ -624,7 +646,7 @@ describe('level-validate: coverage, routes, structure', () => {
   });
 
   it('structure: a campaign is two players; one start; an exfil', () => {
-    const g = base();
+    const g = campaignBase();
     g.meta.players = [1, 2];
     space(g, 'a-gate').tags = ['entry'];
     space(g, 'b-out').tags = ['exit'];
@@ -644,6 +666,106 @@ describe('level-validate: coverage, routes, structure', () => {
     const g = base();
     space(g, 'b-out').tags = ['exfil'];
     expectErr(checkRedundancy(g) as Report, "section S2: needs exactly one space tagged 'exit' (has 0)");
+  });
+});
+
+describe('level-validate: mode profiles (level-design "Modes and tags")', () => {
+  it('campaign: the forced-gate fixture passes clean', () => {
+    const r = check(campaignBase());
+    expect(r.errors).toEqual([]);
+    expect(r.warns).toEqual([]);
+    expect(r.infos).toEqual([]);
+  });
+
+  it('campaign: a section whose exit solo links reach has no forced co-op gate (ERR); sector and training skip it', () => {
+    const g = campaignBase();
+    g.links.push(ln('a-court', 'a-hut', 'door', 'shadow', { ...DOOR, length: 13 }));
+    expectErr(check(g), "section S1: exit 'a-hut' is reached from entry 'a-gate' by solo links alone");
+    expect(check(g).errors.filter((e) => e.includes('section S2: exit'))).toEqual([]);
+    expect(check(base()).errors).toEqual([]);
+    const t = base();
+    t.meta.mode = 'training';
+    expect(check(t).errors.filter((e) => e.includes('solo links alone'))).toEqual([]);
+  });
+
+  it('campaign gate reach: a co-op move needs a solo way back within the revive reach (an opened pair_gate counts)', () => {
+    // Too slow: the roof's way down to the court is 20 s; via the gate ladder and the gap it is 17.7 s.
+    const slow = campaignBase();
+    link(slow, 'a-roof', 'a-court', 'ladder').time_s = 20;
+    expectErr(check(slow), 'link a-court -> a-roof (coop_boost): the way back from a-roof to a-court takes 17.7 s, over the 15 s revive reach');
+    // Only an untimed link brings it under: WARN.
+    const loose = campaignBase();
+    delete link(loose, 'a-roof', 'a-court', 'ladder').time_s;
+    expectWarn(check(loose), 'link a-court -> a-roof (coop_boost): the way back from a-roof is 17.7 s on timed links');
+    // No way back at all.
+    const none = campaignBase();
+    drop(none, 'a-roof', 'a-court', 'ladder');
+    link(none, 'a-gate', 'a-roof', 'ladder').one_way = true;
+    expectErr(check(none), 'link a-court -> a-roof (coop_boost): no solo way back from a-roof to a-court');
+    // The throw's way back is the team door it opened.
+    expect(check(campaignBase()).errors.filter((e) => e.includes('coop_throw'))).toEqual([]);
+    // Sector Ops runs no softlock instead: no gate-reach line.
+    const sector = campaignBase();
+    sector.meta.mode = 'sector';
+    expect(check(sector).errors.filter((e) => e.includes('way back'))).toEqual([]);
+  });
+
+  it('campaign does not run no-softlock; a co-op-only reward is fine when its way back holds', () => {
+    const g = campaignBase();
+    g.spaces.push(sp('a-ledge', 'S1', 'reward', 'storage', [4, 4, 3], 2, ['reward']));
+    g.links.push(ln('a-court', 'a-ledge', 'coop_boost', 'high', { level_change: 4.5, length: 6, time_s: 5 }));
+    g.links.push(ln('a-ledge', 'a-court', 'drop', 'high', { level_change: 4.5, length: 4, time_s: 2 }));
+    expect(check(g).errors).toEqual([]);
+  });
+
+  it('coop_throw is a co-op kind (no softlock on Sector Ops, coverage)', () => {
+    const g = base();
+    g.spaces.push(sp('a-ledge', 'S1', 'reward', 'storage', [4, 4, 3], 2, ['reward']));
+    g.links.push(ln('a-court', 'a-ledge', 'coop_throw', 'high', { width: 3, length: 6, time_s: 4 }));
+    expectErr(check(g), 'a-ledge: reached only through co-op links (coop_throw)');
+  });
+
+  it('training: one route is fine (no route-count, redundancy, softlock or gate checks); guard bands are INFO', () => {
+    const g = base();
+    g.meta.mode = 'training';
+    // One way through S1: the opening into the court and one door to the hut.
+    g.links = g.links.filter((l) => !(l.from === 'a-gate' && l.to === 'a-court' && l.kind !== 'opening')
+      && !(l.from === 'a-court' && l.to === 'a-hut' && l.kind !== 'door'));
+    space(g, 'a-court').guards = { 2: 2 };
+    g.spaces.push(sp('a-ledge', 'S1', 'reward', 'storage', [4, 4, 3], 2, ['reward']));
+    g.links.push(ln('a-court', 'a-ledge', 'coop_boost', 'high', { level_change: 4.5, length: 6, time_s: 5 }));
+    const r = check(g);
+    expect(r.errors).toEqual([]);
+    expect(r.warns).toEqual([]);
+    expect(r.infos).toContainEqual('a-court: 2 guards (2 players) below the early band 3-6');
+    g.meta.mode = 'sector';
+    expectErr(check(g), 'a-court: no loud approach', "section S1: 1 independent route(s)", 'a-ledge: reached only through co-op links');
+  });
+
+  it('sector: 1-4 players; the alive ceiling per section and player count (sector_alive_max 32)', () => {
+    const g = base();
+    g.meta.players = [1, 2, 3, 4];
+    space(g, 'a-court').guards = { 1: 10, 4: 33 };
+    space(g, 'b-vault').guards = { 1: 20, 3: 30 };
+    const r = check(g);
+    expectErr(r, 'section S1: 33 guards at 4 players, over the 32 alive ceiling (sector_alive_max)');
+    expect(r.errors.filter((e) => e.includes('alive ceiling'))).toHaveLength(1);
+    space(g, 'b-vault').guards = { 1: 20, 3: 40 };
+    expectErr(check(g), 'section S2: 40 guards at 3 players', 'section S2: 40 guards at 4 players');
+    g.meta.players = [2, 5];
+    expectErr(checkStructure(g) as Report, 'Sector Ops is 1-4 players');
+    const c = campaignBase();
+    space(c, 'b-vault').guards = { 2: 40 };
+    expect(check(c).errors).toEqual([]);
+  });
+
+  it('structure: training is two players; an unknown mode is named', () => {
+    const g = base();
+    g.meta.mode = 'training';
+    g.meta.players = [1, 2];
+    expectErr(checkStructure(g) as Report, 'a training map is two players');
+    g.meta.mode = 'arena';
+    expectErr(checkStructure(g) as Report, "meta.mode: 'arena' is not campaign, sector or training");
   });
 });
 

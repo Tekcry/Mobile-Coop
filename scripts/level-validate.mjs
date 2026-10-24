@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 // level-validate: checks a map's connectivity graph (docs/level-validator/graph-schema.md) against the level standard
-// (docs/level-design.md, BRIEF mapping table, Michael's M1-M4) before any geometry is built. A port of the reference
+// (docs/level-design.md, its rule index and mode profiles) before any geometry is built. `meta.mode` picks the profile:
+// `campaign` (two players, a forced co-op gate per section, gate reach), `sector` (Sector Ops: 1-4 players, no softlock,
+// the alive ceiling) or `training` (Marlow Yard: one guided route, no route-count, gate or softlock checks). A port of the reference
 // skill's validate_level.py (docs/level-validator/source/, algorithms only: reach, edge-disjoint routes); our rules win.
 // Every size and time comes from the metrics JSON generated from docs/design/scale-sheet.md (M2): this file holds no
 // size or time constant. A metrics key the check needs but the sheet lacks prints one WARN and the check is skipped;
@@ -25,9 +27,9 @@ export const SPACE_TYPES = new Set(['encounter', 'connector', 'hub', 'safe_room'
   'utility', 'stair_core', 'duct']);
 export const LINK_KINDS = new Set(['door', 'double_door', 'opening', 'roller_door', 'corridor', 'fire_stair',
   'open_stair', 'ladder', 'duct', 'tunnel', 'window', 'hatch', 'ledge', 'pipe', 'drop', 'wall_jump', 'split_jump',
-  'coop_boost', 'human_ladder', 'pair_gate', 'team_rope', 'rappel']);
-/** Kinds that need two players (graph-schema "Link kinds" + lead decisions 1-2). */
-export const COOP_KINDS = new Set(['coop_boost', 'human_ladder', 'pair_gate', 'team_rope']);
+  'coop_boost', 'human_ladder', 'coop_throw', 'pair_gate', 'team_rope', 'rappel']);
+/** Kinds that need two players (graph-schema "Link kinds" + lead decisions 1-2; `coop_throw`: the kit, G293). */
+export const COOP_KINDS = new Set(['coop_boost', 'human_ladder', 'coop_throw', 'pair_gate', 'team_rope']);
 /** One way unless the link sets `one_way: false`. */
 const ONE_WAY_KINDS = new Set(['drop', 'rappel']);
 /** Kinds walked at the metrics speeds; every other kind (climb, crawl, shimmy, co-op move) needs `time_s` on a timed
@@ -47,7 +49,9 @@ const GRID_WIDTH_KINDS = new Set(['corridor', 'opening', 'roller_door']);
 const ROUTES = new Set(['shadow', 'high', 'loud', 'secret', 'spine']);
 /** The approach kinds every encounter space needs (level-design 3.2). */
 const NEEDED_ROUTES = ['shadow', 'high', 'loud'];
-const MODES = new Set(['campaign', 'sector']);
+const MODES = new Set(['campaign', 'sector', 'training']);
+/** The training profile (Marlow Yard) is one guided route: no route-count checks (level-design 3.2, 3.3, 11.2; G292). */
+const routeRules = (meta) => meta.mode !== 'training';
 const PLAIN_TAGS = new Set(['start', 'exfil', 'objective', 'checkpoint', 'reward', 'entry', 'exit', 'sync_pair']);
 const SPLIT_TAG = /^split:(.+):(a|b)$/;
 const OVERWATCH_TAG = /^overwatch:(.+)$/;
@@ -207,6 +211,13 @@ function index(graph) {
   return { meta, spaces, links, byId, sections, secIndex, start, exfils };
 }
 
+/** Seconds for one link: `time_s`, else `length` / speed for a walked kind; untimed otherwise (lead decision 5). */
+function linkTime(l, speed) {
+  if (typeof l.time_s === 'number') return { t: l.time_s, untimed: false };
+  if (WALK_KINDS.has(l.kind) && typeof l.length === 'number') return { t: l.length / speed, untimed: false };
+  return { t: 0, untimed: true };
+}
+
 /** Can `l` be walked into space `id`? (Either end of a two-way link; only the `to` end of a one-way link.) */
 const enters = (l, id) => l.to === id || (l.from === id && !isOneWay(l));
 /** Can `l` be walked out of space `id`? */
@@ -249,12 +260,14 @@ export function checkStructure(graph) {
       if (typeof meta[k] !== 'string' || !meta[k].trim()) c.err(`meta.${k}: missing`);
     }
     if (typeof meta.mode === 'string' && meta.mode && !MODES.has(meta.mode)) {
-      c.err(`meta.mode: '${meta.mode}' is not campaign or sector (arena is parked)`);
+      c.err(`meta.mode: '${meta.mode}' is not campaign, sector or training (arena is parked)`);
     }
     if (!Array.isArray(meta.players) || !meta.players.length || !meta.players.every((p) => Number.isInteger(p) && p > 0)) {
       c.err('meta.players: needs the player counts, e.g. [2]');
-    } else if (meta.mode === 'campaign' && (meta.players.length !== 1 || meta.players[0] !== 2)) {
-      c.err(`meta.players: a campaign map is two players, [2] (G2, G50), not [${meta.players.join(', ')}]`);
+    } else if ((meta.mode === 'campaign' || meta.mode === 'training') && (meta.players.length !== 1 || meta.players[0] !== 2)) {
+      c.err(`meta.players: a ${meta.mode} map is two players, [2] (G2, G50, G308), not [${meta.players.join(', ')}]`);
+    } else if (meta.mode === 'sector' && meta.players.some((p) => p > 4)) {
+      c.err(`meta.players: Sector Ops is 1-4 players (G308), not [${meta.players.join(', ')}]`);
     }
     if (!Array.isArray(meta.sections) || !meta.sections.length || !meta.sections.every((s) => typeof s === 'string' && s)) {
       c.err('meta.sections: needs the section ids in spine order');
@@ -473,12 +486,14 @@ export function checkDimensions(graph, metrics) {
   return c.r;
 }
 
-/** Two-player reach from `start` of every space, exfil from every objective; no softlock (every space a co-op link
- *  reaches is also reachable without co-op links from the spaces already reached, so a mandatory pair_gate earlier on
- *  the route flags its own target, not the co-op moves behind it). Solo completability is not checked (A1; G2, G50). */
-export function checkReach(graph) {
-  const c = collector(null);
-  const { spaces, links, start, exfils } = index(graph);
+/** Reach from `start` of every space, exfil from every objective; then per mode (level-design 11.6): `sector`, no
+ *  softlock (every space a co-op link reaches is also reachable without co-op links from the spaces already reached, so
+ *  a mandatory pair_gate earlier on the route flags its own target, not the co-op moves behind it); `campaign`, gate
+ *  reach (every co-op link has a solo way back, an opened pair_gate included, within the revive reach); `training`,
+ *  neither. Solo completability is not checked (A1; G2, G50). */
+export function checkReach(graph, metrics = null) {
+  const c = collector(metrics);
+  const { meta, spaces, links, start, exfils } = index(graph);
   const all = adjacency(links);
   const seen = reachable(all, start);
   const lost = spaces.filter((s) => !seen.has(s.id)).map((s) => s.id);
@@ -490,6 +505,8 @@ export function checkReach(graph) {
       if (!exfils.some((e) => on.has(e))) c.err(`${s.id}: no way from this objective to exfil`);
     }
   }
+  if (meta.mode === 'campaign') gateReach(c, links);
+  if (meta.mode !== 'sector') return c.r;
   // Grow the solo region: start, then whatever a co-op move opens. A co-op link out of the region into a space the
   // region does not reach solo is the only way there (a softlock if that partner goes down); the space and what is
   // solo-reachable from it join the region, so the co-op moves behind it are judged from there, in file order.
@@ -506,6 +523,35 @@ export function checkReach(graph) {
     }
   }
   return c.r;
+}
+
+/** Campaign gate reach (level-design 11.6, 11.10): every co-op move `from` -> `to` has a way back `to` -> `from`
+ *  over solo links (an opened `pair_gate` stays open, so it is its own way back and counts on other paths) within
+ *  `reach_max_s` at `reach_speed_mps`: a partner downed on either side of the gate is reached. Links with no time are
+ *  left out first; when only they make the reach, that is a WARN (add time_s). With no metrics only the way back is
+ *  checked. */
+function gateReach(c, links) {
+  const back = adjacency(links, (l) => !COOP_KINDS.has(l.kind) || l.kind === 'pair_gate');
+  const speed = c.num('rules.reach_speed_mps', 'the gate reach check');
+  const max = c.num('rules.reach_max_s', 'the gate reach check');
+  for (const l of links) {
+    if (!COOP_KINDS.has(l.kind) || l.kind === 'pair_gate') continue;
+    const name = linkName(l);
+    if (!reachable(back, l.to).has(l.from)) {
+      c.err(`${name}: no solo way back from ${l.to} to ${l.from}; a partner downed below the gate cannot be reached (add a drop, a ladder kicked down or a door that stays open)`);
+      continue;
+    }
+    if (speed === undefined || max === undefined) continue;
+    const target = new Set([l.from]);
+    const timed = nearest(back, l.to, target, (x) => linkTime(x, speed), true);
+    if (timed <= max + EPS) continue;
+    const loose = nearest(back, l.to, target, (x) => linkTime(x, speed), false);
+    if (loose <= max + EPS) {
+      c.warn(`${name}: the way back from ${l.to} is ${Number.isFinite(timed) ? `${fmtS(timed)} s` : 'untimed'} on timed links; only links with no time_s bring it under ${fmt(max)} s (add time_s)`);
+    } else {
+      c.err(`${name}: the way back from ${l.to} to ${l.from} takes ${fmtS(loose)} s, over the ${fmt(max)} s revive reach`);
+    }
+  }
 }
 
 /** Linear spine of sections: spine links join consecutive sections, exit -> entry; no other link crosses sections; no
@@ -559,6 +605,7 @@ export function checkEncounters(graph, metrics) {
   const c = collector(metrics);
   const { spaces, links, byId, sections, secIndex, meta } = index(graph);
   const players = meta.players;
+  const routes = routeRules(meta);
   let guarded = 0;
   let guardedSecret = 0;
   for (const s of spaces) {
@@ -571,18 +618,19 @@ export function checkEncounters(graph, metrics) {
       return links.some((m) => enters(m, far) && otherEnd(m, far) !== s.id);
     });
     const kinds = new Set(approaches.map((l) => l.route));
-    if (approaches.length < 3) c.err(`${s.id}: ${approaches.length} approaches (need 3+)`);
-    if (kinds.size < 2) c.err(`${s.id}: approaches use ${kinds.size} route kind(s) (need 2+)`);
-    for (const r of NEEDED_ROUTES) if (!kinds.has(r)) c.err(`${s.id}: no ${r} approach`);
+    if (routes) {
+      if (approaches.length < 3) c.err(`${s.id}: ${approaches.length} approaches (need 3+)`);
+      if (kinds.size < 2) c.err(`${s.id}: approaches use ${kinds.size} route kind(s) (need 2+)`);
+      for (const r of NEEDED_ROUTES) if (!kinds.has(r)) c.err(`${s.id}: no ${r} approach`);
+    }
 
-    // Declared targets (M4): V6 measures them in greybox later.
-    if (typeof s.shadow_pct !== 'number') {
-      c.err(`${s.id}: shadow_pct missing (declared target)`);
-    } else {
-      const lo = c.num('rules.shadow_min_frac', 'the shadow target check');
-      const hi = c.num('rules.shadow_max_frac', 'the shadow target check');
+    // Declared targets (M4): V6 measures them in greybox later. Shadow share is optional and INFO only: the real-world
+    // light band per space type is the light target (G329, level-design 5.5).
+    if (typeof s.shadow_pct === 'number') {
+      const lo = c.num('rules.shadow_min_frac', 'the shadow share report', 'info');
+      const hi = c.num('rules.shadow_max_frac', 'the shadow share report', 'info');
       if (lo !== undefined && hi !== undefined && (s.shadow_pct < lo - EPS || s.shadow_pct > hi + EPS)) {
-        c.err(`${s.id}: shadow_pct ${fmt(s.shadow_pct)} outside ${fmt(lo)}-${fmt(hi)}`);
+        c.info(`${s.id}: shadow_pct ${fmt(s.shadow_pct)} outside ${fmt(lo)}-${fmt(hi)} (information; the light band is the target)`);
       }
     }
     if (typeof s.los_break_s !== 'number') {
@@ -604,7 +652,7 @@ export function checkEncounters(graph, metrics) {
       }
     }
 
-    // Guards: per player count; bands are INFO until Michael rules on the guard sheets.
+    // Guards: per player count.
     const g = s.guards;
     if (!g || typeof g !== 'object' || Array.isArray(g) || !Object.keys(g).length) {
       c.err(`${s.id}: guards missing ({ "<players>": n })`);
@@ -633,15 +681,35 @@ export function checkEncounters(graph, metrics) {
     if (s.phase !== undefined && s.phase !== 'early' && s.phase !== 'late') c.err(`${s.id}: phase '${s.phase}' is not early or late`);
     const early = s.phase ? s.phase === 'early' : secIndex.get(s.section) < sections.length / 2;
     // Michael 2026-10-24 ~22:00: "as many guards as realistically possible": no upper limit (the guard-cap perf floor
-    // and passable routes bound it); WARN only below the band's low end.
+    // and passable routes bound it); WARN only below the band's low end (training: INFO, a set holds at most 3).
     const band = c.range(early ? 'rules.guards_early' : 'rules.guards_late', 'the guard band check');
     for (const [p, n] of counts) {
       if (band && n < band[0]) {
-        c.warn(`${s.id}: ${n} guards (${p} players) below the ${early ? 'early' : 'late'} band ${fmt(band[0])}-${fmt(band[1])}`);
+        (routes ? c.warn : c.info)(`${s.id}: ${n} guards (${p} players) below the ${early ? 'early' : 'late'} band ${fmt(band[0])}-${fmt(band[1])}`);
       }
     }
   }
-  if (guarded && guardedSecret * 2 < guarded) {
+  // Sector Ops alive ceiling (G187, G332): per section and player count, the encounter spaces' counts (each at the
+  // largest key not above that count) sum to at most `sector_alive_max`.
+  if (meta.mode === 'sector') {
+    const ceiling = c.num('rules.sector_alive_max', 'the Sector Ops alive ceiling');
+    for (const sec of ceiling === undefined ? [] : sections) {
+      for (const p of players) {
+        let sum = 0;
+        for (const s of spaces) {
+          if (s.section !== sec || !s.guards || typeof s.guards !== 'object') continue;
+          let best = -1;
+          for (const [k, n] of Object.entries(s.guards)) {
+            const kp = Number(k);
+            if (Number.isInteger(kp) && kp <= p && kp > best && Number.isInteger(n)) best = kp;
+          }
+          if (best >= 0) sum += s.guards[String(best)];
+        }
+        if (sum > ceiling) c.err(`section ${sec}: ${sum} guards at ${p} players, over the ${fmt(ceiling)} alive ceiling (sector_alive_max)`);
+      }
+    }
+  }
+  if (routes && guarded && guardedSecret * 2 < guarded) {
     c.warn(`secret approach in ${guardedSecret} of ${guarded} guarded encounter spaces (aim for half)`);
   }
 
@@ -664,7 +732,7 @@ export function checkEncounters(graph, metrics) {
   // Routes cross (level-design 3.3): inside each section, between its entry and exit (every route starts and ends
   // there, so those two do not count), the route kinds used meet at shared spaces so that every route can be switched
   // to every other (the kinds form one connected group through the spaces they share).
-  for (const sec of sections) {
+  for (const sec of routes ? sections : []) {
     const touched = new Map();
     for (const l of links) {
       if (l.route === 'spine' || byId.get(l.from).section !== sec || byId.get(l.to).section !== sec) continue;
@@ -698,7 +766,8 @@ export function checkEncounters(graph, metrics) {
 /** Per section (M3): 2+ edge-disjoint routes from the section's entry to its exit, inside the section. */
 export function checkRedundancy(graph) {
   const c = collector(null);
-  const { spaces, links, byId, sections } = index(graph);
+  const { meta, spaces, links, byId, sections } = index(graph);
+  const routes = routeRules(meta);
   for (const sec of sections) {
     const inSec = spaces.filter((s) => s.section === sec);
     const entries = inSec.filter((s) => hasTag(s, 'entry'));
@@ -713,6 +782,12 @@ export function checkRedundancy(graph) {
       continue;
     }
     const inner = links.filter((l) => l.route !== 'spine' && byId.get(l.from).section === sec && byId.get(l.to).section === sec);
+    // Campaign (level-design 11.10, G292): every section forces a co-op traversal move; solo links alone never join its
+    // entry to its exit.
+    if (meta.mode === 'campaign' && reachable(adjacency(inner, (l) => !COOP_KINDS.has(l.kind)), entry).has(exit)) {
+      c.err(`section ${sec}: exit '${exit}' is reached from entry '${entry}' by solo links alone (campaign: a forced co-op gate per section, level-design 11.10)`);
+    }
+    if (!routes) continue;
     const n = edgeDisjointPaths(inner, entry, exit);
     if (n < 2) c.err(`section ${sec}: ${n} independent route(s) from entry '${entry}' to exit '${exit}' (need 2 edge-disjoint)`);
   }
@@ -746,7 +821,7 @@ export function checkCoop(graph, metrics) {
   // alternative, not a twin. Lengths prove the detour: a direct solo link with no `length` (or beside a co-op link
   // with none) is a twin; a multi-link path uses only links with `length`. The co-op move runs from -> to (a climb's
   // foot to its top); a two-way pair_gate is judged both ways. ERR on a campaign map (two players only, G2); WARN on
-  // Sector Ops, where solo play completes (G185) but team doors stay two-player (G280).
+  // Sector Ops, where solo play completes (G185) but team doors stay two-player (G280), and on training.
   const twinAdj = new Map();
   const soloOn = (route) => {
     if (!twinAdj.has(route)) twinAdj.set(route, adjacency(links, (l) => !COOP_KINDS.has(l.kind) && l.route === route));
@@ -804,12 +879,7 @@ export function checkCoop(graph, metrics) {
   const parityPct = splits.size ? c.num('rules.split_parity_pct', 'the split parity check') : undefined;
   const reachSpeed = splits.size ? c.num('rules.reach_speed_mps', 'partner reach times') : undefined;
   const reachMax = splits.size ? c.num('rules.reach_max_s', 'the partner reach limit') : undefined;
-  /** Seconds for one link: `time_s`, else `length` / speed for a walked kind; untimed otherwise (lead decision 5). */
-  const timeOf = (l, speed) => {
-    if (typeof l.time_s === 'number') return { t: l.time_s, untimed: false };
-    if (WALK_KINDS.has(l.kind) && typeof l.length === 'number') return { t: l.length / speed, untimed: false };
-    return { t: 0, untimed: true };
-  };
+  const timeOf = linkTime;
   /** The fastest solo arc x -> y, timed ones first. */
   const fastest = (x, y, speed) => {
     let best = null;
@@ -1014,7 +1084,7 @@ export function validate(graph, { metrics = null, metricsPath = null } = {}) {
   out.warns.push(...structure.warns);
   if (structure.errors.length) return out;
   const reports = [
-    checkDimensions(graph, metrics), checkReach(graph), checkSpine(graph), checkEncounters(graph, metrics),
+    checkDimensions(graph, metrics), checkReach(graph, metrics), checkSpine(graph), checkEncounters(graph, metrics),
     checkRedundancy(graph), checkCoop(graph, metrics), checkPacing(graph),
   ];
   for (const r of reports) {

@@ -46,15 +46,15 @@
     { "from": "s1-lane", "to": "s1-gantry", "kind": "ladder", "route": "high", "level_change": 4.5, "length": 10,
       "reason": "Fitters' access ladder on the crane leg outside the fence" },
     { "from": "s1-gantry", "to": "s1-yard", "kind": "ladder", "route": "high", "level_change": 4.5, "length": 12,
-      "reason": "Crane leg ladder inside the yard" },
+      "time_s": 9, "reason": "Crane leg ladder inside the yard" },
     { "from": "s1-yard", "to": "s1-gantry", "kind": "coop_boost", "route": "high", "level_change": 4.5,
       "length": 6, "reason": "Gantry lip over the container stack, 4.5 m: a leg-up, no ledge below" },
     { "from": "s1-yard", "to": "s1-store", "kind": "door", "route": "shadow", "width": 1.2, "height": 2.1,
       "length": 17, "reason": "Cage gate off the yard's dark north corner" },
-    { "from": "s1-yard", "to": "s1-office", "kind": "door", "route": "shadow", "width": 1.2, "height": 2.1,
-      "length": 17.5, "reason": "Office side door on the unlit gable" },
-    { "from": "s1-yard", "to": "s1-office", "kind": "double_door", "route": "loud", "width": 2.0, "height": 2.1,
-      "length": 17.5, "reason": "Office front doors facing the floodlit weighbridge" },
+    { "from": "s1-yard", "to": "s1-office", "kind": "pair_gate", "route": "shadow", "width": 1.2, "height": 2.1,
+      "length": 17.5, "reason": "Office back shutter on the unlit gable, its motor dead: one partner holds it up while the other rolls under (forced co-op gate)" },
+    { "from": "s1-yard", "to": "s1-office", "kind": "pair_gate", "route": "loud", "width": 2.0, "height": 2.1,
+      "length": 17.5, "reason": "Office front doors facing the floodlit weighbridge, barred inside: one partner is boosted through the fanlight to lift the bar" },
 
     { "from": "s1-office", "to": "s2-lobby", "kind": "corridor", "route": "spine", "width": 3.5, "height": 3.0,
       "length": 30, "shared": true, "reason": "Covered walkway from the yard office to goods-in (section connector)" },
@@ -74,9 +74,9 @@
       "length": 22.5, "reason": "Goods-in doors from reception, under the hall's camera" },
     { "from": "s2-lobby", "to": "s2-hall", "kind": "duct", "route": "secret", "width": 1.2, "height": 1.5,
       "length": 22.5, "reason": "Return-air duct from the reception plant cupboard into the hall" },
-    { "from": "s2-hall", "to": "s2-yard", "kind": "roller_door", "route": "loud", "width": 3.0, "height": 3.0,
-      "length": 21, "reason": "Hall roller door to the back yard" },
-    { "from": "s2-hall", "to": "s2-yard", "kind": "door", "route": "shadow", "width": 1.2, "height": 2.1,
-      "length": 21, "reason": "Fire exit door at the hall's dark west end" }
+    { "from": "s2-hall", "to": "s2-yard", "kind": "coop_throw", "route": "loud", "width": 3.0, "length": 21,
+      "time_s": 10, "reason": "Dock edge over the 3 m levelling pit to the yard wall: one partner throws the other across (forced co-op gate)" },
+    { "from": "s2-hall", "to": "s2-yard", "kind": "pair_gate", "route": "shadow", "width": 1.2, "height": 2.1,
+      "length": 21, "reason": "Fire exit at the hall's dark west end, chained outside: the thrown partner cuts the chain for the other" }
   ]
 }

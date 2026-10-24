@@ -238,7 +238,7 @@ before geometry and measured in greybox: a map whose measured value misses its t
    every section. Check: `checkCoop` (coverage).
 10. **A forced co-op gate per section.** [Campaign] Every section forces a co-op traversal move with no solo bypass:
    the section's exit cannot be reached from its entry by solo links alone (Michael 2026-10-24 ~22:45: "must have forced
-   coop traversal to proceed", G292). Each gate keeps its way back (11.6). Check: `checkCoop` (forced gate).
+   coop traversal to proceed", G292). Each gate keeps its way back (11.6). Check: `checkRedundancy` (forced gate).
    [SectorOps] Team doors stay two-player, with a solo route past them (G280). [Training] Each exercise teaches its move
    in place; not checked.
 
@@ -569,7 +569,7 @@ review, not by the validator. Owner = the job that keeps the rule's number or ch
 | 11.7 Room for two | All | `shared_min_w_m`, `sizes.corridor_w` | `checkCoop`, `checkDimensions` | level validator |
 | 11.8 Co-op reach | All | `sizes.coop_lip` | `checkDimensions`, co-op lip unit test | level validator, map job |
 | 11.9 Co-op kit, coverage | All | - | `checkCoop` (coverage, solo twins) | level validator, co-op moves (Player Build) |
-| 11.10 Forced co-op gate | Campaign | - | `checkCoop` (forced gate) | level validator |
+| 11.10 Forced co-op gate | Campaign | - | `checkRedundancy` (forced gate) | level validator |
 | 14 Greybox exit | All | - | `--require-measured` (V6), route-runs | level validator, route-runs (Marlow Build) |
 | 16 Level logic | All | scale sheet 3, 7 | `checkDimensions`; review checklist 16.10 | map job |
 

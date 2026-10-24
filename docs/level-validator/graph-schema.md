@@ -5,8 +5,8 @@ Every map is written as a connectivity graph (`<map>.graph.json`) before any geo
 justified in the map's design doc (Michael 2026-10-24, "Add 1-4 as extras"; `docs/level-design.md` section 14). For a
 map that is already greyboxed (campus) the graph describes the map AS BUILT and the run is an audit (BRIEF A12, A9).
 
-- Worked example: `docs/level-validator/example.graph.json` (two sections, one spine link, one split with an overwatch
-  and an assist; V1's CLI smoke fixture, 0 errors).
+- Worked example: `docs/level-validator/example.graph.json` (two campaign sections, each with a forced co-op gate, one
+  spine link, one split with an overwatch and an assist; V1's CLI smoke fixture, 0 errors).
 - Rules: `docs/level-design.md` (its rule index names the check for each rule; `BRIEF.md` and `PLAN.md` here are the
   job's history); numbers: `docs/design/metrics.json`, generated from `docs/design/scale-sheet.md` sections 1, 3, 7
   (room sizes by type) and 8 (validator numbers). No number in this doc or in the validator is a source of truth: the
@@ -159,8 +159,8 @@ No zipline. The core schema's "no rope (G110)" line is out of date: G180 restore
   a way back from its `to` to its `from` over solo links (an opened `pair_gate` counts) within `reach_max_s` at
   `reach_speed_mps` (`time_s`, else `length` / speed) (ERR none or too slow; WARN when only links with no `time_s` make
   it). `training`: neither. Solo completability is not checked (A1; G2, G50).
-- **Forced co-op gate (checkCoop, `campaign`).** In each section, the solo links inside it (no co-op kind, no `spine`)
-  must not join its `entry` to its `exit` (ERR: "every campaign section forces a co-op traversal move", G292).
+- **Forced co-op gate (checkRedundancy, `campaign`).** In each section, the solo links inside it (no co-op kind, no
+  `spine`) must not join its `entry` to its `exit` (ERR: "every campaign section forces a co-op traversal move", G292).
 - **Spine (checkSpine).** Each `spine` link joins consecutive sections (ERR otherwise); removing any section's spaces
   disconnects `start` from `exfil` (ERR: a route skips a section). Loops live inside sections.
 - **Encounter spaces (checkEncounters).** Approaches = links other than `spine` that can enter the space (a one-way
