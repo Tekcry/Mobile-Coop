@@ -388,9 +388,9 @@
 <polygon points="536,178 543,185 536,192 529,185" fill="#7b2fbf" stroke="#fff" stroke-width="1"/>
 <text x="545.0" y="188.0" fill="#7b2fbf" font-size="9" font-weight="bold" paint-order="stroke" stroke="#f4f2ec" stroke-width="2.5">sync-s2-comms</text>
 <polygon points="460,117 467,124 460,131 453,124" fill="#7b2fbf" stroke="#fff" stroke-width="1"/>
-<text x="469.0" y="127.0" fill="#7b2fbf" font-size="9" font-weight="bold" paint-order="stroke" stroke="#f4f2ec" stroke-width="2.5">kp-fac</text>
+<text x="469.0" y="127.0" fill="#7b2fbf" font-size="9" font-weight="bold" paint-order="stroke" stroke="#f4f2ec" stroke-width="2.5">sync-s2-kpfac</text>
 <polygon points="190,373 197,380 190,387 183,380" fill="#7b2fbf" stroke="#fff" stroke-width="1"/>
-<text x="199.0" y="383.0" fill="#7b2fbf" font-size="9" font-weight="bold" paint-order="stroke" stroke="#f4f2ec" stroke-width="2.5">lead-s2-kitchen</text>
+<text x="199.0" y="383.0" fill="#7b2fbf" font-size="9" font-weight="bold" paint-order="stroke" stroke="#f4f2ec" stroke-width="2.5">sync-s2-kitchen</text>
 <circle cx="442" cy="190" r="5" fill="none" stroke="#7b2fbf" stroke-width="2.5"/>
 <text x="449.0" y="193.0" fill="#7b2fbf" font-size="8" paint-order="stroke" stroke="#f4f2ec" stroke-width="2.5">#8 line (comms)</text>
 <circle cx="442" cy="260" r="5" fill="none" stroke="#7b2fbf" stroke-width="2.5"/>

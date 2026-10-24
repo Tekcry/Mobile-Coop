@@ -164,7 +164,7 @@ About 130 m of path. Marlow puts it at ~26 min with waits.
 | Run | ERR | WARN | Source |
 | --- | --- | --- | --- |
 | Before (as built) | 28 | 31 | `docs/level-validator/campus-run/run.txt`. The as-built S4 graph was the plan copy before this change: 28 ERR by rule (rule of three 14, targets 6, class size 5, camera floor 1, fire stair 1, dead end 1); 32 WARN lines name s4, one of which is S3's C3 link. |
-| After (this plan) | **0** | 29 | `node scripts/level-validate.mjs docs/sector-redesign/graph/plan/campusOps-S{1..5}.json`, 2026-10-24 ~23:05. The whole map has 0 errors and 116 warnings. |
+| After (this plan) | **0** | 29 | `node scripts/level-validate.mjs docs/sector-redesign/graph/plan/campusOps-S{1..5}.json`, 2026-10-24 ~23:05. The whole map has 0 errors and 116 warnings. Fix round 2026-10-25: the map has 0 errors and 119 warnings; the exfil tag moved off s4-cc into the graph's `tracks` block (`"tracks": {"exfil": "s4-cc"}`, as S2), so the map-level WARN "exfil 's4-cc' is not in the last section" is gone. |
 
 The remaining S4 WARNs are justified:
 - Ceilings out of class range (10): the hall, plant rooms and cage are 7.0 m to the roof; the NOC and security room are 3.4.
@@ -177,9 +177,12 @@ The remaining S4 WARNs are justified:
 
 ## 7. Held items (not solved by this plan)
 
-1. **CR4 partner reach (as built).** A partner downed on the baskets is ~12 s from the floor by the drop. The floor partner needs ~25 s to climb back up by the riser, which breaks the 15 s rule inside a team.
-   - Fix in greybox: a solo tray-maintenance ladder at B3's south end (26.8, 23).
-   - It is not a validator twin (longer, other end of the hall), but it weakens CR4. Lead's call.
+1. **CR4 partner reach (as built): an accepted exception, stated on S4.md line 19.** A partner downed on the baskets is ~12 s from the floor by the drop. The floor partner needs ~25 s to climb back up by the riser (R1), which breaks the 15 s rule inside a team.
+   - Fix round 2026-10-25: no clean fix found. Reach = floor walk / 3 m/s + 4.4 s ladder + basket walk / 3 m/s (`rules.reach_speed_mps` 3), so every basket point needs a ladder top within ~16 m along the baskets. The comb (B1, B2, B3 teeth of 17-19 m, B-N 29.5 m, B-cage) is ~85 m long.
+   - A north-wall ladder at (12, 41.9) onto B-N would bring the CR4 run under 15 s (CR4 box 13.1 s, B-cage south end 13.4 s). But it is 10 m from the CR4 boost spot: one player climbs there instead, so CR4 gets a solo twin and the co-op move is pointless. The B1 / B2 south ends stay at ~21 s anyway.
+   - The checker's B3 ladder (26.8, 23) fixes only B3 (~16 s at its north end) and leaves the CR4 run at ~25 s.
+   - A shielded ladder unlocked from the basket side only (the C23 shield pattern) would keep CR4 two-player, but that is a plain one-player `SectorBolt`, which A21 / EG11 rule out. As a new device it would be an engine cost.
+   - Undo (if Michael wants the rule kept over CR4): add the (12, 41.9) ladder in G4.2 (+0.5 h) and drop CR4 / CR4-west (co-op coverage 4 of 8, still half).
 2. **Code Relay mechanics are Marlow's.**
    - The named interrogation and the release window are his.
    - So are per-area alarm stages (EN2) and the #20 twist (Guard AI).

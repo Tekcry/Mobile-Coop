@@ -91,3 +91,53 @@ What passes:
 - **meta.sections.** S3 and S4 list all five sections; S1, S2 and S5 list only their own.
 - **Plain language.** S2.md and S5.md lean on ids Michael does not know (pg-brg, EW5, CR7, K2, V6). Replace one or two
   with words: "the two-key bridge door", "the door keypads not built yet".
+
+## Fix round (Opus, 2026-10-25, on d6cc89d4; not committed)
+
+Validator, five plan files together: **0 errors, 119 warnings** (was 0 / 118: -1 the s4-cc exfil WARN, +2 S5 guard
+bands, hall 3 and lawn 5). Guard ramp now 15 < 18 < 20 < 25 < 26.
+
+1. **S5 over the 32 live cap: fixed.** S5 posts 26 (24 kept + 2 new), 26 + 6 reinforcements = 32. Kept new posts: #28
+   audit officer (K4 choke) and #34 jetty sentry (extraction); cut #25-#27, #29-#33, #35, #36. S4 (25) stays below.
+   - `S5.md:10` 24 -> 26 and the cap sum (also notes the 01:20 "up to 24" and that 22:00 supersedes it); `S5.md:12`
+     "no cap change"; `S5.md:13` ~14 h; `S5.md:17-18` option 1 "Go as drawn (26 guards, inside the 32 live cap)", option
+     2 "raise the live cap and post 36 guards" (32 -> 48 wire with a protocol bump, ~+4 ms frame at S5's worst view,
+     +8 h).
+   - `S5-detail.md:120-162` section 6 rewritten: per space hall 3, ante 4, arch 1, kitchen 1, garden 2, roof 1, lawn 5,
+     ctl 3, gal 2, ceo / board 3, lobby 1 = 26; posts, patrols, isolation moments; screen cap worst view 8 (was 12);
+     option 2's named cost (`protocol.ts:25`, `coopHost.ts:1591`, `sectors.ts:508`, `awareness.ts:51` u32 keys,
+     `campusS5.test.ts:194-200`, `sectorGuardFreeze.ts:4` perf; ~+8 h). Routes per space unchanged (section 3).
+   - `S5-detail.md:67` solo route passes #19 (was #33); `:94-95` vantage 5 of 8 outside guards; `:112` fob not posted;
+     `:190-194` 31 WARNs (7 guard bands); `:203` held item 6 (the old light-well option 2); `:219-224` AS8-AS10;
+     `:231-234` guards slice 2 h, total ~14 h.
+   - `campusOps-S5.json:44,77,95,105,119,129,139` guard keys 1 / 1 / 3 / 4 / 2 / 1 / 5 (sum 17 + 9 in notes = 26); the
+     space notes name the cut posts; `:7` and `SYNC.md:48` sync-s5-fob src: Penhale not posted.
+   - SVGs: `S5-plan-0.svg` +25 / +26 / +27 / +31 / +35 / +36 removed, ground count 19 (`:487`); `S5-plan-4.2.svg:274`
+     L1 6 guards (+29, +30 removed); `S5-plan-8.4.svg:112` roof 1 guard (+32, +33 removed).
+2. **S5 ground plan clipped the extraction: fixed.** `before/S5-0.svg` re-rendered with
+   `node scripts/plan-svg.mjs campusOps --floors 8.4,4.2,0 --bounds -76,10,-20,70` (560 x 600; the old bounds
+   reproduce the old file byte for byte). `S5-plan-0.svg` = the new before + the overlay as
+   `<g id="plan" transform="translate(0,180)">` (`:326`), with the extraction box x -50..-40, z 60..66 (`:490`), both
+   exfil polylines run on to the box (west behind the boathouse, east behind the van), #23 and +34 (`:500`), #20's
+   route to the jetty; the "north of frame" note is gone; legend unchanged and clear. `S5.md:5` and `S5-detail.md:4`
+   give the new frame and mapping (ground py = (70 - z) x 10).
+3. **S1 lips: fixed.** `S1.md:17` "Two new co-op lips (CR1-east, CR1-yard)."; `S1-detail.md:145` says two new, CR1 and
+   CR1-south as built.
+4. **S4 downed-partner reach: no clean fix; the exception is now on the page.** `S4.md:19` states the ~25 s on the
+   baskets and that going as drawn accepts it. `S4-detail.md:180-186` gives the working: a north-wall ladder (12, 41.9)
+   would bring the CR4 run to 13.1-13.4 s but is a solo twin of CR4 (10 m from the boost spot); the B3 ladder
+   (26.8, 23) fixes only B3; a ladder unlocked from above is a plain one-player SectorBolt (A21 / EG11). Undo named.
+   No graph change.
+5. **S2 kitchen node lead: fixed.** `"lead": "s2-l1-kitchen"` (`campusOps-S2.json:103`, `SYNC.md:20`,
+   `S2-detail.md:183`).
+
+Added by the lead (Marlow Build's mission check):
+- S2 sync ids renamed to `sync-s<N>-<name>`: kp-fac -> **sync-s2-kpfac**, lead-s2-kitchen -> **sync-s2-kitchen**,
+  lead-s2-plantlog -> **sync-s2-plantlog** (`campusOps-S2.json:102-104`, each with `aka` = the old id; all notes and
+  link reasons), `SYNC.md:19-21`, `S2-detail.md:124,174,182-189,231,289-302,362`, `S2.md:16-17` (plain words),
+  `S2-plan-0.svg:496`, `S2-plan-4.4.svg:391,393`. The keypad device keeps its SPEC id kp-fac.
+- S4 exfil: the `exfil` tag left s4-cc (`campusOps-S4.json:508-510`); new top-level `"tracks": {"exfil": "s4-cc"}`
+  (`:912-915`), as S2. The map-level WARN is gone. `S4-detail.md:167` notes it.
+
+New assumptions: S5 AS8 (26 = cap less 6), AS9 (#28 and #34 kept, Penhale not posted), AS10 (the light-well option moves
+to held item 6 so the page's one decision is the cap); S4 held item 1 becomes an accepted exception.

@@ -16,9 +16,9 @@ Every entry of the top-level `syncs` array of `docs/sector-redesign/graph/plan/c
 | sync-s2-comms | camera_loop | s2-l1-comms | A | planned: SecurityDesk as a patch panel (src/game/sectorDesks.ts:14, E6) at (3.6,4.4,-6.5), operator S2 guard #8 (src/world/maps/campusSectors.ts:129), cameras cam-turnstile, cam-lift, cam-bridge (campusSectors.ts:277-281) | s2-l1-wing | - |
 | sync-s2-power | power_cut | s2-plant-g | B | planned: breaker BoardDef, no window (src/game/isolators.ts:25, E4) at (0.3,0,-22) on S2_GROUPS.facilities 55 + l1Cor 56 (src/world/maps/campusS2.ts:49) | s2-foyer | - |
 | sync-s2-atrium | power_cut | s2-foyer | B | src/world/maps/campusS2.ts:192 (built: S2_BOARDS, group 50) | s2-foyer | - |
-| kp-fac | code_sink | s2-l1-facilities | A | planned: SectorKeypad, code s2-fac-code, on both facilities doors (src/game/sectors.ts:166, EW5; not built, campusSectors.ts:360) | s2-l1-plan | - |
-| lead-s2-kitchen | code_source | s2-l1-plan | A | planned: SectorIntel overhear (src/game/sectors.ts:182), box 2 x 2 outside the kitchen west door (-31,-26), talkers #5-6, grants s2-fac-code | - | - |
-| lead-s2-plantlog | code_source | s2-mail | B | planned: SectorIntel board (src/game/sectors.ts:183) in parcel cage 3 (-41.5,0,-18.5), grants s2-board | s2-post | - |
+| sync-s2-kpfac | code_sink | s2-l1-facilities | A | planned: SectorKeypad, code s2-fac-code, on both facilities doors (src/game/sectors.ts:166, EW5; not built, campusSectors.ts:360) | s2-l1-plan | - |
+| sync-s2-kitchen | code_source | s2-l1-plan | A | planned: SectorIntel overhear (src/game/sectors.ts:182), box 2 x 2 outside the kitchen west door (-31,-26), talkers #5-6, grants s2-fac-code | s2-l1-kitchen | - |
+| sync-s2-plantlog | code_source | s2-mail | B | planned: SectorIntel board (src/game/sectors.ts:183) in parcel cage 3 (-41.5,0,-18.5), grants s2-board | s2-post | - |
 | sync-s2-pairdoor | pair_door | s2-l1-landing | A | planned: SectorPairGate pg-brg (src/game/sectors.ts:410, E3) + solo window (PLAN C18) | s2-l1-wing | Solo window (PLAN C18, named in the briefing): one player turns key b in the comms room, then key a in the wing (11.8 m by the comms and wing doors) within 8 s; the gate's window rule is two players today (sectors.ts:443), so the solo window is an engine cost. Without it: the comms-room door into the landing, facing K2 (lure or take him first) |
 
 ## S3
@@ -45,7 +45,7 @@ Every entry of the top-level `syncs` array of `docs/sector-redesign/graph/plan/c
 
 | id | kind | space | track | src | lead |
 | --- | --- | --- | --- | --- | --- |
-| sync-s5-fob | code_source | s5-arch | A | RESERVED SPARE (Marlow picked S4 for Code Relay; no S5 route depends on it). planned: named officer #29 Ms Penhale (records officer) posted at the cage's west face (-42.2, 4.2, 39.5) with the strongroom time-lock fob; the 30 s rolling code and the interrogation read are Marlow's mission framework (S5_GUARDS list, campusS5Data.ts:33, gains the guard) | s5-gal |
+| sync-s5-fob | code_source | s5-arch | A | RESERVED SPARE (Marlow picked S4 for Code Relay; no S5 route depends on it). planned: named officer #29 Ms Penhale (records officer) posted at the cage's west face (-42.2, 4.2, 39.5) with the strongroom time-lock fob; the 30 s rolling code and the interrogation read are Marlow's mission framework (S5_GUARDS list, campusS5Data.ts:33, gains the guard). NOT POSTED in this plan (fix round 2026-10-25, the 32 live cap: S5 posts 26): a mission that arms the spare posts her in place of #18 | s5-gal |
 | sync-s5-strongkey | code_sink | s5-ante | B | RESERVED SPARE: the day gate stands OPEN by default (the ceremony); a later mission may arm it. E1 keypad (S5_SECTOR.keypads, campusS5Data.ts:181) on the strongroom's day gate (-43, 38.5); the 30 s rolling code is planned (Marlow) | s5-ante |
 | sync-s5-rota | code_source | s5-kitchen | B | built: S5_SECTOR.intel rota board (campusS5Data.ts:182), 'archive keypad 1960 until Monday' | s5-kitchen |
 | sync-s5-kparch | code_sink | s5-landing | A | built: kp-arch keypad (S5_SECTOR.keypads, campusS5Data.ts:181; S5_DOORS.kpArch campusS5.ts:79), moved from (-38, 41.0, 4.2) to (-38, 35.5, 4.2) | s5-landing |

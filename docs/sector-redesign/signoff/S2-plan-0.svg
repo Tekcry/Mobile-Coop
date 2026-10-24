@@ -493,7 +493,7 @@
 <text x="425.0" y="408.0" fill="#7b2fbf" font-size="9" font-weight="bold" paint-order="stroke" stroke="#f4f2ec" stroke-width="2.5"></text>
 <text x="320.0" y="420.0" fill="#7b2fbf" font-size="8" font-weight="bold" paint-order="stroke" stroke="#f4f2ec" stroke-width="2.5">sync-s2-atrium (opt)</text>
 <polygon points="85,298 92,305 85,312 78,305" fill="#7b2fbf" stroke="#fff" stroke-width="1"/>
-<text x="94.0" y="308.0" fill="#7b2fbf" font-size="9" font-weight="bold" paint-order="stroke" stroke="#f4f2ec" stroke-width="2.5">lead-s2-plantlog</text>
+<text x="94.0" y="308.0" fill="#7b2fbf" font-size="9" font-weight="bold" paint-order="stroke" stroke="#f4f2ec" stroke-width="2.5">sync-s2-plantlog</text>
 <circle cx="150" cy="376" r="5" fill="none" stroke="#7b2fbf" stroke-width="2.5"/>
 <text x="157.0" y="379.0" fill="#7b2fbf" font-size="8" paint-order="stroke" stroke="#f4f2ec" stroke-width="2.5">post note</text>
 <circle cx="284" cy="366" r="5" fill="none" stroke="#7b2fbf" stroke-width="2.5"/>

@@ -75,7 +75,7 @@ Ids C1-C18 are the `PLAN Cn` tags in the graph notes and on the SVGs.
 | C4 | **CR2 slab nose**: a 6 m gap in the balustrade at x -11.6. The planter is removed. | Lip x -11.5, z -11..-5, 4.4. Boost spot (-12.1,0,-8). The top is the 3.9 m east strip, flat. The feature stair's east rail is 5.3 m off (AS11). | F2: the 0.7 m sliver and the 0.45 step. |
 | C8 | **Kitchen widened**: west wall moved from x -28.5 to x -30. New north door. **Project room**: the print room and meet4 merged (partition x -13 removed), with a new door to the SE meeting room. | Kitchen x -30..-21, z -30..-22.5 (7.5 x 9). Doors (-30,-26) (the overhear spot, out of the lamp) and (-25,-22.5). Project room x -21..-7.5, z -30..-22.5. Doors (-17,-22.5), (-10,-22.5), (-7.5,-27). | Kitchen class + dead end. meet4 class + dead end. Print room dead end. SE meeting room dead end. |
 | C9 | **Meeting rooms**. MR1's front moves from x -36 to x -35.5, with a glass door and a new north door. MR2 and MR3: fronts move from z 2 to z 0, side walls extended, new side doors. | MR1 x -44..-35.5, z -20..-14; doors (-35.5,-17), (-40,-14). MR2 x -44..-34, z 0..6; doors (-39,0), (-34,3). MR3 x -26..-16, z 0..6; doors (-21,0), (-16,3). Fronts frosted to 1.2, clear above. | MR1-MR3 class + dead ends. The 1.2 glass gaps become doors (opening-width WARNs gone). |
-| C10 | **East wing re-cut**. The old landing walls (x -2, z -16..-12; z -12 and z -16 lines) and the old comms walls (x -2, z -9..-4; z -9) are removed. New walls at x -2.5 (z -17.5..-4.5) and at z -17.5, -10.5 and -4.5 (x -2.5..4). The facilities south wall moves from z 0 to z -1. | Facilities x -7.5..-0.2, z -1..6 (clear 7.1 x 6.75). Doors (-4,-1) and (-7.5,3), both kp-fac. Glazed partition on x -7.5, z 0.5..5.5. Comms room x -2.5..4, z -10.5..-4.5; doors (-2.5,-7.5) and (1,-10.5); patch panel (3.6,4.4,-6.5). Landing x -2.5..4, z -17.5..-10.5 (6.5 x 7); west door (-2.5,-16) is pair gate pg-brg; card door (4,-14). Wing hall x -7.5..-2.5 (5 m) plus the strip z -4.5..-1 to the NE stair door. | Facilities camera-floor ERR + 4 approach ERRs. Comms class + dead end. Landing class (F7). K2's blind side. |
+| C10 | **East wing re-cut**. The old landing walls (x -2, z -16..-12; z -12 and z -16 lines) and the old comms walls (x -2, z -9..-4; z -9) are removed. New walls at x -2.5 (z -17.5..-4.5) and at z -17.5, -10.5 and -4.5 (x -2.5..4). The facilities south wall moves from z 0 to z -1. | Facilities x -7.5..-0.2, z -1..6 (clear 7.1 x 6.75). Doors (-4,-1) and (-7.5,3), both sync-s2-kpfac. Glazed partition on x -7.5, z 0.5..5.5. Comms room x -2.5..4, z -10.5..-4.5; doors (-2.5,-7.5) and (1,-10.5); patch panel (3.6,4.4,-6.5). Landing x -2.5..4, z -17.5..-10.5 (6.5 x 7); west door (-2.5,-16) is pair gate pg-brg; card door (4,-14). Wing hall x -7.5..-2.5 (5 m) plus the strip z -4.5..-1 to the NE stair door. | Facilities camera-floor ERR + 4 approach ERRs. Comms class + dead end. Landing class (F7). K2's blind side. |
 | C12 | **Sunshade ledge and window**: a 1.2 m steel sunshade on the north face, with a window anchor into the facilities office. | Ledge x -7..-1, z 6..7.2, y 4.4. Window (-4,4.4,6). | Facilities high approach (the rappel, C12 on the roof). |
 | C15 | **Fire-stair landings**: near landing 1.2 -> 1.3 (`NEAR_D`). Doors moved 1.5 m off the core corners. Vision panels in the L1 / L2 doors. | Both cores, every floor | F5. The SPEC vantage "SW stair L1 door (vision panel)" now exists. |
 
@@ -121,7 +121,7 @@ Route kinds in the graph are shadow / high / loud / secret. The audit's words ar
 | s2-mail (1) | Post-room door (-36,-20) | Mail-lift ladder from the L1 hatch, behind the cages | Mail-room door (-30,-16) onto the hall's west strip | C6 door from the lift lobby |
 | s2-l1-plan (3) | SW fire stair, L1 door (vision panel) | CR2 boost / human ladder (co-op). Mail-lift ladder up from the mail room. | Feature stair (lit, watched) | Project-room back loop (-10,-22.5) |
 | s2-l1-wing (2) | North door (-7.5,-3) off the dark north plan | NE fire stair down from the roof bulkhead | South door (-7.5,-21) at the end of the lit south strip | Comms-room door; SE meeting room by the project room |
-| s2-l1-facilities (1, objective) | West door (-7.5,3) from the dark north plan, kp-fac (code overheard at the kitchen) | Davit rappel to the sunshade ledge and window (no code) | Wing door (-4,-1) beside the corridor light switch, kp-fac | - |
+| s2-l1-facilities (1, objective) | West door (-7.5,3) from the dark north plan, sync-s2-kpfac (code overheard at the kitchen) | Davit rappel to the sunshade ledge and window (no code) | Wing door (-4,-1) beside the corridor light switch, sync-s2-kpfac | - |
 | s2-l2-plan (4) | SW stair L2 door. Or the NE stair, the L2 wing and the north door. | Roof-plant hatch and cat ladder (from the roof) | Wing south door (-7.5,-21) at the lit south ring (#4) | Office B, through to the wing |
 | s2-l1-landing (K2, choke) | Comms-room door (1,-10.5), facing K2 (lure first) | - | - | pg-brg west door on K2's blind side (co-op, or the solo window) |
 
@@ -172,21 +172,21 @@ Per-space vantages (graph `vantage`, all declared, V6):
 
 ## 4. Sync nodes and tracks
 
-Top-level `syncs` array in the graph. Per Marlow's mission-validator note, it is named `syncs`: that is the schema key, and the validator accepts `sync` too, which S1 uses. Each node has id / kind / space / src / lead / track, plus `helps`, `lead_note` and (pair nodes) `solo`.
+Top-level `syncs` array in the graph. Per Marlow's mission-validator note, it is named `syncs`: that is the schema key, and the validator accepts `sync` too, which S1 uses. Each node has id / kind / space / src / lead / track, plus `helps`, `lead_note` and (pair nodes) `solo`. Fix round (2026-10-25): every id now follows `sync-s<N>-<name>`; Marlow's chart ids stay as `aka` in the graph (sync-s2-kpfac = kp-fac, sync-s2-kitchen = lead-s2-kitchen, sync-s2-plantlog = lead-s2-plantlog). The keypad device keeps its SPEC id kp-fac.
 
 | id | kind | space | src | lead | track | helps / solo |
 | --- | --- | --- | --- | --- | --- | --- |
 | sync-s2-comms | camera_loop | s2-l1-comms | planned: SecurityDesk as a patch panel (`sectorDesks.ts:14`, E6) at (3.6,4.4,-6.5); cameras cam-turnstile, cam-lift, cam-bridge (`campusSectors.ts:277-281`) | s2-l1-wing: #8 at his panel stop (2.2,-6.5), heard through the comms door: "UPS green, cameras green." | A | B: the foyer crossing behind reception; both: the landing |
 | sync-s2-power (was sync-s2-switchgear; `aka` kept in the graph) | power_cut, HELD (`held: true`, `timer_s: null`, `circuits: [55, 56]`) | s2-plant-g | planned: breaker BoardDef, no window (`isolators.ts:25`, E4) at (0.3,0,-22) on groups facilities 55 + l1Cor 56 (`campusS2.ts:49`) | s2-foyer: #1's radio at the desk: "Facilities, your east boards tripped again." Which breaker: the plant log. | B | A: the facilities office and the L1 wing go dark, and #7 leaves the BMS desk; dark until a guard relights the board (no timer) |
 | sync-s2-atrium (optional) | power_cut | s2-foyer | built: `S2_BOARDS`, `campusS2.ts:192`, group 50 | s2-foyer: the board on the foyer's east wall (-8.4,-28.5), in the reception downlight | B | B: pulls #1 to his own board, splitting the twist pair (guard-ai LR16-4) |
-| kp-fac | code_sink | s2-l1-facilities | planned: SectorKeypad, code s2-fac-code, on both facilities doors (`sectors.ts:166`, EW5; not built, `campusSectors.ts:360`) | s2-l1-plan (the kitchen door) | A | No-code way in: the roof rappel |
-| lead-s2-kitchen | code_source | s2-l1-plan | planned: SectorIntel overhear (`sectors.ts:182`), a 2 x 2 box outside the kitchen west door (-31,-26); talkers #5-6; grants s2-fac-code | (the lead itself: the overheard line) | A | A: kp-fac |
-| lead-s2-plantlog | code_source | s2-mail | planned: SectorIntel board (`sectors.ts:183`) in parcel cage 3 (-41.5,0,-18.5); grants s2-board | s2-post: the sorting-table note (-35,-26), "Plant log - cage 3 for facilities" | B | B: names the east-wing breaker |
+| sync-s2-kpfac | code_sink | s2-l1-facilities | planned: SectorKeypad, code s2-fac-code, on both facilities doors (`sectors.ts:166`, EW5; not built, `campusSectors.ts:360`) | s2-l1-plan (the kitchen door) | A | No-code way in: the roof rappel |
+| sync-s2-kitchen | code_source | s2-l1-plan | planned: SectorIntel overhear (`sectors.ts:182`), a 2 x 2 box outside the kitchen west door (-31,-26); talkers #5-6; grants s2-fac-code | s2-l1-kitchen (the talkers' room; the cue is the overheard line itself) | A | A: sync-s2-kpfac |
+| sync-s2-plantlog | code_source | s2-mail | planned: SectorIntel board (`sectors.ts:183`) in parcel cage 3 (-41.5,0,-18.5); grants s2-board | s2-post: the sorting-table note (-35,-26), "Plant log - cage 3 for facilities" | B | B: names the east-wing breaker |
 | sync-s2-pairdoor | pair_door | s2-l1-landing | planned: SectorPairGate pg-brg (`sectors.ts:410`, E3) | s2-l1-wing: #8 to #20 at the pair-door corner: "Two keys on the bridge lobby door since the labs thing; mine is in the comms room." | A with B | **solo**: the solo window (C18), turning key b in the comms room then key a in the wing (11.8 m) within 8 s; without it, the comms door facing K2 |
 
 Leads required by the lead's note are all present:
-- kitchen overheard line (lead-s2-kitchen);
-- mail-room plant log (lead-s2-plantlog);
+- kitchen overheard line (sync-s2-kitchen);
+- mail-room plant log (sync-s2-plantlog);
 - post-room note (the lead of the plant log).
 
 Marlow Build's Split Shift graph notes (lead messages, overnight), as applied:
@@ -228,7 +228,7 @@ Guards relight boards (guard-ai S15). The cut is a window: here it lasts until #
 
 **Split `s2-hack`** (tagged in the graph; this is the validator's split, inside Ghost's track A):
 - Fork: s2-l1-plan. Rejoin: s2-l1-wing.
-- Leg a: s2-l1-facilities, entered by the west door (kp-fac) and left by the wing door. 38.5 + 14 m, **40.4 s**.
+- Leg a: s2-l1-facilities, entered by the west door (sync-s2-kpfac) and left by the wing door. 38.5 + 14 m, **40.4 s**.
 - Leg b: s2-l1-project -> s2-l1-se-meet, the cover player's back-room loop. 25.5 + 12.5 + 16 m, **41.5 s**.
 - Parity **2.7%** (max 20). Both legs are under 90 s.
 - Overwatch: s2-l1-se-meet. Its dark door sees up the wing hall to the facilities door, #8 and #20.
@@ -286,20 +286,20 @@ Cameras are unchanged: cam-turnstile, cam-lift, cam-bridge. All three are on the
 ## 7. Solo path (every sync node in sequence)
 
 Order from Marlow's beat chart: 1B, 1A, 2, 3, 4A, 5. About 24 min, rated lower.
-1. Post room note -> mail room: plant log from cage 3, behind #12's left shoulder (lead-s2-plantlog).
-2. Post room -> SW stair -> L1 west plan: overhear the code at the kitchen door (lead-s2-kitchen).
+1. Post room note -> mail room: plant log from cage 3, behind #12's left shoulder (sync-s2-plantlog).
+2. Post room -> SW stair -> L1 west plan: overhear the code at the kitchen door (sync-s2-kitchen).
 3. North plan -> wing north door -> comms room when #8 has left: loop the cameras (sync-s2-comms).
 4. NE stair down -> NE lobby -> hall (cam-turnstile is looped) -> plant room: cut the switchgear (sync-s2-power).
    - The solo fallback is named in the briefing: the cut sends #7 down to the board and back, about two minutes.
    - Optional: the atrium board, to split #1 from #7.
-5. NE stair -> wing (dark) -> facilities office (kp-fac, or the roof rappel with no code): hack.
+5. NE stair -> wing (dark) -> facilities office (sync-s2-kpfac, or the roof rappel with no code): hack.
 6. Landing: the pg-brg solo window (C18), or the comms door with K2 lured or taken. Then C2.
 
 No co-op move is needed: CR2, pg-brg, pg-exec and the dual takedown all have solo ways. Longer, never impossible.
 
 ## 8. Held items
 
-- **EW5 keypads (kp-fac)** are not built (`campusSectors.ts:360`). The code beat needs them. The rappel is the no-code way, so nothing softlocks. Build cost: slice S2-G5.
+- **EW5 keypads (sync-s2-kpfac)** are not built (`campusSectors.ts:360`). The code beat needs them. The rappel is the no-code way, so nothing softlocks. Build cost: slice S2-G5.
 - **Solo window on pair gates** (C18) is an engine change: `SectorPairGate` is two players only today. Without it, solo uses the comms door past K2 and the exec east door.
 - **Rappel onto a 1.2 m ledge** into a window anchor: S5's rappels end on the ground. Engine check at greybox.
 - **Ceiling-void duct** (SPEC :106, finding F9) is not built in this plan either. The secret routes come from the back-of-house doors, office B and the project room. It could be added later, about 2 h.
@@ -359,7 +359,7 @@ No co-op move is needed: CR2, pg-brg, pg-exec and the dual takedown all have sol
 | S2-G2 Void and rings | Void 14.5 on L1 / L2, balustrades moved, CR2 lip re-cut (planter out, `S2_COOP_LIPS`), roof-light rim, pendants checked | 3 |
 | S2-G3 L1 rooms | Kitchen, project room, MR1-MR3, east wing re-cut (facilities, comms, landing), sunshade ledge, core landings 1.3 + vision panels | 4 |
 | S2-G4 L2 + roof | Office doors, board room, pg-exec, roof plant room + hatch + cat ladder, davit + rappel window | 3 |
-| S2-G5 Devices + engine | kp-fac (EW5 keypad), patch panel (E6 desk), switchgear (E4), pg-brg, intel (overhear, plant log), pair-gate solo window (C18), light groups 55 / 56 | 4.5 |
+| S2-G5 Devices + engine | sync-s2-kpfac (EW5 keypad), patch panel (E6 desk), switchgear (E4), pg-brg, intel (overhear, plant log), pair-gate solo window (C18), light groups 55 / 56 | 4.5 |
 | S2-G6 Guards + tests | 18 guards (`S2_GUARDS`), K2 move, routes, hide spots; `tests/campusS2.test.ts` (cycles, screen cap 12, CR2 lip, pair gates); V6 measured graph pass | 3 |
 | **Total** | 6 slices | **~21 h** |
 

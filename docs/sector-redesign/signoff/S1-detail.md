@@ -142,7 +142,7 @@ E3 changes. The weldmesh was "climbable alone (a loud short cut)"; it was the ou
 **C9 Data**:
 - `S1_GUARDS`: +7 guards (section 6).
 - `CAMPUS_SECURITY.desks`: + desk-gate.
-- `S1_COOP_LIPS`: + CR1-east, CR1-yard.
+- `S1_COOP_LIPS`: + CR1-east, CR1-yard (two new lips; CR1 and CR1-south are as built).
 - `S1_SWITCHES`: the canopy breaker moves; + smoke.
 - The 3 S1 route polylines in `CAMPUS_SECTORS[0].routes` are redrawn for the moved rows and the yard.
 - `S1_HIDESPOTS`: + the plant room (-38,-36), + the carport's west end (-25,-62).

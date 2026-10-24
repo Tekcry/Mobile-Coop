@@ -1,14 +1,15 @@
 # S5 sign-off - detail (the Old House and the extraction)
 
 Backing for `S5.md`. Plan graph: `docs/sector-redesign/graph/plan/campusOps-S5.json`. Plans: `S5-plan-0.svg`,
-`S5-plan-4.2.svg`, `S5-plan-8.4.svg` (1 m = 10 px; px = (x + 76) x 10, py = (52 - z) x 10). Sources read:
+`S5-plan-4.2.svg`, `S5-plan-8.4.svg` (1 m = 10 px; px = (x + 76) x 10; ground plan py = (70 - z) x 10, frame z 10..70
+with the jetty and the extraction, its overlay drawn at (52 - z) x 10 under `translate(0,180)`; L1 and roof py = (52 - z) x 10). Sources read:
 `src/world/maps/campusS5.ts`, `campusS5Data.ts`, `campusSectors.ts`, SPEC S5 (437-498, K4 499, CR 516),
 `docs/level-validator/campus-run/S5.md` (findings F1-F10). Coordinates x / z in metres, y = storey (G 0, L1 4.2,
 roof 8.4). Every shadow / vantage / LOS value is a declared target, measured in greybox (V6).
 
 Lead updates applied (2026-10-24): Marlow picked S4 for Code Relay, so S5's code_source / code_sink pair is a
 reserved spare ("reserved, not used by Code Relay"): the strongroom day gate stands open, no route depends on it.
-Sync nodes are a top-level `sync` array (id / kind / space / src / lead / track), as S1.
+Sync nodes are the top-level `syncs` array (id / kind / space / src / lead / track), as every campus graph.
 
 ## 1. Change list
 
@@ -37,7 +38,7 @@ Sync nodes are a top-level `sync` array (id / kind / space / src / lead / track)
 | --- | --- | --- | --- |
 | L1 | Landing strip x -38..-36.5, z 38..44 closed (solid); kp-arch moves to (-38, 35.5) on the landing's open west wall | landing x -38..-32, z 32..38 | F1 1.4 m strip; F2 leaf 0.3 m from the core |
 | L2 | Cage moves to x -41.5..-38, z 38..41 over the new shaft; pair gate pg-arch in its west face (z 39..40.2), switches (-39, 37.8) and (-45.6, 43.6) about 9 m apart; panel-shaft (-41.65, 5.6, 39.0) | archive | follows G6 |
-| L3 | Archive stacks: one free-standing 2.2 row x -45.9..-43, z 40.4..41.2, wall shelving z 43.2..43.9 (aisles 1.9 and 2.0); 1.2 plan chest x -44.5..-43, z 34.5..35.5; warm r 4 reading lamp at Penhale's post | archive x -46..-38, z 32..44 | F1 aisles 1.55; shadow 1.0 -> 0.5 |
+| L3 | Archive stacks: one free-standing 2.2 row x -45.9..-43, z 40.4..41.2, wall shelving z 43.2..43.9 (aisles 1.9 and 2.0); 1.2 plan chest x -44.5..-43, z 34.5..35.5; warm r 4 reading lamp at the records desk (-42.2, 39.5) | archive x -46..-38, z 32..44 | F1 aisles 1.55; shadow 1.0 -> 0.5 |
 | L4 | **Hoist door (-46, 36) becomes an E3 pair bolt** (`SectorBolt` `pair: true`, side = archive): one player pushes the swollen leaf home while the other draws the bolt; never one player alone | archive west wall | **CR7 works solo (blocker 1, G280)** |
 | L5 | Archive rooflight 1.2 x 3 (x -45.85..-44.65, z 32.4..35.4); its south 1.2 m opens as a hatch over a fixed ladder on the west wall at z 33 | archive / roof | arch high approach; roof approaches; archive vantage |
 | L6 | Boardroom <-> CEO suite connecting door (-53, 30) | L1 west | ERR board and ceo dead ends; L1 loop |
@@ -63,12 +64,12 @@ anteroom's hall door.
   never draw it, from either side." Shut, the sill is a closed door: no solo step-off, no solo rope. Opened by two, the
   holder braces and lowers the climber 4.2 m (`ropeRoom(4.2, 0)` = ok, TEAM.ropeMin 2.2 / ropeMax 6.0). It is a co-op
   route, NOT a sync node: no solo timer fallback (G280: "true 2-player pathways that cannot be used solo").
-- **Solo has its own longer route:** archive -> rooflight ladder -> roof (past #33's walk, behind chimney (-53, 36))
+- **Solo has its own longer route:** archive -> rooflight ladder -> roof (behind #19's back, behind chimney (-53, 36))
   -> rim gate -> cleaning ladder 8.4 m -> the well: 11.5 + 17.5 = **29 s** against the rope's **6 s**, on the high /
   shadow route kinds and 30.5 m against 4.5 m, so the validator's solo-twin check no longer fires.
 - Graph: the `s5-arch -> s5-well` drop is gone; `team_rope` stays; `s5-well <-> s5-roof` ladder added.
-- Alternative (S5.md option 2): no cleaning ladder and a 1.9 rim, the SPEC's "solo cannot"; solo then meets K4 only
-  through the side door and the hall.
+- Alternative (was S5.md option 2 before the fix round; now held item 6): no cleaning ladder and a 1.9 rim, the SPEC's
+  "solo cannot"; solo then meets K4 only through the side door and the hall.
 
 ## 3. Routes per guarded space (encounter spaces; route kinds as in the graph)
 | Space | Dark / shadow | High / vent | Social / tool (loud) | Secret | Loop | LOS break |
@@ -91,24 +92,24 @@ Secret in 5 of 7 guarded spaces (aim half). Routes cross at the hall, the back h
   glass (0.8); archive from the roof through the rooflight (0.7); garden from the roof's south-west corner behind
   chimney (-53, 22) (0.8); roof from inside the bulkhead through its two lights (0.7); lawn from the low roof's dark
   north kerb (-30, 43.5) (0.7; the boathouse and trees hide the west end). Half-the-patrols rule: the roof sees the
-  garden team, the lake team, #20, #35, the marksman pair (6 of 12 outside guards); the back hall sees the hall's six.
+  garden team, the terrace team and #20 (5 of 8 outside guards, all 3 outside patrols); the back hall sees the hall's three.
 - **Goal visible first:** the token's warm lamp through the open day-gate grille from the anteroom door, and through the
   well's glazed screen from the well.
 - **Landmark:** the hall chandelier (r 7 pool), seen from the lobby door down the screens passage, from the gallery and
   through the alcove; outside, the jetty lantern marks the exit (warm = objective / exit).
 - **Light language:** white cone = patrolled (chandelier pool on the door officer and stair foot, the bollards on the lake
   team, the marksman's light, the van light); warm lamp = social / objective (audit desk lamp, strongroom lamp,
-  Penhale's reading lamp, the kitchen table lamp, the jetty lantern); dark = route (screens passage, back hall, drawing
+  the archive reading lamp, the kitchen table lamp, the jetty lantern); dark = route (screens passage, back hall, drawing
   room, well, archive aisles, garden's west half, the boathouse path, the roof behind the chimneys, the low roof).
 
-## 5. Sync nodes (top-level `sync` array in the graph)
+## 5. Sync nodes (top-level `syncs` array in the graph)
 | id | kind | space | src | lead | track | status |
 | --- | --- | --- | --- | --- | --- | --- |
 | sync-s5-rota | code_source | s5-kitchen | built: rota board intel, campusS5Data.ts:182 | s5-kitchen | B | active: B relays 1960 to A |
 | sync-s5-kparch | code_sink | s5-landing | built: kp-arch keypad, campusS5Data.ts:181 (moved to (-38, 35.5, 4.2)) | s5-landing | A | active (no-code way: the gallery door) |
 | sync-s5-houseboard | power_cut | s5-landing | planned E4 board (S5_BOARDS pattern, campusS5.ts:221), circuits 83 + 88, 45 s | s5-landing | A | active: A darkens B's anteroom and hall |
 | sync-s5-gardenboard | power_cut | s5-kitchen | built: S5_BOARDS campusS5.ts:221, circuit 84, 20 -> 30 s | s5-kitchen | B | active: B darkens A's rappel landing and the lawn |
-| sync-s5-fob | code_source | s5-arch | planned: #29 Ms Penhale, the time-lock fob | s5-gal | A | **reserved, not used by Code Relay** |
+| sync-s5-fob | code_source | s5-arch | planned: #29 Ms Penhale, the time-lock fob; not posted in this plan (cap, AS9): a mission that arms the spare posts her in place of #18 | s5-gal | A | **reserved, not used by Code Relay** |
 | sync-s5-strongkey | code_sink | s5-ante | E1 keypad on the day gate (-43, 38.5), 30 s rolling code planned | s5-ante | B | **reserved, not used by Code Relay**; gate open by default |
 
 Solo in sequence: rota (kitchen) -> kp-arch; house board then 15-20 s down the core to the anteroom (window 45 s);
@@ -116,26 +117,48 @@ garden board on the way out by the kitchen back door (30 s). The reserved pair, 
 first, then the code from Penhale, then archive -> kp-arch -> landing -> core -> back hall -> side door -> keypad =
 21 m + 7 s stair = 14 s running / 23 s at stealth pace, inside 30 s.
 
-## 6. Guards (36: 24 kept, 12 new; above S4's ~24, the response team included)
+## 6. Guards (26: 24 kept, 2 new; above S4's 25, the response team included)
+The live-guard cap binds: `SECTOR.maxAlive` 32 (`src/game/sectors.ts:508`) = the co-op snapshot's `MAX_ENEMIES` 32
+(`src/net/protocol.ts:25`), and `tests/campusS5.test.ts:200` asserts guards + alarmMax 3 x perStage 2 <= 32. So S5 posts
+at most 26 (26 + 6 = 32). The fix round cut the first plan's 36 to 26: of its 12 new posts it keeps the two that guard
+the section's two must-pass points, #28 the audit officer (the K4 choke) and #34 the jetty sentry (the extraction), and
+drops the other 10 (#25-#27, #29-#33, #35, #36: reliefs, a smoker, a spotter, a second roof walk, a lane patrol and a tea
+break, none of them on a choke). Routes are unchanged: every guarded space keeps its three route kinds (section 3).
+
 | Space | Count | Guards (post / patrol, archetype) | Isolation moment |
 | --- | --- | --- | --- |
-| s5-hall | 6 | #12 door officer (-41.5, 19.6) officer; #4 hall walk (-53, 28.4) <-> (-41.5, 23.5) grunt (response); #24 clocking round (-35, 37) <-> (-35, 19.6) officer, down the screens passage; **+25 / +26** stair-foot talking pair (-48.5, 20.2) / (-48.5, 21.6) grunts (the gallery's relief); **+27** response runner (-49, 28.5) officer facing E | #24 at the passage's south end (-35, 19.6), dark, 3 s stop |
+| s5-hall | 3 | #12 door officer (-41.5, 19.6) officer; #4 hall walk (-53, 28.4) <-> (-41.5, 23.5) grunt (response); #24 clocking round (-35, 37) <-> (-35, 19.6) officer, down the screens passage | #24 at the passage's south end (-35, 19.6), dark, 3 s stop |
 | s5-ante | 4 | #9 / #10 keyholders (-44.5, 37.0) / (-41.5, 37.0) officers facing S, body armour; #11 escort (-45, 33) -> (-39.5, 37.4) -> (-38, 33.5) officer; **+28** audit officer at the table (-42.5, 34.5) facing N | #11 alone at the shaft door, 4 s |
-| s5-arch | 3 | #18 round (-39.5, 33) -> (-45.2, 33) -> (-45.2, 42.2) -> (-42.6, 42.2) grunt; **+29** Ms Penhale, records officer, at the cage (-42.2, 39.5) facing W; **+30** her escort (-42.2, 37.4) grunt facing S | Penhale walks to the hoist door (-45.4, 36) every ~40 s, alone in the dark west aisle |
-| s5-kitchen | 2 | #21 service round (-29, 42.5) <-> (-29, 23.5) grunt; **+36** tea break at the table (-30.5, 40.5) grunt facing E | #21 in the plant room (-29, 23.5), 3 s |
-| s5-garden | 3 | #5 handler + #6 dog loop (-63, 23.5) <-> (-63, 40.5) (shared 44 s clock); **+31** the response team's smoker (-58, 38.5) grunt facing W | #31 always: back to the drawing-room garden door |
-| s5-roof | 3 | #19 marksman (-40, 43) <-> (-39, 43) rifle; **+32** spotter (-41.6, 43) grunt facing N; **+33** roof walk (-35, 37) -> (-41, 37.6) -> (-46, 39) -> (-51, 39), ~40 s | #33 at the well rim's west end, behind chimney (-53, 36) |
-| s5-lawn | 6 | #7 handler + #8 dog terrace loop (-36, 47) <-> (-53, 47); #20 terrace gate (-44, 50.7) -> jetty route; #23 van driver (-31.4, 53.5); **+34** jetty sentry at the deck foot (-43.5, 58.5) facing S; **+35** lane patrol (-31, 51.5) <-> (-50, 56.5), ~40 s | #35 at the boathouse end under the trees |
+| s5-arch | 1 | #18 round (-39.5, 33) -> (-45.2, 33) -> (-45.2, 42.2) -> (-42.6, 42.2) grunt | #18 at the round's north-west corner (-45.2, 42.2), in the dark west aisle, 3 s |
+| s5-kitchen | 1 | #21 service round (-29, 42.5) <-> (-29, 23.5) grunt | #21 in the plant room (-29, 23.5), 3 s |
+| s5-garden | 2 | #5 handler + #6 dog loop (-63, 23.5) <-> (-63, 40.5) (shared 44 s clock) | the pair at the loop's north end (-63, 40.5), backs to the drawing-room door, 3 s |
+| s5-roof | 1 | #19 marksman (-40, 43) <-> (-39, 43) rifle, facing N over the lawn | always: his back is to the roof |
+| s5-lawn | 5 | #7 handler + #8 dog terrace loop (-36, 47) <-> (-53, 47); #20 terrace gate (-44, 50.7) -> jetty route; #23 van driver (-31.4, 53.5); **+34** jetty sentry at the deck foot (-43.5, 58.5) facing S | #23 alone by the van light, back to the estate wall |
 | s5-ctl (utility) | 3 | #1-3 response team, dormant until stage 1 (grunts, body armour) | - |
 | s5-gal (connector) | 2 | #13 / #14 opposite-phase arms | screens at each arm's south end |
 | s5-ceo / s5-board | 2 + 1 | #16 officer + #17 grunt at the suite door; #15 dormant | - |
 | s5-lobby (hub) | 1 | #22 arrivals officer (-28.8, 30.8) | - |
 
 Gear as built (officer pistolSd, grunt rifle; helmets; armour on the response team and the keyholders). Escalation
-unchanged: stage 1 the response team deploys (now also through the garden door), dogs released; stages 2-3 +2 each.
-Screen cap (CAMPUS_SCREEN_CAP 12): worst view is the roof's north-west corner: roof 3 + lawn 6 + garden 3 = **12, at the
-cap** (that is why garden and roof stop at 3); hall view 6 + gallery 2 = 8. Guard band WARNs remain on kitchen 2,
-arch 3, ante 4, garden 3, roof 3 (realistic posts and the screen cap).
+unchanged: stage 1 the response team deploys (now also through the garden door), dogs released; stages 2-3 +2 each
+(the 6 reinforcements that fill the cap to 32). Screen cap (CAMPUS_SCREEN_CAP 12): worst view is the roof's north-west
+corner: roof 1 + lawn 5 + garden 2 = **8**; hall view 3 + gallery 2 = 5; under the cap everywhere. Guard band WARNs
+(late band 6-10): all seven guarded spaces (hall 3, ante 4, arch 1, kitchen 1, garden 2, roof 1, lawn 5): the cap binds
+first.
+
+**Option 2 on S5.md (raise the cap, 36 guards) costs:**
+- Wire: `MAX_ENEMIES` 32 -> 48 (`src/net/protocol.ts:25`, the snapshot's enemies and bodies slices at :973 / :1004, the
+  host's cap at `src/net/coopHost.ts:1591` / :1603); `PROTOCOL_VERSION` bumped once by the train build.
+- Engine: `SECTOR.maxAlive` 32 -> 42 (`src/game/sectors.ts:508`); the guard keys are u32 masks, `MAX_KEYS` 32
+  (`src/ai/awareness.ts:51`, masks at :87 / :151-271 / :394-436, `src/ai/enemyManager.ts:94`; reinforcements take keys
+  24-31): 42 keys need two-word or 64-bit masks.
+- Tests: `tests/campusS5.test.ts:194-200` (24 guards, the cap assert) and the cap / key tests in `coopGuardAi`,
+  `enemyManagerDespawn`, `fourIntruders`, `guardLook`, `net`.
+- Perf: a guard costs ~0.28-0.34 ms of frame CPU at Epic (`src/game/sectorGuardFreeze.ts:4`: S5 worst 15.6 ms at 24
+  guards). +12 guards = +3.4-4.1 ms, ~19-20 ms at S5's worst view, over the 16.7 ms frame unless the freeze culls them:
+  a laptop GPU perf pass is needed.
+- Hours: wire + keys + tests ~5 h (Opus, `src/net`), perf pass ~2 h (laptop GPU slot), +1 h guard slice for the 10
+  posts: **~+8 h**. Screen cap at 36: the roof's north-west view reaches 12 (roof 3 + lawn 6 + garden 3), at the cap.
 
 ## 7. Co-op moves, split, solo
 - **Co-op moves:** CR6 pair gate (arch <-> cage); CR7 team rope (arch -> well, pair-bolted hoist); NEW CR8 boost lawn ->
@@ -164,11 +187,11 @@ arch 3, ante 4, garden 3, roof 3 (realistic posts and the screen cap).
 | | ERR | WARN |
 | --- | --- | --- |
 | As built (`campus-run/run.txt`; same as the plan copy before editing) | 41 | 44 (+2 C4 spine WARNs that belong to S4) |
-| Plan (all five plan graphs together, 2026-10-24 late) | **0** | 29 |
+| Plan (all five plan graphs together, fix round 2026-10-25, 26 guards) | **0** | 31 |
 
-The 29 WARNs, justified: 12 ceilings 4.0 / 2.4 against 3.0 / 3.3 (the shell's 4.2 storeys stay); 6 core sizes 2.6 /
+The 31 WARNs, justified: 12 ceilings 4.0 / 2.4 against 3.0 / 3.3 (the shell's 4.2 storeys stay); 6 core sizes 2.6 /
 5.6 off the grid (S2's core copy); 5 custom classes (landing, cage, shaft, well, low roof: no sheet-7 class); 1 control
-room 12 > 11 (three rack rows, as built); 5 guard bands (section 6). Map-wide co-op coverage and the secret-route WARN
+room 12 > 11 (three rack rows, as built); 7 guard bands (section 6: the 32 live cap binds first). Map-wide co-op coverage and the secret-route WARN
 now pass with all five files. Run: `node scripts/level-validate.mjs docs/sector-redesign/graph/plan/campusOps-S{1..5}.json`.
 
 ## 9. Held items
@@ -177,6 +200,9 @@ now pass with all five files. Run: `node scripts/level-validate.mjs docs/sector-
 - SPEC garden buttress wall-jump (2.8): not added (the west rappel gives the garden its high way).
 - The reserved Code Relay pair (fob, day-gate keypad, 30 s window): data hooks only, no build in this plan.
 - CEO safe / laptop: reserved optional objective for Marlow.
+- (6) The light well co-op only (the first plan's option 2): no cleaning ladder, the roof's well rim raised to 1.9 m; solo
+  reaches the keyholders by the side door and the hall only. Moved off the page in the fix round so the page's one
+  decision is the guard cap. Undo: put it back as option 2.
 
 ## 10. Assumptions (each undoable)
 - AS1 The hoist pair bolt reuses E3 `SectorBolt { pair: true }` (needs `bolts` in S5_SECTOR; the SPEC said "bolts
@@ -190,13 +216,19 @@ now pass with all five files. Run: `node scripts/level-validate.mjs docs/sector-
   separate corridor. Undo: full-height wall, hall class needs another fix.
 - AS6 Anteroom size declared [6, 8.5] under its clear 6.3 x 8.8 (on the grid).
 - AS7 Targets (shadow, vantage, LOS) are estimates from lamp radii and sight wedges on the plan, pending V6.
+- AS8 (fix round) S5 posts 26: the 32 live cap less the 6 alarm reinforcements (alarmMax 3 x perStage 2). Undo: S5.md
+  option 2 (raise the cap), or perStage 1 for S5 (29 posts, a weaker response).
+- AS9 (fix round) The kept new posts are #28 (K4 choke) and #34 (extraction); Penhale (#29, the reserved fob) is not
+  posted, so the spare needs her swapped in for #18 if a mission arms it. Undo: post #29 instead of #28.
+- AS10 (fix round) The light-well co-op-only alternative leaves the page (held item 6) for the cap question.
+  Undo: restore it as option 2.
 
 ## 11. Greybox build cost (after sign-off)
 | Slice | Content | Hours |
 | --- | --- | --- |
 | S5-P1 shell re-cut | G1-G13, L1-L3, L5-L6, L9, R1-R3 boxes, doors, ladders, slabs, nav seeds | 4 |
 | S5-P2 devices and light | L4 pair bolt, L7 board, garden board, beams / panel / pair gate moves, cam-hall, G14 / L8 / R4 lamps, S5_ROUTES rewrite | 3 |
-| S5-P3 guards | 12 new, 8 moved, routes / cycles 25-45 s, takedown spots, the screen-cap check | 3 |
+| S5-P3 guards | 2 new, 8 moved, routes / cycles 25-45 s, takedown spots, the cap assert (26 + 6 <= 32) | 2 |
 | S5-P4 tests | campusS5.test.ts: CR7 solo-cannot (bolt shut, no sill), rope room ok, lips 4.4 with no solo stand-on, nav flood, routes walk, door swings | 3 |
 | S5-P5 V6 | measure shadow / vantage / LOS / reach, write `measured` | 2 |
-| **Total** | | **~15 h** |
+| **Total** | | **~14 h** |

@@ -506,8 +506,7 @@
       ],
       "tension": 3,
       "tags": [
-        "exit",
-        "exfil"
+        "exit"
       ],
       "note": "PLAN. Widened: x -10..-4, z 27.5..31 (box 3.5, clear 3.3; was 2.4 / 2.2), with a 3.0 ceiling slab (3.0-3.2). Doors: C4 near (-10, 29) unchanged; battCC (-8.5, 27.5) and ccUps (-5.5, 31), 3.0 m offset; hallCC walled up, so no two doors face each other. Guard #19 (K3) re-posted at (-8.8, 30.0) facing east, leash 5, guards c4-gate (the choke), counted in the note."
     }
@@ -909,5 +908,9 @@
       "reason": "C4 colonnade connector: near door (-10,29) in the colonnade corridor's west wall, far door (-26,29) in the Old House service lobby (x -32..-26, z 26..32); box x -26..-10, z 26..32",
       "note": "Unchanged spine link. Target id s5-lobby is the S5 entry as the S5 file is expected to name it (S5_ROOMS s5-lobby, campusS5.ts:188); length from the cc centre (-7,29) to that room centre (-29,29). Clear width 5.7: box 6.0 less the 0.3 walls (campusOps.ts:21-34). The incoming C3 spine link (S3 exit to s4-dock) belongs to the S3 file."
     }
-  ]
+  ],
+  "tracks": {
+    "exfil": "s4-cc",
+    "exfil_note": "Code Relay (Marlow Build) ends at C4: its exfil is the colonnade at C4's near door. Recorded here, not as a space tag, as S2 does (an exfil tag on s4-cc gives the five-file campus run the WARN \"exfil 's4-cc' is not in the last section\"). Fix round 2026-10-25."
+  }
 }
