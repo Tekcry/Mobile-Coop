@@ -3,6 +3,24 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 45 (2026-10-25 ~08:30, new account; wins over SAVE 44 where they differ). FULL BURN (Michael ~08:25):**
+- Master 4.100.2 833db92e; train 78 93aa87ac (#380 bake-abort, 4.100.3) running sharded 4189+4192 from 08:22.
+  Service live (pid 1380). No locks held. Plain C:/NightShift/Mobile-Coop is on feature/training-bunker with a
+  dirty src/world/bakedLamps.ts (not mine; told the Orchestrator).
+- All SAVE 44 runs done: soaks clean (e2e-coop 5/5, ctcourse:1 3/3, sectorops:1 3/3, sectorops:6 3/3); full-4100-r2
+  41/43 (known flaky e2e-coop "host holds its guard in front of the client (0.38 m)", e2e-pad); full-master-soak
+  43/43. Rates sent to Marlow + Player Build. guard-cap r4100 pushed: feature/guard-cap-results 2540ea38
+  docs/guard-cap/run-4100/SUMMARY.md. perf-campus-x3 (0c27) crashed: no server (alone perf needs
+  `node scripts/laptop-queue/serve.mjs scripts/perf.mjs http://127.0.0.1:4189/ ...`).
+- Queued 08:23 on 833db92e (after train 78): ...-d088 full-41002, ...-fb83 perf-campus-x3 (serve.mjs, MAP env),
+  ...-b82d soak-coop-41002 (e2e-coop x5), ...-43db guard-cap-41002 (-> scratch/guard-cap/r41002-ct24 / -c32).
+  On finish: push guard-cap to run-41002/, perf medians into guard-render PLAN2 note, e2e-coop rate to Player Build.
+  Keep the queue non-empty (full burn): more soaks / A-B / guard-cap repeats on the newest master.
+- #374 laptop-queue-4 conflict resolved (Orchestrator asked): merged master, head 283daf5d (service.mjs imports
+  only), 273 tests pass. Orchestrator re-posts checker + label. After merge: update the laptop service.
+- Sector Ops: m0 / vg5 pushed to orphan shots/visual-gate-m0 1956c219. Its VG5 rerun + VG7 + 8 proof runs come in
+  ~1-2 h (alone, 4189).
+
 **Test Runner SAVE 44 (2026-10-25 ~04:20, after the 04:10 reset; wins over SAVE 43 where they differ):**
 - Master 4.99.1 (trains 72 + 73). Service live (pid 59260), queue was empty, laptop idle ~22% at 04:15.
 - #366 f3eaceed: Orchestrator's Opus re-check PASS, `checker` status posted by it; it labels #366 with #351 once
