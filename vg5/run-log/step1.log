@@ -1,0 +1,26 @@
+
+$ git fetch -q origin feature/visual-gate && git archive FETCH_HEAD scripts/e2e-visual.mjs scripts/visual-gate | tar -xf - && node scripts/laptop-queue/serve.mjs scripts/e2e-visual.mjs http://127.0.0.1:4189/ --rules-only --no-record --json C:/NightShift/scratch/visual-gate/vg5/vg5.json --png C:/NightShift/scratch/visual-gate/vg5/png
+e2e-visual: warehouse, warehouseOps, ctcourse, campusOps x low, epic (one browser per preset, at once), rules only, deadline 285 s
+  warehouse@low: 4 rows, 17.0 s
+  warehouse@epic: 7 rows, 28.8 s
+  warehouseOps@low: 14 rows, 25.7 s
+  warehouseOps@epic: 17 rows, 35.7 s
+  ctcourse@low: 18 rows, 26.4 s
+  campusOps@low: 22 rows, 38.1 s
+  ctcourse@epic: 21 rows, 66.3 s
+  campusOps@epic: 25 rows, 45.8 s
+
+VISUAL-GATE BEGIN
+<!-- visual-gate-summary {"v":1,"verdict":"flagged","sha":"46a7cf855492b21e25a78e78714067048684555f","version":"4.100.1","train":null,"renderer":"ANGLE (NVIDIA, NVIDIA GeForce RTX 4090 Laptop GPU (0x00002757) Direct3D11 vs_5_0 ps_5_0, D3D11)","shots":64,"flags":0,"known":0,"parity":3,"newKeys":0,"warnings":5,"errors":0,"base":null,"wallS":176.6,"reason":"3 parity misses","top":["card-so-s2-aisle-1 parity","card-m-a5-kiosk-2 parity","card-cp-s1-f-1 parity"],"recorded":false,"thumbs":[]} -->
+### visual-gate: 3 flags on 46a7cf85 (4.100.1)
+baseline none (--rules-only), renderer ANGLE (NVIDIA, NVIDIA GeForce RTX 4090 Laptop GPU (0x00002757) Direct3D11 vs_5_0 ps_5_0, D3D11), 64 shots, wall 176.6 s (low 107.2 s, epic 176.6 s)
+KNOWN PASSES so-corner: F5b lr16-8-triage.md:65-87 - remove `known` (A10)
+PARITY card-so-s2-aisle-1 level 0.4659 luma 0.4167 range 0.1000-0.3700
+PARITY card-m-a5-kiosk-2 level 0.4840 luma 0.4118 range 0.1000-0.3700
+PARITY card-cp-s1-f-1 level 0.3244 luma 0.0850 range 0.1000-0.3700
+WARN m-a8-vestibule@epic: unsteady (converge not settled)
+WARN m-f-gallery@epic: unsteady (converge not settled)
+WARN cp-s1-b@epic: unsteady (converge not settled)
+WARN meter-cp-s3-c@low: meter 0.4153 vs field 0.3519 with flickering lights (not counted)
+WARN meter-cp-s3-c@epic: meter 0.4148 vs field 0.3519 with flickering lights (not counted)
+VISUAL-GATE END

@@ -1,0 +1,126 @@
+
+$ npm run build
+
+> mobile-coop@4.100.1 build
+> npm run typecheck && vite build
+
+
+> mobile-coop@4.100.1 typecheck
+> tsc --noEmit -p tsconfig.json
+
+[36mvite v7.3.6 [32mbuilding client environment for production...[36m[39m
+transforming...
+[32m✓[39m 1735 modules transformed.
+rendering chunks...
+computing gzip size...
+[2mdist/[22m[32massets/bgTickWorker-8i737WHi.js             [39m[1m[2m     0.08 kB[22m[1m[22m
+[2mdist/[22m[32mmanifest.webmanifest                        [39m[1m[2m     0.55 kB[22m[1m[22m
+[2mdist/[22m[32mindex.html                                  [39m[1m[2m     2.17 kB[22m[1m[22m[2m │ gzip:     0.93 kB[22m
+[2mdist/[22m[32massets/uastc_astc-Ui3m2rmu.wasm             [39m[1m[2m    12.21 kB[22m[1m[22m[2m │ gzip:     4.65 kB[22m
+[2mdist/[22m[32massets/uastc_r8_unorm-ZyOIHdK3.wasm         [39m[1m[2m    14.14 kB[22m[1m[22m[2m │ gzip:     3.25 kB[22m
+[2mdist/[22m[32massets/uastc_bc7-ElMQfAST.wasm              [39m[1m[2m    14.65 kB[22m[1m[22m[2m │ gzip:     5.51 kB[22m
+[2mdist/[22m[32massets/uastc_rg8_unorm-DnIryjGO.wasm        [39m[1m[2m    17.61 kB[22m[1m[22m[2m │ gzip:     3.83 kB[22m
+[2mdist/[22m[32massets/voxelWorker-DnwGvQ58.js              [39m[1m[2m    23.35 kB[22m[1m[22m
+[2mdist/[22m[32massets/uastc_rgba8_srgb_v2-wNni7TJ8.wasm    [39m[1m[2m    24.16 kB[22m[1m[22m[2m │ gzip:     5.53 kB[22m
+[2mdist/[22m[32massets/zstddec-DwK2H16O.wasm                [39m[1m[2m    29.23 kB[22m[1m[22m[2m │ gzip:    12.59 kB[22m
+[2mdist/[22m[32massets/uastc_rgba8_unorm_v2-CfHr2sCN.wasm   [39m[1m[2m    30.12 kB[22m[1m[22m[2m │ gzip:     6.08 kB[22m
+[2mdist/[22m[32massets/guard-shield_riot-lod2-DK3p--kj.glb  [39m[1m[2m    31.76 kB[22m[1m[22m
+[2mdist/[22m[32massets/guard-shield_riot-lod1-DDovo7Bk.glb  [39m[1m[2m    52.36 kB[22m[1m[22m
+[2mdist/[22m[32massets/msc_basis_transcoder-CnfwLfkh.js     [39m[1m[2m    63.32 kB[22m[1m[22m
+[2mdist/[22m[32massets/guard-shield_riot-lod0-DpE-57HF.glb  [39m[1m[2m    83.64 kB[22m[1m[22m
+[2mdist/[22m[32massets/music-spotted-gbfZE86D.mp3           [39m[1m[2m    86.45 kB[22m[1m[22m
+[2mdist/[22m[32massets/hero-s5-Bp976hnE.glb                 [39m[1m[2m    98.10 kB[22m[1m[22m
+[2mdist/[22m[32massets/barlow-condensed-500-kxnlQoDx.ttf    [39m[1m[2m   103.36 kB[22m[1m[22m
+[2mdist/[22m[32massets/barlow-condensed-600-B7YG4rBL.ttf    [39m[1m[2m   109.43 kB[22m[1m[22m
+[2mdist/[22m[32massets/barlow-condensed-700-v1X23fbx.ttf    [39m[1m[2m   109.91 kB[22m[1m[22m
+[2mdist/[22m[32massets/music-alert-head-DvSojeSU.mp3        [39m[1m[2m   125.62 kB[22m[1m[22m
+[2mdist/[22m[32massets/music-evade-head-Cf0_oDE0.mp3        [39m[1m[2m   125.62 kB[22m[1m[22m
+[2mdist/[22m[32massets/hero-s1-DvsZ-Ila.glb                 [39m[1m[2m   137.82 kB[22m[1m[22m
+[2mdist/[22m[32massets/hero-s4-DWlaVPjA.glb                 [39m[1m[2m   150.97 kB[22m[1m[22m
+[2mdist/[22m[32massets/facility-kit-_3bA1KYH.glb            [39m[1m[2m   154.86 kB[22m[1m[22m
+[2mdist/[22m[32massets/hero-s2-BATmBzBE.glb                 [39m[1m[2m   157.59 kB[22m[1m[22m
+[2mdist/[22m[32massets/music-menu-head-7K5EpNLI.mp3         [39m[1m[2m   179.76 kB[22m[1m[22m
+[2mdist/[22m[32massets/music-caution-head-CoUI9rXR.mp3      [39m[1m[2m   183.60 kB[22m[1m[22m
+[2mdist/[22m[32massets/hero-s3-Cgfc0wvA.glb                 [39m[1m[2m   226.43 kB[22m[1m[22m
+[2mdist/[22m[32massets/foley-AtI9N7nA.mp3                   [39m[1m[2m   238.61 kB[22m[1m[22m
+[2mdist/[22m[32massets/guard-broad-lod2-b_P8cZ1_.glb        [39m[1m[2m   318.90 kB[22m[1m[22m
+[2mdist/[22m[32massets/msc_basis_transcoder-WXuUGwVU.wasm   [39m[1m[2m   455.58 kB[22m[1m[22m[2m │ gzip:   226.76 kB[22m
+[2mdist/[22m[32massets/campus-kit-CG3KJXjF.glb              [39m[1m[2m   506.92 kB[22m[1m[22m
+[2mdist/[22m[32massets/guard-lean-lod2-DvpBhEeL.glb         [39m[1m[2m   551.49 kB[22m[1m[22m
+[2mdist/[22m[32massets/knife-CcfpKKSh.glb                   [39m[1m[2m   578.80 kB[22m[1m[22m
+[2mdist/[22m[32massets/guard-average-lod2-BBPMjqZz.glb      [39m[1m[2m   604.20 kB[22m[1m[22m
+[2mdist/[22m[32massets/facility-props-DRzFJNGO.glb          [39m[1m[2m   778.62 kB[22m[1m[22m
+[2mdist/[22m[32massets/A-caution-DVI1w8OD.mp3               [39m[1m[2m   975.41 kB[22m[1m[22m
+[2mdist/[22m[32massets/A-calm-3223WhHN.mp3                  [39m[1m[2m   977.33 kB[22m[1m[22m
+[2mdist/[22m[32massets/A-alert-xOqfPIev.mp3                 [39m[1m[2m   977.33 kB[22m[1m[22m
+[2mdist/[22m[32massets/B-calm-D5A7RD0g.mp3                  [39m[1m[2m   977.33 kB[22m[1m[22m
+[2mdist/[22m[32massets/B-alert-bEuHWerD.mp3                 [39m[1m[2m   977.33 kB[22m[1m[22m
+[2mdist/[22m[32massets/B-caution-DizQJ1-7.mp3               [39m[1m[2m   977.33 kB[22m[1m[22m
+[2mdist/[22m[32massets/C-caution-BlsljHMt.mp3               [39m[1m[2m   977.33 kB[22m[1m[22m
+[2mdist/[22m[32massets/C-calm-DjxBc8Uc.mp3                  [39m[1m[2m   977.33 kB[22m[1m[22m
+[2mdist/[22m[32massets/C-alert-ByyQc3xr.mp3                 [39m[1m[2m   977.33 kB[22m[1m[22m
+[2mdist/[22m[32massets/weapons-OZD5BEfF.mp3                 [39m[1m[2m 1,082.45 kB[22m[1m[22m
+[2mdist/[22m[32massets/music-alert-CThgz3SC.mp3             [39m[1m[2m 1,180.85 kB[22m[1m[22m
+[2mdist/[22m[32massets/music-evade-vFUZSj0g.mp3             [39m[1m[2m 1,180.85 kB[22m[1m[22m
+[2mdist/[22m[32massets/music-caution-DKdeZcxj.mp3           [39m[1m[2m 1,413.55 kB[22m[1m[22m
+[2mdist/[22m[32massets/guard-broad-lod1-BxWKnUOU.glb        [39m[1m[2m 1,665.19 kB[22m[1m[22m
+[2mdist/[22m[32massets/HavokPhysics-BqNY-4N9.wasm           [39m[1m[2m 2,094.56 kB[22m[1m[22m[2m │ gzip:   664.19 kB[22m
+[2mdist/[22m[32massets/wren-lod2-BeORTuBw.glb               [39m[1m[2m 2,487.94 kB[22m[1m[22m
+[2mdist/[22m[32massets/music-menu-pbBswRad.mp3              [39m[1m[2m 2,747.95 kB[22m[1m[22m
+[2mdist/[22m[32massets/guard-lean-lod1-B91VXUDV.glb         [39m[1m[2m 2,769.42 kB[22m[1m[22m
+[2mdist/[22m[32massets/pistolSd-D28XYEXK.glb                [39m[1m[2m 2,917.53 kB[22m[1m[22m
+[2mdist/[22m[32massets/guard-average-lod1-BKUPCvuC.glb      [39m[1m[2m 2,992.41 kB[22m[1m[22m
+[2mdist/[22m[32massets/guard-broad-lod0-DeukNTYD.glb        [39m[1m[2m 4,425.63 kB[22m[1m[22m
+[2mdist/[22m[32massets/wren-lod1-w05bMFIh.glb               [39m[1m[2m 5,121.00 kB[22m[1m[22m
+[2mdist/[22m[32massets/rifle-CVae0az-.glb                   [39m[1m[2m 7,112.54 kB[22m[1m[22m
+[2mdist/[22m[32massets/guard-lean-lod0-fZomrf7T.glb         [39m[1m[2m 7,555.68 kB[22m[1m[22m
+[2mdist/[22m[32massets/guard-average-lod0-BqTQ24uD.glb      [39m[1m[2m 8,298.08 kB[22m[1m[22m
+[2mdist/[22m[32massets/wren-lod0-a3f3kF0b.glb               [39m[1m[2m18,568.37 kB[22m[1m[22m
+[2mdist/[22m[32massets/wren-hero-Clw0Dc5O.glb               [39m[1m[2m57,320.70 kB[22m[1m[22m
+[2mdist/[22m[35massets/index-DSqgxs_M.css                   [39m[1m[2m    81.37 kB[22m[1m[22m[2m │ gzip:    16.88 kB[22m
+[2mdist/[22m[36massets/glide_back-1i13vbzZ.js               [39m[1m[2m     2.60 kB[22m[1m[22m[2m │ gzip:     1.02 kB[22m
+[2mdist/[22m[36massets/glide_fwd-Cp9TvoeY.js                [39m[1m[2m     2.63 kB[22m[1m[22m[2m │ gzip:     1.04 kB[22m
+[2mdist/[22m[36massets/walk-CoFZxYu4.js                     [39m[1m[2m     2.98 kB[22m[1m[22m[2m │ gzip:     1.25 kB[22m
+[2mdist/[22m[36massets/sneak-BJy0yrWa.js                    [39m[1m[2m     3.06 kB[22m[1m[22m[2m │ gzip:     1.30 kB[22m
+[2mdist/[22m[36massets/crouch_run-BE-oZnA_.js               [39m[1m[2m     3.06 kB[22m[1m[22m[2m │ gzip:     1.29 kB[22m
+[2mdist/[22m[36massets/run-BOEZ3pmz.js                      [39m[1m[2m     3.06 kB[22m[1m[22m[2m │ gzip:     1.31 kB[22m
+[2mdist/[22m[36massets/jog-CPteO8P_.js                      [39m[1m[2m     3.08 kB[22m[1m[22m[2m │ gzip:     1.31 kB[22m
+[2mdist/[22m[36massets/crouch_walk-BazNx8Mq.js              [39m[1m[2m     3.11 kB[22m[1m[22m[2m │ gzip:     1.31 kB[22m
+[2mdist/[22m[36massets/foleyLab-Ekh0u3e0.js                 [39m[1m[2m     3.12 kB[22m[1m[22m[2m │ gzip:     1.39 kB[22m
+[2mdist/[22m[36massets/guard_held_hands-Ca6P8Krn.js         [39m[1m[2m     3.46 kB[22m[1m[22m[2m │ gzip:     1.47 kB[22m
+[2mdist/[22m[36massets/guard_held_stumble-DUS8AyDI.js       [39m[1m[2m     3.57 kB[22m[1m[22m[2m │ gzip:     1.52 kB[22m
+[2mdist/[22m[36massets/ready_stance-BcrNwPs9.js             [39m[1m[2m     3.88 kB[22m[1m[22m[2m │ gzip:     1.05 kB[22m
+[2mdist/[22m[36massets/glide_strafe-BJC_5xwL.js             [39m[1m[2m     3.98 kB[22m[1m[22m[2m │ gzip:     1.14 kB[22m
+[2mdist/[22m[36massets/wall_idle-DQu1Dqik.js                [39m[1m[2m     4.05 kB[22m[1m[22m[2m │ gzip:     1.07 kB[22m
+[2mdist/[22m[36massets/wall_slide-Cjk4U2pG.js               [39m[1m[2m     4.11 kB[22m[1m[22m[2m │ gzip:     1.17 kB[22m
+[2mdist/[22m[36massets/wall_peek-Dxy0ImEN.js                [39m[1m[2m     4.15 kB[22m[1m[22m[2m │ gzip:     1.11 kB[22m
+[2mdist/[22m[36massets/wall_crouch_slide-BNo6Q9sT.js        [39m[1m[2m     4.46 kB[22m[1m[22m[2m │ gzip:     1.28 kB[22m
+[2mdist/[22m[36massets/wall_crouch_peek-Cgj8I-Z9.js         [39m[1m[2m     4.52 kB[22m[1m[22m[2m │ gzip:     1.18 kB[22m
+[2mdist/[22m[36massets/hold_side-C-D6Gm6l.js                [39m[1m[2m     4.61 kB[22m[1m[22m[2m │ gzip:     1.36 kB[22m
+[2mdist/[22m[36massets/hold_fwd-CYG1EWbC.js                 [39m[1m[2m     4.63 kB[22m[1m[22m[2m │ gzip:     1.38 kB[22m
+[2mdist/[22m[36massets/weaponLab-B3axHhO8.js                [39m[1m[2m     4.71 kB[22m[1m[22m[2m │ gzip:     1.91 kB[22m
+[2mdist/[22m[36massets/hold_back-ybIVpeXh.js                [39m[1m[2m     4.78 kB[22m[1m[22m[2m │ gzip:     1.47 kB[22m
+[2mdist/[22m[36massets/hold_idle-DO6YMGqF.js                [39m[1m[2m     4.89 kB[22m[1m[22m[2m │ gzip:     1.40 kB[22m
+[2mdist/[22m[36massets/workbox-window.prod.es5-BBnX5xw4.js  [39m[1m[2m     5.75 kB[22m[1m[22m[2m │ gzip:     2.36 kB[22m
+[2mdist/[22m[36massets/idle--XBFdghD.js                     [39m[1m[2m     5.83 kB[22m[1m[22m[2m │ gzip:     1.44 kB[22m
+[2mdist/[22m[36massets/hold_knife-FHMTEdOB.js               [39m[1m[2m     5.90 kB[22m[1m[22m[2m │ gzip:     1.43 kB[22m
+[2mdist/[22m[36massets/wall_crouch_idle-D6_kTrGE.js         [39m[1m[2m     6.10 kB[22m[1m[22m[2m │ gzip:     1.35 kB[22m
+[2mdist/[22m[36massets/hold_choke-Ci4he0UH.js               [39m[1m[2m     6.36 kB[22m[1m[22m[2m │ gzip:     1.95 kB[22m
+[2mdist/[22m[36massets/guard_choke_sag-CiFpdtRQ.js          [39m[1m[2m     6.60 kB[22m[1m[22m[2m │ gzip:     1.96 kB[22m
+[2mdist/[22m[36massets/crouch_idle-DBXS79z0.js              [39m[1m[2m     6.75 kB[22m[1m[22m[2m │ gzip:     1.54 kB[22m
+[2mdist/[22m[36massets/guard_knife_collapse-DYnaaWjZ.js     [39m[1m[2m     6.90 kB[22m[1m[22m[2m │ gzip:     1.96 kB[22m
+[2mdist/[22m[36massets/musicLab-ccruMGOM.js                 [39m[1m[2m     9.17 kB[22m[1m[22m[2m │ gzip:     3.79 kB[22m
+[2mdist/[22m[36massets/skeleton_test-COylAa54.js            [39m[1m[2m    16.87 kB[22m[1m[22m[2m │ gzip:     1.86 kB[22m
+[2mdist/[22m[36massets/havok-V-2dkDzw.js                    [39m[1m[2m    33.66 kB[22m[1m[22m[2m │ gzip:     9.94 kB[22m
+[2mdist/[22m[36massets/net-ivdypL7U.js                      [39m[1m[2m    75.95 kB[22m[1m[22m[2m │ gzip:    27.55 kB[22m
+[2mdist/[22m[36massets/coopUi-B-TFDXpb.js                   [39m[1m[2m   170.33 kB[22m[1m[22m[2m │ gzip:    59.96 kB[22m
+[2mdist/[22m[36massets/babylon-rTWtc0i6.js                  [39m[1m[2m 3,013.66 kB[22m[1m[22m[2m │ gzip:   684.99 kB[22m
+[2mdist/[22m[36massets/index-Dy3met4g.js                    [39m[1m[2m 3,367.03 kB[22m[1m[22m[2m │ gzip: 1,130.96 kB[22m
+[32m✓ built in 20.64s[39m
+
+PWA v2.0.0
+mode      generateSW
+precache  77 entries (18193.19 KiB)
+files generated
+  dist/sw.js
+  dist/workbox-835c8c05.js

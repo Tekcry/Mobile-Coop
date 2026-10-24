@@ -1,0 +1,2702 @@
+{
+ "sha": "fc4dc9abc1d20eec2e0ba29c553937eccc39547a",
+ "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4090 Laptop GPU (0x00002757) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+ "chrome": "141.0.7390.37",
+ "wallMs": 233856,
+ "browsers": [
+  {
+   "preset": "low",
+   "wallMs": 148268
+  },
+  {
+   "preset": "epic",
+   "wallMs": 233850
+  }
+ ],
+ "rows": [
+  {
+   "map": "warehouse",
+   "preset": "low",
+   "bootMs": 12677,
+   "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4090 Laptop GPU (0x00002757) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "chrome": "141.0.7390.37",
+   "torchCount": 4,
+   "wallMs": 29051,
+   "shots": [
+    {
+     "id": "wh-floods-dock",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.19614662136230174,
+      "field": 0.19614840628888716,
+      "simS": 0.41666666666666735,
+      "ms": 2092,
+      "guards": 9,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0,
+      "ms": 1728
+     },
+     "behind": [],
+     "ms": {
+      "settle": 2205,
+      "pin": 1174,
+      "aim": 8741,
+      "converge": 1729,
+      "capture": 216,
+      "total": 14072
+     }
+    },
+    {
+     "id": "wh-flood-workshop",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.7807525775785111,
+      "field": 0.7817117181040711,
+      "simS": 0.3499999999999994,
+      "ms": 335,
+      "guards": 9,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0,
+      "ms": 1049
+     },
+     "behind": [],
+     "ms": {
+      "settle": 346,
+      "pin": 13,
+      "aim": 105,
+      "converge": 1049,
+      "capture": 209,
+      "total": 1731
+     }
+    }
+   ],
+   "errors": [],
+   "consoleErrors": []
+  },
+  {
+   "map": "warehouseOps",
+   "preset": "low",
+   "bootMs": 16860,
+   "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4090 Laptop GPU (0x00002757) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "chrome": "141.0.7390.37",
+   "torchCount": 4,
+   "wallMs": 48322,
+   "shots": [
+    {
+     "id": "so-s1-goods-in",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.6248666834597228,
+      "field": 0.6248989085609009,
+      "simS": 0.3000000000000003,
+      "ms": 372,
+      "guards": 4,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0,
+      "ms": 1809
+     },
+     "behind": [],
+     "ms": {
+      "settle": 605,
+      "pin": 86,
+      "aim": 5196,
+      "converge": 1809,
+      "capture": 167,
+      "total": 7871
+     }
+    },
+    {
+     "id": "so-s1-girder",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.71644064494054,
+      "field": 0.7164945543614833,
+      "simS": 0.3000000000000008,
+      "ms": 580,
+      "guards": 4,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0,
+      "ms": 1230
+     },
+     "behind": [],
+     "ms": {
+      "settle": 593,
+      "pin": 10,
+      "aim": 16,
+      "converge": 1230,
+      "capture": 180,
+      "total": 2035
+     }
+    },
+    {
+     "id": "so-s1-workshop",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.5061242382699153,
+      "field": 0.5059746566546001,
+      "simS": 0.36666666666666536,
+      "ms": 367,
+      "guards": 4,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0,
+      "ms": 898
+     },
+     "behind": [],
+     "ms": {
+      "settle": 383,
+      "pin": 4,
+      "aim": 6,
+      "converge": 898,
+      "capture": 144,
+      "total": 1439
+     }
+    },
+    {
+     "id": "so-s2-aisle",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.5533012652404006,
+      "field": 0.553119778364286,
+      "simS": 0.33333333333333215,
+      "ms": 338,
+      "guards": 4,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0,
+      "ms": 1712
+     },
+     "behind": [],
+     "ms": {
+      "settle": 341,
+      "pin": 8,
+      "aim": 17,
+      "converge": 1712,
+      "capture": 242,
+      "total": 2330
+     }
+    },
+    {
+     "id": "so-s3-hall",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.7229835437453859,
+      "field": 0.7227485508064339,
+      "simS": 0.31666666666666554,
+      "ms": 319,
+      "guards": 4,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0,
+      "ms": 2314
+     },
+     "behind": [],
+     "ms": {
+      "settle": 329,
+      "pin": 4,
+      "aim": 7,
+      "converge": 2314,
+      "capture": 423,
+      "total": 3621
+     }
+    },
+    {
+     "id": "so-door",
+     "kind": "rig",
+     "rigState": "on",
+     "settle": {
+      "meter": 0.3098983244463731,
+      "field": 0.31986739722980484,
+      "simS": 0.33333333333333215,
+      "ms": 462,
+      "guards": 4,
+      "torch": {
+       "want": true,
+       "has": true
+      },
+      "othersLit": 0,
+      "door": {
+       "shut": true,
+       "dist": 0
+      }
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0,
+      "ms": 3737
+     },
+     "behind": [],
+     "ms": {
+      "settle": 488,
+      "pin": 54,
+      "aim": 51,
+      "converge": 3737,
+      "capture": 1316,
+      "total": 5700
+     }
+    },
+    {
+     "id": "so-door",
+     "kind": "rig",
+     "rigState": "off",
+     "settle": {
+      "meter": 0.31987054929065484,
+      "field": 0.31986739722980484,
+      "simS": 0.3999999999999986,
+      "ms": 868,
+      "guards": 4,
+      "torch": {
+       "want": false,
+       "has": false
+      },
+      "othersLit": 0,
+      "door": {
+       "shut": true,
+       "dist": 0
+      }
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0,
+      "ms": 1846
+     },
+     "behind": [],
+     "ms": {
+      "settle": 881,
+      "pin": 10,
+      "aim": 333,
+      "converge": 1846,
+      "capture": 616,
+      "total": 3693
+     }
+    },
+    {
+     "id": "so-corner",
+     "kind": "rig",
+     "rigState": "on",
+     "settle": {
+      "meter": 0.28043171913388404,
+      "field": 0.28043004968085566,
+      "simS": 0.34999999999999876,
+      "ms": 330,
+      "guards": 4,
+      "torch": {
+       "want": true,
+       "has": true
+      },
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0,
+      "ms": 1418
+     },
+     "behind": [],
+     "ms": {
+      "settle": 348,
+      "pin": 8,
+      "aim": 19,
+      "converge": 1418,
+      "capture": 240,
+      "total": 2039
+     }
+    },
+    {
+     "id": "so-corner",
+     "kind": "rig",
+     "rigState": "off",
+     "settle": {
+      "meter": 0.28043171913388404,
+      "field": 0.28043004968085566,
+      "simS": 0.31666666666666554,
+      "ms": 318,
+      "guards": 4,
+      "torch": {
+       "want": false,
+       "has": false
+      },
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0,
+      "ms": 1314
+     },
+     "behind": [],
+     "ms": {
+      "settle": 324,
+      "pin": 5,
+      "aim": 9,
+      "converge": 1314,
+      "capture": 220,
+      "total": 1912
+     }
+    }
+   ],
+   "errors": [],
+   "consoleErrors": []
+  },
+  {
+   "map": "ctcourse",
+   "preset": "low",
+   "bootMs": 15053,
+   "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4090 Laptop GPU (0x00002757) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "chrome": "141.0.7390.37",
+   "torchCount": 4,
+   "wallMs": 30562,
+   "shots": [
+    {
+     "id": "m-a1-lounge",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.7887591564343905,
+      "field": 0.7887499398779568,
+      "simS": 0.31666666666666693,
+      "ms": 281,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0,
+      "ms": 614
+     },
+     "behind": [],
+     "ms": {
+      "settle": 322,
+      "pin": 28,
+      "aim": 4604,
+      "converge": 614,
+      "capture": 81,
+      "total": 5653
+     }
+    },
+    {
+     "id": "m-a2-vantage",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.49065920873808444,
+      "field": 0.49058092699550826,
+      "simS": 0.33333333333333437,
+      "ms": 324,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0,
+      "ms": 706
+     },
+     "behind": [],
+     "ms": {
+      "settle": 430,
+      "pin": 1,
+      "aim": 7,
+      "converge": 706,
+      "capture": 105,
+      "total": 1252
+     }
+    },
+    {
+     "id": "m-a3-lobby",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.6139509653227235,
+      "field": 0.6141043952093705,
+      "simS": 0.33333333333333215,
+      "ms": 330,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0,
+      "ms": 948
+     },
+     "behind": [],
+     "ms": {
+      "settle": 332,
+      "pin": 5,
+      "aim": 8,
+      "converge": 948,
+      "capture": 191,
+      "total": 1490
+     }
+    },
+    {
+     "id": "m-a4-aisle",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.9189473182666621,
+      "field": 0.9188105654666472,
+      "simS": 0.33333333333333215,
+      "ms": 327,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0,
+      "ms": 805
+     },
+     "behind": [],
+     "ms": {
+      "settle": 330,
+      "pin": 1,
+      "aim": 6,
+      "converge": 805,
+      "capture": 142,
+      "total": 1291
+     }
+    },
+    {
+     "id": "m-a5-kiosk",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 1,
+      "field": 1,
+      "simS": 0.31666666666666554,
+      "ms": 327,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0,
+      "ms": 694
+     },
+     "behind": [],
+     "ms": {
+      "settle": 329,
+      "pin": 1,
+      "aim": 6,
+      "converge": 694,
+      "capture": 113,
+      "total": 1147
+     }
+    },
+    {
+     "id": "m-a6-kerb",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.1411764705882353,
+      "field": 0.1411764705882353,
+      "simS": 0.33333333333333215,
+      "ms": 325,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0,
+      "ms": 610
+     },
+     "behind": [],
+     "ms": {
+      "settle": 327,
+      "pin": 1,
+      "aim": 5,
+      "converge": 610,
+      "capture": 91,
+      "total": 1038
+     }
+    },
+    {
+     "id": "m-a7-corridor",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.9232832831769153,
+      "field": 0.922787105901937,
+      "simS": 0.33333333333333215,
+      "ms": 329,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0,
+      "ms": 727
+     },
+     "behind": [],
+     "ms": {
+      "settle": 332,
+      "pin": 1,
+      "aim": 5,
+      "converge": 727,
+      "capture": 120,
+      "total": 1188
+     }
+    },
+    {
+     "id": "m-a8-vestibule",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.1411764705882353,
+      "field": 0.1411764705882353,
+      "simS": 0.31666666666666554,
+      "ms": 327,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0.0000015581699346414735,
+      "ms": 659
+     },
+     "behind": [],
+     "ms": {
+      "settle": 329,
+      "pin": 1,
+      "aim": 2,
+      "converge": 659,
+      "capture": 103,
+      "total": 1096
+     }
+    },
+    {
+     "id": "m-f-gallery",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 1,
+      "field": 1,
+      "simS": 0.33333333333333215,
+      "ms": 329,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0,
+      "ms": 629
+     },
+     "behind": [],
+     "ms": {
+      "settle": 332,
+      "pin": 1,
+      "aim": 5,
+      "converge": 629,
+      "capture": 97,
+      "total": 1067
+     }
+    }
+   ],
+   "errors": [],
+   "consoleErrors": []
+  },
+  {
+   "map": "campusOps",
+   "preset": "low",
+   "bootMs": 21138,
+   "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4090 Laptop GPU (0x00002757) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "chrome": "141.0.7390.37",
+   "torchCount": 4,
+   "wallMs": 40330,
+   "shots": [
+    {
+     "id": "cp-s1-b",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.8121397671848426,
+      "field": 0.8124619349286788,
+      "simS": 0.31666666666666676,
+      "ms": 307,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0,
+      "ms": 900
+     },
+     "behind": [],
+     "ms": {
+      "settle": 341,
+      "pin": 14,
+      "aim": 4879,
+      "converge": 900,
+      "capture": 153,
+      "total": 6290
+     }
+    },
+    {
+     "id": "cp-s1-f",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.30764108204145996,
+      "field": 0.30769356587017915,
+      "simS": 0.33333333333333437,
+      "ms": 327,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0,
+      "ms": 711
+     },
+     "behind": [],
+     "ms": {
+      "settle": 330,
+      "pin": 1,
+      "aim": 3,
+      "converge": 711,
+      "capture": 126,
+      "total": 1174
+     }
+    },
+    {
+     "id": "cp-s2-b",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.18660008463052938,
+      "field": 0.18722685283611537,
+      "simS": 0.316666666666666,
+      "ms": 322,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0,
+      "ms": 760
+     },
+     "behind": [],
+     "ms": {
+      "settle": 335,
+      "pin": 3,
+      "aim": 3,
+      "converge": 760,
+      "capture": 132,
+      "total": 1239
+     }
+    },
+    {
+     "id": "cp-s2-d",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.19460127310520248,
+      "field": 0.18137254901960784,
+      "simS": 0.33333333333333215,
+      "ms": 326,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0,
+      "ms": 573
+     },
+     "behind": [],
+     "ms": {
+      "settle": 327,
+      "pin": 1,
+      "aim": 3,
+      "converge": 573,
+      "capture": 76,
+      "total": 983
+     }
+    },
+    {
+     "id": "cp-s3-a",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.4438037888459694,
+      "field": 0.4437906249794682,
+      "simS": 0.33333333333333215,
+      "ms": 325,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0,
+      "ms": 718
+     },
+     "behind": [],
+     "ms": {
+      "settle": 327,
+      "pin": 1,
+      "aim": 5,
+      "converge": 718,
+      "capture": 115,
+      "total": 1170
+     }
+    },
+    {
+     "id": "cp-s3-c",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.41481257371450625,
+      "field": 0.3519367587911889,
+      "simS": 0.31666666666666554,
+      "ms": 324,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0,
+      "ms": 779
+     },
+     "behind": [],
+     "ms": {
+      "settle": 325,
+      "pin": 1,
+      "aim": 2,
+      "converge": 779,
+      "capture": 126,
+      "total": 1236
+     }
+    },
+    {
+     "id": "cp-s4-a",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.39312858251495336,
+      "field": 0.39414514955102775,
+      "simS": 0.33333333333333215,
+      "ms": 329,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0,
+      "ms": 611
+     },
+     "behind": [],
+     "ms": {
+      "settle": 332,
+      "pin": 1,
+      "aim": 3,
+      "converge": 611,
+      "capture": 100,
+      "total": 1053
+     }
+    },
+    {
+     "id": "cp-s4-e",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.5009713388606961,
+      "field": 0.5019838499481896,
+      "simS": 0.33333333333333215,
+      "ms": 325,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0,
+      "ms": 790
+     },
+     "behind": [],
+     "ms": {
+      "settle": 327,
+      "pin": 2,
+      "aim": 5,
+      "converge": 790,
+      "capture": 133,
+      "total": 1261
+     }
+    },
+    {
+     "id": "cp-s5-a",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 1,
+      "field": 1,
+      "simS": 0.31666666666666554,
+      "ms": 324,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0,
+      "ms": 817
+     },
+     "behind": [],
+     "ms": {
+      "settle": 326,
+      "pin": 1,
+      "aim": 2,
+      "converge": 817,
+      "capture": 151,
+      "total": 1301
+     }
+    },
+    {
+     "id": "cp-s5-d",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.1411764705882353,
+      "field": 0.1411764705882353,
+      "simS": 0.33333333333333215,
+      "ms": 324,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0,
+      "ms": 600
+     },
+     "behind": [],
+     "ms": {
+      "settle": 329,
+      "pin": 1,
+      "aim": 6,
+      "converge": 600,
+      "capture": 88,
+      "total": 1031
+     }
+    },
+    {
+     "id": "cp-door",
+     "kind": "rig",
+     "rigState": "on",
+     "settle": {
+      "meter": 0.25905922525778113,
+      "field": 0.25912635090790126,
+      "simS": 0.31666666666666554,
+      "ms": 320,
+      "guards": 1,
+      "torch": {
+       "want": true,
+       "has": true
+      },
+      "othersLit": 0,
+      "door": {
+       "shut": true,
+       "dist": 0
+      }
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0,
+      "ms": 628
+     },
+     "behind": [],
+     "ms": {
+      "settle": 322,
+      "pin": 1,
+      "aim": 7,
+      "converge": 628,
+      "capture": 98,
+      "total": 1058
+     }
+    },
+    {
+     "id": "cp-door",
+     "kind": "rig",
+     "rigState": "off",
+     "settle": {
+      "meter": 0.25905922525778113,
+      "field": 0.25912635090790126,
+      "simS": 0.316666666666666,
+      "ms": 322,
+      "guards": 1,
+      "torch": {
+       "want": false,
+       "has": false
+      },
+      "othersLit": 0,
+      "door": {
+       "shut": true,
+       "dist": 0
+      }
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0,
+      "ms": 624
+     },
+     "behind": [],
+     "ms": {
+      "settle": 324,
+      "pin": 1,
+      "aim": 9,
+      "converge": 624,
+      "capture": 97,
+      "total": 1057
+     }
+    }
+   ],
+   "errors": [],
+   "consoleErrors": []
+  },
+  {
+   "map": "warehouse",
+   "preset": "epic",
+   "bootMs": 15873,
+   "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4090 Laptop GPU (0x00002757) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "chrome": "141.0.7390.37",
+   "torchCount": 4,
+   "wallMs": 41895,
+   "shots": [
+    {
+     "id": "wh-floods-dock",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.19614662136230174,
+      "field": 0.19614840628888716,
+      "simS": 0.4,
+      "ms": 2104,
+      "guards": 9,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0.0005812106753816937,
+      "ms": 1155
+     },
+     "behind": [],
+     "ms": {
+      "settle": 2567,
+      "pin": 119,
+      "aim": 10583,
+      "converge": 1155,
+      "capture": 195,
+      "total": 14626
+     }
+    },
+    {
+     "id": "wh-flood-workshop",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.7807525775785111,
+      "field": 0.7817117181040711,
+      "simS": 0.33333333333333215,
+      "ms": 344,
+      "guards": 9,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0.0006332771241831792,
+      "ms": 1209
+     },
+     "behind": [],
+     "ms": {
+      "settle": 347,
+      "pin": 6,
+      "aim": 10,
+      "converge": 1209,
+      "capture": 236,
+      "total": 1850
+     }
+    },
+    {
+     "id": "card-wh-floods-dock-1",
+     "kind": "card",
+     "rigState": null,
+     "converge": {
+      "ok": true,
+      "frames": 70,
+      "reads": 5,
+      "lastDelta": 0.002735143355119818,
+      "ms": 2670
+     },
+     "ms": {
+      "aim": 2287,
+      "converge": 2670,
+      "capture": 347,
+      "total": 5371
+     }
+    },
+    {
+     "id": "card-wh-floods-dock-2",
+     "kind": "card",
+     "rigState": null,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0,
+      "ms": 1423
+     },
+     "ms": {
+      "aim": 544,
+      "converge": 1423,
+      "capture": 383,
+      "total": 2374
+     }
+    },
+    {
+     "id": "card-wh-floods-dock-3",
+     "kind": "card",
+     "rigState": null,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0.00008371786492381017,
+      "ms": 969
+     },
+     "ms": {
+      "aim": 10,
+      "converge": 969,
+      "capture": 149,
+      "total": 1148
+     }
+    }
+   ],
+   "errors": [],
+   "consoleErrors": []
+  },
+  {
+   "map": "warehouseOps",
+   "preset": "epic",
+   "bootMs": 20233,
+   "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4090 Laptop GPU (0x00002757) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "chrome": "141.0.7390.37",
+   "torchCount": 4,
+   "wallMs": 56402,
+   "shots": [
+    {
+     "id": "so-s1-goods-in",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.6248666834597228,
+      "field": 0.6248989085609009,
+      "simS": 0.33333333333333376,
+      "ms": 1373,
+      "guards": 4,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0.002100945098039299,
+      "ms": 1148
+     },
+     "behind": [],
+     "ms": {
+      "settle": 1451,
+      "pin": 141,
+      "aim": 10657,
+      "converge": 1148,
+      "capture": 163,
+      "total": 13569
+     }
+    },
+    {
+     "id": "so-s1-girder",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.71644064494054,
+      "field": 0.7164945543614833,
+      "simS": 0.3166666666666672,
+      "ms": 338,
+      "guards": 4,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0.0012258178649238172,
+      "ms": 1057
+     },
+     "behind": [],
+     "ms": {
+      "settle": 360,
+      "pin": 66,
+      "aim": 24,
+      "converge": 1057,
+      "capture": 173,
+      "total": 1689
+     }
+    },
+    {
+     "id": "so-s1-workshop",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.5061242382699153,
+      "field": 0.5059746566546001,
+      "simS": 0.33333333333333215,
+      "ms": 328,
+      "guards": 4,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0.0005960734204793969,
+      "ms": 997
+     },
+     "behind": [],
+     "ms": {
+      "settle": 421,
+      "pin": 4,
+      "aim": 12,
+      "converge": 998,
+      "capture": 205,
+      "total": 1651
+     }
+    },
+    {
+     "id": "so-s2-aisle",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.5533012652404006,
+      "field": 0.553119778364286,
+      "simS": 0.33333333333333215,
+      "ms": 350,
+      "guards": 4,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0.0014293178649237084,
+      "ms": 2037
+     },
+     "behind": [],
+     "ms": {
+      "settle": 357,
+      "pin": 8,
+      "aim": 12,
+      "converge": 2037,
+      "capture": 184,
+      "total": 2612
+     }
+    },
+    {
+     "id": "so-s3-hall",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.7229835437453859,
+      "field": 0.7227485508064339,
+      "simS": 0.33333333333333215,
+      "ms": 597,
+      "guards": 4,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0.003124427450980266,
+      "ms": 1450
+     },
+     "behind": [],
+     "ms": {
+      "settle": 601,
+      "pin": 9,
+      "aim": 17,
+      "converge": 1450,
+      "capture": 219,
+      "total": 2304
+     }
+    },
+    {
+     "id": "so-door",
+     "kind": "rig",
+     "rigState": "on",
+     "settle": {
+      "meter": 0.3133886031418717,
+      "field": 0.31986739722980484,
+      "simS": 0.34999999999999876,
+      "ms": 645,
+      "guards": 4,
+      "torch": {
+       "want": true,
+       "has": true
+      },
+      "othersLit": 0,
+      "door": {
+       "shut": true,
+       "dist": 0
+      }
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0.0000023372549019604755,
+      "ms": 743
+     },
+     "behind": [],
+     "ms": {
+      "settle": 647,
+      "pin": 8,
+      "aim": 18,
+      "converge": 743,
+      "capture": 126,
+      "total": 1546
+     }
+    },
+    {
+     "id": "so-door",
+     "kind": "rig",
+     "rigState": "off",
+     "settle": {
+      "meter": 0.31987054929065484,
+      "field": 0.31986739722980484,
+      "simS": 0.31666666666666554,
+      "ms": 317,
+      "guards": 4,
+      "torch": {
+       "want": false,
+       "has": false
+      },
+      "othersLit": 0,
+      "door": {
+       "shut": true,
+       "dist": 0
+      }
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0.000033343355119948986,
+      "ms": 639
+     },
+     "behind": [],
+     "ms": {
+      "settle": 320,
+      "pin": 4,
+      "aim": 5,
+      "converge": 639,
+      "capture": 98,
+      "total": 1070
+     }
+    },
+    {
+     "id": "so-corner",
+     "kind": "rig",
+     "rigState": "on",
+     "settle": {
+      "meter": 0.28043171913388404,
+      "field": 0.28043004968085566,
+      "simS": 0.33333333333333215,
+      "ms": 325,
+      "guards": 4,
+      "torch": {
+       "want": true,
+       "has": true
+      },
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0.00026265838779963857,
+      "ms": 886
+     },
+     "behind": [],
+     "ms": {
+      "settle": 327,
+      "pin": 1,
+      "aim": 6,
+      "converge": 886,
+      "capture": 154,
+      "total": 1380
+     }
+    },
+    {
+     "id": "so-corner",
+     "kind": "rig",
+     "rigState": "off",
+     "settle": {
+      "meter": 0.28043171913388404,
+      "field": 0.28043004968085566,
+      "simS": 0.31666666666666554,
+      "ms": 326,
+      "guards": 4,
+      "torch": {
+       "want": false,
+       "has": false
+      },
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0.00023216100217868935,
+      "ms": 862
+     },
+     "behind": [],
+     "ms": {
+      "settle": 328,
+      "pin": 1,
+      "aim": 5,
+      "converge": 862,
+      "capture": 157,
+      "total": 1357
+     }
+    },
+    {
+     "id": "card-so-s1-workshop-1",
+     "kind": "card",
+     "rigState": null,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0.0007120333333332785,
+      "ms": 913
+     },
+     "ms": {
+      "aim": 1631,
+      "converge": 913,
+      "capture": 264,
+      "total": 2829
+     }
+    },
+    {
+     "id": "card-so-s2-aisle-1",
+     "kind": "card",
+     "rigState": null,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0.0016727021786484275,
+      "ms": 913
+     },
+     "ms": {
+      "aim": 3742,
+      "converge": 913,
+      "capture": 166,
+      "total": 4867
+     }
+    },
+    {
+     "id": "card-so-s2-aisle-2",
+     "kind": "card",
+     "rigState": null,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0.00016048976034870044,
+      "ms": 640
+     },
+     "ms": {
+      "aim": 304,
+      "converge": 640,
+      "capture": 102,
+      "total": 1065
+     }
+    }
+   ],
+   "errors": [],
+   "consoleErrors": []
+  },
+  {
+   "map": "ctcourse",
+   "preset": "epic",
+   "bootMs": 11629,
+   "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4090 Laptop GPU (0x00002757) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "chrome": "141.0.7390.37",
+   "torchCount": 4,
+   "wallMs": 75318,
+   "shots": [
+    {
+     "id": "m-a1-lounge",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.7887591564343905,
+      "field": 0.7887499398779568,
+      "simS": 0.40000000000000036,
+      "ms": 3008,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0.0005463117647058202,
+      "ms": 1254
+     },
+     "behind": [],
+     "ms": {
+      "settle": 3081,
+      "pin": 27,
+      "aim": 8139,
+      "converge": 1254,
+      "capture": 236,
+      "total": 12745
+     }
+    },
+    {
+     "id": "m-a2-vantage",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.49065920873808444,
+      "field": 0.49058092699550826,
+      "simS": 0.35000000000000053,
+      "ms": 347,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0.0012783283224410136,
+      "ms": 1932
+     },
+     "behind": [],
+     "ms": {
+      "settle": 349,
+      "pin": 6,
+      "aim": 13,
+      "converge": 1932,
+      "capture": 330,
+      "total": 2638
+     }
+    },
+    {
+     "id": "m-a3-lobby",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.6139509653227235,
+      "field": 0.6141043952093705,
+      "simS": 0.31666666666666554,
+      "ms": 322,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 70,
+      "reads": 5,
+      "lastDelta": 0.00044631742919379325,
+      "ms": 1313
+     },
+     "behind": [],
+     "ms": {
+      "settle": 326,
+      "pin": 7,
+      "aim": 20,
+      "converge": 1313,
+      "capture": 216,
+      "total": 1891
+     }
+    },
+    {
+     "id": "m-a4-aisle",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.9189473182666621,
+      "field": 0.9188105654666472,
+      "simS": 0.33333333333333215,
+      "ms": 340,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0.0011690217864929464,
+      "ms": 848
+     },
+     "behind": [],
+     "ms": {
+      "settle": 344,
+      "pin": 5,
+      "aim": 9,
+      "converge": 848,
+      "capture": 151,
+      "total": 1363
+     }
+    },
+    {
+     "id": "m-a5-kiosk",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 1,
+      "field": 1,
+      "simS": 0.34999999999999876,
+      "ms": 349,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0.0002617797385622289,
+      "ms": 2727
+     },
+     "behind": [],
+     "ms": {
+      "settle": 357,
+      "pin": 10,
+      "aim": 24,
+      "converge": 2727,
+      "capture": 571,
+      "total": 3711
+     }
+    },
+    {
+     "id": "m-a6-kerb",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.1411764705882353,
+      "field": 0.1411764705882353,
+      "simS": 0.31666666666666554,
+      "ms": 309,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0.0000011636165577200153,
+      "ms": 934
+     },
+     "behind": [],
+     "ms": {
+      "settle": 373,
+      "pin": 4,
+      "aim": 17,
+      "converge": 934,
+      "capture": 136,
+      "total": 1472
+     }
+    },
+    {
+     "id": "m-a7-corridor",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.9232832831769153,
+      "field": 0.922787105901937,
+      "simS": 0.33333333333333215,
+      "ms": 335,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 70,
+      "reads": 5,
+      "lastDelta": 0.0010241015250542357,
+      "ms": 998
+     },
+     "behind": [],
+     "ms": {
+      "settle": 341,
+      "pin": 5,
+      "aim": 15,
+      "converge": 998,
+      "capture": 141,
+      "total": 1506
+     }
+    },
+    {
+     "id": "m-a8-vestibule",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.1411764705882353,
+      "field": 0.1411764705882353,
+      "simS": 0.33333333333333215,
+      "ms": 326,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 140,
+      "reads": 12,
+      "lastDelta": 0.0011844923747278968,
+      "ms": 1837
+     },
+     "behind": [],
+     "ms": {
+      "settle": 330,
+      "pin": 1,
+      "aim": 7,
+      "converge": 1837,
+      "capture": 130,
+      "total": 2311
+     }
+    },
+    {
+     "id": "m-f-gallery",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 1,
+      "field": 1,
+      "simS": 0.31666666666666554,
+      "ms": 320,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": false,
+      "frames": 650,
+      "reads": 63,
+      "lastDelta": 0.00823729389978209,
+      "ms": 8309
+     },
+     "behind": [],
+     "ms": {
+      "settle": 322,
+      "pin": 6,
+      "aim": 12,
+      "converge": 8309,
+      "capture": 98,
+      "total": 8752
+     }
+    },
+    {
+     "id": "card-m-a5-kiosk-1",
+     "kind": "card",
+     "rigState": null,
+     "converge": {
+      "ok": false,
+      "frames": 510,
+      "reads": 49,
+      "lastDelta": 0.008833053159041397,
+      "ms": 8455
+     },
+     "ms": {
+      "aim": 1320,
+      "converge": 8455,
+      "capture": 142,
+      "total": 9928
+     }
+    },
+    {
+     "id": "card-m-a5-kiosk-2",
+     "kind": "card",
+     "rigState": null,
+     "converge": {
+      "ok": false,
+      "frames": 410,
+      "reads": 39,
+      "lastDelta": 0.007845620915033213,
+      "ms": 8497
+     },
+     "ms": {
+      "aim": 3,
+      "converge": 8497,
+      "capture": 193,
+      "total": 8708
+     }
+    },
+    {
+     "id": "card-m-a5-kiosk-3",
+     "kind": "card",
+     "rigState": null,
+     "converge": {
+      "ok": false,
+      "frames": 630,
+      "reads": 61,
+      "lastDelta": 0.012759203485838826,
+      "ms": 8309
+     },
+     "ms": {
+      "aim": 5,
+      "converge": 8309,
+      "capture": 104,
+      "total": 8429
+     }
+    }
+   ],
+   "errors": [],
+   "consoleErrors": []
+  },
+  {
+   "map": "campusOps",
+   "preset": "epic",
+   "bootMs": 12356,
+   "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4090 Laptop GPU (0x00002757) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+   "chrome": "141.0.7390.37",
+   "torchCount": 4,
+   "wallMs": 60234,
+   "shots": [
+    {
+     "id": "cp-s1-b",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.8121397671848426,
+      "field": 0.8124619349286788,
+      "simS": 0.33333333333333354,
+      "ms": 412,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": false,
+      "frames": 450,
+      "reads": 43,
+      "lastDelta": 0.017138943137254503,
+      "ms": 8469
+     },
+     "behind": [],
+     "ms": {
+      "settle": 471,
+      "pin": 239,
+      "aim": 8781,
+      "converge": 8469,
+      "capture": 152,
+      "total": 18116
+     }
+    },
+    {
+     "id": "cp-s1-f",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.30764108204145996,
+      "field": 0.30769356587017915,
+      "simS": 0.33333333333333437,
+      "ms": 332,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0.00022449084967321453,
+      "ms": 1141
+     },
+     "behind": [],
+     "ms": {
+      "settle": 334,
+      "pin": 6,
+      "aim": 13,
+      "converge": 1141,
+      "capture": 189,
+      "total": 1690
+     }
+    },
+    {
+     "id": "cp-s2-b",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.18660008463052938,
+      "field": 0.18722685283611537,
+      "simS": 0.34999999999999887,
+      "ms": 349,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 7.790849672895117e-7,
+      "ms": 1293
+     },
+     "behind": [],
+     "ms": {
+      "settle": 362,
+      "pin": 12,
+      "aim": 21,
+      "converge": 1293,
+      "capture": 257,
+      "total": 1960
+     }
+    },
+    {
+     "id": "cp-s2-d",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.19529420177460438,
+      "field": 0.18137254901960784,
+      "simS": 0.36666666666666536,
+      "ms": 367,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0.00001627647058823848,
+      "ms": 606
+     },
+     "behind": [],
+     "ms": {
+      "settle": 374,
+      "pin": 8,
+      "aim": 17,
+      "converge": 606,
+      "capture": 90,
+      "total": 1103
+     }
+    },
+    {
+     "id": "cp-s3-a",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.4438037888459694,
+      "field": 0.4437906249794682,
+      "simS": 0.33333333333333215,
+      "ms": 328,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0.0003420006535951037,
+      "ms": 793
+     },
+     "behind": [],
+     "ms": {
+      "settle": 331,
+      "pin": 5,
+      "aim": 8,
+      "converge": 793,
+      "capture": 139,
+      "total": 1280
+     }
+    },
+    {
+     "id": "cp-s3-c",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.4155544833869042,
+      "field": 0.3519367587911889,
+      "simS": 0.31666666666666554,
+      "ms": 322,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": false,
+      "frames": 370,
+      "reads": 35,
+      "lastDelta": 2.3159041395715008e-7,
+      "ms": 8334
+     },
+     "behind": [],
+     "ms": {
+      "settle": 324,
+      "pin": 6,
+      "aim": 10,
+      "converge": 8334,
+      "capture": 272,
+      "total": 8952
+     }
+    },
+    {
+     "id": "cp-s4-a",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.39312858251495336,
+      "field": 0.39414514955102775,
+      "simS": 0.34999999999999876,
+      "ms": 329,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0.0014138895424841147,
+      "ms": 819
+     },
+     "behind": [],
+     "ms": {
+      "settle": 356,
+      "pin": 1,
+      "aim": 9,
+      "converge": 819,
+      "capture": 196,
+      "total": 1409
+     }
+    },
+    {
+     "id": "cp-s4-e",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.5009713388606961,
+      "field": 0.5019838499481896,
+      "simS": 0.34999999999999876,
+      "ms": 339,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0.0013822732026144424,
+      "ms": 1172
+     },
+     "behind": [],
+     "ms": {
+      "settle": 344,
+      "pin": 4,
+      "aim": 11,
+      "converge": 1172,
+      "capture": 255,
+      "total": 1818
+     }
+    },
+    {
+     "id": "cp-s5-a",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 1,
+      "field": 1,
+      "simS": 0.31666666666666554,
+      "ms": 320,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0.0007268769063179942,
+      "ms": 971
+     },
+     "behind": [],
+     "ms": {
+      "settle": 323,
+      "pin": 1,
+      "aim": 8,
+      "converge": 971,
+      "capture": 297,
+      "total": 1606
+     }
+    },
+    {
+     "id": "cp-s5-d",
+     "kind": "view",
+     "rigState": null,
+     "settle": {
+      "meter": 0.1411764705882353,
+      "field": 0.1411764705882353,
+      "simS": 0.33333333333333215,
+      "ms": 326,
+      "guards": 1,
+      "torch": null,
+      "othersLit": 0,
+      "door": null
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0.00045563202614364723,
+      "ms": 883
+     },
+     "behind": [],
+     "ms": {
+      "settle": 330,
+      "pin": 5,
+      "aim": 11,
+      "converge": 883,
+      "capture": 135,
+      "total": 1378
+     }
+    },
+    {
+     "id": "cp-door",
+     "kind": "rig",
+     "rigState": "on",
+     "settle": {
+      "meter": 0.25905922525778113,
+      "field": 0.25912635090790126,
+      "simS": 0.3499999999999992,
+      "ms": 360,
+      "guards": 1,
+      "torch": {
+       "want": true,
+       "has": true
+      },
+      "othersLit": 0,
+      "door": {
+       "shut": true,
+       "dist": 0
+      }
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0.00010788932461861661,
+      "ms": 886
+     },
+     "behind": [],
+     "ms": {
+      "settle": 367,
+      "pin": 8,
+      "aim": 22,
+      "converge": 886,
+      "capture": 145,
+      "total": 1435
+     }
+    },
+    {
+     "id": "cp-door",
+     "kind": "rig",
+     "rigState": "off",
+     "settle": {
+      "meter": 0.25905922525778113,
+      "field": 0.25912635090790126,
+      "simS": 0.36666666666666536,
+      "ms": 361,
+      "guards": 1,
+      "torch": {
+       "want": false,
+       "has": false
+      },
+      "othersLit": 0,
+      "door": {
+       "shut": true,
+       "dist": 0
+      }
+     },
+     "pin": {
+      "flickers": 1,
+      "swayed": false
+     },
+     "aimReady": true,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0.00009805925925911174,
+      "ms": 696
+     },
+     "behind": [],
+     "ms": {
+      "settle": 364,
+      "pin": 5,
+      "aim": 8,
+      "converge": 696,
+      "capture": 94,
+      "total": 1171
+     }
+    },
+    {
+     "id": "card-cp-s1-f-1",
+     "kind": "card",
+     "rigState": null,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0,
+      "ms": 932
+     },
+     "ms": {
+      "aim": 1691,
+      "converge": 932,
+      "capture": 188,
+      "total": 2820
+     }
+    },
+    {
+     "id": "card-cp-s1-f-2",
+     "kind": "card",
+     "rigState": null,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0.0008063237472771267,
+      "ms": 945
+     },
+     "ms": {
+      "aim": 280,
+      "converge": 945,
+      "capture": 177,
+      "total": 1415
+     }
+    },
+    {
+     "id": "card-cp-s1-f-3",
+     "kind": "card",
+     "rigState": null,
+     "converge": {
+      "ok": true,
+      "frames": 60,
+      "reads": 4,
+      "lastDelta": 0,
+      "ms": 929
+     },
+     "ms": {
+      "aim": 283,
+      "converge": 929,
+      "capture": 127,
+      "total": 1357
+     }
+    }
+   ],
+   "errors": [],
+   "consoleErrors": []
+  }
+ ]
+}

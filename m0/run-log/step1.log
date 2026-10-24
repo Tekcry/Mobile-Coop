@@ -1,0 +1,27 @@
+
+$ git fetch -q origin feature/visual-gate && git archive FETCH_HEAD scripts/e2e-visual.mjs scripts/visual-gate | tar -xf - && node scripts/laptop-queue/serve.mjs scripts/e2e-visual.mjs http://127.0.0.1:4189/ --time --json C:/NightShift/scratch/visual-gate/m0/m0.json --png C:/NightShift/scratch/visual-gate/m0/png
+e2e-visual --time: warehouse, warehouseOps, ctcourse, campusOps x low, epic (one browser per preset, at once)
+  warehouse@low: 2 shots, 0 errors, 29.1 s
+  warehouse@epic: 5 shots, 0 errors, 41.9 s
+  warehouseOps@low: 9 shots, 0 errors, 48.3 s
+  warehouseOps@epic: 12 shots, 0 errors, 56.4 s
+  ctcourse@low: 9 shots, 0 errors, 30.6 s
+  campusOps@low: 12 shots, 0 errors, 40.3 s
+  ctcourse@epic: 12 shots, 0 errors, 75.3 s
+  campusOps@epic: 15 shots, 0 errors, 60.2 s
+
+| map | preset | boot ms | views | rig shots | cards | settle mean / max ms | converge mean ms | capture mean ms | converge fails | errors | wall s |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| warehouse | low | 12677 | 2/2 | 0/0 | 0/0 | 1276 / 2205 | 1389 | 213 | 0 | 0 | 29.1 |
+| warehouseOps | low | 16860 | 5/5 | 4/4 | 0/0 | 477 / 881 | 1809 | 394 | 0 | 0 | 48.3 |
+| ctcourse | low | 15053 | 9/9 | 0/0 | 0/0 | 340 / 430 | 710 | 116 | 0 | 0 | 30.6 |
+| campusOps | low | 21138 | 10/10 | 2/2 | 0/0 | 329 / 341 | 709 | 116 | 0 | 0 | 40.3 |
+| warehouse | epic | 15873 | 2/2 | 0/0 | 3/3 | 1457 / 2567 | 1485 | 262 | 0 | 0 | 41.9 |
+| warehouseOps | epic | 20233 | 5/5 | 4/4 | 3/3 | 535 / 1451 | 1024 | 168 | 0 | 0 | 56.4 |
+| ctcourse | epic | 11629 | 9/9 | 0/0 | 3/3 | 647 / 3081 | 3784 | 204 | 4 | 0 | 75.3 |
+| campusOps | epic | 12356 | 10/10 | 2/2 | 3/3 | 357 / 471 | 1925 | 181 | 2 | 0 | 60.2 |
+
+- low browser: 32 renders, boots 65.7 s, wall 148.3 s
+- epic browser: 44 renders, boots 60.1 s, wall 233.8 s
+- wall time: 233.9 s
+json: C:/NightShift/scratch/visual-gate/m0/m0.json
