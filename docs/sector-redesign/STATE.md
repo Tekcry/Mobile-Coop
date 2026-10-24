@@ -352,6 +352,7 @@ then git worktree remove --force. Train-ready = message + `gh pr edit <n> --add-
 ```
 Night Shift | Sector Ops Build: RESUME (saved 2026-10-25 ~09:08 at the orchestrator's 92% save; reset 13:10 or swap).
 git fetch; read CLAUDE.md "Sessions" (origin/master). Full burn. Three jobs + visual-gate:
+0. FIRST: send the S1 car park lux grid + GPU shot request (light-realism) the moment the measurer's script is on   origin/feature/light-realism (scripts/light-realism/s1-shots.mjs; the exact request command is in   docs/light-realism/measure/S1-carpark.md; set light-s1, --alone, on that pushed head). If the script is missing,   rerun the measurer from that doc's task list. Send the result to the orchestrator for Michael.   S3 brief DONE 0c7c02e8 (R1a frame then R1-R4 parallel, 7 PRs, 22 plan conflicts P1-P22 with builder defaults).
 1. CAMPUS-GREYBOX (Michael signed S1-S5 ~08:50; picks on signoff pages 7c021f01). Worktree C:/NightShift/Mobile-Coop-
    campus-greybox, branch feature/campus-greybox (WIP a0097ba1 at the save). P0 (Opus) was building the dark-merge
    scaffold: per-section flag in flags.ts, per-section data split (campusS1-3Data.ts, campusParts.ts, selector in
