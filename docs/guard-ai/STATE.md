@@ -1025,6 +1025,8 @@ WIP snapshots (branches untouched): origin/wip/guard-ai-polish-fix ba1dc579 (fix
    1477 tests (group A 104 / 1801 on its head). RUNNING: Opus checkers A (A184 / A186 / A187 / A189 / A190 / A194) +
    B (A185 / A188 / A191 / A192 / A193, drone test, docs) -> docs/guard-ai/slices/POLISH2-CHECK-A/B.md (lead commits);
    laptop polish2 (e2e-stealth-ai e2e-ctcourse, ...-802e). Both green -> checker status + orchestrator train-ready.
+   CI `check` red until pr-size hotfix #378 merges (Michael's OK; branches before 4.100.0 lack scripts/pr-size.mjs):
+   after it merges `gh run rerun --failed` on #377 / #360 / #317 heads. No master merge.
 5. Mission hooks (Marlow, after Michael signs off the mission specs): em.missionOrder(guardTag, 'reset' | 'walk',
    postId, via?) wrapping Enemy.resetBreaker / Enemy.sendTo. Wait for Marlow's go.
 6. Michael's calls: A148 reinforcements at spawn; S23 client arcs / LKP ghost; S25 flares. After #317 merges:
