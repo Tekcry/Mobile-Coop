@@ -17,7 +17,7 @@
       "S5"
     ]
   },
-  "sync": [
+  "syncs": [
     {
       "id": "sync-s4-dockboard",
       "kind": "code_source",

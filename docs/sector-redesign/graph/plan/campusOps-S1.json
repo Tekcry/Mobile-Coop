@@ -169,7 +169,7 @@
       "reason": "C1 staff entrance vestibule: badge door (-20,-34), 4 m vestibule, far door (-20,-30) into the HQ reception (section connector)",
       "note": "Spine link to S2's entry s2-foyer (V5f-1: the guessed id s2-reception renamed to S2's real entry, S2.md). Both C1 doors are 1.2 wide, in line, 4.0 m apart (clear 3.7). length 19.5 = forecourt middle (-10,-40) to the near door, the vestibule, far door to the foyer middle (-19,-26.5)." }
   ],
-  "sync": [
+  "syncs": [
     { "id": "sync-s1-gate-desk", "kind": "camera_loop", "space": "s1-gatehouse",
       "src": "src/game/sectorDesks.ts:14 (E6 SecurityDesk, built); S1 entry planned in campusSectors.ts CAMPUS_SECURITY.desks: { id 'desk-gate', section 0, at [18.8,-73.2], cameras ['cam-gate','cam-walk'], operator 1 (#2) }",
       "lead": "s1-gatehouse", "track": "B",

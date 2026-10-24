@@ -724,7 +724,7 @@
       "note": "V5f-1: spine link added from S3.md \"Spine links for the merge\" (S3 owns the link to S4). Width 3.7 = the stub's clear width (S3.md), off the 0.5 grid as built; both doors 1.2 x 2.1. length 27 = dock middle (31, -4) to the far door about 24 m (S3.md) + 3 m to the S4 dock middle (24, 19). Kept unchanged by the re-plan (planner rule)."
     }
   ],
-  "sync": [
+  "syncs": [
     {
       "id": "sync-s3-isolator",
       "kind": "power_cut",

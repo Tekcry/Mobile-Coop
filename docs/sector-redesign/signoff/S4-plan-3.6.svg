@@ -177,12 +177,12 @@
 <rect x="148" y="62" width="64" height="12" fill="none" stroke="#d01818" stroke-width="1.2" stroke-dasharray="3,2"/>
 <line x1="148" y1="62" x2="212" y2="74" stroke="#d01818" stroke-width="1"/><line x1="212" y1="62" x2="148" y2="74" stroke="#d01818" stroke-width="1"/>
 <rect x="160" y="60" width="42" height="26" fill="none" stroke="#222" stroke-width="2.5"/>
-<text x="162" y="52" fill="#111" font-size="7">new stair hole</text>
+<text x="122" y="96" fill="#111" font-size="7">stair hole</text>
 <rect x="241" y="79" width="12" height="12" fill="none" stroke="#222" stroke-width="2.5"/>
 <rect x="237" y="82" width="6" height="6" fill="#fff" stroke="#222" stroke-width="1.5"/>
-<text x="256" y="76" fill="#111" font-size="7">escape platform + ladder</text>
+<text x="258" y="90" fill="#111" font-size="7">escape platform + ladder (to nc)</text>
 <rect x="220" y="62" width="12" height="12" fill="none" stroke="#222" stroke-width="2.5"/>
-<text x="200" y="48" fill="#111" font-size="7">roof hatch ladder</text>
+<text x="258" y="72" fill="#111" font-size="7">roof hatch ladder (6.6, 47.2) to deck</text>
 <polyline points="301,338 210,345 196,320 196,127 340,127 340,174" fill="none" stroke="#e07b00" stroke-width="2" stroke-linejoin="round" opacity="0.9"/>
 <polyline points="121,338 210,345" fill="none" stroke="#e07b00" stroke-width="2" stroke-linejoin="round" opacity="0.9"/>
 <polyline points="482,106 481,127 340,127" fill="none" stroke="#e07b00" stroke-width="2" stroke-linejoin="round" opacity="0.9"/>
@@ -223,8 +223,8 @@
 <g transform="translate(498,32)"><polygon points="7,-6 9,-2 13,-2 10,1 11,6 7,3 3,6 4,1 1,-2 5,-2" fill="#f2c200" stroke="#222"/><text x="20" y="3" font-size="8" fill="#111">landmark</text></g>
 <g transform="translate(10,43)"><polygon points="7,-5 12,4 2,4" fill="#2a8fd8"/><text x="20" y="3" font-size="8" fill="#111">vantage + view</text></g>
 <g transform="translate(132,43)"><circle cx="7" cy="0" r="5" fill="none" stroke="#000" stroke-width="2.5"/><text x="20" y="3" font-size="8" fill="#111">choke</text></g>
-<g transform="translate(254,43)"><circle cx="7" cy="0" r="3.5" fill="#d01818"/><text x="20" y="3" font-size="8" fill="#111">guard (* new, hollow dormant)</text></g>
-<g transform="translate(376,43)"><rect x="4" y="-3" width="6" height="6" fill="#fff" stroke="#222"/><text x="20" y="3" font-size="8" fill="#111">new / moved door</text></g>
+<g transform="translate(254,43)"><circle cx="7" cy="0" r="3.5" fill="#d01818"/><text x="20" y="3" font-size="8" fill="#111">guard (*new, o dormant)</text></g>
+<g transform="translate(376,43)"><rect x="4" y="-3" width="6" height="6" fill="#fff" stroke="#222"/><text x="20" y="3" font-size="8" fill="#111">new/moved door</text></g>
 <text x="8" y="57" font-size="8" fill="#111" font-weight="bold">S4 PLAN y 3.6 (NOC 3.6, baskets 4.4, plenum 3.2) - orange = high / vent, Relay into the NOC from the roof hatch</text>
 </g>
 </svg>

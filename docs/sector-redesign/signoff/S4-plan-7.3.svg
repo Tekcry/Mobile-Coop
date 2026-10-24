@@ -84,7 +84,7 @@
 <defs><pattern id="s4hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#888" stroke-width="1.2"/></pattern></defs>
 <g id="plan">
 <rect x="220" y="62" width="12" height="12" fill="none" stroke="#222" stroke-width="2.5"/>
-<text x="194" y="50" fill="#111" font-size="7">NOC roof hatch + rails</text>
+<text x="236" y="84" fill="#111" font-size="7">NOC roof hatch + rails</text>
 <rect x="160" y="85" width="40" height="20" fill="none" stroke="#2a8fd8" stroke-width="2"/>
 <text x="125" y="113" fill="#1a5f98" font-size="7">NOC rooflight (glass)</text>
 <rect x="216" y="196" width="8" height="4" fill="none" stroke="#d01818" stroke-width="1.2" stroke-dasharray="3,2"/>
@@ -137,8 +137,8 @@
 <g transform="translate(498,32)"><polygon points="7,-6 9,-2 13,-2 10,1 11,6 7,3 3,6 4,1 1,-2 5,-2" fill="#f2c200" stroke="#222"/><text x="20" y="3" font-size="8" fill="#111">landmark</text></g>
 <g transform="translate(10,43)"><polygon points="7,-5 12,4 2,4" fill="#2a8fd8"/><text x="20" y="3" font-size="8" fill="#111">vantage + view</text></g>
 <g transform="translate(132,43)"><circle cx="7" cy="0" r="5" fill="none" stroke="#000" stroke-width="2.5"/><text x="20" y="3" font-size="8" fill="#111">choke</text></g>
-<g transform="translate(254,43)"><circle cx="7" cy="0" r="3.5" fill="#d01818"/><text x="20" y="3" font-size="8" fill="#111">guard (* new, hollow dormant)</text></g>
-<g transform="translate(376,43)"><rect x="4" y="-3" width="6" height="6" fill="#fff" stroke="#222"/><text x="20" y="3" font-size="8" fill="#111">new / moved door</text></g>
+<g transform="translate(254,43)"><circle cx="7" cy="0" r="3.5" fill="#d01818"/><text x="20" y="3" font-size="8" fill="#111">guard (*new, o dormant)</text></g>
+<g transform="translate(376,43)"><rect x="4" y="-3" width="6" height="6" fill="#fff" stroke="#222"/><text x="20" y="3" font-size="8" fill="#111">new/moved door</text></g>
 <text x="8" y="57" font-size="8" fill="#111" font-weight="bold">S4 PLAN y 7.3 plant deck - Relay crosses the dark east and north edges to the NOC roof hatch</text>
 </g>
 </svg>
