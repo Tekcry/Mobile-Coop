@@ -14,7 +14,8 @@ const PARAMS = 'autostart=warehouseOps&mode=sector&sectorGuards=4';
 // 3-5 two pages: section 1, 2, 3's co-op routes walked by host and client (leg-up, relay / rope) and its team door
 // unbolted by the client for both pages, re-bolted by a restart; 6 campusOps S1-S3 greybox routes; (coop4 E2E) 7: four pages on
 // campusOps (slots, beacons, spawns, light, jam, crate, revive, connector, pair gate, tagged guards), 8: warehouseOps with a drop
-// and rejoin, a late fourth page and two pairs of team moves at once. Parts 7-8 run alone in a laptop slot. Named alone the
+// and rejoin, a late fourth page and two pairs of team moves at once; (coop4 OUT) 9: three pages on campusOps, an operator out waits for
+// the connector (M1 b). Parts 7-9 run alone in a laptop slot. Named alone the
 // suite runs every part in sequence.
 const PART = Number(process.argv.find((a) => a.startsWith('--part='))?.slice(7) ?? 0);
 const want = (n) => PART === 0 || PART === n;
@@ -4388,6 +4389,91 @@ if (want(8)) {
       }
       assert(!!res, 'one of the two climbers is served and the other denied');
       assert(res.denied.last === 'taken', `slot ${res.winner === 0 ? 2 : 0} is denied "taken" (${res.denied.last}); slot ${res.winner} climbs`);
+    });
+  });
+}
+
+// ---- part 9: an operator out waits for the connector (coop4 OUT, M1 b; campusOps, 3 pages) -----------------------------
+if (want(9)) {
+  await coop4('sector ops (coop4 OUT): three operators - slot 2 out, the section goes on, the connector cycles with 0 + 1, slot 2 back beside the host', { n: 3, map: 'campusOps' }, async (h) => {
+    const { A, pages, GA, GP, skip, idxOf, moveTo, posOf, allowAll, leg } = h;
+    const finishObjective = () => GA(() => { const m = window.__sector; if (m.run.current.objective.kind === 'download') { m.run.downloading = true; m.run.download(999); } else m.run.objectiveDone(); });
+    const S = await GA(() => window.__app.current.world.map.sectors.map((s) => { const z = s.connector ?? s.extract; return { box: z.box, y: z.floorY ?? s.connector?.checkpoint?.y ?? 0, yaw: s.connector?.checkpoint?.yaw ?? 0 }; }));
+    const i2 = idxOf(2);
+    const id2 = h.ids[i2];
+    const downRemote = (id) => GA((id) => {
+      const r = window.__app.current.net.remotes.get(id);
+      r.damageMul = 1;
+      r.applyDamage({ amount: 9999, point: r.feet.clone(), dir: r.feet.clone(), part: 'body', kind: 'bullet', attackerTeam: 'enemy', attackerId: 'x', sourcePos: r.feet.clone(), impulse: 0 });
+    }, id);
+    /** Down player `id` on the host with no syringe left (the host's revive cap spent): out at once. */
+    const outNow = async (id) => {
+      await GA(() => { const n = window.__app.current.net; n.reviveClock.cap = n.reviveClock.used; });
+      await downRemote(id);
+    };
+
+    await leg('slot 2 goes out: no restart, out of the player list, follow view and HUD line', async () => {
+      if (!(await GA(() => Array.isArray(window.__sector.debug().out)))) {
+        skip('SectorMode.debug().out (OUT)');
+        return;
+      }
+      const r0 = await GA(() => window.__sector.debug().restarts);
+      await outNow(id2);
+      await until(pages[i2], () => !window.__app.current.player.alive, null, 15000, 'slot 2 is down');
+      await until(A, (id) => window.__sector.debug().out.includes(id), id2, 15000, 'the host marks slot 2 out');
+      await waitSim(4000);
+      const d = await GA(() => { const g = window.__app.current; const m = window.__sector.debug(); return { restarts: m.restarts, restarting: m.restarting, ended: g.isEnded, refs: g.playerRefsInto([]).map((r) => r.id) }; });
+      assert(d.restarts === r0 && !d.restarting && !d.ended, `one out at three players: no restart (${JSON.stringify(d)})`);
+      assert(d.refs.length === 2 && !d.refs.includes(id2), `slot 2 left the player list (guards, connector) (${d.refs})`);
+      await until(pages[i2], () => window.__app.current.net.outSelf === true, null, 15000, 'slot 2 learns it is out from the host');
+      await until(pages[i2], () => /Out - you rejoin at the next connector/.test(document.body.textContent ?? ''), null, 15000, 'slot 2 shows the OUT line');
+      await until(pages[i2], () => !!window.__app.current.player.followFeet, null, 15000, 'slot 2 follows a teammate');
+      const f0 = await GP(i2, () => window.__app.current.net.follow.slot);
+      assert(f0 === 0 || f0 === 1, `slot 2 follows slot ${f0}`);
+      await GP(i2, () => { window.__app.current.app.input.state.buttons.swapNext.pressed = true; });
+      await until(pages[i2], (f) => window.__app.current.net.follow.slot !== f, f0, 10000, 'the switch-target input moves the view to the other teammate');
+      const f1 = await GP(i2, () => window.__app.current.net.follow.slot);
+      assert((f1 === 0 || f1 === 1) && f1 !== f0, `the view moved from slot ${f0} to slot ${f1}`);
+    });
+
+    await leg('the connector cycles with slots 0 + 1; slot 2 comes back beside the host, full health', async () => {
+      if (!(await GA(() => (window.__sector.debug().out ?? []).length > 0))) {
+        skip('slot 2 out (the previous leg)');
+        return;
+      }
+      const cur = await GA(() => window.__sector.debug().index);
+      await finishObjective();
+      await until(A, () => window.__sector.debug().phase === 'connector', null, 15000, 'the objective opens the connector');
+      for (const slot of [0, 1]) { const [x, z] = boxSpot(S[cur].box, slot); await moveTo(idxOf(slot), x, z, S[cur].yaw, S[cur].y + 0.1); }
+      await until(A, (n) => window.__sector.debug().index === n, cur + 1, 30000, 'slots 0 + 1 inside: the connector cycles (the out slot 2 does not block it)');
+      await until(A, () => window.__sector.debug().out.length === 0, null, 15000, 'the host clears OUT at the cycle');
+      await until(A, (id) => window.__app.current.net.remotes.get(id).alive, id2, 15000, 'slot 2 is back up on the host');
+      await until(pages[i2], () => window.__app.current.player.alive, null, 15000, 'slot 2 stands again on its own page');
+      await allowAll();
+      await waitSim(1500);
+      const hp = await posOf(0);
+      const p2 = await posOf(i2);
+      const d = Math.hypot(hp[0] - p2[0], hp[2] - p2[2]);
+      assert(d < 4, `slot 2 is back beside the host (${d.toFixed(2)} m)`);
+      const v = await GP(i2, () => { const g = window.__app.current; return { hp: g.target.health.hp, max: g.target.health.maxHp, out: g.net.outSelf, follow: !!g.player.followFeet }; });
+      assert(v.hp === v.max, `slot 2 has full health (${v.hp}/${v.max})`);
+      assert(!v.out && !v.follow, `slot 2 is no longer out and has its own view (${JSON.stringify(v)})`);
+      const refs = await GA(() => window.__app.current.playerRefsInto([]).length);
+      assert(refs === 3, `all three are in the player list again (${refs})`);
+    });
+
+    await leg('everyone down or out restarts the section and clears OUT', async () => {
+      if (!(await GA(() => Array.isArray(window.__sector.debug().out)))) return;
+      const r0 = await GA(() => window.__sector.debug().restarts);
+      await outNow(id2);
+      await until(A, (id) => window.__sector.debug().out.includes(id), id2, 15000, 'slot 2 out again');
+      await downRemote(h.ids[idxOf(1)]);
+      await GA(() => { const g = window.__app.current; g.target.damageMul = 1; g.target.applyDamage({ amount: 99999, point: g.player.position.clone(), dir: new g.player.position.constructor(0, 0, 1), part: 'body', kind: 'bullet', attackerTeam: 'enemy', attackerId: 'test', sourcePos: g.player.position.clone(), impulse: 1 }); });
+      await until(A, (n) => { const d = window.__sector.debug(); return d.restarts > n && !d.restarting; }, r0, 30000, 'nobody up: the section restarts');
+      assert(await GA(() => window.__sector.debug().out.length === 0), 'the restart cleared OUT');
+      for (let i = 0; i < pages.length; i++) await until(pages[i], () => window.__app.current.player.alive, null, 20000, `page ${i} is up after the restart`);
+      await until(pages[i2], () => !window.__app.current.net.outSelf, null, 15000, 'slot 2 is no longer out');
+      await GA(() => { const g = window.__app.current; g.target.damageMul = 0; for (const r of g.net.remotes.values()) r.damageMul = 0; });
     });
   });
 }

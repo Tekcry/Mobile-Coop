@@ -97,6 +97,7 @@ import { StealthSystems } from './stealthSystems';
 import { SecuritySystem } from '../security/securitySystem';
 import type { CtDevices, SecWire } from './ctDevices';
 import type { SectorNetExtra } from './sectors';
+import { isOutRef } from './sectorOut';
 import { SecurityView } from '../security/securityView';
 import { TakedownController, type TakedownVictim } from './takedownController';
 import { StrikeController } from './strikeController';
@@ -222,6 +223,9 @@ export interface NetAttachment {
   radioLine?(text: string): void;
   /** Host, Sector Ops: revive syringes left this op (co-op only). */
   revivesLeft?(): number;
+  /** (coop4 OUT) Host, Sector Ops: the out operators `ids` ('local' = the host) come back at the checkpoint on their
+   *  slots (beside the team), full health. */
+  returnOut?(ids: readonly string[]): void;
   /** (section-rating) Host: a rating's syringe grant, added to the op's revive cap. */
   addSyringes?(n: number): void;
   /** Host, Sector Ops: every guard a client holds (takedown grab, hostage) is let go, before a section unloads. */
@@ -445,6 +449,9 @@ export class GameState implements AppState {
   private readonly grabInp = new InputState();
   /** Remote players (coop) contribute here; local player is always included. */
   remotePlayers: () => readonly PlayerRef[] = () => NO_REMOTES;
+  /** (coop4 OUT, Sector Ops host) Ids of the operators out waiting for the next connector ('local' = this player); while
+   *  down they leave `playerRefsInto`. Written by `SectorMode` only. */
+  readonly outIds = new Set<string>();
   /** (locomotion step 11) Back-to-wall (pure core; built on the first step from the level's cover segments). */
   wallCore: WallCore | null = null;
   private wallIn = emptyWallInput();
@@ -1039,9 +1046,15 @@ export class GameState implements AppState {
     this.localRef.speed = this.player.controller.speed;
     this.localRef.crouched = this.player.controller.crouched;
     out.length = 0;
-    out.push(this.localRef);
+    // (coop4 OUT) an operator out waiting for the next connector (Sector Ops host, 3-4 players) is left out: not a
+    // target, not in the connector or extraction count
+    const ot = this.outIds;
+    if (!isOutRef(ot, this.localRef.id, this.localRef.target.alive)) out.push(this.localRef);
     const rs = this.remotePlayers();
-    for (let i = 0; i < rs.length; i++) out.push(rs[i]!);
+    for (let i = 0; i < rs.length; i++) {
+      const r = rs[i]!;
+      if (!isOutRef(ot, r.id, r.target.alive)) out.push(r);
+    }
     // insertion sort by slot over <= 4 refs (no allocation)
     for (let i = 1; i < out.length; i++) {
       const p = out[i]!;

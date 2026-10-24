@@ -48,6 +48,7 @@ import { CrackPrediction } from '../world/doorPeek';
 import { markCompleted } from '../save/sectorRecord';
 import { HoldPulseWatch } from './holdPulse';
 import { BOLT_DEPTH, SECTOR_RESTART_TITLE, boltById, boltHalfSpan, type SectorRatingWire } from '../game/sectors';
+import { OUT_LINE, OutFollow, slotOut } from '../game/sectorOut';
 import { barkLine, BARK_EVENTS, RADIO_BARKS } from '../ai/barks';
 import { HelmetDrops } from '../ai/helmetDrops';
 import { DeflectLedger } from './puppetGear';
@@ -109,6 +110,14 @@ export class CoopClient implements NetAttachment {
   private sec: CtDevices | null = null;
   /** (sector-restart) The section our checkpoint loadout was recorded for (the host's live section only moves on). */
   private kitSection = 0;
+  /** (coop4 OUT) The host's OUT slots (the `sector` message's `ot`; 0 = nobody out). */
+  private outMask = 0;
+  /** (coop4 OUT, A16) Our follow view while we are out. */
+  private readonly follow = new OutFollow();
+  /** (coop4 OUT) We are out, waiting for the next connector (Sector Ops, 3-4 players). */
+  private get outSelf(): boolean {
+    return slotOut(this.outMask, this.slot());
+  }
   /** (section-rating S3) The host's last section rating as the HUD card shows it (null before the first). */
   rating: RatingView | null = null;
   /** (section-rating S3) Bumped on each new rating (the HUD shows the card when it changes). */
@@ -592,6 +601,7 @@ export class CoopClient implements NetAttachment {
     const sec = own ? /\((\d+)\)$/.exec(own.label)?.[1] : undefined;
     if (own) this.g.hud.setDownTimer(sec ? `DOWN - revive in ${sec} s` : 'DOWN');
     else if (!this.g.player.alive && this.g.opts.mode === 'course') this.g.hud.setDownTimer('OUT - wait for the checkpoint');
+    else if (!this.g.player.alive && this.outSelf) this.g.hud.setDownTimer(OUT_LINE);
     else this.g.hud.setDownTimer(null);
   }
 
@@ -914,6 +924,17 @@ export class CoopClient implements NetAttachment {
    */
   private onSector(msg: Extract<Msg, { t: 'sector' }>): void {
     const ct = this.sec;
+    // (coop4 OUT) the OUT slots first: going out puts our section loadout back (as the host does for its own), so the
+    // grant and the next connector's record build on it
+    const om = msg.ot ?? 0;
+    if (om !== this.outMask) {
+      const was = this.outSelf;
+      this.outMask = om;
+      if (this.outSelf && !was && !this.g.player.alive) {
+        this.g.weapons.restoreCheckpoint();
+        this.g.hud.setDownTimer(OUT_LINE);
+      }
+    }
     // (section-rating fix) the rating first: a top-up in the same message as a new `ls` goes into that checkpoint loadout
     if (!this.sawSector) {
       // (integration) a late join / rejoin: a rating already on the wire was shown and granted before we came; it
@@ -1009,8 +1030,29 @@ export class CoopClient implements NetAttachment {
     this.g.endSession(end.won, end.subtitle);
   }
 
+  /** (coop4 OUT, A16) Out: the view follows a teammate who is up (the switch-target input, next weapon, moves on); off
+   *  as soon as we are up again or no longer out. */
+  private followStep(): void {
+    const pl = this.g.player;
+    if (pl.alive || !this.outSelf) {
+      if (pl.followFeet) {
+        pl.followFeet = null;
+        this.follow.reset();
+      }
+      return;
+    }
+    const f = this.follow;
+    f.begin();
+    for (const [id, a] of this.avatars) {
+      const s = this.s.slotOf(id);
+      if (!a.dead && !slotOut(this.outMask, s)) f.set(s, a.pos);
+    }
+    pl.followFeet = f.pick(this.g.app.input.state.pressed('swapNext') ? 1 : 0);
+  }
+
   fixedUpdate(dt: number): void {
     this.time += dt;
+    this.followStep();
     this.sendT -= dt;
     // (coop-fix) snapshots stopped (a stalled or gone host): say so on the objective line until the next one
     this.sinceSnap += dt;

@@ -56,6 +56,7 @@ import {
   type SweepSource,
 } from '../sectors';
 import { killScore } from './score';
+import { OUT_LINE, outMask, outWaits } from '../sectorOut';
 import { SectionStartState } from '../sectorReset';
 import { SectorTeamDoors } from '../sectorTeamDoors';
 import { SectorCodes, inOverhear } from '../sectorKeypads';
@@ -269,6 +270,8 @@ export class SectorMode implements GameMode {
   private infoSy = -2;
   /** Players, reused every tick (no allocation). */
   private readonly refs: PlayerRef[] = [];
+  /** (coop4 OUT, M1 b) Operators out waiting for the next connector (3-4 players): id ('local' = the host) -> slot. */
+  private readonly outs = new Map<string, number>();
   /** (coop4 A4) The team when the op started: the syringe pool's size (a late joiner does not change it). */
   private opTeam = 2;
 
@@ -912,6 +915,8 @@ export class SectorMode implements GameMode {
       if (d) for (const k of d.seal) this.lockDoor(k, false);
       const s = this.run.defs[prev];
       if (s) g.events.emit('objective', { id: `${s.id}-exit` });
+      // (coop4 OUT) the OUT operators come back at the new checkpoint (their loadout before the grant and the record)
+      this.returnOut();
       // (section-rating S2, A8) the grant lands before the loadout is recorded: a restart of this section keeps it
       this.giveGrant();
       this.beginSection();
@@ -1074,6 +1079,8 @@ export class SectorMode implements GameMode {
   private complete(): void {
     if (this.endT >= 0) return;
     const g = this.g;
+    // (coop4 OUT) the extraction brings the OUT operators back too (the op ends with everyone up)
+    this.returnOut();
     for (const it of this.its) g.interactables?.remove(it);
     this.its.length = 0;
     g.hud.setObjective('');
@@ -1115,7 +1122,8 @@ export class SectorMode implements GameMode {
     // (coop4 A4) the team pool as the op started
     const preset = syringesFor(g.opts.difficulty, this.opTeam);
     const r = rewardsFor(marks, synced, {
-      coop: coopRating(g.net !== null, g.playerRefsInto(this.refs).length),
+      // (coop4 OUT) an OUT operator counts as a down one does (still on the team)
+      coop: coopRating(g.net !== null, g.playerRefsInto(this.refs).length + this.outs.size),
       preset,
       gadgetsAtStart,
       syringesAtStart: g.net?.revivesLeft?.() ?? preset,
@@ -1224,7 +1232,8 @@ export class SectorMode implements GameMode {
       any = true;
     }
     const refs = g.playerRefsInto(this.refs);
-    for (let i = 1; i < refs.length; i++) if (g.net?.healAtStation?.(refs[i]!.id)) any = true;
+    // (coop4 OUT) by id, not place: an OUT host is not in the list
+    for (let i = 0; i < refs.length; i++) if (refs[i]!.id !== 'local' && g.net?.healAtStation?.(refs[i]!.id)) any = true;
     return any;
   }
 
@@ -1235,6 +1244,8 @@ export class SectorMode implements GameMode {
    */
   restartSection(): void {
     const g = this.g;
+    // (coop4 OUT) a restart clears OUT: everyone respawns at the checkpoint below
+    this.clearOut();
     const prev = this.run.index;
     const ev = this.run.restartSection();
     const d = this.doors[prev];
@@ -1409,11 +1420,46 @@ export class SectorMode implements GameMode {
     this.restartT = RESTART_DELAY;
   }
 
-  /** Co-op host: an operator went down with no syringe left (or the revive window ran out): the section restarts. */
-  onPlayerOut(): void {
+  /** Co-op host: an operator went down with no syringe left (or the revive window ran out): the section restarts.
+   *  (coop4 OUT, M1 b) From `SECTOR.outWaitsMin` players the operator `id` is OUT instead: they leave the player list
+   *  (guards, connector and extraction counts), keep their slot and loadout record, and come back at the next connector
+   *  or the extraction; the section restarts only when nobody is left up. 1-2 players: unchanged. */
+  onPlayerOut(id?: string): void {
     if (this.endT >= 0 || this.restartT >= 0) return;
-    this.g.hud.banner('OPERATOR OUT', 'Restarting from checkpoint', 2200);
+    const g = this.g;
+    if (id !== undefined && outWaits(teamSizeOf(g, this.refs))) {
+      // the slot first: once marked (and down) the player is no longer in the list
+      this.outs.set(id, slotOfId(g, this.refs, id, -1));
+      g.outIds.add(id);
+      this.secT = 0;
+      if (id === 'local') {
+        g.hud.setDownTimer(OUT_LINE);
+        // the section's loadout back now (as a restart would give it): the grant and the next record build on it
+        g.weapons.restoreCheckpoint();
+      }
+      if (g.anyPlayerAlive()) return;
+    }
+    g.hud.banner('OPERATOR OUT', 'Restarting from checkpoint', 2200);
     this.restartT = RESTART_DELAY;
+  }
+
+  /** (coop4 OUT) The OUT operators come back (the next connector's cycle or the extraction), each at the checkpoint on
+   *  its slot, beside the team, full health, with the section loadout (put back when it went out; a connector then
+   *  records it, with the grant, for the new section). */
+  private returnOut(): void {
+    if (this.outs.size === 0) return;
+    const g = this.g;
+    const ids = [...this.outs.keys()];
+    this.clearOut();
+    g.net?.returnOut?.(ids);
+  }
+
+  /** (coop4 OUT) Nobody is OUT (a return or a restart). */
+  private clearOut(): void {
+    if (this.outs.size === 0) return;
+    this.outs.clear();
+    this.g.outIds.clear();
+    this.secT = 0;
   }
 
   /**
@@ -1424,7 +1470,9 @@ export class SectorMode implements GameMode {
     const lk: number[] = [];
     for (const d of this.g.world.doors.list) if (d.anchor.locked) lk.push(d.index);
     const rh = this.rt.sec >= 0 ? packRated(this.run.marks, this.ratedSynced) : undefined;
-    return { ls: ct.liveSection, lk, dn: ct.destroyedIds([]), sy: this.g.net?.revivesLeft?.() ?? 0, rt: { ...this.rt }, ...(rh ? { rh } : {}) };
+    // (coop4 OUT) the OUT slots, only while someone is out
+    const ot = this.outs.size ? outMask(this.outs.values()) : 0;
+    return { ls: ct.liveSection, lk, dn: ct.destroyedIds([]), sy: this.g.net?.revivesLeft?.() ?? 0, rt: { ...this.rt }, ...(rh ? { rh } : {}), ...(ot ? { ot } : {}) };
   }
 
   /** Co-op host: a client's held jammer target, on the sender's slot (coop4 D1; one no longer listed reads as 1). */
@@ -1453,6 +1501,8 @@ export class SectorMode implements GameMode {
       camAlarms: this.camAlarms,
       pending: this.pending.length,
       restarts: this.restarts,
+      // (coop4 OUT) the operators out waiting for the next connector ('local' = the host)
+      out: [...this.outs.keys()],
       // (sector-redesign perf) guards render-frozen at the last camera evaluation (-1: the freeze is off)
       guardFreeze: this.freeze ? this.freeze.count : -1,
       guardFreezeOccluded: this.freeze ? this.freeze.occluded : -1,

@@ -23,7 +23,7 @@ const TIMES_FILE = 'scripts/e2e-times.json';
 // no suite may hang a run: past this it is killed (browsers included) and counts as failed (seconds; `E2E_SUITE_TIMEOUT`)
 const SUITE_TIMEOUT = Number(process.env.E2E_SUITE_TIMEOUT ?? 600) * 1000;
 // (coop4 E2E) the 4-page parts load four pages, cycle connectors and run team moves: 1800 s unless `E2E_SUITE_TIMEOUT` is set
-const PART_TIMEOUT = { 'e2e-sectorops:7': 1800, 'e2e-sectorops:8': 1800 };
+const PART_TIMEOUT = { 'e2e-sectorops:7': 1800, 'e2e-sectorops:8': 1800, 'e2e-sectorops:9': 1800 };
 const timeoutOf = (s) => (process.env.E2E_SUITE_TIMEOUT ? SUITE_TIMEOUT : (PART_TIMEOUT[s] ?? 600) * 1000);
 
 // (process audit, 2026-10-19, approved by Michael) REQUIRED = what `npm run e2e` runs: the co-op training level
@@ -45,8 +45,8 @@ const REPORT = ['anim-audit'];
 // `e2e-desktop:1`, `:2`, `:4` (part 3 is in GPU). `node scripts/e2e-desktop.mjs --part=N`; the script run directly with no --part runs whole.
 // (marlow-final 0d) e2e-ctcourse = four pairs of sets (A1-A2, A3-A4, A5-A6, A7-A8), each its own pair of pages.
 // (sector-fixes-r RE) e2e-sectorops = part 1 (sections, alarms, restarts, nav, the co-op mirror), 2 (solo: co-op lips refused, route links, team doors), 3-5 (co-op routes and team doors of sections 1-3), 6 (campusOps: S1-S3 greybox routes),
-// (coop4 E2E) 7 (campusOps, four pages: slots, beacons, spawns, light, jam, crate, revive, connector, pair gate, tagged guards), 8 (warehouseOps: drop and rejoin, a late fourth page, two pairs of team moves); 7-8 run alone in a laptop slot (`E2E_GPU=1`, `E2E_LOAD_MS=240000`)
-const PARTS = { 'e2e-desktop': ['1', '2', '4'], 'e2e-ctcourse': ['1', '2', '3', '4'], 'e2e-sectorops': ['1', '2', '3', '4', '5', '6', '7', '8'] };
+// (coop4 E2E) 7 (campusOps, four pages: slots, beacons, spawns, light, jam, crate, revive, connector, pair gate, tagged guards), 8 (warehouseOps: drop and rejoin, a late fourth page, two pairs of team moves), (coop4 OUT) 9 (campusOps, three pages: an operator out waits for the connector); 7-9 run alone in a laptop slot (`E2E_GPU=1`, `E2E_LOAD_MS=240000`)
+const PARTS = { 'e2e-desktop': ['1', '2', '4'], 'e2e-ctcourse': ['1', '2', '3', '4'], 'e2e-sectorops': ['1', '2', '3', '4', '5', '6', '7', '8', '9'] };
 const expand = (list) => list.flatMap((s) => (PARTS[s] ? PARTS[s].map((n) => `${s}:${n}`) : [s]));
 const REQUIRED_JOBS = new Set(expand(REQUIRED));
 

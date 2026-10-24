@@ -717,6 +717,9 @@ function sectorExtra(raw: Record<string, unknown>): Partial<SectorNetExtra> {
   // (marlow-polish, inside 42) every section rated so far, as the course message's `rh`
   const rh = courseRh(raw.rh).rh;
   if (rh) out.rh = rh;
+  // (coop4 OUT) the slots out waiting for the next connector: a 4-bit mask
+  const ot = num(raw.ot, 0, (1 << MAX_PLAYERS) - 1);
+  if (ot !== null && Math.round(ot) > 0) out.ot = Math.round(ot);
   return out;
 }
 

@@ -55,6 +55,7 @@ import { interrogationEnded } from '../game/intel';
 import type { TeamMate } from '../game/teamController';
 import type { PlayerRef } from '../ai/enemy';
 import { joinSpawn, slotSpawn, type SlotPoint, type SpawnBody } from '../game/spawnSlots';
+import { OutFollow } from '../game/sectorOut';
 import { canWalk, spawnProbe, startSlotPoints } from '../game/spawnPlace';
 import { HALL_BACK_HOLD } from '../game/jammer';
 import { JOIN_PLACE, JOIN_RESYNC, JOIN_REVIVE_QUIET_S, JoinWatch } from './joinWatch';
@@ -604,8 +605,44 @@ export class CoopHost implements NetAttachment {
     this.g.hud.feedItem(`${nm} is out until the checkpoint`, 'warn');
     if (id === this.s.selfId) this.g.hud.setDownTimer('OUT - wait for the checkpoint');
     if (this.g.mode?.id === 'course') this.g.mode.onPlayerDeath();
-    // (sector-ops step 3) Sector Ops: an operator out restarts the section at its checkpoint
-    else this.g.mode?.onPlayerOut?.();
+    // (sector-ops step 3) Sector Ops: an operator out restarts the section at its checkpoint; (coop4 OUT) from 3 players
+    // the mode keeps them out until the next connector instead
+    else this.g.mode?.onPlayerOut?.(id === this.s.selfId ? 'local' : id);
+  }
+
+  /** (coop4 OUT) Sector Ops: the OUT operators `ids` ('local' = this host) come back at the checkpoint, each on its slot
+   *  (the map's slot point, else beside the team), clear of the players up and of each other, full health. */
+  returnOut(ids: readonly string[]): void {
+    const g = this.g;
+    const cps = g.mode?.checkpointSpawns?.() ?? [];
+    const hp = g.player.position;
+    const area: SlotPoint[] = cps.length ? cps : [{ x: hp.x, y: hp.y, z: hp.z, yaw: g.player.cam.yaw }];
+    const others: SpawnBody[] = [];
+    if (g.player.alive) others.push({ x: hp.x, y: hp.y, z: hp.z });
+    for (const r of this.remotes.values()) if (r.alive) others.push({ x: r.feet.x, y: r.feet.y, z: r.feet.z });
+    const probe = spawnProbe(g);
+    const back: { id: string; slot: number }[] = [];
+    for (const id of ids) {
+      if (id === 'local') back.push({ id: this.s.selfId, slot: 0 });
+      else {
+        const r = this.remotes.get(id);
+        if (r && !r.held) back.push({ id, slot: r.ref.slot });
+      }
+    }
+    back.sort((a, b) => a.slot - b.slot);
+    for (const b of back) {
+      const o: SlotPoint = { x: 0, y: 0, z: 0, yaw: 0 };
+      slotSpawn(area, b.slot, others, probe, o);
+      const p = new Vector3(o.x, o.y, o.z);
+      others.push(p);
+      if (b.id === this.s.selfId) {
+        g.player.cam.yaw = o.yaw;
+        this.reviveOne(b.id, p);
+      } else {
+        this.joins.respawned(b.id, this.time);
+        this.reviveOne(b.id, p);
+      }
+    }
   }
 
   /** (B8) A partner's revive in the course counts on the results (team and the reviver). */
@@ -1589,8 +1626,30 @@ export class CoopHost implements NetAttachment {
     return this.time;
   }
 
+  /** (coop4 OUT, A16) The host's own follow view while it is out. */
+  private readonly follow = new OutFollow();
+
+  /** (coop4 OUT) Out (Sector Ops, 3-4 players): the view follows a teammate who is up; the switch-target input (next
+   *  weapon) moves to the next one. Off as soon as we are up again. */
+  private followStep(): void {
+    const g = this.g;
+    const pl = g.player;
+    if (pl.alive || !g.outIds.has('local')) {
+      if (pl.followFeet) {
+        pl.followFeet = null;
+        this.follow.reset();
+      }
+      return;
+    }
+    const f = this.follow;
+    f.begin();
+    for (const r of this.remotes.values()) if (r.alive && !r.held && !g.outIds.has(r.id)) f.set(r.ref.slot, r.avatar.pos);
+    pl.followFeet = f.pick(g.app.input.state.pressed('swapNext') ? 1 : 0);
+  }
+
   fixedUpdate(dt: number): void {
     this.time += dt;
+    this.followStep();
     if (this.strikes.size) this.runStrikes();
     if (this.throwKo.active && this.g.enemyMgr) this.throwKo.step(this.time, this.g.enemyMgr.enemies);
     this.itemsT -= dt;

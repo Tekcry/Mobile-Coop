@@ -536,6 +536,9 @@ export const SECTOR = {
   syringeExtra: 1,
   /** (coop4 A9) Extra reinforcements per alarm stage per player beyond 2, within `maxAlive`. Undo: 0. */
   reinforcePerExtra: 1,
+  /** (coop4 OUT, M1 b) From this team size an operator who is out waits for the next connector (no restart); below it
+   *  one out restarts the section (1-2 players, unchanged). Undo: 99. */
+  outWaitsMin: 3,
 } as const;
 
 /** (coop4 A4, A9) Players beyond the 2 the sections were tuned for (0 for 1 or 2 players). */
@@ -974,6 +977,9 @@ export interface SectorNetExtra {
   /** (marlow-polish, inside protocol 42) Every section's rating so far, by index (`packRated`, the course's `rh`): a late
    *  joiner or a reloaded rejoiner rebuilds its results lines from it (no card, no top-up, no grant). */
   rh?: number[];
+  /** (coop4 OUT) The slots out waiting for the next connector, a bitmask (bit s = slot s); absent = none. Sent only
+   *  while someone is out (the 1-2 player message is unchanged). */
+  ot?: number;
 }
 
 /**
