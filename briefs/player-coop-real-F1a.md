@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-24T11:36Z
+status: done feature/cr-f1a f3fc26ec
 
 # Brief: coop-real F1a - Course mode client applies a shot-out lamp from `lights.dead` (walk bug S2, apply half) (Player Build)
 
@@ -99,3 +99,20 @@ Copy the `level()` fixture of `tests/sectorLampSync.test.ts:26-41` (host and cli
 - A cloud session cannot message back. A question you cannot settle from this brief: set line 1 to
   `status: blocked <one-line reason>`, add the evidence under `## Report`, push, and move on. The lead answers by
   editing this brief.
+
+## Report (Night Shift | Cloud Builder 1, 2026-10-24)
+Branch `feature/cr-f1a` @ f3fc26ec (one commit on a174b082). `git diff --stat a174b082`: the three named files only.
+- `src/game/modes/courseMode.ts`: :23 `import type { LightDef, LightRegistry }`; :1073 `wire()` uses
+  `deadLamps(g.world.level.lights, [])` (same output); :1306-1312 `export deadLamps(reg, out)`; :1314-1333
+  `export applyCourseLights(reg, lights, onShot?)` (restore not-in-dead, kill dead with `onShot` once per newly killed,
+  skips unknown ids and already-dead lamps, then `setGroup`; returns the count; no allocation); :1337-1338
+  `const first = !mirrors.has(g)` before `mirrorOf`; :1355-1357 `applyCourseWire` calls it with the `coopClient.ts:162`
+  sparks cue (undefined when `first`), then the `g.stealth?.syncGroup` loop. `clientCourseFrame` / summary use
+  `mirrors.get`, so only the first `course` message builds the mirror.
+- `tests/courseLampShot.test.ts` (new, 6 tests, all through JSON + `parseMessage`): shot lamp goes dark with one cue +
+  keepalive no second cue (returns 0); deadLamps clears its output (extra); first message after a join (no cue);
+  restart restores lamp with its group; groups (circuit off / on, shot lamp stays dead); unknown id 900 skipped.
+- `changes/feature-cr-f1a.md` (patch, title as briefed).
+- Checks: tsc clean; eslint on both files clean; vitest 7 files 115/115 (courseLampShot 6, net 84, coopRejoin 12,
+  courseConsole 6, marlowN4Hold 4, intelPartB 2, changesFragments 1).
+- Deviations: one extra test case (deadLamps clears `out`). No wire, `src/net` or `PROTOCOL_VERSION` change.
