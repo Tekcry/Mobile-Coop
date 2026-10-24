@@ -170,7 +170,7 @@ Plan and rules: `docs/sector-redesign/briefs/ART-PLAN.md`; builds: `docs/sector-
   comparisons). Casters under 0.3 m are skipped by the lamp / moon shadows (`lightRig.ts`, `world.ts`): heads, hands,
   forearms and feet were, the merged body is not, so they cast shadows now. Measured (24 guards, laptop GPU, Epic):
   `docs/guard-render/run-s1` against `run-s1-off`. A body effect that will not finish compiling (Babylon's poll timed
-  out, the compile failed, its program was disposed under it, or as a last resort 45 s and 30 frames unready; a slow
+  out, the compile failed, its program was disposed under it, or as a last resort 90 s and 30 frames unready; a slow
   parallel compile is left to finish, body watchdog) is dropped and recompiled,
   at most 3 times per variant with a console warning (`bodyEffectRecovery.ts`, guard-ai carry fix: a stall during a
   new variant's compile left guards invisible on the laptop GPU); the meshes holding it are switched back to GPU
