@@ -677,6 +677,19 @@ export class GuardFigure {
   }
 
   /**
+   * (GM-PERF-CHECK 6, S11-CHECK P2) Runs the pose `update` asked for now, not at the skeleton's next compute: Babylon
+   * computes a skeleton once per render id, so a pose asked for after this render's compute (a thaw, a death while
+   * frozen) would draw a frame late. For those rare events only (one compute; the render's own compute then finds the
+   * skeleton clean). No allocation.
+   */
+  poseNow(): void {
+    if (this.disposed) return;
+    const l = this.current >= 0 ? this.lods[this.current] : null;
+    if (!l || !l.pending) return;
+    l.skeleton.prepare(true);
+  }
+
+  /**
    * (perf F2) The skeleton's compute (`onBeforeComputeObservable`, during the active-mesh evaluation or a shadow pass):
    * the pose `update` asked for, from the rig now (local retarget, or the world path while a joint is re-parented).
    * Nothing when no pose is pending. No allocation.

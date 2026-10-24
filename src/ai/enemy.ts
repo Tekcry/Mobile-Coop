@@ -2088,13 +2088,21 @@ export class Enemy implements Damageable {
     // (artnext C9) killed while render-frozen (a partner's shot, a grenade out of view): the rig still holds the pose at
     // the freeze, so solve it once at his current place first; the ragdoll and `Body.pos` then never depend on whether
     // this page's camera saw him
-    if (!this.rig.root.isEnabled(false)) this.animTier.solveNow(this.rig, ANIM_TIER_FROZEN_CARRY_MAX, this.rp);
+    const frozen = !this.rig.root.isEnabled(false);
+    if (frozen) this.animTier.solveNow(this.rig, ANIM_TIER_FROZEN_CARRY_MAX, this.rp);
     // (guard-models G7) his figure goes on with the rig as his body (`Body` finds it by the rig), unflashed
     if (this.gbody) this.gbody.flash = 0;
     const imp = h.dir.scale(Math.min(80, 8 + h.impulse * 3) * (h.kind === 'explosion' ? 2.5 : 1));
     imp.y += h.kind === 'explosion' ? 25 : 3;
     // the rig stays in the world as a body (ragdoll when one can be spared)
     this.ctx.addBody(this, this.rig, imp, lethal);
+    // (S11-CHECK P2) killed while frozen: `GuardBody.frame` skipped (root disabled) and the freeze's thaw of a dead
+    // guard does not pose him, so pose the figure from the solved rig (and the ragdoll's re-parenting) now: his first
+    // drawn frame is current, not the pose at the freeze
+    if (frozen && this.gbody) {
+      this.gbody.figure.update(this.ctx.scene.activeCamera);
+      this.gbody.figure.poseNow();
+    }
     this.ctx.onKilled(this, h);
   }
 
@@ -3840,7 +3848,13 @@ export class Enemy implements Damageable {
     this.animTier.solveNow(this.rig, 0, this.rp);
     // (guard-models S11-CHECK P1) pose the figure from the thawed rig in this frame (the thaw runs in the camera
     // evaluation, after `GuardBody.frame`), so the first frame drawn is current, not the pose at the freeze
-    this.gbody?.figure.update(this.ctx.scene.activeCamera);
+    // (GM-PERF-CHECK 6) and run that pose now: a skeleton already computed in this render id would not compute again
+    // until the next one, so the thawed pose would show a frame late
+    const gb = this.gbody;
+    if (gb) {
+      gb.figure.update(this.ctx.scene.activeCamera);
+      gb.figure.poseNow();
+    }
   }
 
   /** Sniper: the laser from the scope along the aim while it aims, and the glint (sized for the local view). */
