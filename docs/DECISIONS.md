@@ -1,14 +1,16 @@
 # Night Shift - decisions
 
-Date: 2026-10-17 (consolidation run, M26 / M27).
+Started 2026-10-17 (consolidation run, M26 / M27). Current to G339 (2026-10-25).
 
 This file is the single source of Michael's current decisions for Night Shift. Authority order: Michael > this file >
 `docs/design-bible.md` > job and map docs > code. Every entry below is also written into the bible; where the bible and
 this file disagree, this file wins until the bible is fixed.
 
 How entries are numbered:
-- G1, G2, ... are new global numbers, used from now on. A job that merges adds Michael's new decisions here with the next
-  free G number.
+- G1, G2, ... are new global numbers, used from now on. The orchestrator folds ROADMAP "Decided" in daily with the next
+  free G numbers (CLAUDE.md "Sessions").
+- A replaced entry keeps its original text and gets a "(Replaced by Gxxx, date)" note on its heading or first line, so
+  the newest entry always wins and the trail stays readable.
 - Old job numbers are cited in brackets with their run prefix, because the runs reused the same letters: loco (docs/locomotion/DECISIONS.md: D1-D11, M1-M27, A0-A89), training (docs/training/DECISIONS.md: D1-D50, A1-A77, C1-C10), ops (feature/operators docs/operators/DECISIONS.md: D1-D33; current ones recorded as G123 and G161-G176), menu (docs/menu-ui/DECISIONS.md: MD1-MD20), audio (AS1-AS18 in the audit), kestrel (docs/kestrel/progress.md "Decisions by Michael" and ASK rows).
 - Question ids (VIS-01, FU-04, ...) are the vision-check page questions of 2026-10-17; "chat N" is Michael's Nth native
   multiple-choice answer in chat the same day; "directive" is his written directive the same day.
@@ -19,26 +21,18 @@ docs/menu-ui/DECISIONS.md and the audio progress logs) are history. They point h
 Each entry: the decision as a rule, then Michael's words quoted verbatim (his picked option label, his own note, or his
 chat words), then the source and what it replaces.
 
-## The vision in one page
+## The vision
 
-- Pure Chaos Theory. Michael: "I want the game to be pure chaos theory. Anything that isn't a part of the original chaos
-  theory shouldn't exist." CT's mechanics, timing, camera, HUD layout and visual style are the authority (G1, G5).
-- A 2-player co-op campaign only: "2 player coop campaign only, unable to be completed solo." No bot partner, no 3-4
-  player play (G2, G48, G50).
-- The CT co-op levels are researched (design, flow, moves) and that experience is recreated (G3). This research is the
-  first job (G95).
-- Prototype first: "only the basics required to make it work and functional to test features and gameplay ...
-  Refinement can come later." (G4).
-- Desktop only: pad first, then keyboard and mouse. Phone and touch code is deleted in this merge (G12, loco D1, loco M21).
-- IP rule as Michael bounded it: "Mechanics plus look". CT's mechanics, visual style and HUD layout are copied closely;
-  names, story, characters, art assets, the goggle and the music are original; no reference names anywhere (G5, G6, G69).
-- Hunter is the one non-CT mode kept; Wave, deathmatch, free-for-all, team-versus-team, the drone and the difficulty
-  sliders go (G7, G8, G12). The Fallow training bunker stays as the co-op tutorial (G78).
-- No traitor and no player-versus-player finale (G9).
-- Menus follow the Arkham Knight style plan; only the in-game HUD follows CT (G77).
-- Story is text radio and subtitles now, written so it can be voiced later (G82).
-- Realistic characters (Wren and Moth) and a realistic look everywhere (G68, G71).
-- Work runs as one branch per job from main, prototype then orchestrator, and only Michael merges (G83, G87).
+`docs/VISION.md` is the one-page summary of today's game (modes, Michael's overrides of CT, the hard design rules). In
+five lines:
+- Pure Chaos Theory co-op stealth with original names, story and art; Michael's recorded decisions are the only
+  departures (G1, G5, G6). Light and shadow is the core (G316).
+- Campaign: exactly 2 players, never solo, every section forces a co-op traversal move (G2, G292). Marlow Yard: the
+  guided 2-player training course (G292, G308). Sector Ops: Saltmarsh Park, 1-4 players, solo always possible (G308).
+- No maps, markers or minimap; objectives name what and where (G290, G336, G339). Up to 2 strict rules, breaking one
+  restarts the section (G290).
+- Sites are lit like real sites; players make the shadows (G329). As many guards as realistically possible (G289).
+- Desktop only, pad first (G12). Refining is allowed, paced by the walk cap and the one-click sign-off (G288).
 
 ## Decisions by area
 
@@ -1782,3 +1776,87 @@ light registry so the meter and guard perception follow (light parity); no light
 "Yes to Marlow yard only, campus later if applicable": swinging pendants (sway when shot near or bumped, a
 character-shadow slot kept) on Marlow Yard only, campus later only if its perf headroom returns, not the warehouse.
 Sector Ops Build, Opus slices and a GPU perf check.
+
+### Decided 2026-10-25 (ROADMAP "Decided" fold)
+
+**G324. Full burn until Michael says to slow down.** Michael (2026-10-25 ~08:25): "100% full burn until I say to slow
+down. I want to hit the 5 hour cap as quick as possible as the weekly reset soon". Every session runs at full speed with
+parallel agents, up to the CPU caps; no session throttles itself until he says to slow down. (Restates G304.)
+
+**G325. The watchdog adds train-ready.** Michael (2026-10-25 ~08:45, native multiple choice): "Watchdog labels". The
+watchdog's `--fix labels` adds `train-ready` once CI `check`, `checker` and `affected-e2e` are green on the PR head, with
+no session needed; auto mode still blocks self-approval by sessions. Michael installs it (command given ~08:50).
+(Replaces the orchestrator re-labelling every PR.)
+
+**G326. Disk clean-up on both PCs.** Michael (2026-10-25 ~08:45): "delete them, and ask laptop to review nightshift
+size also and remove redundant files". The desktop scratch copies were deleted (~14.3 GB freed; top-level notes kept in
+scratch/archive-notes); Test Runner reviews the laptop's Night Shift folders.
+
+**G327. Off-screen guard animation: a shadow in view counts as seen.** Michael (2026-10-25 ~08:50, native multiple
+choice): "Yes, shadow in view = seen". A guard whose shadow falls in view animates at full rate. Guard AI implements it
+in `animTierView.ts` (#360 T1) and measures the CPU saving left; the same `ANIM_TIER_OFFSCREEN` governs guard-cap C1.
+(Replaces G294's assumption.)
+
+**G328. Campus S1-S5 signed off.** Michael (2026-10-25 ~08:50, native multiple choice on the sign-off pages,
+feature/sector-redesign-signoff fe3ef35f, drawings shown): S1 "Go as drawn (15 guards)"; S2 "Go: void 14.5 m, 18
+guards" (3.9 m balcony strips); S3 "Re-plan as drawn, 20 guards"; S4 "One 6 m goods-in lobby" (the page's 25 guards, the
+dog included); S5 "26 guards, inside the 32 cap" (no cap raise, no protocol bump). Sector Ops greyboxes all five; the
+greybox exit needs the measured validator pass (G289). (Replaces G297's "up to 24" for the campus; settles G289 (1).)
+
+**G329. Real-world light levels.** Michael (2026-10-25 ~09:05): "How do you know campus design gameplay flow is good,
+and that there is a realistic amount of light? On the current build the s1 car park is still very dark which is
+unrealistic, car parks are generally well lit"; native multiple choice: "Real-world levels". Each space type gets a
+real-world illuminance band from the lighting standards (outdoor car parks and roads AS/NZS 1158.3.1, interiors AS/NZS
+1680 / EN 12464); engine light is calibrated to lux once and measured from the bake at greybox exit. Stealth comes only
+from real gaps (between poles, under carports, behind cars, cut circuits, shot lamps), never from leaving lit places
+unlit. Job light-realism (Sector Ops; the S1 car park first, then every map). (The 40-60% shadow share of G284 (3) and
+`docs/level-design.md` 5.5 yields to the band; replaces G225's 0.30 open-floor level, already loosened by G279.)
+
+**G330. Bot route-runs at greybox exit, then a walk.** Michael (2026-10-25 ~09:05, the same question): "Bot route-runs
++ your walk". At greybox exit a scripted run walks every declared route (dark / high / loud) of each space against live
+guards, logging time, detections and dead stops; then Michael gets a 10-minute walk card. A level-validator slice
+(Marlow Build); campus S1-S5 is the first user.
+
+**G331. Sector Ops difficulty: fixed per op, stars, a higher clear fills the lower; scaling stays.** Michael (2026-10-25
+~09:45, native multiple choice on a level-designer framework he pasted, "How does this compare to our current design?"):
+"Fixed difficulties per op, keep star system. Completing a higher difficulty also considers the lower tiers completed
+also." A clear on tier N fills every star below N. Player count: "Keep scaling" (coop4 as built: guards tagged by team
+size, alarm reinforcements and revive syringes grow with the players). (Refines G189.)
+
+**G332. Guard density stays.** Michael (2026-10-25 ~09:45): "Keep current": 32 alive is a ceiling, not a target (G187);
+room to manoeuvre comes first (G190); the campus counts stand as signed off (G328).
+
+**G333. Hardened lit choke points allowed everywhere.** Michael (2026-10-25 ~09:45): "Everywhere". Un-shootable fixtures
+and guarded or locked breakers are allowed at choke points in the campaign and Sector Ops; a route around stays.
+(Loosens `docs/level-design.md`'s "every lit chokepoint can be darkened at least two ways" and bible L8.)
+
+**G334. Soft time windows only.** Michael (2026-10-25 ~09:45, after two examples: a hard route-closing lockdown and a
+soft shift-change window): "Soft windows only". Predictable windows (shift changes, fixed patrol cycles, signposted in
+the world) are allowed; no countdown closes a route; the no-forced-timers rule stays.
+
+**G335. Static lookouts and paired patrols.** Michael (2026-10-25 ~09:45): "Add both": static lookouts on some high
+routes (pipes, catwalks, vents) and paired patrols that check on each other. G44 (guards see poorly above) stays the base
+rule. Guard AI plans it first. (Replaces G11's cut of paired behaviour for this; adds to G180's kept paired searches.)
+
+**G336. Objectives name what and where; no maps at all.** Michael (2026-10-25 ~09:45): "Objectives must name what and
+where, but no map, level design must flow naturally towards each objective." and "No maps at all": the briefing's
+annotated map and the field-menu map of known intel are removed. The menu / briefing owner is assigned at the next plan;
+the validator rules are Marlow Build's. (Extends G290's in-world guidance; replaces the bible's briefing map and
+field-menu map.)
+
+**G337. Docs clarity: four fixes, then a re-audit.** Michael (2026-10-25 ~10:20, native multiple choice after the
+5-agent docs audit): "I want to make sure my vision is clear constantly. Is there anything we can improve to increase
+focus and clarity for Claude?"; fixes A (rule loading), B (`docs/VISION.md`), C + E (the bible rewritten in place with
+replaced entries marked, one owner per process rule) and D (the level standard per mode plus the validator) all
+approved; "Once this has been completed, I want another audit run and review the rules/vision/level design and anything
+to make sure the vision is clear."
+
+**G338. Helmets by difficulty.** Michael (2026-10-25 ~09:45): "Keep CT way" (G155); then, asked again after the docs
+audit about G307's first-headshot helmet (~10:20): "Base it off difficulty, harder difficulties always have helmets, and
+hardest difficulty you can't shoot the helmet off." Asked for Sector Ops. Assumed for the campaign, undoable: CT's
+alarm-stage helmets (G155) plus the same difficulty rule. (Refines G307 (2).)
+
+**G339. No minimap, compass or objective blip.** Michael (2026-10-25 ~10:20): "Remove it too": no minimap, compass or
+objective blip in any mode. mission-framework A10 is void; its A12 one-chance mission end and window rule kinds conflict
+with section restart (G290) and soft windows only (G334): Marlow Build re-plans them. (Extends G336; replaces the
+bible's parked minimap.)
