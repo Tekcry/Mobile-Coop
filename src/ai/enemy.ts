@@ -303,6 +303,10 @@ const NEAR_SIDE = true;
  *  his peek point (the edge or side step) in the hide phase too, so the suppress line is cast from past his wall. The
  *  aimed fire, the peek count and low cover are unchanged. Undo: false (behind the wall except in the peek phase). */
 const OW_HIGH_PEEK = true;
+/** (polish2 A187) Told of one intruder (a call), he goes alert seeing another: the told one is marked called, the seen
+ *  one only when it is the told one, and he calls the seen one in once (a contact naming him), so that fight has a
+ *  reporter. Undo: false (no call; the seen one marked called). */
+const ALERT_RECALL = true;
 /** (polish A2) `pickCover`'s best candidates (index, score), best first; module scratch (one pick at a time). */
 const CV_IDX = new Int32Array(8);
 const CV_SCORE = new Float64Array(8);
@@ -2031,11 +2035,17 @@ export class Enemy implements Damageable {
       // it), else the one the call / shout / located shot named, else the one he had
       // (S24 fix) not told of anyone (a call / shout that named nobody, or none): he names him himself; his own call
       // (not told) goes out below with the slot anyway
+      const told = this.pendingHunt;
       if (this.target && this.los) this.takeSighting(this.target, this.alertIn.called && this.hunt < 0 && this.pendingHunt < 0);
       else if (this.pendingHunt >= 0) this.hunt = this.pendingHunt;
       this.pendingHunt = -1;
-      // (polish A4) told of him (or about to call him in below): command knows
-      if (this.hunt >= 0) this.calledMask |= 1 << this.hunt;
+      if (ALERT_RECALL) {
+        // (polish2 A187) the told intruder is the called one; a different one he sees is not (nobody called him in): he
+        // calls him in now, once (the contact names him and marks him)
+        if (told >= 0) this.calledMask |= 1 << told;
+        if (this.hunt >= 0 && (told < 0 || this.hunt === told)) this.calledMask |= 1 << this.hunt;
+        if (this.alertIn.called && this.netOn && told >= 0 && this.hunt >= 0 && this.hunt !== told) this.callContact();
+      } else if (this.hunt >= 0) this.calledMask |= 1 << this.hunt; // (polish A4) told of him (or called below)
       // (guard-ai S8) his combat dice for this engagement (seeded per guard per engagement, replayable)
       this.rng.reseed(this.ctx.combatSeed?.(this) ?? Math.imul(this.num, 2654435761));
       this.meter = 1;
