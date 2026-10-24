@@ -132,13 +132,15 @@ const suiteBase = (s) => String(s).replace(/:.*$/, '');
  * with the same requester and the same kind ('pr' or 'full' only, never 'alone'), when either both name the same
  * non-empty `set`, or R.sha is N.sha or an ancestor of it (isAncestor(R.sha, N.sha); injected, false on doubt) and N
  * covers every suite of R ('full': always; 'pr': ":part" suffixes ignored). Two different non-empty sets never
- * supersede (deliberate configurations, e.g. a flag off / on pair); nor does a request with no requester.
+ * supersede (deliberate configurations, e.g. a flag off / on pair); nor does a request with no requester, nor a pinned
+ * one (`pin: true`, request.mjs --pin: an A/B or baseline run kept on purpose; it may still supersede older ones).
  */
 export function superseded(requests, isAncestor) {
   const reqs = [...requests].sort(sortById);
   const out = new Map();
   reqs.forEach((r, i) => {
     if (r.kind !== 'pr' && r.kind !== 'full') return;
+    if (r.pin) return;
     if (!r.requester || r.requester === 'unknown') return;
     for (let j = reqs.length - 1; j > i; j--) {
       const n = reqs[j];
@@ -235,6 +237,19 @@ export function pruneDone(done, now, maxMs, synced = () => true) {
 export function yieldTo(r, started, trains) {
   if (started || r?.trainRerun || !(trains ?? []).length) return null;
   return trains[0];
+}
+
+/**
+ * Why a running request stops early, or '': 'withdrawn' when its request file left the laptop-queue branch (the
+ * service decides that from two listings in a row, so one bad listing never kills a run); 'train' when a train head is
+ * pending and the run is a plain pr request already in its suites (before that, yieldTo gives the slot back). A train
+ * rerun, a full run and an alone run never give way to a train once started (Orchestrator audit 2026-10-24: a
+ * withdrawn request held 4191 for 67 min and train 56 waited 11 min).
+ */
+export function cutShort(r, { withdrawn = false, trains = [], started = false } = {}) {
+  if (withdrawn) return 'withdrawn';
+  if (started && r?.kind === 'pr' && !r.trainRerun && (trains ?? []).length) return 'train';
+  return '';
 }
 
 /**

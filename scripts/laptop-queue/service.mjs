@@ -30,6 +30,11 @@
 // than 7 days (done claim pushed) are pruned on every state save.
 // Yield: a pr / full / alone run that has not started its suites or steps (lock wait, fetch, npm ci, build) while a train
 // head is pending gives its slot back (locks released, claim dropped, request stays queued; lib yieldTo).
+// Cut short (Orchestrator audit 2026-10-24, lib cutShort): a running request whose requests/<id>.json left the branch
+// (withdrawn; missing from two listings in a row) has its command tree killed, posts error "withdrawn" and is done; a
+// plain pr request already in its suites when a train head is pending is killed and queued again (claim released,
+// status "queued, preempted by train <n>"). Train reruns, full and alone runs are never preempted.
+// Pinned requests (request.mjs --pin, "pin": true; A/B and baseline runs) are never superseded.
 // Task guard (Michael 2026-10-24 07:13, after 87 stale NightShift-chain-* one-shots fired at 23:59 and held the slot
 // locks): at start and every LQ_TASK_GUARD_MIN (10; 0 = off) min, disables (never stops, kills or deletes) each stale
 // scheduled task (lib staleTasks; allowlist + env LQ_TASK_ALLOW, a comma list) and pushes alerts/<ts>-<worker>-tasks.json to the
@@ -38,7 +43,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { assertKey, buildMarker, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, dupKey, duplicates, failureExcerpt, flakeStands, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo } from './lib.mjs';
+import { assertKey, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, dupKey, duplicates, failureExcerpt, flakeStands, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo } from './lib.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
 const DESKTOP = process.env.LQ_WORKER === 'desktop';
@@ -143,12 +148,26 @@ const doneElsewhere = new Set();
 let claimCount = 0;
 /** Requests the other worker holds an open claim on (claimed or running there), from the last listRequests. */
 let otherActive = [];
+/** Running request id -> listings in a row it was missing from; ids missing from two are withdrawn (lib cutShort). */
+const missing = new Map();
+const withdrawnIds = new Set();
 
 function listRequests() {
   git(['fetch', '-q', 'origin'], { soft: true });
   const names = git(['ls-tree', '--name-only', 'origin/laptop-queue', 'requests/'], { soft: true }).split('\n').filter((n) => n.endsWith('.json'));
   const claims = new Set(git(['ls-tree', '--name-only', 'origin/laptop-queue', 'claims/'], { soft: true }).split('\n').filter(Boolean).map((n) => path.basename(n, '.json')));
   claimCount = claims.size;
+  // a request running here whose file left the branch on two listings in a row was withdrawn (an empty listing, e.g. a
+  // failed ls-tree, counts for nothing)
+  if (names.length > 0) {
+    const listed = new Set(names.map((n) => path.basename(n, '.json')));
+    for (const id of activeReqs.keys()) {
+      if (listed.has(id)) { missing.delete(id); continue; }
+      const n = (missing.get(id) ?? 0) + 1;
+      missing.set(id, n);
+      if (n >= 2) withdrawnIds.add(id);
+    }
+  }
   const out = [];
   otherActive = [];
   for (const n of names) {
@@ -382,20 +401,33 @@ function pendingTrains() {
 
 // ---------- processes, locks, ports ----------
 
-/** Runs a shell command line, output appended to logFile; resolves with the exit code (124 on timeout). */
-function sh(line, { cwd, env = {}, logFile, timeoutMs = 3600_000 }) {
+/**
+ * Runs a shell command line, output appended to logFile; resolves with the exit code (124 on timeout). ctl (a request
+ * run): ctl.child is the running command for cut(); once ctl.why is set nothing new starts (125).
+ */
+function sh(line, { cwd, env = {}, logFile, timeoutMs = 3600_000, ctl }) {
+  if (ctl?.why) return Promise.resolve(125);
   fs.mkdirSync(path.dirname(logFile), { recursive: true });
   const fd = fs.openSync(logFile, 'a');
   fs.writeSync(fd, `\n$ ${line}\n`);
   return new Promise((resolve) => {
     const child = spawn(line, { cwd, env: { ...process.env, ...env }, shell: true, windowsHide: true, stdio: ['ignore', fd, fd] });
+    if (ctl) ctl.child = child;
     const timer = setTimeout(() => {
       try { cmd('taskkill', ['/pid', String(child.pid), '/t', '/f'], { soft: true }); } catch { /* gone */ }
       resolve(124);
     }, timeoutMs);
-    child.on('exit', (code) => { clearTimeout(timer); resolve(code ?? 1); });
-    child.on('error', () => { clearTimeout(timer); resolve(1); });
+    const end = (code) => { clearTimeout(timer); if (ctl?.child === child) ctl.child = null; resolve(code); };
+    child.on('exit', (code) => end(code ?? 1));
+    child.on('error', () => end(1));
   }).finally(() => fs.closeSync(fd));
+}
+
+/** Stops a request run: kills its running command tree (as the sh timeout does); later commands do not start. */
+function cut(ctl, why) {
+  if (ctl.why) return;
+  ctl.why = why;
+  if (ctl.child) cmd('taskkill', ['/pid', String(ctl.child.pid), '/t', '/f'], { soft: true });
 }
 
 /** Kills whatever listens on the port (a server left by a killed run). */
@@ -453,9 +485,9 @@ function releaseLock(port, line) {
  * Fetch (one retry), clean, detach at sha, npm ci when needed, build. Returns 'ok' | 'fetch' (fetch failed twice: skip
  * this pass, not a verdict) | 'nosha' | 'build'. npm ci runs when node_modules is missing or package-lock.json differs
  * (beyond its version lines) from the text saved after this slot's last SUCCESSFUL npm ci, so a failed one is retried.
- * `stop` (a request run): checked before npm ci and before the build; truthy returns 'yield'.
+ * `stop` (a request run): checked before npm ci and before the build; truthy returns 'yield'. ctl: see sh.
  */
-async function prepare(port, sha, logFile, stop) {
+async function prepare(port, sha, logFile, stop, ctl) {
   const cwd = SLOTS[port].dir;
   let fetched = false;
   for (let i = 0; i < 2 && !fetched; i++) {
@@ -470,19 +502,19 @@ async function prepare(port, sha, logFile, stop) {
   try { lockInstalled = fs.readFileSync(file(`npm-ci-${port}.lock.json`), 'utf8'); } catch { /* never installed by the service */ }
   if (!fs.existsSync(path.join(cwd, 'node_modules')) || lockInstalled === null || lockChanged(lockInstalled, lockNow)) {
     if (stop?.()) return 'yield';
-    if (await sh('npm ci', { cwd, logFile }) !== 0) return 'build';
+    if (await sh('npm ci', { cwd, logFile, ctl }) !== 0) return 'build';
     fs.mkdirSync(STATE_DIR, { recursive: true });
     fs.writeFileSync(file(`npm-ci-${port}.lock.json`), lockNow);
   }
   if (stop?.()) return 'yield';
-  return (await sh('npm run build', { cwd, logFile })) === 0 ? 'ok' : 'build';
+  return (await sh('npm run build', { cwd, logFile, ctl })) === 0 ? 'ok' : 'build';
 }
 
 /** One run-e2e call on a slot; returns the parsed run plus its exit code and the last 40 lines of its output. */
-async function e2e(port, suites, jobs, logFile) {
+async function e2e(port, suites, jobs, logFile, ctl) {
   freePort(port);
   const env = { E2E_PORT: port, E2E_JOBS: String(jobs), E2E_GPU: '1', E2E_SUITE_TIMEOUT: '900' };
-  const code = await sh(`node scripts/run-e2e.mjs ${suites.join(' ')}`, { cwd: SLOTS[port].dir, env, logFile });
+  const code = await sh(`node scripts/run-e2e.mjs ${suites.join(' ')}`, { cwd: SLOTS[port].dir, env, logFile, ctl });
   freePort(port);
   const text = fs.readFileSync(logFile, 'utf8').split(/^\$ node scripts\/run-e2e.mjs /m).pop() ?? '';
   return { ...parseRun(text), code, tail40: failureExcerpt(text).tail40 };
@@ -505,16 +537,16 @@ function sectionOf(runDir, suite) {
  * The failure stands unrerun only when the same suite flaked within 24 h on the same assert (assertKey): a new assert
  * on a suite that flaked before is rerun (train 40 ctcourse:4, 2026-10-24).
  */
-async function rerunFlakes(result, slotOf, job, runDir, fallback = PORTS[0]) {
+async function rerunFlakes(result, slotOf, job, runDir, fallback = PORTS[0], ctl) {
   const flakes = [];
   const now = Date.now();
   for (const x of result.suites.filter((s) => !s.ok && !s.flaky && !s.report)) {
     const key = assertKey(failureExcerpt(sectionOf(runDir, x.s)).assert);
     if (flakeStands(state.flakes, x.s, key, now, FLAKE_WINDOW_MS)) { log(`${x.s} flaked within 24 h on the same assert, failure stands`); continue; }
-    if (DRY) continue;
+    if (DRY || ctl?.why) continue;
     const port = slotOf[x.s] ?? fallback;
     log(`rerun ${x.s} alone on ${port}`);
-    const run = await e2e(port, [x.s], 1, path.join(runDir, `rerun-${x.s.replace(/\W/g, '_')}.log`));
+    const run = await e2e(port, [x.s], 1, path.join(runDir, `rerun-${x.s.replace(/\W/g, '_')}.log`), ctl);
     if (runComplete(run, 1) && run.suites.every((s) => s.ok)) {
       x.ok = true;
       flakes.push(x.s);
@@ -639,7 +671,14 @@ async function runRequest(r, port) {
   const locks = {};
   // yield: a pending train head takes the slot back until the suites / steps start (lib yieldTo)
   let yielded = null;
-  const stop = () => (yielded ??= yieldTo(r, false, trainsNow()));
+  // cut short: withdrawn at any point, or (a pr request in its suites) preempted by a pending train (lib cutShort)
+  const ctl = { child: null, why: '', by: null };
+  let started = false;
+  const watch = DRY ? null : setInterval(() => {
+    const why = cutShort(r, { withdrawn: withdrawnIds.has(r.id), trains: trainsNow(), started });
+    if (why && !ctl.why) { ctl.by = trainsNow()[0] ?? null; cut(ctl, why); }
+  }, 5_000);
+  const stop = () => Boolean(ctl.why) || Boolean(yielded ??= yieldTo(r, false, trainsNow()));
   let posted = false;
   const giveBack = () => {
     log(`${r.id}: yields to train ${yielded.n}`);
@@ -647,10 +686,23 @@ async function runRequest(r, port) {
     writeClaims([r.id], 'release', `release ${r.id} (yields to train ${yielded.n})`);
     claimed.delete(r.id);
   };
+  const cutEnd = () => {
+    if (ctl.why === 'withdrawn') {
+      log(`${r.id}: withdrawn by the requester, run stopped`);
+      if (posted) postStatus(r.sha, 'error', ctx, 'withdrawn by the requester, run stopped');
+      state.done[r.id] = { result: 'withdrawn', date: new Date().toISOString() };
+      return;
+    }
+    const n = ctl.by?.n ?? '?';
+    log(`${r.id}: preempted by train ${n}, queued again`);
+    if (posted) postStatus(r.sha, 'pending', ctx, `queued, preempted by train ${n}`);
+    writeClaims([r.id], 'release', `release ${r.id} (preempted by train ${n})`);
+    claimed.delete(r.id);
+  };
   try {
     for (const p of ports) {
       locks[p] = await takeLock(p, r.id, r.sha, { stop });
-      if (!locks[p] || stop()) return giveBack();
+      if (!locks[p] || stop()) return ctl.why ? cutEnd() : giveBack();
     }
     // fresh `at`: a long lock wait never looks like a dead worker; if the other worker took it over meanwhile, back off
     if (writeClaims([r.id], 'claim', `claim ${r.id} (lock taken)`) === 'blocked') {
@@ -660,8 +712,9 @@ async function runRequest(r, port) {
     }
     postStatus(r.sha, 'pending', ctx, 'running');
     posted = true;
-    const prep = await prepare(ports[0], r.sha, path.join(runDir, 'prepare.log'), stop);
-    if (prep === 'yield' || (prep === 'ok' && stop())) return giveBack();
+    const prep = await prepare(ports[0], r.sha, path.join(runDir, 'prepare.log'), stop, ctl);
+    if (ctl.why) return cutEnd();
+    if (prep === 'yield' || (prep === 'ok' && stop())) return ctl.why ? cutEnd() : giveBack();
     if (prep === 'fetch') {
       // not a verdict and not done: the claim is dropped and the next pass takes it again
       postStatus(r.sha, 'pending', ctx, 'fetch failed, retrying');
@@ -678,13 +731,16 @@ async function runRequest(r, port) {
     if (r.kind === 'alone') {
       const t0 = Date.now();
       let okSteps = 0;
+      started = true;
       for (const [i, step] of r.steps.entries()) {
+        if (ctl.why) break;
         const line = step.startsWith('serve ') ? `node scripts/laptop-queue/serve.mjs ${step.slice(6)}` : step;
         freePort(ports[0]);
-        const code = await sh(line, { cwd: SLOTS[ports[0]].dir, env: { ...r.env, E2E_PORT: ports[0], E2E_GPU: '1' }, logFile: path.join(runDir, `step${i + 1}.log`) });
+        const code = await sh(line, { cwd: SLOTS[ports[0]].dir, env: { ...r.env, E2E_PORT: ports[0], E2E_GPU: '1' }, logFile: path.join(runDir, `step${i + 1}.log`), ctl });
         if (code === 0) okSteps++;
         freePort(ports[0]);
       }
+      if (ctl.why) return cutEnd();
       const good = okSteps === r.steps.length;
       postStatus(r.sha, good ? 'success' : 'failure', ctx, `${okSteps}/${r.steps.length} steps ok, ${Math.round((Date.now() - t0) / 1000)} s`);
       state.done[r.id] = { result: good ? 'success' : 'failure', date: new Date().toISOString() };
@@ -693,7 +749,9 @@ async function runRequest(r, port) {
     const list = r.kind === 'full' ? cmd('node', ['scripts/run-e2e.mjs', '--list'], { cwd: SLOTS[port].dir }).split('\n').map((x) => x.trim()).filter(Boolean) : r.suites;
     const jobs = DESKTOP || r.trainRerun ? 1 : r.jobs ?? (r.kind === 'full' ? 3 : 2); // a train rerun: E2E_JOBS=1, unsharded
     const t0 = Date.now();
-    const run = await e2e(port, list, jobs, path.join(runDir, `${port}.log`));
+    started = true;
+    const run = await e2e(port, list, jobs, path.join(runDir, `${port}.log`), ctl);
+    if (ctl.why) return cutEnd();
     // same completeness rule as a train shard; at least the listed suites (a named suite may expand into parts)
     if (!runComplete(run, list.length)) {
       log(`${r.id}: run incomplete (exit ${run.code}, ${run.suites.length}/${list.length} suites, summary ${run.complete ? 'seen' : 'missing'})`);
@@ -704,7 +762,8 @@ async function runRequest(r, port) {
     }
     const result = { suites: run.suites, wall: 0, flakes: [] };
     // a request reruns on its own locked slot and worktree (its sha), never on another slot
-    result.flakes = await rerunFlakes(result, {}, job, runDir, port);
+    result.flakes = await rerunFlakes(result, {}, job, runDir, port, ctl);
+    if (ctl.why) return cutEnd();
     result.wall = (Date.now() - t0) / 1000;
     const ok = finish(job, ctx, result, runDir, r.pr);
     // a train rerun that passed also turns the train's own context green (the latest status per context wins in the
@@ -712,11 +771,14 @@ async function runRequest(r, port) {
     if (ok && r.trainRerun) postStatus(r.sha, 'success', 'laptop-e2e', rerunPassed(r.suites));
     state.done[r.id] = { result: ok ? 'success' : 'failure', wall: result.wall, date: new Date().toISOString() };
   } finally {
+    if (watch) clearInterval(watch);
+    missing.delete(r.id);
+    withdrawnIds.delete(r.id);
     for (const p of ports) { if (locks[p]) releaseLock(p, locks[p]); freePort(p); }
     if (state.done[r.id]) state.done[r.id].key = dupKey(r); // the duplicate check reads it for LQ_DUP_WINDOW_MIN
     saveState();
     if (state.done[r.id] && writeClaims([r.id], 'done', `done ${r.id}`) === true) doneSynced.add(r.id);
-    if (!yielded) log(`${r.id}: done`);
+    if (!yielded && ctl.why !== 'train') log(`${r.id}: done`);
   }
 }
 

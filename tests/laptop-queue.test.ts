@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, flakeStands, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, flakeStands, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort } from '../scripts/laptop-queue/lib.mjs';
 
 const NOW = Date.UTC(2026, 9, 23, 20, 0, 0);
 const idAt = (min: number, tag: string): string => {
@@ -119,6 +119,14 @@ describe('superseded', () => {
     const o = r(30, 'o', { suites: ['e2e-ctcourse:2'] });
     const n = r(10, 'n', { sha: SHA('2'), suites: ['e2e-ctcourse'] });
     expect(superseded([o, n], anc([[SHA('1'), SHA('2')]])).get(o.id)).toBe(n.id);
+  });
+  it('a pinned request is never superseded, but may supersede an older one', () => {
+    const o = r(30, 'o', { pin: true });
+    const n = r(10, 'n');
+    expect(superseded([o, n], never).size).toBe(0);
+    const o2 = r(30, 'o2');
+    const n2 = r(10, 'n2', { pin: true });
+    expect(superseded([o2, n2], never).get(o2.id)).toBe(n2.id);
   });
   it('a chain maps each old request to the newest request that supersedes it', () => {
     const a = r(30, 'a');
@@ -483,6 +491,28 @@ describe('duplicates', () => {
     expect(m.get(b.id)).toBe(a.id);
     expect(m.get(c.id)).toBe(a.id);
     expect(m.has(a.id)).toBe(false);
+  });
+});
+
+describe('cutShort', () => {
+  const t = { sha: 'a'.repeat(40), n: '57' };
+  it('a withdrawn request stops whatever its kind or phase', () => {
+    for (const kind of ['pr', 'full', 'alone']) {
+      expect(cutShort({ kind }, { withdrawn: true })).toBe('withdrawn');
+      expect(cutShort({ kind }, { withdrawn: true, trains: [t], started: true })).toBe('withdrawn');
+    }
+    expect(cutShort({ kind: 'pr', trainRerun: true }, { withdrawn: true })).toBe('withdrawn');
+  });
+  it('a pending train preempts a plain pr request only once its suites started', () => {
+    expect(cutShort({ kind: 'pr' }, { trains: [t], started: true })).toBe('train');
+    expect(cutShort({ kind: 'pr' }, { trains: [t], started: false })).toBe('');
+    expect(cutShort({ kind: 'pr' }, { trains: [], started: true })).toBe('');
+  });
+  it('never preempts a train rerun, a full or an alone run', () => {
+    expect(cutShort({ kind: 'pr', trainRerun: true }, { trains: [t], started: true })).toBe('');
+    expect(cutShort({ kind: 'full' }, { trains: [t], started: true })).toBe('');
+    expect(cutShort({ kind: 'alone' }, { trains: [t], started: true })).toBe('');
+    expect(cutShort({ kind: 'pr' })).toBe('');
   });
 });
 
