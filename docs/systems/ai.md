@@ -180,6 +180,9 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   stretch is walked (`ADVANCE_PACE`; aggressive: a jog); cover is picked against `knownPt` (never the real position out of sight). One bullet
   to the head kills any guard but a heavy (`Enemy.applyDamage`), unless he wears a helmet (below). The close-range
   sense from behind ignores a sneak / crouched approach.
+- Head hit volumes come from the sim, never the drawn pose: a guard's from `guardHead` (`src/ai/guardHead.ts`, fitted to
+  the rig), the dog's from `dogHead` (`src/ai/dogHead.ts`, rig-pose-fix S6: the dog model's own transform chain on the
+  sim gait clock `Enemy.dogPhase` and bite `Enemy.dogBite`, stepped in `syncHitboxes`; `DogModel` draws from it). Tests: `tests/guardHeadParity.test.ts`, `tests/dogHead.test.ts`.
 - Gear (guard-ai S12, stealth over shooting items 2 and 13, A35 / A36; numbers `GEAR` in `ai/gear.ts`): `Enemy.helmet`
   / `armour`, set by `EnemyManager.placeSlot` from the slot's `gear` tag merged with the section default
   (`SectorDef.gear`, passed by `sectorMode.fill`; none = no gear) plus the alarm stage's gear (S13, below), kept by a woken
@@ -255,7 +258,11 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   fixtures: `LightDef.fixture` (box size + offset) is the shot target (`rayBox`), drawn by the light rig as a box that
   goes dark with the light.
 - Bodies: `Enemy.die` / `knockOut` hand the rig to `EnemyManager.addBody` -> `ai/body.ts` `Body` (a settled `Ragdoll`, or
-  laid flat when out of budget; `BODY.max` kept). Enemies not in combat look for bodies each think (`bodyNoticed`: field x
+  laid flat when out of budget; `BODY.max` kept). (rig-pose-fix S5) `Body.pos` and `Body.lie` (pelvis, chest point, head yaw)
+  are sim: `ai/bodyLie.ts` `deathLie` from his feet and yaw at death, the fall along the impulse settling the pelvis
+  `LIE.settle` x hip height (held back by a static wall: `body.ts` `deathLieOn`), `dropLie` at the drop point; never read
+  from the rig. The ragdoll is visual and eases onto the lie when it settles (`Ragdoll.snapTo`, `SNAP_EASE` 0.3 s); out
+  of budget the rig is laid straight on it (`carryPose.layAt`). Enemies not in combat look for bodies each think (`bodyNoticed`: field x
   `lightFactor(body.light)` x distance; one ray) -> `bodyFound`: the finder searches; a non-lethal body is revived
   (`BODY.reviveTime`; the woken guard is the same guard: `Enemy.inherit`); coordinated modes: awareness and caution
   below; parked modes: the squad within `RADIO` searches. Cameras see bodies (guard-ai S7, design 9, M6; host only, coordinated

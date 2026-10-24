@@ -632,13 +632,14 @@ try {
   }
   await compare('wall peek', 'wall');
   await until(A, () => { const r = window.__app.current.net.remotes.values().next().value; return Math.abs(Math.hypot(r.ref.peekX ?? 0, r.ref.peekZ ?? 0) - 0.35) < 0.01; }, null, 3000, 'host peek offset eased to 0.35 m');
-  // (step 12b fix r2, light parity) the host's head point and light sample are its posed copy's head (ref.head) on
-  // the wall, as the local light meter reads the local posed head: the two heads agree (the MoveState offset is 0.35 m)
+  // (step 12b fix r2, light parity; rig-pose-fix S1 / S4) the host's head point and light sample are the client's sim body
+  // head (ref.head, from its MoveState) on the wall, as the client's own light meter reads its sim body head
+  // (`PlayerTarget.body`): the two heads agree (the MoveState offset is 0.35 m); the client's rig head is logged beside it
   const pl = await GA(() => { const g = window.__app.current; const r = g.net.remotes.values().next().value; const h = r.headPoint(new g.player.position.constructor()); return { px: r.ref.peekX, pz: r.ref.peekZ, h: [h.x, h.y, h.z], ref: !!r.ref.head, hd: Math.hypot(h.x - r.feet.x, h.z - r.feet.z) }; });
-  const plL = await GB(() => { const g = window.__app.current; const p = g.player.position; const h = g.player.rig.posedHead(new p.constructor()); return { h: [h.x, h.y, h.z], hd: Math.hypot(h.x - p.x, h.z - p.z) }; });
+  const plL = await GB(() => { const g = window.__app.current; const p = g.player.position; const h = g.target.body.head; const rh = g.player.rig.posedHead(new p.constructor()); return { h: [h.x, h.y, h.z], hd: Math.hypot(h.x - p.x, h.z - p.z), rig: +Math.hypot(rh.x - h.x, rh.y - h.y, rh.z - h.z).toFixed(3) }; });
   const pd = Math.hypot(pl.h[0] - plL.h[0], pl.h[1] - plL.h[1], pl.h[2] - plL.h[2]);
-  console.log(`  peek head samples: local ${plL.hd.toFixed(3)} m out, host ${pl.hd.toFixed(3)} m out, apart ${pd.toFixed(3)} m`);
-  assert(Math.abs(Math.hypot(pl.px, pl.pz) - 0.35) < 0.01 && pl.ref && pd < 0.05 && plL.hd > 0.1 && pl.hd > 0.1, `the host samples the peeking client's light and head at its posed head, within 5 cm of the client's own (${JSON.stringify({ pl, plL, pd })})`);
+  console.log(`  peek head samples: local ${plL.hd.toFixed(3)} m out, host ${pl.hd.toFixed(3)} m out, apart ${pd.toFixed(3)} m (local sim head ${plL.rig} m from its rig head)`);
+  assert(Math.abs(Math.hypot(pl.px, pl.pz) - 0.35) < 0.01 && pl.ref && pd < 0.05 && plL.hd > 0.1 && pl.hd > 0.1, `the host samples the peeking client's light and head at its sim body head, within 5 cm of the client's own (${JSON.stringify({ pl, plL, pd })})`);
   await GB(() => window.__pad.axis(0, 0));
   await until(B, () => !window.__app.current.wallCore.peekOn && window.__app.current.wallCore.peek === 0, null, 4000, 'client peek eases back');
   // (A3) the weapon hand at a left edge while peeking: WALL_SUB.leftHand (128) reaches the host at the left (b) end only

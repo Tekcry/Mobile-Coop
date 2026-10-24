@@ -36,11 +36,11 @@ import { gearCompose, GS } from '../anim/tuneGear';
 import { FING_L, FING_LEN, FING_R, FINGER_N, handGripShape, SPREAD_MAX_DEG } from '../anim/fingers';
 import { CLAV_L, CLAV_LEN, CLAV_R, clavActive, clavCompose, clavPoint, clavQuat } from '../anim/clavicle';
 import { GOGGLE_OFFSET, setGoggleOffset } from '../operators/runtime/goggle';
+import { EDGE_HAND_TIME, HandSwitch } from './handSwitch';
 
 /** Creates a unit-sized part mesh (instanced from the shared PartLibrary). `slot` names the colour/pattern slot. */
-/** Weapon changing hands at an open-left back-to-wall edge (s): inside D9's 0.2-0.3 s draw / lean-out step (12b);
- *  a smoothstep with the graph's `hands` clip entered through the Inertializer, never a pop. */
-export const EDGE_HAND_TIME = 0.25;
+// (rig-pose-fix S7, G15) the hand switch's clock is shared with the sim (`handSwitch.ts`): EDGE_HAND_TIME lives there
+export { EDGE_HAND_TIME };
 
 export type PartFactory = (shape: PartShape, hex: string, slot: string) => AbstractMesh;
 
@@ -1029,7 +1029,12 @@ export class CharacterRig {
    * mirrored aim pocket. Dormant until step 12b drives it (WALL_SUB.leftHand).
    */
   openLeft = false;
-  private handBlend = 0;
+  /** (rig-pose-fix S7, G15) The drawn hand switch: this rig's own copy of the sim's clock (`HandSwitch`, the same math and
+   *  target), eased at the render rate. Gameplay reads the sim's (`PlayerWeapons.hand`), never this. */
+  private readonly hs = new HandSwitch();
+  private get handBlend(): number {
+    return this.hs.blend;
+  }
   /**
    * (step 12b, light parity) The posed head centre and chest (torso joint) in world space, refreshed from the root:
    * perception's exposure points and the light meter's head sample read the real pose (a mirrored open-side lean,
@@ -1261,17 +1266,9 @@ export class CharacterRig {
   private readySh: { x: number; y: number; z: number } = { x: 0, y: 0, z: 0 };
   private headCap: number | undefined = undefined;
   /** Hand switch progress (open-left edge): 0..1 while changing hands, else -1. */
-  handSwap = -1;
-  private handFrom = 0;
-  /** The hand target the running switch eases toward (a reversal mid-switch restarts from the current blend). */
-  private handTo = 0;
-  /** Where the running switch's progress started (0, or the mirrored progress after a reversal). */
-  private handStart = 0;
-  /** Blend rate (1/s) on the last switch frame, and the Hermite start tangent a reversal carries it into. */
-  private handRate = 0;
-  private handTan = 0;
-  /** Duration (s) of the running switch: EDGE_HAND_TIME, or longer for a fast reversal. */
-  private handDur = EDGE_HAND_TIME;
+  get handSwap(): number {
+    return this.hs.swap;
+  }
   /** Smoothed world aim rotation of the weapon (inertia from the weapon's mass). */
   private aimQ: Quaternion | null = null;
   /** Joint-rate limiter hits (debug overlay warning counter). */
@@ -1936,44 +1933,9 @@ export class CharacterRig {
     }
     this.prevYaw = yaw;
     // weapon changing hands (open-left wall edge, D9): eased over EDGE_HAND_TIME; the graph tucks the weapon in
-    const handTarget = this.openLeft ? 1 : 0;
-    // a new switch, or the target reversing mid-switch: restart from the current blend (no jump, 12b fix r1). A
-    // reversal rewinds: progress restarts at the mirrored point 1 - s (the graph's tuck bump sin(pi * handSwap) stays
-    // continuous and retracts) and the blend keeps its velocity (a cubic Hermite from the current blend and rate to
-    // the new target at rest), so the weapon never steps or snaps direction. The rewind runs at least EDGE_HAND_TIME,
-    // longer when needed so its peak acceleration stays under a plain switch's (6 / T^2)
-    if (this.handSwap < 0 && handTarget !== this.handBlend) {
-      this.handSwap = 0;
-      this.handStart = 0;
-      this.handFrom = this.handBlend;
-      this.handTo = handTarget;
-      this.handTan = 0;
-      this.handDur = EDGE_HAND_TIME;
-    } else if (this.handSwap >= 0 && handTarget !== this.handTo) {
-      const s0 = Math.min(0.999, 1 - this.handSwap);
-      this.handSwap = s0;
-      this.handStart = s0;
-      this.handFrom = this.handBlend;
-      this.handTo = handTarget;
-      const r = Math.abs(this.handRate) * EDGE_HAND_TIME;
-      const x = (4 * r + Math.sqrt(16 * r * r + 144 * Math.abs(handTarget - this.handBlend))) / 12;
-      this.handDur = EDGE_HAND_TIME * Math.min(2, Math.max(1, x));
-      this.handTan = this.handRate * this.handDur;
-    }
-    if (this.handSwap >= 0) {
-      const prev = this.handBlend;
-      this.handSwap = Math.min(1, this.handSwap + ((1 - this.handStart) * dt) / this.handDur);
-      const u = Math.min(1, (this.handSwap - this.handStart) / (1 - this.handStart));
-      const e = u * u * (3 - 2 * u);
-      const v = 1 - u;
-      this.handBlend = Math.min(1, Math.max(0, this.handFrom + (handTarget - this.handFrom) * e + this.handTan * u * v * v));
-      this.handRate = dt > 0 ? (this.handBlend - prev) / dt : 0;
-      if (this.handSwap >= 1) {
-        this.handBlend = handTarget;
-        this.handSwap = -1;
-        this.handRate = 0;
-      }
-    }
+    // (rig-pose-fix S7, G15) the math is the sim clock's (`HandSwitch.step`: a reversal rewinds, no jump), stepped here
+    // at the render rate toward the same target (the local player's `openLeft` is written in the fixed step)
+    this.hs.step(dt, this.openLeft);
     // (strike-pops, n4c polish 1) the graph's tuck bump and the gun's dip read the progress from the blend
     // (`handSwapPh`): a reversal's rewind of `handSwap` flipped their rate in one frame
     i.handSwap = this.handSwap < 0 ? -1 : handSwapPh(this.handBlend);
