@@ -68,12 +68,14 @@ export function readRecords({ cwd = process.cwd(), remote = 'origin' } = {}) {
 /**
  * Commit `files` on top of the fetched data branch (or orphan the first time) with a temp index, then push it to
  * `<remote> visual-baselines` (5 tries, refetch and rebuild between). `dryRun` builds the commit and pushes nothing.
+ * `noReplace`: paths that must not exist on the parent yet; checked on every (re)build, so a record pushed by another
+ * machine between tries is still refused rather than overwritten.
  * @param {{ path: string, data: string | Uint8Array }[]} files
  * @param {string} message
- * @param {StoreOpts & { dryRun?: boolean }} [o]
+ * @param {StoreOpts & { dryRun?: boolean, noReplace?: string[] }} [o]
  * @returns {string} the commit sha
  */
-export function writeFiles(files, message, { dryRun = false, ...opts } = {}) {
+export function writeFiles(files, message, { dryRun = false, noReplace = [], ...opts } = {}) {
   const { cwd = process.cwd(), remote = 'origin' } = opts;
   const tmpIndex = path.join(os.tmpdir(), `vg-index-${process.pid}-${randomBytes(4).toString('hex')}`);
   /** @type {Record<string, string>} */
@@ -81,6 +83,10 @@ export function writeFiles(files, message, { dryRun = false, ...opts } = {}) {
   const env = { GIT_INDEX_FILE: tmpIndex, ...idEnv };
   const buildCommit = () => {
     const parent = git(['rev-parse', '--verify', '-q', `${trackingRef(remote)}^{commit}`], { cwd, soft: true });
+    if (parent && noReplace.length) {
+      const existing = git(['ls-tree', '-r', '--name-only', parent, '--', ...noReplace], { cwd }).split('\n').filter(Boolean);
+      if (existing.length) throw new Error(`already on ${BRANCH}: ${existing.join(', ')}`);
+    }
     fs.rmSync(tmpIndex, { force: true });
     if (parent) git(['read-tree', parent], { cwd, env }); else git(['read-tree', '--empty'], { cwd, env });
     const infos = [];
@@ -139,16 +145,34 @@ export function isAncestorFn({ cwd = process.cwd(), remote = 'origin' } = {}) {
 }
 
 /**
- * Validate and write a run (`runs/<sha>/result.json` plus thumbs). Throws on a bad record.
- * @param {RunRecord} rec @param {Record<string, Uint8Array>} [thumbs] @param {StoreOpts & { dryRun?: boolean }} [opts]
+ * Validate and write a run (`runs/<sha>/result.json` plus thumbs). Throws on a bad record, and when that sha is already
+ * recorded unless `replace: true` (a deliberate re-record, e.g. VG7 rerunning the same train commit).
+ * @param {RunRecord} rec @param {Record<string, Uint8Array>} [thumbs]
+ * @param {StoreOpts & { dryRun?: boolean, replace?: boolean }} [opts]
  */
-export function recordRun(rec, thumbs = {}, opts = {}) {
+export function recordRun(rec, thumbs = {}, { replace = false, ...opts } = {}) {
   const problems = validateRun(rec);
   if (problems.length) throw new Error(`bad run record: ${problems.join('; ')}`);
-  return writeFiles(runPaths(rec, thumbs), `visual-gate run ${rec.sha.slice(0, 8)} ${rec.version}`, opts);
+  const files = runPaths(rec, thumbs);
+  try {
+    return writeFiles(files, `visual-gate run ${rec.sha.slice(0, 8)} ${rec.version}`, { ...opts, noReplace: replace ? [] : [`runs/${rec.sha}/result.json`] });
+  } catch (e) {
+    if (/^already on /.test(/** @type {Error} */ (e).message ?? '')) throw new Error(`run ${rec.sha.slice(0, 8)} is already recorded; pass replace: true to overwrite`);
+    throw e;
+  }
 }
 
-/** Write an accept record to `accepted/<version>-<sha8>.json`. @param {AcceptRecord} a @param {StoreOpts & { dryRun?: boolean }} [opts] */
-export function recordAccept(a, opts = {}) {
-  return writeFiles([{ path: acceptPath(a), data: `${JSON.stringify(a, null, 2)}\n` }], `visual-gate accept ${a.version} by ${a.by}`, opts);
+/**
+ * Write an accept record to `accepted/<version>-<sha8>.json`. Throws when that file already exists unless
+ * `replace: true` (the CLI's `--replace`).
+ * @param {AcceptRecord} a @param {StoreOpts & { dryRun?: boolean, replace?: boolean }} [opts]
+ */
+export function recordAccept(a, { replace = false, ...opts } = {}) {
+  const p = acceptPath(a);
+  try {
+    return writeFiles([{ path: p, data: `${JSON.stringify(a, null, 2)}\n` }], `visual-gate accept ${a.version} by ${a.by}`, { ...opts, noReplace: replace ? [] : [p] });
+  } catch (e) {
+    if (/^already on /.test(/** @type {Error} */ (e).message ?? '')) throw new Error(`${p} already exists; pass --replace to overwrite`);
+    throw e;
+  }
 }

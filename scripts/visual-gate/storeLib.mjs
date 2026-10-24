@@ -46,6 +46,17 @@ export function cmpSemver(/** @type {string} */ a, /** @type {string} */ b) {
 /** @param {unknown} v */
 const isObj = (v) => typeof v === 'object' && v !== null && !Array.isArray(v);
 
+/**
+ * Why a shot key cannot name a file on the data branch (`runs/<sha>/thumbs/<key>.webp`), or '' when it can: no `/`,
+ * `\` or `..` (a key must stay one path segment inside its run's folder).
+ * @param {string} key
+ */
+function keyProblem(key) {
+  if (key.includes('/') || key.includes('\\')) return `key ${key} contains a path separator`;
+  if (key.includes('..')) return `key ${key} contains ..`;
+  return '';
+}
+
 /** Problems with a RunRecord (empty = valid). @param {unknown} rec @returns {string[]} */
 export function validateRun(rec) {
   if (!isObj(rec)) return ['run record is not an object'];
@@ -62,6 +73,8 @@ export function validateRun(rec) {
     if (!Array.isArray(list)) { problems.push(`${field} is not an array`); continue; }
     list.forEach((s, i) => {
       if (!isObj(s) || typeof s.key !== 'string' || !s.key) { problems.push(`${field}[${i}] has no string key`); return; }
+      const bad = keyProblem(s.key);
+      if (bad) problems.push(bad);
       if (seen.has(s.key)) problems.push(`duplicate key ${s.key}`);
       seen.add(s.key);
     });
@@ -76,23 +89,31 @@ function runShots(run) {
 
 /**
  * Files to write for a run: `runs/<sha>/result.json` and `runs/<sha>/thumbs/<key>.webp` per thumb (raw key as the name).
+ * Throws on a thumb key with `/`, `\` or `..`.
  * @param {RunRecord} rec @param {Record<string, Uint8Array>} [thumbs]
  * @returns {{ path: string, data: string | Uint8Array }[]}
  */
 export function runPaths(rec, thumbs = {}) {
   /** @type {{ path: string, data: string | Uint8Array }[]} */
   const files = [{ path: `runs/${rec.sha}/result.json`, data: `${JSON.stringify(rec, null, 2)}\n` }];
-  for (const [key, data] of Object.entries(thumbs)) files.push({ path: `runs/${rec.sha}/thumbs/${key}.webp`, data });
+  for (const [key, data] of Object.entries(thumbs)) {
+    const bad = keyProblem(key);
+    if (bad) throw new Error(`thumb ${bad}`);
+    files.push({ path: `runs/${rec.sha}/thumbs/${key}.webp`, data });
+  }
   return files;
 }
 
 /**
- * An accept record for a recorded run (A9). Version and sha come from the run.
+ * An accept record for a recorded run (A9). Version and sha come from the run, which must pass `validateRun` (a corrupt
+ * record read off the branch must not produce an odd accept path or a `-`-leading git argument).
  * @param {{ run: RunRecord | null, by: string, why: string, only?: string[] | null, at: string }} o
  * @returns {AcceptRecord}
  */
 export function acceptRecord({ run, by, why, only = null, at }) {
   if (!run) throw new Error('no recorded run for that sha');
+  const problems = validateRun(run);
+  if (problems.length) throw new Error(`recorded run is invalid: ${problems.join('; ')}`);
   if (typeof why !== 'string' || !why.trim()) throw new Error('--why is empty');
   if (typeof by !== 'string' || !by.trim()) throw new Error('--by is empty');
   if (only !== null) {
@@ -175,14 +196,15 @@ export function pickBaseline(records, { isAncestor, renderer, version }) {
 }
 
 /**
- * CLI arguments: `list`, `show <sha>`, `accept --sha <sha> --by <name> --why <text> [--only k,k] [--dry-run]`;
- * anything else is 'help'.
+ * CLI arguments: `list`, `show <sha>`, `accept --sha <sha> --by <name> --why <text> [--only k,k] [--dry-run] [--replace]`;
+ * anything else is 'help'. A flag value starting with `--` is refused ('help'), so `--why --dry-run` is not a why.
+ * `--replace` lets `accept` overwrite an earlier accept of the same run (refused without it).
  * @param {string[]} argv
- * @returns {{ cmd: 'list' | 'show' | 'accept' | 'help', sha: string | null, by: string | null, why: string | null, only: string[] | null, dryRun: boolean }}
+ * @returns {{ cmd: 'list' | 'show' | 'accept' | 'help', sha: string | null, by: string | null, why: string | null, only: string[] | null, dryRun: boolean, replace: boolean }}
  */
 export function parseArgs(argv) {
-  /** @type {{ cmd: 'list' | 'show' | 'accept' | 'help', sha: string | null, by: string | null, why: string | null, only: string[] | null, dryRun: boolean }} */
-  const out = { cmd: 'help', sha: null, by: null, why: null, only: null, dryRun: false };
+  /** @type {{ cmd: 'list' | 'show' | 'accept' | 'help', sha: string | null, by: string | null, why: string | null, only: string[] | null, dryRun: boolean, replace: boolean }} */
+  const out = { cmd: 'help', sha: null, by: null, why: null, only: null, dryRun: false, replace: false };
   const help = () => ({ ...out, cmd: /** @type {'help'} */ ('help') });
   const [cmd, ...rest] = argv;
   if (cmd === 'list') return rest.length ? help() : { ...out, cmd: 'list' };
@@ -195,9 +217,10 @@ export function parseArgs(argv) {
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     if (a === '--dry-run') { res.dryRun = true; continue; }
+    if (a === '--replace') { res.replace = true; continue; }
     if (a !== '--sha' && a !== '--by' && a !== '--why' && a !== '--only') return help();
     const v = rest[i + 1];
-    if (v === undefined) return help();
+    if (v === undefined || v.startsWith('--')) return help();
     i++;
     if (a === '--sha') res.sha = v;
     else if (a === '--by') res.by = v;

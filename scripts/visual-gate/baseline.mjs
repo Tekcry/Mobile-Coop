@@ -2,9 +2,9 @@
 // data branch on origin through store.mjs (git plumbing only; the working tree, index and HEAD are never touched).
 //   node scripts/visual-gate/baseline.mjs list
 //   node scripts/visual-gate/baseline.mjs show <sha>
-//   node scripts/visual-gate/baseline.mjs accept --sha <sha> --by <name> --why <text> [--only k,k] [--dry-run]
-// accept: the run is found by full sha or a unique prefix (7+ hex); refuses an unrecorded run, a blank --why / --by
-// and an --only key the run does not have (exit 1).
+//   node scripts/visual-gate/baseline.mjs accept --sha <sha> --by <name> --why <text> [--only k,k] [--dry-run] [--replace]
+// accept: the run is found by full sha or a unique prefix (7+ hex); refuses an unrecorded or invalid run, a blank
+// --why / --by, an --only key the run does not have, and a run that is already accepted unless --replace (exit 1).
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { acceptPath, acceptRecord, cmpSemver, parseArgs } from './storeLib.mjs';
@@ -13,7 +13,7 @@ import { fetchStore, readRecords, recordAccept } from './store.mjs';
 /** @typedef {import('./storeLib.mjs').Records} Records */
 /** @typedef {import('./storeLib.mjs').RunRecord} RunRecord */
 
-const USAGE = 'usage: node scripts/visual-gate/baseline.mjs list | show <sha> | accept --sha <sha> --by <name> --why <text> [--only k,k] [--dry-run]';
+const USAGE = 'usage: node scripts/visual-gate/baseline.mjs list | show <sha> | accept --sha <sha> --by <name> --why <text> [--only k,k] [--dry-run] [--replace]';
 
 /**
  * The run with that full sha or unique prefix (7+ hex); null when none; throws when the prefix is ambiguous.
@@ -34,16 +34,19 @@ function byVersionThenAt(a, b) {
   return c || String(a.at).localeCompare(String(b.at));
 }
 
-/** @param {string[]} argv @returns {number} the exit code */
-export function main(argv = process.argv.slice(2)) {
+/**
+ * @param {string[]} [argv] @param {{ cwd?: string, remote?: string }} [opts] store location (tests point it at a temp repo)
+ * @returns {number} the exit code
+ */
+export function main(argv = process.argv.slice(2), opts = {}) {
   const args = parseArgs(argv);
   if (args.cmd === 'help') {
     console.info(USAGE);
     return argv.length === 0 || ['help', '--help', '-h'].includes(argv[0] ?? '') ? 0 : 1;
   }
   try {
-    fetchStore();
-    const records = readRecords();
+    fetchStore(opts);
+    const records = readRecords(opts);
     const acceptsOf = (/** @type {string} */ sha) => records.accepted.filter((a) => a.sha === sha);
     if (args.cmd === 'list') {
       if (!records.runs.length) console.error('no recorded runs (origin/visual-baselines absent or empty)');
@@ -67,7 +70,14 @@ export function main(argv = process.argv.slice(2)) {
     // accept
     const run = findRun(records, args.sha);
     const rec = acceptRecord({ run, by: args.by ?? '', why: args.why ?? '', only: args.only, at: new Date().toISOString() });
-    const commit = recordAccept(rec, { dryRun: args.dryRun });
+    // one accept record per run (one path): a second accept would silently narrow or drop the first one's `only` set
+    const prior = acceptsOf(rec.sha).sort((x, y) => String(y.at).localeCompare(String(x.at)))[0];
+    if (prior && !args.replace) {
+      console.error(`already accepted by ${prior.by} at ${prior.at}; pass --replace to overwrite`);
+      return 1;
+    }
+    if (prior) console.error(`replacing the accept by ${prior.by} at ${prior.at}`);
+    const commit = recordAccept(rec, { ...opts, dryRun: args.dryRun, replace: args.replace });
     console.info(`${acceptPath(rec)}\n${commit}`);
     return 0;
   } catch (e) {

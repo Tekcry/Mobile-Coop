@@ -104,3 +104,49 @@ accepted by Michael at 2026-10-24T11:56:24.223Z (only b@low): new lamp
   accept record per run; re-run accept with the full `--only` set if widening).
 - `writeFiles` sets a fallback git identity (`visual-gate`) only when `user.email` is unset, and honours the repo's
   `commit.gpgsign` (the laptop does not sign).
+
+## Fix round (Opus 5.5, 2026-10-24, after `checks/vg4-check.md` FIX @ ebe376eb)
+
+### Must-fix: no silent replace
+- `baseline.mjs accept`: after `acceptRecord`, if `acceptsOf(run.sha)` is non-empty and `--replace` is absent, exit 1 with
+  `already accepted by <by> at <at>; pass --replace to overwrite` (the latest prior accept); `--dry-run` is refused the
+  same way. With `--replace` it prints `replacing the accept by <by> at <at>` to stderr and overwrites.
+  `parseArgs` gains `--replace` (`replace: boolean` in its result, default false). `main(argv, opts)` takes optional
+  `{ cwd, remote }` so the test drives the CLI against the temp repo.
+- Defence in depth in `store.mjs`: `writeFiles` takes `noReplace: string[]`, paths that must not exist on the parent; it
+  is checked (`git ls-tree` on the parent) on every build and rebuild, so a record pushed by another machine between push
+  tries is refused rather than overwritten. `recordAccept(a, { replace })` passes its accept path, throwing
+  `accepted/<v>-<sha8>.json already exists; pass --replace to overwrite`.
+- `recordRun(rec, thumbs, { replace })` refuses an existing `runs/<sha>/result.json`: `run <sha8> is already recorded;
+  pass replace: true to overwrite`. Its own option, not a CLI flag: `recordRun` has no CLI (VG6 / VG7 call it), and the
+  name matches `recordAccept`'s so callers learn one word. VG7 passes `replace: true` only when it deliberately re-records
+  the same train commit.
+
+### Polish taken
+- `acceptRecord` runs `validateRun` on the found run (`recorded run is invalid: ...`), so a corrupt record read off the
+  branch cannot produce an odd accept path or a `-`-leading git argument.
+- `validateRun` reports a shot / rig key containing `/`, `\` or `..` (`\` added beside the check's `/` and `..`: on
+  Windows it is a separator too); `runPaths` throws on such a thumb key.
+- `parseArgs` refuses a flag value starting with `--` (`--why --dry-run` -> help); a single `-x` value stays legal.
+- Not taken: the 5 undelayed push retries on a non-race failure (polish 4, slow to fail, harmless).
+
+### Tests: `npx vitest run tests/visualGateStore.test.ts --maxWorkers=2`: 1 file, 20 / 20 pass (15.6 s with desktop CPU ~85-95%)
+New: key safety (`/`, `\`, `..` in shots and rigs, `a.b@low` still fine, runPaths thumb keys); acceptRecord on a corrupt
+run (version `-p`, bad sha, `../` key); parseArgs `--replace` and `--`-prefixed values; I/O: a second `recordRun` of the
+same sha throws (also in dry run) and leaves the remote head, `replace: true` overwrites; CLI accept, then a second
+accept (plain and `--dry-run`) exits 1 with the exact message and leaves the first record (`only`, `by`, `why`) and the
+remote head unchanged, `--replace` overwrites; library `recordAccept` on an existing path throws; CLI accept of a
+corrupt run written to the branch exits 1 and writes nothing; work repo stays clean.
+
+### Checks
+- `npx tsc --noEmit -p .`: clean (exit 0).
+- `tsc --ignoreConfig --checkJs --strict --noUncheckedIndexedAccess` over the three scripts: clean.
+- `npx eslint tests/visualGateStore.test.ts`: clean. `node --check` on the three scripts: ok.
+
+### Files touched
+`scripts/visual-gate/storeLib.mjs`, `scripts/visual-gate/store.mjs`, `scripts/visual-gate/baseline.mjs`,
+`tests/visualGateStore.test.ts`, this report. Zero `src/` diff. Nothing pushed to `visual-baselines`.
+
+### Open items (update)
+- VG7: the earlier note "a second accept of the same run overwrites" no longer holds: it is refused; widen an accept with
+  `accept ... --only <full set> --replace` (or no `--only`). Re-recording a run needs `recordRun(..., { replace: true })`.

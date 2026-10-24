@@ -8,6 +8,8 @@ import { BRANCH, shotKey, cmpSemver, validateRun, runPaths, acceptRecord, accept
 } from '../scripts/visual-gate/storeLib.mjs';
 // @ts-expect-error plain .mjs process script without types
 import { readRecords, writeFiles, recordRun, recordAccept, isAncestorFn } from '../scripts/visual-gate/store.mjs';
+// @ts-expect-error plain .mjs process script without types
+import { main } from '../scripts/visual-gate/baseline.mjs';
 
 // Visual gate baseline store (docs/visual-gate/briefs/VG4.md): the pure record shapes and pickBaseline (A8), the CLI
 // parser, and the git plumbing against temp repos (a bare remote and a work repo), never the real origin.
@@ -61,6 +63,15 @@ describe('visual gate store: pure', () => {
     expect(validateRun(null).length).toBe(1);
   });
 
+  it('validateRun and runPaths refuse keys that leave the run folder (/, \\, ..)', () => {
+    expect(validateRun(run({ shots: [{ key: 'x/y@low' }] })).join(' ')).toMatch(/x\/y@low contains a path separator/);
+    expect(validateRun(run({ rigs: [{ key: 'x\\y-on@low' }] })).join(' ')).toMatch(/path separator/);
+    expect(validateRun(run({ shots: [{ key: '..@low' }] })).join(' ')).toMatch(/\.\.@low contains \.\./);
+    expect(validateRun(run({ shots: [{ key: 'a.b@low' }] }))).toEqual([]);
+    expect(() => runPaths(run(), { '../evil@low': new Uint8Array([1]) })).toThrow(/thumb key/);
+    expect(() => runPaths(run(), { 'a/b@low': new Uint8Array([1]) })).toThrow(/path separator/);
+  });
+
   it('runPaths writes the result and one webp per thumb under the raw key', () => {
     const r = run();
     const thumb = new Uint8Array([1, 2, 3]);
@@ -81,6 +92,13 @@ describe('visual gate store: pure', () => {
     expect(a).toEqual({ sha: sha('c'), version: '4.96.2', by: 'Michael', why: 'initial', at, only: ['b@low'] });
     expect(acceptPath(a)).toBe('accepted/4.96.2-cccccccc.json');
     expect((acceptRecord({ run: run(), by: 'o', why: 'w', at }) as Accept).only).toBeNull();
+  });
+
+  it('acceptRecord refuses a corrupt recorded run (validateRun)', () => {
+    const at = '2026-10-24T12:00:00.000Z';
+    expect(() => acceptRecord({ run: run({ version: '-p' }), by: 'o', why: 'w', at })).toThrow(/recorded run is invalid: version/);
+    expect(() => acceptRecord({ run: run({ sha: `${sha('a').slice(0, 39)}/` }), by: 'o', why: 'w', at })).toThrow(/recorded run is invalid: sha/);
+    expect(() => acceptRecord({ run: run({ shots: [{ key: '../x@low' }] }), by: 'o', why: 'w', at })).toThrow(/recorded run is invalid/);
   });
 
   describe('pickBaseline (A8)', () => {
@@ -158,7 +176,7 @@ describe('visual gate store: pure', () => {
   });
 
   it('parseArgs', () => {
-    const base = { sha: null, by: null, why: null, only: null, dryRun: false };
+    const base = { sha: null, by: null, why: null, only: null, dryRun: false, replace: false };
     expect(parseArgs(['list'])).toEqual({ ...base, cmd: 'list' });
     expect(parseArgs(['show', 'abc1234'])).toEqual({ ...base, cmd: 'show', sha: 'abc1234' });
     expect(parseArgs(['accept', '--sha', 'abc1234', '--by', 'Michael', '--why', 'new lamp'])).toEqual({ ...base, cmd: 'accept', sha: 'abc1234', by: 'Michael', why: 'new lamp' });
@@ -167,6 +185,12 @@ describe('visual gate store: pure', () => {
     expect(parseArgs([]).cmd).toBe('help');
     expect(parseArgs(['show']).cmd).toBe('help');
     expect(parseArgs(['accept', '--nope', 'x']).cmd).toBe('help');
+    expect(parseArgs(['accept', '--sha', 's', '--by', 'b', '--why', 'w', '--replace'])).toEqual({ ...base, cmd: 'accept', sha: 's', by: 'b', why: 'w', replace: true });
+    // a value starting with -- is a forgotten value, not the value
+    expect(parseArgs(['accept', '--sha', 's', '--by', 'b', '--why', '--dry-run']).cmd).toBe('help');
+    expect(parseArgs(['accept', '--sha', '--by', 'b', '--why', 'w']).cmd).toBe('help');
+    expect(parseArgs(['accept', '--sha', 's', '--only', '--replace']).cmd).toBe('help');
+    expect(parseArgs(['accept', '--sha', 's', '--by', 'b', '--why', '-x']).why).toBe('-x');
   });
 });
 
@@ -249,6 +273,65 @@ describe('visual gate store: git I/O on temp repos', () => {
     expect(g(work, ['rev-parse', 'HEAD'])).toBe(masterSha);
     expect(g(work, ['rev-parse', '--abbrev-ref', 'HEAD'])).toBe('master');
     expect(g(work, ['ls-files'])).toBe('README.md');
+  });
+
+  it('a second record or accept of the same run is refused unless replace / --replace', () => {
+    const cli = (argv: string[]): { code: number; out: string; err: string } => {
+      const out: string[] = [];
+      const err: string[] = [];
+      const [info, error] = [console.info, console.error];
+      console.info = (...a: unknown[]) => { out.push(a.join(' ')); };
+      console.error = (...a: unknown[]) => { err.push(a.join(' ')); };
+      try {
+        const code = main(argv, io()) as number;
+        return { code, out: out.join('\n'), err: err.join('\n') };
+      } finally { [console.info, console.error] = [info, error]; }
+    };
+    const head = (): string => g(bare, ['rev-parse', `refs/heads/${BRANCH}`]);
+    const accOf = (s: string): Accept[] => (readRecords(io()) as { accepted: Accept[] }).accepted.filter((a) => a.sha === s);
+
+    // recordRun: the same sha is refused (remote unchanged, dry run too); replace: true overwrites
+    const r3 = run({ sha: sha('3'), version: '4.97.1', verdict: 'flagged' });
+    quiet(() => recordRun(r3, {}, io()));
+    const h1 = head();
+    expect(() => quiet(() => recordRun({ ...r3, ms: 2 }, {}, io()))).toThrow(/run 33333333 is already recorded; pass replace: true/);
+    expect(() => quiet(() => recordRun({ ...r3, ms: 2 }, {}, { ...io(), dryRun: true }))).toThrow(/already recorded/);
+    expect(head()).toBe(h1);
+    quiet(() => recordRun({ ...r3, ms: 2 }, {}, { ...io(), replace: true }));
+    expect(head()).not.toBe(h1);
+    expect((readRecords(io()) as { runs: Run[] }).runs.find((r) => r.sha === r3.sha)?.ms).toBe(2);
+
+    // accept CLI: the first accept passes; a second exits 1 naming the first and leaves it intact; --replace overwrites
+    const first = cli(['accept', '--sha', sha('3').slice(0, 8), '--by', 'Michael', '--why', 'first', '--only', 'a@low']);
+    expect(first.code).toBe(0);
+    expect(first.out).toMatch(/^accepted\/4\.97\.1-33333333\.json/);
+    const firstAt = accOf(sha('3'))[0]?.at;
+    const h2 = head();
+    for (const extra of [[], ['--dry-run']]) {
+      const second = cli(['accept', '--sha', sha('3'), '--by', 'orchestrator', '--why', 'second', ...extra]);
+      expect(second.code).toBe(1);
+      expect(second.err).toBe(`already accepted by Michael at ${firstAt}; pass --replace to overwrite`);
+    }
+    expect(head()).toBe(h2);
+    expect(accOf(sha('3'))).toMatchObject([{ by: 'Michael', why: 'first', only: ['a@low'] }]);
+    const third = cli(['accept', '--sha', sha('3'), '--by', 'orchestrator', '--why', 'widen', '--replace']);
+    expect(third.code).toBe(0);
+    expect(third.err).toMatch(/replacing the accept by Michael/);
+    expect(accOf(sha('3'))).toMatchObject([{ by: 'orchestrator', why: 'widen', only: null }]);
+
+    // recordAccept (library) refuses an existing accept path even without the CLI's check
+    const again = acceptRecord({ run: r3, by: 'x', why: 'y', at: '2026-10-24T14:00:00.000Z' }) as Accept;
+    expect(() => quiet(() => recordAccept(again, io()))).toThrow('accepted/4.97.1-33333333.json already exists; pass --replace to overwrite');
+
+    // accept of a corrupt record read off the branch exits 1 (validateRun), nothing written
+    const bad = { ...run({ sha: sha('4') }), version: '-p' };
+    quiet(() => writeFiles([{ path: `runs/${bad.sha}/result.json`, data: JSON.stringify(bad) }], 'corrupt', io()));
+    const h3 = head();
+    const corrupt = cli(['accept', '--sha', sha('4'), '--by', 'b', '--why', 'w']);
+    expect(corrupt.code).toBe(1);
+    expect(corrupt.err).toMatch(/recorded run is invalid: version is not x\.y\.z: -p/);
+    expect(head()).toBe(h3);
+    expect(g(work, ['status', '--porcelain'])).toBe('');
   });
 
   it('readRecords on a remote without the branch is empty', () => {
