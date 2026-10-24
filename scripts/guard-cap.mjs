@@ -6,11 +6,16 @@
 // Per map x count (a fresh browser each): boot the map, remove its own guards, spawn exactly N awake guards (kind
 // `grunt` unless --kind) in walkable cells spread over a wedge in front of the camera (5-24 m, nav line of sight from
 // the player preferred, any walkable cell round the player as the fallback, so a map with few or no guard slots still
-// gets N: the guards are spawned, not taken from the map's slots), raise the live cap to N, then measure four cells:
+// gets N: the guards are spawned, not taken from the map's slots), raise the live cap to N, then measure these cells:
 //   patrol / facing : every guard on a short 2-point patrol, `passive` (the full perception runs every think: the three
 //                     line-of-sight rays, the light read, the body check; the meter never fills, so they stay unaware)
 //   patrol / away   : the same guards, the camera turned 180 degrees (render only: the guards culled from the main pass)
 //   alert  / facing : every guard alerted (stealth rules: they chase, take cover, shoot; the player takes no damage)
+//   near            : (guard-cap M2, opt-in: --cells=...,near; always run last, nothing restored after it; skipped at N 0)
+//                     the K = min(N, 8) guards nearest the player are despawned and respawned on walkable cells 1.6-3.8 m
+//                     from him (same storey within 1.5 m, 1.6 m apart, nav sight first), `passive`, no patrol, facing
+//                     him: the anim tier's near-player case (within ANIM_TIER_NEAR_PLAYER = 4 m a guard's rig solves every
+//                     frame). Records `near.nearIn4` (alive guards < 4 m horizontal after the respawn) and `nearIn4End`.
 // Each cell: warm up --warm real seconds, then
 //   sim    : `loop.stepHeadless(1/60)` x (--secs x 60) twice: clean (no wrappers: the true step cost) and instrumented
 //            (the split below); per step median / p95 / mean of each bucket
@@ -23,6 +28,11 @@
 // (Enemy.update, all guards) > ai.perceive / ai.decide / ai.move; ai.torches (flashlight hand-out and beam rays);
 // ai.anim (EnemyManager.frameUpdate: the guards' rigs); nav.findPath / nav.lineClear / nav.flowField; ray.perceive /
 // ray.torch / ray.ai (other guard rays) / ray.other (player, weapons): physics raycastToRef calls and ms; light.totalAt.
+// (guard-cap M2) Light reads on the world's LightField instance, beside light.totalAt (bodies and the fallback): light.body
+// (bodyLevel: `updateLight`, the cached `p.light` the guards read), light.level (levelAt: the torch rule) and light.dynamic
+// (dynamicAt). Not nested: the public reads call private `*Into` helpers, so no read is counted twice.
+// (guard-cap M2) Every cell record carries `alive` (the guards alive at the cell's end); RESULTS rows show "N (alive M)"
+// and the cell is flagged when M < N (a map whose spawn ring fell short).
 // Render extras: the light rig's shadow pool size and the shadow casters lit, flashlights on, guards per alert level.
 // (guard-models perf T1) In the counted sample: render.figure (GuardBody.frame + GuardFigure.posePending per frame: the
 // figures' render-side CPU, which ai.anim never saw) beside render.s1 (SmoothBody.frame + pose), and the camera pass's
@@ -32,7 +42,10 @@
 // map x count):
 //   E2E_GPU=1 E2E_PORT=4189 node scripts/guard-cap.mjs [--maps=sectorops,ctcourse,campusops] [--counts=12,16,24] [--warm=5]
 //     [--secs=10] [--out=docs/guard-cap] [--gfx=epic] [--viewport=1920x1080] [--kind=grunt] [--cells=patrol,away,alert]
+//     [--query=...] (cells: patrol, away, alert, near; near is opt-in)
 //   --counts=0,12,16,24 adds the no-guard baseline (recommended: per-guard cost = slope). --maps also takes `<mapId>:<mode>`.
+//   (guard-cap M2) The all-rigs-solve worst case (every guard's rig solving every frame, no anim tiers) is a run with
+//   --query=animtier=0 (`flags.animTier` off); the near cell is the same case for the guards within 4 m only.
 //   Exits at once without E2E_GPU=1 unless --software is given (a software-GL dry run: not a perf result). --warm is
 //   raised to at least 5 s. The live cap `em.maxAlive` is set to N for the measure (MAX_ALIVE 12 / Sector Ops 32).
 // Serves dist/ itself with `vite preview` on E2E_PORT (as scripts/run-e2e.mjs) when nothing answers there; reuses a
@@ -190,6 +203,76 @@ function pageSpawn([n, kind]) {
   return { spawned: got.length, alive: em.alive, capBefore, cap: em.maxAlive, candidates: picks.length, patrols, inSight: got.filter((s) => s.sight).length, meanDist: got.length ? got.reduce((a, s) => a + s.d, 0) / got.length : 0, playerAt: [p.x, p.y, p.z], yaw };
 }
 
+/**
+ * (guard-cap M2) The near cell: despawn the K = min(alive, 8) guards nearest the player and respawn them on walkable
+ * cells 1.6-3.8 m from him with pageSpawn's rules (same storey within 1.5 m, 1.6 m apart, nav sight first), passive, no
+ * patrol, facing him. nearIn4: alive guards within 4 m (horizontal) after the respawn.
+ */
+function pageNear([kind]) {
+  const g = window.__app.current;
+  const em = g.enemyMgr;
+  const nav = em.nav;
+  const p = g.player.position;
+  const V = p.constructor;
+  // = ANIM_TIER_NEAR_PLAYER (src/ai/animTier.ts:26): within it a guard's rig solves every frame
+  const NEAR = 4;
+  const live = em.enemies.filter((e) => e.alive);
+  const dist = (e) => Math.hypot(e.pos.x - p.x, e.pos.z - p.z);
+  const k = Math.min(live.length, 8);
+  const gone = live.sort((a, b) => dist(a) - dist(b)).slice(0, k);
+  for (const e of gone) em.despawn(e);
+  const stay = em.enemies.filter((e) => e.alive).map((e) => ({ x: e.pos.x, z: e.pos.z }));
+  const me = [p.x, p.z];
+  const used = new Set();
+  const picks = [];
+  const far = (x, z) => picks.every((q) => Math.hypot(q.x - x, q.z - z) >= 1.6) && stay.every((q) => Math.hypot(q.x - x, q.z - z) >= 1.6);
+  const tryAt = (x, z, needSight) => {
+    const c = nav.nearestWalkable(x, z, 4, p.y);
+    if (c < 0 || used.has(c)) return false;
+    const cc = nav.center(c);
+    const cx = cc[0], cz = cc[1];
+    if (Math.abs(nav.height[c] - p.y) > 1.5) return false;
+    const d = Math.hypot(cx - p.x, cz - p.z);
+    if (d < 1.6 || d > 3.8 || !far(cx, cz)) return false;
+    const sight = nav.lineClear(me, [cx, cz], p.y, nav.height[c]);
+    if (needSight && !sight) return false;
+    used.add(c);
+    picks.push({ x: cx, y: nav.height[c], z: cz, sight, d });
+    return true;
+  };
+  // pass 1: the ring round the player with nav line of sight; pass 2: the ring, any
+  for (const sight of [true, false]) {
+    for (let r = 1.6; r <= 3.8 + 1e-6 && picks.length < k; r += 0.4) {
+      const steps = Math.max(6, Math.round(r * 4));
+      for (let j = 0; j < steps && picks.length < k; j++) {
+        const a = g.player.cam.yaw + (j / steps) * 2 * Math.PI;
+        tryAt(p.x + Math.sin(a) * r, p.z + Math.cos(a) * r, sight);
+      }
+    }
+    if (picks.length >= k) break;
+  }
+  let respawned = 0;
+  for (const s of picks) {
+    const e = em.spawn(kind, new V(s.x, s.y, s.z), false, Math.atan2(p.x - s.x, p.z - s.z));
+    if (!e) continue;
+    e.passive = true;
+    respawned++;
+  }
+  let nearIn4 = 0;
+  for (const e of em.enemies) if (e.alive && dist(e) < NEAR) nearIn4++;
+  return { k, despawned: gone.length, candidates: picks.length, respawned, inSight: picks.filter((s) => s.sight).length, nearIn4, alive: em.alive };
+}
+
+/** (guard-cap M2) Alive guards, and those within 4 m (= ANIM_TIER_NEAR_PLAYER) of the player, horizontal. */
+function pageAlive() {
+  const g = window.__app.current;
+  const em = g.enemyMgr;
+  const p = g.player.position;
+  let nearIn4 = 0;
+  for (const e of em.enemies) if (e.alive && Math.hypot(e.pos.x - p.x, e.pos.z - p.z) < 4) nearIn4++;
+  return { alive: em.alive, nearIn4 };
+}
+
 /** Install the wrappers once (gated by __gc.on: off, a wrapper is one flag check). */
 function pageInstall() {
   if (window.__gc) return window.__gc.info;
@@ -199,7 +282,7 @@ function pageInstall() {
   const scene = g.scene;
   const S = { on: false, scope: 0, acc: Object.create(null), info: {} };
   window.__gc = S;
-  const KEYS = ['step.fixed', 'step.physics', 'step.frame', 'ai.manager', 'ai.brain', 'ai.perceive', 'ai.decide', 'ai.move', 'ai.torches', 'ai.anim', 'nav.findPath', 'nav.lineClear', 'nav.flowField', 'ray.perceive', 'ray.torch', 'ray.ai', 'ray.other', 'light.totalAt'];
+  const KEYS = ['step.fixed', 'step.physics', 'step.frame', 'ai.manager', 'ai.brain', 'ai.perceive', 'ai.decide', 'ai.move', 'ai.torches', 'ai.anim', 'nav.findPath', 'nav.lineClear', 'nav.flowField', 'ray.perceive', 'ray.torch', 'ray.ai', 'ray.other', 'light.totalAt', 'light.body', 'light.level', 'light.dynamic'];
   for (const k of KEYS) S.acc[k] = { ms: 0, n: 0 };
   S.keys = KEYS;
   const SCOPE_RAY = ['ray.other', 'ray.perceive', 'ray.torch', 'ray.ai'];
@@ -208,13 +291,14 @@ function pageInstall() {
     const orig = obj?.[name];
     if (typeof orig !== 'function') { wrapped.push(`MISSING ${key} (${name})`); return; }
     const r = S.acc[key];
-    obj[name] = function (a, b, c, d, e) {
-      if (!S.on) return orig.call(this, a, b, c, d, e);
+    // (M2) seven arguments: LightField.bodyLevel takes seven (hx, hz: the head's offset; light parity)
+    obj[name] = function (a, b, c, d, e, f, h) {
+      if (!S.on) return orig.call(this, a, b, c, d, e, f, h);
       const prev = S.scope;
       if (scope) S.scope = scope;
       const t = performance.now();
       try {
-        return orig.call(this, a, b, c, d, e);
+        return orig.call(this, a, b, c, d, e, f, h);
       } finally {
         r.ms += performance.now() - t;
         r.n++;
@@ -239,6 +323,10 @@ function pageInstall() {
   wrap(em.nav, 'lineClear', 'nav.lineClear', 0);
   wrap(em.nav, 'flowField', 'nav.flowField', 0);
   wrap(g.world.lightField, 'totalAt', 'light.totalAt', 0);
+  // (M2) the light reads that run: the body level (guards read its cached result), the torch rule's static level, dynamic
+  wrap(g.world.lightField, 'bodyLevel', 'light.body', 0);
+  wrap(g.world.lightField, 'levelAt', 'light.level', 0);
+  wrap(g.world.lightField, 'dynamicAt', 'light.dynamic', 0);
   wrap(g, 'fixedUpdate', 'step.fixed', 0);
   wrap(g, 'frameUpdate', 'step.frame', 0);
   // every physics ray (ballistics.ray / clear / hitDistance and the player's own), charged to the scope it runs in
@@ -716,6 +804,16 @@ async function runPage(map, n, ctl) {
         results.errors.push(`${map} x ${n} ${name}: ${rec.error}`);
         log(`${map} x ${n} ${name}: FAILED ${rec.error}`);
       }
+      // (M2) the guards alive at the cell's end: an honest N, flagged when short of the count asked
+      const end = await withTimeout(page.evaluate(pageAlive), 10_000, 'alive read').catch(() => null);
+      rec.alive = end?.alive ?? null;
+      if (rec.near) rec.nearIn4End = end?.nearIn4 ?? null;
+      if (rec.alive !== null && rec.alive < n) {
+        const fl = `alive ${rec.alive} of ${n} asked`;
+        (rec.flags ??= []).push(fl);
+        log(`${map} x ${n} ${name}: FLAG ${fl}`);
+        results.flags.push(`${map} x ${n} ${name}: ${fl}`);
+      }
       results.cells.push(rec);
     };
     // `prep` runs before every sample (review G2: the alert cell re-alerts its guards, so each sample is all-alert, not
@@ -774,6 +872,16 @@ async function runPage(map, n, ctl) {
       await cell('alert/facing', async () => {
         const alerted = await page.evaluate(pageAlert);
         return { alerted, ...(await measure(true, pageAlert)) };
+      });
+    }
+    // (M2) last on the page (it moves guards and restores nothing); no guard to move at N 0
+    if (CELLS.includes('near') && n > 0) {
+      await cell('near', async () => {
+        const near = await page.evaluate(pageNear, [KIND]);
+        log(`${map} x ${n} near: respawned ${near.respawned} of ${near.k} within 1.6-3.8 m (${near.inSight} in nav sight), ${near.nearIn4} within 4 m, alive ${near.alive}`);
+        const out = { near, ...(await measure(true)) };
+        if (near.respawned < near.k) out.flags.push(`near: respawned ${near.respawned} of ${near.k} (${near.candidates} cells found 1.6-3.8 m)`);
+        return out;
       });
     }
     const pageErrors = errors.filter((e) => e.startsWith('[error]') || e.startsWith('[pageerror]'));
@@ -835,10 +943,16 @@ function csvCols() {
   ['alive', (c) => c.spawn?.alive],
   ['in_sight', (c) => c.spawn?.inSight],
   ['mean_dist_m', (c) => r3(c.spawn?.meanDist)],
+  // (M2) the guards alive at the cell's end (`alive` above is at the spawn); the near cell's respawn
+  ['cell_alive', (c) => c.alive],
+  ['near_k', (c) => c.near?.k],
+  ['near_respawned', (c) => c.near?.respawned],
+  ['near_in_4', (c) => c.near?.nearIn4],
+  ['near_in_4_end', (c) => c.nearIn4End],
   ['sim_step_clean_med_ms', (c) => c.sim?.stepClean.med],
   ['sim_step_clean_p95_ms', (c) => c.sim?.stepClean.p95],
   ['sim_step_instr_med_ms', (c) => c.sim?.stepInstrumented.med],
-  ...['step.fixed', 'step.physics', 'step.frame', 'ai.manager', 'ai.brain', 'ai.perceive', 'ai.decide', 'ai.move', 'ai.torches', 'ai.anim', 'nav.findPath', 'nav.lineClear', 'nav.flowField', 'ray.perceive', 'ray.torch', 'ray.ai', 'ray.other', 'light.totalAt'].flatMap((k) => [
+  ...['step.fixed', 'step.physics', 'step.frame', 'ai.manager', 'ai.brain', 'ai.perceive', 'ai.decide', 'ai.move', 'ai.torches', 'ai.anim', 'nav.findPath', 'nav.lineClear', 'nav.flowField', 'ray.perceive', 'ray.torch', 'ray.ai', 'ray.other', 'light.totalAt', 'light.body', 'light.level', 'light.dynamic'].flatMap((k) => [
     [`${k}_mean_ms`, (c) => c.sim?.buckets[k]?.mean],
     [`${k}_p95_ms`, (c) => c.sim?.buckets[k]?.p95],
     [`${k}_calls_per_step`, (c) => c.sim?.callsPerStep[k]],
@@ -962,6 +1076,8 @@ function fillReport(path, R) {
 function resultsMd(R) {
   const f = (s, k = 'med') => (s && s[k] !== null && s[k] !== undefined ? String(s[k]) : '-');
   const mp = (s) => (s ? `${f(s)} / ${f(s, 'p95')}` : '-');
+  // (M2) the count asked, and the guards really alive when fewer
+  const nl = (c) => (typeof c.alive === 'number' && c.alive < c.count ? `${c.count} (alive ${c.alive})` : String(c.count));
   const L = [];
   L.push('# Guard cap: results', '');
   L.push(`Run ${R.started} - ${R.finished ?? '?'} (${R.minutes ?? '?'} min), version ${R.version ?? '?'}, ${R.gpu ? 'hardware GPU (E2E_GPU=1)' : 'SOFTWARE GL: not a perf result'}, ${R.uncapped ? 'frame rate uncapped' : 'display-capped'}, gfx=${R.gfx}, ${R.viewport.join('x')}, guards: ${R.kind}, warm ${R.warm} s${R.warmAsked !== R.warm ? ` (asked ${R.warmAsked}, raised to the 5 s minimum)` : ''}, sample ${R.secs} s.`);
@@ -971,22 +1087,22 @@ function resultsMd(R) {
   for (const m of maps) {
     L.push(`## ${m}`, '');
     L.push('### Sim per 60 Hz step (headless stepHeadless; clean = no wrappers)', '');
-    L.push('| N | cell | step clean med / p95 | fixed | physics | frame | AI manager | brain | perceive | decide | move | torches | anim | findPath (calls) | flowField | rays perceive (calls) | rays torch | rays other AI | rays other | light reads (calls) |');
-    L.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
+    L.push('| N | cell | step clean med / p95 | fixed | physics | frame | AI manager | brain | perceive | decide | move | torches | anim | findPath (calls) | flowField | rays perceive (calls) | rays torch | rays other AI | rays other | light reads (calls) | light body (calls) | light level (calls) | light dynamic (calls) |');
+    L.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
     for (const c of ok.filter((x) => x.map === m && x.sim)) {
       const b = c.sim.buckets;
       const cl = c.sim.callsPerStep;
       const bc = (k) => `${f(b[k], 'mean')} (${cl[k] ?? '-'})`;
-      L.push(`| ${c.count} | ${c.cell} | ${mp(c.sim.stepClean)} | ${f(b['step.fixed'], 'mean')} | ${f(b['step.physics'], 'mean')} | ${f(b['step.frame'], 'mean')} | ${mp(b['ai.manager'])} | ${f(b['ai.brain'], 'mean')} | ${f(b['ai.perceive'], 'mean')} | ${f(b['ai.decide'], 'mean')} | ${f(b['ai.move'], 'mean')} | ${f(b['ai.torches'], 'mean')} | ${f(b['ai.anim'], 'mean')} | ${bc('nav.findPath')} | ${f(b['nav.flowField'], 'mean')} | ${bc('ray.perceive')} | ${bc('ray.torch')} | ${bc('ray.ai')} | ${bc('ray.other')} | ${bc('light.totalAt')} |`);
+      L.push(`| ${nl(c)} | ${c.cell} | ${mp(c.sim.stepClean)} | ${f(b['step.fixed'], 'mean')} | ${f(b['step.physics'], 'mean')} | ${f(b['step.frame'], 'mean')} | ${mp(b['ai.manager'])} | ${f(b['ai.brain'], 'mean')} | ${f(b['ai.perceive'], 'mean')} | ${f(b['ai.decide'], 'mean')} | ${f(b['ai.move'], 'mean')} | ${f(b['ai.torches'], 'mean')} | ${f(b['ai.anim'], 'mean')} | ${bc('nav.findPath')} | ${f(b['nav.flowField'], 'mean')} | ${bc('ray.perceive')} | ${bc('ray.torch')} | ${bc('ray.ai')} | ${bc('ray.other')} | ${bc('light.totalAt')} | ${bc('light.body')} | ${bc('light.level')} | ${bc('light.dynamic')} |`);
     }
-    L.push('', '(bucket columns: mean ms per step; inclusive: brain holds perceive / decide / move, and those hold their rays and nav calls)', '');
+    L.push('', '(bucket columns: mean ms per step; inclusive: brain holds perceive / decide / move, and those hold their rays and nav calls; light reads = LightField.totalAt, light body = bodyLevel, light level = levelAt, light dynamic = dynamicAt, not nested in each other)', '');
     L.push('### Render (real frames)', '');
     L.push('| N | cell | frame ms med / p95 | fps | frame CPU | frames sim / no sim | frame ms, sim frames | frame CPU, sim frames | frame CPU, no-sim frames | CPU per 1/60 s sim | loop sim / step | render() CPU | GPU ms | draws | tris M | shadow passes (label) | shadow map renders | active meshes | eval ms | shadow pool / lit | torches on | levels start -> end |');
     L.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
     for (const c of ok.filter((x) => x.map === m)) {
       const r = c.render;
       const s = r.state;
-      L.push(`| ${c.count} | ${c.cell} | ${mp(r.frameMs)} | ${r.fps ?? '-'} | ${mp(r.frameCpuMs)} | ${r.framesWithSim} / ${r.framesNoSim} | ${mp(r.frameMsWithSim)} | ${mp(r.frameCpuMsWithSim)} | ${mp(r.frameCpuMsNoSim)} | ${r.cpuMsPerSimStep ?? '-'} | ${f(r.loopSimMsPerStep)} | ${mp(r.renderCpuMs)} | ${r.gpuMs ? mp(r.gpuMs) : 'n/a'} | ${f(r.draws)} | ${f(r.trisM)} | ${f(r.shadowPasses)}${r.shadowPassesSuspect ? ' (suspect)' : ''} | ${f(r.shadowMapRenders)} | ${f(r.activeMeshes)} | ${f(r.evalMs)} | ${s.shadowPool ?? '-'} / ${s.shadowLit ?? '-'} | ${s.torchesOn ?? '-'} of ${s.torchSlots ?? '-'} | ${Object.entries(r.levelsStart ?? {}).map(([k, v]) => `${k} ${v}`).join(', ')} -> ${Object.entries(s.levels).map(([k, v]) => `${k} ${v}`).join(', ')} |`);
+      L.push(`| ${nl(c)} | ${c.cell} | ${mp(r.frameMs)} | ${r.fps ?? '-'} | ${mp(r.frameCpuMs)} | ${r.framesWithSim} / ${r.framesNoSim} | ${mp(r.frameMsWithSim)} | ${mp(r.frameCpuMsWithSim)} | ${mp(r.frameCpuMsNoSim)} | ${r.cpuMsPerSimStep ?? '-'} | ${f(r.loopSimMsPerStep)} | ${mp(r.renderCpuMs)} | ${r.gpuMs ? mp(r.gpuMs) : 'n/a'} | ${f(r.draws)} | ${f(r.trisM)} | ${f(r.shadowPasses)}${r.shadowPassesSuspect ? ' (suspect)' : ''} | ${f(r.shadowMapRenders)} | ${f(r.activeMeshes)} | ${f(r.evalMs)} | ${s.shadowPool ?? '-'} / ${s.shadowLit ?? '-'} | ${s.torchesOn ?? '-'} of ${s.torchSlots ?? '-'} | ${Object.entries(r.levelsStart ?? {}).map(([k, v]) => `${k} ${v}`).join(', ')} -> ${Object.entries(s.levels).map(([k, v]) => `${k} ${v}`).join(', ')} |`);
     }
     L.push('');
     // per-guard slopes between the smallest and largest count measured (patrol/facing and alert/facing)
@@ -1009,9 +1125,13 @@ function resultsMd(R) {
         const fg = c.render.figure;
         const t = c.render.activeTally;
         const tm = (k) => (t ? t.med[k] : '-');
-        L.push(`| ${c.count} | ${c.cell} | ${fg ? `${f(fg.totalMs, 'mean')} / ${f(fg.totalMs, 'p95')}` : '-'} | ${fg ? `${f(fg.frameMs, 'mean')} / ${f(fg.poseMs, 'mean')}` : '-'} | ${fg ? f(fg.posesPerFrame, 'mean') : '-'} | ${fg ? `${f(fg.s1TotalMs, 'mean')} / ${f(fg.s1TotalMs, 'p95')}` : '-'} | ${fg ? f(fg.s1PosesPerFrame, 'mean') : '-'} | ${tm('total')} | ${tm('guard')} | ${tm('body')} | ${tm('lod')} | ${tm('gear')} | ${tm('gun')} | ${tm('helmet')} | ${tm('shield')} | ${tm('other')} | ${t ? `${t.perGuard.guard} / ${t.perGuard.gun}` : '-'} | ${t ? t.otherTop.map(([k, v]) => `${k} ${v}`).join(', ') : ''} |`);
+        L.push(`| ${nl(c)} | ${c.cell} | ${fg ? `${f(fg.totalMs, 'mean')} / ${f(fg.totalMs, 'p95')}` : '-'} | ${fg ? `${f(fg.frameMs, 'mean')} / ${f(fg.poseMs, 'mean')}` : '-'} | ${fg ? f(fg.posesPerFrame, 'mean') : '-'} | ${fg ? `${f(fg.s1TotalMs, 'mean')} / ${f(fg.s1TotalMs, 'p95')}` : '-'} | ${fg ? f(fg.s1PosesPerFrame, 'mean') : '-'} | ${tm('total')} | ${tm('guard')} | ${tm('body')} | ${tm('lod')} | ${tm('gear')} | ${tm('gun')} | ${tm('helmet')} | ${tm('shield')} | ${tm('other')} | ${t ? `${t.perGuard.guard} / ${t.perGuard.gun}` : '-'} | ${t ? t.otherTop.map(([k, v]) => `${k} ${v}`).join(', ') : ''} |`);
       }
       L.push('', '(render.figure: GuardBody.frame + GuardFigure.posePending per frame; render.s1: SmoothBody.frame + SmoothBody.pose; both wrapped only in the 2 s counted sample. Active meshes: the camera pass, guard-owned = under a guard rig root; gun parts = `wpn-*` instances.)', '');
+    }
+    // (M2) the near cell's respawn: guards within 4 m solve their rigs every frame
+    for (const c of ok.filter((x) => x.map === m && x.near)) {
+      L.push(`Near cell, N ${nl(c)}: respawned ${c.near.respawned} of ${c.near.k} at 1.6-3.8 m (${c.near.inSight} in nav sight), within 4 m ${c.near.nearIn4} after the respawn, ${c.nearIn4End ?? '-'} at the cell's end.`, '');
     }
     const passes = ok.filter((x) => x.map === m && x.render.passes.length);
     if (passes.length) {
