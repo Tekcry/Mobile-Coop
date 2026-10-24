@@ -1,6 +1,7 @@
 # Guard cap: state
 
 ## Now (2026-10-24 ~18:25; orchestrator go ~18:15 for M0 + M1 + the R1 brief; gated slices wait for merges)
+- 2026-10-24 ~23:08: M0 VERDICT (REPORT.md "2026-10 re-measure (M0)", medians r1 / r2): 32 does not hold (sim p95 campus 3.4 / Sector Ops 4.4 at 32, ctcourse 4.1 at 24); T1 TRIGGERED (ai.anim 55-59% of growth; built bbbfbecf, not on master), D1-D2 CLOSED (ai.manager 15-24%), render: campus 32 alert frame CPU p95 14.8 -> Test Runner PLAN2 addition; caps stay (SECTOR.maxAlive 32, MAX_ALIVE 12), no K1 yet; campus perf.mjs pending (guard-cap-m0-perf). NEXT: M1 requeued after train 68 (set guard-cap-m1).
 - 2026-10-24 ~22:30 (resume): M0 ran (laptop, 6/7 steps; step 4 campus perf.mjs failed: no server, needs the `serve ` prefix). Data only on the laptop (C:/NightShift/scratch/guard-cap/m0-6e8a450b-r{1,2}-{so,campus,ctcourse}); Test Runner asked ~22:30 to push it to feature/guard-cap-results docs/guard-cap/run-m0/. Perf retry queued 20261024T112758-night-shift-marlow-b-6e8a450b-09d8 (set guard-cap-m0-perf). M1 smoke ran on the desktop instead (74a90c1c clean); full M1 queued 20261024T084755-...-a55a12b3-6a46 (set guard-cap-m1, not yet claimed: do not re-queue). NEXT: when run-m0 lands, Opus read vs PLAN section 2 (medians r1 / r2) -> REPORT.md.
 - M0 QUEUED: laptop alone request 20261024T071756-night-shift-marlow-b-6e8a450b-650d (set guard-cap-m0, master 6e8a450b):
   only the cells #323 gr2-rep does not cover: sectorops 12/16/32, campus 0-32, ctcourse 0/12/24, cells patrol/away/alert,

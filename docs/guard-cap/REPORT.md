@@ -100,3 +100,62 @@ Budgets (`docs/systems/performance.md`): main thread Epic p95 <= 5.5 ms, sim p95
 - So AI / perception LOD would not help; guard render LOD (cheaper far skeletons / skinning, culling off-screen
   guards' bones) and the animation cost per guard are the levers. Until then, more than ~4-6 awake guards on screen at
   Epic does not fit 60 Hz on this machine.
+
+## 2026-10 re-measure (M0)
+Opus read, 2026-10-24, vs PLAN section 2. Data: `origin/feature/guard-cap-results` 6b9efc8f, `docs/guard-cap/run-m0/m0-6e8a450b-r{1,2}-{so,campus,ctcourse}/guard-cap.json` (master 6e8a450b, 4.93.0, laptop RTX 4090, Epic 1920x1080, uncapped, warm 5 s, 10 s). Sector Ops 0 / 24 are not in M0: they come from the #323 baseline `run-gr2/rep-r{1,3,5}-base/guard-cap.json` (master 6b44efb8, median of 3). Values: median of r1 / r2 (A7); "r1 / r2 -> med" where it matters. ms. Sim = `stepHeadless` clean p95 (the away cell shares patrol's sim, not timed). Shares = bucket mean / growth of the instrumented step mean vs N 0, same cell. Guard AI Build's reading (cloud-queue `briefs/guard-ai-T1.md` "Answer") checked against the JSON: all four rows match.
+
+### Sector Ops (`run-m0/...-r{1,2}-so`; N 0 / 24 `run-gr2/rep-r{1,3,5}-base`)
+| N | cell | sim p95 | frame CPU p95 | GPU p95 | ai.anim (share) | ai.manager (share) |
+| --- | --- | --- | --- | --- | --- | --- |
+| 0 | patrol | 0.7 | 16.7 (0-guard noise: 18 / 16.7 / 3.5) | 3.79 | 0 | 0.00 |
+| 0 | alert | 0.8 | 16.4 (18.5 / 16.4 / 3.8) | 3.88 | 0 | 0.00 |
+| 12 | patrol | 1.7 / 5.1 -> 3.4 | 5.0 / 7.7 -> 6.4 | 5.85 | 0.39 (54%) | 0.09 (12%) |
+| 12 | away | - | 3.8 / 11.0 -> 7.4 | 5.63 | - | - |
+| 12 | alert | 1.6 / 6.1 -> 3.85 | 5.7 / 13.1 -> 9.4 | 8.15 | 0.57 (48%) | 0.21 (17%) |
+| 16 | patrol | 1.5 / 5.1 -> 3.3 | 5.4 / 9.7 -> 7.6 | 6.45 | 0.49 (56%) | 0.11 (12%) |
+| 16 | away | - | 4.0 / 6.5 -> 5.3 | 4.51 | - | - |
+| 16 | alert | 1.9 / 4.2 -> 3.05 | 6.1 / 11.3 -> 8.7 | 7.53 | 0.68 (51%) | 0.23 (17%) |
+| 24 | patrol | 1.9 (gr2) | 6.3 | 5.91 | 0.48 (77%) | 0.11 (16%) |
+| 24 | alert | 2.6 (gr2: 2.7 / 2.5 / 2.6) | 6.9 | 6.49 | 0.67 (62%) | 0.24 (22%) |
+| 32 | patrol | 2.2 / 6.6 -> 4.4 | 7.0 / 11.8 -> 9.4 | 6.92 | 0.81 (66%) | 0.18 (14%) |
+| 32 | away | - | 4.6 / 7.3 -> 6.0 | 4.58 | - | - |
+| 32 | alert | 3.1 / 5.7 -> 4.4 | 7.8 / 13.3 -> 10.55 | 7.84 | 1.09 (59%) | 0.33 (18%) |
+r2 Sector Ops reads high in every cell (12 alert sim 6.1 vs r1 1.6 and gr2 24 alert 2.6): its medians are pessimistic; r1 alone still has 32 alert at 3.1.
+
+### Campus (`run-m0/...-r{1,2}-campus`)
+| N | cell | sim p95 | frame CPU p95 | GPU p95 | ai.anim (share) | ai.manager (share) |
+| --- | --- | --- | --- | --- | --- | --- |
+| 0 | patrol / away / alert | 1.3 / - / 0.8 | 5.75 / 4.25 / 5.7 | 5.29 / 3.31 / 4.98 | 0 | 0.01 |
+| 12 | patrol | 1.9 / 4.2 -> 3.05 | 7.95 | 6.17 | 0.39 (59%) | 0.10 (14%) |
+| 12 | away / alert | - / 1.65 | 5.25 / 7.35 | 4.15 / 6.73 | alert 0.23 (44%) | alert 0.16 (29%) |
+| 16 | patrol | 2.3 / 4.1 -> 3.2 | 8.4 | 6.19 | 0.51 (72%) | 0.09 (13%) |
+| 16 | away / alert | - / 2.1 | 4.5 / 8.6 | 4.02 / 7.05 | alert 0.50 (57%) | alert 0.19 (22%) |
+| 24 | patrol | 2.5 / 5.5 -> 4.0 | 9.2 | 5.91 | 0.62 (72%) | 0.13 (14%) |
+| 24 | away | - | 5.15 | 4.12 | - | - |
+| 24 | alert | 2.3 / 3.0 -> 2.65 | 8.1 / 11.2 -> 9.65 | 7.17 | 0.58 (59%) | 0.23 (24%) |
+| 32 | patrol | 2.1 / 3.7 -> 2.9 | 10.1 | 6.70 | 0.83 (68%) | 0.18 (15%) |
+| 32 | away | - | 4.75 | 4.13 | - | - |
+| 32 | alert | 4.0 / 2.8 -> 3.4 | 17.5 / 12.1 -> 14.8 | 9.73 | 0.86 (55%) | 0.32 (20%) |
+Campus 32 alert: render() CPU p95 10.95, draws 484.5, 30 of 32 guards in sight, mean 14.8 m.
+
+### ctcourse, Marlow Yard (`run-m0/...-r{1,2}-ctcourse`)
+| N | cell | sim p95 | frame CPU p95 | GPU p95 | ai.anim (share) | ai.manager (share) |
+| --- | --- | --- | --- | --- | --- | --- |
+| 0 | patrol / away / alert | 2.2 / - / 0.95 | 8.55 / 11.8 (6.5 / 17.1) / 7.65 | 7.95 / 5.26 / 6.20 | 0 | 0.01 |
+| 12 | patrol | 4.2 / 5.1 -> 4.65 | 10.45 | 9.02 | 0.52 (49%*) | 0.12 (11%*) |
+| 12 | away | - | 8.0 | 5.73 | - | - |
+| 12 | alert | 3.1 / 2.1 -> 2.6 | 13.2 / 8.4 -> 10.8 | 9.08 | 0.56 (53%) | 0.18 (16%) |
+| 24 | patrol | 13.0 / 6.7 -> 9.85 | 21.3 / 9.6 -> 15.45 | 11.43 | 1.55 (53%*) | 0.28 (10%*) |
+| 24 | away | - | 7.6 | 6.84 | - | - |
+| 24 | alert | 4.6 / 3.6 -> 4.1 | 10.9 / 11.1 -> 11.0 | 9.41 | 1.02 (58%) | 0.27 (15%) |
+\* on the alert N 0 base: the patrol N 0 cell (first after load) reads 1.20 instrumented mean vs 0.51. r1 24 patrol is a hitch run (sim p95 13.0).
+Method note for M2 / the next rerun: on campus and ctcourse the patrol cells read worse than alert on sim (campus 24 4.0 vs 2.65) and their clean mean exceeds the instrumented mean (campus 24 patrol 2.39 vs 1.40): a likely start transient in the clean window. The verdict below keeps PLAN's alert/facing rule; patrol does not change it.
+
+### Verdict (PLAN section 2; worst cell alert/facing, median r1 / r2, at 24 and 32)
+- "32 holds": NO. Sim p95 > 2.9 at 32 on campus (3.4) and Sector Ops (4.4), and on ctcourse (Marlow Yard) at 24 (4.1). At 24, campus (2.65 / 9.65 / 7.17) and Sector Ops (gr2 2.6 / 6.9 / 6.49) pass on the host.
+- T1: YES (triggered). `ai.anim` is 55-59% of the sim growth in every failing cell (campus 32 55%, Sector Ops 32 59%, ctcourse 24 58%; campus 32 on the clean mean 49%, borderline). Built: `feature/guard-ai-t1-anim-tier` bbbfbecf (Guard AI, unit tests only, not on master). Limit: T1 acts on off-screen guards only; campus 32 alert has 30 of 32 in sight, so its visible pose share goes to Player (PLAN2 S11) per the T1 row.
+- D1 / D2: CLOSED. `ai.manager` is 15-24% of the growth (rule: >= 40%) in every 24 / 32 alert cell.
+- Render (Test Runner, PLAN2 addition): campus 32 alert/facing frame CPU p95 14.8 (r1 17.5, r2 12.1: both over 12), render() CPU p95 10.95, draws 484.5, GPU 9.73. Sim is over too, so the cell is mixed; render() alone sits near 12. GPU p95 <= 15 everywhere (max 11.43, ctcourse 24 patrol); draws <= 600 everywhere. ctcourse 24 patrol 15.45 is one hitch run: repeat it, do not send it.
+- Caps: `SECTOR.maxAlive` stays 32 (`sectors.ts:508`): it equals `MAX_ENEMIES` 32 (`protocol.ts:25`), so it cannot rise without a wire change, and 32 fails today. No K1 yet: K1 waits for T1 + guard-render-2 + gm-perf on master and a 32 (+ new 28) rerun still over. `MAX_ALIVE` stays 12 (`enemyManager.ts:81`, Marlow Yard = ctcourse): at 12, alert frame CPU 10.8 leaves 1.2 ms and patrol sim p95 reads 4.2 / 5.1 (both over; see the method note); 24 alert sim 4.1 fails; no ctcourse 16 cell exists. A rise to 16 needs a ctcourse 16 cell after T1.
+- Pending: campus `perf.mjs` (real sections, step 4; retry set guard-cap-m0-perf): no output on the results branch at 6b9efc8f.
+- M1 must still confirm for clients: client frame CPU p95 <= 12 and client minus host <= 1.0 ms at 24 and 32 (else C1, then C2); host snap <= 6 KB steady at 4 players and upload <= 1.7 Mbit/s (else N1). Until M1, 24 holds on the host only.
