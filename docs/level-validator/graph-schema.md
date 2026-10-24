@@ -5,6 +5,8 @@ Every map is written as a connectivity graph (`<map>.graph.json`) before any geo
 justified in the map's design doc (Michael 2026-10-24, "Add 1-4 as extras"; `docs/level-design.md` section 14). For a
 map that is already greyboxed (campus) the graph describes the map AS BUILT and the run is an audit (BRIEF A12, A9).
 
+- Mission nodes (`mission`, `objectives[]`, `rules[]`, `syncs[]`) and their checks: `docs/level-validator/mission-schema.md`
+  (mission-framework VAL; worked example `docs/level-validator/example.mission.json`).
 - Worked example: `docs/level-validator/example.graph.json` (two sections, one spine link, one split with an overwatch
   and an assist; V1's CLI smoke fixture, 0 errors; V6 fields: `area` box lists, one `vantage.at`, one link `at`).
 - Rules: `docs/level-validator/BRIEF.md` mapping table and M1-M4; numbers: `docs/design/metrics.json`, generated from
@@ -29,7 +31,7 @@ map that is already greyboxed (campus) the graph describes the map AS BUILT and 
 | --- | --- | --- | --- | --- |
 | `map` | string | yes | Map id as registered (`campusOps`, `ctcourse`) | report header |
 | `name` | string | yes | Display name | report header |
-| `mode` | string | yes | `campaign` or `sector` (Sector Ops). Arena / deniable ops is parked (no rules) | checkReach |
+| `mode` | string | yes | `campaign`, `sector` (Sector Ops) or `training` (the training profile, Marlow Yard; see "Training profile"). Arena / deniable ops is parked (no rules) | checkReach; `campaign` and `training`: players `[2]`, an `exfil`, solo twin ERR |
 | `players` | int[] | yes | Player counts the map supports: `[2]` for every campaign and campus map (G2, G50); Sector Ops may list `[2, 3, 4]` (A2) | guard keys, checkReach |
 | `sections` | string[] | yes | Section ids in spine order (`["S1", "S2", ...]`) | checkSpine, checkRedundancy, pacing, early / late |
 
@@ -78,6 +80,9 @@ spaces are two links. Links are two-way unless `one_way` is set or the kind is `
 | `reason` | string | no (expected on every link) | One-line real-world reason (level-design 16.9 element register) | not checked; the register row lives in the design doc |
 | `note`, `measured` | | no | As on spaces | |
 | `at` | `[x, y, z]` | no | V6: the opening point the link passes; see "Schema additions" | V6 link time |
+| `bolted` | bool | no | Bolted on its `to` side: it opens only from there (a door the partner unbolts after a co-op move, Marlow A1 / `SectorBolt`). Two players: a normal way (no-softlock, reach). One player: only `to` -> `from` | ERR not a bool; solo twin (no twin from the near side); mission checks: forced co-op, Sector Ops solo |
+| `requires_kill` | bool | no | Passable only by killing a guard (a posted guard in a one-wide choke) | ERR not a bool; mission check: pacifist run |
+| `mark` | string | no (also on spaces) | A guidance mark (floor stripe, drill marker) | ERR outside the training profile (M2: no markers); INFO count on a training map |
 
 ## Link kinds
 
@@ -106,6 +111,15 @@ walking speed (climbs, crawls, co-op moves) carry `time_s` on any split leg or r
 | `pair_gate` | **yes** | a team door (pair gate / pair bolt, CR5 / CR6): `door` sizes; opens only with both players (lead decision 1) |
 | `team_rope` | **yes** | the two-person rope (G180 over G110, CR7): `level_change` = the climb; needs `time_s` (lead decision 2) |
 | `rappel` | no | one way down (`RAPPEL`, `src/config/movement.ts:370`); `level_change` = the descent; needs `time_s` (lead decision 2) |
+
+| `team_throw` | **yes** | throw over a gap (B4, `teamMoves.ts` throw; M3); `width` = the gap (WARN missing; the landing rule is the kit's `throwLandingOk`, no sheet number) |
+| `team_hang` | **yes** | human ladder / hang-down relay (climb the hanging partner); `level_change` = the climb (WARN missing) |
+| `team_pull` | **yes** | pull-up: catch a jumping partner at a lip and haul (KIT-PULL); `level_change` = the lip (WARN missing; no sheet number until KIT-PULL sets one) |
+| `shutter` | **yes** | hold shutter / door: one lifts and holds, the other crawls under (KIT-SHUT); `width` required, ERR below the door minimum (`door_min_w`); judged both ways for a solo twin, like `pair_gate` |
+
+The four kit kinds (mission-framework A17, PLAN 4a) are co-op kinds everywhere a co-op kind counts: no-softlock,
+co-op coverage, solo twins and the mission's forced co-op check. None has a walking speed: a split leg or reach path
+through one needs `time_s`.
 
 No zipline. The core schema's "no rope (G110)" line is out of date: G180 restored the two-person rope (`team_rope`).
 
@@ -156,7 +170,8 @@ No zipline. The core schema's "no rope (G110)" line is out of date: G180 restore
   space of leg a to any of leg b, `time_s` else `length` / 3.0, ERR above 15 s. It is measured from every space of one
   leg to the nearest space of the other leg (the worst such space counts), not to every point of the other leg as
   level-design 11.6 could be read: legs up to 117 m long cannot all lie within 45 m of each other.
-- **Co-op coverage.** A co-op link (`coop_boost`, `human_ladder`, `pair_gate`, `team_rope`) touches at least half of
+- **Co-op coverage.** A co-op link (`coop_boost`, `human_ladder`, `pair_gate`, `team_rope`, `team_throw`, `team_hang`,
+  `team_pull`, `shutter`) touches at least half of
   the encounter spaces (ERR) and at least one space in every section (ERR).
 - **Solo twins (checkCoop).** A co-op link is a solo twin when one player can make the same move: a solo link from its
   `from` to its `to`, or a solo path there that does not pass the target, on the co-op link's own `route` and no
@@ -171,6 +186,18 @@ No zipline. The core schema's "no rope (G110)" line is out of date: G180 restore
 - **Guard counts.** Per encounter space and player count, never per section; WARN below the early / late band, no upper
   limit (Michael 2026-10-24: as many as realistically possible, bounded by the guard-cap perf floor); per-section caps (spawn and alive caps
   of the map) are checked against the guard sheets, not the graph.
+
+## Training profile (`meta.mode: "training"`, mission-framework M1-M2)
+
+Marlow Yard is the guided training course: very linear, one route, stripes and guidance marks kept (M1). The
+no-markers and three-routes rules apply to campaign and Sector Ops maps only (M2). On a training map:
+- **Relaxed (INFO, not ERR):** the rule of three per encounter space (approach count, two route kinds, a shadow / high /
+  loud approach) and the two edge-disjoint routes per section; each prints with "(training: one route allowed)".
+- **Skipped:** routes cross; the secret-route WARN.
+- **Allowed:** `mark` on spaces and links (one INFO with the count).
+- **Still checked:** structure (players `[2]`, an `exfil`), dimensions, reach and no-softlock, spine, encounter targets
+  and guards, dead ends, co-op coverage, solo twins (ERR, as on a campaign map), splits, V6 measurements, pacing.
+- A training map carries no `mission` node (ERR; Marlow keeps its course objectives).
 
 ## Estimating the targets before geometry (M4, A8)
 
@@ -231,6 +258,7 @@ Measurement definitions (one line each; full text and numbers in V6-PLAN.md; num
 | Cover spacing | design doc (not in the graph) | | Space for two | `shared`, `width` |
 | Patrol loops | design doc / guard sheets (not in the graph) | | Beat pacing | `tension`, spine order |
 | Guards per space | `guards`, `phase` | | Shadow | `shadow_pct` (+ V6 `measured`) |
+| Guidance marks (M2) | `mark`, `meta.mode` | | Forced co-op (M3), ghost / pacifist runs | co-op kinds, `bolted`, `route: loud`, `requires_kill` (mission-schema.md) |
 | Observation point | `vantage` (every guard in one cycle: design doc) | | LOS break | `los_break_s` (+ V6 `measured`) |
 
 ## Campus conventions (first run: all five sections S1-S5)
