@@ -22,6 +22,9 @@
 // prints under --dry-run. Contract and states: docs/systems/auto-train.md.
 // Usage: node scripts/auto-train.mjs tick [--dry-run] [--worktree <dir>] [--min-interval <min>] [--max-per-day <n>]
 // --preview-next (with --dry-run only): ignore an open train and show the build the next tick without one would make.
+// Fast poll: a tick that ends waiting (pending, laptop-rerun, holding) keeps its lock and runs the step again every
+// AUTO_TRAIN_FAST_POLL_S (60) s up to AUTO_TRAIN_FAST_POLL_MAX_MIN (4) min from its start, stopping on any state
+// change; --once and --dry-run never poll.
 // Release is `merge-train release ... --head <the tested head> --no-fallback` (pinned; never the old-style path); a
 // train without a version commit is state "error" ("rebuild"). merge-train build exit 4 (vitest not run) is pending.
 // A failed rebuild after release exit 3 is recorded (`rebuildFailed`) and skipped until the train head or master moves.
@@ -468,6 +471,34 @@ export function rerunPlan(train, prev, { now = Date.now(), staleMin = RERUN_STAL
 export const rerunArgs = ({ sha, suites, pr, set }) => ['--sha', sha, '--suites', suites.join(' '), '--pr', String(pr), '--set', set,
   '--requester', 'auto-train', '--train-rerun'];
 
+// ---- fast poll (audit 2 item 3): a waiting tick re-checks every minute instead of waiting for the next 5-min run ----
+
+/** Seconds between fast polls (AUTO_TRAIN_FAST_POLL_S) and the window from the tick's start (AUTO_TRAIN_FAST_POLL_MAX_MIN). */
+export const FAST_POLL_S = 60;
+export const FAST_POLL_MAX_MIN = 4;
+/** The waiting states a tick keeps polling: an open train waiting on CI / the laptop / a laptop rerun, or the build hold. */
+export const FAST_POLL_STATES = ['pending', 'laptop-rerun', 'holding'];
+
+/**
+ * Whether the tick polls again (it keeps its tick lock): `state` = this step's state, `startedAt` / `now` in ms,
+ * opts { pollS, maxMin, once, dry, prevState } (`prevState` = the state before this step, null on the first one).
+ * Polls only in a waiting state (FAST_POLL_STATES), never under --once or --dry-run, stops on any state change, and
+ * only while the next poll starts within `maxMin` of the tick's start (4: done before the next 5-min task run).
+ * -> { poll, delayMs, reason }.
+ */
+export function fastPollPlan(state, startedAt, now, { pollS = FAST_POLL_S, maxMin = FAST_POLL_MAX_MIN, once = false, dry = false, prevState = null } = {}) {
+  const no = (reason) => ({ poll: false, delayMs: 0, reason });
+  if (once) return no('--once');
+  if (dry) return no('dry run');
+  if (!(pollS > 0) || !(maxMin > 0)) return no('fast poll off');
+  if (prevState != null && state !== prevState) return no(`state changed (${prevState} -> ${state})`);
+  if (!FAST_POLL_STATES.includes(state)) return no(`${state} is not a waiting state`);
+  const delayMs = pollS * 1000;
+  const at = now + delayMs - startedAt;
+  if (at > maxMin * 60_000) return no(`fast poll window over (${maxMin} min)`);
+  return { poll: true, delayMs, reason: `${state}: polling again in ${pollS} s (${Math.round(at / 1000)} s into the tick, up to ${maxMin} min)` };
+}
+
 /** True when every path is documentation (Markdown anywhere or under docs/). */
 export const docsOnly = (files) => files.length > 0 && files.every((f) => /\.md$/i.test(f) || f.startsWith('docs/'));
 
@@ -487,6 +518,8 @@ const envMin = (name, dflt) => { const v = Number(process.env[name]); return pro
 const LAPTOP_MISSING = envMin('AUTO_TRAIN_LAPTOP_MISSING_MIN', LAPTOP_MISSING_MIN);
 const RERUN_STALE = envMin('AUTO_TRAIN_RERUN_STALE_MIN', RERUN_STALE_MIN);
 const CHECK_WAIT = envMin('AUTO_TRAIN_CHECK_WAIT_MIN', CHECK_WAIT_MIN);
+const POLL_S = envMin('AUTO_TRAIN_FAST_POLL_S', FAST_POLL_S);
+const POLL_MAX_MIN = envMin('AUTO_TRAIN_FAST_POLL_MAX_MIN', FAST_POLL_MAX_MIN);
 let CWD = 'C:/NightShift/Mobile-Coop-train';
 let LOCK_TEXT = null; // our tick lock's text, handed to merge-train (AUTO_TRAIN_LOCK_TEXT) so it runs under it
 
@@ -562,12 +595,13 @@ function contains(a, b) {
 
 function parseOpts(argv) {
   const [cmd, ...rest] = argv;
-  if (cmd !== 'tick') throw new Error('usage: node scripts/auto-train.mjs tick [--dry-run] [--worktree <dir>] [--min-interval <min>] [--max-per-day <n>] [--preview-next]');
+  if (cmd !== 'tick') throw new Error('usage: node scripts/auto-train.mjs tick [--dry-run] [--once] [--worktree <dir>] [--min-interval <min>] [--max-per-day <n>] [--preview-next]');
   const o = { minInterval: 60, maxPerDay: 0, worktree: CWD };
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     const num = () => { const v = Number(rest[++i]); if (!Number.isFinite(v) || v < 0) throw new Error(`${a} needs a number >= 0`); return v; };
     if (a === '--dry-run') continue;
+    else if (a === '--once') o.once = true;
     else if (a === '--min-interval') o.minInterval = num();
     else if (a === '--max-per-day') o.maxPerDay = num();
     else if (a === '--worktree') o.worktree = rest[++i];
@@ -875,22 +909,44 @@ async function main(argv) {
   const unlock = takeLock();
   if (!unlock) return 0;
   log(`tick${DRY ? ' (dry run: nothing is created, pushed, merged, labelled or commented)' : ''} in ${CWD}`);
+  const startedAt = Date.now();
   let status;
-  try { status = await step(o); } catch (e) {
-    // an error tick keeps the rerun record (no second request) and the failed-request count
+  try {
+    status = await safeStep(o);
+    writeStatus(status);
+    // audit 2 item 3: a waiting tick keeps its lock and re-checks every POLL_S s up to POLL_MAX_MIN from its start,
+    // stopping at once on a state change (the step already acted on it: release, build, ...); status written each poll
+    for (let prevState = null; ;) {
+      const fp = fastPollPlan(status.state, startedAt, Date.now(), { pollS: POLL_S, maxMin: POLL_MAX_MIN, once: !!o.once, dry: DRY, prevState });
+      if (!fp.poll) { if (prevState != null || FAST_POLL_STATES.includes(status.state)) log(`fast poll: stop (${fp.reason})`); break; }
+      log(`fast poll: ${fp.reason}`);
+      await new Promise((r) => setTimeout(r, fp.delayMs));
+      prevState = status.state;
+      status = await safeStep(o);
+      writeStatus(status);
+    }
+  } finally { unlock(); }
+  return status.state === 'error' ? 1 : 0;
+}
+
+/** step() with errors turned into an error status that keeps the rerun record (no second request), the failed-request count and checkWait. */
+async function safeStep(o) {
+  try { return await step(o); } catch (e) {
     const prevStatus = readStatus(FILES.realStatus);
-    status = { state: 'error', reason: e.message.slice(0, 500), ...(prevStatus?.rerun ? { rerun: prevStatus.rerun } : {}),
+    log(`ERROR: ${e.message}`);
+    return { state: 'error', reason: e.message.slice(0, 500), ...(prevStatus?.rerun ? { rerun: prevStatus.rerun } : {}),
       ...(prevStatus?.rerunRequestFailed ? { rerunRequestFailed: prevStatus.rerunRequestFailed } : {}),
       ...(prevStatus?.checkWait ? { checkWait: prevStatus.checkWait } : {}) };
-    log(`ERROR: ${e.message}`);
   }
-  finally { unlock(); }
+}
+
+/** Writes the one-line status JSON (and logs it). */
+function writeStatus(status) {
   const line = JSON.stringify({ state: status.state, train: status.train ?? null, version: status.version ?? null, head: status.head ?? null,
     reason: status.reason, time: new Date().toISOString(), ...(DRY ? { dryRun: true } : {}),
     ...Object.fromEntries(Object.entries(status).filter(([k]) => !['state', 'train', 'version', 'head', 'reason'].includes(k))) });
   fs.writeFileSync(STATUS, `${line}\n`);
   log(`status: ${line}`);
-  return status.state === 'error' ? 1 : 0;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

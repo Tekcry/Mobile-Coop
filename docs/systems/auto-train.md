@@ -8,8 +8,16 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
 `scripts/merge-train.mjs` (G183 version step, `docs/systems/deploy.md`) through its CLI only.
 
 ## Running it
-- `node scripts/auto-train.mjs tick [--dry-run] [--worktree <dir>] [--min-interval <min>] [--max-per-day <n>]`.
-  One tick does at most one thing and is safe to repeat. Exit 0 (outcome in the status file), 1 on an error.
+- `node scripts/auto-train.mjs tick [--dry-run] [--once] [--worktree <dir>] [--min-interval <min>] [--max-per-day <n>]`.
+  One step does at most one thing and is safe to repeat.
+- Fast poll (audit 2: green trains waited ~11 min for the next 5-min run): a tick whose step ends waiting
+  (`pending`, `laptop-rerun`, `holding`) keeps its tick lock and runs the step again every `AUTO_TRAIN_FAST_POLL_S`
+  (60) s while the next poll starts within `AUTO_TRAIN_FAST_POLL_MAX_MIN` (4) min of the tick's start, so it ends
+  before the next 5-min task run. Any state change stops it at once (the step already acted: release, build, failed,
+  ...); the status is written after every poll. `--once` and `--dry-run` never poll (`fastPollPlan`). The lock's
+  heartbeat touches it every minute, so the 30-min staleness never fires on a polling tick; the task's
+  `MultipleInstances IgnoreNew` (and the lock) skip a 5-min start that lands while a long tick (a release or build)
+  still runs. A hand `merge-train` run during a polling tick STOPs on the held train lock: retry after it. Exit 0 (outcome in the status file), 1 on an error.
 - `--worktree`: where merge-train runs (it checks out `train/<n>` and commits there); default
   `C:/NightShift/Mobile-Coop-train`. It must be clean, and nothing else may run merge-train in it while the task is on.
 - `--min-interval` (default 60) and `--max-per-day` (default 0 = off) pace builds, not releases: a green train always
@@ -51,7 +59,7 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
 | `check` success and `laptop-e2e` success | releasing | `merge-train release <n> <version> "<title>" --head <tested head> --no-fallback` (`--resume` when commits follow the version commit); release STOPs unless `origin/train/<n>` is still that head, merges with `gh pr merge --match-head-commit <head>`, and never takes the old-style path; exit 0 -> released, then the no-train path in the same tick; exit 3 (master moved) -> `build` the same members with the next version on the same `<n>` and retitle the PR; a failed rebuild is recorded (`rebuildFailed: { head, master }`, reason "rebuild failed for <head>") and later ticks skip the release (state failed) until the train head or master changes; exit 2 -> failed; head moved (the `--head` STOP) -> pending |
 | No `laptop-e2e` status 3 h after the head was pushed | stale | none (orchestrator alert) |
 | `check` success but no `laptop-e2e` status 10 min after it turned green (check run `completedAt` / status `updated_at`; `AUTO_TRAIN_LAPTOP_MISSING_MIN`) | laptop-missing | none (status `waitingMin`; orchestrator chases the laptop queue) |
-| Anything else (CI or laptop pending / missing) | pending | wait |
+| Anything else (CI or laptop pending / missing) | pending | wait (fast poll) |
 | No open train, no `train-ready` PR with a green `check` | idle | none |
 | Candidates, but the last release is under `--min-interval` min old and the laptop queue is not idle (or `--max-per-day` reached) | waiting | none |
 | Candidates, paced to go, and a `train-ready` PR whose `check` is not green yet while its CI still runs (`check` queued / in progress, any other check run or status pending, or `check` missing while lint / test / build-check all passed), for under `AUTO_TRAIN_CHECK_WAIT_MIN` (3) min since that head was first seen waiting (`checkWait: { <head>: <ISO> }` in the status, carried across ticks and error ticks) | holding | none (audit 2: PR #299 missed train 47, its `check` was missing 43 s before it went green); a PR whose CI failed or has no CI activity never holds; after the wait the build goes on without it |

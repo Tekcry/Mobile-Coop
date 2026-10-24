@@ -15,3 +15,6 @@ kind: patch
   train 47 by 43 s).
 - `merge-train build` pushes the train head before it runs vitest, so CI and the laptop start ~6 min sooner; a vitest
   failure still exits 2 and blocks the release through `auto-train/vitest` (audit 2).
+- A waiting auto-train tick (`pending`, `laptop-rerun`, `holding`) re-checks every 60 s for up to 4 min
+  (`AUTO_TRAIN_FAST_POLL_S`, `AUTO_TRAIN_FAST_POLL_MAX_MIN`; `--once` turns it off), so a green train releases within
+  about a minute instead of at the next 5-min run (audit 2).

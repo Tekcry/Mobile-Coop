@@ -3,7 +3,7 @@ import {
   bumpVersion, ciGreenAt, ciState, contextStatus, decide, desktopFailSuites, docsOnly, fragmentInfo, fragmentPath, joinTitles, laptopMissing, laptopQueueState, membersFromSubjects,
   nextTrainNumber, pacing, parseChangelogHeading, parseLeftOut, parseTrainTitle, planBuild, rebuildSkip, releaseArgs, releaseKind, scratchFiles,
   stackedTips, versionFromSubjects, rerunArgs, rerunContext, rerunPlan, buildMarkerPath, clearBuildMarker, withBuildMarker, writeBuildMarker, leftOutPlan, RERUN_STALE_MIN, RERUN_REQUEST_MAX,
-  checkWaitReason, holdForChecks, CHECK_WAIT_MIN,
+  checkWaitReason, holdForChecks, CHECK_WAIT_MIN, fastPollPlan, FAST_POLL_S, FAST_POLL_MAX_MIN, LOCK_STALE_MIN,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/auto-train.mjs';
 
@@ -460,5 +460,34 @@ describe('auto-train: hold the build for a running check (audit 2 item 1)', () =
     expect(moved.firstSeen).toEqual({ ccc: new Date(NOW + 3 * MIN).toISOString() });
     expect(holdForChecks([], NOW, first.firstSeen, 3)).toEqual({ hold: false, reason: '', waiting: [], firstSeen: {} });
     expect(holdForChecks(w, NOW, {}, 0).hold).toBe(false);
+  });
+});
+
+describe('auto-train: fast poll of a waiting tick (audit 2 item 3)', () => {
+  const S = 1000;
+
+  it('polls every 60 s in a waiting state while the next poll starts within 4 min of the tick', () => {
+    expect(FAST_POLL_S).toBe(60);
+    expect(FAST_POLL_MAX_MIN).toBe(4);
+    for (const st of ['pending', 'laptop-rerun', 'holding']) expect(fastPollPlan(st, NOW, NOW + 5 * S)).toMatchObject({ poll: true, delayMs: 60 * S });
+    expect(fastPollPlan('pending', NOW, NOW + 3 * MIN, { prevState: 'pending' }).poll).toBe(true); // next at 4:00
+    expect(fastPollPlan('pending', NOW, NOW + 3 * MIN + S, { prevState: 'pending' })).toMatchObject({ poll: false, reason: expect.stringMatching(/window over/) });
+    expect(fastPollPlan('pending', NOW, NOW, { pollS: 30, maxMin: 1 }).delayMs).toBe(30 * S);
+  });
+
+  it('never polls under --once or --dry-run, when off, outside a waiting state, or after a state change', () => {
+    expect(fastPollPlan('pending', NOW, NOW, { once: true })).toMatchObject({ poll: false, reason: '--once' });
+    expect(fastPollPlan('pending', NOW, NOW, { dry: true })).toMatchObject({ poll: false, reason: 'dry run' });
+    expect(fastPollPlan('pending', NOW, NOW, { pollS: 0 }).poll).toBe(false);
+    expect(fastPollPlan('pending', NOW, NOW, { maxMin: 0 }).poll).toBe(false);
+    for (const st of ['idle', 'waiting', 'built', 'building', 'releasing', 'failed', 'error', 'stale', 'laptop-missing', 'rerun-stale']) {
+      expect(fastPollPlan(st, NOW, NOW).poll).toBe(false);
+    }
+    expect(fastPollPlan('laptop-rerun', NOW, NOW + MIN, { prevState: 'pending' })).toMatchObject({ poll: false, reason: 'state changed (pending -> laptop-rerun)' });
+  });
+
+  it('a polling tick stays far inside the tick lock staleness (touched every minute anyway)', () => {
+    expect(FAST_POLL_MAX_MIN).toBeLessThan(5);
+    expect(FAST_POLL_MAX_MIN * 3).toBeLessThan(LOCK_STALE_MIN);
   });
 });
