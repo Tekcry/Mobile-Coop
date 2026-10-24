@@ -3,6 +3,8 @@
 ## Now
 Planned (2026-10-24 ~22:00, Opus planner). Next: group 1, H1 (Opus, starts with the lifecycle probe) and H2 (Sonnet)
 in parallel. Open: none for Michael (A1-A9 assumed, BRIEF.md).
+H1 (feature/cr-h1, 2026-10-25 00:10): code done, node --check + localTransport vitest pass; probe and smoke NOT RUN (desktop
+CPU 77-100% for the 40 min gate), so no B1 / B2 pick yet (expected: hideBehind / CDP frozen); commands in H1-REPORT.md.
 
 ## Known before the run
 - S2 is a sure KNOWN BUG on master: Course mode never sends a client lamp round (coopClient.ts:188-197, coopHost.ts:202).
