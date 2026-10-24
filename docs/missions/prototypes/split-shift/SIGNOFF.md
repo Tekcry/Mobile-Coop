@@ -39,7 +39,7 @@
 5. What it costs: paper only until you pick. Sector Ops' HQ plan already holds every device this needs, as planned
    devices: the comms-room camera panel, the held east-wing cut, the facilities keypad, the two leads and the bridge pair
    door's solo line. After you pick, Sector Ops builds them, Guard AI adds 1 reaction, and the mission engine handles a
-   per-team restart. Validator, on Sector Ops' latest campus plan: 0 errors, 119 warnings, all the campus plan's own;
+   per-team restart. Validator, on the campus plan you signed off this morning (S2 as drawn): 0 errors, 119 warnings, all the campus plan's own;
    0 from the mission (BEAT.md Graph notes).
 
 ## The decision
