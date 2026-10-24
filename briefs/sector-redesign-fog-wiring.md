@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-24T10:37Z
 
 # Sector Ops: fog fix wiring test (follow-up to PR #339, fog check polish P1)
 
