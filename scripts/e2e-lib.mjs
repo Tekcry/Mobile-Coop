@@ -10,6 +10,9 @@ export function browserExe() {
   return [process.env.E2E_BROWSER, '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', '/opt/pw-browsers/chromium/chrome-linux/chrome'].find((c) => c && existsSync(c));
 }
 
+/** (coop-real H2) The switch behind `launch({ hideAutomation: true })`: `navigator.webdriver` reads false. Opt-in per suite (e2e-coop-real). */
+export const AUTOMATION_FLAG = '--disable-blink-features=AutomationControlled';
+
 /** Chromium flags: software GL (SwiftShader) by default; E2E_GPU=1 the hardware GPU (Windows: ANGLE D3D11, GPU blocklist ignored). */
 export function browserArgs() {
   // (test-speed) no background throttling: a two-page suite's second page is the background tab, and Chromium throttles
@@ -28,13 +31,15 @@ export function browserArgs() {
  * to the top left mid-run (Michael, 2026-10-09): GPU runs fake pointer lock. E2E_HEADED=1 (debugging only) opens a window
  * parked off-screen and fakes it too. */
 export const HEADED = process.env.E2E_HEADED === '1';
-export function launchOptions() {
+export function launchOptions({ hideAutomation = false } = {}) {
   // the runner sets E2E_RUNNER=1: a headed window there steals focus and the cursor, so it is an error, never a fallback
   if (HEADED && process.env.E2E_RUNNER === '1') {
     console.error('E2E ERROR: a suite tried to launch a HEADED browser (E2E_HEADED=1) under the runner. Headed is for single-suite debugging only: unset E2E_HEADED.');
     process.exit(1);
   }
-  const args = browserArgs();
+  // (coop-real H2) hideAutomation (off by default): navigator.webdriver reads false, so the game's own 'not under
+  // automation' paths run (src/net/bgTicks.ts: the bgTick worker that keeps a hidden co-op page alive)
+  const args = [...browserArgs(), ...(hideAutomation ? [AUTOMATION_FLAG] : [])];
   const exe = browserExe();
   if (HEADED) return { headless: false, ...(exe ? { executablePath: exe } : {}), args: [...args, '--window-position=-32000,-32000', '--window-size=1280,720', '--no-startup-window-focus'] };
   return { headless: true, ...(exe ? { executablePath: exe } : GPU ? { channel: 'chromium' } : {}), args };
@@ -84,10 +89,11 @@ if (PROFILE) {
 let warmed = true;
 
 /** A desktop context (no touch, no mobile user agent): the game is desktop only (pad, keyboard and mouse). */
-export async function launch({ url = 'http://localhost:4173/', params = '', viewport = { width: 1280, height: 640 }, args = [], context = {} } = {}) {
+export async function launch({ url = 'http://localhost:4173/', params = '', viewport = { width: 1280, height: 640 }, args = [], context = {}, hideAutomation = false } = {}) {
   // (`args`: extra Chromium switches, e.g. anim-audit's remote run keeps a background page's timers unthrottled)
+  // (`hideAutomation`: adds AUTOMATION_FLAG, off by default; e2e-coop-real opts in)
   // (`context`: extra browser context options, e.g. e2e-tuner-phone's `hasTouch` / `isMobile`)
-  const lo = launchOptions();
+  const lo = launchOptions({ hideAutomation });
   const browser = await timed('launch', () => chromium.launch({ ...lo, args: [...lo.args, ...args] }));
   const ctx = await browser.newContext({ viewport, acceptDownloads: true, ...context });
   // context level: covers every page of the context, including ones a suite opens itself (ctx.newPage())
@@ -385,7 +391,7 @@ export async function focusTo(page, re, max = 12) {
 }
 
 export function assert(cond, msg) {
-  if (!cond && NETSIM) {
+  if (!cond && NETSIM && !NETSIM_GATE) {
     // (step 20b, D11) report mode: a check that fails under the simulator is a finding, not a stop
     netsimFails.push(msg);
     console.log('  NETSIM FAIL -', msg);
@@ -402,6 +408,12 @@ export function assert(cond, msg) {
  * baseline for the same numbers).
  */
 export const NETSIM = process.env.E2E_NETSIM ?? '';
+/**
+ * (coop-real H2) `E2E_NETSIM_GATE=1`: under E2E_NETSIM a failed `assert` throws like it does without the simulator, so the
+ * suite's exit code carries the failure. Unset, nothing changes: the only softening is that report branch in `assert`
+ * (`netsimFails` is printed at exit, no exit code reads it). The runner sets it for e2e-coop-real.
+ */
+export const NETSIM_GATE = process.env.E2E_NETSIM_GATE === '1';
 const netsimFails = [];
 if (NETSIM) process.on('exit', () => console.log(`NETSIM REPORT (${NETSIM}): ${netsimFails.length} check(s) failed${netsimFails.length ? ':\n  ' + netsimFails.join('\n  ') : ''}`));
 

@@ -43,7 +43,8 @@ Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then
   `e2e-ctcourse:1` to `:4` (marlow-final: A1-A2, A3-A4, A5-A6, A7-A8), each its own pair of pages started at its first
   set through the host session's `courseBay`; named alone (`node scripts/run-e2e.mjs e2e-ctcourse`) it runs all eight
   sets in sequence (test-speed A3). `scripts/e2e-times.json` holds 150 s per part as an estimate until a clean full run
-  rewrites it (pending laptop run). `e2e-sectorops` runs as `e2e-sectorops:1` to `:5` (sector-fixes-r RE: the suite before slice R, the
+  rewrites it (pending laptop run). `e2e-coop-real` runs as `e2e-coop-real:1` and `:2` (120 s each in `e2e-times.json`, an
+  estimate). `e2e-sectorops` runs as `e2e-sectorops:1` to `:5` (sector-fixes-r RE: the suite before slice R, the
   solo route checks, the co-op routes of sections 1-3); named alone it runs all five in sequence.
 - Pool size: default min(5, cores / 3) (`--jobs=N` / `E2E_JOBS`); use `E2E_JOBS=2` on Michael's 8-thread desktop and on
   cloud VMs (two suites at a time, G94).
@@ -268,6 +269,24 @@ behind a VPN adapter).
   by `use(P, 'door-<anchor id>')` and asserted open on both pages first. The old bunker stations' steps are in git at
   5920cce5. The ghost run with every bonus and the revive on each co-op surface (A1 yard, A2 staging, A6 gallery, A8
   gallery) are not in the suite yet. Results for the head: pending laptop run.
+- `e2e-coop-real` (coop-real, `docs/coop-real/`) two pages on `?net=local&autostart=ctcourse&mode=course`, Marlow Yard A1 (and
+  A2 in part 2) from the lounge, input only: the walk finds P6a / P6b (the partner's takedown row when one player holds the
+  other's hostage or guard), P7 (one sound per shot, suppressed, on both pages), S2 (a client and a host shot at the apron
+  flood lamp reach both games) and R7 (a client that was backgrounded, frozen, reloaded or closed rejoins at the checkpoint,
+  not the lounge), plus every offered prompt changing state and client actions reaching the host. Two parts, run as the jobs
+  `:1` (A1 interactions: the prompt sweep, takedowns, lamps, audio, restarts) and `:2` (A1 traverse, then the background,
+  frozen, reload and closed-tab rejoins), about 120 s each (`scripts/e2e-times.json`); REQUIRED, and `--quick` picks it for
+  `src/net/`, `src/game/course/`, `courseMode.ts` and `src/anim/moveTune` (the same folders as `e2e-coop`) and for its own
+  scripts (`scripts/e2e-coop-real.mjs`, `scripts/e2e-coop-real/`). Env: the runner sets `E2E_NETSIM=typical` and
+  `E2E_NETSIM_GATE=1` for this suite only (`SUITE_ENV` in the runner; see Network conditions), and the suite launches with
+  `launch({ hideAutomation: true })` so `navigator.webdriver` is false and a hidden page runs the game's bgTick worker as in a real
+  browser. KNOWN BUG: an expected-fail case (`knownBug(id, slice, fn)`): a fail prints `KNOWN BUG <id> -> <slice>` and does
+  not fail the run, a pass prints `UNEXPECTED PASS <id>` and fails it (the fix slice deletes the mark); the runner prints every
+  suite line starting with `KNOWN BUG` in its summary. The input-only rule: the suite drives `__pad`, `page.keyboard` /
+  `page.mouse`, the boot URL, page lifecycle (hide, freeze, reload, close, a new page) and `stepHeadless` only for a page that
+  stands for a visible window; it reads anything but never teleports, calls `onUse` / `takedown.start` / `applyDamage`, sets
+  `input.state`, switches weapons, writes the camera, `courseBay` or the session, or emits events (`docs/coop-real/BRIEF.md`,
+  "The input line"). Results for the head: pending laptop run.
 - Marlow Yard unit tests (`npm test`, Babylon-free where they can be; each set's file is its builder's contract, run by
   the set agent): `tests/ctcourse/<set>.test.ts` per set (the part passes `checkSetPart`, register rows and counts equal
   the builder's, geometry and keep-clear, no solo way up a co-op lip (`soloJumpThreats`), the gates, steps and role claim
@@ -380,6 +399,13 @@ behind a VPN adapter).
   a remote root step more than 25 cm beyond a 7 m/s pace in one frame (host teleport grace excluded), and `NETSIM-STAT`
   every 5 s. `E2E_NETSIM=off` runs the same probe on a clean network (the baseline). Results: docs/locomotion/LOG.md
   "20b".
+- `E2E_NETSIM_GATE=1` (coop-real H2) turns report mode off: under `E2E_NETSIM` a failed `assert` throws as it does on a clean
+  network, so the suite's exit code carries the failure. Unset, report mode is unchanged (the report branch in `assert` was
+  the only softening: `netsimFails` is only printed at exit, nothing reads it for an exit code). The runner sets it, with
+  `E2E_NETSIM=typical`, for `e2e-coop-real` only (`SUITE_ENV`); the other suites stay report-only.
+- `launch({ hideAutomation: true })` (and `launchOptions({ hideAutomation: true })`; `AUTOMATION_FLAG` is the switch) adds
+  `--disable-blink-features=AutomationControlled` to the Chromium args, off by default. `e2e-coop-real` opts in so
+  `navigator.webdriver` is false and the bgTick worker (`src/net/bgTicks.ts`) runs on a hidden page.
 
 ## Helper scripts
 - `node scripts/shot.mjs out.png "autostart=proving" 60 "<js>"` screenshot helper (`?autostart=<mapId>`)

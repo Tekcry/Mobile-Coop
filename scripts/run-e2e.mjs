@@ -27,7 +27,7 @@ const SUITE_TIMEOUT = Number(process.env.E2E_SUITE_TIMEOUT ?? 600) * 1000;
 // (Marlow Yard) and the systems it stands on. Everything else has its own list, outside the full run:
 // LEGACY = parked content (Hunter / Mission, the economy and cosmetics, Fallow, Kestrel, the Warehouse routes and AI
 // archetypes); AUDIO = the sound suites; GPU = visual read-backs (no visual result from SwiftShader).
-const REQUIRED = ['smoke', 'e2e-pad', 'e2e-mouse', 'e2e-menus', 'e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-stealth', 'e2e-weapons-carry', 'e2e-anim', 'e2e-combat', 'e2e-clip', 'e2e-tactics', 'e2e-wall', 'e2e-stealth-ai', 'e2e-guard-carry', 'e2e-takedown', 'e2e-gadgets', 'e2e-levels', 'e2e-park', 'e2e-coop', 'e2e-netmove', 'e2e-course', 'e2e-ctcourse', 'e2e-sectorops', 'e2e-section-rating', 'e2e-ct', 'e2e-lightbake', 'e2e-feedback', 'e2e-desktop', 'e2e-offline', 'e2e-studio', 'e2e-tuner-phone'];
+const REQUIRED = ['smoke', 'e2e-pad', 'e2e-mouse', 'e2e-menus', 'e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-stealth', 'e2e-weapons-carry', 'e2e-anim', 'e2e-combat', 'e2e-clip', 'e2e-tactics', 'e2e-wall', 'e2e-stealth-ai', 'e2e-guard-carry', 'e2e-takedown', 'e2e-gadgets', 'e2e-levels', 'e2e-park', 'e2e-coop', 'e2e-coop-real', 'e2e-netmove', 'e2e-course', 'e2e-ctcourse', 'e2e-sectorops', 'e2e-section-rating', 'e2e-ct', 'e2e-lightbake', 'e2e-feedback', 'e2e-desktop', 'e2e-offline', 'e2e-studio', 'e2e-tuner-phone'];
 // e2e-wall:flanker = e2e-wall's Warehouse (Clear) flanker section; e2e-bunker: Fallow, parked behind ?legacy=1 (CT prototype B1)
 const LEGACY = ['e2e-progression', 'e2e-cosmetics', 'e2e-clear', 'e2e-bunker', 'e2e-missions', 'e2e-modes', 'e2e-enemies', 'e2e-ct-warehouse', 'e2e-wall:flanker', 'e2e-kestrel', 'e2e-camera-bounds', 'e2e-security'];
 // the suites written for `?legacy=1` pages (LEGACY=1 makes e2e-lib add it); the others moved to LEGACY run as they always did
@@ -42,7 +42,8 @@ const REPORT = ['anim-audit'];
 // `e2e-desktop:1`, `:2`, `:4` (part 3 is in GPU). `node scripts/e2e-desktop.mjs --part=N`; the script run directly with no --part runs whole.
 // (marlow-final 0d) e2e-ctcourse = four pairs of sets (A1-A2, A3-A4, A5-A6, A7-A8), each its own pair of pages.
 // (sector-fixes-r RE) e2e-sectorops = part 1 (sections, alarms, restarts, nav, the co-op mirror), 2 (solo: co-op lips refused, route links, team doors), 3-5 (co-op routes and team doors of sections 1-3), 6 (campusOps: S1-S3 greybox routes)
-const PARTS = { 'e2e-desktop': ['1', '2', '4'], 'e2e-ctcourse': ['1', '2', '3', '4'], 'e2e-sectorops': ['1', '2', '3', '4', '5', '6'] };
+// (coop-real H2) e2e-coop-real = part 1 (A1 interactions: prompts, takedowns, lamps, audio), 2 (A1 traverse, background tab, rejoin)
+const PARTS = { 'e2e-desktop': ['1', '2', '4'], 'e2e-coop-real': ['1', '2'], 'e2e-ctcourse': ['1', '2', '3', '4'], 'e2e-sectorops': ['1', '2', '3', '4', '5', '6'] };
 const expand = (list) => list.flatMap((s) => (PARTS[s] ? PARTS[s].map((n) => `${s}:${n}`) : [s]));
 const REQUIRED_JOBS = new Set(expand(REQUIRED));
 
@@ -53,6 +54,11 @@ const REQUIRED_JOBS = new Set(expand(REQUIRED));
 // in its remap section (docs/backlog.md; parked, not fixed). Add a suite only with its failure written up there.
 const KNOWN_FLAKY = new Set(['e2e-pad']);
 const flaky = (s) => KNOWN_FLAKY.has(s.split(':')[0]);
+// (coop-real H2) per-suite environment, applied over the runner's own (a suite run alone sets these itself): e2e-coop-real runs
+// under the network simulator and the gate (E2E_NETSIM_GATE=1: a failed assert under netsim fails the run, scripts/e2e-lib.mjs)
+const SUITE_ENV = { 'e2e-coop-real': { E2E_NETSIM: 'typical', E2E_NETSIM_GATE: '1' } };
+// (coop-real H2) a suite line starting with `KNOWN BUG` is an expected-fail case (docs/systems/testing-tools.md): printed in the summary, never fails the run by itself
+const KNOWN_BUG_LINE = /^[ 	]*KNOWN BUG.*$/gm;
 
 // --quick: which suites cover which source folder (a path under `src/` not listed here runs CORE). Keep in step with docs/systems/testing-tools.md.
 // (process audit) CORE leaves out the input suites (the slowest); `src/input/` and `src/ui/` still pick them.
@@ -63,7 +69,7 @@ const COVERS = {
   'src/anim/studio': ['e2e-studio', 'anim-audit', 'e2e-anim'],
   'src/anim/tuneHistory': ['e2e-studio'],
   // (anim-studio-2) the co-op role / traversal move sections: live on the local player (the team moves, traversal)
-  'src/anim/moveTune': ['e2e-studio', 'e2e-coop', 'e2e-traverse', 'e2e-anim'],
+  'src/anim/moveTune': ['e2e-studio', 'e2e-coop', 'e2e-coop-real', 'e2e-traverse', 'e2e-anim'],
   'src/game/studioStage': ['e2e-studio', 'e2e-tuner-phone'],
   // (marlow-bays item 26) the free view's touch orbit, pinch and pan
   'src/player/freeView': ['e2e-tuner-phone', 'e2e-studio', 'anim-audit', 'e2e-anim', 'e2e-move'],
@@ -85,8 +91,8 @@ const COVERS = {
   'src/ui/screens/missionsScreen': ['e2e-sectorops', 'e2e-menus', 'e2e-pad', 'e2e-park'],
   'src/ui/': ['e2e-pad', 'e2e-desktop', 'e2e-feedback', 'e2e-park', 'e2e-menus'],
   // the training course (T1b): its own suite on top of co-op
-  'src/game/course/': ['e2e-course', 'e2e-ctcourse', 'e2e-coop'],
-  'src/game/modes/courseMode.ts': ['e2e-course', 'e2e-ctcourse', 'e2e-coop', 'e2e-section-rating'],
+  'src/game/course/': ['e2e-course', 'e2e-ctcourse', 'e2e-coop', 'e2e-coop-real'],
+  'src/game/modes/courseMode.ts': ['e2e-course', 'e2e-ctcourse', 'e2e-coop', 'e2e-coop-real', 'e2e-section-rating'],
   // Sector Ops (feature/sector-ops): its mode, sectors and Warehouse copy
   'src/game/modes/sectorMode.ts': ['e2e-sectorops', 'e2e-park', 'e2e-section-rating'],
   // (section-rating) the rating rules, the card and the record: their suite on top of the modes'
@@ -119,8 +125,8 @@ const COVERS = {
   'src/world/': ['e2e-lightbake', 'e2e-guard-carry', 'e2e-levels', 'e2e-anchors', 'e2e-ctcourse'],
   'src/voxel/': ['e2e-lightbake', 'e2e-desktop'],
   'src/vfx/': ['e2e-desktop'],
-  'src/net/coopUi': ['e2e-park', 'e2e-coop', 'e2e-netmove', 'e2e-ctcourse'],
-  'src/net/': ['anim-audit', 'e2e-coop', 'e2e-netmove', 'e2e-ctcourse', 'e2e-sectorops'],
+  'src/net/coopUi': ['e2e-park', 'e2e-coop', 'e2e-coop-real', 'e2e-netmove', 'e2e-ctcourse'],
+  'src/net/': ['anim-audit', 'e2e-coop', 'e2e-coop-real', 'e2e-netmove', 'e2e-ctcourse', 'e2e-sectorops'],
   'src/security/': ['e2e-security', 'e2e-sectorops'],
   'src/progression/': ['e2e-park'],
   'src/cosmetics/': ['e2e-park'],
@@ -136,7 +142,8 @@ const COVERS = {
 const SCRIPT = /^scripts\/(smoke|anim-audit|e2e-(?!(?:[\w-]*-)?lib\.mjs$)[\w-]+)\.mjs$/;
 const HELPERS = { 'scripts/e2e-net-lib.mjs': ['e2e-netmove', 'anim-audit'] };
 // (marlow-final 0d) the set step modules of e2e-ctcourse (scripts/e2e-ctcourse/<set>.mjs) rerun it
-const SUITE_DIRS = { 'scripts/e2e-ctcourse/': ['e2e-ctcourse'] };
+// (coop-real H2) so do the part files and lib of e2e-coop-real (scripts/e2e-coop-real/)
+const SUITE_DIRS = { 'scripts/e2e-ctcourse/': ['e2e-ctcourse'], 'scripts/e2e-coop-real/': ['e2e-coop-real'] };
 
 const argv = process.argv.slice(2);
 const flag = (n) => argv.includes(`--${n}`);
@@ -244,13 +251,18 @@ async function runOne(s) {
   if (streamed) console.log(`\n=== ${s}${report(s) ? " (REPORT ONLY: never fails the run)" : ""} ===`);
   else console.log(`[start] ${s}`);
   const [script, part] = s.split(':');
-  const childEnv = NEEDS_LEGACY_FLAG.has(script) ? { ...env, LEGACY: '1' } : env;
-  const child = spawn(process.execPath, [`scripts/${script}.mjs`, url, ...(part ? [`--part=${part}`] : []), ...(quick && script === 'anim-audit' ? ['--quick'] : [])], { windowsHide: true, stdio: streamed ? 'inherit' : ['ignore', 'pipe', 'pipe'], env: childEnv });
+  const childEnv = { ...env, ...(NEEDS_LEGACY_FLAG.has(script) ? { LEGACY: '1' } : {}), ...(SUITE_ENV[script] ?? {}) };
+  // (coop-real H2) the output is always piped so the KNOWN BUG lines can be read; a streamed run (--serial / --jobs=1) writes it through at once
+  const child = spawn(process.execPath, [`scripts/${script}.mjs`, url, ...(part ? [`--part=${part}`] : []), ...(quick && script === 'anim-audit' ? ['--quick'] : [])], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], env: childEnv });
   let log = '';
-  if (!streamed) {
-    child.stdout.on('data', (d) => (log += d));
-    child.stderr.on('data', (d) => (log += d));
-  }
+  child.stdout.on('data', (d) => {
+    log += d;
+    if (streamed) process.stdout.write(d);
+  });
+  child.stderr.on('data', (d) => {
+    log += d;
+    if (streamed) process.stderr.write(d);
+  });
   let timedOut = false;
   const timer = setTimeout(() => {
     timedOut = true;
@@ -269,7 +281,7 @@ async function runOne(s) {
     else log += `\n${killed}\n`;
   }
   const sec = (Date.now() - t0) / 1000;
-  results.push({ s, code, sec });
+  results.push({ s, code, sec, bugs: log.match(KNOWN_BUG_LINE)?.map((l) => l.trim()) ?? [] });
   if (!streamed) {
     // the whole log in one block: parallel suites never interleave
     console.log(`\n=== ${s} (${report(s) ? `REPORT ONLY, exit ${code}` : code === 0 ? 'ok' : 'FAIL'}, ${sec.toFixed(0)}s) ===\n${log.trimEnd()}`);
@@ -301,5 +313,10 @@ if (fullRun && !allFailed.length) {
 }
 if (flakyFailed.length) console.log(`
 *** KNOWN FLAKY, failed this run (docs/backlog.md): ${flakyFailed.map((r) => r.s).join(', ')} - rerun them alone before reading anything into it ***`);
+// (coop-real H2) KNOWN BUG lines of a suite (expected-fail cases): reported, never counted as a failure
+const bugLines = results.flatMap((r) => r.bugs.map((l) => `${r.s}: ${l}`));
+if (bugLines.length) console.log(`
+*** KNOWN BUG, expected failures this run (docs/systems/testing-tools.md, e2e-coop-real), they do not fail the run ***
+  ${bugLines.join('\n  ')}`);
 console.log(failed.length ? `\n${failed.length} suite(s) failed: ${failed.map((r) => r.s).join(', ')}` : '\nall e2e suites passed');
 process.exit(failed.length ? 1 : 0);
