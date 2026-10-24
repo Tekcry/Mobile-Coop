@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
+import { execFileSync } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import {
-  classifyWorktree, countStates, lockState, parseArgs, parseLockHolder, parsePorcelain, parseStatusZ, protectedBranch, pruneCandidates,
-  safeVerdict, summarizeQueue, wipAllowed,
+  classifyWorktree, countStates, dirtyAge, hasUnmerged, lockState, opInProgress, parseArgs, parseLockHolder, parsePorcelain, parseStatusEntries, parseStatusZ,
+  protectedBranch, pruneCandidates, readDirty, safeVerdict, stagePaths, summarizeQueue, wipAllowed, wipCommit,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/swap.mjs';
 import {
-  briefBranch, claimExpired, parseExpireArgs, parseStatusLine, planExpiry, reopenText,
+  briefBranch, claimExpired, parseExpireArgs, parseStatusLine, plan, planExpiry, pushReopen, reopenText,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/cloud-queue-expire.mjs';
 
@@ -78,7 +82,7 @@ describe('classifyWorktree', () => {
 
 describe('branches and WIP', () => {
   it('protects master, main, dev, train/*, the queue branches and gh-pages', () => {
-    for (const b of ['master', 'main', 'dev', 'train/64', 'cloud-queue', 'laptop-queue', 'gh-pages', null]) expect(protectedBranch(b)).toBe(true);
+    for (const b of ['master', 'main', 'dev', 'ct-movement', 'train/64', 'cloud-queue', 'laptop-queue', 'gh-pages', null]) expect(protectedBranch(b)).toBe(true);
     expect(protectedBranch('feature/menu')).toBe(false);
     expect(protectedBranch('trainer/x')).toBe(false);
   });
@@ -203,5 +207,148 @@ describe('cloud-queue-expire', () => {
     expect(parseExpireArgs(['--yes', '--max-min', '60', '--no-fetch'], {})).toMatchObject({ yes: true, maxMin: 60, fetch: false });
     expect(() => parseExpireArgs(['--yes', '--dry-run'], {})).toThrow(/not both/);
     expect(() => parseExpireArgs(['--max-min', '0'], {})).toThrow(/minutes/);
+  });
+});
+
+// ---------------------------------------------------------------- fix round (PR #349 checker)
+
+const GIT_ENV = { GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t' };
+Object.assign(process.env, GIT_ENV);
+const g = (cwd: string, ...args: string[]): string => execFileSync('git', ['-C', cwd, ...args], { encoding: 'utf8', env: { ...process.env, ...GIT_ENV }, stdio: ['ignore', 'pipe', 'pipe'] });
+const tmpRepo = (): string => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'swap-'));
+  g(dir, 'init', '-q', '-b', 'feature/x');
+  g(dir, 'config', 'core.autocrlf', 'false');
+  fs.writeFileSync(path.join(dir, 'a.txt'), 'a\n');
+  g(dir, 'add', 'a.txt');
+  g(dir, 'commit', '-q', '-m', 'base');
+  return dir;
+};
+const makeOld = (p: string): void => { const t = new Date(Date.now() - 48 * 3_600_000); fs.utimesSync(p, t, t); };
+const rm = (d: string): void => fs.rmSync(d, { recursive: true, force: true });
+
+describe('status entries, unmerged, staging, op markers, age', () => {
+  it('keeps the status codes; unmerged codes are detected', () => {
+    const e = parseStatusEntries(['UU src/a.ts', ' M b.ts', ''].join('\0'));
+    expect(e).toEqual([{ xy: 'UU', file: 'src/a.ts' }, { xy: ' M', file: 'b.ts' }]);
+    expect(hasUnmerged(e)).toBe(true);
+    for (const xy of ['AA', 'DD', 'AU', 'UD', 'DU', 'UA']) expect(hasUnmerged([{ xy, file: 'f' }])).toBe(true);
+    expect(hasUnmerged([{ xy: ' M', file: 'f' }, { xy: '??', file: 'g' }, { xy: 'D ', file: 'h' }])).toBe(false);
+  });
+  it('stages files only, never a nested repository entry', () => {
+    expect(stagePaths([{ xy: '??', file: 'scratch/clone/' }, { xy: '??', file: 'n.txt' }, { xy: ' D', file: 'gone.txt' }])).toEqual(['n.txt', 'gone.txt']);
+  });
+  it('names the first operation in progress', () => {
+    expect(opInProgress((m: string) => m === 'REVERT_HEAD' || m === 'rebase-apply')).toBe('REVERT_HEAD');
+    expect(opInProgress(() => false)).toBeNull();
+  });
+  it('age is the newest path; a deleted path counts as fresh', () => {
+    const now = Date.UTC(2026, 9, 24, 12);
+    const t: Record<string, number | null> = { a: now - 30 * 3_600_000, b: now - 2 * 3_600_000, gone: null };
+    expect(dirtyAge(['a', 'b'], (f: string) => t[f], now)).toBe(2);
+    expect(dirtyAge(['a', 'gone'], (f: string) => t[f], now)).toBe(0);
+    expect(dirtyAge([], () => 0, now)).toBeNull();
+  });
+});
+
+describe('readDirty (-uall)', () => {
+  it('lists a fresh file inside an old untracked folder, so the worktree is not stale', async () => {
+    const dir = tmpRepo();
+    try {
+      fs.mkdirSync(path.join(dir, 'probe'));
+      fs.writeFileSync(path.join(dir, 'probe', 'old.txt'), 'x');
+      fs.writeFileSync(path.join(dir, 'probe', 'new.txt'), 'y');
+      makeOld(path.join(dir, 'probe', 'old.txt'));
+      makeOld(path.join(dir, 'probe'));
+      const files = ((await readDirty(dir, [])) as { file: string }[]).map((e) => e.file).sort();
+      expect(files).toEqual(['probe/new.txt', 'probe/old.txt']);
+      const age = dirtyAge(files, (f: string) => fs.statSync(path.join(dir, f)).mtimeMs, Date.now());
+      expect(classifyWorktree(facts({ dirty: files.length, dirtyAgeHours: age }), { staleHours: 12 })).toBe('dirty');
+    } finally { rm(dir); }
+  });
+});
+
+describe('wipCommit', () => {
+  it('commits the listed files only: no gitlink for a nested repo or a registered worktree', async () => {
+    const dir = tmpRepo();
+    try {
+      fs.writeFileSync(path.join(dir, 'a.txt'), 'changed\n');
+      fs.writeFileSync(path.join(dir, 'new.txt'), 'n\n');
+      const nested = path.join(dir, 'scratch', 'clone');
+      fs.mkdirSync(nested, { recursive: true });
+      g(nested, 'init', '-q');
+      fs.writeFileSync(path.join(nested, 'f.txt'), 'f');
+      g(nested, 'add', 'f.txt');
+      g(nested, 'commit', '-q', '-m', 'n');
+      const wt = path.join(dir, '.claude', 'worktrees', 'agent-1');
+      g(dir, 'worktree', 'add', '-q', '-b', 'agent-1', wt);
+      const others = [dir, wt].map((p) => p.replace(/\\/g, '/'));
+      const res = await wipCommit(dir, others, '2026-10-24T11:00:00.000Z');
+      expect(res).toEqual({ committed: true, problem: null });
+      expect(g(dir, 'log', '-1', '--format=%s').trim()).toBe('WIP: swap save 2026-10-24T11:00:00.000Z');
+      expect(g(dir, 'show', '--name-only', '--format=', 'HEAD').trim().split('\n').sort()).toEqual(['a.txt', 'new.txt']);
+      expect(g(dir, 'ls-files', '-s').includes('160000')).toBe(false);
+    } finally { rm(dir); }
+  });
+  it('refuses mid merge (MERGE_HEAD) and with unmerged paths', async () => {
+    const dir = tmpRepo();
+    try {
+      fs.writeFileSync(path.join(dir, 'a.txt'), 'changed\n');
+      const head = g(dir, 'rev-parse', 'HEAD').trim();
+      fs.writeFileSync(path.join(dir, '.git', 'MERGE_HEAD'), `${head}\n`);
+      const res = await wipCommit(dir, [], 'iso');
+      expect(res.committed).toBe(false);
+      expect(res.problem).toMatch(/mid MERGE_HEAD/);
+      fs.rmSync(path.join(dir, '.git', 'MERGE_HEAD'));
+      g(dir, 'checkout', '-q', '--', 'a.txt');
+      g(dir, 'checkout', '-q', '-b', 'other');
+      fs.writeFileSync(path.join(dir, 'a.txt'), 'other\n');
+      g(dir, 'commit', '-q', '-am', 'other');
+      g(dir, 'checkout', '-q', 'feature/x');
+      fs.writeFileSync(path.join(dir, 'a.txt'), 'mine\n');
+      g(dir, 'commit', '-q', '-am', 'mine');
+      try { g(dir, 'merge', '-q', 'other'); } catch { /* conflict expected */ }
+      // the unmerged check alone: MERGE_HEAD removed, the conflict entries stay in the index
+      fs.rmSync(path.join(dir, '.git', 'MERGE_HEAD'), { force: true });
+      const res2 = await wipCommit(dir, [], 'iso');
+      expect(res2.committed).toBe(false);
+      expect(res2.problem).toMatch(/unmerged/);
+      expect(g(dir, 'log', '-1', '--format=%s').trim()).toBe('mine');
+    } finally { rm(dir); }
+  });
+});
+
+describe('cloud-queue-expire plan / push use one sha', () => {
+  it('reopens on top of the sha it read; a cloud-queue that moved after the read rejects the push (no force)', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cq-'));
+    try {
+      const bare = path.join(root, 'origin.git');
+      const seed = path.join(root, 'seed');
+      const repo = path.join(root, 'repo');
+      execFileSync('git', ['init', '-q', '--bare', bare]);
+      fs.mkdirSync(seed);
+      g(seed, 'init', '-q', '-b', 'cloud-queue');
+      g(seed, 'config', 'core.autocrlf', 'false');
+      fs.mkdirSync(path.join(seed, 'briefs'));
+      fs.writeFileSync(path.join(seed, 'briefs', 'a.md'), 'status: claimed Night Shift | Cloud Builder 1 2026-10-20T10:00Z\n# a\nNew branch `feature/a`.\n');
+      g(seed, 'add', '.');
+      g(seed, 'commit', '-q', '-m', 'brief');
+      g(seed, 'push', '-q', bare, 'cloud-queue');
+      execFileSync('git', ['clone', '-q', bare, repo], { stdio: 'ignore' });
+      const o = { repo, maxMin: 90, yes: true, fetch: false };
+      const first = await plan(o);
+      expect(first.list.map((e: { path: string }) => e.path)).toEqual(['briefs/a.md']);
+      expect(first.sha).toBe(g(repo, 'rev-parse', 'origin/cloud-queue').trim());
+      fs.writeFileSync(path.join(seed, 'briefs', 'b.md'), 'status: open\n# b\n');
+      g(seed, 'add', '.');
+      g(seed, 'commit', '-q', '-m', 'brief b');
+      g(seed, 'push', '-q', bare, 'cloud-queue');
+      g(repo, 'fetch', '-q', 'origin');
+      expect(await pushReopen(o, first.sha, first.briefs, first.list)).toBe(false);
+      const second = await plan(o);
+      expect(await pushReopen(o, second.sha, second.briefs, second.list)).toBe(true);
+      expect(execFileSync('git', ['-C', bare, 'rev-parse', 'cloud-queue^'], { encoding: 'utf8' }).trim()).toBe(second.sha);
+      expect(execFileSync('git', ['-C', bare, 'show', 'cloud-queue:briefs/a.md'], { encoding: 'utf8' }).split('\n')[0]).toBe('status: open');
+    } finally { rm(root); }
   });
 });

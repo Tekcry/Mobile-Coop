@@ -97,13 +97,15 @@ function git(repo, args, { input, env, soft = false } = {}) {
   });
 }
 
-async function readBriefs(repo) {
-  const names = (await git(repo, ['ls-tree', '-r', '--name-only', 'origin/cloud-queue', 'briefs/'])).split('\n').filter((n) => n.endsWith('.md'));
-  return Promise.all(names.map(async (p) => ({ path: p, text: (await git(repo, ['show', `origin/cloud-queue:${p}`])).replace(/\r\n/g, '\n') })));
+async function readBriefs(repo, sha) {
+  const names = (await git(repo, ['ls-tree', '-r', '--name-only', sha, 'briefs/'])).split('\n').filter((n) => n.endsWith('.md'));
+  return Promise.all(names.map(async (p) => ({ path: p, text: (await git(repo, ['show', `${sha}:${p}`])).replace(/\r\n/g, '\n') })));
 }
 
-async function plan(o) {
-  const briefs = await readBriefs(o.repo);
+export async function plan(o) {
+  // one sha for the read and the commit parent: a concurrent fetch cannot slip a newer cloud-queue in between
+  const sha = (await git(o.repo, ['rev-parse', 'refs/remotes/origin/cloud-queue'])).trim();
+  const briefs = await readBriefs(o.repo, sha);
   const pushTimes = {};
   for (const b of briefs) {
     if (parseStatusLine(b.text.split('\n')[0]).kind !== 'claimed') continue;
@@ -112,12 +114,11 @@ async function plan(o) {
     const ct = await git(o.repo, ['log', '-1', '--format=%ct', `refs/remotes/origin/${br}`], { soft: true });
     pushTimes[br] = ct && ct.trim() ? Number(ct.trim()) * 1000 : null;
   }
-  return { briefs, list: planExpiry(briefs, { now: Date.now(), maxMin: o.maxMin, pushTimes }) };
+  return { sha, briefs, list: planExpiry(briefs, { now: Date.now(), maxMin: o.maxMin, pushTimes }) };
 }
 
-/** One commit on top of origin/cloud-queue reopening `list`, pushed without force; true when pushed. */
-async function pushReopen(o, briefs, list) {
-  const parent = (await git(o.repo, ['rev-parse', 'origin/cloud-queue'])).trim();
+/** One commit on top of `parent` (the cloud-queue sha the briefs were read from) reopening `list`, pushed without force; true when pushed. */
+export async function pushReopen(o, parent, briefs, list) {
   const idx = path.join(os.tmpdir(), `cq-expire-${process.pid}.index`);
   const env = { GIT_INDEX_FILE: idx };
   try {
@@ -139,12 +140,12 @@ async function main(argv) {
   const o = parseExpireArgs(argv, process.env);
   for (let attempt = 1; attempt <= 3; attempt++) {
     if (o.fetch || attempt > 1) await git(o.repo, ['fetch', '-q', 'origin'], { soft: true });
-    const { briefs, list } = await plan(o);
+    const { sha, briefs, list } = await plan(o);
     const claimed = briefs.filter((b) => parseStatusLine(b.text.split('\n')[0]).kind === 'claimed').length;
     console.log(`cloud-queue: ${briefs.length} briefs, ${claimed} claimed, ${list.length} expired (claim ${o.maxMin} min+, no push since)`);
     for (const e of list) console.log(`  ${e.path}: ${e.title} at ${e.at} (${e.ageMin} min)${e.branch ? `, ${e.branch} ${e.lastPushAt ? `last commit ${new Date(e.lastPushAt).toISOString()}` : 'not on origin'}` : ', no branch named'}`);
     if (!list.length || !o.yes) { if (list.length) console.log('dry run: pass --yes to reopen'); return 0; }
-    if (await pushReopen(o, briefs, list)) { console.log(`reopened ${list.length} (pushed to origin/cloud-queue)`); return 0; }
+    if (await pushReopen(o, sha, briefs, list)) { console.log(`reopened ${list.length} (pushed to origin/cloud-queue)`); return 0; }
     console.log(`push rejected (try ${attempt}/3): refetching`);
   }
   console.error('cloud-queue-expire: push kept failing; nothing forced');

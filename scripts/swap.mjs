@@ -52,7 +52,7 @@ export function parsePorcelain(text) {
 /** Branches a swap script never commits to, pushes or prunes. */
 export function protectedBranch(branch) {
   if (!branch) return true;
-  return ['master', 'main', 'dev', 'cloud-queue', 'laptop-queue', 'gh-pages'].includes(branch) || branch.startsWith('train/');
+  return ['master', 'main', 'dev', 'ct-movement', 'cloud-queue', 'laptop-queue', 'gh-pages'].includes(branch) || branch.startsWith('train/');
 }
 
 /** True when --commit-wip may commit / push this worktree's branch. */
@@ -80,10 +80,11 @@ export function classifyWorktree(f, { staleHours = 0 } = {}) {
 }
 
 /**
- * `git status --porcelain -z` -> changed paths (the new name of a rename / copy), minus untracked entries that hold a
+ * `git status --porcelain -z` -> [{ xy, file }] (the new name of a rename / copy), minus untracked entries that hold a
  * registered worktree (`others`: absolute paths with forward slashes), e.g. the main checkout's .claude/worktrees/.
+ * Under -uall an untracked entry ending in "/" is a nested repository (git does not descend into it).
  */
-export function parseStatusZ(text, root = '', others = []) {
+export function parseStatusEntries(text, root = '', others = []) {
   const parts = String(text).split('\0');
   const out = [];
   const base = String(root).replace(/\\/g, '/').replace(/\/+$/, '');
@@ -97,9 +98,35 @@ export function parseStatusZ(text, root = '', others = []) {
       const abs = `${base}/${file}`.replace(/\/+$/, '');
       if (others.some((o) => o === abs || o.startsWith(`${abs}/`))) continue;
     }
-    out.push(file);
+    out.push({ xy, file });
   }
   return out;
+}
+
+/** The changed paths of `git status --porcelain -z` (parseStatusEntries without the codes). */
+export const parseStatusZ = (text, root = '', others = []) => parseStatusEntries(text, root, others).map((e) => e.file);
+
+/** True when status shows an unmerged path (a conflict mid merge / rebase / cherry-pick). */
+export const hasUnmerged = (entries) => entries.some((e) => /U/.test(e.xy) || e.xy === 'AA' || e.xy === 'DD');
+
+/** Paths --commit-wip may stage: every entry except nested repositories (dir entries), so no gitlink is ever added. */
+export const stagePaths = (entries) => entries.map((e) => e.file).filter((f) => !f.endsWith('/'));
+
+/** Git operation files that mean a worktree is mid merge / cherry-pick / revert / rebase. */
+export const OP_MARKERS = ['MERGE_HEAD', 'CHERRY_PICK_HEAD', 'REVERT_HEAD', 'rebase-merge', 'rebase-apply'];
+
+/** The first operation marker that exists (`exists(name)`), or null. */
+export const opInProgress = (exists) => OP_MARKERS.find((m) => exists(m)) ?? null;
+
+/**
+ * Hours since the newest dirty path changed at `now`: `mtime(file)` gives epoch ms, or null for a deleted path (counts
+ * as fresh: 0). Null when there are no paths.
+ */
+export function dirtyAge(files, mtime, now) {
+  if (!files.length) return null;
+  let newest = 0;
+  for (const f of files) { const t = mtime(f); newest = Math.max(newest, t === null ? now : t); }
+  return Math.max(0, (now - newest) / 3_600_000);
 }
 
 /** Counts by state, every state present (0 when none). */
@@ -258,6 +285,40 @@ function idleHours(w, repoGitDir) {
   return newest ? (Date.now() - newest) / 3_600_000 : null;
 }
 
+/**
+ * A worktree's dirty entries (parseStatusEntries), null when git status fails. -uall lists every untracked file, so a
+ * fresh file inside an old untracked folder keeps the worktree fresh (no false stale-dirty); nested repos stay one entry.
+ */
+export async function readDirty(wt, others = []) {
+  const s = await git(wt, ['--no-optional-locks', 'status', '--porcelain', '-z', '-uall'], { soft: true });
+  return s === null ? null : parseStatusEntries(s, wt, others);
+}
+
+/**
+ * One --commit-wip commit in worktree `wt`: { committed, problem }. Refuses mid merge / cherry-pick / revert / rebase or
+ * with unmerged paths; stages only the paths status listed (never nested repos or registered worktrees as gitlinks);
+ * unstages and refuses when a new file is over 10 MB. Hooks run.
+ */
+export async function wipCommit(wt, others, iso) {
+  const out = (await git(wt, ['rev-parse', ...OP_MARKERS.flatMap((m) => ['--git-path', m])])).split('\n').map((s) => s.trim()).filter(Boolean);
+  const op = opInProgress((m) => { const p = out[OP_MARKERS.indexOf(m)]; return !!p && fs.existsSync(path.resolve(wt, p)); });
+  if (op) return { committed: false, problem: `WIP skipped: ${wt} is mid ${op} (finish or abort it by hand)` };
+  const entries = await readDirty(wt, others);
+  if (entries === null) return { committed: false, problem: `WIP skipped: git status failed in ${wt}` };
+  if (hasUnmerged(entries)) return { committed: false, problem: `WIP skipped: ${wt} has unmerged paths` };
+  const paths = stagePaths(entries);
+  if (!paths.length) return { committed: false, problem: null };
+  await git(wt, ['add', '-A', '--pathspec-from-file=-', '--pathspec-file-nul'], { input: `${paths.join('\0')}\0` });
+  const added = (await git(wt, ['diff', '--cached', '--name-only', '--diff-filter=A', '-z'])).split('\0').filter(Boolean);
+  const big = added.find((f) => { try { return fs.statSync(path.join(wt, f)).size > MAX_NEW_FILE; } catch { return false; } });
+  if (big) {
+    await git(wt, ['reset', '-q']);
+    return { committed: false, problem: `WIP skipped: ${wt} would add ${big} (over 10 MB); commit or ignore it by hand` };
+  }
+  await git(wt, ['commit', '-q', '-m', `WIP: swap save ${iso}`]);
+  return { committed: true, problem: null };
+}
+
 /** Commit shas reachable from `heads` but from no origin ref (chunked to keep the command line short). */
 async function unpushedSet(repo, heads) {
   const set = new Set();
@@ -289,14 +350,13 @@ async function scanWorktrees(o, log) {
     let dirtyFiles = [];
     let error = null;
     if (!missing && !w.bare) {
-      const s = await git(w.path, ['--no-optional-locks', 'status', '--porcelain', '-z', '-unormal'], { soft: true });
-      if (s === null) error = 'git status failed';
-      else dirtyFiles = parseStatusZ(s, w.path, all);
+      const entries = await readDirty(w.path, all);
+      if (entries === null) error = 'git status failed';
+      else dirtyFiles = entries.map((e) => e.file);
     }
-    let newest = 0;
-    for (const f of dirtyFiles) { try { newest = Math.max(newest, fs.statSync(path.join(w.path, f)).mtimeMs); } catch { newest = Date.now(); } } // deleted file: count as fresh
+    const age = dirtyAge(dirtyFiles, (f) => { try { return fs.statSync(path.join(w.path, f)).mtimeMs; } catch { return null; } }, Date.now());
     const facts = {
-      ...w, missing, dirty: error ? 1 : dirtyFiles.length, dirtyAgeHours: error || !newest ? null : Math.max(0, (Date.now() - newest) / 3_600_000),
+      ...w, missing, dirty: error ? 1 : dirtyFiles.length, dirtyAgeHours: error ? null : age,
       unpushed: counts.get(w.head) ?? 0, merged: !!w.branch && merged.has(w.branch), upstreamGone: !!w.branch && gone.has(w.branch),
     };
     return { ...facts, state: classifyWorktree(facts, { staleHours: o.staleHours }), sample: error ? [error] : dirtyFiles.slice(0, 3), idleHours: missing ? null : idleHours(w, repoGitDir) };
@@ -364,18 +424,13 @@ function scanAutoTrain(o) {
 async function commitWip(o, rows, iso, log) {
   const problems = [];
   const touched = [];
+  const others = rows.map((x) => x.path.replace(/\\/g, '/'));
   for (const r of rows.filter((x) => x.state === 'dirty')) {
     if (!wipAllowed(r)) { log(`  skip WIP in ${r.path}: ${r.branch ? `protected branch ${r.branch}` : 'detached HEAD'}`); continue; }
     try {
-      await git(r.path, ['add', '-A']);
-      const added = (await git(r.path, ['diff', '--cached', '--name-only', '--diff-filter=A', '-z'])).split('\0').filter(Boolean);
-      const big = added.find((f) => { try { return fs.statSync(path.join(r.path, f)).size > MAX_NEW_FILE; } catch { return false; } });
-      if (big) {
-        await git(r.path, ['reset', '-q']);
-        problems.push(`WIP skipped: ${r.path} would add ${big} (over 10 MB); commit or ignore it by hand`);
-        continue;
-      }
-      await git(r.path, ['commit', '-q', '-m', `WIP: swap save ${iso}`]);
+      const res = await wipCommit(r.path, others, iso);
+      if (res.problem) { problems.push(res.problem); continue; }
+      if (!res.committed) continue;
       log(`  WIP committed: ${r.branch} (${r.path})`);
       touched.push(r);
     } catch (e) { problems.push(`WIP commit failed: ${r.path}: ${e.message.split('\n')[0]}`); }

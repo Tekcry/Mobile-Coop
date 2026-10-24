@@ -31,9 +31,11 @@ node scripts/swap.mjs save --commit-wip
   whose pid is dead on this machine, and any WIP commit or push that failed.
 - Not items: `prunable` (clean, merged into origin/master or upstream gone), `stale-dirty` (every dirty file untouched 12 h+:
   debris that already survived earlier swaps on disk; `--stale-hours 0` counts them again), clean / detached worktrees.
-- `--commit-wip` never commits or pushes master / main / dev / train/* / cloud-queue / laptop-queue / gh-pages or a
-  detached HEAD, never forces, runs hooks, and skips a worktree that would add a new file over 10 MB. A rejected push
-  (the branch moved on origin) stays an item: fetch and merge in that worktree by hand.
+- `--commit-wip` never commits or pushes master / main / dev / ct-movement / train/* / cloud-queue / laptop-queue /
+  gh-pages or a detached HEAD, and never forces. It runs hooks and stages only the paths `git status -uall` listed, so a
+  nested repo or worktree is never added as a gitlink. It skips a worktree (an item) that is mid merge, cherry-pick,
+  revert or rebase, has unmerged paths, or would add a new file over 10 MB. A rejected push (the branch moved on
+  origin) stays an item: fetch and merge in that worktree by hand.
 - Also printed (not items): heavy.lock / heavy2.lock / auto-train.lock holders with pid liveness, laptop-queue requests
   queued and claimed (per worker; `--machine laptop` or env `SWAP_MACHINE` / `LQ_WORKER` marks this machine's), and the
   auto-train status line. Check that the next ~2 hours of runs are queued.
@@ -52,8 +54,10 @@ Night Shift | <Title>: set_session_title "self" to this title, read `git show or
 then docs/<job>/STATE.md resume block on origin/feature/<job>; run `node scripts/swap.mjs status` and carry on.
 ```
 
-Cloud builders of the old account are dead after a swap. Their claims reopen on their own 90 min after the last heartbeat;
-when the orchestrator knows they died at this swap it reopens them at once:
+Cloud builders of the old account are dead after a swap. Claim expiry stays manual until the heartbeat patch
+(`docs/cloud-queue-README.patch.md`) is applied to the cloud-queue README: today's builders do not re-stamp their claims,
+so a live builder's claim also looks 90 min old. Until then the orchestrator runs the dry run, checks that the listed
+builders are really gone, and only then runs `--yes`. After the patch is in, the same commands can run unattended:
 
 ```sh
 node scripts/cloud-queue-expire.mjs                 # dry run: claims 90 min+ old with no push since the claim
