@@ -10,3 +10,6 @@ kind: patch
   just before `merge-train build` and deletes it when the build ends, errors included (audit 2026-10-24).
 - A train member left out on a conflict loses its `train-ready` label (no more repeat empty builds); the comment tells
   the lead to re-add the label after fixing the conflict (audit 2026-10-24).
+- Auto-train holds a build up to 3 min (`AUTO_TRAIN_CHECK_WAIT_MIN`, per head, state `holding`) while a `train-ready`
+  PR's `check` is still running, and re-reads the candidates right before `merge-train build` (audit 2: PR #299 missed
+  train 47 by 43 s).

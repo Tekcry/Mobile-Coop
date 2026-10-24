@@ -13,7 +13,9 @@
 //     after (AUTO_TRAIN_LAPTOP_MISSING_MIN) -> state "laptop-missing" (waitingMin in the status).
 //   no open train: open PRs to master labelled `train-ready` with a green `check` on their head (plus feature/menu
 //     when it differs from master in docs only, riding along) -> `merge-train build <n+1> <version> "<title>" ...`,
-//     paced: only once the last release is --min-interval min old (default 60) or the laptop queue is idle.
+//     paced: only once the last release is --min-interval min old (default 60) or the laptop queue is idle; held
+//     (state "holding") up to AUTO_TRAIN_CHECK_WAIT_MIN (3) min per head while a train-ready PR's check still runs;
+//     the candidates are re-read right before the build.
 // It calls scripts/merge-train.mjs (next to this file) only through its CLI, with cwd = the train worktree
 // (--worktree, default C:/NightShift/Mobile-Coop-train). It reads GitHub through gh / ls-remote (no fetch of its own),
 // never forces a push, never touches dev or master; every write (gh or merge-train) goes through act(), which only
@@ -150,8 +152,16 @@ const IGNORED = new Set(['CANCELLED', 'SKIPPED', 'NEUTRAL', 'STALE']);
  * queued entries win (a rerun is going); cancelled / skipped ones are ignored; otherwise the newest finished entry.
  */
 export function ciState(rollup, name = 'check') {
-  const items = (rollup ?? []).filter((r) => (r.__typename === 'StatusContext' ? r.context : r.name) === name);
+  const items = (rollup ?? []).filter((r) => rollupName(r) === name);
   if (!items.length) return 'missing';
+  return rollupItemsState(items) ?? 'pending';
+}
+
+/** A rollup entry's name: a StatusContext's context, a CheckRun's name. */
+const rollupName = (r) => (r?.__typename === 'StatusContext' ? r.context : r?.name);
+
+/** The state of one name's rollup entries: 'success' | 'failure' | 'pending', or null when every entry is ignored (cancelled / skipped). */
+function rollupItemsState(items) {
   const norm = items.map((r) => {
     const time = Date.parse(r.completedAt || r.startedAt || r.createdAt || '') || 0;
     if (r.__typename === 'StatusContext') {
@@ -163,9 +173,62 @@ export function ciState(rollup, name = 'check') {
     if (IGNORED.has(c)) return null;
     return { time, s: c === 'SUCCESS' ? 'success' : 'failure' };
   }).filter(Boolean);
-  if (!norm.length) return 'pending';
+  if (!norm.length) return null;
   if (norm.some((x) => x.s === 'pending')) return 'pending';
   return norm.sort((a, b) => b.time - a.time)[0].s;
+}
+
+/** The CI jobs the aggregate `check` needs (.github/workflows/deploy.yml); `check` appears only once they are done. */
+export const CHECK_SIBLINGS = ['lint', 'test', 'build-check'];
+/** Minutes the build waits for a train-ready PR whose `check` is still running (AUTO_TRAIN_CHECK_WAIT_MIN). */
+export const CHECK_WAIT_MIN = 3;
+
+/**
+ * Audit 2 item 1 (PR #299 missed train 47: its `check` was "missing" 43 s before it went green): why CI is still
+ * running toward `name` on a head, or null when it is not (check finished, CI failed, or no CI activity at all).
+ * Running: `name` itself pending (queued / in progress); or any other check run or status pending; or `name` missing
+ * while its sibling jobs (CHECK_SIBLINGS) all passed (the aggregate job is about to be created). Any failed entry
+ * (newest per name; cancelled / skipped ignored) means CI failed: null.
+ */
+export function checkWaitReason(rollup, name = 'check', siblings = CHECK_SIBLINGS) {
+  const states = new Map();
+  for (const nm of new Set((rollup ?? []).map(rollupName).filter(Boolean))) {
+    const s = rollupItemsState((rollup ?? []).filter((r) => rollupName(r) === nm));
+    if (s) states.set(nm, s);
+  }
+  const own = states.get(name) ?? null;
+  if (own === 'success' || own === 'failure') return null;
+  if ([...states.values()].includes('failure')) return null;
+  if (own === 'pending') return `${name} running`;
+  const running = [...states].filter(([nm, s]) => nm !== name && s === 'pending').map(([nm]) => nm);
+  if (running.length) return `${name} missing, CI running (${running.join(', ')})`;
+  const sibs = siblings.filter((s) => states.has(s));
+  if (sibs.length && sibs.every((s) => states.get(s) === 'success')) return `${name} missing, ${sibs.join(', ')} green (${name} not created yet)`;
+  return null;
+}
+
+/**
+ * Audit 2 item 1: hold the build while a train-ready PR's `check` is still running, so it rides this train.
+ * `waiting` = [{ pr, branch, head, why }] (train-ready PRs whose check is not success, `why` = checkWaitReason, null
+ * when not running); `firstSeen` = { [head]: ISO } from the last status (`checkWait`). Each head waits at most `waitMin`
+ * from when it was first seen waiting. -> { hold, reason, waiting: [{ ...c, waitedMin, expired }], firstSeen } (the new
+ * map: only heads still waiting, so a green or failed head drops out).
+ */
+export function holdForChecks(waiting, now, firstSeen = {}, waitMin = CHECK_WAIT_MIN) {
+  const next = {};
+  const list = [];
+  for (const c of waiting ?? []) {
+    if (!c?.why || !c.head) continue;
+    const t0 = Date.parse(firstSeen?.[c.head] ?? '') || now;
+    next[c.head] = new Date(t0).toISOString();
+    const waitedMin = Math.max(0, (now - t0) / 60_000);
+    list.push({ ...c, waitedMin, expired: waitedMin >= waitMin });
+  }
+  const live = list.filter((c) => !c.expired);
+  const reason = live.length
+    ? `holding the build up to ${waitMin} min for ${live.map((c) => `#${c.pr} (${c.why}, ${Math.floor(c.waitedMin * 60)} s)`).join(', ')}`
+    : list.length ? `not waiting longer for ${list.map((c) => `#${c.pr}`).join(', ')} (${waitMin} min passed)` : '';
+  return { hold: live.length > 0, reason, waiting: list, firstSeen: next };
 }
 
 /** A commit status context in a combined-status JSON (`gh api .../commits/<sha>/status`) -> { state, description } (state 'missing' when absent). */
@@ -423,6 +486,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const envMin = (name, dflt) => { const v = Number(process.env[name]); return process.env[name] && Number.isFinite(v) && v >= 0 ? v : dflt; };
 const LAPTOP_MISSING = envMin('AUTO_TRAIN_LAPTOP_MISSING_MIN', LAPTOP_MISSING_MIN);
 const RERUN_STALE = envMin('AUTO_TRAIN_RERUN_STALE_MIN', RERUN_STALE_MIN);
+const CHECK_WAIT = envMin('AUTO_TRAIN_CHECK_WAIT_MIN', CHECK_WAIT_MIN);
 let CWD = 'C:/NightShift/Mobile-Coop-train';
 let LOCK_TEXT = null; // our tick lock's text, handed to merge-train (AUTO_TRAIN_LOCK_TEXT) so it runs under it
 
@@ -565,14 +629,24 @@ function openTrain() {
   };
 }
 
-/** Train-ready PRs with a green check on their head, plus feature/menu when it is docs-only ahead of master. */
+/**
+ * Train-ready PRs with a green check on their head, plus feature/menu when it is docs-only ahead of master.
+ * -> { cands, waiting }: `waiting` = the train-ready PRs whose check is not green, with `why` = checkWaitReason (null
+ * when CI is not running: failed or no activity) for holdForChecks.
+ */
 function candidates(labelExists) {
   const out = [];
+  const waiting = [];
   if (labelExists) {
     const prs = readJson(['gh', 'pr', 'list', '--state', 'open', '--base', 'master', '--label', LABEL, '--limit', '100', '--json', 'number,headRefName,headRefOid,title,statusCheckRollup']);
     for (const p of prs) {
       const ci = ciState(p.statusCheckRollup, 'check');
-      if (ci !== 'success') { log(`  #${p.number} ${p.headRefName}: check ${ci}, not a candidate`); continue; }
+      if (ci !== 'success') {
+        const why = checkWaitReason(p.statusCheckRollup, 'check');
+        log(`  #${p.number} ${p.headRefName}: check ${ci}, not a candidate${why ? ` (CI still running: ${why})` : ''}`);
+        waiting.push({ pr: p.number, branch: p.headRefName, head: p.headRefOid, why });
+        continue;
+      }
       out.push({ pr: p.number, branch: p.headRefName, head: p.headRefOid, title: p.title });
     }
   }
@@ -582,7 +656,7 @@ function candidates(labelExists) {
     if (c && c.ahead > 0 && c.files.length < 300 && docsOnly(c.files)) out.push({ pr: null, branch: MENU_BRANCH, head: undefined, title: null });
     else if (c && c.ahead > 0) log(`  ${MENU_BRANCH}: ${c.ahead} commit(s) ahead but not docs-only, left for the orchestrator`);
   }
-  return out;
+  return { cands: out, waiting };
 }
 
 /** Members with fragments read at their heads, stacked bases marked build:false; then the plan. */
@@ -685,13 +759,28 @@ async function build(n, cands, { rebuildOf } = {}) {
 
 /** No open train: candidates, pacing, build. */
 async function noTrain(o, labelExists) {
-  const cands = candidates(labelExists);
+  const { cands, waiting } = candidates(labelExists);
   const queue = laptopQueue();
   const paceReason = pacing({ now: Date.now(), releases: releaseTimes(), minIntervalMin: o.minInterval, maxPerDay: o.maxPerDay, queue });
   const d = decide({ train: null, candidates: cands, paceReason });
+  // audit 2 item 1: a train-ready PR whose check is still running holds the build up to CHECK_WAIT per head (first
+  // seen waiting: `checkWait` in the status, carried across ticks)
+  const h = holdForChecks(waiting, Date.now(), readStatus(FILES.realStatus)?.checkWait ?? {}, CHECK_WAIT);
+  const checkWait = Object.keys(h.firstSeen).length ? { checkWait: h.firstSeen } : {};
+  if (d.action === 'build' && h.hold) {
+    log(`decision: holding - ${h.reason}`);
+    return { state: 'holding', reason: h.reason, candidates: cands.map((c) => c.branch), ...checkWait };
+  }
+  if (h.reason) log(`  ${h.reason}`);
   log(`decision: ${d.state} - ${d.reason}${queue ? ` (laptop queue ${queue})` : ''}`);
-  if (d.action !== 'build') return { state: d.state, reason: d.reason, candidates: cands.map((c) => c.branch) };
-  return build(nextN(), cands);
+  if (d.action !== 'build') return { state: d.state, reason: d.reason, candidates: cands.map((c) => c.branch), ...checkWait };
+  // re-read the candidates right before the build, so the member list is fresh (a PR that just went green rides along)
+  const fresh = candidates(labelExists).cands;
+  const fd = decide({ train: null, candidates: fresh, paceReason });
+  if (fd.action !== 'build') { log(`decision (re-read): ${fd.state} - ${fd.reason}`); return { state: fd.state, reason: fd.reason, candidates: fresh.map((c) => c.branch) }; }
+  const added = fresh.filter((c) => !cands.some((x) => x.branch === c.branch && x.head === c.head)).map((c) => c.branch);
+  if (added.length) log(`  re-read: ${added.join(', ')} new or moved since the decision`);
+  return build(nextN(), fresh);
 }
 
 async function step(o) {
@@ -791,7 +880,8 @@ async function main(argv) {
     // an error tick keeps the rerun record (no second request) and the failed-request count
     const prevStatus = readStatus(FILES.realStatus);
     status = { state: 'error', reason: e.message.slice(0, 500), ...(prevStatus?.rerun ? { rerun: prevStatus.rerun } : {}),
-      ...(prevStatus?.rerunRequestFailed ? { rerunRequestFailed: prevStatus.rerunRequestFailed } : {}) };
+      ...(prevStatus?.rerunRequestFailed ? { rerunRequestFailed: prevStatus.rerunRequestFailed } : {}),
+      ...(prevStatus?.checkWait ? { checkWait: prevStatus.checkWait } : {}) };
     log(`ERROR: ${e.message}`);
   }
   finally { unlock(); }

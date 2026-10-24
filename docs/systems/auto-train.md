@@ -23,7 +23,7 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
   touches it every minute; untouched for 30 min = stale and replaced; a held lock skips the tick), log
   `C:/NightShift/scratch/runs/auto-train.log` (merge-train output included), status
   `C:/NightShift/scratch/auto-train-status.json`: one JSON line `{ state, train, version, head, reason, time, ... }`
-  (extra keys: `pr`, `members`, `leftOut`, `candidates`, `released`, `rebuildFailed`, `rerun`, `rerunRequestFailed`,
+  (extra keys: `pr`, `members`, `leftOut`, `candidates`, `checkWait`, `released`, `rebuildFailed`, `rerun`, `rerunRequestFailed`,
   `dryRun`; `rerun` is carried into every status of the same train head, error ticks included, and so is
   `rerunRequestFailed` on error ticks), build marker
   `C:/NightShift/scratch/auto-train-building.json` (`{ train, version, pid, at }`, written just before
@@ -54,7 +54,8 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
 | Anything else (CI or laptop pending / missing) | pending | wait |
 | No open train, no `train-ready` PR with a green `check` | idle | none |
 | Candidates, but the last release is under `--min-interval` min old and the laptop queue is not idle (or `--max-per-day` reached) | waiting | none |
-| Candidates, paced to go | building / built | (build marker written) `merge-train build <n+1> <version> "<title>" <branches...>`; a member left out on a conflict loses `train-ready` and gets a comment; exit 2 -> failed (and an `auto-train/vitest` failure status on the head); exit 3 -> failed (every member left out); exit 4 (vitest not run: the heavy-lock wait timed out; the train is pushed and CI's `check` runs the unit tests) -> pending, the next tick goes on |
+| Candidates, paced to go, and a `train-ready` PR whose `check` is not green yet while its CI still runs (`check` queued / in progress, any other check run or status pending, or `check` missing while lint / test / build-check all passed), for under `AUTO_TRAIN_CHECK_WAIT_MIN` (3) min since that head was first seen waiting (`checkWait: { <head>: <ISO> }` in the status, carried across ticks and error ticks) | holding | none (audit 2: PR #299 missed train 47, its `check` was missing 43 s before it went green); a PR whose CI failed or has no CI activity never holds; after the wait the build goes on without it |
+| Candidates, paced to go | building / built | (the candidates are read again right before the build, so the member list is fresh; build marker written) `merge-train build <n+1> <version> "<title>" <branches...>`; a member left out on a conflict loses `train-ready` and gets a comment; exit 2 -> failed (and an `auto-train/vitest` failure status on the head); exit 3 -> failed (every member left out); exit 4 (vitest not run: the heavy-lock wait timed out; the train is pushed and CI's `check` runs the unit tests) -> pending, the next tick goes on |
 | Any command error, or no version for the open train | error | none |
 
 - The `build` vitest step (under the heavy lock) is load-tolerant: when the full run fails and every failure is a `Test timed out in` or at most 3 test files failed, only those files rerun once with `npx vitest run --no-file-parallelism <files>`; a pass there is ok ("passed on isolated rerun: <files>"), a fail reports the rerun's tail. More than 3 failed files that are not all timeouts fail at once, no rerun.

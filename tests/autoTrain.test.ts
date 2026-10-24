@@ -3,6 +3,7 @@ import {
   bumpVersion, ciGreenAt, ciState, contextStatus, decide, desktopFailSuites, docsOnly, fragmentInfo, fragmentPath, joinTitles, laptopMissing, laptopQueueState, membersFromSubjects,
   nextTrainNumber, pacing, parseChangelogHeading, parseLeftOut, parseTrainTitle, planBuild, rebuildSkip, releaseArgs, releaseKind, scratchFiles,
   stackedTips, versionFromSubjects, rerunArgs, rerunContext, rerunPlan, buildMarkerPath, clearBuildMarker, withBuildMarker, writeBuildMarker, leftOutPlan, RERUN_STALE_MIN, RERUN_REQUEST_MAX,
+  checkWaitReason, holdForChecks, CHECK_WAIT_MIN,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/auto-train.mjs';
 
@@ -414,5 +415,50 @@ describe('auto-train: left out on a conflict', () => {
     expect(again).toEqual({ remove: null, comment: null });
     expect(leftOutPlan({ ...base, head: 'fedcba9876543210', labels: [], bodies: [first.comment!] }).comment).toMatch(/fedcba98/);
     expect(leftOutPlan({ ...base, labels: ['train-ready'], bodies: [first.comment!] })).toMatchObject({ remove: expect.any(Array), comment: null });
+  });
+});
+
+describe('auto-train: hold the build for a running check (audit 2 item 1)', () => {
+  const run = (name: string, conclusion: string, status = 'COMPLETED', at = '2026-10-24T09:59:00Z') => ({ __typename: 'CheckRun', name, status, conclusion, completedAt: at, startedAt: at });
+  const ctx = (context: string, state: string) => ({ __typename: 'StatusContext', context, state, createdAt: '2026-10-24T09:59:00Z' });
+
+  it('checkWaitReason: running while check or any other job is queued / in progress, or check is about to appear', () => {
+    expect(checkWaitReason([run('lint', 'SUCCESS'), run('test', '', 'IN_PROGRESS'), run('build-check', '', 'QUEUED')])).toMatch(/check missing, CI running \(test, build-check\)/);
+    expect(checkWaitReason([run('lint', 'SUCCESS'), run('test', 'SUCCESS'), run('build-check', 'SUCCESS'), run('check', '', 'QUEUED')])).toBe('check running');
+    // PR #299: every sibling green, the aggregate check not created yet (43 s)
+    expect(checkWaitReason([run('lint', 'SUCCESS'), run('test', 'SUCCESS'), run('build-check', 'SUCCESS'), run('build', 'SKIPPED')])).toMatch(/check not created yet/);
+    expect(checkWaitReason([run('lint', 'SUCCESS'), ctx('laptop-e2e/a', 'PENDING')])).toMatch(/CI running \(laptop-e2e\/a\)/);
+  });
+
+  it('checkWaitReason: null when check finished, CI failed or there is no CI activity', () => {
+    expect(checkWaitReason([run('check', 'SUCCESS')])).toBeNull();
+    expect(checkWaitReason([run('check', 'FAILURE')])).toBeNull();
+    expect(checkWaitReason([run('lint', 'FAILURE'), run('test', '', 'IN_PROGRESS')])).toBeNull();
+    expect(checkWaitReason([run('lint', 'SUCCESS'), ctx('laptop-e2e', 'FAILURE'), run('check', '', 'QUEUED')])).toBeNull();
+    expect(checkWaitReason([])).toBeNull();
+    expect(checkWaitReason(undefined)).toBeNull();
+    expect(checkWaitReason([run('build', 'SKIPPED'), run('check', 'CANCELLED')])).toBeNull();
+    // the siblings present (here only lint) all green: check about to appear
+    expect(checkWaitReason([run('lint', 'SUCCESS')])).toMatch(/not created yet/);
+  });
+
+  it('holdForChecks: holds up to waitMin per head from when it was first seen, then builds without it', () => {
+    const w = [{ pr: 299, branch: 'feature/a', head: 'aaa', why: 'check running' }, { pr: 300, branch: 'feature/b', head: 'bbb', why: null }];
+    const first = holdForChecks(w, NOW, {}, CHECK_WAIT_MIN);
+    expect(first.hold).toBe(true);
+    expect(first.firstSeen).toEqual({ aaa: new Date(NOW).toISOString() });
+    expect(first.reason).toMatch(/holding the build up to 3 min for #299 \(check running, 0 s\)/);
+    const later = holdForChecks(w, NOW + 2 * MIN, first.firstSeen, 3);
+    expect(later).toMatchObject({ hold: true, firstSeen: first.firstSeen });
+    const done = holdForChecks(w, NOW + 3 * MIN, first.firstSeen, 3);
+    expect(done.hold).toBe(false);
+    expect(done.reason).toMatch(/not waiting longer for #299/);
+    expect(done.firstSeen).toEqual(first.firstSeen);
+    // a new head starts its own wait; heads no longer waiting drop out
+    const moved = holdForChecks([{ ...w[0], head: 'ccc' }], NOW + 3 * MIN, first.firstSeen, 3);
+    expect(moved.hold).toBe(true);
+    expect(moved.firstSeen).toEqual({ ccc: new Date(NOW + 3 * MIN).toISOString() });
+    expect(holdForChecks([], NOW, first.firstSeen, 3)).toEqual({ hold: false, reason: '', waiting: [], firstSeen: {} });
+    expect(holdForChecks(w, NOW, {}, 0).hold).toBe(false);
   });
 });
