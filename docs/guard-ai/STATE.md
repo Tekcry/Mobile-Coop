@@ -1,6 +1,11 @@
 # Guard AI - state
 
 ## Now
+~06:10: coop4 AI1 DONE d530ebe0 (feature/guard-ai-coop4; N0 cherry-picked aa02e6af; hooks intruderLeft(id), ghostOf(id,out)
+sent to Sector Ops). RUNNING in parallel (Opus): AI2 perception (worktree -coop4-ai2, feature/guard-ai-coop4-ai2), AI3
+hearing (-coop4-ai3), AI4 alarm split (-coop4-ai4); logs docs/coop4/briefs/AI<n>-BUILT.md. Then the lead merges the three
+into feature/guard-ai-coop4 (fragment + section 5 by hand), then AI5 (needs nextAlarmHunt), AI6.
+
 ~05:40: coop4 GO (Sector Ops, PLAN feature/coop4 bed2a37c section 2: TeamRef interface in src/game/playerSlots.ts from
 its N0; until N1, slot = index, mv = null). AI1 Opus builder RUNNING on feature/guard-ai-coop4 (one slot seam in src/ai;
 intruder-leave hook name for N1's removeRemote). Next: AI2 + AI3 + AI4 in parallel (separate worktrees off AI1, merge
