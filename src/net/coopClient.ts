@@ -192,10 +192,8 @@ export class CoopClient implements NetAttachment {
       g.ctDev = ct;
       // (sector-restart, M9) our loadout as section 1 begins: a checkpoint restart gives it back
       g.weapons.markCheckpoint();
-      // (slice L) the host's lamps; our round through a lamp asks the host to shoot it out (host-authoritative)
+      // (slice L) the host's lamps (`lamps`); our lamp rounds go to the host below
       this.lamps = new LampMirror();
-      g.weapons.onRay = (a, b) => this.lampRay(a, b);
-      this.offs.push(() => (g.weapons.onRay = null));
       this.offs.push(() => {
         ct.dispose();
         g.ctDev = null;
@@ -209,6 +207,12 @@ export class CoopClient implements NetAttachment {
         this.card = null;
         this.onRating = null;
       });
+    }
+    // (slice L; coop-real F1b, S2: Course mode too) our round through a lamp asks the host to shoot it out
+    // (host-authoritative); first in the onRay chain, the sway and ricochet hooks chain after it
+    if (clientLampShots(g.opts.mode)) {
+      g.weapons.onRay = (a, b) => this.lampRay(a, b);
+      this.offs.push(() => (g.weapons.onRay = null));
     }
     // (39, LR16-5b) Marlow Yard's swinging pendants: our round past one asks the host to kick it (no local kick: the
     // host's `sway` event swings it on both pages alike)
@@ -687,7 +691,8 @@ export class CoopClient implements NetAttachment {
   }
 
   /** (slice L) Our round's segment: the first lamp along it that can be shot goes to the host as a `shot` at `lt-<id>`
-   *  (the host checks it and shoots it out; we see it dark from its next `lamps`). Nothing is shot out here. */
+   *  (the host checks it and shoots it out; we see it dark from its next `lamps`, or (coop-real F1b) its next `course`
+   *  `lights.dead` in Course mode). Nothing is shot out here. */
   private lampRay(a: Vector3, b: Vector3): void {
     const reg = this.g.world.level.lights;
     const id = lightOnRay(reg, a.x, a.y, a.z, b.x, b.y, b.z);
@@ -1338,4 +1343,10 @@ export class CoopClient implements NetAttachment {
     this.g.explosions.onLocalBlast = null;
     this.g.gadgets.onLocal = null;
   }
+}
+
+/** (coop-real F1b, S2) Does a client send its lamp rounds (`shot` at `lt-<id>`) to the host in this mode? Sector Ops and
+ *  Course mode (the host's rule: `hostLampShots`). */
+export function clientLampShots(mode: string | undefined): boolean {
+  return mode === 'sector' || mode === 'course';
 }

@@ -1,5 +1,21 @@
 # Changelog
 
+## 4.100.2 - Train 76: Co-op Course mode: client lamp shots (walk bug S2); Laptop queue: visual-gate after green trains (2026-10-25, PR #381; #371, #367)
+
+### Co-op Course mode: client lamp shots (walk bug S2)
+- Marlow Yard co-op: the client's round through a lamp now shoots it out on the host with the same checks as Sector
+  Ops (draw, weapon, rate, origin, the lamp first on the ray, a clear line), and both pages see it dark (the client
+  from the host's next `course` message, with the host's sparks cue, not on a join or rejoin); a course restart brings
+  it back. No wire change.
+- Co-op lamp shots (Sector Ops and Course mode): a client's repeat round at a lamp the host already has out is
+  dropped quietly instead of counting as a violation.
+
+### Laptop queue: visual-gate after green trains
+- Laptop queue: after a green train whose head has `scripts/e2e-visual.mjs`, the service frees the second slot and
+  runs the picture gate on the first, posting a `visual-gate` status (clean / flags / error) that never holds a release.
+- A flagged run comments on the train PR with the gate's table, thumbnail links and the accept command; the desktop
+  lane posts "skipped", and `LQ_VISUAL=0` turns the step off (`docs/laptop-queue/visual-gate.md`).
+
 ## 4.100.1 - Train 75: lightField allocation test deterministic in CI; Saltmarsh Park section bake: live lamps first (2026-10-25, PR #376; #369, #361)
 
 ### Saltmarsh Park section bake: live lamps first

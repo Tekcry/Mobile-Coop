@@ -260,6 +260,12 @@ export function hostShotWeapon<W extends string>(w: W, held: W | undefined, load
   return (held !== undefined && w === held) || loadout.includes(w);
 }
 
+/** (coop-real F1b, S2) Does the host take a client's lamp round (`shot` at `lt-<id>`) in this mode? Sector Ops and
+ *  Course mode (the client's rule: `clientLampShots`). */
+export function hostLampShots(mode: string | undefined): boolean {
+  return mode === 'sector' || mode === 'course';
+}
+
 /**
  * (step 09 fix 2, D8) The echoed draw phase 0 is a host force (not latency) only when the host's busy-hands rule, run on
  * this client's current MoveState mode and the host's downed view, also forces it while the local weapon is out. A draw the host
