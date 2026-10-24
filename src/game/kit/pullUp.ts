@@ -94,10 +94,12 @@ export function pullCatchAt(t: number): PullCatch {
 
 /**
  * (NET, host) The verdict on the holder's claim `since` s after the host's start: a catch only inside the window, its
- * end widened by `lag` s (the claim's trip to the host); anything else is a miss.
+ * end widened by `lag` s (the claim's trip to the host); anything else is a miss. (NET2) The open allows one 60 Hz tick:
+ * the host holder's own clock leads `since` by a tick (the team controller steps before the host's clock advances), so
+ * its catch on the first open frame is a catch; a client's claim only ever arrives later than its press.
  */
 export function pullVerdict(since: number, claim: 'pull' | 'drop', lag = 0): 'pull' | 'drop' {
-  return claim === 'pull' && since >= PULL.catchOpen && since <= PULL.catchClose + lag ? 'pull' : 'drop';
+  return claim === 'pull' && since >= PULL.catchOpen - 1 / 60 && since <= PULL.catchClose + lag ? 'pull' : 'drop';
 }
 
 /** A missed catch's landing: the jump's own fall (`PULL.jumpRise`), crouched, never harmful (`hangLanding`). */

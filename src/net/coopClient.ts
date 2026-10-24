@@ -19,6 +19,7 @@ import { Interactables, KIND_COLOR, type Interactable } from '../game/interactab
 import { CRATE_DARK, applyCrateEvent } from '../game/crateLedger';
 import type { NetSession } from './session';
 import { BARK_CAM, BARK_TEXT, DROP_BODY_ID, gaitWire, motionWire, PF, USE_ONLY_GADGETS, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, type UseOnlyGadget, wirePlayerState } from './protocol';
+import { kitAttemptKey } from './kitNet';
 import { MissionMirror } from './missionMirror';
 import type { TeamId } from '../game/mission/missionDef';
 import { MissionHud } from '../ui/hud/missionHud';
@@ -75,6 +76,8 @@ const INTERP_DELAY = CLIENT_INTERP_DELAY;
  */
 export class CoopClient implements NetAttachment {
   private avatars = new Map<string, RemoteAvatar>();
+  /** (NET2) The host start time of this player's latest team move (0 none): its hangEnd carries it as the attempt. */
+  private teamT0 = 0;
   /** (G7 fix) The puppet the partner holds (posed from its MoveState). */
   private heldPuppet: EnemyPuppet | null = null;
   private puppets = new Map<string, EnemyPuppet>();
@@ -310,7 +313,10 @@ export class CoopClient implements NetAttachment {
         break;
       // (3.2.0 phase 5) team moves the host started / refused / ended for this player
       case 'tstart':
-        if (msg.a === this.s.selfId || msg.b === this.s.selfId) this.g.team.begin(msg, this.s.selfId);
+        if (msg.a === this.s.selfId || msg.b === this.s.selfId) {
+          this.teamT0 = msg.t0;
+          this.g.team.begin(msg, this.s.selfId);
+        }
         break;
       case 'tdeny':
         if (msg.a === this.s.selfId) this.g.team.denied(msg.reason);
@@ -341,9 +347,10 @@ export class CoopClient implements NetAttachment {
     this.s.toHost({ t: 'cmove', kind, id, target });
   }
 
-  /** (B5) End the hang-down: `target` 1 = drop, 0 = pull up. */
+  /** (B5) End the hang-down: `target` 1 = drop, 0 = pull up. (NET2) `s`: the attempt (`kitAttemptKey` of the latest
+   *  start's t0; the host ignores an end of an earlier attempt; an old host reads 0 and ignores it). */
   teamHangEnd(k: 'pull' | 'drop'): void {
-    this.s.toHost({ t: 'tmove', kind: 'hangEnd', partner: '', target: k === 'drop' ? 1 : 0, s: 0, gy: 0 });
+    this.s.toHost({ t: 'tmove', kind: 'hangEnd', partner: '', target: k === 'drop' ? 1 : 0, s: kitAttemptKey(this.teamT0), gy: 0 });
   }
 
   teamEnd(): void {

@@ -6,10 +6,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { parseMessage } from '../src/net/protocol';
 import { CoopHost } from '../src/net/coopHost';
 import { CoopClient } from '../src/net/coopClient';
-import { kitEnd, kitPairOver, newKitPair, pullLag, PULL_PAIR_S } from '../src/net/kitNet';
-import { PULL } from '../src/game/kit/pullUp';
+import { kitAttemptKey, kitEnd, kitPairOver, newKitPair, pullLag, PULL_PAIR_S, sameAttempt, SHUTTER_PAIR_S } from '../src/net/kitNet';
+import { PULL, pullVerdict } from '../src/game/kit/pullUp';
 import { SHUTTER } from '../src/game/kit/shutter';
-import { PULL_SUB, SHUTTER_SUB, TEAM_KINDS } from '../src/game/teamMoves';
+import { HANG_SUB, PULL_SUB, SHUTTER_SUB, TEAM_KINDS } from '../src/game/teamMoves';
 import { emptyMovePose, emptyMoveState, poseFromMoveState } from '../src/player/moveState';
 import { newTeamPoseIn, teamPoseOfWire } from '../src/anim/clips/team';
 import { teamRowOfWire } from '../src/anim/tuneMoveRows';
@@ -78,7 +78,9 @@ describe('kit NET: the host verdict (kitNet)', () => {
 
   it('shutter: only the crawler a says through; either side drops; the pair ends', () => {
     const p = newKitPair('shutter', 'a1', 'b1', 10);
-    expect(p.until).toBe(Infinity);
+    // (NET2) the shutter pair lapses after the crawl, the push clear and a few seconds
+    expect(p.until).toBeCloseTo(10 + SHUTTER_PAIR_S, 6);
+    expect(SHUTTER_PAIR_S).toBeCloseTo(SHUTTER.crawlTime + SHUTTER.pushTime + 3, 6);
     expect(kitEnd(p, 'b1', 'pull', 11, 0)).toBeNull();
     expect(kitEnd(p, 'a1', 'pull', 11, 0)).toBe('pull');
     expect(kitEnd(p, 'b1', 'drop', 11, 0)).toBe('drop');
@@ -105,6 +107,7 @@ function host(c1: { x: number; y: number; z: number; m: string; sub?: number; s?
     remotes,
     teamPairs: new Map(),
     kitPairs: new Map(),
+    pairT0: new Map(),
     teamLast: new Map(),
     time: 20,
   });
@@ -198,6 +201,95 @@ describe('kit NET: the host starts and ends kit moves', () => {
     expect(t.sent).toEqual([{ t: 'tend', a: 'c2', b: 'c1' }]);
     expect(t.h.teamPairs.size).toBe(0);
     expect(t.h.kitPairs.size).toBe(0);
+  });
+});
+
+describe('kit NET2: stale pairs and ends', () => {
+  const pullUpSetup = () => host({ x: 1.2, y: 0, z: 0, m: 'ground' }, { x: 0, y: H, z: 0, m: 'brace', sub: PULL_SUB });
+
+  it("a caught pull-up's kept pair does not take a hang-down's end (the new move unpairs it)", () => {
+    const t = pullUpSetup();
+    t.h.onTeamMove('c1', 'pull', 'c2', -1, 0, H, 0.85, 0);
+    t.h.time = 20 + PULL.apexT;
+    t.h.onTeamMove('c2', 'hangEnd', '', 0, kitAttemptKey(20), 0);
+    expect(t.sent.at(-1)).toEqual({ t: 'tend', a: 'c1', b: 'c2', k: 'pull' });
+    // the pair is kept for the haul (the partner's late drop)
+    expect(t.h.kitPairs.size).toBe(2);
+    // inside that time the two start a hang-down: c2 offers it at the edge, c1 beside it
+    t.h.time = 21.5;
+    const c1 = t.remotes.get('c1')!;
+    const c2 = t.remotes.get('c2')!;
+    Object.assign(c1.feet, { x: 0.5, y: H, z: 0 });
+    c2.state.mv = { ...emptyMoveState(), m: 'brace', sub: HANG_SUB, s: 0 };
+    t.h.onTeamMove('c1', 'hang', 'c2', -1, 0, H, 0.85, 0);
+    expect(t.sent.at(-1)).toEqual({ t: 'tstart', kind: 'hang', a: 'c1', b: 'c2', target: -1, s: 0, t0: 21.5, l: [0.85, H, 0] });
+    expect(t.h.kitPairs.size).toBe(0);
+    expect(t.h.teamPairs.get('c2')).toBe('c1');
+    // the holder's pull-up reaches the hang-down (not swallowed by the old pull-up pair)
+    t.h.time = 23;
+    t.h.onTeamMove('c2', 'hangEnd', '', 0, kitAttemptKey(21.5), 0);
+    expect(t.sent.at(-1)).toEqual({ t: 'tend', a: 'c2', b: 'c1', k: 'pull' });
+    expect(t.h.teamPairs.size).toBe(0);
+  });
+
+  it('a stale end of the earlier attempt is ignored; the current one is judged; key 0 (an old peer, the host) counts', () => {
+    const t = pullUpSetup();
+    t.h.onTeamMove('c1', 'pull', 'c2', -1, 0, H, 0.85, 0);
+    // the partner's landing timeout: a drop to both, the pair ends
+    t.h.time = 20 + PULL.landT + PULL.verdictWait;
+    t.h.onTeamMove('c1', 'hangEnd', '', 1, kitAttemptKey(20), 0);
+    expect(t.sent.at(-1)).toEqual({ t: 'tend', a: 'c1', b: 'c2', k: 'drop' });
+    // a quick new attempt
+    t.h.time = 21.5;
+    t.h.onTeamMove('c1', 'pull', 'c2', -1, 0, H, 0.85, 0);
+    expect(t.sent.at(-1)).toMatchObject({ t: 'tstart', kind: 'pull', t0: 21.5 });
+    const n = t.sent.length;
+    // the holder's drop for the old attempt (sent on the relayed timeout) crosses the new start: ignored
+    t.h.time = 21.55;
+    t.h.onTeamMove('c2', 'hangEnd', '', 1, kitAttemptKey(20), 0);
+    expect(t.sent.length).toBe(n);
+    // the new attempt's catch is a catch
+    t.h.time = 21.5 + PULL.apexT;
+    t.h.onTeamMove('c2', 'hangEnd', '', 0, kitAttemptKey(21.5), 0);
+    expect(t.sent.at(-1)).toEqual({ t: 'tend', a: 'c1', b: 'c2', k: 'pull' });
+    expect(sameAttempt(21.5, 0)).toBe(true);
+    expect(sameAttempt(undefined, kitAttemptKey(3))).toBe(true);
+    expect(sameAttempt(421.5, kitAttemptKey(421.5))).toBe(true);
+    expect(sameAttempt(421.5, kitAttemptKey(20))).toBe(false);
+    // the key fits the hangEnd's bounded `s`
+    expect(kitAttemptKey(12345.678)).toBeLessThan(500);
+    expect(kitAttemptKey(0)).toBe(0);
+  });
+
+  it("the client's hangEnd carries its latest start as the attempt key", () => {
+    const c = Object.create(CoopClient.prototype) as CoopClient;
+    const sent: Record<string, unknown>[] = [];
+    const begin = vi.fn();
+    Object.assign(c, { ended: false, teamT0: 0, s: { selfId: 'c1', toHost: (m: Record<string, unknown>) => sent.push(m) }, g: { team: { begin } } });
+    c.teamHangEnd('drop');
+    expect(sent[0]).toMatchObject({ kind: 'hangEnd', target: 1, s: 0 });
+    const recv = (m: unknown): void => (c as unknown as { receive(m: unknown): void }).receive(m);
+    recv({ t: 'tstart', kind: 'pull', a: 'x', b: 'y', target: -1, s: 0, t0: 7 });
+    c.teamHangEnd('pull');
+    expect(sent[1]).toMatchObject({ s: 0 });
+    recv({ t: 'tstart', kind: 'pull', a: 'c1', b: 'h', target: -1, s: 0, t0: 433.25 });
+    expect(begin).toHaveBeenCalledTimes(1);
+    c.teamHangEnd('pull');
+    expect(sent[2]).toMatchObject({ kind: 'hangEnd', target: 0 });
+    expect(sent[2]!.s).toBeCloseTo(kitAttemptKey(433.25), 9);
+    // through the parser the key survives
+    const m = parseMessage(JSON.parse(JSON.stringify(sent[2])));
+    expect(m && m.t === 'tmove' && sameAttempt(433.25, m.s)).toBe(true);
+  });
+
+  it("a host holder's catch on the first open frame (its clock a tick ahead) is a catch", () => {
+    // the host's team step sees h.t one tick past the host clock's now - t0
+    const firstOpen = Math.ceil(PULL.catchOpen * 60) / 60;
+    expect(pullVerdict(firstOpen - 1 / 60, 'pull')).toBe('pull');
+    const p = newKitPair('pull', 'c1', 'h', 10);
+    expect(kitEnd(p, 'h', 'pull', 10 + firstOpen - 1 / 60, pullLag(true))).toBe('pull');
+    // two ticks early is still a miss
+    expect(pullVerdict(PULL.catchOpen - 2 / 60, 'pull')).toBe('drop');
   });
 });
 
