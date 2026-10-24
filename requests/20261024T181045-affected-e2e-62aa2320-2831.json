@@ -1,0 +1,16 @@
+{
+  "id": "20261024T181045-affected-e2e-62aa2320-2831",
+  "sha": "62aa232091aede108a8ea44ab09215f88b4fa5d9",
+  "branch": "feature/sector-redesign-polish3",
+  "pr": 379,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-darkness",
+    "e2e-desktop",
+    "e2e-lightbake",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #379"
+}
