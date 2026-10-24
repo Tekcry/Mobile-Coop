@@ -2,6 +2,11 @@
 
 RESUMED ~23:55 (new account; orchestrator: overnight mode, one slice at a time, testing backlog first, save at 5-hour ~95%):
 #247 laptop afp PASS on fd34263e + CI green -> train-ready label added, orchestrator told (joins train 39 with #269).
+~19:00: guard-models MERGE-CHECK-A PASS (4f2e1a57); PR CHECK-B FAIL B1 (14ebd55a): vite.config.ts:115 SW urlPattern uses an
+imported regex that workbox serialises without the import -> every same-origin runtime-cache match throws, offline cache
+broken for everyone. Opus fix round running (self-contained urlPatterns, sw.js pin test, build, doc polish). Then rerun
+e2e-offline (+ the rest of the G9 set if it failed) on the fix head, PR. STATE Open to add: G10 sheet defect list + "no
+sheet notes from Michael yet" (lead, after the fix round pushes).
 ~18:45: guard-models MASTER MERGED (8809aab9 + assets 89c10827: 7 conflicts resolved, S11 items + thawPose line, PROTOCOL
 master 50 + G6n look bits; assets never precached: src/pwa/precacheGlobs.ts globIgnores, tests/guardAssetsOffline.test.ts;
 build OK, SW 77 entries no guard-). Running: merge check A (MERGE-CHECK-A.md, AI / wire), PR check B (MERGE-CHECK-B.md,
