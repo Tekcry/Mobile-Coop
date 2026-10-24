@@ -1252,7 +1252,8 @@ Not built here; one line each on how they would fit.
 - **Throw-landing knockout** (CR-S4): ~30 lines in `onTeamMove`; A5's patrol passes the landing.
 - **Hang-down neck-snap and hide pose** (CR-S10): in `runHang`; A6's attendant passes under the gland plate.
 - **G44 look-up penalty**: ~15 lines in `perception.ts`; frees the A6 and A8 high routes from heavy occluders (P8).
-- **Joint interrogation** (G148, CR-S32): host flags; the A8 officer.
+- **Joint interrogation** (G148, CR-S32): host flags; the A8 officer. Built (joint-interrogation): BLUFF + INTERROGATE,
+  the A8 officer's two joint lines and flag `a8-joint` (no consumer yet: a later keypad, G143).
 - **Operator and spotter** (CR-S23): a pump-house crane in A6; needs a remote-control device.
 - **Wire cut** (CR-S24): a scanner-pair variant with a per-run live wire in thermal; A8's time locks.
 - **Keypad with a per-run code** (G143): a code device read from the A4 officer's interrogation.

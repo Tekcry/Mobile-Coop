@@ -2,6 +2,27 @@
 
 RESUMED ~23:55 (new account; orchestrator: overnight mode, one slice at a time, testing backlog first, save at 5-hour ~95%):
 #247 laptop afp PASS on fd34263e + CI green -> train-ready label added, orchestrator told (joins train 39 with #269).
+RESUMED ~16:45 (window reset; weekly 78%, binds tonight): #308 TRAIN-READY (label added; 667cbd80 CI green + laptop all
+pass). optic-coop: checks A + B PASS, laptop 7/7 on f32aaf17; optic-coop-2 builder (M1 gap menu, M2 ping middle mouse /
+R3, polish 256 cap + first-frame ping) RESUMED after the limit cut it off; then merge into feature/optic-coop, small Opus
+check of the delta, netmove + coop rerun on the new head, PR (wire), train-ready. guard-models: S11 MERGED (0fd85e2b),
+Opus checker running (S11-CHECK.md), G8 cap A/B queued 20261024T034348-player-build-0fd85e2b-fa9c (flip flags.ts:131 if
+sectorops 24 alert and campus 24 patrol are within +0.5 ms p95). S12 not needed.
+~16:10: optic-coop BUILT (feature/optic-coop f32aaf17; docs/optic-coop/REPORT.md; wire mv.m 'optic' + sub / a / ph): two
+Opus checkers (CHECK-A.md wire, CHECK-B.md gameplay) + laptop netmove / coop / stealth-ai / ctcourse
+(20261024T030538-player-build-f32aaf17-7c2a) in parallel; then PR + train-ready. Michael questions sent via orchestrator:
+gap entry input (F taken), ping binding. S11 builder still running (gm-s11).
+SAVE ~16:00 (orchestrator 88%): WIP pushed feature/gm-s11 82d12dc1 (S11 Opus builder was running: resume it from its head
+with docs/guard-models/reports/S11-REPORT.md as the target; brief in guard-models STATE ~15:55) and feature/optic-coop
+b930cdc4 (#15 optic cable rest, Opus builder running: target docs/optic-coop/REPORT.md). Laptop queued: #308
+e2e-stealth-ai alone on 667cbd80 (20261024T025416-player-build-667cbd80-9eff): pass + CI green -> gh pr edit 308
+--add-label train-ready + message orchestrator. G8 rerun c76cf326 (20261024T020601-player-build-c76cf326-e643): verdict
+-> flip flags.ts:131 or S11 / S12. All other worktrees clean + pushed.
+~15:40: #308 CI test stub fixed (d49097df); laptop 18/19, e2e-stealth-ai "search area / near" FAIL (guard sees the player
+0.3 s after a tp): Opus fix running on feature/rig-pose-fix, then e2e-stealth-ai alone on the fix head. Spare jobs #2 #3 #7
+#11 #16 all already on master (told orchestrator); #12 = #308. NEW: #15 optic cable rest (co-op MoveState optic + team
+pings + non-door anchors), Opus builder in worktree optic-coop (feature/optic-coop off master; docs/optic-coop/REPORT.md);
+wire change expected (train bumps PROTOCOL). guard-models: G8 rerun queued 20261024T020601-...-e643.
 ~15:00: PR #308 rig-pose-fix OPEN (4adf3785; alloc fix merged; checks W1 / S1-A fixed / net B PASS). Laptop 11 suites
 20261024T014839-player-build-4adf3785-d290 (status laptop-e2e/rig-pose-fix): pass -> label train-ready + orchestrator;
 fail -> Opus triage at once. guard-models G8 shadow-cull builder running (gm-g8cull), then cap rerun sectorops +

@@ -91,7 +91,7 @@ Limits:
 ### 1.8 Interrogation and grab
 - **Grab.** RT tap knocks out, RT hold kills, LT gives the human shield. Interrogate appears only when the guard has info (`src/game/grabMenu.ts:1-31`).
 - **Force to device (living key).** A stub: "not yet" (`grabMenu.ts:25`).
-- **Joint questioning (G148).** Not built.
+- **Joint questioning (G148).** Built (joint-interrogation): the partner beside the hold BLUFFs, the holder's INTERROGATE within 6 s gives the joint-only lines to both (`src/game/jointInterrogation.ts`; the A8 duty officer carries two).
 - **In Yard.** S1 passive guard with two medkit lines (`ctcourse.ts:203-213`); S3 duty guard's line.
 
 ### 1.9 Other
