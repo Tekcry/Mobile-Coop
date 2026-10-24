@@ -6,7 +6,8 @@ Brief: `docs/coop4/BRIEF.md`. Plan: `docs/coop4/PLAN.md`. Branch `feature/coop4`
 - #317 laptop on 3f1c946f: laptop-e2e/coop4 RUNNING (since 17:47); alone set (sectorops 7-9) queued behind it.
 - POLISH BATCH DONE: feature/coop4-pol @ 1f61b0af = 5 items (72771798, 50ebbb37, 55a13cef, 06375cec, 28b9e8c8 dead glow
   code, finished by the lead) + UI2 merged (57ec3f70); tsc clean, 12 vitest files 186 pass; report checks/pol-build.md.
-  RUNNING: two Opus checkers (checks/pol-check-A.md logic, pol-check-B.md engine / tests) + laptop set coop4-pol
+  CHECKERS A + B PASS (9f6ac108 / f32c6e8c); their doc / comment polish done e341f852 (docs + a test comment, so the
+  1f61b0af laptop verdict still counts). RUNNING: laptop set coop4-pol
   (coop netmove ctcourse course section-rating, id 20261024T070522-...-ed50). OWED: alone sectorops 7-9 on the pol head,
   queued only AFTER the 3f1c946f alone run finishes (a descendant request with the same suites would supersede #317's).
 - Follow-up PR (pol -> master) after #317 merges.
@@ -39,6 +40,10 @@ Brief: `docs/coop4/BRIEF.md`. Plan: `docs/coop4/PLAN.md`. Branch `feature/coop4`
 - M1 ANSWERED (Michael ~15:35): (b) "Wait for connector" -> slice OUT (PLAN), after the net checker, in one sectorMode round with the AI5 wiring.
 - Marlow guard on every checker: empty diff in `src/game/course`, `src/game/modes/courseMode.ts`, `src/world/maps/ctcourse*`; `e2e-ctcourse`, `e2e-course` and `e2e-section-rating` pass.
 - Polish list: A21 observer pose of a third-party team move (T1, optional); client feed lines for team doors (host-only feed today).
+- Polish (pol checks, non-blocking): A1 rejoin late restore can undo a top-up in the same `sector` message
+  (coopClient.ts:946/1047); A2 a freed old holder's `hangEnd` waits the 3 s fallback at 3-4 players (coopHost.ts:1101);
+  B2 / A5 the latch and lazy-mv tests cover the pure parts only (no wiring test); B3 / B4 localRef `mv` accessor shape and
+  first-read timing matter once Guard AI reads `mv`.
 
 ## Done
 - 2026-10-24: Opus plan (single-partner audit: ~20 files, not 69; N-player net model; A1-A27; M1; slices N0-T1).
