@@ -6,7 +6,7 @@
     "players": [2],
     "sections": ["W1", "W2", "W3", "W4"],
     "bounds": [0, 0, 120, 80],
-    "note": "Campaign map (CMG, mission-framework PLAN 5). World metres, x east, z north (north up), canal along the south edge (z 0-6). Two missions start here: Three Grey Coats (mission.start w1-canal-steps, sections W1 -> W2 -> W4) and Two-Key Ledger (mission.start w2-arcade, W2 -> W3 -> W4); their mission nodes come from the TGC / TKL slices. The validator spine is linear (W1 -> W2 -> W3 -> W4, no route may skip a section), so TGC crosses W3 on its roof and coal yard only (rope from the hoist beam), with no TGC step there. Lighting (LR1 / G279): lit by default, darkness made by switches, shot lamps and isolated circuits; mixed zones where they play better (each encounter note). Every value is a declared target, pending V6.",
+    "note": "Campaign map (CMG, mission-framework PLAN 5). World metres, x east, z north (north up), canal along the south edge (z 0-6). Two missions start here: Three Grey Coats (mission.start w1-canal-steps, sections W1 -> W2 -> W3 (crossing, no step) -> W4) and Two-Key Ledger (mission.start w2-arcade, W2 -> W3 -> W4); their mission nodes come from the TGC / TKL slices. The validator spine is linear (W1 -> W2 -> W3 -> W4, no route may skip a section), so TGC crosses W3 on its roof and coal yard only (rope from the hoist beam), with no TGC step there. Lighting (LR1 / G279): lit by default, darkness made by switches, shot lamps and isolated circuits; mixed zones where they play better (each encounter note). Every value is a declared target, pending V6.",
     "section_info": {
       "W1": {
         "name": "Night market",
@@ -542,9 +542,10 @@
         "at": [79, 10, 17]
       },
       "guards": {
-        "2": 3
+        "2": 6
       },
-      "note": "storage class (14 x 18 bonded store, conditional encounter, short side >= 6). ESTIMATES (pending V6). Guards: the bond tally clerk (static), 2 dockers stacking (talking pair). Light: the loading-door floodlight (lit by default, switch inside the door) and two pendant rows on one switch; the side aisle dark (mixed zone). Dark by: the pendant switch, shooting the floodlight. Vantage: down through the north-light roof glazing from the gantry, dark. Below the late guard band (3 vs 6): a bonded tea store at night holds a clerk and a pair, not six; WARN justified."
+      "phase": "late",
+      "note": "storage class (14 x 18 bonded store, conditional encounter, short side >= 6). ESTIMATES (pending V6). Guards (late band, CMS 2026-10-24): a tea barge is being landed on the night tide for the morning sale, so the shed works through the night under bond: the bond tally clerk (static at his desk), the customs locker who holds the bond keys (post at the loading door), 2 dockers stacking (talking pair), a docker on the hand truck (back-and-forth stacks -> loading door), the shed foreman (loop through both aisles, the dark side aisle included). Light: the loading-door floodlight (lit by default, switch inside the door) and two pendant rows on one switch; the side aisle dark (mixed zone). Dark by: the pendant switch, shooting the floodlight. Vantage: down through the north-light roof glazing from the gantry, dark."
     },
     {
       "id": "w4-shed-two",
@@ -580,6 +581,7 @@
       "guards": {
         "2": 6
       },
+      "phase": "late",
       "note": "ESTIMATES (pending V6). Guards: yard watchman (loop), a dog handler with a dog (2), the crane watchman (post at the yard leg), and from the TGC twist Pell's 2 minders (walking pair between shed three and the quay edge). Light: one yard floodlight at the lane gate (lit by default, switch in the gate box) and quay lamps on a photocell; the cart lines and coal heaps are dark (mixed zone). Dark by: the gate box switch, shooting the floodlight. Vantage: the crane gantry, 10 m up, dark."
     },
     {
