@@ -686,6 +686,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 ## Release checklist (before a job merges)
 
 ### Checks
+- [ ] A job that adds or changes a map: the map's graph passes `node scripts/level-validate.mjs <graph.json>` with 0 errors
+  and every WARN is justified in the design doc (before greybox).
 - [ ] `npm run check` passes; `npm run e2e` passes once on the PR head (the PR tier, CLAUDE.md "Sessions"; known-flaky
   suites excepted; `E2E_SUITE_TIMEOUT=900` on the 8-thread desktop); a job that touches visuals or rendering runs
   `npm run e2e:gpu` and the perf checks on Michael's PC, or lists them as "pending PC run".

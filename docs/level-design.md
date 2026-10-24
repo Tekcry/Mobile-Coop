@@ -28,16 +28,19 @@ The core loop every space must support: **observe, plan, execute, improvise, rel
 ## 3. Space structure
 A level is a linear spine of encounter spaces joined by connectors.
 1. **Entry vantage.** Every encounter space opens on a dark vantage, outside every guard's view for the whole patrol
-   cycle, from which every guard in the space can be seen within one cycle.
+   cycle, from which every guard in the space can be seen within one cycle. The vantage sees about 70% of the space's
+   floor (target `sees_pct` >= 0.7 in the map's graph, measured in greybox). (Michael 2026-10-24, "Add 1-4 as extras".)
 2. **Three routes plus a secret.** Each guarded space has a shadow route (patience, timing), a high route (movement
    skill) and a loud route (force, fastest). At least half of the guarded spaces also have a secret route that
    rewards exploring (a crawlspace, a shaft, a back room). No route is strictly best: each trades speed, risk and
    reward.
 3. **Rejoin at a pinch point.** All routes through a space rejoin at its exit before the next space. No route skips a
-   space.
+   space. Between entry and exit the routes cross at least once: they share a room or junction where a player can
+   switch route (checked per section). (Michael 2026-10-24, "Add 1-4 as extras".)
 4. **Loops, not dead ends.** Every guarded space has at least one loop on its shadow route (around a blocker, through
    two doors of the same room) so a seen player can break line of sight and re-hide. A dead end on a stealth route is a
-   design fault.
+   design fault. From any point of a stealth route, line of sight can be broken within about 5 s (target `los_break_s`
+   <= 5 per encounter space, measured in greybox on the nav grid). (Michael 2026-10-24, "Add 1-4 as extras".)
 5. **Stepping stones.** Along shadow routes, darkness, cover or a hide spot at least every 4-8 m. Open lit ground is a
    deliberate crossing that needs timing, a light out or a tool.
 6. **Height is safety and information.** Guards do not look up; the high route gives overwatch and takedowns from
@@ -65,7 +68,11 @@ A level is a linear spine of encounter spaces joined by connectors.
    left in the open.
 8. **Survivable searches.** Every place a player can be spotted on a stealth route has a hide spot or a dark escape
    within the guards' search area.
-9. **Archetype limits.** A map's guard count respects the spawn caps (section 12).
+9. **Archetype limits.** A map's guard count respects the spawn caps (section 12). Guard counts per encounter space,
+   as INFO targets, not rules: 3-6 early, 6-10 late (first or second half of the spine by section), never above 10,
+   rising with the player count, inside the 12.1 caps. The graph records them per player count and the validator
+   prints them as INFO; they are compared with our guard sheets (campus `campusSectors.ts`, Marlow Yard) before Michael
+   decides whether they become rules. (Michael 2026-10-24, "Add 1-4 as extras".)
 
 ## 5. Light and sound
 1. **Every lit pool has a visible source** (a lamp, a tube, a floodlight, moonlight through a window) and a switch
@@ -77,12 +84,16 @@ A level is a linear spine of encounter spaces joined by connectors.
    (an open window beside a glazed one, a door opened or bashed, a vent unscrewed or kicked, a hang-and-drop or a jump
    down).
 4. **Readable at a glance on desktop at the Low preset:** lit and dark areas match the light meter.
+5. **Shadow share.** 40-60% of an encounter space's floor is in shadow (target `shadow_pct` 0.4-0.6 in the map's graph,
+   measured in greybox by sampling the light bake). (Michael 2026-10-24, "Add 1-4 as extras".)
 
 ## 6. Pacing
 1. **Teach, test, twist.** One new mechanic per space: introduce it safely, test it alone, then combine it with earlier
    ones. The level ends in a set piece that uses everything.
 2. **Tension and release.** Tension rises across the level; every peak is followed by a release. The beat chart (section
-   13) proves it.
+   13) proves it. In spine order, no three spaces in a row sit at tension 4-5, the map opens at 1-2, and a 1-2 follows
+   every peak (the validator reads the graph's `tension`: three in a row is an error; an opening above 2 or a peak
+   with no 1-2 after it is a warning justified in the design doc). (Michael 2026-10-24, "Add 1-4 as extras".)
 3. **The player sets the pace.** No forced timers in stealth sections. Pressure comes from guards, light and noise.
 4. **Guide without waypoints.** Landmarks visible from afar, light leading the eye towards the way on, sightlines into
    the next space.
@@ -111,17 +122,49 @@ A level is a linear spine of encounter spaces joined by connectors.
 3. Sightlines and glass let a player plan the next space early.
 
 ## 11. Co-op layering
-1. **Solo first.** Sections 1-10 are fully met in solo. Co-op routes are extra routes on top, never required.
-2. **Solo invariance.** One map build for solo and co-op. Co-op routes are ordinary architecture with a real reason solo
-   cannot use them (a fire-escape ladder pulled up, a high hatch); no locked-door teases, no co-op markers.
-3. **Out of solo reach.** A co-op lip is at least 0.5 m above the highest solo reach from its floor (constant:
-   `WALL_JUMP.maxUp` 3.8) and within the co-op reach (constant: `TEAM.boostMax` 4.5): build at 4.3-4.5 m.
-4. **No softlocks.** Every surface a co-op route reaches is also reachable solo by another route, so a downed player can
-   be revived (constant: revive needs the reviver within 1.5 m of height; there is no bleed-out) and anyone can leave
-   alone.
-5. **Unplanned boost targets.** Every lip and pipe between solo reach and co-op reach above its floor is a planned co-op
-   route, sits on a solo-reachable surface, or has its ledge removed.
-6. **Co-op verbs** are the ones the game has (brace and boost, human ladder, dual takedown). New verbs are Future work.
+Rewritten 2026-10-24 for two players (Michael 2026-10-24, "Add 1-4 as extras"; closes Open items 1, which Michael ruled
+"Co-op only" on 2026-10-22; the old solo rules are summarised there). The authority for co-op flow is the CT co-op
+research (G3, G117; `docs/ct-research/levels-digest.md` section 3). Each rule names the check of
+`scripts/level-validate.mjs` that tests it on the map's connectivity graph (section 13); sizes, speeds and times come
+from `docs/design/metrics.json`, generated from the scale sheet. Times and reach are targets declared in the graph
+before geometry and measured in greybox (the measurement step after the validator job): a map whose measured value
+misses its target fails.
+1. **Two players, always.** Every campaign map is completable by two players and by no fewer (G2, G50, G111); no solo
+   route and no solo fallback is required. Sector Ops keeps solo play working past its team doors (G280) and may list
+   3-4 players once the 4-player job lands (Michael 2026-10-23, ROADMAP); the graph lists the counts in `meta.players`.
+   Check: `checkReach` (two-player reach of every space, objective and exfil).
+2. **Linear spine between sections, loops inside them.** A map is a chain of sections in order (CT missions are one
+   continuous level, `levels-digest.md`). Every path from insertion to exfil passes every section in order, and two
+   sections join by one spine connector. Inside a section, at least 2 independent (edge-disjoint) routes join its entry
+   to its exit, so the pair can split up, loop and re-hide (3.3, 3.4). No route skips a section. Checks: `checkSpine`,
+   `checkRedundancy`.
+3. **Splits are short and even.** A split is a stretch where the partners take different legs and meet again at a
+   defined merge point (CT research: no separation without a merge point). Each leg takes at most 90 s at stealth pace
+   (1.3 m/s, crouch gear 3: about 117 m of path), and the two legs' times are within 20% of each other. Leg times are
+   summed from link traversal times (a link's `time_s`, else its length over the speed for its kind), not from room
+   lengths. Check: `checkCoop`.
+4. **Partners act for each other.** Every split has at least one assist: one leg's action opens, darkens or disables
+   something for the other leg (a door opened, lights cut, a camera jammed). Check: `checkCoop`.
+5. **An overwatch spot per split.** Each split has one spot from which one partner sees the other's leg and can cover
+   it (spot a guard, cut a light, jam a camera). Check: `checkCoop`.
+6. **A downed partner is reachable within 15 s.** From any point of one leg of a split, the other partner reaches any
+   point of the other leg within 15 s at 3.0 m/s (run, G40): about 45 m of path. The revive window is 30 s (G126,
+   `REVIVE_WINDOW` in `src/game/reviveClock.ts`; the revive itself takes 2.5 s), so the reach leaves time to clear the
+   room first. No softlock: every surface a co-op route reaches is also reached by another route without a co-op move,
+   so a downed player can always be reached and revived (constant: the reviver within 1.5 m of height). Checks:
+   `checkCoop` (reach), `checkReach` (no softlock).
+7. **Room for two.** A shared route (both partners moving through together) is at least 2.0 m wide; corridors stay
+   3.5-4.0 m (scale sheet). Check: `checkCoop` (`shared` links), `checkDimensions` (corridors).
+8. **Co-op reach.** A co-op lip is at least 0.5 m above the highest one-player reach from its floor (constant:
+   `WALL_JUMP.maxUp` 3.8) and within the co-op reach (constant: `TEAM.boostMax` 4.5): build at 4.3-4.5 m (G57: one band
+   for the boost and the human ladder). Co-op routes are ordinary architecture with a real reason one player cannot use
+   them (a fire-escape ladder pulled up, a high hatch; 16.0); no locked-door teases. Unplanned boost targets: every lip
+   and pipe between one-player reach and co-op reach above its floor is a planned co-op route, sits on a surface reached
+   without a co-op move, or has its ledge removed. Team moves work anywhere with room (G151, which replaced G81's marked
+   spots), so every such lip is a real boost target. Check: the co-op lip unit test (15).
+9. **Co-op verbs and coverage.** Co-op verbs are the ones the game has (brace and boost, human ladder, dual takedown);
+   no rope climb except CT's two-person rope (G180 replaces G110 for that move; graph kind `team_rope`); new verbs are Future work. Co-op routes are in at least half of the encounter spaces and in every
+   section. Guard counts are recorded per player count in the graph. Check: `checkCoop` (coverage).
 
 ## 12. Engine constraints (re-confirm per map)
 State on 2026-10-18 (after the consolidation deletions). Every number is a starting value tuned after the CT prototype
@@ -200,6 +243,14 @@ against them, and re-confirm against the code when the prototype lands.
 ## 13. Required design deliverables (templates)
 Phase 1 and 2 of every map produce these in `docs/prompts/<map>-design.md` and `docs/prompts/<map>-plans/*.svg`.
 
+**Connectivity graph** (first, before any geometry and before the floor plans; Michael 2026-10-24, "Add 1-4 as
+extras"). One JSON file per map, `<map>.graph.json` (it may be split one file per section), in the format of
+`docs/level-validator/graph-schema.md`: every space (section, type, room class, function, size, tension, and for
+encounter spaces the targets: shadow share, vantage view, line-of-sight break, guards per player count) and every link
+(kind, route, width, height, length or time, reason). Phase 1 writes the spaces and links with the building brief;
+Phase 2 adds the routes, splits, overwatch spots, assists and targets. It passes `node scripts/level-validate.mjs
+<graph>` (every size from `docs/design/metrics.json`) before Phase 3 (section 14).
+
 **Building brief.** Purpose, era, location and site, construction (grid, wall thicknesses, storey heights, windows,
 materials), every room with its original purpose, size and present-day contents, vertical circulation, services (how
 people, goods, cables, air, water moved), palette and lighting character.
@@ -270,12 +321,24 @@ Every new map follows these phases, stopping for Michael after each:
 1. **Architectural design** (docs only): building brief and floor plans. Review.
 2. **Gameplay design** (docs only): space sheets, guard sheets, gameplay overlays, beat chart, coverage table, tool /
    problem matrix, metrics check, self-critique. Approval makes the docs the build contract.
+   **Validator gate** (Michael 2026-10-24, "Add 1-4 as extras"): Phase 2 ends with the map's connectivity graph (13)
+   passing `node scripts/level-validate.mjs` with 0 errors, every warning justified in the design doc, the output saved
+   with the design docs. No map enters Phase 3 (greybox) without it. The validator checks two-player reach, the spine
+   and per-section routes, room and opening sizes, the 0.5 m grid, ceilings, encounter routes and targets, co-op rules
+   (11) and pacing (6.2) against `docs/design/metrics.json`; guard counts below the 4.9 bands WARN, with no upper limit (Michael 2026-10-24). A map already greyboxed
+   runs it as an audit; the campus (Sector Ops) is its first run.
 3. **Build** (one storey or area per phase, no guards): geometry, anchors, lights, zones, surfaces, doors, windows, hide
    spots; `scripts/plan-svg.mjs` renders the built level to compare with the approved plans.
 4. **Guards and mission**.
 5. **Dressing, readability and verification**.
 
 ## 15. Acceptance tests every map has
+- The map's connectivity graph passes the validator (`node scripts/level-validate.mjs`, 0 errors, warnings justified)
+  and matches the built map. (Michael 2026-10-24, "Add 1-4 as extras".)
+- Greybox measurements meet the graph's targets: shadow share (5.5), vantage view (3.1), line-of-sight break (3.4),
+  downed-partner reach (11.6) and split leg times (11.3), measured from the light bake and the nav grid; a measured
+  value that misses its target fails the map. The measuring step is a later job; until it lands, record each as "pending".
+  (Michael 2026-10-24, "Add 1-4 as extras".)
 - Every planned traversal element engages from its planned approach (pad).
 - `e2e-anchors.mjs` covers the map.
 - The split gaps on the map are exactly the planned ones.
@@ -391,12 +454,17 @@ The standard changes only with Michael's approval, so these rules stand as writt
    follow the CT co-op level research (G3, G117).
    Michael 2026-10-22: "Co-op only" wins: these solo rules do not bind campaign maps; section 11 is rewritten for
    two players when the campaign spec resumes.
+   **Resolved 2026-10-24:** section 11 is rewritten for two players, rules 11.1-11.9 (Michael 2026-10-24, "Add 1-4 as
+   extras"). Replaced 2026-10-24, the old section 11: 11.1 "Solo first" (sections 1-10 met in solo, co-op routes extra)
+   and 11.2 "Solo invariance" (one build for solo and co-op) are dropped; 11.3 (lip band) and 11.5 (unplanned boost
+   targets) are now 11.8; 11.4 (no softlocks) is now 11.6 without "anyone can leave alone"; 11.6 (co-op verbs) is now
+   11.9. The solo ghost run in 15 reads as a two-player ghost run.
 2. 3.6 "Guards do not look up": the engine has no vertical sight limit today (12.1); the decision is "guards see poorly
    above them" (G44), a limit, not blindness.
 3. 11.5 "Unplanned boost targets": two-player boosts work only at marked spots (G81), so an unmarked lip cannot be a
-   boost target once that is built.
+   boost target once that is built. (Now 11.8. G81 was replaced by G151, "Anywhere with room", 2026-10-18.)
 4. 11.3 builds co-op lips at 4.3-4.5 m from the boost reach; the human ladder reaches 4.1 m in code until G57 (4.5 m)
-   is built.
+   is built. (Now 11.8.)
 5. Section 13 puts design docs in `docs/prompts/<map>-design.md`; the decision is one folder per map under one maps
    folder (G55).
 6. Section 14 phases ("stopping for Michael after each") predate "prototype, then orchestrator" for every multi-step

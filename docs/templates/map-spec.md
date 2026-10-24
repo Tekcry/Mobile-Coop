@@ -101,6 +101,9 @@ it, the solo route to the same surface.
   from the engine files only. Stop.
 - **Phase 1** - Architectural design (docs only): building brief and floor plans per section 13. Stop for review.
 - **Phase 2** - Gameplay design (docs only): every section 13 deliverable, self-critique included. Stop for approval.
+- Before Phase 3 (build): the map's connectivity graph (`docs/level-validator/graph-schema.md`) passes
+  `node scripts/level-validate.mjs` with 0 errors; WARNs are justified in the design doc. (Michael 2026-10-24, "Add 1-4
+  as extras".)
 - **Phase 3..n** - Build one storey or area per phase, no guards; `scripts/plan-svg.mjs` comparison; the section 15
   tests that need no guards; perf budgets. Stop after each.
 - **Guards and mission** - squads, alarms, mission entry; the remaining section 15 tests; `e2e-missions`, `e2e-clear`
