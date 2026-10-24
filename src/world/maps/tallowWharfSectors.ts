@@ -24,7 +24,7 @@ function behind(x: number, z: number, yaw: number): [number, number] {
   return [r2(x - Math.sin(yaw) * 1.5), r2(z - Math.cos(yaw) * 1.5)];
 }
 
-/** A route guard's takedown spot: 1.5 m from his first point along the route's last leg (back toward where he came from). */
+/** A looping guard's takedown spot: 1.5 m from his first point along the route's last leg (back toward where he came from). */
 function behindRoute(route: readonly [number, number][]): [number, number] {
   const a = route[0]!;
   const p = route[route.length - 1]!;
@@ -43,6 +43,8 @@ interface Post {
   pair?: number;
   handler?: number;
   info?: SectorGuard['info'];
+  /** A takedown spot set by hand where the rule's spot would be in a wall (the reason is at the guard). */
+  spot?: [number, number];
 }
 
 function tags(o: Post): Partial<SectorGuard> {
@@ -57,15 +59,20 @@ function tags(o: Post): Partial<SectorGuard> {
 /** A posted guard: stands his post at (x, z) facing `yaw` (default south, toward the way in). */
 function posted(x: number, z: number, o: Post, kind: SectorGuard['kind'] = 'grunt'): SectorGuard {
   const yaw = o.yaw ?? PI;
-  return { kind, x, z, yaw, takedownSpot: behind(x, z, yaw), ...tags(o) };
+  return { kind, x, z, yaw, takedownSpot: o.spot ?? behind(x, z, yaw), ...tags(o) };
 }
 
-/** A route guard: starts at the route's first point and walks it in order (a loop of 3+ points, back and forth on 2). */
+/**
+ * A route guard: starts at the route's first point and walks it in order (a loop of 3+ points, back and forth on 2). His
+ * takedown spot is 1.5 m behind him: on a loop, back along the last leg (where he came from); on a back-and-forth, against his
+ * start facing (the route's last point is the far end, ahead of him).
+ */
 function walker(route: [number, number][], o: Post, kind: SectorGuard['kind'] = 'grunt'): SectorGuard {
   const a = route[0]!;
   const b = route[1]!;
   const yaw = o.yaw ?? Math.atan2(b[0] - a[0], b[1] - a[1]);
-  return { kind, x: a[0], z: a[1], yaw, route, takedownSpot: behindRoute(route), ...tags(o) };
+  const spot = o.spot ?? (route.length === 2 ? behind(a[0], a[1], yaw) : behindRoute(route));
+  return { kind, x: a[0], z: a[1], yaw, route, takedownSpot: spot, ...tags(o) };
 }
 
 // ---- W1 night market (9) ----
@@ -111,7 +118,8 @@ const W2_GUARDS: SectorGuard[] = [
 const W3_GUARDS: SectorGuard[] = [
   // 0 the yard watchman, 1 the dog on a running line (handler 0)
   walker([[102, 40], [112, 40], [112, 47], [102, 47]], { zone: 'yard', role: 'patrol', reason: 'Yard watchman: the east yard and the dog line' }),
-  walker([[112.5, 46], [115.5, 46]], { zone: 'yard', role: 'dog', reason: "The watchman's dog on a running line by the gate lodge", handler: 0 }, 'dog'),
+  // the running line stays in the yard (the lodge's west wall is x 114); he waits at its lodge end facing the lodge, so his spot is west of him
+  walker([[112.5, 46], [109.5, 46]], { zone: 'yard', role: 'dog', reason: "The watchman's dog on a running line by the gate lodge", handler: 0, yaw: PI / 2 }, 'dog'),
   // 2 the lodge porter (the Two-Key Ledger twist walker)
   posted(117, 48, { zone: 'w3-lodge-porter', role: 'porter', reason: 'Lodge porter: sleeps in the gate lodge until the bell rings', yaw: PI }),
   // 3, 4 the night clerks in the east wing offices
@@ -138,7 +146,8 @@ const W4_GUARDS: SectorGuard[] = [
   posted(49.2, 26, { zone: 'tgc-minders', role: 'pair', reason: "Pell's minder, off the launch: waits at the yard end until the twist", pair: 4, yaw: PI / 2 }),
   // shed three: 6 the tally clerk, 7 the customs locker, 8, 9 the dockers, 10 the hand truck, 11 the foreman
   posted(74, 24, { zone: 'shed-three', role: 'clerk', reason: 'Tally clerk counting the night shipment', yaw: PI }),
-  posted(80.8, 11.2, { zone: 'shed-three', role: 'posted', reason: 'Guards the customs locker at the loading door', yaw: 0 }),
+  // he faces into the shed with the south wall at his back: his spot is inside the shed by the loading door's opening (x 77.5-80.5), behind his shoulder
+  posted(80.8, 11.2, { zone: 'shed-three', role: 'posted', reason: 'Guards the customs locker at the loading door', yaw: 0, spot: [79.4, 10.6] }),
   posted(76, 16, { zone: 'shed-three', role: 'pair', reason: 'Docker on a smoke between loads: talks to his mate', pair: 9, yaw: PI / 2 }),
   posted(77.2, 16, { zone: 'shed-three', role: 'pair', reason: 'Docker on a smoke between loads: talks to his mate', pair: 8, yaw: -PI / 2 }),
   walker([[78, 24], [78, 12]], { zone: 'shed-three', role: 'hand-truck', reason: 'Wheels the hand truck between the loading door and the tally desk' }),

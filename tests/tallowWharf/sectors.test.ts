@@ -69,6 +69,18 @@ function solidAt(x: number, y: number, z: number): string | null {
   return p ? `box (${p.c.map((v) => v.toFixed(2)).join(', ')}) size (${p.s.map((v) => v.toFixed(2)).join(', ')})` : null;
 }
 
+/** The first solid on the plan segment a -> b at height y, sampled every 0.05 m (null: clear). */
+function segmentBlocked(ax: number, az: number, bx: number, bz: number, y: number): string | null {
+  const n = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / 0.05));
+  for (let i = 0; i <= n; i++) {
+    const x = ax + ((bx - ax) * i) / n;
+    const z = az + ((bz - az) * i) / n;
+    const hit = solidAt(x, y, z);
+    if (hit) return `(${x.toFixed(2)}, ${z.toFixed(2)}): ${hit}`;
+  }
+  return null;
+}
+
 /** The angle (rad, 0..PI) between a facing yaw and the bearing from (x, z) to (tx, tz). */
 function offFacing(x: number, z: number, yaw: number, tx: number, tz: number): number {
   const d = Math.atan2(tx - x, tz - z) - yaw;
@@ -236,6 +248,22 @@ describe('tallowWharf guards', () => {
         if (!hit2 || Math.abs(hit2.y - y) > 0.1) bad.push(`${s.id}:${k} takedown spot (${sp[0]}, ${sp[1]}): floor ${hit2 ? hit2.y.toFixed(2) : 'none'}`);
       });
       void i;
+    });
+    expect(bad).toEqual([]);
+  });
+
+  it('every takedown spot is reachable from its guard: the guard-to-spot segment is clear at chest height, and the spot is behind a posted or back-and-forth guard', () => {
+    const bad: string[] = [];
+    WHARF_SECTORS.forEach((s) => {
+      s.guards.forEach((g, k) => {
+        const y = g.y ?? 0;
+        const [sx, sz] = g.takedownSpot;
+        expect(Math.hypot(sx - g.x, sz - g.z), `${s.id}:${k} spot distance`).toBeGreaterThan(1.2);
+        const hit = segmentBlocked(g.x, g.z, sx, sz, y + 1.2);
+        if (hit) bad.push(`${s.id}:${k} (${g.x}, ${g.z}) -> spot (${sx}, ${sz}) blocked at ${hit}`);
+        // a loop's spot is back along his last leg; a posted guard's and a back-and-forth walker's is against his start facing
+        if ((g.route?.length ?? 0) <= 2 && offFacing(g.x, g.z, g.yaw, sx, sz) <= Math.PI / 2) bad.push(`${s.id}:${k} spot (${sx}, ${sz}) is not behind his facing`);
+      });
     });
     expect(bad).toEqual([]);
   });
