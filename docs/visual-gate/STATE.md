@@ -5,6 +5,12 @@
   hook: pin = `__app.loop.timeScale = 0`, zero src diff), P2-P17 adopted except P11's e2e-affected addition (PLAN 10).
 - Group A strict briefs ready: `briefs/VG1.md` (metrics, Opus), `VG2.md` (harness + M0 command, Opus), `VG3.md`
   (viewpoints, Sonnet), `VG4.md` (store + CLI, Sonnet). Disjoint files (PLAN section 8 table). Nothing built or run.
+- ~23:30 DISPATCHED (desktop C: nearly full, ~490 MB per worktree, so no new worktrees): VG1 Opus agent in worktree
+  -visual-gate-vg1 (branch feature/visual-gate-vg1 @ 0b7f46f4; agents do not commit: the lead commits from
+  checks/vg1-build.md); VG2 / VG3 / VG4 as cloud briefs `briefs/visual-gate-vg2..4.md` on cloud-queue (6e29ea80; cloud
+  builders cut feature/visual-gate-vg2..4 from 0b7f46f4 and push). On resume: check the -vg1 worktree + report, and
+  each cloud brief's status line; rerun VG1 from its brief if the report is missing. Then one checker per batch (Opus
+  for VG1 / VG2, Sonnet for VG3 / VG4), then M0 via the laptop queue.
 
 ## Next
 1. Builders: cut `feature/visual-gate-vg1` .. `-vg4` from the feature/visual-gate head, worktrees
