@@ -155,3 +155,35 @@ assertion to `tests/guardAssets.test.ts`, run the asset tests, send the new shee
 - Whether the uniform colour is then still too dark, and tone lightness, are G10 (Michael).
 - `guard-lods.mjs` does not copy `albedoMean` / `coveredHeadTris` into `report.bake` (outside this slice's files);
   the check reads the bake JSON directly. A one-line pass-through there is optional polish.
+
+## D4b Receding corner (follow-up, brief `scratch/ctcore/briefs/gm-g10a-hairline-fix.md`)
+- Cause: a real contour corner, not a snap fault. The receding temple "M" (`hairline()` recede term) turns ~100 deg
+  within 1-2 cm. The despiked contour spreads it over several ~3 mm segments (each <= 59 deg), but at LOD1 (~80
+  boundary verts) one edge spans the corner, so one vertex took the whole turn. maxDevMm 0, keptOwn 0, pinchVerts 0:
+  no off-contour vertex and no pinch-merged pinhole.
+- Fix (`build_head.py` only; despike, spike_deg, budgets, reserve and `guardHeadCheck.mjs` limits unchanged, 75 deg
+  kept): `CORNER_DEG = 65.0`; `corner_slide(line, s0, par, own)` runs in `snap_loops` after the relax. While the
+  sharpest boundary vertex turns over 65 deg, its two neighbours slide halfway toward it along the contour (unwrapped
+  across the seam); a slide is kept only if the max turn over i-2..i+2 drops, else undone and the loop stops. Vertices
+  stay on the line (dev 0), order holds. `snap_loops` / `snap_hairline` return the slide count; each LOD's hairline JSON
+  gains `pinchVerts` and `cornerSlides` (diagnostics, the check ignores them).
+- Self-check `scripts/operators/py/trials/hairline_selfcheck.py` (Blender Python, exit 1 on a fail; 32 pass):
+  (a) 48-vertex sawtooth with a swapped pair vs a 400-point circle: 4.0 mm / 146.4 deg -> 0.0 mm / 8.7 deg, no slide,
+  both windings; (b) 400-point contour with a 110 deg corner filleted at 3 mm, 24-vertex loop with one vertex on the
+  corner: 99.9 -> 37.4 deg in 3 slides, 0.0 mm, par strictly increasing, both windings, corner mid-loop and on the seam,
+  directly and through `snap_loops` / `loops_measure`.
+- Desktop smoke (21:58 local, `--only haircaps-average,haircaps-lean`, 53 / 49 s, BelowNormal, under heavy.lock):
+  guardHeadCheck `--partial` all pass. maxTurnDeg LOD0 / LOD1 before (81a1f3b8) -> after, slides in brackets;
+  maxDevMm 0, keptOwn 0, pinchVerts 0 everywhere:
+
+| Cap | average before | average after | lean before | lean after |
+| --- | --- | --- | --- | --- |
+| buzz | 56.7 / 51.5 | 56.7 / 51.5 | 54.7 / 52.8 | 54.7 / 52.8 |
+| crop | 53.4 / 56.9 | 53.4 / 56.9 | 55.1 / 50.1 | 55.1 / 50.1 |
+| sidepart | 53.3 / 56.6 | 53.3 / 56.6 | 52.4 / 49.0 | 52.4 / 49.0 |
+| receding | 65.7 / 102.6 | 64.1 / 64.1 (1 / 5) | 65.5 / 100.8 | 61.2 / 64.0 (1 / 4) |
+| fade | 49.6 / 66.1 | 49.6 / 62.0 (0 / 1) | 49.7 / 59.8 | 49.7 / 59.8 |
+
+  Receding LOD0 tris 794 / 796 (<= 800); average receding LOD1 79 boundary verts, 239 tris (was 80 / 242: LOD1 is
+  decimated from the slid LOD0). Not checked: how the slid LOD1 triangles look on the sheet (a slide moves a boundary
+  vertex up to ~7/8 of an edge along the hairline; the faces behind it stretch). The laptop rebake is the real proof.
