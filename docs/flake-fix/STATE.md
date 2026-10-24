@@ -25,6 +25,10 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
       expected wall (~10 min or the train's shard weight), so release lag drops from 1.3-2.7 min to under 1 min.
 - guard-cap: perf-retry ...-6e8a450b-09d8 and M1 ...-a55a12b3-6a46 (preempted 22:34; resumes at its next step) still to
   push to feature/guard-cap-results docs/guard-cap/run-m0/perf-retry.log and run-m1/ when done.
+- guard-render PLAN2 item from guard-cap M0 (Marlow 23:1x; origin/feature/guard-cap a2c4dd7b docs/guard-cap/REPORT.md
+  "2026-10 re-measure (M0)"): campus 32 guards alert/facing frame CPU p95 14.8 ms (r1 17.5, r2 12.1; limit 12), render()
+  CPU p95 10.95 ms at 484.5 draws; GPU p95 <= 15 everywhere (max 11.43). Next guard-render slice targets campus render CPU
+  / draws. At the next measurement slot repeat ctcourse 24 patrol (15.45 was one run with a hitch) before acting on it.
 - Trains: 67 green (43/43, 691 s), 68 ran 22:35, 69 #358 next. Service + auto-train are scheduled tasks (headless).
 
 **Test Runner SAVE 40 (2026-10-24 ~22:40, new account, overnight mode; wins over SAVE 39 where they differ):**
