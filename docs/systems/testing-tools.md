@@ -43,7 +43,7 @@ Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then
   `e2e-ctcourse:1` to `:4` (marlow-final: A1-A2, A3-A4, A5-A6, A7-A8), each its own pair of pages started at its first
   set through the host session's `courseBay`; named alone (`node scripts/run-e2e.mjs e2e-ctcourse`) it runs all eight
   sets in sequence (test-speed A3). `scripts/e2e-times.json` holds 150 s per part as an estimate until a clean full run
-  rewrites it (pending laptop run). `e2e-coop-real` runs as `e2e-coop-real:1` and `:2` (120 s each in `e2e-times.json`, an
+  rewrites it (pending laptop run). `e2e-coop-real` runs as `e2e-coop-real:1` to `:3` (120 s each in `e2e-times.json`, an
   estimate). `e2e-sectorops` runs as `e2e-sectorops:1` to `:5` (sector-fixes-r RE: the suite before slice R, the
   solo route checks, the co-op routes of sections 1-3); named alone it runs all five in sequence.
 - Pool size: default min(5, cores / 3) (`--jobs=N` / `E2E_JOBS`); use `E2E_JOBS=2` on Michael's 8-thread desktop and on

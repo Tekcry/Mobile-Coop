@@ -42,8 +42,8 @@ const REPORT = ['anim-audit'];
 // `e2e-desktop:1`, `:2`, `:4` (part 3 is in GPU). `node scripts/e2e-desktop.mjs --part=N`; the script run directly with no --part runs whole.
 // (marlow-final 0d) e2e-ctcourse = four pairs of sets (A1-A2, A3-A4, A5-A6, A7-A8), each its own pair of pages.
 // (sector-fixes-r RE) e2e-sectorops = part 1 (sections, alarms, restarts, nav, the co-op mirror), 2 (solo: co-op lips refused, route links, team doors), 3-5 (co-op routes and team doors of sections 1-3), 6 (campusOps: S1-S3 greybox routes)
-// (coop-real H2) e2e-coop-real = part 1 (A1 interactions: prompts, takedowns, lamps, audio), 2 (A1 traverse, background tab, rejoin)
-const PARTS = { 'e2e-desktop': ['1', '2', '4'], 'e2e-coop-real': ['1', '2'], 'e2e-ctcourse': ['1', '2', '3', '4'], 'e2e-sectorops': ['1', '2', '3', '4', '5', '6'] };
+// (coop-real H2) e2e-coop-real = part 1 (A1 scripted cases: P6a / P6b, body, P7 audio), 2 (prompt sweep, S2 lamps, doors, unbolt), 3 (background tab, rejoin B1-B4)
+const PARTS = { 'e2e-desktop': ['1', '2', '4'], 'e2e-coop-real': ['1', '2', '3'], 'e2e-ctcourse': ['1', '2', '3', '4'], 'e2e-sectorops': ['1', '2', '3', '4', '5', '6'] };
 const expand = (list) => list.flatMap((s) => (PARTS[s] ? PARTS[s].map((n) => `${s}:${n}`) : [s]));
 const REQUIRED_JOBS = new Set(expand(REQUIRED));
 

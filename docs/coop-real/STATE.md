@@ -3,8 +3,8 @@
 ## Now
 Plan check applied (2026-10-24, PLAN-CHECK 1-18). Group 1: H2 done (e735dc8a); H1a then H1b running on feature/cr-h1
 (Opus, starts with the lifecycle probe); H2b part-3 registration is a lead edit. Then group 2: C1 (Sonnet, Opus brief)
-∥ C2 (Opus). Open: desktop dev lane, pending orchestrator answer (heavy2.lock lane for H1 / C1 / C2 smoke, else laptop
-alone requests). None for Michael (A1-A9 assumed, BRIEF.md).
+∥ C2 (Opus). Desktop dev lane approved (orchestrator ~22:20): heavy2.lock per run, CPU < ~60% at start, 1 pair, E2E_GPU=1, port
+4189, BelowNormal, development only (verdicts via the laptop queue). H2b done (part 3 registered). None for Michael (A1-A9 assumed, BRIEF.md).
 
 ## Known before the run
 - S2 is a sure KNOWN BUG on master: Course mode never sends a client lamp round (coopClient.ts:188-197, coopHost.ts:202).

@@ -109,7 +109,7 @@ worker alone drives the hidden host with the pump paused (bgTicks.ts:11 yields t
 real "hidden" (visibility hidden, rAF stopped, timers alive); B2 = `frozen`. Record in STATE and testing-tools.md.
 
 ## Machines
-- Desktop dev lane: pending orchestrator answer: heavy2.lock lane for H1 / C1 / C2 smoke, else laptop alone requests.
+- Desktop dev lane (orchestrator OK ~22:20): heavy2.lock per run, CPU < ~60% at start, 1 pair, E2E_GPU=1, port 4189, BelowNormal; development only, verdicts via the laptop queue.
 - Laptop requests (`node scripts/laptop-queue/request.mjs --sha <sha> --requester "Night Shift | Player Build"`):
   run 1a and 1b (after group 2, same sha): `--set coop-real-1 --suites "e2e-coop-real e2e-coop e2e-netmove"` (e2e-lib and
   localTransport changed); netsim from the runner's per-suite env (`--env` is for alone runs, request.mjs:56-59). Run 2
