@@ -1,6 +1,11 @@
 # Guard AI - state
 
 ## Now
+~22:00: e2e-coop on d0f574cb (desktop worker) FAIL, but further: AI6 (1) teleP fix works; new assert "each last known
+position within 2 m of where its player stood when last seen (worst 10.28 m)" (PR #317 comment 10:57Z). Opus triage 2
+RUNNING -> docs/coop4/checks/ai6-lkp-triage.md; it applies + pushes a small clear fix to feature/coop4 itself, else
+commits the note only. Next: read the note, requeue e2e-coop on the new head. coop4-4p on 1b04e5bd still pending.
+
 ~21:35: coop4 AI6 triage: test bug, scripts/e2e-coop.mjs:2378 teleP read r.speed on a RemotePlayer (no such field;
 r.ref.speed). The block first ran after the master merge brought em.coop4 hooks. Fixed d0f574cb (test-only; triage
 docs/coop4/checks/ai6-e2e-coop-triage.md). Laptop e2e-coop on d0f574cb queued (set coop4-fix, id ...-c404); coop4-4p
@@ -950,7 +955,8 @@ Open:
 1. #317 coop4 (feature/coop4, worktree C:/NightShift/Mobile-Coop-coop4; taken from Sector Ops 2026-10-24): master
    4.95.0 merged 1b04e5bd (PROTOCOL 54), checks A + B PASS. Laptop on 1b04e5bd: coop4 set 11/12 (e2e-coop AI6 FAIL =
    test bug, scripts/e2e-coop.mjs:2378 r.speed -> r.ref.speed, fixed d0f574cb, docs/coop4/checks/ai6-e2e-coop-triage.md);
-   coop4-4p (alone sectorops 7-9) pending. Requeued e2e-coop on d0f574cb (status laptop-e2e/coop4-fix). Both green ->
+   coop4-4p (alone sectorops 7-9) pending. e2e-coop on d0f574cb FAIL: AI6 (1) LKP 10.28 m > 2 m (Opus triage 2:
+   docs/coop4/checks/ai6-lkp-triage.md on feature/coop4; requeue e2e-coop on its head, set coop4-fix2). Both green ->
    `gh pr ready 317`, tell the orchestrator train-ready (label). Red -> Opus triage at once (AI6 (1)-(3) never ran
    before the merge: untried hide spots, seesIndex slot vs index). #317 src/net files: coopClient, coopHost, coopUi,
    holdPulse, joinWatch, protocol, remoteAvatar, remotePlayer, session (Player coop-real F1 / F2 go after #317 or
