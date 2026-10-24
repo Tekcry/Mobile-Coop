@@ -28,6 +28,16 @@ run), S9 + S10 builders in parallel once Sector Ops confirms the freeze / world.
   (as Player's `LightRig.fillCasters`). Static level list unchanged. Expected moon entries per figure guard ~5 -> 2.
   Unit tests pass. Next: rides the S9 guard-cap A/B.
 
+- 2026-10-24 ~17:40 GPU A/B (guard-cap, branch 9f7dddbb = S9+S10 vs master 6b44efb8; docs/guard-render/run-s9s10-ab.md,
+  raw C:/NightShift/scratch/gr2/cap-*): S9 WORKS - moon CSM draws at 24 alert 71.9 -> 38.3 (sectorops), 80.6 -> 48.7
+  (campus); campus 24 all cells faster (alert p95 9.9 -> 9.2, patrol 9.0 -> 8.6, away 5.0 -> 4.5). REGRESSION:
+  sectorops 24 alert p95 8.5 -> 11.8 (med 7.1 -> 7.6), torchshadow draws 17.9 -> 45.1; sectorops patrol p95 7.1 -> 8.3.
+  Suspect S10's checker fix (a lamp with no shadow landing keeps the guard drawn: indoor low lamps -> many more guards
+  drawn, so more torch-atlas casters). NEXT: A/B on 9f7dddbb with ?guardfreeze=0 and on 47041500 (S10 before the fix) for
+  sectorops 24 alert only; log __sector.debug().guardFreeze counts; fix S10 (e.g. no-landing counts as seen only within
+  N m of the lamp, or add a near-feet floor sample like the moon path) and re-measure. e2e gr2-e2e (smoke sectorops
+  darkness lightbake stealth-ai on 9f7dddbb) queued, verdict pending. S9b (3360b85b) not yet in any A/B or checker.
+
 ## Phase 1 (history)
 ## Now
 **CLOSED 2026-10-23 ~17:10** (orchestrator approved: close with #225, M1 CPU overage to the polish list; perf tuning
