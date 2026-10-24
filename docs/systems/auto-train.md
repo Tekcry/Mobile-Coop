@@ -58,6 +58,13 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
 | Candidates, paced to go | building / built | (the candidates are read again right before the build, so the member list is fresh; build marker written) `merge-train build <n+1> <version> "<title>" <branches...>`; a member left out on a conflict loses `train-ready` and gets a comment; exit 2 -> failed (and an `auto-train/vitest` failure status on the head); exit 3 -> failed (every member left out); exit 4 (vitest not run: the heavy-lock wait timed out; the train is pushed and CI's `check` runs the unit tests) -> pending, the next tick goes on |
 | Any command error, or no version for the open train | error | none |
 
+- `merge-train build` pushes the version commit (the train head) first and runs vitest after it (audit 2: vitest used
+  to run before the push, so CI and the laptop started ~6 min late). The verdict, statuses and exit codes are
+  unchanged: exit 2 makes auto-train post `auto-train/vitest` failure on the pushed head, which `decide()` treats as
+  failed (never released) and the laptop queue skips (`trainBuildFailed`, a head not started yet); exit 4 is pending.
+  No release can happen while vitest runs: the tick holds the train lock for the whole build, and a hand
+  `merge-train release` needs that lock. Cost: a laptop full run that started on the head before vitest failed is not
+  stopped. The heavy lock is still taken only around vitest (not across the push).
 - The `build` vitest step (under the heavy lock) is load-tolerant: when the full run fails and every failure is a `Test timed out in` or at most 3 test files failed, only those files rerun once with `npx vitest run --no-file-parallelism <files>`; a pass there is ok ("passed on isolated rerun: <files>"), a fail reports the rerun's tail. More than 3 failed files that are not all timeouts fail at once, no rerun.
 - Version of an open train: its newest `"<version>: version at merge, train <n> (G183)"` commit, else its PR title
   `"<version>: Train <n>: <title>"`, else a CHANGELOG heading that names `Train <n>`.

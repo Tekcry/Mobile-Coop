@@ -13,3 +13,5 @@ kind: patch
 - Auto-train holds a build up to 3 min (`AUTO_TRAIN_CHECK_WAIT_MIN`, per head, state `holding`) while a `train-ready`
   PR's `check` is still running, and re-reads the candidates right before `merge-train build` (audit 2: PR #299 missed
   train 47 by 43 s).
+- `merge-train build` pushes the train head before it runs vitest, so CI and the laptop start ~6 min sooner; a vitest
+  failure still exits 2 and blocks the release through `auto-train/vitest` (audit 2).
