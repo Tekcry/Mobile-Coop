@@ -2,6 +2,12 @@
 
 RESUMED ~23:55 (new account; orchestrator: overnight mode, one slice at a time, testing backlog first, save at 5-hour ~95%):
 #247 laptop afp PASS on fd34263e + CI green -> train-ready label added, orchestrator told (joins train 39 with #269).
+RESUMED ~16:45 (window reset; weekly 78%, binds tonight): #308 TRAIN-READY (label added; 667cbd80 CI green + laptop all
+pass). optic-coop: checks A + B PASS, laptop 7/7 on f32aaf17; optic-coop-2 builder (M1 gap menu, M2 ping middle mouse /
+R3, polish 256 cap + first-frame ping) RESUMED after the limit cut it off; then merge into feature/optic-coop, small Opus
+check of the delta, netmove + coop rerun on the new head, PR (wire), train-ready. guard-models: S11 MERGED (0fd85e2b),
+Opus checker running (S11-CHECK.md), G8 cap A/B queued 20261024T034348-player-build-0fd85e2b-fa9c (flip flags.ts:131 if
+sectorops 24 alert and campus 24 patrol are within +0.5 ms p95). S12 not needed.
 ~16:10: optic-coop BUILT (feature/optic-coop f32aaf17; docs/optic-coop/REPORT.md; wire mv.m 'optic' + sub / a / ph): two
 Opus checkers (CHECK-A.md wire, CHECK-B.md gameplay) + laptop netmove / coop / stealth-ai / ctcourse
 (20261024T030538-player-build-f32aaf17-7c2a) in parallel; then PR + train-ready. Michael questions sent via orchestrator:
