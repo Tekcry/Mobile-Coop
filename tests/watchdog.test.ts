@@ -153,6 +153,7 @@ function prNode({ number = 7, branch = 'feature/x', head = SHA('a'), labels = []
 }
 
 describe('watchdog: PRs and the label convention', () => {
+  const pa = (prs: unknown[], o: Record<string, unknown>) => prAlerts(prs, { requireAffected: false, ...o });
   it('normalizes a GraphQL PR (newest status per context, error = failure)', () => {
     const p = normalizePr(prNode({ labels: ['train-ready'], labeledAt: '2026-10-24T09:30:00Z',
       contexts: [runNode('check', 'SUCCESS', '2026-10-24T10:05:00Z'), ctxNode('checker', 'FAILURE', '2026-10-24T10:00:00Z'), ctxNode('checker', 'SUCCESS', '2026-10-24T10:10:00Z', 'Opus PASS'), ctxNode('laptop-e2e', 'ERROR')] }));
@@ -171,7 +172,7 @@ describe('watchdog: PRs and the label convention', () => {
     expect(labelReady(normalizePr(prNode({ contexts: [...base.contexts, ctxNode('affected-e2e', 'SUCCESS')] }))).why).toMatch(/affected-e2e success$/);
     // default: no affected-e2e status -> not ready, flagged
     expect(labelReady(normalizePr(prNode(base)))).toEqual({ ready: false, why: 'affected-e2e unavailable', affectedMissing: true });
-    expect(labelReady(normalizePr(prNode({ ...base, labels: ['no-affected-e2e'] }))).ready).toBe(true);
+    expect(labelReady(normalizePr(prNode({ ...base, labels: ['no-affected-e2e'] })))).toEqual({ ready: true, why: 'check green, checker success (Opus PASS), affected-e2e waived (no-affected-e2e)' });
     // a head commit that is no longer headRefOid (or no headRef): its checks do not count
     const lag = prNode(base);
     lag.headRefOid = SHA('n');
@@ -202,45 +203,56 @@ describe('watchdog: PRs and the label convention', () => {
     expect(u.advice).toMatch(/WATCHDOG_REQUIRE_AFFECTED=0/);
   });
 
+  it('raises info alerts for an affected-e2e waiver and a labelled head without affected-e2e', () => {
+    const contexts = [runNode('check', 'SUCCESS'), ctxNode('checker', 'SUCCESS')];
+    const waived = prAlerts([normalizePr(prNode({ contexts, labels: ['no-affected-e2e'] }))], { now: NOW, labelFix: true }).alerts;
+    expect(waived.map((a: { kind: string; severity: string }) => `${a.kind} ${a.severity}`)).toEqual(['pr-affected-waived info', 'pr-label-ready info']);
+    expect(waived[1].fix.why).toMatch(/affected-e2e waived \(no-affected-e2e\)$/);
+    const byHand = normalizePr(prNode({ contexts, labels: ['train-ready'] }));
+    expect(prAlerts([byHand], { now: NOW }).alerts).toMatchObject([{ kind: 'pr-label-no-affected', severity: 'info', fix: null }]);
+    expect(prAlerts([byHand], { now: NOW, requireAffected: false }).alerts).toEqual([]);
+    expect(prAlerts([{ ...byHand, labels: ['train-ready', 'no-affected-e2e'] }], { now: NOW }).alerts.map((a: { kind: string }) => a.kind)).toEqual(['pr-affected-waived']);
+  });
+
   it('drops the label when any required check is red on the current head, even with checker success', () => {
     const red = normalizePr(prNode({ labels: ['train-ready'], labeledAt: '2026-10-24T09:30:00Z', committedDate: '2026-10-24T09:45:00Z',
       contexts: [runNode('check', 'FAILURE'), ctxNode('checker', 'SUCCESS')] }));
     expect(redChecks(red)).toEqual(['check']);
-    const r = prAlerts([red], { now: NOW, labelHeads: { 7: SHA('c') } });
+    const r = pa([red], { now: NOW, labelHeads: { 7: SHA('c') } });
     expect(r.alerts).toHaveLength(1);
     expect(r.alerts[0].kind).toBe('pr-label-red');
     expect(r.alerts[0].fix).toMatchObject({ check: 'prs', type: 'unlabel', pr: 7, head: SHA('a'), reason: 'check red on head aaaaaaaa' });
     // an unmoved or docs-only head, and a red checker / affected-e2e status, count too
     const still = normalizePr(prNode({ labels: ['train-ready'], contexts: [runNode('check', 'SUCCESS'), ctxNode('checker', 'FAILURE'), ctxNode('affected-e2e', 'ERROR')] }));
     expect(redChecks(still)).toEqual(['checker', 'affected-e2e']);
-    expect(prAlerts([{ ...still, docsOnlyFrom: new Set([SHA('c')]) }], { now: NOW, labelHeads: { 7: SHA('c') } }).alerts[0].kind).toBe('pr-label-red');
+    expect(pa([{ ...still, docsOnlyFrom: new Set([SHA('c')]) }], { now: NOW, labelHeads: { 7: SHA('c') } }).alerts[0].kind).toBe('pr-label-red');
     expect(redChecks(normalizePr(prNode({ contexts: [runNode('check', 'SUCCESS'), ctxNode('checker', 'PENDING')] })))).toEqual([]);
   });
 
   it('flags a labelled CONFLICTING PR with its owner', () => {
     const prs = [normalizePr(prNode({ labels: ['train-ready'], labeledAt: '2026-10-24T09:30:00Z', mergeable: 'CONFLICTING' }))];
-    const [a] = prAlerts(prs, { now: NOW, owner: () => 'Night Shift | Marlow Build' }).alerts;
+    const [a] = pa(prs, { now: NOW, owner: () => 'Night Shift | Marlow Build' }).alerts;
     expect(a).toMatchObject({ kind: 'pr-conflict', severity: 'high', subject: '#7 feature/x' });
     expect(a.detail).toMatch(/Marlow Build/);
   });
 
   it('flags commits after the label (by commit time or a moved head) unless the checker passed the new head', () => {
     const after = normalizePr(prNode({ labels: ['train-ready'], labeledAt: '2026-10-24T09:30:00Z', committedDate: '2026-10-24T09:45:00Z' }));
-    const r = prAlerts([after], { now: NOW });
+    const r = pa([after], { now: NOW });
     expect(r.alerts[0]).toMatchObject({ kind: 'pr-commit-after-label' });
     expect(r.alerts[0].fix).toMatchObject({ check: 'prs', type: 'unlabel', pr: 7 });
     expect(r.labelHeads).toEqual({ 7: SHA('a') });
     const before = normalizePr(prNode({ labels: ['train-ready'], labeledAt: '2026-10-24T09:30:00Z', head: SHA('b') }));
-    expect(prAlerts([before], { now: NOW }).alerts).toEqual([]);
+    expect(pa([before], { now: NOW }).alerts).toEqual([]);
     // the head moved since the label was first seen
-    const moved = prAlerts([before], { now: NOW, labelHeads: { 7: SHA('c') } });
+    const moved = pa([before], { now: NOW, labelHeads: { 7: SHA('c') } });
     expect(moved.alerts[0].kind).toBe('pr-commit-after-label');
     expect(moved.labelHeads).toEqual({ 7: SHA('c') });
     // re-checked: checker success on the new head
     const rechecked = normalizePr(prNode({ labels: ['train-ready'], labeledAt: '2026-10-24T09:30:00Z', committedDate: '2026-10-24T09:45:00Z', contexts: [runNode('check', 'SUCCESS'), ctxNode('checker', 'SUCCESS')] }));
-    expect(prAlerts([rechecked], { now: NOW, labelHeads: { 7: SHA('c') } })).toEqual({ alerts: [], labelHeads: { 7: SHA('a') } });
+    expect(pa([rechecked], { now: NOW, labelHeads: { 7: SHA('c') } })).toEqual({ alerts: [], labelHeads: { 7: SHA('a') } });
     // trains are never touched
-    expect(prAlerts([normalizePr(prNode({ branch: 'train/65', labels: ['train-ready'], mergeable: 'CONFLICTING' }))], { now: NOW }).alerts).toEqual([]);
+    expect(pa([normalizePr(prNode({ branch: 'train/65', labels: ['train-ready'], mergeable: 'CONFLICTING' }))], { now: NOW }).alerts).toEqual([]);
   });
 
   it('finds the labelled head and keeps the label across docs-only commits', () => {
@@ -252,10 +264,10 @@ describe('watchdog: PRs and the label convention', () => {
     const suite = (t: string) => ({ nodes: [{ createdAt: `2026-10-24T${t}:00Z` }] });
     const pushed = [{ ...c1, checkSuites: suite('09:01') }, { ...c2, checkSuites: suite('09:40') }, c3];
     expect(normalizePr(prNode({ head: SHA('3'), labels: ['train-ready'], labeledAt: '2026-10-24T09:30:00Z', recent: pushed })).labelHead).toBe(SHA('1'));
-    const r = prAlerts([p], { now: NOW });
+    const r = pa([p], { now: NOW });
     expect(r.alerts[0].kind).toBe('pr-commit-after-label');
     expect(r.labelHeads).toEqual({ 7: SHA('2') });
-    expect(prAlerts([{ ...p, docsOnlyFrom: new Set([SHA('2')]) }], { now: NOW })).toEqual({ alerts: [], labelHeads: { 7: SHA('2') } });
+    expect(pa([{ ...p, docsOnlyFrom: new Set([SHA('2')]) }], { now: NOW })).toEqual({ alerts: [], labelHeads: { 7: SHA('2') } });
     expect(docsOnlyFiles(['docs/a.md', 'changes/feature-x.md', 'CHANGELOG.md', 'README.md'])).toBe(true);
     expect(docsOnlyFiles(['docs/a.md', 'tests/a.test.ts'])).toBe(false);
     expect(docsOnlyFiles([])).toBe(false);

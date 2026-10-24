@@ -106,11 +106,7 @@ export function actionText(a, fixOn, result = null) {
 
 // ---- 1. locks ----------------------------------------------------------------------------------------------------
 
-/**
- * A lock file's text -> { writer, pid, host, at }. Writers: 'heavy-lock' (scripts/heavy-lock.mjs "<label> | <iso> |
- * pid <n> | host <h>"), 'laptop-queue' (service "laptop-queue | <label> <sha8> pid <n> | <iso>"), 'touch'
- * (takeTouchLock "<label> | pid <n> | <iso>"), 'session' (the noclobber "<session> | <job> | <start>", no pid), 'unknown'.
- */
+/** A lock file's text -> { writer: heavy-lock | laptop-queue | touch | session (noclobber, no pid) | unknown, pid, host, at }. */
 export function parseLockText(text) {
   const t = String(text ?? '').trim();
   let m = /^(.*) \| (\S+) \| pid (\d+) \| host (.+)$/.exec(t);
@@ -158,10 +154,7 @@ export const E2E_CMD = /(?:^|[\s"'\\/])scripts[\\/](?:run-e2e|e2e-[\w-]+)\.mjs\b
 /** Night Shift command lines (only these are ever killed): its folders, its scripts, its e2e ports. */
 export const NS_CMD = /NightShift|Mobile-Coop|(?:^|[\s"'\\/])scripts[\\/](?:run-e2e|e2e-[\w-]+|laptop-queue[\\/][\w-]+|auto-train|merge-train|watchdog)\.mjs\b|vite(?:\.js)?["']?\s+preview\s+--port\s+41(?:73|79|89|91|92)\b/i;
 
-/**
- * Orphans in [{ pid, ppid, name, cmd, created (ms) }]: parent gone (or its pid reused: started later), minAgeMin+ old
- * (young pipeline members look parentless). killable only per docs/systems/watchdog.md (orphans); `why` says why not.
- */
+/** Orphans: parent gone or reused, minAgeMin+ old; killable per docs/systems/watchdog.md (orphans), else `why`. */
 export function findOrphans(procs, now, { minAgeMin = LIMITS.orphanMin, killMin = LIMITS.orphanKillMin, lockPids = new Set() } = {}) {
   const byPid = new Map(procs.map((p) => [p.pid, p]));
   const out = [];
@@ -193,10 +186,7 @@ export function orphanAlerts(orphans) {
 
 // ---- 3 / 4. PRs and labels ---------------------------------------------------------------------------------------
 
-/**
- * A GraphQL pull request node (OPEN_PRS_QUERY) -> { number, title, branch, head, draft, mergeable, labels, labeled,
- * labeledAt, headAt, labelHead, check, checkGreenAt, statuses: { context: { state, description, at } } } (newest status per context).
- */
+/** A GraphQL PR node (OPEN_PRS_QUERY) -> a flat PR with check, checkGreenAt and statuses (newest per context). */
 export function normalizePr(node) {
   // the rollup of the head commit itself (headRef's target, not the commit list, whose order follows commit dates);
   // its checks and statuses count only while it is still headRefOid
@@ -253,16 +243,15 @@ export function labelReady(pr, { requireAffected = true } = {}) {
   const checker = statusOf(pr, CHECKER_CONTEXT);
   if (checker !== 'success') return no(`${CHECKER_CONTEXT} ${checker}`);
   const aff = statusOf(pr, AFFECTED_CONTEXT);
-  if (aff === 'missing' && requireAffected && !pr.labels?.includes(NO_AFFECTED_LABEL)) return no(`${AFFECTED_CONTEXT} unavailable`, true);
+  const waived = aff === 'missing' && !!pr.labels?.includes(NO_AFFECTED_LABEL);
+  if (aff === 'missing' && requireAffected && !waived) return no(`${AFFECTED_CONTEXT} unavailable`, true);
   if (aff !== 'missing' && aff !== 'success') return no(`${AFFECTED_CONTEXT} ${aff}`);
   const desc = pr.statuses[CHECKER_CONTEXT].description;
-  return { ready: true, why: `check green, ${CHECKER_CONTEXT} success${desc ? ` (${desc})` : ''}${aff === 'success' ? `, ${AFFECTED_CONTEXT} success` : ''}` };
+  const affWhy = aff === 'success' ? `, ${AFFECTED_CONTEXT} success` : waived ? `, ${AFFECTED_CONTEXT} waived (${NO_AFFECTED_LABEL})` : '';
+  return { ready: true, why: `check green, ${CHECKER_CONTEXT} success${desc ? ` (${desc})` : ''}${affWhy}` };
 }
 
-/**
- * PR and label alerts (kinds and fixes: docs/systems/watchdog.md, prs / labels). `prs` = normalizePr()s; `labelHeads`
- * = { [pr]: head } from the last tick (each labelled PR's head when first seen labelled). -> { alerts, labelHeads }.
- */
+/** PR and label alerts (docs/systems/watchdog.md); `labelHeads` = { [pr]: head when first seen labelled } -> { alerts, labelHeads }. */
 export function prAlerts(prs, { now, labelHeads = {}, owner = () => '', labelFix = false, requireAffected = true, limits = LIMITS } = {}) {
   const alerts = [];
   const heads = {};
@@ -270,6 +259,12 @@ export function prAlerts(prs, { now, labelHeads = {}, owner = () => '', labelFix
     if (isTrain(pr.branch)) continue;
     const who = owner(pr.branch, pr.number);
     const subj = `#${pr.number} ${pr.branch}`;
+    const noAff = statusOf(pr, AFFECTED_CONTEXT) === 'missing';
+    if (pr.labels?.includes(NO_AFFECTED_LABEL)) alerts.push(alert('pr-affected-waived', subj, 'info', `${AFFECTED_CONTEXT} waived (${NO_AFFECTED_LABEL} label); owner ${who}`));
+    else if (pr.labeled && noAff && requireAffected) {
+      alerts.push(alert('pr-label-no-affected', subj, 'info', `${LABEL} but no ${AFFECTED_CONTEXT} on head ${short(pr.head)}; owner ${who}`, {
+        advice: `alert only (run ${AFFECTED_CONTEXT} on the head or label it ${NO_AFFECTED_LABEL})` }));
+    }
     if (pr.labeled) {
       const prev = labelHeads[pr.number];
       // the labelled head: first seen labelled (state), else the head at the label event; unknown -> commit times
@@ -339,10 +334,7 @@ export function ownerMap({ requests = [], briefs = [], override = {} } = {}) {
 
 // ---- 5. releases -------------------------------------------------------------------------------------------------
 
-/**
- * The commit that set master's version: `log` = master's first-parent history newest first [{ sha, at, version }];
- * -> { version, sha, at } of the oldest commit in the newest run of the head's version (the train's merge commit), or null.
- */
+/** Master's first-parent log [{ sha, at, version }] -> the oldest commit of the head's version run (the train merge), or null. */
 export function versionCommit(log) {
   const head = log[0];
   if (!head?.version) return null;
@@ -432,10 +424,7 @@ export function autoTrainAlerts(a, { limits = LIMITS } = {}) {
 /** Paths that never make a request stale (the queue-audit rule): docs, tests, e2e scripts, fragments, CHANGELOG, *.md. */
 export const nonTestFiles = (files) => files.filter((f) => f && !/^(docs\/|tests\/|scripts\/e2e|changes\/|CHANGELOG)|\.md$/.test(f));
 
-/**
- * q = { requests, claims: { [id or train sha]: claim }, trainHeads: Set, activity: { laptop, desktop } (newest push ms),
- * desktopBeat (ms), stale: { [id]: { ref, files } }, now }. Sign of life: docs/systems/watchdog.md.
- */
+/** q = { requests, claims, trainHeads, activity, desktopBeat, stale: { [id]: { ref, files } }, now } (docs/systems/watchdog.md). */
 export function laptopAlerts(q, { limits = LIMITS } = {}) {
   const out = [];
   const reqIds = new Set(q.requests.map((r) => r.id));
@@ -675,7 +664,7 @@ function checkPrs(ctx, o, state, which) {
   if (!ctx.prs) throw new Error(`PR list unavailable: ${ctx.errors.prs}`);
   const r = prAlerts(ctx.prs, { now: ctx.now, labelHeads: state.labelHeads ?? {}, owner: ctx.owner, labelFix: o.fix.has('labels'), requireAffected: o.requireAffected ?? REQUIRE_AFFECTED });
   ctx.labelHeads = r.labelHeads;
-  const labelKind = (a) => a.kind === 'pr-label-ready' || a.kind === 'pr-affected-unavailable';
+  const labelKind = (a) => ['pr-label-ready', 'pr-affected-unavailable', 'pr-affected-waived', 'pr-label-no-affected'].includes(a.kind);
   return r.alerts.filter((a) => (which === 'labels') === labelKind(a));
 }
 
