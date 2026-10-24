@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-24T18:21Z
 
 # visual-gate: VG3 viewpoints polish (region sizes, gallery wall, source refs)
 
