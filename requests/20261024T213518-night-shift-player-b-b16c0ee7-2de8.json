@@ -1,0 +1,15 @@
+{
+  "id": "20261024T213518-night-shift-player-b-b16c0ee7-2de8",
+  "sha": "b16c0ee7e8b15622248de186b8660942baf56548",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove",
+    "e2e-ctcourse",
+    "e2e-sectorops"
+  ],
+  "set": "player-batch-25"
+}
