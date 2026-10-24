@@ -276,7 +276,7 @@ Polish: slice0-check.md, sliceL-check.md, slice1-check.md, e1/e3/e4-check.md pol
 ```
 Night Shift | Sector Ops Build: RESUME (saved 2026-10-24 ~20:05). coop4 / #317 / feature/coop4-pol are GUARD AI BUILD's now
 (handed over at afc616f0): do not push there. Your work, in this order:
-1. CAMPUS FOG (HIGH, Michael on Epic): feature/sector-redesign-fog (worktree -fog off master d91d0e00, node_modules junction
+1. CAMPUS FOG (HIGH, Michael on Epic): PR #339 OPEN @ 513a7121; Opus checker -> checks/fog-check.md; laptop set fog (lightbake darkness sectorops:6, 513a7121-7eb3). PASS + green -> label train-ready, message the orchestrator. #152 stale (orchestrator / Michael close). feature/sector-redesign-fog (worktree -fog off master d91d0e00, node_modules junction
    to -bake) @ 4813dbf2 = theme.lampBeams false on campus (src/vfx/volLights.ts:29-30 volBeam gave 76 / 134 fixed lights
    the torch beam). Report docs/sector-redesign/checks/fog-triage.md there. Laptop shot requests queued: 28cbd98b-d737
    (before) and 4813dbf2-c03f (after) -> branch shots/fog-*; look at them, then one Opus checker, PR, laptop
