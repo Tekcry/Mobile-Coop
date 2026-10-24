@@ -282,7 +282,7 @@ Sector Ops Build"; verdict = GitHub status laptop-e2e/<set>; with --pr a failure
 --pr when a PR exists). The laptop fetches branches only: to test a PR's merge with master, push its merge commit to a
 test/ branch first.
 RELEASED: #226 campus art (4.84.0); #291 = all of LR16 + Marlow LR16-M + train-entry fixes (4.88.0; #287 marked merged).
-OPEN: PR Tekcry/Mobile-Coop#307 (feature/sector-redesign-lr16b2 9602eed0 = LR16-4 reception board + LR16-6 vision polish
+RELEASED: #307 (4.89.0). IDLE until Michael's playtest or an orchestrator task (orchestrator ~14:45, saves the weekly). Was OPEN: PR #307 (feature/sector-redesign-lr16b2 9602eed0 = LR16-4 reception board + LR16-6 vision polish
   + LR16-POLISH2 A-C), TRAIN-READY: CI green; laptop sectorops:6 + coop PASS on the head, darkness PASS on the merge commit
   bf7879f8 (test/pr307-merge; the head's red is the pre-#295 8 s watchdog only). Act on the train's verdict; one Opus
   triage on any failure. After release: Michael may delete test/pr307-merge, feature/sector-redesign-lr16-entry,
