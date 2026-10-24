@@ -80,6 +80,11 @@ run), S9 + S10 builders in parallel once Sector Ops confirms the freeze / world.
   redundant reset). Orchestrator gate: explain sectorops 24 alert 11.8 vs 8.5 before train-ready. Queued alone after train 57:
   diag a/b/c + reps r1 base, r2 3360b85b, r3 base, r4 head 6a6b5e58, r5 base (out C:/NightShift/scratch/gr2/rep-*).
 
+- 2026-10-24 ~19:55: gr2-e2e GREEN on 6a6b5e58 (desktop worker, 10/10, 2434 s; flake e2e-sectorops:6). Diag (sectorops 24
+  alert frame p95 / med): master 8.5 / 7.1 (cap-6b44efb8); S10 pre-fix 7.3 / 5.8; S9b 7.4 / 6.0; freeze off 8.7 / 6.9; the
+  first A/B head 11.8 / 7.6. 0-guard alert p95 spikes (13.6, 16.5, med 2.0) = noise. Repeats r1-r5 decide (medians);
+  summary: node C:/NightShift/scratch/gr2/sum.mjs <dirs>. Then the #323 body note, train-ready, Orchestrator.
+
 ## Phase 1 (history)
 ## Now
 **CLOSED 2026-10-23 ~17:10** (orchestrator approved: close with #225, M1 CPU overage to the polish list; perf tuning
