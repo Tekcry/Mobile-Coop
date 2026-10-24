@@ -488,7 +488,7 @@ Course Ready's prep notes: origin/feature/marlow-bays docs/marlow-final-prep/ (M
 
 ## Resume prompt
 ```
-Night Shift | Marlow Build: resume idle; nothing in flight. Read CLAUDE.md ("Sessions", "Heavy-usage throughput", token rules), git fetch; then wait for the orchestrator, Sector Ops (coop4 slices) or Michael's walk.
+Night Shift | Marlow Build: resume coop4-ui2 (Sector Ops slice): feature/coop4-ui2 11badf14 (worktree C:/NightShift/Mobile-Coop-coop4-ui2, off feature/coop4 4b188ffc): lobby rows sorted by PlayerInfo.slot + beacon swatch (coopUi.ts LobbyScreen.SLOT_CSS), e2e lobby caps asserts the order and colours. Sonnet checker running; laptop coop4ui2 e2e-coop (--pr 317) queued. On both PASS: tell "Night Shift | Sector Ops Build" the sha (they merge into feature/coop4, draft PR #317). Otherwise idle. Read CLAUDE.md ("Sessions", "Heavy-usage throughput", token rules), git fetch; then wait for the orchestrator, Sector Ops (coop4 slices) or Michael's walk.
 Rules: no e2e on the desktop; single vitest files --maxWorkers=2, CPU < 85; no full check. Laptop runs: node <scratch>/lq/request.mjs --sha <sha> --pr <n> --set <name> --requester "Night Shift | Marlow Build" --suites "..." (lib.mjs + request.mjs from git show origin/master:scripts/laptop-queue/); verdict = status laptop-e2e/<set> (gh api repos/Tekcry/Mobile-Coop/commits/<sha>/statuses); failure excerpt posts on the PR with --pr. Train-ready: gh pr edit <n> --add-label train-ready + message "Night Shift | Orchestrator".
 Train-ready, waiting on trains (check gh; re-merge on a conflict, keep the label):
 - #291 LR16-M (feature/marlow-lr16m 5c20c538, rides with #287; on a conflict merge the refreshed origin/feature/sector-redesign-lr16-entry).
