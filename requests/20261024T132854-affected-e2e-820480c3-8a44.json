@@ -1,0 +1,16 @@
+{
+  "id": "20261024T132854-affected-e2e-820480c3-8a44",
+  "sha": "820480c367bb90782d85de94698acaf961977822",
+  "branch": "feature/sector-redesign-bake3",
+  "pr": 361,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-darkness",
+    "e2e-desktop",
+    "e2e-lightbake",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #361"
+}
