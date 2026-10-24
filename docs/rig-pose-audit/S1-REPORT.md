@@ -155,7 +155,7 @@ never sees him again (seen at 0.3 s)".
 
 - Not a body-model lag. `PlayerTarget.sync` builds the body from `controller.pos` (`localBodyIn`,
   `src/player/playerVolumes.ts:717`), and `GameState.fixedUpdate` runs it after `player.fixedUpdate` and before
-  `enemyMgr.update` (`src/game/gameState.ts:1961` / `:1965` / `:1985`), so the points and volumes are at a teleport's spot
+  `enemyMgr.update` (`src/game/gameState.ts:1961` / `:1965` / `:1995`), so the points and volumes are at a teleport's spot
   in the first step a guard runs after it. Every real position set (respawn `gameState.ts:2031`, checkpoint / insertion,
   co-op rejoin and placement `coopClient.ts` / `coopHost.ts:590`, hall-back `ctDevices.ts:953`, sector start) goes
   through `controller.teleport`, read by the next step's sync before the guards. Nothing to change in `src/`.
