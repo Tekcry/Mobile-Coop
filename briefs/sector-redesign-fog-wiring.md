@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-24T10:37Z
+status: done feature/sector-redesign-fog2 d0e7f2f4
 
 # Sector Ops: fog fix wiring test (follow-up to PR #339, fog check polish P1)
 
@@ -38,3 +38,19 @@ Build:
 
 Done: branch pushed, tsc clean, the tests above pass, report `docs/sector-redesign/checks/fog-wiring.md` (what changed,
 test counts, deviations), status line `done feature/sector-redesign-fog2 <sha>`.
+
+## Report (Night Shift | Cloud Builder 1, 2026-10-24)
+Branch `feature/sector-redesign-fog2` @ d0e7f2f4 (one commit on 031b54f1). Full report: `docs/sector-redesign/checks/fog-wiring.md`.
+- `volLights.ts:65` `mapLampBeams(theme)` (`theme?.lampBeams ?? true`); `:72` `writeVolLights(lights, ids, n, lampBeams, pos,
+  dir, col): number` (the old PostStack loop moved unchanged, allocation-free).
+- `postStack.ts:467` `this.volCount = writeVolLights(reg.lights, this.ids, n, this.opts.lampBeams ?? true, ...)`.
+- `gameState.ts:614` `lampBeams: mapLampBeams(world.map.theme)` (+ import at :17).
+- New `tests/volLightsWiring.test.ts` (4): mapLampBeams cases; real maps (campusOps false, ctcourse / warehouseOps true);
+  writeVolLights on a coned box lamp / LED strip / torch (false: only the torch beams; true: the box lamp too, the
+  strip never; count and untouched slot after n); a wiring guard on the postStack / gameState source text.
+Checks: vitest volLights 8/8 + volLightsWiring 4/4 (12/12); `npx tsc --noEmit -p .` clean; eslint clean on the 3 src
+and 2 test files. Mutation check: postStack passing `true`, gameState line removed, writeVolLights not forwarding
+lampBeams, mapLampBeams ignoring the theme: each fails a test; restored 12/12.
+Deviations: one import line in gameState.ts; guard regexes match the whole expressions (a hard-coded constant also
+fails); the shader has no beam flag, so the test asserts what it reads per slot: march length (pos.w), cone (dir.w),
+gain (col).
