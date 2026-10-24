@@ -407,9 +407,9 @@ describe('light field (3.6)', async () => {
       }
       out[0] = s;
     }, -Infinity, 2000);
-    // A query over its limit is measured once more from a fresh warm-up and keeps the smaller reading: #322's CI read
-    // bodyLevel 173.2 B against 144 once under load and passed on the rerun (cost train 57 ~15 min). A query that
-    // allocates an object reads its size in both measurements, so the retry cannot hide one.
+    // A query over its limit is measured once more from a fresh warm-up and keeps the smaller reading. A query that
+    // allocates an object reads its size in both measurements, so the retry cannot hide one. (#322's 173.2 B bodyLevel
+    // reading was not load: it is a fixed per-process V8 mode the retry repeats; see the bodyLevel limit below.)
     const retry = async (fn: (n: number) => void, goal: number): Promise<number> => {
       const first = await per(fn, goal);
       return first <= goal ? first : Math.min(first, await per(fn, goal));
@@ -426,7 +426,8 @@ describe('light field (3.6)', async () => {
     // retry the same 173.2 again (the code and its feedback are already fixed), the rerun 126.8: no code reached it.
     // Allowed: 2 x levelAt + BODY_SLACK (56: that variant + 11.6). Still caught: a vector per call (the control, about
     // 224 B more than levelAt), and an object or closure in totalInto / dynamicInto / levelInto (it runs twice per
-    // bodyLevel: 2 x 48 B and up). An object in levelInto also fails levelAt's own limit above.
+    // bodyLevel: 2 x 48 B and up). An object in levelInto also fails levelAt's own limit above. Not caught: one object
+    // of about 48 B made once in bodyLevel's own body (it cannot be told apart from the 173.2 variant).
     const BODY_SLACK = 56;
     const bodyLimit = 2 * level + BODY_SLACK;
     const body = await retry((n) => {
