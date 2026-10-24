@@ -62,7 +62,7 @@ import { guardAim } from './guardStance';
 import { SWEEP_NEAR, type SweepTeam } from './sweepTeam';
 import { MAX_INTRUDERS, mayBeSeen, pickTarget, TARGETS } from './targetPick';
 // (guard-ai S24) one last known position per intruder
-import { INTRUDERS } from './intruders';
+import { INTRUDERS, slotOf } from './intruders';
 
 /** (guard-ai S12) Scratch for `gearHit` (one hit at a time; the damage path allocates nothing for gear). */
 const GEAR_OUT: GearHit = { mult: 1, knockOff: false, stagger: 0 };
@@ -277,7 +277,8 @@ export class Enemy implements Damageable {
   private los = false;
   private losT = 0;
   private dist = 99;
-  /** (guard-ai S23) Bit `i`: player `i` of `players()` in sight at the last think (`seesIndex`). */
+  /** (guard-ai S23) Bit `i`: player `i` of `players()` in sight at the last think (`seesIndex`). (coop4 AI1) `i` is the
+   *  player's team slot (`slotOf`): the index until N1 sets `TeamRef.slot`. */
   private seenMask = 0;
   private thinkT = Math.random() * 0.25;
   /** Light level on the target at the last think (0 dark .. 1 lit). */
@@ -739,7 +740,8 @@ export class Enemy implements Damageable {
   }
 
   /** (guard-ai S23) Player `i` of `players()` (the host's own player is 0) was in sight (any body sample, as `inSight`
-   *  for the target) at the last think; the awareness arcs read it (A145). */
+   *  for the target) at the last think; the awareness arcs read it (A145). (coop4 AI1) `i` is the team slot
+   *  (`slotOf`: the list index until N1 sets `TeamRef.slot`); the per-player arcs on the wire read it per slot. */
   seesIndex(i: number): boolean {
     return i >= 0 && i < 31 && ((this.seenMask >> i) & 1) === 1;
   }
@@ -2195,7 +2197,8 @@ export class Enemy implements Damageable {
       P_EXPO[i] = expo;
       P_LIGHT[i] = light;
       P_RATE[i] = rate;
-      if (expo > 0) mask |= 1 << i;
+      // (coop4 AI1) the bit is the player's team slot (the one seam, `slotOf`; today his index)
+      if (expo > 0) mask |= 1 << slotOf(p, i);
     }
     // the target: the best seen (calm), the one he is fighting while he sees him (combat); `TARGETS.all` false: the
     // nearest only (before S23)

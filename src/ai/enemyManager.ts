@@ -64,7 +64,7 @@ import { LockedDoorNav } from './lockedDoors';
 // (guard-ai S22, G6) security consoles switched off: noticed when seen, turned back on (the breaker walk)
 import { CONSOLE_FAULT, CONSOLE_GROUP, ConsoleFaults, consoleInView, isConsoleGroup, V_TAMPER, type ConsoleHost } from './consoleFault';
 // (guard-ai S24, G139) one last known position per intruder
-import { INTRUDERS, IntruderBoard } from './intruders';
+import { COOP4, INTRUDERS, IntruderBoard, type SlotHunted } from './intruders';
 import { MAX_INTRUDERS } from './targetPick';
 import { SEARCH_AREA, SearchPlan, areaRadius, orderByScore, pointScore } from './searchArea';
 
@@ -158,10 +158,10 @@ export class EnemyManager {
   /** (guard-ai S24, A146) One last known position per intruder (player id -> slot); each guard hunts one (`Enemy.hunt`). */
   readonly intruders = new IntruderBoard();
   /** (guard-ai S24) `lkpOf`'s reused vector per slot. */
-  private readonly lkpSlot: Vector3[] = [new Vector3(), new Vector3(), new Vector3(), new Vector3()];
+  private readonly lkpSlot: Vector3[] = Array.from({ length: MAX_INTRUDERS }, () => new Vector3());
   /** (guard-ai S24) Each intruder's chase field (made the first time his slot is valid), the position, nav version and
    *  clock it was built under, the round robin, and the goal scratch (filled in place). */
-  private readonly slotFlow: (Float32Array | null)[] = [null, null, null, null];
+  private readonly slotFlow: (Float32Array | null)[] = Array.from({ length: MAX_INTRUDERS }, (): Float32Array | null => null);
   private readonly slotFlowX = new Float32Array(MAX_INTRUDERS);
   private readonly slotFlowY = new Float32Array(MAX_INTRUDERS);
   private readonly slotFlowZ = new Float32Array(MAX_INTRUDERS);
@@ -597,7 +597,7 @@ export class EnemyManager {
       // (guard-ai S24) his intruder's slot (by player id): its last known position follows him; the guard hunts it
       reportSighting: (p) => {
         p.spotted = true;
-        const slot = this.intruders.slotFor(p.id);
+        const slot = this.slotForId(p.id);
         this.reportIntruder(slot, p.feet.x, p.feet.y, p.feet.z, true);
         return slot;
       },
@@ -2547,7 +2547,7 @@ export class EnemyManager {
     // (guard-ai S24) the shot locates its shooter's intruder slot (`by` his player id; null: the freshest, else slot 0);
     // the hearers it sends to combat hunt him
     const b = this.intruders;
-    const slot = by !== null ? b.slotFor(by) : b.freshest >= 0 ? b.freshest : 0;
+    const slot = by !== null ? this.slotForId(by) : b.freshest >= 0 ? b.freshest : 0;
     if (!this.coordinated) {
       for (let i = 0; i < n; i++) {
         const e = list[i]!;
@@ -2668,7 +2668,7 @@ export class EnemyManager {
       e.hearSearch(pos.x, pos.z);
     } else if (state === 2) e.heardInFight();
     if (act !== 2 || by === null) return;
-    const slot = this.intruders.slotFor(by);
+    const slot = this.slotForId(by);
     if (slot < 0) return;
     this.reportHeard(slot, pos);
     const h = e.hunt;
@@ -2718,6 +2718,75 @@ export class EnemyManager {
       if (e.alive && e.hunt === slot && (e.alerted || e.level === 'searching')) return true;
     }
     return false;
+  }
+
+  /** (coop4 AI1) `huntingOf` bound once (the board's reuse pick reads it; no closure per call). */
+  private readonly huntedFn: SlotHunted = (slot: number): boolean => this.huntingOf(slot);
+
+  /** (coop4 A170) At least `COOP4.from` live players: the coop4 rules apply (1-2 players: today exactly). */
+  coop4(): boolean {
+    return this.players().length >= COOP4.from;
+  }
+
+  /**
+   * (coop4 AI1) Player `id`'s intruder slot (every report goes through here: sightings, drones, located shots, heard
+   * steps). A171, gated (A170): with no free slot a gone player's slot is taken over (`IntruderBoard.slotFor`) and
+   * released here (`releaseSlot`); 1-2 players: no reuse (today: -1, reported nowhere).
+   */
+  private slotForId(id: string): number {
+    const b = this.intruders;
+    const slot = b.slotFor(id, this.huntedFn, INTRUDERS.reuse && this.coop4());
+    const r = b.reused;
+    if (r >= 0) {
+      b.reused = -1;
+      this.releaseSlot(r);
+    }
+    return slot;
+  }
+
+  /**
+   * (coop4 AI1, A171) Slot `s` passed to a new player: the old one's search plan, caller, chase field and heard-report
+   * throttle are dropped, every guard hunting it hunts nobody (he keeps searching where he stands), the alarm's and
+   * the last call's intruder no longer name it, and it is forgotten (the mirror follows).
+   */
+  private releaseSlot(s: number): void {
+    if (s < 0 || s >= MAX_INTRUDERS) return;
+    this.plans[s]!.reset(0, 0, -1);
+    this.callers[s] = -1;
+    this.slotFlowVer[s] = -1;
+    this.heardRepAt[s] = -1e9;
+    const list = this.enemies;
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i]!;
+      if (e.hunt === s) e.hunt = -1;
+    }
+    if (this.alarmHunt === s) this.alarmHunt = -1;
+    if (this.contactHunt === s) this.contactHunt = -1;
+    this.intruders.forget(s);
+    this.mirror();
+  }
+
+  /**
+   * (coop4 AI1) Host hook: player `id` left the run (the net layer's `removeRemote`). His slot is kept, marked gone,
+   * for his rejoin (the same id takes it back, last known position kept); a new player takes it only when no slot is
+   * free (A171). Unknown id: nothing.
+   */
+  intruderLeft(id: string): void {
+    this.intruders.leave(id);
+  }
+
+  /**
+   * (coop4 AI1) Player `id`'s ghost (the last-known-position silhouette), a read (`find`: never assigns a slot):
+   * 0 none (no slot, or his position is not known), 1 his position is known (written to `out`), 2 show it: known,
+   * unseen > 0.6 s and somebody still hunts him (the rule the host's own ghost uses, gameState `updateHud`). The
+   * per-player ghost on the wire reads it per remote id. No allocation.
+   */
+  ghostOf(id: string, out: Vector3): number {
+    const b = this.intruders;
+    const s = b.find(id);
+    if (s < 0 || s >= MAX_INTRUDERS || b.valid[s] !== 1) return 0;
+    out.set(b.x[s]!, b.y[s]!, b.z[s]!);
+    return b.seenT[s]! > 0.6 && this.huntingOf(s) ? 2 : 1;
   }
 
   /** Intruder `slot`'s last known position (a reused vector per slot), null when -1 / not valid. */
@@ -3356,7 +3425,7 @@ export class EnemyManager {
         op.alert();
       }
       // (guard-ai S24) that player's slot; the operator hunts him
-      const slot = this.intruders.slotFor(p.id);
+      const slot = this.slotForId(p.id);
       this.reportIntruder(slot, p.feet.x, p.feet.y, p.feet.z, true);
       op.tell(slot);
     } else op.notice(p.feet.x, p.feet.z, Math.min(0.9, 0.3 + d.meter * 0.6));
