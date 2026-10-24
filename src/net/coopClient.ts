@@ -66,6 +66,18 @@ function glowBySlot(figure: OperatorFigure, slot: number): void {
   figure.setGlowColour(slot <= 0 ? null : goggleColour(slot));
 }
 
+/** (coop4 round fix, check B) The client's out follow view scan: `Map.forEach` with this module function and a reused
+ *  context, so a step while out makes no entry array, iterator or closure. */
+interface ClientFollowScan {
+  f: OutFollow;
+  mask: number;
+  s: { slotOf(id: string): number };
+}
+function followSetAvatar(this: ClientFollowScan, a: RemoteAvatar, id: string): void {
+  const s = this.s.slotOf(id);
+  if (!a.dead && !slotOut(this.mask, s)) this.f.set(s, a.pos);
+}
+
 /**
  * Client side of a match. Only the local player is simulated (predicted); enemies, modes, pickups, objectives, doors
  * and health come from host snapshots. Own hits are resolved against local puppets (course: the partner's hit volumes)
@@ -114,6 +126,8 @@ export class CoopClient implements NetAttachment {
   private outMask = 0;
   /** (coop4 OUT, A16) Our follow view while we are out. */
   private readonly follow = new OutFollow();
+  /** (coop4 round fix) `followStep`'s reused scan context (`followSetAvatar`; mask and session set each step). */
+  private readonly followScan: ClientFollowScan = { f: this.follow, mask: 0, s: { slotOf: () => -1 } };
   /** (coop4 OUT) We are out, waiting for the next connector (Sector Ops, 3-4 players). */
   private get outSelf(): boolean {
     return slotOut(this.outMask, this.slot());
@@ -1043,10 +1057,10 @@ export class CoopClient implements NetAttachment {
     }
     const f = this.follow;
     f.begin();
-    for (const [id, a] of this.avatars) {
-      const s = this.s.slotOf(id);
-      if (!a.dead && !slotOut(this.outMask, s)) f.set(s, a.pos);
-    }
+    const sc = this.followScan;
+    sc.mask = this.outMask;
+    sc.s = this.s;
+    this.avatars.forEach(followSetAvatar, sc);
     pl.followFeet = f.pick(this.g.app.input.state.pressed('swapNext') ? 1 : 0);
   }
 

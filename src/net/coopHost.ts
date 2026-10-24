@@ -133,6 +133,16 @@ function glowBySlot(figure: OperatorFigure, slot: number): void {
   figure.setGlowColour(slot === 0 ? null : goggleColour(slot));
 }
 
+/** (coop4 round fix, check B) The host's out follow view scan: `Map.forEach` with this module function and a reused
+ *  context, so a step while out makes no iterator or closure. */
+interface HostFollowScan {
+  f: OutFollow;
+  out: ReadonlySet<string>;
+}
+function followSetRemote(this: HostFollowScan, r: RemotePlayer): void {
+  if (r.alive && !r.held && !this.out.has(r.id)) this.f.set(r.ref.slot, r.avatar.pos);
+}
+
 /**
  * Host side of a match. The host runs the full simulation (AI, modes, pickups, objectives) and owns every outcome:
  * client shots are re-checked against lag-compensated positions, client grenades are re-detonated here, health for
@@ -517,6 +527,10 @@ export class CoopHost implements NetAttachment {
     this.joins.hold(id, { x: r.feet.x, y: r.feet.y, z: r.feet.z, yaw: r.state?.yaw ?? 0 });
     this.g.hud.setNetNotice(`${name} disconnected - reconnecting... (room ${this.s.code})`);
     this.g.app.toasts.show(`${name} disconnected. Their place is held for 10 minutes (room ${this.s.code}).`, 'warn');
+    // (coop4 round fix, check A P2) Sector Ops at 3-4: everyone connected is OUT or down and the last one up dropped:
+    // the section restarts now, not when it rejoins or its hold ends (`outIds` is empty at 1-2 players and in the
+    // course, so they are unchanged)
+    if (this.g.outIds.size > 0 && this.g.mode && !this.g.anyPlayerAlive()) this.g.mode.onPlayerDeath();
   }
 
   /** (R2) The held joiner is back on the room; it stays held while its match loads (`resume` on its first state). */
@@ -569,6 +583,8 @@ export class CoopHost implements NetAttachment {
     this.remotes.delete(id);
     const i = this.remoteRefs.indexOf(r.ref);
     if (i >= 0) this.remoteRefs.splice(i, 1);
+    // (coop4 round fix) an OUT leaver is no longer OUT (its slot bit leaves the wire's mask at once)
+    this.g.mode?.onPlayerLeft?.(id);
     // a leaver can end a co-op match if everyone left standing is down
     if (this.g.mode && !this.g.anyPlayerAlive()) this.g.mode.onPlayerDeath();
   }
@@ -625,8 +641,10 @@ export class CoopHost implements NetAttachment {
     for (const id of ids) {
       if (id === 'local') back.push({ id: this.s.selfId, slot: 0 });
       else {
+        // (coop4 round fix, checks A / B) a held (dropped) OUT player comes back too: left dead it would rejoin as a
+        // downed body nobody can revive (its revive point went at `goOut`), blocking the next connector
         const r = this.remotes.get(id);
-        if (r && !r.held) back.push({ id, slot: r.ref.slot });
+        if (r) back.push({ id, slot: r.ref.slot });
       }
     }
     back.sort((a, b) => a.slot - b.slot);
@@ -639,7 +657,10 @@ export class CoopHost implements NetAttachment {
         g.player.cam.yaw = o.yaw;
         this.reviveOne(b.id, p);
       } else {
-        this.joins.respawned(b.id, this.time);
+        // a held one: its hold now points at the new checkpoint spot (`resume` restores it there on its rejoin; a
+        // rejoin already loading keeps its watch, so its first state still resyncs the section)
+        if (this.remotes.get(b.id)?.held) this.joins.rehold(b.id, { x: p.x, y: p.y, z: p.z, yaw: o.yaw });
+        else this.joins.respawned(b.id, this.time);
         this.reviveOne(b.id, p);
       }
     }
@@ -1628,9 +1649,11 @@ export class CoopHost implements NetAttachment {
 
   /** (coop4 OUT, A16) The host's own follow view while it is out. */
   private readonly follow = new OutFollow();
+  /** (coop4 round fix) `followStep`'s reused scan context (`followSetRemote`). */
+  private readonly followScan: HostFollowScan = { f: this.follow, out: new Set<string>() };
 
   /** (coop4 OUT) Out (Sector Ops, 3-4 players): the view follows a teammate who is up; the switch-target input (next
-   *  weapon) moves to the next one. Off as soon as we are up again. */
+   *  weapon) moves to the next one. Off as soon as we are up again. No allocation per step. */
   private followStep(): void {
     const g = this.g;
     const pl = g.player;
@@ -1643,7 +1666,8 @@ export class CoopHost implements NetAttachment {
     }
     const f = this.follow;
     f.begin();
-    for (const r of this.remotes.values()) if (r.alive && !r.held && !g.outIds.has(r.id)) f.set(r.ref.slot, r.avatar.pos);
+    this.followScan.out = g.outIds;
+    this.remotes.forEach(followSetRemote, this.followScan);
     pl.followFeet = f.pick(g.app.input.state.pressed('swapNext') ? 1 : 0);
   }
 

@@ -717,9 +717,10 @@ function sectorExtra(raw: Record<string, unknown>): Partial<SectorNetExtra> {
   // (marlow-polish, inside 42) every section rated so far, as the course message's `rh`
   const rh = courseRh(raw.rh).rh;
   if (rh) out.rh = rh;
-  // (coop4 OUT) the slots out waiting for the next connector: a 4-bit mask
-  const ot = num(raw.ot, 0, (1 << MAX_PLAYERS) - 1);
-  if (ot !== null && Math.round(ot) > 0) out.ot = Math.round(ot);
+  // (coop4 OUT) the slots out waiting for the next connector: a 4-bit mask, rounded; (round fix, check B) a value outside
+  // 1..15 is dropped, not clamped (a junk 16 or 1e9 must not read as every slot out)
+  const ot = typeof raw.ot === 'number' && Number.isFinite(raw.ot) ? Math.round(raw.ot) : 0;
+  if (ot > 0 && ot < 1 << MAX_PLAYERS) out.ot = ot;
   return out;
 }
 

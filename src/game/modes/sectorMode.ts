@@ -1462,6 +1462,14 @@ export class SectorMode implements GameMode {
     this.secT = 0;
   }
 
+  /** (coop4 round fix, checks A P1 / B) An OUT operator who leaves for good is no longer OUT: off the list and the wire's
+   *  mask at once (the next `sector` message goes now), so a late joiner on that slot never reads itself OUT. */
+  onPlayerLeft(id: string): void {
+    if (!this.outs.delete(id)) return;
+    this.g.outIds.delete(id);
+    this.secT = 0;
+  }
+
   /**
    * Co-op: the live section, the locked doors, the cameras shot out and the syringes left. New arrays each send (every
    * 0.5 s or on a change, not per tick): a delayed transport may hold the message.

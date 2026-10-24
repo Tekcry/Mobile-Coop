@@ -908,6 +908,24 @@ describe('coop4 N1: slots on the wire, Sector Ops cap 4 (A1, A19)', () => {
     expect(m?.t === 'sector' && m.sec).toMatchObject({ j: ['a', '', ''], ch: [10, 0, 0], cd: [0, 0, 0] });
   });
 
+  it('(coop4 OUT) the sector message\'s ot: a 1..15 slot mask, rounded; anything else dropped (never clamped to all out)', () => {
+    const ot = (v: unknown) => {
+      const m = parseMessage({ t: 'sector', sec: { ck: [], j: [], ch: [], cd: [], dv: [], al: 0 }, ot: v });
+      return m?.t === 'sector' ? m.ot : 'bad';
+    };
+    expect(ot(4)).toBe(4);
+    expect(ot(15)).toBe(15);
+    expect(ot(2.6)).toBe(3);
+    expect(ot(0)).toBeUndefined();
+    expect(ot(-1)).toBeUndefined();
+    expect(ot(16)).toBeUndefined();
+    expect(ot(1e9)).toBeUndefined();
+    expect(ot(Number.NaN)).toBeUndefined();
+    expect(ot(Number.POSITIVE_INFINITY)).toBeUndefined();
+    expect(ot('3')).toBeUndefined();
+    expect(ot(undefined)).toBeUndefined();
+  });
+
   it('a full room refusal carries the room mode; an unknown mode is dropped', () => {
     expect(parseMessage({ t: 'bye', reason: 'Room is full', mode: 'sector' })).toEqual({ t: 'bye', reason: 'Room is full', mode: 'sector' });
     expect(parseMessage({ t: 'bye', reason: 'Room is full', mode: 'wave' })).toEqual({ t: 'bye', reason: 'Room is full' });

@@ -7,6 +7,7 @@ import { OUT_LINE, OutFollow, followPick, isOutRef, outMask, outWaits, slotOut }
 import { newSectionStats, SyncedDetector } from '../src/game/rating/sectionRating';
 import { SectorDesks } from '../src/game/sectorDesks';
 import { CoopHost } from '../src/net/coopHost';
+import { JoinWatch } from '../src/net/joinWatch';
 import type * as SpawnPlace from '../src/game/spawnPlace';
 
 // (coop4 OUT, M1 b) Sector Ops at 3-4 players: an operator out (no syringe left, or the revive window over) waits for the
@@ -226,6 +227,65 @@ describe('OUT in SectorMode (host)', () => {
     expect(three.mi.restartT).toBeGreaterThan(0);
   });
 
+  it('(round fix) an OUT operator who leaves for good: off the OUT list and the wire mask at once; others stay', () => {
+    const ps = [player('local', 0), player('b', 1), player('c', 2), player('d', 3)];
+    const { m, mi, g, down } = host(ps);
+    down('c');
+    m.onPlayerOut('c');
+    down('d');
+    m.onPlayerOut('d');
+    expect(mi.netExtra({ liveSection: 0, destroyedIds: () => [] }).ot).toBe(12);
+    const sec = mi as unknown as { secT: number };
+    sec.secT = 1;
+    m.onPlayerLeft('b'); // not out: nothing changes
+    expect(sec.secT).toBe(1);
+    expect(mi.outs.size).toBe(2);
+    m.onPlayerLeft('c');
+    expect([...mi.outs.keys()]).toEqual(['d']);
+    expect([...g.outIds]).toEqual(['d']);
+    expect(sec.secT).toBe(0); // the sector message goes now
+    expect(mi.netExtra({ liveSection: 0, destroyedIds: () => [] }).ot).toBe(8);
+    m.onPlayerLeft('d');
+    expect(g.outIds.size).toBe(0);
+    expect(mi.netExtra({ liveSection: 0, destroyedIds: () => [] }).ot).toBeUndefined();
+  });
+
+  it('(round fix) restartSection clears OUT (the list, outIds and the wire mask) before the respawn', () => {
+    const ps = [player('local', 0), player('b', 1), player('c', 2)];
+    const { m, mi, g, down } = host(ps);
+    down('c');
+    m.onPlayerOut('c');
+    expect(g.outIds.has('c')).toBe(true);
+    // the restart's other work, stubbed: only the OUT state is read here
+    const g2 = g as unknown as Record<string, unknown>;
+    Object.assign(g2, {
+      enemyMgr: null,
+      checkpointReset: vi.fn(),
+      world: { doors: { list: [] }, level: { lights: {} } },
+      player: { cam: { yaw: 0 } },
+      scheduleRespawn: vi.fn(),
+    });
+    let outAtRespawn = -1;
+    (g2.scheduleRespawn as ReturnType<typeof vi.fn>).mockImplementation(() => (outAtRespawn = g.outIds.size));
+    Object.assign(m, {
+      restarts: 0,
+      team: { reset: vi.fn() },
+      rekey: vi.fn(),
+      unloadSection: vi.fn(),
+      freshCounters: vi.fn(),
+      loadSection: vi.fn(),
+      beginSection: vi.fn(),
+      startState: { apply: () => ({ lights: 0, doors: 0 }), take: vi.fn() },
+      ct: null,
+      checkpoint: new Vector3(),
+    });
+    m.restartSection();
+    expect(mi.outs.size).toBe(0);
+    expect(g.outIds.size).toBe(0);
+    expect(outAtRespawn).toBe(0);
+    expect(mi.netExtra({ liveSection: 0, destroyedIds: () => [] }).ot).toBeUndefined();
+  });
+
   it('the team size is the session\'s (connected plus held), not the list: a 3-player session with one held still waits', () => {
     const ps = [player('local', 0), player('b', 1)];
     const { m, mi, down } = host(ps, 3);
@@ -263,6 +323,42 @@ describe('OUT return placement (CoopHost.returnOut)', () => {
       for (let j = i + 1; j < all.length; j++) expect(Math.hypot(all[i]!.x - all[j]!.x, all[i]!.z - all[j]!.z)).toBeGreaterThan(0.5);
   });
 
+  it('(round fix, checks A / B) a held (dropped) OUT player comes back too: revived on its slot, its hold re-pointed there', () => {
+    const h = Object.create(CoopHost.prototype) as CoopHost;
+    const cp = { x: 50, y: 0, z: 0, yaw: 0.5 };
+    const remotes = new Map([
+      ['b', { id: 'b', alive: true, held: false, ref: { slot: 1 }, feet: new Vector3(51, 0, 0) }],
+      ['c', { id: 'c', alive: false, held: true, ref: { slot: 2 }, feet: new Vector3(10, 0, 0) }],
+      ['d', { id: 'd', alive: false, held: false, ref: { slot: 3 }, feet: new Vector3(12, 0, 0) }],
+    ]);
+    const revived: [string, Vector3][] = [];
+    const joins = new JoinWatch();
+    joins.hold('c', { x: 10, y: 0, z: 0, yaw: 0 }); // where it dropped (the previous section)
+    const respawned = vi.spyOn(joins, 'respawned');
+    Object.assign(h, {
+      g: { mode: { checkpointSpawns: () => [cp] }, player: { position: new Vector3(50, 0, 0), alive: true, cam: { yaw: 0 } } },
+      s: { selfId: 'host' },
+      remotes,
+      time: 3,
+      joins,
+      reviveOne: (id: string, at: Vector3) => revived.push([id, at.clone()]),
+    });
+    h.returnOut(['c', 'd']);
+    expect(revived.map((r) => r[0])).toEqual(['c', 'd']);
+    const c = revived[0]![1];
+    expect(Math.hypot(c.x - cp.x, c.z - cp.z)).toBeLessThan(3);
+    // the held one keeps a restore, now at its new spot (its rejoin's `resume` sends it there), not dropped
+    expect(respawned).toHaveBeenCalledTimes(1);
+    expect(respawned).toHaveBeenCalledWith('d', 3);
+    const at = joins.restores.get('c')!;
+    expect([at.x, at.z]).toEqual([c.x, c.z]);
+    // its rejoin: the restore repeats to the new checkpoint spot
+    joins.late('c', [], 4);
+    expect(joins.heldSpot('c')).toMatchObject({ x: c.x, z: c.z });
+    joins.resume('c', 5);
+    expect(joins.restoreStep('c', 10, 0, 5)).toMatchObject({ x: c.x, z: c.z });
+  });
+
   it('the host itself out: back on slot 0 (the checkpoint point when free)', () => {
     const h = Object.create(CoopHost.prototype) as CoopHost;
     const cp = { x: 50, y: 0, z: 0, yaw: 1 };
@@ -281,5 +377,70 @@ describe('OUT return placement (CoopHost.returnOut)', () => {
     expect(revived[0]![0]).toBe('host');
     expect(revived[0]![1].x).toBeCloseTo(50);
     expect(cam.yaw).toBe(1);
+  });
+});
+
+describe('OUT and leaving (CoopHost hold / removeRemote, round fix)', () => {
+  /** A host stub with remotes `ps` (id, slot, alive) for `hold` and `removeRemote`. */
+  function net(ps: [string, number, boolean][], out: string[], mode: Record<string, unknown>) {
+    const h = Object.create(CoopHost.prototype) as CoopHost;
+    const remotes = new Map(ps.map(([id, slot, alive]) => [id, { id, alive, held: false, ref: { slot }, feet: new Vector3(slot, 0, 0), state: null, dispose: vi.fn() }]));
+    const remoteRefs = [...remotes.values()].map((r) => r.ref);
+    const outIds = new Set(out);
+    const g = {
+      outIds,
+      mode,
+      enemyMgr: null,
+      player: { alive: false },
+      hud: { setNetNotice: vi.fn() },
+      app: { toasts: { show: vi.fn() } },
+      // the connected players up: the host (down here) and the remotes not held
+      anyPlayerAlive: () => [...remotes.values()].some((r) => r.alive && !r.held && !outIds.has(r.id)),
+    };
+    Object.assign(h, {
+      g,
+      s: { code: 'ABCD', selfId: 'host' },
+      remotes,
+      remoteRefs,
+      rejoining: new Set<string>(),
+      seized: new Map(),
+      teamPairs: new Map(),
+      partnerBoxes: new Map(),
+      joins: new JoinWatch(),
+      teamClear: vi.fn(),
+      dropRevive: vi.fn(),
+    });
+    const hi = h as unknown as { hold(id: string, name: string): void; removeRemote(id: string): void };
+    return { h: hi, remotes, g };
+  }
+
+  it('an OUT leaver is dropped from the mode\'s OUT list at once (removeRemote -> onPlayerLeft)', () => {
+    const mode = { onPlayerLeft: vi.fn(), onPlayerDeath: vi.fn() };
+    const { h } = net([['b', 1, true], ['c', 2, false]], ['c'], mode);
+    h.removeRemote('c');
+    expect(mode.onPlayerLeft).toHaveBeenCalledWith('c');
+    expect(mode.onPlayerDeath).not.toHaveBeenCalled(); // b is still up
+  });
+
+  it('team 3+: everyone else OUT or down and the last one up drops (held): the section restarts now', () => {
+    const mode = { onPlayerDeath: vi.fn() };
+    const { h, remotes } = net([['b', 1, true], ['c', 2, false]], ['c'], mode);
+    h.hold('b', 'B');
+    expect(remotes.get('b')!.held).toBe(true);
+    expect(mode.onPlayerDeath).toHaveBeenCalledTimes(1);
+  });
+
+  it('nobody OUT (1-2 players, or nobody out yet): a drop restarts nothing (unchanged)', () => {
+    const mode = { onPlayerDeath: vi.fn() };
+    const { h } = net([['b', 1, true]], [], mode);
+    h.hold('b', 'B');
+    expect(mode.onPlayerDeath).not.toHaveBeenCalled();
+  });
+
+  it('someone still up: a drop restarts nothing', () => {
+    const mode = { onPlayerDeath: vi.fn() };
+    const { h } = net([['b', 1, true], ['c', 2, false], ['d', 3, true]], ['c'], mode);
+    h.hold('b', 'B');
+    expect(mode.onPlayerDeath).not.toHaveBeenCalled();
   });
 });
