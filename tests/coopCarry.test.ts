@@ -6,7 +6,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { DROP_BODY_ID, ITEM_KINDS, PROTOCOL_VERSION, parseMessage, type Msg, type NetItem } from '../src/net/protocol';
-import { bodyItem, CARRY_USE_SLACK, carryChange, hideOk, inCarryReach, pickupDenied, type CarryChange, type PickupCheck } from '../src/net/bodyCarryNet';
+import { bodyItem, CARRY_USE_SLACK, carryChange, clientBodyPrompt, hideOk, inCarryReach, letGoHeard, pickupDenied, type CarryChange, type PickupCheck } from '../src/net/bodyCarryNet';
 import { BODY } from '../src/ai/bodies';
 
 const snapWith = (items: unknown[]): Extract<Msg, { t: 'snap' }> => {
@@ -135,6 +135,28 @@ describe('the client mirror', () => {
 
   it('a late joiner seeing a carried body first takes it at once', () => {
     expect(carryChange('', true, 'host')).toBe('take');
+  });
+});
+
+describe('fix round: the quiet let-go and the late joiner prompt', () => {
+  it('a client lift let go of before the hoist is quiet (as solo); a put down from the shoulder is heard', () => {
+    expect(letGoHeard(false)).toBe(false);
+    expect(letGoHeard(true)).toBe(true);
+    const host = readFileSync('src/net/coopHost.ts', 'utf8');
+    const i = host.indexOf('private remoteDrop(');
+    const body = host.slice(i, i + 700);
+    // the quiet branch returns before the noise
+    expect(body).toMatch(/if \(!letGoHeard\(v\.onShoulder\)\) \{\s*v\.letGo\(ok\);\s*return;\s*\}[\s\S]*hear\(at, DROP_NOISE\)/);
+  });
+
+  it('a body the client has no lying body for (never saw him fall) offers no pick up', () => {
+    expect(clientBodyPrompt(true, true)).toBe(true);
+    expect(clientBodyPrompt(true, false)).toBe(false);
+    expect(clientBodyPrompt(false, true)).toBe(false);
+    const client = readFileSync('src/net/coopClient.ts', 'utf8');
+    expect(client).toMatch(/n\.k === 'body' \? clientBodyPrompt\(n\.on, !!n\.e && this\.kept\.get\(n\.e\)\?\.present === true\)/);
+    // a body that falls after its item arrived gets its prompt then
+    expect(client).toMatch(/this\.kept\.set\(e\.enemy, body\);[\s\S]{0,200}this\.bodyPrompt\(e\.enemy\)/);
   });
 });
 

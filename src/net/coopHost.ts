@@ -61,7 +61,7 @@ import { CT } from '../config/movement';
 import type { Body } from '../ai/body';
 import { BODY } from '../ai/bodies';
 import { DROP_NOISE } from '../game/bodyCarry';
-import { bodyItem, hideOk, inCarryReach, pickupDenied } from './bodyCarryNet';
+import { bodyItem, hideOk, inCarryReach, letGoHeard, pickupDenied } from './bodyCarryNet';
 import { CarryView } from './carryView';
 
 import type { CharacterRig } from '../player/characterRig';
@@ -1462,7 +1462,13 @@ export class CoopHost implements NetAttachment {
     const v = this.carries.get(id);
     if (!v) return;
     this.carries.delete(id);
-    const at = v.drop(this.g.enemyMgr?.canRagdoll() ?? false);
+    const ok = this.g.enemyMgr?.canRagdoll() ?? false;
+    // (fix round) a lift let go of before the hoist: laid back quietly, as the host's own crouch let-go
+    if (!letGoHeard(v.onShoulder)) {
+      v.letGo(ok);
+      return;
+    }
+    const at = v.drop(ok);
     this.g.enemyMgr?.hear(at, DROP_NOISE);
   }
 

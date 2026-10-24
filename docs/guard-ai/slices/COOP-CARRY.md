@@ -118,3 +118,20 @@ Steps 1-3 done; the e2e is written, not run (laptop queue).
   5. e2e: a guard may find and wake the knocked-out guard before the client lifts him (the block runs ~1-2 s after the
      knockout); a hide spot is used only when the map has one within 2 m height, else the put down path asserts.
   6. A host refusal (far, taken) shows nothing on the client (no feed line).
+
+## Fix round (2026-10-24, Opus; checks A + B PASS, e2e-coop failed at "host hides the client body")
+- (a) e2e-coop "client carries a body": every client teleport is allowed on the host (`r.allowTeleport(3)`) and waited
+  for until the host's copy of the client's feet is within 0.6 m of the target (the 12 m jump to the hide spot was
+  clamped to ~0.8 m a state, so the hide was refused); every other live guard on the host is frozen for the block
+  (`e.update = () => {}`, restored in `finally`); the item mirror is waited for before the first teleport; the
+  `found0` assert (meaningless after `beginHoist`) is now "the guard still down and his body off the floor list"
+  (`!present`), carried and again 3 s after the hide.
+- (b) A client lift let go of before the hoist (crouch cancel, a refused local start, a body it never saw fall) is quiet
+  on the host and lies where it was (`bodyCarryNet.letGoHeard`, `CarryView.letGo`: no push, no `DROP_NOISE`), as the
+  host's own crouch let-go; a put down from the shoulder is heard as before. The client shows a partner's early let-go
+  the same way.
+- (c) The client offers "Pick up body" only for a body it has lying itself (`clientBodyPrompt`): a late joiner gets no
+  prompt for a guard it never saw fall; a body whose item came before its kill event gets the prompt on the event
+  (`CoopClient.bodyPrompt`).
+- Tests: `tests/coopCarry.test.ts` 17 (+2: letGoHeard / clientBodyPrompt with their wiring), crateWire 8: pass;
+  `tsc --noEmit` clean; eslint clean. Laptop set coop-carry2: e2e-coop, e2e-takedown.

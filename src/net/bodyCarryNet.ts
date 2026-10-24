@@ -58,6 +58,19 @@ export function hideOk(alive: boolean, carrying: boolean, inReach: boolean): boo
   return alive && carrying && inReach;
 }
 
+/** (coop-carry fix round) A client's carry that ends before the body reached its shoulder (a crouch let-go, a lift the
+ *  client could not start) lays it back where it lay, quiet, as the host's own let-go (`BodyCarry.liftStep`, no noise);
+ *  only a put down from the shoulder is heard (`DROP_NOISE`). */
+export function letGoHeard(onShoulder: boolean): boolean {
+  return onShoulder;
+}
+
+/** (coop-carry fix round) The client's "Pick up body" prompt: the host's lying state, and only for a body this page has
+ *  lying itself (it saw him fall: a late joiner has none to lift). */
+export function clientBodyPrompt(hostOn: boolean, localPresent: boolean): boolean {
+  return hostOn && localPresent;
+}
+
 /** The mirrored item of one body (host -> client): lying (`on`) when present and nobody's; `by` the carrier. */
 export function bodyItem(bodyId: string, enemyId: string, x: number, y: number, z: number, present: boolean, by: string, reach: number): NetItem {
   const n: NetItem = { id: `body-${bodyId}`, k: 'body', x, y, z, yaw: 0, label: 'Pick up body', hold: 0, reach, on: present && by === '', e: enemyId };

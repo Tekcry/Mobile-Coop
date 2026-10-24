@@ -66,6 +66,16 @@ export class CarryView {
     return at;
   }
 
+  /** (coop-carry fix round) Let go of before the hoist landed: laid back where it lies (no push), as the owner's crouch
+   *  let-go leaves it. */
+  letGo(ragdollOk: boolean): Vector3 {
+    const b = this.body;
+    const at = b.pos.clone();
+    b.drop(new Vector3(0, 0, 0), ragdollOk, at, this.avatar.yaw + Math.PI / 2);
+    this.clear();
+    return at;
+  }
+
   /** Into a hiding spot: gone for good. */
   hide(): void {
     this.body.hide();
