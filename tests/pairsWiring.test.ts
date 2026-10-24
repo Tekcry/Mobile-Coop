@@ -95,6 +95,7 @@ function guard(route: PatrolRoute | null, x = 0, z = 0, o: Partial<FakeGuard> = 
     squad: -1,
     section: 0,
     coverIdx: -1,
+    roleBound: false,
     roleFlags: 0,
     job: '',
     setGear: vi.fn(), // (guard-ai S12) placeSlot puts gear on him

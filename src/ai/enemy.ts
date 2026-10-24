@@ -24,7 +24,7 @@ import { emptyMotionInput, MotionDriver } from '../anim/motion';
 import { ENEMY_CALM_MOTION, ENEMY_MOTION } from '../config/movement';
 import type { RigPose } from '../player/characterRig';
 import { clampToRoom, inRoom, roomAt, type RoomRect } from '../world/rooms';
-import { hyp2 } from '../core/mathx';
+import { hyp2, hyp3 } from '../core/mathx';
 import { EYE_STAND, instantDetect, losClear, noiseSuspicion, PERCEPTION, seenAt, sightRate, stepMeter, type SightInput } from './perception';
 import { ALERT, AlertMachine, callInDelay, emptyAlertInput, type AlertLevel } from './alertState';
 import { COMBAT_HEAR, HEARING } from './hearing';
@@ -211,7 +211,7 @@ export interface AiContext {
    *  written into `out` and claimed for him; false = none left or no plan (the ring then). Absent: the ring. */
   searchPoint?(e: Enemy, out: P2): boolean;
   /** (guard-ai S25) His claimed plan point is over: looked into (`reached`) or found unreachable; done either way, so
-   *  nobody retries it. */
+   *  nobody retries it. The manager (`searchDoneFor`) ignores `reached` today: the point is finished either way. */
   searchDone?(e: Enemy, reached: boolean): void;
   /** A callout (shown near the speaker; radio lines chirp). (guard-ai S9) `ev`, `n`, `unit`: the table line it is (the
    *  event, its line index, the unit it names; absent for a line said verbatim, a talking pair's), for the co-op host. */
@@ -251,6 +251,58 @@ const SUPPRESS_CHECK = 0.25;
 const ENTRY_MAX = 30;
 /** Body sample heights for exposure (fractions of the target's height above the feet, then the head). */
 const EXPOSE_HIPS = 0.52;
+
+// ----- (guard-ai polish A) undo switches: each flips one polish fix back to the 4.97.1 behaviour -----
+/** (polish A1) A device responder whose investigation (a light, a body) ends calm goes back to the device's search
+ *  (its spot and room). Undo: false (he stands with no route). */
+const RESPONDER_RESUME = true;
+/** (polish A2, A167) A cover is rejected when its A* walk is longer than `k` x the straight line + `add` m (a cover
+ *  behind a full wall). Undo: `k` Infinity. */
+export const COVER_DETOUR = { k: 1.5, add: 3 };
+/** (polish A2, A167) The best this many covers are tried in order (one a mate holds, no path or a detour: the next).
+ *  Undo: 1. */
+export const COVER_TRIES = 3;
+/** (polish A2, A167) The open wait's failed cover pick is tried again once per `SQUAD.openWait`, and while the group
+ *  holds him (`roleMoving` false) it never lands on his own role cover. Undo: false (one try, any cover). */
+const COVER_RETRY = true;
+/** (polish A3, A165) In stealth with no intruder (`hunt` -1) he paths to his own known spot (A*), not along the
+ *  freshest intruder's chase field. Undo: true. */
+const SLOTLESS_FIELD = false;
+/** (polish A4, A166) Hunting one intruder, he sees another: he calls that one in, once per intruder per fight. Undo:
+ *  false (silent switch). */
+const RECALL_SWITCH = true;
+/** (polish A5) In cover out of sight (stealth): the "cover still protects" and "too close" exits read his known spot
+ *  (`knownPt`), not the player's real feet. Undo: false. */
+const COVER_KNOWN = true;
+/** (polish A6) The open wait's cover pick ends a bound (`advancing` false): he holds there, no chase after
+ *  `ADVANCE_HOLD`. Undo: false. */
+const OPEN_PICK_HOLDS = true;
+/** (polish A7) The suppress line's cached verdict is dropped after a lapse (no call last step) or a moved spot (> 0.5
+ *  m): the next round waits for a new cast. Undo: false. */
+const SUPPRESS_FRESH = true;
+/** (polish A8) The suppress line test is blocked by props too (`ENEMY_SHOT` stops on them). Undo: `G.STATIC`. */
+const SUPPRESS_LINE = G.STATIC | G.PROP;
+/** (polish A9) A new target: his aim settle (`losT`) starts again. Undo: false. */
+const SETTLE_NEW_TARGET = true;
+/** (polish A10) A dog in combat keeps to a player he smells as well as one he sees. Undo: false. */
+const DOG_SMELL_PICK = true;
+/** (polish A11) Search spots snap to the storey nearest the hunt position (else his own feet), not the lowest. Undo:
+ *  false. */
+const SNAP_STOREY = true;
+/** (polish A12) A heard spot (`hearSearch`) does not use up a ring index or the last known position visit. Undo: false. */
+const HEARD_KEEPS_K = true;
+/** (polish A13) A high-security post never takes a search-plan point; a plan point a clamp moved is finished with
+ *  `reached` false. Undo: false. */
+const PLAN_CLAMP = true;
+/** (polish A2) `pickCover`'s best candidates (index, score), best first; module scratch (one pick at a time). */
+const CV_IDX = new Int32Array(8);
+const CV_SCORE = new Float64Array(8);
+/** (polish A14) `coverQuality`'s spot and its one threat, reused by `pickCover` (no object or array per candidate). */
+const CQ_SPOT: CoverSpot = { nx: 0, nz: 0, low: false, x: 0, z: 0 };
+const CQ_THREAT = { x: 0, z: 0 };
+const CQ_THREATS = [CQ_THREAT];
+/** (polish A10) The players a dog in combat keeps to: seen or smelled (module scratch, as `P_LOS`). */
+const P_SEEN = new Uint8Array(MAX_INTRUDERS);
 
 export class Enemy implements Damageable {
   readonly num = nextId++;
@@ -404,6 +456,9 @@ export class Enemy implements Damageable {
   hunt = -1;
   /** (guard-ai S24) The intruder a call / shout / located shot named, taken when he goes to combat (-1 none). */
   private pendingHunt = -1;
+  /** (polish A4, A166) Bit per intruder slot command knows he fights this fight (he called it in, or was told of it):
+   *  a switch to a slot not in it is called in once. Cleared with `hunt` when he calms. */
+  private calledMask = 0;
   /** (guard-ai S24, A148) He has seen (or been shot from) a player: `lastKnown` is a real spot. */
   private sawOnce = false;
   /** (guard-ai S24) Scratch: the spot he goes for with no position for his intruder. */
@@ -425,6 +480,10 @@ export class Enemy implements Damageable {
    *  points this search has had (the ring fallback counts on from its own first point). */
   private planPoint = false;
   private planN = 0;
+  /** (polish A12) The current spot is a heard noise (`hearSearch`): its look end keeps `searchK`. */
+  private heardSpot = false;
+  /** (polish A13) The current plan point was moved by a hold-room / device-room clamp: finished with `reached` false. */
+  private spotClamped = false;
   private routePath: Waypoint[] = [];
   private routeGoal: P2 = [NaN, NaN];
   private routeT = 0;
@@ -1047,6 +1106,8 @@ export class Enemy implements Damageable {
     this.stateT = 0;
     this.wantCrouch = false;
     this.coverPicked = false;
+    // (polish B2 fix) a bound ends with the walk (`boundTo` sets it again after its own `seekCover`)
+    this.onRoleBound = false;
   }
 
   /** A noise from (x, z) audible to `radius` (m): suspicion by distance, and a place to look. */
@@ -1097,14 +1158,10 @@ export class Enemy implements Damageable {
     if (!this.alive || this.aware.level !== 'searching') return;
     this.spot[0] = x;
     this.spot[1] = z;
-    const nav = this.ctx.nav;
-    const c = nav.nearestWalkable(x, z, 4);
-    if (c >= 0) {
-      // the cell's centre (`NavGrid.center` without its array)
-      const col = c % nav.cols;
-      this.spot[0] = nav.ox + ((col % nav.w) + 0.5) * nav.cell;
-      this.spot[1] = nav.oz + (((col / nav.w) | 0) + 0.5) * nav.cell;
-    }
+    // (polish A11) on his own storey (the noise's height is not passed: S26-CHECK-B 9 remainder)
+    this.snapSpot(SNAP_STOREY ? this.pos.y : Number.NaN);
+    // (polish A12) its look does not use up a ring index (nor the last known position visit)
+    this.heardSpot = HEARD_KEEPS_K;
     this.spotSet = true;
     this.spotLookT = 0;
     this.planPoint = false;
@@ -1114,6 +1171,17 @@ export class Enemy implements Damageable {
       this.hearBarkT = 0;
       this.bark('investigate');
     }
+  }
+
+  /** (polish A11) `spot` onto the nearest walkable cell within 4 of it on the storey nearest `y` (NaN: the lowest), at
+   *  the cell's centre (`NavGrid.center` without its array); no cell: left as it is. */
+  private snapSpot(y: number): void {
+    const nav = this.ctx.nav;
+    const c = nav.nearestWalkable(this.spot[0], this.spot[1], 4, y);
+    if (c < 0) return;
+    const col = c % nav.cols;
+    this.spot[0] = nav.ox + ((col % nav.w) + 0.5) * nav.cell;
+    this.spot[1] = nav.oz + (((col / nav.w) | 0) + 0.5) * nav.cell;
   }
 
   /** (guard-ai S26) In combat, a noise turned his hunt (the manager's `hear`): the re-aim throttle restarts. */
@@ -1396,6 +1464,8 @@ export class Enemy implements Damageable {
     if (slot < 0 || !this.alive) return;
     if (this.alerted) {
       if (this.hunt < 0) this.hunt = slot;
+      // (polish A4) told of him: command knows of that fight (it has a caller), a later sighting of him is no new call
+      this.calledMask |= 1 << slot;
     } else if (this.pendingHunt < 0) this.pendingHunt = slot;
   }
 
@@ -1403,8 +1473,10 @@ export class Enemy implements Damageable {
    *  the first); calm, taken when he goes to combat; in combat, at once. -1: nothing. */
   retell(slot: number): void {
     if (slot < 0 || !this.alive) return;
-    if (this.alerted) this.hunt = slot;
-    else this.pendingHunt = slot;
+    if (this.alerted) {
+      this.hunt = slot;
+      this.calledMask |= 1 << slot;
+    } else this.pendingHunt = slot;
   }
 
   /** (coop4 fix, A171 / G139) Intruder slot `s` passed to a new player: what he hunts or was told of it (`hunt`, the
@@ -1413,6 +1485,7 @@ export class Enemy implements Damageable {
     if (s < 0) return;
     if (this.hunt === s) this.hunt = -1;
     if (this.pendingHunt === s) this.pendingHunt = -1;
+    this.calledMask &= ~(1 << s);
   }
 
   /** (guard-ai S24) His intruder's last known position (null: none, or no longer valid). */
@@ -1446,6 +1519,9 @@ export class Enemy implements Damageable {
     const had = this.hunt;
     this.hunt = s;
     if (had < 0 && recall && this.netOn) this.callContact();
+    // (polish A4, A166) hunting one intruder, he sees another command has not heard of from him: he calls him in once
+    // this fight (he saw him: G139 holds), so the new fight has a reporter
+    else if (RECALL_SWITCH && had >= 0 && s !== had && recall && this.netOn && (this.calledMask & (1 << s)) === 0) this.callContact();
   }
 
   /** (guard-ai S25) His plan point is over (looked into, or unreachable): the manager marks it done. */
@@ -1465,6 +1541,7 @@ export class Enemy implements Damageable {
     this.ctx.shout?.(this);
     // (guard-ai S24, A149) the call's incident is his intruder slot: the section learns of that player only
     this.ctx.radioCall?.(this, this.hunt, 'contact');
+    if (this.hunt >= 0) this.calledMask |= 1 << this.hunt;
   }
 
   /** Something to search for without a sighting (a body, lights cut) around (x, z); with `revive`, wake that
@@ -1620,6 +1697,10 @@ export class Enemy implements Damageable {
   /** (guard-ai S17) Came in on a device's alarm (`joinAsResponder`): his search of its spot never ends (an aggressive
    *  reinforcement never calms, S6; a response team sweeps after it, S13). */
   responder = false;
+  /** (polish A1) A responder's device spot and room (`joinAsResponder`): his search goes back there after a look. */
+  private devX = 0;
+  private devZ = 0;
+  private devRoom: RoomRect | null = null;
   private readonly entryGoal: { point: P2 | null; speed: number; face: number | null } = { point: null, speed: 0, face: null };
 
   /** (guard-ai S17) The room a device's search keeps to (e2e / debug; null none). */
@@ -1661,6 +1742,9 @@ export class Enemy implements Damageable {
     this.responder = true;
     this.searchAt(x, z, null, SEARCH_DEVICE);
     this.searchRoom = room && inRoom(room, x, z, 0.5) ? room : null;
+    this.devX = x;
+    this.devZ = z;
+    this.devRoom = this.searchRoom;
     // (guard-ai S19) a reinforcement on an alarm hurries to its spot
     this.rush = urgentKind('device');
   }
@@ -1926,6 +2010,7 @@ export class Enemy implements Damageable {
     if (to === 'cooldown' || to === 'unaware') {
       this.hunt = -1;
       this.pendingHunt = -1;
+      this.calledMask = 0;
     }
     if (to === 'alert') {
       // (guard-ai S24, A146) his intruder: the one he sees (his own sight wins; reported now, so his contact call carries
@@ -1935,6 +2020,8 @@ export class Enemy implements Damageable {
       if (this.target && this.los) this.takeSighting(this.target, this.alertIn.called && this.hunt < 0 && this.pendingHunt < 0);
       else if (this.pendingHunt >= 0) this.hunt = this.pendingHunt;
       this.pendingHunt = -1;
+      // (polish A4) told of him (or about to call him in below): command knows
+      if (this.hunt >= 0) this.calledMask |= 1 << this.hunt;
       // (guard-ai S8) his combat dice for this engagement (seeded per guard per engagement, replayable)
       this.rng.reseed(this.ctx.combatSeed?.(this) ?? Math.imul(this.num, 2654435761));
       this.meter = 1;
@@ -1979,6 +2066,7 @@ export class Enemy implements Damageable {
     this.combatSearch = to === 'searching' && (from === 'alert' || (from === 'searching' && this.combatSearch));
     // (guard-ai S25) a new search, or none: no plan point held (the manager frees the claim)
     this.planPoint = false;
+    this.heardSpot = false;
     if (to !== 'searching') this.reviving = null;
     // (guard-ai S17) a device's room bounds only its own search (combat's search is round the last known position)
     if (to !== 'searching' || from === 'alert') this.searchRoom = null;
@@ -1988,6 +2076,14 @@ export class Enemy implements Damageable {
     if (to === 'unaware' || to === 'cooldown') {
       this.hasStimulus = false;
       this.walker.rejoin(this.pos.x, this.pos.z);
+    }
+    // (polish A1) a device's responder pulled off his search (a light, a body, a missing man) and calm again: back to
+    // the device's search, inside its room (with no route he would stand)
+    if (RESPONDER_RESUME && this.responder && from === 'investigating' && (to === 'cooldown' || to === 'unaware') && this.alive && !this.taken) {
+      this.searchAt(this.devX, this.devZ, null, SEARCH_DEVICE);
+      this.aware.set('searching');
+      this.onLevel(to, 'searching');
+      this.searchRoom = this.devRoom;
     }
   }
 
@@ -2126,6 +2222,7 @@ export class Enemy implements Damageable {
     // (guard-ai S26) the hearing throttles
     if (this.heardT < 99) this.heardT += dt;
     if (this.hearBarkT < 99) this.hearBarkT += dt;
+    if (this.suppressGap < 99) this.suppressGap += dt;
     this.prevPos.copyFrom(this.pos);
     this.prevYaw = this.yaw;
     // in a takedown: the attacker drives the body, the brain is off
@@ -2222,6 +2319,7 @@ export class Enemy implements Damageable {
       if (p === this.target) cur = i;
       if (hid !== '' && p.id === hid) hi = i;
       P_LOS[i] = 0;
+      P_SEEN[i] = 0;
       P_CHEST[i] = 0;
       P_HEAD[i] = 0;
       P_SMELL[i] = 0;
@@ -2300,6 +2398,7 @@ export class Enemy implements Damageable {
         }
       }
       P_LOS[i] = los ? 1 : 0;
+      P_SEEN[i] = los || P_SMELL[i] === 1 ? 1 : 0;
       P_CHEST[i] = chest ? 1 : 0;
       P_HEAD[i] = head && !chest ? 1 : 0;
       P_EXPO[i] = expo;
@@ -2312,9 +2411,13 @@ export class Enemy implements Damageable {
     this.raysStep += used;
     // the target: the best seen (calm), the one he is fighting while he sees him (combat); `TARGETS.all` false: the
     // nearest only (before S23)
-    const k = near < 0 ? -1 : TARGETS.all ? pickTarget(n, alerted, TARGETS.sticky ? cur : -1, hi, P_LOS, P_RATE, P_DIST) : near;
+    // (polish A10) a dog in combat keeps to a player he smells as well as one he sees
+    const seenBy = dog && DOG_SMELL_PICK ? P_SEEN : P_LOS;
+    const k = near < 0 ? -1 : TARGETS.all ? pickTarget(n, alerted, TARGETS.sticky ? cur : -1, hi, seenBy, P_RATE, P_DIST) : near;
     this.seenMask = mask;
     const best = k >= 0 ? players[k]! : null;
+    // (polish A9) another player: the aim settle on him starts again
+    if (SETTLE_NEW_TARGET && best !== this.target) this.losT = 0;
     this.target = best;
     this.dist = best ? P_DIST[k]! : Infinity;
     if (!best) {
@@ -2591,27 +2694,33 @@ export class Enemy implements Damageable {
           const cx = this.hasStimulus && !k ? this.stimulus[0] : k ? k.x : this.pos.x;
           const cz = this.hasStimulus && !k ? this.stimulus[1] : k ? k.z : this.pos.z;
           this.planPoint = false;
+          this.heardSpot = false;
+          this.spotClamped = false;
+          // (polish A13) a high-security post searches from his leash's edge: no plan point (it would be clamped)
+          const secure = PLAN_CLAMP && this.postDef !== null && this.postDef.highSecurity;
           if (this.searchK === 0) {
             this.spot[0] = cx;
             this.spot[1] = cz;
-          } else if (lvl === 'searching' && this.combatSearch && !this.searchOwn && this.hunt >= 0 && SEARCH_AREA.enabled && this.ctx.searchPoint?.(this, this.spot)) {
+          } else if (lvl === 'searching' && this.combatSearch && !this.searchOwn && !secure && this.hunt >= 0 && SEARCH_AREA.enabled && this.ctx.searchPoint?.(this, this.spot)) {
             // (guard-ai S25, A151) after combat: the next point of his intruder's probable area (dark, cover, near)
             this.planPoint = true;
             this.planN++;
           } else ringPoint(cx, cz, this.searchK - 1 - this.planN, this.ctx.searchSlot(this), searchSpec(this.searchKind), this.spot);
-          const c = this.ctx.nav.nearestWalkable(this.spot[0], this.spot[1], 4);
-          if (c >= 0) {
-            const cc = this.ctx.nav.center(c);
-            this.spot[0] = cc[0];
-            this.spot[1] = cc[1];
-          }
+          // (polish A11) on the hunt position's storey (else his own), not the lowest
+          this.snapSpot(!SNAP_STOREY ? Number.NaN : k ? k.y : this.pos.y);
           this.spotSet = true;
           this.spotLookT = 0;
         }
-        if (this.hold && !inRoom(this.hold, this.spot[0], this.spot[1])) clampToRoom(this.hold, this.spot[0], this.spot[1], 0.8, this.spot);
+        if (this.hold && !inRoom(this.hold, this.spot[0], this.spot[1])) {
+          clampToRoom(this.hold, this.spot[0], this.spot[1], 0.8, this.spot);
+          this.spotClamped = true;
+        }
         // (guard-ai S17) a device's search keeps to the device's room
         const sr = this.searchRoom;
-        if (sr && lvl === 'searching' && !inRoom(sr, this.spot[0], this.spot[1])) clampToRoom(sr, this.spot[0], this.spot[1], 0.8, this.spot);
+        if (sr && lvl === 'searching' && !inRoom(sr, this.spot[0], this.spot[1])) {
+          clampToRoom(sr, this.spot[0], this.spot[1], 0.8, this.spot);
+          this.spotClamped = true;
+        }
         // (guard-ai S5) a high-security post never joins a search outside his leash: he looks from its edge
         const pd = this.postDef;
         if (pd && pd.highSecurity) clampToLeash(this.spot[0], this.spot[1], this.post[0], this.post[1], pd.leash, this.spot);
@@ -2625,8 +2734,11 @@ export class Enemy implements Damageable {
           this.spotLookT += dt;
           // (guard-ai S18) the look per point by the search's kind
           if (lvl === 'searching' && this.spotLookT >= searchSpec(this.searchKind).look) {
-            if (this.planPoint) this.planOver(true);
-            this.searchK++;
+            // (polish A13) a point a clamp moved was not looked into
+            if (this.planPoint) this.planOver(!(PLAN_CLAMP && this.spotClamped));
+            // (polish A12) a heard spot keeps the ring's place
+            if (this.heardSpot) this.heardSpot = false;
+            else this.searchK++;
             this.spotSet = false;
           }
           // look round: sweep either side of the arrival facing
@@ -2637,7 +2749,8 @@ export class Enemy implements Damageable {
         if (!wp && lvl === 'searching' && this.routePath.length === 0 && d > 1.1) {
           // unreachable: skip it
           if (this.planPoint) this.planOver(false);
-          this.searchK++;
+          if (this.heardSpot) this.heardSpot = false;
+          else this.searchK++;
           this.spotSet = false;
         }
         // (guard-ai S19) hurrying to it: a jog (`paceSpeed`), else his calm pace
@@ -2704,6 +2817,13 @@ export class Enemy implements Damageable {
   private roleCover = -1;
   /** The group lets him leave cover for it now (one point and one flanker moving at a time). */
   private roleMoving = false;
+  /** (guard-ai polish B2 fix) His `seekCover` walk is a role bound `boundTo` started (not this tick's role cover): set
+   *  there, cleared by any other cover pick and any state change (arrived, left `seekCover`); a role switch mid-walk
+   *  keeps it. The manager's one-mover rule reads it (`roleBound`). */
+  private onRoleBound = false;
+  get roleBound(): boolean {
+    return this.onRoleBound;
+  }
   /** May run (between covers, or aggressive): the e2e / debug read it. */
   roleRun = false;
   /** A squadmate (point or flank) is moving: the overwatch suppresses the last known position. */
@@ -2730,8 +2850,10 @@ export class Enemy implements Damageable {
   /** (guard-ai S27) The cached verdict of the static ray muzzle -> `suppressAim` and the time to the next cast (s). */
   private suppressOk = false;
   private suppressCheckT = 0;
-  /** (guard-ai S27) Rounds the overwatch's suppress put out, and the thinks it held for a blocked line (tests, e2e,
-   *  debug). */
+  /** (polish A7) Seconds since the last `suppressLkp` call (99 none; `update` counts it). */
+  private suppressGap = 99;
+  /** (guard-ai S27) Rounds the overwatch's suppress put out, and the steps (`decide` calls, not 2 Hz
+   *  thinks) it held for a blocked line (tests, e2e, debug). */
   suppressRounds = 0;
   suppressHeld = 0;
   /** `roleStep`'s goal, reused (decide runs every frame: no allocation). */
@@ -2765,6 +2887,8 @@ export class Enemy implements Damageable {
     if (role !== this.role) {
       this.openT = 0;
       this.openNoCover = false;
+      // (polish B2 re-check) a role switch mid-walk keeps `onRoleBound`: he is still on his way, so the one-mover rule
+      // keeps counting him (the walk ends on arrival, the seekCover timeout or death, all through setState)
     }
     this.role = role;
     this.roleCover = cover;
@@ -2822,13 +2946,18 @@ export class Enemy implements Damageable {
       // takes today's cover pick (`pickCover`: the nearest protecting cover, reserved through `reserveCover`) and the
       // `seekCover` branch walks him there; no cover anywhere: crouched where he is (the 12 s rule ends it)
       this.wantCrouch = true;
+      // (polish A2, A167) no cover last time: one more try per `openWait` (a mate may have left his)
+      if (COVER_RETRY && this.openNoCover && this.openT >= SQUAD.openWait) this.openNoCover = false;
       if (!this.openNoCover && this.openT > 0 && (c < 0 || this.openT >= SQUAD.openWait)) {
         this.openT = 0;
         this.armourPick = false;
-        if (this.pickCover()) {
+        // (polish A2, A167) held by the group: never his own role cover (that trip is the group's to allow)
+        if (this.pickCover(COVER_RETRY && !this.roleMoving ? c : -1)) {
           // (from chase / idle: the reservation is kept)
           this.setState('seekCover');
           this.coverPicked = true;
+          // (polish A6) a pick to sit in, not a bound: no chase after the advance hold
+          if (OPEN_PICK_HOLDS) this.advancing = false;
           return null;
         }
         this.openNoCover = true;
@@ -2845,7 +2974,8 @@ export class Enemy implements Damageable {
     const c = this.ctx.cover[idx];
     if (!c) return false;
     const path = this.ctx.nav.findPath([this.pos.x, this.pos.z], [c.pos.x, c.pos.z], 3000, this.pos.y, c.pos.y);
-    if (!path) {
+    // (polish A2, A167) a walk round a wall to it is no bound: skipped like a cover with no path (re-picked next tick)
+    if (!path || this.detour(path, c.pos.x, c.pos.z)) {
       this.ctx.blockCover?.(idx);
       return false;
     }
@@ -2858,6 +2988,8 @@ export class Enemy implements Damageable {
     this.coverIdx = idx;
     this.path = path;
     this.peekCycles = 0;
+    // (polish B2 fix) a role bound until he stops walking to it, whatever later ticks pick for his role
+    this.onRoleBound = true;
     return true;
   }
 
@@ -2867,12 +2999,17 @@ export class Enemy implements Damageable {
   private suppressLkp(dt: number): void {
     const k = this.huntPos();
     if (!k || this.lastSeenT < 2.5) return;
-    this.suppressAim.set(k.x, k.y + 1.1, k.z);
+    // (polish A7) a new episode (no call last step) or a moved spot: the cached verdict is stale, cast again now
+    const a = this.suppressAim;
+    if (SUPPRESS_FRESH && (this.suppressGap > dt * 1.5 || hyp3(k.x - a.x, k.y + 1.1 - a.y, k.z - a.z) > 0.5)) this.suppressCheckT = 0;
+    this.suppressGap = 0;
+    a.set(k.x, k.y + 1.1, k.z);
     if (SQUAD.suppressView) {
       this.suppressCheckT -= dt;
       if (this.suppressCheckT <= 0) {
         this.suppressCheckT = SUPPRESS_CHECK;
-        this.suppressOk = this.ctx.ballistics.clear(this.muzzle(this.fireFrom, 'suppress'), this.suppressAim, G.STATIC);
+        // (polish A8) props stop the rounds too (`ENEMY_SHOT`)
+        this.suppressOk = this.ctx.ballistics.clear(this.muzzle(this.fireFrom, 'suppress'), this.suppressAim, SUPPRESS_LINE);
       }
       if (!this.suppressOk) {
         this.suppressHeld++;
@@ -2954,7 +3091,7 @@ export class Enemy implements Damageable {
       this.lunge -= dt;
       const speed = this.lunge > 0 ? def.melee.lunge : def.runSpeed;
       if (this.dist < 1.2) return { point: null, speed: 0, face: toTarget };
-      return { point: this.chasePoint(tp, true, known.y), speed, face: null };
+      return { point: this.chasePoint(dt, tp, true, known.y), speed, face: null };
     }
 
     // ---- ranged ----
@@ -2974,7 +3111,7 @@ export class Enemy implements Damageable {
       else if (this.lastSeenT < 2.5) this.tryFire(dt, 'suppress');
       if (!this.los && this.stateT > 3) this.setState('chase');
       const close = this.dist <= def.engageMin + 0.5;
-      return { point: close ? null : this.chasePoint(tp, false), speed: ARCHETYPE.enforcer.pushSpeed, face: toTarget };
+      return { point: close ? null : this.chasePoint(dt, tp, false), speed: ARCHETYPE.enforcer.pushSpeed, face: toTarget };
     }
     // (guard-ai S8) a role in the engaged group: bounds, holds and waits by role (else today's tactics below)
     // (S16 merge) before the armour check: a bound the group has started or allows is not cut short by it; in sight the
@@ -3008,7 +3145,7 @@ export class Enemy implements Damageable {
       case 'chase': {
         // (guard-ai S16) repositioning away from armour: no stop to engage while the line stays armoured
         const armourMove = this.los && this.fireGate.moveT > 0 && this.armourBlocks(t, 'aim', dt);
-        if (armourMove) return { point: this.chasePoint(tp, false), speed: def.runSpeed * 0.75, face: null };
+        if (armourMove) return { point: this.chasePoint(dt, tp, false), speed: def.runSpeed * 0.75, face: null };
         if (this.los && this.dist <= def.engageMax) {
           // in a fight they get behind something first (guard-ai S8: the profile's weight against the seeded dice)
           this.advancing = false;
@@ -3037,10 +3174,10 @@ export class Enemy implements Damageable {
             this.advanceCd = 1.5;
           }
           // (guard-ai S8) an aggressive guard (reinforcements) closes at a jog
-          return { point: this.chasePoint(tp, false), speed: this.tacticsProfile === P_AGGRESSIVE ? def.runSpeed * AGGRESSIVE_JOG : def.walkSpeed * ADVANCE_PACE, face: null };
+          return { point: this.chasePoint(dt, tp, false), speed: this.tacticsProfile === P_AGGRESSIVE ? def.runSpeed * AGGRESSIVE_JOG : def.walkSpeed * ADVANCE_PACE, face: null };
         }
         this.closingIn = closer;
-        return { point: this.chasePoint(tp, false), speed: this.los ? def.walkSpeed : def.runSpeed, face: null };
+        return { point: this.chasePoint(dt, tp, false), speed: this.los ? def.walkSpeed : def.runSpeed, face: null };
       }
       case 'attack': {
         // lost sight a moment ago: keep their head down with suppressive fire at the last position
@@ -3124,9 +3261,12 @@ export class Enemy implements Damageable {
         }
         this.advancing = false;
         // flanked? leave (guard-ai S8: a guard with a role does not step out after 5 peeks: he holds and reports)
-        const dirX = t.feet.x - cp.pos.x;
-        const dirZ = t.feet.z - cp.pos.z;
+        // (polish A5) out of sight in stealth: from where he believes the target is (`knownPt`), never the real feet
+        const blindCover = COVER_KNOWN && !this.los && !this.smelled && this.ctx.stealth();
+        const dirX = (blindCover ? this.knownPt[0] : t.feet.x) - cp.pos.x;
+        const dirZ = (blindCover ? this.knownPt[1] : t.feet.z) - cp.pos.z;
         const l = hyp2(dirX, dirZ) || 1;
+        const near = blindCover ? hyp2(this.knownPt[0] - this.pos.x, this.knownPt[1] - this.pos.z) : this.dist;
         const protects = (cp.normal.x * dirX + cp.normal.z * dirZ) / l;
         const holds = this.role !== R_NONE && this.role !== R_SEARCH;
         // (guard-ai S8) a point that has held its cover 5 peeks without a sight of him walks the last stretch (out of
@@ -3137,7 +3277,7 @@ export class Enemy implements Damageable {
           this.setState('chase');
           return { point: null, speed: 0, face: toTarget };
         }
-        if (protects < 0.2 || (this.peekCycles >= 5 && !holds) || this.dist < def.engageMin * 0.7) {
+        if (protects < 0.2 || (this.peekCycles >= 5 && !holds) || near < def.engageMin * 0.7) {
           this.peekCycles = 0;
           this.setState('attack');
           return { point: null, speed: 0, face: toTarget };
@@ -3237,12 +3377,14 @@ export class Enemy implements Damageable {
     return Math.atan2(t.feet.x - this.pos.x, t.feet.z - this.pos.z);
   }
 
-  /** Direct line if clear, else follow the shared flow field. Runners zigzag. */
-  private chasePoint(tp: P2, zig: boolean, ty = Number.NaN): Waypoint | null {
+  /** Direct line if clear, else follow the shared flow field. Runners zigzag. (polish A3, A165) In stealth with no
+   *  intruder: an A* walk to `tp` (his own known spot), never along the freshest intruder's field (G139). */
+  private chasePoint(dt: number, tp: P2, zig: boolean, ty = Number.NaN): Waypoint | null {
     const nav = this.ctx.nav;
     const me: P2 = [this.pos.x, this.pos.z];
     let p: Waypoint | null;
-    if (this.dist < 18 && nav.lineClear(me, tp, this.pos.y, ty)) p = tp;
+    if (!SLOTLESS_FIELD && this.hunt < 0 && this.ctx.stealth()) p = this.goTo(tp, dt, 0.6, ty);
+    else if (this.dist < 18 && nav.lineClear(me, tp, this.pos.y, ty)) p = tp;
     // (guard-ai S24) his intruder's field (none: the freshest's)
     else p = nav.flowNext(this.ctx.flowOf ? this.ctx.flowOf(this.hunt) : this.ctx.flow(), me[0], me[1], this.pos.y);
     if (p && !p.link && zig && this.dist > 5) {
@@ -3258,6 +3400,8 @@ export class Enemy implements Damageable {
 
   /** Next bound towards the last known position: cover closer to it (by 3 m at least), facing it, within 12 m. */
   private pickAdvance(tp: P2, ty: number): boolean {
+    // (polish B2 fix) his own pick: no role bound
+    this.onRoleBound = false;
     const cover = this.ctx.cover;
     const myD = hyp2(tp[0] - this.pos.x, tp[1] - this.pos.z);
     let best = -1;
@@ -3293,16 +3437,37 @@ export class Enemy implements Damageable {
     return true;
   }
 
-  private pickCover(): boolean {
+  /** (polish A2, A167) The A* walk `path` (from where he stands) to the cover at (x, z) is a detour: longer than
+   *  `COVER_DETOUR.k` x the straight line + `COVER_DETOUR.add` m (a cover behind a full wall). No allocation. */
+  private detour(path: readonly Waypoint[], x: number, z: number): boolean {
+    let len = 0;
+    let px = this.pos.x;
+    let pz = this.pos.z;
+    for (let i = 0; i < path.length; i++) {
+      const w = path[i]!;
+      len += hyp2(w[0] - px, w[1] - pz);
+      px = w[0];
+      pz = w[1];
+    }
+    return len > COVER_DETOUR.k * hyp2(x - this.pos.x, z - this.pos.z) + COVER_DETOUR.add;
+  }
+
+  /** Today's cover pick: the nearest protecting cover in range, reserved (`reserveCover`) with its path. (polish A2,
+   *  A167) The best `COVER_TRIES` are tried in order: one a mate holds, with no path or a detour is skipped for the
+   *  next. `skip`: a cover never to pick (the open wait's own role cover while the group holds him). */
+  private pickCover(skip = -1): boolean {
+    // (polish B2 fix) today's pick (the open wait's, armour, flanker, sniper): no role bound
+    this.onRoleBound = false;
     const t = this.target;
     if (!t) return false;
     const cover = this.ctx.cover;
-    let best = -1;
-    let bestScore = Infinity;
+    const tries = COVER_TRIES < 1 ? 1 : COVER_TRIES > CV_IDX.length ? CV_IDX.length : COVER_TRIES;
+    let kept = 0;
     const armourPick = this.armourPick;
     this.armourPick = false;
     let casts = 0;
     for (let i = 0; i < cover.length; i++) {
+      if (i === skip) continue;
       const c = cover[i]!;
       const dMe = hyp2(c.pos.x - this.pos.x, c.pos.z - this.pos.z);
       if (dMe > (this.relocating ? 22 : 14)) continue;
@@ -3319,36 +3484,56 @@ export class Enemy implements Damageable {
       // flanker: only spots that see past the player's cover
       if (flank && t.cover && !flanks(t.cover, c.pos.x, c.pos.z)) continue;
       if (!this.ctx.nav.isWalkable(this.ctx.nav.cellOf(c.pos.x, c.pos.z, c.pos.y))) continue;
-      const q = coverQuality({ nx: c.normal.x, nz: c.normal.z, low: c.low, x: c.pos.x, z: c.pos.z }, [{ x: this.knownPt[0], z: this.knownPt[1] }]);
+      // (polish A14) the spot and its one threat in module scratch: nothing allocated per candidate
+      CQ_SPOT.nx = c.normal.x;
+      CQ_SPOT.nz = c.normal.z;
+      CQ_SPOT.low = c.low;
+      CQ_SPOT.x = c.pos.x;
+      CQ_SPOT.z = c.pos.z;
+      CQ_THREAT.x = this.knownPt[0];
+      CQ_THREAT.z = this.knownPt[1];
+      const q = coverQuality(CQ_SPOT, CQ_THREATS);
       const score = dMe + Math.abs(dT - 14) * 0.5 - q * 6;
-      if (score < bestScore) {
+      if (kept < tries || score < CV_SCORE[kept - 1]!) {
         // (guard-ai S16) away from armour: only a spot whose fire line (standing muzzle -> the target) is clear of it,
-        // cast only for a spot that would be the new best, at most `ARMOUR_FIRE.coverCasts` per pick
+        // cast only for a spot that would be kept (with one try: the new best), at most `ARMOUR_FIRE.coverCasts` per pick
         if (armourPick) {
           if (casts >= ARMOUR_FIRE.coverCasts) continue;
           casts++;
           this.fireFrom.set(c.pos.x, c.pos.y + (EYE_STAND - 0.2) * this.def.scale, c.pos.z);
           if (this.ctx.ballistics.armouredFirst(this.fireFrom, t.target.aimPoint(this.fireTo), MASK.ENEMY_SHOT)) continue;
         }
-        bestScore = score;
-        best = i;
+        // insert by score (a full list drops its worst)
+        let j = kept < tries ? kept++ : kept - 1;
+        while (j > 0 && CV_SCORE[j - 1]! > score) {
+          CV_SCORE[j] = CV_SCORE[j - 1]!;
+          CV_IDX[j] = CV_IDX[j - 1]!;
+          j--;
+        }
+        CV_SCORE[j] = score;
+        CV_IDX[j] = i;
       }
     }
-    if (best < 0 || !this.ctx.reserveCover(this, best)) return false;
-    const c = cover[best]!;
-    const path = this.ctx.nav.findPath([this.pos.x, this.pos.z], [c.pos.x, c.pos.z], 3000, this.pos.y, c.pos.y);
-    if (!path) {
-      this.ctx.releaseCover(this);
-      return false;
+    for (let k = 0; k < kept; k++) {
+      const best = CV_IDX[k]!;
+      // a mate holds it: the next
+      if (!this.ctx.reserveCover(this, best)) continue;
+      const c = cover[best]!;
+      const path = this.ctx.nav.findPath([this.pos.x, this.pos.z], [c.pos.x, c.pos.z], 3000, this.pos.y, c.pos.y);
+      if (!path || this.detour(path, c.pos.x, c.pos.z)) {
+        this.ctx.releaseCover(this);
+        continue;
+      }
+      this.coverIdx = best;
+      this.path = path;
+      if (this.relocating) {
+        this.shotsHere = 0;
+        this.postT = 0;
+      }
+      this.relocating = false;
+      return true;
     }
-    this.coverIdx = best;
-    this.path = path;
-    if (this.relocating) {
-      this.shotsHere = 0;
-      this.postT = 0;
-    }
-    this.relocating = false;
-    return true;
+    return false;
   }
 
   private tryFire(dt: number, mode: 'aim' | 'suppress' | 'blind' = 'aim'): void {

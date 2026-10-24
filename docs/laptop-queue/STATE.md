@@ -1,6 +1,53 @@
 # laptop-queue - state
 
 ## Now (2026-10-24, laptop-queue batch, local commits, not pushed)
+- 2026-10-24 ~23:40: laptop-queue-3 (feature/laptop-queue-3, worktree C:/NightShift/Mobile-Coop-laptop-queue-3, stacked on
+  feature/affected-flake f89751fd), Orchestrator waste audit, five fixes (pushed):
+  - Release gap hold: lib `trainSoon` releasing case (lib.mjs:541), `releasingTrain` (:504), `readyOrPending` (:522),
+    `RELEASE_HOLD_MS` 10 min (:515). service.mjs `pendingTrains` reads each open train's laptop-e2e `updated_at`
+    (:524) and sets `soon` after the status reads (:528); `trainSoonNow` (:480), `readyOrPendingCandidates` (:472,
+    train-ready PRs with check success or running, minus heads an open train contains). Logged once per change by the
+    existing `soon` hold (train reruns still start). Env `LQ_RELEASE_HOLD_MIN`.
+  - Desktop failures to the laptop: runRequest (service.mjs:1060) posts pending `desktopFailDesc` (lib.mjs:825) and pushes
+    `laptopRerunRequest` (lib.mjs:841; same sha / set / pr / requester, failed suites, `laptopRerun: true`; no set: the
+    old suites joined by "+", so it posts on the same context) through `pushFile`; `finish` `handedOff` (:763) posts
+    pending, no comment. CPU sampled every 5 s watch tick (now in-process `os.cpus()` deltas, see the CPU gate fix
+    below). Desktop filter skips `laptopRerun`. lib `dupKey` / `superseded` / `requestProblem` know `laptopRerun`.
+  - auto-train: `fastPollPlan` `late` -> `FAST_POLL_LATE_S` 30 (auto-train.mjs:497, :530), `pendingSince` (:502),
+    `laptopLate` (:513, "expect ~N s" in the pending status, else `LAPTOP_EXPECT_MIN` 10); openTrain `laptopSince`
+    (:726), step `laptopLate` (:894), main loop (:983). runTrain restamps its pending status with
+    "expect ~N s" (service.mjs:876, lib `expectedWallS` :206) once the shards are known.
+  - Desktop CPU gates leave out background work (waste audit 22:34-23:36: 4192 started nothing for ~62 min with 5
+    requests waiting, a BelowNormal Blender bake held the 50% gate): service.mjs `cpuGated` (:1153) = `os.cpus()` total
+    over the call minus two `Get-Process` snapshots 1 s apart of processes below Normal base priority (`BG_CPU_PS`
+    :1139; ~2-3 s under load; the per-process WMI perf class took ~18 s, rejected); `lazyCpu` (:1163) feeds both gates
+    (:1309 train, :1325 requests). lib `cpuTotalPct` (lib.mjs:111), `backgroundCpuMs` (:135), `gatedCpu` (:159);
+    `desktopGate` (:89) reason shows both: "cpu 62% >= 50% (Normal+ priority; total 95%)". Unreadable processes (other
+    users / protected) stay counted. The run's CPU samples (desktopFailDesc, "; desktop cpu>90%") stay whole-machine
+    load, now in-process `os.cpus()` deltas every 5 s tick (service.mjs:934), no PowerShell per tick (cpuLoadAsync gone).
+  - merge-train "cannot lock ref" (release 23:30:50, another worktree fetched at once): new scripts/fetch-retry.mjs
+    (`FETCH_LOCK_RE` :7, `shouldRetryFetch` :13, `fetchBackoffMs` :16 2-5 s, `fetchWithRetry` :30 up to 5 tries,
+    `fetchOrigin` :47 skips missing optional branches). merge-train.mjs fetches only: mergeAndTag master (:636; the
+    merge commit and closeMembers' member heads are in master), build master + train/* + members (:772; --keep reads
+    train/<n>, --on checks all origin/train/*), release master + train/* (:904; a stacked base is a train head), single
+    master + the branch (:975). auto-train.mjs self-update master only, with the retry (:597).
+  - Checker fix: a superseded laptop rerun posts error "superseded by <id>" on its own context, closing the desktop's
+    "desktop FAIL ..., laptop rerun queued" pending (lib `supersedeStatuses` lib.mjs:913, service.mjs:1198).
+  - Pick order (orchestrator: newest-first let Guard AI's #360 / #363 jump its #317, unclaimed 70 min): lib `pick`
+    (lib.mjs:183) runs a requester's highest `priority` then OLDEST open request (superseded() still retires stale
+    ones first); cross-requester order by arrival unchanged; laptop reruns keep their place by id time. `priority`
+    (integer, default 0) checked in `requestProblem` (lib.mjs:50); `request.mjs --priority N` (request.mjs:82).
+    Tests: tests/laptop-queue.test.ts "pick oldest first per requester" (:54).
+  - Not merged with master (project rule: conflicts go to the train build). origin/master conflicts in
+    scripts/merge-train.mjs (mergeAndTag: master's releaseTail replaces the tag / dev pushes; keep releaseTail, use
+    `fetchOrigin(exec, ['master', 'dev'])` since releaseTail reads origin/dev; also give master's new `repair` and
+    release (already-merged path) fetches 'dev'), tests/autoTrain.test.ts (keep both import lists) and
+    tests/mergeTrain.test.ts (keep both new describe blocks).
+  Rollout: update the laptop service (C:/NightShift/Mobile-Coop-laptop-queue-svc) before or together with the desktop
+  worker. An older laptop's `dupKey` has no laptopRerun element, so a rerun with all suites failed and a set (always
+  the case for affected requests) dedupes against the still-active desktop original and never runs.
+  Tests: tests/laptop-queue.test.ts (gate cpu :336, supersedeStatuses :1026), tests/mergeTrain.test.ts (fetch-retry
+  :552), tests/autoTrain.test.ts.
 - 2026-10-24 ~19:20: feature/laptop-queue-2 (worktree C:/NightShift/Mobile-Coop-laptop-queue-2, from #329 head 80d6087e),
   Orchestrator audit (b)-(d): ALONE_AGE_MIN 30; an aged alone request stops pr claims under the train hold too, only
   while the holding train can clear (lib holdClears); desktop CPU gates 80/80; install-task.ps1 trigger 1 min (re-run it

@@ -7,6 +7,8 @@
 // --train-rerun (with --pr N and --suites; auto-train, --requester auto-train): a train's failed suites rerun on the
 // laptop at train priority; "trainRerun": true, kind pr. Context laptop-e2e/<set> (no --set: laptop-e2e/rerun-<suites>).
 // A pass also posts laptop-e2e success on the sha.
+// --priority N: "priority": N (integer, default 0): among the same requester's open requests a higher one runs first
+// (else oldest first), e.g. a request a train-ready PR waits on; it never moves the request ahead of other requesters.
 // --pin: "pin": true, never superseded (A/B and baseline runs kept on purpose; queue-audit skips them too).
 // --dry-run: builds the commit but pushes nothing; prints the sha it would push and the JSON.
 import { execFileSync } from 'node:child_process';
@@ -36,7 +38,7 @@ const git = (args, { env = {}, input, soft = false } = {}) => {
   }
 };
 
-if (!opts.sha) { console.error('usage: request.mjs --sha <ref> (--suites "a b" | --affected [--wide] | --full | --alone --step "<cmd>") [--pr N] [--set s] [--jobs N] [--requester t] [--note t] [--pin] [--dry-run]'); process.exit(1); }
+if (!opts.sha) { console.error('usage: request.mjs --sha <ref> (--suites "a b" | --affected [--wide] | --full | --alone --step "<cmd>") [--pr N] [--set s] [--jobs N] [--requester t] [--note t] [--pin] [--priority N] [--dry-run]'); process.exit(1); }
 
 if (opts.affected && (opts.suites || opts.full || opts.alone || opts['train-rerun'])) { console.error('--affected replaces --suites (no --full / --alone / --train-rerun)'); process.exit(1); }
 if (opts.wide && !opts.affected) { console.error('--wide needs --affected'); process.exit(1); }
@@ -77,6 +79,7 @@ if (opts.jobs) req.jobs = Number(opts.jobs);
 if (opts.set) req.set = opts.set;
 if (opts.note) req.note = opts.note;
 if (opts.pin) req.pin = true;
+if (opts.priority !== undefined) req.priority = Number(opts.priority);
 const problem = requestProblem(req);
 if (problem) { console.error(`bad request: ${problem}`); process.exit(1); }
 const json = `${JSON.stringify(req, null, 2)}\n`;

@@ -172,6 +172,7 @@ function guard(x: number, z: number, key: number, o: Partial<FakeGuard> = {}): F
     squad: -1,
     section: 0,
     coverIdx: -1,
+    roleBound: false,
     roleFlags: 0,
     zoneR: 0,
     slotIdx: -1,

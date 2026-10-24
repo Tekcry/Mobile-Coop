@@ -44,8 +44,8 @@ import { HelmetDrops } from './helmetDrops';
 // (guard-ai S15) breaker faults and late discovery
 import { MODE_BREAKER } from './incidents';
 import { BREAKER, LATE } from './gear';
-import { CIRCUIT_KEY, DARK_SHOT, DarkList, LATE_SCAN, type BreakerHost } from './breaker';
-import { assignRoles, combatSeed, P_AGGRESSIVE, P_POST, P_STANDARD, R_NONE, R_REPORTER, RoleInput, RoleOutput, SQUAD } from './squadRoles';
+import { BREAKER_WALK, CIRCUIT_KEY, DARK_SHOT, DarkList, LATE_SCAN, type BreakerHost } from './breaker';
+import { assignRoles, combatSeed, rolesCommit, rolesTickStart, P_AGGRESSIVE, P_POST, P_STANDARD, R_NONE, R_REPORTER, RoleInput, RoleOutput, SQUAD } from './squadRoles';
 // (guard-ai S10) talking pairs
 import { PairMeet, PAIRS, pickMeet, type MeetPick, type PairGuard } from './pairs';
 // (guard-ai S14) section alert: missed check-ins and loud shots
@@ -69,7 +69,7 @@ import { LOOK_MAX, posLook, slotLook, teamLook } from './guardLook';
 // (guard-ai S24, G139) one last known position per intruder
 import { ALARM_HUNT, alarmHunts, COOP4, FIGHTS4, INTRUDERS, IntruderBoard, type SlotHunted } from './intruders';
 import { MAX_INTRUDERS } from './targetPick';
-import { SEARCH_AREA, SearchPlan, areaRadius, orderByScore, pointScore } from './searchArea';
+import { PLAN_SKIP_SEARCHED, SEARCH_AREA, SearchPlan, areaRadius, orderByScore, pointScore } from './searchArea';
 
 /** (guard-ai S10) A talking pair: its meeting clock, and the two slot indices (`guardAtSlot`; A the lower). */
 export interface TalkPair {
@@ -88,6 +88,15 @@ export const LIGHTS_OUT_BELOW = 7;
 /** (guard-ai S3, S6) A completed `command` call ("Command, contact. Send backup.") raises the alarm like a panel (M4).
  *  On since S6: a contact call that gets through starts one (`contactThrough`). Undo: false (panels only). */
 export const RADIO_ALARM = true;
+
+/**
+ * (guard-ai polish batch, group B) Undo switches of the manager's polish fixes (false: the 4.97.1 behaviour).
+ * `roleTrip` (B2): the one-mover rule counts only a role bound (`Enemy.roleBound`, false: any trip); `hearSlot` (B3):
+ * in combat a noise restarts his re-aim throttle only when it is his hunt's or he takes its slot, a searcher switched
+ * by a noise is re-told; `blindHear` (B6): a flashbanged guard hears nothing (calm guards too); `alarmTell` (B7,
+ * A182): the redundant `tell(alarmHunt)` after an alerted spawn (true: it is gone).
+ */
+export const POLISH_B = { roleTrip: true, hearSlot: true, blindHear: true, alarmTell: true } as const;
 
 /** (guard-ai S4) The bit of guard key `k` in an awareness mask (0 when out of range). */
 function keyBit(k: number): number {
@@ -207,8 +216,6 @@ export class EnemyManager {
   private readonly candZ = new Float32Array(PLAN_CAND);
   private readonly candS = new Float64Array(PLAN_CAND);
   private readonly candOrder = new Int32Array(PLAN_CAND);
-  private readonly doneX = new Float32Array(SEARCH_AREA.points);
-  private readonly doneZ = new Float32Array(SEARCH_AREA.points);
   // ---- (guard-ai S26, A160) heard reports per intruder slot: the plan clock at the last one and where it was ----
   private readonly heardRepAt = new Float64Array(MAX_INTRUDERS).fill(-1e9);
   private readonly heardRepX = new Float32Array(MAX_INTRUDERS);
@@ -498,6 +505,12 @@ export class EnemyManager {
   private readonly cutSeq = new Map<number, number>();
   private readonly faultCut = new Map<number, number>();
   private readonly faultTamper = new Map<number, boolean>();
+  /** (guard-ai polish B1, A168) The circuits the guards noticed cut (`cutN` of them) and, per entry, the board time its
+   *  cut was left with nobody on it (NaN: someone is, or it is on): after `BREAKER_WALK.retry` s late discovery forgets
+   *  it (`relightStep`). Grown at event rate only. */
+  private cutGroups = new Int32Array(8);
+  private cutGoneT = new Float64Array(8).fill(Number.NaN);
+  private cutN = 0;
   private lateT = 0;
   private lateK = 0;
   private readonly swP = new Float32Array(3);
@@ -516,6 +529,8 @@ export class EnemyManager {
   consoleFinds = 0;
   private conT = 0;
   private conK = 0;
+  /** (guard-ai polish B8) `consoleStep`'s scratch: console i may be noticed this step (1). */
+  private conReady = new Uint8Array(8);
 
   constructor(
     private scene: Scene,
@@ -884,7 +899,9 @@ export class EnemyManager {
     this.drawE = null;
     if (!this.coordinated) {
       e.alert();
-      e.tell(this.alarmHunt);
+      // (guard-ai polish B7, A182) spawned alerted, `sendIn` already told him command's intruder; this `tell` only bound
+      // the alarm's slot when nothing was valid (a slot with no position)
+      if (!POLISH_B.alarmTell) e.tell(this.alarmHunt);
       return;
     }
     if (this.deviceFresh()) {
@@ -1080,8 +1097,9 @@ export class EnemyManager {
       const yaw = this.lkpValid ? Math.atan2(this.lkp.x - at.x, this.lkp.z - at.z) : 0;
       const e = this.spawn(kind, at.add(new Vector3((i - (n - 1) / 2) * 1.2, 0, (i % 2) * 1.1)), true, yaw);
       if (!e) continue;
-      // (guard-ai S24) he hunts the alarm caller's intruder
-      e.tell(this.alarmHunt);
+      // (guard-ai S24) he hunts the alarm caller's intruder (`spawn` -> `sendIn`); (guard-ai polish B7, A182) no second
+      // `tell`: it only bound the alarm's slot with no position when nothing was valid
+      if (!POLISH_B.alarmTell) e.tell(this.alarmHunt);
       out.push(e);
     }
     return out;
@@ -1166,11 +1184,19 @@ export class EnemyManager {
   private circuitOut(group: number, x: number, y: number, z: number, n: number, fresh: boolean): void {
     if (fresh) this.cutSeq.set(group, (this.cutSeq.get(group) ?? 0) + 1);
     if (n === 0) return;
+    this.trackCut(group);
     const now = this.board.now;
     const cut = this.cutSeq.get(group) ?? 0;
     let tamper: boolean;
-    if (this.faultCut.get(group) === cut) tamper = this.faultTamper.get(group) === true;
-    else {
+    if (this.faultCut.get(group) === cut) {
+      tamper = this.faultTamper.get(group) === true;
+      // (guard-ai polish B1, A168) as consoles: the same cut noticed again once its tamper check is over (or nobody was
+      // free for it) is a fault, the reset walk; while the check is still open it merges into it
+      if (tamper && BREAKER_WALK.retry < Infinity && !this.circuitBusy(group)) {
+        tamper = false;
+        this.faultTamper.set(group, false);
+      }
+    } else {
       const last = this.lastFault.get(group);
       tamper = last !== undefined && now - last < BREAKER.repeatT;
       this.lastFault.set(group, now);
@@ -1178,6 +1204,63 @@ export class EnemyManager {
       this.faultTamper.set(group, tamper);
     }
     this.report(tamper ? 'light' : 'breaker', x, y, z, CIRCUIT_KEY + group, n);
+  }
+
+  /** (guard-ai polish B1) Circuit `group` was noticed cut: on the relight watch (`relightStep`). Event rate. */
+  private trackCut(group: number): void {
+    for (let i = 0; i < this.cutN; i++) if (this.cutGroups[i] === group) return;
+    if (this.cutN >= this.cutGroups.length) {
+      const g = new Int32Array(this.cutGroups.length * 2);
+      g.set(this.cutGroups);
+      this.cutGroups = g;
+      const t = new Float64Array(g.length).fill(Number.NaN);
+      t.set(this.cutGoneT);
+      this.cutGoneT = t;
+    }
+    this.cutGroups[this.cutN] = group;
+    this.cutGoneT[this.cutN] = Number.NaN;
+    this.cutN++;
+  }
+
+  /** (guard-ai polish B1) Someone is on circuit `group`'s cut: an incident on its key is open (the reset walk's, the
+   *  tamper check's) or a guard walks to its switch. No allocation. */
+  private circuitBusy(group: number): boolean {
+    const b = this.board;
+    const key = CIRCUIT_KEY + group;
+    for (let s = 0; s < b.open.length; s++) if (b.open[s] === 1 && b.key[s] === key) return true;
+    const list = this.enemies;
+    for (let k = 0; k < list.length; k++) {
+      const e = list[k]!;
+      if (e.alive && e.breakerGroup === group) return true;
+    }
+    return false;
+  }
+
+  /**
+   * (guard-ai polish B1, A168) A circuit the guards noticed cut that nobody fixed: still off, its incident gone (the tamper
+   * check over, the walker knocked out, given up or drawn away) and nobody walking to its switch. After
+   * `BREAKER_WALK.retry` s of that, late discovery forgets it (`DarkList.unmarkGroup`): the next calm guard who sees one
+   * of its dark lamps notices it again, the same cut, the reset walk (`circuitOut`). Before this it stayed dark for good.
+   * Runs with late discovery (every `LATE_SCAN.tick` s); no allocation.
+   */
+  private relightStep(): void {
+    const h = this.breakers;
+    if (this.cutN === 0 || !h || !(BREAKER_WALK.retry < Infinity)) return;
+    const now = this.board.now;
+    const gone = this.cutGoneT;
+    for (let i = 0; i < this.cutN; i++) {
+      const g = this.cutGroups[i]!;
+      if (!h.isOff(g) || this.circuitBusy(g)) {
+        gone[i] = Number.NaN;
+        continue;
+      }
+      const t0 = gone[i]!;
+      if (t0 !== t0) gone[i] = now;
+      else if (now - t0 >= BREAKER_WALK.retry) {
+        gone[i] = Number.NaN;
+        this.dark.unmarkGroup(this.world.level.lights, g);
+      }
+    }
   }
 
   /**
@@ -1191,6 +1274,8 @@ export class EnemyManager {
   private lateStep(): void {
     const reg = this.world.level.lights;
     const dl = this.dark;
+    // (guard-ai polish B1) a cut nobody fixed comes back on the list after its hold
+    this.relightStep();
     dl.refresh(reg, this.breakers);
     if (dl.n === 0) return;
     const list = this.enemies;
@@ -1340,12 +1425,15 @@ export class EnemyManager {
   private consoleStep(): void {
     const c = this.consoles;
     const now = this.board.now;
+    // (guard-ai polish B8) who may be noticed is the same for every guard: off, past its hold and nobody on it (the busy
+    // test once per console per step, before any ray)
+    if (this.conReady.length < c.n) this.conReady = new Uint8Array(c.x.length);
+    const ready = this.conReady;
     let any = false;
     for (let i = 0; i < c.n; i++) {
-      if (c.pending(i, now, false)) {
-        any = true;
-        break;
-      }
+      const r = c.pending(i, now, false) && !this.consoleBusy(i);
+      ready[i] = r ? 1 : 0;
+      if (r) any = true;
     }
     if (!any) return;
     const list = this.enemies;
@@ -1357,7 +1445,7 @@ export class EnemyManager {
       const e = list[this.conK++]!;
       if (!this.consoleFree(e)) continue;
       for (let i = 0; i < c.n; i++) {
-        if (!c.pending(i, now, false) || !this.seesConsole(e, i) || this.consoleBusy(i)) continue;
+        if (ready[i] !== 1 || !this.seesConsole(e, i)) continue;
         this.hearWho[0] = e.num;
         this.consoleNotice(i, 1);
         return;
@@ -1428,7 +1516,10 @@ export class EnemyManager {
     let best: Enemy | null = null;
     let bp: AlarmPanel | null = null;
     let bd = Infinity;
-    for (const e of this.enemies) {
+    // (guard-ai polish B10) index loop (2 Hz, no iterator)
+    const list = this.enemies;
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i]!;
       if (!e.alive || !e.alerted || e.def.melee) continue;
       const p = nearestPanel(this.alarms, e.pos.x, e.pos.z, 2, e.pos.y);
       if (!p) continue;
@@ -1462,8 +1553,10 @@ export class EnemyManager {
         reg.setOn(ts[i]!.id, false);
       }
     }
-    // acquire
-    for (const e of this.enemies) {
+    // acquire; (guard-ai polish B10) index loop (every step, no iterator)
+    const list = this.enemies;
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i]!;
       if (!e.alive || this.torchOwner.includes(e) || !e.torchWanted(field)) continue;
       const k = this.torchOwner.indexOf(null);
       if (k < 0) break;
@@ -1790,6 +1883,7 @@ export class EnemyManager {
     // (guard-ai S15) the new guards know of no dark fixture or cut circuit
     this.dark.clear();
     this.lastFault.clear();
+    this.cutN = 0;
     // (guard-ai S22) nor of a console off
     this.consoles.clear();
     // (guard-ai S25b) the search plans went with `despawnAll` -> `clear` (S25b check A polish 4: tested)
@@ -1800,7 +1894,9 @@ export class EnemyManager {
    * Clear's alarm squads, `reinforce`; tests) is sent in by command: he is told of the intruder command knows of
    * (`commandHunt`) before he goes to combat, so he hunts that slot's last known position (and his contact names it).
    * Before this he had none and stood where he spawned (A148 left him no position). Nobody known: none (A148, G139: he
-   * never goes for a player nobody saw or located).
+   * never goes for a player nobody saw or located); he binds on the next call or sighting (polish B7, A182). The freshest
+   * fallback (`commandHunt`) serves the parked modes' alerted spawns only: coordinated reinforcements come through
+   * `joinReinforcement`.
    */
   private sendIn(e: Enemy): void {
     // (coop4 AI4, A174) from 3 players: the next in the alarm's split (1-2: command's, today)
@@ -2300,14 +2396,17 @@ export class EnemyManager {
       const inc = o.inc[k]!;
       if (o.cmd[k] === CMD_SEND) {
         const m = o.mode[k]!;
-        // (guard-ai S15) a guard reacts to this fixture / circuit going dark: late discovery leaves it alone
-        // (guard-ai S22) a console's pseudo circuit is no fixture: late discovery is not told; the check has its own line
-        const con = b.keyOf(inc) >= CIRCUIT_KEY + CONSOLE_GROUP;
-        if ((m === MODE_LIGHT || m === MODE_BREAKER) && !con) this.dark.markKey(this.world.level.lights, b.keyOf(inc));
-        if (m === MODE_LIGHT) e.checkLight(o.x[k]!, o.z[k]!, inc, o.arg[k]!, con ? 'consoleCheck' : 'lightOut');
-        // (guard-ai S15, A42) a circuit switched off: walk to its switch and turn it back on
-        else if (m === MODE_BREAKER) e.resetBreaker(o.x[k]!, o.z[k]!, o.y[k]!, inc, b.keyOf(inc) - CIRCUIT_KEY);
-        else if (m === MODE_LEAD || m === MODE_COVER) e.pairSearch(o.x[k]!, o.z[k]!, inc, m === MODE_LEAD);
+        if (m === MODE_LIGHT || m === MODE_BREAKER) {
+          // (guard-ai S15) a guard reacts to this fixture / circuit going dark: late discovery leaves it alone
+          // (guard-ai S22) a console's pseudo circuit is no fixture: late discovery is not told; the check has its own
+          // line. (guard-ai polish B9) The key (a scan of the board) only for these two modes
+          const key = b.keyOf(inc);
+          const con = key >= CIRCUIT_KEY + CONSOLE_GROUP;
+          if (!con) this.dark.markKey(this.world.level.lights, key);
+          if (m === MODE_LIGHT) e.checkLight(o.x[k]!, o.z[k]!, inc, o.arg[k]!, con ? 'consoleCheck' : 'lightOut');
+          // (guard-ai S15, A42) a circuit switched off: walk to its switch and turn it back on
+          else e.resetBreaker(o.x[k]!, o.z[k]!, o.y[k]!, inc, key - CIRCUIT_KEY);
+        } else if (m === MODE_LEAD || m === MODE_COVER) e.pairSearch(o.x[k]!, o.z[k]!, inc, m === MODE_LEAD);
         // (guard-ai S3, S2 check polish 2) a plain noise or a lure that finds nothing ends calm; gunfire keeps the cooldown
         else if (m === MODE_INVESTIGATE) e.sendTo(o.x[k]!, o.z[k]!, inc, b.kindOf(inc) !== 'shots');
         // (guard-ai S7) a body a camera saw: the one nearest the incident's spot
@@ -2720,6 +2819,9 @@ export class EnemyManager {
     for (let i = 0; i < n; i++) {
       const e = list[i]!;
       if (e === skip || !e.alive || e.passive || e.taken) continue;
+      // (guard-ai polish B6) a flashbanged guard hears nothing, calm ones too (no turn, no report), as `canCall` and
+      // `mayCallShots`
+      if (POLISH_B.blindHear && e.blindT > 0) continue;
       // (guard-ai S26) in a fight or a search (not the melee kinds: dogs keep their rule)
       if (fight && !e.def.melee && (e.alerted || e.level === 'searching')) {
         this.hearFight(e, i, pos, reach, kind, by);
@@ -2770,7 +2872,7 @@ export class EnemyManager {
       // (S25b) his plan point is given up: the heard spot comes first
       if (e.hunt >= 0 && e.hunt < MAX_INTRUDERS) this.plans[e.hunt]!.release(e.num);
       e.hearSearch(pos.x, pos.z);
-    } else if (state === 2) e.heardInFight();
+    } else if (state === 2 && !POLISH_B.hearSlot) e.heardInFight();
     if (act !== 2 || by === null) return;
     const slot = this.slotForId(by);
     if (slot < 0) return;
@@ -2778,7 +2880,14 @@ export class EnemyManager {
     const h = e.hunt;
     if (h < 0 || h === slot || this.intruders.locT[h]! >= COMBAT_HEAR.switchAfter) {
       e.hunt = slot;
-      if (state === 1) e.tell(slot);
+      // (guard-ai polish B3) in combat the re-aim throttle restarts only for a noise of his own hunt (or the one he now
+      // takes): hearing B while hunting a fresh A leaves him listening for A. A searcher switched to B is re-told B (an
+      // older told intruder would win at his next combat)
+      if (state === 2 && POLISH_B.hearSlot) e.heardInFight();
+      if (state === 1) {
+        if (POLISH_B.hearSlot) e.retell(slot);
+        else e.tell(slot);
+      }
     }
   }
 
@@ -2801,13 +2910,18 @@ export class EnemyManager {
 
   /** Any enemy in combat (the operator has been detected). */
   get anyAlerted(): boolean {
-    for (const e of this.enemies) if (e.alive && e.alerted) return true;
+    const list = this.enemies;
+    for (let i = 0; i < list.length; i++) if (list[i]!.alive && list[i]!.alerted) return true;
     return false;
   }
 
   /** Any enemy in combat or searching (the last known position matters). */
   get hunting(): boolean {
-    for (const e of this.enemies) if (e.alive && (e.alerted || e.level === 'searching')) return true;
+    const list = this.enemies;
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i]!;
+      if (e.alive && (e.alerted || e.level === 'searching')) return true;
+    }
     return false;
   }
 
@@ -3036,8 +3150,10 @@ export class EnemyManager {
    * R = `areaRadius(locT)` (S26: since seen or located) path metres of the last known position (`flowOf(slot)` x `nav.cell`). Candidates: (a) the
    * level cover in range at its own position, (b) a `lattice` m grid over the square of half-side R, walkable cells whose
    * baked light (`levelAt` at `sampleY` over the floor: torches excluded, A153) is below `dark`; each scored with
-   * `pointScore` and offered best first (S25a polish 1). Points searched before a rebuild round the same position stay
-   * done. No ray, no A*, no allocation.
+   * `pointScore` and offered best first (S25a polish 1). (guard-ai polish B4) A candidate within `spacing` of the
+   * position itself (the searcher's first look) or of a point searched since the position last moved is never offered,
+   * so a rebuild round the same position hands out new points (before: the same top `points` again, re-marked done, and
+   * a dark cell at the position as point 1). No ray, no A*, no allocation.
    */
   buildPlan(slot: number): void {
     if (slot < 0 || slot >= MAX_INTRUDERS) return;
@@ -3054,16 +3170,9 @@ export class EnemyManager {
     const f = this.slotFlow[slot];
     if (!f || this.slotFlowVer[slot] !== this.nav.version) return;
     if (hyp3(cx - this.slotFlowX[slot]!, cy - this.slotFlowY[slot]!, cz - this.slotFlowZ[slot]!) >= FLOW_CELL) return;
-    let nd = 0;
-    if (!moved) {
-      for (let k = 0; k < p.n; k++) {
-        if (!p.done[k]) continue;
-        this.doneX[nd] = p.x[k]!;
-        this.doneZ[nd] = p.z[k]!;
-        nd++;
-      }
-    }
-    p.reset(cx, cz, this.planClock);
+    // (guard-ai polish B4) round the same position the plan keeps what was searched; a moved centre forgets it
+    p.reset(cx, cz, this.planClock, !moved);
+    const skip = PLAN_SKIP_SEARCHED;
     // (guard-ai S26, A157) from the last time he was seen or located (a heard step narrows the search)
     const r = areaRadius(b.locT[slot]!);
     this.planR[slot] = r;
@@ -3081,6 +3190,8 @@ export class EnemyManager {
       const j = this.planCover[i]!;
       const x = cs.x[j]!;
       const z = cs.z[j]!;
+      // (guard-ai polish B4) never the centre again (his first look) nor a point searched since it last moved
+      if (skip && p.covered(x, z)) continue;
       const c = nav.nearestWalkable(x, z, 2, cs.y[j]!);
       if (c < 0) continue;
       const d = f[c]! * cell;
@@ -3097,6 +3208,7 @@ export class EnemyManager {
       for (let ix = -m; ix <= m; ix++) {
         const x = cx + ix * L;
         const z = cz + iz * L;
+        if (skip && p.covered(x, z)) continue;
         const c = nav.cellOf(x, z, cy);
         if (!nav.isWalkable(c)) continue;
         const d = f[c]! * cell;
@@ -3114,15 +3226,8 @@ export class EnemyManager {
       const o = this.candOrder[i]!;
       p.offer(cx0[o]!, cz0[o]!, cs0[o]!);
     }
-    // the same search re-planned: what was looked into stays done
-    for (let k = 0; k < p.n && nd > 0; k++) {
-      for (let j = 0; j < nd; j++) {
-        if (hyp2(p.x[k]! - this.doneX[j]!, p.z[k]! - this.doneZ[j]!) < SEARCH_AREA.spacing) {
-          p.finish(k);
-          break;
-        }
-      }
-    }
+    // (4.97.1, `PLAN_SKIP_SEARCHED` false) the same search re-planned: what was looked into stays done
+    if (!skip) p.remarkSearched();
   }
 
   // ---- (guard-ai S8, design 8) squad tactics ----
@@ -3168,6 +3273,8 @@ export class EnemyManager {
     // (coop4 AI5, A178) from 3 players the groups take cover in turn: one slot later each tick (1-2: slot 0 first)
     const rot = FIGHTS4.rotate && this.coop4();
     const s0 = rot ? this.rolesRR % MAX_INTRUDERS : 0;
+    // (guard-ai polish B5) the groups of this tick share their cover picks: an earlier group's pick is taken for the next
+    rolesTickStart();
     if (rot) this.rolesRR = (this.rolesRR + 1) % MAX_INTRUDERS;
     for (let j = 0; j < MAX_INTRUDERS; j++) {
       const s = (s0 + j) % MAX_INTRUDERS;
@@ -3180,6 +3287,8 @@ export class EnemyManager {
       else if (b.valid[s] === 1 && this.rolesFor(s)) groups++;
     }
     this.rolesActive = groups > 0;
+    // (guard-ai polish B5) the tick is over: a lone `assignRoles` (tests, tools) starts with nothing taken
+    rolesTickStart();
     for (let i = 0; i < list.length; i++) {
       const e = list[i]!;
       if (mark[i] === 0 && e.role !== R_NONE) e.setRole(R_NONE, -1, false, false, false, false);
@@ -3241,16 +3350,24 @@ export class EnemyManager {
         out.run[ow] = 0;
       }
     }
-    // one of point and flank on the move at a time: the one already on its way finishes first
+    // (guard-ai polish B5) this group's picks are final: the next group of the tick starts from them
+    rolesCommit();
+    // one of point and flank on the move at a time: the one already on its way finishes first. (guard-ai polish B2) On
+    // its way = a role bound (`roleBound`: the walk `boundTo` started, until he stops), not this tick's role cover (it
+    // is re-picked for the last ~2 m of a bound); a held point's open-wait pick (another cover) does not lift the
+    // flank's hold
     const pt = out.point;
     const fl = out.flank;
-    const ptGoing = pt >= 0 && who[pt]!.state === 'seekCover';
-    const flGoing = fl >= 0 && who[fl]!.state === 'seekCover';
+    const ptTrip = pt >= 0 && who[pt]!.state === 'seekCover';
+    const flTrip = fl >= 0 && who[fl]!.state === 'seekCover';
+    const ptGoing = ptTrip && (!POLISH_B.roleTrip || who[pt]!.roleBound);
+    const flGoing = flTrip && (!POLISH_B.roleTrip || who[fl]!.roleBound);
     if (pt >= 0 && fl >= 0 && inp.profile[pt] !== P_AGGRESSIVE && inp.profile[fl] !== P_AGGRESSIVE) {
       if (flGoing && !ptGoing) out.moving[pt] = 0;
       if (ptGoing && !flGoing) out.moving[fl] = 0;
     }
-    const mates = ptGoing || flGoing;
+    // a squadmate on the move (the overwatch suppresses): any trip
+    const mates = ptTrip || flTrip;
     // each member's role now (a later group reserves round the covers this one took: `coverSet.owner` is shared)
     const mark = this.roleMark;
     for (let i = 0; i < list.length; i++) {
@@ -3347,7 +3464,9 @@ export class EnemyManager {
     if (this.flanker?.alive) return;
     let best: Enemy | null = null;
     let bd = Infinity;
-    for (const e of this.enemies) {
+    const list = this.enemies;
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i]!;
       if (!e.alive || !e.alerted || e.def.melee || !e.def.usesCover || e.hold) continue;
       // (guard-ai S23) his own distance to his target (co-op: not the host's player)
       const d = e.targetDist;
@@ -3481,7 +3600,10 @@ export class EnemyManager {
     // freshest intruder (the mirror)
     this.teamsStep();
     const doors = this.world.doors;
-    for (const e of this.enemies) {
+    const list = this.enemies;
+    // (guard-ai polish B10) index loops in the per-step paths (no iterator)
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i]!;
       e.update(dt);
       // (coop4 AI2) the sight rays his think cast this update
       this.raysThisStep += e.raysStep;
@@ -3502,7 +3624,9 @@ export class EnemyManager {
     this.spottedStep();
     // bodies: settle, and sample the light on them now and then (how findable they are)
     const field = this.world.lightField;
-    for (const b of this.bodies) {
+    const bodies = this.bodies;
+    for (let i = 0; i < bodies.length; i++) {
+      const b = bodies[i]!;
       b.update(dt);
       b.lightT -= dt;
       if (b.lightT <= 0 && b.present) {
@@ -3521,10 +3645,16 @@ export class EnemyManager {
 
   private updateBuffs(): void {
     const r = ARCHETYPE.officer.buffRadius;
-    for (const e of this.enemies) {
+    const list = this.enemies;
+    // (guard-ai polish B10) index loops; no living officer: nobody is buffed (one pass, not N^2)
+    let officers = 0;
+    for (let i = 0; i < list.length; i++) if (list[i]!.alive && list[i]!.def.kind === 'officer') officers++;
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i]!;
       e.buff = false;
-      if (!e.alive) continue;
-      for (const o of this.enemies) {
+      if (!e.alive || officers === 0) continue;
+      for (let j = 0; j < list.length; j++) {
+        const o = list[j]!;
         if (o === e || !o.alive || o.def.kind !== 'officer') continue;
         if (hyp2(o.pos.x - e.pos.x, o.pos.z - e.pos.z) < r) {
           e.buff = true;
@@ -3608,9 +3738,12 @@ export class EnemyManager {
 
   /** Render-rate animation (interpolated between fixed steps). */
   frameUpdate(dt: number, alpha: number): void {
-    for (const e of this.enemies) e.frame(dt, alpha);
-    for (const e of this.dogCorpses) e.frame(dt, alpha);
-    for (const d of this.drones) d.frame(dt);
+    const list = this.enemies;
+    for (let i = 0; i < list.length; i++) list[i]!.frame(dt, alpha);
+    const dogs = this.dogCorpses;
+    for (let i = 0; i < dogs.length; i++) dogs[i]!.frame(dt, alpha);
+    const drones = this.drones;
+    for (let i = 0; i < drones.length; i++) drones[i]!.frame(dt);
   }
 
   clear(): void {
@@ -3683,6 +3816,7 @@ export class EnemyManager {
     // (guard-ai S15) and what the guards knew of dark fixtures and cut circuits
     this.dark.clear();
     this.lastFault.clear();
+    this.cutN = 0;
     // (guard-ai S22) and of the consoles (the game reports each again on its next toggle)
     this.consoles.clear();
   }
