@@ -3,6 +3,32 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 41 (2026-10-24 ~23:08, 5-hour cap save, overnight; wins over SAVE 40 where they differ):**
+- FIRST: Guard AI's coop4-fix3 request 20261024T115000-night-shift-guard-ai-52e3dc13-6504 (#317, e2e-coop, sha 52e3dc13)
+  must run on a LAPTOP slot (Orchestrator: desktop CPU 100%). At 23:06 it was on origin/laptop-queue with no claim and
+  not in laptop state.done, yet the laptop log said "queue: 0 request(s)" since 22:50. Find why the laptop listing drops
+  it (desktop claim under another path? requestProblem / branch "" ? duplicates?), then make it run on the laptop: either
+  fix the cause or add a worker pin (request.mjs --worker laptop -> req.worker; desktop filter at service.mjs ~1216
+  r.kind === 'pr' && !r.trainRerun && r.worker !== 'laptop').
+- #356 feature/affected-flake head 7ba216f1: checker FIX done; waiting CI + laptop request 20261024T113619-...-7ba216f1-949a
+  (smoke e2e-pad e2e-sectorops:6). Both green -> add label train-ready, message the Orchestrator. PR bound to this session.
+- NEW laptop-queue fixes (Orchestrator waste audit 23:0x), branch feature/laptop-queue-3 stacked on 7ba216f1 (not cut yet;
+  worktree C:/NightShift/Mobile-Coop-laptop-queue-3), one Opus checker, PR, rides with #356:
+  (1) M1 alone claimed 22:28:45 right after train 67's laptop-e2e success (22:28:28) and was preempted by train 68 at
+      22:34. Resume-from-step already exists (state.aloneSteps). Fix: lib trainSoon gains a "releasing" case: an open
+      train whose laptop-e2e is success + train-ready PRs (check green OR in progress) -> hold every new claim (aged alone
+      too) up to 10 min from the success status' updated_at. Wire in pendingTrains (service.mjs ~490: the aloneHold
+      flatMap already reads each open train's statuses; add updated_at to its jq) and a readyOrPendingCandidates().
+  (2) desktop-failed PR suites: the desktop worker posts pending "desktop FAIL <suites> (cpu N%), laptop rerun queued"
+      instead of failure and pushes a laptop-only request (same sha / set / pr / requester, suites = the failed ones,
+      laptopRerun: true; desktop filter ~1216 skips laptopRerun). Sample cpuLoad() each watch tick during a desktop run;
+      median > 90 -> append "; desktop cpu>90%" to the description. The laptop rerun's verdict is final.
+  (3) auto-train.mjs fastPollPlan: 30 s polls (was 60) once the open train's laptop-e2e pending status is older than its
+      expected wall (~10 min or the train's shard weight), so release lag drops from 1.3-2.7 min to under 1 min.
+- guard-cap: perf-retry ...-6e8a450b-09d8 and M1 ...-a55a12b3-6a46 (preempted 22:34; resumes at its next step) still to
+  push to feature/guard-cap-results docs/guard-cap/run-m0/perf-retry.log and run-m1/ when done.
+- Trains: 67 green (43/43, 691 s), 68 ran 22:35, 69 #358 next. Service + auto-train are scheduled tasks (headless).
+
 **Test Runner SAVE 40 (2026-10-24 ~22:40, new account, overnight mode; wins over SAVE 39 where they differ):**
 - Overnight (Orchestrator 22:2x): no swap tonight, Michael asleep; full burn to the cap each 5-hour window, save at ~92%,
   the Orchestrator resumes me after each reset (~03:10 first). No question dialogs: decide, log, carry on. Service +
@@ -1058,7 +1084,7 @@ puts it in CLAUDE.md on feature/menu). Laptop full runs: `RUN_GPU=1` (E2E_GPU=1)
 
 ## Resume prompt
 ```
-Night Shift | Test Runner (laptop, the MAIN test machine). First call mcp__ccd_session_mgmt__set_session_title with session_id "self" and title "Night Shift | Test Runner" (ToolSearch if deferred). Read CLAUDE.md "Sessions" on origin/master ("Main test machine: the laptop", "Heavy-usage throughput" incl. "Token rules"), then the newest "Test Runner SAVE" block (SAVE 40 or later) at the top of docs/flake-fix/STATE.md on origin/feature/flake-fix (git fetch; git show origin/feature/flake-fix:docs/flake-fix/STATE.md). Do what it lists, in order. If two Test Runner sessions show in ListAgents, close the older one.
+Night Shift | Test Runner (laptop, the MAIN test machine). First call mcp__ccd_session_mgmt__set_session_title with session_id "self" and title "Night Shift | Test Runner" (ToolSearch if deferred). Read CLAUDE.md "Sessions" on origin/master ("Main test machine: the laptop", "Heavy-usage throughput" incl. "Token rules"), then the newest "Test Runner SAVE" block (SAVE 41 or later) at the top of docs/flake-fix/STATE.md on origin/feature/flake-fix (git fetch; git show origin/feature/flake-fix:docs/flake-fix/STATE.md). Do what it lists, in order. If two Test Runner sessions show in ListAgents, close the older one.
 
 The queue is the SERVICE now (no hand-run chains, Orchestrator 20:26): task NightShift-laptop-queue runs scripts/laptop-queue/service.mjs from C:/NightShift/Mobile-Coop-laptop-queue-svc (follows origin/feature/laptop-queue until SAVE 37's re-register switches it to origin/master; self-updates when idle); log + state C:/NightShift/scratch/laptop-queue/ (log.txt, runs/<id>/); verdicts are GitHub statuses laptop-e2e[/<set>] + PR comments on failure. Requests: node scripts/laptop-queue/request.mjs --sha <ref> (--suites "a b" | --full | --alone --step "<cmd>" [--env K=V]) --requester "<title>" (alone = perf / sheets, after trains and PR suites). Desktop overflow worker NightShift-desktop-queue (LQ_WORKER=desktop, pr only) claims via claims/<id>.json on the laptop-queue branch. Locks C:/NightShift/heavy-4189.lock / heavy-4192.lock (service lines "laptop-queue | ..."; a lock with no live node is stale). Restarting the service: Stop-ScheduledTask leaves the node child alive, so a restart also needs that node pid killed (needs Michael's OK).
 
