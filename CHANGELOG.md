@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.100.5 - Train 80: pr-size loads its script from the base branch (2026-10-25, PR #391; #378)
+- CI: the `pr-size` job runs `scripts/pr-size.mjs` (and `glob-match.mjs`) as taken from the base branch, so PR
+  branches cut before 4.100.0, which lack the script, no longer fail `check` with "Cannot find module".
+
 ## 4.100.4 - Train 79: Laptop queue: dead-pid heavy.lock broken at the desktop gate, "CI running" in the auto-train status (2026-10-25, PR #390; #374)
 ### Changed
 - Laptop queue: the desktop slot gate logs the slot lock's holder once per change ("4191 held by heavy.lock: <text>") and breaks a lock whose pid is dead on this host when its text is unchanged on a second read (logged; a lock with no pid or a live pid is respected). A train's slot-lock wait breaks such a lock too.
