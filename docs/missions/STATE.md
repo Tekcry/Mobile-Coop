@@ -1,5 +1,7 @@
 # mission-framework - STATE
 
+- ~04:45 PR A #372 OPEN (specs + six sign-off pages; spec checker FIX -> fix round 83174c38; no big-pr needed); label train-ready on CI green (if auto mode blocks, the orchestrator labels). GB-briefs aa762a41; engine merged mission-framework 286c290c; GB0 RUNNING (Sonnet, engine worktree). BRIEF A19-A23 + PLAN EN4 19d5579b. NET DONE feature/mission-net 5d3f7ae1 (on d1c3ad4c; gused for frag / mine / stickyCam; kitNet.ts verdicts; missionMirror.ts; pull verdictWait 0.25): checkers A (mission wire) + B (kit wire) RUNNING (C:/NightShift/scratch/mission-net-check-{a,b}.md), laptop coop / netmove / sectorops / ctcourse on 5d3f7ae1 (set mission-net). After both PASS: merge mission-net into mission-engine. Kit e2e (pull / shutter in co-op) needs a map that places them: after GB + kit-tick.
+
 ## RESUME 2026-10-25 ~04:20 (window reset; next 09:10)
 - PR #365: checker B PASS, A FIX -> fix 0fe98298; CI + laptop 2/2 green. Orchestrator re-checks the fix and labels (self-approval blocked here).
 - Engine 9e87b4b3 laptop e2e 13/13 PASS (sectorops 1-6 + mission, section-rating, ctcourse, menus). EN2+EN3 checker FIX (double restart, oneChance end skippable) -> EN2 fix round RUNNING (EN2 builder, feature/mission-engine; also hold-exit during pending restart, objective codes before gate, decoy slot, spook-while-held, namedTarget intel lines, flags.mission, Hints text).
