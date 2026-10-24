@@ -1461,10 +1461,9 @@ export class Enemy implements Damageable {
   tell(slot: number): void {
     if (slot < 0 || !this.alive) return;
     if (this.alerted) {
-      if (this.hunt < 0) {
-        this.hunt = slot;
-        this.calledMask |= 1 << slot;
-      }
+      if (this.hunt < 0) this.hunt = slot;
+      // (polish A4) told of him: command knows of that fight (it has a caller), a later sighting of him is no new call
+      this.calledMask |= 1 << slot;
     } else if (this.pendingHunt < 0) this.pendingHunt = slot;
   }
 

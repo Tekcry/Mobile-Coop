@@ -591,6 +591,22 @@ describe('guard-ai polish A4 / A15: calls on a switch and the real alert()', () 
     expect(calls()).toBe(c1);
   });
 
+  it('A4: hunting A, told of B (a mate called him in), then he sees B: no call (B has his caller)', () => {
+    const A = player('host', 0, 0);
+    const B = player('guest', 30, 0);
+    const ha = netGuard(10, -10);
+    const { em, ctx } = manager([ha], [A, B]);
+    sees(ha, A);
+    const sb = ctx.reportSighting(B);
+    (Enemy.prototype as unknown as { tell(this: FakeGuard, s: number): void }).tell.call(ha, sb);
+    expect(ha.hunt).toBe(em.intruders.slotFor('host'));
+    const calls = () => (em.radioNet as unknown as { nextId: number }).nextId;
+    const c0 = calls();
+    sees(ha, B);
+    expect(ha.hunt).toBe(sb);
+    expect(calls()).toBe(c0);
+  });
+
   it('A15: the real alert() on a told calm guard hunts the told slot and his contact call names it', () => {
     const A = player('host', 0, 0);
     const { em, ctx } = manager([], [A]);
