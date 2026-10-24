@@ -372,7 +372,8 @@ Worktrees (node_modules junctions to Mobile-Coop-sector-redesign-bake2): -polish
    fc4dc9ab; json + png to C:/NightShift/scratch/visual-gate/m0 on the laptop) -> write docs/visual-gate/M0.md, apply
    the PLAN 7 ladder. PR #367 VG6: master merged on the branch (service.mjs conflict, both sides kept, 135 tests),
    head fe16741b, checker status posted; orchestrator labels on green CI; Test Runner #366 overlaps service.mjs (the
-   later train resolves). CLOUD: briefs visual-gate-vg5 (gate runner, off a3362896) + visual-gate-vg1-polish (metrics
+   later train resolves). #366 is in train 74: when it releases, merge master into feature/visual-gate-train again,
+   keep #366 lib.mjs import + add the visual.mjs import (~:92; the only clash), node --check, push; orchestrator labels. CLOUD: briefs visual-gate-vg5 (gate runner, off a3362896) + visual-gate-vg1-polish (metrics
    polish 1 / 5 / 6) open on cloud-queue bcbc3608; on done: one checker each (Opus), merge.
 4. Marlow Build mission-framework EN2 adds hook lines in sectorMode.ts / sectors.ts / campusOps.ts on master
    (conflicts resolved in the train); no reply needed.
