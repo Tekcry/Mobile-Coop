@@ -212,6 +212,11 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   the open (they crouch, then take cover within ~3 s); the covering guard fires at your last spot only where he has a
   clear line (no rounds into a wall); the caller throws no grenade while he is on the radio. Trip a camera or a laser:
   every guard in the section draws his gun and none holsters while the alarm stage holds.
+- [ ] Guard AI polish (Sector Ops): break sight on a group next to a wall: no guard walks a long way round to cover
+  behind it, none freezes in the open (A2). Trip a device, then make a noise near its responder: after his look he
+  searches the device room again (A1). Cut a breaker, let a guard relight it, cut it again inside a minute: after the
+  light check it is relit, never dark for good (B1). Co-op: a guard who only heard player 1 never walks to player 2;
+  hunted by one guard, show him player 2: one radio call names player 2 (A3 / A4).
 - [ ] Report, then attack (guard-ai walk 4.82 items 2 and 6, Marlow Yard): get spotted by the station 2 guard and break
   line of sight: he takes cover and radios it in, then (call done, a few seconds with no sight of you) leaves cover and
   moves up on where he last saw you, still in the fight, and searches from there; he does not sit in cover and go

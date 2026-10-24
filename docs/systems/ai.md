@@ -223,15 +223,18 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   point bounds cover to cover (`profile.advanceHold` between bounds, out of sight), walks the last stretch (`closing`)
   when no cover is left; overwatch's low cover needs one view ray to the LKP (`TACTICS.viewChecks` 4, a blind one
   blocked `TACTICS.blockS` 5 s), suppresses the LKP while a mate moves; flank (groups of 3+) bounds to cover >= 60 deg
-  off the point's bearing; the rest search (today's). One of point / flank moves at a time (standard). Out of sight in
+  off the point's bearing; the rest search (today's). One of point / flank moves at a time (standard; polish B2: the
+  one on his way is the one on a role bound, `Enemy.roleBound`). Out of sight in
   the open a role guard waits for the group, crouched (guard-ai S27, A161: `Enemy.roleStep`'s open wait, at most
-  `SQUAD.openWait` 3 s, one think with no role cover at all), then takes today's cover pick (`pickCover`, reserved
+  `SQUAD.openWait` 3 s, or the second think with no role cover at all: the first only crouches), then takes today's
+  cover pick (`pickCover`, reserved
   through `reserveCover`); no cover anywhere: crouched where he is until `ALERT.lostSight`; the wait restarts when he
   sees his target, is in or on his way to cover, or his role changes (`Infinity`: the S8 wait). The overwatch's
   suppress (S27, A162: `suppressLkp`) aims at its own spot (`suppressAim`, the hunt's spot + 1.1 m; his `lastKnown` is
   left alone) and, with `SQUAD.suppressView`, fires only along a clear static line from the muzzle (one `G.STATIC` ray
-  per 0.25 s, cached; counters `suppressRounds` / `suppressHeld`). The reporter (S27, A163) throws and flanks nothing
-  while his call is open (`inCover` runs the radio hold before `tactics`; in `attack` he fights with his rifle only).
+  per 0.25 s, cached; counters `suppressRounds` / `suppressHeld`, the latter in held steps, not thinks). The reporter
+  (S27, A163) throws and flanks nothing while his call is open (`inCover` runs the radio hold before `tactics`; in
+  `attack` he fights with his rifle only).
   A path failure blocks the cover. While a group has roles the single
   `flanker` is cleared; otherwise `assignFlanker` as before. Barks `moving` / `covering` / `flanking`.
 - Report, then engage (guard-ai walk 4.82 item 2, Michael: "He should report then attack you instead of hiding";
@@ -300,8 +303,11 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   `StealthSystems.resetCircuit` = the player's own `toggle`; no ring, no radio, back on his route. The circuit lit again by
   other means (`BreakerHost.isOff` false: the player, an isolator) ends the walk; so does `BREAKER_WALK.giveUp` 30 s.
   A second noticed cut of the circuit within `BREAKER.repeatT` 60 s (board clock, `lastFault`) is tampering: the S2
-  `light` incident at the switch; the same cut noticed again later (`cutSeq` / `faultCut`) keeps what it was first
-  taken for. A cut nobody saw opens nothing. A course mains gate's circuit is never a fault (`StealthSystems.mainsGroups`,
+  `light` incident at the switch; the same cut noticed again while its incident is open merges into it; noticed again
+  once its tamper check is over with nobody on it, it is a fault, the reset walk (polish B1, A168). A cut nobody saw
+  opens nothing. (polish B1, A168) A noticed cut still off, with its incident gone (check over, walker knocked out,
+  given up or drawn away) and nobody walking to its switch, is forgotten by late discovery after `BREAKER_WALK.retry`
+  20 s (`EnemyManager.relightStep`, `DarkList.unmarkGroup`): the next calm guard who sees it dark relights it. A course mains gate's circuit is never a fault (`StealthSystems.mainsGroups`,
   A63): the S2 incident, nobody relights it. Shot lamps keep the S2 check and stay dark (`setGroup`
   skips destroyed lamps). (guard-ai LR16-4, relight) The Sector Ops boards ride the same walk: a breaker board (no
   `window`) cut calls `lightsOut` on its first circuit with a live lamp (`IsolatorBoards.liveGroup`) at the board, and
@@ -309,13 +315,15 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   circuit (`cutBoard`; else the nearest wall switch), `isOff` true while it is cut and dark, `reset` the board's
   `switchBack` (every circuit of it, its wall switches follow) before a wall switch's toggle. A timed isolator's running
   window is the player's (`holding`): `isOff` / `reset` are false for its circuits, even through a wall switch, and
-  `switchBack` refuses, so its cut stays the S2 look at the board (the lure) and the timer relights it; a walk already
-  going on that circuit ends (S15's isolator rule). Late discovery (`EnemyManager.lateStep`, every 0.1 s over a round-robin share of the guards,
-  ~3 Hz each): `DarkList` holds the dark fixtures (shot, or cut at a switch that is off) no guard has reacted to
-  (rebuilt only on a registry `version` change or a mark); a calm free guard with one in his focused cone within
+  `switchBack` refuses, so its cut stays the S2 look at the board and the timer relights it; a walk already going on
+  that circuit ends (S15's isolator rule). So a timed cut sends 1-2 guards on the S2 check with its 4-point ring, not
+  S15's calm one-guard walk: deliberate, it is the lure (LR16-4). Late discovery (`EnemyManager.lateStep`, every 0.1 s
+  over a round-robin share of the guards, ~3 Hz each): `DarkList` holds the dark fixtures (shot, or cut at a switch
+  that is off) no guard has reacted to (rebuilt only on a registry `version` change or a mark); a calm free guard with
+  one in his focused cone within
   `LATE.range` 12 m and a clear ray reports it as its witness (shot: the S2 light check, one; cut: the breaker walk at
   the circuit's switch, or tampering). Once per fixture / circuit state change (`DarkList.known`, cleared when lit, on
-  `clear` and `resetMemory`). Parked modes: the old rule (nearest calm enemy within 25 m investigates, others within 14 m
+  `clear` and `resetMemory`), or, for a cut nobody fixed, again after `BREAKER_WALK.retry`. Parked modes: the old rule (nearest calm enemy within 25 m investigates, others within 14 m
   `notice`). Flashlights:
   `World` adds `FLASHLIGHTS` (4) on dark maps; human guards (`carriesTorch`: not dogs) get them while investigating / searching / hunting unseen where the
   static light is < `TORCH_DARK` 0.35 (kept to `TORCH_KEEP` 0.45; pure `torchRule` in `archetypes.ts`); `EnemyManager.beamReach` (centre + four edge rays, 15 Hz
@@ -407,7 +415,8 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   Now each door has a nav closure (the Sector Ops door size, `STAGE_NAV_ACROSS` / `STAGE_NAV_ALONG`), built with the
   gate on the manager's first update, held shut while the door is locked and shut (`lockedShut`: `anchor.locked`,
   `target` 0; a locked door standing open stays walkable). `LockedDoorNav.sync` runs each manager update and at once
-  from `Doors.onLocked` (any `setLocked`: course gates, Sector Ops stage / team / keypad locks), so the
+  from `Doors.onLocked` (any `setLocked`: course gates, Sector Ops stage / team / keypad locks; and a `setOpen` of a
+  locked door, shut or, since polish C2, forced open, so its doorway follows with no update between), so the
   `NavGrid.version` bump replans the flow field and every held route once. No guard has a key (the sector `keyholder`
   is a fixed-post role): every guard treats a locked shut door as a wall. An unreachable goal (only a locked door
   between) falls back as before (patrol: straight at the point, stopped by the gate; search: the point skipped), and
@@ -440,7 +449,8 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   `MAX_INTRUDERS` 4): each think a guard perceives every live player (`Enemy.perceive`, per-player module scratch, no
   allocation): chest / head / hips rays, light and `sightRate` per player, a dog's smell per player; a player a calm
   guard cannot see at all (outside his field and not felt close by, `mayBeSeen`, the two terms of `sightRate`) costs no
-  ray. The target is the best seen when calm (the highest rate, else the nearest); in combat the one he fights while he
+  ray. The target is the best seen when calm (the highest rate, else the nearest; polish C1, A169: he keeps the one he
+  perceives until another's rate beats his by `CALM_KEEP` 1.25, undo 1); in combat the one he fights while he
   sees him, else the nearest he sees, else his last (S24 passes the hunted player). One meter per guard, filled at the
   target's rate (two in view do not add up). `seesIndex(i)` (player `i` of `players()` in sight, any body sample) drives
   the host's awareness arcs (`seesIndex(0)`: the host's own player); `targetDist` drives the flanker pick. Undo:
@@ -504,8 +514,9 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   cover in range (`coverGrid.queryNearest`, up to 1024, the nearest kept past that so no side is dropped; S25b fix
   B1; at the cover's position) and a 2 m lattice over the square of half-side R whose
   baked light (`lightField.levelAt` 0.9 m over the floor; torches excluded, A153) is below `dark` (`LIGHT.shadow`);
-  scored darker / cover / nearer by path (`pointScore`), offered best first, at most 12 kept 3 m apart. A rebuild round
-  the same position keeps the looked-into points done. `Enemy.decide`'s search branch, for a combat search
+  scored darker / cover / nearer by path (`pointScore`), offered best first, at most 12 kept 3 m apart. The plan remembers
+  its searched points (`SearchPlan.sx` / `sz`, up to 48, forgotten on a moved centre); a rebuild never offers a
+  candidate within `spacing` of one or of the last known position (polish B4, undo `PLAN_SKIP_SEARCHED` false). `Enemy.decide`'s search branch, for a combat search
   (`combatSearch`, not `searchOwn`, `hunt` >= 0, `SEARCH_AREA.enabled`): the first point is the last known position as
   before, then `AiContext.searchPoint` (`take`: best score minus distance from him, one guard per point); none left:
   today's ring (`ringPoint`, from its first point). The look ending or the point unreachable: `searchDone` (found by his
@@ -549,6 +560,53 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   `ArmourGate` (pure, cached 0.25 s per guard and cell pair); an armoured first hit holds fire. After 1 s held he
   repositions (a cover spot with a clear line, else round by the nav, 8 s) or, held to a room or post leash, holds and
   keeps tracking. Plain glass is unchanged (bullets pass). Host only, no wire change.
+- Guard AI polish batch (2026-10-24, `docs/guard-ai/POLISH-PLAN.md`, A165-A169, A182; ids are the plan's). Each line
+  changes the text above where they disagree. Host only, no protocol or save change.
+  - A1: a device responder pulled into an investigation keeps his device spot and room (`joinAsResponder`); when the
+    look ends (investigating -> cooldown / unaware) he goes back to searching the device room (`SEARCH_DEVICE`), not
+    standing still.
+  - A2 (A167): `pickCover` keeps its best 3 candidates and tries them in order: a cover a mate holds is skipped, a walk
+    longer than `COVER_DETOUR` (1.5 x straight + 3 m) is rejected for the next. A role cover with such a detour is
+    blocked and the roles re-pick next tick. The open wait's failed pick (`openNoCover`) retries once per
+    `SQUAD.openWait`, and never lands on his own held role cover while his role is not moving.
+  - A3 (A165): in stealth with no intruder (`hunt` -1) he A*s to his own `knownSpot` instead of the freshest
+    intruder's chase field (`SLOTLESS_FIELD`).
+  - A4 (A166): hunting one intruder and seeing another, he makes one contact call naming the new one, once per slot
+    per fight (`calledMask`, `RECALL_SWITCH`); a slot he was told of (`tell`) counts as called, so its sighting
+    makes no second call. `calledMask` clears at cooldown / unaware and on `forget`.
+  - A5: in cover with his target out of sight (stealth), "cover still protects" and "too close" read his known point
+    (`knownPt`), not the player's real feet, so he no longer pops up into an upright strafe and re-picks.
+  - A6: the open-wait pick clears `advancing` too (no cover / chase churn; overwatch can suppress).
+  - A7, A8: the suppress line check restarts with each episode (`suppressCheckT` 0 after a lapse or an aim moved more
+    than 0.5 m) and casts `G.STATIC | G.PROP`, so no rounds go into a wall or a crate on an old or prop-blind verdict.
+  - A9: a new target resets the aim settle (`losT` 0). A10: a dog in combat also picks a smelled player
+    (`P_LOS | P_SMELL`), so the fight does not cool with the partner in smell range.
+  - A11: search points and `hearSearch` snap to the right storey (the hunt's or the guard's own `y`), with the cell
+    centre inlined (no array per point). A12: a heard spot's look does not use up a ring index or the LKP visit. A13:
+    a high-security post never asks `searchPoint`, and a plan point moved by a clamp is finished as not reached.
+  - A14: `pickCover` scores each candidate with module scratch (no object or array per candidate).
+  - B1 (A168): a circuit cut twice inside `BREAKER.repeatT`: once its tamper check is over, the same cut noticed again
+    is a fault (the reset walk), as consoles. A cut circuit with no incident, no walker and still off is unmarked in
+    `DarkList` after `BREAKER_WALK.retry` 20 s, so late discovery finds it again (a walker knocked out, the alarm, the
+    30 s give-up).
+  - B2: the one-mover rule counts only a role bound (`seekCover` with `Enemy.roleBound`: set by `boundTo`, cleared by
+    any other cover pick and any state change; a role switch mid-walk keeps it), so an open-wait pick no longer lifts the flank's hold, and a
+    point whose role cover is re-picked for the last ~2 m of his bound (the advance rule) still holds it. Undo
+    `POLISH_B.roleTrip` false: any `seekCover` counts.
+  - B3: hearing in a fight restarts the 1.5 s throttle only for his hunt's noise or one whose slot he takes; a searcher
+    switched by `tell` to another slot re-tells it (`retell`), so no stale `pendingHunt`.
+  - B4: the search plan keeps its searched points (fixed arrays, cleared on a moved centre or a full reset);
+    `buildPlan` skips candidates within `spacing` of a searched point or the centre, so a rebuild gives new points and
+    point 1 never re-looks the LKP.
+  - B5: cover is shared across the intruder groups of one roles tick (`rolesTickStart` / `rolesCommit`), so two
+    groups are never handed the same free cover.
+  - B6: a blinded guard does not hear at all (`hear` skips him), so a blinded calm guard no longer turns to or reports
+    a noise.
+  - B7 (A182): no `tell(alarmHunt)` after an alerted spawn; with no valid slot he binds on the next call or sighting.
+  - B8-B10: `consoleStep` checks the console's busy state once before the sight ray, `boardStep` looks up the console
+    key only in the light / breaker branches, and the per-step `EnemyManager` loops are index loops.
+  - C1 (A169): above (Every player is seen). C2: above (Locked doors on the grid). C3: `losClear`'s ray-only miss is
+    tested with distance 0.
 
 ## Enemy archetypes (2.0 phase 6)
 - `ai/archetypes.ts` (pure, `ARCHETYPE`): `heavyMult` (by `fromFront`), `shieldBlocks`, `grabRule` (heavy frontal = lethal

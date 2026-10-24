@@ -34,6 +34,7 @@ interface FakeGuard {
   incident: number;
   state: string;
   coverIdx: number;
+  roleBound: boolean;
   tacticsProfile: number;
   seesTarget: boolean;
   def: { melee: object | null; kind: string; scale: number; usesCover: boolean };
@@ -74,6 +75,7 @@ function guard(x: number, z: number, o: Partial<FakeGuard> = {}): FakeGuard {
     incident: -1,
     state: 'chase',
     coverIdx: -1,
+    roleBound: false,
     tacticsProfile: 0,
     seesTarget: false,
     def: { melee: null, kind: 'grunt', scale: 1, usesCover: true },
@@ -264,6 +266,8 @@ describe('squad roles wired (coordinated)', () => {
     expect(gs[2]!.moving).toBe(false);
     // the flank is already on its way (it started while the point held): the point waits, the overwatch covers
     gs[2]!.state = 'seekCover';
+    gs[2]!.coverIdx = gs[2]!.cover;
+    gs[2]!.roleBound = true; // (polish B2) on its way = a role bound (Enemy.boundTo sets roleBound)
     roles();
     expect(gs[0]!.moving).toBe(false);
     expect(gs[1]!.mates).toBe(true);
@@ -360,6 +364,17 @@ describe('squad roles and posts (S5 wiring)', () => {
     (e as unknown as { postDef: object }).postDef = { leash: 3 };
     e.setRole(R_REPORTER, 3, true, false, false, false);
     expect([e.role, p.roleCover, p.roleMoving]).toEqual([R_REPORTER, 3, true]);
+  });
+
+  it('(polish B2 re-check) a role switch mid-walk keeps his role bound, so the one-mover rule still counts him', () => {
+    const e = Object.create(Enemy.prototype) as Enemy;
+    Object.assign(e, { postDef: { leash: 0 }, post: [0, 0], ctx: { cover: COVERS }, mateMoving: false, bark: vi.fn() });
+    e.setRole(R_POINT, 0, true, true, false, false);
+    (e as unknown as { onRoleBound: boolean }).onRoleBound = true; // Enemy.boundTo started the bound
+    // re-picked as flank mid-walk (no point cover left in front of him): still on his way
+    e.setRole(R_FLANK, 2, false, true, false, false);
+    expect(e.role).toBe(R_FLANK);
+    expect(e.roleBound).toBe(true);
   });
 });
 
@@ -467,6 +482,7 @@ function roleProbe(o: { role: number; cover?: number; moving?: boolean; mates?: 
     tacticsProfile: P_STANDARD,
     roleGoal: { point: null, speed: 0, face: null },
     coverIdx: -1,
+    onRoleBound: false,
     state: o.state ?? 'chase',
     stateT: 0,
     coverPicked: false,
@@ -598,12 +614,25 @@ describe('role guards out of sight in the open (guard-ai S27, A161)', () => {
   it('(e) R_NONE (a lone guard, or coordinated false: no roles): today steps, the cover-to-cover advance', () => {
     const r = roleProbe({ role: R_NONE });
     const g = r.step();
-    // today's chase: an advance pick on the last known position (more than 7 m away) or a walk-up on it
+    // (guard-ai polish A16) today's chase, exactly: 16 m from the last known position (> 7 m), so the advance pick
+    // (`pickAdvance`: score dT + dMe / 2) takes c0 (0, -7) and bounds to it; no open wait, so no other reservation
     expect(r.p.wantCrouch).toBe(false);
-    expect(r.p.state === 'seekCover' || g.point !== null).toBe(true);
-    const s = roleProbe({ role: R_SEARCH });
-    s.step();
-    expect(s.p.wantCrouch).toBe(false);
+    expect([r.p.state, r.p.coverIdx, g.point]).toEqual(['seekCover', 0, null]);
+    expect(r.ctx.reserveCover).toHaveBeenCalledTimes(1);
+    expect(r.ctx.reserveCover).toHaveBeenCalledWith(r.e, 0);
+    // no cover to bound to: the S8 walk-up on the last known position (the clear line), at the advance pace
+    const w = roleProbe({ role: R_NONE, covers: [] });
+    for (let i = 0; i < 60; i++) {
+      const gw = w.step();
+      expect(gw.point).toEqual([0, 0]);
+      expect(gw.speed).toBeCloseTo(ENEMIES.grunt.walkSpeed * 1.15, 9);
+      expect([w.p.state, w.p.wantCrouch]).toEqual(['chase', false]);
+    }
+    expect(w.ctx.reserveCover).not.toHaveBeenCalled();
+    const s = roleProbe({ role: R_SEARCH, covers: [] });
+    for (let i = 0; i < 60 * 4; i++) s.step();
+    expect([s.p.state, s.p.wantCrouch]).toEqual(['chase', false]);
+    expect(s.ctx.reserveCover).not.toHaveBeenCalled();
   });
 });
 

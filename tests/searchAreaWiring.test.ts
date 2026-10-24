@@ -203,7 +203,7 @@ describe('the plan per intruder (EnemyManager.buildPlan)', () => {
     expect(plan.claimOf(gs[2]!.num)).toBe(-1);
   });
 
-  it('a searched point stays done by its claim; no rebuild while a claim is live; a rebuild keeps the searched points done', () => {
+  it('a searched point stays done by its claim; no rebuild while a claim is live; a rebuild never offers the searched points again', () => {
     const a = guard(0, 0);
     const b = guard(0, 0);
     const { em, ctx, point, plan, priv } = manager([a, b]);
@@ -219,15 +219,19 @@ describe('the plan per intruder (EnemyManager.buildPlan)', () => {
     ctx.searchDone!(a as unknown as Enemy, true);
     ctx.searchDone!(b as unknown as Enemy, false);
     expect(plan.claimOf(a.num)).toBe(-1);
-    // no claim live and the plan is old: rebuilt round the same position with the larger R; the corner stays done
+    // no claim live and the plan is old: rebuilt round the same position with the larger R; (guard-ai polish B4) the
+    // searched corner and b's point are remembered, so neither (nor any point within `spacing` of them) is offered again
     const p2 = point(a);
     expect(plan.builtAt).toBeGreaterThan(built);
     expect(p2).not.toBeNull();
     expect(p2).not.toEqual([-6, 0]);
     expect(p2).not.toEqual(pb);
-    const k = pts(plan).findIndex(([x, z]) => x === -6 && z === 0);
-    expect(k).toBeGreaterThanOrEqual(0);
-    expect(plan.done[k]).toBe(1);
+    expect(plan.sn).toBe(2);
+    for (const [x, z] of pts(plan)) {
+      expect(Math.hypot(x + 6, z)).toBeGreaterThanOrEqual(SEARCH_AREA.spacing);
+      expect(Math.hypot(x - pb![0], z - pb![1])).toBeGreaterThanOrEqual(SEARCH_AREA.spacing);
+    }
+    for (let k = 0; k < plan.n; k++) expect(plan.done[k]).toBe(0);
   });
 
   it('(guard-ai S26, A157) a plan built 10 s after the sighting but 0.5 s after a heard report: R = areaRadius(0.5)', () => {
@@ -545,10 +549,15 @@ describe('S25b fix: stale plans and held claims (check A polish 1-4)', () => {
     expect(pb).not.toBeNull();
     expect([plan.cx, plan.cz]).toEqual([-5, -2]);
     expect(plan.claimOf(a.num)).toBe(-1);
-    // a's look ends: nothing to finish (found by claim), harmless; his next point is the new plan's
+    // a's look ends: nothing to finish (found by claim), harmless; his next point is the new plan's. (guard-ai polish
+    // B4) The new plan has one point here, (-3, 2): the corner cover (-6, 0) is within `spacing` of the new last known
+    // position (his first look), so it is never offered; while b holds it a gets none (the ring), then b's point
     ctx.searchDone!(a as unknown as Enemy, true);
     expect(plan.claimOf(b.num)).toBeGreaterThanOrEqual(0);
-    expect(point(a)).not.toBeNull();
+    expect(pts(plan)).toEqual([[-3, 2]]);
+    expect(point(a)).toBeNull();
+    plan.release(b.num);
+    expect(point(a)).toEqual(pb);
   });
 
   it('A2: a response-team member holding a point when his team starts sweeping lets it go', () => {
@@ -598,5 +607,33 @@ describe('S25b fix: stale plans and held claims (check A polish 1-4)', () => {
     em.intruders.valid[0] = 0;
     priv.raiseAlarm(raiser as unknown as Enemy, null);
     expect(pr.alarmHunt).toBe(-1);
+  });
+});
+
+describe('guard-ai polish B4: a rebuild round the same position hands out new points', () => {
+  it('12 points searched, the plan rebuilt: 12 new ones, none within spacing of a searched point or of the LKP', () => {
+    const g = guard(0, 0);
+    const { ctx, point, plan, priv } = manager([g], 8, { open: true, covers: [], light: () => DARK });
+    const searched: P2[] = [];
+    for (let k = 0; k < SEARCH_AREA.points; k++) {
+      const p = point(g);
+      expect(p).not.toBeNull();
+      searched.push(p!);
+      ctx.searchDone!(g as unknown as Enemy, true);
+    }
+    // exhausted: the ring until the plan is due
+    expect(point(g)).toBeNull();
+    const built = plan.builtAt;
+    priv.planClock += SEARCH_AREA.rebuild + 0.1;
+    const p = point(g);
+    expect(plan.builtAt).toBeGreaterThan(built);
+    expect(p).not.toBeNull();
+    expect(plan.n).toBe(SEARCH_AREA.points);
+    expect(plan.sn).toBe(SEARCH_AREA.points);
+    for (const [x, z] of pts(plan)) {
+      expect(Math.hypot(x - LKP.x, z - LKP.z)).toBeGreaterThanOrEqual(SEARCH_AREA.spacing);
+      for (const [sx, sz] of searched) expect(Math.hypot(x - sx, z - sz)).toBeGreaterThanOrEqual(SEARCH_AREA.spacing);
+    }
+    for (const [x, z] of searched) expect(Math.hypot(x - LKP.x, z - LKP.z)).toBeGreaterThanOrEqual(SEARCH_AREA.spacing);
   });
 });
