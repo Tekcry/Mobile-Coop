@@ -1,6 +1,8 @@
 # Guard AI - state
 
 ## Now
+~04:05 (new window): PR #313 co-op carry OPEN, laptop coop-carry3 pending. Ready from me: #272, #298, #302, #303.
+
 ~15:40 USAGE CAP: coop-carry checks A + B PASS; laptop e2e-coop FAIL (desktop log; checker B predicts the hide-step
 teleport refusal). Fix round brief in resume item 3. Nothing running.
 
@@ -858,17 +860,11 @@ orchestrator). Green -> `gh pr edit <n> --add-label train-ready` + tell orchestr
    - #303 watchdog cap 90 s 26e55a4e (feature/guard-ai-watchdog-90; LR16 compiles measured to 43.5 s; CI green; #295 merged).
    - #302 S28 + sweep 55592902 (feature/guard-ai-sweep = master + S28 + sweep stall fix; S28.md, S13-SWEEP-FIX/-CHECK;
      laptop sweep-fix2 PASS, looked 1 skipped 0). CI was running at label time.
-3. IN PROGRESS: spare job #14 co-op body carry (BUILT 50405e05; checks A + B PASS, reports committed; laptop coop-carry
-   3/4: e2e-coop FAIL on the desktop worker, ask the orchestrator for the assert). NEXT = one Opus fix round on
-   feature/guard-ai-coop-carry: (a) e2e block: allowTeleport before each client teleport (hide refused: host copy moves
-   0.8 m/state), freeze other guards on the host for the block (e.update = () => {}), assert KO'd + not present instead of
-   found0; (b) coopHost.remoteDrop: no DROP_NOISE when the lift never reached the shoulder (!v.onShoulder / v.t);
-   (c) optional: no 'Pick up body' for a body the client never saw fall. Then laptop coop-carry again -> PR (minor). (worktree C:/NightShift/Mobile-Coop-guard-ai-coop-carry,
-   feature/guard-ai-coop-carry off master 6b44efb8, npm ci'd; PROTOCOL 48, the train bumps it). Plan + state in
-   docs/guard-ai/slices/COOP-CARRY.md on that branch (WIP pushed per step). Resume: read COOP-CARRY.md, finish the
-   build with a fresh Opus builder, then 2 Opus checkers (src/net) + laptop e2e-coop, e2e-netmove, e2e-guard-carry;
-   one PR (minor). Guard-render: AI-side skipped (AI 0.004-0.013 ms / guard); Test Runner's PLAN2 may ask for a
-   gameplay-only "dormant" fact. G44 already on master.
+3. PR #313 co-op body carry on the client (feature/guard-ai-coop-carry b1daa9a1, worktree -coop-carry; WIRE CHANGE,
+   PROTOCOL left 48 for the train; minor). Checks A + B PASS, fix round 9cb311a6, re-check PASS + follow-ups b1daa9a1
+   (docs/guard-ai/slices/COOP-CARRY*.md). Laptop coop-carry3 (e2e-coop, e2e-takedown) pending -> train-ready.
+   Guard-render: AI-side skipped (AI 0.004-0.013 ms / guard); Test Runner's PLAN2 may ask for a gameplay-only
+   "dormant" fact. G44 already on master.
    On a train failure: bisect with single-suite laptop sets on master and the branch head (+ a test-only merge if the
    branch is on an older master), Opus triage at once. Desktop-worker logs: ask the orchestrator for the asserts.
 4. Polish (S24-LEVELS-CHECK): redundant tell(alarmHunt) after spawn in reinforce (enemyManager.ts:979) and parked
