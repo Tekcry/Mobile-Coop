@@ -96,6 +96,7 @@ const log = (...a) => console.log(`[guard-cap-coop ${new Date().toISOString().sl
 let server = null;
 const stopServer = () => { try { server?.kill(); } catch { /* gone */ } };
 process.on('exit', stopServer);
+process.on('SIGINT', () => process.exit(130));
 const distIndex = existsSync('dist/index.html') ? readFileSync('dist/index.html', 'utf8') : null;
 if (!distIndex) { console.error('guard-cap-coop: dist/index.html missing (run `npm run build` first)'); process.exit(2); }
 const answering = await fetch(URL).then((r) => r.text(), () => null);
@@ -385,7 +386,7 @@ async function pageSample([secs, counted, wireOn]) {
     gpuTimer: !!ext,
     counts,
     wire,
-    state: { guardsAlive: g.enemyMgr?.alive ?? null, meshes: scene.meshes.length, renderW: engine.getRenderWidth(), renderH: engine.getRenderHeight() },
+    state: { hidden: document.hidden, guardsAlive: g.enemyMgr?.alive ?? null, meshes: scene.meshes.length, renderW: engine.getRenderWidth(), renderH: engine.getRenderHeight() },
   };
 }
 
@@ -517,7 +518,7 @@ async function runPage(map, players, n, ctl) {
     await pages[0].waitForTimeout(1500);
     const spawn = await pages[0].evaluate(pageSpawn, [n, KIND]);
     log(`${tag}: spawned ${spawn.spawned} (alive ${spawn.alive}, ${spawn.inSight} in nav sight, mean ${spawn.meanDist.toFixed(1)} m)`);
-    if (spawn.alive !== n) results.errors.push(`${tag}: asked for ${n} awake guards, got ${spawn.alive}`);
+    if (spawn.alive !== n && !ctl.dead) results.errors.push(`${tag}: asked for ${n} awake guards, got ${spawn.alive}`);
     // every client faces the guards (the worst case for its render); then wait for the snapshots to build the puppets
     const centroid = await pages[0].evaluate(pageCentroid);
     if (centroid) for (const P of clients) await P.evaluate(pageAim, centroid);
@@ -545,14 +546,14 @@ async function runPage(map, players, n, ctl) {
         log(`${tag} ${name}: host frame cpu ${h.frameCpuMs.med}/${h.frameCpuMs.p95}, gpu ${h.gpuMs?.med ?? 'n/a'}, draws ${h.draws.med}; clients cpu p95 ${cl.map((c) => c.frameCpuMs.p95).join('/')}, gpu ${cl.map((c) => c.gpuMs?.med ?? 'n/a').join('/')}, puppets ${cl.map((c) => c.puppets?.med ?? 'n/a').join('/')}; snap ${w ? `${w.msg.med}/${w.msg.max} chars, ${w.perS}/s` : 'n/a'}`);
         for (const fl of rec.flags ?? []) {
           log(`${tag} ${name}: FLAG ${fl}`);
-          results.flags.push(`${tag} ${name}: ${fl}`);
+          if (!ctl.dead) results.flags.push(`${tag} ${name}: ${fl}`);
         }
       } catch (e) {
         rec.error = String(e?.message ?? e).split('\n')[0];
-        results.errors.push(`${tag} ${name}: ${rec.error}`);
+        if (!ctl.dead) results.errors.push(`${tag} ${name}: ${rec.error}`);
         log(`${tag} ${name}: FAILED ${rec.error}`);
       }
-      results.cells.push(rec);
+      if (!ctl.dead) results.cells.push(rec); // (after the outer timeout an orphaned run's late cells are dropped)
     };
     // `prep` (the alert cell re-alerts the host's guards before each sample); every page is sampled at once
     const measure = async (prep = null) => {
@@ -573,6 +574,13 @@ async function runPage(map, players, n, ctl) {
       else if (out.wire.types.snap.n === 0) flags.push('the host sent no snapshot in the sample');
       const h = clean[0];
       if (!(h.simAdvanced >= h.realSecs * 0.9)) flags.push(`host sim clock moved ${r3(h.simAdvanced)} s in ${r3(h.realSecs)} real s (the loop fell behind or paused; MAX_STEPS drops)`);
+      // a hidden page or a very low frame rate means background throttling: the numbers are skewed
+      for (const [i, c] of [...clean.entries()]) {
+        const p = out.pages[ROLES[i]];
+        if (c.state.hidden || counted[i].state.hidden) flags.push(`${ROLES[i]}: page is hidden (document.hidden): background throttling skews its numbers`);
+        if ((p.fps ?? 0) < 10) flags.push(`${ROLES[i]}: sampled fps ${p.fps ?? 'n/a'} is under 10: throttling or an overloaded GPU, read its numbers with care`);
+      }
+      out.suspect = flags.some((x) => /is hidden|under 10/.test(x));
       for (const [i, c] of clean.entries()) if (!c.gpuTimer) { flags.push(`${ROLES[i]}: GPU timer not exposed`); break; }
       return out;
     };
@@ -596,7 +604,7 @@ async function runPage(map, players, n, ctl) {
     }
     errors.forEach((es, i) => {
       const pageErrors = es.filter((e) => e.startsWith('[error]') || e.startsWith('[pageerror]'));
-      if (pageErrors.length) results.errors.push(`${tag}: ${ROLES[i]}: ${pageErrors.length} console error(s), first: ${pageErrors[0].slice(0, 300)}`);
+      if (pageErrors.length && !ctl.dead) results.errors.push(`${tag}: ${ROLES[i]}: ${pageErrors.length} console error(s), first: ${pageErrors[0].slice(0, 300)}`);
     });
   } finally {
     await browser.close().catch(() => {});
@@ -613,6 +621,7 @@ for (const map of MAPS) {
         await withTimeout(runPage(map, players, n, ctl), PAGE_TIMEOUT, `${map} x ${players}p x ${n}`);
       } catch (e) {
         const msg = `${map} x ${players}p x ${n}: ${String(e?.message ?? e).split('\n')[0]}`;
+        ctl.dead = true;
         results.errors.push(msg);
         results.cells.push({ map, players, count: n, cell: 'boot', error: msg });
         log(`FAILED ${msg}`);
@@ -726,7 +735,7 @@ function resultsMd(R) {
   const L = [];
   L.push('# Guard cap, co-op: results', '');
   L.push(`Run ${R.started} - ${R.finished ?? '?'} (${R.minutes ?? '?'} min), version ${R.version ?? '?'}, hardware GPU (E2E_GPU=1), ${R.uncapped ? 'frame rate uncapped' : 'display-capped'}, gfx=${R.gfx}, ${R.viewport.join('x')} per page, guards: ${R.kind}, warm ${R.warm} s${R.warmAsked !== R.warm ? ` (asked ${R.warmAsked}, raised to the 5 s minimum)` : ''}, sample ${R.secs} s on every page at once.`);
-  L.push('Medians / p95 in ms unless named. Script: `scripts/guard-cap-coop.mjs`; method and decision rule: `docs/guard-cap/PLAN.md`. Guards are spawned on the host page; every client page faces them (the `away` cell turns every page 180 degrees). Frame CPU is the loop\'s own per-frame CPU (sim + update + render submit); uncapped, most frames run no 60 Hz step, so the frames that ran one are shown too. Wire sizes are `JSON.stringify(msg).length` characters.', '');
+  L.push('Medians / p95 in ms unless named. Script: `scripts/guard-cap-coop.mjs`; method and decision rule: `docs/guard-cap/PLAN.md`. Guards are spawned on the host page; every client page faces them (the `away` cell turns every page 180 degrees). Frame CPU is the loop\'s own per-frame CPU (sim + update + render submit); uncapped, most frames run no 60 Hz step, so the frames that ran one are shown too. Wire sizes are `JSON.stringify(msg).length` characters. The host\'s frame CPU includes the wire wrapper\'s own `JSON.stringify` cost (reported as stringify ms per s in the wire table).', '');
   const ok = R.cells.filter((c) => !c.error && c.pages);
   const groups = [];
   for (const c of R.cells) if (!groups.some((g) => g.map === c.map && g.players === c.players)) groups.push({ map: c.map, players: c.players });
