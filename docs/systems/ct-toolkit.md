@@ -53,7 +53,7 @@ if one is taken.
 | --- | --- | --- |
 | Contextual use (pick, hack, cut, question) | E (existing interact) | Y (existing) |
 | Optic cable | Door menu at a door (G97). (optic-coop M1, Michael 2026-10-24) At hatches, panels, grilles and shaft tops the same action menu at the gap: OPEN TRAP (only where a closed panel covers the gap) and OPTIC CABLE (`game/gapMenu.ts`); no new key | The same: A, the action menu at the door or gap |
-| Ping (co-op; optic-coop M2, Michael 2026-10-24) | Middle mouse (`ping`, was free) | R3 (`ping`); R3 is also Zoom: a default conflict, reported, nothing moved (open for Michael) |
+| Ping (co-op; optic-coop M2, Michael 2026-10-24) | Middle mouse (`ping`, was free) | R3 (`ping`); R3 is also Zoom, by context (Michael 2026-10-24 ~14:55 "contextual"): aiming a scoped weapon R3 zooms (no ping), otherwise it pings (no zoom); an allowed pair, no conflict |
 | Launcher rounds (shocker, airfoil) | Tab wheel to select, G hold to aim, release to fire | D-pad left hold (wheel), D-pad right hold / release (existing `grenade`) |
 | Pistol secondary (new action `secondary`, always available) | H (proposal; free) with the pistol drawn: hold to aim, release to fire | A while aiming (proposal) |
 | Lockpick minigame | Mouse moves the pick round a dial (A / D also turn it) | Left stick angle |

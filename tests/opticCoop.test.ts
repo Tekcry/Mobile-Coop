@@ -42,7 +42,7 @@ import { Vector3 } from '../src/core/babylon';
 import { assignBind, BINDS, defaultBinds, keyActionMap } from '../src/input/keyBindings';
 import { defaultPadBinds, padBindTable, PAD_BINDS, PAD_FIXED } from '../src/input/padBinds';
 import { GAME_BINDINGS, mapPad, PAD } from '../src/input/gamepadMapping';
-import { findConflicts } from '../src/input/conflicts';
+import { contextPing, contextZoom, findConflicts } from '../src/input/conflicts';
 
 const DEG = Math.PI / 180;
 const door = { hinge: { x: 0, y: 0, z: 0 }, yaw: 0, width: 0.9, locked: false };
@@ -324,13 +324,43 @@ describe('(optic-coop M2, check A polish 5) a ping from the optic view casts fro
     const f = mapPad(snap, { deadzoneLeft: 0.15, deadzoneRight: 0.15, triggerDeadzone: 0.05, curve: 'linear', invertY: false }, padBindTable(defaultPadBinds()));
     expect(f.buttons.ping).toBe(true);
   });
-  it('the conflict check: middle mouse is free; R3 is shared with Zoom (reported, Zoom not moved)', () => {
+  it('the conflict check: middle mouse is free; R3 is shared with Zoom as an allowed pair (Michael M2 "contextual": no conflict)', () => {
     expect(findConflicts(defaultBinds())).toEqual([]);
-    expect(findConflicts({ ...defaultPadBinds(), aim: PAD_FIXED.aim, fire: PAD_FIXED.fire })).toEqual([{ a: 'zoom', b: 'ping', input: PAD.RS }]);
+    expect(findConflicts({ ...defaultPadBinds(), aim: PAD_FIXED.aim, fire: PAD_FIXED.fire })).toEqual([]);
     expect(defaultPadBinds().zoom).toEqual([PAD.RS]);
-    // a key put on the ping is named as a clash with its other verb (warned, both keep it)
+    // a key put on the ping is named as a clash with its other verb (warned, both keep it); Zoom's key is the allowed pair
     const k = defaultBinds();
-    expect(assignBind(k, 'ping', 0, 'KeyB')).toBe('zoom');
-    expect(findConflicts(k)).toEqual([{ a: 'zoom', b: 'ping', input: 'KeyB' }]);
+    expect(assignBind(k, 'ping', 0, 'KeyR')).toBe('reload');
+    expect(findConflicts(k)).toEqual([{ a: 'reload', b: 'ping', input: 'KeyR' }]);
+    const z = defaultBinds();
+    expect(assignBind(z, 'ping', 0, 'KeyB')).toBe('zoom');
+    expect(findConflicts(z)).toEqual([]);
+  });
+  // (optic-coop M2, Michael 2026-10-24 "contextual: R3 pings normally and zooms only while aiming a scoped weapon (no
+  // ping while scoped). Keyboard: middle mouse pings.")
+  describe('R3 by context: Zoom while aiming a scoped weapon, Ping otherwise', () => {
+    const r3 = mapPad(
+      { buttons: Array.from({ length: 17 }, (_, i) => (i === PAD.RS ? 1 : 0)), axes: [0, 0, 0, 0] },
+      { deadzoneLeft: 0.15, deadzoneRight: 0.15, triggerDeadzone: 0.05, curve: 'linear', invertY: false },
+      padBindTable(defaultPadBinds()),
+    ).buttons;
+    it('R3 raises both verbs (one press)', () => {
+      expect(r3.zoom && r3.ping).toBe(true);
+    });
+    it('scoped aim + R3: zoom, no ping', () => {
+      expect(contextZoom(true, !!r3.zoom)).toBe(true);
+      expect(contextPing(true, !!r3.zoom, !!r3.ping)).toBe(false);
+    });
+    it('not scoped (holstered, low ready or an unscoped gun aimed) + R3: ping, no zoom', () => {
+      expect(contextZoom(false, !!r3.zoom)).toBe(false);
+      expect(contextPing(false, !!r3.zoom, !!r3.ping)).toBe(true);
+    });
+    it('keyboard: middle mouse (Ping alone) pings while scoped too; B (Zoom alone) never pings', () => {
+      const mm = keyActionMap(defaultBinds()).get('Mouse1') ?? [];
+      expect(contextPing(true, mm.includes('zoom'), mm.includes('ping'))).toBe(true);
+      const b = keyActionMap(defaultBinds()).get('KeyB') ?? [];
+      expect(contextPing(false, b.includes('zoom'), b.includes('ping'))).toBe(false);
+      expect(contextZoom(true, b.includes('zoom'))).toBe(true);
+    });
   });
 });

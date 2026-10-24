@@ -21,7 +21,7 @@ describe('pad bindings (step 18)', () => {
     expect(m.get(PAD.B)).toBe('crouch');
     expect(m.get(PAD.Y)).toBe('jump');
     expect(m.get(PAD.X)).toBe('draw');
-    // (optic-coop M2) R3 zooms and pings (a reported conflict, nothing moved)
+    // (optic-coop M2, "contextual") R3 raises zoom and ping; the game picks one by context (`contextPing`)
     expect(GAME_BINDINGS.filter(([i]) => i === PAD.RS).map(([, a]) => a).sort()).toEqual(['ping', 'zoom']);
     expect(m.get(PAD.RB)).toBe('coop');
     expect(m.get(PAD.LB)).toBe('gadgetWheel');

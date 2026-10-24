@@ -619,7 +619,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   kneel in front of the leaf, her right hand down at the door's foot and a thin dark cable running out under the door;
   her view is not shared. When she pulls out (B) the cable shortens and goes, and she stands. Works both ways (host and
   joiner). (M2) R3 / middle mouse pings; a ping from the view marks what the tip sees on both tabs, also in the
-  view's first moment. Controls screen: Zoom and Ping both on R3 show as a conflict (expected, reported to Michael).
+  view's first moment. R3 while aiming a scoped weapon zooms and sends no ping; R3 otherwise pings and does not zoom;
+  middle mouse pings while scoped too. Controls screen: Zoom and Ping both on R3 show no conflict (the pad note names
+  the context); put another verb on R3 and it shows as a conflict.
 - [ ] Close the host tab: the client is told and returns to the menu.
 - [ ] (marlow-bays B+M) Marlow Yard in two tabs (`?net=local&autostart=ctcourse&mode=course`): as the joiner, grab a
   guard and walk: full hold speed, no shoving or jitter; on the host the guard stays in front of the joiner's body.

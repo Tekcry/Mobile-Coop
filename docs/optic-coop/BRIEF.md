@@ -15,6 +15,12 @@ below, plus checker A's polish items 2 and 5, `CHECK-A.md` on origin/feature/opt
   door menu's prompt and selection on pad and keyboard; refusals ("Too far", "No gap") as the door path shows them.
 - **M2** "Bind ping: middle mouse on keyboard, R3 on pad; it works from the optic view too". If one is taken, keep
   Michael's binding, move nothing silently, and report the conflict.
+  - **M2 R3 (2026-10-24 ~14:55, relayed)** "contextual: R3 pings normally and zooms only while aiming a scoped weapon
+    (no ping while scoped). Keyboard: middle mouse pings." Built: `['zoom', 'ping']` in `ALLOWED_PAIRS`
+    (`input/conflicts.ts`), so the default R3 pair is no conflict (a player's own remap of another verb onto their
+    input still is); `contextPing` / `contextZoom` pick one per press: aiming a scoped weapon (`PlayerWeapons.scopedAim`)
+    R3 zooms and does not ping, otherwise it pings and does not zoom. Middle mouse (Ping alone) pings in any state.
+    Replaces A9.
 
 Gap placement on the maps goes to the map leads later.
 
@@ -25,7 +31,6 @@ Gap placement on the maps goes to the map leads later.
 - A8 The gap set is offered within 1.6 m of the gap (the door set's reach; the cable's own 1.0 m reach still refuses
   with "Too far" from the pick, as at a door), in the cable's height band, in front of the camera unless the gap is
   within 0.5 m (a hatch at the feet, a panel overhead). A faced door's set wins over a gap's. Undo: `GAP_MENU`.
-- A9 R3 stays on Zoom and also pings by default: a default conflict the controls screen and the old-save migration toast
-  report (not an allowed pair). Undo: remove `ping` from `PAD_BINDS` / `GAME_BINDINGS`, or add `['zoom', 'ping']` to
-  `ALLOWED_PAIRS` if Michael wants them contextual.
+- A9 (superseded by Michael's M2 R3 answer, 2026-10-24 ~14:55: contextual, an allowed pair) R3 stayed on Zoom and also
+  pinged by default as a reported conflict.
 - A10 (check A 2) Past 256 gaps `LevelBuilder.opticGap` refuses the gap with a console warning (the wire's bound).

@@ -15,5 +15,7 @@ kind: minor
   and "No gap" show as at a door. In co-op OPEN TRAP goes through the host like a door, so the panel opens for both
   players (and for a partner who joins or rejoins later); wire: client -> host `panel`, the snapshot's `trp`.
 - (optic-coop M2) Ping is bound: middle mouse on keyboard and mouse, R3 on the pad, and it works from the optic view
-  (the ping comes from the tip, from the view's first moment). R3 is also Zoom: the controls screen shows that conflict.
+  (the ping comes from the tip, from the view's first moment). R3 is shared with Zoom by context (Michael): while aiming
+  a scoped weapon R3 zooms and does not ping; otherwise it pings and does not zoom. Middle mouse always pings. The
+  controls screen shows no conflict for the default R3 pair (another verb put on R3 still shows one).
 - (optic-coop) A level holds at most 256 optic gaps (the network's bound); more are refused with a warning.

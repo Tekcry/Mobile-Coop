@@ -125,6 +125,7 @@ import { GADGET_IDS, GADGETS, type GadgetId } from './gadgets';
 import { MISSIONS } from './missions';
 import { WEAPONS } from '../weapons/weaponDefs';
 import { InputState } from '../input/inputState';
+import { contextPing } from '../input/conflicts';
 import { clearTouchIn, demoInput, FREE_CFG, FREE_IN, FREE_ORBIT, FREE_SET, FREE_VIEW, FreeViewCore, orbitAngleDeg, type DemoOut, type FreeMode } from '../player/freeView';
 import { StudioStage } from './studioStage';
 import { STUDIO_MAP_ID } from '../anim/studio';
@@ -1828,8 +1829,11 @@ export class GameState implements AppState {
     // (G5) A belongs to the menu while a list is up (or its press is still held): the other A readers see it up
     const aFree = !this.ctxOwnsA;
     // (CT prototype B2) RB / F is the co-op action (team moves). (optic-coop M2) The ping is R3 / middle mouse
-    // (ct-toolkit 3.2) a ping from the optic view goes to the team (the tip's ray: `OpticSystem.tipRay`)
-    if ((this.optic.viewing ? real : inp).pressed('ping') && this.net && this.player.alive) this.sendPing();
+    // (ct-toolkit 3.2) a ping from the optic view goes to the team (the tip's ray: `OpticSystem.tipRay`). (optic-coop M2,
+    // Michael 2026-10-24 "contextual") R3 is Zoom only while aiming a scoped weapon, Ping otherwise (`contextPing`)
+    const pingIn = this.optic.viewing ? real : inp;
+    const scopedAim = !this.optic.viewing && this.weapons.scopedAim;
+    if (contextPing(scopedAim, pingIn.pressed('zoom'), pingIn.pressed('ping')) && this.net && this.player.alive) this.sendPing();
     // (anim-rework S1) blank input under a held context menu or the wheel is not an X release (a held X keeps its press)
     this.player.inputBlank = inp === this.blankInp;
     // a body on the shoulder: no traversal, weapon stowed, slow
