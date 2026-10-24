@@ -108,7 +108,9 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
 - Objective line (coop-fix, `net/objectiveMirror.ts`): the client shows "Connecting to host…" until the first
   snapshot, which always replaces it (an empty course-mode objective included), and "Waiting for host…" after 2 s
   without one, until the next. The host seeds its copy from the HUD when it hooks it (Free Roam sets it earlier).
-- `CoopHost`: remote players (`RemotePlayer` = Damageable + hitbox + PlayerRef), 15 Hz snapshots, event queue, enemy
+- `CoopHost`: remote players (`RemotePlayer` = Damageable + split hit volumes from the sim body model, rig-pose-fix S1:
+  `PlayerHitVolumes` on `playerBody(wireBodyIn(accepted state))`, the client's own model, headshots x1.3 and legs x0.75 as
+  the local player's + PlayerRef), 15 Hz snapshots, event queue, enemy
   position history for lag compensation, shot / blast checks via pure `validate.ts`, per-player kill tallies in `end`.
   `CoopClient`: `EnemyPuppet`s + `RemoteAvatar`s interpolated with `SnapshotBuffer` / `ClockSync` (`interp.ts`), sends
   `pstate` at 20 Hz and hits as `shot`; rewards come from `clampEnd` + `coopSessionStats` of the host report.
@@ -246,7 +248,8 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   `PartnerBlocker` (`partnerBlocker.ts`), an upright capsule at their shown (interpolated) feet in `G.PARTNER` that only
   the local controller collides with. Host: `RemotePlayer.blocker`; client: per `RemoteAvatar`. Parked while the
   partner is down or in a boost / human ladder (`partnerPassable`); brace keeps it (reach 1.2 m). Course friendly fire's
-  partner hit boxes (`PartnerTarget`, host `partnerBoxes`) are bullets only.
+  partner hit boxes (`PartnerTarget`, host `partnerBoxes`) are bullets only; (rig-pose-fix S1, G11 / G12) they sit on the
+  sim body model of the drawn copy's state (`RemoteAvatar.bodyIn`), not on its rig.
 - Teleports: `SnapshotBuffer` holds the old spot and then shows the new one when two states are more than `SNAP_MIN`
   (2 m) apart and either faster than `SNAP_SPEED` (25 m/s) or, across a gap over `SNAP_GAP` (0.3 s), further than
   max(`SNAP_MIN`, sqrt(2) x |v| x gap) from where the velocity before the gap would carry the partner. The blocker parks

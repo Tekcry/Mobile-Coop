@@ -113,10 +113,11 @@ export function wallLeftHand(sub: number): boolean {
   return (sub & WALL_SUB.edgeL) !== 0 && (sub & WALL_SUB.peek) !== 0;
 }
 
-/** (step 12b fix r2, light parity) The light meter's head sample from a posed head centre (hx, hy, hz) over the feet
+/** (step 12b fix r2, light parity) The light meter's head sample from a head centre (hx, hy, hz) over the feet
  *  (px, py, pz): the horizontal offset and the body height whose head sample (`bodyLevel`, 0.95 of the height) lands
- *  on the head. The local player (its rig) and the host's remotes (their posed RemoteAvatar rig) both call it, so the
- *  light meter, perception's head point and the posed body agree on the wall (bible 5.1). Writes `out`. */
+ *  on the head. (rig-pose-fix S4, A2 supersedes A51) The head is the sim body's (`playerBody` of the wall state: the
+ *  local player's `PlayerTarget.body`, the host's `RemotePlayer` from the MoveState), so the light meter, perception's
+ *  head point and the guards agree on the wall on both machines (bible 5.1). Writes `out`. */
 export function posedHeadSample(px: number, py: number, pz: number, hx: number, hy: number, hz: number, out: { ox: number; oz: number; h: number }): { ox: number; oz: number; h: number } {
   out.ox = hx - px;
   out.oz = hz - pz;
