@@ -1,6 +1,11 @@
 # Guard AI - state
 
 ## Now
+~15:15: coop-carry BUILT 50405e05 (bodies in the item mirror, host-authoritative 'use' requests, carry code in
+src/game/bodyCarry.ts; PROTOCOL left 48 for the train; COOP-CARRY.md Built). RUNNING: Opus checkers A (wire / authority)
++ B (gameplay parity) -> COOP-CARRY-CHECK-A/B.md (uncommitted: lead commits); laptop set coop-carry (coop, netmove,
+guard-carry, takedown). Both green -> PR (minor).
+
 ~14:55 SAVE (orchestrator 88%, swap at 100%): every worktree clean and pushed except -coop-carry (agent told to WIP
 commit + push now). Ready from me: #272, #298, #302, #303. Resume block current.
 
@@ -850,7 +855,7 @@ orchestrator). Green -> `gh pr edit <n> --add-label train-ready` + tell orchestr
    - #303 watchdog cap 90 s 26e55a4e (feature/guard-ai-watchdog-90; LR16 compiles measured to 43.5 s; CI green; #295 merged).
    - #302 S28 + sweep 55592902 (feature/guard-ai-sweep = master + S28 + sweep stall fix; S28.md, S13-SWEEP-FIX/-CHECK;
      laptop sweep-fix2 PASS, looked 1 skipped 0). CI was running at label time.
-3. IN PROGRESS: spare job #14 co-op body carry on the client (worktree C:/NightShift/Mobile-Coop-guard-ai-coop-carry,
+3. IN PROGRESS: spare job #14 co-op body carry on the client (BUILT 50405e05; checkers A + B + laptop set coop-carry running) (worktree C:/NightShift/Mobile-Coop-guard-ai-coop-carry,
    feature/guard-ai-coop-carry off master 6b44efb8, npm ci'd; PROTOCOL 48, the train bumps it). Plan + state in
    docs/guard-ai/slices/COOP-CARRY.md on that branch (WIP pushed per step). Resume: read COOP-CARRY.md, finish the
    build with a fresh Opus builder, then 2 Opus checkers (src/net) + laptop e2e-coop, e2e-netmove, e2e-guard-carry;
