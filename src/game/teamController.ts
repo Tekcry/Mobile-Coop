@@ -381,9 +381,7 @@ export class TeamController implements KitHost {
   /** (KitHost) Ask the host for a kit move. */
   kitRequest(kind: KitKind, partner: string, target: number, s: number, gy: number, lx?: number, lz?: number): void {
     this.partner = partner;
-    // NET: GameState's hook takes `TeamKind` until the wire carries the kit kinds (then this cast goes)
-    const net = this.g.net as { teamRequest?(kind: TeamMoveKind, partner: string, target: number, s: number, gy: number, lx?: number, lz?: number): void } | null | undefined;
-    net?.teamRequest?.(kind, partner, target, s, gy, lx, lz);
+    this.g.net?.teamRequest?.(kind, partner, target, s, gy, lx, lz);
   }
 
   // ---- (CT prototype B7) the two-person rope (CT 1.4 Belay Line) ----

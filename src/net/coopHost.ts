@@ -37,7 +37,9 @@ import { hostCrackOk } from '../world/doorPeek';
 import { contactDelay, GRAB } from '../game/takedown';
 import { hangHoldStep, hangingMove, type HangSpot } from './hangHold';
 import { koCurve, type KoState } from '../game/closeQuarters';
-import { checkTeamRequest, type TeamKind, type TeamSide } from '../game/teamMoves';
+import { checkTeamRequest, isKitKind, type TeamMoveKind, type TeamSide } from '../game/teamMoves';
+import { kitMove } from '../game/kit/registry';
+import { kitEnd, kitPairOver, newKitPair, pullLag, type KitPair } from './kitNet';
 import { ThrowKo } from './throwKo';
 import { checkCommitted, type CKind, type CTargetView } from '../game/committedMoves';
 import { STRIKE, STRIKE_DUR } from '../game/elbowStrike';
@@ -546,6 +548,7 @@ export class CoopHost implements NetAttachment {
   }
 
   private onRemoteDeath(r: RemotePlayer): void {
+    this.endPairOf(r.id);
     // (coop-carry) down: the body drops where he fell
     this.remoteDrop(r.id);
     this.g.hud.feedItem(`${r.avatar.info.name} is down`, 'warn');
@@ -742,6 +745,14 @@ export class CoopHost implements NetAttachment {
         this.g.gadgets.remoteEffect(msg.kind, new Vector3(msg.x, msg.y, msg.z));
         this.g.mode?.onRemoteGadget?.(r.id, msg.kind);
         this.push({ e: 'gadget', player: r.id, kind: msg.kind, x: msg.x, y: msg.y, z: msg.z });
+        break;
+      }
+      case 'gused': {
+        // (mission NET) a client's frag / mine / sticky cam thrown or placed (no effect message): the mode counts it
+        const last = this.gusedAt.get(r.id) ?? -9;
+        if (!r.alive || this.time - last < 0.25) return;
+        this.gusedAt.set(r.id, this.time);
+        this.g.mode?.onRemoteGadget?.(r.id, msg.kind);
         break;
       }
       case 'ping': {
@@ -1022,7 +1033,7 @@ export class CoopHost implements NetAttachment {
 
   /** Team-mates of the host (co-op: every other player; TDM: the same side). */
   /** (3.2.0 phase 5) The host's own team-move requests go through the same check as the clients'. */
-  teamRequest(kind: TeamKind, partner: string, target: number, ss: number, gy: number, lx?: number, lz?: number): void {
+  teamRequest(kind: TeamMoveKind, partner: string, target: number, ss: number, gy: number, lx?: number, lz?: number): void {
     this.onTeamMove(this.s.selfId, kind, partner, target, ss, gy, lx, lz);
   }
 
@@ -1059,6 +1070,8 @@ export class CoopHost implements NetAttachment {
 
   /** Pairs in a human ladder (each id -> the other). */
   private teamPairs = new Map<string, string>();
+  /** (mission NET) The kit pairs (both ids -> the pair): who may end it how, the pull-up's start and verdict. */
+  private kitPairs = new Map<string, KitPair>();
   private teamLast = new Map<string, number>();
   private teamMv = emptyMoveState();
   /** (throw-ko) Partner throws in flight: the thrown player coming down on a guard knocks him out (host-authoritative). */
@@ -1082,12 +1095,19 @@ export class CoopHost implements NetAttachment {
     if (!self && !r) return null;
     const p = self ? this.g.player.position : r!.feet;
     const mv = self ? localMoveState(this.g, this.teamMv) : r!.state?.mv;
-    return { id, x: p.x, y: p.y, z: p.z, mode: mv?.m ?? 'ground', alive: self ? this.g.player.alive : r!.alive, anchor: mv?.a ?? -1, s: mv?.s ?? 0, sub: mv?.sub ?? 0 };
+    // (mission NET) crouched as the host has them (its own controller, a client's PF.crouch): the shutter's crawl needs it
+    const crouch = self ? this.g.player.controller.crouched : ((r!.state?.f ?? 0) & PF.crouch) !== 0;
+    return { id, x: p.x, y: p.y, z: p.z, mode: mv?.m ?? 'ground', alive: self ? this.g.player.alive : r!.alive, anchor: mv?.a ?? -1, s: mv?.s ?? 0, sub: mv?.sub ?? 0, crouch };
   }
 
   /** A team-move request (a client's `tmove`, or the host's own): checked on both players' states, then started. */
-  private onTeamMove(by: string, kind: TeamKind | 'end' | 'hangEnd', partner: string, target: number, ss: number, gy: number, lx?: number, lz?: number): void {
+  private onTeamMove(by: string, kind: TeamMoveKind | 'end' | 'hangEnd', partner: string, target: number, ss: number, gy: number, lx?: number, lz?: number): void {
     const self = this.s.selfId;
+    if (kind === 'hangEnd' || kind === 'end') this.lapseKitPair(by);
+    if (kind === 'hangEnd' && this.kitPairs.has(by)) {
+      this.kitHangEnd(by, target === 1 ? 'drop' : 'pull');
+      return;
+    }
     if (kind === 'hangEnd') {
       // (CT prototype B5) either player ends the hang-down: pulled up (0) or dropped (1, the holder's release)
       const other = this.teamPairs.get(by);
@@ -1102,8 +1122,7 @@ export class CoopHost implements NetAttachment {
     if (kind === 'end') {
       const other = this.teamPairs.get(by);
       if (!other) return;
-      this.teamPairs.delete(by);
-      this.teamPairs.delete(other);
+      this.unpair(by, other);
       this.s.send({ t: 'tend', a: by, b: other });
       if (other === self) this.g.team.ended();
       return;
@@ -1115,8 +1134,31 @@ export class CoopHost implements NetAttachment {
       if (by === self) this.g.team.denied(reason);
     };
     if (!a || !b) return deny('far');
-    const anchor = target >= 0 ? this.g.world.level.anchors.get(target) : null;
     const now = this.time;
+    if (isKitKind(kind)) {
+      // (mission NET) a kit move: its claimed point (`claimsPoint`: the start carries it as `l`), its rule, a pair
+      // when the move is paired, started at once (not the boost / relay path)
+      const m = kitMove(kind);
+      const land = m?.claimsPoint && lx !== undefined && lz !== undefined ? { x: lx, y: gy, z: lz } : undefined;
+      const why = checkTeamRequest({ kind, a, b, target: -1, targetUp: gy - b.y, sinceLast: now - (this.teamLast.get(by) ?? -99), land });
+      this.teamLast.set(by, now);
+      if (why) return deny(why);
+      this.lapseKitPair(by);
+      this.lapseKitPair(partner);
+      if (m?.paired) {
+        this.teamPairs.set(by, partner);
+        this.teamPairs.set(partner, by);
+        const kp = newKitPair(kind, by, partner, now);
+        this.kitPairs.set(by, kp);
+        this.kitPairs.set(partner, kp);
+      }
+      const start = land ? { kind, a: by, b: partner, target: -1, s: 0, t0: now, l: [land.x, land.y, land.z] as [number, number, number] } : { kind, a: by, b: partner, target: -1, s: 0, t0: now };
+      this.s.send({ t: 'tstart', ...start });
+      if (by === self || partner === self) this.g.team.begin(start, self);
+      this.g.mode?.onTeamMove?.(by === self ? undefined : by, partner === self ? undefined : partner);
+      return;
+    }
+    const anchor = target >= 0 ? this.g.world.level.anchors.get(target) : null;
     const toss = kind === 'throw' || kind === 'hang' || kind === 'rope';
     const land = toss && lx !== undefined && lz !== undefined ? { x: lx, y: gy, z: lz } : undefined;
     const why = checkTeamRequest({ kind, a, b, target: anchor ? target : -1, targetUp: gy - b.y, sinceLast: now - (this.teamLast.get(by) ?? -99), land });
@@ -1142,6 +1184,41 @@ export class CoopHost implements NetAttachment {
     this.s.send({ t: 'tstart', ...start });
     if (by === self || partner === self) this.g.team.begin(start, self);
     this.g.mode?.onTeamMove?.(by === self ? undefined : by, partner === self ? undefined : partner);
+  }
+
+  /** (mission NET) A kit pair's end from `by`: the kit's rules (`kitEnd`), relayed to both as `tend` k. */
+  private kitHangEnd(by: string, k: 'pull' | 'drop'): void {
+    const p = this.kitPairs.get(by);
+    if (!p) return;
+    const self = this.s.selfId;
+    const v = kitEnd(p, by, k, this.time, pullLag(p.b === self));
+    if (!v) return;
+    if (kitPairOver(p, v)) this.unpair(p.a, p.b);
+    this.s.send({ t: 'tend', a: p.a, b: p.b, k: v });
+    if (p.a === self || p.b === self) this.g.team.ended(v);
+  }
+
+  /** (mission NET) A kit pair past its time (a pull-up's haul is over): gone without a word. */
+  private lapseKitPair(id: string): void {
+    const p = this.kitPairs.get(id);
+    if (p && this.time > p.until) this.unpair(p.a, p.b);
+  }
+
+  /** Two players no longer in a team move together (the pair and its kit record). */
+  private unpair(a: string, b: string): void {
+    if (this.teamPairs.get(a) === b) this.teamPairs.delete(a);
+    if (this.teamPairs.get(b) === a) this.teamPairs.delete(b);
+    const p = this.kitPairs.get(a);
+    if (p && (p.b === b || p.a === b)) {
+      this.kitPairs.delete(a);
+      if (this.kitPairs.get(b) === p) this.kitPairs.delete(b);
+    }
+  }
+
+  /** (mission NET) A player down mid-move: their pair ends (the partner's move ends as on a leave). */
+  private endPairOf(id: string): void {
+    this.lapseKitPair(id);
+    if (this.teamPairs.has(id)) this.onTeamMove(id, 'end', '', 0, 0, 0);
   }
 
   // --- (locomotion step 10, A5 / H3) committed moves: the elbow strike ---
@@ -1428,6 +1505,8 @@ export class CoopHost implements NetAttachment {
   /** (Q12) Each client's last accepted hold noise pulse (host time). */
   private holdPulseAt = new Map<string, number>();
   private gadgetAt = new Map<string, number>();
+  /** (mission NET) Each client's last `gused` (a frag / mine / sticky cam used; 4 a second at most). */
+  private gusedAt = new Map<string, number>();
 
   private color(id: string): string {
     return this.s.players.get(id)?.tag.color ?? '#4fdc7c';
@@ -1724,7 +1803,8 @@ export class CoopHost implements NetAttachment {
             const info = e.info;
             // (joint-interrogation) checked before `takeInfo` spends him; the holder (s.by) is never his own bluffer
             const joint = !!info && info.lines.length > 0 && this.jointFor(eid, s.by, jointOf(info));
-            if (takeInfo(e)) revealIntel(this.g, e.pos, info);
+            // (mission NET) the guard's id (a mission's interrogate step, the decoy's spook) and the client's (its team)
+            if (takeInfo(e)) revealIntel(this.g, e.pos, info, e.id, s.by);
             if (joint) revealJoint(this.g, e.pos, jointOf(info));
           }
           this.interPh.set(eid, mv.sub & 2 ? mv.ph : -1);
@@ -1836,6 +1916,7 @@ export class CoopHost implements NetAttachment {
 
   onLocalDeath(): boolean {
     const g = this.g;
+    this.endPairOf(this.s.selfId);
     if (!g.mode) return false;
     // co-op: someone can still come and get you
     if (this.anyoneUp(this.s.selfId) && g.interactables) {

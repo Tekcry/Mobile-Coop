@@ -13,6 +13,9 @@ import { CLIENT_VERBS, RH_HI, RH_MAX, type ClientVerb, type CourseWire } from '.
 import type { AirlockPhase, PackedCourse } from '../game/course/courseState';
 import type { SecWire } from '../game/ctDevices';
 import type { SectorNetExtra, SectorRatingWire } from '../game/sectors';
+import { TEAM_KINDS, type TeamKind } from '../game/teamMoves';
+import { parseMissionWire } from '../game/mission/missionWire';
+import type { GadgetId } from '../game/gadgets';
 import { LAMP_BITS, LAMP_CHARS, LAMP_MAX, type LampWire } from './lampSync';
 import { SWAY } from '../world/lampSway';
 import type { MotionState } from '../anim/motion';
@@ -33,6 +36,9 @@ const WORLD = 400;
 /** Gadgets whose effect crosses the net. */
 export type NetGadget = 'gas' | 'flash' | 'emp' | 'noise';
 export const NET_GADGETS: readonly NetGadget[] = ['gas', 'flash', 'emp', 'noise'];
+/** (mission NET) The gadgets whose use reaches the host only as a `gused` (no effect message: a frag goes as `blast`). */
+export type UseOnlyGadget = Exclude<GadgetId, NetGadget>;
+export const USE_ONLY_GADGETS: readonly UseOnlyGadget[] = ['frag', 'mine', 'stickyCam'];
 export type NetMode = 'sandbox' | 'clear' | 'infiltration' | 'course' | 'sector';
 export const NET_MODES: readonly NetMode[] = ['sandbox', 'clear', 'infiltration', 'course', 'sector'];
 /** The training course and Sector Ops take two players (P1 host, P2 client; G2). */
@@ -291,10 +297,12 @@ export type Msg =
   | { t: 'td'; target: string; ph: 'start' | 'done' | 'abort'; lethal: boolean; kind?: string }
   /** (3.2.0 phase 5) A client asks for a team move with a braced partner (boost onto anchor `target` at `s`, the
    *  grip at `gy`), or ends the human ladder. */
-  | { t: 'tmove'; kind: 'boost' | 'ladder' | 'throw' | 'hang' | 'rope' | 'hangEnd' | 'end'; partner: string; target: number; s: number; gy: number; lx?: number; lz?: number }
+  /** (mission NET) + the kit kinds `pull` / `shutter` (`TeamKind`); a kit request may claim a point (`lx`, `gy`, `lz`:
+   *  the pull-up's catch point, `KitMove.claimsPoint`). `hangEnd` also ends a kit pair (`target` 0 'pull', 1 'drop'). */
+  | { t: 'tmove'; kind: TeamKind | 'hangEnd' | 'end'; partner: string; target: number; s: number; gy: number; lx?: number; lz?: number }
   /** The host started a team move: `a` climbs, `b` is braced. (CT prototype B4, protocol 19) `throw`: `a` is thrown
    *  over the standing `b` to the landing `l` (feet; a `tmove` throw claims it as `lx`, `gy`, `lz`). */
-  | { t: 'tstart'; kind: 'boost' | 'ladder' | 'throw' | 'hang' | 'rope'; a: string; b: string; target: number; s: number; t0: number; l?: [number, number, number] }
+  | { t: 'tstart'; kind: TeamKind; a: string; b: string; target: number; s: number; t0: number; l?: [number, number, number] }
   /** The host refused `a`'s request. */
   | { t: 'tdeny'; a: string; reason: string }
   /**
@@ -312,6 +320,9 @@ export type Msg =
   | { t: 'ping'; x: number; y: number; z: number; target: string }
   /** Client gadget effect (the host applies it to its guards and tells everyone). */
   | { t: 'gadget'; kind: NetGadget; x: number; y: number; z: number }
+  /** (mission NET) Client: one of its gadgets with no effect on the wire (`USE_ONLY_GADGETS`: frag, mine, sticky cam) was
+   *  thrown or placed; the host's mode counts it (`onRemoteGadget`: a mission's No gadgets rule). */
+  | { t: 'gused'; kind: UseOnlyGadget }
   | { t: 'ev'; events: NetEvent[] }
   /** Client grenade detonation (host validates distance and applies damage). */
   | { t: 'blast'; x: number; y: number; z: number }
@@ -340,6 +351,8 @@ const safeText = (v: unknown, max: number): string | null => {
 };
 const bool = (v: unknown): boolean | null => (typeof v === 'boolean' ? v : null);
 const oneOf = <T extends string>(v: unknown, list: readonly T[]): T | null => (list.includes(v as T) ? (v as T) : null);
+/** (mission NET) `tmove` kinds: every team move (the kit's too) and the two ends. */
+const TMOVE_KINDS: readonly (TeamKind | 'hangEnd' | 'end')[] = [...TEAM_KINDS, 'hangEnd', 'end'];
 const HEX = /^#[0-9a-f]{6}$/i;
 const ID = /^[A-Za-z0-9_-]{1,40}$/;
 const id = (v: unknown): string | null => (typeof v === 'string' && ID.test(v) ? v : null);
@@ -666,6 +679,9 @@ function sectorExtra(raw: Record<string, unknown>): Partial<SectorNetExtra> {
   // (marlow-polish, inside 42) every section rated so far, as the course message's `rh`
   const rh = courseRh(raw.rh).rh;
   if (rh) out.rh = rh;
+  // (mission NET) the running mission (`missionWire.ts`; malformed: dropped)
+  const ms = parseMissionWire(raw.ms);
+  if (ms) out.ms = ms;
   return out;
 }
 
@@ -850,6 +866,11 @@ export function parseMessage(raw: unknown): Msg | null {
       const z = num(raw.z, -WORLD, WORLD);
       return kind && x !== null && y !== null && z !== null ? { t: 'gadget', kind, x, y, z } : null;
     }
+    case 'gused': {
+      // (mission NET) a client's frag / mine / sticky cam used (no effect message)
+      const kind = oneOf(raw.kind, USE_ONLY_GADGETS);
+      return kind ? { t: 'gused', kind } : null;
+    }
     case 'ping': {
       const x = num(raw.x, -WORLD, WORLD);
       const y = num(raw.y, -50, 100);
@@ -858,7 +879,7 @@ export function parseMessage(raw: unknown): Msg | null {
       return { t: 'ping', x, y, z, target: id(raw.target) ?? '' };
     }
     case 'tmove': {
-      const kind = oneOf(raw.kind, ['boost', 'ladder', 'throw', 'hang', 'rope', 'hangEnd', 'end'] as const);
+      const kind = oneOf(raw.kind, TMOVE_KINDS);
       const partner = raw.partner === '' ? '' : id(raw.partner);
       if (!kind || partner === null) return null;
       const out: Extract<Msg, { t: 'tmove' }> = { t: 'tmove', kind, partner, target: Math.floor(num(raw.target, -1, 1e5) ?? -1), s: num(raw.s, -500, 500) ?? 0, gy: num(raw.gy, -100, 200) ?? 0 };
@@ -868,16 +889,32 @@ export function parseMessage(raw: unknown): Msg | null {
         if (lx === null || lz === null) return null;
         out.lx = lx;
         out.lz = lz;
+      } else if (kind === 'pull' || kind === 'shutter') {
+        // (mission NET) a kit request's claimed point is optional here (the move's host rule needs it or not)
+        const lx = num(raw.lx, -WORLD, WORLD);
+        const lz = num(raw.lz, -WORLD, WORLD);
+        if (lx !== null && lz !== null) {
+          out.lx = lx;
+          out.lz = lz;
+        }
       }
       return out;
     }
     case 'tstart': {
-      const kind = oneOf(raw.kind, ['boost', 'ladder', 'throw', 'hang', 'rope'] as const);
+      const kind = oneOf(raw.kind, TEAM_KINDS);
       const a = id(raw.a);
       const b = id(raw.b);
       if (!kind || !a || !b) return null;
       const out: Extract<Msg, { t: 'tstart' }> = { t: 'tstart', kind, a, b, target: Math.floor(num(raw.target, -1, 1e5) ?? -1), s: num(raw.s, -500, 500) ?? 0, t0: num(raw.t0, 0, 1e7) ?? 0 };
       if (kind === 'throw' || kind === 'hang' || kind === 'rope') {
+        const la = Array.isArray(raw.l) && raw.l.length === 3 ? (raw.l as unknown[]) : null;
+        const lx = la ? num(la[0], -WORLD, WORLD) : null;
+        const ly = la ? num(la[1], -50, 100) : null;
+        const lz = la ? num(la[2], -WORLD, WORLD) : null;
+        if (lx === null || ly === null || lz === null) return null;
+        out.l = [lx, ly, lz];
+      } else if ((kind === 'pull' || kind === 'shutter') && raw.l !== undefined) {
+        // (mission NET) a kit start carries `l` when its request claimed a point (the pull-up's catch point)
         const la = Array.isArray(raw.l) && raw.l.length === 3 ? (raw.l as unknown[]) : null;
         const lx = la ? num(la[0], -WORLD, WORLD) : null;
         const ly = la ? num(la[1], -50, 100) : null;

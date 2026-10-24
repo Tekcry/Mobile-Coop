@@ -67,7 +67,7 @@ import { PIPE, SPLIT } from '../player/splitJump';
 import { GRAB, GRAB_KINDS, type TakedownKind } from './takedown';
 import { TeamController, type TeamMate } from './teamController';
 import { RopeLine } from './ropeLine';
-import type { TeamKind } from './teamMoves';
+import type { TeamMoveKind } from './teamMoves';
 import type { Ledge } from '../world/anchors';
 import { LIGHT, type LightDef } from '../world/lights';
 import type { SwaySet } from '../world/lampSway';
@@ -197,7 +197,7 @@ export interface NetAttachment {
    *  it and its snapshots' `trp` open it on every page. The host's own player opens directly (no hook). */
   panelOpen?(g: number): void;
   /** (3.2.0 phase 5) Ask the host for a team move with a braced `partner` (boost: onto anchor `target` at `s`). */
-  teamRequest?(kind: TeamKind, partner: string, target: number, s: number, gripY: number, lx?: number, lz?: number): void;
+  teamRequest?(kind: TeamMoveKind, partner: string, target: number, s: number, gripY: number, lx?: number, lz?: number): void;
   /** (3.2.0 phase 5) End the human ladder (either player). */
   teamEnd?(): void;
   /** (CT prototype B5) End the hang-down (either player): pull the partner up or (the holder) drop them. */

@@ -9,18 +9,20 @@ import { TEAM } from '../config/movement';
 import { ATTACH_SUB } from '../player/moveState';
 
 /** 'boost' = the leg-up; 'ladder' = the ledge relay (the wire names stay, protocol 16); 'throw' = the partner throw (B4, protocol 19); 'hang' = the hang-down (B5, protocol 20). */
-export type TeamKind = 'boost' | 'ladder' | 'throw' | 'hang' | 'rope';
+export type BuiltinTeamKind = 'boost' | 'ladder' | 'throw' | 'hang' | 'rope';
 
 /**
  * (mission KIT0) The co-op traversal kit's team kinds (PLAN 4a, M5): 'pull' = the pull-up (KIT-PULL, `kit/pullUp.ts`),
  * 'shutter' = hold a shutter while the partner crawls under (KIT-SHUT, `kit/shutter.ts`). Each lives in its own file
- * under `game/kit/` and plugs in through `kit/registry.ts`. They are not wire kinds yet: `TeamKind` above is what
- * `tmove` / `tstart` carry (protocol.ts); the NET slice folds `KitKind` into `TeamKind` when the wire takes them.
+ * under `game/kit/` and plugs in through `kit/registry.ts`. (mission NET) They are wire kinds: `TeamKind` takes them.
  */
 export type KitKind = 'pull' | 'shutter';
 export const KIT_KINDS: readonly KitKind[] = ['pull', 'shutter'];
-/** Every team move: the built-in (wire) kinds and the kit's. */
-export type TeamMoveKind = TeamKind | KitKind;
+/** (mission NET) Every team move kind `tmove` / `tstart` carry (protocol.ts): the built-ins and the kit's. */
+export type TeamKind = BuiltinTeamKind | KitKind;
+export const TEAM_KINDS: readonly TeamKind[] = ['boost', 'ladder', 'throw', 'hang', 'rope', 'pull', 'shutter'];
+/** Every team move (the same as `TeamKind` since NET folded the kit into the wire). */
+export type TeamMoveKind = TeamKind;
 
 export function isKitKind(k: string): k is KitKind {
   return k === 'pull' || k === 'shutter';

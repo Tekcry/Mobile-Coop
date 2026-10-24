@@ -510,6 +510,22 @@ export function teamPoseOfWire(mode: string, sub: number, s: number, ph: number,
     }
     return out;
   }
+  if (mode === 'boost' && sub & (SUB_PULL | SUB_SHUTTER)) {
+    // (mission NET) a kit move's partner (pull-up: jumping / hauled / scrambling; shutter: crawling): role A of its own
+    // move, never the leg-up's (its body is the controller's traverse pose; the holder's side links from TEAM_LINK)
+    out.role = 'a';
+    out.move = sub & SUB_SHUTTER ? 'shutter' : 'pull';
+    out.k = ph;
+    if (linked && L.move === out.move && L.role === 'b') {
+      if (L.k >= 0) out.k = L.k;
+      out.px = L.x;
+      out.py = L.y;
+      out.pz = L.z;
+      out.pyaw = L.yaw;
+      out.gap = L.gap;
+    }
+    return out;
+  }
   if (mode === 'boost' && sub === 0) {
     out.role = 'a';
     out.move = 'boost';
