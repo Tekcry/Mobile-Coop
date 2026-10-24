@@ -1,6 +1,8 @@
 # Guard AI - state
 
 ## Now
+~08:30: PR #319 coop4 AI OPEN (fix round 421509bb); laptop coop4-ai pending. Ready from me: #272, #298, #302, #303, #313.
+
 ~08:00: coop4 AI6 DONE 01f21ad1 (e2e-stealth-ai 'four intruders (coop4)' block with fake players; AI6-E2E-SPEC.md for
 Sector Ops' 3-4 browser harness). Checks on AI1-AI5: A FAIL (stale pendingHunt / queued contact calls survive a slot
 reuse), B PASS (Sector Ops wiring double count: corrected with Sector Ops, decision: our +1 per player inside
@@ -897,9 +899,11 @@ orchestrator). Green -> `gh pr edit <n> --add-label train-ready` + tell orchestr
    - #303 watchdog cap 90 s 26e55a4e (feature/guard-ai-watchdog-90; LR16 compiles measured to 43.5 s; CI green; #295 merged).
    - #302 S28 + sweep 55592902 (feature/guard-ai-sweep = master + S28 + sweep stall fix; S28.md, S13-SWEEP-FIX/-CHECK;
      laptop sweep-fix2 PASS, looked 1 skipped 0). CI was running at label time.
-3. PR #313 co-op body carry on the client (feature/guard-ai-coop-carry b1daa9a1, worktree -coop-carry; WIRE CHANGE,
-   PROTOCOL left 48 for the train; minor). Checks A + B PASS, fix round 9cb311a6, re-check PASS + follow-ups b1daa9a1
-   (docs/guard-ai/slices/COOP-CARRY*.md). Laptop coop-carry3 (e2e-coop, e2e-takedown) PASS -> TRAIN-READY (label set).
+3. PR #313 co-op body carry TRAIN-READY (b1daa9a1; wire change, the train bumps PROTOCOL).
+   PR #319 coop4 AI side (feature/guard-ai-coop4 421509bb, worktree -coop4): AI1-AI6 per docs/coop4/briefs/AI.md
+   (A170-A181), checks A FAIL -> fix round, B PASS; laptop coop4-ai (e2e-stealth-ai incl. the 4-intruder block,
+   e2e-sectorops) pending -> train-ready. Sector Ops (coop4 lead) wires the hooks (AI5-BUILT.md "Fix round"); its
+   3-4 browser harness uses AI6-E2E-SPEC.md. Carries N0 playerSlots.ts unchanged (aa02e6af).
    Guard-render: AI-side skipped (AI 0.004-0.013 ms / guard); Test Runner's PLAN2 may ask for a gameplay-only
    "dormant" fact. G44 already on master.
    On a train failure: bisect with single-suite laptop sets on master and the branch head (+ a test-only merge if the
