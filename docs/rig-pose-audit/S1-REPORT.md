@@ -111,3 +111,31 @@ No wire change. Everything the host uses was already on the wire (`PlayerState` 
 - S3 (wave 2) still owns the guard-head judge; S2 the shot origin (its wall-poke test can read `PlayerTarget.body.head`).
 - `src/ai/enemy.ts` `PlayerRef.head` comment is stale (S6's file).
 - Changelog fragment: the lead's (not written here).
+
+## Fix round
+
+Opus, 2026-10-24, branch `feature/rpf-s1fix` off `feature/rig-pose-fix` d10e4b09. Check A (`CHECK-S1-A.md`) B1 fixed.
+
+- B1 (the host knelt the client beside an unaware guard; the owner did not): one rule on both sides.
+  - `src/player/playerVolumes.ts`: `wireTense(crouched, grounded, mode, x, z)` (crouched, grounded, free on the ground,
+    `tenseNear` on the one registered tense source, the owner controller's rule) and `wireKneel(stillT, tense, stillFor)`
+    (`stillT > stillFor && !tense`). Pure, no allocation.
+  - `src/net/remotePlayer.ts` `accept`: `tense = wireTense(crouch flag, PF.grounded, mv.m, s.x, s.z)`, and `wireBodyIn`
+    gets `wireKneel(kneelT, tense)`. The host's tense source is its own guards, the same list the owner's controller asks
+    (`setTenseSource`), so no wire change.
+  - `src/net/remoteAvatar.ts` `bodyIn` (friendly-fire boxes): the drawn copy's existing tense (line ~647) kept in a field,
+    `out.kneel = wireKneel(kneelT, tense, KNEEL_STILL)`, as its own rig already did.
+  - The owner's local path was already right: `localBodyIn` reads `controller.kneeling`, which carries `!tense`.
+- New `tests/remoteKneelTense.test.ts` (5): a real `PlayerController` (Havok, NullEngine) crouched and still at low ready,
+  its state through the real `pstate` parse into a real `RemotePlayer`. Unaware guard at ~3.2 m: neither kneels, host vs
+  owner joints < 2 mm. Guard beyond 5 m, or within 5 m but alert: both kneel, < 2 mm. The rule's cases, and a case
+  showing the old host rule on the same input is > 0.1 m off (the test can fail).
+- Tests (desktop, one at a time): `remoteKneelTense` 5/5, `playerVolumesParity` 262/262, `net` 76/76, `coopPerception`
+  8/8, `playerVolumes` 9/10 + the allocation case flaky: it reads 51.9 or 67.8 B per call run to run (limit 64) and reads
+  67.8 on the unchanged base `playerVolumes.ts` too (measured here by swapping the file back), so it is load / tier
+  noise on `playerBody`, which this round does not touch. `npx tsc --noEmit -p .` clean; eslint on the changed files clean.
+  No e2e, no full vitest, no `npm run check`.
+- Not touched: `src/net/coopHost.ts`, `src/net/enemyPuppet.ts`, `tests/net.test.ts` (S3).
+- Open: the `playerVolumes` allocation bound (64 B) sits on the edge of the 67.8 B reading; the owner of the next train
+  should raise it to 5 x `HEAP_NUMBER` or find the extra boxed double. e2e still to run on the laptop: `e2e-coop`,
+  `e2e-netmove` (the S1 list).
