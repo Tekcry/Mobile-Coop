@@ -1,0 +1,13 @@
+{
+  "id": "20261024T060030-night-shift-guard-ai-e0062ae8-1f54",
+  "sha": "e0062ae8b9bb622ec0eeba9dfc898f72c3805837",
+  "branch": "feature/guard-ai-coop4",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-stealth-ai"
+  ],
+  "set": "coop4-ai2",
+  "note": "coop4 AI6 laptop fix: four intruders staging"
+}
