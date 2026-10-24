@@ -25,6 +25,7 @@ archive/STATE-history.md. Keep this file current, not appended: replace a line w
 - Worktrees: this session C:/NightShift/Mobile-Coop-menu (feature/menu); trains C:/NightShift/Mobile-Coop-train.
 
 ## Known
+- 2026-10-25 04:31 waste audit (capped gap 00:20-04:10): ~170 min of pipeline lost because 4 PRs green by 00:34 / laptop-done by 01:24 were labelled only at 04:16, and the laptop (171 min) and desktop 4192 (159 min) idled with 0 requests queued. RULE at every ~92% save: (1) the orchestrator runs its independent Opus re-check on every PR whose lead checker passed and labels train-ready on CI `check` + `checker` alone (the train's laptop run covers the rest; leads cannot self-post `checker`, auto mode blocks it); (2) Test Runner queues ~3 h of session-free laptop / desktop work (full master e2e, soaks, alone A/B, guard-cap repeats) before the cap; (3) leads restart Cloud Builder briefs so it has 3+ open.
 - At each swap: stop tail / grep watchers older than the swap:
   `Get-CimInstance Win32_Process -Filter "Name='tail.exe' OR Name='grep.exe'" | Where-Object { $_.CreationDate -lt (Get-Date '<swap time>') } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }`.
 - A lock with no live node process (or a dead pid) is stale: ask Michael before deleting another session's lock.

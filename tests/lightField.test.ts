@@ -407,9 +407,9 @@ describe('light field (3.6)', async () => {
       }
       out[0] = s;
     }, -Infinity, 2000);
-    // A query over its limit is measured once more from a fresh warm-up and keeps the smaller reading: #322's CI read
-    // bodyLevel 173.2 B against 144 once under load and passed on the rerun (cost train 57 ~15 min). A query that
-    // allocates an object reads its size in both measurements, so the retry cannot hide one.
+    // A query over its limit is measured once more from a fresh warm-up and keeps the smaller reading. A query that
+    // allocates an object reads its size in both measurements, so the retry cannot hide one. (#322's 173.2 B bodyLevel
+    // reading was not load: it is a fixed per-process V8 mode the retry repeats; see the bodyLevel limit below.)
     const retry = async (fn: (n: number) => void, goal: number): Promise<number> => {
       const first = await per(fn, goal);
       return first <= goal ? first : Math.min(first, await per(fn, goal));
@@ -419,16 +419,27 @@ describe('light field (3.6)', async () => {
       for (let i = 0; i < n; i++) s += f.levelAt((i % 40) * 0.5 - 10, 1, ((i * 7) % 40) * 0.5 - 10);
       out[0] = s;
     }, Math.min(BOXED_BUDGET, ctl - 33));
+    // (test-flakes) bodyLevel is judged against this run's levelAt, not an absolute 144 B. It is two level queries plus
+    // the dynamic pass, so it reads about 2 x levelAt (CI 126.8 = 2 x 64.4 - 2, local 112.0 = 2 x 56.8 - 1.6). In about
+    // 1 CI run in 15 (4 of 57 runs read on 2026-10-24: train/71 556d861d and PR #361 attempt 1, 40087823856, #322) V8
+    // makes a different choice for the whole process and bodyLevel reads exactly 173.2 (2 x 64.4 + 44.4), the in-process
+    // retry the same 173.2 again (the code and its feedback are already fixed), the rerun 126.8: no code reached it.
+    // Allowed: 2 x levelAt + BODY_SLACK (56: that variant + 11.6). Still caught: a vector per call (the control, about
+    // 224 B more than levelAt), and an object or closure in totalInto / dynamicInto / levelInto (it runs twice per
+    // bodyLevel: 2 x 48 B and up). An object in levelInto also fails levelAt's own limit above. Not caught: one object
+    // of about 48 B made once in bodyLevel's own body (it cannot be told apart from the 173.2 variant).
+    const BODY_SLACK = 56;
+    const bodyLimit = 2 * level + BODY_SLACK;
     const body = await retry((n) => {
       let s = 0;
       for (let i = 0; i < n; i++) s += f.bodyLevel((i % 40) * 0.5 - 10, 0, ((i * 7) % 40) * 0.5 - 10, 1.75, occ);
       out[0] = s;
-    }, BOXED_BUDGET * 2);
-    console.info(`bytes per query: levelAt ${level.toFixed(1)}, bodyLevel ${body.toFixed(1)}, control with a vector ${ctl.toFixed(1)}`);
+    }, bodyLimit);
+    console.info(`bytes per query: levelAt ${level.toFixed(1)}, bodyLevel ${body.toFixed(1)} (limit ${bodyLimit.toFixed(1)}), control with a vector ${ctl.toFixed(1)}`);
     expect(out[0]).toBeGreaterThan(0);
     expect(level).toBeLessThan(ctl - 32);
     expect(level).toBeLessThanOrEqual(BOXED_BUDGET);
-    expect(body).toBeLessThanOrEqual(BOXED_BUDGET * 2);
+    expect(body).toBeLessThanOrEqual(bodyLimit);
   });
 
   it('trilinear reads match cell values at centres and clamp at the edges', () => {
