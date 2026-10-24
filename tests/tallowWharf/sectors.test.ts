@@ -12,7 +12,7 @@ import { checkMission, missionSpawnsGuard, type MissionDef } from '../../src/gam
 import { MissionRunner } from '../../src/game/mission/missionRunner';
 import { sectorGuardIds, sectorGuardTalkers } from '../../src/game/mission/sectorMission';
 import { checkSectorCodes, checkSectors, INTEL_LINE_MAX, onBoltSide, SECTOR, type PlanBox, type SectorDef } from '../../src/game/sectors';
-import { inRoom } from '../../src/world/rooms';
+import { inRoom, roomAt } from '../../src/world/rooms';
 import { tallowWharf } from '../../src/world/maps/tallowWharf';
 import { WHARF_GUARD_EXTRAS, WHARF_GUARD_MISSIONS, WHARF_SECTORS } from '../../src/world/maps/tallowWharfSectors';
 import { THREE_GREY_COATS, TWO_KEY_LEDGER, WHARF_MISSIONS } from '../../src/world/maps/tallowWharfMissions';
@@ -199,11 +199,15 @@ describe('tallowWharf guards', () => {
     }
   });
 
-  it('each mission spawns at most Sector Ops\' 32 live guards: Three Grey Coats 30, Two-Key Ledger 27', () => {
-    const live = (m: MissionDef): number => [...guards].filter((id) => missionSpawnsGuard(m, id)).length;
+  it('each section load spawns at most Sector Ops\' live cap (guards spawn per section), 12 at most here; Three Grey Coats 30 in all, Two-Key Ledger 27', () => {
+    const live = (m: MissionDef, sec?: string): number => [...guards].filter((id) => (!sec || id.startsWith(sec + ':')) && missionSpawnsGuard(m, id)).length;
     expect(live(THREE_GREY_COATS)).toBe(30);
     expect(live(TWO_KEY_LEDGER)).toBe(27);
-    for (const m of [THREE_GREY_COATS, TWO_KEY_LEDGER]) expect(live(m)).toBeLessThanOrEqual(SECTOR.maxAlive);
+    for (const m of [THREE_GREY_COATS, TWO_KEY_LEDGER]) {
+      const per = WHARF_SECTORS.map((s) => live(m, s.id));
+      for (const n of per) expect(n, m.id).toBeLessThanOrEqual(SECTOR.maxAlive);
+      expect(Math.max(...per), m.id).toBeLessThanOrEqual(12);
+    }
     // the data and the mission lists agree
     for (const [id, m] of [['threeGreyCoats', THREE_GREY_COATS], ['twoKeyLedger', TWO_KEY_LEDGER]] as const) {
       for (const e of m.guards!) {
@@ -330,6 +334,30 @@ describe('tallowWharf starts, checkpoints and extraction', () => {
     expect(bad).toEqual([]);
   });
 
+  it('starts, checkpoints and the route marks are read from the section exports (entries, the bulkhead head, leg-ups, the pull, debug points)', () => {
+    const [s1, s2, s3, s4] = WHARF_SECTORS as [SectorDef, SectorDef, SectorDef, SectorDef];
+    const at = (p: { x: number; y: number; z: number }): number[] => [p.x, p.y, p.z];
+    const dbg = (sec: WharfSection, id: string): number[] => at(sec.debugPoints.find((d) => d.id === id)!.pos);
+    expect(at(s1.start)).toEqual([...W1.entry]);
+    expect(at(s1.connector!.checkpoint)).toEqual([...W2.entry]);
+    expect(at(s2.connector!.checkpoint)).toEqual(dbg(W3, 'w3-bulkhead-head'));
+    expect(at(s3.connector!.checkpoint)).toEqual([...W4.entry]);
+    // every route starts at its section's start
+    for (const sec of WHARF_SECTORS) for (const r of sec.routes) expect([r.pts[0]![0], r.pts[0]![1]], `${sec.id} ${r.name}`).toEqual([sec.start.x, sec.start.z]);
+    const has = (sec: SectorDef, x: number, z: number): boolean => sec.routes.some((r) => r.pts.some((q) => q[0] === x && q[1] === z));
+    const marks: [SectorDef, number, number, string][] = [
+      ...W1.legUps.map((l) => [s1, l.x, l.z, l.lip] as [SectorDef, number, number, string]),
+      [s2, W2.legUps[0]!.x, W2.legUps[0]!.z, 'w2 leg-up'],
+      [s2, W2.pulls[0]!.partner.x, W2.pulls[0]!.partner.z, 'w2 pull partner'],
+      [s3, W3.legUps[0]!.x, W3.legUps[0]!.z, 'w3 chute leg-up'],
+      [s3, dbg(W3, 'w3-coal-yard')[0]!, dbg(W3, 'w3-coal-yard')[2]!, 'w3-coal-yard'],
+      [s3, dbg(W3, 'w3-cartway')[0]!, dbg(W3, 'w3-cartway')[2]!, 'w3-cartway'],
+      [s4, W4.legUps[0]!.x, W4.legUps[0]!.z, 'w4 clerestory leg-up'],
+      [s4, dbg(W4, 'w4-shutter')[0]!, dbg(W4, 'w4-shutter')[2]!, 'w4-shutter'],
+    ];
+    for (const [sec, x, z, label] of marks) expect(has(sec, x, z), `${sec.id} ${label} (${x}, ${z}) on a route`).toBe(true);
+  });
+
   it('every board, objective and key post prompt stands on a floor at its own y, in the open (not in a stair core, a wall or a void); every overhear box has open floor', () => {
     const cast = downCast(builtWharf().b);
     const bad: string[] = [];
@@ -376,12 +404,17 @@ describe('tallowWharf starts, checkpoints and extraction', () => {
       expect(s.start2).toEqual(prev.checkpoint2);
     }
     const cp = WHARF_SECTORS[1]!.connector!.checkpoint;
-    const roofDoor = W3.doors['w3-bridge']!;
-    // the bulkhead roof door: the head of the stair is within 1.5 m of the roof door of the bulkhead (debug point w3-bulkhead-head)
-    const head = W3.debugPoints.find((p) => p.id === 'w3-bulkhead-head')!.pos;
-    expect(Math.hypot(cp.x - head.x, cp.z - head.z)).toBeLessThanOrEqual(1.5);
-    expect(cp.y).toBeCloseTo(head.y, 5);
-    void roofDoor;
+    // the bulkhead's roof door as built: the nearest door anchor on the roof (y 8.4) in W3's box; its centre is the hinge plus
+    // half its width along its yaw
+    const box = SECTION_BOX.W3;
+    const roofDoors = builtWharf()
+      .b.anchors.doors.filter((d) => Math.abs(d.hinge.y - cp.y) < 1e-6 && inBox(box, d.hinge.x, d.hinge.z))
+      .map((d) => ({ x: d.hinge.x + (Math.sin(d.yaw) * d.width) / 2, z: d.hinge.z + (Math.cos(d.yaw) * d.width) / 2 }));
+    const near = roofDoors.map((d) => Math.hypot(cp.x - d.x, cp.z - d.z)).sort((a, b) => a - b);
+    expect(near[0]).toBeLessThanOrEqual(1.5);
+    // and it is the bulkhead's door, not the bridge door on the lane side of the roof
+    const bridge = W3.doors['w3-bridge']!;
+    expect(Math.hypot(cp.x - bridge[0], cp.z - bridge[2])).toBeGreaterThan(20);
   });
 });
 
@@ -398,6 +431,39 @@ describe('tallowWharf bolts', () => {
         expect(onBoltSide(bolt, bolt.at[0] - nx, bolt.at[1] - nz), `${s.id} bolt ${k} far side`).toBe(false);
       });
     }
+  });
+
+  it('each bolt draws from the side the brief names, read against the section rooms and cores (not its own vector)', () => {
+    // places that are no room: the stair cores and the W3 coal-yard vestibule; 'open' = no room or core (a lightwell, open air)
+    const CORES: Record<string, [number, number, number, number]> = {
+      'w1-warden-core': [6.2, 44, 7.8, 52],
+      'w2-pawn-core': [52.2, 62.2, 53.8, 69.9],
+      'w2-pie-core': [56.2, 62.2, 57.8, 69.9],
+      'w3-coalyard-vestibule': [98, 50, 99.85, 51.7],
+    };
+    const rooms = SECTIONS.flatMap((q) => q.rooms);
+    const place = (x: number, y: number, z: number): string => {
+      for (const [id, c] of Object.entries(CORES)) if (inBox(c, x, z)) return id;
+      const i = roomAt(rooms, x, z, y + 0.1);
+      return i < 0 ? 'open' : rooms[i]!.id;
+    };
+    // [draw side, other side] per bolt, in the brief's order
+    const want: Record<string, [string, string][]> = {
+      W1: [['w1-warden-core', 'w1-market'], ['w1-service-passage', 'w1-fish-hall']],
+      W2: [['w2-pawn-loft', 'w2-pawn-core'], ['w2-pie-loft', 'w2-pie-core'], ['w2-clock-loft', 'w2-reading-room'], ['w2-pawn-loft', 'open'], ['w2-pie-loft', 'open']],
+      W3: [['w3-chute', 'open'], ['w3-coalyard-vestibule', 'w3-passage'], ['w3-roof', 'open'], ['w3-cartway', 'w3-coal-yard']],
+      W4: [['w4-shed-three', 'w4-shed-yard'], ['w4-jetty', 'w4-shed-yard']],
+    };
+    WHARF_SECTORS.forEach((s, i) => {
+      const got = (s.bolts ?? []).map((bolt) => {
+        const y = Object.values(SECTIONS[i]!.doors).find((d) => d[0] === bolt.at[0] && d[2] === bolt.at[1])![1];
+        const len = Math.hypot(bolt.side[0], bolt.side[1]);
+        const nx = (bolt.side[0] / len) * 0.6;
+        const nz = (bolt.side[1] / len) * 0.6;
+        return [place(bolt.at[0] + nx, y, bolt.at[1] + nz), place(bolt.at[0] - nx, y, bolt.at[1] - nz)];
+      });
+      expect(got, s.id).toEqual(want[s.id]);
+    });
   });
 
   it('the bolt counts and indexes are the brief\'s (the flags W<n>-bolt<k> fix them)', () => {
