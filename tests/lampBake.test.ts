@@ -320,14 +320,35 @@ describe('(LR16e) penumbra', () => {
     return h.digest('hex').slice(0, 16);
   };
 
-  // (LR16-POLISH C) the penumbra scratch was cut from 21 B per cell of the largest lamp box to the blocker distance (4 B,
-  // also the band index), plane rings and the band's own cells. The bytes must not move: the hashes were taken on
-  // lr16int e7cec732 (LR16g, LR16-L A) before the change, so no LAMP_VERSION bump.
+  // (LR16-POLISH C) the penumbra scratch was cut from 21 B per cell of the largest lamp box to the blocker distance (4 B a
+  // cell), rings of planes (the box sums, the band widths hRing, the filter) and the band's own cells. The bytes must not
+  // move: the hashes were taken on lr16int e7cec732 (LR16g, LR16-L A) before the change, so no LAMP_VERSION bump.
   it('(LR16-POLISH C) scratch cut: the fixture bakes to the same bytes as before (penumbra on and off)', () => {
     const shapes = [floor, box([0, 1.5, -5.4], [0.2, 3, 8.8]), box([0, 1.5, 5.6], [0.2, 3, 8.8]), box([0, 2.6, 0.6], [0.2, 0.8, 1.2]), box([-3, 0.3, 2], [0.6, 0.6, 0.6]), box([3, 1.5, -2], [2, 0.05, 1]), box([4, 0.4, 3], [1, 0.8, 0.4]), crate, slab(1.5), fence(0.8)];
     const L = [lamp(-3, 3, 0, 6), panel(3, 3, 0, 2.4, 0.3), panel(3, 2.5, 4, 0.6, 0.6, 5), panel(-4, 2.8, -5, 0.1, 0.1, 5), panel(-1, Y, 0, 0.6), lamp(-3, 2.5, -2, 5)];
     expect(bakeHash(bakeP(shapes, L, true))).toBe('8a043bd5a06b6607');
     expect(bakeHash(bakeP(shapes, L, false))).toBe('74336023ce3a74b4');
+  });
+
+  /** sha256 (first 16 hex) of the lamp boxes and visibility bytes only. */
+  const visHash = (r: LampResult): string => createHash('sha256').update(new Uint8Array(r.boxes.buffer, r.boxes.byteOffset, r.boxes.byteLength)).update(r.vis).digest('hex').slice(0, 16);
+
+  // (lr16pol-cf-check polish 2) the hashes above hold no cone: add a wall pack tilted 45 degrees down and away from the x 0
+  // wall, a 45 degree downlight and a 0.3 m-radius cone (lamp layout [x, y, z, r, dx, dy, dz, cos, sx, sz]). The expected
+  // values were taken from lampBake.ts at e7cec732 (before the scratch cut) with this fixture, and the new code gives the
+  // same bytes. Only the boxes and visibility bytes are hashed: the bounce bits changed after e7cec732 (LR16 polish F), so
+  // a full-result hash would differ for a reason that is not the scratch cut.
+  it('(LR16-POLISH2 C) scratch cut: cone lamps (wall pack, downlight, small cone) bake to the same visibility bytes as before', () => {
+    const shapes = [floor, box([0, 1.5, -5.4], [0.2, 3, 8.8]), box([0, 1.5, 5.6], [0.2, 3, 8.8]), box([0, 2.6, 0.6], [0.2, 0.8, 1.2]), box([-3, 0.3, 2], [0.6, 0.6, 0.6]), box([3, 1.5, -2], [2, 0.05, 1]), box([4, 0.4, 3], [1, 0.8, 0.4]), crate, slab(1.5), fence(0.8)];
+    const t = Math.SQRT1_2;
+    const L = [
+      lamp(-3, 3, 0, 6), panel(3, 3, 0, 2.4, 0.3), panel(3, 2.5, 4, 0.6, 0.6, 5), panel(-4, 2.8, -5, 0.1, 0.1, 5), panel(-1, Y, 0, 0.6), lamp(-3, 2.5, -2, 5),
+      [0.3, 2.5, 4, 6, t, -t, 0, Math.cos(Math.PI / 6), 0.3, 0.2],
+      [-5, 3, 3, 6, 0, -1, 0, Math.cos(Math.PI / 4), 0.2, 0.2],
+      [3, 2, -4, 0.3, 0, -1, 0, 0.5, 0.1, 0.1],
+    ];
+    expect(visHash(bakeP(shapes, L, true))).toBe('f47a22b1bc013560');
+    expect(visHash(bakeP(shapes, L, false))).toBe('6e2bbb1ea3d0ab79');
   });
 
   it('(LR16-POLISH C) scratch cut: Marlow Yard (ctcourse) bakes to the same bytes as before', () => {
