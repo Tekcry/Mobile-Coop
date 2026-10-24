@@ -104,6 +104,24 @@ export interface MissionDef {
   rules: MissionRule[];
   /** Sector Ops: team A high / upstairs, B ground / service (A16). */
   tracks?: MissionTrack[];
+  /**
+   * (EN4, A23) The run's first section (a SectorDef id in `sections`): the run starts there, at that section's `start`,
+   * and the run's earlier sections (their objectives and connectors) are skipped. None: the run's section 0, as before.
+   */
+  start?: string;
+  /**
+   * (EN4, A23) The guards this mission spawns (one map, several missions): one entry per mission section, `slots` the
+   * indexes in that SectorDef's `guards` (none: all of them; []: none). With a list, a run section it does not name
+   * spawns no guards. None: every section spawns all its guards, as before. Reinforcements are not filtered.
+   */
+  guards?: MissionGuardList[];
+}
+
+/** (EN4) One section's guards for a mission (`MissionDef.guards`). */
+export interface MissionGuardList {
+  section: string;
+  /** Indexes in the SectorDef's `guards` (guard ids `<section>:<k>`); none: every guard of the section. */
+  slots?: number[];
 }
 
 export const STEP_KINDS: readonly StepKind[] = ['reach', 'interact', 'intel', 'exploit', 'interrogate', 'carry', 'plant', 'sync', 'extract'];
@@ -319,6 +337,36 @@ export function checkMission(d: MissionDef, guards: ReadonlySet<string>, talkers
   if (perScope.mission + perScope.b > MISSION.rulesPerScope) out.push(`${tag}: team b carries ${perScope.mission + perScope.b} rules (max ${MISSION.rulesPerScope})`);
   if (!campaign && perScope.a + perScope.b > 0 && !d.tracks) out.push(`${tag}: team rules need tracks (attribution, A9)`);
 
+  // (EN4, A23) the start section: one of the mission's, and no step before it (it would never run)
+  if (d.start !== undefined) {
+    const si = d.sections.indexOf(d.start);
+    if (si < 0) out.push(`${tag}: start ${d.start} is not in sections`);
+    else for (const s of d.steps) if (secOf(s) >= 0 && secOf(s) < si) out.push(`${tag} step ${s.id}: section ${s.section} is before the start ${d.start}`);
+  }
+  // (EN4, A23) the guard list: one entry per mission section, slots the section's guards (`guards` ids `<section>:<k>`),
+  // and every interrogate target and decoy among the guards it spawns
+  if (d.guards !== undefined) {
+    const listed = new Set<string>();
+    for (const e of d.guards) {
+      const p = `${tag} guards ${e.section}`;
+      if (!d.sections.includes(e.section)) out.push(`${p}: section is not in sections`);
+      if (listed.has(e.section)) out.push(`${p}: section listed twice`);
+      listed.add(e.section);
+      if (e.slots === undefined) continue;
+      const seen = new Set<number>();
+      for (const k of e.slots) {
+        if (!Number.isInteger(k) || k < 0 || !guards.has(`${e.section}:${k}`)) out.push(`${p}: slot ${k} is not a guard of the section`);
+        if (seen.has(k)) out.push(`${p}: slot ${k} listed twice`);
+        seen.add(k);
+      }
+    }
+    for (const sec of d.sections) if (!listed.has(sec)) out.push(`${tag} guards: section ${sec} has no entry`);
+    for (const s of d.steps) {
+      if (s.kind !== 'interrogate') continue;
+      for (const g of [s.target, ...(s.decoys ?? [])]) if (g && guards.has(g) && !missionSpawnsGuard(d, g)) out.push(`${tag} step ${s.id}: guard ${g} is not in the mission's guard list`);
+    }
+  }
+
   // tracks
   if (d.tracks) {
     if (campaign) out.push(`${tag}: tracks are Sector Ops only`);
@@ -332,6 +380,18 @@ export function checkMission(d: MissionDef, guards: ReadonlySet<string>, talkers
     }
   }
   return out;
+}
+
+/**
+ * (EN4, A23) The mission spawns guard `id` (`<section>:<k>`): no guard list, or its section's entry has no slots or
+ * lists `k`. A section the list does not name spawns none. Setup-time helper.
+ */
+export function missionSpawnsGuard(d: MissionDef, id: string): boolean {
+  if (!d.guards) return true;
+  const at = id.lastIndexOf(':');
+  if (at <= 0) return false;
+  const e = d.guards.find((q) => q.section === id.slice(0, at));
+  return !!e && (e.slots === undefined || e.slots.includes(Number(id.slice(at + 1))));
 }
 
 /** Every flag a condition reads, in order (setup-time helper; allocates). */
