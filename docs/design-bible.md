@@ -291,6 +291,11 @@ Implementation: `docs/systems/lighting.md`.
   through glass.
 - **L16 - Lit windows (G144).** Lit windows are systemic: a lit window exposes anyone in it, from either side; dark
   rooms hide.
+- Note 2026-10-23: one lighting system on every map: realistic inverse-square falloff (G314) with no Classic path or
+  falloff setting, soft light edges against walls and floors, hard only where an occluder cuts the ray, guard torches
+  stopped by walls and shut doors with soft beam edges, a CT-grade showcase audited in LR16 (G316); the 2-4 lamps
+  nearest the players cast real-time character shadows at High+ (G315); fires flicker and one failing tube stutters per
+  main map, swinging pendants on Marlow Yard only (G323).
 
 ### 5.2 Sound (P2)
 
@@ -484,7 +489,9 @@ Implementation: `docs/systems/combat.md`.
 - Every shot is a noise event; suppressed shots are quiet, not silent; impacts are heard nearby.
 - Every shot can kill a lamp (P1). The gun is also a light tool.
 - One headshot downs an unarmoured guard. Helmets and armour appear with alarm levels (5.7). Co-op missions have no
-  heavies (G155).
+  heavies (G155). Note 2026-10-23: later sections reward stealth over shooting: a helmet takes the first headshot,
+  body armour makes torso shots stagger, limited suppressor ammo, no ammo inside a section and one weapons-crate
+  refill per player between sections (G307).
 - Aiming from attached states stays (split, pipes, rappel, ledge, human ladder top).
 - **Co-op:** the drawn / holstered state and the weapon in hand are in `MoveState`, so the partner sees them.
 - **Holstered look:** the rifle slung on the back, the pistol in its holster, a clean silhouette. On Wren the rifle hangs
@@ -527,6 +534,14 @@ Implementation: `docs/systems/ai.md`.
   alarm-tolerance setting. Difficulty scales guard perception, alert tolerance and resources; sync timing windows
   never scale (G131).
 - **Awareness arcs:** shown today; research (G1).
+- Note 2026-10-23: every guard is armed on every map and cameras keep IR (G298). Guards hear only within range,
+  wake knocked-out guards, report bodies and stay cautious, investigate a broken light in ones or twos then return,
+  pass alerts by voice and radio without alerting everyone at once, hold high-security posts, and fight smart and
+  tactical; reinforcements are aggressive (G299). KO caution is timed; reinforcements come only after a raised alarm;
+  radio spreads through the own section, staggered; cameras see and report bodies (G300). Later sections: bulletproof
+  and thermal cameras, riot shields in response teams, alarms that escalate gear, response teams that stay and search,
+  missed check-ins raise alert (G307). Lasers draw a search of the laser spot, not the player; longer body
+  investigations; no walking through each other or doors; holstered in calm areas (G312).
 
 ### 5.8 Missions and campaign
 
@@ -584,6 +599,11 @@ playground for movement and gunplay; prototype effort, below the co-op training 
 - Warehouse lamps snap to ceilings; the open sections get translucent corrugated roof sheets that let light in but
   cannot be passed through (G221).
 - Note 2026-10-23: team doors are true two-player pathways that cannot be used solo, without breaking solo play (G280).
+- Note 2026-10-23: the redesign is a new, larger map, a corporate research campus of up to 5 sections, one co-op run
+  30-45 min, up to 24 guards, security that makes sense and gets harder (cameras, lasers, alarm panels, keypads, then
+  dogs and armed response), shorter camera range, co-op pathways that solo play can still pass, lit like a real site
+  (G295-G297); some sections have an unavoidable guard (G303); the warehouse stays selectable (G298); the campus gets
+  the full detail-art lift (G309); up to 4 players after the redesign, Marlow Yard stays at 2 (G308).
 - Note 2026-10-24: campaign missions are 2-player co-op with strict rules; Sector Ops is 4-player co-op with parallel
   objectives for two teams (or one player doing them all). First prototypes: Three Grey Coats and Two-Key Ledger
   (campaign), Split Shift and Code Relay (Sector Ops), on a mission framework (G291).
@@ -653,6 +673,8 @@ Implementation: `docs/systems/ui.md`; the menu plan: `docs/menu-ui/SPEC.md`.
   no markers in campaign missions and Sector Ops, an optional hint layer (off by default), in-world guidance only;
   Marlow Yard keeps its guidance marks (G290, G292).
 - **Field menu** (pause): objectives, radio log, map with known intel, interrogation notes.
+- **Dev menus (note 2026-10-23):** Anim Studio only from the main menu; the animation tuner stays in the in-game menu
+  (G313).
 - **Remapping:** full remapping with conflict warnings and a reset; remap capture cancels with Menu / Start or Esc, and B
   stays bindable (G22, 5.17 D7).
 
@@ -669,7 +691,9 @@ Implementation: `docs/systems/ui.md`; the menu plan: `docs/menu-ui/SPEC.md`.
   authored headless in Blender, never traced from footage (G5, G209); the procedural layer blends, turns, plants feet.
 - All other animation is generated in code (clips as curves, IK, `FootPlanner`, `AnimGraph`, `Inertializer`). No motion
   matching, no captured data, no root motion driving control. Note 2026-10-23: CMU mocap locomotion behind a toggle
-  (G264), kept as captured over the limits and feel notes below (G271), more clips without sheets (G273).
+  (G264), kept as captured over the limits and feel notes below (G271), more clips without sheets (G273), on by
+  default once checked, the hand-keyed set behind the switch (G298). Every animation gets fixed, the normal ones too
+  (G312).
 - **Every animation looks realistic and believable**: no instant or unrealistic motion, no clipping (G199), no awkward
   poses. The reference is a real-world trained operator, not the CT footage (G210, replaces loco M20 Q9).
 - **Michael's feel notes (G207):** legs and elbows in, never crab-like, also crouched; a slower crouch idle; the
@@ -782,7 +806,7 @@ Two operators, Wren and Moth, are built and playable; there is no four-operator 
 and briefing crew, not playable (G112).
 
 - **Realistic** (G68): the operators come from the realistic character pipeline on `feature/operators`; guards and
-  weapons follow later from the same pipeline. The voxel look is retired (2026-10-23, Michael: "nothing should be voxel"; G number at the merge). That
+  weapons follow later from the same pipeline. The voxel look is retired (2026-10-23, Michael: "nothing should be voxel"; G282). That
   branch keeps its own decisions and open items (G75).
 - **Wren is the player character** for both players, with no dev switch, before the prototype is done (G123, replaces
   G70's "after the prototype, behind a dev switch"); Michael tunes movement on her himself (G227, replaces G150's core-feel job); then the weapon
@@ -815,7 +839,10 @@ Mission 8 has no traitor and no player-versus-player finale (G9). The finale is 
 
 - **CT's look (G1, G5):** CT's visual style and HUD layout are copied closely, with original art assets. Desktop aims to
   surpass CT in fidelity (Michael, 2026-10-09). Visual work never changes gameplay.
-- **Realistic everywhere (G68).** The voxel look is retired (2026-10-23, Michael: "nothing should be voxel"; G number at the merge).
+- **Realistic everywhere (G68).** The voxel look is retired (2026-10-23, Michael: "nothing should be voxel"; G282).
+- **Guards (note 2026-10-23):** realistic, all male, a larger build than Wren, clear variety by archetype (armour,
+  helmets) (G310); mid-detail faces on most kinds, balaclavas on heavy / armoured, the same look after a section
+  restart (G320). Extra co-op player characters come after all levels are done (G310).
 - **Where to win:** lighting and atmosphere: soft shadows shaped by the lamp fixture, one-bounce light, light cones in fog
   and rain, flickering and failing lamps, flashlight beams in haze, rain with wet surfaces and drips, steam and dust in
   light shafts.
@@ -946,7 +973,8 @@ spec template) and the standard's phases and gates.
 - Note 2026-10-23: the final Marlow Yard pass rebuilds freely around co-op scenarios, one co-op run 15-20 min (G272).
 - Note 2026-10-23 (marlow-final): no explainer pads, the objective list guides both players (G277); a believable,
   luxurious training facility, dressed straight after each greybox (G278); lit by default, the players cut the light,
-  mixed zones where they play better, a view-only instructor gallery, normal guards (G279).
+  mixed zones where they play better, a view-only instructor gallery, normal guards (G279). A checkpoint restart is a
+  full reset (guards, bodies, cameras, doors); the S3 hallway camera is bulletproof (G312).
 - Note 2026-10-24: Marlow Yard is a heavily guided, linear training course with one route; split paths and multiple
   objectives only in its later sections, as teaching (G292).
 - Note 2026-10-24: every map gets a connectivity-graph JSON and passes the Node level validator before greybox, with
@@ -984,7 +1012,8 @@ Each map's documents also include:
   the anim tuner, the one touch exception (G220).
   The phone minimum keeps baked lamp light and one cheap character shadow, caps the frame rate for heat and fills any
   aspect with no letterbox (G215); the menu hero renders at High (G216); phones cap at 75% resolution, no WebGPU yet
-  (G218).
+  (G218). Note 2026-10-23: menus and HUD fit an iPad (safe-area insets, version label on screen, the Windows GPU banner
+  only on Windows) (G311).
 - **Performance:** the budgets in `docs/systems/performance.md`, set to the target laptop's numbers (G14). Note
   2026-10-24 (assumed, undoable): the guard off-screen animation tier stays at 4 until a guard whose shadow falls in
   view counts as seen (G294).
@@ -1020,6 +1049,12 @@ of done) and `docs/systems/session-method.md` (the job lead's loop); the process
   next roadmap feature in its area (G283); refining is allowed, at most 3 unwalked features per area, a walk card per
   release, and a one-click sign-off before greybox, map art or a big look change (G288); test jobs visual-gate and
   coop-real (G287, assumed, undoable).
+- **Models and pace (note 2026-10-23):** Opus plans, briefs, checks and writes tricky engine / AI / animation code;
+  Sonnet builds from strict briefs; Haiku does chores (G302); full burn to the cap (G304) with lean messaging and batch
+  checkers (G305); two checkers on AI and `src/net`, cloud builders, plans 2-3 slices ahead, high effort for leads
+  (G319). Overnight rule loosenings are applied as assumed, logged and undoable (G301).
+- **Pipeline (note 2026-10-23):** the laptop queue, fixed swap prompts, automatic suite selection and fully automatic
+  rolling trains; no e2e on the desktop except the overflow lane (G318, G321, G322); release-speed (G317).
 - **Trains:** note 2026-10-24: a failing member is dropped and the train rebuilds, auto-train ticks every minute, and
   train N+1 may build on train N (G286).
 - **Versions:** notes say Unreleased until the merge; every merge to master gets the next `4.MINOR.PATCH`, a job or
