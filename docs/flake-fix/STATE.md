@@ -3,6 +3,21 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 43 (2026-10-24 ~23:58, before the ~00:13 cap; wins over SAVE 42 where they differ):**
+- Train 70 green (43/43). Train 71 556d861d (#362, scripts-only) laptop FAIL e2e-coop only (joint interrogation "host
+  counts the joint read", host page x0.32 under load). CI rerun 40094567379 green. Orchestrator: release train 71 when
+  the solo rerun 20261024T125138-night-shift-test-run-556d861d-f02d (e2e-coop) passes; if auto-train does not within a
+  tick, `node scripts/merge-train.mjs release 71 4.98.4 "<title>" --resume --head 556d861d` by hand (auto mode may
+  block: then tell the Orchestrator). Flake sent to Marlow Build (owner of joint interrogation).
+- Train 72 4b4b5bd5 (#364, includes #356 affected-flake) running on both slots since 23:53; f02d runs after it.
+- feature/laptop-queue-3 (worktree C:/NightShift/Mobile-Coop-laptop-queue-3, head 459aa0e2 pushed): fixes 1-3
+  (f785331b), CPU gate without BelowNormal/Idle (3d580204), fetch narrow + lock retry (325f92ba), checker FIX round
+  (bd2d7e25, 459aa0e2). Agent adding the Orchestrator's pick-order fix (oldest per requester + priority field). NEVER
+  merge master into it (CLAUDE.md): it conflicts with master in scripts/merge-train.mjs, tests/autoTrain.test.ts,
+  tests/mergeTrain.test.ts, resolved in the train. Next: fresh Opus checker on f785331b..HEAD, PR (base master once
+  #356 is in master via train 72), message the Orchestrator train-ready (it labels; my gh pr edit is blocked).
+- Rollout after merge: update the laptop service before or with the desktop worker (dupKey).
+
 **Test Runner SAVE 42 (2026-10-24 ~23:30, account swap resume; wins over SAVE 41 where they differ):**
 - Resume checks 23:24: service live (node pid 68760, task NightShift-laptop-queue Running); both locks held by train 70
   73908a1a (started 23:13, sharded 4189+4192, live pid); no duplicate Test Runner; train 69 done 23:11.
