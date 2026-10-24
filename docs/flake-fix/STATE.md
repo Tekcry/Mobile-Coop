@@ -23,7 +23,7 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
 - NEW JOB (Marlow Build 08:55): guard-cap C2, client guard puppets in the render freeze. Brief
   origin/feature/guard-cap docs/guard-cap/slices/C2-brief.md (1f2db1f5). GATE not met at 08:58: coop4 #317 OPEN, C1 and
   Guard AI's "shadow in view = seen" rule (src/ai/animTierView.ts) not yet on master; guard-cap-coop.mjs --query=
-  pending from Marlow. At the gate: worktree C:/NightShift/Mobile-Coop-guard-cap-c2, branch feature/guard-cap-c2 off
+  is on origin/feature/guard-cap d76b5372 (`--query=puppetfreeze=0|1`; fetch it, not on master); C1 waits #375 + #317. At the gate: worktree C:/NightShift/Mobile-Coop-guard-cap-c2, branch feature/guard-cap-c2 off
   master, Opus build + two Opus checkers, flag `puppetFreeze` (off, owner Test Runner, switch-on after Michael's shadow
   look, target walk 2026-10-28), the PLAN2 row "C2 (guard-cap)" in docs/guard-render/PLAN2.md in the same PR. Then
   PR suites e2e-coop e2e-netmove e2e-sectorops e2e-stealth-ai e2e-darkness, M1 A/B alone 4189 (campus + sectorops,
