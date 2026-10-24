@@ -350,30 +350,39 @@ then git worktree remove --force. Train-ready = message + `gh pr edit <n> --add-
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (saved 2026-10-25 ~08:45, new account, FULL BURN from Michael 08:25 "hit the 5 hour
-cap as quick as possible"). git fetch; read CLAUDE.md "Sessions" (origin/master). Sector Ops + Lighting AT WALK CAP 3:
-only tests (visual-gate), fixes, automation. Worktrees: -polish (this STATE), -signoff, -visual-gate (+ -vg1p now on
-feature/visual-gate-vg3p), -bake3 (now on feature/sector-redesign-bake4), -polish3.
-1. PR #385 bake4 (cloud brief done; retry cap Math.min, WorkerPool.cancel replaces a stalled worker; behaviour change
-   assumed keep: a first try > 60 s is killed). Opus checker running (-> checks/bake4-check.md + checker status);
-   laptop set bake4 "lightbake sectorops:6" queued 21:23Z on ad69c83e. Green -> label train-ready, tell orchestrator.
-2. PR #379 polish3: train-ready label on; red only on the pr-size CI bug (#378 hotfix pending Michael). No action.
-3. CAMPUS SIGN-OFF (feature/sector-redesign-signoff @ a2cf369a): S1-S5 pages done, checked, fixed; WAITING on Michael's
-   picks (one per page; orchestrator brings them). After picks: greybox slices per S<N>-detail.md build cost.
-4. VISUAL-GATE (docs/visual-gate/STATE.md on feature/visual-gate @ d1e45ddc): VG1-VG5 + vg1p merged, VG6 #367 and
-   #366 released. M0 laptop run PASSED (alone-visual-m0, fc4dc9ab, 244 s); VG5 rules-only gate run FAILED
-   (alone-visual-vg5, 46a7cf85, 0/1, 178 s). Results live only on the laptop: asked Test Runner ~08:40 to push both
-   (json, png, run logs) to shots/visual-gate-m0. On arrival: Opus triage of VG5 (fix round on feature/visual-gate-vg5),
-   write docs/visual-gate/M0.md + PLAN 7 ladder, rerun VG5 laptop run, then group C: send VG7 phase-1 tools check +
-   VG7 laptop request (briefs/VG7.md :206) and the 8 proof builds (briefs/P1-P7.md) together.
-   vg3p (cloud done 5472f686): Sonnet checker running in -vg1p -> checks/vg3p-check.md; PASS -> merge into
-   feature/visual-gate. VG7 phase 1 brief OPEN on cloud-queue (reopened after the swap). Opus writer on briefs VG8,
-   C1, VG9 (group D-E) in -visual-gate. VG5 check polish 2-4 (gate.mjs skips line, NaN meter, exitCode) held until
-   the VG5 triage lands.
-Laptop requests: from a repo dir, node C:/NightShift/scratch/lq/request.mjs --sha <full sha> --pr N --branch <b> --set <s>
---suites "a b" --requester "Night Shift | Sector Ops Build".
+Night Shift | Sector Ops Build: RESUME (saved 2026-10-25 ~09:08 at the orchestrator's 92% save; reset 13:10 or swap).
+git fetch; read CLAUDE.md "Sessions" (origin/master). Full burn. Three jobs + visual-gate:
+1. CAMPUS-GREYBOX (Michael signed S1-S5 ~08:50; picks on signoff pages 7c021f01). Worktree C:/NightShift/Mobile-Coop-
+   campus-greybox, branch feature/campus-greybox (WIP a0097ba1 at the save). P0 (Opus) was building the dark-merge
+   scaffold: per-section flag in flags.ts, per-section data split (campusS1-3Data.ts, campusParts.ts, selector in
+   campusSectors / campusLips / campusOps; keep the MapDef `sectors: CAMPUS_SECTORS,` line untouched for Marlow's
+   `missions:` line). Five Opus writers: docs/campus-greybox/briefs/S1..S5.md (maybe partial: check each ends with
+   PR grouping + validator). If P0 or a brief is unfinished, rerun it from its file. Next: 5 Sonnet lanes in worktrees
+   feature/campus-greybox-s<N> (one per section, own files only), Sonnet checker per section batch, Opus for engine
+   (S2-G5 devices, S5 CR7 rope). SYNC.md: lanes never edit it; lead adds `src` lines; ping Marlow when S2 / S4 data is
+   pushed. Exit gate: level-validator V6 --require-measured (cloud V6-fix done 8f551e18, Marlow's; on master later).
+   S1 car park lights in one S1_LIGHTS block, provisional until light-realism calibrates; carport gets under-canopy lamps.
+2. LIGHT-REALISM (Michael ~09:05 "Real-world levels"; ROADMAP Now 15). Worktree C:/NightShift/Mobile-Coop-light-
+   realism, feature/light-realism. Running at save: Opus measurement (docs/light-realism/measure/S1-carpark.md,
+   scripts/light-realism/s1-shots.mjs + the laptop request it prints -> SEND it, set light-s1) and Opus planner
+   (research/bands.md, BRIEF, PLAN, signoff/level-design-5.5.md, fresh plan checker). Send the measurement to the
+   orchestrator for Michael. If unfinished, rerun from the job's docs.
+3. PR #385 bake4: checker PASS d2ccf630; laptop set bake4 (e2e-lightbake e2e-sectorops:6) queued on d2ccf630 (first
+   run was red only from my wrong suite names). Green -> tell orchestrator (it labels). #379 / #385 ride the train
+   with Guard AI's e2e-stealth-ai fix. bake5 (cloud done 522727fb, stacked on #385): Opus checker running in
+   -sector-redesign-bake2 -> checks/bake5-check.md; PASS -> PR after #385 merges.
+4. VISUAL-GATE (feature/visual-gate 0400ece4: vg3p + VG7 phase 1 merged; briefs VG8 / C1 / VG9 131e5fc8; BRIEF
+   A32 / A33 mine). Laptop QUEUED ~09:00: visual-vg7 (3 runs on master 6c3f4a87, run 3 records, push to
+   shots/visual-gate-vg7) + 8 proof builds visual-proof-<tag> (push to shots/visual-gate-proofs). Steps fetch
+   feature/visual-gate at RUN time. VG7p1 Opus checker running in -visual-gate-vg1 (push-results laptop safety
+   first). VG5 triage (Opus, -visual-gate-vg5, feature/visual-gate-vg5t WIP e44b288d): M0.md done (A31 no ladder
+   step; trigger vg5b wall > 165 s), gate fixes in progress; its BRIEF A32 clashes with mine: renumber theirs A34 at
+   merge. Then: vg5b rerun request (command in checks/vg5t-build.md), VG7 phase 2 (tolerances.mjs from vg7 runs),
+   P1-P7 Sonnet proof builders (results on shots branches), VG8, C1, VG9 (6 stacked PRs, A33).
+Laptop requests: from a repo dir, node C:/NightShift/scratch/lq/request.mjs --sha <full> --pr N --branch <b> --set <s>
+--suites "e2e-x e2e-y:6" --requester "Night Shift | Sector Ops Build" (suite names are e2e-*, see run-e2e.mjs :30).
 RULES: message the orchestrator only at PR open / train-ready / blocked / needs Michael; Opus plans / checks / engine,
-Sonnet from strict briefs; one checker per batch with the laptop request; one fix round; never merge master into a job
-branch; no desktop e2e / GPU; vitest --maxWorkers=2; agents wait while CPU > 90%; never two agents on one file.
-Previous block (05:25): git log -p on this file.
+Sonnet from strict briefs; one fix round; never merge master into a job branch; no desktop e2e / GPU; vitest
+--maxWorkers=2; agents wait while CPU > 90%; never two agents on one file.
+Previous blocks: git log -p on this file.
 ```
