@@ -83,3 +83,43 @@ Docs: `docs/systems/lighting.md` "Per-section lamp bake", new "Failures" bullet.
   build keeps "pool idle", as the brief says.
 - `disposeSectionBakersSince` stops every running baker made after the mark. Two `GameState.create` calls running at
   once in one page would cross. That does not happen today: one match per page, and the old one is disposed first.
+
+# bake3 (feature/sector-redesign-bake3, base feature/sector-redesign-bake2 @ 54cdb9e1)
+
+Check polish 1, 2 and 4 (`section-bake-robust-check.md`). Builder: Opus, desktop agent (node only: no e2e, no GPU, no
+build). Only `src/voxel/sectionJobs.ts`, `tests/sectionBakeRobust.test.ts`, the fragment and this section changed.
+
+## What changed (file:line)
+1. **P2, a live-section inline lamp skips the idle wait.** `drainInline` (`sectionJobs.ts:314`): while the match plays
+   and a pool job is in flight, it scans the inline queue from `inlineHead` for the first lamp that is not landed and is
+   `plan.liveMember(i)`. None: it stops, as before. Found at `j`: `copyWithin` shifts `[head, j)` up one slot and the live
+   lamp goes to `head` (:324), then it bakes as before (one lamp per task, `setTimeout` 0 before the next).
+   - Queue-shape choice: a stable shift in the one existing `Int32Array`, not a swap and not a second queue. A swap
+     would reorder the held non-live lamps; a second queue would need a live/non-live split at enqueue time, but
+     membership changes with `setLive`, so a lamp queued as non-live would have to move between queues on a live change.
+     Scanning at drain time reads the current live section, allocates nothing (index loop, `copyWithin` on the typed
+     array) and the queue holds at most the lamps that failed twice, so the scan is a few entries.
+2. **P1, a non-live lamp still waits.** During play it bakes only once the pool is idle or once its section goes live:
+   `setLive` (:178) now calls `drainInline` after the live listeners, so a held lamp of the new live section bakes then.
+   Nothing else changed: the check's polish 1 option "hold non-live lamps to `setLive` / match end" was not taken (the
+   brief keeps the idle rule).
+3. **P4, a shorter retry cap.** `JOB_RETRY_CAP_MS = 20_000` exported (:31). `checkStalled` (:229) picks the cap per lamp:
+   `tries[i] === 1` (the retry is in flight) uses `JOB_RETRY_CAP_MS`, a first try keeps `capMs ?? JOB_CAP_MS`. Both caps
+   are read once per call; the loop allocates nothing. Worst case with a silently dead worker: 60 + 20 + 5 s ~ 85 s
+   (was ~125 s).
+
+## Tests (node, `--maxWorkers=2`)
+- `npx tsc --noEmit -p .`: clean. eslint on both changed files: clean.
+- `tests/sectionBakeRobust.test.ts` **12/12** (9 unchanged + 3 new, describe "bake3"): (a) during play lamp 0 (live
+  section 0) rejects twice and bakes inline at once while pool jobs are in flight; bytes equal the full bake. (b) lamp 2
+  (section 1) rejects twice during play and stays dark across another landing while jobs run; `setLive(1)` bakes it at
+  once with jobs still in flight; bytes equal the full bake. (c) lamp 0's retry hangs, lamp 1's first try hangs: at
+  +19 s nothing; at +30 s lamp 0 counts as failed (inline at once, the load) and lamp 1 is untouched.
+- `tests/sectionBake.test.ts` 11/11, `tests/sectionBakeCampus.test.ts` 3 passed + 1 skipped (heavy). All files that
+  import `sectionJobs` / `sectionBake` (`grep -rl`): 26 passed, 1 skipped across 3 files.
+- Mutation check: the old idle-only rule fails (a) and (b); dropping the `setLive` drain fails (b); a single cap fails (c).
+
+## Deviations
+- None in code. `docs/systems/lighting.md` "Failures" (:161-163) still says the inline bake waits for an idle pool and
+  names only the 60 s cap; it was outside this brief's file list, so it needs a one-line follow-up (live-section lamps
+  skip the wait; the retry's cap is 20 s).

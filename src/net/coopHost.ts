@@ -21,7 +21,7 @@ import { RemotePlayer } from './remotePlayer';
 import { HoldClock, holdFeed, stepHoldFeed, type HoldFeed } from './holdFeed';
 import { setPlayerGlow } from '../operators/runtime/playerFigure';
 import { PartnerBlocker, partnerPassable } from './partnerBlocker';
-import { checkBlast, checkShot, clientStepNoise, hostShotAllowed, hostShotWeapon, maxHitDamage, playersHostile, SHOT_UNDER, SHOT_UNDER_HANG } from './validate';
+import { checkBlast, checkShot, clientStepNoise, hostLampShots, hostShotAllowed, hostShotWeapon, maxHitDamage, playersHostile, SHOT_UNDER, SHOT_UNDER_HANG } from './validate';
 import { localFlags, htmlToInfo } from './netShared';
 import { keepSimInBackground } from './bgTicks';
 import { hostHoldPulse, inUseReach } from './holdPulse';
@@ -178,6 +178,8 @@ export class CoopHost implements NetAttachment {
   private reviveSec = new Map<string, number>();
   /** (sector-redesign slice L, protocol 31) Sector Ops: the fixed lights' state to the client (`lamps`), null elsewhere. */
   private readonly lampTx: LampSender | null;
+  /** (coop-real F1b, S2) A client's round through a lamp is checked and shot out: Sector Ops and Course mode. */
+  private readonly lampShots: boolean;
   /** A `lamps` message goes on the next step whatever changed (a join, a rejoin, a section restart). */
   private lampForce = true;
   /** The mode's restart count last seen (a section restart forces a `lamps` send). */
@@ -200,6 +202,7 @@ export class CoopHost implements NetAttachment {
     // (sector-ops step 3, M7, A10) Sector Ops: the revives are the op's syringes, per difficulty
     if (mode === 'sector') this.reviveClock.cap = syringesFor(g.opts.difficulty);
     this.lampTx = mode === 'sector' ? new LampSender() : null;
+    this.lampShots = hostLampShots(mode);
     this.soloRemotes = g.remotePlayers;
     g.remotePlayers = () => this.remoteRefs;
     for (const p of s.players.values()) if (p.id !== s.selfId) this.addRemote(p);
@@ -641,6 +644,7 @@ export class CoopHost implements NetAttachment {
     this.push({ e: 'kill', enemy: e.id, kind: e.def.kind, by, head: h.part === 'head' });
     this.history.delete(e.id);
     this.seized.delete(e.id);
+    this.interPh.delete(e.id);
     const t = this.tallies.get(by);
     if (t && by !== this.s.selfId) {
       t.kills++;
@@ -889,10 +893,14 @@ export class CoopHost implements NetAttachment {
       // (G7) the struggle from the client's contact (derived from where it stands: no wire data)
       e.beginTakedown(!m.lethal, contactDelay(r.feet.x, r.feet.z, e.pos.x, e.pos.z, e.yaw, !!e.def.quadruped));
       this.seized.set(e.id, { by: r.id, t: 0, ...holdFeed() });
+      // (joint-flake-3 check) a td 'start' resets interPh: a read aborted mid-way (the td 'abort' ends the seize before
+      // a seized step sees the hold go) never counts as ended on this new hold's first step (`interrogationEnded`)
+      this.interPh.delete(e.id);
       return;
     }
     if (!held || held.by !== r.id) return;
     this.seized.delete(e.id);
+    this.interPh.delete(e.id);
     if (m.ph === 'abort') {
       e.releaseTakedown();
       return;
@@ -1306,19 +1314,23 @@ export class CoopHost implements NetAttachment {
   }
 
   /**
-   * (sector-redesign slice L, protocol 31) Sector Ops: a client's round through a lamp (`shot` target `lt-<id>`). The
-   * host checks the draw, the weapon, a rate (4 a second), the round's origin at the shooter's body, the lamp first
-   * along the claimed ray in its own registry (`lampShotOk`) and a clear static line to it; then shoots it out as its
-   * own round would (sparks, noise, a guard comes to look). The client sees it dark from the next `lamps` message.
+   * (sector-redesign slice L, protocol 31; coop-real F1b, S2: Course mode too) Sector Ops and Course mode: a client's
+   * round through a lamp (`shot` target `lt-<id>`). The host checks the draw, the weapon, a rate (4 a second), the
+   * round's origin at the shooter's body, the lamp first along the claimed ray in its own registry (`lampShotOk`) and a
+   * clear static line to it; then shoots it out as its own round would (sparks, noise, a guard comes to look). The
+   * client sees it dark from the next `lamps` message (Sector Ops) or `course` message (`lights.dead`, Course mode).
    */
   private onLampShot(r: RemotePlayer, m: Extract<Msg, { t: 'shot' }>): void {
-    if (!this.lampTx || !r.alive || !this.g.stealth) return;
+    if (!this.lampShots || !r.alive || !this.g.stealth) return;
     const id = lampTargetId(m.target);
     if (id < 0 || !hostShotAllowed(r.state?.mv?.dw) || !hostShotWeapon(m.w, r.state?.w, r.loadout)) return;
+    // (coop-real F1b fix) an honest repeat round at a lamp we already have out (the client's mirror lags a message):
+    // nothing to do and no violation (`lampShotOk` would refuse it as one)
+    const reg = this.g.world.level.lights;
+    if (reg.lights[id]?.destroyed) return;
     let lim = this.lampLim.get(r.id);
     if (!lim) this.lampLim.set(r.id, (lim = new TickLimiter()));
     if (!lim.take(this.time)) return;
-    const reg = this.g.world.level.lights;
     const o = { x: m.ox, y: m.oy, z: m.oz };
     if (!lampShotOk(reg, id, o, { x: m.dx, y: m.dy, z: m.dz }, m.dist, r.feet, WEAPONS[m.w].range)) {
       r.violations++;
@@ -1738,6 +1750,9 @@ export class CoopHost implements NetAttachment {
         }
       }
       s.hfOn = false;
+      // (joint-flake-3) no grab on him this step: a grab that ended mid-read leaves a stale ph, which
+      // `interrogationEnded` (any progress counts) would count as a finished read on a re-grab within TD_MAX
+      this.interPh.delete(eid);
       if (s.t > TD_MAX || !by || !by.alive) this.release(eid);
     }
     this.remoteNoise(dt);

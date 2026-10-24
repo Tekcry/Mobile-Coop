@@ -159,8 +159,10 @@ Brief and decisions SB1-SB14: `docs/sector-redesign/briefs/SECTION-BAKE.md`; bui
   bake's (`tests/sectionBake.test.ts`, exact at random points; the joined result byte-identical). The joined result is
   cached under the full key at the next section change or the match's end (SB14: no mid-play clone).
 - Failures (section-bake robust, `docs/sector-redesign/checks/section-bake-robust.md`): a worker error or a job in flight
-  past `JOB_CAP_MS` (60 s: a worker that died silently) is tried once more on the pool, then baked inline; once the
-  match plays an inline bake waits until the pool is idle, one lamp per task. A lamp that fails every way lands dark for
+  past `JOB_CAP_MS` (60 s: a worker that died silently) is tried once more on the pool (that retry capped at
+  `JOB_RETRY_CAP_MS`, 20 s), then baked inline, one lamp per task. Once the match plays, an inline lamp of the live
+  section bakes at once even while pool jobs run; any other inline lamp waits until the pool is idle or `setLive`
+  makes its section live (bake3). A lamp that fails every way lands dark for
   this match only: logged once, and the result is never cached. A load that throws after the bake started
   (`World.create`) stops its bakers (`disposeSectionBakersSince`). During play a live-section landing goes to the head of
   the tile queue (budgeted); `setLive` snaps the new live section's fading and queued lamps to full and moves their

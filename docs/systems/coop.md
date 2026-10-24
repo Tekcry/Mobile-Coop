@@ -295,10 +295,12 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   across of a guard and `throwKoLow`..`throwKoHigh` m over his feet (`teamMoves.throwKoHit`) knock him out through
   `Enemy.knockOut` (melee, `takedown: 'throw'`, the strike's noise), one guard per throw. Credit and the client's view
   ride the existing kill event and guard state sync: no wire change.
-- (spare 9) Interrogation intel: the host / solo `intel` game event becomes `feed` events for every client (`hookHud`). A client's
-  interrogation is seen on the host from its MoveState (`grab`, `sub` bit 2, `ph` >= `INTEL.donePh` then the bit drops:
-  `interrogationEnded`): the host spends the guard's information and reveals the intel once (joint-interrogation: plus
-  the joint lines when a partner's bluff is live, checked before the spend). A client interrogating from the
+- (spare 9) Interrogation intel: the host / solo `intel` game event becomes `feed` events for every client (`hookHud`).
+  A client's interrogation is seen on the host from its MoveState (`grab`, `sub` bit 2 seen, then the bit drops while
+  the hold goes on: `interrogationEnded`; any progress counts, so a host frame gap over the read's tail no longer loses
+  it; `interPh` resets at each td 'start' / 'done' / 'abort' and a kill, so an aborted read never counts): the host
+  spends the guard's information and reveals the intel once (joint-interrogation: plus the joint lines when a
+  partner's bluff is live, checked before the spend). A client interrogating from the
   hang-down (`boost`) gives only the guard's own lines (gap). No wire change. A client shows every `feed` event as the radio
   subtitle and as a feed line (the host's intel is in its feed).
 - (anim-studio-2) Team-move animation tuning: the tuner's Co-op sections (`anim/moveTune.ts`, one per move: role A, role
@@ -351,6 +353,10 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   door indices (`Doors.setLocked`), locked anchor ids, light state (`lights.groups`, `lights.dead`) and P2's last
   refusal (`ref` / `rn`). A door the host reports locked is shut on the client too; nothing on the client unlocks a
   course door by itself. Clients press and hold course devices through `use`.
+- (coop-real F1b, S2) Lamp shots: a client's round through a lamp goes to the host as Sector Ops' `shot` at `lt-<id>`
+  (the same host checks, `onLampShot`; a repeat round at a lamp the host already has out is dropped with no
+  violation), and `lights.dead` includes it from the next `course` message (no `lamps` message in Course mode). (F1a)
+  The client plays the sparks cue for a newly dead lamp, and none on the first message after a join or rejoin.
 - Drill ticks (`ctick`, client -> host `{ verb }`, `TickLimiter` 4 a second): `game/course/drillDetect.ts` is the one
   place course verbs are derived (edge-triggered); `CourseFeed` fills its snapshot each fixed step. The client sends
   only `CLIENT_VERBS` (gear, sprint, stance, vision, ping, aim, fire, reload, swap, dark, gadget); the host ticks what
@@ -462,7 +468,7 @@ client next to a device first.
   origin at the shooter, the lamp first on the ray in the host's registry, a clear static line; `lampShotOk`), which
   shoots it out as its own round would (`StealthSystems.shootLight`). (rig-pose-fix S7) The origin may be up to
   `LAMP_SHOT_ORIGIN` 2.1 m (was 2) from feet + 1.2, so an inverted-hang claim (up to 2.013 m) is taken. Switches are items (`use`) as before. Change
-  detection reads the registry only when its `version` moved (no allocation unless it sends). Course mode unchanged.
+  detection reads the registry only when its `version` moved (no allocation unless it sends). Course mode: see `course`.
 - `NetMode` `sector`, two players. The host runs `SectorMode` and sends `sector` (host -> all) on a device change and
   every 0.5 s: `sec` (`SecWire`: (26) each camera's clock, jams, each player's jam left `ch` and cooldown `cd`, the
   jammed / recovering devices `dv`, alarm stage; the same field rides the course message) and (protocol 24) `ls` the live section (-1

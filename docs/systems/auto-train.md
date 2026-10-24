@@ -154,6 +154,7 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
   follow `FAIL:` as in `lib.mjs describe`).
 - Optional, for pacing: `origin/laptop-queue` with one JSON file per pending request under `pending/` and a `running*`
   marker while a run is going; removed or moved out of `pending/` when done.
+- `visual-gate` (the laptop's picture gate after a green train, `docs/laptop-queue/visual-gate.md`) is never read: a flag never holds a release (visual-gate BRIEF A1).
 
 ## Rules it keeps
 - Never forces anything (merge-train's own `build` force-pushes only `train/<n>`), never touches dev or master

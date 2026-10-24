@@ -363,7 +363,27 @@ export function scoreCover(
 const QUERY = new Int32Array(256);
 let taken = new Int32Array(64);
 let takenN = 0;
+/** (guard-ai polish B5) The covers earlier groups took this roles tick (`taken[0..takenBase)`): `assignRoles` starts
+ *  from them, so two intruder groups are never handed the same free cover in one tick (covers are reserved only when a
+ *  guard binds to one). */
+let takenBase = 0;
 let pickScore = -Infinity;
+
+/** (guard-ai polish B5) Groups of one roles tick share their picks (`rolesTickStart`, `rolesCommit`). Undo: false (each
+ *  `assignRoles` starts with nothing taken, the 4.97.1 rule). */
+export const ROLES_SHARE_TAKEN = true;
+
+/** (guard-ai polish B5) A new roles tick: no cover taken by any group yet. */
+export function rolesTickStart(): void {
+  takenBase = 0;
+  takenN = 0;
+}
+
+/** (guard-ai polish B5) The last `assignRoles` is this group's final one: its picks stay taken for the next group of
+ *  the tick. */
+export function rolesCommit(): void {
+  if (ROLES_SHARE_TAKEN) takenBase = takenN;
+}
 
 function isTaken(c: number): boolean {
   for (let k = 0; k < takenN; k++) if (taken[k] === c) return true;
@@ -452,7 +472,7 @@ export function assignRoles(inp: RoleInput, out: RoleOutput): void {
     out.moving[i] = 0;
     out.run[i] = 0;
   }
-  takenN = 0;
+  takenN = ROLES_SHARE_TAKEN ? takenBase : 0;
   if (n === 0) return;
   // a held reservation by a member stays his: covers other members hold are skipped through `owner`, not `taken`
   let aggressive = false;

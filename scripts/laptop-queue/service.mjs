@@ -69,6 +69,10 @@
 // - an alone run yields between steps while a train head is pending: claim released, queued at the head of the alone
 //   queue, and its finished steps are skipped when it runs again (state.aloneSteps; steps must not rely on worktree
 //   files an earlier step left, since prepare cleans the worktree).
+// Visual gate (visual-gate job VG6, docs/laptop-queue/visual-gate.md; pure part in visual.mjs): after a green train on
+// the laptop whose head has scripts/e2e-visual.mjs, the other slots are released first and e2e-visual runs on the first
+// slot; status `visual-gate` (clean / flags / error), a PR comment on flags only. A desktop train posts error "skipped:
+// desktop lane (laptop GPU only)". LQ_VISUAL=0 turns it off. auto-train never reads the status (a flag holds nothing).
 // Affected e2e on every PR head (process audit 2026-10-24 finding 5; laptop only, after each pass, every
 // LQ_AFFECTED_POLL_MIN (2; 0 = off) min, affectedPass): one `gh pr list` (rollup included) of the open PRs; each non-train,
 // non-draft head without the label no-affected-e2e, without an affected-e2e status and without an open / claimed /
@@ -87,6 +91,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { pidAlive, staleName } from '../heavy-lock.mjs';
 import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, trainSoon, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS } from './lib.mjs';
+import { visualPlan, visualEnv, visualVerdict, visualComment, VISUAL_CONTEXT, VISUAL_SUITE, VISUAL_SH_TIMEOUT_MS } from './visual.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
 const DESKTOP = process.env.LQ_WORKER === 'desktop';
@@ -715,10 +720,10 @@ async function prepare(port, sha, logFile, stop, ctl) {
 }
 
 /** One run-e2e call on a slot; returns the parsed run plus its exit code and the last 40 lines of its output. */
-async function e2e(port, suites, jobs, logFile, ctl) {
+async function e2e(port, suites, jobs, logFile, ctl, { env: extra = {}, timeoutMs } = {}) {
   freePort(port);
-  const env = { E2E_PORT: port, E2E_JOBS: String(jobs), E2E_GPU: '1', E2E_SUITE_TIMEOUT: '900', E2E_QUARANTINE_FILE: file('quarantine.json') };
-  const code = await sh(`node scripts/run-e2e.mjs ${suites.join(' ')}`, { cwd: SLOTS[port].dir, env, logFile, ctl });
+  const env = { E2E_PORT: port, E2E_JOBS: String(jobs), E2E_GPU: '1', E2E_SUITE_TIMEOUT: '900', E2E_QUARANTINE_FILE: file('quarantine.json'), ...extra };
+  const code = await sh(`node scripts/run-e2e.mjs ${suites.join(' ')}`, { cwd: SLOTS[port].dir, env, logFile, ctl, ...(timeoutMs ? { timeoutMs } : {}) });
   freePort(port);
   const text = fs.readFileSync(logFile, 'utf8').split(/^\$ node scripts\/run-e2e.mjs /m).pop() ?? '';
   return { ...parseRun(text), code, tail40: failureExcerpt(text).tail40 };
@@ -942,6 +947,8 @@ async function runTrain(train, ports = PORTS) {
     result.wall = (Date.now() - t0) / 1000;
     const ok = finish(job, 'laptop-e2e', result, runDir, prNumber);
     state.trains[train.sha] = { result: ok ? 'success' : 'failure', wall: result.wall, date: new Date().toISOString() };
+    saveState();
+    try { await runVisual(train, ports, locks, ctls[ports[0]], runDir, prNumber, ok); } catch (e) { log(`train ${train.n} visual-gate service error: ${e.stack ?? e.message}`); postStatus(train.sha, 'error', VISUAL_CONTEXT, 'service error, see log'); }
   } finally {
     if (watch) clearInterval(watch);
     // only slots this train locked: an unheld one may be serving a manual run
@@ -950,6 +957,36 @@ async function runTrain(train, ports = PORTS) {
     if (state.trains[train.sha]) writeClaims([train.sha], 'done', `done train ${train.n}`);
     log(`train ${train.n}: done`);
   }
+}
+
+/**
+ * The visual-gate post-step (visual.mjs visualPlan; visual-gate BRIEF A12, A19, A20): the other slots go back to the
+ * queue first (the TRAIN_SOLO move above; the finally then skips them), e2e-visual runs on ports[0], its block in
+ * visual.log sets the `visual-gate` status, and a flagged run comments on the train PR.
+ */
+async function runVisual(train, ports, locks, ctl, runDir, prNumber, trainOk) {
+  const plan = visualPlan({ enabled: process.env.LQ_VISUAL !== '0', desktop: DESKTOP, hasScript: fs.existsSync(path.join(SLOTS[ports[0]].dir, 'scripts', 'e2e-visual.mjs')), trainOk, ports });
+  if (!plan.run) {
+    if (plan.status) postStatus(train.sha, plan.status.state, VISUAL_CONTEXT, plan.status.description);
+    return;
+  }
+  for (const p of plan.release) {
+    if (locks[p]) releaseLock(p, locks[p]);
+    freePort(p);
+    locks[p] = null;
+    busy[p] = null;
+  }
+  postStatus(train.sha, 'pending', VISUAL_CONTEXT, `running on ${plan.port}`);
+  const logFile = path.join(runDir, 'visual.log');
+  const run = await e2e(plan.port, [VISUAL_SUITE], 1, logFile, ctl, { env: visualEnv(train), timeoutMs: VISUAL_SH_TIMEOUT_MS });
+  let text = '';
+  // this run's part only (as e2e): a log appended by an earlier try on the same head must not lend its block
+  try { text = fs.readFileSync(logFile, 'utf8').split(/^\$ node scripts\/run-e2e.mjs /m).pop() ?? ''; } catch { /* no log */ }
+  const v = visualVerdict(text, { code: run.code, timedOut: run.code === 124 });
+  postStatus(train.sha, v.state, VISUAL_CONTEXT, v.description);
+  const body = visualComment(v, { sha: train.sha, n: train.n });
+  if (body && prNumber && !DRY) postComment(prNumber, body);
+  log(`train ${train.n} ${train.sha.slice(0, 8)}: visual-gate ${v.state}: ${v.description}`);
 }
 
 async function runRequest(r, port) {
@@ -1173,6 +1210,7 @@ function planTrain(sha = '<train sha>', ports = PORTS) {
   bins.forEach((b, i) => log(`dry-run: bin ${ports[i]} (weight ${Math.round(b.weight)} s): ${b.suites.map((s) => `${s}=${Math.round(times[s] ?? 0) || 'median'}`).join(' ')}`));
   postStatus(sha, 'pending', 'laptop-e2e', `${DESKTOP ? 'desktop: ' : ''}sharded ${ports.join('+')}`);
   postStatus(sha, 'success', 'laptop-e2e', `${list.length}/${list.length} pass, <wall> s`);
+  log(DESKTOP ? 'dry-run: visual-gate would post error "skipped: desktop lane (laptop GPU only)"' : `dry-run: then e2e-visual on ${ports[0]} when laptop-e2e passes and the head has scripts/e2e-visual.mjs (env ${JSON.stringify(visualEnv({ n: '<n>', sha }))}), status visual-gate`);
   return Promise.resolve();
 }
 
