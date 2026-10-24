@@ -81,6 +81,15 @@ function unregister(scene: Scene, b: GuardBody): void {
   list.pop();
 }
 
+/**
+ * (G8 cull) The merged S1 body's culling box in the rig root's space (min x y z, max x y z), or undefined (the rig draws
+ * its parts, `?guardmerge=0`: the figure keeps its bind box). Load time only (allocates).
+ */
+export function mergedBox(rig: Pick<CharacterRig, 'voxel'>): number[] | undefined {
+  const b = rig.voxel?.meshes[0]?.getBoundingInfo().boundingBox;
+  return b ? [b.minimum.x, b.minimum.y, b.minimum.z, b.maximum.x, b.maximum.y, b.maximum.z] : undefined;
+}
+
 /** (tests) The live guard bodies of a scene. */
 export function liveGuardBodies(scene: Scene): readonly GuardBody[] {
   return LIVE.get(scene)?.list ?? [];
@@ -126,7 +135,8 @@ export class GuardBody {
     this.standIn = asset.standIn;
     const m = asset.manifest;
     this.tints = new Uint8Array(m.tintSlots * 3).fill(255);
-    this.figure = new GuardFigure(guardLibrary(scene), rig, m, name, { scale: def.height / m.refHeight });
+    // (G8 cull) culled with the merged body's own box: the same camera, cascade and shadow lists as the body it replaces
+    this.figure = new GuardFigure(guardLibrary(scene), rig, m, name, { scale: def.height / m.refHeight, box: mergedBox(rig) });
     this.figure.onMeshes = (ms) => {
       for (let i = 0; i < ms.length; i++) world.addShadowCaster(ms[i]!);
       this.ready();
