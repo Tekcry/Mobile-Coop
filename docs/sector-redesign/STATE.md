@@ -357,7 +357,7 @@ Worktrees (node_modules junctions to Mobile-Coop-sector-redesign-bake2): -polish
 1. PR #361 bake3 (feature/sector-redesign-bake3 @ 820480c3; Opus check PASS, `checker` status posted; lighting.md
    Failures updated). Laptop set bake3 (e2e-lightbake e2e-sectorops:6) queued 23:35 -> status laptop-e2e/bake3.
    CI `test` FAILED on tests/lightField.test.ts allocation bound (173.2 > 144 bytes; file untouched by bake3 = CI
-   measurement flake, cf. #327); failed jobs RERUN 00:05 -> CI GREEN (check / test pass). Laptop bake3 RUNNING ~00:40. Green + laptop green -> label train-ready
+   measurement flake, cf. #327); failed jobs RERUN 00:05 -> CI GREEN (check / test pass). Laptop bake3 RUNNING at 00:17. Green + laptop green -> label train-ready
    (`gh pr edit 361 --add-label train-ready`) + message the orchestrator; red again -> Opus triage of lightField bound.
 2. CAMPUS SIGN-OFF (feature/sector-redesign-signoff @ c5ba9ff4+): S1-S5 pages + detail + plan SVGs + plan graphs all
    written; five graphs `syncs` key, 0 errors / 117 warnings. S2 = 18 guards (41 -> 0 errors), Split Shift nodes for
