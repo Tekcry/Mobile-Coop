@@ -35,6 +35,9 @@ const ROOF = 8.4;
 /** The south lofts' roof slab underside (the taking-in doors' head, the throw's clear air: 3.6 m over the loft floor). */
 const ROOF_UNDER = 8.1;
 
+/** The pawn loft's lit rota desk under lamp group 73 (moved from (52.5, 63.5): the fire-stair core stands there), feet height: the tgc-opt board. */
+export const W2_ROTA_DESK = [51.2, LOFT, 64] as const;
+
 /** A solid `noLedge` collide box over a plan rectangle between two heights (`overhead` for a ceiling or roof). */
 function blk(b: LevelBuilder, x0: number, z0: number, x1: number, z1: number, y0: number, y1: number, color = BRICK, overhead = false): void {
   const i0 = b.boxes.length;
@@ -227,7 +230,7 @@ function build(b: LevelBuilder): void {
   for (const x of [46, 54, 62, 70]) lamp(b, x, 6.5, 53, { r: 10, i: 1.1, group: 70 });
   lamp(b, 60, 2.6, 63.2, { r: 5, i: 0.8, group: 71 });
   lamp(b, 61, 7.0, 66, { r: 5, i: 0.8, group: 72 });
-  lamp(b, 51.2, 5.6, 64, { r: 4, i: 0.7, group: 73 });
+  lamp(b, W2_ROTA_DESK[0], 5.6, W2_ROTA_DESK[2], { r: 4, i: 0.7, group: 73 });
   lamp(b, 51, 5.4, 74.6, { r: 4, i: 0.8, group: 74 });
   lamp(b, 47, 5.4, 78.6, { r: 4, i: 0.7, group: 75 });
   lamp(b, 55, 7.2, 72, { r: 6, i: 0.8, group: 76 });

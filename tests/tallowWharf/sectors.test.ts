@@ -17,12 +17,12 @@ import { tallowWharf } from '../../src/world/maps/tallowWharf';
 import { WHARF_GUARD_EXTRAS, WHARF_GUARD_MISSIONS, WHARF_SECTORS } from '../../src/world/maps/tallowWharfSectors';
 import { THREE_GREY_COATS, TWO_KEY_LEDGER, WHARF_MISSIONS } from '../../src/world/maps/tallowWharfMissions';
 import { W1 } from '../../src/world/maps/tallowWharfW1';
-import { W2 } from '../../src/world/maps/tallowWharfW2';
+import { W2, W2_ROTA_DESK } from '../../src/world/maps/tallowWharfW2';
 import { W3, W3_KEY_POSTS } from '../../src/world/maps/tallowWharfW3';
 import { W4 } from '../../src/world/maps/tallowWharfW4';
 import { SECTION_BOX, type WharfSection } from '../../src/world/maps/tallowWharfKit';
 import { downCast, runtimeNav } from '../helpers/runtimeNav';
-import { builtWharf, GRAPH } from './helpers';
+import { builtWharf, GRAPH, solidOf } from './helpers';
 
 const SECTIONS: readonly WharfSection[] = [W1, W2, W3, W4];
 const guards = sectorGuardIds(WHARF_SECTORS);
@@ -62,6 +62,18 @@ const LINKS: Record<string, [number, number, number, number][]> = {
 };
 
 const inBox = (box: readonly number[], x: number, z: number): boolean => x >= Math.min(box[0]!, box[2]!) && x <= Math.max(box[0]!, box[2]!) && z >= Math.min(box[1]!, box[3]!) && z <= Math.max(box[1]!, box[3]!);
+
+/** The solid (collide, unturned) piece holding the point (x, y, z), or null: the plain-box probe the section tests use for walls. */
+function solidAt(x: number, y: number, z: number): string | null {
+  const p = solidOf(builtWharf().b).find((q) => Math.abs(x - q.c[0]) < q.s[0] / 2 && Math.abs(y - q.c[1]) < q.s[1] / 2 && Math.abs(z - q.c[2]) < q.s[2] / 2);
+  return p ? `box (${p.c.map((v) => v.toFixed(2)).join(', ')}) size (${p.s.map((v) => v.toFixed(2)).join(', ')})` : null;
+}
+
+/** The angle (rad, 0..PI) between a facing yaw and the bearing from (x, z) to (tx, tz). */
+function offFacing(x: number, z: number, yaw: number, tx: number, tz: number): number {
+  const d = Math.atan2(tx - x, tz - z) - yaw;
+  return Math.abs(Math.atan2(Math.sin(d), Math.cos(d)));
+}
 
 describe('tallowWharf sectors: the data checks', () => {
   it('checkSectors and checkSectorCodes are clean', () => {
@@ -189,6 +201,16 @@ describe('tallowWharf guards', () => {
     }
   });
 
+  it('Fenn (W2:7) sits with his back to the lit rota desk (the tgc-opt hint): the desk is more than 90 degrees off his facing', () => {
+    const fenn = WHARF_SECTORS[1]!.guards[7]!;
+    expect(fenn.zone).toBe('tgc-fenn');
+    const off = offFacing(fenn.x, fenn.z, fenn.yaw, W2_ROTA_DESK[0], W2_ROTA_DESK[2]);
+    expect(off).toBeGreaterThan(Math.PI / 2);
+    // the board he turns his back on is the one at the desk
+    const board = WHARF_SECTORS[1]!.intel!.find((n) => n.grants === 'tgc-opt')!;
+    expect(board).toMatchObject({ kind: 'board', at: [...W2_ROTA_DESK] });
+  });
+
   it('Teale has his two lines; the decoys have lines; only the interrogation people and no one else needs them', () => {
     const w2 = WHARF_SECTORS[1]!;
     expect(w2.guards[6]!.info!.lines).toEqual(['Shed three. Candle on the lid.', 'Under the tea.']);
@@ -277,6 +299,44 @@ describe('tallowWharf starts, checkpoints and extraction', () => {
       // the objective sits on the surface it names
       onSurface(`${s.id} objective`, s.objective.x, s.objective.y, s.objective.z);
     }
+    expect(bad).toEqual([]);
+  });
+
+  it('every board, objective and key post prompt stands on a floor at its own y, in the open (not in a stair core, a wall or a void); every overhear box has open floor', () => {
+    const cast = downCast(builtWharf().b);
+    const bad: string[] = [];
+    /** A floor within 0.1 of y under (x, z), and no solid at +0.5 or +1.2 (null: fine). */
+    const standing = (x: number, y: number, z: number): string | null => {
+      const hit = cast(x, y + 1, z);
+      if (!hit || Math.abs(hit.y - y) > 0.1) return `floor ${hit ? hit.y.toFixed(2) : 'none'}`;
+      for (const h of [0.5, 1.2]) {
+        const solid = solidAt(x, y + h, z);
+        if (solid) return `inside ${solid} at +${h}`;
+      }
+      return null;
+    };
+    const pts: [string, number, number, number][] = [];
+    for (const s of WHARF_SECTORS) {
+      for (const n of s.intel ?? []) {
+        if (n.kind === 'board') {
+          pts.push([`${s.id} board ${n.grants}`, n.at[0], n.at[1], n.at[2]]);
+          continue;
+        }
+        if (n.kind !== 'overhear') continue;
+        // an overhear box is a zone, not a prompt: some of it (sampled every 0.5 m) is open floor at its floorY
+        const [x0, z0, x1, z1] = n.box;
+        let open = 0;
+        for (let x = x0 + 0.25; x < x1; x += 0.5) for (let z = z0 + 0.25; z < z1; z += 0.5) if (!standing(x, n.floorY ?? 0, z)) open++;
+        if (open === 0) bad.push(`${s.id} overhear ${n.grants}: no open floor at y ${n.floorY ?? 0}`);
+      }
+      pts.push([`${s.id} objective`, s.objective.x, s.objective.y, s.objective.z]);
+    }
+    for (const [k, p] of Object.entries(W3_KEY_POSTS)) pts.push([`W3 key post ${k}`, p[0], p[1], p[2]]);
+    for (const [label, x, y, z] of pts) {
+      const why = standing(x, y, z);
+      if (why) bad.push(`${label} (${x}, ${y}, ${z}): ${why}`);
+    }
+    expect(pts.length).toBe(3 + 4 + 2);
     expect(bad).toEqual([]);
   });
 

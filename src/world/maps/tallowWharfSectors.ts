@@ -1,7 +1,7 @@
 import type { SectorBolt, SectorDef, SectorGuard, SectorIntel, SectorRoute } from '../../game/sectors';
 import { hyp2 } from '../../core/mathx';
 import { W1 } from './tallowWharfW1';
-import { W2 } from './tallowWharfW2';
+import { W2, W2_ROTA_DESK } from './tallowWharfW2';
 import { W3, W3_KEY_POSTS } from './tallowWharfW3';
 import { W4 } from './tallowWharfW4';
 
@@ -100,7 +100,8 @@ const W2_GUARDS: SectorGuard[] = [
   posted(47, 78.2, { zone: 'reading-room', role: 'reader', reason: 'Night reader at his desk, nobody he wants to see', y: 4.5, yaw: PI }),
   // 6 Teale (Pell's courier), 7 Fenn and 8 Garrow (the decoys in the same grey coat)
   posted(51, 75.4, { zone: 'tgc-teale', role: 'courier', reason: "Pell's courier: waits at the reading-room table for the hand-off", y: 4.5, yaw: PI, info: { lines: ['Shed three. Candle on the lid.', 'Under the tea.'] } }),
-  posted(46, 66, { zone: 'tgc-fenn', role: 'decoy', reason: 'Hired to walk in the same grey coat; knows nothing but his fee', y: 4.5, yaw: PI / 2, info: { lines: ["I'm paid to walk, that's all.", 'Ask the man with the umbrella.'] } }),
+  // Fenn sits with his back to the lit rota desk (the tgc-opt hint): he faces straight away from it
+  posted(46, 66, { zone: 'tgc-fenn', role: 'decoy', reason: 'Hired to walk in the same grey coat; knows nothing but his fee', y: 4.5, yaw: Math.atan2(46 - W2_ROTA_DESK[0], 66 - W2_ROTA_DESK[2]), info: { lines: ["I'm paid to walk, that's all.", 'Ask the man with the umbrella.'] } }),
   posted(60, 66, { zone: 'tgc-garrow', role: 'decoy', reason: 'Hired to walk in the same grey coat; waits in the pie shop for his fee', yaw: PI, info: { lines: ["Grey coat, yes. It's a uniform tonight.", "I don't know what he carries."] } }),
   // 9 the night clerk (Two-Key Ledger's talker): on his supper break in the pie loft
   posted(60, 66.8, { zone: 'pie-loft', role: 'clerk', reason: 'Night clerk on his supper break: on the telephone with the founding year', y: 4.5, yaw: PI }),
@@ -198,7 +199,7 @@ const W1_INTEL: SectorIntel[] = [
   { kind: 'overhear', grants: 'tgc-tea', line: "Porter: the flat cap's a hired man, him.", box: [17.5, 6.5, 20, 9], hold: 4, talkers: [7, 8] },
 ];
 const W2_INTEL: SectorIntel[] = [
-  { kind: 'board', grants: 'tgc-opt', line: 'Rota: Teale walks Thursdays. Always the umbrella.', at: [52.5, 4.5, 63.5] },
+  { kind: 'board', grants: 'tgc-opt', line: 'Rota: Teale walks Thursdays. Always the umbrella.', at: [...W2_ROTA_DESK] },
   { kind: 'overhear', grants: 'tkl-gate-code', line: "Clerk: east gate's the founding year again.", box: [59.8, 59.3, 62.2, 61.7], floorY: 4.5, hold: 4, talkers: [9] },
 ];
 const W3_INTEL: SectorIntel[] = [
