@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, flakeStands, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, trainSoon, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, flakeStands, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, trainSoon, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN } from '../scripts/laptop-queue/lib.mjs';
 
 const NOW = Date.UTC(2026, 9, 23, 20, 0, 0);
 const idAt = (min: number, tag: string): string => {
@@ -29,6 +29,17 @@ describe('pick', () => {
     expect(pick(q, NOW, slots(false, false))).toEqual({ kind: 'request', request: pr, slot: '4189' });
     expect(pick({ trains: [], requests: [req(20, 'alone')] }, NOW, slots(true, false))).toBeNull();
     expect(pick({ trains: [], requests: [req(20, 'alone')] }, NOW, slots(false, false))?.kind).toBe('alone');
+  });
+  it('an alone run preempted by a train goes first among alone requests and counts as aged', () => {
+    const older = req(30, 'alone', 'older');
+    const cut = req(20, 'alone', 'cut');
+    const pr = req(25, 'pr');
+    const q = { trains: [], requests: [older, cut, pr], front: new Set([cut.id]) };
+    expect(pick(q, NOW, slots(false, false))).toEqual({ kind: 'alone', request: cut });
+    expect(pick(q, NOW, slots(true, false))).toBeNull(); // the slots drain for it
+    expect(pick({ ...q, front: new Set() }, NOW, slots(false, false))).toEqual({ kind: 'request', request: pr, slot: '4189' });
+    // a pending train still goes first
+    expect(pick({ ...q, trains: [train] }, NOW, slots(false, false))).toEqual({ kind: 'train', train });
   });
   it('pr and full requests of different requesters go oldest first, on the free slot', () => {
     const a = req(30, 'pr', 'a');
@@ -644,11 +655,20 @@ describe('cutShort', () => {
     expect(cutShort({ kind: 'pr' }, { ...run, others: [{ kind: 'pr', trainRerun: true }] })).toBe('');
     expect(cutShort({ kind: 'pr' }, { withdrawn: true, others: [{ kind: 'full' }] })).toBe('withdrawn');
   });
-  it('never preempts a train rerun, a full or an alone run', () => {
+  it('never preempts a train rerun, a full run or an alone run past its first minutes', () => {
     expect(cutShort({ kind: 'pr', trainRerun: true }, { trains: [t], started: true })).toBe('');
     expect(cutShort({ kind: 'full' }, { trains: [t], started: true })).toBe('');
-    expect(cutShort({ kind: 'alone' }, { trains: [t], started: true })).toBe('');
+    expect(cutShort({ kind: 'alone' }, { trains: [t], started: true })).toBe(''); // no start time known
+    expect(cutShort({ kind: 'alone' }, { trains: [t], started: true, startedAt: NOW - ALONE_PREEMPT_MIN * 60_000, now: NOW })).toBe('');
     expect(cutShort({ kind: 'pr' })).toBe('');
+  });
+  it('a pending train cuts an alone run whose steps started under ALONE_PREEMPT_MIN ago', () => {
+    const young = { trains: [t], started: true, startedAt: NOW - 4 * 60_000, now: NOW };
+    expect(ALONE_PREEMPT_MIN).toBe(10);
+    expect(cutShort({ kind: 'alone' }, young)).toBe('train');
+    expect(cutShort({ kind: 'alone' }, { ...young, trains: [] })).toBe('');
+    expect(cutShort({ kind: 'alone' }, { ...young, started: false })).toBe(''); // before its steps: yieldTo gives the slots back
+    expect(cutShort({ kind: 'full' }, young)).toBe('');
   });
 });
 

@@ -103,6 +103,8 @@ export function desktopSlotGate(s) {
  * so the slots drain (preemption); only a rerun of a LOWER train (rerunTrain) goes before it, on one free slot (overlap
  * plan section 3: train N's rerun never waits behind N+1's full run). A train rerun (trainRerun, oldest first) comes next, on one free slot, ahead of every other
  * request and alone run. An alone request over ALONE_AGE_MIN old blocks pr / full work the same way (never starved).
+ * An alone run preempted by a train (queue.front, a Set of ids; cutShort) goes first among alone requests and counts as
+ * aged, so it runs as soon as the trains and their reruns leave both slots idle.
  * Among pr / full requests the requester goes by arrival (the requester whose OLDEST open request has the smallest id),
  * and that requester's NEWEST non-alone request runs (older ones are stale; superseded() normally retires them).
  */
@@ -118,8 +120,9 @@ export function pick(queue, now, slots) {
   }
   const rerun = reqs.find((r) => r.trainRerun);
   if (rerun) return idle[0] ? { kind: 'request', request: rerun, slot: idle[0].port } : null;
-  const alone = reqs.filter((r) => r.kind === 'alone');
-  const aged = agedAlone(alone, now);
+  const front = queue.front ?? new Set();
+  const alone = reqs.filter((r) => r.kind === 'alone').sort((a, b) => Number(front.has(b.id)) - Number(front.has(a.id)));
+  const aged = alone.find((r) => front.has(r.id)) ?? agedAlone(alone, now);
   if (aged) return bothIdle ? { kind: 'alone', request: aged } : null;
   const nonAlone = reqs.filter((r) => r.kind !== 'alone');
   const newest = new Map(); // requester -> its newest request (reqs is sorted, so the last wins)
@@ -301,12 +304,16 @@ export function yieldTo(r, started, trains) {
  * when every other run on this worker (others) is a plain pr request too: a train starts with both slots idle, so
  * killing one beside a full, alone or train-rerun run would only waste it. A train rerun, a full run and an alone run
  * never give way to a train once started (Orchestrator audit 2026-10-24: a withdrawn request held 4191 for 67 min and
- * train 56 waited 11 min; checker FIX: no preemption beside a run that cannot give way).
+ * train 56 waited 11 min; checker FIX: no preemption beside a run that cannot give way), except an alone run whose steps
+ * started under ALONE_PREEMPT_MIN ago (startedAt, now; Orchestrator 2026-10-24 ~21:05 after train 64 went to the
+ * desktop behind a 4-min-old guard-cap run): it is killed and queued again at the head of the alone queue.
  */
+export const ALONE_PREEMPT_MIN = 10;
 const preemptible = (r) => r?.kind === 'pr' && !r.trainRerun;
-export function cutShort(r, { withdrawn = false, trains = [], started = false, others = [] } = {}) {
+const youngAlone = (r, startedAt, now) => r?.kind === 'alone' && Number.isFinite(startedAt) && now - startedAt < ALONE_PREEMPT_MIN * 60_000;
+export function cutShort(r, { withdrawn = false, trains = [], started = false, others = [], startedAt = NaN, now = NaN } = {}) {
   if (withdrawn) return 'withdrawn';
-  if (started && preemptible(r) && (trains ?? []).length && (others ?? []).every(preemptible)) return 'train';
+  if (started && (preemptible(r) || youngAlone(r, startedAt, now)) && (trains ?? []).length && (others ?? []).every(preemptible)) return 'train';
   return '';
 }
 

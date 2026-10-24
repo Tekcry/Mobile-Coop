@@ -34,7 +34,7 @@
 // Cut short (Orchestrator audit 2026-10-24, lib cutShort): a running request whose requests/<id>.json left the branch
 // (withdrawn; missing from two listings in a row) has its command tree killed, posts error "withdrawn" and is done; a
 // plain pr request already in its suites when a train head is pending is killed and queued again (claim released,
-// status "queued, preempted by train <n>"). Train reruns, full and alone runs are never preempted.
+// status "queued, preempted by train <n>"). Train reruns and full runs are never preempted; an alone run only in its first 10 min (below).
 // Pinned requests (request.mjs --pin, "pin": true; A/B and baseline runs) are never superseded.
 // Train soon (laptop, lib trainSoon): no new non-train claim (train reruns still start) while an open train PR has no
 // version head yet (building, up to LQ_TRAIN_BUILD_MAX_MIN 20 min) or for LQ_TRAIN_GAP_MIN (3) min after a train PR
@@ -50,7 +50,8 @@
 // desktopTrainGate); auto-train's build marker holds back only trains at or above the one being built (lib
 // trainsUnderMarker); a running train whose head is no longer an open train PR head (closed, voided or rebuilt; two
 // checks LQ_TRAIN_VOID_POLL_S (60) s apart, lib voidMisses) is killed, posts laptop-e2e error "train closed" and
-// releases its claim.
+// releases its claim. A pending train also cuts an alone run whose steps started under 10 min ago (lib cutShort
+// ALONE_PREEMPT_MIN); it is queued again at the head of the alone queue (lib pick queue.front).
 import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -626,6 +627,8 @@ function finish(job, ctx, result, runDir, prNumber) {
 const claimed = new Set();
 /** Requests claimed or running here (id -> request), for the duplicate check. */
 const activeReqs = new Map();
+/** Alone requests a train preempted (cutShort): they go first among alone requests (lib pick queue.front) until claimed again. */
+const preemptedAlone = new Set();
 /** The train heads the last pass saw pending (desktop: those it may take); trainsNow() drops the ones claimed since. */
 let pendingNow = [];
 const trainsNow = () => pendingNow.filter((t) => !claimed.has(t.sha));
@@ -744,10 +747,11 @@ async function runRequest(r, port) {
   // cut short: withdrawn at any point, or (a pr request in its suites) preempted by a pending train (lib cutShort)
   const ctl = { child: null, why: '', by: null };
   let started = false;
+  let startedAt = NaN; // an alone run's steps start: under ALONE_PREEMPT_MIN a pending train still cuts it (lib cutShort)
   const watch = DRY ? null : setInterval(() => {
     const trains = trainsNow();
     const others = [...activeReqs.values()].filter((a) => a.id !== r.id);
-    const why = cutShort(r, { withdrawn: withdrawnIds.has(r.id), trains, started, others });
+    const why = cutShort(r, { withdrawn: withdrawnIds.has(r.id), trains, started, others, startedAt, now: Date.now() });
     if (why && !ctl.why) { ctl.by = trains[0] ?? null; cut(ctl, why); }
   }, 5_000);
   const stop = () => Boolean(ctl.why) || Boolean(yielded ??= yieldTo(r, false, trainsNow()));
@@ -766,7 +770,8 @@ async function runRequest(r, port) {
       return;
     }
     const n = ctl.by?.n ?? '?';
-    log(`${r.id}: preempted by train ${n}, queued again`);
+    log(`${r.id}: preempted by train ${n}, queued again${r.kind === 'alone' ? ' (head of the alone queue)' : ''}`);
+    if (r.kind === 'alone') preemptedAlone.add(r.id);
     if (posted) postStatus(r.sha, 'pending', ctx, `queued, preempted by train ${n}`);
     writeClaims([r.id], 'release', `release ${r.id} (preempted by train ${n})`);
     claimed.delete(r.id);
@@ -804,6 +809,7 @@ async function runRequest(r, port) {
       const t0 = Date.now();
       let okSteps = 0;
       started = true;
+      startedAt = t0;
       for (const [i, step] of r.steps.entries()) {
         if (ctl.why) break;
         const line = step.startsWith('serve ') ? `node scripts/laptop-queue/serve.mjs ${step.slice(6)}` : step;
@@ -1002,7 +1008,8 @@ async function pass() {
   // requests first: listRequests fetches origin/laptop-queue, which the train claim checks read
   const requests = listRequests().filter((r) => !claimed.has(r.id));
   const dt = DESKTOP ? desktopTrains() : null;
-  const queue = { trains: DESKTOP ? dt.trains : pendingTrains().filter((t) => !claimed.has(t.sha)), requests };
+  for (const id of preemptedAlone) if (!requests.some((r) => r.id === id)) preemptedAlone.delete(id); // done or withdrawn
+  const queue = { trains: DESKTOP ? dt.trains : pendingTrains().filter((t) => !claimed.has(t.sha)), requests, front: preemptedAlone };
   pendingNow = queue.trains; // runs still before their suites / steps yield to these
   // done marks first: a claim (which tells the desktop the laptop is on claims) never lands before them
   if (!syncDone() && !DRY) { log('done claims not pushed: no new requests this pass (trains need a claim push too)'); queue.requests = []; }
@@ -1087,6 +1094,7 @@ async function pass() {
       queue.requests = queue.requests.filter((r) => r !== p.request);
       // the other worker may have taken it since the list was read: skip it this pass
       if (writeClaims([p.request.id], 'claim', `claim ${p.request.id}`) !== true) continue;
+      preemptedAlone.delete(p.request.id);
     }
     const run = dispatch(p);
     if (DESKTOP) started = true;
