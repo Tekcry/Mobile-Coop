@@ -14,6 +14,14 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   docs/guard-cap/run-ct24/ and add the p95s to the guard-render PLAN2 note (SAVE 41).
 - feature/test-flakes: PR #369 (head 7abba919): lightField bodyLevel limit = 2 x levelAt + 56 from the same run (CI
   per-process mode 173.2 vs 126.8). Opus checker PASS; train-ready sent; the Orchestrator posts checker + label.
+- 04:37 queued for the 05:15-09:10 gap, all on train 74 head 3be7d1a2 (4.100.0, holds #366 + #365), after the train:
+  ...-8b8f soak-coop (e2e-coop x5), ...-0a8b soak-flaky (ctcourse:1, sectorops:1, sectorops:6 x3 each), ...-0337
+  guard-cap-4100 (campus / ctcourse / sectorops full cells + campus 32 alert x2 -> scratch/guard-cap/r4100-*), ...-b1fd
+  full-4100-r2. Results: soaks give flake rates (owners: e2e-coop Marlow; ctcourse / sectorops Sector Ops / Marlow);
+  guard-cap -> feature/guard-cap-results docs/guard-cap/run-4100/ + guard-render PLAN2 note.
+- feature/laptop-queue-4 (worktree C:/NightShift/Mobile-Coop-laptop-queue-4, stacked on #366 f3eaceed): Opus agent
+  building audit fixes (1) desktop 4191 heavy.lock gate logs the holder + dead-pid stale break, (2) auto-train "CI
+  running" vs "CI missing". Then checker, PR (base master once #366 releases in train 74), train-ready message.
 - Watchdog install is a desktop scheduled task: Orchestrator / Michael runs
   `powershell -NoProfile -ExecutionPolicy Bypass -File C:\NightShift\Mobile-Coop\scripts\watchdog-task.ps1`
   (alerts only by default) after pulling C:/NightShift/Mobile-Coop to master.
