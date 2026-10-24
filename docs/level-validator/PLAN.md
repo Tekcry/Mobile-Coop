@@ -37,7 +37,8 @@ file, which CI runs).
 | `docs/level-validator/graph-schema.md`, `docs/level-validator/example.graph.json` | V0 |
 | `docs/templates/map-spec.md` | V0 |
 | `scripts/level-validate.mjs`, `tests/levelValidate.test.ts`, `briefs/level-validator-v1.md` | V1 |
-| `docs/design/scale-sheet.md` | V2 |
+| `docs/design/scale-sheet.md` (section 7 room table + section 8 validator numbers) | V2 |
+| `scripts/metrics-gen.mjs`, `tests/metricsGen.test.ts`, `docs/design/metrics.json` | V1a |
 | `docs/level-design.md` | V3 + V4 (ONE Opus agent, V4 first then V3, same file) |
 | `docs/sector-redesign/graph/campusOps-S1.json` + `docs/level-validator/campus-run/S1.md` | V5a |
 | `docs/sector-redesign/graph/campusOps-S2.json` + `docs/level-validator/campus-run/S2.md` | V5b |
@@ -51,7 +52,9 @@ file, which CI runs).
 | --- | --- | --- | --- | --- | --- |
 | V0 | Graph JSON schema doc + example + template line | Opus | yes | - | 30 min |
 | V1 | Validator port: pure module + CLI + Vitest | Sonnet (cloud-queue) | yes (builds on the core schema below) | - | 60-90 min |
-| V2 | Room-size-by-type table in the scale sheet | Sonnet | yes | - | 20 min |
+| V2 | Room table (M1: x1.3-1.5 + camera floor) + section 8 validator numbers in the scale sheet | Sonnet | yes | - | 30 min |
+| V1a | Metrics JSON generator + match test (M2) | Sonnet (cloud-queue) | after V2 | V2 | 30 min |
+| V6 | Greybox measurement step (M4): light-bake shadow %, vantage, nav-grid LOS / revive / link times | Opus | no: next step after this PR, needs `src/` | V1 | plan later |
 | V4 | Section 11 two-player co-op rewrite | Opus | yes | - | 45 min |
 | V3 | Numeric targets + the validator gate in level-design | Sonnet rules, written by the V4 Opus agent in the same pass | yes (with V4, same agent) | - | 30 min |
 | V5a-c | Campus S1 / S2 / S3 graphs + per-section findings | Sonnet x3 (strict brief per section) | after V0 lands | V0 (V2 for room classes) | 45 min each, parallel |
@@ -59,7 +62,7 @@ file, which CI runs).
 | DOC | testing-tools entry, changelog fragment, TESTING line | Sonnet (or Haiku) | yes | the CLI interface below | 15 min |
 | CHK | One fresh Opus checker over the batch, then one PR | Opus | last | all | 30 min |
 
-Start now in parallel: **V0, V1 (cloud), V2, V3+V4 (one agent), DOC**. Then V5a-c together, then V5d, then CHK + PR.
+Start now in parallel: **V0, V1 (cloud), V2, V3+V4 (one agent), DOC**. Then V1a after V2, V5a-c after V0, V5d after V1 + V1a + V5a-c, then CHK + PR. V6 follows the PR.
 
 ## Core schema (fixed here so V0 and V1 run in parallel; V0 documents it, it does not change it)
 A map's graph is one JSON object, or several files (one per section) the CLI merges: `meta` from the first file,
