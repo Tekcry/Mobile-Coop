@@ -5,8 +5,11 @@ feature/menu 58d61ed9). Lead: Night Shift | Marlow Build. Branch feature/level-v
 C:/NightShift/Mobile-Coop-level-validator. Michael's uploaded skill (reference, not our rules): docs/level-validator/source/
 (SKILL.md, validate_level.py, example_level.json; copied from C:/NightShift/scratch/stealth-level-design/).
 
-## Now (2026-10-24 ~20:00, account cap ~20:10)
-Opus PLAN agent started; it pushes BRIEF.md / PLAN.md as WIP. If cut off at the swap: rerun it (prompt below).
+## Now (2026-10-24 ~22:45)
+- PR #346 OPEN (feature/level-validator 2de3b69a): V0-V5 + V1b + fix round; checkers V1 PASS, CHK PASS, V5 spot-check PASS. CI pending; on green add `train-ready` (no laptop suites: no src). Orchestrator told (PR open).
+- V6 (next PR, stacked on #346): base feature/level-validator-v6 (2de3b69a), plan docs/level-validator/V6-PLAN.md. RUNNING: V6a Opus (-v6a, schema doc + example), V6b Opus (-v6b, src/world/levelMeasure.ts + test), V6d Sonnet (-v6d, checkMeasured in level-validate.mjs). Then V6c (CLI, Sonnet from V6b's API), V6e (campus run), one Opus checker, PR. Merge each slice into feature/level-validator-v6 on hand-back. If cut off: rerun the slice from V6-PLAN.md in its worktree (C:/NightShift/Mobile-Coop-level-validator-v6<x>).
+- Michael decisions at #346 / V6 PR: guard bands INFO only (recommended); `--require-measured` in the greybox exit (V6 PR).
+- guard-cap: gates gm-flip / guard-render-2 / coop4 not on master; M0 / M1 laptop results not pushed (origin/feature/guard-cap-results absent at 22:45).
 
 ## Merged so far
 - DOC 2282fcd4 (4b0cae74), V2 6a697f49 (2e5d23e7), V4 0e0362ce + V3 3ef64512 (6b8fb90a). V1 + V1a OPEN on cloud-queue (contract for metrics.json in both briefs, 1531ff0f).
@@ -61,9 +64,6 @@ run on campus S1-S3). Write BRIEF.md and PLAN.md here; push WIP early.
 
 ## Resume prompt
 ```
-Night Shift | Marlow Build: level-validator job (Michael ~20:05). Worktree C:/NightShift/Mobile-Coop-level-validator,
-branch feature/level-validator; read docs/level-validator/STATE.md, BRIEF.md, PLAN.md (if the PLAN is missing or WIP,
-rerun the planner from STATE "Planner prompt"). Then start the slices: validator port + unit tests to cloud-queue
-(briefs/level-validator-*.md), docs slices with Sonnet builders here, one Opus checker, one PR. guard-cap continues in
-parallel from docs/guard-cap/STATE.md on origin/feature/guard-cap (laptop M0 / M1 results, M2 on cloud-queue).
+Night Shift | Marlow Build: level-validator. PR #346 (feature/level-validator, worktree C:/NightShift/Mobile-Coop-level-validator) is the validator + campus S1-S5 run: on green CI add `train-ready` and message "Night Shift | Orchestrator"; never merge master into it. V6 (greybox measurement, next PR) on feature/level-validator-v6 (worktree C:/NightShift/Mobile-Coop-level-validator-v6), plan docs/level-validator/V6-PLAN.md: read STATE "Now" for which of V6a / V6b / V6d are merged; rerun any missing slice in its worktree -v6a / -v6b / -v6d from V6-PLAN.md; then V6c CLI (Sonnet, from V6b's exported API), V6e campus run, one Opus checker, PR (CI check only, node-only tooling). guard-cap beside it: docs/guard-cap/STATE.md on origin/feature/guard-cap (results on origin/feature/guard-cap-results; gated slices wait for gm-flip / guard-render-2 / coop4 on master).
+Rules: CLAUDE.md "Sessions" / token rules; no desktop e2e; single vitest files --maxWorkers=2, desktop CPU < 80; Opus plans / checks, Sonnet builds from strict briefs; cloud-queue (C:/NightShift/scratch/cq) for heavy builder slices.
 ```
