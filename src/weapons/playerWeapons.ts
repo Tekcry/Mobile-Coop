@@ -1103,8 +1103,10 @@ export class PlayerWeapons {
     this.onRay?.(exit, h2.point);
   }
 
-  /** `from`: the round's origin, the hit's `sourcePos` (a client sends it as its claimed `shot` origin). */
-  private resolveHit(h: RayHit, dir: Vector3, travelled: number, s: WeaponSlot, from: Vector3, factor = 1): void {
+  /** `from`: the round's origin, the hit's `sourcePos` (a client sends it as its claimed `shot` origin). (train 54
+   *  e2e-course) Optional: a caller without one (the e2e suites' real hit path, `resolveHit(h, dir, dist, slot)`) gets
+   *  the sim shot origin along `dir` (`simShotSource`), never the rig and never undefined. */
+  private resolveHit(h: RayHit, dir: Vector3, travelled: number, s: WeaponSlot, from?: Vector3, factor = 1): void {
     if (!h.hit) return;
     this.ballistics.impactFx(h, dir);
     const head = h.part === 'head';
@@ -1119,7 +1121,7 @@ export class PlayerWeapons {
         attackerTeam: 'player',
         attackerId: 'local',
         weapon: s.def.id,
-        sourcePos: from.clone(),
+        sourcePos: from ? from.clone() : this.simShotSource(dir),
         impulse: s.def.impulse,
       });
       const t = this.tallyFor(s.def.id);
@@ -1131,6 +1133,13 @@ export class PlayerWeapons {
       this.world.props.impulse(h.prop, dir.scale(s.def.impulse), h.point);
       this.world.props.damage(h.prop, dmg);
     }
+  }
+
+  /** (train 54 e2e-course) The sim shot origin along `dir` (`shotPoint`), a fresh vector: `resolveHit`'s source when the
+   *  caller gave none. */
+  private simShotSource(dir: Vector3): Vector3 {
+    this.shotPoint(dir, this.shotO, this.shotE);
+    return this.shotO.clone();
   }
 
   dispose(): void {

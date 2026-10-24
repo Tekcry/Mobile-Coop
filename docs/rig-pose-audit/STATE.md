@@ -1,6 +1,14 @@
 # rig-pose-fix: state
 
 ## Resume
+## Train 54 fix (e2e-course)
+- Train 54 (#308 alone on master 72b39da2, laptop GPU): e2e-course failed `TypeError: Cannot read properties of undefined
+  (reading 'clone')` in the friendly-fire step. Cause: S2 made `PlayerWeapons.resolveHit`'s round origin `from` a
+  required 5th arg (`sourcePos: from.clone()`, playerWeapons.ts:1122 at 72b39da2); e2e-course.mjs:373 calls the real hit
+  path as `resolveHit(h, dir, dist, slot)`, so `from` was undefined.
+- Fix: `from` optional; without it the source is the sim shot origin along the shot (`simShotSource` -> `shotPoint` ->
+  `shotOrigin`), never the rig. e2e-course now passes its own `from`. Test: tests/resolveHitSource.test.ts.
+- No other e2e script calls `resolveHit`; rerun e2e-course only.
 - ~14:40: S3 MERGED (bf29db17 -> 988869a8; puppet / judge one guard head with wireHead fallback D1, dog puppet head, one
   sim eye, hand side from the sim clock, body floor probe). All 7 slices in. Checker B on all src/net running
   (CHECK-NET-B.md). Next: playerVolumes alloc test fix (rpf-alloc, waits for desktop CPU < 80%), laptop batch run on the
