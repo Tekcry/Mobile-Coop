@@ -114,6 +114,8 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
   (`phase`) with a heel-strike dip, `faceTravel` (travel heading swings at `travelRate`, 540 deg/s slow down to 300 at a
   sprint), aiming <= 360 deg/s, `carry(vx, vz)` keeps traversal momentum. Enemies keep stepped turns. Frame-rate
   independent (60 vs 120 Hz parity tested).
+  (rig-pose-fix S7, G17) The root modulation runs on `simPhase`, which never takes the mocap strafe's side-step
+  (`mocapSide`, a per-machine setting): the sim velocity is the same with mocap on or off (`tests/mocapSimParity.test.ts`).
 - `player/movement.ts` (pure): `targetSpeed`, `SprintGate` (toggle / hold, ends when the stick drops), `pickTraversal` (step
   <= 0.65 m, vault <= 1.25 m and thin, mantle <= 1.8 m, hop over gaps when sprinting), `noiseRadius`. `PlayerController.steps`
   is 'silent' while an override drives the step; footsteps only when grounded (`PF.silent` for co-op clients). Crouched

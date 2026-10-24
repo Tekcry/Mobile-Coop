@@ -35,8 +35,10 @@ export const MASK = {
   SIGHT: G.STATIC | G.GLASS_FROSTED,
   /** (E2) What muffles a sound as a wall: static geometry and every glass pane. */
   HEARING: G.STATIC | G.GLASS,
-  /** What a player bullet can hit. */
-  PLAYER_SHOT: G.STATIC | G.PROP | G.ENEMY_HITBOX | G.RAGDOLL | G.GLASS_ARMOURED,
+  /** What a player bullet can hit. (rig-pose-fix S7, audit G18) Not `G.RAGDOLL`: a ragdoll is visual and per machine (each
+   *  simulates its own, capped by `BUDGET.maxRagdolls`; the body's sim position is `Body.pos`, S5), so a round passes through
+   *  it as the host's `HOST_LOS` check of a client round already did. Undo: add `G.RAGDOLL` back here. */
+  PLAYER_SHOT: G.STATIC | G.PROP | G.ENEMY_HITBOX | G.GLASS_ARMOURED,
   /** What an enemy bullet can hit (E10: armoured glass stops it; a guard's fire decision must test this mask, not SIGHT). */
   ENEMY_SHOT: G.STATIC | G.PROP | G.PLAYER_HITBOX | G.GLASS_ARMOURED,
   /** (polish 15) What shields a grenade blast: static geometry and every glass pane (the grenade itself bounces off a pane). */

@@ -370,7 +370,8 @@ client next to a device first.
   `resetTo` / `kill` (`LampMirror`), so its picture, meter and guard-torch reads use the host's lamps; a newly shot lamp
   sparks there. A client's round through a lamp goes to the host as a `shot` at `lt-<id>` (draw, weapon, 4 a second,
   origin at the shooter, the lamp first on the ray in the host's registry, a clear static line; `lampShotOk`), which
-  shoots it out as its own round would (`StealthSystems.shootLight`). Switches are items (`use`) as before. Change
+  shoots it out as its own round would (`StealthSystems.shootLight`). (rig-pose-fix S7) The origin may be up to
+  `LAMP_SHOT_ORIGIN` 2.1 m (was 2) from feet + 1.2, so an inverted-hang claim (up to 2.013 m) is taken. Switches are items (`use`) as before. Change
   detection reads the registry only when its `version` moved (no allocation unless it sends). Course mode unchanged.
 - `NetMode` `sector`, two players. The host runs `SectorMode` and sends `sector` (host -> all) on a device change and
   every 0.5 s: `sec` (`SecWire`: (26) each camera's clock, jams, each player's jam left `ch` and cooldown `cd`, the

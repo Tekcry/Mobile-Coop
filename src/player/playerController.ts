@@ -375,6 +375,7 @@ export class PlayerController {
     this.motion.reset(yaw ?? this.yaw);
     // a fresh stance: the gait clock restarts with the feet (the player resets the foot planner on a teleport)
     this.motion.phase = 0;
+    this.motion.simPhase = 0;
     this.stopHold = false;
     this.stopEaseT = -1;
     this.crouchPend = false;
@@ -564,7 +565,9 @@ export class PlayerController {
     mi.vx = tx;
     mi.vz = tz;
     mi.aiming = aiming;
-    // (mocap-trial-2, strafe) the player is a carrier: the mocap strafe's side-step on its gait clock with the switch on
+    // (mocap-trial-2, strafe) the player is a carrier: the mocap strafe's side-step on its drawn gait clock with the switch
+    // on; (rig-pose-fix S7, G17) never on the sim clock (`motion.simPhase`: the root modulation), so the velocity is the same
+    // on every machine whatever its mocap setting
     mi.mocapSide = LOCO.mocap && LOCO.set.strafeL !== null && LOCO.set.strafeR !== null;
     mi.sprinting = !!ov?.run;
     mi.slowest = snapped === 1;

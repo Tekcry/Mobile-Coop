@@ -59,6 +59,9 @@ Design authority: docs/DECISIONS.md (G16, G20, G21, G76, G98, G103-G105), then d
   tests the line from the sim eye (`shotEye`) to it and starts the round at the eye when blocked. That origin is the
   hit's `sourcePos`, so a client's claimed `shot` origin is the same point. The animated muzzle (`WeaponModel.muzzleWorld`)
   places only the tracer, flash and casing.
+- (rig-pose-fix S7) Player rounds pass ragdolls: `MASK.PLAYER_SHOT` no longer has `G.RAGDOLL` (ragdolls are visual and per
+  machine; G18). The training dummy's head volume is its sim feet + `hitVolumes(p).headY` + `DUMMY_HEAD` (G16). The swap's
+  hold for a gun changing hands reads the sim clock `PlayerWeapons.hand` (`player/handSwitch.ts`), never the rig (G15).
 - Player spread (`playerSpreadDeg`, weaponStats.ts): base `spreadAds`; crouched and still x0.7; standing still x1; moving
   adds `spreadMove x min(speed, 2.8) / 2.8`; bloom on top, capped at `maxSpread`. `spreadHip` and the hip-fire attachment
   mods are for guards only.
