@@ -10,6 +10,10 @@ Brief: `docs/coop4/BRIEF.md`. Plan: `docs/coop4/PLAN.md`. Branch `feature/coop4`
   - the follow loops are allocation-free;
   - `ot` outside 1..15 is dropped.
   - Checks: tsc clean, lint 0 errors, 29 vitest files 920 pass.
+- LAPTOP on the final head 3f1c946f (PR #317, results post there): 3f1c946f-a397 regular (coop, netmove, ctcourse, course, section-rating, sectorops 1-6) + 3f1c946f-fbd4 alone (sectorops 7, 8, 9; E2E_LOAD_MS=240000). The aabc5a31 regular run was already running (early signal only; src differs).
+- RUNNING: E2E-AI (Sonnet, -coop4-e2eai off 3f1c946f): Guard AI's AI6-E2E-SPEC asserts for the 3-4 page harness, each SKIPs when a #319 hook is missing (runs fully on the train head).
+- NEXT: both laptop runs green -> mark #317 ready, label train-ready, message the orchestrator (train with Guard AI #319). Red -> Opus triage. Merge -coop4-e2eai when it lands (scripts only).
+- Polish held (round-check-A P3-P6, round-check-B notes, data-check polish, net-batch polish): docs/coop4/checks/*.
   - Next: laptop sectorops 7-9 alone (E2E_LOAD_MS=240000) + coop netmove ctcourse course section-rating, then the PR update.
 
 ## Earlier (2026-10-24 ~16:55)
