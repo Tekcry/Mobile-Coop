@@ -1,6 +1,11 @@
 # Guard AI - state
 
 ## Now
+~08:00: coop4 AI6 DONE 01f21ad1 (e2e-stealth-ai 'four intruders (coop4)' block with fake players; AI6-E2E-SPEC.md for
+Sector Ops' 3-4 browser harness). Checks on AI1-AI5: A FAIL (stale pendingHunt / queued contact calls survive a slot
+reuse), B PASS (Sector Ops wiring double count: corrected with Sector Ops, decision: our +1 per player inside
+shapeResponse is the rule). Fix round RUNNING (AI5 builder). Then laptop e2e-stealth-ai + e2e-sectorops, PR (minor).
+
 ~07:20: coop4 AI5 DONE f1d517b2 (response shape hook setResponseShape / shapeResponse, team shares one hunt, own-LKP
 sweeps; hooks sent to Sector Ops). RUNNING: AI6 e2e builder (four-intruders block in e2e-stealth-ai + AI6-E2E-SPEC.md),
 Opus checkers A + B on AI1-AI5 (docs/coop4/briefs/AI-CHECK-A/B.md, uncommitted: lead commits). Then laptop
