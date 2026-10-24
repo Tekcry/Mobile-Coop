@@ -51,6 +51,8 @@ import { LC_DONE, LC_FACE, LightCheck, type LightCheckWalker } from './lightChec
 import { clampToLeash, inLeash, LURE, lurePoint, POST, PostLure, type PostDef, type PostLureOut } from './posts';
 import type { BehaviourProfile } from './guardAiData';
 import { DogModel } from './dogModel';
+import { DOG_BITE_DECAY, dogGaitStep, dogHead, dogPhaseBack } from './dogHead';
+import { FIXED_DT } from '../core/loop';
 import { emoteBlind, emoteBlindEnd, emoteSeize, emoteStep, guardHead, guardHeadRest, leanStep, newEmoteState, newLeanState, type GuardHeadIn, type GuardHeadRest } from './guardHead';
 import { CAUTION } from './awareness';
 import type { InstancedMesh } from '../core/babylon';
@@ -305,6 +307,10 @@ export class Enemy implements Damageable {
   private stagger = 0;
   private aimPitch = 0;
   private kick = 0;
+  /** (rig-pose-fix S6) The dog's sim gait clock and bite pose (1 at the bite, down at `DOG_BITE_DECAY` per s), stepped in
+   *  the fixed step: its head hit volume (`dogHead`) and its drawn body both read them. */
+  private dogPhase = 0;
+  private dogBite = 0;
   private head = new Vector3();
   /** (guard-render S3a) The human guard's head hit volume comes from the sim (`guardHead`), not the rendered rig. */
   private readonly headRest: GuardHeadRest;
@@ -2807,6 +2813,8 @@ export class Enemy implements Damageable {
       if (this.dist <= def.melee.range && this.meleeCd === 0) {
         this.meleeCd = def.melee.cooldown;
         this.kick = 1;
+        // (rig-pose-fix S6) the dog's bite pose, a sim clock (the head volume lunges with it)
+        this.dogBite = 1;
         this.ctx.onMelee?.(this);
         t.target.applyDamage({
           amount: def.melee.damage * this.ctx.diff.damage,
@@ -3518,9 +3526,15 @@ export class Enemy implements Damageable {
   }
 
   /** Hit volumes follow the body (fixed step). A human guard's head comes from the sim state (`guardHead`: the pose
-   *  fit tested against the rig in `tests/guardHeadParity.test.ts`), the dog's from its model. */
+   *  fit tested against the rig in `tests/guardHeadParity.test.ts`); the dog's too (`dogHead`, rig-pose-fix S6: the
+   *  model's transform chain, held to its scene graph in `tests/dogHead.test.ts`), on the sim gait clock and bite. */
   private syncHitboxes(dt: number): void {
-    if (!this.dog) {
+    if (this.dog) {
+      const sp = hyp2(this.vel.x, this.vel.z);
+      this.dogPhase = dogGaitStep(this.dogPhase, sp, dt);
+      this.dogBite = Math.max(0, this.dogBite - dt * DOG_BITE_DECAY);
+      dogHead(this.pos, this.yaw, sp, this.dogPhase, this.aware.level === 'unaware' ? 0 : 1, this.dogBite, this.head);
+    } else {
       const h = this.headIn;
       leanStep(this.headLean, this.coverPeek, dt);
       const sp = hyp2(this.vel.x, this.vel.z);
@@ -3619,9 +3633,10 @@ export class Enemy implements Damageable {
       rp.swapTo = gc.slot;
     }
     if (this.dog) {
+      // (rig-pose-fix S6) drawn from the sim's gait clock and bite (the head volume's inputs), the clock taken back to
+      // the drawn root's time (it lags the sim by 1 - alpha steps); nothing is read back from the model
       const alertK = lvl === 'unaware' ? 0 : 1;
-      this.dog.update(dt, r.position.x, r.position.y, r.position.z, r.rotation.y, sp, alertK, this.kick);
-      this.head.copyFrom(this.dog.head);
+      this.dog.update(dt, r.position.x, r.position.y, r.position.z, r.rotation.y, sp, alertK, this.dogBite, dogPhaseBack(this.dogPhase, sp, (1 - alpha) * FIXED_DT));
     } else {
       // (guard-render S4) full rate in a takedown / held, a scripted emote or a climb (and near any player: the tier);
       // (perfg, folded into `animTier.ts`) the FROZEN tier: a rig the render freeze disabled is not animated (C8 at its thaw)

@@ -180,6 +180,9 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   stretch is walked (`ADVANCE_PACE`; aggressive: a jog); cover is picked against `knownPt` (never the real position out of sight). One bullet
   to the head kills any guard but a heavy (`Enemy.applyDamage`), unless he wears a helmet (below). The close-range
   sense from behind ignores a sneak / crouched approach.
+- Head hit volumes come from the sim, never the drawn pose: a guard's from `guardHead` (`src/ai/guardHead.ts`, fitted to
+  the rig), the dog's from `dogHead` (`src/ai/dogHead.ts`, rig-pose-fix S6: the dog model's own transform chain on the
+  sim gait clock `Enemy.dogPhase` and bite `Enemy.dogBite`, stepped in `syncHitboxes`; `DogModel` draws from it). Tests: `tests/guardHeadParity.test.ts`, `tests/dogHead.test.ts`.
 - Gear (guard-ai S12, stealth over shooting items 2 and 13, A35 / A36; numbers `GEAR` in `ai/gear.ts`): `Enemy.helmet`
   / `armour`, set by `EnemyManager.placeSlot` from the slot's `gear` tag merged with the section default
   (`SectorDef.gear`, passed by `sectorMode.fill`; none = no gear) plus the alarm stage's gear (S13, below), kept by a woken
