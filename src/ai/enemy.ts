@@ -53,7 +53,7 @@ import type { BehaviourProfile } from './guardAiData';
 import { DogModel } from './dogModel';
 import { emoteBlind, emoteBlindEnd, emoteSeize, emoteStep, guardHead, guardHeadRest, leanStep, newEmoteState, newLeanState, type GuardHeadIn, type GuardHeadRest } from './guardHead';
 import { CAUTION } from './awareness';
-import type { InstancedMesh } from '../core/babylon';
+import type { AbstractMesh, InstancedMesh } from '../core/babylon';
 import { GuardAnimTier } from './animTierView';
 import { ANIM_TIER_FROZEN_CARRY_MAX } from './animTier';
 import { BREAKER, gearHit, type GearHit, type GuardGear } from './gear';
@@ -701,7 +701,7 @@ export class Enemy implements Damageable {
   sinceStagger = 1e9;
   /** The placeholder gear parts (A45), built once on first use and toggled: the helmet on his head node, the plates. */
   private helmetPart: InstancedMesh | null = null;
-  private armourParts: InstancedMesh[] | null = null;
+  private armourParts: AbstractMesh[] | null = null;
   private gearHex = '';
 
   /** Put gear on him (or take it off): `placeSlot` (slot tag + section default), a woken guard (`inherit`), and S13's

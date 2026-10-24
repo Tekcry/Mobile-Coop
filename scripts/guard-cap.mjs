@@ -392,7 +392,7 @@ async function pageRender([secs, counted]) {
     if (/-smooth(-lod)?$/.test(name)) return 'body';
     if (/shield/.test(name)) return 'shield';
     if (/-lod[0-3]-\d+$/.test(name)) return 'lod';
-    if (/^wpn-/.test(name)) return 'gun';
+    if (/^wpn-/.test(name) || /-gun$/.test(name)) return 'gun'; // (S13) the parts, or perfg's merged gun
     if (/helmet/.test(name)) return 'helmet';
     if (/^enemy-(armour|accent)/.test(name)) return 'gear';
     return 'other';
