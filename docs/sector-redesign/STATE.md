@@ -367,8 +367,7 @@ Worktrees (node_modules junctions to Mobile-Coop-sector-redesign-bake2): -polish
    -plantlog (aka old), S4 exfil in tracks; 0 errors / 119 warnings. Marlow + orchestrator told ("sign-off pages up").
    WAITING on Michael's picks (one per page). After picks: greybox slices per S<N>-detail.md build cost.
 3. VISUAL-GATE (docs/visual-gate/STATE.md): VG1-VG4 merged in feature/visual-gate a3362896 (VG3 cloud 8262611b merged
-   unchecked; Sonnet VG3 checker IN FLIGHT -> checks/vg3-check.md in -visual-gate, uncommitted; rerun if missing; FIX ->
-   Opus fix on feature/visual-gate-vg3). M0 timing run queued on the laptop 04:20 (alone, set visual-m0, master
+   ; Sonnet check PASS c43ef47e). M0 timing run queued on the laptop 04:20 (alone, set visual-m0, master
    fc4dc9ab; json + png to C:/NightShift/scratch/visual-gate/m0 on the laptop) -> write docs/visual-gate/M0.md, apply
    the PLAN 7 ladder. PR #367 VG6: master merged on the branch (service.mjs conflict, both sides kept, 135 tests),
    head fe16741b, checker status posted; orchestrator labels on green CI; Test Runner #366 overlaps service.mjs (the
