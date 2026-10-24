@@ -1,0 +1,138 @@
+# visual-gate - VG3 build: viewpoints data + shape test
+
+Builder: Night Shift | Cloud Builder 1 (Opus 5.5, cloud), 2026-10-24, from `briefs/VG3.md` (cloud copy on
+`cloud-queue`, CLOUD RULES). Branch `feature/visual-gate-vg3` cut from `feature/visual-gate` @ 0b7f46f4. Every coordinate
+is copied from origin/master @ 1dc3ecfa (merge of train/69) and cited `<file>:<line>` there. Unit tests only; no e2e,
+build, GPU or full vitest run.
+
+## Built
+- `scripts/visual-gate/viewpoints.mjs`: the contract typedefs verbatim, `MAPS` (4), `PRESETS`, `VIEWS` (26: 9 / 10 / 5 / 2),
+  `RIGS` (3). No imports, nothing frozen, every rule bound null except the rig leak rules. Each view has `upper` (26/26),
+  `floor` where floor is in frame (20/26) and `wall` on m-a1-lounge, m-a3-lobby, m-a6-kerb, so-s1-workshop. Each quad has
+  a comment citing the map-builder box it lies on (`file:line`, the helper's `b.box` line in brackets).
+- `tests/visualGateViewpoints.test.ts`: 13 tests, every assert the brief lists, plus metrics extras per region and
+  each rig guard facing its door and >= 1.1 m from it.
+
+## How the regions were read
+The four maps were built at origin/master with the pure `LevelBuilder` in a throwaway vitest (scratch checkout, not
+committed), each box tagged with the builder call stack (source-mapped `file:line`). Shut door leaves (each door's
+hinge, yaw, width, height) were added as boxes, clear glass ignored, frosted kept. For each view a small ray caster
+(camera: `CAMERA.fov` 86 deg horizontal, 16:9) cast through the frame to find the faces in view:
+- `floor`: a 2 - 3 m patch on the walkable floor at the feet level, every sample on the same floor top, in front.
+- `upper`: a band on a wall face from 2.0 m above the feet to the ceiling or as high as stays in frame, preferring the
+  farthest face (haze builds with depth); where the facing surface is under 6 m away and a ceiling or roof underside is
+  farther, that underside instead (m-a2, cp-s2-b, cp-s3-a, cp-s4-a, cp-s5-d).
+- `wall`: on the face the centre ray hits within 8 m (m-a1, m-a6); m-a3 as the BRIEF F7 row; so-s1-workshop as below.
+- Each quad: all corners within 48 deg of cam -> target (the test allows 50), >= 76% of a 7 x 7 sample grid inside the
+  frame (most 100%), in-frame samples unoccluded (<= 2%, thin posts) and on the quad's plane.
+- F4 wall (so-s1-workshop): the compartment wall z -8.8, face -8.95 (`warehouseS1.ts:245`), x 14.2 - 18.2, y 0.3 - 4.8.
+  The wall spots at (8.6 / 15.6 / 22.6, 5.5, -9.25) sit 0.25 m off that face and their 55 deg cones graze it (a cone-edge
+  count over the visible faces gave it about twice the east wall's edges): the hard arcs land there.
+
+## Source table (origin/master)
+Marlow vantages (short ids): m-a1-lounge = `a1-lounge-door`, m-a4-aisle = `a4-main-aisle-east`, m-f-gallery =
+`f-gallery-from-a1`; the other six use the same name as their id (`a2-vantage`, `a3-lobby`, `a5-kiosk`, `a6-kerb`,
+`a7-corridor`, `a8-vestibule`). Named constants: `A3_POST_WEST` (78.5, 10.75) `a3OfficeRange.ts:74`; `A6_VANTAGE`
+(51.0, 56.6) `a6PumpHouse.ts:119`.
+
+| id | source | feet | cam | target | regions |
+| --- | --- | --- | --- | --- | --- |
+| m-a1-lounge | ctcourseSets/a1Gate.ts:265 | 5, 0, 11 | 3.2, 1.8, 10.2 | 11.7, 1.6, 8 | upper, wall |
+| m-a2-vantage | ctcourseSets/a2CarriageShed.ts:371 | 33.5, 0, 12.5 | 31.4, 1.7, 12.9 | 52, 1.4, 12.3 | floor, upper |
+| m-a3-lobby | ctcourseSets/a3OfficeRange.ts:370 (:74) | 78.5, 0, 10.75 | 77.0, 1.7, 10.9 | 96, 1.4, 10.75 | floor, upper, wall |
+| m-a4-aisle | ctcourseSets/a4GoodsShed.ts:488 | 110, 0, 40 | 110.8, 1.8, 40.6 | 78, 1.5, 35.0 | floor, upper |
+| m-a5-kiosk | ctcourseSets/a5Substation.ts:416 | 48.5, 0, 33.2 | 47.3, 1.8, 31.6 | 58, 1.2, 36 | floor, upper (+3 parity) |
+| m-a6-kerb | ctcourseSets/a6PumpHouse.ts:388 (:119) | 51.0, 0, 56.6 | 50.2, 1.3, 55.6 | 51.5, 3.2, 66 | upper, wall |
+| m-a7-corridor | ctcourseSets/a7DataHall.ts:445 | 73.5, 0, 53.9 | 72.2, 1.7, 53.6 | 92, 1.2, 54.0 | floor, upper |
+| m-a8-vestibule | ctcourseSets/a8Strongroom.ts:662 | 107.4, 0, 64.5 | 106.8, 1.7, 64.0 | 126, 1.4, 66 | floor, upper |
+| m-f-gallery | ctcourseSets/facility.ts:747 | 14.5, 0, 14 | 14, 1.8, 12 | 14, 6, 21 | upper |
+| cp-s1-b | campus-art-shots.mjs:39 | 15, 0, -74 | 15, 1.7, -74 | 19, 0.9, -77 | floor, upper |
+| cp-s1-f | campus-art-shots.mjs:43 | -2, 0, -44 | -2, 1.7, -44 | -20, 2, -36 | floor, upper (+3 parity) |
+| cp-s2-b | campus-art-shots.mjs:47 | -12, 0, -22 | -12, 1.7, -22 | -18, 6, -5 | floor, upper |
+| cp-s2-d | campus-art-shots.mjs:49 | -42, 4.4, -28 | -42, 6.1, -28 | -32, 5, -10 | upper |
+| cp-s3-a | campus-art-shots.mjs:54 | 23, 0, -19 | 23, 1.7, -19 | 40, 2, -19 | upper |
+| cp-s3-c | campus-art-shots.mjs:56 | 46, 0, -24 | 46, 1.7, -24 | 51, 1.2, -15 | floor, upper |
+| cp-s4-a | campus-art-shots.mjs:62 | 10.5, 0, 22.5 | 10.5, 1.7, 22.5 | 10, 2, 32 | upper |
+| cp-s4-e | campus-art-shots.mjs:66 | -3, 3.6, 43 | -3, 5.3, 43 | 4, 4.5, 47 | floor, upper |
+| cp-s5-a | campus-art-shots.mjs:70 | -48, 0, 20 | -48, 1.7, 20 | -44, 3, 26 | floor, upper |
+| cp-s5-d | campus-art-shots.mjs:73 | -39, 4.2, 43 | -39, 5.9, 43 | -44, 5.2, 35 | floor, upper |
+| so-s1-goods-in | sector-lights-shots.mjs:46 | -20, 0, -16.5 | -20.5, 1.7, -17 | -13, 4.2, -12 | floor, upper |
+| so-s1-girder | sector-lights-shots.mjs:61 | 22.5, 0, -13.6 | 22.5, 1.5, -13.6 | 16, 3.0, -13.6 | floor, upper |
+| so-s1-workshop | sector-lights-shots.mjs:48 | 10.5, 0, -16 | 10.5, 1.7, -16 | 18, 3.6, -12.5 | floor, upper, wall (+1 parity) |
+| so-s2-aisle | sector-lights-shots.mjs:50 | -12.5, 0, -5.4 | -12.5, 1.7, -5.4 | -12.4, 3.4, 8 | floor, upper (+2 parity) |
+| so-s3-hall | sector-lights-shots.mjs:54 | 1.5, 0, 4 | 1.5, 1.7, 4 | 6, 3.9, 9 | floor, upper |
+| wh-floods-dock | sector-lights-shots.mjs:68 | -23, 0, -25.2 | -22, 2.2, -25 | -13, 2.5, -19 | floor, upper (+3 parity) |
+| wh-flood-workshop | sector-lights-shots.mjs:69 | 19, 0, -24.8 | 17, 2.4, -25 | 11.5, 2.2, -19.5 | floor, upper |
+| so-door (rig) | warehouseS1.ts:311 | 0.5, 0, -11.6 | 0.5, 1.6, -11.6 | 0.5, 1.2, -13.8 | leak |
+| cp-door (rig) | campusS1.ts:205 | 17, 0, -70.8 | 17, 1.6, -70.8 | 17, 1.2, -73 | leak |
+| so-corner (rig) | warehouseS2.ts:77 | -6.5, 0, 4.6 | -6.5, 1.6, 4.6 | -9.45, 1.2, 7 | leak |
+
+Marlow `src` paths are under `src/world/maps/`, the rest under `scripts/` (views) or `src/world/maps/` (rigs). MAPS:
+shots-ctcourse.mjs:50, campus-art-shots.mjs:31 (sectorGuards 0 -> 1), sector-lights-shots.mjs:33, e2e-darkness.mjs:10.
+The per-quad box citations are in the comments of viewpoints.mjs.
+
+## Parity cards (3 per map, floor + 1.0, >= 1.2 m from any collision box between 0.1 and 2.0 m, in frame, visible)
+Lamp levels estimated from the map's light list (in-radius, in-cone, unoccluded, (1 - d / r)^2 x intensity; no bounce):
+VG5 measures the real level at run time.
+- Marlow (m-a5-kiosk): pool (56.5, 1, 29.2) est 0.83; between (51.8, 1, 34.3) 0.43; darkest (56.6, 1, 39.1) 0.02.
+- Saltmarsh (cp-s1-f): canopy pool (-24.5, 1, -47.9) 1.27; between (-5.8, 1, -43.2) 0.64; darkest (-5.2, 1, -38.3) 0.
+- Sector Ops: pool (19.9, 1, -13.1) 0.64 on so-s1-workshop; between (-10.9, 1, 5.4) 0.29 and darkest (-11.8, 1, -0.6)
+  0.10 on so-s2-aisle.
+- Warehouse (wh-floods-dock): dock-flood pool (-18.4, 1, -18.6) 0.67; between (-17.4, 1, -22.4) 0.34; darkest yard spot
+  (-14.9, 1, -24.6) 0.
+
+## Rigs per tag (map dumps at v4.82.0, v4.88.0 and origin/master; door anchor and every collision box within 4 m equal)
+- so-door: the transport office's corridor door, hinge (-0.1, 0, -13.8), width 1.2, yaw PI / 2, hinged, unlocked:
+  `warehouseS1.ts:297` at v4.82.0, `:311` at v4.88.0 and master (`for (const x of [-5.1, -0.1, 3.9]) b.door(...)`).
+  s = 1: guard (0.5, 0, -15.0) yaw 0 in the office, camera in the corridor; leak on the corridor face z -13.65.
+- cp-door: the gatehouse door, hinge (16.4, 0, -73), width 1.2, yaw PI / 2, hinged, unlocked: `campusS1.ts:205` at all
+  three tags. s = 1: guard (17, 0, -74.2) yaw 0 inside, camera on the verge; leak on the outer face z -72.85.
+- so-corner: the storage-hall aisle x -13.5 to -10.5 (side corridor) between R2N (`warehouseS2.ts:227` v4.82.0, `:234`
+  v4.88.0 / master) and the high bay R3N (S2_COOP row `:77` at all three, built `:229` / `:236` / `:236`), meeting the
+  cross aisle z 4 - 7 (main corridor). Every box in x -16 to -4, z 3 - 16 under 4.5 m hashes equal at the three tags.
+  Guard (-12, 0, 12) yaw PI, 5 m up the aisle facing the junction; camera (-6.5, 1.6, 4.6) on the cross aisle 4 m east of
+  the junction; leak = R3N's south face z 7, x -10.45 to -8.45, 0 - 2.5 (the corner wall on the camera side of the
+  beam's wall, R3N's west face).
+- Rig guards stand 1.2 m from the door centre (>= 1.1, `DOOR.enemyReach` 1.0). Both door rigs are on section 1 of their
+  map; campusOps boots with sectorGuards=1, warehouseOps with 4.
+
+## Deviations
+- D1 `floor` omitted on 6 views where no floor is in frame at origin/master (the brief says every view): m-a1-lounge (the
+  lounge's sliding door is shut and the east wall 2.7 m ahead fills the frame), m-a6-kerb (the 1.2 m sump kerb hides the
+  floor from the 1.3 m eye), m-f-gallery (the camera looks 25 deg up; the frame's foot is 3 deg under level), cp-s2-d (see
+  O1), cp-s3-a (the 3.0 m board screen 3.5 m ahead, `campusS3.ts:397`), cp-s4-a (the rack row ends at 1.5 m leave a strip
+  under 1.5 m wide). A quad there would mask walls or nothing. The test requires `upper` on every view, `floor` where present.
+- D2 m-a3-lobby `wall` sits on the plaster skin face z 12.47 (skin `a3OfficeRange.ts:396`), 3 cm in front of the greybox face
+  12.5, so it is the drawn surface; x 81 - 96, y 1.8 - 2.9 as the BRIEF F7 row.
+- D3 so-corner reads "facing the junction's far corner wall (camera side of the beam's wall)" as: camera on the cross aisle
+  facing the corner block whose side wall the beam runs along, leak on that block's face towards the camera. A camera
+  facing the corner across the junction would look through the beam's real haze in the junction mouth and leak on a fixed
+  build too.
+- D4 Rig `src` cites the door line (door rigs) or the corner block's data row (so-corner); `door.src` cites the door line
+  per tag.
+
+## Test results
+- `npx vitest run tests/visualGateViewpoints.test.ts --maxWorkers=2`: 1 file, 13 passed.
+- `npm run typecheck:fast`: clean.
+- `npx eslint tests/visualGateViewpoints.test.ts`: clean (scripts/ is outside the lint set).
+- `node --check scripts/visual-gate/viewpoints.mjs`: ok.
+
+## Files touched
+- `scripts/visual-gate/viewpoints.mjs` (new)
+- `tests/visualGateViewpoints.test.ts` (new)
+- `docs/visual-gate/checks/vg3-build.md` (new, this file)
+
+## Open items
+- O1 cp-s2-d frames the inside of the SW stair core at origin/master: the eye (-42, 6.1, -28) is on the core's inner walls'
+  corner (x -42.0 `campusS2.ts:321`, z -28.0 `:323`), 0.1 m under its landing slab (`:341`). The frame is the core's flight
+  within 1.5 m; the only band above head height is a strip of the west corridor seen past the wall the eye stands on.
+  F8 on this view does not measure the L1 open plan. The source row (campus-art-shots.mjs:49) needs a new eye; VG3 copies it
+  (A4). Lead's call: re-point the row, or drop F8 from cp-s2-d and keep cp-s2-b / cp-s3-a.
+- O2 cp-s3-c's eye (46, 1.7, -24) stands on the south face of the closed EMC room box (x 42 - 48, z -24 to -16,
+  `campusS3.ts:389`): the view looks through that box (its faces seen from inside are culled). Coverage only (no target).
+- O3 Framing was checked geometrically, not rendered. Suggested GPU look before VG5's first laptop run (lead decides),
+  on an origin/master build, laptop slot 4189:
+  `E2E_GPU=1 E2E_PORT=4189 ONLY=s2-d,s3-c,s3-a,s4-a timeout 1200 node scripts/campus-art-shots.mjs C:/NightShift/scratch/visual-gate/vg3-look look`
+  and `E2E_GPU=1 E2E_PORT=4189 timeout 900 node scripts/shots-ctcourse.mjs C:/NightShift/scratch/visual-gate/vg3-look look a1-lounge`.
+- O4 Parity levels are estimates (no bounce, no sky): if VG5 finds two cards of one map in the same A15 band, move one card
+  along its view (the candidates lists are in the scratch notes, not kept; rerun the same rule).
