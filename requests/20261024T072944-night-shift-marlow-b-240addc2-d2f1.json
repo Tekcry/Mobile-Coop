@@ -1,0 +1,12 @@
+{
+  "id": "20261024T072944-night-shift-marlow-b-240addc2-d2f1",
+  "sha": "240addc2ad1adabe2f19aa7e3af81410f647be2d",
+  "branch": "feature/joint-flake",
+  "pr": 328,
+  "kind": "pr",
+  "requester": "Night Shift | Marlow Build",
+  "suites": [
+    "e2e-coop"
+  ],
+  "set": "joint-flake"
+}
