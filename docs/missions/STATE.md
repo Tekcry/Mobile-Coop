@@ -9,10 +9,10 @@ Laptop queued: mission-engine-gb on cf3532f4 (coop, netmove, sectorops, ctcourse
 RUNNING at save (rerun any whose result is missing; reports in C:/NightShift/scratch/):
 1. Greybox checker GB0-4 (Sonnet, read-only) -> greybox-check.md -> one fix round (Opus) in the engine worktree, incl. the rooms overlap; then GB5 (Sonnet, GB-briefs.md GB5 + W3 cart-gate both leaves bolted, W3_KEY_POSTS, unlisted map filter) -> GB6 / GBM.
 2. V6 checker FIX (v6-check.md: shadow band on non-encounters, reach speed, drop times, guard-band docs) -> fix round POSTED on cloud-queue briefs/level-validator-V6-fix.md (pushes to feature/level-validator-v6). On done: review, then PR (V6, base master); then PR B (feature/mission-validator, now incl. VAL-DIMS 0c62a921) stacked on it.
-3. KIT-TICK checker (Opus) -> kit-tick-check.md (uses -mission-kit-pull, may leave it on branch zz-tickcheck: switch back to feature/mission-kit-pull, delete zz-tickcheck) -> merge feature/mission-kit-tick into engine.
+3. KIT-TICK PASS -> merged into engine 8d4dcb14 (polish later: crawl request timeout run.asked into tick). Campus a2cf369a (S5 rope -> rappel + climb) 0 ERR with kit dims; SS / CR 0 ERR.
 4. VAL-DIMS PASS -> merged into feature/mission-validator 0c62a921. Tallow shutters gap 0.9 added. Sector Ops told: S5 s5-arch -> s5-well rope is a descent (1 campus ERR until they flip it).
 5. EN4 + MissionHud mount (Opus, -mission-en4, feature/mission-en4, WIP 2c4ffd0c): mission.start section, per-mission guard lists, HUD on host + client, e2e HUD assert.
-6. NET2 (Opus, -mission-net2, feature/mission-net2, WIP 2d388309): stale kit pair unpair, shutter pair lapse, attempt id on hangEnd, host-holder catch tick, per-kind gused window, behavioural revealIntel test.
+6. NET2 DONE 156cd4ff (feature/mission-net2; also touched coopClient.ts :304 / :340 for the attempt key in hangEnd s field; clientRead extracted :1784). NOT yet checked: TWO Opus checkers with EN4 (CPU 100% at the 05:30 cap).
 After 5 + 6: merge both into engine; one Opus checker on EN4 + NET2 (+ second Opus on NET2 src/net); laptop coop / netmove / sectorops.
 
 ## RESUME 2026-10-25 ~04:20 (window reset; next 09:10)
