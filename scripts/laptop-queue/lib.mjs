@@ -242,13 +242,16 @@ export function yieldTo(r, started, trains) {
 /**
  * Why a running request stops early, or '': 'withdrawn' when its request file left the laptop-queue branch (the
  * service decides that from two listings in a row, so one bad listing never kills a run); 'train' when a train head is
- * pending and the run is a plain pr request already in its suites (before that, yieldTo gives the slot back). A train
- * rerun, a full run and an alone run never give way to a train once started (Orchestrator audit 2026-10-24: a
- * withdrawn request held 4191 for 67 min and train 56 waited 11 min).
+ * pending and the run is a plain pr request already in its suites (before that, yieldTo gives the slot back), but only
+ * when every other run on this worker (others) is a plain pr request too: a train starts with both slots idle, so
+ * killing one beside a full, alone or train-rerun run would only waste it. A train rerun, a full run and an alone run
+ * never give way to a train once started (Orchestrator audit 2026-10-24: a withdrawn request held 4191 for 67 min and
+ * train 56 waited 11 min; checker FIX: no preemption beside a run that cannot give way).
  */
-export function cutShort(r, { withdrawn = false, trains = [], started = false } = {}) {
+const preemptible = (r) => r?.kind === 'pr' && !r.trainRerun;
+export function cutShort(r, { withdrawn = false, trains = [], started = false, others = [] } = {}) {
   if (withdrawn) return 'withdrawn';
-  if (started && r?.kind === 'pr' && !r.trainRerun && (trains ?? []).length) return 'train';
+  if (started && preemptible(r) && (trains ?? []).length && (others ?? []).every(preemptible)) return 'train';
   return '';
 }
 

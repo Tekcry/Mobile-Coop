@@ -184,7 +184,8 @@ function listRequests() {
     }
     let r;
     try { r = JSON.parse(git(['show', `origin/laptop-queue:${n}`])); } catch { r = null; }
-    const problem = requestProblem(r);
+    // the id must be the file name: a running request's file is matched by name for the withdrawal check (checker FIX)
+    const problem = requestProblem(r) || (r.id !== id ? `id ${r.id} does not match the file name` : '');
     if (problem) { badSeen.add(id); log(`bad request ${id}: ${problem}`); continue; }
     out.push(r);
   }
@@ -675,8 +676,10 @@ async function runRequest(r, port) {
   const ctl = { child: null, why: '', by: null };
   let started = false;
   const watch = DRY ? null : setInterval(() => {
-    const why = cutShort(r, { withdrawn: withdrawnIds.has(r.id), trains: trainsNow(), started });
-    if (why && !ctl.why) { ctl.by = trainsNow()[0] ?? null; cut(ctl, why); }
+    const trains = trainsNow();
+    const others = [...activeReqs.values()].filter((a) => a.id !== r.id);
+    const why = cutShort(r, { withdrawn: withdrawnIds.has(r.id), trains, started, others });
+    if (why && !ctl.why) { ctl.by = trains[0] ?? null; cut(ctl, why); }
   }, 5_000);
   const stop = () => Boolean(ctl.why) || Boolean(yielded ??= yieldTo(r, false, trainsNow()));
   let posted = false;

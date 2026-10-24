@@ -6,7 +6,9 @@
   request file left the branch on two listings in a row (error status, done) or, for a plain pr request in its suites,
   when a train head is pending (claim released, queued again). `request.mjs --pin` / `pin: true`: never superseded.
   #252 merged at e9363533 only: the 11 later audit commits (f0b9ea20..61171362) had no PR; they ride in the new PR
-  with this fix. Opus checker on e48a735d running; train-ready on CI green + checker PASS (Orchestrator).
+  with this fix. Opus checker FIX (2): a request whose id is not its file name is now a bad request (the withdrawal check matches by
+  name); no preemption beside a full / alone / train-rerun run here (lib cutShort `others`; the train needs both slots).
+  Fixed in one round; PR #329, train-ready on CI green.
 - 2026-10-24 (Orchestrator audit 2026-10-23 20:30-23:35Z, ~56 + ~10 min of train time lost): duplicates (lib
   `dupKey` / `duplicates`, `LQ_DUP_WINDOW_MIN` 60) are marked done unrun; pr / full / alone runs not yet in their
   suites or steps yield to a pending train (lib `yieldTo`); train reruns (`request.mjs --train-rerun`, lib `pick`,

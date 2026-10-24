@@ -508,6 +508,14 @@ describe('cutShort', () => {
     expect(cutShort({ kind: 'pr' }, { trains: [t], started: false })).toBe('');
     expect(cutShort({ kind: 'pr' }, { trains: [], started: true })).toBe('');
   });
+  it('never preempts beside a run that cannot give way (the train needs both slots)', () => {
+    const run = { trains: [t], started: true };
+    expect(cutShort({ kind: 'pr' }, { ...run, others: [{ kind: 'pr' }] })).toBe('train');
+    expect(cutShort({ kind: 'pr' }, { ...run, others: [{ kind: 'full' }] })).toBe('');
+    expect(cutShort({ kind: 'pr' }, { ...run, others: [{ kind: 'alone' }] })).toBe('');
+    expect(cutShort({ kind: 'pr' }, { ...run, others: [{ kind: 'pr', trainRerun: true }] })).toBe('');
+    expect(cutShort({ kind: 'pr' }, { withdrawn: true, others: [{ kind: 'full' }] })).toBe('withdrawn');
+  });
   it('never preempts a train rerun, a full or an alone run', () => {
     expect(cutShort({ kind: 'pr', trainRerun: true }, { trains: [t], started: true })).toBe('');
     expect(cutShort({ kind: 'full' }, { trains: [t], started: true })).toBe('');
