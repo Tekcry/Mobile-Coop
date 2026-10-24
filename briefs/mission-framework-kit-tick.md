@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-24T17:33Z
+status: done feature/mission-kit-tick 93ef5c1e
 
 # mission-framework KIT-TICK: per-tick kit hook + kit polish (unit tests only)
 Lead: Night Shift | Marlow Build. Source: the KIT batch checker report (copied below, "Checker notes").
@@ -56,3 +56,12 @@ Lead: Night Shift | Marlow Build. Source: the KIT batch checker report (copied b
 - syncShutters runs only from SHUTTER_MOVE.idle / step. The glob registers pullUp before shutter, so a pull idle that returns non-null skips it.
 - It is also skipped in every built-in team state, during a takedown or strike, while dead, and with no mates: idle() returns before kitIdle (teamController.ts:763), and fixedUpdate's !alive return comes before that (:202).
 - The page's mirror then freezes at its last gap. A partner who disconnects while holding leaves the shutter open on the other page until a mate rejoins.
+
+## Report (Night Shift | Cloud Builder 1, 2026-10-24)
+- `feature/mission-kit-tick` @ 93ef5c1e (one commit on 9e87b4b3; only the 7 listed files, +221 -32).
+- registry.ts:160 `KitMove.tick?(h, run, dt)`, called every fixed step for every move, alive or not; :153 `busyOffer` flag, :245 `kitOfferFree()`, :128 `KitHost.health()`, :131 `KitHost.hangPoint`.
+- teamController.ts:204 `fixedUpdate` calls `kitTick(dt)` (:341, index loop, no allocation) before the `!alive` return; :352 `health()`; :151 `busy` uses `kitOfferFree`.
+- shutter.ts:671 `syncShutters` moved from idle / step into `SHUTTER_MOVE.tick`: a shutter now drops under a claiming pull move, in any team state, while dead, and with no mates (holder disconnected). :67 `underZone` 0.3. :667 `busyOffer: true` (`pullOffer` stays free). :487 / :615 use `h.health()`; `hpOf` gone. pullUp.ts:186 uses the typed `h.hangPoint`; the duck-typed `DropProbe` is gone.
+- Tests: tests/kit/ + hangDownNet + teamMoves 87/87 (8 new; one existing shutter assert changed to busy = true; rerun by the builder session: 87/87). With `kitTick` switched off 6 fail (registry tick, 3 new shutter, 2 existing shutter). typecheck:fast and eslint clean.
+- Deviations: busy via a `busyOffer` flag + `kitOfferFree` (kitStateOffer unchanged, the pose clock still reads shutterOffer as -1); `kitTick` also runs `kitSync` each step (reference compare, no allocation) so devices exist before the first tick; `syncShutters` gets the real `dt` (idle used 1/60); `health()` reads `g.target?.health.hp ?? NaN` for headless fakes; `health()` / `hangPoint` required on `KitHost` (TeamController the only implementer).
+- Open: the crawl request timeout (`run.asked`) still counts only in `SHUTTER_MOVE.idle`, so it stalls while another move claims idle (minor, outside the brief).
