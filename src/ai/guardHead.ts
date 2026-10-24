@@ -718,7 +718,8 @@ export interface GuardHeadIn {
    *  localZ times the speed). Both 0 with `speed` above 0 is read as straight ahead. */
   moveX: number;
   moveZ: number;
-  /** (S3a fix) The gait clock 0..1 (`MotionDriver.phase`, which the rig's stride follows). */
+  /** (S3a fix) The gait clock 0..1 (`MotionDriver.phase`, which the rig's stride follows). (rig-pose-fix S3)
+   *  `PHASE_UNKNOWN` (negative): no clock (the co-op puppet: not on the wire), the stride at its phase mean. */
   phase: number;
   /** Weapon raise 0..1: the value the rig gets (0 when held or climbing). */
   aim: number;
@@ -885,7 +886,7 @@ function moveOff(t: MoveTable, a: number, p: number, th: number, side: number, s
   const pt = t.pitch;
   up += pt[0] * p + pt[1] * p * p;
   fw += pt[2] * p + pt[3] * p * p;
-  if (t.bob !== null && side !== 0) up += cell(t.bob, ns) * side * Math.cos(TAU * (ph - t.ph));
+  if (t.bob !== null && side !== 0 && ph >= 0) up += cell(t.bob, ns) * side * Math.cos(TAU * (ph - t.ph));
   const sx = t.sx;
   mSx = sx[0] + sx[1] * a + sx[2] * p + sx[3] * p * p;
   mUp = up;
@@ -898,7 +899,7 @@ function wallOff(t: WallTable, thr: number, s: number, p: number, side: number, 
   const ns = WALL_SP.length;
   const z = ksz;
   let up = cell(t.up, ns);
-  if (t.bobC !== null && t.bobS !== null && side !== 0) {
+  if (t.bobC !== null && t.bobS !== null && side !== 0 && ph >= 0) {
     const a = TAU * ph;
     up += side * (cell(t.bobC, ns) * Math.cos(a) + cell(t.bobS, ns) * Math.sin(a));
   }
@@ -916,7 +917,7 @@ export const ROOT_DIP = 0.05;
  *  and eases it (0.15 s), so it settles at the share of the stride spent over it (from the pace under the swing). */
 function dashShare(sp: number, dashFrom: number, ph: number): number {
   if (dashFrom === Number.POSITIVE_INFINITY) return 0;
-  const pace = sp / (1 - ROOT_DIP * Math.cos(2 * TAU * ph));
+  const pace = ph < 0 ? sp : sp / (1 - ROOT_DIP * Math.cos(2 * TAU * ph));
   const q = (1 - dashFrom / pace) / ROOT_DIP;
   return q >= 1 ? 1 : q <= -1 ? 0 : 1 - Math.acos(q) / Math.PI;
 }
@@ -1081,4 +1082,45 @@ export function guardHead(i: GuardHeadIn, r: GuardHeadRest, out: HeadOut): void 
   out.x = i.x + sx * co + f * s;
   out.z = i.z - sx * s + f * co;
   out.y = i.y + r.headY + u;
+}
+
+/** (rig-pose-fix S3, audit G7) `GuardHeadIn.phase` when there is no gait clock (the co-op puppet): the stride at its
+ *  phase mean (the bob, a first harmonic, at 0; the dash at the mean pace). */
+export const PHASE_UNKNOWN = -1;
+
+/**
+ * (rig-pose-fix S3, audit G7) The head inputs the co-op client has for this guard: `i` with every input the wire does not
+ * carry set the way the client's puppet sets it (`enemyPuppet.ts`, its own `GuardHeadIn` from what it draws): no gait
+ * clock, no aim pitch, no wall or lean, no ladder, no flashbang pose (the held pose stays: the puppet shows it). The
+ * host records `guardHead` of this beside the sim head (`Enemy.wireHead`) so its judge knows the head the client was
+ * shown. Writes and returns `out`; no allocation.
+ */
+export function wireHeadIn(i: GuardHeadIn, out: GuardHeadIn): GuardHeadIn {
+  out.x = i.x;
+  out.y = i.y;
+  out.z = i.z;
+  out.yaw = i.yaw;
+  out.crouch = i.crouch;
+  out.speed = i.speed;
+  out.moveX = i.moveX;
+  out.moveZ = i.moveZ;
+  out.phase = PHASE_UNKNOWN;
+  out.aim = i.aim;
+  out.aimPitch = 0;
+  out.wall = false;
+  out.wallSide = 0;
+  out.lean = 0;
+  out.leanDrop = 0;
+  out.held = i.held;
+  out.heldK = i.heldK;
+  out.koK = i.koK;
+  out.blind = 0;
+  out.poseW = i.held !== null ? i.poseW : 0;
+  out.climb = false;
+  return out;
+}
+
+/** A fresh head input (the guard standing at the origin). */
+export function newHeadIn(): GuardHeadIn {
+  return { x: 0, y: 0, z: 0, yaw: 0, crouch: 0, speed: 0, moveX: 0, moveZ: 0, phase: 0, aim: 0, aimPitch: 0, wall: false, wallSide: 0, lean: 0, leanDrop: 0, held: null, heldK: 0, koK: 0, blind: 0, poseW: 0, climb: false };
 }

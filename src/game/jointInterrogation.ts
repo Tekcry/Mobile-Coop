@@ -38,6 +38,11 @@ export function jointOf(info: GuardInfo | null | undefined): JointIntel | null {
   return (info as GuardIntel | null | undefined)?.joint ?? null;
 }
 
+/** A joint record with at least one line to reveal (no allocation: `jointLines` would build the list). */
+export function jointHasLines(j: JointIntel | null): boolean {
+  return !!j && j.lines.length > 0;
+}
+
 /** The guard still has joint lines to give (a field read: the menu step calls it every step). */
 export function hasJoint(v: HasInfo): boolean {
   const j = jointOf(v.info);

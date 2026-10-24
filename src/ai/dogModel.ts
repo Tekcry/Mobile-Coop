@@ -1,10 +1,6 @@
 import { TransformNode, Vector3, type InstancedMesh, type Scene, type Vector4 } from '../core/babylon';
 import type { PartLibrary } from '../world/partLibrary';
-
-/** Body sizes (m): shoulder height, body length, leg length. */
-const SHOULDER = 0.62;
-const LEG = 0.5;
-const BODY = 0.78;
+import { DOG_BODY as BODY, DOG_BODY_Y, DOG_HEAD_UP, DOG_HEAD_Z, DOG_LEG as LEG, dogGaitStep, dogHead, dogPose, type DogPose } from './dogHead';
 
 /** (Step 14) every dog body not yet disposed (local enemies and co-op puppets): thermal vision paints them. */
 export const LIVE_DOGS: DogModel[] = [];
@@ -24,7 +20,9 @@ export class DogModel {
   private phase = 0;
   private down = 0;
   private downTarget = 0;
-  /** World position of the head (hit volume). */
+  private readonly pose: DogPose = { bodyY: DOG_BODY_Y, swing: 0, headPitch: 0, headZ: DOG_HEAD_Z, tail: 0 };
+  /** (rig-pose-fix S6) The drawn head centre standing (`dogHead` at the drawn root): presentation only. The host's hit
+   *  volume is `dogHead` on the sim state (`Enemy.syncHitboxes`); nothing reads the scene graph for it. */
   readonly head = new Vector3();
   /** (Step 14) thermal vision's warmth on this body, 0..1 (render-only `pattern.w` glow). */
   private heatK = 0;
@@ -35,7 +33,7 @@ export class DogModel {
     this.root = new TransformNode('dog', scene);
     this.body = new TransformNode('dog-body', scene);
     this.body.parent = this.root;
-    this.body.position.y = SHOULDER - 0.1;
+    this.body.position.y = DOG_BODY_Y;
     const add = (shape: Parameters<PartLibrary['instance']>[0], hex: string, parent: TransformNode, sx: number, sy: number, sz: number, x = 0, y = 0, z = 0, rx = 0): InstancedMesh => {
       const m = lib.instance(shape, hex, 'dog-part');
       m.parent = parent;
@@ -51,7 +49,7 @@ export class DogModel {
     // head on a neck pivot: skull, snout, nose, ears
     this.headPivot = new TransformNode('dog-head', scene);
     this.headPivot.parent = this.body;
-    this.headPivot.position.set(0, 0.14, BODY * 0.48);
+    this.headPivot.position.set(0, DOG_HEAD_UP, DOG_HEAD_Z);
     add('capsule', color, this.headPivot, 0.18, 0.3, 0.18, 0, 0.06, 0.04, -0.9);
     add('sphere', color, this.headPivot, 0.22, 0.2, 0.24, 0, 0.16, 0.14);
     add('pill', dark, this.headPivot, 0.11, 0.1, 0.2, 0, 0.12, 0.3);
@@ -82,38 +80,37 @@ export class DogModel {
     LIVE_DOGS.push(this);
   }
 
-  /** Per render frame: place it, trot by speed, head up by `alert` 0..1, a bite lunge by `bite` 0..1. */
-  update(dt: number, x: number, y: number, z: number, yaw: number, speed: number, alert: number, bite: number): void {
+  /** Per render frame: place it, trot by speed, head up by `alert` 0..1, a bite lunge by `bite` 0..1. The standing pose
+   *  is `dogPose` / `dogHead` (src/ai/dogHead.ts), the hit volume's model. `phase`: the sim's gait clock (the host's
+   *  `Enemy`); omitted (the co-op puppet, the lying body), the model steps its own clock from `speed`. */
+  update(dt: number, x: number, y: number, z: number, yaw: number, speed: number, alert: number, bite: number, phase?: number): void {
     const r = this.root;
     r.position.set(x, y, z);
     r.rotation.y = yaw;
     if (this.downTarget > 0) this.downAge += dt;
     this.down += (this.downTarget - this.down) * Math.min(1, dt * 5);
+    this.phase = phase ?? dogGaitStep(this.phase, speed, dt);
+    const pose = dogPose(speed, this.phase, alert, bite, this.pose);
     if (this.down > 0.01) {
       // on its side, legs out
       r.rotation.z = this.down * 1.45;
-      this.body.position.y = (SHOULDER - 0.1) * (1 - this.down) + 0.18 * this.down;
+      this.body.position.y = DOG_BODY_Y * (1 - this.down) + 0.18 * this.down;
       for (let i = 0; i < 4; i++) this.legs[i]!.rotation.x = 0;
       this.headPivot.rotation.x = 0.2;
     } else {
       r.rotation.z = 0;
-      // trot: stride rate from speed, diagonal pairs (FL + BR, FR + BL)
-      const rate = speed < 0.05 ? 0 : 1.6 + speed * 0.55;
-      this.phase += dt * rate * Math.PI * 2;
-      const amp = Math.min(0.75, speed * 0.22);
-      const s = Math.sin(this.phase) * amp;
+      // trot: diagonal pairs (FL + BR, FR + BL)
+      const s = pose.swing;
       this.legs[0]!.rotation.x = s;
       this.legs[3]!.rotation.x = s;
       this.legs[1]!.rotation.x = -s;
       this.legs[2]!.rotation.x = -s;
-      this.body.position.y = SHOULDER - 0.1 + Math.abs(Math.cos(this.phase)) * amp * 0.04;
-      this.headPivot.rotation.x = -0.25 * alert + 0.35 * bite + Math.sin(this.phase * 0.5) * 0.04;
-      this.headPivot.position.z = BODY * 0.48 + bite * 0.12;
+      this.body.position.y = pose.bodyY;
+      this.headPivot.rotation.x = pose.headPitch;
+      this.headPivot.position.z = pose.headZ;
+      dogHead(r.position, yaw, speed, this.phase, alert, bite, this.head);
     }
-    this.tail.rotation.y = Math.sin(this.phase * 1.3 + 1) * (0.25 + 0.3 * alert);
-    this.headPivot.computeWorldMatrix(true);
-    this.head.copyFrom(this.headPivot.getAbsolutePosition());
-    this.head.y += 0.14;
+    this.tail.rotation.y = pose.tail;
   }
 
   /** Lying down (dead / knocked out) or back up. */

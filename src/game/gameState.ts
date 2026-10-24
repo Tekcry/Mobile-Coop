@@ -43,7 +43,7 @@ import { WeaponCrates } from './weaponCrates';
 import { addDoorRows, DOOR_KIND, DoorMenuView, guardBehindDoor, type DoorOpt } from './doorMenu';
 import { addGrabRows, GRAB_KIND, GRAB_OPT_LABEL, GRAB_OPTS, GRAB_PASS, GrabMenuView, grabTriggerPick, hasInfo, type GrabOpt } from './grabMenu';
 import { ContextMenu, CtxNav, emptyCtxInput } from './contextMenu';
-import { hasJoint, JOINT_BLUFF_LABEL, JOINT_KIND } from './jointInterrogation';
+import { hasJoint, JOINT_BLUFF_LABEL, JOINT_KIND, type JointIntel } from './jointInterrogation';
 import { StrikeTrigger } from '../player/weaponStance';
 import { DRAW_HOLSTERED } from '../weapons/drawState';
 import { emptyStats, type GameMode, type ModeId, type SessionStats } from './modes/gameMode';
@@ -233,8 +233,8 @@ export interface NetAttachment {
    *  stores its own; a client asks the host (`td`, kind `bluff`). A denied bluff shows nothing (A6). */
   jointBluff?(v: TakedownVictim): void;
   /** (joint-interrogation) Host only: the host's own read of `v` ends now; true when another player's bluff on him is
-   *  live (that bluff is spent and counted: one read pays once). */
-  jointLive?(v: TakedownVictim): boolean;
+   *  live and `j` (his joint record, read before `takeInfo`) has lines (that bluff is spent and counted: one read pays once). */
+  jointLive?(v: TakedownVictim, j: JointIntel | null): boolean;
   /** (camera-cue fix) Client: the other living players' bodies for the camera cue's own sight test, written into
    *  `out` from index `from` (entries added when missing); returns how many. */
   partnerBodies?(out: SeenBody[], from: number): number;
@@ -546,6 +546,8 @@ export class GameState implements AppState {
       app.input.haptic(suppressed ? 'shotSuppressed' : 'shotLoud'),
     );
     this.target = new PlayerTarget(this.scene, this.registry, this.player);
+    // (rig-pose-fix S3) the wall-poke eye is the one sim head (S1's body model, synced each fixed step before the weapons)
+    this.weapons.simHead = this.target.body.head;
     this.stats = emptyStats(opts.mode, opts.map.id);
     this.localRef = {
       id: 'local',
@@ -1599,10 +1601,11 @@ export class GameState implements AppState {
     let ox = wc && wc.phase === 'on' ? wc.exX : 0;
     let oz = wc && wc.phase === 'on' ? wc.exZ : 0;
     let hh = h;
-    // (step 12b) on the wall the head sample is the real posed head (peek, the mirrored open-side lean, the low-wall
-    // side lean under the top), as perception's exposure points
+    // (step 12b; rig-pose-fix S4, A2 supersedes A51) on the wall the head sample is the sim body's head (the peek, the
+    // side-on crouch: `playerBody`, fitted to the rig), the point perception's exposure and the host's view of this
+    // player read too (light parity on both machines)
     if (wc && wc.phase === 'on' && this.player.pose.wall) {
-      const hd = this.player.rig.posedHead(this.posedHead);
+      const hd = this.target.body.head;
       const hs = posedHeadSample(p.x, p.y, p.z, hd.x, hd.y, hd.z, this.headSample);
       ox = hs.ox;
       oz = hs.oz;
@@ -1613,7 +1616,7 @@ export class GameState implements AppState {
     const rs = this.remotePlayers();
     for (let i = 0; i < rs.length; i++) {
       const r = rs[i]!;
-      // (step 12b fix r2) on a wall: the host's posed copy's head (the same sample as the remote's headPoint)
+      // (step 12b fix r2; rig-pose-fix S4) on a wall: the remote's sim body head (the same sample as its headPoint)
       const rh = r.head;
       if (rh) {
         const hs = posedHeadSample(r.feet.x, r.feet.y, r.feet.z, rh.x, rh.y, rh.z, this.headSample);
@@ -1669,8 +1672,6 @@ export class GameState implements AppState {
   }
 
   private lightFrom = new Vector3();
-  private readonly posedHead = new Vector3();
-  private readonly posedChest = new Vector3();
   private lightTo = new Vector3();
   private lightRay = new PhysicsRaycastResult();
   private readonly floorFrom = new Vector3();
@@ -1977,7 +1978,8 @@ export class GameState implements AppState {
     this.player.fixedUpdate(dt, inp);
     // (tuner-ui) the studio's treadmill: a state on the spot is held where it started
     if (this.studio && !this.paused) this.studio.afterStep();
-    this.target.sync();
+    // (rig-pose-fix S1) the sim body: hit volumes, perception points, the wall head sample
+    this.target.sync(this.weapons.drawPhase !== DRAW_HOLSTERED);
     this.weapons.fixedUpdate(dt, inp);
     this.ballistics.update(dt);
     this.grenades.update(dt);
@@ -2787,7 +2789,10 @@ export class GameState implements AppState {
     // (F1a, cam-5) on the left shoulder (after the aim's shoulder swap) the weapon is in the left hand too; (anim-cleanup)
     // only settled in the aim pocket, never mid-draw / holster / reload (the travel paths and the reload are
     // right-handed), and the partner sees it (`PF.aimLeft`, net/netShared.ts localFlags)
-    pl.rig.openLeft = w.leftHand || (!w.active && pl.cam.shoulder < 0 && this.weapons.handSwitchOk);
+    // (rig-pose-fix S3) the sim flag lives on the weapons (their hand clock and the shot's side read it); the rig gets
+    // a copy for the drawn switch
+    this.weapons.handLeft = w.leftHand || (!w.active && pl.cam.shoulder < 0 && this.weapons.handSwitchOk);
+    pl.rig.openLeft = this.weapons.handLeft;
     const g = w.seg >= 0 ? segs[w.seg] : undefined;
     pose.wallNx = g ? g.nx : 0;
     pose.wallNz = g ? g.nz : 0;
@@ -3119,8 +3124,9 @@ export class GameState implements AppState {
       if (eyes.length >= 4) break;
     }
     const c = p.controller;
-    // (step 12b) back to a wall the head and chest samples are the real posed body (peek, open-side lean, side lean)
-    if (p.pose.wall) exposurePointsPosed(p.position, c.crouchBlend, Math.cos(c.yaw), -Math.sin(c.yaw), p.pose.lean, p.rig.posedHead(this.posedHead), p.rig.posedChest(this.posedChest), this.expPts, p.rig.height);
+    // (step 12b; rig-pose-fix S4, P12) back to a wall the head and chest samples are the sim body's (the peek, the side-on
+    // crouch), the points the guards and the light meter read
+    if (p.pose.wall) exposurePointsPosed(p.position, c.crouchBlend, Math.cos(c.yaw), -Math.sin(c.yaw), p.pose.lean, this.target.body.head, this.target.body.chest, this.expPts, p.rig.height);
     else exposurePoints(p.position, c.crouchBlend, Math.cos(c.yaw), -Math.sin(c.yaw), p.pose.lean, this.expPts, p.rig.height);
     this.exposure = exposureFraction(this.expPts, eyes, (a, b) => {
       this.rayA.set(a.x, a.y, a.z);

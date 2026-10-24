@@ -276,7 +276,8 @@ describe('flag on: the guard figure over the rig', () => {
     gb.setLook(42);
     gb.setGear(true, false);
     await vi.waitFor(() => expect(gb.shown).toBe(true));
-    const body = new Body(scene, world as never, def, true, rig, new B.Vector3(), false);
+    const { newLie } = await import('../src/ai/bodyLie');
+    const body = new Body(scene, world as never, def, true, rig, new B.Vector3(), false, newLie());
     expect(GB.guardBodyOf(rig)).toBe(gb);
     const before = gb.shownPieces();
     const chest = new B.TransformNode('carrier-chest', scene);

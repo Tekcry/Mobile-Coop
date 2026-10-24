@@ -32,6 +32,7 @@ import { barkIndex } from '../ai/barks';
 import { wireCarry } from './puppetCarry';
 import { localMoveState } from '../game/localMoveState';
 import { emptyMoveState, moveChanged } from '../player/moveState';
+import { emptyPlayerBodyIn, emptyPlayerBodyOut, playerBody } from '../player/playerVolumes';
 import { hostCrackOk } from '../world/doorPeek';
 import { contactDelay, GRAB } from '../game/takedown';
 import { hangHoldStep, hangingMove, type HangSpot } from './hangHold';
@@ -49,7 +50,7 @@ import type { CourseMode } from '../game/modes/courseMode';
 import type { PickupKind } from '../game/pickups';
 import { takeInfo } from '../ai/guardInfo';
 import { revealIntel, revealJoint } from '../game/intelReveal';
-import { hasJoint, JOINT, JOINT_BLUFF_FEED, jointBluffer, jointOf, type Bluff } from '../game/jointInterrogation';
+import { hasJoint, JOINT, JOINT_BLUFF_FEED, jointBluffer, jointHasLines, jointOf, type Bluff, type JointIntel } from '../game/jointInterrogation';
 import { interrogationEnded } from '../game/intel';
 import type { TeamMate } from '../game/teamController';
 import type { PlayerRef } from '../ai/enemy';
@@ -59,11 +60,12 @@ import { HALL_BACK_HOLD } from '../game/jammer';
 import { JOIN_PLACE, JOIN_RESYNC, JOIN_REVIVE_QUIET_S, JoinWatch } from './joinWatch';
 import { ClockSync, HOST_INTERP_DELAY } from './interp';
 import { CT } from '../config/movement';
-
-import type { CharacterRig } from '../player/characterRig';
+import { judgeRewound, newRewound, pushHist, rewindHist, stanceBody, stanceHead, type Hist, type Rewound } from './shotHistory';
 
 const SNAP_HZ = 15;
 const HISTORY_HZ = 20;
+/** (rig-pose-fix S3) Samples kept per guard (1.2 s, past `MAX_REWIND`). */
+const HISTORY_MAX = Math.ceil(HISTORY_HZ * 1.2);
 const MAX_REWIND = 0.6;
 /** (afp AF6) `HOST_INTERP_DELAY` (interp.ts; was 0.1). */
 const INTERP_DELAY = HOST_INTERP_DELAY;
@@ -76,23 +78,6 @@ const SHOT_NOISE = 28;
 /** A client takedown: the victim within this of the client (m), and let go after this long without an outcome (s). */
 const TD_REACH = 3;
 const TD_MAX = 6;
-
-interface Hist {
-  t: number;
-  x: number;
-  y: number;
-  z: number;
-  c: number;
-  /** (3.2.0) The posed head and pelvis (players: hanging, crawling, peeking), NaN when not recorded. */
-  hx: number;
-  hy: number;
-  hz: number;
-  bx: number;
-  by: number;
-  bz: number;
-  /** (3.2.0) Movement mode at the time (players), '' for enemies. */
-  m: string;
-}
 
 type Tally = EndStats['players'][string];
 const emptyTally = (): Tally => ({ kills: 0, headshots: 0, byKind: emptyKinds(), weaponKills: {} });
@@ -526,6 +511,7 @@ export class CoopHost implements NetAttachment {
     this.partnerBoxes.delete(id);
     this.joins.drop(id);
     this.rejoining.delete(id);
+    this.bluffs.delete(id);
     if (r.held) this.g.hud.setNetNotice(null);
     this.dropRevive(id);
     for (const [eid, s] of this.seized) if (s.by === id) this.release(eid);
@@ -911,10 +897,13 @@ export class CoopHost implements NetAttachment {
       return;
     }
     const b = this.bluffs.get(by);
+    // (check should-fix) the line once per live bluff: a repeat press or a replay on the same guard renews it quietly
+    const fresh = !b || b.eid !== e.id || this.time - b.t0 > JOINT.window;
     if (b) {
       b.eid = e.id;
       b.t0 = this.time;
     } else this.bluffs.set(by, { eid: e.id, t0: this.time });
+    if (!fresh) return;
     this.radioLine(JOINT_BLUFF_FEED);
     this.g.hud.feedItem(JOINT_BLUFF_FEED);
   }
@@ -929,14 +918,15 @@ export class CoopHost implements NetAttachment {
 
   /** (joint-interrogation) NetAttachment: the host's own read of `v` ends; another player's live bluff on him counts
    *  (spent and counted). */
-  jointLive(v: TakedownVictim): boolean {
-    return this.jointFor(v.id, this.s.selfId);
+  jointLive(v: TakedownVictim, j: JointIntel | null): boolean {
+    return this.jointFor(v.id, this.s.selfId, j);
   }
 
   /** (joint-interrogation) A read of guard `eid` held by `holder` ends now: a live bluff by another player on him (the
    *  holder's own entry never counts) is spent (`bluffs.delete`) and counted (`joints`). Runs on the read's end only. */
-  private jointFor(eid: string, holder: string): boolean {
-    if (this.bluffs.size === 0) return false;
+  private jointFor(eid: string, holder: string, j: JointIntel | null): boolean {
+    // (check should-fix) spent and counted only when there are joint lines to reveal (`j`: read before `takeInfo`)
+    if (this.bluffs.size === 0 || !jointHasLines(j)) return false;
     this.jointEid = eid;
     const by = jointBluffer(this.bluffs, eid, holder, this.time, this.bluffDist);
     if (by === null) return false;
@@ -1213,51 +1203,33 @@ export class CoopHost implements NetAttachment {
     if (e?.alive) e.releaseTakedown();
   }
 
-  /** Position of `h` at host time `t` (lag compensation). */
-  private rewindHist(h: Hist[] | undefined, t: number, out: Vector3): { crouch: number; posed: boolean } | null {
-    if (!h || !h.length) return null;
-    const tt = Math.max(this.time - MAX_REWIND, Math.min(this.time, t));
-    let a = h[0]!;
-    let b = h[h.length - 1]!;
-    if (tt >= b.t) {
-      out.set(b.x, b.y, b.z);
-      this.rwHead.set(b.hx, b.hy, b.hz);
-      this.rwBody.set(b.bx, b.by, b.bz);
-      return { crouch: b.c, posed: !Number.isNaN(b.hx) };
-    }
-    for (let i = h.length - 1; i > 0; i--) {
-      if (h[i - 1]!.t <= tt) {
-        a = h[i - 1]!;
-        b = h[i]!;
-        break;
-      }
-    }
-    const k = b.t > a.t ? Math.max(0, Math.min(1, (tt - a.t) / (b.t - a.t))) : 0;
-    out.set(a.x + (b.x - a.x) * k, a.y + (b.y - a.y) * k, a.z + (b.z - a.z) * k);
-    this.rwHead.set(a.hx + (b.hx - a.hx) * k, a.hy + (b.hy - a.hy) * k, a.hz + (b.hz - a.hz) * k);
-    this.rwBody.set(a.bx + (b.bx - a.bx) * k, a.by + (b.by - a.by) * k, a.bz + (b.bz - a.bz) * k);
-    return { crouch: a.c + (b.c - a.c) * k, posed: !Number.isNaN(a.hx) && !Number.isNaN(b.hx) };
-  }
+  /** (rig-pose-fix S3) A guard's rewound place for a judge (`shotHistory.rewindHist`). */
+  private readonly rw: Rewound = newRewound();
 
-  /** The rewound posed head / pelvis (`rewindHist`, when `posed`). */
-  private rwHead = new Vector3();
-  private rwBody = new Vector3();
-
-  /** Shared checks: geometry against the rewound target, line of sight, the damage cap. Returns the damage. */
-  private judge(r: RemotePlayer, m: Extract<Msg, { t: 'shot' }>, feet: Vector3, crouch: number, scale: number, posed = false): number {
+  /**
+   * Shared checks: geometry against the rewound target, line of sight, the damage cap. Returns the damage and leaves the
+   * judged body / head points in `tmpB` / `tmpH`. (rig-pose-fix S3, G7) A guard (`rw`): a head claim is judged against
+   * his rewound sim head, else the rewound head the client is shown (`shotHistory.judgeRewound`), never a stance
+   * constant. The head tolerance stays `checkShot`'s 0.7 x 1.1 m x scale (0.77 m for a 1.0 guard): it covers the client's
+   * interpolation (snapshots at 15 Hz vs history at 20 Hz, the clock sync error: ~0.15 m at a run), the puppet's eased
+   * crouch and speed against the host's (up to ~0.3 m in a crouch change), the stride bob (the puppet's mean phase,
+   * < 5 cm) and the head sphere's radius (0.12 m). A player (course friendly fire, `rw` null) keeps the stance points.
+   */
+  private judge(r: RemotePlayer, m: Extract<Msg, { t: 'shot' }>, feet: Vector3, scale: number, rw: Rewound | null): number {
     const def = WEAPONS[m.w];
-    // (3.2.0) a player's posed head / pelvis when recorded (hanging off a lip, crawling, leaning out), else by stance
-    const body = posed ? this.tmpB.copyFrom(this.rwBody).addInPlaceFromFloats(0, 0.12, 0) : this.tmpB.copyFrom(feet).addInPlaceFromFloats(0, (crouch > 0.5 ? 0.7 : 1.0) * scale, 0);
-    const head = posed ? this.tmpH.copyFrom(this.rwHead) : this.tmpH.copyFrom(feet).addInPlaceFromFloats(0, (crouch > 0.5 ? 1.15 : 1.62) * scale, 0);
+    const claim = { origin: { x: m.ox, y: m.oy, z: m.oz }, dir: { x: m.dx, y: m.dy, z: m.dz }, part: m.part };
     // (hang-down, A6) a client hanging head-first shoots from under its turned-over root
-    const verdict = checkShot({ origin: { x: m.ox, y: m.oy, z: m.oz }, dir: { x: m.dx, y: m.dy, z: m.dz }, part: m.part }, r.feet, body, head, def.range, 1.1 * scale, hangingMove(r.state?.mv) ? SHOT_UNDER_HANG : SHOT_UNDER);
+    const under = hangingMove(r.state?.mv) ? SHOT_UNDER_HANG : SHOT_UNDER;
+    let verdict;
+    if (rw) verdict = judgeRewound(claim, r.feet, rw, scale, def.range, 1.1 * scale, under, this.tmpB, this.tmpH);
+    else verdict = checkShot(claim, r.feet, stanceBody(feet, 0, scale, this.tmpB), stanceHead(feet, 0, scale, this.tmpH), def.range, 1.1 * scale, under);
+    const aim = m.part === 'head' ? this.tmpH : this.tmpB;
     if (!verdict.ok) {
       r.violations++;
       return 0;
     }
     // line of sight against level geometry (props/characters do not block validation)
     const o = this.tmp.set(m.ox, m.oy, m.oz);
-    const aim = m.part === 'head' ? head : body;
     const los = this.g.ballistics.ray(o, aim, MASK.HOST_LOS);
     if (los.hit && los.distance < Vector3.Distance(o, aim) - 0.4) return 0;
     return Math.min(m.dmg, maxHitDamage(def, m.part === 'head'));
@@ -1270,10 +1242,20 @@ export class CoopHost implements NetAttachment {
     // (step 09, D8) no hip fire: the host's draw phase for the shooter must be drawn
     // (fix 3) and only with the weapon it holds or one from its lobby loadout (the rate limit and damage read m.w)
     if (!hostShotAllowed(r.state?.mv?.dw) || !hostShotWeapon(m.w, r.state?.w, r.loadout) || !r.takeShot(m.w, this.time)) return;
-    const feet = new Vector3();
-    const pose = this.rewindHist(this.history.get(enemy.id), m.rt, feet);
-    if (!pose) enemy.center(feet).addInPlaceFromFloats(0, -1, 0);
-    const dmg = this.judge(r, m, feet, pose?.crouch ?? 0, enemy.def.scale);
+    // (rig-pose-fix S3) his rewound feet, crouch and heads; no history yet (just spawned): his place now
+    const rw = this.rw;
+    if (!rewindHist(this.history.get(enemy.id), m.rt, this.time, MAX_REWIND, rw)) {
+      rw.feet.x = enemy.pos.x;
+      rw.feet.y = enemy.pos.y;
+      rw.feet.z = enemy.pos.z;
+      rw.crouch = enemy.crouchBlend;
+      const h = enemy.simHead;
+      rw.head.x = h.x;
+      rw.head.y = h.y;
+      rw.head.z = h.z;
+      enemy.wireHead(rw.wire);
+    }
+    const dmg = this.judge(r, m, enemy.pos, enemy.def.scale, rw);
     if (dmg <= 0) return;
     const aim = (m.part === 'head' ? this.tmpH : this.tmpB).clone();
     const res = enemy.applyDamage({ amount: dmg, point: aim, dir: new Vector3(m.dx, m.dy, m.dz), part: m.part, kind: 'bullet', attackerTeam: 'player', attackerId: r.id, weapon: m.w, sourcePos: new Vector3(m.ox, m.oy, m.oz), impulse: WEAPONS[m.w].impulse });
@@ -1350,7 +1332,7 @@ export class CoopHost implements NetAttachment {
     // (fix 3) and only with the weapon it holds or one from its lobby loadout (the rate limit and damage read m.w)
     if (!hostShotAllowed(r.state?.mv?.dw) || !hostShotWeapon(m.w, r.state?.w, r.loadout) || !r.takeShot(m.w, this.time)) return;
     const feet = (self ? this.g.player.position : victim!.feet).clone();
-    const dmg = this.judge(r, m, feet, 0, 1, false);
+    const dmg = this.judge(r, m, feet, 1, null);
     if (dmg <= 0) return;
     const hit: HitInfo = {
       amount: dmg,
@@ -1498,29 +1480,21 @@ export class CoopHost implements NetAttachment {
     }
   }
 
+  /** (rig-pose-fix S3, G7 / G20) Each live guard's sim feet, crouch, sim head (`simHead`) and shown head (`wireHead`)
+   *  for the judge's rewind (`shotHistory.ts`). The old rig branch (G20: a rig head / pelvis, never passed a rig) is gone. */
   private recordHistory(): void {
-    const push = (h: Hist[], x: number, y: number, z: number, c: number, rig: CharacterRig | null = null, m = ''): void => {
-      const e: Hist = { t: this.time, x, y, z, c, hx: NaN, hy: NaN, hz: NaN, bx: NaN, by: NaN, bz: NaN, m };
-      if (rig) {
-        const hp = rig.headNode.getAbsolutePosition();
-        const bp = rig.hips.getAbsolutePosition();
-        e.hx = hp.x;
-        e.hy = hp.y;
-        e.hz = hp.z;
-        e.bx = bp.x;
-        e.by = bp.y;
-        e.bz = bp.z;
-      }
-      h.push(e);
-      if (h.length > HISTORY_HZ * 1.2) h.shift();
-    };
-    for (const e of this.g.enemyMgr?.enemies ?? []) {
+    const enemies = this.g.enemyMgr?.enemies;
+    if (!enemies) return;
+    const w = this.histWire;
+    for (let i = 0; i < enemies.length; i++) {
+      const e = enemies[i]!;
       if (!e.alive) continue;
       let h = this.history.get(e.id);
       if (!h) this.history.set(e.id, (h = []));
-      push(h, e.pos.x, e.pos.y, e.pos.z, e.crouchBlend);
+      pushHist(h, HISTORY_MAX, this.time, e.pos, e.crouchBlend, e.simHead, e.wireHead(w));
     }
   }
+  private readonly histWire = { x: 0, y: 0, z: 0 };
 
   /** Enemies hear the clients too: footsteps by speed and stance, shots by their weapon (suppressed = suspicion). */
   private remoteNoise(dt: number): void {
@@ -1605,7 +1579,7 @@ export class CoopHost implements NetAttachment {
           if (interrogationEnded(this.interPh.get(eid) ?? -1, mv.sub)) {
             const info = e.info;
             // (joint-interrogation) checked before `takeInfo` spends him; the holder (s.by) is never his own bluffer
-            const joint = !!info && info.lines.length > 0 && this.jointFor(eid, s.by);
+            const joint = !!info && info.lines.length > 0 && this.jointFor(eid, s.by, jointOf(info));
             if (takeInfo(e)) revealIntel(this.g, e.pos, info);
             if (joint) revealJoint(this.g, e.pos, jointOf(info));
           }
@@ -1684,20 +1658,18 @@ export class CoopHost implements NetAttachment {
     }
   }
 
-  private readonly posedHeadTmp = new Vector3();
+  /** (rig-pose-fix S1, G12) A partner's sim body (friendly-fire volumes from the drawn copy's state, not its rig). */
+  private readonly partnerIn = emptyPlayerBodyIn();
+  private readonly partnerOut = emptyPlayerBodyOut();
+  private readonly partnerHead = new Vector3();
+  private readonly partnerHips = new Vector3();
   frameUpdate(dt: number): void {
     const now = performance.now() / 1000 - INTERP_DELAY;
     this.holdClock.frame(now, this.time);
     for (const r of this.remotes.values()) {
       r.avatar.update(dt, now);
-      if (r.alive) {
-        const rig = r.avatar.rig;
-        rig.hips.computeWorldMatrix(true);
-        rig.headNode.computeWorldMatrix(true);
-        r.followPose(rig.hips.getAbsolutePosition(), rig.headNode.getAbsolutePosition());
-        // (step 12b fix r2, light parity) on a wall: perception's head point and the light meter read the posed head
-        r.setPosedHead(r.state?.mv?.m === 'wall' ? rig.posedHead(this.posedHeadTmp) : null);
-      } else r.setPosedHead(null);
+      // (rig-pose-fix S1, G3 / G4) the client's hit volumes, perception points and wall head come from its sim body at
+      // the accepted state (`RemotePlayer.accept`), no longer from this drawn copy's rig
       r.blocker?.sync(r.avatar.pos, r.crouched, r.alive && !partnerPassable(r.avatar.mode));
       const hb = this.partnerBoxes.get(r.id);
       if (!hb) continue;
@@ -1706,10 +1678,8 @@ export class CoopHost implements NetAttachment {
         continue;
       }
       hb.setEnabled(true);
-      const rig = r.avatar.rig;
-      rig.hips.computeWorldMatrix(true);
-      rig.headNode.computeWorldMatrix(true);
-      hb.sync(r.avatar.pos, rig.headNode.getAbsolutePosition(), rig.hips.getAbsolutePosition());
+      const b = playerBody(r.avatar.bodyIn(this.partnerIn), this.partnerOut);
+      hb.sync(r.avatar.pos, this.partnerHead.set(b.head.x, b.head.y, b.head.z), this.partnerHips.set(b.pelvis.x, b.pelvis.y, b.pelvis.z));
     }
   }
 

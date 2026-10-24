@@ -81,6 +81,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Co-op two intruders (guard-ai S24): split up and get seen apart (host in one room, joiner in another): each
   fight stays on its own player (the guards who saw the host hunt the host's last seen spot, the joiner's hunt his);
   out of sight, nobody walks to where a player really is without having seen or heard him. Solo is unchanged.
+  (coop4, once 3-4 players can join Sector Ops) The same with three or four players apart; on an alarm the
+  reinforcements go for different players, the one the alarm raiser saw first; 2-player play is unchanged.
 - [ ] Co-op guard AI (guard-ai S9): on the joiner, guards' lines and radio calls show as on the host; a cautious guard
   carries his weapon at low ready on both screens; after an alarm stage 2 / 3 the joiner sees the vests and helmets and
   a response team's shield; the joiner's headshot on a helmeted guard pings as a deflect and the helmet falls on both.
@@ -486,6 +488,12 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   left toggles vision, B or the stick pulled back leaves; a guard on your side still sees you kneeling.
 - [ ] Drainpipe: one reach per hand about a second, feet together; shimmy slow with the legs swinging; ledge climb-up
   ends crouched (hold the stick to stand); ladder slower up, faster down; rappel 0.6 m/s.
+
+### Hits come from game state (rig-pose fix)
+- [ ] Co-op: let a guard shoot each player in turn, standing, crouched and on a wall; both take head / body / leg hits the same way.
+- [ ] Co-op: headshot a guard as the client, also one peeking from cover; it counts as a headshot.
+- [ ] Shoot from a wall edge and while hanging upside down: rounds leave from the gun side and hit where aimed.
+- [ ] Kill a guard at a ledge lip: the body lies on the floor below; pick it up on both machines.
 
 ### Keyboard and mouse
 - [ ] A click captures the mouse (it never fires); W A S D move, the mouse looks, the wheel or = / - change the gear.
