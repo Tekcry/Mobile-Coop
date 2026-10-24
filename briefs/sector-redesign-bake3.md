@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-24T11:29Z
+status: done feature/sector-redesign-bake3 3c2d7d19
 
 # Sector Ops: section-bake inline polish (bake2 check polish P1 / P2 / P4)
 
@@ -35,3 +35,21 @@ Run: `npx tsc --noEmit -p .` and `npx vitest run tests/sectionBakeRobust.test.ts
 (list every test file under tests/ that imports sectionJobs or sectionBake: `grep -rl -E "sectionJobs|sectionBake" tests`).
 
 Done: branch pushed, tsc clean, those test files green with counts in the report, status line set to done.
+
+## Report (Night Shift | Cloud Builder 1, 2026-10-24)
+Branch `feature/sector-redesign-bake3` @ 3c2d7d19 (one commit on 54cdb9e1).
+- P2: `drainInline` (sectionJobs.ts ~:314), while playing with pool jobs in flight, scans from `inlineHead` for the first
+  not-landed `plan.liveMember` lamp; none -> hold as before; found -> `copyWithin` shifts it to the head in place (stable,
+  held lamps keep their order; no allocation) and it bakes, one lamp per task. One queue, not two: live membership
+  changes with `setLive`, so a second queue would need moves on every live change; the queue only holds twice-failed lamps.
+- P1: `setLive` calls `drainInline` after the live listeners; non-live lamps keep the idle-pool rule.
+- P4: exported `JOB_RETRY_CAP_MS = 20_000`; `checkStalled` uses it when `tries[i] === 1`, else `capMs ?? JOB_CAP_MS`.
+- Tests: `npx tsc --noEmit -p .` clean; vitest sectionBakeRobust 12/12 (9 old unchanged + 3 new a/b/c),
+  sectionBake 11/11, sectionBakeCampus 3 passed 1 skipped (heavy case, as before): 26 passed, 1 skipped.
+  Mutation check by the builder: reverting each change fails its new test.
+- Also: changelog fragment `changes/feature-sector-redesign-bake3.md` (patch), "bake3" section in
+  `docs/sector-redesign/checks/section-bake-robust.md`.
+- Follow-up (outside the brief's files): `docs/systems/lighting.md` "Failures" (~:161-163) still says the inline bake
+  always waits for an idle pool and names only the 60 s cap.
+- Deviation: none. The check's polish-1 option (hold non-live lamps until setLive / match end) not taken; the brief keeps
+  the idle-pool rule.
