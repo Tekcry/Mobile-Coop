@@ -12,7 +12,7 @@
   smoke, ONE alone request for the full M1 run on this branch head (campus + sectorops, 0/12/24/32, players 2 and 4).
 - SIDE (orchestrator ~18:35): e2e-coop joint interrogation flake -> PR #328 (feature/joint-flake 240addc2, test only: the
   client hold starts at the bluff; JOINT.window 6 s host time was spent by sequential polls). Laptop e2e-coop queued
-  (20261024T072944-...-d2f1, set joint-flake). On PASS: label train-ready + message the orchestrator.
+  (20261024T072944-...-d2f1, set joint-flake). HELD AS DRAFT (orchestrator ~18:40): wait for #314 (762b479f, same suite, no overlap) on master, then rebase #328 on master, rerun e2e-coop, keep only what is still needed, then train-ready.
 - R1 TAKEN by Guard AI Build (~18:30): Opus builder on feature/guard-ai-r1-rays off 6e8a450b (brief docs/guard-cap/briefs/R1.md);
   Opus checker + laptop e2e-stealth-ai / e2e-enemies, PR into the next train; it copies Marlow at train-ready. Marlow does not touch src/ai.
 
