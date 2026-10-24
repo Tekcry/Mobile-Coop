@@ -1,0 +1,14 @@
+{
+  "id": "20261024T102234-auto-train-d3d07151-68cb",
+  "sha": "d3d071511be66940905f640c336fbc537265a13a",
+  "branch": "",
+  "pr": 341,
+  "kind": "pr",
+  "requester": "auto-train",
+  "suites": [
+    "e2e-sectorops:6",
+    "e2e-sectorops:1"
+  ],
+  "trainRerun": true,
+  "set": "train64-rerun"
+}
