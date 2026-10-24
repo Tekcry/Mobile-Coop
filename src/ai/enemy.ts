@@ -403,6 +403,9 @@ export class Enemy implements Damageable {
   private routeT = 0;
   /** The nav grid's `version` the route was planned under (a bolted door opened or shut since: replan). */
   private routeVer = -1;
+  /** (guard-ai S28) The last plan found no path (a locked door shut the way): the next try waits for `routeT`, a new goal
+   *  or a grid change, not every frame. */
+  private routeMiss = false;
   /** Searching round its own stimulus (a body, a light) rather than the shared last known position. */
   private searchOwn = false;
   /** (guard-ai S18) The search's kind (`response.ts` `SEARCH_*`): plain, a dead body's (longer, wider), a device's. */
@@ -1635,7 +1638,13 @@ export class Enemy implements Damageable {
         out.face = this.lookBase + Math.sin(tm.dwellT * 1.6) * 1.0;
         return out;
       }
-      tm.lead(dt, this.pos.x, this.pos.z);
+      tm.lead(dt, this.pos.x, this.pos.z, this.routeToGo(p));
+      // (guard-ai sweep fix) held short of the point: his route is dropped and planned again from here
+      if (tm.replan) {
+        tm.replan = false;
+        this.routePath.length = 0;
+        this.routeMiss = false;
+      }
       const wp = this.goTo(p, dt);
       // unreachable: on to the next one
       if (!wp && this.routePath.length === 0) tm.next();
@@ -2337,18 +2346,23 @@ export class Enemy implements Damageable {
     const nav = this.ctx.nav;
     if (nav.lineClear(me, p, this.pos.y, y)) {
       this.routePath.length = 0;
+      this.routeMiss = false;
       return p;
     }
     this.routeT -= dt;
     const moved = !(hyp2(p[0] - this.routeGoal[0], p[1] - this.routeGoal[1]) < 1.5);
-    if ((moved && this.routeT <= 0) || this.routePath.length === 0 || this.routeVer !== nav.version) {
+    // (guard-ai S28) an unreachable goal is retried each `routeT`, or at once for a new goal (0.5 m off the missed one) or
+    // a grid change
+    const retry = this.routePath.length === 0 && (!this.routeMiss || this.routeT <= 0 || !(hyp2(p[0] - this.routeGoal[0], p[1] - this.routeGoal[1]) < 0.5));
+    if ((moved && this.routeT <= 0) || retry || this.routeVer !== nav.version) {
       this.routeT = 1;
       this.routeVer = nav.version;
       this.routeGoal[0] = p[0];
       this.routeGoal[1] = p[1];
       this.routePath = nav.findPath(me, p, 3000, this.pos.y, y) ?? [];
-      if (this.routePath.length === 0) return null;
+      this.routeMiss = this.routePath.length === 0;
     }
+    if (this.routePath.length === 0) return null;
     const wp = this.routePath[0]!;
     // a ladder / drop waypoint is taken (and dropped) by `move`
     if (!wp.link && hyp2(wp[0] - me[0], wp[1] - me[1]) < 0.4) this.routePath.shift();
@@ -3495,6 +3509,57 @@ export class Enemy implements Damageable {
 
   private navCell = -1;
 
+  private readonly outP: P2 = [0, 0];
+
+  /**
+   * (guard-ai sweep fix) He stands in a blocked cell `cur`: does the step to (x, z) head out of it on his own side? The
+   * way out is the walkable neighbour whose centre is nearest his feet in metres (not the ring order: in a cell a thin
+   * wall splits, that is the side he is on, never across its line). No allocation.
+   */
+  private outward(cur: number, x: number, z: number): boolean {
+    const nav = this.ctx.nav;
+    const px = this.pos.x;
+    const pz = this.pos.z;
+    const o = this.outP;
+    nav.centerInto(cur, o);
+    const cx = o[0];
+    const cz = o[1];
+    let bd = Infinity;
+    let bx = 0;
+    let bz = 0;
+    for (let dz = -1; dz <= 1; dz++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if (dx === 0 && dz === 0) continue;
+        const c = nav.cellNear(cur, cx + dx * nav.cell, cz + dz * nav.cell);
+        if (c < 0 || c === cur || !nav.isWalkable(c)) continue;
+        nav.centerInto(c, o);
+        const d = hyp2(o[0] - px, o[1] - pz);
+        if (d < bd) {
+          bd = d;
+          bx = o[0];
+          bz = o[1];
+        }
+      }
+    }
+    if (bd === Infinity) return false;
+    return (x - px) * (bx - px) + (z - pz) * (bz - pz) > 0;
+  }
+
+  /** (guard-ai sweep fix) His way still to go to `p` along his route (m): the legs of `routePath`, then on to `p`. */
+  private routeToGo(p: P2): number {
+    const rp = this.routePath;
+    let qx = this.pos.x;
+    let qz = this.pos.z;
+    let d = 0;
+    for (let k = 0; k < rp.length; k++) {
+      const w = rp[k]!;
+      d += hyp2(w[0] - qx, w[1] - qz);
+      qx = w[0];
+      qz = w[1];
+    }
+    return d + hyp2(p[0] - qx, p[1] - qz);
+  }
+
   /** Move to (x, z) if the nav grid allows the step (no closure: called every step for every enemy). */
   private tryMove(x: number, z: number): boolean {
     // (guard-ai S20) a shut door's leaf, or a step into another guard (the slides too), is not taken
@@ -3508,7 +3573,9 @@ export class Enemy implements Damageable {
     const cur = this.navCell;
     const c = nav.cellNear(cur, x, z);
     if (c === cur || (c >= 0 && nav.canStep(cur < 0 ? c : cur, c)) || !nav.isWalkable(cur)) {
-      if (c >= 0 && nav.isWalkable(c)) {
+      // (guard-ai sweep fix) standing in a blocked cell (pressed into a wall's margin): a step inside it towards the
+      // nearest walkable cell is taken too, so he walks out (before, every step short of the edge was refused: frozen)
+      if (c >= 0 && (nav.isWalkable(c) || (c === cur && !nav.isWalkable(cur) && this.outward(cur, x, z)))) {
         this.pos.x = x;
         this.pos.z = z;
         return true;

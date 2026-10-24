@@ -13,7 +13,7 @@ describe('tables', () => {
   it('match the research numbers', () => {
     expect(GEAR).toEqual({ helmetHits: 1, helmetStagger: 0.9, armourStagger: 0.5, staggerCd: 1.5, armourMult: 0 });
     expect(RESPONSE).toEqual({ shieldLead: true, shieldHelmet: true, liveTeam: 3 });
-    expect(SWEEP).toEqual({ enabled: true, thin: 8, dwell: 6, gap: 2.5 });
+    expect(SWEEP).toEqual({ enabled: true, thin: 8, dwell: 6, gap: 2.5, stall: 5, stallGain: 0.5, stallJump: 2 });
     expect(MISSING).toEqual({ sectionCaution: true, cautious: 180 });
     expect(SHOTS).toEqual({ sectionCall: true, cautious: 120, pair: true });
     expect(BREAKER).toEqual({ reset: true, resetT: 2, repeatT: 60 });

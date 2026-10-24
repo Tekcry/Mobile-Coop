@@ -242,7 +242,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   report get through: a calm guard nearby jogs over to help search; throw a bottle: the one sent still walks over.
 - [ ] Guards and doors (guard-ai S20): watch two patrols cross in a corridor and a guard pass a talking pair: they step
   round, never through each other; close a door on a patrol route: the guard opens it and waits for the swing, never
-  walks through the leaf; a locked door is never crossed (he stops at it).
+  walks through the leaf; a locked door is never crossed (guard-ai S28: his route goes round it; with no other way he
+  stops short). Marlow A7: a guard whose round passes the locked cage door (`A7-cage-w`) takes the way round, no stall
+  at the leaf; once the cage doors unlock, guards may path through them.
 - [ ] Weapon carry (guard-ai S21): a calm patrol walks with his rifle slung on his back (an officer's pistol on his thigh),
   hands empty; make a noise: he draws (the rifle off the back in the right hand, under a second) and walks at low ready;
   seen, he fires only once drawn; calm again, he holsters after about 15 s. A high-security post, and every guard once
