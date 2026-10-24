@@ -31,7 +31,8 @@
     { "id": "s2-hall", "section": "S2", "type": "encounter", "room_class": "loading_dock",
       "function": "Goods-in hall where the seized servers wait for collection", "storey": 0, "size": [21, 28, 8],
       "area": [[61, 22, 82, 50]], "tension": 4, "shadow_pct": 0.45, "los_break_s": 3,
-      "vantage": { "from": "s2-gantry", "sees_pct": 0.8, "at": [80.0, 4.5, 39.0] }, "guards": { "2": 7 }, "phase": "late", "tags": ["objective", "sync_pair"] },
+      "vantage": { "from": "s2-gantry", "sees_pct": 0.8, "at": [80.0, 4.5, 39.0] }, "guards": { "2": 7 },
+      "phase": "late", "tags": ["objective", "sync_pair"] },
     { "id": "s2-yard", "section": "S2", "type": "exterior", "room_class": "yard",
       "function": "Back service yard where the collection van waits", "storey": 0, "size": [14, 14, 12],
       "area": [[47, 30, 61, 44]], "tension": 2, "tags": ["exit", "exfil"] }
