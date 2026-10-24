@@ -1,0 +1,220 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="700" height="1205" viewBox="0 0 700 1205" font-family="monospace" font-size="9">
+<title>Split Shift - S2 HQ atrium and offices (G + L1; blue Ghost, orange Shadow)</title>
+<defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#444"/></marker><marker id="arrowC" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#d0198c"/></marker></defs>
+<rect width="700" height="1205" fill="#ffffff"/>
+<text x="20" y="24" font-size="16" font-weight="bold">Split Shift - S2 HQ atrium and offices (G + L1; blue Ghost, orange Shadow)</text>
+<text x="20" y="40" font-size="10" fill="#444">graph: campusOps-S2.plan-with-areas.json, graph.json   |   27 spaces, 54 links, mode sector, sections S2</text>
+<text x="20" y="54" font-size="10" fill="#444">scale 1 m = 10 px | north up: +z up the page, +x to the right | grid every 10 m, labels in world metres (x along the top, z down the left)</text>
+<text x="20" y="68" font-size="10" fill="#1f4e9c">mission splitShift | sector | players [1,2,3,4] | start s2-foyer | budget 14</text>
+<g id="plan" transform="translate(20,72)">
+<rect width="600" height="600" fill="#fbfaf6" stroke="#999"/>
+<line x1="0" y1="0" x2="0" y2="600" stroke="#d6d2c4" stroke-width="1"/><text x="2" y="9" font-size="7" fill="#9a9482">-50</text>
+<line x1="100" y1="0" x2="100" y2="600" stroke="#d6d2c4" stroke-width="0.5"/><text x="102" y="9" font-size="7" fill="#9a9482">-40</text>
+<line x1="200" y1="0" x2="200" y2="600" stroke="#d6d2c4" stroke-width="0.5"/><text x="202" y="9" font-size="7" fill="#9a9482">-30</text>
+<line x1="300" y1="0" x2="300" y2="600" stroke="#d6d2c4" stroke-width="0.5"/><text x="302" y="9" font-size="7" fill="#9a9482">-20</text>
+<line x1="400" y1="0" x2="400" y2="600" stroke="#d6d2c4" stroke-width="0.5"/><text x="402" y="9" font-size="7" fill="#9a9482">-10</text>
+<line x1="500" y1="0" x2="500" y2="600" stroke="#d6d2c4" stroke-width="1"/><text x="502" y="9" font-size="7" fill="#9a9482">0</text>
+<line x1="600" y1="0" x2="600" y2="600" stroke="#d6d2c4" stroke-width="0.5"/><text x="602" y="9" font-size="7" fill="#9a9482">10</text>
+<line x1="0" y1="600" x2="600" y2="600" stroke="#d6d2c4" stroke-width="0.5"/><text x="2" y="598" font-size="7" fill="#9a9482">-40</text>
+<line x1="0" y1="500" x2="600" y2="500" stroke="#d6d2c4" stroke-width="0.5"/><text x="2" y="498" font-size="7" fill="#9a9482">-30</text>
+<line x1="0" y1="400" x2="600" y2="400" stroke="#d6d2c4" stroke-width="0.5"/><text x="2" y="398" font-size="7" fill="#9a9482">-20</text>
+<line x1="0" y1="300" x2="600" y2="300" stroke="#d6d2c4" stroke-width="0.5"/><text x="2" y="298" font-size="7" fill="#9a9482">-10</text>
+<line x1="0" y1="200" x2="600" y2="200" stroke="#d6d2c4" stroke-width="1"/><text x="2" y="198" font-size="7" fill="#9a9482">0</text>
+<line x1="0" y1="100" x2="600" y2="100" stroke="#d6d2c4" stroke-width="0.5"/><text x="2" y="98" font-size="7" fill="#9a9482">10</text>
+<line x1="0" y1="0" x2="600" y2="0" stroke="#d6d2c4" stroke-width="0.5"/><text x="2" y="-2" font-size="7" fill="#9a9482">20</text>
+<rect x="200" y="140" width="220" height="360" fill="#e6a93c" fill-opacity="0.6" stroke="#333" stroke-width="1.2" data-space="s2-foyer"/>
+<rect x="420" y="140" width="120" height="100" fill="#e6a93c" fill-opacity="0.6" stroke="#333" stroke-width="1.2" data-space="s2-foyer"/>
+<rect x="60" y="400" width="140" height="100" fill="#e6a93c" fill-opacity="0.6" stroke="#333" stroke-width="1.2" data-space="s2-post"/>
+<rect x="60" y="320" width="140" height="80" fill="#e6a93c" fill-opacity="0.6" stroke="#333" stroke-width="1.2" data-space="s2-mail"/>
+<rect x="60" y="240" width="140" height="80" fill="#9fb4c7" fill-opacity="0.6" stroke="#333" stroke-width="1.2" data-space="s2-lift-g"/>
+<rect x="60" y="140" width="140" height="100" fill="#9fb4c7" fill-opacity="0.6" stroke="#333" stroke-width="1.2" data-space="s2-store"/>
+<rect x="420" y="240" width="120" height="260" fill="#e6a93c" fill-opacity="0.6" stroke="#333" stroke-width="1.2" data-space="s2-plant-g"/>
+<rect x="80" y="424" width="26" height="56" fill="#5b9bea" fill-opacity="0.6" stroke="#333" stroke-width="1.2" data-space="s2-core-sw"/>
+<rect x="500" y="144" width="26" height="56" fill="#9fb4c7" fill-opacity="0.6" stroke="#333" stroke-width="1.2" data-space="s2-core-ne"/>
+<rect x="60" y="385" width="365" height="115" fill="#5b9bea" fill-opacity="0.5" stroke="#333" stroke-width="1" stroke-dasharray="4 2" data-space="s2-l1-plan"/>
+<rect x="60" y="140" width="365" height="100" fill="#5b9bea" fill-opacity="0.5" stroke="#333" stroke-width="1" stroke-dasharray="4 2" data-space="s2-l1-plan"/>
+<rect x="60" y="240" width="180" height="145" fill="#5b9bea" fill-opacity="0.5" stroke="#333" stroke-width="1" stroke-dasharray="4 2" data-space="s2-l1-plan"/>
+<rect x="385" y="240" width="40" height="145" fill="#5b9bea" fill-opacity="0.5" stroke="#333" stroke-width="1" stroke-dasharray="4 2" data-space="s2-l1-plan"/>
+<rect x="200" y="425" width="90" height="75" fill="#5b9bea" fill-opacity="0.5" stroke="#333" stroke-width="1" stroke-dasharray="4 2" data-space="s2-l1-kitchen"/>
+<rect x="290" y="425" width="135" height="75" fill="#9fb4c7" fill-opacity="0.5" stroke="#333" stroke-width="1" stroke-dasharray="4 2" data-space="s2-l1-project"/>
+<rect x="60" y="340" width="85" height="60" fill="#9fb4c7" fill-opacity="0.5" stroke="#333" stroke-width="1" stroke-dasharray="4 2" data-space="s2-l1-mr1"/>
+<rect x="60" y="140" width="100" height="60" fill="#9fb4c7" fill-opacity="0.5" stroke="#333" stroke-width="1" stroke-dasharray="4 2" data-space="s2-l1-mr2"/>
+<rect x="240" y="140" width="100" height="60" fill="#9fb4c7" fill-opacity="0.5" stroke="#333" stroke-width="1" stroke-dasharray="4 2" data-space="s2-l1-mr3"/>
+<rect x="425" y="200" width="50" height="230" fill="#5b9bea" fill-opacity="0.5" stroke="#333" stroke-width="1" stroke-dasharray="4 2" data-space="s2-l1-wing"/>
+<rect x="475" y="210" width="65" height="35" fill="#5b9bea" fill-opacity="0.5" stroke="#333" stroke-width="1" stroke-dasharray="4 2" data-space="s2-l1-wing"/>
+<rect x="425" y="430" width="115" height="70" fill="#9fb4c7" fill-opacity="0.5" stroke="#333" stroke-width="1" stroke-dasharray="4 2" data-space="s2-l1-se-meet"/>
+<rect x="425" y="140" width="73" height="70" fill="#5b9bea" fill-opacity="0.5" stroke="#333" stroke-width="1" stroke-dasharray="4 2" data-space="s2-l1-facilities"/>
+<rect x="475" y="245" width="65" height="60" fill="#5b9bea" fill-opacity="0.5" stroke="#333" stroke-width="1" stroke-dasharray="4 2" data-space="s2-l1-comms"/>
+<rect x="475" y="305" width="65" height="70" fill="#9fb4c7" fill-opacity="0.5" stroke="#333" stroke-width="1" stroke-dasharray="4 2" data-space="s2-l1-landing"/>
+<rect x="425" y="140" width="73" height="85" fill="#5b9bea" fill-opacity="0.5" stroke="#333" stroke-width="1" stroke-dasharray="4 2" data-space="s2-l2-board"/>
+<polyline points="130,450 220,385 310,320" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="220" cy="385" r="1.8" fill="#444"/>
+<polyline points="480,370 395,345 310,320" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="395" cy="345" r="1.8" fill="#444"/>
+<polyline points="480,370 391.6,356.5 310,320" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="391.6" cy="356.5" r="1.8" fill="#444"/>
+<polyline points="130,450 130,405 130,360" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="130" cy="405" r="1.8" fill="#444"/>
+<polyline points="130,360 220,340 310,320" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="220" cy="340" r="1.8" fill="#444"/>
+<polyline points="130,360 130,320 130,280" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="130" cy="320" r="1.8" fill="#444"/>
+<polyline points="130,280 220,300 310,320" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="220" cy="300" r="1.8" fill="#444"/>
+<polyline points="130,280 130,235 130,190" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="130" cy="235" r="1.8" fill="#444"/>
+<polyline points="130,190 220,255 310,320" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="220" cy="255" r="1.8" fill="#444"/>
+<polyline points="130,450 111.5,451 93,452" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="111.5" cy="451" r="1.8" fill="#444"/>
+<polyline points="310,320 411.5,246 513,172" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="411.5" cy="246" r="1.8" fill="#444"/>
+<polyline points="310,320 276.3,381.3 242.5,442.5" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="276.3" cy="381.3" r="1.8" fill="#444"/>
+<polyline points="310,320 286.8,387 242.5,442.5" fill="none" stroke="#d0198c" stroke-width="2.2" stroke-opacity="0.85"/><circle cx="286.8" cy="387" r="2.6" fill="#d0198c"/>
+<polyline points="242.5,442.5 286.8,387 310,320" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85" marker-end="url(#arrow)"/><circle cx="286.8" cy="387" r="1.8" fill="#444"/>
+<polyline points="93,452 167.8,447.3 242.5,442.5" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="167.8" cy="447.3" r="1.8" fill="#444"/>
+<polyline points="513,172 481.5,243.5 450,315" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="481.5" cy="243.5" r="1.8" fill="#444"/>
+<polyline points="242.5,442.5 243.8,452.5 245,462.5" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="243.8" cy="452.5" r="1.8" fill="#444"/>
+<polyline points="242.5,442.5 255.7,451 245,462.5" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="255.7" cy="451" r="1.8" fill="#444"/>
+<polyline points="242.5,442.5 300,452.5 357.5,462.5" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="300" cy="452.5" r="1.8" fill="#444"/>
+<polyline points="242.5,442.5 302.1,440.7 357.5,462.5" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="302.1" cy="440.7" r="1.8" fill="#444"/>
+<polyline points="357.5,462.5 420,463.8 482.5,465" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="420" cy="463.8" r="1.8" fill="#444"/>
+<polyline points="242.5,442.5 172.5,406.3 102.5,370" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="172.5" cy="406.3" r="1.8" fill="#444"/>
+<polyline points="242.5,442.5 167,416.9 102.5,370" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="167" cy="416.9" r="1.8" fill="#444"/>
+<polyline points="242.5,442.5 176.3,306.3 110,170" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="176.3" cy="306.3" r="1.8" fill="#444"/>
+<polyline points="242.5,442.5 165.5,311.5 110,170" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="165.5" cy="311.5" r="1.8" fill="#444"/>
+<polyline points="242.5,442.5 266.3,306.3 290,170" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="266.3" cy="306.3" r="1.8" fill="#444"/>
+<polyline points="242.5,442.5 254.4,304.2 290,170" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="254.4" cy="304.2" r="1.8" fill="#444"/>
+<polyline points="242.5,442.5 346.3,378.8 450,315" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="346.3" cy="378.8" r="1.8" fill="#444"/>
+<polyline points="242.5,442.5 340,368.5 450,315" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="340" cy="368.5" r="1.8" fill="#444"/>
+<polyline points="242.5,442.5 352,308.8 461.5,175" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="352" cy="308.8" r="1.8" fill="#444"/>
+<polyline points="450,315 455.8,245 461.5,175" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="455.8" cy="245" r="1.8" fill="#444"/>
+<polyline points="450,315 478.8,295 507.5,275" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="478.8" cy="295" r="1.8" fill="#444"/>
+<polyline points="450,315 466.3,390 482.5,465" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="466.3" cy="390" r="1.8" fill="#444"/>
+<polyline points="480,370 493.8,322.5 507.5,275" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="493.8" cy="322.5" r="1.8" fill="#444"/>
+<polyline points="507.5,275 507.5,307.5 507.5,340" fill="none" stroke="#444" stroke-width="1.1" stroke-opacity="0.85"/><circle cx="507.5" cy="307.5" r="1.8" fill="#444"/>
+<polyline points="450,315 478.8,327.5 507.5,340" fill="none" stroke="#d0198c" stroke-width="2.2" stroke-opacity="0.85"/><circle cx="478.8" cy="327.5" r="2.6" fill="#d0198c"/>
+<rect x="210" y="374" width="20" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="220" y="381" text-anchor="middle" font-size="7" fill="#333">door</text>
+<rect x="385" y="334" width="20" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="395" y="341" text-anchor="middle" font-size="7" fill="#333">door</text>
+<rect x="381.6" y="345.5" width="20" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="391.6" y="352.5" text-anchor="middle" font-size="7" fill="#333">door</text>
+<rect x="120" y="394" width="20" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="130" y="401" text-anchor="middle" font-size="7" fill="#333">door</text>
+<rect x="210" y="329" width="20" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="220" y="336" text-anchor="middle" font-size="7" fill="#333">door</text>
+<rect x="120" y="309" width="20" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="130" y="316" text-anchor="middle" font-size="7" fill="#333">door</text>
+<rect x="210" y="289" width="20" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="220" y="296" text-anchor="middle" font-size="7" fill="#333">door</text>
+<rect x="120" y="224" width="20" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="130" y="231" text-anchor="middle" font-size="7" fill="#333">door</text>
+<rect x="210" y="244" width="20" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="220" y="251" text-anchor="middle" font-size="7" fill="#333">door</text>
+<rect x="101.5" y="440" width="20" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="111.5" y="447" text-anchor="middle" font-size="7" fill="#333">door</text>
+<rect x="401.5" y="235" width="20" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="411.5" y="242" text-anchor="middle" font-size="7" fill="#333">door</text>
+<rect x="264.3" y="370.3" width="24" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="276.3" y="377.3" text-anchor="middle" font-size="7" fill="#333">stair</text>
+<rect x="274.8" y="376" width="24" height="9" rx="2" fill="#fde1f1" fill-opacity="0.85" stroke="#d0198c" stroke-width="0.6"/><text x="286.8" y="383" text-anchor="middle" font-size="7" font-weight="bold" fill="#d0198c">boost</text>
+<rect x="276.8" y="376" width="20" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="286.8" y="383" text-anchor="middle" font-size="7" fill="#333">drop</text>
+<rect x="151.8" y="436.3" width="32" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="167.8" y="443.3" text-anchor="middle" font-size="7" fill="#333">f-stair</text>
+<rect x="465.5" y="232.5" width="32" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="481.5" y="239.5" text-anchor="middle" font-size="7" fill="#333">f-stair</text>
+<rect x="233.8" y="441.5" width="20" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="243.8" y="448.5" text-anchor="middle" font-size="7" fill="#333">door</text>
+<rect x="245.7" y="440" width="20" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="255.7" y="447" text-anchor="middle" font-size="7" fill="#333">door</text>
+<rect x="290" y="441.5" width="20" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="300" y="448.5" text-anchor="middle" font-size="7" fill="#333">door</text>
+<rect x="292.1" y="429.7" width="20" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="302.1" y="436.7" text-anchor="middle" font-size="7" fill="#333">door</text>
+<rect x="410" y="452.8" width="20" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="420" y="459.8" text-anchor="middle" font-size="7" fill="#333">door</text>
+<rect x="162.5" y="395.3" width="20" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="172.5" y="402.3" text-anchor="middle" font-size="7" fill="#333">door</text>
+<rect x="157" y="405.9" width="20" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="167" y="412.9" text-anchor="middle" font-size="7" fill="#333">door</text>
+<rect x="166.3" y="295.3" width="20" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="176.3" y="302.3" text-anchor="middle" font-size="7" fill="#333">door</text>
+<rect x="155.5" y="300.5" width="20" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="165.5" y="307.5" text-anchor="middle" font-size="7" fill="#333">door</text>
+<rect x="256.3" y="295.3" width="20" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="266.3" y="302.3" text-anchor="middle" font-size="7" fill="#333">door</text>
+<rect x="244.4" y="293.2" width="20" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="254.4" y="300.2" text-anchor="middle" font-size="7" fill="#333">door</text>
+<rect x="336.3" y="367.8" width="20" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="346.3" y="374.8" text-anchor="middle" font-size="7" fill="#333">door</text>
+<rect x="330" y="357.5" width="20" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="340" y="364.5" text-anchor="middle" font-size="7" fill="#333">door</text>
+<rect x="342" y="297.8" width="20" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="352" y="304.8" text-anchor="middle" font-size="7" fill="#333">door</text>
+<rect x="445.8" y="234" width="20" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="455.8" y="241" text-anchor="middle" font-size="7" fill="#333">door</text>
+<rect x="468.8" y="284" width="20" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="478.8" y="291" text-anchor="middle" font-size="7" fill="#333">door</text>
+<rect x="456.3" y="379" width="20" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="466.3" y="386" text-anchor="middle" font-size="7" fill="#333">door</text>
+<rect x="479.8" y="311.5" width="28" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="493.8" y="318.5" text-anchor="middle" font-size="7" fill="#333">ladder</text>
+<rect x="497.5" y="296.5" width="20" height="9" rx="2" fill="#ffffff" fill-opacity="0.85" stroke="none" stroke-width="0.6"/><text x="507.5" y="303.5" text-anchor="middle" font-size="7" fill="#333">door</text>
+<rect x="458.8" y="316.5" width="40" height="9" rx="2" fill="#fde1f1" fill-opacity="0.85" stroke="#d0198c" stroke-width="0.6"/><text x="478.8" y="323.5" text-anchor="middle" font-size="7" font-weight="bold" fill="#d0198c">pair-gate</text>
+<text x="310" y="323" text-anchor="middle" font-size="8" font-weight="bold" fill="#111" stroke="#fff" stroke-width="2.5" paint-order="stroke">s2-foyer</text>
+<text x="130" y="453" text-anchor="middle" font-size="8" font-weight="bold" fill="#111" stroke="#fff" stroke-width="2.5" paint-order="stroke">s2-post</text>
+<text x="130" y="363" text-anchor="middle" font-size="8" font-weight="bold" fill="#111" stroke="#fff" stroke-width="2.5" paint-order="stroke">s2-mail</text>
+<text x="130" y="283" text-anchor="middle" font-size="8" font-weight="bold" fill="#111" stroke="#fff" stroke-width="2.5" paint-order="stroke">s2-lift-g</text>
+<text x="130" y="193" text-anchor="middle" font-size="8" font-weight="bold" fill="#111" stroke="#fff" stroke-width="2.5" paint-order="stroke">s2-store</text>
+<text x="480" y="373" text-anchor="middle" font-size="8" font-weight="bold" fill="#111" stroke="#fff" stroke-width="2.5" paint-order="stroke">s2-plant-g</text>
+<text x="93" y="464" text-anchor="middle" font-size="8" font-weight="bold" fill="#111" stroke="#fff" stroke-width="2.5" paint-order="stroke">s2-core-sw</text>
+<text x="513" y="175" text-anchor="middle" font-size="8" font-weight="bold" fill="#111" stroke="#fff" stroke-width="2.5" paint-order="stroke">s2-core-ne</text>
+<text x="242.5" y="445.5" text-anchor="middle" font-size="8" font-weight="bold" fill="#111" stroke="#fff" stroke-width="2.5" paint-order="stroke">s2-l1-plan @4.4</text>
+<text x="245" y="465.5" text-anchor="middle" font-size="8" font-weight="bold" fill="#111" stroke="#fff" stroke-width="2.5" paint-order="stroke">s2-l1-kitchen @4.4</text>
+<text x="357.5" y="465.5" text-anchor="middle" font-size="8" font-weight="bold" fill="#111" stroke="#fff" stroke-width="2.5" paint-order="stroke">s2-l1-project @4.4</text>
+<text x="102.5" y="373" text-anchor="middle" font-size="8" font-weight="bold" fill="#111" stroke="#fff" stroke-width="2.5" paint-order="stroke">s2-l1-mr1 @4.4</text>
+<text x="110" y="173" text-anchor="middle" font-size="8" font-weight="bold" fill="#111" stroke="#fff" stroke-width="2.5" paint-order="stroke">s2-l1-mr2 @4.4</text>
+<text x="290" y="173" text-anchor="middle" font-size="8" font-weight="bold" fill="#111" stroke="#fff" stroke-width="2.5" paint-order="stroke">s2-l1-mr3 @4.4</text>
+<text x="450" y="318" text-anchor="middle" font-size="8" font-weight="bold" fill="#111" stroke="#fff" stroke-width="2.5" paint-order="stroke">s2-l1-wing @4.4</text>
+<text x="482.5" y="468" text-anchor="middle" font-size="8" font-weight="bold" fill="#111" stroke="#fff" stroke-width="2.5" paint-order="stroke">s2-l1-se-meet @4.4</text>
+<text x="461.5" y="187" text-anchor="middle" font-size="8" font-weight="bold" fill="#111" stroke="#fff" stroke-width="2.5" paint-order="stroke">s2-l1-facilities @4.4</text>
+<text x="507.5" y="278" text-anchor="middle" font-size="8" font-weight="bold" fill="#111" stroke="#fff" stroke-width="2.5" paint-order="stroke">s2-l1-comms @4.4</text>
+<text x="507.5" y="343" text-anchor="middle" font-size="8" font-weight="bold" fill="#111" stroke="#fff" stroke-width="2.5" paint-order="stroke">s2-l1-landing @4.4</text>
+<text x="461.5" y="203.5" text-anchor="middle" font-size="8" font-weight="bold" fill="#111" stroke="#fff" stroke-width="2.5" paint-order="stroke">s2-l2-board @8.4</text>
+<circle cx="236.5" cy="449.5" r="7" fill="#1f4e9c" stroke="#fff" stroke-width="1.2"/><text x="236.5" y="452.5" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">1</text>
+<circle cx="130" cy="347" r="7" fill="#1f4e9c" stroke="#fff" stroke-width="1.2"/><text x="130" y="350" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">2</text>
+<circle cx="490.5" cy="262" r="7" fill="#1f4e9c" stroke="#fff" stroke-width="1.2"/><text x="490.5" y="265" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">3</text>
+<circle cx="463" cy="357" r="7" fill="#1f4e9c" stroke="#fff" stroke-width="1.2"/><text x="463" y="360" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">4</text>
+<circle cx="444.5" cy="162" r="7" fill="#1f4e9c" stroke="#fff" stroke-width="1.2"/><text x="444.5" y="165" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">5</text>
+<circle cx="480" cy="357" r="7" fill="#1f4e9c" stroke="#fff" stroke-width="1.2"/><text x="480" y="360" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">6</text>
+<circle cx="461.5" cy="169.5" r="7" fill="#1f4e9c" stroke="#fff" stroke-width="1.2"/><text x="461.5" y="172.5" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">7</text>
+<circle cx="499" cy="327" r="7" fill="#1f4e9c" stroke="#fff" stroke-width="1.2"/><text x="499" y="330" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">8</text>
+<polygon points="497,349 505,357 497,365 489,357" fill="#7a3fa0" stroke="#fff" stroke-width="1.2"/><text x="497" y="360" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">9</text>
+<polygon points="267.5,299 275.5,307 267.5,315 259.5,307" fill="#7a3fa0" stroke="#fff" stroke-width="1.2"/><text x="267.5" y="310" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">10</text>
+<polygon points="507.5,254 515.5,262 507.5,270 499.5,262" fill="#7a3fa0" stroke="#fff" stroke-width="1.2"/><text x="507.5" y="265" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">11</text>
+<polygon points="461.5,154 469.5,162 461.5,170 453.5,162" fill="#7a3fa0" stroke="#fff" stroke-width="1.2"/><text x="461.5" y="165" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">12</text>
+<polygon points="516,319 524,327 516,335 508,327" fill="#7a3fa0" stroke="#fff" stroke-width="1.2"/><text x="516" y="330" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">13</text>
+<polygon points="524.5,254 532.5,262 524.5,270 516.5,262" fill="#7a3fa0" stroke="#fff" stroke-width="1.2"/><text x="524.5" y="265" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">14</text>
+<polygon points="284.5,299 292.5,307 284.5,315 276.5,307" fill="#7a3fa0" stroke="#fff" stroke-width="1.2"/><text x="284.5" y="310" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">15</text>
+<rect x="236" y="423" width="13" height="13" fill="#0b7a75" stroke="#fff" stroke-width="1.2"/><text x="242.5" y="432.5" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">16</text>
+<rect x="115" y="430.5" width="13" height="13" fill="#0b7a75" stroke="#fff" stroke-width="1.2"/><text x="121.5" y="440" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">17</text>
+<rect x="409.5" y="295.5" width="13" height="13" fill="#0b7a75" stroke="#fff" stroke-width="1.2"/><text x="416" y="305" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">18</text>
+<rect x="295" y="300.5" width="13" height="13" fill="#0b7a75" stroke="#fff" stroke-width="1.2"/><text x="301.5" y="310" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">19</text>
+<rect x="426.5" y="295.5" width="13" height="13" fill="#0b7a75" stroke="#fff" stroke-width="1.2"/><text x="433" y="305" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">20</text>
+<rect x="312" y="300.5" width="13" height="13" fill="#0b7a75" stroke="#fff" stroke-width="1.2"/><text x="318.5" y="310" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">21</text>
+<rect x="472" y="155.5" width="13" height="13" fill="#0b7a75" stroke="#fff" stroke-width="1.2"/><text x="478.5" y="165" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">22</text>
+<rect x="329" y="300.5" width="13" height="13" fill="#0b7a75" stroke="#fff" stroke-width="1.2"/><text x="335.5" y="310" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">23</text>
+<rect x="132" y="430.5" width="13" height="13" fill="#0b7a75" stroke="#fff" stroke-width="1.2"/><text x="138.5" y="440" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">24</text>
+<rect x="247" y="443" width="13" height="13" fill="#0b7a75" stroke="#fff" stroke-width="1.2"/><text x="253.5" y="452.5" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">25</text>
+<rect x="443.5" y="295.5" width="13" height="13" fill="#0b7a75" stroke="#fff" stroke-width="1.2"/><text x="450" y="305" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">26</text>
+<rect x="460.5" y="295.5" width="13" height="13" fill="#0b7a75" stroke="#fff" stroke-width="1.2"/><text x="467" y="305" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">27</text>
+<rect x="477.5" y="295.5" width="13" height="13" fill="#0b7a75" stroke="#fff" stroke-width="1.2"/><text x="484" y="305" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">28</text>
+<rect x="346" y="300.5" width="13" height="13" fill="#0b7a75" stroke="#fff" stroke-width="1.2"/><text x="352.5" y="310" text-anchor="middle" font-size="8" font-weight="bold" fill="#fff">29</text>
+<rect x="4" y="574" width="118" height="22" fill="#fff" fill-opacity="0.85" stroke="#999" stroke-width="0.5"/><line x1="10" y1="588" x2="110" y2="588" stroke="#111" stroke-width="2"/><line x1="10" y1="584" x2="10" y2="592" stroke="#111" stroke-width="1.5"/><line x1="110" y1="584" x2="110" y2="592" stroke="#111" stroke-width="1.5"/><text x="60" y="584" text-anchor="middle" font-size="8" fill="#111">10 m</text>
+<g transform="translate(584,24)"><polygon points="0,-12 5,4 0,1 -5,4" fill="#111"/><text y="16" text-anchor="middle" font-size="8" fill="#111">N</text></g>
+</g>
+<g id="legend" transform="translate(20,690)">
+<rect x="0" y="0" width="14" height="10" fill="#e8806a" fill-opacity="0.7" stroke="#333"/><text x="19" y="9" font-size="9">encounter</text>
+<rect x="78" y="0" width="14" height="10" fill="#9fb4c7" fill-opacity="0.7" stroke="#333"/><text x="97" y="9" font-size="9">transit</text>
+<rect x="146" y="0" width="14" height="10" fill="#86c486" fill-opacity="0.7" stroke="#333"/><text x="165" y="9" font-size="9">rest</text>
+<rect x="199" y="0" width="14" height="10" fill="#5b9bea" fill-opacity="0.7" stroke="#333"/><text x="218" y="9" font-size="9">split leg A</text>
+<rect x="287" y="0" width="14" height="10" fill="#e6a93c" fill-opacity="0.7" stroke="#333"/><text x="306" y="9" font-size="9">split leg B</text>
+<rect x="375" y="0" width="14" height="10" fill="#ffffff" fill-opacity="0.7" stroke="#333" stroke-dasharray="4 2"/><text x="394" y="9" font-size="9">upper storey (dashed, drawn on top)</text>
+<line x1="0" y1="23" x2="22" y2="23" stroke="#444" stroke-width="1.1"/><text x="27" y="27" font-size="9">link (tag = kind)</text>
+<line x1="130" y1="23" x2="152" y2="23" stroke="#111" stroke-width="2"/><text x="157" y="27" font-size="9">spine link</text>
+<line x1="225" y1="23" x2="247" y2="23" stroke="#d0198c" stroke-width="2.2"/><text x="252" y="27" font-size="9" font-weight="bold" fill="#d0198c">co-op link (coop_boost, human_ladder, pair_gate, team_rope, team_throw, team_hang, team_pull, shutter)</text>
+<line x1="560" y1="23" x2="582" y2="23" stroke="#444" stroke-width="1.1" marker-end="url(#arrow)"/><text x="590" y="27" font-size="9">one way / drop</text>
+<ellipse cx="8" cy="41" rx="7" ry="4" fill="#fff" stroke="#222"/><circle cx="8" cy="41" r="2" fill="#222"/><text x="22" y="45" font-size="9">vantage.at (dashed line to the observed space, sees %)</text>
+<circle cx="330" cy="41" r="6" fill="#1f4e9c"/><text x="342" y="45" font-size="9">objective</text><polygon points="400,34 408,41 400,48 392,41" fill="#7a3fa0"/><text x="414" y="45" font-size="9">sync</text><rect x="452" y="35" width="12" height="12" fill="#0b7a75"/><text x="470" y="45" font-size="9">lead</text>
+<text x="0" y="67" font-size="9" font-weight="bold">#</text><text x="26" y="67" font-size="9" font-weight="bold">node</text><text x="86" y="67" font-size="9" font-weight="bold">id</text><text x="250" y="67" font-size="9" font-weight="bold">space</text><text x="400" y="67" font-size="9" font-weight="bold">detail</text><line x1="0" y1="71" x2="660" y2="71" stroke="#999" stroke-width="0.5"/>
+<text x="0" y="81" font-size="9" fill="#1f4e9c" font-weight="bold">1</text><text x="26" y="81" font-size="9">objective</text><text x="86" y="81" font-size="9">ss-1a</text><text x="250" y="81" font-size="9">s2-l1-kitchen</text><text x="400" y="81" font-size="9" fill="#333">intel, team a, S2</text>
+<text x="0" y="94" font-size="9" fill="#1f4e9c" font-weight="bold">2</text><text x="26" y="94" font-size="9">objective</text><text x="86" y="94" font-size="9">ss-1b</text><text x="250" y="94" font-size="9">s2-mail</text><text x="400" y="94" font-size="9" fill="#333">intel, team b, S2</text>
+<text x="0" y="107" font-size="9" fill="#1f4e9c" font-weight="bold">3</text><text x="26" y="107" font-size="9">objective</text><text x="86" y="107" font-size="9">ss-2</text><text x="250" y="107" font-size="9">s2-l1-comms</text><text x="400" y="107" font-size="9" fill="#333">sync, team a, S2, after ss-1a</text>
+<text x="0" y="120" font-size="9" fill="#1f4e9c" font-weight="bold">4</text><text x="26" y="120" font-size="9">objective</text><text x="86" y="120" font-size="9">ss-3</text><text x="250" y="120" font-size="9">s2-plant-g</text><text x="400" y="120" font-size="9" fill="#333">sync, team b, S2, after ss-1b,ss-2</text>
+<text x="0" y="133" font-size="9" fill="#1f4e9c" font-weight="bold">5</text><text x="26" y="133" font-size="9">objective</text><text x="86" y="133" font-size="9">ss-4a</text><text x="250" y="133" font-size="9">s2-l1-facilities</text><text x="400" y="133" font-size="9" fill="#333">exploit, team a, S2, after ss-2,ss-3</text>
+<text x="0" y="146" font-size="9" fill="#1f4e9c" font-weight="bold">6</text><text x="26" y="146" font-size="9">objective</text><text x="86" y="146" font-size="9">ss-4b</text><text x="250" y="146" font-size="9">s2-plant-g</text><text x="400" y="146" font-size="9" fill="#333">sync, team b, S2, after ss-3, twist</text>
+<text x="0" y="159" font-size="9" fill="#1f4e9c" font-weight="bold">7</text><text x="26" y="159" font-size="9">objective</text><text x="86" y="159" font-size="9">ss-opt</text><text x="250" y="159" font-size="9">s2-l2-board</text><text x="400" y="159" font-size="9" fill="#333">interact, team all, S2, optional</text>
+<text x="0" y="172" font-size="9" fill="#1f4e9c" font-weight="bold">8</text><text x="26" y="172" font-size="9">objective</text><text x="86" y="172" font-size="9">ss-5</text><text x="250" y="172" font-size="9">s2-l1-landing</text><text x="400" y="172" font-size="9" fill="#333">extract, team all, S2, after ss-4a,ss-4b</text>
+<text x="0" y="185" font-size="9" fill="#7a3fa0" font-weight="bold">9</text><text x="26" y="185" font-size="9">sync</text><text x="86" y="185" font-size="9">sync-s2-power</text><text x="250" y="185" font-size="9">s2-plant-g</text><text x="400" y="185" font-size="9" fill="#333">power_cut, src planned: timed isolator IS-2, BoardDef window ~</text>
+<text x="0" y="198" font-size="9" fill="#7a3fa0" font-weight="bold">10</text><text x="26" y="198" font-size="9">sync</text><text x="86" y="198" font-size="9">sync-s2-desk</text><text x="250" y="198" font-size="9">s2-foyer</text><text x="400" y="198" font-size="9" fill="#333">camera_loop, src planned: SecurityDesk desk-rcp (src/game/sec~</text>
+<text x="0" y="211" font-size="9" fill="#7a3fa0" font-weight="bold">11</text><text x="26" y="211" font-size="9">sync</text><text x="86" y="211" font-size="9">sync-s2-code</text><text x="250" y="211" font-size="9">s2-l1-comms</text><text x="400" y="211" font-size="9" fill="#333">code_source, src planned: SectorIntel board (src/game/sectors~</text>
+<text x="0" y="224" font-size="9" fill="#7a3fa0" font-weight="bold">12</text><text x="26" y="224" font-size="9">sync</text><text x="86" y="224" font-size="9">sync-s2-kpfac</text><text x="250" y="224" font-size="9">s2-l1-facilities</text><text x="400" y="224" font-size="9" fill="#333">code_sink, src planned: SectorKeypad kp-fac on both facilitie~</text>
+<text x="0" y="237" font-size="9" fill="#7a3fa0" font-weight="bold">13</text><text x="26" y="237" font-size="9">sync</text><text x="86" y="237" font-size="9">sync-s2-pairdoor</text><text x="250" y="237" font-size="9">s2-l1-landing</text><text x="400" y="237" font-size="9" fill="#333">pair_door, src planned: SectorPairGate pg-brg (src/game/secto~</text>
+<text x="0" y="250" font-size="9" fill="#7a3fa0" font-weight="bold">14</text><text x="26" y="250" font-size="9">sync</text><text x="86" y="250" font-size="9">sync-s2-comms</text><text x="250" y="250" font-size="9">s2-l1-comms</text><text x="400" y="250" font-size="9" fill="#333">camera_loop, src NEEDED (Sector Ops): patch panel, loops cam-~</text>
+<text x="0" y="263" font-size="9" fill="#7a3fa0" font-weight="bold">15</text><text x="26" y="263" font-size="9">sync</text><text x="86" y="263" font-size="9">sync-s2-atrium</text><text x="250" y="263" font-size="9">s2-foyer</text><text x="400" y="263" font-size="9" fill="#333">power_cut, src NEEDED in graph: built board campusS2.ts:192, ~</text>
+<text x="0" y="276" font-size="9" fill="#0b7a75" font-weight="bold">16</text><text x="26" y="276" font-size="9">lead</text><text x="86" y="276" font-size="9">lead:ss-1a</text><text x="250" y="276" font-size="9">s2-l1-plan</text><text x="400" y="276" font-size="9" fill="#333">lead for objective 1 (ss-1a)</text>
+<text x="0" y="289" font-size="9" fill="#0b7a75" font-weight="bold">17</text><text x="26" y="289" font-size="9">lead</text><text x="86" y="289" font-size="9">lead:ss-1b</text><text x="250" y="289" font-size="9">s2-post</text><text x="400" y="289" font-size="9" fill="#333">lead for objective 2 (ss-1b)</text>
+<text x="0" y="302" font-size="9" fill="#0b7a75" font-weight="bold">18</text><text x="26" y="302" font-size="9">lead</text><text x="86" y="302" font-size="9">lead:ss-2</text><text x="250" y="302" font-size="9">s2-l1-wing</text><text x="400" y="302" font-size="9" fill="#333">lead for objective 3 (ss-2)</text>
+<text x="0" y="315" font-size="9" fill="#0b7a75" font-weight="bold">19</text><text x="26" y="315" font-size="9">lead</text><text x="86" y="315" font-size="9">lead:ss-3</text><text x="250" y="315" font-size="9">s2-foyer</text><text x="400" y="315" font-size="9" fill="#333">lead for objective 4 (ss-3)</text>
+<text x="0" y="328" font-size="9" fill="#0b7a75" font-weight="bold">20</text><text x="26" y="328" font-size="9">lead</text><text x="86" y="328" font-size="9">lead:ss-4a</text><text x="250" y="328" font-size="9">s2-l1-wing</text><text x="400" y="328" font-size="9" fill="#333">lead for objective 5 (ss-4a)</text>
+<text x="0" y="341" font-size="9" fill="#0b7a75" font-weight="bold">21</text><text x="26" y="341" font-size="9">lead</text><text x="86" y="341" font-size="9">lead:ss-4b</text><text x="250" y="341" font-size="9">s2-foyer</text><text x="400" y="341" font-size="9" fill="#333">lead for objective 6 (ss-4b)</text>
+<text x="0" y="354" font-size="9" fill="#0b7a75" font-weight="bold">22</text><text x="26" y="354" font-size="9">lead</text><text x="86" y="354" font-size="9">lead:ss-opt</text><text x="250" y="354" font-size="9">s2-l1-facilities</text><text x="400" y="354" font-size="9" fill="#333">lead for objective 7 (ss-opt)</text>
+<text x="0" y="367" font-size="9" fill="#0b7a75" font-weight="bold">23</text><text x="26" y="367" font-size="9">lead</text><text x="86" y="367" font-size="9">lead:sync-s2-power</text><text x="250" y="367" font-size="9">s2-foyer</text><text x="400" y="367" font-size="9" fill="#333">lead for sync sync-s2-power</text>
+<text x="0" y="380" font-size="9" fill="#0b7a75" font-weight="bold">24</text><text x="26" y="380" font-size="9">lead</text><text x="86" y="380" font-size="9">lead:sync-s2-desk</text><text x="250" y="380" font-size="9">s2-post</text><text x="400" y="380" font-size="9" fill="#333">lead for sync sync-s2-desk</text>
+<text x="0" y="393" font-size="9" fill="#0b7a75" font-weight="bold">25</text><text x="26" y="393" font-size="9">lead</text><text x="86" y="393" font-size="9">lead:sync-s2-code</text><text x="250" y="393" font-size="9">s2-l1-kitchen</text><text x="400" y="393" font-size="9" fill="#333">lead for sync sync-s2-code</text>
+<text x="0" y="406" font-size="9" fill="#0b7a75" font-weight="bold">26</text><text x="26" y="406" font-size="9">lead</text><text x="86" y="406" font-size="9">lead:sync-s2-kpfac</text><text x="250" y="406" font-size="9">s2-l1-wing</text><text x="400" y="406" font-size="9" fill="#333">lead for sync sync-s2-kpfac</text>
+<text x="0" y="419" font-size="9" fill="#0b7a75" font-weight="bold">27</text><text x="26" y="419" font-size="9">lead</text><text x="86" y="419" font-size="9">lead:sync-s2-pairdoor</text><text x="250" y="419" font-size="9">s2-l1-wing</text><text x="400" y="419" font-size="9" fill="#333">lead for sync sync-s2-pairdoor</text>
+<text x="0" y="432" font-size="9" fill="#0b7a75" font-weight="bold">28</text><text x="26" y="432" font-size="9">lead</text><text x="86" y="432" font-size="9">lead:sync-s2-comms</text><text x="250" y="432" font-size="9">s2-l1-wing</text><text x="400" y="432" font-size="9" fill="#333">lead for sync sync-s2-comms</text>
+<text x="0" y="445" font-size="9" fill="#0b7a75" font-weight="bold">29</text><text x="26" y="445" font-size="9">lead</text><text x="86" y="445" font-size="9">lead:sync-s2-atrium</text><text x="250" y="445" font-size="9">s2-foyer</text><text x="400" y="445" font-size="9" fill="#333">lead for sync sync-s2-atrium</text>
+<text x="0" y="464" font-size="9" fill="#333">rules: ghost (a); noAlarms (b)</text>
+<text x="0" y="478" font-size="9" fill="#b00020">not drawn (no usable area): s2-l2-plan, s2-l2-exec, s2-l2-offa, s2-l2-offb, s2-l2-wing, s2-roof, s2-roof-plant | 18 link(s) skipped (an end has no area)</text>
+</g>
+</svg>

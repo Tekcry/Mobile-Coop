@@ -93,3 +93,43 @@ A player in the C1 checkpoint after a restart must make the landing too; the mis
 | guard reaction | guard-ai | s2-l1-facilities -> s2-plant-g | #7 walks to the new board when 55 / 56 go dark (LR16-4 lure), via reception (twist) | planned (Guard AI) | - |
 
 Approve this beat chart?
+
+## Graph notes (SS graph, 2026-10-24 ~23:40)
+- `graph.json` encodes this chart on Sector Ops' plan graph `graph/plan/campusOps-S2.json`
+  (origin/feature/sector-redesign-signoff e41942bf6). Steps: ss-1a, ss-1b, ss-2, ss-3, ss-4a, ss-4b (the twist), ss-opt,
+  ss-5. Teams: a = Ghost, b = Shadow. Start: s2-foyer.
+- Id changes: `s2-hall` no longer exists. The plan merges it into `s2-foyer` (reception + hall + NE lobby), so 4B's
+  route and every foyer lead read s2-foyer. The kitchen code and the comms board are compatible: Sector Ops' coffee-pair
+  line points at the comms handover board (sync-s2-code), and kp-fac is their sync-s2-kpfac.
+- Tracks: L1 and L2 share the ground floor's plan footprint, so `tracks` carries a `y` band per team (Ghost y 4.4-12.3,
+  Shadow 0-4.4). EN2 needs that height test. Plan boxes alone cannot split this section.
+- Validator (mission-validator branch, the five plan graphs + this file):
+  - Mission errors: 4 as run. All 4 come from the validator not reading Sector Ops' `sync` key: "0 sync nodes", and
+    ss-2 / ss-3 / ss-4b "sync step with no sync node". A fix is in progress.
+  - With the key read: 1 error, the pair door's missing `solo`. With that filled in: 0.
+  - Mission warnings: 6.
+    - ss-5's s2-l1-landing is not tagged `exfil` (Sector Ops: tag it).
+    - "No choke node" in S2. This is by design: the two tracks meet at the landing through two doors (the pair gate and
+      the comms door).
+    - "No choke node" in S1, S3, S4 and S5. The validator checks every merged section, not only the mission's. VAL
+      should limit that check to the mission's sections.
+  - The other 116 warnings are the campus graphs' own (the same with no mission).
+- PLAN.svg: made with `scripts/graph-svg.mjs` with no base, because Sector Ops has not pushed an `S2-plan-*.svg`.
+  - The plan graph has no `area` boxes, so a scratch render copy adds them from each space's note (box x / z). It also
+    adds the track colours and the 2 needed devices, marked NEEDED.
+  - Only the ground floor, the first floor and the L2 board room are drawn. The rest of L2 and the roof are listed as
+    not drawn.
+- Node needs for Sector Ops (S2):
+  1. **sync-s2-comms** (camera_loop, s2-l1-comms): the patch panel for step 2. Today the loop is sync-s2-desk at the
+     reception desk, worked by Shadow. One device should own the three cameras: either move it to the comms room, or
+     the lead re-cuts step 2 onto sync-s2-desk.
+  2. **sync-s2-power** (s2-plant-g) as this chart needs it: a held cut, with no window, on the facilities office and L1
+     east wing circuits (55 + 56), so the facilities officer #7 leaves his desk. Today it is IS-2: a 45 s window on the
+     balcony lights (51 / 52).
+  3. **sync-s2-atrium** (power_cut, s2-foyer): the built reception board (campusS2.ts:192, group 50) as a graph node.
+     It is 4B's optional assist.
+  4. **sync-s2-pairdoor**: add `solo` (the PLAN C18 solo window, named in the briefing).
+  5. Leads, both planned: lead-s2-kitchen (the coffee pair's line grants `s2-fac-code`) and lead-s2-plantlog (the plant
+     log in the s2-mail cages grants `s2-board`, pointed to by the note on the s2-post sorting table).
+  6. Tag `exfil` on s2-l1-landing.
+  7. For Guard AI, not Sector Ops: #7 walks to the plant room through reception when 55 / 56 go dark (the twist).
