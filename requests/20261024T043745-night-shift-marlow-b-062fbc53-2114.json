@@ -1,0 +1,16 @@
+{
+  "id": "20261024T043745-night-shift-marlow-b-062fbc53-2114",
+  "sha": "062fbc53464abe94328bb78f352ca213f47cc786",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Marlow Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-ctcourse:1",
+    "e2e-ctcourse:2",
+    "e2e-ctcourse:3",
+    "e2e-ctcourse:4"
+  ],
+  "set": "coop4ui"
+}
