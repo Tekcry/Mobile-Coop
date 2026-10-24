@@ -1,6 +1,11 @@
 # laptop-queue - state
 
 ## Now (2026-10-24, laptop-queue batch, local commits, not pushed)
+- 2026-10-24 ~19:20: feature/laptop-queue-2 (worktree C:/NightShift/Mobile-Coop-laptop-queue-2, from #329 head 80d6087e),
+  Orchestrator audit (b)-(d): ALONE_AGE_MIN 30; an aged alone request stops pr claims under the train hold too, only
+  while the holding train can clear (lib holdClears); desktop CPU gates 80/80; install-task.ps1 trigger 1 min (re-run it
+  on the laptop and the desktop after the merge). b9ac3b72 + checker FIX 976863da. PR opens after #329 lands.
+  Polish: a task-started powershell may flash a console when the trigger fires while a manual service holds the pid.
 - 2026-10-24 ~18:30 (Orchestrator audit: withdrawn aab8f4f0 held 4191 16:55-18:02, aabc5a31 held 4192 to 17:55,
   train 56 waited 11 min): e48a735d - lib `cutShort`; runRequest kills the command tree (sh `ctl`, `cut`) when the
   request file left the branch on two listings in a row (error status, done) or, for a plain pr request in its suites,
