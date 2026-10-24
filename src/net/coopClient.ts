@@ -63,12 +63,6 @@ const SEND_HZ = 20;
 /** (afp AF6) `CLIENT_INTERP_DELAY` (interp.ts; was 0.12). */
 const INTERP_DELAY = CLIENT_INTERP_DELAY;
 
-/** (coop-real F1b, S2) Does a client send its lamp rounds (`shot` at `lt-<id>`) to the host in this mode? Sector Ops and
- *  Course mode (the host's rule: `hostLampShots`). */
-export function clientLampShots(mode: string | undefined): boolean {
-  return mode === 'sector' || mode === 'course';
-}
-
 /**
  * Client side of a match. Only the local player is simulated (predicted); enemies, modes, pickups, objectives, doors
  * and health come from host snapshots. Own hits are resolved against local puppets (course: the partner's hit volumes)
@@ -1349,4 +1343,10 @@ export class CoopClient implements NetAttachment {
     this.g.explosions.onLocalBlast = null;
     this.g.gadgets.onLocal = null;
   }
+}
+
+/** (coop-real F1b, S2) Does a client send its lamp rounds (`shot` at `lt-<id>`) to the host in this mode? Sector Ops and
+ *  Course mode (the host's rule: `hostLampShots`). */
+export function clientLampShots(mode: string | undefined): boolean {
+  return mode === 'sector' || mode === 'course';
 }

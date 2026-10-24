@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { parseMessage, type Msg } from '../src/net/protocol';
-import { CoopHost, hostLampShots } from '../src/net/coopHost';
+import { CoopHost } from '../src/net/coopHost';
+import { hostLampShots } from '../src/net/validate';
 import { CoopClient, clientLampShots } from '../src/net/coopClient';
 import { LightRegistry } from '../src/world/lights';
 import { addTorchSlots } from '../src/world/torches';
@@ -110,6 +111,18 @@ describe('coop-real F1b: Course mode client lamp shots reach the host', () => {
     onLampShot(m);
     expect(shootLight).toHaveBeenCalledTimes(1);
     expect(shootLight).toHaveBeenCalledWith(0);
+    expect(reg.lights[0]!.destroyed).toBe(true);
+    expect(r.violations).toBe(0);
+  });
+
+  it('a second round at a lamp the host already has out is dropped with no violation', () => {
+    const m = clientShot();
+    const reg = level();
+    const { r, onLampShot, shootLight } = host(reg);
+    onLampShot(m);
+    // the client's mirror has not seen the `course` message yet: the same honest round again
+    onLampShot(m);
+    expect(shootLight).toHaveBeenCalledTimes(1);
     expect(reg.lights[0]!.destroyed).toBe(true);
     expect(r.violations).toBe(0);
   });
