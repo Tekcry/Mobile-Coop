@@ -1,0 +1,15 @@
+{
+  "id": "20261024T174141-night-shift-marlow-b-5d3f7ae1-53de",
+  "sha": "5d3f7ae1a2633024b8ef9aa60010525430402457",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Marlow Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove",
+    "e2e-sectorops",
+    "e2e-ctcourse"
+  ],
+  "set": "mission-net"
+}
