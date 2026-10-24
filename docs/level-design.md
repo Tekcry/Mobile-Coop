@@ -11,7 +11,7 @@ Every rule names the modes it binds: **[All]**, **[Campaign]**, **[SectorOps]** 
 heading covers every rule under it; a rule's own tag replaces it. A map's graph names its mode in `meta.mode`
 (`campaign`, `sector`, `training`) and the validator runs that mode's profile (rule index at the end).
 
-### Campaign profile (Infiltration mode; the new small campaign map, G293)
+### Campaign profile (Infiltration mode; Mission 1 is Tallow Wharf, Michael 2026-10-25 ~10:45)
 - Exactly two players; it cannot be completed solo; no bot (G2, G50, G253). (11.1)
 - Every section has at least one forced co-op gate: its exit cannot be reached from its entry by solo moves, and each
   gate has a solo way back so a downed partner is reached within the revive reach (11.6, 11.10; Michael 2026-10-24
@@ -28,8 +28,8 @@ heading covers every rule under it; a rule's own tag replaces it. A map's graph 
   softlock (11.6). Parallel objectives for teams, or one solo player doing them all (G291).
 - Several routes: 2-3 routes per section to its objective and exit (G190), three routes per guarded space (3.2).
 - In-world guidance only (6.4). Strict rules may be global, per team or per split (9.3).
-- Guards scale with the player count ("Keep scaling", 2026-10-25); `sector_alive_max` alive per section is a ceiling,
-  not a target (G187); room to manoeuvre first (G190); some guards are unavoidable (G303); dogs, riot shields in
+- Guards scale with the player count ("Keep scaling", G331); `sector_alive_max` alive per section is a ceiling,
+  not a target (G187, G332); room to manoeuvre first (G190); some guards are unavoidable (G303); dogs, riot shields in
   response teams, late armour, helmets by difficulty (4.10).
 - Revive syringes and checkpoints (G188). Light as the campaign (5.2, 5.5).
 
@@ -38,6 +38,8 @@ heading covers every rule under it; a rule's own tag replaces it. A map's graph 
   later sections, as teaching (Michael 2026-10-24 ~22:45, G292). The route-count rules (3.2, 3.3, 11.2) do not bind it,
   nor do the forced-gate and no-softlock rules (11.6, 11.10): it teaches each co-op move in place.
 - Keeps its guidance marks and the always-on objective list (G292); no maps, minimap, compass or blip (6.4).
+- Timed drills allowed: "Marlow can use timed drills, it must force players into situations as a way of training them"
+  (Michael 2026-10-25 ~10:45; 6.3).
 - Lit by default, the players cut it (G279); normal guards, few per set (4.9).
 
 ## 1. The player fantasy [All]
@@ -81,7 +83,7 @@ A level is a linear spine of encounter spaces joined by connectors.
    deliberate crossing that needs timing, a light out or a tool.
 6. **Height is safety and information.** Guards see poorly above them (G44): the high route gives overwatch and
    takedowns from above in exchange for time and skill. [Campaign] [SectorOps] Some high routes (pipes, catwalks,
-   vents) have a static lookout posted on them, so height is not always safe (Michael 2026-10-25 ~09:45, "Add both").
+   vents) have a static lookout posted on them, so height is not always safe (G335, "Add both").
 7. **Sightline control.** Long open sightlines are dangerous and used on purpose. Corners, doorways and occluders are the
    decision points between them.
 8. **Quiet connectors.** Between encounter spaces: a stair, corridor, cupboard or shaft with no guard, where the player
@@ -96,7 +98,7 @@ A level is a linear spine of encounter spaces joined by connectors.
    patrol, lookout on a high route, investigator. No two adjacent spaces use the same mix.
 3. **Clockwork.** Patrol cycles 25-45 s; stops 3-6 s; gaps in coverage 3-8 s. No randomness that defeats planning.
 4. **Isolation moment.** Every guard is alone, in the dark and unwatched at some point in his cycle; the design doc names
-   the spot and the time. Exception: a paired patrol whose two guards check on each other (Michael 2026-10-25 ~09:45,
+   the spot and the time. Exception: a paired patrol whose two guards check on each other (G335,
    "Add both"; replaces G11's cut for this) is split by a distraction or taken together with a dual takedown; the
    design doc names that spot instead.
 5. **Overlapping coverage.** In every space with two or more guards (or a guard watching into a neighbouring space), at
@@ -113,13 +115,13 @@ A level is a linear spine of encounter spaces joined by connectors.
    half of the spine) are a floor, not a ceiling: below the band warns, there is no upper band. The graph records the
    count per player count.
    - [Campaign] Infiltration spawns `SQUAD_CAP` guards at a time, the rest as the alive count drops (12.1).
-   - [SectorOps] Counts rise with the player count ("Keep scaling", 2026-10-25); `sector_alive_max` alive per section is
-     a ceiling, not a target (G187); room to manoeuvre comes before count (G190); signed-off counts S1 15, S2 18, S3 20,
-     S5 26, S4 per its sign-off (2026-10-25 ~08:50).
+   - [SectorOps] Counts rise with the player count ("Keep scaling", G331); `sector_alive_max` alive per section is a
+     ceiling, not a target (G187, G332); room to manoeuvre comes before count (G190); signed-off counts S1 15, S2 18,
+     S3 20, S4 25, S5 26 (G328).
    - [Training] A set spawns at most `SET_GUARDS_MAX` 3 guards (12.1); the bands do not bind.
 10. **Archetypes per mode.** [Campaign] No heavies or dogs (G155); armour and helmets come with the alarm stages, and by
-   difficulty: harder difficulties always have helmets, on the hardest a helmet cannot be shot off (Michael 2026-10-25
-   ~10:20; asked for Sector Ops, assumed for the campaign). [SectorOps] Dogs (G297); riot shields only in alarm response
+   difficulty: harder difficulties always have helmets, on the hardest a helmet cannot be shot off (G338; for the
+   campaign Michael 2026-10-25 ~10:45, "Same rule"). [SectorOps] Dogs (G297); riot shields only in alarm response
    teams, heavier armour in later sections (G307); helmets by difficulty as above. [Training] Normal guards (G279).
 
 ## 5. Light and sound [All]
@@ -127,7 +129,7 @@ A level is a linear spine of encounter spaces joined by connectors.
    where a real one would be, by a door. Darkness is where nobody works at night.
 2. **Every lit chokepoint** can be darkened at least two ways (a switch, a breaker, shooting the fixture, the held
    pistol jammer G152), or is hardened (an un-shootable fixture, a guarded or locked breaker) with a route around it
-   (Michael 2026-10-25 ~09:45, "Everywhere"). Every lit chokepoint can be avoided at least one way.
+   (G333, "Everywhere"). Every lit chokepoint can be avoided at least one way.
 3. **Sound comes from materials.** Loud floors (metal, grating, chequer plate, gravel, glass) and quiet floors (carpet,
    linoleum) are placed on purpose, look different, and put a quiet and a loud version of the same action side by side
    (an open window beside a glazed one, a door opened or bashed, a vent unscrewed or kicked, a hang-and-drop or a jump
@@ -137,7 +139,7 @@ A level is a linear spine of encounter spaces joined by connectors.
    9: AS/NZS 1158.3.1 car parks and roads, AS/NZS 1680 / EN 12464 interiors; values set by the light-realism job),
    with engine light calibrated to lux once and measured from the bake at greybox exit. Stealth comes from real gaps
    (between poles, under carports, behind cars, cut circuits, shot lamps), never from leaving lit places unlit
-   (Michael 2026-10-25 ~09:05, "Real-world levels"). The floor shadow share (`shadow_pct`, `shadow_min_frac` -
+   (G329, "Real-world levels"). The floor shadow share (`shadow_pct`, `shadow_min_frac` -
    `shadow_max_frac`) is reported for information only; the band wins. [Training] Lit by default, the players cut it
    (G279).
 
@@ -147,15 +149,18 @@ A level is a linear spine of encounter spaces joined by connectors.
 2. **Tension and release.** Tension rises across the level; every peak is followed by a release. The beat chart (section
    13) proves it. In spine order, no three spaces in a row sit at tension 4-5, the map opens at 1-2, and a 1-2 follows
    every peak (validator `checkPacing` on the graph's `tension`). (G284.)
-3. **The player sets the pace.** No forced timers in stealth. Pressure comes from guards, light and noise. Soft windows
-   only: predictable windows (shift changes, fixed patrol cycles) signposted in the world; no countdown that closes a
-   route (Michael 2026-10-25 ~09:45, "Soft windows only").
+3. **The player sets the pace.** [Campaign] [SectorOps] No forced timers in stealth. Pressure comes from guards, light
+   and noise. Soft windows only: predictable windows (shift changes, fixed patrol cycles) signposted in the world; no
+   countdown that closes a route (G334, "Soft windows only"). [Training] Timed drills are allowed: "Marlow can use timed
+   drills, it must force players into situations as a way of training them" (Michael 2026-10-25 ~10:45).
 4. **Guide without markers.** [Campaign] [SectorOps] Objectives name what and where; the level flows naturally to each
    objective ("Objectives must name what and where, but no map, level design must flow naturally towards each
-   objective", Michael 2026-10-25): landmarks visible from afar, light leading the eye towards the way on, signs and
-   place names, sightlines into the next space. No markers or waypoints (G290); no maps, minimap, compass or objective
-   blip in any mode (Michael 2026-10-25, "No maps at all", "Remove it too"); an optional hint layer, off by default
-   (G290). [Training] Marlow Yard keeps its guidance marks and the always-on objective list (G292).
+   objective", G336): landmarks visible from afar, light leading the eye towards the way on, signs and place names,
+   sightlines into the next space. The objective is a short, plain English line; it fades in and out in game, shows
+   on every update, and a tap on View (Select) on the pad or O on the keyboard shows it for about 5 s (Michael
+   2026-10-25 ~10:45). No markers or waypoints (G290); no maps, minimap, compass or objective blip in any mode (G336,
+   G339); an optional hint layer, off by default (G290). [Training] Marlow Yard keeps its guidance marks and the
+   always-on objective list (G292).
 
 ## 7. Agency and toys [All]
 1. **Every problem has several tools; every tool solves several problems.** The design doc's tool / problem matrix shows
@@ -330,7 +335,7 @@ facing, lit pools, dark areas, loud floors hatched, vantages, objectives, co-op 
 **Objective and lead plan** (one row per objective, in order; parallel tracks side by side for Sector Ops)
 | Field | Content |
 | --- | --- |
-| Objective | The objective text as the player reads it: what and where (6.4) |
+| Objective | The objective text as the player reads it: a short, plain English line naming what and where (6.4) |
 | Leads | The in-world guidance to it: landmarks, signs and place names, light leading the eye, sightlines |
 | Flow | How the level carries the players there from the previous objective, and where they could lose the way |
 | Who | [SectorOps] Which team or split does it, and how one solo player does it |
@@ -410,8 +415,7 @@ check (G288 (4)), and after the release he walks the 10-minute walk card.
    **Greybox exit gate**: (1) a measured validator pass, `node scripts/level-validate.mjs --require-measured` (V6,
    Michael 2026-10-24 ~22:00, "Yes, require it", G289 (2); until the flag is on master the greybox exit waits for it);
    (2) bot route-runs: a scripted run walks every declared route (shadow, high, loud) against live guards, logging time,
-   detections and dead stops (the route-runs job, Marlow Build; Michael 2026-10-25 ~09:05, "Bot route-runs + your
-   walk"); (3) a 10-minute walk card for Michael.
+   detections and dead stops (the route-runs job, Marlow Build; G330, "Bot route-runs + your walk"); (3) a 10-minute walk card for Michael.
 4. **Guards and mission**.
 5. **Dressing, readability and verification**.
 
@@ -552,7 +556,7 @@ review, not by the validator. Owner = the job that keeps the rule's number or ch
 | 5.2 Lit chokepoints | All | - | design doc (space sheets) | map job |
 | 5.5 Real light levels | All | scale sheet 9 (light-realism); `shadow_min_frac`, `shadow_max_frac` (INFO) | `checkEncounters` (shadow INFO), V6 | light-realism (Sector Ops Build) |
 | 6.2 Tension and release | All | - | `checkPacing` | level validator |
-| 6.3 Soft windows only | All | - | design doc (objective plan) | mission framework |
+| 6.3 Soft windows only; Marlow timed drills | Campaign, SectorOps; Training | - | design doc (objective plan) | mission framework |
 | 6.4 Guidance | All (Training keeps marks) | - | design doc (objective and lead plan) | mission framework |
 | 7.3 Play styles | All | - | design doc | map job |
 | 9.3 Strict rules | All | - | design doc (objective plan) | mission framework |
