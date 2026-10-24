@@ -3,6 +3,8 @@ import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { kestrelEditor } from './scripts/kestrel/editor-server';
 import { pickBuildSha } from './src/core/buildSha';
+import { PRECACHE_GLOBS, PRECACHE_IGNORES } from './src/pwa/precacheGlobs';
+import { RUNTIME_CACHING } from './src/pwa/runtimeCaching';
 
 // GitHub Pages serves from /<repo>/. The deploy workflow sets VITE_BASE.
 const base = process.env.VITE_BASE ?? '/';
@@ -75,7 +77,10 @@ export default defineConfig({
       workbox: {
         // the menu font (ttf), the game's music tracks and the movement foley and weapon sprites are precached (offline play); the music lab's audition
         // MP3s (debug only) stay out of the cache
-        globPatterns: ['**/*.{js,css,html,wasm,png,svg,webmanifest,json,ttf}', '**/music-*.mp3', 'assets/foley-*.mp3', 'assets/weapons-*.mp3'],
+        // (guard-models) the lists live in src/pwa/precacheGlobs.ts (unit tested); the guard figures' GLBs are never
+        // precached (`globIgnores`): fetched only with ?guardmodels=1, then kept by the `guards` runtime rule (src/pwa/runtimeCaching.ts)
+        globPatterns: [...PRECACHE_GLOBS],
+        globIgnores: [...PRECACHE_IGNORES],
         maximumFileSizeToCacheInBytes: 16 * 1024 * 1024,
         cleanupOutdatedCaches: true,
         // (sw-reload) the first install still claims the open page (offline warm-up, A109); updates wait (no skipWaiting)
@@ -84,35 +89,9 @@ export default defineConfig({
         navigateFallback: 'index.html',
         // the live game's worker never answers for the preview builds under /preview/, /ct/ and /kestrel/ (their own workers do)
         navigateFallbackDenylist: preview ? [] : [/\/preview(\/|$)/, /\/ct(\/|$)/, /\/kestrel(\/|$)/],
-        // (operators 11e, A98 / A99) the operator bodies (Wren's LOD0-2 for play, the hero for the menu and close
-        // cameras) are too big to precache (hero 55 MB, LOD0 18 MB): each is cached the first time it is fetched through
-        // the worker, then served from the cache. The first visit loads Wren before the worker controls the page, so
-        // once it does the game fetches each missing play LOD through it (A109, operators/runtime/offline.ts): one online
-        // start that reaches the menu leaves LOD0-2 cached for offline play; the hero is cached the first time a
-        // close-up asks for it. Same origin only; a new build's hashed files replace the old ones (8 entries = two builds
-        // of four files).
-        runtimeCaching: [
-          // (feature/weapons) the kit's weapon meshes (rifle, pistolSd, knife: 0.6-7 MB each) in a cache of their own, so
-          // they never push Wren's LODs out of hers (6 entries = two builds of three files)
-          {
-            urlPattern: ({ url, sameOrigin }) => sameOrigin && /\/assets\/(rifle|pistolSd|knife)-[^/]+\.glb$/.test(url.pathname),
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'weapons',
-              expiration: { maxEntries: 6 },
-              cacheableResponse: { statuses: [200] },
-            },
-          },
-          {
-            urlPattern: ({ url, sameOrigin }) => sameOrigin && /\/assets\/[^/]+\.glb$/.test(url.pathname),
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'operators',
-              expiration: { maxEntries: 8 },
-              cacheableResponse: { statuses: [200] },
-            },
-          },
-        ],
+        // (operators 11e, guard-models) the GLB rules (weapons, guards, operators) live in src/pwa/runtimeCaching.ts:
+        // every urlPattern there is self-contained, since workbox writes it into sw.js as text (tests/swRuntimeCaching.test.ts)
+        runtimeCaching: RUNTIME_CACHING,
       },
       devOptions: { enabled: false },
     }),

@@ -49,6 +49,13 @@ export class GuardAnimTier {
   private readonly st: AnimTierState;
   private readonly inp: AnimTierIn = newAnimTierIn();
   private lastFrame = -1;
+  private lastDt = 0;
+
+  /** (guard-models S11) The last update skipped the solve (`dt` returned -1; on master also the FROZEN tier, which
+   *  updates through `dt` before `animate` returns): the guard figure skips its pose (`GuardBody.skip`). */
+  get skipped(): boolean {
+    return this.lastDt < 0;
+  }
 
   /** `body`: the merged body's full mesh (`rig.voxel.meshes[0]`); null (no merged body): never off-screen. */
   constructor(
@@ -58,6 +65,13 @@ export class GuardAnimTier {
   ) {
     this.seen = body ? track(scene, body) : null;
     this.st = newAnimTierState(slot);
+  }
+
+  /** (guard-models G7) Watch `body` from now on: the guard figure's shown LOD mesh once it draws (it changes with the
+   *  LOD), the merged body before. Same mesh, or no track (built without a body): nothing. No allocation. */
+  watch(body: AbstractMesh | null): void {
+    const t = this.seen;
+    if (t && body && t.mesh !== body) t.mesh = body;
   }
 
   /** The time to solve this frame, or -1 to skip (`CharacterRig.animate`'s `solveDt`). `frozen` (perfg): the render
@@ -93,7 +107,8 @@ export class GuardAnimTier {
       cd = (c.x - pos.x) ** 2 + (c.z - pos.z) ** 2;
     }
     i.camDist2 = cd;
-    return animTierStep(this.st, animTierPeriod(i), dt);
+    this.lastDt = animTierStep(this.st, animTierPeriod(i), dt);
+    return this.lastDt;
   }
 
   /**

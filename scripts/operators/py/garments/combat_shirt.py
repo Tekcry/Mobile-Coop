@@ -11,7 +11,16 @@ Pattern space: metres, the fabric seen from outside, x right, y up.
 - Front: +x is the wearer's left. Back: +x is the wearer's right.
 - Left sleeve: +x towards the back. Right sleeve: +x towards the front. y = 0 at the cuff.
 - Collar: x = 0 at the centre front, running round the wearer's left, the back and the right.
+
+Guard bake (docs/guard-models PLAN G2): run as the main script by guard-bake.mjs, it hands the job to guard_garment.py,
+which calls configure() on a copy of this module; the guard field shirt is guard_draft() (bottom of this file). Wren's
+draft is untouched while configure() has not been called.
 """
+if __name__ == '__main__':   # guard bake job: py/ and py/garments/ on the path before the imports below
+    import os as _os
+    import sys as _sys
+    _here = _os.path.dirname(_os.path.abspath(__file__))
+    _sys.path[:0] = [_here, _os.path.dirname(_here)]
 import math
 
 import numpy as np
@@ -112,6 +121,8 @@ def draft(m, h=0.011, ease=None):
     """m: body measurements (see build_garment.measure). Returns the pattern and the detail specs.
     ease: overrides of the cut constants (knit_ease, knit_ease_v, sleeve_ease, cuff_room), for garments drafted on
     this block (the base layer top)."""
+    if GUARD is not None and ease is None:
+        return guard_draft(m, h)
     ec = {'knit_ease': KNIT_EASE, 'knit_ease_v': KNIT_EASE_V, 'sleeve_ease': SLEEVE_EASE, 'cuff_room': CUFF_ROOM,
           **(ease or {})}
     e = 1.0 + ec['knit_ease']
@@ -322,3 +333,80 @@ def draft(m, h=0.011, ease=None):
             'centre': (x0 + 0.0065, hc - 0.011), 'size': (0.013, 0.022), 'r': 0.003, 'angle': 0.0, 'bulge': 0.0,
             'job': 'zip garage: folded fabric over the slider so it does not dig into the chin'})
     return pattern, details, {'top': {'L': top_l, 'R': top_r}, 'sleeve_w': (wc, we, wb), 'collar_len': lc}
+
+
+# --- Guard bake (docs/guard-models PLAN G2, SPEC 4 `uniform` / `uniform_rolled`) ---------------------------------------
+# The guard field shirt is Wren's block (raglan sleeves with the articulated elbow, underarm gussets, the stand collar
+# with its quarter zip, cuff tabs over the glove) re-cut as a woven shirt worn on the skin: a ripstop torso with room
+# (+8 % girth, no length stretch, topstitched side seams), looser sleeves, two chest pockets with plain flaps; no elbow
+# pads, arm pockets or loop panels. Nothing here runs for Wren: GUARD stays None until configure().
+GUARD = None
+GUARD_CUT = {'knit_ease': 0.08, 'knit_ease_v': 0.0, 'sleeve_ease': 1.12, 'cuff_room': 0.035}
+ROLL_ABOVE_ELBOW = 0.07   # x s: the rolled sleeve's cut line above the elbow (pattern y from the cuff)
+
+
+def configure(part, variant=None, prefix=None, **_):
+    """Guard mode for this module copy (guard_garment.load_part). variant 'rolled': sleeves rolled above the elbow."""
+    global GUARD, KIT, SIM, UNDER_LAYERS
+    import copy
+    if variant not in (None, 'rolled'):
+        raise SystemExit(f'combat_shirt: unknown variant {variant!r} (rolled)')
+    GUARD = {'part': part, 'variant': variant, 'prefix': prefix or part}
+    KIT = part
+    SIM = copy.deepcopy(SIM)
+    UNDER_LAYERS = {}   # worn on the skin: no base layer under it
+
+
+def prefix_patches(details, prefix):
+    """Patch objects are named after their spec: prefixed with the part (`guard-<base>-<part>-...`) so every object
+    of a part shares its prefix and two parts never collide."""
+    names = {p['name'] for p in details['patches']}
+    for p in details['patches']:
+        p['name'] = f"{prefix}-{p['name']}"
+        if p.get('over') in names:
+            p['over'] = f"{prefix}-{p['over']}"
+    for g in details.get('grommets') or []:
+        if g.get('patch') in names:
+            g['patch'] = f"{prefix}-{g['patch']}"
+    return details
+
+
+def chest_pockets(details, m, s, kit, y_b, x=0.085, size=(0.11, 0.125), flap_h=0.045):
+    """Two chest patch pockets with plain flaps on the front panel (+x is the wearer's left)."""
+    pw, ph = size[0] * s, size[1] * s
+    for side, sx in (('L', 1.0), ('R', -1.0)):
+        pc = (sx * x * s, y_b - 0.005 * s)
+        details['patches'].append({
+            'name': f'chestPocket{side}', 'kit': kit, 'panel': 'front', 'kind': 'pocket', 'material': 'ripstop',
+            'centre': pc, 'size': (pw, ph), 'r': 0.008 * s, 'angle': 0.0, 'bulge': 0.003, 'job': 'chest pocket'})
+        details['patches'].append({
+            'name': f'chestFlap{side}', 'kit': kit, 'panel': 'front', 'kind': 'flap', 'material': 'ripstop',
+            'over': f'chestPocket{side}', 'centre': (pc[0], pc[1] + ph / 2 - flap_h * s / 2 + 0.0025 * s), 'pivot': pc,
+            'size': (pw + 0.008 * s, flap_h * s), 'r': 0.006 * s, 'angle': 0.0, 'bulge': 0.0,
+            'job': 'plain pocket flap'})
+
+
+def guard_draft(m, h=0.011):
+    g = GUARD
+    s = m['height'] / 1.68
+    pattern, details, info = draft(m, h, ease=GUARD_CUT)
+    for p in pattern.panels.values():
+        if p.material == KNIT and not p.name.startswith('gusset'):
+            p.material = RIPSTOP
+    pattern.seams = [(n, a, b, 'topstitch1' if st == 'flatlock' and n.startswith('side') else st)
+                     for n, a, b, st in pattern.seams]
+    keep = ('zipGarage',) if g['variant'] == 'rolled' else ('zipGarage', 'cuffTab')
+    details['patches'] = [p for p in details['patches'] if p['name'].startswith(keep)]
+    for p in details['patches']:
+        p['kit'] = g['part']
+    chest_pockets(details, m, s, g['part'], (m['z_bust'] - m['z_hem']) * (1.0 + GUARD_CUT['knit_ease_v']))
+    if g['variant'] == 'rolled':
+        # simulated with full sleeves (the same cloth as the shirt), cut at this line afterwards (guard_garment)
+        details['cuffs'] = []
+        details['rolled'] = {'panels': ['sleeveL', 'sleeveR'], 'y_cut': m['sleeve_elbow'] + ROLL_ABOVE_ELBOW * s}
+    return pattern, prefix_patches(details, g['prefix']), info
+
+
+if __name__ == '__main__':   # guard bake job (guard-bake.mjs --stage garments)
+    import guard_garment
+    guard_garment.main()

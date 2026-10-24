@@ -175,6 +175,72 @@ Plan and rules: `docs/sector-redesign/briefs/ART-PLAN.md`; builds: `docs/sector-
   at most 3 times per variant with a console warning (`bodyEffectRecovery.ts`, guard-ai carry fix: a stall during a
   new variant's compile left guards invisible on the laptop GPU); the meshes holding it are switched back to GPU
   skinning (Babylon's first fallback had set `computeBonesUsingShaders` false, drawing the body unskinned; carry fix 2).
+- Guard figures (guard-models, `docs/guard-models/`; `flags.guardModels`: `?guardmodels=1` turns it on and the default is
+  OFF for now, G8 flips it to `!== '0'` after its budget run; `?guardmodels=0` is the merged S1 body above, A10). The
+  seven human kinds (grunt, runner, heavy, sniper, enforcer, droneOp, officer; the dog keeps its model) draw as a
+  `GuardFigure` (`operators/runtime/guardFigure.ts`, on Wren's `OperatorLibrary` / `OperatorPoser`) that `GuardBody`
+  (`ai/guardBody.ts`) builds over the rig in `buildEnemyRig` and `buildBodyRig`; the merged body stays until the
+  figure's first LOD is in, then is disabled. Gameplay never reads it (hitboxes, perception and the light meter read
+  the rig). All male, larger than Wren.
+  - Bases (A2): `average` (grunt, droneOp, officer; ref height 1.77 m), `lean` (runner, sniper; 1.76 m), `broad` (heavy,
+    enforcer; 1.825 m), from the MakeHuman base body, scaled `def.height / refHeight` (within +-2%).
+  - Heads, faces, tones, hair (M1): `average-1..4` and `lean-1..4` (open faces, each with its own iris and
+    clean / stubble / beard), `broad-1` (the eye region under the balaclava); eyes sit inside the head piece. Four skin
+    tones (0-3), hair caps `buzz`, `crop`, `sidepart`, `receding`, `fade`, `bald` (no mesh) in four colours (`black`,
+    `darkbrown`, `brown`, `grey`); heavy and enforcer have no hair cap. Faces are shaped from the CC0 MakeHuman face
+    targets, skin, eyes and hair are baked procedurally in-repo; no face bones, no blink (A15).
+  - Outfits per kind: `uniform` (grunt, droneOp, heavy, enforcer; faction tint), `uniform_rolled` (sniper, sleeves
+    rolled), `work` (runner; his own colour, A11), `uniform_jacket` (officer; his own colour). Headwear: grunt cap /
+    beanie / none, runner beanie / none, sniper boonie / cap, droneOp headset (a cap over it 40% of the time), officer
+    `cap_officer`, heavy and enforcer balaclava. Eyewear: the sniper always wears dark glasses; grunt (clear or dark),
+    droneOp and officer (clear) rarely wear any. Small kit: `radio`, `pouch_belt`, `holster_thigh`, `flashlight_mount`, some fixed per
+    kind (grunt radio and torch mount, officer radio, droneOp belt), the rest picked from the seed.
+  - Gear pieces and the gameplay bits (A5, A14): the gear shows only what stops a round. `Enemy.helmet` /
+    `Enemy.armour` (`GEAR_BY_STAGE`: armour at alarm stage 2, helmet too at 3; response teams) are the wire bits
+    `AL_HELMET` / `AL_ARMOUR`. `applyGear(variant, helmet, armour, plated, kind, out)` turns them into the visible
+    piece set: helmet bit -> `helmet_std` (heavy and enforcer: `helmet_heavy`), which hides the hair cap and the
+    headwear except the balaclava and headset; armour bit -> `vest_soft`; `plate_heavy` always on heavy and enforcer
+    (both `plated`); the enforcer's `shield_riot` is its own GLB skinned on the figure's skeleton (`ai/guardShield.ts`).
+    The seed never adds a helmet or armour the gameplay does not have. A knocked-off helmet (first head hit) hides
+    through the mask and drops as `helmet_std`'s own mesh in the guard's helmet colour (`ai/helmetDrops.ts`,
+    `guardHelmet.ts`, A6); the cap or hair shows again. Carried and fresh bodies keep the guard's seed and gear
+    (`ai/body.ts`).
+  - LODs and the runtime figure: three LODs per base, one skinned mesh and one material each (LOD0 < 8 m, LOD1 8-25 m,
+    LOD2 beyond, 10% hysteresis, `lodPick.ts`; no hero), so a guard is one draw per pass (+1 shield, + gun). Triangle
+    and texture budgets: `performance.md`. Every head, hair cap, headwear, eyewear, kit and gear piece is baked into the
+    base's mesh and tagged per vertex (`_PIECE`, `_TINT`). Static vertex buffers are shared per (base, LOD) per scene
+    (`GuardLibrary`); per guard a skeleton, `gvis` (RGBA8 per vertex: tint rgb for the vertex's slot, alpha = visible /
+    flash / heat, 0 = hidden) and an index buffer of the visible pieces only, rewritten on a spawn, gear, tint or flash
+    change (`operators/guards/gearMask.ts`, pure), so piece toggles cost no draw and hidden pieces leave the shadow
+    maps and the G-buffer. The material plugin (`guardFigurePlugin.ts`, one packed varying) tints where the albedo atlas
+    alpha is set and flashes / heats in the same draw. Culling is a fixed root-local rest box; a ragdoll (a re-parented
+    joint) is always active and poses through the world-matrix path. With the flag on, the level load awaits LOD2 of
+    every base and compiles the guard shader on hidden warm meshes under the warm-up cap (`ai/guardWarm.ts`).
+  - Look seed (M3): `Enemy.look`, a 7-bit seed set once at spawn from the spawn slot (`ai/guardLook.ts`, never
+    `Enemy.num`), so a section restart or a reload gives every slot the same look; it rides the wire (`AL_LOOK`,
+    `coop.md`) so host and client draw the same man. `guardVariant(seed, kind, mapId, out)`
+    (`operators/guards/guardVariant.ts`, pure, no allocation after the first call per kind and map) picks head, skin
+    tone, hair cap and colour, headwear, eyewear, kit and a +-6% colour jitter by the archetype matrix (SPEC section 3);
+    `guardTints.ts` turns it and the faction palette into slot tints.
+  - Files and the offline bake: the bake's output is bundled in `src/operators/assets/guards/` (~29 MB:
+    `guard-<base>-lod0..2.glb`, `guard-<base>.json`, `guard-shield_riot-lod0..2.glb`; KTX2 textures inside the GLBs);
+    `operators/guards/guardAssets.ts` is the one seam (two eager `import.meta.glob` lines: the GLBs as `?url` strings
+    only, nothing fetched; the three JSON files, under 1 KB together, inlined). A base without all its files resolves
+    to the stand-in (Wren's play LODs, untinted, one piece). Guard figures are off by default; their files load only
+    with `?guardmodels=1`, never precached: every fetch is behind `flags.guardModels` (`GuardBody` via
+    `guardModelsFor`, `warmGuardModels`, the helmet drop's mesh, the shield), the precache lists
+    (`src/pwa/precacheGlobs.ts`, used by `vite.config.ts`) take no `.glb` and ignore `**/guard-*.glb` /
+    `**/guard-*.ktx2`, and the runtime rule (`src/pwa/runtimeCaching.ts`) keeps a fetched `/assets/guard-*.glb` in the
+    worker's own `guards` cache (CacheFirst, 24 entries). Tested by `tests/guardAssetsOffline.test.ts` (the lists globbed
+    as workbox does; no fetch with the flag off) and `tests/swRuntimeCaching.test.ts` (every runtime rule self-contained,
+    as workbox writes it into `sw.js` as text, and the built `sw.js` routes each GLB to its cache). Bake (laptop, headless Blender, MPFB2 CC0 data; none on the desktop):
+    `node scripts/operators/guard-bake.mjs --stage <prep|bodies|heads|garments|gear|lods|check|sheet>` runs one stage as
+    parallel jobs and skips jobs whose input hash is unchanged; `guard-sheet.mjs` draws the variety contact sheet. It
+    builds on Wren's pipeline (`scripts/operators/README.md`); plan, spec and per-slice reports: `docs/guard-models/`.
+    Kit data: `scripts/operators/data/guards.json` (ids and budgets, `operators/guards/guardKit.ts` validates).
+  - Tests: `guardKit`, `guardVariant`, `gearMask`, `guardLook`, `guardFigure` (NullEngine), `guardBody`,
+    `guardResolve`, `guardAssets` (the bundled files against the budgets), `guardAssetsOffline`; `e2e-coop` checks the
+    seed and pieces on host and client (`E2E_GUARDMODELS=1`).
 - Rig: root -> body (tumble pivot) -> pelvis(`hips`) -> spine -> chest(`torso`) -> neck -> head(`headNode`, head
   centre); chest -> shoulder -> elbow -> wrist; pelvis -> hip -> knee -> ankle; sockets `weaponPivot` (aim
   pocket), `backSocket`, `hipSocket`. Joints use `rotationQuaternion` (root uses Euler `rotation.y`).
@@ -184,8 +250,8 @@ Plan and rules: `docs/sector-redesign/briefs/ART-PLAN.md`; builds: `docs/sector-
   carrier, pouches, pads, gloves; `helmet: 'trilens'`: balaclava + a three-lens goggle, `rig.setLensGlow` from the
   vision mode). Enemy looks get the map's faction colours (`ai/factions.ts` `factionLook`, `MapTheme.faction`).
 - **Players are Wren (operators step 11e, G123: "Both play as Wren").** The local player, the co-op partner and the
-  main menu's operator are Wren, the realistic operator from the offline pipeline (feature/operators, G68); guards,
-  dummies and the VIP keep the part bodies above (G68: realistic guards later). No dev switch.
+  main menu's operator are Wren, the realistic operator from the offline pipeline (feature/operators, G68); dummies
+  and the VIP keep the part bodies above, and guards keep the merged body unless `?guardmodels=1` (guard figures below). No dev switch.
   - `operators/runtime/playerFigure.ts` `operatorRig()` builds a player's `CharacterRig` at Wren's height (1.68 m,
     G74; build `average`, style `detailed`) and puts an `OperatorFigure` (`operators/runtime/figure.ts`)
     on it. The rig stays the pose and gameplay body: animation, IK, sockets (weapons attach to the rig's sockets as

@@ -8,11 +8,17 @@ import type { World } from '../world/world';
 import type { EnemyDef } from './enemyDefs';
 import { factionLook } from './factions';
 import { CARRY_DRAWING, CARRY_DRAWN, CARRY_HOLSTERED, type GuardCarry } from './carryState';
+import { GuardBody, guardModelsFor } from './guardBody';
 
 const ENEMY_GUN = { body: '#2a2d31', grip: '#17191c', accent: '#3a3f45' };
 
-/** Shared enemy body (AI enemies and coop puppets): same rig/animation set as players, built per type. */
-export function buildEnemyRig(scene: Scene, world: World, def: EnemyDef, name: string): { rig: CharacterRig; gun: WeaponModel | null } {
+/**
+ * Shared enemy body (AI enemies and coop puppets): same rig/animation set as players, built per type. (guard-models
+ * G7) With `flags.guardModels` a human guard also gets his `GuardBody` (the operator-pipeline figure over the rig, built
+ * right after it: it measures the rig's rest); the merged body draws until the figure's first LOD is in. `figure` is
+ * null with `?guardmodels=0` (today's S1 body, untouched) and for the dog. The owner sets its look seed and gear.
+ */
+export function buildEnemyRig(scene: Scene, world: World, def: EnemyDef, name: string): { rig: CharacterRig; gun: WeaponModel | null; figure: GuardBody | null } {
   const look = factionLook(def.look, def.kind, world.map.theme.faction);
   const rig = new CharacterRig(scene, (shape, hex, slot) => world.parts.instance(shape, hex, `enemy-${slot}`), look, def.height, name, {
     build: def.build,
@@ -20,6 +26,7 @@ export function buildEnemyRig(scene: Scene, world: World, def: EnemyDef, name: s
     merge: true, // (guard-render S1) one merged smooth mesh (`?guardmerge=0`: the parts)
   });
   rig.guardRows = true; // (item 24, track A) the guard tables (tuneGuard.ts), never Wren's rows
+  const figure = guardModelsFor(def) ? new GuardBody(scene, world, def, rig, name) : null;
   for (const m of rig.renderMeshes) world.addShadowCaster(m);
   let gun: WeaponModel | null = null;
   if (def.gun) {
@@ -30,7 +37,7 @@ export function buildEnemyRig(scene: Scene, world: World, def: EnemyDef, name: s
     else for (const m of gun.renderMeshes) world.addShadowCaster(m);
     gun.hold(rig);
   }
-  return { rig, gun };
+  return { rig, gun, figure };
 }
 
 /**

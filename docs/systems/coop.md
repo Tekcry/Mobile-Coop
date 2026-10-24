@@ -146,10 +146,31 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
 - Guard-ai state (guard-ai S9, protocol 41 (39 before the train 30 merge, 38 before the train 29 merge, 37 before the train 28 merge, 32 before 4.75.0); the AI stays host-only):
   - `al` gains `AL_CAUTION` 16 (S4 / S14 caution), `AL_HELMET` 32 and `AL_ARMOUR` 64 (S12 / S13 gear), packed by
     `packAlert(level, seized, torch, cautious, helmet, armour, carry)` (`coopHost.alertCode`); the parser clamps `al`
-    to 0-511. (A126) Bits 7-8 (`AL_CARRY`) are the guard's S21 weapon carry (`WIRE_CARRY_*`: 0 drawn, 1 holstered,
+    to 0-`AL_MAX`. (A126) Bits 7-8 (`AL_CARRY`) are the guard's S21 weapon carry (`WIRE_CARRY_*`: 0 drawn, 1 holstered,
     2 drawing, 3 holstering; the host's `Enemy.carry.phase` through `wireCarry`); `EnemyPuppet` follows it with
     `net/puppetCarry.ts` `PuppetCarry` (the clips on its own clock at the host's times) and poses the gun and rig through
     the host's `GuardGunCarry`, `RigPose.ready` / `swap` and `carryRaise`.
+  - (guard-models G6n) Bits 9-15 (`AL_LOOK`, `packAlert`'s last argument, read with `alertLook`; `AL_MAX` is now
+    65535) carry the guard's look seed `Enemy.look` (0-127, `ai/guardLook.ts`: set once at spawn from his
+    spawn slot, so a section restart keeps every slot's look), which `EnemyPuppet.look` exposes for the guard figure.
+    - Layout: `al` = level (bits 0-1, `level & 3`), `AL_SEIZED` 4, `AL_TORCH` 8, `AL_CAUTION` 16, `AL_HELMET` 32, `AL_ARMOUR` 64, `AL_CARRY`
+      bits 7-8, then `AL_LOOK_SHIFT` 9 and `AL_LOOK` = 127 << 9 (the seed). `AL_MAX` is 65535 (the parser clamps to it).
+      `packAlert`'s last parameter is `look` (default 0, so an older caller sends seed 0); `alertLook(al)` reads it. The
+      doc comment lists the bits without a version number: the `PROTOCOL_VERSION` line is bumped by the train build.
+    - Seed rule: `lookSeed(key, index) = (hash(key) + index * 79) & 127` (FNV-1a + murmur finaliser; the odd stride makes
+      the slots of one key distinct up to 128). Sector Ops authored guards key on (map, section, slot index); response
+      teams on (map, section, team index, member index); every other spawn on (map, authored point to 0.1 m), so Course
+      squads keep their looks over a bay restart. It never reads `Enemy.num` or the spawn order, so a section restart or a
+      reload gives the same slot the same seed on the host, and the client reads whatever the host packs.
+    - The look bits are the guard's whole look: the client builds the same variant with `guardVariant(seed, kind, mapId)`
+      (a pure function, so both peers agree) and the visible pieces with `applyGear` from the gear bits `AL_HELMET` /
+      `AL_ARMOUR`. A helmet knocked off clears `AL_HELMET` on the host; the client hides the piece and drops its own
+      helmet. No second message carries the look.
+    - Bodies: `snap.bodies` carries enemy ids only, so no record carries a seed: a client's ragdoll is its own puppet's
+      rig (it had the seed), a carried body is never mirrored, and the host reads `body.guard.look`.
+    - Tests: `tests/guardLook.test.ts` (round trip of every seed with every other bit, parser clamp, restart, team
+      distinctness, a peer at `PROTOCOL_VERSION - 1` refused); `e2e-coop` (seed equal on both screens, same seed after a
+      course bay restart, helmet bit drop on both; the visible-piece asserts with `E2E_GUARDMODELS=1`).
   - `bark` event: `{ id, b, n, u, r, t? }`. The host wraps `EnemyManager.onBark` / `onCameraLine`
     (`CoopHost.hookCombat`): a table line goes as `b` = its `BARK_EVENTS` index, `n` = `BarkVoice.lastLine`, `u` = the
     unit it names; a talking pair's line as `BARK_TEXT` 255 and the desk's camera line as `BARK_CAM` 254 with the text

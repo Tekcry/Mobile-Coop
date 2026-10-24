@@ -27,6 +27,7 @@
     "operators:export": "node scripts/operators/export-gltf.mjs",
     "operators:lods": "node scripts/operators/export-gltf.mjs --lods",
     "operators:ktx2": "node scripts/operators/ktx2.mjs",
+    "operators:guard-bake": "node scripts/operators/guard-bake.mjs",
     "operators:sheet": "node --import ./scripts/operators/ts-resolve.mjs scripts/operator-sheet.mjs",
     "operators:check": "node --import ./scripts/operators/ts-resolve.mjs scripts/operators/check.mjs",
     "weapons:build": "node scripts/weapons/build.mjs",

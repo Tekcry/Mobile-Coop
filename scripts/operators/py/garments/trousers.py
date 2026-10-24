@@ -15,7 +15,16 @@ Construction:
 The shirt hem is tucked in: the shirt is simulated first (its hem at the hip), the trousers' waist closes over it.
 
 Pattern space as legwear.py (front panels cut with the inner edge on the left; frontR and backL mirrored).
+
+Guard bake (docs/guard-models PLAN G2): run as the main script by guard-bake.mjs, it hands the job to guard_garment.py,
+which calls configure() on a copy of this module (bottom of this file). Wren's cut and draft are untouched while
+configure() has not been called.
 """
+if __name__ == '__main__':   # guard bake job: py/ and py/garments/ on the path before the imports below
+    import os as _os
+    import sys as _sys
+    _here = _os.path.dirname(_os.path.abspath(__file__))
+    _sys.path[:0] = [_here, _os.path.dirname(_here)]
 import math
 
 import numpy as np
@@ -218,3 +227,90 @@ def draft(m, h=0.011):
             'job': 'belt loop: wide enough for the duty belt, bar tacks at both ends'})
     info = {'legs': arrange, 'leg_geometry': geo}
     return pattern, details, info
+
+
+# --- Guard bake (docs/guard-models PLAN G2, SPEC 4 `uniform` / `work`) -------------------------------------------------
+# Guards wear the trousers on the skin (no leggings) over the tucked field shirt and the boots: Wren's cut and leg
+# block, the layer allowance from the layers really under them (the boot shaft below its top, the shirt above its hem;
+# guard_garment measures both on its copies), and no seat bridging (that spans the leggings' hollows). Details:
+# - uniform: cargo trousers - the cargo pockets with flaps and drain grommets, the fly, snap, belt loops, ankle tabs;
+#   no knee pads, seat panels or knee inserts;
+# - variant 'work' (A11): plain work trousers - a straight leg over the boot, two back patch pockets, the fly, snap and
+#   belt loops; no cargo pockets or ankle tabs.
+# configure() swaps the module's `cut` and `draft` for the guard ones; nothing here runs for Wren.
+GUARD = None
+_WREN_CUT, _WREN_DRAFT = cut, draft
+
+
+def configure(part, variant=None, prefix=None, shirt_hem_z=None, boot_top_z=None, **_):
+    """Guard mode for this module copy (guard_garment.load_part)."""
+    global GUARD, KIT, SIM, UNDER_LAYERS, cut, draft
+    import copy
+    if variant not in (None, 'work'):
+        raise SystemExit(f'trousers: unknown variant {variant!r} (work)')
+    GUARD = {'part': part, 'variant': variant, 'prefix': prefix or part, 'shirtHemZ': shirt_hem_z, 'bootTopZ': boot_top_z}
+    KIT = part
+    SIM = copy.deepcopy(SIM)
+    SIM.pop('bridge', None)
+    UNDER_LAYERS = {
+        'leg_rows': (lambda z: 1 if z < boot_top_z + 0.01 else 0) if boot_top_z is not None else 0,
+        'torso_rows': (lambda z: 1 if z > shirt_hem_z else 0) if shirt_hem_z is not None else 0,
+    }
+    cut, draft = guard_cut, guard_draft
+
+
+def guard_cut(m):
+    o = _WREN_CUT(m)
+    if GUARD['variant'] == 'work':
+        s = m['height'] / 1.68
+        o['hem_circ'] = 1.45 * m.get('boot_top_girth', 0.265 * s)   # a straight leg hanging over the boot
+        o['leg_ease'] = (1.36, 1.18, 1.10)
+    return o
+
+
+def guard_draft(m, h=0.011):
+    from combat_shirt import prefix_patches
+    g = GUARD
+    s = m['height'] / 1.68
+    work = g['variant'] == 'work'
+    pattern, details, info = _WREN_DRAFT(m, h)
+    drop = ('kneePad', 'seat') + (('cargo', 'ankleTab') if work else ())
+    details['patches'] = [p for p in details['patches'] if not p['name'].startswith(drop)]
+    details['inserts'] = []
+    geo = info['leg_geometry']
+    if not work:
+        # cargo pockets square to the leg, their outer edge 1.5 cm inside the outseam along the whole pocket (Wren's
+        # 10 degree tilt took a corner past the outseam on the guards' straighter thighs)
+        by = {p['name']: p for p in details['patches']}
+        for sd in ('L', 'R'):
+            pk, fl = by.get(f'cargo{sd}'), by.get(f'cargoFlap{sd}')
+            if pk is None or fl is None:
+                continue
+            pw, ph = pk['size']
+            yc = pk['centre'][1]
+            xc = float(min(geo['x_side']('front', yc - ph / 2), geo['x_side']('front', yc + ph / 2))) - 0.015 * s - pw / 2
+            xc = -xc if sd == 'R' else xc                                     # frontR is mirrored
+            pk['centre'], pk['angle'] = (xc, yc), 0.0
+            fl['centre'], fl['pivot'], fl['angle'] = (xc, fl['centre'][1]), (xc, yc), 0.0
+            for gr in details.get('grommets') or []:
+                if gr['patch'] == f'cargo{sd}':
+                    gr['at'] = (xc, gr['at'][1])
+    if work:
+        details['grommets'] = []
+        xs, xi = geo['x_side'], geo['x_inner']
+        pw, ph = 0.13 * s, 0.14 * s
+        y_pk = geo['y_top'] - 0.075 * s - ph / 2
+        x_m = float(xi('back', y_pk) + 0.5 * (xs('back', y_pk) - xi('back', y_pk)))
+        for sd in ('L', 'R'):
+            details['patches'].append({
+                'name': f'backPocket{sd}', 'kit': g['part'], 'panel': f'back{sd}', 'kind': 'pocket',
+                'material': 'softshell', 'centre': (-x_m if sd == 'L' else x_m, y_pk), 'size': (pw, ph),
+                'r': 0.012 * s, 'angle': 0.0, 'bulge': 0.002, 'job': 'back patch pocket'})   # backL is mirrored
+    for p in details['patches']:
+        p['kit'] = g['part']
+    return pattern, prefix_patches(details, g['prefix']), info
+
+
+if __name__ == '__main__':   # guard bake job (guard-bake.mjs --stage garments)
+    import guard_garment
+    guard_garment.main()
