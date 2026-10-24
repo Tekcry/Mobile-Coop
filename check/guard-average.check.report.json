@@ -4,20 +4,20 @@
  "problems": [],
  "summary": {
   "bufferTris": [
-   32348,
-   11846,
+   32310,
+   11799,
    3709
   ],
   "shownTris": [
    {
-    "grunt": 12079,
-    "droneOp": 12083,
-    "officer": 12617
+    "grunt": 12071,
+    "droneOp": 12075,
+    "officer": 12609
    },
    {
-    "grunt": 4930,
-    "droneOp": 4901,
-    "officer": 5137
+    "grunt": 4921,
+    "droneOp": 4892,
+    "officer": 5128
    },
    {
     "grunt": 1645,
@@ -34,7 +34,7 @@
    {
     "lod": 0,
     "file": "lods/guard-average-lod0.glb",
-    "bufferTris": 32348,
+    "bufferTris": 32310,
     "draws": 1,
     "bones": [
      "root",
@@ -102,13 +102,13 @@
       "format": "ktx2"
      }
     ],
-    "vertices": 27267,
+    "vertices": 27742,
     "mixedTris": 0,
     "pieceAttrUint8": true,
     "shownTris": {
-     "grunt": 12079,
-     "droneOp": 12083,
-     "officer": 12617
+     "grunt": 12071,
+     "droneOp": 12075,
+     "officer": 12609
     },
     "bodyTris": 1194,
     "headTris": {
@@ -119,11 +119,11 @@
     },
     "eyeTris": 448,
     "hairCapTris": {
-     "buzz": 500,
-     "crop": 798,
-     "sidepart": 998,
-     "receding": 800,
-     "fade": 698
+     "buzz": 490,
+     "crop": 792,
+     "sidepart": 990,
+     "receding": 794,
+     "fade": 690
     },
     "pieceTris": {
      "uniform": 1707,
@@ -145,7 +145,7 @@
    {
     "lod": 1,
     "file": "lods/guard-average-lod1.glb",
-    "bufferTris": 11846,
+    "bufferTris": 11799,
     "draws": 1,
     "bones": [
      "root",
@@ -203,13 +203,13 @@
       "format": "ktx2"
      }
     ],
-    "vertices": 13584,
+    "vertices": 13428,
     "mixedTris": 0,
     "pieceAttrUint8": true,
     "shownTris": {
-     "grunt": 4930,
-     "droneOp": 4901,
-     "officer": 5137
+     "grunt": 4921,
+     "droneOp": 4892,
+     "officer": 5128
     },
     "bodyTris": 398,
     "headTris": {
@@ -220,11 +220,11 @@
     },
     "eyeTris": 0,
     "hairCapTris": {
-     "buzz": 198,
-     "crop": 250,
-     "sidepart": 300,
-     "receding": 248,
-     "fade": 250
+     "buzz": 191,
+     "crop": 240,
+     "sidepart": 291,
+     "receding": 237,
+     "fade": 240
     },
     "pieceTris": {
      "uniform": 1321,

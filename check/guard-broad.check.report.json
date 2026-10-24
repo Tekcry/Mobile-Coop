@@ -4,22 +4,22 @@
  "problems": [],
  "summary": {
   "bufferTris": [
-   11148,
-   4929,
-   1596
+   8557,
+   4254,
+   1445
   ],
   "shownTris": [
    {
-    "heavy": 11148,
-    "enforcer": 11948
+    "heavy": 8557,
+    "enforcer": 9357
    },
    {
-    "heavy": 4929,
-    "enforcer": 5229
+    "heavy": 4254,
+    "enforcer": 4554
    },
    {
-    "heavy": 1596,
-    "enforcer": 1716
+    "heavy": 1445,
+    "enforcer": 1565
    }
   ],
   "bodyTris": 1193
@@ -31,7 +31,7 @@
    {
     "lod": 0,
     "file": "lods/guard-broad-lod0.glb",
-    "bufferTris": 11148,
+    "bufferTris": 8557,
     "draws": 1,
     "bones": [
      "root",
@@ -99,16 +99,16 @@
       "format": "ktx2"
      }
     ],
-    "vertices": 10570,
+    "vertices": 9341,
     "mixedTris": 0,
     "pieceAttrUint8": true,
     "shownTris": {
-     "heavy": 11148,
-     "enforcer": 11948
+     "heavy": 8557,
+     "enforcer": 9357
     },
     "bodyTris": 1193,
     "headTris": {
-     "broad-1": 4000
+     "broad-1": 1409
     },
     "eyeTris": 448,
     "hairCapTris": {},
@@ -123,7 +123,7 @@
    {
     "lod": 1,
     "file": "lods/guard-broad-lod1.glb",
-    "bufferTris": 4929,
+    "bufferTris": 4254,
     "draws": 1,
     "bones": [
      "root",
@@ -181,16 +181,16 @@
       "format": "ktx2"
      }
     ],
-    "vertices": 6222,
+    "vertices": 5879,
     "mixedTris": 0,
     "pieceAttrUint8": true,
     "shownTris": {
-     "heavy": 4929,
-     "enforcer": 5229
+     "heavy": 4254,
+     "enforcer": 4554
     },
     "bodyTris": 398,
     "headTris": {
-     "broad-1": 1200
+     "broad-1": 525
     },
     "eyeTris": 0,
     "hairCapTris": {},
@@ -205,7 +205,7 @@
    {
     "lod": 2,
     "file": "lods/guard-broad-lod2.glb",
-    "bufferTris": 1596,
+    "bufferTris": 1445,
     "draws": 1,
     "bones": [
      "root",
@@ -263,16 +263,16 @@
       "format": "ktx2"
      }
     ],
-    "vertices": 2369,
+    "vertices": 2298,
     "mixedTris": 0,
     "pieceAttrUint8": true,
     "shownTris": {
-     "heavy": 1596,
-     "enforcer": 1716
+     "heavy": 1445,
+     "enforcer": 1565
     },
     "bodyTris": 149,
     "headTris": {
-     "broad-1": 398
+     "broad-1": 247
     },
     "eyeTris": 0,
     "hairCapTris": {},
