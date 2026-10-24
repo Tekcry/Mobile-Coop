@@ -274,16 +274,15 @@ Polish: slice0-check.md, sliceL-check.md, slice1-check.md, e1/e3/e4-check.md pol
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (saved 2026-10-24 ~20:05). coop4 / #317 / feature/coop4-pol are GUARD AI BUILD's now
+Night Shift | Sector Ops Build: RESUME (saved 2026-10-24 ~20:50, new account). coop4 / #317 / feature/coop4-pol are GUARD AI BUILD's now
 (handed over at afc616f0): do not push there. Your work, in this order:
-1. CAMPUS FOG (HIGH, Michael on Epic): PR #339 OPEN @ 031b54f1 (513a7121 + docs: check PASS d6033a14, TESTING line); checker PASS (polish: no wiring test, governor can undo VOL=off); laptop set fog (lightbake darkness sectorops:6, 513a7121-7eb3). PASS + green -> label train-ready, message the orchestrator. #152 stale (orchestrator / Michael close). feature/sector-redesign-fog (worktree -fog off master d91d0e00, node_modules junction
-   to -bake) @ 4813dbf2 = theme.lampBeams false on campus (src/vfx/volLights.ts:29-30 volBeam gave 76 / 134 fixed lights
-   the torch beam). Report docs/sector-redesign/checks/fog-triage.md there. Laptop shot requests queued: 28cbd98b-d737
-   (before) and 4813dbf2-c03f (after) -> branch shots/fog-*; look at them, then one Opus checker, PR, laptop
-   lightbake / darkness / sectorops:6, train-ready + message the orchestrator.
-2b. CLOUD brief open (~20:40): cloud-queue briefs/sector-redesign-bake-robust.md -> feature/sector-redesign-bake2 off 5cc02048 (check A P6 / P8, check B 2 / 3 / 4 / 5 / 8 / 10). On done: fetch, one Opus checker (worker / upload code), laptop lightbake / sectorops:6, PR after #333.
-2. #333 section bake @ 5cc02048 (checks A PASS, B fixed, master merged): laptop set bake queued (5cc02048-8d0d); green ->
-   gh pr ready 333, label train-ready, message the orchestrator. Polish held.
+1. CAMPUS FOG: PR #339 TRAIN-READY (~20:45; label added, orchestrator told): laptop fog set 3/3 PASS on 513a7121, head
+   031b54f1 docs only, CI green, checker PASS (polish: no wiring test, governor can undo VOL=off). Act on the train verdict.
+2. #333 section bake: CI test was red (tests/responseWiring.test.ts stand-in game had no `world`; sectorMode.ts:681 reads
+   world.lightBake). Fixed 305ddd11 (test only; laptop bake set PASS on 5cc02048 still counts). CI green -> gh pr ready 333,
+   label train-ready, message the orchestrator. Polish held.
+2b. CLOUD brief claimed by Cloud Builder 1 (20:44): cloud-queue briefs/sector-redesign-bake-robust.md -> feature/sector-redesign-bake2 off 5cc02048 (check A P6 / P8, check B 2 / 3 / 4 / 5 / 8 / 10). On done: fetch, one Opus checker (worker / upload code), laptop lightbake / sectorops:6, PR after #333.
+3. Michael's campus walk S1-S3 notes: none on origin yet (no WALK file on feature/menu); they come via the orchestrator -> PLAN "Walk campus".
 HOLD (orchestrator ~20:12): Michael walks all of campus on 4.95.1 (no fog fix); his notes come via the orchestrator. NO S1-S3 layout changes until Marlow's level-validator job lands; then the campus S1-S3 redesign runs against it plus the walk notes.
 Cloud: tsc / vitest-only builder slices go to cloud-queue briefs. Older context (sector-redesign idle until Michael's playtest):
 worktree C:/NightShift/Mobile-Coop-sector-redesign-polish (feature/sector-redesign-polish: STATE / PLAN / checks / briefs).
