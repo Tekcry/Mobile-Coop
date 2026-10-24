@@ -23,6 +23,11 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   with -Follow origin/master (Michael runs it: scheduled-task changes are his; the Orchestrator has both command lines) - Stop-ScheduledTask
   leaves node alive, so only re-register (no stop) and let the service self-update; the desktop's re-run is the
   Orchestrator's (-Worker desktop).
+- NEW (Orchestrator for Michael ~20:16): revive #251 e2e-affected (feature/e2e-affected dc1a3148: --affected suite
+  selection, DIRECT tier default, --wide, QUICK_COVERS = master's map), CONFLICTING. Worktree
+  C:/NightShift/Mobile-Coop-e2e-affected: merge origin/master (allowed, real conflict), re-map suites added since (coop4
+  parts 7-9, guard-cap scripts, optic-coop, carry), one Opus checker, CI green, train-ready. Then wire --affected into
+  scripts/laptop-queue/request.mjs (leads pass --affected instead of hand-picked suites).
 - coop4-4p alone on 3f1c946f (#317 gate): FAIL e2e-sectorops:8 (rejoin not put back where it stood); Sector Ops told.
 
 **Test Runner SAVE 36 (2026-10-24 ~17:45, weekly 91% swap save; wins over SAVE 35 where they differ):**
