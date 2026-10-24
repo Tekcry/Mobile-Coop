@@ -1,0 +1,13 @@
+{
+  "id": "20261024T074851-night-shift-player-b-fdaef3af-a446",
+  "sha": "fdaef3afbbc792beb49737a15b523794d118b558",
+  "branch": "feature/player-batch-24",
+  "pr": 331,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-tuner-phone"
+  ],
+  "set": "pb24-tuner",
+  "note": "test-only flake fix for train 54"
+}
