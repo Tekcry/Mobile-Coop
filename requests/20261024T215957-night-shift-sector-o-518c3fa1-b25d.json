@@ -1,0 +1,15 @@
+{
+  "id": "20261024T215957-night-shift-sector-o-518c3fa1-b25d",
+  "sha": "518c3fa188cf50191431be8bc7e61211aa11f6c6",
+  "branch": "",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Sector Ops Build",
+  "steps": [
+    "git fetch -q origin feature/visual-gate && git archive FETCH_HEAD scripts/e2e-visual.mjs scripts/visual-gate scripts/laptop-queue/serve.mjs | tar -xf - && node scripts/laptop-queue/serve.mjs scripts/e2e-visual.mjs http://127.0.0.1:4189/ --rules-only --no-record --only so-s1-workshop --extra falloff=photo --json C:/NightShift/scratch/visual-gate/proofs/v4.78.0/f4-photo/result.json --png C:/NightShift/scratch/visual-gate/proofs/v4.78.0/f4-photo/png",
+    "git fetch -q origin feature/visual-gate && git archive FETCH_HEAD scripts/visual-gate | tar -xf - && node scripts/visual-gate/push-results.mjs --branch shots/visual-gate-proofs --dir C:/NightShift/scratch/visual-gate/proofs/v4.78.0 --prefix v4.78.0"
+  ],
+  "env": {},
+  "set": "visual-proof-4.78.0",
+  "note": "visual-gate P5 F4 bad"
+}
