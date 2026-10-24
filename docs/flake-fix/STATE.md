@@ -20,6 +20,19 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   only), 273 tests pass. Orchestrator re-posts checker + label. After merge: update the laptop service.
 - Sector Ops: m0 / vg5 pushed to orphan shots/visual-gate-m0 1956c219. Its VG5 rerun + VG7 + 8 proof runs come in
   ~1-2 h (alone, 4189).
+- NEW JOB (Marlow Build 08:55): guard-cap C2, client guard puppets in the render freeze. Brief
+  origin/feature/guard-cap docs/guard-cap/slices/C2-brief.md (1f2db1f5). GATE not met at 08:58: coop4 #317 OPEN, C1 and
+  Guard AI's "shadow in view = seen" rule (src/ai/animTierView.ts) not yet on master; guard-cap-coop.mjs --query=
+  pending from Marlow. At the gate: worktree C:/NightShift/Mobile-Coop-guard-cap-c2, branch feature/guard-cap-c2 off
+  master, Opus build + two Opus checkers, flag `puppetFreeze` (off, owner Test Runner, switch-on after Michael's shadow
+  look, target walk 2026-10-28), the PLAN2 row "C2 (guard-cap)" in docs/guard-render/PLAN2.md in the same PR. Then
+  PR suites e2e-coop e2e-netmove e2e-sectorops e2e-stealth-ai e2e-darkness, M1 A/B alone 4189 (campus + sectorops,
+  24/32, 2 players, away + alert, flag off/on x2), look script; results to feature/guard-cap-results run-c2/, message
+  Marlow Build at PR open / train-ready / blocked.
+- Disk cleanup (Orchestrator, Michael 08:45): auto mode blocked worktree removal. Michael runs
+  scratch/cleanup-worktrees.ps1 (54 worktrees, ~27 GB, list scratch/wt-remove.txt). Pipeline fixes 2-4: Opus agent on
+  feature/laptop-queue-5 (worktree -laptop-queue-5, stacked on #374). Desktop svc steps sent to the Orchestrator.
+  Queued flake-repeat-t76 ...-40a4 (course / netmove / ctcourse:1 / :3 x3).
 
 **Test Runner SAVE 44 (2026-10-25 ~04:20, after the 04:10 reset; wins over SAVE 43 where they differ):**
 - Master 4.99.1 (trains 72 + 73). Service live (pid 59260), queue was empty, laptop idle ~22% at 04:15.
