@@ -58,6 +58,7 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
 | Desktop failure with a rerun recorded for this head, no rerun verdict yet | laptop-rerun | wait (with PR #252 the pass also posts `laptop-e2e` success and the train releases as a plain green train) |
 | Desktop failure, `laptop-e2e/train<n>-rerun` failure | the next train's state (built, holding, ...) | auto-drop (below) with the rerun's own `FAIL:` list; a rerun failure with no `FAIL:` list (service error, a slot gave no result, build failed) or `--no-autodrop`: failed, none |
 | Desktop failure, rerun recorded, no `laptop-e2e/train<n>-rerun` success or failure `AUTO_TRAIN_RERUN_STALE_MIN` (60) min after the request (`rerun.at`) | rerun-stale | none (the reason names the request id; orchestrator chases the laptop queue) |
+| `laptop-e2e` failure from the laptop itself whose auto-drop would be a guess (every pick tier 2-3: no member maps to the failing suite), no rerun recorded for this head | laptop-rerun | one confirm rerun of the failing suites on the same head (`request.mjs ... --set train<n>-rerun --train-rerun`, recorded as `rerun` like a desktop rerun; `confirmPlan`); a pass posts `laptop-e2e` success and the train releases; a failed rerun drops as below; no verdict 60 min after the request: rerun-stale; 6 failed requests: rerun-request-failed. A tier-1 pick drops at once |
 | `laptop-e2e` failure or error from the laptop itself (no `desktop:` prefix) | the next train's state (built, holding, ...) | auto-drop (below); failed, none, when it cannot pick a member (no failing suite in the description or a failure comment, a member diff unreadable, only docs members, the guards below) or under `--no-autodrop` (the orchestrator decides which member leaves) |
 | A desktop failure whose suites cannot be parsed (no `FAIL:` part, a list cut at 140 chars, no result) | failed | none (no laptop rerun was possible, so no auto-drop; the orchestrator decides) |
 | Open train with no `"<version>: version at merge, train <n> (G183)"` commit (its build died before it) | error | none ("train <n> has no version commit: rebuild"); it is never released |
@@ -115,7 +116,10 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
   when more than 3 suites failed (`AUTODROP_MAX_SUITES`, parts as their suite: master or the machine), when tier 1 would
   take every code member of a train with 2+ of them, or when a failing suite was also failed by the last auto-dropped
   train (`lastDrop: { train, failing, at }` in the status, carried on every status until a release or a newer drop: a
-  repeat points at master or a flake, not a member). Tier 1 can over-drop: a member whose change only reaches a
+  repeat points at master or a flake, not a member). Confirm before a guess (laptop-queue-5): on the train's own first
+  laptop failure a tier 2-3 pick (no member maps to the failing suite) drops nothing until one `--train-rerun` of the
+  failing suites on the same head fails too (state laptop-rerun meanwhile; `confirmPlan`); a failed desktop rerun is
+  already a second failure and drops at once. Tier 1 can over-drop: a member whose change only reaches a
   failing suite's folders leaves with the culprit. With the `--quick` map the train 41 replay dropped #254 (S23) beside
   the culprits #270 and #264 (its `src/ai` change maps to `e2e-levels` there); `DIRECT_COVERS` drops only #270 and #264
   (trains 45 and 54 replay the same: #294, #308). The orchestrator re-adds `train-ready` to an innocent member. Each dropped PR loses `train-ready` and gets one comment per train and head
@@ -154,6 +158,8 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
   follow `FAIL:` as in `lib.mjs describe`).
 - Optional, for pacing: `origin/laptop-queue` with one JSON file per pending request under `pending/` and a `running*`
   marker while a run is going; removed or moved out of `pending/` when done.
+- Spare work (`docs/laptop-queue/PLAN.md` "Spare work"): after 5 idle minutes the laptop queues one spare request
+  (requester `laptop-queue spare`) on the master head; a new train still runs first (trains always win the slots).
 - `visual-gate` (the laptop's picture gate after a green train, `docs/laptop-queue/visual-gate.md`) is never read: a flag never holds a release (visual-gate BRIEF A1).
 
 ## Rules it keeps
