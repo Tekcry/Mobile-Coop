@@ -2,6 +2,11 @@
 
 RESUMED ~23:55 (new account; orchestrator: overnight mode, one slice at a time, testing backlog first, save at 5-hour ~95%):
 #247 laptop afp PASS on fd34263e + CI green -> train-ready label added, orchestrator told (joins train 39 with #269).
+~13:30 rig-pose-fix: S1, S2, S5, S6, S7 MERGED (bb750a5b); W1 check PASS (S2/S5/S6/S7). Running: S3 (rpf-s3: guard head,
+dog puppet, one sim eye, hand side, body floor probe), checker A on S1 (CHECK-S1-A.md). Then checker B on all src/net,
+one laptop batch run, fragment, PR. S1 decisions for the orchestrator: client headshot-able on host (x1.3, legs x0.75),
+host uses latest accepted client state (not the 0.1 s drawn copy). guard-models: bake BUNDLED ae211857; checks rerun
+20261024T004757-...-e911 + G8 cap 20261024T004923-...-820d queued (Test Runner relays); MPFB2 now on the laptop.
 ~11:40 NEW JOB rig-pose-fix (Michael ~11:25 approved; on ROADMAP): branch feature/rig-pose-fix (worktree
 rig-pose-fix, own npm ci; off master 4.88.1 0fab0afa; docs/rig-pose-audit/ BRIEF / PLAN / STATE / REPORT). Wave 1 Opus
 builders running: S1 player body model + wall head (rpf-s1), S2 shot origin (rpf-s2), S5 body pos (rpf-s5), S6 dog head
