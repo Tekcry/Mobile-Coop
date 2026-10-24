@@ -274,24 +274,23 @@ Polish: slice0-check.md, sliceL-check.md, slice1-check.md, e1/e3/e4-check.md pol
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (saved 2026-10-24 ~22:05). coop4 / #317 / feature/coop4-pol are GUARD AI BUILD's now
-(handed over at afc616f0): do not push there. Your work, in this order:
-1-2. #339 campus fog fix and #333 section bake RELEASED in 4.97.0 (train 65 #345, master 7ae1eda1). Polish held.
-2b. BAKE2: feature/sector-redesign-bake2 @ 53e0d2c5 (cloud build 90bf843b + check). Opus check PASS (polish 1-7 held,
-   checks/section-bake-robust-check.md). WAITING: laptop set bake2 (lightbake darkness sectorops:6, request
-   90bf843b-1f35; status laptop-e2e/bake2 on 90bf843b). Green -> PR to master (#333 is in master, so it shows only
-   bake2), label train-ready, message the orchestrator. Red -> Opus triage.
-2c. FOG WIRING (orchestrator ~21:35, fog check P1 released): cloud brief briefs/sector-redesign-fog-wiring.md (open,
-   b445992b) -> feature/sector-redesign-fog2 off 031b54f1. On done: checker, PR after #339 (unit tests only, CI check).
-4. NEW JOB visual-gate (orchestrator ~21:35): automated picture check (viewpoints per map x Low / Epic, luma / near-black /
-   haze / blotch metrics, per-release baselines flagged in the train, L5 parity grid per map, <= 3 min per train). Branch
-   feature/visual-gate (worktree C:/NightShift/Mobile-Coop-visual-gate off master bd54dfcd). PLAN UP f70a222a (docs/visual-gate/BRIEF,
-   PLAN, STATE; orchestrator told ~22:10, it adds the ROADMAP line). IN FLIGHT: C0 Opus plan checker ->
-   docs/visual-gate/checks/c0-plan-check.md (rerun from PLAN "C0" if missing). PASS -> group A (VG1 metrics, VG2 shotPin +
-   harness + M0 timing, VG3 viewpoints, VG4 baseline branch) in parallel per PLAN; FIX -> one Opus plan fix round first.
-   From here docs/visual-gate/STATE.md holds that job's resume block.
-3. Michael's campus walk S1-S3 notes: none on origin yet (no WALK file on feature/menu); they come via the orchestrator -> PLAN "Walk campus".
-HOLD (orchestrator ~20:12): Michael walks all of campus on 4.95.1 (no fog fix); his notes come via the orchestrator. NO S1-S3 layout changes until Marlow's level-validator job lands; then the campus S1-S3 redesign runs against it plus the walk notes.
+Night Shift | Sector Ops Build: RESUME (saved 2026-10-24 ~22:50). OVERNIGHT MODE (orchestrator ~22:40): no swap, Michael
+asleep, full burn to the cap each window, save at ~92%, the orchestrator resumes you after each reset; no question
+dialogs: decide, log assumed decisions in the BRIEF. coop4 / #317 / feature/coop4-pol are GUARD AI BUILD's: do not push there.
+1. #354 bake2 (feature/sector-redesign-bake2 @ 54cdb9e1, fragment added) OPEN + train-ready; laptop bake2 3/3 PASS on
+   90bf843b; auto-train takes it on green CI. Act on the train verdict; Opus triage on red.
+2. FOG2 (cloud build d0e7f2f4, worktree -fog2, node_modules junction): fresh Opus check IN FLIGHT ->
+   docs/sector-redesign/checks/fog-wiring-check.md + changes/feature-sector-redesign-fog2.md. PASS -> PR to master
+   (unit tests only, CI check), train-ready, message the orchestrator. FIX -> one Opus fix round. Rerun the check if missing.
+3. CLOUD brief briefs/sector-redesign-bake3.md (cloud-queue 6dccd057, open): bake2 polish P1 / P2 / P4 on
+   feature/sector-redesign-bake3 off 54cdb9e1. On done: one checker, then PR stacked after #354.
+4. VISUAL-GATE (docs/visual-gate/STATE.md holds its resume block): C0 = FIX (M1 pin order, M2 campus sectorGuards=1).
+   IN FLIGHT: Opus fix round + group A briefs docs/visual-gate/briefs/VG1-VG4.md on feature/visual-gate. Then: VG1 / VG4
+   (pure scripts + vitest) as cloud-queue briefs, VG2 (Opus) / VG3 (Sonnet) as desktop agents in worktrees
+   -visual-gate-vg2 / -vg3 (stale branches feature/visual-gate-vg1 / -vg4 at 69cb185a hold nothing: reset them).
+5. Campus S1-S5 fixes / S3 re-plan WAIT for the mission-framework job (ROADMAP Decided 22:12 + 22:00): planned against
+   it with Michael's one-click sign-off. No campus walk notes exist yet (none on feature/menu).
+The no-refining rule is LIFTED (ROADMAP Decided ~21:50): held polish lists may now be built (cloud briefs preferred).
 Cloud: tsc / vitest-only builder slices go to cloud-queue briefs. Older context (sector-redesign idle until Michael's playtest):
 worktree C:/NightShift/Mobile-Coop-sector-redesign-polish (feature/sector-redesign-polish: STATE / PLAN / checks / briefs).
 git fetch; read CLAUDE.md; PLAN.md "LR16". Laptop: copy scripts/laptop-queue/request.mjs + lib.mjs from origin/master to
