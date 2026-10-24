@@ -3,7 +3,10 @@ import type { GameState, NetAttachment } from '../game/gameState';
 import type { TakedownVictim } from '../game/takedownController';
 import type { Blip } from '../ui/hud/minimap';
 import type { BlobShadows } from '../vfx/blobShadows';
-import { Ragdoll } from '../ai/ragdoll';
+import { Body } from '../ai/body';
+import { ClientCarry } from './clientCarry';
+import { CarryView } from './carryView';
+import { carryChange } from './bodyCarryNet';
 import { BUDGET, G } from '../physics/groups';
 import { TorchMirror } from './torchMirror';
 import { LAMP_TARGET, LampMirror, SWAY_TARGET } from './lampSync';
@@ -14,7 +17,7 @@ import type { HitInfo } from '../game/damage';
 import { Interactables, KIND_COLOR, type Interactable } from '../game/interactables';
 import { CRATE_DARK, applyCrateEvent } from '../game/crateLedger';
 import type { NetSession } from './session';
-import { BARK_CAM, BARK_TEXT, gaitWire, motionWire, PF, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, wirePlayerState } from './protocol';
+import { BARK_CAM, BARK_TEXT, DROP_BODY_ID, gaitWire, motionWire, PF, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, wirePlayerState } from './protocol';
 import { CT } from '../config/movement';
 import { CLIENT_INTERP_DELAY, ClockSync, sendClock } from './interp';
 import type { CKind } from '../game/committedMoves';
@@ -72,9 +75,15 @@ export class CoopClient implements NetAttachment {
   private targets = new Map<string, PartnerTarget>();
   /** (T5b2, D49) The co-op partners' bodies (every non-opponent): they block the local player as he blocks them. */
   private blockers: { id: string; a: RemoteAvatar; b: PartnerBlocker }[] = [];
-  private ragdolls: Ragdoll[] = [];
-  /** Bodies the host still has lying, by enemy id (dropped when its `snap.bodies` leaves one out). */
-  private kept = new Map<string, Ragdoll>();
+  /** Bodies the host still has lying, by enemy id (dropped when its `snap.bodies` leaves one out). (coop-carry) A `Body`
+   *  (was a bare ragdoll), so this page lifts, carries and puts down the very body it shows. */
+  private kept = new Map<string, Body>();
+  /** (coop-carry) Our own body carry (`GameState.carrier` on a client). */
+  readonly carry: ClientCarry;
+  /** (coop-carry) Each mirrored body's carrier by enemy id (the host's `NetItem.by`), and the partners' carries shown. */
+  private carriers = new Map<string, string>();
+  private views = new Map<string, CarryView>();
+  private readonly mirrorSeen = new Set<string>();
   private dying: EnemyPuppet[] = [];
   private clock = new ClockSync();
   private sendT = 0;
@@ -150,6 +159,8 @@ export class CoopClient implements NetAttachment {
     // (coop-torches) the beam stops at the first wall as on the host (`beamReach`, one static ray each, no allocation)
     this.torches = new TorchMirror(g.world.level.lights, (ax, ay, az, bx, by, bz) => g.ballistics.hitDistance(this.torchA.set(ax, ay, az), this.torchB.set(bx, by, bz), G.STATIC));
     this.offs.push(s.events.on('game', ({ msg }) => this.receive(msg)));
+    // (coop-carry) our carry: the host decides the pick up and the hide (`use`), our put down tells it
+    this.carry = new ClientCarry(g, () => this.ints, (id) => this.s.toHost({ t: 'use', id }), () => this.canRagdoll());
     // (G135) the goggle colours follow the host's player order (host green, us cyan as the partner)
     this.recolour();
     this.offs.push(s.events.on('lobby', () => this.recolour()));
@@ -391,6 +402,13 @@ export class CoopClient implements NetAttachment {
   }
 
   private dropAvatar(id: string): void {
+    // (coop-carry) a partner gone while carrying: the host drops it where he stood (the mirror follows); the view goes
+    const gone = this.avatars.get(id);
+    for (const [eid, v] of this.views) {
+      if (v.avatar !== gone) continue;
+      v.drop(this.canRagdoll());
+      this.views.delete(eid);
+    }
     this.avatars.get(id)?.dispose();
     this.avatars.delete(id);
     this.targets.get(id)?.dispose();
@@ -451,11 +469,13 @@ export class CoopClient implements NetAttachment {
     if (m.items) {
       this.syncItems(m.items);
       this.deskSync();
+      this.carryMirror(m.items);
     }
     if (m.doors) this.syncDoors(m.doors, m.dcr ?? []);
     if (m.bodies) {
       // carried off, hidden or revived on the host (snaps and events arrive in order, so a kept body is listed)
-      for (const id of [...this.kept.keys()]) if (!m.bodies.includes(id)) this.dropBody(id);
+      // (coop-carry) a carried body is not in `bodies` (the host lists lying ones): the carry mirror owns it
+      for (const id of [...this.kept.keys()]) if (!m.bodies.includes(id) && !this.carriers.has(id)) this.dropBody(id);
     }
     this.gotSnap = true;
     this.sinceSnap = 0;
@@ -738,16 +758,21 @@ export class CoopClient implements NetAttachment {
           const rig = p.die();
           if (rig) {
             // the oldest kept body makes room (as the host's BODY.max does)
-            if (this.kept.size >= BODY.max) this.dropBody(this.kept.keys().next().value!);
-            const falling = this.ragdolls.filter((r) => !r.done && !r.settled).length;
-            if (falling < BUDGET.maxRagdolls) {
-              const away = p.pos.subtract(g.player.position);
-              away.y = 0;
-              away.normalize().scaleInPlace(12).addInPlaceFromFloats(0, 3, 0);
-              const r = new Ragdoll(g.scene, rig, away, true);
-              this.ragdolls.push(r);
-              this.kept.set(e.enemy, r);
-            } else rig.dispose();
+            if (this.kept.size >= BODY.max) {
+              for (const [id, b] of this.kept) {
+                if (b.carried) continue;
+                this.dropBody(id);
+                break;
+              }
+            }
+            const away = p.pos.subtract(g.player.position);
+            away.y = 0;
+            away.normalize().scaleInPlace(12).addInPlaceFromFloats(0, 3, 0);
+            // (coop-carry) a `Body` as the host's: a ragdoll under the budget, else laid flat (was disposed: nothing to
+            // carry here)
+            const body = new Body(g.scene, g.world, p.def, false, rig, away, this.canRagdoll());
+            body.enemyId = e.enemy;
+            this.kept.set(e.enemy, body);
           } else this.dying.push(p);
           this.puppets.delete(e.enemy);
           this.puppetList = [...this.puppets.values()];
@@ -1082,11 +1107,75 @@ export class CoopClient implements NetAttachment {
     this.torches.update(this.puppetList);
     for (const p of this.dying) p.settle(dt);
     this.helmetDrops?.update(dt);
-    for (let i = this.ragdolls.length - 1; i >= 0; i--) {
-      const r = this.ragdolls[i]!;
-      r.update(dt);
-      if (r.done) this.ragdolls.splice(i, 1);
+    for (const b of this.kept.values()) b.update(dt);
+    // (coop-carry) a partner's carry: the hoist lands on his shoulder, his load eases in
+    for (const v of this.views.values()) v.step(dt);
+  }
+
+  /** (coop-carry) Bodies simulating as ragdolls are under the budget (as the host's `EnemyManager.canRagdoll`). */
+  private canRagdoll(): boolean {
+    let n = 0;
+    for (const b of this.kept.values()) if (b.simulating) n++;
+    return n < BUDGET.maxRagdolls;
+  }
+
+  /**
+   * (coop-carry) The host's body items: who carries what. A new carrier starts the lift (ours: `ClientCarry.begin`; a
+   * partner's: `CarryView` on his avatar); a carrier gone with the body still listed is the put down (ours: the host
+   * dropped it, our own put down already ran); a carried body gone from the list was hidden.
+   */
+  private carryMirror(list: NetItem[]): void {
+    const seen = this.mirrorSeen;
+    seen.clear();
+    for (const n of list) {
+      if (n.k !== 'body' || !n.e) continue;
+      const eid = n.e;
+      seen.add(eid);
+      const prev = this.carriers.get(eid) ?? '';
+      const now = n.by ?? '';
+      const ch = carryChange(prev, true, now);
+      if (ch === 'none') continue;
+      if (ch === 'drop' || ch === 'retake') this.letGo(eid, prev);
+      if (now) this.carriers.set(eid, now);
+      else this.carriers.delete(eid);
+      if (ch === 'take' || ch === 'retake') this.takeUp(eid, now);
     }
+    for (const [eid, prev] of this.carriers) {
+      if (seen.has(eid)) continue;
+      this.carriers.delete(eid);
+      if (prev === this.s.selfId) this.carry.hostHide(eid);
+      else {
+        this.views.get(eid)?.hide();
+        this.views.delete(eid);
+      }
+    }
+  }
+
+  private takeUp(eid: string, by: string): void {
+    const b = this.kept.get(eid);
+    const me = by === this.s.selfId;
+    if (!b || !b.present) {
+      // nothing lying here to lift (joined after he fell): ours goes back to the floor on the host
+      if (me) this.s.toHost({ t: 'use', id: DROP_BODY_ID });
+      return;
+    }
+    if (me) {
+      this.carry.begin(b);
+      return;
+    }
+    const a = this.avatars.get(by);
+    if (a) this.views.set(eid, new CarryView(b, a));
+  }
+
+  private letGo(eid: string, by: string): void {
+    if (by === this.s.selfId) {
+      this.carry.hostDrop(eid);
+      return;
+    }
+    const v = this.views.get(eid);
+    if (!v) return;
+    this.views.delete(eid);
+    v.drop(this.canRagdoll());
   }
 
   /** (guard-ai S9) A puppet's helmet falls (the pool is built on the first drop, as the host's). */
@@ -1107,6 +1196,11 @@ export class CoopClient implements NetAttachment {
   private dropBody(id: string): void {
     const r = this.kept.get(id);
     if (!r) return;
+    // (coop-carry) a body carried here goes with it (a restart, the oldest making room)
+    this.carry.lost(id);
+    this.views.get(id)?.clear();
+    this.views.delete(id);
+    this.carriers.delete(id);
     this.kept.delete(id);
     r.dispose();
   }
@@ -1159,13 +1253,16 @@ export class CoopClient implements NetAttachment {
     for (const id of [...this.avatars.keys()]) this.dropAvatar(id);
     for (const p of this.puppets.values()) p.dispose();
     for (const p of this.dying) p.dispose();
-    for (const r of this.ragdolls) r.dispose();
+    this.carry.dispose();
+    for (const v of this.views.values()) v.clear();
+    this.views.clear();
+    this.carriers.clear();
+    for (const b of this.kept.values()) b.dispose();
     this.torches.clear();
     this.helmetDrops?.clear();
     this.puppets.clear();
     this.puppetList = [];
     this.dying.length = 0;
-    this.ragdolls.length = 0;
     this.kept.clear();
     this.holdPulses.clear();
     this.ints?.dispose();

@@ -86,3 +86,12 @@ not his -> the carry ends (rig disposed or dropped as the mirror says).
   picks it up through its mirrored item, both pages show it carried (host: `Body.carried` and on the client avatar;
   client: `carrier.carrying`), the client hides it at a hide spot (or drops when the map has none), the host's guards
   never find a hidden body (`em.bodies` entry hidden, `found` false after sim steps).
+
+## Status (WIP, resume here)
+- Done: plan; `game/bodyCarry.ts` (carry moved out of `StealthSystems`, `GameState.carrier`, `NetAttachment.carry`);
+  protocol (`body` kind, `e`, `by`, `DROP_BODY_ID`); `net/bodyCarryNet.ts` (pure rules), `net/carryView.ts` (partner
+  carry view), `net/clientCarry.ts`, `RemoteAvatar` carry pose, `CoopClient` (kept `Body`s, `carryMirror`). tsc clean.
+- Left: `CoopHost` (body items in `items()` with `by`, skip kind `body` in the generic passes, `by` in the item
+  signature; `onUse` intercepts `body-*` / `drop-body` / `hide-*` from clients; `carries` map stepped each fixed step,
+  dropped on death / hold / leave / body removed); `tests/coopCarry.test.ts`; coop.md section, TESTING.md line,
+  `changes/feature-guard-ai-coop-carry.md`; e2e-coop block; "Built" report.

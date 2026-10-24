@@ -9,9 +9,29 @@ import { G } from '../physics/groups';
 import { hyp2 } from '../core/mathx';
 import { clearGripAxis } from '../player/attachGrips';
 import type { Interactable } from './interactables';
+import type { CharacterRig } from '../player/characterRig';
 
 /** Noise radius (m) of a body put down. */
 export const DROP_NOISE = 3;
+
+/** The carry socket's shoulder point across the carrier's chest (m; x out to the right), `side` 1 right, -1 left. */
+export function carryShoulderX(rig: CharacterRig, side: number): number {
+  return rig.p.shoulderHalf * 0.75 * side;
+}
+
+/** The carry socket's height over the carrier's chest node (m). */
+export function carryShoulderY(rig: CharacterRig): number {
+  const p = rig.p;
+  const chestY = p.y.waist + 0.13 * (rig.height / 1.75);
+  return p.y.shoulder - chestY + 0.12;
+}
+
+/** (G7) The shoulder a body goes on: 1 right when its head (`headYaw`, rad, 0 = +Z) lies to the right of the carrier
+ *  facing it (`liftYaw`), -1 left (CT 110936, 052704; a right hoist of a body lying head-left swung the head through
+ *  his back). */
+export function carrySideOf(headYaw: number, liftYaw: number): number {
+  return Math.sin(headYaw) * Math.cos(liftYaw) - Math.cos(headYaw) * Math.sin(liftYaw) >= 0 ? 1 : -1;
+}
 
 /** What the local carrier's owner does around the carry (the host / solo `StealthSystems`, the co-op client's
  *  `ClientCarry`). */
@@ -92,14 +112,11 @@ export class BodyCarry {
 
   /** The carry socket's shoulder point in the operator's chest frame (x out to the right, y up from the chest node). */
   private shoulderX(): number {
-    return this.g.player.rig.p.shoulderHalf * 0.75 * this.carrySide;
+    return carryShoulderX(this.g.player.rig, this.carrySide);
   }
 
   private shoulderY(): number {
-    const rig = this.g.player.rig;
-    const p = rig.p;
-    const chestY = p.y.waist + 0.13 * (rig.height / 1.75);
-    return p.y.shoulder - chestY + 0.12;
+    return carryShoulderY(this.g.player.rig);
   }
 
   /** (G7, row 6, 110936 @ 39.5-42.6) Pick up: a 2.0 s committed lift. Step in to the body's chest and crouch over it
@@ -137,7 +154,7 @@ export class BodyCarry {
     this.liftFrom.copyFrom(p);
     this.liftYaw = Math.atan2(ch.x - to.x, ch.z - to.z);
     // the head to his right: over the right shoulder (CT); to his left: the left one (mirrored)
-    this.carrySide = Math.sin(yaw) * Math.cos(this.liftYaw) - Math.cos(yaw) * Math.sin(this.liftYaw) >= 0 ? 1 : -1;
+    this.carrySide = carrySideOf(yaw, this.liftYaw);
     g.events.emit('body', { action: 'pickup' });
     return true;
   }

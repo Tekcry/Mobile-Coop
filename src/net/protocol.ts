@@ -188,7 +188,7 @@ export function hitConfirmKind(dealt: number, killed: boolean, deflect: boolean,
 /** A usable thing on the host (mirrored on clients, used through `use`). */
 export interface NetItem {
   id: string;
-  k: 'terminal' | 'cache' | 'switch' | 'alarm' | 'door' | 'intel' | 'charge' | 'revive' | 'medkitWall' | 'crate';
+  k: 'terminal' | 'cache' | 'switch' | 'alarm' | 'door' | 'intel' | 'charge' | 'revive' | 'medkitWall' | 'crate' | 'body';
   x: number;
   y: number;
   z: number;
@@ -199,8 +199,14 @@ export interface NetItem {
   on: boolean;
   /** (30, marlow-final Q12) The hold's noise radius (m) when it is a noisy hold; absent: silent. */
   hn?: number;
+  /** (coop-carry) A `body` item: the enemy id the body was (the client keeps his body by it). */
+  e?: string;
+  /** (coop-carry) A `body` item: the player carrying it (absent: lying when `on`; gone from the list: hidden). */
+  by?: string;
 }
-export const ITEM_KINDS: readonly NetItem['k'][] = ['terminal', 'cache', 'switch', 'alarm', 'door', 'intel', 'charge', 'revive', 'medkitWall', 'crate'];
+export const ITEM_KINDS: readonly NetItem['k'][] = ['terminal', 'cache', 'switch', 'alarm', 'door', 'intel', 'charge', 'revive', 'medkitWall', 'crate', 'body'];
+/** (coop-carry) The `use` id a client sends to put its carried body down (at its put down's hand-over). */
+export const DROP_BODY_ID = 'drop-body';
 
 /** (polish 8) The host's event queue holds `MAX_EVENTS * 2`; a `crate` fill is never dropped (a dropped one left that
  *  client's use recorded but never filled until a restart). Crate events are bounded by crates x players. */
@@ -400,6 +406,13 @@ function netItem(v: unknown): NetItem | null {
   // (30, Q12) a noisy hold's radius; absent, 0 or malformed reads as a silent item
   const hn = num(v.hn, 0, 30);
   if (hn) item.hn = hn;
+  // (coop-carry) a body item's enemy id and carrier; junk drops the field only
+  if (k === 'body') {
+    const e = id(v.e);
+    if (e) item.e = e;
+    const by = id(v.by);
+    if (by) item.by = by;
+  }
   return item;
 }
 

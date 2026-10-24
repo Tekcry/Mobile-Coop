@@ -68,6 +68,14 @@ export class RemoteAvatar {
   holdSub = 0;
   private cqBend = 0;
   private cqDrop = 0;
+  /** (coop-carry) A body on this partner's shoulder (`CarryView`): its weight 0..1 (the carry bend and lean), the
+   *  shoulder (1 right, -1 left) and the body whose knees take the hands (null: none). */
+  carryLoad = 0;
+  carrySide = 1;
+  carryKnees: { knees(outL: Vector3, outR: Vector3): void } | null = null;
+  private carryHandOn = false;
+  private readonly kneeL = new Vector3();
+  private readonly kneeR = new Vector3();
   private hhL = { x: 0, y: 0, z: 0 };
   private hhR = { x: 0, y: 0, z: 0 };
   private koTmp: KoState = { limp: 0, lower: 0, bend: 0 };
@@ -682,6 +690,25 @@ export class RemoteAvatar {
       accelFwd = ax * sy + az * cy;
       accelSide = ax * cy - az * sy;
     }
+    // (coop-carry) carrying a body: the hands on its knees over the shoulder, as the owner's (`BodyCarry.frameUpdate`)
+    if (this.carryKnees && this.carryLoad > 0) {
+      const rg = this.rig;
+      this.carryKnees.knees(this.kneeL, this.kneeR);
+      clearGripAxis(rg.reachL);
+      clearGripAxis(rg.reachR);
+      rg.reachR.x = this.kneeR.x;
+      rg.reachR.y = this.kneeR.y;
+      rg.reachR.z = this.kneeR.z;
+      rg.reachR.w = this.carryLoad;
+      rg.reachL.x = this.kneeL.x;
+      rg.reachL.y = this.kneeL.y - 0.05;
+      rg.reachL.z = this.kneeL.z;
+      rg.reachL.w = 0.8 * this.carryLoad;
+      this.carryHandOn = true;
+    } else if (this.carryHandOn) {
+      this.rig.reachL.w = this.rig.reachR.w = 0;
+      this.carryHandOn = false;
+    }
     const rpose: RigPose = {
       speed: this.speed,
       kneel: this.kneelT > KNEEL_STILL && !tense,
@@ -737,8 +764,11 @@ export class RemoteAvatar {
       // (anim-joints J2, A6) the partner's own team role (its move mode and sub on the wire): the tuner's team rows
       tuneTeam: mv ? teamRowOfWire(mv.m, mv.sub) : '',
       melee: mp.melee,
-      bend: this.cqBend,
-      bendDrop: this.cqDrop,
+      bend: this.cqBend + CQ.carryBend * this.carryLoad,
+      bendDrop: this.cqDrop + CQ.carryDrop * this.carryLoad,
+      // (coop-carry) the carry walk and its lean away from the loaded shoulder, as the owner's pose
+      carryBody: this.carryLoad > 0,
+      carrySide: this.carrySide * this.carryLoad,
     };
     // (anim-n4b, track A) a team move: the holder's working body / the leg-up's push, from the same state as the owner's
     teamPoseOfWire(mv && !rp ? mv.m : '', mv ? mv.sub : 0, mv ? mv.s : 0, mv ? mv.ph : 0, this.info.id, this.teamIn);
