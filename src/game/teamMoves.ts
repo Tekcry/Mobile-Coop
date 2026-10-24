@@ -47,12 +47,15 @@ export interface TeamRequest {
   sinceLast: number;
   /** (B4) A throw's landing (feet), claimed by the runner after its own room check; the host bounds it. */
   land?: { x: number; y: number; z: number };
+  /** (coop4 A20) The host's active-move map says the partner is already serving someone else: denied `taken`, before any other check. */
+  bBusy?: boolean;
 }
 
-export type TeamDenial = 'rate' | 'dead' | 'notMates' | 'notBraced' | 'notOffering' | 'far' | 'busy' | 'noTarget' | 'tooHigh';
+export type TeamDenial = 'rate' | 'dead' | 'notMates' | 'notBraced' | 'notOffering' | 'far' | 'busy' | 'noTarget' | 'tooHigh' | 'taken';
 
 /** The host's check of a team-move request: null = allowed, else why not. */
 export function checkTeamRequest(r: TeamRequest): TeamDenial | null {
+  if (r.bBusy === true) return 'taken';
   if (r.sinceLast < 1 / TEAM.rate) return 'rate';
   if (!r.a.alive || !r.b.alive) return 'dead';
   if (r.a.id === r.b.id) return 'notMates';
