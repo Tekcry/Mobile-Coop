@@ -54,9 +54,10 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
 | Desktop failure, no rerun recorded, the request failed 6 times on this head (`RERUN_REQUEST_MAX`) | rerun-request-failed | none (orchestrator alert; a new head starts again) |
 | Desktop failure, `laptop-e2e/train<n>-rerun` success on the same head, CI `check` success, vitest not failed | releasing | the normal release path below (decide -> `merge-train release`), logged "released on the laptop rerun of <suites>" (Orchestrator: "treat a laptop pass as releasable"); this is how a pass releases on master's `request.mjs`; with CI still pending: laptop-rerun, wait |
 | Desktop failure with a rerun recorded for this head, no rerun verdict yet | laptop-rerun | wait (with PR #252 the pass also posts `laptop-e2e` success and the train releases as a plain green train) |
-| Desktop failure, `laptop-e2e/train<n>-rerun` failure | the next train's state (built, holding, ...) | auto-drop (below) with the rerun's own `FAIL:` list, else the suites it reran; `--no-autodrop`: failed, none |
+| Desktop failure, `laptop-e2e/train<n>-rerun` failure | the next train's state (built, holding, ...) | auto-drop (below) with the rerun's own `FAIL:` list; a rerun failure with no `FAIL:` list (service error, a slot gave no result, build failed) or `--no-autodrop`: failed, none |
 | Desktop failure, rerun recorded, no `laptop-e2e/train<n>-rerun` success or failure `AUTO_TRAIN_RERUN_STALE_MIN` (60) min after the request (`rerun.at`) | rerun-stale | none (the reason names the request id; orchestrator chases the laptop queue) |
-| `laptop-e2e` failure or error from the laptop itself (no `desktop:` prefix), or a desktop failure whose suites cannot be parsed (no `FAIL:` part, a list cut at 140 chars) | the next train's state (built, holding, ...) | auto-drop (below); failed, none, when it cannot pick a member (no failing suite in the description or a failure comment, a member diff unreadable, only docs members) or under `--no-autodrop` (the orchestrator decides which member leaves) |
+| `laptop-e2e` failure or error from the laptop itself (no `desktop:` prefix) | the next train's state (built, holding, ...) | auto-drop (below); failed, none, when it cannot pick a member (no failing suite in the description or a failure comment, a member diff unreadable, only docs members, the guards below) or under `--no-autodrop` (the orchestrator decides which member leaves) |
+| A desktop failure whose suites cannot be parsed (no `FAIL:` part, a list cut at 140 chars, no result) | failed | none (no laptop rerun was possible, so no auto-drop; the orchestrator decides) |
 | Open train with no `"<version>: version at merge, train <n> (G183)"` commit (its build died before it) | error | none ("train <n> has no version commit: rebuild"); it is never released |
 | `check` success and `laptop-e2e` success | releasing | `merge-train release <n> <version> "<title>" --head <tested head> --no-fallback` (`--resume` when commits follow the version commit); release STOPs unless `origin/train/<n>` is still that head, merges with `gh pr merge --match-head-commit <head>`, and never takes the old-style path; exit 0 -> released, then the no-train path in the same tick; exit 3 (master moved) -> `build` the same members with the next version on the same `<n>` and retitle the PR; a failed rebuild is recorded (`rebuildFailed: { head, master }`, reason "rebuild failed for <head>") and later ticks skip the release (state failed) until the train head or master changes; exit 2 -> failed; head moved (the `--head` STOP) -> pending |
 | No `laptop-e2e` status 3 h after the head was pushed | stale | none (orchestrator alert) |
@@ -97,7 +98,14 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
   include a failing suite; else (2) the member with the most `src/` files under any folder that maps to a failing suite
   (any `COVERS` row naming it, `src/` for a CORE suite); else, or on a tie there, (3) the newest-labelled member (label
   time from the PR's events; higher PR number on a tie). Never `feature/menu`, never a docs-only member in (2)-(3); a
-  one-member train drops that member. Each dropped PR loses `train-ready` and gets one comment per train and head
+  one-member train drops that member. Guards (orchestrator check, fix round): no drop (state failed, reason says why)
+  when more than 3 suites failed (`AUTODROP_MAX_SUITES`, parts as their suite: master or the machine), when tier 1 would
+  take every code member of a train with 2+ of them, or when a failing suite was also failed by the last auto-dropped
+  train (`lastDrop: { train, failing, at }` in the status, carried on every status until a release or a newer drop: a
+  repeat points at master or a flake, not a member). Tier 1 can over-drop: the folder map is broad, so a member whose
+  change only reaches a failing suite's folders leaves with the culprit (train 41 replay: #270 and #264 were the
+  culprits, #254 (S23) left too because its `src/ai` change maps to `e2e-levels`); the orchestrator re-adds
+  `train-ready` to an innocent member. Each dropped PR loses `train-ready` and gets one comment per train and head
   (`<!-- auto-train:dropped:train<n>:<sha> -->`: train, failing suite, assert); the train PR is closed with a comment
   (`gh pr close --comment`; the branch stays); then the no-train path runs in the same tick without pacing and without
   the dropped branches. Log: one `DROPPED #<pr> <branch> from train <n>: <suite> (tier k)` line each; status: the next

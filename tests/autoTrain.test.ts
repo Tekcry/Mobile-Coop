@@ -4,7 +4,7 @@ import {
   nextTrainNumber, pacing, parseChangelogHeading, parseLeftOut, parseTrainTitle, planBuild, rebuildSkip, releaseArgs, releaseKind, scratchFiles,
   stackedTips, versionFromSubjects, rerunArgs, rerunContext, rerunPlan, buildMarkerPath, clearBuildMarker, withBuildMarker, writeBuildMarker, leftOutPlan, RERUN_STALE_MIN, RERUN_REQUEST_MAX,
   checkWaitReason, holdForChecks, selfUpdatePlan, CHECK_WAIT_MIN, fastPollPlan, FAST_POLL_S, FAST_POLL_MAX_MIN, LOCK_STALE_MIN,
-  failSuites, failureAsserts, autoDropCase, pickDrops, dropPlan, closeTrainBody, suiteBase,
+  failSuites, failureAsserts, autoDropCase, pickDrops, dropPlan, closeTrainBody, suiteBase, repeatedSuites, carryLastDrop, AUTODROP_MAX_SUITES,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/auto-train.mjs';
 // @ts-expect-error plain .mjs script without types
@@ -566,10 +566,16 @@ describe('auto-train: auto-drop on a failed train (Michael 2026-10-24 "Auto-drop
     const failed = train({ laptop: desk.laptop, rerun: { state: 'failure', description: '0/1 pass, 80 s; FAIL: e2e-coop' } });
     expect(autoDropCase(failed, decide({ train: failed }), rerunPlan(failed, rec, { now: NOW }))).toMatchObject({ failing: ['e2e-coop'] });
     const noDesc = train({ laptop: desk.laptop, rerun: { state: 'failure', description: 'crashed' } });
-    expect(autoDropCase(noDesc, decide({ train: noDesc }), rerunPlan(noDesc, rec, { now: NOW }))).toMatchObject({ failing: ['e2e-coop'] });
-    // a desktop failure whose suites cannot be parsed: dropped with the suites of the failure comment (failing [])
+    // a rerun with no FAIL list (service error, no result, build failed) is no member's failure: no fallback to the desktop's list
+    expect(autoDropCase(noDesc, decide({ train: noDesc }), rerunPlan(noDesc, rec, { now: NOW }))).toBeNull();
+    // a desktop failure whose FAIL list is cut (no laptop rerun possible) stays "failed" for the orchestrator
     const cut = train({ laptop: { state: 'failure', description: 'desktop: 30/39 pass, 600 s; FAIL: e2e-a,e2e-b...' } });
-    expect(autoDropCase(cut, decide({ train: cut }), rerunPlan(cut, null))).toMatchObject({ failing: [] });
+    expect(autoDropCase(cut, decide({ train: cut }), rerunPlan(cut, null))).toBeNull();
+    const deskErr = train({ laptop: { state: 'failure', description: 'desktop: no result parsed, see log' } });
+    expect(autoDropCase(deskErr, decide({ train: deskErr }), rerunPlan(deskErr, null))).toBeNull();
+    // a laptop failure whose list is cut: dropped with the suites of the failure comment (failing [])
+    const lapCut = train({ laptop: { state: 'failure', description: '30/39 pass, 600 s; FAIL: e2e-a,e2e-b...' } });
+    expect(autoDropCase(lapCut, decide({ train: lapCut }), rerunPlan(lapCut, null))).toMatchObject({ failing: [] });
     expect(autoDropCase(null, null, null)).toBeNull();
   });
 
@@ -593,6 +599,31 @@ describe('auto-train: auto-drop on a failed train (Michael 2026-10-24 "Auto-drop
     expect(branches(pickDrops([m(5, 'feature/menu', ['src/voxel/a.ts']), m(1, 'feature/bake', ['src/voxel/b.ts'])], ['e2e-lightbake']))).toEqual(['feature/bake']);
     expect(pickDrops([m(null, 'feature/menu', ['docs/a.md'])], ['e2e-lightbake'])).toMatchObject({ drops: [], reason: expect.stringMatching(/docs member/) });
     expect(pickDrops(ms, [])).toMatchObject({ drops: [], reason: 'no failing suite named' });
+  });
+
+  it('does not drop when every code member of a 2+ member train matches, or when more than 3 suites failed', () => {
+    const both = [m(1, 'feature/a', ['src/voxel/a.ts']), m(2, 'feature/b', ['src/world/b.ts']), m(null, 'feature/menu', ['docs/a.md']),
+      m(4, 'feature/docs', ['docs/c.md'])];
+    expect(pickDrops(both, ['e2e-lightbake'])).toMatchObject({ drops: [], reason: expect.stringMatching(/every code member \(#1, #2\) touches e2e-lightbake/) });
+    // one code member: still dropped
+    expect(branches(pickDrops([both[0], both[2], both[3]], ['e2e-lightbake']))).toEqual(['feature/a']);
+    expect(AUTODROP_MAX_SUITES).toBe(3);
+    const ms = [m(1, 'feature/a', ['src/voxel/a.ts']), m(2, 'feature/b', ['src/ui/b.ts'])];
+    expect(branches(pickDrops(ms, ['e2e-lightbake', 'e2e-ctcourse:1', 'e2e-ctcourse:2', 'e2e-levels']))).toEqual(['feature/a']); // 3 suites
+    expect(pickDrops(ms, ['e2e-lightbake', 'e2e-levels', 'e2e-coop', 'e2e-move'])).toMatchObject({ drops: [], reason: expect.stringMatching(/4 suites failed/) });
+  });
+
+  it('a suite the last auto-dropped train also failed is not dropped again; the record rides until a release', () => {
+    const last = { train: 64, failing: ['e2e-lightbake', 'e2e-ctcourse'], at: '2026-10-24T10:00:00Z' };
+    expect(repeatedSuites(last, ['e2e-ctcourse:3', 'e2e-coop'], 65)).toEqual(['e2e-ctcourse']);
+    expect(repeatedSuites(last, ['e2e-coop'], 65)).toEqual([]);
+    expect(repeatedSuites(last, ['e2e-lightbake'], 64)).toEqual([]); // a retried drop of the same train
+    expect(repeatedSuites(undefined, ['e2e-lightbake'], 65)).toEqual([]);
+    expect(carryLastDrop({ lastDrop: last }, { state: 'pending' })).toEqual({ state: 'pending', lastDrop: last });
+    expect(carryLastDrop({ lastDrop: last }, { state: 'idle', released: '4.97.0 (train 65)' })).toEqual({ state: 'idle', released: '4.97.0 (train 65)' });
+    const newer = { train: 65, failing: ['e2e-coop'] };
+    expect(carryLastDrop({ lastDrop: last }, { state: 'built', lastDrop: newer }).lastDrop).toBe(newer);
+    expect(carryLastDrop(null, { state: 'pending' })).toEqual({ state: 'pending' });
   });
 
   it('tier 2: no match -> the member with the most src/ files under the failing suite folders', () => {

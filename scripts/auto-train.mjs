@@ -13,7 +13,9 @@
 //     scripts/quick-covers.mjs, then most src/ files under the suite's folders, then the newest-labelled; never
 //     feature/menu) lose `train-ready` with a comment (suite + assert), the train PR is closed with a comment and the
 //     next train is built in the same tick ("DROPPED" log lines, `dropped: [{ pr, branch, suite }]` in the status);
-//     what it cannot work out stays "failed" for the orchestrator, as does every failure under --no-autodrop;
+//     what it cannot work out stays "failed" for the orchestrator (also: a desktop failure with a cut FAIL list, a rerun
+//     failure with no FAIL list, over AUTODROP_MAX_SUITES suites, tier 1 taking every code member, a suite the last
+//     auto-dropped train also failed: `lastDrop` in the status), as does every failure under --no-autodrop;
 //     CI / build-time vitest failures stay "failed" (nothing destructive); pending ->
 //     wait; no laptop status 3 h after the head was pushed -> state "stale"; CI green but no laptop status 10 min
 //     after (AUTO_TRAIN_LAPTOP_MISSING_MIN) -> state "laptop-missing" (waitingMin in the status).
@@ -559,11 +561,35 @@ export function autoDropCase(train, d, rp) {
   if (!train) return null;
   if (rp) {
     if (rp.state !== 'failed') return null;
+    // a rerun with no FAIL list (service error, a slot gave no result, build failed) is no member's failure
     const own = failSuites(train.rerun?.description);
-    return { failing: own.length ? own : [...(rp.suites ?? [])], reason: rp.reason };
+    if (!own.length) return null;
+    return { failing: own, reason: rp.reason };
   }
   if (d?.state !== 'failed' || train.laptop?.state !== 'failure' || train.ci === 'failure' || train.vitest === 'failure') return null;
+  // a desktop failure whose FAIL list is cut (no laptop rerun was possible) stays "failed" for the orchestrator
+  if (desktopFailSuites(train.laptop.description) !== null) return null;
   return { failing: failSuites(train.laptop.description), reason: d.reason };
+}
+
+/** At most this many failing suites (distinct, parts as their suite) are auto-dropped; more is master / the machine, not a member. */
+export const AUTODROP_MAX_SUITES = 3;
+
+/**
+ * The failing suites (as their base suite) that the last auto-dropped train (`lastDrop: { train, failing }`, carried in
+ * the status) also failed: a repeat points at master or a flake, not a member, so no drop. A record of train `n`
+ * itself (a retried drop of the same train) never counts.
+ */
+export function repeatedSuites(lastDrop, failing, n) {
+  if (!lastDrop?.failing?.length || lastDrop.train === n) return [];
+  const before = new Set(lastDrop.failing.map(suiteBase));
+  return [...new Set((failing ?? []).map(suiteBase))].filter((s) => before.has(s));
+}
+
+/** The status after a step: keeps the last auto-drop record (`lastDrop`) until a release or a newer drop replaces it. */
+export function carryLastDrop(prev, status) {
+  if (!status || status.lastDrop || status.released || !prev?.lastDrop) return status;
+  return { ...status, lastDrop: prev.lastDrop };
 }
 
 /**
@@ -581,13 +607,17 @@ export function pickDrops(members, failing) {
   const pool = (members ?? []).filter((m) => m?.pr && m.branch !== MENU_BRANCH);
   if (!fails.length) return { drops: [], reason: 'no failing suite named' };
   if (!pool.length) return { drops: [], reason: 'no member with a PR besides the docs member' };
+  if (fails.length > AUTODROP_MAX_SUITES) return { drops: [], reason: `${fails.length} suites failed (over ${AUTODROP_MAX_SUITES}: master or the machine, not one member)` };
+  const code = pool.filter((m) => !docsOnly(m.files ?? []));
   const tier1 = pool.flatMap((m) => {
     const s = quickSuitesFor(m.files ?? []);
     const hit = fails.find((f) => s.has(f));
     return hit ? [{ pr: m.pr, branch: m.branch, suite: hit, tier: 1 }] : [];
   });
+  if (tier1.length && code.length >= 2 && code.every((m) => tier1.some((x) => x.pr === m.pr))) {
+    return { drops: [], reason: `every code member (${code.map((m) => `#${m.pr}`).join(', ')}) touches ${fails.join(',')}: not dropping the whole train` };
+  }
   if (tier1.length) return { drops: tier1, reason: `${tier1.map((x) => `#${x.pr}`).join(', ')} touch the failing suite (e2e:quick map)` };
-  const code = pool.filter((m) => !docsOnly(m.files ?? []));
   if (!code.length) return { drops: [], reason: 'every member is docs-only' };
   const scored = code.map((m) => {
     const src = (m.files ?? []).filter((f) => f.startsWith('src/'));
@@ -936,8 +966,10 @@ function memberFiles(head) {
 /** When `train-ready` was last added to a PR (ms), or null. */
 function labeledAt(pr) {
   try {
-    const s = api(`repos/{owner}/{repo}/issues/${pr}/events?per_page=100`, `[.[] | select(.event == "labeled" and .label.name == "${LABEL}") | .created_at] | last`);
-    return Date.parse(s ?? '') || null;
+    // every page (oldest first): the last labelled time wins
+    const r = exec(['gh', 'api', '--paginate', `repos/{owner}/{repo}/issues/${pr}/events?per_page=100`, '--jq', `.[] | select(.event == "labeled" and .label.name == "${LABEL}") | .created_at`]);
+    if (r.status !== 0) return null;
+    return Date.parse(r.out.trim().split('\n').filter(Boolean).pop() ?? '') || null;
   } catch { return null; }
 }
 
@@ -952,6 +984,8 @@ async function autoDrop(t, o, labelExists, base, c) {
   const asserts = failureAsserts(prLabelsBodies(t.pr).bodies, t.head);
   const failing = c.failing.length ? c.failing : Object.keys(asserts);
   if (!failing.length) return left('no failing suite in the description or a failure comment');
+  const again = repeatedSuites(base.lastDrop, failing, t.n);
+  if (again.length) return left(`${again.join(',')} also failed train ${base.lastDrop.train}, which was auto-dropped (master or a flake, not a member)`);
   const prs = readJson(['gh', 'pr', 'list', '--state', 'open', '--base', 'master', '--limit', '100', '--json', 'number,headRefName,headRefOid']);
   const members = [];
   for (const b of t.members) {
@@ -974,7 +1008,8 @@ async function autoDrop(t, o, labelExists, base, c) {
   log(`closed train ${t.n} #${t.pr}; building the next train now`);
   const dropped = pick.drops.map(({ pr, branch, suite }) => ({ pr, branch, suite }));
   const next = await noTrain(o, labelExists, { exclude: dropped.map((d) => d.branch), afterDrop: true });
-  return { ...next, dropped, closedTrain: { train: t.n, pr: t.pr, head: t.head, failing }, dropReason: pick.reason };
+  return { ...next, dropped, closedTrain: { train: t.n, pr: t.pr, head: t.head, failing }, dropReason: pick.reason,
+    lastDrop: { train: t.n, failing: [...new Set(failing.map(suiteBase))], at: new Date().toISOString() } };
 }
 
 /** Builds train n from `cands`; returns the status fields. */
@@ -1046,12 +1081,19 @@ async function noTrain(o, labelExists, { exclude = [], afterDrop = false } = {})
 async function step(o) {
   const labelExists = ensureLabel();
   const t = o.previewNext ? null : openTrain();
-  if (!t) return noTrain(o, labelExists);
+  const prev = readStatus(FILES.realStatus);
+  if (!t) {
+    // a build held right after an auto-drop (fast poll / next tick) keeps the drop's exclusions and skips pacing
+    const ad = prev?.state === 'holding' && prev.dropped?.length ? prev : null;
+    const next = await noTrain(o, labelExists, ad ? { exclude: ad.dropped.map((x) => x.branch), afterDrop: true } : {});
+    return ad ? { ...next, dropped: ad.dropped, closedTrain: ad.closedTrain, dropReason: ad.dropReason } : next;
+  }
   const d = decide({ train: t, laptopMissingMin: LAPTOP_MISSING });
   log(`train ${t.n} #${t.pr} ${short(t.head)} ${t.version ?? '?'}: CI ${t.ci}, laptop ${t.laptop.state}${t.laptop.description ? ` (${t.laptop.description})` : ''}, age ${Math.round(t.ageMin)} min -> ${d.state}: ${d.reason}`);
-  const prev = readStatus(FILES.realStatus);
-  // The rerun record rides along in every status of the same head, so that head never requests twice.
-  const base = { train: t.n, version: t.version, head: t.head, pr: t.pr, ...(prev?.rerun?.head === t.head ? { rerun: prev.rerun } : {}) };
+  // The rerun record rides along in every status of the same head, so that head never requests twice; the last
+  // auto-drop record (lastDrop) rides along until a release (carryLastDrop).
+  const base = { train: t.n, version: t.version, head: t.head, pr: t.pr, ...(prev?.rerun?.head === t.head ? { rerun: prev.rerun } : {}),
+    ...(prev?.lastDrop ? { lastDrop: prev.lastDrop } : {}) };
   // a releasable train (a laptop-e2e pass, or a desktop failure whose laptop rerun passed) goes the normal release way
   const rp = d.action === 'release' ? null : rerunPlan(t, prev, { now: Date.now(), staleMin: RERUN_STALE });
   // a laptop failure (or a failed laptop rerun) drops the culprit and rebuilds at once; --no-autodrop: wait as before
@@ -1160,12 +1202,13 @@ async function main(argv) {
 
 /** step() with errors turned into an error status that keeps the rerun record (no second request), the failed-request count and checkWait. */
 async function safeStep(o) {
-  try { return await step(o); } catch (e) {
+  const before = readStatus(FILES.realStatus);
+  try { return carryLastDrop(before, await step(o)); } catch (e) {
     const prevStatus = readStatus(FILES.realStatus);
     log(`ERROR: ${e.message}`);
     return { state: 'error', reason: e.message.slice(0, 500), ...(prevStatus?.rerun ? { rerun: prevStatus.rerun } : {}),
       ...(prevStatus?.rerunRequestFailed ? { rerunRequestFailed: prevStatus.rerunRequestFailed } : {}),
-      ...(prevStatus?.checkWait ? { checkWait: prevStatus.checkWait } : {}) };
+      ...(prevStatus?.checkWait ? { checkWait: prevStatus.checkWait } : {}), ...(prevStatus?.lastDrop ? { lastDrop: prevStatus.lastDrop } : {}) };
   }
 }
 
