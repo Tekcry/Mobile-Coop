@@ -72,9 +72,10 @@ spaces are two links. Links are two-way unless `one_way` is set or the kind is `
 | `route` | enum | yes | `shadow`, `high`, `loud`, `secret` (A4: the skill's ground / vertical / aggressive / utility), or `spine` (the one connector between two consecutive sections) | rule of three, routes cross, checkSpine |
 | `width` | m | for openings, passages, stairs, ducts | Clear width; for `split_jump` the gap between the two faces | per-kind minimums (table below), 0.5 grid, `shared` |
 | `height` | m | for openings, ducts, corridors | Clear height (door leaf, lintel, duct); for `split_jump` the face height | per-kind minimums |
+| `gap` | m | `shutter` | The gap under the shutter's bottom bar while the holder holds it (the crawl gap, KIT-SHUT `SHUTTER.holdGap`) | checkKit: WARN missing; WARN off `kit.shutterGap` +-`kit.shutterTol` |
 | `length` | m | split legs, reach paths (else optional) | Walking length from the middle of `from` to the middle of `to` along this link, so a chain of links sums to the walk (the validator adds nothing for the spaces in between) | split time, partner reach, 0.5 grid |
 | `time_s` | s | no (use on every climb, crawl and co-op move on a split leg) | Traversal time of the link at the leg's pace (M4); overrides `length` / speed | split legs, partner reach |
-| `level_change` | m | for any height change | Height climbed or dropped (positive number) | ERR in the step band, over 0.40 up to 0.45; `wall_jump` <= 3.8 solo reach; co-op lip band 4.3-4.5; drop above the safe-drop height |
+| `level_change` | m | for any height change | Height climbed or dropped (positive number); on a kit move (`coop_boost`, `human_ladder`, `team_rope`, `team_pull`) the lip or climb the move covers | ERR in the step band, over 0.40 up to 0.45; `wall_jump` <= 3.8 solo reach; WARN a `coop_boost` under the 4.3-4.5 co-op band; drop above the safe-drop height; kit moves: "Kit limits" |
 | `shared` | bool | no | Both partners move through together | ERR `width` < 2.0 |
 | `one_way` | bool | no | Passable only `from` -> `to` | reach, redundancy, approaches (counted only at `to`), dead ends (a way out only at `from`) |
 | `assist` | split id | no | On the link of one leg that the other leg's action opens, darkens or disables; `reason` names the action and where it is done | checkCoop: ERR a split with no assist |
@@ -107,19 +108,42 @@ walking speed (climbs, crawls, co-op moves) carry `time_s` on any split leg or r
 | `drop` | no | one way by default; WARN above 4.5 (`safe_drop_m` = `LANDING.heavy`, `src/player/movement.ts:168`; no fall damage) |
 | `wall_jump` | no | `level_change` <= 3.8 (solo `WALL_JUMP.maxUp`) |
 | `split_jump` | no | `width` 1.2-1.95 between faces, `height` >= 3.6 |
-| `coop_boost` | **yes** | lip `level_change` 4.3-4.5 (`TEAM.boostMax` 4.5) |
-| `human_ladder` | **yes** | lip `level_change` 4.3-4.5 (ladder grab 4.1 until G57) |
+| `coop_boost` | **yes** | lip `level_change`: ERR above `kit.boostMax` 4.5; WARN under the 4.3 co-op band (a solo climb may do) |
+| `human_ladder` | **yes** | lip `level_change`: ERR above `kit.ladderGrab` 4.1 (the code's grab; G57's 4.5 is not in the code yet) |
 | `pair_gate` | **yes** | a team door (pair gate / pair bolt, CR5 / CR6): `door` sizes; opens only with both players (lead decision 1) |
-| `team_rope` | **yes** | the two-person rope (G180 over G110, CR7): `level_change` = the climb; needs `time_s` (lead decision 2) |
+| `team_rope` | **yes** | the two-person rope (G180 over G110, CR7): `level_change` = the climb, ERR outside `kit.ropeMin`-`ropeMax` 2.2-6.0; climbs up only: ERR when `to` is on a lower `storey` than `from`; needs `time_s` (lead decision 2) |
 | `rappel` | no | one way down (`RAPPEL`, `src/config/movement.ts:370`); `level_change` = the descent; needs `time_s` (lead decision 2) |
-| `team_throw` | **yes** | throw over a gap (B4, `teamMoves.ts` throw; M3); `width` = the gap (WARN missing; the landing rule is the kit's `throwLandingOk`, no sheet number) |
+| `team_throw` | **yes** | throw over a gap (B4, `teamMoves.ts` throw; M3); `width` = the gap: ERR above `kit.throwDist` 3.2 less the 0.5 landing margin (2.7); WARN missing |
 | `team_hang` | **yes** | human ladder / hang-down relay (climb the hanging partner); `level_change` = the climb (WARN missing) |
-| `team_pull` | **yes** | pull-up: catch a jumping partner at a lip and haul (KIT-PULL); `level_change` = the lip (WARN missing; no sheet number until KIT-PULL sets one) |
-| `shutter` | **yes** | hold shutter / door: one lifts and holds, the other crawls under (KIT-SHUT); `width` required, ERR below the door minimum (`door_min_w`); judged both ways for a solo twin, like `pair_gate` |
+| `team_pull` | **yes** | pull-up: catch a jumping partner at a lip and haul (KIT-PULL); `level_change` = the lip: ERR outside `kit.pullMin`-`pullMax` 4.3-4.5 (under 4.3 with the hint "a solo climb exists"); WARN missing |
+| `shutter` | **yes** | hold shutter / door: one lifts and holds, the other crawls under (KIT-SHUT); `width` required, ERR below the door minimum (`door_min_w`); `gap` = the held gap, WARN off 0.9 +-0.05 or missing; judged both ways for a solo twin, like `pair_gate` |
 
 The four kit kinds (mission-framework A17, PLAN 4a) are co-op kinds everywhere a co-op kind counts: no-softlock,
 co-op coverage, solo twins and the mission's forced co-op check. None has a walking speed: a split leg or reach path
 through one needs `time_s`.
+
+## Kit limits (checkKit, mission-framework VAL-DIMS)
+
+A graph must not ask a co-op move to do more than the code allows (the first Tallow Wharf graph asked 8.4 m rope
+descents, 3.5-4 m throws, a 4.5 m human ladder and a 4.2 m pull-up). The numbers live in the `kit` block of
+`docs/design/metrics.json`, hand-kept (not from the scale sheet; `scripts/metrics-gen.mjs` carries the block over), each
+with a sibling `<key>_src` naming the code it was read from. Change a number only with its source.
+
+| Kind | Field | Rule | Severity | `kit` keys (value, source) |
+| --- | --- | --- | --- | --- |
+| `coop_boost` | `level_change` | <= boostMax | ERR | `boostMax` 4.5 (`TEAM.boostMax`) |
+| `human_ladder` | `level_change` | <= ladderGrab | ERR | `ladderGrab` 4.1 (`TEAM.ladderGrab`) |
+| `team_rope` | `level_change` | ropeMin..ropeMax | ERR | `ropeMin` 2.2, `ropeMax` 6.0 (`TEAM.ropeMin` / `ropeMax`) |
+| `team_rope` | `storey` of `from` / `to` | `to` not lower than `from`: "rope climbs up only" (the climber starts at the foot, `teamMoves.ts` rope start) | ERR | - |
+| `team_throw` | `width` | <= throwDist - throwMargin (2.7) | ERR | `throwDist` 3.2 (`TEAM.throwDist`), `throwMargin` 0.5 |
+| `team_pull` | `level_change` | pullMin..pullMax; under pullMin adds "a solo climb exists" | ERR | `pullMin` 4.3, `pullMax` 4.5 (`PULL.min` / `max`) |
+| `shutter` | `gap` | shutterGap +- shutterTol | WARN | `shutterGap` 0.9 (`SHUTTER.holdGap`), `shutterTol` 0.05 |
+| all six | the field above | missing: "dimension missing" | WARN | - |
+
+The throw's landing margin: `throwLanding` sets the runner down `throwDist` past the thrower, who stands at the near
+edge; 0.5 m keeps the landing clear of the far edge (the runner's body, a short run-up), so a gap up to 2.7 m is
+thrown. The rope direction is read from the storeys; with equal storeys it is not judged. With no `kit` block (an
+older metrics file), one WARN per missing key and that kind's limit check is skipped.
 
 No zipline. The core schema's "no rope (G110)" line is out of date: G180 restored the two-person rope (`team_rope`).
 
@@ -181,6 +205,7 @@ No zipline. The core schema's "no rope (G110)" line is out of date: G180 restore
   Sector Ops (G185: solo completes; G280: team doors stay two-player). The message names both links (campus CR7: the
   `team_rope` beside the `drop`).
 - **Pacing (checkPacing).** Over the spine order of spaces; see `tension`.
+- **Kit limits (checkKit).** The co-op kit moves against the code's numbers: "Kit limits" above.
 - **Dimensions (checkDimensions).** Every `size`, `width`, `height`, `length` on the 0.5 m grid (WARN); class and kind
   rules above; ERR any `level_change` over 0.40 up to 0.45 (the step band: player 0.42 vs nav 0.45 disagree; a 0.40 curb passes).
 - **Guard counts.** Per encounter space and player count, never per section; WARN below the early / late band, no upper

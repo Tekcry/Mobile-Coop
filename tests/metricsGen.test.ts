@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
-  formatMetrics, parseScaleSheet,
+  formatMetrics, parseScaleSheet, withKit,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/metrics-gen.mjs';
 
@@ -18,8 +18,20 @@ const parse = (md: string): Metrics => parseScaleSheet(md) as Metrics;
 describe('metrics-gen', () => {
   it('the committed metrics.json equals a fresh generation from the scale sheet (run node scripts/metrics-gen.mjs)', () => {
     const fresh = parse(SHEET);
-    expect(JSON.parse(JSON_TEXT)).toEqual(fresh);
-    expect(JSON_TEXT).toBe(formatMetrics(fresh));
+    const { kit, ...sheet } = JSON.parse(JSON_TEXT) as Metrics & { kit?: unknown };
+    expect(sheet).toEqual(fresh);
+    expect(JSON_TEXT).toBe(formatMetrics(withKit(fresh, JSON_TEXT)));
+    expect(kit).toBeTypeOf('object');
+  });
+
+  it('withKit carries the hand-kept kit block over (VAL-DIMS), last; no block or bad JSON: the sheet alone', () => {
+    const fresh = parse(SHEET);
+    const kept = withKit(fresh, JSON.stringify({ rules: { x: 1 }, kit: { boostMax: 4.5 } })) as Record<string, unknown>;
+    expect(kept.kit).toEqual({ boostMax: 4.5 });
+    expect(Object.keys(kept).at(-1)).toBe('kit');
+    expect(kept.rules).toEqual(fresh.rules);
+    expect(withKit(fresh, null)).toEqual(fresh);
+    expect(withKit(fresh, '{ not json')).toEqual(fresh);
   });
 
   it('reads the spot values from sections 1, 3, 7 and 8', () => {

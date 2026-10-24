@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
-  checkCoop, checkDimensions, checkEncounters, checkMarks, checkPacing, checkReach, checkRedundancy, checkSpine, checkStructure,
+  checkCoop, checkDimensions, checkEncounters, checkKit, checkMarks, checkPacing, checkReach, checkRedundancy, checkSpine, checkStructure,
   edgeDisjointPaths, mergeGraphs, parseArgs, run, validate,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/level-validate.mjs';
@@ -21,7 +21,7 @@ interface Space {
 }
 interface Link {
   from: string; to: string; kind: string; route: string; width?: number; height?: number; length?: number;
-  time_s?: number; level_change?: number; shared?: boolean; one_way?: boolean; assist?: string;
+  time_s?: number; level_change?: number; gap?: number; shared?: boolean; one_way?: boolean; assist?: string;
   measured?: Record<string, unknown>;
 }
 interface Graph { meta: { map: string; name: string; mode: string; players: number[]; sections: string[]; measured?: Record<string, unknown> }; spaces: Space[]; links: Link[] }
@@ -319,7 +319,7 @@ describe('level-validate: failing fixtures (PLAN V1 list)', () => {
     ['door 1.9 high', (g) => { link(g, 'a-court', 'a-hut', 'door').height = 1.9; }, 'link a-court -> a-hut (door): height 1.9 m below 2 m'],
     ['door 2.4 high', (g) => { link(g, 'a-court', 'a-hut', 'door').height = 2.4; }, 'link a-court -> a-hut (door): height 2.4 m above 2.2 m'],
     ['wall jump 4.0', (g) => { link(g, 'a-court', 'a-roof', 'wall_jump').level_change = 4; }, 'link a-court -> a-roof (wall_jump): level change 4 m above the 3.8 m solo reach'],
-    ['co-op lip 5.0', (g) => { link(g, 'a-court', 'a-roof', 'coop_boost').level_change = 5; }, 'link a-court -> a-roof (coop_boost): lip 5 m above the 4.5 m co-op reach'],
+    ['co-op lip 5.0', (g) => { link(g, 'a-court', 'a-roof', 'coop_boost').level_change = 5; }, 'link a-court -> a-roof (coop_boost): lip 5 m above the 4.5 m leg-up reach (kit.boostMax)'],
     ['split jump gap 2.2', (g) => { link(g, 'a-court', 'a-roof', 'split_jump').width = 2.2; }, 'link a-court -> a-roof (split_jump): gap 2.2 m outside 1.2-1.95 m'],
     ['split jump face 3.0', (g) => { link(g, 'a-court', 'a-roof', 'split_jump').height = 3; }, 'link a-court -> a-roof (split_jump): face height 3 m below 3.6 m'],
     ['door width missing', (g) => { delete link(g, 'a-court', 'a-hut', 'door').width; }, 'link a-court -> a-hut (door): width missing'],
@@ -915,7 +915,7 @@ describe('level-validate: kit link kinds, bolted links, guidance marks (mission-
     expect(r.warns).toEqual([]);
   });
 
-  it('sizes: shutter width (ERR below the door minimum, ERR missing); team_throw gap and team_hang / team_pull level_change (WARN missing)', () => {
+  it('sizes: shutter width (ERR below the door minimum, ERR missing); team_throw gap, team_pull level_change and shutter gap (WARN dimension missing); team_hang level_change (WARN missing)', () => {
     const g = base();
     g.links.push(
       ln('a-court', 'a-roof', 'shutter', 'loud', { width: 0.9, length: 8 }),
@@ -926,9 +926,10 @@ describe('level-validate: kit link kinds, bolted links, guidance marks (mission-
     );
     const r = check(g);
     expectErr(r, 'link a-court -> a-roof (shutter): width 0.9 m below 1 m', 'link b-vault -> b-walk (shutter): width missing');
-    expectWarn(r, 'link a-court -> a-roof (team_throw): width missing (the gap the throw crosses)');
+    expectWarn(r, 'link a-court -> a-roof (team_throw): dimension missing (width, the gap the throw crosses)');
     expectWarn(r, 'link a-court -> a-roof (team_hang): level_change missing');
-    expectWarn(r, 'link a-court -> a-roof (team_pull): level_change missing');
+    expectWarn(r, 'link a-court -> a-roof (team_pull): dimension missing (level_change, the lip)');
+    expectWarn(r, 'link a-court -> a-roof (shutter): dimension missing (gap, the gap the shutter is held at)');
   });
 
   it('a shutter is judged both ways for a solo twin, like a pair_gate', () => {
@@ -1045,5 +1046,91 @@ describe('level-validate: training profile (meta.mode "training", M1-M2)', () =>
     const g = base();
     g.meta.mode = 'arena';
     expectErr(checkStructure(g) as Report, "meta.mode: 'arena' is not campaign, sector or training (arena is parked)");
+  });
+});
+
+describe('level-validate: kit moves against the engine limits (mission-framework VAL-DIMS, metrics kit)', () => {
+  const KIT = REAL_METRICS.kit as Record<string, number>;
+  /** base() plus one kit link a-court -> a-roof (storeys 0 and `top`). */
+  const kitGraph = (kind: string, extra: Partial<Link>, top = 0): Graph => {
+    const g = base();
+    space(g, 'a-roof').storey = top;
+    g.links.push(ln('a-court', 'a-roof', kind, 'loud', { length: 8, time_s: 5, ...extra }));
+    return g;
+  };
+  const kit = (g: Graph): Report => checkKit(g, METRICS) as Report;
+  const clean = (r: Report): void => {
+    expect(r.errors).toEqual([]);
+    expect(r.warns).toEqual([]);
+  };
+
+  it('metrics.json kit block holds the code values, each with a _src', () => {
+    expect(KIT).toMatchObject({ boostMax: 4.5, ladderGrab: 4.1, ropeMin: 2.2, ropeMax: 6, throwDist: 3.2, throwMargin: 0.5,
+      pullMin: 4.3, pullMax: 4.5, shutterGap: 0.9, shutterTol: 0.05 });
+    for (const [k, v] of Object.entries(KIT)) {
+      if (typeof v === 'number') expect(typeof KIT[`${k}_src`], `${k}_src`).toBe('string');
+    }
+  });
+
+  // [kind, passing extra, failing extra, the failing ERR]: one pass and one fail per kind.
+  const CASES: [string, Partial<Link>, Partial<Link>, string][] = [
+    ['coop_boost', { level_change: 4.5 }, { level_change: 4.6 }, 'link a-court -> a-roof (coop_boost): lip 4.6 m above the 4.5 m leg-up reach (kit.boostMax)'],
+    ['human_ladder', { level_change: 4.1 }, { level_change: 4.5 }, 'link a-court -> a-roof (human_ladder): lip 4.5 m above the 4.1 m human-ladder grab (kit.ladderGrab)'],
+    ['team_rope', { level_change: 6 }, { level_change: 8.4 }, 'link a-court -> a-roof (team_rope): rope 8.4 m outside the 2.2-6 m the rope serves (kit.ropeMin-ropeMax)'],
+    ['team_throw', { width: 2.7 }, { width: 3.5 }, 'link a-court -> a-roof (team_throw): gap 3.5 m above the 2.7 m throw (kit.throwDist 3.2 less the 0.5 m landing margin)'],
+    ['team_pull', { level_change: 4.3 }, { level_change: 4.6 }, 'link a-court -> a-roof (team_pull): lip 4.6 m above the 4.5 m pull-up reach (kit.pullMax)'],
+  ];
+  for (const [kind, pass, fail, msg] of CASES) {
+    it(`${kind}: passes at the limit, ERR past it`, () => {
+      clean(kit(kitGraph(kind, pass)));
+      const r = kit(kitGraph(kind, fail));
+      expect(r.errors).toEqual([msg]);
+      expectErr(check(kitGraph(kind, fail)), msg);
+    });
+  }
+
+  it('team_rope: under ropeMin is an ERR; a rope whose to is below its from is a descent: ERR rope climbs up only', () => {
+    expect(kit(kitGraph('team_rope', { level_change: 2 })).errors).toEqual(['link a-court -> a-roof (team_rope): rope 2 m outside the 2.2-6 m the rope serves (kit.ropeMin-ropeMax)']);
+    clean(kit(kitGraph('team_rope', { level_change: 4.2 }, 4.2)));
+    expect(kit(kitGraph('team_rope', { level_change: 4.2 }, -4.2)).errors).toEqual([
+      'link a-court -> a-roof (team_rope): rope climbs up only: a-roof (storey -4.2) is below a-court (storey 0); the climber starts at the foot']);
+  });
+
+  it('team_pull: under pullMin is an ERR with the solo-climb hint', () => {
+    expect(kit(kitGraph('team_pull', { level_change: 4.2 })).errors).toEqual([
+      'link a-court -> a-roof (team_pull): lip 4.2 m under the 4.3 m pull-up band (kit.pullMin): a solo climb exists']);
+  });
+
+  it('shutter: gap 0.9 +-0.05 passes; off it is a WARN (no ERR)', () => {
+    clean(kit(kitGraph('shutter', { width: 1.2, gap: 0.9 })));
+    clean(kit(kitGraph('shutter', { width: 1.2, gap: 0.95 })));
+    const r = kit(kitGraph('shutter', { width: 1.2, gap: 1.2 }));
+    expect(r.errors).toEqual([]);
+    expect(r.warns).toEqual(['link a-court -> a-roof (shutter): gap 1.2 m is not the 0.9 m shutter hold gap (kit.shutterGap +-0.05)']);
+  });
+
+  it('a missing dimension on each kit kind is one WARN "dimension missing", no ERR', () => {
+    for (const [kind, field] of [['coop_boost', 'level_change'], ['human_ladder', 'level_change'], ['team_rope', 'level_change'],
+      ['team_pull', 'level_change'], ['team_throw', 'width'], ['shutter', 'gap']] as const) {
+      const r = kit(kitGraph(kind, kind === 'shutter' ? { width: 1.2 } : {}));
+      expect(r.errors).toEqual([]);
+      expect(r.warns).toEqual([expect.stringContaining(`(${kind}): dimension missing (${field}, `)]);
+    }
+  });
+
+  it('a metrics file with no kit block: one WARN per missing key, the kit checks skipped', () => {
+    const m = fullMetrics();
+    delete m.kit;
+    const r = check(kitGraph('coop_boost', { level_change: 4.6 }), m);
+    expect(r.errors.filter((e) => e.includes('leg-up'))).toEqual([]);
+    expectWarn(r, 'metrics: kit.boostMax is missing from the metrics; the coop_boost kit limit check skipped');
+  });
+
+  it('the Tallow Wharf asks the code could not do (8.4 m rope descent, 3.5-4 m throws, 4.5 m human ladder, 4.2 m pull) all ERR', () => {
+    const r = kit(kitGraph('team_rope', { level_change: 8.4 }, -8.4));
+    expect(r.errors).toHaveLength(2);
+    expect(kit(kitGraph('team_throw', { width: 4 })).errors).toHaveLength(1);
+    expect(kit(kitGraph('human_ladder', { level_change: 4.5 })).errors).toHaveLength(1);
+    expect(kit(kitGraph('team_pull', { level_change: 4.2 })).errors).toHaveLength(1);
   });
 });

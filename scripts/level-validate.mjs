@@ -3,7 +3,8 @@
 // (docs/level-design.md, BRIEF mapping table, Michael's M1-M4) before any geometry is built. A port of the reference
 // skill's validate_level.py (docs/level-validator/source/, algorithms only: reach, edge-disjoint routes); our rules win.
 // Every size and time comes from the metrics JSON generated from docs/design/scale-sheet.md (M2): this file holds no
-// size or time constant. A metrics key the check needs but the sheet lacks prints one WARN and the check is skipped;
+// size or time constant; the co-op kit moves' engine limits are its hand-kept `kit` block (each read from code, VAL-DIMS,
+// checkKit). A metrics key the check needs but the sheet lacks prints one WARN and the check is skipped;
 // with no metrics file at all, one WARN and every size / time check is skipped. Rule structure (3 approaches, 2 kinds,
 // 2 routes, half the encounters, the 1-5 tension scale) is the standard's wording and lives here.
 //
@@ -50,9 +51,18 @@ const NEEDS_WIDTH = new Set(['door', 'double_door', 'opening', 'roller_door', 'c
   'duct', 'tunnel', 'pair_gate', 'split_jump', 'shutter']);
 const NEEDS_HEIGHT = new Set(['door', 'double_door', 'opening', 'roller_door', 'corridor', 'duct', 'tunnel',
   'pair_gate', 'split_jump']);
-/** Climbs and drops carry the height they cover. */
-const NEEDS_LEVEL = new Set(['ladder', 'drop', 'wall_jump', 'coop_boost', 'human_ladder', 'team_rope', 'rappel',
-  'team_hang', 'team_pull']);
+/** Climbs and drops carry the height they cover (the kit kinds of `KIT_DIMS` WARN "dimension missing" in checkKit). */
+const NEEDS_LEVEL = new Set(['ladder', 'drop', 'wall_jump', 'rappel', 'team_hang']);
+/** Co-op kit moves checked against the engine limits (metrics `kit`, VAL-DIMS): kind -> the field carrying the move's
+ *  dimension and what it is (graph-schema "Kit limits"). */
+const KIT_DIMS = new Map([
+  ['coop_boost', ['level_change', 'the lip']],
+  ['human_ladder', ['level_change', 'the lip']],
+  ['team_rope', ['level_change', 'the climb']],
+  ['team_pull', ['level_change', 'the lip']],
+  ['team_throw', ['width', 'the gap the throw crosses']],
+  ['shutter', ['gap', 'the gap the shutter is held at']],
+]);
 /** Widths on the 0.5 m grid: room-scale passages. Door, stair and duct widths are sheet sizes (1.2, 1.3, 2.4), not
  *  grid steps, so they are checked by their kind rule only. */
 const GRID_WIDTH_KINDS = new Set(['corridor', 'opening', 'roller_door']);
@@ -431,9 +441,6 @@ export function checkDimensions(graph, metrics) {
         // A held shutter is a door-width opening the partner crawls under (KIT-SHUT); its crawl gap is the kit's number.
         below(width, 'sizes.door_min_w', 'width');
         break;
-      case 'team_throw':
-        if (width === undefined) c.warn(`${name}: width missing (the gap the throw crosses)`);
-        break;
       case 'door':
       case 'pair_gate': {
         const min = c.num('sizes.door_min_w', 'the door width check');
@@ -488,12 +495,11 @@ export function checkDimensions(graph, metrics) {
         if (lc !== undefined && max !== undefined && lc > max + EPS) c.err(`${name}: level change ${fmt(lc)} m above the ${fmt(max)} m solo reach`);
         break;
       }
-      case 'coop_boost':
-      case 'human_ladder': {
+      case 'coop_boost': {
+        // The top is the engine's reach (checkKit, `kit.boostMax`); under the band a solo climb may do (level standard).
+        // The human ladder has no band WARN: its engine grab (`kit.ladderGrab` 4.1) is under the band until G57 ships.
         const r = c.range('sizes.coop_lip', 'the co-op lip check');
-        if (lc === undefined || !r) break;
-        if (lc > r[1] + EPS) c.err(`${name}: lip ${fmt(lc)} m above the ${fmt(r[1])} m co-op reach`);
-        else if (lc < r[0] - EPS) c.warn(`${name}: lip ${fmt(lc)} m under the ${fmt(r[0])}-${fmt(r[1])} m co-op band`);
+        if (lc !== undefined && r && lc < r[0] - EPS) c.warn(`${name}: lip ${fmt(lc)} m under the ${fmt(r[0])}-${fmt(r[1])} m co-op band`);
         break;
       }
       case 'split_jump':
@@ -505,6 +511,78 @@ export function checkDimensions(graph, metrics) {
         // no fall damage, so a drop above the sheet's safe height (`safe_drop_m` = LANDING.heavy) is a WARN, not an ERR.
         const max = c.num('rules.safe_drop_m', 'the safe drop check');
         if (lc !== undefined && max !== undefined && lc > max + EPS) c.warn(`${name}: drop ${fmt(lc)} m above the ${fmt(max)} m safe drop`);
+        break;
+      }
+      default:
+        break;
+    }
+  }
+  return c.r;
+}
+
+/** The co-op kit moves against the engine's limits (metrics `kit`, each number from code, VAL-DIMS): a graph must not
+ *  ask a move to do more than the code allows. ERR past a limit; WARN a missing dimension and a shutter gap off the
+ *  kit's hold gap. A rope's direction comes from the storeys: `to` below `from` is a descent (the climber starts at the
+ *  foot, teamMoves.ts:68-72). */
+export function checkKit(graph, metrics) {
+  const c = collector(metrics);
+  const { links, byId } = index(graph);
+  if (!metrics) return c.r;
+  for (const l of links) {
+    const dim = KIT_DIMS.get(l.kind);
+    if (!dim) continue;
+    const name = linkName(l);
+    const [field, what] = dim;
+    const v = l[field];
+    if (typeof v !== 'number') {
+      c.warn(`${name}: dimension missing (${field}, ${what})`);
+    }
+    const num = (key) => c.num(`kit.${key}`, `the ${l.kind} kit limit check`);
+    switch (l.kind) {
+      case 'coop_boost': {
+        const max = num('boostMax');
+        if (typeof v === 'number' && max !== undefined && v > max + EPS) c.err(`${name}: lip ${fmt(v)} m above the ${fmt(max)} m leg-up reach (kit.boostMax)`);
+        break;
+      }
+      case 'human_ladder': {
+        const max = num('ladderGrab');
+        if (typeof v === 'number' && max !== undefined && v > max + EPS) c.err(`${name}: lip ${fmt(v)} m above the ${fmt(max)} m human-ladder grab (kit.ladderGrab)`);
+        break;
+      }
+      case 'team_rope': {
+        const min = num('ropeMin');
+        const max = num('ropeMax');
+        if (typeof v === 'number' && min !== undefined && max !== undefined && (v < min - EPS || v > max + EPS)) {
+          c.err(`${name}: rope ${fmt(v)} m outside the ${fmt(min)}-${fmt(max)} m the rope serves (kit.ropeMin-ropeMax)`);
+        }
+        const a = byId.get(l.from)?.storey;
+        const b = byId.get(l.to)?.storey;
+        if (typeof a === 'number' && typeof b === 'number' && b < a - EPS) {
+          c.err(`${name}: rope climbs up only: ${l.to} (storey ${fmt(b)}) is below ${l.from} (storey ${fmt(a)}); the climber starts at the foot`);
+        }
+        break;
+      }
+      case 'team_throw': {
+        const dist = num('throwDist');
+        const margin = num('throwMargin');
+        if (typeof v !== 'number' || dist === undefined || margin === undefined) break;
+        if (v > dist - margin + EPS) c.err(`${name}: gap ${fmt(v)} m above the ${fmt(dist - margin)} m throw (kit.throwDist ${fmt(dist)} less the ${fmt(margin)} m landing margin)`);
+        break;
+      }
+      case 'team_pull': {
+        const min = num('pullMin');
+        const max = num('pullMax');
+        if (typeof v !== 'number') break;
+        if (max !== undefined && v > max + EPS) c.err(`${name}: lip ${fmt(v)} m above the ${fmt(max)} m pull-up reach (kit.pullMax)`);
+        else if (min !== undefined && v < min - EPS) c.err(`${name}: lip ${fmt(v)} m under the ${fmt(min)} m pull-up band (kit.pullMin): a solo climb exists`);
+        break;
+      }
+      case 'shutter': {
+        const gap = num('shutterGap');
+        const tol = num('shutterTol');
+        if (typeof v === 'number' && gap !== undefined && tol !== undefined && Math.abs(v - gap) > tol + EPS) {
+          c.warn(`${name}: gap ${fmt(v)} m is not the ${fmt(gap)} m shutter hold gap (kit.shutterGap +-${fmt(tol)})`);
+        }
         break;
       }
       default:
@@ -1174,7 +1252,7 @@ export function validate(graph, { metrics = null, metricsPath = null, requireMea
   out.warns.push(...structure.warns);
   if (structure.errors.length) return out;
   const reports = [
-    checkDimensions(graph, metrics), checkReach(graph), checkSpine(graph), checkEncounters(graph, metrics),
+    checkDimensions(graph, metrics), checkKit(graph, metrics), checkReach(graph), checkSpine(graph), checkEncounters(graph, metrics),
     checkRedundancy(graph), checkCoop(graph, metrics),
     checkMeasured(graph, metrics, { requireMeasured }), checkPacing(graph), checkMarks(graph),
     checkMission(graph, metrics),

@@ -60,7 +60,7 @@
       "length": 10, "time_s": 8, "reason": "Clerks' back stair" },
     { "from": "s2-loft", "to": "s2-strong", "kind": "drop", "route": "high", "level_change": 4.5, "length": 4,
       "time_s": 2, "reason": "Drop from the loft rail onto the ledger stacks" },
-    { "from": "s2-strong", "to": "s2-yard", "kind": "shutter", "route": "shadow", "width": 1.2, "length": 18,
+    { "from": "s2-strong", "to": "s2-yard", "kind": "shutter", "route": "shadow", "width": 1.2, "gap": 0.9, "length": 18,
       "time_s": 6, "reason": "Loading shutter: one lifts and holds it, the other crawls under" },
     { "from": "s2-strong", "to": "s2-yard", "kind": "door", "route": "loud", "width": 1.2, "height": 2.1,
       "length": 18, "bolted": true, "reason": "Yard door, bolted on the yard side: the one who crawled under opens it" }

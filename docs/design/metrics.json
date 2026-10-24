@@ -277,5 +277,28 @@
     "mission_rules_max": 2,
     "sector_parallel_min": 2,
     "sector_syncs_min": 2
+  },
+  "kit": {
+    "_note": "Hand-kept, not from the scale sheet: the engine limits of the co-op kit moves, each read from the code named in its _src (mission-framework VAL-DIMS). scripts/metrics-gen.mjs carries this block over unchanged. Change a value only with its source.",
+    "boostMax": 4.5,
+    "boostMax_src": "src/config/movement.ts:459 TEAM.boostMax (the leg-up tosses to a lip up to this high)",
+    "ladderGrab": 4.1,
+    "ladderGrab_src": "src/config/movement.ts:464 TEAM.ladderGrab (the human ladder top player grabs a lip up to this high; G57 asks 4.5, not in the code yet)",
+    "ropeMin": 2.2,
+    "ropeMin_src": "src/config/movement.ts:513 TEAM.ropeMin (shortest drop the two-person rope serves)",
+    "ropeMax": 6,
+    "ropeMax_src": "src/config/movement.ts:514 TEAM.ropeMax (the rope length); src/game/teamMoves.ts:68-72: the climber starts at the foot below the holder, so the rope climbs up only",
+    "throwDist": 3.2,
+    "throwDist_src": "src/config/movement.ts:483 TEAM.throwDist; src/game/teamMoves.ts:174-195 throwLanding / throwLandingOk (lands throwDist past the thrower)",
+    "throwMargin": 0.5,
+    "throwMargin_src": "validator landing margin (VAL-DIMS brief): a throw gap is at most throwDist - throwMargin, so the runner lands clear of the far edge",
+    "pullMin": 4.3,
+    "pullMin_src": "src/game/kit/pullUp.ts:52 PULL.min = WALL_JUMP.maxUp 3.8 + 0.5 (origin/feature/mission-kit-pull); lower is a solo climb",
+    "pullMax": 4.5,
+    "pullMax_src": "src/game/kit/pullUp.ts:53 PULL.max = TEAM.boostMax (origin/feature/mission-kit-pull)",
+    "shutterGap": 0.9,
+    "shutterGap_src": "src/game/kit/shutter.ts:37 SHUTTER.holdGap (origin/feature/mission-kit-shut)",
+    "shutterTol": 0.05,
+    "shutterTol_src": "validator tolerance on shutterGap (VAL-DIMS brief)"
   }
 }

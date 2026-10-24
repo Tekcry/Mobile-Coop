@@ -9,7 +9,8 @@
 //   node scripts/metrics-gen.mjs --check   exit 1 when the file on disk differs from a fresh generation, else 0
 //   exit 2 on a parse error (the message names the section and row)
 //
-// Pure parts (`parseScaleSheet`, `formatMetrics`) are exported for tests/metricsGen.test.ts.
+// The hand-kept `kit` block (co-op kit engine limits read from code, VAL-DIMS) is carried over from the file on disk.
+// Pure parts (`parseScaleSheet`, `formatMetrics`, `withKit`) are exported for tests/metricsGen.test.ts.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -203,18 +204,31 @@ export function parseScaleSheet(markdown) {
 /** The file text: 2-space JSON with a trailing newline. */
 export const formatMetrics = (metrics) => `${JSON.stringify(metrics, null, 2)}\n`;
 
+/** Pure: the fresh sheet metrics plus the hand-kept `kit` block of the file on disk (`diskText`, may be null). The kit
+ *  block holds the co-op kit moves' engine limits, each read from code (its `_src` strings), not from the sheet
+ *  (mission-framework VAL-DIMS), so a regeneration carries it over unchanged, last. */
+export function withKit(fresh, diskText) {
+  let kit;
+  try {
+    kit = diskText ? JSON.parse(diskText).kit : undefined;
+  } catch {
+    kit = undefined;
+  }
+  return kit && typeof kit === 'object' ? { ...fresh, kit } : fresh;
+}
+
 function main(args) {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
   const out = path.join(root, METRICS_PATH);
+  const disk = fs.existsSync(out) ? fs.readFileSync(out, 'utf8').replace(/\r\n/g, '\n') : null;
   let text;
   try {
-    text = formatMetrics(parseScaleSheet(fs.readFileSync(path.join(root, SHEET_PATH), 'utf8')));
+    text = formatMetrics(withKit(parseScaleSheet(fs.readFileSync(path.join(root, SHEET_PATH), 'utf8')), disk));
   } catch (e) {
     console.error(`metrics-gen: ${e.message}`);
     return 2;
   }
   if (args.includes('--check')) {
-    const disk = fs.existsSync(out) ? fs.readFileSync(out, 'utf8').replace(/\r\n/g, '\n') : null;
     if (disk === text) { console.log(`metrics-gen: ${METRICS_PATH} matches ${SHEET_PATH}`); return 0; }
     console.error(`metrics-gen: ${METRICS_PATH} ${disk === null ? 'is missing' : 'differs from'} a fresh generation from ${SHEET_PATH}; run node scripts/metrics-gen.mjs`);
     return 1;
