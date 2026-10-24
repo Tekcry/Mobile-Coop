@@ -1025,10 +1025,11 @@ origin/wip/guard-ai-t1-look 2e43ff61 (scripts/t1-shadow-look.mjs + docs line). I
    master). Checks on 80f42ee66 (checker status failure): A FIX 1 (A184 partial end on another storey: height term in
    findPath partial + nav.test two-storey case), B FIX 2 (A193 edge pin: HEAR_STOREY = false, deferred in BRIEF /
    ai.md / fragment; A188 LKP left unvisited: lkpWait re-ask + free lkpBy when the holder leaves the plan search).
-   Opus FIX ROUND was RUNNING (brief = those three Blocking sections; WIP above). Then: vitest (nav, guardPolish2,
-   guardPolishA / B, searchArea*, combatHearing, hearing + importers of navGrid / enemy / enemyManager / searchArea),
-   push, request set polish2 (e2e-stealth-ai e2e-ctcourse) on the fix head, ONE Opus re-check of the three fixes;
-   green -> checker status success + orchestrator train-ready (it reviews + labels).
+   FIX ROUND DONE e68a035d4 (A184 storey filter LAYER_PICK 1.2 m + fallback; A193 off + it.skip; A188 lkpWait /
+   lkpLate + planSweep frees lkpBy via ownSearch; 71 files green). Laptop polish2f (e2e-stealth-ai e2e-ctcourse,
+   ...-5cb7) queued + ONE Opus re-check RUNNING -> slices/POLISH2-RECHECK.md (lead commits). Both green -> checker
+   status success on e68a035d4 + orchestrator train-ready (it reviews + labels). Open: spot-height slice (A193 + plan
+   / ring spots, check B polish 5).
    CI `check` red until pr-size hotfix #378 merges (Michael's OK; branches before 4.100.0 lack scripts/pr-size.mjs):
    after it merges `gh run rerun --failed` on #377 / #360 / #317 heads. No master merge.
 5. Mission hooks (Marlow, after Michael signs off the mission specs): em.missionOrder(guardTag, 'reset' | 'walk',
