@@ -1,5 +1,6 @@
 import type { RoutePt, SectorDef, SectorGuard } from '../../game/sectors';
 import type { SecurityData } from '../../security/data';
+import type { GearTag } from '../../ai/gear';
 import type { ArmourPiece } from './campusS4Data';
 import { S5_BOX, S5_DOORS } from './campusS5';
 
@@ -21,26 +22,30 @@ const YR = 8.4;
 /** The grounds' timed patrol loop: the garden team (#5, #6) and the lake-side team (#7, #8) share one clock (west stop at t 22-25). */
 const LOOP = { period: 44, leave: [3, 25], t0: 0 };
 
+/** A section guard with its per-slot gear tag (`SquadSlot` has no `gear` field on this branch; the guard-ai wiring reads it off the slot as `GuardSlotTags.gear`, so the tag rides here until the type gains it). */
+type GearGuard = SectorGuard & { gear?: GearTag };
+
 /**
  * Section 5's guards (24; the brief's table: officer = pistolSd, grunt = rifle, enforcer = pistolSd + shield, dog). Dormant
- * (A64): the response team's standing three (#1-#3) and the boardroom officer (#15). The values the brief left open (the
+ * (A64 / A99, data only): the response team's standing three (#1-#3) and the boardroom officer (#15). The values the brief left open (the
  * takedown spots, the facings of route guards) are in `docs/sector-redesign/checks/slice5-build.md`.
  */
-export const S5_GUARDS: SectorGuard[] = [
+export const S5_GUARDS: GearGuard[] = [
+  // gear (stealth over shooting): every guard wears a helmet (section default); the response team (#1-#4) and the two token room officers wear body armour as well; dogs never get gear
   // 1-3 the response team's standing force in the control room, for the ceremony
-  { kind: 'grunt', x: -55, z: 19.5, yaw: PI / 2, takedownSpot: [-55.5, 19.5], role: 'response', zone: 'ctl', squad: 0, dormant: true, reason: 'Standing reaction force for the ceremony' },
-  { kind: 'grunt', x: -55, z: 22.4, yaw: PI / 2, takedownSpot: [-55.5, 22.4], role: 'response', zone: 'ctl', squad: 0, dormant: true, reason: 'Standing reaction force for the ceremony' },
-  { kind: 'grunt', x: -55, z: 25.4, yaw: PI / 2, takedownSpot: [-55.5, 25.4], role: 'response', zone: 'ctl', squad: 0, dormant: true, reason: 'Standing reaction force for the ceremony' },
+  { kind: 'grunt', x: -55, z: 19.5, yaw: PI / 2, takedownSpot: [-55.5, 19.5], role: 'response', zone: 'ctl', squad: 0, dormant: true, gear: 'both', reason: 'Standing reaction force for the ceremony' },
+  { kind: 'grunt', x: -55, z: 22.4, yaw: PI / 2, takedownSpot: [-55.5, 22.4], role: 'response', zone: 'ctl', squad: 0, dormant: true, gear: 'both', reason: 'Standing reaction force for the ceremony' },
+  { kind: 'grunt', x: -55, z: 25.4, yaw: PI / 2, takedownSpot: [-55.5, 25.4], role: 'response', zone: 'ctl', squad: 0, dormant: true, gear: 'both', reason: 'Standing reaction force for the ceremony' },
   // 4 the team's hall walk
-  { kind: 'grunt', x: -53, z: 28.4, yaw: 1.9, route: [[-53, 28.4], [-41.5, 23.5]], waits: [6, 6], takedownSpot: [-53.5, 28.6], role: 'response', zone: 'hall', squad: 0, reason: "The response team's hall walk" },
+  { kind: 'grunt', x: -53, z: 28.4, yaw: 1.9, route: [[-53, 28.4], [-41.5, 23.5]], waits: [6, 6], takedownSpot: [-53.5, 28.6], role: 'response', zone: 'hall', squad: 0, gear: 'both', reason: "The response team's hall walk" },
   // 5-8 the grounds: the garden team and the lake-side team (a handler and a dog each, on one clock)
   { kind: 'grunt', x: -63, z: 23.5, yaw: 0, route: [[-63, 23.5], [-63, 40.5]], faces: [0, PI], loop: LOOP, takedownSpot: [-63, 23.0], role: 'handler', zone: 'garden', squad: 1, reason: 'Grounds patrol for the ceremony' },
   { kind: 'dog', x: -62, z: 23.5, yaw: 0, route: [[-62, 23.5], [-62, 40.5]], faces: [0, PI], loop: LOOP, takedownSpot: [-62, 23.0], role: 'dog', zone: 'garden', squad: 1, handler: 4, reason: 'At heel with the garden handler' },
   { kind: 'grunt', x: -36, z: 47, yaw: -PI / 2, route: [[-36, 47], [-53, 47]], faces: [-PI / 2, PI / 2], loop: LOOP, takedownSpot: [-35.5, 47], role: 'handler', zone: 'terrace', squad: 1, reason: 'Lake-side patrol' },
   { kind: 'dog', x: -36, z: 46, yaw: -PI / 2, route: [[-36, 46], [-53, 46]], faces: [-PI / 2, PI / 2], loop: LOOP, takedownSpot: [-35.5, 46], role: 'dog', zone: 'terrace', squad: 1, handler: 6, reason: 'At heel with the lake-side handler' },
   // 9-10 the token room's keyholders (K4): neither alone with the token
-  { kind: 'officer', x: -44, z: 34.0, yaw: PI, takedownSpot: [-44, 34.5], post: { leash: 3, highSecurity: true, guards: 'token' }, role: 'posted', zone: 'token', squad: 2, reason: 'Two-person rule: neither is alone with the token' },
-  { kind: 'officer', x: -42, z: 34.0, yaw: PI, takedownSpot: [-42, 34.5], post: { leash: 3, highSecurity: true, guards: 'token' }, role: 'posted', zone: 'token', squad: 2, reason: 'Two-person rule: neither is alone with the token' },
+  { kind: 'officer', x: -44, z: 34.0, yaw: PI, takedownSpot: [-44, 34.5], post: { leash: 3, highSecurity: true, guards: 'token' }, role: 'posted', zone: 'token', squad: 2, gear: 'both', reason: 'Two-person rule: neither is alone with the token' },
+  { kind: 'officer', x: -42, z: 34.0, yaw: PI, takedownSpot: [-42, 34.5], post: { leash: 3, highSecurity: true, guards: 'token' }, role: 'posted', zone: 'token', squad: 2, gear: 'both', reason: 'Two-person rule: neither is alone with the token' },
   // 11 the audit escort
   { kind: 'officer', x: -45.2, z: 33.0, yaw: PI / 2, route: [[-45.2, 33.0], [-40.8, 36.2], [-39.0, 34.0]], waits: [4, 4, 4], takedownSpot: [-39.0, 34.3], role: 'escort', zone: 'ante', squad: 2, reason: 'Escorts the audit papers; alone at the shaft door' },
   // 12 the front door
@@ -166,6 +171,10 @@ export const S5_SECTOR: SectorDef = {
   guards: S5_GUARDS,
   // stage 1: the hall's front door and the service wing
   reinforce: [[-44, 21], [-29, 21]],
+  // gear: a helmet on every guard (section default; the dogs are left unset)
+  gear: 'helmet',
+  // sweep points (response team): the vestibule, the anteroom side door, the anteroom, the strongroom approach, the hall door side and the terrace landing under the north parapet rappel
+  sweep: [[-36.5, 33.5], [-41.0, 33.4], [-43.0, 35.6], [-43.0, 42.2], [-42.0, 30.8], [-54.0, 45.4]],
   perStage: 2,
   dogs: 2,
   routes: S5_ROUTES,

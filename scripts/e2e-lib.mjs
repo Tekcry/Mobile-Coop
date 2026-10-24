@@ -99,12 +99,6 @@ export async function launch({ url = 'http://localhost:4173/', params = '', view
   return { browser, ctx, page, errors };
 }
 
-/** (lightrev LR13) `E2E_FALLOFF=<value>` appends `&falloff=<value>` to a game URL's query `q` (not when it names one). */
-export function falloffParam(q, url = '') {
-  const f = process.env.E2E_FALLOFF;
-  return f && !/(^|&)falloff=/.test(q) && !/[?&]falloff=/.test(url) ? `${q}&falloff=${encodeURIComponent(f)}` : q;
-}
-
 /** Open another page in an existing context (coop tests: pages share BroadcastChannel + IndexedDB). */
 export async function openPage(ctx, url = 'http://localhost:4173/', params = '') {
   const page = await ctx.newPage();
@@ -201,8 +195,7 @@ export async function openPage(ctx, url = 'http://localhost:4173/', params = '')
   const q0 = process.env.LEGACY === '1' && !/(^|&)legacy=/.test(g) && !/[?&]legacy=/.test(url) ? `${g}&legacy=1` : g;
   // (locomotion step 20b, D11) E2E_NETSIM=typical: the ?net=local pages run the transport's network simulator
   const q1 = NETSIM && /(^|&)net=local/.test(q0) && !/(^|&)netsim=/.test(q0) ? `${q0}&netsim=${encodeURIComponent(NETSIM)}` : q0;
-  // (lightrev LR13) E2E_FALLOFF=photo: every suite page runs the realistic lamp falloff (`?falloff=photo`); unset: unchanged
-  const q = falloffParam(q1, url);
+  const q = q1;
   await timed('boot', async () => {
   await page.goto(url + (url.includes('?') ? '&' : '?') + q);
   await page.waitForFunction(

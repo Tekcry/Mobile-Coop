@@ -7,12 +7,15 @@
  * from each path's own bake, registry and doors reads the same
  * level at lit, mid, dark and roofed points. Also: the smooth path's rain roof grid (`roofGrid`) stops rain under the
  * station 5 back room's roof and lets it fall in the open yard.
- * (marlow-bunker) Marlow Yard is underground now: a ceiling over every cell, no moon, the open floor held at 0.30 by the
- * fill (Michael), so its darkest reading is that floor (no dark band) and the rain roof covers every cell.
+ * (marlow-final 0d) Marlow Yard is the indoor rehearsal centre: a hall roof over every set, a lid over every holding room,
+ * no moon; the sets' standby zones (0.14) are the darkest reading, and the rain roof covers every set and holding room.
+ * The points are the facility's (holding rooms, the dock) and each set box's middle, so the set slices never edit this file.
  */
 import { beforeAll, describe, expect, it } from 'vitest';
 import { LevelBuilder, type LevelBuildOptions } from '../src/world/levelBuilder';
-import { bayX, ctcourse, CT_BAY, CT_CEIL } from '../src/world/maps/ctcourse';
+import { ctcourse } from '../src/world/maps/ctcourse';
+import { EXIT_ZONE, HALL_H, HOLD_BOX, HOLD_H, HOLD_IDS, SET_BOX, SET_IDS } from '../src/world/maps/ctcourseSets/types';
+import { MARLOW_LEVEL } from '../src/world/lighting/levels';
 import { warehouse } from '../src/world/maps/warehouse';
 import type { MapDef } from '../src/world/mapDef';
 import { dressingOn } from '../src/world/detailPass';
@@ -101,19 +104,15 @@ describe('smooth world: Marlow Yard light field, Epic vs Low smooth', () => {
     expect(bakes.off.lamps!.baked.ids).toEqual(bakes.on.lamps!.baked.ids);
   });
 
-  const MID = 7;
+  const mid = (b: readonly number[]): [number, number] => [(b[0]! + b[2]!) / 2, (b[1]! + b[3]!) / 2];
   /** Named points: feet / surface positions read as a standing body or a surface level. */
   const POINTS: { name: string; x: number; y: number; z: number; body: boolean; shut?: boolean }[] = [
-    { name: 'S8 exit centre (lit)', x: 167.5, y: 0, z: MID, body: true },
-    { name: 'S1 route x0+4', x: bayX(0) + 4, y: 0, z: MID, body: true },
-    { name: 'S3 route x0+9.8', x: bayX(2) + 9.8, y: 0, z: MID, body: true },
-    { name: 'S1 corner (dark)', x: bayX(0) + 0.6, y: 0, z: 0.6, body: true },
-    { name: 'S3 corner (dark)', x: bayX(2) + 15.4, y: 0, z: 13.4, body: true },
-    { name: 'A1 centre, doors shut', x: bayX(0) + 19, y: 0, z: MID, body: true, shut: true },
-    { name: 'A3 corner, doors shut', x: bayX(2) + 16.6, y: 0, z: 4.6, body: true, shut: true },
-    { name: 'S5 back room (under the roof)', x: 102.3, y: 0, z: MID, body: true },
-    { name: 'S2 wall top surface', x: 31, y: 4.45, z: 4, body: false },
-    { name: 'S5 medkit face', x: 103, y: 1.2, z: 13.5, body: false },
+    { name: 'dock exit zone', x: mid(EXIT_ZONE)[0], y: 0, z: mid(EXIT_ZONE)[1], body: true },
+    ...HOLD_IDS.map((h) => ({ name: `${h} centre, doors shut`, x: mid(HOLD_BOX[h])[0], y: 0, z: mid(HOLD_BOX[h])[1], body: true, shut: true })),
+    ...HOLD_IDS.map((h) => ({ name: `${h} corner`, x: HOLD_BOX[h][0] + 0.6, y: 0, z: HOLD_BOX[h][1] + 0.6, body: true })),
+    ...SET_IDS.map((id) => ({ name: `${id} middle`, x: mid(SET_BOX[id][SET_BOX[id].length - 1]!)[0], y: 0, z: mid(SET_BOX[id][SET_BOX[id].length - 1]!)[1], body: true })),
+    ...SET_IDS.map((id) => ({ name: `${id} corner`, x: SET_BOX[id][0]![0] + 0.6, y: 0, z: SET_BOX[id][0]![1] + 0.6, body: true })),
+    { name: 'L4 floor (under the bridge)', x: 73, y: 0.05, z: 33, body: false },
   ];
   const read = (f: { open: LightField; shut: LightField }, p: (typeof POINTS)[number]): number => {
     const lf = p.shut ? f.shut : f.open;
@@ -126,8 +125,8 @@ describe('smooth world: Marlow Yard light field, Epic vs Low smooth', () => {
   it('the light field reads the same level at every point', () => {
     for (const p of POINTS) expect(read(fields.off, p), p.name).toBe(read(fields.on, p));
     // a sweep over the course, three heights, doors open and shut
-    for (let x = bayX(0); x < bayX(7) + CT_BAY + 6; x += 0.9) {
-      for (let z = 0.3; z < 14; z += 1.1) {
+    for (let x = 0.3; x < 160; x += 1.3) {
+      for (let z = 0.3; z < 78; z += 1.7) {
         for (const y of [0.05, 0.9, 1.6]) {
           const v = fields.off.open.levelAt(x, y, z);
           sweep.push(v);
@@ -138,23 +137,21 @@ describe('smooth world: Marlow Yard light field, Epic vs Low smooth', () => {
     }
   });
 
-  it('the samples cover lit and mid readings down to the course darkest (the 0.30 fill), and the roofed back room', () => {
+  it('the samples cover lit and mid readings down to the course darkest (the sets 0.14 standby), and a roofed holding room', () => {
     expect(sweep.length).toBeGreaterThan(1000);
     expect(sweep.some((v) => v >= LIGHT.lit), 'lit').toBe(true);
     expect(sweep.some((v) => v >= LIGHT.shadow && v < LIGHT.lit), 'mid').toBe(true);
-    // (marlow-bunker) no dark band in the bunker: the darkest reading is the fill floor (0.30, just over LIGHT.shadow)
-    expect(Math.min(...sweep), 'darkest').toBeCloseTo(ctcourse.theme.lightLevel ?? 0.75, 2);
-    // the station 5 back room is under a roof (the rain grid below agrees)
+    // (marlow-final 0d) nothing reads under a set's standby fill (0.14: the floor of `visibilityFromLight`)
+    expect(Math.min(...sweep), 'darkest').toBeGreaterThanOrEqual(MARLOW_LEVEL.standby - 0.01);
+    // a holding room is under its lid (the rain grid below agrees)
     const g = roofGrid(off.light.shapes, off.light.lo, off.light.hi);
-    expect(roofAt(g, 102.3, MID)).toBeGreaterThan(2.2);
+    expect(roofAt(g, 73, 10)).toBeGreaterThan(2.2);
   });
 
-  it('the smooth path rain roof: a roof over every cell (the ceilings), and over the station 5 back room', () => {
+  it('the smooth path rain roof: a roof over every set (the hall roofs) and every holding room (its lid)', () => {
     const g = roofGrid(off.light.shapes, off.light.lo, off.light.hi);
-    // (marlow-bunker) every cell: no rain under its ceiling slab (0.4 m, top at the ceiling + 0.4)
-    for (let i = 0; i < 8; i++) expect(roofAt(g, bayX(i) + 4, MID), `S${i + 1}`).toBeGreaterThan(CT_CEIL[i]!);
-    // the back room: covered well above head height
-    expect(roofAt(g, 102.3, MID)).toBeGreaterThan(2.2);
+    for (const id of SET_IDS) for (const b of SET_BOX[id]) if (b[1] !== 19.6) expect(roofAt(g, mid(b)[0], mid(b)[1]), id).toBeGreaterThan(HALL_H);
+    for (const h of HOLD_IDS) expect(roofAt(g, mid(HOLD_BOX[h])[0], mid(HOLD_BOX[h])[1]), h).toBeGreaterThan(HOLD_H);
     // outside the grid: open
     expect(roofAt(g, -1e4, -1e4)).toBe(-1e9);
   });

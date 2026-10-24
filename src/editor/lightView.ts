@@ -668,7 +668,7 @@ export class LightView {
       const hemi = this.scene.getLightByName('sky') as HemisphericLight | null;
       const fill = { grid: c.bake.ambient, color: [hemi?.diffuse.r ?? 1, hemi?.diffuse.g ?? 1, hemi?.diffuse.b ?? 1] as [number, number, number] };
       const lowest = Math.min(...this.host.model.data.levels.map((l) => l.floor));
-      this.lamps = new BakedLamps(this.scene, c.reg, c.bake.lamps.baked, c.bake.lamps.r, c.bake.lo, c.bake.hi, { floorY: lowest }, { moon: c.bake.moon, doors: c.doors.list, fill, standard: true, moonLight: c.bake.moonLight });
+      this.lamps = new BakedLamps(this.scene, c.reg, c.bake.lamps.baked, c.bake.lamps.r, c.bake.lo, c.bake.hi, { floorY: lowest }, { moon: c.bake.moon, doors: c.doors.list, fill, standard: true, moonLight: c.bake.moonLight, bounce: c.field.bounce });
     }
     this.hemiLevel();
     this.swap();

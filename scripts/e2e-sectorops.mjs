@@ -246,23 +246,42 @@ await run(PARAMS, async ({ page, G, sim }) => {
       // x reaction) beats his run to the panel. He stays in combat and is still the panel runner.
       em.radioNet.cut(best.num);
     });
+    // (guard-ai S27 triage, S27-SEC1-TRIAGE.md) radio silence for the whole race: every call any guard opens is cut
+    // within 0.5 s (a call holds >= 1.75 s: callIn 2.5 s x the fastest reaction 0.7), so no contact gets through and no
+    // command call is owed. Since S24 (A149) a guard in combat with no intruder who then sees the player calls the
+    // contact again, and S27 (A161) walks open-waiting role guards to cover after 3 s: a squadmate the runner's shout
+    // joined can come into the player's view and his call beats the panel run. Both are wanted; this scenario is the
+    // panel path only (the panel-vs-radio race is e2e-stealth-ai 'alarm'). The callers cut are in the asserts.
+    const cutBy = {};
+    const hush = () =>
+      G((acc) => {
+        const em = window.__app.current.enemyMgr;
+        for (const e of em.enemies) {
+          if (!e.alive) continue;
+          const n = em.radioNet.cut(e.num);
+          if (n > 0) acc[e.id] = (acc[e.id] ?? 0) + n;
+        }
+        return acc;
+      }, cutBy).then((acc) => Object.assign(cutBy, acc));
     let runner = null;
     for (let k = 0; k < 12 && !runner; k++) {
       await sim(0.5);
+      await hush();
       runner = await G(() => { const e = window.__app.current.enemyMgr.enemies.find((q) => q.alive && q.alarm); return e ? { id: e.id, panel: e.alarm.id, s: e.alarm.section } : null; });
     }
     assert(runner && runner.s === 1, `${tag}: an alerted guard runs to section 2's panel (${JSON.stringify(runner)})`);
     let raised = false;
     for (let k = 0; k < 80 && !raised; k++) {
       await sim(0.5);
+      await hush();
       raised = await G(() => window.__app.current.enemyMgr.alarmRaised);
     }
     const d = await G(() => window.__sector.debug());
     // (guard-ai S6 stack merge) the stage rises through the panel, not the radio command call (S6: a contact call that
     // gets through also raises the alarm, ~6.5 s after the sighting), so the path this scenario names is asserted
     const by = await G(() => window.__app.current.enemyMgr.alarmBy);
-    assert(raised && d.stage === st0 + 1, `${tag}: the panel raises the alarm stage (${st0} -> ${d.stage}, raised ${raised})`);
-    assert(by === 'panel', `${tag}: raised by the panel, not the radio (alarmBy '${by}')`);
+    assert(raised && d.stage === st0 + 1, `${tag}: the panel raises the alarm stage (${st0} -> ${d.stage}, raised ${raised}; calls cut ${JSON.stringify(cutBy)})`);
+    assert(by === 'panel', `${tag}: raised by the panel, not the radio (alarmBy '${by}'; calls cut ${JSON.stringify(cutBy)})`);
   };
   await panelAlarm('section 2');
   // (marlow-bays item 3) the restart from the pause menu: "Restart at checkpoint", a confirm opening on Stay, then Restart
@@ -497,7 +516,12 @@ await run(PARAMS, async ({ G, sim }) => {
   });
   assert(farShot.alerted === 0, `a loud shot this far off (>= ${spot.lo.toFixed(1)} m) alerts nobody: it is out of combat reach (${JSON.stringify(farShot.levels)}, noise back to ${loud})`);
   // ...and the control: the loud report from just behind the nearest guard (0.35 of the combat reach: combat even
-  // through a wall) puts him in combat, so the suppressed check above could fail
+  // through a wall) puts him in combat, so the suppressed check above could fail.
+  // (s1-shot-fix) Part 1 runs the live rAF loop: real-time frames in every gap (the spot read, `tp`, `sim`, the shot)
+  // walk the guard on along his route, and through a wall his combat reach is only 0.45 q (~3.2 m) against the 0.35 q
+  // (~2.5 m) spot. So `loop.manual` from here to the read (only `sim` steps the sim; restored in the read), and the
+  // shot re-pins the report 0.35 q behind him where he stands at the shot.
+  await G(() => { window.__app.loop.manual = true; });
   const near = await G((id) => {
     const g = window.__app.current;
     const em = g.enemyMgr;
@@ -528,8 +552,19 @@ await run(PARAMS, async ({ G, sim }) => {
   // facing the way he faces: away from him
   await tp(G, near.x, near.y, near.z, near.yaw);
   await sim(0.3);
-  await G(() => {
+  const fire = await G((id) => {
     const g = window.__app.current;
+    const em = g.enemyMgr;
+    const e = em.enemies.find((q) => q.id === id);
+    const q = g.constructor.NOISE.shot * Math.pow(10, -em.hearingTable.combatDb / 20);
+    const p0 = g.player.position;
+    const before = Math.hypot(p0.x - e.pos.x, p0.y - e.pos.y, p0.z - e.pos.z);
+    // the report from 0.35 q behind him where he stands now (he walked on during the settle), nav-snapped as above
+    const x = e.pos.x - Math.sin(e.yaw) * 0.35 * q;
+    const z = e.pos.z - Math.cos(e.yaw) * 0.35 * q;
+    const c = g.nav.nearestWalkable(x, z, 2, e.pos.y);
+    if (c >= 0) g.player.controller.teleport(new p0.constructor(g.nav.center(c)[0], g.nav.height[c], g.nav.center(c)[1]), e.yaw);
+    const p = g.player.position;
     const s = g.weapons.current.stats;
     const n0 = s.noise;
     s.noise = 1;
@@ -537,16 +572,19 @@ await run(PARAMS, async ({ G, sim }) => {
     // the report only (no round towards him: a hit would alert him without hearing anything)
     g.weapons.events.onShot(g.weapons.current.def);
     s.noise = n0;
-  });
+    return { before: +before.toFixed(2), d: +Math.hypot(p.x - e.pos.x, p.y - e.pos.y, p.z - e.pos.z).toFixed(2), q: +q.toFixed(2), level: e.level };
+  }, spot.nearest);
+  assert(fire.d < fire.q * 0.45, `the report is inside the nearest guard's combat reach through a wall at the shot (${JSON.stringify(fire)})`);
   // read after ~1 s (think cadence 0.22-0.3 s plus his reaction), not 0.5 s
   await sim(1.0);
   const ctl = await G((id) => {
     if (window.__rnd0) { Math.random = window.__rnd0; delete window.__rnd0; }
+    window.__app.loop.manual = false;
     const em = window.__app.current.enemyMgr;
     const e = em.enemies.find((q) => q.id === id);
     return { nearest: e ? e.alerted : null, level: e ? e.level : null, alerted: em.enemies.filter((q) => q.alive && q.alerted).length };
   }, spot.nearest);
-  assert(ctl.nearest === true, `control: a loud shot inside the combat reach alerts the nearest guard (${JSON.stringify(ctl)})`);
+  assert(ctl.nearest === true, `control: a loud shot inside the combat reach alerts the nearest guard (${JSON.stringify(ctl)}, shot ${JSON.stringify(fire)})`);
 });
 
 // (E9-crate, A101-A105) the between-section weapons crate, solo, on the Warehouse: one per section, only the current
@@ -619,6 +657,8 @@ await run(PARAMS, async ({ G, sim }) => {
     const g = window.__app.current;
     const nav = g.nav;
     const S = g.world.map.sectors;
+    // (guard-ai S28) a locked shut door is shut on the guards' grid: this level read unlocks the doors for its queries and locks them back in the same evaluate (no frame between) (the connectors' near, far and seal doors are locked at load: sectorMode.findDoors)
+    const held = g.world.doors.list.filter((d) => d.anchor.locked); for (const d of held) g.world.doors.setLocked(d, false);
     const legs = [];
     const fails = [];
     // (a nav waypoint is an [x, z] pair)
@@ -669,6 +709,7 @@ await run(PARAMS, async ({ G, sim }) => {
       const toExit = nav.findPath([s.objective.x, s.objective.z], [(ex[0] + ex[2]) / 2, (ex[1] + ex[3]) / 2], 60000, s.objective.y, 0);
       return { id: s.id, obj: !!toObj, exit: !!toExit };
     });
+    for (const d of held) g.world.doors.setLocked(d, true);
     return { legs: legs.length, fails, seals, reach };
   });
   console.log(`  ${out.legs} route legs checked`);
@@ -800,6 +841,79 @@ console.log('sector ops: co-op client mirrors the live section');
     // (guard-ai S15) a section guard who saw the cut may have turned it back on already (the breaker walk): press only while off
     await GA(() => { const g = window.__app.current; const it = g.interactables.items.find((x) => x.id === 'switch-0'); if (!g.stealth.switchOn(g.world.layout.switches[0].group)) it.onUse(it, 'local'); });
     await until(B, (id) => window.__app.current.world.level.lights.lights[id].on, sw.id, 8000, 'switched back on, the lamp is lit on the client');
+    // (walk 4.72 S2) the client shoots a live lamp out: its round goes to the host (`shot` at `lt-<id>`), the host checks
+    // and shoots it out, and the client sees it dark from the next `lamps`; both pages' light fields agree under it. The
+    // lamp: a lit, shootable one near the client with a clear line from its chest (the host's own physics decides it)
+    {
+      const cp = await GB(() => { const p = window.__app.current.player.position; return { x: p.x, y: p.y, z: p.z }; });
+      const lp = await GA((c) => {
+        const g = window.__app.current;
+        const V = g.player.position.constructor;
+        const o = new V(c.x, c.y + 1.45, c.z);
+        let best = null;
+        for (const l of g.world.level.lights.lights) {
+          if (l.kind === 'flashlight' || !l.on || l.destroyed || !l.destructible) continue;
+          const dy = l.y - o.y;
+          const h = Math.hypot(l.x - o.x, l.z - o.z);
+          if (dy < 0.5 || dy > 7 || h > 14) continue;
+          const b = new V(l.x, l.y, l.z);
+          const d = V.Distance(o, b);
+          if (g.ballistics.hitDistance(o, b, 1) < d - 0.05) continue;
+          if (!best || d < best.d) best = { id: l.id, x: l.x, y: l.y, z: l.z, d };
+        }
+        return best;
+      }, cp);
+      assert(!!lp, `a lit, shootable lamp in clear sight of the client (${JSON.stringify(cp)})`);
+      // the client aims (drawn: the host takes no hip fire) and its round runs from its chest through the lamp
+      await GB(() => { window.__app.current.player.forceAds = true; });
+      await until(A, () => [...window.__app.current.net.remotes.values()].some((r) => r.state?.mv?.dw === 2), null, 8000, 'the host sees the client drawn');
+      await GA(() => {
+        const n = window.__app.current.net;
+        if (n.__lampLog) return;
+        n.__lampLog = [];
+        const f = n.onLampShot.bind(n);
+        n.onLampShot = (r, m) => { const sh0 = window.__app.current.stealth.lightsShot; f(r, m); n.__lampLog.push({ target: m.target, o: [m.ox, m.oy, m.oz].map((v) => +v.toFixed(2)), d: [m.dx, m.dy, m.dz].map((v) => +v.toFixed(3)), dist: +m.dist.toFixed(2), w: m.w, dw: r.state?.mv?.dw, feet: [r.feet.x, r.feet.y, r.feet.z].map((v) => +v.toFixed(2)), shot: window.__app.current.stealth.lightsShot > sh0 }); };
+      });
+      // the client aims its camera at the lamp (the spring rig settles between passes) and fires its gun's own round
+      // (`shoot()`: the real ray from the muzzle, the real `onRay` segment); its `lampRay` calls are logged
+      await GB(() => {
+        const n = window.__app.current.net;
+        if (n.__rayLog) return;
+        n.__rayLog = [];
+        const f = n.lampRay.bind(n);
+        n.lampRay = (a, b) => { n.__rayLog.push({ a: [a.x, a.y, a.z].map((v) => +v.toFixed(2)), b: [b.x, b.y, b.z].map((v) => +v.toFixed(2)) }); f(a, b); };
+      });
+      for (let i = 0; i < 6; i++) {
+        await GB((l) => {
+          const cam = window.__app.current.player.cam;
+          const cp = cam.camera.position;
+          const dx = l.x - cp.x, dy = l.y - cp.y, dz = l.z - cp.z;
+          cam.yaw = Math.atan2(dx, dz);
+          cam.pitch = Math.atan2(dy, Math.hypot(dx, dz));
+          cam.snap();
+        }, lp);
+        await waitSim(120);
+      }
+      const sent = await GB((l) => {
+        const g = window.__app.current;
+        const on = g.world.level.lights.lights[l.id].on;
+        const w = g.weapons;
+        const m0 = w.current.mag;
+        w.shoot();
+        const ls = w.lastShot;
+        return { on, fired: m0 - w.current.mag, last: ls && { o: [ls.origin.x, ls.origin.y, ls.origin.z].map((v) => +v.toFixed(2)), hit: [ls.hit.x, ls.hit.y, ls.hit.z].map((v) => +v.toFixed(2)), target: ls.target }, rays: window.__app.current.net.__rayLog };
+      }, lp);
+      console.log('  client round', JSON.stringify(sent), 'lamp', JSON.stringify(lp));
+      assert(sent.on, `the client's lamp is lit before its round lands (${JSON.stringify(sent)})`);
+      const outA = await until(A, (id) => window.__app.current.world.level.lights.lights[id].destroyed, lp.id, 8000, 'the client\'s round shoots the host\'s lamp out').then(() => true, () => false);
+      if (!outA) console.error('  host lamp-shot log', JSON.stringify(await GA(() => window.__app.current.net.__lampLog)), 'lamp', JSON.stringify(lp));
+      assert(outA, `the client's round shoots the lamp out on the host (lamp ${lp.id})`);
+      await until(B, (id) => { const l = window.__app.current.world.level.lights.lights[id]; return l.destroyed && !l.on; }, lp.id, 8000, 'the client sees its shot lamp dark');
+      const lvS = (P) => P.evaluate((p) => window.__app.current.world.lightField.levelAt(p.x, p.y - 2, p.z), lp);
+      const [sa, sb] = [await lvS(A), await lvS(B)];
+      assert(Math.abs(sa - sb) < 1e-3, `the light under the client-shot lamp agrees on both pages (host ${sa}, client ${sb})`);
+      await GB(() => { window.__app.current.player.forceAds = false; });
+    }
     const locks = () => GA(() => window.__app.current.world.doors.list.filter((d) => d.anchor.locked).map((d) => d.index).join(','));
     const lk0 = await locks();
     await until(B, (k) => window.__app.current.world.doors.list.filter((d) => d.anchor.locked).map((d) => d.index).join(',') === k, lk0, 15000, 'the client mirrors the locked doors');
@@ -858,6 +972,91 @@ console.log('sector ops: co-op client mirrors the live section');
       await GA(() => window.__sector.restartCheckpoint());
       await until(B, () => { const it = window.__app.current.interactables.items.find((x) => x.id === 'racking-crate'); return !!it && !it.spent; }, null, 15000, 'after the host\'s restart the client\'s crate prompt is back');
     }
+  } catch (e) {
+    failed = true;
+    console.error(String(e));
+  } finally {
+    clearInterval(pump);
+    all.push(...eA, ...eB);
+    await browser.close();
+  }
+}
+
+// (walk 4.72 S2) Saltmarsh Park's street lamps: the head sits on top of its 6 m pole, so a round aimed at it from the
+// ground lands on the pole just under the head (`LAMP_MOUNT_REACH`). The client's real round (camera aimed, the gun's own
+// `shoot()`) at the lane lamp goes to the host and both pages go dark there; the host's own round does the same to a
+// car-park lamp. Before the fix neither page's round broke either lamp (the probe on 4.72's code: 0 of 13).
+console.log('sector ops: co-op street lamps on Saltmarsh Park (client and host rounds)');
+{
+  const { browser, A, B, errors: [eA, eB], startMode } = await hostAndJoin(url, 2, { params: 'net=local&sectorGuards=4' });
+  let pumping = false;
+  const pump = setInterval(async () => {
+    if (pumping) return;
+    pumping = true;
+    try {
+      await A.evaluate(() => {
+        if (window.__raf === undefined) {
+          window.__raf = 0;
+          const loop = () => { window.__raf++; requestAnimationFrame(loop); };
+          requestAnimationFrame(loop);
+        }
+        const now = performance.now();
+        const last = window.__pumpT ?? now;
+        const idle = window.__pumpRaf === window.__raf;
+        window.__pumpT = now;
+        window.__pumpRaf = window.__raf;
+        if (idle && window.__app.current) window.__app.loop.stepHeadless(Math.min(0.1, Math.max(1 / 60, (now - last) / 1000)));
+      });
+    } catch {}
+    pumping = false;
+  }, 40);
+  const GA = (f, a) => A.evaluate(f, a);
+  const GB = (f, a) => B.evaluate(f, a);
+  /** Page P stands at `s`, aims (drawn) at lamp `l` and fires one round; true when it fired. */
+  const fireAt = async (P, s, l, headless) => {
+    await P.evaluate(([s, l]) => { const g = window.__app.current; g.player.forceAds = true; g.player.controller.teleport(new g.player.position.constructor(s[0], s[1], s[2]), Math.atan2(l.x - s[0], l.z - s[2])); }, [s, l]);
+    await waitSim(900);
+    for (let i = 0; i < 6; i++) {
+      await P.evaluate(([l, h]) => {
+        const cam = window.__app.current.player.cam;
+        const cp = cam.camera.position;
+        const dx = l.x - cp.x, dy = l.y - cp.y, dz = l.z - cp.z;
+        cam.yaw = Math.atan2(dx, dz);
+        cam.pitch = Math.atan2(dy, Math.hypot(dx, dz));
+        cam.snap();
+        if (h) window.__app.loop.stepHeadless(0.1);
+      }, [l, headless]);
+      if (!headless) await waitSim(100);
+    }
+    return P.evaluate(() => { const w = window.__app.current.weapons; const m0 = w.current.mag; w.shoot(); const ls = w.lastShot; return { fired: m0 - w.current.mag, hit: ls && [ls.hit.x, ls.hit.y, ls.hit.z].map((v) => +v.toFixed(2)), target: ls?.target }; });
+  };
+  const lampAt = (P, x, z) => P.evaluate(([x, z]) => { const l = window.__app.current.world.level.lights.lights.find((q) => q.kind !== 'flashlight' && Math.abs(q.x - x) < 0.01 && Math.abs(q.z - z) < 0.01 && q.y > 5); return l && { id: l.id, x: l.x, y: l.y, z: l.z, on: l.on, destroyed: l.destroyed, destructible: l.destructible }; }, [x, z]);
+  try {
+    await startMode('sector', 'campusOps');
+    await until(B, () => !!window.__app.current?.net && window.__app.current.world.level.lights.lights.length > 0, null, 15000, 'the client is in the match');
+    // the lane lamp (9, 6, -66) and a car-park lamp (-34, 6, -62): lit and shootable on both pages, the same ids
+    const [la, lb] = [await lampAt(A, 9, -66), await lampAt(B, 9, -66)];
+    const [pa, pb] = [await lampAt(A, -34, -62), await lampAt(B, -34, -62)];
+    assert(!!la && !!lb && la.id === lb.id && la.on && lb.on && la.destructible && !!pa && !!pb && pa.id === pb.id && pa.on, `the street lamps are lit, shootable and the same on both pages (${JSON.stringify([la, lb, pa, pb])})`);
+    // the client: 3 m east of the lane lamp, its real round
+    await until(A, () => [...window.__app.current.net.remotes.values()].length > 0, null, 8000, 'the host has the client');
+    await GB(() => { window.__app.current.player.forceAds = true; });
+    await until(A, () => [...window.__app.current.net.remotes.values()].some((r) => r.state?.mv?.dw === 2), null, 8000, 'the host sees the client drawn');
+    const cs = await fireAt(B, [12, 0.02, -66], lb, false);
+    assert(cs.fired === 1, `the client fires one round at the lane lamp (${JSON.stringify(cs)})`);
+    const outA = await until(A, (id) => window.__app.current.world.level.lights.lights[id].destroyed, la.id, 8000, 'host lamp out').then(() => true, () => false);
+    assert(outA, `the client's round on the lane lamp's pole top shoots it out on the host (${JSON.stringify(cs)}, lamp ${JSON.stringify(la)})`);
+    await until(B, (id) => { const l = window.__app.current.world.level.lights.lights[id]; return l.destroyed && !l.on; }, lb.id, 8000, 'the client sees the lane lamp dark');
+    const lv = (P, l) => P.evaluate((p) => window.__app.current.world.lightField.levelAt(p.x, 0.9, p.z), l);
+    const [va, vb] = [await lv(A, la), await lv(B, la)];
+    assert(Math.abs(va - vb) < 1e-3, `the light under the lane lamp agrees on both pages (host ${va}, client ${vb})`);
+    await GB(() => { window.__app.current.player.forceAds = false; });
+    // the host: 3 m east of the car-park lamp, its own round
+    const hs = await fireAt(A, [-31, 0.02, -62], pa, true);
+    const hOut = await GA((id) => window.__app.current.world.level.lights.lights[id].destroyed, pa.id);
+    assert(hs.fired === 1 && hOut, `the host's round on the car-park lamp's pole top shoots it out (${JSON.stringify(hs)})`);
+    await until(B, (id) => window.__app.current.world.level.lights.lights[id].destroyed, pb.id, 8000, 'the client sees the car-park lamp dark');
+    await GA(() => { window.__app.current.player.forceAds = false; });
   } catch (e) {
     failed = true;
     console.error(String(e));
@@ -1455,6 +1654,13 @@ async function coop(title, fn) {
     await place(B, x, y, z, yaw);
     await until(A, ([x, z]) => { const r = window.__app.current.net.remotes.values().next().value; return Math.hypot(r.feet.x - x, r.feet.z - z) < 0.4; }, [x, z], 15000, `the host sees the client at ${x}, ${z}`);
   };
+  /** A tap of the pad's A on page P (interact: the context menu's row runs on the release). */
+  const tapA = async (P) => {
+    await P.evaluate(() => window.__pad.set(0, 1));
+    await waitSim(250);
+    await P.evaluate(() => window.__pad.set(0, 0));
+    await waitSim(400);
+  };
   const hostFeet = () => GA(() => { const p = window.__app.current.player.controller.pos; return [+p.x.toFixed(2), +p.y.toFixed(2), +p.z.toFixed(2)]; });
   const clientFeet = () => GA(() => { const r = window.__app.current.net.remotes.values().next().value; return [+r.feet.x.toFixed(2), +r.feet.y.toFixed(2), +r.feet.z.toFixed(2)]; });
   /** The stick forward (camera at `yaw`) until `cond` on that page. */
@@ -1574,10 +1780,12 @@ async function coop(title, fn) {
         const g = window.__app.current;
         const n = g.interactables.nearest(g.player.position);
         const it = g.interactables.items.find((q) => q.id === id);
-        if (it) it.onUse(it);
-        return { mirrored: !!it, on: it?.enabled ?? null, nearest: n?.id ?? null };
+        return { mirrored: !!it, on: it?.enabled ?? null, nearest: n?.id ?? null, rows: g.ctxMenu.opts.slice(0, g.ctxMenu.count).map((o) => o.label) };
       }, b.id);
-      assert(near.mirrored && near.on === true && near.nearest !== b.id, `${tag}: the client mirrors the Unbolt but is not offered it on the near side (${JSON.stringify(near)})`);
+      assert(near.mirrored && near.on === true && near.nearest !== b.id && !near.rows.includes('Unbolt'), `${tag}: the client mirrors the Unbolt but is not offered it on the near side, no Unbolt row (${JSON.stringify(near)})`);
+      // (walk 4.72 S3) the real A on the near side does not draw it; nor does the item's use sent from there by hand
+      await tapA(B);
+      await GB((id) => { const it = window.__app.current.interactables.items.find((q) => q.id === id); if (it) it.onUse(it); }, b.id);
       await waitSim(1500);
       const still = (await GA(() => window.__sector.boltInfo())).find((q) => q.id === b.id);
       const cl0 = await GB((d) => window.__app.current.world.doors.list[d].anchor.locked, b.door);
@@ -1585,9 +1793,10 @@ async function coop(title, fn) {
       // far side: the client is offered "Unbolt" and uses it
       await moveClient(ax + sx * 0.8, az + sz * 0.8, Math.atan2(-sx, -sz));
       await waitSim(800);
-      const far = await GB(() => { const g = window.__app.current; const n = g.interactables.nearest(g.player.position); return { nearest: n?.id ?? null, label: n?.label ?? null }; });
-      assert(far.nearest === b.id && far.label === 'Unbolt', `${tag}: the client on the far side is offered "Unbolt" (${JSON.stringify(far)})`);
-      await GB((id) => { const it = window.__app.current.interactables.items.find((q) => q.id === id); it.onUse(it); }, b.id);
+      const far = await GB(() => { const g = window.__app.current; const n = g.interactables.nearest(g.player.position); return { nearest: n?.id ?? null, label: n?.label ?? null, rows: g.ctxMenu.opts.slice(0, g.ctxMenu.count).map((o) => o.label) }; });
+      assert(far.nearest === b.id && far.label === 'Unbolt' && far.rows.includes('Unbolt'), `${tag}: the client on the far side is offered "Unbolt" (${JSON.stringify(far)})`);
+      // (walk 4.72 S3) the client presses A (the real button: its context menu row), not a scripted use
+      await tapA(B);
       await until(A, (id) => { const q = window.__sector.boltInfo().find((r) => r.id === id); return !q.shut && q.locked === false; }, b.id, 8000, `${tag}: the host unbolts it for the client`);
       await until(B, (d) => window.__app.current.world.doors.list[d].anchor.locked === false, b.door, 8000, `${tag}: the client's door unlocks`);
       await until(B, (id) => window.__app.current.interactables.items.find((q) => q.id === id)?.enabled === false, b.id, 8000, `${tag}: the client's Unbolt goes off`);
@@ -1731,7 +1940,7 @@ if (want(5)) {
 // co-op legs (leg-up onto the canopy, the drop takedown), the verge vantage and cam-walk coverage, the revive on the roof.
 // (slice 2) Section 2, the HQ atrium and offices (SPEC "S2"): in the same first run (a) S2 loads with 12 guards (3 G, 6 L1, 3 L2) and its
 // three cameras, (b) the stealth route C1 far door -> post room -> SW stair -> L1 north open plan -> facilities office, the 3 s BMS hack
-// opens C2's card door, (d) the reception panel switch cuts s2-atrium and #1 walks to it; in the probe run (c) the CR2 nose is never held
+// opens C2's card door, (d) the reception panel board (LR16-4, untimed) cuts s2-atrium and #1 walks to it; in the probe run (c) the CR2 nose is never held
 // alone (cafe floor, cafe table, feature stair, a wall jump off the hall's east wall). Skipped: the co-op leg-up + human ladder at CR2 (this
 // part has no co-op helper), the balustrade probe (the balustrade is on L1: a solo up there is already on the slab).
 const CAMPUS = 'autostart=campusOps&mode=sector';
@@ -1758,6 +1967,8 @@ if (want(6)) {
       const g = window.__app.current;
       const fails = [];
       let legs = 0;
+      // (guard-ai S28) a locked shut door is shut on the guards' grid: this level read unlocks the doors for its queries and locks them back in the same evaluate (no frame between)
+      const held = g.world.doors.list.filter((d) => d.anchor.locked); for (const d of held) g.world.doors.setLocked(d, false);
       for (const r of g.world.map.sectors[0].routes) {
         for (let i = 0; i + 1 < r.pts.length; i++) {
           if ((r.climbs ?? []).includes(i)) continue;
@@ -1767,6 +1978,7 @@ if (want(6)) {
           if (!g.nav.findPath([a[0], a[1]], [c[0], c[1]], 60000, a[2] ?? 0, c[2] ?? 0)) fails.push(`${r.name} leg ${i}`);
         }
       }
+      for (const d of held) g.world.doors.setLocked(d, true);
       return { legs, fails };
     });
     console.log(`  ${nv.legs} route legs checked`);
@@ -1837,6 +2049,8 @@ if (want(6)) {
       const g = window.__app.current;
       const fails = [];
       let legs = 0;
+      // (guard-ai S28) a locked shut door is shut on the guards' grid: this level read unlocks the doors for its queries and locks them back in the same evaluate (no frame between)
+      const held = g.world.doors.list.filter((d) => d.anchor.locked); for (const d of held) g.world.doors.setLocked(d, false);
       for (const r of g.world.map.sectors[1].routes) {
         for (let i = 0; i + 1 < r.pts.length; i++) {
           const a = r.pts[i];
@@ -1845,6 +2059,7 @@ if (want(6)) {
           if (!g.nav.findPath([a[0], a[1]], [c[0], c[1]], 200000, a[2] ?? 0, c[2] ?? 0)) fails.push(`${r.name} leg ${i}`);
         }
       }
+      for (const d of held) g.world.doors.setLocked(d, true);
       return { legs, fails };
     });
     console.log(`  ${nv2.legs} S2 route legs checked`);
@@ -1879,45 +2094,48 @@ if (want(6)) {
     await sim(0.3);
     const hk = await G(() => window.__sector.debug());
     assert(hk.phase === 'connector' && hk.nearLocked === false && hk.farLocked === true, `the 3 s hack opens C2's card door (${JSON.stringify([hk.phase, hk.nearLocked, hk.farLocked])})`);
-    // (d) the reception panel: the switch cuts s2-atrium (the three pendants and the reception downlight: #1 sees his own room go dark) and #1 walks to it (the guards run again; the player waits in the dark plant room)
+    // (d) the reception panel (LR16-4: an untimed breaker board, `board-<k>`): the cut takes s2-atrium (the three pendants and the reception downlight: #1 sees his own room go dark) and #1 walks to it (the guards run again; the player waits in the dark plant room)
     await G(() => { const g = window.__app.current; delete g.enemyMgr.update; const P = g.player.position.constructor; g.player.controller.teleport(new P(2.5, 0, -24), 0); });
     await sim(0.5);
     const pn = await G(() => {
       const g = window.__app.current;
-      const sws = g.world.layout.switches;
-      const k = sws.findIndex((q) => q.group === 50);
+      const bds = g.world.layout.boards;
+      const k = bds.findIndex((q) => q.groups.includes(50) && !q.window);
+      const onGroup = g.world.layout.switches.filter((q) => q.group === 50).length;
       const es = g.enemyMgr.enemies;
       let idx = -1;
       let bd = 1e9;
       es.forEach((q, i) => { if (!q.alive || q.pos.y > 2) return; const d = Math.hypot(q.pos.x + 20, q.pos.z + 24.9); if (d < bd) { bd = d; idx = i; } });
       const e = es[idx];
-      return { k, idx, d0: Math.hypot(e.pos.x - sws[k].pos.x, e.pos.z - sws[k].pos.z), on: g.world.level.lights.lights.filter((l) => l.group === 50 && l.on).length };
+      return { k, idx, d0: Math.hypot(e.pos.x - bds[k].pos.x, e.pos.z - bds[k].pos.z), onGroup, on: g.world.level.lights.lights.filter((l) => l.group === 50 && l.on).length };
     });
-    assert(pn.k >= 0 && pn.on === 4 && pn.d0 > 9, `the reception panel is a switch on s2-atrium (3 pendants and the reception downlight lit), #1 stands ${pn.d0.toFixed(1)} m off it (${JSON.stringify(pn)})`);
-    await G((k) => { const g = window.__app.current; const it = g.interactables.items.find((x) => x.id === `switch-${k}`); it.onUse(it, 'local'); }, pn.k);
+    assert(pn.k >= 0 && pn.onGroup === 0 && pn.on === 4 && pn.d0 > 9, `the reception panel is an untimed breaker board on s2-atrium, no switch on it (3 pendants and the reception downlight lit), #1 stands ${pn.d0.toFixed(1)} m off it (${JSON.stringify(pn)})`);
+    await G((k) => { const g = window.__app.current; const it = g.interactables.items.find((x) => x.id === `board-${k}`); it.onUse(it, 'local'); }, pn.k);
     // (guard-ai S15, A42; laptop fix 884b89c0) the cut is a breaker fault: #1, the witness nearest the panel by path, walks
     // to it at his patrol pace and turns s2-atrium back on (master's light check sent a pair and left it dark): his
     // nearest approach and the relight over 25 s of sim, half-second steps
     const pa = await G(([k, idx]) => {
       const g = window.__app.current;
-      const sw = g.world.layout.switches[k];
+      const sw = g.world.layout.boards[k];
       const e = g.enemyMgr.enemies[idx];
       const lit = () => g.world.level.lights.lights.filter((l) => l.group === 50 && l.on).length;
       const off = lit();
       let task = -1;
       let dMin = 1e9;
       let back = -1;
+      let cut1 = -1;
       for (let t = 0.5; t <= 25; t += 0.5) {
         window.__app.loop.stepHeadless(0.5);
         if (t === 0.5) task = e.breakerGroup;
         dMin = Math.min(dMin, Math.hypot(e.pos.x - sw.pos.x, e.pos.z - sw.pos.z));
         if (back < 0 && lit() === 4) back = t;
       }
-      return { off, task, dMin, back, alive: e.alive, on: lit() };
+      cut1 = g.stealth.boards.cut[k];
+      return { off, task, dMin, back, cut1, alive: e.alive, on: lit() };
     }, [pn.k, pn.idx]);
     await sim(0.1);
     assert(pa.off === 0 && pa.task === 50, `the panel cut s2-atrium (lamps on ${pa.off}) and sends #1 to reset it (breaker task, circuit ${pa.task})`);
-    assert(pa.alive && pa.dMin < 2 && pa.back > 0 && pa.on === 4, `#1 walked to the panel and turned s2-atrium back on (${pn.d0.toFixed(1)} m -> ${pa.dMin.toFixed(1)} m, relit at ${pa.back} s, lamps on ${pa.on})`);
+    assert(pa.alive && pa.dMin < 2 && pa.back > 0 && pa.on === 4 && pa.cut1 === 0, `#1 walked to the board and switched s2-atrium back on (board cut ${pa.cut1}, ${pn.d0.toFixed(1)} m -> ${pa.dMin.toFixed(1)} m, relit at ${pa.back} s, lamps on ${pa.on})`);
   });
 
   console.log('campus ops (S1): the feeder pillar board cuts s1-park-w; the west half goes dark');
@@ -2101,6 +2319,8 @@ async function campusS3Part(page) {
     const g = window.__app.current;
     const fails = [];
     let legs = 0;
+    // (guard-ai S28) a locked shut door is shut on the guards' grid: this level read unlocks the doors for its queries and locks them back in the same evaluate (no frame between)
+    const held = g.world.doors.list.filter((d) => d.anchor.locked); for (const d of held) g.world.doors.setLocked(d, false);
     for (const r of g.world.map.sectors[2].routes) {
       for (let i = 0; i + 1 < r.pts.length; i++) {
         if ((r.climbs ?? []).includes(i)) continue;
@@ -2110,6 +2330,7 @@ async function campusS3Part(page) {
         if (!g.nav.findPath([a[0], a[1]], [c[0], c[1]], 60000, a[2] ?? 0, c[2] ?? 0)) fails.push(`${r.name} leg ${i}`);
       }
     }
+    for (const d of held) g.world.doors.setLocked(d, true);
     return { legs, fails };
   });
   console.log(`  S3: ${nv.legs} route legs checked`);
@@ -2785,6 +3006,23 @@ async function campusS4Part(page) {
   // ones (MAX_ITEMS 128 holds for that set, with headroom for E9's crates and the revives)
   assert(d4.scope === 3 && d4.live < d4.items && d4.live <= 100, `the mirrored (live) interactables stay under the cap (${d4.live} of ${d4.items}, scope ${d4.scope})`);
 
+  // (a2) (stealth-pays S2) an interrogation's code flag reaches the team's codes through the mode hook `revealIntel`
+  // calls (`g.mode.onIntelCode`): kp-batt's prompt turns to "Enter code" (not opened here: (b) opens it). The real
+  // grab-and-interrogate chain is e2e-takedown's `grab-interrogate-intel`.
+  const ic = await G(() => {
+    const m = window.__sector;
+    const q = m.keyIts.find((x) => x.sec === 3 && x.k === 0);
+    const before = { has: m.codes.has('s4-codes'), label: q?.it.label ?? null };
+    m.onIntelCode('s4-codes');
+    m.onIntelCode('s4-codes');
+    const after = { has: m.codes.has('s4-codes'), label: q?.it.label ?? null };
+    return { before, after };
+  });
+  assert(
+    ic.before.has === false && ic.before.label === 'Keypad - code needed' && ic.after.has === true && ic.after.label === 'Enter code',
+    `S2: an interrogation code readies kp-batt (${JSON.stringify(ic)})`,
+  );
+
   // (b) the dock board gives the codes: both keypads open
   const codes = await G(() => {
     const g = window.__app.current;
@@ -2800,6 +3038,8 @@ async function campusS4Part(page) {
     const g = window.__app.current;
     const fails = [];
     let legs = 0;
+    // (guard-ai S28) a locked shut door is shut on the guards' grid: this level read unlocks the doors for its queries and locks them back in the same evaluate (no frame between)
+    const held = g.world.doors.list.filter((d) => d.anchor.locked); for (const d of held) g.world.doors.setLocked(d, false);
     for (const r of g.world.map.sectors[3].routes) {
       for (let i = 0; i + 1 < r.pts.length; i++) {
         if ((r.climbs ?? []).includes(i)) continue;
@@ -2809,6 +3049,7 @@ async function campusS4Part(page) {
         if (!g.nav.findPath([a[0], a[1]], [c[0], c[1]], 200000, a[2] ?? 0, c[2] ?? 0)) fails.push(`${r.name} leg ${i}`);
       }
     }
+    for (const d of held) g.world.doors.setLocked(d, true);
     return { legs, fails };
   });
   console.log(`  S4: ${nv.legs} route legs checked`);
@@ -3151,6 +3392,8 @@ async function campusS5Part(page) {
     const g = window.__app.current;
     const fails = [];
     let legs = 0;
+    // (guard-ai S28) a locked shut door is shut on the guards' grid: this level read unlocks the doors for its queries and locks them back in the same evaluate (no frame between)
+    const held = g.world.doors.list.filter((d) => d.anchor.locked); for (const d of held) g.world.doors.setLocked(d, false);
     for (const r of g.world.map.sectors[4].routes) {
       for (let i = 0; i + 1 < r.pts.length; i++) {
         if ((r.climbs ?? []).includes(i)) continue;
@@ -3160,6 +3403,7 @@ async function campusS5Part(page) {
         if (!g.nav.findPath([a[0], a[1]], [c[0], c[1]], 200000, a[2] ?? 0, c[2] ?? 0)) fails.push(`${r.name} leg ${i}`);
       }
     }
+    for (const d of held) g.world.doors.setLocked(d, true);
     return { legs, fails };
   });
   console.log(`  S5: ${nv.legs} route legs checked`);
@@ -3267,13 +3511,17 @@ if (want(1)) {
       Object.assign(out, { aStarted: em.command.started - s0, aRaised: em.alarmRaised, aStage: [d0.stage, d1.stage], aSent: d1.reinforced - d0.reinforced });
       em.despawn(A);
       // (b) the call gets through
-      em.lkp.set(x, y, z);
-      em.lkpValid = true;
-      em.sightT = 0;
+      // (guard-ai S24, A146/A148) one last known position per player, and a guard with none for his intruder never
+      // walks to the real feet: the player was seen here (his slot, the mirrored lkp), B hunts him (told before he goes
+      // to combat), so B's contact names him and the reinforcements come for that spot (the old direct `em.lkp` write
+      // gave no guard an intruder: they stood at the entry)
+      const slot = em.ctx.reportSighting({ id: g.localRef.id, feet: new V(x, y, z), spotted: false });
       const B = em.spawn('grunt', new V(x, y, z), false, 0);
       em.placeSlot(B, { yaw: 0 }, 0);
       step(0.3);
+      B.tell(slot);
       B.alert();
+      out.bHunt = [slot, B.hunt, em.lkpValid];
       let t = 0;
       let tCmd = -1;
       while (!em.alarmRaised && t < 15) {
@@ -3313,6 +3561,7 @@ if (want(1)) {
     }, S[0].obj);
     const f2 = (v) => v.toFixed(2);
     assert(r.aLeft > 0.3 && r.aStarted === 0 && !r.aRaised && r.aStage[1] === r.aStage[0] && r.aSent === 0, `S6: the caller knocked out during his call (${f2(r.aLeft)} s left): no command call, no alarm, nobody comes (${JSON.stringify(r)})`);
+    assert(r.bHunt[0] >= 0 && r.bHunt[1] === r.bHunt[0] && r.bHunt[2], `S6: B hunts the player seen at the spot (slot, hunt, lkpValid ${JSON.stringify(r.bHunt)})`);
     assert(r.tCmd > 0 && r.by === 'radio' && Math.abs(r.tAl - r.tCmd - r.R * r.react) < 0.35, `S6: his contact gets through, he calls command, and ${f2(r.R * r.react)} s later the alarm goes off by radio (command at ${f2(r.tCmd)} s, alarm at ${f2(r.tAl)} s, '${r.by}')`);
     assert(r.stage[1] === r.stage[0] + 1 && r.sent === r.perStage && r.n === r.perStage, `S6: the stage rises and the section's ${r.perStage} reinforcements come in, aggressive (${r.stage}, sent ${r.sent}, aggressive ${r.n})`);
     assert(r.atEntry.every((d) => d < 4), `S6: they come in at the section's entry points (${r.atEntry.map(f2)} m)`);
@@ -3365,9 +3614,17 @@ if (want(1)) {
       const cam0 = { n: ct.cams.length, s: cams() };
       const living = () => em.enemies.filter((e) => e.alive && !e.dog);
       const out = { stage0: m.run.alarm, perStage: g.world.map.sectors[0].perStage, cam0: cam0.n };
+      // (guard-ai S27, A164) the section's own guards before the stage rises, read as the `e2e-guard-carry` suite reads the
+      // carry (`carry.holstered` / `carry.drawn`); `em.alarmRaised` is the guards' own alarm (a panel / command call), which
+      // the mode's `onAlarm()` does not set: this is the camera / laser case, a stage and nothing else
+      const own = living();
+      out.carryN = own.length;
+      out.holst0 = own.filter((e) => e.carry.holstered).length;
+      out.raised0 = em.alarmRaised;
       m.onAlarm();
       step(0.6);
       out.stage1 = m.run.alarm;
+      out.holst1 = own.filter((e) => e.alive && e.carry.holstered).length;
       out.gear1 = living().map((e) => [e.helmet, e.armour]);
       m.onAlarm();
       step(0.6);
@@ -3376,17 +3633,24 @@ if (want(1)) {
       m.onAlarm();
       step(0.6);
       out.stage3 = m.run.alarm;
+      // (S27) 1.8 s after the first stage rise (inside the 2 s the draw is owed in; the longest draw clip is 0.7 s)
+      out.drawn3 = own.filter((e) => e.alive).map((e) => e.carry.drawn);
+      out.raised3 = em.alarmRaised;
       out.both3 = living().map((e) => e.helmet && e.armour);
       out.teams = em.teams.map((t) => t.members.map((e) => e.def.kind));
       out.shieldHelmet = em.teams.map((t) => t.members[0]?.helmet === true);
       out.camN = ct.cams.length;
       out.camSame = cams() === cam0.s;
       out.ctAlarm = ct.alarm;
-      window.__s13 = { x, z, t: 1.8, firstSweep: -1, maxVisited: 0, lead0: null, moved: 0 };
+      window.__s13 = { x, z, t: 1.8, firstSweep: -1, maxVisited: 0, maxLooked: 0, lead0: null, moved: 0 };
       return out;
     }, S[0].obj);
     // (the warehouse sections set no `gear` default and no slot tags: only the stage gives armour)
     assert(r.stage1 === r.stage0 + 1 && r.gear1.every(([, a]) => !a), `S13: stage 1 brings a team, no stage armour yet (${JSON.stringify(r.gear1)})`);
+    // (guard-ai S27, A164) a stage without the guards' own alarm (`em.alarmRaised` false: the camera / laser case) ends the
+    // calm area: every guard of the live section has his weapon drawn within 2 s (none holstered 0.6 s on)
+    assert(r.carryN > 0 && r.holst0 > 0 && !r.raised0, `S27: the section's guards start calm, some holstered, no guard alarm (${r.holst0} of ${r.carryN} holstered, alarmRaised ${r.raised0})`);
+    assert(!r.raised3 && r.holst1 === 0 && r.drawn3.length === r.carryN && r.drawn3.every(Boolean), `S27: after the stage rise (the guards' own alarm still ${r.raised3 ? 'raised' : 'off'}) none is holstered 0.6 s on (${r.holst1}) and all ${r.carryN} have the weapon drawn within 2 s (${r.drawn3})`);
     assert(r.stage2 === r.stage0 + 2 && r.armour2.every(Boolean), `S13: stage 2: every living guard wears armour (${r.armour2})`);
     assert(r.stage3 === r.stage0 + 3 && r.both3.every(Boolean), `S13: stage 3: every living guard wears armour and a helmet (${r.both3})`);
     assert(r.teams.length === 3 && r.teams.every((t) => t[0] === 'enforcer' && t.length === r.perStage && t.slice(1).every((k) => k === 'grunt')), `S13: each stage's team leads with a shield guard, perStage ${r.perStage} strong (${JSON.stringify(r.teams)})`);
@@ -3404,6 +3668,8 @@ if (want(1)) {
           s.t += 0.5;
           if (t.sweeping && s.firstSweep < 0) s.firstSweep = s.t;
           s.maxVisited = Math.max(s.maxVisited, t.visited);
+          // (guard-ai sweep fix round) looked at = visited less the points given up after two stalls (`SweepTeam.skipped`)
+          s.maxLooked = Math.max(s.maxLooked, t.visited - t.skipped);
           const L = t.leader;
           if (L && t.sweeping) {
             if (!s.lead0) s.lead0 = [L.pos.x, L.pos.z];
@@ -3411,8 +3677,23 @@ if (want(1)) {
           }
         }
         const all = em.teams.flatMap((q) => q.members);
-        return { t: s.t, firstSweep: s.firstSweep, visited: s.maxVisited, moved: s.moved, switches: t.switches, count: t.count, lv: all.map((e) => (e.alive ? e.level : 'down')), lead: t.members[0]?.def.kind };
+        const L = t.leader;
+        return { t: s.t, firstSweep: s.firstSweep, visited: s.maxVisited, looked: s.maxLooked, skipped: t.skipped, stallN: t.stallN, leadAt: L ? [Math.round(L.pos.x * 100) / 100, Math.round(L.pos.z * 100) / 100, em.nav.isWalkable(em.nav.cellOf(L.pos.x, L.pos.z, L.pos.y))] : null, moved: s.moved, switches: t.switches, count: t.count, lv: all.map((e) => (e.alive ? e.level : 'down')), lead: t.members[0]?.def.kind };
       });
+    }
+    // (guard-ai S28, train 45) no sweep point looked at: where each team stands (its point, the leader, the members, the
+    // locked shut doors on the grid) for the log
+    console.log(`  S13 sweep: looked at ${w.looked}, visited ${w.visited}, skipped ${w.skipped}, stalls ${w.stallN}, leader at ${JSON.stringify(w.leadAt)}`);
+    if (!(w.looked >= 1 && w.moved > 2)) {
+      const diag = await G(() => {
+        const g = window.__app.current;
+        const em = g.enemyMgr;
+        const f1 = (v) => Math.round(v * 10) / 10;
+        const teams = em.teams.map((t) => ({ i: t.index, pt: t.point, at: t.point >= 0 ? [t.pts[2 * t.point], t.pts[2 * t.point + 1]] : null, n: t.count, visited: t.visited, dwell: f1(t.dwellT), sweeping: t.sweeping, pts: t.pts.slice(0, 2 * t.count).map(f1), m: t.members.map((e) => [f1(e.pos.x), f1(e.pos.z), e.alive ? e.level : 'down', em.nav.isWalkable(em.nav.cellOf(e.pos.x, e.pos.z, e.pos.y)), e.routePath.length]), lead: t.leader ? t.members.indexOf(t.leader) : -1, stallN: t.stallN, skipped: t.skipped }));
+        const shut = g.world.doors.list.filter((d) => d.anchor.locked && d.target === 0).map((d) => [d.index, f1(d.cx), f1(d.cz)]);
+        return { lkp: [f1(em.lkp.x), f1(em.lkp.z), em.lkpValid], teams, shut, ver: em.nav.version };
+      });
+      console.log(`  S13 diag: ${JSON.stringify(diag)}`);
     }
     await G(() => {
       const g = window.__app.current;
@@ -3421,7 +3702,7 @@ if (want(1)) {
     });
     const searchT = 60;
     assert(w.count > 0 && w.firstSweep >= searchT, `S13: the team sweeps only after its search of the last known position (${searchT} s; first sweep at ${w.firstSweep} s, ${w.count} points)`);
-    assert(w.visited >= 1 && w.moved > 2, `S13: the team moves between sweep points (looked at ${w.visited}, the leader moved ${w.moved.toFixed(1)} m; switches ${w.switches})`);
+    assert(w.looked >= 1 && w.moved > 2, `S13: the team moves between sweep points (looked at ${w.looked}, skipped ${w.skipped}, the leader moved ${w.moved.toFixed(1)} m; switches ${w.switches})`);
     assert(w.t >= 120 && w.lv.every((l) => l === 'searching' || l === 'alert' || l === 'down') && !w.lv.includes('cooldown') && !w.lv.includes('unaware'), `S13: still hunting at ${w.t} s, none calm (${w.lv})`);
     assert(w.lead === 'enforcer', `S13: the shield guard still first in the team (${w.lead})`);
   });

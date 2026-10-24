@@ -12,6 +12,7 @@
  */
 import type { HitInfo, HitPart } from '../game/damage';
 import type { EnemyKind } from './enemyDefs';
+import { COOP4 } from './intruders';
 
 /** Gear numbers: a helmet soaks `helmetHits` head hits; stagger (s) on a knock-off / a vest hit (vest at most every `staggerCd` s); `armourMult` = damage multiplier of a vest-stopped body hit. */
 export const GEAR = { helmetHits: 1, helmetStagger: 0.9, armourStagger: 0.5, staggerCd: 1.5, armourMult: 0 } as const;
@@ -36,8 +37,16 @@ export const GEAR_BY_STAGE: readonly GuardGear[] = [
 /** Response team shape: the shield guard leads and always wears a helmet; `liveTeam` = shield + 2 guards outside Sector Ops. */
 export const RESPONSE = { shieldLead: true, shieldHelmet: true, liveTeam: 3 } as const;
 
-/** Sweep numbers: thin route / post points to one per `thin` m, look `dwell` s at each, followers stack `gap` m behind the leader. */
-export const SWEEP = { enabled: true, thin: 8, dwell: 6, gap: 2.5 } as const;
+/** Sweep numbers: thin route / post points to one per `thin` m, look `dwell` s at each, followers stack `gap` m behind the leader.
+ *  (guard-ai sweep fix) A leader held short of his point (his way still to go along his route not cut by `stallGain` m in
+ *  `stall` s: a jam at a door, another team on his way, a wall corner, a shuffle at a jam) replans once, then gives the
+ *  point up (`SweepTeam.lead`). A new route `stallJump` m longer than his best restarts the count (a replan's detour). */
+export const SWEEP = { enabled: true, thin: 8, dwell: 6, gap: 2.5, stall: 5, stallGain: 0.5, stallJump: 2 } as const;
+
+/** (coop4 AI5) From `COOP4.from` 3 players: `own` (A176) a team sweeps from its own intruder's last known position
+ *  (`SweepTeam.hunt`; unknown: the freshest, A150); `dedupe` (A177) a team skips a point another sweeping team of the
+ *  section heads for or looks at within `SWEEP.thin` (`pointBusy`; all busy: it goes anyway). Undo: false. */
+export const SWEEP4: { readonly own: boolean; readonly dedupe: boolean } = { own: true, dedupe: true };
 
 /** A missed check-in makes the section cautious for `cautious` s (S13). */
 export const MISSING = { sectionCaution: true, cautious: 180 } as const;
@@ -154,6 +163,54 @@ export function responseTeam(stage: number, perStage: number, out: EnemyKind[]):
   return n;
 }
 
+/**
+ * (coop4 AI5, A175) The response's size by player count: `extraPerPlayer` guards more per player past 2, and two teams
+ * once a stage sends `splitAt` or more (from `COOP4.from` 3 players only). Undo: `extraPerPlayer: 0`, `splitAt:
+ * Infinity`. A section overrides either (`ResponseShapeOverride`, Sector Ops' `SectorDef`).
+ */
+export const RESPONSE_N: { readonly extraPerPlayer: number; readonly splitAt: number } = { extraPerPlayer: 1, splitAt: 4 };
+
+/** (coop4 AI5) A section's own response numbers (Sector Ops: `SectorDef.responseShape`); a field left out: `RESPONSE_N`'s. */
+export interface ResponseShapeOverride {
+  readonly extraPerPlayer?: number;
+  readonly splitAt?: number;
+}
+
+/** (coop4 AI5) What a stage sends: `size` guards in all, in `teams` response teams (0: no team, as `responseTeam`). */
+export interface ResponseShape {
+  teams: number;
+  size: number;
+}
+
+/**
+ * (coop4 AI5, A175) The response of alarm stage `stage` into `out`: `perStage` (the section's count) plus
+ * `extraPerPlayer` x (`players` - 2) from 3 players, the extras clamped to `headroom` (the live cap's room, `maxAlive -
+ * alive`) beyond `perStage` (the base is never cut: under the cap today's guards wait for room as before); `teams` 2
+ * when 3+ players and `size >= splitAt`, else 1 (0 when stage < 1 or no guard: `responseTeam`'s rule). 1-2 players:
+ * `size = perStage`, one team: today exactly. `over`: the section's override. Members split evenly (`responseTeamSize`),
+ * a shield lead per team (`responseTeam` per team). No allocation. Returns `out`.
+ */
+export function responseShape(stage: number, perStage: number, players: number, headroom: number, out: ResponseShape, over: ResponseShapeOverride | null = null): ResponseShape {
+  const base = perStage >= 1 ? Math.floor(perStage) : 0;
+  out.size = base;
+  out.teams = stage >= 1 && base >= 1 ? 1 : 0;
+  if (!(players >= COOP4.from) || base < 1) return out;
+  const per = over?.extraPerPlayer ?? RESPONSE_N.extraPerPlayer;
+  const split = over?.splitAt ?? RESPONSE_N.splitAt;
+  const want = per > 0 ? Math.floor(per * (Math.floor(players) - 2)) : 0;
+  const room = headroom > base ? Math.floor(headroom) - base : 0;
+  out.size = base + Math.min(want, room);
+  if (out.teams === 1 && out.size >= split && out.size >= 2) out.teams = 2;
+  return out;
+}
+
+/** (coop4 AI5) How many of `size` guards go to team `k` of `teams`: evenly, the first teams one more on a remainder. */
+export function responseTeamSize(k: number, size: number, teams: number): number {
+  if (!(teams >= 1) || !(size >= 1) || k < 0 || k >= teams) return 0;
+  const q = Math.floor(size / teams);
+  return q + (k < size % teams ? 1 : 0);
+}
+
 /** Push (x, z) onto the flat `keep` list unless a kept point is closer than sqrt(t2) (load-time helper of `sweepPoints`). */
 function keepIfFar(keep: number[], x: number, z: number, t2: number): void {
   for (let k = 0; k < keep.length; k += 2) {
@@ -213,9 +270,15 @@ export function sweepPoints(
   return n;
 }
 
-/** Team `team`'s first sweep point (an index into `count` points): teams start about a third of the loop apart; count <= 0 = 0. */
-export function sweepStart(team: number, count: number): number {
+/**
+ * Team `team`'s first sweep point (an index into `count` points): teams start about a third of the loop apart; count <=
+ * 0 = 0. (coop4 AI5, A177) `spread`: how many teams a section may hold (Sector Ops: `SECTOR.alarmMax` x teams per
+ * stage); above 3 the teams start `count / spread` apart (`floor(team x count / spread) % count`), so team 3+ no longer
+ * lands on team 0's point. 3 or less: today's thirds exactly (undo: pass 3).
+ */
+export function sweepStart(team: number, count: number, spread = 3): number {
   if (!(count > 0)) return 0;
   const t = team >= 0 ? Math.floor(team) : 0;
+  if (spread > 3) return Math.floor((t * count) / Math.floor(spread)) % count;
   return (t * Math.max(1, Math.ceil(count / 3))) % count;
 }

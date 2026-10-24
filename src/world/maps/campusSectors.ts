@@ -9,6 +9,16 @@ import { S5_ALARMS, S5_CAMERAS, S5_SECTOR } from './campusS5Data';
 const PI = Math.PI;
 
 /**
+ * The campus screen cap (BRIEF A99, lifts A64's 6): no walkable player point, at any of 32 facings, sees more than this
+ * many guards (every guard counts, `dormant` or not: no code sleeps a guard) on their posts and routes in the view with a
+ * clear line within 40 m. From guard-render's measured budget: the merged-body run (`docs/guard-render/run-s1`, laptop
+ * 4090, Epic 1920x1080) holds 24 alive / 12 in sight on Sector Ops at frame CPU p95 11.1 ms, GPU p95 7.2 ms (60 Hz line:
+ * 12 / 15). The campus scene itself is not measured yet (GPU perf pass). Undo: 6 here and the awake-only filter in the
+ * campus S2-S5 screen-count tests.
+ */
+export const CAMPUS_SCREEN_CAP = 12;
+
+/**
  * Saltmarsh Park (`campusOps`) sector data (`docs/sector-redesign/SPEC.md`): index 0 = section 1 in full (the gatehouse,
  * car park and forecourt: 8 armed Larchmont guards, 2 cameras, an alarm panel, the gatehouse PC download, C1); index 1 =
  * section 2 in full (the HQ atrium and offices: 12 guards, 3 cameras, 2 alarm panels, the BMS hack, C2 on L1); indices 2-4 =
@@ -61,14 +71,15 @@ const S1_GUARDS: SectorGuard[] = [
   // 6 the smoker: on his break in the smoking shelter, facing the car park
   { kind: 'grunt', x: 8, z: -48.5, yaw: PI, takedownSpot: [8, -47.6], role: 'smoker', zone: 'smoking', squad: 2, reason: 'On his break; he can see the car park from the shelter' },
   // 7 the fence patrol: the west fence <-> the bin store mouth, 41 s; dark at the bin-store end; comes to the feeder board if it is cut
-  { kind: 'grunt', x: -38, z: -66, yaw: PI, route: [[-38, -66], [-34, -50]], waits: [4, 4], faces: [PI, 0], takedownSpot: [-34, -50.6], role: 'patrol', dormant: true, zone: 'perimeter', squad: 3, reason: 'Fence-line check after the break-ins' },
+  { kind: 'grunt', x: -38, z: -66, yaw: PI, route: [[-38, -66], [-34, -50]], waits: [4, 4], faces: [PI, 0], takedownSpot: [-34, -50.6], role: 'patrol', zone: 'perimeter', squad: 3, reason: 'Fence-line check after the break-ins' },
   // 8 the delivery sentry: a sweep at the dock door, +-60 degrees, 12 s each way
   { kind: 'grunt', x: -34, z: -41.6, yaw: PI - 1.05, route: [[-34, -41.6], [-32, -41.6]], waits: [12, 12], faces: [PI - 1.05, PI + 1.05], takedownSpot: [-33, -42.2], role: 'sentry', zone: 'dock', squad: 3, reason: 'Waits for the courier with a cage trolley' },
 ];
 
 /**
  * Section 2's guards (SPEC "S2" guard table; officer = pistolSd, grunt = rifle). Floors: G 0, L1 4.4, L2 8.4 (`y`). The
- * 0-based index in this list is the guard's number minus one. #10 and #12 are far from every route (`dormant`, A64).
+ * 0-based index in this list is the guard's number minus one. #10 and #12 are far from every route (`dormant`, A64 / A99:
+ * data for a later far-guard sleep step, read by no code yet).
  */
 const S2_GUARDS: SectorGuard[] = [
   // 1 the reception officer: at the desk, facing the turnstiles; watches cam-turnstile / cam-lift; answers the atrium panel
@@ -130,7 +141,7 @@ const Y1 = S3_L1;
 
 /**
  * Section 3's guards (16; SPEC "S3" table; officer = pistolSd, grunt = rifle, enforcer = pistolSd + shield). No choke
- * guard (A60). `y` is the L1 floor for the L1 guards. Dormant (A64, far from every route): #12 (the security room, off
+ * guard (A60). `y` is the L1 floor for the L1 guards. Dormant (A64 / A99, far from every route; data only): #12 (the security room, off
  * the north corridor's east end) and #14 (the east yard, outside the building). The values the SPEC left open (posts,
  * yaws, waits) are in `docs/sector-redesign/checks/slice3-build.md`.
  */

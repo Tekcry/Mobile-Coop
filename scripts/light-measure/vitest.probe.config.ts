@@ -1,5 +1,5 @@
 // Light measurement probe (sector-redesign lightrev): read-only, prints numbers to PROBE_OUT. Not part of `npm test`.
-// From the repo root:  PROBE_TREE=<tree root, forward slashes> PROBE_S1=1 PROBE_M5=1 [PROBE_PHOTO=1] PROBE_OUT=<file.json> \
+// From the repo root:  PROBE_TREE=<tree root, forward slashes> PROBE_S1=1 PROBE_M5=1 PROBE_OUT=<file.json> \
 //   npx vitest run --config scripts/light-measure/vitest.probe.config.ts lightProbe
 // PROBE_TREE may name another worktree (read-only): `@src` resolves there. Results: docs/sector-redesign/checks/light-measure.md.
 import { fileURLToPath } from 'node:url';

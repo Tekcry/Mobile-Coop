@@ -2,13 +2,17 @@
 // Lobby (host, join by typed code, ready-up by controller), match start, snapshot replication,
 // a host guard's flashlight on, then off, on the client (coop-torches), host-validated client hits + kill credit,
 // downed/revive, results, back to lobby, guards and doors in co-op,
-// difficulty, (hang-down) the hanging joiner's pistol, grab and neck snap, a course restart at the checkpoint while a guard is held (Marlow Yard), a door peek and a wall medkit in
-// Free Roam, host leaving, malformed messages, and the offline state.
+// difficulty, (hang-down) the hanging joiner's pistol, grab and neck snap, a course restart at the checkpoint while a guard
+// is held (Marlow Yard), a door peek and a wall medkit in Free Roam, host leaving, malformed messages, and the offline
+// state. (guard-ai S9) The guard-ai state on the client: alarm stage gear, a bark, caution, a shield-led response team
+// and a client deflect (helmet off on both screens). (guard-ai S23) Every player is seen: a calm guard spots the client
+// in his light while the host hides nearer behind a wall, and in combat keeps his target and line on the client.
+// (guard-ai S24) Two intruders: two guard pairs each hunt the player they saw, and close on his last known position only.
 // (co-op test fix, process audit section 2) The pages open legacy-off: the matches are Infiltration (the Ledger
 // mission on the Warehouse: guards, and detection costs only a bonus) and Free Roam, no Hunter. Two players only (G2).
 // Waits are e2e-net-lib's, on both pages' sim clocks: the sim runs slower than real time on software GL.
 import { launch, openPage, frames, press, BTN, assert } from './e2e-lib.mjs';
-import { until as untilNet, waitSim, setSimPages, LOAD_MS } from './e2e-net-lib.mjs';
+import { until as untilNet, waitSim, waitHostSim, setSimPages, LOAD_MS } from './e2e-net-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const wait = (ms) => waitSim(ms);
@@ -316,6 +320,130 @@ try {
   const tally = await GA((id) => window.__app.current.net.tallies.get(id)?.kills ?? 0, selfB);
   assert(tally >= 1, `host credits the kill to the client (${tally})`);
   await until(B, (id) => !window.__app.current.net.puppets.has(id), victim, 5000, 'client removes the dead puppet');
+
+  // (guard-ai S9, protocol 41) the guard-ai state reaches the client: the alarm stage's gear (armour + helmet) on the
+  // puppets, a host guard's radio line shown on the client word for word, a cautious guard's caution bit, a shield-led
+  // response team with the shield and the lead's helmet, and a client round on a helmet: predicted and confirmed as a
+  // deflect, the helmet off his head and on the floor on both screens
+  console.log('guard-ai S9: stage gear, a bark, caution, a shield-led team and a deflect on the client');
+  {
+    const geared = await GA(() => {
+      const em = window.__app.current.enemyMgr;
+      em.setAlarmStage(3);
+      const e = em.enemies.find((x) => x.alive && !x.def.quadruped && x.def.kind !== 'heavy' && x.def.kind !== 'enforcer');
+      return e ? { id: e.id, helmet: e.helmet, armour: e.armour, key: e.key } : null;
+    });
+    assert(!!geared && geared.helmet && geared.armour, `alarm stage 3 puts armour and a helmet on the host's guard (${JSON.stringify(geared)})`);
+    const gid = geared?.id ?? '';
+    const gearB = await until(B, (id) => { const s = window.__app.current.net.puppets.get(id)?.gearShown; return !!s && s.helmet && s.armour; }, gid, 10000, 'client puppet wears the stage gear').then(() => true, () => false);
+    assert(gearB, `the client's puppet shows the stage gear (${JSON.stringify(await GB((id) => window.__app.current.net.puppets.get(id)?.gearShown ?? null, gid))})`);
+
+    // a radio line (the missed check naming unit three): the client shows the host's exact text
+    const said = await GA((id) => {
+      const g = window.__app.current;
+      g.enemyMgr.enemies.find((x) => x.id === id)?.bark('missed', 3);
+      return g.hud.barks.shown.find((l) => l.includes('three')) ?? '';
+    }, gid);
+    assert(said !== '', `the host shows the guard's line (${said})`);
+    const heard = await until(B, (l) => window.__app.current.hud.barks.shown.includes(l) || window.__app.current.hud.barks.subtitle.endsWith(l), said, 5000, 'client shows the bark').then(() => true, () => false);
+    assert(heard, `the client shows the host guard's radio line (${JSON.stringify({ said, client: await GB(() => ({ shown: window.__app.current.hud.barks.shown, sub: window.__app.current.hud.barks.subtitle, n: window.__app.current.net.barksShown })) })})`);
+
+    // caution (S14's timed section alert on one guard): the caution bit reaches his puppet (calm: the low ready)
+    const cid = await GA(() => {
+      const em = window.__app.current.enemyMgr;
+      const e = em.enemies.find((x) => x.alive && x.key >= 0 && !x.def.quadruped);
+      if (!e) return '';
+      em.awareness.timedHold(e.key, 60, 2);
+      em['syncCaution']();
+      return e.caution > 0 ? e.id : '';
+    });
+    if (cid) {
+      const cautB = await until(B, (id) => window.__app.current.net.puppets.get(id)?.cautious === true, cid, 5000, 'client puppet cautious').then(() => true, () => false);
+      const pose = await GB((id) => { const p = window.__app.current.net.puppets.get(id); return p ? { aim: p['aim'], level: p.level } : null; }, cid);
+      assert(cautB, `a cautious host guard is cautious on the client (${JSON.stringify(pose)})`);
+    } else console.log('    (no keyed guard to make cautious: skipped)');
+
+    // a response team: the enforcer first (always helmeted), two behind; the client builds his shield by kind
+    const team = await GA(() => {
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const V = g.player.position.constructor;
+      const t = em.newTeam(0, null, [], []);
+      const out = [];
+      // (S9-CHECK) the Ledger keeps 9 alive and the live cap is 12: room for the three even after an alarm's reinforcements
+      em['s9Cap'] = em.maxAlive;
+      em.maxAlive = Math.max(em.maxAlive, em.alive + 3);
+      const kinds = ['enforcer', 'grunt', 'grunt'];
+      for (let i = 0; i < kinds.length; i++) {
+        const e = em.spawnReinforcement(kinds[i], new V(12 + i * 1.2, 0, -6.5), 0, 0);
+        if (!e) continue;
+        em.joinTeam(e, t);
+        e['stagger'] = 99;
+        out.push({ id: e.id, kind: e.def.kind, helmet: e.helmet });
+      }
+      return out;
+    });
+    const lead = team.find((m) => m.kind === 'enforcer');
+    assert(!!lead && lead.helmet && team.length === 3, `a shield-led team spawns on the host (${JSON.stringify(team)})`);
+    if (lead) {
+      const shieldB = await until(B, (id) => { const s = window.__app.current.net.puppets.get(id)?.gearShown; return !!s && s.shield && s.helmet; }, lead.id, 10000, 'client shows the shield lead').then(() => true, () => false);
+      assert(shieldB, `the client's enforcer carries his shield and the lead's helmet (${JSON.stringify(await GB((id) => window.__app.current.net.puppets.get(id)?.gearShown ?? null, lead.id))})`);
+    }
+    await GA((ids) => {
+      const em = window.__app.current.enemyMgr;
+      for (const id of ids) { const e = em.enemies.find((x) => x.id === id); if (e) em.despawn(e); }
+      em.teams.length = 0;
+      if (em['s9Cap'] !== undefined) em.maxAlive = em['s9Cap'];
+      // later spawns in this match carry no stage gear
+      em.setAlarmStage(0, false);
+    }, team.map((m) => m.id));
+
+    // a client round to the helmeted guard's head: no damage, a deflect at once on the client, the host's confirm, his
+    // helmet off on both screens and dropped on both floors
+    await GA((id) => {
+      const g = window.__app.current;
+      for (const r of g.net.remotes.values()) r.allowTeleport(5);
+      const v = g.enemyMgr.enemies.find((e) => e.id === id);
+      if (v) {
+        v['stagger'] = 99;
+        if (g.world.map.id === 'warehouse') v.pos.set(13, 0, -6.5);
+      }
+    }, gid);
+    await until(B, (id) => { const p = window.__app.current.net.puppets.get(id); return !!p && Math.hypot(p.pos.x - 13, p.pos.z + 6.5) < 1.5; }, gid, 15000, 'geared puppet moved');
+    await GB((id) => {
+      const g = window.__app.current;
+      const p = g.net.puppets.get(id);
+      g.player.controller.teleport(p.pos.add(new p.pos.constructor(0, 0.2, 2.2)), Math.PI);
+      g.player.forceAds = true;
+    }, gid);
+    await until(A, () => [...window.__app.current.net.remotes.values()].some((r) => r.state?.mv?.dw === 2), null, 5000, 'host sees the client drawn (deflect)');
+    let deflected = false;
+    let pred = null;
+    for (let i = 0; i < 20 && !deflected; i++) {
+      await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(2); });
+      pred = await GB((id) => {
+        const g = window.__app.current;
+        const p = g.net.puppets.get(id);
+        if (!p) return null;
+        const V = p.pos.constructor;
+        const src = g.player.position.add(new V(0, 1.58, 0));
+        const pt = p.pos.add(new V(0, 1.62 * p.def.scale, 0));
+        const res = p.applyDamage({ amount: 40, point: pt, dir: pt.subtract(src).normalize(), part: 'head', kind: 'bullet', attackerTeam: 'player', attackerId: 'local', weapon: 'rifle', sourcePos: src, impulse: 3 });
+        return { dealt: res.dealt, deflect: res.deflect === true };
+      }, gid);
+      // (S9-CHECK) wait for the host's verdict before the next round: a second round after the knock-off is a kill
+      await until(A, (id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); return !e || !e.alive || !e.helmet; }, gid, 800, 'host verdict').catch(() => {});
+      deflected = await GA((id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); return !!e && e.alive && !e.helmet; }, gid);
+    }
+    const hostSide = await GA((id) => { const em = window.__app.current.enemyMgr; const e = em.enemies.find((x) => x.id === id); return { alive: e?.alive, helmet: e?.helmet, armour: e?.armour, drops: em.helmetDrops.shown }; }, gid);
+    assert(!!pred && pred.deflect && pred.dealt === 0, `the client predicts the deflect on the helmeted puppet (${JSON.stringify(pred)})`);
+    assert(deflected && hostSide.alive && hostSide.drops >= 1, `the host's guard lives, his helmet knocked off and on the floor (${JSON.stringify(hostSide)})`);
+    const confirmed = await until(B, () => window.__app.current.net.deflectConfirms >= 1, null, 5000, 'client deflect confirm').then(() => true, () => false);
+    assert(confirmed, `the host confirms the client's deflect (hitConfirm deflect) (${await GB(() => window.__app.current.net.deflectConfirms)})`);
+    const fell = await until(B, (id) => { const g = window.__app.current; const s = g.net.puppets.get(id)?.gearShown; return !!s && !s.helmet && s.armour && (g.net.helmetDrops?.shown ?? 0) >= 1; }, gid, 5000, 'client helmet falls').then(() => true, () => false);
+    assert(fell, `the client's puppet loses the helmet and it lies on the client's floor too (${JSON.stringify(await GB((id) => ({ gear: window.__app.current.net.puppets.get(id)?.gearShown ?? null, drops: window.__app.current.net.helmetDrops?.shown ?? 0 }), gid))})`);
+    await GB(() => { window.__app.current.player.forceAds = false; });
+  }
 
   console.log('downed and revived');
   await GA(() => {
@@ -854,6 +982,63 @@ try {
     assert(solid >= 0 && (solid & 0x4) === 0, `the client's held guard is not solid to bodies there (membership ${solid})`);
     // (A4: the CT grab menu opens on the client; Knock out is the first entry, A picks it)
     await until(B, () => window.__app.current.grabMenu.open, null, 4000, 'the client grab menu opens');
+    // (joint-interrogation, G148) host bluffs, client reads: the guard gets solo and joint information on both pages (the
+    // host's enemy, the client's puppet); the host beside the client's hostage holds A, the BLUFF row is first (above TEAM
+    // TAKEDOWN) and its release sends the bluff; the client holds A on its INTERROGATE row and lets go: the read ends on the
+    // host with the bluff live, so both feeds show the joint line and the host counts one joint read. The client still
+    // holds him (the team takedown below). Real input (`input.state` interact) and the real menu rows on both pages.
+    console.log('joint interrogation: host bluffs, client reads');
+    {
+      const JI = { lines: ['e2e solo'], joint: { lines: ['e2e joint'], flag: 'e2e-joint' } };
+      await GA(([id, info]) => { window.__app.current.enemyMgr.enemies.find((x) => x.id === id).info = info; }, [gg, JI]);
+      await GB(([id, info]) => { window.__app.current.net.puppets.get(id).info = info; }, [gg, JI]);
+      const j0 = await GA(() => window.__app.current.net.joints);
+      await GA((id) => {
+        const g = window.__app.current;
+        const e = g.enemyMgr.enemies.find((x) => x.id === id);
+        const yaw = [...g.net.remotes.values()][0].state.yaw;
+        // 1.1 m to the hostage's side (off the holder's line), facing him (as the team takedown below)
+        const x = e.pos.x + Math.cos(yaw) * 1.1;
+        const z = e.pos.z - Math.sin(yaw) * 1.1;
+        g.player.controller.teleport(new g.player.position.constructor(x, e.pos.y + 0.05, z), Math.atan2(e.pos.x - x, e.pos.z - z));
+      }, gg);
+      await until(A, (id) => { const g = window.__app.current; const o = g.takedown.offer; return o?.plan.kind === 'assist' && o.e.id === id && g.ctxMenu.count >= 2; }, gg, 6000, "joint: the host is offered the team takedown on the client's hostage");
+      const rows = await GA(() => { const m = window.__app.current.ctxMenu; return m.opts.slice(0, m.count).map((o) => `${o.kind}:${o.opt}:${o.label}`); });
+      assert(rows[0] === 'joint:bluff:Bluff' && rows[1]?.endsWith(':Team takedown'), `joint: the host's list has BLUFF above TEAM TAKEDOWN (${rows.join(' / ')})`);
+      // the host holds A: the list opens on its first row, BLUFF; the release runs it
+      await GA(() => window.__app.input.state.set('e2e', 'interact', true));
+      try {
+        await until(A, () => { const m = window.__app.current.ctxMenu; return m.state === 'active' && m.opts[m.sel]?.opt === 'bluff'; }, null, 6000, 'joint: hold A on the host highlights BLUFF');
+      } finally {
+        await GA(() => window.__app.input.state.set('e2e', 'interact', false));
+      }
+      await until(A, (id) => { const b = window.__app.current.net.bluffs.values().next().value; return !!b && b.eid === id; }, gg, 4000, 'joint: the host stores its bluff on the guard');
+      await until(B, () => (document.querySelector('.hud-feed')?.textContent ?? '').includes('Bluff on'), null, 4000, 'joint: the client sees the bluff line');
+      // the client holds A on its hostage: the list opens on INTERROGATE (he has information); the release runs the read
+      await GB(() => window.__app.input.state.set('e2e', 'interact', true));
+      try {
+        await until(B, () => { const m = window.__app.current.ctxMenu; return m.state === 'active' && m.opts[m.sel]?.opt === 'interrogate'; }, null, 6000, 'joint: hold A on the client highlights INTERROGATE');
+      } finally {
+        await GB(() => window.__app.input.state.set('e2e', 'interact', false));
+      }
+      await until(A, (n) => window.__app.current.net.joints === n + 1, j0, 10000, 'joint: the host counts the joint read');
+      for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
+        await until(P, () => (document.querySelector('.hud-feed')?.textContent ?? '').includes('e2e joint'), null, 5000, `joint: the ${tag} feed shows the joint line`);
+      }
+      const after = await GA((id) => { const g = window.__app.current; const e = g.enemyMgr.enemies.find((x) => x.id === id); return { bluffs: g.net.bluffs.size, info: e.info ?? null }; }, gg);
+      assert(after.bluffs === 0 && after.info === null, `joint: the bluff is spent and the guard has nothing left (${JSON.stringify(after)})`);
+      assert(await GB((id) => window.__app.current.takedown.hostage?.id === id, gg), 'joint: the client still holds him after the read');
+      assert(true, 'joint interrogation: host bluffs, client reads, both see the joint line');
+      // a bluff on a guard nobody holds (he has joint information on the host): denied, nothing stored
+      const free = await GB((gid) => { for (const [id, p] of window.__app.current.net.puppets) if (id !== gid && p.alive && !p.taken && !p.partnerHeld) return id; return ''; }, gg);
+      const marked = free ? await GA((id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id && x.alive && !x.taken); if (e) e.info = { lines: ['e2e free'], joint: { lines: ['e2e free joint'] } }; return !!e; }, free) : false;
+      if (marked) {
+        await GB((id) => { const g = window.__app.current; g.net.jointBluff(g.net.puppets.get(id)); }, free);
+        await wait(800);
+        assert((await GA(() => window.__app.current.net.bluffs.size)) === 0, 'joint: a bluff on a guard nobody holds is denied (nothing stored)');
+        await GA((id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); if (e) e.info = null; }, free);
+      } else console.log('    joint: no free guard on both pages for the denial check (skipped)');
+    }
     // (coop-walk-fixes P6, Michael 4.72: "if coop partner holds guard, host doesnt have option for takedown.") the host
     // beside the client's hostage is offered the team takedown, and it knocks him out there: the hold ends, a dual takedown.
     // (The client's own finisher from the hold goes the same td done path as the client takedown above.)
@@ -923,6 +1108,585 @@ try {
     assert(cd.p === 1.3 && cd.l === 'Realistic', `the client's match takes the host's level (${JSON.stringify(cd)})`);
     await toLobby();
     await GA((m) => window.__coop.session.setSettings(m[0], m[1], 'normal', m[2]), MISSION);
+  }
+
+  // (guard-ai S23, A143 / A144) every player is seen: a calm grunt on the Warehouse factory floor (9, -6) faces the
+  // client standing still under the lit lamp strip (9, 3), 9 m in front of him; the host stands 4 m away behind him in the
+  // service corridor, the z -8.8 wall between them (no line). Before S23 the guard perceived only the nearest player (the
+  // hidden host) and never saw the client. His meter fills on the client and his target is the client's ref; once he
+  // is in combat the host walks nearer behind the wall and the guard keeps his target and his line on the client.
+  // A match of its own (its guard alerted, the others statues): the AI runs on the host as in every co-op match; the
+  // test guard is pinned on his spot on every host sim step (the loop's fixedUpdate hook, as the strike pin above; facing
+  // the client while calm), his brain on; the other guards and the recon drone are statues (their brains off), so
+  // nothing else alerts him. Both players invulnerable (damageMul 0).
+  console.log('guard-ai S23: every player is seen (a calm guard spots the client in his light while the host hides nearer)');
+  {
+    await startMode(...MISSION);
+    await GA(() => { window.__app.current.target.damageMul = 0; for (const r of window.__app.current.net.remotes.values()) r.damageMul = 0; });
+    const S23 = { guard: [9, -6], client: [9, 3], host: [9, -10.3] };
+    const cid = await GB(() => window.__coop.session.selfId);
+    // the host in the corridor behind the wall, facing it (+z); the client under the lamp strip
+    await GA(([x, z]) => { const g = window.__app.current; g.player.controller.teleport(new g.player.position.constructor(x, 0.05, z), 0); g.player.cam.yaw = 0; g.player.cam.pitch = 0; }, S23.host);
+    await moveClient(B, S23.client[0], 0.1, S23.client[1], Math.PI);
+    await until(A, ([x, z]) => { const r = window.__app.current.remotePlayers()[0]; return !!r && Math.hypot(r.feet.x - x, r.feet.z - z) < 0.6 && r.speed < 0.15; }, S23.client, 15000, 'S23: the host has the client still under the lamp');
+    let gid = '';
+    try {
+      const setup = await GA(([sp, cl, cid]) => {
+        const g = window.__app.current;
+        const em = g.enemyMgr;
+        const V = g.player.position.constructor;
+        // (S9 pattern) room for one more guard; restored below
+        em['s23Cap'] = em.maxAlive;
+        em.maxAlive = Math.max(em.maxAlive, em.alive + 1);
+        // the others statues and calm (and the recon drone), before the test guard is there
+        for (const x of em.enemies) {
+          x.update = () => {};
+          if (x.alive && !x.taken) x.aware.set('unaware');
+        }
+        for (const d of em.drones) d.update = () => true;
+        for (const r of g.net.remotes.values()) r.ref.spotted = false;
+        g.localRef.spotted = false;
+        const yaw0 = Math.atan2(cl[0] - sp[0], cl[1] - sp[1]);
+        const e = em.spawn('grunt', new V(sp[0], 0, sp[1]), false, yaw0);
+        if (!e) return null;
+        // his spot as the nav placed him, facing the client
+        const P = { x: e.pos.x, y: e.pos.y, z: e.pos.z, yaw: Math.atan2(cl[0] - e.pos.x, cl[1] - e.pos.z) };
+        e.yaw = P.yaw;
+        e.meter = 0;
+        const refs = g.playerRefs();
+        const hd = Math.hypot(refs[0].feet.x - P.x, refs[0].feet.z - P.z);
+        const cd = Math.hypot(refs[1].feet.x - P.x, refs[1].feet.z - P.z);
+        const gen = (window.__s23Gen = (window.__s23Gen ?? 0) + 1);
+        const s = (window.__s23 = { phase: 'calm', t0: g.time, t: 0, meter: 0, rise: '', tid: '', los: false, alertT: -1, alertTid: '', seen0: 0, seen1: 0, combat: 0, offTarget: 0, noLos: 0, hostStart: hd, hostMin: hd, off: '' });
+        const pin = () => {
+          if (!e.alive) return;
+          e.pos.set(P.x, P.y, P.z);
+          if (!e.alerted) e.yaw = P.yaw;
+        };
+        const hooks = window.__app.loop['hooks'];
+        const orig = hooks.fixedUpdate;
+        const step = (dt) => {
+          if (window.__s23Gen !== gen || window.__app.current !== g) {
+            if (hooks.fixedUpdate === step) hooks.fixedUpdate = orig;
+            orig(dt);
+            return;
+          }
+          pin();
+          orig(dt);
+          pin();
+          if (!e.alive) return;
+          // what he perceived this step (the last think's): his meter while calm, his target, who is in sight
+          const tid = e['target']?.id ?? '';
+          s.t = g.time - s.t0;
+          s.tid = tid;
+          s.los = e['los'] === true;
+          if (!e.alerted) {
+            if (e.meter > s.meter) s.meter = e.meter;
+            if (e.meter > 0 && !s.rise) s.rise = tid || '(none)';
+          } else if (s.alertT < 0) {
+            s.alertT = s.t;
+            s.alertTid = tid;
+          }
+          if (e.seesIndex(0)) s.seen0++;
+          if (e.seesIndex(1)) s.seen1++;
+          if (s.phase === 'combat') {
+            s.combat++;
+            if (tid !== cid || !s.los) {
+              if (tid !== cid) s.offTarget++;
+              if (!s.los) s.noLos++;
+              if (!s.off) s.off = `t ${s.t.toFixed(2)} target ${tid || '(none)'} los ${s.los}`;
+            }
+            const h = g.player.position;
+            const d = Math.hypot(h.x - P.x, h.z - P.z);
+            if (d < s.hostMin) s.hostMin = d;
+          }
+        };
+        hooks.fixedUpdate = step;
+        pin();
+        return { id: e.id, P, hd, cd, ids: refs.map((r) => r.id), light: refs[1].light ?? null, hostLight: refs[0].light ?? null };
+      }, [S23.guard, S23.client, cid]);
+      assert(!!setup, 'S23: a calm grunt spawns on the factory floor');
+      gid = setup.id;
+      assert(setup.ids[1] === cid && setup.hd < setup.cd - 3, `S23: the host is the nearer player, the client is players()[1] (host ${setup.hd.toFixed(2)} m, client ${setup.cd.toFixed(2)} m, refs ${setup.ids.join(',')}, client ${cid})`);
+
+      // calm: until his meter reaches 0.6 (or he goes to combat), at most 6 s of the host's sim
+      await until(A, () => { const s = window.__s23; return s.meter >= 0.6 || s.alertT >= 0 || s.t > 6; }, null, 20000, 'S23: the guard notices the client (or 6 s)').catch(() => {});
+      const calm = await GA(() => ({ ...window.__s23 }));
+      const why = JSON.stringify({ calm, light: setup.light, guard: setup.P });
+      assert(calm.meter > 0.05 && calm.rise === cid, `S23: the calm guard's meter fills on the client in his light, the hidden host nearer (meter ${calm.meter.toFixed(2)} in ${calm.t.toFixed(2)} s; ${why})`);
+      assert(calm.tid === cid && calm.seen1 > 0 && calm.seen0 === 0, `S23: his target is the client's ref; he sees player 1, never the host behind the wall (seesIndex) (${why})`);
+
+      // combat on the client: his own alert (meter 1), else forced (the combat case is what is checked next)
+      const alertedSelf = await until(A, () => window.__s23.alertT >= 0, null, 8000, 'S23: the guard goes to combat').then(() => true, () => false);
+      if (!alertedSelf) {
+        console.log('    (S23: not in combat by himself within 8 s; alerted by hand)');
+        await GA((id) => window.__app.current.enemyMgr.enemies.find((x) => x.id === id)?.alert(), gid);
+      }
+      await until(A, (cid) => { const s = window.__s23; return s.alertT >= 0 && s.tid === cid && s.los; }, cid, 8000, 'S23: in combat on the client, with a line to him').catch(() => {});
+      const c0 = await GA(() => ({ ...window.__s23 }));
+      assert(c0.alertT >= 0 && c0.tid === cid && c0.los, `S23: in combat his target is the client, in sight (${JSON.stringify(c0)})`);
+
+      // the host walks nearer behind the wall (into it, ~4.3 m -> ~3.2 m): the guard keeps his target and his line
+      await GA(() => {
+        const g = window.__app.current;
+        window.__s23.phase = 'combat';
+        g.player.cam.yaw = 0;
+        g.player.cam.pitch = 0;
+        window.__app.input.state.setMove('t', 0, 0.6);
+      });
+      const walked = await waitHostSim(A, 2000);
+      await GA(() => window.__app.input.state.setMove('t', 0, 0));
+      const held = await waitHostSim(A, 1000);
+      const c1 = await GA(() => ({ ...window.__s23 }));
+      const why1 = JSON.stringify({ walked: Math.round(walked), held: Math.round(held), c1 });
+      assert(walked >= 2000 && held >= 1000 && c1.combat > 60, `S23: 3 s of the host's sim in combat (${why1})`);
+      assert(c1.hostMin < c1.hostStart - 0.5, `S23: the host walked nearer behind the wall (${c1.hostStart.toFixed(2)} -> ${c1.hostMin.toFixed(2)} m)`);
+      assert(c1.offTarget === 0 && c1.noLos === 0 && c1.seen0 === 0, `S23: the nearer hidden host does not blind him: target and line stay on the client every step (${why1})`);
+    } finally {
+      await GA((id) => {
+        window.__s23Gen = (window.__s23Gen ?? 0) + 1;
+        window.__app.input.state.setMove('t', 0, 0);
+        const em = window.__app.current?.enemyMgr;
+        if (!em) return;
+        for (const x of em.enemies) delete x.update;
+        for (const d of em.drones) delete d.update;
+        const e = em.enemies.find((x) => x.id === id);
+        if (e) em.despawn(e);
+        if (em['s23Cap'] !== undefined) em.maxAlive = em['s23Cap'];
+      }, gid).catch(() => {});
+    }
+    await toLobby();
+  }
+
+  // (guard-ai S24, G139, A146-A148) two intruders: four calm grunts in two pairs ~23 m apart, a wall and the racks
+  // between them (the S9 team-spawn pattern: `em.maxAlive` raised and restored; both players invulnerable). Pair 1 in the
+  // racking hall's aisle (x -14.5) faces the host 7.7 m north in the cross aisle; pair 2 on the factory floor faces the
+  // client 9 m north under the lamp strip (S23's spot). Both players are lit by a pinned light (the host's sampler is
+  // replaced for the block, as e2e-stealth-ai's `t.light`); the mission's own guards and the drone are statues with their
+  // hitboxes parked (no ray stops on them), the alarm panels off. Once both pairs are in combat: two valid intruder
+  // slots, pair 1 hunts the host's and pair 2 the client's. Then both players go dark and leave, out through the south
+  // facade into the dark yard lane (z -24.75; S24 coop triage: no walkable cell inside the building has a line to either
+  // spot, door leaves left out; the old service-corridor and dispatch spots were in sight of pair 2's own cover picks
+  // against the client's spot, the corridor side of the z -8.8 wall and through the glazed dispatch window): each guard
+  // works from his own player's last known position, never the other's, and no guard of either pair ever hunts the
+  // other pair's player.
+  console.log('guard-ai S24: two intruders (each pair hunts the player it saw, never the other)');
+  {
+    await startMode(...MISSION);
+    await GA(() => { window.__app.current.target.damageMul = 0; for (const r of window.__app.current.net.remotes.values()) r.damageMul = 0; });
+    const S24 = { pair1: [[-15, -2.5], [-14, -2.5]], host: [-14.5, 5.2], pair2: [[8, -6], [9.2, -6]], client: [9, 3], hostHide: [-3.75, -24.75], clientHide: [8.75, -24.75] };
+    const cid = await GB(() => window.__coop.session.selfId);
+    const hostSpot = await GA(([x, z]) => { const g = window.__app.current; const nav = g.enemyMgr.nav; const c = nav.nearestWalkable(x, z, 2, 0); const [cx, cz] = c >= 0 ? nav.center(c) : [x, z]; g.player.controller.teleport(new g.player.position.constructor(cx, 0.05, cz), Math.PI); g.player.cam.pitch = 0; return [cx, cz]; }, S24.host);
+    await moveClient(B, S24.client[0], 0.1, S24.client[1], Math.PI);
+    await until(A, ([x, z]) => { const r = window.__app.current.remotePlayers()[0]; return !!r && Math.hypot(r.feet.x - x, r.feet.z - z) < 0.6 && r.speed < 0.15; }, S24.client, 15000, 'S24: the host has the client still under the lamp');
+    let ids = [];
+    try {
+      const setup = await GA(([S, hs, cid]) => {
+        const g = window.__app.current;
+        const em = g.enemyMgr;
+        const V = g.player.position.constructor;
+        // (S9 pattern) room for four more guards; restored below
+        em['s24Cap'] = em.maxAlive;
+        em.maxAlive = Math.max(em.maxAlive, em.alive + 4);
+        // the mission's guards statues, calm, out of every ray; the drone a statue; no alarm panel
+        for (const x of em.enemies) {
+          x.update = () => {};
+          if (x.alive && !x.taken) x.aware.set('unaware');
+          if (x.alive) {
+            x['hitboxes']?.setEnabled(false);
+            x['s24Parked'] = true;
+          }
+        }
+        for (const d of em.drones) d.update = () => true;
+        window.__s24Panels = em.alarms.map((p) => p.disabled);
+        for (const p of em.alarms) p.disabled = true;
+        // both players lit (a pinned level) until they hide; the light sampler restored below
+        window.__s24Light = 1;
+        g['updateLight'] = () => {
+          g.localRef.light = g.lightLevel = window.__s24Light;
+          for (const r of g.remotePlayers()) r.light = window.__s24Light;
+        };
+        const out = [];
+        const face = (p, t) => Math.atan2(t[0] - p[0], t[1] - p[1]);
+        for (const p of S.pair1) out.push(em.spawn('grunt', new V(p[0], 0, p[1]), false, face(p, hs)));
+        for (const p of S.pair2) out.push(em.spawn('grunt', new V(p[0], 0, p[1]), false, face(p, S.client)));
+        if (out.some((e) => !e)) return null;
+        for (const e of out) e.meter = 0;
+        const sHost = em.intruders.slotFor(g.localRef.id);
+        const sClient = em.intruders.slotFor(cid);
+        const gen = (window.__s24Gen = (window.__s24Gen ?? 0) + 1);
+        // per guard (pair 1 then pair 2): his own pair's slot, the other's, closest approaches once hiding
+        const s = (window.__s24 = { phase: 'seen', t0: g.time, t: 0, hideT: -1, sHost, sClient, own: [Infinity, Infinity, Infinity, Infinity], other: [Infinity, Infinity, Infinity, Infinity], wrong: [0, 0, 0, 0], seen: [0, 0, 0, 0], kOwn: [0, 0, 0, 0], kOther: [Infinity, Infinity, Infinity, Infinity], hunts: [], levels: [], spots: null });
+        const hooks = window.__app.loop['hooks'];
+        const orig = hooks.fixedUpdate;
+        const step = (dt) => {
+          if (window.__s24Gen !== gen || window.__app.current !== g) {
+            if (hooks.fixedUpdate === step) hooks.fixedUpdate = orig;
+            orig(dt);
+            return;
+          }
+          orig(dt);
+          s.t = g.time - s.t0;
+          s.hunts = out.map((e) => e.hunt);
+          s.levels = out.map((e) => (e.alive ? e.level : 'down'));
+          if (s.phase !== 'hide') return;
+          for (let i = 0; i < out.length; i++) {
+            const e = out[i];
+            const mine = i < 2 ? sHost : sClient;
+            const theirs = i < 2 ? sClient : sHost;
+            if (e.hunt === theirs) s.wrong[i]++;
+            if (e.seesIndex(0) || e.seesIndex(1)) s.seen[i]++;
+            const a = em.lkpOf(mine);
+            if (a) s.own[i] = Math.min(s.own[i], Math.hypot(e.pos.x - a.x, e.pos.z - a.z));
+            const b = s.spots[i < 2 ? 1 : 0];
+            s.other[i] = Math.min(s.other[i], Math.hypot(e.pos.x - b[0], e.pos.z - b[1]));
+            // the point he works from (enemy.ts knownPt, set each combat think): his own player's spot, never the other's
+            const k = e.knownPt;
+            if (a && k) s.kOwn[i] = Math.max(s.kOwn[i], Math.hypot(k[0] - a.x, k[1] - a.z));
+            if (k) s.kOther[i] = Math.min(s.kOther[i], Math.hypot(k[0] - b[0], k[1] - b[1]));
+          }
+        };
+        hooks.fixedUpdate = step;
+        return { ids: out.map((e) => e.id), sHost, sClient, ref: g.playerRefs().map((r) => r.id) };
+      }, [S24, hostSpot, cid]);
+      assert(!!setup, 'S24: four calm grunts spawn in two pairs');
+      ids = setup?.ids ?? [];
+      assert(setup.sHost >= 0 && setup.sClient >= 0 && setup.sHost !== setup.sClient, `S24: one intruder slot per player (host ${setup.sHost}, client ${setup.sClient}; refs ${setup.ref.join(',')}, client ${cid})`);
+
+      // both pairs in combat on their own player (their own sight; by hand after 12 s: they see him then)
+      const ready = () => { const s = window.__s24; return s.levels.length === 4 && s.levels.every((l) => l === 'alert') && s.hunts[0] === s.sHost && s.hunts[1] === s.sHost && s.hunts[2] === s.sClient && s.hunts[3] === s.sClient; };
+      const self = await until(A, ready, null, 30000, 'S24: both pairs in combat on their own player').then(() => true, () => false);
+      if (!self) {
+        console.log(`    (S24: not both pairs in combat by themselves: ${JSON.stringify(await GA(() => ({ lv: window.__s24.levels, h: window.__s24.hunts, t: window.__s24.t })))}; alerted by hand)`);
+        await GA((ids) => { for (const e of window.__app.current.enemyMgr.enemies) if (ids.includes(e.id) && !e.alerted) e.alert(); }, ids);
+        await until(A, ready, null, 15000, 'S24: both pairs in combat on their own player (by hand)').catch(() => {});
+      }
+      const c0 = await GA(() => {
+        const em = window.__app.current.enemyMgr;
+        const s = window.__s24;
+        const b = em.intruders;
+        const at = (k) => { const v = em.lkpOf(k); return v ? [v.x, v.z] : null; };
+        return { levels: s.levels, hunts: s.hunts, valid: [b.valid[s.sHost], b.valid[s.sClient]], nValid: [...b.valid].filter((v) => v === 1).length, spots: [at(s.sHost), at(s.sClient)], t: s.t };
+      });
+      const why0 = JSON.stringify(c0);
+      assert(c0.levels.every((l) => l === 'alert'), `S24: both pairs in combat (${why0})`);
+      assert(c0.valid[0] === 1 && c0.valid[1] === 1 && c0.nValid === 2, `S24: two valid last known positions, one per player (${why0})`);
+      assert(c0.hunts[0] === setup.sHost && c0.hunts[1] === setup.sHost, `S24: pair 1 hunts the host's slot (${why0})`);
+      assert(c0.hunts[2] === setup.sClient && c0.hunts[3] === setup.sClient, `S24: pair 2 hunts the client's slot (${why0})`);
+
+      // both go dark and leave: out into the dark yard lane, walled off from every cell inside (snapped to the nav)
+      const hide = await GA(([hh, ch]) => {
+        const g = window.__app.current;
+        const em = g.enemyMgr;
+        const nav = em.nav;
+        const snap = (p) => { const c = nav.nearestWalkable(p[0], p[1], 2, 0); return c >= 0 ? nav.center(c) : p; };
+        const s = window.__s24;
+        const at = (k) => { const v = em.lkpOf(k); return v ? [v.x, v.z] : null; };
+        s.spots = [at(s.sHost), at(s.sClient)];
+        window.__s24Light = 0;
+        const h = snap(hh);
+        g.player.controller.teleport(new g.player.position.constructor(h[0], 0.05, h[1]), 0);
+        return { spots: s.spots, client: snap(ch) };
+      }, [S24.hostHide, S24.clientHide]);
+      assert(!!hide.spots[0] && !!hide.spots[1], `S24: both last known positions held when they hide (${JSON.stringify(hide)})`);
+      await moveClient(B, hide.client[0], 0.1, hide.client[1], 0);
+      await GA(() => { const s = window.__s24; s.hideT = s.t; s.phase = 'hide'; });
+      const hid = await waitHostSim(A, 10000);
+      const c1 = await GA(() => ({ ...window.__s24 }));
+      const f2 = (v) => (Number.isFinite(v) ? v.toFixed(2) : String(v));
+      const why1 = JSON.stringify({ hid: Math.round(hid), own: c1.own.map(f2), other: c1.other.map(f2), kOwn: c1.kOwn.map(f2), kOther: c1.kOther.map(f2), seen: c1.seen, wrong: c1.wrong, hunts: c1.hunts, levels: c1.levels, spots: c1.spots });
+      assert(hid >= 10000, `S24: 10 s of the host's sim with both players hidden (${why1})`);
+      const own1 = Math.min(c1.own[0], c1.own[1]);
+      const own2 = Math.min(c1.own[2], c1.own[3]);
+      const oth1 = Math.min(c1.other[0], c1.other[1]);
+      const oth2 = Math.min(c1.other[2], c1.other[3]);
+      // setup guard: both hide spots are walled off from both pairs (in combat sight is geometry only, no light / range)
+      assert(c1.seen.every((n) => n === 0), `S24: no pair guard sees a player during the hide (setup: hide spots walled off) (${why1})`);
+      // deterministic: each guard works from his own player's last known position, never the other's (roles may hold
+      // a pair in cover past 10 s, so distance closed is logged, not asserted)
+      assert(c1.kOwn.every((d) => d <= 0.5), `S24: every guard works from his own player's last known position (${why1})`);
+      assert(c1.kOther.every((d) => d > 10), `S24: no guard works from the other player's last known position (G139) (${why1})`);
+      assert(oth1 > own1 && oth2 > own2, `S24: each pair moves toward its own player's spot, not the other's (pair 1 ${f2(own1)} / ${f2(oth1)} m, pair 2 ${f2(own2)} / ${f2(oth2)} m) (${why1})`);
+      console.log(`    (S24: closest to own last known position: pair 1 ${f2(own1)} m, pair 2 ${f2(own2)} m in 10 s)`);
+      assert(c1.wrong.every((n) => n === 0), `S24: no guard of either pair ever hunts the other pair's player (G139) (${why1})`);
+    } finally {
+      await GA((ids) => {
+        window.__s24Gen = (window.__s24Gen ?? 0) + 1;
+        const g = window.__app.current;
+        if (g) g['updateLight'] = Object.getPrototypeOf(g)['updateLight'];
+        const em = g?.enemyMgr;
+        if (!em) return;
+        for (const x of em.enemies) {
+          delete x.update;
+          if (x['s24Parked']) {
+            x['hitboxes']?.setEnabled(true);
+            delete x['s24Parked'];
+          }
+        }
+        for (const d of em.drones) delete d.update;
+        if (window.__s24Panels) em.alarms.forEach((p, i) => (p.disabled = window.__s24Panels[i] ?? p.disabled));
+        for (const id of ids) { const e = em.enemies.find((x) => x.id === id); if (e) em.despawn(e); }
+        if (em['s24Cap'] !== undefined) em.maxAlive = em['s24Cap'];
+      }, ids).catch(() => {});
+    }
+    await toLobby();
+  }
+
+  // (guard-ai S26, G139, A155, A157, A158) the partner is heard: the S24 setup with one guard (the factory floor pair's
+  // spot, facing the client 9 m north under the lamp; the mission's guards statues, `em.maxAlive` raised and restored,
+  // both players invulnerable, the alarm panels off, a pinned light). The host stays dark in the yard lane the whole
+  // time. The guard sees the lit client (by hand after 30 s if he does not), the client goes dark out into the yard lane,
+  // the guard goes to the last known position (the lamp) and searches. (S26 coop triage: both hides are S24's dark yard
+  // lane spots, walled off from every cell inside; the old corridor hide was in sight of this guard's own combat cover
+  // picks, so he saw the client hide and searched the hide itself, and the dispatch hide is seen through its window.)
+  // Then, the moment the searcher arrives at a search spot and starts his 3 s look round, the host picks a short straight
+  // leg 2.2 m behind his look (else beside him) from the nav (walkable) and the game's own hearing (`tierOf`: no wall in
+  // the way) and holds the guard still (his brain off, as the statues) while the client is put on the leg; the guard is
+  // let go and the client RUNS for real (full stick: the host's `remoteNoise` reads his speed from his states at 4 Hz, a
+  // teleport is not a footstep) there and back. Every leg point is past the 1.8 m close range and the client is dark, so
+  // he can be heard, not seen. On the host, within 6 s of the host's sim: the client's slot `locT` < 1 with `seenT` > 1
+  // (located, not seen), the guard re-aimed on a noise since the run started and his `searchSpot` moved off his look
+  // spot to within 2 m of the client, he still hunts the client; and the host's own slot never held a position (G139:
+  // the client's noise locates the client only). A real run is a jog (CT has no sprint): its reach is ~3.4 m.
+  console.log('guard-ai S26: the partner is heard (a searcher hears the client run behind him; only the client is located)');
+  {
+    await startMode(...MISSION);
+    await GA(() => { window.__app.current.target.damageMul = 0; for (const r of window.__app.current.net.remotes.values()) r.damageMul = 0; });
+    const S26 = { guard: [8, -6], client: [9, 3], hostHide: [-3.75, -24.75], clientHide: [8.75, -24.75] };
+    const cid = await GB(() => window.__coop.session.selfId);
+    // the host dark in the yard lane from the start, the client lit under the lamp
+    await GA(([x, z]) => { const g = window.__app.current; const nav = g.enemyMgr.nav; const c = nav.nearestWalkable(x, z, 2, 0); const [cx, cz] = c >= 0 ? nav.center(c) : [x, z]; g.player.controller.teleport(new g.player.position.constructor(cx, 0.05, cz), 0); g.player.cam.pitch = 0; }, S26.hostHide);
+    await moveClient(B, S26.client[0], 0.1, S26.client[1], Math.PI);
+    await until(A, ([x, z]) => { const r = window.__app.current.remotePlayers()[0]; return !!r && Math.hypot(r.feet.x - x, r.feet.z - z) < 0.6 && r.speed < 0.15; }, S26.client, 15000, 'S26: the host has the client still under the lamp');
+    let gid = '';
+    try {
+      const setup = await GA(([S, cid]) => {
+        const g = window.__app.current;
+        const em = g.enemyMgr;
+        const V = g.player.position.constructor;
+        // (S9 pattern) room for one more guard; restored below
+        em['s26Cap'] = em.maxAlive;
+        // (S26 coop triage r2) no alarm run (as e2e-stealth-ai's no-alarm runs): the panels are off, but the contact call
+        // still owes the radio alarm (`RADIO_ALARM`), whose response team comes in at the entry furthest from the host,
+        // (18, -24.5) in the yard lane 9 m from the client's hide; alerted, its guards report him from a bare line of sight
+        // (`takeSighting`, dark or not), his last known position moves into the yard and the searcher follows it there
+        em['s26Alarm'] = em.alarmRaised;
+        em.alarmRaised = true;
+        em.maxAlive = Math.max(em.maxAlive, em.alive + 1);
+        // the mission's guards statues, calm, out of every ray; the drone a statue; no alarm panel
+        for (const x of em.enemies) {
+          x.update = () => {};
+          if (x.alive && !x.taken) x.aware.set('unaware');
+          if (x.alive) {
+            x['hitboxes']?.setEnabled(false);
+            x['s26Parked'] = true;
+          }
+        }
+        for (const d of em.drones) d.update = () => true;
+        window.__s26Panels = em.alarms.map((p) => p.disabled);
+        for (const p of em.alarms) p.disabled = true;
+        // the host always dark, the client lit (a pinned level) until he hides; the light sampler restored below
+        window.__s26Light = 1;
+        g['updateLight'] = () => {
+          g.localRef.light = g.lightLevel = 0;
+          for (const r of g.remotePlayers()) r.light = window.__s26Light;
+        };
+        const e = em.spawn('grunt', new V(S.guard[0], 0, S.guard[1]), false, Math.atan2(S.client[0] - S.guard[0], S.client[1] - S.guard[1]));
+        if (!e) return null;
+        e.meter = 0;
+        const sHost = em.intruders.slotFor(g.localRef.id);
+        const sClient = em.intruders.slotFor(cid);
+        const gen = (window.__s26Gen = (window.__s26Gen ?? 0) + 1);
+        const tmp = [0, 0];
+        const s = (window.__s26 = { phase: 'seen', hopT0: -1, level: '', hunt: -1, sHost, sClient, hostValid: 0, loc0: -1, spot0: [0, 0], hPrev: 99, locMin: 99, tLoc: -1, seenAtLoc: -1, tSpot: -1, spotMin: 99, heard: false, t: 0, leg: null, tried: [1e9, 1e9], picks: 0, nSeen: 0, nLoc: 0, pSeen: 99, pLoc: 99 });
+        // (S26 coop triage) the leg, picked on the step a searcher starts his look round at a spot: 2.2 m behind his look
+        // (else beside him), 3 m long, walkable, every point in a jog's reach with no wall in the way (`tierOf`, reach 3 of
+        // ~3.4) and past the 1.8 m close range; then he is held still (his brain off) until the client stands on it
+        const pickLeg = () => {
+          const nav = em.nav;
+          const y0 = e.pos.y;
+          const spot = e.searchSpot([0, 0]);
+          const base = e['lookBase'];
+          const walk = (x, z) => { const c = nav.cellOf(x, z, y0); return c >= 0 && nav.isWalkable(c) && Math.abs(nav.cellHeight(c) - y0) <= 1; };
+          const i = em.enemies.indexOf(e);
+          const heard = (x, z) => {
+            em['hearRoom'](em.enemies.length);
+            const d = Math.hypot(e.pos.x - x, e.pos.z - z);
+            return d > 1.9 && em['tierOf'](e, i, new V(x, y0, z), 3, d, false) >= 1;
+          };
+          for (const th of [Math.PI, 0.75 * Math.PI, -0.75 * Math.PI, 0.5 * Math.PI, -0.5 * Math.PI]) {
+            const ux = Math.sin(base + th);
+            const uz = Math.cos(base + th);
+            const mx = e.pos.x + 2.2 * ux;
+            const mz = e.pos.z + 2.2 * uz;
+            for (const sg of [1, -1]) {
+              const dx = sg * uz;
+              const dz = -sg * ux;
+              const ax = mx - 1.5 * dx;
+              const az = mz - 1.5 * dz;
+              const bx = mx + 1.5 * dx;
+              const bz = mz + 1.5 * dz;
+              let clear = true;
+              for (let k = 0; k <= 12 && clear; k++) clear = walk(ax + (bx - ax) * (k / 12), az + (bz - az) * (k / 12));
+              if (!clear || !heard(ax, az) || !heard(mx, mz) || !heard(bx, bz)) continue;
+              return { a: [ax, az], b: [bx, bz], yaw: Math.atan2(dx, dz), y: nav.cellHeight(nav.cellOf(ax, az, y0)), guard: [e.pos.x, e.pos.z], look: base, spot: [spot[0], spot[1]], loc0: em.intruders.locT[sClient], lookT: e['spotLookT'] };
+            }
+          }
+          return null;
+        };
+        const hooks = window.__app.loop['hooks'];
+        const orig = hooks.fixedUpdate;
+        const step = (dt) => {
+          if (window.__s26Gen !== gen || window.__app.current !== g) {
+            if (hooks.fixedUpdate === step) hooks.fixedUpdate = orig;
+            orig(dt);
+            return;
+          }
+          orig(dt);
+          const b = em.intruders;
+          s.level = e.alive ? e.level : 'down';
+          s.hunt = e.hunt;
+          s.hostValid = Math.max(s.hostValid, b.valid[sHost]);
+          // the client's reports (diagnostics): seen (`seenT` reset) or located only (`locT` reset)
+          if (b.seenT[sClient] < s.pSeen) s.nSeen++;
+          else if (b.locT[sClient] < s.pLoc) s.nLoc++;
+          s.pSeen = b.seenT[sClient];
+          s.pLoc = b.locT[sClient];
+          if (s.phase === 'pick') {
+            // at a spot (the search branch's 1.1 m), his look round just started, the client not located for 1.5 s; one
+            // try per spot
+            if (!e.alive || e.level !== 'searching') return;
+            e.searchSpot(tmp);
+            const lt = e['spotLookT'];
+            if (Math.hypot(tmp[0] - e.pos.x, tmp[1] - e.pos.z) >= 1.1 || !(lt > 0 && lt < 0.5) || b.locT[sClient] <= 1.5) return;
+            if (Math.hypot(tmp[0] - s.tried[0], tmp[1] - s.tried[1]) < 0.3) return;
+            s.tried = [tmp[0], tmp[1]];
+            s.picks++;
+            const leg = pickLeg();
+            if (!leg) return;
+            s.leg = leg;
+            // held still while the client is put on the leg (the statues' way; let go before the run)
+            e.update = () => {};
+            s.phase = 'held';
+            return;
+          }
+          if (s.phase !== 'walk') return;
+          const r = g.remotePlayers()[0];
+          if (!r) return;
+          s.t = g.time - s.hopT0;
+          // his re-aim clock (`heardAt`) only grows unless he re-aims on a noise
+          if (e.heardAt < s.hPrev) s.heard = true;
+          s.hPrev = e.heardAt;
+          e.searchSpot(tmp);
+          const d = Math.hypot(tmp[0] - r.feet.x, tmp[1] - r.feet.z);
+          if (d < s.spotMin) s.spotMin = d;
+          if (s.tSpot < 0 && d <= 2 && s.heard && Math.hypot(tmp[0] - s.spot0[0], tmp[1] - s.spot0[1]) > 0.5) s.tSpot = s.t;
+          const loc = b.locT[sClient];
+          if (loc < s.locMin) s.locMin = loc;
+          if (s.tLoc < 0 && loc < 1) {
+            s.tLoc = s.t;
+            s.seenAtLoc = b.seenT[sClient];
+          }
+        };
+        hooks.fixedUpdate = step;
+        return { id: e.id, sHost, sClient };
+      }, [S26, cid]);
+      assert(!!setup, 'S26: the guard spawns');
+      gid = setup?.id ?? '';
+      assert(setup.sHost >= 0 && setup.sClient >= 0 && setup.sHost !== setup.sClient, `S26: one intruder slot per player (host ${setup.sHost}, client ${setup.sClient})`);
+
+      // the guard in combat on the client (his own sight; by hand after 30 s)
+      const ready = () => { const s = window.__s26; return s.level === 'alert' && s.hunt === s.sClient; };
+      const self = await until(A, ready, null, 30000, 'S26: the guard in combat on the client').then(() => true, () => false);
+      if (!self) {
+        console.log(`    (S26: not in combat by himself: ${JSON.stringify(await GA(() => ({ level: window.__s26.level, hunt: window.__s26.hunt })))}; alerted by hand)`);
+        await GA((id) => window.__app.current.enemyMgr.enemies.find((x) => x.id === id)?.alert(), gid);
+        await until(A, ready, null, 15000, 'S26: the guard in combat on the client (by hand)').catch(() => {});
+      }
+      const c0 = await GA(() => { const s = window.__s26; const b = window.__app.current.enemyMgr.intruders; return { level: s.level, hunt: s.hunt, validClient: b.valid[s.sClient], validHost: b.valid[s.sHost] }; });
+      assert(c0.level === 'alert' && c0.validClient === 1 && c0.validHost === 0, `S26: in combat with a last known position for the client and none for the host (${JSON.stringify(c0)})`);
+
+      // the client goes dark and leaves (out into the yard lane, snapped to the nav); the guard goes to the last known
+      // position and searches
+      const hide = await GA((ch) => {
+        const nav = window.__app.current.enemyMgr.nav;
+        const c = nav.nearestWalkable(ch[0], ch[1], 2, 0);
+        window.__s26Light = 0;
+        return c >= 0 ? nav.center(c) : ch;
+      }, S26.clientHide);
+      await moveClient(B, hide[0], 0.1, hide[1], 0);
+      const searching = await until(A, () => window.__s26.level === 'searching', null, 60000, 'S26: the guard searches').then(() => true, () => false);
+      const st0 = await GA(() => { const { leg, ...s } = window.__s26; return s; });
+      assert(searching, `S26: after losing the client the guard searches (${JSON.stringify(st0)})`);
+
+      // the leg, picked by the host's step hook at his next look round with room behind him (he is held still then)
+      await GA(() => { window.__s26.phase = 'pick'; });
+      const picked = await until(A, () => !!window.__s26.leg || window.__s26.level !== 'searching', null, 40000, 'S26: a leg behind the searcher').then(() => true, () => false);
+      const leg = await GA(() => {
+        const s = window.__s26;
+        if (s.leg) return s.leg;
+        const e = window.__app.current.enemyMgr.enemies.find((x) => x.alive && !x['s26Parked']);
+        const sp = e ? e.searchSpot([0, 0]) : [NaN, NaN];
+        return { err: `level ${s.level}, ${s.picks} spot(s) tried, guard ${e ? `${e.pos.x.toFixed(1)}, ${e.pos.z.toFixed(1)}` : 'none'}, spot ${sp[0].toFixed(1)}, ${sp[1].toFixed(1)}, locT ${window.__app.current.enemyMgr.intruders.locT[s.sClient].toFixed(2)}, client seen ${s.nSeen} / located ${s.nLoc} times, alarm ${window.__app.current.enemyMgr.alarmRaised}, ${window.__app.current.enemyMgr.enemies.filter((x) => x.alive && !x['s26Parked']).length} live guard(s)` };
+      });
+      assert(picked && !leg.err, `S26: a searcher looking round at a spot with a straight leg behind him in a jog's reach (${leg.err ?? JSON.stringify(leg)})`);
+      assert(leg.loc0 > 1.5, `S26: before the run the client was last located more than 1.5 s ago (locT ${leg.loc0}; ${JSON.stringify(leg)})`);
+      // the client on the leg (a teleport: no step), seen there by the host, then the guard let go and the run starts
+      await moveClient(B, leg.a[0], leg.y + 0.1, leg.a[1], leg.yaw);
+      await until(A, ([x, z]) => { const r = window.__app.current.remotePlayers()[0]; return !!r && Math.hypot(r.feet.x - x, r.feet.z - z) < 0.6; }, leg.a, 10000, 'S26: the host has the client on the leg');
+      await GA(() => {
+        const g = window.__app.current;
+        const s = window.__s26;
+        const e = g.enemyMgr.enemies.find((x) => x.alive && !x['s26Parked']);
+        if (e) {
+          delete e.update;
+          e.searchSpot(s.spot0);
+          s.hPrev = e.heardAt;
+        }
+        s.loc0 = g.enemyMgr.intruders.locT[s.sClient];
+        s.hopT0 = g.time;
+        s.phase = 'walk';
+      });
+      const heardDone = () => GA(() => { const s = window.__s26; return s.tLoc >= 0 && s.tSpot >= 0; });
+      for (let k = 0; k < 4 && !(await heardDone()); k++) {
+        // there (k even) and back (k odd): the full stick along the leg
+        await GB(([yaw]) => { const g = window.__app.current; g.player.cam.yaw = yaw; g.player.cam.pitch = 0; window.__app.input.state.setMove('t', 0, 1); }, [leg.yaw + (k % 2 ? Math.PI : 0)]);
+        await waitHostSim(A, 1300);
+      }
+      await GB(() => window.__app.input.state.setMove('t', 0, 0));
+      const c1 = await GA(() => ({ ...window.__s26 }));
+      const f2 = (v) => (Number.isFinite(v) ? v.toFixed(2) : String(v));
+      const why = JSON.stringify({ leg, tLoc: f2(c1.tLoc), seenAtLoc: f2(c1.seenAtLoc), tSpot: f2(c1.tSpot), spotMin: f2(c1.spotMin), locMin: f2(c1.locMin), heard: c1.heard, hunt: c1.hunt, level: c1.level, hostValid: c1.hostValid, sHost: c1.sHost, sClient: c1.sClient });
+      assert(c1.tLoc >= 0 && c1.tLoc <= 6, `S26: the client's noise locates him on the host within 6 s of the host's sim (locT < 1 at ${f2(c1.tLoc)} s; ${why})`);
+      assert(c1.seenAtLoc > 1, `S26: heard, not seen: his seenT was ${f2(c1.seenAtLoc)} s when he was located (${why})`);
+      assert(c1.heard && c1.tSpot >= 0 && c1.tSpot <= 6, `S26: he re-aims on the noise: his search spot moves off his look spot to within 2 m of the client within 6 s (at ${f2(c1.tSpot)} s, closest ${f2(c1.spotMin)} m; ${why})`);
+      assert(c1.hunt === c1.sClient, `S26: he still hunts the client (${why})`);
+      assert(c1.hostValid === 0, `S26: the host's own slot never held a position (G139: the client's noise locates the client only) (${why})`);
+      console.log(`    (S26: located after ${f2(c1.tLoc)} s, his spot within 2 m of the client after ${f2(c1.tSpot)} s, closest ${f2(c1.spotMin)} m)`);
+    } finally {
+      await GB(() => window.__app.input.state.setMove('t', 0, 0)).catch(() => {});
+      await GA((id) => {
+        window.__s26Gen = (window.__s26Gen ?? 0) + 1;
+        const g = window.__app.current;
+        if (g) g['updateLight'] = Object.getPrototypeOf(g)['updateLight'];
+        const em = g?.enemyMgr;
+        if (!em) return;
+        for (const x of em.enemies) {
+          delete x.update;
+          if (x['s26Parked']) {
+            x['hitboxes']?.setEnabled(true);
+            delete x['s26Parked'];
+          }
+        }
+        for (const d of em.drones) delete d.update;
+        if (window.__s26Panels) em.alarms.forEach((p, i) => (p.disabled = window.__s26Panels[i] ?? p.disabled));
+        const e = em.enemies.find((x) => x.id === id);
+        if (e) em.despawn(e);
+        if (em['s26Cap'] !== undefined) em.maxAlive = em['s26Cap'];
+        if (em['s26Alarm'] !== undefined) em.alarmRaised = em['s26Alarm'];
+      }, gid).catch(() => {});
+    }
+    await toLobby();
   }
 
   console.log('infiltration co-op: the mission and its objectives reach the client');

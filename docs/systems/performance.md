@@ -44,7 +44,10 @@ Warehouse, 10 guards (`STEALTH=1`: unaware and perceiving). Options: `docs/syste
   claim a perf result: they mark it "pending PC run".
 
 ## What keeps the frame inside the budget
-- Static level geometry: thin instances, `freezeWorldMatrix()`, frozen materials. The character skin material is frozen.
+- Static level geometry: thin instances, `freezeWorldMatrix()`, frozen materials. (marlow-final S9) The facility kit and
+  props bake their static opaque pieces into one mesh per material and draw ahead of the level boxes they cover
+  (`world/kit/staticMerge.ts` `skinsFirst`: no second lit shade of the box under a skin). The character skin
+  material is frozen.
 - Shadows: each lamp's shadow map lists only the casters within its reach (`LightRig.fillCasters`, refilled per pick,
   casters under 0.3 m skipped); the moon's cascades list moving casters and the static meshes it can reach
   (`World.sunCasters`, `World.updateSunCasters` at 4 Hz). Low uses static sun casters and blob shadows.

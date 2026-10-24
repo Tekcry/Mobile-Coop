@@ -2,16 +2,16 @@
  * Saltmarsh Park (`campusOps`) slice 2: section 2, the HQ atrium and offices (`docs/sector-redesign/SPEC.md` "S2", PLAN
  * "Common to every map slice"). Data and geometry only (the map is built with the pure `LevelBuilder`, as in
  * `tests/campusS1.test.ts`): the 12 guards, cameras, routes, the co-op lip CR2 against a solo player, the light circuits,
- * the M8 isolation check, the K2 choke (the bridge officer) and the A64 screen count (no more than 6 awake guards in view from
- * any walkable point).
+ * the M8 isolation check, the K2 choke (the bridge officer) and the screen count (A99: no more than `CAMPUS_SCREEN_CAP` guards in
+ * view from any walkable point, every guard counted).
  */
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { LevelBuilder, type BoxPiece } from '../src/world/levelBuilder';
-import { campusOps } from '../src/world/maps/campusOps';
+import { buildCampus, campusOps } from '../src/world/maps/campusOps';
 import { S1_GROUPS } from '../src/world/maps/campusS1';
 import { CAMPUS_COOP_LIPS } from '../src/world/maps/campusLips';
 import { BALCONY_LAMPS, BULKHEAD_TOP, C2_BOX, C2_FLOOR, CR2, FEATURE_STAIR, PENDANTS, S2_COOP_LIPS, S2_CORES, S2_DOORS, S2_FLIGHTS, S2_FLOORS, S2_GROUPS, S2_ROOMS, S2_VOID, SW_CORE, NE_CORE, coreFlights, type Flight } from '../src/world/maps/campusS2';
-import { CAMPUS_ALARMS, CAMPUS_SECTORS, CAMPUS_SECURITY } from '../src/world/maps/campusSectors';
+import { CAMPUS_ALARMS, CAMPUS_SCREEN_CAP, CAMPUS_SECTORS, CAMPUS_SECURITY } from '../src/world/maps/campusSectors';
 import { SECTOR, checkSectorGuards, checkSectors, exitZone, inZone, type SectorGuard } from '../src/game/sectors';
 import { validateSecurity } from '../src/security/data';
 import { CAMERA } from '../src/config/security';
@@ -24,11 +24,22 @@ import { HANG, LEDGE, generateLedges } from '../src/world/anchors';
 import { hyp2, hyp3 } from '../src/core/mathx';
 import { LIGHT, contribution } from '../src/world/lights';
 import { soloJumpThreats, soloTopLandingThreats, MANTLE } from './helpers/soloJumpReach';
+import { dressingOn } from '../src/world/detailPass';
+import { canonicalLightSet } from '../src/voxel/lightShapes';
+import { bakeLamps } from '../src/voxel/lampBake';
+import { bakeMoon, MOON_CELL } from '../src/voxel/skyBake';
+import { bakedLights } from '../src/world/lightBake';
+import { buildAmbientGrid } from '../src/world/ambientGrid';
+import { LightField, type FieldDoor } from '../src/world/lightField';
+import { moonLight } from '../src/world/lampMath';
 import { SightWorld, isolatedInTime, longestIsolation, guardPoints, CHECK_ISOLATION, CHECK_PATROL_PACE, CHECK_SPOT, CHECK_EYE, distToGuard, type CheckGuard } from '../src/game/sectorCheck';
 
 const PI = Math.PI;
 const b = new LevelBuilder();
 const lay = campusOps.build(b, 0);
+/** The undressed greybox: the screen count (A99) reads its sight lines here, as invisible dressing (chairs, shelves) must not block them. */
+const bG = new LevelBuilder();
+buildCampus(bG, { dress: false });
 const S2 = CAMPUS_SECTORS[1]!;
 /**
  * The collision pieces as axis-aligned boxes (S2's are all plain; S1's walls are quarter-turn boxes, swapped to plain; anything
@@ -154,7 +165,7 @@ describe('Saltmarsh Park section 2 (HQ), registration and shape', () => {
 
   it('the spawn layout carries the S2 rooms, switches, hide spots and nav seeds', () => {
     expect(lay.rooms!.length).toBeGreaterThan(S2_ROOMS.length);
-    expect(lay.switches!.length).toBe(5 + 7 + 9 + 8 + 9);
+    expect(lay.switches!.length).toBe(5 + 6 + 9 + 8 + 9);
     expect(lay.navSeeds!.some((s) => s.y === 4.4)).toBe(true);
     expect(lay.alarms!.filter((a) => a.section === 1).length).toBe(2);
     expect(lay.alarms!.find((a) => a.section === 1 && a.pos.y > 4)).toBeTruthy();
@@ -371,6 +382,7 @@ describe('S2 cameras, alarms, objective, routes', () => {
     for (const h of lay.hideSpots!.filter((q) => q.pos.z > -30 && q.pos.x < 5 && q.pos.x > -45 && q.pos.z < 7 && q.pos.z > -29.5)) expect(onNav(h.pos.x, h.pos.z, h.pos.y), `hide (${h.pos.x}, ${h.pos.z})`).toBe(true);
     for (const s of lay.switches!.filter((q) => q.pos.z > -30 && q.pos.x > -45 && q.pos.x < 5 && q.pos.z < 7)) expect(nearNav(s.pos.x, s.pos.z, s.pos.y), `switch (${s.pos.x}, ${s.pos.z})`).toBe(true);
     for (const a of lay.alarms!.filter((q) => q.section === 1)) expect(nearNav(a.pos.x, a.pos.z, a.pos.y), `alarm (${a.pos.x}, ${a.pos.z})`).toBe(true);
+    for (const bd of lay.boards!.filter((q) => q.groups.includes(S2_GROUPS.atrium))) expect(nearNav(bd.pos.x, bd.pos.z, bd.pos.y), 'reception panel board').toBe(true);
   });
 });
 
@@ -542,14 +554,19 @@ describe('S2 lighting (SPEC "Lighting")', () => {
     expect(group(S1_GROUPS.parkW).length).toBe(8);
   });
 
-  it('the switches: the reception panel cuts the atrium, one switch at each stair door for each balcony (L1 and L2), the kitchen, the L1 corridor (lure #7); the stair doors are within 2.5 m', () => {
+  it('the reception panel is a board (untimed, section 1) and no switch; one switch at each stair door for each balcony (L1 and L2), the kitchen, the L1 corridor (lure #7); the stair doors are within 2.5 m', () => {
     const sw = lay.switches!.filter((s) => s.group >= 50);
-    expect(sw.filter((s) => s.group === S2_GROUPS.atrium).length).toBe(1);
+    expect(sw.filter((s) => s.group === S2_GROUPS.atrium).length).toBe(0);
     expect(sw.filter((s) => s.group === S2_GROUPS.l1Bal).length).toBe(2);
     expect(sw.filter((s) => s.group === S2_GROUPS.l2Bal).length).toBe(2);
     expect(sw.filter((s) => s.group === S2_GROUPS.kitchen).length).toBe(1);
     expect(sw.filter((s) => s.group === S2_GROUPS.l1Cor).length).toBe(1);
-    const atrium = sw.find((s) => s.group === S2_GROUPS.atrium)!;
+    const boards = lay.boards!.filter((q) => q.groups.includes(S2_GROUPS.atrium));
+    expect(boards.length).toBe(1);
+    const atrium = boards[0]!;
+    expect(atrium.groups).toEqual([S2_GROUPS.atrium]);
+    expect(atrium.window).toBeUndefined();
+    expect(atrium.section).toBe(1);
     // the panel is in the foyer (reception), 10 m from #1: a lure
     expect(atrium.pos.x).toBeGreaterThan(-30);
     expect(atrium.pos.x).toBeLessThan(-8);
@@ -598,7 +615,7 @@ describe('S2 lighting (SPEC "Lighting")', () => {
     expect(rec.length).toBe(1);
     expect([rec[0]!.x, rec[0]!.y, rec[0]!.z]).toEqual([-20, 3.9, -26.5]);
     // the panel stands in the same room, on his floor
-    const panel = lay.switches!.find((s) => s.group === S2_GROUPS.atrium)!;
+    const panel = lay.boards!.find((q) => q.groups.includes(S2_GROUPS.atrium))!;
     expect(roomAt(rooms, panel.pos.x, panel.pos.z, panel.pos.y + 0.1)).toBe(mine);
   });
 
@@ -726,7 +743,7 @@ describe('K2 (M12): the bridge officer is an unavoidable posted guard at the C2 
   });
 });
 
-describe('A64 (guard render budget) and the dormant rule', () => {
+describe('A99 (the screen cap, lifting A64) and the dormant rule', () => {
   it('no posted, pair, handler or dog guard is dormant; only #10 and #12 are', () => {
     const handlers = new Set(S2.guards.map((g) => g.handler).filter((h): h is number => h !== undefined));
     S2.guards.forEach((g, i) => {
@@ -737,11 +754,10 @@ describe('A64 (guard render budget) and the dormant rule', () => {
   });
 
   /** The most guards in view from any walkable point on a 2 m grid (every floor, the stairs and the roof): a guard counts when any point of its post or route has a clear eye-height line to the point within 40 m. */
-  function worstView(skipDormant: boolean): { n: number; x: number; y: number; z: number; who: number[]; hist: [number, number][] } {
-    const world = new SightWorld(b.boxes, b.cylinders);
+  function worstView(): { n: number; x: number; y: number; z: number; who: number[]; hist: [number, number][] } {
+    const world = new SightWorld(bG.boxes, bG.cylinders);
     const guards = S2.guards
       .map((g, i) => ({ g, i }))
-      .filter((q) => !skipDormant || !q.g.dormant)
       .map(({ g, i }) => ({ i: i + 1, pts: guardPoints({ x: g.x, z: g.z, y: floorOf(g), route: g.route as readonly (readonly [number, number])[] | undefined }) }));
     let worst = { n: 0, x: 0, y: 0, z: 0, who: [] as number[] };
     const hist = new Map<number, number>();
@@ -771,18 +787,11 @@ describe('A64 (guard render budget) and the dormant rule', () => {
     return { ...worst, hist: [...hist.entries()].sort((p, q) => p[0] - q[0]) };
   }
 
-  it('no walkable S2 point (a 2 m grid on every floor and stair) sees more than 6 awake, non-dormant guards with a clear static line within 40 m', () => {
-    const w = worstView(true);
+  it('no walkable S2 point (a 2 m grid on every floor and stair) sees more than CAMPUS_SCREEN_CAP guards (every guard, dormant too) with a clear static line within 40 m', () => {
+    const w = worstView();
     // eslint-disable-next-line no-console
-    if (process.env.CAMPUS_PRINT) console.log(`A64 worst (awake only): ${w.n} at (${w.x}, ${w.y.toFixed(1)}, ${w.z}) sees #${w.who.join(', #')}; histogram ${JSON.stringify(w.hist)}`);
-    expect(w.n, `worst point (${w.x}, ${w.y}, ${w.z}) sees #${w.who.join(', #')}`).toBeLessThanOrEqual(6);
-  });
-
-  it('even with #10 and #12 woken no point sees more than 7 (their dormancy is margin, not the whole answer)', () => {
-    const w = worstView(false);
-    // eslint-disable-next-line no-console
-    if (process.env.CAMPUS_PRINT) console.log(`A64 worst (all 12): ${w.n} at (${w.x}, ${w.y.toFixed(1)}, ${w.z}) sees #${w.who.join(', #')}`);
-    expect(w.n, `worst point (${w.x}, ${w.y}, ${w.z}) sees #${w.who.join(', #')}`).toBeLessThanOrEqual(7);
+    if (process.env.CAMPUS_PRINT) console.log(`A99 worst (all 12): ${w.n} at (${w.x}, ${w.y.toFixed(1)}, ${w.z}) sees #${w.who.join(', #')}; histogram ${JSON.stringify(w.hist)}`);
+    expect(w.n, `worst point (${w.x}, ${w.y}, ${w.z}) sees #${w.who.join(', #')}`).toBeLessThanOrEqual(CAMPUS_SCREEN_CAP);
   });
 });
 
@@ -794,5 +803,43 @@ describe('C2 and the zone', () => {
     expect(inZone(z, 7, 0, -14)).toBe(false);
     expect(S2.connector!.farAt).toEqual([...S2_DOORS.c2Far]);
     expect(S2_FLIGHTS.length).toBe(13);
+  });
+});
+
+describe('(LR16g) the atrium on the one light model (direct + penumbra + bounce)', () => {
+  // the real light field, baked in node as `World.create` + `bakeLevelLight` do (`tests/ctcourseLight.test.ts`), over a box
+  // round S2 only (the pendants' reach and their bounce stay inside it; the whole campus bake is ~2 min)
+  const lb = new LevelBuilder();
+  campusOps.build(lb, 0);
+  const reg = lb.lights;
+  let field: LightField;
+  beforeAll(() => {
+    const set = canonicalLightSet(lb.boxes, lb.cylinders, campusOps.id, dressingOn(campusOps));
+    const lo: [number, number, number] = [Math.max(set.lo[0], -50), set.lo[1], Math.max(set.lo[2], -40)];
+    const hi: [number, number, number] = [Math.min(set.hi[0], 10), set.hi[1], Math.min(set.hi[2], 12)];
+    reg.ambient = campusOps.theme.lightLevel ?? 0.75;
+    const mL = moonLight(campusOps.theme);
+    const sky = Math.max(0, reg.ambient - mL);
+    const ambient = buildAmbientGrid({ ambientAt: (x, y, z) => { const v = reg.zoneAt(x, y, z); return v === v ? v : sky; } }, lo, hi);
+    const s = campusOps.theme.sunDir;
+    const l = Math.sqrt(s[0] * s[0] + s[1] * s[1] + s[2] * s[2]);
+    const dir: [number, number, number] = [-s[0] / l, -s[1] / l, -s[2] / l];
+    const n: [number, number, number] = [0, 1, 2].map((k) => Math.max(1, Math.ceil((hi[k]! - lo[k]!) / MOON_CELL))) as [number, number, number];
+    const m = bakeMoon({ kind: 'moon', id: 0, origin: lo, n, shapes: set.shapes, dir });
+    const baked = bakedLights(reg);
+    const r = bakeLamps({ kind: 'lamps', id: 0, shapes: set.shapes, lights: baked.lights, lo, hi });
+    const bake = { lo, hi, lampKey: 't', moonKey: 't', lamps: { baked, r }, moon: { origin: lo, n, cell: MOON_CELL, vis: m.vis, dir }, ambient, moonLight: mL, ms: 0 };
+    field = new LightField(bake, reg, lb.anchors.doors.map((anchor): FieldDoor => ({ anchor, open: 0 })));
+  }, 300_000);
+
+  it('(LR16g) the atrium pool reads 0.45-0.5 between the pendants, the cafe stays dark', () => {
+    // the floor between the pendants (Classic read 0.48 here, the photometric pendants at 0.9 read 0.36 with the bounce;
+    // `checks/lr-tex3d-fix.md`, LR16g): what the meter and the guards read, and the picture (one field)
+    const floor = field.levelAt(-16, 0.05, -15);
+    expect(floor).toBeGreaterThanOrEqual(0.45);
+    expect(floor).toBeLessThanOrEqual(0.5);
+    // the cafe (the void's north strip: the counter at (-19, -5.6), the table at (-13, -6.5)): a standing body stays under the
+    // shadow line; the tables at z -9 / -9.5 sit on the pool's rim
+    for (const x of [-25, -22, -19, -16, -13, -11]) for (const z of [-7, -5]) expect(field.bodyLevel(x, 0, z, 1.7), `cafe (${x}, ${z})`).toBeLessThan(LIGHT.shadow);
   });
 });

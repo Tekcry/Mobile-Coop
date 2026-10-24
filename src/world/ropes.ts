@@ -1,4 +1,5 @@
 import { Color3, CreateCylinder, Matrix, Quaternion, StandardMaterial, Vector3, type Mesh, type Scene } from '../core/babylon';
+import { levelIsPbr, levelPbrMaterial } from './levelLitMaterial';
 
 const MAX_ROPES = 8;
 
@@ -23,10 +24,16 @@ export class Ropes {
   private ensure(): Mesh {
     if (this.mesh) return this.mesh;
     const m = CreateCylinder('ropes', { height: 1, diameter: 1, tessellation: 6 }, this.scene);
-    const mat = new StandardMaterial('ropeMat', this.scene);
-    mat.diffuseColor = Color3.FromHexString('#4a4136');
-    mat.specularColor = Color3.Black();
-    m.material = mat;
+    // (lr16pol B) PBR where the level is: the guard torches light it (`levelLitMaterial.ts`)
+    const col = Color3.FromHexString('#4a4136');
+    if (levelIsPbr(this.scene)) {
+      m.material = levelPbrMaterial('ropeMat', this.scene, col);
+    } else {
+      const mat = new StandardMaterial('ropeMat', this.scene);
+      mat.diffuseColor = col;
+      mat.specularColor = Color3.Black();
+      m.material = mat;
+    }
     // every slot starts collapsed (zero scale)
     this.buf.fill(0);
     m.thinInstanceSetBuffer('matrix', this.buf, 16, false);

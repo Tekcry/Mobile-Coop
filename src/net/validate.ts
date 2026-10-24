@@ -5,15 +5,19 @@
 import type { WeaponDef } from '../weapons/weaponDefs';
 import { computeStats, damageAt, MAX_UPGRADE } from '../weapons/weaponStats';
 import { killScore } from '../game/modes/score';
-import type { EndStats } from './protocol';
+import { PF, type EndStats, type PlayerState } from './protocol';
 import type { SessionStats } from '../game/modes/gameMode';
 import { emptyKinds, ENEMY_KINDS } from '../ai/enemyDefs';
 import { hyp2, hyp3 } from '../core/mathx';
 import { gearCap } from '../player/speedGears';
+import { noiseRadius } from '../player/movement';
 import { isAttachedMode, unpackAttachSub, type MoveState } from '../player/moveState';
 import { HANG_SUB, ROPE_SUB } from '../game/teamMoves';
 import { attachPose, type AttachPose } from '../player/attach';
 import type { TraversalAnchors } from '../world/anchors';
+import type { SectorRatingWire } from '../game/sectors';
+import type { RatingView } from '../ui/hud/ratingCard';
+import { unpackRated } from '../game/course/courseWire';
 
 export interface V3 {
   x: number;
@@ -170,6 +174,24 @@ export function moveSpeedCap(mv: MoveState | undefined, crouched: boolean, drive
   return pace * MOVE_TOLERANCE;
 }
 
+/**
+ * (guard-ai S26 fix) A client's footstep noise radius on the host (m, 0 = silent), by the host player's own rule
+ * (`gameState.ts` step noise: `noiseRadius(c.speed, c.crouched || c.steps === 'crouched')` when grounded and the steps
+ * are not silent), read from the client's own sent state, never from snapshot deltas (jittery: bunched packets and
+ * teleports spiked it, so a crouch-walk made phantom steps a searcher could locate). `s.speed` is the client
+ * controller's `speed` (`coopClient.ts` pstate), the host's own input; the wire bits map the host's rule: `crouch` =
+ * `c.crouched`; `driven` without `silent` = steps 'crouched' (a traversal-driven move that is not silent is a crouched
+ * run, `playerController.ts` steps); a back-to-wall slide keeps the crouch band (step 11). `settled` false (the last
+ * state jumped: a teleport, a respawn, a host send-back, a clamped claim): no step. Capped at `MAX_FREE_SPEED` (the old
+ * bound). No surface or suit factor (pre-existing gap). Pure, no allocation.
+ */
+export function clientStepNoise(s: PlayerState, settled: boolean): number {
+  const f = s.f;
+  if (!settled || (f & PF.silent) !== 0 || (f & PF.grounded) === 0) return 0;
+  const crouched = (f & (PF.crouch | PF.driven)) !== 0 || s.mv?.m === 'wall';
+  return noiseRadius(Math.min(MAX_FREE_SPEED, s.speed), crouched);
+}
+
 /** Furthest an attached client may be from where its anchor puts it (m). */
 export const ATTACH_SLACK = 0.5;
 
@@ -245,4 +267,39 @@ export function hostShotWeapon<W extends string>(w: W, held: W | undefined, load
  */
 export function clientForcedHolster(echoedDw: number, localDw: number, localMv: MoveState, downed: boolean): boolean {
   return echoedDw === 0 && localDw !== 0 && !hostHandsFree(localMv, downed);
+}
+
+/**
+ * (section-rating S3) The client's view of the host's last rating (`rt`, already clamped by the parser) for the HUD card:
+ * the section's id and title come from this map's own sector list. Null when none is rated yet (`sec` -1) or the index
+ * is not one of ours (a mismatched map is not shown).
+ */
+export function ratingViewFromWire(rt: SectorRatingWire, defs: readonly { id: string; name: string }[]): RatingView | null {
+  if (rt.sec < 0) return null;
+  const d = defs[rt.sec];
+  if (!d) return null;
+  return {
+    sectionId: d.id,
+    title: d.name,
+    marks: rt.marks & 15,
+    synced: rt.synced,
+    grant: { gadget: rt.gadget, syringe: rt.syringe, medkit: rt.medkit, alarmStep: rt.alarmStep },
+  };
+}
+
+/**
+ * (marlow-polish) A late joiner's / reloaded rejoiner's results lines from the `sector` message's `rh` (already clamped
+ * by the parser): one view per rated section of this map, in index order, skipping `skip` (the section `rt` carries,
+ * pushed on its own). No grant: those were given before we came.
+ */
+export function ratingViewsFromRh(rh: readonly number[], skip: number, defs: readonly { id: string; name: string }[]): RatingView[] {
+  const out: RatingView[] = [];
+  for (let i = 0; i < rh.length && i < defs.length; i++) {
+    if (i === skip) continue;
+    const r = unpackRated(rh[i]!);
+    if (!r) continue;
+    const d = defs[i]!;
+    out.push({ sectionId: d.id, title: d.name, marks: r.marks, synced: r.synced, grant: { gadget: 0, syringe: 0, medkit: 0, alarmStep: 0 } });
+  }
+  return out;
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GuardView, GV_DOWN, GV_HELD, LEVEL } from '../src/ai/incidents';
+import { MAX_INTRUDERS } from '../src/ai/targetPick';
 import { CALL_KIND, callHold, hearsVoice, RADIO, RADIO_CALLS, RadioNet, staggerDelay, type CallKind, type RadioSink } from '../src/ai/radioNet';
 
 // (guard-ai S3) the section radio net (design section 5), on a hand-filled guard view and a recording sink.
@@ -252,18 +253,17 @@ describe('radio net: fixed pools', () => {
     const gs: G[] = [];
     for (let i = 0; i < 33; i++) gs.push({ id: 100 + i, x: i, z: 0 });
     const { net, v, s } = setup(gs);
-    // 3 calls x 32 receivers = 96 > 64
-    net.startCall(100, 1, 'contact', 1);
-    net.startCall(101, 2, 'contact', 1);
-    net.startCall(102, 3, 'contact', 1);
+    // (coop4 A173: the pool is RADIO.queue 128) enough calls x 32 receivers to pass it: 5 x 32 = 160 > 128
+    const calls = Math.floor(RADIO.queue / 32) + 1;
+    for (let c = 1; c <= calls; c++) net.startCall(99 + c, c, 'contact', 1);
     run(net, v, s, 1.1);
     expect(net.queued).toBe(RADIO.queue);
-    expect(net.dropped).toBe(96 - RADIO.queue);
+    expect(net.dropped).toBe(calls * 32 - RADIO.queue);
     run(net, v, s, 10);
     expect(s.got.length).toBe(RADIO.queue);
-    // the first call's 32 all arrive; the third call's are the ones refused
+    // the first call's 32 all arrive; the last call's are the ones refused
     expect(s.got.filter((r) => r.inc === 1).length).toBe(32);
-    expect(s.got.filter((r) => r.inc === 3).length).toBe(0);
+    expect(s.got.filter((r) => r.inc === calls).length).toBe(0);
   });
 
   it('the call pool refuses past RADIO_CALLS', () => {
@@ -414,5 +414,68 @@ describe('radio net: section alert calls (guard-ai S14)', () => {
     expect(alert).toHaveLength(EIGHT.length - 1);
     expect(alert.every((r) => r.caller === 1)).toBe(true);
     expect(lead).toHaveLength(EIGHT.length - 1);
+  });
+});
+
+describe('radio net: four intruders (coop4 AI3, A173)', () => {
+  /** A full section: `n` guards in a line 1 m apart (ids 100..), caller i is guard i. */
+  const line = (n: number): G[] => {
+    const gs: G[] = [];
+    for (let i = 0; i < n; i++) gs.push({ id: 100 + i, x: i, z: 0 });
+    return gs;
+  };
+
+  it('RADIO.queue is MAX_INTRUDERS x 32 (128)', () => {
+    expect(RADIO.queue).toBe(128);
+    expect(RADIO.queue).toBe(MAX_INTRUDERS * 32);
+  });
+
+  it('4 contacts at once in one section of 32 guards (31 receivers each): dropped 0, all 124 delivered, each receiver once per contact', () => {
+    const { net, v, s } = setup(line(32));
+    for (let c = 0; c < MAX_INTRUDERS; c++) expect(net.startCall(100 + c, c, 'contact', RADIO.callIn)).toBeGreaterThan(0);
+    run(net, v, s, RADIO.callIn + 0.05);
+    expect(net.queued).toBe(MAX_INTRUDERS * 31);
+    expect(net.dropped).toBe(0);
+    run(net, v, s, RADIO.staggerMax + 1);
+    expect(net.dropped).toBe(0);
+    expect(net.queued).toBe(0);
+    expect(s.got.length).toBe(MAX_INTRUDERS * 31);
+    for (let c = 0; c < MAX_INTRUDERS; c++) {
+      const got = s.got.filter((r) => r.inc === c);
+      expect(got.length).toBe(31);
+      expect(new Set(got.map((r) => r.guard)).size).toBe(31);
+      expect(got.every((r) => r.caller === 100 + c && r.guard !== 100 + c)).toBe(true);
+    }
+  });
+
+  it('2-player identity: 2 contacts with 31 receivers fit the old 64 pool (62), so the 128 pool delivers exactly the old schedule', () => {
+    const { net, v, s } = setup(line(32));
+    net.startCall(100, 0, 'contact', RADIO.callIn);
+    net.startCall(101, 1, 'contact', RADIO.callIn);
+    let peak = 0;
+    const n = Math.round((RADIO.callIn + RADIO.staggerMax + 1) / DT);
+    for (let k = 0; k < n; k++) {
+      net.tick(DT, v, s);
+      peak = Math.max(peak, net.queued);
+    }
+    // never more than the old pool held: the pool size never decided anything
+    expect(peak).toBe(62);
+    expect(peak).toBeLessThanOrEqual(64);
+    expect(net.dropped).toBe(0);
+    // every delivery on the pure schedule: call end + staggerDelay(rank by distance, distance), quantised to the 10 Hz tick
+    for (const c of [0, 1]) {
+      const cx = c;
+      const want = line(32)
+        .filter((g) => g.id !== 100 + c)
+        .map((g) => ({ id: g.id, d: Math.abs(g.x - cx) }))
+        .sort((a, b) => a.d - b.d || a.id - b.id)
+        .map((g, r) => ({ guard: g.id, due: RADIO.callIn + staggerDelay(r, g.d) }));
+      const got = s.got.filter((r) => r.inc === c);
+      expect(got.map((r) => r.guard)).toEqual(want.map((w) => w.guard));
+      for (let r = 0; r < want.length; r++) {
+        expect(got[r]!.t).toBeGreaterThanOrEqual(want[r]!.due - 1e-6);
+        expect(got[r]!.t - want[r]!.due).toBeLessThan(DT + 1e-6);
+      }
+    }
   });
 });

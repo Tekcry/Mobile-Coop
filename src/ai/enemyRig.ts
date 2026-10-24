@@ -1,4 +1,5 @@
 import type { Scene } from '../core/babylon';
+import { mergeGun } from './enemyGunMerge';
 import { CharacterRig } from '../player/characterRig';
 import { WeaponModel } from '../weapons/weaponModel';
 import { WEAPONS } from '../weapons/weaponDefs';
@@ -23,7 +24,10 @@ export function buildEnemyRig(scene: Scene, world: World, def: EnemyDef, name: s
   let gun: WeaponModel | null = null;
   if (def.gun) {
     gun = new WeaponModel(scene, world.parts, WEAPONS[def.gun], ENEMY_GUN, rig.weaponPivot);
-    for (const m of gun.renderMeshes) world.addShadowCaster(m);
+    // (perfg) one instance of the gun type's merged mesh instead of its parts (same colours; `?guardmerge=0`: parts)
+    const merged = mergeGun(scene, gun, name);
+    if (merged) world.addShadowCaster(merged);
+    else for (const m of gun.renderMeshes) world.addShadowCaster(m);
     gun.hold(rig);
   }
   return { rig, gun };
@@ -34,7 +38,7 @@ export function buildEnemyRig(scene: Scene, world: World, def: EnemyDef, name: s
  * in its slot (`WeaponModel.holster`: the rifle slung across the back, the pistol on the right thigh, which sets the rig's
  * `thighGear`); a draw / holster carries it along the player's travel path in the trigger hand (`beginTravel` /
  * `travel`; the sling hands off), then it is held again (`hold`: the aim pocket). Render rate, before the rig animates;
- * no allocation. Host only: co-op puppets stay at low ready (open item, WALK.md S21).
+ * no allocation. Co-op puppets pose through it too (A126: `EnemyPuppet` with `net/puppetCarry.ts`).
  */
 export class GuardGunCarry {
   private seq = -1;

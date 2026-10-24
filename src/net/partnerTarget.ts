@@ -1,16 +1,22 @@
 import { Vector3, type Scene } from '../core/babylon';
 import { Hitboxes } from '../ai/hitboxes';
+import { emptyPlayerBodyIn, emptyPlayerBodyOut, playerBody } from '../player/playerVolumes';
 import type { DamageRegistry, Damageable, DamageResult, HitInfo } from '../game/damage';
 import type { RemoteAvatar } from './remoteAvatar';
 
 /**
  * Course friendly fire (D38) on a client: the partner's avatar gets head / body hit volumes so the local player's shots
- * resolve at once (hit marker, flash); the hit is sent to the host, which decides the damage.
+ * resolve at once (hit marker, flash); the hit is sent to the host, which decides the damage. (rig-pose-fix S1, G11) The
+ * volumes follow the sim body model (`playerBody`) of the partner as drawn (its interpolated position, MoveState and
+ * stance), not the drawn rig's pose: the same head / body split the host's `partnerBoxes` judge.
  */
 export class PartnerTarget implements Damageable {
   readonly team = 'enemy' as const;
   private boxes: Hitboxes;
   private head = new Vector3();
+  private hips = new Vector3();
+  private readonly bodyIn = emptyPlayerBodyIn();
+  private readonly body = emptyPlayerBodyOut();
   onShot: ((h: HitInfo) => void) | null = null;
 
   constructor(
@@ -52,11 +58,10 @@ export class PartnerTarget implements Damageable {
       return;
     }
     this.boxes.setEnabled(true);
-    const rig = this.avatar.rig;
-    rig.hips.computeWorldMatrix(true);
-    rig.headNode.computeWorldMatrix(true);
-    this.head.copyFrom(rig.headNode.getAbsolutePosition());
-    this.boxes.sync(this.avatar.pos, this.head, rig.hips.getAbsolutePosition());
+    const b = playerBody(this.avatar.bodyIn(this.bodyIn), this.body);
+    this.head.set(b.head.x, b.head.y, b.head.z);
+    this.hips.set(b.pelvis.x, b.pelvis.y, b.pelvis.z);
+    this.boxes.sync(this.avatar.pos, this.head, this.hips);
   }
 
   dispose(): void {

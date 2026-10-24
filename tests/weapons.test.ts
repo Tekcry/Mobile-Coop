@@ -130,3 +130,13 @@ describe('step 09: no hip fire, ADS spread', () => {
     }
   });
 });
+
+import { G, MASK } from '../src/physics/groups';
+
+describe('rig-pose-fix S7: ragdolls out of player rounds (audit G18)', () => {
+  it('a player round passes a ragdoll (visual, per machine), as the host LOS of a client round does; it still stops on guards, props and walls', () => {
+    expect(MASK.PLAYER_SHOT & G.RAGDOLL).toBe(0);
+    expect(MASK.HOST_LOS & G.RAGDOLL).toBe(0);
+    for (const g of [G.STATIC, G.PROP, G.ENEMY_HITBOX, G.GLASS_ARMOURED]) expect(MASK.PLAYER_SHOT & g).not.toBe(0);
+  });
+});

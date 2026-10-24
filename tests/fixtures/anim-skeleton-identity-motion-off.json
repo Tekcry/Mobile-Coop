@@ -331,12 +331,12 @@
  },
  "state:crouchWalk": {
   "steps": 120,
-  "rig": "7960afe19fafe215",
+  "rig": "c72903293a443788",
   "poser": {
-   "hero": "a6cf161ba527b0fc",
-   "lod0": "a7461087d6d7deb4",
-   "lod1": "a7461087d6d7deb4",
-   "lod2": "a7461087d6d7deb4"
+   "hero": "860cab1fe510597b",
+   "lod0": "d06244f79e491fc7",
+   "lod1": "d06244f79e491fc7",
+   "lod2": "d06244f79e491fc7"
   }
  },
  "state:aimRifle": {
@@ -391,12 +391,12 @@
  },
  "partner:moves": {
   "steps": 180,
-  "rig": "8f6ed924d4649828",
+  "rig": "799703856709aa63",
   "poser": {
-   "hero": "99ad2865ae02b55e",
-   "lod0": "6bf9b2d52091b39e",
-   "lod1": "6bf9b2d52091b39e",
-   "lod2": "6bf9b2d52091b39e"
+   "hero": "224d1d10268f115b",
+   "lod0": "b2da6cb3768600c5",
+   "lod1": "b2da6cb3768600c5",
+   "lod2": "b2da6cb3768600c5"
   }
  }
 }

@@ -165,6 +165,8 @@ export interface GlareLamp {
   on: boolean;
   destroyed: boolean;
   intensity: number;
+  /** (LR16-5) The live flicker multiplier (`LightDef.flicker`): 0 in a drop-out, 1 steady. */
+  flicker: number;
   fixture: { oy: number } | null;
 }
 
@@ -191,7 +193,7 @@ export function pickGlare(
   const cap = Math.min(out.length, score.length);
   for (let i = 0; i < lamps.length; i++) {
     const l = lamps[i]!;
-    if (l.kind === 'flashlight' || !l.on || l.destroyed || l.intensity <= 0) continue;
+    if (l.kind === 'flashlight' || !l.on || l.destroyed || l.intensity <= 0 || l.flicker <= 0) continue;
     const dx = l.x - cx;
     const dy = glareY(l) - cy;
     const dz = l.z - cz;
@@ -199,7 +201,7 @@ export function pickGlare(
     if (d2 > GLARE.range * GLARE.range || d2 < 1e-4) continue;
     const d = Math.sqrt(d2);
     if ((dx * fx + dy * fy + dz * fz) / d < GLARE.cosView) continue;
-    const s = Math.min(1.5, l.intensity) / Math.max(1, d);
+    const s = Math.min(1.5, l.intensity * l.flicker) / Math.max(1, d);
     // insertion into the best-first list
     let j = n < cap ? n++ : cap;
     if (j === cap && s <= score[cap - 1]!) continue;
@@ -215,7 +217,10 @@ export function pickGlare(
   return n;
 }
 
-/** A lamp's weight eased towards its target (0 or 1) over `GLARE.fade`. */
+/** (LR16-polish) A lamp's glare target: 0 when its light is blocked, else its live flicker (a tube in a drop-out loses its glare). */
+export const glareTarget = (blocked: boolean, flicker: number): number => (blocked ? 0 : flicker);
+
+/** A lamp's weight eased towards its target (0 to 1) over `GLARE.fade`. */
 export function easeGlare(w: number, target: number, dt: number): number {
   const k = Math.min(1, dt / GLARE.fade);
   return w + Math.max(-k, Math.min(k, target - w));

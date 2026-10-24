@@ -3,7 +3,7 @@
 //  - animation cost per character (rig evaluation, ms)
 //  - allocations per simulated second (sampling heap profiler, incl. collected objects) + top allocators
 //  - draw calls and real rendered frame pacing (SwiftShader: GPU timings are NOT representative)
-// Usage: [EXTRA=baked=0] node scripts/perf.mjs [url] [--json] [--budget] [--desktop] [--preset=low|medium|high|ultra|epic]
+// Usage: [MAP=campusOps MODE=sector] [EXTRA=baked=0] node scripts/perf.mjs [url] [--json] [--budget] [--desktop] [--preset=low|medium|high|ultra|epic]
 //   (--budget exits 1 when a CPU-side budget is missed)
 //   default: `?gfx=min` - the test-path regression check (the 2.x numbers)
 //   --desktop: `?gfx=epic` - the PC path (voxel characters and weapons, shadows, the post stack): main-thread CPU =
@@ -63,9 +63,11 @@ const BUDGET = GPU ? { ...CLOUD_BUDGET, ...LOCAL_BUDGET } : CLOUD_BUDGET;
 const stealth = !!process.env.STEALTH;
 // MAP=embassy: the embassy court (the same ten enemies)
 const MAP = process.env.MAP ?? 'warehouse';
+// MODE=sector (campusOps) / course (ctcourse): the map's own mode and guards; the ten-enemy scene is skipped
+const MODE = process.env.MODE;
 const { browser, page, errors } = await launch({
   url,
-  params: `autostart=${MAP}&mode=${stealth ? 'clear' : 'mission'}&debug=1${preset ? `&gfx=${preset}` : desktop ? '&gfx=epic' : ''}${process.env.WARM ? '&warm=' + process.env.WARM : ''}${process.env.EXTRA ? '&' + process.env.EXTRA : ''}`,
+  params: `autostart=${MAP}&mode=${MODE ?? (stealth ? 'clear' : 'mission')}&debug=1${preset ? `&gfx=${preset}` : desktop ? '&gfx=epic' : ''}${process.env.WARM ? '&warm=' + process.env.WARM : ''}${process.env.EXTRA ? '&' + process.env.EXTRA : ''}`,
   ...(desktop ? { viewport: { width: 640, height: 360 } } : {}),
 });
 if (heavy) await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 300000 });
@@ -78,10 +80,14 @@ if ((await waitOperator(page)) < 0) {
   process.exit(1);
 }
 await frames(page, 10);
-await page.evaluate((stealth) => {
+await page.evaluate(([stealth, own]) => {
   const app = window.__app;
   const g = app.current;
   g.target.damageMul = 0;
+  if (own) {
+    for (let i = 0; i < Number(new URLSearchParams(location.search).get('warm') ?? 16); i++) app.loop.stepHeadless(0.5, 120);
+    return;
+  }
   if (stealth) {
     g.mode.pending.length = 0;
     g.enemyMgr.clear();
@@ -103,7 +109,7 @@ await page.evaluate((stealth) => {
   // warm up long enough for the JIT to optimise the hot paths (boxed doubles in baseline code would
   // otherwise dominate the allocation profile)
   for (let i = 0; i < Number(new URLSearchParams(location.search).get("warm") ?? 16); i++) app.loop.stepHeadless(0.5, 120);
-}, stealth);
+}, [stealth, !!MODE]);
 
 // machine speed: a fixed pure-JS workload (vector / quaternion maths over typed arrays, like the anim and nav
 // loops). CPU budgets are in reference-machine ms (REF_MS: the workload on the VM the 2.3 budgets were set on) and

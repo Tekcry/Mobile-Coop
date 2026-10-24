@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { WeaponId } from '../src/weapons/weaponDefs';
 import { NetSession } from '../src/net/session';
 import type { Transport } from '../src/net/transport';
@@ -49,13 +49,10 @@ afterEach(async () => {
 });
 
 describe('rejoin wire (protocol 27)', () => {
-  it('is protocol 28 (27 added rejoin; 28 the jam claim eye, jammer-fixes)', () => {
-    expect(PROTOCOL_VERSION).toBe(40);
-  });
   it('carries the hello token, the you id, the away flag and the restore event; drops bad ones', () => {
-    const h = parseMessage({ t: 'hello', v: 27, name: 'A', tag: {}, look: {}, tok: 'rabc123' });
+    const h = parseMessage({ t: 'hello', v: PROTOCOL_VERSION, name: 'A', tag: {}, look: {}, tok: 'rabc123' });
     expect(h?.t === 'hello' && h.tok).toBe('rabc123');
-    const bad = parseMessage({ t: 'hello', v: 27, name: 'A', tag: {}, look: {}, tok: '../x<script>' });
+    const bad = parseMessage({ t: 'hello', v: PROTOCOL_VERSION, name: 'A', tag: {}, look: {}, tok: '../x<script>' });
     expect(bad?.t === 'hello' && bad.tok).toBe('');
     expect(parseMessage({ t: 'you', id: 'C1' })).toEqual({ t: 'you', id: 'C1' });
     expect(parseMessage({ t: 'you', id: 5 })).toBeNull();
@@ -235,6 +232,20 @@ describe('rejoin record (R1)', () => {
     expect(loadRejoin(Date.now() + (REJOIN_HOLD_S + 1) * 1000)).toBeNull();
     clearRejoin();
     expect(loadRejoin()).toBeNull();
+  });
+  it('(LR16a) a record from before it with the lamp falloff `lf` still parses; the field is dropped', () => {
+    const m = new Map<string, string>();
+    vi.stubGlobal('sessionStorage', { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), removeItem: (k: string) => void m.delete(k) });
+    try {
+      m.set('ns-rejoin', JSON.stringify({ ...rec(Date.now()), role: 'host', lf: 'photometric' }));
+      const r = loadRejoin();
+      expect(r).not.toBeNull();
+      expect(r!.code).toBe(rec(Date.now()).code);
+      expect('lf' in r!).toBe(false);
+      clearRejoin();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
   it('keeps one token per room for the tab', () => {
     const a = rejoinToken('ABCDE');

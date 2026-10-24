@@ -10,12 +10,13 @@
  * only drives its shadow map. Per frame nothing is allocated (render lists and uniforms refilled in place).
  */
 import { BaseTexture, Constants, EffectRenderer, EffectWrapper, ShadowGenerator, SpotLight, Texture, Vector3, Viewport, type AbstractMesh, type Observer, type RenderTargetWrapper, type Scene } from '../core/babylon';
-import { atlasSize, CHAR_SHADOW, coneCovers, FIT, fitCone, LampSlotPicker, tileX, tileY } from './charShadowSet';
+import { atlasSize, CHAR_SHADOW, CHAR_SHADOW_DISK, CHAR_SHADOW_KERNEL, charShadowEvery, charShadowTaps, casterInReach, coneCovers, doorSphere, FIT, fitCone, fittedSpheres, LampSlotPicker, spheresHold, tileX, tileY } from './charShadowSet';
 
 type RenderTargetTexture = NonNullable<ReturnType<ShadowGenerator['getShadowMap']>>;
 
-/** A layer bit no mesh carries: the slots' lights reach no mesh (no light, no sampler, no recompiles). */
-const NO_MESH_LAYER = 0x10000000;
+/** A layer bit no mesh carries: the slots' lights reach no mesh (no light, no sampler, no recompiles). (lrpolish: its own
+ *  bit, not `world.ts` PROXY_LAYER 0x10000000, so the spots do not "affect" the shadow proxies either.) */
+const NO_MESH_LAYER = 0x20000000;
 /** Caster spheres a slot's cone fit reads (the rest still draw into the map). */
 const MAX_SPHERES = 256;
 
@@ -28,7 +29,7 @@ export interface CharShadowLink {
   /** True when slot `s`'s map holds a character at (x, y, z) (its capsule is dropped for that lamp). */
   covers(s: number, x: number, y: number, z: number): boolean;
   /** Uniforms: per slot its view-projection (4 x vec4), its params (min z, min + max z, bias, valid), the atlas info
-   *  (tile px, tiles per row, atlas px, depth sign). */
+   *  (tile px, (LR16f) filter taps, atlas px, depth sign). */
   readonly mats: Float32Array;
   readonly params: Float32Array;
   readonly info: Float32Array;
@@ -38,10 +39,30 @@ export interface CharShadowLink {
 /** The baked lamps' side `CharShadows` reads: per lamp x, y, z, radius, and whether it gives light now. */
 export interface CharShadowLamps {
   readonly count: number;
-  /** x, y, z, radius per lamp (stride 4). */
+  /** x, y, z, radius per lamp (stride 4). (LR16-P F2) The baked lamps' radius is the shadow reach (`charShadowReach`):
+   *  the picker, the casters and the doors and props a slot draws stay within it. */
   readonly spheres: Float32Array;
+  /** (LR16-P F2) Per lamp its light's reach: the slot map's far plane, so every point the lamp lights stays inside the
+   *  map's depth range (a receiver past the far plane would read the cleared map as a blocker). Absent: the radius. */
+  readonly lightReach?: Float32Array;
   lampLit(i: number): boolean;
+  /** (LR16-5b) Per lamp: non-zero while it swings (it keeps its slot and its map is re-rendered every frame). */
+  readonly moving?: Uint8Array;
 }
+
+/** (LR16-3) The door registry's side `CharShadows` reads (`Doors`): the leaves' one thin-instanced mesh and each door. */
+export interface CharShadowDoors {
+  readonly leafMesh: AbstractMesh | null;
+  readonly list: readonly { open: number; ajar: number; anchor: { hinge: { x: number; y: number; z: number }; width: number; height: number } }[];
+}
+
+/** (LR16-3) The prop registry's side (`PropSystem`): each live prop's node position and its part meshes. */
+export interface CharShadowProps {
+  readonly props: readonly { alive: boolean; node: { position: { x: number; y: number; z: number } }; parts: readonly AbstractMesh[] }[];
+}
+
+/** (LR16-3) Bounding radius (m) of the biggest prop (a 1 m crate's half diagonal, rounded up). */
+const PROP_REACH = 0.9;
 
 interface CsSlot {
   light: SpotLight;
@@ -55,14 +76,21 @@ interface CsSlot {
   /** The fit placed now and the fit of the map in the tile. */
   fit: Float32Array;
   fitReady: Float32Array;
+  /** The casters' spheres this frame's fit read (x, y, z, r; `k` of them), and (lrpolish) the fitted ones of the map in
+   *  the tile (`kReady`): `covers` drops a capsule only for a caster the copied map was fitted around. */
+  sp: Float32Array;
+  k: number;
+  spReady: Float32Array;
+  kReady: number;
   /** Frames between refreshes (0: not rendering). */
   every: number;
   obs: Observer<RenderTargetTexture> | null;
   vp: Viewport;
 }
 
-/** The copy (GLSL): a shadow map into its tile, texel for texel. */
-const COPY_GLSL = `
+/** The copy (GLSL): a shadow map into its tile, texel for texel. It reads `gl_FragCoord` only, never the default vertex
+ *  shader's `vUV` (`copy()` skips the wrapper's `scale` uniform, which feeds only `vUV`; a test holds this). */
+export const COPY_GLSL = `
 precision highp float;
 uniform highp sampler2D csSrc;
 uniform vec2 csOrg;
@@ -70,14 +98,23 @@ void main(void) {
   gl_FragColor = vec4(texelFetch(csSrc, ivec2(gl_FragCoord.xy - csOrg), 0).r, 0.0, 0.0, 1.0);
 }`;
 
+/** The kernel as a GLSL array literal (fixed: the same taps every frame). */
+const DISK_GLSL = Array.from({ length: CHAR_SHADOW_KERNEL }, (_, i) => `vec2(${CHAR_SHADOW_DISK[i * 2]!.toFixed(4)}, ${CHAR_SHADOW_DISK[i * 2 + 1]!.toFixed(4)})`).join(', ');
+const F = (v: number): string => v.toFixed(4);
+
 /**
  * The lamp loop's test (GLSL, `LAMP_CSHADOW`): a point lit by lamp `lpos` against slot `s`'s map in the atlas -
- * normal offset, Babylon's shadow metric from the snapshotted view-projection, 2 x 2 bilinear PCF on texelFetch.
- * 1 lit, `floor` in shadow; 1 outside the slot's frustum.
+ * normal offset, Babylon's shadow metric from the snapshotted view-projection - then (LR16f) contact-hardening PCF:
+ * a blocker search over the first half of the fixed Poisson kernel, sized for the widest penumbra the lamp could give
+ * here (blockers at the slot's near plane); none found: lit, after the search taps only. Else the mean blocker depth
+ * gives the penumbra (`charPenumbra`: lamp radius x (receiver - blocker) / blocker, capped) and the kernel's first
+ * `lampCsI.y` taps (the preset's, `charShadowTaps`) filter over it (`charFilterTexels`). Feet on the floor: gap ~0,
+ * the 1-texel floor (sharp); the head's shadow: soft. 1 lit, `floor` in shadow; 1 outside the slot's frustum.
  */
 export const CHAR_SHADOW_GLSL = `
 #ifdef LAMP_CSHADOW
 uniform highp sampler2D lampCsAtlas;
+const vec2 CS_DISK[${CHAR_SHADOW_KERNEL}] = vec2[${CHAR_SHADOW_KERNEL}](${DISK_GLSL});
 float nsCharShadow(int s, vec3 p, vec3 gn, vec3 lpos) {
   vec4 P = lampCsP[s];
   if (P.w < 0.5) return 1.0;
@@ -90,17 +127,38 @@ float nsCharShadow(int s, vec3 p, vec3 gn, vec3 lpos) {
   float z = (lampCsI.w * c.z + P.x) / P.y - P.z;
   if (z <= 0.0) return 1.0;
   float T = lampCsI.x;
+  int n = int(lampCsI.y + 0.5);
+  int nb = n / 2;
   vec2 org = vec2(float(s - (s / 2) * 2), float(s / 2)) * T;
-  vec2 f = (uv * 0.5 + 0.5) * T - 0.5;
-  vec2 i0 = floor(f);
-  vec2 w = f - i0;
-  vec2 lo = clamp(i0, vec2(0.0), vec2(T - 1.0));
-  vec2 hi = clamp(i0 + 1.0, vec2(0.0), vec2(T - 1.0));
-  float a = step(z, texelFetch(lampCsAtlas, ivec2(org + lo), 0).r);
-  float b = step(z, texelFetch(lampCsAtlas, ivec2(org + vec2(hi.x, lo.y)), 0).r);
-  float d = step(z, texelFetch(lampCsAtlas, ivec2(org + vec2(lo.x, hi.y)), 0).r);
-  float e = step(z, texelFetch(lampCsAtlas, ivec2(org + hi), 0).r);
-  return mix(${CHAR_SHADOW.floor.toFixed(2)}, 1.0, mix(mix(a, b, w.x), mix(d, e, w.x), w.y));
+  vec2 f = (uv * 0.5 + 0.5) * T;
+  vec2 hiT = vec2(T - 1.0);
+  // (the metric's slope: 1 / (far - near) per metre; c.w: the receiver's depth from the lamp; sx = 1 / tan(half),
+  // the length of the view-projection's first row - the view is a rotation)
+  float span = max(P.y - 2.0 * P.x, 0.01);
+  float dr = c.w;
+  float sx = length(vec3(M[0][0], M[1][0], M[2][0]));
+  float tpm = 0.5 * T * sx / max(dr, ${F(CHAR_SHADOW.minNear)});
+  float nearB = max(P.x, ${F(CHAR_SHADOW.minNear)});
+  float sr = clamp(min(${F(CHAR_SHADOW.maxPenumbra)}, ${F(CHAR_SHADOW.lightRadius)} * max(dr - nearB, 0.0) / nearB) * tpm, ${F(CHAR_SHADOW.minTexels)}, ${F(CHAR_SHADOW.maxTexels)});
+  float zb = 0.0;
+  float nbk = 0.0;
+  for (int i = 0; i < ${CHAR_SHADOW_KERNEL / 2}; i++) {
+    if (i >= nb) break;
+    float d = texelFetch(lampCsAtlas, ivec2(org + clamp(floor(f + CS_DISK[i] * sr), vec2(0.0), hiT)), 0).r;
+    if (d < z) {
+      zb += d;
+      nbk += 1.0;
+    }
+  }
+  if (nbk < 0.5) return 1.0;
+  float db = clamp(dr - (z + P.z - zb / nbk) * span, nearB, max(dr, nearB));
+  float r = clamp(min(${F(CHAR_SHADOW.maxPenumbra)}, ${F(CHAR_SHADOW.lightRadius)} * (dr - db) / db) * tpm, ${F(CHAR_SHADOW.minTexels)}, ${F(CHAR_SHADOW.maxTexels)});
+  float lit = 0.0;
+  for (int i = 0; i < ${CHAR_SHADOW_KERNEL}; i++) {
+    if (i >= n) break;
+    lit += step(z, texelFetch(lampCsAtlas, ivec2(org + clamp(floor(f + CS_DISK[i] * r), vec2(0.0), hiT)), 0).r);
+  }
+  return mix(${CHAR_SHADOW.floor.toFixed(2)}, 1.0, lit / float(max(n, 1)));
 }
 #endif
 `;
@@ -118,11 +176,18 @@ export class CharShadows implements CharShadowLink {
   private slots: CsSlot[] = [];
   private readonly lit: Uint8Array;
   private readonly focus = new Float32Array(6);
-  private readonly spheres = new Float32Array(MAX_SPHERES * 4);
+  /** (lrpolish LR14 polish 1) A lost context comes back with a blank atlas: every slot reads as not ready until it
+   *  copies again. */
+  private restoreObs: Observer<ReturnType<Scene['getEngine']>> | null = null;
   /** The configured spec (`charLamps:charTile`). */
   private key = '';
   private tile = 0;
   private governorEvery = 1;
+  /** (LR16-7) The tier's least refresh interval (`charShadowEvery`: Low / Medium 2). */
+  private baseEvery = 1;
+  /** (LR16-3) Doors and props whose shapes join a slot's casters when in its lamp's reach (set by `world.ts`). */
+  private doors: CharShadowDoors | null = null;
+  private dynProps: CharShadowProps | null = null;
   /** Shadow maps copied into the atlas so far (tests, the debug line). */
   copies = 0;
   /** The map's metric with a reversed depth buffer runs the other way. */
@@ -131,12 +196,18 @@ export class CharShadows implements CharShadowLink {
   constructor(
     private scene: Scene,
     private lamps: CharShadowLamps,
-    /** The character casters (`World.charCasters`): players, guards, bodies, weapons and gear; no props, no level. */
+    /** The character casters (`World.charCasters`): players, guards, bodies, weapons and gear (LR16-3: doors and props join through `setDynamic`); no level. */
     private casters: readonly AbstractMesh[],
   ) {
     this.lampSlot = new Int8Array(lamps.count).fill(-1);
     this.lit = new Uint8Array(lamps.count);
     this.depthSign = scene.getEngine().useReverseDepthBuffer ? -1 : 1;
+  }
+
+  /** (LR16-3) Door leaves (open or moving) and props also cast into the slot maps; render-only, the light field is untouched. */
+  setDynamic(doors: CharShadowDoors | null, props: CharShadowProps | null): void {
+    this.doors = doors;
+    this.dynProps = props;
   }
 
   get on(): boolean {
@@ -161,8 +232,10 @@ export class CharShadows implements CharShadowLink {
     this.lampSlot.fill(-1);
     if (n === 0) return;
     this.tile = tile;
+    this.baseEvery = charShadowEvery(n, tile);
     const engine = this.scene.getEngine();
-    const size = atlasSize(tile);
+    // (LR16-7: one slot - Low / Medium - the atlas is that one tile)
+    const size = atlasSize(tile, n);
     const caps = engine.getCaps();
     this.rt = engine.createRenderTargetTexture(
       { width: size, height: size },
@@ -174,13 +247,25 @@ export class CharShadows implements CharShadowLink {
     this.renderer = new EffectRenderer(engine);
     this.wrapper = new EffectWrapper({ engine, name: 'charShadowCopy', fragmentShader: COPY_GLSL, uniformNames: ['csOrg'], samplerNames: ['csSrc'] });
     this.info[0] = tile;
-    this.info[1] = 2;
+    // (LR16f: the shader hard-codes the 2 x 2 tile layout; this lane carries the preset's filter taps)
+    this.info[1] = charShadowTaps(n, tile);
     this.info[2] = size;
     this.info[3] = this.depthSign;
-    for (let s = 0; s < n; s++) this.slots.push(this.makeSlot(s, tile));
+    for (let s = 0; s < n; s++) this.slots.push(this.makeSlot(s, tile, size));
+    this.restoreObs = engine.onContextRestoredObservable.add(() => this.invalidate());
   }
 
-  private makeSlot(s: number, tile: number): CsSlot {
+  /** Every slot's tile as empty (a restored context's blank atlas): capsules until each map copies again. */
+  private invalidate(): void {
+    for (let s = 0; s < this.slots.length; s++) {
+      this.slots[s]!.ready = -1;
+      this.slots[s]!.kReady = 0;
+      this.params[s * 4 + 3] = 0;
+    }
+    this.lampSlot.fill(-1);
+  }
+
+  private makeSlot(s: number, tile: number, size: number): CsSlot {
     const light = new SpotLight(`charshadow-${s}`, new Vector3(0, -50, 0), new Vector3(0, -1, 0), 1, 1, this.scene);
     light.includeOnlyWithLayerMask = NO_MESH_LAYER;
     light.intensity = 0;
@@ -197,7 +282,7 @@ export class CharShadows implements CharShadowLink {
     // (an empty list of its own, never filled: the casters come from `getCustomRenderList`)
     map.renderList = [];
     map.refreshRate = 0;
-    const slot: CsSlot = { light, sg, map, list: [], lamp: -1, ready: -1, fit: new Float32Array(FIT.size), fitReady: new Float32Array(FIT.size), every: 0, obs: null, vp: new Viewport(tileX(s, tile) / atlasSize(tile), tileY(s, tile) / atlasSize(tile), 0.5, 0.5) };
+    const slot: CsSlot = { light, sg, map, list: [], lamp: -1, ready: -1, fit: new Float32Array(FIT.size), fitReady: new Float32Array(FIT.size), sp: new Float32Array(MAX_SPHERES * 4), k: 0, spReady: new Float32Array(MAX_SPHERES * 4), kReady: 0, every: 0, obs: null, vp: new Viewport(tileX(s, tile) / size, tileY(s, tile) / size, tile / size, tile / size) };
     map.getCustomRenderList = () => slot.list;
     // (after the generator's own observer, which restores the camera's matrices)
     slot.obs = map.onAfterUnbindObservable.add(() => this.copy(s));
@@ -227,7 +312,7 @@ export class CharShadows implements CharShadowLink {
     f[3] = cx;
     f[4] = cy;
     f[5] = cz;
-    this.picker.update(L.spheres, this.lit, n, f, 2, dt);
+    this.picker.update(L.spheres, this.lit, n, f, 2, dt, L.moving ?? null);
     const ls = this.lampSlot;
     ls.fill(-1);
     for (let s = 0; s < slots.length; s++) {
@@ -243,7 +328,7 @@ export class CharShadows implements CharShadowLink {
         this.setEvery(slot, 0);
         continue;
       }
-      this.setEvery(slot, this.picker.refreshEvery(s, this.governorEvery));
+      this.setEvery(slot, this.picker.refreshEvery(s, this.governorEvery, this.baseEvery));
       if (slot.ready === lamp) ls[lamp] = s;
     }
   }
@@ -256,7 +341,7 @@ export class CharShadows implements CharShadowLink {
     const lz = S[lamp * 4 + 2]!;
     const reach = S[lamp * 4 + 3]!;
     const cs = this.casters;
-    const sp = this.spheres;
+    const sp = slot.sp;
     let k = 0;
     for (let i = 0; i < cs.length; i++) {
       const m = cs[i]!;
@@ -278,7 +363,13 @@ export class CharShadows implements CharShadowLink {
         k++;
       }
     }
-    if (!k || !fitCone(lx, ly, lz, sp, k, slot.fit)) {
+    // (characters only: `covers` and the copied map's spheres read the first `k`)
+    slot.k = k;
+    if (!k) return false;
+    // (LR16 fix, LR16-3: the doors' and props' spheres follow the characters' in `sp` and join the fit, so the cone,
+    // near and far planes frame their whole shadow within reach - not clipped at a frustum fitted to the guards)
+    const n = this.addDynamic(slot, lx, ly, lz, reach, k);
+    if (!fitCone(lx, ly, lz, sp, n, slot.fit)) {
       slot.list.length = 0;
       return false;
     }
@@ -289,11 +380,66 @@ export class CharShadows implements CharShadowLink {
     const angle = fit[FIT.half]! * 2;
     if (light.angle !== angle) light.angle = angle;
     const near = fit[FIT.near]!;
-    const far = Math.max(near + 0.5, reach + 0.5);
+    // (LR16-P F2: the far plane stays at the light's reach, past the shadow reach the casters are listed within)
+    const far = Math.max(near + 0.5, (this.lamps.lightReach?.[lamp] ?? reach) + 0.5);
     if (light.shadowMinZ !== near) light.shadowMinZ = near;
     if (light.shadowMaxZ !== far) light.shadowMaxZ = far;
     return true;
   }
+
+  /**
+   * (LR16-3) The door leaves (open, moving or cracked) and the props within the lamp's reach join the render list, so a
+   * leaf or a pushed / carried crate throws its shape onto the characters and the floor. (LR16 fix) Their bounding
+   * spheres go into `slot.sp` after the `k` characters' (`doorSphere`, a prop: its node + `PROP_REACH`) for the
+   * cone fit only - `covers` still reads the characters. Returns the spheres to fit. Allocation-free (indexed loops,
+   * no closures).
+   */
+  private addDynamic(slot: CsSlot, lx: number, ly: number, lz: number, reach: number, k: number): number {
+    const sp = slot.sp;
+    const ds = this.doorSp;
+    const doors = this.doors;
+    const leaf = doors?.leafMesh;
+    if (doors && leaf && leaf.isVisible && leaf.isEnabled()) {
+      const dl = doors.list;
+      let listed = false;
+      for (let i = 0; i < dl.length; i++) {
+        const d = dl[i]!;
+        if (d.open <= 0 && d.ajar <= 0) continue;
+        doorSphere(d.anchor, ds);
+        if (!casterInReach(lx, ly, lz, reach, ds[0]!, ds[1]!, ds[2]!, ds[3]!)) continue;
+        // (one thin-instanced mesh holds every leaf: listed once, each open leaf's sphere fitted)
+        if (!listed) slot.list.push(leaf);
+        listed = true;
+        if (k < MAX_SPHERES) sp.set(ds, k++ * 4);
+      }
+    }
+    const pr = this.dynProps?.props;
+    if (!pr) return k;
+    for (let i = 0; i < pr.length; i++) {
+      const p = pr[i]!;
+      if (!p.alive) continue;
+      const q = p.node.position;
+      if (!casterInReach(lx, ly, lz, reach, q.x, q.y, q.z, PROP_REACH)) continue;
+      const parts = p.parts;
+      let any = false;
+      for (let j = 0; j < parts.length; j++) {
+        const m = parts[j]!;
+        if (m.isEnabled() && m.isVisible) {
+          slot.list.push(m);
+          any = true;
+        }
+      }
+      if (any && k < MAX_SPHERES) {
+        sp[k * 4] = q.x;
+        sp[k * 4 + 1] = q.y;
+        sp[k * 4 + 2] = q.z;
+        sp[k * 4 + 3] = PROP_REACH;
+        k++;
+      }
+    }
+    return k;
+  }
+  private readonly doorSp = new Float32Array(4);
 
   private setEvery(slot: CsSlot, every: number): void {
     if (slot.every === every) return;
@@ -312,7 +458,16 @@ export class CharShadows implements CharShadowLink {
     r.saveStates();
     engine.bindFramebuffer(this.rt, 0, undefined, undefined, true);
     r.setViewport(slot.vp);
-    r.applyEffectWrapper(w);
+    // (lrpolish: `applyEffectWrapper` without its `onApplyObservable.notifyObservers({})`, one object per call. (lr16pol
+    // E) What that skips, both safe here: the wrapper's `setFloat2('scale', 1, 1)`, which feeds only the default vertex
+    // shader's `vUV` - `COPY_GLSL` never reads `vUV`, it reads `gl_FragCoord` - and `bind()`, a no-op for this wrapper
+    // (not `useAsPostProcess`, so no default bindings; no shader-code processing is registered for `charShadowCopy`).
+    // A copy shader that reads `vUV` must set `scale` itself.)
+    engine.setState(true);
+    engine.depthCullingState.depthTest = false;
+    engine.stencilState.stencilTest = false;
+    engine.enableEffect(w.drawWrapper);
+    r.bindBuffers(w.effect);
     w.effect.setTexture('csSrc', slot.map);
     w.effect.setFloat2('csOrg', tileX(s, this.tile), tileY(s, this.tile));
     r.draw();
@@ -328,6 +483,9 @@ export class CharShadows implements CharShadowLink {
     p[s * 4 + 2] = CHAR_SHADOW.bias / Math.max(0.01, hi - lo);
     p[s * 4 + 3] = 1;
     slot.fitReady.set(slot.fit);
+    const S = this.lamps.spheres;
+    const l = slot.lamp;
+    slot.kReady = fittedSpheres(S[l * 4]!, S[l * 4 + 1]!, S[l * 4 + 2]!, slot.sp, slot.k, slot.spReady);
     slot.ready = slot.lamp;
     this.copies++;
   }
@@ -335,6 +493,9 @@ export class CharShadows implements CharShadowLink {
   covers(s: number, x: number, y: number, z: number): boolean {
     const slot = this.slots[s];
     if (!slot || slot.ready < 0) return false;
+    // (lrpolish LR14 polish 4-6) only a caster the copied map was fitted around: one the fit skipped (the lamp inside
+    // its sphere), one past MAX_SPHERES, or one newly in reach since the copy keeps its capsule
+    if (!spheresHold(slot.spReady, slot.kReady, x, y, z)) return false;
     const f = slot.fitReady;
     if (!f[FIT.partial]) return true;
     const S = this.lamps.spheres;
@@ -348,6 +509,8 @@ export class CharShadows implements CharShadowLink {
   }
 
   private disposeSlots(): void {
+    if (this.restoreObs) this.scene.getEngine().onContextRestoredObservable.remove(this.restoreObs);
+    this.restoreObs = null;
     for (const s of this.slots) {
       if (s.obs) s.map.onAfterUnbindObservable.remove(s.obs);
       s.sg.dispose();
