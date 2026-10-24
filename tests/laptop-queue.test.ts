@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, flakeStands, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, trainSoon, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, flakeStands, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, trainSoon, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest } from '../scripts/laptop-queue/lib.mjs';
+// @ts-expect-error plain .mjs module without types
+import { selectSuites, WIDE_COVERS } from '../scripts/e2e-affected.mjs';
 
 const NOW = Date.UTC(2026, 9, 23, 20, 0, 0);
 const idAt = (min: number, tag: string): string => {
@@ -791,5 +793,70 @@ describe('buildMarker', () => {
   it('the key changes per marker (logged once each)', () => {
     expect(buildMarker(text(5), NaN, NOW, MAX)?.key).not.toBe(buildMarker(text(4), NaN, NOW, MAX)?.key);
     expect(buildMarker(text(5), NaN, NOW + 1000, MAX)?.key).toBe(buildMarker(text(5), NaN, NOW, MAX)?.key);
+  });
+});
+
+describe('affected e2e on every PR head', () => {
+  const SHA = (c: string) => c.repeat(40);
+  const pr = (n: number, o: Record<string, unknown> = {}) => ({ number: n, headRefName: `feature/p${n}`, headRefOid: SHA(String(n % 10)), isDraft: false, labels: [], statusCheckRollup: [], ...o });
+
+  it('affectedSuites: merge-base diff through the DIRECT map, wide through WIDE, null on a git failure', () => {
+    const calls: string[][] = [];
+    const run = (files: string) => (args: string[]) => { calls.push(args); return args[0] === 'merge-base' ? 'b'.repeat(40) : files; };
+    const got = affectedSuites(run('docs/x.md\nsrc/game/sectors/a.ts\n'), SHA('1'));
+    expect(calls).toEqual([['merge-base', 'origin/master', SHA('1')], ['diff', '--name-only', '--no-renames', 'b'.repeat(40), SHA('1')]]);
+    expect(got.files).toEqual(['docs/x.md', 'src/game/sectors/a.ts']);
+    expect(got.suites).toContain('smoke');
+    expect(got.suites).toContain('e2e-sectorops');
+    expect(affectedSuites(run('docs/a.md\ntests/b.test.ts'), SHA('1')).suites).toEqual([]);
+    expect(affectedSuites(run(''), SHA('1')).suites).toEqual([]);
+    expect(affectedSuites(() => { throw new Error('no'); }, SHA('1'))).toBeNull();
+    expect(affectedSuites(() => '', SHA('1'))).toBeNull();
+    const wide = affectedSuites(run('src/game/sectors/a.ts'), SHA('1'), { wide: true });
+    expect(wide.suites).toEqual(selectSuites(['src/game/sectors/a.ts'], WIDE_COVERS));
+  });
+  it('affectedNeeds: skips trains, drafts, the skip label, heads with a status, open requests and enqueued shas', () => {
+    const prs = [
+      pr(1),
+      pr(2, { headRefName: 'train/66' }),
+      pr(3, { isDraft: true }),
+      pr(4, { labels: [{ name: AFFECTED_SKIP_LABEL }] }),
+      pr(5, { statusCheckRollup: [{ context: AFFECTED_CTX, state: 'PENDING' }] }),
+      pr(6, { statusCheckRollup: [{ name: 'check', conclusion: 'SUCCESS' }, { context: 'laptop-e2e/affected', state: 'SUCCESS' }] }),
+      pr(7),
+      pr(8),
+      pr(9, { headRefOid: 'not-a-sha' }),
+    ];
+    const open = [{ requester: AFFECTED_REQUESTER, sha: SHA('7') }, { requester: 'lead', sha: SHA('8') }];
+    expect(affectedNeeds(prs, open, new Set([SHA('1')]))).toEqual([
+      { pr: 6, sha: SHA('6'), branch: 'feature/p6' },
+      { pr: 8, sha: SHA('8'), branch: 'feature/p8' },
+    ]);
+    expect(affectedNeeds([pr(1)]).map((x: { pr: number }) => x.pr)).toEqual([1]);
+  });
+  it('affectedRequest: the request.mjs --affected shape, valid for requestProblem', () => {
+    const r = affectedRequest({ now: NOW, pr: 12, sha: SHA('a'), branch: 'feature/x', suites: ['smoke', 'e2e-coop'], suffix: 'beef' });
+    expect(r).toEqual({ id: `20261023T200000-affected-e2e-aaaaaaaa-beef`, sha: SHA('a'), branch: 'feature/x', pr: 12, kind: 'pr', requester: AFFECTED_REQUESTER, suites: ['smoke', 'e2e-coop'], set: 'affected', note: 'auto affected-e2e, PR #12' });
+    expect(requestProblem(r)).toBe('');
+    expect(contextName(r.kind, r.set, r.suites)).toBe('laptop-e2e/affected');
+  });
+  it('supersede: a newer head on the same branch retires the older, another PR never does', () => {
+    const a = (min: number, tag: string, branch: string, sha: string) => ({ id: idAt(min, tag), requester: AFFECTED_REQUESTER, kind: 'pr', set: 'affected', sha, branch, suites: ['smoke'] });
+    const old = a(30, 'o', 'feature/x', SHA('1'));
+    const other = a(20, 'p', 'feature/y', SHA('2'));
+    const newer = a(10, 'n', 'feature/x', SHA('3'));
+    const m = superseded([old, other, newer], () => false);
+    expect([...m]).toEqual([[old.id, newer.id]]);
+    expect(superseded([old, other], () => true).size).toBe(0);
+    expect(queueRequester(old)).toBe('affected-e2e:feature/x');
+    expect(queueRequester({ requester: 'lead', branch: 'feature/x' })).toBe('lead');
+  });
+  it('pick: each PR branch queues as its own requester (arrival order kept with the leads)', () => {
+    const a = (min: number, tag: string, branch: string) => ({ id: idAt(min, tag), requester: AFFECTED_REQUESTER, kind: 'pr', branch });
+    const x1 = a(50, 'x1', 'feature/x');
+    const lead = req(40, 'pr', 'l1', 'Lead');
+    const y1 = a(30, 'y1', 'feature/y');
+    expect(pick({ trains: [], requests: [y1, lead, x1] }, NOW, slots(false, false))?.request).toBe(x1);
+    expect(pick({ trains: [], requests: [y1, lead] }, NOW, slots(false, false))?.request).toBe(lead);
   });
 });

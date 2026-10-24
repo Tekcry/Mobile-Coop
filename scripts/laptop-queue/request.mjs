@@ -14,8 +14,7 @@ import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { requestId, requestProblem } from './lib.mjs';
-import { selectSuites, DIRECT_COVERS, WIDE_COVERS } from '../e2e-affected.mjs';
+import { affectedSuites, requestId, requestProblem } from './lib.mjs';
 
 const argv = process.argv.slice(2);
 const opts = { step: [], env: [] };
@@ -52,11 +51,11 @@ const sha = (isRef && !opts.sha.startsWith('origin/') ? resolve(`origin/${opts.s
 if (!sha) { console.error(`cannot resolve ${opts.sha}`); process.exit(1); }
 
 /** --affected: the suites for the committed diff from the merge-base with origin/master to sha. */
-function affectedSuites() {
-  const mb = git(['merge-base', 'origin/master', sha], { soft: true });
-  if (!mb) { console.error(`--affected: no merge-base between origin/master and ${sha}`); process.exit(1); }
-  const files = git(['diff', '--name-only', '--no-renames', mb, sha]).split('\n').map((f) => f.trim()).filter(Boolean);
-  const suites = selectSuites(files, opts.wide ? WIDE_COVERS : DIRECT_COVERS);
+function prSuites() {
+  // lib affectedSuites: the same selection the service's affected pass makes for every PR head
+  const got = affectedSuites((args) => git(args), sha, { wide: Boolean(opts.wide) });
+  if (!got) { console.error(`--affected: no merge-base between origin/master and ${sha} (or git diff failed)`); process.exit(1); }
+  const { files, suites } = got;
   console.error(`affected${opts.wide ? ' (wide)' : ''}: ${files.length} changed file(s), ${suites.length} suite(s): ${suites.join(' ') || '-'}`);
   if (!suites.length) { console.error('--affected: no browser suite reached (docs / unit tests only): nothing to request'); process.exit(1); }
   return suites;
@@ -68,7 +67,7 @@ const requester = opts.requester ?? 'unknown';
 const id = `${requestId(Date.now(), requester, sha)}-${randomBytes(2).toString('hex')}`;
 const kind = opts.alone ? 'alone' : opts.full ? 'full' : 'pr';
 const req = { id, sha, branch, pr: opts.pr ? Number(opts.pr) : null, kind, requester };
-if (kind === 'pr') req.suites = opts.affected ? affectedSuites() : String(opts.suites ?? '').split(/\s+/).filter(Boolean);
+if (kind === 'pr') req.suites = opts.affected ? prSuites() : String(opts.suites ?? '').split(/\s+/).filter(Boolean);
 if (opts['train-rerun']) req.trainRerun = true;
 if (kind === 'alone') {
   req.steps = opts.step;

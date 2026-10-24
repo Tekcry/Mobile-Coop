@@ -1,5 +1,7 @@
 // Laptop queue (docs/laptop-queue/PLAN.md): the pure logic, no fs, no child_process, no network. service.mjs (the loop)
-// and request.mjs (the desktop CLI) import it; tests/laptop-queue.test.ts covers it.
+// and request.mjs (the desktop CLI) import it; tests/laptop-queue.test.ts covers it. e2e-affected.mjs is pure too (the
+// suite selection affectedSuites shares with request.mjs --affected).
+import { selectSuites, DIRECT_COVERS, WIDE_COVERS } from '../e2e-affected.mjs';
 
 /**
  * Minutes an alone-measurement may wait before it goes ahead of PR suites (BRIEF A5; 45 -> 30, Orchestrator audit
@@ -107,6 +109,7 @@ export function desktopSlotGate(s) {
  * aged, so it runs as soon as the trains and their reruns leave both slots idle.
  * Among pr / full requests the requester goes by arrival (the requester whose OLDEST open request has the smallest id),
  * and that requester's NEWEST non-alone request runs (older ones are stale; superseded() normally retires them).
+ * The auto affected-e2e requests queue one requester per branch (queueRequester), so PRs take turns with the leads.
  */
 export function pick(queue, now, slots) {
   const idle = slots.filter((s) => !s.busy);
@@ -126,9 +129,9 @@ export function pick(queue, now, slots) {
   if (aged) return bothIdle ? { kind: 'alone', request: aged } : null;
   const nonAlone = reqs.filter((r) => r.kind !== 'alone');
   const newest = new Map(); // requester -> its newest request (reqs is sorted, so the last wins)
-  for (const r of nonAlone) newest.set(r.requester ?? '', r);
+  for (const r of nonAlone) newest.set(queueRequester(r) ?? '', r);
   const first = nonAlone[0]; // the oldest request overall belongs to the requester who has waited longest
-  const next = first ? newest.get(first.requester ?? '') : undefined;
+  const next = first ? newest.get(queueRequester(first) ?? '') : undefined;
   if (next && idle[0]) return { kind: 'request', request: next, slot: idle[0].port };
   if (!next && alone[0] && bothIdle) return { kind: 'alone', request: alone[0] };
   return null;
@@ -156,6 +159,8 @@ const suiteBase = (s) => String(s).replace(/:.*$/, '');
  * covers every suite of R ('full': always; 'pr': ":part" suffixes ignored). Two different non-empty sets never
  * supersede (deliberate configurations, e.g. a flag off / on pair); nor does a request with no requester, nor a pinned
  * one (`pin: true`, request.mjs --pin: an A/B or baseline run kept on purpose; it may still supersede older ones).
+ * The auto affected-e2e requests (requester AFFECTED_REQUESTER, set 'affected') compare per branch (queueRequester): a
+ * newer head of the same PR branch supersedes the older one (rebased or not), another PR's never does.
  */
 export function superseded(requests, isAncestor) {
   const reqs = [...requests].sort(sortById);
@@ -166,7 +171,7 @@ export function superseded(requests, isAncestor) {
     if (!r.requester || r.requester === 'unknown') return;
     for (let j = reqs.length - 1; j > i; j--) {
       const n = reqs[j];
-      if (n.id === r.id || n.requester !== r.requester || n.kind !== r.kind || Boolean(n.trainRerun) !== Boolean(r.trainRerun)) continue;
+      if (n.id === r.id || queueRequester(n) !== queueRequester(r) || n.kind !== r.kind || Boolean(n.trainRerun) !== Boolean(r.trainRerun)) continue;
       const rSet = typeof r.set === 'string' && r.set !== '' ? r.set : '';
       const nSet = typeof n.set === 'string' && n.set !== '' ? n.set : '';
       if (rSet && nSet && rSet !== nSet) continue;
@@ -609,4 +614,71 @@ export function staleTasks(tasks, allow) {
     if (why) out.push({ name, path: t.path ?? '\\', state: t.state, why });
   }
   return out;
+}
+
+// ---------- affected e2e on every PR head (process audit 2026-10-24, finding 5) ----------
+
+/** The requester (and request id slug) of the requests the laptop service enqueues for PR heads by itself. */
+export const AFFECTED_REQUESTER = 'affected-e2e';
+/** The commit status context the affected pass posts on a PR head (beside the request's own laptop-e2e/affected). */
+export const AFFECTED_CTX = 'affected-e2e';
+/** A PR with this label gets no automatic affected request (a lead's own requests still run). */
+export const AFFECTED_SKIP_LABEL = 'no-affected-e2e';
+
+/**
+ * The requester a request queues under (pick's turn order, superseded's "same requester"): an auto affected request
+ * queues per PR branch ("affected-e2e:<branch>"), any other request under its own requester.
+ */
+export function queueRequester(r) {
+  return r?.requester === AFFECTED_REQUESTER ? `${AFFECTED_REQUESTER}:${r.branch ?? ''}` : r?.requester;
+}
+
+/**
+ * The suites a committed change must pass, shared by request.mjs --affected and the service's affected pass: the files
+ * from the merge-base of `base` and sha to sha (`git diff --name-only --no-renames`), through e2e-affected selectSuites
+ * (DIRECT_COVERS; wide: WIDE_COVERS). run(args) runs git and returns its stdout (injected: this file stays pure); it must
+ * throw on failure (a failed diff read as "no files" would pass the head). Returns { base: merge-base, files, suites },
+ * or null when there is no merge-base or git failed; suites [] = no browser suite reached (docs / unit only).
+ */
+export function affectedSuites(run, sha, { base = 'origin/master', wide = false } = {}) {
+  let mb;
+  let out;
+  try {
+    mb = String(run(['merge-base', base, sha]) ?? '').trim();
+    if (!mb) return null;
+    out = String(run(['diff', '--name-only', '--no-renames', mb, sha]) ?? '');
+  } catch { return null; }
+  const files = out.split(/\r?\n/).map((f) => f.trim()).filter(Boolean);
+  return { base: mb, files, suites: selectSuites(files, wide ? WIDE_COVERS : DIRECT_COVERS) };
+}
+
+/**
+ * The open PR heads the affected pass must handle now: [{ pr, sha, branch }], PR order kept. prs = `gh pr list --json
+ * number,headRefName,headRefOid,isDraft,labels,statusCheckRollup` rows. Skipped: a train/* branch, a draft, the
+ * AFFECTED_SKIP_LABEL label, a head with any affected-e2e status already (its StatusContext in the rollup: pending,
+ * success or failure), a head an affected request already names (`requests`: the open, claimed or running ones), and
+ * one this process enqueued (`seen`, a Set of shas: the push the next listing has not caught up with).
+ */
+export function affectedNeeds(prs, requests = [], seen = new Set()) {
+  const have = new Set((requests ?? []).filter((r) => r?.requester === AFFECTED_REQUESTER).map((r) => r.sha));
+  const out = [];
+  for (const p of prs ?? []) {
+    const sha = String(p?.headRefOid ?? '');
+    const branch = String(p?.headRefName ?? '');
+    if (!/^[0-9a-f]{40}$/.test(sha) || !branch || branch.startsWith('train/') || p.isDraft) continue;
+    if ((p.labels ?? []).some((l) => (typeof l === 'string' ? l : l?.name) === AFFECTED_SKIP_LABEL)) continue;
+    if ((p.statusCheckRollup ?? []).some((s) => s?.context === AFFECTED_CTX)) continue;
+    if (have.has(sha) || seen.has(sha)) continue;
+    out.push({ pr: Number(p.number), sha, branch });
+  }
+  return out;
+}
+
+/**
+ * The request the affected pass enqueues for a PR head: the shape request.mjs --affected writes (kind pr, set
+ * 'affected', so its own context is laptop-e2e/affected), requester AFFECTED_REQUESTER, the PR number (the failure
+ * comment goes there). suffix = 4 random hex (injected), as request.mjs adds.
+ */
+export function affectedRequest({ now, pr, sha, branch, suites, suffix }) {
+  return { id: `${requestId(now, AFFECTED_REQUESTER, sha)}-${suffix}`, sha, branch, pr: Number(pr), kind: 'pr', requester: AFFECTED_REQUESTER, suites: [...suites], set: 'affected', note: `auto affected-e2e, PR #${pr}` };
 }
