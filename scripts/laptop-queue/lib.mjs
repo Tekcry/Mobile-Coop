@@ -56,6 +56,7 @@ export function requestProblem(r) {
   if (r.kind === 'pr' && !strings(r.suites)) return 'pr request needs suites';
   if (r.kind === 'alone' && !strings(r.steps)) return 'alone request needs steps';
   if (r.trainRerun && (r.kind !== 'pr' || !(Number(r.pr) > 0))) return 'train rerun needs kind pr and a pr number';
+  if (r.laptopRerun && r.kind !== 'pr') return 'laptop rerun needs kind pr';
   return '';
 }
 
@@ -159,6 +160,7 @@ const suiteBase = (s) => String(s).replace(/:.*$/, '');
  * covers every suite of R ('full': always; 'pr': ":part" suffixes ignored). Two different non-empty sets never
  * supersede (deliberate configurations, e.g. a flag off / on pair); nor does a request with no requester, nor a pinned
  * one (`pin: true`, request.mjs --pin: an A/B or baseline run kept on purpose; it may still supersede older ones).
+ * A laptop rerun (`laptopRerun`, a desktop failure handed to the laptop) supersedes nothing; a newer head may supersede it.
  * The auto affected-e2e requests (requester AFFECTED_REQUESTER, set 'affected') compare per branch (queueRequester): a
  * newer head of the same PR branch supersedes the older one (rebased or not), another PR's never does.
  */
@@ -172,6 +174,7 @@ export function superseded(requests, isAncestor) {
     for (let j = reqs.length - 1; j > i; j--) {
       const n = reqs[j];
       if (n.id === r.id || queueRequester(n) !== queueRequester(r) || n.kind !== r.kind || Boolean(n.trainRerun) !== Boolean(r.trainRerun)) continue;
+      if (n.laptopRerun) continue; // a laptop rerun rechecks an older run's failure: it never retires another request
       const rSet = typeof r.set === 'string' && r.set !== '' ? r.set : '';
       const nSet = typeof n.set === 'string' && n.set !== '' ? n.set : '';
       if (rSet && nSet && rSet !== nSet) continue;
@@ -192,6 +195,15 @@ export function superseded(requests, isAncestor) {
  * weight (lib shard, unknown suites at the median), so 1 = due to finish now. NaN when nothing is known.
  */
 export function runProgress(suites, times, jobs, elapsedMs) {
+  const wallS = expectedWallS(suites, times, jobs);
+  return wallS > 0 ? elapsedMs / (wallS * 1000) : NaN;
+}
+
+/**
+ * A run's expected wall in s: the heaviest of `jobs` bins of its suites by times.json weight (runProgress's
+ * denominator; a train posts it per shard as "expect ~N s" for auto-train's late poll). NaN when unknown.
+ */
+export function expectedWallS(suites, times, jobs) {
   if (!(suites ?? []).length || !Object.keys(times ?? {}).length) return NaN;
   // a named suite runs as its parts (e2e-desktop -> e2e-desktop:1..4, the keys times.json holds); a suite with no time
   // at all makes the estimate unknown (NaN: cut as before), never a 1 s guess (checker FIX)
@@ -204,7 +216,7 @@ export function runProgress(suites, times, jobs, elapsedMs) {
   }
   const bins = shard(parts, times, Math.max(1, Number(jobs) || 1));
   const wallS = Math.max(...bins.map((b) => b.weight));
-  return wallS > 0 ? elapsedMs / (wallS * 1000) : NaN;
+  return wallS > 0 ? wallS : NaN;
 }
 
 /**
@@ -275,7 +287,9 @@ export function dupKey(r) {
   const env = Object.entries(r.env ?? {}).map(([k, v]) => `${k}=${v}`).sort();
   const what = r.kind === 'alone' ? r.steps ?? [] : r.kind === 'pr' ? [...(r.suites ?? [])].sort() : [];
   const opt = (v) => (v === undefined || v === null || v === '' ? '' : String(v));
-  return JSON.stringify([r.sha, r.kind, Boolean(r.trainRerun), what, env, opt(r.set), opt(r.jobs), opt(r.pr)]);
+  // a laptop rerun of a desktop failure never matches the desktop run it rechecks (that run is still active when it is
+  // pushed); the extra element only on reruns, so older keys in state.done stay comparable
+  return JSON.stringify([r.sha, r.kind, Boolean(r.trainRerun), what, env, opt(r.set), opt(r.jobs), opt(r.pr), ...(r.laptopRerun ? ['laptopRerun'] : [])]);
 }
 
 /**
@@ -483,14 +497,50 @@ export function trainHold(heads) {
 }
 
 /**
+ * The open train about to be released, for trainSoon's releasing case: of heads ([{ n, laptop, laptopAt }], laptopAt =
+ * the laptop-e2e status' updated_at), the one whose laptop-e2e success is youngest, as { n, ageMs }; null when none
+ * has a success with a readable time.
+ */
+export function releasingTrain(heads, now) {
+  let best = null;
+  for (const h of heads ?? []) {
+    const t = Date.parse(h?.laptopAt ?? '');
+    if (h?.laptop !== 'success' || !Number.isFinite(t)) continue;
+    if (!best || now - t < best.ageMs) best = { n: h.n, ageMs: Math.max(0, now - t) };
+  }
+  return best;
+}
+
+/** How long a released-to-be train (laptop-e2e success, PR still open) holds new claims (trainSoon releasing). */
+export const RELEASE_HOLD_MS = 10 * 60_000;
+
+/**
+ * Train-ready PRs counted by the releasing hold: prs = [{ head, check: { status, conclusion } | null }] (the `check` run
+ * of gh's statusCheckRollup); a check that passed or is still running (status not COMPLETED) counts, a failed or
+ * missing one does not, nor a head inTrain(head) says the open train already carries (its members keep the label).
+ */
+export function readyOrPending(prs, inTrain = () => false) {
+  return (prs ?? []).filter((p) => {
+    const c = p?.check;
+    if (!c || inTrain(p.head)) return false;
+    return String(c.conclusion ?? '').toUpperCase() === 'SUCCESS' || (Boolean(c.status) && String(c.status).toUpperCase() !== 'COMPLETED');
+  }).length;
+}
+
+/**
  * Why the laptop should start no new non-train work now because a train is about to need both slots, or '' (Orchestrator
  * audit 2026-10-24: the laptop claimed an alone run 51 s before train 60's build began, so the train waited ~4.5 min).
  * building = an open train PR whose head is not its version commit yet ({ n, ageMs }; merge-train opens the PR before it
  * pushes the version commit), held while younger than buildMaxMs; release = the newest merged train PR ({ n, ageMs }),
  * held for gapMs after it while candidates (open train-ready PRs with a green check) > 0, the next build being due.
+ * releasing = an open train PR whose laptop-e2e is success ({ n, ageMs from that status' updated_at }): auto-train
+ * releases it and builds the next one within minutes, so every new claim is held for releaseMs while candidates
+ * (here: train-ready PRs not in the train whose check is green OR still running, readyOrPending) > 0 (Orchestrator
+ * waste audit 2026-10-24: an alone run claimed 17 s after train 67's laptop-e2e success was preempted by train 68).
  */
-export function trainSoon({ building = null, release = null, candidates = 0 } = {}, { gapMs, buildMaxMs }) {
+export function trainSoon({ building = null, releasing = null, release = null, candidates = 0 } = {}, { gapMs, buildMaxMs, releaseMs = RELEASE_HOLD_MS }) {
   if (building && building.ageMs < buildMaxMs) return `train ${building.n} building`;
+  if (releasing && releasing.ageMs < releaseMs && candidates > 0) return `train ${releasing.n} releasing, ${candidates} train-ready PR(s) next`;
   if (release && release.ageMs < gapMs && candidates > 0) return `train ${release.n} released, ${candidates} train-ready PR(s) waiting`;
   return '';
 }
@@ -752,4 +802,42 @@ export function affectedNeeds(prs, requests = [], seen = new Set()) {
  */
 export function affectedRequest({ now, pr, sha, branch, suites, suffix }) {
   return { id: `${requestId(now, AFFECTED_REQUESTER, sha)}-${suffix}`, sha, branch, pr: Number(pr), kind: 'pr', requester: AFFECTED_REQUESTER, suites: [...suites], set: 'affected', note: `auto affected-e2e, PR #${pr}` };
+}
+
+// ---------- desktop failures rechecked on the laptop (Orchestrator waste audit 2026-10-24, laptop-queue-3) ----------
+
+/** Median of the finite numbers in xs, NaN when none. */
+export function median(xs) {
+  const v = (xs ?? []).filter((x) => Number.isFinite(x)).sort((a, b) => a - b);
+  if (!v.length) return NaN;
+  const m = v.length >> 1;
+  return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2;
+}
+
+/** Desktop CPU median over this (%): the handed-off status says so, the failure may be load, not the change. */
+export const DESKTOP_HOT_CPU = 90;
+
+/**
+ * The pending description a desktop PR run posts when suites failed and the laptop rerun is queued:
+ * "desktop FAIL a,b (cpu 87%), laptop rerun queued", plus "; desktop cpu>90%" when the run's median CPU was over
+ * DESKTOP_HOT_CPU; the suite list is cut to keep the whole within GitHub's 140 chars.
+ */
+export function desktopFailDesc(suites, cpu) {
+  const pct = Number.isFinite(cpu) ? `${Math.round(cpu)}%` : '?%';
+  const tail = ` (cpu ${pct}), laptop rerun queued${cpu > DESKTOP_HOT_CPU ? `; desktop cpu>${DESKTOP_HOT_CPU}%` : ''}`;
+  const head = 'desktop FAIL ';
+  let list = (suites ?? []).join(',');
+  const room = 140 - head.length - tail.length;
+  if (list.length > room) list = `${list.slice(0, room - 3)}...`;
+  return `${head}${list}${tail}`;
+}
+
+/**
+ * The laptop-only request for a desktop run's failed suites: same sha, set, pr, requester and branch, suites = the
+ * failed ones, "laptopRerun": true (the desktop never claims it). With no set, the set is the original suites joined
+ * by "+", so the rerun posts its verdict on the very context the desktop left pending (lib contextName). suffix = 4
+ * random hex (injected), as request.mjs adds.
+ */
+export function laptopRerunRequest(r, suites, { now, suffix }) {
+  return { id: `${requestId(now, r.requester, r.sha)}-${suffix}`, sha: r.sha, branch: r.branch ?? '', pr: r.pr ?? null, kind: 'pr', requester: r.requester, suites: [...suites], set: r.set || (r.suites ?? []).join('+'), laptopRerun: true, note: `desktop failure of ${r.id}, rerun on the laptop` };
 }

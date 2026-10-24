@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, trainSoon, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, trainSoon, releasingTrain, readyOrPending, RELEASE_HOLD_MS, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS } from '../scripts/laptop-queue/lib.mjs';
 // @ts-expect-error plain .mjs module without types
 import { selectSuites, WIDE_COVERS } from '../scripts/e2e-affected.mjs';
 
@@ -672,6 +672,82 @@ describe('trainSoon', () => {
     expect(trainSoon({ release: { n: '60', ageMs: 4 * 60_000 }, candidates: 2 }, lim)).toBe('');
     expect(trainSoon({}, lim)).toBe('');
   });
+  it('releasing: holds up to 10 min after an open train laptop-e2e success while train-ready PRs are next', () => {
+    expect(RELEASE_HOLD_MS).toBe(10 * 60_000);
+    // train 67 success at 22:28:28, an alone claim at 22:28:45 (17 s later) was preempted by train 68 at 22:34
+    expect(trainSoon({ releasing: { n: '67', ageMs: 17_000 }, candidates: 1 }, lim)).toBe('train 67 releasing, 1 train-ready PR(s) next');
+    expect(trainSoon({ releasing: { n: '67', ageMs: 9 * 60_000 }, candidates: 3 }, lim)).toMatch(/^train 67 releasing/);
+    expect(trainSoon({ releasing: { n: '67', ageMs: 10 * 60_000 }, candidates: 3 }, lim)).toBe('');
+    expect(trainSoon({ releasing: { n: '67', ageMs: 60_000 }, candidates: 0 }, lim)).toBe('');
+    expect(trainSoon({ releasing: { n: '67', ageMs: 60_000 }, candidates: 1 }, { ...lim, releaseMs: 30_000 })).toBe('');
+    // building wins (a new train with no version head yet beside a releasing one)
+    expect(trainSoon({ building: { n: '68', ageMs: 1000 }, releasing: { n: '67', ageMs: 1000 }, candidates: 1 }, lim)).toBe('train 68 building');
+  });
+  it('releasingTrain: the youngest laptop-e2e success among the open heads', () => {
+    const at = (min: number) => new Date(NOW - min * 60_000).toISOString();
+    expect(releasingTrain([{ n: '67', laptop: 'success', laptopAt: at(2) }], NOW)).toEqual({ n: '67', ageMs: 2 * 60_000 });
+    expect(releasingTrain([{ n: '67', laptop: 'success', laptopAt: at(8) }, { n: '68', laptop: 'success', laptopAt: at(1) }], NOW)?.n).toBe('68');
+    expect(releasingTrain([{ n: '67', laptop: 'pending', laptopAt: at(1) }, { n: '68', laptop: '', laptopAt: '' }], NOW)).toBeNull();
+    expect(releasingTrain([{ n: '67', laptop: 'success', laptopAt: '' }], NOW)).toBeNull(); // no time: no hold
+    expect(releasingTrain([], NOW)).toBeNull();
+  });
+  it('readyOrPending: train-ready PRs whose check passed or still runs, not the open train members', () => {
+    const prs = [
+      { head: 'a', check: { status: 'COMPLETED', conclusion: 'SUCCESS' } },
+      { head: 'b', check: { status: 'IN_PROGRESS', conclusion: '' } },
+      { head: 'c', check: { status: 'QUEUED', conclusion: null } },
+      { head: 'd', check: { status: 'COMPLETED', conclusion: 'FAILURE' } },
+      { head: 'e', check: null },
+    ];
+    expect(readyOrPending(prs)).toBe(3);
+    expect(readyOrPending(prs, (h: string) => h === 'a')).toBe(2);
+    expect(readyOrPending([])).toBe(0);
+    expect(readyOrPending(undefined)).toBe(0);
+  });
+});
+
+describe('desktop failures rechecked on the laptop', () => {
+  const r = { id: idAt(5, 'player'), sha: 'b'.repeat(40), branch: 'feature/x', pr: 412, kind: 'pr', requester: 'Night Shift | Player Build', suites: ['e2e-coop', 'e2e-menus', 'e2e-mouse'] };
+  it('median of the finite CPU samples', () => {
+    expect(median([50, 95, 92])).toBe(92);
+    expect(median([80, 100])).toBe(90);
+    expect(median([NaN, 70])).toBe(70);
+    expect(median([])).toBeNaN();
+  });
+  it('the pending description names the failed suites and the CPU, flags cpu>90%, fits 140 chars', () => {
+    expect(DESKTOP_HOT_CPU).toBe(90);
+    expect(desktopFailDesc(['e2e-coop', 'e2e-menus'], 87.4)).toBe('desktop FAIL e2e-coop,e2e-menus (cpu 87%), laptop rerun queued');
+    expect(desktopFailDesc(['e2e-coop'], 93)).toBe('desktop FAIL e2e-coop (cpu 93%), laptop rerun queued; desktop cpu>90%');
+    expect(desktopFailDesc(['e2e-coop'], 90)).not.toMatch(/cpu>90/);
+    expect(desktopFailDesc(['e2e-coop'], NaN)).toBe('desktop FAIL e2e-coop (cpu ?%), laptop rerun queued');
+    const long = desktopFailDesc(Array.from({ length: 20 }, (_, i) => `e2e-suite-${i}`), 99);
+    expect(long.length).toBeLessThanOrEqual(140);
+    expect(long).toMatch(/\.\.\. \(cpu 99%\), laptop rerun queued; desktop cpu>90%$/);
+  });
+  it('the laptop rerun keeps sha / set / pr / requester, runs the failed suites, posts on the same context', () => {
+    const rr = laptopRerunRequest(r, ['e2e-menus'], { now: NOW, suffix: 'abcd' });
+    expect(rr).toMatchObject({ sha: r.sha, branch: 'feature/x', pr: 412, kind: 'pr', requester: r.requester, suites: ['e2e-menus'], laptopRerun: true });
+    expect(rr.id).toBe(`${requestId(NOW, r.requester, r.sha)}-abcd`);
+    expect(requestProblem(rr)).toBe('');
+    // no set: the old suites become the set, so the verdict lands on the context the desktop left pending
+    expect(contextName(rr.kind, rr.set, rr.suites)).toBe(contextName(r.kind, undefined, r.suites));
+    const aff = { ...r, requester: AFFECTED_REQUESTER, set: 'affected' };
+    expect(laptopRerunRequest(aff, ['e2e-coop'], { now: NOW, suffix: 'ef01' })).toMatchObject({ set: 'affected', requester: AFFECTED_REQUESTER });
+    expect(requestProblem({ ...rr, kind: 'alone', steps: ['x'] })).toMatch(/laptop rerun needs kind pr/);
+  });
+  it('a laptop rerun is never a duplicate of the desktop run it rechecks and supersedes nothing', () => {
+    const rr = laptopRerunRequest(r, r.suites, { now: NOW, suffix: 'abcd' });
+    expect(dupKey(rr)).not.toBe(dupKey({ ...r, set: rr.set }));
+    expect(duplicates([rr, { ...r, set: rr.set, active: true }], [], NOW, 3600_000).size).toBe(0);
+    // an older open request of the same requester and set is not retired by the rerun
+    const older = { ...r, id: idAt(30, 'player'), set: rr.set };
+    expect(superseded([older, rr], () => true).size).toBe(0);
+    // a newer request still supersedes the rerun
+    const newer = { ...r, id: idAt(-5, 'player'), set: rr.set };
+    expect(superseded([rr, newer], () => true).get(rr.id)).toBe(newer.id);
+    // plain keys unchanged (state.done keys written before stay comparable)
+    expect(JSON.parse(dupKey(r))).toHaveLength(8);
+  });
 });
 
 describe('manualLocks', () => {
@@ -756,6 +832,13 @@ describe('runProgress / aloneSoon', () => {
     expect(runProgress(['x'], times, 1, 150_000)).toBeNaN();
     expect(runProgress([], times, 1, 1000)).toBeNaN();
     expect(runProgress(['a'], {}, 1, 1000)).toBeNaN();
+  });
+  it('expectedWallS: the heaviest bin in s (the train posts it as "expect ~N s")', () => {
+    const times = { a: 100, b: 100, c: 50 };
+    expect(expectedWallS(['a', 'b', 'c'], times, 2)).toBe(150);
+    expect(expectedWallS(['a', 'b'], times, 1)).toBe(200);
+    expect(expectedWallS(['a', 'x'], times, 1)).toBeNaN();
+    expect(expectedWallS([], times, 1)).toBeNaN();
   });
   it('alone claims wait while a green train-ready PR has no train yet', () => {
     expect(aloneSoon(0, 1)).toMatch(/1 train-ready PR/);
