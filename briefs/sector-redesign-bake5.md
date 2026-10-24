@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-24T21:50Z
+status: done feature/sector-redesign-bake5 522727fba1e4a8d6715cde42a5a2354ce131b69c
 
 # Sector Ops: section-bake polish 5 (bake4 check held polish 1-8), stacked on #385
 
@@ -96,4 +96,25 @@ the report, the "bake5" report section in `section-bake-robust.md` (what changed
 deviations, open), this file's report below and status line `status: done feature/sector-redesign-bake5 <sha>`.
 
 ## Report
-(builder: what changed per step with file:line, tests run with counts, mutations, deviations, open)
+Night Shift | Cloud Builder 1, 2026-10-24. Branch feature/sector-redesign-bake5 from d2ccf630: 4476201c (code, tests,
+docs, fragment), 8413482d + 522727fb (report section "bake5" in docs/sector-redesign/checks/section-bake-robust.md, with
+file:line per step).
+- Steps 1-3: workerPool.ts `dispose` (:151-162) rejects busy then queued, `busy.clear()`; `cancel` (:108-141) busy.delete
+  -> retire -> k -> reject -> spawn in try (throw: splice k, one warn per pool `warnedSpawn` :29, pump, true; the
+  unreachable `all.push` dropped); `retire` (:145-149) nulls handlers then terminates, used by cancel and dispose; JSDoc
+  updated. The `done` guard stays.
+- Step 5: sectionJobs.ts `warnedCap` (:127), warn in `checkStalled` (:248-253) with ms read before `failed1`; JSDoc :234.
+  Message has neither `failed twice` nor `failed to bake`.
+- Step 6: `cancel: () => false` on both fake pools in tests/sectionBake.test.ts (no new test: the cast hides it from tsc;
+  the file staying green is the proof).
+- Step 7: lighting.md "Failures" one sentence. Step 8: FakeWorker hoisted with `failSpawn`, helpers `fakeJob` /
+  `runInto`, new describe "bake5" with 3 tests; the bake4 cancel test extended (lateMsg / lateErr, null handlers, jF
+  stays queued, disposed outputs). Step 9: changes/feature-sector-redesign-bake5.md (kind: patch).
+- Tests: `npx tsc --noEmit -p .` clean; sectionBakeRobust 19/19 (16 + 3); sectionBake 11/11; sectionBakeCampus 3 passed
+  + 1 skipped; changesFragments 1/1.
+- Mutations (all caught, tree restored): 1 no busy reject -> 2 fail; 2 spawn before reject / no try -> 1 fails (cancel
+  throws); 3 no handler nulling -> 2 fail; 4 no done guard -> 1 fails; 5 warn on every cap -> 1 fails.
+- Deviation: mutation 4 is caught one assert before the jF assert (the late-message replay already idles wA, so jE goes to
+  it, :452). A narrower mutation guarding messages only (`if (r && ...)`) fails exactly at the jF assert (:458), so the
+  late-error assert bites on its own.
+- Open: a pool left with 0 workers is not handled further (as briefed); the real Worker path is stub-tested only.
