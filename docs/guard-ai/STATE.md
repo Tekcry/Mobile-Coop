@@ -1,6 +1,12 @@
 # Guard AI - state
 
 ## Now
+~22:10: triage 2 = test bug: AI6 (1) C's workshop hide (20, -24.75) was in sight through the workshop facade door /
+window, so a guard saw C hide (LKP moved 10.28 m, correct AI). Fixed bc96ecee (hide -> 2.75, -24.75; lkpWorst
+diagnostic; docs/coop4/checks/ai6-lkp-triage.md). Queued e2e-coop on bc96ecee (set coop4-fix2). The 4p status
+context is laptop-e2e/alone-coop4-4p (running on 1b04e5bd; covers sectorops 8's AI6 legs). Background wait on both.
+Both green -> gh pr ready 317 + orchestrator train-ready.
+
 ~22:00: e2e-coop on d0f574cb (desktop worker) FAIL, but further: AI6 (1) teleP fix works; new assert "each last known
 position within 2 m of where its player stood when last seen (worst 10.28 m)" (PR #317 comment 10:57Z). Opus triage 2
 RUNNING -> docs/coop4/checks/ai6-lkp-triage.md; it applies + pushes a small clear fix to feature/coop4 itself, else
@@ -956,7 +962,8 @@ Open:
    4.95.0 merged 1b04e5bd (PROTOCOL 54), checks A + B PASS. Laptop on 1b04e5bd: coop4 set 11/12 (e2e-coop AI6 FAIL =
    test bug, scripts/e2e-coop.mjs:2378 r.speed -> r.ref.speed, fixed d0f574cb, docs/coop4/checks/ai6-e2e-coop-triage.md);
    coop4-4p (alone sectorops 7-9) pending. e2e-coop on d0f574cb FAIL: AI6 (1) LKP 10.28 m > 2 m (Opus triage 2:
-   docs/coop4/checks/ai6-lkp-triage.md on feature/coop4; requeue e2e-coop on its head, set coop4-fix2). Both green ->
+   test bug: hide in sight; fixed bc96ecee, docs/coop4/checks/ai6-lkp-triage.md). e2e-coop queued on bc96ecee
+   (status laptop-e2e/coop4-fix2); 4p status is laptop-e2e/alone-coop4-4p on 1b04e5bd. Both green ->
    `gh pr ready 317`, tell the orchestrator train-ready (label). Red -> Opus triage at once (AI6 (1)-(3) never ran
    before the merge: untried hide spots, seesIndex slot vs index). #317 src/net files: coopClient, coopHost, coopUi,
    holdPulse, joinWatch, protocol, remoteAvatar, remotePlayer, session (Player coop-real F1 / F2 go after #317 or
