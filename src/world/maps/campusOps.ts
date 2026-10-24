@@ -8,6 +8,7 @@ import { buildCampusS3, S3_HIDESPOTS, S3_LASERS, S3_NAV_SEEDS, S3_PANELS, S3_PIC
 import { buildCampusS4, S4_BOARDS, S4_HIDESPOTS, S4_LASERS, S4_NAV_SEEDS, S4_PANELS, S4_ROOMS, S4_SWITCHES } from './campusS4';
 import { buildCampusS5, S5_BOARDS, S5_HIDESPOTS, S5_LASERS, S5_NAV_SEEDS, S5_PANELS, S5_ROOMS, S5_SWITCHES } from './campusS5';
 import { dressCampus } from './campusDress';
+import { CAMPUS_MISSION_TEST } from './campusMissionTest';
 
 const T = 0.3;
 const WALL = '#a9a496';
@@ -84,6 +85,7 @@ export const campusOps: MapDef = {
   description: 'A research campus raided in five sections: the gatehouse and car park, the HQ atrium, the labs, the data hall and the Old House.',
   modes: ['sector'],
   sectors: CAMPUS_SECTORS,
+  missions: [CAMPUS_MISSION_TEST],
   navLayers: 5,
   // greybox: no generated skirting, vents or clutter (everything on a wall is placed on purpose)
   detail: false,
