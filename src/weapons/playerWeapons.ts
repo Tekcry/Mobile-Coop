@@ -33,6 +33,7 @@ import { CLIP_BASE, clipSpeed } from '../anim/tuneClipSpeed'; // (clip-speed, tr
 import { STANCE } from '../player/weaponStance';
 import { computeStats, damageAt, playerSpreadDeg, recoilKick, sampleSpread, NO_UPGRADES, type EffectiveStats, type StatMods, type WeaponUpgrades } from './weaponStats';
 import { addSd, sdStart, spendShot, SUPPRESSED_NOISE } from './sdRounds';
+import { emptyShotPose, shotEye, shotOrigin } from './shotOrigin';
 
 export interface LoadoutEntry {
   id: WeaponId;
@@ -169,7 +170,38 @@ export class PlayerWeapons {
   readonly tally = new Map<WeaponId, { shots: number; hits: number; kills: number; heads: number }>();
   private tmpO = new Vector3();
   private tmpD = new Vector3();
+  /** The animated muzzle: the tracer, flash and casing only (rig-pose-fix S2, P6). */
   private muzzle = new Vector3();
+  /** (rig-pose-fix S2, G6) The round's origin and the sim eye for the wall-poke test (`shotOrigin.ts`), and their input. */
+  private shotO = new Vector3();
+  private shotE = new Vector3();
+  private readonly shotPose = emptyShotPose();
+
+  /** (rig-pose-fix S2) Where a round of the current weapon fired along `dir` (unit) starts (sim: `shotOrigin`) and the
+   *  sim eye the wall-poke test runs from. Writes `outO` / `outE`; no allocation. */
+  shotPoint(dir: Vector3, outO: Vector3, outE: Vector3): void {
+    const pl = this.player;
+    const c = pl.controller;
+    const sp = this.shotPose;
+    const def = this.current.def;
+    sp.x = c.pos.x;
+    sp.y = c.pos.y;
+    sp.z = c.pos.z;
+    sp.crouch = c.crouchBlend;
+    sp.lean = pl.pose.lean;
+    // the gun's hand by the rig's own rule off the wall (gameState.ts openLeft; aiming leaves the wall): the camera's
+    // shoulder side, settled in the aim pocket (no swap or reload under way)
+    sp.side = pl.cam.shoulder < 0 && this.handSwitchOk ? -1 : 1;
+    sp.inverted = pl.attachAim?.inverted === true;
+    sp.pistol = def.class === 'pistol';
+    sp.dx = dir.x;
+    sp.dy = dir.y;
+    sp.dz = dir.z;
+    sp.muzzleY = def.muzzle[1];
+    sp.muzzleZ = def.muzzle[2];
+    shotOrigin(sp, outO);
+    shotEye(sp, outE);
+  }
 
   /** The current weapon's muzzle in world space (a fresh vector). */
   muzzlePoint(): Vector3 {
@@ -991,13 +1023,19 @@ export class PlayerWeapons {
     // shooter's head to the muzzle is blocked) the round starts at the head instead and hits that wall.
     // The head, not the camera pivot: leaning out past a cover edge, the pivot stays behind the cover
     // and the line from it would cut the corner the shooter is leaning round.
+    // (rig-pose-fix S2, G6) Both points from the sim (`shotOrigin.ts`: feet, crouch, lean, shoulder side, inverted, the
+    // aim, the barrel), never the animated pose; the rig's muzzle only places the tracer, flash and casing (P6).
     s.model.muzzleWorld(this.muzzle);
-    const head = this.player.rig.headNode.getAbsolutePosition();
-    const block = this.ballistics.ray(head, this.muzzle, MASK.WORLD);
-    const origin = block.hit ? head : this.muzzle;
+    this.shotPoint(this.tmpD, this.shotO, this.shotE);
+    const head = this.shotE;
+    const block = this.ballistics.ray(head, this.shotO, MASK.WORLD);
+    const origin = block.hit ? head : this.shotO;
     const baseDir = aimPoint.subtract(origin).normalize();
     const spread = this.currentSpread();
     const dir = new Vector3();
+    // (rig-pose-fix S2) the round's origin is the hit's source (a client sends it as its claimed `shot` ox / oy / oz; a
+    // guard reads it as the stimulus); a projectile keeps its own copy (it lands after later shots)
+    const from = def.kind === 'projectile' ? origin.clone() : origin;
     let firstEnd: Vector3 | null = null;
     for (let p = 0; p < def.pellets; p++) {
       const off = sampleSpread(spread, Math.random(), Math.random());
@@ -1005,16 +1043,16 @@ export class PlayerWeapons {
       if (def.kind === 'projectile') {
         this.ballistics.spawnProjectile(origin, dir.scale(def.projectileSpeed ?? 300), def.projectileGravity ?? 0, def.range / (def.projectileSpeed ?? 300) + 0.2,
           { team: 'player', id: 'local', collideWith: MASK.PLAYER_SHOT }, def.tracer,
-          (h, d, travelled) => this.resolveHit(h, d, travelled, s));
+          (h, d, travelled) => this.resolveHit(h, d, travelled, s, from));
         continue;
       }
       const end = origin.add(dir.scale(def.range));
       const h = this.ballistics.ray(origin, end, MASK.PLAYER_SHOT);
       this.lastShot = { origin: origin.clone(), aim: aimPoint.clone(), hit: h.point.clone(), target: h.target?.id ?? (h.prop ? 'prop' : h.hit ? 'world' : 'none') };
-      this.resolveHit(h, dir.clone(), h.distance, s);
+      this.resolveHit(h, dir.clone(), h.distance, s, from);
       this.onRay?.(origin, h.point);
       // penetration: through thin world geometry, on with half the damage
-      if (s.pen > 0 && h.hit && !h.target && !h.prop && !h.armoured) this.penetrate(h.point, dir, h.distance, s);
+      if (s.pen > 0 && h.hit && !h.target && !h.prop && !h.armoured) this.penetrate(h.point, dir, h.distance, s, from);
       if (!firstEnd || p % 3 === 0) {
         firstEnd = h.point;
         this.vfx.tracer(this.muzzle, h.point, def.tracer, def.pellets > 1 ? 0.012 : 0.022);
@@ -1040,7 +1078,7 @@ export class PlayerWeapons {
   penetrations = 0;
 
   /** A round that stopped on world geometry: if it is thinner than the weapon's penetration, carry on past it. */
-  private penetrate(at: Vector3, dir: Vector3, travelled: number, s: WeaponSlot): void {
+  private penetrate(at: Vector3, dir: Vector3, travelled: number, s: WeaponSlot, from: Vector3): void {
     // from beyond the far side back towards the entry: the first face hit is the exit
     const far = at.add(dir.scale(s.pen + 0.02));
     const back = this.ballistics.ray(far, at, MASK.WORLD);
@@ -1050,11 +1088,12 @@ export class PlayerWeapons {
     if (left <= 0.5) return;
     const h2 = this.ballistics.ray(exit, exit.add(dir.scale(left)), MASK.PLAYER_SHOT);
     this.penetrations++;
-    this.resolveHit(h2, dir.clone(), travelled + h2.distance, s, 0.5);
+    this.resolveHit(h2, dir.clone(), travelled + h2.distance, s, from, 0.5);
     this.onRay?.(exit, h2.point);
   }
 
-  private resolveHit(h: RayHit, dir: Vector3, travelled: number, s: WeaponSlot, factor = 1): void {
+  /** `from`: the round's origin, the hit's `sourcePos` (a client sends it as its claimed `shot` origin). */
+  private resolveHit(h: RayHit, dir: Vector3, travelled: number, s: WeaponSlot, from: Vector3, factor = 1): void {
     if (!h.hit) return;
     this.ballistics.impactFx(h, dir);
     const head = h.part === 'head';
@@ -1069,7 +1108,7 @@ export class PlayerWeapons {
         attackerTeam: 'player',
         attackerId: 'local',
         weapon: s.def.id,
-        sourcePos: this.player.cam.pivot.clone(),
+        sourcePos: from.clone(),
         impulse: s.def.impulse,
       });
       const t = this.tallyFor(s.def.id);

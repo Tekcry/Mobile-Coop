@@ -53,6 +53,12 @@ Design authority: docs/DECISIONS.md (G16, G20, G21, G76, G98, G103-G105), then d
   `READY_ELBOW_TUCK` 0.5 with a gun in the hands.
 - No hip fire: a shot needs the drawn phase and `cam.ads >= 0.9` (`fireReady`); fire while holstered is the close strike
   (`docs/systems/takedowns.md`). The crosshair shows only drawn and aiming.
+- (rig-pose-fix S2) Shot origin from the sim (`weapons/shotOrigin.ts`, pure): every player round (ray and projectile)
+  starts at `shotOrigin` (feet, crouch blend, lean, the camera's shoulder side, hanging inverted, the aim and the
+  weapon's `muzzle` after attachments), fitted to Wren's rig (muzzle within 3 cm rifle, 8 cm pistol). The wall poke
+  tests the line from the sim eye (`shotEye`) to it and starts the round at the eye when blocked. That origin is the
+  hit's `sourcePos`, so a client's claimed `shot` origin is the same point. The animated muzzle (`WeaponModel.muzzleWorld`)
+  places only the tracer, flash and casing.
 - Player spread (`playerSpreadDeg`, weaponStats.ts): base `spreadAds`; crouched and still x0.7; standing still x1; moving
   adds `spreadMove x min(speed, 2.8) / 2.8`; bloom on top, capped at `maxSpread`. `spreadHip` and the hip-fire attachment
   mods are for guards only.
