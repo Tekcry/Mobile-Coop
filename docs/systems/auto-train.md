@@ -15,7 +15,9 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
   (`pending`, `laptop-rerun`, `holding`) keeps its tick lock and runs the step again every `AUTO_TRAIN_FAST_POLL_S`
   (60) s while the next poll starts within `AUTO_TRAIN_FAST_POLL_MAX_MIN` (4) min of the tick's start, so it ends
   before the next 5-min task run. Any state change stops it at once (the step already acted: release, build, failed,
-  ...); the status is written after every poll. `--once` and `--dry-run` never poll (`fastPollPlan`). The lock's
+  ...); the status is written after every poll. `--once` and `--dry-run` never poll (`fastPollPlan`). Once the open
+  train's laptop-e2e pending status is older than its expected wall (the laptop's "expect ~N s" in it, else 10 min;
+  `laptopLate`) it polls every `AUTO_TRAIN_FAST_POLL_LATE_S` (30) s instead. The lock's
   heartbeat touches it every minute, so the 30-min staleness never fires on a polling tick; the task's
   `MultipleInstances IgnoreNew` (and the lock) skip a 5-min start that lands while a long tick (a release or build)
   still runs. A hand `merge-train` run during a polling tick STOPs on the held train lock: retry after it. Exit 0 (outcome in the status file), 1 on an error.

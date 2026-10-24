@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { EnemyManager, TACTICS } from '../src/ai/enemyManager';
 import { DIFFICULTY } from '../src/ai/archetypes';
 import { RADIO } from '../src/ai/radioNet';
-import { R_REPORTER, ROLES } from '../src/ai/squadRoles';
+import { R_REPORTER, ROLES, Rng } from '../src/ai/squadRoles';
+import { AlertMachine } from '../src/ai/alertState';
 import { INTRUDERS } from '../src/ai/intruders';
 import { Vector3, type Scene } from '../src/core/babylon';
 import { Enemy, type AiContext, type PlayerRef } from '../src/ai/enemy';
@@ -34,6 +35,7 @@ interface FakeGuard {
   incident: number;
   state: string;
   coverIdx: number;
+  roleBound: boolean;
   tacticsProfile: number;
   seesTarget: boolean;
   def: { melee: object | null; kind: string; scale: number; usesCover: boolean };
@@ -71,6 +73,7 @@ function guard(x: number, z: number, o: Partial<FakeGuard> = {}): FakeGuard {
     incident: -1,
     state: 'chase',
     coverIdx: -1,
+    roleBound: false,
     tacticsProfile: 0,
     seesTarget: false,
     def: { melee: null, kind: 'grunt', scale: 1, usesCover: true },
@@ -514,5 +517,127 @@ describe('guard-ai S24 levels triage: a guard spawned alerted is sent in on the 
     const r3 = sent(40, 40);
     sendIn(em, r3);
     expect(r3.hunt).toBe(sb);
+  });
+});
+
+describe('guard-ai polish A4 / A15: calls on a switch and the real alert()', () => {
+  /** A calm guard on the real Enemy prototype (`tell`, `alert`, `onLevel`, `callContact`, `takeSighting`, `netOn`) with
+   *  the stand-in's fields, wired to the manager's ctx. */
+  function realGuard(em: EnemyManager, x: number, z: number): Enemy {
+    const fake = guard(x, z, { alerted: false, level: 'unaware' }) as unknown as Record<string, unknown>;
+    const e = Object.create(Enemy.prototype) as Enemy;
+    const proto = Enemy.prototype as unknown as object;
+    for (const [k, v] of Object.entries(fake)) {
+      if (k === 'radio' || k === 'tell') continue;
+      let d: PropertyDescriptor | undefined;
+      for (let o: object | null = proto; o && !d; o = Object.getPrototypeOf(o) as object | null) d = Object.getOwnPropertyDescriptor(o, k);
+      if (d && d.get && !d.set) continue;
+      (e as unknown as Record<string, unknown>)[k] = v;
+    }
+    Object.assign(e, {
+      ctx: (em as unknown as Priv).ctx,
+      aware: new AlertMachine(),
+      health: { alive: true },
+      alertIn: { called: false },
+      lc: { stop() {}, active: false },
+      lure: { cancel() {}, active: false },
+      walker: { rejoin() {} },
+      rng: new Rng(1),
+      camBody: null,
+      pendingHunt: -1,
+      calledMask: 0,
+      called: 0,
+      brkGroup: -1,
+      incident: -1,
+      meter: 0,
+      loudAlert: false,
+      gunfire: false,
+      target: null,
+      los: false,
+      state: 'idle',
+      searchRoom: null,
+      reviving: null,
+      hasStimulus: false,
+      sawOnce: false,
+      stimulus: [0, 0],
+      lastKnown: new Vector3(),
+      knownV: new Vector3(),
+      setState(this: { state: string }, st: string) {
+        this.state = st;
+      },
+    });
+    em.enemies.push(e);
+    return e;
+  }
+
+  it('A4 / A166: hunting A, he sees B: one contact call naming B (B gets a reporter); no second call on B or back on A', () => {
+    const A = player('host', 0, 0);
+    const B = player('guest', 30, 0);
+    const ha = netGuard(10, -10);
+    const { em, radio } = manager([ha], [A, B]);
+    sees(ha, A);
+    const sa = em.intruders.slotFor('host');
+    expect(ha.hunt).toBe(sa);
+    const calls = () => (em.radioNet as unknown as { nextId: number }).nextId;
+    const c0 = calls();
+    sees(ha, B);
+    const sb = em.intruders.slotFor('guest');
+    expect(ha.hunt).toBe(sb);
+    expect(calls()).toBe(c0 + 1);
+    radio(RADIO.callIn + RADIO.staggerMax + 1);
+    expect((em as unknown as { callers: Int32Array }).callers[sb]).toBe(ha.num);
+    const c1 = calls();
+    sees(ha, B);
+    sees(ha, A);
+    sees(ha, B);
+    expect(calls()).toBe(c1);
+  });
+
+  it('A4: hunting A, told of B (a mate called him in), then he sees B: no call (B has his caller)', () => {
+    const A = player('host', 0, 0);
+    const B = player('guest', 30, 0);
+    const ha = netGuard(10, -10);
+    const { em, ctx } = manager([ha], [A, B]);
+    sees(ha, A);
+    const sb = ctx.reportSighting(B);
+    (Enemy.prototype as unknown as { tell(this: FakeGuard, s: number): void }).tell.call(ha, sb);
+    expect(ha.hunt).toBe(em.intruders.slotFor('host'));
+    const calls = () => (em.radioNet as unknown as { nextId: number }).nextId;
+    const c0 = calls();
+    sees(ha, B);
+    expect(ha.hunt).toBe(sb);
+    expect(calls()).toBe(c0);
+  });
+
+  it('A15: the real alert() on a told calm guard hunts the told slot and his contact call names it', () => {
+    const A = player('host', 0, 0);
+    const { em, ctx } = manager([], [A]);
+    const sa = ctx.reportSighting(A);
+    const rc = vi.spyOn(ctx, 'radioCall');
+    const e = realGuard(em, 4, -6);
+    e.tell(sa);
+    expect(e.hunt).toBe(-1);
+    e.alert();
+    expect([e.alerted, e.hunt]).toEqual([true, sa]);
+    expect(rc).toHaveBeenCalledWith(e, sa, 'contact');
+    // (the manager takes the caller at the call: `noteCaller`)
+    expect((em as unknown as { callers: Int32Array }).callers[sa]).toBe(e.num);
+  });
+
+  it('A15: alerted with nobody named (-1), then he sees B: the re-call names B (the -1 -> slot step)', () => {
+    const A = player('host', 0, 0);
+    const B = player('guest', 30, 0);
+    const { em, ctx } = manager([], [A, B]);
+    ctx.reportSighting(A);
+    const rc = vi.spyOn(ctx, 'radioCall');
+    const e = realGuard(em, 28, -6);
+    e.alert();
+    expect(e.hunt).toBe(-1);
+    expect(rc).toHaveBeenLastCalledWith(e, -1, 'contact');
+    (Enemy.prototype as unknown as { takeSighting(this: Enemy, p: PlayerRef): void }).takeSighting.call(e, B);
+    const sb = em.intruders.slotFor('guest');
+    expect(e.hunt).toBe(sb);
+    expect(rc).toHaveBeenLastCalledWith(e, sb, 'contact');
+    expect((em as unknown as { callers: Int32Array }).callers[sb]).toBe(e.num);
   });
 });

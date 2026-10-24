@@ -14,6 +14,14 @@ export const MAX_INTRUDERS = 4;
 /** `all` false: the nearest player only (today). `sticky` false: in combat the best-seen player each think. */
 export const TARGETS = { all: true, sticky: true } as const;
 
+/**
+ * (guard-ai polish C1, A169) A calm guard keeps the player he perceives (`cur`, alive and seen: rate > 0) until another
+ * player's sight rate beats his by this factor (1.25: 25% more), so two players in view at near-equal rates do not swap
+ * his target every think. A separate const so `TARGETS`' shape stays. Undo: `CALM_KEEP = 1` (the highest rate each
+ * think, ties the nearer, as before).
+ */
+export const CALM_KEEP = 1.25;
+
 /** `fieldFactor`'s range out (one call at a time; nothing allocated per call). */
 const rangeOut = [0];
 
@@ -47,9 +55,10 @@ function live(i: number, n: number, dist: Float64Array): boolean {
 
 /**
  * Index of the player to perceive as the target, -1 none. `n` players; `dist` Infinity = dead / skipped.
- * Calm (not alerted): the highest `rate` (> 0); none: the nearest. Alerted: `cur` while `los[cur]`; else the nearest
- * with `los`; else `hunt` (S24 passes his intruder's index; S23 passes -1) when alive; else `cur` when alive; else the
- * nearest. Ties: the nearer, then the lower index. No allocation.
+ * Calm (not alerted): the highest `rate` (> 0), but `cur` (alive, rate > 0) is kept unless the best beats his rate by
+ * `CALM_KEEP` (A169); none seen: the nearest. Alerted: `cur` while `los[cur]`; else the nearest with `los`; else `hunt`
+ * (S24 passes his intruder's index; S23 passes -1) when alive; else `cur` when alive; else the nearest. Ties: the
+ * nearer, then the lower index. No allocation.
  */
 export function pickTarget(n: number, alerted: boolean, cur: number, hunt: number, los: Uint8Array, rate: Float64Array, dist: Float64Array): number {
   if (!alerted) {
@@ -60,6 +69,8 @@ export function pickTarget(n: number, alerted: boolean, cur: number, hunt: numbe
       if (!(d < Infinity) || !(r > 0)) continue;
       if (k < 0 || r > rate[k]! || (r === rate[k]! && d < dist[k]!)) k = i;
     }
+    // (A169) hysteresis: his current target stays until another is clearly better seen
+    if (k >= 0 && k !== cur && CALM_KEEP > 1 && live(cur, n, dist) && rate[cur]! > 0 && !(rate[k]! > rate[cur]! * CALM_KEEP)) return cur;
     return k >= 0 ? k : nearestTarget(n, dist);
   }
   if (live(cur, n, dist) && los[cur]) return cur;

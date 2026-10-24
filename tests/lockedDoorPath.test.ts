@@ -158,6 +158,23 @@ describe('EnemyManager wiring', () => {
     expect(nav.findPath([-3, 0], [3, 0])).not.toBeNull();
     ds.setOpen(d, false);
     expect(nav.findPath([-3, 0], [3, 0])).toBeNull();
+    // (polish C2) the still-locked shut door forced open (a script, a client mirror): walkable at once, no update between
+    const v1 = nav.version;
+    ds.setOpen(d, true);
+    expect(d.anchor.locked).toBe(true);
+    expect(nav.version).toBe(v1 + 1);
+    expect(nav.findPath([-3, 0], [3, 0])).not.toBeNull();
+    // the manager's own sync on the next update has nothing left to do (no second replan)
+    em.update(1 / 60);
+    expect(nav.version).toBe(v1 + 1);
+    // an unlocked door's setOpen does not call the hook
+    let calls = 0;
+    ds.onLocked = () => void calls++;
+    ds.setLocked(d, false);
+    calls = 0;
+    ds.setOpen(d, false);
+    ds.setOpen(d, true);
+    expect(calls).toBe(0);
   });
 });
 
