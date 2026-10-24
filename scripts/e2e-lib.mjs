@@ -221,7 +221,10 @@ export async function openPage(ctx, url = 'http://localhost:4173/', params = '')
     // (section-bake, SB12) a map baking its lamps per section (campusOps on a cold cache): the match starts once the
     // live section is in and the rest lands in the background; suites drive sections in sim time, so wait for all of it
     // (what the load waited for before). No-op on every other map.
-    await timed('match', () => page.waitForFunction(() => { const s = window.__app?.current?.world?.lightBake?.sections; return !s || s.done || s.disposed; }, null, { timeout: 240000, polling: 250 }).catch(() => {}));
+    // (section-bake robust, check B 10) a timeout is logged: a suite then runs on a half-baked campus and says so
+    await timed('match', () => page.waitForFunction(() => { const s = window.__app?.current?.world?.lightBake?.sections; return !s || s.done || s.disposed; }, null, { timeout: 240000, polling: 250 }).catch((e) => {
+      console.warn(`[e2e-lib] section bake wait timed out or failed (240 s cap): ${String(e?.message ?? e).split('\n')[0]}; the run goes on with lamps still landing`);
+    }));
     warmed = false;
     if (PROFILE) prof.bake += await page.evaluate(() => { const w = window.__app?.current?.world; return w?.lightInfo?.().ms ?? 0; }).catch(() => 0);
   }
