@@ -2375,7 +2375,7 @@ console.log('coop4 guard AI (AI6): three intruders over four pages - each pair h
         }
         await GH(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(3); });
         await P4[i].evaluate(tp, [x, y, z, yaw]);
-        await until(HA, ([id, x, z]) => { const r = window.__app.current.net.remotes.get(id); return !!r && Math.hypot(r.feet.x - x, r.feet.z - z) < 0.6 && r.speed < 0.15; }, [ids4[i], x, z], 15000, `AI6: the host sees page ${i} at ${f2(x)}, ${f2(z)}`);
+        await until(HA, ([id, x, z]) => { const r = window.__app.current.net.remotes.get(id); return !!r && Math.hypot(r.feet.x - x, r.feet.z - z) < 0.6 && r.ref.speed < 0.15; }, [ids4[i], x, z], 15000, `AI6: the host sees page ${i} at ${f2(x)}, ${f2(z)}`);
       };
       const lit = (map) => GH((m) => { window.__ai6Lit = m; }, map);
 
