@@ -33,6 +33,7 @@ import { buildNavGrid } from '../ai/navBuild';
 import { holdNoisePulse } from '../config/noise';
 import type { NavGrid } from '../ai/navGrid';
 import { EnemyManager } from '../ai/enemyManager';
+import { warmGuardModels } from '../ai/guardWarm';
 import type { PlayerRef } from '../ai/enemy';
 import type { Difficulty } from '../ai/enemyDefs';
 import { resolveDifficulty, type DifficultyDef } from '../ai/archetypes';
@@ -934,7 +935,10 @@ export class GameState implements AppState {
       });
     // 3.2.2: every material compiled on the loading screen, not mid-match (the benchmark counted 37-57 shaders
     // compiled in each run: hitches); capped so a material that never reports ready cannot hold the load
-    await Promise.race([g.scene.whenReadyAsync(), new Promise((r) => setTimeout(r, WARMUP_MAX_MS))]);
+    // (guard-models G7b) with the guard figures: LOD2 of every guard base in, and the guard shader compiled, on the same
+    // screen and under the same cap (`guardWarm.ts`; the flag off waits for exactly what it did)
+    const ready = g.scene.whenReadyAsync();
+    await Promise.race([flags.guardModels ? Promise.all([ready, warmGuardModels(g.scene, opts.map.id)]) : ready, new Promise((r) => setTimeout(r, WARMUP_MAX_MS))]);
     return g;
   }
 

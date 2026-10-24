@@ -26,6 +26,28 @@ PC run" and stay as the goal until that run replaces them. Every number is a sta
   Pending a PC run.
 - Open: no download or texture budget covers the realistic operators (Wren's files are about 80 MB; feature/operators
   owns it, G75).
+- Guard figures (guard-models, `docs/guard-models/PLAN.md` section 5; budget). G8 ran: HOLD. At 24 guards the figures
+  cost +1.1 to +2.5 ms frame CPU p95 over figures-off (gate +0.5 ms; `docs/guard-models/STATE.md` "G8 budget run",
+  `docs/guard-models/run-g8/`), so the flag stays off by default (`?guardmodels=1` turns them on) while a perf
+  follow-up (per-guard render CPU) runs, then G8 reruns and flips the default. `tests/guardKit.test.ts` enforces the
+  kit data, `tests/guardAssets.test.ts` the bundled files in `src/operators/assets/guards/`. Per guard,
+  LOD0 (< 8 m) / LOD1 (8-25 m) / LOD2 (> 25 m):
+  - triangles shown (body, head, shown pieces) <= 20,000 / 7,000 / 2,800; in the buffer (every head, cap and piece)
+    <= 45,000 / 14,000 / 5,000;
+  - head + neck 4,000 / 1,200 / 400 (eyes 2 x 250 at LOD0, inside the head below), hair cap <= 1,000 / 300 / in the
+    albedo; headwear <= 600, helmet <= 1,200, vest <= 1,800, plate <= 2,600, shield <= 800 (LOD0);
+  - 1 draw per pass (+1 shield, + gun); bones 33 / 23 / 23 (no face bones); influences 4 / 4 / 2;
+  - textures (BC7, mips) per base: albedo + normal / ORM 4096 x 2048 / 2048 x 1024 (25.2 MB) at LOD0, 2048 x 1024 /
+    1024 x 512 (6.3 MB) at LOD1, 512 / 256 (0.8 MB) at LOD2; a face tile per head 1024 / 512 / 128; ~32 MB a base, ~99
+    MB with all three bases and the shield in a scene (~112 MB with meshes and the per-guard buffers);
+  - per-guard buffers: `gvis` 4 B a vertex (~150 KB) plus the visible-piece index buffer (up to ~180 KB), a 33 x 64 B bone
+    upload per posed frame; static buffers shared per (base, LOD);
+  - download (KTX2 UASTC + Zstd) <= 75 MB for every guard file, cached by the service worker (`guards` cache); level
+    load awaits LOD2 only (~1 MB a base).
+  Section 6 of the plan fits this to the 24-guard baselines: draws neutral, GPU +0.3 to +0.8 ms typical and +1.5 to +2.5
+  ms worst (all 24 inside 8 m), frame CPU within +0.5 ms of `?guardmodels=0`. `scripts/guard-cap.mjs` measures it (G8).
+  The enforcer's figure shield shares its materials and buffers per scene (a LOD switch allocates nothing); per scene one
+  disabled warm mesh per guard base stays loaded, never drawn (`ai/guardWarm.ts`).
 
 ## Perf script checks (`scripts/perf.mjs`)
 Warehouse, 10 guards (`STEALTH=1`: unaware and perceiving). Options: `docs/systems/testing-tools.md`, "Helper scripts".

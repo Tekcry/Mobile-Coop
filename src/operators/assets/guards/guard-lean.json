@@ -1,0 +1,26 @@
+{
+ "pieces": [
+  "lean",
+  "lean-1",
+  "lean-2",
+  "lean-3",
+  "lean-4",
+  "buzz",
+  "crop",
+  "sidepart",
+  "receding",
+  "fade",
+  "uniform_rolled",
+  "work",
+  "cap",
+  "beanie",
+  "boonie",
+  "glasses_dark",
+  "helmet_std",
+  "vest_soft",
+  "pouch_belt",
+  "holster_thigh"
+ ],
+ "tintSlots": 6,
+ "refHeight": 1.76
+}

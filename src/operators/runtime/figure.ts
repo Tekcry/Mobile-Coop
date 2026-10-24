@@ -24,7 +24,7 @@ import {
   Vector3, VertexData, type Camera, type Scene,
 } from '../../core/babylon';
 import { hyp3 } from '../../core/mathx';
-import { parseGlb, type GlbImage, type GlbModel } from '../lab/glb';
+import { parseGlb, type GlbImage, type GlbMaterial, type GlbModel } from '../lab/glb';
 import { ktx2Abandoned, ktx2Setup } from '../lab/ktx2';
 import { GOGGLE_OFFSET, GoggleState, goggleRange, partitionGoggle, type GogglePartition, type GogglePose } from './goggle';
 import { FING_LEN, fingerPose, fingerRig, handGripShape, type FingerRig } from '../../anim/fingers';
@@ -242,6 +242,39 @@ export function texture(scene: Scene, im: GlbImage | undefined, srgb: boolean): 
   return t;
 }
 
+/**
+ * One file material as the operator PBR (Operator Lab settings, step 10-11): albedo / ORM / normal maps, environment and
+ * direct intensities, two-sided. (guard-models G5) Shared with the guard figure's library; no glow handling here.
+ */
+export function operatorMaterial(scene: Scene, m: GlbMaterial, label: string): PBRMaterial {
+  const p = new PBRMaterial(`${label}-${m.name}`, scene);
+  p.albedoColor = new Color3(...m.base);
+  p.metallic = m.metallic > 0.5 ? 0.9 : 0;
+  p.roughness = m.roughness;
+  const albedo = texture(scene, m.baseTex, true);
+  if (albedo) p.albedoTexture = albedo;
+  const orm = texture(scene, m.ormTex, false);
+  if (orm) {
+    p.metallicTexture = orm;
+    p.useAmbientOcclusionFromMetallicTextureRed = true;
+    p.useRoughnessFromMetallicTextureGreen = true;
+    p.useMetallnessFromMetallicTextureBlue = true;
+    p.metallic = m.metallic;
+    p.roughness = m.roughness;
+  }
+  const nrm = texture(scene, m.normalTex, false);
+  if (nrm) {
+    p.bumpTexture = nrm;
+    p.invertNormalMapX = true;
+    p.invertNormalMapY = true;
+  }
+  p.environmentIntensity = /metal|aluminium|hardware/.test(m.name) ? 1 : 0.25;
+  p.directIntensity = Math.PI; // as the game's parts: PBR divides diffuse by pi
+  p.backFaceCulling = false;
+  p.twoSidedLighting = true;
+  return p;
+}
+
 /** Builds a LOD file's shared GPU side (load time). Material settings as the Operator Lab's (step 10-11). */
 export function buildLodAsset(scene: Scene, model: GlbModel, lod: number, label: string): LodAsset {
   const problems = validateModel(model, label);
@@ -253,31 +286,7 @@ export function buildLodAsset(scene: Scene, model: GlbModel, lod: number, label:
   let glow = -1;
   let glowBase = new Color3(...GLOW_DEFAULT);
   const materials = model.materials.map((m, i) => {
-    const p = new PBRMaterial(`${label}-${m.name}`, scene);
-    p.albedoColor = new Color3(...m.base);
-    p.metallic = m.metallic > 0.5 ? 0.9 : 0;
-    p.roughness = m.roughness;
-    const albedo = texture(scene, m.baseTex, true);
-    if (albedo) p.albedoTexture = albedo;
-    const orm = texture(scene, m.ormTex, false);
-    if (orm) {
-      p.metallicTexture = orm;
-      p.useAmbientOcclusionFromMetallicTextureRed = true;
-      p.useRoughnessFromMetallicTextureGreen = true;
-      p.useMetallnessFromMetallicTextureBlue = true;
-      p.metallic = m.metallic;
-      p.roughness = m.roughness;
-    }
-    const nrm = texture(scene, m.normalTex, false);
-    if (nrm) {
-      p.bumpTexture = nrm;
-      p.invertNormalMapX = true;
-      p.invertNormalMapY = true;
-    }
-    p.environmentIntensity = /metal|aluminium|hardware/.test(m.name) ? 1 : 0.25;
-    p.directIntensity = Math.PI; // as the game's parts: PBR divides diffuse by pi
-    p.backFaceCulling = false;
-    p.twoSidedLighting = true;
+    const p = operatorMaterial(scene, m, label);
     if (m.name.endsWith('-glow')) {
       glow = i;
       if (m.emissive[0] + m.emissive[1] + m.emissive[2] > 0) glowBase = new Color3(...m.emissive);

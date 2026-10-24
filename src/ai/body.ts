@@ -7,17 +7,23 @@ import type { EnemyDef } from './enemyDefs';
 import type { Enemy } from './enemy';
 import { Ragdoll } from './ragdoll';
 import { attachToShoulder, captureLying, hoistAt, layAt, slideAt } from './carryPose';
+import { GuardBody, guardBodyOf, guardModelsFor, type GuardBodyGear } from './guardBody';
 import { deathLie, dropLie, fallYaw, headReach, LIE, lieAt, newLie, settleMax, type BodyLie, type LieBody } from './bodyLie';
 
 let nextBody = 1;
 
-/** A fresh, unarmed rig of an enemy type (carried bodies). */
-export function buildBodyRig(scene: Scene, world: World, def: EnemyDef, name: string): CharacterRig {
+/**
+ * A fresh, unarmed rig of an enemy type (carried bodies). (guard-models G7) With `flags.guardModels` it also gets the
+ * guard's figure (`guardBodyOf(rig)`), built right after the rig with `gear`: the guard's look seed and his helmet /
+ * armour as he went down, so a carried body keeps his look.
+ */
+export function buildBodyRig(scene: Scene, world: World, def: EnemyDef, name: string, gear: GuardBodyGear | null = null): CharacterRig {
   const rig = new CharacterRig(scene, (shape, hex, slot) => world.parts.instance(shape, hex, `enemy-${slot}`), def.look, def.height, name, {
     build: def.build,
     armor: def.plated,
     merge: true, // (guard-render S1) one merged smooth mesh (`?guardmerge=0`: the parts)
   });
+  if (guardModelsFor(def)) new GuardBody(scene, world, def, rig, name, gear ?? undefined);
   for (const m of rig.renderMeshes) world.addShadowCaster(m);
   return rig;
 }
@@ -89,6 +95,9 @@ export class Body {
   guard: Enemy | null = null;
   private ragdoll: Ragdoll | null = null;
   private rig: CharacterRig | null = null;
+  /** (guard-models G7) The figure over `rig` (the guard's own as he fell; a fresh one on a carried rig), or null. */
+  private gbody: GuardBody | null = null;
+  private readonly gearTmp: GuardBodyGear = { look: 0, helmet: false, armour: false };
 
   constructor(
     private scene: Scene,
@@ -110,6 +119,19 @@ export class Body {
       this.ragdoll.snapTo(lie.x, lie.y, lie.z, lie.headYaw);
     } else this.lay(rig);
     this.rig = rig;
+    this.gbody = guardBodyOf(rig);
+  }
+
+  /** (guard-models G7) His look and gear for a fresh rig: from the figure he fell in, else from the guard. */
+  private gearNow(): GuardBodyGear | null {
+    const gb = this.gbody;
+    if (gb && !gb.isDisposed) return gb.gear(this.gearTmp);
+    const g = this.guard;
+    if (!g) return null;
+    this.gearTmp.look = g.look;
+    this.gearTmp.helmet = g.helmet;
+    this.gearTmp.armour = g.armour;
+    return this.gearTmp;
   }
 
   /** The body's rig, for render-only passes (step 14: a fresh body cools in thermal vision); null once gone. */
@@ -152,10 +174,12 @@ export class Body {
 
   /** Pick up at once: the corpse goes, a fresh rig is posed over the carrier's shoulder (`chest` node of their rig). */
   pickUp(chest: TransformNode, shoulderX: number, shoulderY: number): CharacterRig {
+    const gear = this.gearNow();
     this.disposeRig();
-    const rig = buildBodyRig(this.scene, this.world, this.def, `${this.id}-carried`);
+    const rig = buildBodyRig(this.scene, this.world, this.def, `${this.id}-carried`, gear);
     attachToShoulder(rig, chest, shoulderX, shoulderY);
     this.rig = rig;
+    this.gbody = guardBodyOf(rig);
     this.carried = true;
     this.found = false;
     return rig;
@@ -188,10 +212,11 @@ export class Body {
     const rig0 = this.rig;
     if (!rig0) return;
     // (G7 fix round) the fresh rig takes the corpse's pose as it lies (it was straightened in one frame)
-    const rig = buildBodyRig(this.scene, this.world, this.def, `${this.id}-carried`);
+    const rig = buildBodyRig(this.scene, this.world, this.def, `${this.id}-carried`, this.gearNow());
     captureLying(rig0, rig, this.hoistQ, this.hoistFrom, this.hoistJ);
     this.disposeRig();
     this.rig = rig;
+    this.gbody = guardBodyOf(rig);
     this.carried = true;
     this.found = false;
   }
@@ -244,6 +269,9 @@ export class Body {
   }
 
   private disposeRig(): void {
+    // (guard-models G7) the figure first (its meshes hang under the rig's root)
+    this.gbody?.dispose();
+    this.gbody = null;
     if (this.ragdoll) {
       this.ragdoll.dispose();
       this.ragdoll = null;

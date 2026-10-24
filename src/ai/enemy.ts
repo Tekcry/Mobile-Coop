@@ -60,6 +60,9 @@ import { GuardAnimTier } from './animTierView';
 import { ANIM_TIER_FROZEN_CARRY_MAX } from './animTier';
 import { BREAKER, gearHit, type GearHit, type GuardGear } from './gear';
 import { buildArmourParts, buildHelmetPart, buildShieldPart, gearColour, HELMET_FIT } from './gearParts';
+import type { GuardBody } from './guardBody';
+import { guardHelmetDrop } from './helmetDrops';
+import { guardShieldFor } from './guardShield';
 import { guardAim } from './guardStance';
 import { SWEEP_NEAR, type SweepTeam } from './sweepTeam';
 import { MAX_INTRUDERS, mayBeSeen, PERCEIVE, perceiveOrder, pickTarget, TARGETS } from './targetPick';
@@ -257,6 +260,10 @@ export class Enemy implements Damageable {
    *  perception, not combat. */
   readonly rng = new Rng(Math.imul(this.num, 2654435761));
   readonly id = `e${this.num}`;
+  /** (guard-models G6n, M3) His 7-bit look seed (0-127, `guardLook.ts`): set once by `EnemyManager` at spawn from his
+   *  spawn slot (never from `num`), so a section restart gives the slot the same look; a woken guard keeps it
+   *  (`inherit`). Co-op: sent in the enemy `al` (`AL_LOOK`). */
+  look = 0;
   readonly team = 'enemy' as const;
   readonly health: Health;
   readonly pos: Vector3;
@@ -265,6 +272,9 @@ export class Enemy implements Damageable {
   private stateT = 0;
   private rig: CharacterRig;
   private gun: WeaponModel | null;
+  /** (guard-models G7) His operator-pipeline figure over the rig (`flags.guardModels`; null: the merged S1 body, the
+   *  dog). Its look follows `look`, its pieces his gear; it goes with the rig to his `Body` when he goes down. */
+  private gbody: GuardBody | null = null;
   /** (guard-ai S21, walk 4.72 G5) Holstered in a calm area (`carryState.ts`): stepped in `update`, gates fire, posed in
    *  `frame` (`gunCarry`, null: a kind that never holsters). */
   readonly carry: GuardCarry;
@@ -532,6 +542,7 @@ export class Enemy implements Damageable {
     const built = buildEnemyRig(ctx.scene, ctx.world, def, this.id);
     this.rig = built.rig;
     this.gun = built.gun;
+    this.gbody = built.figure;
     // (guard-ai S21) the carry: a kind that ever holsters gets the gun's slot (the rifle on his back, the pistol on his thigh)
     const gunCls = built.gun ? built.gun.def.class : '';
     this.carry = new GuardCarry(mayHolster(def.kind, def.gun, !!def.melee, def.quadruped), gunCls);
@@ -551,7 +562,12 @@ export class Enemy implements Damageable {
       this.dog = new DogModel(ctx.scene, parts, def.look.colors.torso, def.look.colors.accent);
     }
     // (guard-ai S9) the shield builder is shared with the co-op client's puppet (`gearParts.ts`)
-    if (def.kind === 'enforcer') this.shield = buildShieldPart(ctx.world, this.rig.root, def.scale);
+    // (guard-models G7) with the figures: shield_riot's own GLB on his skeleton once its files are in (`guardShieldFor`)
+    if (def.kind === 'enforcer') {
+      const gs = this.gbody ? guardShieldFor(ctx.scene, this.gbody, (m) => ctx.world.addShadowCaster(m)) : null;
+      if (gs) this.gbody!.shield = gs;
+      else this.shield = buildShieldPart(ctx.world, this.rig.root, def.scale);
+    }
     if (def.kind === 'sniper') {
       this.laser = parts.instance('cyl', '#ff2a1a', 'laser');
       this.laser.isVisible = false;
@@ -740,6 +756,12 @@ export class Enemy implements Damageable {
   /** The gear parts match `helmet` / `armour` (a dog has none; nothing is built for a guard without gear). */
   private showGear(): void {
     if (this.dog) return;
+    // (guard-models G7, A5) the figure's helmet / vest / plate pieces (G6 `applyGear`); the placeholders only without it
+    const gb = this.gbody;
+    if (gb) {
+      gb.setGear(this.helmet, this.armour);
+      return;
+    }
     if (this.helmet && !this.helmetPart) this.buildHelmet();
     if (this.armour && !this.armourParts) this.buildArmour();
     if (this.helmetPart) this.helmetPart.isVisible = this.helmet;
@@ -764,11 +786,22 @@ export class Enemy implements Damageable {
     this.helmet = false;
     if (this.helmetPart) this.helmetPart.isVisible = false;
     const H = this.dog ? null : this.rig.p.head;
-    if (H) {
-      const dl = hyp2(h.dir.x, h.dir.z) || 1;
-      this.ctx.dropHelmet?.(this.pos.x, this.pos.y, this.pos.z, 1.65 * this.def.scale, h.dir.x / dl, h.dir.z / dl, this.gearHex || '#22262b', H.w * HELMET_FIT.w, H.h * HELMET_FIT.h, H.d * HELMET_FIT.d);
+    if (!H) return;
+    const dl = hyp2(h.dir.x, h.dir.z) || 1;
+    const gb = this.gbody;
+    if (gb) {
+      // (guard-models G7, A6) the helmet piece hides (his own headwear or hair shows under it); the drop is helmet_std
+      // for every kind (helmet_heavy has no drop anchor, G3), its box scaled to his height, his faction's helmet colour
+      gb.setGear(false, this.armour);
+      if (!this.gearHex) this.gearHex = gearColour(this.def, this.ctx.world, 'helmet');
+      const d = guardHelmetDrop(this.def.height, this.dropBox);
+      this.ctx.dropHelmet?.(this.pos.x, this.pos.y, this.pos.z, 1.65 * this.def.scale, h.dir.x / dl, h.dir.z / dl, this.gearHex, d[0]!, d[1]!, d[2]!);
+      return;
     }
+    this.ctx.dropHelmet?.(this.pos.x, this.pos.y, this.pos.z, 1.65 * this.def.scale, h.dir.x / dl, h.dir.z / dl, this.gearHex || '#22262b', H.w * HELMET_FIT.w, H.h * HELMET_FIT.h, H.d * HELMET_FIT.d);
   }
+  /** (guard-models G7) The figure's dropped-helmet box (w, h, d; m), reused. */
+  private readonly dropBox = [0, 0, 0];
 
   /** (3.2.0) Seconds this guard has seen its target holding a hostage (the hesitation before aimed fire). */
   private shieldT = 0;
@@ -911,6 +944,7 @@ export class Enemy implements Damageable {
    */
   inherit(o: Enemy, downFor = 0): void {
     this.key = o.key;
+    this.look = o.look;
     this.squad = o.squad;
     this.hold = o.hold;
     this.passive = o.passive;
@@ -2055,6 +2089,8 @@ export class Enemy implements Damageable {
     // the freeze, so solve it once at his current place first; the ragdoll and `Body.pos` then never depend on whether
     // this page's camera saw him
     if (!this.rig.root.isEnabled(false)) this.animTier.solveNow(this.rig, ANIM_TIER_FROZEN_CARRY_MAX, this.rp);
+    // (guard-models G7) his figure goes on with the rig as his body (`Body` finds it by the rig), unflashed
+    if (this.gbody) this.gbody.flash = 0;
     const imp = h.dir.scale(Math.min(80, 8 + h.impulse * 3) * (h.kind === 'explosion' ? 2.5 : 1));
     imp.y += h.kind === 'explosion' ? 25 : 3;
     // the rig stays in the world as a body (ragdoll when one can be spared)
@@ -3727,6 +3763,12 @@ export class Enemy implements Damageable {
     this.kick = Math.max(0, this.kick - dt * 8);
     this.flash = Math.max(0, this.flash - dt * 9);
     this.rig.setFlash(this.flash * 0.75);
+    const gb = this.gbody;
+    if (gb) {
+      // (guard-models G7) the figure: his look seed (the manager sets it after the constructor; a wake copies it), the flash
+      gb.setLook(this.look);
+      gb.flash = this.flash * 0.75;
+    }
     const lvl = this.aware.level;
     const aiming = this.aimWeight();
     const m = this.motion;
@@ -3779,7 +3821,11 @@ export class Enemy implements Damageable {
     } else {
       // (guard-render S4) full rate in a takedown / held, a scripted emote or a climb (and near any player: the tier);
       // (perfg, folded into `animTier.ts`) the FROZEN tier: a rig the render freeze disabled is not animated (C8 at its thaw)
+      // (guard-models G7) the tier watches what draws (the figure's shown LOD once it is in) and gates the figure's pose
+      if (gb) this.animTier.watch(gb.viewMesh);
       this.animTier.animate(this.rig, dt, rp, this.ctx.players(), this.taken || this.climbing || this.rig.emote !== null);
+      // (guard-models S11) the tier's own state: a skipped solve (frozen included) skips the figure's pose
+      if (gb) gb.skip = this.animTier.skipped;
     }
     if (this.laser) this.sniperFx();
   }
@@ -3792,6 +3838,9 @@ export class Enemy implements Damageable {
   thawPose(): void {
     if (!this.alive || this.dog || this.rig.root.isDisposed()) return;
     this.animTier.solveNow(this.rig, 0, this.rp);
+    // (guard-models S11-CHECK P1) pose the figure from the thawed rig in this frame (the thaw runs in the camera
+    // evaluation, after `GuardBody.frame`), so the first frame drawn is current, not the pose at the freeze
+    this.gbody?.figure.update(this.ctx.scene.activeCamera);
   }
 
   /** Sniper: the laser from the scope along the aim while it aims, and the glint (sized for the local view). */
@@ -3824,6 +3873,7 @@ export class Enemy implements Damageable {
       this.hitboxes.dispose();
       this.ctx.registry.removeTarget(this);
       this.gun?.dispose();
+      this.gbody?.dispose();
       this.rig.dispose();
     }
     this.dog?.dispose();

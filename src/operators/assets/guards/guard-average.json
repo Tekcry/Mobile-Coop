@@ -1,0 +1,30 @@
+{
+ "pieces": [
+  "average",
+  "average-1",
+  "average-2",
+  "average-3",
+  "average-4",
+  "buzz",
+  "crop",
+  "sidepart",
+  "receding",
+  "fade",
+  "uniform",
+  "uniform_jacket",
+  "cap",
+  "cap_officer",
+  "beanie",
+  "headset",
+  "glasses_clear",
+  "glasses_dark",
+  "helmet_std",
+  "vest_soft",
+  "radio",
+  "pouch_belt",
+  "holster_thigh",
+  "flashlight_mount"
+ ],
+ "tintSlots": 6,
+ "refHeight": 1.77
+}

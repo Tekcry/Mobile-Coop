@@ -1,0 +1,301 @@
+{
+  "$comment": "Guard kit data (guard-models G0, docs/guard-models/SPEC.md). Read by the bake scripts (Python) and by src/operators/guards/guardKit.ts (validateGuardKit). Triangle budgets are [LOD0, LOD1, LOD2]; texels are [w, h] in the LOD0 atlas (LOD1 half, LOD2 quarter). Ids are the shared id contract; never add ids here without the lead.",
+  "version": 1,
+  "lod": { "near": 8, "far": 25, "hysteresis": 0.1 },
+  "atlas": { "lod0": [4096, 2048], "left": 2048, "faceTile": [1024, 512, 128], "faceTiles": 4 },
+  "bones": {
+    "rig": ["root", "body", "pelvis", "spine", "chest", "neck", "head", "shL", "elL", "wrL", "shR", "elR", "wrR", "hipL", "knL", "anL", "hipR", "knR", "anR", "toeL", "toeR", "clavL", "clavR"],
+    "fingers": ["fingerL_1_1", "fingerL_2_1", "fingerL_3_1", "fingerL_4_1", "fingerL_5_1", "fingerR_1_1", "fingerR_2_1", "fingerR_3_1", "fingerR_4_1", "fingerR_5_1"],
+    "fingerParent": { "fingerL": "wrL", "fingerR": "wrR" },
+    "influences": [4, 4, 2]
+  },
+  "tintSlots": ["uniform", "kit", "headwear", "hair", "skin", "none"],
+  "tintNeutral": { "fabric": 0.4, "skin": 0.75, "hair": 0.6 },
+  "tintJitter": 0.06,
+  "face": {
+    "neckSeam": { "joint": "neck", "at": 0.45, "blendLoops": 2 },
+    "envelopeOffset": 0.015,
+    "eyes": { "tris": [500, 0, 0], "texels": [256, 256] },
+    "irises": ["brown", "darkbrown", "hazel", "bluegrey"],
+    "facialHair": ["clean", "stubble", "beard"]
+  },
+  "bases": [
+    {
+      "id": "average",
+      "refHeight": 1.77,
+      "build": "average",
+      "macro": { "gender": 1, "muscle": 0.6, "weight": 0.5, "proportions": 0.6 },
+      "kinds": ["grunt", "droneOp", "officer"],
+      "bodyTris": [1200, 400, 150],
+      "bodyTexels": [512, 512],
+      "faceTiles": ["average-1", "average-2", "average-3", "average-4"],
+      "mounts": {
+        "weaponMount.backL": [0, 0, 0],
+        "weaponMount.backC": [0, 0, 0],
+        "weaponMount.backR": [0, 0, 0],
+        "pistolHolster": [0, 0, 0],
+        "slingSocket": [0, 0, 0]
+      }
+    },
+    {
+      "id": "lean",
+      "refHeight": 1.76,
+      "build": "lean",
+      "macro": { "gender": 1, "muscle": 0.55, "weight": 0.32, "proportions": 0.7 },
+      "kinds": ["runner", "sniper"],
+      "bodyTris": [1200, 400, 150],
+      "bodyTexels": [512, 512],
+      "faceTiles": ["lean-1", "lean-2", "lean-3", "lean-4"],
+      "mounts": {
+        "weaponMount.backL": [0, 0, 0],
+        "weaponMount.backC": [0, 0, 0],
+        "weaponMount.backR": [0, 0, 0],
+        "pistolHolster": [0, 0, 0],
+        "slingSocket": [0, 0, 0]
+      }
+    },
+    {
+      "id": "broad",
+      "refHeight": 1.825,
+      "build": "broad",
+      "macro": { "gender": 1, "muscle": 0.75, "weight": 0.68, "proportions": 0.5 },
+      "kinds": ["heavy", "enforcer"],
+      "bodyTris": [1200, 400, 150],
+      "bodyTexels": [512, 512],
+      "faceTiles": ["broad-1", "balaclava", "plate_heavy", "helmet_heavy"],
+      "mounts": {
+        "weaponMount.backL": [0, 0, 0],
+        "weaponMount.backC": [0, 0, 0],
+        "weaponMount.backR": [0, 0, 0],
+        "pistolHolster": [0, 0, 0],
+        "slingSocket": [0, 0, 0]
+      }
+    }
+  ],
+  "heads": [
+    {
+      "id": "average-1", "base": "average", "tris": [4000, 1200, 400], "iris": "brown", "facialHair": "clean",
+      "look": "square jaw, straight nose, level brows",
+      "targets": {
+        "targets/chin/chin-width-incr.target.gz": 0.5,
+        "targets/chin/chin-prominent-incr.target.gz": 0.3,
+        "targets/cheek/l-cheek-bones-incr.target.gz": 0.3,
+        "targets/cheek/r-cheek-bones-incr.target.gz": 0.3,
+        "targets/nose/nose-hump-decr.target.gz": 0.2,
+        "targets/mouth/mouth-scale-horiz-incr.target.gz": 0.2,
+        "targets/eyebrows/eyebrows-trans-down.target.gz": 0.3
+      }
+    },
+    {
+      "id": "average-2", "base": "average", "tris": [4000, 1200, 400], "iris": "darkbrown", "facialHair": "stubble",
+      "look": "fuller cheeks, broad nose, short chin, slight eye bags",
+      "targets": {
+        "targets/cheek/l-cheek-volume-incr.target.gz": 0.5,
+        "targets/cheek/r-cheek-volume-incr.target.gz": 0.5,
+        "targets/nose/nose-scale-horiz-incr.target.gz": 0.4,
+        "targets/nose/nose-flaring-incr.target.gz": 0.3,
+        "targets/chin/chin-height-decr.target.gz": 0.3,
+        "targets/mouth/mouth-lowerlip-volume-incr.target.gz": 0.3,
+        "targets/eyes/l-eye-bag-incr.target.gz": 0.3,
+        "targets/eyes/r-eye-bag-incr.target.gz": 0.3
+      }
+    },
+    {
+      "id": "average-3", "base": "average", "tris": [4000, 1200, 400], "iris": "hazel", "facialHair": "beard",
+      "look": "long chin, hooked nose, lean cheeks, larger ears",
+      "targets": {
+        "targets/chin/chin-height-incr.target.gz": 0.4,
+        "targets/nose/nose-hump-incr.target.gz": 0.5,
+        "targets/nose/nose-point-down.target.gz": 0.3,
+        "targets/cheek/l-cheek-volume-decr.target.gz": 0.3,
+        "targets/cheek/r-cheek-volume-decr.target.gz": 0.3,
+        "targets/forehead/forehead-temple-decr.target.gz": 0.3,
+        "targets/mouth/mouth-upperlip-volume-decr.target.gz": 0.2,
+        "targets/ears/l-ear-scale-incr.target.gz": 0.3,
+        "targets/ears/r-ear-scale-incr.target.gz": 0.3
+      }
+    },
+    {
+      "id": "average-4", "base": "average", "tris": [4000, 1200, 400], "iris": "bluegrey", "facialHair": "stubble",
+      "look": "heavy brow, compressed nose, cleft chin, narrow eyes",
+      "targets": {
+        "targets/eyebrows/eyebrows-trans-forward.target.gz": 0.4,
+        "targets/forehead/forehead-nubian-incr.target.gz": 0.3,
+        "targets/nose/nose-compression-compress.target.gz": 0.4,
+        "targets/nose/nose-scale-vert-decr.target.gz": 0.3,
+        "targets/chin/chin-cleft-incr.target.gz": 0.5,
+        "targets/chin/chin-bones-incr.target.gz": 0.3,
+        "targets/eyes/l-eye-height2-decr.target.gz": 0.3,
+        "targets/eyes/r-eye-height2-decr.target.gz": 0.3
+      }
+    },
+    {
+      "id": "lean-1", "base": "lean", "tris": [4000, 1200, 400], "iris": "bluegrey", "facialHair": "clean",
+      "look": "narrow face, thin sharp nose, narrow chin",
+      "targets": {
+        "targets/cheek/l-cheek-inner-decr.target.gz": 0.4,
+        "targets/cheek/r-cheek-inner-decr.target.gz": 0.4,
+        "targets/nose/nose-scale-horiz-decr.target.gz": 0.4,
+        "targets/nose/nose-point-width-decr.target.gz": 0.3,
+        "targets/chin/chin-width-decr.target.gz": 0.4,
+        "targets/chin/chin-prognathism-incr.target.gz": 0.2,
+        "targets/mouth/mouth-upperlip-height-decr.target.gz": 0.2
+      }
+    },
+    {
+      "id": "lean-2", "base": "lean", "tris": [4000, 1200, 400], "iris": "brown", "facialHair": "stubble",
+      "look": "high cheekbones over hollow cheeks, straight bridge, close-set eyes",
+      "targets": {
+        "targets/cheek/l-cheek-bones-incr.target.gz": 0.5,
+        "targets/cheek/r-cheek-bones-incr.target.gz": 0.5,
+        "targets/cheek/l-cheek-volume-decr.target.gz": 0.5,
+        "targets/cheek/r-cheek-volume-decr.target.gz": 0.5,
+        "targets/nose/nose-greek-incr.target.gz": 0.3,
+        "targets/eyes/l-eye-trans-in.target.gz": 0.2,
+        "targets/eyes/r-eye-trans-in.target.gz": 0.2,
+        "targets/mouth/mouth-lowerlip-volume-decr.target.gz": 0.3
+      }
+    },
+    {
+      "id": "lean-3", "base": "lean", "tris": [4000, 1200, 400], "iris": "darkbrown", "facialHair": "beard",
+      "look": "angular jaw, wide mouth, convex nose, ears set out",
+      "targets": {
+        "targets/chin/chin-triangle.target.gz": 0.4,
+        "targets/mouth/mouth-scale-horiz-incr.target.gz": 0.4,
+        "targets/nose/nose-curve-convex.target.gz": 0.3,
+        "targets/ears/l-ear-flap-incr.target.gz": 0.3,
+        "targets/ears/r-ear-flap-incr.target.gz": 0.3,
+        "targets/eyebrows/eyebrows-angle-up.target.gz": 0.2
+      }
+    },
+    {
+      "id": "lean-4", "base": "lean", "tris": [4000, 1200, 400], "iris": "hazel", "facialHair": "clean",
+      "look": "deep-set eyes, long nose, low brows, receding chin",
+      "targets": {
+        "targets/eyes/l-eye-push1-in.target.gz": 0.4,
+        "targets/eyes/r-eye-push1-in.target.gz": 0.4,
+        "targets/nose/nose-scale-vert-incr.target.gz": 0.4,
+        "targets/eyebrows/eyebrows-trans-down.target.gz": 0.3,
+        "targets/chin/chin-prominent-decr.target.gz": 0.3,
+        "targets/mouth/mouth-angles-down.target.gz": 0.2
+      }
+    },
+    {
+      "id": "broad-1", "base": "broad", "tris": [4000, 1200, 400], "iris": "darkbrown", "facialHair": "clean",
+      "look": "eye region under the balaclava: heavy brow, deep-set eyes, slight bags (nose and mouth hidden)",
+      "targets": {
+        "targets/eyebrows/eyebrows-trans-forward.target.gz": 0.5,
+        "targets/forehead/forehead-nubian-incr.target.gz": 0.3,
+        "targets/eyes/l-eye-push1-in.target.gz": 0.3,
+        "targets/eyes/r-eye-push1-in.target.gz": 0.3,
+        "targets/eyes/l-eye-bag-incr.target.gz": 0.3,
+        "targets/eyes/r-eye-bag-incr.target.gz": 0.3
+      }
+    }
+  ],
+  "hairCaps": [
+    { "id": "buzz", "tris": [500, 200, 0], "texels": [256, 256], "offset": 0.002, "look": "even clipper cut, ~3 mm over the whole scalp" },
+    { "id": "crop", "tris": [800, 250, 0], "texels": [256, 256], "offset": 0.006, "look": "short textured crop, slightly longer on top, soft fringe" },
+    { "id": "sidepart", "tris": [1000, 300, 0], "texels": [256, 256], "offset": 0.012, "look": "short back and sides, longer top combed to a left side part" },
+    { "id": "receding", "tris": [800, 250, 0], "texels": [256, 256], "offset": 0.006, "look": "short cut with the hairline set back 25 mm at the temples" },
+    { "id": "fade", "tris": [700, 250, 0], "texels": [256, 256], "offset": 0.003, "look": "sides faded to skin at the ears, ~6 mm on top" },
+    { "id": "bald", "tris": [0, 0, 0], "texels": [0, 0], "offset": 0, "look": "no cap: scalp and a light shave shadow in the face tile" }
+  ],
+  "hairColours": [
+    { "id": "black", "rgb": [0.035, 0.03, 0.025] },
+    { "id": "darkbrown", "rgb": [0.1, 0.058, 0.033] },
+    { "id": "brown", "rgb": [0.27, 0.15, 0.075] },
+    { "id": "grey", "rgb": [0.58, 0.57, 0.55] }
+  ],
+  "skinTones": [
+    { "id": 0, "rgb": [0.98, 0.58, 0.43] },
+    { "id": 1, "rgb": [0.76, 0.36, 0.2] },
+    { "id": 2, "rgb": [0.42, 0.17, 0.08] },
+    { "id": 3, "rgb": [0.17, 0.07, 0.035] }
+  ],
+  "pieces": [
+    { "id": "uniform", "kind": "outfit", "tris": [5500, 1800, 700], "texels": [1024, 1024], "tint": "uniform", "bones": [], "fit": "cloth",
+      "look": "field shirt (sleeves down, two chest pockets with plain flaps), cargo trousers, laced boots, plain gloves" },
+    { "id": "uniform_rolled", "kind": "outfit", "tris": [5500, 1800, 700], "texels": [1024, 512], "tint": "uniform", "bones": [], "fit": "cloth",
+      "look": "the uniform with sleeves rolled above the elbow (forearms bare, skin slot), same trousers, boots and gloves" },
+    { "id": "work", "kind": "outfit", "tris": [5000, 1700, 650], "texels": [1024, 512], "tint": "uniform", "bones": [], "fit": "cloth",
+      "look": "zip-front work jacket with hip pockets, plain work trousers, boots, work gloves" },
+    { "id": "uniform_jacket", "kind": "outfit", "tris": [6500, 2100, 800], "texels": [1024, 1024], "tint": "uniform", "bones": [], "fit": "cloth",
+      "look": "short field jacket (stand collar, two lower patch pockets, plain shoulder straps) over the shirt, trousers, boots, gloves" },
+
+    { "id": "cap", "kind": "headwear", "tris": [600, 200, 80], "texels": [256, 256], "tint": "headwear", "bones": ["head"], "fit": "headEnvelope", "hidesHair": false, "underHelmet": false,
+      "look": "soft six-panel peaked cap, plain front, short curved brim" },
+    { "id": "cap_officer", "kind": "headwear", "tris": [600, 200, 80], "texels": [256, 256], "tint": "headwear", "bones": ["head"], "fit": "headEnvelope", "hidesHair": false, "underHelmet": false,
+      "look": "structured peaked cap: stiff rounded crown, short hard visor, plain cord band, no badge" },
+    { "id": "beanie", "kind": "headwear", "tris": [500, 180, 60], "texels": [256, 256], "tint": "headwear", "bones": ["head"], "fit": "headEnvelope", "hidesHair": true, "underHelmet": false,
+      "look": "rib-knit watch cap with a rolled cuff above the ears" },
+    { "id": "balaclava", "kind": "headwear", "tris": [600, 200, 80], "texels": [1024, 1024], "tint": "none", "bones": ["head", "neck"], "fit": "membrane", "hidesHair": true, "underHelmet": true,
+      "look": "dark knit balaclava, one wide eye opening, flatlock seams, collar tucked into the shirt" },
+    { "id": "headset", "kind": "headwear", "tris": [400, 150, 50], "texels": [256, 256], "tint": "none", "bones": ["head"], "fit": "headEnvelope", "hidesHair": false, "underHelmet": true,
+      "look": "single-band headset, two closed ear cups, short boom mic on the left" },
+    { "id": "boonie", "kind": "headwear", "tris": [600, 200, 80], "texels": [256, 256], "tint": "headwear", "bones": ["head"], "fit": "headEnvelope", "hidesHair": false, "underHelmet": false,
+      "look": "soft wide-brim field hat, sewn crown band, two side vents, chin cord" },
+
+    { "id": "glasses_clear", "kind": "eyewear", "tris": [300, 100, 20], "texels": [128, 128], "tint": "none", "bones": ["head"], "fit": "face",
+      "look": "thin wire-frame glasses with clear lenses" },
+    { "id": "glasses_dark", "kind": "eyewear", "tris": [300, 100, 20], "texels": [128, 128], "tint": "none", "bones": ["head"], "fit": "face",
+      "look": "wrap-around shooting glasses with dark lenses and plain arms" },
+
+    { "id": "helmet_std", "kind": "gear", "tris": [1200, 400, 150], "texels": [512, 256], "tint": "headwear", "bones": ["head"], "fit": "headEnvelope",
+      "look": "rounded shell with a low side cut, side rails, rear pad and a two-point chin strap (also the dropped-helmet mesh, A6)" },
+    { "id": "helmet_heavy", "kind": "gear", "tris": [1200, 400, 150], "texels": [1024, 1024], "tint": "headwear", "bones": ["head"], "fit": "headEnvelope",
+      "look": "the same shell with a thicker brow edge and a raised clear visor on side pivots" },
+    { "id": "vest_soft", "kind": "gear", "tris": [1800, 600, 250], "texels": [512, 512], "tint": "kit", "bones": ["chest", "spine", "clavL", "clavR"], "fit": "torsoShell",
+      "look": "slim soft carrier: front and back panels, side straps, two small front pouches" },
+    { "id": "plate_heavy", "kind": "gear", "tris": [2600, 900, 350], "texels": [1024, 1024], "tint": "kit", "bones": ["chest", "spine", "clavL", "clavR", "shL", "shR"], "fit": "torsoShell",
+      "look": "thick plate carrier with a collar guard, shoulder guards and three front pouches" },
+    { "id": "shield_riot", "kind": "shield", "tris": [800, 300, 120], "texels": [512, 512], "tint": "none", "bones": ["elL", "wrL"], "fit": "held", "ownGlb": true,
+      "look": "curved polymer shield, small view port, two inner handles, plain face (no text or insignia)" },
+
+    { "id": "radio", "kind": "kit", "tris": [300, 100, 30], "texels": [256, 256], "tint": "kit", "bones": ["chest"], "fit": "rigid",
+      "look": "compact radio in an open-top pouch on the left chest, short stub antenna" },
+    { "id": "pouch_belt", "kind": "kit", "tris": [400, 150, 30], "texels": [256, 256], "tint": "kit", "bones": ["pelvis"], "fit": "rigid",
+      "look": "plain duty belt with two small closed pouches" },
+    { "id": "holster_thigh", "kind": "kit", "tris": [350, 100, 30], "texels": [256, 256], "tint": "kit", "bones": ["hipR"], "fit": "rigid",
+      "look": "drop-leg holster on two thigh straps (the pistol carry slot)" },
+    { "id": "flashlight_mount", "kind": "kit", "tris": [250, 80, 30], "texels": [256, 256], "tint": "none", "bones": ["chest"], "fit": "rigid",
+      "look": "clip mount on the right shoulder strap holding a short torch" }
+  ],
+  "kinds": [
+    { "id": "grunt", "base": "average", "height": 1.77, "heads": ["average-1", "average-2", "average-3", "average-4"],
+      "hairCaps": ["buzz", "crop", "sidepart", "receding", "fade", "bald"], "outfit": "uniform", "uniformTint": "faction",
+      "headwear": ["cap", "beanie"], "headwearOptional": true, "headwear2": [], "eyewear": ["glasses_clear", "glasses_dark"],
+      "fixedGear": ["radio", "flashlight_mount"], "gameplayGear": ["helmet_std", "vest_soft"], "helmetPiece": "helmet_std", "armourPiece": "vest_soft",
+      "kitPool": ["pouch_belt", "holster_thigh"], "faceCovered": false },
+    { "id": "runner", "base": "lean", "height": 1.74, "heads": ["lean-1", "lean-2", "lean-3", "lean-4"],
+      "hairCaps": ["buzz", "crop", "sidepart", "receding", "fade", "bald"], "outfit": "work", "uniformTint": "kind",
+      "headwear": ["beanie"], "headwearOptional": true, "headwear2": [], "eyewear": [],
+      "fixedGear": [], "gameplayGear": ["helmet_std", "vest_soft"], "helmetPiece": "helmet_std", "armourPiece": "vest_soft",
+      "kitPool": ["pouch_belt"], "faceCovered": false },
+    { "id": "heavy", "base": "broad", "height": 1.83, "heads": ["broad-1"],
+      "hairCaps": [], "outfit": "uniform", "uniformTint": "faction",
+      "headwear": ["balaclava"], "headwearOptional": false, "headwear2": [], "eyewear": [],
+      "fixedGear": ["plate_heavy"], "gameplayGear": ["helmet_heavy"], "helmetPiece": "helmet_heavy", "armourPiece": "plate_heavy",
+      "kitPool": ["pouch_belt"], "faceCovered": true },
+    { "id": "sniper", "base": "lean", "height": 1.78, "heads": ["lean-1", "lean-2", "lean-3", "lean-4"],
+      "hairCaps": ["buzz", "crop", "sidepart", "receding", "fade", "bald"], "outfit": "uniform_rolled", "uniformTint": "faction",
+      "headwear": ["boonie", "cap"], "headwearOptional": false, "headwear2": [], "eyewear": [],
+      "fixedGear": ["glasses_dark"], "gameplayGear": ["helmet_std", "vest_soft"], "helmetPiece": "helmet_std", "armourPiece": "vest_soft",
+      "kitPool": ["pouch_belt", "holster_thigh"], "faceCovered": false },
+    { "id": "enforcer", "base": "broad", "height": 1.82, "heads": ["broad-1"],
+      "hairCaps": [], "outfit": "uniform", "uniformTint": "faction",
+      "headwear": ["balaclava"], "headwearOptional": false, "headwear2": [], "eyewear": [],
+      "fixedGear": ["plate_heavy", "shield_riot"], "gameplayGear": ["helmet_heavy"], "helmetPiece": "helmet_heavy", "armourPiece": "plate_heavy",
+      "kitPool": ["pouch_belt"], "faceCovered": true },
+    { "id": "droneOp", "base": "average", "height": 1.75, "heads": ["average-1", "average-2", "average-3", "average-4"],
+      "hairCaps": ["buzz", "crop", "sidepart", "receding", "fade", "bald"], "outfit": "uniform", "uniformTint": "faction",
+      "headwear": ["headset"], "headwearOptional": false, "headwear2": ["cap"], "eyewear": ["glasses_clear"],
+      "fixedGear": ["pouch_belt"], "gameplayGear": ["helmet_std", "vest_soft"], "helmetPiece": "helmet_std", "armourPiece": "vest_soft",
+      "kitPool": ["holster_thigh"], "faceCovered": false },
+    { "id": "officer", "base": "average", "height": 1.8, "heads": ["average-1", "average-2", "average-3", "average-4"],
+      "hairCaps": ["buzz", "crop", "sidepart", "receding", "fade", "bald"], "outfit": "uniform_jacket", "uniformTint": "kind",
+      "headwear": ["cap_officer"], "headwearOptional": false, "headwear2": [], "eyewear": ["glasses_clear"],
+      "fixedGear": ["radio"], "gameplayGear": ["helmet_std", "vest_soft"], "helmetPiece": "helmet_std", "armourPiece": "vest_soft",
+      "kitPool": ["holster_thigh"], "faceCovered": false }
+  ]
+}

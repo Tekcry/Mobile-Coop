@@ -212,6 +212,26 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   helmeted guard in the head: steel-blue hit marker and a ping, the helmet falls to the floor and stays, he reels and
   comes up shooting; a second head shot kills. An armoured guard shrugs off chest rounds (a short stagger, not every
   round); a takedown drops either in one move.
+- [ ] Guard models (guard-models; add `?guardmodels=1` to the URL until G8 makes it the default; `?guardmodels=0` is the old body):
+  - Variety: on a map with several guards (Sector Ops, Marlow Yard, the Warehouse) the guards are not clones: three
+    builds (grunt, droneOp and officer average; runner and sniper lean; heavy and enforcer broad), different faces, skin
+    tones, hair and hair colours, caps, beanies, a boonie on a sniper, a headset on the drone operator, a peaked cap on
+    the officer, glasses on some (the sniper always dark ones). The heavy and enforcer wear a balaclava, no hair.
+  - Faces: at 1.5 m and 3 m the eyes, brows, nose and mouth read, no gap or step at the neck, no hair floating, the cap
+    sits on the scalp; far away (> 25 m) the guard is a plain, correctly coloured figure, no flicker at the LOD switches.
+  - Helmet knock-off: raise the alarm to the helmet stage (three alarms in Sector Ops, or `e.setGear` in the console);
+    the helmet shows only then, the cap and hair under it are gone; a head shot pings and the helmet leaves his head and
+    falls to the floor as the same helmet (his faction colour), the hair or cap shows again. Vests show only with the
+    armour stage; the heavy shows his plate; the enforcer carries the shield on his left arm.
+  - Same looks after a restart: note three guards (a face, hair, cap); restart at the checkpoint or the section: the same
+    guards in the same places look the same.
+  - Bodies: carry and drop a guard: the body keeps his face, clothes and helmet state; thermal and night vision show him
+    like before (no extra glow, no missing piece); the shadow of a guard has no helmet after the knock-off.
+  - Co-op, both screens: host and joiner see the same man in each place (face, hair, cap, outfit, vest, helmet), the
+    helmet falls on both screens, and a restart keeps the looks on both.
+  - First frame: at level start every guard shows as a figure on his first frame, no hitch the first time one comes
+    into view. The bake's guard files are bundled (`src/operators/assets/guards/`) but load only with `?guardmodels=1`;
+    without it nothing changes (the old body, no guard file fetched).
 - [ ] Talking pairs (guard-ai S10, Saltmarsh Park car park): watch the pair from cover: at their stop by the aisle end
   they face each other and swap two lines, then walk on; knock one out before they meet and ~6 s later the other walks
   to where his partner was headed.

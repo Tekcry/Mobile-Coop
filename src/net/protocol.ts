@@ -18,7 +18,7 @@ import { SWAY } from '../world/lampSway';
 import type { MotionState } from '../anim/motion';
 
 /** The wire version. Only this line holds it; tests read it. `scripts/merge-train.mjs build` bumps it once per train with a wire change (history: CHANGELOG, docs/systems/coop.md). */
-export const PROTOCOL_VERSION = 52;
+export const PROTOCOL_VERSION = 53;
 /** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
 export const MAX_PLAYERS = 4;
 export const COOP_MAX = 4;
@@ -134,8 +134,8 @@ export interface EnemyState {
   hp: number;
   /** Alert level: 0 calm, 1 suspicious / investigating, 2 searching, 3 combat; +4 (`AL_SEIZED`) = seized in a
    *  takedown; (25) +8 (`AL_TORCH`) = his flashlight is on; (32) +16 (`AL_CAUTION`) cautious, +32 (`AL_HELMET`) wears a
-   *  helmet, +64 (`AL_ARMOUR`) wears body armour; (37, A126) bits 7-8 (`AL_CARRY`) his S21 weapon carry (`WIRE_CARRY_*`).
-   *  `packAlert` builds it. */
+   *  helmet, +64 (`AL_ARMOUR`) wears body armour; (37, A126) bits 7-8 (`AL_CARRY`) his S21 weapon carry (`WIRE_CARRY_*`);
+   *  (guard-models G6n) bits 9-15 (`AL_LOOK`) his look seed (`Enemy.look`). `packAlert` builds it. */
   al: number;
 }
 
@@ -156,19 +156,28 @@ export const WIRE_CARRY_DRAWN = 0;
 export const WIRE_CARRY_HOLSTERED = 1;
 export const WIRE_CARRY_DRAWING = 2;
 export const WIRE_CARRY_HOLSTERING = 3;
+/** (guard-models G6n, M3) The guard's 7-bit look seed (`Enemy.look`, `ai/guardLook.ts`: set once at spawn from his
+ *  spawn slot) in `al` bits 9-15, so the client builds the same look; it never changes for one guard id. */
+export const AL_LOOK_SHIFT = 9;
+export const AL_LOOK = 127 << AL_LOOK_SHIFT;
 /** Every `al` bit in use (the parser clamps into these). */
-export const AL_MAX = 511;
+export const AL_MAX = 65535;
 
-/** The wire `al`: alert level 0-3, seized, torch on, (32) cautious, helmet, armour, (37, A126) the carry 0-3. A guard
- *  without a torch or gear costs what he did before (0-7); a lit one is 8-15; caution and gear add at most two JSON
- *  digits (16-127); a holstered carry one more (128-511). */
-export function packAlert(level: number, seized: boolean, torch: boolean, cautious = false, helmet = false, armour = false, carry = WIRE_CARRY_DRAWN): number {
-  return (level & 3) | (seized ? AL_SEIZED : 0) | (torch ? AL_TORCH : 0) | (cautious ? AL_CAUTION : 0) | (helmet ? AL_HELMET : 0) | (armour ? AL_ARMOUR : 0) | ((carry & 3) << AL_CARRY_SHIFT);
+/** The wire `al`: alert level 0-3, seized, torch on, (32) cautious, helmet, armour, (37, A126) the carry 0-3, (G6n) the
+ *  look seed 0-127. A guard without a torch or gear costs what he did before (0-7); a lit one is 8-15; caution and gear
+ *  add at most two JSON digits (16-127); a holstered carry one more (128-511); a look seed adds at most two more. */
+export function packAlert(level: number, seized: boolean, torch: boolean, cautious = false, helmet = false, armour = false, carry = WIRE_CARRY_DRAWN, look = 0): number {
+  return (level & 3) | (seized ? AL_SEIZED : 0) | (torch ? AL_TORCH : 0) | (cautious ? AL_CAUTION : 0) | (helmet ? AL_HELMET : 0) | (armour ? AL_ARMOUR : 0) | ((carry & 3) << AL_CARRY_SHIFT) | ((look & 127) << AL_LOOK_SHIFT);
 }
 
 /** (37, A126) The carry (`WIRE_CARRY_*`) in a wire `al`. */
 export function alertCarry(al: number): number {
   return (al & AL_CARRY) >> AL_CARRY_SHIFT;
+}
+
+/** (guard-models G6n) The look seed (0-127) in a wire `al`. */
+export function alertLook(al: number): number {
+  return (al & AL_LOOK) >> AL_LOOK_SHIFT;
 }
 
 /** (32, guard-ai S9) The `bark` event's `b` for the security desk's camera line (its text in `t`; `id` the camera). */

@@ -14,7 +14,16 @@ Sole: a cupped rubber unit with a toe spring, a heel bevel and a midsole groove;
 a recessed arch and a transverse heel-brake bar.
 Wear ('wear' attribute): scuffed toe rand and toe cap, a scuffed heel; two shallow flex creases across the forefoot;
 dust packs into the lugs through the rubber's ambient-occlusion dust.
+
+Guard bake (docs/guard-models PLAN G2): run as the main script by guard-bake.mjs, it hands the job to guard_garment.py,
+which calls configure() on a copy of this module (bottom of this file): the same boot sized from the guard's foot, a
+taller shaft. Wren's boot is untouched while configure() has not been called.
 """
+if __name__ == '__main__':   # guard bake job: py/ and py/garments/ on the path before the imports below
+    import os as _os
+    import sys as _sys
+    _here = _os.path.dirname(_os.path.abspath(__file__))
+    _sys.path[:0] = [_here, _os.path.dirname(_here)]
 import math
 
 import numpy as np
@@ -34,6 +43,8 @@ LIFT = {'rand': 0.0008, 'toecap': 0.0009, 'counter': 0.0010, 'eyestay': 0.0014, 
 SLOT = {'quarter': 0, 'tongue': 0, 'collar': 0, 'toecap': 1, 'counter': 1, 'eyestay': 1, 'rand': 2}
 PRIO = {'rand': 7, 'tongue': 6, 'eyestay': 5, 'collar': 4, 'toecap': 3, 'counter': 2, 'quarter': 1}
 TWIN = {'eyestay', 'counter'}
+GUARD = False        # configure(): the guard bake (a measurement fallback in build_foot; never set on Wren's path)
+Z_TOP = 0.155        # x s: the shaft's top above the floor (configure() raises it for the guards' field boot)
 
 
 class Frame:
@@ -69,14 +80,47 @@ def smoothstep(a, b, x):
     return t * t * (3 - 2 * t)
 
 
+def _guard_surface_points(body, z_max, step=0.002):
+    """Guard mode only. Wren's body is subdivided, so its vertices sample the skin densely; a guard body is the bare
+    game mesh (~9k vertices, rows 2-3 cm apart up the shin), so the loft's 3.5 mm section slabs miss whole vertex rows
+    and the shaft rings come out partial or stop short of the top (smoke run: top girth 11-13 cm, Wren 24 cm). Points on
+    the evaluated body's triangles below z_max, at most `step` apart."""
+    import bpy
+    dg = bpy.context.evaluated_depsgraph_get()
+    ob = body.evaluated_get(dg)
+    me = ob.to_mesh()
+    me.calc_loop_triangles()
+    co = np.zeros(len(me.vertices) * 3)
+    me.vertices.foreach_get('co', co)
+    tri = np.zeros(len(me.loop_triangles) * 3, int)
+    me.loop_triangles.foreach_get('vertices', tri)
+    ob.to_mesh_clear()
+    M = np.array(body.matrix_world)
+    V = co.reshape(-1, 3) @ M[:3, :3].T + M[:3, 3]
+    P = V[tri.reshape(-1, 3)]
+    P = P[P[:, :, 2].min(axis=1) < z_max]
+    edge = np.max(np.linalg.norm(P - np.roll(P, 1, axis=1), axis=2), axis=1)
+    n_t = np.maximum(1, np.ceil(edge / step)).astype(int)
+    out = []
+    for n in np.unique(n_t):
+        ij = np.array([(i, j) for i in range(n + 1) for j in range(n + 1 - i)], float) / n
+        bary = np.column_stack([ij, 1.0 - ij.sum(axis=1)])
+        out.append(np.einsum('bk,tkd->tbd', bary, P[n_t == n]).reshape(-1, 3))
+    D = np.vstack(out)
+    return D[D[:, 2] < z_max]
+
+
 def build_foot(ctx, side, out, store):
     J, skin = ctx['J'], ctx['skin']
     sc = ctx['H'] / 1.68
-    z_top = 0.155 * sc
+    z_top = Z_TOP * sc
     sgn = float(np.sign(J[f'an{side}'][0]))
     BVE = ctx['BVE']
     sel = (BVE[:, 2] < z_top + 0.04) & (BVE[:, 0] * sgn > 0.04) & (BVE[:, 0] * sgn < 0.32)
     PC = BVE[sel]
+    if GUARD:   # the guard body is a game mesh with no subdivision: sample its faces (see _guard_surface_points)
+        D = _guard_surface_points(ctx['body'], z_top + 0.04)
+        PC = np.vstack([PC, D[(D[:, 0] * sgn > 0.04) & (D[:, 0] * sgn < 0.32)]])
     bl = next(((V, F) for u, V, F in ctx['layers'] if u in ('suit', 'base_layer')), None)
     if bl is not None:
         Vb = bl[0]
@@ -615,6 +659,10 @@ def build_foot(ctx, side, out, store):
         nl += 1
     def hull_perim(zz):
         pts = W[:T_main * N_RING][np.abs(W[:T_main * N_RING, 2] - zz) < 0.003][:, :2]
+        if len(pts) < 3 and GUARD:   # guard: no shaft point in the band; measure the shaft ring nearest zz
+            ring_z = W[:T_main * N_RING, 2].reshape(T_main, N_RING).mean(axis=1)
+            t_ = int(np.argmin(np.abs(ring_z - zz)))
+            pts = W[t_ * N_RING:(t_ + 1) * N_RING, :2]
         if len(pts) < 3:
             return 0.0
         h = FT.hull2d(pts)
@@ -626,6 +674,9 @@ def build_foot(ctx, side, out, store):
         'girthAtHemM': round(hull_perim(0.104 * ctx['H'] / 1.68), 4), 'rings': T, 'lugs': nl,
         'pushedClear': int(moved.sum()), 'sliceVerts': int(len(shell) - n_before), 'toeWidthRatio': round(width_at(s_nose - 0.02) / max(width_at(s_ball), 1e-6), 3), 'throat': [round(float(s_Q), 4), round(float(z_Q), 4)],
     }
+    if GUARD:   # where the shaft's top rings really are (the top girth is measured 4 mm under z_top)
+        rz = W[:T_main * N_RING, 2].reshape(T_main, N_RING)
+        store['measure'][side]['shaftTopRingsZ'] = [[round(float(r.min()), 4), round(float(r.max()), 4)] for r in rz[-4:]]
 
 
 def build(ctx):
@@ -698,3 +749,23 @@ def _planar_uv(ob):
         for li in p.loop_indices:
             co = me.vertices[me.loops[li].vertex_index].co
             lay.data[li].uv = (co[ax[0]], co[ax[1]])
+
+
+# --- Guard bake (docs/guard-models PLAN G2, SPEC 4: laced boots on every outfit) ---------------------------------------
+# The same boot, sized from the guard's own foot (the last is lofted from it), with a shaft 2 cm taller (a field boot
+# under the trousers' hem). One boots job per base serves every outfit there (lean: uniform_rolled and work).
+def configure(part, variant=None, prefix=None, **_):
+    """Guard mode for this module copy (guard_garment.load_part)."""
+    global GUARD, KIT, Z_TOP
+    if variant is not None:
+        raise SystemExit(f'boots: no variants (got {variant!r})')
+    if part != 'boots':
+        raise SystemExit(f'boots: the part must be "boots" (build_garment reads boots-sim.json by that name), got {part!r}')
+    GUARD = True
+    KIT = part
+    Z_TOP = 0.175
+
+
+if __name__ == '__main__':   # guard bake job (guard-bake.mjs --stage garments)
+    import guard_garment
+    guard_garment.main()
