@@ -27,7 +27,7 @@
 //
 // Usage (the laptop, port 4189, after `npm ci` + `npm run build`, from the repo root; headless, never headed; ~2 min per
 // map x count):
-//   E2E_GPU=1 E2E_PORT=4189 node scripts/guard-cap.mjs [--maps=sectorops,ctcourse] [--counts=12,16,24] [--warm=5]
+//   E2E_GPU=1 E2E_PORT=4189 node scripts/guard-cap.mjs [--maps=sectorops,ctcourse,campusops] [--counts=12,16,24] [--warm=5]
 //     [--secs=10] [--out=docs/guard-cap] [--gfx=epic] [--viewport=1920x1080] [--kind=grunt] [--cells=patrol,away,alert]
 //   --counts=0,12,16,24 adds the no-guard baseline (recommended: per-guard cost = slope). --maps also takes `<mapId>:<mode>`.
 //   Exits at once without E2E_GPU=1 unless --software is given (a software-GL dry run: not a perf result). --warm is
@@ -85,6 +85,9 @@ const MAP_Q = {
   sectorops: 'autostart=warehouseOps&mode=sector&sectorGuards=0',
   // Marlow Yard, the co-op training course, solo page (its two passive squad guards are removed)
   ctcourse: 'autostart=ctcourse&mode=course',
+  // (guard-models G8) Saltmarsh Park in Sector mode; `sectorGuards=0` as for sectorops (the fallback
+  // `autostart=campusops&mode=sandbox` never booted: wrong-case map id, and sandbox has no enemy manager)
+  campusops: 'autostart=campusOps&mode=sector&sectorGuards=0',
 };
 const mapQuery = (m) => MAP_Q[m] ?? (m.includes(':') ? `autostart=${m.split(':')[0]}&mode=${m.split(':')[1]}` : `autostart=${m}&mode=sandbox`);
 

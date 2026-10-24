@@ -1,6 +1,7 @@
 # Guard models: state
 
 ## Resume
+- ~13:30: G8 budget run read (laptop 4090, cf5a2bf8; results in docs/guard-models/run-g8/, table in "G8 budget run" below). Verdict HOLD: the flag default stays off (flags.ts:132 `=== '1'`). Fails: frame CPU gate at sectorops 24 (p95 +0.6 / +0.6 / +1.7 ms over figures-off, gate +0.5), cause = map-light shadow casters (maplight-shadow draws 50 vs 24 at 24 alert, render() CPU +1.0 ms); not measured: campusops (no alias: fixed in guard-cap.mjs:88-90), the `near` cell (guard-cap has none), VRAM (estimated from files). Passes: GPU, draws <= 600, tris, buffer tris, download, poser. Next: tighten the figure's shadow-cull box (see "G8 budget run" fix list), rerun guard-cap on/off with campusops (+ a `near` cell), then flip.
 - ~12:50: bake step failures = check-side only (Test Runner log): body check loader, cmd.exe glob, head variant 3 = the beard head (by design; band 0.45-0.9 for beards). Fixed (gm-bakefix 5a19e361, merged d17ef3c8); rerun of probe + 3 checks queued 20261024T004757-player-build-d17ef3c8-e911. All four `check` reports PASS -> BUNDLED the bake in src/operators/assets/guards/ (ae211857; 29 MB, budget <= 75 MB; asset tests 47 pass). guard-cap gained --query (cf5a2bf8). G8 budget run queued 20261024T004923-player-build-cf5a2bf8-820d (figures on / off, 3 maps x 0/12/24 x 3 cells; outputs C:/NightShift/scratch/g8/ on the laptop, Test Runner relays). Not yet: PLAN's `near` cell (guard-cap has none), G8 look check. MPFB2 zip: probe still said missing at 21:14Z (orchestrator asking Michael). Next: G8 numbers vs section 6 -> flip the flag default (flags.ts:131 `!== '0'`), guard-models PR.
 - ~11:50: FULL BAKE ran (a8ff2d45, 3294 s, status "4/8 steps ok"): pushed heads (66), lods (91), check (4; average pass), sheet (1) to bake/guard-models (ee569eb1). SHEET sent to Michael (C:/NightShift/scratch/guard-sheet-a8ff2d45.png; bake/guard-models sheet/guard-sheet.png). Visible defects for the look pass (G10): green debug markers drawn on faces (sheet target overlay), low face variety, tone 0 very pale, jagged hair-cap hairline, very dark uniforms, enforcer shield_riot missing from the broad file. Which 4 steps failed: asked Test Runner for the step log (no result file on laptop-queue). Next: failed-step triage, then copy shippables into src/operators/assets/guards/, G8.
 - ~07:25 (full burn): FULL BAKE queued on a8ff2d45: laptop alone 20261023T202119-player-build-a8ff2d45-5e1d (set guard-bake-all: probe, prep + bodies + body check, heads + head check, garments + garment check, gear, lods, check, sheet; E2E_GPU=1; --push). If the probe fails, the MPFB2 zip is still missing on the laptop (Michael). Flag-on e2e-enemies on b8ca0a2e FAILED (sniper "relocates after its shots (0, moved 3.0 m)", twice): Opus triage running; A/B flag-off e2e-enemies on a8ff2d45 queued (20261023T202045-player-build-a8ff2d45-5437). Next: bake verdict -> sheet to Michael, G8 (guard-cap on / off, look check), G9 PR.
@@ -62,6 +63,75 @@ desktop fallback (--par 2, heavy.lock) only until L0 is done. GPU sheets and gua
 G4's sheet goes to Michael without a stop; his notes go into G10.
 Update this STATE.md at every stop; commit and push WIP before 92%; queue the next bake before a swap.
 ```
+
+## G8 budget run (laptop RTX 4090, E2E_GPU=1, epic, 1920x1080, uncapped; cf5a2bf8, 4.80.0)
+Source: origin/shots/g8-cf5a2bf8, copied to `docs/guard-models/run-g8/` (COMPARE.md, on/ and off/ RESULTS.md + csv).
+ON = `guardmodels=1` (the figures), OFF = `guardmodels=0` (S1 body). 4090 numbers are the local profile, not the
+desktop baseline of PLAN 6; the gates below are ON vs OFF on the same machine and the absolute performance.md lines.
+
+| map | N | cell | frame CPU med / p95 ON | OFF | delta p95 | GPU med / p95 ON | OFF | draws ON / OFF | tris M ON / OFF |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| sectorops | 0 | patrol/facing | 1.6 / 3.9 | 1.7 / 3.5 | +0.4 | 3.2 / 3.5 | 3.3 / 3.4 | 104 / 104 | 0.494 / 0.494 |
+| sectorops | 0 | patrol/away | 1.3 / 2.4 | 1.6 / 2.8 | -0.4 | 2.6 / 2.7 | 2.4 / 2.7 | 77 / 77 | 0.473 / 0.473 |
+| sectorops | 0 | alert/facing | 1.6 / 3.9 | 1.8 / 12.7 | -8.8 (OFF spike) | 3.3 / 3.6 | 3.1 / 3.6 | 104 / 104 | 0.494 / 0.494 |
+| sectorops | 12 | patrol/facing | 4.4 / 5.4 | 4.3 / 5.6 | -0.2 | 4.3 / 5.1 | 4.1 / 5.1 | 189 / 187 | 1.058 / 1.489 |
+| sectorops | 12 | patrol/away | 3.6 / 4.5 | 3.7 / 4.8 | -0.3 | 3.4 / 4.0 | 3.4 / 4.2 | 160 / 155 | 1.035 / 1.317 |
+| sectorops | 12 | alert/facing | 5.2 / 6.4 | 5.1 / 6.3 | +0.1 | 5.1 / 6.0 | 5.0 / 5.8 | 223 / 217 | 1.076 / 1.776 |
+| sectorops | 24 | patrol/facing | 7.0 / 8.3 | 6.3 / 7.7 | **+0.6** | 5.4 / 6.0 | 5.1 / 5.9 | 260 / 258 | 1.417 / 2.481 |
+| sectorops | 24 | patrol/away | 5.6 / 6.8 | 5.0 / 6.2 | **+0.6** | 4.5 / 5.1 | 4.3 / 4.9 | 234 / 219 | 1.658 / 2.162 |
+| sectorops | 24 | alert/facing | 8.3 / 10.4 | 7.1 / 8.7 | **+1.7** | 5.9 / 7.0 | 5.4 / 6.2 | 301 / 277 | 1.445 / 2.587 |
+| ctcourse | 0 | patrol/facing | 1.6 / 3.1 | 1.6 / 3.1 | 0.0 | 2.6 / 3.1 | 2.7 / 3.1 | 131 / 131 | 0.340 / 0.340 |
+| ctcourse | 0 | patrol/away | 1.2 / 2.0 | 1.2 / 2.1 | -0.1 | 2.6 / 2.6 | 2.6 / 2.6 | 60 / 68 | 0.269 / 0.334 |
+| ctcourse | 0 | alert/facing | 1.8 / 3.2 | 1.5 / 3.1 | +0.1 | 2.9 / 3.3 | 2.7 / 3.1 | 131 / 131 | 0.340 / 0.340 |
+| ctcourse | 12 | patrol/facing | 4.7 / 5.9 | 4.2 / 5.3 | +0.6 | 4.2 / 5.1 | 3.9 / 4.6 | 165 / 165 | 0.645 / 0.866 |
+| ctcourse | 12 | patrol/away | 3.1 / 3.9 | 3.1 / 4.0 | -0.1 | 3.2 / 3.7 | 3.1 / 3.5 | 98 / 98 | 0.671 / 0.764 |
+| ctcourse | 12 | alert/facing | 4.6 / 5.6 | 4.4 / 5.6 | 0.0 | 4.3 / 4.9 | 4.1 / 4.7 | 206 / 191 | 0.759 / 1.102 |
+| ctcourse | 24 | patrol/facing | 6.9 / 8.1 | 6.8 / 8.1 | 0.0 | 5.6 / 6.5 | 5.1 / 5.8 | 235 / 235 | 1.232 / 1.945 |
+| ctcourse | 24 | patrol/away | 4.7 / 5.8 | 5.0 / 6.1 | -0.3 | 3.3 / 4.0 | 3.7 / 4.7 | 94 / 90 | 0.615 / 0.724 |
+| ctcourse | 24 | alert/facing | 7.4 / 8.9 | 7.0 / 8.6 | +0.3 | 5.7 / 6.4 | 5.1 / 5.9 | 253 / 224 | 1.173 / 1.633 |
+| campusops | 0 / 12 / 24 | all | not booted | not booted | - | - | - | - | - |
+
+Mean guard distance ~6.8-9.3 m (mostly LOD1); 12 of 24 in sight at sectorops, 24 of 24 at ctcourse.
+
+| PLAN 6 / 5 line | Budget | Measured (ON) | Verdict |
+| --- | --- | --- | --- |
+| GPU p95 | <= 15 ms | max 7.0 ms (sectorops 24 alert); ON - OFF median +0.1 to +0.6 ms at 24; per added guard 0.09-0.12 ms (OFF 0.08-0.10) | PASS (sectorops, ctcourse) |
+| Frame CPU p95 (absolute) | <= 12 ms | max 10.4 ms (sectorops 24 alert) | PASS on the 4090 |
+| Frame CPU gate at 24 | within +0.5 ms of OFF | sectorops +0.6 / +0.6 / +1.7 (medians +0.7 / +0.6 / +1.2); ctcourse 0.0 / -0.3 / +0.3 | **FAIL (sectorops)** |
+| Draws | <= 600; plan: unchanged | max 301; ON - OFF at 24: sectorops +2 / +15 / +24, ctcourse 0 / +4 / +29 | PASS on the cap; "unchanged" not met; campusOps (589 on master) unmeasured and would pass 600 at +24 |
+| Triangles per frame | <= 8 M | max 1.66 M; ON below OFF in every guard cell (S1 hi body counts more) | PASS |
+| Buffer tris per LOD (PLAN 5) | 45 k / 14 k / 5 k | bundled GLBs: average 32.3 k / 11.8 k / 3.7 k, lean 30.7 k / 11.5 k / 3.5 k, broad 11.1 k / 4.9 k / 1.6 k | PASS |
+| VRAM | <= 12 GB (guards ~112 MB est.) | not in guard-cap; from the bundled KTX2 headers: ~64 MB of textures at BC7 (~258 MB if transcoded to RGBA8) | PASS (estimate) |
+| Download | <= 75 MB | 29.3 MB (12 GLBs + 3 json) | PASS |
+| Poser solve per guard | <= 0.01 ms | `ai.anim` ON - OFF at 24: -0.06 to +0.18 ms a step (<= 0.0074 ms a guard) | PASS |
+| `near` cell (24 inside 8 m, LOD0 worst) | GPU <= 15 ms | not in guard-cap (open) | NOT MEASURED |
+| campusops | GPU, draws (thinnest map) | did not boot: guard-cap had no `campusops` alias, fallback `autostart=campusops&mode=sandbox` (wrong-case id, no enemy manager) timed out 3 x 180 s | NOT MEASURED (alias added: `autostart=campusOps&mode=sector&sectorGuards=0`) |
+
+**Flag decision: HOLD** (default stays off; `?guardmodels=1` on). Why: the frame CPU gate fails at sectorops 24, and
+campusops (the map nearest the 600-draw line) and the `near` worst case are unmeasured.
+Cause (from the per-pass draws, 24 alert/facing): main passes are neutral (gBuffer 60.6 vs 60.5, TAA 63.6 vs 63.5),
+but `maplight-shadow` casters rise 23.8 -> 50.4 (charshadow 10.2 -> 5.0, sun CSM 92.1 -> 95.7); render() CPU +1.0 ms
+median; sectorops patrol/away +15 draws with one more shadow pass. ctcourse has no map-light shadows and is neutral.
+Both bodies register through the same `world.addShadowCaster` (guardBody.ts:131 vs enemyRig.ts:29; each LOD is one
+primitive, only the enabled one draws), so the lists match; the per-light cull `fillCasters` (lightRig.ts:455-480)
+keeps a caster whose world box reaches the light sphere + 1.5 m. Likely cause: the figure culling box (the bind box
+plus S1 margins, guardFigure.ts:425-452, scaled by height / refHeight) is larger than the S1 merged body bounds, so
+each guard joins more map-light shadow maps. Not yet proven: log one guard box ON vs OFF first.
+What would fix it: (1) a tighter figure box for shadow culling (S1 merged-body bounds, or a fixed per-guard radius
+in `fillCasters` for characters); (2) else draw map-light shadows with the LOD2 mesh only. Then rerun guard-cap ON /
+OFF with `--maps=sectorops,ctcourse,campusops` and a `near` cell; flip (flags.ts:132 `!== '0'`) when sectorops 24 is
+within +0.5 ms and campusops 24 alert stays <= 600 draws.
+
+## Open
+- G8: frame CPU gate fails at sectorops 24 (map-light shadow casters, fix list in "G8 budget run"); campusops and the
+  `near` cell unmeasured (guard-cap has no `near` cell: all 24 placed inside 8 m); G8 look check not run. Flag default
+  stays off until the rerun passes.
+- G10 look-pass items, garment seam gaps before the weld (guard-bake-checks-d17ef3c8 step4.log; the bake's weld closes
+  them and the final operators check passed, so no fix now). FAIL over 30 mm: average jacket 32.9 mm; broad shirt
+  41.8 mm (also fails broad trousers through its chain copy; trousers own 22 mm); lean trousers 52.5 mm; lean
+  work_trousers 35.7 mm (also fails lean work_jacket through its chain copy; work_jacket own 10.7 mm). Warn over 10 mm
+  (Wren's limit): average shirt 21.4, average trousers 20.1, broad trousers 22, lean shirt_rolled 20.3, lean
+  work_jacket 10.7.
 
 ## Done
 - 2026-10-23: BRIEF.md (ask, goal, limits, A1-A11) and PLAN.md (G0-G9, budgets, fit, estimate) written.
