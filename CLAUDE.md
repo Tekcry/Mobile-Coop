@@ -5,7 +5,10 @@ Project knowledge lives in git, never only in Claude memory: Michael swaps accou
 - Night Shift (renamed from Silent But Deadly) is an original third-person stealth game. It is pure Chaos Theory (CT):
   CT's mechanics, timing, camera, HUD layout and visual style are the authority; anything that is not in CT does not
   exist (G1, G5). Hunter is the one non-CT mode kept, parked behind `?legacy=1` (G7). Light and shadow is the core.
-- A co-op campaign that cannot be completed solo; no bot partner (G2, G48, G50). The campaign and Marlow Yard are 2
+- A co-op campaign that cannot be completed solo; no bot partner (G2, G48, G50). Every campaign section forces a co-op
+  traversal move, with no solo bypass (G253); Sector Ops may be played solo (1-4); Marlow Yard is the guided, linear
+  training course; the no-markers and multi-route rules apply to campaign missions and Sector Ops (ROADMAP Decided
+  2026-10-24 ~22:12 / ~22:45). The campaign and Marlow Yard are 2
   players; Sector Ops alone allows up to 4 (Michael's coop4 decision, ROADMAP Decided 2026-10-23 ~10:25; it becomes a G
   number at the coop4 merge). The CT co-op levels are researched and that experience is recreated (G3).
 - Work order: the CT co-op research, then the CT prototype, then the rest (G95). Prototype first: only the basics needed
@@ -36,6 +39,8 @@ The only place for session, job, machine, merge and test rules; current rules on
 `docs/process-audit/`). Every session reads them from master: `git show origin/master:CLAUDE.md`, never a branch copy.
 Detail: `docs/systems/session-method.md` (the job lead's loop), `docs/systems/agent-preamble.md` (subagents),
 `docs/systems/auto-train.md` (trains), `docs/laptop-queue/PLAN.md` (the test queue), `docs/systems/testing-tools.md`.
+Where they disagree, these rules win (for example `docs/systems/testing-tools.md` L27 / L48,
+`docs/systems/session-method.md` L26, `docs/systems/auto-train.md` L29).
 
 **Titles** are message addresses. Each session sets its own title as its first step (set_session_title "self") and
 never renames mid-run. Boot lines: `docs/orchestrator/PROMPTS.md`; per-title start: `docs/orchestrator/BOOT.md` (both
@@ -44,12 +49,15 @@ on origin/feature/menu). Effort is the lead's; its agents keep their own model a
 | Title | Machine | Model, effort | Area |
 | --- | --- | --- | --- |
 | Night Shift \| Orchestrator | desktop | Opus 5.5, high | roadmap, planning, trains, swaps, walk cards |
-| Night Shift \| Player Build | desktop | Opus 5.5, medium | movement, mocap, animation, takedowns, guard models, co-op player |
-| Night Shift \| Marlow Build | desktop | Opus 5.5, medium | Marlow Yard, section rating, level validator, guard cap |
+| Night Shift \| Player Build | desktop | Opus 5.5, high | movement, mocap, animation, takedowns, guard models, co-op player |
+| Night Shift \| Marlow Build | desktop | Opus 5.5, high | Marlow Yard, section rating, level validator, guard cap |
 | Night Shift \| Sector Ops Build | desktop | Opus 5.5, high | Sector Ops (Saltmarsh Park), lighting on every map, visual gate |
 | Night Shift \| Guard AI Build | laptop | Opus 5.5, high | `src/ai` on every map, coop4 |
 | Night Shift \| Test Runner | laptop | Opus 5.5, medium | the laptop queue, flakes, guard render |
-| Night Shift \| Cloud Builder \<k\> | cloud | as the brief says | briefs on the orphan branch `cloud-queue` (its README) |
+| Night Shift \| Cloud Builder \<k\> | cloud | as Michael starts it | briefs on the orphan branch `cloud-queue` (its README) |
+
+Old names: CT Core Build = Player Build, Menu Notes Build = Marlow Build, Course Ready Build = Sector Ops Build,
+Character Build = Test Runner.
 
 **The orchestrator** runs the build. It alone edits `docs/ROADMAP.md` and `docs/orchestrator/` (on feature/menu),
 triages the Inbox every cron run, plans and starts jobs (no job starts unless it is on the roadmap), gives an idle lead
@@ -76,7 +84,9 @@ sends it verbatim to the orchestrator, which adds it to the ROADMAP Inbox the sa
 4. A fresh Opus plan checker (intent against Michael's words, gates, the claims) passes it before any build.
 5. Maps and looks: before greybox or art on a map, or a big look change, Michael approves a one-page to-scale plan plus
    a 5-line intent check with one click (native multiple choice). A new map or map re-plan also passes the level
-   validator (connectivity graph, `docs/level-design.md`) before greybox.
+   validator (connectivity graph, `docs/level-design.md`) before greybox. At greybox exit a measured validator pass is
+   required (`scripts/level-validate.mjs`, V6 `--require-measured`; until the flag is on master the greybox exit waits
+   for it).
 6. Build (below).
 
 **Walk pacing.** At most 3 unwalked features per area (Player / animation, Marlow Yard, Sector Ops, Guard AI,
@@ -105,10 +115,12 @@ an Opus plan; the orchestrator assigns it.
   `src/core/flags.ts`; each flag has an owner and a switch-on date (PR body and ROADMAP).
 - The checker's verdict is a commit status on the checked head:
   `gh api repos/Tekcry/Mobile-Coop/statuses/<sha> -f state=success -f context=checker -f description="Opus PASS"`
-  (`state=failure`, "FIX", for a fix list).
+  (`state=failure`, "FIX", for a fix list). The lead starts the fresh checker and the laptop request on the same head
+  at once; a fix round reruns only what failed.
 - Leads never merge master into their branch and never merge into master: the train does both.
 - Unattended by default: assumed decisions are logged and the job carries on; ask Michael (native multiple choice) only
-  before installing or downloading, when a hard rule blocks the goal, or as Intake step 2 says.
+  before installing or downloading, when a hard rule blocks the goal, or as Intake step 2 says. Every question to
+  Michael comes with its decision pack (prototype / screenshots / GPU sheets).
 - Full burn: every independent slice of the PLAN runs in parallel now, up to desktop CPU ~80%. Opus briefs the next 2-3
   slices ahead (plans only, no speculative code). tsc / vitest-heavy builder slices may go to cloud builders through
   `cloud-queue`; a lead picks up a done brief within 1 hour or closes it. A lead's small and spare jobs ride one batch PR.
@@ -122,7 +134,8 @@ an Opus plan; the orchestrator assigns it.
 - Auto-train (scheduled task, 1-minute ticks, `docs/systems/auto-train.md`) builds `train/<n>` from labelled PRs with a
   green check, makes the version commit (fragments into `CHANGELOG.md`, the next version, the one `PROTOCOL_VERSION`
   bump when a member touches a wire path), and the queue runs one full e2e on the train head. CI and e2e green: it
-  releases (merge, tag, `dev` moves `/preview/`, member PRs closed). Train N+1 may build on train N (overlapping trains).
+  releases (merge, tag, `dev` moves `/preview/`, member PRs closed). Train N+1 may build on train N once overlap
+  slice 4 is enabled (overlapping trains).
 - A failing member leaves the train and the rest rerun (auto-drop); a desktop red is never final without a laptop rerun.
 - A conflict is resolved in the train by the orchestrator: merge the branch by hand on the pre-version head
   (`git checkout -B train/<n> <version commit>^`) with the subject `Merge origin/<b> into train/<n>`,
@@ -133,7 +146,7 @@ an Opus plan; the orchestrator assigns it.
 | --- | --- | --- |
 | Docs only (`*.md`, `docs/**`) | CI `check` | - |
 | An agent sub-step | `npm run typecheck:fast` + `npx vitest run <files>` | the agent's machine |
-| A PR | CI `check` + the one or two suites its area names (`run-e2e.mjs --affected` once it lands); `src/net`, `src/player` or `src/game` add `e2e-coop` + `e2e-netmove`; a wire or save-shape change always runs them | laptop queue |
+| A PR | CI `check` + the one or two suites its area names (`request.mjs --affected`; `node scripts/run-e2e.mjs --affected origin/master --list` names them); `src/net`, `src/player` or `src/game` add `e2e-coop` + `e2e-netmove`; a wire or save-shape change always runs them | laptop queue |
 | Tuner / Anim Studio / tests only | CI `check` + the suites the change touches | laptop queue |
 | A train | one full `npm run e2e` on the train head | laptop queue |
 | Look or perf | `npm run e2e:gpu`, perf budgets, contact sheets, look videos; slot-alone measures right after a release | laptop 4189 (desktop under `heavy.lock`) |
@@ -144,8 +157,8 @@ an Opus plan; the orchestrator assigns it.
 
 **Machines.** Two heavy slots, both Michael's PCs.
 - Laptop (Test Runner, Guard AI): the main test machine. The laptop queue service (`scripts/laptop-queue`, branch
-  `laptop-queue`) runs on 4189 (GPU and alone runs) and 4192: trains first, alone and sharded (`E2E_JOBS=5` while the
-  second slot is idle, else 3), then PR requests, then slot-alone measures. The two sessions keep its CPU under ~80%.
+  `laptop-queue`) runs on 4189 (GPU and alone runs) and 4192: trains first, sharded across 4189 + 4192 at
+  `E2E_JOBS=3` per slot (`LQ_TRAIN_JOBS`), then train reruns, PR requests (`E2E_JOBS=2`), then slot-alone measures. The two sessions keep its CPU under ~80%.
 - Desktop (Orchestrator, Player, Marlow, Sector Ops): CPU target under ~80%; over 90% the orchestrator trims the
   heaviest session. Agents run tsc and single vitest files, never a full `npm run check` (CI runs it). The desktop runs
   e2e only as the queue's overflow worker (4191 / 4192, CPU and backlog gated; trains only while the laptop is silent),
@@ -154,7 +167,8 @@ an Opus plan; the orchestrator assigns it.
   --requester "<title>"` (or `--alone --step "<cmd>"`); verdicts are `laptop-e2e/<set>` commit statuses. Withdraw a
   stale request; `docs/orchestrator/queue-audit.sh` flags them.
 - Locks: `node scripts/heavy-lock.mjs take C:/NightShift/heavy.lock "<session> | <job>" --pid "$(cat /proc/$$/winpid)"`,
-  the run, then `release` in the same shell command; per run, never held across a fix loop.
+  the run, then `node scripts/heavy-lock.mjs release C:/NightShift/heavy.lock "<session> | <job>"` in the same shell
+  command; per run, never held across a fix loop.
 - Headless and invisible: never `E2E_HEADED`, no new terminal or console windows, no pointer lock or mouse capture,
   Blender only with `-b`, nothing that takes focus. Stop a runner with `taskkill /T /F` on its PID and check the tree is
   gone.
