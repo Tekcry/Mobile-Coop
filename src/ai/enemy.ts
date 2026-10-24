@@ -299,6 +299,10 @@ const PLAN_CLAMP = true;
  *  nav cell nearest it (`findPath` partial) and counts as arrived there (he looks, `investigateLook` ends it). Undo:
  *  false (he stands where he is until `investigateMax`). */
 const NEAR_SIDE = true;
+/** (polish2 A186) A high-cover overwatch suppressing while a squadmate moves (out of sight, profile `suppress`) holds
+ *  his peek point (the edge or side step) in the hide phase too, so the suppress line is cast from past his wall. The
+ *  aimed fire, the peek count and low cover are unchanged. Undo: false (behind the wall except in the peek phase). */
+const OW_HIGH_PEEK = true;
 /** (polish A2) `pickCover`'s best candidates (index, score), best first; module scratch (one pick at a time). */
 const CV_IDX = new Int32Array(8);
 const CV_SCORE = new Float64Array(8);
@@ -3322,7 +3326,8 @@ export class Enemy implements Damageable {
           this.setState('chase');
           return { point: null, speed: 0, face: toTarget };
         }
-        if (this.role === R_OVERWATCH && this.mateMoving && !this.los && profileOf(this.tacticsProfile).suppress) this.suppressLkp(dt);
+        const owSuppress = this.role === R_OVERWATCH && this.mateMoving && !this.los && profileOf(this.tacticsProfile).suppress;
+        if (owSuppress) this.suppressLkp(dt);
         // hide / peek cycle; some hide phases blind-fire over/around the cover at the last position
         const cycle = this.stateT % 4.2;
         const peeking = cycle > 2.4;
@@ -3339,7 +3344,8 @@ export class Enemy implements Damageable {
         // (rendering) the wall sits on the side away from the open edge the guard leans past
         const wseg = cp.low ? undefined : this.ctx.coverSegments[cp.seg];
         this.coverWallSide = wseg ? (cp.s < wseg.len / 2 ? -1 : 1) : 0;
-        if (!cp.low && peeking) {
+        // (polish2 A186) a high-cover overwatch suppressing stays at his peek point while his mate moves
+        if (!cp.low && (peeking || (OW_HIGH_PEEK && owSuppress))) {
           const seg = this.ctx.coverSegments[cp.seg];
           const edge = seg ? nearestEdge(seg, cp.s) : null;
           if (seg && edge && edge.dist < 3) {
