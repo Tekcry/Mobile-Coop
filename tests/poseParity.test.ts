@@ -40,6 +40,7 @@ function fakeGame(o: { shoulder?: number; switchOk?: boolean; wall?: boolean; bl
     takedown: { active: o.takedown ? { e: { id: 'e1' } } : null, hostage: false, blowPh: o.blowPh ?? -1 },
     strike: { active: false },
     doorPeek: { active: false },
+    optic: { core: { active: false } },
     traversal: { attached: false, committed: null },
   };
   return g as unknown as GameState;

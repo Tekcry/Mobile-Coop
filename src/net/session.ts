@@ -240,7 +240,7 @@ export class NetSession {
       this.broadcastLobby();
       return;
     }
-    if (msg.t === 'pstate' || msg.t === 'shot' || msg.t === 'blast' || msg.t === 'use' || msg.t === 'td' || msg.t === 'tmove' || msg.t === 'cmove' || msg.t === 'ping' || msg.t === 'gadget' || msg.t === 'door' || msg.t === 'ctick' || msg.t === 'jam') {
+    if (msg.t === 'pstate' || msg.t === 'shot' || msg.t === 'blast' || msg.t === 'use' || msg.t === 'td' || msg.t === 'tmove' || msg.t === 'cmove' || msg.t === 'ping' || msg.t === 'gadget' || msg.t === 'door' || msg.t === 'panel' || msg.t === 'ctick' || msg.t === 'jam') {
       this.events.emit('game', { msg, from });
     }
   }

@@ -19,6 +19,7 @@ import { DeflectLedger, PG_ARMOUR, PG_DROP, PG_HELMET, PG_JUMP, predictDeflect, 
 import { GUARD_AIM, guardAim, wireGuardAim } from '../src/ai/guardStance';
 import { Enemy } from '../src/ai/enemy';
 import { CoopHost } from '../src/net/coopHost';
+import { newRewound } from '../src/net/shotHistory';
 import { Vector3 } from '../src/core/babylon';
 import type { AlertLevel } from '../src/ai/alertState';
 
@@ -39,7 +40,7 @@ const snapEnemies = (enemies: EnemyState[]): EnemyState[] => {
 
 describe('guard-ai S9 wire', () => {
   it('packAlert: the new bits are 16 / 32 / 64 and every combination with the old ones round-trips', () => {
-    expect([AL_SEIZED, AL_TORCH, AL_CAUTION, AL_HELMET, AL_ARMOUR, AL_MAX]).toEqual([4, 8, 16, 32, 64, 511]);
+    expect([AL_SEIZED, AL_TORCH, AL_CAUTION, AL_HELMET, AL_ARMOUR, AL_MAX]).toEqual([4, 8, 16, 32, 64, 65535]);
     const states: EnemyState[] = [];
     const want: number[][] = [];
     for (let lvl = 0; lvl < 4; lvl++) {
@@ -69,13 +70,13 @@ describe('guard-ai S9 wire', () => {
     expect(packAlert(0, false, false, true, true, true)).toBe(112);
   });
 
-  it('a bad al is clamped into the nine bits (A126: the carry is bits 7-8)', () => {
+  it('a bad al is clamped into the al bits (A126: the carry is bits 7-8; G6n: the look seed 9-15)', () => {
     const es = snapEnemies([
-      { id: 'a', k: 'grunt', x: 0, y: 0, z: 0, yaw: 0, st: 0, hp: 1, al: 999 },
+      { id: 'a', k: 'grunt', x: 0, y: 0, z: 0, yaw: 0, st: 0, hp: 1, al: AL_MAX + 488 },
       { id: 'b', k: 'grunt', x: 0, y: 0, z: 0, yaw: 0, st: 0, hp: 1, al: -3 },
       { id: 'c', k: 'grunt', x: 0, y: 0, z: 0, yaw: 0, st: 0, hp: 1, al: 99 },
     ]);
-    expect(es.map((e) => e.al)).toEqual([511, 0, 99]);
+    expect(es.map((e) => e.al)).toEqual([AL_MAX, 0, 99]);
   });
 });
 
@@ -152,7 +153,7 @@ function host() {
   const h = Object.create(CoopHost.prototype) as CoopHost;
   const em = { onBark: vi.fn(), onCameraLine: vi.fn(), onKilled: null, onEnemyShot: null, enemies: [] as unknown[] };
   const g = { enemyMgr: em, explosions: { onExplode: null }, gadgets: { onLocal: null }, events: { on: () => () => undefined } };
-  Object.assign(h, { g, queue: [], offs: [], tracerBudget: 0, time: 0, history: new Map(), s: { selfId: 'H' } });
+  Object.assign(h, { g, queue: [], offs: [], tracerBudget: 0, time: 0, history: new Map(), rw: newRewound(), s: { selfId: 'H' } });
   return { h, em, queue: (h as unknown as { queue: NetEvent[] }).queue };
 }
 
@@ -183,7 +184,8 @@ describe('guard-ai S9: the host sends what it shows', () => {
   it("a client's round a helmet or vest stopped is confirmed as a deflect; a plain hit is not (the client predicts it)", () => {
     const { h, em, queue } = host();
     let res: { dealt: number; killed: boolean; deflect?: boolean } = { dealt: 0, killed: false, deflect: true };
-    const guard = { id: 'g1', alive: true, def: { scale: 1 }, center: (o: Vector3) => o.set(0, 1, 0), applyDamage: vi.fn(() => res) };
+    // (rig-pose-fix S3) the judge's no-history fallback reads the guard's sim place and heads
+    const guard = { id: 'g1', alive: true, def: { scale: 1 }, pos: new Vector3(0, 0, 0), crouchBlend: 0, simHead: new Vector3(0, 1.62, 0), wireHead: (o: { x: number; y: number; z: number }) => { o.x = 0; o.y = 1.62; o.z = 0; return o; }, center: (o: Vector3) => o.set(0, 1, 0), applyDamage: vi.fn(() => res) };
     em.enemies.push(guard);
     Object.assign(h, { judge: () => 30, tmpB: new Vector3(), tmpH: new Vector3() });
     const r = { id: 'C', alive: true, state: { mv: { dw: 2 }, w: 'rifle' }, loadout: ['rifle'], takeShot: () => true };

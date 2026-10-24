@@ -110,3 +110,15 @@ Builds the operators (docs/operators/SPEC.md 6.3) with Blender run headless from
   `gameCrouch` / `gameSneak` (step 11b fix round 1).
 
 Stages still to come (PLAN.md): Moth; Babylon's KTX2 transcoder files in vendor/ktx2/ (A79, OPEN); the game integration (step 18).
+
+## Guard bake check steps (guard-models; BAKEFIX-REPORT.md)
+Plain `node` from the repo root, no loader flag, safe through cmd.exe (the laptop runs each step with Node's
+`child_process` `shell: true`, which on Windows is cmd.exe and does not expand `*`):
+- `node scripts/operators/guardBodyCheck.mjs --kit scripts/operators/data/guards.json <out>/bodies/guard-*-body.json`
+  (or the `<out>/bodies` folder, or named files). It registers `ts-resolve.mjs` itself before it loads the game's
+  TypeScript (`src/operators/operatorBody.ts` imports `../player/proportions` without an extension).
+- `node scripts/operators/guardHeadCheck.mjs --out <out> --kit scripts/operators/data/guards.json [--partial]`. Albedo
+  band 0.55-0.9 (SPEC 7 neutral); heads whose kit `facialHair` is `beard` use 0.45-0.9 (`SKIN_ALBEDO_BY_FACIAL_HAIR`).
+- `node scripts/operators/guardGarmentCheck.mjs <out>/garments/guard-*.json` (or the `<out>/garments` folder).
+The body and garment CLIs expand a `*` / `?` in the file name themselves (`cliFiles.mjs`); a pattern or folder that
+matches nothing exits 2. Exit 1 = a report failed.

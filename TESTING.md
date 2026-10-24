@@ -57,6 +57,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   tab and rejoin from its menu (or toggle its network off and on): the joiner comes back in the A3 entry airlock (or
   beside the host if that airlock is shut off), with A1-A2 done, the A3 doors as the host has them and the HUD on A3,
   never at the yard start. Same in Sector Ops in section 2 or 3.
+- [ ] (coop-carry) Co-op, two pages: the joiner knocks a guard out, walks to the body and picks it up (Pick up body): the 2 s lift, then it rides on the joiner's shoulder on both screens (the joiner bent, slow); the joiner hides it at a hiding spot (gone on both) or puts it down (a ragdoll on both, a guard nearby hears it). The host's own carry now shows on the joiner's screen too.
 - [ ] (pose-parity) Co-op, two pages: a partner aiming from the left shoulder while holding a hostage or on a rope shows the gun in the left hand; a partner's choke shows no elbow wind-up.
 - [ ] Lamp light (LR16a: one photometric model, no Lamp falloff row in Settings > Gameplay): start Sector Ops: the S1
   goods-in floor between the strips reads lit (meter and picture agree), Marlow station 2 still reads; a guard's torch
@@ -81,6 +82,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Co-op two intruders (guard-ai S24): split up and get seen apart (host in one room, joiner in another): each
   fight stays on its own player (the guards who saw the host hunt the host's last seen spot, the joiner's hunt his);
   out of sight, nobody walks to where a player really is without having seen or heard him. Solo is unchanged.
+  (coop4, once 3-4 players can join Sector Ops) The same with three or four players apart; on an alarm the
+  reinforcements go for different players, the one the alarm raiser saw first; 2-player play is unchanged.
 - [ ] Co-op guard AI (guard-ai S9): on the joiner, guards' lines and radio calls show as on the host; a cautious guard
   carries his weapon at low ready on both screens; after an alarm stage 2 / 3 the joiner sees the vests and helmets and
   a response team's shield; the joiner's headshot on a helmeted guard pings as a deflect and the helmet falls on both.
@@ -132,6 +135,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   z-fighting; the frame time of each set (A2 685 skins, A4 667, A6 725 are the heaviest).
 - [ ] (interrogation-intel) Interrogate a guard with information: after his lines the feed shows `Code: ...` (when authored), `Cameras near: n, sweep a-b s` and `Patrols near: n, loop a-b s`; in co-op the partner sees the same lines (a client's interrogation too).
 - [ ] (stealth-pays) An interrogation's door code now acts: Course mode sets it as a course flag (a gate listing it in `externalFlags` opens); Sector Ops holds it for the section (the matching keypad prompt turns to "Enter code" and opens; a section restart drops it). Pending until a map authors guard `info` codes. Checks: `tests/intelPartB.test.ts` (Course flag, repeat is one `flagSet`), `tests/sectorIntelCode.test.ts` (`grantCode`, restart drops it, keypad opens); `e2e-ctcourse` (appended check: `onIntelCode` sets `hasFlag`) and `e2e-sectorops` (check (a2): `onIntelCode('s4-codes')` turns kp-batt to "Enter code") drive the mode hook directly; the real interrogate chain stays in `e2e-takedown` `grab-interrogate-intel`.
+- [ ] (joint-interrogation) Co-op: the partner beside a held A8 officer holds A, BLUFF; the holder INTERROGATEs within 6 s: both see the two joint lines; a solo read gives only his two lines.
 - [ ] (hang-down) Co-op hang-down over a guard (any edge with a drop, e.g. a Sector Ops mezzanine): hanging, LT draws
   the pistol (never the rifle) and aims upside down, RT fires; hold A lists GRAB CHARACTER on a guard by your head (he is
   lifted, then RT tap / Z knocks him out, RT hold kills, no let-go); RT on him without the menu: tap chokes, hold snaps
@@ -209,6 +213,26 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   helmeted guard in the head: steel-blue hit marker and a ping, the helmet falls to the floor and stays, he reels and
   comes up shooting; a second head shot kills. An armoured guard shrugs off chest rounds (a short stagger, not every
   round); a takedown drops either in one move.
+- [ ] Guard models (guard-models; add `?guardmodels=1` to the URL until G8 makes it the default; `?guardmodels=0` is the old body):
+  - Variety: on a map with several guards (Sector Ops, Marlow Yard, the Warehouse) the guards are not clones: three
+    builds (grunt, droneOp and officer average; runner and sniper lean; heavy and enforcer broad), different faces, skin
+    tones, hair and hair colours, caps, beanies, a boonie on a sniper, a headset on the drone operator, a peaked cap on
+    the officer, glasses on some (the sniper always dark ones). The heavy and enforcer wear a balaclava, no hair.
+  - Faces: at 1.5 m and 3 m the eyes, brows, nose and mouth read, no gap or step at the neck, no hair floating, the cap
+    sits on the scalp; far away (> 25 m) the guard is a plain, correctly coloured figure, no flicker at the LOD switches.
+  - Helmet knock-off: raise the alarm to the helmet stage (three alarms in Sector Ops, or `e.setGear` in the console);
+    the helmet shows only then, the cap and hair under it are gone; a head shot pings and the helmet leaves his head and
+    falls to the floor as the same helmet (his faction colour), the hair or cap shows again. Vests show only with the
+    armour stage; the heavy shows his plate; the enforcer carries the shield on his left arm.
+  - Same looks after a restart: note three guards (a face, hair, cap); restart at the checkpoint or the section: the same
+    guards in the same places look the same.
+  - Bodies: carry and drop a guard: the body keeps his face, clothes and helmet state; thermal and night vision show him
+    like before (no extra glow, no missing piece); the shadow of a guard has no helmet after the knock-off.
+  - Co-op, both screens: host and joiner see the same man in each place (face, hair, cap, outfit, vest, helmet), the
+    helmet falls on both screens, and a restart keeps the looks on both.
+  - First frame: at level start every guard shows as a figure on his first frame, no hitch the first time one comes
+    into view. The bake's guard files are bundled (`src/operators/assets/guards/`) but load only with `?guardmodels=1`;
+    without it nothing changes (the old body, no guard file fetched).
 - [ ] Talking pairs (guard-ai S10, Saltmarsh Park car park): watch the pair from cover: at their stop by the aisle end
   they face each other and swap two lines, then walk on; knock one out before they meet and ~6 s later the other walks
   to where his partner was headed.
@@ -463,8 +487,17 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Optic cable (ct-toolkit 3.2): at a closed door hold A, OPTIC CABLE: she kneels, after about 1.2 s the view is
   under the door on the far side at floor height (feed overlay); the stick turns it (+-75 deg, -10..+60 deg), D-pad
   left toggles vision, B or the stick pulled back leaves; a guard on your side still sees you kneeling.
+- [ ] (optic-coop M1) At an optic gap (a hatch, ceiling panel, grille or shaft top; none placed on a map yet, so a dev
+  level with `opticGap`): hold A: OPEN TRAP (only where a panel covers the gap) and OPTIC CABLE, the door menu's list;
+  OPEN TRAP opens the panel quietly; OPTIC CABLE feeds the cable ("Too far" / "No gap" as at a door). Keyboard: E.
 - [ ] Drainpipe: one reach per hand about a second, feet together; shimmy slow with the legs swinging; ledge climb-up
   ends crouched (hold the stick to stand); ladder slower up, faster down; rappel 0.6 m/s.
+
+### Hits come from game state (rig-pose fix)
+- [ ] Co-op: let a guard shoot each player in turn, standing, crouched and on a wall; both take head / body / leg hits the same way.
+- [ ] Co-op: headshot a guard as the client, also one peeking from cover; it counts as a headshot.
+- [ ] Shoot from a wall edge and while hanging upside down: rounds leave from the gun side and hit where aimed.
+- [ ] Kill a guard at a ledge lip: the body lies on the floor below; pick it up on both machines.
 
 ### Keyboard and mouse
 - [ ] A click captures the mouse (it never fires); W A S D move, the mouse looks, the wheel or = / - change the gear.
@@ -616,6 +649,13 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   and `style.knockouts` did not rise from the pairing (e2e-coop).
 - [ ] The Fallow bunker: open `?net=local&autostart=bunker&mode=course` in both tabs. The objective list shows for both;
   one player on an airlock pad shows "Waiting for partner"; both seal it; the rear door stays locked.
+- [ ] (optic-coop) Optic cable seen by the partner: one tab, at a closed door hold A, OPTIC CABLE. The other tab sees her
+  kneel in front of the leaf, her right hand down at the door's foot and a thin dark cable running out under the door;
+  her view is not shared. When she pulls out (B) the cable shortens and goes, and she stands. Works both ways (host and
+  joiner). (M2) R3 / middle mouse pings; a ping from the view marks what the tip sees on both tabs, also in the
+  view's first moment. R3 while aiming a scoped weapon zooms and sends no ping; R3 otherwise pings and does not zoom;
+  middle mouse pings while scoped too. Controls screen: Zoom and Ping both on R3 show no conflict (the pad note names
+  the context); put another verb on R3 and it shows as a conflict.
 - [ ] Close the host tab: the client is told and returns to the menu.
 - [ ] (coop4) Sector Ops with 4 players: open `?net=local&autostart=campusOps&mode=sector&players=4` in 4 tabs; the match
   starts once the 4th is in. Each tab sees 3 teammates, spawned apart, with beacon colours blue (host), red, amber and

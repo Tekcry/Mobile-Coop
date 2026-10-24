@@ -1,7 +1,7 @@
-import { PhysicsBody, PhysicsMotionType, PhysicsShapeCapsule, Quaternion, TransformNode, Vector3, type Scene } from '../core/babylon';
-import { G } from '../physics/groups';
-import { hitVolumes } from '../player/proportions';
-import { dropBadDoorMove, dropBadWallMove } from '../player/moveState';
+import { Vector3, type Scene } from '../core/babylon';
+import { dropBadDoorMove, dropBadOpticMove, dropBadWallMove, moveKneels } from '../player/moveState';
+import { attachLiftOf, crouchBlendOf, crouchStep, emptyPlayerBodyIn, emptyPlayerBodyOut, playerBody, PLAYER_OPERATOR_HEIGHT, wireBodyIn, wireKneel, wireTense } from '../player/playerVolumes';
+import { PlayerHitVolumes, playerPartMult } from '../game/playerHitVolumes';
 import { WALL, WALL_SUB, wallPeekOffset } from '../player/wallController';
 import { Health } from '../game/health';
 import { HALL_BACK_HOLD } from '../game/jammer';
@@ -23,8 +23,12 @@ import type { CoverSpot } from '../game/tactics';
 const MAX_SPEED = MAX_FREE_SPEED;
 
 /**
- * Host-side model of a client: authoritative health, a hit capsule enemies can shoot, the
+ * Host-side model of a client: authoritative health, split hit volumes enemies can shoot, the
  * latest validated position (for AI, pickups and shot checks) and per-weapon fire budgets.
+ * (rig-pose-fix S1, G3 / G4) The volumes, the perception points and the wall head sample come from the sim body model
+ * (`playerBody`) fed from the client's latest accepted `PlayerState` / `MoveState` at the host's sim time, as the
+ * client's own `PlayerTarget` builds them: never from the host's drawn copy (0.1 s behind, the host's mocap set, anim
+ * LOD and frame rate).
  */
 export class RemotePlayer implements Damageable {
   readonly team = 'player' as const;
@@ -35,17 +39,21 @@ export class RemotePlayer implements Damageable {
   readonly ref: TeamRef;
   state: PlayerState | null = null;
   damageMul = 1;
-  /** Hip joint height (m) of the body the capsule is fitted to. */
-  private hipY = 0;
   private lastT = -1;
   /** Seconds during which a large position jump is accepted (after a host-driven respawn). */
   private teleportGrace = 0;
   /** (guard-ai S26 fix) The last accepted state continued the one before (no jump past the plausible-move bound) and the
    *  host has not moved this copy since: only then can its step make a noise (`clientStepNoise`). */
   stepOk = false;
-  private node: TransformNode;
-  private body: PhysicsBody;
-  private shape: PhysicsShapeCapsule;
+  private vols: PlayerHitVolumes;
+  /** (rig-pose-fix S1) The sim body's input and joint centres from the latest accepted state. */
+  readonly bodyIn = emptyPlayerBodyIn();
+  readonly body = emptyPlayerBodyOut();
+  /** The crouch flag eased as the owner's controller eases it (`crouchStep`, linear amount) and the still-crouched time
+   *  (the kneel, `wireKneel`: not in the tense sneak). */
+  private crouchK = 0;
+  private kneelT = 0;
+  private readonly liftTmp = { x: 0, y: 0, z: 0 };
   private limiters = new Map<WeaponId, RateLimiter>();
   private blastT = -Infinity;
   violations = 0;
@@ -64,18 +72,10 @@ export class RemotePlayer implements Damageable {
     spawn: Vector3,
   ) {
     this.feet.copyFrom(spawn);
-    this.node = new TransformNode(`remote-hitbox-${id}`, scene);
-    // (operators 11e) fitted to the body shown: Wren's rig (1.68 m, G72 proportions)
-    const p = avatar.rig.p;
-    this.hipY = p.y.hip;
-    const hv = hitVolumes(p);
-    this.shape = new PhysicsShapeCapsule(new Vector3(0, hv.bodyY0, 0), new Vector3(0, hv.headY - hv.bodyR * 0.5, 0), hv.bodyR, scene);
-    this.shape.filterMembershipMask = G.PLAYER_HITBOX;
-    this.shape.filterCollideMask = G.PROJECTILE;
-    this.body = new PhysicsBody(this.node, PhysicsMotionType.ANIMATED, false, scene);
-    this.body.shape = this.shape;
-    this.body.disablePreStep = false;
-    registry.register(this.body, this, 'body');
+    // (operators 11e) fitted to the body shown: Wren (1.68 m, G72 proportions); (rig-pose-fix S1) split like the local
+    // player's (legs, torso, head: headshots count on both)
+    this.bodyIn.height = PLAYER_OPERATOR_HEIGHT;
+    this.vols = new PlayerHitVolumes(scene, registry, this, `remote-hit-${id}`, PLAYER_OPERATOR_HEIGHT);
     // (operators 11e r1) the partner's light is sampled at its body's height (host and client alike, nothing sent)
     this.ref = { id, target: this, feet: this.feet, speed: 0, crouched: false, height: avatar.rig.height, slot: 1, mv: null };
     this.sync();
@@ -89,33 +89,32 @@ export class RemotePlayer implements Damageable {
     return ((this.state?.f ?? 0) & PF.crouch) !== 0;
   }
 
+  /** (rig-pose-fix S1, G2) The perception points from the sim body, as the local player's (`PlayerTarget`). */
   center(out: Vector3): Vector3 {
-    return out.copyFrom(this.feet).addInPlaceFromFloats(0, this.crouched ? 0.7 : 1.0, 0);
+    return this.vols.center(out);
   }
 
   aimPoint(out: Vector3): Vector3 {
-    return out.copyFrom(this.feet).addInPlaceFromFloats(0, this.crouched ? 0.85 : 1.3, 0);
+    return this.vols.aimPoint(out);
   }
 
-  /** Head volume centre (guard exposure sampling): over the feet, or past the wall edge while peeking (step 12, from
-   *  the MoveState: the guards see the remote's real head, as they see the local one's). */
+  /** Head volume centre (guard exposure sampling; on a wall `ref.head`, the light meter's head sample, is this point). */
   headPoint(out: Vector3): Vector3 {
-    // (step 12b fix r2) on a wall: the host's posed copy's head, the sample the light meter reads too (light parity)
-    if (this.ref.head) return out.copyFrom(this.ref.head);
-    const y = this.feet.y + (this.crouched ? 1.05 : 1.6);
-    return out.set(this.feet.x + (this.ref.peekX ?? 0), y, this.feet.z + (this.ref.peekZ ?? 0));
+    return this.vols.headPoint(out);
   }
 
   /**
    * Accept a client state. Positions that move faster than humanly possible are clamped
    * towards the claim (the client snaps back on its next correction) and counted.
    */
-  accept(s: PlayerState, now: number, anchors: TraversalAnchors | null = null, segs: readonly CoverSegment[] | null = null, doorCount: number | null = null): void {
+  accept(s: PlayerState, now: number, anchors: TraversalAnchors | null = null, segs: readonly CoverSegment[] | null = null, doorCount: number | null = null, opticCount: number | null = null): void {
     // (step 09, D8) the weapon from the lobby loadout only; holstered while the host sees busy hands or downed
     // (step 11 r3) a wall segment outside this level: no wall pose from a stale face
     if (segs) dropBadWallMove(s, segs.length);
     // (step 13) a door peek on a door this level does not have: no door pose
     if (doorCount !== null) dropBadDoorMove(s, doorCount);
+    // (optic-coop) the optic cable at a gap this level does not have: no kneel pose from it
+    if (opticCount !== null) dropBadOpticMove(s, opticCount);
     s.w = hostWeapon(s.w, this.loadout, this.lastW);
     this.lastW = s.w;
     if (s.mv) s.mv.dw = hostDrawPhase(s.mv, !this.alive);
@@ -165,10 +164,19 @@ export class RemotePlayer implements Damageable {
     wallPeekOffset(s.mv?.m ?? '', s.mv?.sub ?? 0, wseg ? wseg.tx : 0, wseg ? wseg.tz : 0, this.peekTmp, this.peekK);
     this.ref.peekX = this.peekTmp.x;
     this.ref.peekZ = this.peekTmp.z;
-    // (step 12b carry-over) off the wall the posed head sample goes at once (not at the next frame's setPosedHead)
-    if (!wseg) this.ref.head = null;
     this.state = s;
     this.ref.mv = s.mv ?? null;
+    // (rig-pose-fix S1) the sim body's input from the accepted state, as the owner's `PlayerTarget.sync` builds it
+    const crouched = (s.f & PF.crouch) !== 0;
+    this.crouchK = crouchStep(this.crouchK, crouched, dt);
+    const mvm = s.mv?.m;
+    this.kneelT = crouched && this.ref.speed < 0.15 && (!mvm || moveKneels(mvm)) ? this.kneelT + dt : 0;
+    // the travel's sideways share from the accepted step (the owner's local move)
+    const strafe = d > 0.01 ? Math.abs(dx * Math.cos(s.yaw) - dz * Math.sin(s.yaw)) / d : 0;
+    const lift = attachLiftOf(s.mv, anchors && s.mv ? anchors.all[s.mv.a] : undefined, PLAYER_OPERATOR_HEIGHT, this.liftTmp);
+    // (S1 fix round, check A B1) no kneel in the tense sneak, as the owner's controller (one rule, the same guards)
+    const tense = wireTense(crouched, (s.f & PF.grounded) !== 0, mvm, s.x, s.z);
+    wireBodyIn(s, crouchBlendOf(this.crouchK), wireKneel(this.kneelT, tense), this.peekK, strafe, MAX_SPEED, lift, this.bodyIn);
     this.sync();
   }
 
@@ -199,44 +207,21 @@ export class RemotePlayer implements Damageable {
     }
   }
 
+  /** (rig-pose-fix S1) The sim body at the feet and the volumes on it (parked while down); on a wall its head is
+   *  `ref.head`, the light meter's head sample (light parity: the client's own meter reads the same model). */
   private sync(): void {
-    const n = this.node;
-    if (this.posed) {
-      // (3.2.0) along the posed hips -> head line (hanging, crawling, leaning), set by `followPose`
-      const h = this.poseHips;
-      const u = this.poseUp;
-      n.position.set(h.x - u.x * this.hipY, h.y - u.y * this.hipY, h.z - u.z * this.hipY);
-    } else {
-      n.position.copyFrom(this.feet);
-      if (this.crouched) n.position.y -= 0.5;
-    }
-    if (!this.alive) n.position.y = -500;
+    const bi = this.bodyIn;
+    bi.x = this.feet.x;
+    bi.y = this.feet.y;
+    bi.z = this.feet.z;
+    playerBody(bi, this.body);
+    const h = this.body.head;
+    this.ref.head = bi.wall && this.alive ? this.headV.set(h.x, h.y, h.z) : null;
+    this.vols.setEnabled(this.alive);
+    if (this.alive) this.vols.sync(this.feet, this.body);
   }
 
-  private posed = false;
-  private poseHips = new Vector3();
-  private poseUp = new Vector3(0, 1, 0);
-
-  private readonly posedHeadV = new Vector3();
-  /** (step 12b fix r2, light parity) Per render frame (host), after the avatar is posed: the posed head centre while
-   *  the remote is on a wall (`ref.head`, read by `headPoint` and the light meter), else null. */
-  setPosedHead(head: Vector3 | null): void {
-    this.ref.head = head && this.state?.mv?.m === 'wall' ? this.posedHeadV.copyFrom(head) : null;
-  }
-
-  /** Per render frame (host), after the avatar is posed: the hit capsule follows the rig's hips -> head line. */
-  followPose(hips: Vector3, head: Vector3): void {
-    const u = this.poseUp.copyFrom(head).subtractInPlace(hips);
-    const len = u.length();
-    if (len < 0.2) return;
-    u.scaleInPlace(1 / len);
-    this.poseHips.copyFrom(hips);
-    const q = (this.node.rotationQuaternion ??= new Quaternion());
-    if (1 + u.y < 1e-4) q.set(1, 0, 0, 0);
-    else q.set(u.z, 0, -u.x, 1 + u.y).normalize();
-    this.posed = true;
-    this.sync();
-  }
+  private readonly headV = new Vector3();
 
   /** Per-weapon hit budget. */
   takeShot(w: WeaponId, now: number): boolean {
@@ -265,7 +250,9 @@ export class RemotePlayer implements Damageable {
   applyDamage(h: HitInfo): DamageResult {
     if (!this.alive || this.held || this.friendly(h)) return { dealt: 0, killed: false };
     const rolling = ((this.state?.f ?? 0) & PF.roll) !== 0;
-    const dealt = this.health.damage(h.amount * this.damageMul * (rolling ? 0.5 : 1));
+    // (rig-pose-fix S1) the local player's part multipliers (head 1.3, legs 0.75) on the same split volumes
+    const zone = playerPartMult(h.part === 'head', h.point.y - this.feet.y, this.bodyIn.crouch);
+    const dealt = this.health.damage(h.amount * this.damageMul * (rolling ? 0.5 : 1) * zone);
     if (dealt > 0) this.onDamaged?.(h, dealt);
     const killed = !this.health.alive;
     if (killed) {
@@ -291,9 +278,7 @@ export class RemotePlayer implements Damageable {
   dispose(): void {
     this.blocker?.dispose();
     this.registry.removeTarget(this);
-    this.body.dispose();
-    this.shape.dispose();
-    this.node.dispose();
+    this.vols.dispose();
     this.avatar.dispose();
   }
 }

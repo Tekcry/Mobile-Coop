@@ -42,6 +42,13 @@ import rigid_skin  # noqa: E402
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'anim-skeleton', 'py'))
 import skeleton  # noqa: E402  (anim-skeleton S1: clavicle and finger joints, knuckle loops)
 
+# guard-models G4: `--guard` hands the run to the guard mode (bake_guard.py; guard-lods.mjs runs it). Without it nothing
+# below changes, so Wren's outputs stay byte-identical.
+if '--guard' in (sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []):
+    import bake_guard  # noqa: E402
+    bake_guard.main()
+    raise SystemExit(0)
+
 args = common.parse_args({
     '--operator': {'required': True},
     '--garment': {'action': 'append', 'default': []},

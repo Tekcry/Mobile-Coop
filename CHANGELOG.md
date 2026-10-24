@@ -1,5 +1,132 @@
 # Changelog
 
+## 4.95.0 - Train 59: Laptop queue: audit fixes; e2e-coop joint interrogation flake; lightField allocation check retry; Optic cable: the partner's view, hatches and grilles (engine); Co-op body carry on the client (2026-10-24, PR #332; #329, #328, #327, #314, #313)
+
+### Co-op body carry on the client
+- (coop-carry) Co-op: the joiner can pick up, carry, put down and hide a downed guard's body, host-approved, with the
+  same 2 s lift, slow bent carry and 0.8 s put down as the host; both screens show a partner carrying (the host's own
+  carry now shows on the joiner too). Bodies ride the item mirror as kind `body` (wire change: the train bumps the
+  protocol). The carry code moved from `StealthSystems` to `game/bodyCarry.ts` unchanged.
+
+### e2e-coop joint interrogation flake
+- e2e-coop "joint interrogation: host bluffs, client reads": the client's hold starts as soon as the host stores its bluff
+  and the client's bluff line is checked alongside, so Node polls under load no longer spend the bluff's 6 s host-time
+  window before the read ends (a 28 fps host timed out on the joint count); a timeout now prints the host's bluff age.
+
+### Laptop queue: audit fixes
+- Tooling: the laptop queue service stops a request its requester withdrew (the run is killed, the slot freed), and a
+  pending train preempts a running PR request (re-queued). `request.mjs --pin` keeps A/B and baseline runs from being
+  superseded.
+- Tooling: duplicate requests are marked done unrun; runs not yet in their suites yield to a pending train; train
+  reruns (`--train-rerun`) run at train priority and turn `laptop-e2e` green on a pass; alone runs wait while an open
+  train lacks a laptop verdict; the desktop takes no new claims while auto-train builds a train; a task guard disables
+  stale scheduled tasks (`one-shot-task.ps1` is the only way to schedule an ad-hoc run).
+
+### Optic cable: the partner's view, hatches and grilles (engine)
+- (ct-toolkit 3.2, optic-coop) Co-op: a partner now sees the optic cable. While one player feeds it under a door their
+  copy on the other screen kneels in front of the leaf with the right hand at the door's foot and a thin cable running
+  out under the door, growing over the 1.2 s feed and shrinking over the 0.6 s pull out; the view stays local. The
+  player's own body shows the same hand and cable. Wire: MoveState mode `optic` (`sub` the kind: door, hatch, panel,
+  grille; `a` the door or gap; `ph` the cable fed out); an unknown kind or a door or gap the level lacks is dropped.
+  A ping from the view already casts from the tip and reaches the team; no ping input is bound yet.
+- (optic-coop) Engine side of the optic cable's other gaps (map field `optic`): floor hatches, ceiling panels (fed
+  standing), vent grilles and shaft tops (`LevelBuilder.opticGap`, `OpticSystem.pickPoint`): the kneel spot, the tip
+  0.3 m into the space (or the map's own tip point), the look 50 deg down or up through a floor or ceiling gap, and the
+  refusals "Too far" and "No gap". No map places one yet.
+- (optic-coop M1) At a hatch, ceiling panel, grille or shaft top the optic cable starts from the action menu, the same
+  as doors: hold A (E) for OPEN TRAP (only where a panel covers the gap; it opens quietly) and OPTIC CABLE; "Too far"
+  and "No gap" show as at a door. In co-op OPEN TRAP goes through the host like a door, so the panel opens for both
+  players (and for a partner who joins or rejoins later); wire: client -> host `panel`, the snapshot's `trp`.
+- (optic-coop M2) Ping is bound: middle mouse on keyboard and mouse, R3 on the pad, and it works from the optic view
+  (the ping comes from the tip, from the view's first moment). R3 is shared with Zoom by context (Michael): while aiming
+  a scoped weapon R3 zooms and does not ping; otherwise it pings and does not zoom. Middle mouse always pings. The
+  controls screen shows no conflict for the default R3 pair (another verb put on R3 still shows one).
+- (optic-coop) A level holds at most 256 optic gaps (the network's bound); more are refused with a warning.
+
+### lightField allocation check retry
+- Tests: the lightField allocation check re-measures a query over its limit once from a fresh warm-up (CI flake 173.2 > 144 on #322).
+
+## 4.94.0 - Train 58: e2e-lightbake shader-compile wait; Guard models (2026-10-24, PR #325; #322, #318)
+
+### e2e-lightbake shader-compile wait
+- Tests: e2e-lightbake waits for every drawn shader to compile (120 s cap) before its 16-texture check and names stuck materials (train 55 timing flake).
+
+### Guard models
+- Guards can draw as varied, realistic figures from the operator pipeline (guard-models). It is behind `?guardmodels=1`
+  for now (the default is off until the budget run flips it); `?guardmodels=0` is today's merged body. What you see:
+  - Three builds: average (grunt, drone operator, officer), lean (runner, sniper) and broad (heavy, enforcer).
+  - Faces: eight faces in four skin tones, six hair cuts in four hair colours, some with stubble or a beard; the heavy
+    and the enforcer wear a balaclava.
+  - Outfits and headwear per kind: field uniform, rolled sleeves on the sniper, work jacket on the runner, field
+    jacket and peaked cap on the officer, caps, beanies, a boonie, a headset, glasses, belts, holsters and a radio.
+  - Gear that matches gameplay: a helmet shows only while the guard's helmet would stop a round, a vest only with
+    armour, the heavy and enforcer always show their plate, and the enforcer carries a riot shield.
+  - Helmet knock-off: the first head hit takes the helmet off his head; it drops at his feet as the same helmet and his
+    cap or hair shows again.
+  - Every guard's look comes from a per-guard seed, so it is the same after a section restart and the same on both co-op
+    screens; carried bodies keep their look.
+- Guard figures are off by default; their files load only with `?guardmodels=1`, never precached. The baked files
+  (three builds and the riot shield, LOD0-2, about 29 MB) are bundled, but the service worker never precaches them and
+  nothing fetches them while the flag is off; with it on they load on demand and are kept in the worker's own `guards`
+  cache for offline play. A build whose files are missing or broken falls back to a stand-in (the operator's figure
+  at guard height).
+- Co-op: the enemy `al` carries the look seed in bits 9-15 (`AL_LOOK`; `AL_MAX` is 65535); host and client derive the
+  same look from it. The protocol version is bumped by the train build.
+- Tests and docs: Vitest for the kit data, variation, piece mask, look seed on the wire, figure (NullEngine) and the
+  bundled files against the budgets, the precache lists and the flag-off path (no guard file precached or fetched,
+  `guardAssetsOffline`); `e2e-coop` checks the seed and visible
+  pieces on host and client, the seed after a bay restart and the helmet bit drop (`E2E_GUARDMODELS=1` for the pieces);
+  guards section in `world-and-characters.md`, the budget line in `performance.md`, the look bits in `coop.md`, MPFB2
+  credited for the guards' bodies and faces, a desktop checklist item in `TESTING.md`.
+
+## 4.93.0 - Train 56: Guards against up to 4 intruders (coop4 AI) (2026-10-24, PR #321; #319)
+- Guard AI coop4 AI1: intruder slots are reused. A player who leaves keeps his slot for his rejoin (same slot, last
+  known position kept); with 3+ players a new player takes a gone player's slot when none is free (its search plan,
+  caller and hunters are released). New host hook `intruderLeft(id)` and per-player ghost read `ghostOf(id, out)`.
+  1-2 players unchanged.
+- Guards watching 3-4 players cast at most 9 sight rays a think (A181): the one they perceive and the one they hunt
+  first, the rest nearest first in rotation, so nobody is left unseen for long; 1-2 players unchanged.
+- The section radio's receiver queue holds 128 (4 simultaneous contacts x 32 guards), so no receiver is dropped in a
+  4-player fight; hearing locates each of up to 4 intruders by its own noise.
+- With 3-4 players the alarm's reinforcements split over the known intruders: the alarm raiser's intruder first, then
+  each other by freshest sighting, round robin; 1-2 players unchanged.
+- With 3-4 players a stage's response grows by one guard per player past 2 (two teams from 4 guards, a shield lead
+  each, never past the live cap); each team hunts and sweeps round its own intruder's last known position and keeps off
+  the points another team holds; fights take cover in turn, and the flank trigger and `spotted` follow each player's
+  own fight; 1-2 players unchanged.
+
+## 4.92.0 - Train 55: Gameplay reads game state, not the animated body (rig-pose fix) (2026-10-24, PR #320; #308)
+- Where you can be hit and seen now comes from your position and stance in the game, not from the animated body:
+  guards aim at and hit the same spots on every machine, whatever the frame rate, the mocap setting or the tuner.
+- Co-op: your partner is judged exactly like you on the host, with split head / body / leg hits (head x1.3, legs
+  x0.75), at their latest position instead of a copy drawn 0.1 s behind. Friendly fire on Marlow Yard uses the same body.
+- Your rounds start from your shoulder and aim in the game, not the animated muzzle (the muzzle still shows the tracer,
+  flash and casing). The wall-poke check uses the same head as your hit box.
+- A guard's head is the same on the host and the client, and the host judges a partner's headshot against it.
+  Dog heads too.
+- On a wall, the light meter and the guards read the same head point on both machines (light parity).
+- Bodies lie where the guard fell in the game, on the floor below a ledge; the ragdoll eases onto that spot. Picking a
+  body up steps in to the same place on both machines.
+- Smaller: the weapon swap waits on a game timer, the course dummy's head follows its position, movement speed no
+  longer depends on the mocap setting, rounds pass through ragdolls, and a lamp shot while hanging upside down counts
+  in co-op.
+
+## 4.91.0 - Train 53: Joint interrogation: check fixes; Gameplay reads game state, not the animated body (rig-pose fix) (2026-10-24, PR #315; #311)
+- Co-op joint interrogation: a repeated BLUFF press on the same guard no longer repeats the "Bluff on" line, a bluff is spent and counted only when the guard has joint lines to give, and a player who leaves takes their bluff with them.
+
+## 4.90.0 - Train 52: Joint interrogation (G148); Gameplay reads game state, not the animated body (rig-pose fix) (2026-10-24, PR #312; #310)
+- Co-op joint interrogation (G148, CT: both players question one captive; some intel comes only this way). Beside a
+  guard your partner holds, hold A: a guard with joint information lists BLUFF above TEAM TAKEDOWN. The host accepts the
+  bluff and both see "Bluff on. Read his face now."; when the holder's INTERROGATE ends within 6 s of the bluff, with the
+  bluffer alive and within 3 m, the guard also gives his joint-only lines to both players (radio subtitle and feed) and
+  sets his joint flag. A solo read gives only his usual lines and spends the joint part too. Speech only: no strike, no
+  threat, no pose. Single player is unchanged.
+- Marlow Yard A8: the duty officer has two joint lines (the request-to-exit button in the lobby; night two's grille stop,
+  5 s every 40 s) and the flag `a8-joint`; the radio teaches it as A reaches the gallery ("Two of you, he might say more.").
+- Wire-semantics change: a client's bluff is a `td` message with kind `bluff` (the field existed; protocol.ts is not
+  edited), and an older host would take it as a takedown and seize the guard. The branch touches `src/net`, so the train
+  bumps `PROTOCOL_VERSION` once.
+
 ## 4.89.0 - Train 51: sector-redesign: LR16-4 reception board, LR16-6 vision polish, LR16 polish batch 2; Auto-train audit fixes (2026-10-24, PR #309; #307)
 
 ### The S2 reception panel is a breaker board (LR16-4)

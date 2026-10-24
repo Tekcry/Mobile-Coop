@@ -409,6 +409,9 @@ describe('OUT and leaving (CoopHost hold / removeRemote, round fix)', () => {
       joins: new JoinWatch(),
       teamClear: vi.fn(),
       dropRevive: vi.fn(),
+      // (merge 4.95.0) master's coop-carry and joint-interrogation maps (a hold / leave drops the carry and the bluff)
+      carries: new Map(),
+      bluffs: new Map(),
     });
     const hi = h as unknown as { hold(id: string, name: string): void; removeRemote(id: string): void };
     return { h: hi, remotes, g };

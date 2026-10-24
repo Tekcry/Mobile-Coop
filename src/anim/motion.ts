@@ -228,8 +228,14 @@ export class MotionDriver {
   yawRate = 0;
   state: MotionState = 'idle';
   stateT = 0;
-  /** Gait clock 0..1 (left heel strike at 0, right at 0.5). */
+  /** Gait clock 0..1 (left heel strike at 0, right at 0.5): the drawn feet (the rig, the wire's `gph`). */
   phase = 0;
+  /**
+   * (rig-pose-fix S7, audit G17) The sim's gait clock: the root modulation of the velocity runs on it. It never takes the
+   * mocap strafe's side-step (`mocapSide`, a per-machine anim setting), so the sim velocity is the same with mocap on or
+   * off; without `mocapSide` it advances exactly as `phase`.
+   */
+  simPhase = 0;
   /** Stepped turn in progress. */
   private turnFrom = 0;
   private turnTo = 0;
@@ -535,9 +541,13 @@ export class MotionDriver {
       const bk = sp > 0.02 ? Math.min(1, Math.max(0, -(this.vx * Math.sin(this.yaw) + this.vz * Math.cos(this.yaw)) / sp)) : 0;
       // (G1 fix) in a start the clock runs START_CLOCK.share of the way to the target pace (the first step lands at ~0.25 s)
       const spc = this.startT >= 0 && this.wantPace > sp ? sp + (this.wantPace - sp) * START_CLOCK.share : sp;
-      this.phase = (this.phase + gaitRate(spc, this.yawRate, M, lat, this.tense, i.crouch ?? 0, bk, i.aiming ? 1 : 0, i.mocapSide === true) * dt) % 1;
+      const rate = gaitRate(spc, this.yawRate, M, lat, this.tense, i.crouch ?? 0, bk, i.aiming ? 1 : 0, false);
+      // (G17) the drawn clock may take the mocap side-step; the sim clock never does
+      const drawn = i.mocapSide === true ? gaitRate(spc, this.yawRate, M, lat, this.tense, i.crouch ?? 0, bk, i.aiming ? 1 : 0, true) : rate;
+      this.phase = (this.phase + drawn * dt) % 1;
+      this.simPhase = (this.simPhase + rate * dt) % 1;
     }
-    const mod = sp > 0.1 ? rootModulation(this.phase, M) : 1;
+    const mod = sp > 0.1 ? rootModulation(this.simPhase, M) : 1;
     this.outX = this.vx * mod;
     this.outZ = this.vz * mod;
 

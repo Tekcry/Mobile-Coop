@@ -179,7 +179,11 @@ behind a VPN adapter).
   suspicious -> investigating, squad radio, the shout, a spotter taken out first tells nobody, LKP + ghost + converge +
   search ends, (walk 4.82) a lone guard reports then moves up on the last known position, the probable-area search ('search area': the near dark spot checked, the room behind a wall not, three
   searchers on three spots), patrols, the optic cable (the door menu pick, the view under the door at floor height, the look limits,
-  night vision, the tip never seen, the kneeling body seen, crouch leaves, a sealed door refuses)
+  night vision, the tip never seen, the kneeling body seen, crouch leaves, a sealed door refuses); (coop4 AI6) 'four
+  intruders (coop4)': the local player plus up to 3 test-only stand-in refs (`t.fakes`): a calm guard with 4 in view
+  casts <= 9 rays a think and sees all 4 in turn, 4 own slots / LKPs, the alarm's reinforcements split (the raiser's
+  first), a team shares one hunt and is ticked on its own LKP, a leaver's slot kept for his rejoin, a new id takes a gone
+  slot; a 2-player control (today's rules). The 3-4 browser asserts: `docs/coop4/briefs/AI6-E2E-SPEC.md`
 - `e2e-guard-carry` Warehouse Infiltration (High): a calm holstered grunt and officer (S21 carry) and then drawing ones
   are drawn: body among the active meshes, material ready, GPU-skinned effect (no CPU-skinning fallback), no effect
   compile error (its error line printed). Run with `E2E_GPU=1`
@@ -479,8 +483,26 @@ e2e for you and posts the verdict as a commit status on the tested sha. No messa
   Needs a pushed sha. It pushes `requests/<id>.json` to the `laptop-queue` branch and prints the id. `--dry-run` shows
   the JSON and pushes nothing. An `--alone` step may start with `serve ` (runs `scripts/laptop-queue/serve.mjs`).
 - Order: trains (an `origin/train/<n>` head with no `laptop-e2e` status; both slots, sharded by suite times; a head whose
-  `auto-train/*` status is failure or error is skipped), then pr / full
+  `auto-train/*` status is failure or error is skipped), then train reruns, then pr / full
   requests (one slot), then alone-measurements (both slots; one waiting over 45 min goes ahead of pr work).
+- Train reruns (2026-10-24, auto-train): `request.mjs --train-rerun --pr N --suites "a b" --requester auto-train` writes
+  `"trainRerun": true` (kind pr). It runs right after trains, before every other request and alone run, never held by
+  the alone hold, on one laptop slot at `E2E_JOBS=1` with the suites at once (no sharding; the desktop never takes it).
+  Its context is `laptop-e2e/<set>` like any pr request (auto-train sends `--set train<n>-rerun` and reads
+  `laptop-e2e/train<n>-rerun`); only a rerun with no `--set` gets `laptop-e2e/rerun-<suites without e2e->`. A full pass also posts `laptop-e2e` success on the sha,
+  "laptop rerun passed: <suites> (desktop fail)": the combined status keeps the latest status per context, so that
+  replaces the desktop's `laptop-e2e` failure and release sees the train green. A fail posts only its own context (the
+  train stays red) and comments on the PR as usual.
+- Duplicates (2026-10-24): a new request that runs exactly what another one runs (same sha, kind, suites sorted or steps
+  in order, env, set, jobs, pr; any requester) is marked done unrun as "duplicate of <id>" (one push, no status) while
+  that one is open (older), claimed or running on either worker, or was done on this worker within `LQ_DUP_WINDOW_MIN`
+  (60) min with result success. A failure, error, build, nosha or incomplete result never retires a new request (a
+  rerun of a failure runs, e.g. the laptop's rerun of a desktop failure, or a `--jobs 1` solo rerun). Supersede still
+  retires one requester's older pr / full requests. state.json keeps done entries 7 days (pruned on each save once their
+  done claim is on the branch).
+- Yield (2026-10-24): while a train head is pending, a pr / full / alone run that has not started its suites or steps
+  (waiting for its lock, fetch, npm ci, build) gives its slot back: locks released, claim dropped, log "<id>: yields to
+  train <n>"; the request stays queued. Once its suites or steps start it runs to the end. A train rerun never yields.
 - Statuses: `laptop-e2e` (trains), `laptop-e2e/<set>` (pr, set defaults to the suites joined by `+`), `laptop-e2e/full`,
   `laptop-e2e/alone-<set>`. Description "N/N pass, <s> s", plus "; flake: x" and "; FAIL: y". A failure also comments on the
   PR (suite, failing line, log path on the laptop). Logs: `C:/NightShift/scratch/laptop-queue/runs/<id>/`.
@@ -495,10 +517,27 @@ e2e for you and posts the verdict as a commit status on the tested sha. No messa
   the laptop is silent: no claim / done push by the laptop for 10 min (`LQ_LAPTOP_SILENT_MIN`) and the head is over 2 min
   old; then the desktop takes the train (no backlog gate; lock and CPU gates kept), sharded on 4191+4192, E2E_JOBS=1. Its
   statuses read "desktop: ..."; logs `C:/NightShift/scratch/laptop-queue-desktop/runs/<id>/` on the desktop.
+  While auto-train runs `merge-train build` it writes `<AUTO_TRAIN_SCRATCH or C:/NightShift/scratch>/auto-train-building.json` ({ train, version,
+  pid, at }; deleted after); while that file exists and is younger than `LQ_BUILD_MARKER_MAX_MIN` (30) min the desktop
+  starts no new request or train (log "train <n> building: no new claims", once per marker; an older one is ignored as
+  stale, logged once; runs already going continue). `LQ_BUILD_MARKER` overrides the path (tests).
 - Claims: each worker pushes `claims/<id>.json` (a train: `claims/<train-sha>.json`) to the `laptop-queue` branch before
   a run and marks it done after, so the two never run the same request or train. An open claim older than 3 h (`LQ_CLAIM_MAX_H`) is a dead worker's and is taken over.
 - Install / remove the task: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/laptop-queue/install-task.ps1 [-Remove]`.
   Dry run: `node scripts/laptop-queue/service.mjs --once --dry-run`.
+- Scheduled tasks (Michael 2026-10-24 07:13, after 87 old hand-made `NightShift-chain-*` one-shots fired again at
+  2026-10-23 23:59 and held the slot locks for hours): hand-made chains are retired; e2e runs go through the queue
+  (`request.mjs`). The permanent tasks are `NightShift-laptop-queue` (`install-task.ps1`), `NightShift-desktop-queue`
+  (`install-task.ps1 -Worker desktop`) and `NightShift auto-train` (`scripts/auto-train-task.ps1`). The only way to
+  schedule an ad-hoc run is `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/laptop-queue/one-shot-task.ps1
+  -Name NightShift-run-<what> -Command "<powershell command>" [-At <time>] [-ExpireMinutes 240] [-WhatIf]`: one hidden
+  run whose trigger expires at At + ExpireMinutes (also its run time limit), after which Windows deletes the task.
+- Task guard: at start and every `LQ_TASK_GUARD_MIN` (10; 0 = off) min on both workers (desktop dry run 2026-10-24: only "NightShift auto-train" and NightShift-desktop-queue, both allowed), disable (Disable-ScheduledTask only; never
+  stop, kill or delete; a running instance keeps running) every enabled task named `NightShift-*` that is not one of the
+  three above, a `NightShift-run-*` with an expiry or in `LQ_TASK_ALLOW` (comma list), and every other enabled task whose
+  action mentions `C:\NightShift\scratch` or `laptop-runner.ps1`. Log line "task guard: disabled <name> (<state>, <why>)";
+  each pass that disabled something pushes `alerts/<ts>-<worker>-tasks.json` ({ worker, disabled, at }) to the `laptop-queue`
+  branch for the orchestrator. `--dry-run` logs "would disable" / "keeps" only.
 
 ## GPU runs (Michael's PC only)
 - `E2E_GPU=1 npm run e2e` (or any script, e.g. `E2E_GPU=1 node scripts/perf.mjs --desktop --budget`): `e2e-lib` launches

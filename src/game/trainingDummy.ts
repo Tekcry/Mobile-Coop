@@ -5,8 +5,15 @@ import { Health } from './health';
 import type { DamageRegistry, Damageable, DamageResult, HitInfo } from './damage';
 import type { World } from '../world/world';
 import { defaultLook } from '../cosmetics/avatarLook';
+import { hitVolumes } from '../player/proportions';
 
 let nextId = 1;
+
+/**
+ * (rig-pose-fix S7, G16) The dummy's head volume off its static fit (`hitVolumes(p).headY`), fitted to its pose (standing,
+ * the 0.3 aim, still or strafing; `tests/trainingDummyHead.test.ts`): forward along its yaw and down (m).
+ */
+export const DUMMY_HEAD = { fwd: 0.075, drop: 0.04 } as const;
 
 /** Sandbox target: takes damage, falls over, respawns. Optionally strafes. */
 export class TrainingDummy implements Damageable {
@@ -19,6 +26,11 @@ export class TrainingDummy implements Damageable {
   private t = Math.random() * 6;
   private pos: Vector3;
   private head = new Vector3();
+  /** (rig-pose-fix S7, audit G16) The head volume's centre above the feet (m): the hit-volume fit of the dummy's static
+   *  proportions (`hitVolumes`), never its animated head node (the rig skips solves with the Detail / governor LOD). */
+  private readonly headY: number;
+  private readonly headX: number;
+  private readonly headZ: number;
   onKilled: ((h: HitInfo) => void) | null = null;
 
   constructor(
@@ -39,6 +51,9 @@ export class TrainingDummy implements Damageable {
     look.colors.helmet = '#8f8a7a';
     this.rig = new CharacterRig(scene, (shape, hex) => world.parts.instance(shape, hex, 'dummy-part'), look, 1.75, this.id, { armor: true });
     for (const m of this.rig.renderMeshes) world.addShadowCaster(m);
+    this.headY = hitVolumes(this.rig.p).headY - DUMMY_HEAD.drop;
+    this.headX = Math.sin(yaw) * DUMMY_HEAD.fwd;
+    this.headZ = Math.cos(yaw) * DUMMY_HEAD.fwd;
     this.pos = home.clone();
     this.hitboxes = new Hitboxes(scene, registry, this);
     this.update(0);
@@ -90,8 +105,8 @@ export class TrainingDummy implements Damageable {
     this.rig.root.position.copyFrom(this.pos);
     this.rig.root.rotation.y = this.yaw;
     this.rig.animate(dt, { speed, localX: 1, localZ: 0, grounded: true, crouch: 0, aimPitch: 0, aim: 0.3, kick: 0 });
-    this.rig.headNode.computeWorldMatrix(true);
-    this.head.copyFrom(this.rig.headNode.getAbsolutePosition());
+    // (G16) the head volume from the sim position, not the posed head
+    this.head.set(this.pos.x + this.headX, this.pos.y + this.headY, this.pos.z + this.headZ);
     this.hitboxes.sync(this.pos, this.head);
   }
 

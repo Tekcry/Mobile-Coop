@@ -131,6 +131,9 @@ function manager() {
     em.enemies.push(f as unknown as Enemy);
     return f as unknown as Enemy;
   }) as unknown as EnemyManager['spawn'];
+  // (merge 4.95.0) master's EnemyManager has Guard AI's `shapeResponse` (AI5, counting its own `players()`, none here):
+  // these tests drive the sector's own fallback path, so the hook is off unless a test sets its stub (the hooked path)
+  (em as unknown as { shapeResponse?: unknown }).shapeResponse = undefined;
   return { em, spawned };
 }
 

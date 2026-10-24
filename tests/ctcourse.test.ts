@@ -14,6 +14,7 @@ import { inExitZone, isPanelId, layoutKnownIds, registeredBayCount, validateCour
 import { CourseState } from '../src/game/course/courseState';
 import { COURSE_TEXT_MAX, AIRLOCK_SIZE } from '../src/config/course';
 import { GUARD_INFO_LINE_MAX } from '../src/ai/guardInfo';
+import type { GuardIntel } from '../src/game/intel';
 import { checkPanels } from '../src/game/laserPanels';
 import { validateSecurity } from '../src/security/data';
 import { generateLedges, type Anchor } from '../src/world/anchors';
@@ -161,6 +162,11 @@ describe('Marlow Yard: text (90 characters, British, no dashes)', () => {
     for (const s of Object.values(c.squads)) for (const l of s.info?.lines ?? []) {
       expect(l.length).toBeLessThanOrEqual(GUARD_INFO_LINE_MAX);
       expect(/[\u2013\u2014]/.test(l)).toBe(false);
+    }
+    // (joint-interrogation) the joint-only lines too
+    for (const s of Object.values(c.squads)) for (const l of (s.info as GuardIntel | undefined)?.joint?.lines ?? []) {
+      expect(l.length, l).toBeLessThanOrEqual(GUARD_INFO_LINE_MAX);
+      expect(/[\u2013\u2014]/.test(l), l).toBe(false);
     }
   });
 });

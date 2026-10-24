@@ -51,18 +51,23 @@ import { LC_DONE, LC_FACE, LightCheck, type LightCheckWalker } from './lightChec
 import { clampToLeash, inLeash, LURE, lurePoint, POST, PostLure, type PostDef, type PostLureOut } from './posts';
 import type { BehaviourProfile } from './guardAiData';
 import { DogModel } from './dogModel';
-import { emoteBlind, emoteBlindEnd, emoteSeize, emoteStep, guardHead, guardHeadRest, leanStep, newEmoteState, newLeanState, type GuardHeadIn, type GuardHeadRest } from './guardHead';
+import { DOG_BITE_DECAY, dogGaitStep, dogHead, dogPhaseBack } from './dogHead';
+import { FIXED_DT } from '../core/loop';
+import { emoteBlind, emoteBlindEnd, emoteSeize, emoteStep, guardHead, guardHeadRest, leanStep, newEmoteState, newHeadIn, newLeanState, wireHeadIn, type GuardHeadIn, type GuardHeadRest, type HeadOut } from './guardHead';
 import { CAUTION } from './awareness';
 import type { InstancedMesh } from '../core/babylon';
 import { GuardAnimTier } from './animTierView';
 import { ANIM_TIER_FROZEN_CARRY_MAX } from './animTier';
 import { BREAKER, gearHit, type GearHit, type GuardGear } from './gear';
 import { buildArmourParts, buildHelmetPart, buildShieldPart, gearColour, HELMET_FIT } from './gearParts';
+import type { GuardBody } from './guardBody';
+import { guardHelmetDrop } from './helmetDrops';
+import { guardShieldFor } from './guardShield';
 import { guardAim } from './guardStance';
 import { SWEEP_NEAR, type SweepTeam } from './sweepTeam';
-import { MAX_INTRUDERS, mayBeSeen, pickTarget, TARGETS } from './targetPick';
+import { MAX_INTRUDERS, mayBeSeen, PERCEIVE, perceiveOrder, pickTarget, TARGETS } from './targetPick';
 // (guard-ai S24) one last known position per intruder
-import { INTRUDERS } from './intruders';
+import { COOP4, INTRUDERS, slotOf } from './intruders';
 
 /** (guard-ai S12) Scratch for `gearHit` (one hit at a time; the damage path allocates nothing for gear). */
 const GEAR_OUT: GearHit = { mult: 1, knockOff: false, stagger: 0 };
@@ -81,6 +86,8 @@ const P_EXPO = new Float64Array(MAX_INTRUDERS);
 /** The light on him (NaN: not read, he could not be seen). */
 const P_LIGHT = new Float64Array(MAX_INTRUDERS);
 const P_ANGLE = new Float64Array(MAX_INTRUDERS);
+/** (coop4 AI2) The order players are started in under the ray budget (`perceiveOrder`; 3+ players only). */
+const P_ORDER = new Int8Array(MAX_INTRUDERS);
 /** One player's sight input (the chosen player's goes to `Enemy.sight`). */
 const P_SIGHT: SightInput = { dist: 0, angle: 0, light: 1, crouched: false, speed: 0, exposure: 0, sensitivity: 1, pitch: 0 };
 
@@ -110,8 +117,8 @@ export interface PlayerRef {
   /** (operators 11e r1, G166) Standing height of the body shown (m; its rig's), where its light is sampled off a wall
    *  (`lightSampleHeight`); absent: the 1.75 m standard body. Set locally by each side: nothing is sent. */
   height?: number;
-  /** (step 12b fix r2, light parity) On a wall: the host's posed head centre of a remote (its RemoteAvatar rig), the
-   *  one sample its light, head point and posed body share; null / absent elsewhere. */
+  /** (rig-pose-fix S1) On a wall: the head centre of a remote's sim body model (`playerVolumes.playerBody` of its
+   *  accepted state, `RemotePlayer.sync`), the one sample its light and head point share; null / absent elsewhere. */
   head?: Vector3 | null;
   /** Seen by a guard in combat this alert: those guards know this player is there (no takedowns on them). Cleared
    *  when no guard is in combat any more. Each player separately (co-op). */
@@ -253,6 +260,10 @@ export class Enemy implements Damageable {
    *  perception, not combat. */
   readonly rng = new Rng(Math.imul(this.num, 2654435761));
   readonly id = `e${this.num}`;
+  /** (guard-models G6n, M3) His 7-bit look seed (0-127, `guardLook.ts`): set once by `EnemyManager` at spawn from his
+   *  spawn slot (never from `num`), so a section restart gives the slot the same look; a woken guard keeps it
+   *  (`inherit`). Co-op: sent in the enemy `al` (`AL_LOOK`). */
+  look = 0;
   readonly team = 'enemy' as const;
   readonly health: Health;
   readonly pos: Vector3;
@@ -261,6 +272,9 @@ export class Enemy implements Damageable {
   private stateT = 0;
   private rig: CharacterRig;
   private gun: WeaponModel | null;
+  /** (guard-models G7) His operator-pipeline figure over the rig (`flags.guardModels`; null: the merged S1 body, the
+   *  dog). Its look follows `look`, its pieces his gear; it goes with the rig to his `Body` when he goes down. */
+  private gbody: GuardBody | null = null;
   /** (guard-ai S21, walk 4.72 G5) Holstered in a calm area (`carryState.ts`): stepped in `update`, gates fire, posed in
    *  `frame` (`gunCarry`, null: a kind that never holsters). */
   readonly carry: GuardCarry;
@@ -277,8 +291,15 @@ export class Enemy implements Damageable {
   private los = false;
   private losT = 0;
   private dist = 99;
-  /** (guard-ai S23) Bit `i`: player `i` of `players()` in sight at the last think (`seesIndex`). */
+  /** (guard-ai S23) Bit `i`: player `i` of `players()` in sight at the last think (`seesIndex`). (coop4 AI1) `i` is the
+   *  player's team slot (`slotOf`): the index until N1 sets `TeamRef.slot`. */
   private seenMask = 0;
+  /** (coop4 AI2, A181) Thinks so far: rotates who waits when the ray budget binds (3+ players). */
+  private perRR = 0;
+  /** (coop4 AI2) Sight rays cast for players at the last think (<= `PERCEIVE.maxRays` at 3+ players). */
+  raysThink = 0;
+  /** (coop4 AI2) Sight rays cast since the manager last read it (`EnemyManager.raysThisStep` sums and zeroes it). */
+  raysStep = 0;
   private thinkT = Math.random() * 0.25;
   /** Light level on the target at the last think (0 dark .. 1 lit). */
   targetLight = 1;
@@ -305,10 +326,16 @@ export class Enemy implements Damageable {
   private stagger = 0;
   private aimPitch = 0;
   private kick = 0;
+  /** (rig-pose-fix S6) The dog's sim gait clock and bite pose (1 at the bite, down at `DOG_BITE_DECAY` per s), stepped in
+   *  the fixed step: its head hit volume (`dogHead`) and its drawn body both read them. */
+  private dogPhase = 0;
+  private dogBite = 0;
   private head = new Vector3();
   /** (guard-render S3a) The human guard's head hit volume comes from the sim (`guardHead`), not the rendered rig. */
   private readonly headRest: GuardHeadRest;
-  private readonly headIn: GuardHeadIn = { x: 0, y: 0, z: 0, yaw: 0, crouch: 0, speed: 0, moveX: 0, moveZ: 0, phase: 0, aim: 0, aimPitch: 0, wall: false, wallSide: 0, lean: 0, leanDrop: 0, held: null, heldK: 0, koK: 0, blind: 0, poseW: 0, climb: false };
+  private readonly headIn: GuardHeadIn = newHeadIn();
+  /** (rig-pose-fix S3) `headIn` as the co-op client has it (`wireHeadIn`), for `wireHead`. */
+  private readonly wireIn: GuardHeadIn = newHeadIn();
   private readonly headLean = newLeanState();
   /** (S3a fix round) Whose emote the rig shows, for the head (`guardHead.emoteStep`, shared with the parity harness). */
   private readonly emoteSt = newEmoteState();
@@ -515,6 +542,7 @@ export class Enemy implements Damageable {
     const built = buildEnemyRig(ctx.scene, ctx.world, def, this.id);
     this.rig = built.rig;
     this.gun = built.gun;
+    this.gbody = built.figure;
     // (guard-ai S21) the carry: a kind that ever holsters gets the gun's slot (the rifle on his back, the pistol on his thigh)
     const gunCls = built.gun ? built.gun.def.class : '';
     this.carry = new GuardCarry(mayHolster(def.kind, def.gun, !!def.melee, def.quadruped), gunCls);
@@ -534,7 +562,12 @@ export class Enemy implements Damageable {
       this.dog = new DogModel(ctx.scene, parts, def.look.colors.torso, def.look.colors.accent);
     }
     // (guard-ai S9) the shield builder is shared with the co-op client's puppet (`gearParts.ts`)
-    if (def.kind === 'enforcer') this.shield = buildShieldPart(ctx.world, this.rig.root, def.scale);
+    // (guard-models G7) with the figures: shield_riot's own GLB on his skeleton once its files are in (`guardShieldFor`)
+    if (def.kind === 'enforcer') {
+      const gs = this.gbody ? guardShieldFor(ctx.scene, this.gbody, (m) => ctx.world.addShadowCaster(m)) : null;
+      if (gs) this.gbody!.shield = gs;
+      else this.shield = buildShieldPart(ctx.world, this.rig.root, def.scale);
+    }
     if (def.kind === 'sniper') {
       this.laser = parts.instance('cyl', '#ff2a1a', 'laser');
       this.laser.isVisible = false;
@@ -542,6 +575,29 @@ export class Enemy implements Damageable {
       this.glintMesh.isVisible = false;
     }
     this.frame(0, 1);
+    // (rig-pose-fix S3) the head and the hit volumes on the spawn pose now, not after the first step (the co-op host
+    // records `simHead` in its shot history)
+    this.syncHitboxes(0);
+  }
+
+  /** (rig-pose-fix S3, audit G7) The head hit volume's centre this fixed step (sim: `guardHead`, the dog's `dogHead`).
+   *  The co-op host records it in its shot history and judges a client's head claim against it. Read only. */
+  get simHead(): Vector3 {
+    return this.head;
+  }
+
+  /** (rig-pose-fix S3, audit G7) The head the co-op client is shown for this guard this step: `guardHead` on the inputs
+   *  the wire carries (`wireHeadIn`: no gait clock, aim pitch, wall, lean, ladder or flashbang pose), what the client's
+   *  puppet computes; the dog's is `simHead` (S6: the puppet's mean phase is within 1.92 cm). Writes `out`. */
+  wireHead(out: HeadOut): HeadOut {
+    if (this.dog) {
+      out.x = this.head.x;
+      out.y = this.head.y;
+      out.z = this.head.z;
+      return out;
+    }
+    guardHead(wireHeadIn(this.headIn, this.wireIn), this.headRest, out);
+    return out;
   }
 
   get alive(): boolean {
@@ -700,6 +756,12 @@ export class Enemy implements Damageable {
   /** The gear parts match `helmet` / `armour` (a dog has none; nothing is built for a guard without gear). */
   private showGear(): void {
     if (this.dog) return;
+    // (guard-models G7, A5) the figure's helmet / vest / plate pieces (G6 `applyGear`); the placeholders only without it
+    const gb = this.gbody;
+    if (gb) {
+      gb.setGear(this.helmet, this.armour);
+      return;
+    }
     if (this.helmet && !this.helmetPart) this.buildHelmet();
     if (this.armour && !this.armourParts) this.buildArmour();
     if (this.helmetPart) this.helmetPart.isVisible = this.helmet;
@@ -724,11 +786,22 @@ export class Enemy implements Damageable {
     this.helmet = false;
     if (this.helmetPart) this.helmetPart.isVisible = false;
     const H = this.dog ? null : this.rig.p.head;
-    if (H) {
-      const dl = hyp2(h.dir.x, h.dir.z) || 1;
-      this.ctx.dropHelmet?.(this.pos.x, this.pos.y, this.pos.z, 1.65 * this.def.scale, h.dir.x / dl, h.dir.z / dl, this.gearHex || '#22262b', H.w * HELMET_FIT.w, H.h * HELMET_FIT.h, H.d * HELMET_FIT.d);
+    if (!H) return;
+    const dl = hyp2(h.dir.x, h.dir.z) || 1;
+    const gb = this.gbody;
+    if (gb) {
+      // (guard-models G7, A6) the helmet piece hides (his own headwear or hair shows under it); the drop is helmet_std
+      // for every kind (helmet_heavy has no drop anchor, G3), its box scaled to his height, his faction's helmet colour
+      gb.setGear(false, this.armour);
+      if (!this.gearHex) this.gearHex = gearColour(this.def, this.ctx.world, 'helmet');
+      const d = guardHelmetDrop(this.def.height, this.dropBox);
+      this.ctx.dropHelmet?.(this.pos.x, this.pos.y, this.pos.z, 1.65 * this.def.scale, h.dir.x / dl, h.dir.z / dl, this.gearHex, d[0]!, d[1]!, d[2]!);
+      return;
     }
+    this.ctx.dropHelmet?.(this.pos.x, this.pos.y, this.pos.z, 1.65 * this.def.scale, h.dir.x / dl, h.dir.z / dl, this.gearHex || '#22262b', H.w * HELMET_FIT.w, H.h * HELMET_FIT.h, H.d * HELMET_FIT.d);
   }
+  /** (guard-models G7) The figure's dropped-helmet box (w, h, d; m), reused. */
+  private readonly dropBox = [0, 0, 0];
 
   /** (3.2.0) Seconds this guard has seen its target holding a hostage (the hesitation before aimed fire). */
   private shieldT = 0;
@@ -739,7 +812,8 @@ export class Enemy implements Damageable {
   }
 
   /** (guard-ai S23) Player `i` of `players()` (the host's own player is 0) was in sight (any body sample, as `inSight`
-   *  for the target) at the last think; the awareness arcs read it (A145). */
+   *  for the target) at the last think; the awareness arcs read it (A145). (coop4 AI1) `i` is the team slot
+   *  (`slotOf`: the list index until N1 sets `TeamRef.slot`); the per-player arcs on the wire read it per slot. */
   seesIndex(i: number): boolean {
     return i >= 0 && i < 31 && ((this.seenMask >> i) & 1) === 1;
   }
@@ -870,6 +944,7 @@ export class Enemy implements Damageable {
    */
   inherit(o: Enemy, downFor = 0): void {
     this.key = o.key;
+    this.look = o.look;
     this.squad = o.squad;
     this.hold = o.hold;
     this.passive = o.passive;
@@ -1322,6 +1397,22 @@ export class Enemy implements Damageable {
     if (this.alerted) {
       if (this.hunt < 0) this.hunt = slot;
     } else if (this.pendingHunt < 0) this.pendingHunt = slot;
+  }
+
+  /** (coop4 AI5) His response team shares one intruder: he is told `slot` in place of what he was told (`tell` keeps
+   *  the first); calm, taken when he goes to combat; in combat, at once. -1: nothing. */
+  retell(slot: number): void {
+    if (slot < 0 || !this.alive) return;
+    if (this.alerted) this.hunt = slot;
+    else this.pendingHunt = slot;
+  }
+
+  /** (coop4 fix, A171 / G139) Intruder slot `s` passed to a new player: what he hunts or was told of it (`hunt`, the
+   *  `pendingHunt` a call or the alarm left him) is dropped, so he never takes the new player from an old tell. */
+  dropHunt(s: number): void {
+    if (s < 0) return;
+    if (this.hunt === s) this.hunt = -1;
+    if (this.pendingHunt === s) this.pendingHunt = -1;
   }
 
   /** (guard-ai S24) His intruder's last known position (null: none, or no longer valid). */
@@ -1998,6 +2089,8 @@ export class Enemy implements Damageable {
     // the freeze, so solve it once at his current place first; the ragdoll and `Body.pos` then never depend on whether
     // this page's camera saw him
     if (!this.rig.root.isEnabled(false)) this.animTier.solveNow(this.rig, ANIM_TIER_FROZEN_CARRY_MAX, this.rp);
+    // (guard-models G7) his figure goes on with the rig as his body (`Body` finds it by the rig), unflashed
+    if (this.gbody) this.gbody.flash = 0;
     const imp = h.dir.scale(Math.min(80, 8 + h.impulse * 3) * (h.kind === 'explosion' ? 2.5 : 1));
     imp.y += h.kind === 'explosion' ? 25 : 3;
     // the rig stays in the world as a body (ragdoll when one can be spared)
@@ -2142,12 +2235,29 @@ export class Enemy implements Damageable {
       const d = Vector3.Distance(p.feet, this.pos);
       P_DIST[i] = d;
       if (near < 0 || d < P_DIST[near]!) near = i;
-      const angle = wrapAngle(Math.atan2(p.feet.x - this.pos.x, p.feet.z - this.pos.z) - this.yaw);
-      P_ANGLE[i] = angle;
+      P_ANGLE[i] = wrapAngle(Math.atan2(p.feet.x - this.pos.x, p.feet.z - this.pos.z) - this.yaw);
+    }
+    // (coop4 AI2, A181) the rays: 1-2 players in index order, uncapped (today: at most 6); 3+ players in
+    // `perceiveOrder` (the one he perceives, his intruder's, then the rest nearest first, rotated each think), each
+    // started only while the think stays within `PERCEIVE.maxRays` (a player left out keeps rate 0 / los 0 this think)
+    const capped = n >= COOP4.from;
+    const m = capped ? perceiveOrder(n, cur, hi, P_DIST, this.perRR, P_ORDER) : n;
+    // wraps at 12 (a multiple of every tail length 1-4: the rotation never skips a step)
+    if (capped) this.perRR = this.perRR >= 11 ? 0 : this.perRR + 1;
+    let used = 0;
+    for (let j = 0; j < m; j++) {
+      const i = capped ? P_ORDER[j]! : j;
+      const d = P_DIST[i]!;
+      if (!(d < Infinity)) continue;
+      const p = players[i]!;
+      const angle = P_ANGLE[i]!;
       if (!mayBeSeen(d, angle, p.speed, alerted, dog)) continue;
+      const t = p.target;
+      const cost = (t.headPoint ? 2 : 1) + (alerted ? 0 : 1);
+      if (capped && used + cost > PERCEIVE.maxRays) continue;
+      used += cost;
       // line of sight to the chest, head and hips: in combat any of them is enough to shoot at; the fraction
       // in view scales how fast an unaware enemy notices
-      const t = p.target;
       t.aimPoint(this.tmp);
       // (G44) elevation of the chest above the eye line: the vertical view limit (perception `pitchFactor`)
       const pitch = Math.atan2(this.tmp.y - eye.y, hyp2(this.tmp.x - eye.x, this.tmp.z - eye.z));
@@ -2195,8 +2305,11 @@ export class Enemy implements Damageable {
       P_EXPO[i] = expo;
       P_LIGHT[i] = light;
       P_RATE[i] = rate;
-      if (expo > 0) mask |= 1 << i;
+      // (coop4 AI1) the bit is the player's team slot (the one seam, `slotOf`; today his index)
+      if (expo > 0) mask |= 1 << slotOf(p, i);
     }
+    this.raysThink = used;
+    this.raysStep += used;
     // the target: the best seen (calm), the one he is fighting while he sees him (combat); `TARGETS.all` false: the
     // nearest only (before S23)
     const k = near < 0 ? -1 : TARGETS.all ? pickTarget(n, alerted, TARGETS.sticky ? cur : -1, hi, P_LOS, P_RATE, P_DIST) : near;
@@ -2822,6 +2935,8 @@ export class Enemy implements Damageable {
       if (this.dist <= def.melee.range && this.meleeCd === 0) {
         this.meleeCd = def.melee.cooldown;
         this.kick = 1;
+        // (rig-pose-fix S6) the dog's bite pose, a sim clock (the head volume lunges with it)
+        this.dogBite = 1;
         this.ctx.onMelee?.(this);
         t.target.applyDamage({
           amount: def.melee.damage * this.ctx.diff.damage,
@@ -3586,9 +3701,15 @@ export class Enemy implements Damageable {
   }
 
   /** Hit volumes follow the body (fixed step). A human guard's head comes from the sim state (`guardHead`: the pose
-   *  fit tested against the rig in `tests/guardHeadParity.test.ts`), the dog's from its model. */
+   *  fit tested against the rig in `tests/guardHeadParity.test.ts`); the dog's too (`dogHead`, rig-pose-fix S6: the
+   *  model's transform chain, held to its scene graph in `tests/dogHead.test.ts`), on the sim gait clock and bite. */
   private syncHitboxes(dt: number): void {
-    if (!this.dog) {
+    if (this.dog) {
+      const sp = hyp2(this.vel.x, this.vel.z);
+      this.dogPhase = dogGaitStep(this.dogPhase, sp, dt);
+      this.dogBite = Math.max(0, this.dogBite - dt * DOG_BITE_DECAY);
+      dogHead(this.pos, this.yaw, sp, this.dogPhase, this.aware.level === 'unaware' ? 0 : 1, this.dogBite, this.head);
+    } else {
       const h = this.headIn;
       leanStep(this.headLean, this.coverPeek, dt);
       const sp = hyp2(this.vel.x, this.vel.z);
@@ -3642,6 +3763,12 @@ export class Enemy implements Damageable {
     this.kick = Math.max(0, this.kick - dt * 8);
     this.flash = Math.max(0, this.flash - dt * 9);
     this.rig.setFlash(this.flash * 0.75);
+    const gb = this.gbody;
+    if (gb) {
+      // (guard-models G7) the figure: his look seed (the manager sets it after the constructor; a wake copies it), the flash
+      gb.setLook(this.look);
+      gb.flash = this.flash * 0.75;
+    }
     const lvl = this.aware.level;
     const aiming = this.aimWeight();
     const m = this.motion;
@@ -3687,13 +3814,18 @@ export class Enemy implements Damageable {
       rp.swapTo = gc.slot;
     }
     if (this.dog) {
+      // (rig-pose-fix S6) drawn from the sim's gait clock and bite (the head volume's inputs), the clock taken back to
+      // the drawn root's time (it lags the sim by 1 - alpha steps); nothing is read back from the model
       const alertK = lvl === 'unaware' ? 0 : 1;
-      this.dog.update(dt, r.position.x, r.position.y, r.position.z, r.rotation.y, sp, alertK, this.kick);
-      this.head.copyFrom(this.dog.head);
+      this.dog.update(dt, r.position.x, r.position.y, r.position.z, r.rotation.y, sp, alertK, this.dogBite, dogPhaseBack(this.dogPhase, sp, (1 - alpha) * FIXED_DT));
     } else {
       // (guard-render S4) full rate in a takedown / held, a scripted emote or a climb (and near any player: the tier);
       // (perfg, folded into `animTier.ts`) the FROZEN tier: a rig the render freeze disabled is not animated (C8 at its thaw)
+      // (guard-models G7) the tier watches what draws (the figure's shown LOD once it is in) and gates the figure's pose
+      if (gb) this.animTier.watch(gb.viewMesh);
       this.animTier.animate(this.rig, dt, rp, this.ctx.players(), this.taken || this.climbing || this.rig.emote !== null);
+      // (guard-models S11) the tier's own state: a skipped solve (frozen included) skips the figure's pose
+      if (gb) gb.skip = this.animTier.skipped;
     }
     if (this.laser) this.sniperFx();
   }
@@ -3706,6 +3838,9 @@ export class Enemy implements Damageable {
   thawPose(): void {
     if (!this.alive || this.dog || this.rig.root.isDisposed()) return;
     this.animTier.solveNow(this.rig, 0, this.rp);
+    // (guard-models S11-CHECK P1) pose the figure from the thawed rig in this frame (the thaw runs in the camera
+    // evaluation, after `GuardBody.frame`), so the first frame drawn is current, not the pose at the freeze
+    this.gbody?.figure.update(this.ctx.scene.activeCamera);
   }
 
   /** Sniper: the laser from the scope along the aim while it aims, and the glint (sized for the local view). */
@@ -3738,6 +3873,7 @@ export class Enemy implements Damageable {
       this.hitboxes.dispose();
       this.ctx.registry.removeTarget(this);
       this.gun?.dispose();
+      this.gbody?.dispose();
       this.rig.dispose();
     }
     this.dog?.dispose();

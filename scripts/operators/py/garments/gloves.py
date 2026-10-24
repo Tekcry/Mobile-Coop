@@ -12,7 +12,17 @@ that surface from the hand frame (wrist, knuckle line, palm normal from the fing
 - a wrist tab (leather strap from the little-finger side over the back, hook-and-loop closure on a loop patch, a pull
   loop at its end, box-X stitched where it is sewn on), a bound cuff edge, single-needle stitch rows on every seam.
 Wear ('wear' attribute, materials.leather): the trigger finger and the palm heel polish darker, the thumb tip less.
+
+Guard bake (docs/guard-models PLAN G2): run as the main script by guard-bake.mjs, it hands the job to guard_garment.py,
+which calls configure() on a copy of this module (bottom of this file): the guards' hands have one bone per finger
+(SPEC 6), so the build reads three segments split from each; variant 'work' is the work glove. Wren's gloves are
+untouched while configure() has not been called.
 """
+if __name__ == '__main__':   # guard bake job: py/ and py/garments/ on the path before the imports below
+    import os as _os
+    import sys as _sys
+    _here = _os.path.dirname(_os.path.abspath(__file__))
+    _sys.path[:0] = [_here, _os.path.dirname(_here)]
 import math
 
 import numpy as np
@@ -31,6 +41,10 @@ LAYER_CLEAR = 0.0032  # off the base-layer cuff where the glove cuff goes over i
 LIFT = {'knuckle': 0.0, 'tip': 0.0003, 'heel': 0.0005, 'palm': 0.0, 'back': 0.0, 'fourchette': -0.0002, 'cuff': 0.0003}
 SLOT = {'palm': 0, 'tip': 0, 'heel': 0, 'back': 1, 'fourchette': 1, 'knuckle': 2, 'cuff': 3}
 PRIO = {'knuckle': 6, 'tip': 5, 'heel': 5, 'palm': 3, 'fourchette': 2, 'back': 1, 'cuff': 0}
+NAME = 'gloves'       # object names '<op>-<NAME>-...' (the guard part id after configure())
+KNUCKLE = True        # the padded knuckle panel (the work glove has none)
+LEATHER = None        # (material name, colour) of the palm leather; None: Wren's 'glove leather'
+GUARD = None          # configure(): {'part', 'variant', 'prefix'}
 
 
 def hand_frame(bones, side):
@@ -189,6 +203,8 @@ def build_hand(ctx, side, V_all, F_all, store):
     palmness = np.clip((0.4 - sidev) / 0.9, 0.0, 1.0)
     cap_len = 0.010 + 0.012 * palmness * palmness * (3 - 2 * palmness)   # r3: the nail-side edge 10 mm back
     gk = np.maximum(g_knuckle(along, latp), 0.02 * (0.3 - sidev))   # the pad only on the back of the hand
+    if not KNUCKLE:   # guard work glove: no knuckle panel (the field never crosses zero, nothing is cut or labelled)
+        gk = np.ones(len(P))
     gt = np.full(len(P), 1.0)
     for i_ in range(1, 6):
         on = finger == i_
@@ -330,7 +346,7 @@ def build_hand(ctx, side, V_all, F_all, store):
         seam_m += float(np.linalg.norm(np.diff(row, axis=0), axis=1).sum())
     # The flex channels are stitched through the padding: a row along the bottom of each channel (fix 5).
     bvh_g = BVHTree.FromPolygons([tuple(p_) for p_ in P], [tuple(f) for f in F])
-    for g in (-0.003, 0.003):
+    for g in ((-0.003, 0.003) if KNUCKLE else ()):
         pts_c, nrm_c = [], []
         for lp_ in np.linspace(lc - KW + 0.0035, lc + KW - 0.0035, 28):
             o_ = wr + a * (kc_al + g) + lat * lp_
@@ -482,6 +498,8 @@ def untangle(P, F, nb, rounds=12):
 
 
 def build(ctx):
+    if GUARD is not None:
+        ctx = guard_ctx(ctx)
     scene, reuse, MAT = ctx['scene'], ctx['reuse'], ctx['MAT']
     store = {k: [] for k in ('labels', 'uv', 'wear', 'shellV', 'shellF', 'stitchV', 'stitchF', 'bindV', 'bindF',
                              'tabV', 'tabF', 'loopV', 'loopF', 'pullV', 'pullF')}
@@ -490,25 +508,26 @@ def build(ctx):
     for side in ('L', 'R'):
         build_hand(ctx, side, V, F, store)
     op = ctx['op_id']
-    mats = [reuse(MAT.leather, 'glove leather'), reuse(MAT.knit, 'glove knit', colour=(0.029, 0.03, 0.031)),
+    leather = reuse(MAT.leather, 'glove leather') if LEATHER is None else reuse(MAT.leather, LEATHER[0], colour=LEATHER[1])
+    mats = [leather, reuse(MAT.knit, 'glove knit', colour=(0.029, 0.03, 0.031)),
             reuse(MAT.softshell, 'glove knuckle', colour=(0.025, 0.026, 0.025)),
             reuse(MAT.knit, 'glove cuff', colour=(0.033, 0.034, 0.035))]
-    hero = FT.add_mesh(scene, f'{op}-gloves-hero', V, F, mats, mat_index=[SLOT[l] for l in store['labels']],
+    hero = FT.add_mesh(scene, f'{op}-{NAME}-hero', V, F, mats, mat_index=[SLOT[l] for l in store['labels']],
                        uv=store['uv'], attrs={'wear': store['wear']})
     sol = hero.modifiers.new('thickness', 'SOLIDIFY')
     sol.thickness = 0.0009
     sol.offset = -1.0
     sol.use_even_offset = False
     sol.use_rim = True
-    stitches = FT.add_mesh(scene, f'{op}-gloves-stitches', store['stitchV'], store['stitchF'], reuse(MAT.thread, 'thread'))
+    stitches = FT.add_mesh(scene, f'{op}-{NAME}-stitches', store['stitchV'], store['stitchF'], reuse(MAT.thread, 'thread'))
     stitches.visible_shadow = False   # as the trousers' (A17): a 0.3 mm thread throws no real shadow
-    binding = FT.add_mesh(scene, f'{op}-gloves-binding', store['bindV'], store['bindF'], reuse(MAT.webbing, 'binding'))
+    binding = FT.add_mesh(scene, f'{op}-{NAME}-binding', store['bindV'], store['bindF'], reuse(MAT.webbing, 'binding'))
     tab_uv = [(0.0, 0.0)] * sum(len(f) for f in store['tabF'])
-    tabs = FT.add_mesh(scene, f'{op}-gloves-tabs', store['tabV'], store['tabF'], mats[0], uv=tab_uv,
+    tabs = FT.add_mesh(scene, f'{op}-{NAME}-tabs', store['tabV'], store['tabF'], mats[0], uv=tab_uv,
                        attrs={'wear': np.full(len(store['tabV']), 0.2)})
     _fix_uv(tabs)
-    loops = FT.add_mesh(scene, f'{op}-gloves-loop', store['loopV'], store['loopF'], reuse(MAT.loop, 'loop'))
-    pulls = FT.add_mesh(scene, f'{op}-gloves-pull', store['pullV'], store['pullF'], mats[0],
+    loops = FT.add_mesh(scene, f'{op}-{NAME}-loop', store['loopV'], store['loopF'], reuse(MAT.loop, 'loop'))
+    pulls = FT.add_mesh(scene, f'{op}-{NAME}-pull', store['pullV'], store['pullF'], mats[0],
                         uv=[(0.0, 0.0)] * sum(len(f) for f in store['pullF']), attrs={'wear': np.full(len(store['pullV']), 0.3)})
     _fix_uv(pulls)
     return {
@@ -531,3 +550,80 @@ def _fix_uv(ob):
         for li in p.loop_indices:
             co = me.vertices[me.loops[li].vertex_index].co
             lay.data[li].uv = (co[ax[0]], co[ax[1]])
+
+
+# --- Guard bake (docs/guard-models PLAN G2, SPEC 4 `uniform` plain gloves / `work` work gloves, SPEC 6 bones) ----------
+# The guards' hands have one bone per finger, head at the MCP joint (thumb: CMC), tail at the tip (G1: named
+# `finger<side>_<i>_1`, Wren's scheme with the one segment; the earlier `finger<side>_<i>` is read too). This build reads
+# three segments per finger (`finger<side>_<i>_1..3`), so guard_ctx() splits each bone at typical phalanx shares, bends
+# the last segment a little towards the palm (it gives the hand frame its palm side, as the hero rig's curl does) and
+# gives each finger vertex the segment it lies along. The palm side comes from the hand itself (the thumb tip lies on
+# the palm side of the knuckle plane), not from a bone roll. Variant 'work': no knuckle panel, a longer cuff, a thicker
+# tan leather glove.
+FINGER_SPLIT = {1: (0.40, 0.33), 2: (0.47, 0.29), 3: (0.47, 0.29), 4: (0.47, 0.29), 5: (0.46, 0.29)}
+TIP_CURL = 0.12
+
+
+def configure(part, variant=None, prefix=None, **_):
+    """Guard mode for this module copy (guard_garment.load_part)."""
+    global GUARD, KIT, NAME, KNUCKLE, LEATHER, CUFF_UP, GAP
+    if variant not in (None, 'work'):
+        raise SystemExit(f'gloves: unknown variant {variant!r} (work)')
+    GUARD = {'part': part, 'variant': variant, 'prefix': prefix or part}
+    KIT = NAME = part
+    if variant == 'work':
+        KNUCKLE = False
+        LEATHER = ('work glove leather', (0.085, 0.058, 0.034))
+        CUFF_UP = 0.075
+        GAP = 0.0026
+
+
+def guard_ctx(ctx):
+    bones = dict(ctx['bones'])
+    split = {}   # vertex group name -> (segment bone stem, head, axis, length, shares)
+    for side in ('L', 'R'):
+        stem = f'finger{side}'
+        whole = {}
+        for i in range(1, 6):
+            if f'{stem}_{i}_3' in bones:          # a hero rig (three segments): nothing to split
+                continue
+            name = next((n for n in (f'{stem}_{i}_1', f'{stem}_{i}') if n in bones), None)
+            if name is not None:
+                whole[i] = (name, *(np.asarray(x, float) for x in bones[name]))
+        if len(whole) < 5:
+            continue
+        # palm side: the hand frame's normal (knuckle line x the hand axis) signed so the thumb tip lies on the palm side
+        wr = np.asarray(bones[f'wr{side}'][0], float)
+        K = np.array([whole[i][1] for i in range(2, 6)])
+        a = FT.unit(K.mean(axis=0) - wr)
+        lat = K[3] - K[0]
+        lat = FT.unit(lat - a * float(lat @ a))
+        n = np.cross(a, lat)
+        dors = -n if float((whole[1][2] - K.mean(axis=0)) @ n) > 0 else n
+        for i, (name, h, t) in whole.items():
+            d = t - h
+            L = float(np.linalg.norm(d))
+            u = d / L
+            f1, f2 = FINGER_SPLIT[i]
+            j1, j2 = h + d * f1, h + d * (f1 + f2)
+            d3 = FT.unit(u - TIP_CURL * FT.unit(dors - u * float(dors @ u)))
+            bones[f'{stem}_{i}_1'] = (h, j1)
+            bones[f'{stem}_{i}_2'] = (j1, j2)
+            bones[f'{stem}_{i}_3'] = (j2, j2 + d3 * L * (1.0 - f1 - f2))
+            split[name] = (f'{stem}_{i}', h, u, L, f1, f2)
+    BV = ctx['BV']
+    dom = [str(x) for x in ctx['dominant']]
+    for k, dn in enumerate(dom):
+        if dn in split:
+            seg, h, u, L, f1, f2 = split[dn]
+            t = float((BV[k] - h) @ u) / L
+            dom[k] = f'{seg}_{1 if t < f1 else 2 if t < f1 + f2 else 3}'
+    out = dict(ctx)
+    out['bones'] = bones
+    out['dominant'] = np.array(dom, dtype=object)
+    return out
+
+
+if __name__ == '__main__':   # guard bake job (guard-bake.mjs --stage garments)
+    import guard_garment
+    guard_garment.main()

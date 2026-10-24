@@ -13,15 +13,37 @@
 // silent: no claim / done push by 'laptop' on the branch for LQ_LAPTOP_SILENT_MIN (10) min, the laptop service claims
 // trains itself and the head is over 2 min old; then the backlog gate is dropped (lock, dir and CPU gates stay) and the
 // train runs sharded on the desktop slots whose dir exists (4191+4192), E2E_JOBS=LQ_TRAIN_JOBS (desktop default 1).
+// Build marker (desktop): while <AUTO_TRAIN_SCRATCH or C:/NightShift/scratch>/auto-train-building.json (auto-train writes
+// it during `merge-train build`, in the same folder; LQ_BUILD_MARKER overrides the path) exists and is younger than LQ_BUILD_MARKER_MAX_MIN (30) min,
+// the desktop starts no new request or train; runs already going continue. An older marker is ignored (logged once).
 // Every request and train is claimed (claims/<id>.json, a train: claims/<sha>.json, on the laptop-queue branch, an
 // atomic push) before it runs and marked done after, so the two workers never run the same request or train.
+// Train reruns (request.mjs --train-rerun, from auto-train): kind pr, picked right after trains on one slot at E2E_JOBS=1
+// (laptop only); its context is laptop-e2e/<set> like any request (auto-train's: laptop-e2e/train<n>-rerun), and
+// laptop-e2e/rerun-<suites> only when it has no set; a full pass also posts laptop-e2e success on the sha.
 // Supersede: an open pr / full request is marked done unrun when the same requester has a newer one (same set, or an
 // ancestor sha with overlapping suites); pick runs a requester's newest request first (lib.mjs superseded, pick).
+// Duplicates (Orchestrator audit 2026-10-24): an open request that runs exactly what another request runs (lib dupKey:
+// sha, kind, suites or steps, env, set, jobs, pr; any requester) is marked done unrun as "duplicate of <id>" when that
+// one is open (older), claimed or running, or done here with result success within LQ_DUP_WINDOW_MIN (60) min (never
+// against a failure, error, build, nosha or incomplete result: a rerun of a failure runs). state.done entries older
+// than 7 days (done claim pushed) are pruned on every state save.
+// Yield: a pr / full / alone run that has not started its suites or steps (lock wait, fetch, npm ci, build) while a train
+// head is pending gives its slot back (locks released, claim dropped, request stays queued; lib yieldTo).
+// Cut short (Orchestrator audit 2026-10-24, lib cutShort): a running request whose requests/<id>.json left the branch
+// (withdrawn; missing from two listings in a row) has its command tree killed, posts error "withdrawn" and is done; a
+// plain pr request already in its suites when a train head is pending is killed and queued again (claim released,
+// status "queued, preempted by train <n>"). Train reruns, full and alone runs are never preempted.
+// Pinned requests (request.mjs --pin, "pin": true; A/B and baseline runs) are never superseded.
+// Task guard (Michael 2026-10-24 07:13, after 87 stale NightShift-chain-* one-shots fired at 23:59 and held the slot
+// locks): at start and every LQ_TASK_GUARD_MIN (10; 0 = off) min, disables (never stops, kills or deletes) each stale
+// scheduled task (lib staleTasks; allowlist + env LQ_TASK_ALLOW, a comma list) and pushes alerts/<ts>-<worker>-tasks.json to the
+// laptop-queue branch. --dry-run only logs what it would disable.
 import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { assertKey, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, failureExcerpt, flakeStands, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestProblem, contextName, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity } from './lib.mjs';
+import { assertKey, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, dupKey, duplicates, failureExcerpt, flakeStands, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo } from './lib.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
 const DESKTOP = process.env.LQ_WORKER === 'desktop';
@@ -47,6 +69,7 @@ const TRAIN_GRACE_MS = 2 * 60_000; // a live idle laptop claims a new train head
 const TRAIN_SOLO_MS = Number(process.env.LQ_TRAIN_SOLO_MIN ?? 10) * 60_000;
 const POLL_MS = 30_000;
 const FLAKE_WINDOW_MS = 24 * 3600_000;
+const DUP_WINDOW_MS = Number(process.env.LQ_DUP_WINDOW_MIN ?? 60) * 60_000;
 const argv = process.argv.slice(2);
 const ONCE = argv.includes('--once');
 const DRY = argv.includes('--dry-run');
@@ -68,6 +91,12 @@ function writeJson(name, data) {
   if (DRY) return;
   fs.mkdirSync(STATE_DIR, { recursive: true });
   fs.writeFileSync(file(name), JSON.stringify(data, null, 2));
+}
+const DONE_KEEP_MS = 7 * 24 * 3600_000;
+/** Saves state.json, first dropping state.done entries over 7 days old whose done claim is on the branch (lib pruneDone). */
+function saveState() {
+  state.done = pruneDone(state.done, Date.now(), DONE_KEEP_MS, (id) => doneSynced.has(id));
+  writeJson('state.json', state);
 }
 
 const state = readJson('state.json', {});
@@ -117,24 +146,46 @@ const badSeen = new Set();
 const doneElsewhere = new Set();
 /** claims/ files on the branch at the last listRequests (0: the laptop has not marked its old requests done yet). */
 let claimCount = 0;
+/** Requests the other worker holds an open claim on (claimed or running there), from the last listRequests. */
+let otherActive = [];
+/** Running request id -> listings in a row it was missing from; ids missing from two are withdrawn (lib cutShort). */
+const missing = new Map();
+const withdrawnIds = new Set();
 
 function listRequests() {
   git(['fetch', '-q', 'origin'], { soft: true });
   const names = git(['ls-tree', '--name-only', 'origin/laptop-queue', 'requests/'], { soft: true }).split('\n').filter((n) => n.endsWith('.json'));
   const claims = new Set(git(['ls-tree', '--name-only', 'origin/laptop-queue', 'claims/'], { soft: true }).split('\n').filter(Boolean).map((n) => path.basename(n, '.json')));
   claimCount = claims.size;
+  // a request running here whose file left the branch on two listings in a row was withdrawn (an empty listing, e.g. a
+  // failed ls-tree, counts for nothing)
+  if (names.length > 0) {
+    const listed = new Set(names.map((n) => path.basename(n, '.json')));
+    for (const id of activeReqs.keys()) {
+      if (listed.has(id)) { missing.delete(id); continue; }
+      const n = (missing.get(id) ?? 0) + 1;
+      missing.set(id, n);
+      if (n >= 2) withdrawnIds.add(id);
+    }
+  }
   const out = [];
+  otherActive = [];
   for (const n of names) {
     const id = path.basename(n, '.json');
     if (state.done[id] || badSeen.has(id) || doneElsewhere.has(id)) continue;
     if (claims.has(id) && !claimed.has(id)) {
       const c = parseClaim(git(['show', `origin/laptop-queue:claims/${id}.json`], { soft: true }));
       if (c?.done) { doneElsewhere.add(id); continue; }
-      if (claimBlocks(c, WORKER, Date.now(), CLAIM_MAX_MS)) continue;
+      if (claimBlocks(c, WORKER, Date.now(), CLAIM_MAX_MS)) {
+        // kept for the duplicate check only (a new request equal to a run on the other worker never runs twice)
+        try { const o = JSON.parse(git(['show', `origin/laptop-queue:${n}`])); if (!requestProblem(o)) otherActive.push(o); } catch { /* unreadable */ }
+        continue;
+      }
     }
     let r;
     try { r = JSON.parse(git(['show', `origin/laptop-queue:${n}`])); } catch { r = null; }
-    const problem = requestProblem(r);
+    // the id must be the file name: a running request's file is matched by name for the withdrawal check (checker FIX)
+    const problem = requestProblem(r) || (r.id !== id ? `id ${r.id} does not match the file name` : '');
     if (problem) { badSeen.add(id); log(`bad request ${id}: ${problem}`); continue; }
     out.push(r);
   }
@@ -187,6 +238,82 @@ function writeClaims(ids, mode, label) {
   } finally { fs.rmSync(tmpIndex, { force: true }); }
 }
 
+/** Adds or replaces one file (rel path) on the laptop-queue branch in one commit, writeClaims' plumbing; true when pushed. */
+function pushFile(rel, text, label) {
+  const tmpIndex = path.join(os.tmpdir(), `lq-file-${process.pid}`);
+  const env = { GIT_INDEX_FILE: tmpIndex, ...gitIdEnv() };
+  try {
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      git(['fetch', '-q', 'origin', `+refs/heads/laptop-queue:${QREF}`], { soft: true });
+      const parent = git(['rev-parse', '--verify', '-q', QREF], { soft: true });
+      if (!parent) return false;
+      fs.rmSync(tmpIndex, { force: true });
+      git(['read-tree', parent], { env });
+      const blob = git(['hash-object', '-w', '--stdin'], { input: text });
+      git(['update-index', '--add', '--index-info'], { env, input: `100644 ${blob}\t${rel}\n` });
+      const commit = git(['commit-tree', git(['write-tree'], { env }), '-p', parent, '-m', `${label} (${WORKER})`], { env });
+      try { git(['push', '-q', 'origin', `${commit}:refs/heads/laptop-queue`]); return true; } catch { /* lost the race: retry */ }
+    }
+    log(`${label}: push failed 5 times`);
+    return false;
+  } catch (e) {
+    log(`${label}: ${String(e.message).split('\n')[0]}`);
+    return false;
+  } finally { fs.rmSync(tmpIndex, { force: true }); }
+}
+
+// ---------- task guard ----------
+
+const TASK_GUARD_MS = Number(process.env.LQ_TASK_GUARD_MIN ?? 10) * 60_000;
+// exact names; NightShift-run-* one-shots with an EndBoundary are allowed in staleTasks
+const TASK_ALLOW = ['NightShift-laptop-queue', 'NightShift-desktop-queue', 'NightShift auto-train',
+  ...String(process.env.LQ_TASK_ALLOW ?? '').split(',').map((s) => s.trim()).filter(Boolean)];
+// every scheduled task as JSON: { name, path, state, actions: [{ execute, args }], ends: [trigger EndBoundary] }
+const TASK_LIST_PS = "$ErrorActionPreference = 'Stop'; $o = @(Get-ScheduledTask | ForEach-Object { [pscustomobject]@{ name = $_.TaskName; path = $_.TaskPath; state = [string]$_.State; "
+  + 'actions = @($_.Actions | ForEach-Object { [pscustomobject]@{ execute = [string]$_.Execute; args = [string]$_.Arguments } }); '
+  + 'ends = @($_.Triggers | ForEach-Object { [string]$_.EndBoundary }) } }); ConvertTo-Json -InputObject $o -Depth 4 -Compress';
+// Disable-ScheduledTask only (a running instance keeps running); tasks from env LQ_GUARD_TASKS, [{ name, ok, err }] back
+const TASK_DISABLE_PS = '$r = @(); $list = ConvertFrom-Json $env:LQ_GUARD_TASKS; foreach ($t in $list) { try { Disable-ScheduledTask -TaskPath $t.path -TaskName $t.name -ErrorAction Stop | Out-Null; '
+  + '$r += [pscustomobject]@{ name = $t.name; ok = $true; err = \'\' } } catch { $r += [pscustomobject]@{ name = $t.name; ok = $false; err = [string]$_.Exception.Message } } }; ConvertTo-Json -InputObject @($r) -Compress';
+const ps = (script, env) => cmd('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', script], { env });
+/** Disabled by the guard, alert push not landed yet: [{ name, why }], retried at the next guard pass. */
+const alertPending = [];
+let lastGuard = 0;
+
+/** One guard pass: disable stale tasks, push one alert when anything is (or was) disabled. Never throws. */
+function taskGuard() {
+  lastGuard = Date.now();
+  try {
+    const tasks = JSON.parse(ps(TASK_LIST_PS) || '[]');
+    const stale = staleTasks(tasks, TASK_ALLOW);
+    if (DRY) {
+      for (const t of stale) log(`dry-run: task guard would disable ${t.name} (${t.state}, ${t.why})`);
+      const staleNames = new Set(stale.map((t) => t.name));
+      const kept = tasks.filter((t) => !staleNames.has(t.name) && (String(t.name).startsWith('NightShift') || /nightshift[\\/]+scratch|laptop-runner/i.test(JSON.stringify(t.actions ?? []))));
+      for (const t of kept) log(`dry-run: task guard keeps ${t.name} (${t.state}, ${t.state === 'Disabled' ? 'already disabled' : 'allowed'})`);
+      log(`dry-run: task guard: ${tasks.length} task(s), ${tasks.filter((t) => String(t.name).startsWith('NightShift')).length} NightShift*, ${stale.length} stale`);
+      return;
+    }
+    if (stale.length) {
+      const res = JSON.parse(ps(TASK_DISABLE_PS, { LQ_GUARD_TASKS: JSON.stringify(stale.map(({ name, path: p }) => ({ name, path: p }))) }) || '[]');
+      const byName = new Map((Array.isArray(res) ? res : [res]).map((r) => [r.name, r]));
+      for (const t of stale) {
+        const r = byName.get(t.name);
+        if (!r?.ok) { log(`task guard: disable failed for ${t.name} (${t.state}, ${t.why}): ${r?.err || 'no result'}`); continue; }
+        log(`task guard: disabled ${t.name} (${t.state}, ${t.why})`);
+        if (t.state === 'Running') log(`task guard: ${t.name} is still running (its run is left alone)`);
+        alertPending.push({ name: t.name, why: `${t.state}, ${t.why}` });
+      }
+    }
+    if (alertPending.length === 0) return;
+    const at = new Date().toISOString();
+    const rel = `alerts/${at.replace(/[-:]/g, '').replace(/\.\d+/, '')}-${WORKER}-tasks.json`; // 20261024T071300Z: no ':' in a path; per worker
+    const body = `${JSON.stringify({ worker: WORKER, disabled: alertPending, at }, null, 2)}\n`;
+    if (pushFile(rel, body, `task guard disabled ${alertPending.length} task(s)`)) { log(`task guard: alert pushed ${rel}`); alertPending.length = 0; }
+    else log(`task guard: alert push failed for ${alertPending.length} task(s), retried at the next guard pass`);
+  } catch (e) { log(`task guard failed: ${String(e.message).split('\n')[0]}`); }
+}
+
 /** Ids whose done claim is confirmed on the branch. */
 const doneSynced = new Set();
 
@@ -219,14 +346,33 @@ function syncDone() {
  * the other worker runs is `pending` too.
  */
 const buildFailLogged = new Set();
+/** The open train holding alone requests back this pass (lib trainHold), or null; a failed PR list holds them too. */
+let aloneHold = null;
+let aloneHoldLogged = '';
 function pendingTrains() {
   const out = [];
   const maxAge = Number(process.env.LQ_TRAIN_MAX_AGE_H ?? 24) * 3600;
   let open;
+  let openPrs;
   try {
-    open = new Set(gh(['pr', 'list', '-R', REPO, '--state', 'open', '--limit', '200', '--json', 'headRefName,headRefOid', '--jq', '.[] | select(.headRefName | startswith("train/")) | .headRefOid']).split('\n').filter(Boolean));
-  } catch (e) { log(`train PR list failed, trains skipped this pass: ${String(e.message).split('\n')[0]}`); return out; }
+    openPrs = JSON.parse(gh(['pr', 'list', '-R', REPO, '--state', 'open', '--limit', '200', '--json', 'number,headRefName,headRefOid', '--jq', '[.[] | select(.headRefName | startswith("train/")) | {n: (.headRefName | ltrimstr("train/")), sha: .headRefOid, pr: .number}]']) || '[]');
+    open = new Set(openPrs.map((p) => p.sha));
+  } catch (e) {
+    log(`train PR list failed, trains skipped this pass: ${String(e.message).split('\n')[0]}`);
+    aloneHold = { n: '?', sha: '', laptop: 'unknown' };
+    return out;
+  }
   git(['fetch', '-q', 'origin', '+refs/heads/train/*:refs/remotes/origin/train/*'], { soft: true });
+  // every open train PR head without a laptop-e2e success holds alone requests (a status read error counts as none),
+  // except heads that can never get one here: older than LQ_TRAIN_MAX_AGE_H or a failed auto-train/* build (as below)
+  aloneHold = trainHold(openPrs.flatMap((p) => {
+    const ct = Number(git(['show', '-s', '--format=%ct', p.sha], { soft: true }));
+    if (ct && !(Date.now() / 1000 - ct < maxAge)) return [];
+    let sts = null;
+    try { sts = JSON.parse(gh(['api', `repos/${REPO}/commits/${p.sha}/status`, '--jq', '[.statuses[] | {context, state}]']) || '[]'); } catch { /* unknown: holds */ }
+    if (sts && trainBuildFailed(sts)) return [];
+    return [{ ...p, laptop: sts ? (sts.find((s) => s.context === 'laptop-e2e')?.state ?? '') : 'unknown' }];
+  }));
   for (const line of git(['ls-remote', 'origin', 'refs/heads/train/*'], { soft: true }).split('\n')) {
     const m = /^([0-9a-f]{40})\trefs\/heads\/train\/(\S+)$/.exec(line);
     if (!m || state.trains[m[1]] || !open.has(m[1])) continue;
@@ -256,20 +402,33 @@ function pendingTrains() {
 
 // ---------- processes, locks, ports ----------
 
-/** Runs a shell command line, output appended to logFile; resolves with the exit code (124 on timeout). */
-function sh(line, { cwd, env = {}, logFile, timeoutMs = 3600_000 }) {
+/**
+ * Runs a shell command line, output appended to logFile; resolves with the exit code (124 on timeout). ctl (a request
+ * run): ctl.child is the running command for cut(); once ctl.why is set nothing new starts (125).
+ */
+function sh(line, { cwd, env = {}, logFile, timeoutMs = 3600_000, ctl }) {
+  if (ctl?.why) return Promise.resolve(125);
   fs.mkdirSync(path.dirname(logFile), { recursive: true });
   const fd = fs.openSync(logFile, 'a');
   fs.writeSync(fd, `\n$ ${line}\n`);
   return new Promise((resolve) => {
     const child = spawn(line, { cwd, env: { ...process.env, ...env }, shell: true, windowsHide: true, stdio: ['ignore', fd, fd] });
+    if (ctl) ctl.child = child;
     const timer = setTimeout(() => {
       try { cmd('taskkill', ['/pid', String(child.pid), '/t', '/f'], { soft: true }); } catch { /* gone */ }
       resolve(124);
     }, timeoutMs);
-    child.on('exit', (code) => { clearTimeout(timer); resolve(code ?? 1); });
-    child.on('error', () => { clearTimeout(timer); resolve(1); });
+    const end = (code) => { clearTimeout(timer); if (ctl?.child === child) ctl.child = null; resolve(code); };
+    child.on('exit', (code) => end(code ?? 1));
+    child.on('error', () => end(1));
   }).finally(() => fs.closeSync(fd));
+}
+
+/** Stops a request run: kills its running command tree (as the sh timeout does); later commands do not start. */
+function cut(ctl, why) {
+  if (ctl.why) return;
+  ctl.why = why;
+  if (ctl.child) cmd('taskkill', ['/pid', String(ctl.child.pid), '/t', '/f'], { soft: true });
 }
 
 /** Kills whatever listens on the port (a server left by a killed run). */
@@ -288,9 +447,10 @@ const heldLocks = new Set();
  * no other service runs) and is deleted; any other holder (a manual run) is waited on, logged once per holder line,
  * and the wait in minutes is logged when the lock is finally taken (a long wait on a stale manual lock looked hung).
  * `once`: a single try, null when the slot is held (the wait log state carries over between tries, per port).
+ * `stop`: checked during a wait; when it returns truthy the wait ends with null (the run yields to a train).
  */
 const lockWait = {}; // port -> { from, on }: the current wait, kept across `once` tries
-async function takeLock(port, label, sha, { once = false } = {}) {
+async function takeLock(port, label, sha, { once = false, stop } = {}) {
   const line = `laptop-queue | ${label} ${sha.slice(0, 8)} pid ${process.pid} | ${new Date().toISOString()}`;
   const w = (lockWait[port] ??= { from: 0, on: '' });
   for (;;) {
@@ -312,6 +472,7 @@ async function takeLock(port, label, sha, { once = false } = {}) {
       if (have !== w.on) { w.on = have; log(`${port} waiting on ${have.startsWith('laptop-queue |') ? 'own run' : 'manual lock'}: ${have}`); }
       w.from ||= Date.now();
       if (once) return null;
+      if (stop?.()) { delete lockWait[port]; return null; }
       await sleep(15_000);
     }
   }
@@ -325,8 +486,9 @@ function releaseLock(port, line) {
  * Fetch (one retry), clean, detach at sha, npm ci when needed, build. Returns 'ok' | 'fetch' (fetch failed twice: skip
  * this pass, not a verdict) | 'nosha' | 'build'. npm ci runs when node_modules is missing or package-lock.json differs
  * (beyond its version lines) from the text saved after this slot's last SUCCESSFUL npm ci, so a failed one is retried.
+ * `stop` (a request run): checked before npm ci and before the build; truthy returns 'yield'. ctl: see sh.
  */
-async function prepare(port, sha, logFile) {
+async function prepare(port, sha, logFile, stop, ctl) {
   const cwd = SLOTS[port].dir;
   let fetched = false;
   for (let i = 0; i < 2 && !fetched; i++) {
@@ -340,18 +502,20 @@ async function prepare(port, sha, logFile) {
   let lockInstalled = null;
   try { lockInstalled = fs.readFileSync(file(`npm-ci-${port}.lock.json`), 'utf8'); } catch { /* never installed by the service */ }
   if (!fs.existsSync(path.join(cwd, 'node_modules')) || lockInstalled === null || lockChanged(lockInstalled, lockNow)) {
-    if (await sh('npm ci', { cwd, logFile }) !== 0) return 'build';
+    if (stop?.()) return 'yield';
+    if (await sh('npm ci', { cwd, logFile, ctl }) !== 0) return 'build';
     fs.mkdirSync(STATE_DIR, { recursive: true });
     fs.writeFileSync(file(`npm-ci-${port}.lock.json`), lockNow);
   }
-  return (await sh('npm run build', { cwd, logFile })) === 0 ? 'ok' : 'build';
+  if (stop?.()) return 'yield';
+  return (await sh('npm run build', { cwd, logFile, ctl })) === 0 ? 'ok' : 'build';
 }
 
 /** One run-e2e call on a slot; returns the parsed run plus its exit code and the last 40 lines of its output. */
-async function e2e(port, suites, jobs, logFile) {
+async function e2e(port, suites, jobs, logFile, ctl) {
   freePort(port);
   const env = { E2E_PORT: port, E2E_JOBS: String(jobs), E2E_GPU: '1', E2E_SUITE_TIMEOUT: '900' };
-  const code = await sh(`node scripts/run-e2e.mjs ${suites.join(' ')}`, { cwd: SLOTS[port].dir, env, logFile });
+  const code = await sh(`node scripts/run-e2e.mjs ${suites.join(' ')}`, { cwd: SLOTS[port].dir, env, logFile, ctl });
   freePort(port);
   const text = fs.readFileSync(logFile, 'utf8').split(/^\$ node scripts\/run-e2e.mjs /m).pop() ?? '';
   return { ...parseRun(text), code, tail40: failureExcerpt(text).tail40 };
@@ -374,16 +538,16 @@ function sectionOf(runDir, suite) {
  * The failure stands unrerun only when the same suite flaked within 24 h on the same assert (assertKey): a new assert
  * on a suite that flaked before is rerun (train 40 ctcourse:4, 2026-10-24).
  */
-async function rerunFlakes(result, slotOf, job, runDir, fallback = PORTS[0]) {
+async function rerunFlakes(result, slotOf, job, runDir, fallback = PORTS[0], ctl) {
   const flakes = [];
   const now = Date.now();
   for (const x of result.suites.filter((s) => !s.ok && !s.flaky && !s.report)) {
     const key = assertKey(failureExcerpt(sectionOf(runDir, x.s)).assert);
     if (flakeStands(state.flakes, x.s, key, now, FLAKE_WINDOW_MS)) { log(`${x.s} flaked within 24 h on the same assert, failure stands`); continue; }
-    if (DRY) continue;
+    if (DRY || ctl?.why) continue;
     const port = slotOf[x.s] ?? fallback;
     log(`rerun ${x.s} alone on ${port}`);
-    const run = await e2e(port, [x.s], 1, path.join(runDir, `rerun-${x.s.replace(/\W/g, '_')}.log`));
+    const run = await e2e(port, [x.s], 1, path.join(runDir, `rerun-${x.s.replace(/\W/g, '_')}.log`), ctl);
     if (runComplete(run, 1) && run.suites.every((s) => s.ok)) {
       x.ok = true;
       flakes.push(x.s);
@@ -417,6 +581,11 @@ function finish(job, ctx, result, runDir, prNumber) {
 // ---------- the runs ----------
 
 const claimed = new Set();
+/** Requests claimed or running here (id -> request), for the duplicate check. */
+const activeReqs = new Map();
+/** The train heads the last pass saw pending (desktop: those it may take); trainsNow() drops the ones claimed since. */
+let pendingNow = [];
+const trainsNow = () => pendingNow.filter((t) => !claimed.has(t.sha));
 
 async function runTrain(train, ports = PORTS) {
   const id = `train-${train.n}-${train.sha.slice(0, 8)}`;
@@ -488,7 +657,7 @@ async function runTrain(train, ports = PORTS) {
   } finally {
     // only slots this train locked: an unheld one may be serving a manual run
     for (const p of ports) { if (locks[p]) { releaseLock(p, locks[p]); freePort(p); } }
-    writeJson('state.json', state);
+    saveState();
     if (state.trains[train.sha]) writeClaims([train.sha], 'done', `done train ${train.n}`);
     log(`train ${train.n}: done`);
   }
@@ -496,13 +665,48 @@ async function runTrain(train, ports = PORTS) {
 
 async function runRequest(r, port) {
   const runDir = path.join(STATE_DIR, 'runs', r.id);
-  const ctx = contextName(r.kind, r.set, r.suites);
+  const ctx = contextName(r.kind, r.set, r.suites, r.trainRerun);
   const job = { sha: r.sha, ref: r.branch || r.sha.slice(0, 8) };
   log(`${r.id}: ${r.kind} on ${port}`);
   const ports = r.kind === 'alone' ? PORTS : [port];
   const locks = {};
+  // yield: a pending train head takes the slot back until the suites / steps start (lib yieldTo)
+  let yielded = null;
+  // cut short: withdrawn at any point, or (a pr request in its suites) preempted by a pending train (lib cutShort)
+  const ctl = { child: null, why: '', by: null };
+  let started = false;
+  const watch = DRY ? null : setInterval(() => {
+    const trains = trainsNow();
+    const others = [...activeReqs.values()].filter((a) => a.id !== r.id);
+    const why = cutShort(r, { withdrawn: withdrawnIds.has(r.id), trains, started, others });
+    if (why && !ctl.why) { ctl.by = trains[0] ?? null; cut(ctl, why); }
+  }, 5_000);
+  const stop = () => Boolean(ctl.why) || Boolean(yielded ??= yieldTo(r, false, trainsNow()));
+  let posted = false;
+  const giveBack = () => {
+    log(`${r.id}: yields to train ${yielded.n}`);
+    if (posted) postStatus(r.sha, 'pending', ctx, `queued, yielded to train ${yielded.n}`);
+    writeClaims([r.id], 'release', `release ${r.id} (yields to train ${yielded.n})`);
+    claimed.delete(r.id);
+  };
+  const cutEnd = () => {
+    if (ctl.why === 'withdrawn') {
+      log(`${r.id}: withdrawn by the requester, run stopped`);
+      if (posted) postStatus(r.sha, 'error', ctx, 'withdrawn by the requester, run stopped');
+      state.done[r.id] = { result: 'withdrawn', date: new Date().toISOString() };
+      return;
+    }
+    const n = ctl.by?.n ?? '?';
+    log(`${r.id}: preempted by train ${n}, queued again`);
+    if (posted) postStatus(r.sha, 'pending', ctx, `queued, preempted by train ${n}`);
+    writeClaims([r.id], 'release', `release ${r.id} (preempted by train ${n})`);
+    claimed.delete(r.id);
+  };
   try {
-    for (const p of ports) locks[p] = await takeLock(p, r.id, r.sha);
+    for (const p of ports) {
+      locks[p] = await takeLock(p, r.id, r.sha, { stop });
+      if (!locks[p] || stop()) return ctl.why ? cutEnd() : giveBack();
+    }
     // fresh `at`: a long lock wait never looks like a dead worker; if the other worker took it over meanwhile, back off
     if (writeClaims([r.id], 'claim', `claim ${r.id} (lock taken)`) === 'blocked') {
       log(`${r.id}: taken over by the other worker during the lock wait, dropped`);
@@ -510,7 +714,10 @@ async function runRequest(r, port) {
       return;
     }
     postStatus(r.sha, 'pending', ctx, 'running');
-    const prep = await prepare(ports[0], r.sha, path.join(runDir, 'prepare.log'));
+    posted = true;
+    const prep = await prepare(ports[0], r.sha, path.join(runDir, 'prepare.log'), stop, ctl);
+    if (ctl.why) return cutEnd();
+    if (prep === 'yield' || (prep === 'ok' && stop())) return ctl.why ? cutEnd() : giveBack();
     if (prep === 'fetch') {
       // not a verdict and not done: the claim is dropped and the next pass takes it again
       postStatus(r.sha, 'pending', ctx, 'fetch failed, retrying');
@@ -527,22 +734,27 @@ async function runRequest(r, port) {
     if (r.kind === 'alone') {
       const t0 = Date.now();
       let okSteps = 0;
+      started = true;
       for (const [i, step] of r.steps.entries()) {
+        if (ctl.why) break;
         const line = step.startsWith('serve ') ? `node scripts/laptop-queue/serve.mjs ${step.slice(6)}` : step;
         freePort(ports[0]);
-        const code = await sh(line, { cwd: SLOTS[ports[0]].dir, env: { ...r.env, E2E_PORT: ports[0], E2E_GPU: '1' }, logFile: path.join(runDir, `step${i + 1}.log`) });
+        const code = await sh(line, { cwd: SLOTS[ports[0]].dir, env: { ...r.env, E2E_PORT: ports[0], E2E_GPU: '1' }, logFile: path.join(runDir, `step${i + 1}.log`), ctl });
         if (code === 0) okSteps++;
         freePort(ports[0]);
       }
+      if (ctl.why) return cutEnd();
       const good = okSteps === r.steps.length;
       postStatus(r.sha, good ? 'success' : 'failure', ctx, `${okSteps}/${r.steps.length} steps ok, ${Math.round((Date.now() - t0) / 1000)} s`);
       state.done[r.id] = { result: good ? 'success' : 'failure', date: new Date().toISOString() };
       return;
     }
     const list = r.kind === 'full' ? cmd('node', ['scripts/run-e2e.mjs', '--list'], { cwd: SLOTS[port].dir }).split('\n').map((x) => x.trim()).filter(Boolean) : r.suites;
-    const jobs = DESKTOP ? 1 : r.jobs ?? (r.kind === 'full' ? 3 : 2);
+    const jobs = DESKTOP || r.trainRerun ? 1 : r.jobs ?? (r.kind === 'full' ? 3 : 2); // a train rerun: E2E_JOBS=1, unsharded
     const t0 = Date.now();
-    const run = await e2e(port, list, jobs, path.join(runDir, `${port}.log`));
+    started = true;
+    const run = await e2e(port, list, jobs, path.join(runDir, `${port}.log`), ctl);
+    if (ctl.why) return cutEnd();
     // same completeness rule as a train shard; at least the listed suites (a named suite may expand into parts)
     if (!runComplete(run, list.length)) {
       log(`${r.id}: run incomplete (exit ${run.code}, ${run.suites.length}/${list.length} suites, summary ${run.complete ? 'seen' : 'missing'})`);
@@ -553,15 +765,23 @@ async function runRequest(r, port) {
     }
     const result = { suites: run.suites, wall: 0, flakes: [] };
     // a request reruns on its own locked slot and worktree (its sha), never on another slot
-    result.flakes = await rerunFlakes(result, {}, job, runDir, port);
+    result.flakes = await rerunFlakes(result, {}, job, runDir, port, ctl);
+    if (ctl.why) return cutEnd();
     result.wall = (Date.now() - t0) / 1000;
     const ok = finish(job, ctx, result, runDir, r.pr);
+    // a train rerun that passed also turns the train's own context green (the latest status per context wins in the
+    // combined status, so it replaces the desktop's laptop-e2e failure); a failed one leaves laptop-e2e red
+    if (ok && r.trainRerun) postStatus(r.sha, 'success', 'laptop-e2e', rerunPassed(r.suites));
     state.done[r.id] = { result: ok ? 'success' : 'failure', wall: result.wall, date: new Date().toISOString() };
   } finally {
+    if (watch) clearInterval(watch);
+    missing.delete(r.id);
+    withdrawnIds.delete(r.id);
     for (const p of ports) { if (locks[p]) releaseLock(p, locks[p]); freePort(p); }
-    writeJson('state.json', state);
+    if (state.done[r.id]) state.done[r.id].key = dupKey(r); // the duplicate check reads it for LQ_DUP_WINDOW_MIN
+    saveState();
     if (state.done[r.id] && writeClaims([r.id], 'done', `done ${r.id}`) === true) doneSynced.add(r.id);
-    log(`${r.id}: done`);
+    if (!yielded && ctl.why !== 'train') log(`${r.id}: done`);
   }
 }
 
@@ -586,12 +806,13 @@ function dispatch(p) {
   claimed.add(p.request.id);
   const ports = p.kind === 'alone' ? PORTS : [p.slot];
   if (DRY) { log(`dry-run: would run ${p.request.id} (${p.request.kind}, ${p.request.suites ?? p.request.steps ?? 'full'}) on ${ports.join('+')}`); return Promise.resolve(); }
+  activeReqs.set(p.request.id, p.request);
   const run = runRequest(p.request, p.slot ?? PORTS[0]).catch((e) => {
     log(`${p.request.id} service error: ${e.stack ?? e.message}`);
-    postStatus(p.request.sha, 'error', contextName(p.request.kind, p.request.set, p.request.suites), 'service error, see log');
+    postStatus(p.request.sha, 'error', contextName(p.request.kind, p.request.set, p.request.suites, p.request.trainRerun), 'service error, see log');
     writeClaims([p.request.id], 'release', `release ${p.request.id}`);
     claimed.delete(p.request.id);
-  });
+  }).finally(() => activeReqs.delete(p.request.id));
   ports.forEach((x) => { busy[x] = run; });
   return run;
 }
@@ -648,8 +869,31 @@ function applySupersedes(requests) {
     state.done[id] = { result: 'superseded', by, date };
     doneSynced.add(id);
   }
-  writeJson('state.json', state);
+  saveState();
   return requests.filter((r) => !sup.has(r.id));
+}
+
+/**
+ * Marks open requests that repeat another request done as duplicates (no run, no status) in one push and drops them
+ * (lib duplicates): against the open ones, the ones claimed or running here or on the other worker, and the ones done
+ * here within LQ_DUP_WINDOW_MIN. A lost push is retried next pass.
+ */
+function applyDuplicates(requests) {
+  const recent = Object.entries(state.done).filter(([, d]) => d?.key).map(([id, d]) => ({ id, key: d.key, result: d.result, date: d.date }));
+  const active = [...activeReqs.values(), ...otherActive].map((r) => ({ ...r, active: true }));
+  const dup = duplicates([...requests, ...active], recent, Date.now(), DUP_WINDOW_MS);
+  if (dup.size === 0) return requests;
+  const ids = [...dup.keys()];
+  const date = new Date().toISOString();
+  if (!DRY && writeClaims(ids, 'done', `duplicate ${ids.length} request(s)`) !== true) { log(`duplicate push failed for ${ids.length} request(s), retried next pass`); return requests; }
+  for (const [id, by] of dup) {
+    log(`${id}: duplicate of ${by}`);
+    if (DRY) continue;
+    state.done[id] = { result: 'duplicate', by, date };
+    doneSynced.add(id);
+  }
+  saveState();
+  return requests.filter((r) => !dup.has(r.id));
 }
 
 /**
@@ -666,19 +910,47 @@ function desktopTrains() {
   return { trains, why: all.length && !trains.length ? 'train head too new' : '' };
 }
 
+const BUILD_MARKER = process.env.LQ_BUILD_MARKER ?? `${process.env.AUTO_TRAIN_SCRATCH || 'C:/NightShift/scratch'}/auto-train-building.json`; // auto-train's buildMarkerPath
+const BUILD_MARKER_MAX_MS = Number(process.env.LQ_BUILD_MARKER_MAX_MIN ?? 30) * 60_000;
+let markerLogged = '';
+/** Desktop: auto-train's build marker when it blocks new starts (lib buildMarker), else null; logged once per marker. */
+function trainBuilding() {
+  let text = null;
+  let mtime = NaN;
+  try { text = fs.readFileSync(BUILD_MARKER, 'utf8'); mtime = fs.statSync(BUILD_MARKER).mtimeMs; } catch { /* no marker */ }
+  const m = buildMarker(text, mtime, Date.now(), BUILD_MARKER_MAX_MS);
+  if (!m) { markerLogged = ''; return null; }
+  const key = `${m.key} ${m.stale}`;
+  if (key !== markerLogged) {
+    markerLogged = key;
+    log(m.stale ? `train ${m.train} build marker ${Math.round(m.ageMs / 60_000)} min old: ignored as stale` : `train ${m.train} building: no new claims`);
+  }
+  return m.stale ? null : m;
+}
+
 async function pass() {
   // requests first: listRequests fetches origin/laptop-queue, which the train claim checks read
   const requests = listRequests().filter((r) => !claimed.has(r.id));
   const dt = DESKTOP ? desktopTrains() : null;
   const queue = { trains: DESKTOP ? dt.trains : pendingTrains().filter((t) => !claimed.has(t.sha)), requests };
+  pendingNow = queue.trains; // runs still before their suites / steps yield to these
   // done marks first: a claim (which tells the desktop the laptop is on claims) never lands before them
   if (!syncDone() && !DRY) { log('done claims not pushed: no new requests this pass (trains need a claim push too)'); queue.requests = []; }
-  // supersede on the full list (before the desktop's pr filter); the desktop waits for claims on the branch like its gate does
-  else if (!(DESKTOP && claimCount === 0)) queue.requests = applySupersedes(queue.requests);
+  // supersede and duplicates on the full list (before the alone hold and the desktop's pr filter); the desktop waits for
+  // claims on the branch like its gate does
+  else if (!(DESKTOP && claimCount === 0)) queue.requests = applyDuplicates(applySupersedes(queue.requests));
+  // alone runs wait while any open train lacks a laptop-e2e success (trains and their reruns first; CLAUDE.md laptop order)
+  if (!DESKTOP && aloneHold && queue.requests.some((r) => r.kind === 'alone')) {
+    const key = `${aloneHold.n} ${aloneHold.sha} ${aloneHold.laptop}`;
+    if (key !== aloneHoldLogged) { aloneHoldLogged = key; log(`alone requests held: train ${aloneHold.n} ${String(aloneHold.sha).slice(0, 8)} open, laptop-e2e ${aloneHold.laptop || 'none'}`); }
+    queue.requests = queue.requests.filter((r) => r.kind !== 'alone');
+  } else if (!aloneHold) aloneHoldLogged = '';
   const desktopWait = {};
   if (DESKTOP) {
+    // auto-train's build (its vitest waits on heavy.lock) goes first: no new request or train while it builds
+    if (trainBuilding()) return;
     const backlog = queue.requests.length;
-    queue.requests = queue.requests.filter((r) => r.kind === 'pr');
+    queue.requests = queue.requests.filter((r) => r.kind === 'pr' && !r.trainRerun); // a train rerun is the laptop's (desktop failed)
     const why = {};
     const train = queue.trains[0];
     if (train) {
@@ -763,12 +1035,14 @@ function selfUpdate() {
 async function main() {
   if (!DRY) takePidLock();
   log(`service start (${WORKER})${ONCE ? ' --once' : ''}${DRY ? ' --dry-run' : ''} in ${HERE}`);
+  if (TASK_GUARD_MS > 0) taskGuard(); // before the first pass: a stale task must not race the service for the slot locks
   if (ONCE || DRY) {
     await pass();
     await Promise.all(Object.values(busy).filter(Boolean));
     return;
   }
   for (;;) {
+    if (TASK_GUARD_MS > 0 && Date.now() - lastGuard >= TASK_GUARD_MS) taskGuard();
     try {
       // update before taking new work too, so a busy queue still picks up new service code between runs
       if (!Object.values(busy).some(Boolean)) selfUpdate();

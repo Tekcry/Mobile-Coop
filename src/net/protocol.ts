@@ -7,7 +7,7 @@ import { sanitizeLook, type AvatarLook } from '../cosmetics/avatarLook';
 import { WEAPON_IDS, type WeaponId } from '../weapons/weaponDefs';
 import { emptyKinds, ENEMY_KINDS, type EnemyKind } from '../ai/enemyDefs';
 import { hyp3 } from '../core/mathx';
-import { packMoveState, sanitizeMoveState, type MoveState } from '../player/moveState';
+import { OPTIC_POINT_MAX, packMoveState, sanitizeMoveState, type MoveState } from '../player/moveState';
 import { CDENY_REASONS, CKINDS, type CDenyReason, type CKind } from '../game/committedMoves';
 import { CLIENT_VERBS, RH_HI, RH_MAX, type ClientVerb, type CourseWire } from '../game/course/courseWire';
 import type { AirlockPhase, PackedCourse } from '../game/course/courseState';
@@ -19,7 +19,7 @@ import type { MotionState } from '../anim/motion';
 import { slotFromList } from '../game/playerSlots';
 
 /** The wire version. Only this line holds it; tests read it. `scripts/merge-train.mjs build` bumps it once per train with a wire change (history: CHANGELOG, docs/systems/coop.md). */
-export const PROTOCOL_VERSION = 49;
+export const PROTOCOL_VERSION = 54;
 /** Room cap on the wire (= `PLAYER_SLOTS`, game/playerSlots.ts); each mode takes `capacity(mode)`. */
 export const MAX_PLAYERS = 4;
 export const COOP_MAX = 4;
@@ -193,8 +193,8 @@ export interface EnemyState {
   hp: number;
   /** Alert level: 0 calm, 1 suspicious / investigating, 2 searching, 3 combat; +4 (`AL_SEIZED`) = seized in a
    *  takedown; (25) +8 (`AL_TORCH`) = his flashlight is on; (32) +16 (`AL_CAUTION`) cautious, +32 (`AL_HELMET`) wears a
-   *  helmet, +64 (`AL_ARMOUR`) wears body armour; (37, A126) bits 7-8 (`AL_CARRY`) his S21 weapon carry (`WIRE_CARRY_*`).
-   *  `packAlert` builds it. */
+   *  helmet, +64 (`AL_ARMOUR`) wears body armour; (37, A126) bits 7-8 (`AL_CARRY`) his S21 weapon carry (`WIRE_CARRY_*`);
+   *  (guard-models G6n) bits 9-15 (`AL_LOOK`) his look seed (`Enemy.look`). `packAlert` builds it. */
   al: number;
 }
 
@@ -215,19 +215,28 @@ export const WIRE_CARRY_DRAWN = 0;
 export const WIRE_CARRY_HOLSTERED = 1;
 export const WIRE_CARRY_DRAWING = 2;
 export const WIRE_CARRY_HOLSTERING = 3;
+/** (guard-models G6n, M3) The guard's 7-bit look seed (`Enemy.look`, `ai/guardLook.ts`: set once at spawn from his
+ *  spawn slot) in `al` bits 9-15, so the client builds the same look; it never changes for one guard id. */
+export const AL_LOOK_SHIFT = 9;
+export const AL_LOOK = 127 << AL_LOOK_SHIFT;
 /** Every `al` bit in use (the parser clamps into these). */
-export const AL_MAX = 511;
+export const AL_MAX = 65535;
 
-/** The wire `al`: alert level 0-3, seized, torch on, (32) cautious, helmet, armour, (37, A126) the carry 0-3. A guard
- *  without a torch or gear costs what he did before (0-7); a lit one is 8-15; caution and gear add at most two JSON
- *  digits (16-127); a holstered carry one more (128-511). */
-export function packAlert(level: number, seized: boolean, torch: boolean, cautious = false, helmet = false, armour = false, carry = WIRE_CARRY_DRAWN): number {
-  return (level & 3) | (seized ? AL_SEIZED : 0) | (torch ? AL_TORCH : 0) | (cautious ? AL_CAUTION : 0) | (helmet ? AL_HELMET : 0) | (armour ? AL_ARMOUR : 0) | ((carry & 3) << AL_CARRY_SHIFT);
+/** The wire `al`: alert level 0-3, seized, torch on, (32) cautious, helmet, armour, (37, A126) the carry 0-3, (G6n) the
+ *  look seed 0-127. A guard without a torch or gear costs what he did before (0-7); a lit one is 8-15; caution and gear
+ *  add at most two JSON digits (16-127); a holstered carry one more (128-511); a look seed adds at most two more. */
+export function packAlert(level: number, seized: boolean, torch: boolean, cautious = false, helmet = false, armour = false, carry = WIRE_CARRY_DRAWN, look = 0): number {
+  return (level & 3) | (seized ? AL_SEIZED : 0) | (torch ? AL_TORCH : 0) | (cautious ? AL_CAUTION : 0) | (helmet ? AL_HELMET : 0) | (armour ? AL_ARMOUR : 0) | ((carry & 3) << AL_CARRY_SHIFT) | ((look & 127) << AL_LOOK_SHIFT);
 }
 
 /** (37, A126) The carry (`WIRE_CARRY_*`) in a wire `al`. */
 export function alertCarry(al: number): number {
   return (al & AL_CARRY) >> AL_CARRY_SHIFT;
+}
+
+/** (guard-models G6n) The look seed (0-127) in a wire `al`. */
+export function alertLook(al: number): number {
+  return (al & AL_LOOK) >> AL_LOOK_SHIFT;
 }
 
 /** (32, guard-ai S9) The `bark` event's `b` for the security desk's camera line (its text in `t`; `id` the camera). */
@@ -247,7 +256,7 @@ export function hitConfirmKind(dealt: number, killed: boolean, deflect: boolean,
 /** A usable thing on the host (mirrored on clients, used through `use`). */
 export interface NetItem {
   id: string;
-  k: 'terminal' | 'cache' | 'switch' | 'alarm' | 'door' | 'intel' | 'charge' | 'revive' | 'medkitWall' | 'crate';
+  k: 'terminal' | 'cache' | 'switch' | 'alarm' | 'door' | 'intel' | 'charge' | 'revive' | 'medkitWall' | 'crate' | 'body';
   x: number;
   y: number;
   z: number;
@@ -258,8 +267,14 @@ export interface NetItem {
   on: boolean;
   /** (30, marlow-final Q12) The hold's noise radius (m) when it is a noisy hold; absent: silent. */
   hn?: number;
+  /** (coop-carry) A `body` item: the enemy id the body was (the client keeps his body by it). */
+  e?: string;
+  /** (coop-carry) A `body` item: the player carrying it (absent: lying when `on`; gone from the list: hidden). */
+  by?: string;
 }
-export const ITEM_KINDS: readonly NetItem['k'][] = ['terminal', 'cache', 'switch', 'alarm', 'door', 'intel', 'charge', 'revive', 'medkitWall', 'crate'];
+export const ITEM_KINDS: readonly NetItem['k'][] = ['terminal', 'cache', 'switch', 'alarm', 'door', 'intel', 'charge', 'revive', 'medkitWall', 'crate', 'body'];
+/** (coop-carry) The `use` id a client sends to put its carried body down (at its put down's hand-over). */
+export const DROP_BODY_ID = 'drop-body';
 
 /** (polish 8) The host's event queue holds `MAX_EVENTS * 2`; a `crate` fill is never dropped (a dropped one left that
  *  client's use recorded but never filled until a restart). Crate events are bounded by crates x players. */
@@ -319,13 +334,18 @@ export type Msg =
   | { t: 'pstate'; s: PlayerState }
   | { t: 'shot'; w: WeaponId; ox: number; oy: number; oz: number; dx: number; dy: number; dz: number; target: string; part: 'head' | 'body'; rt: number; dist: number; dmg: number }
   /** `pk` is a bitmask of available pickups (bit i = pickup i). `info` is plain text, segments split by '|'. */
-  | { t: 'snap'; time: number; players: PlayerState[]; enemies: EnemyState[]; obj: string; info: string; pk: number; items?: NetItem[]; doors?: number[]; dcr?: number[]; bodies?: string[] }
+  /** (optic-coop, CHECK-M B1) `trp`: the optic gaps (`BuiltLevel.opticPoints` indices) whose trap panel is open, sent
+   *  with `doors` (on a change, every few seconds and at a rejoin), so a late joiner opens them too. */
+  | { t: 'snap'; time: number; players: PlayerState[]; enemies: EnemyState[]; obj: string; info: string; pk: number; items?: NetItem[]; doors?: number[]; dcr?: number[]; trp?: number[]; bodies?: string[] }
   /** Client used a mirrored item (the host checks reach and that it is usable). (30, marlow-final Q12) `pulse`: not the
    *  use but one noise pulse of a noisy hold under way (its first moment, then every `HOLD_NOISE_PULSE` s); the host
    *  checks it the same way and its guards hear the item as for the host's own hold (`holdPulse.ts`). */
   | { t: 'use'; id: string; pulse?: true }
   /** (locomotion step 13) Client door peek: crack door `i` (or close its crack); the host checks reach, closed, unlocked. */
   | { t: 'door'; i: number; crack: boolean }
+  /** (optic-coop, CHECK-M B1) Client OPEN TRAP: open the trap panel over optic gap `g` (index bound `OPTIC_POINT_MAX`);
+   *  the host checks the gap has a closed trap and the client is in reach, opens it, and its snapshots' `trp` carry it. */
+  | { t: 'panel'; g: number }
   /** Client takedown on a host enemy: seize it, finish it (lethal / not), or let go. */
   | { t: 'td'; target: string; ph: 'start' | 'done' | 'abort'; lethal: boolean; kind?: string }
   /** (3.2.0 phase 5) A client asks for a team move with a braced partner (boost onto anchor `target` at `s`, the
@@ -460,6 +480,13 @@ function netItem(v: unknown): NetItem | null {
   // (30, Q12) a noisy hold's radius; absent, 0 or malformed reads as a silent item
   const hn = num(v.hn, 0, 30);
   if (hn) item.hn = hn;
+  // (coop-carry) a body item's enemy id and carrier; junk drops the field only
+  if (k === 'body') {
+    const e = id(v.e);
+    if (e) item.e = e;
+    const by = id(v.by);
+    if (by) item.by = by;
+  }
   return item;
 }
 
@@ -877,6 +904,10 @@ export function parseMessage(raw: unknown): Msg | null {
       const crack = bool(raw.crack);
       return i === null || crack === null ? null : { t: 'door', i, crack };
     }
+    case 'panel': {
+      const g = typeof raw.g === 'number' && Number.isInteger(raw.g) && raw.g >= 0 && raw.g < OPTIC_POINT_MAX ? raw.g : null;
+      return g === null ? null : { t: 'panel', g };
+    }
     case 'sector':
       return { t: 'sector', ...secWire(raw.sec), ...sectorExtra(raw) };
     case 'course':
@@ -1044,6 +1075,15 @@ export function parseMessage(raw: unknown): Msg | null {
           if (!cs.includes(d)) cs.push(d);
         }
         out.dcr = cs;
+      }
+      // (optic-coop, CHECK-M B1) open trap panels as optic gap indices: out-of-range entries dropped, never clamped
+      if (Array.isArray(raw.trp)) {
+        const ts: number[] = [];
+        for (const g of raw.trp.slice(0, OPTIC_POINT_MAX)) {
+          if (typeof g !== 'number' || !Number.isInteger(g) || g < 0 || g >= OPTIC_POINT_MAX) continue;
+          if (!ts.includes(g)) ts.push(g);
+        }
+        out.trp = ts;
       }
       if (Array.isArray(raw.bodies)) out.bodies = raw.bodies.slice(0, MAX_ENEMIES).map((b) => id(b)).filter((b): b is string => !!b);
       return out;

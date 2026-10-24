@@ -8,8 +8,9 @@ const evs = (events: unknown[]): unknown[] => {
 };
 
 describe('E9-crate wire (protocol 35)', () => {
-  it('the crate item kind is appended at the end of ITEM_KINDS', () => {
-    expect(ITEM_KINDS[ITEM_KINDS.length - 1]).toBe('crate');
+  it('the crate item kind was appended after medkitWall in ITEM_KINDS (append only; coop-carry appended body after it)', () => {
+    expect(ITEM_KINDS[ITEM_KINDS.indexOf('medkitWall') + 1]).toBe('crate');
+    expect(ITEM_KINDS.indexOf('crate')).toBeLessThan(ITEM_KINDS.indexOf('body'));
   });
 
   it('a crate event round-trips through the ev batch', () => {

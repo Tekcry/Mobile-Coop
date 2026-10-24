@@ -1,6 +1,39 @@
 # laptop-queue - state
 
 ## Now (2026-10-24, laptop-queue batch, local commits, not pushed)
+- 2026-10-24 ~18:30 (Orchestrator audit: withdrawn aab8f4f0 held 4191 16:55-18:02, aabc5a31 held 4192 to 17:55,
+  train 56 waited 11 min): e48a735d - lib `cutShort`; runRequest kills the command tree (sh `ctl`, `cut`) when the
+  request file left the branch on two listings in a row (error status, done) or, for a plain pr request in its suites,
+  when a train head is pending (claim released, queued again). `request.mjs --pin` / `pin: true`: never superseded.
+  #252 merged at e9363533 only: the 11 later audit commits (f0b9ea20..61171362) had no PR; they ride in the new PR
+  with this fix. Opus checker FIX (2): a request whose id is not its file name is now a bad request (the withdrawal check matches by
+  name); no preemption beside a full / alone / train-rerun run here (lib cutShort `others`; the train needs both slots).
+  Fixed in one round; PR #329, train-ready on CI green.
+- 2026-10-24 (Orchestrator audit 2026-10-23 20:30-23:35Z, ~56 + ~10 min of train time lost): duplicates (lib
+  `dupKey` / `duplicates`, `LQ_DUP_WINDOW_MIN` 60) are marked done unrun; pr / full / alone runs not yet in their
+  suites or steps yield to a pending train (lib `yieldTo`); train reruns (`request.mjs --train-rerun`, lib `pick`,
+  `contextName`, `rerunPassed`) run right after trains and post `laptop-e2e` success on a pass; the desktop starts
+  nothing while auto-train's build marker is fresh (lib `buildMarker`, `LQ_BUILD_MARKER_MAX_MIN` 30). Detail:
+  `docs/systems/testing-tools.md` "Laptop queue". The audit's a8ff2d45 pair was a pr (e2e-enemies, set
+  gm-enemies-off, 19 s) and an alone guard bake (8 steps, set guard-bake-all, 3294 s): two different runs, so neither
+  supersede nor the duplicate rule joins them; the bake started its steps at 21:14:45, before the train head appeared
+  (21:21), so yield would not have stopped it either. Interface for auto-train: `--train-rerun`, the build marker file.
+  Rollout: the laptop service must run this before auto-train sends `--train-rerun` (an older service runs it as a
+  plain pr request). Checker FIX (same day): a train rerun with a set posts `laptop-e2e/<set>` (auto-train's
+  `laptop-e2e/train<n>-rerun`), `rerun-<suites>` only without a set; duplicates match set, jobs and pr too and only a
+  success (never a failure) in the window; the desktop's build-marker path follows `AUTO_TRAIN_SCRATCH`; state.done
+  entries over 7 days old are pruned on save.
+- 2026-10-24 (Michael 07:13 "All three", after 87 old hand-made `NightShift-chain-*` one-shots fired again at 2026-10-23
+  23:59 and held heavy-4189 / heavy-4192 for hours): hand-made chains are RETIRED; runs go through the queue
+  (`request.mjs`). Permanent tasks: `NightShift-laptop-queue` (`install-task.ps1`), `NightShift-desktop-queue`
+  (`install-task.ps1 -Worker desktop`), `NightShift auto-train` (`scripts/auto-train-task.ps1`, master). The only way to
+  schedule an ad-hoc run: `scripts/laptop-queue/one-shot-task.ps1 -Name NightShift-run-<what> -Command "..."` (expires
+  after `-ExpireMinutes` 240, then Windows deletes it; `-WhatIf` prints only).
+  Task guard in `service.mjs` (both workers): at start and every `LQ_TASK_GUARD_MIN` (10) min, disables stale tasks
+  (lib `staleTasks`: enabled `NightShift-*` not allowlisted, or any enabled task whose action mentions
+  `C:\NightShift\scratch` / `laptop-runner.ps1`; allowlist + `LQ_TASK_ALLOW`), never stops / kills / deletes, and pushes
+  `alerts/<ts>-<worker>-tasks.json` to the `laptop-queue` branch. Dry run 07:19: the 87 chain tasks were already gone; it would
+  disable 18 enabled tasks, 17 `ns-chain-1022*` + `ns-cpu-burner` (scratch actions), at the next service start.
 - `pendingTrains()` skips a train head with an `auto-train/*` status in failure / error (lib `trainBuildFailed`),
   logged once per head (train 37 held both slots 18 min after vitest had failed).
 - Trains are claimed (`claims/<train-sha>.json`) by both workers; the desktop takes a train head when the laptop has

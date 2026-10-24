@@ -15,7 +15,8 @@ import { clearGripAxis } from '../player/attachGrips';
 import { wrapPi } from '../anim/motion';
 import type { MoveOverride } from '../player/playerController';
 import { GUARD_INFO_GAP, takeInfo, type GuardInfo } from '../ai/guardInfo';
-import { revealIntel } from './intelReveal';
+import { revealIntel, revealJoint } from './intelReveal';
+import { jointOf } from './jointInterrogation';
 import { CQ, ease, grabStage, holdHandTargets, holdSway, koCurve, type GuardCqMode, type KoState } from './closeQuarters';
 import { GRAB_KILL_BLOW, KILL_TAIL_END, killWarp, TAKEDOWN_BLOW, type KillBlow } from '../anim/strikeBody';
 
@@ -200,7 +201,7 @@ export class TakedownController {
       this.run(dt);
       return true;
     }
-    this.offer = g.player.alive && !g.stealth?.carrying ? this.find() : null;
+    this.offer = g.player.alive && !g.carrier?.carrying ? this.find() : null;
     // starts on the press; whether it is lethal is decided as it goes (held through `lethalHold` = lethal)
     if (this.offer && pressed) {
       this.holding = true;
@@ -474,6 +475,9 @@ export class TakedownController {
           gr.talkT = 0;
         } else g.hud.feedItem('Interrogated: nothing new');
         if (!g.puppet) revealIntel(g, e.pos, info); // (spare 9) the client's intel comes from the host
+        // (joint-interrogation, G148) the host's own read with a partner's live bluff: the joint lines too. Host / solo
+        // holder only (a client holder's read is the host's `seized` path; solo has no `net`, so no bluff)
+        if (!g.puppet && lines && g.net?.jointLive?.(e, jointOf(info))) revealJoint(g, e.pos, jointOf(info));
       }
       return true;
     }

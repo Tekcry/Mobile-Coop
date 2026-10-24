@@ -1,6 +1,6 @@
 // (locomotion step 18, D7) binding conflicts: allowed pairs pass, a real clash is reported once per pair, both devices
 import { describe, expect, it } from 'vitest';
-import { conflictIds, findConflicts } from '../src/input/conflicts';
+import { ALLOWED_PAIRS, conflictIds, findConflicts } from '../src/input/conflicts';
 import { assignBind, defaultBinds, FIXED_KEYS } from '../src/input/keyBindings';
 import { assignPadBind, defaultPadBinds, PAD_FIXED } from '../src/input/padBinds';
 import { PAD } from '../src/input/gamepadMapping';
@@ -8,9 +8,28 @@ import { PAD } from '../src/input/gamepadMapping';
 const padAll = (b = defaultPadBinds()): Record<string, readonly number[]> => ({ ...b, aim: PAD_FIXED.aim, fire: PAD_FIXED.fire });
 
 describe('binding conflicts (step 18)', () => {
-  it('the defaults have none (contextual pairs share one row by design)', () => {
+  it('the defaults have none (contextual pairs share one row by design; Zoom and Ping on R3 are an allowed pair, optic-coop M2)', () => {
+    // (optic-coop M2, Michael 2026-10-24 "contextual: R3 pings normally and zooms only while aiming a scoped weapon")
+    expect(ALLOWED_PAIRS).toContainEqual(['zoom', 'ping']);
+    expect(defaultPadBinds().zoom).toEqual([PAD.RS]);
+    expect(defaultPadBinds().ping).toEqual([PAD.RS]);
     expect(findConflicts(padAll())).toEqual([]);
     expect(findConflicts(defaultBinds())).toEqual([]);
+    // without the pair it would be the one clash
+    expect(findConflicts(padAll(), {}, [])).toEqual([{ a: 'zoom', b: 'ping', input: PAD.RS }]);
+  });
+
+  it('(optic-coop M2) a player remap putting another verb on R3 still conflicts, with both Zoom and Ping', () => {
+    const b = defaultPadBinds();
+    assignPadBind(b, 'crouch', 1, PAD.RS);
+    expect(findConflicts(padAll(b))).toEqual([
+      { a: 'crouch', b: 'zoom', input: PAD.RS },
+      { a: 'crouch', b: 'ping', input: PAD.RS },
+    ]);
+    // keyboard: a key put on Ping that is another verb's (not Zoom's) is a clash
+    const k = defaultBinds();
+    expect(assignBind(k, 'ping', 0, 'KeyE')).toBe('interact');
+    expect(findConflicts(k)).toEqual([{ a: 'interact', b: 'ping', input: 'KeyE' }]);
   });
 
   it('(A3) Jump and Interact are separate verbs now: one key on both is a conflict', () => {
@@ -34,6 +53,7 @@ describe('binding conflicts (step 18)', () => {
     const b = defaultPadBinds();
     assignPadBind(b, 'draw', 0, PAD.B);
     assignPadBind(b, 'draw', 1, PAD.B);
+    b.ping = [];
     const c = findConflicts(padAll(b));
     expect(c).toEqual([{ a: 'crouch', b: 'draw', input: PAD.B }]);
     expect([...conflictIds(c)].sort()).toEqual(['crouch', 'draw']);
