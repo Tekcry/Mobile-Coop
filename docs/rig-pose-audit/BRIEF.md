@@ -13,3 +13,11 @@
   - A2: A51 (`docs/locomotion/DECISIONS.md`, posed rig for the wall light sample) is superseded by the sim wall head fitted
     to the rig; the light meter and the guards then read the same point on both machines (light parity).
   - A3: slice 8 (G13 hostage hold, G19 partner blocker) is review only: kept as is and noted for the orchestrator.
+  - A4 (orchestrator 2026-10-24, keep): the host judges the client like its own player: split volumes, head x1.3, legs
+    x0.75 (was x1 on one capsule). Undo: `src/net/remotePlayer.ts` back to one capsule with x1 (S1 commit 8ebd23ab).
+  - A5 (orchestrator, keep): the host judges the client at its latest accepted wire state, not the copy drawn 0.1 s
+    behind. Undo: feed `RemotePlayer` the interpolated avatar state (S1).
+  - A6 (orchestrator, keep; S3 D1): the head judge also accepts the guard head the client was shown (`Enemy.wireHead`),
+    because a guard's lean, wall stance and aim pitch are not on the wire. Undo: drop the fallback in `judgeRewound`
+    (`src/net/shotHistory.ts` / `coopHost.ts`); or put guard lean on the wire (a wire change) and then drop it.
+  - Left as is (orchestrator): the roll's x0.5 damage applies to the client only (pre-existing).
