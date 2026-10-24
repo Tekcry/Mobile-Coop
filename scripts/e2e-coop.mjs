@@ -1058,15 +1058,26 @@ try {
         await GA(() => window.__app.input.state.set('e2e', 'interact', false));
       }
       await until(A, (id) => { const b = window.__app.current.net.bluffs.values().next().value; return !!b && b.eid === id; }, gg, 4000, 'joint: the host stores its bluff on the guard');
-      await until(B, () => (document.querySelector('.hud-feed')?.textContent ?? '').includes('Bluff on'), null, 4000, 'joint: the client sees the bluff line');
-      // the client holds A on its hostage: the list opens on INTERROGATE (he has information); the release runs the read
+      // the client holds A on its hostage: the list opens on INTERROGATE (he has information); the release runs the read.
+      // (flake fix) The bluff lives JOINT.window (6 s) of host time until the read ENDS: the hold starts at once and the
+      // client's bluff line is checked alongside, so sequential Node polls under load do not spend the window (a 28 fps
+      // host timed out here on the joint count).
       await GB(() => window.__app.input.state.set('e2e', 'interact', true));
       try {
-        await until(B, () => { const m = window.__app.current.ctxMenu; return m.state === 'active' && m.opts[m.sel]?.opt === 'interrogate'; }, null, 6000, 'joint: hold A on the client highlights INTERROGATE');
+        await Promise.all([
+          until(B, () => (document.querySelector('.hud-feed')?.textContent ?? '').includes('Bluff on'), null, 4000, 'joint: the client sees the bluff line'),
+          until(B, () => { const m = window.__app.current.ctxMenu; return m.state === 'active' && m.opts[m.sel]?.opt === 'interrogate'; }, null, 6000, 'joint: hold A on the client highlights INTERROGATE'),
+        ]);
       } finally {
         await GB(() => window.__app.input.state.set('e2e', 'interact', false));
       }
-      await until(A, (n) => window.__app.current.net.joints === n + 1, j0, 10000, 'joint: the host counts the joint read');
+      try {
+        await until(A, (n) => window.__app.current.net.joints === n + 1, j0, 10000, 'joint: the host counts the joint read');
+      } catch (err) {
+        // name the cause next time: a bluff aged past JOINT.window (6 s host time) is dropped at the read's end
+        const why = await GA(() => { const n = window.__app.current.net; const b = n.bluffs.values().next().value; return { bluffs: n.bluffs.size, age: b ? +(n.time - b.t0).toFixed(2) : null }; }).catch(() => null);
+        throw new Error(`${err.message} (host bluff state ${JSON.stringify(why)})`);
+      }
       for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
         await until(P, () => (document.querySelector('.hud-feed')?.textContent ?? '').includes('e2e joint'), null, 5000, `joint: the ${tag} feed shows the joint line`);
       }
