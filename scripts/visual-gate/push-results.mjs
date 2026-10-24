@@ -21,11 +21,11 @@ const CACHEINFO_BATCH = 100;
 
 /**
  * @param {string[]} args
- * @param {{ cwd: string, env?: Record<string, string>, input?: string | Buffer, soft?: boolean }} o
+ * @param {{ cwd: string, env?: Record<string, string>, input?: string | Buffer, soft?: boolean, timeout?: number }} o
  */
-function git(args, { cwd, env = {}, input, soft = false }) {
+function git(args, { cwd, env = {}, input, soft = false, timeout = 120_000 }) {
   try {
-    return execFileSync('git', args, { cwd, encoding: 'utf8', env: { ...process.env, ...env }, input, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true, timeout: 120_000 }).trim();
+    return execFileSync('git', args, { cwd, encoding: 'utf8', env: { ...process.env, ...env }, input, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true, timeout }).trim();
   } catch (e) {
     if (soft) return '';
     throw e;
@@ -112,7 +112,7 @@ export function pushFolder({ dir, branch, prefix, message, dryRun = false, cwd =
         return { commit, files: list.length, bytes };
       }
       try {
-        git(['push', '-q', remote, `${commit}:refs/heads/${branch}`], { cwd });
+        git(['push', '-q', remote, `${commit}:refs/heads/${branch}`], { cwd, timeout: 600_000 }); // PNG folders on a slow uplink (vg7p1 check polish 2)
         fetch();
         return { commit, files: list.length, bytes };
       } catch (e) {
