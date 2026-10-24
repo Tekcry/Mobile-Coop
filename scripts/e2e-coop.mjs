@@ -2695,49 +2695,58 @@ console.log('coop4 guard AI (AI6): three intruders over four pages - each pair h
         await lit({});
         await teleP(0, snapped.hostHide[0], snapped.hostHide[1], 0);
         await teleP(3, snapped.dHide[0], snapped.dHide[1], 0);
-        // the guard at the first spot facing the z -8.8 wall with a walkable leg 2.6 m behind him (a jog's reach, past the close range)
+        // the guard at the first spot facing the z -8.8 wall with a walkable leg 2.6 m behind him (in a jog's reach, past the close range)
+        // (ai6 triage 4) The leg is built round the guard's SPAWNED feet (em.spawn snaps (gx, gz) to the nav cell centre, enemyManager.ts:1866-1868,
+        // (gx + 0.25, gz - 0.15)), and the hearing check uses a jog's step reach, `noiseRadius(GEARS.stand[3] 3.0, false)`
+        // = 1.2 + (3.0 - 1.4) * 1.6 = 3.76 m (`src/player/movement.ts:152`, `src/config/movement.ts` GEARS; C's full-stick
+        // run is 4.0 m/s, 5.36 m). It was a fixed 3 m round (gx, gz): the leg ends sat 3.0 m off before the snap and 3.26 m
+        // after, never inside a 3 m reach, so every spot failed the check with cell, leg and cap fine.
         const GS = [[9, -7.6], [14, -7.6], [4, -7.6], [-8, -7.6]];
+        const JOG_REACH = 1.2 + (3.0 - 1.4) * 1.6;
         let legWhy = null;
-        const leg = await GH(([GS]) => {
+        const leg = await GH(([GS, R]) => {
           const g = window.__app.current;
           const em = g.enemyMgr;
           const nav = em.nav;
           const V = g.player.position.constructor;
           const walk = (x, z) => { const c = nav.cellOf(x, z, 0); return c >= 0 && nav.isWalkable(c); };
+          const legClear = (a, b) => { let ok = true; for (let k = 0; k <= 12 && ok; k++) ok = walk(a[0] + (b[0] - a[0]) * (k / 12), a[1] + (b[1] - a[1]) * (k / 12)); return ok; };
           // (ai6 triage 3) why each spot was skipped: the guard cell, the leg, the live cap, the hearing check
           const tried = [];
           for (const [gx, gz] of GS) {
-            const mx = gx;
-            const mz = gz + 2.6;
-            const a = [mx - 1.5, mz];
-            const b = [mx + 1.5, mz];
             const row = { g: [gx, gz], cell: walk(gx, gz), leg: true, cap: [em.alive, em.maxAlive] };
             tried.push(row);
-            let clear = row.cell;
-            for (let k = 0; k <= 12 && clear; k++) clear = walk(a[0] + (b[0] - a[0]) * (k / 12), a[1]);
-            row.leg = clear;
-            if (!clear) continue;
+            row.leg = row.cell && legClear([gx - 1.5, gz + 2.6], [gx + 1.5, gz + 2.6]);
+            if (!row.leg) continue;
             const e = em.spawn('grunt', new V(gx, 0, gz), false, Math.PI);
             if (!e) {
               row.spawn = 'null (live cap or no floor)';
               return { tried };
             }
             e.meter = 0;
+            row.at = [+e.pos.x.toFixed(2), +e.pos.z.toFixed(2)];
+            // the leg round where he really stands
+            const mx = e.pos.x;
+            const mz = e.pos.z + 2.6;
+            const a = [mx - 1.5, mz];
+            const b = [mx + 1.5, mz];
+            if (!legClear(a, b)) { row.legAt = false; em.despawn(e); continue; }
             let heard = true;
             try {
               em['hearRoom'](em.enemies.length);
               const i = em.enemies.indexOf(e);
-              row.at = [+e.pos.x.toFixed(2), +e.pos.z.toFixed(2)];
-              heard = [a, [mx, mz], b].every((p) => { const d = Math.hypot(e.pos.x - p[0], e.pos.z - p[1]); return d > 1.9 && em['tierOf'](e, i, new V(p[0], 0, p[1]), 3, d, false) >= 1; });
+              // (ai6 triage 4) per leg point: distance, tier, effective reach (masking / wall), so a miss names its cause
+              row.pts = [a, [mx, mz], b].map((p) => { const d = Math.hypot(e.pos.x - p[0], e.pos.z - p[1]); const t = em['tierOf'](e, i, new V(p[0], 0, p[1]), R, d, false); return { d: +d.toFixed(2), tier: t, r: +em['hearR'][i].toFixed(2) }; });
+              heard = row.pts.every((p) => p.d > 1.9 && p.tier >= 1);
             } catch (x) {
               row.hearErr = String(x);
             }
             row.heard = heard;
             if (!heard) { em.despawn(e); continue; }
-            return { id: e.id, g: [gx, gz], a, b, tried };
+            return { id: e.id, g: [gx, gz], at: row.at, a, b, tried };
           }
-          return { tried };
-        }, [GS]).then((r) => (r && r.id ? r : (legWhy = r, null)));
+          return { tried, reach: R };
+        }, [GS, JOG_REACH]).then((r) => (r && r.id ? r : (legWhy = r, null)));
         assert(!!leg, `AI6 (3): a calm grunt facing the wall with a walkable leg behind him spawns (${jl(legWhy)})`);
         spawned.push(leg.id);
         // C's index in the guards' list (the bit `seesIndex` reads: the ref's slot when it has one)
@@ -2748,10 +2757,18 @@ console.log('coop4 guard AI (AI6): three intruders over four pages - each pair h
             const em = g.enemyMgr;
             const b = em.intruders;
             const e = em.enemies.find((x) => x.id === a.gid);
-            if (!st.init) { st.init = true; Object.assign(st, { phase: 'crouch', maxMeter: 0, nonCalm: 0, cValid: 0, hostSlot: 0, tTurn: -1, loc: null, sawC: false, err: '', runT0: -1 }); }
+            if (!st.init) { st.init = true; Object.assign(st, { phase: 'crouch', maxMeter: 0, nonCalm: 0, cValid: 0, hostSlot: 0, tTurn: -1, loc: null, sawC: false, err: '', runT0: -1, cSpd: { crouch: 0, run: 0 }, dMin: { crouch: 99, run: 99 }, levels: [], lastLv: '' }); }
             if (!e) return;
             const s = b.find(a.idC);
             st.maxMeter = Math.max(st.maxMeter, e.meter);
+            // (ai6 triage 4) per phase: C's sent speed as the host hears it (`clientStepNoise` reads it), his least distance
+            // to the guard, and the guard's level changes (time, level, meter), so a miss in a never-run leg names its cause
+            const rC = g.net?.remotes?.get(a.idC);
+            if (rC?.state) {
+              st.cSpd[st.phase] = Math.max(st.cSpd[st.phase] ?? 0, rC.state.speed ?? 0);
+              st.dMin[st.phase] = Math.min(st.dMin[st.phase] ?? 99, Math.hypot(rC.feet.x - e.pos.x, rC.feet.z - e.pos.z));
+            }
+            if (e.level !== st.lastLv && st.levels.length < 24) { st.lastLv = e.level; st.levels.push([st.phase, +g.time.toFixed(2), e.level, +e.meter.toFixed(2)]); }
             if (a.idxC >= 0 && e.seesIndex(a.idxC)) st.sawC = true;
             const hs = b.find(a.idHost);
             if (hs >= 0 && b.valid[hs] === 1) st.hostSlot++;
@@ -2787,26 +2804,31 @@ console.log('coop4 guard AI (AI6): three intruders over four pages - each pair h
         const stop = () => P4[2].evaluate(() => { for (let i = 0; i < 4; i++) window.__pad.axis(i, 0); });
         let tgt = leg.b;
         /** One steering poll: face the target end of the leg and hold the stick forward; the other end once there. */
-        const steer = async () => {
-          const r = await P4[2].evaluate(([t]) => {
+        const steer = async (mag = 1) => {
+          const r = await P4[2].evaluate(([t, mag]) => {
             const g = window.__app.current;
             const p = g.player.controller.pos;
             const dx = t[0] - p.x;
             const dz = t[1] - p.z;
             g.player.cam.yaw = Math.atan2(dx, dz);
             g.player.cam.pitch = 0;
-            window.__pad.axis(1, -1);
+            window.__pad.axis(1, -mag);
             return { d: Math.hypot(dx, dz), crouched: g.player.controller.crouched, speed: g.player.controller.speed };
-          }, [tgt]);
+          }, [tgt, mag]);
           if (r.d < 0.5) tgt = tgt === leg.b ? leg.a : leg.b;
           return r;
         };
         // crouch-walk 4 s
+        // (ai6 triage 4) at a crouch WALK: a full stick crouched is the crouch run, 2.6 m/s (`GEARS.crouch[4]`), whose steps
+        // carry 1 + (2.6 - 1.8) * 1.5 = 2.2 m (`noiseRadius`, NOISE_QUIET.crouch 1.9), 0.5 m short of the leg's nearest point.
+        // Raw axis 0.78 -> radial dead zone 0.15 / 0.98 -> 0.76 -> past the 0.05 dead zone u 0.75 -> ~1.64 m/s crouched
+        // (`stickSpeed`, between the sneak 1.3 at 0.45 and the walk 1.7 at 0.8): silent (<= 1.9) with any dead zone 0..0.15.
+        const CROUCH_MAG = 0.78;
         await setCrouch(true);
         let cMoved = 0;
         let cCrouch = 0;
         let cN = 0;
-        const hc = await waitHostSim(HA, 4000, async () => { const r = await steer(); cN++; if (r.crouched) cCrouch++; cMoved = Math.max(cMoved, r.speed); });
+        const hc = await waitHostSim(HA, 4000, async () => { const r = await steer(CROUCH_MAG); cN++; if (r.crouched) cCrouch++; cMoved = Math.max(cMoved, r.speed); });
         await stop();
         const c2 = await GH(() => ({ ...window.__ai6s }));
         const why = jl({ hc: Math.round(hc), cN, cCrouch, cMoved: f2(cMoved), idxC, ...c2 });
@@ -2821,7 +2843,7 @@ console.log('coop4 guard AI (AI6): three intruders over four pages - each pair h
         await stop();
         const c3 = await GH(() => ({ ...window.__ai6s }));
         const loc = c3.loc;
-        const why3 = jl({ hr: Math.round(hr), tTurn: f2(c3.tTurn), loc, sawC: c3.sawC, hostValidSteps: c3.hostSlot, err: c3.err });
+        const why3 = jl({ hr: Math.round(hr), tTurn: f2(c3.tTurn), loc, sawC: c3.sawC, hostValidSteps: c3.hostSlot, err: c3.err, cSpd: c3.cSpd, dMin: c3.dMin, levels: c3.levels, at: leg.at });
         assert(c3.tTurn >= 0 && c3.tTurn <= 2.5, `AI6 (3): within 2 s the guard turns / investigates (not calm after ${f2(c3.tTurn)} s of the run) (${why3})`);
         assert(!!loc && loc.locT < 1, `AI6 (3): a heard step locates C's slot (locT < 1) (${why3})`);
         if (loc) {
