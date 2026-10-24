@@ -3,6 +3,21 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 44 (2026-10-25 ~04:20, after the 04:10 reset; wins over SAVE 43 where they differ):**
+- Master 4.99.1 (trains 72 + 73). Service live (pid 59260), queue was empty, laptop idle ~22% at 04:15.
+- #366 f3eaceed: Orchestrator's Opus re-check PASS, `checker` status posted by it; it labels #366 with #351 once
+  Marlow's #365 (e2e-coop fix) is train-ready. Nothing for me unless CI goes red.
+- guard-cap M1 (882 s) + m0 perf retry DONE and pushed to feature/guard-cap-results cc88314f (docs/guard-cap/run-m1/,
+  run-m0/perf-retry.txt; .log is gitignored, so .txt). Marlow reads the branch.
+- Queued 20261024T171542-night-shift-test-run-fc4dc9ab-f4a0 (alone, set guard-cap-ct24): ctcourse 24 patrol x3 on
+  master -> C:/NightShift/scratch/guard-cap/ct24-r{1,2,3}. When done: push to feature/guard-cap-results
+  docs/guard-cap/run-ct24/ and add the p95s to the guard-render PLAN2 note (SAVE 41).
+- feature/test-flakes: Opus agent resumed (cut by the cap) on the lightField allocation test. Then checker, PR,
+  train-ready message (the Orchestrator posts status / label; mine are blocked).
+- Watchdog install is a desktop scheduled task: Orchestrator / Michael runs
+  `powershell -NoProfile -ExecutionPolicy Bypass -File C:\NightShift\Mobile-Coop\scripts\watchdog-task.ps1`
+  (alerts only by default) after pulling C:/NightShift/Mobile-Coop to master.
+
 **Test Runner SAVE 43 (2026-10-24 ~23:58, before the ~00:13 cap; wins over SAVE 42 where they differ):**
 - Train 70 green (43/43). Train 71 556d861d (#362, scripts-only) laptop FAIL e2e-coop only (joint interrogation "host
   counts the joint read", host page x0.32 under load). CI rerun 40094567379 green. Orchestrator: release train 71 when
@@ -1128,7 +1143,7 @@ puts it in CLAUDE.md on feature/menu). Laptop full runs: `RUN_GPU=1` (E2E_GPU=1)
 
 ## Resume prompt
 ```
-Night Shift | Test Runner (laptop, the MAIN test machine). First call mcp__ccd_session_mgmt__set_session_title with session_id "self" and title "Night Shift | Test Runner" (ToolSearch if deferred). Read CLAUDE.md "Sessions" on origin/master ("Main test machine: the laptop", "Heavy-usage throughput" incl. "Token rules"), then the newest "Test Runner SAVE" block (SAVE 41 or later) at the top of docs/flake-fix/STATE.md on origin/feature/flake-fix (git fetch; git show origin/feature/flake-fix:docs/flake-fix/STATE.md). Do what it lists, in order. If two Test Runner sessions show in ListAgents, close the older one.
+Night Shift | Test Runner (laptop, the MAIN test machine). First call mcp__ccd_session_mgmt__set_session_title with session_id "self" and title "Night Shift | Test Runner" (ToolSearch if deferred). Read CLAUDE.md "Sessions" on origin/master ("Machines." and "A job.", rulebook since 4.99.0), then the newest "Test Runner SAVE" block (SAVE 44 or later) at the top of docs/flake-fix/STATE.md on origin/feature/flake-fix (git fetch; git show origin/feature/flake-fix:docs/flake-fix/STATE.md). Do what it lists, in order. If two Test Runner sessions show in ListAgents, close the older one.
 
 The queue is the SERVICE now (no hand-run chains, Orchestrator 20:26): task NightShift-laptop-queue runs scripts/laptop-queue/service.mjs from C:/NightShift/Mobile-Coop-laptop-queue-svc (follows origin/feature/laptop-queue until SAVE 37's re-register switches it to origin/master; self-updates when idle); log + state C:/NightShift/scratch/laptop-queue/ (log.txt, runs/<id>/); verdicts are GitHub statuses laptop-e2e[/<set>] + PR comments on failure. Requests: node scripts/laptop-queue/request.mjs --sha <ref> (--suites "a b" | --full | --alone --step "<cmd>" [--env K=V]) --requester "<title>" (alone = perf / sheets, after trains and PR suites). Desktop overflow worker NightShift-desktop-queue (LQ_WORKER=desktop, pr only) claims via claims/<id>.json on the laptop-queue branch. Locks C:/NightShift/heavy-4189.lock / heavy-4192.lock (service lines "laptop-queue | ..."; a lock with no live node is stale). Restarting the service: Stop-ScheduledTask leaves the node child alive, so a restart also needs that node pid killed (needs Michael's OK).
 
