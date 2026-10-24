@@ -73,6 +73,16 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
   wait (audit 2026-10-24: train 58 lost ~8 min to it and the desktop queue sat idle 9.5 min on train 59). CI's `test`
   job runs the full vitest on that head and release waits for green CI, so a unit-test failure still blocks the merge.
   The build marker is deleted right after that push, so the desktop queue claims the head at once.
+- Release path (audit 2026-10-24 finding 9): `build` assembles the CHANGELOG and makes the version commit on git
+  objects before anything is pushed (a bad fragment, an empty train or nothing new -> exit 1, no push, no PR), pushes
+  `train/<n>` once (the version commit) and opens the PR after it. The version, kind and title come from the members
+  actually merged: a left-out member never names the release, and a minor left out of a train of patches makes it a
+  patch (`version: <v> (<kind>) (asked <planned>)` in the output; the version commit, PR title and heading carry it).
+  The heading names the PR number GitHub will give (newest issue + 1); if another PR takes it, the heading is rewritten
+  and pushed once more. `release` merges with `--body "merge-train: Pages deploy is dispatched after dev moves"`, then
+  runs the idempotent tail (tag if missing, dev if behind, member PRs, one deploy dispatch, `PREVIEW:` line;
+  `docs/systems/deploy.md`); `release` of an already merged train and `merge-train repair` run only that tail.
+  Known gap: on a rebuild (exit 3) auto-train retitles the PR with its planned version and title after `build`.
 - Version of an open train: its newest `"<version>: version at merge, train <n> (G183)"` commit, else its PR title
   `"<version>: Train <n>: <title>"`, else a CHANGELOG heading that names `Train <n>`.
 - Candidates: open PRs to master labelled `train-ready` (the tick creates the label when missing) whose `check` passed
