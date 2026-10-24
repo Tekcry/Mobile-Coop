@@ -85,7 +85,8 @@ import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, trainSoon, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS } from './lib.mjs';
+import { pidAlive, staleName } from '../heavy-lock.mjs';
+import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, trainSoon, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS } from './lib.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
 const DESKTOP = process.env.LQ_WORKER === 'desktop';
@@ -629,6 +630,7 @@ async function takeLock(port, label, sha, { once = false, stop } = {}) {
         try { fs.unlinkSync(SLOTS[port].lock); } catch { /* gone */ }
         continue;
       }
+      if (breakIfStale(port, have)) continue;
       if (have !== w.on) { w.on = have; log(`${port} waiting on ${have.startsWith('laptop-queue |') ? 'own run' : 'manual lock'}: ${have}`); }
       w.from ||= Date.now();
       if (once) return null;
@@ -640,6 +642,47 @@ async function takeLock(port, label, sha, { once = false, stop } = {}) {
 function releaseLock(port, line) {
   heldLocks.delete(line);
   try { if (fs.readFileSync(SLOTS[port].lock, 'utf8').trim() === line) fs.unlinkSync(SLOTS[port].lock); } catch { /* gone */ }
+}
+
+/**
+ * Waste audit 2026-10-25 (4191 blocked by heavy.lock 21:57 to 01:20+): breaks the slot lock when it holds `text` and
+ * names a pid that is dead on this host, the file reading `text` again (lib slotLockDecision; a lock with no pid or a
+ * live pid is respected). Breaks as heavy-lock.mjs tryTake does: rename to <lock>.stale.<pid>, and when the renamed text
+ * is not `text` (a fresh taker won the race) copy it back. Logged; --dry-run only logs. true when broken.
+ */
+function breakIfStale(port, text) {
+  const lock = SLOTS[port].lock;
+  const read = () => { try { return fs.readFileSync(lock, 'utf8').trim(); } catch { return null; } };
+  const d = slotLockDecision(text, read(), { host: os.hostname(), alive: pidAlive });
+  if (d.action !== 'break') return false;
+  if (DRY) { log(`dry-run: ${port} ${path.basename(lock)} is stale (${d.why}), would break: ${text}`); return false; }
+  const stale = staleName(lock);
+  try { fs.renameSync(lock, stale); } catch { return false; }
+  try {
+    let moved = null;
+    try { moved = fs.readFileSync(stale, 'utf8').trim(); } catch { /* gone */ }
+    if (moved !== text) {
+      try { fs.copyFileSync(stale, lock, fs.constants.COPYFILE_EXCL); } catch { /* a third taker got there */ }
+      return false;
+    }
+    log(`${port} ${path.basename(lock)} is stale (${d.why}): broke "${text}"`);
+    return true;
+  } finally { fs.rmSync(stale, { force: true }); }
+}
+
+/**
+ * The desktop slot gate's lock check: true while the slot lock exists after a stale break (breakIfStale). The holder
+ * text is logged once per change ("4191 held by heavy.lock: <text>"), so a long block names its holder.
+ */
+const holderLogged = {}; // port -> the holder text last logged
+function slotLockHeld(port) {
+  const lock = SLOTS[port].lock;
+  const read = () => { try { return fs.readFileSync(lock, 'utf8').trim(); } catch { return null; } };
+  let text = read();
+  if (text !== null && breakIfStale(port, text)) text = read();
+  if (text === null) { delete holderLogged[port]; return false; }
+  if (holderLogged[port] !== text) { holderLogged[port] = text; log(`${port} held by ${path.basename(lock)}: ${text}`); }
+  return true;
 }
 
 /**
@@ -1306,7 +1349,7 @@ async function pass() {
       // it blocks new requests meanwhile so busy slots drain (as pick does on the laptop)
       const cpu = lazyCpu();
       const ports = PORTS.filter((p) => fs.existsSync(SLOTS[p].dir));
-      for (const port of ports) why[port] = busy[port] ? 'busy' : desktopSlotGate({ lockName: path.basename(SLOTS[port].lock), lockHeld: fs.existsSync(SLOTS[port].lock), dirOk: true, backlog: Infinity, cpu: cpu().gated, cpuTotal: cpu().total, minBacklog: 0, maxCpu: DESKTOP_CPU[port] });
+      for (const port of ports) why[port] = busy[port] ? 'busy' : desktopSlotGate({ lockName: path.basename(SLOTS[port].lock), lockHeld: slotLockHeld(port), dirOk: true, backlog: Infinity, cpu: cpu().gated, cpuTotal: cpu().total, minBacklog: 0, maxCpu: DESKTOP_CPU[port] });
       const waits = Object.entries(why).filter(([, w]) => w).map(([p, w]) => `${p} ${w}`);
       log(`queue: train ${train.n} ${train.sha.slice(0, 8)} (laptop silent or on another train), ${backlog} request(s)${ports.length === 0 ? '; no desktop worktree' : ''}${waits.length ? `; waiting: ${waits.join('; ')}` : ''}`);
       if (ports.length === 0 || waits.length) return;
@@ -1322,7 +1365,7 @@ async function pass() {
         if (busy[port]) continue;
         // no claims yet: the laptop runs an older service and its finished requests are not marked; never rerun them
         if (claimCount === 0) why[port] = 'no claims on the branch yet (laptop service not updated)';
-        else why[port] = desktopSlotGate({ lockName: path.basename(SLOTS[port].lock), lockHeld: fs.existsSync(SLOTS[port].lock), dirOk: fs.existsSync(SLOTS[port].dir), backlog, cpu: cpu().gated, cpuTotal: cpu().total, minBacklog: DESKTOP_BACKLOG, maxCpu: DESKTOP_CPU[port] });
+        else why[port] = desktopSlotGate({ lockName: path.basename(SLOTS[port].lock), lockHeld: slotLockHeld(port), dirOk: fs.existsSync(SLOTS[port].dir), backlog, cpu: cpu().gated, cpuTotal: cpu().total, minBacklog: DESKTOP_BACKLOG, maxCpu: DESKTOP_CPU[port] });
         if (why[port]) desktopWait[port] = true;
       }
     }

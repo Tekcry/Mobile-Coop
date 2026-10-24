@@ -2,6 +2,8 @@
 // and request.mjs (the desktop CLI) import it; tests/laptop-queue.test.ts covers it. e2e-affected.mjs is pure too (the
 // suite selection affectedSuites shares with request.mjs --affected).
 import { selectSuites, DIRECT_COVERS, WIDE_COVERS } from '../e2e-affected.mjs';
+// parseLock is pure (heavy-lock.mjs's own fs use stays in its functions, none run on import)
+import { parseLock } from '../heavy-lock.mjs';
 
 /**
  * Minutes an alone-measurement may wait before it goes ahead of PR suites (BRIEF A5; 45 -> 30, Orchestrator audit
@@ -103,6 +105,26 @@ export function desktopSlotGate(s) {
   if (s.lockHeld) return `${s.lockName} held`;
   if (!s.dirOk) return 'worktree missing';
   return desktopGate(s.backlog, s.cpu, s.minBacklog, s.maxCpu, s.cpuTotal);
+}
+
+/**
+ * Waste audit 2026-10-25 (4191 blocked by heavy.lock 21:57 to 01:20+ with 4-10 requests waiting; the gate only checked
+ * that the file exists): what to do with a slot lock read twice. `first` / `second` are the file text of two reads
+ * (null: absent); `host` this machine, `alive(pid)` the pid probe (heavy-lock.mjs pidAlive). -> { action, why }:
+ * 'free' (no lock), 'break' (it names a pid that is dead on this host and both reads match, so no fresh taker raced
+ * us), or 'hold' (no parseable pid, another host, a live pid, or the text changed between the reads). Same rule as
+ * heavy-lock.mjs isStale: an old-format line with no pid is never broken.
+ */
+export function slotLockDecision(first, second, { host, alive }) {
+  const a = first == null ? '' : String(first).trim();
+  if (!a) return { action: 'free', why: 'no lock' };
+  const { pid, host: h } = parseLock(a);
+  if (pid === null) return { action: 'hold', why: 'no pid in the lock' };
+  if (h !== host) return { action: 'hold', why: `pid ${pid} is on ${h}, not ${host}` };
+  if (alive(pid)) return { action: 'hold', why: `pid ${pid} is alive` };
+  const b = second == null ? '' : String(second).trim();
+  if (b !== a) return { action: 'hold', why: 'the lock changed between two reads' };
+  return { action: 'break', why: `pid ${pid} is not alive on ${host}` };
 }
 
 /**
