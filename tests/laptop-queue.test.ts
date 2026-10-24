@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, supersedeStatuses, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, trainSoon, releasingTrain, readyOrPending, RELEASE_HOLD_MS, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, pickBranch, supersedeStatuses, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, trainSoon, releasingTrain, readyOrPending, RELEASE_HOLD_MS, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS } from '../scripts/laptop-queue/lib.mjs';
 // @ts-expect-error plain .mjs module without types
 import { selectSuites, WIDE_COVERS } from '../scripts/e2e-affected.mjs';
 
@@ -93,6 +93,19 @@ describe('pick oldest first per requester (priority first)', () => {
     const al = req(5, 'alone', 'al', 'A');
     expect(pick({ trains: [], requests: [al, p1] }, NOW, slots(false, false))).toEqual({ kind: 'request', request: p1, slot: '4189' });
   });
+  it('pickBranch: the ref, never for a master sha, the checkout at the sha, then a tip, then the one containing branch', () => {
+    expect(pickBranch({ ref: 'origin/feature/a', onMaster: true })).toBe('feature/a');
+    expect(pickBranch({ onMaster: true, headBranch: 'feature/b', headIsSha: true, pointsAt: ['  origin/feature/b'] })).toBe('');
+    expect(pickBranch({ headBranch: 'feature/b', headIsSha: true, containing: ['  origin/feature/c'] })).toBe('feature/b');
+    // a stacked parent's head under the child's checkout: the parent's tip wins, not the checkout
+    expect(pickBranch({ headBranch: 'feature/child', headIsSha: false, pointsAt: ['  origin/feature/parent'], containing: ['  origin/feature/parent', '  origin/feature/child'] })).toBe('feature/parent');
+    expect(pickBranch({ headBranch: 'feature/b', headIsSha: false, containing: ['  origin/feature/c', '  origin/master', '  origin/HEAD -> origin/master'] })).toBe('feature/c');
+    expect(pickBranch({ headBranch: 'master', headIsSha: true, containing: ['  origin/train/74', '  origin/dev'] })).toBe('');
+    expect(pickBranch({ containing: ['  origin/feature/c', '  origin/feature/d'] })).toBe('');
+    expect(pickBranch({ pointsAt: ['  origin/feature/c', '  origin/feature/d'], containing: ['  origin/feature/c'] })).toBe('');
+    expect(pickBranch({ headBranch: 'HEAD', headIsSha: true })).toBe('');
+  });
+
   it('requestProblem: priority must be an integer when given', () => {
     const ok = { id: 'x', sha: 'a'.repeat(40), kind: 'pr', suites: ['e2e-coop'] };
     expect(requestProblem({ ...ok, priority: 2 })).toBe('');
@@ -364,6 +377,27 @@ describe('claims and the desktop lane', () => {
     expect(desktopSlotGate({ ...base, backlog: 3 })).toMatch(/backlog/);
     expect(desktopSlotGate({ ...base, cpu: NaN })).toBe('cpu unknown');
     expect(desktopSlotGate({ ...base, cpu: 55, cpuTotal: 97 })).toBe('cpu 55% >= 50% (Normal+ priority; total 97%)');
+  });
+  it('slot lock decision: break only a dead pid on this host whose text is unchanged between two reads', () => {
+    const t = 'gpu bake | 2026-10-24T21:57:00.000Z | pid 4242 | host DESKTOP';
+    const dead = { host: 'DESKTOP', alive: () => false };
+    const live = { host: 'DESKTOP', alive: () => true };
+    expect(slotLockDecision(null, null, dead)).toEqual({ action: 'free', why: 'no lock' });
+    expect(slotLockDecision(t, t, dead)).toEqual({ action: 'break', why: 'pid 4242 is not alive on DESKTOP' });
+    expect(slotLockDecision(`${t}
+`, t, dead).action).toBe('break');
+    expect(slotLockDecision(t, t, live)).toEqual({ action: 'hold', why: 'pid 4242 is alive' });
+    expect(slotLockDecision(t, t, { host: 'laptop', alive: () => false }).action).toBe('hold');
+    // a fresh taker replaced it (or it was released) between the reads: no break
+    expect(slotLockDecision(t, 'other | 2026-10-25T01:00:00.000Z | pid 77 | host DESKTOP', dead)).toEqual({ action: 'hold', why: 'the lock changed between two reads' });
+    expect(slotLockDecision(t, null, dead).action).toBe('hold');
+    // no parseable pid: the noclobber way and the service's own lines are respected
+    expect(slotLockDecision('Marlow Build | marlow-final | 18:48', 'Marlow Build | marlow-final | 18:48', dead)).toEqual({ action: 'hold', why: 'no pid in the lock' });
+    const own = 'laptop-queue | request 1a2b3c4d pid 99 | 2026-10-25T00:20:00.000Z';
+    expect(slotLockDecision(own, own, dead).action).toBe('hold');
+    let probed = 0;
+    slotLockDecision('Marlow Build', 'Marlow Build', { host: 'DESKTOP', alive: () => { probed++; return false; } });
+    expect(probed).toBe(0);
   });
 });
 

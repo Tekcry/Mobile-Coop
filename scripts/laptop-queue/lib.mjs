@@ -2,6 +2,8 @@
 // and request.mjs (the desktop CLI) import it; tests/laptop-queue.test.ts covers it. e2e-affected.mjs is pure too (the
 // suite selection affectedSuites shares with request.mjs --affected).
 import { selectSuites, DIRECT_COVERS, WIDE_COVERS } from '../e2e-affected.mjs';
+// parseLock is pure (heavy-lock.mjs's own fs use stays in its functions, none run on import)
+import { parseLock } from '../heavy-lock.mjs';
 
 /**
  * Minutes an alone-measurement may wait before it goes ahead of PR suites (BRIEF A5; 45 -> 30, Orchestrator audit
@@ -44,6 +46,25 @@ export function rerunPassed(suites) {
   const room = 140 - 'laptop rerun passed: '.length - tail.length;
   if (list.length > room) list = `${list.slice(0, room - 3)}...`;
   return `laptop rerun passed: ${list}${tail}`;
+}
+
+/**
+ * The branch a request names when --branch is not given (Orchestrator 2026-10-25: 171 open requests had branch ""), so
+ * its failure comments reach the right PR: the ref asked for; else nothing for a sha already on master (every later
+ * branch contains it); else the requester's checkout branch when the sha IS its head; else the one remote work branch
+ * whose tip is the sha, then the one that contains it (master, train/*, dev, laptop-queue and HEAD never count); ''
+ * when none or several (checker FIX: a master or stacked-parent sha took the requester's branch and PR).
+ */
+const NOT_WORK_BRANCH = /^(HEAD|master|main|dev|laptop-queue|cloud-queue|ct-movement|train\/.*)$/;
+export function pickBranch({ ref = '', onMaster = false, headBranch = '', headIsSha = false, pointsAt = [], containing = [] } = {}) {
+  if (ref) return ref.replace(/^origin\//, '');
+  if (onMaster) return '';
+  if (headBranch && headIsSha && !NOT_WORK_BRANCH.test(headBranch)) return headBranch;
+  const work = (lines) => [...new Set(lines.map((b) => b.trim().replace(/^origin\//, '')).filter((b) => b && !b.includes(' -> ') && !NOT_WORK_BRANCH.test(b)))];
+  const tips = work(pointsAt);
+  if (tips.length) return tips.length === 1 ? tips[0] : '';
+  const all = work(containing);
+  return all.length === 1 ? all[0] : '';
 }
 
 /** The problem with a request object, or '' when it is fine. */
@@ -103,6 +124,26 @@ export function desktopSlotGate(s) {
   if (s.lockHeld) return `${s.lockName} held`;
   if (!s.dirOk) return 'worktree missing';
   return desktopGate(s.backlog, s.cpu, s.minBacklog, s.maxCpu, s.cpuTotal);
+}
+
+/**
+ * Waste audit 2026-10-25 (4191 blocked by heavy.lock 21:57 to 01:20+ with 4-10 requests waiting; the gate only checked
+ * that the file exists): what to do with a slot lock read twice. `first` / `second` are the file text of two reads
+ * (null: absent); `host` this machine, `alive(pid)` the pid probe (heavy-lock.mjs pidAlive). -> { action, why }:
+ * 'free' (no lock), 'break' (it names a pid that is dead on this host and both reads match, so no fresh taker raced
+ * us), or 'hold' (no parseable pid, another host, a live pid, or the text changed between the reads). Same rule as
+ * heavy-lock.mjs isStale: an old-format line with no pid is never broken.
+ */
+export function slotLockDecision(first, second, { host, alive }) {
+  const a = first == null ? '' : String(first).trim();
+  if (!a) return { action: 'free', why: 'no lock' };
+  const { pid, host: h } = parseLock(a);
+  if (pid === null) return { action: 'hold', why: 'no pid in the lock' };
+  if (h !== host) return { action: 'hold', why: `pid ${pid} is on ${h}, not ${host}` };
+  if (alive(pid)) return { action: 'hold', why: `pid ${pid} is alive` };
+  const b = second == null ? '' : String(second).trim();
+  if (b !== a) return { action: 'hold', why: 'the lock changed between two reads' };
+  return { action: 'break', why: `pid ${pid} is not alive on ${host}` };
 }
 
 /**

@@ -4,9 +4,13 @@ Rules: CLAUDE.md "Sessions" on origin/master. Start: docs/orchestrator/BOOT.md "
 swap: HANDOFF.md (newest block). History (old Master lines, Pacing, Sessions, merge procedure, Now log, resume prompt):
 archive/STATE-history.md. Keep this file current, not appended: replace a line when it changes.
 
-## Now (2026-10-24 ~23:30)
-- OVERNIGHT on one account (Michael ~23:30): no swap; full burn to the cap each 5-hour window, save at ~92%, resume at
-  each reset (5-hour resets 2026-10-25 04:10: one-shot cron 04:13 + the 10-min cron). Weekly 17% (resets 2026-10-28).
+## Now (2026-10-25 ~08:30)
+- Account swap ~08:15. FULL BURN at 100% until Michael says slow down (Michael ~08:25: "I want to hit the 5 hour cap
+  as quick as possible as the weekly reset soon"; weekly 34%, resets 11:00; 5-hour resets 13:10). Every lead runs all
+  independent slices in parallel up to desktop CPU ~80%; Cloud Builder kept fed (3+ open briefs).
+- #378 pr-size hotfix: Michael labels it (~08:28); then leads rerun failed jobs on #372 / #373 / #377 / #379.
+  #380 re-labelled ~08:27 (train 77 drop = e2e-stealth-ai one-mover flake, Guard AI owns it). #374 CONFLICTING.
+- Older (2026-10-24 ~23:30, superseded where they disagree):
 - Master 4.98.1 (train 68 #354). Train 69 #358 (4.98.2 = #357 fog2) and train 70 #359 (4.98.3 = #353 release path):
   CI + laptop pending. #317 coop4 fix3 52e3dc13 on the laptop.
 - Process audit packages (PROCESS-AUDIT-2026-10-24.md, approved ~21:50) are PRs: #347 rulebook + docs/lean-orchestrator
