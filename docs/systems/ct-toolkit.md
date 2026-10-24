@@ -10,8 +10,8 @@ attachment set is settled by that research (G76), so this set may change before 
 
 What still holds from the 2026-10-11 approval: the engine gets the CT toolkit and each mission offers only the tools that
 suit it through a mission kit (section 4); the camera jammer and light disruptor are one tool, the pistol secondary (3.5,
-matching G76's pistol disruptor); lockpick and hacking are minigames only, with no hold alternative; V1-V3 build only
-Dead Line's kit (section 6); the ring airfoil (3.8) and knife (3.10) keep their specs for later (docs/backlog.md items
+matching G76's pistol disruptor); lockpick and hacking are minigames only, with no hold alternative; the kit per mission
+is chosen when that mission is planned (Dead Line's kit in section 6 is history); the ring airfoil (3.8) and knife (3.10) keep their specs for later (docs/backlog.md items
 23-24). Chaos Theory is a design reference only: no names, art or text from it (G5, G6).
 
 Changed by later decisions:
