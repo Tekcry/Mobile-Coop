@@ -18,7 +18,7 @@ Message the orchestrator only at PR open / train-ready / blocked / Michael. Push
 | coop-real | feature/coop-real | 92edc3e5 | c1b 0/3 on the laptop (logs only there). AGENT: Opus triage + fix on the desktop dev lane (heavy2.lock, 4189) -> laptop set coop-real-c1c. probe2 1/1. |
 | coop-real C2 part 3 | feature/coop-real-c2 (Mobile-Coop-coop-real-c2) | 92edc3e5 | AGENT: Opus builder (part3.mjs only; lib changes in C2-REPORT.md). Then merge into coop-real -> K1 checker + run 1a/1b. |
 | gm-look | feature/gm-look (from gm-flip) | a76fa924 | AGENT: lean elbow poke-through + hem shards in the garment build, D6-style assertion, desktop rebake (heavy.lock), crops in scratch/ctcore/gm-look/. Follow-up PR after #375. |
-| gm-polish | feature/gm-polish (from gm-flip) | a76fa924 | AGENT: lightRig refill behind flag, thawPose figure.update (S11 P1/P2), shield local chain, offline guard GLB warm. Follow-up PR after #375. |
+| gm-polish | feature/gm-polish (from gm-flip) | 7945363b | Built: offline guard GLB warm at the menu (items 1-3 already in code). Opus checker RUNNING (report scratch/ctcore/gm-polish-CHECK.md) + laptop set gm-polish (e2e-offline e2e-menus) queued. STATE.md: mark Offline (~:156) and polish items 2-3 (~:142/:146) done. PR after #375 merges. |
 | player-batch-25 | feature/player-batch-25 (#384 + #380 merged in) | e8d848ce | AGENT: #384 polish (restart not yet polled), #380 polish (spawn error text, runJob test). Checker, then PR after #384 / #380 merge. |
 
 ## Open
