@@ -1,0 +1,15 @@
+{
+  "id": "20261024T085932-night-shift-sector-o-513a7121-7eb3",
+  "sha": "513a712122b5ab8ffea1064fd17aa365464e37fe",
+  "branch": "feature/sector-redesign-fog",
+  "pr": 339,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-lightbake",
+    "e2e-darkness",
+    "e2e-sectorops:6"
+  ],
+  "set": "fog",
+  "note": "campus fog fix (render only)"
+}
