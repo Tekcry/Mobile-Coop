@@ -21,6 +21,8 @@
  *   again). With the named-target rule the decoy read also breaks it.
  * - Per-area alarm stages (beside SectorRun's one site stage, untouched): a camera / laser stage rise counts for the
  *   tracks whose boxes (and height band) hold the device, a guard's alarm for both; `onAlarm` hears every rise.
+ * - (EN4, A23) `MissionDef.start`: the run begins at that section (`applyMissionStart`, before the mode starts; the
+ *   start slot points follow, `missionStartSector`). `MissionDef.guards`: only the listed guards spawn (`spawns`).
  * No allocation per tick: flags, states and stages sit in arrays sized at construction.
  */
 import type { Enemy, PlayerRef } from '../../ai/enemy';

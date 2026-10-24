@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { checkMission, type MissionDef, type MissionEvent, type MissionRule } from '../../src/game/mission/missionDef';
+import { checkMission, missionSpawnsGuard, type MissionDef, type MissionEvent, type MissionRule } from '../../src/game/mission/missionDef';
 import { RULE_HOLD, TEAM_A_BIT, TEAM_B_BIT, TEAM_BOTH } from '../../src/game/mission/ruleTracker';
 import {
   MISSION_FAILED_TITLE,
   RULE_BROKEN_TITLE,
   SectorMission,
+  applyMissionStart,
+  missionStartIndex,
+  missionStartSector,
   parseGuardId,
   pickMission,
   sectorGuardId,
@@ -14,7 +17,7 @@ import {
   type SectorMissionHost,
 } from '../../src/game/mission/sectorMission';
 import { SectorMode } from '../../src/game/modes/sectorMode';
-import type { SectorDef, SectorPhase } from '../../src/game/sectors';
+import { SectorRun, type SectorDef, type SectorPhase } from '../../src/game/sectors';
 import { CAMPUS_SECTORS } from '../../src/world/maps/campusSectors';
 import { CAMPUS_MISSION_TEST } from '../../src/world/maps/campusMissionTest';
 
@@ -536,5 +539,137 @@ describe('SectorMode with a mission', () => {
     const it0 = { enabled: true, done: false, pos: { x: 1, z: 2 } };
     expect(SectorMode.prototype.blips.call({ mission: {}, its: [it0] } as unknown as SectorMode)).toEqual([]);
     expect(SectorMode.prototype.blips.call({ mission: null, its: [it0] } as unknown as SectorMode)).toEqual([{ x: 1, z: 2, kind: 'objective' }]);
+  });
+});
+
+// (mission-framework EN4, A23) a mission that starts at a later section, and per-mission guard lists
+
+const pose = (x: number): { x: number; y: number; z: number; yaw: number } => ({ x, y: 0, z: 0, yaw: x / 10 });
+
+function threeRun(): SectorDef[] {
+  return [
+    sec('s1', 3, { start: pose(1), connector: { checkpoint: pose(11) } as SectorDef['connector'] }),
+    sec('s2', 4, { start: pose(2), start2: pose(22), connector: { checkpoint: pose(12) } as SectorDef['connector'] }),
+    sec('s3', 2, { start: pose(3) }),
+  ];
+}
+
+/** Two-Key Ledger's shape: the mission runs s2 -> s3 and starts at s2; its guards: s2's 0, 1 and 3, all of s3's. */
+function lateStart(extra: Partial<MissionDef> = {}): MissionDef {
+  return {
+    id: 'late',
+    mode: 'sector',
+    players: [1, 2, 3, 4],
+    sections: ['s2', 's3'],
+    start: 's2',
+    guards: [{ section: 's2', slots: [0, 1, 3] }, { section: 's3' }],
+    briefing: [],
+    steps: [
+      { id: 'look', section: 's2', team: 'all', kind: 'reach', text: 'The loft' },
+      { id: 'ask', section: 's2', team: 'all', kind: 'interrogate', text: 'Ask the clerk', target: 's2:3' },
+      { id: 'out', section: 's3', team: 'all', kind: 'extract', text: 'Out' },
+    ],
+    rules: [],
+    ...extra,
+  };
+}
+
+describe('SectorMission EN4: the start section (A23)', () => {
+  it('the run starts at the mission\'s start: index, checkpoint and partner point at that section\'s start', () => {
+    const defs = threeRun();
+    expect(missionStartIndex(lateStart(), defs)).toBe(1);
+    expect(missionStartIndex(lateStart({ start: undefined }), defs)).toBe(0);
+    expect(missionStartIndex(null, defs)).toBe(0);
+    expect(missionStartSector(defs, [lateStart()], 'late')?.id).toBe('s2');
+    expect(missionStartSector(defs, [lateStart()], null)?.id).toBe('s1');
+    const run = new SectorRun(defs);
+    applyMissionStart(run, 1);
+    expect(run.index).toBe(1);
+    expect(run.current?.id).toBe('s2');
+    expect(run.phase).toBe('objective');
+    expect({ ...run.checkpoint }).toEqual(pose(2));
+    expect(run.checkpoint2).toEqual(pose(22));
+    // a restart stays in the start section, at its start
+    run.restartSection();
+    expect(run.index).toBe(1);
+    expect({ ...run.checkpoint }).toEqual(pose(2));
+    // the earlier section is never rated
+    expect(run.marks[0]).toBe(-1);
+    // no mission start (0): the run as before
+    const plain = new SectorRun(defs);
+    applyMissionStart(plain, 0);
+    expect(plain.index).toBe(0);
+    expect({ ...plain.checkpoint }).toEqual(pose(1));
+  });
+
+  it('the adapter begins at the start section: the runner is on the mission\'s first section, the exit gate works there', () => {
+    const defs = threeRun();
+    const h = new FakeHost(defs);
+    h.m = new SectorMission(lateStart(), h);
+    expect(h.m.startIndex).toBe(1);
+    h.enter(h.m.startIndex);
+    expect(h.m.runner.section).toBe(0);
+    expect(h.m.runner.isOpen(0)).toBe(true);
+    h.useObjective();
+    expect(h.log).not.toContain('exit');
+  });
+});
+
+describe('SectorMission EN4: per-mission guard lists (A23)', () => {
+  it('only the listed guards spawn; a section the list does not name spawns none; no list: every guard', () => {
+    const defs = threeRun();
+    const h = new FakeHost(defs);
+    const m = new SectorMission(lateStart(), h);
+    const spawned = (sec: number): number[] => defs[sec]!.guards.map((_, k) => k).filter((k) => m.spawns(sec, k));
+    expect(spawned(0)).toEqual([]);
+    expect(spawned(1)).toEqual([0, 1, 3]);
+    expect(spawned(2)).toEqual([0, 1]);
+    expect(missionSpawnsGuard(lateStart(), 's2:2')).toBe(false);
+    expect(missionSpawnsGuard(lateStart(), 's3:1')).toBe(true);
+    const all = new SectorMission(lateStart({ guards: undefined }), h);
+    expect(defs.every((d, sec) => d.guards.every((_, k) => all.spawns(sec, k)))).toBe(true);
+  });
+
+  it('SectorMode.loadSection queues only the mission\'s guards (no mission: all of them)', () => {
+    const defs = threeRun();
+    const m = new SectorMission(lateStart(), new FakeHost(defs));
+    const load = (mission: SectorMission | null): number[] => {
+      const self = {
+        run: { defs, alarm: 0 },
+        g: { world: {}, interactables: null, stealth: null, enemyMgr: null },
+        ct: null,
+        desks: { reset: () => undefined },
+        deskApply: () => undefined,
+        slotEnemy: [] as unknown[],
+        pending: [] as { k: number }[],
+        fill: () => undefined,
+        mission,
+      };
+      (SectorMode.prototype as unknown as { loadSection(this: unknown, i: number): void }).loadSection.call(self, 1);
+      return self.pending.map((p) => p.k);
+    };
+    expect(load(m)).toEqual([0, 1, 3]);
+    expect(load(null)).toEqual([0, 1, 2, 3]);
+  });
+});
+
+describe('checkMission EN4: start and guard list', () => {
+  const ids = (): Set<string> => sectorGuardIds(threeRun());
+  it('a good start and guard list pass', () => {
+    expect(checkMission(lateStart(), ids())).toEqual([]);
+  });
+  it('rejects a start outside sections, or a step before the start', () => {
+    expect(checkMission(lateStart({ start: 's1' }), ids()).some((e) => e.includes('start s1 is not in sections'))).toBe(true);
+    const errs = checkMission(lateStart({ start: 's3' }), ids());
+    expect(errs.some((e) => e.includes('step look: section s2 is before the start s3'))).toBe(true);
+  });
+  it('rejects a bad guard list: an unknown or repeated section, a slot that is no guard or repeated, a section with no entry, a target not spawned', () => {
+    const bad = (guards: MissionDef['guards']): string[] => checkMission(lateStart({ guards }), ids());
+    expect(bad([{ section: 's2', slots: [0, 3] }, { section: 's3' }, { section: 's1' }]).some((e) => e.includes('guards s1: section is not in sections'))).toBe(true);
+    expect(bad([{ section: 's2', slots: [3] }, { section: 's2', slots: [3] }, { section: 's3' }]).some((e) => e.includes('section listed twice'))).toBe(true);
+    expect(bad([{ section: 's2', slots: [3, 4] }, { section: 's3' }]).some((e) => e.includes('slot 4 is not a guard of the section'))).toBe(true);
+    expect(bad([{ section: 's2', slots: [3, 3] }, { section: 's3' }]).some((e) => e.includes('slot 3 listed twice'))).toBe(true);
+    expect(bad([{ section: 's2', slots: [3] }]).some((e) => e.includes('section s3 has no entry'))).toBe(true);
+    expect(bad([{ section: 's2', slots: [0] }, { section: 's3' }]).some((e) => e.includes('guard s2:3 is not in the mission\'s guard list'))).toBe(true);
   });
 });

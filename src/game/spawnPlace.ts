@@ -6,6 +6,7 @@ import type { GameState } from './gameState';
 import { SightWorld } from './sectorCheck';
 import { slotSpawn, walkCrossesLocked, type LeafSeg, type SlotPoint, type SlotSpawnKind, type SpawnBody, type SpawnProbe } from './spawnSlots';
 import { courseSlotPoints, courseStartCheckpoint } from './modes/courseMode';
+import { missionParam, missionStartSector } from './mission/sectorMission';
 
 /**
  * (coop-rejoin) The game's spawn checks (`spawnSlots.ts` is the pure side): a body overlapping the level's solid pieces
@@ -98,7 +99,8 @@ export function canWalk(g: GameState, from: SlotPoint, to: { x: number; y: numbe
  */
 export function startSlotPoints(g: GameState, bay = g.opts.courseBay ?? 1): SlotPoint[] {
   if (g.opts.mode === 'course' && g.world.layout.course) return courseSlotPoints(g, courseStartCheckpoint(g, bay));
-  const s = g.opts.mode === 'sector' ? g.world.map.sectors?.[0] : undefined;
+  // (mission-framework EN4, A23) a `?mission=` that starts at a later section starts there
+  const s = g.opts.mode === 'sector' ? missionStartSector(g.world.map.sectors, g.world.map.missions, missionParam()) : undefined;
   if (s) return s.start2 ? [{ ...s.start }, { ...s.start2 }] : [{ ...s.start }];
   return g.world.layout.playerSpawns.slice(0, 2).map((p) => ({ x: p.pos.x, y: p.pos.y, z: p.pos.z, yaw: p.yaw }));
 }
