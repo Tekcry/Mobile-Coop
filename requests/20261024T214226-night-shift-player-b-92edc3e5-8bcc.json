@@ -1,0 +1,12 @@
+{
+  "id": "20261024T214226-night-shift-player-b-92edc3e5-8bcc",
+  "sha": "92edc3e5d761ca90ffc55abf907bda68468c6796",
+  "branch": "",
+  "pr": 388,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-coop-real:smoke"
+  ],
+  "set": "coop-real-c1b-logs"
+}
