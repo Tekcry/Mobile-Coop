@@ -279,6 +279,17 @@ export function laptopQueueState(paths) {
   return busy ? 'busy' : 'idle';
 }
 
+/**
+ * Self-update of the checkout the scripts run from, on an idle tick: { action: 'none' | 'update' | 'skip', reason }.
+ * Updates (a detached checkout of origin/master) only when HEAD differs from it and the working tree is clean.
+ */
+export function selfUpdatePlan({ head, master, dirty }) {
+  if (!head || !master) return { action: 'skip', reason: 'self-update skipped: could not read HEAD or origin/master' };
+  if (head === master) return { action: 'none', reason: `up to date at ${head.slice(0, 8)}` };
+  if (dirty) return { action: 'skip', reason: `self-update skipped: the working tree is not clean (HEAD ${head.slice(0, 8)}, origin/master ${master.slice(0, 8)})` };
+  return { action: 'update', reason: `self-updated to ${master.slice(0, 8)}` };
+}
+
 /** Local calendar day key (YYYY-MM-DD) of a time in ms. */
 const dayKey = (ms) => new Date(ms).toLocaleDateString('en-CA');
 
@@ -536,6 +547,29 @@ function exec(cmd, { input } = {}) {
   const r = spawnSync(cmd[0], cmd.slice(1), { cwd: CWD, encoding: 'utf8', input, windowsHide: true, maxBuffer: 64 << 20, timeout: 120_000 });
   if (r.error) return { status: -1, out: '', err: String(r.error.message) };
   return { status: r.status ?? -1, out: r.stdout ?? '', err: r.stderr ?? '' };
+}
+
+/** Runs argv in the checkout this script lives in (not the train worktree); never throws: { status, out, err }. */
+function execHere(cmd) {
+  const r = spawnSync(cmd[0], cmd.slice(1), { cwd: path.resolve(HERE, '..'), encoding: 'utf8', windowsHide: true, timeout: 120_000 });
+  if (r.error) return { status: -1, out: '', err: String(r.error.message) };
+  return { status: r.status ?? -1, out: r.stdout ?? '', err: r.stderr ?? '' };
+}
+
+/** Idle tick (no train open, nothing building): moves this checkout to origin/master so the next tick runs current scripts. */
+function selfUpdate() {
+  try {
+    if (DRY) { log('  [dry-run] would self-update this checkout to origin/master when idle'); return; }
+    if (execHere(['git', 'fetch', '-q', 'origin']).status !== 0) { log('self-update skipped: git fetch failed'); return; }
+    const head = execHere(['git', 'rev-parse', 'HEAD']).out.trim();
+    const master = execHere(['git', 'rev-parse', 'origin/master']).out.trim();
+    const dirty = execHere(['git', 'status', '--porcelain']).out.trim() !== '';
+    const plan = selfUpdatePlan({ head, master, dirty });
+    if (plan.action === 'update') {
+      const r = execHere(['git', 'checkout', '-q', '--detach', 'origin/master']);
+      log(r.status === 0 ? plan.reason : `self-update failed: ${r.err.trim().slice(-300)}`);
+    } else if (plan.action === 'skip') log(plan.reason);
+  } catch (e) { log(`self-update skipped: ${e.message}`); }
 }
 
 /** Read-only command: trimmed stdout, throws on failure. */
@@ -807,6 +841,7 @@ async function noTrain(o, labelExists) {
   }
   if (h.reason) log(`  ${h.reason}`);
   log(`decision: ${d.state} - ${d.reason}${queue ? ` (laptop queue ${queue})` : ''}`);
+  if (d.state === 'idle') selfUpdate();
   if (d.action !== 'build') return { state: d.state, reason: d.reason, candidates: cands.map((c) => c.branch), ...checkWait };
   // re-read the candidates right before the build, so the member list is fresh (a PR that just went green rides along)
   const fresh = candidates(labelExists).cands;

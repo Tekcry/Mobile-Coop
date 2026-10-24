@@ -3,7 +3,7 @@ import {
   bumpVersion, ciGreenAt, ciState, contextStatus, decide, desktopFailSuites, docsOnly, fragmentInfo, fragmentPath, joinTitles, laptopMissing, laptopQueueState, membersFromSubjects,
   nextTrainNumber, pacing, parseChangelogHeading, parseLeftOut, parseTrainTitle, planBuild, rebuildSkip, releaseArgs, releaseKind, scratchFiles,
   stackedTips, versionFromSubjects, rerunArgs, rerunContext, rerunPlan, buildMarkerPath, clearBuildMarker, withBuildMarker, writeBuildMarker, leftOutPlan, RERUN_STALE_MIN, RERUN_REQUEST_MAX,
-  checkWaitReason, holdForChecks, CHECK_WAIT_MIN, fastPollPlan, FAST_POLL_S, FAST_POLL_MAX_MIN, LOCK_STALE_MIN,
+  checkWaitReason, holdForChecks, selfUpdatePlan, CHECK_WAIT_MIN, fastPollPlan, FAST_POLL_S, FAST_POLL_MAX_MIN, LOCK_STALE_MIN,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/auto-train.mjs';
 
@@ -489,5 +489,30 @@ describe('auto-train: fast poll of a waiting tick (audit 2 item 3)', () => {
   it('a polling tick stays far inside the tick lock staleness (touched every minute anyway)', () => {
     expect(FAST_POLL_MAX_MIN).toBeLessThan(5);
     expect(FAST_POLL_MAX_MIN * 3).toBeLessThan(LOCK_STALE_MIN);
+  });
+});
+
+describe('auto-train: idle self-update', () => {
+  const A = 'a'.repeat(40), B = 'b'.repeat(40);
+  it('updates to origin/master when HEAD differs and the tree is clean', () => {
+    expect(selfUpdatePlan({ head: A, master: B, dirty: false })).toEqual({ action: 'update', reason: 'self-updated to bbbbbbbb' });
+  });
+  it('does nothing when HEAD is already origin/master', () => {
+    expect(selfUpdatePlan({ head: A, master: A, dirty: false }).action).toBe('none');
+    expect(selfUpdatePlan({ head: A, master: A, dirty: true }).action).toBe('none');
+  });
+  it('skips (and says why) when the working tree is dirty', () => {
+    const p = selfUpdatePlan({ head: A, master: B, dirty: true });
+    expect(p.action).toBe('skip');
+    expect(p.reason).toContain('not clean');
+  });
+  it('skips when a sha could not be read', () => {
+    expect(selfUpdatePlan({ head: '', master: B, dirty: false }).action).toBe('skip');
+    expect(selfUpdatePlan({ head: A, master: '', dirty: false }).action).toBe('skip');
+  });
+  it('only an idle decision triggers it: building and open-train decisions are never idle', () => {
+    const cands = [{ branch: 'f/a', pr: 1, head: 'h', fragment: null }];
+    expect(decide({ train: null, candidates: [], paceReason: null }).state).toBe('idle');
+    expect(decide({ train: null, candidates: cands, paceReason: null }).state).toBe('building');
   });
 });

@@ -92,12 +92,21 @@ export const hasTrainMember = (included) => included.some((b) => b.replace(/^ori
 
 export const trainPrTitle = (n, version, title) => `${version}: Train ${n}: ${title}`;
 
-/** The train PR body: members in merge order, then the footer line. */
-export function trainPrBody(n, title, members) {
+/** The train PR body: members in merge order, `notes` (build log lines), then the footer line. */
+export function trainPrBody(n, title, members, notes = []) {
   return [`Train ${n}: ${title}`, '', 'Members (merged into train/' + n + ' in this order):',
     ...members.map((m) => `- ${m.pr ? `#${m.pr}` : '(no open PR)'} \`${m.branch}\``), '',
+    ...(notes.length ? [...notes, ''] : []),
     'Built and released by `scripts/merge-train.mjs`: one version commit (G183) with the CHANGELOG assembled from',
     "the members' `changes/` fragments; merged only after CI passed on that commit.", '', FOOTER].join('\n');
+}
+
+/** True when `files` (paths relative to the repo root) hold a changelog fragment: changes/<name>.md, not the README. */
+export const hasFragment = (files) => files.some((f) => /^changes\/[^/]+\.md$/.test(f) && !/^changes\/readme\.md$/i.test(f));
+
+/** The synthesised fragment of a member PR without one: path (the branch with `/` as `-`) and text (changes/README.md format). */
+export function syntheticFragment(branch, title, pr) {
+  return { file: `changes/${branch.replace(/\//g, '-')}.md`, text: `# ${title}\nkind: patch\n- ${title} (#${pr})\n` };
 }
 
 /** Branches a train merged, oldest first, from its first-parent merge subjects ("Merge origin/<b> into train/<n>"). */
@@ -625,13 +634,37 @@ function trainMembers(head) {
   return members;
 }
 
+/**
+ * Members with an open PR whose branch adds no changes/*.md (a test-only PR): writes a patch fragment for each into the
+ * checked-out train tree (a dry run only prints), so the version step has something to assemble. Returns the files
+ * written and the build log lines (also the train PR body notes).
+ */
+function synthesiseFragments(members) {
+  const files = [], notes = [];
+  for (const m of members.filter((x) => x.pr)) {
+    const mb = exec(['git', 'merge-base', 'origin/master', `origin/${m.branch}`]);
+    if (mb.status !== 0) continue;
+    const added = run(['git', 'diff', '--name-only', '--diff-filter=A', mb.out.trim(), `origin/${m.branch}`, '--', 'changes']).split('\n').filter(Boolean);
+    if (hasFragment(added)) continue;
+    const frag = syntheticFragment(m.branch, run(['gh', 'pr', 'view', String(m.pr), '--json', 'title', '--jq', '.title']), m.pr);
+    notes.push(`fragment synthesised for #${m.pr}`);
+    console.log(`fragment synthesised for #${m.pr}: ${frag.file}${DRY ? ' (dry run: not written)' : ''}`);
+    if (DRY) continue;
+    const at = path.join(run(['git', 'rev-parse', '--show-toplevel']), frag.file);
+    if (fs.existsSync(at)) continue;
+    fs.writeFileSync(at, frag.text);
+    files.push(at);
+  }
+  return { files, notes };
+}
+
 /** The train PR number: the open one, or a new one (null in a dry run). */
-function ensurePr(n, version, title, members) {
+function ensurePr(n, version, title, members, notes = []) {
   const branch = `train/${n}`;
   const pr = openPr(branch);
   if (pr) { console.log(`train PR: #${pr}`); return pr; }
   const url = act(['gh', 'pr', 'create', '--base', 'master', '--head', branch, '--title', trainPrTitle(n, version, title),
-    '--body', trainPrBody(n, title, members)]);
+    '--body', trainPrBody(n, title, members, notes)]);
   return url ? Number(url.split('/').pop()) : null;
 }
 
@@ -696,7 +729,8 @@ async function build({ n, version, title, branches, keep, noTest }) {
   act(['git', 'checkout', '-B', branch, head]);
   act(keep ? ['git', 'push', 'origin', branch] : ['git', 'push', '--force', 'origin', branch]);
   const members = trainMembers(head);
-  const pr = ensurePr(n, version, title, members);
+  const synth = synthesiseFragments(members);
+  const pr = ensurePr(n, version, title, members, synth.notes);
   const protocol = planWire(wireCandidates(kept, members), head);
   if (protocol && DRY) console.log('  [dry-run] would write src/net/protocol.ts and add it to the version commit');
   else if (protocol) fs.writeFileSync(path.join(run(['git', 'rev-parse', '--show-toplevel']), 'src/net/protocol.ts'), protocol);
@@ -707,6 +741,7 @@ async function build({ n, version, title, branches, keep, noTest }) {
       extraAdd: protocol ? ['src/net/protocol.ts'] : [] });
   } catch (e) {
     if (!DRY) { // put back what the version step wrote (protocol.ts, CHANGELOG, fragments, package files): the tree was clean
+      for (const f of synth.files) fs.rmSync(f, { force: true });
       const r = exec(['git', 'checkout', 'HEAD', '--', 'src/net/protocol.ts', 'CHANGELOG.md', 'changes', 'package.json', 'package-lock.json']);
       console.error(r.status === 0 ? 'restored src/net/protocol.ts and the version step files to HEAD' : `restore FAILED: ${r.err.trim()}`);
     }

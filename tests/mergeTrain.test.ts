@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+// @ts-expect-error plain .mjs process script without types
+import { parseFragment } from '../scripts/changelog-assemble.mjs';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -8,7 +10,7 @@ import {
   failedTestFiles, vitestRerunPlan, vitestRerunCmd,
   lockIsOurs, wireCandidates, membersFromLog, parseArgs, protocolValue, releaseHeavyLock,
   resolveKeepBoth, resumeCheck, tailLines, takeHeavyLock, touchesWire, trainPrBody, trainPrTitle, versionSubject, vitestVerdict, wirePaths,
-  hasTrainMember, buildExitCode,
+  hasTrainMember, buildExitCode, hasFragment, syntheticFragment,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/merge-train.mjs';
 
@@ -44,6 +46,27 @@ describe('merge-train', () => {
     const body = trainPrBody(5, 'lamps', [{ branch: 'feature/a', pr: 125 }, { branch: 'fix/b', pr: null }]);
     expect(body).toContain('- #125 `feature/a`');
     expect(body).toContain('- (no open PR) `fix/b`');
+    expect(body.split('\n').pop()).toBe('🤖 Generated with [Claude Code](https://claude.com/claude-code)');
+  });
+
+  it('synthesises a patch fragment for a member without one, in the changes/README.md format', () => {
+    const f = syntheticFragment('test/e2e-flake', 'Fix a flaky e2e wait', 322);
+    expect(f.file).toBe('changes/test-e2e-flake.md');
+    expect(f.text.split('\n').slice(0, 3)).toEqual(['# Fix a flaky e2e wait', 'kind: patch', '- Fix a flaky e2e wait (#322)']);
+    expect(parseFragment(f.text, f.file)).toMatchObject({ title: 'Fix a flaky e2e wait', kind: 'patch', body: ['- Fix a flaky e2e wait (#322)'] });
+  });
+
+  it('sees a fragment among the files a branch adds (README and nested paths do not count)', () => {
+    expect(hasFragment(['src/a.ts', 'changes/feature-a.md'])).toBe(true);
+    expect(hasFragment(['tests/a.test.ts'])).toBe(false);
+    expect(hasFragment(['changes/README.md', 'changes/readme.md', 'changes/sub/x.md', 'changes/x.txt', 'docs/changes/x.md'])).toBe(false);
+    expect(hasFragment([])).toBe(false);
+  });
+
+  it('puts the build notes in the train PR body, above the footer', () => {
+    const body = trainPrBody(57, 'tests', [{ branch: 'test/x', pr: 322 }], ['fragment synthesised for #322']);
+    expect(body).toContain('fragment synthesised for #322');
+    expect(trainPrBody(57, 'tests', [{ branch: 'test/x', pr: 322 }])).not.toContain('synthesised');
     expect(body.split('\n').pop()).toBe('🤖 Generated with [Claude Code](https://claude.com/claude-code)');
   });
 
