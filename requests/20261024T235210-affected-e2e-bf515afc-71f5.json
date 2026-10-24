@@ -1,0 +1,16 @@
+{
+  "id": "20261024T235210-affected-e2e-bf515afc-71f5",
+  "sha": "bf515afc279b64b158f8d26fea25c88233dcfd32",
+  "branch": "feature/e2e-boot",
+  "pr": 373,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anim",
+    "e2e-combat",
+    "e2e-move",
+    "smoke"
+  ],
+  "set": "affected",
+  "priority": 1
+}
