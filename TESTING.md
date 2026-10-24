@@ -57,6 +57,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   tab and rejoin from its menu (or toggle its network off and on): the joiner comes back in the A3 entry airlock (or
   beside the host if that airlock is shut off), with A1-A2 done, the A3 doors as the host has them and the HUD on A3,
   never at the yard start. Same in Sector Ops in section 2 or 3.
+- [ ] (coop-carry) Co-op, two pages: the joiner knocks a guard out, walks to the body and picks it up (Pick up body): the 2 s lift, then it rides on the joiner's shoulder on both screens (the joiner bent, slow); the joiner hides it at a hiding spot (gone on both) or puts it down (a ragdoll on both, a guard nearby hears it). The host's own carry now shows on the joiner's screen too.
 - [ ] (pose-parity) Co-op, two pages: a partner aiming from the left shoulder while holding a hostage or on a rope shows the gun in the left hand; a partner's choke shows no elbow wind-up.
 - [ ] Lamp light (LR16a: one photometric model, no Lamp falloff row in Settings > Gameplay): start Sector Ops: the S1
   goods-in floor between the strips reads lit (meter and picture agree), Marlow station 2 still reads; a guard's torch

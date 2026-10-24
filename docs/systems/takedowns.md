@@ -92,7 +92,8 @@ Design authority: docs/DECISIONS.md (G23, G42, G43, G49), then docs/design-bible
 - Net: MoveState mode `grab` (`tid`; G7: `ph` the finisher's / interrogation's progress, `sub` bit 1 the kill, bit 2
   interrogating, the same fields, PROTOCOL_VERSION unchanged); `CoopHost` keeps a client's seized guard at their offset
   and `ref.shield` and lowers / turns him from `ph` / `sub`; `RemoteAvatar` poses the hold hands and the bend from them.
-  The carry has no MoveState (a partner sees no body on the shoulder, as before).
+  The carry has no MoveState: (coop-carry) the body item's carrier (`NetItem.by`) shows it on a partner's shoulder, and a
+  client carries through the same `game/bodyCarry.ts` (`docs/systems/coop.md`, body carry).
 - (coop-walk-fixes P6) Team takedown: a guard the partner holds as a hostage is offered to the other player from the
   ground or a wall (`assistPlan`: `TAKEDOWN.reach` / `dy`, line of sight, any side; not the `taken` / combat rules),
   row TEAM TAKEDOWN. The attacker stays put facing him for `TAKEDOWN.strike` (the row: a knockout; a held direct press: the kill);

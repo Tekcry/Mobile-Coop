@@ -709,6 +709,56 @@ try {
   // the knocked-out guard lies on the client as long as the host has the body
   await until(B, (id) => window.__app.current.net.kept.has(id), tdv, 6000, 'client keeps the body');
   assert(true, 'client keeps the body the host has lying');
+  // (coop-carry) the client carries the body: its mirrored "Pick up body" item asks the host, the host lifts it (carried:
+  // no guard finds it) and both pages show it on the client's shoulder after the lift; then the client hides it at the
+  // map's nearest hiding spot (or, with none, puts it down) and no guard ever finds a hidden body. Sim-time waits only.
+  {
+    const cid = await GA(() => window.__app.current.net.remotes.values().next().value?.id ?? '');
+    const bodyItemId = await GA((id) => { const b = window.__app.current.enemyMgr.bodies.find((x) => x.enemyId === id); return b && b.present ? `body-${b.id}` : ''; }, tdv);
+    assert(!!cid && !!bodyItemId, `a lying body and the client (${bodyItemId}, ${cid})`);
+    // stand the client beside the host's body (both pages read the host's spot for the reach)
+    await GB(([iid]) => {
+      const g = window.__app.current;
+      const it = g.interactables.items.find((i) => i.id === iid);
+      if (it) g.player.controller.teleport(it.pos.add(new it.pos.constructor(0.9, 0.1, 0)), -Math.PI / 2);
+    }, [bodyItemId]);
+    await until(B, (iid) => !!window.__app.current.interactables.items.find((i) => i.id === iid && i.enabled), bodyItemId, 6000, 'client mirrors the body item');
+    await waitHostSim(A, 300);
+    await GB((iid) => window.__app.current.interactables.items.find((i) => i.id === iid)?.onUse?.(undefined, 'local'), bodyItemId);
+    await until(A, ([id, c]) => { const g = window.__app.current; const b = g.enemyMgr.bodies.find((x) => x.enemyId === id); return !!b && b.carried && g.net.carries.has(c); }, [tdv, cid], 6000, 'host lifts the body for the client');
+    assert(true, 'the host takes the client pick up (body carried, off the floor list)');
+    await until(B, () => window.__app.current.carrier?.carrying === true, null, 6000, 'client starts its lift');
+    await waitHostSim(A, 2600);
+    await until(B, () => { const c = window.__app.current.carrier; return !!c && c.carrying && !c.busy; }, null, 8000, 'client lift done (carrying)');
+    await until(A, (c) => window.__app.current.net.carries.get(c)?.onShoulder === true, cid, 6000, 'host shows the body on the client');
+    assert(true, 'both pages show the client carrying the body');
+    const found0 = await GA((id) => window.__app.current.enemyMgr.bodies.find((x) => x.enemyId === id)?.found ?? true, tdv);
+    assert(found0 === false, 'a carried body is not found');
+    const hide = await GB(() => {
+      const g = window.__app.current;
+      const hs = g.world.layout.hideSpots ?? [];
+      const p = g.player.position;
+      let k = -1;
+      let bd = Infinity;
+      hs.forEach((h, i) => { const d = Math.hypot(h.pos.x - p.x, h.pos.z - p.z); if (d < bd && Math.abs(h.pos.y - p.y) < 2) { bd = d; k = i; } });
+      return k;
+    });
+    if (hide >= 0) {
+      await GB((k) => { const g = window.__app.current; const h = g.world.layout.hideSpots[k]; g.player.controller.teleport(h.pos.add(new h.pos.constructor(0.6, 0.1, 0)), 0); }, hide);
+      await waitHostSim(A, 400);
+      await GB(() => { const g = window.__app.current; g.carrier.carryTarget(g.player.position)?.onUse?.(undefined, 'local'); });
+      await until(A, (id) => window.__app.current.enemyMgr.bodies.find((x) => x.enemyId === id)?.hidden === true, tdv, 6000, 'host hides the client body');
+      await until(B, () => !window.__app.current.carrier.carrying, null, 6000, 'client carry ends at the hide');
+      await waitHostSim(A, 3000);
+      const found1 = await GA((id) => window.__app.current.enemyMgr.bodies.find((x) => x.enemyId === id)?.found ?? false, tdv);
+      assert(found1 === false, 'a body the client hid is never found');
+    } else {
+      await GB(() => { const g = window.__app.current; g.carrier.carryTarget(g.player.position)?.onUse?.(undefined, 'local'); });
+      await until(A, (id) => { const b = window.__app.current.enemyMgr.bodies.find((x) => x.enemyId === id); return !!b && !b.carried && b.present; }, tdv, 6000, 'host puts the client body down');
+      await until(B, () => !window.__app.current.carrier.carrying, null, 6000, 'client put down ends');
+      assert(true, 'the client puts the body down on both pages (no hiding spot on this map)');
+    }
+  }
   await GA((id) => { const b = window.__app.current.enemyMgr.bodies.find((x) => x.enemyId === id); if (b) b.hidden = true; }, tdv);
   await until(B, (id) => !window.__app.current.net.kept.has(id), tdv, 8000, 'client drops the hidden body');
   assert(true, 'a body hidden on the host leaves the client');
