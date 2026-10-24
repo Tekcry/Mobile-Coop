@@ -1,0 +1,16 @@
+{
+  "id": "20261024T174051-night-shift-player-b-bf515afc-fa79",
+  "sha": "bf515afc279b64b158f8d26fea25c88233dcfd32",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-ctcourse",
+    "e2e-course",
+    "e2e-bunker",
+    "e2e-section-rating"
+  ],
+  "set": "e2e-boot",
+  "note": "co-op boot wait fix: compare suite times to master (expect ~-120 s per ctcourse part, e2e-course, e2e-bunker; section-rating = single-player autostart unchanged)"
+}
