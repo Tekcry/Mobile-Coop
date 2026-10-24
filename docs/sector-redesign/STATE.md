@@ -281,7 +281,16 @@ Night Shift | Sector Ops Build: RESUME (saved 2026-10-24 ~20:50, new account). c
 2. #333 section bake: CI test was red (tests/responseWiring.test.ts stand-in game had no `world`; sectorMode.ts:681 reads
    world.lightBake). Fixed 305ddd11 (test only; laptop bake set PASS on 5cc02048 still counts). CI green: TRAIN-READY
    ~21:00 (ready, label, orchestrator told). Act on the train verdict. Polish held.
-2b. CLOUD brief claimed by Cloud Builder 1 (20:44): cloud-queue briefs/sector-redesign-bake-robust.md -> feature/sector-redesign-bake2 off 5cc02048 (check A P6 / P8, check B 2 / 3 / 4 / 5 / 8 / 10). On done: fetch, one Opus checker (worker / upload code), laptop lightbake / sectorops:6, PR after #333.
+2b. BAKE2 DONE by cloud: feature/sector-redesign-bake2 @ 90bf843b (worktree -bake2, junction to -bake). IN FLIGHT ~21:45:
+   Opus checker -> checks/section-bake-robust-check.md on that branch; laptop set bake2 (lightbake darkness sectorops:6,
+   request 90bf843b-1f35). PASS + green -> PR (base master; it carries #333's commits until #333 merges), train-ready.
+2c. FOG WIRING (orchestrator ~21:35, fog check P1 released): cloud brief briefs/sector-redesign-fog-wiring.md (open,
+   b445992b) -> feature/sector-redesign-fog2 off 031b54f1. On done: checker, PR after #339 (unit tests only, CI check).
+4. NEW JOB visual-gate (orchestrator ~21:35): automated picture check (viewpoints per map x Low / Epic, luma / near-black /
+   haze / blotch metrics, per-release baselines flagged in the train, L5 parity grid per map, <= 3 min per train). Branch
+   feature/visual-gate (worktree C:/NightShift/Mobile-Coop-visual-gate off master bd54dfcd). IN FLIGHT: Opus planner ->
+   docs/visual-gate/BRIEF + PLAN + STATE. Then one plan checker, tell the orchestrator (it adds the ROADMAP line), then
+   slices in parallel. Its own STATE holds its resume block from then on.
 3. Michael's campus walk S1-S3 notes: none on origin yet (no WALK file on feature/menu); they come via the orchestrator -> PLAN "Walk campus".
 HOLD (orchestrator ~20:12): Michael walks all of campus on 4.95.1 (no fog fix); his notes come via the orchestrator. NO S1-S3 layout changes until Marlow's level-validator job lands; then the campus S1-S3 redesign runs against it plus the walk notes.
 Cloud: tsc / vitest-only builder slices go to cloud-queue briefs. Older context (sector-redesign idle until Michael's playtest):
