@@ -105,7 +105,7 @@ describe('mission-validate: passing fixtures', () => {
     expect(mc(mergeGraphs(campus) as Graph)).toEqual({ errors: [], warns: [], infos: [] });
   });
 
-  it('CLI: the example mission with the spawned node exits 0; a broken step budget exits 1', () => {
+  it('CLI: the example mission with the spawned node exits 0 with 0 errors and 0 warnings', () => {
     const file = path.join(ROOT, 'docs/level-validator/example.mission.json');
     const ok = spawnSync(process.execPath, [path.join(ROOT, 'scripts/level-validate.mjs'), file], { cwd: ROOT, encoding: 'utf8', timeout: 30000 });
     expect(ok.status).toBe(0);
