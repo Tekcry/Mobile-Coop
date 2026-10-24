@@ -8,3 +8,4 @@ kind: patch
 - Laptop queue: the desktop CPU gates leave out processes at BelowNormal or Idle priority (a background Blender bake no longer holds the desktop slots); the wait reason shows the gated and the total load.
 - Laptop queue: a superseded laptop rerun closes the desktop's "desktop FAIL ..., laptop rerun queued" pending status.
 - Merge train: `git fetch` takes only the branches each step reads and retries up to 5 times when another worktree's fetch holds a ref lock (also auto-train's self-update).
+- Laptop queue: each requester's oldest open request runs first (was newest), unless one of its requests has a higher `--priority N` (request.mjs); the order between requesters is unchanged.

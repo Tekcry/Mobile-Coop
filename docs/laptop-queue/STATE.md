@@ -33,6 +33,16 @@
     master + the branch (:975). auto-train.mjs self-update master only, with the retry (:597).
   - Checker fix: a superseded laptop rerun posts error "superseded by <id>" on its own context, closing the desktop's
     "desktop FAIL ..., laptop rerun queued" pending (lib `supersedeStatuses` lib.mjs:913, service.mjs:1198).
+  - Pick order (orchestrator: newest-first let Guard AI's #360 / #363 jump its #317, unclaimed 70 min): lib `pick`
+    (lib.mjs:183) runs a requester's highest `priority` then OLDEST open request (superseded() still retires stale
+    ones first); cross-requester order by arrival unchanged; laptop reruns keep their place by id time. `priority`
+    (integer, default 0) checked in `requestProblem` (lib.mjs:50); `request.mjs --priority N` (request.mjs:82).
+    Tests: tests/laptop-queue.test.ts "pick oldest first per requester" (:54).
+  - Not merged with master (project rule: conflicts go to the train build). origin/master conflicts in
+    scripts/merge-train.mjs (mergeAndTag: master's releaseTail replaces the tag / dev pushes; keep releaseTail, use
+    `fetchOrigin(exec, ['master', 'dev'])` since releaseTail reads origin/dev; also give master's new `repair` and
+    release (already-merged path) fetches 'dev'), tests/autoTrain.test.ts (keep both import lists) and
+    tests/mergeTrain.test.ts (keep both new describe blocks).
   Rollout: update the laptop service (C:/NightShift/Mobile-Coop-laptop-queue-svc) before or together with the desktop
   worker. An older laptop's `dupKey` has no laptopRerun element, so a rerun with all suites failed and a set (always
   the case for affected requests) dedupes against the still-active desktop original and never runs.
