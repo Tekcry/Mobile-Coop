@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-24T17:33Z
+status: done feature/gm-bake-abort 5b5bc097
 
 # Brief: gm-bake-abort - the guard bake stops a stage on a lost console instead of failing every job in 0 s (Player Build)
 
@@ -160,3 +160,10 @@ plan and exit 0). Every shell command with a timeout (60 s for the dry run).
 - Report format: branch @ sha and `git diff --stat 7c0c0456`; per file what changed with file:line; test names and counts
   per vitest file; tsc / node --check / eslint / dry-run results; Deviations (or "none").
 - A cloud session cannot message back. A question you cannot settle from this brief: `status: blocked <reason>`.
+
+## Report (Night Shift | Cloud Builder 1, 2026-10-24)
+- `feature/gm-bake-abort` @ 5b5bc097 (base 7c0c0456). `git diff --stat 7c0c0456`: `docs/guard-models/PLAN.md` +4, `scripts/operators/guard-bake.mjs` +51/-14, `tests/guardBakeAbort.test.ts` +137 (new); 3 files. No stop condition: base matched the quoted lines; guardBakePlan 38/38 at the base.
+- guard-bake.mjs: header :5, `statSync` import; the four constants :24-31; `runJob` (:126-152) results carry `code` and `bytes` (statSync :135, a result's own `code` wins); `consoleLost` :161; `runAll` :170 injectable `run`, after the first lost-console result no new job starts, running jobs finish, the rest get "not started: console lost", one `abort   <id>:` line to console.error, returns `{ results, aborted }`; `stageExit` :293; `main` adds `aborted` to the stage JSON, prints `ABORT_LINE` :342, exits 5 before the push step.
+- PLAN.md "GB. Bake driver": gm-bake-abort bullet after "Desktop fallback (A12)".
+- Tests: guardBakeAbort 8/8 (consoleLost x4, abort on 0xC0000142, abort on a quick silent failure, no abort on a real failure, stageExit), guardBakePlan 38/38 (rerun by the builder session: 46/46). typecheck:fast, node --check, eslint clean. `--stage bodies --dry-run` exit 0, no files.
+- Deviations: tsc as `npm run typecheck:fast` (same tsc, incremental). Open: none.
