@@ -1,5 +1,10 @@
 # mission-framework - STATE
 
+## SWAP RESUME 2026-10-24 ~23:25 (wall clock; new account, 5-hour 0%)
+- Found: VAL done 50988ac8 (feature/mission-validator); guard-cap M0 verdict a2c4dd7b; EN1 fix cut off (WIP committed 51101b28 on feature/mission-en1); CMG / KIT-PULL / KIT-SHUT had no files.
+- RUNNING (Opus, all relaunched ~23:25): EN1 fix (-mission-en1, from 51101b28), KIT-PULL (-mission-kit-pull), KIT-SHUT (-mission-kit-shut), CMG (this worktree, graph.json only, lead commits), SS + CR graphs / PLAN.svg / SIGNOFF (this worktree, lead commits), VAL checker (report C:/NightShift/scratch/mission-val-check.md). If cut off: rerun from PLAN rows; builders commit + push their own branches.
+- NEXT: EN1 PASS -> merge EN1 into feature/mission-engine (create on origin) -> EN2 (Opus) + EN3 (Sonnet); KIT-PULL + KIT-SHUT -> one Opus batch checker KIT0+PULL+SHUT; CMG -> CMS + TGC / TKL graphs; spec batch checker -> PR A.
+
 ## SAVE ~00:25 (orchestrator 85%; no swap, resume at the 03:10 reset)
 - EN1 checker FIX (2 must-fix: per-team step budget in sector mode; per-team restart restore(section, now, team?) / resetSection(..., scope?)) + 4 polish; fix round sent to the EN1 builder (feature/mission-en1). If its fix is not on origin at resume: rerun the fix from this line (Opus, worktree -mission-en1). Then merge EN1 into feature/mission-engine and start EN2 (brief items in the 23:55 block: per-team restart, per-area alarm stages, spookStep (not a flag) survives restore, Guard AI events {name, guardTag, postId, via?}, onAlarm on camera stage for CR) + EN3 (Sonnet, objectiveRows(runner, team, hints)).
 - Running at save: VAL (WIP 97cbd290 on feature/mission-validator), CMG (no file yet: rerun from PLAN row CMG + the BEAT spaces-needed lists if missing), KIT-PULL, KIT-SHUT (no files yet: rerun from PLAN rows if missing), guard-cap M0 REPORT (feature/guard-cap; rerun if REPORT has no "2026-10 re-measure (M0)" section).
