@@ -997,46 +997,33 @@ and "Guard AI Build" on origin/feature/menu). Leads post a `checker` commit stat
 block only. Branch guard before every write. Never merge master into a branch. 2 Opus checkers on AI / src/net PRs;
 Opus triage on every laptop failure; laptop runs: cd C:/NightShift/Mobile-Coop-laptop-queue-svc && node
 scripts/laptop-queue/request.mjs --sha <sha> --pr <n> --set <name> --jobs 2 --requester "Night Shift | Guard AI Build"
---suites "a b" (verdict = GitHub status laptop-e2e/<set>; background wait loop that breaks only on
-success|failure|error, never on null). Queue pick is OLDEST-first per requester since 4.100.0 (#366); withdraw = delete requests/<id>.json on branch laptop-queue
-(gh api -X DELETE contents). Laptop auto mode blocks `gh pr edit --add-label`: tell the orchestrator at train-ready.
-Before pushing a PR head: vitest the tests importing the changed modules AND their direct importers (--maxWorkers=2).
-OVERNIGHT mode: no swap, full burn to each cap, save ~92%, no question dialogs (decide, log A-numbers in BRIEF).
-Open (save 2026-10-25 ~05:25; agents die at the cap: relaunch each from its brief + WIP):
-WIP snapshots (branches untouched): origin/wip/guard-ai-polish2-fix c8608689 (#377 fix round, 2 files so far),
-origin/wip/guard-ai-t1-look 2e43ff61 (scripts/t1-shadow-look.mjs + docs line). If a worktree is behind, `git checkout
-<wip> -- .` then finish.
-1. #317 coop4 (feature/coop4, worktree C:/NightShift/Mobile-Coop-coop4): fix3 52e3dc13 e2e-coop FAIL further on:
-   AI6 (1) + (2) PASS; AI6 (3) "a calm grunt facing the wall ... spawns" fails at all 4 tried spots (cap [9,17]).
-   Triage 4 = TEST bug (leg ends 3.00-3.26 m vs a 3 m reach: never heard), fixed e6d673e3 (test-only; triage note).
-   fix4 FAIL further (guard unaware -> cooldown mid crouch-walk): triage 5 = TEST bug (a statue's missing-partner radio
-   call made him cautious; cautious counts as calm by design), fixed c740ac86 (statues' radio quiet in (3), calm =
-   unaware | cooldown, run leg counts a tier-1 turn, hold leg C at the item). e2e-coop on c740ac86 queued (set
-   coop4-fix5, ...-9d6d; at 05:20 still behind train 76 and an aged Test Runner alone run). Next fix if the run leg fails to locate: leg at 2.2 m (test-only).
-   CONFLICT with master (one hunk src/net/protocol.ts): orchestrator agreed no master merge; if auto-train leaves #317
-   out, by-hand train merge: master's PROTOCOL_VERSION line + coop4's MAX_PLAYERS comment and `slotFromList` import.
-2. #363 polish RELEASED in 4.100.0 (train 74).
-3. #360 T1 HELD (ROADMAP Decided, assumed: keep tier 4; BRIEF A183; checker status failure posted). Look script DONE
-   2956d8a0 (scripts/t1-shadow-look.mjs: Marlow, one grunt on a 4 m leg past lamp #105, camera off his body, 60 / 30
-   fps, tier vs &animtier=0). Software-GL dry run drew no lamp shadow at all (inconclusive; foot slide 3.6 / 6.9 cm per
-   frame at 60 / 30 fps vs 0.3 / 0.9 full rate). GPU alone run queued (set t1-shadow-look, ...-5cab) -> output
-   C:/NightShift/scratch/t1-shadow-look/2956d8a0/ (*-compare.png, run.json "pixels 3+ levels apart"): put the sheets
-   + verdict in Michael's morning pack via the orchestrator. Near 0 px apart on GPU = the artefact does not show in
-   Marlow (case for option 1). After gm-flip: shadow-in-view counts as seen in animTierView.ts, measure.
-4. Polish batch 2 = PR #377 (feature/guard-ai-polish2, worktree C:/NightShift/Mobile-Coop-guard-ai-polish2; base
-   master). Checks on 80f42ee66 (checker status failure): A FIX 1 (A184 partial end on another storey: height term in
-   findPath partial + nav.test two-storey case), B FIX 2 (A193 edge pin: HEAR_STOREY = false, deferred in BRIEF /
-   ai.md / fragment; A188 LKP left unvisited: lkpWait re-ask + free lkpBy when the holder leaves the plan search).
-   FIX ROUND DONE e68a035d4 (A184 storey filter LAYER_PICK 1.2 m + fallback; A193 off + it.skip; A188 lkpWait /
-   lkpLate + planSweep frees lkpBy via ownSearch; 71 files green). Laptop polish2f (e2e-stealth-ai e2e-ctcourse,
-   ...-5cb7) queued + ONE Opus re-check RUNNING -> slices/POLISH2-RECHECK.md (lead commits). Both green -> checker
-   status success on e68a035d4 + orchestrator train-ready (it reviews + labels). Open: spot-height slice (A193 + plan
-   / ring spots, check B polish 5).
-   CI `check` red until pr-size hotfix #378 merges (Michael's OK; branches before 4.100.0 lack scripts/pr-size.mjs):
-   after it merges `gh run rerun --failed` on #377 / #360 / #317 heads. No master merge.
-5. Mission hooks (Marlow, after Michael signs off the mission specs): em.missionOrder(guardTag, 'reset' | 'walk',
-   postId, via?) wrapping Enemy.resetBreaker / Enemy.sendTo. Wait for Marlow's go.
-6. Michael's calls: A148 reinforcements at spawn; S23 client arcs / LKP ghost; S25 flares. After #317 merges:
-   feature/coop4-pol (134f6abe) needs its own alone 7-9 set; #317 polish: snapBudget headroom, stale comment
-   coopHost.ts:589, teamSizeOf TODO sectorMode.ts:201.
+--suites "a b" [--priority N] (verdict = GitHub status laptop-e2e/<set>; background wait loop that breaks only on
+success|failure|error). Withdraw = delete requests/<id>.json on branch laptop-queue. Laptop auto mode blocks the
+train-ready label: tell the orchestrator. Before pushing a PR head: vitest the tests importing the changed modules AND
+their direct importers (--maxWorkers=2). FULL BURN (Michael 08:25). A desktop-worker failure leaves its log on the
+desktop: ask the orchestrator for the FAIL lines.
+Open (save 2026-10-25 ~09:00; agents die at the cap: relaunch each from its brief + WIP):
+1. #387 one-mover (feature/guard-ai-batch3, worktree C:/NightShift/Mobile-Coop-guard-ai-batch3, off master). AI bug
+   (walker re-picked as flank beside a bounding point; slices/ONE-MOVER-TRIAGE.md on that branch). Checks A + B PASS,
+   checker success on c88135b67 + docs head 2914bdfb. Laptop e2e-stealth-ai (set one-mover, priority 9) pending on
+   c88135b67. Green -> send head 2914bdfb to the orchestrator (it re-checks + labels; train with #374 / #378 / #380).
+   Polish for a later PR: reverse-path unit case (walker made point while flank bound), ai.md clause, comment
+   enemyManager.ts:3360. Train 78 had stealth-ai green: the bug is intermittent, not blocking.
+2. #317 coop4 (feature/coop4, worktree C:/NightShift/Mobile-Coop-coop4): fix6 49b2b05b (test-only: setCrouch(false)
+   raced padReady's toggle clear; docs/coop4/checks/ai6-triage-6.md). e2e-coop queued (set coop4-fix6). If the run leg
+   fails to locate (loc null, turnBy 'turn'): leg at 2.2 m (test-only). CONFLICT with master in src/net/protocol.ts:
+   no master merge; by-hand train merge = master's PROTOCOL_VERSION line + coop4's MAX_PLAYERS comment and
+   `slotFromList` import. Green -> gh pr ready 317 + orchestrator train-ready.
+3. #360 T1 + shadow-in-view (Michael ~08:50 "Yes, shadow in view = seen"; replaces A183 hold). Branch
+   feature/guard-ai-t1-anim-tier, worktree C:/NightShift/Mobile-Coop-guard-ai-t1. Brief
+   docs/guard-ai/slices/T1-SHADOW-BRIEF.md (this branch). Opus builder was mid-build at the save: WIP snapshot
+   origin/wip/guard-ai-t1-shadow e285501c (uncommitted animTier.ts, animTierView.ts, enemy.ts, flags.ts,
+   guardLod.test.ts; base 4c0ba05d0). Relaunch: worktree behind? `git checkout origin/wip/guard-ai-t1-shadow -- .` then
+   finish from the brief. Then queue the measure run + look rerun (brief "Measure" / "Look"), 2 Opus checkers. Ship
+   only if the tier-8 saving is real and the slide is gone with hipShadowInView true.
+4. #377 polish2 (feature/guard-ai-polish2): checker PASS + laptop affected green on 4fac8536; CI red only on the
+   pr-size bug: once #378 is on master, `gh run rerun --failed` on #377 (and #360) heads, then orchestrator train-ready.
+5. Next: spot-height slice after #377 merges (docs/guard-ai/slices/SPOT-HEIGHT-BRIEF.md, A196, off master).
+6. Waiting: mission hooks em.missionOrder (Marlow's go); Michael's calls A148 / S23 / S25; after #317 merges:
+   feature/coop4-pol (134f6abe) alone 7-9 set, snapBudget headroom, comment coopHost.ts:589, TODO sectorMode.ts:201.
 ```
