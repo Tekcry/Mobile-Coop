@@ -1,7 +1,6 @@
 # Robustness rules, conventions and module layout
 Purpose: robustness rules, code conventions and the full module table.
-Design authority: docs/design-bible.md (Section 9). What the game is: CLAUDE.md and docs/DECISIONS.md ("The vision in
-one page").
+Design authority: docs/design-bible.md (Section 9). What the game is: docs/VISION.md and docs/DECISIONS.md.
 
 ## Robustness rules
 - `startGame` calls `App.releaseState()` (exit + free the scene, and empty the engine's shader cache with

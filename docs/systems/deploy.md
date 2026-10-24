@@ -1,7 +1,7 @@
 # Branches and deploy
 Purpose: how branches map to the GitHub Pages site and how a release is made.
 Rules: `docs/DECISIONS.md` G83 (master is the only base), G85 (previews), G183 (version numbers at each merge);
-CLAUDE.md "Sessions" (who merges).
+`docs/RULES.md` (who merges).
 
 ## Branches
 - Master is the live game and the only base. Every job works on its own branch `feature/<job>`, cut from master, in

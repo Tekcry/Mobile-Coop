@@ -3,7 +3,7 @@
 Process audit 2026-10-24, finding 6 (Michael approved ~21:50): swaps were the biggest single cost. Measured over 3 days:
 ~16 swaps, save -> every session up again median ~35 min, 8+ agents / runs lost at cutoffs, dead cloud builders' claims
 reopened by hand. The timing rules (save at ~92%, orchestrator prompt at 95%, Michael swaps at 100%, whichever limit binds
-first) stay in CLAUDE.md "Account swap"; this file is the commands.
+first) stay in `docs/RULES.md` ("Swaps and context"); this file is the commands.
 
 ## Targets
 | Measure | Before (3 days to 10-24) | Target |
@@ -48,7 +48,7 @@ node scripts/swap.mjs save --commit-wip
 - On the laptop: same commands; paths come from `--repo` / env `SWAP_REPO`,
   `--root` / `NS_ROOT` (default `C:/NightShift`, where the heavy locks live) and `--scratch` / `SWAP_SCRATCH`.
 
-Re-run `save` until it prints `SAFE`, then keep working to 100% as CLAUDE.md says. At 95% the orchestrator posts the next
+Re-run `save` until it prints `SAFE`, then keep working to 100% as `docs/RULES.md` says. At 95% the orchestrator posts the next
 orchestrator prompt; it is safe to log out once the meter is at 99-100% and the last `save` said `SAFE`.
 
 ## After the swap: boot
