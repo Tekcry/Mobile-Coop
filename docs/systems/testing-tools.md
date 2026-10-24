@@ -62,7 +62,8 @@ Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then
 - The folder -> suites maps live in `scripts/e2e-affected.mjs` (pure, tested by `tests/e2eAffected.test.ts`): `QUICK_COVERS`
   (`--quick`, master's map and rules unchanged; the test holds a frozen copy and checks it row by row), `DIRECT_COVERS`
   (`--affected`) and `WIDE_COVERS` (`--affected --wide`). Edit them there and keep their rule comments true. A name with a
-  part (`e2e-sectorops:1`) is one job; a whole suite absorbs its parts.
+  part (`e2e-sectorops:1`) is one job; a whole suite absorbs its parts. `scripts/auto-train.mjs` reads them too (auto-drop:
+  `suiteSetFor` over `DIRECT_COVERS` picks the failed train's culprit, `coverFolders` over `QUICK_COVERS` is its fallback).
 - The lists (process audit, 2026-10-19): REQUIRED = the co-op training level (Marlow Yard) and the systems it stands
   on. LEGACY (`--legacy`): `e2e-progression`, `e2e-cosmetics`, `e2e-clear`, `e2e-bunker` (these four get `LEGACY=1`, so
   `e2e-lib` adds `legacy=1`), `e2e-missions`, `e2e-modes`, `e2e-enemies`, `e2e-ct-warehouse`, `e2e-wall:flanker`,
@@ -493,6 +494,29 @@ behind a VPN adapter).
   - Serves `dist/` itself when no url is given and nothing is up on 4173. `--shots` is PC only (`E2E_GPU=1`). In
     `run-e2e` it is the REPORT entry; the quick map runs it (`--quick`) for `src/anim/`, `src/player/`, `src/net/` and
     `scripts/e2e-net-lib.mjs`.
+- `node scripts/level-validate.mjs <graph.json> [more.json ...] [--metrics docs/design/metrics.json]` (level-validator)
+  the level-graph validator (pure Node, no Babylon, no `src/` import; CI runs its Vitest, `tests/levelValidate.test.ts`).
+  Reads one map graph (several files, one per section, are merged: `meta` from the first, `spaces` and `links`
+  concatenated) and checks it against OUR numbers: structure, dimensions (room classes, openings, 0.5 m grid, ceilings,
+  level changes in the step band over 0.40 up to 0.45 m, corridor widths), 2-player reach with no softlock, the linear
+  spine between sections, encounter approaches (3+ links that can enter the space, of 2+ kinds, shadow + high + loud,
+  routes cross; dead ends counted by ways out), 2+ edge-disjoint routes per section (entry to exit), co-op coverage,
+  co-op links with a solo twin (ERR on a campaign map, WARN on Sector Ops) and splits (legs <= 90 s, parity within 20% by link traversal time, an
+  overwatch space, an assist, partner reach <= 15 s, shared links >= 2.0 m) and beat pacing. Declared `shadow_pct`,
+  `sees_pct`, `los_break_s` and partner reach are targets (missing or outside = ERROR); the greybox measurement step
+  (V6, later) will write `measured` values beside them. It holds no size or time constant: every number comes from
+  `docs/design/metrics.json` (`--metrics <path>` overrides it). Output: `ERROR: ...` / `WARN:  ...` / `INFO:  ...` lines,
+  then `N error(s), M warning(s).` (guard counts below 3-6 early / 6-10 late WARN; no upper limit, Michael 2026-10-24). Exit codes: 0 no errors (WARNs allowed, justify them in the map's design doc), 1 any ERROR, 2 bad
+  usage. When it runs: for every map, before Phase 3 (greybox), as the gate at the end of Phase 2 (`docs/level-design.md`
+  sections 11, 14 and 15; `docs/templates/map-spec.md`). Schema and an example graph: `docs/level-validator/graph-schema.md`,
+  `docs/level-validator/example.graph.json`. First run: campus Sector Ops, all five sections (S1-S5).
+- `node scripts/metrics-gen.mjs` (level-validator) parses `docs/design/scale-sheet.md` (sections 1 and 3, the section 7
+  room table "Room sizes by type" and section 8 "Validator numbers": speeds, split / reach times, shared width, shadow,
+  vantage and LOS targets, step band, grid) and writes `docs/design/metrics.json`, the one source of sizes and times
+  for the validator. Run it after every edit to those sheet sections and commit the JSON: `tests/metricsGen.test.ts`
+  fails when the committed JSON differs from a fresh generation. `node scripts/metrics-gen.mjs --check` writes nothing
+  and compares instead (exit 0 matches, 1 the JSON differs from the sheet, 2 a table is missing or malformed). Without
+  `--check`: exit 0 on success, non-zero when a table is missing or malformed.
 
 ## Laptop queue
 A service on the laptop (`scripts/laptop-queue/service.mjs`, one scheduled task, see `docs/laptop-queue/PLAN.md`) runs

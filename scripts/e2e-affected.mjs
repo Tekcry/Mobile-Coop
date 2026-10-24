@@ -362,3 +362,18 @@ export function selectSuites(files, map = DIRECT_COVERS) {
   }
   return [...picked].filter((s) => !s.includes(':') || !picked.has(s.split(':')[0])).sort();
 }
+
+// ---- auto-train's auto-drop (scripts/auto-train.mjs pickDrops): which suites a train member reaches ----
+
+/** The suites a change's paths reach under `map` (DIRECT_COVERS by default), `smoke` aside, parts as their suite: a Set. */
+export function suiteSetFor(files, map = DIRECT_COVERS) {
+  const out = new Set();
+  for (const f of files ?? []) for (const s of suitesForFile(String(f), map) ?? []) out.add(String(s).split(':')[0]);
+  return out;
+}
+
+/** Every prefix of `map` (QUICK_COVERS by default, any row, not only the first match) whose row names `suite` (parts as their suite), plus `src/` for a CORE suite (an unlisted src path runs CORE). */
+export function coverFolders(suite, map = QUICK_COVERS) {
+  const keys = Object.entries(map).filter(([, list]) => list.some((s) => s.split(':')[0] === suite)).map(([p]) => p);
+  return CORE.includes(suite) ? [...keys, 'src/'] : keys;
+}

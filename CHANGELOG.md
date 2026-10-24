@@ -1,5 +1,93 @@
 # Changelog
 
+## 4.99.0 - Train 72: Auto affected-e2e and flake budget; Swap tools; Rulebook: current rules only (process audit 2026-10-24) (2026-10-24, PR #364; #356, #349, #347)
+
+### Rulebook: current rules only (process audit 2026-10-24)
+- CLAUDE.md "Sessions" rewritten as one current rulebook (~150 lines): no dated layers, every contradiction resolved
+  to Michael's newest decision. New rules: no-refining rule lifted, walk cap 3 per area plus a walk card per release,
+  one-click visual sign-off before map greybox / art / big look changes, a plan checker before building, PRs under
+  ~1.5k lines or ~4 h with unfinished work dark behind an owned flag, agents commit each sub-step, checkers post a
+  `checker` commit status, leads never merge master, rules read from origin/master only.
+- `docs/systems/agent-preamble.md` matches it. The old text is kept verbatim in
+  `docs/process-audit/rules-history-2026-10-24.md`.
+
+### Auto affected-e2e and flake budget
+#### Changed
+- Laptop queue: every open PR head gets an automatic affected-e2e run (the suites its change drives) and an `affected-e2e` commit status; a newer head supersedes the older request.
+- Flake budget and quarantine replace "flake stands": a suite may flake 2 times in 7 days, the next flake quarantines it for 48 h with an owner; quarantined suites always run and print KNOWN FLAKY. `scripts/e2e-quarantine.json` holds the committed list (e2e-pad) and the suite owners; PR comments carry a flake-rate table when a run flaked.
+
+### Swap tools
+- Swap gate `scripts/swap.mjs`: `save` / `status` scan every worktree on the machine (uncommitted, unpushed, detached
+  local-only commits; merged and stale-debris worktrees skipped), the heavy locks with pid liveness, the laptop queue and
+  the auto-train status, and end with `SAFE` or `NOT SAFE: <n> items` (`C:/NightShift/scratch/swap-status.json`);
+  `save --commit-wip` commits dirty job worktrees as WIP and pushes their branches (never protected branches, never force).
+- `swap.mjs prune --dry-run|--yes` removes clean worktrees of branches merged into origin/master (branches kept).
+- `scripts/cloud-queue-expire.mjs` reopens cloud briefs whose claim missed its 30-min heartbeat for 90 min with no push
+  to the brief's branch; the cloud-queue README text for the heartbeat is in `docs/cloud-queue-README.patch.md`.
+- The swap procedure as commands, with targets (cap to every session up under 10 min): `docs/systems/swaps.md`.
+
+## 4.98.3 - Train 70: Release path hardening (2026-10-24, PR #359; #353)
+- merge-train: the release title, minor / patch kind and CHANGELOG heading come from the members actually merged
+  into `train/<n>` (a left-out member no longer names the release; the version follows the merged fragments).
+- merge-train build: the version commit is built and the CHANGELOG assembled on git objects first (fragment format,
+  empty train, nothing new, docs-only train); only a valid train is pushed, once, and its PR opened after the push.
+- merge-train release / repair: the tail (tag, dev, member PRs, deploy) is idempotent; `release` of a merged train and
+  the new `merge-train repair` (latest released version) redo only what is missing.
+- Pages: one deploy per release, dispatched after dev moves with the tested head; lint and vitest are skipped when the
+  live tree is that head's tree; each slot gets `version.json` and merge-train waits up to ~20 min, then prints
+  whether `/preview/` serves the release (`PREVIEW: OK | STALE | UNKNOWN`).
+- merge-train: `build 063` is train 63; a non-stacked build reusing a train PR drops a stale base marker.
+
+## 4.98.2 - Train 69: Saltmarsh Park fog fix wiring test (2026-10-24, PR #358; #357)
+- Tests: a test now guards the wiring of the Saltmarsh Park fog fix (the map's lamp-beam setting reaching the
+  volumetric light pass), so dropping it fails CI. No player-visible change.
+
+## 4.98.1 - Train 68: Saltmarsh Park section bake hardening (2026-10-24, PR #355; #354)
+- Saltmarsh Park's per-section lamp bake is sturdier: a lamp whose bake fails is retried once on the worker pool, then
+  on the main thread only while no worker job runs (one lamp per task, so frames keep running), and a job stuck past
+  60 s counts as failed instead of hanging the load. A failed lamp is never cached, so the next load bakes it again. A
+  failed map load no longer leaks bake workers, finished batches no longer re-upload the whole light atlas, and lamps
+  of the live section jump to the front of the queue. Picture, light meter and guards read the same light as before.
+
+## 4.98.0 - Train 67: Level validator: connectivity graph, validator, metrics JSON, scale-sheet room table, level standard; Auto-train drops the failing member and rebuilds at once (2026-10-24, PR #352; #346, #343)
+
+### Auto-train drops the failing member and rebuilds at once
+- Pipeline: a train whose laptop e2e fails (or whose laptop rerun after a desktop failure fails) no longer waits for
+  the orchestrator. Auto-train maps each member's changed files to suites with the `--affected` folder map
+  (`DIRECT_COVERS` in `scripts/e2e-affected.mjs`), drops every member that touches a failing suite (else the one with
+  the most `src/` files under that suite's `--quick` folders, else the newest-labelled; never `feature/menu`), removes
+  its `train-ready` label with a comment naming the train, suite and assert, closes the train PR and builds the next
+  train in the same tick. Status `dropped: [{ pr, branch, suite }]` and `lastDrop`, log "DROPPED" lines;
+  `--no-autodrop` restores the wait. No drop (left for the orchestrator) over 3 failing suites, when every code member
+  matches, on a suite the last auto-dropped train also failed, or on a desktop / rerun failure without a usable FAIL
+  list. CI / build-time vitest failures, the desktop-fail laptop rerun and the exit-3 rebuild guard are unchanged.
+
+### Level validator: connectivity graph, validator, metrics JSON, scale-sheet room table, level standard
+- Tooling: every map now has a connectivity graph (JSON, one object or one file per section) written before any
+  geometry; the schema, every rule each field feeds and an example graph are in `docs/level-validator/graph-schema.md`
+  and `docs/level-validator/example.graph.json`, and `docs/templates/map-spec.md` requires a passing validator run
+  before Phase 3.
+- Tooling: `node scripts/level-validate.mjs <graph.json> [more.json ...] [--metrics <path>]` validates a graph against
+  our metrics: reachability and no softlock for two players, the linear spine between sections, 3+ approaches of 2+
+  kinds per encounter space (links that can enter it), dead ends (counted by ways out), room-class sizes, opening
+  minimums, the 0.5 m grid, ceilings, 2+ independent routes per section, co-op coverage, co-op moves one player can
+  make anyway (a solo twin: ERROR on a campaign map, WARN on Sector Ops), split parity and beat pacing. Exit 0 / 1 (any ERROR) / 2 (bad usage). Tests:
+  `tests/levelValidate.test.ts`.
+- Tooling: `docs/design/metrics.json`, generated from `docs/design/scale-sheet.md` by `scripts/metrics-gen.mjs`, is the
+  one source of every size and time the validator uses (no constant in the script); `tests/metricsGen.test.ts` fails
+  when the sheet changes without a regeneration.
+- Design: `docs/design/scale-sheet.md` gains section 7, "Room sizes by type" (a room table scaled about 1.4x real and
+  floored by the camera rule: 6 m short side for encounter spaces, 3.5 m for any walk-through room), and section 8,
+  "Validator numbers" (speeds, split and reach times, shared width, shadow, vantage and line-of-sight targets).
+- Design: `docs/level-design.md` section 11 is rewritten for two players (spine between sections, splits <= 90 s per
+  leg within 20% by traversal time, partners act for each other, an overwatch spot per split, a downed partner
+  reachable within 15 s, shared routes >= 2.0 m wide), and the numeric targets are added: a vantage sees about 70% of
+  an encounter space, 40-60% of its floor in shadow, routes cross at least once, line of sight breakable within about
+  5 s, guard counts 3-6 early / 6-10 late. The graph is a Phase 2 deliverable and the validator run its gate to
+  greybox (Michael 2026-10-24, "Add 1-4 as extras").
+- Tooling: the first validator run covers all five campus Sector Ops sections (S1-S5; Michael, about 20:12), with a
+  patch or re-plan verdict per section in `docs/level-validator/campus-run/REPORT.md`.
+
 ## 4.97.1 - Train 66: Laptop queue: overlapping trains, alone preemption (2026-10-24, PR #348; #342)
 - Test tooling (laptop queue, overlap plan slice 3): pending trains run lowest number first, and a lower train's rerun
   goes before a higher pending train; the desktop takes a second, different train while the laptop runs one; auto-train's

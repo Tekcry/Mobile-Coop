@@ -96,18 +96,28 @@ export async function bakeLevelLight(inp: LightBakeInput): Promise<LightBake> {
   // (section-bake, SB1 / SB2) an opted-in map on a cache miss: the result is laid out in full now and fills as the lamps
   // land, the live section first (`GameState.create` waits for it), the others in the background
   const def = hasLamps ? sectionBakeFor(inp.mapId) : null;
-  let sections: SectionBaker | null = null;
+  // (a holder: the job below sets it after an await, which a plain `let` would narrow away)
+  const held: { sb: SectionBaker | null } = { sb: null };
   const lampJob = async (): Promise<LampResult | null> => {
     if (!baked || !hasLamps) return null;
     if (!def) return bakeLevelLamps(inp.shapes, baked.lights, inp.lo, inp.hi, lampKey);
     const hit = await readLampCache(lampKey, baked.ids.length);
     if (hit) return hit;
     const sb = new SectionBaker({ shapes: inp.shapes, lights: baked.lights, lo: inp.lo, hi: inp.hi, masks: lampSectionMasks(baked.lights, def), sections: def.regions.length, key: lampKey });
-    sections = sb;
+    held.sb = sb;
     sb.start();
     return sb.result;
   };
-  const [r, m] = await Promise.all([lampJob(), bakeLevelMoon(inp.shapes, inp.lo, inp.hi, dir, moonKey)]);
+  let r: LampResult | null;
+  let m: Awaited<ReturnType<typeof bakeLevelMoon>>;
+  try {
+    [r, m] = await Promise.all([lampJob(), bakeLevelMoon(inp.shapes, inp.lo, inp.hi, dir, moonKey)]);
+  } catch (e) {
+    // (section-bake robust, check A P8) the moon failed beside a started section bake: its workers stop here
+    held.sb?.dispose();
+    throw e;
+  }
+  const sections = held.sb;
   if (r && baked) lamps = { baked, r };
   const moon: MoonGrid = { origin: [inp.lo[0], inp.lo[1], inp.lo[2]], n: [Math.max(1, Math.ceil((inp.hi[0] - inp.lo[0]) / MOON_CELL)), Math.max(1, Math.ceil((inp.hi[1] - inp.lo[1]) / MOON_CELL)), Math.max(1, Math.ceil((inp.hi[2] - inp.lo[2]) / MOON_CELL))], cell: MOON_CELL, vis: m.vis, dir };
   return { lo: inp.lo, hi: inp.hi, lampKey, moonKey, lamps, moon, ambient, moonLight: inp.moonLight, ms: performance.now() - t0, sections };

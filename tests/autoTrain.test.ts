@@ -4,8 +4,11 @@ import {
   nextTrainNumber, pacing, parseChangelogHeading, parseLeftOut, parseTrainTitle, planBuild, rebuildSkip, releaseArgs, releaseKind, scratchFiles,
   stackedTips, versionFromSubjects, rerunArgs, rerunContext, rerunPlan, buildMarkerPath, clearBuildMarker, withBuildMarker, writeBuildMarker, leftOutPlan, RERUN_STALE_MIN, RERUN_REQUEST_MAX,
   checkWaitReason, holdForChecks, selfUpdatePlan, CHECK_WAIT_MIN, fastPollPlan, FAST_POLL_S, FAST_POLL_MAX_MIN, LOCK_STALE_MIN, FAST_POLL_LATE_S, LAPTOP_EXPECT_MIN, pendingSince, laptopLate,
+  failSuites, failureAsserts, autoDropCase, pickDrops, dropPlan, closeTrainBody, suiteBase, repeatedSuites, carryLastDrop, AUTODROP_MAX_SUITES,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/auto-train.mjs';
+// @ts-expect-error plain .mjs script without types
+import { coverFolders, suiteSetFor, QUICK_COVERS } from '../scripts/e2e-affected.mjs';
 
 const MIN = 60_000;
 const NOW = Date.parse('2026-10-24T10:00:00Z');
@@ -543,5 +546,157 @@ describe('auto-train: idle self-update', () => {
     const cands = [{ branch: 'f/a', pr: 1, head: 'h', fragment: null }];
     expect(decide({ train: null, candidates: [], paceReason: null }).state).toBe('idle');
     expect(decide({ train: null, candidates: cands, paceReason: null }).state).toBe('building');
+  });
+});
+
+describe('auto-train: auto-drop on a failed train (Michael 2026-10-24 "Auto-drop on failure")', () => {
+  const head = 'abcdef1234567890';
+  type M = { pr: number | null; branch: string; files: string[]; labeledAt?: number | null };
+  const m = (pr: number | null, branch: string, files: string[], labeledAt: number | null = null): M => ({ pr, branch, files, labeledAt });
+  const branches = (r: { drops: { branch: string }[] }) => r.drops.map((d) => d.branch);
+
+  it('parses the FAIL list of a laptop or desktop description', () => {
+    expect(failSuites('37/39 pass, 512 s; known flaky: e2e-pad; FAIL: e2e-lightbake,e2e-ctcourse:4')).toEqual(['e2e-lightbake', 'e2e-ctcourse:4']);
+    expect(failSuites('desktop: 38/39 pass, 300 s; FAIL: e2e-menus')).toEqual(['e2e-menus']);
+    expect(failSuites('39/39 pass, 300 s')).toEqual([]);
+    expect(failSuites('30/39 pass, 300 s; FAIL: e2e-a,e2e-b...')).toEqual([]);
+    expect(failSuites('no result parsed, see log')).toEqual([]);
+    expect(failSuites(undefined)).toEqual([]);
+    expect(desktopFailSuites('37/39 pass, 512 s; FAIL: e2e-coop')).toBeNull();
+    expect(suiteBase('e2e-ctcourse:4')).toBe('e2e-ctcourse');
+  });
+
+  it('reads the failing asserts of the newest failure comment on the head', () => {
+    const c = (sha: string, a: string) => `laptop-e2e failed on ${sha} (train/64).\n\n**e2e-lightbake**\nFailing assert: \`${a}\`\nLog on the laptop: x\n\`\`\`\ntail\n\`\`\`\n\n**e2e-ctcourse:4**\nFailing assert: \`none found\`\n`;
+    expect(failureAsserts(['hi', c('abcdef12', 'old'), c('abcdef12', 'not ok 3 - bake lamp count 12 != 14')], head))
+      .toEqual({ 'e2e-lightbake': 'not ok 3 - bake lamp count 12 != 14', 'e2e-ctcourse:4': '' });
+    expect(failureAsserts([c('99999999', 'x')], head)).toEqual({});
+    expect(failureAsserts([c('abcdef12', 'x').replace(/\n/g, '\r\n')], head)).toMatchObject({ 'e2e-lightbake': 'x' });
+    expect(failureAsserts(undefined, head)).toEqual({});
+  });
+
+  it('drops on a laptop failure or a failed laptop rerun only; CI, vitest, a pending rerun and stale stay as before', () => {
+    const train = (o: Record<string, unknown> = {}) => ({ n: 64, pr: 341, head, version: '4.96.0', ci: 'success', vitest: 'missing', versionCommit: true,
+      laptop: { state: 'failure', description: '38/39 pass, 600 s; FAIL: e2e-lightbake' }, rerun: { state: 'missing', description: '' }, ageMin: 30, ...o });
+    const t = train();
+    expect(autoDropCase(t, decide({ train: t }), null)).toMatchObject({ failing: ['e2e-lightbake'], reason: expect.stringMatching(/laptop-e2e failed/) });
+    const ci = train({ ci: 'failure' });
+    expect(autoDropCase(ci, decide({ train: ci }), null)).toBeNull();
+    const vt = train({ vitest: 'failure' });
+    expect(autoDropCase(vt, decide({ train: vt }), null)).toBeNull();
+    const pend = train({ laptop: { state: 'pending', description: '12/39' } });
+    expect(autoDropCase(pend, decide({ train: pend }), null)).toBeNull();
+    // a desktop failure first gets its laptop rerun (not a failure yet)
+    const desk = train({ laptop: { state: 'failure', description: 'desktop: 38/39 pass, 600 s; FAIL: e2e-coop' } });
+    expect(autoDropCase(desk, decide({ train: desk }), rerunPlan(desk, null))).toBeNull();
+    const rec = { rerun: { head, id: 'r1', suites: ['e2e-coop'], set: 'train64-rerun', at: new Date(NOW - 10 * MIN).toISOString() } };
+    expect(autoDropCase(desk, decide({ train: desk }), rerunPlan(desk, rec, { now: NOW }))).toBeNull(); // waiting on it
+    expect(autoDropCase(desk, decide({ train: desk }), rerunPlan(desk, rec, { now: NOW + 120 * MIN }))).toBeNull(); // rerun-stale
+    const failed = train({ laptop: desk.laptop, rerun: { state: 'failure', description: '0/1 pass, 80 s; FAIL: e2e-coop' } });
+    expect(autoDropCase(failed, decide({ train: failed }), rerunPlan(failed, rec, { now: NOW }))).toMatchObject({ failing: ['e2e-coop'] });
+    const noDesc = train({ laptop: desk.laptop, rerun: { state: 'failure', description: 'crashed' } });
+    // a rerun with no FAIL list (service error, no result, build failed) is no member's failure: no fallback to the desktop's list
+    expect(autoDropCase(noDesc, decide({ train: noDesc }), rerunPlan(noDesc, rec, { now: NOW }))).toBeNull();
+    // a desktop failure whose FAIL list is cut (no laptop rerun possible) stays "failed" for the orchestrator
+    const cut = train({ laptop: { state: 'failure', description: 'desktop: 30/39 pass, 600 s; FAIL: e2e-a,e2e-b...' } });
+    expect(autoDropCase(cut, decide({ train: cut }), rerunPlan(cut, null))).toBeNull();
+    const deskErr = train({ laptop: { state: 'failure', description: 'desktop: no result parsed, see log' } });
+    expect(autoDropCase(deskErr, decide({ train: deskErr }), rerunPlan(deskErr, null))).toBeNull();
+    // a laptop failure whose list is cut: dropped with the suites of the failure comment (failing [])
+    const lapCut = train({ laptop: { state: 'failure', description: '30/39 pass, 600 s; FAIL: e2e-a,e2e-b...' } });
+    expect(autoDropCase(lapCut, decide({ train: lapCut }), rerunPlan(lapCut, null))).toMatchObject({ failing: [] });
+    expect(autoDropCase(null, null, null)).toBeNull();
+  });
+
+  it('reuses the folder maps of scripts/e2e-affected.mjs: DIRECT_COVERS for tier 1, QUICK_COVERS folders for tier 2', () => {
+    expect([...suiteSetFor(['src/voxel/lampBake.ts'])]).toEqual(expect.arrayContaining(['e2e-lightbake', 'e2e-desktop']));
+    expect(suiteSetFor(['docs/x.md', 'tests/a.test.ts', 'changes/feature-a.md']).size).toBe(0);
+    expect([...suiteSetFor(['scripts/e2e-lightbake.mjs'])]).toEqual(['e2e-lightbake']);
+    expect(suiteSetFor(['src\\voxel\\lampBake.ts']).has('e2e-lightbake')).toBe(true);
+    expect(suiteSetFor(['src/ai/enemy.ts']).has('e2e-sectorops')).toBe(true); // parts as their suite
+    // DIRECT is narrower than --quick: src/ai reaches e2e-levels only in the quick map
+    expect(suiteSetFor(['src/ai/enemy.ts']).has('e2e-levels')).toBe(false);
+    expect(suiteSetFor(['src/ai/enemy.ts'], QUICK_COVERS).has('e2e-levels')).toBe(true);
+    expect(suiteSetFor(['src/core/settings.ts'], QUICK_COVERS).has('e2e-offline')).toBe(false); // first match wins
+    expect(coverFolders('e2e-offline')).toEqual(expect.arrayContaining(['src/core/', 'src/save/', 'src/pwa/']));
+    expect(coverFolders('e2e-levels')).toContain('src/ai/');
+    expect(coverFolders('e2e-move')).toContain('src/'); // a CORE suite covers unlisted src/ paths
+  });
+
+  it('tier 1: drops every member whose change maps to a failing suite (parts allowed), never the docs member', () => {
+    const ms = [m(1, 'feature/bake', ['src/voxel/lampBake.ts', 'docs/x.md']), m(2, 'feature/hud', ['src/ui/hud/x.ts']),
+      m(3, 'feature/marlow', ['src/world/maps/ctcourse.ts']), m(null, 'feature/menu', ['docs/ROADMAP.md'])];
+    expect(pickDrops(ms, ['e2e-lightbake'])).toMatchObject({ drops: [{ pr: 1, branch: 'feature/bake', suite: 'e2e-lightbake', tier: 1 }] });
+    expect(pickDrops(ms, ['e2e-ctcourse:4']).drops).toEqual([{ pr: 3, branch: 'feature/marlow', suite: 'e2e-ctcourse', tier: 1 }]);
+    expect(branches(pickDrops(ms, ['e2e-lightbake', 'e2e-pad']))).toEqual(['feature/bake', 'feature/hud']);
+    // feature/menu never leaves, even as a labelled PR whose diff maps to the suite
+    expect(branches(pickDrops([m(5, 'feature/menu', ['src/voxel/a.ts']), m(1, 'feature/bake', ['src/voxel/b.ts'])], ['e2e-lightbake']))).toEqual(['feature/bake']);
+    expect(pickDrops([m(null, 'feature/menu', ['docs/a.md'])], ['e2e-lightbake'])).toMatchObject({ drops: [], reason: expect.stringMatching(/docs member/) });
+    expect(pickDrops(ms, [])).toMatchObject({ drops: [], reason: 'no failing suite named' });
+  });
+
+  it('does not drop when every code member of a 2+ member train matches, or when more than 3 suites failed', () => {
+    const both = [m(1, 'feature/a', ['src/voxel/a.ts']), m(2, 'feature/b', ['src/voxel/b.ts']), m(null, 'feature/menu', ['docs/a.md']),
+      m(4, 'feature/docs', ['docs/c.md'])];
+    expect(pickDrops(both, ['e2e-lightbake'])).toMatchObject({ drops: [], reason: expect.stringMatching(/every code member \(#1, #2\) touches e2e-lightbake/) });
+    // one code member: still dropped
+    expect(branches(pickDrops([both[0], both[2], both[3]], ['e2e-lightbake']))).toEqual(['feature/a']);
+    expect(AUTODROP_MAX_SUITES).toBe(3);
+    const ms = [m(1, 'feature/a', ['src/voxel/a.ts']), m(2, 'feature/b', ['src/ui/b.ts'])];
+    expect(branches(pickDrops(ms, ['e2e-lightbake', 'e2e-ctcourse:1', 'e2e-ctcourse:2', 'e2e-levels']))).toEqual(['feature/a']); // 3 suites
+    expect(pickDrops(ms, ['e2e-lightbake', 'e2e-levels', 'e2e-coop', 'e2e-move'])).toMatchObject({ drops: [], reason: expect.stringMatching(/4 suites failed/) });
+  });
+
+  it('a suite the last auto-dropped train also failed is not dropped again; the record rides until a release', () => {
+    const last = { train: 64, failing: ['e2e-lightbake', 'e2e-ctcourse'], at: '2026-10-24T10:00:00Z' };
+    expect(repeatedSuites(last, ['e2e-ctcourse:3', 'e2e-coop'], 65)).toEqual(['e2e-ctcourse']);
+    expect(repeatedSuites(last, ['e2e-coop'], 65)).toEqual([]);
+    expect(repeatedSuites(last, ['e2e-lightbake'], 64)).toEqual([]); // a retried drop of the same train
+    expect(repeatedSuites(undefined, ['e2e-lightbake'], 65)).toEqual([]);
+    expect(carryLastDrop({ lastDrop: last }, { state: 'pending' })).toEqual({ state: 'pending', lastDrop: last });
+    expect(carryLastDrop({ lastDrop: last }, { state: 'idle', released: '4.97.0 (train 65)' })).toEqual({ state: 'idle', released: '4.97.0 (train 65)' });
+    const newer = { train: 65, failing: ['e2e-coop'] };
+    expect(carryLastDrop({ lastDrop: last }, { state: 'built', lastDrop: newer }).lastDrop).toBe(newer);
+    expect(carryLastDrop(null, { state: 'pending' })).toEqual({ state: 'pending' });
+  });
+
+  it('tier 2: no match -> the member with the most src/ files under the failing suite folders', () => {
+    const ms = [m(1, 'feature/a', ['src/core/settings.ts', 'src/core/display.ts']), m(2, 'feature/b', ['src/core/settings.ts', 'src/ui/x.ts']),
+      m(3, 'feature/c', ['tests/x.test.ts'])];
+    expect(pickDrops(ms, ['e2e-offline'])).toMatchObject({ drops: [{ pr: 1, branch: 'feature/a', suite: 'e2e-offline', tier: 2 }],
+      reason: expect.stringMatching(/#1 has the most src\/ files under its folders \(2\)/) });
+  });
+
+  it('tier 3: no folder match or a tie -> the newest-labelled code member; docs-only members never; one member drops itself', () => {
+    const ms = [m(1, 'feature/a', ['src/ai/x.ts'], NOW - 60 * MIN), m(2, 'feature/b', ['src/audio/y.ts'], NOW - 5 * MIN),
+      m(4, 'feature/docs', ['docs/a.md'], NOW), m(null, 'feature/menu', ['docs/b.md'])];
+    expect(pickDrops(ms, ['smoke'])).toMatchObject({ drops: [{ pr: 2, branch: 'feature/b', suite: 'smoke', tier: 3 }] });
+    // no label times: the higher PR number
+    expect(branches(pickDrops([m(7, 'feature/a', ['src/ai/x.ts']), m(9, 'feature/b', ['src/audio/y.ts'])], ['smoke']))).toEqual(['feature/b']);
+    // a tie at the top: the newest-labelled among the tied only
+    const tie = [m(1, 'feature/a', ['src/core/settings.ts'], NOW - 60 * MIN), m(2, 'feature/b', ['src/core/display.ts'], NOW - 30 * MIN),
+      m(3, 'feature/c', ['src/ui/z.ts'], NOW)];
+    expect(pickDrops(tie, ['e2e-offline'])).toMatchObject({ drops: [{ pr: 2, tier: 3 }], reason: expect.stringMatching(/a tie at 1/) });
+    // a one-member train drops that member
+    expect(pickDrops([m(8, 'feature/only', ['tests/a.test.ts']), m(null, 'feature/menu', ['docs/a.md'])], ['e2e-ctcourse:2']))
+      .toMatchObject({ drops: [{ pr: 8, branch: 'feature/only', suite: 'e2e-ctcourse', tier: 3 }], reason: expect.stringMatching(/the only code member/) });
+    expect(pickDrops([m(4, 'feature/docs', ['docs/a.md'])], ['smoke'])).toMatchObject({ drops: [], reason: 'every member is docs-only' });
+  });
+
+  it('comments once per train and head with the suite and assert, removes train-ready; the close comment lists the drops', () => {
+    const base = { pr: 288, branch: 'feature/bake', head, n: 64, suite: 'e2e-lightbake', tier: 1, assert: 'not ok 3 - `lamps` 12 != 14' };
+    const p = dropPlan({ ...base, labels: ['train-ready'], bodies: [] });
+    expect(p.remove).toEqual(['gh', 'pr', 'edit', '288', '--remove-label', 'train-ready']);
+    expect(p.comment).toMatch(/^Auto-train: `feature\/bake` \(abcdef12\) was dropped from train 64: `e2e-lightbake` failed there; its change touches `e2e-lightbake`/);
+    expect(p.comment).toContain("Failing assert: `not ok 3 - 'lamps' 12 != 14`");
+    expect(p.comment).toMatch(/re-add `train-ready` once `check` is green/);
+    expect(p.comment).toMatch(/<!-- auto-train:dropped:train64:abcdef1234567890 -->$/);
+    expect(dropPlan({ ...base, labels: [], bodies: [p.comment!] })).toEqual({ remove: null, comment: null });
+    expect(dropPlan({ ...base, n: 65, labels: [], bodies: [p.comment!] }).comment).toMatch(/train 65/);
+    expect(dropPlan({ ...base, tier: 3, assert: '' }).comment).toMatch(/newest `train-ready` member[\s\S]*Failing assert: `none found`/);
+    // the left-out comment keeps its own marker: a drop comment never stops it
+    expect(leftOutPlan({ pr: 288, branch: 'feature/bake', head, n: 64, why: 'conflict', bodies: [p.comment!] }).comment).toMatch(/left out of train 64/);
+    expect(closeTrainBody({ n: 64, head, failing: ['e2e-lightbake'], drops: [{ pr: 288, branch: 'feature/bake', suite: 'e2e-lightbake' }] }))
+      .toMatch(/^Auto-train: train 64 failed e2e-lightbake on abcdef12; closed without merging\.\n\nDropped .*#288 `feature\/bake` \(e2e-lightbake\)/);
   });
 });
