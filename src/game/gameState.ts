@@ -40,7 +40,7 @@ import { Pickups } from './pickups';
 import { Interactables, type Interactable } from './interactables';
 import { WeaponCrates } from './weaponCrates';
 import { addDoorRows, DOOR_KIND, DoorMenuView, guardBehindDoor, type DoorOpt } from './doorMenu';
-import { addGapRows, GAP_KIND, gapMenuCandidate, type GapOpt } from './gapMenu';
+import { addGapRows, GAP_KIND, gapMenuCandidate, pickOpenTrap, type GapOpt } from './gapMenu';
 import { addGrabRows, GRAB_KIND, GRAB_OPT_LABEL, GRAB_OPTS, GRAB_PASS, GrabMenuView, grabTriggerPick, hasInfo, type GrabOpt } from './grabMenu';
 import { ContextMenu, CtxNav, emptyCtxInput } from './contextMenu';
 import { StrikeTrigger } from '../player/weaponStance';
@@ -188,6 +188,9 @@ export interface NetAttachment {
   wallOthers?(seg: number, out: Float64Array): number;
   /** (step 13) Client: ask the host to crack (or close the crack of) door `i`; the host's own player cracks directly. */
   doorCrack?(i: number, on: boolean): void;
+  /** (optic-coop, CHECK-M B1) Client: ask the host to open the trap panel over optic gap `g` (`panel`); the host opens
+   *  it and its snapshots' `trp` open it on every page. The host's own player opens directly (no hook). */
+  panelOpen?(g: number): void;
   /** (3.2.0 phase 5) Ask the host for a team move with a braced `partner` (boost: onto anchor `target` at `s`). */
   teamRequest?(kind: TeamKind, partner: string, target: number, s: number, gripY: number, lx?: number, lz?: number): void;
   /** (3.2.0 phase 5) End the human ladder (either player). */
@@ -1502,13 +1505,14 @@ export class GameState implements AppState {
     return !!t && !this.world.breakables.isOpen(t);
   }
 
-  /** (optic-coop M1) The picked gap option: OPEN TRAP opens the covering panel (quiet, as an unscrewed grate; local, as
-   *  the duct grates), OPTIC CABLE feeds the cable (`OpticSystem.pickPoint`: "Too far" / "No gap" as at a door). */
+  /** (optic-coop M1) The picked gap option: OPEN TRAP opens the covering panel (quiet, as an unscrewed grate; CHECK-M B1:
+   *  a co-op client asks the host, `panel`, as a door; single player and the host open it at once, the host's snapshots
+   *  carry it as `trp`), OPTIC CABLE feeds the cable (`OpticSystem.pickPoint`: "Too far" / "No gap" as at a door). */
   private gapMenuPick(o: GapOpt, gi: number): void {
     const pt = this.world.level.opticPoints[gi];
     if (!pt) return;
     if (o === 'trap') {
-      if (pt.trap && this.gapOpenable(gi)) this.world.breakables.open(pt.trap, 'unscrew');
+      if (pt.trap && this.gapOpenable(gi)) pickOpenTrap(gi, pt.trap, this.world.breakables, this.net);
       return;
     }
     this.optic.pickPoint(gi);

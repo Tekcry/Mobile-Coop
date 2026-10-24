@@ -51,6 +51,17 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   existing ping: `sendPing` casts from `cam.gamePos`, which `OpticSystem.frameUpdate` sets to the tip, and the hit goes
   to the host (`ping` message) and to every player (`ping` event); no ping input is bound yet (`gameState.ts`
   "pings are unbound for now").
+- OPEN TRAP (optic-coop M1, CHECK-M B1): the trap panel over an optic gap is collision (`Breakables`, `G.STATIC`:
+  movement, shots, perception rays), so its open goes through the host like a door. A client's pick sends client ->
+  host `panel {g}` (`g` the gap index, wire bound `OPTIC_POINT_MAX`; `NetAttachment.panelOpen`, client only) and
+  opens nothing itself. The host checks it (`hostTrapKey`, `game/gapMenu.ts`: the gap exists, its `trap` names a panel
+  still closed, the client alive with its feet within `GAP_MENU.reach` 1.6 m and the height band plus
+  `GAP_HOST_SLACK` 0.5 m, no facing test), else drops it (a bad index, a far client, a trap already open), and opens it
+  in its world (`breakables.open(key, 'unscrew')`). The host's own pick opens directly. The snapshot's `trp` lists the
+  gaps whose trap is open (`openTrapGaps`), sent with `doors` (on a change, every `ITEMS_EVERY` and at a rejoin's
+  resync), so a late joiner or a rejoin opens them from its first such snapshot; the client applies it with
+  `applyOpenTraps` (idempotent; a gap the level lacks is skipped; a trap never closes). Single player opens locally as
+  before. Duct grates and window glass still open on one page only (pre-existing, backlog).
 
 ## Session and sims
 - `NetSession`: lobby state (each `PlayerInfo` carries name, tag, look and the validated weapon `loadout`), ready /

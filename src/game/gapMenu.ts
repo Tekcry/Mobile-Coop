@@ -68,3 +68,66 @@ export function gapMenuCandidate(points: readonly OpticPoint[], px: number, py: 
   }
   return best;
 }
+
+/** The breakable panels' state the trap helpers read (`Breakables` fits). */
+export interface TrapPanels {
+  has(key: string): boolean;
+  isOpen(key: string): boolean;
+}
+
+/** The breakable panels' open (`Breakables` fits; returns false when already open or missing: idempotent). */
+export interface TrapOpener {
+  open(key: string, how: 'unscrew'): boolean;
+}
+
+/** (CHECK-M B1) The host's slack over `GAP_MENU.reach` and the height band for a client's OPEN TRAP (latency, m). */
+export const GAP_HOST_SLACK = 0.5;
+
+/**
+ * (CHECK-M B1) The host's check of a client's OPEN TRAP (`panel` message, gap index `gi` from the wire, untrusted): the
+ * gap exists, its `trap` names a panel still closed, and the requester's feet (fx, fy, fz) are within the menu's reach
+ * and height band plus `GAP_HOST_SLACK` (no facing test). Returns the panel key to open, else null. No allocation.
+ */
+export function hostTrapKey(points: readonly OpticPoint[], gi: number, panels: TrapPanels, fx: number, fy: number, fz: number): string | null {
+  if (!Number.isInteger(gi) || gi < 0 || gi >= points.length) return null;
+  const pt = points[gi]!;
+  const key = pt.trap;
+  if (!key || !panels.has(key) || panels.isOpen(key)) return null;
+  const dy = pt.gap.y - fy;
+  if (dy < -OPTIC.reachDown - GAP_HOST_SLACK || dy > OPTIC.reachUp + GAP_HOST_SLACK) return null;
+  return hyp2(pt.gap.x - fx, pt.gap.z - fz) <= GAP_MENU.reach + GAP_HOST_SLACK ? key : null;
+}
+
+/** (CHECK-M B1) The gaps whose trap panel is open (the snapshot's `trp`), ascending, into `out` (cleared first). */
+export function openTrapGaps(points: readonly OpticPoint[], panels: TrapPanels, out: number[]): number[] {
+  out.length = 0;
+  for (let i = 0; i < points.length; i++) {
+    const key = points[i]!.trap;
+    if (key && panels.has(key) && panels.isOpen(key)) out.push(i);
+  }
+  return out;
+}
+
+/** (CHECK-M B1) Client: open every trap the host lists (`trp`, gap indices); an index this level lacks, or a gap with
+ *  no trap, is skipped. Opening is idempotent; a trap never closes. Returns how many opened now. */
+export function applyOpenTraps(points: readonly OpticPoint[], trp: readonly number[], panels: TrapOpener): number {
+  let n = 0;
+  for (let i = 0; i < trp.length; i++) {
+    const key = points[trp[i]!]?.trap;
+    if (key && panels.open(key, 'unscrew')) n++;
+  }
+  return n;
+}
+
+/**
+ * (CHECK-M B1) The picked OPEN TRAP at gap `gi` (panel `key`): a co-op client asks the host (`net.panelOpen`: the host
+ * opens it and every snapshot's `trp` opens it on all pages); single player and the host open it at once (the host's
+ * snapshots carry it). Returns true if the panel opened here now.
+ */
+export function pickOpenTrap(gi: number, key: string, panels: TrapOpener, net: { panelOpen?(g: number): void } | null | undefined): boolean {
+  if (net?.panelOpen) {
+    net.panelOpen(gi);
+    return false;
+  }
+  return panels.open(key, 'unscrew');
+}

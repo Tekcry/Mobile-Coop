@@ -850,3 +850,137 @@ describe('course messages (T1b)', () => {
     expect(n).toBeGreaterThanOrEqual(4);
   });
 });
+
+import { applyOpenTraps, GAP_HOST_SLACK, GAP_MENU, hostTrapKey, openTrapGaps, pickOpenTrap } from '../src/game/gapMenu';
+import { OPTIC_POINT_MAX, type OpticPoint } from '../src/player/opticCable';
+import type { Msg } from '../src/net/protocol';
+
+/** A stand-in for `Breakables`: the panel keys of one level, opened at most once (`open` false when open / missing). */
+class TrapPanelsFake {
+  readonly opened = new Set<string>();
+  calls = 0;
+  constructor(private readonly keys: readonly string[]) {}
+  has(k: string): boolean {
+    return this.keys.includes(k);
+  }
+  isOpen(k: string): boolean {
+    return !this.keys.includes(k) || this.opened.has(k);
+  }
+  open(k: string): boolean {
+    this.calls++;
+    if (!this.keys.includes(k) || this.opened.has(k)) return false;
+    this.opened.add(k);
+    return true;
+  }
+}
+
+/** Two optic gaps: 0 a floor hatch under panel `hatchA` at (0, 0, 0), 1 a grille with nothing that opens at (10, 0, 0). */
+const trapGaps = (): OpticPoint[] => [
+  { kind: 'hatch', gap: { x: 0, y: 0, z: 0 }, nx: 0, ny: -1, nz: 0, trap: 'hatchA' },
+  { kind: 'grille', gap: { x: 10, y: 0.5, z: 0 }, nx: 1, ny: 0, nz: 0 },
+];
+
+describe('optic-coop CHECK-M B1: OPEN TRAP goes through the host', () => {
+  it('parses `panel` with the OPTIC_POINT_MAX bound; anything else is dropped', () => {
+    expect(parseMessage({ t: 'panel', g: 0 })).toEqual({ t: 'panel', g: 0 });
+    expect(parseMessage({ t: 'panel', g: OPTIC_POINT_MAX - 1 })).toEqual({ t: 'panel', g: OPTIC_POINT_MAX - 1 });
+    for (const g of [-1, OPTIC_POINT_MAX, 1.5, '2', null, Number.NaN]) expect(parseMessage({ t: 'panel', g })).toBeNull();
+    expect(parseMessage({ t: 'panel' })).toBeNull();
+  });
+  it('bounds the snapshot `trp` list: out-of-range entries dropped (never clamped to gap 0), duplicates removed', () => {
+    const m = parseMessage({ t: 'snap', time: 1, players: [], enemies: [], obj: '', info: '', pk: 0, doors: [], trp: [3, 3, -1, 'x', OPTIC_POINT_MAX, 2.5, 0] });
+    expect((m as Extract<Msg, { t: 'snap' }>).trp).toEqual([3, 0]);
+    const old = parseMessage({ t: 'snap', time: 1, players: [], enemies: [], obj: '', info: '', pk: 0 });
+    expect('trp' in (old as object)).toBe(false);
+  });
+  it('the host check: a closed trap in reach opens; a bad index, a gap with no trap, an open trap or a far requester is refused', () => {
+    const pts = trapGaps();
+    const panels = new TrapPanelsFake(['hatchA']);
+    expect(hostTrapKey(pts, 0, panels, 0.5, 0, 0.5)).toBe('hatchA');
+    // reach plus the host's slack, horizontally and in the height band
+    expect(hostTrapKey(pts, 0, panels, GAP_MENU.reach + GAP_HOST_SLACK - 0.01, 0, 0)).toBe('hatchA');
+    expect(hostTrapKey(pts, 0, panels, GAP_MENU.reach + GAP_HOST_SLACK + 0.01, 0, 0)).toBeNull();
+    expect(hostTrapKey(pts, 0, panels, 0, 5, 0)).toBeNull();
+    for (const gi of [-1, 2, OPTIC_POINT_MAX - 1, 0.5, Number.NaN]) expect(hostTrapKey(pts, gi, panels, 0, 0, 0)).toBeNull();
+    expect(hostTrapKey(pts, 1, panels, 10, 0, 0)).toBeNull();
+    // a trap key the level has no panel for
+    expect(hostTrapKey([{ ...pts[0]!, trap: 'nope' }], 0, panels, 0, 0, 0)).toBeNull();
+    panels.open('hatchA');
+    expect(hostTrapKey(pts, 0, panels, 0, 0, 0)).toBeNull();
+  });
+  it('request -> host validates -> snapshot -> both pages open the same panel; a bad or far request changes nothing', () => {
+    const h = hub();
+    const host = new NetSession(h.make('H'), 'host', 'ABCDE', prof('Host'));
+    const cli = new NetSession(h.make('C'), 'client', 'ABCDE', prof('Cli'));
+    host.startMatch();
+    const pts = trapGaps();
+    const hostPanels = new TrapPanelsFake(['hatchA']);
+    const cliPanels = new TrapPanelsFake(['hatchA']);
+    let cliFeet = { x: 9, y: 0, z: 9 };
+    const trpBuf: number[] = [];
+    const snaps: Extract<Msg, { t: 'snap' }>[] = [];
+    let panelMsgs = 0;
+    // the host's side as coopHost: the `panel` case, then a snapshot carrying `trp`
+    host.events.on('game', ({ msg }) => {
+      if (msg.t !== 'panel') return;
+      panelMsgs++;
+      const key = hostTrapKey(pts, msg.g, hostPanels, cliFeet.x, cliFeet.y, cliFeet.z);
+      if (key) hostPanels.open(key);
+      const trp = openTrapGaps(pts, hostPanels, trpBuf);
+      const snap: Extract<Msg, { t: 'snap' }> = { t: 'snap', time: 1, players: [], enemies: [], obj: '', info: '', pk: 0, doors: [] };
+      if (trp.length) snap.trp = trp.slice();
+      host.send(snap);
+    });
+    // the client's side as coopClient: `trp` from a snapshot opens the listed traps
+    cli.events.on('game', ({ msg }) => {
+      if (msg.t !== 'snap') return;
+      snaps.push(msg);
+      if (msg.trp) applyOpenTraps(pts, msg.trp, cliPanels);
+    });
+    const net = { panelOpen: (g: number): void => cli.toHost({ t: 'panel', g }) };
+    // far requester: refused, nothing opens anywhere; the client never opens on its own
+    expect(pickOpenTrap(0, 'hatchA', cliPanels, net)).toBe(false);
+    expect(panelMsgs).toBe(1);
+    expect(hostPanels.opened.size + cliPanels.opened.size).toBe(0);
+    // a bad index from a peer (raw on the wire) is dropped by the parser; one in range with no trap by the host
+    cli.transport.send({ t: 'panel', g: -3 }, 'H');
+    cli.transport.send({ t: 'panel', g: 99999 }, 'H');
+    expect(panelMsgs).toBe(1);
+    net.panelOpen(1);
+    net.panelOpen(200);
+    expect(hostPanels.opened.size + cliPanels.opened.size).toBe(0);
+    expect(snaps.every((s) => s.trp === undefined)).toBe(true);
+    // in reach: the host opens it and the snapshot opens the same panel on the client
+    cliFeet = { x: 0.6, y: 0, z: 0.2 };
+    pickOpenTrap(0, 'hatchA', cliPanels, net);
+    expect([...hostPanels.opened]).toEqual(['hatchA']);
+    expect([...cliPanels.opened]).toEqual(['hatchA']);
+    expect(snaps.at(-1)?.trp).toEqual([0]);
+    // a repeat is refused by the host (already open) and the snapshot's re-list is idempotent on the client
+    net.panelOpen(0);
+    expect(hostPanels.calls).toBe(1);
+    expect(cliPanels.opened.size).toBe(1);
+  });
+  it('a late joiner / rejoin snapshot carries an open trap: the joiner opens it from its first snapshot', () => {
+    const pts = trapGaps();
+    const hostPanels = new TrapPanelsFake(['hatchA']);
+    hostPanels.open('hatchA');
+    const trp = openTrapGaps(pts, hostPanels, []);
+    const wire = parseMessage(JSON.parse(JSON.stringify({ t: 'snap', time: 5, players: [], enemies: [], obj: '', info: '', pk: 0, doors: [], trp })));
+    const joiner = new TrapPanelsFake(['hatchA']);
+    expect(applyOpenTraps(pts, (wire as Extract<Msg, { t: 'snap' }>).trp!, joiner)).toBe(1);
+    expect(joiner.isOpen('hatchA')).toBe(true);
+    // a joiner on a level without that gap (a stale or hostile list) skips it, no crash
+    expect(applyOpenTraps([], [0, 7, OPTIC_POINT_MAX - 1], joiner)).toBe(0);
+  });
+  it('single player and the host open at once, locally (no hook, nothing sent)', () => {
+    const solo = new TrapPanelsFake(['hatchA']);
+    expect(pickOpenTrap(0, 'hatchA', solo, null)).toBe(true);
+    expect(solo.isOpen('hatchA')).toBe(true);
+    // the host's NetAttachment has no `panelOpen`: its own pick opens directly, its snapshots carry it
+    const hostNet = {};
+    const hostPanels = new TrapPanelsFake(['hatchA']);
+    expect(pickOpenTrap(0, 'hatchA', hostPanels, hostNet)).toBe(true);
+    expect(openTrapGaps(trapGaps(), hostPanels, [9, 9])).toEqual([0]);
+  });
+});

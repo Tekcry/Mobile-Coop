@@ -29,6 +29,7 @@ import type { TeamKind } from '../game/teamMoves';
 import { clampEnd, clientForcedHolster, coopSessionStats, ratingViewFromWire, ratingViewsFromRh } from './validate';
 import { RatingCard, type RatingView } from '../ui/hud/ratingCard';
 import { GADGETS } from '../game/gadgets';
+import { applyOpenTraps } from '../game/gapMenu';
 import { GRANT_GADGETS, putRating } from '../game/rating/sectionRating';
 import { stationHeal } from '../game/medkit';
 import { applyCourseWire, clientCourseFrame, clientCourseSummary, disposeClientCourse } from '../game/modes/courseMode';
@@ -455,6 +456,8 @@ export class CoopClient implements NetAttachment {
       this.deskSync();
     }
     if (m.doors) this.syncDoors(m.doors, m.dcr ?? []);
+    // (optic-coop, CHECK-M B1) the host's open trap panels (a gap this level lacks is skipped; a trap never closes)
+    if (m.trp) applyOpenTraps(g.world.level.opticPoints, m.trp, g.world.breakables);
     if (m.bodies) {
       // carried off, hidden or revived on the host (snaps and events arrive in order, so a kept body is listed)
       for (const id of [...this.kept.keys()]) if (!m.bodies.includes(id)) this.dropBody(id);
@@ -593,6 +596,12 @@ export class CoopClient implements NetAttachment {
   doorCrack(i: number, on: boolean): void {
     (this.crackPred ??= new CrackPrediction(this.g.world.doors.list.length)).predict(i, on, this.time);
     this.s.toHost({ t: 'door', i, crack: on });
+  }
+
+  /** (optic-coop, CHECK-M B1) OPEN TRAP at optic gap `g`: the host checks and opens it; it opens here from the
+   *  snapshots' `trp` (no prediction: the panel is collision, so the host's world decides). */
+  panelOpen(g: number): void {
+    this.s.toHost({ t: 'panel', g });
   }
 
   /** Host-authoritative health for the local player. */

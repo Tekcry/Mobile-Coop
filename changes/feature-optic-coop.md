@@ -12,7 +12,8 @@ kind: minor
   refusals "Too far" and "No gap". No map places one yet.
 - (optic-coop M1) At a hatch, ceiling panel, grille or shaft top the optic cable starts from the action menu, the same
   as doors: hold A (E) for OPEN TRAP (only where a panel covers the gap; it opens quietly) and OPTIC CABLE; "Too far"
-  and "No gap" show as at a door.
+  and "No gap" show as at a door. In co-op OPEN TRAP goes through the host like a door, so the panel opens for both
+  players (and for a partner who joins or rejoins later); wire: client -> host `panel`, the snapshot's `trp`.
 - (optic-coop M2) Ping is bound: middle mouse on keyboard and mouse, R3 on the pad, and it works from the optic view
   (the ping comes from the tip, from the view's first moment). R3 is also Zoom: the controls screen shows that conflict.
 - (optic-coop) A level holds at most 256 optic gaps (the network's bound); more are refused with a warning.

@@ -65,3 +65,29 @@ feature/optic-coop-2, Michael's answers 2026-10-24 ~14:10 (`BRIEF.md`) and check
   ping row). One at a time: opticCoop, conflicts, padBinds, keybinds, input, settings, tunerMouse, opticCable,
   moveState, doorPeek pass; tsc and eslint clean. `scripts/e2e-pad.mjs` remap section clears Ping off R3 too and
   expects the Ping / Zoom conflict after the reset (not run here). Laptop: e2e-pad, e2e-mouse, e2e-netmove, e2e-coop.
+
+## Fix round (CHECK-M B1)
+
+Opus fix round on feature/optic-coop. B1: OPEN TRAP opened its panel (collision: movement, shots, perception rays) on
+one page only. Fixed the proper way (the door pattern), not the stopgap.
+
+- Wire (no `PROTOCOL_VERSION` change; the train bumps it): client -> host `{ t: 'panel'; g }` (`g` the optic gap index,
+  integer 0..`OPTIC_POINT_MAX` - 1, else the parser drops it; relayed by `NetSession` with the other gameplay messages),
+  and the snapshot's `trp?: number[]` (gaps whose trap is open; out-of-range entries dropped, duplicates removed), sent
+  with `doors` (on a change, every `ITEMS_EVERY`, at a rejoin's resync: late joiners and rejoins get it).
+- Client: `GameState.gapMenuPick` -> `pickOpenTrap` (`game/gapMenu.ts`): with `NetAttachment.panelOpen` (client only)
+  it sends `panel` and opens nothing itself (no prediction: the host's world decides collision). Snapshots' `trp` ->
+  `applyOpenTraps` -> `breakables.open(key, 'unscrew')` (idempotent, a gap the level lacks skipped).
+- Host: `case 'panel'` -> `onPanel`: `hostTrapKey` (gap in range, `trap` names a panel still closed, client alive and its
+  feet within `GAP_MENU.reach` 1.6 m and the height band plus `GAP_HOST_SLACK` 0.5 m, no facing test), else dropped; then
+  `breakables.open` in the host's world. The host's own pick opens directly; `openTrapGaps` fills a reused buffer per
+  snapshot (a copy goes on the wire only when the doors block is sent and the list is not empty).
+- Single player: unchanged (no hook, opens locally).
+- Tests (`tests/net.test.ts`, 6 new): `panel` parse bounds; `trp` parse bounds; the host check (reach and slack,
+  height band, bad / out-of-level index, no-trap gap, unknown key, already open); request -> host validates -> snapshot
+  -> both open over `NetSession` (far and bad requests change nothing on either page, a repeat is refused); a joiner's
+  snapshot opens a trap; single player and host open locally. One at a time: net 81, opticCoop 22, doorPeek 15,
+  doorPeekParity 1, joinWatch 14, ventOpen 15, sectorGuardFreezeSeeThrough 7, coopFix 13, protocolConst 3 pass;
+  `npx tsc --noEmit -p .` and eslint on the changed files clean. No e2e run.
+- Not done: duct grates and window glass still open locally only (pre-existing, CHECK-M polish 4; backlog item).
+  Laptop: e2e-coop, e2e-netmove (no map places a trap gap yet, so no e2e reaches OPEN TRAP).
