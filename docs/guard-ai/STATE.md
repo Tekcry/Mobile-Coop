@@ -1,6 +1,13 @@
 # Guard AI - state
 
 ## Now
+~23:35 (swap 23:20, new account, laptop; OVERNIGHT). #317 fix3 52e3dc13 request ...-6504 still unclaimed (train 70
+on both laptop slots); background wait on laptop-e2e/coop4-fix3. T1 DONE by Cloud Builder 1 (bbbfbecf, 54 files
+750/750): worktree C:/NightShift/Mobile-Coop-guard-ai-t1, fragment 3871722d, PR #360, laptop e2e-sectorops +
+e2e-enemies queued (laptop-e2e/t1), Opus checkers A / B -> docs/guard-ai/slices/T1-CHECK-A/B.md (lead commits).
+After merge: guard-cap M0 away cells A/B rerun (Marlow). Polish A / B: Opus finishers RUNNING from WIP 1c9fafd9 /
+63fbb29d (+ B's uncommitted tests), pushing as they go. Then merge a/b/c into feature/guard-ai-polish.
+
 ~23:20: #317 e2e-coop on bc96ecee FAIL #3 (AI6 (1) LKP 27.75 m + AI6 (3) spawn). Opus triage 3: both TEST bugs, one
 cause: AI6 staging left the radio alarm on, a yard response team (spawn ~18, -24.5) saw B at his hide and filled the
 guard cap. Fixed 52e3dc13 (alarmRaised staged, (3) starts clean, per-player LKP / report diagnostics;
