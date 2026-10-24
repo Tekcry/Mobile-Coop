@@ -3,6 +3,20 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 34 (2026-10-24 ~11:45 laptop clock; wins over SAVE 33 where they differ):**
+- Audit 1 pushed: #252 (feature/laptop-queue, through 61171362: duplicates, yield to trains, --train-rerun priority,
+  desktop build-marker gate, state.done pruning) + #304 (feature/auto-train-audit, worktree
+  C:/NightShift/Mobile-Coop-auto-train-audit: auto laptop rerun after a desktop fail, release on a rerun pass,
+  rerun-stale / rerun-request-failed, build marker, left-out PR loses train-ready). Opus checker FIX fixed in one round.
+- Audit 2 pushed on #304 (ad2ba6ac, checker PASS): build hold up to 3 min for a running train-ready check (+ fresh
+  candidates), merge-train pushes before vitest, waiting ticks poll every 60 s up to 4 min. Both train-ready.
+- LR16-8 CLOSED (Sector Ops: no leak / parity break; only the known torch haze spill). Results on shots/lr16-8
+  (9ecdeaa9). Script follow-ups if touched again: corner mask / framing, four-torch camera clipping a wall.
+- Body compile 3-at-once campusOps LR16: slowest 43.5 s (1.5 s under the 45 s cap). Sent.
+- Player guard-bake a8ff2d45 excerpts sent (steps 1-4: MPFB2 zip missing - do NOT download, Orchestrator asks
+  Michael; body check missing src/player/proportions; head variant 3 albedo < 0.55; cmd.exe glob). Player fixes on
+  feature/gm-bakefix and queues one alone rerun.
+
 **Test Runner SAVE 33 (2026-10-24 ~10:30 laptop clock; wins over SAVE 32 where they differ):**
 - Pushed to feature/laptop-queue (#252): 3f13e816 / 159d7c95 task guard (both workers), f0fb6d4c + efcc80fc alone
   requests wait while an open train (< 24 h, build ok) lacks a laptop-e2e success (Orchestrator rule; checkers FIX fixed).
@@ -943,7 +957,7 @@ puts it in CLAUDE.md on feature/menu). Laptop full runs: `RUN_GPU=1` (E2E_GPU=1)
 
 ## Resume prompt
 ```
-Night Shift | Test Runner (laptop, the MAIN test machine). First call mcp__ccd_session_mgmt__set_session_title with session_id "self" and title "Night Shift | Test Runner" (ToolSearch if deferred). Read CLAUDE.md "Sessions" on origin/master ("Main test machine: the laptop", "Heavy-usage throughput" incl. "Token rules"), then the newest "Test Runner SAVE" block (SAVE 33 or later) at the top of docs/flake-fix/STATE.md on origin/feature/flake-fix (git fetch; git show origin/feature/flake-fix:docs/flake-fix/STATE.md). Do what it lists, in order. If two Test Runner sessions show in ListAgents, close the older one.
+Night Shift | Test Runner (laptop, the MAIN test machine). First call mcp__ccd_session_mgmt__set_session_title with session_id "self" and title "Night Shift | Test Runner" (ToolSearch if deferred). Read CLAUDE.md "Sessions" on origin/master ("Main test machine: the laptop", "Heavy-usage throughput" incl. "Token rules"), then the newest "Test Runner SAVE" block (SAVE 34 or later) at the top of docs/flake-fix/STATE.md on origin/feature/flake-fix (git fetch; git show origin/feature/flake-fix:docs/flake-fix/STATE.md). Do what it lists, in order. If two Test Runner sessions show in ListAgents, close the older one.
 
 The queue is the SERVICE now (no hand-run chains, Orchestrator 20:26): task NightShift-laptop-queue runs scripts/laptop-queue/service.mjs from C:/NightShift/Mobile-Coop-laptop-queue-svc (follows origin/feature/laptop-queue, self-updates when idle); log + state C:/NightShift/scratch/laptop-queue/ (log.txt, runs/<id>/); verdicts are GitHub statuses laptop-e2e[/<set>] + PR comments on failure. Requests: node scripts/laptop-queue/request.mjs --sha <ref> (--suites "a b" | --full | --alone --step "<cmd>" [--env K=V]) --requester "<title>" (alone = perf / sheets, after trains and PR suites). Desktop overflow worker NightShift-desktop-queue (LQ_WORKER=desktop, pr only) claims via claims/<id>.json on the laptop-queue branch. Locks C:/NightShift/heavy-4189.lock / heavy-4192.lock (service lines "laptop-queue | ..."; a lock with no live node is stale). Restarting the service: Stop-ScheduledTask leaves the node child alive, so a restart also needs that node pid killed (needs Michael's OK).
 
