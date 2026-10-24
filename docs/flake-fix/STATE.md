@@ -4,12 +4,10 @@
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
 **Test Runner SAVE 41 (2026-10-24 ~23:08, 5-hour cap save, overnight; wins over SAVE 40 where they differ):**
-- FIRST: Guard AI's coop4-fix3 request 20261024T115000-night-shift-guard-ai-52e3dc13-6504 (#317, e2e-coop, sha 52e3dc13)
-  must run on a LAPTOP slot (Orchestrator: desktop CPU 100%). At 23:06 it was on origin/laptop-queue with no claim and
-  not in laptop state.done, yet the laptop log said "queue: 0 request(s)" since 22:50. Find why the laptop listing drops
-  it (desktop claim under another path? requestProblem / branch "" ? duplicates?), then make it run on the laptop: either
-  fix the cause or add a worker pin (request.mjs --worker laptop -> req.worker; desktop filter at service.mjs ~1216
-  r.kind === 'pr' && !r.trainRerun && r.worker !== 'laptop').
+- coop4-fix3 (Guard AI, ...52e3dc13-6504, #317 e2e-coop): NOT stuck (23:10 check). Train 69 193622f7 holds both laptop
+  slots since 22:56 and the aged-alone hold blocks new pr claims ("queue: 0 request(s)" is after the filters). No desktop
+  claim; the desktop CPU gate (80%) keeps it off at 100%. It runs on the laptop after train 69. If the desktop ever takes
+  it, add a worker pin (request.mjs --worker laptop; desktop filter service.mjs ~1216).
 - #356 feature/affected-flake head 7ba216f1: checker FIX done; waiting CI + laptop request 20261024T113619-...-7ba216f1-949a
   (smoke e2e-pad e2e-sectorops:6). Both green -> add label train-ready, message the Orchestrator. PR bound to this session.
 - NEW laptop-queue fixes (Orchestrator waste audit 23:0x), branch feature/laptop-queue-3 stacked on 7ba216f1 (not cut yet;
