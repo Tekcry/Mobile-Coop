@@ -9,7 +9,13 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   the solo rerun 20261024T125138-night-shift-test-run-556d861d-f02d (e2e-coop) passes; if auto-train does not within a
   tick, `node scripts/merge-train.mjs release 71 4.98.4 "<title>" --resume --head 556d861d` by hand (auto mode may
   block: then tell the Orchestrator). Flake sent to Marlow Build (owner of joint interrogation).
-- Train 72 4b4b5bd5 (#364, includes #356 affected-flake) running on both slots since 23:53; f02d runs after it.
+- UPDATE 00:00: auto-train dropped #351 from train 71 on e2e-coop and built train 72 instead, so the train 71 release
+  plan above is void; #351 rides the next train if nothing else fails. f02d (e2e-coop solo on 556d861d) is now only
+  flake data for Marlow.
+- Train 72 4b4b5bd5 (#364, 4.99.0, includes #356 affected-flake) running on both slots since 23:53; f02d runs after it.
+- Running at the save: one Opus implementer in C:/NightShift/Mobile-Coop-laptop-queue-3 (pick-order fix; told to push
+  WIP before the cap). On resume: git log origin/feature/laptop-queue-3; finish or redo the pick-order commit, then the
+  checker.
 - feature/laptop-queue-3 (worktree C:/NightShift/Mobile-Coop-laptop-queue-3, head 459aa0e2 pushed): fixes 1-3
   (f785331b), CPU gate without BelowNormal/Idle (3d580204), fetch narrow + lock retry (325f92ba), checker FIX round
   (bd2d7e25, 459aa0e2). Agent adding the Orchestrator's pick-order fix (oldest per requester + priority field). NEVER
