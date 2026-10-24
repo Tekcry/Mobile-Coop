@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-24T11:41Z
+status: done feature/guard-ai-t1-anim-tier bbbfbecf
 
 # guard-ai T1: off-screen anim tier every 8th frame (guard-cap PLAN section 3, "T1 brief")
 
@@ -69,3 +69,16 @@ Untouched: `src/ai/animTierView.ts` (gm-perf owns it), `src/ai/enemy.ts`, `src/a
 - Report at the end of this file (files with line numbers, tests with counts, deviations), then line 1
   `status: done feature/guard-ai-t1-anim-tier <sha>`.
 - After done (lead, not you): M0 rerun `away` cells A/B, laptop `e2e-sectorops`, `e2e-enemies`. Look: none (off-screen only).
+
+## Report (Night Shift | Cloud Builder 1, 2026-10-24)
+Branch `feature/guard-ai-t1-anim-tier` @ bbbfbecf, one commit on origin/master bf7447cf. Diff: the two files only.
+- `src/ai/animTier.ts`: :28 `ANIM_TIER_OFFSCREEN = 8` with the briefed doc comment (:27); header :13 adds
+  "(guard-cap T1: 8)". Nothing else (far period 2, near player 4, FROZEN tier, its cap, the thaw, the stepper unchanged).
+- `tests/animTier.test.ts`: :28 `toBe(8)`; :42-44 title "off-screen: every ANIM_TIER_OFFSCREEN th frame, near or far",
+  both expects `toBe(ANIM_TIER_OFFSCREEN)`; :61 `toBe(ANIM_TIER_OFFSCREEN)`; new :141 (slot 0: 4 solves 8 frames apart
+  over 32; slots 0-7 one solve on every frame 1-32; 16 slots two) and :153 (slot 5 over 4 periods of varying dt: 4
+  solves, none over `ANIM_TIER_OFFSCREEN` frames of dt, solved + carry = dt sum). Literal-4 stepper tests kept.
+- Checks: tsc clean; eslint on both files clean; animTier 22/22 (was 20). The run set (animTier, guardBody,
+  sectorGuardFreezeView, guardLod + every test importing ai/animTier|animTierView|enemy|enemyManager + every
+  teamDoorRig importer; 54 files): before 54 files 748/748, after 54 files 750/750. No test outside animTier changed.
+- Deviations: none.
