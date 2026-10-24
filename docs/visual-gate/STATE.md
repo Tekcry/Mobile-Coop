@@ -4,10 +4,14 @@
 - VG1 Opus check PASS (checks/vg1-check.md, polish 1-6 held: arc orientation gap before P5, veil blind to partial
   beams -> VG8 uses contrast, blotch 0 on small regions -> VG3 / VG5 keep wall regions >= 60 px, emd n = 0 skip);
   merged into feature/visual-gate 2ca4e6dd.
-- VG2 done by cloud (feature/visual-gate-vg2 cb0ba57c): Opus checker running (worktree -visual-gate-vg2,
-  checks/vg2-check.md). VG4 done by cloud (ebe376eb): Sonnet checker running (detached worktree -visual-gate-vg4,
-  checks/vg4-check.md). VG3 cloud brief reopened by the orchestrator (old Cloud Builder 1 claim), still open.
-  On resume: a missing check report -> rerun that checker; PASS -> merge the branch into feature/visual-gate.
+- VG2 (cloud cb0ba57c): Opus check FIX M1 (late-spawned guards unparked) -> fix round db18caff (all placed guards
+  tagged, untagged parked + resettled <= 3 rounds, pin throws on untagged; quadrupeds parked; aimReady in the row;
+  polish 2-4 left for VG5). Merged 28d59fdd.
+- VG4 (cloud ebe376eb): Sonnet check FIX (second accept silently replaced) -> Opus fix round 350001ee (accept needs
+  --replace, recordRun `replace: true` option, key / flag validation; 20 tests). Merged 618c812b. VG7 must pass
+  --replace to widen an accept.
+- VG3: cloud-queue claimed by Cloud Builder 1 at 2026-10-24T12:27Z. On done: Sonnet checker, merge, then M0 (command in
+  checks/vg2-build.md :103-108, master sha at send time; needs VG3's viewpoints.mjs on feature/visual-gate).
 
 ## Earlier (2026-10-24 ~23:00)
 - C0 plan check FIX applied (lead fix round, `checks/c0-plan-check.md` end): M1 pin order, M2 campus guard, P1 (no src
