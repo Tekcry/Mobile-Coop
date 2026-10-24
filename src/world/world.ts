@@ -326,6 +326,18 @@ export class World {
    *  next frame (as `LightRig.fillCasters`), so a newly shown mesh casts at once, not at the next 4 Hz pass. One closure. */
   private readonly markSun = (): void => {
     this.sunT = 0;
+    this.sunDirty = true;
+  };
+  /** (S9b checker fix) A caster enabled after `frame()` (the freeze's thaw in onBeforeActiveMeshesEvaluation, a LOD
+   *  switch in the player's update) must cast this frame: refill once after active-mesh evaluation, before the shadow
+   *  maps render. One closure, registered once on the scene. */
+  private sunDirty = false;
+  private sunFocus: Vector3 | null = null;
+  private sunRefillOn = false;
+  private readonly sunRefill = (): void => {
+    if (!this.sunDirty || !this.sunFocus) return;
+    this.sunT = 0;
+    this.updateSunCasters(0, this.sunFocus);
   };
 
   /** The moon's list: the static casters + the moving ones under open sky (indoors the roof shades them anyway). */
@@ -333,6 +345,7 @@ export class World {
     this.sunT -= dt;
     if (this.sunT > 0) return;
     this.sunT = 0.25;
+    this.sunDirty = false;
     const tmp = this.sunTmp;
     tmp.length = 0;
     for (let i = 0; i < this.sunStatic.length; i++) tmp.push(this.sunStatic[i]!);
@@ -551,6 +564,10 @@ export class World {
       sm.renderList = this.sunCasters;
       if (useCascadeLists(flags.guardSun, this.bakedMoon)) sm.getCustomRenderList = this.cascadeList;
     }
+    if (!this.sunRefillOn) {
+      this.sunRefillOn = true;
+      this.scene.onAfterActiveMeshesEvaluationObservable.add(this.sunRefill);
+    }
     this.shadow = csm;
   }
 
@@ -565,6 +582,7 @@ export class World {
       this.charShadows.frame(focus.x, focus.y, focus.z, c.x, c.y, c.z, dt);
     }
     this.lamps?.frame();
+    this.sunFocus = focus;
     this.updateSunCasters(dt, focus);
     if (cam) {
       this.lightRig.update(dt, cam.globalPosition.x, cam.globalPosition.y, cam.globalPosition.z);
