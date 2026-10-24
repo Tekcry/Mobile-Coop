@@ -1,0 +1,20 @@
+{
+  "id": "20261024T071756-night-shift-marlow-b-6e8a450b-650d",
+  "sha": "6e8a450b017cd87c6834580cff88e00a48c0e88d",
+  "branch": "",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Marlow Build",
+  "steps": [
+    "node scripts/guard-cap.mjs --maps=sectorops --counts=12,16,32 --cells=patrol,away,alert --warm=5 --secs=10 --out=C:/NightShift/scratch/guard-cap/m0-6e8a450b-r1-so",
+    "node scripts/guard-cap.mjs --maps=campus --counts=0,12,16,24,32 --cells=patrol,away,alert --warm=5 --secs=10 --out=C:/NightShift/scratch/guard-cap/m0-6e8a450b-r1-campus",
+    "node scripts/guard-cap.mjs --maps=ctcourse --counts=0,12,24 --cells=patrol,away,alert --warm=5 --secs=10 --out=C:/NightShift/scratch/guard-cap/m0-6e8a450b-r1-ctcourse",
+    "set MAP=campusOps&& set MODE=sector&& node scripts/perf.mjs --desktop --json",
+    "node scripts/guard-cap.mjs --maps=sectorops --counts=12,16,32 --cells=patrol,away,alert --warm=5 --secs=10 --out=C:/NightShift/scratch/guard-cap/m0-6e8a450b-r2-so",
+    "node scripts/guard-cap.mjs --maps=campus --counts=0,12,16,24,32 --cells=patrol,away,alert --warm=5 --secs=10 --out=C:/NightShift/scratch/guard-cap/m0-6e8a450b-r2-campus",
+    "node scripts/guard-cap.mjs --maps=ctcourse --counts=0,12,24 --cells=patrol,away,alert --warm=5 --secs=10 --out=C:/NightShift/scratch/guard-cap/m0-6e8a450b-r2-ctcourse"
+  ],
+  "env": {},
+  "set": "guard-cap-m0",
+  "note": "guard-cap M0 (docs/guard-cap/PLAN.md s1): master cells missing from #323 gr2-rep (sectorops 12/16/32, campus, ctcourse, away), 2 repeats + campus perf"
+}
