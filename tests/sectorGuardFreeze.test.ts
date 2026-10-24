@@ -72,9 +72,10 @@ describe('sectorGuardFreeze: guardFrozen', () => {
   });
   it('a shadowing lamp: in range and its sphere in view -> drawn; out of range, or sphere out of view -> frozen', () => {
     const L = noLights();
-    // a lamp behind the camera whose 8 m sphere reaches into the view
+    // a lamp behind the camera whose 8 m sphere reaches into the view; (guard-render S10) his shadow from it runs away
+    // from the view, so he freezes (`sectorGuardFreezeLamp.test.ts` covers the shadow-volume rule)
     L.addSpot(0, 3, -4, 8);
-    expect(guardFrozen(PL, 0, 0, -8, 1.8, 0, 1.6, 0, L)).toBe(false);
+    expect(guardFrozen(PL, 0, 0, -8, 1.8, 0, 1.6, 0, L)).toBe(true);
     // the guard far out of the lamp's range
     expect(guardFrozen(PL, 0, 0, -30, 1.8, 0, 1.6, 0, L)).toBe(true);
     // a lamp far behind: its sphere misses the view

@@ -4,8 +4,9 @@
 // Shadow maps render after the evaluation in the same camera pass, so they see the same state; disabled meshes skip
 // the evaluation, the skeleton prepare and every shadow draw. Render only: gameplay reads none of it.
 //
-// Two tests: the frustum (exact, every evaluation) and, for a guard whose body or moon shadow is in the frustum,
-// occlusion: rays from the camera to his sample points (`occlusionPoints`) against static geometry (walls, floors,
+// Two tests: the frustum (exact, every evaluation) and, for a guard whose body, moon shadow or (guard-render S10) a
+// lamp's shadow of him is in the frustum, occlusion: rays from the camera to his sample points (`occlusionPoints`; the
+// moon / lamp shadow landings: `shadowProbe`, `lampProbe`) against static geometry (walls, floors,
 // closed doors; never glass or fences; a door leaf not shut, a breakable pane and a roof sheet are stepped past:
 // `seeThroughRay`). Occlusion is re-tested every `RETEST` evaluations per guard (staggered, at most `TESTS_PER_EVAL`
 // guards per evaluation), at once after a camera cut; a guard found visible stays drawn `HOLD` evaluations before
@@ -20,7 +21,21 @@
 import { DirectionalLight, PointLight, SpotLight, Vector3, type Observer, type Scene } from '../core/babylon';
 import type { Enemy } from '../ai/enemy';
 import { hyp3 } from '../core/mathx';
-import { FREEZE_DRAW, FREEZE_MAX_POINTS, FREEZE_SHADOW_IN, FreezeLights, guardFrustum, occlusionPoints, shadowLanding, shadowProbe } from './sectorGuardFreeze';
+import {
+  FREEZE_DRAW,
+  FREEZE_LAMP_BIT0,
+  FREEZE_LAMP_IN,
+  FREEZE_MAX_POINTS,
+  FREEZE_PROBES,
+  FREEZE_SHADOW_IN,
+  FreezeLights,
+  guardFrustum,
+  lampLanding,
+  lampProbe,
+  occlusionPoints,
+  shadowLanding,
+  shadowProbe,
+} from './sectorGuardFreeze';
 
 /** What the freeze reads of the guards (the enemy manager). */
 export interface FreezeGuards {
@@ -41,8 +56,8 @@ export const CUT = 0.75;
 /** A sample point counts as seen when the ray stops within this of it (m). */
 const SLACK = 0.25;
 /** At most this many guards get an occlusion test per evaluation (a camera cut re-tests every hidden verdict: spread
- *  over the next evaluations; a guard waiting for his test is drawn meanwhile). At most `FREEZE_TEST_RAYS` (11) rays
- *  each, 5-7 typical. */
+ *  over the next evaluations; a guard waiting for his test is drawn meanwhile). At most `FREEZE_TEST_RAYS` (19, S10:
+ *  with two lamp shadows) rays each, 5-7 typical. */
 export const TESTS_PER_EVAL = 8;
 /** (frzpol) A hidden verdict whose blocker stops within this (m) of a sample point is near the edge: re-tested every
  *  evaluation (within the budget). */
@@ -116,7 +131,8 @@ export class SectorGuardFreeze {
   private memoE: (Enemy | null)[] = [];
   private memoHidden: Uint8Array = new Uint8Array(0);
   private memoWait: Int16Array = new Int16Array(0);
-  private memoBits: Uint8Array = new Uint8Array(0);
+  /** (S10) 32-bit: the lamp bits (`FREEZE_LAMP_BIT0 << i`) sit above the body / moon / lamp bits. */
+  private memoBits: Uint32Array = new Uint32Array(0);
   private memoUrgent: Uint8Array = new Uint8Array(0);
   private memoEdge: Uint8Array = new Uint8Array(0);
   private memoAge: Int16Array = new Int16Array(0);
@@ -276,6 +292,23 @@ export class SectorGuardFreeze {
         if (this.seen(c, pr[6]!, pr[7]!, pr[8]!)) return false;
       }
     }
+    // (S10) each lamp whose shadow volume of him is in the frustum: where the shadow of his head and of his middle
+    // lands (the probe away from the lamp, out to its reach), the camera must not see it
+    if (bits & FREEZE_LAMP_IN) {
+      const pr = this.probe;
+      const L = this.lights;
+      for (let i = 0; i < L.spotN; i++) {
+        if ((bits & (FREEZE_LAMP_BIT0 << i)) === 0) continue;
+        for (let k = 0; k < FREEZE_PROBES; k++) {
+          if (!lampProbe(pr, x, y, z, h, k === 0 ? 1 : 0.5, L, i)) continue;
+          this.from.set(pr[0]!, pr[1]!, pr[2]!);
+          this.to.set(pr[3]!, pr[4]!, pr[5]!);
+          this.rays++;
+          if (!lampLanding(pr, this.ray!(this.from, this.to))) continue;
+          if (this.seen(c, pr[6]!, pr[7]!, pr[8]!)) return false;
+        }
+      }
+    }
     return true;
   }
 
@@ -295,7 +328,7 @@ export class SectorGuardFreeze {
     if (this.memoHidden.length >= n) return;
     const m = Math.max(n, 32);
     this.memoHidden = grow8(this.memoHidden, m);
-    this.memoBits = grow8(this.memoBits, m);
+    this.memoBits = grow32(this.memoBits, m);
     this.memoUrgent = grow8(this.memoUrgent, m);
     this.memoEdge = grow8(this.memoEdge, m);
     this.memoWait = grow16(this.memoWait, m);
@@ -323,7 +356,24 @@ export class SectorGuardFreeze {
       } else if (l instanceof SpotLight || l instanceof PointLight) {
         const p = l.getAbsolutePosition();
         const z = l.shadowMaxZ;
-        L.addSpot(p.x, p.y, p.z, Number.isFinite(z) && z > 0 ? z : Infinity);
+        // (S10) how far from the lamp a shadow can land: the shadow map ends at depth shadowMaxZ along its view axis
+        // (radially up to / cos(half angle) at a spot's rim, sqrt 3 at a cube face corner), the light at its range
+        let reach = Number.isFinite(z) && z > 0 ? z : Infinity;
+        if (l instanceof SpotLight) {
+          const half = l.angle * 0.5;
+          const cos = Math.cos(half);
+          reach = half < Math.PI / 2 ? reach / Math.max(cos, 0.05) : Infinity;
+          const rg = l.range;
+          if (Number.isFinite(rg) && rg > 0 && rg < reach && rg < 1e30) reach = rg;
+          const d = l.getShadowDirection();
+          const len = hyp3(d.x, d.y, d.z) || 1;
+          L.addSpot(p.x, p.y, p.z, reach, d.x / len, d.y / len, d.z / len, half);
+        } else {
+          reach *= Math.sqrt(3);
+          const rg = l.range;
+          if (Number.isFinite(rg) && rg > 0 && rg < reach && rg < 1e30) reach = rg;
+          L.addSpot(p.x, p.y, p.z, reach);
+        }
       } else L.overflow = true;
     }
   }
@@ -358,6 +408,11 @@ function grow8(a: Uint8Array, m: number): Uint8Array {
 }
 function grow16(a: Int16Array, m: number): Int16Array {
   const b = new Int16Array(m);
+  b.set(a);
+  return b;
+}
+function grow32(a: Uint32Array, m: number): Uint32Array {
+  const b = new Uint32Array(m);
   b.set(a);
   return b;
 }
