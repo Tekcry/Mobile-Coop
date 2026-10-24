@@ -1,6 +1,11 @@
 # Guard AI - state
 
 ## Now
+~05:40: coop4 GO (Sector Ops, PLAN feature/coop4 bed2a37c section 2: TeamRef interface in src/game/playerSlots.ts from
+its N0; until N1, slot = index, mv = null). AI1 Opus builder RUNNING on feature/guard-ai-coop4 (one slot seam in src/ai;
+intruder-leave hook name for N1's removeRemote). Next: AI2 + AI3 + AI4 in parallel (separate worktrees off AI1, merge
+back), then AI5, then AI6; one PR, Opus checker pair. Owe Sector Ops: leave-hook, hold-noise line, team-size hook.
+
 ~05:20: coop4 AI brief DONE: docs/coop4/briefs/AI.md (feature/guard-ai-coop4 5efbcff4; A170-A181): AI1 S slots, AI2 M
 perception (9 rays cap), AI3 S hearing, AI4 S reinforcement split, AI5 L response teams, AI6 M e2e; ~1-1.5 days; off at
 1-2 players. Sent to Sector Ops (coop4 lead) with net needs + the guard cap risk (32 vs ~36). Waiting: its players-list
