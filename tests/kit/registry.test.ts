@@ -361,6 +361,7 @@ describe('team controller hand-off (KIT0)', () => {
 
   it('(KIT-TICK) a busyOffer move\'s offer holds the player (busy); a plain kit offer stays free', () => {
     expect(kitOfferFree('pullOffer')).toBe(true);
+    // shutter is not registered in this file, so its offer reads as a plain (free) one; shutter.test.ts checks it busy
     expect(kitOfferFree('shutterOffer')).toBe(true);
     registerKitMove({ ...fakePull([]), busyOffer: true });
     expect(kitOfferFree('pullOffer')).toBe(false);

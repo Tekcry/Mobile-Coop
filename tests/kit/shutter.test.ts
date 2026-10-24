@@ -427,6 +427,40 @@ describe('per-tick upkeep and polish (KIT-TICK)', () => {
     expect([dev(tm).user, dev(tm).phase, dev(tm).open]).toEqual(['', 'closed', 0]);
   });
 
+  it('(POL1) the crawl request times out in tick, also while another move claims the idle press', () => {
+    const claim: KitMove = {
+      kind: 'pull',
+      newRun: () => ({}),
+      check: () => null,
+      idle(h) {
+        h.prompt = 'pull here';
+        return false;
+      },
+      begin() {},
+      step() {},
+    };
+    try {
+      const { tm, asked, controller } = fakeGame({ x: 1, z: 0.6 }, holding);
+      controller.crouched = true;
+      tm.fixedUpdate(DT, true, false);
+      expect(asked).toHaveLength(1);
+      // the host never answers; a pull-up claims every idle press for longer than askWait
+      unregisterKitMove('shutter');
+      unregisterKitMove('pull');
+      registerKitMove(claim);
+      registerKitMove(SHUTTER_MOVE);
+      steps(tm, SHUTTER.askWait + 0.1);
+      expect(tm.prompt).toBe('pull here');
+      unregisterKitMove('pull');
+      // the request already lapsed: the next press asks again at once
+      tm.fixedUpdate(DT, true, false);
+      expect(asked).toHaveLength(2);
+    } finally {
+      unregisterKitMove('pull');
+      registerKitMove(PULL_UP);
+    }
+  });
+
   it('underZone 0.3: a partner standing against the curtain is not under it', () => {
     expect(SHUTTER.underZone).toBe(0.3);
     const d = newShutterDevice(SPEC);

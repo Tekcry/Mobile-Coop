@@ -669,11 +669,12 @@ export const SHUTTER_MOVE: KitMove<ShutterRun> = {
   check: checkShutter,
 
   tick(h, run, dt) {
+    // the crawl request's timeout counts every tick with the real dt, also while another move claims the idle press
+    if (run.asked >= 0 && (run.asked += dt) > SHUTTER.askWait) run.asked = -1;
     syncShutters(h, run, dt);
   },
 
   idle(h, run, coopPressed, free) {
-    if (run.asked >= 0 && (run.asked += 1 / 60) > SHUTTER.askWait) run.asked = -1;
     const crawl = crawlIdle(h, run, coopPressed, free);
     if (crawl !== null) return crawl;
     return free ? holderIdle(h, run, coopPressed) : null;
