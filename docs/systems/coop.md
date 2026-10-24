@@ -259,11 +259,29 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   (`hear(.., 'noise', null, r.ref.id)`): a searching or alerted guard who hears one locates the client's slot only and
   walks to it / turns his hunt to it; the host's slot never moves for it. Host only, no wire change.
 - Downed: `revive` interactables on bodies (`NetAttachment.onLocalDeath` / `onRespawn`); everyone down -> the mode.
-- Bodies: the host lists lying bodies in `snap.bodies` when they change; clients keep those ragdolls and drop the rest.
-  (rig-pose-fix S5, P13) The wire carries no body position: a client ragdoll eases onto the host's sim lie computed from
-  the puppet's last host state (`buf.latest()` feet and yaw) and the fall away from the killer (`deathLieOn`).
+- Bodies: the host lists lying bodies in `snap.bodies` when they change; clients keep those bodies (`Body`, coop-carry) and drop the rest.
+  (rig-pose-fix S5, P13) The wire carries no body position: a client `Body` lies on the host's sim lie computed from
+  the puppet's last host state (`buf.latest()` feet and yaw) and the fall away from the killer (`deathLieOn`), its
+  ragdoll easing onto it (laid straight on it over the budget); a carry's put down lies along the carrier's side, head
+  toward his back, as the host's (`BodyCarry`, `CarryView`).
   (rig-pose-fix S3) `deathLieOn` probes the floor under the settled pelvis on both machines (one down ray on the static
   collision): a guard killed at a ledge lip or mid-air lies on the floor below.
+- (coop-carry, protocol: the train after master's number) Body carry for every player. The host's item mirror carries
+  one item per body not hidden: kind `body` (appended to `ITEM_KINDS`), id `body-<Body.id>`, `e` the enemy id,
+  `on` lying and nobody's, `by` the carrier's player id (the host's own from its lift; a client's from the host's
+  accept); gone from the list = hidden. A client asks through `use`: `body-*` pick up (`bodyCarryNet.pickupDenied`:
+  alive, not held, not carrying, no guard held, MoveState `ground`, the body present and nobody's, `BODY.reach` +
+  0.75 m), `drop-body` (`DROP_BODY_ID`, sent at its put down's hand-over) and `hide-<i>` (carrying, in the spot's
+  reach); the host never runs its own carry items for these. Accepted, the host lifts the body (`Body.beginHoist`:
+  carried, so guards and cameras never find it) and shows it on the client's avatar (`net/carryView.ts`, on the
+  shoulder at `CQ.liftRise`); put down, it ragdolls at the carrier's side with the 3 m drop noise; a carrier down,
+  held for rejoin or gone drops it where he stood. The client carries with the host's own code: `StealthSystems`'
+  carry moved to `game/bodyCarry.ts` (`BodyCarry`), the client's `net/clientCarry.ts` runs it on its own lying
+  `Body` when the mirror names it (`CoopClient.carryMirror`, pure `carryChange`), and `GameState.carrier`
+  (`stealth` or `net.carry`) gives both the speed cap, weapon stow, blocks, interact target (its map's hiding spots,
+  a door faced, Drop body) and pose. A partner's carry shows on both pages through `RemoteAvatar.carryLoad` /
+  `carrySide` / `carryKnees` (the bend, the carry lean, the hands on the knees). Save shape unchanged. Tests:
+  `tests/coopCarry.test.ts`; e2e-coop "client carries a body".
 - Pings (action `ping`: D-pad left tap, Z): `GameState.sendPing` (aim ray) -> `ping` msg / event (host rate 0.8 s) ->
   `ui/hud/pings.ts` (follows a pinged guard, edge arrows off screen).
 - Gadgets: `GadgetSystem.onLocal` reports gas / flash / EMP / noise effects; the host relays them (`gadget`, 1 s rate,

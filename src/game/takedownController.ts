@@ -201,7 +201,7 @@ export class TakedownController {
       this.run(dt);
       return true;
     }
-    this.offer = g.player.alive && !g.stealth?.carrying ? this.find() : null;
+    this.offer = g.player.alive && !g.carrier?.carrying ? this.find() : null;
     // starts on the press; whether it is lethal is decided as it goes (held through `lethalHold` = lethal)
     if (this.offer && pressed) {
       this.holding = true;
