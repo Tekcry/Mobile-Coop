@@ -11,8 +11,8 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   world.ts / sunCascadeCull.ts / sectorGuardFreeze*.ts; keep PR #307's ghostFrame test block and animTierView rule.
 - S9 DONE + pushed (3fed552c, 3de76863): cascade depth cull, 13/13 unit, tsc / eslint clean, no checker yet. Risk to
   check: SHADOW_DROP 4 m for guards on high walkways (shadow clipped near a split).
-- S10 building (Opus agent; WIP commit asked at the save): per-guard lamp shadow volume vs frustum in the freeze.
-- NEXT on resume: if S10 is unfinished, finish it from its WIP commit (a new Opus agent, brief in PLAN2 S10). Then ONE
+- S10 DONE + pushed (0f010bcf, 47041500): per-guard lamp shadow capsule vs frustum + occlusion probes, 42/42 freeze tests. Opus checker on S9+S10 started ~14:10 (if no verdict on resume, start a new one).
+- NEXT on resume: ONE
   Opus checker on S9 + S10; push; queue on the head: guard-cap alone (sectorops,campusops 0/12/24 patrol,away,alert;
   A/B ?guardsun=0 and ?guardfreeze=0; campus alias needs origin/feature/guard-models' guard-cap or --maps=campus on
   master) + e2e smoke sectorops darkness lightbake stealth-ai; a look shot at the cascade breaks; then the PR.
