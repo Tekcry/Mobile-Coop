@@ -119,6 +119,11 @@ Plain `node` from the repo root, no loader flag, safe through cmd.exe (the lapto
   TypeScript (`src/operators/operatorBody.ts` imports `../player/proportions` without an extension).
 - `node scripts/operators/guardHeadCheck.mjs --out <out> --kit scripts/operators/data/guards.json [--partial]`. Albedo
   band 0.55-0.9 (SPEC 7 neutral); heads whose kit `facialHair` is `beard` use 0.45-0.9 (`SKIN_ALBEDO_BY_FACIAL_HAIR`).
+  Hair caps (G10a D4): each cap's `hairline.lod0` / `lod1` (boundary vertices snapped back onto the dense hairline
+  after the decimate) must be at most 1.5 / 3 mm off the contour, with no turn over 75 deg between boundary edges.
+- The `check` stage's `guard-check.mjs` also reads `lods/guard-<b>.bake.json` (G10a): fabric-tinted garment regions'
+  `albedoMean` within 15 % of the SPEC 8 neutral (trousers x 0.78), and `coveredHeadTris` for a face-covered head
+  (broad-1) at every LOD.
 - `node scripts/operators/guardGarmentCheck.mjs <out>/garments/guard-*.json` (or the `<out>/garments` folder).
 The body and garment CLIs expand a `*` / `?` in the file name themselves (`cliFiles.mjs`); a pattern or folder that
 matches nothing exits 2. Exit 1 = a report failed.

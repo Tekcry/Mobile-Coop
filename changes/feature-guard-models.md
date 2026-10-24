@@ -18,6 +18,9 @@ kind: minor
   nothing fetches them while the flag is off; with it on they load on demand and are kept in the worker's own `guards`
   cache for offline play. A build whose files are missing or broken falls back to a stand-in (the operator's figure
   at guard height).
+- Guard look fixes (G10a): uniforms baked at the tint's neutral (no longer near-black), the lightest skin tones keep
+  their hue, no face showing through the heavy's and enforcer's balaclava, smooth hair-cap hairlines; the variety
+  sheet draws no goggle glow on guards and a colour change in the kit now costs a sheet run, not a full bake.
 - Co-op: the enemy `al` carries the look seed in bits 9-15 (`AL_LOOK`; `AL_MAX` is 65535); host and client derive the
   same look from it. The protocol version is bumped by the train build.
 - Tests and docs: Vitest for the kit data, variation, piece mask, look seed on the wire, figure (NullEngine) and the
