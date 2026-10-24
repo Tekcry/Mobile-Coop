@@ -1,6 +1,6 @@
 // Serves the existing dist/ with `vite preview` and runs the e2e suites, several at a time (one browser per suite).
 //
-//   node scripts/run-e2e.mjs [suite ...] [--legacy | --audio | --gpu] [--serial] [--jobs=N] [--quick [--since=<ref>]] [--list]
+//   node scripts/run-e2e.mjs [suite ...] [--legacy | --audio | --gpu] [--serial] [--jobs=N] [--quick [--since=<ref>]] [--affected <base-ref> [--wide]] [--list]
 //
 //   (no flags)   the REQUIRED suites in parallel (`E2E_JOBS` or --jobs; default: min(5, cores / 3))
 //   --serial     one suite at a time with its output streamed live (debugging; same as --jobs=1)
@@ -9,12 +9,16 @@
 //   --legacy     the parked-content suites (`npm run e2e:legacy`)
 //   --audio      the audio suites (`npm run e2e:audio`)
 //   --gpu        the visual read-back suites, Michael's PC only with E2E_GPU=1 (`npm run e2e:gpu`)
+//   --affected <base-ref>  the suites a PR must pass: `git diff` of the merge-base with <base-ref> to HEAD (committed files only, so it
+//                works on a detached commit), the DIRECT tier (the suites that drive the changed area); `--wide` adds the cross-area
+//                readers (WIDE_COVERS); `--list` prints them one per line and exits (the laptop queue and leads use it); picked suites
+//                outside REQUIRED are REPORT ONLY, as in --quick
 // Which change runs what (the test tiers): CLAUDE.md "Sessions" and docs/systems/testing-tools.md.
 // The slowest suites start first (scripts/e2e-times.json, refreshed by every full run), so the pool stays busy to the end.
 import { spawn, execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { cpus } from 'node:os';
-import { coverFile } from './quick-covers.mjs';
+import { selectSuites, suitesForFile, QUICK_COVERS, DIRECT_COVERS, WIDE_COVERS } from './e2e-affected.mjs';
 
 const PORT = Number(process.env.E2E_PORT ?? 4179);
 // Windows: `localhost` can resolve to ::1, which a VPN adapter on the PC blocks (EACCES): bind and browse the IPv4 loopback there
@@ -55,8 +59,8 @@ const REQUIRED_JOBS = new Set(expand(REQUIRED));
 const KNOWN_FLAKY = new Set(['e2e-pad']);
 const flaky = (s) => KNOWN_FLAKY.has(s.split(':')[0]);
 
-// --quick: the folder -> suites map (CORE, COVERS, the suite scripts and helpers) lives in scripts/quick-covers.mjs (pure,
-// also read by scripts/auto-train.mjs). Keep it in step with docs/systems/testing-tools.md.
+// The folder -> suites maps and the selection live in scripts/e2e-affected.mjs (pure): QUICK_COVERS for `--quick` (master's map
+// unchanged), DIRECT_COVERS for `--affected`, WIDE_COVERS for `--affected --wide`.
 
 const argv = process.argv.slice(2);
 const flag = (n) => argv.includes(`--${n}`);
@@ -69,7 +73,17 @@ if (gpuRun && process.env.E2E_GPU !== '1') {
   process.exit(1);
 }
 const quick = flag('quick');
-const named = argv.filter((a) => !a.startsWith('--'));
+// `--affected <base-ref>` (or `--affected=<base-ref>`): the ref is a value, not a suite name
+const affIdx = argv.findIndex((a) => a === '--affected' || a.startsWith('--affected='));
+const affected = affIdx >= 0;
+const affectedBase = !affected ? '' : argv[affIdx].includes('=') ? argv[affIdx].slice(11) : argv[affIdx + 1] && !argv[affIdx + 1].startsWith('--') ? argv[affIdx + 1] : '';
+if (affected && !affectedBase) {
+  console.error('E2E ERROR: --affected needs a base ref, e.g. --affected origin/master');
+  process.exit(1);
+}
+const wide = flag('wide');
+const selective = quick || affected; // a selected run: suites outside REQUIRED are REPORT ONLY
+const named = argv.filter((a, i) => !a.startsWith('--') && !(affected && !argv[affIdx].includes('=') && i === affIdx + 1));
 
 function git(...a) {
   try {
@@ -90,29 +104,54 @@ function changedFiles() {
   return [...out].map((f) => f.replace(/\\/g, '/'));
 }
 
+// scripts/e2e-<x>.mjs files that are modules, not suites (master's --quick rules pick e2e-affected.mjs by name)
+const NOT_SUITES = ['e2e-affected'];
+
+/** Required suites first, then the rest (a legacy / audio suite runs REPORT ONLY; GPU suites never run on software GL; a suite without a script is dropped). A part token (`e2e-sectorops:1`) stays one job. */
+function orderPicked(picked) {
+  const base = (s) => s.split(':')[0];
+  const reqWhole = REQUIRED.filter((s) => picked.has(s));
+  const reqParts = [...picked].filter((s) => s.includes(':') && REQUIRED.includes(base(s)));
+  const rest = [...picked].filter((s) => !REQUIRED.includes(base(s)) && !GPU.includes(base(s)) && !GPU.includes(s) && existsSync(`scripts/${base(s)}.mjs`) && !NOT_SUITES.includes(base(s)));
+  return [...new Set([...expand(reqWhole), ...reqParts, ...expand(rest)])];
+}
+
 function quickSuites() {
   const files = changedFiles();
-  const picked = new Set(['smoke']);
-  const why = [];
-  for (const f of files) {
-    const hit = coverFile(f);
-    for (const s of hit ?? []) picked.add(s);
-    if (hit) why.push(f);
+  const picked = new Set(['smoke', ...selectSuites(files, QUICK_COVERS)]);
+  console.log(`quick: ${files.length} changed file(s), ${files.filter((f) => suitesForFile(f, QUICK_COVERS)).length} reach the browser`);
+  return orderPicked(picked);
+}
+
+/** `--affected <base-ref> [--wide]`: the committed diff from the merge-base to HEAD (works on a detached commit). */
+function affectedSuites() {
+  let files;
+  try {
+    const run = (...a) => execFileSync('git', a, { windowsHide: true, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+    const mb = run('merge-base', affectedBase, 'HEAD');
+    files = run('diff', '--name-only', '--no-renames', mb, 'HEAD').split('\n').map((f) => f.trim().replace(/\\/g, '/')).filter(Boolean);
+  } catch (e) {
+    console.error(`E2E ERROR: --affected ${affectedBase}: ${String(e.stderr || e.message).trim()}`);
+    process.exit(1);
   }
-  console.log(`quick: ${files.length} changed file(s), ${why.length} reach the browser`);
-  // required suites first; a picked legacy / audio suite runs too, REPORT ONLY (GPU suites never run on software GL)
-  return expand(REQUIRED.filter((s) => picked.has(s))).concat(expand([...picked].filter((s) => !REQUIRED.includes(s) && !GPU.includes(s) && existsSync(`scripts/${s}.mjs`))));
+  const suites = selectSuites(files, wide ? WIDE_COVERS : DIRECT_COVERS);
+  console.error(`affected${wide ? ' (wide)' : ''}: ${files.length} changed file(s) vs ${affectedBase}, ${suites.length} suite(s)`);
+  return orderPicked(new Set(suites));
 }
 
 // (sector-fixes-r e2e fix) a named suite with parts expands too (`e2e-sectorops` -> `:1`-`:5`, one job each); `name:N`
 // names one part. Before, a named list ran the suite whole as one job.
-const all = named.length ? expand(named) : legacyRun ? LEGACY : audioRun ? AUDIO : gpuRun ? GPU : quick ? quickSuites() : expand(REQUIRED);
-const fullRun = !named.length && !quick && !legacyRun && !audioRun && !gpuRun;
-// REPORT ONLY: anim-audit always; in a quick run every suite outside REQUIRED
-const report = (s) => REPORT.includes(s.split(':')[0]) || (quick && !REQUIRED_JOBS.has(s));
+const all = named.length ? expand(named) : legacyRun ? LEGACY : audioRun ? AUDIO : gpuRun ? GPU : affected ? affectedSuites() : quick ? quickSuites() : expand(REQUIRED);
+const fullRun = !named.length && !selective && !legacyRun && !audioRun && !gpuRun;
+// REPORT ONLY: anim-audit always; in a quick / affected run every suite outside REQUIRED
+const report = (s) => REPORT.includes(s.split(':')[0]) || (selective && !REQUIRED_JOBS.has(s));
 const jobs = flag('serial') ? 1 : Math.max(1, Number(opt('jobs') ?? process.env.E2E_JOBS ?? Math.min(5, Math.floor(cpus().length / 3))) || 1);
 if (flag('list')) {
-  console.log(all.join('\n'));
+  if (all.length) console.log(all.join('\n'));
+  process.exit(0);
+}
+if (!all.length) {
+  console.log('no suites to run');
   process.exit(0);
 }
 
@@ -160,7 +199,7 @@ async function runOne(s) {
   else console.log(`[start] ${s}`);
   const [script, part] = s.split(':');
   const childEnv = NEEDS_LEGACY_FLAG.has(script) ? { ...env, LEGACY: '1' } : env;
-  const child = spawn(process.execPath, [`scripts/${script}.mjs`, url, ...(part ? [`--part=${part}`] : []), ...(quick && script === 'anim-audit' ? ['--quick'] : [])], { windowsHide: true, stdio: streamed ? 'inherit' : ['ignore', 'pipe', 'pipe'], env: childEnv });
+  const child = spawn(process.execPath, [`scripts/${script}.mjs`, url, ...(part ? [`--part=${part}`] : []), ...(selective && script === 'anim-audit' ? ['--quick'] : [])], { windowsHide: true, stdio: streamed ? 'inherit' : ['ignore', 'pipe', 'pipe'], env: childEnv });
   let log = '';
   if (!streamed) {
     child.stdout.on('data', (d) => (log += d));

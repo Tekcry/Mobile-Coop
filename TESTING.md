@@ -36,6 +36,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   through a ceiling; a lamp switched off or shot goes dark on its diffuser. The roof's open strips are pale corrugated
   sheets (moonlight still comes through); the walls carry pipes, trays, signs and fire points, trusses span the roof,
   and the halls' dead corners hold pallets, drums and cartons, none on a route or patrol.
+- [ ] (fog fix) Saltmarsh Park on Epic, then High: the atrium, the S3 hall and the L1 offices read clear across the room;
+  ceiling lights glow with a short, faint haze under their shade (no long beams), guard torches still beam, and the
+  light meter reads as before.
 - [ ] Sector Ops stars: finish a run on a difficulty; back on the menu that difficulty's star is filled beside Sector Ops
   and in the op list (best time in the context panel). Co-op Sector Ops: the HUD shows Syringes (2 on Normal); a downed
   partner is revived until they run out, then a down restarts the section with both players at the room.
@@ -62,6 +65,11 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Lamp light (LR16a: one photometric model, no Lamp falloff row in Settings > Gameplay): start Sector Ops: the S1
   goods-in floor between the strips reads lit (meter and picture agree), Marlow station 2 still reads; a guard's torch
   beam has a soft edge, and the meter fades with it at the beam's edge (LR16 fix).
+- [ ] (section-bake) Saltmarsh Park cold load: clear the site data (or a private window), start the campus and time
+  the load against the last build: it starts sooner. In S1 the car park floods and the meter read as before; within
+  the first minute nothing on screen pops (far buildings' lamps fade in). Play into S2 through C1: S2 is lit at once.
+  Co-op: a client joining while the host is in S2 or later gets the section's lamps within seconds. Reload: a warm
+  load as before.
 - [ ] Failing tube (LR16-5): stand under the stutter tube (Warehouse Ops: the trade offices corridor panel, west half;
   campusOps: HQ L1 breakout kitchen; Marlow Yard: the A7 south rack strip): every few seconds it chatters or drops
   out, the floor, the fitting and the light meter go with it; shoot it and it stays dark.

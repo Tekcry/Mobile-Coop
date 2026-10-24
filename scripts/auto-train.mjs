@@ -9,8 +9,8 @@
 //     verdict AUTO_TRAIN_RERUN_STALE_MIN (60) min after the request -> "rerun-stale", a request that failed 6 times ->
 //     "rerun-request-failed";
 //     a laptop `laptop-e2e` failure (or a failed laptop rerun) -> auto-drop (Michael 2026-10-24 ~21:00, "Auto-drop on
-//     failure"): the member(s) whose change maps to a failing suite (pickDrops: the e2e:quick folder map in
-//     scripts/quick-covers.mjs, then most src/ files under the suite's folders, then the newest-labelled; never
+//     failure"): the member(s) whose change maps to a failing suite (pickDrops: the --affected DIRECT_COVERS map
+//     in scripts/e2e-affected.mjs, then most src/ files under the suite's folders, then the newest-labelled; never
 //     feature/menu) lose `train-ready` with a comment (suite + assert), the train PR is closed with a comment and the
 //     next train is built in the same tick ("DROPPED" log lines, `dropped: [{ pr, branch, suite }]` in the status);
 //     what it cannot work out stays "failed" for the orchestrator (also: a desktop failure with a cut FAIL list, a rerun
@@ -49,7 +49,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { takeTouchLock } from './heavy-lock.mjs';
-import { coverFolders, quickSuitesFor } from './quick-covers.mjs';
+import { coverFolders, DIRECT_COVERS, suiteSetFor } from './e2e-affected.mjs';
 
 export const LABEL = 'train-ready';
 export const LAPTOP_CONTEXT = 'laptop-e2e';
@@ -596,13 +596,15 @@ export function carryLastDrop(prev, status) {
  * Which members leave a train whose laptop run failed `failing` (suite names, parts allowed). members = [{ pr, branch,
  * files, labeledAt }] (files: the member's `git diff --name-only origin/master...<head>`; labeledAt: ms the
  * `train-ready` label was last added, or null). Never the docs member (feature/menu) nor a member without a PR.
- * Tier 1: every member whose e2e:quick suites (scripts/quick-covers.mjs) include a failing suite.
- * Tier 2 (none matched): the member with the most src/ files under the failing suites' folders (coverFolders).
+ * Tier 1: every member whose `--affected` suites (scripts/e2e-affected.mjs DIRECT_COVERS, the narrow map: fewer
+ * over-drops than the --quick map; `map` overrides it) include a failing suite.
+ * Tier 2 (none matched): the member with the most src/ files under the failing suites' folders (coverFolders: any
+ * QUICK_COVERS row naming the suite, the broad map).
  * Tier 3 (all zero, or a tie at the top: then among the tied): the newest-labelled member (higher PR number on a tie).
  * Docs-only members never leave in tiers 2-3; a train with one code member drops it (tier 3).
  * -> { drops: [{ pr, branch, suite, tier }], reason } (drops [] when nothing can be dropped: reason says why).
  */
-export function pickDrops(members, failing) {
+export function pickDrops(members, failing, { map = DIRECT_COVERS } = {}) {
   const fails = [...new Set((failing ?? []).map(suiteBase).filter(Boolean))];
   const pool = (members ?? []).filter((m) => m?.pr && m.branch !== MENU_BRANCH);
   if (!fails.length) return { drops: [], reason: 'no failing suite named' };
@@ -610,14 +612,14 @@ export function pickDrops(members, failing) {
   if (fails.length > AUTODROP_MAX_SUITES) return { drops: [], reason: `${fails.length} suites failed (over ${AUTODROP_MAX_SUITES}: master or the machine, not one member)` };
   const code = pool.filter((m) => !docsOnly(m.files ?? []));
   const tier1 = pool.flatMap((m) => {
-    const s = quickSuitesFor(m.files ?? []);
+    const s = suiteSetFor(m.files ?? [], map);
     const hit = fails.find((f) => s.has(f));
     return hit ? [{ pr: m.pr, branch: m.branch, suite: hit, tier: 1 }] : [];
   });
   if (tier1.length && code.length >= 2 && code.every((m) => tier1.some((x) => x.pr === m.pr))) {
     return { drops: [], reason: `every code member (${code.map((m) => `#${m.pr}`).join(', ')}) touches ${fails.join(',')}: not dropping the whole train` };
   }
-  if (tier1.length) return { drops: tier1, reason: `${tier1.map((x) => `#${x.pr}`).join(', ')} touch the failing suite (e2e:quick map)` };
+  if (tier1.length) return { drops: tier1, reason: `${tier1.map((x) => `#${x.pr}`).join(', ')} touch the failing suite (--affected map)` };
   if (!code.length) return { drops: [], reason: 'every member is docs-only' };
   const scored = code.map((m) => {
     const src = (m.files ?? []).filter((f) => f.startsWith('src/'));
@@ -649,7 +651,7 @@ function memberLabelPlan({ pr, labels = [], bodies = [], marker, paragraphs }) {
 }
 
 const TIER_WHY = {
-  1: (s) => `its change touches \`${s}\` (the \`e2e:quick\` folder map)`,
+  1: (s) => `its change touches \`${s}\` (the \`--affected\` folder map, scripts/e2e-affected.mjs)`,
   2: (s) => `no member's change maps to \`${s}\`; this one has the most \`src/\` files under that suite's folders`,
   3: (s) => `no member's change maps to \`${s}\`; dropped as the newest \`${LABEL}\` member (or the only one)`,
 };

@@ -9,6 +9,9 @@
  * lamp cone (cos 0.88), gain 1. (LED-only variant: the general one, every non-torch as a lamp, also took the visible
  * beams off the base Warehouse's facade floods; the GPU before / after shots in `docs/vol-cone-fix/`.) (vol-cone-fix: before, any light with a cone took the
  * torch treatment, so the Sector Ops strips drew full ceiling-to-floor white cones, ~35x the scatter of a lamp.)
+ * (fog triage, 4.95.0: Saltmarsh Park's 76 cone fittings are glowing boxes with no LED model, so they took the beam: up
+ * to 14 m since LR16a's photometric reach, half angles up to 69 deg, ~170x the map's lamp haze, "very foggy". A map
+ * with `theme.lampBeams` false passes `lampBeams` false here: there only torches beam; the default keeps the floods.)
  */
 import type { LightDef } from '../world/lights';
 
@@ -21,15 +24,16 @@ export const VOL_BEAM_MAX = 14;
 /** A torch's in-scatter gain. */
 export const VOL_BEAM_GAIN = 1.6;
 
-/** Whether a light draws a long volumetric beam: a torch, or a cone light that is not an LED fitting. */
-export function volBeam(l: Pick<LightDef, 'kind' | 'cone' | 'fixture'>): boolean {
-  return l.kind === 'flashlight' || (!!l.cone && !l.fixture?.model);
+/** Whether a light draws a long volumetric beam: a torch, or (`lampBeams`, the map's `theme.lampBeams`, default true)
+ *  a cone light that is not an LED fitting. */
+export function volBeam(l: Pick<LightDef, 'kind' | 'cone' | 'fixture'>, lampBeams = true): boolean {
+  return l.kind === 'flashlight' || (lampBeams && !!l.cone && !l.fixture?.model);
 }
 
 /** Write light `l` into slot `k` of the pass's uniforms: pos (xyz, march radius), dir (xyz, cosOuter), colour (rgb x
- *  gain, 1). Allocation-free. */
-export function writeVolLight(l: LightDef, k: number, pos: Float32Array, dir: Float32Array, col: Float32Array): void {
-  const beam = volBeam(l);
+ *  gain, 1). `lampBeams`: the map's `theme.lampBeams` (`volBeam`). Allocation-free. */
+export function writeVolLight(l: LightDef, k: number, pos: Float32Array, dir: Float32Array, col: Float32Array, lampBeams = true): void {
+  const beam = volBeam(l, lampBeams);
   const o = k * 4;
   // (LR16-5b: + a swinging pendant's offset, 0 for every other light)
   pos[o] = l.x + l.swx;

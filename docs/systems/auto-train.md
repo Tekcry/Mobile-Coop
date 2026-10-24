@@ -93,19 +93,20 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
   orchestrator): the failing suites come from the `laptop-e2e` (or rerun) description's `FAIL:` list, else from the
   newest laptop-queue failure comment on the head (`**<suite>**` / `Failing assert:` lines, which also give the assert).
   Each member's changed files are `git diff --name-only origin/master...<PR head>` (the compare API when the head is
-  not local), mapped to suites with the `e2e:quick` folder map (`scripts/quick-covers.mjs`, shared with
-  `run-e2e.mjs`; suite parts like `e2e-ctcourse:4` count as their suite). `pickDrops`: (1) every member whose suites
-  include a failing suite; else (2) the member with the most `src/` files under any folder that maps to a failing suite
-  (any `COVERS` row naming it, `src/` for a CORE suite); else, or on a tie there, (3) the newest-labelled member (label
+  not local), mapped to suites with the `--affected` folder map (`DIRECT_COVERS` in `scripts/e2e-affected.mjs`,
+  `suiteSetFor`; the narrow map, so fewer over-drops than the `--quick` map; suite parts like `e2e-ctcourse:4` count as
+  their suite). `pickDrops`: (1) every member whose suites include a failing suite; else (2) the member with the most
+  `src/` files under any folder that maps to a failing suite (`coverFolders`: any `QUICK_COVERS` row naming it, `src/`
+  for a CORE suite); else, or on a tie there, (3) the newest-labelled member (label
   time from the PR's events; higher PR number on a tie). Never `feature/menu`, never a docs-only member in (2)-(3); a
   one-member train drops that member. Guards (orchestrator check, fix round): no drop (state failed, reason says why)
   when more than 3 suites failed (`AUTODROP_MAX_SUITES`, parts as their suite: master or the machine), when tier 1 would
   take every code member of a train with 2+ of them, or when a failing suite was also failed by the last auto-dropped
   train (`lastDrop: { train, failing, at }` in the status, carried on every status until a release or a newer drop: a
-  repeat points at master or a flake, not a member). Tier 1 can over-drop: the folder map is broad, so a member whose
-  change only reaches a failing suite's folders leaves with the culprit (train 41 replay: #270 and #264 were the
-  culprits, #254 (S23) left too because its `src/ai` change maps to `e2e-levels`); the orchestrator re-adds
-  `train-ready` to an innocent member. Each dropped PR loses `train-ready` and gets one comment per train and head
+  repeat points at master or a flake, not a member). Tier 1 can over-drop: a member whose change only reaches a
+  failing suite's folders leaves with the culprit. With the `--quick` map the train 41 replay dropped #254 (S23) beside
+  the culprits #270 and #264 (its `src/ai` change maps to `e2e-levels` there); `DIRECT_COVERS` drops only #270 and #264
+  (trains 45 and 54 replay the same: #294, #308). The orchestrator re-adds `train-ready` to an innocent member. Each dropped PR loses `train-ready` and gets one comment per train and head
   (`<!-- auto-train:dropped:train<n>:<sha> -->`: train, failing suite, assert); the train PR is closed with a comment
   (`gh pr close --comment`; the branch stays); then the no-train path runs in the same tick without pacing and without
   the dropped branches. Log: one `DROPPED #<pr> <branch> from train <n>: <suite> (tier k)` line each; status: the next

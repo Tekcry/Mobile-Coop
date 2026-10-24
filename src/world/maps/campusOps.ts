@@ -101,6 +101,9 @@ export const campusOps: MapDef = {
     faction: 'urban',
     // cool sodium outside, a little desaturated
     grade: { tint: [1.0, 0.99, 1.04], saturation: 0.85, contrast: 1.08 },
+    // (fog triage, Michael 4.95.0 "Campus lights look very foggy, can't see through them") the 76 cone fittings scatter
+    // a short haze under their shade like a lamp, not a torch's 14 m beam (docs/sector-redesign/checks/fog-triage.md)
+    lampBeams: false,
   },
   // (ART-KIT) the greybox plus the campus art; `buildCampus(b, { dress: false })` is the bare greybox
   build: (b: LevelBuilder): MapLayout => buildCampus(b, { dress: true }),

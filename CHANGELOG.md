@@ -1,5 +1,68 @@
 # Changelog
 
+## 4.97.0 - Train 65: Merge train: stacked builds and release guards (overlapping trains); Saltmarsh Park lights without fog; Faster Saltmarsh Park load (per-section lamp bake); E2E affected-suite selection (2026-10-24, PR #345; #344, #339, #333, #251)
+
+### E2E affected-suite selection
+- Test tooling: `node scripts/run-e2e.mjs --affected <base-ref> [--wide] [--list]` picks the e2e suites a PR must pass from its
+  committed diff (merge-base to HEAD, so it works on a detached commit); `--list` prints them and exits. The default is the
+  DIRECT tier (only the suites that drive the changed area: e.g. optic-cable 13 jobs, guard-ai-carry-fix 7); `--wide` adds the
+  cross-area readers (30 and 15). `src/weapons` -> `e2e-stealth-ai` + `e2e-sectorops:1` in both (train 30). The section rating
+  files pick `e2e-section-rating`, the Marlow Yard sets and `scripts/e2e-ctcourse/` pick `e2e-ctcourse`, and every LEGACY / GPU
+  suite is reachable from the area that owns it. Docs-only changes pick no suites. The maps live in the pure module
+  `scripts/e2e-affected.mjs`; `--quick` keeps master's map and rules unchanged (`QUICK_COVERS` and `SUITE_DIRS`, checked row by
+  row against a frozen copy of master's map at train 62). `tests/e2eAffected.test.ts`; `docs/systems/testing-tools.md`
+  "Choosing suites for a change".
+- Laptop queue: `node scripts/laptop-queue/request.mjs --sha <ref> --affected [--wide]` picks the suites from the diff against origin/master (DIRECT tier; `--wide` the cross-area set) instead of a hand-picked `--suites` list; a diff that reaches no browser suite is refused.
+
+### Merge train: stacked builds and release guards (overlapping trains)
+- merge-train: `build <n> ... --on <sha>` builds a train on another unreleased train's version head (overlapping
+  trains, slice 1): the sha must be an `origin/train/<m>` head with master and train m's version commit in it; members,
+  the CHANGELOG heading and the member PRs closed at release are only train n's own; `PROTOCOL_VERSION` is bumped from
+  the base head's value; the train PR body carries `<!-- auto-train:base train/<m> <sha> -->`.
+- merge-train release: a head carrying another train's version commit that master lacks stops with exit 4 ("base train
+  not merged"), for every release and lone-PR release. A stacked train is released only after its base merged exactly at
+  the recorded sha, tagged, with `git merge-tree` showing GitHub's merge keeps the tested tree; its `gh pr merge` is
+  retried up to ~2 min while GitHub settles, and a merge commit whose tree differs from the tested head exits 5.
+  Inert until auto-train builds stacked trains.
+
+### Faster Saltmarsh Park load (per-section lamp bake)
+- Saltmarsh Park (Sector Ops) no longer waits for every lamp of all five sections on a cold first load: the lamp bake
+  runs beside the rest of the load, the match starts once the live section's lamps are in, and the other sections bake
+  in the background (one lamp per worker job, biggest first) and are in long before the players reach them. The picture,
+  the light meter and the guards read the same light as before at every point of the live section; lamps landing
+  elsewhere fade in over 1.5 s. The finished bake is cached as before, so later loads are unchanged. Other maps are
+  unchanged.
+
+### Saltmarsh Park lights without fog
+- Saltmarsh Park (Sector Ops): the ceiling downlights, pendants and hall lights no longer fill the rooms with fog
+  you cannot see through. On Medium and up, 76 of the campus's light fittings drew a long volumetric beam (up to 14 m,
+  as wide as the light cone, 1.6x brighter), meant for torches and floods; they now scatter a short, faint haze under
+  their shade, as the Sector Ops warehouse lights have since 4.61.0. Torches keep their beams. Rendering only: the
+  light meter and the guards see exactly what they did. Marlow Yard and the other maps are unchanged.
+
+## 4.96.0 - Train 64: Guard rendering phase 2 (24 guards) (2026-10-24, PR #341; #323)
+- guard-render S9: the moon's cascades draw a moving caster only in the layers its shadow can land in on screen. On top of
+  the light-space square test (S6), the caster's view depth +- (radius + moon shadow length x light . view) must overlap
+  the layer's split range plus the blend band (`src/world/sunCascadeCull.ts`). The shadow length is 4 m over the moon's
+  steepness, capped at 12 m. The split depths are read from the cascaded shadow generator's private fields through one
+  accessor, pinned by a unit test. Render only: the light field, the meter and perception are unchanged; `?guardsun=0`
+  still turns all of it off.
+- guard-render S10: the Sector guard freeze no longer keeps every guard in a shadowing lamp's reach drawn when the
+  lamp's sphere is in view. Per lamp it now tests the guard's own shadow volume (the cone his body throws away from the
+  lamp, out to where the lamp's shadow map ends; none outside a spot's cone) against the view, and where it is in view,
+  camera rays to where the shadow of his head and middle lands decide, as for the moon (`src/game/sectorGuardFreeze.ts`,
+  `sectorGuardFreezeView.ts`). Render only; `?guardfreeze=0` still turns the freeze off.
+- guard-render S9b: the moon's cascades no longer carry meshes they never draw. A disabled mesh (a guard figure's
+  other LODs, the merged body the figure replaced, a frozen guard), an invisible one, or a low LOD registered under its
+  full mesh (drawn through the full mesh's entry) stays out of the moon's caster list, and the list refills the frame
+  after a caster is enabled or disabled (`src/world/sunCascadeCull.ts` `sunCasterDrawn`, `src/world/world.ts`). CPU
+  only: Babylon already skipped these at draw time, so the shadows look the same.
+- guard-render S10b: the Sector guard freeze now also counts the guard-torch and character shadow maps' slots as
+  shadow lights (they light nothing themselves, so it skipped them): an off-screen guard whose shadow from a partner's
+  flashlight or from a nearby lamp's character shadow would land on screen stays drawn, and a guard thawed for it is in
+  that frame's shadow map (the maps keep frozen guards listed and re-render when one is thawed). A guard's own
+  flashlight never counts for him. Render only; `?guardfreeze=0` still turns the freeze off.
+
 ## 4.95.3 - Train 63: Laptop queue: alone starvation, desktop CPU gates, faster restart (2026-10-24, PR #340; #335)
 - Tooling: an alone measurement that has waited over 30 min (was 45) stops new PR claims on the laptop until it runs,
   also while a train holds alone runs back; the desktop overflow lanes start under 80 % CPU (was 60 / 50 %); the queue

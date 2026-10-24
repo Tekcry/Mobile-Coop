@@ -124,6 +124,27 @@ describe('changelog-assemble', () => {
     expect(summary(r, 'H')).not.toContain('x'.repeat(61));
   });
 
+  it('stacked train (N+1 on N\'s version head): N\'s section + N+1\'s fragments -> one new section on top, no repeats', () => {
+    // train/65 is built on train/64's version commit: CHANGELOG.md already holds 64's section (its fragments consumed and
+    // deleted there), changes/ holds only 65's members' fragments; one of them repeats a line 64 already released.
+    const n64 = ['## 4.96.0 - Train 64: lamps (2026-10-24, PR #350; #341, #342)', '', '### Lamps', '- lamp entry', '',
+      '### Wheel', '- wheel entry', '  continued', ''].join('\n');
+    write('CHANGELOG.md', `# Changelog\n\n${n64}\n${OLD}`);
+    write('changes/feature-guard-s5.md', '# Guard S5\n- guard s5 entry\n- wheel entry\n  continued\n');
+    write('changes/fix-door.md', '# Door fix\nkind: patch\n- door entry\n');
+    const r = assembleDir(root, { version: '4.97.0', title: 'Train 65: guards', date: '2026-10-24', pr: 351, members: [343, 344] });
+    const text = read('CHANGELOG.md');
+    expect(text).toBe(['# Changelog', '', '## 4.97.0 - Train 65: guards (2026-10-24, PR #351; #343, #344)', '',
+      '### Guard S5', '- guard s5 entry', '', '### Door fix', '- door entry', '', n64, OLD].join('\n'));
+    expect(text.match(/^## /gm)).toHaveLength(3); // 65, 64, the old fix: one new section only
+    for (const e of ['- lamp entry', '- wheel entry', '- guard s5 entry', '- door entry']) {
+      expect(text.split('\n').filter((l) => l === e)).toHaveLength(1);
+    }
+    expect(r.skipped).toEqual(['wheel entry continued']);
+    expect(r.bump).toBe('minor');
+    expect(fs.readdirSync(path.join(root, 'changes'))).toEqual([]);
+  });
+
   it('a dry assembly (write false) leaves the files alone', () => {
     write('CHANGELOG.md', `# Changelog\n\n${OLD}`);
     write('changes/a.md', '# A\n- a\n');

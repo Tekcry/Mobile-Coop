@@ -8,7 +8,7 @@ import {
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/auto-train.mjs';
 // @ts-expect-error plain .mjs script without types
-import { coverFolders, quickSuitesFor } from '../scripts/quick-covers.mjs';
+import { coverFolders, suiteSetFor, QUICK_COVERS } from '../scripts/e2e-affected.mjs';
 
 const MIN = 60_000;
 const NOW = Date.parse('2026-10-24T10:00:00Z');
@@ -579,13 +579,18 @@ describe('auto-train: auto-drop on a failed train (Michael 2026-10-24 "Auto-drop
     expect(autoDropCase(null, null, null)).toBeNull();
   });
 
-  it('reuses the e2e:quick folder map (scripts/quick-covers.mjs)', () => {
-    expect([...quickSuitesFor(['src/voxel/lampBake.ts'])]).toEqual(expect.arrayContaining(['e2e-lightbake', 'e2e-desktop']));
-    expect(quickSuitesFor(['docs/x.md', 'tests/a.test.ts', 'changes/feature-a.md']).size).toBe(0);
-    expect([...quickSuitesFor(['scripts/e2e-lightbake.mjs'])]).toEqual(['e2e-lightbake']);
-    expect(quickSuitesFor(['src\\voxel\\lampBake.ts']).has('e2e-lightbake')).toBe(true);
-    expect(quickSuitesFor(['src/core/settings.ts']).has('e2e-offline')).toBe(false); // first match wins
+  it('reuses the folder maps of scripts/e2e-affected.mjs: DIRECT_COVERS for tier 1, QUICK_COVERS folders for tier 2', () => {
+    expect([...suiteSetFor(['src/voxel/lampBake.ts'])]).toEqual(expect.arrayContaining(['e2e-lightbake', 'e2e-desktop']));
+    expect(suiteSetFor(['docs/x.md', 'tests/a.test.ts', 'changes/feature-a.md']).size).toBe(0);
+    expect([...suiteSetFor(['scripts/e2e-lightbake.mjs'])]).toEqual(['e2e-lightbake']);
+    expect(suiteSetFor(['src\\voxel\\lampBake.ts']).has('e2e-lightbake')).toBe(true);
+    expect(suiteSetFor(['src/ai/enemy.ts']).has('e2e-sectorops')).toBe(true); // parts as their suite
+    // DIRECT is narrower than --quick: src/ai reaches e2e-levels only in the quick map
+    expect(suiteSetFor(['src/ai/enemy.ts']).has('e2e-levels')).toBe(false);
+    expect(suiteSetFor(['src/ai/enemy.ts'], QUICK_COVERS).has('e2e-levels')).toBe(true);
+    expect(suiteSetFor(['src/core/settings.ts'], QUICK_COVERS).has('e2e-offline')).toBe(false); // first match wins
     expect(coverFolders('e2e-offline')).toEqual(expect.arrayContaining(['src/core/', 'src/save/', 'src/pwa/']));
+    expect(coverFolders('e2e-levels')).toContain('src/ai/');
     expect(coverFolders('e2e-move')).toContain('src/'); // a CORE suite covers unlisted src/ paths
   });
 
@@ -602,7 +607,7 @@ describe('auto-train: auto-drop on a failed train (Michael 2026-10-24 "Auto-drop
   });
 
   it('does not drop when every code member of a 2+ member train matches, or when more than 3 suites failed', () => {
-    const both = [m(1, 'feature/a', ['src/voxel/a.ts']), m(2, 'feature/b', ['src/world/b.ts']), m(null, 'feature/menu', ['docs/a.md']),
+    const both = [m(1, 'feature/a', ['src/voxel/a.ts']), m(2, 'feature/b', ['src/voxel/b.ts']), m(null, 'feature/menu', ['docs/a.md']),
       m(4, 'feature/docs', ['docs/c.md'])];
     expect(pickDrops(both, ['e2e-lightbake'])).toMatchObject({ drops: [], reason: expect.stringMatching(/every code member \(#1, #2\) touches e2e-lightbake/) });
     // one code member: still dropped
