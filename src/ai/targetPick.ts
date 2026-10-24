@@ -73,3 +73,58 @@ export function pickTarget(n: number, alerted: boolean, cur: number, hunt: numbe
   if (live(cur, n, dist)) return cur;
   return nearestTarget(n, dist);
 }
+
+/**
+ * (coop4 AI2, A181) The sight-ray budget per guard per think: `perceive` starts a player's rays (3 calm: chest, head,
+ * hips; 2 alerted: chest, head; 0 when `mayBeSeen` says no) only while the think's total stays <= `maxRays`. Only at
+ * `COOP4.from` (3) players or more; 1-2 players cost at most 6 and walk the list in index order as before. 4 alerted
+ * players cost 8 (never capped); 4 calm in one field: 3 started per think, the one who waits rotates. Undo: `maxRays:
+ * Infinity`.
+ */
+export const PERCEIVE: { readonly maxRays: number } = { maxRays: 9 };
+
+/**
+ * (coop4 AI2) The order `perceive` starts players in under the ray budget: `cur` (the one he perceives now), then
+ * `hunt` (his intruder's player), then every other live player nearest first (ties: the lower index), that tail
+ * rotated left by `rr` (the guard's think counter) so a different one waits each think. Dead players (`dist`
+ * Infinity) are left out; `cur` / `hunt` out of range or dead are skipped. Writes indices into `out` and returns how
+ * many. No allocation (insertion sort and an in-place rotation over at most `MAX_INTRUDERS`).
+ */
+export function perceiveOrder(n: number, cur: number, hunt: number, dist: Float64Array, rr: number, out: Int8Array): number {
+  let m = 0;
+  if (live(cur, n, dist)) out[m++] = cur;
+  if (hunt !== cur && live(hunt, n, dist)) out[m++] = hunt;
+  const head = m;
+  for (let i = 0; i < n; i++) {
+    if (i === cur || i === hunt) continue;
+    const d = dist[i]!;
+    if (!(d < Infinity)) continue;
+    // insertion by distance (stable: an equal distance stays after the lower index)
+    let j = m;
+    while (j > head && dist[out[j - 1]!]! > d) {
+      out[j] = out[j - 1]!;
+      j--;
+    }
+    out[j] = i;
+    m++;
+  }
+  const tail = m - head;
+  const r = tail > 1 ? ((rr % tail) + tail) % tail : 0;
+  if (r > 0) {
+    // rotate out[head..m) left by r: three reversals
+    reverse(out, head, head + r - 1);
+    reverse(out, head + r, m - 1);
+    reverse(out, head, m - 1);
+  }
+  return m;
+}
+
+function reverse(a: Int8Array, lo: number, hi: number): void {
+  while (lo < hi) {
+    const t = a[lo]!;
+    a[lo] = a[hi]!;
+    a[hi] = t;
+    lo++;
+    hi--;
+  }
+}

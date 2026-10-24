@@ -462,6 +462,36 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   follow the freshest (A150); the host's LKP ghost shows only the host's own slot. Undo: `INTRUDERS.split` false (one
   shared position, one group). Host only, no protocol or save change. Brief: `docs/guard-ai/slices/S24.md`. Tests:
   `intruders.test.ts`, `twoIntruders.test.ts`, `coopPerception.test.ts` (S24 block).
+  Up to 4 intruders (coop4 AI1, A170 / A171, brief `docs/coop4/briefs/AI.md`): `IntruderBoard.find(id)` (a read, never
+  assigns), `leave(id)` (slot marked `gone`, kept for his rejoin: the same id takes it back, LKP kept); a new id with no
+  free slot takes a gone one (idle first, else unseen longest; `reused`), only from `COOP4.from` 3 live players (1-2:
+  today, -1). Every report resolves its slot through `EnemyManager.slotForId`, which releases a reused slot
+  (`releaseSlot`: plan, caller, chase field, heard throttle, `alarmHunt` / `contactHunt`, team hunts, its hunters'
+  `hunt` and pending tells dropped (`Enemy.dropHunt`), its open and queued contact calls cancelled
+  (`RadioNet.cancelInc`), then forgotten). Host hook `EnemyManager.intruderLeft(id: string): void` (the net layer's `removeRemote`); per-player ghost
+  read `ghostOf(id, out: Vector3): number` (0 none / 1 known / 2 show). The player team-slot seam: `slotOf(ref, index)`
+  in `intruders.ts` (`ref.slot` when N1 sets `TeamRef.slot`, else the index): `Enemy.seesIndex` bits are team slots.
+  Undo: `INTRUDERS.reuse` false, `COOP4.from` Infinity. Tests: `intruders.test.ts`, `fourIntruders.test.ts`.
+  (coop4 AI2, A181) At 3+ players `perceive` starts players in `perceiveOrder` (target, hunted intruder, the rest
+  nearest first rotated per think) within `PERCEIVE.maxRays` 9 sight rays (3 calm, 2 alerted, 0 out of view); a player
+  left out reads unseen that think. 1-2 players: index order, uncapped. Counters: `Enemy.raysThink`,
+  `EnemyManager.raysThisStep`. Undo `PERCEIVE.maxRays` Infinity.
+  (coop4 AI3, A172 / A173) Hearing locates each intruder by its own noise; the radio net's receiver queue holds 128
+  entries per section (`RADIO.queue`, 4 contacts x 32 guards). A guest's hold noise names its holder (host line in
+  `coopHost.onHoldPulse`, Sector Ops N1).
+  (coop4 AI4, A174) From 3 players each reinforcement takes `nextAlarmHunt()`: round robin over `alarmHunts` (the
+  alarm's intruder first, then the freshest sightings, leavers skipped); a team shares one (AI5). Refusals at the live
+  cap keep the order. Undo `ALARM_HUNT.split = false`.
+  (coop4 AI5, A175-A179) From 3 players: a stage's response grows `RESPONSE_N.extraPerPlayer` (1) per player past 2,
+  the extras within the live cap's room, two teams from `splitAt` (4) guards (`responseShape` in `gear.ts`; Sector Ops:
+  `EnemyManager.setResponseShape(over)` at section load, `shapeResponse(stage, perStage, out)` at the alarm, `newTeam(..,
+  spread)`); a team shares one intruder (its first member's alarm draw, `SweepTeam.hunt`; later members `retell`, their
+  draws given back) and sweeps round that intruder's last known position (unknown: the freshest); team starts spread
+  over `spread` teams (`sweepStart`), a point another sweeping team holds within `SWEEP.thin` is passed over
+  (`pointBusy`; all held: taken anyway; the #302 stall skip kept). Squad groups take cover in rotation (`rolesRR`); the
+  flank trigger reads the slot's own player's cover time; `spotted` clears per player once nobody fights his slot.
+  1-2 players: today. Undo `RESPONSE_N { extraPerPlayer: 0, splitAt: Infinity }`, `SWEEP4.own / dedupe`,
+  `FIGHTS4.rotate / ownCover / spotted` false. Log `docs/coop4/briefs/AI5-BUILT.md`.
 - Search after combat: the probable area (guard-ai S25, M1, CT rule 9, A151-A154; `ai/searchArea.ts` pure:
   `SEARCH_AREA`, `SearchPlan`, `areaRadius`, `pointScore`, `orderByScore`). One plan per intruder slot
   (`EnemyManager.plans`). `buildPlan(slot)`, called when one of his searchers asks: due when never built, older than

@@ -446,3 +446,131 @@ describe('EnemyManager.hear in a fight and a search (guard-ai S26)', () => {
     expect(g.hunt).toBe(0);
   });
 });
+
+describe('hearing with 3-4 intruders (coop4 AI3)', () => {
+  const four = (): PlayerRef[] => [player('host', -18, -18), player('c1', 18, -18), player('c2', -18, 18), player('c3', 18, 18)];
+
+  it('4 bys, 4 guards in combat each near one maker: 4 slots located at the noises, each guard hunts his own maker', () => {
+    const ps = four();
+    const { em, add } = manager(ps);
+    const corners: [number, number][] = [
+      [-15, -15],
+      [15, -15],
+      [-15, 15],
+      [15, 15],
+    ];
+    const gs = corners.map(([x, z]) => add(guard(x, z, 'alert')));
+    for (let k = 0; k < 4; k++) em.hear(at(corners[k]![0], corners[k]![1] + 3), STEP, 'noise', null, ps[k]!.id);
+    const slots = ps.map((p) => em.intruders.find(p.id));
+    expect(slots).toEqual([0, 1, 2, 3]);
+    for (let k = 0; k < 4; k++) {
+      const s = slots[k]!;
+      expect(em.intruders.valid[s]).toBe(1);
+      expect([em.lkpOf(s)!.x, em.lkpOf(s)!.z]).toEqual([corners[k]![0], corners[k]![1] + 3]);
+      expect(em.intruders.locT[s]).toBe(0);
+      expect(gs[k]!.hunt).toBe(s);
+      expect(gs[k]!.heardAt).toBe(0);
+    }
+  });
+
+  it('a searcher on slot 2 hears slots 0, 1 and 3: each located, he walks to each, his hunt stays 2 until slot 2 is switchAfter stale', () => {
+    const ps = four();
+    const { em, ctx, add, tick } = manager(ps);
+    for (const p of ps) ctx.reportSighting(p);
+    expect(ps.map((p) => em.intruders.find(p.id))).toEqual([0, 1, 2, 3]);
+    const g = add(guard(0, 0, 'searching'));
+    g.hunt = 2;
+    tick(2);
+    const heard: [string, number, number][] = [
+      ['c1', 3, 0],
+      ['c3', 0, 3],
+      ['host', -3, 0],
+    ];
+    for (const [id, x, z] of heard) {
+      em.hear(at(x, z), STEP, 'noise', null, id);
+      const s = em.intruders.find(id);
+      expect([em.lkpOf(s)!.x, em.lkpOf(s)!.z, em.intruders.locT[s]]).toEqual([x, z, 0]);
+      // he walks to it (re-aims his search spot), but keeps hunting slot 2
+      const sp = spotOf(g);
+      expect(Math.hypot(sp[0] - x, sp[1] - z)).toBeLessThanOrEqual(Math.SQRT1_2 + 1e-6);
+      expect(g.heardAt).toBe(0);
+      expect(g.hunt).toBe(2);
+      expect(em.intruders.locT[2]).toBeLessThan(COMBAT_HEAR.switchAfter);
+      tick(COMBAT_HEAR.gap);
+    }
+    // slot 2 not seen or heard for switchAfter: the next body noise of another intruder takes his hunt
+    tick(COMBAT_HEAR.switchAfter - em.intruders.locT[2]!);
+    expect(em.intruders.locT[2]).toBeGreaterThanOrEqual(COMBAT_HEAR.switchAfter);
+    em.hear(at(3, 3), STEP, 'noise', null, 'c3');
+    expect(g.hunt).toBe(3);
+    // and slot 2 itself is never moved by the others' noises
+    expect([em.lkpOf(2)!.x, em.lkpOf(2)!.z]).toEqual([-18, 18]);
+  });
+
+  /** One scripted fight: A sighted and hunted by a guard in combat, B's steps, a searcher near B; the outcome. */
+  const fight = (ps: PlayerRef[]): unknown => {
+    const { em, ctx, add, tick } = manager(ps);
+    const c = add(guard(0, -5, 'alert'));
+    const s = add(guard(8, 4, 'searching'));
+    const sa = ctx.reportSighting(ps[0]!);
+    c.hunt = sa;
+    s.hunt = sa;
+    tick(2);
+    em.hear(at(1, -1), STEP, 'noise', null, ps[1]!.id);
+    tick(COMBAT_HEAR.gap);
+    em.hear(at(6, 4), STEP, 'noise', null, ps[1]!.id);
+    tick(7);
+    em.hear(at(2, -2), STEP, 'noise', null, ps[1]!.id);
+    em.hear(at(0, 0), 6, 'noise');
+    const sb = em.intruders.find(ps[1]!.id);
+    return {
+      sa,
+      sb,
+      lkpA: [em.lkpOf(sa)!.x, em.lkpOf(sa)!.z],
+      lkpB: [em.lkpOf(sb)!.x, em.lkpOf(sb)!.z],
+      locT: Array.from(em.intruders.locT),
+      seenT: Array.from(em.intruders.seenT),
+      valid: Array.from(em.intruders.valid),
+      hunts: [c.hunt, s.hunt],
+      heard: [c.heardAt, s.heardAt],
+      spot: spotOf(s),
+      freshest: em.intruders.freshest,
+    };
+  };
+
+  it('2-player identity: the same fight with two silent, unseen teammates added ends exactly as with 2 players', () => {
+    const two = fight([player('host', -10, 0), player('guest', 10, 0)]);
+    const withFour = fight([player('host', -10, 0), player('guest', 10, 0), player('c2', -19, 19), player('c3', 19, 19)]);
+    expect(withFour).toEqual(two);
+    // and the 2-player outcome is today's G139 rule: B located; the combat guard switched to B once A went stale, the
+    // searcher (B's last step out of his earshot) still hunts A
+    expect(two).toMatchObject({ sa: 0, sb: 1, lkpA: [-10, 0], lkpB: [2, -2], hunts: [1, 0] });
+  });
+
+  it('(A172, pure part of the client hold-noise fix) a client\'s noisy hold heard with `by` locates him at the item; without it (coopHost.ts:771 today) nobody is located', () => {
+    const HOLD = 6; // A6_HOLD_NOISE (the pump-house panel)
+    for (const ps of [[player('host', -10, 0), player('guest', 10, 0)], four()]) {
+      const client = ps[1]!.id;
+      for (const fixed of [false, true]) {
+        const { em, ctx, add, tick } = manager(ps);
+        const c = add(guard(0, -3, 'alert'));
+        c.hunt = ctx.reportSighting(ps[0]!);
+        tick(3);
+        const item = at(0, 0);
+        if (fixed) em.hear(item, HOLD, 'noise', null, client);
+        else em.hear(item, HOLD);
+        const s = em.intruders.find(client);
+        if (fixed) {
+          expect(s).toBeGreaterThan(0);
+          expect([em.lkpOf(s)!.x, em.lkpOf(s)!.z, em.intruders.locT[s]]).toEqual([0, 0, 0]);
+          expect(c.heardAt).toBe(0);
+        } else {
+          expect(s).toBe(-1);
+          expect(c.heardAt).toBe(99);
+        }
+        // the hunted host is untouched either way
+        expect(em.lkpOf(0)!.x).toBe(ps[0]!.feet.x);
+      }
+    }
+  });
+});
