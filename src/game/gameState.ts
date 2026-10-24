@@ -36,7 +36,7 @@ import { EnemyManager } from '../ai/enemyManager';
 import type { PlayerRef } from '../ai/enemy';
 import type { PlayerSlot, TeamFields, TeamRef } from './playerSlots';
 import { localMoveState } from './localMoveState';
-import { emptyMoveState } from '../player/moveState';
+import { emptyMoveState, type MoveState } from '../player/moveState';
 import type { Difficulty } from '../ai/enemyDefs';
 import { resolveDifficulty, type DifficultyDef } from '../ai/archetypes';
 import { Pickups } from './pickups';
@@ -513,8 +513,23 @@ export class GameState implements AppState {
   readonly events = new EventBus<GameEvents>();
   private audio: { frame(dt: number): void; dispose(): void } | null = null;
   private localRef: TeamRef;
-  /** (coop4) The local player's MoveState for `localRef.mv` (host and solo, once per fixed step before the AI; reused). */
+  /** (coop4) The local player's MoveState for `localRef.mv` (host and solo; reused). */
   private readonly localMv = emptyMoveState();
+  /** (coop4 pol, net-batch P5) A fixed step ran since `localMv` was built; `localMv` was built at least once. */
+  private localMvStale = false;
+  private localMvSet = false;
+
+  /** (coop4 pol, net-batch P5) `localRef.mv`: this fixed step's MoveState, built once on the first read in the step
+   *  (null on a co-op client, and before the first step). No allocation. */
+  private localMvRead(): MoveState | null {
+    if (this.puppet) return null;
+    if (this.localMvStale) {
+      this.localMvStale = false;
+      this.localMvSet = true;
+      localMoveState(this, this.localMv);
+    }
+    return this.localMvSet ? this.localMv : null;
+  }
   /** (guard-ai S26) The local player's id (his own noises locate him: `EnemyManager.hear`'s `by`). */
   get localId(): string {
     return this.localRef.id;
@@ -594,6 +609,9 @@ export class GameState implements AppState {
         if (this.suppression.value - before > 0.05) this.player.rig.hit(0.35, from.x - head.x > 0 ? -1 : 1);
       },
     };
+    // (coop4 pol, net-batch P5) `mv` is built on its first read in a fixed step (the guards' read, host and solo), not
+    // every step for nobody; a co-op client's is null (its guards are the host's)
+    Object.defineProperty(this.localRef, 'mv', { get: () => this.localMvRead(), enumerable: true });
     this.hud = new Hud(app.uiRoot);
     this.traversal = new TraversalController(this.scene, this.player, world.level.anchors);
     this.traversal.breakables = world.breakables;
@@ -2050,8 +2068,9 @@ export class GameState implements AppState {
     this.updateCoverRef();
     this.updateExposure(dt);
     this.updateRoomTag(dt);
-    // (coop4) what the local player is doing, for the guards (host and solo; a co-op client's guards are the host's)
-    if (!this.puppet) this.localRef.mv = localMoveState(this, this.localMv);
+    // (coop4) what the local player is doing, for the guards (host and solo; a co-op client's guards are the host's):
+    // this step's state, built on the first read (`localMvRead`)
+    if (!this.puppet) this.localMvStale = true;
     this.enemyMgr?.update(dt);
     // detection: an enemy went to combat on the operator (stealth rules only)
     const em = this.enemyMgr;
