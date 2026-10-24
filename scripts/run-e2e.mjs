@@ -33,8 +33,8 @@ const LEGACY = ['e2e-progression', 'e2e-cosmetics', 'e2e-clear', 'e2e-bunker', '
 // the suites written for `?legacy=1` pages (LEGACY=1 makes e2e-lib add it); the others moved to LEGACY run as they always did
 const NEEDS_LEGACY_FLAG = new Set(['e2e-progression', 'e2e-cosmetics', 'e2e-clear', 'e2e-bunker']);
 const AUDIO = ['e2e-music', 'e2e-score', 'e2e-foley', 'e2e-weapon-audio'];
-// e2e-desktop:3 = the Epic renderer booting in a match; e2e-coop-gpu = the host drawn on the joiner at High / Epic (menu flow)
-const GPU = ['e2e-darkness', 'e2e-desktop:3', 'e2e-coop-gpu'];
+// e2e-desktop:3 = the Epic renderer booting in a match; e2e-coop-gpu = the host drawn on the joiner at High / Epic (menu flow); e2e-visual = the visual gate (docs/visual-gate)
+const GPU = ['e2e-darkness', 'e2e-desktop:3', 'e2e-coop-gpu', 'e2e-visual'];
 // REPORT = the animation audit harness: printed as REPORT ONLY, never fails a run. Only a quick run picks it (with
 // `--quick`, for `src/anim`, `src/player`, `src/net`); animation jobs run it by name.
 const REPORT = ['anim-audit'];

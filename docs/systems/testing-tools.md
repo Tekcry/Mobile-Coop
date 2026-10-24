@@ -158,6 +158,16 @@ behind a VPN adapter).
   as moving every frame; night vision's bloom runs every frame; (LR16-6) thermal: the button cuts on the first frame
   both ways, a guard placed 1.2 m behind a shut hinged door shows one silhouette that reads dim blue at his chest as
   projected on screen against the same pixels with him gone, none with the door open
+- `e2e-visual` (GPU list, port 4189, laptop only; job visual-gate, `docs/visual-gate/`) the visual gate: fixed views on
+  Warehouse, Sector Ops, Marlow Yard and the campus (`scripts/visual-gate/viewpoints.mjs`) at Low and Epic in two browsers
+  at once, plus the torch rigs (on, then off: leak); each shot measured (luma stats, near-black, haze, blotch, arcs:
+  `metrics.mjs`), checked against its absolute rules and its release baseline on the `visual-baselines` data branch
+  (`storeLib.mjs` / `store.mjs`), the L5 parity grid (grey cards at Epic, meter = field on every view); prints one
+  `VISUAL-GATE BEGIN` / `END` block (line 2: the summary JSON VG6 reads) and exits 0 clean / 1 flagged / 2 usage /
+  3 error (`gate.mjs`). Flags: `--rules-only` (no baseline), `--record` / `VG_RECORD=1` (train runs), `--only`,
+  `--maps`, `--extra <params>` (never recorded), `--cards n`, `--deadline s` (default 285), `--scratch d`
+  (default `C:/NightShift/scratch/visual-gate`, 60-day prune), `--rescore <result.json>` (no browser), `--time` (the M0
+  timing run). `run-e2e` runs it with no flags: record off unless `VG_RECORD=1`
 - `e2e-coop-gpu` (GPU list, port 4189) the real menu flow, two players (shared and separate contexts at High, shared at Epic; `COOPGPU_ALL=1` adds separate at Epic): fails on a "failed to load" console message, no host avatar or LOD on the joiner, the host not drawn (body mesh enabled, visible, active, bounds over 0.5 m), or "Connecting to host" still shown; `scripts/repro-coop-avatar.mjs` is the diagnostic version
 - `e2e-combat` weapons (rifle, `pistolSd` magazine 15), hits, headshots, reload, swap, grenades, barrels, death /
   respawn

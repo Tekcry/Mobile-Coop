@@ -5,7 +5,7 @@
 /** @typedef {{ query: string, label: string }} MapCfg */
 /** @typedef {{ browser: any, ctx: any, page: any, errors: string[], renderer: string, chrome: string, bootMs: number, torchCount: number }} Boot */
 /** @typedef {{ feet: Vec3, rig: null | { guard: { pos: Vec3, yaw: number }, torch: boolean, doorAt: Vec3 | null }, minSimS?: number, wallCapMs?: number }} SettleSpec */
-/** @typedef {{ meter: number, field: number, simS: number, ms: number, guards: number, torch: null | { want: boolean, has: boolean }, othersLit: number, door: null | { shut: boolean, dist: number } }} SettleResult */
+/** @typedef {{ meter: number, field: number, simS: number, ms: number, guards: number, torch: null | { want: boolean, has: boolean }, othersLit: number, door: null | { shut: boolean, dist: number }, flickering: number, alarm: null | { before: { stage: unknown, reinforced: number | null }, after: { stage: unknown, reinforced: number | null }, raised: boolean } }} SettleResult */
 /** @typedef {{ flickers: number, swayed: boolean }} PinResult */
 /** @typedef {{ ok: boolean, frames: number, reads: number, lastDelta: number, ms: number }} ConvergeResult */
 /** @typedef {{ pts: Pt2[], behind: boolean }} Projection */ // behind: a corner with clip w <= 0 (VG5 skips that region)
@@ -200,6 +200,14 @@ async function settleInPage({ feet, rig, minS, cap, lateRounds }, pickRigGuard, 
   g.vision.set('off');
   const em = g.enemyMgr;
   const bd = g.world.level.bounds;
+  // (VG2 polish 2) the alarm stage and reinforcements before the settle: a camera or laser that sees the teleported
+  // player raises them (lockdown doors, reinforcements); recorded, not asserted (VG5 WARNs)
+  const alarmOf = () => {
+    const m = g.mode;
+    if (!m || (m.run?.alarm === undefined && m.reinforced === undefined)) return null;
+    return { stage: m.run?.alarm ?? null, reinforced: typeof m.reinforced === 'number' ? m.reinforced : null };
+  };
+  const alarm0 = alarmOf();
   // re-read every call: a section change can spawn new guards. Everyone alive is stubbed, placed and tagged (quadrupeds
   // parked too: a dog walks into frame and pushes doors); the rig guard is the first alive non-quadruped.
   const es = (em?.enemies ?? []).filter((e) => e.alive);
@@ -228,6 +236,15 @@ async function settleInPage({ feet, rig, minS, cap, lateRounds }, pickRigGuard, 
   const meter = g.lightLevel;
   const field = g.world.lightField.bodyLevel(feet[0], feet[1], feet[2], 1.7);
   const simS = g.time - t0;
+  const flickering = g.world.level.lights?.flickering?.length ?? 0;
+  const alarm1 = alarmOf();
+  const alarm = alarm0 || alarm1
+    ? {
+      before: alarm0 ?? { stage: null, reinforced: null },
+      after: alarm1 ?? { stage: null, reinforced: null },
+      raised: String(alarm0?.stage) !== String(alarm1?.stage) || alarm0?.reinforced !== alarm1?.reinforced,
+    }
+    : null;
   // checks
   if (app.loop.timeScale !== 1) throw new Error(`settle: timeScale ${app.loop.timeScale} after the settle (want 1)`);
   let torch = null;
@@ -256,7 +273,7 @@ async function settleInPage({ feet, rig, minS, cap, lateRounds }, pickRigGuard, 
     if (bestD > 1.5) throw new Error(`settle: nearest door ${bestD.toFixed(2)} m from doorAt ${rig.doorAt} (max 1.5)`);
     if (!door.shut) throw new Error(`settle: rig door not shut (target ${best.target}, open ${best.open})`);
   }
-  return { meter, field, simS, ms: Math.round(performance.now() - w0), guards: placed, torch, othersLit, door };
+  return { meter, field, simS, ms: Math.round(performance.now() - w0), guards: placed, torch, othersLit, door, flickering, alarm };
 }
 
 /** PLAN section 3 steps 1-3 in one page evaluate: sim running, place everyone, settle, assert, read meter and field.
@@ -391,6 +408,122 @@ export async function capture(page) {
   const rgba = new Uint8Array(Buffer.from(r.b64, 'base64'));
   if (rgba.length !== r.w * r.h * 4) throw new Error(`capture: ${rgba.length} bytes for ${r.w} x ${r.h}`);
   return { w: r.w, h: r.h, rgba, png, ms: Math.round(now() - t0) };
+}
+
+/** A `width` px wide webp of a PNG (decoded and scaled in the page, `OffscreenCanvas.convertToBlob`, quality 0.8);
+ * height = round(width x h / w). null when the browser's blob is not `image/webp` (the caller WARNs once). */
+export async function thumb(page, png, width = 320) {
+  const b64 = await page.evaluate(`(async () => {
+    const img = await createImageBitmap(await (await fetch('data:image/png;base64,' + ${JSON.stringify(png.toString('base64'))})).blob());
+    const w = ${Number(width)};
+    const h = Math.max(1, Math.round(w * img.height / img.width));
+    const c = new OffscreenCanvas(w, h);
+    c.getContext('2d').drawImage(img, 0, 0, w, h);
+    const blob = await c.convertToBlob({ type: 'image/webp', quality: 0.8 });
+    if (blob.type !== 'image/webp') return null;
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    let s = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    return btoa(s);
+  })()`);
+  return b64 ? Buffer.from(b64, 'base64') : null;
+}
+
+/** The grey card's direction at one point, run in the page after the pin (e2e-darkness `findProbes` :52-83 at that
+ * point; flicker is held at 1 by the pin): the strongest baked lamp by `lampAt` (lights stride 10), the moon when
+ * stronger (`moonLight x moonAt`, direction = -sunDir), else the first of 8 horizontal directions open at 0.4 and 0.8 m.
+ * The camera sits 0.8 m along it, refused when its y > 2.2, its cell is not walkable or |level(cam) - level(at)| >
+ * 0.25; on a refusal the 8 horizontal directions are tried with the same camera test. None: null. */
+export async function cardSpot(page, at) {
+  return page.evaluate((at) => {
+    const g = window.__app.current;
+    const w = g.world;
+    const f = w.lightField;
+    const nav = g.nav;
+    const [x, y, z] = at;
+    const baked = w.lightBake?.lamps?.baked;
+    const L = baked?.lights ?? [];
+    const n = baked?.ids?.length ?? 0;
+    const walk = (px, pz) => {
+      const c = nav.cellOf(px, pz, 0);
+      return c >= 0 && nav.isWalkable(c) && Math.abs(nav.height[c]) < 0.3;
+    };
+    const lv = f.levelAt(x, y, z);
+    const camFor = (dir) => {
+      const cam = [x + dir[0] * 0.8, y + dir[1] * 0.8, z + dir[2] * 0.8];
+      if (cam[1] > 2.2 || !walk(cam[0], cam[2]) || Math.abs(f.levelAt(cam[0], cam[1], cam[2]) - lv) > 0.25) return null;
+      return cam;
+    };
+    const flat = [];
+    for (let a = 0; a < 8; a++) flat.push([Math.cos((a * Math.PI) / 4), 0, Math.sin((a * Math.PI) / 4)]);
+    let dir = null;
+    let light = 'fill';
+    let top = 0.02;
+    for (let i = 0; i < n; i++) {
+      const c = f.lampAt(i, x, y, z);
+      if (c <= top) continue;
+      const lx = L[i * 10] - x;
+      const ly = L[i * 10 + 1] - y;
+      const lz = L[i * 10 + 2] - z;
+      const d = Math.hypot(lx, ly, lz) || 1;
+      top = c;
+      dir = [lx / d, ly / d, lz / d];
+      light = 'lamp';
+    }
+    const sun = w.map?.theme?.sunDir;
+    if (sun && w.lightBake?.moonLight !== undefined && f.moonAt) {
+      const moon = w.lightBake.moonLight * f.moonAt(x, y, z);
+      if (moon > top) {
+        const sl = Math.hypot(sun[0], sun[1], sun[2]) || 1;
+        dir = [-sun[0] / sl, -sun[1] / sl, -sun[2] / sl];
+        light = 'moon';
+      }
+    }
+    if (!dir) {
+      for (const d of flat) {
+        if (walk(x + d[0] * 0.8, z + d[2] * 0.8) && walk(x + d[0] * 0.4, z + d[2] * 0.4)) {
+          dir = d;
+          light = 'fill';
+          break;
+        }
+      }
+    }
+    let cam = dir ? camFor(dir) : null;
+    if (!cam) {
+      for (const d of flat) {
+        cam = camFor(d);
+        if (cam) {
+          dir = d;
+          light = 'fill';
+          break;
+        }
+      }
+    }
+    return cam && dir ? { dir, cam, light } : null;
+  }, at);
+}
+
+/** One grey card under the pin: a probe at `at` facing `spot.dir`, the camera at `spot.cam` looking at it, converge,
+ * capture; `level` = the light field at `at` read after the pin (flicker 1, the image's state; VG2 polish 3). The probe
+ * is disposed in a `finally`. */
+export async function card(page, at, spot) {
+  const t0 = now();
+  try {
+    await page.evaluate(([at, dir]) => {
+      window.__vgProbe?.dispose();
+      window.__vgProbe = window.__app.current.world.addLightProbe(at[0], at[1], at[2], dir[0], dir[1], dir[2]);
+    }, [at, spot.dir]);
+    const aimed = await aim(page, spot.cam, at);
+    const conv = await converge(page);
+    const cap = await capture(page);
+    const level = await page.evaluate((at) => window.__app.current.world.lightField.levelAt(at[0], at[1], at[2]), at);
+    return { level, aimReady: aimed.ready, converge: conv, capture: cap, ms: Math.round(now() - t0) };
+  } finally {
+    await page.evaluate(() => {
+      window.__vgProbe?.dispose();
+      window.__vgProbe = null;
+    }).catch(() => {});
+  }
 }
 
 /** One shot of a view (rigState null) or a rig state: settle, pin, aim, converge, still pinned, project, capture.

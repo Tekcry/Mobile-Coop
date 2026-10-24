@@ -314,6 +314,36 @@ describe('visual-gate guard placement (late spawns)', () => {
   });
 });
 
+describe('visual-gate settle additions (VG5: flickering lights, alarm before / after)', () => {
+  afterEach(() => {
+    const w = globalThis as unknown as Record<string, unknown>;
+    delete w.window;
+    delete w.document;
+  });
+
+  it('records the flickering count and the alarm before / after; raised when either changes; null without a mode', async () => {
+    const list = [fakeE()];
+    const app = fakeApp(list, (read) => {
+      if (read === 2) mode.run.alarm = 1;
+    });
+    const mode = { run: { alarm: 0 }, reinforced: 0 };
+    const g = app.current as unknown as { mode?: unknown; world: { level: { lights: { flickering: number[] } } } };
+    g.mode = mode;
+    g.world.level.lights.flickering = [3, 4];
+    const r = await settle(fakePage(app), { feet: FEET, rig: null, minSimS: 0.05 });
+    expect(r.flickering).toBe(2);
+    expect(r.alarm).toEqual({ before: { stage: 0, reinforced: 0 }, after: { stage: 1, reinforced: 0 }, raised: true });
+    const quiet = fakeApp([fakeE()]);
+    (quiet.current as unknown as { mode?: unknown }).mode = { run: { alarm: 0 }, reinforced: 2 };
+    expect((await settle(fakePage(quiet), { feet: FEET, rig: null, minSimS: 0.05 })).alarm).toEqual({ before: { stage: 0, reinforced: 2 }, after: { stage: 0, reinforced: 2 }, raised: false });
+    const none = await settle(fakePage(fakeApp([fakeE()])), { feet: FEET, rig: null, minSimS: 0.05 });
+    expect(none.alarm).toBeNull();
+    expect(none.flickering).toBe(0);
+  });
+});
+
+const GATE_DEFAULTS = { extra: '', record: false, noRecord: false, rulesOnly: false, cards: null, version: null, deadline: null, scratch: null, rescore: null };
+
 describe('e2e-visual parseArgs', () => {
   it('reads the url and every flag', () => {
     expect(parseArgs(['http://127.0.0.1:4189/', '--time', '--json', 'out/m0.json', '--png', 'out/png', '--only', 'a,b', '--maps', 'ctcourse,warehouse', '--serial'])).toEqual({
@@ -324,14 +354,30 @@ describe('e2e-visual parseArgs', () => {
       only: ['a', 'b'],
       maps: ['ctcourse', 'warehouse'],
       serial: true,
+      ...GATE_DEFAULTS,
     });
   });
 
   it('defaults, and refuses unknown or empty flags', () => {
-    expect(parseArgs(['http://x/'])).toEqual({ url: 'http://x/', time: false, json: null, png: null, only: null, maps: null, serial: false });
+    expect(parseArgs(['http://x/'])).toEqual({ url: 'http://x/', time: false, json: null, png: null, only: null, maps: null, serial: false, ...GATE_DEFAULTS });
     expect(() => parseArgs(['http://x/', '--bogus'])).toThrow(/unknown flag/);
     expect(() => parseArgs(['http://x/', '--json'])).toThrow(/needs a value/);
     expect(() => parseArgs(['http://x/', '--only', '--time'])).toThrow(/needs a value/);
+  });
+
+  it('reads the gate flags (VG5)', () => {
+    expect(parseArgs(['http://x/', '--extra', 'falloff=photo&gfx=low', '--record', '--no-record', '--rules-only', '--cards', '1', '--version', '4.97.1', '--deadline', '200', '--scratch', 'C:/s', '--rescore', 'r.json'])).toEqual({
+      url: 'http://x/', time: false, json: null, png: null, only: null, maps: null, serial: false,
+      extra: 'falloff=photo&gfx=low', record: true, noRecord: true, rulesOnly: true, cards: 1, version: '4.97.1', deadline: 200, scratch: 'C:/s', rescore: 'r.json',
+    });
+    expect(parseArgs(['http://x/', '--cards', '0']).cards).toBe(0);
+    expect(() => parseArgs(['http://x/', '--cards', 'two'])).toThrow(/--cards/);
+    expect(() => parseArgs(['http://x/', '--cards', '-1'])).toThrow(/needs a value|--cards/);
+    expect(() => parseArgs(['http://x/', '--cards', '1.5'])).toThrow(/--cards/);
+    expect(() => parseArgs(['http://x/', '--deadline', '0'])).toThrow(/--deadline/);
+    expect(() => parseArgs(['http://x/', '--deadline', 'soon'])).toThrow(/--deadline/);
+    expect(() => parseArgs(['http://x/', '--version', '4.97'])).toThrow(/--version/);
+    expect(() => parseArgs(['http://x/', '--rescore'])).toThrow(/needs a value/);
   });
 });
 
