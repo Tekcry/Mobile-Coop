@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, trainSoon, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, supersedeStatuses, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, trainSoon, releasingTrain, readyOrPending, RELEASE_HOLD_MS, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS } from '../scripts/laptop-queue/lib.mjs';
 // @ts-expect-error plain .mjs module without types
 import { selectSuites, WIDE_COVERS } from '../scripts/e2e-affected.mjs';
 
@@ -51,21 +51,55 @@ describe('pick', () => {
   });
 });
 
-describe('pick newest first per requester', () => {
-  it('runs the requester with the oldest request first, then that one newest request',() => {
+describe('pick oldest first per requester (priority first)', () => {
+  it('runs the requester with the oldest request first, then that requester oldest request', () => {
     const a1 = req(50, 'pr', 'a1', 'A');
     const b1 = req(40, 'pr', 'b1', 'B');
     const a2 = req(30, 'pr', 'a2', 'A');
     const b2 = req(10, 'full', 'b2', 'B');
     const q = { trains: [], requests: [b2, a2, b1, a1] };
-    expect(pick(q, NOW, slots(false, false))).toEqual({ kind: 'request', request: a2, slot: '4189' });
-    const rest = { trains: [], requests: [b2, b1] };
-    expect(pick(rest, NOW, slots(false, false))).toEqual({ kind: 'request', request: b2, slot: '4189' });
+    expect(pick(q, NOW, slots(false, false))).toEqual({ kind: 'request', request: a1, slot: '4189' });
+    // a1 done: B's oldest request is now the oldest overall, and B's oldest runs
+    expect(pick({ trains: [], requests: [b2, a2, b1] }, NOW, slots(false, false))).toEqual({ kind: 'request', request: b1, slot: '4189' });
+    expect(pick({ trains: [], requests: [b2, b1] }, NOW, slots(false, false))).toEqual({ kind: 'request', request: b1, slot: '4189' });
   });
-  it('an alone request is never the newest to run', () => {
+  it('the 2026-10-24 case: Guard AI #317 (oldest) runs before its newer #360 / #363', () => {
+    const r317 = { ...req(70, 'pr', 'g317', 'Guard AI'), pr: 317 };
+    const r360 = { ...req(20, 'pr', 'g360', 'Guard AI'), pr: 360 };
+    const r363 = { ...req(5, 'pr', 'g363', 'Guard AI'), pr: 363 };
+    expect(pick({ trains: [], requests: [r363, r360, r317] }, NOW, slots(false, false))?.request).toBe(r317);
+  });
+  it('a higher priority goes first within the requester, then oldest among equal priority', () => {
+    const a1 = req(50, 'pr', 'a1', 'A');
+    const a2 = { ...req(30, 'pr', 'a2', 'A'), priority: 1 };
+    const a3 = { ...req(10, 'pr', 'a3', 'A'), priority: 1 };
+    const a4 = { ...req(5, 'pr', 'a4', 'A'), priority: -1 };
+    expect(pick({ trains: [], requests: [a4, a3, a2, a1] }, NOW, slots(false, false))?.request).toBe(a2);
+    expect(pick({ trains: [], requests: [a4, a1] }, NOW, slots(false, false))?.request).toBe(a1);
+  });
+  it('priority never moves a request ahead of another requester (fairness by arrival unchanged)', () => {
+    const b1 = req(50, 'pr', 'b1', 'B');
+    const a1 = { ...req(30, 'pr', 'a1', 'A'), priority: 9 };
+    expect(pick({ trains: [], requests: [a1, b1] }, NOW, slots(false, false))?.request).toBe(b1);
+  });
+  it('a laptop rerun keeps its place by its id time', () => {
+    const a1 = req(50, 'pr', 'a1', 'A');
+    const rr = { ...req(10, 'pr', 'rr', 'A'), laptopRerun: true };
+    expect(pick({ trains: [], requests: [rr, a1] }, NOW, slots(false, false))?.request).toBe(a1);
+    expect(pick({ trains: [], requests: [rr] }, NOW, slots(false, false))?.request).toBe(rr);
+  });
+  it('an alone request is never picked as the requester pr request', () => {
     const p1 = req(30, 'pr', 'p1', 'A');
     const al = req(5, 'alone', 'al', 'A');
     expect(pick({ trains: [], requests: [al, p1] }, NOW, slots(false, false))).toEqual({ kind: 'request', request: p1, slot: '4189' });
+  });
+  it('requestProblem: priority must be an integer when given', () => {
+    const ok = { id: 'x', sha: 'a'.repeat(40), kind: 'pr', suites: ['e2e-coop'] };
+    expect(requestProblem({ ...ok, priority: 2 })).toBe('');
+    expect(requestProblem({ ...ok, priority: -1 })).toBe('');
+    expect(requestProblem({ ...ok, priority: 1.5 })).toMatch(/priority/);
+    expect(requestProblem({ ...ok, priority: NaN })).toMatch(/priority/);
+    expect(requestProblem({ ...ok, priority: '2' })).toMatch(/priority/);
   });
 });
 
@@ -329,6 +363,34 @@ describe('claims and the desktop lane', () => {
     expect(desktopSlotGate({ ...base, dirOk: false })).toBe('worktree missing');
     expect(desktopSlotGate({ ...base, backlog: 3 })).toMatch(/backlog/);
     expect(desktopSlotGate({ ...base, cpu: NaN })).toBe('cpu unknown');
+    expect(desktopSlotGate({ ...base, cpu: 55, cpuTotal: 97 })).toBe('cpu 55% >= 50% (Normal+ priority; total 97%)');
+  });
+});
+
+describe('gate cpu (BelowNormal / Idle left out)', () => {
+  const snap = (busy: number, idle: number, n = 2) => Array.from({ length: n }, () => ({ times: { user: busy, nice: 0, sys: 0, irq: 0, idle } }));
+  it('cpuTotalPct is busy over all time between two os.cpus() snapshots', () => {
+    expect(cpuTotalPct(snap(0, 0), snap(750, 250))).toBe(75);
+    expect(cpuTotalPct(snap(100, 100), snap(100, 1100))).toBe(0);
+    expect(cpuTotalPct(null, snap(1, 1))).toBeNaN();
+    expect(cpuTotalPct(snap(0, 0, 2), snap(1, 1, 4))).toBeNaN();
+    expect(cpuTotalPct(snap(5, 5), snap(5, 5))).toBeNaN();
+  });
+  it('backgroundCpuMs sums deltas of pids in both snapshots and reads the window', () => {
+    const out = ['a 100 5000', 'a 200 10', 'a 0 999', 'a 300 50', '', 'b 100 13000', 'b 200 10', 'b 0 5000', 'b 400 900', 'el 1012', 'junk line'].join('\r\n');
+    // 100: 8000 ms (the Blender bake), 200: idle, 0 left out, 300 ended, 400 new: skipped
+    expect(backgroundCpuMs(out)).toEqual({ bgMs: 8000, elapsedMs: 1012 });
+    expect(backgroundCpuMs('').elapsedMs).toBeNaN();
+    expect(backgroundCpuMs('a 1 10\nb 1 5\nel 0')).toEqual({ bgMs: 0, elapsedMs: NaN });
+  });
+  it('gatedCpu takes the background share off the total: the 22:34 Blender bake no longer holds 4192', () => {
+    // 20 cores at 95%, a BelowNormal bake using 10 cores' worth for 1 s: 95 - 50 = 45 < 50, the slot starts
+    expect(gatedCpu({ total: 95, bgMs: 10_000, elapsedMs: 1000, cores: 20 })).toBe(45);
+    expect(gatedCpu({ total: 30, bgMs: 20_000, elapsedMs: 1000, cores: 10 })).toBe(0);
+    expect(gatedCpu({ total: 60, bgMs: 0, elapsedMs: 1000, cores: 8 })).toBe(60);
+    expect(gatedCpu({ total: NaN, bgMs: 0, elapsedMs: 1000, cores: 8 })).toBeNaN();
+    expect(gatedCpu({ total: 60, bgMs: 0, elapsedMs: NaN, cores: 8 })).toBeNaN();
+    expect(gatedCpu({ total: 60, bgMs: 0, elapsedMs: 1000, cores: 0 })).toBeNaN();
   });
 });
 
@@ -672,6 +734,82 @@ describe('trainSoon', () => {
     expect(trainSoon({ release: { n: '60', ageMs: 4 * 60_000 }, candidates: 2 }, lim)).toBe('');
     expect(trainSoon({}, lim)).toBe('');
   });
+  it('releasing: holds up to 10 min after an open train laptop-e2e success while train-ready PRs are next', () => {
+    expect(RELEASE_HOLD_MS).toBe(10 * 60_000);
+    // train 67 success at 22:28:28, an alone claim at 22:28:45 (17 s later) was preempted by train 68 at 22:34
+    expect(trainSoon({ releasing: { n: '67', ageMs: 17_000 }, candidates: 1 }, lim)).toBe('train 67 releasing, 1 train-ready PR(s) next');
+    expect(trainSoon({ releasing: { n: '67', ageMs: 9 * 60_000 }, candidates: 3 }, lim)).toMatch(/^train 67 releasing/);
+    expect(trainSoon({ releasing: { n: '67', ageMs: 10 * 60_000 }, candidates: 3 }, lim)).toBe('');
+    expect(trainSoon({ releasing: { n: '67', ageMs: 60_000 }, candidates: 0 }, lim)).toBe('');
+    expect(trainSoon({ releasing: { n: '67', ageMs: 60_000 }, candidates: 1 }, { ...lim, releaseMs: 30_000 })).toBe('');
+    // building wins (a new train with no version head yet beside a releasing one)
+    expect(trainSoon({ building: { n: '68', ageMs: 1000 }, releasing: { n: '67', ageMs: 1000 }, candidates: 1 }, lim)).toBe('train 68 building');
+  });
+  it('releasingTrain: the youngest laptop-e2e success among the open heads', () => {
+    const at = (min: number) => new Date(NOW - min * 60_000).toISOString();
+    expect(releasingTrain([{ n: '67', laptop: 'success', laptopAt: at(2) }], NOW)).toEqual({ n: '67', ageMs: 2 * 60_000 });
+    expect(releasingTrain([{ n: '67', laptop: 'success', laptopAt: at(8) }, { n: '68', laptop: 'success', laptopAt: at(1) }], NOW)?.n).toBe('68');
+    expect(releasingTrain([{ n: '67', laptop: 'pending', laptopAt: at(1) }, { n: '68', laptop: '', laptopAt: '' }], NOW)).toBeNull();
+    expect(releasingTrain([{ n: '67', laptop: 'success', laptopAt: '' }], NOW)).toBeNull(); // no time: no hold
+    expect(releasingTrain([], NOW)).toBeNull();
+  });
+  it('readyOrPending: train-ready PRs whose check passed or still runs, not the open train members', () => {
+    const prs = [
+      { head: 'a', check: { status: 'COMPLETED', conclusion: 'SUCCESS' } },
+      { head: 'b', check: { status: 'IN_PROGRESS', conclusion: '' } },
+      { head: 'c', check: { status: 'QUEUED', conclusion: null } },
+      { head: 'd', check: { status: 'COMPLETED', conclusion: 'FAILURE' } },
+      { head: 'e', check: null },
+    ];
+    expect(readyOrPending(prs)).toBe(3);
+    expect(readyOrPending(prs, (h: string) => h === 'a')).toBe(2);
+    expect(readyOrPending([])).toBe(0);
+    expect(readyOrPending(undefined)).toBe(0);
+  });
+});
+
+describe('desktop failures rechecked on the laptop', () => {
+  const r = { id: idAt(5, 'player'), sha: 'b'.repeat(40), branch: 'feature/x', pr: 412, kind: 'pr', requester: 'Night Shift | Player Build', suites: ['e2e-coop', 'e2e-menus', 'e2e-mouse'] };
+  it('median of the finite CPU samples', () => {
+    expect(median([50, 95, 92])).toBe(92);
+    expect(median([80, 100])).toBe(90);
+    expect(median([NaN, 70])).toBe(70);
+    expect(median([])).toBeNaN();
+  });
+  it('the pending description names the failed suites and the CPU, flags cpu>90%, fits 140 chars', () => {
+    expect(DESKTOP_HOT_CPU).toBe(90);
+    expect(desktopFailDesc(['e2e-coop', 'e2e-menus'], 87.4)).toBe('desktop FAIL e2e-coop,e2e-menus (cpu 87%), laptop rerun queued');
+    expect(desktopFailDesc(['e2e-coop'], 93)).toBe('desktop FAIL e2e-coop (cpu 93%), laptop rerun queued; desktop cpu>90%');
+    expect(desktopFailDesc(['e2e-coop'], 90)).not.toMatch(/cpu>90/);
+    expect(desktopFailDesc(['e2e-coop'], NaN)).toBe('desktop FAIL e2e-coop (cpu ?%), laptop rerun queued');
+    const long = desktopFailDesc(Array.from({ length: 20 }, (_, i) => `e2e-suite-${i}`), 99);
+    expect(long.length).toBeLessThanOrEqual(140);
+    expect(long).toMatch(/\.\.\. \(cpu 99%\), laptop rerun queued; desktop cpu>90%$/);
+  });
+  it('the laptop rerun keeps sha / set / pr / requester, runs the failed suites, posts on the same context', () => {
+    const rr = laptopRerunRequest(r, ['e2e-menus'], { now: NOW, suffix: 'abcd' });
+    expect(rr).toMatchObject({ sha: r.sha, branch: 'feature/x', pr: 412, kind: 'pr', requester: r.requester, suites: ['e2e-menus'], laptopRerun: true });
+    expect(rr.id).toBe(`${requestId(NOW, r.requester, r.sha)}-abcd`);
+    expect(requestProblem(rr)).toBe('');
+    // no set: the old suites become the set, so the verdict lands on the context the desktop left pending
+    expect(contextName(rr.kind, rr.set, rr.suites)).toBe(contextName(r.kind, undefined, r.suites));
+    const aff = { ...r, requester: AFFECTED_REQUESTER, set: 'affected' };
+    expect(laptopRerunRequest(aff, ['e2e-coop'], { now: NOW, suffix: 'ef01' })).toMatchObject({ set: 'affected', requester: AFFECTED_REQUESTER });
+    expect(requestProblem({ ...rr, kind: 'alone', steps: ['x'] })).toMatch(/laptop rerun needs kind pr/);
+  });
+  it('a laptop rerun is never a duplicate of the desktop run it rechecks and supersedes nothing', () => {
+    const rr = laptopRerunRequest(r, r.suites, { now: NOW, suffix: 'abcd' });
+    expect(dupKey(rr)).not.toBe(dupKey({ ...r, set: rr.set }));
+    expect(duplicates([rr, { ...r, set: rr.set, active: true }], [], NOW, 3600_000).size).toBe(0);
+    // an older open request of the same requester and set is not retired by the rerun
+    const older = { ...r, id: idAt(30, 'player'), set: rr.set };
+    expect(superseded([older, rr], () => true).size).toBe(0);
+    // a newer request still supersedes the rerun
+    const newer = { ...r, id: idAt(-5, 'player'), set: rr.set };
+    expect(superseded([rr, newer], () => true).get(rr.id)).toBe(newer.id);
+    // plain keys unchanged (state.done keys written before stay comparable)
+    expect(JSON.parse(dupKey(r))).toHaveLength(8);
+  });
 });
 
 describe('manualLocks', () => {
@@ -756,6 +894,13 @@ describe('runProgress / aloneSoon', () => {
     expect(runProgress(['x'], times, 1, 150_000)).toBeNaN();
     expect(runProgress([], times, 1, 1000)).toBeNaN();
     expect(runProgress(['a'], {}, 1, 1000)).toBeNaN();
+  });
+  it('expectedWallS: the heaviest bin in s (the train posts it as "expect ~N s")', () => {
+    const times = { a: 100, b: 100, c: 50 };
+    expect(expectedWallS(['a', 'b', 'c'], times, 2)).toBe(150);
+    expect(expectedWallS(['a', 'b'], times, 1)).toBe(200);
+    expect(expectedWallS(['a', 'x'], times, 1)).toBeNaN();
+    expect(expectedWallS([], times, 1)).toBeNaN();
   });
   it('alone claims wait while a green train-ready PR has no train yet', () => {
     expect(aloneSoon(0, 1)).toMatch(/1 train-ready PR/);
@@ -909,5 +1054,21 @@ describe('affected e2e on every PR head', () => {
     const y1 = a(30, 'y1', 'feature/y');
     expect(pick({ trains: [], requests: [y1, lead, x1] }, NOW, slots(false, false))?.request).toBe(x1);
     expect(pick({ trains: [], requests: [y1, lead] }, NOW, slots(false, false))?.request).toBe(lead);
+  });
+});
+
+describe('supersedeStatuses', () => {
+  const orig = { id: '20261024T120000-guard-ai-aaaaaaaa', sha: 'a'.repeat(40), kind: 'pr', requester: 'guard-ai', suites: ['e2e-coop', 'e2e-menus'], set: '' };
+  it('a superseded laptop rerun closes the desktop FAIL pending on its context; plain requests post nothing', () => {
+    const rr = laptopRerunRequest(orig, ['e2e-coop'], { now: Date.UTC(2026, 9, 24, 12, 30), suffix: 'beef' });
+    expect(supersedeStatuses(rr, 'NEW-ID')).toEqual([{ sha: orig.sha, state: 'error', context: contextName('pr', '', orig.suites), description: 'superseded by NEW-ID' }]);
+    expect(supersedeStatuses(orig, 'NEW-ID')).toEqual([]);
+    expect(supersedeStatuses(undefined, 'NEW-ID')).toEqual([]);
+  });
+  it('an affected request closes affected-e2e; its laptop rerun closes both', () => {
+    const aff = { ...orig, requester: AFFECTED_REQUESTER, set: 'affected' };
+    expect(supersedeStatuses(aff, 'N')).toEqual([{ sha: orig.sha, state: 'error', context: AFFECTED_CTX, description: 'superseded by a newer head (N)' }]);
+    const rr = laptopRerunRequest(aff, ['e2e-coop'], { now: Date.UTC(2026, 9, 24, 12, 30), suffix: 'beef' });
+    expect(supersedeStatuses(rr, 'N').map((x: { context: string }) => x.context)).toEqual(['laptop-e2e/affected', AFFECTED_CTX]);
   });
 });
