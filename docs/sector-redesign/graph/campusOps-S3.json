@@ -114,7 +114,7 @@
       "length": 30.5, "reason": "South-west caged ladder at (23, -28.15) up to the crane walkway",
       "note": "length = walk to the foot + deck walk to the walkway's middle (the climb itself is level_change); no time_s: no split is tagged in S3." },
     { "from": "s3-hall", "to": "s3-walkway", "kind": "ladder", "route": "high", "level_change": 6.0,
-      "length": 30.5, "reason": "South-east caged ladder at (51, -28.15), 2 m from the first burn-in rack run" },
+      "length": 30.5, "reason": "South-east caged ladder at (51, -28.15), 2.15 m from the first burn-in rack run" },
     { "from": "s3-hall", "to": "s3-chamber", "kind": "coop_boost", "route": "high", "level_change": 4.4,
       "length": 22.5, "reason": "CR3: leg-up onto the chamber's west face lip, 4.4 over the hall floor, from (29.2, -18); no ladder (it is behind an anti-climb guard) and no bench or rack within 4 m",
       "note": "length = walk round the chamber to the boost spot + 3 m on the roof. Up only: there is no linked way down, the roof edge is a 4.4 m drop (not written as a drop link: fall constant unconfirmed)." },
