@@ -1,0 +1,13 @@
+{
+  "id": "20261024T173509-night-shift-player-b-92edc3e5-0b8b",
+  "sha": "92edc3e5d761ca90ffc55abf907bda68468c6796",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-coop-real:probe"
+  ],
+  "set": "coop-real-probe2",
+  "note": "coop-real probe: minimize / Debugger.pause rows for B1 / B2"
+}
