@@ -1,6 +1,15 @@
 # visual-gate - state
 
-## Now (2026-10-24 ~23:00)
+## Now (2026-10-24 ~23:40, after the swap)
+- VG1 Opus check PASS (checks/vg1-check.md, polish 1-6 held: arc orientation gap before P5, veil blind to partial
+  beams -> VG8 uses contrast, blotch 0 on small regions -> VG3 / VG5 keep wall regions >= 60 px, emd n = 0 skip);
+  merged into feature/visual-gate 2ca4e6dd.
+- VG2 done by cloud (feature/visual-gate-vg2 cb0ba57c): Opus checker running (worktree -visual-gate-vg2,
+  checks/vg2-check.md). VG4 done by cloud (ebe376eb): Sonnet checker running (detached worktree -visual-gate-vg4,
+  checks/vg4-check.md). VG3 cloud brief reopened by the orchestrator (old Cloud Builder 1 claim), still open.
+  On resume: a missing check report -> rerun that checker; PASS -> merge the branch into feature/visual-gate.
+
+## Earlier (2026-10-24 ~23:00)
 - C0 plan check FIX applied (lead fix round, `checks/c0-plan-check.md` end): M1 pin order, M2 campus guard, P1 (no src
   hook: pin = `__app.loop.timeScale = 0`, zero src diff), P2-P17 adopted except P11's e2e-affected addition (PLAN 10).
 - Group A strict briefs ready: `briefs/VG1.md` (metrics, Opus), `VG2.md` (harness + M0 command, Opus), `VG3.md`
