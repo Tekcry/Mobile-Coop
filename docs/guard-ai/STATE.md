@@ -1,6 +1,11 @@
 # Guard AI - state
 
 ## Now
+~04:45: NEXT FEATURE (Michael's idle rule; orchestrator): AI side of Sector Ops 4-player co-op (coop4; Michael approved
+2026-10-23 ~10:25: Sector Ops up to 4, Marlow Yard stays 2). Opus planner RUNNING: docs/coop4/briefs/AI.md on
+feature/guard-ai-coop4 (worktree -coop4, off master a10382bc). Sector Ops told (its PLAN on feature/coop4 references it).
+Build the AI slice once Sector Ops' PLAN assigns it; src/ai only.
+
 ~04:30: #313 co-op carry TRAIN-READY. Ready from me: #272, #298, #302, #303, #313. Nothing running.
 
 ~04:05 (new window): PR #313 co-op carry OPEN, laptop coop-carry3 pending. Ready from me: #272, #298, #302, #303.
