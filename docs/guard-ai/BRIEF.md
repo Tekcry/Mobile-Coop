@@ -612,7 +612,8 @@ A170-A181 are coop4's (already on master), so this batch takes A165-A169, then A
   x the straight line + `COVER_DETOUR.add` 3 m is rejected for the next. A role cover with such a detour is blocked
   (`blockCover`) and the roles pick again next tick. The open wait's failed pick (`openNoCover`) retries once per
   `SQUAD.openWait` 3 s, and while his role is not moving it never lands on his own held role cover. Undo:
-  `COVER_DETOUR.k = Infinity` and `COVER_TRIES = 1` in `src/ai/enemy.ts`.
+  `COVER_DETOUR.k = Infinity`, `COVER_TRIES = 1` and `COVER_RETRY = false` (the open-wait retry and the own-role-cover
+  skip) in `src/ai/enemy.ts`.
 - **A168** (B1) A cut circuit nobody fixed is found again: when its incident is gone, nobody walks it and it is still
   off, it is unmarked in `DarkList` after `BREAKER_WALK.retry` 20 s, so late discovery notices it again (a reset walk
   that ended without the flip: knocked out, the alarm, the 30 s give-up). The same cut noticed again after its tamper
@@ -625,5 +626,4 @@ A170-A181 are coop4's (already on master), so this batch takes A165-A169, then A
 - **A182** (B7) The redundant `tell(alarmHunt)` after an alerted spawn (`sendIn`, the reinforcement spawn) is gone:
   `spawn(.., true)` already binds a valid slot, and with nothing valid the extra call only bound a positionless alarm
   slot. Such a guard now binds on the next call or sighting (`hunt` -1 until then); the freshest fallback in `sendIn`
-  is for the parked modes only. Undo: restore the two `e.tell(this.alarmHunt)` calls in `src/ai/enemyManager.ts`
-  (master 92d0205d :887, :1084).
+  is for the parked modes only. Undo: `POLISH_B.alarmTell = false` in `src/ai/enemyManager.ts` (restores the two calls).

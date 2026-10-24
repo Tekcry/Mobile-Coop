@@ -264,6 +264,7 @@ describe('squad roles wired (coordinated)', () => {
     expect(gs[2]!.moving).toBe(false);
     // the flank is already on its way (it started while the point held): the point waits, the overwatch covers
     gs[2]!.state = 'seekCover';
+    gs[2]!.coverIdx = gs[2]!.cover; // (polish B2) on its way = a trip to his role cover (Enemy.boundTo sets coverIdx)
     roles();
     expect(gs[0]!.moving).toBe(false);
     expect(gs[1]!.mates).toBe(true);

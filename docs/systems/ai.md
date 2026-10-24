@@ -302,8 +302,11 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   `StealthSystems.resetCircuit` = the player's own `toggle`; no ring, no radio, back on his route. The circuit lit again by
   other means (`BreakerHost.isOff` false: the player, an isolator) ends the walk; so does `BREAKER_WALK.giveUp` 30 s.
   A second noticed cut of the circuit within `BREAKER.repeatT` 60 s (board clock, `lastFault`) is tampering: the S2
-  `light` incident at the switch; the same cut noticed again later (`cutSeq` / `faultCut`) keeps what it was first
-  taken for. A cut nobody saw opens nothing. A course mains gate's circuit is never a fault (`StealthSystems.mainsGroups`,
+  `light` incident at the switch; the same cut noticed again while its incident is open merges into it; noticed again
+  once its tamper check is over with nobody on it, it is a fault, the reset walk (polish B1, A168). A cut nobody saw
+  opens nothing. (polish B1, A168) A noticed cut still off, with its incident gone (check over, walker knocked out,
+  given up or drawn away) and nobody walking to its switch, is forgotten by late discovery after `BREAKER_WALK.retry`
+  20 s (`EnemyManager.relightStep`, `DarkList.unmarkGroup`): the next calm guard who sees it dark relights it. A course mains gate's circuit is never a fault (`StealthSystems.mainsGroups`,
   A63): the S2 incident, nobody relights it. Shot lamps keep the S2 check and stay dark (`setGroup`
   skips destroyed lamps). (guard-ai LR16-4, relight) The Sector Ops boards ride the same walk: a breaker board (no
   `window`) cut calls `lightsOut` on its first circuit with a live lamp (`IsolatorBoards.liveGroup`) at the board, and
@@ -319,7 +322,7 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   one in his focused cone within
   `LATE.range` 12 m and a clear ray reports it as its witness (shot: the S2 light check, one; cut: the breaker walk at
   the circuit's switch, or tampering). Once per fixture / circuit state change (`DarkList.known`, cleared when lit, on
-  `clear` and `resetMemory`). Parked modes: the old rule (nearest calm enemy within 25 m investigates, others within 14 m
+  `clear` and `resetMemory`), or, for a cut nobody fixed, again after `BREAKER_WALK.retry`. Parked modes: the old rule (nearest calm enemy within 25 m investigates, others within 14 m
   `notice`). Flashlights:
   `World` adds `FLASHLIGHTS` (4) on dark maps; human guards (`carriesTorch`: not dogs) get them while investigating / searching / hunting unseen where the
   static light is < `TORCH_DARK` 0.35 (kept to `TORCH_KEEP` 0.45; pure `torchRule` in `archetypes.ts`); `EnemyManager.beamReach` (centre + four edge rays, 15 Hz
@@ -510,8 +513,9 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   cover in range (`coverGrid.queryNearest`, up to 1024, the nearest kept past that so no side is dropped; S25b fix
   B1; at the cover's position) and a 2 m lattice over the square of half-side R whose
   baked light (`lightField.levelAt` 0.9 m over the floor; torches excluded, A153) is below `dark` (`LIGHT.shadow`);
-  scored darker / cover / nearer by path (`pointScore`), offered best first, at most 12 kept 3 m apart. A rebuild round
-  the same position keeps the looked-into points done. `Enemy.decide`'s search branch, for a combat search
+  scored darker / cover / nearer by path (`pointScore`), offered best first, at most 12 kept 3 m apart. The plan remembers
+  its searched points (`SearchPlan.sx` / `sz`, up to 48, forgotten on a moved centre); a rebuild never offers a
+  candidate within `spacing` of one or of the last known position (polish B4, undo `PLAN_SKIP_SEARCHED` false). `Enemy.decide`'s search branch, for a combat search
   (`combatSearch`, not `searchOwn`, `hunt` >= 0, `SEARCH_AREA.enabled`): the first point is the last known position as
   before, then `AiContext.searchPoint` (`take`: best score minus distance from him, one guard per point); none left:
   today's ring (`ringPoint`, from its first point). The look ending or the point unreachable: `searchDone` (found by his
@@ -567,7 +571,8 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   - A3 (A165): in stealth with no intruder (`hunt` -1) he A*s to his own `knownSpot` instead of the freshest
     intruder's chase field (`SLOTLESS_FIELD`).
   - A4 (A166): hunting one intruder and seeing another, he makes one contact call naming the new one, once per slot
-    per fight (`calledMask`, `RECALL_SWITCH`).
+    per fight (`calledMask`, `RECALL_SWITCH`); a slot he was told of (`tell`) counts as called, so its sighting
+    makes no second call. `calledMask` clears at cooldown / unaware and on `forget`.
   - A5: in cover with his target out of sight (stealth), "cover still protects" and "too close" read his known point
     (`knownPt`), not the player's real feet, so he no longer pops up into an upright strafe and re-picks.
   - A6: the open-wait pick clears `advancing` too (no cover / chase churn; overwatch can suppress).
