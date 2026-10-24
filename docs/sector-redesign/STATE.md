@@ -281,6 +281,7 @@ Night Shift | Sector Ops Build: RESUME (saved 2026-10-24 ~20:05). coop4 / #317 /
    the torch beam). Report docs/sector-redesign/checks/fog-triage.md there. Laptop shot requests queued: 28cbd98b-d737
    (before) and 4813dbf2-c03f (after) -> branch shots/fog-*; look at them, then one Opus checker, PR, laptop
    lightbake / darkness / sectorops:6, train-ready + message the orchestrator.
+2b. CLOUD brief open (~20:40): cloud-queue briefs/sector-redesign-bake-robust.md -> feature/sector-redesign-bake2 off 5cc02048 (check A P6 / P8, check B 2 / 3 / 4 / 5 / 8 / 10). On done: fetch, one Opus checker (worker / upload code), laptop lightbake / sectorops:6, PR after #333.
 2. #333 section bake @ 5cc02048 (checks A PASS, B fixed, master merged): laptop set bake queued (5cc02048-8d0d); green ->
    gh pr ready 333, label train-ready, message the orchestrator. Polish held.
 HOLD (orchestrator ~20:12): Michael walks all of campus on 4.95.1 (no fog fix); his notes come via the orchestrator. NO S1-S3 layout changes until Marlow's level-validator job lands; then the campus S1-S3 redesign runs against it plus the walk notes.
