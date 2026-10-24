@@ -1,6 +1,24 @@
 # laptop-queue - state
 
 ## Now (2026-10-24, laptop-queue batch, local commits, not pushed)
+- 2026-10-24 ~23:40: laptop-queue-3 (feature/laptop-queue-3, worktree C:/NightShift/Mobile-Coop-laptop-queue-3, stacked on
+  feature/affected-flake f89751fd), Orchestrator waste audit, three fixes:
+  - Release gap hold: lib `trainSoon` releasing case (lib.mjs:541), `releasingTrain` (:504), `readyOrPending` (:522),
+    `RELEASE_HOLD_MS` 10 min (:515). service.mjs `pendingTrains` reads each open train's laptop-e2e `updated_at`
+    (:524) and sets `soon` after the status reads (:528); `trainSoonNow` (:480), `readyOrPendingCandidates` (:472,
+    train-ready PRs with check success or running, minus heads an open train contains). Logged once per change by the
+    existing `soon` hold (train reruns still start). Env `LQ_RELEASE_HOLD_MIN`.
+  - Desktop failures to the laptop: runRequest (service.mjs:1060) posts pending `desktopFailDesc` (lib.mjs:825) and pushes
+    `laptopRerunRequest` (lib.mjs:841; same sha / set / pr / requester, failed suites, `laptopRerun: true`; no set: the
+    old suites joined by "+", so it posts on the same context) through `pushFile`; `finish` `handedOff` (:763) posts
+    pending, no comment. CPU sampled async every 5 s watch tick (`cpuLoadAsync` :1139, samples :932). Desktop filter
+    skips `laptopRerun` (:1284). lib `dupKey` / `superseded` / `requestProblem` know `laptopRerun`.
+  - auto-train: `fastPollPlan` `late` -> `FAST_POLL_LATE_S` 30 (auto-train.mjs:497, :530), `pendingSince` (:502),
+    `laptopLate` (:513, "expect ~N s" in the pending status, else `LAPTOP_EXPECT_MIN` 10); openTrain `laptopSince`
+    (:726), step `laptopLate` (:894), main loop (:983). runTrain restamps its pending status with
+    "expect ~N s" (service.mjs:876, lib `expectedWallS` :206) once the shards are known.
+  Rollout: no order needed (only the new desktop creates laptopRerun requests; an older laptop runs them as plain pr
+  requests). Tests: tests/laptop-queue.test.ts, tests/autoTrain.test.ts.
 - 2026-10-24 ~19:20: feature/laptop-queue-2 (worktree C:/NightShift/Mobile-Coop-laptop-queue-2, from #329 head 80d6087e),
   Orchestrator audit (b)-(d): ALONE_AGE_MIN 30; an aged alone request stops pr claims under the train hold too, only
   while the holding train can clear (lib holdClears); desktop CPU gates 80/80; install-task.ps1 trigger 1 min (re-run it
