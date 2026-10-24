@@ -140,7 +140,7 @@ describe('Saltmarsh Park section 2 (HQ), registration and shape', () => {
     for (let i = 1; i < 5; i++) expect(CAMPUS_SECTORS[i]!.start).toEqual(CAMPUS_SECTORS[i - 1]!.connector!.checkpoint);
     expect(S2.id).toBe('s2');
     expect(S2.objective.kind).toBe('hack');
-    expect(S2.guards.length).toBe(12);
+    expect(S2.guards.filter((g) => g.minPlayers === undefined).length).toBe(12); // the base list; the coop4 tags are in sectorGuardTags.test.ts
     expect(S2.connector!.floorY).toBe(C2_FLOOR);
     expect(S2.connector!.box).toEqual([C2_BOX[0], C2_BOX[1], C2_BOX[2], C2_BOX[3]]);
     expect(S2.connector!.nearAt).toEqual([...S2_DOORS.c2Near]);
@@ -173,7 +173,9 @@ describe('Saltmarsh Park section 2 (HQ), registration and shape', () => {
 });
 
 describe('S2 guards (SPEC guard table)', () => {
-  const G = S2.guards;
+  // the base list (the coop4 minPlayers tags are appended and checked in sectorGuardTags.test.ts); ALL = base + tags
+  const G = S2.guards.filter((g) => g.minPlayers === undefined);
+  const ALL = S2.guards;
   it('twelve guards: kinds and weapons as listed, all armed humans (checkSectorGuards passes), no dogs', () => {
     expect(G.map((g) => g.kind)).toEqual(['officer', 'grunt', 'officer', 'grunt', 'grunt', 'officer', 'officer', 'grunt', 'officer', 'grunt', 'officer', 'grunt']);
     for (const g of G) expect(ENEMIES[g.kind].weapon, g.role).toBeTruthy();
@@ -257,7 +259,7 @@ describe('S2 guards (SPEC guard table)', () => {
   });
 
   it('every guard slot is at least 7 m from the start (SPAWN_MIN_DIST) and stands on the nav grid on its floor; every route point and takedown spot too', () => {
-    for (const [i, g] of G.entries()) {
+    for (const [i, g] of ALL.entries()) {
       expect(hyp2(g.x - S2.start.x, g.z - S2.start.z), `#${i + 1}`).toBeGreaterThanOrEqual(7);
       const y = floorOf(g);
       expect(onNav(g.x, g.z, y), `#${i + 1} slot (${g.x}, ${g.z})`).toBe(true);
@@ -271,7 +273,7 @@ describe('S2 guards (SPEC guard table)', () => {
         expect(nav.findPath([a[0], a[1]], [c[0], c[1]], 100000, y, y), `#${i + 1} leg ${k}`).not.toBeNull();
       }
     }
-    for (const g of G) if (g.route) expect(hyp2(g.route[0]![0] - g.x, g.route[0]![1] - g.z)).toBeLessThan(0.1);
+    for (const g of ALL) if (g.route) expect(hyp2(g.route[0]![0] - g.x, g.route[0]![1] - g.z)).toBeLessThan(0.1);
   });
 
   it('#1 faces the turnstiles (north), #11 faces west from inside the bridge landing, #12 faces into the mail room', () => {
@@ -672,12 +674,13 @@ describe('S2 rooms and the element list', () => {
 
 describe('M8: isolation in time at each takedown spot (sectorCheck, the Warehouse tests\' check)', () => {
   const world = new SightWorld(b.boxes, b.cylinders);
-  const timed: CheckGuard[] = S2.guards.map((g) => {
+  const base = S2.guards.filter((g) => g.minPlayers === undefined);
+  const timed: CheckGuard[] = base.map((g) => {
     const speed = ENEMIES[g.kind].walkSpeed * (g.loop ? 1 : CHECK_PATROL_PACE);
     return { x: g.x, z: g.z, y: floorOf(g), route: g.route as readonly (readonly [number, number])[] | undefined, wait: g.wait, waits: g.waits, speed, loop: g.loop, start: g.start };
   });
   it('records each guard\'s longest isolated run at its spot; every guard but the kitchen pair holds 3 s (the pair #5-#6 is a recorded exception: overlap partners, LS 4.5)', () => {
-    const rows = S2.guards.map((g, i) => ({ n: i + 1, run: longestIsolation(world, timed, i, 15, g.takedownSpot), ok: isolatedInTime(world, timed, i, g.takedownSpot) }));
+    const rows = base.map((g, i) => ({ n: i + 1, run: longestIsolation(world, timed, i, 15, g.takedownSpot), ok: isolatedInTime(world, timed, i, g.takedownSpot) }));
     // eslint-disable-next-line no-console
     if (process.env.CAMPUS_PRINT) console.log(rows.map((r) => `#${r.n} ${r.run}s ${r.ok ? 'ok' : 'NOT isolated'}`).join('\n'));
     const must = rows.filter((r) => ![5, 6].includes(r.n));
