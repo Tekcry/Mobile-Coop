@@ -1,0 +1,13 @@
+{
+  "id": "20261024T052107-player-build-aba0953a-3749",
+  "sha": "aba0953a9cdf098b4c0707ac26cdf5256e087dd6",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "player-build",
+  "suites": [
+    "e2e-offline"
+  ],
+  "set": "guard-models-sw",
+  "note": "guard-models SW runtime-caching fix (the guard rule threw in sw.js); 8 other G9 suites run on 89c10827 (delta: src/pwa + docs + tests)"
+}
