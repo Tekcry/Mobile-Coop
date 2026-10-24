@@ -1177,4 +1177,19 @@ describe('spare work never holds a train or jumps a real request', () => {
     }
     expect(cutShort({ kind: 'full', requester: 'lead' }, { trains: [t], started: true })).toBe('');
   });
+  it('pick: a spare request runs only when no other request is open; never aged, never at the front', () => {
+    const spare = spareReq(40, 'alone'); // held 40 min: over ALONE_AGE_MIN
+    const pr = req(1, 'pr', 'lead');
+    expect(agedAlone([spare], NOW)).toBeNull();
+    expect(pick({ trains: [], requests: [spare, pr] }, NOW, slots(false, false))).toEqual({ kind: 'request', request: pr, slot: '4189' });
+    expect(pick({ trains: [], requests: [spare, pr], front: new Set([spare.id]) }, NOW, slots(false, false))).toMatchObject({ request: pr });
+    // a real alone request waiting for both slots is not jumped by a spare pr on the free slot
+    const lead = req(5, 'alone', 'lead');
+    expect(pick({ trains: [], requests: [spareReq(40, 'pr'), lead] }, NOW, slots(true, false))).toBeNull();
+    expect(pick({ trains: [], requests: [spare] }, NOW, slots(false, false))).toEqual({ kind: 'alone', request: spare });
+    expect(pick({ trains: [], requests: [spare] }, NOW, slots(true, false))).toBeNull();
+    expect(pick({ trains: [t], requests: [spare] }, NOW, slots(false, false))).toEqual({ kind: 'train', train: t });
+    const sp = spareReq(40, 'full');
+    expect(pick({ trains: [], requests: [sp] }, NOW, slots(true, false))).toEqual({ kind: 'request', request: sp, slot: '4192' });
+  });
 });
