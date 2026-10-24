@@ -633,7 +633,7 @@ async function mergeAndTag({ pr, version, sha, stacked = false }) {
   }
   const merge = run(['gh', 'pr', 'view', String(pr), '--json', 'mergeCommit', '--jq', '.mergeCommit.oid']);
   // the merge commit (and the member heads closeMembers checks) are in master; narrow + lock-race retry (fetch-retry.mjs)
-  fetchOrigin(exec, ['master']);
+  fetchOrigin(exec, ['master', 'dev']); // dev: master's releaseTail reads origin/dev after the train merge
   act(['git', 'tag', `v${version}`, merge]);
   act(['git', 'push', 'origin', `v${version}`]);
   act(['git', 'push', 'origin', `${merge}:refs/heads/dev`]);
@@ -901,7 +901,7 @@ function closeMembers(members, { n, version, pr }) {
 async function release({ n, version, title, resume, head: wantHead, noFallback }) {
   requireClean();
   // master and the train heads (train/<n>; a stacked train's base is another train head); narrow + lock-race retry
-  fetchOrigin(exec, ['master', 'train/*']);
+  fetchOrigin(exec, ['master', 'train/*', 'dev']); // dev: the already-merged path's releaseTail (master)
   const branch = `train/${n}`;
   if (!exists(`origin/${branch}`)) throw new Error(`origin/${branch} does not exist (run build first)`);
   const head = rev(`origin/${branch}`);
