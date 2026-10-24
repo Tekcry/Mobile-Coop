@@ -1,0 +1,14 @@
+{
+  "id": "20261024T215722-night-shift-player-b-82236fa9-80bb",
+  "sha": "82236fa9448d50f76a41ac212abaef483ead23d5",
+  "branch": "",
+  "pr": 389,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove",
+    "e2e-sectorops"
+  ],
+  "set": "client-intel"
+}
