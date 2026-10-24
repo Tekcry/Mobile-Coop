@@ -136,3 +136,89 @@ VG5 measures the real level at run time.
   and `E2E_GPU=1 E2E_PORT=4189 timeout 900 node scripts/shots-ctcourse.mjs C:/NightShift/scratch/visual-gate/vg3-look look a1-lounge`.
 - O4 Parity levels are estimates (no bounce, no sky): if VG5 finds two cards of one map in the same A15 band, move one card
   along its view (the candidates lists are in the scratch notes, not kept; rerun the same rule).
+
+## Polish (vg3p)
+
+Builder: Night Shift | Cloud Builder 1 (Opus 5.5, cloud), 2026-10-24, from `briefs/visual-gate-vg3-polish.md` (cloud-queue).
+Branch `feature/visual-gate-vg3p` from `feature/visual-gate` @ d9d347e8. Maps read at origin/master 46a7cf85 (no map file
+changed since 1dc3ecfa). Polish list: `vg3-check.md` "Polish" and `vg1-check.md` polish 3.
+
+### Method
+- Projection: the harness's own `projectQuads` (`harness.mjs`) at 960 x 540, the photo camera as Babylon LookAtLH x
+  PerspectiveFovLH with `CAMERA.fov` 86 deg horizontal at 16:9 (vertical 55.3 deg, FOVMODE_VERTICAL_FIXED). It reproduces the
+  checker's pixel sizes exactly (m-a2 floor 127 x 30, m-a6 wall 301 x 83).
+- Surfaces: the four maps built at origin/master with the pure `LevelBuilder` in a throwaway vitest (scratch, not committed),
+  each box tagged with its source-mapped call stack, plus cylinders, shut door leaves and (warehouse maps) the Epic detail
+  pass. For each region a search over its own plane (0.1 - 0.2 m grid) kept the points whose first ray hit from `cam` lies on
+  that plane (within 3.5 cm) and inside the frame, then picked the axis-aligned rectangle nearest the old one (or the largest)
+  with >= 60 px in both axes and >= 60 px true width where possible. Thin trim (skins, rails, posts under 12 cm) may cover <= 6%.
+  Upper bands stay above feet + 2.0.
+
+### Changes (old -> new px at 960 x 540)
+| region | old | new | how |
+| --- | --- | --- | --- |
+| m-a1-lounge.upper | 606 x 248, top off (y -41) | 522 x 160 | clipped to 2.3 - 2.9 (frame top) |
+| m-a2-vantage.floor | 127 x 30 | 148 x 76 | 5 x 1.6 m, 5.5 - 10.5 m out |
+| m-a2-vantage.upper | 58 x 15 | 132 x 74 | same roof underside, 18 - 25 m out (was 31) |
+| m-a3-lobby.upper | 9 x 29 | 126 x 114 | same south wall, x 81.4 - 87.4 (was edge-on at x 94 - 97) |
+| m-a4-aisle.upper | 36 x 107 | 74 x 125 | same rack face, x 98.8 - 102.2, 2.0 - 4.2 |
+| m-a5-kiosk.upper | 110 x 54 | dropped | wall x 69.75 solid to 4.5 only, 22 - 25 m out: max ~51 px tall |
+| m-a6-kerb.upper | 75 x 220 (true width 54) | 83 x 196 (65) | 2.4 m wide, 2.4 - 9.4 |
+| m-a7-corridor.upper | 13 x 51 | 77 x 133 | same south wall, x 77.6 - 85.6, 2.0 - 3.2 |
+| m-f-gallery.wall | none | 519 x 198 | new: the 'gal' wall z 20 (facility.ts:159), band 0 - 4.5 (:293 [:268, :261]), 1.6 - 4.4, 7.75 m ahead |
+| m-f-gallery.upper | 435 x 172 (2.0 - 4.5) | 435 x 93 | moved up the same wall: band over the glazing 7.5 - 10 (:313 [:261]), 7.6 - 9.9 |
+| cp-s1-b.floor | 586 x 356, foot off (y 694) | 372 x 179 | clipped |
+| cp-s1-b.upper | 46 x 25 | dropped | wall z -84 through the gatehouse window: max ~33 px tall |
+| cp-s1-f.upper | 35 x 33 | dropped | wall x -70, 68 m out: max ~32 px tall |
+| cp-s2-b.floor | 247 x 54 | 426 x 72 | 6 x 4.8 m band at the frame's foot (true width 55) |
+| cp-s2-b.upper (F8) | 143 x 51 | 253 x 121 | same roof underside, z -12.2 to -4.2 |
+| cp-s3-a.upper (F8) | 294 x 92, top off (y -12) | 252 x 67 | clipped (x from 37, z to -8.8) |
+| cp-s4-a.upper | 161 x 42 | 211 x 75 | same roof underside, z 33.7 - 39.1 |
+| cp-s5-a.floor | 273 x 60, left off (x -10) | 136 x 76 | 1 x 5 m strip inside the frame |
+| cp-s5-d.floor | 534 x 303, foot off (y 706) | 267 x 122 | clipped |
+| cp-s5-d.upper | 343 x 123, top off (y -28) | 281 x 92 | clipped |
+| so-s1-goods-in.floor (F2) | 236 x 50, foot off (y 546) | 220 x 43 | clipped; kept under 60 (see D5) |
+| so-s1-girder.floor | 136 x 20 | dropped | strip at the frame's foot (a 60 px patch is a 0.4 m sliver) |
+| so-s1-girder.upper (F1) | 146 x 47 | 95 x 85 | same west wall x 8.15, z -13.6 to -11, 2.2 - 4.6 |
+| so-s1-workshop.floor | 285 x 69, foot off (y 570) | dropped | clipped it is 39 px tall |
+| so-s2-aisle.upper | 44 x 35 | dropped | wall z 18, 23 m out between racks: max ~48 px tall |
+| so-s3-hall.floor | 165 x 20 | dropped | 17 m out at the frame's foot |
+| so-s3-hall.upper | 307 x 101 (4% off its surface) | 250 x 90 | x 2.5 - 5.9, 2.2 - 3.2, all on the wall / lintel / slab edge |
+| wh-floods-dock.upper | 48 x 114 | 71 x 110 | same facade, 8.8 m wide, 2.2 - 6.0 |
+| wh-flood-workshop.floor | 225 x 70 (pole 10%) | 176 x 79 | moved clear of the fence end post (warehouse.ts:481) |
+| wh-flood-workshop.upper | 241 x 291, top off (y -7) | 241 x 249 | clipped to 2.2 - 5.8 |
+
+Every other region was already >= 60 px and in frame and is unchanged.
+
+### Refs
+- `campusS3.ts:397` -> `:396` (the board screen's `bx(...)`, viewpoints.mjs cp-s3-a; D1 above still says :397, read :396).
+- Checked every quad's cited box against the tagged stacks: also corrected so-s1-girder (`:267` no longer on the quad; now
+  `:268 [:213], :269 [:192], :275`) and added the hit skins / helper lines on m-a3, m-a4, m-a6, m-a7, wh-floods-dock (door
+  head `warehouse.ts:222`). No other ref was off.
+
+### Deviations
+- D5 so-s1-goods-in.floor stays at 220 x 43 px (under 60): F2's `floor.nearBlack` rule needs it and this frame shows no more
+  bay floor (the frame's foot, the pallet stacks `warehouseS1.ts:370` / `:377`). Floor regions carry stats only (no blotch
+  erosion). The test lists it in `SMALL` (>= 40 px).
+- D6 7 regions dropped (4 upper, 3 floor; table). The test now requires `upper` on every view except `NO_UPPER` (exact list);
+  none of the 4 carries a rule (m-a5 F6 is whole-frame only).
+- D7 m-f-gallery's upper moved from the band under the gallery (now its `wall`) to the band over the glazing on the same wall,
+  so the two regions do not overlap.
+- D8 Steps 1-5 went in one commit (the test had to change with the data to stay green).
+
+### Test results
+- `npx vitest run tests/visualGateViewpoints.test.ts tests/visualGateHarness.test.ts --maxWorkers=2`: 2 files, 36 passed
+  (viewpoints 16, 3 new: drops / walls, view region size and frame, rig leak size).
+- Mutation: the old viewpoints.mjs (HEAD before vg3p) fails 2 (no drops / gallery wall; m-a1-lounge.upper y -41).
+- `npx tsc --noEmit -p .`: clean. `npx eslint tests/visualGateViewpoints.test.ts`: clean. `node --check`: ok.
+
+### Open items
+- O5 The rig leak quads (so-door, cp-door) run off the frame's top (y -47: door top + 0.3 at 2.2 m, as the brief's rig rule
+  sets) and sit on the wall face 0.15 m in front of the recessed leaf; the test checks only their size. VG5 clips by raster.
+- O6 Thin occluders on unchanged regions (sample share): so-s1-workshop.wall (F4) 14% under the catwalk deck
+  (`warehouseS1.ts:344`, y 2.8 - 3.0, 1.2 m deep) crossing the region; m-a6-kerb.wall 37% of samples on the cage's 0.1 m posts
+  and rails 3 cm proud of its face (`a6PumpHouse.ts:696` / `:686`, part of the cage's look); m-a3-lobby.wall 6% notice boards
+  1 cm proud (`:401` / `:402`); wh-flood-workshop.upper 4% the fence's top rail (`warehouse.ts:481`). Lead's call whether F4's
+  wall should stop under the catwalk (0.3 - 2.7).
+- O7 Pixel sizes assume the photo camera keeps `CAMERA.fov` 86 at 16:9; a different photo FOV changes them (the test reads
+  `CAMERA.fov`).
