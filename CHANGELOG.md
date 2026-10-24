@@ -1,5 +1,20 @@
 # Changelog
 
+## 4.100.1 - Train 75: lightField allocation test deterministic in CI; Saltmarsh Park section bake: live lamps first (2026-10-25, PR #376; #369, #361)
+
+### Saltmarsh Park section bake: live lamps first
+- A lamp of the section you are in whose bake failed twice now bakes at once during play instead of waiting for every
+  other lamp, so that spot is no longer dark for the rest of the background bake. Lamps elsewhere still wait for the
+  workers to go idle, or bake as soon as their section goes live. A stuck second try now gives up after 20 s, so a
+  silently dead worker holds the load about 85 s at worst instead of about 125 s.
+
+### lightField allocation test deterministic in CI
+#### Changed
+- `tests/lightField.test.ts` "allocation-free under a loop": bodyLevel is judged against the run's own levelAt
+  (2 x levelAt + 56 B) instead of an absolute 144 B. About 1 CI run in 15 (Node 22) reads exactly 173.2 B for the
+  whole process (normal 126.8), so the old limit failed train/71 and PR #361 on code that never touched it. A vector,
+  object or closure per query is still caught (an injected object in totalInto read 296.9 B against 169.6).
+
 ## 4.100.0 - Train 74: Laptop queue: release hold, desktop failures rechecked on the laptop, faster release poll; Co-op interrogation read under host load; Guard AI polish batch; Intake gates and the PR size cap (2026-10-25, PR #370; #366, #365, #363, #351)
 
 ### Guard AI polish batch
