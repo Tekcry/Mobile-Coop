@@ -6,6 +6,31 @@ Model rule (Michael): Sonnet builds from strict briefs; Opus writes the graph sc
 one fresh Opus checker for the batch; one PR to master. Docs tier: CI `npm run check` only, no e2e (V1 adds one Vitest
 file, which CI runs).
 
+## Michael's changes M1-M4 (~20:18; OVERRIDE the slice text below where they differ)
+- **M1 -> V2**: room table values = the skill's real sizes x 1.3-1.5 (match corridor 3.5-4.0 vs real ~2.4, door 1.2 vs
+  0.9), floored by the camera rule (6 m short side for encounter, 3.5 m for any walk-through room). The draft V2 table
+  below is superseded: V2's builder computes each row as real x 1.4 (rounded to 0.5), then applies the floor; the
+  checker confirms no class under the camera floor. A column `Scale` records the factor; tuned in greybox later.
+- **M2 -> new slice V1a + V1 change**: `scripts/metrics-gen.mjs` parses `docs/design/scale-sheet.md` (sections 1, 3,
+  the new section 7 room table and a new section 8 "Validator numbers": speeds 1.3 / 3.0 m/s, split 90 s, reach 15 s,
+  shared 2.0 m, shadow 0.4-0.6, vantage 0.7, LOS 5 s, step band 0.40-0.45, grid 0.5) into `docs/design/metrics.json`;
+  `tests/metricsGen.test.ts` asserts the committed JSON equals a fresh generation (fails when the sheet changes without
+  a regen). `level-validate.mjs` loads `metrics.json` (`--metrics <path>`), holds NO size or time constant;
+  `parseRoomTable` moves into metrics-gen. Owner V1a: Sonnet, cloud-queue, files `scripts/metrics-gen.mjs`,
+  `tests/metricsGen.test.ts`, `docs/design/metrics.json`. V2 owns section 8 of the sheet too. Order: V2 -> V1a; V1
+  builds against a fixture metrics object in its test and the real JSON once V1a lands.
+- **M3 -> V1 `checkRedundancy`**: unchanged (already per section, entry -> exit, chain single between sections).
+- **M4 -> V1 + new slice V6**: V1 treats `shadow_pct`, `sees_pct`, `los_break_s` and partner reach as declared targets
+  (missing = ERR, outside target = ERR). Split parity uses link traversal time: `time_s` on the link, else `length` /
+  the metrics speed for its kind; legs compared by summed time (<= 90 s, within 20%). New **V6 (Opus plan, later job
+  step, not this PR)**: a greybox measurement script (light-bake sampling of floor shadow %, vantage visibility on the
+  nav grid, nav-grid path distance / time for LOS break and revive reach, link times) writing `measured` values beside
+  the targets; the validator fails a map whose `measured` misses its target. V6 needs `src/` (light bake, nav grid):
+  Opus, desktop, after this PR; V5d records campus measurements as "pending V6".
+- **Guard counts**: V1 prints 3-6 / 6-10 as `INFO:` lines only (no exit code); V5d compares them with campus guard
+  sheets (`campusSectors.ts`) and Marlow Yard, and recommends rule or no rule to Michael.
+- **Arena** parked; Michael's own Node port, if it arrives, is reference only.
+
 ## File ownership (two agents never edit the same file)
 | File | Owner slice |
 | --- | --- |

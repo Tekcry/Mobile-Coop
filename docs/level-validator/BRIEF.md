@@ -18,6 +18,31 @@ Recorded verbatim in the ROADMAP Decided entry "Level standard extras" (feature/
 > Keep the linear spine between sections (CT research), loops inside them. Every map passes the validator before
 > greybox; campus S1-S3 is its first run.
 
+## Michael's answers (~20:18, approved with four changes; ROADMAP Decided "Level standard extras", feature/menu)
+Verbatim: "(a) scale the ROOM table too (start ~1.3-1.5x real, matching our corridor / door scaling, tuned in greybox)
+so the camera works in every room; (b) every size comes from one metrics JSON generated from docs/design/scale-sheet.md
+(one source of truth; no hardcoded sizes in the script); (c) route redundancy per SECTION: each space carries `section`,
+check 2+ independent routes from each section's entry to its exit (chain between sections, loops within); (d) declared
+numbers (shadow %, 70% vantage view, 5 s line-of-sight break, 15 s revive reach) are targets in the layout check and are
+MEASURED in greybox (light sampling, navmesh distances): the map fails if measured differs; split parity uses traversal
+TIME on links, not room length. Also: guard counts (3-6 early, 6-10 late) are checked against our guard sheets before
+they become rules; arena mode parked for the later co-op modes idea."
+- **M1 (a)** Room table scaled ~1.3-1.5x real (the skill's 3.5 sizes x 1.3-1.5, then the camera floor), tuned in
+  greybox. No room class passes that the camera cannot work in. Replaces PLAN V2's draft values.
+- **M2 (b)** One metrics JSON (`docs/design/metrics.json`) generated from `docs/design/scale-sheet.md` by
+  `scripts/metrics-gen.mjs`, with a Vitest test that the JSON matches the sheet. The validator reads every size from it;
+  no size constant in `level-validate.mjs`. Replaces A7 and V1's constant list (speeds / times included: they go in the
+  sheet too).
+- **M3 (c)** Redundancy per section: every space has `section`; 2+ edge-disjoint routes from each section's `entry` to
+  its `exit`; the chain between sections is single. (Already the plan; now Michael's rule.)
+- **M4 (d)** Shadow %, vantage 70%, LOS break 5 s and revive reach 15 s are TARGETS in the graph check (declared); a
+  greybox measurement step measures them (light sampling via the light bake; nav-grid path distance and time) and the
+  map fails if a measurement misses its target. Split parity = traversal TIME on links (`time_s`, or length / speed per
+  link kind), not room length. Replaces A5's room-length rule and narrows A8 (estimates are targets, not passes).
+- **Guard counts**: 3-6 early / 6-10 late are compared with our guard sheets (campus `campusSectors.ts`, Marlow Yard)
+  before they become rules: until then the validator reports them as INFO, not WARN / ERR.
+- **Arena mode parked** (for the later co-op modes idea). If Michael's own Node port arrives, it is reference only.
+
 ## Approval record (CLAUDE.md hard rule)
 "The standard and the template change only with Michael's approval." Michael's choice "Add 1-4 as extras" IS that
 approval for exactly these additions:
