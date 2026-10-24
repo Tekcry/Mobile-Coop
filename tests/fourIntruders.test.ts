@@ -3,6 +3,7 @@ import { EnemyManager, TACTICS } from '../src/ai/enemyManager';
 import { DIFFICULTY } from '../src/ai/archetypes';
 import { COOP4, FIGHTS4 } from '../src/ai/intruders';
 import { RESPONSE_N, SWEEP4 } from '../src/ai/gear';
+import { RADIO } from '../src/ai/radioNet';
 import type { SweepTeam } from '../src/ai/sweepTeam';
 import { Vector3, type Scene } from '../src/core/babylon';
 import { Enemy, type AiContext, type PlayerRef } from '../src/ai/enemy';
@@ -49,6 +50,7 @@ interface FakeGuard {
   hearGunfire: ReturnType<typeof vi.fn>;
   tell: ReturnType<typeof vi.fn>;
   joinAsReinforcement?: ReturnType<typeof vi.fn>;
+  dropHunt: (s: number) => void;
 }
 
 let n = 0;
@@ -85,6 +87,8 @@ function guard(x: number, z: number, o: Partial<FakeGuard> = {}): FakeGuard {
     bark: vi.fn(),
     hearGunfire: vi.fn(),
     tell: vi.fn(),
+    // the real rule (Enemy.dropHunt, check A F1): his hunt and pending tell of a reused slot
+    dropHunt: Enemy.prototype.dropHunt,
     ...o,
   };
   g.setRole = vi.fn((role: number, cover: number) => {
@@ -208,6 +212,72 @@ describe('coop4 AI1: four intruders, slot reuse', () => {
     // the slot now holds e's sighting, not d's
     expect([em.intruders.valid[3], em.lkpOf(3)!.x, em.intruders.seenT[3], em.intruders.freshest]).toEqual([1, 200, 0, 3]);
     expect(em.intruders.reused).toBe(-1);
+  });
+
+  it('check A F1: a reuse drops a calm guard\'s pending tell of the old player (real Enemy.radio / tell / dropHunt)', () => {
+    const { em, gs } = four();
+    // a calm guard on the real Enemy prototype told of d (slot 3) by a contact call, and a reinforcement walking in on d
+    const calm = (): Enemy => {
+      const e = Object.create(Enemy.prototype) as Enemy;
+      Object.assign(e, { health: { alive: true }, aware: { alert: false }, called: 0, hunt: -1, pendingHunt: -1 });
+      em.enemies.push(e);
+      return e;
+    };
+    const told = calm();
+    told.radio(0, 3);
+    const rein = calm();
+    Object.assign(rein, { profile: 'normal', tacticsProfile: 0, entry: null, entryK: 0, entryT: 0 });
+    rein.joinAsReinforcement(null, 3);
+    const other = calm();
+    other.radio(0, 1);
+    const pend = (e: Enemy): number => (e as unknown as { pendingHunt: number }).pendingHunt;
+    expect([pend(told), pend(rein), pend(other)]).toEqual([3, 3, 1]);
+    // d leaves; e takes his slot
+    em.intruderLeft('d');
+    const g5 = guard(200, -10);
+    em.enemies.push(E(g5));
+    g5.ctx = gs[0]!.ctx;
+    sees(g5, player('e', 200, 0));
+    expect(em.intruders.find('e')).toBe(3);
+    // nothing left that would make them hunt e when they go to combat (enemy.ts: hunt = pendingHunt); b's tell kept
+    expect([pend(told), pend(rein), pend(other)]).toEqual([-1, -1, 1]);
+    expect([told.hunt, rein.hunt]).toEqual([-1, -1]);
+    // a later call about e tells them of e again (the new player, reported)
+    told.radio(0, 3);
+    expect(pend(told)).toBe(3);
+  });
+
+  it('check A F1: contact calls about the old player, open or queued, never deliver after the reuse', () => {
+    const { em, gs, ctx, radio } = four();
+    const calm = [guard(95, 5, { alerted: false, level: 'unaware' }), guard(85, 5, { alerted: false, level: 'unaware' })];
+    for (const g of calm) {
+      g.ctx = ctx;
+      em.enemies.push(E(g));
+    }
+    // d's hunter calls d in; it gets through (receivers queued, staggered); a second call is still open
+    ctx.radioCall!(E(gs[3]!), 3, 'contact');
+    radio(RADIO.callIn + 0.05);
+    expect(em.radioNet.queued).toBeGreaterThan(0);
+    ctx.radioCall!(E(gs[2]!), 3, 'contact');
+    ctx.radioCall!(E(gs[1]!), 1, 'contact');
+    expect(em.radioNet.openCalls).toBe(2);
+    for (const g of calm) g.radio.mockClear();
+    // d leaves; e takes slot 3: the queued receivers and the open call about slot 3 are dropped
+    em.intruderLeft('d');
+    const g5 = guard(200, -10);
+    em.enemies.push(E(g5));
+    g5.ctx = ctx;
+    sees(g5, player('e', 200, 0));
+    expect(em.intruders.find('e')).toBe(3);
+    expect(em.radioNet.openCalls).toBe(1);
+    expect(em.radioNet.cancelled).toBeGreaterThan(1);
+    radio(RADIO.callIn + RADIO.staggerMax + 1);
+    for (const g of calm) {
+      expect(g.radio).not.toHaveBeenCalledWith(0, 3);
+      // b's call still gets through
+      expect(g.radio).toHaveBeenCalledWith(0, 1);
+    }
+    expect((em as unknown as Rel).contactHunt).not.toBe(3);
   });
 
   it('a located shot and a heard step by a new id reuse the gone slot too', () => {

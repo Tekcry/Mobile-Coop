@@ -121,7 +121,8 @@ No "partner / other player" logic exists in src/ai: every `partner` there is a t
 - A176 (gated): `SweepTeam.hunt` (slot, -1 none): set by `joinTeam` (991) from `nextAlarmHunt()` on the first member;
   every member gets `e.hunt = t.hunt`. enemyManager.ts:3291 ticks each team with its own slot's LKP (`intruders.valid /
   x / z[t.hunt]`), else the freshest (A150, today).
-- A177 (gated): `sweepStart(team, count, spread = 3)` (gear.ts:220): `floor(team x count / max(3, spread)) % count`,
+- A177 (gated): `sweepStart(team, count, spread = 3)` (gear.ts:220): `spread` > 3: `floor(team x count / spread) %
+  count`; `spread` <= 3: today's thirds exactly (`team x max(1, ceil(count / 3)) % count`, as built in AI5),
   `spread` = alarmMax x teams per stage (Sector Ops passes it to `newTeam`; default 3 = today). `SweepTeam.next()`
   (sweepTeam.ts:171) skips a point another sweeping team of the section is heading for or dwelling at within
   `SWEEP.thin` (pure `pointBusy(x, z, others, self)`, the section's teams passed in, no allocation); all busy: take it
@@ -227,6 +228,25 @@ per remote, `r.state`); `removeRemote` calling `intruderLeft`; later the per-cli
   caller, chase field, heard throttle, alarm / contact hunt and hunters; reuse via a located shot; 2 players no reuse;
   `ghostOf` 0 / 1 / 2). `tests/twoIntruders.test.ts` unedited and green.
 
+### AI2 built (Opus builder, 2026-10-24)
+- `PERCEIVE = { maxRays: 9 }` and pure `perceiveOrder(n, cur, hunt, dist, rr, out)` (targetPick.ts); `Enemy.perceive`
+  at 3+ players starts players in that order within 9 sight rays a think (3 calm, 2 alerted, 0 out of view), `perRR`
+  rotating the tail; 1-2 players index order, uncapped. Counters `Enemy.raysThink`, `EnemyManager.raysThisStep`.
+  Tests: targetPick (+10), new perceive4 (11, 168-case 2-player identity). Log: `docs/coop4/briefs/AI2-BUILT.md`.
+
+### AI3 built (Opus builder, 2026-10-24)
+- A173 `RADIO.queue` 128 (radioNet.ts); hearing over 4 noise makers proven (no code change); A172 coopHost line
+  (`em.hear(it.pos, it.holdNoise, 'noise', null, r.ref.id)`) handed to Sector Ops (done on feature/coop4). Tests:
+  radioNet (4 contacts x 31 receivers, dropped 0), combatHearing (4 bys, `switchAfter`, 2-player identity). Log:
+  `docs/coop4/briefs/AI3-BUILT.md`.
+
+### AI4 built (Opus builder, 2026-10-24)
+- `ALARM_HUNT = { split: true }` and pure `alarmHunts(alarm, valid, seenT, out, gone)` (intruders.ts);
+  `EnemyManager.nextAlarmHunt()`: from 3 players round robin over the alarm's intruder, then the freshest sightings,
+  leavers skipped (`alarmK`, reset on the alarm, `resetAlarm`, `clear`); `joinReinforcement` and `sendIn` take it; 1-2
+  players `alarmHunt` / `commandHunt` (today). Tests: intruders (`alarmHunts`), fourIntruders (order, forgotten,
+  leaver, `sendIn`, cap refusal, 2 players). Log: `docs/coop4/briefs/AI4-BUILT.md`.
+
 ### AI5 built (Opus builder, 2026-10-24)
 - Response size hook `responseShape` / `responseTeamSize` / `RESPONSE_N` (gear.ts) with manager wrappers
   `EnemyManager.setResponseShape(over: ResponseShapeOverride | null): void` (section load) and
@@ -235,6 +255,10 @@ per remote, `r.state`); `removeRemote` calling `intruderLeft`; later the per-cli
   gives their draws back); own-LKP sweep, `sweepStart` spread + `pointBusy` dedupe (#302 kept); roles rotation,
   `targetCoverT(slot)`, `spotted` per slot. Flags `SWEEP4`, `FIGHTS4`. All gated at 3+ players; 2-player identity test.
   Sector Ops wiring of sectorMode.ts:943-960 and `SectorDef.responseShape` pending. Log: `docs/coop4/briefs/AI5-BUILT.md`.
+- Fix round (checks A FAIL / B PASS, `AI-CHECK-A.md`, `AI-CHECK-B.md`): a slot reuse now drops every tell of the old
+  player (`Enemy.dropHunt`: `hunt` and the pending tell; `RadioNet.cancelInc('contact', s)`: open and queued contact
+  calls), A171 / G139; `RESPONSE_N.extraPerPlayer` held equal to Sector Ops' `SECTOR.reinforcePerExtra` (test); the
+  wiring sketch corrected (unscaled base, one cap); docs (AI2-AI4 entries, A177 text, `ghostOf` type).
 
 ### AI6 built (Opus builder, 2026-10-24)
 - e2e-stealth-ai scenario 'four intruders (coop4)' (`scripts/e2e-stealth-ai.mjs`, the last block), one browser: test

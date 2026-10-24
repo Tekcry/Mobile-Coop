@@ -1342,6 +1342,14 @@ export class Enemy implements Damageable {
     else this.pendingHunt = slot;
   }
 
+  /** (coop4 fix, A171 / G139) Intruder slot `s` passed to a new player: what he hunts or was told of it (`hunt`, the
+   *  `pendingHunt` a call or the alarm left him) is dropped, so he never takes the new player from an old tell. */
+  dropHunt(s: number): void {
+    if (s < 0) return;
+    if (this.hunt === s) this.hunt = -1;
+    if (this.pendingHunt === s) this.pendingHunt = -1;
+  }
+
   /** (guard-ai S24) His intruder's last known position (null: none, or no longer valid). */
   private huntPos(): Vector3 | null {
     return this.hunt >= 0 && this.ctx.lkpOf ? this.ctx.lkpOf(this.hunt) : null;

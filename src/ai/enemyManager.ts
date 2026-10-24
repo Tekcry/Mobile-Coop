@@ -2833,10 +2833,10 @@ export class EnemyManager {
     this.slotFlowVer[s] = -1;
     this.heardRepAt[s] = -1e9;
     const list = this.enemies;
-    for (let i = 0; i < list.length; i++) {
-      const e = list[i]!;
-      if (e.hunt === s) e.hunt = -1;
-    }
+    // (coop4 fix, check A F1) his hunt and any tell still pending (a call, the alarm), and the contact calls on the
+    // net about him: none of them may name the new player
+    for (let i = 0; i < list.length; i++) list[i]!.dropHunt(s);
+    this.radioNet.cancelInc('contact', s);
     if (this.alarmHunt === s) this.alarmHunt = -1;
     if (this.contactHunt === s) this.contactHunt = -1;
     // (coop4 AI5) a team on him sweeps round the freshest again

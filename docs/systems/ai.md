@@ -459,9 +459,10 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   assigns), `leave(id)` (slot marked `gone`, kept for his rejoin: the same id takes it back, LKP kept); a new id with no
   free slot takes a gone one (idle first, else unseen longest; `reused`), only from `COOP4.from` 3 live players (1-2:
   today, -1). Every report resolves its slot through `EnemyManager.slotForId`, which releases a reused slot
-  (`releaseSlot`: plan, caller, chase field, heard throttle, `alarmHunt` / `contactHunt`, its hunters to `hunt` -1, then
-  forgotten). Host hook `EnemyManager.intruderLeft(id: string): void` (the net layer's `removeRemote`); per-player ghost
-  read `ghostOf(id, out: Vector3): 0 | 1 | 2` (none / known / show). The player team-slot seam: `slotOf(ref, index)`
+  (`releaseSlot`: plan, caller, chase field, heard throttle, `alarmHunt` / `contactHunt`, team hunts, its hunters'
+  `hunt` and pending tells dropped (`Enemy.dropHunt`), its open and queued contact calls cancelled
+  (`RadioNet.cancelInc`), then forgotten). Host hook `EnemyManager.intruderLeft(id: string): void` (the net layer's `removeRemote`); per-player ghost
+  read `ghostOf(id, out: Vector3): number` (0 none / 1 known / 2 show). The player team-slot seam: `slotOf(ref, index)`
   in `intruders.ts` (`ref.slot` when N1 sets `TeamRef.slot`, else the index): `Enemy.seesIndex` bits are team slots.
   Undo: `INTRUDERS.reuse` false, `COOP4.from` Infinity. Tests: `intruders.test.ts`, `fourIntruders.test.ts`.
   (coop4 AI2, A181) At 3+ players `perceive` starts players in `perceiveOrder` (target, hunted intruder, the rest

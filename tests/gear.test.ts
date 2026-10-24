@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BREAKER, GEAR, GEAR_BY_STAGE, LATE, MISSING, RESPONSE, RESPONSE_N, SHOTS, SWEEP, gearFromTag, gearHit, mergeGear, responseShape, responseTeam, responseTeamSize, stageGear, type GearHit, type GuardGear, type ResponseShapeOverride } from '../src/ai/gear';
 import type { EnemyKind } from '../src/ai/enemyDefs';
+import { SECTOR } from '../src/game/sectors';
 
 // (guard-ai S11) stealth over shooting: the gear tables and what gear does to one hit (research items 2, 4, 13).
 
@@ -141,6 +142,13 @@ describe('coop4 AI5: responseShape', () => {
     expect(shape(1, 2, 4, 2)).toEqual([2, 1]);
     expect(shape(1, 2, 4, 0)).toEqual([2, 1]);
     expect(shape(1, 2, 4, -5)).toEqual([2, 1]);
+  });
+  it("one '+1 per player past 2' number: ours equals Sector Ops' fallback (SECTOR.reinforcePerExtra, coop4 A9)", () => {
+    // Sector Ops decision: `shapeResponse` is THE rule; their `alarmStep` extra is only the fallback when the manager
+    // has no `shapeResponse`. src/ai does not import src/game/sectors (layering), so the two numbers are held equal
+    // here. Before the coop4 merge the constant is not on this branch: the default (1) is checked alone.
+    const sm = (SECTOR as unknown as { reinforcePerExtra?: number }).reinforcePerExtra;
+    expect(RESPONSE_N.extraPerPlayer).toBe(sm ?? 1);
   });
   it("a section's override: extraPerPlayer, splitAt; undo (0, Infinity) is today", () => {
     expect(shape(1, 2, 4, 32, { extraPerPlayer: 2 })).toEqual([6, 2]);

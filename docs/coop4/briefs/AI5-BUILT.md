@@ -49,14 +49,25 @@ Hook signatures:
 - Pure helpers (gear.ts): `responseShape(...)` (above), `responseTeamSize(k, size, teams)`, `responseTeam(stage, n,
   out)` per team (a shield lead each).
 
-`raised()` (sectorMode.ts:943-960) sketch: `const sh = em ? em.shapeResponse(stage, send, this.shape) : null;` (a
-`private readonly shape = { teams: 0, size: 0 }`), `send = sh ? sh.size : send`; for team `k` of `sh.teams`:
-`responseTeam(stage, responseTeamSize(k, sh.size, sh.teams), this.teamKinds)`, one `em.newTeam(this.run.index,
-s.sweep ?? null, ...this.sweepSource(s), SECTOR.alarmMax * sh.teams)` per team, and push each team's members
-consecutively into `pending` (team 0's then team 1's) so `fill` joins them back to back. Nothing else: `fill` already
-calls `joinReinforcement` then `joinTeam` per member, which is what the team-hunt sharing relies on. Live cap:
-`shapeResponse` never asks past `maxAlive - alive` for the extras; 24 placed + 3 stages x 4 = 36 > 32, so Sector Ops
-still budgets placed guards for 4 players (brief risk 1).
+Sector Ops decision (fix round): `shapeResponse`'s "+1 per player past 2" is THE rule; `alarmStep`'s
+`SECTOR.reinforcePerExtra` scaling is only the fallback when `em.shapeResponse` is missing. The two defaults are equal
+(1; `tests/gear.test.ts` holds them equal once `SECTOR.reinforcePerExtra` is on the branch). Wiring, corrected after
+check B finding 1 (never scale twice):
+1. Every section load AND every checkpoint restart: `em.setResponseShape(s.responseShape ?? null);` (the manager keeps
+   the last value; `clear()` does not reset it, so `null` must be passed for a section without an override).
+2. `raised()` (sectorMode.ts:943-960 on this branch; :959-1004 on feature/coop4): `want` (the run's scaled count) only
+   says whether the stage sends at all. Then, with `base` = the section's UNSCALED `perStage`:
+   `const sh = em.shapeResponse(stage, base, this.shape);` (`private readonly shape = { teams: 0, size: 0 }`);
+   `if (!want || sh.size === 0) return;` (early return first);
+   `const send = capReinforce(sh.size, base, em.maxAlive - em.alive - this.pending.length);` (one cap, SM's; it also
+   subtracts what is still pending, which `shapeResponse`'s headroom does not).
+3. For each team `k < sh.teams`: `responseTeam(stage, responseTeamSize(k, send, sh.teams), this.teamKinds)` (a shield
+   lead per team) and one `em.newTeam(this.run.index, s.sweep ?? null, ...this.sweepSource(s), SECTOR.alarmMax *
+   sh.teams)` per team.
+4. Queue each team's members together (team 0's, then team 1's) in `pending`; `fill` must call `joinTeam(e, team)`
+   right after that same guard's `joinReinforcement` (it does today, :926-928 on feature/coop4), with no other
+   `joinReinforcement` / `sendIn` in between: the team-hunt sharing and its draw give-back rely on it.
+Live cap: 24 placed + 3 stages x 4 = 36 > 32, so Sector Ops still budgets placed guards for 4 players (brief risk 1).
 
 ## Shared-file line ranges (after the change)
 - `src/ai/enemyManager.ts`: 40, 67 (imports), 183-190 (fields), 875, 887-892 (`joinReinforcement` draw record),
@@ -92,6 +103,22 @@ still budgets placed guards for 4 players (brief risk 1).
   each, never past the live cap); each team hunts and sweeps round its own intruder's last known position and keeps off
   the points another team holds; fights take cover in turn, the flank trigger and `spotted` follow each player's own
   fight; 1-2 players unchanged.
+
+## Fix round (checks A FAIL, B PASS: `AI-CHECK-A.md`, `AI-CHECK-B.md`)
+- A F1 (A171 / G139): a slot reuse left the old player's tells live. `releaseSlot` now calls `Enemy.dropHunt(s)` on
+  every guard (new, enemy.ts: clears `hunt` and the private `pendingHunt` when they equal `s`, so a calm guard told by
+  a contact call or a reinforcement walking in never takes the new player on going to combat) and
+  `RadioNet.cancelInc('contact', s)` (new, radioNet.ts: drops the open contact calls and queued contact receivers of
+  that slot, counted in `cancelled`; allocation-free loops over the fixed pools). Tests (fourIntruders): real
+  `Enemy.prototype` stand-ins told by `radio` and `joinAsReinforcement` lose the tell on the reuse (another slot's tell
+  kept); an open and a queued contact for the slot never deliver after the reuse, another slot's still does; both
+  fail with the old `releaseSlot` (checked).
+- A note 3, intended: a team whose first member drew nothing (no intruder known, or a device responder) takes its hunt
+  from the first later member who draws; the earlier members keep `alarmHunt` (-1 then), so the team is never split
+  across two intruders.
+- B finding 1 / Sector Ops decision: wiring sketch corrected above; `RESPONSE_N.extraPerPlayer` held equal to
+  `SECTOR.reinforcePerExtra` by a test (src/ai does not import src/game/sectors: layering, not a cycle).
+- B docs: AI.md section 5 has AI2-AI4 entries; A177 text matches the code; `ai.md` types `ghostOf` as `number`.
 
 ## Risks
 1. Sector Ops wiring pending: until `raised()` uses `shapeResponse` / two `newTeam`s, a stage still brings one team of
