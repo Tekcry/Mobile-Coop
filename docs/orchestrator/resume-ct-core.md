@@ -2,6 +2,10 @@
 
 RESUMED ~23:55 (new account; orchestrator: overnight mode, one slice at a time, testing backlog first, save at 5-hour ~95%):
 #247 laptop afp PASS on fd34263e + CI green -> train-ready label added, orchestrator told (joins train 39 with #269).
+~17:20: #314 fix round 52258028 (panel message, trp snapshot) -> RECHECK PASS (2408cfa4). Laptop: e2e-coop + netmove on
+52258028 (20261024T040217-player-build-52258028-60f5); e2e-pad + mouse from f96633aa (20261024T034805-...-53c1, still valid:
+the fix touched no input). All green + Michael's R3 answer -> label #314 train-ready (apply his R3 choice first if it
+changes bindings: then pad / mouse rerun).
 ~17:05: #314 CHECK-M FAIL B1 (OPEN TRAP opens the panel on one machine only; not reachable yet, no trap placed): Opus fix
 round on feature/optic-coop (open via the host like doors: client request, host validate + broadcast, joiner snapshot).
 Then re-check (fresh Opus) + laptop netmove / coop on the fix head. guard-models S11 check PASS (STATE ~17:00: the master
