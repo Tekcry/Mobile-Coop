@@ -1,8 +1,11 @@
 // Laptop queue (docs/laptop-queue/PLAN.md): the pure logic, no fs, no child_process, no network. service.mjs (the loop)
 // and request.mjs (the desktop CLI) import it; tests/laptop-queue.test.ts covers it.
 
-/** Minutes an alone-measurement may wait before it goes ahead of PR suites (BRIEF A5). */
-export const ALONE_AGE_MIN = 45;
+/**
+ * Minutes an alone-measurement may wait before it goes ahead of PR suites (BRIEF A5; 45 -> 30, Orchestrator audit
+ * 2026-10-24: coop4's alone gate waited 106 min while newer PR requests kept the slots busy).
+ */
+export const ALONE_AGE_MIN = 30;
 
 const sortById = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 
@@ -110,10 +113,7 @@ export function pick(queue, now, slots) {
   const rerun = reqs.find((r) => r.trainRerun);
   if (rerun) return idle[0] ? { kind: 'request', request: rerun, slot: idle[0].port } : null;
   const alone = reqs.filter((r) => r.kind === 'alone');
-  const aged = alone.find((r) => {
-    const t = idTime(r.id);
-    return Number.isFinite(t) && now - t > ALONE_AGE_MIN * 60_000;
-  });
+  const aged = agedAlone(alone, now);
   if (aged) return bothIdle ? { kind: 'alone', request: aged } : null;
   const nonAlone = reqs.filter((r) => r.kind !== 'alone');
   const newest = new Map(); // requester -> its newest request (reqs is sorted, so the last wins)
@@ -123,6 +123,19 @@ export function pick(queue, now, slots) {
   if (next && idle[0]) return { kind: 'request', request: next, slot: idle[0].port };
   if (!next && alone[0] && bothIdle) return { kind: 'alone', request: alone[0] };
   return null;
+}
+
+/**
+ * The oldest alone request that has waited over ALONE_AGE_MIN (by its id time), or null. While there is one no new pr /
+ * full request starts (pick; the service applies it also while the train hold keeps alone requests back), so the
+ * slots drain for it; trains and train reruns still go first.
+ */
+export function agedAlone(requests, now) {
+  return [...(requests ?? [])].sort(sortById).find((r) => {
+    if (r.kind !== 'alone') return false;
+    const t = idTime(r.id);
+    return Number.isFinite(t) && now - t > ALONE_AGE_MIN * 60_000;
+  }) ?? null;
 }
 
 const suiteBase = (s) => String(s).replace(/:.*$/, '');
@@ -380,6 +393,42 @@ export function failureExcerpt(sectionText) {
  */
 export function trainHold(heads) {
   return (heads ?? []).find((h) => h.laptop !== 'success') ?? null;
+}
+
+/**
+ * Why the laptop should start no new non-train work now because a train is about to need both slots, or '' (Orchestrator
+ * audit 2026-10-24: the laptop claimed an alone run 51 s before train 60's build began, so the train waited ~4.5 min).
+ * building = an open train PR whose head is not its version commit yet ({ n, ageMs }; merge-train opens the PR before it
+ * pushes the version commit), held while younger than buildMaxMs; release = the newest merged train PR ({ n, ageMs }),
+ * held for gapMs after it while candidates (open train-ready PRs with a green check) > 0, the next build being due.
+ */
+export function trainSoon({ building = null, release = null, candidates = 0 } = {}, { gapMs, buildMaxMs }) {
+  if (building && building.ageMs < buildMaxMs) return `train ${building.n} building`;
+  if (release && release.ageMs < gapMs && candidates > 0) return `train ${release.n} released, ${candidates} train-ready PR(s) waiting`;
+  return '';
+}
+
+/**
+ * The slots a manual lock (any holder line not written by the queue service: `laptop-queue |`) holds now: { port: line }.
+ * locks = { port: lock file text, or null when absent }. A pr / alone request is not claimed onto such a slot (a
+ * requester's own heavy.lock left its claimed run waiting 12.9 min, audit 2026-10-24); trains keep their own wait.
+ */
+export function manualLocks(locks) {
+  const out = {};
+  for (const [port, text] of Object.entries(locks ?? {})) {
+    const line = String(text ?? '').trim();
+    if (line && !line.startsWith('laptop-queue |')) out[port] = line;
+  }
+  return out;
+}
+
+/**
+ * Whether an aged alone request may stop new pr claims under this train hold: only while the holding train can still
+ * clear by running here (laptop-e2e none or pending). A failed train, an error or an unreadable PR list ('unknown')
+ * may hold for hours, so pr requests keep running then (checker FIX 2026-10-24: no starvation the other way).
+ */
+export function holdClears(hold) {
+  return Boolean(hold) && ['', 'pending'].includes(hold.laptop ?? '');
 }
 
 /**
