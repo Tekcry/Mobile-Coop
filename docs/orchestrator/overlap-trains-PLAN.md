@@ -80,3 +80,10 @@ overlap ~22-27 min: ~16-20 min saved per such PR. No change on an idle train.
 1. N+1 merging before N or while N fails (pulls N in unreleased): guard (a). 2. GitHub merge tree differing from
 merge-tree: assert (c). 3. Duplicate version / PROTOCOL_VERSION from master reads: slices 1 and 4. 4. Wrong members in
 the permanent CHANGELOG heading: slice 1 n-filter. 5. N's rerun stuck behind N+1's full run: slice 3 pick priority.
+
+## Slice 4 carry-overs (from the #344 Opus check, PASS 21:20)
+1. merge-train.mjs:906-908: when train N is rebuilt / released at a new head, stacked N+1 gets exit 4 (wait) forever, never 3 (rebuild): return 3 when guard (a) fires, the PR has a base marker and origin/train/<m> is gone or no longer equals marker.sha; or slice 4 voids N+1 itself (plan section 2).
+2. merge-train.mjs:166: members regex uses Number(n) but subjects use the raw n (`build 063`): normalise n in parseArgs.
+3. merge-train.mjs:715-718: a non-stacked rebuild reusing an open PR keeps a stale base marker: strip it (withBaseMarker(body, null)).
+4. Exit codes 4 (wait) and 5 (post-merge tree mismatch) are new; auto-train maps both to "error" today: slice 4 maps 4 to waiting.
+5. #343 (auto-drop) PASS at 40f94919 but conflicts with #251 on the folder -> suite map: rebase after #251 merges (e2e-affected.mjs owns the map), then label.
