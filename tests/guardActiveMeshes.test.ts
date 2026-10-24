@@ -11,7 +11,7 @@ import type * as GuardAssets from '../src/operators/guards/guardAssets';
 import type { EnemyKind } from '../src/ai/enemyDefs';
 import { guardGlb, type GuardTri } from './helpers/guardGlb';
 
-vi.mock('../src/ai/hitboxes', () => ({ Hitboxes: class { dispose(): void {} } }));
+vi.mock('../src/ai/hitboxes', () => ({ Hitboxes: class { sync(): void {} setSolid(): void {} dispose(): void {} } }));
 const H = vi.hoisted(() => ({ assets: new Map<string, unknown>() }));
 vi.mock('../src/operators/guards/guardAssets', async (orig) => {
   const actual = await orig<typeof GuardAssets>();
