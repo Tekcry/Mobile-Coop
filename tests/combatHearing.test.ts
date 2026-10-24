@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { EnemyManager } from '../src/ai/enemyManager';
+import { EnemyManager, POLISH2 } from '../src/ai/enemyManager';
 import { DIFFICULTY } from '../src/ai/archetypes';
 import { AlertMachine } from '../src/ai/alertState';
 import { COMBAT_HEAR, combatHearAct, type HearTier } from '../src/ai/hearing';
@@ -623,4 +623,36 @@ describe('hearing with 3-4 intruders (coop4 AI3)', () => {
       }
     }
   });
+});
+
+describe('(polish2 A185) one "I heard something." per noise', () => {
+  afterEach(() => {
+    POLISH2.oneHeardBark = true;
+  });
+  for (const on of [true, false]) {
+    it(`three searchers hear one step: all three walk to it, ${on ? 'one' : 'three (undo)'} investigate bark${on ? '' : 's'}`, () => {
+      POLISH2.oneHeardBark = on;
+      const A = player('host', 30, 0);
+      const { em, add } = manager([A]);
+      const gs = [add(guard(0, 0, 'searching')), add(guard(2, -2, 'searching')), add(guard(-2, -2, 'searching'))];
+      em.hear(at(0, 3), STEP, 'noise', null, null);
+      let barks = 0;
+      for (const g of gs) {
+        const sp = spotOf(g);
+        expect(Math.hypot(sp[0] - 0, sp[1] - 3)).toBeLessThanOrEqual(Math.SQRT1_2 + 1e-6);
+        expect(g.heardAt).toBe(0);
+        barks += (g.bark as ReturnType<typeof vi.fn>).mock.calls.filter((c) => c[0] === 'investigate').length;
+      }
+      expect(barks).toBe(on ? 1 : 3);
+      // the next noise 2 s on: the speaker is still in his own throttle (`COMBAT_HEAR.bark`), the next searcher says it
+      if (on) {
+        for (const g of gs) (g as unknown as { heardT: number }).heardT = 99;
+        em.hear(at(0, 4), STEP, 'noise', null, null);
+        let again = 0;
+        for (const g of gs) again += (g.bark as ReturnType<typeof vi.fn>).mock.calls.filter((c) => c[0] === 'investigate').length;
+        expect(again).toBe(2);
+        expect((gs[0]!.bark as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1);
+      }
+    });
+  }
 });

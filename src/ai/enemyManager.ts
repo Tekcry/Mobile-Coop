@@ -98,6 +98,13 @@ export const RADIO_ALARM = true;
  */
 export const POLISH_B = { roleTrip: true, hearSlot: true, blindHear: true, alarmTell: true } as const;
 
+/**
+ * (guard-ai polish batch 2) Undo switches of the manager's polish2 fixes (false: the 4.98 behaviour). `oneHeardBark`
+ * (A185): one "I heard something." per noise however many searchers hear it (the first in the list who may bark; all
+ * of them still walk to it).
+ */
+export const POLISH2 = { oneHeardBark: true };
+
 /** (guard-ai S4) The bit of guard key `k` in an awareness mask (0 when out of range). */
 function keyBit(k: number): number {
   return k >= 0 && k < MAX_KEYS ? (1 << k) >>> 0 : 0;
@@ -306,6 +313,8 @@ export class EnemyManager {
   /** Hearing scratch (no allocation per noise): the perceivers' ids (tier-2 hearers, guards who saw a light go) and
    *  every guard's effective reach. */
   private hearWho = new Int32Array(32);
+  /** (polish2 A185) A searcher already barked "I heard something." for the noise `hear` is handling. */
+  private hearBarked = false;
   private hearR = new Float32Array(32);
   /** (guard-ai S2) Path length over the nav grid for the board (straight when the line is clear; A* else). */
   private readonly pathA: P2 = [0, 0];
@@ -2816,6 +2825,8 @@ export class EnemyManager {
     const who = this.hearWho;
     let nh = 0;
     const fight = COMBAT_HEAR.enabled && this.coordinated && this.stealth;
+    // (polish2 A185) nobody has said "I heard something." for this noise yet
+    this.hearBarked = false;
     for (let i = 0; i < n; i++) {
       const e = list[i]!;
       if (e === skip || !e.alive || e.passive || e.taken) continue;
@@ -2871,7 +2882,8 @@ export class EnemyManager {
     if (state === 1 && !(crew && crew.sweeping)) {
       // (S25b) his plan point is given up: the heard spot comes first
       if (e.hunt >= 0 && e.hunt < MAX_INTRUDERS) this.plans[e.hunt]!.release(e.num);
-      e.hearSearch(pos.x, pos.z);
+      // (polish2 A185) one line per noise: the first searcher who barks speaks for the rest
+      if (e.hearSearch(pos.x, pos.z, !(POLISH2.oneHeardBark && this.hearBarked))) this.hearBarked = true;
     } else if (state === 2 && !POLISH_B.hearSlot) e.heardInFight();
     if (act !== 2 || by === null) return;
     const slot = this.slotForId(by);

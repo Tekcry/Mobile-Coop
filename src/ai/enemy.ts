@@ -1161,9 +1161,11 @@ export class Enemy implements Damageable {
    * search pace (no hurry); the search branch walks there, looks round (`searchSpec(kind).look`) and goes on with his
    * plan / ring (`searchK` kept). The spot is not a plan point: arriving or skipping it marks nothing done (the manager
    * released his claim). "I heard something." at most once per `COMBAT_HEAR.bark` s. Not searching: nothing.
+   * (polish2 A185) `mayBark` false: no line (a searcher nearer the manager's list already said it for this noise).
+   * Returns true when he barked.
    */
-  hearSearch(x: number, z: number): void {
-    if (!this.alive || this.aware.level !== 'searching') return;
+  hearSearch(x: number, z: number, mayBark = true): boolean {
+    if (!this.alive || this.aware.level !== 'searching') return false;
     this.spot[0] = x;
     this.spot[1] = z;
     // (polish A11) on his own storey (the noise's height is not passed: S26-CHECK-B 9 remainder)
@@ -1175,10 +1177,10 @@ export class Enemy implements Damageable {
     this.planPoint = false;
     this.rush = false;
     this.heardT = 0;
-    if (this.hearBarkT >= COMBAT_HEAR.bark) {
-      this.hearBarkT = 0;
-      this.bark('investigate');
-    }
+    if (!mayBark || this.hearBarkT < COMBAT_HEAR.bark) return false;
+    this.hearBarkT = 0;
+    this.bark('investigate');
+    return true;
   }
 
   /** (polish A11) `spot` onto the nearest walkable cell within 4 of it on the storey nearest `y` (NaN: the lowest), at
