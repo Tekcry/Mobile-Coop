@@ -1,0 +1,14 @@
+{
+  "id": "20261024T063200-night-shift-test-run-47041500-eb8f",
+  "sha": "4704150041502b06e547dc1ff778df6c16d37e38",
+  "branch": "",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Test Runner",
+  "steps": [
+    "node scripts/guard-cap.mjs --counts=0,24 --cells=alert --maps=sectorops --out=C:/NightShift/scratch/gr2/diag-a-s10pre"
+  ],
+  "env": {},
+  "set": "gr2-diag-a-s10pre",
+  "note": "guard-render-2 sectorops regression diag a-s10pre"
+}
