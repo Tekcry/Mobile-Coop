@@ -489,6 +489,12 @@ client next to a device first.
   A client's frag, mine or sticky cam use goes as `gused {kind}` (client -> host, 4 a second at most;
   `USE_ONLY_GADGETS`) to `GameMode.onRemoteGadget` (a mission's No gadgets rule); gas / flash / EMP / noise still
   count on their `gadget` effect.
+- (mission NET3 / NET4) The host sends the sector mission id in `start.sm` (`sectorMissionId`: letters, digits, `_` and
+  `-`, at most 64; `checkMission` holds every mission id to the same `MISSION_ID_RE`; absent = none). The client never
+  reads its own `?mission=` in Sector Ops: its session keeps the host's, and its start placement (`startSlotPoints`)
+  picks that mission's start section; the host watches a late joiner at the same section (`CoopHost.late` passes
+  `s.sectorMission`). The host places a remote whose first state is off the current section on its checkpoint
+  (`firstPlace`, `offSection`).
 - (section-rating, protocol 42) `rt` the last section rating `{ sec, marks, synced, gadget, syringe, medkit, alarmStep }`
   (`SectorRatingWire`; `sec` -1 none yet, `marks` 0-15, the rest whole 0-99; junk drops `rt` only). The host rates a
   section as its connector unloads it (the extraction rates the last one, sent at once, its grant fields zeroed) and
