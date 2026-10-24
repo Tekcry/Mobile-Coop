@@ -350,15 +350,12 @@ then git worktree remove --force. Train-ready = message + `gh pr edit <n> --add-
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (saved 2026-10-25 ~00:05 at the orchestrator 23:59 save; resume at the 04:10 reset; overnight mode: no
+Night Shift | Sector Ops Build: RESUME (saved 2026-10-25 ~04:30, window from 04:10 to the 09:10 reset; overnight mode: no
 question dialogs, decide and log; orchestrator resumes leads after each reset). git fetch; read CLAUDE.md "Sessions".
 Worktrees (node_modules junctions to Mobile-Coop-sector-redesign-bake2): -polish (this STATE), -signoff, -bake3,
 -visual-gate, -visual-gate-vg1 / -vg2 / -vg4. Disk 40 GB free (worktrees allowed again).
-1. PR #361 bake3 (feature/sector-redesign-bake3 @ 820480c3; Opus check PASS, `checker` status posted; lighting.md
-   Failures updated). Laptop set bake3 (e2e-lightbake e2e-sectorops:6) queued 23:35 -> status laptop-e2e/bake3.
-   CI `test` FAILED on tests/lightField.test.ts allocation bound (173.2 > 144 bytes; file untouched by bake3 = CI
-   measurement flake, cf. #327); failed jobs RERUN 00:05 -> CI GREEN (check / test pass). Laptop bake3 RUNNING at 00:17. Green + laptop green -> label train-ready
-   (`gh pr edit 361 --add-label train-ready`) + message the orchestrator; red again -> Opus triage of lightField bound.
+1. PR #361 bake3 TRAIN-READY 04:25 (CI green after a lightField allocation-flake rerun, checker PASS, laptop bake3 2/2
+   279 s). Act on the train verdict; Opus triage on red.
 2. CAMPUS SIGN-OFF (feature/sector-redesign-signoff @ c5ba9ff4+): S1-S5 pages + detail + plan SVGs + plan graphs all
    written; five graphs `syncs` key, 0 errors / 117 warnings. S2 = 18 guards (41 -> 0 errors), Split Shift nodes for
    Marlow (sync-s2-comms track A, sync-s2-power held 55 + 56, sync-s2-atrium, pairdoor `solo`, exfil as tracks.exfil).
@@ -369,14 +366,14 @@ Worktrees (node_modules junctions to Mobile-Coop-sector-redesign-bake2): -polish
    S5 ground plan to z 70, S1 two lips, S4 25 s basket exception stated on S4.md, S2 ids sync-s2-kpfac / -kitchen /
    -plantlog (aka old), S4 exfil in tracks; 0 errors / 119 warnings. Marlow + orchestrator told ("sign-off pages up").
    WAITING on Michael's picks (one per page). After picks: greybox slices per S<N>-detail.md build cost.
-3. VISUAL-GATE (docs/visual-gate/STATE.md "Now" holds the detail): VG1 / VG2 / VG4 checked, fixed, merged
-   (feature/visual-gate 5c8e38c2). VG5 (gate runner, Opus) + VG6 (train wiring, Opus, own PR off master,
-   feature/visual-gate-train, A17) briefs DONE, A17-A23 in BRIEF. VG3 claimed by Cloud Builder 1 (cloud-queue). Next:
-   VG3 Sonnet check + merge, M0 laptop request (checks/vg2-build.md :103-108), VG5 + VG6 builders in parallel
-   (VG5 rules-only laptop line in VG5.md). VG6 BUILT: feature/visual-gate-train @ 58f2ac6f (worktree
-   -visual-gate-train, off master bd8920c2; 124 tests; service dry run not run). VG6 Opus check PASS -> PR #367 OPEN (head 01470352, checker status
-   posted; orchestrator + Test Runner told; CONFLICTS with Test Runner #366 in service.mjs: the train taking the second
-   resolves it, keeping both sides = our visual-gate step after the laptop-e2e post + its pending status / gates). Label train-ready on green CI (orchestrator has a standing OK if I am capped).
+3. VISUAL-GATE (docs/visual-gate/STATE.md): VG1-VG4 merged in feature/visual-gate a3362896 (VG3 cloud 8262611b merged
+   unchecked; Sonnet VG3 checker IN FLIGHT -> checks/vg3-check.md in -visual-gate, uncommitted; rerun if missing; FIX ->
+   Opus fix on feature/visual-gate-vg3). M0 timing run queued on the laptop 04:20 (alone, set visual-m0, master
+   fc4dc9ab; json + png to C:/NightShift/scratch/visual-gate/m0 on the laptop) -> write docs/visual-gate/M0.md, apply
+   the PLAN 7 ladder. PR #367 VG6: master merged on the branch (service.mjs conflict, both sides kept, 135 tests),
+   head fe16741b, checker status posted; orchestrator labels on green CI; Test Runner #366 overlaps service.mjs (the
+   later train resolves). CLOUD: briefs visual-gate-vg5 (gate runner, off a3362896) + visual-gate-vg1-polish (metrics
+   polish 1 / 5 / 6) open on cloud-queue bcbc3608; on done: one checker each (Opus), merge.
 4. Marlow Build mission-framework EN2 adds hook lines in sectorMode.ts / sectors.ts / campusOps.ts on master
    (conflicts resolved in the train); no reply needed.
 Laptop requests: node C:/NightShift/scratch/lq/request.mjs (copied from origin/master with ../e2e-affected.mjs beside
