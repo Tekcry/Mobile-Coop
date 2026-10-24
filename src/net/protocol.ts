@@ -128,6 +128,59 @@ export function wirePlayerState(s: PlayerState): PlayerState {
   return { ...s, mv: packMoveState(s.mv) as unknown as MoveState };
 }
 
+/** (coop4 N1, A24) A snapshot number on the wire: 1 mm / 1 mrad steps (as `packMoveState` already rounds the move
+ *  state); an unrounded double costs ~18 characters of JSON, which put a 4-player, 32-guard snapshot past its 6 KB. */
+export const wireNum = (v: number): number => Math.round(v * 1000) / 1000;
+/** (coop4 N1) A health number on the wire: rounded, but a living body never reads 0 (dead) from the rounding. */
+const wireHp = (v: number): number => (v > 0 ? Math.max(0.001, wireNum(v)) : 0);
+
+/** (coop4 N1, A24) A player's state for the host's snapshot: `wirePlayerState` with its numbers rounded (`wireNum`).
+ *  A new object (the source is not touched). */
+export function snapPlayerState(s: PlayerState): PlayerState {
+  const o = s.mv ? wirePlayerState(s) : { ...s };
+  o.x = wireNum(o.x);
+  o.y = wireNum(o.y);
+  o.z = wireNum(o.z);
+  o.yaw = wireNum(o.yaw);
+  o.pitch = wireNum(o.pitch);
+  o.speed = wireNum(o.speed);
+  o.hp = wireHp(o.hp);
+  if (o.t !== undefined) o.t = wireNum(o.t);
+  if (o.gph !== undefined) o.gph = wireNum(o.gph);
+  if (o.qs !== undefined) o.qs = wireNum(o.qs);
+  if (o.hs !== undefined) o.hs = wireNum(o.hs);
+  if (o.mt !== undefined) o.mt = wireNum(o.mt);
+  if (o.ax !== undefined) o.ax = wireNum(o.ax);
+  if (o.az !== undefined) o.az = wireNum(o.az);
+  // the committed move's path (copied by `packMoveState`, not rounded there)
+  const c = (o.mv as { c?: Record<string, number> } | undefined)?.c;
+  if (c) for (const k in c) if (k !== 'n' && typeof c[k] === 'number') c[k] = wireNum(c[k]);
+  return o;
+}
+
+/** (coop4 N1, A24) A guard's snapshot entry with its numbers rounded (in place; the host builds a fresh one each
+ *  snapshot). */
+export function snapEnemyState(e: EnemyState): EnemyState {
+  e.x = wireNum(e.x);
+  e.y = wireNum(e.y);
+  e.z = wireNum(e.z);
+  e.yaw = wireNum(e.yaw);
+  e.hp = wireHp(e.hp);
+  return e;
+}
+
+/** (coop4 N1, A24) A mirrored item with its numbers rounded (in place; fresh each snapshot). */
+export function snapItem(n: NetItem): NetItem {
+  n.x = wireNum(n.x);
+  n.y = wireNum(n.y);
+  n.z = wireNum(n.z);
+  n.yaw = wireNum(n.yaw);
+  n.hold = wireNum(n.hold);
+  n.reach = wireNum(n.reach);
+  if (n.hn !== undefined) n.hn = wireNum(n.hn);
+  return n;
+}
+
 export interface EnemyState {
   id: string;
   k: EnemyKind;

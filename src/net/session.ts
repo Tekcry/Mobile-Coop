@@ -88,6 +88,9 @@ export class NetSession {
   /** (coop4 A19, host) The slot rules: the host 0, a joiner the lowest free slot, a held player keeps its slot until its
    *  rejoin or the hold ends, a lobby leave frees it, compacted at `startMatch`. `PlayerInfo.slot` mirrors it. */
   private readonly slots = new SlotTable(PLAYER_SLOTS);
+  /** (coop4 A18, host) Connections that got the lobby instead of a refusal (a tokenless first hello while two or more
+   *  slots are held: the token goes only to a host the page knows, so it learns this one first). */
+  private readonly probed = new Set<string>();
 
   constructor(
     readonly transport: Transport,
@@ -201,6 +204,13 @@ export class NetSession {
       // (coop4 A19) a new player takes the lowest free slot; a held one (its rejoin) or a known one keeps its own
       const slot = !this.players.has(pid) && this.players.size >= capacity(this.mode) ? -1 : this.slots.assign(pid);
       if (slot < 0) {
+        // (coop4 A18) two or more slots held: a page's first hello is tokenless (its token goes only to the host it
+        // knows), so it gets the lobby once (it learns the host and sends its token); its next tokenless hello is refused
+        if (!msg.tok && this.slots.heldCount() >= 2 && !this.probed.has(conn)) {
+          this.probed.add(conn);
+          this.send(this.lobbyMsg(this.bySlot()), conn);
+          return;
+        }
         // (coop4) the refusal names the room's mode: the refused page shows its cap
         this.send({ t: 'bye', reason: 'Room is full', mode: this.mode }, conn);
         return;
@@ -307,6 +317,7 @@ export class NetSession {
       this.events.emit('hostLeft', {});
       return;
     }
+    this.probed.delete(conn);
     const id = this.alias.get(conn) ?? conn;
     this.alias.delete(conn);
     // a connection replaced by a rejoin: nothing left
@@ -365,10 +376,14 @@ export class NetSession {
     return out;
   }
 
+  private lobbyMsg(players: PlayerInfo[]): Msg {
+    return { t: 'lobby', players, mode: this.mode, map: this.map, difficulty: this.difficulty, phase: this.phase, mission: this.mission, weather: this.weather };
+  }
+
   broadcastLobby(): void {
     if (!this.isHost) return;
     const players = this.bySlot();
-    this.send({ t: 'lobby', players, mode: this.mode, map: this.map, difficulty: this.difficulty, phase: this.phase, mission: this.mission, weather: this.weather });
+    this.send(this.lobbyMsg(players));
     this.events.emit('lobby', { players });
   }
 

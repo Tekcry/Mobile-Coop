@@ -15,7 +15,7 @@ import type { NetSession } from './session';
 import { TickLimiter, type CourseWire } from '../game/course/courseWire';
 import type { SecWire } from '../game/ctDevices';
 import { syringesFor, type SectorNetExtra } from '../game/sectors';
-import { eventQueueKeeps, gaitWire, motionWire, ITEM_KINDS, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, BARK_CAM, BARK_TEXT, hitConfirmKind, packAlert, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, wirePlayerState } from './protocol';
+import { eventQueueKeeps, gaitWire, motionWire, ITEM_KINDS, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, BARK_CAM, BARK_TEXT, hitConfirmKind, packAlert, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, snapEnemyState, snapItem, snapPlayerState } from './protocol';
 import { RemoteAvatar } from './remoteAvatar';
 import { RemotePlayer } from './remotePlayer';
 import { HoldClock, holdFeed, stepHoldFeed, type HoldFeed } from './holdFeed';
@@ -1456,7 +1456,7 @@ export class CoopHost implements NetAttachment {
         const n: NetItem = { id: it.id, k, x: it.pos.x, y: it.pos.y, z: it.pos.z, yaw: it.node.rotation.y, label: it.label.slice(0, 24), hold: it.holdTime, reach: it.reach ?? 1.8, on: it.enabled && !it.done };
         // (30, Q12) a noisy hold's radius: the client's own hold pulses it back (`use.pulse`) and its noise meter reads it
         if (it.holdTime > 0 && it.holdNoise) n.hn = it.holdNoise;
-        out.push(n);
+        out.push(snapItem(n));
       }
     }
     return out;
@@ -1488,9 +1488,10 @@ export class CoopHost implements NetAttachment {
       // (coop-torches) every snapshot carries every listed guard's torch bit (no deltas), so a guard that drops out of
       // the list and comes back is shown right from his first snapshot; the client places the light from x, y, z,
       // yaw and st as `Enemy.placeTorch` does here
-      enemies.push({ id: e.id, k: e.def.kind, x: e.pos.x, y: e.pos.y, z: e.pos.z, yaw: e.yaw, st: e.crouchBlend > 0.5 ? 2 : e.aiming ? 1 : 0, hp: e.health.fraction, al: alertCode(e, !!em && em.hasTorch(e)) });
+      // (coop4 N1, A24) numbers rounded on the wire (`snapEnemyState`): the 4-player snapshot budget
+      enemies.push(snapEnemyState({ id: e.id, k: e.def.kind, x: e.pos.x, y: e.pos.y, z: e.pos.z, yaw: e.yaw, st: e.crouchBlend > 0.5 ? 2 : e.aiming ? 1 : 0, hp: e.health.fraction, al: alertCode(e, !!em && em.hasTorch(e)) }));
     }
-    const snap: Extract<Msg, { t: 'snap' }> = { t: 'snap', time: this.time, players: players.map(wirePlayerState), enemies, obj: this.obj, info: this.info, pk: this.g.pickups?.mask ?? 0 };
+    const snap: Extract<Msg, { t: 'snap' }> = { t: 'snap', time: this.time, players: players.map(snapPlayerState), enemies, obj: this.obj, info: this.info, pk: this.g.pickups?.mask ?? 0 };
     // items and doors when they change (and every few seconds for late joiners)
     const items = this.items();
     const doors = this.doors();
