@@ -1,6 +1,9 @@
 # Guard AI - state
 
 ## Now
+~15:40 USAGE CAP: coop-carry checks A + B PASS; laptop e2e-coop FAIL (desktop log; checker B predicts the hide-step
+teleport refusal). Fix round brief in resume item 3. Nothing running.
+
 ~15:15: coop-carry BUILT 50405e05 (bodies in the item mirror, host-authoritative 'use' requests, carry code in
 src/game/bodyCarry.ts; PROTOCOL left 48 for the train; COOP-CARRY.md Built). RUNNING: Opus checkers A (wire / authority)
 + B (gameplay parity) -> COOP-CARRY-CHECK-A/B.md (uncommitted: lead commits); laptop set coop-carry (coop, netmove,
@@ -855,7 +858,12 @@ orchestrator). Green -> `gh pr edit <n> --add-label train-ready` + tell orchestr
    - #303 watchdog cap 90 s 26e55a4e (feature/guard-ai-watchdog-90; LR16 compiles measured to 43.5 s; CI green; #295 merged).
    - #302 S28 + sweep 55592902 (feature/guard-ai-sweep = master + S28 + sweep stall fix; S28.md, S13-SWEEP-FIX/-CHECK;
      laptop sweep-fix2 PASS, looked 1 skipped 0). CI was running at label time.
-3. IN PROGRESS: spare job #14 co-op body carry on the client (BUILT 50405e05; checkers A + B + laptop set coop-carry running) (worktree C:/NightShift/Mobile-Coop-guard-ai-coop-carry,
+3. IN PROGRESS: spare job #14 co-op body carry (BUILT 50405e05; checks A + B PASS, reports committed; laptop coop-carry
+   3/4: e2e-coop FAIL on the desktop worker, ask the orchestrator for the assert). NEXT = one Opus fix round on
+   feature/guard-ai-coop-carry: (a) e2e block: allowTeleport before each client teleport (hide refused: host copy moves
+   0.8 m/state), freeze other guards on the host for the block (e.update = () => {}), assert KO'd + not present instead of
+   found0; (b) coopHost.remoteDrop: no DROP_NOISE when the lift never reached the shoulder (!v.onShoulder / v.t);
+   (c) optional: no 'Pick up body' for a body the client never saw fall. Then laptop coop-carry again -> PR (minor). (worktree C:/NightShift/Mobile-Coop-guard-ai-coop-carry,
    feature/guard-ai-coop-carry off master 6b44efb8, npm ci'd; PROTOCOL 48, the train bumps it). Plan + state in
    docs/guard-ai/slices/COOP-CARRY.md on that branch (WIP pushed per step). Resume: read COOP-CARRY.md, finish the
    build with a fresh Opus builder, then 2 Opus checkers (src/net) + laptop e2e-coop, e2e-netmove, e2e-guard-carry;
