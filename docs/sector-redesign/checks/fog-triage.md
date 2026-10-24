@@ -47,7 +47,12 @@ Request `20261024T081256-night-shift-sector-o-28cbd98b-d737` on `28cbd98b` (mast
 switches only), branch `shots/fog-d91d0e00`: views s1-f (forecourt canopy), s2-b (atrium up), s2-d (L1 open plan),
 s3-a (S3 hall), s3-c (burn-in racks), s5-a (stair hall) at Epic (as is, `VOL=off`, `VOLFIX=1` = the fix's rule in the
 page, `BLOOM=off`), High (as is, `VOL=off`), Medium, Low; `PROBE=1` lists the pass's lights per view.
-Findings: (pending the laptop run)
+After shots: request `20261024T081820-night-shift-sector-o-4813dbf2-c03f` on the fix head `4813dbf2` (same views, Epic
+and High with `PROBE=1`, Medium), branch `shots/fog-4813dbf2`.
+Findings: pending. At ~19:58 both requests were still queued behind trains 61 and 62 and five older alone requests
+(alone runs need both laptop slots idle). Reading them: `now-*-epic` vs `now-*-epic-voloff` isolates the pass,
+`now-*-epic-volfix` previews the fix, `after-*-epic` is the fix; `now-probe-epic.txt` should list spot / box / cone y
+lights at march up to 14 and cos 0.36-0.54, `after-probe-epic.txt` none above 3.2 / below 0.88.
 
 ## Old PR #152 (sector-look, open, conflicting)
 Its diagnosis (a coned fixed light took the torch shaft) is this bug's, and its fix was merged in narrower form by #156
