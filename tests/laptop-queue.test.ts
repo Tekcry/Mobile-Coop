@@ -51,21 +51,55 @@ describe('pick', () => {
   });
 });
 
-describe('pick newest first per requester', () => {
-  it('runs the requester with the oldest request first, then that one newest request',() => {
+describe('pick oldest first per requester (priority first)', () => {
+  it('runs the requester with the oldest request first, then that requester oldest request', () => {
     const a1 = req(50, 'pr', 'a1', 'A');
     const b1 = req(40, 'pr', 'b1', 'B');
     const a2 = req(30, 'pr', 'a2', 'A');
     const b2 = req(10, 'full', 'b2', 'B');
     const q = { trains: [], requests: [b2, a2, b1, a1] };
-    expect(pick(q, NOW, slots(false, false))).toEqual({ kind: 'request', request: a2, slot: '4189' });
-    const rest = { trains: [], requests: [b2, b1] };
-    expect(pick(rest, NOW, slots(false, false))).toEqual({ kind: 'request', request: b2, slot: '4189' });
+    expect(pick(q, NOW, slots(false, false))).toEqual({ kind: 'request', request: a1, slot: '4189' });
+    // a1 done: B's oldest request is now the oldest overall, and B's oldest runs
+    expect(pick({ trains: [], requests: [b2, a2, b1] }, NOW, slots(false, false))).toEqual({ kind: 'request', request: b1, slot: '4189' });
+    expect(pick({ trains: [], requests: [b2, b1] }, NOW, slots(false, false))).toEqual({ kind: 'request', request: b1, slot: '4189' });
   });
-  it('an alone request is never the newest to run', () => {
+  it('the 2026-10-24 case: Guard AI #317 (oldest) runs before its newer #360 / #363', () => {
+    const r317 = { ...req(70, 'pr', 'g317', 'Guard AI'), pr: 317 };
+    const r360 = { ...req(20, 'pr', 'g360', 'Guard AI'), pr: 360 };
+    const r363 = { ...req(5, 'pr', 'g363', 'Guard AI'), pr: 363 };
+    expect(pick({ trains: [], requests: [r363, r360, r317] }, NOW, slots(false, false))?.request).toBe(r317);
+  });
+  it('a higher priority goes first within the requester, then oldest among equal priority', () => {
+    const a1 = req(50, 'pr', 'a1', 'A');
+    const a2 = { ...req(30, 'pr', 'a2', 'A'), priority: 1 };
+    const a3 = { ...req(10, 'pr', 'a3', 'A'), priority: 1 };
+    const a4 = { ...req(5, 'pr', 'a4', 'A'), priority: -1 };
+    expect(pick({ trains: [], requests: [a4, a3, a2, a1] }, NOW, slots(false, false))?.request).toBe(a2);
+    expect(pick({ trains: [], requests: [a4, a1] }, NOW, slots(false, false))?.request).toBe(a1);
+  });
+  it('priority never moves a request ahead of another requester (fairness by arrival unchanged)', () => {
+    const b1 = req(50, 'pr', 'b1', 'B');
+    const a1 = { ...req(30, 'pr', 'a1', 'A'), priority: 9 };
+    expect(pick({ trains: [], requests: [a1, b1] }, NOW, slots(false, false))?.request).toBe(b1);
+  });
+  it('a laptop rerun keeps its place by its id time', () => {
+    const a1 = req(50, 'pr', 'a1', 'A');
+    const rr = { ...req(10, 'pr', 'rr', 'A'), laptopRerun: true };
+    expect(pick({ trains: [], requests: [rr, a1] }, NOW, slots(false, false))?.request).toBe(a1);
+    expect(pick({ trains: [], requests: [rr] }, NOW, slots(false, false))?.request).toBe(rr);
+  });
+  it('an alone request is never picked as the requester pr request', () => {
     const p1 = req(30, 'pr', 'p1', 'A');
     const al = req(5, 'alone', 'al', 'A');
     expect(pick({ trains: [], requests: [al, p1] }, NOW, slots(false, false))).toEqual({ kind: 'request', request: p1, slot: '4189' });
+  });
+  it('requestProblem: priority must be an integer when given', () => {
+    const ok = { id: 'x', sha: 'a'.repeat(40), kind: 'pr', suites: ['e2e-coop'] };
+    expect(requestProblem({ ...ok, priority: 2 })).toBe('');
+    expect(requestProblem({ ...ok, priority: -1 })).toBe('');
+    expect(requestProblem({ ...ok, priority: 1.5 })).toMatch(/priority/);
+    expect(requestProblem({ ...ok, priority: NaN })).toMatch(/priority/);
+    expect(requestProblem({ ...ok, priority: '2' })).toMatch(/priority/);
   });
 });
 

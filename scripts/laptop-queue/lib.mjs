@@ -57,6 +57,7 @@ export function requestProblem(r) {
   if (r.kind === 'alone' && !strings(r.steps)) return 'alone request needs steps';
   if (r.trainRerun && (r.kind !== 'pr' || !(Number(r.pr) > 0))) return 'train rerun needs kind pr and a pr number';
   if (r.laptopRerun && r.kind !== 'pr') return 'laptop rerun needs kind pr';
+  if (r.priority !== undefined && !Number.isInteger(r.priority)) return 'priority must be an integer';
   return '';
 }
 
@@ -172,7 +173,11 @@ export function gatedCpu({ total, bgMs, elapsedMs, cores }) {
  * An alone run preempted by a train (queue.front, a Set of ids; cutShort) goes first among alone requests and counts as
  * aged, so it runs as soon as the trains and their reruns leave both slots idle.
  * Among pr / full requests the requester goes by arrival (the requester whose OLDEST open request has the smallest id),
- * and that requester's NEWEST non-alone request runs (older ones are stale; superseded() normally retires them).
+ * and that requester's OLDEST non-alone request runs, unless one of its requests has a higher `priority` (request.mjs
+ * --priority N, default 0; higher first, then oldest). A stale older request is retired before pick by superseded()
+ * (same PR / branch, newer head), so oldest-first never runs it. Orchestrator 2026-10-24: newest-first let Guard AI's
+ * newer #360 / #363 requests jump its #317 request for 70 min while that PR waited for train-ready. A laptop rerun
+ * keeps its place by its id time. priority only orders one requester's own requests, never across requesters.
  * The auto affected-e2e requests queue one requester per branch (queueRequester), so PRs take turns with the leads.
  */
 export function pick(queue, now, slots) {
@@ -192,10 +197,11 @@ export function pick(queue, now, slots) {
   const aged = alone.find((r) => front.has(r.id)) ?? agedAlone(alone, now);
   if (aged) return bothIdle ? { kind: 'alone', request: aged } : null;
   const nonAlone = reqs.filter((r) => r.kind !== 'alone');
-  const newest = new Map(); // requester -> its newest request (reqs is sorted, so the last wins)
-  for (const r of nonAlone) newest.set(queueRequester(r) ?? '', r);
   const first = nonAlone[0]; // the oldest request overall belongs to the requester who has waited longest
-  const next = first ? newest.get(queueRequester(first) ?? '') : undefined;
+  const prio = (r) => (Number.isInteger(r.priority) ? r.priority : 0);
+  let next;
+  // that requester's highest priority, then oldest (reqs is sorted by id, so the first of a priority wins)
+  if (first) for (const r of nonAlone) if (queueRequester(r) === queueRequester(first) && (!next || prio(r) > prio(next))) next = r;
   if (next && idle[0]) return { kind: 'request', request: next, slot: idle[0].port };
   if (!next && alone[0] && bothIdle) return { kind: 'alone', request: alone[0] };
   return null;
