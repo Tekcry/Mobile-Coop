@@ -1,0 +1,14 @@
+{
+  "id": "20261024T041745-player-build-c69b698c-47f6",
+  "sha": "c69b698c97c8d87c6b3d4299f5290c497ec4e269",
+  "branch": "",
+  "pr": 314,
+  "kind": "pr",
+  "requester": "player-build",
+  "suites": [
+    "e2e-pad",
+    "e2e-mouse"
+  ],
+  "set": "optic-coop-r3",
+  "note": "#314 contextual R3 (ping / zoom while scoped)"
+}
