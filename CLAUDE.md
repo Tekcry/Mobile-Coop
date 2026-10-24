@@ -83,10 +83,11 @@ sends it verbatim to the orchestrator, which adds it to the ROADMAP Inbox the sa
 3. An Opus `PLAN.md` with its claims: files, maps, wire and save paths, slices, sizes.
 4. A fresh Opus plan checker (intent against Michael's words, gates, the claims) passes it before any build.
 5. Maps and looks: before greybox or art on a map, or a big look change, Michael approves a one-page to-scale plan plus
-   a 5-line intent check with one click (native multiple choice). A new map or map re-plan also passes the level
-   validator (connectivity graph, `docs/level-design.md`) before greybox. At greybox exit a measured validator pass is
-   required (`scripts/level-validate.mjs`, V6 `--require-measured`; until the flag is on master the greybox exit waits
-   for it).
+   a 5-line intent check with one click (native multiple choice). Exception (ROADMAP Decided 2026-10-24 ~22:50):
+   greybox of the new small campaign map may proceed overnight before his sign-off; the sign-off page is still made.
+   A new map or map re-plan also passes the level validator (connectivity graph, `docs/level-design.md`) before
+   greybox. At greybox exit a measured validator pass is required (`scripts/level-validate.mjs`, V6
+   `--require-measured`; until the flag is on master the greybox exit waits for it).
 6. Build (below).
 
 **Walk pacing.** At most 3 unwalked features per area (Player / animation, Marlow Yard, Sector Ops, Guard AI,
@@ -104,10 +105,10 @@ an Opus plan; the orchestrator assigns it.
   pointers; done list and history below it).
 - The loop (`docs/systems/session-method.md`, G87): implementer, fresh checker, at most 1 fix round per slice. Opus
   plans, writes strict slice briefs, checks, and writes AI, animation, engine and `src/net` code; Sonnet 5.5 builds from
-  strict Opus briefs (greybox, data, tests, wiring); Haiku 5.5 does chores (logs, STATE, fragments, renames). A Sonnet
-  slice that fails its checker gets its fix round from Opus. One checker per batch of related slices; two independent
-  Opus checkers on AI and `src/net` PRs; Sonnet may check greybox, data and dressing. An Opus triage agent takes every
-  laptop failure at once.
+  strict Opus briefs (greybox, data, tests, wiring); Haiku 5.5 does chores (logs, STATE, fragments, renames). A slice
+  that fails its checker gets its fix round from Opus, and its sibling slices get Opus builders. One checker per batch
+  of related slices; two independent Opus checkers on AI and `src/net` PRs; Sonnet may check greybox, data and
+  dressing. An Opus triage agent takes every laptop failure at once.
 - Agents commit and push each sub-step on their branch (path-limited, never `git add -A`), so a swap or cut-off loses
   at most the step in flight. Parallel agents work in their own worktrees (`feature/<job>-<slice>`) and never edit the
   same files; the lead merges them.
@@ -122,8 +123,9 @@ an Opus plan; the orchestrator assigns it.
   before installing or downloading, when a hard rule blocks the goal, or as Intake step 2 says. Every question to
   Michael comes with its decision pack (prototype / screenshots / GPU sheets).
 - Full burn: every independent slice of the PLAN runs in parallel now, up to desktop CPU ~80%. Opus briefs the next 2-3
-  slices ahead (plans only, no speculative code). tsc / vitest-heavy builder slices may go to cloud builders through
-  `cloud-queue`; a lead picks up a done brief within 1 hour or closes it. A lead's small and spare jobs ride one batch PR.
+  slices ahead and plans the next ROADMAP jobs before they start (plans and briefs only, no speculative code).
+  tsc / vitest-heavy builder slices may go to cloud builders through `cloud-queue`; a lead picks up a done brief within
+  1 hour or closes it. A lead's small and spare jobs ride one batch PR.
 - Finish: the PR to master with its changelog fragment, the `train-ready` label once green (below). At the merge the
   job's answers from Michael move into `docs/DECISIONS.md` with the next free G numbers (G89).
 
@@ -174,12 +176,13 @@ an Opus plan; the orchestrator assigns it.
   gone.
 
 **Swaps and context.** Michael swaps accounts at 100% of whichever meter caps first, the 5-hour or the weekly (1% weekly
-is about 6% of a 5-hour window). At ~92% the orchestrator refreshes `docs/orchestrator/HANDOFF.md` "State at the
-switch" and gives Michael only the orchestrator boot line (PROMPTS.md section 1) as the last thing in a message; every
-lead queues its next long runs and keeps its resume block current, and all keep working to 100%. At 100% with all
-saved: "Safe to log out of the desktop and laptop". In the new account the orchestrator prints every other boot line
-in one message (title, model, effort, machine). Sessions start fresh at each swap; a mid-window clear only past ~50%
-context. Unused connectors (Gmail, Google Drive, Fergus) and plugins stay off in Night Shift sessions.
+is about 6% of a 5-hour window). At the ~92% save the orchestrator refreshes `docs/orchestrator/HANDOFF.md` "State at
+the switch" and gives Michael only the orchestrator boot line (PROMPTS.md section 1) as the last thing in a message.
+Every save prints that orchestrator prompt, even when no swap is planned (Michael 2026-10-24 ~23:20). Every lead commits
+and pushes each agent worktree as WIP, keeps its STATE and resume prompt current and queues its next long runs, and all
+keep working to 100%. At 100% with all saved: "Safe to log out of the desktop and laptop". In the new account the
+orchestrator prints every other boot line in one message (title, model, effort, machine). Sessions start fresh at each
+swap; a mid-window clear only past ~50% context. Unused connectors (Gmail, Google Drive, Fergus) and plugins stay off in Night Shift sessions.
 
 **Talking to Michael.** Short, plain replies; hyphens, not em dashes. Questions only as native multiple choice, by day,
 when his answer changes the outcome; overnight, decide, log the assumption and carry on. A paste-in prompt names its
