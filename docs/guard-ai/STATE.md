@@ -1,6 +1,8 @@
 # Guard AI - state
 
 ## Now
+~04:30: #313 co-op carry TRAIN-READY. Ready from me: #272, #298, #302, #303, #313. Nothing running.
+
 ~04:05 (new window): PR #313 co-op carry OPEN, laptop coop-carry3 pending. Ready from me: #272, #298, #302, #303.
 
 ~15:40 USAGE CAP: coop-carry checks A + B PASS; laptop e2e-coop FAIL (desktop log; checker B predicts the hide-step
@@ -862,7 +864,7 @@ orchestrator). Green -> `gh pr edit <n> --add-label train-ready` + tell orchestr
      laptop sweep-fix2 PASS, looked 1 skipped 0). CI was running at label time.
 3. PR #313 co-op body carry on the client (feature/guard-ai-coop-carry b1daa9a1, worktree -coop-carry; WIRE CHANGE,
    PROTOCOL left 48 for the train; minor). Checks A + B PASS, fix round 9cb311a6, re-check PASS + follow-ups b1daa9a1
-   (docs/guard-ai/slices/COOP-CARRY*.md). Laptop coop-carry3 (e2e-coop, e2e-takedown) pending -> train-ready.
+   (docs/guard-ai/slices/COOP-CARRY*.md). Laptop coop-carry3 (e2e-coop, e2e-takedown) PASS -> TRAIN-READY (label set).
    Guard-render: AI-side skipped (AI 0.004-0.013 ms / guard); Test Runner's PLAN2 may ask for a gameplay-only
    "dormant" fact. G44 already on master.
    On a train failure: bisect with single-suite laptop sets on master and the branch head (+ a test-only merge if the
