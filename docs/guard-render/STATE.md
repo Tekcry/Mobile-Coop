@@ -46,6 +46,13 @@ run), S9 + S10 builders in parallel once Sector Ops confirms the freeze / world.
   interleaved repeats base / head / base (sectorops 0,24 alert + patrol; out C:/NightShift/scratch/gr2/rep-*). Decide on
   medians across repeats. Open (older): the freeze never sees the atlas shadow lights (view:348).
 
+- 2026-10-24 ~18:05 (final save before the cap): S9b checker FIX applied (f86b4520: refill the moon list after
+  active-mesh evaluation when a caster was enabled, so a thawed guard / LOD switch casts the same frame). S10b
+  (the freeze sees the torch / char atlas shadow slots: a frozen off-screen guard kept in a partner's torch shadow)
+  is being built by an Opus agent and pushed as WIP; if unfinished on resume, finish it from the WIP commit (brief:
+  PLAN2 S10 + this line). Then one checker on S9b-fix + S10b, the diag / repeat runs (out C:/NightShift/scratch/gr2/
+  diag-*, rep-*: decide the sectorops "regression" on medians), a final A/B on the head, look shots, PR.
+
 ## Phase 1 (history)
 ## Now
 **CLOSED 2026-10-23 ~17:10** (orchestrator approved: close with #225, M1 CPU overage to the polish list; perf tuning
