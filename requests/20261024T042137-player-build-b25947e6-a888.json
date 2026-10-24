@@ -1,0 +1,21 @@
+{
+  "id": "20261024T042137-player-build-b25947e6-a888",
+  "sha": "b25947e6ad8556470fd035050a328df768e12cfa",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "player-build",
+  "suites": [
+    "e2e-combat",
+    "e2e-takedown",
+    "e2e-stealth",
+    "e2e-guard-carry",
+    "e2e-sectorops",
+    "e2e-ctcourse",
+    "e2e-coop",
+    "e2e-netmove",
+    "e2e-offline"
+  ],
+  "set": "guard-models-g9",
+  "note": "guard-models G9 e2e set (flag off = default; bundled guards ae211857; S11)"
+}
