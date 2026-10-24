@@ -1,0 +1,13 @@
+{
+  "id": "20261024T052232-player-build-eab79164-f1c7",
+  "sha": "eab7916402f20ab04c42c7e06fc38f001a4ccace",
+  "branch": "",
+  "pr": 308,
+  "kind": "pr",
+  "requester": "player-build",
+  "suites": [
+    "e2e-course"
+  ],
+  "set": "rig-pose-course",
+  "note": "train 54 fix: resolveHit 'from' optional (e2e-course friendly fire)"
+}
