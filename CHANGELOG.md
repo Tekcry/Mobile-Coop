@@ -1,5 +1,22 @@
 # Changelog
 
+## 4.95.2 - Train 62: Pages deploys queue instead of cancelling; Player batch 24; Train fallback fragment and idle self-update (2026-10-24, PR #338; #337, #331, #330)
+
+### Player batch 24
+- e2e-tuner-phone flake fix (train 54, "pad focus down the Body tab"): the D-pad walk down the Body tab holds each
+  press for exactly one input poll (e2e-lib `press`) and steps until the drawer has scrolled (40 at most), then checks
+  the focused row shows below the tabs and the playback bar; ten presses held for rendered frames could lose presses
+  (a skipped poll) or double them (the wall-clock repeat under load) and end with the drawer unscrolled.
+
+### Train fallback fragment and idle self-update
+- merge-train: a member PR whose branch adds no `changes/*.md` (a test-only PR) gets a synthesised `kind: patch`
+  fragment in the train, noted in the train PR body, so the version commit no longer fails with "nothing to assemble".
+- auto-train: an idle tick (no train open, nothing building) moves its checkout to `origin/master` when the working tree
+  is clean, so the scheduled checkout never runs stale scripts.
+
+### Pages deploys queue instead of cancelling
+- CI: the site deploy no longer cancels itself when a release push and the dev preview trigger overlap; pull request runs still cancel their older run.
+
 ## 4.95.1 - Train 60: Allocation-free sight rays (2026-10-24, PR #334; #326)
 - Performance: guard and recon drone sight rays no longer allocate in our code (`losClear` and the drone use `Ballistics.hitDistance`),
   so 24-32 guards thinking no longer feed the garbage collector every think; same sight verdicts.
