@@ -1,5 +1,12 @@
 # Changelog
 
+## 4.98.1 - Train 68: Saltmarsh Park section bake hardening (2026-10-24, PR #355; #354)
+- Saltmarsh Park's per-section lamp bake is sturdier: a lamp whose bake fails is retried once on the worker pool, then
+  on the main thread only while no worker job runs (one lamp per task, so frames keep running), and a job stuck past
+  60 s counts as failed instead of hanging the load. A failed lamp is never cached, so the next load bakes it again. A
+  failed map load no longer leaks bake workers, finished batches no longer re-upload the whole light atlas, and lamps
+  of the live section jump to the front of the queue. Picture, light meter and guards read the same light as before.
+
 ## 4.98.0 - Train 67: Level validator: connectivity graph, validator, metrics JSON, scale-sheet room table, level standard; Auto-train drops the failing member and rebuilds at once (2026-10-24, PR #352; #346, #343)
 
 ### Auto-train drops the failing member and rebuilds at once
