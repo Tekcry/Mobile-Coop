@@ -1,5 +1,12 @@
 # mission-framework - STATE
 
+## SAVE 2026-10-25 ~09:05 (5-hour save; reset 13:10; read with the block below)
+- NET3 550d99c4: checkers A + B PASS (mission-net3-check-{a,b}.md). Merge into engine AFTER the GB5 fix round: conflict only in tests/mission/sectorMission.test.ts (same decoy test as POL1): keep engine's copy, drop NET3's a56ebeab6 hunk; flip GB6 `const NET3 = true` in that merge. NET4 polish brief on cloud-queue (briefs/mission-framework-net4.md: late() uses sectorMission, checkMission id clamp, changelog + coop.md lines).
+- WIP pushed: feature/mission-engine d45cdb4a (GB5 fix round in progress: tallowWharfSectors.ts, W2.ts, sectors.test.ts; resume from gb5-check.md must-fix 1-4, report gb5-fix-report.md), feature/mission-flg 3bc6be9c (FLG in progress: flags.ts, sectorMission.ts, teamController.ts, settingsScreen.ts; brief = PRC-split.md FLG). GB6 bdbb124a registered suites only: the script scripts/e2e-sectorops-wharf.mjs is not written yet (brief GB6-brief.md).
+- SS / CR sync: Sonnet check FIX (mission-sync-check.md: 5 hints > 90 chars + 4 older overages) -> Opus fix round on feature/mission-sync; then merge feature/mission-sync into feature/mission-framework again.
+- Orchestrator answers: C1-C9 stay STACKED (no retarget), label members together once each passes; big-pr for C8 and PR B on open.
+- NEW JOB route-runs (ROADMAP Now 16): C:/NightShift/Mobile-Coop-route-runs, feature/route-runs off master 6c3f4a87 (no node_modules: npm ci once before builders). Opus plan running -> docs/route-runs/{BRIEF,PLAN,STATE}.md; if missing at resume, rerun the planner (ROADMAP Now 16 + Decided 2026-10-25 ~09:05 "Bot route-runs + your walk"), then an Opus plan checker, then builders in parallel.
+
 ## RESUME 2026-10-25 ~09:20 (new account, full burn; read this block first)
 DONE since 08:20: EN4 + NET2 checkers A + B PASS (laptop en4 9/9 on c4a7e58f). GB5 533c02a6. POL1 453bae7b (merged into engine, ff). NET3 550d99c4 (feature/mission-net3: start.sm sector mission id, client follows host, host offSection / firstPlace, team 'end' attempt key, FIXED_DT, decoy test; 331 tests). SS / CR re-synced to Sector Ops SYNC.md 7c021f01 (Michael's S1-S5 picks) 9cb3a627, merged here 79996fd7 (0 mission ERR). Briefs GB6 / GBM / PRC-split 14cebca3 (docs/missions/slices/).
 RUNNING (reports in C:/NightShift/scratch/; rerun from the brief if no result on origin):
