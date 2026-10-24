@@ -2,6 +2,21 @@
 
 RESUMED ~23:55 (new account; orchestrator: overnight mode, one slice at a time, testing backlog first, save at 5-hour ~95%):
 #247 laptop afp PASS on fd34263e + CI green -> train-ready label added, orchestrator told (joins train 39 with #269).
+~15:00: PR #308 rig-pose-fix OPEN (4adf3785; alloc fix merged; checks W1 / S1-A fixed / net B PASS). Laptop 11 suites
+20261024T014839-player-build-4adf3785-d290 (status laptop-e2e/rig-pose-fix): pass -> label train-ready + orchestrator;
+fail -> Opus triage at once. guard-models G8 shadow-cull builder running (gm-g8cull), then cap rerun sectorops +
+campusops, flip decision, guard-models e2e set, guard-models PR.
+~14:40: rig-pose-fix ALL 7 slices merged (988869a8; S1 fix round incl.); checks W1 PASS, S1-A FAIL->fixed; checker B on
+all src/net running (CHECK-NET-B.md). WAITING for CPU < 80% (93% at 14:40) to start: (a) playerVolumes alloc test fix
+(worktree rpf-alloc, branch feature/rpf-alloc: 67.8 B vs 4 x 16 B; find the extra box, do not raise the limit), (b)
+guard-models G8 shadow-cull fix (worktree gm-g8cull: G8 HOLD, sectorops CPU +0.6-1.7 ms p95 vs +0.5; lamp shadow draws
+24->50: figure culling box vs lightRig.ts fillCasters; then rerun cap sectorops + campusops). Then rig-pose laptop batch run
++ fragment + PR. guard-models e2e set after the flip decision.
+~13:30 rig-pose-fix: S1, S2, S5, S6, S7 MERGED (bb750a5b); W1 check PASS (S2/S5/S6/S7). Running: S3 (rpf-s3: guard head,
+dog puppet, one sim eye, hand side, body floor probe), checker A on S1 (CHECK-S1-A.md). Then checker B on all src/net,
+one laptop batch run, fragment, PR. S1 decisions for the orchestrator: client headshot-able on host (x1.3, legs x0.75),
+host uses latest accepted client state (not the 0.1 s drawn copy). guard-models: bake BUNDLED ae211857; checks rerun
+20261024T004757-...-e911 + G8 cap 20261024T004923-...-820d queued (Test Runner relays); MPFB2 now on the laptop.
 ~11:40 NEW JOB rig-pose-fix (Michael ~11:25 approved; on ROADMAP): branch feature/rig-pose-fix (worktree
 rig-pose-fix, own npm ci; off master 4.88.1 0fab0afa; docs/rig-pose-audit/ BRIEF / PLAN / STATE / REPORT). Wave 1 Opus
 builders running: S1 player body model + wall head (rpf-s1), S2 shot origin (rpf-s2), S5 body pos (rpf-s5), S6 dog head
