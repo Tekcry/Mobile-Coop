@@ -1,0 +1,20 @@
+{
+  "id": "20261024T061648-night-shift-sector-o-3f1c946f-fbd4",
+  "sha": "3f1c946ff3e2ff99f9c77aeb3ca810935c5d30f2",
+  "branch": "feature/coop4",
+  "pr": 317,
+  "kind": "alone",
+  "requester": "Night Shift | Sector Ops Build",
+  "steps": [
+    "node scripts/run-e2e.mjs e2e-sectorops:7",
+    "node scripts/run-e2e.mjs e2e-sectorops:8",
+    "node scripts/run-e2e.mjs e2e-sectorops:9"
+  ],
+  "env": {
+    "E2E_GPU": "1",
+    "E2E_LOAD_MS": "240000",
+    "E2E_JOBS": "1"
+  },
+  "set": "coop4-4p",
+  "note": "coop4 final: 4-page parts 7, 8 + 3-page part 9, alone"
+}
