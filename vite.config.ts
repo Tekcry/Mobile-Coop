@@ -3,6 +3,7 @@ import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { kestrelEditor } from './scripts/kestrel/editor-server';
 import { pickBuildSha } from './src/core/buildSha';
+import { GUARD_ASSET_URL, PRECACHE_GLOBS, PRECACHE_IGNORES } from './src/pwa/precacheGlobs';
 
 // GitHub Pages serves from /<repo>/. The deploy workflow sets VITE_BASE.
 const base = process.env.VITE_BASE ?? '/';
@@ -75,7 +76,10 @@ export default defineConfig({
       workbox: {
         // the menu font (ttf), the game's music tracks and the movement foley and weapon sprites are precached (offline play); the music lab's audition
         // MP3s (debug only) stay out of the cache
-        globPatterns: ['**/*.{js,css,html,wasm,png,svg,webmanifest,json,ttf}', '**/music-*.mp3', 'assets/foley-*.mp3', 'assets/weapons-*.mp3'],
+        // (guard-models) the lists live in src/pwa/precacheGlobs.ts (unit tested); the guard figures' GLBs are never
+        // precached (`globIgnores`): fetched only with ?guardmodels=1, then kept by the `guards` runtime rule below
+        globPatterns: [...PRECACHE_GLOBS],
+        globIgnores: [...PRECACHE_IGNORES],
         maximumFileSizeToCacheInBytes: 16 * 1024 * 1024,
         cleanupOutdatedCaches: true,
         // (sw-reload) the first install still claims the open page (offline warm-up, A109); updates wait (no skipWaiting)
@@ -105,9 +109,10 @@ export default defineConfig({
           },
           // (guard-models G7) the guard figures (three bases x LOD0-2 + the shield's three, `guard-*.glb`) in a cache of
           // their own, so they never push Wren's LODs out of hers (24 entries = two builds of twelve files); warmed
-          // like hers (`warmPlayLods`, guardBody.ts: LOD2 first)
+          // like hers (`warmPlayLods`, guardBody.ts: LOD2 first). Only ever filled with ?guardmodels=1 (flag off: no
+          // guard file is fetched, none precached)
           {
-            urlPattern: ({ url, sameOrigin }) => sameOrigin && /\/assets\/guard-[^/]+\.glb$/.test(url.pathname),
+            urlPattern: ({ url, sameOrigin }) => sameOrigin && GUARD_ASSET_URL.test(url.pathname),
             handler: 'CacheFirst',
             options: {
               cacheName: 'guards',

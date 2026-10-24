@@ -222,17 +222,23 @@ Plan and rules: `docs/sector-redesign/briefs/ART-PLAN.md`; builds: `docs/sector-
     (`operators/guards/guardVariant.ts`, pure, no allocation after the first call per kind and map) picks head, skin
     tone, hair cap and colour, headwear, eyewear, kit and a +-6% colour jitter by the archetype matrix (SPEC section 3);
     `guardTints.ts` turns it and the faction palette into slot tints.
-  - Files and the offline bake: no guard GLBs are bundled yet. The bake's output goes in `src/operators/assets/guards/`
-    (`guard-<base>-lod0..2.glb`, `guard-<base>.json`, `guard-shield_riot-lod0..2.glb`); `operators/guards/guardAssets.ts`
-    is the one seam (two `import.meta.glob` lines). A base without all its files resolves to the stand-in (Wren's play
-    LODs, untinted, one piece), so the wiring runs before the art lands. The service worker caches `/assets/guard-*.glb`
-    in its own `guards` cache (`vite.config.ts`). Bake (laptop, headless Blender, MPFB2 CC0 data; none on the desktop):
+  - Files and the offline bake: the bake's output is bundled in `src/operators/assets/guards/` (~29 MB:
+    `guard-<base>-lod0..2.glb`, `guard-<base>.json`, `guard-shield_riot-lod0..2.glb`; KTX2 textures inside the GLBs);
+    `operators/guards/guardAssets.ts` is the one seam (two eager `import.meta.glob` lines: the GLBs as `?url` strings
+    only, nothing fetched; the three JSON files, under 1 KB together, inlined). A base without all its files resolves
+    to the stand-in (Wren's play LODs, untinted, one piece). Guard figures are off by default; their files load only
+    with `?guardmodels=1`, never precached: every fetch is behind `flags.guardModels` (`GuardBody` via
+    `guardModelsFor`, `warmGuardModels`, the helmet drop's mesh, the shield), the precache lists
+    (`src/pwa/precacheGlobs.ts`, used by `vite.config.ts`) take no `.glb` and ignore `**/guard-*.glb` /
+    `**/guard-*.ktx2`, and the runtime rule keeps a fetched `/assets/guard-*.glb` in the worker's own `guards` cache
+    (CacheFirst, 24 entries). Tested by `tests/guardAssetsOffline.test.ts` (the lists globbed as workbox does; no fetch
+    with the flag off). Bake (laptop, headless Blender, MPFB2 CC0 data; none on the desktop):
     `node scripts/operators/guard-bake.mjs --stage <prep|bodies|heads|garments|gear|lods|check|sheet>` runs one stage as
     parallel jobs and skips jobs whose input hash is unchanged; `guard-sheet.mjs` draws the variety contact sheet. It
     builds on Wren's pipeline (`scripts/operators/README.md`); plan, spec and per-slice reports: `docs/guard-models/`.
     Kit data: `scripts/operators/data/guards.json` (ids and budgets, `operators/guards/guardKit.ts` validates).
   - Tests: `guardKit`, `guardVariant`, `gearMask`, `guardLook`, `guardFigure` (NullEngine), `guardBody`,
-    `guardResolve`, `guardAssets` (the bundled files against the budgets; skipped until they exist); `e2e-coop` checks the
+    `guardResolve`, `guardAssets` (the bundled files against the budgets), `guardAssetsOffline`; `e2e-coop` checks the
     seed and pieces on host and client (`E2E_GUARDMODELS=1`).
 - Rig: root -> body (tumble pivot) -> pelvis(`hips`) -> spine -> chest(`torso`) -> neck -> head(`headNode`, head
   centre); chest -> shoulder -> elbow -> wrist; pelvis -> hip -> knee -> ankle; sockets `weaponPivot` (aim
