@@ -7,3 +7,8 @@ kind: patch
   and releases its claim. Inert while no stacked trains exist.
 - A pending train now cuts an alone run whose steps started under 10 min ago; it is queued again at the head of the
   alone queue (train 64 went to the desktop behind a 4-min-old guard-cap run).
+- Audit fixes (train 64 went to the desktop behind a 30-min alone run): the laptop pushes a heartbeat claim refresh
+  every 5 min while it runs anything; a pr run past 80% of its expected wall is never preempted; no new alone claim
+  while a green train-ready PR waits and no train PR is open (aged alone requests still start); an alone run yields
+  between steps to a pending train and resumes after its finished steps. install-task.ps1 takes -DesktopCpu (80) and
+  -DesktopBacklog (0) for the desktop worker, so a re-register keeps them.

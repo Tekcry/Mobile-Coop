@@ -52,11 +52,20 @@
 // checks LQ_TRAIN_VOID_POLL_S (60) s apart, lib voidMisses) is killed, posts laptop-e2e error "train closed" and
 // releases its claim. A pending train also cuts an alone run whose steps started under 10 min ago (lib cutShort
 // ALONE_PREEMPT_MIN); it is queued again at the head of the alone queue (lib pick queue.front).
+// Orchestrator audit 2026-10-24 (train 64 went to the desktop behind a 30-min alone run that pushed nothing):
+// - heartbeat: the laptop pushes "heartbeat <n> run(s)" (a claim refresh of every running request / train) every
+//   LQ_HEARTBEAT_MIN (5) min while it runs anything, so the desktop never reads a busy laptop as silent;
+// - a pr run at or past 80% of its expected wall (times.json, lib runProgress) is never preempted;
+// - no new alone claim while a green train-ready PR waits and no train PR is open (lib aloneSoon; an aged alone request
+//   still starts);
+// - an alone run yields between steps while a train head is pending: claim released, queued at the head of the alone
+//   queue, and its finished steps are skipped when it runs again (state.aloneSteps; steps must not rely on worktree
+//   files an earlier step left, since prepare cleans the worktree).
 import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, trainSoon, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, dupKey, duplicates, failureExcerpt, flakeStands, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES } from './lib.mjs';
+import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, trainSoon, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, dupKey, duplicates, failureExcerpt, flakeStands, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, aloneSoon } from './lib.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
 const DESKTOP = process.env.LQ_WORKER === 'desktop';
@@ -78,6 +87,7 @@ const PORTS = Object.keys(SLOTS);
 const TRAIN_JOBS = process.env.LQ_TRAIN_JOBS ?? (DESKTOP ? '1' : '3');
 const LAPTOP_SILENT_MS = Number(process.env.LQ_LAPTOP_SILENT_MIN ?? 10) * 60_000;
 const TRAIN_GRACE_MS = 2 * 60_000; // a live idle laptop claims a new train head within one pass (30 s)
+const HEARTBEAT_MS = Number(process.env.LQ_HEARTBEAT_MIN ?? 5) * 60_000; // laptop: a claim push while runs go on (0 = off)
 const TRAIN_VOID_POLL_MS = Number(process.env.LQ_TRAIN_VOID_POLL_S ?? 60) * 1000;
 // a train that has held some slots this long while another stays locked (a manual run) runs unsharded on the ones it holds
 const TRAIN_SOLO_MS = Number(process.env.LQ_TRAIN_SOLO_MIN ?? 10) * 60_000;
@@ -368,8 +378,17 @@ let aloneHoldLogged = '';
 /** Why no new non-train work starts this pass (lib trainSoon), '' when it may; set by pendingTrains (laptop). */
 let soon = '';
 let soonLogged = '';
+let aloneSoonWhy = '';
+let aloneSoonLogged = '';
 let manualLogged = '';
 /** lib trainSoon from GitHub: a building train PR (no version head yet), else the last train release and its candidates. */
+/** Open train-ready PRs whose CI check passed (0 when unreadable: never hold on a GitHub error). */
+function readyCandidates() {
+  try {
+    return Number(gh(['pr', 'list', '-R', REPO, '--state', 'open', '--label', 'train-ready', '--json', 'statusCheckRollup', '--jq', '[.[] | select([.statusCheckRollup[]? | select(.name == "check") | .conclusion] | first == "SUCCESS")] | length']) || 0);
+  } catch { return 0; }
+}
+
 function trainSoonNow(openPrs) {
   const isVersion = (p) => new RegExp(`^\\d+\\.\\d+\\.\\d+: version at merge, train ${p.n} \\(G183\\)$`).test(git(['show', '-s', '--format=%s', p.sha], { soft: true }));
   const b = openPrs.find((p) => !isVersion(p));
@@ -379,7 +398,7 @@ function trainSoonNow(openPrs) {
     const last = JSON.parse(gh(['pr', 'list', '-R', REPO, '--state', 'merged', '--limit', '30', '--json', 'headRefName,mergedAt', '--jq', '[.[] | select(.headRefName | startswith("train/"))][0] // null']) || 'null');
     const ageMs = last ? Date.now() - Date.parse(last.mergedAt) : Infinity;
     if (!(ageMs < TRAIN_GAP_MS)) return '';
-    const candidates = Number(gh(['pr', 'list', '-R', REPO, '--state', 'open', '--label', 'train-ready', '--json', 'statusCheckRollup', '--jq', '[.[] | select([.statusCheckRollup[]? | select(.name == "check") | .conclusion] | first == "SUCCESS")] | length']) || 0);
+    const candidates = readyCandidates();
     return trainSoon({ release: { n: String(last.headRefName).replace(/^train\//, ''), ageMs }, candidates }, { gapMs: TRAIN_GAP_MS, buildMaxMs: TRAIN_BUILD_MAX_MS });
   } catch { return ''; /* unreadable: no hold (never block on a GitHub error) */ }
 }
@@ -396,10 +415,12 @@ function pendingTrains() {
     log(`train PR list failed, trains skipped this pass: ${String(e.message).split('\n')[0]}`);
     aloneHold = { n: '?', sha: '', laptop: 'unknown' };
     soon = ''; // never hold new claims on a GitHub error (checker FIX)
+    aloneSoonWhy = '';
     return out;
   }
   git(['fetch', '-q', 'origin', '+refs/heads/train/*:refs/remotes/origin/train/*'], { soft: true });
   if (!DESKTOP) soon = trainSoonNow(openPrs);
+  if (!DESKTOP) aloneSoonWhy = openPrs.length ? '' : aloneSoon(0, readyCandidates());
   // every open train PR head without a laptop-e2e success holds alone requests (a status read error counts as none),
   // except heads that can never get one here: older than LQ_TRAIN_MAX_AGE_H or a failed auto-train/* build (as below)
   aloneHold = trainHold(openPrs.flatMap((p) => {
@@ -629,6 +650,18 @@ const claimed = new Set();
 const activeReqs = new Map();
 /** Alone requests a train preempted (cutShort): they go first among alone requests (lib pick queue.front) until claimed again. */
 const preemptedAlone = new Set();
+/** Train heads running here, for the heartbeat. */
+const runningTrains = new Set();
+let lastBeat = Date.now();
+/** Laptop: refresh the claims of everything running here every HEARTBEAT_MS (one push), so the desktop gate sees a live laptop. */
+function heartbeat() {
+  if (DESKTOP || DRY || !(HEARTBEAT_MS > 0)) return;
+  const ids = [...activeReqs.keys(), ...runningTrains];
+  if (ids.length === 0) { lastBeat = Date.now(); return; }
+  if (Date.now() - lastBeat < HEARTBEAT_MS) return;
+  lastBeat = Date.now();
+  if (writeClaims(ids, 'claim', `heartbeat ${ids.length} run(s)`) !== true) log(`heartbeat push failed for ${ids.length} run(s)`);
+}
 /** The train heads the last pass saw pending (desktop: those it may take); trainsNow() drops the ones claimed since. */
 let pendingNow = [];
 const trainsNow = () => pendingNow.filter((t) => !claimed.has(t.sha));
@@ -748,10 +781,11 @@ async function runRequest(r, port) {
   const ctl = { child: null, why: '', by: null };
   let started = false;
   let startedAt = NaN; // an alone run's steps start: under ALONE_PREEMPT_MIN a pending train still cuts it (lib cutShort)
+  let progress = () => NaN; // a pr run's share of its expected wall: past PREEMPT_MAX_PROGRESS it is never cut
   const watch = DRY ? null : setInterval(() => {
     const trains = trainsNow();
     const others = [...activeReqs.values()].filter((a) => a.id !== r.id);
-    const why = cutShort(r, { withdrawn: withdrawnIds.has(r.id), trains, started, others, startedAt, now: Date.now() });
+    const why = cutShort(r, { withdrawn: withdrawnIds.has(r.id), trains, started, others, startedAt, now: Date.now(), progress: progress() });
     if (why && !ctl.why) { ctl.by = trains[0] ?? null; cut(ctl, why); }
   }, 5_000);
   const stop = () => Boolean(ctl.why) || Boolean(yielded ??= yieldTo(r, false, trainsNow()));
@@ -767,6 +801,7 @@ async function runRequest(r, port) {
       log(`${r.id}: withdrawn by the requester, run stopped`);
       if (posted) postStatus(r.sha, 'error', ctx, 'withdrawn by the requester, run stopped');
       state.done[r.id] = { result: 'withdrawn', date: new Date().toISOString() };
+      if (state.aloneSteps) delete state.aloneSteps[r.id];
       return;
     }
     const n = ctl.by?.n ?? '?';
@@ -807,18 +842,37 @@ async function runRequest(r, port) {
     }
     if (r.kind === 'alone') {
       const t0 = Date.now();
-      let okSteps = 0;
+      // a run that yielded between steps resumes after its finished ones (state.aloneSteps, same sha and steps)
+      const resume = state.aloneSteps?.[r.id];
+      const from = resume && resume.sha === r.sha && resume.n === r.steps.length ? resume.done : 0;
+      let okSteps = from ? resume.ok : 0;
+      if (from) log(`${r.id}: resumes at step ${from + 1}/${r.steps.length} (${okSteps} ok so far)`);
       started = true;
       startedAt = t0;
       for (const [i, step] of r.steps.entries()) {
+        if (i < from) continue;
         if (ctl.why) break;
+        // between steps: a pending train head takes the slots; the finished steps are kept for the rerun
+        const tr = i > from ? trainsNow()[0] : null;
+        if (tr) {
+          (state.aloneSteps ??= {})[r.id] = { sha: r.sha, n: r.steps.length, done: i, ok: okSteps, date: new Date().toISOString() };
+          log(`${r.id}: yields to train ${tr.n} after step ${i}/${r.steps.length}, queued again (head of the alone queue)`);
+          postStatus(r.sha, 'pending', ctx, `queued, yielded to train ${tr.n} after step ${i}/${r.steps.length}`);
+          writeClaims([r.id], 'release', `release ${r.id} (yields to train ${tr.n})`);
+          claimed.delete(r.id);
+          preemptedAlone.add(r.id);
+          return;
+        }
         const line = step.startsWith('serve ') ? `node scripts/laptop-queue/serve.mjs ${step.slice(6)}` : step;
         freePort(ports[0]);
         const code = await sh(line, { cwd: SLOTS[ports[0]].dir, env: { ...r.env, E2E_PORT: ports[0], E2E_GPU: '1' }, logFile: path.join(runDir, `step${i + 1}.log`), ctl });
         if (code === 0) okSteps++;
         freePort(ports[0]);
+        // a finished step is kept for a rerun after a cut or a yield (never a step the cut killed)
+        if (!ctl.why) (state.aloneSteps ??= {})[r.id] = { sha: r.sha, n: r.steps.length, done: i + 1, ok: okSteps, date: new Date().toISOString() };
       }
       if (ctl.why) return cutEnd();
+      if (state.aloneSteps) delete state.aloneSteps[r.id];
       const good = okSteps === r.steps.length;
       postStatus(r.sha, good ? 'success' : 'failure', ctx, `${okSteps}/${r.steps.length} steps ok, ${Math.round((Date.now() - t0) / 1000)} s`);
       state.done[r.id] = { result: good ? 'success' : 'failure', date: new Date().toISOString() };
@@ -828,6 +882,7 @@ async function runRequest(r, port) {
     const jobs = DESKTOP || r.trainRerun ? 1 : r.jobs ?? (r.kind === 'full' ? 3 : 2); // a train rerun: E2E_JOBS=1, unsharded
     const t0 = Date.now();
     started = true;
+    progress = () => runProgress(list, times, jobs, Date.now() - t0);
     const run = await e2e(port, list, jobs, path.join(runDir, `${port}.log`), ctl);
     if (ctl.why) return cutEnd();
     // same completeness rule as a train shard; at least the listed suites (a named suite may expand into parts)
@@ -869,12 +924,13 @@ function dispatch(p) {
     claimed.add(p.train.sha);
     const ports = p.ports ?? PORTS;
     if (DRY) { log(`dry-run: would run train ${p.train.n} ${p.train.sha.slice(0, 8)} on ${ports.join('+')}`); return planTrain(p.train.sha, ports); }
+    runningTrains.add(p.train.sha);
     const run = runTrain(p.train, ports).catch((e) => {
       log(`train ${p.train.n} service error: ${e.stack ?? e.message}`);
       postStatus(p.train.sha, 'error', 'laptop-e2e', 'service error, see log');
       writeClaims([p.train.sha], 'release', `release train ${p.train.n}`);
       claimed.delete(p.train.sha);
-    });
+    }).finally(() => runningTrains.delete(p.train.sha));
     ports.forEach((x) => { busy[x] = run; });
     return run;
   }
@@ -1025,6 +1081,12 @@ async function pass() {
     if (key !== aloneHoldLogged) { aloneHoldLogged = key; log(`alone requests held: train ${aloneHold.n} ${String(aloneHold.sha).slice(0, 8)} open, laptop-e2e ${aloneHold.laptop || 'none'}${aged ? `; ${aged.id} waited over ${ALONE_AGE_MIN} min: no new pr claims` : ''}`); }
     queue.requests = queue.requests.filter((r) => (aged ? r.trainRerun : r.kind !== 'alone'));
   } else if (!aloneHold) aloneHoldLogged = '';
+  // before any train PR exists: a green train-ready PR keeps new alone claims back (aged and preempted ones still start)
+  if (!DESKTOP && aloneSoonWhy && queue.requests.some((r) => r.kind === 'alone')) {
+    const aged = agedAlone(queue.requests, Date.now());
+    if (aloneSoonWhy !== aloneSoonLogged) { aloneSoonLogged = aloneSoonWhy; log(`${aloneSoonWhy}: no new alone claims`); }
+    queue.requests = queue.requests.filter((r) => r.kind !== 'alone' || r === aged || preemptedAlone.has(r.id));
+  } else if (!aloneSoonWhy) aloneSoonLogged = '';
   const desktopWait = {};
   if (DESKTOP) {
     // auto-train's build (its vitest waits on heavy.lock) goes first: no new request while it builds, and no train at or
@@ -1145,6 +1207,7 @@ async function main() {
     try {
       // update before taking new work too, so a busy queue still picks up new service code between runs
       if (!Object.values(busy).some(Boolean)) selfUpdate();
+      heartbeat();
       await pass();
       if (!Object.values(busy).some(Boolean)) selfUpdate();
     } catch (e) { log(`pass failed: ${e.message}`); }

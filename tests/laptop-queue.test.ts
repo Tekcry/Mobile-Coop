@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, flakeStands, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, trainSoon, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, flakeStands, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, trainSoon, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon } from '../scripts/laptop-queue/lib.mjs';
 
 const NOW = Date.UTC(2026, 9, 23, 20, 0, 0);
 const idAt = (min: number, tag: string): string => {
@@ -669,6 +669,15 @@ describe('cutShort', () => {
     expect(cutShort({ kind: 'alone' }, { trains: [t], started: true, startedAt: NOW - ALONE_PREEMPT_MIN * 60_000, now: NOW })).toBe('');
     expect(cutShort({ kind: 'pr' })).toBe('');
   });
+  it('a pr run at or past PREEMPT_MAX_PROGRESS of its expected wall finishes; unknown progress cuts as before', () => {
+    const run = { trains: [t], started: true };
+    expect(PREEMPT_MAX_PROGRESS).toBe(0.8);
+    expect(cutShort({ kind: 'pr' }, { ...run, progress: 0.79 })).toBe('train');
+    expect(cutShort({ kind: 'pr' }, { ...run, progress: 0.8 })).toBe('');
+    expect(cutShort({ kind: 'pr' }, { ...run, progress: 1.4 })).toBe('');
+    expect(cutShort({ kind: 'pr' }, { ...run, progress: NaN })).toBe('train');
+    expect(cutShort({ kind: 'pr' }, { ...run, progress: 0.9, withdrawn: true })).toBe('withdrawn');
+  });
   it('a pending train cuts an alone run whose steps started under ALONE_PREEMPT_MIN ago', () => {
     const young = { trains: [t], started: true, startedAt: NOW - 4 * 60_000, now: NOW };
     expect(ALONE_PREEMPT_MIN).toBe(10);
@@ -676,6 +685,22 @@ describe('cutShort', () => {
     expect(cutShort({ kind: 'alone' }, { ...young, trains: [] })).toBe('');
     expect(cutShort({ kind: 'alone' }, { ...young, started: false })).toBe(''); // before its steps: yieldTo gives the slots back
     expect(cutShort({ kind: 'full' }, young)).toBe('');
+  });
+});
+
+describe('runProgress / aloneSoon', () => {
+  it('progress is elapsed over the heaviest bin of the suites at that many jobs', () => {
+    const times = { a: 100, b: 100, c: 50 };
+    expect(runProgress(['a', 'b'], times, 2, 50_000)).toBeCloseTo(0.5);
+    expect(runProgress(['a', 'b'], times, 1, 100_000)).toBeCloseTo(0.5);
+    expect(runProgress(['a', 'x'], times, 1, 150_000)).toBeCloseTo(150 / (100 + 100)); // unknown suite at the median (100)
+    expect(runProgress([], times, 1, 1000)).toBeNaN();
+    expect(runProgress(['a'], {}, 1, 1000)).toBeNaN();
+  });
+  it('alone claims wait while a green train-ready PR has no train yet', () => {
+    expect(aloneSoon(0, 1)).toMatch(/1 train-ready PR/);
+    expect(aloneSoon(1, 3)).toBe(''); // a train is open: the train hold applies instead
+    expect(aloneSoon(0, 0)).toBe('');
   });
 });
 

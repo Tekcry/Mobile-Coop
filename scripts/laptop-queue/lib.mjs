@@ -182,6 +182,26 @@ export function superseded(requests, isAncestor) {
   return out;
 }
 
+/**
+ * How far a run is through its expected wall: elapsedMs over the heaviest of `jobs` bins of its suites by times.json
+ * weight (lib shard, unknown suites at the median), so 1 = due to finish now. NaN when nothing is known.
+ */
+export function runProgress(suites, times, jobs, elapsedMs) {
+  if (!(suites ?? []).length || !Object.keys(times ?? {}).length) return NaN;
+  const bins = shard(suites, times, Math.max(1, Number(jobs) || 1));
+  const wallS = Math.max(...bins.map((b) => b.weight));
+  return wallS > 0 ? elapsedMs / (wallS * 1000) : NaN;
+}
+
+/**
+ * The laptop's alone hold before a train exists (Orchestrator audit 2026-10-24: #323 was labelled 18 s before a 30-min
+ * guard-cap alone run claimed both slots): '' or why new alone claims wait. openTrains = open train/<n> PRs, candidates =
+ * open train-ready PRs with a green check. An alone request older than ALONE_AGE_MIN still starts (aged; never starved).
+ */
+export function aloneSoon(openTrains, candidates) {
+  return openTrains === 0 && candidates > 0 ? `${candidates} train-ready PR(s) waiting for a train` : '';
+}
+
 /** Train heads by train number, lowest first (ls-remote lists them as text: train/100 before train/99). New array. */
 export function sortTrains(trains) {
   return [...(trains ?? [])].sort((a, b) => Number(a.n) - Number(b.n));
@@ -306,14 +326,18 @@ export function yieldTo(r, started, trains) {
  * never give way to a train once started (Orchestrator audit 2026-10-24: a withdrawn request held 4191 for 67 min and
  * train 56 waited 11 min; checker FIX: no preemption beside a run that cannot give way), except an alone run whose steps
  * started under ALONE_PREEMPT_MIN ago (startedAt, now; Orchestrator 2026-10-24 ~21:05 after train 64 went to the
- * desktop behind a 4-min-old guard-cap run): it is killed and queued again at the head of the alone queue.
+ * desktop behind a 4-min-old guard-cap run): it is killed and queued again at the head of the alone queue. A pr run at
+ * or past PREEMPT_MAX_PROGRESS of its expected wall (progress, lib runProgress; unknown = NaN cuts as before) finishes.
  */
 export const ALONE_PREEMPT_MIN = 10;
+/** A pr run this far through its expected wall (runProgress) finishes instead (Orchestrator audit 2026-10-24: a coop4 run cut at 15/15 shards). */
+export const PREEMPT_MAX_PROGRESS = 0.8;
 const preemptible = (r) => r?.kind === 'pr' && !r.trainRerun;
 const youngAlone = (r, startedAt, now) => r?.kind === 'alone' && Number.isFinite(startedAt) && now - startedAt < ALONE_PREEMPT_MIN * 60_000;
-export function cutShort(r, { withdrawn = false, trains = [], started = false, others = [], startedAt = NaN, now = NaN } = {}) {
+export function cutShort(r, { withdrawn = false, trains = [], started = false, others = [], startedAt = NaN, now = NaN, progress = NaN } = {}) {
   if (withdrawn) return 'withdrawn';
-  if (started && (preemptible(r) || youngAlone(r, startedAt, now)) && (trains ?? []).length && (others ?? []).every(preemptible)) return 'train';
+  const mayCut = (preemptible(r) && !(progress >= PREEMPT_MAX_PROGRESS)) || youngAlone(r, startedAt, now);
+  if (started && mayCut && (trains ?? []).length && (others ?? []).every(preemptible)) return 'train';
   return '';
 }
 
