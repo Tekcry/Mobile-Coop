@@ -17,6 +17,7 @@ here: docs/archive/ct-movement.md, docs/locomotion/ and the git log.
   G26 / G27's mid-stride freeze and 1.7 s ease, G30's modern layer, G32's roll on held crouch, G33's 0.4 s flick turn,
   G35 / G36's 0.35 m/s wall shuffle and peek at once, and G28 / G29's camera framing and behaviour. The code below is
   what is built.
+
 Still standing:
 - Decided and built (G16): no aim assist on any input (the pad setting `gamepad.aimAssist` was removed, no-aim-assist).
 - Decided (G38): one camera height for every operator (the shared body capsule).

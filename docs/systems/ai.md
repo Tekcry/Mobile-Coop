@@ -27,7 +27,8 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
     CT's way"; kept 2026-10-25 ~09:45 "Keep CT way").
   - Sector Ops: guard dogs (G297); later sections add body armour (torso shots only stagger), riot shields only in
     alert response teams, and armour / helmets per alarm stage (G307).
-  - Helmets by difficulty, Sector Ops (G338) and the campaign (G341) (2026-10-25 ~10:20, Michael: "Base it off difficulty, harder difficulties always
+  - Helmets by difficulty, Sector Ops (G338) and the campaign (G341) (2026-10-25 ~10:20, Michael: "Base it off
+    difficulty, harder difficulties always
     have helmets, and hardest difficulty you can't shoot the helmet off"). The campaign takes the "Same rule"
     (2026-10-25 ~10:45), with CT's alarm-stage helmets on the easier levels. It replaces G307's first-headshot helmet
     where they differ. Not built yet.
@@ -38,7 +39,7 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   some high routes (pipes, catwalks, vents) and paired patrols that check on each other. G44 (poor sight above) stays
   the base rule; a lookout is the deliberate exception on its route. Guard AI plans it first; not built yet.
 - Decided (2026-10-25 ~08:50, "Yes, shadow in view = seen"): a guard whose shadow falls in view animates at full rate
-  (`animTierView.ts`; replaces G294's assumption). Not built yet: `ANIM_TIER_OFFSCREEN` is still 4.
+  (`animTierView.ts`; replaces G294's assumption). Not built yet: shadow passes do not count as seen (`animTierView.ts`).
 - Decided (G47): the light parity test, long lamps and motion lights are sorted out when built.
 
 ## Stealth AI (2.0 phase 3a)

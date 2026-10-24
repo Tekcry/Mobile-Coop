@@ -2,7 +2,8 @@
 
 > History, settled by G124-G160 in docs/DECISIONS.md (2026-10-18). Read DECISIONS.md, not this file: later entries
 > replace several answers below, e.g. D-02's one hard rule (G290: up to 2 strict rules, section restart), D-03's
-> revives (Sector Ops: G188 syringes and checkpoints; the campaign keeps the 30 s revive, G126), D-09's "strictly two humans" for Sector Ops (G280, G308: 1 to 4 players),
+> revives (Sector Ops: G188 syringes and checkpoints; the campaign keeps the 30 s revive, G126), D-09's "strictly two
+> humans" for Sector Ops (G280, G308: 1 to 4 players),
 > D-14's camera (G210, G227).
 
 These become G entries in docs/DECISIONS.md, with the next free G numbers, when this branch merges (another branch,

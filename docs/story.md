@@ -1,7 +1,7 @@
 # Night Shift - Story and world
 
 > **Status (2026-10-25).** Maps that exist now: Marlow Yard (co-op training, `ctcourse`), Saltmarsh Park (Sector Ops,
-> `campusOps`). Tallow Wharf, the new small campaign map, is campaign Mission 1 (2026-10-25 ~10:45, G293): specced
+> `campusOps`). Tallow Wharf, the new small campaign map, is campaign Mission 1 (G340): specced
 > (PR #372, `docs/missions/`), not built yet; "Dead Line" on the Kestrel map is paused (G53). The mission list below
 > is the story plan, not the build order.
 
