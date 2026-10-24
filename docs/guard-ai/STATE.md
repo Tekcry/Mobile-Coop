@@ -1,6 +1,15 @@
 # Guard AI - state
 
 ## Now
+~00:20: QUEUE RULE (lib.mjs pick): the queue runs a requester's NEWEST request first, so newer requests starve an
+older one (fix3 waited 70 min). Keep one open request at a time in priority order. Withdrawn (request file deleted on
+laptop-queue): polish b226 (stale) + T1 e7f2 (held). #317 fix3 6504 is now the only open request.
+#360 T1 HELD by the orchestrator (ROADMAP Decided, assumed): keep tier 4; after gm-flip try shadow-in-view = seen in
+animTierView.ts + measure; GPU look clip for Michael's morning pack (Opus writing scripts/t1-shadow-look.mjs on the T1
+branch, then an alone request). #363 polish: check A PASS, check B FIX 1 (B2 two movers after a mid-bound re-pick);
+Opus fix round RUNNING (roleBound flag; enemy.ts / enemyManager.ts / e2e-stealth-ai.mjs / guardPolishB); then requeue
+set polish on the fix head. Batch 2: Opus planner RUNNING -> docs/guard-ai/POLISH2-PLAN.md (Deferred list + check A
+polish 1-4), stacked on feature/guard-ai-polish.
 ~23:50: #317 CONFLICTING with master 4.98.3 (one hunk src/net/protocol.ts: master PROTOCOL_VERSION 55 next to coop4's
 MAX_PLAYERS comment). Orchestrator agreed: NO master merge. fix3 green -> `gh pr ready 317` + train-ready; if
 auto-train leaves #317 out, by-hand train merge: keep master's `PROTOCOL_VERSION = 55` + coop4's comment and
