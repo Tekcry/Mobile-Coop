@@ -152,7 +152,7 @@ describe('IntruderBoard: leave, rejoin, reuse (coop4 AI1)', () => {
     const b = four();
     for (let s = 0; s < 4; s++) b.report(s, s * 10, 0, 1, true);
     b.leave('b');
-    const s = b.slotFor('e');
+    const s = b.slotFor('e', null, true);
     expect(s).toBe(1);
     expect(b.reused).toBe(1);
     expect([b.idOf(1), b.gone[1], b.valid[1], b.x[1], b.seenT[1], b.locT[1]]).toEqual(['e', 0, 0, 0, 99, 99]);
@@ -177,24 +177,26 @@ describe('IntruderBoard: leave, rejoin, reuse (coop4 AI1)', () => {
     b.leave('b');
     b.leave('c');
     // c (slot 2) is idle: never reported and not hunted
-    expect(b.slotFor('e', () => false)).toBe(2);
+    expect(b.slotFor('e', () => false, true)).toBe(2);
     // slot 3 left too but is hunted (never seen): not idle; 0 and 1 are valid: none idle, so the one unseen longest:
     // 3 (99 + 5 s), then 0 (5 s), then 1 (0 s)
     b.leave('d');
     const hunted = (s: number) => s === 3;
-    expect(b.slotFor('f', hunted)).toBe(3);
+    expect(b.slotFor('f', hunted, true)).toBe(3);
     expect(b.reused).toBe(3);
-    expect(b.slotFor('g', hunted)).toBe(0);
-    expect(b.slotFor('h', hunted)).toBe(1);
-    expect(b.slotFor('i', hunted)).toBe(-1);
+    expect(b.slotFor('g', hunted, true)).toBe(0);
+    expect(b.slotFor('h', hunted, true)).toBe(1);
+    expect(b.slotFor('i', hunted, true)).toBe(-1);
   });
 
-  it('all 4 present (none gone): -1, nobody reused; reuse off: -1 even with a gone slot', () => {
+  it('all 4 present (none gone): -1, nobody reused; reuse off (the default): -1 even with a gone slot', () => {
     const b = four();
-    expect(b.slotFor('e', () => false)).toBe(-1);
+    expect(b.slotFor('e', () => false, true)).toBe(-1);
     expect(b.reused).toBe(-1);
     b.leave('d');
     expect(b.slotFor('e', null, false)).toBe(-1);
+    // reuse is the manager's call (gated, A170): the default is off, so a plain read-side `slotFor` never takes over
+    expect(b.slotFor('e')).toBe(-1);
     expect([b.reused, b.idOf(3), b.gone[3]]).toEqual([-1, 'd', 1]);
   });
 

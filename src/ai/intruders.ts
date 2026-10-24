@@ -69,9 +69,10 @@ export class IntruderBoard {
    * (coop4 AI1, A171) No free slot and `reuse`: a gone player's slot is taken over: first a gone slot not valid and
    * not hunted (`hunted`, the manager's `huntingOf`; null: nobody hunts), else the gone slot unseen longest (largest
    * `seenT`, ties: the lower slot). Its position and clocks are dropped and `reused` names it (the manager releases
-   * the rest). No gone slot: -1 (never a live player's slot).
+   * the rest). No gone slot: -1 (never a live player's slot). `reuse` is off by default: only the manager turns it
+   * on (`EnemyManager.slotForId`: `INTRUDERS.reuse` and 3+ players), so no other caller takes a slot unreleased.
    */
-  slotFor(id: string, hunted: SlotHunted | null = null, reuse: boolean = INTRUDERS.reuse): number {
+  slotFor(id: string, hunted: SlotHunted | null = null, reuse = false): number {
     if (!this.split) return 0;
     const ids = this.ids;
     let free = -1;

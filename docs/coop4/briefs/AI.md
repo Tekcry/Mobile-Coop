@@ -198,3 +198,31 @@ per remote, `r.state`); `removeRemote` calling `intruderLeft`; later the per-cli
 - A180 e2e fakes are test-only stand-ins in the page, never a game feature (G2 / G48 / G50).
 - A181 `PERCEIVE.maxRays` 9 per guard per think, `cur` and `hunt` first, the rest rotated; never reached at 1-2
   players; undo `Infinity`.
+
+## 5. Build log
+
+### AI1 built (Opus builder, 2026-10-24)
+- Files: `src/ai/intruders.ts` (`ids` / `gone` by `MAX_INTRUDERS`, `find`, `leave`, `slotFor(id, hunted?, reuse =
+  false)` + `reused`, `INTRUDERS.reuse`, `COOP4 { from: 3 }`, the seam `slotOf`), `src/ai/enemyManager.ts` (`coop4()`,
+  `slotForId` (every report: `reportSighting`, `noise`, `hearFight`, drone spot), `releaseSlot`, `intruderLeft`,
+  `ghostOf`, `huntedFn` bound once; `lkpSlot` / `slotFlow` by `MAX_INTRUDERS`), `src/ai/enemy.ts` (perceive's sight bit
+  through `slotOf`), `docs/systems/ai.md`, `changes/feature-guard-ai-coop4.md`. N0's `src/game/playerSlots.ts` +
+  `tests/playerSlots.test.ts` cherry-picked from origin/feature/coop4 08267f27 (unchanged).
+- Host hook (for Sector Ops N1, coopHost.ts:510 `removeRemote`): `EnemyManager.intruderLeft(id: string): void`, call as
+  `this.g.enemyMgr?.intruderLeft(id)`. Marks the slot gone; the same id rejoining takes it back with its LKP.
+- Ghost read (per player, for the wire): `EnemyManager.ghostOf(id: string, out: Vector3): number` (0 none, 1 known,
+  2 show: `seenT > 0.6` and hunted); `find`, never assigns.
+- Slot seam: `slotOf(ref: PlayerRef, index: number): number` in `src/ai/intruders.ts`: `(ref as
+  Partial<TeamFields>).slot` when set (N1), else the `players()` index (`import type` from `src/game/playerSlots`).
+  The only reader: `Enemy.perceive`'s `seenMask` bit, so `seesIndex(s)` means team slot `s` (host 0 either way). The
+  intruder board stays keyed by player id. `AiContext.players()` stays `readonly PlayerRef[]`.
+- Gate (A170): reuse only while `players().length >= 3` (`slotForId` passes `reuse`); the board's default is off, so
+  a read-side `slotFor` never takes a slot without the manager's release. 1-2 players: a 5th distinct id still gets -1.
+- Not done here (named): gameState.ts:2690 still calls `slotFor(localRef.id)` (N1 owns gameState). Switching it to
+  `ghostOf` / `find` stops the host's slot being taken on the first frame, so the first player seen would get slot 0
+  (slot order changes at 2 players); keep one `em.intruders.slotFor(localRef.id)` at stealth start when switching.
+- Tests: `tests/intruders.test.ts` (4 fill; `find` never assigns; leave + rejoin same slot, LKP kept; leave + new id ->
+  the gone slot, never a live one; idle first then unseen longest; all present -> -1; reuse off -> -1; `slotOf`),
+  new `tests/fourIntruders.test.ts` (FakeGuard harness: 4 slots; rejoin keeps slot and hunters; reuse releases plan,
+  caller, chase field, heard throttle, alarm / contact hunt and hunters; reuse via a located shot; 2 players no reuse;
+  `ghostOf` 0 / 1 / 2). `tests/twoIntruders.test.ts` unedited and green.

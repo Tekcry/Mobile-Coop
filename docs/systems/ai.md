@@ -455,6 +455,15 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   follow the freshest (A150); the host's LKP ghost shows only the host's own slot. Undo: `INTRUDERS.split` false (one
   shared position, one group). Host only, no protocol or save change. Brief: `docs/guard-ai/slices/S24.md`. Tests:
   `intruders.test.ts`, `twoIntruders.test.ts`, `coopPerception.test.ts` (S24 block).
+  Up to 4 intruders (coop4 AI1, A170 / A171, brief `docs/coop4/briefs/AI.md`): `IntruderBoard.find(id)` (a read, never
+  assigns), `leave(id)` (slot marked `gone`, kept for his rejoin: the same id takes it back, LKP kept); a new id with no
+  free slot takes a gone one (idle first, else unseen longest; `reused`), only from `COOP4.from` 3 live players (1-2:
+  today, -1). Every report resolves its slot through `EnemyManager.slotForId`, which releases a reused slot
+  (`releaseSlot`: plan, caller, chase field, heard throttle, `alarmHunt` / `contactHunt`, its hunters to `hunt` -1, then
+  forgotten). Host hook `EnemyManager.intruderLeft(id: string): void` (the net layer's `removeRemote`); per-player ghost
+  read `ghostOf(id, out: Vector3): 0 | 1 | 2` (none / known / show). The player team-slot seam: `slotOf(ref, index)`
+  in `intruders.ts` (`ref.slot` when N1 sets `TeamRef.slot`, else the index): `Enemy.seesIndex` bits are team slots.
+  Undo: `INTRUDERS.reuse` false, `COOP4.from` Infinity. Tests: `intruders.test.ts`, `fourIntruders.test.ts`.
 - Search after combat: the probable area (guard-ai S25, M1, CT rule 9, A151-A154; `ai/searchArea.ts` pure:
   `SEARCH_AREA`, `SearchPlan`, `areaRadius`, `pointScore`, `orderByScore`). One plan per intruder slot
   (`EnemyManager.plans`). `buildPlan(slot)`, called when one of his searchers asks: due when never built, older than
