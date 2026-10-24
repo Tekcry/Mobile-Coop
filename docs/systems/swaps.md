@@ -34,7 +34,9 @@ node scripts/swap.mjs save --commit-wip
 - `--commit-wip` never commits or pushes master / main / dev / ct-movement / train/* / cloud-queue / laptop-queue /
   gh-pages or a detached HEAD, and never forces. It runs hooks and stages only the paths `git status -uall` listed, so a
   nested repo or worktree is never added as a gitlink. It skips a worktree (an item) that is mid merge, cherry-pick,
-  revert or rebase, has unmerged paths, or would add a new file over 10 MB. A rejected push (the branch moved on
+  revert or rebase, or has unmerged paths, and before staging when a changed path looks secret (`.env`, `.env.*`,
+  `*.pem`, `*.key`, `*.p12`, `*.pfx`, `id_rsa*`, `*credentials*`, `*secret*`, `.npmrc`, `*.token`, any path segment) or a
+  new, modified, renamed or copied file is over 10 MB, or the WIP commit would be over 50 MB. A rejected push (the branch moved on
   origin) stays an item: fetch and merge in that worktree by hand.
 - Also printed (not items): heavy.lock / heavy2.lock / auto-train.lock holders with pid liveness, laptop-queue requests
   queued and claimed (per worker; `--machine laptop` or env `SWAP_MACHINE` / `LQ_WORKER` marks this machine's), and the
@@ -81,8 +83,9 @@ node scripts/swap.mjs prune --yes [--idle-hours 48]
 ```
 
 Never touched: the main checkout, locked worktrees, detached HEADs (e.g. Mobile-Coop-testrun), protected branches, a
-worktree that holds another registered worktree or a non-empty `.claude/worktrees`, a worktree another worktree's
-`node_modules` junction points into, one with ignored files beyond `node_modules` / `dist` / `test-results`, one in use
+worktree that holds another registered worktree or a non-empty `.claude/worktrees`, a worktree that holds any hop of
+another `node_modules` junction chain (A -> B/node_modules -> C/node_modules keeps B and C; links are read from every
+worktree, one folder level down and every clone), one with ignored files beyond `node_modules` / `dist` / `test-results`, one in use
 (under `--yes` the folder is renamed and back first; a refused rename means a process has it open), and any worktree
 git refuses to remove without `--force`. A candidate whose own `node_modules` is a junction has the link dropped first
 (never the target), and restored if git then refuses.

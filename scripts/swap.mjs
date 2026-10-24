@@ -18,12 +18,13 @@
 // dirty / unpushed / detached-local count as items, and so does a heavy lock whose pid is dead on this host, and under
 // --commit-wip a failed fetch.
 // --commit-wip (save only, opt-in): each dirty worktree on a job branch gets `git add -A` + commit "WIP: swap save <iso>"
-// (hooks run; a staged new file over 10 MB aborts that worktree), then every job branch with unpushed commits is pushed to
+// (hooks run; a secret-looking path - .env*, *.pem, *.key, *.p12, *.pfx, id_rsa*, *credentials*, *secret*, .npmrc,
+// *.token - a file over 10 MB or 50 MB in all aborts that worktree before staging), then every job branch with unpushed commits is pushed to
 // origin under its own name (never master / dev / train/* / the queue branches, never --force).
 // prune: removes (`git worktree remove`, no --force) clean worktrees whose branch is merged into origin/master and whose
 // git dir has been idle --idle-hours (default 24); never the main worktree, a locked one, a protected branch, a detached
-// HEAD, one that holds another registered worktree or a .claude/worktrees entry, the node_modules link target of another
-// worktree, one with ignored files beyond node_modules / dist / test-results, or one in use (rename probe); never
+// HEAD, one that holds another registered worktree or a .claude/worktrees entry, any hop of another worktree's
+// node_modules link chain (read from every worktree, one folder level down, and every clone), one with ignored files beyond node_modules / dist / test-results, or one in use (rename probe); never
 // deletes a branch.
 import { execFile } from 'node:child_process';
 import fs from 'node:fs';
@@ -116,6 +117,33 @@ export const hasUnmerged = (entries) => entries.some((e) => /U/.test(e.xy) || e.
 
 /** Paths --commit-wip may stage: every entry except nested repositories (dir entries), so no gitlink is ever added. */
 export const stagePaths = (entries) => entries.map((e) => e.file).filter((f) => !f.endsWith('/'));
+
+/** File names --commit-wip never commits (any path segment, case-insensitive): keys, tokens, env and credential files. */
+export const SECRET_PATTERNS = [/^\.env$/, /^\.env\..+/, /\.pem$/, /\.key$/, /\.p12$/, /\.pfx$/, /^id_rsa/, /credentials/, /secret/, /^\.npmrc$/, /\.token$/];
+
+/** True when a path has a segment on the secret deny list. */
+export const secretPath = (file) => norm(file).toLowerCase().split('/').some((s) => SECRET_PATTERNS.some((re) => re.test(s)));
+
+/** Per-file and per-WIP-commit size caps of --commit-wip. */
+export const MAX_WIP_FILE = 10 * 1024 * 1024;
+export const MAX_WIP_TOTAL = 50 * 1024 * 1024;
+
+/**
+ * Why --commit-wip must not stage these entries (null: fine): a path on the secret deny list, a file over 10 MB (new,
+ * modified, renamed or copied) or over 50 MB in all. `sizeOf(file)`: bytes, null when absent. Deletions are fine.
+ */
+export function wipGuard(entries, sizeOf) {
+  const live = entries.filter((e) => !e.file.endsWith('/') && !(/D/.test(e.xy) && !/[AMRCT?]/.test(e.xy)));
+  const secrets = live.filter((e) => secretPath(e.file)).map((e) => e.file);
+  if (secrets.length) return `has secret-looking paths ${secrets.slice(0, 4).join(', ')}${secrets.length > 4 ? ', ...' : ''}`;
+  let total = 0;
+  for (const e of live) {
+    const n = sizeOf(e.file) ?? 0;
+    if (n > MAX_WIP_FILE) return `would commit ${e.file} (over 10 MB)`;
+    total += n;
+  }
+  return total > MAX_WIP_TOTAL ? `would commit ${Math.round(total / 1048576)} MB (over 50 MB in one WIP commit)` : null;
+}
 
 /** Git operation files that mean a worktree is mid merge / cherry-pick / revert / rebase. */
 export const OP_MARKERS = ['MERGE_HEAD', 'CHERRY_PICK_HEAD', 'REVERT_HEAD', 'rebase-merge', 'rebase-apply'];
@@ -284,8 +312,6 @@ export function parseArgs(argv, env = {}) {
 
 // ---------------------------------------------------------------- git / fs I/O
 
-const MAX_NEW_FILE = 10 * 1024 * 1024;
-
 function git(cwd, args, { input, soft = false } = {}) {
   return new Promise((resolve, reject) => {
     const child = execFile('git', ['-C', cwd, ...args], { maxBuffer: 64 * 1024 * 1024, windowsHide: true, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } }, (err, stdout, stderr) => {
@@ -337,7 +363,7 @@ export async function readDirty(wt, others = []) {
 /**
  * One --commit-wip commit in worktree `wt`: { committed, problem }. Refuses mid merge / cherry-pick / revert / rebase or
  * with unmerged paths; stages only the paths status listed (never nested repos or registered worktrees as gitlinks);
- * unstages and refuses when a new file is over 10 MB. Hooks run.
+ * refuses before staging on wipGuard (secret deny list, 10 MB per file, 50 MB in all). Hooks run.
  */
 export async function wipCommit(wt, others, iso) {
   const out = (await git(wt, ['rev-parse', ...OP_MARKERS.flatMap((m) => ['--git-path', m])])).split('\n').map((s) => s.trim()).filter(Boolean);
@@ -348,14 +374,10 @@ export async function wipCommit(wt, others, iso) {
   if (hasUnmerged(entries)) return { committed: false, problem: `WIP skipped: ${wt} has unmerged paths` };
   const paths = stagePaths(entries);
   if (!paths.length) return { committed: false, problem: null };
+  const why = wipGuard(entries, (f) => { try { return fs.lstatSync(path.join(wt, f)).size; } catch { return null; } });
+  if (why) return { committed: false, problem: `WIP skipped: ${wt} ${why}; commit, ignore or remove it by hand` };
   // literal: a file named `*.ts` or `:(exclude)x` stages only itself, never a glob or magic match
   await git(wt, ['--literal-pathspecs', 'add', '-A', '--pathspec-from-file=-', '--pathspec-file-nul'], { input: `${paths.join('\0')}\0` });
-  const added = (await git(wt, ['diff', '--cached', '--name-only', '--diff-filter=A', '-z'])).split('\0').filter(Boolean);
-  const big = added.find((f) => { try { return fs.statSync(path.join(wt, f)).size > MAX_NEW_FILE; } catch { return false; } });
-  if (big) {
-    await git(wt, ['reset', '-q']);
-    return { committed: false, problem: `WIP skipped: ${wt} would add ${big} (over 10 MB); commit or ignore it by hand` };
-  }
   await git(wt, ['commit', '-q', '-m', `WIP: swap save ${iso}`]);
   return { committed: true, problem: null };
 }
@@ -441,14 +463,44 @@ export async function scanAll(o, clones, log = () => {}) {
   return { rows, registered };
 }
 
-/** Real paths that some worktree's node_modules links to (a session sharing another worktree's install). */
-export function nodeModulesTargets(registered) {
+/** A link text as a plain absolute path: no `\\?\` / `\??\` prefix, resolved against the link's folder. */
+const linkPath = (link, text) => path.resolve(path.dirname(link), String(text).replace(/^\\\\\?\\|^\\\?\?\\/, ''));
+
+/**
+ * Every hop of one node_modules link chain (A -> B/node_modules -> C/node_modules ...): each readlink target, then the
+ * realpath. Empty when `nm` is no link. A broken hop ends the chain; the hops read so far stay.
+ */
+export function linkHops(nm, fsx = fs) {
   const out = [];
-  for (const p of registered) {
-    const nm = path.join(p, 'node_modules');
-    try { if (fs.lstatSync(nm).isSymbolicLink()) out.push(norm(fs.realpathSync.native(nm))); } catch { /* none / broken link */ }
+  let cur = nm;
+  for (let i = 0; i < 32; i++) {
+    let isLink = false;
+    try { isLink = fsx.lstatSync(cur).isSymbolicLink(); } catch { break; }
+    if (!isLink) break;
+    let next;
+    try { next = linkPath(cur, fsx.readlinkSync(cur)); } catch { break; }
+    out.push(norm(next));
+    cur = next;
   }
+  if (out.length) try { out.push(norm(fsx.realpathSync.native(nm))); } catch { /* broken chain */ }
   return out;
+}
+
+/**
+ * Every path some node_modules link chain passes through (a session sharing another worktree's install, which may
+ * itself be a link): links read from `<dir>/node_modules` and `<dir>/<child>/node_modules` of each dir in `dirs`
+ * (every registered worktree plus each clone's work tree). Deduped case- and slash-insensitively.
+ */
+export function nodeModulesTargets(dirs, fsx = fs) {
+  const seen = new Map();
+  const add = (nm) => { for (const h of linkHops(nm, fsx)) if (!seen.has(h.toLowerCase())) seen.set(h.toLowerCase(), h); };
+  for (const d of new Set(dirs.map((x) => norm(x)))) {
+    add(path.join(d, 'node_modules'));
+    let kids = [];
+    try { kids = fsx.readdirSync(d, { withFileTypes: true }); } catch { /* gone */ }
+    for (const k of kids) if (k.isDirectory() && !['node_modules', '.git'].includes(k.name)) add(path.join(d, k.name, 'node_modules'));
+  }
+  return [...seen.values()];
 }
 
 /**
@@ -457,7 +509,7 @@ export function nodeModulesTargets(registered) {
  */
 export async function pruneBlocker(r, linkTargets = []) {
   const t = linkTargets.find((x) => within(x, r.path));
-  if (t) return `holds ${t}, the node_modules link target of another worktree`;
+  if (t) return `holds ${t}, a hop of another worktree's node_modules link`;
   let nested = [];
   try { nested = fs.readdirSync(path.join(r.path, '.claude', 'worktrees')); } catch { /* none */ }
   if (nested.length) return `.claude/worktrees holds ${nested.length} entries`;
@@ -596,7 +648,9 @@ async function main(argv) {
   let rows = scan.rows;
   if (o.cmd === 'prune') {
     const cands = pruneCandidates(rows, { idleHours: o.idleHours, registered });
-    const linkTargets = nodeModulesTargets(registered);
+    const cloneTrees = clones.map((c) => (c.repo.endsWith('/.git') ? path.posix.dirname(c.repo) : c.repo));
+    const linkTargets = nodeModulesTargets([...registered, ...cloneTrees]);
+    log(`  ${linkTargets.length} node_modules link hops read`);
     log(`${cands.length} prunable worktrees (clean, merged into origin/master, idle ${o.idleHours} h+)${o.dryRun ? ' - dry run' : ''}:`);
     let removed = 0, failed = 0, kept = 0;
     for (const r of cands) {

@@ -4,9 +4,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
-  classifyWorktree, commitWip, countStates, dirtyAge, hasUnmerged, keptIgnored, lockState, nodeModulesTargets, opInProgress, parseArgs, parseLockHolder,
+  classifyWorktree, commitWip, countStates, dirtyAge, hasUnmerged, keptIgnored, linkHops, lockState, nodeModulesTargets, norm, opInProgress, parseArgs, parseLockHolder,
   parsePorcelain, parseStatusEntries, parseStatusZ, probeInUse, protectedBranch, pruneBlocker, pruneCandidates, readDirty, resolveClones, safeVerdict,
-  scanAll, stagePaths, summarizeQueue, wipAllowed, wipCommit,
+  scanAll, secretPath, stagePaths, summarizeQueue, wipAllowed, wipCommit, wipGuard,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/swap.mjs';
 import {
@@ -436,8 +436,67 @@ describe('clones, --commit-wip pushes, prune blockers (real git)', () => {
       fs.symlinkSync(path.join(dir, 'node_modules'), path.join(other, 'node_modules'), 'junction');
       const targets = nodeModulesTargets([other, dir]);
       expect(targets).toHaveLength(1);
-      expect(await pruneBlocker({ path: dir }, targets)).toMatch(/node_modules link target/);
-      expect(await pruneBlocker({ path: other }, targets)).not.toMatch(/link target/); // the linking side is not held
+      expect(await pruneBlocker({ path: dir }, targets)).toMatch(/node_modules link/);
+      expect(await pruneBlocker({ path: other }, targets)).not.toMatch(/node_modules link/); // the linking side is not held
     } finally { fs.unlinkSync(path.join(other, 'node_modules')); rm(other); rm(dir); }
+  }, 30_000);
+  it('a junction chain A -> B -> C keeps B and C (every hop), read also one folder level down', async () => {
+    const tmp = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'swapchain-')));
+    const A = path.join(tmp, 'A'), B = path.join(tmp, 'B'), C = path.join(tmp, 'C'), D = path.join(tmp, 'D');
+    try {
+      for (const d of [A, B, C, D]) fs.mkdirSync(d);
+      fs.mkdirSync(path.join(C, 'node_modules'));
+      fs.symlinkSync(path.join(C, 'node_modules'), path.join(B, 'node_modules'), 'junction');
+      fs.symlinkSync(path.join(B, 'node_modules'), path.join(A, 'node_modules'), 'junction');
+      const hops = linkHops(path.join(A, 'node_modules')).map((h: string) => h.toLowerCase());
+      expect(hops).toContain(norm(path.join(B, 'node_modules')).toLowerCase());
+      expect(hops).toContain(norm(path.join(C, 'node_modules')).toLowerCase());
+      const targets = nodeModulesTargets([A, B, C]);
+      for (const kept of [B, C]) expect(await pruneBlocker({ path: kept }, targets)).toMatch(/node_modules link/);
+      // a link one level down (D/sub/node_modules -> A's chain) is read when only D is listed
+      fs.mkdirSync(path.join(D, 'sub'));
+      fs.symlinkSync(path.join(B, 'node_modules'), path.join(D, 'sub', 'node_modules'), 'junction');
+      const down = nodeModulesTargets([D]).map((h: string) => h.toLowerCase());
+      expect(down).toEqual(expect.arrayContaining([B, C].map((x) => norm(path.join(x, 'node_modules')).toLowerCase())));
+      expect(nodeModulesTargets([C])).toEqual([]); // a real install links nowhere
+    } finally {
+      for (const l of [path.join(A, 'node_modules'), path.join(B, 'node_modules'), path.join(D, 'sub', 'node_modules')]) try { fs.unlinkSync(l); } catch { /* absent */ }
+      rm(tmp);
+    }
+  });
+});
+
+describe('--commit-wip guard: secret deny list and size caps', () => {
+  it('flags secret-looking paths in any segment, case-insensitively; ordinary names pass', () => {
+    for (const f of ['.env', 'sub/.env.local', 'k/server.PEM', 'a.key', 'c.p12', 'c.pfx', '.ssh/id_rsa.pub', 'aws-credentials.json', 'config/Secrets/x.txt', '.npmrc', 'gh.token']) expect(secretPath(f)).toBe(true);
+    for (const f of ['src/env.ts', 'keyboard.ts', 'docs/environment.md', 'tokens.css', 'src/a.ts']) expect(secretPath(f)).toBe(false);
+  });
+  it('wipGuard: secrets, a big new / modified / renamed file, a big total; deletions and dirs are ignored', () => {
+    const MB = 1024 * 1024;
+    const size = (m: Record<string, number>) => (f: string): number | null => m[f] ?? null;
+    expect(wipGuard([{ xy: '??', file: 'a.txt' }, { xy: ' M', file: '.env.prod' }], size({}))).toMatch(/secret-looking paths \.env\.prod/);
+    expect(wipGuard([{ xy: ' D', file: 'old.pem' }, { xy: '??', file: 'nested/' }], size({}))).toBeNull();
+    for (const xy of ['??', ' M', 'M ', 'R ', 'C ', 'A ']) expect(wipGuard([{ xy, file: 'big.bin' }], size({ 'big.bin': 11 * MB }))).toMatch(/big\.bin \(over 10 MB\)/);
+    const six = Object.fromEntries(Array.from({ length: 6 }, (_, i) => [`f${i}`, 9 * MB]));
+    expect(wipGuard(Object.keys(six).map((file) => ({ xy: '??', file })), size(six))).toMatch(/54 MB \(over 50 MB/);
+    expect(wipGuard([{ xy: '??', file: 'small.txt' }], size({ 'small.txt': 10 }))).toBeNull();
+  });
+  it('wipCommit stages nothing and commits nothing when a secret or a big modified file is there', async () => {
+    const dir = tmpRepo();
+    try {
+      const head = g(dir, 'rev-parse', 'HEAD').trim();
+      fs.writeFileSync(path.join(dir, 'a.txt'), 'changed\n');
+      fs.writeFileSync(path.join(dir, 'id_rsa'), 'k');
+      const res = await wipCommit(dir, [], 'iso');
+      expect(res.committed).toBe(false);
+      expect(res.problem).toMatch(/secret-looking paths id_rsa/);
+      expect(g(dir, 'rev-parse', 'HEAD').trim()).toBe(head);
+      expect(g(dir, 'diff', '--cached', '--name-only').trim()).toBe('');
+      fs.rmSync(path.join(dir, 'id_rsa'));
+      fs.writeFileSync(path.join(dir, 'a.txt'), Buffer.alloc(11 * 1024 * 1024));
+      const res2 = await wipCommit(dir, [], 'iso');
+      expect(res2.problem).toMatch(/a\.txt \(over 10 MB\)/);
+      expect(g(dir, 'rev-parse', 'HEAD').trim()).toBe(head);
+    } finally { rm(dir); }
   }, 30_000);
 });
