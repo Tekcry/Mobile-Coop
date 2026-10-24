@@ -1,6 +1,12 @@
 # Guard AI - state
 
 ## Now
+~10:20 FINAL SAVE (5-hour 91%): PR #322 e2e-lightbake pending-compile wait (feature/guard-ai-lightbake-wait 74cd0683, test
+only): laptop PASS (0 pending after 9.4 s); CI 'test' failed on an unrelated tests/lightField.test.ts allocation
+measurement (173 > 144 bytes, heap noise; master green): failed job rerun -> label train-ready when green. Answered Sector
+Ops: intruderLeft stays at hold end (held player = frozen, remembered). Ready: #272, #298, #302, #303, #313, #319.
+If lightField alloc fails again: own spare item (tests/lightField.test.ts budget / measurement), not #322's.
+
 ~09:20 SAVE (orchestrator: weekly 90%, save ~17:20; no new feature this account): every guard-ai worktree clean
 and pushed, nothing running. Next account: watch the trains for #272, #298, #302, #303, #313, #319 (bisect + Opus
 triage on a failure), answer Sector Ops on coop4 wiring, then the next AI item the orchestrator assigns.
