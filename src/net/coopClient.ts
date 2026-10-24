@@ -426,10 +426,11 @@ export class CoopClient implements NetAttachment {
     return 1;
   }
 
-  /** (coop-rejoin, walk item 4) Our start: our slot of the start area, clear of the host's slot 0 point. */
+  /** (coop-rejoin, walk item 4) Our start: our slot of the start area, clear of the host's slot 0 point. (mission-framework
+   *  NET3) Sector Ops: the start section of the host's mission (`start`'s `sm`), never our own `?mission=`'s. */
   private placeStart(): void {
     const g = this.g;
-    const pts = startSlotPoints(g);
+    const pts = startSlotPoints(g, undefined, this.s.sectorMission || null);
     const base = pts[0];
     if (!base) return;
     const out: SlotPoint = { x: 0, y: 0, z: 0, yaw: 0 };

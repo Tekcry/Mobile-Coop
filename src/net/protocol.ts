@@ -277,7 +277,9 @@ export type Msg =
   | { t: 'you'; id: string }
   | { t: 'lobby'; players: PlayerInfo[]; mode: NetMode; map: string; difficulty: Difficulty; phase: 'lobby' | 'playing'; mission: string; weather: WeatherChoice }
   | { t: 'ready'; ready: boolean }
-  | { t: 'start'; mode: NetMode; map: string; seed: number; difficulty: Difficulty; time: number; mission: string; weather: WeatherChoice; bay?: number }
+  /** `mission`: Infiltration's. (mission-framework NET3) `sm`: Sector Ops' mission (`MissionDef.id`, the host's
+   *  `?mission=`; absent / '': none), so a client starts in the mission's start section and follows the host's. */
+  | { t: 'start'; mode: NetMode; map: string; seed: number; difficulty: Difficulty; time: number; mission: string; weather: WeatherChoice; bay?: number; sm?: string }
   | { t: 'pstate'; s: PlayerState }
   | { t: 'shot'; w: WeaponId; ox: number; oy: number; oz: number; dx: number; dy: number; dz: number; target: string; part: 'head' | 'body'; rt: number; dist: number; dmg: number }
   /** `pk` is a bitmask of available pickups (bit i = pickup i). `info` is plain text, segments split by '|'. */
@@ -610,6 +612,8 @@ function endStats(v: unknown): EndStats | null {
 const MODES = NET_MODES;
 /** Mission ids are plain slugs ('' = none). */
 const mission = (v: unknown): string => (typeof v === 'string' && /^[a-z0-9-]{0,40}$/.test(v) ? v : '');
+/** (NET3) A Sector Ops mission id (`MissionDef.id`: camelCase, as `MISSION_WIRE.idMax`); anything else is '' (none). */
+export const sectorMissionId = (v: unknown): string => (typeof v === 'string' && /^[A-Za-z0-9_-]{0,64}$/.test(v) ? v : '');
 
 /** Cameras a `sec` field carries clocks for (SN60 caps a map at 12) and jammed / recovering devices it lists. */
 const SEC_CAMS = 16;
@@ -971,7 +975,9 @@ export function parseMessage(raw: unknown): Msg | null {
       const map = id(raw.map);
       const seed = num(raw.seed, 0, 2 ** 31);
       if (!mode || !difficulty || !map || seed === null) return null;
-      return { t: 'start', mode, map, difficulty, seed: Math.floor(seed), time: num(raw.time, 0, 1e7) ?? 0, mission: mission(raw.mission), weather: oneOf(raw.weather, WEATHER_CHOICES) ?? 'clear', bay: Math.round(num(raw.bay, 1, 64) ?? 1) };
+      // (NET3) the sector mission rides only when set (a run with none: the message as before)
+      const sm = sectorMissionId(raw.sm);
+      return { t: 'start', mode, map, difficulty, seed: Math.floor(seed), time: num(raw.time, 0, 1e7) ?? 0, mission: mission(raw.mission), weather: oneOf(raw.weather, WEATHER_CHOICES) ?? 'clear', bay: Math.round(num(raw.bay, 1, 64) ?? 1), ...(sm ? { sm } : {}) };
     }
     case 'pstate': {
       const s = playerState(raw.s);
