@@ -489,9 +489,9 @@ Implementation: `docs/systems/combat.md`.
 - Every shot is a noise event; suppressed shots are quiet, not silent; impacts are heard nearby.
 - Every shot can kill a lamp (P1). The gun is also a light tool.
 - One headshot downs an unarmoured guard. Helmets and armour appear with alarm levels (5.7). Co-op missions have no
-  heavies (G155). Note 2026-10-23: later sections reward stealth over shooting: a helmet takes the first headshot,
-  body armour makes torso shots stagger, limited suppressor ammo, no ammo inside a section and one weapons-crate
-  refill per player between sections (G307).
+  heavies (G155). Note 2026-10-23 (the later sections of Sector Ops; G155 still binds campaign co-op missions): later
+  sections reward stealth over shooting: a helmet takes the first headshot, body armour makes torso shots stagger,
+  limited suppressor ammo, no ammo inside a section and one weapons-crate refill per player between sections (G307).
 - Aiming from attached states stays (split, pipes, rappel, ledge, human ladder top).
 - **Co-op:** the drawn / holstered state and the weapon in hand are in `MoveState`, so the partner sees them.
 - **Holstered look:** the rifle slung on the back, the pistol in its holster, a clean silhouette. On Wren the rifle hangs
@@ -1015,8 +1015,8 @@ Each map's documents also include:
   (G218). Note 2026-10-23: menus and HUD fit an iPad (safe-area insets, version label on screen, the Windows GPU banner
   only on Windows) (G311).
 - **Performance:** the budgets in `docs/systems/performance.md`, set to the target laptop's numbers (G14). Note
-  2026-10-24 (assumed, undoable): the guard off-screen animation tier stays at 4 until a guard whose shadow falls in
-  view counts as seen (G294).
+  2026-10-24 (assumed, undoable): the guard off-screen animation tier stays at 4 for now; Guard AI tries
+  "shadow-in-view counts as seen" and measures the saving left (G294).
 - **Gameplay reads only** collision, occupancy, anchors, the light bake and the noise model. It never reads graphics
   presets, LOD or the governor.
 - **Offline:** the game installs and loads offline; the campaign needs a two-player co-op session, online,

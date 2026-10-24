@@ -1475,14 +1475,15 @@ in its area (Opus plan first) instead of idling; the orchestrator assigns it. Fi
 **G284. Level standard extras: a connectivity graph and a validator per map.** Michael (2026-10-24 ~20:05, native
 multiple choice after the review of his stealth-level-design skill): "Add 1-4 as extras". `docs/level-design.md` stays
 and gains (1) a connectivity-graph JSON per map before any geometry, checked by a Node validator (port of its
-validate_level.py with our scale-sheet metrics: reachability, solo / co-op completability, approaches, dead ends, room
-sizes, openings, 0.5 m grid, ceilings, independent routes, co-op coverage, split parity, beat pacing); (2) a
-room-size-by-type table in the scale sheet; (3) numeric targets (routes cross at least once, vantage sees ~70%, 40-60%
-of floor in shadow, line of sight breakable within ~5 s, guard counts per space); (4) co-op rules for level-design
-section 11 (splits <= 90 s, path parity within 20%, partners act for each other, an overwatch spot per split, a downed
-partner reachable within 15 s, shared routes >= 2.0 m wide). A linear spine between sections, loops inside them. Every
-map passes the validator before greybox. Campus is the first run, ~20:12: "Do the entire campus" (S1-S5). Guard counts
-(3-6 early, 6-10 late) are checked against our guard sheets before they become rules. Arena mode is parked.
+validate_level.py with our scale-sheet metrics: reachability, solo / co-op completability, 3+ approaches of 2+ kinds,
+dead ends, room sizes, openings, 0.5 m grid, ceilings, 2+ independent routes, co-op coverage, split parity, beat
+pacing); (2) a room-size-by-type table in the scale sheet; (3) numeric targets (routes cross at least once, vantage sees
+~70%, 40-60% of floor in shadow, line of sight breakable within ~5 s, guard counts per space early / late and per player
+count); (4) co-op rules for level-design section 11 (splits <= 90 s, path parity within 20%, partners act for each
+other, an overwatch spot per split, a downed partner reachable within 15 s, shared routes >= 2.0 m wide). A linear
+spine between sections, loops inside them. Every map passes the validator before greybox. Campus is the first run,
+~20:12: "Do the entire campus" (S1-S5). Guard counts (3-6 early, 6-10 late) are checked against our guard sheets before
+they become rules. Arena mode is parked.
 
 **G285. The validator: scaled rooms, one metrics source, routes per section, measured targets.** Michael (2026-10-24
 ~20:18) approved G284's plan with four changes: (a) the room table is scaled too (start ~1.3-1.5x real, tuned in
@@ -1495,7 +1496,7 @@ measured in greybox, and the map fails if the measure differs; split parity uses
 choice; label to master median ~43 min, 5 of 20 trains failed) picked all three: (1) a failing member is dropped and
 the train rebuilds at once; (2) auto-train runs every minute (Michael runs the #335 install-task commands for the queue
 workers); (3) train N+1 builds on train N and tests on the other machine while N runs (Opus plan first, built after
-auto-drop). (Refines G246 and G247.)
+auto-drop). (Refines G318; replaces G322's 5-minute tick.)
 
 **G287. Two test jobs from the process audit: visual-gate and coop-real.** Orchestrator, under G283 (2026-10-24
 ~21:32 / ~21:35; ~8 of Michael's ~30 walk finds were visual and 5 were co-op bugs, all passing every test). Assumed,
@@ -1582,8 +1583,8 @@ proposal for Michael).
 **G297. Sector Ops: a corporate research campus, 30-45 min, up to 24 guards, dogs.** Michael (2026-10-23 ~01:20):
 setting "Corporate research campus"; one co-op run "30-45 min"; guards "up to 24, each section should gradually get
 harder with more guards and more security."; security "Include guard dogs" (cameras, lasers, alarm panels, keypads,
-then dogs and armed response). Lighting, taken from his G295 words: lit like a real site, players cut lights to make
-shadows, dark zones only where believable. (Refines G187's per-section counts for this map.)
+then dogs and armed response). Lighting, the orchestrator's reading of his G295 words: lit like a real site, players
+cut lights to make shadows, dark zones only where believable. (Refines G187's per-section counts for this map.)
 
 **G298. Cameras keep IR; every guard armed; both Sector Ops maps; mocap on by default.** Michael (2026-10-23 ~01:25):
 cameras "Keep IR everywhere" (G240 stands: cutting lights beats guards and the light meter, never cameras); no
@@ -1626,7 +1627,7 @@ comprehensive plan that a lower model can use then you can proceed with agents r
 to your recommendations." He chose "Apply it": Opus 5.5 plans, writes strict slice briefs, reviews and runs every fresh
 checker; Sonnet 5.5 builds slices from those briefs (map greybox and data, tests, wiring); Haiku 5.5 does mechanical
 chores; leads stay Opus; tricky engine / AI / animation code stays Opus; a failed Sonnet slice gets its fix round from
-Opus. (Replaces G88's "Opus builds" and G245's all-Opus; its 99% pacing is replaced by G304.)
+Opus. (Replaces G88's "Opus builds", G245's all-Opus and G281's 100%; its 99% pacing is replaced by G304.)
 
 **G303. Sector Ops: some guards are unavoidable.** Michael (2026-10-23 ~01:50): "regarding new sector ops map also, make
 sure there are sections where at least one guard is unavoidable to reach the objective/exit. they must be distracted,
@@ -1747,8 +1748,9 @@ release). Rolling trains: "Yes, fully automatic" (a script builds and releases o
 Laptop on the same account: "No, same account". Desktop: "i dont think software gl is worth it due to it being so much
 slower"; ~19:15 "Yes, all three steps": no e2e on the desktop (all suites to the laptop queue), agent CPU cut, hardware
 only if still pegged; checkers in parallel with the laptop run: "Yes, parallel". Release pace, after "which one saves
-the most time?": the orchestrator's pick, at most one release every 60 min or earlier when the laptop queue is idle.
-(Replaces G306's train trigger and desktop lane, and G246 / G247's batching.)
+the most time?": the orchestrator's pick at Michael's ask, undoable: at most one release every 60 min or earlier when
+the laptop queue is idle. (Replaces G306's train trigger and desktop lane, and G246's batching; one PR per train, G247,
+still holds.)
 
 **G319. Tokens for progress: cloud builders, two checkers on AI and net, plan ahead, high effort.** Michael (2026-10-23
 ~19:25, native multiple choice): "i dont mind how fast we use tokens, only that its making significant progress"; all
