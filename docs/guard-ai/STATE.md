@@ -1,6 +1,11 @@
 # Guard AI - state
 
 ## Now
+~05:20: coop4 AI brief DONE: docs/coop4/briefs/AI.md (feature/guard-ai-coop4 5efbcff4; A170-A181): AI1 S slots, AI2 M
+perception (9 rays cap), AI3 S hearing, AI4 S reinforcement split, AI5 L response teams, AI6 M e2e; ~1-1.5 days; off at
+1-2 players. Sent to Sector Ops (coop4 lead) with net needs + the guard cap risk (32 vs ~36). Waiting: its players-list
+interface + go. Worktree -coop4 npm ci'd.
+
 ~04:45: NEXT FEATURE (Michael's idle rule; orchestrator): AI side of Sector Ops 4-player co-op (coop4; Michael approved
 2026-10-23 ~10:25: Sector Ops up to 4, Marlow Yard stays 2). Opus planner RUNNING: docs/coop4/briefs/AI.md on
 feature/guard-ai-coop4 (worktree -coop4, off master a10382bc). Sector Ops told (its PLAN on feature/coop4 references it).
