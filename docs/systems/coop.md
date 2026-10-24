@@ -289,6 +289,17 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
 - Team moves: brace and boost, human ladder, dual takedown (two finishes within `DUAL_WINDOW` 1.5 s -> banner; counted in `StealthRating.duals` and the `dualTakedown` event for
   section-rating (spare 12), no extra knockout). These
   are the moves that exist; the other four of loco D8 wait for the co-op phase (G52).
+- (mission NET, wire change) The co-op kit moves on the wire: `tmove` / `tstart` take `pull` (pull-up) and `shutter`
+  (`TeamKind` includes `KitKind`). The host (`onTeamMove`) builds the claimed point when the move `claimsPoint` (the
+  pull-up's catch point: `tmove` `lx`, `gy`, `lz`, the start's `l`), checks the move's rule (`checkTeamRequest` ->
+  the kit's check), pairs a `paired` move, starts it at once and calls `GameMode.onTeamMove`. `TeamSide.crouch` is the
+  host's crouch (its controller, a client's `PF.crouch`): the shutter's crawl needs it. Ends ride `hangEnd` / `tend` k
+  with the kit's rules (`net/kitNet.ts`): the pull-up's catch is claimed by the holder b only and judged on the host's
+  clock (`pullVerdict(now - t0, claim, lag)`, `lag` `PULL.claimLag` 0.3 s for a client holder), one verdict per
+  attempt; the partner holds its landing `PULL.verdictWait` 0.25 s for it, then says 'drop' (a catch after that lets
+  go). Shutter: only the crawler a says 'pull' (through), either side 'drop'. A player down mid-move ends the pair
+  (`endPairOf`, as a leave). Remotes in `boost` + PULL_SUB / SHUTTER_SUB pose as role a of their move
+  (`teamPoseOfWire`, `poseFromMoveState`: hang / climb-up for the pull, the crouch for the crawl), never the leg-up.
 - (throw-ko) Partner throw onto a guard (CT: landing on a guard knocks him out): at a throw's `tstart` the host records
   the flight (`net/throwKo.ts`, `ThrowKo`: `throwArc` from the thrown player's feet as the host has them to the bounded
   landing, from the host's start time) and replays it each fixed step; descending feet within `TEAM.throwKoReach` m
@@ -470,6 +481,14 @@ client next to a device first.
   The client's `CtDevices` mirror runs `setLive(ls)` (other sections' cameras off, lasers dark, no jam targets), breaks
   or repairs cameras from `dn` and sets door locks from `lk`. The HUD line (section, alarm, syringes) comes with the
   snapshot's `info`. Objectives, markers and banners use the item and event mirror.
+- (mission NET, wire change) `ms` the running mission (`MissionWire`, `game/mission/missionWire.ts`: done bits per team,
+  facts, rule breaks `rb` and the last line `rl`, rules kept `rk`), parsed by `parseMissionWire` in `sectorExtra`. The
+  client applies it (`net/missionMirror.ts`: a `MissionRunner` from the map's `missions` by id; never evaluated). The
+  rule line reaches a live client as the host's radio line (`feed` event); only a late joiner's first `ms` with breaks
+  shows `rl` (its feed). A client interrogation's intel carries the guard id and the client id (`revealIntel` eid / by).
+  A client's frag, mine or sticky cam use goes as `gused {kind}` (client -> host, 4 a second at most;
+  `USE_ONLY_GADGETS`) to `GameMode.onRemoteGadget` (a mission's No gadgets rule); gas / flash / EMP / noise still
+  count on their `gadget` effect.
 - (section-rating, protocol 42) `rt` the last section rating `{ sec, marks, synced, gadget, syringe, medkit, alarmStep }`
   (`SectorRatingWire`; `sec` -1 none yet, `marks` 0-15, the rest whole 0-99; junk drops `rt` only). The host rates a
   section as its connector unloads it (the extraction rates the last one, sent at once, its grant fields zeroed) and
