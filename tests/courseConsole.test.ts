@@ -49,6 +49,7 @@ interface StubEm {
   watchCalls: unknown[][];
   states: unknown[][];
   spawn: (kind: string) => unknown;
+  pointLooks: () => number[];
   despawn: () => void;
   placeSlot: () => void;
   consoleState: (...a: unknown[]) => void;
@@ -75,6 +76,8 @@ function rig(): { mode: CourseMode; m: Internals; em: StubEm; st: CourseState } 
     watchCalls: [],
     states: [],
     spawn: (kind: string) => ({ kind, alive: true, setPatrol: () => undefined }),
+    // (gm-look-seeds) a set's look seeds (`spawnSquad`): none here, `spawn` picks
+    pointLooks: () => [],
     despawn: () => undefined,
     placeSlot: () => undefined,
     consoleState: (...a: unknown[]) => void em.states.push(a),

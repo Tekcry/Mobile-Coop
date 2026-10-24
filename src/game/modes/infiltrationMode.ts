@@ -38,7 +38,8 @@ export class InfiltrationMode implements GameMode {
   private endT = -1;
   lives = 3;
   private checkpoint: Vector3;
-  private pending: { slot: SquadSlot; room: number }[] = [];
+  /** (gm-look-seeds) `look`: the slot's seed, set in data order at the start (`EnemyManager.pointLooks`). */
+  private pending: { slot: SquadSlot; room: number; look?: number }[] = [];
   private fillT = 0;
   /** Objectives completed with nobody alerted (tests / bonus). */
   unseenObjectives = 0;
@@ -64,6 +65,10 @@ export class InfiltrationMode implements GameMode {
     rooms.forEach((r, i) => {
       for (const slot of r.squad ?? []) this.pending.push({ slot, room: i });
     });
+    // (gm-look-seeds) the seeds in data order (rooms, then slots), before `fill` sorts by distance: distinct, and the
+    // same wherever the player starts
+    const looks = em.pointLooks(this.pending.map((q) => q.slot));
+    this.pending.forEach((q, i) => (q.look = looks[i]));
     this.fill();
     // the asset waits where he is held from the start
     for (const o of this.def.objectives) {
@@ -87,7 +92,7 @@ export class InfiltrationMode implements GameMode {
         i++;
         continue;
       }
-      const e = em.spawn(q.slot.kind, new Vector3(q.slot.x, q.slot.y ?? Number.NaN, q.slot.z), false, q.slot.yaw);
+      const e = em.spawn(q.slot.kind, new Vector3(q.slot.x, q.slot.y ?? Number.NaN, q.slot.z), false, q.slot.yaw, q.look);
       if (!e) break;
       const r = rooms[q.room];
       if (r && !q.slot.free) e.hold = r;

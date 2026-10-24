@@ -934,10 +934,19 @@ export class CourseMode implements GameMode {
     const em = this.g.enemyMgr;
     if (!em) return;
     this.dropSquad(false);
+    // (gm-look-seeds) the set's look seeds up front, in the set's order (its slots that exist): distinct within the set,
+    // the same on every restart of it
+    const slots = [];
+    for (const id of ids) {
+      const s = this.layout!.squads[id];
+      if (s) slots.push(s);
+    }
+    const seeds = em.pointLooks(slots);
+    let j = 0;
     for (const id of ids) {
       const s = this.layout!.squads[id];
       if (!s) continue;
-      const e = em.spawn(s.kind, new Vector3(s.x, s.y ?? Number.NaN, s.z), false, s.yaw);
+      const e = em.spawn(s.kind, new Vector3(s.x, s.y ?? Number.NaN, s.z), false, s.yaw, seeds[j++]);
       if (!e) {
         // (sector-fixes S) say so once, so a null `squadOf` is obvious (no walkable cell near the post, or the cap)
         if (!this.squadWarned.has(id)) {
