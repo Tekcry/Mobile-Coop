@@ -334,7 +334,8 @@ export class SectorMode implements GameMode {
       const see = (body: unknown, x: number, y: number, z: number): boolean =>
         w.doors.seeThrough(body) || w.breakables.seeThrough(body) || inSheet(sheets, x, y, z);
       const views = (): number => w.doors.viewVersion() + w.breakables.viewVersion();
-      this.freeze = new SectorGuardFreeze(g.scene, em, seeThroughRay((a, b) => g.ballistics.cast(a, b, G.STATIC), see), views);
+      // (guard-render S10b) the torch / character shadow atlas slots count as shadowing lights
+      this.freeze = new SectorGuardFreeze(g.scene, em, seeThroughRay((a, b) => g.ballistics.cast(a, b, G.STATIC), see), views, { torch: w.torchShadows, chars: w.charShadows });
     }
     (window as unknown as { __sector?: SectorMode }).__sector = this;
     // (section-rating S2) the section's alarms and found bodies; the dev / test view of the rating

@@ -1,5 +1,91 @@
 # Guard render: state
 
+## Now: phase 2 (2026-10-24, lead Test Runner)
+Michael ~13:40 chose 24-guard rendering now (ROADMAP "Now: guard-render"). Plan: `docs/guard-render/PLAN2.md`
+(S8 measure, S9 cascade depth cull, S10 freeze lamp rule, S11 / S12 Player's figure and torch-cone cuts, S13 active
+meshes; S14 dormancy dropped: Guard AI builds nothing, AI is 2-5% of a guard). Branch `feature/guard-render-2`
+(worktree C:/NightShift/Mobile-Coop-guard-render-2, from master 6b44efb8). Next: S8a (read Player's c76cf326 G8 cull
+run), S9 + S10 builders in parallel once Sector Ops confirms the freeze / world.ts handover.
+- S9 built (2026-10-24): moon cascades cull casters by view depth too (shadow reach vs split + blend band,
+  `sunCascadeCull.ts` `SunCascadeLists.setDepth` / `fill`, wired in `world.ts` `cascadeList`); unit tests pass. Next: GPU
+  A/B (guard-cap sectorops,campusops 0 / 12 / 24 vs `?guardsun=0`), e2e smoke sectorops darkness lightbake.
+- S10 built (2026-10-24, 0f010bcf): the freeze's lamp rule tests each guard's own lamp shadow volume (caster cone away
+  from the lamp to its reach, none outside a spot cone) vs the frustum, then occlusion rays at the landings
+  (`sectorGuardFreeze.ts` `guardFrustum` / `lampProbe`, view `occluded3`); unit tests pass. Next: GPU A/B (guard-cap
+  away / patrol / alert at 24, sectorops + campusops vs `?guardfreeze=0`), e2e sectorops stealth-ai darkness, a look
+  shot of an off-screen guard's lamp shadow sliding into view.
+
+- 2026-10-24 ~14:45: S9 + S10 Opus checker PASS; its two light-parity notes applied in 9f7dddbb (moon SHADOW_DROP 6 m /
+  cap 16 m; a lamp whose shadow probe finds no landing keeps the guard drawn). S8a done: Player's G8 cull run c76cf326
+  (shots/g8b-c76cf326): campus 24 alert frame p95 11.9 ms with figures, maplight 23-30 draws (S12 dropped), moon CSM
+  94-101 draws (S9's target). Queued: guard-cap A/B branch 9f7dddbb vs master 6b44efb8 (sectorops + campus, 0/12/24,
+  patrol / away / alert; out C:/NightShift/scratch/gr2/cap-<sha>) + e2e smoke sectorops darkness lightbake stealth-ai.
+  Then: look shots (cascade splits + blend band, campus roof guard, low moon, off-screen lamp shadow sliding in), PR.
+  Known, older than S10: torch-atlas (charShadows / torchShadows) shadows are not seen by the freeze.
+- S9b built (2026-10-24): the moon list (`world.ts` `updateSunCasters`) keeps only what Babylon draws from an entry:
+  `sunCasterDrawn` (`sunCascadeCull.ts`) drops disabled (ancestors too), invisible and blocked LOD-level meshes (their
+  master's entry draws the `getLOD` pick); `markSun` on `onEffectiveEnabledStateChangedObservable` refills next frame
+  (as Player's `LightRig.fillCasters`). Static level list unchanged. Expected moon entries per figure guard ~5 -> 2.
+  Unit tests pass. Next: rides the S9 guard-cap A/B.
+
+- 2026-10-24 ~17:40 GPU A/B (guard-cap, branch 9f7dddbb = S9+S10 vs master 6b44efb8; docs/guard-render/run-s9s10-ab.md,
+  raw C:/NightShift/scratch/gr2/cap-*): S9 WORKS - moon CSM draws at 24 alert 71.9 -> 38.3 (sectorops), 80.6 -> 48.7
+  (campus); campus 24 all cells faster (alert p95 9.9 -> 9.2, patrol 9.0 -> 8.6, away 5.0 -> 4.5). REGRESSION:
+  sectorops 24 alert p95 8.5 -> 11.8 (med 7.1 -> 7.6), torchshadow draws 17.9 -> 45.1; sectorops patrol p95 7.1 -> 8.3.
+  Suspect S10's checker fix (a lamp with no shadow landing keeps the guard drawn: indoor low lamps -> many more guards
+  drawn, so more torch-atlas casters). NEXT: A/B on 9f7dddbb with ?guardfreeze=0 and on 47041500 (S10 before the fix) for
+  sectorops 24 alert only; log __sector.debug().guardFreeze counts; fix S10 (e.g. no-landing counts as seen only within
+  N m of the lamp, or add a near-feet floor sample like the moon path) and re-measure. e2e gr2-e2e (smoke sectorops
+  darkness lightbake stealth-ai on 9f7dddbb) queued, verdict pending. S9b (3360b85b) not yet in any A/B or checker.
+
+- 2026-10-24 ~17:55 regression diagnosis (Opus, read-only, ~75%): NOT S10. In Sector Ops the only shadowing spots are
+  the intensity-0 torch / char atlas slots, skipped at sectorGuardFreezeView.ts:348, so spotN = 0 and the S10 lamp
+  path never runs; most of the 24 alert guards are on screen (no frustum freezing). Torch-atlas draws follow the AI's
+  torch aim (master itself: 34.2 at 12 guards vs 17.9 at 24). Noise: the branch's 0-guard alert cell had p95 13.6 vs
+  master 3.4. S9 fill costs ~0.02-0.05 ms. Queued to settle it: diag a/b/c (S10 pre-fix, guardfreeze=0, head) and
+  interleaved repeats base / head / base (sectorops 0,24 alert + patrol; out C:/NightShift/scratch/gr2/rep-*). Decide on
+  medians across repeats. Open (older): the freeze never sees the atlas shadow lights (view:348).
+
+- 2026-10-24 ~18:05 (final save before the cap): S9b checker FIX applied (f86b4520: refill the moon list after
+  active-mesh evaluation when a caster was enabled, so a thawed guard / LOD switch casts the same frame). S10b
+  (the freeze sees the torch / char atlas shadow slots: a frozen off-screen guard kept in a partner's torch shadow)
+  is being built by an Opus agent and pushed as WIP; if unfinished on resume, finish it from the WIP commit (brief:
+  PLAN2 S10 + this line). Then one checker on S9b-fix + S10b, the diag / repeat runs (out C:/NightShift/scratch/gr2/
+  diag-*, rep-*: decide the sectorops "regression" on medians), a final A/B on the head, look shots, PR.
+- S10b built (2026-10-24, 3bce2ea4 + b659bfa3 + docs): the freeze reads each ACTIVE torch / char atlas slot as a
+  shadowing light (`sectorGuardFreezeView.ts` `readLights` / `addSpotLight`, `FreezeAtlas` wired in `sectorMode.ts`):
+  torch slot = its spot as placed this frame (`TorchShadows.slotLight`, null when unused; never for its own holder:
+  `FREEZE.holderR`), char slot = its lamp's whole reach (`CharShadows.slotLamp`; the cone is fitted round drawn
+  casters). Timing: both atlases now list a frozen guard's casters at a stand-in sphere round his rig root
+  (`src/world/frozenCaster.ts`; Babylon skips disabled meshes at map render) and re-render a slot after the camera
+  evaluation in which a listed frozen caster was thawed (`onThaw`), so his shadow is in that frame's map. Up to 8 slot
+  lights (4 + 4); the 2-lamp cap and ray budget unchanged. Unit tests pass (tests/sectorGuardFreezeAtlas.test.ts). Next:
+  checker with S9b-fix; GPU look shot (an off-screen guard in a partner's torch beam, his shadow on a lit wall in view,
+  turning the camera so he stays frozen / thaws); A/B sectorops 24 alert (more guards drawn when torches sweep the view).
+
+- 2026-10-24 ~18:10: S10b DONE (3bce2ea4 code, b659bfa3 tests, 5d5cafde docs; 95 freeze / atlas tests pass). It went
+  past "getters only": torchShadows.ts / charShadows.ts gathers keep frozen guards listed (stand-in sphere,
+  src/world/frozenCaster.ts) and reset a slot's refresh counter when its frozen caster thaws. An Opus checker on
+  f86b4520 + S10b is running (if no verdict on resume, start a new one); it also checks open branches for conflicts in
+  those two atlas files. Expect MORE guards drawn in sectorops alert (torches sweep the view): correct for parity, A/B it.
+
+- 2026-10-24 ~18:05 (new account): the S9b-fix + S10b checker was lost in the swap; a new Opus checker runs on 6a6b5e58
+  (read-only, also scans open branches for torchShadows.ts / charShadows.ts conflicts). gr2-e2e was never queued: now
+  20261024T070452-...-6a6b5e58-c47a (smoke sectorops darkness lightbake stealth-ai on the head). The 6 diag / rep alone
+  runs (47041500, 9f7dddbb, 3360b85b x2, 6b44efb8 x2) are queued and run after the 4189 PR run. Then: the final A/B on
+  the head, look shots, PR.
+
+- 2026-10-24 ~18:25: PR #323 open. S9b-fix + S10b Opus checker PASS (polish: frozenCasterSphere also takes non-frozen
+  hidden rigs (dog rig, puppets, camera-hidden local rig) -> restrict to the freeze list; multi-camera second thaw; charShadows.ts:316
+  redundant reset). Orchestrator gate: explain sectorops 24 alert 11.8 vs 8.5 before train-ready. Queued alone after train 57:
+  diag a/b/c + reps r1 base, r2 3360b85b, r3 base, r4 head 6a6b5e58, r5 base (out C:/NightShift/scratch/gr2/rep-*).
+
+- 2026-10-24 ~19:55: gr2-e2e GREEN on 6a6b5e58 (desktop worker, 10/10, 2434 s; flake e2e-sectorops:6). Diag (sectorops 24
+  alert frame p95 / med): master 8.5 / 7.1 (cap-6b44efb8); S10 pre-fix 7.3 / 5.8; S9b 7.4 / 6.0; freeze off 8.7 / 6.9; the
+  first A/B head 11.8 / 7.6. 0-guard alert p95 spikes (13.6, 16.5, med 2.0) = noise. Repeats r1-r5 decide (medians);
+  summary: node C:/NightShift/scratch/gr2/sum.mjs <dirs>. Then the #323 body note, train-ready, Orchestrator.
+
+## Phase 1 (history)
 ## Now
 **CLOSED 2026-10-23 ~17:10** (orchestrator approved: close with #225, M1 CPU overage to the polish list; perf tuning
 waits for Michael's playtest, current goal). Every planned slice is on master (S1, S3a, S5, S6, S7, S4; S2 skipped:

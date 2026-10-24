@@ -64,8 +64,9 @@ describe('sector-redesign perf: SectorGuardFreeze (NullEngine)', () => {
 
   it('a shadowing spot lamp in view keeps a guard within its range drawn; out of view it does not', async () => {
     const { B, scene, back } = await setup();
-    const lamp = new B.SpotLight('lamp', new B.Vector3(0, 3, -6), new B.Vector3(0, -1, 0), 1.2, 1, scene);
-    lamp.shadowMaxZ = 12;
+    // (guard-render S10) a low lamp behind him, aimed at the view: his shadow from it runs into the view
+    const lamp = new B.SpotLight('lamp', new B.Vector3(0, 1, -20), new B.Vector3(0, 0, 1), 1.2, 1, scene);
+    lamp.shadowMaxZ = 30;
     new B.ShadowGenerator(256, lamp);
     scene.render();
     expect(back.bodyRig.root.isEnabled(false)).toBe(true);
