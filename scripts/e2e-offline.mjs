@@ -74,6 +74,15 @@ try {
   // (test-speed) and the menu theme's decode (its fetch reaches the worker's cache): going offline mid-fetch logged
   // "music menu TypeError: Failed to fetch" once (PR #34 full run, 2026-10-20)
   await page.waitForFunction(() => (window.__app?.music?.debug?.ready ?? '').split(',').includes('menu'), null, { timeout: 30000, polling: 200 }).catch(() => {});
+  // (gm-polish) the menu warms every guard file play fetches (`warmGuardFiles`, after Wren's chain): three bases x
+  // LOD0-2 and the shield's LOD1 in the `guards` cache, so the offline match below draws guard figures from it
+  const guards = await page.waitForFunction(async () => {
+    if (!(await caches.has('guards'))) return null;
+    const names = (await (await caches.open('guards')).keys()).map((r) => r.url.slice(r.url.lastIndexOf('/') + 1));
+    return names.length >= 10 ? names : null;
+  }, null, { timeout: 90000, polling: 500 }).then((h) => h.jsonValue()).catch(() => null);
+  const lod2s = (guards ?? []).filter((n) => /^guard-(average|lean|broad)-lod2/.test(n)).length;
+  assert(!!guards && lod2s === 3 && guards.some((n) => /^guard-shield_riot-lod1/.test(n)), `the menu warmed the guard files into the offline cache (${guards ? `${guards.length} files, ${lod2s} LOD2` : 'missing'})`);
 
   console.log('offline boot');
   await ctx.setOffline(true);
@@ -97,6 +106,12 @@ try {
     return (f.loaded & 8) !== 0 ? { loaded: f.loaded, current: f.current } : null;
   }, null, { timeout: 120000, polling: 250 }).then((h) => h.jsonValue()).catch(() => null);
   assert(!!wren, `the offline player is Wren, drawn from the cache (loaded ${wren ? wren.loaded.toString(2) : 'none'}, LOD2 bit set)`);
+  // (gm-polish) and the guards are their figures from the cache, not the merged body (LOD2 bit; the menu's warm)
+  const gfig = await page.waitForFunction(() => {
+    const figs = window.__app.current.enemyMgr.enemies.map((e) => e.gbody?.figure).filter((f) => f && !f.isDisposed);
+    return figs.length && figs.every((f) => (f.loaded & 8) !== 0) ? figs.length : null;
+  }, null, { timeout: 120000, polling: 250 }).then((h) => h.jsonValue()).catch(() => null);
+  assert(!!gfig, `the offline guards draw their figures from the cache (${gfig ?? 'not all'} with LOD2)`);
   // an Infiltration mission (Warehouse) offline: objectives, guards, the download runs at the terminal
   await page.goto(url + '?autostart=warehouse&mode=infiltration&gfx=min');
   await booted();
