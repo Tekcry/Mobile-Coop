@@ -289,7 +289,7 @@ RELEASED: #307 (4.89.0). IDLE until Michael's playtest or an orchestrator task (
   -lr16fix*, -lr16b2 parts (his call).
 HANDOVER: Test Runner (guard-render phase 2) owns src/world/world.ts, sunCascadeCull.ts, src/game/sectorGuardFreeze*.ts
   this window; keep off them. It must keep #307's ghostFrame rule (animTierView) and test case.
-SECTION BAKE (Michael ~17:50: "start the faster campus load now"): first builder cut off by the swap with nothing written; RESTARTED ~18:10 (new account): Opus builder on feature/sector-redesign-bake (off master 95849c26, worktree -bake, own npm ci); design briefs/SECTION-BAKE.md, report checks/section-bake-build.md; then Opus checker + laptop lightbake / darkness / sectorops, one PR.
+SECTION BAKE (Michael ~17:50: "start the faster campus load now"): BUILT cfacf4bc on feature/sector-redesign-bake (worktree -bake; brief / report on that branch: briefs/SECTION-BAKE.md, checks/section-bake-build.md; node estimate 4 workers load bake wait 61.6 -> 22.2 s). DRAFT PR #333. RUNNING: Opus checkers A (parity / co-op) + B (engine / render) -> checks/section-bake-check-A.md / -B.md; laptop sets bake (lightbake darkness sectorops:6 coop netmove) + alone-bake-4p (sectorops 7-9). Owed: GPU look line in TESTING.md. Green -> ready + train-ready.
 PLAN: every slice built. HELD for Michael's playtest (docs only until then): (per-section campus bake now STARTED, see above; was ~2 slices, 3-4 h;
   a lamp spanning two sections counts for both); body-shader compile cost (one laptop GPU probe, then dynamic-bounded
   torch / PCSS loops; cold Epic compile 29.3 s solo, 43.5 s with 3 browsers, cap now 90 s); torch haze spill past a wall at
