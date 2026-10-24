@@ -101,6 +101,48 @@ export function projectQuads(m, quads, W, H) {
   return out;
 }
 
+// Guard placement (pure over the page's enemy objects; each is self-contained and also runs in the page from its source
+// text, like gridMeans). Every guard the harness places carries the tag `__vgPlaced`; a guard without it spawned after
+// the settle began (SectorMode.fill every 0.5 s of sim time once the player is >= 7 m from a slot, alarm
+// reinforcements at any distance) and must be parked before a shot.
+
+/** The rig guard: the first alive non-quadruped enemy, or null. */
+export function pickRigGuard(enemies) {
+  for (const e of enemies ?? []) if (e.alive && !e.def?.quadruped) return e;
+  return null;
+}
+
+/** Stub (no brain: `update` only holds the position, e2e-darkness place), place and tag every enemy in `list`: the rig
+ * guard at `rig.guard.pos` / `yaw` with `torchOverride = rig.torch`; every other one (quadrupeds too) parked at park
+ * slot k = `[minX + 1 + k * 0.5, feet y - 40, minZ + 1]` with `torchOverride = false`. Returns the next free slot. */
+export function placeGuards(list, rigGuard, rig, bd, feet, k) {
+  for (const e of list) {
+    e.update = () => e.prevPos.copyFrom(e.pos);
+    if (rigGuard && e === rigGuard) {
+      e.pos.set(rig.guard.pos[0], rig.guard.pos[1], rig.guard.pos[2]);
+      e.yaw = rig.guard.yaw;
+      e.torchOverride = rig.torch;
+    } else {
+      e.pos.set(bd.minX + 1 + k * 0.5, feet[1] - 40, bd.minZ + 1);
+      e.torchOverride = false;
+      k++;
+    }
+    e.prevPos.copyFrom(e.pos);
+    e.__vgPlaced = true;
+  }
+  return k;
+}
+
+/** Alive enemies the harness has not placed (no `__vgPlaced` tag): spawned since the last placement. */
+export function unplaced(enemies) {
+  const out = [];
+  for (const e of enemies ?? []) if (e.alive && !e.__vgPlaced) out.push(e);
+  return out;
+}
+
+/** Extra park-and-wait rounds `settle` allows for late spawns before it throws. */
+export const LATE_ROUNDS = 3;
+
 // ---------- page side (Playwright) ----------
 
 let libP = null;
@@ -143,122 +185,133 @@ export async function bootMap({ url, map, preset, extra = '' }) {
   }
 }
 
-/** PLAN section 3 steps 1-3 in one page evaluate: sim running, place everyone, settle, assert, read meter and field. */
+/** The settle, run in the page from its source text (self-contained: the placement helpers come in as arguments). */
+async function settleInPage({ feet, rig, minS, cap, lateRounds }, pickRigGuard, placeGuards, unplaced) {
+  const w0 = performance.now();
+  const app = window.__app;
+  const g = app.current;
+  const V = g.player.position.constructor;
+  // 1. the sim running
+  app.loop.timeScale = 1;
+  g.photoFreeze(false);
+  document.body.classList.remove('photo-mode');
+  g.team?.end?.(true);
+  g.player.controller.teleport(new V(feet[0], feet[1], feet[2]), 0);
+  g.vision.set('off');
+  const em = g.enemyMgr;
+  const bd = g.world.level.bounds;
+  // re-read every call: a section change can spawn new guards. Everyone alive is stubbed, placed and tagged (quadrupeds
+  // parked too: a dog walks into frame and pushes doors); the rig guard is the first alive non-quadruped.
+  const es = (em?.enemies ?? []).filter((e) => e.alive);
+  const rigGuard = rig ? pickRigGuard(es) : null;
+  if (rig && !rigGuard) throw new Error('settle: rig has no guard (no alive non-quadruped enemy on this map)');
+  let k = placeGuards(es, rigGuard, rig, bd, feet, 0);
+  let placed = es.length;
+  // 2. settle: >= minS of sim time and >= one fixed step per torch slot + 1 (mirror of harness settleTarget, with the
+  // live torch count). Guards spawned during the wait (sector fill, reinforcements) are parked and the wait runs
+  // again, at most `lateRounds` times.
+  const t0 = g.time;
+  for (let round = 0; ; round++) {
+    const target = Math.max(minS, ((em?.torches?.length ?? 0) + 1) / 60);
+    const tR = g.time;
+    while (g.time - tR < target) {
+      if (performance.now() - w0 > cap) throw new Error(`settle timed out: ${(g.time - tR).toFixed(3)} of ${target.toFixed(3)} s sim (round ${round}) in ${cap} ms`);
+      await new Promise((res) => setTimeout(res, 50));
+    }
+    const late = unplaced(em?.enemies);
+    if (!late.length) break;
+    if (round >= lateRounds) throw new Error(`settle: guards still spawning (${late.length} unplaced after ${lateRounds} late round(s))`);
+    k = placeGuards(late, null, rig, bd, feet, k);
+    placed += late.length;
+  }
+  // 3. meter and field, the same tick
+  const meter = g.lightLevel;
+  const field = g.world.lightField.bodyLevel(feet[0], feet[1], feet[2], 1.7);
+  const simS = g.time - t0;
+  // checks
+  if (app.loop.timeScale !== 1) throw new Error(`settle: timeScale ${app.loop.timeScale} after the settle (want 1)`);
+  let torch = null;
+  if (rig) {
+    const has = !!em.hasTorch(rigGuard);
+    torch = { want: rig.torch, has };
+    if (has !== rig.torch) throw new Error(`settle: rig guard torch ${has ? 'on' : 'off'}, want ${rig.torch ? 'on' : 'off'}`);
+  }
+  let othersLit = 0;
+  for (const e of em?.enemies ?? []) if (e.alive && e !== rigGuard && em.hasTorch?.(e)) othersLit++;
+  if (othersLit) throw new Error(`settle: ${othersLit} other guard(s) hold a torch (want 0)`);
+  let door = null;
+  if (rig?.doorAt) {
+    const [dx, , dz] = rig.doorAt;
+    let best = null;
+    let bestD = Infinity;
+    for (const d of g.world.doors?.list ?? []) {
+      const dd = Math.sqrt((d.cx - dx) * (d.cx - dx) + (d.cz - dz) * (d.cz - dz));
+      if (dd < bestD) {
+        bestD = dd;
+        best = d;
+      }
+    }
+    if (!best) throw new Error(`settle: no door on this map near ${rig.doorAt}`);
+    door = { shut: best.target === 0 && best.open === 0, dist: bestD };
+    if (bestD > 1.5) throw new Error(`settle: nearest door ${bestD.toFixed(2)} m from doorAt ${rig.doorAt} (max 1.5)`);
+    if (!door.shut) throw new Error(`settle: rig door not shut (target ${best.target}, open ${best.open})`);
+  }
+  return { meter, field, simS, ms: Math.round(performance.now() - w0), guards: placed, torch, othersLit, door };
+}
+
+/** PLAN section 3 steps 1-3 in one page evaluate: sim running, place everyone, settle, assert, read meter and field.
+ * Every alive enemy is stubbed, placed and tagged (`placeGuards`); one spawned during the wait is parked and the wait
+ * repeated (at most LATE_ROUNDS times, then it throws). `guards` counts every enemy placed, late ones included. */
 export async function settle(page, spec) {
   const arg = {
     feet: spec.feet,
     rig: spec.rig ?? null,
     minS: spec.minSimS ?? 0.3,
     cap: spec.wallCapMs ?? 20000,
+    lateRounds: LATE_ROUNDS,
   };
-  return page.evaluate(async ({ feet, rig, minS, cap }) => {
-    const w0 = performance.now();
-    const app = window.__app;
-    const g = app.current;
-    const V = g.player.position.constructor;
-    // 1. the sim running
-    app.loop.timeScale = 1;
-    g.photoFreeze(false);
-    document.body.classList.remove('photo-mode');
-    g.team?.end?.(true);
-    g.player.controller.teleport(new V(feet[0], feet[1], feet[2]), 0);
-    g.vision.set('off');
-    const em = g.enemyMgr;
-    const bd = g.world.level.bounds;
-    // re-read every call: a section change can spawn new guards
-    const es = (em?.enemies ?? []).filter((e) => e.alive && !e.def?.quadruped);
-    const rigGuard = rig ? es[0] ?? null : null;
-    if (rig && !rigGuard) throw new Error('settle: rig has no guard (no alive non-quadruped enemy on this map)');
-    es.forEach((e, k) => {
-      // still, no brain (e2e-darkness.mjs place)
-      e.update = () => e.prevPos.copyFrom(e.pos);
-      if (e === rigGuard) {
-        e.pos.set(rig.guard.pos[0], rig.guard.pos[1], rig.guard.pos[2]);
-        e.yaw = rig.guard.yaw;
-        e.torchOverride = rig.torch;
-      } else {
-        e.pos.set(bd.minX + 1 + k * 0.5, feet[1] - 40, bd.minZ + 1);
-        e.torchOverride = false;
-      }
-      e.prevPos.copyFrom(e.pos);
-    });
-    // 2. settle: >= minS of sim time and >= one fixed step per torch slot + 1 (mirror of harness settleTarget, with the
-    // live torch count)
-    const torchCount = em?.torches?.length ?? 0;
-    const target = Math.max(minS, (torchCount + 1) / 60);
-    const t0 = g.time;
-    while (g.time - t0 < target) {
-      if (performance.now() - w0 > cap) throw new Error(`settle timed out: ${(g.time - t0).toFixed(3)} of ${target.toFixed(3)} s sim in ${cap} ms`);
-      await new Promise((res) => setTimeout(res, 50));
-    }
-    // 3. meter and field, the same tick
-    const meter = g.lightLevel;
-    const field = g.world.lightField.bodyLevel(feet[0], feet[1], feet[2], 1.7);
-    const simS = g.time - t0;
-    // checks
-    if (app.loop.timeScale !== 1) throw new Error(`settle: timeScale ${app.loop.timeScale} after the settle (want 1)`);
-    let torch = null;
-    if (rig) {
-      const has = !!em.hasTorch(rigGuard);
-      torch = { want: rig.torch, has };
-      if (has !== rig.torch) throw new Error(`settle: rig guard torch ${has ? 'on' : 'off'}, want ${rig.torch ? 'on' : 'off'}`);
-    }
-    let othersLit = 0;
-    for (const e of em?.enemies ?? []) if (e.alive && e !== rigGuard && em.hasTorch?.(e)) othersLit++;
-    if (othersLit) throw new Error(`settle: ${othersLit} other guard(s) hold a torch (want 0)`);
-    let door = null;
-    if (rig?.doorAt) {
-      const [dx, , dz] = rig.doorAt;
-      let best = null;
-      let bestD = Infinity;
-      for (const d of g.world.doors?.list ?? []) {
-        const dd = Math.sqrt((d.cx - dx) * (d.cx - dx) + (d.cz - dz) * (d.cz - dz));
-        if (dd < bestD) {
-          bestD = dd;
-          best = d;
-        }
-      }
-      if (!best) throw new Error(`settle: no door on this map near ${rig.doorAt}`);
-      door = { shut: best.target === 0 && best.open === 0, dist: bestD };
-      if (bestD > 1.5) throw new Error(`settle: nearest door ${bestD.toFixed(2)} m from doorAt ${rig.doorAt} (max 1.5)`);
-      if (!door.shut) throw new Error(`settle: rig door not shut (target ${best.target}, open ${best.open})`);
-    }
-    return { meter, field, simS, ms: Math.round(performance.now() - w0), guards: es.length, torch, othersLit, door };
-  }, arg);
+  return page.evaluate(`(${settleInPage})(${JSON.stringify(arg)}, ${pickRigGuard}, ${placeGuards}, ${unplaced})`);
 }
 
-/** PLAN section 3 step 4, ONE synchronous evaluate: sim pinned, flicker 1, pendants at rest, photo mode, rigs hidden. */
+/** The pin, run in the page from its source text (synchronous: nothing awaits between its steps). */
+function pinInPage(unplaced) {
+  const app = window.__app;
+  const g = app.current;
+  // a guard spawned between the settle and here was never placed: fail the shot instead of shooting it
+  const un = unplaced(g.enemyMgr?.enemies);
+  if (un.length) throw new Error(`pin: unplaced guard(s) ${un.length}`);
+  app.loop.timeScale = 0;
+  const reg = g.world.level.lights;
+  let flickers = 0;
+  for (const id of reg.flickering ?? []) {
+    const l = reg.lights[id];
+    if (!l) continue;
+    l.flicker = 1;
+    flickers++;
+  }
+  if (flickers) reg.flickerVersion++;
+  let swayed = false;
+  if (reg.sway) {
+    for (const l of reg.lights) {
+      if (!l || !(l.swx || l.swy || l.swz)) continue;
+      l.swx = 0;
+      l.swy = 0;
+      l.swz = 0;
+      swayed = true;
+    }
+    reg.swayVersion++;
+  }
+  g.photoFreeze(true);
+  document.body.classList.add('photo-mode');
+  g.player.rig.setEnabled(false);
+  for (const e of g.enemyMgr?.enemies ?? []) e.bodyRig?.setEnabled(false);
+  return { flickers, swayed };
+}
+
+/** PLAN section 3 step 4, ONE synchronous evaluate: sim pinned, flicker 1, pendants at rest, photo mode, rigs hidden.
+ * Throws first (nothing pinned) when an alive enemy is not tagged by the settle (`pin: unplaced guard(s) N`). */
 export async function pin(page) {
-  return page.evaluate(() => {
-    const app = window.__app;
-    const g = app.current;
-    app.loop.timeScale = 0;
-    const reg = g.world.level.lights;
-    let flickers = 0;
-    for (const id of reg.flickering ?? []) {
-      const l = reg.lights[id];
-      if (!l) continue;
-      l.flicker = 1;
-      flickers++;
-    }
-    if (flickers) reg.flickerVersion++;
-    let swayed = false;
-    if (reg.sway) {
-      for (const l of reg.lights) {
-        if (!l || !(l.swx || l.swy || l.swz)) continue;
-        l.swx = 0;
-        l.swy = 0;
-        l.swz = 0;
-        swayed = true;
-      }
-      reg.swayVersion++;
-    }
-    g.photoFreeze(true);
-    document.body.classList.add('photo-mode');
-    g.player.rig.setEnabled(false);
-    for (const e of g.enemyMgr?.enemies ?? []) e.bodyRig?.setEnabled(false);
-    return { flickers, swayed };
-  });
+  return page.evaluate(`(${pinInPage})(${unplaced})`);
 }
 
 /** The photo camera at `cam` looking at `target`; then wait for `scene.isReady()` (250 ms polls, max 30 s). */
@@ -342,6 +395,7 @@ export async function capture(page) {
 
 /** One shot of a view (rigState null) or a rig state: settle, pin, aim, converge, still pinned, project, capture.
  * A rig is shot 'on' then 'off': the second settle unpins, so it is a full redo (C0 M1), never a toggle under the pin.
+ * Returns ShotRaw plus `aimReady` (scene.isReady() within the aim cap; false = shot on an unready scene, polish 1).
  * `boot` is kept for VG5 (renderer key, the boot's torch count); the settle reads the live torch count itself. */
 export async function shoot(page, item, rigState, boot) {
   void boot;
@@ -359,7 +413,7 @@ export async function shoot(page, item, rigState, boot) {
   const pinned = await pin(page);
   ms.pin = Math.round(now() - t);
   t = now();
-  await aim(page, item.cam, item.target);
+  const aimed = await aim(page, item.cam, item.target);
   ms.aim = Math.round(now() - t);
   t = now();
   const conv = await converge(page);
@@ -372,7 +426,7 @@ export async function shoot(page, item, rigState, boot) {
   const cap = await capture(page);
   ms.capture = Math.round(now() - t);
   ms.total = Math.round(now() - t0);
-  return { id: item.id, rigState, settle: settled, pin: pinned, converge: conv, regions, capture: cap, ms };
+  return { id: item.id, rigState, settle: settled, pin: pinned, aimReady: aimed.ready, converge: conv, regions, capture: cap, ms };
 }
 
 /** Close a boot's browser. */

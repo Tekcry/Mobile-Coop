@@ -143,3 +143,45 @@ section 7 copy lacks `--png`.)
 - Convergence tolerance 0.004 on 16 x 9 cell means: if Epic's TAAU jitter keeps deltas above it, shots report `ok:
   false` at 8 s each; M0's converge-fail column and converge ms will show it.
 - The cloud-queue brief's status line (`origin/cloud-queue:briefs/visual-gate-vg2.md`) was not edited: the caller commits.
+
+## Fix round (Opus, 2026-10-24; check `checks/vg2-check.md` FIX on cb0ba57c)
+M1 (late-spawned guards unparked) - fixed in `scripts/visual-gate/harness.mjs`:
+- New pure helpers, exported and self-contained (they run in the page from their source text, like `gridMeans`):
+  `pickRigGuard(enemies)` (first alive non-quadruped), `placeGuards(list, rigGuard, rig, bd, feet, k)` (stub `update`,
+  rig guard at its pose / yaw / torch, every other parked at slot k with `torchOverride = false`, `prevPos` copied, tag
+  `e.__vgPlaced = true`; returns the next slot), `unplaced(enemies)` (alive and untagged), `LATE_ROUNDS = 3`.
+- `settle`: the page body is now `settleInPage`, sent as one expression string with the helpers as arguments (still one
+  async evaluate). After each wait it re-reads `em.enemies`; any untagged alive enemy is stubbed and parked at the next
+  slots and the wait (`max(minS, (live torches + 1) / 60)` of sim time) runs again, at most 3 late rounds, then it throws
+  `settle: guards still spawning (N unplaced after 3 late round(s))`. The 20 s wall cap covers all rounds. Meter and
+  field are read after the last round. `guards` counts every enemy placed, late ones included (the Contract has no
+  `late` field; not added).
+- `pin`: the page body is `pinInPage`, one synchronous expression; it first throws `pin: unplaced guard(s) N` when any
+  alive enemy is untagged, before touching `timeScale` or anything else, so a spawn between settle and pin fails the shot.
+  It checks every alive enemy, not only non-quadrupeds, since quadrupeds are now placed too.
+
+Polish taken:
+- 5 (quadrupeds): every alive enemy is stubbed, parked and tagged, dogs included (same `Enemy` class: `update`, `pos`,
+  `prevPos`, `torchOverride`; the dog body is drawn from the interpolated root in `frame`, origin/master enemy.ts:3816-3820,
+  so it follows the park). The rig guard is still the first alive non-quadruped. Closes the build report's open item 1.
+- 1 (aim readiness): `shoot` returns `aimReady` (`aim().ready`) beside the ShotRaw fields (additive; the Contract block is
+  unchanged), and `e2e-visual.mjs` writes it into each view / rig shot's JSON row. Closes the open item on `aim.ready`.
+
+Polish left (VG5): 2 (alarm stage / `reinforced` before and after a settle: a SettleResult shape change, VG5's JSON),
+3 (meter flicker phase vs the pinned image: a note for VG5's parity card comparison), 4 (cards render after one pin with
+no settle: VG5 settles first; the card `pin` now also throws on an unplaced guard, recorded as `card pin:` and the cards
+go on).
+
+Tests (`tests/visualGateHarness.test.ts`, +7): pickRigGuard (dogs and the dead skipped, null); placeGuards (rig pose and
+torch, dogs and others parked in slots, all tagged, the stub holds the position, late guards continue the slots and are
+never the rig guard); unplaced; the helpers rebuilt from source text; `settle` over a fake page and game (the page
+expression run in node): a guard spawned during the first wait is parked and tagged and `guards` = 3; endless spawning
+throws `guards still spawning`; `pin` throws `pin: unplaced guard(s) 1` with `timeScale` untouched, then pins (0) once all
+are placed.
+
+Runs (desktop CPU waited down from 94-100% to 40% first):
+- `npx vitest run tests/visualGateHarness.test.ts --maxWorkers=2`: 1 file, 20 tests, 20 passed.
+- `npx tsc --noEmit -p tsconfig.json`: exit 0. `npx eslint tests/visualGateHarness.test.ts`: exit 0.
+- `node --check` both scripts: ok. `git diff --stat 0b7f46f4 -- src`: empty. No e2e, no GPU, no build.
+Files touched: `scripts/visual-gate/harness.mjs`, `scripts/e2e-visual.mjs` (one field), `tests/visualGateHarness.test.ts`,
+this report.

@@ -72,7 +72,7 @@ async function runMap(opts, vp, mapId, preset) {
     const key = state ? `${item.id}-${state}` : item.id;
     try {
       const s = await shoot(page, item, state, boot);
-      row.shots.push({ id: item.id, kind: state ? 'rig' : 'view', rigState: state, settle: s.settle, pin: s.pin, converge: s.converge, behind: Object.keys(s.regions).filter((k) => s.regions[k].behind), ms: s.ms });
+      row.shots.push({ id: item.id, kind: state ? 'rig' : 'view', rigState: state, settle: s.settle, pin: s.pin, aimReady: s.aimReady, converge: s.converge, behind: Object.keys(s.regions).filter((k) => s.regions[k].behind), ms: s.ms });
       png(key, s.capture.png);
     } catch (e) {
       row.shots.push({ id: item.id, kind: state ? 'rig' : 'view', rigState: state, error: msg(e) });
