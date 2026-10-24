@@ -8,15 +8,15 @@ validator is the same file the V1 checker passed (7c54018c on `feature/level-val
 node scripts/level-validate.mjs docs/sector-redesign/graph/campusOps-S1.json ...-S2.json ...-S3.json ...-S4.json ...-S5.json
 ```
 
-Rerun by the lead after V1b (all 16 metrics keys in, step band and no-softlock fixes, safe drop 4.5): **147 errors,
-146 warnings, exit 1**; run.txt now holds this rerun. The per-section tables below are from the first run (150 WARN:
+Latest rerun by the lead (after V1b: all 16 metrics keys, step band, no-softlock, safe drop 4.5; after the fix round: approaches count only entering links, dead ends count links out, new solo-twin check; after the V5 check: S2 facilities and S5 anteroom at clear size): **149 errors,
+151 warnings, exit 1**; run.txt holds this rerun. The per-section tables below are from the first run (rerun deltas: the new solo-twin WARN on S5 CR7, s5-roof now ERR with 1 approach, s5-lowroof a dead end, s3-walkway and s2-l2-exec no longer dead ends, facilities under the 6.0 floor;
 7 missing-key WARNs gone, safe-drop WARNs added). First run result: **147 errors, 150 warnings, exit 1.** The graphs describe the map AS BUILT (base c7784fc9; coop4's two
 `minPlayers` S4 guards are not on that base and are not counted). Every shadow / vantage / LOS value is an estimate,
 pending V6.
 
 ## For Michael
 
-1. No campus section passes: 147 errors, 150 warnings. The errors fall into four groups:
+1. No campus section passes: 149 errors, 151 warnings (latest rerun; first run 147 / 150). The errors fall into four groups:
    - Sizes (43): rooms and corridors were built at real-world size, before the 1.4x room table.
    - Missing ways in (41).
    - Light and view targets (32, all estimates).
@@ -326,7 +326,7 @@ two-player only (G280). The finding breaks G280 either way.
     - S5 F9: the garden buttress, the audit glass and the low-roof hang-drop.
     - S3 H5: the gallery door into the stair.
 20. **Leftovers:**
-    - S2 F8: C2 doors 0.6 m out of line.
+    - (S2 F8 withdrawn by the V5 checker: the C2 doors are in line.)
     - S2 F3: 266 m2 of L1 in no HUD room.
     - S2 F6: foyer lane 2.35 m.
     - S2 F10: the lift lobby has no purpose.

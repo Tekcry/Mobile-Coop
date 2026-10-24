@@ -9,6 +9,7 @@ ERROR: s2-l1-meet4: 5.5 x 7.5 m below meeting_room minimum 5.5 x 8.5
 ERROR: s2-l1-mr1: 6 x 8 m below meeting_room minimum 5.5 x 8.5
 ERROR: s2-l1-mr2: 4 x 10 m below meeting_room minimum 5.5 x 8.5
 ERROR: s2-l1-mr3: 4 x 10 m below meeting_room minimum 5.5 x 8.5
+ERROR: s2-l1-facilities: encounter space 5.75 m on its short side, under the 6 m camera floor
 ERROR: s2-l1-comms: 5 x 6 m below server_room minimum 8.5 x 11
 ERROR: s2-l1-landing: 4 x 6 m below security_room minimum 5.5 x 7
 ERROR: s2-l2-wing: 11.5 x 36 m below open_office minimum 14 x 21
@@ -30,8 +31,8 @@ ERROR: s4-lobby: encounter space 4 m on its short side, under the 6 m camera flo
 ERROR: s4-yard: 6 x 32 m below yard minimum 14 x 14
 ERROR: s4-cc: 2.4 x 6 m below corridor minimum 3 x 3
 ERROR: s5-vest: 2 x 3 m below corridor minimum 3 x 3
-ERROR: s5-ante: 5 x 6 m below meeting_room minimum 5.5 x 8.5
-ERROR: s5-ante: encounter space 5 m on its short side, under the 6 m camera floor
+ERROR: s5-ante: 4.7 x 5.7 m below meeting_room minimum 5.5 x 8.5
+ERROR: s5-ante: encounter space 4.7 m on its short side, under the 6 m camera floor
 ERROR: s5-hall: 12 x 14 m below lobby minimum 14 x 17
 ERROR: s5-pass: 2 x 4 m below corridor minimum 3 x 3
 ERROR: s5-terrace: 6 x 44 m below yard minimum 14 x 14
@@ -48,6 +49,7 @@ ERROR: s1-gatehouse: vantage sees_pct 0.4 below 0.7
 ERROR: s1-carpark: no high approach
 ERROR: s1-carpark: shadow_pct 0.2 outside 0.4-0.6
 ERROR: s1-dyard: no loud approach
+ERROR: s2-foyer: 2 approaches (need 3+)
 ERROR: s2-foyer: no high approach
 ERROR: s2-foyer: shadow_pct 0.7 outside 0.4-0.6
 ERROR: s2-hall: shadow_pct 0.65 outside 0.4-0.6
@@ -111,37 +113,37 @@ ERROR: s5-arch: no high approach
 ERROR: s5-arch: no loud approach
 ERROR: s5-arch: shadow_pct 1 outside 0.4-0.6
 ERROR: s5-arch: vantage sees_pct 0.2 below 0.7
+ERROR: s5-roof: 1 approaches (need 3+)
 ERROR: s5-roof: approaches use 1 route kind(s) (need 2+)
 ERROR: s5-roof: no shadow approach
 ERROR: s5-roof: no loud approach
 ERROR: s5-roof: shadow_pct 0.95 outside 0.4-0.6
-ERROR: s1-bins: dead end (one neighbour) not tagged reward or objective
-ERROR: s1-plantroom: dead end (one neighbour) not tagged reward or objective
-ERROR: s2-lift-g: dead end (one neighbour) not tagged reward or objective
-ERROR: s2-store: dead end (one neighbour) not tagged reward or objective
-ERROR: s2-plant-g: dead end (one neighbour) not tagged reward or objective
-ERROR: s2-l1-kitchen: dead end (one neighbour) not tagged reward or objective
-ERROR: s2-l1-print: dead end (one neighbour) not tagged reward or objective
-ERROR: s2-l1-meet4: dead end (one neighbour) not tagged reward or objective
-ERROR: s2-l1-mr1: dead end (one neighbour) not tagged reward or objective
-ERROR: s2-l1-mr2: dead end (one neighbour) not tagged reward or objective
-ERROR: s2-l1-mr3: dead end (one neighbour) not tagged reward or objective
-ERROR: s2-l1-comms: dead end (one neighbour) not tagged reward or objective
-ERROR: s2-l1-se-meet: dead end (one neighbour) not tagged reward or objective
-ERROR: s2-l2-exec: dead end (one neighbour) not tagged reward or objective
-ERROR: s2-l2-offa: dead end (one neighbour) not tagged reward or objective
-ERROR: s2-l2-offb: dead end (one neighbour) not tagged reward or objective
-ERROR: s2-l2-board: dead end (one neighbour) not tagged reward or objective
-ERROR: s2-roof-plant: dead end (one neighbour) not tagged reward or objective
-ERROR: s3-walkway: dead end (one neighbour) not tagged reward or objective
-ERROR: s3-writeup: dead end (one neighbour) not tagged reward or objective
-ERROR: s3-clean: dead end (one neighbour) not tagged reward or objective
-ERROR: s3-sec: dead end (one neighbour) not tagged reward or objective
-ERROR: s4-noc: dead end (one neighbour) not tagged reward or objective
-ERROR: s5-plant: dead end (one neighbour) not tagged reward or objective
-ERROR: s5-ctl: dead end (one neighbour) not tagged reward or objective
-ERROR: s5-board: dead end (one neighbour) not tagged reward or objective
-ERROR: s5-ceo: dead end (one neighbour) not tagged reward or objective
+ERROR: s1-bins: dead end (one way out) not tagged reward or objective
+ERROR: s1-plantroom: dead end (one way out) not tagged reward or objective
+ERROR: s2-lift-g: dead end (one way out) not tagged reward or objective
+ERROR: s2-store: dead end (one way out) not tagged reward or objective
+ERROR: s2-plant-g: dead end (one way out) not tagged reward or objective
+ERROR: s2-l1-kitchen: dead end (one way out) not tagged reward or objective
+ERROR: s2-l1-print: dead end (one way out) not tagged reward or objective
+ERROR: s2-l1-meet4: dead end (one way out) not tagged reward or objective
+ERROR: s2-l1-mr1: dead end (one way out) not tagged reward or objective
+ERROR: s2-l1-mr2: dead end (one way out) not tagged reward or objective
+ERROR: s2-l1-mr3: dead end (one way out) not tagged reward or objective
+ERROR: s2-l1-comms: dead end (one way out) not tagged reward or objective
+ERROR: s2-l1-se-meet: dead end (one way out) not tagged reward or objective
+ERROR: s2-l2-offa: dead end (one way out) not tagged reward or objective
+ERROR: s2-l2-offb: dead end (one way out) not tagged reward or objective
+ERROR: s2-l2-board: dead end (one way out) not tagged reward or objective
+ERROR: s2-roof-plant: dead end (one way out) not tagged reward or objective
+ERROR: s3-writeup: dead end (one way out) not tagged reward or objective
+ERROR: s3-clean: dead end (one way out) not tagged reward or objective
+ERROR: s3-sec: dead end (one way out) not tagged reward or objective
+ERROR: s4-noc: dead end (one way out) not tagged reward or objective
+ERROR: s5-plant: dead end (one way out) not tagged reward or objective
+ERROR: s5-ctl: dead end (one way out) not tagged reward or objective
+ERROR: s5-board: dead end (one way out) not tagged reward or objective
+ERROR: s5-ceo: dead end (one way out) not tagged reward or objective
+ERROR: s5-lowroof: dead end (one way out) not tagged reward or objective
 ERROR: section S3: 1 independent route(s) from entry 's3-c2' to exit 's3-dock' (need 2 edge-disjoint)
 ERROR: co-op links reach 6 of 25 encounter spaces (need at least half)
 ERROR: pacing: three high beats (4+) in a row: s5-ante, s5-strong, s5-hall
@@ -168,6 +170,8 @@ WARN:  s2-l1-mr1: ceiling 3.8 m outside meeting_room 3-3 m
 WARN:  s2-l1-mr2: ceiling 3.8 m outside meeting_room 3-3 m
 WARN:  s2-l1-mr3: ceiling 3.8 m outside meeting_room 3-3 m
 WARN:  s2-l1-wing: room_class custom (justify the size in the design doc)
+WARN:  s2-l1-facilities: size 5.75 is off the 0.5 m grid
+WARN:  s2-l1-facilities: size 7.2 is off the 0.5 m grid
 WARN:  s2-l1-facilities: ceiling 3.8 m outside security_room 3-3 m
 WARN:  s2-l1-se-meet: ceiling 3.8 m outside meeting_room 3-3 m
 WARN:  s2-l1-landing: ceiling 3.8 m outside security_room 3-3 m
@@ -232,6 +236,8 @@ WARN:  s5-lobby: ceiling 4 m outside gatehouse 3-3 m
 WARN:  s5-back: 6 x 20 m above corridor maximum 4 x 84
 WARN:  s5-back: ceiling 4 m outside corridor 3-3 m
 WARN:  s5-vest: ceiling 4 m outside corridor 3-3 m
+WARN:  s5-ante: size 4.7 is off the 0.5 m grid
+WARN:  s5-ante: size 5.7 is off the 0.5 m grid
 WARN:  s5-ante: ceiling 4 m outside meeting_room 3-3 m
 WARN:  s5-pass: ceiling 4 m outside corridor 3-3 m
 WARN:  s5-draw: ceiling 4 m outside meeting_room 3-3 m
@@ -287,7 +293,8 @@ WARN:  link s5-hall -> s5-gal (open_stair): width 2 m below 2.4 m
 WARN:  link s5-roof -> s5-garden (drop): drop 8.4 m above the 4.5 m safe drop
 WARN:  link s5-roof -> s5-terrace (drop): drop 8.4 m above the 4.5 m safe drop
 WARN:  link s5-roof -> s5-well (drop): drop 8.4 m above the 4.5 m safe drop
-WARN:  secret approach in 3 of 25 guarded encounter spaces (aim for half)
+WARN:  secret approach in 2 of 25 guarded encounter spaces (aim for half)
+WARN:  link s5-arch -> s5-well (team_rope) has a solo twin: link s5-arch -> s5-well (drop); one player makes this move alone (make the co-op move the only way at this spot, or remove the solo link)
 WARN:  pacing: no release (1-2) after the peak at s4-mantrap before s4-yard
 WARN:  pacing: no release (1-2) after the peak at s4-hall before s4-noc
 WARN:  pacing: no release (1-2) after the peak at s5-cage before s5-roof
@@ -314,4 +321,4 @@ INFO:  s5-kitchen: 1 guards (2 players) outside the late band 6-10
 INFO:  s5-arch: 1 guards (2 players) outside the late band 6-10
 INFO:  s5-roof: 1 guards (2 players) outside the late band 6-10
 
-147 error(s), 146 warning(s).
+149 error(s), 151 warning(s).
