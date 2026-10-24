@@ -1,0 +1,14 @@
+{
+  "id": "20261024T130821-night-shift-player-b-6204d95f-a939",
+  "sha": "6204d95fe87bfdaa3029e6bc4cfbbad96dead73f",
+  "branch": "feature/cr-h1",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-coop-real:probe",
+    "e2e-coop-real:smoke"
+  ],
+  "set": "cr-h1-probe",
+  "note": "coop-real H1 dev parts: please keep the full log of e2e-coop-real:probe (its PROBE lines decide B1 / B2)"
+}
