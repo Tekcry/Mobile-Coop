@@ -1,0 +1,15 @@
+{
+  "id": "20261024T072624-night-shift-guard-ai-9008f458-4e10",
+  "sha": "9008f458843f4b2e4efe4b6a99e603cb832ce1b5",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-stealth-ai",
+    "e2e-enemies"
+  ],
+  "jobs": 2,
+  "set": "r1-rays",
+  "note": "R1 allocation-free sight rays"
+}
