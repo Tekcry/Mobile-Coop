@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-24T22:06Z
+status: open
 
 # Brief: gm-polish P2 - gfx=min guard warm misses the helmet drop LOD (Player Build, 2026-10-25 ~09:05)
 

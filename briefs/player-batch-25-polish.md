@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-24T22:06Z
+status: open
 
 # Brief: player-batch-25 polish - checker notes (Player Build, 2026-10-25 ~09:05)
 
