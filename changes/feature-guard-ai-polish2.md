@@ -3,11 +3,13 @@ kind: minor
 - Guard AI polish: a guard sent to a noise behind a locked door he cannot get through now walks to the nearest point
   he can reach and looks from there, instead of standing where he was (A184).
 - Guard AI polish: several guards searching who hear the same step now give one "I heard something." between them,
-  not one each in the same moment (A185). A heard noise on another floor sends them to that floor (A193).
+  not one each in the same moment (A185).
+  A heard noise snaps to its own floor's column where the guard has none of his own (A193; a guard right under a
+  mezzanine step still walks his own floor).
 - Guard AI polish: a guard covering from behind a high wall while a mate moves up holds his peek spot, so his
   covering fire starts from where he can see (A186).
 - Guard AI polish: guards searching the same spot no longer all walk to your last known position and look there; the
-  first does, the rest take their search points at once (A188).
+  first does, once, and the rest take their search points at once (A188).
 - Guard AI polish (co-op): a guard who goes alert on a call about one player while he sees the other calls that
   player in once (A187). A calm guard who sees one player far off and the other clearly lit right in front of him
   notices the near one at once (A190).
