@@ -60,17 +60,17 @@ const SEND_HZ = 20;
 /** (afp AF6) `CLIENT_INTERP_DELAY` (interp.ts; was 0.12). */
 const INTERP_DELAY = CLIENT_INTERP_DELAY;
 
+/** (G135, coop4 A15) A body's goggle colour by player slot: slot 0 keeps the lens asset's green (`goggleColour`). */
+function glowBySlot(figure: OperatorFigure, slot: number): void {
+  figure.setGlowColour(slot <= 0 ? null : goggleColour(slot));
+}
+
 /**
  * Client side of a match. Only the local player is simulated (predicted); enemies, modes, pickups, objectives, doors
  * and health come from host snapshots. Own hits are resolved against local puppets (course: the partner's hit volumes)
  * for instant feedback and sent to the host for the real outcome; objectives, doors and revives are used through
  * mirrored interactables (`use`); takedowns seize a puppet here and the host's enemy there (`td`).
  */
-/** (G135, coop4 A15) A body's goggle colour by player slot: slot 0 keeps the lens asset's green (`goggleColour`). */
-function glowBySlot(figure: OperatorFigure, slot: number): void {
-  figure.setGlowColour(slot <= 0 ? null : goggleColour(slot));
-}
-
 export class CoopClient implements NetAttachment {
   private avatars = new Map<string, RemoteAvatar>();
   /** (G7 fix) The puppet the partner holds (posed from its MoveState). */
