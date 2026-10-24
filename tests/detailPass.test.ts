@@ -16,7 +16,8 @@ describe('map detail pass (3.0)', () => {
       map.build(b, 1);
       const before = [...b.boxes];
       const added = detailPieces(before, map.id, 'epic');
-      expect(added.length, map.id).toBeGreaterThan(20);
+      // (mission-framework GB0) Tallow Wharf's shell stub has few exposed walls until its sections are built (GB1-GB4)
+      expect(added.length, map.id).toBeGreaterThan(map.id === 'tallowWharf' ? 0 : 20);
       expect(added.every((p) => !p.collide && p.noLedge && p.detail)).toBe(true);
       const after = [...before, ...added];
       // (piece ids of the cylinders shift past the added boxes; the faces themselves must match)
@@ -49,7 +50,7 @@ describe('MapDef detail opt-out (ON0b)', () => {
     expect(dressingOn(warehouse)).toBe(true);
     // (sector-redesign slice 1) Saltmarsh Park is a greybox: no dressing either; (marlow-final 0e) Marlow Yard's kit
     // dresses every wall itself
-    expect(MAPS.filter((m) => !dressingOn(m)).map((m) => m.id)).toEqual(['campusOps', 'kestrel', 'ctcourse']);
+    expect(MAPS.filter((m) => !dressingOn(m)).map((m) => m.id)).toEqual(['campusOps', 'kestrel', 'ctcourse', 'tallowWharf']);
     const count = (map: typeof kestrel): { dressing: number; shapes: number; plain: number } => {
       const b = new LevelBuilder();
       map.build(b, 1);
