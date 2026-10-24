@@ -1,6 +1,9 @@
 # Guard AI - state
 
 ## Now
+~09:10: #319 coop4 AI TRAIN-READY (laptop: sectorops all parts + stealth-ai incl. the 4-intruder block PASS).
+Ready from me: #272, #298, #302, #303, #313, #319. Nothing running. Coop4 net / SM wiring is Sector Ops'.
+
 ~08:30: PR #319 coop4 AI OPEN (fix round 421509bb); laptop coop4-ai pending. Ready from me: #272, #298, #302, #303, #313.
 
 ~08:00: coop4 AI6 DONE 01f21ad1 (e2e-stealth-ai 'four intruders (coop4)' block with fake players; AI6-E2E-SPEC.md for
@@ -902,7 +905,7 @@ orchestrator). Green -> `gh pr edit <n> --add-label train-ready` + tell orchestr
 3. PR #313 co-op body carry TRAIN-READY (b1daa9a1; wire change, the train bumps PROTOCOL).
    PR #319 coop4 AI side (feature/guard-ai-coop4 421509bb, worktree -coop4): AI1-AI6 per docs/coop4/briefs/AI.md
    (A170-A181), checks A FAIL -> fix round, B PASS; laptop coop4-ai (e2e-stealth-ai incl. the 4-intruder block,
-   e2e-sectorops) pending -> train-ready. Sector Ops (coop4 lead) wires the hooks (AI5-BUILT.md "Fix round"); its
+   e2e-sectorops) PASS + AI6 staging fix e0062ae8 (coop4-ai2 PASS) -> TRAIN-READY. Sector Ops (coop4 lead) wires the hooks (AI5-BUILT.md "Fix round"); its
    3-4 browser harness uses AI6-E2E-SPEC.md. Carries N0 playerSlots.ts unchanged (aa02e6af).
    Guard-render: AI-side skipped (AI 0.004-0.013 ms / guard); Test Runner's PLAN2 may ask for a gameplay-only
    "dormant" fact. G44 already on master.
