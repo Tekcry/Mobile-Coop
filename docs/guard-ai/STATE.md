@@ -1010,8 +1010,8 @@ WIP snapshots (branches untouched): origin/wip/guard-ai-polish-fix ba1dc579 (fix
    CONFLICT with master (one hunk src/net/protocol.ts): orchestrator agreed no master merge; if auto-train leaves #317
    out, by-hand train merge: master's `PROTOCOL_VERSION = 55` + coop4's MAX_PLAYERS comment and `slotFromList` import.
 2. #363 polish (feature/guard-ai-polish, worktree C:/NightShift/Mobile-Coop-guard-ai-polish; big-pr labelled): check A
-   PASS, check B FIX 1 (B2) FIXED 09d16b80 (roleBound flag; 87 files green). Laptop set polish on 09d16b80 queued
-   (...-74a7: e2e-stealth-ai sectorops coop ctcourse enemies tactics ct-warehouse), background wait. Opus re-check of
+   PASS, check B FIX 1 (B2) FIXED 09d16b80 (roleBound flag; 87 files green). Laptop set polish2s on 09d16b80 queued
+   (...-0a80: e2e-stealth-ai e2e-sectorops only, orchestrator queue audit: area suites, the train runs the rest). Opus re-check of
    B2 RUNNING -> docs/guard-ai/slices/POLISH-RECHECK-B2.md (lead commits). Both green -> orchestrator train-ready.
 3. #360 T1 HELD (ROADMAP Decided, assumed: keep tier 4; BRIEF A183 on the polish branch). Worktree
    C:/NightShift/Mobile-Coop-guard-ai-t1. An Opus agent was writing scripts/t1-shadow-look.mjs (guard just out of view,
