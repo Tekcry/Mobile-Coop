@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-24T08:26Z
 
 # Brief: gm-look-seeds - distinct guard looks within a section, same look after a restart (Player Build)
 

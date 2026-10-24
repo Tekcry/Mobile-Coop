@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-24T08:26Z
 
 # Brief: gm-perf polish - origin-independent shield merge key, merged shield receives shadows (Player Build)
 
