@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-24T11:41Z
 
 # guard-ai T1: off-screen anim tier every 8th frame (guard-cap PLAN section 3, "T1 brief")
 
