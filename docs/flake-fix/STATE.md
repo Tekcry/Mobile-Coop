@@ -3,6 +3,17 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 39 (2026-10-24 ~21:40; wins over SAVE 38 where they differ):**
+- Laptop service restarted on origin/master bd54dfcd at 21:33 (task re-registered -Follow origin/master, PT1M; old pid
+  30284 stopped with Michael's OK after it finished the train64-rerun). #335 live; self-updates to master from now on.
+- Train 64 d3d07151: laptop rerun of the desktop fails (sectorops:6, :1) PASS 403 s -> laptop-e2e success.
+- #251 e2e-affected train-ready (7f5bcffd; rides in train 65). Leads use request.mjs --affected once merged.
+- #342 feature/overlap-queue (worktree C:/NightShift/Mobile-Coop-overlap-queue, head 2a28cdb1) train-ready, CI green:
+  overlap slice 3 + alone preemption < 10 min + audit items (heartbeat, no pr cut past 80%, alone hold before a train,
+  alone yields between steps, install-task -DesktopCpu / -DesktopBacklog). Two Opus checkers, both FIX rounds done.
+  Open non-blocking notes: state.aloneSteps not pruned on nosha / supersede; 4192 has no install-task CPU switch.
+- Still open from SAVE 38: guard-cap m0 / m1 results to feature/guard-cap-results, then ONE message to Marlow.
+
 **Test Runner SAVE 38 (2026-10-24 ~20:50, after the swap; wins over SAVE 37 where they differ):**
 - Service live (task NightShift-laptop-queue, node pid 30284 since 18:48). Train 64 d3d07151 (#341 = #323 guard-render-2)
   runs on the desktop worker (laptop-e2e pending "desktop: sharded 4191+4192"). guard-cap-m0 alone on 4189 (r2-so running
@@ -1025,7 +1036,7 @@ puts it in CLAUDE.md on feature/menu). Laptop full runs: `RUN_GPU=1` (E2E_GPU=1)
 
 ## Resume prompt
 ```
-Night Shift | Test Runner (laptop, the MAIN test machine). First call mcp__ccd_session_mgmt__set_session_title with session_id "self" and title "Night Shift | Test Runner" (ToolSearch if deferred). Read CLAUDE.md "Sessions" on origin/master ("Main test machine: the laptop", "Heavy-usage throughput" incl. "Token rules"), then the newest "Test Runner SAVE" block (SAVE 38 or later) at the top of docs/flake-fix/STATE.md on origin/feature/flake-fix (git fetch; git show origin/feature/flake-fix:docs/flake-fix/STATE.md). Do what it lists, in order. If two Test Runner sessions show in ListAgents, close the older one.
+Night Shift | Test Runner (laptop, the MAIN test machine). First call mcp__ccd_session_mgmt__set_session_title with session_id "self" and title "Night Shift | Test Runner" (ToolSearch if deferred). Read CLAUDE.md "Sessions" on origin/master ("Main test machine: the laptop", "Heavy-usage throughput" incl. "Token rules"), then the newest "Test Runner SAVE" block (SAVE 39 or later) at the top of docs/flake-fix/STATE.md on origin/feature/flake-fix (git fetch; git show origin/feature/flake-fix:docs/flake-fix/STATE.md). Do what it lists, in order. If two Test Runner sessions show in ListAgents, close the older one.
 
 The queue is the SERVICE now (no hand-run chains, Orchestrator 20:26): task NightShift-laptop-queue runs scripts/laptop-queue/service.mjs from C:/NightShift/Mobile-Coop-laptop-queue-svc (follows origin/feature/laptop-queue until SAVE 37's re-register switches it to origin/master; self-updates when idle); log + state C:/NightShift/scratch/laptop-queue/ (log.txt, runs/<id>/); verdicts are GitHub statuses laptop-e2e[/<set>] + PR comments on failure. Requests: node scripts/laptop-queue/request.mjs --sha <ref> (--suites "a b" | --full | --alone --step "<cmd>" [--env K=V]) --requester "<title>" (alone = perf / sheets, after trains and PR suites). Desktop overflow worker NightShift-desktop-queue (LQ_WORKER=desktop, pr only) claims via claims/<id>.json on the laptop-queue branch. Locks C:/NightShift/heavy-4189.lock / heavy-4192.lock (service lines "laptop-queue | ..."; a lock with no live node is stale). Restarting the service: Stop-ScheduledTask leaves the node child alive, so a restart also needs that node pid killed (needs Michael's OK).
 
