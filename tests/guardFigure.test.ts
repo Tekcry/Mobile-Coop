@@ -994,4 +994,28 @@ describe('(perf) frozen guard materials, lazy visible-only pose', () => {
     scene.dispose();
     forgetModels();
   });
+
+  it('(gm-mc-polish) poseNow: a pose asked for after this render id\'s compute (a thaw, a death while frozen) runs at once, not a frame late', async () => {
+    const { scene, figs, cam, forgetModels } = await three();
+    const f = figs[0]!;
+    scene.render();
+    const skel = f.lodSkeleton(f.current)!;
+    expect(skel).not.toBeNull();
+    // the skeleton was computed in this render id: a second ask in it (the thaw) is not computed by Babylon's own prepare
+    const p0 = f.poses;
+    f.update(cam);
+    skel.prepare();
+    expect(f.poses).toBe(p0);
+    // poseNow runs it now; nothing is left pending, and a second poseNow is a no-op
+    f.poseNow();
+    expect(f.poses).toBe(p0 + 1);
+    f.poseNow();
+    expect(f.poses).toBe(p0 + 1);
+    // the next render poses once as usual (the skeleton is not posed twice for the ask)
+    scene.render();
+    expect(f.poses).toBe(p0 + 2);
+    for (const g of figs) g.dispose();
+    scene.dispose();
+    forgetModels();
+  });
 });
