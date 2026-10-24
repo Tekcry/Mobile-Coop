@@ -25,12 +25,14 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Every menu works by pad alone: the stick and d-pad move the focus ring, A selects, B goes back, LB / RB switch
   tabs, sliders and choices change with left / right. Prompts show the pad's glyphs (Xbox letters or PlayStation shapes).
 - [ ] The main menu shows Sector Ops, Co-op, Loadout, Settings and Feedback (Missions, Training and Free roam only with
-  `?legacy=1`). Sector Ops opens the op list (the Warehouse with four stars), then its briefing: the sectors listed,
-  Difficulty (Rookie, Normal, Realistic, Perfectionist, no sliders), Weather, Start.
-- [ ] Sector Ops: three sections. Each objective unlocks the connector room's door; standing in the room shuts it behind
-  you, the next section loads and the far door opens. The extraction shows time, kills, times spotted and GHOST when
-  there were none. Being seen raises ALARM STAGE and more guards come. Going down restarts the section at the room.
-- [ ] Sector Ops Warehouse with night vision off: each section's routes and objective read by lamp light, with dark
+  `?legacy=1`). Sector Ops opens the op list (Saltmarsh Park and the old Warehouse op, four stars each), then its
+  briefing: the sectors listed, Difficulty (Rookie, Normal, Realistic, Perfectionist, no sliders), Weather, Start.
+- [ ] Sector Ops on Saltmarsh Park (`campusOps`): five sections, S1 gatehouse and car park, S2 HQ atrium, S3 labs, S4
+  data hall, S5 Old House. Each objective unlocks the connector room's door; standing in the room shuts it behind you,
+  the next section loads and the far door opens. The extraction shows time, kills, times spotted and GHOST when there
+  were none. Being seen raises ALARM STAGE and more guards come. Going down restarts the section at the room. Solo
+  finishes it (team doors keep a solo route, G280).
+- [ ] (legacy map) Sector Ops Warehouse (`warehouseOps`, three sections) with night vision off: each section's routes and objective read by lamp light, with dark
   pockets between; sections 2 and 3 each offer three routes (`docs/warehouse-s23/WALK.md`). Every lamp is an LED
   fitting (sector-fixes L): a flush panel under a room ceiling, a strip on short wires under the roof, a slim bulkhead on
   a wall bracket; a room's fittings share one height on a regular grid or row (some dark, over the pockets), none stands
