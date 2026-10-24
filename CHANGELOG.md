@@ -1,5 +1,31 @@
 # Changelog
 
+## 4.99.0 - Train 72: Auto affected-e2e and flake budget; Swap tools; Rulebook: current rules only (process audit 2026-10-24) (2026-10-24, PR #364; #356, #349, #347)
+
+### Rulebook: current rules only (process audit 2026-10-24)
+- CLAUDE.md "Sessions" rewritten as one current rulebook (~150 lines): no dated layers, every contradiction resolved
+  to Michael's newest decision. New rules: no-refining rule lifted, walk cap 3 per area plus a walk card per release,
+  one-click visual sign-off before map greybox / art / big look changes, a plan checker before building, PRs under
+  ~1.5k lines or ~4 h with unfinished work dark behind an owned flag, agents commit each sub-step, checkers post a
+  `checker` commit status, leads never merge master, rules read from origin/master only.
+- `docs/systems/agent-preamble.md` matches it. The old text is kept verbatim in
+  `docs/process-audit/rules-history-2026-10-24.md`.
+
+### Auto affected-e2e and flake budget
+#### Changed
+- Laptop queue: every open PR head gets an automatic affected-e2e run (the suites its change drives) and an `affected-e2e` commit status; a newer head supersedes the older request.
+- Flake budget and quarantine replace "flake stands": a suite may flake 2 times in 7 days, the next flake quarantines it for 48 h with an owner; quarantined suites always run and print KNOWN FLAKY. `scripts/e2e-quarantine.json` holds the committed list (e2e-pad) and the suite owners; PR comments carry a flake-rate table when a run flaked.
+
+### Swap tools
+- Swap gate `scripts/swap.mjs`: `save` / `status` scan every worktree on the machine (uncommitted, unpushed, detached
+  local-only commits; merged and stale-debris worktrees skipped), the heavy locks with pid liveness, the laptop queue and
+  the auto-train status, and end with `SAFE` or `NOT SAFE: <n> items` (`C:/NightShift/scratch/swap-status.json`);
+  `save --commit-wip` commits dirty job worktrees as WIP and pushes their branches (never protected branches, never force).
+- `swap.mjs prune --dry-run|--yes` removes clean worktrees of branches merged into origin/master (branches kept).
+- `scripts/cloud-queue-expire.mjs` reopens cloud briefs whose claim missed its 30-min heartbeat for 90 min with no push
+  to the brief's branch; the cloud-queue README text for the heartbeat is in `docs/cloud-queue-README.patch.md`.
+- The swap procedure as commands, with targets (cap to every session up under 10 min): `docs/systems/swaps.md`.
+
 ## 4.98.3 - Train 70: Release path hardening (2026-10-24, PR #359; #353)
 - merge-train: the release title, minor / patch kind and CHANGELOG heading come from the members actually merged
   into `train/<n>` (a left-out member no longer names the release; the version follows the merged fragments).
