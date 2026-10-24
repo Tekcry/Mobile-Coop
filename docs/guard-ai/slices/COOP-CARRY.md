@@ -87,11 +87,34 @@ not his -> the carry ends (rig disposed or dropped as the mirror says).
   client: `carrier.carrying`), the client hides it at a hide spot (or drops when the map has none), the host's guards
   never find a hidden body (`em.bodies` entry hidden, `found` false after sim steps).
 
-## Status (WIP, resume here)
-- Done: plan; `game/bodyCarry.ts` (carry moved out of `StealthSystems`, `GameState.carrier`, `NetAttachment.carry`);
-  protocol (`body` kind, `e`, `by`, `DROP_BODY_ID`); `net/bodyCarryNet.ts` (pure rules), `net/carryView.ts` (partner
-  carry view), `net/clientCarry.ts`, `RemoteAvatar` carry pose, `CoopClient` (kept `Body`s, `carryMirror`). tsc clean.
-- Left: `CoopHost` (body items in `items()` with `by`, skip kind `body` in the generic passes, `by` in the item
-  signature; `onUse` intercepts `body-*` / `drop-body` / `hide-*` from clients; `carries` map stepped each fixed step,
-  dropped on death / hold / leave / body removed); `tests/coopCarry.test.ts`; coop.md section, TESTING.md line,
-  `changes/feature-guard-ai-coop-carry.md`; e2e-coop block; "Built" report.
+## Built (2026-10-24, Opus)
+Steps 1-3 done; the e2e is written, not run (laptop queue).
+- Files: `src/game/bodyCarry.ts` (new: `BodyCarry` = StealthSystems' lift / carry / put down moved verbatim, plus
+  `carryShoulderX/Y`, `carrySideOf`, `LocalCarry`, `NetCarry`, `DROP_NOISE`); `src/game/stealthSystems.ts`
+  (delegates; `carry` stays a get / set property for the e2e scripts); `src/game/gameState.ts` (`carrier` getter,
+  `NetAttachment.carry`, carry reads through `carrier`, the client carry stepped where `stealth` is);
+  `gadgetSystem.ts`, `strikeController.ts`, `takedownController.ts` (`g.carrier`); `src/net/protocol.ts` (kind
+  `body`, `NetItem.e` / `by`, `DROP_BODY_ID`); `src/net/bodyCarryNet.ts` (new, pure); `src/net/carryView.ts` (new);
+  `src/net/clientCarry.ts` (new); `src/net/coopHost.ts` (`bodyItems`, `remotePickUp` / `remoteDrop` /
+  `remoteHide`, `carryStep`, drops on death / hold / leave); `src/net/coopClient.ts` (kept `Body`s, `carryMirror`,
+  `carry`); `src/net/remoteAvatar.ts` (`carryLoad` / `carrySide` / `carryKnees`: bend, lean, hands);
+  `tests/coopCarry.test.ts` (new, 15), `tests/crateWire.test.ts` (the "crate last" check now reads append order);
+  `scripts/e2e-coop.mjs` ("client carries a body" block after the client takedown); docs: `docs/systems/coop.md`,
+  `docs/systems/takedowns.md`, `TESTING.md`, `changes/feature-guard-ai-coop-carry.md` (minor).
+- Tests: `npx tsc --noEmit -p .` clean; eslint clean on the changed files; vitest 23 files / 311 tests pass (coopCarry,
+  crateWire, g7CloseQuarters, cqGait, breaker, guardRelight, responseWiring, the coop* suites, net, netSim,
+  protocolConst, hangDownNet, marlowClientSwitch, sectorItemScope, weaponsCrate, hostageGait, changesFragments).
+  To run on the laptop: e2e-coop (new block), e2e-stealth-ai (carry), e2e-takedown (grab carry), e2e-guard-carry,
+  e2e-ctcourse (the client's kept bodies are `Body`s now: A3 counts `net.kept`).
+- Protocol: `PROTOCOL_VERSION` left at master's 48; this branch touches `src/net`, so `merge-train.mjs build`
+  (`planWire`) bumps it to master + 1 in its train. Tests read the constant (`protocolConst.test.ts` guards it).
+- Risks / polish list:
+  1. Host and client ragdolls settle apart (as before): the client's pick-up prompt sits at the host's body spot and the
+     client's lift steps (at most 1 m) to its own body; far apart bodies show a short step.
+  2. A body the client never saw fall (joined after) cannot be lifted there: the client asks the host to drop it at once.
+  3. A partner's carry on screen: the body lies until `CQ.liftRise`, then snaps onto the shoulder (no hoist arc); the
+     partner's put down ragdolls at the hand-over (no slide); the shoulder is the head side as seen by the viewer.
+  4. Over the ragdoll budget the client now lays a body flat (was: no body at all).
+  5. e2e: a guard may find and wake the knocked-out guard before the client lifts him (the block runs ~1-2 s after the
+     knockout); a hide spot is used only when the map has one within 2 m height, else the put down path asserts.
+  6. A host refusal (far, taken) shows nothing on the client (no feed line).
