@@ -1,0 +1,4 @@
+
+$ node scripts/laptop-queue/serve.mjs scripts/perf.mjs http://127.0.0.1:4189/ --desktop --json
+{"map":"warehouse","profile":"desktop (gfx=epic)","enemies":8,"cpu120":{"frames":600,"p50":1.15,"p95":1.75,"p99":2.3},"mainP95":3.06,"renderJsMs":1.31,"trisM":0.82,"animPerCharMs":0.0023,"allocKBPerSimSecond":15687.4,"topAllocators":["4576.6 KB/s  toWireType havok-V-2dkDzw.js:1","2107.6 KB/s  raycast babylon-rTWtc0i6.js:131 <- hitDistance index-CF8d5zxG.js:1376","1973.1 KB/s  fromWireType havok-V-2dkDzw.js:1","805.2 KB/s  (anon) havok-V-2dkDzw.js:1","373.8 KB/s  toString babylon-rTWtc0i6.js:91 <- _prepareEffect babylon-rTWtc0i6.js:131","323.7 KB/s  next :0 <- executeStep babylon-rTWtc0i6.js:131","166.9 KB/s  setPhysicsBodyTransformation babylon-rTWtc0i6.js:131 <- executeStep babylon-rTWtc0i6.js:131","158.2 KB/s  update index-CF8d5zxG.js:1376"],"drawCalls":254,"rendered":{"hz":165,"p50":6.1,"p95":6.6,"p99":7.4,"cpuP50":4,"cpuP95":6.1}}
+over budget: allocations
