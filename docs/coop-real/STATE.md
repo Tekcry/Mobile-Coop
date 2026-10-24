@@ -1,6 +1,10 @@
 # coop-real - STATE
 
 ## Now
+2026-10-25 ~00:05 SAVE: F1a feature/cr-f1a 144190a0 + F1b feature/cr-f1b dadacd58 (cloud build, 2 Opus checkers PASS WITH
+FIXES, fix round done, `checker` status posted; laptop sets cr-f1a / cr-f1b queued). Follow-ups: restart-in-flight lamp
+guard, lamp-shot round-count authority, Course onRay install-order test. #317 overlap only coop.md :469. RUNNING at the
+save: the Opus H1 finisher on feature/cr-h1 (relaunch from H1-REPORT.md if PROBE_RESULT / SMOKE_RESULT are still placeholders).
 2026-10-24 ~23:00 (overnight, no swap). Group 1: H2 + H2b done; H1a / H1b code on feature/cr-h1 (c7241fdd + swap
 WIP), an Opus finisher runs the probe + smoke and fills H1-REPORT.md. C1 brief done (briefs/C1.md, c6c70d94; A10).
 F1a / F1b on the cloud queue (A11). Next: merge cr-h1 into coop-real, then group 2: C1 (Sonnet from the brief; check its
