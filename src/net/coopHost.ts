@@ -1127,8 +1127,10 @@ export class CoopHost implements NetAttachment {
       return;
     }
     if (kind === 'end') {
+      // (NET3, NET2 check B1) an end's `ss` is its attempt key too (the kit pair's or the hang / rope pair's start; 0
+      // unknown: the host's own, a player down): a stale end crossing a new start is ignored
       const other = this.teamPairs.get(by);
-      if (!other) return;
+      if (!other || !sameAttempt(this.kitPairs.get(by)?.t0 ?? this.pairT0.get(by), ss)) return;
       this.unpair(by, other);
       this.s.send({ t: 'tend', a: by, b: other });
       if (other === self) this.g.team.ended();

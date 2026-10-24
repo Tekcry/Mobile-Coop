@@ -316,3 +316,61 @@ describe('kit NET: a remote kit partner poses from its own move, never the leg-u
     expect(teamRowOfWire('boost', 0)).toBe('team.boost.a');
   });
 });
+
+describe('kit NET3: the team end carries the attempt key (NET2 check B1)', () => {
+  /** c1 hangs from c2 (c2 offers at the edge, c1 beside it on top), started at host time `t`. */
+  const hangAt = (t: { h: { onTeamMove(by: string, kind: string, partner: string, target: number, ss: number, gy: number, lx?: number, lz?: number): void; time: number } }, at: number): void => {
+    t.h.time = at;
+    t.h.onTeamMove('c1', 'hang', 'c2', -1, 0, H, 0.85, 0);
+  };
+
+  it("a stale 'end' of the earlier hang-down crossing a new start is ignored; the current key and key 0 end it", () => {
+    const t = host({ x: 0.5, y: H, z: 0, m: 'ground' }, { x: 0, y: H, z: 0, m: 'brace', sub: HANG_SUB });
+    hangAt(t, 20);
+    expect(t.sent.at(-1)).toMatchObject({ t: 'tstart', kind: 'hang', t0: 20 });
+    // the first attempt ends (the holder's drop), a new one starts at once
+    t.h.onTeamMove('c2', 'hangEnd', '', 1, kitAttemptKey(20), 0);
+    expect(t.sent.at(-1)).toEqual({ t: 'tend', a: 'c2', b: 'c1', k: 'drop' });
+    hangAt(t, 21.5);
+    expect(t.sent.at(-1)).toMatchObject({ t: 'tstart', kind: 'hang', t0: 21.5 });
+    const n = t.sent.length;
+    // c1's end for the first attempt, sent before the new start reached it: ignored, the new pair stands
+    t.h.time = 21.55;
+    t.h.onTeamMove('c1', 'end', '', -1, kitAttemptKey(20), 0);
+    expect(t.sent.length).toBe(n);
+    expect(t.h.teamPairs.get('c1')).toBe('c2');
+    // the new attempt's end ends it
+    t.h.onTeamMove('c1', 'end', '', -1, kitAttemptKey(21.5), 0);
+    expect(t.sent.at(-1)).toEqual({ t: 'tend', a: 'c1', b: 'c2' });
+    expect(t.h.teamPairs.size).toBe(0);
+    // key 0 (the host's own end, a player down) still ends a pair
+    hangAt(t, 30);
+    t.h.onTeamMove('c2', 'end', '', -1, 0, 0);
+    expect(t.sent.at(-1)).toEqual({ t: 'tend', a: 'c2', b: 'c1' });
+    expect(t.h.teamPairs.size).toBe(0);
+  });
+
+  it("a kit pair's 'end' is keyed by the kit start", () => {
+    const t = host({ x: 1.2, y: 0, z: 0, m: 'ground' }, { x: 0, y: H, z: 0, m: 'brace', sub: PULL_SUB });
+    t.h.onTeamMove('c1', 'pull', 'c2', -1, 0, H, 0.85, 0);
+    const n = t.sent.length;
+    t.h.onTeamMove('c2', 'end', '', -1, kitAttemptKey(7), 0);
+    expect(t.sent.length).toBe(n);
+    expect(t.h.kitPairs.size).toBe(2);
+    t.h.onTeamMove('c2', 'end', '', -1, kitAttemptKey(20), 0);
+    expect(t.sent.at(-1)).toEqual({ t: 'tend', a: 'c2', b: 'c1' });
+    expect(t.h.kitPairs.size).toBe(0);
+  });
+
+  it("the client's teamEnd carries its latest start as the attempt key, and the key survives the parser", () => {
+    const c = Object.create(CoopClient.prototype) as CoopClient;
+    const sent: Record<string, unknown>[] = [];
+    Object.assign(c, { ended: false, teamT0: 0, s: { selfId: 'c1', toHost: (m: Record<string, unknown>) => sent.push(m) }, g: { team: { begin: vi.fn() } } });
+    c.teamEnd();
+    expect(sent[0]).toMatchObject({ kind: 'end', s: 0 });
+    (c as unknown as { receive(m: unknown): void }).receive({ t: 'tstart', kind: 'hang', a: 'c1', b: 'h', target: -1, s: 0, t0: 433.25, l: [0, 0, 0] });
+    c.teamEnd();
+    const m = parseMessage(JSON.parse(JSON.stringify(sent[1])));
+    expect(m && m.t === 'tmove' && m.kind === 'end' && sameAttempt(433.25, m.s)).toBe(true);
+  });
+});

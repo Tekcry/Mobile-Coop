@@ -353,8 +353,9 @@ export class CoopClient implements NetAttachment {
     this.s.toHost({ t: 'tmove', kind: 'hangEnd', partner: '', target: k === 'drop' ? 1 : 0, s: kitAttemptKey(this.teamT0), gy: 0 });
   }
 
+  /** (NET3) `s`: the attempt key, as the hangEnd's: the host ignores an end of an earlier attempt. */
   teamEnd(): void {
-    this.s.toHost({ t: 'tmove', kind: 'end', partner: '', target: -1, s: 0, gy: 0 });
+    this.s.toHost({ t: 'tmove', kind: 'end', partner: '', target: -1, s: kitAttemptKey(this.teamT0), gy: 0 });
   }
 
   /** (step 11, D8) The other players with their back to segment `seg` (metres along it), from their MoveStates. */
