@@ -4,7 +4,7 @@
 // checkpoint (M7); and the nav check (M8): every route leg is walkable for the guards' nav grid, and a section is
 // reached only through its connector. `?sectorGuards=4` keeps software GL quick (4 guards per section).
 import { launch, frames, press, BTN, assert } from './e2e-lib.mjs';
-import { until, hostAndJoin, waitSim, teamLog, LOAD_MS_4, slotsOf, eachPage, slotTable, pumpPages, joinLate, setSimPages, onHostStep, offHostStep, hostStepResult } from './e2e-net-lib.mjs';
+import { until, hostAndJoin, waitSim, waitHostSim, teamLog, LOAD_MS_4, slotsOf, eachPage, slotTable, pumpPages, joinLate, setSimPages, onHostStep, offHostStep, hostStepResult } from './e2e-net-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const PARAMS = 'autostart=warehouseOps&mode=sector&sectorGuards=4';
@@ -3723,6 +3723,7 @@ if (want(1)) {
 // does not have yet makes the check print "SKIP: <hook> missing" (listed again at the end of the part), never crash.
 // Part 7: campusOps, four operators (slots, beacons, avatars, spawns, light, jam, crate, revive, connector, pair gate,
 // tagged guards). Part 8: warehouseOps, three operators, a drop and rejoin, a late fourth, two pairs of team moves.
+// (coop4 AI6) Part 8 ends with the guard-AI legs of guard-ai #319's spec (the AI back on, four pages: the stage's shaped teams, two teams on two players, the draw on alarm).
 // ---------------------------------------------------------------------------------------------------------------------
 /** Hooks the 4-page parts could not find in this build (printed per part). */
 const MISSING = new Set();
@@ -4392,6 +4393,234 @@ if (want(8)) {
       assert(!!res, 'one of the two climbers is served and the other denied');
       assert(res.denied.last === 'taken', `slot ${res.winner === 0 ? 2 : 0} is denied "taken" (${res.denied.last}); slot ${res.winner} climbs`);
     });
+
+    // ---- (coop4 AI6, guard-ai #319, docs/coop4/briefs/AI6-E2E-SPEC.md "e2e-sectorops with 4 players") the guard AI with four
+    // pages, on section 1 of the Warehouse after the legs above (four pages, `?sectorGuards=4`, perStage 2). The harness froze
+    // the host's guard AI; these legs let it run (`delete em.update`), keep the cameras held (their own alarms are not this
+    // check's), hide the four operators in later sections' spots, pinned dark (no guard sees one), and read guard-ai's hooks:
+    // a build without #319 prints "SKIP: guard-ai #319 hook <name> missing". The alarm is the mode's own path (`onAlarm()`, as
+    // part 1's response-team check: `raised()` -> `em.shapeResponse` -> one `newTeam` per team); the panel race is part 1's.
+    // (4) the stage's teams by `responseShape`, never over the live cap; (5) the two teams hunt different players and never
+    // dwell on one sweep point (the sweep starts after the search, `ALERT.searchTime` 60 s, so the window is up to 180 s of the
+    // host's sim, not the spec's 60); (6) S27 draw on alarm on every page (this one runs on feature/coop4 alone).
+    const ai6 = { ready: false, shape: null, teams0: 0, live: 0, perStage: 0, key: 0, cap0: 0, nTeams: 0 };
+    const hasHook = (name, ok) => { if (!ok) skip(`guard-ai #319 hook ${name}`); return ok; };
+    /** Per page: [id, carry phase] of the live gun-carrying guards (the host's `Enemy.carry`, a client's puppet `carry`). */
+    const carryView = (i) => pages[i].evaluate((host) => {
+      const g = window.__app.current;
+      if (host) return g.enemyMgr.enemies.filter((e) => e.alive && !e.dog && e.carry?.on).map((e) => [e.id, e.carry.phase]);
+      return [...g.net.puppets.entries()].filter(([, p]) => p.alive && p.carry).map(([id, p]) => [id, (p.carry.c ?? p.carry).phase]);
+    }, i === 0);
+    const respSize = (k, size, teams) => (teams >= 1 && size >= 1 && k >= 0 && k < teams ? Math.floor(size / teams) + (k < size % teams ? 1 : 0) : 0);
+
+    await leg('AI6 setup, (6) draw on alarm on every page, (4) the stage brings the shaped teams', async () => {
+      if (pages.length !== 4) throw new Error(`AI6 needs four pages (${pages.length} after the late join)`);
+      const hk = await GA(() => { const em = window.__app.current.enemyMgr; return { shape: typeof em.shapeResponse === 'function', coop4: typeof em.coop4 === 'function', find: typeof em.intruders?.find === 'function' }; });
+      // the AI runs again; cameras held; nobody lit; light pinned dark
+      await GA(() => {
+        const g = window.__app.current;
+        delete g.enemyMgr.update;
+        g.target.damageMul = 0;
+        for (const r of g.net.remotes.values()) r.damageMul = 0;
+        if (g.security) g.security.fixedUpdate = () => {};
+        if (window.__ctdev) window.__ctdev.fixedUpdate = () => {};
+        g['updateLight'] = () => { g.localRef.light = g.lightLevel = 0; for (const r of g.remotePlayers()) r.light = 0; };
+      });
+      // the four operators in the later sections' spots (behind the sealed connectors: no line to a guard of section 1)
+      const S = await sections(GA);
+      const spots = [S[0].cp, S[1].cp, { x: S[1].obj[0], y: S[1].obj[1], z: S[1].obj[2], yaw: 0 }, { x: S[2].obj[0], y: S[2].obj[1], z: S[2].obj[2], yaw: 0 }].filter(Boolean);
+      for (let i = 0; i < 4; i++) {
+        const p = spots[i % spots.length];
+        try {
+          await moveTo(i, p.x + (i >= spots.length ? 1.2 : 0), p.z, p.yaw ?? 0, (p.y ?? 0) + 0.1);
+        } catch (e) {
+          console.log(`  (AI6: page ${i} not placed at ${p.x.toFixed(1)}, ${p.z.toFixed(1)}: ${String(e).slice(0, 90)})`);
+        }
+      }
+      await until(A, () => window.__app.current.enemyMgr.players().length === 4, null, 10000, 'AI6: four players in the guards\' list');
+      // the monitor: every step the live count against the cap; (5) the teams' sweep samples every 0.5 s once `watch` is set
+      ai6.key = await onHostStep(A, (g, a, st) => {
+        window.__ai6m = st;
+        try {
+          const em = g.enemyMgr;
+          if (!st.init) Object.assign(st, { init: true, over: 0, maxAlive: 0, next: 0, samples: 0, watch: false, mine: [], first: [], sweepN: [], close: 0, closeAt: null, busy: 0, err: '' });
+          st.maxAlive = Math.max(st.maxAlive, em.alive);
+          if (em.alive > em.maxAlive) st.over++;
+          if (!st.watch || g.time < st.next) return;
+          st.next = g.time + 0.5;
+          st.samples++;
+          const ts = st.mine;
+          const cur = ts.map((t) => (t.sweeping && t.point >= 0 ? [t.pts[2 * t.point], t.pts[2 * t.point + 1]] : null));
+          ts.forEach((t, k) => {
+            if (cur[k]) {
+              st.sweepN[k] = (st.sweepN[k] ?? 0) + 1;
+              if (!st.first[k]) {
+                const own = em.lkpOf ? em.lkpOf(t.hunt) : null;
+                const other = em.lkpOf ? ts.map((o, j) => (j !== k && o.hunt >= 0 ? em.lkpOf(o.hunt) : null)).filter(Boolean) : [];
+                st.first[k] = { at: cur[k], own: own ? Math.hypot(cur[k][0] - own.x, cur[k][1] - own.z) : null, other: other.map((q) => Math.hypot(cur[k][0] - q.x, cur[k][1] - q.z)) };
+              }
+            }
+            st.busy = Math.max(st.busy, t.busySkips ?? 0);
+          });
+          for (let i = 0; i < ts.length; i++) {
+            for (let j = i + 1; j < ts.length; j++) {
+              if (!cur[i] || !cur[j]) continue;
+              const d = Math.hypot(cur[i][0] - cur[j][0], cur[i][1] - cur[j][1]);
+              if (d < a.thin && !(ts[i].count <= ts.length)) { st.close++; st.closeAt = [cur[i], cur[j], d, ts[i].count]; }
+            }
+          }
+        } catch (e) {
+          st.err = String(e?.stack ?? e);
+        }
+      }, { thin: 8 });
+      // the guards still calm and holstered on every page before the stage
+      for (let i = 1; i < 4; i++) await until(pages[i], () => window.__app.current.net.puppets.size > 0, null, 30000, `AI6: guard puppets on page ${i}`);
+      const pre = await eachPage(pages, (P, i) => carryView(i));
+      const holst0 = pre.map((v) => v.filter(([, ph]) => ph === 0).length);
+      const hostIds = pre[0].map(([id]) => id).sort();
+      assert(holst0[0] > 0, `AI6 (6): the section's guards start calm, some holstered on the host (${holst0})`);
+      assert(hostIds.length > 0, 'AI6 (6): the host has gun-carrying guards in the section');
+
+      // the seeds, the shape and the stage in one host call (a seeded slot with nobody hunting is forgotten after 2 s):
+      // the host and page 1 each seen at a spot beside one of the two guards furthest apart
+      const r = await GA(([ids, hasShape]) => {
+        const g = window.__app.current;
+        const em = g.enemyMgr;
+        const m = window.__sector;
+        const b = em.intruders;
+        const nav = em.nav;
+        const gs = em.enemies.filter((e) => e.alive && !e.dog);
+        let bi = 0;
+        let bj = 1;
+        let bd = -1;
+        for (let i = 0; i < gs.length; i++) for (let j = i + 1; j < gs.length; j++) { const d = Math.hypot(gs[i].pos.x - gs[j].pos.x, gs[i].pos.z - gs[j].pos.z); if (d > bd) { bd = d; bi = i; bj = j; } }
+        const out = [];
+        if (gs.length >= 2) {
+          [[g.localRef.id, bi], [ids[1], bj]].forEach(([id, k]) => {
+            const e = gs[k];
+            const c = nav.nearestWalkable(e.pos.x + 4, e.pos.z, 6, e.pos.y);
+            const p = c >= 0 ? nav.center(c) : [e.pos.x, e.pos.z];
+            const s = b.slotFor(id);
+            if (s >= 0) b.report(s, p[0], e.pos.y, p[1], true);
+            out.push({ id, s, p });
+          });
+          if (typeof em['mirror'] === 'function') em['mirror']();
+        }
+        const live = m.debug().index;
+        const perStage = g.world.map.sectors[live].perStage;
+        const stage = m.run.alarm + 1;
+        const shape = hasShape ? { ...em.shapeResponse(stage, perStage, { teams: 0, size: 0 }) } : null;
+        const teams0 = em.teams.filter((t) => (t.section ?? t.index) === live).length;
+        const t0 = g.time;
+        const alive0 = em.alive;
+        const raised = m.onAlarm();
+        return { seeds: out, live, perStage, stage, shape, teams0, t0, alive0, raised, guards: gs.length };
+      }, [h.ids, hk.shape]);
+      Object.assign(ai6, { shape: r.shape, teams0: r.teams0, live: r.live, perStage: r.perStage, ready: true, seeds: r.seeds });
+      assert(r.raised !== false && r.guards >= 2, `AI6: the stage rose with two or more guards in section ${r.live + 1} (${JSON.stringify({ raised: r.raised, guards: r.guards })})`);
+
+      // (6) 2 s of the host's sim on: every gun-carrying puppet drawn on B, C, D, every live guard on the host, the same set
+      await waitHostSim(A, 2000);
+      for (let i = 0; i < 4; i++) {
+        let v = await carryView(i);
+        if (v.some(([, ph]) => ph !== 2)) {
+          await waitSim(1500);
+          v = await carryView(i);
+        }
+        const holst = v.filter(([, ph]) => ph !== 2).length;
+        assert(v.length > 0 && holst === 0, `AI6 (6): page ${i}: no gun-carrying guard is holstered or drawing 2 s after the alarm (${holst} of ${v.length}; ${JSON.stringify(v.slice(0, 8))})`);
+        const same = hostIds.every((id) => v.some(([x]) => x === id)) && v.filter(([x]) => hostIds.includes(x)).length === hostIds.length;
+        assert(same, `AI6 (6): page ${i} shows the same guards as the host (${hostIds.length} at the alarm, ${v.length} now)`);
+      }
+
+      // (4) the shaped teams, once the spawns settle
+      if (!hasHook('em.shapeResponse', hk.shape)) return;
+      const players = await GA(() => window.__app.current.enemyMgr.players().length);
+      assert(players === 4, `AI6 (4): four players when the stage rose (${players})`);
+      assert(r.shape.size === r.perStage + 2 && r.shape.teams === (r.perStage + 2 >= 4 ? 2 : 1), `AI6 (4): em.shapeResponse(stage ${r.stage}, perStage ${r.perStage}) with four players and room is size perStage + 2, ${r.perStage + 2 >= 4 ? 2 : 1} team(s) (${JSON.stringify(r.shape)})`);
+      await until(A, () => window.__sector.debug().pending === 0, null, 40000, 'AI6 (4): the stage\'s guards have all spawned').catch((e) => console.log(`  (${String(e).slice(0, 120)})`));
+      const f = await GA(([live, teams0]) => {
+        const em = window.__app.current.enemyMgr;
+        const mine = em.teams.filter((t) => (t.section ?? t.index) === live);
+        return { n: mine.length, sizes: mine.slice(teams0).map((t) => t.members.length), pending: window.__sector.debug().pending, alive: em.alive, cap: em.maxAlive, over: window.__ai6m.over, maxAlive: window.__ai6m.maxAlive };
+      }, [ai6.live, ai6.teams0]);
+      const exp = Array.from({ length: r.shape.teams }, (_, k) => respSize(k, r.shape.size, r.shape.teams));
+      ai6.nTeams = f.n - ai6.teams0;
+      assert(f.n - ai6.teams0 === r.shape.teams, `AI6 (4): the section's team count grew by ${r.shape.teams} (${ai6.teams0} -> ${f.n})`);
+      assert(f.sizes.length === exp.length && f.sizes.every((s, k) => s >= 1 && s <= exp[k]), `AI6 (4): each team's members match responseTeamSize or fewer (${JSON.stringify(f.sizes)} of ${JSON.stringify(exp)})`);
+      assert(f.over === 0 && f.alive <= f.cap, `AI6 (4): alive never over the live cap (${f.alive} of ${f.cap}; steps over ${f.over}, most alive ${f.maxAlive})`);
+    });
+
+    // (5) the two teams hunt different players; their leaders never dwell on one sweep point
+    await leg('AI6 (5): the teams hunt different players, the sweep dedupe', async () => {
+      if (!ai6.ready) { skip('AI6 setup (the previous leg)'); return; }
+      const hk = await GA(() => { const t = window.__app.current.enemyMgr.teams[0]; return { teams: !!t, hunt: !!t && 'hunt' in t, busy: !!t && 'busySkips' in t }; });
+      if (!hk.teams || !hasHook('SweepTeam.hunt', hk.hunt)) return;
+      const th = await GA(([live, teams0]) => {
+        const em = window.__app.current.enemyMgr;
+        const mine = em.teams.filter((t) => (t.section ?? t.index) === live).slice(teams0);
+        window.__ai6m.mine = mine;
+        return mine.map((t) => ({ hunt: t.hunt, members: t.members.filter((e) => e.alive).map((e) => e.hunt) }));
+      }, [ai6.live, ai6.teams0]);
+      assert(th.length >= 2, `AI6 (5): two response teams (${th.length})`);
+      assert(th.every((t) => t.hunt >= 0) && new Set(th.map((t) => t.hunt)).size === th.length, `AI6 (5): each team hunts a different player's slot (${JSON.stringify(th.map((t) => t.hunt))})`);
+      assert(th.every((t) => t.members.length > 0 && t.members.every((x) => x === t.hunt)), `AI6 (5): every member hunts his team's slot (${JSON.stringify(th)})`);
+      // sample every 0.5 s, in chunks of 5 s of the host's sim, until both teams have swept a few samples or 180 s
+      await GA(() => { const s = window.__ai6m; s.watch = true; s.next = window.__app.current.time; });
+      let el = 0;
+      let st = null;
+      for (; el < 180000; el += 5000) {
+        await waitHostSim(A, 5000);
+        st = await GA(() => ({ ...window.__ai6m, mine: undefined }));
+        if (st.err || (st.first[0] && st.first[1] && (st.sweepN[0] ?? 0) >= 12 && (st.sweepN[1] ?? 0) >= 12)) break;
+      }
+      const why = JSON.stringify({ el: Math.round(el / 1000), samples: st.samples, sweepN: st.sweepN, close: st.close, closeAt: st.closeAt, busy: st.busy, first: st.first, err: st.err });
+      console.log(`  (AI6 (5): ${why})`);
+      assert(!st.err, `AI6 (5): the sampling hook ran (${st.err})`);
+      assert(!!st.first[0] && !!st.first[1], `AI6 (5): both teams began their sweep within ${Math.round(el / 1000)} s of the host's sim (${why})`);
+      assert(st.close === 0, `AI6 (5): never both teams sweeping with their points within SWEEP.thin (8 m) of each other (${st.close} samples; ${why})`);
+      for (let k = 0; k < 2; k++) {
+        const fk = st.first[k];
+        if (!fk || fk.own === null) continue;
+        assert(fk.other.every((d) => fk.own <= d), `AI6 (5): team ${k}'s first swept point is nearer its own hunt's last known position than the other's (own ${fk.own.toFixed(1)} m, other ${fk.other.map((d) => d.toFixed(1))}) (A176)`);
+      }
+    });
+
+    // (4) refused at the cap: the live count at its cap, the next stage's guards wait (nothing over the cap, nothing throws)
+    await leg('AI6 (4): refused at the cap, the order holds', async () => {
+      if (!ai6.ready) { skip('AI6 setup (the first leg)'); return; }
+      const c = await GA(() => {
+        const g = window.__app.current;
+        const em = g.enemyMgr;
+        const m = window.__sector;
+        const s = window.__ai6m;
+        s.watch = false;
+        const cap0 = em.maxAlive;
+        em.maxAlive = em.alive + 1;
+        const before = { alive: em.alive, pending: m.debug().pending, stage: m.run.alarm };
+        const raised = m.onAlarm();
+        return { cap0, cap: em.maxAlive, before, raised };
+      });
+      ai6.cap0 = c.cap0;
+      await waitHostSim(A, 5000);
+      const d = await GA(() => { const em = window.__app.current.enemyMgr; return { alive: em.alive, cap: em.maxAlive, pending: window.__sector.debug().pending, stage: window.__sector.run.alarm, over: window.__ai6m.over }; });
+      assert(c.raised === false || d.stage > c.before.stage || d.stage === 3, `AI6 (4): the next stage rose (${JSON.stringify([c, d])})`);
+      assert(d.alive <= d.cap && d.over === 0, `AI6 (4): at the cap alive stays within it (${d.alive} of ${d.cap}; steps over ${d.over})`);
+      assert(d.alive - c.before.alive <= 1, `AI6 (4): at the cap fewer spawn (${c.before.alive} -> ${d.alive}, ${d.pending} waiting)`);
+      await GA((cap0) => { window.__app.current.enemyMgr.maxAlive = cap0; }, c.cap0);
+      await until(A, () => window.__sector.debug().pending === 0, null, 40000, 'AI6 (4): the waiting guards spawn once there is room').catch((e) => console.log(`  (${String(e).slice(0, 120)})`));
+      const e2 = await GA(() => { const em = window.__app.current.enemyMgr; return { alive: em.alive, cap: em.maxAlive, pending: window.__sector.debug().pending, over: window.__ai6m.over }; });
+      assert(e2.alive <= e2.cap && e2.over === 0, `AI6 (4): the order holds, nothing over the cap (${e2.alive} of ${e2.cap}, ${e2.pending} still waiting; steps over ${e2.over})`);
+    });
+
+    // put the host back as the harness had it
+    await GA(() => {
+      const g = window.__app.current;
+      if (window.__ai6m) window.__ai6m.watch = false;
+      g['updateLight'] = Object.getPrototypeOf(g)['updateLight'];
+      g.enemyMgr.update = () => {};
+    });
+    if (ai6.key) await offHostStep(A, ai6.key).catch(() => {});
   });
 }
 
