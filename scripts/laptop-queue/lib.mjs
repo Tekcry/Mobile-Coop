@@ -67,14 +67,38 @@ export function pickBranch({ ref = '', onMaster = false, headBranch = '', headIs
   return all.length === 1 ? all[0] : '';
 }
 
-/** The problem with a request object, or '' when it is fine. */
-export function requestProblem(r) {
+/** --suites text -> suite names, split on spaces and / or commas ("e2e-a,e2e-b" reached run-e2e as one name). */
+export const splitSuites = (text) => String(text ?? '').split(/[\s,]+/).filter(Boolean);
+
+/** scripts/e2e-<x>.mjs files that are modules, not suites (run-e2e NOT_SUITES plus the shared e2e libraries). */
+export const NOT_SUITE_SCRIPTS = ['e2e-affected', 'e2e-lib', 'e2e-net-lib'];
+
+/**
+ * The suite names run-e2e can run at a sha, from its `git ls-tree --name-only <sha> scripts/` paths: `smoke`,
+ * `anim-audit` and every scripts/e2e-<x>.mjs that is not a module (run-e2e runs a named suite as `scripts/<name>.mjs`,
+ * so this is its whole REQUIRED / LEGACY / AUDIO / GPU / REPORT table plus by-name suites like e2e-editor).
+ */
+export function knownSuites(paths) {
+  const names = (paths ?? []).map((p) => /^scripts\/((?:e2e-[a-z0-9-]+)|smoke|anim-audit)\.mjs$/.exec(String(p).trim())?.[1]).filter(Boolean);
+  return new Set(names.filter((n) => !NOT_SUITE_SCRIPTS.includes(n)));
+}
+
+/** The suite names not in `known` (a `name:N` part counts as its base name); [] when all are known. */
+export const unknownSuites = (suites, known) => (suites ?? []).filter((s) => !known.has(String(s).split(':')[0]));
+
+/**
+ * The problem with a request object, or '' when it is fine. `known` (request.mjs: knownSuites at the request's sha)
+ * refuses an unknown suite name at request time (before, a bad name reached run-e2e: MODULE_NOT_FOUND, a false failure).
+ */
+export function requestProblem(r, { known } = {}) {
   if (!r || typeof r !== 'object') return 'not an object';
   if (typeof r.id !== 'string' || !r.id) return 'no id';
   if (!/^[0-9a-f]{40}$/.test(String(r.sha))) return 'sha is not a full 40-hex sha';
   if (!['pr', 'full', 'alone'].includes(r.kind)) return `bad kind ${r.kind}`;
   const strings = (a) => Array.isArray(a) && a.length > 0 && a.every((x) => typeof x === 'string' && x);
   if (r.kind === 'pr' && !strings(r.suites)) return 'pr request needs suites';
+  const bad = r.kind === 'pr' && known ? unknownSuites(r.suites, known) : [];
+  if (bad.length) return `unknown suite(s) ${bad.join(', ')} (run-e2e runs smoke, anim-audit and scripts/e2e-<name>.mjs at the sha; a part is name:N)`;
   if (r.kind === 'alone' && !strings(r.steps)) return 'alone request needs steps';
   if (r.trainRerun && (r.kind !== 'pr' || !(Number(r.pr) > 0))) return 'train rerun needs kind pr and a pr number';
   if (r.laptopRerun && r.kind !== 'pr') return 'laptop rerun needs kind pr';
