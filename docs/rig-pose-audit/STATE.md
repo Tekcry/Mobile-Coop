@@ -1,6 +1,10 @@
 # rig-pose-fix: state
 
 ## Resume
+- ~14:40: S3 MERGED (bf29db17 -> 988869a8; puppet / judge one guard head with wireHead fallback D1, dog puppet head, one
+  sim eye, hand side from the sim clock, body floor probe). All 7 slices in. Checker B on all src/net running
+  (CHECK-NET-B.md). Next: playerVolumes alloc test fix (rpf-alloc, waits for desktop CPU < 80%), laptop batch run on the
+  final head, changelog fragment changes/feature-rig-pose-fix.md, TESTING.md line, PR.
 - ~14:00: S1 MERGED (bb750a5b); check S1 A FAIL B1 (host kneels the client during the tense sneak) -> fix round 6aafd7a7
   MERGED (30a8ec81; tests/remoteKneelTense.test.ts). Decisions for the orchestrator (CHECK-S1-A.md): D-S1b client head x1.3 /
   legs x0.75 on host (keep), D-S1c host judges the latest accepted client state (keep), roll x0.5 only for the client
