@@ -127,8 +127,8 @@
       "reason": "Off the pavilion's south face (east block x -16..4) onto the forecourt: no parapet, no wall below",
       "note": "Unplanned (pavilion top is not in the SPEC). width = the open edge, x -16..4." },
 
-    { "from": "s1-forecourt", "to": "s2-reception", "kind": "door", "route": "spine", "width": 1.2, "height": 2.1, "length": 19.5,
+    { "from": "s1-forecourt", "to": "s2-foyer", "kind": "door", "route": "spine", "width": 1.2, "height": 2.1, "length": 19.5,
       "reason": "C1 staff entrance vestibule: badge door (-20,-34), 4 m vestibule, far door (-20,-30) into the HQ reception (section connector)",
-      "note": "Spine link to S2's entry; the id s2-reception is a guess (the S2 graph is written in parallel): rename if V5b names it differently. Both C1 doors are 1.2 wide, in line, 4.0 m apart (clear 3.7)." }
+      "note": "Spine link to S2's entry s2-foyer (V5f-1: the guessed id s2-reception renamed to S2's real entry, S2.md). Both C1 doors are 1.2 wide, in line, 4.0 m apart (clear 3.7). length 19.5 = forecourt middle (-10,-40) to the near door, the vestibule, far door to the foyer middle (-19,-26.5)." }
   ]
 }
