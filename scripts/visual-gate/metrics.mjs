@@ -253,10 +253,10 @@ function boxAt(s, w, h, x, y, r) {
  * Box blur of radius r (summed-area table, edges clamped), luma 0..1.
  * @param {LumaImage} img
  * @param {number} r
+ * @param {Float64Array} [s] the image's summed-area table when the caller already has it
  */
-function boxBlur(img, r) {
+function boxBlur(img, r, s = sat(img)) {
   const { w, h } = img;
-  const s = sat(img);
   const out = new Float32Array(w * h);
   for (let y = 0, i = 0; y < h; y++) for (let x = 0; x < w; x++, i++) out[i] = boxAt(s, w, h, x, y, r) / 255;
   return out;
@@ -286,10 +286,20 @@ function maskMean(luma, mask) {
  * @returns {Haze}
  */
 export function haze(img, mask) {
+  return hazeWith(img, mask, stats(img, mask).p5, boxBlur(img, 1));
+}
+
+/**
+ * `haze` on a prebuilt r 1 blur and the mask's p5 (measure shares both).
+ * @param {LumaImage} img
+ * @param {Mask} mask
+ * @param {number} veil the mask's p5
+ * @param {Float32Array} b box blur r 1 of img, luma 0..1
+ * @returns {Haze}
+ */
+function hazeWith(img, mask, veil, b) {
   const { w, h, luma } = img;
-  const veil = stats(img, mask).p5;
   const inner = erode(mask, w, h, 2);
-  const b = boxBlur(img, 1);
   let n = 0;
   let lap = 0;
   let sum = 0;
@@ -314,9 +324,19 @@ export function haze(img, mask) {
  * @returns {number}
  */
 export function blotch(img, mask) {
+  return blotchWith(img, mask, sat(img));
+}
+
+/**
+ * `blotch` on a prebuilt summed-area table (measure shares it).
+ * @param {LumaImage} img
+ * @param {Mask} mask
+ * @param {Float64Array} s summed-area table of img
+ * @returns {number}
+ */
+function blotchWith(img, mask, s) {
   const { w, h, luma } = img;
   const inner = erode(mask, w, h, 24);
-  const s = sat(img);
   let n = 0;
   let sumL = 0;
   let mean = 0; // Welford on D
@@ -338,6 +358,10 @@ export function blotch(img, mask) {
 
 /** Ridge run: a pixel is a ridge pixel in a run of at least this many above-threshold pixels along its edge. */
 const ARC_RUN = 12;
+/** Median histogram: 256 bins of G x ARC_Q (1/16 level of slope each); bins below ARC_FLOOR_BIN hold G < 1.5 / 255. */
+const ARC_BINS = 256;
+const ARC_Q = 255 * 16;
+const ARC_FLOOR_BIN = 24;
 
 /**
  * Hard light arcs: G = Sobel magnitude (divided by 8, so G is the per-pixel luma slope 0..1) of a box blur r 1;
@@ -349,12 +373,23 @@ const ARC_RUN = 12;
  * @returns {number}
  */
 export function arc(img, mask) {
+  return arcWith(img, mask, null);
+}
+
+/**
+ * `arc` on a prebuilt r 1 blur (measure shares it), or null to build it here (after the empty-mask early out).
+ * @param {LumaImage} img
+ * @param {Mask} mask
+ * @param {Float32Array | null} blur box blur r 1 of img, luma 0..1
+ * @returns {number}
+ */
+function arcWith(img, mask, blur) {
   const { w, h } = img;
   const len = w * h;
   let n = 0;
   for (let i = 0; i < len; i++) if (mask[i]) n++;
   if (n === 0 || w < 3 || h < 3) return 0;
-  const b = boxBlur(img, 1);
+  const b = blur ?? boxBlur(img, 1);
   const g = new Float32Array(len); // border pixels stay 0
   for (let y = 1; y < h - 1; y++) {
     for (let x = 1; x < w - 1; x++) {
@@ -364,11 +399,7 @@ export function arc(img, mask) {
       g[i] = Math.sqrt(gx * gx + gy * gy) / 8;
     }
   }
-  const vals = new Float32Array(n);
-  for (let i = 0, k = 0; i < len; i++) if (mask[i]) vals[k++] = g[i];
-  vals.sort();
-  const median = vals[Math.max(1, Math.ceil(n / 2)) - 1];
-  const t = Math.max(6 / 255, 4 * median);
+  const t = Math.max(6 / 255, 4 * arcMedian(g, mask, n));
   let ridge = 0;
   for (let y = 1; y < h - 1; y++) {
     for (let x = 1; x < w - 1; x++) {
@@ -393,6 +424,36 @@ export function arc(img, mask) {
     }
   }
   return ridge / n;
+}
+
+/**
+ * Exact lower median (rank max(1, ceil(n / 2))) of g over the mask, by a 256-bin histogram: when the median's bin lies
+ * below 1.5 / 255 the threshold is the 6 / 255 floor anyway, so 0 is returned; else only that bin is sorted.
+ * @param {Float32Array} g
+ * @param {Mask} mask
+ * @param {number} n mask pixels (> 0)
+ */
+function arcMedian(g, mask, n) {
+  const len = g.length;
+  const counts = new Uint32Array(ARC_BINS);
+  for (let i = 0; i < len; i++) {
+    if (!mask[i]) continue;
+    const q = (g[i] * ARC_Q) | 0;
+    counts[q < ARC_BINS ? q : ARC_BINS - 1]++;
+  }
+  const rank = Math.max(1, Math.ceil(n / 2));
+  let bin = 0;
+  let before = 0;
+  while (before + counts[bin] < rank) before += counts[bin++];
+  if (bin < ARC_FLOOR_BIN) return 0; // median < 1.5 / 255, so 4 x median < 6 / 255
+  const vals = new Float32Array(counts[bin]);
+  for (let i = 0, k = 0; i < len; i++) {
+    if (!mask[i]) continue;
+    const q = (g[i] * ARC_Q) | 0;
+    if ((q < ARC_BINS ? q : ARC_BINS - 1) === bin) vals[k++] = g[i];
+  }
+  vals.sort();
+  return vals[rank - before - 1];
 }
 
 /**
@@ -434,18 +495,30 @@ export function measure(img, masks, want) {
   const whole = stats(img, fullMask(img.w, img.h));
   /** @type {Record<string, RegionMetrics>} */
   const regions = {};
+  // one summed-area table and one r 1 blur per call, built on first use and shared by every region
+  /** @type {Float64Array | null} */
+  let s = null;
+  /** @type {Float32Array | null} */
+  let b = null;
   for (const name of Object.keys(masks)) {
     const mask = masks[name];
     /** @type {RegionMetrics} */
     const r = stats(img, mask);
     for (const metric of want[name] ?? []) {
       if (metric === 'haze') {
-        const hz = haze(img, mask);
+        s ??= sat(img);
+        b ??= boxBlur(img, 1, s);
+        const hz = hazeWith(img, mask, r.p5, b);
         r.veil = hz.veil;
         r.contrast = hz.contrast;
-      } else if (metric === 'blotch') r.blotch = blotch(img, mask);
-      else if (metric === 'arc') r.arc = arc(img, mask);
-      else throw new Error(`measure: unknown metric ${metric}`);
+      } else if (metric === 'blotch') {
+        s ??= sat(img);
+        r.blotch = blotchWith(img, mask, s);
+      } else if (metric === 'arc') {
+        s ??= sat(img);
+        b ??= boxBlur(img, 1, s);
+        r.arc = arcWith(img, mask, b);
+      } else throw new Error(`measure: unknown metric ${metric}`);
     }
     regions[name] = r;
   }

@@ -323,6 +323,50 @@ describe('parity', () => {
   });
 });
 
+describe('shared passes and the quantised arc median (vg1p cost)', () => {
+  const m = fullMask(W, H);
+  const ramp = (x: number) => 40 + (x / (W - 1)) * 160;
+  const lumps = (x: number, y: number) => {
+    let v = 0;
+    for (let cy = 20; cy < H; cy += 60) for (let cx = 20; cx < W; cx += 60) v += 20 * (1 - smooth(Math.sqrt((x - cx) ** 2 + (y - cy) ** 2) / 20));
+    return v;
+  };
+  const disc = (x: number, y: number) => (Math.sqrt((x - 128) ** 2 + (y - 80) ** 2) < 50 ? 140 : 40);
+  const stripes = (x: number) => (Math.floor(x / 4) % 2 ? 120 : 30);
+  const r = rng(11);
+  // dense edges + noise: the arc median is far above the 1.5 / 255 floor bin, so the exact in-bin select runs
+  const busy = img(W, H, (x, y) => disc(x, y) + 60 * Math.sin(x / 3) * Math.cos(y / 5) + (r() * 2 - 1) * 20);
+
+  it('outputs match the pre-polish full-sort / separate-blur values within 1e-6', () => {
+    expect(blotch(img(W, H, ramp), m)).toBeCloseTo(0.0004224105354699218, 6);
+    expect(blotch(img(W, H, (x, y) => ramp(x) + lumps(x, y)), m)).toBeCloseTo(0.02554016879711311, 6);
+    expect(arc(img(W, H, disc), m)).toBeCloseTo(0.02998046875, 6);
+    expect(arc(busy, m)).toBeCloseTo(0.000244140625, 6);
+    const hz = haze(img(W, H, stripes), m);
+    expect(hz.veil).toBeCloseTo(0.11764705882352941, 6);
+    expect(hz.contrast).toBeCloseTo(0.18148821543652005, 6);
+    expect(haze(img(W, H, (x) => stripes(x) + (255 - stripes(x)) * 0.5), m).contrast).toBeCloseTo(0.04331504217710173, 6);
+  });
+
+  it('measure (one shared table / blur, veil from the region stats) equals the standalone metrics on 3 images', () => {
+    const masks = { full: m, wall: rectMask(0, 0, 200, 120), upper: rectMask(30, 60, 256, 160), empty: new Uint8Array(W * H) };
+    const want = { full: ['haze', 'blotch', 'arc'], wall: ['arc', 'blotch'], upper: ['haze', 'arc'], empty: ['haze', 'arc', 'blotch'] };
+    for (const im of [img(W, H, (x, y) => ramp(x) + lumps(x, y)), img(W, H, disc), busy]) {
+      const out = measure(im, masks, want);
+      for (const [name, metrics] of Object.entries(want)) {
+        const mask = masks[name as keyof typeof masks];
+        const reg = out.regions[name];
+        expect(reg).toMatchObject(stats(im, mask));
+        for (const metric of metrics) {
+          if (metric === 'haze') expect({ veil: reg.veil, contrast: reg.contrast }).toEqual(haze(im, mask));
+          else if (metric === 'blotch') expect(reg.blotch).toBe(blotch(im, mask));
+          else expect(reg.arc).toBe(arc(im, mask));
+        }
+      }
+    }
+  });
+});
+
 type Region = Record<string, unknown> & { mean: number; nearBlack: number; hist: number[] };
 const hist = (bin: number) => Array.from({ length: 32 }, (_, i) => (i === bin ? 1 : 0));
 const region = (extra: Partial<Region> = {}): Region => ({ n: 100, mean: 0.1, p5: 0, p50: 0.1, p95: 0.2, nearBlack: 0.1, hist: hist(3), ...extra });
