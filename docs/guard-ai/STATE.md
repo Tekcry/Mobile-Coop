@@ -2,6 +2,9 @@
 
 ## Now
 ~14:30: brain LOD SKIPPED (orchestrator: guard-cap #180 shows AI 0.02-0.06 ms per guard, render-bound); Test Runner told.
+Test Runner confirms (guard-cap cf5a2bf8, origin/shots/g8-cf5a2bf8 COMPARE.md): AI manager 0.004-0.013 ms of
+~0.22-0.28 ms per guard. Its Opus planner writes docs/guard-render/PLAN2.md; possible src/ai item = a gameplay-only
+"dormant" fact render could use: build only when Test Runner sends the interface.
 Next: Marlow's corrected spare-jobs.md on feature/menu -> take an open row in src/ai if any; else idle until Michael's walk.
 Ready from me: #272, #298, #302, #303.
 
