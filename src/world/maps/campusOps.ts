@@ -2,7 +2,7 @@ import { Vector3 } from '../../core/babylon';
 import type { MapDef, MapLayout } from '../mapDef';
 import type { LevelBuilder } from '../levelBuilder';
 import { buildCampusS1, S1_HIDESPOTS, S1_NAV_SEEDS, S1_PICKUPS, S1_ROOMS, S1_SPAWNS, S1_SWITCHES } from './campusS1';
-import { buildCampusS2, S2_HIDESPOTS, S2_NAV_SEEDS, S2_PICKUPS, S2_ROOMS, S2_SWITCHES } from './campusS2';
+import { buildCampusS2, S2_BOARDS, S2_HIDESPOTS, S2_NAV_SEEDS, S2_PICKUPS, S2_ROOMS, S2_SWITCHES } from './campusS2';
 import { CAMPUS_ALARMS, CAMPUS_SECTORS, CAMPUS_SECURITY } from './campusSectors';
 import { buildCampusS3, S3_HIDESPOTS, S3_LASERS, S3_NAV_SEEDS, S3_PANELS, S3_PICKUPS, S3_ROOMS, S3_SWITCHES } from './campusS3';
 import { buildCampusS4, S4_BOARDS, S4_HIDESPOTS, S4_LASERS, S4_NAV_SEEDS, S4_PANELS, S4_ROOMS, S4_SWITCHES } from './campusS4';
@@ -138,7 +138,7 @@ export function buildCampus(b: LevelBuilder, o: { dress: boolean }): MapLayout {
     security: CAMPUS_SECURITY,
     lasers: [...S3_LASERS, ...S4_LASERS, ...S5_LASERS],
     laserPanels: [...S3_PANELS, ...S4_PANELS, ...S5_PANELS],
-    boards: [...inSection(S4_BOARDS, 3), ...inSection(S5_BOARDS, 4)],
+    boards: [...inSection(S4_BOARDS, 3), ...inSection(S5_BOARDS, 4), ...inSection(S2_BOARDS, 1)],
   };
   if (o.dress) layout.campusArt = dressCampus(b, layout, ranges);
   return layout;

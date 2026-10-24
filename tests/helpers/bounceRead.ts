@@ -6,6 +6,34 @@
  */
 import { BOUNCE_T_SHIFT, BOUNCE_T_STEP } from '../../src/voxel/lampBounce';
 
+/**
+ * (LR16-P polish) The shader's reach set as an 8-bit mask (corner k = x + 2y + 4z, bit k): all 8 when no corner knows a
+ * wall, else grown from corner `h` along the open edges. `ea` / `eb`: the wall bits of the z = 0 / z = 1 corners (index
+ * x + 2y); a set bit is a closed edge (1 the +x edge, 2 the +y edge, 4 the +z edge, `ea` only).
+ */
+export function reachMask(ea: readonly number[], eb: readonly number[], h: number): number {
+  // the reach set as an 8-bit mask: all 8 when no corner knows a wall, else grown from h along the open edges
+  const wo = ea.map((x, k) => x | eb[k]!);
+  let c = ((wo[0]! | wo[1]! | wo[2]! | wo[3]!) & 7) === 0 ? 255 : 1 << h;
+  if (c !== 255) {
+    const open = (e: readonly number[], bit: number): number[] => e.map((x) => ((x & bit) === 0 ? 1 : 0));
+    const xa = open(ea, 1);
+    const xb = open(eb, 1);
+    const ya = open(ea, 2);
+    const yb = open(eb, 2);
+    const za = open(ea, 4);
+    const mx = xa[0]! | (xa[2]! << 2) | (xb[0]! << 4) | (xb[2]! << 6);
+    const my = ya[0]! | (ya[1]! << 1) | (yb[0]! << 4) | (yb[1]! << 5);
+    const mz = za[0]! | (za[1]! << 1) | (za[2]! << 2) | (za[3]! << 3);
+    for (let r = 0; r < 7; r++) {
+      const g = c | ((c & mx) << 1) | ((c >> 1) & mx) | ((c & my) << 2) | ((c >> 2) & my) | ((c & mz) << 4) | ((c >> 4) & mz);
+      if (g === c) break;
+      c = g;
+    }
+  }
+  return c;
+}
+
 /** `nsGrid2(t, p, o, n)`: [ambient, bounce]. `rgba`: the texels (x fastest), `o`: origin + cell, `n`: counts. */
 export function nsGrid2(rgba: Uint8Array, p: readonly number[], o: readonly number[], n: readonly number[]): [number, number] {
   const cell = o[3]!;
@@ -62,25 +90,8 @@ export function nsGrid2(rgba: Uint8Array, p: readonly number[], o: readonly numb
   if (tx > 0 && d[0]! >= tx * BOUNCE_T_STEP) h ^= 1;
   if (ty > 0 && d[1]! >= ty * BOUNCE_T_STEP) h ^= 2;
   if (tz > 0 && d[2]! >= tz * BOUNCE_T_STEP) h ^= 4;
-  // the reach set as an 8-bit mask: all 8 when no corner knows a wall, else grown from h along the open edges
-  const wo = ea.map((x, k) => x | eb[k]!);
-  let c = ((wo[0]! | wo[1]! | wo[2]! | wo[3]!) & 7) === 0 ? 255 : 1 << h;
-  if (c !== 255) {
-    const open = (e: number[], bit: number): number[] => e.map((x) => ((x & bit) === 0 ? 1 : 0));
-    const xa = open(ea, 1);
-    const xb = open(eb, 1);
-    const ya = open(ea, 2);
-    const yb = open(eb, 2);
-    const za = open(ea, 4);
-    const mx = xa[0]! | (xa[2]! << 2) | (xb[0]! << 4) | (xb[2]! << 6);
-    const my = ya[0]! | (ya[1]! << 1) | (yb[0]! << 4) | (yb[1]! << 5);
-    const mz = za[0]! | (za[1]! << 1) | (za[2]! << 2) | (za[3]! << 3);
-    for (let r = 0; r < 7; r++) {
-      const g = c | ((c & mx) << 1) | ((c >> 1) & mx) | ((c & my) << 2) | ((c >> 2) & my) | ((c & mz) << 4) | ((c >> 4) & mz);
-      if (g === c) break;
-      c = g;
-    }
-  }
+  // the reach set as an 8-bit mask (`reachMask`)
+  const c = reachMask(ea, eb, h);
   // the weights of all 8 corners, the unreached ones x 0; the sums in corner order
   const wx = [1 - f[0]!, f[0]!];
   const wq = [wx[0]! * (1 - f[1]!), wx[1]! * (1 - f[1]!), wx[0]! * f[1]!, wx[1]! * f[1]!];

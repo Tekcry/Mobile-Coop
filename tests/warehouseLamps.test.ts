@@ -116,12 +116,12 @@ describe('Sector Ops LED fittings', () => {
   /** Ceiling fittings the lamp audit moved (LR16d, LR16dx): `<room key> <new x,z>` -> the grid cells they came from (source
    *  order). The production office was re-gridded whole (LR16dx: 3 x 2 panels 1.05 m off its walls), so it is not here. */
   const LR16D_MOVED: Record<string, [number, number][]> = {
-    'S1 plantDeck ceiling -5,-15.15': [[-5, -14.6]], 'S1 plantDeck ceiling -1,-15.15': [[-1, -14.6]], 'S1 plantDeck ceiling 4.2,-15.15': [[3, -14.6]], 'S1 plantDeck ceiling 7,-15.15': [[7, -14.6]],
     'S3 hall ceiling 18.26,-2.6': [[18, -2.6]], 'S3 hall ceiling 22.15,-2.6': [[23.2, -2.6]], 'S3 hall ceiling 22.15,3.4': [[23.2, 3.4]], 'S3 hall ceiling 22.15,9.4': [[23.2, 9.4]],
   };
 
   it('one height per room and mount, and the ceiling fittings of a room on a regular grid', () => {
     const bad: string[] = [];
+    const hit = new Set<string>();
     for (const [s, rooms] of SECTIONS) {
       const by = new Map<string, LampRoom[]>();
       for (const r of rooms) {
@@ -137,6 +137,7 @@ describe('Sector Ops LED fittings', () => {
         const cell = (x: number, z: number): [number, number] => {
           const o = LR16D_MOVED[`${k} ${x},${z}`];
           if (!o) return [x, z];
+          hit.add(`${k} ${x},${z}`);
           const i = used.get(`${k} ${x},${z}`) ?? 0;
           used.set(`${k} ${x},${z}`, i + 1);
           return o[i]!;
@@ -152,6 +153,8 @@ describe('Sector Ops LED fittings', () => {
         if (dz.length > 1 && Math.max(...dz) - Math.min(...dz) > 0.6) bad.push(`${k}: rows ${zs.join(', ')}`);
       }
     }
+    // a key that matches no fitting is stale (the layout moved on): it would hide a real grid fault
+    expect(Object.keys(LR16D_MOVED).filter((k) => !hit.has(k))).toEqual([]);
     expect(bad).toEqual([]);
   });
 
