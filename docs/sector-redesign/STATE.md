@@ -350,49 +350,30 @@ then git worktree remove --force. Train-ready = message + `gh pr edit <n> --add-
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (saved 2026-10-25 ~05:25 at the orchestrator 05:19 save; resume at the 09:10 reset; overnight mode: no
-question dialogs, decide and log; orchestrator resumes leads after each reset). git fetch; read CLAUDE.md "Sessions".
-Worktrees (node_modules junctions to Mobile-Coop-sector-redesign-bake2): -polish (this STATE), -signoff, -bake3,
--visual-gate, -visual-gate-vg1 / -vg2 / -vg4. Disk 40 GB free (worktrees allowed again).
-1. PR #361 bake3 TRAIN-READY 04:25 (CI green after a lightField allocation-flake rerun, checker PASS, laptop bake3 2/2
-   279 s). Act on the train verdict; Opus triage on red.
-2. CAMPUS SIGN-OFF (feature/sector-redesign-signoff @ c5ba9ff4+): S1-S5 pages + detail + plan SVGs + plan graphs all
-   written; five graphs `syncs` key, 0 errors / 117 warnings. S2 = 18 guards (41 -> 0 errors), Split Shift nodes for
-   Marlow (sync-s2-comms track A, sync-s2-power held 55 + 56, sync-s2-atrium, pairdoor `solo`, exfil as tracks.exfil).
-   DONE 6b13cd32: area boxes on all spaces, exfil tag on s4-cc, SYNC.md; Marlow told (re-runs Split Shift + Code
-   Relay over all five). Opus check FIX d6cc89d4 (signoff/checks-signoff.md: 1 S5 36+6 over the 32 live cap -> plan
-   <= 32 as option 1, raise-cap as option 2; 2 S5-plan-0.svg frame to z 70; 3 S1 lips count; 4 S4 basket downed
-   reach 25 s; 5 S2 lead-s2-kitchen). FIX ROUND DONE fe3ef35f: S5 26 guards (26 + 6 = 32 cap; option 2 raise cap +8 h),
-   S5 ground plan to z 70, S1 two lips, S4 25 s basket exception stated on S4.md, S2 ids sync-s2-kpfac / -kitchen /
-   -plantlog (aka old), S4 exfil in tracks; 0 errors / 119 warnings. Marlow + orchestrator told ("sign-off pages up").
-   WAITING on Michael's picks (one per page). After picks: greybox slices per S<N>-detail.md build cost.
-3. VISUAL-GATE (docs/visual-gate/STATE.md): VG1-VG4 merged in feature/visual-gate a3362896 (VG3 cloud 8262611b merged
-   ; Sonnet check PASS c43ef47e). M0 timing run queued on the laptop 04:20 (alone, set visual-m0, master
-   fc4dc9ab; json + png to C:/NightShift/scratch/visual-gate/m0 on the laptop) -> write docs/visual-gate/M0.md, apply
-   the PLAN 7 ladder. PR #367 VG6: master merged on the branch (service.mjs conflict, both sides kept, 135 tests),
-   head fe16741b, checker status posted; orchestrator labels on green CI; Test Runner #366 overlaps service.mjs (the
-   later train resolves). #366 released (train 74): import line resolved 05:05, head 3cb88b3f, 153 tests; orchestrator labels on green CI. CLOUD: briefs visual-gate-vg5 (gate runner, off a3362896) + visual-gate-vg1-polish (metrics
-   polish 1 / 5 / 6) open on cloud-queue bcbc3608; + sector-redesign-polish3 (fog P1-P3, bake2 polish 5 lightBake
-   held.dead; off master fc4dc9ab; 24e7949b). ALL THREE DONE + CHECKED: vg1p PASS merged d38acf7e; VG5 PASS merged
-   2fd31847 (polish 1-5 held in checks/vg5-check.md); polish3 = PR #379, Opus check PASS, head ac0f1f3a (checker status
-   posted); affected-e2e queued on 62aa2320 (docs-only delta) -> label train-ready on green (orchestrator OK if capped).
-   Laptop: M0 (visual-m0, fc4dc9ab) and VG5 rules-only gate run (visual-vg5, master 46a7cf85, json + png to
-   C:/NightShift/scratch/visual-gate/vg5 on the laptop) queued -> write M0.md + VG5 laptop verdict into vg5-check.md.
-   Group C briefs VG7 (2 phases) + P1-P7 committed d1e45ddc (A24-A30; laptop ~65-70 min total). CLOUD: bake4 +
-   vg3-polish CLAIMED 18:21Z; visual-gate-vg7-p1 (phase 1 tools) OPEN 42c479be. Phase 2 = lead's laptop request after
-   M0.md exists (VG7.md "Preconditions").
-   S5 CR7 rope fixed a2cf369a (rappel down, rope up); Marlow validator 0 errors over all five + both missions.
-   Also IN FLIGHT 05:15: Opus writer for briefs VG7.md + P1-P7.md in -visual-gate (uncommitted; lead commits; rerun if
-   missing). CLOUD open 5b0acb04: sector-redesign-bake4 (stacked on #361: Math.min retry cap, held-order test, bake2
-   polish 3) + visual-gate-vg3-polish (regions >= 60 px, gallery wall). #367 VG6 TRAIN-READY (orchestrator 05:08).
-   After #361 lands: bake3 check polish (Math.min retry cap, held-order test) + bake2 polish 3 in a later batch.
-4. Marlow Build mission-framework EN2 adds hook lines in sectorMode.ts / sectors.ts / campusOps.ts on master
-   (conflicts resolved in the train); no reply needed.
-Laptop requests: node C:/NightShift/scratch/lq/request.mjs (copied from origin/master with ../e2e-affected.mjs beside
-it) --sha <sha> --pr N --branch <b> --set <s> --suites "a b" --requester "Night Shift | Sector Ops Build".
+Night Shift | Sector Ops Build: RESUME (saved 2026-10-25 ~08:45, new account, FULL BURN from Michael 08:25 "hit the 5 hour
+cap as quick as possible"). git fetch; read CLAUDE.md "Sessions" (origin/master). Sector Ops + Lighting AT WALK CAP 3:
+only tests (visual-gate), fixes, automation. Worktrees: -polish (this STATE), -signoff, -visual-gate (+ -vg1p now on
+feature/visual-gate-vg3p), -bake3 (now on feature/sector-redesign-bake4), -polish3.
+1. PR #385 bake4 (cloud brief done; retry cap Math.min, WorkerPool.cancel replaces a stalled worker; behaviour change
+   assumed keep: a first try > 60 s is killed). Opus checker running (-> checks/bake4-check.md + checker status);
+   laptop set bake4 "lightbake sectorops:6" queued 21:23Z on ad69c83e. Green -> label train-ready, tell orchestrator.
+2. PR #379 polish3: train-ready label on; red only on the pr-size CI bug (#378 hotfix pending Michael). No action.
+3. CAMPUS SIGN-OFF (feature/sector-redesign-signoff @ a2cf369a): S1-S5 pages done, checked, fixed; WAITING on Michael's
+   picks (one per page; orchestrator brings them). After picks: greybox slices per S<N>-detail.md build cost.
+4. VISUAL-GATE (docs/visual-gate/STATE.md on feature/visual-gate @ d1e45ddc): VG1-VG5 + vg1p merged, VG6 #367 and
+   #366 released. M0 laptop run PASSED (alone-visual-m0, fc4dc9ab, 244 s); VG5 rules-only gate run FAILED
+   (alone-visual-vg5, 46a7cf85, 0/1, 178 s). Results live only on the laptop: asked Test Runner ~08:40 to push both
+   (json, png, run logs) to shots/visual-gate-m0. On arrival: Opus triage of VG5 (fix round on feature/visual-gate-vg5),
+   write docs/visual-gate/M0.md + PLAN 7 ladder, rerun VG5 laptop run, then group C: send VG7 phase-1 tools check +
+   VG7 laptop request (briefs/VG7.md :206) and the 8 proof builds (briefs/P1-P7.md) together.
+   vg3p (cloud done 5472f686): Sonnet checker running in -vg1p -> checks/vg3p-check.md; PASS -> merge into
+   feature/visual-gate. VG7 phase 1 brief OPEN on cloud-queue (reopened after the swap). Opus writer on briefs VG8,
+   C1, VG9 (group D-E) in -visual-gate. VG5 check polish 2-4 (gate.mjs skips line, NaN meter, exitCode) held until
+   the VG5 triage lands.
+Laptop requests: from a repo dir, node C:/NightShift/scratch/lq/request.mjs --sha <full sha> --pr N --branch <b> --set <s>
+--suites "a b" --requester "Night Shift | Sector Ops Build".
 RULES: message the orchestrator only at PR open / train-ready / blocked / needs Michael; Opus plans / checks / engine,
-Sonnet from strict briefs; one checker per batch in parallel with the laptop request; one fix round; never merge master
-into a job branch; no desktop e2e / GPU; vitest --maxWorkers=2; agents wait while CPU > 90%; never two agents on one
-file. Older context (bake2 #354 4.98.1 and fog2 #357 4.98.2 RELEASED; LR16 / #307 released; held lists for Michael):
-the 23:10 block under "History: resume block 2026-10-24 ~23:10" above.
+Sonnet from strict briefs; one checker per batch with the laptop request; one fix round; never merge master into a job
+branch; no desktop e2e / GPU; vitest --maxWorkers=2; agents wait while CPU > 90%; never two agents on one file.
+Previous block (05:25): git log -p on this file.
 ```
