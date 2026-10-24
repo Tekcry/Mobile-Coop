@@ -24,7 +24,8 @@
 // --preview-next (with --dry-run only): ignore an open train and show the build the next tick without one would make.
 // Fast poll: a tick that ends waiting (pending, laptop-rerun, holding) keeps its lock and runs the step again every
 // AUTO_TRAIN_FAST_POLL_S (60) s up to AUTO_TRAIN_FAST_POLL_MAX_MIN (4) min from its start, stopping on any state
-// change; --once and --dry-run never poll.
+// change; --once and --dry-run never poll. Every AUTO_TRAIN_FAST_POLL_LATE_S (30) s instead once the open train's
+// laptop-e2e pending status is older than its expected wall ("expect ~N s" in it, else LAPTOP_EXPECT_MIN 10 min).
 // Release is `merge-train release ... --head <the tested head> --no-fallback` (pinned; never the old-style path); a
 // train without a version commit is state "error" ("rebuild"). merge-train build runs no vitest (CI's `test` does).
 // A failed rebuild after release exit 3 is recorded (`rebuildFailed`) and skipped until the train head or master moves.
@@ -488,6 +489,33 @@ export const rerunArgs = ({ sha, suites, pr, set }) => ['--sha', sha, '--suites'
 /** Seconds between fast polls (AUTO_TRAIN_FAST_POLL_S) and the window from the tick's start (AUTO_TRAIN_FAST_POLL_MAX_MIN). */
 export const FAST_POLL_S = 60;
 export const FAST_POLL_MAX_MIN = 4;
+/**
+ * Seconds between fast polls once the train's laptop-e2e pending status is older than its expected wall (laptopLate;
+ * AUTO_TRAIN_FAST_POLL_LATE_S): the verdict is due, so a release waits under a minute for it (Orchestrator waste audit
+ * 2026-10-24: release lag was 1.3-2.7 min at 60 s).
+ */
+export const FAST_POLL_LATE_S = 30;
+/** Minutes a train's laptop run is expected to take when its pending status names no "expect ~N s" (laptopLate). */
+export const LAPTOP_EXPECT_MIN = 10;
+
+/** When the newest status of `context` went pending (ms), or null when it is not pending or its time is unreadable. */
+export function pendingSince(combined, context) {
+  const list = (combined?.statuses ?? []).filter((s) => s.context === context)
+    .sort((a, b) => (Date.parse(b.updated_at || b.created_at || '') || 0) - (Date.parse(a.updated_at || a.created_at || '') || 0));
+  if (!list.length || String(list[0].state).toLowerCase() !== 'pending') return null;
+  return Date.parse(list[0].updated_at || list[0].created_at || '') || null;
+}
+
+/**
+ * True when the laptop's pending verdict is due: `since` (pendingSince) is older than the expected wall, the laptop
+ * service's "expect ~N s" in the description (the heaviest shard, posted when the suites start) or `defaultMin`.
+ */
+export function laptopLate({ since, description = '', now, defaultMin = LAPTOP_EXPECT_MIN }) {
+  if (!since) return false;
+  const m = /expect ~(\d+) s/.exec(String(description));
+  const expectMs = m ? Number(m[1]) * 1000 : defaultMin * 60_000;
+  return now - since > expectMs;
+}
 /** The waiting states a tick keeps polling: an open train waiting on CI / the laptop / a laptop rerun, or the build hold. */
 export const FAST_POLL_STATES = ['pending', 'laptop-rerun', 'holding'];
 
@@ -496,19 +524,21 @@ export const FAST_POLL_STATES = ['pending', 'laptop-rerun', 'holding'];
  * opts { pollS, maxMin, once, dry, prevState } (`prevState` = the state before this step, null on the first one).
  * Polls only in a waiting state (FAST_POLL_STATES), never under --once or --dry-run, stops on any state change, and
  * only while the next poll starts within `maxMin` of the tick's start (4: done before the next 5-min task run).
+ * `late` (laptopLate: the laptop verdict is past its expected wall) polls every `lateS` s instead, when shorter.
  * -> { poll, delayMs, reason }.
  */
-export function fastPollPlan(state, startedAt, now, { pollS = FAST_POLL_S, maxMin = FAST_POLL_MAX_MIN, once = false, dry = false, prevState = null } = {}) {
+export function fastPollPlan(state, startedAt, now, { pollS = FAST_POLL_S, maxMin = FAST_POLL_MAX_MIN, once = false, dry = false, prevState = null, late = false, lateS = FAST_POLL_LATE_S } = {}) {
   const no = (reason) => ({ poll: false, delayMs: 0, reason });
   if (once) return no('--once');
   if (dry) return no('dry run');
   if (!(pollS > 0) || !(maxMin > 0)) return no('fast poll off');
   if (prevState != null && state !== prevState) return no(`state changed (${prevState} -> ${state})`);
   if (!FAST_POLL_STATES.includes(state)) return no(`${state} is not a waiting state`);
-  const delayMs = pollS * 1000;
+  const s = late && lateS > 0 && lateS < pollS ? lateS : pollS;
+  const delayMs = s * 1000;
   const at = now + delayMs - startedAt;
   if (at > maxMin * 60_000) return no(`fast poll window over (${maxMin} min)`);
-  return { poll: true, delayMs, reason: `${state}: polling again in ${pollS} s (${Math.round(at / 1000)} s into the tick, up to ${maxMin} min)` };
+  return { poll: true, delayMs, reason: `${state}: polling again in ${s} s${s !== pollS ? ' (laptop verdict due)' : ''} (${Math.round(at / 1000)} s into the tick, up to ${maxMin} min)` };
 }
 
 /** True when every path is documentation (Markdown anywhere or under docs/). */
@@ -532,6 +562,7 @@ const RERUN_STALE = envMin('AUTO_TRAIN_RERUN_STALE_MIN', RERUN_STALE_MIN);
 const CHECK_WAIT = envMin('AUTO_TRAIN_CHECK_WAIT_MIN', CHECK_WAIT_MIN);
 const POLL_S = envMin('AUTO_TRAIN_FAST_POLL_S', FAST_POLL_S);
 const POLL_MAX_MIN = envMin('AUTO_TRAIN_FAST_POLL_MAX_MIN', FAST_POLL_MAX_MIN);
+const POLL_LATE_S = envMin('AUTO_TRAIN_FAST_POLL_LATE_S', FAST_POLL_LATE_S);
 let CWD = 'C:/NightShift/Mobile-Coop-train';
 let LOCK_TEXT = null; // our tick lock's text, handed to merge-train (AUTO_TRAIN_LOCK_TEXT) so it runs under it
 
@@ -692,6 +723,7 @@ function openTrain() {
     ci: ciState(p.statusCheckRollup, 'check'),
     ciGreenAt: ciGreenAt(p.statusCheckRollup, combined, 'check'),
     laptop: contextStatus(combined, LAPTOP_CONTEXT),
+    laptopSince: pendingSince(combined, LAPTOP_CONTEXT),
     rerun: contextStatus(combined, rerunContext(n)),
     vitest: contextStatus(combined, VITEST_CONTEXT).state,
     ageMin: (Date.now() - since) / 60_000,
@@ -858,7 +890,9 @@ async function step(o) {
   // a releasable train (a laptop-e2e pass, or a desktop failure whose laptop rerun passed) goes the normal release way
   const rp = d.action === 'release' ? null : rerunPlan(t, prev, { now: Date.now(), staleMin: RERUN_STALE });
   if (rp) return rerunStep(t, rp, base);
-  if (d.action !== 'release') return { ...base, state: d.state, reason: d.reason, ...(d.waitingMin != null ? { waitingMin: d.waitingMin } : {}) };
+  // the laptop verdict is past its expected wall: the fast poll goes to POLL_LATE_S (laptopLate)
+  const late = d.state === 'pending' && laptopLate({ since: t.laptopSince, description: t.laptop.description, now: Date.now() });
+  if (d.action !== 'release') return { ...base, state: d.state, reason: d.reason, ...(d.waitingMin != null ? { waitingMin: d.waitingMin } : {}), ...(late ? { laptopLate: true } : {}) };
   const master = exec(['git', 'ls-remote', 'origin', 'refs/heads/master']).out.split('\t')[0].trim() || null;
   if (rebuildSkip(prev, t.head, master)) {
     log(`skip: ${prev.reason} (train head and master unchanged)`);
@@ -946,7 +980,7 @@ async function main(argv) {
     // audit 2 item 3: a waiting tick keeps its lock and re-checks every POLL_S s up to POLL_MAX_MIN from its start,
     // stopping at once on a state change (the step already acted on it: release, build, ...); status written each poll
     for (let prevState = null; ;) {
-      const fp = fastPollPlan(status.state, startedAt, Date.now(), { pollS: POLL_S, maxMin: POLL_MAX_MIN, once: !!o.once, dry: DRY, prevState });
+      const fp = fastPollPlan(status.state, startedAt, Date.now(), { pollS: POLL_S, maxMin: POLL_MAX_MIN, once: !!o.once, dry: DRY, prevState, late: !!status.laptopLate, lateS: POLL_LATE_S });
       if (!fp.poll) { if (prevState != null || FAST_POLL_STATES.includes(status.state)) log(`fast poll: stop (${fp.reason})`); break; }
       log(`fast poll: ${fp.reason}`);
       await new Promise((r) => setTimeout(r, fp.delayMs));

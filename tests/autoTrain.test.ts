@@ -3,7 +3,7 @@ import {
   bumpVersion, ciGreenAt, ciState, contextStatus, decide, desktopFailSuites, docsOnly, fragmentInfo, fragmentPath, joinTitles, laptopMissing, laptopQueueState, membersFromSubjects,
   nextTrainNumber, pacing, parseChangelogHeading, parseLeftOut, parseTrainTitle, planBuild, rebuildSkip, releaseArgs, releaseKind, scratchFiles,
   stackedTips, versionFromSubjects, rerunArgs, rerunContext, rerunPlan, buildMarkerPath, clearBuildMarker, withBuildMarker, writeBuildMarker, leftOutPlan, RERUN_STALE_MIN, RERUN_REQUEST_MAX,
-  checkWaitReason, holdForChecks, selfUpdatePlan, CHECK_WAIT_MIN, fastPollPlan, FAST_POLL_S, FAST_POLL_MAX_MIN, LOCK_STALE_MIN,
+  checkWaitReason, holdForChecks, selfUpdatePlan, CHECK_WAIT_MIN, fastPollPlan, FAST_POLL_S, FAST_POLL_MAX_MIN, LOCK_STALE_MIN, FAST_POLL_LATE_S, LAPTOP_EXPECT_MIN, pendingSince, laptopLate,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/auto-train.mjs';
 
@@ -484,6 +484,35 @@ describe('auto-train: fast poll of a waiting tick (audit 2 item 3)', () => {
       expect(fastPollPlan(st, NOW, NOW).poll).toBe(false);
     }
     expect(fastPollPlan('laptop-rerun', NOW, NOW + MIN, { prevState: 'pending' })).toMatchObject({ poll: false, reason: 'state changed (pending -> laptop-rerun)' });
+  });
+
+  it('polls every 30 s once the laptop verdict is past its expected wall (laptop-queue-3)', () => {
+    expect(FAST_POLL_LATE_S).toBe(30);
+    expect(fastPollPlan('pending', NOW, NOW, { late: true })).toMatchObject({ poll: true, delayMs: 30 * S, reason: expect.stringMatching(/laptop verdict due/) });
+    expect(fastPollPlan('pending', NOW, NOW, { late: false }).delayMs).toBe(60 * S);
+    expect(fastPollPlan('pending', NOW, NOW, { late: true, lateS: 0 }).delayMs).toBe(60 * S); // off
+    expect(fastPollPlan('pending', NOW, NOW, { late: true, pollS: 20 }).delayMs).toBe(20 * S); // never slower
+    // the window still ends at 4 min (next poll at 3:30 + 30 s = 4:00 ok, 3:31 not)
+    expect(fastPollPlan('pending', NOW, NOW + 3.5 * MIN, { late: true, prevState: 'pending' }).poll).toBe(true);
+    expect(fastPollPlan('pending', NOW, NOW + 3.5 * MIN + S, { late: true, prevState: 'pending' }).poll).toBe(false);
+    expect(fastPollPlan('pending', NOW, NOW, { late: true, once: true }).poll).toBe(false);
+  });
+
+  it('laptopLate: the pending laptop-e2e status is older than "expect ~N s", else 10 min', () => {
+    expect(LAPTOP_EXPECT_MIN).toBe(10);
+    const at = (min: number) => new Date(NOW - min * MIN).toISOString();
+    const combined = { statuses: [
+      { context: 'laptop-e2e', state: 'pending', description: 'sharded 4189+4192', updated_at: at(12) },
+      { context: 'laptop-e2e', state: 'pending', description: 'sharded 4189+4192, expect ~400 s', updated_at: at(7) },
+    ] };
+    expect(pendingSince(combined, 'laptop-e2e')).toBe(NOW - 7 * MIN);
+    expect(pendingSince({ statuses: [{ context: 'laptop-e2e', state: 'success', updated_at: at(1) }] }, 'laptop-e2e')).toBeNull();
+    expect(pendingSince({ statuses: [] }, 'laptop-e2e')).toBeNull();
+    expect(laptopLate({ since: NOW - 7 * MIN, description: 'sharded 4189+4192, expect ~400 s', now: NOW })).toBe(true);
+    expect(laptopLate({ since: NOW - 6 * MIN, description: 'sharded 4189+4192, expect ~400 s', now: NOW })).toBe(false);
+    expect(laptopLate({ since: NOW - 9 * MIN, description: 'sharded 4189+4192', now: NOW })).toBe(false);
+    expect(laptopLate({ since: NOW - 11 * MIN, description: 'sharded 4189+4192', now: NOW })).toBe(true);
+    expect(laptopLate({ since: null, description: '', now: NOW })).toBe(false);
   });
 
   it('a polling tick stays far inside the tick lock staleness (touched every minute anyway)', () => {
