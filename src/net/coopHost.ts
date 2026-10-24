@@ -49,7 +49,7 @@ import type { CourseMode } from '../game/modes/courseMode';
 import type { PickupKind } from '../game/pickups';
 import { takeInfo } from '../ai/guardInfo';
 import { revealIntel, revealJoint } from '../game/intelReveal';
-import { hasJoint, JOINT, JOINT_BLUFF_FEED, jointBluffer, jointOf, type Bluff } from '../game/jointInterrogation';
+import { hasJoint, JOINT, JOINT_BLUFF_FEED, jointBluffer, jointHasLines, jointOf, type Bluff, type JointIntel } from '../game/jointInterrogation';
 import { interrogationEnded } from '../game/intel';
 import type { TeamMate } from '../game/teamController';
 import type { PlayerRef } from '../ai/enemy';
@@ -526,6 +526,7 @@ export class CoopHost implements NetAttachment {
     this.partnerBoxes.delete(id);
     this.joins.drop(id);
     this.rejoining.delete(id);
+    this.bluffs.delete(id);
     if (r.held) this.g.hud.setNetNotice(null);
     this.dropRevive(id);
     for (const [eid, s] of this.seized) if (s.by === id) this.release(eid);
@@ -911,10 +912,13 @@ export class CoopHost implements NetAttachment {
       return;
     }
     const b = this.bluffs.get(by);
+    // (check should-fix) the line once per live bluff: a repeat press or a replay on the same guard renews it quietly
+    const fresh = !b || b.eid !== e.id || this.time - b.t0 > JOINT.window;
     if (b) {
       b.eid = e.id;
       b.t0 = this.time;
     } else this.bluffs.set(by, { eid: e.id, t0: this.time });
+    if (!fresh) return;
     this.radioLine(JOINT_BLUFF_FEED);
     this.g.hud.feedItem(JOINT_BLUFF_FEED);
   }
@@ -929,14 +933,15 @@ export class CoopHost implements NetAttachment {
 
   /** (joint-interrogation) NetAttachment: the host's own read of `v` ends; another player's live bluff on him counts
    *  (spent and counted). */
-  jointLive(v: TakedownVictim): boolean {
-    return this.jointFor(v.id, this.s.selfId);
+  jointLive(v: TakedownVictim, j: JointIntel | null): boolean {
+    return this.jointFor(v.id, this.s.selfId, j);
   }
 
   /** (joint-interrogation) A read of guard `eid` held by `holder` ends now: a live bluff by another player on him (the
    *  holder's own entry never counts) is spent (`bluffs.delete`) and counted (`joints`). Runs on the read's end only. */
-  private jointFor(eid: string, holder: string): boolean {
-    if (this.bluffs.size === 0) return false;
+  private jointFor(eid: string, holder: string, j: JointIntel | null): boolean {
+    // (check should-fix) spent and counted only when there are joint lines to reveal (`j`: read before `takeInfo`)
+    if (this.bluffs.size === 0 || !jointHasLines(j)) return false;
     this.jointEid = eid;
     const by = jointBluffer(this.bluffs, eid, holder, this.time, this.bluffDist);
     if (by === null) return false;
@@ -1605,7 +1610,7 @@ export class CoopHost implements NetAttachment {
           if (interrogationEnded(this.interPh.get(eid) ?? -1, mv.sub)) {
             const info = e.info;
             // (joint-interrogation) checked before `takeInfo` spends him; the holder (s.by) is never his own bluffer
-            const joint = !!info && info.lines.length > 0 && this.jointFor(eid, s.by);
+            const joint = !!info && info.lines.length > 0 && this.jointFor(eid, s.by, jointOf(info));
             if (takeInfo(e)) revealIntel(this.g, e.pos, info);
             if (joint) revealJoint(this.g, e.pos, jointOf(info));
           }

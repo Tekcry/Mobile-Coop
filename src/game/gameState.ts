@@ -42,7 +42,7 @@ import { WeaponCrates } from './weaponCrates';
 import { addDoorRows, DOOR_KIND, DoorMenuView, guardBehindDoor, type DoorOpt } from './doorMenu';
 import { addGrabRows, GRAB_KIND, GRAB_OPT_LABEL, GRAB_OPTS, GRAB_PASS, GrabMenuView, grabTriggerPick, hasInfo, type GrabOpt } from './grabMenu';
 import { ContextMenu, CtxNav, emptyCtxInput } from './contextMenu';
-import { hasJoint, JOINT_BLUFF_LABEL, JOINT_KIND } from './jointInterrogation';
+import { hasJoint, JOINT_BLUFF_LABEL, JOINT_KIND, type JointIntel } from './jointInterrogation';
 import { StrikeTrigger } from '../player/weaponStance';
 import { DRAW_HOLSTERED } from '../weapons/drawState';
 import { emptyStats, type GameMode, type ModeId, type SessionStats } from './modes/gameMode';
@@ -232,8 +232,8 @@ export interface NetAttachment {
    *  stores its own; a client asks the host (`td`, kind `bluff`). A denied bluff shows nothing (A6). */
   jointBluff?(v: TakedownVictim): void;
   /** (joint-interrogation) Host only: the host's own read of `v` ends now; true when another player's bluff on him is
-   *  live (that bluff is spent and counted: one read pays once). */
-  jointLive?(v: TakedownVictim): boolean;
+   *  live and `j` (his joint record, read before `takeInfo`) has lines (that bluff is spent and counted: one read pays once). */
+  jointLive?(v: TakedownVictim, j: JointIntel | null): boolean;
   /** (camera-cue fix) Client: the other living players' bodies for the camera cue's own sight test, written into
    *  `out` from index `from` (entries added when missing); returns how many. */
   partnerBodies?(out: SeenBody[], from: number): number;
