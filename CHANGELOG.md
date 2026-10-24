@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.98.2 - Train 69: Saltmarsh Park fog fix wiring test (2026-10-24, PR #358; #357)
+- Tests: a test now guards the wiring of the Saltmarsh Park fog fix (the map's lamp-beam setting reaching the
+  volumetric light pass), so dropping it fails CI. No player-visible change.
+
 ## 4.98.1 - Train 68: Saltmarsh Park section bake hardening (2026-10-24, PR #355; #354)
 - Saltmarsh Park's per-section lamp bake is sturdier: a lamp whose bake fails is retried once on the worker pool, then
   on the main thread only while no worker job runs (one lamp per task, so frames keep running), and a job stuck past
