@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-24T10:16Z
 
 # level-validator V1b: the 16 missing metrics keys + V1 checker should-fixes (Marlow Build, job level-validator)
 
