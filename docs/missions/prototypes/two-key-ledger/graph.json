@@ -1,0 +1,36 @@
+{
+  "_about": "Two-Key Ledger mission nodes (mission-framework TKL). Mission part only: validate with the Tallow Wharf map graph, `node scripts/level-validate.mjs <abs>/campaign-map/graph.json <abs>/two-key-ledger/graph.json` (mission-validator branch). Space ids are the map's (campaign-map/graph.json). Beat chart: BEAT.md; id mapping and choices: BEAT.md 'Graph notes'. `window` (tkl-3) and `item` (tkl-4) are MissionDef fields kept for EN2, not validator fields.",
+  "mission": { "id": "twoKeyLedger", "mode": "campaign", "players": [2], "start": "w2-arcade",
+               "sections": ["W2", "W3", "W4"], "budget": 20 },
+  "objectives": [
+    { "id": "tkl-1", "section": "W2", "space": "w2-pie-loft", "team": "all", "kind": "intel", "gives": "tkl-gate-code",
+      "lead": "w2-walkway", "seen_from": "w2-arcade", "minutes": 4,
+      "text": "Listen to the night clerk on his supper break in the pie shop loft",
+      "hint": "The night clerk eats in the pie shop loft. Listen from the loft walkway outside." },
+    { "id": "tkl-2", "section": "W3", "space": "w3-east-wing", "team": "all", "kind": "exploit", "needs": "tkl-gate-code",
+      "after": ["tkl-1"], "lead": "w2-lane-window", "seen_from": "w3-east-yard", "minutes": 4,
+      "text": "Into the counting house: the east gate by the yard, the west wing from the roof",
+      "hint": "The founding year is on the brass plate over the front door. The east gate takes it." },
+    { "id": "tkl-3", "section": "W3", "space": "w3-east-post", "team": "all", "kind": "sync", "after": ["tkl-2"],
+      "lead": "w3-west-post", "seen_from": "w3-east-wing", "minutes": 5, "new_mechanic": "synced_key_turn", "window": 1.0,
+      "text": "Turn both strongroom keys together: the east wing and the west wing key posts",
+      "hint": "Each of you holds a key. Turn when the count says turn, not before." },
+    { "id": "tkl-4", "section": "W3", "space": "w3-coal-yard", "team": "all", "kind": "carry", "twist": true,
+      "after": ["tkl-3"], "lead": "w3-passage", "seen_from": "w3-roof", "minutes": 4, "new_mechanic": "telltale_bell",
+      "item": "tkl-ledger",
+      "text": "Take the ledger from the strongroom and leave by the coal chute to the yard",
+      "hint": "The coal chute is in the strongroom passage. One boosts, the other unbolts the yard hatch." },
+    { "id": "tkl-opt", "section": "W3", "space": "w3-partners-office", "team": "all", "kind": "interact",
+      "optional": { "reward": "syringe" }, "after": ["tkl-2"], "lead": "w3-east-wing", "seen_from": "w3-east-wing",
+      "minutes": 3,
+      "text": "Optional: copy the partners' day book in the east wing office",
+      "hint": "The partners' office is one door from the east key post. Its desk lamp is the warm one." },
+    { "id": "tkl-5", "section": "W4", "space": "w4-boat", "team": "all", "kind": "extract", "after": ["tkl-4"],
+      "minutes": 3,
+      "text": "Both of you, through the wharf sheds to the boat at the jetty steps",
+      "hint": "The boat waits at the jetty steps under the crane. The shed shutter is the way through." }
+  ],
+  "rules": [
+    { "kind": "noKills", "scope": "mission", "text": "Rule - no kills." }
+  ]
+}

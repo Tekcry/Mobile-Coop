@@ -74,22 +74,46 @@ Rule: no kills. Knock them down if you must. They wake up with a headache.
 - Step 5: SEXTON: Shed two's shutter is your way through. Yard's quiet. / LANTERN: Boat's under the crane. Both of you. /
   (extract) TALLY: It's all here. Who paid, and when. / LANTERN: Good. Breathe. Come home.
 
-## Spaces needed (for the CMG graph check)
+## Spaces needed (for the CMG graph check; map ids in brackets, campaign-map/graph.json)
 Size classes: S = short side 6-10 m, M = 10-20 m, L = over 20 m (play space >= 6 m, scale sheet 3).
-- W2 arcade ground (checkpoint, mission start): M covered passage; the pull-up lip to the loft walkway (KIT-PULL).
-- W2 pie shop loft: S, lit window, the clerk at the telephone; the loft walkway outside within earshot (dark).
-- W2 loft window: sees the brass plate over Gaunt & Lisle's door (step 1 lead and step 2 `seen_from`).
-- W2 -> W3 link: the loft roof across the arcade lane to the counting house roof (team throw, the W2 exit for TKL).
-- W3 counting house roof: M, the W3 vantage (yard, east gate, porter's lodge lamp); rope anchor over the west light well.
-- W3 east gate and yard: M, keypad gate (needs `tkl-gate-code`), lit gate lamp, a dark wall line; W3 checkpoint.
-- W3 west wing: M, reached by rope descent into its light well; clerks' hall, dark stacks; the west key post (S alcove).
-- W3 east wing: M, porter's lodge (the twist's patrol start), partners' office (optional, warm lamp), east key post.
+- W2 arcade ground [`w2-arcade`] (checkpoint, mission start): M covered passage; the pull-up lip to the loft walkway (KIT-PULL).
+- W2 pie shop loft [`w2-pie-loft`; walkway `w2-walkway`]: S, lit window, the clerk at the telephone; the loft walkway outside within earshot (dark).
+- W2 loft window [`w2-lane-window`]: sees the brass plate over Gaunt & Lisle's door (step 1 lead and step 2 `seen_from`).
+- W2 -> W3 link: the loft roof [`w2-arcade-roof`] across the arcade lane to the counting house roof [`w3-roof`] (team throw, the W2 exit for TKL).
+- W3 counting house roof [`w3-roof`]: M, the W3 vantage (yard, east gate, porter's lodge lamp); rope anchor over the west light well.
+- W3 east gate and yard [`w3-east-yard`; the east gate is the door link `w3-east-yard` -> `w3-east-wing`]: M, keypad gate (needs `tkl-gate-code`), lit gate lamp, a dark wall line; W3 checkpoint.
+- W3 west wing [`w3-west-wing`, post `w3-west-post`]: M, reached by rope descent into its light well; clerks' hall, dark stacks; the west key post (S alcove).
+- W3 east wing [`w3-east-wing`, lodge `w3-lodge`, office `w3-partners-office`, post `w3-east-post`]: M, porter's lodge (the twist's patrol start), partners' office (optional, warm lamp), east key post.
 - W3 key posts: one per wing, about 20-25 m apart, no line of sight between them (radio is the link).
-- W3 strongroom and passage: S strongroom between the wings; passage with the grille (B's watch spot) and the coal
+- W3 strongroom and passage [`w3-strongroom`, `w3-passage`, chute `w3-chute`, yard `w3-coal-yard`]: S strongroom between the wings; passage with the grille (B's watch spot) and the coal
   chute iron door; the chute is a real coal duct (1.2 x 1.5 crouch, scale sheet) ending at a bolted yard hatch.
-- W3 -> W4 link: the coal yard to the wharf sheds' back lane.
-- W4 shed two: M, loading shutter on the lane side (co-op hold shutter, 0.9 m crawl gap), dark aisle to the jetty.
-- W4 jetty and boat: S extraction zone, pull-up lip from the canal ledge (shared with Three Grey Coats); the crane's red
+- W3 -> W4 link [`w3-cartway` -> `w4-back-lane`]: the coal yard to the wharf sheds' back lane.
+- W4 shed two [`w4-shed-two`]: M, loading shutter on the lane side (co-op hold shutter, 0.9 m crawl gap), dark aisle to the jetty.
+- W4 jetty and boat [`w4-jetty` + `w4-boat`; ledge `w4-canal-ledge`]: S extraction zone, pull-up lip from the canal ledge (shared with Three Grey Coats); the crane's red
   lamp is the W4 landmark.
 
-SIGNOFF question (placeholder): "Approve this beat chart?"
+## Graph notes (TKL graph, 2026-10-24 ~23:50)
+- `graph.json` holds the mission nodes only, on the map ids of `campaign-map/graph.json`. Steps: tkl-1 .. tkl-5 and
+  tkl-opt; `mission.start` w2-arcade, `mission.sections` W2, W3, W4 (W1 is Three Grey Coats' only), budget 20 min
+  (required steps 20, with the optional 23).
+- One space per objective, so:
+  - tkl-1 is done at the pie loft (`w2-pie-loft`, the listen zone at its propped walkway door). Lead `w2-walkway` (his
+    voice and the lit window), seen from the arcade floor.
+  - tkl-2's lead is `w2-lane-window` (the brass plate, which turns "the founding year" into a number). Its goal is the
+    east wing through the east gate, seen from `w3-east-yard` (the gate lamp over the keypad), not from the lane window
+    as "Spaces needed" first said: that window sees the front door, not the gate.
+  - tkl-3 sits at `w3-east-post`; its lead is the brass notice at `w3-west-post`, the other half. `window` 1.0 s is kept
+    for EN2.
+  - tkl-4 ends at `w3-coal-yard` (the ledger taken in `w3-strongroom`, out through `w3-chute`); lead `w3-passage` (the
+    chute's iron door), seen from the roof's hoist beam. `item` tkl-ledger is kept for EN2.
+  - tkl-opt: lead and view are both the east wing (the warm lamp under the office door).
+- W4 route: back lane, shed two's shutter (co-op hold), its canal door, the jetty, the boat. The canal ledge pull-up is
+  the second way onto the jetty (shared with Three Grey Coats).
+- Validator (mission-validator branch, map + this file): 0 errors, 6 warnings, all the map's own (custom room class on
+  w1-canal-steps, w2-arcade-roof, w3-roof, w3-chute, w4-boat; w3-chute's 1.2 m width is off the 0.5 m grid, which is the
+  scale sheet's crouch duct). No mission warning: choke nodes found in W2 (walkway), W3 (coal yard) and W4 (jetty);
+  forced co-op holds in every section; the ghost and pacifist runs pass.
+- PLAN.svg: `node scripts/graph-svg.mjs <campaign-map/graph.json> <graph.json> --out PLAN.svg --title ...` (whole map;
+  W1 is drawn for context only).
+
+SIGNOFF question: see [`SIGNOFF.md`](SIGNOFF.md).
