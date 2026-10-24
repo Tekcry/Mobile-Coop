@@ -1,5 +1,51 @@
 # Changelog
 
+## 4.95.0 - Train 59: Laptop queue: audit fixes; e2e-coop joint interrogation flake; lightField allocation check retry; Optic cable: the partner's view, hatches and grilles (engine); Co-op body carry on the client (2026-10-24, PR #332; #329, #328, #327, #314, #313)
+
+### Co-op body carry on the client
+- (coop-carry) Co-op: the joiner can pick up, carry, put down and hide a downed guard's body, host-approved, with the
+  same 2 s lift, slow bent carry and 0.8 s put down as the host; both screens show a partner carrying (the host's own
+  carry now shows on the joiner too). Bodies ride the item mirror as kind `body` (wire change: the train bumps the
+  protocol). The carry code moved from `StealthSystems` to `game/bodyCarry.ts` unchanged.
+
+### e2e-coop joint interrogation flake
+- e2e-coop "joint interrogation: host bluffs, client reads": the client's hold starts as soon as the host stores its bluff
+  and the client's bluff line is checked alongside, so Node polls under load no longer spend the bluff's 6 s host-time
+  window before the read ends (a 28 fps host timed out on the joint count); a timeout now prints the host's bluff age.
+
+### Laptop queue: audit fixes
+- Tooling: the laptop queue service stops a request its requester withdrew (the run is killed, the slot freed), and a
+  pending train preempts a running PR request (re-queued). `request.mjs --pin` keeps A/B and baseline runs from being
+  superseded.
+- Tooling: duplicate requests are marked done unrun; runs not yet in their suites yield to a pending train; train
+  reruns (`--train-rerun`) run at train priority and turn `laptop-e2e` green on a pass; alone runs wait while an open
+  train lacks a laptop verdict; the desktop takes no new claims while auto-train builds a train; a task guard disables
+  stale scheduled tasks (`one-shot-task.ps1` is the only way to schedule an ad-hoc run).
+
+### Optic cable: the partner's view, hatches and grilles (engine)
+- (ct-toolkit 3.2, optic-coop) Co-op: a partner now sees the optic cable. While one player feeds it under a door their
+  copy on the other screen kneels in front of the leaf with the right hand at the door's foot and a thin cable running
+  out under the door, growing over the 1.2 s feed and shrinking over the 0.6 s pull out; the view stays local. The
+  player's own body shows the same hand and cable. Wire: MoveState mode `optic` (`sub` the kind: door, hatch, panel,
+  grille; `a` the door or gap; `ph` the cable fed out); an unknown kind or a door or gap the level lacks is dropped.
+  A ping from the view already casts from the tip and reaches the team; no ping input is bound yet.
+- (optic-coop) Engine side of the optic cable's other gaps (map field `optic`): floor hatches, ceiling panels (fed
+  standing), vent grilles and shaft tops (`LevelBuilder.opticGap`, `OpticSystem.pickPoint`): the kneel spot, the tip
+  0.3 m into the space (or the map's own tip point), the look 50 deg down or up through a floor or ceiling gap, and the
+  refusals "Too far" and "No gap". No map places one yet.
+- (optic-coop M1) At a hatch, ceiling panel, grille or shaft top the optic cable starts from the action menu, the same
+  as doors: hold A (E) for OPEN TRAP (only where a panel covers the gap; it opens quietly) and OPTIC CABLE; "Too far"
+  and "No gap" show as at a door. In co-op OPEN TRAP goes through the host like a door, so the panel opens for both
+  players (and for a partner who joins or rejoins later); wire: client -> host `panel`, the snapshot's `trp`.
+- (optic-coop M2) Ping is bound: middle mouse on keyboard and mouse, R3 on the pad, and it works from the optic view
+  (the ping comes from the tip, from the view's first moment). R3 is shared with Zoom by context (Michael): while aiming
+  a scoped weapon R3 zooms and does not ping; otherwise it pings and does not zoom. Middle mouse always pings. The
+  controls screen shows no conflict for the default R3 pair (another verb put on R3 still shows one).
+- (optic-coop) A level holds at most 256 optic gaps (the network's bound); more are refused with a warning.
+
+### lightField allocation check retry
+- Tests: the lightField allocation check re-measures a query over its limit once from a fresh warm-up (CI flake 173.2 > 144 on #322).
+
 ## 4.94.0 - Train 58: e2e-lightbake shader-compile wait; Guard models (2026-10-24, PR #325; #322, #318)
 
 ### e2e-lightbake shader-compile wait
