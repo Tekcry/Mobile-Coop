@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.95.1 - Train 60: Allocation-free sight rays (2026-10-24, PR #334; #326)
+- Performance: guard and recon drone sight rays no longer allocate in our code (`losClear` and the drone use `Ballistics.hitDistance`),
+  so 24-32 guards thinking no longer feed the garbage collector every think; same sight verdicts.
+
 ## 4.95.0 - Train 59: Laptop queue: audit fixes; e2e-coop joint interrogation flake; lightField allocation check retry; Optic cable: the partner's view, hatches and grilles (engine); Co-op body carry on the client (2026-10-24, PR #332; #329, #328, #327, #314, #313)
 
 ### Co-op body carry on the client
