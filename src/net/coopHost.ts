@@ -399,9 +399,10 @@ export class CoopHost implements NetAttachment {
   private readonly rejoining = new Set<string>();
 
   /** (coop-rejoin) The match went to client `id` again (`start` sent to it alone): watched for its reload, which loads
-   *  at the start area of the bay that `start` carried. */
+   *  at the start area of the bay that `start` carried. (NET4) Sector Ops: the start section of the mission `start`
+   *  carried (`s.sectorMission`, the one the client places from), never the host's raw `?mission=`. */
   private late(id: string): void {
-    this.joins.late(id, startSlotPoints(this.g, this.s.lateBay?.()), this.time);
+    this.joins.late(id, startSlotPoints(this.g, this.s.lateBay?.(), this.s.sectorMission || null), this.time);
   }
 
   /** (coop-rejoin) Player slot of remote `id`: 1 + its place among the joiners (the host is slot 0). */

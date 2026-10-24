@@ -9,6 +9,7 @@ import type { Transport } from '../src/net/transport';
 import { defaultLook } from '../src/cosmetics/avatarLook';
 import { parseMessage, PROTOCOL_VERSION, sectorMissionId } from '../src/net/protocol';
 import { clearRejoin } from '../src/core/rejoin';
+import { flags } from '../src/core/flags';
 import { CoopClient } from '../src/net/coopClient';
 import { CoopHost } from '../src/net/coopHost';
 import { JoinWatch } from '../src/net/joinWatch';
@@ -218,6 +219,23 @@ describe('NET3: the host places a remote whose first state is outside the curren
     // the next state on the spot ends it
     expect(t.joins.restoreStep('c1', 102, 0, 5.1)).toBeNull();
     expect(t.joins.restoring('c1')).toBe(false);
+  });
+
+  it('(NET4) a late joiner is watched at the start section of the mission `start` carried, not the host\'s URL flag', () => {
+    // the host page's `?mission=` (none here, so W1) differs from the session's sector mission (Two-Key Ledger at W2)
+    expect(flags.mission).toBeNull();
+    const { g } = page();
+    const h = Object.create(CoopHost.prototype) as CoopHost;
+    const joins = new JoinWatch();
+    Object.assign(h, { g, joins, time: 5, s: { lateBay: () => undefined, sectorMission: 'twoKeyLedger' } });
+    (h as unknown as { late(id: string): void }).late('c1');
+    const start = (joins as unknown as { pending: Map<string, { start: readonly SlotPoint[] }> }).pending.get('c1')!.start;
+    expect(start.map((p) => p.x)).toEqual([100, 102]);
+    // no sector mission on the session: section 0, as before
+    const none = new JoinWatch();
+    Object.assign(h, { joins: none, s: { lateBay: () => undefined, sectorMission: '' } });
+    (h as unknown as { late(id: string): void }).late('c1');
+    expect((none as unknown as { pending: Map<string, { start: readonly SlotPoint[] }> }).pending.get('c1')!.start.map((p) => p.x)).toEqual([0, 2]);
   });
 
   it('a first state in the section, or any other mode: untouched', () => {
