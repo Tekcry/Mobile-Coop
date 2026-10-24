@@ -661,8 +661,8 @@ function openPr(branch) {
 
 /** The open PR for a head branch with its body: { number, body }, or null. */
 function openPrInfo(branch) {
-  const list = JSON.parse(run(['gh', 'pr', 'list', '--head', branch, '--state', 'open', '--json', 'number,body']) || '[]');
-  return list.length ? { number: Number(list[0].number), body: String(list[0].body ?? '') } : null;
+  const list = JSON.parse(run(['gh', 'pr', 'list', '--head', branch, '--state', 'open', '--json', 'number,body,title']) || '[]');
+  return list.length ? { number: Number(list[0].number), body: String(list[0].body ?? ''), title: String(list[0].title ?? '') } : null;
 }
 
 // ---- merging on git objects ---------------------------------------------------------------------------------------
@@ -889,8 +889,10 @@ async function waitDeploy({ version, since }) {
     const w = await execTree(show(['gh', 'run', 'watch', String(id), '--exit-status', '--interval', '30']), { timeout: Math.max(left(), 1000) });
     if (w.status !== 0) { console.warn(`PREVIEW: STALE - deploy run ${id} ${w.status === -1 ? 'still running at the wait limit' : 'failed'}`); return; }
     let seen = null;
+    const base = previewVersionUrl().replace(/\?t=\d+$/, '');
+    const url = () => `${base}?t=${Date.now()}`;
     for (let i = 0; i < 12; i++) { // Pages may take a minute or two to serve the new artifact
-      const r = await fetch(previewVersionUrl(), { cache: 'no-store' }).then((x) => (x.ok ? x.text() : null), () => null);
+      const r = await fetch(url(), { cache: 'no-store' }).then((x) => (x.ok ? x.text() : null), () => null);
       seen = parsePreviewVersion(r);
       if (seen?.version === version) { console.log(`PREVIEW: OK - /preview/ serves ${version}${seen.sha ? ` (${seen.sha})` : ''}`); return; }
       await sleep(15_000);
@@ -1123,7 +1125,7 @@ async function build({ n, version, title, branches, keep, on = null }) {
   act(['git', 'push', ...(keep ? [] : ['--force']), 'origin', `${v.sha}:refs/heads/${branch}`]);
   clearBuildMarker();
   const pr = ensurePr(n, v.version, v.title, members, synth.notes, base && { train: base.m, sha: base.sha, version: base.version }, { strip: !base });
-  if (!DRY && open && trainPrTitle(n, v.version, v.title) !== trainPrTitle(n, version, title)) {
+  if (!DRY && open && open.title !== trainPrTitle(n, v.version, v.title)) { // a reused PR names what this build released
     act(['gh', 'pr', 'edit', String(pr), '--title', trainPrTitle(n, v.version, v.title)]);
   }
   if (!DRY && pr && pr !== predicted) { // another PR or issue took the number: the heading names the real one
