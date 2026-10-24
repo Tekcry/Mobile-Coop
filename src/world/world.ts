@@ -50,7 +50,7 @@ import { moonLight } from './lampMath';
 import { roofAt, roofGrid, type RoofGrid } from './roofGrid';
 import { KitRender } from './kit/kitRender';
 import { PropRender } from './props/propRender';
-import { SunCascadeLists, keepNearCamera, useCascadeLists } from './sunCascadeCull';
+import { SunCascadeLists, csmSplitLen, csmSplitZ, keepNearCamera, sunCasterDrawn, useCascadeLists } from './sunCascadeCull';
 
 /** Flashlight slots on dark maps (enemies searching / investigating in the dark): `torches.ts`. */
 export { FLASHLIGHTS } from './torches';
@@ -310,10 +310,34 @@ export class World {
   private readonly cascadeLists = new SunCascadeLists();
   private readonly sunReach: number[] = [];
   private readonly sunNear: boolean[] = [];
-  /** (guard-render S6) Each cascade draws only the casters over its square (`sunCascadeCull.ts`; exact). */
+  /** (guard-render S6) Each cascade draws only the casters over its square (`sunCascadeCull.ts`; exact); (S9) and only
+   *  those whose shadow can land at a view depth that samples the cascade (split + blend band). Under the baked moon
+   *  (the only time these lists run) the list holds moving casters only: the static level is not in this path. */
   private readonly cascadeList = (layer: number): AbstractMesh[] | null => {
     const g = this.shadow;
-    return g instanceof CascadedShadowGenerator ? this.cascadeLists.fill(layer, this.sunCasters, g.getCascadeTransformMatrix(layer)?.m ?? null) : null;
+    if (!(g instanceof CascadedShadowGenerator)) return null;
+    const cam = this.scene.activeCamera;
+    const d = this.sun.direction;
+    this.cascadeLists.setDepth(cam ? cam.getViewMatrix().m : null, csmSplitZ(g), csmSplitLen(g), g.cascadeBlendPercentage, d.x, d.y, d.z);
+    return this.cascadeLists.fill(layer, this.sunCasters, g.getCascadeTransformMatrix(layer)?.m ?? null);
+  };
+
+  /** (guard-render S9b) A moving caster was enabled or disabled (itself or an ancestor): the moon's list refills on the
+   *  next frame (as `LightRig.fillCasters`), so a newly shown mesh casts at once, not at the next 4 Hz pass. One closure. */
+  private readonly markSun = (): void => {
+    this.sunT = 0;
+    this.sunDirty = true;
+  };
+  /** (S9b checker fix) A caster enabled after `frame()` (the freeze's thaw in onBeforeActiveMeshesEvaluation, a LOD
+   *  switch in the player's update) must cast this frame: refill once after active-mesh evaluation, before the shadow
+   *  maps render. One closure, registered once on the scene. */
+  private sunDirty = false;
+  private sunFocus: Vector3 | null = null;
+  private sunRefillOn = false;
+  private readonly sunRefill = (): void => {
+    if (!this.sunDirty || !this.sunFocus) return;
+    this.sunT = 0;
+    this.updateSunCasters(0, this.sunFocus);
   };
 
   /** The moon's list: the static casters + the moving ones under open sky (indoors the roof shades them anyway). */
@@ -321,12 +345,17 @@ export class World {
     this.sunT -= dt;
     if (this.sunT > 0) return;
     this.sunT = 0.25;
+    this.sunDirty = false;
     const tmp = this.sunTmp;
     tmp.length = 0;
     for (let i = 0; i < this.sunStatic.length; i++) tmp.push(this.sunStatic[i]!);
     const cp = focus; // (the player, not the orbit camera: the boom would flip guards at the edge)
     for (let i = 0; i < this.sunMoving.length && !this.staticSun; i++) {
       const m = this.sunMoving[i]!;
+      // (guard-render S9b) only what Babylon would draw from this entry: not a disabled mesh (a figure's other LODs, the
+      // merged body it replaced, a frozen guard) nor a LOD level (its master's entry draws it); `markSun` refills on an
+      // enabled change
+      if (!sunCasterDrawn(m)) continue;
       // (small things - pickups, switches, mags - cast nothing worth a draw per cascade; lamps still take them)
       if (m.getBoundingInfo().boundingSphere.radiusWorld < 0.3) continue;
       // (guard-render S6) guards: in the moon's list only near the player (`GUARD_SUN_REACH`, hysteresis)
@@ -340,7 +369,7 @@ export class World {
         this.sunNear[i] = near;
         if (!near) continue;
       }
-      if (this.bakedMoon && m.isEnabled()) {
+      if (this.bakedMoon) {
         // (smooth-world: no sky bake - the roof grid; under the baked moon a caster indoors shades nothing the bake
         // has not already darkened)
         const b = m.getBoundingInfo().boundingBox;
@@ -397,6 +426,7 @@ export class World {
       this.sunReach.push(flags.guardSun ? sunReach : Infinity);
       this.sunNear.push(true);
       this.sunT = 0;
+      m.onEffectiveEnabledStateChangedObservable.add(this.markSun);
       m.onDisposeObservable.addOnce(() => {
         const i = this.sunMoving.indexOf(m);
         if (i >= 0) {
@@ -534,6 +564,10 @@ export class World {
       sm.renderList = this.sunCasters;
       if (useCascadeLists(flags.guardSun, this.bakedMoon)) sm.getCustomRenderList = this.cascadeList;
     }
+    if (!this.sunRefillOn) {
+      this.sunRefillOn = true;
+      this.scene.onAfterActiveMeshesEvaluationObservable.add(this.sunRefill);
+    }
     this.shadow = csm;
   }
 
@@ -548,6 +582,7 @@ export class World {
       this.charShadows.frame(focus.x, focus.y, focus.z, c.x, c.y, c.z, dt);
     }
     this.lamps?.frame();
+    this.sunFocus = focus;
     this.updateSunCasters(dt, focus);
     if (cam) {
       this.lightRig.update(dt, cam.globalPosition.x, cam.globalPosition.y, cam.globalPosition.z);
