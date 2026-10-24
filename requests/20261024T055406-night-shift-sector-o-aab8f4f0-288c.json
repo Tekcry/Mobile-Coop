@@ -1,0 +1,23 @@
+{
+  "id": "20261024T055406-night-shift-sector-o-aab8f4f0-288c",
+  "sha": "aab8f4f0e72962cb1e212ac7afe7d0ccdd8ffab7",
+  "branch": "feature/coop4",
+  "pr": 317,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove",
+    "e2e-ctcourse",
+    "e2e-course",
+    "e2e-section-rating",
+    "e2e-sectorops:1",
+    "e2e-sectorops:2",
+    "e2e-sectorops:3",
+    "e2e-sectorops:4",
+    "e2e-sectorops:5",
+    "e2e-sectorops:6"
+  ],
+  "set": "coop4",
+  "note": "coop4 after the round (M1 fix, AI5 wiring, sweepSource, OUT): regular suites"
+}
