@@ -375,7 +375,8 @@ Worktrees (node_modules junctions to Mobile-Coop-sector-redesign-bake2): -polish
    VG3 Sonnet check + merge, M0 laptop request (checks/vg2-build.md :103-108), VG5 + VG6 builders in parallel
    (VG5 rules-only laptop line in VG5.md). VG6 BUILT: feature/visual-gate-train @ 58f2ac6f (worktree
    -visual-gate-train, off master bd8920c2; 124 tests; service dry run not run). VG6 Opus check PASS -> PR #367 OPEN (head 01470352, checker status
-   posted; orchestrator + Test Runner told). Label train-ready on green CI (orchestrator has a standing OK if I am capped).
+   posted; orchestrator + Test Runner told; CONFLICTS with Test Runner #366 in service.mjs: the train taking the second
+   resolves it, keeping both sides = our visual-gate step after the laptop-e2e post + its pending status / gates). Label train-ready on green CI (orchestrator has a standing OK if I am capped).
 4. Marlow Build mission-framework EN2 adds hook lines in sectorMode.ts / sectors.ts / campusOps.ts on master
    (conflicts resolved in the train); no reply needed.
 Laptop requests: node C:/NightShift/scratch/lq/request.mjs (copied from origin/master with ../e2e-affected.mjs beside
