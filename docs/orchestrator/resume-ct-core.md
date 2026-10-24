@@ -1,19 +1,19 @@
-# Resume - Night Shift | Player Build (2026-10-24 ~19:00 local; older log: history at the end)
+# Resume - Night Shift | Player Build (2026-10-24 ~19:50 local; older log: history at the end)
 
 Rules: CLAUDE.md "Sessions" ("Heavy-usage throughput", "Token rules", "Account swap"). Opus builds / checks anim, net, AI;
 Sonnet strict briefs / data checks. No desktop e2e: laptop queue (C:/NightShift/scratch/ctcore/lq/request.mjs --sha <full>
 --suites "..." | --alone --step "..."); results = GitHub statuses laptop-e2e/<set>; failure excerpts from Test Runner.
 Message the orchestrator only at PR open / train-ready / blocked / Michael. Push this file with push-resume.sh.
 
-## Now (master 6e8a450b train 56; resumed 2026-10-24 ~18:00 local on the new account)
+## Now (master 6e8a450b train 56; 2026-10-24 ~19:35 local)
 | Job | Branch (worktree C:/NightShift/Mobile-Coop-<x>) | Head | Next |
 | --- | --- | --- | --- |
-| #318 guard-models (flag OFF) | feature/guard-models | 1569b0f8 | TRAIN-READY (label, orchestrator told ~18:15). Master merged c105ccb4 + visionIsolation exempts render-only guardBody.ts. CI green. Laptop G9 on 89c10827 + offline on aba0953a. |
-| gm-flip (follow-up PR) | feature/gm-flip (gm-flip; node_modules = junction to guard-models) | 7abe33c0 | = guard-models + gm-perf (checker PASS d729e490, GM-PERF-CHECK.md polish 1-8) + guardActiveMeshes stub fix. Cap gate PASS (origin/shots/gm-perf-408ab154: 24 guards ON/OFF p95 sectorops 6.5/6.5, 7.2/7.4; campus 9.0/9.7, 9.2/10.0). Waits for G10a D3 + D6, then merge gm-g10a, flip src/core/flags.ts guardModels `!== '0'`, docs + changes/ fragment, laptop flag-on suites (enemies coop ctcourse combat guard-carry), open PR to master. |
-| G10a guard defects | feature/gm-g10a (gm-g10a) | 1569b0f8 + builder | Opus builder running from C:/NightShift/scratch/ctcore/briefs/gm-g10a.md (D1 sheet goggle markers, D1c mirrored tile, D2 tone-0 clamp, D3 uniforms ~10x dark, D4 hairline, D5 colour out of bake hashes, D6 balaclava half-face). Then Sonnet checker + one laptop full rebake (~55 min). Look items wait on Michael (G10). |
-| #314 optic-coop | feature/optic-coop | 762b479f | TRAIN-READY (~19:00, orchestrator told). Master merged 3f5292e9; e2e-coop dual-takedown flake hardened 762b479f (laptop pass 156 s); CI green. |
-
-#308 rig-pose-fix: DONE (4.92.0). Owed: e2e-tuner-phone drawer-scroll flake fix (train 54 fail, solo pass 23353993) in the next Player batch PR.
+| #318 guard-models (flag OFF) | feature/guard-models | 1569b0f8 | TRAIN-READY (in the next train). |
+| #314 optic-coop | feature/optic-coop | 762b479f | TRAIN-READY. |
+| #331 player-batch-24 | feature/player-batch-24 | fdaef3af | TRAIN-READY (e2e-tuner-phone flake fix, test-only). |
+| gm-flip (follow-up PR, open it from THIS branch, never from gm-perf: gm-perf lacks master's guardHead) | feature/gm-flip (node_modules junction) | 787f05a2 | guard-models + gm-perf (checker PASS) + docs / fragment + gm-mc-polish (checker PASS 787f05a2, GM-MC-POLISH-CHECK polish P1-P4). Cap gate PASS. Next: merge gm-g10a after its checker + laptop rebake pass and the GLBs are copied in, then the cloud branches, flip src/core/flags.ts guardModels `!== '0'`, laptop flag-on suites (enemies coop ctcourse combat guard-carry), PR to master. |
+| G10a guard defects | feature/gm-g10a | 2d810799 | All 6 defects built (G10A-REPORT.md). Sonnet checker running (G10A-CHECK.md). Laptop full rebake queued 20261024T084017-...-2d810799-93ea (set guard-bake-g10a, ~55 min; real smoke for D4 hairline incl. receding LOD1 <= 75 deg / LOD0 <= 800 tris, D6 coveredHeadTris). On pass: copy 12 GLBs + 3 JSON from bake/guard-models into src/operators/assets/guards/, add D6 assertion to tests/guardAssets.test.ts, sheet to Michael, merge into gm-flip. |
+| cloud briefs | origin/cloud-queue 10edabfe | open | player-gm-perf-polish (shield merge key, shield receiveShadows; S) + player-gm-look-seeds (distinct looks per section, no wire change; M). Both off gm-flip 979a02b3. On done: fetch, checker, merge into gm-flip. Keep 1-2 briefs queued ahead. |
 
 ## Open
 - guard-models STATE.md top: G8 numbers, S11 merge notes (in master merge now), G10 look list (no sheet notes from Michael yet), garment seam gaps, MERGE-CHECK-A/B polish (lightRig caster refill not behind the flag; `die` figure update after frozen solveNow).
