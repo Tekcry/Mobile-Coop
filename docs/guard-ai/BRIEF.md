@@ -598,3 +598,32 @@ reported, they need a sense of urgency when it makes logical sense." A100-A119 a
   `scripts/e2e-guard-carry.mjs`). Undo: if the stack drops 40 or lands after us, renumber `PROTOCOL_VERSION` and every
   `toBe(41)` / `v: 40` / `v: 41` in the A140 list of tests plus coopWalkFixes and poseParity, `scripts/e2e-coop.mjs`'
   comment, `docs/systems/coop.md` and the two changelog fragments.
+
+## Guard AI polish batch (`feature/guard-ai-polish`, `POLISH-PLAN.md`; ROADMAP Decided 2026-10-24 ~21:50 lifted "no refining")
+A170-A181 are coop4's (already on master), so this batch takes A165-A169, then A182. Host only, no protocol or save change.
+- **A165** (A3) In stealth, a guard with no intruder of his own (`hunt` -1) paths to his own known spot (A* `goTo` to
+  `knownSpot`), not along the freshest intruder's chase field: in co-op the field led him to a player nobody told him
+  of (G139). A guard with a slot, and solo play, are unchanged. Undo: `SLOTLESS_FIELD = true` in `src/ai/enemy.ts`.
+- **A166** (A4) A guard hunting one intruder who sees another calls the second one in: one contact call per slot per
+  fight (`calledMask`, cleared with `hunt` at cooldown / unaware), so the new fight has a reporter and command hears of
+  it. G139 holds: he saw him. Undo: `RECALL_SWITCH = false` in `src/ai/enemy.ts`.
+- **A167** (A2) Cover is picked by the walk, not the straight line: the best 3 candidates (fixed scratch) are tried in
+  order; one a mate holds (`reserveCover` refuses) is skipped, and one whose A* path is longer than `COVER_DETOUR.k` 1.5
+  x the straight line + `COVER_DETOUR.add` 3 m is rejected for the next. A role cover with such a detour is blocked
+  (`blockCover`) and the roles pick again next tick. The open wait's failed pick (`openNoCover`) retries once per
+  `SQUAD.openWait` 3 s, and while his role is not moving it never lands on his own held role cover. Undo:
+  `COVER_DETOUR.k = Infinity` and `COVER_TRIES = 1` in `src/ai/enemy.ts`.
+- **A168** (B1) A cut circuit nobody fixed is found again: when its incident is gone, nobody walks it and it is still
+  off, it is unmarked in `DarkList` after `BREAKER_WALK.retry` 20 s, so late discovery notices it again (a reset walk
+  that ended without the flip: knocked out, the alarm, the 30 s give-up). The same cut noticed again after its tamper
+  check is a fault (the reset walk), as consoles do (A131): a circuit cut twice inside 60 s no longer stays dark for
+  good. Undo: `BREAKER_WALK.retry = Infinity` in `src/ai/breaker.ts`.
+- **A169** (C1) A calm guard with two players in view keeps the one he perceives until another player's sight rate
+  beats his by 25% (`CALM_KEEP` 1.25 in `src/ai/targetPick.ts`), so near-equal rates no longer swap his target (and
+  his head) every think. His target unseen (rate 0) or dead: the best seen, as before. Combat (sticky) and solo are
+  unchanged. Undo: `CALM_KEEP = 1` (the highest rate each think, ties the nearer).
+- **A182** (B7) The redundant `tell(alarmHunt)` after an alerted spawn (`sendIn`, the reinforcement spawn) is gone:
+  `spawn(.., true)` already binds a valid slot, and with nothing valid the extra call only bound a positionless alarm
+  slot. Such a guard now binds on the next call or sighting (`hunt` -1 until then); the freshest fallback in `sendIn`
+  is for the parked modes only. Undo: restore the two `e.tell(this.alarmHunt)` calls in `src/ai/enemyManager.ts`
+  (master 92d0205d :887, :1084).
