@@ -317,6 +317,9 @@ const HEAR_STOREY = true;
 /** (polish2 A190) A calm guard instantly detects any player in his instant range and focus (`instantDetect`), not only
  *  the one he picked: the nearest such player is his target. Combat unchanged. Undo: false (the picked player only). */
 const INSTANT_ANY = true;
+/** (polish2 A191) A device responder whose investigation ends calm and who goes straight back to his device search
+ *  (A1) says no "Clear." / "Standing down." (the task's stand-down radio call stays). Undo: false. */
+const RESUME_QUIET = true;
 /** (polish A2) `pickCover`'s best candidates (index, score), best first; module scratch (one pick at a time). */
 const CV_IDX = new Int32Array(8);
 const CV_SCORE = new Float64Array(8);
@@ -2012,14 +2015,17 @@ export class Enemy implements Damageable {
     // more drops it (the board sees him off its task); while it lasts the task lines below stay quiet
     if (this.brkGroup >= 0 && to !== 'suspicious' && to !== 'unaware' && to !== 'cooldown') this.endBreaker();
     const task = this.brkGroup >= 0 ? -1 : this.incident;
+    // (polish A1) a device responder calm again goes back to the device's search (below); (polish2 A191) then quietly
+    const resume = RESPONDER_RESUME && this.responder && from === 'investigating' && (to === 'cooldown' || to === 'unaware') && this.alive && !this.taken;
+    const quiet = RESUME_QUIET && resume;
     if (to === 'suspicious') this.bark('suspicious');
     else if (to === 'investigating') this.bark('investigate');
     // (guard-ai S3) told by a shout or the radio: he answers, he did not see anyone
     else if (to === 'alert') this.bark(this.alertIn.called && this.netOn ? 'joining' : 'contact');
     else if (to === 'searching' && from === 'alert') this.bark(this.def.kind === 'officer' ? 'search' : 'lost');
     // (guard-ai S4) unaware -> cooldown is caution setting in: nothing to say
-    else if (to === 'cooldown' && from !== 'unaware') this.bark(task >= 0 ? 'standDown' : 'clear');
-    else if (to === 'unaware' && task >= 0) this.bark('standDown');
+    else if (to === 'cooldown' && from !== 'unaware' && !quiet) this.bark(task >= 0 ? 'standDown' : 'clear');
+    else if (to === 'unaware' && task >= 0 && !quiet) this.bark('standDown');
     // (guard-ai S3) back from the board's task: his "nothing here" is a radio call (the section acks it)
     if ((to === 'cooldown' || to === 'unaware') && task >= 0) this.ctx.radioCall?.(this, task, 'standDown');
     // (guard-ai S2) off the board's task: back (calm), in combat, or on another search (a body, a call)
@@ -2113,7 +2119,7 @@ export class Enemy implements Damageable {
     }
     // (polish A1) a device's responder pulled off his search (a light, a body, a missing man) and calm again: back to
     // the device's search, inside its room (with no route he would stand)
-    if (RESPONDER_RESUME && this.responder && from === 'investigating' && (to === 'cooldown' || to === 'unaware') && this.alive && !this.taken) {
+    if (resume) {
       this.searchAt(this.devX, this.devZ, null, SEARCH_DEVICE);
       this.aware.set('searching');
       this.onLevel(to, 'searching');

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { COVER_DETOUR, Enemy } from '../src/ai/enemy';
-import { AlertMachine } from '../src/ai/alertState';
+import { AlertMachine, type AlertLevel } from '../src/ai/alertState';
+import type { RoomRect } from '../src/world/rooms';
 import { NavGrid } from '../src/ai/navGrid';
 import { DIFFICULTY } from '../src/ai/archetypes';
 import { ENEMIES } from '../src/ai/enemyDefs';
@@ -246,6 +247,10 @@ interface Searcher {
   pos: Vector3;
   spot: [number, number];
   hearSearch(x: number, y: number, z: number, mayBark?: boolean): boolean;
+  responder: boolean;
+  searchRoomId: string | null;
+  joinAsResponder(route: null, x: number, z: number, room: RoomRect | null): void;
+  onLevel(a: AlertLevel, b: AlertLevel): void;
 }
 
 function searcher(at: [number, number, number?], o: Record<string, unknown> = {}, ctxO: Record<string, unknown> = {}): Searcher {
@@ -385,5 +390,37 @@ describe('A189: a flank bound may bend further round than a point bound', () => 
     p.step();
     expect(p.ctx.blockCover).toHaveBeenCalledWith(2);
     expect(p.p.coverIdx).not.toBe(2);
+  });
+});
+
+describe('A191: a device responder back on his search says no "Clear."', () => {
+  const LAB: RoomRect = { id: 'lab', name: 'Lab', minX: 0, maxX: 12, minZ: 0, maxZ: 8 };
+
+  it('his investigation (a light, a body) ends calm: no clear / standDown bark, searching the lab again', () => {
+    const bark = vi.fn();
+    const e = searcher([20, 4], { profile: 'standard', tacticsProfile: P_STANDARD, entryK: 0, entryT: 0, bark });
+    e.joinAsResponder(null, 6, 4, LAB);
+    e.aware.set('searching');
+    e.onLevel('unaware', 'searching');
+    e.aware.set('investigating');
+    e.onLevel('searching', 'investigating');
+    bark.mockClear();
+    e.aware.set('cooldown');
+    e.onLevel('investigating', 'cooldown');
+    expect([e.aware.level, e.searchRoomId]).toEqual(['searching', 'lab']);
+    const lines = bark.mock.calls.map((c) => c[0] as string);
+    expect(lines).not.toContain('clear');
+    expect(lines).not.toContain('standDown');
+  });
+
+  it('a guard who is not a responder still says "Clear."', () => {
+    const bark = vi.fn();
+    const e = searcher([20, 4], { bark });
+    e.aware.set('investigating');
+    e.onLevel('unaware', 'investigating');
+    e.aware.set('cooldown');
+    e.onLevel('investigating', 'cooldown');
+    expect(e.aware.level).toBe('cooldown');
+    expect(bark).toHaveBeenCalledWith('clear');
   });
 });
