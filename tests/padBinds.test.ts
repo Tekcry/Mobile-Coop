@@ -21,7 +21,8 @@ describe('pad bindings (step 18)', () => {
     expect(m.get(PAD.B)).toBe('crouch');
     expect(m.get(PAD.Y)).toBe('jump');
     expect(m.get(PAD.X)).toBe('draw');
-    expect(m.get(PAD.RS)).toBe('zoom');
+    // (optic-coop M2) R3 zooms and pings (a reported conflict, nothing moved)
+    expect(GAME_BINDINGS.filter(([i]) => i === PAD.RS).map(([, a]) => a).sort()).toEqual(['ping', 'zoom']);
     expect(m.get(PAD.RB)).toBe('coop');
     expect(m.get(PAD.LB)).toBe('gadgetWheel');
     // (anim-rework S1) no speed rocker: the stick sets the speed; D-pad up / down only step a held context menu

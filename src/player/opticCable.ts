@@ -118,6 +118,21 @@ export interface OpticPoint {
   ny: number;
   nz: number;
   tip?: { x: number; y: number; z: number };
+  /** (optic-coop M1) The breakable panel that covers this gap and opens (a hatch / trap: `Breakables` key
+   *  `grate:<duct>:entry|exit|<i>`): the action menu lists OPEN TRAP while it is closed. None: nothing opens here, the
+   *  menu lists OPTIC CABLE only. */
+  trap?: string;
+}
+
+/** (optic-coop) The wire's bound on a gap index (MoveState mode `optic`, `a`): a level holds at most this many gaps. */
+export const OPTIC_POINT_MAX = 256;
+
+/** (optic-coop, check A polish 2) Add gap `p` to a level's list unless it already holds `OPTIC_POINT_MAX` (a gap past
+ *  the wire's bound would send states every peer drops). False: refused, not added. */
+export function addOpticPoint(list: OpticPoint[], p: OpticPoint): boolean {
+  if (list.length >= OPTIC_POINT_MAX) return false;
+  list.push(p);
+  return true;
 }
 
 /** The wire sub of a gap kind (a shaft top is a grille). */
@@ -208,6 +223,34 @@ export function opticCableEnd(pl: OpticPlace, ext: number, out: { x: number; y: 
   out.y = pl.hy + (pl.ty - pl.hy) * k;
   out.z = pl.hz + (pl.tz - pl.hz) * k;
   return out;
+}
+
+/** A ray from the tip: origin and unit direction. */
+export interface OpticRay {
+  x: number;
+  y: number;
+  z: number;
+  dx: number;
+  dy: number;
+  dz: number;
+}
+
+/**
+ * (optic-coop, check A polish 5) The view's ray from the tip (the place's tip point, the tip's look); false, `out`
+ * untouched, when not in the view. The camera sits on it each frame (`OpticSystem.frameUpdate`) and a ping casts from it
+ * (`GameState.sendPing`), so a ping in the first step of the view comes from the tip, not the shoulder camera.
+ */
+export function opticTipRay(core: OpticCore, out: OpticRay): boolean {
+  if (!core.viewing) return false;
+  const pl = core.place;
+  const cp = Math.cos(core.pitch);
+  out.x = pl.tx;
+  out.y = pl.ty;
+  out.z = pl.tz;
+  out.dx = Math.sin(core.yaw) * cp;
+  out.dy = Math.sin(core.pitch);
+  out.dz = Math.cos(core.yaw) * cp;
+  return true;
 }
 
 /** The tip's yaw kept within +-`OPTIC.yaw` of the centre `base`. */

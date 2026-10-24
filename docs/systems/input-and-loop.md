@@ -136,6 +136,7 @@ Edit the table and the code together.
 | Vision on / off | `vision` | D-pad left | D-pad left | `goggles` (N) | F1a, G181: toggles the mode picked on the wheel (night first), never cycles between modes |
 | Shoulder swap | `shoulderSwap` | L3 | L3 / LS | `shoulder` (V) | G17: only while aiming; L3 is the wall button when not aiming (F1a) |
 | Mission device | `none` | View (not in yet) | Create / Minus | - | CT's Back button; no action yet |
+| Ping (co-op) | `ping` | R3 | R3 / RS | `ping` (Middle mouse) | optic-coop M2 (Michael 2026-10-24: "Bind ping: middle mouse on keyboard, R3 on pad; it works from the optic view too"): marks the spot or guard under the crosshair for the team; in the optic view it casts from the tip from the view's first step (`OpticSystem.tipRay`). R3 is also Zoom: a default conflict the controls screen reports (both kept, nothing moved; open for Michael) |
 | Pause | `pause` | Menu | Options / Plus | `pause` (P); Esc | - |
 
 ### The context action menu (CT prototype G5, `game/contextMenu.ts`, AUDIT-ACTIONMENU)
@@ -144,8 +145,10 @@ Edit the table and the code together.
   menu), and no BACK TO GAME (Michael 2026-10-20 08:10 / 08:25; `grabMenu.ts`); else the takedown on offer (GRAB
   CHARACTER from behind; one named row, a knockout, for the other takedowns; none where only a lethal one is allowed),
   the door set of the closed, unlocked door faced (OPEN DOOR, OPEN DOOR
-  STEALTH when the peek is on offer, BASH DOOR, OPTIC CABLE (stub); `doorMenu.ts`), then the item in reach or the carry
-  target (its label; a door's own item reads OPEN DOOR / CLOSE DOOR).
+  STEALTH when the peek is on offer, BASH DOOR, OPTIC CABLE; `doorMenu.ts`), else (optic-coop M1) the set of the optic
+  gap in reach (a hatch, ceiling panel, grille or shaft top within 1.6 m, in front unless at the feet: OPEN TRAP only
+  where a closed panel covers it (`OpticPoint.trap`), then OPTIC CABLE; `gapMenu.ts`; refusals "Too far" / "No gap" as
+  at a door), then the item in reach or the carry target (its label; a door's own item reads OPEN DOOR / CLOSE DOOR).
 - States: none (nothing in reach); passive (the list shows, header INTERACT, no highlight, walking free); active (A
   held: header BACK TO GAME, row 1 highlighted in the press step, the operator stands still, the camera is free). The
   highlight moves one row per step, no wrap: D-pad up / down and the mouse wheel (`ctxUp` / `ctxDown`) always; the stick, W / S and the arrows once the
@@ -179,7 +182,8 @@ Edit the table and the code together.
   under the pad (`docs/systems/gadgets.md`, Wheel). The look rate still comes from `look`.
 - Shared-by-design verbs are one row: X = holster / draw (tap) + reload (held, gun out), RT = fire (aiming) / the
   strike's tap knockout and hold kill (holstered). The tap / hold splits follow the button. A3 split the old shared Y (jump + interact) and A (context) into Y = jump, A = interact.
-- Conflicts (`input/conflicts.ts`, `findConflicts(binds, groups)`): two verbs of one group on one input, once per pair;
+- Conflicts (`input/conflicts.ts`, `findConflicts(binds, groups)`): two verbs of one group on one input, once per pair
+  (optic-coop M2: the defaults have one, Zoom and Ping on R3, kept as Michael set it and reported; middle mouse was free);
   menu keys are their own group; no pair may share (A3 removed the Traverse + Use pair). A conflict is shared, warned on both
   rows and in a summary, and saved (A71).
 - Capture: 5 s timeout; keyboard Esc cancels, Backspace clears; pad binds on release, B held `CAPTURE_CANCEL_HOLD` 1 s or

@@ -772,6 +772,10 @@ try {
       await focusSlot('zoom:0');
       await press(P, BTN.X);
       assert((await pad()).zoom.length === 0, 'X clears the focused slot (R3 off Zoom)');
+      // (optic-coop M2) R3 is also Ping by default (a reported conflict): clear it too, so R3 is free for the draw
+      await focusSlot('ping:0');
+      await press(P, BTN.X);
+      assert((await pad()).ping.length === 0, 'X clears the focused slot (R3 off Ping)');
       // A, then R3: draw / holster moves from X to R3
       await focusSlot('draw:0');
       // (load-latent-ui1) A and R3 in one evaluate (pressPair): the capture's 5 s timeout is wall clock and under CPU load
@@ -902,7 +906,8 @@ try {
       await P.waitForTimeout(200);
       v = await view();
       const def = await pad();
-      assert(JSON.stringify(def.draw) === '[2]' && JSON.stringify(def.zoom) === '[11]' && v.rows === '' && v.screen, `reset restores the controller defaults (${JSON.stringify(def.draw)})`);
+      // (optic-coop M2) the defaults share R3 between Zoom and Ping: that one conflict shows after the reset
+      assert(JSON.stringify(def.draw) === '[2]' && JSON.stringify(def.zoom) === '[11]' && JSON.stringify(def.ping) === '[11]' && v.rows === 'ping,zoom' && v.screen, `reset restores the controller defaults (${JSON.stringify(def.draw)}, conflicts "${v.rows}")`);
     } finally {
       await R.browser.close();
     }

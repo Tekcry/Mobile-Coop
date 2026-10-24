@@ -5,7 +5,7 @@ import { MASK } from '../physics/groups';
 import { DOOR } from '../world/doors';
 import { OPTIC } from '../config/tools';
 import { clearGripAxis } from '../player/attachGrips';
-import { OpticCore, opticCableEnd, opticPlace, opticPointPlace, opticPointRefusal, opticRefusal, opticSubOf } from '../player/opticCable';
+import { OpticCore, opticCableEnd, opticPlace, opticPointPlace, opticPointRefusal, opticRefusal, opticSubOf, opticTipRay, type OpticRay } from '../player/opticCable';
 import type { GameState } from './gameState';
 
 /** (optic-coop) The local player's cable prop slot (`world.ropes`). */
@@ -20,7 +20,7 @@ const CABLE_KEY = 'local-optic';
  * view). The view is local only (never sent); the scene renders once from the tip (no second camera). The tip is placed
  * from the door anchor and a collision ray (never graphics state).
  * (optic-coop) Also the level's other gaps (`BuiltLevel.opticPoints`: hatches, ceiling panels, grilles, shaft tops;
- * `pickPoint`, not yet bound to an input), the feeding hand and the cable prop (hand -> tip, render only), and the kneel
+ * `pickPoint`, the action menu's OPTIC CABLE row at the gap, M1), the feeding hand and the cable prop (hand -> tip, render only), and the kneel
  * on the wire (MoveState mode `optic`, `localMoveState`): partners pose the same kneel and cable.
  */
 export class OpticSystem {
@@ -33,6 +33,7 @@ export class OpticSystem {
   private b = new Vector3();
   private dir = new Vector3();
   private end = { x: 0, y: 0, z: 0 };
+  private ray: OpticRay = { x: 0, y: 0, z: 0, dx: 0, dy: 0, dz: 1 };
   /** The last refusal shown (tests). */
   refused = '';
 
@@ -61,7 +62,7 @@ export class OpticSystem {
   /**
    * (optic-coop) The optic cable through the level's gap `pi` (`BuiltLevel.opticPoints`: a hatch, panel, grille or
    * shaft top): refused out of reach ("Too far") or with the far side blocked ("No gap"), else the kneel (a panel:
-   * standing under it) and the feed start. No input reaches it yet (open item: the binding, ct-toolkit section 2).
+   * standing under it) and the feed start. (M1) The action menu's OPTIC CABLE row at the gap (`game/gapMenu.ts`).
    */
   pickPoint(pi: number): boolean {
     const g = this.g;
@@ -144,6 +145,16 @@ export class OpticSystem {
     return true;
   }
 
+  /** (optic-coop, check A polish 5) In the view: writes the tip's ray (origin, unit direction) into `o` / `dir` and
+   *  returns true, from the view's first step (before `frameUpdate` has moved the camera); else false, both untouched. */
+  tipRay(o: Vector3, dir: Vector3): boolean {
+    const r = this.ray;
+    if (!opticTipRay(this.core, r)) return false;
+    o.set(r.x, r.y, r.z);
+    dir.set(r.dx, r.dy, r.dz);
+    return true;
+  }
+
   /** Look delta (radians, the render frame's): turns the tip in the view. */
   look(dx: number, dy: number): void {
     this.core.look(dx, dy);
@@ -162,13 +173,11 @@ export class OpticSystem {
     if (!on) return;
     const cam = g.player.cam;
     const camera = cam.camera;
-    const pl = this.core.place;
-    const yaw = this.core.yaw;
-    const pitch = this.core.pitch;
-    const cp = Math.cos(pitch);
-    this.dir.set(Math.sin(yaw) * cp, Math.sin(pitch), Math.cos(yaw) * cp);
-    camera.position.set(pl.tx, pl.ty, pl.tz);
-    camera.rotation.set(-pitch, yaw, 0);
+    const r = this.ray;
+    opticTipRay(this.core, r);
+    this.dir.set(r.dx, r.dy, r.dz);
+    camera.position.set(r.x, r.y, r.z);
+    camera.rotation.set(-this.core.pitch, this.core.yaw, 0);
     camera.fov = cam.vfov(OPTIC.fov);
     camera.minZ = OPTIC.near;
     cam.gamePos.copyFrom(camera.position);
