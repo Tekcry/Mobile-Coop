@@ -4,8 +4,9 @@
 // hand-run "Merge procedure" (docs/orchestrator/STATE.md on feature/menu).
 // `build` does the slow work once, in order: merge the members, checkout + push train/<n>, open the train PR, bump
 // PROTOCOL_VERSION to master+1 when a member touches the wire (src/net and what protocol.ts imports), make the version
-// commit (CHANGELOG heading with the PR number), run vitest under the heavy lock, push (CI starts beside the laptop
-// run). `release` then only checks, waits for green CI on that head, merges, tags and moves dev. A train built by the
+// commit (CHANGELOG heading with the PR number), push it (CI and the laptop start at once), then run vitest under the
+// heavy lock (audit 2: it used to run before the push, ~6 min per train); a failed vitest still exits 2 on the pushed
+// head (auto-train posts auto-train/vitest failure, which blocks release and the laptop run). `release` then only checks, waits for green CI on that head, merges, tags and moves dev. A train built by the
 // older script (no version commit) is still released the old way (merge master, version commit, push, CI, merge).
 // Conflicts: CHANGELOG.md and changes/* are resolved (both sides kept, incoming block first, never a block dropped);
 // any other conflicting file leaves that branch out (build) or stops the run (release / single, exit 3).
@@ -713,17 +714,24 @@ async function build({ n, version, title, branches, keep, noTest }) {
   }
   if (v.code) return v.code;
   const sha = v.sha ?? head;
+  // Audit 2 item 2: push the version commit FIRST, so CI and the laptop start on it now, not ~6 min later after vitest.
+  // Nothing here waits on the push. A failed vitest still exits 2 (auto-train then posts auto-train/vitest failure on
+  // this head, which blocks the release and makes the laptop skip the head); not run (heavy lock wait) still exits 4.
+  act(['git', 'push', 'origin', branch]);
   let verdict = { ok: true, message: '' };
   if (noTest) console.log('--no-test: vitest skipped');
   else verdict = await runVitest(n, sha, prev);
-  act(['git', 'push', 'origin', branch]);
   console.log(`\ntrain/${n} head: ${DRY ? `${head} (dry run: an unreferenced commit; the version commit would sit on it)` : sha}`);
   console.log(`members: ${kept.join(', ') || '(none)'}${pr ? ` | train PR #${pr}` : ''}`);
   for (const l of left) console.log(`LEFT OUT: ${l.b} - ${l.why}`);
-  if (!verdict.ok) { console.error(`\n${verdict.message}`); return verdict.notRun ? 4 : 2; }
+  const code = buildExitCode(verdict);
+  if (code) { console.error(`\n${verdict.message}`); return code; }
   console.log(`\nnext: node scripts/merge-train.mjs release ${n} ${version} ${JSON.stringify(title)}`);
   return 0;
 }
+
+/** merge-train build's exit from the vitest verdict (run after the push): 0 passed / skipped, 4 not run (heavy lock wait), 2 failed. */
+export const buildExitCode = (verdict) => (verdict?.ok ? 0 : verdict?.notRun ? 4 : 2);
 
 /** The package.json version at `ref`. */
 function versionAt(ref) {
