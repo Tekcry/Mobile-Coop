@@ -3,7 +3,9 @@
 Brief: `docs/coop4/BRIEF.md`. Plan: `docs/coop4/PLAN.md`. Branch `feature/coop4` (from master a10382bc, 4.89.x, `PROTOCOL_VERSION` 49). Lead: Night Shift | Sector Ops Build.
 
 ## Now (2026-10-24 ~18:10, after the account swap)
-- #317 laptop on 3f1c946f: laptop-e2e/coop4 RUNNING (since 17:47); alone set (sectorops 7-9) queued behind it.
+- #317 laptop on 3f1c946f: laptop-e2e/coop4 PASS 14/14 (1342 s, 18:11); alone set (sectorops 7-9, request ...-3f1c946f-fbd4)
+  still unclaimed in the queue at 19:00. coop4-pol regular set PASS 8/8 (989 s) on 1f61b0af. lightField alloc flake fix
+  134f6abe on -pol (orchestrator cherry-picked it as #327).
 - POLISH BATCH DONE: feature/coop4-pol @ 1f61b0af = 5 items (72771798, 50ebbb37, 55a13cef, 06375cec, 28b9e8c8 dead glow
   code, finished by the lead) + UI2 merged (57ec3f70); tsc clean, 12 vitest files 186 pass; report checks/pol-build.md.
   CHECKERS A + B PASS (9f6ac108 / f32c6e8c); their doc / comment polish done e341f852 (docs + a test comment, so the
