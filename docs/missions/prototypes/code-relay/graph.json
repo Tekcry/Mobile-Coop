@@ -1,5 +1,5 @@
 {
-  "_about": "Code Relay mission nodes (mission-framework CR). Mission part only: validate with Sector Ops' campus plan graphs, `node scripts/level-validate.mjs docs/sector-redesign/graph/plan/campusOps-S{1,2,3,4,5}.json <this file>` (mission-validator branch). Space and sync ids are Sector Ops' (origin/feature/sector-redesign-signoff e41942bf6, graph/plan/campusOps-S4.json). `sync` on an objective names the campus sync node the step uses; `target`, `decoys`, `bolt`, `window`, `soloWindow` are MissionDef fields (PLAN section 2), not validator fields. Beat chart: BEAT.md; notes: BEAT.md 'Graph notes'.",
+  "_about": "Code Relay mission nodes (mission-framework CR). Mission part only: validate with Sector Ops' campus plan graphs, `node scripts/level-validate.mjs docs/sector-redesign/graph/plan/campusOps-S{1,2,3,4,5}.json <this file>` (mission-validator branch). Space and sync ids are Sector Ops' (origin/feature/sector-redesign-signoff 6b13cd32, graph/plan/campusOps-S4.json `syncs`; s4-cc carries the `exfil` tag there). `sync` on an objective names the campus sync node the step uses; `target`, `decoys`, `bolt`, `window`, `soloWindow` are MissionDef fields (PLAN section 2), not validator fields. Beat chart: BEAT.md; notes: BEAT.md 'Graph notes'.",
   "mission": { "id": "codeRelay", "mode": "sector", "players": [1, 2, 3, 4], "start": "s4-dock", "budget": 17 },
   "objectives": [
     { "id": "cr-1a", "section": "S4", "space": "s4-deck", "team": "a", "kind": "intel", "gives": "s4-noc-duty",
@@ -7,7 +7,7 @@
       "text": "Over the generator compound and up the plant ladder; hear who has the NOC tonight",
       "hint": "The ladder is on the building's east wall. The dog walks the other side of the tanks." },
     { "id": "cr-1b", "section": "S4", "space": "s4-dock", "team": "b", "kind": "intel", "gives": "s4-codes",
-      "lead": "s3-dock", "seen_from": "s3-dock", "minutes": 2, "sync": "sync-s4-dockboard",
+      "lead": "s4-lobby", "seen_from": "s4-lobby", "minutes": 2, "sync": "sync-s4-dockboard",
       "text": "Read the dock board for the door codes, between the dock pair's trips",
       "hint": "The board is at the west end of the dock, by the goods door into the lobby." },
     { "id": "cr-2a", "section": "S4", "space": "s4-sec", "team": "a", "kind": "sync", "needs": "s4-codes",
