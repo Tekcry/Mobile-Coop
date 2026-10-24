@@ -42,6 +42,9 @@ describe('animTierPeriod', () => {
   it('off-screen: every ANIM_TIER_OFFSCREEN th frame, near or far', () => {
     expect(animTierPeriod(base(OFF))).toBe(ANIM_TIER_OFFSCREEN);
     expect(animTierPeriod(base({ ...OFF, camDist2: FAR2 }))).toBe(ANIM_TIER_OFFSCREEN);
+    // (guard-cap T1-SHADOW) the period is an input (`?animoff=N` A/B runs on one build); the constant by default
+    expect(newAnimTierIn().offPeriod).toBe(ANIM_TIER_OFFSCREEN);
+    expect(animTierPeriod(base({ seen: false, offPeriod: 4 }))).toBe(4);
   });
 
   it('no render since the last update (headless): visibility unknown, counts as seen', () => {

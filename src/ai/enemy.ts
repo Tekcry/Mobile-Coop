@@ -548,7 +548,7 @@ export class Enemy implements Damageable {
     this.carry = new GuardCarry(mayHolster(def.kind, def.gun, !!def.melee, def.quadruped), gunCls);
     if (built.gun && this.carry.on) this.gunCarry = new GuardGunCarry(built.rig, built.gun, carrySlotOf(gunCls));
     // (guard-render S4) anim tiers: off-screen / far guards solve their pose less often (`animTier.ts`)
-    this.animTier = new GuardAnimTier(ctx.scene, this.rig.voxel?.meshes[0] ?? null, this.num);
+    this.animTier = new GuardAnimTier(ctx.scene, this.rig.voxel?.meshes[0] ?? null, this.num, def.height, ctx.world);
     this.hitboxes = new Hitboxes(ctx.scene, ctx.registry, this, def.scale, def.build);
     this.headRest = guardHeadRest(def.height, def.build, def.gun !== null, def.melee ? 0 : def.runSpeed);
     this.voice = new BarkVoice(this.num);
