@@ -61,31 +61,45 @@ landing sees 0.30 through the glass, declared 0.45), `s5-terrace` (dark 0.67, va
   c2 -> lobby, #5, #6 nstair, #8 back -> store door; S4 #16 sec -> noc, #17 yard -> deck, #18 riser -> baskets, #19
   baskets -> deck, #22 baskets -> cage drop; S5 #8, #9 core stairs, #29 arch -> cage pair gate. The brief allowed `at`
   pins only on the three named drops; the rest need the lead's points.
-- Drops are not nav edges: every `drop` link's measured time is the walk round by stairs or ladders (S1 canopy ->
-  forecourt 43 s for a 12.5 m drop; S4 baskets -> hall 49 s; S5 gal -> hall 22 s after the pin). V6-PLAN lists `drop`
-  as a nav link; on the campus the nav grid has no drop-off edge from the basket edge, the hatch or over the 1.1 rail,
-  so these times overstate the drop. A follow-up for the tool (treat `drop` as off-nav, or as `level_change` fall +
-  walk to the edge), not a campus fix.
+- Drops are not nav edges: the guard nav links only 1.0-2.2 m drops (navBuild.ts:11-12), so every campus `drop` was
+  measured as the walk round by stairs or ladders (S1 canopy -> forecourt 43 s for a 12.5 m drop; S4 baskets -> hall
+  49 s; S5 gal -> hall 22 s). **Fixed in the V6 fix round:** a `drop` (or `ladder`) whose nav path takes no nav link of
+  its own kind now measures `{ time_s: null, why: 'drop not on the guard nav (1.0-2.2 m only)' }` and the declared
+  `time_s` stays; all seven campus drops re-measured to null (tables below). The ladders keep their times (each path
+  takes its ladder link).
 
 ## Checks
-- `node scripts/level-measure.mjs <five graphs> --check`: exit 1, 128 FAIL lines (target misses), 0 DRIFT. `--check`
-  fails on a target crossed by design (its usage text), so it cannot exit 0 on the AS-BUILT campus; script unchanged.
-  The drift gate is `tests/levelMeasureCampus.test.ts` (fails on drift / stale geom only).
+After the V6 fix round (checker FIX on 425c4e20; re-measured with `--write` on c9e520ed: bake 150-162 s, whole run
+~2 min 50 s in the cloud container; only the seven drop links changed in the graphs):
+- The target ERRs (shadow band, vantage minimum, LOS-break maximum) now apply to `encounter` spaces only, as
+  graph-schema scopes them; connectors, stair cores, utility, exterior, objective and hub spaces keep only the drift
+  WARN where they declare a target. Partner reach re-times a measured link from `path_m` at 3.0 m/s (it read the
+  1.3 m/s `time_s`). Neither moves the campus reach counts (no split legs are tagged).
+- `node scripts/level-measure.mjs <five graphs> --check`: exit 1, **58 FAIL** lines (was 128; encounter target misses
+  only), 0 DRIFT (tolerance now 0.05 for fractions, 1.5 s for seconds). `--check` fails on a target crossed by design,
+  so it cannot exit 0 on the AS-BUILT campus. The drift gate is `tests/levelMeasureCampus.test.ts` (5/5 green).
 - `node scripts/level-validate.mjs <one section> --require-measured`: each section alone stops at the structure check
-  (cross-section links name spaces of another file, and only S1 holds the `start` tag): S1 1 ERR, S2 2, S3 2, S4 2,
-  S5 1; 0 WARN each. The validator merges files ("one file per section"), so the real counts are the merged run below.
-- `node scripts/level-validate.mjs docs/sector-redesign/graph/campusOps-S{1..5}.json --require-measured`: **250 ERR,
-  211 WARN** (before V6e-2: 149 ERR / 173 WARN plain, 174 ERR with `--require-measured`). The same 250 / 211 without
-  the flag: every encounter now has `measured`. Lines naming a space of each section (a cross-section link counts in
-  both; 1 ERR is map-wide, co-op links reach 6 of 25 encounters):
+  (cross-section links name spaces of another file, and only S1 holds the `start` tag). The validator merges files
+  ("one file per section"), so the real counts are the merged run below.
+- `node scripts/level-validate.mjs docs/sector-redesign/graph/campusOps-S{1..5}.json --require-measured`: **180 ERR,
+  209 WARN** (was 250 / 211; before V6e-2: 149 ERR / 173 WARN plain). Measured ERRs 31 (was 101: the 70 on
+  non-encounter spaces are gone). Lines naming a space of each section (a cross-section link counts in both; 1 ERR is
+  map-wide: co-op links reach 6 of 25 encounters):
 
 | Section | ERR | of which measured | WARN | of which measured vs declared |
 | --- | --- | --- | --- | --- |
-| S1 | 26 | 12 | 30 | 9 |
-| S2 | 71 | 30 | 46 | 2 |
-| S3 | 42 | 17 | 35 | 3 |
-| S4 | 43 | 15 | 45 | 13 |
-| S5 | 68 | 27 | 57 | 11 |
+| S1 | 18 | 4 | 30 | 9 |
+| S2 | 47 | 6 | 46 | 2 |
+| S3 | 28 | 3 | 35 | 3 |
+| S4 | 34 | 6 | 43 | 11 |
+| S5 | 53 | 12 | 57 | 11 |
+
+What remains, by kind (180): routes, reach and pacing 73 (26 dead ends not tagged reward / objective, 12 no high
+approach, 10 no loud, 5 no shadow, 9 too few approaches, 7 too few route kinds, 1 unreachable `s5-yard`, 1 section
+with too few independent routes, the co-op reach line, one run of three high beats); declared targets 32 (21 declared
+`shadow_pct` outside 0.4-0.6, 8 declared vantage below 0.7, 3 missing); measured targets 31 (18 shadow, 12 sees, 1
+shadow on an encounter with no declared target); sizes 44 (35 room class minimums, 5 encounter short sides under the
+6.0 camera floor, 4 opening widths). None is a tool error: they are the AS-BUILT campus's.
 
 ## S1 (campusOps-S1.json)
 
@@ -115,8 +129,8 @@ Links on the nav (declared / measured; 8 more are off-nav kinds with `time_s: nu
 | 14 | `s1-plantroof` -> `s1-canopy` | opening | - / 10.01 | 13.00 / 13.02 |
 | 15 | `s1-plantroof` -> `s1-pavilion` | opening | - / 10.22 | 14.00 / 13.29 |
 | 16 | `s1-canopy` -> `s1-pavilion` | opening | - / 4.09 | 5.00 / 5.32 |
-| 19 | `s1-canopy` -> `s1-forecourt` | drop | - / 43.29 | 12.50 / 56.28 |
-| 20 | `s1-pavilion` -> `s1-forecourt` | drop | - / 44.02 | 17.50 / 57.23 |
+| 19 | `s1-canopy` -> `s1-forecourt` | drop | - / null | 12.50 / - |
+| 20 | `s1-pavilion` -> `s1-forecourt` | drop | - / null | 17.50 / - |
 
 ## S2 (campusOps-S2.json)
 
@@ -245,8 +259,8 @@ Links on the nav (declared / measured; 3 more are off-nav kinds with `time_s: nu
 | 17 | `s4-yard` -> `s4-deck` | ladder | 33.00 / 34.49 | 41.00 / 44.84 |
 | 18 | `s4-riser` -> `s4-baskets` | ladder | 16.00 / 23.02 | 20.00 / 29.92 |
 | 19 | `s4-baskets` -> `s4-deck` | ladder | 33.00 / 39.52 | 42.00 / 51.38 |
-| 22 | `s4-baskets` -> `s4-cage` | drop | 7.00 / 40.55 | 12.00 / 52.71 |
-| 23 | `s4-baskets` -> `s4-hall` | drop | 12.00 / 49.42 | 18.00 / 64.24 |
+| 22 | `s4-baskets` -> `s4-cage` | drop | 7.00 / null | 12.00 / - |
+| 23 | `s4-baskets` -> `s4-hall` | drop | 12.00 / null | 18.00 / - |
 | 24 | `s4-hall` -> `s4-cage` | door | - / 5.16 | 6.50 / 6.71 |
 | 25 | `s4-hall` -> `s4-cage` | pair_gate | - / 11.73 | 11.50 / 15.24 |
 
@@ -290,7 +304,7 @@ Links on the nav (declared / measured; 7 more are off-nav kinds with `time_s: nu
 | 14 | `s5-gal` -> `s5-board` | door | - / 8.28 | 11.00 / 10.77 |
 | 15 | `s5-gal` -> `s5-ceo` | door | - / 9.74 | 11.00 / 12.67 |
 | 16 | `s5-hall` -> `s5-gal` | open_stair | - / 9.28 | 12.50 / 12.06 |
-| 17 | `s5-gal` -> `s5-hall` | drop | - / 22.23 | 6.00 / 28.90 |
+| 17 | `s5-gal` -> `s5-hall` | drop | - / null | 6.00 / - |
 | 18 | `s5-hall` -> `s5-pass` | door | - / 6.73 | 9.00 / 8.75 |
 | 19 | `s5-pass` -> `s5-draw` | door | - / 5.36 | 6.50 / 6.97 |
 | 20 | `s5-draw` -> `s5-garden` | door | - / 13.29 | 15.50 / 17.28 |
@@ -303,5 +317,5 @@ Links on the nav (declared / measured; 7 more are off-nav kinds with `time_s: nu
 | 28 | `s5-shaft` -> `s5-cage` | ladder | 6.00 / 5.23 | 5.00 / 6.79 |
 | 29 | `s5-arch` -> `s5-cage` | pair_gate | - / 2.46 | 3.00 / 3.20 |
 | 32 | `s5-ctl` -> `s5-hall` | door | - / 7.60 | 9.00 / 9.89 |
-| 33 | `s5-roof` -> `s5-garden` | drop | - / 54.42 | 19.00 / 70.75 |
-| 34 | `s5-roof` -> `s5-terrace` | drop | - / 78.21 | 16.50 / 101.67 |
+| 33 | `s5-roof` -> `s5-garden` | drop | - / null | 19.00 / - |
+| 34 | `s5-roof` -> `s5-terrace` | drop | - / null | 16.50 / - |

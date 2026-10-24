@@ -161,11 +161,11 @@
       "at": [-20, 4.4, -35.85],
       "reason": "Drop through the open maintenance hatch (A65) to land in front of the doorman, or off the lip",
       "note": "Hatch x -20.6..-19.4, z -36.4..-35.3 (campusS1.ts:288-290). 4.4 is above the 3.5 safe-drop WARN; no fall-damage constant was found in src/config.",
-      "measured": { "time_s": 43.29, "path_m": 56.28 } },
+      "measured": { "time_s": null, "why": "drop not on the guard nav (1.0-2.2 m only)" } },
     { "from": "s1-pavilion", "to": "s1-forecourt", "kind": "drop", "route": "high", "width": 20, "level_change": 4.4, "length": 17.5, "one_way": true,
       "reason": "Off the pavilion's south face (east block x -16..4) onto the forecourt: no parapet, no wall below",
       "note": "Unplanned (pavilion top is not in the SPEC). width = the open edge, x -16..4.",
-      "measured": { "time_s": 44.02, "path_m": 57.23 } },
+      "measured": { "time_s": null, "why": "drop not on the guard nav (1.0-2.2 m only)" } },
 
     { "from": "s1-forecourt", "to": "s2-foyer", "kind": "door", "route": "spine", "width": 1.2, "height": 2.1, "length": 19.5,
       "reason": "C1 staff entrance vestibule: badge door (-20,-34), 4 m vestibule, far door (-20,-30) into the HQ reception (section connector)",

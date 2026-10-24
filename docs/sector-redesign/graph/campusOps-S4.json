@@ -561,7 +561,7 @@
       "note": "level_change is the basket top above the cage floor; the hang cuts the real fall by an amount not measured here. Jam-and-pass (one partner jams the panel at (23.5,5.8,41.85), the other crosses) has no schema field. time_s estimated.",
       "length": 12,
       "time_s": 7,
-      "measured": { "time_s": 40.55, "path_m": 52.71 }
+      "measured": { "time_s": null, "why": "drop not on the guard nav (1.0-2.2 m only)" }
     },
     {
       "from": "s4-baskets",
@@ -575,7 +575,7 @@
       "length": 18,
       "time_s": 12,
       "at": [14, 4.4, 41.3],
-      "measured": { "time_s": 49.42, "path_m": 64.24 }
+      "measured": { "time_s": null, "why": "drop not on the guard nav (1.0-2.2 m only)" }
     },
     {
       "from": "s4-hall",
