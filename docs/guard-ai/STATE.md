@@ -930,7 +930,7 @@ block to Michael (laptop allow rule); never ask a peer to do the blocked action 
 Before pushing a PR head: vitest every test file importing the changed modules AND their direct importers (an
 src/ai change: also the tests importing enemy.ts / enemyManager.ts; catch-all Proxy doubles miss new methods: R1
 #326 missed train 59 on consoleNoticeA4). Put this line in every builder brief.
-Master 4.93.0 (6e8a450b), PROTOCOL 52 (tests read the constant; the train bumps).
+Master 4.95.0 (d91d0e00), PROTOCOL 54 (tests read the constant; the train bumps).
 Open:
 1. #317 coop4 (feature/coop4, worktree C:/NightShift/Mobile-Coop-coop4; taken from Sector Ops 2026-10-24): p8 test fix
    afc616f0 (Sector Ops), master 4.95.0 merged 1b04e5bd (PROTOCOL 54), Opus checks A + B PASS (docs/coop4/checks/
