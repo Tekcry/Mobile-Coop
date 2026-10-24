@@ -10,6 +10,10 @@
 //   E2E_GPU=1 E2E_PORT=4189 timeout 1800 node scripts/campus-art-shots.mjs docs/sector-redesign/art after
 //   E2E_GPU=1 E2E_PORT=4189 timeout 600 node scripts/campus-art-shots.mjs docs/sector-redesign/art --sheet
 // Optional env: ONLY=s1-a,s2-b just those views; GFX=high another preset; SUFFIX=-high appended to each file name.
+// (fog triage, docs/sector-redesign/checks/fog-triage.md; from sector-lights-shots.mjs) A / B switches, defaults
+// unchanged: VOL=off the volumetric pass scatters no lights (the height fog stays); VOLFIX=1 previews in the page the
+// rule "every fixed light scatters a short haze under its shade, only torches beam" (src unchanged); BLOOM=off the
+// default pipeline's bloom off; PROBE=1 prints the volumetric pass's lights per view into <prefix>-probe<SUFFIX>.txt.
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { launch } from './e2e-lib.mjs';
@@ -19,6 +23,10 @@ const PORT = Number(process.env.E2E_PORT ?? 4189);
 const URL = `http://127.0.0.1:${PORT}/`;
 const GFX = process.env.GFX ?? 'epic';
 const SUFFIX = process.env.SUFFIX ?? '';
+const VOL_OFF = process.env.VOL === 'off';
+const VOL_FIX = process.env.VOLFIX === '1';
+const BLOOM_OFF = process.env.BLOOM === 'off';
+const PROBE = process.env.PROBE === '1';
 // the whole campus is built at once (a section change only moves guards and doors), so every view is a teleport
 const QUERY = 'autostart=campusOps&mode=sector&sectorGuards=0';
 const WIDTH = 960;
@@ -134,13 +142,32 @@ const l = await launch({ url: URL, params: `${QUERY}&gfx=${GFX}` });
 browser = l.browser;
 const page = l.page;
 const summary = [];
+const probes = [];
 try {
   await page.waitForFunction(() => globalThis.__app?.current?.player && globalThis.__app.current.world, null, { timeout: 180_000 });
   await page.waitForTimeout(3000);
   const conv = await l.ctx.newPage();
   for (const [name, p, c, t] of picked) {
-    const m = await page.evaluate(async ([p, c, t]) => {
+    const m = await page.evaluate(async ([p, c, t, volOff, volFix, bloomOff]) => {
       const g = globalThis.__app.current;
+      const st = g.stack;
+      if (volOff) st.setAdaptive(1, 0);
+      if (bloomOff && st.def) st.def.bloomEnabled = false;
+      if (volFix && !st.volFixed) {
+        const frame = st.frame.bind(st);
+        st.volFixed = true;
+        st.frame = (dt) => {
+          frame(dt);
+          const ls = st.opts.lights?.lights ?? [];
+          for (let i = 0; i < st.volCount; i++) {
+            const l = ls[st.ids[i]];
+            if (!l || l.kind === 'flashlight' || !l.cone) continue;
+            st.lPos[i * 4 + 3] = Math.min(3.2, l.radius * 0.5, Math.max(0.8, l.y));
+            st.lDir[i * 4 + 3] = Math.max(l.cone.cosOuter, 0.88);
+            for (let k = 0; k < 3; k++) st.lCol[i * 4 + k] = l.color[k] * l.intensity * l.flicker;
+          }
+        };
+      }
       const V = g.player.position.constructor;
       g.photoFreeze(false);
       document.body.classList.remove('photo-mode');
@@ -168,20 +195,29 @@ try {
       }
       n.sort((a, b) => a - b);
       const art = g.world.campusArt?.counts?.() ?? null;
+      const vol = [`vol lights ${st.volCount} (max ${st.volMax})`];
+      for (let i = 0; i < st.volCount; i++) {
+        const l = st.opts.lights.lights[st.ids[i]];
+        const q = (a) => [0, 1, 2, 3].map((k) => st[a][i * 4 + k].toFixed(2)).join(',');
+        vol.push(`  vol[${i}] ${l.kind} ${l.fixture?.model ?? (l.fixture ? 'box' : 'none')} cone ${l.cone ? 'y' : 'n'} pos,r ${q('lPos')} dir,cos ${q('lDir')} col ${q('lCol')}`);
+      }
       return {
+        vol: vol.join('\n'),
         draws: n[3],
         tris: Math.round(g.scene.getActiveIndices() / 3),
         active: g.scene.getActiveMeshes().length,
         meter: g.world.lightField.levelAt(p[0], p[1] + 1.0, p[2]),
         art: art ? `${art.draws}/${Math.round(art.tris / 1000)}k` : 'none',
       };
-    }, [p, c, t]);
+    }, [p, c, t, VOL_OFF, VOL_FIX, BLOOM_OFF]);
     const png = await page.screenshot({ timeout: 120_000 });
     writeFileSync(`${dir}/${prefix}-${name}${SUFFIX}.webp`, await toWebp(conv, png));
     const line = `${name}${SUFFIX} draws=${m.draws} tris=${m.tris} active=${m.active} meter=${m.meter.toFixed(3)} art=${m.art}`;
     console.log(line);
     summary.push(line);
+    if (PROBE) probes.push(`${name}${SUFFIX}\n${m.vol}`);
   }
+  if (PROBE) writeFileSync(`${dir}/${prefix}-probe${SUFFIX}.txt`, probes.join('\n') + '\n');
   if (l.errors.length) console.log(l.errors.slice(0, 5).join('\n'));
   writeFileSync(`${dir}/${prefix}-counts${SUFFIX}.txt`, summary.join('\n') + '\n');
 } catch (e) {

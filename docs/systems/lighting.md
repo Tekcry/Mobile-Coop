@@ -140,6 +140,25 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
 - A material made after load gets the lamp plugin on the next frame (`BakedLamps.frame` re-scans when the material count
   changes).
 
+## Per-section lamp bake (section-bake; Saltmarsh Park only)
+Brief and decisions SB1-SB14: `docs/sector-redesign/briefs/SECTION-BAKE.md`; build report
+`docs/sector-redesign/checks/section-bake-build.md`.
+- Opt-in by map id (`world/sectionBake.ts` `SECTION_BAKE_MAPS`: campusOps; regions in `world/maps/campusBake.ts`, per
+  section plan rects + its connectors, grown 2 m). Every other map, `?fullbright` and a full cache hit bake as before.
+- On a cache miss `bakeLevelLight` lays the whole result out at once (`lampLayout`: every box from `lampBox`, zero cells)
+  and starts a `SectionBaker` (`voxel/sectionJobs.ts`, `LightBake.sections`): one lamp per worker job, the live section
+  first, biggest box first. A lamp counts for every section its influence square (reach + `BOUNCE.reach` + 2 ambient
+  cells + a lamp cell) touches. `GameState.create` waits for the live section beside the shader warm-up; the rest bakes
+  in the background. `SectorMode.loadSection` (host) and the client's `ls` move the live section first (no wire
+  change); the host's connector cycle waits until the next section is in (normally long done).
+- Landing (promise callbacks, never per frame): the visibility in place, the bounce re-joined (`BounceGrid.adopt`, exact
+  integer sums), door lists per landed lamp (`lampDoorListInto`), in `LightField` and `BakedLamps` alike. A live-section
+  lamp is uploaded and lit at once; any other lamp's atlas tile goes up in `texSubImage3D` slabs (`TILE_BUDGET` 4 MB a
+  frame) and its colour fades in over `LAND_FADE_MS` 1.5 s (rendering only: it reaches no point of the live section).
+- Parity: per-lamp bytes are independent of the job, so the field at any point of the live section equals the full
+  bake's (`tests/sectionBake.test.ts`, exact at random points; the joined result byte-identical). The joined result is
+  cached under the full key at the next section change or the match's end (SB14: no mid-play clone).
+
 ## Moving lights: flicker and stutter (LR16-5, Michael M13)
 - `world/lampFlicker.ts` (pure): a fire's multiplier (value noise 0.75..1, a few Hz) and a failing tube's stutter
   (mostly on; a burst every ~8 s: chatter off / dim / on, or a drop-out with starter blinks), each a function of the
@@ -230,7 +249,10 @@ change.
   `docs/research/night-vision-and-lamps.md`.
 - Volumetric beams (post stack, `src/vfx/volLights.ts`, vol-cone-fix): torches (`kind: 'flashlight'`) and cone lights
   without an LED fitting model (floods) draw a long beam; lamps and LED fittings (`fixture.model`: strips, panels,
-  bulkheads, with or without a beam optic) scatter a short haze under their shade.
+  bulkheads, with or without a beam optic) scatter a short haze under their shade. A map whose `theme.lampBeams` is
+  false (Saltmarsh Park; fog triage, Michael on 4.95.0: "Campus lights look very foggy, can't see through them") beams
+  torches only: its 76 glowing-box cone fittings haze like lamps (`PostStackOptions.lampBeams`; Marlow Yard and the base
+  Warehouse keep their flood beams). Report: `docs/sector-redesign/checks/fog-triage.md`; test `tests/volLights.test.ts`.
 - Brightness calibration (`BrightnessScreen`, Settings > Display): an exposure multiplier in the grade, `BRIGHTNESS_MIN` ..
   `MAX`. `GameState.brightnessLocked` (nothing sets it now; its mission was the Confrontation, removed by G9).
 

@@ -50,12 +50,19 @@ Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then
 - A suite past `E2E_SUITE_TIMEOUT` (default 600 s) is killed and fails. Full runs on this desktop use
   `E2E_SUITE_TIMEOUT=900` (e2e-desktop takes about 553 s and e2e-mouse about 405 s solo).
 - `--quick` (`--since=<ref>`, default: the working tree plus unpushed commits): `smoke` + the suites mapped to the
-  changed folders (`COVERS` in the runner, first match wins: the studio files (`src/anim/studio*`, `tuneHistory`,
+  changed folders (`QUICK_COVERS` in `scripts/e2e-affected.mjs`, master's map unchanged, first match wins: the studio files (`src/anim/studio*`, `tuneHistory`,
   `src/game/studioStage`, `src/world/maps/studio.ts`, `src/save/animTuneStore`, `src/ui/studio*`, `tuneSnapshots`,
   `overlayProject`, `animTune*`, `tuner*` (tunerLayout, tunerMouse, tunerTarget, tunerPhone): `e2e-studio` plus their folder's suites; `tuner*`, `animTune*`, `studioStage` and `src/player/freeView` also `e2e-tuner-phone`), `src/core/quality`, `display`, `settings`
-  and `flags` by file, then the folders); an unmapped `src/` path, `e2e-lib`, the runner or `package.json` runs `CORE` = e2e-move,
+  and `flags` by file, the section rating files (`src/ui/hud/ratingCard`, `src/game/rating/`, `src/save/ratingRecord`; `courseMode`
+  and `sectorMode` also pick `e2e-section-rating`), the Marlow Yard sets (`src/world/maps/ctcourseSets/`, `ctcourseGreybox.ts`:
+  `e2e-ctcourse`), then the folders); a set step module `scripts/e2e-ctcourse/<set>.mjs` reruns `e2e-ctcourse` (`SUITE_DIRS`);
+  an unmapped `src/` path, `e2e-lib`, the runner or `package.json` runs `CORE` = e2e-move,
   e2e-combat, e2e-anim. A picked suite outside REQUIRED (a legacy or audio suite, `anim-audit`) runs REPORT ONLY; GPU
   suites never run there. `--list` prints what would run. Target: about 10 minutes for a single-folder change.
+- The folder -> suites maps live in `scripts/e2e-affected.mjs` (pure, tested by `tests/e2eAffected.test.ts`): `QUICK_COVERS`
+  (`--quick`, master's map and rules unchanged; the test holds a frozen copy and checks it row by row), `DIRECT_COVERS`
+  (`--affected`) and `WIDE_COVERS` (`--affected --wide`). Edit them there and keep their rule comments true. A name with a
+  part (`e2e-sectorops:1`) is one job; a whole suite absorbs its parts.
 - The lists (process audit, 2026-10-19): REQUIRED = the co-op training level (Marlow Yard) and the systems it stands
   on. LEGACY (`--legacy`): `e2e-progression`, `e2e-cosmetics`, `e2e-clear`, `e2e-bunker` (these four get `LEGACY=1`, so
   `e2e-lib` adds `legacy=1`), `e2e-missions`, `e2e-modes`, `e2e-enemies`, `e2e-ct-warehouse`, `e2e-wall:flanker`,
@@ -82,6 +89,43 @@ Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then
   (`e2e-wall:flanker`, `e2e-desktop:3`).
 - `E2E_PROFILE=1` makes each suite print where its time went (launch, boot, match build, frames, fixed waits,
   `stepHeadless`, screenshots).
+
+## Choosing suites for a change
+- `node scripts/run-e2e.mjs --affected <base-ref> [--wide]` (e.g. `origin/master`): the suites a PR must pass (the laptop is the
+  bottleneck, so the default is the DIRECT tier; `--wide` adds the cross-area readers). Changed files =
+  `git diff --name-only <merge-base of base and HEAD> HEAD` (committed work only, so it works on a detached commit on the
+  laptop; `--quick` reads the working tree). Add `--list` to print the chosen suites one per line and exit without running
+  (what the laptop queue service and leads use to know what a PR must pass). Without `--list` it runs them like `--quick`:
+  `smoke` first, suites outside REQUIRED REPORT ONLY, GPU suites never.
+- DIRECT rules (default): `src/player` -> move, anim, stealth, clip; `src/anim` -> anim, clip, move; `src/game` -> gadgets,
+  tactics, takedown, park, plus `e2e-sectorops` for `src/game/sectors` and `src/game/modes`, the course suites (`e2e-course`,
+  `e2e-ctcourse`) for `src/game/course` and `courseMode`; `src/world` -> levels, anchors (a map file with its own suite: that suite);
+  the lamp files (`src/world/light*`, `lamp*`, `bakedLamps`, `ambientGrid`, `darkCurve`) and `src/voxel` -> lightbake, desktop;
+  `src/config`, `src/core` -> CORE (`e2e-move`, `e2e-combat`, `e2e-anim`); `src/weapons` -> combat, weapons-carry, stealth-ai,
+  `e2e-sectorops:1` (`weapons.lastShotNoise` drives guard hearing; train 30); `src/ai` -> stealth-ai, guard-carry,
+  `e2e-sectorops:1`; `src/net`, `src/save` (the shape; the tuner store picks the studio) and `src/security/data` -> the co-op group
+  (`e2e-coop`, `e2e-netmove`, `e2e-ctcourse`); the studio and tuner files -> `e2e-studio` (and `e2e-tuner-phone` / `e2e-menus`);
+  the section rating files (`src/ui/hud/ratingCard`, `src/game/rating/`, `src/save/ratingRecord`: a kv key, not the save shape)
+  -> `e2e-section-rating`, which `courseMode` and `sectorMode` also pick; the Marlow Yard sets (`src/world/maps/ctcourseSets/`,
+  `ctcourseGreybox.ts`) -> `e2e-ctcourse`; `src/player/smoothBody*` and `bodyEffectRecovery` also `e2e-guard-carry`.
+  Every LEGACY and GPU suite is reachable from the area that owns it (REPORT ONLY / dropped outside `--gpu` by the runner):
+  `src/progression` -> progression, `src/cosmetics` -> cosmetics, `clearMode` -> clear, `missionMode` -> modes,
+  `infiltrationMode` and `src/game/missions.ts` -> missions, `src/ai/archetypes` / `enemyDefs` -> enemies, the Fallow files
+  (`src/world/maps/bunker*`) -> bunker, `src/world/maps/warehouse.ts` / `warehouseDress` -> ct-warehouse, the camera files
+  (`shoulderCamera`, `cameraBounds`, `src/config/camera`) -> camera-bounds, the lamp files -> darkness, `src/net/remoteAvatar` /
+  `remotePlayer` -> coop-gpu. The other folders (input, ui, physics, cover, vfx, security, audio, ...) keep their quick row.
+  Outside `src/`: only `docs/**`, `*.md`, `changes/**`, `tests/**` -> no suites; a `scripts/e2e-<x>.mjs` -> that suite (a helper
+  -> what it serves; a set step module `scripts/e2e-ctcourse/<set>.mjs` -> `e2e-ctcourse`, `SUITE_DIRS`); `e2e-lib`, the runner,
+  `package.json` / lock, `index.html`, `vite.config`, `public/` and an unknown `src/` path -> smoke + CORE.
+  Example: optic-cable 13 jobs direct, 30 wide (e2e-ctcourse is 4 parts); guard-ai-carry-fix 7 direct, 15 wide.
+- WIDE rules (`--wide`): DIRECT plus the cross-area readers: `src/weapons` also enemies, gadgets, clip; `src/ai` also levels,
+  tactics, takedown, weapons-carry, coop, `e2e-sectorops:6`; `src/player` / `src/anim` the quick rows plus takedown; `src/game`
+  also ctcourse and sectorops; `src/world` also lightbake, guard-carry, ctcourse; the lamp files and `src/voxel` the light readers
+  (desktop, stealth-ai, security, darkness); `src/net` / `src/save` the quick rows plus the co-op group; `src/game/rating` also
+  sectorops and course, `src/save/ratingRecord` also sectorops and menus (the missions screen reads it); the Marlow Yard map and
+  set files also `e2e-section-rating` (it rates A2-A8).
+- Selection is pure (`selectSuites(files, map)`, map = `DIRECT_COVERS` by default: paths in, sorted unique suite list out); the runner orders it (REQUIRED first) and
+  drops GPU suites and suites without a script.
 
 ## Ports
 Two jobs on one PC never share a port. Each job names its pair in its RULES (G94).

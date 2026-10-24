@@ -1,12 +1,14 @@
 import { BaseTexture, Constants, max3DTextureSize, EffectRenderer, EffectWrapper, MaterialPluginBase, RawTexture, RawTexture3D, Texture, Viewport, type AbstractMesh, type Material, type MaterialDefines, type Observer, type RenderTargetWrapper, type Scene, type SubMesh, type UniformBuffer } from '../core/babylon';
-import { BOX_STRIDE, fillLampAtlas, fitLampAtlas, LAMP_CELL, LAMP_GRID, LAMP_GRID_SLOTS, LAMP_GRID_TEXELS, LAMP_STRIDE, lampGrid, type LampResult } from '../voxel/lampBake';
+import { BOX_STRIDE, fillLampAtlas, fitLampAtlas, LAMP_CELL, LAMP_GRID, LAMP_GRID_SLOTS, LAMP_GRID_TEXELS, LAMP_STRIDE, lampGrid, type LampAtlas, type LampResult } from '../voxel/lampBake';
+import { sectionBakerOf, type SectionBaker } from '../voxel/sectionJobs';
+import { slabDepth } from './sectionBake';
 import { LAMP_VOL_MAX, lampVolumeGrid, lampVolumeRegion, unionRegion, type LampVolumeGrid } from '../voxel/lampVolume';
 import type { LightRegistry } from './lights';
 import { bakedLights, type MoonGrid } from './lightBake';
 import { LAMP_CONE_COS, LAMP_EXP, LAMP_MATH_GLSL, LIGHT_GAIN, SPOT_EXP } from './lampMath';
 import { DARK_DESKTOP, DARK_GLSL, DARK_STANDARD, LEVEL_TO_RENDER, VISION_GAIN, visionAmount, visionDark, type DarkParams } from './darkCurve';
 import { AMBIENT_CELL, type AmbientGrid } from './ambientGrid';
-import { bakeVisSampler, DOOR_SHUT, DOORS_PER_LAMP, DOORS_PER_LAMP_ACCURATE, lampDoorLists, type FieldDoor } from './lightField';
+import { bakeVisSampler, DOOR_SHUT, DOORS_PER_LAMP, DOORS_PER_LAMP_ACCURATE, lampDoorListInto, lampDoorLists, type FieldDoor } from './lightField';
 import { TORCH_DRAW_GLSL, TORCH_DRAW_SLOTS, TORCH_DRAW_STRIDE } from './shadowAccuracy';
 import { LEVEL_FILL_GLSL as LF, type Rgb } from './levelFill';
 import { CHAR_SHADOW_GLSL, type CharShadowLamps, type CharShadowLink } from './charShadows';
@@ -64,6 +66,11 @@ export const isLampLevel = (m: Material): boolean => !!(m.metadata as { lampLeve
 
 /** (LR16-1) The fill texture's bounce channel is re-uploaded at most this often (ms). */
 export const BOUNCE_UPLOAD_MS = 250;
+
+/** (section-bake, SB8) A lamp landing outside the live section fades in over this long (ms; rendering only). */
+export const LAND_FADE_MS = 1500;
+/** (section-bake) Atlas bytes uploaded per frame for lamps landing in the background (`texSubImage3D` slabs). */
+export const TILE_BUDGET = 4 << 20;
 
 /** Character capsules (two texels each) and how many one lamp tests. */
 export const MAX_CAPSULES = 16;
@@ -215,7 +222,7 @@ export class BakedLamps implements CharShadowLamps {
     if (this.buf[o]! + this.buf[o + 1]! + this.buf[o + 2]! > 0) return true;
     // (LR16-5) a stuttering tube at an off step is still lit: it keeps its character shadow slot
     const l = this.reg.lights[this.order[i]!];
-    return !!l && l.flicker < 1 && l.on && !l.destroyed && l.intensity > 0;
+    return !!l && this.fade[i]! > 0 && l.flicker < 1 && l.on && !l.destroyed && l.intensity > 0;
   }
   /** Characters' capsules each frame (foot + head points, radius): GameState's. */
   capsules: ((a: Float32Array, b: Float32Array, max: number) => number) | null = null;
@@ -226,6 +233,28 @@ export class BakedLamps implements CharShadowLamps {
   readonly volCaps = new Float32Array(VOL_CAPS * 8);
   private readonly boxes: Float32Array;
   private readonly lastColors: Float32Array;
+  /** (section-bake) The bake result the atlas was filled from (lamps still baking land into it), the atlas layout. */
+  private readonly r: LampResult;
+  private readonly bakedL: Float32Array;
+  private readonly atlas: LampAtlas;
+  private readonly door2Base: number;
+  /** (section-bake) Per lamp where its cells start in `r.vis` (null: a finished bake, summed on use). */
+  private readonly visAt: Float64Array | null;
+  /** (section-bake, SB8, rendering only) Per lamp its colour's fade-in (1: in full; 0: not landed yet). */
+  readonly fade: Float32Array;
+  private readonly fadeT0: Float64Array;
+  private readonly fadeList: Int32Array;
+  private fadeN = 0;
+  /** (section-bake) Per lamp 1 once its cells are in the atlas (null: every lamp was in at load). */
+  private readonly have: Uint8Array | null = null;
+  /** (section-bake) Lamps whose atlas tile waits for upload (FIFO), and the head's next z slice. */
+  private readonly tileQ: Int32Array;
+  private tileHead = 0;
+  private tileTail = 0;
+  private tileZ = 0;
+  /** (section-bake) Tile slabs uploaded with `texSubImage3D` / whole-atlas fallbacks (tests, the build report). */
+  tileUploads = 0;
+  atlasReuploads = 0;
 
   constructor(
     private scene: Scene,
@@ -267,10 +296,30 @@ export class BakedLamps implements CharShadowLamps {
     this.ids = new Set(baked.ids);
     this.boxes = r.boxes;
     this.lastColors = new Float32Array(baked.ids.length * 3).fill(-1);
+    // (section-bake) a bake still landing: the lamps not in yet start dark (fade 0) and come in through `landed`
+    this.r = r;
+    this.bakedL = baked.lights;
+    const nL = baked.ids.length;
+    this.fade = new Float32Array(nL).fill(1);
+    this.fadeT0 = new Float64Array(nL);
+    this.fadeList = new Int32Array(nL);
+    this.tileQ = new Int32Array(nL);
+    const sb = sectionBakerOf(r);
+    this.visAt = sb ? sb.at : null;
+    if (sb) {
+      const have = new Uint8Array(nL);
+      for (let i = 0; i < nL; i++) {
+        have[i] = sb.plan.landed[i]!;
+        this.fade[i] = have[i]!;
+      }
+      this.have = have;
+      sb.onLand((ls, k) => this.landed(ls, k, sb));
+    }
     // (lr-tex3d) within the GPU's real 3D texture size: past it the upload fails and every lamp reads 0 on screen
     const atlas = fitLampAtlas(r.boxes, max3DTextureSize(scene.getEngine()));
     if (!atlas.fits) console.warn(`BakedLamps: lamp atlas ${atlas.dims.join('x')} passes this GPU's 3D texture size`);
     this.atlasDims = atlas.dims;
+    this.atlas = atlas;
     this.atlasPages = atlas.pages;
     const [ax, ay, az] = atlas.dims;
     this.vis = new RawTexture3D(fillLampAtlas(r, atlas), ax, ay, az, Constants.TEXTUREFORMAT_R, scene, false, false, Texture.BILINEAR_SAMPLINGMODE, Constants.TEXTURETYPE_UNSIGNED_BYTE);
@@ -288,6 +337,7 @@ export class BakedLamps implements CharShadowLamps {
     this.lampBase = lay.lampBase;
     this.capBase = lay.capBase;
     const door2Base = lay.door2Base;
+    this.door2Base = door2Base;
     this.doorBase = lay.doorBase;
     const buf = new Float32Array(w * h * 4);
     this.buf = buf;
@@ -397,7 +447,7 @@ export class BakedLamps implements CharShadowLamps {
     const changed: number[][] = [];
     for (let i = 0; i < this.order.length; i++) {
       const l = this.reg.lights[this.order[i]!]!;
-      const k = l.on && !l.destroyed ? l.intensity * l.flicker * LIGHT_GAIN : 0;
+      const k = l.on && !l.destroyed ? l.intensity * l.flicker * LIGHT_GAIN * this.fade[i]! : 0;
       const o = (this.lampBase + i * LAMP_TEXELS + 1) * 4;
       buf[o] = l.color[0] * k;
       buf[o + 1] = l.color[1] * k;
@@ -435,6 +485,8 @@ export class BakedLamps implements CharShadowLamps {
       if (this.volume) this.data.update(this.buf);
       else dirty = true;
     }
+    // (section-bake) lamps landing in the background: their atlas tiles (a byte budget a frame), then their fade-in
+    if ((this.tileTail > this.tileHead || this.fadeN > 0) && this.stepLanding()) dirty = true;
     const nc = this.capsules ? Math.min(MAX_CAPSULES, this.capsules(this.capA, this.capB, MAX_CAPSULES)) : 0;
     if (this.volume) {
       // (the first few capsules: the operator and the guards nearest the camera)
@@ -560,7 +612,7 @@ export class BakedLamps implements CharShadowLamps {
       const i = id < idx.length ? idx[id]! : -1;
       if (i < 0) continue;
       const l = reg.lights[id]!;
-      const g = l.on && !l.destroyed ? l.intensity * l.flicker * LIGHT_GAIN : 0;
+      const g = l.on && !l.destroyed ? l.intensity * l.flicker * LIGHT_GAIN * this.fade[i]! : 0;
       const o = (this.lampBase + i * LAMP_TEXELS + 1) * 4;
       buf[o] = l.color[0] * g;
       buf[o + 1] = l.color[1] * g;
@@ -661,6 +713,149 @@ export class BakedLamps implements CharShadowLamps {
       }
       for (; k < CAPS_PER_LAMP; k++) buf[o + k] = 0;
     }
+  }
+
+  /**
+   * (section-bake) Lamps `ls[0 .. k)` landed in the bake (a promise callback between frames, never per frame): their
+   * door lists (from their visibility, as the light field's) and door texels, their atlas tiles. A lamp of the live
+   * section is uploaded now and lit at once (light parity: the meter already reads it); any other is queued (a byte
+   * budget a frame) and fades in once its tile is up (SB8, rendering only: its light reaches no point of the live
+   * section). The colours and door texels go up with the next frame's whole upload.
+   */
+  private landed(ls: Int32Array, k: number, sb: SectionBaker): void {
+    const have = this.have;
+    if (!have) return;
+    const seen = bakeVisSampler(this.r);
+    let any = false;
+    let whole = false;
+    for (let j = 0; j < k; j++) {
+      const i = ls[j]!;
+      if (i < 0 || i >= have.length || have[i]) continue;
+      have[i] = 1;
+      any = true;
+      lampDoorListInto(this.lampDoors, i, this.bakedL, this.doors, seen, this.doorSlots);
+      this.writeLampDoors(i);
+      if (sb.plan.liveMember(i)) {
+        this.fade[i] = 1;
+        if (!whole && !this.uploadTile(i, 0, this.boxes[i * BOX_STRIDE + 5]!)) whole = true;
+      } else {
+        this.fade[i] = 0;
+        this.tileQ[this.tileTail++] = i;
+      }
+    }
+    if (!any) return;
+    if (whole) this.reuploadAtlas();
+    // (the colours and the door texels: one whole upload on the next frame)
+    this.version = -1;
+  }
+
+  /** (section-bake) Lamp `i`'s door ids into its t6 texel and its second door texel (as the constructor writes them). */
+  private writeLampDoors(i: number): void {
+    const o = (this.lampBase + i * LAMP_TEXELS) * 4;
+    const ns = this.doorSlots;
+    for (let k = 0; k < DOORS_PER_LAMP; k++) this.buf[o + 24 + k] = this.lampDoors[i * ns + k]! + 1;
+    for (let k = DOORS_PER_LAMP; k < ns; k++) this.buf[(this.door2Base + i) * 4 + k - DOORS_PER_LAMP] = this.lampDoors[i * ns + k]! + 1;
+  }
+
+  /** (section-bake) Per frame while lamps land: up to `TILE_BUDGET` bytes of queued tiles, then the fades. No allocation. */
+  private stepLanding(): boolean {
+    const now = performance.now();
+    let budget = TILE_BUDGET;
+    const B = this.boxes;
+    while (this.tileTail > this.tileHead && budget > 0) {
+      const i = this.tileQ[this.tileHead]!;
+      const nx = B[i * BOX_STRIDE + 3]!;
+      const ny = B[i * BOX_STRIDE + 4]!;
+      const nz = B[i * BOX_STRIDE + 5]!;
+      const z1 = Math.min(nz, this.tileZ + slabDepth(nx, ny, budget));
+      if (!this.uploadTile(i, this.tileZ, z1)) {
+        // (no sub-upload: the whole atlas once, every queued lamp with it)
+        this.reuploadAtlas();
+        for (let q = this.tileHead; q < this.tileTail; q++) this.startFade(this.tileQ[q]!, now);
+        this.tileHead = this.tileTail;
+        this.tileZ = 0;
+        break;
+      }
+      budget -= (z1 - this.tileZ) * nx * ny;
+      this.tileZ = z1;
+      if (z1 >= nz) {
+        this.tileHead++;
+        this.tileZ = 0;
+        this.startFade(i, now);
+      }
+    }
+    if (this.fadeN === 0) return false;
+    for (let j = 0; j < this.fadeN; ) {
+      const i = this.fadeList[j]!;
+      const f = Math.min(1, Math.max(0, (now - this.fadeT0[i]!) / LAND_FADE_MS));
+      this.fade[i] = f;
+      this.writeColour(i);
+      if (f >= 1) this.fadeList[j] = this.fadeList[--this.fadeN]!;
+      else j++;
+    }
+    return true;
+  }
+
+  private startFade(i: number, now: number): void {
+    this.fadeT0[i] = now;
+    this.fadeList[this.fadeN++] = i;
+  }
+
+  /** Lamp `i`'s colour texel as `update` writes it (the fade included). */
+  private writeColour(i: number): void {
+    const l = this.reg.lights[this.order[i]!];
+    if (!l) return;
+    const k = l.on && !l.destroyed ? l.intensity * l.flicker * LIGHT_GAIN * this.fade[i]! : 0;
+    const o = (this.lampBase + i * LAMP_TEXELS + 1) * 4;
+    this.buf[o] = l.color[0] * k;
+    this.buf[o + 1] = l.color[1] * k;
+    this.buf[o + 2] = l.color[2] * k;
+  }
+
+  /**
+   * (section-bake) Lamp `i`'s atlas tile, z slices [z0, z1), with `texSubImage3D` straight from `r.vis` (no copy). False
+   * when the engine's GL internals are not there (the caller re-uploads the whole atlas).
+   */
+  private uploadTile(i: number, z0: number, z1: number): boolean {
+    if (z1 <= z0) return true;
+    const it = this.vis.getInternalTexture();
+    const eng = this.scene.getEngine() as unknown as { _gl?: WebGL2RenderingContext; _bindTextureDirectly?: (target: number, t: unknown, forUpdate?: boolean) => unknown; _unpackFlipY?: (value: boolean) => void };
+    const gl = eng._gl;
+    if (!it || !gl || typeof gl.texSubImage3D !== 'function' || typeof eng._bindTextureDirectly !== 'function' || typeof eng._unpackFlipY !== 'function') return false;
+    // (check B must-fix) WebGL 2 rejects a 3D upload from an ArrayBufferView while UNPACK_FLIP_Y / PREMULTIPLY_ALPHA is on
+    // (INVALID_OPERATION, nothing uploaded). Babylon caches flip-Y and leaves it on after any invertY upload (figure
+    // textures, DynamicTexture.update), so clear it through the engine's cache, as its own updateRawTexture3D does.
+    eng._unpackFlipY(false);
+    const premul = gl.getParameter(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL) as boolean;
+    if (premul) gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+    const B = this.boxes;
+    const o = i * BOX_STRIDE;
+    const nx = B[o + 3]!;
+    const ny = B[o + 4]!;
+    const at = this.visAt ? this.visAt[i]! : this.cellsBefore(i);
+    eng._bindTextureDirectly(gl.TEXTURE_3D, it, true);
+    const align = gl.getParameter(gl.UNPACK_ALIGNMENT) as number;
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    gl.texSubImage3D(gl.TEXTURE_3D, 0, this.atlas.offsets[i * 2]!, this.atlas.ys[i]!, this.atlas.offsets[i * 2 + 1]! + z0, nx, ny, z1 - z0, gl.RED, gl.UNSIGNED_BYTE, this.r.vis, at + z0 * nx * ny);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, align);
+    if (premul) gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+    eng._bindTextureDirectly(gl.TEXTURE_3D, null);
+    this.tileUploads++;
+    return true;
+  }
+
+  private cellsBefore(i: number): number {
+    const B = this.boxes;
+    let s = 0;
+    for (let j = 0; j < i; j++) s += B[j * BOX_STRIDE + 3]! * B[j * BOX_STRIDE + 4]! * B[j * BOX_STRIDE + 5]!;
+    return s;
+  }
+
+  /** (section-bake) The fallback: the whole atlas from `r.vis` again (a big upload; only without `texSubImage3D`). */
+  private reuploadAtlas(): void {
+    this.vis.update(fillLampAtlas(this.r, this.atlas));
+    dropCpuCopy(this.vis);
+    this.atlasReuploads++;
   }
 
   dispose(): void {

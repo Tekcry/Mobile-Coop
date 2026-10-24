@@ -1,6 +1,6 @@
 // Serves the existing dist/ with `vite preview` and runs the e2e suites, several at a time (one browser per suite).
 //
-//   node scripts/run-e2e.mjs [suite ...] [--legacy | --audio | --gpu] [--serial] [--jobs=N] [--quick [--since=<ref>]] [--list]
+//   node scripts/run-e2e.mjs [suite ...] [--legacy | --audio | --gpu] [--serial] [--jobs=N] [--quick [--since=<ref>]] [--affected <base-ref> [--wide]] [--list]
 //
 //   (no flags)   the REQUIRED suites in parallel (`E2E_JOBS` or --jobs; default: min(5, cores / 3))
 //   --serial     one suite at a time with its output streamed live (debugging; same as --jobs=1)
@@ -9,11 +9,16 @@
 //   --legacy     the parked-content suites (`npm run e2e:legacy`)
 //   --audio      the audio suites (`npm run e2e:audio`)
 //   --gpu        the visual read-back suites, Michael's PC only with E2E_GPU=1 (`npm run e2e:gpu`)
+//   --affected <base-ref>  the suites a PR must pass: `git diff` of the merge-base with <base-ref> to HEAD (committed files only, so it
+//                works on a detached commit), the DIRECT tier (the suites that drive the changed area); `--wide` adds the cross-area
+//                readers (WIDE_COVERS); `--list` prints them one per line and exits (the laptop queue and leads use it); picked suites
+//                outside REQUIRED are REPORT ONLY, as in --quick
 // Which change runs what (the test tiers): CLAUDE.md "Sessions" and docs/systems/testing-tools.md.
 // The slowest suites start first (scripts/e2e-times.json, refreshed by every full run), so the pool stays busy to the end.
 import { spawn, execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { cpus } from 'node:os';
+import { selectSuites, suitesForFile, QUICK_COVERS, DIRECT_COVERS, WIDE_COVERS } from './e2e-affected.mjs';
 
 const PORT = Number(process.env.E2E_PORT ?? 4179);
 // Windows: `localhost` can resolve to ::1, which a VPN adapter on the PC blocks (EACCES): bind and browse the IPv4 loopback there
@@ -54,89 +59,8 @@ const REQUIRED_JOBS = new Set(expand(REQUIRED));
 const KNOWN_FLAKY = new Set(['e2e-pad']);
 const flaky = (s) => KNOWN_FLAKY.has(s.split(':')[0]);
 
-// --quick: which suites cover which source folder (a path under `src/` not listed here runs CORE). Keep in step with docs/systems/testing-tools.md.
-// (process audit) CORE leaves out the input suites (the slowest); `src/input/` and `src/ui/` still pick them.
-const CORE = ['e2e-move', 'e2e-combat', 'e2e-anim'];
-const COVERS = {
-  // the first match wins: the specific `src/core/` files before the folder
-  // (anim-studio) the studio, its drive and the tuner's snapshots: their own suite on top of what their folders run
-  'src/anim/studio': ['e2e-studio', 'anim-audit', 'e2e-anim'],
-  'src/anim/tuneHistory': ['e2e-studio'],
-  // (anim-studio-2) the co-op role / traversal move sections: live on the local player (the team moves, traversal)
-  'src/anim/moveTune': ['e2e-studio', 'e2e-coop', 'e2e-traverse', 'e2e-anim'],
-  'src/game/studioStage': ['e2e-studio', 'e2e-tuner-phone'],
-  // (marlow-bays item 26) the free view's touch orbit, pinch and pan
-  'src/player/freeView': ['e2e-tuner-phone', 'e2e-studio', 'anim-audit', 'e2e-anim', 'e2e-move'],
-  'src/world/maps/studio.ts': ['e2e-studio'],
-  'src/save/animTuneStore': ['e2e-studio', 'e2e-menus'],
-  'src/ui/studio': ['e2e-studio'],
-  'src/ui/tuneSnapshots': ['e2e-studio', 'e2e-menus'],
-  'src/ui/overlayProject': ['e2e-studio', 'e2e-menus'],
-  'src/ui/animTune': ['e2e-studio', 'e2e-tuner-phone', 'e2e-pad', 'e2e-desktop', 'e2e-feedback', 'e2e-park', 'e2e-menus'],
-  // (tuner-ui) the tuner panel's pure layout; (marlow-bays slice T) its mouse mode and selection target (tunerMouse, tunerTarget)
-  'src/ui/tuner': ['e2e-studio', 'e2e-tuner-phone', 'e2e-menus'],
-  'src/core/quality': ['e2e-desktop', 'e2e-lightbake'],
-  'src/core/display': ['e2e-desktop'],
-  'src/core/settings': ['e2e-desktop', 'e2e-menus'],
-  'src/core/flags': ['e2e-park', ...CORE],
-  'src/core/': ['e2e-offline', ...CORE],
-  'src/input/': ['e2e-pad', 'e2e-mouse', 'e2e-move', 'e2e-menus'],
-  'src/ui/hud/ratingCard': ['e2e-section-rating'],
-  'src/ui/screens/missionsScreen': ['e2e-sectorops', 'e2e-menus', 'e2e-pad', 'e2e-park'],
-  'src/ui/': ['e2e-pad', 'e2e-desktop', 'e2e-feedback', 'e2e-park', 'e2e-menus'],
-  // the training course (T1b): its own suite on top of co-op
-  'src/game/course/': ['e2e-course', 'e2e-ctcourse', 'e2e-coop'],
-  'src/game/modes/courseMode.ts': ['e2e-course', 'e2e-ctcourse', 'e2e-coop', 'e2e-section-rating'],
-  // Sector Ops (feature/sector-ops): its mode, sectors and Warehouse copy
-  'src/game/modes/sectorMode.ts': ['e2e-sectorops', 'e2e-park', 'e2e-section-rating'],
-  // (section-rating) the rating rules, the card and the record: their suite on top of the modes'
-  'src/game/rating/': ['e2e-section-rating', 'e2e-sectorops', 'e2e-course'],
-  'src/save/ratingRecord': ['e2e-section-rating'],
-  'src/game/sectors': ['e2e-sectorops'],
-  'src/world/maps/warehouseOps.ts': ['e2e-sectorops'],
-  'src/world/maps/warehouseSectors.ts': ['e2e-sectorops'],
-  // (sector-fixes-r RE) the Sector Ops section files (warehouseS1-S3: the co-op routes and team doors) and the usual world
-  // suites; (sector-fixes-r fix) not e2e-ctcourse: Marlow Yard never loads warehouseOps
-  'src/world/maps/warehouseS': ['e2e-sectorops', 'e2e-lightbake', 'e2e-levels', 'e2e-anchors'],
-  'src/game/': ['e2e-takedown', 'e2e-gadgets', 'e2e-tactics', 'e2e-park', 'e2e-ctcourse', 'e2e-sectorops'],
-  'src/physics/': ['e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-ct'],
-  // the camera files (CAM): the camera bounds suite on top of what their folders run
-  'src/player/shoulderCamera': ['e2e-camera-bounds', 'e2e-move', 'e2e-stealth', 'e2e-anim', 'e2e-ct', 'e2e-clip', 'e2e-mouse'],
-  'src/player/cameraBounds': ['e2e-camera-bounds', 'e2e-move', 'e2e-anim', 'e2e-clip'],
-  'src/config/camera': ['e2e-camera-bounds', 'e2e-anim', 'e2e-clip', ...CORE],
-  'src/player/': ['anim-audit', 'e2e-guard-carry', 'e2e-wall', 'e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-stealth', 'e2e-anim', 'e2e-ct', 'e2e-clip', 'e2e-weapons-carry'],
-  'src/anim/': ['anim-audit', 'e2e-anim', 'e2e-clip', 'e2e-weapons-carry', 'e2e-move'],
-  'src/cover/': ['e2e-stealth', 'e2e-clip', 'e2e-tactics', 'e2e-wall'],
-  'src/weapons/': ['e2e-combat', 'e2e-weapons-carry', 'e2e-enemies', 'e2e-gadgets', 'e2e-clip'],
-  'src/ai/': ['e2e-stealth-ai', 'e2e-guard-carry', 'e2e-levels', 'e2e-tactics', 'e2e-takedown', 'e2e-enemies'],
-  'src/world/maps/kestrel': ['e2e-kestrel'],
-  'src/world/maps/courselab.ts': ['e2e-course'],
-  'src/world/maps/bunker': ['e2e-course'],
-  'src/world/maps/ctcourse.ts': ['e2e-ctcourse'],
-  // (marlow-final 0d) the set parts, the facility and the greybox helpers of Marlow Yard
-  'src/world/maps/ctcourseSets/': ['e2e-ctcourse'],
-  'src/world/maps/ctcourseGreybox.ts': ['e2e-ctcourse'],
-  'src/world/': ['e2e-lightbake', 'e2e-guard-carry', 'e2e-levels', 'e2e-anchors', 'e2e-ctcourse'],
-  'src/voxel/': ['e2e-lightbake', 'e2e-desktop'],
-  'src/vfx/': ['e2e-desktop'],
-  'src/net/coopUi': ['e2e-park', 'e2e-coop', 'e2e-netmove', 'e2e-ctcourse'],
-  'src/net/': ['anim-audit', 'e2e-coop', 'e2e-netmove', 'e2e-ctcourse', 'e2e-sectorops'],
-  'src/security/': ['e2e-security', 'e2e-sectorops'],
-  'src/progression/': ['e2e-park'],
-  'src/cosmetics/': ['e2e-park'],
-  'src/save/sectorRecord': ['e2e-sectorops', 'e2e-menus'],
-  'src/save/': ['e2e-park', 'e2e-offline', 'e2e-feedback'],
-  'src/feedback/': ['e2e-feedback'],
-  'src/audio/': ['e2e-foley', 'e2e-music', 'e2e-score', 'e2e-weapon-audio'],
-  'src/pwa/': ['e2e-offline'],
-  'src/config/': CORE,
-};
-// outside src/: a suite script or its helper reruns that suite (the helper and this runner rerun CORE); docs and tests need no browser
-// (the -lib helpers are not suites: e2e-lib reruns CORE, e2e-net-lib the two-page suites in HELPERS)
-const SCRIPT = /^scripts\/(smoke|anim-audit|e2e-(?!(?:[\w-]*-)?lib\.mjs$)[\w-]+)\.mjs$/;
-const HELPERS = { 'scripts/e2e-net-lib.mjs': ['e2e-netmove', 'anim-audit'] };
-// (marlow-final 0d) the set step modules of e2e-ctcourse (scripts/e2e-ctcourse/<set>.mjs) rerun it
-const SUITE_DIRS = { 'scripts/e2e-ctcourse/': ['e2e-ctcourse'] };
+// The folder -> suites maps and the selection live in scripts/e2e-affected.mjs (pure): QUICK_COVERS for `--quick` (master's map
+// unchanged), DIRECT_COVERS for `--affected`, WIDE_COVERS for `--affected --wide`.
 
 const argv = process.argv.slice(2);
 const flag = (n) => argv.includes(`--${n}`);
@@ -149,7 +73,17 @@ if (gpuRun && process.env.E2E_GPU !== '1') {
   process.exit(1);
 }
 const quick = flag('quick');
-const named = argv.filter((a) => !a.startsWith('--'));
+// `--affected <base-ref>` (or `--affected=<base-ref>`): the ref is a value, not a suite name
+const affIdx = argv.findIndex((a) => a === '--affected' || a.startsWith('--affected='));
+const affected = affIdx >= 0;
+const affectedBase = !affected ? '' : argv[affIdx].includes('=') ? argv[affIdx].slice(11) : argv[affIdx + 1] && !argv[affIdx + 1].startsWith('--') ? argv[affIdx + 1] : '';
+if (affected && !affectedBase) {
+  console.error('E2E ERROR: --affected needs a base ref, e.g. --affected origin/master');
+  process.exit(1);
+}
+const wide = flag('wide');
+const selective = quick || affected; // a selected run: suites outside REQUIRED are REPORT ONLY
+const named = argv.filter((a, i) => !a.startsWith('--') && !(affected && !argv[affIdx].includes('=') && i === affIdx + 1));
 
 function git(...a) {
   try {
@@ -170,34 +104,54 @@ function changedFiles() {
   return [...out].map((f) => f.replace(/\\/g, '/'));
 }
 
+// scripts/e2e-<x>.mjs files that are modules, not suites (master's --quick rules pick e2e-affected.mjs by name)
+const NOT_SUITES = ['e2e-affected'];
+
+/** Required suites first, then the rest (a legacy / audio suite runs REPORT ONLY; GPU suites never run on software GL; a suite without a script is dropped). A part token (`e2e-sectorops:1`) stays one job. */
+function orderPicked(picked) {
+  const base = (s) => s.split(':')[0];
+  const reqWhole = REQUIRED.filter((s) => picked.has(s));
+  const reqParts = [...picked].filter((s) => s.includes(':') && REQUIRED.includes(base(s)));
+  const rest = [...picked].filter((s) => !REQUIRED.includes(base(s)) && !GPU.includes(base(s)) && !GPU.includes(s) && existsSync(`scripts/${base(s)}.mjs`) && !NOT_SUITES.includes(base(s)));
+  return [...new Set([...expand(reqWhole), ...reqParts, ...expand(rest)])];
+}
+
 function quickSuites() {
   const files = changedFiles();
-  const picked = new Set(['smoke']);
-  const why = [];
-  for (const f of files) {
-    let hit = null;
-    if (f.startsWith('src/')) hit = Object.entries(COVERS).find(([p]) => f.startsWith(p))?.[1] ?? CORE;
-    else if (HELPERS[f]) hit = HELPERS[f];
-    else if (Object.keys(SUITE_DIRS).some((d) => f.startsWith(d))) hit = SUITE_DIRS[Object.keys(SUITE_DIRS).find((d) => f.startsWith(d))];
-    else if (SCRIPT.test(f)) hit = [f.replace(/^scripts\/|\.mjs$/g, '')];
-    else if (/^(scripts\/(e2e-lib|run-e2e)\.mjs|package\.json|index\.html|vite\.config\.\w+|public\/)/.test(f)) hit = CORE;
-    for (const s of hit ?? []) picked.add(s);
-    if (hit) why.push(f);
+  const picked = new Set(['smoke', ...selectSuites(files, QUICK_COVERS)]);
+  console.log(`quick: ${files.length} changed file(s), ${files.filter((f) => suitesForFile(f, QUICK_COVERS)).length} reach the browser`);
+  return orderPicked(picked);
+}
+
+/** `--affected <base-ref> [--wide]`: the committed diff from the merge-base to HEAD (works on a detached commit). */
+function affectedSuites() {
+  let files;
+  try {
+    const run = (...a) => execFileSync('git', a, { windowsHide: true, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+    const mb = run('merge-base', affectedBase, 'HEAD');
+    files = run('diff', '--name-only', '--no-renames', mb, 'HEAD').split('\n').map((f) => f.trim().replace(/\\/g, '/')).filter(Boolean);
+  } catch (e) {
+    console.error(`E2E ERROR: --affected ${affectedBase}: ${String(e.stderr || e.message).trim()}`);
+    process.exit(1);
   }
-  console.log(`quick: ${files.length} changed file(s), ${why.length} reach the browser`);
-  // required suites first; a picked legacy / audio suite runs too, REPORT ONLY (GPU suites never run on software GL)
-  return expand(REQUIRED.filter((s) => picked.has(s))).concat(expand([...picked].filter((s) => !REQUIRED.includes(s) && !GPU.includes(s) && existsSync(`scripts/${s}.mjs`))));
+  const suites = selectSuites(files, wide ? WIDE_COVERS : DIRECT_COVERS);
+  console.error(`affected${wide ? ' (wide)' : ''}: ${files.length} changed file(s) vs ${affectedBase}, ${suites.length} suite(s)`);
+  return orderPicked(new Set(suites));
 }
 
 // (sector-fixes-r e2e fix) a named suite with parts expands too (`e2e-sectorops` -> `:1`-`:5`, one job each); `name:N`
 // names one part. Before, a named list ran the suite whole as one job.
-const all = named.length ? expand(named) : legacyRun ? LEGACY : audioRun ? AUDIO : gpuRun ? GPU : quick ? quickSuites() : expand(REQUIRED);
-const fullRun = !named.length && !quick && !legacyRun && !audioRun && !gpuRun;
-// REPORT ONLY: anim-audit always; in a quick run every suite outside REQUIRED
-const report = (s) => REPORT.includes(s.split(':')[0]) || (quick && !REQUIRED_JOBS.has(s));
+const all = named.length ? expand(named) : legacyRun ? LEGACY : audioRun ? AUDIO : gpuRun ? GPU : affected ? affectedSuites() : quick ? quickSuites() : expand(REQUIRED);
+const fullRun = !named.length && !selective && !legacyRun && !audioRun && !gpuRun;
+// REPORT ONLY: anim-audit always; in a quick / affected run every suite outside REQUIRED
+const report = (s) => REPORT.includes(s.split(':')[0]) || (selective && !REQUIRED_JOBS.has(s));
 const jobs = flag('serial') ? 1 : Math.max(1, Number(opt('jobs') ?? process.env.E2E_JOBS ?? Math.min(5, Math.floor(cpus().length / 3))) || 1);
 if (flag('list')) {
-  console.log(all.join('\n'));
+  if (all.length) console.log(all.join('\n'));
+  process.exit(0);
+}
+if (!all.length) {
+  console.log('no suites to run');
   process.exit(0);
 }
 
@@ -245,7 +199,7 @@ async function runOne(s) {
   else console.log(`[start] ${s}`);
   const [script, part] = s.split(':');
   const childEnv = NEEDS_LEGACY_FLAG.has(script) ? { ...env, LEGACY: '1' } : env;
-  const child = spawn(process.execPath, [`scripts/${script}.mjs`, url, ...(part ? [`--part=${part}`] : []), ...(quick && script === 'anim-audit' ? ['--quick'] : [])], { windowsHide: true, stdio: streamed ? 'inherit' : ['ignore', 'pipe', 'pipe'], env: childEnv });
+  const child = spawn(process.execPath, [`scripts/${script}.mjs`, url, ...(part ? [`--part=${part}`] : []), ...(selective && script === 'anim-audit' ? ['--quick'] : [])], { windowsHide: true, stdio: streamed ? 'inherit' : ['ignore', 'pipe', 'pipe'], env: childEnv });
   let log = '';
   if (!streamed) {
     child.stdout.on('data', (d) => (log += d));
