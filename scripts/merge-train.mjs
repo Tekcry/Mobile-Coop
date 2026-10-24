@@ -341,6 +341,148 @@ export function bumpProtocol(text, baseValue) {
   return text.replace(PROTOCOL_LINE, `export const PROTOCOL_VERSION = ${baseValue + 1};`);
 }
 
+// ---- release from the merged members, validated on git objects (audit 2026-10-24 finding 9) ----------------------
+
+/** "X.Y.Z" bumped by `kind` (minor: Y+1, Z=0; patch: Z+1). */
+export function bumpVersion(version, kind) {
+  const m = /^(\d+)\.(\d+)\.(\d+)$/.exec(String(version).trim());
+  if (!m) throw new Error(`bad version "${version}"`);
+  return kind === 'minor' ? `${m[1]}.${Number(m[2]) + 1}.0` : `${m[1]}.${m[2]}.${Number(m[3]) + 1}`;
+}
+
+/** The kind a chosen version implies over its base: minor when X or Y moved, else patch. */
+export function impliedKind(version, baseVersion) {
+  const [a, b] = [String(version).split('.').map(Number), String(baseVersion).split('.').map(Number)];
+  return a[0] !== b[0] || a[1] !== b[1] ? 'minor' : 'patch';
+}
+
+/** Titles joined with "; " (duplicates and blanks dropped), whole titles up to `max` chars, then "; +k more". */
+export function joinTitles(titles, max = 200) {
+  const uniq = [...new Set(titles.map((t) => String(t ?? '').trim()).filter(Boolean))];
+  let out = '';
+  for (let i = 0; i < uniq.length; i++) {
+    const next = out ? `${out}; ${uniq[i]}` : uniq[i];
+    if (next.length > max && out) return `${out}; +${uniq.length - i} more`;
+    out = next;
+  }
+  return out;
+}
+
+/**
+ * The release a build actually makes (pure): `assembled` is the changelog assembly of the merged train tree ({ parts,
+ * bump }), `planned` the branches asked for, `merged` the ones in the train (merged now or already in). The kind comes
+ * from the merged fragments: when it differs from the kind `version` implies over `baseVersion`, the version becomes
+ * baseVersion bumped by it. When a planned branch is not in the train, the title is the merged parts' titles (never a
+ * left-out member's). -> { version, title, kind, notes: [log lines] }.
+ */
+export function deriveRelease({ version, title, baseVersion, planned, merged, assembled }) {
+  const notes = [];
+  const kind = assembled.bump ?? 'patch';
+  let v = version;
+  if (impliedKind(version, baseVersion) !== kind) {
+    v = bumpVersion(baseVersion, kind);
+    notes.push(`version ${version} -> ${v}: the merged members make a ${kind} release`);
+  }
+  let t = title;
+  const out = planned.filter((b) => !merged.includes(b));
+  if (out.length) {
+    const fromParts = joinTitles(assembled.parts.map((p) => p.title));
+    if (fromParts && fromParts !== title) { t = fromParts; notes.push(`title "${title}" -> "${t}": ${out.join(', ')} left out`); }
+  }
+  return { version: v, title: t, kind, notes };
+}
+
+/** package.json text with its first "version" field set to `version` (the rest byte for byte). */
+export function bumpPackageJson(text, version) {
+  if (!/"version":\s*"[^"]*"/.test(text)) throw new Error('package.json has no "version" field');
+  return text.replace(/("version":\s*")[^"]*(")/, `$1${version}$2`);
+}
+
+/** package-lock.json text with the root and packages[""] versions set (npm's own 2-space format). */
+export function bumpPackageLock(text, version) {
+  const j = JSON.parse(text);
+  j.version = version;
+  if (j.packages && j.packages['']) j.packages[''].version = version;
+  return `${JSON.stringify(j, null, 2)}\n`;
+}
+
+/**
+ * The version commit built on git objects (no worktree, no ref moved; `cwd` the repo): the head's tree plus the
+ * synthesised fragments and protocol.ts, CHANGELOG assembled (consumed fragments removed), package.json and
+ * package-lock.json at the release version. Every check a real run needs happens here, before anything is pushed:
+ * a malformed fragment throws, nothing to assemble / nothing new throws. `release(assembled)` -> { version, title }
+ * picks the final version and title from the first assembly (deriveRelease); `heading(version, title)` -> the
+ * assemble opts. -> { sha, tree, version, title, assembled }.
+ */
+export function versionTreeCommit({ head, frags = [], protocol = null, subject, release, opts, cwd }) {
+  const blob = (p) => run(['git', 'cat-file', 'blob', `${head}:${p}`], { raw: true, cwd });
+  const ls = exec(['git', 'ls-tree', '--name-only', `${head}:changes`], { cwd });
+  const inTree = ls.status === 0 ? ls.out.split('\n').map((x) => x.trim()).filter((x) => x.endsWith('.md') && x.toLowerCase() !== 'readme.md') : [];
+  const texts = new Map(inTree.map((x) => [`changes/${x}`, null]));
+  for (const f of frags) if (!texts.has(f.file)) texts.set(f.file, f.text);
+  const names = [...texts.keys()].sort();
+  const fragments = names.map((name) => ({ name, ...parseFragment(texts.get(name) ?? blob(name), name) }));
+  const changelog = blob('CHANGELOG.md');
+  const first = assemble(changelog, fragments, opts('0.0.0', 'x'));
+  if (!first) throw new Error('nothing to assemble: no changes/*.md fragment and no "## Unreleased - ..." block (empty train?)');
+  if (!first.text) throw new Error('nothing new to release: every fragment entry is already in CHANGELOG.md');
+  const rel = release(first);
+  const assembled = assemble(changelog, fragments, opts(rel.version, rel.title));
+  const index = path.join(os.tmpdir(), `merge-train-vc-${process.pid}-${Date.now()}.index`);
+  const env = { ...process.env, GIT_INDEX_FILE: index };
+  const put = (p, text) => {
+    const sha = run(['git', 'hash-object', '-w', '--stdin'], { input: text, cwd });
+    run(['git', 'update-index', '--add', '--cacheinfo', `100644,${sha},${p}`], { env, cwd });
+  };
+  try {
+    run(['git', 'read-tree', head], { env, cwd });
+    put('CHANGELOG.md', assembled.text);
+    put('package.json', bumpPackageJson(blob('package.json'), rel.version));
+    if (exec(['git', 'cat-file', '-e', `${head}:package-lock.json`], { cwd }).status === 0) put('package-lock.json', bumpPackageLock(blob('package-lock.json'), rel.version));
+    if (protocol) put('src/net/protocol.ts', protocol);
+    for (const name of assembled.consumed) {
+      if (texts.get(name) == null) run(['git', 'update-index', '--force-remove', name], { env, cwd });
+    }
+    const tree = run(['git', 'write-tree'], { env, cwd });
+    const sha = run(['git', 'commit-tree', tree, '-p', head, '-m', subject(rel.version), '-m', TRAILER], { cwd });
+    return { sha, tree, version: rel.version, title: rel.title, assembled };
+  } finally { fs.rmSync(index, { force: true }); }
+}
+
+/** The line every merge-train merge commit body carries: Pages deploys it once, by dispatch, after dev moves. */
+export const DEPLOY_MARKER = 'merge-train: Pages deploy is dispatched after dev moves';
+
+/**
+ * What the idempotent tail still has to do after a merge (pure): `tagCommit` is what v<version> names on origin
+ * (null: missing), `devHasMerge` whether origin/dev contains the merge. -> { tag: bool, tagWrong: bool, dev: bool }.
+ */
+export function tailPlan({ merge, tagCommit, devHasMerge }) {
+  return { tag: !tagCommit, tagWrong: !!tagCommit && tagCommit !== merge, dev: !devHasMerge };
+}
+
+/** /preview/'s version.json (written by the deploy workflow) -> { version, sha } or null. */
+export function parsePreviewVersion(text) {
+  try {
+    const j = JSON.parse(String(text));
+    return j && typeof j.version === 'string' ? { version: j.version, sha: typeof j.sha === 'string' ? j.sha : null } : null;
+  } catch { return null; }
+}
+
+/** The Pages site root for a GitHub "owner/repo" (project site): https://<owner>.github.io/<repo>/. */
+export const pagesRoot = (nameWithOwner) => {
+  const [owner, repo] = String(nameWithOwner).split('/');
+  return `https://${owner.toLowerCase()}.github.io/${repo}/`;
+};
+
+/** Of `git rev-list --first-parent --merges --parents` lines ("M P1 P2"), the merge whose second parent is `head`, or null. */
+export function mergeOfHead(lines, head) {
+  for (const l of lines) {
+    const [m, , p2] = l.trim().split(/\s+/);
+    if (p2 && p2 === head) return m;
+  }
+  return null;
+}
+
 const USAGE = [
   'usage:',
   '  node scripts/merge-train.mjs build <n> <version> "<title>" <branch>... [--on <sha>] [--keep] [--no-test] [--dry-run]',
@@ -676,7 +818,8 @@ function trainMembers(head, n) {
 
 /**
  * Read only (git diffs, gh titles; a failure throws before anything is written): the patch fragments for members with
- * an open PR whose branch adds no changes/*.md (a test-only PR), printed. `files` collects what writeFragments writes.
+ * an open PR whose branch adds no changes/*.md (a test-only PR), printed. They go straight into the version commit's
+ * assembly on git objects (versionTreeCommit), never into a worktree.
  */
 function planFragments(members) {
   const added = (branch) => {
@@ -685,20 +828,8 @@ function planFragments(members) {
     return run(['git', 'diff', '--name-only', '--diff-filter=A', mb.out.trim(), `origin/${branch}`, '--', 'changes']).split('\n').filter(Boolean);
   };
   const plan = fragmentPlan(members, added, (pr) => run(['gh', 'pr', 'view', String(pr), '--json', 'title', '--jq', '.title']));
-  for (const f of plan.frags) console.log(`fragment synthesised for #${f.pr}: ${f.file}${DRY ? ' (dry run: not written)' : ''}`);
-  return { ...plan, files: [] };
-}
-
-/** Writes the planned fragments into the checked-out train tree (a dry run writes nothing), each path recorded in `synth.files` first. */
-function writeFragments(synth) {
-  if (DRY) return;
-  const top = run(['git', 'rev-parse', '--show-toplevel']);
-  for (const f of synth.frags) {
-    const at = path.join(top, f.file);
-    if (fs.existsSync(at)) continue;
-    synth.files.push(at);
-    fs.writeFileSync(at, f.text);
-  }
+  for (const f of plan.frags) console.log(`fragment synthesised for #${f.pr}: ${f.file}`);
+  return plan;
 }
 
 /**
@@ -819,39 +950,63 @@ async function build({ n, version, title, branches, keep, on = null }) {
     for (const l of left) console.log(`LEFT OUT: ${l.b} - ${l.why}`);
     return 3;
   }
-  act(['git', 'checkout', '-B', branch, head]);
-  act(keep ? ['git', 'push', 'origin', branch] : ['git', 'push', '--force', 'origin', branch]);
+  // Audit 2026-10-24 finding 9: everything below is validated on git objects before the one push; the train PR opens
+  // only after it. Read only until the push: members, fragments, wire, the open PR (or the number a new one will get).
   const members = trainMembers(head, n);
-  const synth = planFragments(members); // read only: fragments are written first thing inside the try below
-  const pr = ensurePr(n, version, title, members, synth.notes, base && { train: base.m, sha: base.sha, version: base.version });
+  const synth = planFragments(members);
   const protocol = planWire(wireCandidates(kept, members), head, base ? base.sha : 'origin/master');
-  if (protocol && DRY) console.log('  [dry-run] would write src/net/protocol.ts and add it to the version commit');
-  else if (protocol) fs.writeFileSync(path.join(run(['git', 'rev-parse', '--show-toplevel']), 'src/net/protocol.ts'), protocol);
+  const baseVersion = base ? base.version : versionAt('origin/master');
+  const memberPrs = members.filter((m) => m.pr).map((m) => m.pr);
+  const merged = [...new Set([...kept, ...members.map((m) => m.branch)])];
+  const open = openPrInfo(branch);
+  const predicted = open ? open.number : predictPrNumber();
+  const make = (pr) => versionTreeCommit({
+    head, frags: synth.frags, protocol, subject: (ver) => versionSubject(n, ver),
+    release: (assembled) => deriveRelease({ version, title, baseVersion, planned: branches, merged, assembled }),
+    opts: (ver, t) => ({ version: ver, title: `Train ${n}: ${t}`, date: today(), pr: pr ?? 'NEW', members: memberPrs }),
+  });
   let v;
-  try {
-    writeFragments(synth);
-    v = versionCommit({ branch, head, checkout: null, version, title: `Train ${n}: ${title}`, pr,
-      members: members.filter((m) => m.pr).map((m) => m.pr), subject: versionSubject(n, version), push: false,
-      extraAdd: protocol ? ['src/net/protocol.ts'] : [] });
-  } catch (e) {
-    if (!DRY) { // put back what the version step wrote (protocol.ts, CHANGELOG, fragments, package files): the tree was clean
-      for (const f of synth.files) fs.rmSync(f, { force: true });
-      const r = exec(['git', 'checkout', 'HEAD', '--', 'src/net/protocol.ts', 'CHANGELOG.md', 'changes', 'package.json', 'package-lock.json']);
-      console.error(r.status === 0 ? 'restored src/net/protocol.ts and the version step files to HEAD' : `restore FAILED: ${r.err.trim()}`);
-    }
-    throw e;
+  try { v = make(predicted); } catch (e) {
+    console.error(`STOP: the version commit does not validate, nothing pushed, no PR opened: ${e.message}`);
+    for (const l of left) console.log(`LEFT OUT: ${l.b} - ${l.why}`);
+    return 1;
   }
-  if (v.code) return v.code;
-  const sha = v.sha ?? head;
-  // Audit 2026-10-24 (trains 58 / 59): push the version commit and end the build; no local vitest, no heavy.lock wait.
-  // CI's `test` job runs the full vitest on this head and release waits for green CI; the laptop starts on the push.
-  act(['git', 'push', 'origin', branch]);
+  const rel = deriveRelease({ version, title, baseVersion, planned: branches, merged, assembled: v.assembled });
+  for (const note of rel.notes) console.log(note);
+  const race2 = versionRace(v.version, versionAt('origin/master')) ?? (base ? versionRace(v.version, base.version) : null);
+  if (race2) { console.error(race2); return 1; }
+  console.log(summary(v.assembled, `CHANGELOG.md: ${releaseHeading(v.version, `Train ${n}: ${v.title}`, today(), predicted ?? 'NEW', memberPrs)}`));
+  if (protocol) console.log('src/net/protocol.ts goes into the version commit');
+  // One push: the version commit (CI and the laptop start on it); no pre-version push for CI to cancel.
+  act(['git', 'push', ...(keep ? [] : ['--force']), 'origin', `${v.sha}:refs/heads/${branch}`]);
   clearBuildMarker();
-  console.log(`\ntrain/${n} head: ${DRY ? `${head} (dry run: an unreferenced commit; the version commit would sit on it)` : sha}`);
+  const pr = ensurePr(n, v.version, v.title, members, synth.notes, base && { train: base.m, sha: base.sha, version: base.version });
+  if (!DRY && open && trainPrTitle(n, v.version, v.title) !== trainPrTitle(n, version, title)) {
+    act(['gh', 'pr', 'edit', String(pr), '--title', trainPrTitle(n, v.version, v.title)]);
+  }
+  if (!DRY && pr && pr !== predicted) { // another PR or issue took the number: the heading names the real one
+    console.warn(`the train PR is #${pr}, not the predicted #${predicted ?? '?'}: rewriting the heading (second push)`);
+    const first = v.sha;
+    v = make(pr);
+    act(['git', 'push', `--force-with-lease=refs/heads/${branch}:${first}`, 'origin', `${v.sha}:refs/heads/${branch}`]);
+  }
+  if (!DRY) { // the local branch follows (hand --keep fixes start from it); the push above is what counts
+    const co = exec(['git', 'checkout', '-B', branch, v.sha]);
+    if (co.status !== 0) console.warn(`WARNING: local checkout of ${branch} failed: ${co.err.trim()}`);
+  }
+  console.log(`\ntrain/${n} head: ${v.sha}${DRY ? ' (dry run: an unreferenced version commit, validated)' : ''}`);
+  console.log(`version: ${v.version} (${rel.kind})${v.version !== version ? ` (asked ${version})` : ''}`);
   console.log(`members: ${kept.join(', ') || '(none)'}${pr ? ` | train PR #${pr}` : ''}`);
   for (const l of left) console.log(`LEFT OUT: ${l.b} - ${l.why}`);
-  console.log(`\nnext: node scripts/merge-train.mjs release ${n} ${version} ${JSON.stringify(title)}`);
+  console.log(`\nnext: node scripts/merge-train.mjs release ${n} ${v.version} ${JSON.stringify(v.title)}`);
   return 0;
+}
+
+/** The number GitHub gives the next issue / PR (newest + 1); null when unknown (a dry run, gh failed). */
+function predictPrNumber() {
+  const r = exec(['gh', 'api', 'repos/{owner}/{repo}/issues?state=all&per_page=1&sort=created&direction=desc', '--jq', '.[0].number']);
+  const last = Number(r.out.trim());
+  return r.status === 0 && Number.isFinite(last) && last > 0 ? last + 1 : null;
 }
 
 /**
