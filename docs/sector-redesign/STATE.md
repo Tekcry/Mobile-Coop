@@ -350,7 +350,7 @@ then git worktree remove --force. Train-ready = message + `gh pr edit <n> --add-
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (saved 2026-10-25 ~04:30, window from 04:10 to the 09:10 reset; overnight mode: no
+Night Shift | Sector Ops Build: RESUME (saved 2026-10-25 ~05:25 at the orchestrator 05:19 save; resume at the 09:10 reset; overnight mode: no
 question dialogs, decide and log; orchestrator resumes leads after each reset). git fetch; read CLAUDE.md "Sessions".
 Worktrees (node_modules junctions to Mobile-Coop-sector-redesign-bake2): -polish (this STATE), -signoff, -bake3,
 -visual-gate, -visual-gate-vg1 / -vg2 / -vg4. Disk 40 GB free (worktrees allowed again).
@@ -377,6 +377,9 @@ Worktrees (node_modules junctions to Mobile-Coop-sector-redesign-bake2): -polish
    62aa2320 (PR #379 open 05:15). IN FLIGHT 05:12: three Opus checkers in worktrees -visual-gate-vg5 / -vg1p /
    -sector-redesign-polish3 -> checks/vg5-check.md, vg1p-check.md, polish3-check.md (uncommitted; rerun if missing).
    PASS -> merge vg5 / vg1p into feature/visual-gate; #379 checker status + train-ready on green affected-e2e.
+   Also IN FLIGHT 05:15: Opus writer for briefs VG7.md + P1-P7.md in -visual-gate (uncommitted; lead commits; rerun if
+   missing). CLOUD open 5b0acb04: sector-redesign-bake4 (stacked on #361: Math.min retry cap, held-order test, bake2
+   polish 3) + visual-gate-vg3-polish (regions >= 60 px, gallery wall). #367 VG6 TRAIN-READY (orchestrator 05:08).
    After #361 lands: bake3 check polish (Math.min retry cap, held-order test) + bake2 polish 3 in a later batch.
 4. Marlow Build mission-framework EN2 adds hook lines in sectorMode.ts / sectors.ts / campusOps.ts on master
    (conflicts resolved in the train); no reply needed.
