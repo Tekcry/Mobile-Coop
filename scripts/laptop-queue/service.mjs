@@ -34,7 +34,7 @@
 // Cut short (Orchestrator audit 2026-10-24, lib cutShort): a running request whose requests/<id>.json left the branch
 // (withdrawn; missing from two listings in a row) has its command tree killed, posts error "withdrawn" and is done; a
 // plain pr request already in its suites when a train head is pending is killed and queued again (claim released,
-// status "queued, preempted by train <n>"). Train reruns, full and alone runs are never preempted.
+// status "queued, preempted by train <n>"). Train reruns and full runs are never preempted; an alone run only in its first 10 min (below).
 // Pinned requests (request.mjs --pin, "pin": true; A/B and baseline runs) are never superseded.
 // Train soon (laptop, lib trainSoon): no new non-train claim (train reruns still start) while an open train PR has no
 // version head yet (building, up to LQ_TRAIN_BUILD_MAX_MIN 20 min) or for LQ_TRAIN_GAP_MIN (3) min after a train PR
@@ -44,11 +44,28 @@
 // locks): at start and every LQ_TASK_GUARD_MIN (10; 0 = off) min, disables (never stops, kills or deletes) each stale
 // scheduled task (lib staleTasks; allowlist + env LQ_TASK_ALLOW, a comma list) and pushes alerts/<ts>-<worker>-tasks.json to the
 // laptop-queue branch. --dry-run only logs what it would disable.
+// Overlapping trains (Michael 2026-10-24 ~21:00, docs/orchestrator/overlap-trains-PLAN.md section 3; inert while no
+// stacked trains exist): pending trains run lowest number first and a lower train's rerun goes before a higher train
+// (lib pick); the desktop takes a second, different train while the laptop runs one (lib workerActivity openTrain,
+// desktopTrainGate); auto-train's build marker holds back only trains at or above the one being built (lib
+// trainsUnderMarker); a running train whose head is no longer an open train PR head (closed, voided or rebuilt; two
+// checks LQ_TRAIN_VOID_POLL_S (60) s apart, lib voidMisses) is killed, posts laptop-e2e error "train closed" and
+// releases its claim. A pending train also cuts an alone run whose steps started under 10 min ago (lib cutShort
+// ALONE_PREEMPT_MIN); it is queued again at the head of the alone queue (lib pick queue.front).
+// Orchestrator audit 2026-10-24 (train 64 went to the desktop behind a 30-min alone run that pushed nothing):
+// - heartbeat: the laptop pushes "heartbeat <n> run(s)" (a claim refresh of every running request / train) every
+//   LQ_HEARTBEAT_MIN (5) min while it runs anything, so the desktop never reads a busy laptop as silent;
+// - a pr run at or past 80% of its expected wall (times.json, lib runProgress) is never preempted;
+// - no new alone claim while a green train-ready PR waits and no train PR is open (lib aloneSoon; an aged alone request
+//   still starts);
+// - an alone run yields between steps while a train head is pending: claim released, queued at the head of the alone
+//   queue, and its finished steps are skipped when it runs again (state.aloneSteps; steps must not rely on worktree
+//   files an earlier step left, since prepare cleans the worktree).
 import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, trainSoon, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, dupKey, duplicates, failureExcerpt, flakeStands, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo } from './lib.mjs';
+import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, trainSoon, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, dupKey, duplicates, failureExcerpt, flakeStands, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, aloneSoon } from './lib.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
 const DESKTOP = process.env.LQ_WORKER === 'desktop';
@@ -70,6 +87,8 @@ const PORTS = Object.keys(SLOTS);
 const TRAIN_JOBS = process.env.LQ_TRAIN_JOBS ?? (DESKTOP ? '1' : '3');
 const LAPTOP_SILENT_MS = Number(process.env.LQ_LAPTOP_SILENT_MIN ?? 10) * 60_000;
 const TRAIN_GRACE_MS = 2 * 60_000; // a live idle laptop claims a new train head within one pass (30 s)
+const HEARTBEAT_MS = Number(process.env.LQ_HEARTBEAT_MIN ?? 5) * 60_000; // laptop: a claim push while runs go on (0 = off)
+const TRAIN_VOID_POLL_MS = Number(process.env.LQ_TRAIN_VOID_POLL_S ?? 60) * 1000;
 // a train that has held some slots this long while another stays locked (a manual run) runs unsharded on the ones it holds
 const TRAIN_SOLO_MS = Number(process.env.LQ_TRAIN_SOLO_MIN ?? 10) * 60_000;
 const TRAIN_GAP_MS = Number(process.env.LQ_TRAIN_GAP_MIN ?? 3) * 60_000;
@@ -359,8 +378,17 @@ let aloneHoldLogged = '';
 /** Why no new non-train work starts this pass (lib trainSoon), '' when it may; set by pendingTrains (laptop). */
 let soon = '';
 let soonLogged = '';
+let aloneSoonLogged = '';
+let openTrainCount = -1; // open train/<n> PRs at the last listing (-1: unknown)
 let manualLogged = '';
 /** lib trainSoon from GitHub: a building train PR (no version head yet), else the last train release and its candidates. */
+/** Open train-ready PRs whose CI check passed (0 when unreadable: never hold on a GitHub error). */
+function readyCandidates() {
+  try {
+    return Number(gh(['pr', 'list', '-R', REPO, '--state', 'open', '--label', 'train-ready', '--json', 'statusCheckRollup', '--jq', '[.[] | select([.statusCheckRollup[]? | select(.name == "check") | .conclusion] | first == "SUCCESS")] | length']) || 0);
+  } catch { return 0; }
+}
+
 function trainSoonNow(openPrs) {
   const isVersion = (p) => new RegExp(`^\\d+\\.\\d+\\.\\d+: version at merge, train ${p.n} \\(G183\\)$`).test(git(['show', '-s', '--format=%s', p.sha], { soft: true }));
   const b = openPrs.find((p) => !isVersion(p));
@@ -370,7 +398,7 @@ function trainSoonNow(openPrs) {
     const last = JSON.parse(gh(['pr', 'list', '-R', REPO, '--state', 'merged', '--limit', '30', '--json', 'headRefName,mergedAt', '--jq', '[.[] | select(.headRefName | startswith("train/"))][0] // null']) || 'null');
     const ageMs = last ? Date.now() - Date.parse(last.mergedAt) : Infinity;
     if (!(ageMs < TRAIN_GAP_MS)) return '';
-    const candidates = Number(gh(['pr', 'list', '-R', REPO, '--state', 'open', '--label', 'train-ready', '--json', 'statusCheckRollup', '--jq', '[.[] | select([.statusCheckRollup[]? | select(.name == "check") | .conclusion] | first == "SUCCESS")] | length']) || 0);
+    const candidates = readyCandidates();
     return trainSoon({ release: { n: String(last.headRefName).replace(/^train\//, ''), ageMs }, candidates }, { gapMs: TRAIN_GAP_MS, buildMaxMs: TRAIN_BUILD_MAX_MS });
   } catch { return ''; /* unreadable: no hold (never block on a GitHub error) */ }
 }
@@ -387,10 +415,12 @@ function pendingTrains() {
     log(`train PR list failed, trains skipped this pass: ${String(e.message).split('\n')[0]}`);
     aloneHold = { n: '?', sha: '', laptop: 'unknown' };
     soon = ''; // never hold new claims on a GitHub error (checker FIX)
+    openTrainCount = -1;
     return out;
   }
   git(['fetch', '-q', 'origin', '+refs/heads/train/*:refs/remotes/origin/train/*'], { soft: true });
   if (!DESKTOP) soon = trainSoonNow(openPrs);
+  openTrainCount = openPrs.length;
   // every open train PR head without a laptop-e2e success holds alone requests (a status read error counts as none),
   // except heads that can never get one here: older than LQ_TRAIN_MAX_AGE_H or a failed auto-train/* build (as below)
   aloneHold = trainHold(openPrs.flatMap((p) => {
@@ -425,7 +455,14 @@ function pendingTrains() {
     const st = sts.find((s) => s.context === 'laptop-e2e')?.state ?? '';
     if (st === '' || (st === 'pending' && !claimed.has(m[1]))) out.push({ sha: m[1], n: m[2], stale: st === 'pending', ageMs: age * 1000 });
   }
-  return out;
+  return sortTrains(out); // ls-remote order is text order; the lowest train runs first (overlap plan section 3)
+}
+
+/** The head shas of the open train/<n> PRs, or null when the listing failed (the void-train watch then waits). */
+function openTrainHeads() {
+  try {
+    return new Set(JSON.parse(gh(['pr', 'list', '-R', REPO, '--state', 'open', '--limit', '200', '--json', 'headRefName,headRefOid', '--jq', '[.[] | select(.headRefName | startswith("train/")) | .headRefOid]']) || '[]'));
+  } catch { return null; }
 }
 
 // ---------- processes, locks, ports ----------
@@ -611,6 +648,20 @@ function finish(job, ctx, result, runDir, prNumber) {
 const claimed = new Set();
 /** Requests claimed or running here (id -> request), for the duplicate check. */
 const activeReqs = new Map();
+/** Alone requests a train preempted (cutShort): they go first among alone requests (lib pick queue.front) until claimed again. */
+const preemptedAlone = new Set();
+/** Train heads running here, for the heartbeat. */
+const runningTrains = new Set();
+let lastBeat = Date.now();
+/** Laptop: refresh the claims of everything running here every HEARTBEAT_MS (one push), so the desktop gate sees a live laptop. */
+function heartbeat() {
+  if (DESKTOP || DRY || !(HEARTBEAT_MS > 0)) return;
+  const ids = [...activeReqs.keys(), ...runningTrains];
+  if (ids.length === 0) { lastBeat = Date.now(); return; }
+  if (Date.now() - lastBeat < HEARTBEAT_MS) return;
+  lastBeat = Date.now();
+  if (writeClaims(ids, 'claim', `heartbeat ${ids.length} run(s)`) !== true) log(`heartbeat push failed for ${ids.length} run(s)`);
+}
 /** The train heads the last pass saw pending (desktop: those it may take); trainsNow() drops the ones claimed since. */
 let pendingNow = [];
 const trainsNow = () => pendingNow.filter((t) => !claimed.has(t.sha));
@@ -621,12 +672,31 @@ async function runTrain(train, ports = PORTS) {
   const runDir = path.join(STATE_DIR, 'runs', id);
   log(`train ${train.n} ${train.sha.slice(0, 8)}: start`);
   const locks = {};
+  // void-train watch (overlap plan section 3): a head that left the open train PR heads (closed, voided or rebuilt)
+  // twice in a row has every slot's command tree killed (cut); nothing new starts and the run ends with closedEnd
+  const ctls = Object.fromEntries(ports.map((p) => [p, { child: null, why: '' }]));
+  let misses = 0;
+  let voided = false;
+  const watch = DRY ? null : setInterval(() => {
+    if (voided) return;
+    misses = voidMisses(misses, train.sha, openTrainHeads());
+    if (misses < VOID_MISSES) return;
+    voided = true;
+    log(`train ${train.n} ${train.sha.slice(0, 8)}: no longer an open train PR head (closed, voided or rebuilt), run stopped`);
+    for (const c of Object.values(ctls)) cut(c, 'closed');
+  }, TRAIN_VOID_POLL_MS);
+  const closedEnd = () => {
+    postStatus(train.sha, 'error', 'laptop-e2e', `${DESKTOP ? 'desktop: ' : ''}train closed`);
+    writeClaims([train.sha], 'release', `release train ${train.n} (closed)`);
+    claimed.delete(train.sha);
+  };
   try {
     // every slot, or after TRAIN_SOLO_MS holding some while the rest stay locked: unsharded on the ones held
     for (let since = 0; ;) {
       for (const p of ports) locks[p] ||= await takeLock(p, `train ${train.n}`, train.sha, { once: true });
       const held = ports.filter((p) => locks[p]);
       if (held.length === ports.length) break;
+      if (voided) return closedEnd();
       if (held.length) since ||= Date.now();
       if (since && Date.now() - since >= TRAIN_SOLO_MS) {
         log(`train ${train.n}: ${ports.filter((p) => !locks[p]).join('+')} still locked after ${Math.round(TRAIN_SOLO_MS / 60_000)} min, running on ${held.join('+')} alone`);
@@ -643,8 +713,10 @@ async function runTrain(train, ports = PORTS) {
       claimed.delete(train.sha);
       return;
     }
+    if (voided) return closedEnd();
     postStatus(train.sha, 'pending', 'laptop-e2e', `${DESKTOP ? 'desktop: ' : ''}${ports.length > 1 ? 'sharded' : 'unsharded on'} ${ports.join('+')}`);
-    const prep = await Promise.all(ports.map((p) => prepare(p, train.sha, path.join(runDir, `${p}.log`))));
+    const prep = await Promise.all(ports.map((p) => prepare(p, train.sha, path.join(runDir, `${p}.log`), undefined, ctls[p])));
+    if (voided) return closedEnd();
     if (prep.includes('fetch')) {
       // not a verdict: the pending status is now unclaimed (stale) and the next pass picks the train again
       log(`train ${train.n}: fetch failed, retried next pass`);
@@ -662,7 +734,8 @@ async function runTrain(train, ports = PORTS) {
     const bins = shard(list, times, ports.length);
     bins.forEach((b, i) => log(`bin ${ports[i]}: ${b.suites.length} suites, weight ${Math.round(b.weight)} s`));
     const t0 = Date.now();
-    const runs = await Promise.all(ports.map((p, i) => e2e(p, bins[i].suites, TRAIN_JOBS, path.join(runDir, `${p}.log`))));
+    const runs = await Promise.all(ports.map((p, i) => e2e(p, bins[i].suites, TRAIN_JOBS, path.join(runDir, `${p}.log`), ctls[p])));
+    if (voided) return closedEnd();
     const prNumber = Number(gh(['pr', 'list', '-R', REPO, '--head', `train/${train.n}`, '--json', 'number', '--jq', '.[0].number'], { soft: true })) || 0;
     // a shard that died before its summary (or lost suites) is a failure, never a partial success
     const broken = ports.findIndex((p, i) => !runComplete(runs[i], bins[i].suites.length, true));
@@ -678,11 +751,15 @@ async function runTrain(train, ports = PORTS) {
     const slotOf = {};
     runs.forEach((r, i) => r.suites.forEach((s) => { slotOf[s.s] = ports[i]; }));
     const result = { suites: runs.flatMap((r) => r.suites), wall: 0, flakes: [] };
-    result.flakes = await rerunFlakes(result, slotOf, job, runDir, ports[0]);
+    result.flakes = await rerunFlakes(result, slotOf, job, runDir, ports[0], ctls[ports[0]]);
+    if (voided) return closedEnd();
+    // the verdict below may release the train at once: the watch must never cut it after this point
+    if (watch) clearInterval(watch);
     result.wall = (Date.now() - t0) / 1000;
     const ok = finish(job, 'laptop-e2e', result, runDir, prNumber);
     state.trains[train.sha] = { result: ok ? 'success' : 'failure', wall: result.wall, date: new Date().toISOString() };
   } finally {
+    if (watch) clearInterval(watch);
     // only slots this train locked: an unheld one may be serving a manual run
     for (const p of ports) { if (locks[p]) { releaseLock(p, locks[p]); freePort(p); } }
     saveState();
@@ -703,10 +780,13 @@ async function runRequest(r, port) {
   // cut short: withdrawn at any point, or (a pr request in its suites) preempted by a pending train (lib cutShort)
   const ctl = { child: null, why: '', by: null };
   let started = false;
+  let startedAt = NaN; // an alone run's steps start: under ALONE_PREEMPT_MIN a pending train still cuts it (lib cutShort)
+  let yieldedSteps = false; // an alone run gave the slots to a train between steps (not done)
+  let progress = () => NaN; // a pr run's share of its expected wall: past PREEMPT_MAX_PROGRESS it is never cut
   const watch = DRY ? null : setInterval(() => {
     const trains = trainsNow();
     const others = [...activeReqs.values()].filter((a) => a.id !== r.id);
-    const why = cutShort(r, { withdrawn: withdrawnIds.has(r.id), trains, started, others });
+    const why = cutShort(r, { withdrawn: withdrawnIds.has(r.id), trains, started, others, startedAt, now: Date.now(), progress: progress() });
     if (why && !ctl.why) { ctl.by = trains[0] ?? null; cut(ctl, why); }
   }, 5_000);
   const stop = () => Boolean(ctl.why) || Boolean(yielded ??= yieldTo(r, false, trainsNow()));
@@ -722,10 +802,12 @@ async function runRequest(r, port) {
       log(`${r.id}: withdrawn by the requester, run stopped`);
       if (posted) postStatus(r.sha, 'error', ctx, 'withdrawn by the requester, run stopped');
       state.done[r.id] = { result: 'withdrawn', date: new Date().toISOString() };
+      if (state.aloneSteps) delete state.aloneSteps[r.id];
       return;
     }
     const n = ctl.by?.n ?? '?';
-    log(`${r.id}: preempted by train ${n}, queued again`);
+    log(`${r.id}: preempted by train ${n}, queued again${r.kind === 'alone' ? ' (head of the alone queue)' : ''}`);
+    if (r.kind === 'alone') preemptedAlone.add(r.id);
     if (posted) postStatus(r.sha, 'pending', ctx, `queued, preempted by train ${n}`);
     writeClaims([r.id], 'release', `release ${r.id} (preempted by train ${n})`);
     claimed.delete(r.id);
@@ -761,17 +843,38 @@ async function runRequest(r, port) {
     }
     if (r.kind === 'alone') {
       const t0 = Date.now();
-      let okSteps = 0;
+      // a run that yielded between steps resumes after its finished ones (state.aloneSteps, same sha and steps)
+      const resume = state.aloneSteps?.[r.id];
+      const from = resume && resume.sha === r.sha && resume.n === r.steps.length ? resume.done : 0;
+      let okSteps = from ? resume.ok : 0;
+      if (from) log(`${r.id}: resumes at step ${from + 1}/${r.steps.length} (${okSteps} ok so far)`);
       started = true;
+      startedAt = t0;
       for (const [i, step] of r.steps.entries()) {
+        if (i < from) continue;
         if (ctl.why) break;
+        // between steps: a pending train head takes the slots; the finished steps are kept for the rerun
+        const tr = i > from ? trainsNow()[0] : null;
+        if (tr) {
+          (state.aloneSteps ??= {})[r.id] = { sha: r.sha, n: r.steps.length, done: i, ok: okSteps, date: new Date().toISOString() };
+          log(`${r.id}: yields to train ${tr.n} after step ${i}/${r.steps.length}, queued again (head of the alone queue)`);
+          postStatus(r.sha, 'pending', ctx, `queued, yielded to train ${tr.n} after step ${i}/${r.steps.length}`);
+          writeClaims([r.id], 'release', `release ${r.id} (yields to train ${tr.n})`);
+          claimed.delete(r.id);
+          preemptedAlone.add(r.id);
+          yieldedSteps = true;
+          return;
+        }
         const line = step.startsWith('serve ') ? `node scripts/laptop-queue/serve.mjs ${step.slice(6)}` : step;
         freePort(ports[0]);
         const code = await sh(line, { cwd: SLOTS[ports[0]].dir, env: { ...r.env, E2E_PORT: ports[0], E2E_GPU: '1' }, logFile: path.join(runDir, `step${i + 1}.log`), ctl });
         if (code === 0) okSteps++;
         freePort(ports[0]);
+        // a finished step is kept for a rerun after a cut or a yield (never a step the cut killed)
+        if (!ctl.why) (state.aloneSteps ??= {})[r.id] = { sha: r.sha, n: r.steps.length, done: i + 1, ok: okSteps, date: new Date().toISOString() };
       }
       if (ctl.why) return cutEnd();
+      if (state.aloneSteps) delete state.aloneSteps[r.id];
       const good = okSteps === r.steps.length;
       postStatus(r.sha, good ? 'success' : 'failure', ctx, `${okSteps}/${r.steps.length} steps ok, ${Math.round((Date.now() - t0) / 1000)} s`);
       state.done[r.id] = { result: good ? 'success' : 'failure', date: new Date().toISOString() };
@@ -781,6 +884,7 @@ async function runRequest(r, port) {
     const jobs = DESKTOP || r.trainRerun ? 1 : r.jobs ?? (r.kind === 'full' ? 3 : 2); // a train rerun: E2E_JOBS=1, unsharded
     const t0 = Date.now();
     started = true;
+    progress = () => runProgress(list, times, jobs, Date.now() - t0);
     const run = await e2e(port, list, jobs, path.join(runDir, `${port}.log`), ctl);
     if (ctl.why) return cutEnd();
     // same completeness rule as a train shard; at least the listed suites (a named suite may expand into parts)
@@ -809,7 +913,7 @@ async function runRequest(r, port) {
     if (state.done[r.id]) state.done[r.id].key = dupKey(r); // the duplicate check reads it for LQ_DUP_WINDOW_MIN
     saveState();
     if (state.done[r.id] && writeClaims([r.id], 'done', `done ${r.id}`) === true) doneSynced.add(r.id);
-    if (!yielded && ctl.why !== 'train') log(`${r.id}: done`);
+    if (!yielded && !yieldedSteps && ctl.why !== 'train') log(`${r.id}: done`);
   }
 }
 
@@ -822,12 +926,13 @@ function dispatch(p) {
     claimed.add(p.train.sha);
     const ports = p.ports ?? PORTS;
     if (DRY) { log(`dry-run: would run train ${p.train.n} ${p.train.sha.slice(0, 8)} on ${ports.join('+')}`); return planTrain(p.train.sha, ports); }
+    runningTrains.add(p.train.sha);
     const run = runTrain(p.train, ports).catch((e) => {
       log(`train ${p.train.n} service error: ${e.stack ?? e.message}`);
       postStatus(p.train.sha, 'error', 'laptop-e2e', 'service error, see log');
       writeClaims([p.train.sha], 'release', `release train ${p.train.n}`);
       claimed.delete(p.train.sha);
-    });
+    }).finally(() => runningTrains.delete(p.train.sha));
     ports.forEach((x) => { busy[x] = run; });
     return run;
   }
@@ -930,11 +1035,12 @@ function applyDuplicates(requests) {
  */
 function desktopTrains() {
   const laptop = workerActivity(git(['log', '-n', '2000', '--format=%ct %s', 'origin/laptop-queue', '--', 'claims/'], { soft: true }), 'laptop');
-  const gate = (ageMs) => desktopTrainGate({ laptop, now: Date.now(), silentMs: LAPTOP_SILENT_MS, trainAgeMs: ageMs, graceMs: TRAIN_GRACE_MS });
+  const gate = (ageMs, train) => desktopTrainGate({ laptop, now: Date.now(), silentMs: LAPTOP_SILENT_MS, trainAgeMs: ageMs, graceMs: TRAIN_GRACE_MS, train });
   const off = gate(Infinity);
   if (off) return { trains: [], why: off };
   const all = pendingTrains().filter((t) => !claimed.has(t.sha));
-  const trains = all.filter((t) => !gate(t.ageMs));
+  // per head: beside the laptop's own train only a different train passes (lib desktopTrainGate)
+  const trains = all.filter((t) => !gate(t.ageMs, t.n));
   return { trains, why: all.length && !trains.length ? 'train head too new' : '' };
 }
 
@@ -951,7 +1057,7 @@ function trainBuilding() {
   const key = `${m.key} ${m.stale}`;
   if (key !== markerLogged) {
     markerLogged = key;
-    log(m.stale ? `train ${m.train} build marker ${Math.round(m.ageMs / 60_000)} min old: ignored as stale` : `train ${m.train} building: no new claims`);
+    log(m.stale ? `train ${m.train} build marker ${Math.round(m.ageMs / 60_000)} min old: ignored as stale` : `train ${m.train} building: no new claims (lower trains still start)`);
   }
   return m.stale ? null : m;
 }
@@ -960,7 +1066,8 @@ async function pass() {
   // requests first: listRequests fetches origin/laptop-queue, which the train claim checks read
   const requests = listRequests().filter((r) => !claimed.has(r.id));
   const dt = DESKTOP ? desktopTrains() : null;
-  const queue = { trains: DESKTOP ? dt.trains : pendingTrains().filter((t) => !claimed.has(t.sha)), requests };
+  for (const id of preemptedAlone) if (!requests.some((r) => r.id === id)) preemptedAlone.delete(id); // done or withdrawn
+  const queue = { trains: DESKTOP ? dt.trains : pendingTrains().filter((t) => !claimed.has(t.sha)), requests, front: preemptedAlone };
   pendingNow = queue.trains; // runs still before their suites / steps yield to these
   // done marks first: a claim (which tells the desktop the laptop is on claims) never lands before them
   if (!syncDone() && !DRY) { log('done claims not pushed: no new requests this pass (trains need a claim push too)'); queue.requests = []; }
@@ -976,10 +1083,24 @@ async function pass() {
     if (key !== aloneHoldLogged) { aloneHoldLogged = key; log(`alone requests held: train ${aloneHold.n} ${String(aloneHold.sha).slice(0, 8)} open, laptop-e2e ${aloneHold.laptop || 'none'}${aged ? `; ${aged.id} waited over ${ALONE_AGE_MIN} min: no new pr claims` : ''}`); }
     queue.requests = queue.requests.filter((r) => (aged ? r.trainRerun : r.kind !== 'alone'));
   } else if (!aloneHold) aloneHoldLogged = '';
+  // before any train PR exists: a green train-ready PR keeps new alone claims back (aged and preempted ones still start)
+  // (the green train-ready count is read only then: one gh call per pass while an alone request waits and no train is open)
+  const aloneSoonWhy = !DESKTOP && openTrainCount === 0 && queue.requests.some((r) => r.kind === 'alone') ? aloneSoon(0, readyCandidates()) : '';
+  if (aloneSoonWhy) {
+    const aged = agedAlone(queue.requests, Date.now());
+    if (aloneSoonWhy !== aloneSoonLogged) { aloneSoonLogged = aloneSoonWhy; log(`${aloneSoonWhy}: no new alone claims`); }
+    queue.requests = queue.requests.filter((r) => r.kind !== 'alone' || r === aged || preemptedAlone.has(r.id));
+  } else if (!aloneSoonWhy) aloneSoonLogged = '';
   const desktopWait = {};
   if (DESKTOP) {
-    // auto-train's build (its vitest waits on heavy.lock) goes first: no new request or train while it builds
-    if (trainBuilding()) return;
+    // auto-train's build (its vitest waits on heavy.lock) goes first: no new request while it builds, and no train at or
+    // above the one being built; a lower train (N while N+1 builds on it) still starts (lib trainsUnderMarker)
+    const building = trainBuilding();
+    if (building) {
+      queue.trains = trainsUnderMarker(queue.trains, building);
+      if (queue.trains.length === 0) return;
+      queue.requests = [];
+    }
     const backlog = queue.requests.length;
     queue.requests = queue.requests.filter((r) => r.kind === 'pr' && !r.trainRerun); // a train rerun is the laptop's (desktop failed)
     const why = {};
@@ -991,7 +1112,7 @@ async function pass() {
       const ports = PORTS.filter((p) => fs.existsSync(SLOTS[p].dir));
       for (const port of ports) why[port] = busy[port] ? 'busy' : desktopSlotGate({ lockName: path.basename(SLOTS[port].lock), lockHeld: fs.existsSync(SLOTS[port].lock), dirOk: true, backlog: Infinity, cpu: cpu(), minBacklog: 0, maxCpu: DESKTOP_CPU[port] });
       const waits = Object.entries(why).filter(([, w]) => w).map(([p, w]) => `${p} ${w}`);
-      log(`queue: train ${train.n} ${train.sha.slice(0, 8)} (laptop silent), ${backlog} request(s)${ports.length === 0 ? '; no desktop worktree' : ''}${waits.length ? `; waiting: ${waits.join('; ')}` : ''}`);
+      log(`queue: train ${train.n} ${train.sha.slice(0, 8)} (laptop silent or on another train), ${backlog} request(s)${ports.length === 0 ? '; no desktop worktree' : ''}${waits.length ? `; waiting: ${waits.join('; ')}` : ''}`);
       if (ports.length === 0 || waits.length) return;
       // the laptop may have woken up and claimed it since the list was read
       if (writeClaims([train.sha], 'claim', `claim train ${train.n}`) !== true) return;
@@ -1039,6 +1160,7 @@ async function pass() {
       queue.requests = queue.requests.filter((r) => r !== p.request);
       // the other worker may have taken it since the list was read: skip it this pass
       if (writeClaims([p.request.id], 'claim', `claim ${p.request.id}`) !== true) continue;
+      preemptedAlone.delete(p.request.id);
     }
     const run = dispatch(p);
     if (DESKTOP) started = true;
@@ -1089,6 +1211,7 @@ async function main() {
     try {
       // update before taking new work too, so a busy queue still picks up new service code between runs
       if (!Object.values(busy).some(Boolean)) selfUpdate();
+      heartbeat();
       await pass();
       if (!Object.values(busy).some(Boolean)) selfUpdate();
     } catch (e) { log(`pass failed: ${e.message}`); }
