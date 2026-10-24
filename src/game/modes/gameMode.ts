@@ -87,8 +87,9 @@ export interface GameMode {
   onRemoteUse?(id: string, active: boolean): void;
   /** Co-op host: a client's takedown finished (host-checked); `kind` is the client's takedown kind ('' unknown). */
   onRemoteTakedown?(id: string, kind: string): void;
-  /** Co-op host: a client's held jammer target (CT prototype B3; '' = released) and (jammer-fixes) its camera eye. */
-  onRemoteJam?(id: string, tgt: string, eye?: readonly [number, number, number]): void;
+  /** Co-op host: a client's held jammer target (CT prototype B3; '' = released) and (jammer-fixes) its camera eye; (coop4 D1)
+   *  the sender's player slot (its `SecWire` entry; absent: 1). */
+  onRemoteJam?(id: string, tgt: string, eye?: readonly [number, number, number], slot?: number): void;
   /** Co-op host: a client's thrown gadget took effect (host-checked). */
   onRemoteGadget?(id: string, kind: string): void;
   /** (spare 9) Host / solo: an interrogation gave the team code flag `flag` (part B wires the modes). */

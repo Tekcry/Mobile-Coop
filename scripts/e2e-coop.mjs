@@ -12,7 +12,7 @@
 // mission on the Warehouse: guards, and detection costs only a bonus) and Free Roam, no Hunter. Two players only (G2).
 // Waits are e2e-net-lib's, on both pages' sim clocks: the sim runs slower than real time on software GL.
 import { launch, openPage, frames, press, BTN, assert } from './e2e-lib.mjs';
-import { until as untilNet, waitSim, waitHostSim, setSimPages, LOAD_MS } from './e2e-net-lib.mjs';
+import { until as untilNet, waitSim, waitHostSim, setSimPages, hostAndJoin, LOAD_MS } from './e2e-net-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const wait = (ms) => waitSim(ms);
@@ -1987,6 +1987,99 @@ try {
 } finally {
   errs.push(...eA, ...eB);
   await browser.close();
+}
+
+// (coop4 L1) Lobby caps. A mode's seats are `capacity(mode)`: Sector Ops up to 4 (after slice N1; 2 until then), the
+// campaign (Marlow Yard) 2. The room is hosted in a legacy 4-seat mode so a 3rd page can join now, then switched.
+console.log('lobby caps: slots by mode, Start blocked over the cap, Room full, Marlow lobby for 2');
+{
+  let lb = null;
+  /** Live error arrays (each page's, filled as errors come), flattened at the end. */
+  const lerrs = [];
+  try {
+    const H = await hostAndJoin(url, 1, { viewport: { width: 1280, height: 640 } });
+    lb = H.browser;
+    lerrs.push(...H.errors);
+    const LA = H.A;
+    const LG = (f, a) => LA.evaluate(f, a);
+    const rows = (P) => P.evaluate(() => ({ all: document.querySelectorAll('.lobby-screen .lobby-player').length, empty: document.querySelectorAll('.lobby-screen .lobby-player.empty').length }));
+    const lcode = await LG(() => window.__coop.session.code);
+    /** Open a page and join the room by its code (the Join with code screen). */
+    const joinPage = async () => {
+      const o = await openPage(H.ctx, url, 'net=local');
+      lerrs.push(o.errors);
+      await o.page.click('.main-menu .btn:has-text("Co-op")');
+      await o.page.click('.btn:has-text("Join with code")');
+      await o.page.keyboard.type(lcode.toLowerCase());
+      await o.page.keyboard.press('Enter');
+      return o.page;
+    };
+
+    // Marlow Yard (Campaign), one player: two slots, one open; the host is told to invite teammates
+    assert((await LG(() => window.__coop.session.mode)) === 'course', 'lobby caps: a new room is Campaign');
+    const r1 = await rows(LA);
+    assert(r1.all === 2 && r1.empty === 1, `lobby caps: Campaign lobby with one player shows 2 slots, 1 open (${JSON.stringify(r1)})`);
+    const st1 = await LG(() => document.querySelector('.lobby-screen .lobby-status')?.textContent ?? '');
+    assert(st1 === 'Share the code to invite your teammates.', `lobby caps: host status line (${st1})`);
+
+    // a 2nd page joins: Marlow's lobby for 2 is full, no open slot
+    const LB = await joinPage();
+    await until(LA, () => window.__coop.session.players.size === 2, null, 15000, 'lobby caps: host sees page 2');
+    await until(LB, () => window.__coop.session.hostId && window.__coop.session.players.size === 2, null, 15000, 'lobby caps: page 2 sees the lobby');
+    for (const [n, P] of [['host', LA], ['joiner', LB]]) {
+      const r = await rows(P);
+      assert(r.all === 2 && r.empty === 0, `lobby caps: Campaign lobby for 2 shows 2 players, no open slot, on the ${n} (${JSON.stringify(r)})`);
+    }
+
+    // a 3rd page joining a Campaign room is refused: Room full, with the cap
+    const LX = await joinPage();
+    await until(LX, () => /Room full/.test(document.querySelector('.dialog-screen .dialog-title')?.textContent ?? ''), null, 15000, 'lobby caps: the 3rd page gets Room full');
+    const fullMsg = await LX.evaluate(() => document.querySelector('.dialog-screen .dialog-msg')?.textContent ?? '');
+    assert(/2 players/.test(fullMsg), `lobby caps: Room full names the cap (${fullMsg})`);
+    assert((await LG(() => window.__coop.session.players.size)) === 2, 'lobby caps: the full room still has its 2 players');
+    await LX.close();
+
+    // a 4-seat room (Free Roam) takes a 3rd page; then the host switches the room to Campaign, then Sector Ops
+    await LG(() => window.__coop.session.setSettings('sandbox', 'warehouse', 'normal', ''));
+    const LC = await joinPage();
+    const trio = [LA, LB, LC];
+    setSimPages(trio);
+    await until(LA, () => window.__coop.session.players.size === 3, null, 15000, 'lobby caps: host sees page 3');
+    for (const P of trio.slice(1)) await until(P, () => window.__coop.session.hostId && window.__coop.session.players.size === 3, null, 15000, 'lobby caps: pages see 3 players');
+
+    await LG(() => window.__coop.session.setSettings('course', 'ctcourse', 'normal', ''));
+    await until(LA, () => window.__coop.session.overCapacity && document.querySelector('.lobby-actions [data-key="start"]')?.classList.contains('blocked'), null, 10000, 'lobby caps: Start blocked with 3 in a Campaign room');
+    const lock = await LG(() => document.querySelector('.lobby-actions [data-key="start"]').dataset.locked);
+    assert(lock === 'Too many players for this mode (2)', `lobby caps: Campaign blocks Start with 3 players (${lock})`);
+    await LA.click('.lobby-actions [data-key="start"]');
+    await LA.waitForTimeout(500);
+    assert(await LG(() => window.__coop.session.phase === 'lobby' && !window.__coop.inGame), 'lobby caps: Start does nothing while blocked');
+
+    await LG(() => window.__coop.session.setSettings('sector', 'warehouseOps', 'normal', ''));
+    for (const P of trio) await until(P, () => window.__coop.session.mode === 'sector', null, 10000, 'lobby caps: the room shows Sector Ops');
+    // the page's own capacity('sector'): 3 players over the cap means 2 (before N1), else the 4 seats
+    const sectorCap = (await LG(() => window.__coop.session.overCapacity)) ? 2 : 4;
+    if (sectorCap !== 4) {
+      console.log(`  SKIP until N1: capacity('sector') is ${sectorCap}, not 4 (the 4-slot lobby and the 3-page Sector Ops start are not asserted)`);
+    } else {
+      for (const [n, P] of [['host', LA], ['page 2', LB], ['page 3', LC]]) {
+        await until(P, () => document.querySelectorAll('.lobby-screen .lobby-player').length === 4, null, 10000, `lobby caps: ${n} shows 4 slots`);
+        const r = await rows(P);
+        assert(r.all === 4 && r.empty === 1, `lobby caps: Sector Ops lobby shows 4 slots, 1 open, on ${n} (${JSON.stringify(r)})`);
+      }
+      for (const P of trio.slice(1)) await P.evaluate(() => window.__coop.session.setReady(true));
+      await until(LA, () => window.__coop.session.allReady && !document.querySelector('.lobby-actions [data-key="start"]')?.classList.contains('blocked'), null, 10000, 'lobby caps: Start unblocked for 3 ready players');
+      await LA.click('.lobby-actions [data-key="start"]');
+      for (const P of trio) await until(P, () => window.__app.current?.opts?.mode === 'sector' && !!window.__app.current.net && !window.__app.current.isEnded, null, LOAD_MS, 'lobby caps: Sector Ops match on every page');
+      assert(true, 'lobby caps: a 3-page Sector Ops room starts');
+    }
+  } catch (e) {
+    failed = true;
+    console.error(String(e));
+  } finally {
+    errs.push(...lerrs.flat());
+    await lb?.close();
+  }
 }
 
 console.log('offline state');

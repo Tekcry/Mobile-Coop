@@ -6,7 +6,7 @@ import { WALL, WALL_SUB, wallPeekOffset } from '../player/wallController';
 import { Health } from '../game/health';
 import { HALL_BACK_HOLD } from '../game/jammer';
 import type { DamageRegistry, Damageable, DamageResult, HitInfo } from '../game/damage';
-import type { PlayerRef } from '../ai/enemy';
+import type { TeamRef } from '../game/playerSlots';
 import type { WeaponId } from '../weapons/weaponDefs';
 import { WEAPONS } from '../weapons/weaponDefs';
 import { attachedClamp, hostDrawPhase, hostWeapon, MAX_FREE_SPEED, moveSpeedCap, shotLimiter, type RateLimiter } from './validate';
@@ -30,7 +30,9 @@ export class RemotePlayer implements Damageable {
   readonly team = 'player' as const;
   readonly health = new Health(100);
   readonly feet = new Vector3();
-  readonly ref: PlayerRef;
+  /** (coop4) The guards' and the game's view of this player: its slot (`CoopHost` sets it at add) and its last accepted
+   *  MoveState (`mv`, from each `pstate`). */
+  readonly ref: TeamRef;
   state: PlayerState | null = null;
   damageMul = 1;
   /** Hip joint height (m) of the body the capsule is fitted to. */
@@ -75,7 +77,7 @@ export class RemotePlayer implements Damageable {
     this.body.disablePreStep = false;
     registry.register(this.body, this, 'body');
     // (operators 11e r1) the partner's light is sampled at its body's height (host and client alike, nothing sent)
-    this.ref = { id, target: this, feet: this.feet, speed: 0, crouched: false, height: avatar.rig.height };
+    this.ref = { id, target: this, feet: this.feet, speed: 0, crouched: false, height: avatar.rig.height, slot: 1, mv: null };
     this.sync();
   }
 
@@ -166,6 +168,7 @@ export class RemotePlayer implements Damageable {
     // (step 12b carry-over) off the wall the posed head sample goes at once (not at the next frame's setPosedHead)
     if (!wseg) this.ref.head = null;
     this.state = s;
+    this.ref.mv = s.mv ?? null;
     this.sync();
   }
 

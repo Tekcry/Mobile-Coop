@@ -19,7 +19,9 @@ import { CT } from '../config/movement';
 import { CLIENT_INTERP_DELAY, ClockSync, sendClock } from './interp';
 import type { CKind } from '../game/committedMoves';
 import { RemoteAvatar } from './remoteAvatar';
-import { setPlayerGlow } from '../operators/runtime/playerFigure';
+import { goggleColour } from '../operators/runtime/goggle';
+import type { OperatorFigure } from '../operators/runtime/figure';
+import type { SpawnBody } from '../game/spawnSlots';
 import { EnemyPuppet } from './enemyPuppet';
 import { infoAtSpawn } from '../ai/guardInfo';
 import { PartnerTarget } from './partnerTarget';
@@ -57,6 +59,11 @@ import type { SlotPoint } from '../game/spawnSlots';
 const SEND_HZ = 20;
 /** (afp AF6) `CLIENT_INTERP_DELAY` (interp.ts; was 0.12). */
 const INTERP_DELAY = CLIENT_INTERP_DELAY;
+
+/** (G135, coop4 A15) A body's goggle colour by player slot: slot 0 keeps the lens asset's green (`goggleColour`). */
+function glowBySlot(figure: OperatorFigure, slot: number): void {
+  figure.setGlowColour(slot <= 0 ? null : goggleColour(slot));
+}
 
 /**
  * Client side of a match. Only the local player is simulated (predicted); enemies, modes, pickups, objectives, doors
@@ -153,7 +160,7 @@ export class CoopClient implements NetAttachment {
     // (coop-torches) the beam stops at the first wall as on the host (`beamReach`, one static ray each, no allocation)
     this.torches = new TorchMirror(g.world.level.lights, (ax, ay, az, bx, by, bz) => g.ballistics.hitDistance(this.torchA.set(ax, ay, az), this.torchB.set(bx, by, bz), G.STATIC));
     this.offs.push(s.events.on('game', ({ msg }) => this.receive(msg)));
-    // (G135) the goggle colours follow the host's player order (host green, us cyan as the partner)
+    // (G135, coop4 A15) the goggle colours and our beacon follow the host's slots (host green / blue, then by slot)
     this.recolour();
     this.offs.push(s.events.on('lobby', () => this.recolour()));
     // (coop-rejoin, walk item 4) our own slot of the start area (the map's slot point, else a safe spot beside the
@@ -170,7 +177,8 @@ export class CoopClient implements NetAttachment {
     }
     if (g.opts.mode === 'sector') {
       // Sector Ops: the cameras and lasers as the host's `sector` message drives them; our jam goes to the host
-      const ct = new CtDevices(g, 'client', { say: () => undefined, record: () => undefined, dirty: () => undefined });
+      // (coop4 D1) our slot: our jam's entry in `SecWire` (read each use)
+      const ct = new CtDevices(g, 'client', { say: () => undefined, record: () => undefined, dirty: () => undefined, slot: () => this.slot() });
       this.sec = ct;
       g.ctDev = ct;
       // (sector-restart, M9) our loadout as section 1 begins: a checkpoint restart gives it back
@@ -352,7 +360,7 @@ export class CoopClient implements NetAttachment {
       a = new RemoteAvatar(g.world, g.vfx, g.ballistics, info);
       a.onFire = (cls, at, gun, quiet) => g.events.emit('remoteShot', { cls, x: at.x, y: at.y, z: at.z, gun, quiet });
       this.avatars.set(st.id, a);
-      setPlayerGlow(a.figure, [...this.s.players.values()], st.id);
+      glowBySlot(a.figure, this.s.slotOf(st.id));
       // course mode (D38): the partner can be shot (the host decides the damage, co-op rules)
       if (g.opts.mode === 'course') {
         const t = new PartnerTarget(g.scene, g.registry, st.id, a);
@@ -366,15 +374,14 @@ export class CoopClient implements NetAttachment {
     return a;
   }
 
-  /** (coop-rejoin) Our player slot: 1 + our place among the joiners in the host's lobby order (the host is slot 0). */
+  /** (coop4 A10) Players in the session (the host's lobby: connected plus held). */
+  teamSize(): number {
+    return this.s.players.size;
+  }
+
+  /** (coop-rejoin, coop4 A19) Our player slot: the one the host's lobby gives us (`NetSession.selfSlot`). */
   private slot(): number {
-    let i = 1;
-    for (const p of this.s.players.values()) {
-      if (p.host) continue;
-      if (p.id === this.s.selfId) return i;
-      i++;
-    }
-    return 1;
+    return this.s.selfSlot;
   }
 
   /** (coop-rejoin, walk item 4) Our start: our slot of the start area, clear of the host's slot 0 point. */
@@ -384,16 +391,24 @@ export class CoopClient implements NetAttachment {
     const base = pts[0];
     if (!base) return;
     const out: SlotPoint = { x: 0, y: 0, z: 0, yaw: 0 };
-    if (placeSlot(g, pts, this.slot(), [base], out) === 'none') return;
+    // (coop4 A14) the lower slots' spots first (as the host places them), so slots 2-3 keep clear of slot 1's
+    const others: SpawnBody[] = [base];
+    const mine = Math.max(1, this.slot());
+    for (let k = 1; k < mine; k++) {
+      if (placeSlot(g, pts, k, others, out) === 'none') return;
+      others.push({ x: out.x, y: out.y, z: out.z });
+    }
+    if (placeSlot(g, pts, mine, others, out) === 'none') return;
     g.player.controller.teleport(new Vector3(out.x, out.y, out.z), out.yaw);
     g.player.cam.yaw = out.yaw;
   }
 
-  /** (G135) Every body's goggle colour from its player slot: the partner beacon. */
+  /** (G135, coop4 A15) Every body's goggle colour from its player slot, and our own beacon (slot + 1). */
   private recolour(): void {
-    const ps = [...this.s.players.values()];
-    setPlayerGlow(this.g.player.figure, ps, this.s.selfId);
-    for (const [id, a] of this.avatars) setPlayerGlow(a.figure, ps, id);
+    const me = this.s.selfSlot;
+    this.g.setLocalSlot(me);
+    glowBySlot(this.g.player.figure, me);
+    for (const [id, a] of this.avatars) glowBySlot(a.figure, this.s.slotOf(id));
   }
 
   private dropAvatar(id: string): void {
@@ -1164,7 +1179,10 @@ export class CoopClient implements NetAttachment {
 
   blips(): Blip[] {
     const out: Blip[] = [];
-    for (const a of this.avatars.values()) out.push({ x: a.pos.x, z: a.pos.z, kind: 'ally' });
+    for (const [id, a] of this.avatars) {
+      const slot = this.s.slotOf(id);
+      out.push(slot < 0 ? { x: a.pos.x, z: a.pos.z, kind: 'ally' } : { x: a.pos.x, z: a.pos.z, kind: 'ally', slot });
+    }
     return out;
   }
 

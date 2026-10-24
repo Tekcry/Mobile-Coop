@@ -16,10 +16,11 @@ import type { SectorNetExtra, SectorRatingWire } from '../game/sectors';
 import { LAMP_BITS, LAMP_CHARS, LAMP_MAX, type LampWire } from './lampSync';
 import { SWAY } from '../world/lampSway';
 import type { MotionState } from '../anim/motion';
+import { slotFromList } from '../game/playerSlots';
 
 /** The wire version. Only this line holds it; tests read it. `scripts/merge-train.mjs build` bumps it once per train with a wire change (history: CHANGELOG, docs/systems/coop.md). */
 export const PROTOCOL_VERSION = 49;
-/** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
+/** Room cap on the wire (= `PLAYER_SLOTS`, game/playerSlots.ts); each mode takes `capacity(mode)`. */
 export const MAX_PLAYERS = 4;
 export const COOP_MAX = 4;
 export const MAX_ENEMIES = 32;
@@ -35,10 +36,12 @@ export type NetGadget = 'gas' | 'flash' | 'emp' | 'noise';
 export const NET_GADGETS: readonly NetGadget[] = ['gas', 'flash', 'emp', 'noise'];
 export type NetMode = 'sandbox' | 'clear' | 'infiltration' | 'course' | 'sector';
 export const NET_MODES: readonly NetMode[] = ['sandbox', 'clear', 'infiltration', 'course', 'sector'];
-/** The training course and Sector Ops take two players (P1 host, P2 client; G2). */
+/** The training course (the campaign, Marlow Yard) takes two players (P1 host, P2 client; G2). */
 export const COURSE_MAX = 2;
-/** Players a mode takes. */
-export const capacity = (m: NetMode): number => (m === 'course' || m === 'sector' ? COURSE_MAX : COOP_MAX);
+/** (coop4 A1) Sector Ops takes up to four players (slots 0-3). */
+export const SECTOR_MAX = 4;
+/** Players a mode takes: the course `COURSE_MAX` 2, Sector Ops `SECTOR_MAX` 4, the legacy modes `COOP_MAX` 4. */
+export const capacity = (m: NetMode): number => (m === 'course' ? COURSE_MAX : m === 'sector' ? SECTOR_MAX : COOP_MAX);
 import { parseDifficulty, type Difficulty } from '../ai/archetypes';
 export type { Difficulty };
 
@@ -53,6 +56,9 @@ export interface PlayerInfo {
   host: boolean;
   /** (marlow-bays R2) Dropped mid-match: the host holds the slot (frozen, invulnerable) until a rejoin or the hold ends. */
   away: boolean;
+  /** (coop4 A19) The player's fixed slot 0-3 (`PlayerSlot`; 0 the host), set by the host's `SlotTable`. Every peer reads
+   *  slots from here, never from list order; a lobby entry without one reads the list order (`slotFromList`). */
+  slot: number;
 }
 
 /** Bit flags in player state. */
@@ -120,6 +126,59 @@ export function gaitWire(phase: number, ct: boolean, stopEaseT: number, stopHold
 export function wirePlayerState(s: PlayerState): PlayerState {
   if (!s.mv) return s;
   return { ...s, mv: packMoveState(s.mv) as unknown as MoveState };
+}
+
+/** (coop4 N1, A24) A snapshot number on the wire: 1 mm / 1 mrad steps (as `packMoveState` already rounds the move
+ *  state); an unrounded double costs ~18 characters of JSON, which put a 4-player, 32-guard snapshot past its 6 KB. */
+export const wireNum = (v: number): number => Math.round(v * 1000) / 1000;
+/** (coop4 N1) A health number on the wire: rounded, but a living body never reads 0 (dead) from the rounding. */
+const wireHp = (v: number): number => (v > 0 ? Math.max(0.001, wireNum(v)) : 0);
+
+/** (coop4 N1, A24) A player's state for the host's snapshot: `wirePlayerState` with its numbers rounded (`wireNum`).
+ *  A new object (the source is not touched). */
+export function snapPlayerState(s: PlayerState): PlayerState {
+  const o = s.mv ? wirePlayerState(s) : { ...s };
+  o.x = wireNum(o.x);
+  o.y = wireNum(o.y);
+  o.z = wireNum(o.z);
+  o.yaw = wireNum(o.yaw);
+  o.pitch = wireNum(o.pitch);
+  o.speed = wireNum(o.speed);
+  o.hp = wireHp(o.hp);
+  if (o.t !== undefined) o.t = wireNum(o.t);
+  if (o.gph !== undefined) o.gph = wireNum(o.gph);
+  if (o.qs !== undefined) o.qs = wireNum(o.qs);
+  if (o.hs !== undefined) o.hs = wireNum(o.hs);
+  if (o.mt !== undefined) o.mt = wireNum(o.mt);
+  if (o.ax !== undefined) o.ax = wireNum(o.ax);
+  if (o.az !== undefined) o.az = wireNum(o.az);
+  // the committed move's path (copied by `packMoveState`, not rounded there)
+  const c = (o.mv as { c?: Record<string, number> } | undefined)?.c;
+  if (c) for (const k in c) if (k !== 'n' && typeof c[k] === 'number') c[k] = wireNum(c[k]);
+  return o;
+}
+
+/** (coop4 N1, A24) A guard's snapshot entry with its numbers rounded (in place; the host builds a fresh one each
+ *  snapshot). */
+export function snapEnemyState(e: EnemyState): EnemyState {
+  e.x = wireNum(e.x);
+  e.y = wireNum(e.y);
+  e.z = wireNum(e.z);
+  e.yaw = wireNum(e.yaw);
+  e.hp = wireHp(e.hp);
+  return e;
+}
+
+/** (coop4 N1, A24) A mirrored item with its numbers rounded (in place; fresh each snapshot). */
+export function snapItem(n: NetItem): NetItem {
+  n.x = wireNum(n.x);
+  n.y = wireNum(n.y);
+  n.z = wireNum(n.z);
+  n.yaw = wireNum(n.yaw);
+  n.hold = wireNum(n.hold);
+  n.reach = wireNum(n.reach);
+  if (n.hn !== undefined) n.hn = wireNum(n.hn);
+  return n;
 }
 
 export interface EnemyState {
@@ -306,7 +365,8 @@ export type Msg =
   /** (27) `e`: the client's camera eye (m) a claim was aimed from (a release has none). */
   | { t: 'jam'; tgt: string; e?: [number, number, number] }
   | { t: 'end'; stats: EndStats }
-  | { t: 'bye'; reason: string }
+  /** `mode` (coop4): a full room's refusal names the room's mode, so the refused page shows that mode's cap. */
+  | { t: 'bye'; reason: string; mode?: NetMode }
   /** (31, sector-redesign slice L) Sector Ops light state (host -> all): `n` lights by registry id, `of` switched off, `sh` shot out (6-bit bitsets, `lampSync.ts`); on change, join and every 2 s. */
   | ({ t: 'lamps' } & LampWire);
 
@@ -407,7 +467,14 @@ function playerInfo(p: unknown): PlayerInfo | null {
   if (!isObj(p)) return null;
   const pid = id(p.id);
   if (!pid) return null;
-  return { id: pid, name: safeText(p.name, 16) || 'Operator', tag: tag(p.tag), look: sanitizeLook(p.look), loadout: loadout(p.loadout), ready: p.ready === true, host: p.host === true, away: p.away === true };
+  return { id: pid, name: safeText(p.name, 16) || 'Operator', tag: tag(p.tag), look: sanitizeLook(p.look), loadout: loadout(p.loadout), ready: p.ready === true, host: p.host === true, away: p.away === true, slot: wireSlot(p.slot) };
+}
+
+/** (coop4) A lobby entry's slot: a finite number rounds and clamps to 0..MAX_PLAYERS-1; anything else is -1 (the lobby
+ *  parse then gives it its list-order slot, `slotFromList`). */
+function wireSlot(v: unknown): number {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return -1;
+  return Math.max(0, Math.min(MAX_PLAYERS - 1, Math.round(v)));
 }
 
 function netEvent(v: unknown): NetEvent | null {
@@ -605,12 +672,23 @@ function secWire(v: unknown): { sec?: SecWire } {
       dv.push([k, ph, num(x[2], 0, 30) ?? 0]);
     }
   }
+  // (coop4 A11) one jammer entry per player slot: the longest of the three lists, padded to 2 (the course's pair) and
+  // cut at MAX_PLAYERS; a missing or junk entry reads idle
+  const n = Math.max(2, Math.min(MAX_PLAYERS, Math.max(j.length, ch.length, cd.length)));
+  const jw: string[] = [];
+  const chw: number[] = [];
+  const cdw: number[] = [];
+  for (let k = 0; k < n; k++) {
+    jw.push(id(j[k]) ?? '');
+    chw.push(num(ch[k], 0, 10) ?? 0);
+    cdw.push(num(cd[k], 0, 10) ?? 0);
+  }
   return {
     sec: {
       ck,
-      j: [id(j[0]) ?? '', id(j[1]) ?? ''],
-      ch: [num(ch[0], 0, 10) ?? 0, num(ch[1], 0, 10) ?? 0],
-      cd: [num(cd[0], 0, 10) ?? 0, num(cd[1], 0, 10) ?? 0],
+      j: jw,
+      ch: chw,
+      cd: cdw,
       dv,
       al: Math.round(num(v.al, 0, 9) ?? 0),
       ...(sc ? { sc } : {}),
@@ -772,6 +850,8 @@ export function parseMessage(raw: unknown): Msg | null {
         const info = playerInfo(p);
         if (info) players.push(info);
       }
+      // (coop4) an entry with no usable slot (an older host, junk) takes its list-order slot
+      for (const p of players) if (p.slot < 0) p.slot = slotFromList(players, p.id);
       const mode = oneOf(raw.mode, MODES);
       const difficulty = raw.difficulty === undefined ? null : parseDifficulty(raw.difficulty);
       const phase = oneOf(raw.phase, ['lobby', 'playing'] as const);
@@ -979,8 +1059,11 @@ export function parseMessage(raw: unknown): Msg | null {
       const stats = endStats(raw.stats);
       return stats ? { t: 'end', stats } : null;
     }
-    case 'bye':
-      return { t: 'bye', reason: safeText(raw.reason, 60) ?? '' };
+    case 'bye': {
+      const reason = safeText(raw.reason, 60) ?? '';
+      const mode = oneOf(raw.mode, MODES);
+      return mode ? { t: 'bye', reason, mode } : { t: 'bye', reason };
+    }
     case 'lamps': {
       // (31) bitsets of known characters only, at most LAMP_CHARS each
       const n = num(raw.n, 0, LAMP_MAX);

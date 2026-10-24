@@ -1744,9 +1744,9 @@ export class CharacterRig {
   /** Partner beacon colour (0 = player 1 blue, 1 = player 2 red; -1 = the default green). */
   private beacon = -1;
 
-  /** (A5, G135) this operator's lamp colour: 1 = blue, 2 = red (render only; the remote knows it from `PlayerInfo.host`). */
-  setBeacon(player: 1 | 2): void {
-    this.beacon = player - 1;
+  /** (A5, G135, coop4 A15) this operator's lamp colour by player 1-4: blue, red, amber, violet (clamped; render only; the remote knows it from `PlayerInfo.slot`). */
+  setBeacon(player: number): void {
+    this.beacon = Math.min(BEACON.length, Math.max(1, Math.round(player) || 1)) - 1;
     this.paintGlow();
   }
 
