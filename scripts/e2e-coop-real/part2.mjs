@@ -111,7 +111,9 @@ async function openDoor(h, P, who, c, tag) {
   const d = await L.read(h.A, pgDoor, c);
   L.assert(!!d, `${tag}: the door at (${c}) exists on the host`);
   if (d.target === 1) return d.i;
-  await L.aimAt(P, who, [c[0], 1.2, c[1]], { tol: 0.05, maxS: 4 });
+  // (triage 2026-10-25) the row needs only the camera facing the door (dot > 0, gameState.ts:1511-1519): an aim that
+  // misses its 0.05 rad is logged, and the row decides (pickRow waits for it and lists the rows it saw)
+  await L.aimAt(P, who, [c[0], 1.2, c[1]], { tol: 0.05, maxS: 4 }).catch((e) => console.log(`  (${tag}: ${String(e.message).split('\n')[0]}; trying the row as it faces)`));
   await L.pickRow(P, who, /^Open door$/);
   const got = await ok(L.until(h.A, pgDoorTarget, [d.i, 1], MS, `${tag}: the door opens on the host`));
   L.assert(got, `${tag}: the ${P === h.A ? 'host' : 'client'}'s Open door row opens the door at (${c}) on the host within ${L.PROMPT_S} s`);
@@ -221,8 +223,12 @@ export async function run(h) {
 
   await step('sweep stop 3', async () => {
     await openDoor(h, h.A, 'kbm', CABIN_DOOR, 'stop 3 setup');
-    await L.walkPath(h.A, 'kbm', [[8.6, 14.4], [8.6, 15.5], [8.0, 15.55]], { via: 0.5, tol: 0.25, maxS: 10 });
-    await L.walkPath(h.B, 'pad', [[8.6, 14.4], [8.6, 15.5], [9.05, 15.75]], { via: 0.5, tol: 0.25, maxS: 10 });
+    // (triage 2026-10-25) both stand > 1.3 m from the cabin door centre (8.6, 15.0): a door does not close while anyone
+    // is within DOOR.clearance 0.75 m of its centre (doors.ts:47, :229-230), and the brief's spots (0.81 / 0.87 m, walk
+    // tol 0.25) left the client's "Close door" refused and swept dead. Host by switch-0 (0.81 m), client by the counter
+    // (switch-1 is out of reach here; the client's "Lights off" is swept at stop 2).
+    await L.walkPath(h.A, 'kbm', [[8.6, 14.4], [8.6, 15.5], [7.6, 15.9]], { via: 0.5, tol: 0.25, maxS: 10 });
+    await L.walkPath(h.B, 'pad', [[8.6, 14.4], [8.6, 15.5], [8.3, 16.4]], { via: 0.5, tol: 0.25, maxS: 10 });
     await S.sweepStop(h, 'A1 cabin inside', { headings: 4, skip: SKIP });
   });
 

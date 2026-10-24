@@ -44,20 +44,25 @@ async function smoke() {
     console.log(`smoke: pair booted in ${((Date.now() - t0) / 1000).toFixed(1)} s (netsim ${process.env.E2E_NETSIM ?? 'off'})`);
     const net = await L.read(h.B, () => ({ sim: !!globalThis.__netsim, webdriver: navigator.webdriver }));
     L.assert(net.sim === !!process.env.E2E_NETSIM && net.webdriver === false, `both pages boot by URL (client netsim ${net.sim}, webdriver ${net.webdriver})`);
-    // client walk: ~6 m toward the apron (A1-mid), by the left stick
-    const s0 = await L.me(h.B);
+    // (triage 2026-10-25) the lounge door (centre (6, 11), a1Gate.ts:167) is closed at the start and the straight line to
+    // A1-mid crosses it (laptop: "stuck at 5.61, 10.36"): the client opens it by its row first (pickRow + watchdog on
+    // the host's door key), then walks ~5 m through it to the apron by the left stick (two legs, the PLAN gate on the time)
     const mid = await L.point(h.B, 'A1-mid');
     L.assert(!!mid, 'the A1-mid debug point exists');
-    const dx = mid[0] - s0.x;
-    const dz = mid[2] - s0.z;
-    const d0 = Math.hypot(dx, dz);
-    const k = Math.min(1, 6 / d0);
-    const goal = [s0.x + dx * k, s0.z + dz * k];
-    const w = await L.walkTo(h.B, 'pad', goal, { tol: 0.3, maxS: 12 });
-    L.assert(w.d <= 0.3, `client walkTo by stick: ${(d0 * k).toFixed(1)} m to ${w.d} m off in ${w.t} sim s (gate: <= 0.3 m, <= 8 s: ${w.t <= 8 ? 'in' : 'OVER'})`);
-    // host walk by keys to the same area
+    await L.walkTo(h.B, 'pad', [4.8, 11.5], { tol: 0.3, maxS: 8 });
+    await L.aimAt(h.B, 'pad', [6, 1.2, 11], { tol: 0.05, maxS: 4 });
+    const door = await S.runRow(h, h.B, 'pad', /^Open door$/, { noise: await S.controlWindow(h, 1) });
+    console.log(`  (client lounge door: ${JSON.stringify(door.host)} on the host)`);
+    const s0 = await L.me(h.B);
+    const legs = [[7.0, 11.2], [mid[0] + 0.5, mid[2] - 0.8]];
+    const d0 = Math.hypot(legs[0][0] - s0.x, legs[0][1] - s0.z) + Math.hypot(legs[1][0] - legs[0][0], legs[1][1] - legs[0][1]);
+    const t0w = s0.t;
+    const w = await L.walkPath(h.B, 'pad', legs, { via: 0.6, tol: 0.3, maxS: 12 });
+    const tAll = +((await L.me(h.B)).t - t0w).toFixed(2);
+    L.assert(w.d <= 0.3, `client walkPath by stick: ${d0.toFixed(1)} m through the lounge door to ${w.d} m off in ${tAll} sim s (last leg ${w.t} s; gate: <= 0.3 m, <= 8 s: ${tAll <= 8 ? 'in' : 'OVER'})`);
+    // host walk by keys to the same area (through the open door)
     const a0 = await L.me(h.A);
-    const hw = await L.walkTo(h.A, 'kbm', [mid[0] - 1.5, mid[2] + 1], { tol: 0.5, maxS: 20 });
+    const hw = await L.walkPath(h.A, 'kbm', [[4.8, 10.6], [7.0, 11.0], [mid[0] - 1.5, mid[2] + 1]], { via: 0.6, tol: 0.5, maxS: 20 });
     console.log(`  (host walkTo by WASD from ${a0.x.toFixed(1)}, ${a0.z.toFixed(1)}: ${JSON.stringify(hw)})`);
     // a row on each page: the nearest enabled item, walked up to by input
     for (const [P, who, tag] of [[h.B, 'pad', 'client'], [h.A, 'kbm', 'host']]) {

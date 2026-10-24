@@ -124,7 +124,9 @@ async function openDoor(h, P, who, c, tag) {
   const d = await L.read(h.A, pgDoor, c);
   L.assert(!!d, `${tag}: the door at (${c}) exists on the host`);
   if (d.target === 1) return d.i;
-  await L.aimAt(P, who, [c[0], 1.2, c[1]], { tol: 0.05, maxS: 4 });
+  // (triage 2026-10-25) the row needs only the camera facing the door (dot > 0, gameState.ts:1511-1519): an aim that
+  // misses its 0.05 rad is logged, and the row decides (pickRow waits for it and lists the rows it saw)
+  await L.aimAt(P, who, [c[0], 1.2, c[1]], { tol: 0.05, maxS: 4 }).catch((e) => console.log(`  (${tag}: ${String(e.message).split('\n')[0]}; trying the row as it faces)`));
   await L.pickRow(P, who, /^Open door$/);
   const got = await ok(L.until(h.A, pgDoorTarget, [d.i, 1], MS, `${tag}: the door opens on the host`));
   L.assert(got, `${tag}: the ${P === h.A ? 'host' : 'client'}'s Open door row opens the door at (${c}) on the host within ${L.PROMPT_S} s`);

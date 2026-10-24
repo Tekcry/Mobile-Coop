@@ -287,6 +287,14 @@ behind a VPN adapter).
   stands for a visible window; it reads anything but never teleports, calls `onUse` / `takedown.start` / `applyDamage`, sets
   `input.state`, switches weapons, writes the camera, `courseBay` or the session, or emits events (`docs/coop-real/BRIEF.md`,
   "The input line"). Results for the head: pending laptop run.
+  Lifecycle probe (`e2e-coop-real:probe`, laptop GPU 6204d95f; table in `docs/coop-real/H1-REPORT.md`): in headless
+  Chromium every tab stays visible (rAF ~57 Hz, timers 10 Hz) under focus emulation off + `bringToFront`, a new window, and
+  CDP `Page.setWebLifecycleState frozen` (ignored on a visible page: no `freeze` event, evaluate not blocked), with or
+  without the background flags; only the page-side `spoofHidden` reads hidden (rAF runs on). B1 is `spoofHidden` for now,
+  B2 has no mechanism yet (the probe now also tries a minimized window and `Debugger.pause`). Harness facts (triage
+  2026-10-25): a page whose canvas `pointerdown` was cancelled gets no `mousemove` while that button is held (Pointer
+  Events compat rule), so a KBM aim under RMB lets go, turns and aims again (`lib.mouseAim`); `autostart` must ride in the
+  URL, not `launch` / `openPage` `params` (else a 120 s wait for a host match that starts only when the client joins).
 - Marlow Yard unit tests (`npm test`, Babylon-free where they can be; each set's file is its builder's contract, run by
   the set agent): `tests/ctcourse/<set>.test.ts` per set (the part passes `checkSetPart`, register rows and counts equal
   the builder's, geometry and keep-clear, no solo way up a co-op lip (`soloJumpThreats`), the gates, steps and role claim

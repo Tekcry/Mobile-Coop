@@ -294,11 +294,26 @@ export async function faceTo(P, who, yaw) {
   const s = await me(P);
   await aimAt(P, who, [s.x + Math.sin(yaw) * 10, s.y + 1.5, s.z + Math.cos(yaw) * 10], { tol: 0.05, maxS: 4 }).catch(() => {});
   if (who === 'pad') return drive(P, faceCtl, { yaw }, 8000, `the pad player faces ${yaw.toFixed(2)}`);
-  await P.keyboard.down('AltLeft');
-  await P.keyboard.down('KeyW');
-  await until(P, (y) => { const e = y - window.__app.current.player.controller.yaw; return Math.abs(Math.atan2(Math.sin(e), Math.cos(e))) < 0.3; }, yaw, 3000, 'the keyboard player faces the heading').catch(() => {});
-  await P.keyboard.up('KeyW');
-  await P.keyboard.up('AltLeft');
+  // (triage 2026-10-25) a creep nudge toward the heading in the camera's frame (the walk keys of that direction, as
+  // lib's kbmWalk), at most 0.6 sim s: a few cm. It was Alt + W for up to 3 s along the camera, which walked the host
+  // ~3 m per heading whenever the camera had not turned (laptop run: the host crept from the lounge to the wicket and
+  // swept its "Unbolt" there).
+  const c = await me(P);
+  const wx = Math.sin(yaw);
+  const wz = Math.cos(yaw);
+  const mx = Math.cos(c.yaw) * wx - Math.sin(c.yaw) * wz;
+  const my = Math.sin(c.yaw) * wx + Math.cos(c.yaw) * wz;
+  const keys = ['AltLeft'];
+  if (my > 0.38) keys.push('KeyW');
+  if (my < -0.38) keys.push('KeyS');
+  if (mx > 0.38) keys.push('KeyD');
+  if (mx < -0.38) keys.push('KeyA');
+  for (const k of keys) await P.keyboard.down(k);
+  try {
+    await until(P, (y) => { const e = y - window.__app.current.player.controller.yaw; return Math.abs(Math.atan2(Math.sin(e), Math.cos(e))) < 0.3; }, yaw, 600, 'the keyboard player faces the heading').catch(() => {});
+  } finally {
+    for (const k of keys.reverse()) await P.keyboard.up(k);
+  }
   return { r: 'ok' };
 }
 

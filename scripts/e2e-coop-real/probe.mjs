@@ -153,6 +153,46 @@ export async function probe(url, { realBackground }) {
         },
       ),
     );
+    // (triage 2026-10-25) run 1 (6204d95f, laptop GPU): every mechanism above left the client visible with rAF ~57 Hz and
+    // timers at 10 Hz under both flag sets (headless keeps every tab visible; a visible page ignores `frozen`). Next
+    // candidates: the shared window minimized (both pages hidden, the host still pumped from Node) for B1; frozen once
+    // minimized, and the client's main thread paused by the debugger (timers, rAF and BroadcastChannel stop; the wire
+    // goes silent as in a frozen tab) for B2.
+    const winId = (await windowOf(h.B)).windowId;
+    const winState = (state) => sB.send('Browser.setWindowBounds', { windowId: winId, bounds: { windowState: state } });
+    rows.push(await measure(h, 'window minimized (both pages, host pumped)', h.B, h.A, () => winState('minimized'), () => winState('normal')));
+    rows.push(
+      await measure(
+        h,
+        'window minimized then CDP frozen',
+        h.B,
+        h.A,
+        async () => {
+          await winState('minimized');
+          await lifecycle(h.B, 'frozen');
+        },
+        async () => {
+          await lifecycle(h.B, 'active');
+          await winState('normal');
+        },
+      ),
+    );
+    rows.push(
+      await measure(
+        h,
+        'Debugger.pause (client main thread)',
+        h.B,
+        h.A,
+        async () => {
+          await sB.send('Debugger.enable');
+          await sB.send('Debugger.pause');
+        },
+        async () => {
+          await sB.send('Debugger.resume').catch(() => {});
+          await sB.send('Debugger.disable').catch(() => {});
+        },
+      ),
+    );
     rows.push(await measure(h, 'CDP frozen 10 s (past netdrop 8 s)', h.B, h.A, () => lifecycle(h.B, 'frozen'), () => lifecycle(h.B, 'active'), 10000));
     await sleep(3000);
     const after = { host: await hostSession(h.A), client: await h.B.evaluate(() => ({ inMatch: !!window.__app.current?.net, peers: window.__coop?.session?.players?.size ?? null, screen: window.__app.screens.top?.el?.className ?? null })) };

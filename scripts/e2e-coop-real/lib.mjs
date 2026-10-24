@@ -96,9 +96,15 @@ export const inMatch = (P, tag, timeout = LOAD_MS) =>
  */
 export async function bootPair(url, { netdrop = 0, hideAutomation = true, realBackground = false, args = [], viewport = NET_VIEWPORT } = {}) {
   const q = netdrop ? `${Q}&netdrop=${netdrop}` : Q;
-  const { browser, ctx, page: A, errors: eA } = await E.launch({ url, params: q, viewport, hideAutomation, realBackground, args });
+  // (triage 2026-10-25) `autostart` rides in the URL, not in `params`: e2e-lib's launch / openPage wait up to 120 s for a
+  // match whenever `params` names autostart, and the host's local course starts only once the client joins, so the host
+  // launch sat out the whole 120 s (laptop runs: pair boot 146-151 s). bootPair waits for the match itself (inMatch).
+  const auto = q.split('&').filter((p) => p.startsWith('autostart='));
+  const rest = q.split('&').filter((p) => !p.startsWith('autostart=')).join('&');
+  const bootUrl = url + (url.includes('?') ? '&' : '?') + auto.join('&');
+  const { browser, ctx, page: A, errors: eA } = await E.launch({ url: bootUrl, params: rest, viewport, hideAutomation, realBackground, args });
   await until(A, () => window.__coop?.session?.isHost === true, null, 30000, 'first tab hosts');
-  const { page: B, errors: eB } = await E.openPage(ctx, url, q);
+  const { page: B, errors: eB } = await E.openPage(ctx, bootUrl, rest);
   const h = { browser, ctx, A, B, eA, eB, url, q, pump: null };
   setSimPages([A, B]);
   await inMatch(A, 'host');
@@ -160,6 +166,23 @@ export const ctxRows = (P) =>
 const PAD_OF = { interact: BTN.A, crouch: BTN.B, jump: BTN.Y, holster: BTN.X, coop: BTN.RB, wheel: BTN.LB, pause: BTN.START, up: BTN.UP, down: BTN.DOWN, left: BTN.LEFT, right: BTN.RIGHT };
 const KEY_OF = { interact: 'KeyE', crouch: 'KeyC', jump: 'Space', coop: 'KeyF', pause: 'KeyP', reload: 'KeyR', swap: 'KeyT', up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight', confirm: 'Enter', back: 'Escape' };
 
+/** Mouse buttons the suite holds down per page ('left' / 'right'): `mouseAim` must know (see there). */
+const mouseHeld = new WeakMap();
+const heldOf = (P) => {
+  let s = mouseHeld.get(P);
+  if (!s) mouseHeld.set(P, (s = new Set()));
+  return s;
+};
+async function mouseButton(P, button, on) {
+  if (on) {
+    await P.mouse.down({ button });
+    heldOf(P).add(button);
+  } else {
+    await P.mouse.up({ button });
+    heldOf(P).delete(button);
+  }
+}
+
 /** Hold (true) or release (false) a named action on `who`'s device: pad buttons / triggers, or keys and mouse buttons. */
 export async function hold(P, who, action, on) {
   if (who === 'pad') {
@@ -169,8 +192,8 @@ export async function hold(P, who, action, on) {
     if (b === undefined) throw new Error(`no pad button for ${action}`);
     return P.evaluate(([b, v]) => window.__pad.set(b, v), [b, on ? 1 : 0]);
   }
-  if (action === 'fire') return on ? P.mouse.down({ button: 'left' }) : P.mouse.up({ button: 'left' });
-  if (action === 'ads') return on ? P.mouse.down({ button: 'right' }) : P.mouse.up({ button: 'right' });
+  if (action === 'fire') return mouseButton(P, 'left', on);
+  if (action === 'ads') return mouseButton(P, 'right', on);
   const k = KEY_OF[action];
   if (!k) throw new Error(`no key for ${action}`);
   return on ? P.keyboard.down(k) : P.keyboard.up(k);
@@ -427,48 +450,120 @@ function padAimCtl(g, a, st, pad) {
 export async function aimAt(P, who, [x, y, z], { tol = 0.012, maxS = 8, min = 0.22, what = '' } = {}) {
   const label = what || `${who} aims at ${x.toFixed(1)}, ${y.toFixed(1)}, ${z.toFixed(1)}`;
   const r = who === 'pad' ? await drive(P, padAimCtl, { x, y, z, tol, maxS, min }, (maxS + 10) * 1000, label) : await mouseAim(P, [x, y, z], tol, maxS);
-  if (r.r !== 'ok') throw new Error(`${label}: ${r.r} (yaw off ${r.ey}, pitch off ${r.ep} rad after ${r.t} s)`);
+  if (r.r !== 'ok') throw new Error(`${label}: ${r.r} (yaw off ${r.ey}, pitch off ${r.ep} rad after ${r.t} s${r.why ? `; ${r.why}` : ''})`);
   return r;
 }
 
 /** The mouse position the suite last moved to, per page (a move's `movementX` is the step from it). */
 const mousePos = new WeakMap();
+
+/** Page-side, pass-through: count the window `mousemove` events the page gets (and their |movementX| + |movementY|), so
+ *  a mouse aim that turns nothing says whether the moves reached the page at all. Never cancels or changes an event. */
+const installMoveTap = () => {
+  const t = (window.__mtap ??= { n: 0, px: 0 });
+  if (!t.on) {
+    t.on = true;
+    window.addEventListener('mousemove', (e) => { t.n++; t.px += Math.abs(e.movementX) + Math.abs(e.movementY); }, { capture: true, passive: true });
+  }
+  return { n: t.n, px: t.px };
+};
+const mouseState = () => {
+  const k = window.__app.input.kbm;
+  const t = window.__mtap ?? { n: 0, px: 0 };
+  return { locked: !!document.pointerLockElement, want: !!k.wantPointerLock, mode: window.__app.input.mode, moves: t.n, px: Math.round(t.px) };
+};
+const aimedInNow = () => { const g = window.__app.current; return g.weapons.drawPhase === 2 && g.player.cam.ads >= 0.9; };
+
+/**
+ * The mouse look on page P (keyboard / mouse player). Facts from the laptop runs and a two-page Chromium check
+ * (triage 2026-10-25): a background tab gets mouse moves with movementX; but while a mouse button is held whose
+ * pointerdown the engine cancelled (the canvas: RMB aim, LMB fire), the page gets NO `mousemove` (Pointer Events compat
+ * rule), and the game's look reads `mousemove` only (keyboardMouseSource.ts:165-167). So an aim under a held button
+ * lets the button go, turns, and presses it again, measuring the error in the aimed view each time (the camera sits
+ * elsewhere while aiming). A page whose mouse is not captured in play gets one click first (it captures, never fires:
+ * keyboardMouseSource.ts:122-126), as a player does.
+ */
 async function mouseAim(P, tgt, tol, maxS) {
-  const err = () => P.evaluate(`(() => { const g = window.__app.current; const r = (${aimErr})(g, ${JSON.stringify({ x: tgt[0], y: tgt[1], z: tgt[2] })}); return { ey: r[0], ep: r[1], t: g.time, s: window.__app.settings.get().mouse, ads: !!(g.player.ads || g.player.adsWanted) }; })()`);
-  let e = await err();
-  const t0 = e.t;
-  // first guess: e2e has MOUSE_RAD_PER_PX 0.0024 x sensitivity (keyboardMouseSource.ts:10); measured after each move
-  let ky = 0.0024 * (e.s.sensitivity ?? 1) * (e.ads ? e.s.adsMultiplier ?? 1 : 1);
-  let kp = ky * (e.s.invertY ? 1 : -1);
+  const tj = JSON.stringify({ x: tgt[0], y: tgt[1], z: tgt[2] });
+  const err = () => P.evaluate(`(() => { const g = window.__app.current; const r = (${aimErr})(g, ${tj}); return { ey: r[0], ep: r[1], t: g.time, s: window.__app.settings.get().mouse, ads: !!(g.player.ads || g.player.adsWanted) }; })()`);
+  await P.evaluate(`(${installMoveTap})()`);
+  const held = [...heldOf(P)];
   let pos = mousePos.get(P) ?? null;
   if (!pos) {
     const vp = P.viewportSize() ?? { width: 960, height: 480 };
     pos = [vp.width / 2, vp.height / 2];
+    // a first move with the buttons up (with one held it would never reach the page)
+    for (const b of held) await mouseButton(P, b, false);
     await P.mouse.move(pos[0], pos[1]);
+    for (const b of held) await mouseButton(P, b, true);
   }
+  let ms = await P.evaluate(`(${mouseState})()`);
+  if (ms.want && !ms.locked) {
+    for (const b of held) await mouseButton(P, b, false);
+    await P.mouse.down({ button: 'left' });
+    await P.mouse.up({ button: 'left' });
+    await until(P, () => !!document.pointerLockElement, null, 3000, 'the click captures the mouse').catch(() => {});
+    for (const b of held) await mouseButton(P, b, true);
+    console.log(`  (mouse aim: the page had no mouse capture in play (${JSON.stringify(ms)}); one click captured it: ${(await P.evaluate(`(${mouseState})()`)).locked})`);
+  }
+  let e = await err();
+  const t0 = e.t;
+  // first guess: e2e has MOUSE_RAD_PER_PX 0.0024 x sensitivity (keyboardMouseSource.ts:10); measured after each free move.
+  const k0 = 0.0024 * (e.s.sensitivity ?? 1);
+  let ky = k0 * (e.ads ? e.s.adsMultiplier ?? 1 : 1);
+  let kp = ky * (e.s.invertY ? 1 : -1);
+  let moved = 0;
+  let regrips = 0;
+  const camYP = () => P.evaluate(() => { const c = window.__app.current.player.cam; return [c.yaw, c.pitch]; });
+  const step = async (mx, my) => {
+    const next = [pos[0] + mx, pos[1] + my];
+    await P.mouse.move(next[0], next[1], { steps: 2 });
+    pos = next;
+  };
   try {
     for (let i = 0; i < 40; i++) {
-      if (Math.abs(e.ey) < tol && Math.abs(e.ep) < tol) return { r: 'ok', ey: +e.ey.toFixed(4), ep: +e.ep.toFixed(4), t: +(e.t - t0).toFixed(2) };
+      if (Math.abs(e.ey) < tol && Math.abs(e.ep) < tol) return { r: 'ok', ey: +e.ey.toFixed(4), ep: +e.ep.toFixed(4), t: +(e.t - t0).toFixed(2), regrips };
       if (e.t - t0 > maxS) break;
+      if (held.length) {
+        // a held button blocks the look: let go, turn by the aimed view's error at the plain gain (no aim multiplier once
+        // `player.ads` is off), press again, read the error in the aimed view
+        regrips++;
+        for (const b of held) await mouseButton(P, b, false);
+        await until(P, () => !window.__app.current.player.ads, null, 2000, 'the aim let go').catch(() => {});
+        await sleep(60);
+        const c0 = await camYP();
+        await step(Math.max(-300, Math.min(300, e.ey / k0)), Math.max(-200, Math.min(200, e.ep / (k0 * (e.s.invertY ? 1 : -1)))));
+        const w0 = Date.now();
+        let c1 = c0;
+        do {
+          await sleep(30);
+          c1 = await camYP();
+        } while (Math.abs(c1[0] - c0[0]) < 1e-5 && Math.abs(c1[1] - c0[1]) < 1e-5 && Date.now() - w0 < 1500);
+        if (Math.abs(c1[0] - c0[0]) > 1e-5 || Math.abs(c1[1] - c0[1]) > 1e-5) moved++;
+        for (const b of held) await mouseButton(P, b, true);
+        if (held.includes('right')) await until(P, aimedInNow, null, 4000, 'aimed in again after the turn').catch(() => {});
+        e = await err();
+        continue;
+      }
       const mx = Math.max(-300, Math.min(300, e.ey / ky));
       const my = Math.max(-200, Math.min(200, e.ep / kp));
-      const next = [pos[0] + mx, pos[1] + my];
-      await P.mouse.move(next[0], next[1], { steps: 2 });
-      pos = next;
-      // the frames apply the look at render rate: wait until the error moved (or 1.5 s wall)
       const before = e;
+      await step(mx, my);
+      // the frames apply the look at render rate: wait until the error moved (or 1.5 s wall)
       const w0 = Date.now();
       do {
         await sleep(30);
         e = await err();
       } while (Math.abs(e.ey - before.ey) < 1e-5 && Math.abs(e.ep - before.ep) < 1e-5 && Date.now() - w0 < 1500);
+      if (Math.abs(e.ey - before.ey) > 1e-5 || Math.abs(e.ep - before.ep) > 1e-5) moved++;
       if (Math.abs(mx) > 2 && Math.abs(before.ey - e.ey) > 1e-4) ky = Math.max(1e-4, Math.min(0.02, (before.ey - e.ey) / mx));
       if (Math.abs(my) > 2 && Math.abs(before.ep - e.ep) > 1e-4) kp = (before.ep - e.ep) / my;
     }
   } finally {
     mousePos.set(P, pos);
   }
-  return { r: 'timeout', ey: +e.ey.toFixed(4), ep: +e.ep.toFixed(4), t: +(e.t - t0).toFixed(2) };
+  ms = await P.evaluate(`(${mouseState})()`);
+  return { r: 'timeout', ey: +e.ey.toFixed(4), ep: +e.ep.toFixed(4), t: +(e.t - t0).toFixed(2), why: `look moved on ${moved} move(s); page mouse ${JSON.stringify(ms)}; held ${JSON.stringify(held)}` };
 }
 
 /** Rounds the page's own player fired (`PlayerWeapons.shotCount`, the wire's `sc`). */
@@ -486,7 +581,26 @@ export async function fireOne(P, who, timeout = 4000, { ads = false } = {}) {
       await until(P, () => window.__app.current.player.ads === true, null, 3000, `${who} aims down sights`);
       aimed = true;
     }
-    await holdUntil(P, who, 'fire', (n) => window.__app.current.weapons.shotCount > n, before, `${who} fires one round`, timeout);
+    // (triage 2026-10-25) a pull whose press edge the game used up before the gun was ready (a semi-auto needs a fresh
+    // press) never fires however long it is held (laptop rerun: "pad fires one round" timed out once, aimed in): pull
+    // again after 1 s of sim time without a round, as a player would, until `timeout`
+    const fired = (n) => window.__app.current.weapons.shotCount > n;
+    const t0 = (await me(P)).t;
+    let pulls = 0;
+    for (;;) {
+      pulls++;
+      try {
+        await holdUntil(P, who, 'fire', fired, before, `${who} fires one round`, 1000);
+        break;
+      } catch (e) {
+        const now = (await me(P)).t;
+        if ((now - t0) * 1000 + 1000 > timeout) {
+          const d = await P.evaluate(() => { const g = window.__app.current; const w = g.weapons; return { drawPhase: w.drawPhase, camAds: +g.player.cam.ads.toFixed(2), ads: g.player.ads, gun: w.current?.def?.id, mag: w.current?.mag, fireDown: window.__app.input.state.down('fire'), mode: window.__app.input.mode }; }).catch(() => null);
+          throw new Error(`${e.message.split(' [')[0]} (${pulls} pulls over ${(now - t0).toFixed(1)} sim s; ${JSON.stringify(d)})`);
+        }
+        await waitHostSim(P, 150);
+      }
+    }
   } finally {
     if (ads) await hold(P, who, 'ads', false);
   }
@@ -515,11 +629,28 @@ export async function pickRow(P, who, re, { timeout = 6000 } = {}) {
     const rows = await ctxRows(P).catch(() => null);
     throw new Error(`${e.message}; rows: ${JSON.stringify(rows?.rows?.map((r) => r.label) ?? null)}`);
   }
-  // A down: the list opens active on row 1 the step it is polled
-  await hold(P, who, 'interact', true);
+  // A down: the list opens active on row 1 the step it is polled. (triage 2026-10-25) The list opens only on the press
+  // edge while it is 'passive' (contextMenu.ts:192-198); a press that lands while the rows are briefly gone is lost and
+  // holding on never opens it (laptop run 1, part 2 "client door": "the pad list opens on interact" timed out). Let go
+  // and press again, as a player would, up to 3 presses.
   let row = null;
+  for (let n = 1; ; n++) {
+    await hold(P, who, 'interact', true);
+    try {
+      await until(P, () => window.__app.current.ctxMenu.state === 'active', null, 1500, `the ${who} list opens on interact`);
+      break;
+    } catch (e) {
+      // opened just after the wait: keep holding (a release now would run row 1)
+      if (await P.evaluate(() => window.__app.current.ctxMenu.state === 'active').catch(() => false)) break;
+      await hold(P, who, 'interact', false);
+      if (n >= 3) {
+        const rows = await ctxRows(P).catch(() => null);
+        throw new Error(`${e.message.split(' [')[0]} (${n} presses; menu ${JSON.stringify(rows && { state: rows.state, count: rows.count, rows: rows.rows.map((r) => r.label) })})`);
+      }
+      await waitHostSim(P, 150);
+    }
+  }
   try {
-    await until(P, () => window.__app.current.ctxMenu.state === 'active', null, 4000, `the ${who} list opens on interact`);
     for (let n = 0; n < 10; n++) {
       const s = await P.evaluate(`((src) => { const m = window.__app.current.ctxMenu; return { at: (${find})(src), sel: m.sel, state: m.state }; })(${JSON.stringify(re.source)})`);
       if (s.state !== 'active') throw new Error(`the ${who} list closed before "${re.source}" was reached`);

@@ -5,10 +5,35 @@ Commits: H1a 968013f3 (boot, devices, probe, netdrop, `realBackground`), H1b c72
 smoke fixes and this report.
 
 ## Lifecycle probe
-NOT RUN (2026-10-24 23:26 - 2026-10-25 00:06): desktop CPU stayed at 77-100% through the whole ~40 min gate window (a
-Blender guard bake under heavy.lock plus the session agents), never under the 60% start gate. No pick yet: B1 / B2 stay
-open. Run `e2e-coop-real:probe` (see "Smoke" for the command) the first time the desktop is under ~60%, or on the
-laptop GPU slot (4189).
+PROBE_RESULT (laptop GPU, 6204d95f, run 20261024T130821, `e2e-coop-real:probe` PASS in 419 s; triage Opus 2026-10-25).
+Client page unless named; "e2e-default / realBackground" where the two flag sets differ, else one value for both.
+| Mechanism | vis | focus | rafHz | ivHz | wkHz | bcHz | bgHz | simX | evaluate during |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| baseline (client in front) | visible | true | 57.4 | 10 | 10 | 9.3 / 9.1 | 30.2 | 1 | runs |
+| baseline host (behind the client) | visible | true | 28.6 / 28.5 | 10 | 10 | 9.1 | 30.3 / 30.2 | 1 | runs |
+| spoof `document.hidden` + visibilitychange | hidden (event fires) | true | 57.5 / 57.2 | 10 | 10 | 9.1 | 30.3 / 30.4 | 1 | runs |
+| focus emulation off + host `bringToFront` | visible | true | 57.3 / 57.4 | 10 | 10 | 9.1 | 30.4 | 1 | runs |
+| new window over the client (`Target.createTarget newWindow`) | visible | true | 57.3 / 57.5 | 9.9 / 10.1 | 10.1 / 9.9 | 9.1 | 30.4 / 30.5 | 1 | runs |
+| CDP `frozen` | visible | true | 57.3 / 57.2 | 10.2 / 10 | 10 | 9.1 | 30.3 / 30.2 | 1 | runs (no `freeze` event) |
+| focus off + host front, then `frozen` | visible | false | 57.5 / 57.3 | 10 | 10 | 9.1 | 30.1 / 30.4 | 1 | runs |
+| `frozen` 10 s (past `netdrop` 8 s) | visible | true | 56.8 / 56.7 | 10 | 10 / 10.1 | 9.1 / 9.2 | 30.3 / 30.4 | 1 | runs |
+| host: focus off + client front, pump OFF | visible | true | 56.2 | 10 / 10.2 | 10 | 9.1 | 30.3 | 1 | runs |
+Both pages are tabs of one window (same `windowId`), `webdriver` false, the game's bgTick worker on (30 Hz).
+PROBE-AFTER-DROP (after the 10 s `frozen`): the host still has the client (players 2, remotes 1, no held slot); the client
+is in the match with 2 peers. Client top screen: e2e-default `pause-screen` (the spoof row's `App.onVisibility` pause,
+never closed by the probe); realBackground `coop-screen lobby-screen menu-screen` over a running match (unexplained: C2
+should look when B1 runs).
+Picks (PLAN 77-86: B1 = hidden, rAF ~0, timers > 0; B2 = `frozen` with interval = worker = channel = 0):
+- B1: NO measured mechanism hides the tab: headless Chromium keeps every tab visible and focus emulation / a new window
+  change nothing. Provisional B1 = `lib.spoofHidden(P, true)`: the only one that reads `hidden` and fires
+  `visibilitychange` (so `App.onVisibility` opens the co-op pause menu), but rAF and timers run on, so it does not test a
+  stalled loop or the bgTick path. `hideBehind` (the expected pick) is a no-op.
+- B2: NONE: CDP `Page.setWebLifecycleState frozen` is ignored on a visible headless page (no `freeze` event, timers at
+  10 Hz, evaluate not blocked, the host kept the client 10 s past `netdrop` 8 s). `lib.lifecycle(P, 'frozen')` (the
+  expected pick) must not be used for B2.
+- Next probe (rows added in the triage commit, `probe.mjs`): the shared window minimized (`Browser.setWindowBounds`;
+  both pages hidden, the host pumped from Node) as the B1 candidate; minimized then `frozen`, and `Debugger.pause` on the
+  client (main thread stopped: timers, rAF, channel and the wire silent) as B2 candidates. C2's B1 / B2 wait for it.
 What the probe prints: one `PROBE {...}` line per mechanism, per flag set (`e2e-default`, `realBackground`): `vis`,
 `focus`, `rafHz`, `ivHz` (100 ms setInterval), `wkHz` (100 ms worker), `bcHz` (BroadcastChannel posts from the other
 page), `bgHz` (the game's bgTick worker), `simX` (sim s per wall s), `evalWhileOn`, `hostRemotes`. Mechanisms: baseline
@@ -58,7 +83,10 @@ sweep.mjs
 - `faceTo(P, who, yaw)`, `sweepStop(h, stop, { pages, variant, headings: 8, skip, done })`, `sweepVariants(h, stop, variants)`.
 
 ## Smoke
-NOT RUN, same reason (CPU gate). Static checks pass: `node --check` on scripts/e2e-coop-real.mjs,
+SMOKE_RESULT (laptop GPU, 6204d95f, twice): FAIL, a harness bug: both pages boot by URL (ok), then the client's walk
+toward A1-mid hits the closed lounge door ("stuck at 5.61, 10.36"); nothing after it ran. Pair boot 146 s: e2e-lib's
+120 s autostart wait on the host launch (fixed in `bootPair`). The triage commit opens the door by the client's row
+first (STATE "Now", 2026-10-25 triage). Before that (H1, desktop not run, CPU gate) static checks passed: `node --check` on scripts/e2e-coop-real.mjs,
 e2e-coop-real/{lib,sweep,probe}.mjs and e2e-lib.mjs; `npx vitest run tests/localTransport.test.ts` 3 / 3. `dist/` is
 current (built 22:28, carries `netdrop`), so no build is needed before the run.
 Smoke asserts (`smoke()` in scripts/e2e-coop-real.mjs): both pages boot by URL (client netsim on, webdriver false);
