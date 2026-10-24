@@ -274,7 +274,16 @@ Polish: slice0-check.md, sliceL-check.md, slice1-check.md, e1/e3/e4-check.md pol
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME. SINCE ~15:15 THIS SESSION LEADS JOB coop4 (orchestrator, Michael "start the next feature"): follow the resume block in docs/coop4/STATE.md on origin/feature/coop4 FIRST; sector-redesign below is idle until Michael's playtest. (sector-redesign block saved 2026-10-24 ~14:00.) Job sector-redesign (lead),
+Night Shift | Sector Ops Build: RESUME (saved 2026-10-24 ~20:05). coop4 / #317 / feature/coop4-pol are GUARD AI BUILD's now
+(handed over at afc616f0): do not push there. Your work, in this order:
+1. CAMPUS FOG (HIGH, Michael on Epic): feature/sector-redesign-fog (worktree -fog off master d91d0e00, node_modules junction
+   to -bake) @ 4813dbf2 = theme.lampBeams false on campus (src/vfx/volLights.ts:29-30 volBeam gave 76 / 134 fixed lights
+   the torch beam). Report docs/sector-redesign/checks/fog-triage.md there. Laptop shot requests queued: 28cbd98b-d737
+   (before) and 4813dbf2-c03f (after) -> branch shots/fog-*; look at them, then one Opus checker, PR, laptop
+   lightbake / darkness / sectorops:6, train-ready + message the orchestrator.
+2. #333 section bake @ 5cc02048 (checks A PASS, B fixed, master merged): laptop set bake queued (5cc02048-8d0d); green ->
+   gh pr ready 333, label train-ready, message the orchestrator. Polish held.
+Cloud: tsc / vitest-only builder slices go to cloud-queue briefs. Older context (sector-redesign idle until Michael's playtest):
 worktree C:/NightShift/Mobile-Coop-sector-redesign-polish (feature/sector-redesign-polish: STATE / PLAN / checks / briefs).
 git fetch; read CLAUDE.md; PLAN.md "LR16". Laptop: copy scripts/laptop-queue/request.mjs + lib.mjs from origin/master to
 scratch; node <scratch>/request.mjs --sha <sha> [--pr N] --branch <b> --set <s> --suites "a b" --requester "Night Shift |
