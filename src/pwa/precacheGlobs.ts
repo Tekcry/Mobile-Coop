@@ -4,7 +4,8 @@
  *
  * (guard-models) The guard figures' files (`src/operators/assets/guards/`: 12 GLBs, ~29 MB, KTX2 textures inside) are
  * never precached: they are fetched only with `?guardmodels=1` (`flags.guardModels`: `GuardBody`, `warmGuardModels`,
- * the helmet drop's mesh), then kept by the runtime rule below (`guards` cache). With the flag off nothing asks for them.
+ * the helmet drop's mesh), then kept by the `guards` runtime rule (src/pwa/runtimeCaching.ts). With the flag off nothing
+ * asks for them.
  * The `.glb` files are not in `PRECACHE_GLOBS` anyway; the ignores keep them out should a pattern ever take `.glb`.
  */
 
@@ -19,5 +20,8 @@ export const PRECACHE_GLOBS: readonly string[] = [
 /** Never precached (workbox's default `**\/node_modules/**\/*` kept): the guard figures' files. */
 export const PRECACHE_IGNORES: readonly string[] = ['**/node_modules/**/*', '**/guard-*.glb', '**/guard-*.ktx2'];
 
-/** The runtime cache rule's test for a guard figure file (same origin, `/assets/guard-<name>-<hash>.glb`). */
+/**
+ * A guard figure file (`/assets/guard-<name>-<hash>.glb`). The `guards` runtime rule writes this regex out as a literal
+ * (a worker rule cannot refer to an import); tests/swRuntimeCaching.test.ts pins the two equal.
+ */
 export const GUARD_ASSET_URL = /\/assets\/guard-[^/]+\.glb$/;

@@ -230,9 +230,10 @@ Plan and rules: `docs/sector-redesign/briefs/ART-PLAN.md`; builds: `docs/sector-
     with `?guardmodels=1`, never precached: every fetch is behind `flags.guardModels` (`GuardBody` via
     `guardModelsFor`, `warmGuardModels`, the helmet drop's mesh, the shield), the precache lists
     (`src/pwa/precacheGlobs.ts`, used by `vite.config.ts`) take no `.glb` and ignore `**/guard-*.glb` /
-    `**/guard-*.ktx2`, and the runtime rule keeps a fetched `/assets/guard-*.glb` in the worker's own `guards` cache
-    (CacheFirst, 24 entries). Tested by `tests/guardAssetsOffline.test.ts` (the lists globbed as workbox does; no fetch
-    with the flag off). Bake (laptop, headless Blender, MPFB2 CC0 data; none on the desktop):
+    `**/guard-*.ktx2`, and the runtime rule (`src/pwa/runtimeCaching.ts`) keeps a fetched `/assets/guard-*.glb` in the
+    worker's own `guards` cache (CacheFirst, 24 entries). Tested by `tests/guardAssetsOffline.test.ts` (the lists globbed
+    as workbox does; no fetch with the flag off) and `tests/swRuntimeCaching.test.ts` (every runtime rule self-contained,
+    as workbox writes it into `sw.js` as text, and the built `sw.js` routes each GLB to its cache). Bake (laptop, headless Blender, MPFB2 CC0 data; none on the desktop):
     `node scripts/operators/guard-bake.mjs --stage <prep|bodies|heads|garments|gear|lods|check|sheet>` runs one stage as
     parallel jobs and skips jobs whose input hash is unchanged; `guard-sheet.mjs` draws the variety contact sheet. It
     builds on Wren's pipeline (`scripts/operators/README.md`); plan, spec and per-slice reports: `docs/guard-models/`.

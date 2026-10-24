@@ -26,9 +26,11 @@ PC run" and stay as the goal until that run replaces them. Every number is a sta
   Pending a PC run.
 - Open: no download or texture budget covers the realistic operators (Wren's files are about 80 MB; feature/operators
   owns it, G75).
-- Guard figures (guard-models, `docs/guard-models/PLAN.md` section 5; budget; measured numbers come from G8 (pending);
-  `?guardmodels=1` until G8 measures and flips the default; `tests/guardKit.test.ts` enforces the kit data,
-  `tests/guardAssets.test.ts` the bundled files once the bake's GLBs are in `src/operators/assets/guards/`). Per guard,
+- Guard figures (guard-models, `docs/guard-models/PLAN.md` section 5; budget). G8 ran: HOLD. At 24 guards the figures
+  cost +1.1 to +2.5 ms frame CPU p95 over figures-off (gate +0.5 ms; `docs/guard-models/STATE.md` "G8 budget run",
+  `docs/guard-models/run-g8/`), so the flag stays off by default (`?guardmodels=1` turns them on) while a perf
+  follow-up (per-guard render CPU) runs, then G8 reruns and flips the default. `tests/guardKit.test.ts` enforces the
+  kit data, `tests/guardAssets.test.ts` the bundled files in `src/operators/assets/guards/`. Per guard,
   LOD0 (< 8 m) / LOD1 (8-25 m) / LOD2 (> 25 m):
   - triangles shown (body, head, shown pieces) <= 20,000 / 7,000 / 2,800; in the buffer (every head, cap and piece)
     <= 45,000 / 14,000 / 5,000;
