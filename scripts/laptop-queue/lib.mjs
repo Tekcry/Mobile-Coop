@@ -988,3 +988,49 @@ export function supersedeStatuses(old, by) {
   if (old.requester === AFFECTED_REQUESTER) out.push({ sha: old.sha, state: 'error', context: AFFECTED_CTX, description: `superseded by a newer head (${by})` });
   return out;
 }
+
+// ---------- spare work when the laptop is idle (laptop-queue-5) ----------
+
+/** The requester of a spare-work request (docs/laptop-queue/spare-jobs.json). */
+export const SPARE_REQUESTER = 'laptop-queue spare';
+
+/**
+ * Whether the idle laptop queues its next spare job (env LQ_SPARE_IDLE_MIN, 0 = off): `idleSince` = ms both slots went
+ * idle with an empty queue (null when not idle), `openSpare` = a spare request is open, claimed or running anywhere,
+ * `jobs` = spare-jobs.json's `jobs` ({ set, ... }), `history` = state.spare { last: index, ran: { [sha]: [set] } }.
+ * Round-robin from the job after `last`, skipping a set already queued on `sha`. -> { job, index } or { why }.
+ */
+export function spareNext({ now, idleSince, idleMin, openSpare, sha, jobs, history }) {
+  if (!(idleMin > 0)) return { why: 'off' };
+  if (idleSince == null) return { why: 'not idle' };
+  if (now - idleSince < idleMin * 60_000) return { why: `idle ${Math.floor((now - idleSince) / 60_000)}/${idleMin} min` };
+  if (openSpare) return { why: 'a spare request is open' };
+  if (!/^[0-9a-f]{40}$/.test(String(sha))) return { why: 'no origin/master sha' };
+  const list = (jobs ?? []).filter((j) => j && typeof j.set === 'string' && j.set);
+  if (!list.length) return { why: 'no spare jobs' };
+  const ran = new Set(history?.ran?.[sha] ?? []);
+  const last = Number.isInteger(history?.last) ? history.last : -1;
+  for (let k = 1; k <= list.length; k++) {
+    const index = (last + k) % list.length;
+    if (!ran.has(list[index].set)) return { job: list[index], index };
+  }
+  return { why: `every spare job already ran on ${String(sha).slice(0, 8)}` };
+}
+
+/**
+ * The request for spare job `job` on `sha` (kind pr / full / alone as the job says; requester SPARE_REQUESTER, no
+ * branch or PR). `<sha8>` and `<n>` in its steps become the sha's first 8 hex and the spare count `n`.
+ */
+export function spareRequest({ now, job, sha, n, suffix }) {
+  const fill = (s) => String(s).replaceAll('<sha8>', String(sha).slice(0, 8)).replaceAll('<n>', String(n));
+  const r = { id: `${requestId(now, SPARE_REQUESTER, sha)}-${suffix}`, sha, branch: '', pr: null, kind: job.kind ?? 'pr', requester: SPARE_REQUESTER, set: job.set, note: `spare work ${n}: ${job.set}` };
+  if (r.kind === 'pr') r.suites = [...(job.suites ?? [])];
+  if (r.kind === 'alone') { r.steps = (job.steps ?? []).map(fill); r.env = { ...(job.env ?? {}) }; }
+  if (job.jobs) r.jobs = job.jobs;
+  return r;
+}
+
+/** state.spare after queueing job `index` on `sha`: only that sha's sets are kept (an older sha never blocks again). */
+export function spareRecord(history, sha, index, set) {
+  return { last: index, n: (history?.n ?? 0) + 1, ran: { [sha]: [...new Set([...(history?.ran?.[sha] ?? []), set])] } };
+}

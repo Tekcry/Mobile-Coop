@@ -84,13 +84,18 @@
 // queueRequester): a newer head on the same branch supersedes the older request (its affected-e2e gets error
 // "superseded"), and pick takes PR branches in arrival order beside the leads. Heads older than LQ_AFFECTED_MAX_AGE_H
 // (24; 0 = no limit) and heads with no merge-base here (forks) are skipped, logged once.
+// Spare work (laptop-queue-5; laptop only, sparePass after each pass): once both slots have sat idle with no open
+// request and no pending train for LQ_SPARE_IDLE_MIN (5; 0 = off) min, the next job of docs/laptop-queue/spare-jobs.json
+// (round-robin, lib spareNext) is pushed as an ordinary request on the origin/master head (requester "laptop-queue
+// spare", lib spareRequest); never while a spare request is open, claimed or running, never a set already queued on
+// that sha (state.spare, lib spareRecord).
 import { execFileSync, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pidAlive, staleName } from '../heavy-lock.mjs';
-import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, trainSoon, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS } from './lib.mjs';
+import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, trainSoon, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest } from './lib.mjs';
 import { visualPlan, visualEnv, visualVerdict, visualComment, VISUAL_CONTEXT, VISUAL_SUITE, VISUAL_SH_TIMEOUT_MS } from './visual.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
@@ -123,6 +128,7 @@ const RELEASE_HOLD_MS = Number(process.env.LQ_RELEASE_HOLD_MIN ?? 10) * 60_000; 
 const POLL_MS = 30_000;
 const DUP_WINDOW_MS = Number(process.env.LQ_DUP_WINDOW_MIN ?? 60) * 60_000;
 const AFFECTED_POLL_MS = Number(process.env.LQ_AFFECTED_POLL_MIN ?? 2) * 60_000; // laptop: the affected pass (0 = off)
+const SPARE_IDLE_MIN = Number(process.env.LQ_SPARE_IDLE_MIN ?? 5); // laptop: spare work after this many idle min (0 = off)
 const AFFECTED_MAX_AGE_MS = Number(process.env.LQ_AFFECTED_MAX_AGE_H ?? 24) * 3600_000; // older PR heads get no auto request (0 = no limit)
 const argv = process.argv.slice(2);
 const ONCE = argv.includes('--once');
@@ -420,6 +426,38 @@ function affectedPass() {
       postStatus(n.sha, 'pending', AFFECTED_CTX, `queued: ${got.suites.length} suite(s), laptop-e2e/affected`);
     }
   } catch (e) { log(`affected pass failed: ${String(e.message).split('\n')[0]}`); }
+}
+
+/** When both slots went idle with an empty queue (null: not idle), and the last spare wait reason logged. */
+let spareIdleSince = null;
+let spareLogged = '';
+
+/**
+ * Spare work (lib spareNext): after LQ_SPARE_IDLE_MIN idle minutes (both slots free, no open request, no pending
+ * train) the next spare job is pushed as a request on the origin/master head and recorded in state.spare. Never throws.
+ */
+function sparePass() {
+  try {
+    if (Object.values(busy).some(Boolean) || openListed.length || pendingNow.length) { spareIdleSince = null; return; }
+    spareIdleSince ??= Date.now();
+    let jobs = [];
+    try { jobs = JSON.parse(fs.readFileSync(path.join(HERE, 'docs/laptop-queue/spare-jobs.json'), 'utf8')).jobs ?? []; } catch { /* no list: nothing to do */ }
+    const sha = git(['rev-parse', 'origin/master'], { soft: true });
+    const openSpare = [...openListed, ...activeReqs.values(), ...otherActive].some((r) => r.requester === SPARE_REQUESTER);
+    const nx = spareNext({ now: Date.now(), idleSince: spareIdleSince, idleMin: SPARE_IDLE_MIN, openSpare, sha, jobs, history: state.spare });
+    if (!nx.job) { if (!nx.why.startsWith('idle ') && nx.why !== spareLogged) { spareLogged = nx.why; log(`spare: ${nx.why}`); } return; }
+    spareLogged = '';
+    const n = (state.spare?.n ?? 0) + 1;
+    const r = spareRequest({ now: Date.now(), job: nx.job, sha, n, suffix: randomBytes(2).toString('hex') });
+    const problem = requestProblem(r);
+    if (problem) { log(`spare: ${nx.job.set}: bad request (${problem}), skipped`); state.spare = spareRecord(state.spare, sha, nx.index, nx.job.set); saveState(); return; }
+    if (DRY) { log(`dry-run: spare: would enqueue ${r.id} (${nx.job.set}) on ${sha.slice(0, 8)}`); return; }
+    if (!pushFile(`requests/${r.id}.json`, `${JSON.stringify(r, null, 2)}\n`, `request ${r.id}`)) { log('spare: request push failed, retried next pass'); return; }
+    state.spare = spareRecord(state.spare, sha, nx.index, nx.job.set);
+    saveState();
+    spareIdleSince = null;
+    log(`spare: idle ${SPARE_IDLE_MIN} min: enqueued ${r.id} (${nx.job.set}) on master ${sha.slice(0, 8)}`);
+  } catch (e) { log(`spare pass failed: ${String(e.message).split('\n')[0]}`); }
 }
 
 /** Ids whose done claim is confirmed on the branch. */
@@ -1493,6 +1531,7 @@ async function main() {
       heartbeat();
       await pass();
       if (affectedDue()) affectedPass();
+      if (!DESKTOP && SPARE_IDLE_MIN > 0) sparePass();
       if (!Object.values(busy).some(Boolean)) selfUpdate();
     } catch (e) { log(`pass failed: ${e.message}`); }
     await sleep(POLL_MS);
