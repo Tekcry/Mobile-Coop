@@ -1,0 +1,16 @@
+{
+  "id": "20261024T235222-affected-e2e-e7bd1201-57c0",
+  "sha": "e7bd12014c54ebb42ab452818c8867214944aa27",
+  "branch": "feature/coop-lamp-guard",
+  "pr": 384,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-coop",
+    "e2e-ctcourse",
+    "e2e-netmove",
+    "smoke"
+  ],
+  "set": "affected",
+  "priority": 1
+}
