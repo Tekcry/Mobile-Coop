@@ -2,6 +2,10 @@
 
 RESUMED ~23:55 (new account; orchestrator: overnight mode, one slice at a time, testing backlog first, save at 5-hour ~95%):
 #247 laptop afp PASS on fd34263e + CI green -> train-ready label added, orchestrator told (joins train 39 with #269).
+~18:25: Test Runner takes world.ts updateSunCasters (S9b). OURS in guard-cap.mjs (they will not touch it until guard-models
+merges): `render.figure` timer around GuardBody.frame in onBeforeRenderObservable + per-guard active-mesh tally by name
+prefix. Perf batch after the master merge (branch gm-perf off feature/guard-models): F1 + F2 + timer + tally -> cap rerun;
+if the tally confirms guns ~13 parts each -> S13 merge each gun into one mesh (weaponModel.ts, ours).
 ~18:20: perf profile done (read-only): gap is render() CPU, not active meshes. Ours, after the master merge lands (same
 worktree): F1 freeze guard materials (guardFigure.ts:127 `p.freeze()` after the plugin; guardShield.ts; test: no
 prepareDefines after the first ready frame; est. -0.4-0.7 ms + GC), F2 pose lazily / visible-only (guardFigure.ts:617-691
