@@ -1013,6 +1013,22 @@ try {
     }
     await GA((id) => { const v = window.__app.current.enemyMgr.enemies.find((e) => e.id === id); if (v) delete v.update; }, gg);
     assert(grabbed, 'client grabs a host guard from behind');
+    // (optic-coop merge triage) the other guards stay calm on the host until the team takedown below has landed: the
+    // grab pin above stops once he is taken, and a guard re-alerted by the earlier steps shoots at the client, whose
+    // hostage is his shield (`Enemy.shoot`, `shieldHit`): he died to that fire before the team takedown landed, the host's
+    // takedown aborted (`!e.alive`) and no dual was counted (laptop GPU run after the master merge, the joint block below
+    // stretching the window). The held guard's own brain, the hold, the bluff, the read and the team takedown are real.
+    await GA((id) => {
+      const g = window.__app.current;
+      const gen = (window.__calmGen = (window.__calmGen ?? 0) + 1);
+      const calm = () => {
+        if (window.__calmGen !== gen || !g.enemyMgr.enemies.some((e) => e.id === id && e.alive)) return;
+        for (const r of g.net.remotes.values()) r.ref.spotted = false;
+        for (const e of g.enemyMgr.enemies) if (e.id !== id) e.aware.set('unaware');
+        requestAnimationFrame(calm);
+      };
+      calm();
+    }, gg);
     await until(A, (id) => { const g = window.__app.current; const r = [...g.net.remotes.values()][0]; return r.state?.mv?.m === 'grab' && r.ref.shield?.id === id; }, gg, 8000, 'host sees the grab');
     const held = await GA((id) => {
       const g = window.__app.current;
@@ -1112,7 +1128,13 @@ try {
     await until(A, (id) => { const td = window.__app.current.takedown; const o = td.offer; if (td.active?.plan.kind === 'assist') return true; if (o?.plan.kind !== 'assist' || o.e.id !== id) return false; td.start(false); return true; }, gg, 6000, "the host is offered the team takedown on the client's hostage");
     await until(A, (id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); return !e || (!e.alive && e.ko); }, gg, 8000, "the team takedown knocks the client's hostage out on the host");
     await until(B, () => !window.__app.current.takedown.active, null, 4000, "the client's hold ends with him");
+    // (optic-coop merge triage) he went down to the host's team takedown (a knockout by the host's player), not to fire
+    // (the until above also passes on any death: a dead guard leaves the host's list)
+    const down = await GA((id) => JSON.stringify((window.__kills ?? []).filter((k) => k.id === id)), gg);
+    const dk = JSON.parse(down)[0];
+    assert(!!dk && dk.ko && dk.team === 'player' && dk.by === 'local' && dk.kind === 'melee', `the host's team takedown is what knocks him out (${down})`);
     assert((await GA(() => window.__app.current.net.duals)) === d0 + 1, 'the team takedown counts as a dual (co-op) takedown');
+    await GA(() => { window.__calmGen = (window.__calmGen ?? 0) + 1; });
     // (fix round 1) empty the client's HUD banner, so the dual step below proves its own banner reaches the client
     await GB(() => { const b = document.querySelector('.hud-banner'); if (b) b.innerHTML = ''; });
   }

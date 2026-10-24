@@ -39,6 +39,29 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
 - Door peek (locomotion step 13): MoveState `doorPeek`, client -> host `door {i, crack}` (reach 1.5 m, closed and
   unlocked doors only), snapshot `dcr` (cracked doors). Decided, not built yet (G97): the CT door menu (open, stealth
   open, bash, optic cable) replaces the crack peek.
+- Optic cable (ct-toolkit 3.2, optic-coop): MoveState mode `optic` (appended to `MOVE_MODES`): `sub` the kind
+  (`OPTIC_SUBS`: 0 door, 1 hatch, 2 panel, 3 grille; a shaft top sends 3), `a` the door index (sub 0) or the level's
+  optic gap index (`BuiltLevel.opticPoints`, wire bound `OPTIC_POINT_MAX` 256), `ph` the cable fed out 0..1
+  (`OpticCore.extension`). `sanitizeMoveState` drops an unknown sub or an index out of range; the receive paths drop a
+  door this level does not have (`dropBadDoorMove`, host) and a gap it does not have (`dropBadOpticMove`, host and
+  client). The partner's copy (`remoteAvatar`) kneels from the crouch bit (`moveKneels`; a ceiling panel is fed
+  standing), settles its feet (`poseFromMoveState`), puts its right hand on the feed point and draws the cable from
+  the hand toward the tip as far as `ph` (`opticPlaceOf`, `opticCableEnd`: the same code as the owner's own cable,
+  `world.ropes` slot `<remote>-optic`). The view at the tip is local, never sent. A ping from the view uses the
+  existing ping: `sendPing` casts from `cam.gamePos`, which `OpticSystem.frameUpdate` sets to the tip, and the hit goes
+  to the host (`ping` message) and to every player (`ping` event); no ping input is bound yet (`gameState.ts`
+  "pings are unbound for now").
+- OPEN TRAP (optic-coop M1, CHECK-M B1): the trap panel over an optic gap is collision (`Breakables`, `G.STATIC`:
+  movement, shots, perception rays), so its open goes through the host like a door. A client's pick sends client ->
+  host `panel {g}` (`g` the gap index, wire bound `OPTIC_POINT_MAX`; `NetAttachment.panelOpen`, client only) and
+  opens nothing itself. The host checks it (`hostTrapKey`, `game/gapMenu.ts`: the gap exists, its `trap` names a panel
+  still closed, the client alive with its feet within `GAP_MENU.reach` 1.6 m and the height band plus
+  `GAP_HOST_SLACK` 0.5 m, no facing test), else drops it (a bad index, a far client, a trap already open), and opens it
+  in its world (`breakables.open(key, 'unscrew')`). The host's own pick opens directly. The snapshot's `trp` lists the
+  gaps whose trap is open (`openTrapGaps`), sent with `doors` (on a change, every `ITEMS_EVERY` and at a rejoin's
+  resync), so a late joiner or a rejoin opens them from its first such snapshot; the client applies it with
+  `applyOpenTraps` (idempotent; a gap the level lacks is skipped; a trap never closes). Single player opens locally as
+  before. Duct grates and window glass still open on one page only (pre-existing, backlog).
 
 ## Session and sims
 - `NetSession`: lobby state (each `PlayerInfo` carries name, tag, look and the validated weapon `loadout`), ready /

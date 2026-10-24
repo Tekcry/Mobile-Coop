@@ -41,6 +41,7 @@ import { Pickups } from './pickups';
 import { Interactables, type Interactable } from './interactables';
 import { WeaponCrates } from './weaponCrates';
 import { addDoorRows, DOOR_KIND, DoorMenuView, guardBehindDoor, type DoorOpt } from './doorMenu';
+import { addGapRows, GAP_KIND, gapMenuCandidate, pickOpenTrap, type GapOpt } from './gapMenu';
 import { addGrabRows, GRAB_KIND, GRAB_OPT_LABEL, GRAB_OPTS, GRAB_PASS, GrabMenuView, grabTriggerPick, hasInfo, type GrabOpt } from './grabMenu';
 import { ContextMenu, CtxNav, emptyCtxInput } from './contextMenu';
 import { hasJoint, JOINT_BLUFF_LABEL, JOINT_KIND, type JointIntel } from './jointInterrogation';
@@ -127,6 +128,7 @@ import { GADGET_IDS, GADGETS, type GadgetId } from './gadgets';
 import { MISSIONS } from './missions';
 import { WEAPONS } from '../weapons/weaponDefs';
 import { InputState } from '../input/inputState';
+import { contextPing } from '../input/conflicts';
 import { clearTouchIn, demoInput, FREE_CFG, FREE_IN, FREE_ORBIT, FREE_SET, FREE_VIEW, FreeViewCore, orbitAngleDeg, type DemoOut, type FreeMode } from '../player/freeView';
 import { StudioStage } from './studioStage';
 import { STUDIO_MAP_ID } from '../anim/studio';
@@ -190,6 +192,9 @@ export interface NetAttachment {
   wallOthers?(seg: number, out: Float64Array): number;
   /** (step 13) Client: ask the host to crack (or close the crack of) door `i`; the host's own player cracks directly. */
   doorCrack?(i: number, on: boolean): void;
+  /** (optic-coop, CHECK-M B1) Client: ask the host to open the trap panel over optic gap `g` (`panel`); the host opens
+   *  it and its snapshots' `trp` open it on every page. The host's own player opens directly (no hook). */
+  panelOpen?(g: number): void;
   /** (3.2.0 phase 5) Ask the host for a team move with a braced `partner` (boost: onto anchor `target` at `s`). */
   teamRequest?(kind: TeamKind, partner: string, target: number, s: number, gripY: number, lx?: number, lz?: number): void;
   /** (3.2.0 phase 5) End the human ladder (either player). */
@@ -478,6 +483,9 @@ export class GameState implements AppState {
   /** (A3, G19; G5) The door set and (A4, G23; G5) the grab set as seen from outside (tests, tools). */
   readonly doorMenu = new DoorMenuView(this.ctxMenu);
   readonly grabMenu = new GrabMenuView(this.ctxMenu);
+  /** (optic-coop M1) The gap set listed this step (row order) and its gap's index (-1: none); tests, tools. */
+  readonly gapMenuOpts: GapOpt[] = [];
+  gapMenuGap = -1;
   /** A Stealth open pick waiting for the peek step; the door the peek is on offer at. */
   private stealthPick = false;
   private peekOffer = -1;
@@ -1381,6 +1389,8 @@ export class GameState implements AppState {
     m.begin();
     let it: Interactable | null = null;
     this.doorMenu.opts.length = 0;
+    this.gapMenuOpts.length = 0;
+    this.gapMenuGap = -1;
     if (!aside && !(pick && pick !== 'device')) {
       if (holding) {
         addGrabRows(m, td.hostage !== null && hasInfo(td.hostage));
@@ -1399,6 +1409,14 @@ export class GameState implements AppState {
         }
         const dIdx = this.doorMenuCandidate();
         if (dIdx >= 0) addDoorRows(m, dIdx, this.peekOffer === dIdx, this.doorMenu.opts, isSlideDoor(this.world.doors.list[dIdx]!.anchor));
+        else {
+          // (optic-coop M1) no door faced: the optic gap in reach (OPEN TRAP where its panel opens, OPTIC CABLE)
+          const gIdx = this.gapMenuCandidate();
+          if (gIdx >= 0) {
+            this.gapMenuGap = gIdx;
+            addGapRows(m, gIdx, this.gapOpenable(gIdx), this.gapMenuOpts);
+          }
+        }
         // (hang-down) no body is picked up from the hang
         it = hangDirect ? null : ((hangActs ? null : this.stealth?.carryTarget(this.player.position)) ?? this.interactables?.nearest(this.player.position) ?? null);
         let label = it ? it.label : '';
@@ -1459,6 +1477,7 @@ export class GameState implements AppState {
       if (g === 'device') this.hud.feedItem(`${GRAB_OPT_LABEL[g]}: not built yet`, 'warn');
       else if (g) td.menuPick = g;
     } else if (kind === DOOR_KIND) this.doorMenuPick(opt as DoorOpt, ref);
+    else if (kind === GAP_KIND) this.gapMenuPick(opt as GapOpt, ref);
     else if (kind === ITEM_KIND && it) {
       if (it.onUse) it.onUse(it, 'local');
       else this.mode?.onInteract?.(it);
@@ -1490,6 +1509,33 @@ export class GameState implements AppState {
     if (!d || d.target !== 0 || d.anchor.locked || Math.abs(d.anchor.hinge.y - p.y) > 1.2) return -1;
     const cy = this.player.cam.yaw;
     return (d.cx - p.x) * Math.sin(cy) + (d.cz - p.z) * Math.cos(cy) > 0 ? d.index : -1;
+  }
+
+  /** (optic-coop M1) The optic gap in reach (`gapMenuCandidate`), with the door set's stand-asides, else -1. */
+  private gapMenuCandidate(): number {
+    const pts = this.world.level.opticPoints;
+    if (!pts.length || !this.player.alive || this.doorPeek.active || this.optic.active || this.doorOpen.active || (this.wallCore?.active ?? false) || this.traversal.attached || !!this.traversal.committed || this.team.active || this.stealth?.carrying) return -1;
+    const p = this.player.position;
+    return gapMenuCandidate(pts, p.x, p.y, p.z, this.player.cam.yaw);
+  }
+
+  /** (optic-coop M1) Gap `gi` is covered by a panel that is still closed (OPEN TRAP is listed). */
+  private gapOpenable(gi: number): boolean {
+    const t = this.world.level.opticPoints[gi]?.trap;
+    return !!t && !this.world.breakables.isOpen(t);
+  }
+
+  /** (optic-coop M1) The picked gap option: OPEN TRAP opens the covering panel (quiet, as an unscrewed grate; CHECK-M B1:
+   *  a co-op client asks the host, `panel`, as a door; single player and the host open it at once, the host's snapshots
+   *  carry it as `trp`), OPTIC CABLE feeds the cable (`OpticSystem.pickPoint`: "Too far" / "No gap" as at a door). */
+  private gapMenuPick(o: GapOpt, gi: number): void {
+    const pt = this.world.level.opticPoints[gi];
+    if (!pt) return;
+    if (o === 'trap') {
+      if (pt.trap && this.gapOpenable(gi)) pickOpenTrap(gi, pt.trap, this.world.breakables, this.net);
+      return;
+    }
+    this.optic.pickPoint(gi);
   }
 
   /** The picked door option (A3, G97; a context menu row since G5). */
@@ -1800,9 +1846,12 @@ export class GameState implements AppState {
     const inp = takes || ctxHeld ? this.blankInp : holdingGuard ? this.grabInp : real;
     // (G5) A belongs to the menu while a list is up (or its press is still held): the other A readers see it up
     const aFree = !this.ctxOwnsA;
-    // (CT prototype B2) RB / F is the co-op action (team moves); pings are unbound for now
-    // (ct-toolkit 3.2) a ping from the optic view goes to the team (the view's ray: `OpticSystem.frameUpdate`)
-    if ((this.optic.viewing ? real : inp).pressed('ping') && this.net && this.player.alive) this.sendPing();
+    // (CT prototype B2) RB / F is the co-op action (team moves). (optic-coop M2) The ping is R3 / middle mouse
+    // (ct-toolkit 3.2) a ping from the optic view goes to the team (the tip's ray: `OpticSystem.tipRay`). (optic-coop M2,
+    // Michael 2026-10-24 "contextual") R3 is Zoom only while aiming a scoped weapon, Ping otherwise (`contextPing`)
+    const pingIn = this.optic.viewing ? real : inp;
+    const scopedAim = !this.optic.viewing && this.weapons.scopedAim;
+    if (contextPing(scopedAim, pingIn.pressed('zoom'), pingIn.pressed('ping')) && this.net && this.player.alive) this.sendPing();
     // (anim-rework S1) blank input under a held context menu or the wheel is not an X release (a held X keeps its press)
     this.player.inputBlank = inp === this.blankInp;
     // a body on the shoulder: no traversal, weapon stowed, slow
@@ -3274,11 +3323,14 @@ export class GameState implements AppState {
     this.app.sfx.hitMarker('hit');
   }
 
-  /** The ping button: what the crosshair is on (a guard, else the spot), up to 120 m. */
+  /** The ping button: what the crosshair is on (a guard, else the spot), up to 120 m. (optic-coop, check A polish 5) In
+   *  the optic view the ray is the tip's from the view's first step (`OpticSystem.tipRay`), never the shoulder camera's. */
   private sendPing(): void {
     const cam = this.player.cam;
-    const o = cam.gamePos;
-    const hit = this.ballistics.ray(o, o.add(cam.forward.scale(120)), MASK.PLAYER_SHOT);
+    const o = cam.gamePos.clone();
+    const dir = cam.forward.clone();
+    this.optic.tipRay(o, dir);
+    const hit = this.ballistics.ray(o, o.add(dir.scale(120)), MASK.PLAYER_SHOT);
     if (!hit.hit) return;
     const t = hit.target && hit.target.team === 'enemy' ? hit.target.id : '';
     this.mode?.onLocalPing?.();

@@ -57,6 +57,7 @@ import type { PlayerRef } from '../ai/enemy';
 import { joinSpawn, slotSpawn, type SlotPoint, type SpawnBody } from '../game/spawnSlots';
 import { canWalk, spawnProbe, startSlotPoints } from '../game/spawnPlace';
 import { HALL_BACK_HOLD } from '../game/jammer';
+import { hostTrapKey, openTrapGaps } from '../game/gapMenu';
 import { JOIN_PLACE, JOIN_RESYNC, JOIN_REVIVE_QUIET_S, JoinWatch } from './joinWatch';
 import { ClockSync, HOST_INTERP_DELAY } from './interp';
 import { CT } from '../config/movement';
@@ -113,6 +114,8 @@ export class CoopHost implements NetAttachment {
   private itemsT = 0;
   private itemsSig = '';
   private doorsSig = '';
+  /** (CHECK-M B1) The open trap gaps (`trp`), refilled each snapshot (no allocation; a copy goes on the wire). */
+  private readonly trpBuf: number[] = [];
   private bodiesSig = '';
   private history = new Map<string, Hist[]>();
   private tallies = new Map<string, Tally>();
@@ -671,7 +674,7 @@ export class CoopHost implements NetAttachment {
         // (coop-rejoin) a client the match went to again: watched for its reload (its old match may still send first)
         if (this.joins.watching(from)) this.joinStep(r, msg.s.x, msg.s.z);
         if (this.joins.restoring(from)) r.allowTeleport(3);
-        r.accept({ ...msg.s, id: from }, this.time, this.g.world.level.anchors, this.g.world.level.coverSegments, this.g.world.doors.list.length);
+        r.accept({ ...msg.s, id: from }, this.time, this.g.world.level.anchors, this.g.world.level.coverSegments, this.g.world.doors.list.length, this.g.world.level.opticPoints.length);
         r.avatar.buf.push(this.stateTime(r.id, msg.s.t), r.state!);
         if (msg.s.mv) this.g.mode?.onRemoteMove?.(r.id, msg.s.mv.m);
         this.restoreStep(r);
@@ -695,6 +698,9 @@ export class CoopHost implements NetAttachment {
         break;
       case 'door':
         this.onDoorCrack(r, msg.i, msg.crack);
+        break;
+      case 'panel':
+        this.onPanel(r, msg.g);
         break;
       case 'ctick': {
         let lim = this.ctickLim.get(r.id);
@@ -818,6 +824,16 @@ export class CoopHost implements NetAttachment {
       return;
     }
     doors.crack(d, on);
+  }
+
+  /** (optic-coop, CHECK-M B1) A client's OPEN TRAP at optic gap `g`: the gap has a trap panel still closed and the
+   *  client's feet are in the menu's reach (`hostTrapKey`), else dropped (a bad index, a far or dead client, a trap
+   *  already open). The host opens it in its world; the snapshots' `trp` open it on every client. */
+  private onPanel(r: RemotePlayer, g: number): void {
+    if (!r.alive) return;
+    const w = this.g.world;
+    const key = hostTrapKey(w.level.opticPoints, g, w.breakables, r.feet.x, r.feet.y, r.feet.z);
+    if (key) w.breakables.open(key, 'unscrew');
   }
 
   /** A client's takedown on a host enemy: seize it (in reach, calm or not facing), finish it, or let go. */
@@ -1463,7 +1479,8 @@ export class CoopHost implements NetAttachment {
     const bsig = bodies.join();
     const isig = items.map((i) => `${i.id}${i.on ? 1 : 0}${i.label}`).join();
     const dcr = this.cracked();
-    const dsig = `${doors.join()}/${dcr.join()}`;
+    const trp = openTrapGaps(this.g.world.level.opticPoints, this.g.world.breakables, this.trpBuf);
+    const dsig = `${doors.join()}/${dcr.join()}/${trp.join()}`;
     if (isig !== this.itemsSig || dsig !== this.doorsSig || bsig !== this.bodiesSig || this.itemsT <= 0) {
       this.itemsSig = isig;
       this.doorsSig = dsig;
@@ -1472,6 +1489,7 @@ export class CoopHost implements NetAttachment {
       snap.items = items;
       snap.doors = doors;
       snap.dcr = dcr;
+      if (trp.length) snap.trp = trp.slice();
       snap.bodies = bodies;
     }
     this.s.send(snap);

@@ -7,7 +7,7 @@ import { sanitizeLook, type AvatarLook } from '../cosmetics/avatarLook';
 import { WEAPON_IDS, type WeaponId } from '../weapons/weaponDefs';
 import { emptyKinds, ENEMY_KINDS, type EnemyKind } from '../ai/enemyDefs';
 import { hyp3 } from '../core/mathx';
-import { packMoveState, sanitizeMoveState, type MoveState } from '../player/moveState';
+import { OPTIC_POINT_MAX, packMoveState, sanitizeMoveState, type MoveState } from '../player/moveState';
 import { CDENY_REASONS, CKINDS, type CDenyReason, type CKind } from '../game/committedMoves';
 import { CLIENT_VERBS, RH_HI, RH_MAX, type ClientVerb, type CourseWire } from '../game/course/courseWire';
 import type { AirlockPhase, PackedCourse } from '../game/course/courseState';
@@ -269,13 +269,18 @@ export type Msg =
   | { t: 'pstate'; s: PlayerState }
   | { t: 'shot'; w: WeaponId; ox: number; oy: number; oz: number; dx: number; dy: number; dz: number; target: string; part: 'head' | 'body'; rt: number; dist: number; dmg: number }
   /** `pk` is a bitmask of available pickups (bit i = pickup i). `info` is plain text, segments split by '|'. */
-  | { t: 'snap'; time: number; players: PlayerState[]; enemies: EnemyState[]; obj: string; info: string; pk: number; items?: NetItem[]; doors?: number[]; dcr?: number[]; bodies?: string[] }
+  /** (optic-coop, CHECK-M B1) `trp`: the optic gaps (`BuiltLevel.opticPoints` indices) whose trap panel is open, sent
+   *  with `doors` (on a change, every few seconds and at a rejoin), so a late joiner opens them too. */
+  | { t: 'snap'; time: number; players: PlayerState[]; enemies: EnemyState[]; obj: string; info: string; pk: number; items?: NetItem[]; doors?: number[]; dcr?: number[]; trp?: number[]; bodies?: string[] }
   /** Client used a mirrored item (the host checks reach and that it is usable). (30, marlow-final Q12) `pulse`: not the
    *  use but one noise pulse of a noisy hold under way (its first moment, then every `HOLD_NOISE_PULSE` s); the host
    *  checks it the same way and its guards hear the item as for the host's own hold (`holdPulse.ts`). */
   | { t: 'use'; id: string; pulse?: true }
   /** (locomotion step 13) Client door peek: crack door `i` (or close its crack); the host checks reach, closed, unlocked. */
   | { t: 'door'; i: number; crack: boolean }
+  /** (optic-coop, CHECK-M B1) Client OPEN TRAP: open the trap panel over optic gap `g` (index bound `OPTIC_POINT_MAX`);
+   *  the host checks the gap has a closed trap and the client is in reach, opens it, and its snapshots' `trp` carry it. */
+  | { t: 'panel'; g: number }
   /** Client takedown on a host enemy: seize it, finish it (lethal / not), or let go. */
   | { t: 'td'; target: string; ph: 'start' | 'done' | 'abort'; lethal: boolean; kind?: string }
   /** (3.2.0 phase 5) A client asks for a team move with a braced partner (boost onto anchor `target` at `s`, the
@@ -802,6 +807,10 @@ export function parseMessage(raw: unknown): Msg | null {
       const crack = bool(raw.crack);
       return i === null || crack === null ? null : { t: 'door', i, crack };
     }
+    case 'panel': {
+      const g = typeof raw.g === 'number' && Number.isInteger(raw.g) && raw.g >= 0 && raw.g < OPTIC_POINT_MAX ? raw.g : null;
+      return g === null ? null : { t: 'panel', g };
+    }
     case 'sector':
       return { t: 'sector', ...secWire(raw.sec), ...sectorExtra(raw) };
     case 'course':
@@ -969,6 +978,15 @@ export function parseMessage(raw: unknown): Msg | null {
           if (!cs.includes(d)) cs.push(d);
         }
         out.dcr = cs;
+      }
+      // (optic-coop, CHECK-M B1) open trap panels as optic gap indices: out-of-range entries dropped, never clamped
+      if (Array.isArray(raw.trp)) {
+        const ts: number[] = [];
+        for (const g of raw.trp.slice(0, OPTIC_POINT_MAX)) {
+          if (typeof g !== 'number' || !Number.isInteger(g) || g < 0 || g >= OPTIC_POINT_MAX) continue;
+          if (!ts.includes(g)) ts.push(g);
+        }
+        out.trp = ts;
       }
       if (Array.isArray(raw.bodies)) out.bodies = raw.bodies.slice(0, MAX_ENEMIES).map((b) => id(b)).filter((b): b is string => !!b);
       return out;

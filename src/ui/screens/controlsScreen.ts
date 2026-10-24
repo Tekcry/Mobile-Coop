@@ -187,7 +187,7 @@ export function bindPanel(app: App, dev: Dev): HTMLElement {
     class: 'row-note',
     text:
       dev === 'pad'
-        ? 'Select a slot, then press the new button (B can be bound). Menu / Start or Esc cancels; X on a slot clears it. Gives up after 5 s.'
+        ? 'Select a slot, then press the new button (B can be bound). Menu / Start or Esc cancels; X on a slot clears it. Gives up after 5 s. Zoom and Ping share R3 by default: Ping, or Zoom while aiming a scoped weapon.'
         : 'Click a key, then press the new key or mouse button. Esc cancels, Backspace clears. Gives up after 5 s.',
   });
   const resetAll = (): void => {
