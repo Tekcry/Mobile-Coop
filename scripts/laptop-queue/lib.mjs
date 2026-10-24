@@ -396,6 +396,15 @@ export function trainHold(heads) {
 }
 
 /**
+ * Whether an aged alone request may stop new pr claims under this train hold: only while the holding train can still
+ * clear by running here (laptop-e2e none or pending). A failed train, an error or an unreadable PR list ('unknown')
+ * may hold for hours, so pr requests keep running then (checker FIX 2026-10-24: no starvation the other way).
+ */
+export function holdClears(hold) {
+  return Boolean(hold) && ['', 'pending'].includes(hold.laptop ?? '');
+}
+
+/**
  * An assert line reduced to what names it: bracketed parts ([host: sim 90.30 s ...] timing and state dumps) dropped,
  * numbers as #, spaces collapsed. '' for no assert.
  */

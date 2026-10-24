@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, flakeStands, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, flakeStands, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears } from '../scripts/laptop-queue/lib.mjs';
 
 const NOW = Date.UTC(2026, 9, 23, 20, 0, 0);
 const idAt = (min: number, tag: string): string => {
@@ -509,6 +509,18 @@ describe('agedAlone', () => {
     const q = { trains: [], requests: [req(35, 'alone', 'a'), req(5, 'pr', 'p')] };
     expect(pick(q, NOW, slots(true, false))).toBeNull();
     expect(pick(q, NOW, slots(false, false))?.request.id).toBe(q.requests[0].id);
+  });
+});
+
+describe('holdClears', () => {
+  it('only a train with no laptop verdict yet or a pending one can clear its hold by running', () => {
+    expect(holdClears({ n: '57', sha: 'a', laptop: '' })).toBe(true);
+    expect(holdClears({ n: '57', sha: 'a', laptop: 'pending' })).toBe(true);
+    expect(holdClears({ n: '57', sha: 'a' })).toBe(true);
+    expect(holdClears({ n: '57', sha: 'a', laptop: 'failure' })).toBe(false);
+    expect(holdClears({ n: '57', sha: 'a', laptop: 'error' })).toBe(false);
+    expect(holdClears({ n: '?', sha: '', laptop: 'unknown' })).toBe(false);
+    expect(holdClears(null)).toBe(false);
   });
 });
 

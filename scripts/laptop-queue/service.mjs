@@ -44,7 +44,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { agedAlone, assertKey, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, dupKey, duplicates, failureExcerpt, flakeStands, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo } from './lib.mjs';
+import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, dupKey, duplicates, failureExcerpt, flakeStands, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo } from './lib.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
 const DESKTOP = process.env.LQ_WORKER === 'desktop';
@@ -942,11 +942,11 @@ async function pass() {
   else if (!(DESKTOP && claimCount === 0)) queue.requests = applyDuplicates(applySupersedes(queue.requests));
   // alone runs wait while any open train lacks a laptop-e2e success (trains and their reruns first; CLAUDE.md laptop order)
   // an alone request held past ALONE_AGE_MIN still stops new pr / full claims (only train reruns start), so the slots
-  // drain for it while the train runs (Orchestrator audit 2026-10-24: 3 newer PR requests went first at 07:25Z)
+  // drain for it while the train runs; only while the train can clear the hold by running (lib holdClears) (Orchestrator audit 2026-10-24: 3 newer PR requests went first at 07:25Z)
   if (!DESKTOP && aloneHold && queue.requests.some((r) => r.kind === 'alone')) {
-    const aged = agedAlone(queue.requests, Date.now());
+    const aged = holdClears(aloneHold) ? agedAlone(queue.requests, Date.now()) : null;
     const key = `${aloneHold.n} ${aloneHold.sha} ${aloneHold.laptop} ${aged?.id ?? ''}`;
-    if (key !== aloneHoldLogged) { aloneHoldLogged = key; log(`alone requests held: train ${aloneHold.n} ${String(aloneHold.sha).slice(0, 8)} open, laptop-e2e ${aloneHold.laptop || 'none'}${aged ? `; ${aged.id} waited over 30 min: no new pr claims` : ''}`); }
+    if (key !== aloneHoldLogged) { aloneHoldLogged = key; log(`alone requests held: train ${aloneHold.n} ${String(aloneHold.sha).slice(0, 8)} open, laptop-e2e ${aloneHold.laptop || 'none'}${aged ? `; ${aged.id} waited over ${ALONE_AGE_MIN} min: no new pr claims` : ''}`); }
     queue.requests = queue.requests.filter((r) => (aged ? r.trainRerun : r.kind !== 'alone'));
   } else if (!aloneHold) aloneHoldLogged = '';
   const desktopWait = {};
