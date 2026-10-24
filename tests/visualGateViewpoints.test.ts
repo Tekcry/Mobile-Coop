@@ -1,8 +1,12 @@
 // Visual gate viewpoints (scripts/visual-gate/viewpoints.mjs, VG3): the shape of MAPS / PRESETS / VIEWS / RIGS, the
-// framing rough check (every region corner within 50 deg of the cam -> target direction) and the rule keys VG5 / VG8 read.
+// framing rough check (every region corner within 50 deg of the cam -> target direction), the rule keys VG5 / VG8 read and
+// (vg3p) every region's projected size and frame at 960 x 540 through the harness's own projectQuads.
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
 import { MAPS, PRESETS, VIEWS, RIGS } from '../scripts/visual-gate/viewpoints.mjs';
+// @ts-expect-error plain .mjs process script without types
+import { projectQuads, VIEWPORT } from '../scripts/visual-gate/harness.mjs';
+import { CAMERA } from '../src/config/camera';
 
 type Vec3 = [number, number, number];
 type Quad = [Vec3, Vec3, Vec3, Vec3];
@@ -74,6 +78,68 @@ function expectFramed(id: string, cam: Vec3, target: Vec3, regions: Record<strin
     for (const p of q) expect(coneDeg(cam, target, p), `${id}.${name} corner ${p.join(', ')}`).toBeLessThanOrEqual(50);
   }
 }
+/** vg3p: the views whose `upper` was dropped (its surface cannot project to 60 px fully in frame; viewpoints.mjs says why). */
+const NO_UPPER = ['m-a5-kiosk', 'cp-s1-b', 'cp-s1-f', 'so-s2-aisle'];
+/** The views with a `wall` region (brief VG3 "regions", vg3p adds m-f-gallery). */
+const WALL_VIEWS = ['m-a1-lounge', 'm-a3-lobby', 'm-a6-kerb', 'm-f-gallery', 'so-s1-workshop'];
+/** vg3p: regions allowed under 60 px (min px per axis) because a rule needs them; stats only, no blotch erosion. */
+const SMALL: Record<string, number> = { 'so-s1-goods-in.floor': 40 };
+const MIN_PX = 60;
+
+type Pt2 = [number, number];
+/** The photo camera's view x projection (row-vector order, as harness `matrix()` reads it): Babylon LookAtLH (y up) times
+ * PerspectiveFovLH, vertical FOV from CAMERA.fov horizontal at 16:9 (FOVMODE_VERTICAL_FIXED), aspect of VIEWPORT. */
+function viewProj(eye: Vec3, target: Vec3): number[] {
+  const W = VIEWPORT.width as number;
+  const H = VIEWPORT.height as number;
+  const cross = (a: Vec3, b: Vec3): Vec3 => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const unit = (a: Vec3): Vec3 => {
+    const l = len(a);
+    return [a[0] / l, a[1] / l, a[2] / l];
+  };
+  const z = unit(sub(target, eye));
+  const x = unit(cross([0, 1, 0], z));
+  const y = cross(z, x);
+  const view = [x[0], y[0], z[0], 0, x[1], y[1], z[1], 0, x[2], y[2], z[2], 0, -dot(x, eye), -dot(y, eye), -dot(z, eye), 1];
+  const f = 1 / ((Math.tan((CAMERA.fov * Math.PI) / 360) * 9) / 16);
+  const near = 0.1;
+  const far = 1000;
+  const proj = [f / (W / H), 0, 0, 0, 0, f, 0, 0, 0, 0, (far + near) / (far - near), 1, 0, 0, (-2 * far * near) / (far - near), 0];
+  const out = new Array<number>(16).fill(0);
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) for (let k = 0; k < 4; k++) out[i * 4 + j]! += view[i * 4 + k]! * proj[k * 4 + j]!;
+  return out;
+}
+/** The convex polygon's minimum width (px): the least, over its edges, of the farthest corner from that edge's line. */
+function minWidth(pts: Pt2[]): number {
+  let w = Infinity;
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i]!;
+    const b = pts[(i + 1) % pts.length]!;
+    const ex = b[0] - a[0];
+    const ey = b[1] - a[1];
+    const el = Math.sqrt(ex * ex + ey * ey);
+    let far = 0;
+    for (const p of pts) far = Math.max(far, Math.abs((p[0] - a[0]) * ey - (p[1] - a[1]) * ex) / el);
+    w = Math.min(w, far);
+  }
+  return w;
+}
+/** Each region of a view or rig projected at VIEWPORT through the harness's own projectQuads: bbox, min width, behind. */
+function projected(x: { cam: Vec3; target: Vec3; regions: Record<string, Quad> }): Record<string, { pts: Pt2[]; behind: boolean; w: number; h: number; x0: number; x1: number; y0: number; y1: number; mw: number }> {
+  const proj = projectQuads(viewProj(x.cam, x.target), x.regions, VIEWPORT.width, VIEWPORT.height) as Record<string, { pts: Pt2[]; behind: boolean }>;
+  const out: ReturnType<typeof projected> = {};
+  for (const [k, r] of Object.entries(proj)) {
+    const xs = r.pts.map((p) => p[0]);
+    const ys = r.pts.map((p) => p[1]);
+    const x0 = Math.min(...xs);
+    const x1 = Math.max(...xs);
+    const y0 = Math.min(...ys);
+    const y1 = Math.max(...ys);
+    out[k] = { pts: r.pts, behind: r.behind, w: x1 - x0, h: y1 - y0, x0, x1, y0, y1, mw: minWidth(r.pts) };
+  }
+  return out;
+}
+
 const ruleKeyOk = (key: string, regions: string[], metrics: string[]): boolean => {
   const [region, metric, ...rest] = key.split('.');
   return rest.length === 0 && regions.includes(region ?? '') && metrics.includes(metric ?? '');
@@ -120,7 +186,7 @@ describe('visual gate viewpoints: views and rigs', () => {
     for (const v of views) {
       for (const k of ['feet', 'cam', 'target'] as const) expect(isVec3(v[k]), `${v.id}.${k}`).toBe(true);
       expect(Object.keys(v.regions), v.id).not.toContain('whole');
-      expect(Object.keys(v.regions), v.id).toContain('upper');
+      if (!NO_UPPER.includes(v.id)) expect(Object.keys(v.regions), v.id).toContain('upper');
       expectFramed(v.id, v.cam, v.target, v.regions);
     }
     for (const r of rigs) {
@@ -129,6 +195,42 @@ describe('visual gate viewpoints: views and rigs', () => {
       expect(Number.isFinite(r.guard.yaw), `${r.id}.guard.yaw`).toBe(true);
       expect(Object.keys(r.regions), r.id).toContain('leak');
       expectFramed(r.id, r.cam, r.target, r.regions);
+    }
+  });
+
+  it('drops upper only where its surface cannot reach 60 px, and puts a wall on the views that face one', () => {
+    expect(views.filter((v) => !('upper' in v.regions)).map((v) => v.id).sort()).toEqual([...NO_UPPER].sort());
+    expect(views.filter((v) => 'wall' in v.regions).map((v) => v.id).sort()).toEqual([...WALL_VIEWS].sort());
+  });
+
+  it('projects every view region >= 60 x 60 px and fully inside the 960 x 540 frame (vg3p, VG1 polish 3)', () => {
+    expect([VIEWPORT.width, VIEWPORT.height]).toEqual([960, 540]);
+    for (const v of views) {
+      for (const [name, r] of Object.entries(projected(v))) {
+        const at = `${v.id}.${name} ${r.w.toFixed(0)} x ${r.h.toFixed(0)} px, x ${r.x0.toFixed(0)}-${r.x1.toFixed(0)}, y ${r.y0.toFixed(0)}-${r.y1.toFixed(0)}`;
+        const min = SMALL[`${v.id}.${name}`] ?? MIN_PX;
+        expect(r.behind, at).toBe(false);
+        expect(r.w, at).toBeGreaterThanOrEqual(min);
+        expect(r.h, at).toBeGreaterThanOrEqual(min);
+        expect(r.x0, at).toBeGreaterThanOrEqual(0);
+        expect(r.y0, at).toBeGreaterThanOrEqual(0);
+        expect(r.x1, at).toBeLessThanOrEqual(VIEWPORT.width);
+        expect(r.y1, at).toBeLessThanOrEqual(VIEWPORT.height);
+        // blotch erodes a region under ~49 px in either axis to nothing (VG1 polish 3): a wall keeps 60 px of true width
+        if (name === 'wall') expect(r.mw, `${at}, min width ${r.mw.toFixed(0)}`).toBeGreaterThanOrEqual(MIN_PX);
+      }
+    }
+    for (const k of Object.keys(SMALL)) {
+      const [id, name] = k.split('.');
+      expect(views.find((v) => v.id === id)?.regions[name ?? ''], k).toBeDefined();
+    }
+  });
+
+  it('projects every rig leak region >= 60 x 60 px in front of the camera', () => {
+    for (const r of rigs) {
+      const p = projected(r).leak!;
+      expect(p.behind, r.id).toBe(false);
+      expect(Math.min(p.w, p.h, p.mw), r.id).toBeGreaterThanOrEqual(MIN_PX);
     }
   });
 

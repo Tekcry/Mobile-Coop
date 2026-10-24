@@ -59,6 +59,10 @@ export const PRESETS = ['low', 'epic'];
 // Rules per target (brief "rules", PLAN section 2), bounds null: F1 / F8 upper.veil (max) and upper.contrast (min), Epic;
 // F2 floor.nearBlack (max); F4 wall.arc (max), Epic; F6 whole.mean (min) and whole.nearBlack (max); F7 wall.blotch (max), Low.
 // A view without a `floor` region frames no floor (the deviations in vg3-build.md say why for each).
+// Size (vg3p, VG1 polish 3): every region projects >= 60 x 60 px and fully inside the frame at 960 x 540 (86 deg
+// horizontal, the shoulder camera's CAMERA.fov), each quad on its own surface and unoccluded (ray-cast against the map
+// boxes at origin/master). A region that cannot reach that on its surface is dropped (the view's comment says why), except
+// so-s1-goods-in's F2 floor (kept at 220 x 43 px: its rule needs it). tests/visualGateViewpoints.test.ts holds the list.
 
 /** @type {View[]} */
 export const VIEWS = [
@@ -72,8 +76,8 @@ export const VIEWS = [
     target: [11.7, 1.6, 8],
     regions: {
       // the lounge's east wall face x 5.85 (a1Gate.ts:160 [:130]) and the sliding door's lintel (a1Gate.ts:167 [kit/facilityKit.ts:468]),
-      // from 2.1 to under the lounge ceiling slab at 3.2 (a1Gate.ts:163)
-      upper: [[5.85, 2.1, 8.4], [5.85, 2.1, 11.4], [5.85, 3.1, 11.4], [5.85, 3.1, 8.4]],
+      // 2.3 - 2.9 (vg3p: was 2.1 - 3.1, its top off the frame; the frame's top is under the ceiling slab at 3.2, a1Gate.ts:163)
+      upper: [[5.85, 2.3, 8.6], [5.85, 2.3, 11.2], [5.85, 2.9, 11.2], [5.85, 2.9, 8.6]],
       // the same east wall face beside the shut sliding door (z 8.15 - 10.1, a1Gate.ts:160 [:130]), 2.7 m ahead
       wall: [[5.85, 0.6, 8.4], [5.85, 0.6, 10], [5.85, 2, 10], [5.85, 2, 8.4]],
     },
@@ -91,10 +95,10 @@ export const VIEWS = [
     cam: [31.4, 1.7, 12.9],
     target: [52, 1.4, 12.3],
     regions: {
-      // the site floor (ctcourseSets/facility.ts:659), 8 - 11 m ahead in the carriage shed
-      floor: [[39.5, 0, 11.6], [42.5, 0, 11.6], [42.5, 0, 13.6], [39.5, 0, 13.6]],
-      // the hall roof's underside at 10 (ctcourseSets/facility.ts:661 [:320]), 31 m out over the shed
-      upper: [[59.7, 10, 7.8], [62.7, 10, 7.8], [62.7, 10, 10.8], [59.7, 10, 10.8]],
+      // the site floor (ctcourseSets/facility.ts:659), 5.5 - 10.5 m ahead in the carriage shed (vg3p: grown to 5 x 1.6 m)
+      floor: [[36.9, 0, 11.6], [41.9, 0, 11.6], [41.9, 0, 13.2], [36.9, 0, 13.2]],
+      // the hall roof's underside at 10 (ctcourseSets/facility.ts:661 [:320]), 18 - 25 m out over the shed (vg3p: was 31 m out, 58 x 15 px)
+      upper: [[48.9, 10, 6.2], [56.3, 10, 6.2], [56.3, 10, 9.8], [48.9, 10, 9.8]],
     },
     metrics: { floor: [], upper: ['haze'] },
     rules: { 'whole.mean': { min: null }, 'whole.nearBlack': { max: null } },
@@ -112,9 +116,9 @@ export const VIEWS = [
     regions: {
       // the corridor floor (site floor ctcourseSets/facility.ts:659 under the vinyl skin a3OfficeRange.ts:432 [:393])
       floor: [[80.3, 0.01, 9.4], [83.3, 0.01, 9.4], [83.3, 0.01, 12.4], [80.3, 0.01, 12.4]],
-      // the corridor's south wall near its east end, plaster face z 9.03 (greybox a3OfficeRange.ts:235 [ctcourseGreybox.ts:641],
-      // skin :396 [:379]), 2.0 to under the 3.0 ceiling slab
-      upper: [[94, 2, 9.03], [97, 2, 9.03], [97, 2.9, 9.03], [94, 2.9, 9.03]],
+      // the corridor's south wall, plaster face z 9.03 (greybox a3OfficeRange.ts:235 [ctcourseGreybox.ts:641], skin :396 [:387,
+      // :379]), 2.0 - 2.8 under the 3.0 ceiling slab, 4 - 10 m out (vg3p: was x 94 - 97 near its east end, 9 x 29 px edge-on)
+      upper: [[81.4, 2, 9.03], [87.4, 2, 9.03], [87.4, 2.8, 9.03], [81.4, 2.8, 9.03]],
       // F7 (BRIEF F7 row): the corridor's north wall x 81-96, y 1.8-2.9, on its plaster face z 12.47 (greybox z 12.5 - 12.8
       // a3OfficeRange.ts:235 [ctcourseGreybox.ts:641], skin :396 [:388])
       wall: [[81, 1.8, 12.47], [96, 1.8, 12.47], [96, 2.9, 12.47], [81, 2.9, 12.47]],
@@ -135,8 +139,9 @@ export const VIEWS = [
     regions: {
       // the site floor (ctcourseSets/facility.ts:659) in the main aisle, 5 m ahead
       floor: [[104.1, 0, 38.2], [107.1, 0, 38.2], [107.1, 0, 41.2], [104.1, 0, 41.2]],
-      // the south rack run's aisle face z 35.63 (a4GoodsShed.ts:241 [:220], skin :638 [:495]), 2.0 - 5.4, 19 m down the aisle
-      upper: [[89.8, 2, 35.63], [94.8, 2, 35.63], [94.8, 5.4, 35.63], [89.8, 5.4, 35.63]],
+      // the south rack run's aisle face z 35.63 (a4GoodsShed.ts:241 [:220], skin :638 [:505, :495]), 2.0 - 4.2, 9 - 12 m down the
+      // aisle (vg3p: was x 89.8 - 94.8, 19 m down it, 36 px wide edge-on)
+      upper: [[98.8, 2, 35.63], [102.2, 2, 35.63], [102.2, 4.2, 35.63], [98.8, 4.2, 35.63]],
     },
     metrics: { floor: [], upper: ['haze'] },
     rules: { 'whole.mean': { min: null }, 'whole.nearBlack': { max: null } },
@@ -154,10 +159,11 @@ export const VIEWS = [
     regions: {
       // the site floor (ctcourseSets/facility.ts:659), 5.5 m ahead
       floor: [[50.6, 0, 32.1], [53.6, 0, 32.1], [53.6, 0, 35.1], [50.6, 0, 35.1]],
-      // the set boundary wall x 69.75 (ctcourseSets/facility.ts:293 [:262], skin a5Substation.ts:437 [:434, :425]), 2.0 - 4.5, 25 m out
-      upper: [[69.75, 2, 40.3], [69.75, 2, 46.3], [69.75, 4.5, 46.3], [69.75, 4.5, 40.3]],
+      // no `upper` (vg3p): its surface, the set boundary wall x 69.75 (ctcourseSets/facility.ts:293 [:262], skin
+      // a5Substation.ts:437 [:434, :425]), is 22 - 25 m out and solid only to 4.5 (open above), so its 2.0 - 4.5 band
+      // projects at most ~51 px tall at 960 x 540 (under the 60 px floor, VG1 polish 3)
     },
-    metrics: { floor: [], upper: ['haze'] },
+    metrics: { floor: [] },
     rules: { 'whole.mean': { min: null }, 'whole.nearBlack': { max: null } },
     // Marlow parity cards (floor + 1.0, >= 1.2 m from any wall, in frame): a lamp pool, between pools, the darkest open spot
     parity: [[56.5, 1, 29.2], [51.8, 1, 34.3], [56.6, 1, 39.1]],
@@ -172,8 +178,9 @@ export const VIEWS = [
     cam: [50.2, 1.3, 55.6],
     target: [51.5, 3.2, 66],
     regions: {
-      // the hall's north wall face z 71.75 (ctcourseSets/facility.ts:293 [:261]) behind the motor gallery, 2.0 - 9.9, 21 m out
-      upper: [[63.7, 2, 71.75], [61.7, 2, 71.75], [61.7, 9.9, 71.75], [63.7, 9.9, 71.75]],
+      // the hall's north wall face z 71.75 (ctcourseSets/facility.ts:293 [:261], skin a6PumpHouse.ts:638 [:407, :398]) behind the
+      // motor gallery, 2.4 - 9.4, 21 m out (vg3p: 2.4 m wide for a 65 px min width)
+      upper: [[63.7, 2.4, 71.75], [61.3, 2.4, 71.75], [61.3, 9.4, 71.75], [63.7, 9.4, 71.75]],
       // the drive cage's south face z 62 and its locked door (a6PumpHouse.ts:276 [ctcourseGreybox.ts:641, :647]), 6.5 m ahead,
       // from over the sump kerb's line of sight (1.2) to 2.2
       wall: [[49.6, 1.2, 62], [53.4, 1.2, 62], [53.4, 2.2, 62], [49.6, 2.2, 62]],
@@ -194,8 +201,9 @@ export const VIEWS = [
     regions: {
       // the site floor (ctcourseSets/facility.ts:659) in the corridor, 4 - 6 m ahead
       floor: [[75.4, 0, 52.7], [78.4, 0, 52.7], [78.4, 0, 54.7], [75.4, 0, 54.7]],
-      // the corridor's south wall z 52.28 (ctcourseSets/facility.ts:293 [:261], skin a7DataHall.ts:473 [:462]), 2.0 - 3.4, 15 - 21 m out
-      upper: [[87.4, 2, 52.28], [93.4, 2, 52.28], [93.4, 3.4, 52.28], [87.4, 3.4, 52.28]],
+      // the corridor's south wall z 52.28 (ctcourseSets/facility.ts:293 [:261], skin a7DataHall.ts:473 [:462, :454]), 2.0 - 3.2,
+      // 5.5 - 13.5 m out (vg3p: was x 87.4 - 93.4, 15 - 21 m out, 13 x 51 px edge-on)
+      upper: [[77.6, 2, 52.28], [85.6, 2, 52.28], [85.6, 3.2, 52.28], [77.6, 3.2, 52.28]],
     },
     metrics: { floor: [], upper: ['haze'] },
     rules: { 'whole.mean': { min: null }, 'whole.nearBlack': { max: null } },
@@ -230,10 +238,15 @@ export const VIEWS = [
     cam: [14, 1.8, 12],
     target: [14, 6, 21],
     regions: {
-      // the hall's north wall z 19.75 under the gallery (ctcourseSets/facility.ts:293 [:261]), 2.0 - 4.5, 8 m out
-      upper: [[19, 2, 19.75], [13, 2, 19.75], [13, 4.5, 19.75], [19, 4.5, 19.75]],
+      // the hall's north wall z 20 (the 'gal' wall ctcourseSets/facility.ts:159, face z 19.75): its solid band over the gallery
+      // glazing, 7.5 to the hall roof at 10 (facility.ts:313 [:261]), 7.6 - 9.9, 8 - 11 m out (vg3p: was 2.0 - 4.5 on the band
+      // under the gallery, now the `wall` region)
+      upper: [[20.6, 7.6, 19.75], [12.6, 7.6, 19.75], [12.6, 9.9, 19.75], [20.6, 9.9, 19.75]],
+      // the wall the camera faces, 7.75 m ahead (vg3p): the same 'gal' wall's solid band under the gallery, 0 - 4.5
+      // (ctcourseSets/facility.ts:293 [:268, :261]), from the frame's foot (1.6) to 4.4
+      wall: [[19.4, 1.6, 19.75], [12.4, 1.6, 19.75], [12.4, 4.4, 19.75], [19.4, 4.4, 19.75]],
     },
-    metrics: { upper: ['haze'] },
+    metrics: { upper: ['haze'], wall: ['blotch', 'arc'] },
     rules: { 'whole.mean': { min: null }, 'whole.nearBlack': { max: null } },
     parity: null,
     targets: ['F6'],
@@ -249,12 +262,12 @@ export const VIEWS = [
     cam: [15, 1.7, -74],
     target: [19, 0.9, -77],
     regions: {
-      // the gatehouse floor (the campus ground, campusOps.ts:120), 4 m ahead
-      floor: [[15.9, 0, -78.3], [18.9, 0, -78.3], [18.9, 0, -75.3], [15.9, 0, -75.3]],
-      // the south boundary wall z -84 (campusOps.ts:121, 6 m) through the gatehouse window, 2.0 - 3.1, 27 m out
-      upper: [[37.6, 2, -84], [43.6, 2, -84], [43.6, 3.1, -84], [37.6, 3.1, -84]],
+      // the gatehouse floor (the campus ground, campusOps.ts:120), 3 - 4.5 m ahead (vg3p: clipped to the frame, was to y 694)
+      floor: [[16.3, 0, -77.7], [18.5, 0, -77.7], [18.5, 0, -76.1], [16.3, 0, -76.1]],
+      // no `upper` (vg3p): its surface, the south boundary wall z -84 (campusOps.ts:121, 6 m) seen through the gatehouse
+      // window 23 - 31 m out, projects at most ~33 px tall above 2.0 at 960 x 540 (under 60 px)
     },
-    metrics: { floor: [], upper: ['haze'] },
+    metrics: { floor: [] },
     rules: {},
     parity: null,
     targets: [],
@@ -270,10 +283,10 @@ export const VIEWS = [
     regions: {
       // the forecourt ground (campusOps.ts:120), 6 m ahead
       floor: [[-8.5, 0, -43.3], [-5.5, 0, -43.3], [-5.5, 0, -40.3], [-8.5, 0, -40.3]],
-      // the west boundary wall x -70 (campusOps.ts:121, 6 m), 2.0 - 6.0, 68 m out
-      upper: [[-70, 2, -37.8], [-70, 2, -41.8], [-70, 6, -41.8], [-70, 6, -37.8]],
+      // no `upper` (vg3p): its surface, the west boundary wall x -70 (campusOps.ts:121, 6 m), is 68 m out, so its 2.0 - 6.0
+      // band projects at most ~32 px tall at 960 x 540 (under 60 px)
     },
-    metrics: { floor: [], upper: ['haze'] },
+    metrics: { floor: [] },
     rules: {},
     // campus parity cards: the canopy's lamp pool, between pools, the darkest open spot of the forecourt
     parity: [[-24.5, 1, -47.9], [-5.8, 1, -43.2], [-5.2, 1, -38.3]],
@@ -288,10 +301,11 @@ export const VIEWS = [
     cam: [-12, 1.7, -22],
     target: [-18, 6, -5],
     regions: {
-      // the reception floor (campus ground campusOps.ts:120), 9 m ahead
-      floor: [[-16.4, 0, -15.3], [-13.4, 0, -15.3], [-13.4, 0, -12.3], [-16.4, 0, -12.3]],
-      // F8: the atrium roof's underside at 12 (campusS2.ts:374 [:300]), 27 m up and out
-      upper: [[-29.5, 12, -4], [-24.5, 12, -4], [-24.5, 12, 1], [-29.5, 12, 1]],
+      // the reception floor (campus ground campusOps.ts:120), 8 - 12.5 m ahead at the frame's foot (vg3p: grown to 6 x 4.8 m,
+      // 426 x 72 px; the camera looks up, so the floor is a band at the foot, min width 55 px)
+      floor: [[-16.8, 0, -14.3], [-10.8, 0, -14.3], [-10.8, 0, -9.5], [-16.8, 0, -9.5]],
+      // F8: the atrium roof's underside at 12 (campusS2.ts:374 [:300]), 20 - 27 m up and out (vg3p: was z -4 to 1, 143 x 51 px)
+      upper: [[-30.3, 12, -12.2], [-26.1, 12, -12.2], [-26.1, 12, -4.2], [-30.3, 12, -4.2]],
     },
     metrics: { floor: [], upper: ['haze'] },
     rules: { 'upper.veil': { max: null, presets: ['epic'] }, 'upper.contrast': { min: null, presets: ['epic'] } },
@@ -327,9 +341,9 @@ export const VIEWS = [
     cam: [23, 1.7, -19],
     target: [40, 2, -19],
     regions: {
-      // F8: over the crane bay's 3.0 board screen (x 26.5, campusS3.ts:397, 3.5 m ahead, which hides the floor), the hall
-      // roof's underside at 9 (campusS3.ts:329 [:309, :256]), 19 m out
-      upper: [[35.8, 9, -14.6], [41.8, 9, -14.6], [41.8, 9, -8.6], [35.8, 9, -8.6]],
+      // F8: over the crane bay's 3.0 board screen (x 26.5, campusS3.ts:396, 3.5 m ahead, which hides the floor), the hall
+      // roof's underside at 9 (campusS3.ts:329 [:309, :256]), 19 m out (vg3p: clipped to the frame's top, x from 37)
+      upper: [[37, 9, -14.6], [41.8, 9, -14.6], [41.8, 9, -8.8], [37, 9, -8.8]],
     },
     metrics: { upper: ['haze'] },
     rules: { 'upper.veil': { max: null, presets: ['epic'] }, 'upper.contrast': { min: null, presets: ['epic'] } },
@@ -364,9 +378,10 @@ export const VIEWS = [
     cam: [10.5, 1.7, 22.5],
     target: [10, 2, 32],
     regions: {
-      // the data hall roof's underside at 7 (campusS4.ts:356 [:259]), 17 m out over the rack rows (the rack row ends
+      // the data hall roof's underside at 7 (campusS4.ts:356 [:259]), 12 - 17 m out over the rack rows (vg3p: grown z 33.7 -
+      // 39.1, was 161 x 42 px; the rack row ends
       // campusS4.ts:331 / :332 [:408, :259] hide the aisle floor)
-      upper: [[1.5, 7, 34.9], [4.5, 7, 34.9], [4.5, 7, 37.9], [1.5, 7, 37.9]],
+      upper: [[1.5, 7, 33.7], [4.5, 7, 33.7], [4.5, 7, 39.1], [1.5, 7, 39.1]],
     },
     metrics: { upper: ['haze'] },
     rules: {},
@@ -401,8 +416,9 @@ export const VIEWS = [
     cam: [-48, 1.7, 20],
     target: [-44, 3, 26],
     regions: {
-      // the stair hall floor (campus ground campusOps.ts:120), 10 m ahead
-      floor: [[-49.2, 0, 28.5], [-46.2, 0, 28.5], [-46.2, 0, 31.5], [-49.2, 0, 31.5]],
+      // the stair hall floor (campus ground campusOps.ts:120), 6.5 - 11.5 m ahead (vg3p: a 1 x 5 m strip inside the frame, was
+      // x -49.2 to -46.2, off the left edge)
+      floor: [[-47, 0, 26.3], [-46, 0, 26.3], [-46, 0, 31.3], [-47, 0, 31.3]],
       // the hall's east wall x -38.1 (campusS5.ts:503 [:365, :311]), 2.0 - 3.9, 13 m out
       upper: [[-38.1, 2, 25.4], [-38.1, 2, 31.4], [-38.1, 3.9, 31.4], [-38.1, 3.9, 25.4]],
     },
@@ -420,10 +436,10 @@ export const VIEWS = [
     cam: [-39, 5.9, 43],
     target: [-44, 5.2, 35],
     regions: {
-      // the archive's L1 floor slab at 4.2 (campusS5.ts:481 [:383, :311]), 4 m ahead
-      floor: [[-42.7, 4.2, 39.4], [-39.7, 4.2, 39.4], [-39.7, 4.2, 41.4], [-42.7, 4.2, 41.4]],
-      // the roof slab's underside at 8.2 (campusS5.ts:482 [:383, :311]), 7.5 m out
-      upper: [[-45.7, 8.2, 36.7], [-42.7, 8.2, 36.7], [-42.7, 8.2, 39.7], [-45.7, 8.2, 39.7]],
+      // the archive's L1 floor slab at 4.2 (campusS5.ts:481 [:383, :311]), 2.5 - 4 m ahead (vg3p: clipped to the frame, was to y 706)
+      floor: [[-42.1, 4.2, 39.4], [-40.7, 4.2, 39.4], [-40.7, 4.2, 40.8], [-42.1, 4.2, 40.8]],
+      // the roof slab's underside at 8.2 (campusS5.ts:482 [:383, :311]), 7.5 m out (vg3p: clipped to the frame's top)
+      upper: [[-45.7, 8.2, 36.7], [-42.9, 8.2, 36.7], [-42.9, 8.2, 39.1], [-45.7, 8.2, 39.1]],
     },
     metrics: { floor: [], upper: ['haze'] },
     rules: {},
@@ -441,8 +457,10 @@ export const VIEWS = [
     cam: [-20.5, 1.7, -17],
     target: [-13, 4.2, -12],
     regions: {
-      // F2: the bay floor (warehouse.ts:213) by the shut east shutter, 9 - 12 m out at the frame's foot
-      floor: [[-11.2, 0.02, -17.5], [-8.2, 0.02, -17.5], [-8.2, 0.02, -14.5], [-11.2, 0.02, -14.5]],
+      // F2: the bay floor (warehouse.ts:213) by the shut east shutter, 9 - 12 m out at the frame's foot. Clipped to the frame
+      // (vg3p): 220 x 43 px, the most this view shows (the frame's foot and the pallet stacks warehouseS1.ts:370 / :377 hide
+      // the rest); kept under 60 px because F2's floor.nearBlack rule needs it (stats only, no erosion)
+      floor: [[-10.8, 0.02, -17.3], [-8.2, 0.02, -17.3], [-8.2, 0.02, -14.3], [-10.8, 0.02, -14.3]],
       // F1: the bay's east wall x -8.15 past the high-bay (-11.65, 5.05, -11.2) (warehouseS1.ts:265 [:213] to 2.8, the void
       // west wall :271 from 2.8), 2.0 - 4.8, 14 m out
       upper: [[-8.15, 2, -11.4], [-8.15, 2, -9.4], [-8.15, 4.8, -9.4], [-8.15, 4.8, -11.4]],
@@ -465,13 +483,13 @@ export const VIEWS = [
     cam: [22.5, 1.5, -13.6],
     target: [16, 3.0, -13.6],
     regions: {
-      // the workshop floor (warehouse.ts:213), 12 m out
-      floor: [[9.7, 0.02, -17.4], [12.7, 0.02, -17.4], [12.7, 0.02, -15.4], [9.7, 0.02, -15.4]],
-      // F1: the workshop's west wall x 8.15 (warehouseS1.ts:267 / :268 [:213], :269, :275) seen under the girder and the
-      // two HALL-beam strips at x 16 (z -15.8, -11.8), 2.0 - 3.3, 14 m out
-      upper: [[8.15, 2, -11.6], [8.15, 2, -15.6], [8.15, 3.3, -15.6], [8.15, 3.3, -11.6]],
+      // no `floor` (vg3p): the workshop floor (warehouse.ts:213) shows only as a strip at the frame's foot (the camera looks
+      // up at the girder): at most ~20 px tall for a 2 - 4 m patch (a 60 px tall one is a 0.4 m sliver)
+      // F1: the workshop's west wall x 8.15 (warehouseS1.ts:268 [:213], :269 [:192], :275) seen under the girder and past
+      // the HALL-beam strip at x 16 (z -11.8), 2.2 - 4.6, 14 m out (vg3p: was z -11.6 to -15.6, 2.0 - 3.3, 146 x 47 px)
+      upper: [[8.15, 2.2, -11], [8.15, 2.2, -13.6], [8.15, 4.6, -13.6], [8.15, 4.6, -11]],
     },
-    metrics: { floor: [], upper: ['haze'] },
+    metrics: { upper: ['haze'] },
     rules: { 'upper.veil': { max: null, presets: ['epic'] }, 'upper.contrast': { min: null, presets: ['epic'] } },
     parity: null,
     targets: ['F1'],
@@ -485,15 +503,15 @@ export const VIEWS = [
     cam: [10.5, 1.7, -16],
     target: [18, 3.6, -12.5],
     regions: {
-      // the workshop floor (warehouse.ts:213), 7 m out
-      floor: [[16.5, 0.02, -16.1], [18.5, 0.02, -16.1], [18.5, 0.02, -13.1], [16.5, 0.02, -13.1]],
+      // no `floor` (vg3p): the workshop floor (warehouse.ts:213) is a strip at the frame's foot: clipped to the frame it is
+      // ~39 px tall (a 60 px tall patch is a 0.6 m sliver)
       // the perimeter wall x 24 (warehouse.ts:212), 2.0 - 3.7, 14 m out
       upper: [[24, 2, -15.5], [24, 2, -9.5], [24, 3.7, -9.5], [24, 3.7, -15.5]],
       // F4: the compartment wall z -8.8, face -8.95 (warehouseS1.ts:245 [:212]), under the wall spots (15.6, 5.5, -9.25) and
       // (22.6, 5.5, -9.25) whose cones graze it (the workshop wall the hard arcs land on), 0.3 - 4.8, 9 m out
       wall: [[18.2, 0.3, -8.95], [14.2, 0.3, -8.95], [14.2, 4.8, -8.95], [18.2, 4.8, -8.95]],
     },
-    metrics: { floor: [], upper: ['haze'], wall: ['blotch', 'arc'] },
+    metrics: { upper: ['haze'], wall: ['blotch', 'arc'] },
     rules: { 'wall.arc': { max: null, presets: ['epic'] } },
     // Sector Ops parity card 1 of 3: under the pendants (19.9, -13.1), the lamp pool
     parity: [[19.9, 1, -13.1]],
@@ -510,10 +528,10 @@ export const VIEWS = [
     regions: {
       // the aisle floor (warehouse.ts:213), 7 m out
       floor: [[-13.5, 0.02, -0.3], [-10.5, 0.02, -0.3], [-10.5, 0.02, 2.7], [-13.5, 0.02, 2.7]],
-      // the perimeter wall z 18 at the aisle's far end (warehouse.ts:212), 2.0 - 3.6, 23 m out
-      upper: [[-11.3, 2, 18], [-13.3, 2, 18], [-13.3, 3.6, 18], [-11.3, 3.6, 18]],
+      // no `upper` (vg3p): its surface, the perimeter wall z 18 at the aisle's far end (warehouse.ts:212), is 23 m out
+      // between the racks (and behind the dressing rails, warehouseDress.ts:427): at most ~48 px tall at 960 x 540
     },
-    metrics: { floor: [], upper: ['haze'] },
+    metrics: { floor: [] },
     rules: {},
     // Sector Ops parity cards 2 and 3 of 3: between pools (the cross aisle), the darkest open spot (the aisle)
     parity: [[-10.9, 1, 5.4], [-11.8, 1, -0.6]],
@@ -528,13 +546,12 @@ export const VIEWS = [
     cam: [1.5, 1.7, 4],
     target: [6, 3.9, 9],
     regions: {
-      // the assembly hall floor (warehouse.ts:213), 17 m out
-      floor: [[16.6, 0.02, 7.6], [19.6, 0.02, 7.6], [19.6, 0.02, 10.6], [16.6, 0.02, 10.6]],
+      // no `floor` (vg3p): the assembly hall floor (warehouse.ts:213) shows only 17 m out at the frame's foot, ~20 px tall
       // the hall's north wall z 12, face 11.85 (warehouse.ts:256 [:45], warehouseS3.ts:204, the office door's lintel
-      // warehouseS3.ts:210 [:155]), 2.0 - 3.2, 9 m out
-      upper: [[7.9, 2, 11.85], [2.9, 2, 11.85], [2.9, 3.2, 11.85], [7.9, 3.2, 11.85]],
+      // warehouseS3.ts:210 [:155]), 2.2 - 3.2, 8 - 9 m out (vg3p: x 2.5 - 5.9, on the wall where it reaches the frame)
+      upper: [[5.9, 2.2, 11.85], [2.5, 2.2, 11.85], [2.5, 3.2, 11.85], [5.9, 3.2, 11.85]],
     },
-    metrics: { floor: [], upper: ['haze'] },
+    metrics: { upper: ['haze'] },
     rules: {},
     parity: null,
     targets: [],
@@ -552,8 +569,9 @@ export const VIEWS = [
     regions: {
       // the yard ground (warehouse.ts:211) in front of the west dock door, 7 m out
       floor: [[-18.5, 0, -21.6], [-15.5, 0, -21.6], [-15.5, 0, -18.6], [-18.5, 0, -18.6]],
-      // the facade's yard face z -18.15 (warehouse.ts:219 [:45], :463), 2.0 - 6.2, 22 m out
-      upper: [[2.1, 2, -18.15], [-3.9, 2, -18.15], [-3.9, 6.2, -18.15], [2.1, 6.2, -18.15]],
+      // the facade's yard face z -18.15 (warehouse.ts:219 [:45], the door head :222, :463), 2.2 - 6.0, 22 m out (vg3p: 8.8 m
+      // wide, was 6 m, 48 px)
+      upper: [[3.5, 2.2, -18.15], [-5.3, 2.2, -18.15], [-5.3, 6, -18.15], [3.5, 6, -18.15]],
     },
     metrics: { floor: [], upper: ['haze'] },
     rules: {},
@@ -570,10 +588,11 @@ export const VIEWS = [
     cam: [17, 2.4, -25],
     target: [11.5, 2.2, -19.5],
     regions: {
-      // the yard ground (warehouse.ts:211) under the workshop door's flood, 8 m out
-      floor: [[9.8, 0, -20.3], [12.8, 0, -20.3], [12.8, 0, -18.3], [9.8, 0, -18.3]],
-      // the facade's yard face z -18.15 (warehouse.ts:219 [:45], :226, :463), 2.0 - 6.2, 10 m out
-      upper: [[13.2, 2, -18.15], [7.2, 2, -18.15], [7.2, 6.2, -18.15], [13.2, 6.2, -18.15]],
+      // the yard ground (warehouse.ts:211) by the workshop door's flood, 6 m out (vg3p: clear of the yard fence's end post
+      // (14.5, -22.3), warehouse.ts:481)
+      floor: [[12, 0, -22.5], [13.2, 0, -22.5], [13.2, 0, -21.1], [12, 0, -21.1]],
+      // the facade's yard face z -18.15 (warehouse.ts:219 [:45], :226, :463), 2.2 - 5.8, 10 m out (vg3p: clipped to the frame's top)
+      upper: [[13.2, 2.2, -18.15], [7.2, 2.2, -18.15], [7.2, 5.8, -18.15], [13.2, 5.8, -18.15]],
     },
     metrics: { floor: [], upper: ['haze'] },
     rules: {},
