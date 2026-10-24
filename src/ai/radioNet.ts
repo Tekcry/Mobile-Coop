@@ -31,7 +31,8 @@
  *   reaction multiplier (`diff.reaction x (buff ? ARCHETYPE.officer.reaction : 1)`, the old `callAlert` factor);
  *   `section` is an Int16Array by view index holding each guard's section. Both optional; the manager keeps one of
  *   each beside its `GuardView` and grows them with it. `GuardView` (incidents.ts) is reused unchanged.
- * - Overflow: the receiver queue is a fixed pool of `RADIO.queue` (64) entries. When it is full a new entry is REFUSED
+ * - Overflow: the receiver queue is a fixed pool of `RADIO.queue` (128, coop4 A173: `MAX_INTRUDERS` contacts x 32
+ *   receivers) entries. When it is full a new entry is REFUSED
  *   (the farthest receivers of the newest call miss it) and counted in `dropped`; nothing already queued is lost.
  *   The call pool (`RADIO_CALLS` 16) refuses new calls the same way (`refused`).
  *
@@ -56,8 +57,9 @@ export const RADIO = {
   staggerStep: 0.5,
   staggerDist: 0.02,
   staggerMax: 4.5,
-  /** Receiver queue entries per section (fixed pool). */
-  queue: 64,
+  /** Receiver queue entries per section (fixed pool). (coop4 A173) 128 = `MAX_INTRUDERS` (4) simultaneous contacts x up
+   *  to 32 receivers (a section's guard cap); was 64, which a 4-player fight overflowed (`dropped`). Undo: 64. */
+  queue: 128,
 } as const;
 
 /** Open calls per section (fixed pool). */
