@@ -248,3 +248,23 @@ describe('the restore repeat', () => {
     expect(JOIN_GAP_S).toBeLessThan(JOIN_WATCH_S);
   });
 });
+
+describe('JoinWatch.rehold (coop4 round fix: a held OUT player returned at the connector)', () => {
+  it('points the held restore at the new spot; a watch its rejoin opened stays open (its first state still resyncs)', () => {
+    const w = new JoinWatch();
+    w.hold('C', HELD);
+    w.late('C', START, 1);
+    w.rehold('C', pt(200, 30, 2));
+    expect(w.watching('C')).toBe(true);
+    expect(w.heldSpot('C')).toEqual(pt(200, 30, 2));
+    expect(w.restores.get('C')).toMatchObject({ x: 200, z: 30, yaw: 2 });
+    expect(w.state('C', null, 2, 10, 1.05) & JOIN_RESYNC).toBe(JOIN_RESYNC);
+    // before any rejoin: just the restore moves (no watch opened)
+    const v = new JoinWatch();
+    v.hold('D', HELD);
+    v.rehold('D', pt(5, 6));
+    expect(v.watching('D')).toBe(false);
+    v.resume('D', 2);
+    expect(v.restoreStep('D', 140, 20, 2)).toMatchObject({ x: 5, z: 6 });
+  });
+});

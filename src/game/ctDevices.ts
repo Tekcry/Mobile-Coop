@@ -13,6 +13,7 @@ import { G } from '../physics/groups';
 import type { PlayerRef } from '../ai/enemy';
 import type { LightDef } from '../world/lights';
 import type { GameState } from './gameState';
+import { PLAYER_SLOTS, type TeamFields } from './playerSlots';
 import {
   DEV_IDLE,
   DEV_JAMMED,
@@ -89,12 +90,13 @@ import {
 export interface SecWire {
   /** (26) Each camera's clock (s), in the map's camera order (a jammed camera's clock stops: its sweep is frozen). */
   ck: number[];
-  /** Target id each player (0 host, 1 client) is actively jamming ('' none). */
-  j: [string, string];
-  /** (26) Jam seconds left of each player (`jamLeft`: the rest of the jam, `useMax` when ready, 0 cooling). */
-  ch: [number, number];
-  /** (26) Cooldown seconds left of each player. */
-  cd: [number, number];
+  /** Target id each player slot (0 host, 1..3 the clients) is actively jamming ('' none). (coop4 D1, A11) One entry per
+   *  slot, length 1..PLAYER_SLOTS: the host sends max(2, highest slot in use + 1) entries (the course always 2). */
+  j: string[];
+  /** (26) Jam seconds left of each player slot (`jamLeft`: the rest of the jam, `useMax` when ready, 0 cooling). */
+  ch: number[];
+  /** (26) Cooldown seconds left of each player slot. */
+  cd: number[];
   /** (26) The devices that are not idle: [id, phase (1 jammed, 2 recovering), seconds in the phase]. */
   dv: [string, number, number][];
   /** Alarm stage 0..ALARM_MAX. */
@@ -194,6 +196,18 @@ interface DevRt {
   idleFor: number;
 }
 
+/** (coop4 D1) One fresh entry per player slot (the jam state's arrays: allocated once, never per frame). */
+function perSlot<T>(make: () => T): T[] {
+  const out: T[] = [];
+  for (let k = 0; k < PLAYER_SLOTS; k++) out.push(make());
+  return out;
+}
+
+/** (coop4 D1) A team ref's slot (`TeamFields.slot`); a ref without one (the course, until N1) is its list index. */
+function refSlot(r: PlayerRef, i: number): number {
+  return (r as Partial<TeamFields>).slot ?? i;
+}
+
 /** (marlow-jammer, item 8) Light kinds the jammer can switch off: fixed electric lamps. */
 const JAM_LIGHT_KINDS: readonly string[] = ['lamp', 'spot'];
 
@@ -218,6 +232,8 @@ export interface CtHooks {
    *  player's live position. `key`: the device (laser index; a camera `CAM_KEY` + its index). Called before the alarm
    *  stage rises (`record`), so the reinforcements it brings know the spot. Host only. */
   alertAt?(x: number, y: number, z: number, key: number): void;
+  /** (coop4 D1) Client: this page's own player slot (its jam entry and HUD line). Unset: 1 (Marlow Yard's client). */
+  slot?: () => number;
 }
 
 /** (guard-ai S17) A camera's device key: `CAM_KEY` + its index (lasers use their index). */
@@ -225,7 +241,8 @@ export const CAM_KEY = 1000;
 
 /**
  * The CT prototype devices (B3): the held pistol jammer, the security cameras it blinds and the laser devices.
- * `host`: runs the authority (jam state, laser touches, camera alarm) for the host and the one client. `client`: mirrors
+ * `host`: runs the authority (jam state, laser touches, camera alarm) for the host and the clients (coop4 D1: up to
+ * PLAYER_SLOTS, the jam state per slot). `client`: mirrors
  * it from the `course` message's `sec` field (cameras re-built locally from the map data and driven by the host's clock
  * and jam list, lasers as meshes) and sends its own jam intent as `jam` messages. Both read the local trigger.
  */
@@ -270,16 +287,16 @@ export class CtDevices {
   private readonly dead = new Set<string>();
   /** Sector Ops: the live section (-1 none; devices without a section are always live). */
   liveSection = -1;
-  readonly jam: [JamState, JamState] = [newJam(), newJam()];
-  /** Target each player jams now ('' none). */
-  readonly jamId: [string, string] = ['', ''];
+  /** (coop4 D1) Each player slot's jammer (0 the host, 1..3 the clients; PLAYER_SLOTS long). */
+  readonly jam: JamState[] = perSlot(newJam);
+  /** Target each player slot jams now ('' none). */
+  readonly jamId: string[] = perSlot(() => '');
   alarm = 0;
   /** What the local aim is on (the gun light's green), '' none. */
   localPick = '';
   /** Laser breaks counted (each raises the alarm; none deals damage: sector-fixes C, item 5) (tests). */
   hits = 0;
   readonly zones: PassZone[];
-  private readonly me: 0 | 1;
   private view: SecurityView | null = null;
   /** (camera-cue) The faint red scan grid of what each camera sees (render only). */
   private cue: CameraCueView | null = null;
@@ -289,15 +306,21 @@ export class CtDevices {
   private readonly refTmp: PlayerRef[] = [];
   private readonly bodies: SeenBody[] = [newSeenBody()];
   private time = 0;
-  private want: [string, string] = ['', ''];
-  private wantAt: [number, number] = [-9, -9];
+  /** (coop4 D1) Per slot: the jam intent and when it came (`JAMMER.stale`). */
+  private readonly want: string[] = perSlot(() => '');
+  private readonly wantAt: number[] = perSlot(() => -9);
+  /** (coop4 D1) Host: a bit per slot that had a team ref at the last step (`wireLen`). */
+  private slotMask = 0;
+  /** (coop4 D1) Client: the jam entries the last wire carried (`frame` runs them on). */
+  private wireN = 2;
   private lockId = '';
   private sentId = '';
   private sentT = 0;
   private camOff = new Set<string>();
   /** (sector-fixes S) Cameras off by their `offFlag` (a security console), refreshed in `applyJam`. */
   private readonly flagOff = new Set<string>();
-  private cool: { t: number }[] = [{ t: 0 }, { t: 0 }];
+  /** Each player slot's laser cooldown (`laserCooldown`). */
+  private readonly cool: { t: number }[] = perSlot(() => ({ t: 0 }));
   private alarmT = -99;
   /** (guard-ai S17) Scratch for a broken beam's spot (`beamSpot`). */
   private readonly spot = { x: 0, y: 0, z: 0 };
@@ -339,6 +362,13 @@ export class CtDevices {
   /** (marlow-polish) The client's own rounds that sparked off a bulletproof housing (tests). */
   ricochets = 0;
 
+  /** (coop4 D1) This page's own slot: the host 0; a client its `hooks.slot` (default 1, the course's client). Read each use. */
+  private me(): number {
+    if (this.role === 'host') return 0;
+    const s = this.hooks.slot?.();
+    return s !== undefined && Number.isInteger(s) && s >= 0 && s < PLAYER_SLOTS ? s : 1;
+  }
+
   /**
    * (marlow-polish) Client: our own round from `a` to `b` through the mirrored cameras. When the nearest housing along
    * it is bulletproof, the host's ricochet (SecuritySystem.shotRay, GameState's `onRicochet`) plays here too: the sparks
@@ -360,7 +390,6 @@ export class CtDevices {
     private role: 'host' | 'client',
     private hooks: CtHooks,
   ) {
-    this.me = role === 'host' ? 0 : 1;
     const lay = g.world.layout;
     this.zones = lay.passZones ?? [];
     if (role === 'host') {
@@ -783,7 +812,7 @@ export class CtDevices {
   private updateHud(pistol: boolean): void {
     const el = this.hudEl;
     if (!el) return;
-    const s = this.jam[this.me];
+    const s = this.jam[this.me()]!;
     const dv = this.localPick ? this.devOf.get(this.localPick) : undefined;
     const show = pistol || s.active || s.cool > 0;
     const rec = dv?.d.ph === DEV_RECOVER;
@@ -798,23 +827,32 @@ export class CtDevices {
     el.style.display = text ? '' : 'none';
   }
 
-  /** The client's intent (host side, from a `jam` message); `eye`: the client's camera eye it aimed from. */
-  onRemoteJam(tgt: string, eye?: readonly [number, number, number]): void {
+  /** The client's intent (host side, from a `jam` message); `eye`: the client's camera eye it aimed from; `slot`: the
+   *  client's player slot (coop4 D1; 1..PLAYER_SLOTS-1, default 1: Marlow Yard's client; any other is dropped). */
+  onRemoteJam(tgt: string, eye?: readonly [number, number, number], slot = 1): void {
+    if (!Number.isInteger(slot) || slot < 1 || slot >= PLAYER_SLOTS) return;
     let ok = tgt !== '' && this.targets.some((t) => t.id === tgt);
     // (fix round 1) the same static line of sight the client checks: a modified client cannot jam through walls.
     // (jammer-fixes) from the client's camera eye (where its aim was checked), taken only within `JAMMER.eyeTol` of its
     // head with a clear line between them (no eye through a wall); otherwise from its head. Runs per message (a change
     // or the heartbeat), no allocation
     if (ok) {
-      const r = this.g.playerRefsInto(this.refTmp)[1];
+      const r = this.refOfSlot(slot);
       if (!r) ok = false;
       else {
         jamOrigin(r.feet.x + (r.peekX ?? 0), remoteHeadY(r.feet.y, r.crouched), r.feet.z + (r.peekZ ?? 0), eye, this.eyeClear, this.eyeAt);
         ok = this.clearFrom(this.eyeAt.x, this.eyeAt.y, this.eyeAt.z, tgt);
       }
     }
-    this.want[1] = ok ? tgt : '';
-    this.wantAt[1] = this.time;
+    this.want[slot] = ok ? tgt : '';
+    this.wantAt[slot] = this.time;
+  }
+
+  /** (coop4 D1) The team ref on player slot `slot` (`refSlot`), undefined when none. No allocation. */
+  private refOfSlot(slot: number): PlayerRef | undefined {
+    const refs = this.g.playerRefsInto(this.refTmp);
+    for (let i = 0; i < refs.length; i++) if (refSlot(refs[i]!, i) === slot) return refs[i];
+    return undefined;
   }
 
   private updateLamp(pistol: boolean): void {
@@ -827,7 +865,7 @@ export class CtDevices {
     }
     this.lamp.isVisible = pistol;
     if (!pistol) return;
-    const s = this.jam[this.me];
+    const s = this.jam[this.me()]!;
     const busy = this.localPick !== '' && this.devOf.get(this.localPick)?.d.ph === DEV_RECOVER;
     this.lamp.instancedBuffers.color = s.active ? (((this.lampT * 8) | 0) % 2 === 0 ? ON : ON_DIM) : s.cool > 0 ? EMPTY : busy ? BUSY : this.localPick ? AIMED : IDLE;
   }
@@ -837,27 +875,36 @@ export class CtDevices {
   fixedUpdate(dt: number): void {
     this.time += dt;
     const refs = this.g.playerRefs();
+    // the pass zones, the hallway rule and the scanners stay two-player (Marlow Yard's stations)
     const n = Math.min(2, refs.length);
-    for (let i = 0; i < n; i++) {
+    // (coop4 D1) every team ref on its own slot (a ref's slot, else its list index); a slot without a ref (empty, or a
+    // dropped player's held slot) idles: its jam ends and its cooldown runs down
+    let mask = 0;
+    for (let i = 0; i < refs.length; i++) {
       const r = refs[i]!;
+      const k = refSlot(r, i);
+      if (k < 0 || k >= PLAYER_SLOTS || (mask & (1 << k)) !== 0) continue;
+      mask |= 1 << k;
       const alive = r.target.alive;
-      const fresh = alive && this.time - this.wantAt[i]! <= JAMMER.stale;
-      const tgt = fresh ? this.want[i]! : '';
+      const fresh = alive && this.time - this.wantAt[k]! <= JAMMER.stale;
+      const tgt = fresh ? this.want[k]! : '';
       const dv = tgt !== '' ? this.devOf.get(tgt) : undefined;
-      const s = this.jam[i]!;
+      const s = this.jam[k]!;
       // a device that reboots cannot be jammed (A3); a jam keeps its own target (aiming at another one ends it)
-      const ok = !!dv && !this.dead.has(tgt) && !this.flagOff.has(tgt) && dv.d.ph !== DEV_RECOVER && this.inReach(dv.t, r) && (!s.active || tgt === this.jamId[i]);
+      const ok = !!dv && !this.dead.has(tgt) && !this.flagOff.has(tgt) && dv.d.ph !== DEV_RECOVER && this.inReach(dv.t, r) && (!s.active || tgt === this.jamId[k]);
       const on = stepJam(s, ok, r.speed, dt);
       const id = on ? tgt : '';
-      if (id !== this.jamId[i]) {
-        this.jamId[i] = id as string;
+      if (id !== this.jamId[k]) {
+        this.jamId[k] = id;
         this.changed = true;
       }
     }
-    for (let i = n; i < 2; i++) {
-      stepJam(this.jam[i]!, false, 0, dt);
-      if (this.jamId[i] !== '') {
-        this.jamId[i] = '';
+    this.slotMask = mask;
+    for (let k = 0; k < PLAYER_SLOTS; k++) {
+      if ((mask & (1 << k)) !== 0) continue;
+      stepJam(this.jam[k]!, false, 0, dt);
+      if (this.jamId[k] !== '') {
+        this.jamId[k] = '';
         this.changed = true;
       }
     }
@@ -870,7 +917,14 @@ export class CtDevices {
     this.cue?.update(dt, this.g.vision.kind === 2);
     this.followVision();
     // laser breaks: the alarm, never damage (sector-fixes C, item 5)
-    for (let i = 0; i < n; i++) this.touch(i, refs[i]!, dt);
+    // (coop4 D1) every player, on its slot's laser cooldown
+    let tm = 0;
+    for (let i = 0; i < refs.length; i++) {
+      const k = refSlot(refs[i]!, i);
+      if (k < 0 || k >= PLAYER_SLOTS || (tm & (1 << k)) !== 0) continue;
+      tm |= 1 << k;
+      this.touch(k, refs[i]!, dt);
+    }
     this.stepScans(dt, refs, n);
     // pass zones: both (or the solo player; N1: one player in an `any` zone) inside sets the flag; (B8) a bay restart
     // that cleared the flag re-arms it
@@ -962,7 +1016,20 @@ export class CtDevices {
   }
 
   private jammed(id: string): boolean {
-    return this.jamId[0] === id || this.jamId[1] === id;
+    for (let k = 0; k < PLAYER_SLOTS; k++) if (this.jamId[k] === id) return true;
+    return false;
+  }
+
+  /**
+   * (coop4 D1) Host: the jam entries the wire carries: max(2, highest slot in use + 1). In use: a team ref on it at the
+   * last step, or a jam or cooldown still running (a player who just left). Marlow Yard always gives 2 (A27).
+   */
+  private wireLen(): number {
+    for (let k = PLAYER_SLOTS - 1; k > 1; k--) {
+      const s = this.jam[k]!;
+      if ((this.slotMask & (1 << k)) !== 0 || s.active || s.cool > 0 || this.jamId[k] !== '') return k + 1;
+    }
+    return 2;
   }
 
   /**
@@ -1136,11 +1203,22 @@ export class CtDevices {
   wire(): SecWire {
     const dv: [string, number, number][] = [];
     for (const d of this.devs) if (d.d.ph !== DEV_IDLE) dv.push([d.t.id, d.d.ph, Math.round(d.d.t * 100) / 100]);
+    // (coop4 D1) one entry per slot in use (the course: 2, as before)
+    const n = this.wireLen();
+    const j: string[] = [];
+    const ch: number[] = [];
+    const cd: number[] = [];
+    for (let k = 0; k < n; k++) {
+      const s = this.jam[k]!;
+      j.push(this.jamId[k]!);
+      ch.push(Math.round(jamLeft(s) * 100) / 100);
+      cd.push(Math.round(s.cool * 100) / 100);
+    }
     return {
       ck: this.cams.map((c) => Math.round(c.clock * 1000) / 1000),
-      j: [this.jamId[0], this.jamId[1]],
-      ch: [Math.round(jamLeft(this.jam[0]) * 100) / 100, Math.round(jamLeft(this.jam[1]) * 100) / 100],
-      cd: [Math.round(this.jam[0].cool * 100) / 100, Math.round(this.jam[1].cool * 100) / 100],
+      j,
+      ch,
+      cd,
       dv,
       al: this.alarm,
       ...(this.scans.length > 0 ? { sc: this.scans.map((s) => packScan(s.pair, s.occ)) } : {}),
@@ -1151,13 +1229,16 @@ export class CtDevices {
 
   /** Client: the host's device state. */
   apply(s: SecWire): void {
-    this.jamId[0] = s.j[0];
-    this.jamId[1] = s.j[1];
-    for (let k = 0; k < 2; k++) {
-      const st = this.jam[k as 0 | 1];
-      st.active = s.j[k] !== '';
-      st.use = st.active ? JAMMER.useMax - s.ch[k]! : 0;
-      st.cool = s.cd[k]!;
+    // (coop4 D1) every entry the host sent, one per slot; the slots it did not carry are idle
+    const n = Math.min(PLAYER_SLOTS, s.j.length);
+    this.wireN = n;
+    for (let k = 0; k < PLAYER_SLOTS; k++) {
+      const st = this.jam[k]!;
+      const id = k < n ? (s.j[k] ?? '') : '';
+      this.jamId[k] = id;
+      st.active = id !== '';
+      st.use = st.active ? JAMMER.useMax - (s.ch[k] ?? 0) : 0;
+      st.cool = k < n ? (s.cd[k] ?? 0) : 0;
     }
     // the devices' timelines: those listed take the host's phase and time, the rest are idle; (fix round 1) only ever
     // forward: a late host reboot the mirror already ran down is dropped (`mirrorDevJam`: no blink back into it)
@@ -1199,8 +1280,8 @@ export class CtDevices {
   frame(dt: number): void {
     if (this.role !== 'client') return;
     // the host's timelines run on between its messages: the jams, the cooldowns, the reboots and the light flickers
-    for (let k = 0; k < 2; k++) {
-      const st = this.jam[k as 0 | 1];
+    for (let k = 0; k < this.wireN; k++) {
+      const st = this.jam[k]!;
       if (st.active) st.use = Math.min(JAMMER.useMax, st.use + dt);
       else if (st.cool > 0) st.cool = Math.max(0, st.cool - dt);
     }
@@ -1253,11 +1334,19 @@ export class CtDevices {
 
   /** Test view (`window.__ctdev.debug()`). */
   debug(): Record<string, unknown> {
+    // (coop4 D1) one entry per slot on the wire (the course: 2)
+    const dn = this.role === 'host' ? this.wireLen() : Math.max(2, this.wireN);
+    const left: number[] = [];
+    const cool: number[] = [];
+    for (let k = 0; k < dn; k++) {
+      left.push(jamLeft(this.jam[k]!));
+      cool.push(this.jam[k]!.cool);
+    }
     return {
       role: this.role,
-      jam: [...this.jamId],
-      left: [jamLeft(this.jam[0]), jamLeft(this.jam[1])],
-      cool: [this.jam[0].cool, this.jam[1].cool],
+      jam: this.jamId.slice(0, dn),
+      left,
+      cool,
       hud: this.hudText,
       devs: this.devs.filter((d) => d.d.ph !== DEV_IDLE).map((d) => ({ id: d.t.id, kind: d.t.kind, ph: d.d.ph, t: d.d.t, on: d.light ? d.light.on : undefined })),
       lights: this.devs.filter((d) => d.light).map((d) => ({ id: d.t.id, x: d.t.x, y: d.t.y, z: d.t.z, on: d.light!.on })),

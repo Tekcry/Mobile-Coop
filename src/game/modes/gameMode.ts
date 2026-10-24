@@ -69,8 +69,12 @@ export interface GameMode {
   /** An enemy came (back) into play: a knocked-out one woken by a squadmate, or reinforcements. */
   onEnemyJoined?(e: Enemy): void;
   onPlayerDeath(): void;
-  /** Co-op host: a downed player cannot be revived (window over, no revives left) while a partner is still up. */
-  onPlayerOut?(): void;
+  /** Co-op host: a downed player cannot be revived (window over, no revives left) while a partner is still up; (coop4
+   *  OUT) `id` is that player ('local' = the host). */
+  onPlayerOut?(id?: string): void;
+  /** Co-op host: remote `id` left for good (a lobby leave or its hold ran out). (coop4 OUT) Sector Ops drops it from
+   *  the OUT list and the wire's mask at once. */
+  onPlayerLeft?(id: string): void;
   /** The alarm went off; return true when the mode brings its own reinforcements (Hunter doubles the count). */
   onAlarm?(at: Vector3): boolean;
   /** An interactable the mode put down was used. */
@@ -87,8 +91,9 @@ export interface GameMode {
   onRemoteUse?(id: string, active: boolean): void;
   /** Co-op host: a client's takedown finished (host-checked); `kind` is the client's takedown kind ('' unknown). */
   onRemoteTakedown?(id: string, kind: string): void;
-  /** Co-op host: a client's held jammer target (CT prototype B3; '' = released) and (jammer-fixes) its camera eye. */
-  onRemoteJam?(id: string, tgt: string, eye?: readonly [number, number, number]): void;
+  /** Co-op host: a client's held jammer target (CT prototype B3; '' = released) and (jammer-fixes) its camera eye; (coop4 D1)
+   *  the sender's player slot (its `SecWire` entry; absent: 1). */
+  onRemoteJam?(id: string, tgt: string, eye?: readonly [number, number, number], slot?: number): void;
   /** Co-op host: a client's thrown gadget took effect (host-checked). */
   onRemoteGadget?(id: string, kind: string): void;
   /** (spare 9) Host / solo: an interrogation gave the team code flag `flag` (part B wires the modes). */

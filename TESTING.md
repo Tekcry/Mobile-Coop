@@ -657,6 +657,11 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   middle mouse pings while scoped too. Controls screen: Zoom and Ping both on R3 show no conflict (the pad note names
   the context); put another verb on R3 and it shows as a conflict.
 - [ ] Close the host tab: the client is told and returns to the menu.
+- [ ] (coop4) Sector Ops with 4 players: open `?net=local&autostart=campusOps&mode=sector&players=4` in 4 tabs; the match
+  starts once the 4th is in. Each tab sees 3 teammates, spawned apart, with beacon colours blue (host), red, amber and
+  violet; the minimap dots match. Two pairs run a team move at once (leg-up and throw); a second player trying a busy
+  partner's brace gets "Your partner is busy with someone else". Syringes show 4 on Normal. In tab 3: Start > Quit to menu,
+  then Main menu > Rejoin: same slot and colour. Marlow Yard (`autostart=ctcourse&mode=course`) still takes 2: a 3rd tab gets "Room full".
 - [ ] (marlow-bays B+M) Marlow Yard in two tabs (`?net=local&autostart=ctcourse&mode=course`): as the joiner, grab a
   guard and walk: full hold speed, no shoving or jitter; on the host the guard stays in front of the joiner's body.
 - [ ] A1: only the host does the leg-up, drops into the yard and presses the bolt: the wicket opens; the apron side shows

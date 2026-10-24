@@ -23,7 +23,9 @@ import { CT } from '../config/movement';
 import { CLIENT_INTERP_DELAY, ClockSync, sendClock } from './interp';
 import type { CKind } from '../game/committedMoves';
 import { RemoteAvatar } from './remoteAvatar';
-import { setPlayerGlow } from '../operators/runtime/playerFigure';
+import { goggleColour } from '../operators/runtime/goggle';
+import type { OperatorFigure } from '../operators/runtime/figure';
+import type { SpawnBody } from '../game/spawnSlots';
 import { EnemyPuppet } from './enemyPuppet';
 import { infoAtSpawn } from '../ai/guardInfo';
 import { PartnerTarget } from './partnerTarget';
@@ -51,6 +53,7 @@ import { CrackPrediction } from '../world/doorPeek';
 import { markCompleted } from '../save/sectorRecord';
 import { HoldPulseWatch } from './holdPulse';
 import { BOLT_DEPTH, SECTOR_RESTART_TITLE, boltById, boltHalfSpan, type SectorRatingWire } from '../game/sectors';
+import { OUT_LINE, OutFollow, slotOut } from '../game/sectorOut';
 import { barkLine, BARK_EVENTS, RADIO_BARKS } from '../ai/barks';
 import { HelmetDrops } from '../ai/helmetDrops';
 import { DeflectLedger } from './puppetGear';
@@ -62,6 +65,23 @@ import type { SlotPoint } from '../game/spawnSlots';
 const SEND_HZ = 20;
 /** (afp AF6) `CLIENT_INTERP_DELAY` (interp.ts; was 0.12). */
 const INTERP_DELAY = CLIENT_INTERP_DELAY;
+
+/** (G135, coop4 A15) A body's goggle colour by player slot: slot 0 keeps the lens asset's green (`goggleColour`). */
+function glowBySlot(figure: OperatorFigure, slot: number): void {
+  figure.setGlowColour(slot <= 0 ? null : goggleColour(slot));
+}
+
+/** (coop4 round fix, check B) The client's out follow view scan: `Map.forEach` with this module function and a reused
+ *  context, so a step while out makes no entry array, iterator or closure. */
+interface ClientFollowScan {
+  f: OutFollow;
+  mask: number;
+  s: { slotOf(id: string): number };
+}
+function followSetAvatar(this: ClientFollowScan, a: RemoteAvatar, id: string): void {
+  const s = this.s.slotOf(id);
+  if (!a.dead && !slotOut(this.mask, s)) this.f.set(s, a.pos);
+}
 
 /**
  * Client side of a match. Only the local player is simulated (predicted); enemies, modes, pickups, objectives, doors
@@ -117,6 +137,16 @@ export class CoopClient implements NetAttachment {
   private sec: CtDevices | null = null;
   /** (sector-restart) The section our checkpoint loadout was recorded for (the host's live section only moves on). */
   private kitSection = 0;
+  /** (coop4 OUT) The host's OUT slots (the `sector` message's `ot`; 0 = nobody out). */
+  private outMask = 0;
+  /** (coop4 OUT, A16) Our follow view while we are out. */
+  private readonly follow = new OutFollow();
+  /** (coop4 round fix) `followStep`'s reused scan context (`followSetAvatar`; mask and session set each step). */
+  private readonly followScan: ClientFollowScan = { f: this.follow, mask: 0, s: { slotOf: () => -1 } };
+  /** (coop4 OUT) We are out, waiting for the next connector (Sector Ops, 3-4 players). */
+  private get outSelf(): boolean {
+    return slotOut(this.outMask, this.slot());
+  }
   /** (section-rating S3) The host's last section rating as the HUD card shows it (null before the first). */
   rating: RatingView | null = null;
   /** (section-rating S3) Bumped on each new rating (the HUD shows the card when it changes). */
@@ -170,7 +200,7 @@ export class CoopClient implements NetAttachment {
     this.offs.push(s.events.on('game', ({ msg }) => this.receive(msg)));
     // (coop-carry) our carry: the host decides the pick up and the hide (`use`), our put down tells it
     this.carry = new ClientCarry(g, () => this.ints, (id) => this.s.toHost({ t: 'use', id }), () => this.canRagdoll());
-    // (G135) the goggle colours follow the host's player order (host green, us cyan as the partner)
+    // (G135, coop4 A15) the goggle colours and our beacon follow the host's slots (host green / blue, then by slot)
     this.recolour();
     this.offs.push(s.events.on('lobby', () => this.recolour()));
     // (coop-rejoin, walk item 4) our own slot of the start area (the map's slot point, else a safe spot beside the
@@ -187,7 +217,8 @@ export class CoopClient implements NetAttachment {
     }
     if (g.opts.mode === 'sector') {
       // Sector Ops: the cameras and lasers as the host's `sector` message drives them; our jam goes to the host
-      const ct = new CtDevices(g, 'client', { say: () => undefined, record: () => undefined, dirty: () => undefined });
+      // (coop4 D1) our slot: our jam's entry in `SecWire` (read each use)
+      const ct = new CtDevices(g, 'client', { say: () => undefined, record: () => undefined, dirty: () => undefined, slot: () => this.slot() });
       this.sec = ct;
       g.ctDev = ct;
       // (sector-restart, M9) our loadout as section 1 begins: a checkpoint restart gives it back
@@ -369,7 +400,7 @@ export class CoopClient implements NetAttachment {
       a = new RemoteAvatar(g.world, g.vfx, g.ballistics, info);
       a.onFire = (cls, at, gun, quiet) => g.events.emit('remoteShot', { cls, x: at.x, y: at.y, z: at.z, gun, quiet });
       this.avatars.set(st.id, a);
-      setPlayerGlow(a.figure, [...this.s.players.values()], st.id);
+      glowBySlot(a.figure, this.s.slotOf(st.id));
       // course mode (D38): the partner can be shot (the host decides the damage, co-op rules)
       if (g.opts.mode === 'course') {
         const t = new PartnerTarget(g.scene, g.registry, st.id, a);
@@ -383,15 +414,14 @@ export class CoopClient implements NetAttachment {
     return a;
   }
 
-  /** (coop-rejoin) Our player slot: 1 + our place among the joiners in the host's lobby order (the host is slot 0). */
+  /** (coop4 A10) Players in the session (the host's lobby: connected plus held). */
+  teamSize(): number {
+    return this.s.players.size;
+  }
+
+  /** (coop-rejoin, coop4 A19) Our player slot: the one the host's lobby gives us (`NetSession.selfSlot`). */
   private slot(): number {
-    let i = 1;
-    for (const p of this.s.players.values()) {
-      if (p.host) continue;
-      if (p.id === this.s.selfId) return i;
-      i++;
-    }
-    return 1;
+    return this.s.selfSlot;
   }
 
   /** (coop-rejoin, walk item 4) Our start: our slot of the start area, clear of the host's slot 0 point. */
@@ -401,16 +431,24 @@ export class CoopClient implements NetAttachment {
     const base = pts[0];
     if (!base) return;
     const out: SlotPoint = { x: 0, y: 0, z: 0, yaw: 0 };
-    if (placeSlot(g, pts, this.slot(), [base], out) === 'none') return;
+    // (coop4 A14) the lower slots' spots first (as the host places them), so slots 2-3 keep clear of slot 1's
+    const others: SpawnBody[] = [base];
+    const mine = Math.max(1, this.slot());
+    for (let k = 1; k < mine; k++) {
+      if (placeSlot(g, pts, k, others, out) === 'none') return;
+      others.push({ x: out.x, y: out.y, z: out.z });
+    }
+    if (placeSlot(g, pts, mine, others, out) === 'none') return;
     g.player.controller.teleport(new Vector3(out.x, out.y, out.z), out.yaw);
     g.player.cam.yaw = out.yaw;
   }
 
-  /** (G135) Every body's goggle colour from its player slot: the partner beacon. */
+  /** (G135, coop4 A15) Every body's goggle colour from its player slot, and our own beacon (slot + 1). */
   private recolour(): void {
-    const ps = [...this.s.players.values()];
-    setPlayerGlow(this.g.player.figure, ps, this.s.selfId);
-    for (const [id, a] of this.avatars) setPlayerGlow(a.figure, ps, id);
+    const me = this.s.selfSlot;
+    this.g.setLocalSlot(me);
+    glowBySlot(this.g.player.figure, me);
+    for (const [id, a] of this.avatars) glowBySlot(a.figure, this.s.slotOf(id));
   }
 
   private dropAvatar(id: string): void {
@@ -610,6 +648,7 @@ export class CoopClient implements NetAttachment {
     const sec = own ? /\((\d+)\)$/.exec(own.label)?.[1] : undefined;
     if (own) this.g.hud.setDownTimer(sec ? `DOWN - revive in ${sec} s` : 'DOWN');
     else if (!this.g.player.alive && this.g.opts.mode === 'course') this.g.hud.setDownTimer('OUT - wait for the checkpoint');
+    else if (!this.g.player.alive && this.outSelf) this.g.hud.setDownTimer(OUT_LINE);
     else this.g.hud.setDownTimer(null);
   }
 
@@ -960,6 +999,17 @@ export class CoopClient implements NetAttachment {
    */
   private onSector(msg: Extract<Msg, { t: 'sector' }>): void {
     const ct = this.sec;
+    // (coop4 OUT) the OUT slots first: going out puts our section loadout back (as the host does for its own), so the
+    // grant and the next connector's record build on it
+    const om = msg.ot ?? 0;
+    if (om !== this.outMask) {
+      const was = this.outSelf;
+      this.outMask = om;
+      if (this.outSelf && !was && !this.g.player.alive) {
+        this.g.weapons.restoreCheckpoint();
+        this.g.hud.setDownTimer(OUT_LINE);
+      }
+    }
     // (section-rating fix) the rating first: a top-up in the same message as a new `ls` goes into that checkpoint loadout
     if (!this.sawSector) {
       // (integration) a late join / rejoin: a rating already on the wire was shown and granted before we came; it
@@ -1055,8 +1105,29 @@ export class CoopClient implements NetAttachment {
     this.g.endSession(end.won, end.subtitle);
   }
 
+  /** (coop4 OUT, A16) Out: the view follows a teammate who is up (the switch-target input, next weapon, moves on); off
+   *  as soon as we are up again or no longer out. */
+  private followStep(): void {
+    const pl = this.g.player;
+    if (pl.alive || !this.outSelf) {
+      if (pl.followFeet) {
+        pl.followFeet = null;
+        this.follow.reset();
+      }
+      return;
+    }
+    const f = this.follow;
+    f.begin();
+    const sc = this.followScan;
+    sc.mask = this.outMask;
+    sc.s = this.s;
+    this.avatars.forEach(followSetAvatar, sc);
+    pl.followFeet = f.pick(this.g.app.input.state.pressed('swapNext') ? 1 : 0);
+  }
+
   fixedUpdate(dt: number): void {
     this.time += dt;
+    this.followStep();
     this.sendT -= dt;
     // (coop-fix) snapshots stopped (a stalled or gone host): say so on the objective line until the next one
     this.sinceSnap += dt;
@@ -1310,7 +1381,10 @@ export class CoopClient implements NetAttachment {
 
   blips(): Blip[] {
     const out: Blip[] = [];
-    for (const a of this.avatars.values()) out.push({ x: a.pos.x, z: a.pos.z, kind: 'ally' });
+    for (const [id, a] of this.avatars) {
+      const slot = this.s.slotOf(id);
+      out.push(slot < 0 ? { x: a.pos.x, z: a.pos.z, kind: 'ally' } : { x: a.pos.x, z: a.pos.z, kind: 'ally', slot });
+    }
     return out;
   }
 

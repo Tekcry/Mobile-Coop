@@ -69,6 +69,11 @@ export const S4_GUARDS: GearGuard[] = [
   { kind: 'grunt', x: -8.5, z: 29, yaw: PI / 2, takedownSpot: [-9.0, 29], post: { leash: 5, guards: 'c4-gate' }, role: 'posted', zone: 'c4', squad: 4, reason: 'The Old House is closed tonight: nobody goes down the colonnade' },
   // 20 the mobile supervisor: the hall's west aisle, visiting the battery, colonnade and UPS doors
   { kind: 'officer', x: -2.5, z: 23.0, yaw: 0, route: [[-2.5, 23.0], [-2.5, 39.5]], waits: [3, 3], takedownSpot: [-2.5, 23.0], role: 'supervisor', zone: 'hall-w', squad: 3, reason: 'Mobile supervisor: visits the battery, colonnade and UPS doors' },
+  // coop4 A8: spawned only for a team of 3 / 4 (`minPlayers`); appended, so the base list keeps its numbers (the desk operator is #5, never tagged)
+  // 21 the cage keyholder's second (3+): at the cage front gate, 1.2 m west of the keyholder, under cam-cage
+  { kind: 'grunt', x: 16.8, z: 33.0, yaw: PI, takedownSpot: [16.8, 33.0], role: 'sentry', zone: 'cage', squad: 3, minPlayers: 3, reason: 'Cage pair gate (the team door): with 3+ players one pair works the rear gate while another holds the keyholder, so a second guard stands the front gate' },
+  // 22 the second battery checker (4+): the UPS room <-> battery room round from the battery end
+  { kind: 'grunt', x: -7, z: 20, yaw: 0, route: [[-7, 20], [-7, 37]], waits: [3, 3], takedownSpot: [-7, 20], role: 'checker', zone: 'batt', squad: 4, minPlayers: 4, reason: 'Stealth route (service corridor, battery room, kp-batt): 4 players clear it from both ends, so a second checker walks the battery round from the colonnade end' },
 ];
 
 /** The exit legs every S4 route shares from the objective: the cage front, the build-out area, the UPS room, the colonnade, C4. */

@@ -5,7 +5,8 @@
  * context menu steps, `holdNoisePulse`). A client has no `EnemyManager`, so its mirrored item (which carries the
  * radius as `NetItem.hn`) is watched here and each pulse goes to the host as a `use` with `pulse: true`; the host checks
  * the sender is alive, the item live, noisy and in reach, and not pulsing faster than the hold does, then calls
- * `enemyMgr.hear(item, holdNoise)` exactly as for its own player.
+ * `enemyMgr.hear(item, holdNoise, 'noise', null, holder)` exactly as for its own player (coop4, Guard AI A172: the noise
+ * names its holder, at 2 players too).
  */
 import { HOLD_NOISE_PULSE, holdNoisePulse } from '../config/noise';
 import { hyp2 } from '../core/mathx';

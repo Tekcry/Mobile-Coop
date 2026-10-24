@@ -46,6 +46,8 @@ export interface SquadSlot {
   post?: PostDef;
   /** (guard-ai) Behaviour profile: hand-placed reinforcement-like guards are 'aggressive'; default 'standard'. */
   profile?: 'standard' | 'aggressive';
+  /** (coop4 A8) Sector Ops: spawned only when the team at the section's load has at least this many players; none = always. */
+  minPlayers?: number;
 }
 
 export interface RoomDef extends RoomRect {

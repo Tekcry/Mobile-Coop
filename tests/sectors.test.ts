@@ -345,14 +345,21 @@ describe('the Warehouse sections (A12, M8)', () => {
 
   it('M8: every guard has a takedown spot by its post or route that no other guard sees within 15 m, or 3 s of isolation in a row on its timed patrol (A2)', () => {
     for (const s of S) {
-      const gs = timed(s.guards);
-      for (let i = 0; i < s.guards.length; i++) {
-        const g = s.guards[i]!;
+      // the base list: the coop4 minPlayers tags walk beside a base guard (a second guard on his round), so they are not isolated from it by design
+      const bs = s.guards.filter((q) => q.minPlayers === undefined);
+      const gs = timed(bs);
+      for (const g of s.guards.filter((q) => q.minPlayers !== undefined)) {
+        expect(distToGuard(g, g.takedownSpot[0], g.takedownSpot[1]), `${s.id} tagged (${g.x}, ${g.z})`).toBeLessThanOrEqual(CHECK_SPOT);
+        expect(world.blocked(g.takedownSpot[0], g.y ?? 0, g.takedownSpot[1], 0.3), `${s.id} tagged (${g.x}, ${g.z}) spot`).toBe(false);
+        expect(world.blocked(g.x, g.y ?? 0, g.z, 0.3), `${s.id} tagged (${g.x}, ${g.z}) slot`).toBe(false);
+      }
+      for (let i = 0; i < bs.length; i++) {
+        const g = bs[i]!;
         const [x, z] = g.takedownSpot;
         const tag = `${s.id} guard ${i} (${g.x}, ${g.z})`;
         expect(distToGuard(g, x, z), tag).toBeLessThanOrEqual(CHECK_SPOT);
         expect(world.blocked(x, g.y ?? 0, z, 0.3), tag).toBe(false);
-        const seen = spotSeenBy(world, x, g.y ?? 0, z, s.guards, i, CHECK_RANGE);
+        const seen = spotSeenBy(world, x, g.y ?? 0, z, bs, i, CHECK_RANGE);
         // the static check (sections 2 and 3) or isolation in time at the spot (section 1, SPEC 6 C1)
         expect(seen === -1 || isolatedInTime(world, gs, i, g.takedownSpot), `${tag}: seen by guard ${seen} and no ${CHECK_ISOLATION} s of isolation at its spot (${longestIsolation(world, gs, i, CHECK_RANGE, g.takedownSpot)} s)`).toBe(true);
       }
@@ -361,10 +368,11 @@ describe('the Warehouse sections (A12, M8)', () => {
 
   it('sections 1-3 A2 survive patrol phase drift: every guard keeps CHECK_ISOLATION s at its spot under 30 random start phases', () => {
     for (const s of S) {
-      const gs = timed(s.guards);
+      const bs = s.guards.filter((q) => q.minPlayers === undefined);
+      const gs = timed(bs);
       for (let i = 0; i < gs.length; i++) {
-        const g = s.guards[i]!;
-        if (spotSeenBy(world, g.takedownSpot[0], g.y ?? 0, g.takedownSpot[1], s.guards, i, CHECK_RANGE) === -1) continue;
+        const g = bs[i]!;
+        if (spotSeenBy(world, g.takedownSpot[0], g.y ?? 0, g.takedownSpot[1], bs, i, CHECK_RANGE) === -1) continue;
         expect(worstIsolationOverPhases(world, gs, i, g.takedownSpot, 30, 7), `${s.id} guard ${i} (${g.x}, ${g.z})`).toBeGreaterThanOrEqual(CHECK_ISOLATION);
       }
     }
@@ -429,7 +437,7 @@ describe('the Warehouse sections (A12, M8)', () => {
     for (const g of s.guards.slice(0, 4)) expect(hyp2(g.x - sx, g.z - s.objective.z), 'guard by the DVR stand').toBeGreaterThan(1.8);
     expect(world.blocked(s.objective.x + 0.9, 0, s.objective.z, 0.3)).toBe(false);
     expect(0.9).toBeLessThan(SECTOR.downloadRange);
-    expect(s.guards.length).toBe(8);
+    expect(s.guards.filter((g) => g.minPlayers === undefined).length).toBe(8); // the base list (the coop4 tags: sectorGuardTags.test.ts)
     // ?sectorGuards=4 takes the first four: the gate officer, the yard patrol, the checker and the CCTV operator (no heavies, G155;
     // the yard patrol was a melee runner, armed as a grunt by sector-redesign G3)
     expect(s.guards.slice(0, 4).map((g) => g.kind)).toEqual(['officer', 'grunt', 'officer', 'officer']);
@@ -448,7 +456,7 @@ describe('the Warehouse sections (A12, M8)', () => {
     const s = S[1]!;
     expect(s.id).toBe('racking');
     expect(s.start).toEqual(S[0]!.connector!.checkpoint);
-    expect(s.guards.length).toBe(8);
+    expect(s.guards.filter((g) => g.minPlayers === undefined).length).toBe(8); // the base list (the coop4 tags: sectorGuardTags.test.ts)
     // ?sectorGuards=4 takes the checker, the reach driver, the stocktaker and the cage officer (no heavies, G155)
     expect(s.guards.slice(0, 4).map((g) => g.kind)).toEqual(['grunt', 'grunt', 'officer', 'officer']);
     // (sector-redesign G3 / G20) everyone armed, no heavies (G155), no sniper here, dogs only where the section allows them
@@ -478,7 +486,7 @@ describe('the Warehouse sections (A12, M8)', () => {
     expect(s.start).toEqual(S[1]!.connector!.checkpoint);
     expect(s.extract?.label).toBe('Extract by the east fire exit');
     expect(s.extract?.box).toEqual([21.4, -8.5, 23.7, -5.9]);
-    expect(s.guards.length).toBe(9);
+    expect(s.guards.filter((g) => g.minPlayers === undefined).length).toBe(9); // the base list (the coop4 tags: sectorGuardTags.test.ts)
     // ?sectorGuards=4 takes the porter, the loader, the clerk and the tour guard (no heavies, G155; the tour guard armed, G3)
     expect(s.guards.slice(0, 4).map((g) => g.kind)).toEqual(['grunt', 'grunt', 'officer', 'grunt']);
     // (sector-redesign G3 / G20) everyone armed, no heavies (G155), no sniper here, dogs only where the section allows them

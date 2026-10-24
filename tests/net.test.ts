@@ -851,6 +851,129 @@ describe('course messages (T1b)', () => {
   });
 });
 
+describe('coop4 N1: slots on the wire, Sector Ops cap 4 (A1, A19)', () => {
+  const lobby = (players: unknown[], mode = 'sector') => parseMessage({ t: 'lobby', players, mode, map: 'campusOps', difficulty: 'normal', phase: 'lobby' });
+  const slotsOf = (m: ReturnType<typeof parseMessage>): Record<string, number> => {
+    const out: Record<string, number> = {};
+    if (m?.t === 'lobby') for (const p of m.players) out[p.id] = p.slot;
+    return out;
+  };
+
+  it('capacity: Sector Ops 4, the course (Marlow Yard) stays 2, the legacy modes 4', () => {
+    expect(capacity('sector')).toBe(4);
+    expect(capacity('course')).toBe(2);
+    expect(capacity('infiltration')).toBe(4);
+    expect(capacity('sandbox')).toBe(4);
+  });
+
+  it('a lobby slot clamps to 0..3 and rounds', () => {
+    const m = lobby([
+      { id: 'H', host: true, slot: 0 },
+      { id: 'A', slot: 7 },
+      { id: 'B', slot: 1.4 },
+      { id: 'C', slot: -2 },
+    ]);
+    expect(slotsOf(m)).toEqual({ H: 0, A: 3, B: 1, C: 0 });
+  });
+
+  it('a missing or junk slot reads the list order (an older host)', () => {
+    const m = lobby([{ id: 'H', host: true }, { id: 'A' }, { id: 'B', slot: 'two' }, { id: 'C', slot: null }]);
+    expect(slotsOf(m)).toEqual({ H: 0, A: 1, B: 2, C: 3 });
+    // a mix: the given slots stay, the missing one takes its list place
+    expect(slotsOf(lobby([{ id: 'H', host: true, slot: 0 }, { id: 'A', slot: 3 }, { id: 'B' }]))).toEqual({ H: 0, A: 3, B: 2 });
+  });
+
+  it('secWire: j / ch / cd one entry per slot, padded to 2, cut at 4', () => {
+    const sec = (n: number) => {
+      const j: string[] = [];
+      const ch: number[] = [];
+      const cd: number[] = [];
+      for (let k = 0; k < n; k++) {
+        j.push(k % 2 ? `cam-${k}` : '');
+        ch.push(k + 0.5);
+        cd.push(k);
+      }
+      const m = parseMessage({ t: 'sector', sec: { ck: [], j, ch, cd, dv: [], al: 0 } });
+      return m?.t === 'sector' ? m.sec : undefined;
+    };
+    expect(sec(1)).toMatchObject({ j: ['', ''], ch: [0.5, 0], cd: [0, 0] });
+    expect(sec(2)).toMatchObject({ j: ['', 'cam-1'], ch: [0.5, 1.5], cd: [0, 1] });
+    expect(sec(4)).toMatchObject({ j: ['', 'cam-1', '', 'cam-3'], ch: [0.5, 1.5, 2.5, 3.5], cd: [0, 1, 2, 3] });
+    const six = sec(6);
+    expect(six?.j).toHaveLength(4);
+    expect(six?.ch).toHaveLength(4);
+    expect(six?.cd).toHaveLength(4);
+    // lists of different lengths: the longest decides, the others pad; junk entries read idle, numbers clamp
+    const m = parseMessage({ t: 'sector', sec: { ck: [], j: ['a', 5, '../x'], ch: [99], cd: 'no', dv: [], al: 0 } });
+    expect(m?.t === 'sector' && m.sec).toMatchObject({ j: ['a', '', ''], ch: [10, 0, 0], cd: [0, 0, 0] });
+  });
+
+  it('(coop4 OUT) the sector message\'s ot: a 1..15 slot mask, rounded; anything else dropped (never clamped to all out)', () => {
+    const ot = (v: unknown) => {
+      const m = parseMessage({ t: 'sector', sec: { ck: [], j: [], ch: [], cd: [], dv: [], al: 0 }, ot: v });
+      return m?.t === 'sector' ? m.ot : 'bad';
+    };
+    expect(ot(4)).toBe(4);
+    expect(ot(15)).toBe(15);
+    expect(ot(2.6)).toBe(3);
+    expect(ot(0)).toBeUndefined();
+    expect(ot(-1)).toBeUndefined();
+    expect(ot(16)).toBeUndefined();
+    expect(ot(1e9)).toBeUndefined();
+    expect(ot(Number.NaN)).toBeUndefined();
+    expect(ot(Number.POSITIVE_INFINITY)).toBeUndefined();
+    expect(ot('3')).toBeUndefined();
+    expect(ot(undefined)).toBeUndefined();
+  });
+
+  it('a full room refusal carries the room mode; an unknown mode is dropped', () => {
+    expect(parseMessage({ t: 'bye', reason: 'Room is full', mode: 'sector' })).toEqual({ t: 'bye', reason: 'Room is full', mode: 'sector' });
+    expect(parseMessage({ t: 'bye', reason: 'Room is full', mode: 'wave' })).toEqual({ t: 'bye', reason: 'Room is full' });
+    expect(parseMessage({ t: 'bye', reason: 'left' })).toEqual({ t: 'bye', reason: 'left' });
+  });
+
+  it('a 4-player Sector Ops lobby: slots 0-3 on every page, list in slot order; a fifth is refused with the mode', () => {
+    const h = hub();
+    const host = new NetSession(h.make('H'), 'host', 'ABCDE', prof('Host'));
+    host.setSettings('sector', 'campusOps', 'normal');
+    const cs = ['A', 'B', 'C'].map((id) => new NetSession(h.make(id), 'client', 'ABCDE', prof(id)));
+    expect(host.players.size).toBe(4);
+    for (const s of [host, ...cs]) {
+      expect(s.slotOf('H')).toBe(0);
+      expect(s.slotOf('A')).toBe(1);
+      expect(s.slotOf('B')).toBe(2);
+      expect(s.slotOf('C')).toBe(3);
+      expect([...s.players.values()].map((p) => p.slot).sort()).toEqual([0, 1, 2, 3]);
+    }
+    expect(cs.map((c) => c.selfSlot)).toEqual([1, 2, 3]);
+    expect(host.selfSlot).toBe(0);
+    const late = new NetSession(h.make('E'), 'client', 'ABCDE', prof('E'));
+    let full = false;
+    late.events.on('full', () => (full = true));
+    late.transport.send({ t: 'hello', v: PROTOCOL_VERSION, name: 'E', tag: {}, look: {} }, 'H');
+    expect(full).toBe(true);
+    expect(late.mode).toBe('sector');
+    expect(host.players.has('E')).toBe(false);
+  });
+
+  it('course regression: a 2-player course lobby gives slots 0 and 1; a third hello is refused ("Room full" says 2)', () => {
+    const h = hub();
+    const host = new NetSession(h.make('H'), 'host', 'ABCDE', prof('Host'));
+    expect(host.mode).toBe('course');
+    const a = new NetSession(h.make('A'), 'client', 'ABCDE', prof('A'));
+    expect(host.slotOf('H')).toBe(0);
+    expect(a.selfSlot).toBe(1);
+    const b = new NetSession(h.make('B'), 'client', 'ABCDE', prof('B'));
+    let full = false;
+    b.events.on('full', () => (full = true));
+    b.transport.send({ t: 'hello', v: PROTOCOL_VERSION, name: 'B', tag: {}, look: {} }, 'H');
+    expect(full).toBe(true);
+    expect(capacity(b.mode)).toBe(2);
+    expect(host.players.size).toBe(2);
+    expect(host.slotOf('B')).toBe(-1);
+  });
+});
+
 import { applyOpenTraps, GAP_HOST_SLACK, GAP_MENU, hostTrapKey, openTrapGaps, pickOpenTrap } from '../src/game/gapMenu';
 import { OPTIC_POINT_MAX, type OpticPoint } from '../src/player/opticCable';
 import type { Msg } from '../src/net/protocol';

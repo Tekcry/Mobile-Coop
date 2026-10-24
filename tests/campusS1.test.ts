@@ -140,7 +140,9 @@ describe('Saltmarsh Park (campusOps), registration and shape', () => {
 });
 
 describe('S1 guards (SPEC guard table)', () => {
-  const G = S1.guards;
+  // the base list (the coop4 minPlayers tags are appended and checked in sectorGuardTags.test.ts); ALL = base + tags
+  const G = S1.guards.filter((g) => g.minPlayers === undefined);
+  const ALL = S1.guards;
   it('eight guards: kinds and weapons as listed, all armed humans (checkSectorGuards passes), no dogs', () => {
     expect(G.length).toBe(8);
     expect(G.map((g) => g.kind)).toEqual(['officer', 'officer', 'grunt', 'officer', 'officer', 'grunt', 'grunt', 'grunt']);
@@ -226,7 +228,7 @@ describe('S1 guards (SPEC guard table)', () => {
   });
 
   it('every guard slot is at least 7 m from the start (SPAWN_MIN_DIST) and stands on the nav grid; every route point too', () => {
-    for (const [i, g] of G.entries()) {
+    for (const [i, g] of ALL.entries()) {
       expect(hyp2(g.x - S1.start.x, g.z - S1.start.z), `#${i + 1}`).toBeGreaterThanOrEqual(7);
       expect(onNav(g.x, g.z), `#${i + 1} slot (${g.x}, ${g.z})`).toBe(true);
       for (const p of g.route ?? []) expect(onNav(p[0], p[1]), `#${i + 1} route (${p[0]}, ${p[1]})`).toBe(true);
@@ -234,7 +236,7 @@ describe('S1 guards (SPEC guard table)', () => {
       expect(onNav(g.takedownSpot[0], g.takedownSpot[1]), `#${i + 1} takedown spot on the nav grid`).toBe(true);
     }
     // the first guard of a route starts where its route starts
-    for (const g of G) if (g.route) expect(hyp2(g.route[0]![0] - g.x, g.route[0]![1] - g.z)).toBeLessThan(0.1);
+    for (const g of ALL) if (g.route) expect(hyp2(g.route[0]![0] - g.x, g.route[0]![1] - g.z)).toBeLessThan(0.1);
   });
 
   it('the loop pair and the dock sentry turn the way their data says; the doorman faces south (K1)', () => {
@@ -559,13 +561,14 @@ describe('S1 element register E1-E12 (SPEC)', () => {
 
 describe('M8: isolation in time at each takedown spot (sectorCheck, the Warehouse tests\' check)', () => {
   const world = new SightWorld(b.boxes, b.cylinders);
-  const timed: CheckGuard[] = S1.guards.map((g) => {
+  const base = S1.guards.filter((g) => g.minPlayers === undefined);
+  const timed: CheckGuard[] = base.map((g) => {
     const speed = ENEMIES[g.kind].walkSpeed * (g.loop ? 1 : CHECK_PATROL_PACE);
     return { x: g.x, z: g.z, route: g.route as readonly (readonly [number, number])[] | undefined, wait: g.wait, waits: g.waits, speed, loop: g.loop };
   });
   /** (A2) A spot is isolated when no other guard sees it within 15 m for CHECK_ISOLATION s in a row on their timed patrols. */
   it('records each guard\'s longest isolated run at its spot; the loners (#5 behind the doorman, #6, #7 at the bin store, #8) hold 3 s', () => {
-    const rows = S1.guards.map((g, i) => ({ n: i + 1, run: longestIsolation(world, timed, i, 15, g.takedownSpot), ok: isolatedInTime(world, timed, i, g.takedownSpot) }));
+    const rows = base.map((g, i) => ({ n: i + 1, run: longestIsolation(world, timed, i, 15, g.takedownSpot), ok: isolatedInTime(world, timed, i, g.takedownSpot) }));
     // eslint-disable-next-line no-console
     if (process.env.CAMPUS_PRINT) console.log(rows.map((r) => `#${r.n} ${r.run}s ${r.ok ? 'ok' : 'NOT isolated'}`).join('\n'));
     // the two pairs (the gatehouse's #1 and #2 in one lit room, the car park's #3 and #4 walking together) are each other's

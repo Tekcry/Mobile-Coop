@@ -344,9 +344,16 @@ export class Player {
    *  movement foley; cosmetic. */
   footPlants = 0;
   footPlantSide = 1;
+  /** (coop4 OUT, A16) While this player is down and out (Sector Ops, 3-4 players): the teammate's feet the camera follows
+   *  (the net layer sets and clears it); null: the view stays on our own body. No free camera. */
+  followFeet: { readonly x: number; readonly y: number; readonly z: number } | null = null;
+  private readonly followAt = new Vector3();
 
   frameUpdate(dt: number, alpha: number, look: { x: number; y: number }, move?: { x: number; y: number }): void {
     const c = this.controller;
+    // (coop4 OUT) out and following a teammate: look turns the view round them
+    const fol = !this.alive ? this.followFeet : null;
+    if (fol && dt > 0) this.cam.addLook(look.x, look.y);
     if (this.alive && dt > 0) {
       // free orbit: look input applies in full, the same frame, in every state (the body never holds
       // the view back; when aiming the body turns to the view instead)
@@ -362,10 +369,18 @@ export class Player {
     this.cam.adsTarget = this.ads ? 1 : 0;
     this.applyFov();
     c.interpolate(alpha);
-    this.cam.crouch = c.crouchBlend;
-    this.cam.lean = this.pose.lean;
-    this.cam.update(dt, c.renderPos, c.crouchBlend);
-    this.world.frame(c.renderPos, dt);
+    if (fol) {
+      this.followAt.set(fol.x, fol.y, fol.z);
+      this.cam.crouch = 0;
+      this.cam.lean = 0;
+      this.cam.update(dt, this.followAt, 0);
+      this.world.frame(this.followAt, dt);
+    } else {
+      this.cam.crouch = c.crouchBlend;
+      this.cam.lean = this.pose.lean;
+      this.cam.update(dt, c.renderPos, c.crouchBlend);
+      this.world.frame(c.renderPos, dt);
+    }
 
     const root = this.rig.root;
     root.position.copyFrom(c.renderPos);

@@ -4,7 +4,7 @@
 // checkpoint (M7); and the nav check (M8): every route leg is walkable for the guards' nav grid, and a section is
 // reached only through its connector. `?sectorGuards=4` keeps software GL quick (4 guards per section).
 import { launch, frames, press, BTN, assert } from './e2e-lib.mjs';
-import { until, hostAndJoin, waitSim, teamLog } from './e2e-net-lib.mjs';
+import { until, hostAndJoin, waitSim, waitHostSim, teamLog, LOAD_MS_4, slotsOf, eachPage, slotTable, pumpPages, joinLate, setSimPages, onHostStep, offHostStep, hostStepResult } from './e2e-net-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const PARAMS = 'autostart=warehouseOps&mode=sector&sectorGuards=4';
@@ -12,7 +12,11 @@ const PARAMS = 'autostart=warehouseOps&mode=sector&sectorGuards=4';
 // sections, alarms, restarts, nav and the co-op mirror (the suite before slice R); 2 solo: the co-op lips out of reach
 // alone, the engine links the routes rely on (pipe jumps, crouch-walk, climb-ups), the ways down alone, every team door;
 // 3-5 two pages: section 1, 2, 3's co-op routes walked by host and client (leg-up, relay / rope) and its team door
-// unbolted by the client for both pages, re-bolted by a restart. Named alone the suite runs every part in sequence.
+// unbolted by the client for both pages, re-bolted by a restart; 6 campusOps S1-S3 greybox routes; (coop4 E2E) 7: four pages on
+// campusOps (slots, beacons, spawns, light, jam, crate, revive, connector, pair gate, tagged guards), 8: warehouseOps with a drop
+// and rejoin, a late fourth page and two pairs of team moves at once; (coop4 OUT) 9: three pages on campusOps, an operator out waits for
+// the connector (M1 b). Parts 7-9 run alone in a laptop slot. Named alone the
+// suite runs every part in sequence.
 const PART = Number(process.argv.find((a) => a.startsWith('--part='))?.slice(7) ?? 0);
 const want = (n) => PART === 0 || PART === n;
 let failed = false;
@@ -45,7 +49,9 @@ const sections = (G) =>
       obj: [s.objective.x, s.objective.y, s.objective.z],
       exit: (s.connector ?? s.extract).box,
       cp: s.connector ? s.connector.checkpoint : null,
-      guards: s.guards.length,
+      // (coop4 A8) the list a team of 1-2 spawns: the minPlayers-tagged guards are only for 3-4 (part 7 checks them)
+      guards: s.guards.filter((g) => g.minPlayers === undefined).length,
+      tagged: s.guards.filter((g) => g.minPlayers !== undefined).length,
       seals: (s.connector?.sealUnlocks ?? []).length,
     })),
   );
@@ -3705,6 +3711,1011 @@ if (want(1)) {
     assert(w.looked >= 1 && w.moved > 2, `S13: the team moves between sweep points (looked at ${w.looked}, skipped ${w.skipped}, the leader moved ${w.moved.toFixed(1)} m; switches ${w.switches})`);
     assert(w.t >= 120 && w.lv.every((l) => l === 'searching' || l === 'alert' || l === 'down') && !w.lv.includes('cooldown') && !w.lv.includes('unaware'), `S13: still hunting at ${w.t} s, none calm (${w.lv})`);
     assert(w.lead === 'enforcer', `S13: the shield guard still first in the team (${w.lead})`);
+  });
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// (coop4 E2E, BRIEF A11-A20, A26) Parts 7-8: Sector Ops with three or four players. "Four pages" means four pages of one
+// headless browser over `?net=local` (`hostAndJoin(url, 4)`), the host's page and three joiners, each driven by its own
+// pad / teleports; they run alone in a laptop slot (`E2E_GPU=1`, `E2E_LOAD_MS=240000`). Every page but the one in front
+// is stepped headless by `pumpPages` (the e2e-ctcourse pattern, here for all pages). The features these parts test come
+// from the coop4 slices (N1 slots, D1 per-slot jammer, SM team scale, TM `taken`, H1 beacons, DATA tags): a hook a build
+// does not have yet makes the check print "SKIP: <hook> missing" (listed again at the end of the part), never crash.
+// Part 7: campusOps, four operators (slots, beacons, avatars, spawns, light, jam, crate, revive, connector, pair gate,
+// tagged guards). Part 8: warehouseOps, three operators, a drop and rejoin, a late fourth, two pairs of team moves.
+// (coop4 AI6) Part 8 ends with the guard-AI legs of guard-ai #319's spec (the AI back on, four pages: the stage's shaped teams, two teams on two players, the draw on alarm).
+// ---------------------------------------------------------------------------------------------------------------------
+/** Hooks the 4-page parts could not find in this build (printed per part). */
+const MISSING = new Set();
+
+/**
+ * Host a room of `n` pages (a 4-seat room, then Sector Ops on `map`), start it, freeze the host's AI and pump every page;
+ * `fn(h)` gets the helpers. A failed leg (`h.leg`) is reported and the next still runs.
+ */
+async function coop4(title, { n = 4, map, params = 'net=local' }, fn) {
+  console.log(title);
+  MISSING.clear();
+  const errs = [];
+  let stopPump = () => {};
+  let browser = null;
+  try {
+    const H = await hostAndJoin(url, n, { params });
+    browser = H.browser;
+    const { ctx, A, pages, errors, startMode } = H;
+    errs.push(...errors);
+    stopPump = pumpPages(() => pages);
+    const GA = (f, a) => A.evaluate(f, a);
+    const GP = (i, f, a) => pages[i].evaluate(f, a);
+    const h = { ctx, A, pages, GA, GP, ids: [], slots: [], haveSlots: false };
+    const skip = (hook) => {
+      MISSING.add(hook);
+      console.log(`  SKIP: ${hook} missing`);
+    };
+    /** Each page's player id and own slot; `idxOf(slot)` is the page index of a slot (the page's own order when there is no slot hook). */
+    const refresh = async () => {
+      h.ids = await eachPage(pages, (P) => P.evaluate(() => window.__coop.session.selfId));
+      h.slots = await slotsOf(pages);
+      h.haveSlots = h.slots.length === pages.length && h.slots.every((s) => typeof s === 'number');
+    };
+    const idxOf = (slot) => {
+      const i = h.haveSlots ? h.slots.indexOf(slot) : -1;
+      return i >= 0 ? i : slot;
+    };
+    const allowAll = () => GA(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(3); });
+    const tpPage = (P, x, y, z, yaw) => P.evaluate(([x, y, z, w]) => { const g = window.__app.current; g.team.end(true); g.traversal.reset(); g.player.controller.teleport(new g.player.position.constructor(x, y, z), w); g.player.cam.yaw = w; g.player.cam.pitch = 0; }, [x, y, z, yaw]);
+    /** Page `i` to (x, z) facing `yaw`; returns when the host's copy of it (a joiner) or its own feet (the host) is there. */
+    const moveTo = async (i, x, z, yaw, y = 0.1) => {
+      if (i === 0) {
+        await tpPage(A, x, y, z, yaw);
+        await until(A, ([x, z]) => { const p = window.__app.current.player.controller.pos; return Math.hypot(p.x - x, p.z - z) < 0.4; }, [x, z], 15000, `the host at ${x.toFixed(1)}, ${z.toFixed(1)}`);
+        return;
+      }
+      await allowAll();
+      await tpPage(pages[i], x, y, z, yaw);
+      await until(A, ([id, x, z]) => { const r = window.__app.current.net.remotes.get(id); return !!r && Math.hypot(r.feet.x - x, r.feet.z - z) < 0.5; }, [h.ids[i], x, z], 15000, `the host sees page ${i} at ${x.toFixed(1)}, ${z.toFixed(1)}`);
+    };
+    const posOf = (i) => pages[i].evaluate(() => { const p = window.__app.current.player.controller.pos; return [p.x, p.y, p.z]; });
+    const padReady = (P) => P.evaluate(() => { window.__pad.connect(); for (let i = 0; i < 4; i++) window.__pad.axis(i, 0); for (let i = 0; i < 17; i++) window.__pad.set(i, 0); window.__app.current.player.controller.clearCrouchToggle(); });
+    const setPad = (P, b, v) => P.evaluate(([b, v]) => window.__pad.set(b, v), [b, v]);
+    const holdUntil = async (P, btn, cond, what, arg, timeout = 20000) => {
+      await P.evaluate((b) => window.__pad.set(b, 1), btn);
+      try {
+        await until(P, cond, arg, timeout, what);
+      } finally {
+        await P.evaluate((b) => window.__pad.set(b, 0), btn);
+      }
+    };
+    const crouch = async (P) => {
+      await until(P, () => !window.__app.current.player.controller.crouched, null, 3000, 'stands before the crouch').catch(() => {});
+      await holdUntil(P, BTN.B, () => window.__app.current.player.controller.crouched, 'crouches');
+      await waitSim(150);
+    };
+    /** One leg: a failure is reported with every page's team-move view and the next leg still runs. */
+    const leg = async (name, f) => {
+      try {
+        await f();
+      } catch (e) {
+        failed = true;
+        console.error(`  LEG FAIL - ${name}: ${String(e)}`);
+        for (let i = 0; i < pages.length; i++) console.error(`  page ${i}`, await teamLog(pages[i]).catch(() => '(no match)'));
+      } finally {
+        for (const P of pages) await P.evaluate(() => { for (let i = 0; i < 4; i++) window.__pad.axis(i, 0); for (let i = 0; i < 17; i++) window.__pad.set(i, 0); const g = window.__app.current; g.team.end(true); g.traversal.reset(); }).catch(() => {});
+      }
+    };
+    /** A late fourth page: joins the running room, loads the match, is added to every helper above. */
+    const lateJoin = async () => {
+      const code = await GA(() => window.__coop.session.code);
+      const { page, errors: e } = await joinLate(ctx, url, code);
+      errs.push(e);
+      pages.push(page);
+      setSimPages(pages);
+      await until(page, () => window.__app.current?.opts?.mode === 'sector' && !!window.__app.current.net && !!window.__app.current.player && !window.__app.current.isEnded, null, LOAD_MS_4, 'the late joiner is in the match');
+      await until(A, (k) => window.__app.current.net.remotes.size === k, pages.length - 1, 30000, 'the host has the late joiner');
+      await refresh();
+      return page;
+    };
+    Object.assign(h, { skip, refresh, idxOf, allowAll, tpPage, moveTo, posOf, padReady, setPad, holdUntil, crouch, leg, lateJoin });
+    try {
+      await startMode('sector', map);
+      await GA(() => { const g = window.__app.current; g.enemyMgr.update = () => {}; if (g.security) g.security.fixedUpdate = () => {}; });
+      for (const P of pages) await until(P, () => !!window.__app.current?.player && !!window.__ctdev, null, 30000, 'the page is in the match with its device mirror');
+      await refresh();
+      await fn(h);
+    } catch (e) {
+      failed = true;
+      console.error(String(e));
+    }
+  } catch (e) {
+    failed = true;
+    console.error(String(e));
+  } finally {
+    stopPump();
+    all.push(...errs.flat());
+    if (MISSING.size) console.log(`  hooks missing in this build: ${[...MISSING].join('; ')}`);
+    await browser?.close().catch(() => {});
+  }
+}
+
+/** The sector's exit box centre +- 0.45 m on a 2 x 2 grid (slots 0-3), feet inside the box. */
+const boxSpot = (box, k) => {
+  const [x0, z0, x1, z1] = box;
+  const hx = Math.max(0.05, Math.min(0.45, Math.abs(x1 - x0) / 2 - 0.15));
+  const hz = Math.max(0.05, Math.min(0.45, Math.abs(z1 - z0) / 2 - 0.15));
+  const o = [[-1, -1], [1, -1], [-1, 1], [1, 1]][k];
+  return [(x0 + x1) / 2 + o[0] * hx, (z0 + z1) / 2 + o[1] * hz];
+};
+const inBox = (box, x, z) => x >= Math.min(box[0], box[2]) && x <= Math.max(box[0], box[2]) && z >= Math.min(box[1], box[3]) && z <= Math.max(box[1], box[3]);
+/** The closest pair of `ps` ([x, y, z] each) on the floor plan: its distance and the page indices. */
+const pairMin = (ps) => {
+  let min = 1e9;
+  let at = '';
+  for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) {
+    const d = Math.hypot(ps[i][0] - ps[j][0], ps[i][2] - ps[j][2]);
+    if (d < min) { min = d; at = `${i}-${j}`; }
+  }
+  return { min, at };
+};
+
+// ---- part 7: four operators on Saltmarsh Park (campusOps) -------------------------------------------------------------
+if (want(7)) {
+  await coop4('sector ops (coop4): four operators on Saltmarsh Park - slots, beacons, avatars, spawns, light, jam, crate, revive, connector, pair gate, tagged guards', { n: 4, map: 'campusOps' }, async (h) => {
+    const { A, pages, GA, GP, skip, idxOf, moveTo, posOf, allowAll, leg } = h;
+    const finishObjective = () => GA(() => { const m = window.__sector; if (m.run.current.objective.kind === 'download') { m.run.downloading = true; m.run.download(999); } else m.run.objectiveDone(); });
+    const locks = (P) => P.evaluate(() => window.__app.current.world.doors.list.filter((d) => d.anchor.locked).map((d) => d.index).join(','));
+
+    // every page: its own pose (feet), the host's copy of each joiner within 1.2 m of where it stands (the reach checks
+    // read the host's copy); the four at least 0.9 m apart (A14: slots 1-3 take the ring beside slot 0, `besideSpot`)
+    const spawnsApart = async (what) => {
+      await waitSim(1500);
+      const ps = await eachPage(pages, (P, i) => posOf(i));
+      const { min, at } = pairMin(ps);
+      assert(min >= 0.85, `${what}: the four operators stand at least 0.9 m apart (closest ${min.toFixed(2)} m, pages ${at}; ${JSON.stringify(ps.map((p) => p.map((v) => +v.toFixed(2))))})`);
+      await until(A, ([ids, ps]) => ids.every((id, i) => { const r = window.__app.current.net.remotes.get(id); return !!r && Math.hypot(r.feet.x - ps[i][0], r.feet.z - ps[i][2]) < 1.2; }), [h.ids.slice(1), ps.slice(1)], 15000, `${what}: the host sees every joiner where it stands`);
+    };
+    // the section's guards at team 4: the list less the `minPlayers` tags above 4 (A8, A10); the tags themselves are DATA's
+    const guardsCheck = async (what) => {
+      const r = await GA(() => {
+        const g = window.__app.current;
+        const m = window.__sector;
+        const d = m.debug();
+        const s = g.world.map.sectors[d.index];
+        const want = (t) => s.guards.filter((q) => (q.minPlayers ?? 0) <= t).length;
+        return {
+          sec: d.index,
+          team: m.run.teamSize ?? null,
+          total: s.guards.length,
+          tagged: s.guards.filter((q) => q.minPlayers !== undefined).length,
+          anyTag: g.world.map.sectors.some((x) => x.guards.some((q) => q.minPlayers !== undefined)),
+          alive: g.enemyMgr.alive,
+          pending: d.pending,
+          expect4: want(4),
+        };
+      });
+      if (r.team === null) skip('SectorRun.teamSize (SM)');
+      else assert(r.team === 4, `${what}: the run counts a team of 4 (${r.team})`);
+      assert(r.alive + r.pending === r.expect4, `${what}: section ${r.sec + 1} has the guards for a team of 4 (${r.alive} alive + ${r.pending} waiting; list ${r.total}, ${r.tagged} tagged, expect ${r.expect4})`);
+      if (!r.anyTag) skip('SquadSlot.minPlayers tags in the campus map data (DATA)');
+      else if (r.tagged > 0) assert(r.alive + r.pending === r.total, `${what}: the tagged guards are in at team 4 (${r.alive + r.pending} of ${r.total})`);
+    };
+
+    await leg('load, slots, avatars, beacons', async () => {
+      const ready = await eachPage(pages, (P) => P.evaluate(() => ({ mode: window.__app.current.opts.mode, net: !!window.__app.current.net, dev: !!window.__ctdev, role: window.__ctdev?.debug().role })));
+      assert(ready.length === 4 && ready.every((r) => r.mode === 'sector' && r.net && r.dev), `all four pages load Sector Ops on campusOps with their device mirror (${JSON.stringify(ready)})`);
+      assert(ready[0].role === 'host' && ready.slice(1).every((r) => r.role === 'client'), 'one host and three clients');
+      const tabs = await eachPage(pages, slotTable);
+      assert(tabs.every((t) => t.players.length === 4), `every page lists four players (${tabs.map((t) => t.players.length)})`);
+      if (!h.haveSlots) skip('GameState.localSlot / NetSession.selfSlot (N1)');
+      else {
+        assert([...h.slots].sort().join() === '0,1,2,3', `slots 0-3 are distinct across the four pages (${h.slots})`);
+        assert(h.slots[0] === 0, 'the host page is slot 0');
+      }
+      if (tabs.some((t) => t.players.some((p) => p.slot === null))) skip('PlayerInfo.slot in the lobby list (N1)');
+      else {
+        tabs.forEach((t, i) => {
+          assert(t.players.map((p) => p.slot).sort().join() === '0,1,2,3', `page ${i}: the room list has slots 0-3 once each (${t.players.map((p) => p.slot)})`);
+          if (h.haveSlots) assert(t.players.find((p) => p.id === t.selfId)?.slot === h.slots[i], `page ${i}: its own list entry carries its slot ${h.slots[i]}`);
+        });
+        const key = (t) => t.players.map((p) => `${p.id}:${p.slot}`).sort().join('|');
+        assert(tabs.every((t) => key(t) === key(tabs[0])), 'all four pages agree on who holds which slot');
+      }
+      // each page sees three avatars (the host's remotes; a client's avatar map)
+      for (const P of pages) await until(P, () => { const n = window.__app.current.net; return (n.remotes ? n.remotes.size : n.avatars.size) === 3; }, null, 20000, 'the page sees three avatars');
+      // the beacon (goggle lamp colour) by slot: own rig and each avatar's, 0 blue, 1 red, 2 amber, 3 violet (H1; N1 sets them)
+      const views = await eachPage(pages, (P) => P.evaluate(() => {
+        const g = window.__app.current;
+        const s = window.__coop.session;
+        const n = g.net;
+        const bc = (rig) => (typeof rig?.beaconSlot === 'function' ? rig.beaconSlot() : typeof rig?.beacon === 'number' ? rig.beacon : null);
+        const list = n.remotes ? [...n.remotes.entries()].map(([id, r]) => [id, r.avatar]) : [...n.avatars.entries()];
+        return { count: list.length, own: bc(g.player.rig), others: list.map(([id, a]) => ({ slot: s.players.get(id)?.slot ?? null, beacon: bc(a.rig) })) };
+      }));
+      assert(views.every((v) => v.count === 3), `each page sees three avatars (${views.map((v) => v.count)})`);
+      if (!h.haveSlots || views.some((v) => v.others.some((o) => o.slot === null))) skip('slots for the beacon check (N1)');
+      else {
+        views.forEach((v, i) => {
+          assert(v.own === h.slots[i], `page ${i}: its own beacon is slot ${h.slots[i]} (${v.own})`);
+          for (const o of v.others) assert(o.beacon === o.slot, `page ${i}: the avatar of slot ${o.slot} wears beacon ${o.slot} (${o.beacon})`);
+          assert([v.own, ...v.others.map((o) => o.beacon)].sort().join() === '0,1,2,3', `page ${i}: the four beacon colours are all different`);
+        });
+      }
+    });
+
+    await leg('spawns at the start, the guards at team 4', async () => {
+      await spawnsApart('start');
+      await guardsCheck('start');
+    });
+
+    // (A12-light parity) a wall switch pressed by slot 2: its circuit's lamps go dark on all four pages, the light fields agree
+    await leg('light parity: slot 2 presses a switch', async () => {
+      const sw = await GA(() => {
+        const g = window.__app.current;
+        const lights = g.world.level.lights.lights;
+        const sws = g.world.layout.switches ?? [];
+        const lit = (s) => lights.filter((l) => l.group === s.group && l.kind !== 'flashlight' && l.on && !l.destroyed);
+        const k = sws.findIndex((s) => (s.section ?? 0) === 0 && lit(s).length > 0);
+        if (k < 0) return null;
+        const it = g.interactables.items.find((x) => x.id === `switch-${k}`);
+        const lamps = lights.filter((l) => l.group === sws[k].group && l.kind !== 'flashlight').map((l) => ({ id: l.id, x: l.x, y: l.y, z: l.z }));
+        return { k, lamps, x: it.pos.x, y: it.pos.y, z: it.pos.z, yaw: sws[k].yaw ?? 0 };
+      });
+      assert(!!sw && sw.lamps.length > 0, `section 1 has a wall switch with lamps on it (${JSON.stringify(sw && { k: sw.k, lamps: sw.lamps.length })})`);
+      const i2 = idxOf(2);
+      await moveTo(i2, sw.x + Math.sin(sw.yaw) * 0.8, sw.z + Math.cos(sw.yaw) * 0.8, sw.yaw + Math.PI, sw.y + 0.1);
+      await until(pages[i2], (k) => { const it = window.__app.current.interactables.items.find((x) => x.id === `switch-${k}`); return !!it && it.enabled; }, sw.k, 15000, 'slot 2 mirrors the switch');
+      await waitSim(400);
+      const press = () => GP(i2, (k) => { const it = window.__app.current.interactables.items.find((x) => x.id === `switch-${k}`); it.onUse(it); }, sw.k);
+      const ids = sw.lamps.map((l) => l.id);
+      const lampsAre = (on) => (P) => until(P, ([ids, on]) => ids.every((id) => { const l = window.__app.current.world.level.lights.lights[id]; return l.on === on && !l.destroyed; }), [ids, on], 15000, `the circuit's lamps are ${on ? 'on' : 'off'} on the page`);
+      await press();
+      for (const P of pages) await lampsAre(false)(P);
+      assert(true, `slot 2's switch put the circuit (${ids.length} lamps) out on all four pages`);
+      await waitSim(600);
+      const lvl = await eachPage(pages, (P) => P.evaluate((p) => window.__app.current.world.lightField?.levelAt(p.x, p.y - 2, p.z) ?? null, sw.lamps[0]));
+      if (lvl.some((v) => v === null)) skip('world.lightField (not baked in time)');
+      else assert(lvl.every((v) => Math.abs(v - lvl[0]) < 1e-3), `the light under the dark lamp agrees on all four pages (${lvl.map((v) => v.toFixed(3))})`);
+      await press();
+      for (const P of pages) await lampsAre(true)(P);
+      assert(true, 'slot 2 switched it back on, lit on all four pages');
+    });
+
+    // (A11) slot 3 jams a camera: the host's wire carries it in entry 3 (`sec.j[3]`), every client's mirror applies it
+    await leg('jam: slot 3 jams a camera, all four show it', async () => {
+      const i3 = idxOf(3);
+      const cam = await GA(() => {
+        const g = window.__app.current;
+        const d = window.__ctdev;
+        const V = g.player.position.constructor;
+        const em = g.enemyMgr;
+        for (const c of d.debug().cams.filter((q) => q.live && q.mode === 'online')) {
+          const t = d.targets.find((q) => q.id === c.id);
+          if (!t) continue;
+          for (const r of [4, 3, 5, 6, 2.5, 7]) {
+            for (let a = 0; a < 16; a++) {
+              const ang = (a / 16) * Math.PI * 2;
+              const x = t.x + Math.cos(ang) * r;
+              const z = t.z + Math.sin(ang) * r;
+              const eye = new V(x, 1.6, z);
+              const to = new V(t.x, t.y, t.z);
+              const dist = V.Distance(eye, to);
+              if (dist > 17 || g.ballistics.hitDistance(eye, to, 1) < dist - 0.35) continue;
+              if (em.nav && !em.nav.isWalkable(em.nav.cellOf(x, z, 0))) continue;
+              return { id: c.id, x, z, yaw: Math.atan2(t.x - x, t.z - z) };
+            }
+          }
+        }
+        return null;
+      });
+      assert(!!cam, 'a live camera with a clear spot to stand and jam it from');
+      await moveTo(i3, cam.x, cam.z, cam.yaw);
+      // the wire value latched on every client (the claim lasts 5 s, a client at x0.3 could miss it between polls)
+      await eachPage(pages, (P, i) => (i === 0 ? null : P.evaluate(() => { const d = window.__ctdev; if (d.__j3) { d.__j3.seen = ''; return; } d.__j3 = { seen: '' }; const f = d.apply.bind(d); d.apply = (s) => { if (s && s.j && s.j[3]) d.__j3.seen = s.j[3]; f(s); }; })));
+      // the host's wire read on the step the jam shows (the claim is the client's real `jam` message; the intent is forced:
+      // the aim and the pistol are e2e-ctcourse station 4's)
+      const key = await onHostStep(A, (_g, id) => { const w = window.__ctdev.wire(); return w.j[3] === id ? { j: w.j, ch: w.ch, cd: w.cd } : null; }, cam.id);
+      await GP(i3, (id) => {
+        const g = window.__app.current;
+        const d = window.__ctdev;
+        d.__forceJam = id;
+        if (d.__jamHook) return;
+        d.__jamHook = true;
+        const step = d.localStep.bind(d);
+        d.localStep = (dt, held) => {
+          if (!d.__forceJam) return step(dt, held);
+          d.sentT -= dt;
+          if (d.sentId !== d.__forceJam || !(d.sentT > 0)) {
+            d.sentId = d.__forceJam;
+            d.sentT = 0.25;
+            g.net.sendJam(d.__forceJam, g.player.cam.gamePos);
+          }
+        };
+      }, cam.id);
+      try {
+        const w = await hostStepResult(A, key, 20000, 'the host wire carries slot 3 jamming');
+        assert(w.j.length === 4 && w.ch.length === 4 && w.cd.length === 4 && w.j[3] === cam.id, `the host's SecWire carries four entries with slot 3's jam in j[3] (${JSON.stringify(w)})`);
+        for (let i = 1; i < pages.length; i++) await until(pages[i], (id) => window.__ctdev.__j3?.seen === id, cam.id, 15000, `page ${i} mirrors slot 3's jam (sec.j[3])`);
+        assert(true, `slot 3's jam of ${cam.id} reached all three clients as sec.j[3]`);
+      } finally {
+        await offHostStep(A, key).catch(() => {});
+        await GP(i3, () => { window.__ctdev.__forceJam = ''; });
+      }
+    });
+
+    // (A12) each player uses each crate once: the host's ledger lists all four, a second use does nothing
+    await leg('crate: each slot uses it once', async () => {
+      const cr = await GA(() => {
+        const g = window.__app.current;
+        const c = window.__sector.debug().crates.find((q) => q.live);
+        if (!c) return null;
+        const it = g.interactables.items.find((x) => x.id === c.id);
+        return { id: c.id, x: it.pos.x, y: it.pos.y, z: it.pos.z, yaw: it.node.rotation.y };
+      });
+      assert(!!cr, 'section 1 has a live weapons crate');
+      for (const P of pages) await until(P, (id) => { const it = window.__app.current.interactables.items.find((x) => x.id === id); return !!it && it.enabled && it.kind === 'crate'; }, cr.id, 15000, 'the page mirrors the live crate');
+      const tx = Math.cos(cr.yaw);
+      const tz = -Math.sin(cr.yaw);
+      const spot = (k) => [cr.x + Math.sin(cr.yaw) * 0.9 + tx * (k - 1.5) * 0.55, cr.z + Math.cos(cr.yaw) * 0.9 + tz * (k - 1.5) * 0.55];
+      const drain = (i) => GP(i, () => { for (const s of window.__app.current.weapons.slots) { s.mag = Math.min(3, s.stats.magSize); s.reserve = 0; } });
+      const state = (i) => GP(i, () => { const w = window.__app.current.weapons; return { dry: w.slots.every((s) => s.reserve === 0), full: w.atLoadout() }; });
+      const use = (i) => GP(i, ([id, host]) => { const it = window.__app.current.interactables.items.find((x) => x.id === id); it.onUse(it, host ? 'local' : undefined); }, [cr.id, i === 0]);
+      for (let slot = 0; slot < 4; slot++) {
+        const i = idxOf(slot);
+        const [sx, sz] = spot(slot);
+        await moveTo(i, sx, sz, cr.yaw + Math.PI, cr.y + 0.1);
+        await waitSim(300);
+        await drain(i);
+        await use(i);
+        await until(pages[i], () => window.__app.current.weapons.atLoadout(), null, 15000, `slot ${slot}'s guns are topped up by the crate`);
+        if (i > 0) await until(pages[i], (id) => window.__app.current.interactables.items.find((x) => x.id === id)?.spent === true, cr.id, 8000, `slot ${slot}'s crate prompt is spent`);
+        assert(true, `slot ${slot} used the crate`);
+      }
+      for (let slot = 0; slot < 4; slot++) {
+        const i = idxOf(slot);
+        await drain(i);
+        await use(i);
+      }
+      await waitSim(1500);
+      for (let slot = 0; slot < 4; slot++) {
+        const s = await state(idxOf(slot));
+        assert(s.dry && !s.full, `slot ${slot}: a second use after a drain does nothing (${JSON.stringify(s)})`);
+      }
+      const used = await GA((id) => window.__sector.debug().crates.find((c) => c.id === id).used, cr.id);
+      assert(used.length === 4 && used.includes('local') && h.ids.slice(1).every((id) => used.includes(id)), `the host's crate ledger lists all four players (${JSON.stringify(used)})`);
+    });
+
+    // (A4) slot 1 is downed and slot 3 revives it: the pool is the preset + 1 per player beyond 2 (Normal 4 at 4 players), one used
+    await leg('revive: slot 1 down, slot 3 revives, syringes scaled', async () => {
+      const scaled = await GA(() => ({ n: ({ rookie: 3, normal: 2, realistic: 1, perfectionist: 1 })[window.__app.current.opts.difficulty ?? 'normal'] + 2, left: window.__app.current.net.revivesLeft() }));
+      assert(scaled.left === scaled.n, `the syringe pool at four players is the preset + 2 (${scaled.left}, want ${scaled.n})`);
+      const i1 = idxOf(1);
+      const i3 = idxOf(3);
+      const id1 = h.ids[i1];
+      await GA((id) => { const r = window.__app.current.net.remotes.get(id); r.damageMul = 1; r.applyDamage({ amount: 9999, point: r.feet.clone(), dir: r.feet.clone(), part: 'body', kind: 'bullet', attackerTeam: 'enemy', attackerId: 'x', sourcePos: r.feet.clone(), impulse: 0 }); }, id1);
+      await until(pages[i1], () => !window.__app.current.player.alive, null, 15000, 'slot 1 is downed');
+      await until(pages[i3], (id) => window.__app.current.interactables.items.some((q) => q.id === `revive-${id}` && q.enabled), id1, 15000, 'slot 3 sees the revive point');
+      assert(await GA(() => !window.__app.current.isEnded), 'one operator down: the match goes on');
+      const at = await GA((id) => { const r = window.__app.current.net.remotes.get(id); return [r.feet.x, r.feet.y, r.feet.z]; }, id1);
+      await moveTo(i3, at[0] + 0.7, at[2], 0, at[1] + 0.1);
+      // (retried: the host checks reach against the joiner's latest state, which can lag under load)
+      for (let k = 0; k < 12 && !(await GA((id) => window.__app.current.net.remotes.get(id).alive, id1)); k++) {
+        await allowAll();
+        await GP(i3, (id) => { const it = window.__app.current.interactables.items.find((q) => q.id === `revive-${id}`); if (it?.enabled) it.onUse(it); }, id1);
+        await waitSim(400);
+      }
+      await until(A, (id) => window.__app.current.net.remotes.get(id).alive, id1, 8000, 'slot 1 is back up (revived by slot 3)');
+      await until(pages[i1], () => window.__app.current.player.alive, null, 8000, 'slot 1 stands again on its own page');
+      await GA((id) => { const r = window.__app.current.net.remotes.get(id); r.damageMul = 0; }, id1);
+      const left = await GA(() => window.__app.current.net.revivesLeft());
+      assert(left === scaled.n - 1, `one syringe used: ${scaled.n} -> ${left}`);
+      await until(pages[i3], (n) => new RegExp(`Syringes\\s*${n}`).test(document.querySelector('.hud-mode')?.textContent ?? ''), scaled.n - 1, 15000, 'slot 3 HUD shows the syringes left');
+    });
+
+    // (A6, A14) a checkpoint restart: the host places everyone again, 0.9 m apart; the guards for team 4 again
+    await leg('checkpoint restart: spawns and guards again', async () => {
+      const n0 = await GA(() => window.__sector.debug().restarts);
+      assert(await GA(() => window.__sector.restartCheckpoint()), 'the host restarts the section at its checkpoint');
+      await until(A, (n) => { const d = window.__sector.debug(); return d.restarts > n && !d.restarting; }, n0, 20000, 'the restart finishes');
+      await spawnsApart('after the restart');
+      await guardsCheck('after the restart');
+    });
+
+    // (A7) the connector cycles only with every connected player inside: 3 of 4 does not, 4 does
+    const S = await GA(() => window.__app.current.world.map.sectors.map((s) => { const z = s.connector ?? s.extract; return { id: s.id, box: z.box, y: z.floorY ?? s.connector?.checkpoint?.y ?? 0, yaw: s.connector?.checkpoint?.yaw ?? 0, pair: (s.pairGates ?? []).length }; }));
+    /** Objective told done, the four into the connector box, the next section loads. */
+    const cycleAll = async () => {
+      const cur = await GA(() => window.__sector.debug().index);
+      await finishObjective();
+      await until(A, () => window.__sector.debug().phase === 'connector', null, 15000, `section ${cur + 1}: the objective opens the connector`);
+      for (let slot = 0; slot < 4; slot++) { const [x, z] = boxSpot(S[cur].box, slot); await moveTo(idxOf(slot), x, z, S[cur].yaw, S[cur].y + 0.1); }
+      await until(A, (n) => window.__sector.debug().index === n, cur + 1, 30000, `all four inside connector ${cur + 1}: section ${cur + 2} loads`);
+      await allowAll();
+    };
+    await leg('connector: three inside does not cycle, four cycles; the door locks follow', async () => {
+      const cur = await GA(() => window.__sector.debug().index);
+      const lk0 = await locks(A);
+      await finishObjective();
+      await until(A, () => window.__sector.debug().phase === 'connector', null, 15000, 'the objective opens the connector');
+      for (let slot = 0; slot < 3; slot++) { const [x, z] = boxSpot(S[cur].box, slot); await moveTo(idxOf(slot), x, z, S[cur].yaw, S[cur].y + 0.1); }
+      const p3 = await posOf(idxOf(3));
+      assert(!inBox(S[cur].box, p3[0], p3[2]), `slot 3 stands outside the connector (${p3.map((v) => +v.toFixed(1))})`);
+      await waitSim(6000);
+      const held = await GA(() => { const d = window.__sector.debug(); return { index: d.index, phase: d.phase }; });
+      assert(held.index === cur && held.phase === 'connector', `three of four inside: the connector does not cycle (${JSON.stringify(held)})`);
+      const [x3, z3] = boxSpot(S[cur].box, 3);
+      await moveTo(idxOf(3), x3, z3, S[cur].yaw, S[cur].y + 0.1);
+      await until(A, (n) => window.__sector.debug().index === n, cur + 1, 30000, 'all four inside: the connector cycles into the next section');
+      const lkHost = await locks(A);
+      assert(lkHost !== lk0, `the cycle changed the host's door locks (${lk0} -> ${lkHost})`);
+      for (let i = 1; i < pages.length; i++) await until(pages[i], (k) => window.__app.current.world.doors.list.filter((d) => d.anchor.locked).map((d) => d.index).join(',') === k, lkHost, 15000, `page ${i} mirrors the door locks`);
+      for (let i = 1; i < pages.length; i++) await until(pages[i], (n) => window.__ctdev.debug().live === n, cur + 1, 15000, `page ${i} knows section ${cur + 2} is live`);
+      assert(true, 'the door locks and the live section agree on all four pages');
+      await allowAll();
+      await guardsCheck(`section ${cur + 2}`);
+    });
+
+    // (A3) a pair device by slots 2 and 3 while 0 and 1 stand elsewhere. The campus pair devices are the pair gates (S4, S5);
+    // a pair bolt is a map option no campus section uses (the Warehouse bolts are plain)
+    await leg('pair gate: slots 2 and 3 turn the keys, 0 and 1 elsewhere', async () => {
+      const target = S.findIndex((s) => s.pair > 0);
+      if (target < 0) {
+        skip('a pair device (pair gate / pair bolt) in the map');
+        return;
+      }
+      while ((await GA(() => window.__sector.debug().index)) < target) await cycleAll();
+      const gi = await GA(() => { const d = window.__sector.debug().index; const g = window.__sector.pairGateInfo().find((q) => q.sec === d); const at = (id) => { const it = window.__app.current.interactables.items.find((x) => x.id === id); return { x: it.pos.x, y: it.pos.y, z: it.pos.z, yaw: it.node.rotation.y }; }; return { ...g, pa: at(g.a), pb: at(g.b) }; });
+      assert(gi.open === false && gi.locked === true, `the pair gate starts shut (${JSON.stringify({ open: gi.open, locked: gi.locked })})`);
+      const i2 = idxOf(2);
+      const i3 = idxOf(3);
+      const front = (p) => [p.x + Math.sin(p.yaw) * 0.8, p.z + Math.cos(p.yaw) * 0.8, p.yaw + Math.PI];
+      await moveTo(i2, ...front(gi.pa), gi.pa.y + 0.1);
+      await moveTo(i3, ...front(gi.pb), gi.pb.y + 0.1);
+      for (const [i, id] of [[i2, gi.a], [i3, gi.b]]) await until(pages[i], (id) => { const it = window.__app.current.interactables.items.find((x) => x.id === id); return !!it && it.enabled; }, id, 15000, `page ${i} mirrors its key switch`);
+      // slots 0 and 1 are far from both keys (the connector spots)
+      for (const slot of [0, 1]) {
+        const p = await posOf(idxOf(slot));
+        const near = Math.min(Math.hypot(p[0] - gi.pa.x, p[2] - gi.pa.z), Math.hypot(p[0] - gi.pb.x, p[2] - gi.pb.z));
+        assert(near > 3, `slot ${slot} stands ${near.toFixed(1)} m from the keys`);
+      }
+      await waitSim(400);
+      await Promise.all([GP(i2, (id) => { const it = window.__app.current.interactables.items.find((x) => x.id === id); it.onUse(it); }, gi.a), GP(i3, (id) => { const it = window.__app.current.interactables.items.find((x) => x.id === id); it.onUse(it); }, gi.b)]);
+      await until(A, ([sec, k]) => window.__sector.debug().pairGates[sec][k] === true, [gi.sec, gi.k], 15000, 'the host opens the pair gate for slots 2 + 3');
+      for (let i = 0; i < pages.length; i++) await until(pages[i], (d) => window.__app.current.world.doors.list[d].anchor.locked === false, gi.door, 15000, `page ${i}'s gate door unlocks`);
+      assert(true, 'the pair gate turned by slots 2 and 3 is open on all four pages');
+      await guardsCheck(`section ${gi.sec + 1}`);
+    });
+  });
+}
+
+// ---- part 8: drop, late join, team moves (warehouseOps) ----------------------------------------------------------------
+if (want(8)) {
+  await coop4('sector ops (coop4): drop and rejoin into the same slot, a late fourth operator, two pairs of team moves at once - the Warehouse', { n: 3, map: 'warehouseOps', params: 'net=local&sectorGuards=4' }, async (h) => {
+    const { A, pages, GA, GP, skip, idxOf, moveTo, posOf, padReady, setPad, holdUntil, crouch, leg, lateJoin, refresh } = h;
+    const RB = BTN.RB;
+    /** The beacon (0 blue .. 3 violet) of a rig. */
+    const BC = (rig) => (typeof rig?.beaconSlot === 'function' ? rig.beaconSlot() : typeof rig?.beacon === 'number' ? rig.beacon : null);
+    const hostBeacon = (id) => GA(`(() => { const bc = ${BC.toString()}; const r = window.__app.current.net.remotes.get(${JSON.stringify(id)}); return r ? bc(r.avatar.rig) : null; })()`);
+    const slotOnHost = (id) => GA((id) => window.__coop.session.players.get(id)?.slot ?? null, id);
+    const teamState = (P) => P.evaluate(() => window.__app.current.team.state);
+    const teamView = (P) => P.evaluate(() => { const t = window.__app.current.team; return { st: t.state, b: t.count.boosts, t: t.count.throws, d: t.count.denied, last: t.lastDenied }; });
+    const cleanAll = () => Promise.all(pages.map((P) => P.evaluate(() => { for (let i = 0; i < 4; i++) window.__pad.axis(i, 0); for (let i = 0; i < 17; i++) window.__pad.set(i, 0); const g = window.__app.current; g.team.end(true); g.traversal.reset(); }).catch(() => {})));
+
+    // (A18, A19) slot 2 closes its game and reopens it with its token: the same player, slot 2, its colour, placed at the
+    // checkpoint on its slot (the coop-rejoin rule for Course and Sector Ops)
+    await leg('slot 2 drops and rejoins into slot 2 with its colour, at the checkpoint on its slot', async () => {
+      const i2 = idxOf(2);
+      const P2 = pages[i2];
+      const id2 = h.ids[i2];
+      const code = await GA(() => window.__coop.session.code);
+      await moveTo(i2, -2.6, -18.9, 0);
+      await waitSim(600);
+      const before = await GA((id) => { const r = window.__app.current.net.remotes.get(id); return [r.feet.x, r.feet.y, r.feet.z]; }, id2);
+      const slot0 = await slotOnHost(id2);
+      const bc0 = await hostBeacon(id2);
+      if (slot0 === null) skip('PlayerInfo.slot in the lobby list (N1)');
+      await P2.evaluate(() => window.__coop.leave());
+      await until(A, (id) => window.__coop.session.players.get(id)?.away === true, id2, 30000, 'the host holds the dropped slot');
+      if (slot0 !== null) assert((await slotOnHost(id2)) === slot0, `the held slot keeps its number (${slot0})`);
+      await until(P2, (c) => (document.querySelector('.main-menu [data-key="rejoin"]')?.textContent ?? '').includes(`Rejoin ${c}`), code, 60000, 'the dropped page offers Rejoin <code> in its main menu');
+      await P2.evaluate(() => document.querySelector('.main-menu [data-key="rejoin"]').click());
+      await until(P2, () => !!window.__app.current?.net && !!window.__app.current.puppet, null, LOAD_MS_4, 'the dropped page is back in the match');
+      await refresh();
+      assert(h.ids[i2] === id2, `the rejoin takes the same player back (${id2} -> ${h.ids[i2]})`);
+      if (!h.haveSlots) skip('GameState.localSlot / NetSession.selfSlot (N1)');
+      else assert(h.slots[i2] === 2, `the rejoined page is slot 2 again (${h.slots[i2]})`);
+      if (slot0 !== null) assert((await slotOnHost(id2)) === slot0, 'the host lists it in slot 2');
+      // (coop-rejoin, walk item 7; docs/systems/coop.md "Host-decided (re)join spawn") a Sector Ops rejoin whose match
+      // reloads is placed by the host like any late join: the current checkpoint on its slot (`joinSpawn`, sectioned),
+      // not its held spot; the held spot only counts when the reload lands within 3 m of it. It dropped ~18 m from the
+      // section start, so the checkpoint ring it is (p8-rejoin-fix: the old "where it stood" contradicted that rule).
+      const cp = await GA(() => window.__sector.debug().checkpoint);
+      await until(P2, ([x, z]) => { const q = window.__app.current.player.position; return Math.hypot(q.x - x, q.z - z) < 3.2; }, [cp.x, cp.z], 30000, 'the rejoined page is placed at the checkpoint on its slot');
+      const p2 = await posOf(i2);
+      assert(Math.hypot(p2[0] - cp.x, p2[2] - cp.z) < 3.2, `the rejoined page stands at the section's checkpoint ring (${Math.hypot(p2[0] - cp.x, p2[2] - cp.z).toFixed(2)} m from (${cp.x.toFixed(1)}, ${cp.z.toFixed(1)}); held at (${before[0].toFixed(1)}, ${before[2].toFixed(1)}))`);
+      const near = await GA((id) => { const me = window.__app.current.net.remotes.get(id); const ps = [window.__app.current.player.position]; for (const r of window.__app.current.net.remotes.values()) if (r !== me && !r.held) ps.push(r.feet); let m = 99; for (const q of ps) m = Math.min(m, Math.hypot(q.x - me.feet.x, q.z - me.feet.z)); return m; }, id2);
+      assert(near > 0.5, `the rejoined page does not stand on another operator (${near.toFixed(2)} m)`);
+      await until(A, (id) => { const r = window.__app.current.net.remotes.get(id); return !!r && !r.held; }, id2, 15000, 'the host has it back in play');
+      const bc1 = await hostBeacon(id2);
+      const own = await GP(i2, `(() => { const bc = ${BC.toString()}; return bc(window.__app.current.player.rig); })()`);
+      if (bc0 === null && bc1 === null) skip('CharacterRig.beacon (read as a private field)');
+      else {
+        assert(bc1 === bc0, `the host's avatar of it keeps its colour (beacon ${bc0} -> ${bc1})`);
+        if (h.haveSlots) assert(own === 2 && bc1 === 2, `its own rig and the host's avatar of it wear beacon 2 (${own}, ${bc1})`);
+      }
+    });
+
+    // (A17) a fourth page joins the running op: slot 3, placed at the checkpoint ring
+    await leg('a fourth page joins late and is placed at the checkpoint on its slot', async () => {
+      const D = await lateJoin();
+      const iD = pages.length - 1;
+      await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.damageMul = 0; });
+      await D.evaluate(() => { window.__app.current.target.damageMul = 0; });
+      assert(pages.length === 4, 'four pages in the match');
+      if (!h.haveSlots) skip('GameState.localSlot / NetSession.selfSlot (N1)');
+      else assert(h.slots[iD] === 3 && [...h.slots].sort().join() === '0,1,2,3', `the late joiner takes the free slot 3 (${h.slots})`);
+      const tabs = await eachPage(pages, slotTable);
+      if (tabs.some((t) => t.players.some((p) => p.slot === null))) skip('PlayerInfo.slot in the lobby list (N1)');
+      else assert(tabs.every((t) => t.players.length === 4 && t.players.map((p) => p.slot).sort().join() === '0,1,2,3'), 'every page lists slots 0-3 once each');
+      const cp = await GA(() => window.__sector.debug().checkpoint);
+      await until(D, ([x, z]) => { const p = window.__app.current.player.controller.pos; return Math.hypot(p.x - x, p.z - z) < 3.2; }, [cp.x, cp.z], 30000, 'the late joiner is placed at the checkpoint');
+      const pd = await posOf(iD);
+      assert(Math.hypot(pd[0] - cp.x, pd[2] - cp.z) < 3.2, `the late joiner stands at the section's checkpoint ring (${Math.hypot(pd[0] - cp.x, pd[2] - cp.z).toFixed(2)} m from (${cp.x.toFixed(1)}, ${cp.z.toFixed(1)}))`);
+      for (const P of pages) await until(P, () => { const n = window.__app.current.net; return (n.remotes ? n.remotes.size : n.avatars.size) === 3; }, null, 20000, 'the page sees three avatars');
+      assert(await GP(iD, () => window.__app.current.weapons.slots.length > 0), 'the late joiner has the section loadout');
+      const bc = await GP(iD, `(() => { const bc = ${BC.toString()}; return bc(window.__app.current.player.rig); })()`);
+      const hb = await hostBeacon(h.ids[iD]);
+      if (bc === null) skip('CharacterRig.beacon (read as a private field)');
+      else if (h.haveSlots) assert(bc === 3 && hb === 3, `the late joiner wears beacon 3, the host's avatar of it too (${bc}, ${hb})`);
+    });
+
+    // (A20) two pairs at once: slots 0+1 a leg-up, slots 2+3 a partner throw, both approved; then a second climber on a busy brace
+    const c = route('S1 C1');
+    const [sx, sz] = c.spot;
+    const fx = Math.sin(c.yaw);
+    const fz = Math.cos(c.yaw);
+    await leg('two pairs of team moves at once: 0+1 leg-up, 2+3 throw', async () => {
+      const [i1, i2, i3] = [idxOf(1), idxOf(2), idxOf(3)];
+      const [P0, P1, P2, P3] = [A, pages[i1], pages[i2], pages[i3]];
+      // open floor for a throw: free air over the thrower, a walkable run-in and landing along its facing (the host's nav and rays)
+      const spots = await GA(([sx, sz]) => {
+        const g = window.__app.current;
+        const nav = g.enemyMgr.nav;
+        const V = g.player.position.constructor;
+        const c0 = [g.player.position.x, g.player.position.z];
+        const out = [];
+        for (let r = 2; r <= 14 && out.length < 8; r += 1.5) {
+          for (let a = 0; a < 12 && out.length < 8; a++) {
+            const x = c0[0] + Math.cos((a / 12) * 2 * Math.PI) * r;
+            const z = c0[1] + Math.sin((a / 12) * 2 * Math.PI) * r;
+            if (Math.hypot(x - sx, z - sz) < 3.5) continue;
+            for (const yaw of [0, Math.PI / 2, Math.PI, -Math.PI / 2]) {
+              const f = [Math.sin(yaw), Math.cos(yaw)];
+              if (![-1.0, -0.5, 0, 1.6, 3.2].every((t) => nav.isWalkable(nav.cellOf(x + f[0] * t, z + f[1] * t, 0)))) continue;
+              if (g.ballistics.hitDistance(new V(x, 1.0, z), new V(x, 3.4, z), 1) < 2.3) continue;
+              out.push({ x, z, yaw });
+              break;
+            }
+          }
+        }
+        return out;
+      }, [sx, sz]);
+      assert(spots.length > 0, `open floor for a partner throw near the start (${spots.length} candidate spots)`);
+      const throwPlace = async (t) => {
+        await moveTo(i3, t.x, t.z, t.yaw);
+        await moveTo(i2, t.x - Math.sin(t.yaw) * 1.0, t.z - Math.cos(t.yaw) * 1.0, t.yaw);
+      };
+      const throwOffer = async () => {
+        await padReady(P3);
+        await padReady(P2);
+        await holdUntil(P3, RB, () => window.__app.current.team.state === 'throwOffer', 'the thrower (slot 3) offers the throw', undefined, 10000);
+        await until(P2, () => !!window.__app.current.team.offer?.toss, null, 10000, 'the runner (slot 2) is offered the throw');
+      };
+      const settle = async () => { for (const P of pages) await until(P, () => window.__app.current.team.state === 'none', null, 25000, 'the team move is over'); };
+      // a dry run picks the spot where the throw works (the landing room check is the runner's, on its side)
+      let spot = null;
+      for (const t of spots.slice(0, 6)) {
+        try {
+          await throwPlace(t);
+          await waitSim(500);
+          await throwOffer();
+          const n0 = await GP(i2, () => window.__app.current.team.count.throws);
+          await holdUntil(P2, RB, (n) => window.__app.current.team.count.throws > n, 'slot 2 is thrown', n0, 8000);
+          await settle();
+          spot = t;
+          break;
+        } catch (e) {
+          console.log(`  (throw spot ${t.x.toFixed(1)}, ${t.z.toFixed(1)} yaw ${t.yaw.toFixed(2)} not usable: ${String(e).slice(0, 90)})`);
+          await cleanAll();
+        }
+      }
+      assert(!!spot, 'a spot where the partner throw works (slot 3 throws slot 2)');
+      // the two pairs placed, both offers up, then both ask in the same breath
+      await throwPlace(spot);
+      await moveTo(i1, sx, sz, c.yaw);
+      await moveTo(0, sx - fx * 0.8, sz - fz * 0.8, c.yaw);
+      await waitSim(500);
+      await padReady(P0);
+      await padReady(P1);
+      await crouch(P1);
+      await Promise.all([holdUntil(P1, RB, () => window.__app.current.team.state === 'offer', 'slot 1 offers the leg-up', undefined, 15000), throwOffer()]);
+      await until(P0, () => !!window.__app.current.team.offer?.boost, null, 10000, 'slot 0 is offered the leg-up');
+      const v0 = await teamView(P0);
+      const v2 = await teamView(P2);
+      let overlap = false;
+      let taMax = -1;
+      let polling = false;
+      const sampler = setInterval(async () => {
+        if (polling) return;
+        polling = true;
+        try {
+          const [s0, s2] = await Promise.all([teamState(P0), teamState(P2)]);
+          if (s0 !== 'none' && s0 !== 'offer' && s2 !== 'none' && s2 !== 'throwOffer') overlap = true;
+          const ta = await A.evaluate(() => { const t = window.__app.current.net.teamActive; return t ? t.size : -1; });
+          taMax = Math.max(taMax, ta);
+        } catch {}
+        polling = false;
+      }, 120);
+      try {
+        await Promise.all([
+          holdUntil(P0, RB, (n) => window.__app.current.team.count.boosts > n, 'slot 0 takes slot 1\'s leg-up', v0.b, 25000),
+          holdUntil(P2, RB, (n) => window.__app.current.team.count.throws > n, 'slot 2 is thrown by slot 3', v2.t, 25000),
+        ]);
+      } finally {
+        clearInterval(sampler);
+      }
+      const w0 = await teamView(P0);
+      const w2 = await teamView(P2);
+      assert(w0.d === v0.d && w2.d === v2.d, `both moves approved, neither pair denied (denials ${v0.d} -> ${w0.d}, ${v2.d} -> ${w2.d})`);
+      if (taMax < 0) skip('CoopHost.teamActive (N1: the host\'s active-move map)');
+      console.log(`  (the two pairs' moves overlapped in time: ${overlap}; host teamActive peaked at ${taMax})`);
+      await until(P0, () => window.__app.current.traversal.attach.phase === 'on' && window.__app.current.traversal.attach.anchor?.kind === 'ledge', null, 15000, 'slot 0 hangs on the sill lip');
+      const grip = await GP(0, () => { const an = window.__app.current.traversal.attach.anchor; return an.kind === 'ledge' ? an.top : an.hangHeight; });
+      assert(Math.abs(grip - 4.4) < 0.1, `slot 1's leg-up puts slot 0 on the 4.4 m lip (${grip})`);
+      await settle();
+      assert(true, 'slots 0+1 (leg-up) and slots 2+3 (throw) both ran to the end');
+    });
+
+    await leg('a second climber on a busy brace is denied taken', async () => {
+      const [i1, i2] = [idxOf(1), idxOf(2)];
+      const [P0, P1, P2] = [A, pages[i1], pages[i2]];
+      await moveTo(i1, sx, sz, c.yaw);
+      await moveTo(0, sx - fx * 0.8, sz - fz * 0.8, c.yaw);
+      await moveTo(i2, sx + fz * 0.8 - fx * 0.3, sz - fx * 0.8 - fz * 0.3, c.yaw);
+      await waitSim(500);
+      for (const P of [P0, P1, P2]) await padReady(P);
+      await crouch(P1);
+      await holdUntil(P1, RB, () => window.__app.current.team.state === 'offer', 'slot 1 offers the leg-up', undefined, 15000);
+      await until(P0, () => !!window.__app.current.team.offer?.boost, null, 10000, 'slot 0 is offered slot 1\'s leg-up');
+      await until(P2, () => !!window.__app.current.team.offer?.boost, null, 10000, 'slot 2 is offered the same leg-up');
+      const v0 = await teamView(P0);
+      const v2 = await teamView(P2);
+      // both ask in the same breath: the host serves one and denies the other `taken`, whoever lands first
+      await Promise.all([setPad(P0, RB, 1), setPad(P2, RB, 1)]);
+      let res = null;
+      try {
+        for (let k = 0; k < 120 && !res; k++) {
+          await waitSim(150);
+          const [a0, a2] = await Promise.all([teamView(P0), teamView(P2)]);
+          if (a0.b > v0.b && a2.d > v2.d) res = { winner: 0, denied: a2 };
+          else if (a2.b > v2.b && a0.d > v0.d) res = { winner: 2, denied: a0 };
+        }
+      } finally {
+        await Promise.all([setPad(P0, RB, 0), setPad(P2, RB, 0)]);
+      }
+      assert(!!res, 'one of the two climbers is served and the other denied');
+      assert(res.denied.last === 'taken', `slot ${res.winner === 0 ? 2 : 0} is denied "taken" (${res.denied.last}); slot ${res.winner} climbs`);
+    });
+
+    // ---- (coop4 AI6, guard-ai #319, docs/coop4/briefs/AI6-E2E-SPEC.md "e2e-sectorops with 4 players") the guard AI with four
+    // pages, on section 1 of the Warehouse after the legs above (four pages, `?sectorGuards=4`, perStage 2). The harness froze
+    // the host's guard AI; these legs let it run (`delete em.update`), keep the cameras held (their own alarms are not this
+    // check's), hide the four operators in later sections' spots, pinned dark (no guard sees one), and read guard-ai's hooks:
+    // a build without #319 prints "SKIP: guard-ai #319 hook <name> missing". The alarm is the mode's own path (`onAlarm()`, as
+    // part 1's response-team check: `raised()` -> `em.shapeResponse` -> one `newTeam` per team); the panel race is part 1's.
+    // (4) the stage's teams by `responseShape`, never over the live cap; (5) the two teams hunt different players and never
+    // dwell on one sweep point (the sweep starts after the search, `ALERT.searchTime` 60 s, so the window is up to 180 s of the
+    // host's sim, not the spec's 60); (6) S27 draw on alarm on every page (this one runs on feature/coop4 alone).
+    const ai6 = { ready: false, shape: null, teams0: 0, live: 0, perStage: 0, key: 0, cap0: 0, nTeams: 0 };
+    const hasHook = (name, ok) => { if (!ok) skip(`guard-ai #319 hook ${name}`); return ok; };
+    /** Per page: [id, carry phase] of the live gun-carrying guards (the host's `Enemy.carry`, a client's puppet `carry`). */
+    const carryView = (i) => pages[i].evaluate((host) => {
+      const g = window.__app.current;
+      if (host) return g.enemyMgr.enemies.filter((e) => e.alive && !e.dog && e.carry?.on).map((e) => [e.id, e.carry.phase]);
+      return [...g.net.puppets.entries()].filter(([, p]) => p.alive && p.carry).map(([id, p]) => [id, (p.carry.c ?? p.carry).phase]);
+    }, i === 0);
+    const respSize = (k, size, teams) => (teams >= 1 && size >= 1 && k >= 0 && k < teams ? Math.floor(size / teams) + (k < size % teams ? 1 : 0) : 0);
+
+    await leg('AI6 setup, (6) draw on alarm on every page, (4) the stage brings the shaped teams', async () => {
+      if (pages.length !== 4) throw new Error(`AI6 needs four pages (${pages.length} after the late join)`);
+      const hk = await GA(() => { const em = window.__app.current.enemyMgr; return { shape: typeof em.shapeResponse === 'function', coop4: typeof em.coop4 === 'function', find: typeof em.intruders?.find === 'function' }; });
+      // the AI runs again; cameras held; nobody lit; light pinned dark
+      await GA(() => {
+        const g = window.__app.current;
+        delete g.enemyMgr.update;
+        g.target.damageMul = 0;
+        for (const r of g.net.remotes.values()) r.damageMul = 0;
+        if (g.security) g.security.fixedUpdate = () => {};
+        if (window.__ctdev) window.__ctdev.fixedUpdate = () => {};
+        g['updateLight'] = () => { g.localRef.light = g.lightLevel = 0; for (const r of g.remotePlayers()) r.light = 0; };
+      });
+      // the four operators in the later sections' spots (behind the sealed connectors: no line to a guard of section 1)
+      const S = await sections(GA);
+      const spots = [S[0].cp, S[1].cp, { x: S[1].obj[0], y: S[1].obj[1], z: S[1].obj[2], yaw: 0 }, { x: S[2].obj[0], y: S[2].obj[1], z: S[2].obj[2], yaw: 0 }].filter(Boolean);
+      for (let i = 0; i < 4; i++) {
+        const p = spots[i % spots.length];
+        try {
+          await moveTo(i, p.x + (i >= spots.length ? 1.2 : 0), p.z, p.yaw ?? 0, (p.y ?? 0) + 0.1);
+        } catch (e) {
+          console.log(`  (AI6: page ${i} not placed at ${p.x.toFixed(1)}, ${p.z.toFixed(1)}: ${String(e).slice(0, 90)})`);
+        }
+      }
+      await until(A, () => window.__app.current.enemyMgr.players().length === 4, null, 10000, 'AI6: four players in the guards\' list');
+      // the monitor: every step the live count against the cap; (5) the teams' sweep samples every 0.5 s once `watch` is set
+      ai6.key = await onHostStep(A, (g, a, st) => {
+        window.__ai6m = st;
+        try {
+          const em = g.enemyMgr;
+          if (!st.init) Object.assign(st, { init: true, over: 0, maxAlive: 0, next: 0, samples: 0, watch: false, mine: [], first: [], sweepN: [], close: 0, closeAt: null, busy: 0, err: '' });
+          st.maxAlive = Math.max(st.maxAlive, em.alive);
+          if (em.alive > em.maxAlive) st.over++;
+          if (!st.watch || g.time < st.next) return;
+          st.next = g.time + 0.5;
+          st.samples++;
+          const ts = st.mine;
+          const cur = ts.map((t) => (t.sweeping && t.point >= 0 ? [t.pts[2 * t.point], t.pts[2 * t.point + 1]] : null));
+          ts.forEach((t, k) => {
+            if (cur[k]) {
+              st.sweepN[k] = (st.sweepN[k] ?? 0) + 1;
+              if (!st.first[k]) {
+                const own = em.lkpOf ? em.lkpOf(t.hunt) : null;
+                const other = em.lkpOf ? ts.map((o, j) => (j !== k && o.hunt >= 0 ? em.lkpOf(o.hunt) : null)).filter(Boolean) : [];
+                st.first[k] = { at: cur[k], own: own ? Math.hypot(cur[k][0] - own.x, cur[k][1] - own.z) : null, other: other.map((q) => Math.hypot(cur[k][0] - q.x, cur[k][1] - q.z)) };
+              }
+            }
+            st.busy = Math.max(st.busy, t.busySkips ?? 0);
+          });
+          for (let i = 0; i < ts.length; i++) {
+            for (let j = i + 1; j < ts.length; j++) {
+              if (!cur[i] || !cur[j]) continue;
+              const d = Math.hypot(cur[i][0] - cur[j][0], cur[i][1] - cur[j][1]);
+              if (d < a.thin && !(ts[i].count <= ts.length)) { st.close++; st.closeAt = [cur[i], cur[j], d, ts[i].count]; }
+            }
+          }
+        } catch (e) {
+          st.err = String(e?.stack ?? e);
+        }
+      }, { thin: 8 });
+      // the guards still calm and holstered on every page before the stage
+      for (let i = 1; i < 4; i++) await until(pages[i], () => window.__app.current.net.puppets.size > 0, null, 30000, `AI6: guard puppets on page ${i}`);
+      const pre = await eachPage(pages, (P, i) => carryView(i));
+      const holst0 = pre.map((v) => v.filter(([, ph]) => ph === 0).length);
+      const hostIds = pre[0].map(([id]) => id).sort();
+      assert(holst0[0] > 0, `AI6 (6): the section's guards start calm, some holstered on the host (${holst0})`);
+      assert(hostIds.length > 0, 'AI6 (6): the host has gun-carrying guards in the section');
+
+      // the seeds, the shape and the stage in one host call (a seeded slot with nobody hunting is forgotten after 2 s):
+      // the host and page 1 each seen at a spot beside one of the two guards furthest apart
+      const r = await GA(([ids, hasShape]) => {
+        const g = window.__app.current;
+        const em = g.enemyMgr;
+        const m = window.__sector;
+        const b = em.intruders;
+        const nav = em.nav;
+        const gs = em.enemies.filter((e) => e.alive && !e.dog);
+        let bi = 0;
+        let bj = 1;
+        let bd = -1;
+        for (let i = 0; i < gs.length; i++) for (let j = i + 1; j < gs.length; j++) { const d = Math.hypot(gs[i].pos.x - gs[j].pos.x, gs[i].pos.z - gs[j].pos.z); if (d > bd) { bd = d; bi = i; bj = j; } }
+        const out = [];
+        if (gs.length >= 2) {
+          [[g.localRef.id, bi], [ids[1], bj]].forEach(([id, k]) => {
+            const e = gs[k];
+            const c = nav.nearestWalkable(e.pos.x + 4, e.pos.z, 6, e.pos.y);
+            const p = c >= 0 ? nav.center(c) : [e.pos.x, e.pos.z];
+            const s = b.slotFor(id);
+            if (s >= 0) b.report(s, p[0], e.pos.y, p[1], true);
+            out.push({ id, s, p });
+          });
+          if (typeof em['mirror'] === 'function') em['mirror']();
+        }
+        const live = m.debug().index;
+        const perStage = g.world.map.sectors[live].perStage;
+        const stage = m.run.alarm + 1;
+        const shape = hasShape ? { ...em.shapeResponse(stage, perStage, { teams: 0, size: 0 }) } : null;
+        const teams0 = em.teams.filter((t) => (t.section ?? t.index) === live).length;
+        const t0 = g.time;
+        const alive0 = em.alive;
+        const raised = m.onAlarm();
+        return { seeds: out, live, perStage, stage, shape, teams0, t0, alive0, raised, guards: gs.length };
+      }, [h.ids, hk.shape]);
+      Object.assign(ai6, { shape: r.shape, teams0: r.teams0, live: r.live, perStage: r.perStage, ready: true, seeds: r.seeds });
+      assert(r.raised !== false && r.guards >= 2, `AI6: the stage rose with two or more guards in section ${r.live + 1} (${JSON.stringify({ raised: r.raised, guards: r.guards })})`);
+
+      // (6) 2 s of the host's sim on: every gun-carrying puppet drawn on B, C, D, every live guard on the host, the same set
+      await waitHostSim(A, 2000);
+      for (let i = 0; i < 4; i++) {
+        let v = await carryView(i);
+        if (v.some(([, ph]) => ph !== 2)) {
+          await waitSim(1500);
+          v = await carryView(i);
+        }
+        const holst = v.filter(([, ph]) => ph !== 2).length;
+        assert(v.length > 0 && holst === 0, `AI6 (6): page ${i}: no gun-carrying guard is holstered or drawing 2 s after the alarm (${holst} of ${v.length}; ${JSON.stringify(v.slice(0, 8))})`);
+        const same = hostIds.every((id) => v.some(([x]) => x === id)) && v.filter(([x]) => hostIds.includes(x)).length === hostIds.length;
+        assert(same, `AI6 (6): page ${i} shows the same guards as the host (${hostIds.length} at the alarm, ${v.length} now)`);
+      }
+
+      // (4) the shaped teams, once the spawns settle
+      if (!hasHook('em.shapeResponse', hk.shape)) return;
+      const players = await GA(() => window.__app.current.enemyMgr.players().length);
+      assert(players === 4, `AI6 (4): four players when the stage rose (${players})`);
+      assert(r.shape.size === r.perStage + 2 && r.shape.teams === (r.perStage + 2 >= 4 ? 2 : 1), `AI6 (4): em.shapeResponse(stage ${r.stage}, perStage ${r.perStage}) with four players and room is size perStage + 2, ${r.perStage + 2 >= 4 ? 2 : 1} team(s) (${JSON.stringify(r.shape)})`);
+      await until(A, () => window.__sector.debug().pending === 0, null, 40000, 'AI6 (4): the stage\'s guards have all spawned').catch((e) => console.log(`  (${String(e).slice(0, 120)})`));
+      const f = await GA(([live, teams0]) => {
+        const em = window.__app.current.enemyMgr;
+        const mine = em.teams.filter((t) => (t.section ?? t.index) === live);
+        return { n: mine.length, sizes: mine.slice(teams0).map((t) => t.members.length), pending: window.__sector.debug().pending, alive: em.alive, cap: em.maxAlive, over: window.__ai6m.over, maxAlive: window.__ai6m.maxAlive };
+      }, [ai6.live, ai6.teams0]);
+      const exp = Array.from({ length: r.shape.teams }, (_, k) => respSize(k, r.shape.size, r.shape.teams));
+      ai6.nTeams = f.n - ai6.teams0;
+      assert(f.n - ai6.teams0 === r.shape.teams, `AI6 (4): the section's team count grew by ${r.shape.teams} (${ai6.teams0} -> ${f.n})`);
+      assert(f.sizes.length === exp.length && f.sizes.every((s, k) => s >= 1 && s <= exp[k]), `AI6 (4): each team's members match responseTeamSize or fewer (${JSON.stringify(f.sizes)} of ${JSON.stringify(exp)})`);
+      assert(f.over === 0 && f.alive <= f.cap, `AI6 (4): alive never over the live cap (${f.alive} of ${f.cap}; steps over ${f.over}, most alive ${f.maxAlive})`);
+    });
+
+    // (5) the two teams hunt different players; their leaders never dwell on one sweep point
+    await leg('AI6 (5): the teams hunt different players, the sweep dedupe', async () => {
+      if (!ai6.ready) { skip('AI6 setup (the previous leg)'); return; }
+      const hk = await GA(() => { const t = window.__app.current.enemyMgr.teams[0]; return { teams: !!t, hunt: !!t && 'hunt' in t, busy: !!t && 'busySkips' in t }; });
+      if (!hk.teams || !hasHook('SweepTeam.hunt', hk.hunt)) return;
+      const th = await GA(([live, teams0]) => {
+        const em = window.__app.current.enemyMgr;
+        const mine = em.teams.filter((t) => (t.section ?? t.index) === live).slice(teams0);
+        window.__ai6m.mine = mine;
+        return mine.map((t) => ({ hunt: t.hunt, members: t.members.filter((e) => e.alive).map((e) => e.hunt) }));
+      }, [ai6.live, ai6.teams0]);
+      assert(th.length >= 2, `AI6 (5): two response teams (${th.length})`);
+      assert(th.every((t) => t.hunt >= 0) && new Set(th.map((t) => t.hunt)).size === th.length, `AI6 (5): each team hunts a different player's slot (${JSON.stringify(th.map((t) => t.hunt))})`);
+      assert(th.every((t) => t.members.length > 0 && t.members.every((x) => x === t.hunt)), `AI6 (5): every member hunts his team's slot (${JSON.stringify(th)})`);
+      // sample every 0.5 s, in chunks of 5 s of the host's sim, until both teams have swept a few samples or 180 s
+      await GA(() => { const s = window.__ai6m; s.watch = true; s.next = window.__app.current.time; });
+      let el = 0;
+      let st = null;
+      for (; el < 180000; el += 5000) {
+        await waitHostSim(A, 5000);
+        st = await GA(() => ({ ...window.__ai6m, mine: undefined }));
+        if (st.err || (st.first[0] && st.first[1] && (st.sweepN[0] ?? 0) >= 12 && (st.sweepN[1] ?? 0) >= 12)) break;
+      }
+      const why = JSON.stringify({ el: Math.round(el / 1000), samples: st.samples, sweepN: st.sweepN, close: st.close, closeAt: st.closeAt, busy: st.busy, first: st.first, err: st.err });
+      console.log(`  (AI6 (5): ${why})`);
+      assert(!st.err, `AI6 (5): the sampling hook ran (${st.err})`);
+      assert(!!st.first[0] && !!st.first[1], `AI6 (5): both teams began their sweep within ${Math.round(el / 1000)} s of the host's sim (${why})`);
+      assert(st.close === 0, `AI6 (5): never both teams sweeping with their points within SWEEP.thin (8 m) of each other (${st.close} samples; ${why})`);
+      for (let k = 0; k < 2; k++) {
+        const fk = st.first[k];
+        if (!fk || fk.own === null) continue;
+        assert(fk.other.every((d) => fk.own <= d), `AI6 (5): team ${k}'s first swept point is nearer its own hunt's last known position than the other's (own ${fk.own.toFixed(1)} m, other ${fk.other.map((d) => d.toFixed(1))}) (A176)`);
+      }
+    });
+
+    // (4) refused at the cap: the live count at its cap, the next stage's guards wait (nothing over the cap, nothing throws)
+    await leg('AI6 (4): refused at the cap, the order holds', async () => {
+      if (!ai6.ready) { skip('AI6 setup (the first leg)'); return; }
+      const c = await GA(() => {
+        const g = window.__app.current;
+        const em = g.enemyMgr;
+        const m = window.__sector;
+        const s = window.__ai6m;
+        s.watch = false;
+        const cap0 = em.maxAlive;
+        em.maxAlive = em.alive + 1;
+        const before = { alive: em.alive, pending: m.debug().pending, stage: m.run.alarm };
+        const raised = m.onAlarm();
+        return { cap0, cap: em.maxAlive, before, raised };
+      });
+      ai6.cap0 = c.cap0;
+      await waitHostSim(A, 5000);
+      const d = await GA(() => { const em = window.__app.current.enemyMgr; return { alive: em.alive, cap: em.maxAlive, pending: window.__sector.debug().pending, stage: window.__sector.run.alarm, over: window.__ai6m.over }; });
+      assert(c.raised === false || d.stage > c.before.stage || d.stage === 3, `AI6 (4): the next stage rose (${JSON.stringify([c, d])})`);
+      assert(d.alive <= d.cap && d.over === 0, `AI6 (4): at the cap alive stays within it (${d.alive} of ${d.cap}; steps over ${d.over})`);
+      assert(d.alive - c.before.alive <= 1, `AI6 (4): at the cap fewer spawn (${c.before.alive} -> ${d.alive}, ${d.pending} waiting)`);
+      await GA((cap0) => { window.__app.current.enemyMgr.maxAlive = cap0; }, c.cap0);
+      await until(A, () => window.__sector.debug().pending === 0, null, 40000, 'AI6 (4): the waiting guards spawn once there is room').catch((e) => console.log(`  (${String(e).slice(0, 120)})`));
+      const e2 = await GA(() => { const em = window.__app.current.enemyMgr; return { alive: em.alive, cap: em.maxAlive, pending: window.__sector.debug().pending, over: window.__ai6m.over }; });
+      assert(e2.alive <= e2.cap && e2.over === 0, `AI6 (4): the order holds, nothing over the cap (${e2.alive} of ${e2.cap}, ${e2.pending} still waiting; steps over ${e2.over})`);
+    });
+
+    // put the host back as the harness had it
+    await GA(() => {
+      const g = window.__app.current;
+      if (window.__ai6m) window.__ai6m.watch = false;
+      g['updateLight'] = Object.getPrototypeOf(g)['updateLight'];
+      g.enemyMgr.update = () => {};
+    });
+    if (ai6.key) await offHostStep(A, ai6.key).catch(() => {});
+  });
+}
+
+// ---- part 9: an operator out waits for the connector (coop4 OUT, M1 b; campusOps, 3 pages) -----------------------------
+if (want(9)) {
+  await coop4('sector ops (coop4 OUT): three operators - slot 2 out, the section goes on, the connector cycles with 0 + 1, slot 2 back beside the host', { n: 3, map: 'campusOps' }, async (h) => {
+    const { A, pages, GA, GP, skip, idxOf, moveTo, posOf, allowAll, leg } = h;
+    const finishObjective = () => GA(() => { const m = window.__sector; if (m.run.current.objective.kind === 'download') { m.run.downloading = true; m.run.download(999); } else m.run.objectiveDone(); });
+    const S = await GA(() => window.__app.current.world.map.sectors.map((s) => { const z = s.connector ?? s.extract; return { box: z.box, y: z.floorY ?? s.connector?.checkpoint?.y ?? 0, yaw: s.connector?.checkpoint?.yaw ?? 0 }; }));
+    const i2 = idxOf(2);
+    const id2 = h.ids[i2];
+    const downRemote = (id) => GA((id) => {
+      const r = window.__app.current.net.remotes.get(id);
+      r.damageMul = 1;
+      r.applyDamage({ amount: 9999, point: r.feet.clone(), dir: r.feet.clone(), part: 'body', kind: 'bullet', attackerTeam: 'enemy', attackerId: 'x', sourcePos: r.feet.clone(), impulse: 0 });
+    }, id);
+    /** Down player `id` on the host with no syringe left (the host's revive cap spent): out at once. */
+    const outNow = async (id) => {
+      await GA(() => { const n = window.__app.current.net; n.reviveClock.cap = n.reviveClock.used; });
+      await downRemote(id);
+    };
+
+    await leg('slot 2 goes out: no restart, out of the player list, follow view and HUD line', async () => {
+      if (!(await GA(() => Array.isArray(window.__sector.debug().out)))) {
+        skip('SectorMode.debug().out (OUT)');
+        return;
+      }
+      const r0 = await GA(() => window.__sector.debug().restarts);
+      await outNow(id2);
+      await until(pages[i2], () => !window.__app.current.player.alive, null, 15000, 'slot 2 is down');
+      await until(A, (id) => window.__sector.debug().out.includes(id), id2, 15000, 'the host marks slot 2 out');
+      await waitSim(4000);
+      const d = await GA(() => { const g = window.__app.current; const m = window.__sector.debug(); return { restarts: m.restarts, restarting: m.restarting, ended: g.isEnded, refs: g.playerRefsInto([]).map((r) => r.id) }; });
+      assert(d.restarts === r0 && !d.restarting && !d.ended, `one out at three players: no restart (${JSON.stringify(d)})`);
+      assert(d.refs.length === 2 && !d.refs.includes(id2), `slot 2 left the player list (guards, connector) (${d.refs})`);
+      await until(pages[i2], () => window.__app.current.net.outSelf === true, null, 15000, 'slot 2 learns it is out from the host');
+      await until(pages[i2], () => /Out - you rejoin at the next connector/.test(document.body.textContent ?? ''), null, 15000, 'slot 2 shows the OUT line');
+      await until(pages[i2], () => !!window.__app.current.player.followFeet, null, 15000, 'slot 2 follows a teammate');
+      const f0 = await GP(i2, () => window.__app.current.net.follow.slot);
+      assert(f0 === 0 || f0 === 1, `slot 2 follows slot ${f0}`);
+      await GP(i2, () => { window.__app.current.app.input.state.buttons.swapNext.pressed = true; });
+      await until(pages[i2], (f) => window.__app.current.net.follow.slot !== f, f0, 10000, 'the switch-target input moves the view to the other teammate');
+      const f1 = await GP(i2, () => window.__app.current.net.follow.slot);
+      assert((f1 === 0 || f1 === 1) && f1 !== f0, `the view moved from slot ${f0} to slot ${f1}`);
+    });
+
+    await leg('the connector cycles with slots 0 + 1; slot 2 comes back beside the host, full health', async () => {
+      if (!(await GA(() => (window.__sector.debug().out ?? []).length > 0))) {
+        skip('slot 2 out (the previous leg)');
+        return;
+      }
+      const cur = await GA(() => window.__sector.debug().index);
+      await finishObjective();
+      await until(A, () => window.__sector.debug().phase === 'connector', null, 15000, 'the objective opens the connector');
+      for (const slot of [0, 1]) { const [x, z] = boxSpot(S[cur].box, slot); await moveTo(idxOf(slot), x, z, S[cur].yaw, S[cur].y + 0.1); }
+      await until(A, (n) => window.__sector.debug().index === n, cur + 1, 30000, 'slots 0 + 1 inside: the connector cycles (the out slot 2 does not block it)');
+      await until(A, () => window.__sector.debug().out.length === 0, null, 15000, 'the host clears OUT at the cycle');
+      await until(A, (id) => window.__app.current.net.remotes.get(id).alive, id2, 15000, 'slot 2 is back up on the host');
+      await until(pages[i2], () => window.__app.current.player.alive, null, 15000, 'slot 2 stands again on its own page');
+      await allowAll();
+      await waitSim(1500);
+      const hp = await posOf(0);
+      const p2 = await posOf(i2);
+      const d = Math.hypot(hp[0] - p2[0], hp[2] - p2[2]);
+      assert(d < 4, `slot 2 is back beside the host (${d.toFixed(2)} m)`);
+      const v = await GP(i2, () => { const g = window.__app.current; return { hp: g.target.health.hp, max: g.target.health.maxHp, out: g.net.outSelf, follow: !!g.player.followFeet }; });
+      assert(v.hp === v.max, `slot 2 has full health (${v.hp}/${v.max})`);
+      assert(!v.out && !v.follow, `slot 2 is no longer out and has its own view (${JSON.stringify(v)})`);
+      const refs = await GA(() => window.__app.current.playerRefsInto([]).length);
+      assert(refs === 3, `all three are in the player list again (${refs})`);
+    });
+
+    await leg('everyone down or out restarts the section and clears OUT', async () => {
+      if (!(await GA(() => Array.isArray(window.__sector.debug().out)))) return;
+      const r0 = await GA(() => window.__sector.debug().restarts);
+      await outNow(id2);
+      await until(A, (id) => window.__sector.debug().out.includes(id), id2, 15000, 'slot 2 out again');
+      await downRemote(h.ids[idxOf(1)]);
+      await GA(() => { const g = window.__app.current; g.target.damageMul = 1; g.target.applyDamage({ amount: 99999, point: g.player.position.clone(), dir: new g.player.position.constructor(0, 0, 1), part: 'body', kind: 'bullet', attackerTeam: 'enemy', attackerId: 'test', sourcePos: g.player.position.clone(), impulse: 1 }); });
+      await until(A, (n) => { const d = window.__sector.debug(); return d.restarts > n && !d.restarting; }, r0, 30000, 'nobody up: the section restarts');
+      assert(await GA(() => window.__sector.debug().out.length === 0), 'the restart cleared OUT');
+      for (let i = 0; i < pages.length; i++) await until(pages[i], () => window.__app.current.player.alive, null, 20000, `page ${i} is up after the restart`);
+      await until(pages[i2], () => !window.__app.current.net.outSelf, null, 15000, 'slot 2 is no longer out');
+      await GA(() => { const g = window.__app.current; g.target.damageMul = 0; for (const r of g.net.remotes.values()) r.damageMul = 0; });
+    });
   });
 }
 

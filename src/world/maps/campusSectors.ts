@@ -74,6 +74,11 @@ const S1_GUARDS: SectorGuard[] = [
   { kind: 'grunt', x: -38, z: -66, yaw: PI, route: [[-38, -66], [-34, -50]], waits: [4, 4], faces: [PI, 0], takedownSpot: [-34, -50.6], role: 'patrol', zone: 'perimeter', squad: 3, reason: 'Fence-line check after the break-ins' },
   // 8 the delivery sentry: a sweep at the dock door, +-60 degrees, 12 s each way
   { kind: 'grunt', x: -34, z: -41.6, yaw: PI - 1.05, route: [[-34, -41.6], [-32, -41.6]], waits: [12, 12], faces: [PI - 1.05, PI + 1.05], takedownSpot: [-33, -42.2], role: 'sentry', zone: 'dock', squad: 3, reason: 'Waits for the courier with a cage trolley' },
+  // coop4 A8: spawned only for a team of 3 / 4 (`minPlayers`); appended, so the base list keeps its numbers
+  // 9 the second fence patrol (3+): the same west fence <-> bin store round, from the bin store end
+  { kind: 'grunt', x: -34, z: -50, yaw: 0, route: [[-34, -50], [-38, -66]], waits: [4, 4], faces: [0, PI], takedownSpot: [-38, -66], role: 'patrol', zone: 'perimeter', squad: 3, minPlayers: 3, reason: 'Shadow route (feeder board, bin store): 3+ players cut the west half at once, so a second fence patrol walks it from the bin store end' },
+  // 10 the doorman's colleague (4+): beside the doorman at the C1 badge door, 1.4 m east, same facing
+  { kind: 'officer', x: -18.6, z: -35, yaw: PI, takedownSpot: [-18.6, -34.7], role: 'post', zone: 'c1', squad: 2, minPlayers: 4, reason: 'C1 badge door (the team door): with 4 players one pair lures the doorman while the other works the lock, so a colleague backs him up' },
 ];
 
 /**
@@ -135,6 +140,11 @@ const S2_GUARDS: SectorGuard[] = [
   { kind: 'officer', x: 1, z: -14, y: 4.4, yaw: -PI / 2, takedownSpot: [2, -14], post: { leash: 5, guards: 'c2-door' }, role: 'posted', zone: 'c2', squad: 1, reason: 'The only internal link to the lab block: he checks every card' },
   // 12 the mailroom guard: posted at the goods door, facing into the room
   { kind: 'grunt', x: -42.5, z: -16, yaw: PI / 2, takedownSpot: [-43.2, -16], role: 'post', dormant: true, zone: 'goods', squad: 0, reason: "Takes the courier's paperwork at the goods door" },
+  // coop4 A8: spawned only for a team of 3 / 4 (`minPlayers`); appended, so the base list keeps its numbers
+  // 13 the second lobby patrol (3+): the lobby round from the lift lobby end
+  { kind: 'grunt', x: -29, z: -8.5, yaw: 0, route: [[-29, -8.5], [-24, -24.8]], waits: [4, 4], faces: [0, PI / 2], takedownSpot: [-24, -24.8], role: 'patrol', zone: 'lobby', squad: 0, minPlayers: 3, reason: 'Loud route (turnstiles, feature stair): 3+ players rush the foyer from both ends, so a second lobby patrol walks it from the lift lobby' },
+  // 14 the bridge officer's second (4+): on the L1 landing's approach, 2.8 m north of the posted bridge officer, facing the landing
+  { kind: 'grunt', x: 1, z: -11.2, y: 4.4, yaw: PI, takedownSpot: [1, -10.8], role: 'post', zone: 'c2', squad: 1, minPlayers: 4, reason: 'Bridge landing (the only way to the labs): with 4 players a pair holds the officer while the other pair goes on, so a second guard covers the landing approach' },
 ];
 // ---- Section 3 (slice 3): the lab block (SPEC "S3" guard table; `campusS3.ts` builds it) ------------------------------
 const Y1 = S3_L1;
@@ -206,6 +216,11 @@ const S3_GUARDS: SectorGuard[] = [
   { kind: 'officer', x: 43.6, y: Y1, z: -0.8, yaw: PI, route: [[43.6, -0.8], [57, -0.8]], waits: [4, 6], faces: [PI, PI], takedownSpot: [43.6, -0.8], role: 'supervisor', zone: 's3-l1', squad: 1, reason: 'Visits every post on L1 and checks in with the security room' },
   // 16 the crane-bay sentry: a sweep inside the hall's west door, facing the hall, +-50 degrees, 12 s each way
   { kind: 'grunt', x: 25, z: -19, yaw: PI / 2 - 0.87, route: [[25, -19], [25, -17]], waits: [12, 12], faces: [PI / 2 - 0.87, PI / 2 + 0.87], takedownSpot: [24.4, -18], role: 'sentry', zone: 's3-hall', squad: 2, reason: 'Minds the hall door from the HQ side' },
+  // coop4 A8: spawned only for a team of 3 / 4 (`minPlayers`); appended, so the base list keeps its numbers
+  // 17 the fourth hall patrol (3+): the same loop as #6 and #7, from the fourth corner
+  { kind: 'grunt', x: 37, z: -23, yaw: -PI / 2, route: [[37, -23], [28, -23], [28, -13], [37, -13]], waits: [2.5, 0.5, 0.5, 2.5], faces: [-PI / 2, 0, PI / 2, PI], takedownSpot: [37, -13], role: 'patrol', zone: 's3-hall', squad: 2, minPlayers: 3, reason: 'Hall crossing (the loud route, the south strip of the stealth one): 3+ players cross it together, so a third patrol walks the chamber round from the fourth corner' },
+  // 18 the second dock patrol (4+): the dock door <-> the gas cage round from the cage end
+  { kind: 'grunt', x: 38.9, z: -4.6, yaw: -PI / 2, route: [[38.9, -4.6], [25, -4.5]], waits: [4, 4], faces: [PI / 2, PI], takedownSpot: [25, -4.5], role: 'patrol', zone: 's3-dock', squad: 3, minPlayers: 4, reason: 'The dock is the exit leg of all three routes: with 4 players two hold the stair lobby while two run the C3 door, so a second dock patrol walks it from the cage end' },
 ];
 
 /** The exit legs every S3 route shares: the store, the back corridor, the north stair down, the dock, C3. */

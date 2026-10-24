@@ -166,6 +166,15 @@ describe('join spawn (walk item 7): where the host puts a client joining or reco
     expect(o).toEqual(pt(101.5, 0));
   });
 
+  it('(coop4 p8-rejoin-fix) slots 2 and 3 rejoining: the checkpoint ring beside slot 0, never the held spot', () => {
+    for (const slot of [2, 3]) {
+      const o = out();
+      expect(joinSpawn(world(), slot, pt(5, 5), o)).toBe('checkpoint');
+      expect(hyp2(o.x - 100, o.z)).toBeLessThanOrEqual(2.3 + 1e-6);
+      expect(hyp2(o.x - 5, o.z - 5)).toBeGreaterThan(50);
+    }
+  });
+
   it('a one-point checkpoint: the fallback slot beside it', () => {
     const o = out();
     expect(joinSpawn(world({ checkpoint: [pt(100, 0)] }), 1, null, o)).toBe('checkpoint');

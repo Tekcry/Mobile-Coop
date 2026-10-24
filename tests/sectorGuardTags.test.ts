@@ -16,7 +16,7 @@ import {
   TAGS,
   zoneRadius,
 } from '../src/ai/sectorTags';
-import { DEFAULT_SQUAD_BASE, squadId } from '../src/ai/guardAiData';
+import { DEFAULT_SQUAD_BASE, defaultSquads, squadId, validateGuardAi, validatePosts } from '../src/ai/guardAiData';
 import { Vector3, type Scene } from '../src/core/babylon';
 import type { AiContext, Enemy } from '../src/ai/enemy';
 import type { AlarmPanel } from '../src/ai/alarm';
@@ -27,6 +27,10 @@ import type { NavGrid } from '../src/ai/navGrid';
 import type { DamageRegistry } from '../src/game/damage';
 import type { Ballistics } from '../src/weapons/ballistics';
 import type { Vfx } from '../src/vfx/vfx';
+import { checkSectorGuards, guardForTeam, SECTOR, sweepSourceOf, type SectorDef } from '../src/game/sectors';
+import { CAMPUS_SECTORS, CAMPUS_SECURITY } from '../src/world/maps/campusSectors';
+import { WAREHOUSE_SECTORS } from '../src/world/maps/warehouseSectors';
+import { hyp2 } from '../src/core/mathx';
 
 // (guard-ai S5b) The Sector Ops guard tags (ENGINE.md section 7, `SectorGuard`) read by `EnemyManager.placeSlot`:
 // squad (radio checks run; a down member is missed and two of his squad look for him), handler (a dog heels on its
@@ -511,5 +515,149 @@ describe('the role tag: the alarm runner', () => {
     priv.assignAlarm();
     expect(sup.runAlarm).toHaveBeenCalledTimes(1);
     expect(off.runAlarm).not.toHaveBeenCalled();
+  });
+});
+
+/** FNV-1a of a guard list's JSON (key order as the data writes it): a change to any base guard changes it. */
+function fnv(list: readonly unknown[]): string {
+  const str = JSON.stringify(list);
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(16);
+}
+/** The base (untagged) guard count and list hash per section as master shipped them (before the coop4 tags). */
+const MASTER_BASE: Record<string, { count: number; hash: string }> = {
+  'campus s1': { count: 8, hash: 'cb0b2fb8' },
+  'campus s2': { count: 12, hash: 'ddcfab59' },
+  'campus s3': { count: 16, hash: '80096eec' },
+  'campus s4': { count: 20, hash: '59969eec' },
+  'campus s5': { count: 24, hash: '1494aabf' },
+  'warehouse service': { count: 8, hash: '710a29b7' },
+  'warehouse racking': { count: 8, hash: '7f6c84f6' },
+  'warehouse floor': { count: 9, hash: 'db3f95a3' },
+};
+
+// (coop4 DATA, A8) The extra guards the map data tags `minPlayers` 3 or 4: at most 2 per section, appended after the base
+// list, each with a reason, never a desk operator, valid under the section's guard checks; a team of 1-2 spawns exactly
+// today's list (the base guards), a team of 4 spawns today's list plus the tags.
+describe('coop4 DATA: minPlayers guard tags (campus S1-S5, warehouse sections)', () => {
+  const SECTIONS: { label: string; def: SectorDef; index: number; sections: number }[] = [];
+  CAMPUS_SECTORS.forEach((def, index) => SECTIONS.push({ label: `campus ${def.id}`, def, index, sections: CAMPUS_SECTORS.length }));
+  WAREHOUSE_SECTORS.forEach((def, index) => SECTIONS.push({ label: `warehouse ${def.id}`, def, index, sections: WAREHOUSE_SECTORS.length }));
+  const MASTER = MASTER_BASE;
+
+  const tagged = (d: SectorDef): SectorDef['guards'] => d.guards.filter((g) => g.minPlayers !== undefined);
+  const spawned = (d: SectorDef, team: number): SectorDef['guards'] => d.guards.filter((g) => guardForTeam(g, team));
+  /** Desk operators: the guards the campus security data's desks name (an unspawned one would read as an unmanned desk). */
+  const operators = (index: number, campus: boolean): Set<number> => new Set(campus ? (CAMPUS_SECURITY.desks ?? []).filter((q) => q.section === index && q.operator !== undefined).map((q) => q.operator!) : []);
+
+  for (const s of SECTIONS) {
+    const campus = s.label.startsWith('campus');
+    const t = tagged(s.def);
+    const m = MASTER[s.label];
+
+    it(`${s.label}: at most 2 tagged guards, minPlayers 3 or 4, each with a reason`, () => {
+      expect(t.length).toBeLessThanOrEqual(2);
+      for (const g of t) {
+        expect([3, 4], `${s.label} minPlayers`).toContain(g.minPlayers);
+        expect(g.reason && g.reason.length > 30, `${s.label} (${g.x}, ${g.z}) reason`).toBe(true);
+      }
+    });
+
+    it(`${s.label}: the tags are appended (the base list keeps its indices), none is a desk operator, dog, handler, post, pair or enforcer`, () => {
+      const first = s.def.guards.length - t.length;
+      s.def.guards.forEach((g, i) => expect(g.minPlayers !== undefined, `${s.label} guard ${i}`).toBe(i >= first));
+      const ops = operators(s.index, campus);
+      const handlers = new Set(s.def.guards.map((g) => g.handler).filter((h): h is number => h !== undefined));
+      const pairs = new Set(s.def.guards.map((g) => g.pair).filter((h): h is number => h !== undefined));
+      s.def.guards.forEach((g, i) => {
+        if (g.minPlayers === undefined) return;
+        expect(ops.has(i), `${s.label} guard ${i} is a desk operator`).toBe(false);
+        expect(roleFlags(g.role) & ROLE_DESK, `${s.label} guard ${i} role ${g.role}`).toBe(0);
+        expect(handlers.has(i) || pairs.has(i), `${s.label} guard ${i} is a handler or pair partner`).toBe(false);
+        expect(g.kind, `${s.label} guard ${i}`).not.toBe('enforcer');
+        expect(g.kind, `${s.label} guard ${i}`).not.toBe('dog');
+        expect(g.handler === undefined && g.pair === undefined && g.post === undefined && !g.dormant, `${s.label} guard ${i} tags`).toBe(true);
+      });
+    });
+
+    it(`${s.label}: a team of 1-2 spawns exactly today's list; 3 adds the 3-tags; 4 adds all the tags`, () => {
+      const base = s.def.guards.filter((g) => g.minPlayers === undefined);
+      expect(base.length, `${s.label} base count`).toBe(m!.count);
+      expect(fnv(base), `${s.label} base list`).toBe(m!.hash);
+      expect(spawned(s.def, 1)).toEqual(base);
+      expect(spawned(s.def, 2)).toEqual(base);
+      expect(spawned(s.def, 3)).toEqual([...base, ...t.filter((g) => g.minPlayers === 3)]);
+      expect(spawned(s.def, 4)).toEqual(s.def.guards);
+      expect(spawned(s.def, 4).length).toBe(base.length + t.length);
+    });
+
+    it(`${s.label}: every tagged guard passes the section's guard checks, and a full team stays within SECTOR.maxAlive`, () => {
+      expect(checkSectorGuards(s.def), s.label).toEqual([]);
+      expect(validatePosts(s.def.guards, s.def.id), s.label).toEqual([]);
+      expect(validateGuardAi({}, s.def.guards, { sections: s.sections, section: s.index }), s.label).toEqual([]);
+      s.def.guards.forEach((g, i) => {
+        if (g.minPlayers !== undefined) {
+          expect(hyp2(g.x - s.def.start.x, g.z - s.def.start.z), `${s.label} guard ${i} from the start`).toBeGreaterThanOrEqual(7);
+          expect(g.route === undefined || (Math.abs(g.route[0]![0] - g.x) < 0.1 && Math.abs(g.route[0]![1] - g.z) < 0.1), `${s.label} guard ${i} starts on its route`).toBe(true);
+        }
+      });
+      expect(s.def.guards.length + SECTOR.alarmMax * s.def.perStage, s.label).toBeLessThanOrEqual(SECTOR.maxAlive);
+      expect(s.def.guards.length, s.label).toBeLessThanOrEqual(SECTOR.maxAlive);
+    });
+  }
+
+  it('the counts: every section tags at least one guard, no more than 2; the section list is campus x5 + warehouse x3', () => {
+    expect(SECTIONS.length).toBe(8);
+    for (const s of SECTIONS) {
+      const n = tagged(s.def).length;
+      expect(n, s.label).toBeGreaterThanOrEqual(1);
+      expect(n, s.label).toBeLessThanOrEqual(2);
+    }
+  });
+});
+
+describe('coop4 A8: the minPlayers tags never change a small team', () => {
+  it('every section: the base guards keep the squads they have without the tags (team of 1-2 plays master)', () => {
+    for (const s of [...CAMPUS_SECTORS, ...WAREHOUSE_SECTORS]) {
+      const full = s.guards;
+      const base = full.filter((g) => g.minPlayers === undefined);
+      const outFull: number[] = [];
+      const outBase: number[] = [];
+      defaultSquads(full, outFull);
+      defaultSquads(base, outBase);
+      let bi = 0;
+      for (let i = 0; i < full.length; i++) {
+        if (full[i]!.minPlayers !== undefined) continue;
+        expect(outFull[i], `${s.id} guard ${i + 1}`).toBe(outBase[bi]);
+        bi++;
+      }
+    }
+  });
+});
+
+describe('coop4 data check polish: the alarm sweep source follows the team', () => {
+  /** Master's sweep source: every guard of the (untagged) list, dogs left out. */
+  const master = (guards: SectorDef['guards']) => {
+    const routes: (readonly [number, number])[][] = [];
+    const posts: [number, number][] = [];
+    for (const q of guards) {
+      if (q.kind === 'dog') continue;
+      if (q.route && q.route.length) routes.push(q.route);
+      else posts.push([q.x, q.z]);
+    }
+    return [routes, posts];
+  };
+  it('every section: a team of 1 or 2 sweeps master\'s points; 3 and 4 add only the guards spawned for them', () => {
+    for (const s of [...CAMPUS_SECTORS, ...WAREHOUSE_SECTORS]) {
+      const base = s.guards.filter((g) => g.minPlayers === undefined);
+      expect(sweepSourceOf(s.guards, 1), s.id).toEqual(master(base));
+      expect(sweepSourceOf(s.guards, 2), s.id).toEqual(master(base));
+      for (const n of [3, 4]) expect(sweepSourceOf(s.guards, n), `${s.id} x${n}`).toEqual(master(s.guards.filter((g) => guardForTeam(g, n))));
+      expect(sweepSourceOf(s.guards, 4), s.id).toEqual(master(s.guards));
+    }
   });
 });
