@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-24T11:36Z
+status: done feature/cr-f1b b49f79fc
 
 # Brief: coop-real F1b - Course mode client lamp shots reach the host (walk bug S2, wire half) (Player Build)
 
@@ -120,3 +120,28 @@ assign only the fields the method reads; class field initialisers do not run, so
 - A cloud session cannot message back. A question you cannot settle from this brief: set line 1 to
   `status: blocked <one-line reason>`, add the evidence under `## Report`, push, and move on. The lead answers by
   editing this brief.
+
+## Report (Night Shift | Cloud Builder 1, 2026-10-24)
+Branch `feature/cr-f1b` @ b49f79fc (one commit on a174b082). `git diff --stat a174b082`: the five named files only.
+- `src/net/coopHost.ts`: :99-102 `export hostLampShots(mode)` (sector / course); :186-187 field `lampShots` with the
+  briefed doc comment; :210 `this.lampShots = hostLampShots(mode)` (`lampTx` unchanged, Sector Ops only: no `lamps` in
+  Course mode); `onLampShot` :1324 gates on `!this.lampShots`, every other check unchanged; doc :1316-1322 updated.
+- `src/net/coopClient.ts`: :66-70 `export clientLampShots(mode)`; `LampMirror` stays in the sector block (:201-202);
+  the `onRay = lampRay` hook + cleanup moved to `if (clientLampShots(g.opts.mode))` at :217-222, after the sector block
+  and before the sway block, so lampRay heads the chain and sway / ricochet chain after it via `prevRay` (same order as
+  Sector Ops before; a puppet page sets no `onRay` of its own). `lampRay` doc :699-701 updated.
+- `docs/systems/coop.md`: Training course wire bullet (:351) says `lights.dead` includes client-shot lamps; "Course mode
+  unchanged." replaced with the briefed sentence (:466-468).
+- `tests/courseLampWire.test.ts` (new, 5 tests): mode rule (both predicates, six modes); client sends `shot` `lt-0`
+  dmg 0 surviving JSON + parseMessage; no send on a miss or an already-dead lamp; host Course shape (`lampShots` true,
+  `lampTx` null) calls `shootLight(0)` once and lamp 0 is destroyed; refusals (lampShots false: nothing; feet 5 m away:
+  1 violation, no shot; fixed time: violations stop at 4 after 5 calls, the limiter blocks the 5th).
+- `changes/feature-cr-f1b.md` (patch, title as briefed).
+- Checks: tsc clean; eslint on the three files clean; vitest 9 files 170/170 (courseLampWire 5, sectorLampSync 13,
+  lampSway 13, shotOrigin 9, coopGuardAi 15, coopCarry 17, coopFix 13, net 84, changesFragments 1).
+- Deviations: the brief's host stand-in list names `reachA` / `reachB`, which are client fields: the client stand-in
+  has them, the host stand-in has `lampA` / `lampB`. In Sector Ops the lampRay cleanup is now pushed after the
+  `ct.dispose` cleanup (both independent; still before the sway cleanup). No wire or `PROTOCOL_VERSION` change.
+- Known side effect (item 4, no action): `scripts/e2e-ctcourse/a3OfficeRange.mjs:247-263` calls the course client's
+  `g.weapons.onRay` directly; lampRay now heads that chain and sends `lt-<id>` only if a destructible lamp is first on
+  the segment. Covered by the lead's laptop run.
