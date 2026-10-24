@@ -21,7 +21,9 @@ permissions:
 
 concurrency:
   group: pages-${{ github.event_name == 'pull_request' && github.head_ref || 'site' }}
-  cancel-in-progress: true
+  # the site deploy queues instead of cancelling: a release push and the dev workflow_run kept cancelling each other
+  # (no Pages deploy 18:03-19:35 on 2026-10-24); pull requests still cancel their older run
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # pull requests: check the change only (no deploy). lint, test and build-check run in parallel; `check` is the one
