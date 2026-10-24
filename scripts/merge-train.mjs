@@ -832,10 +832,15 @@ function releaseTail({ n, version, pr, head, merge, members, deploy = false }) {
   else console.log('dev: already contains the merge');
   closeMembers(members, { n, version, pr });
   console.log(`tail done: v${version} ${plan.tag ? 'tagged now' : 'tagged'}, dev ${plan.dev ? 'moved now' : 'current'}`);
-  if (plan.dev || deploy) {
+  if (plan.dev || deploy) { // a failed dispatch never fails the release: `repair` dispatches again while /preview/ is stale
     const since = Date.now();
-    act(deployDispatchCmd(version, head));
-    if (!DRY) AFTER_LOCK.push(() => waitDeploy({ version, since }));
+    if (DRY) act(deployDispatchCmd(version, head));
+    else {
+      console.log(`  > ${show(deployDispatchCmd(version, head))}`);
+      const d = exec(deployDispatchCmd(version, head));
+      if (d.status === 0) AFTER_LOCK.push(() => waitDeploy({ version, since }));
+      else console.warn(`PREVIEW: STALE - deploy dispatch failed: ${(d.err || d.out).trim().split('\n')[0]} (rerun: node scripts/merge-train.mjs repair)`);
+    }
   }
   return plan;
 }
@@ -888,7 +893,9 @@ async function waitDeploy({ version, since }) {
 function membersBetween(from, head, n) {
   if (n == null) return [];
   const subjects = run(['git', 'log', '--first-parent', '--merges', '--reverse', '--format=%s', `${from}..${head}`]).split('\n');
-  return membersFromLog(subjects, n).map((b) => ({ branch: b, pr: openPr(b) }));
+  return membersFromLog(subjects, n).map((b) => {
+    try { return { branch: b, pr: openPr(b) }; } catch (e) { console.warn(`WARNING: member ${b}: PR lookup failed (${e.message.split('\n')[0]})`); return { branch: b, pr: null }; }
+  });
 }
 
 /**

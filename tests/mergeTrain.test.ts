@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
 import { parseFragment } from '../scripts/changelog-assemble.mjs';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -642,6 +642,59 @@ describe('merge-train release from the merged members (audit 2026-10-24 finding 
     expect(mergeOfHead(['m3 p a', 'm2 p b', 'm1 p c'], 'b')).toBe('m2');
     expect(mergeOfHead(['m3 p a', ''], 'z')).toBeNull();
   });
+});
+
+describe('merge-train tail is idempotent (release after a death past the merge, repair) on temp repos', () => {
+  it('release of a merged train only tags and moves dev; repair re-runs safely and puts back a missing tag', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'mt-tail-'));
+    const work = path.join(root, 'work');
+    const git = (...a: string[]): string => execFileSync('git', ['-c', 'core.autocrlf=false', ...a], { cwd: work, encoding: 'utf8' }).trim();
+    const script = path.join(__dirname, '..', 'scripts', 'merge-train.mjs');
+    // no GitHub remote: every gh call fails safely; no deploy wait; a dead Pages URL
+    const env = { ...process.env, AUTO_TRAIN_LOCK: path.join(root, 'train.lock'), AUTO_TRAIN_LOCK_TEXT: '', MERGE_TRAIN_DEPLOY_WAIT_MIN: '0',
+      MERGE_TRAIN_PAGES_URL: 'http://127.0.0.1:9/', GH_REPO: '', GH_HOST: 'invalid.invalid', GH_TOKEN: '', GITHUB_TOKEN: '' };
+    const mt = (...a: string[]): { code: number, out: string } => {
+      const r = spawnSync(process.execPath, [script, ...a], { cwd: work, env, encoding: 'utf8', timeout: 60_000 });
+      return { code: r.status ?? -1, out: `${r.stdout}${r.stderr}` };
+    };
+    try {
+      execFileSync('git', ['init', '-q', '--bare', '-b', 'master', path.join(root, 'origin.git')]);
+      execFileSync('git', ['clone', '-q', path.join(root, 'origin.git'), work], { stdio: 'pipe' });
+      git('config', 'user.name', 't'); git('config', 'user.email', 't@t');
+      fs.writeFileSync(path.join(work, 'package.json'), '{\n  "name": "x",\n  "version": "4.90.2"\n}\n');
+      git('add', '-A'); git('commit', '-q', '-m', 'root');
+      git('push', '-q', 'origin', 'HEAD:refs/heads/master', 'HEAD:refs/heads/dev');
+      git('checkout', '-q', '-b', 'train/66');
+      fs.writeFileSync(path.join(work, 'package.json'), '{\n  "name": "x",\n  "version": "4.91.0"\n}\n');
+      git('add', '-A'); git('commit', '-q', '-m', versionSubject(66, '4.91.0'));
+      const head = git('rev-parse', 'HEAD');
+      git('push', '-q', 'origin', 'train/66');
+      // GitHub merged the PR, then the run died: no tag, dev not moved
+      git('checkout', '-q', 'master');
+      git('merge', '-q', '--no-ff', 'train/66', '-m', 'Merge pull request #400 from o/train/66');
+      const merge = git('rev-parse', 'HEAD');
+      git('push', '-q', 'origin', 'master');
+      const remote = (ref: string): string => git('ls-remote', 'origin', ref).split(/\s+/)[0] ?? '';
+
+      const r1 = mt('release', '066', '4.91.0', 'T');
+      expect(r1.code, r1.out).toBe(0);
+      expect(r1.out).toMatch(/already in origin\/master: running the tail only/);
+      expect(remote('refs/tags/v4.91.0')).toBe(merge);
+      expect(remote('refs/heads/dev')).toBe(merge);
+      expect(r1.out).toMatch(/PREVIEW: (STALE|UNKNOWN)/); // the dispatch cannot reach GitHub here: reported, not fatal
+
+      const r2 = mt('repair');
+      expect(r2.code, r2.out).toBe(0);
+      expect(r2.out).toMatch(/tag v4\.91\.0: already on origin/);
+      expect(r2.out).toMatch(/dev: already contains the merge/);
+
+      git('push', '-q', 'origin', ':refs/tags/v4.91.0');
+      const r3 = mt('repair');
+      expect(r3.code, r3.out).toBe(0);
+      expect(remote('refs/tags/v4.91.0')).toBe(merge);
+      expect(git('rev-parse', `${merge}^2`)).toBe(head);
+    } finally { fs.rmSync(root, { recursive: true, force: true }); }
+  }, 120_000);
 });
 
 describe('versionTreeCommit on a real git repo (validate before push)', () => {
