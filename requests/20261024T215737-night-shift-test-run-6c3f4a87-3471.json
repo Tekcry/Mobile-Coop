@@ -1,0 +1,16 @@
+{
+  "id": "20261024T215737-night-shift-test-run-6c3f4a87-3471",
+  "sha": "6c3f4a879f3d574a4a136f08c5f3a93af9db0b99",
+  "branch": "",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Test Runner",
+  "steps": [
+    "node scripts/guard-cap.mjs --maps=campus --counts=0,12,16,24,32 --cells=patrol,away,alert --warm=5 --secs=10 --out=C:/NightShift/scratch/guard-cap/r41003-campus",
+    "node scripts/guard-cap.mjs --maps=sectorops --counts=12,16,32 --cells=patrol,away,alert --warm=5 --secs=10 --out=C:/NightShift/scratch/guard-cap/r41003-so"
+  ],
+  "env": {},
+  "set": "guard-cap-41003",
+  "note": "save gap: guard-cap repeat on 4.100.3",
+  "pin": true
+}
