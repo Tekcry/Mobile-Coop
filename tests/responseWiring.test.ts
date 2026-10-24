@@ -102,6 +102,7 @@ function sector(defs: SectorDef[]) {
   const cams = [{ id: 'cam-1', on: true, state: 'sweep', yaw: 0.3, live: true }];
   const ct = { alarm: 0, cams, setLive: vi.fn(), repair: vi.fn(), fixedUpdate: vi.fn() };
   const g = {
+    world: {},
     enemyMgr: em,
     hud: { banner: vi.fn() },
     stealth: { setLiveAlarms: vi.fn() },
