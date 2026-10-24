@@ -208,7 +208,7 @@ export function orphanAlerts(orphans) {
 
 /**
  * A GraphQL pull request node (OPEN_PRS_QUERY) -> { number, title, branch, head, draft, mergeable, labels, labeled,
- * labeledAt, headAt, check, checkGreenAt, statuses: { context: { state, description, at } } } (newest status per context).
+ * labeledAt, headAt, labelHead, check, checkGreenAt, statuses: { context: { state, description, at } } } (newest status per context).
  */
 export function normalizePr(node) {
   const commit = node?.commits?.nodes?.[0]?.commit ?? {};
@@ -230,9 +230,14 @@ export function normalizePr(node) {
     number: node.number, title: node.title ?? '', branch: node.headRefName, head: node.headRefOid, draft: !!node.isDraft,
     mergeable: node.mergeable ?? 'UNKNOWN', labels, labeled: labels.includes(LABEL), labeledAt,
     headAt: Date.parse(commit.committedDate || '') || null,
+    // the head when the label was added: the newest of the recent commits committed at or before the label event
+    labelHead: labeledAt != null ? ((node?.recent?.nodes ?? []).map((n) => n?.commit).filter((c) => c?.oid && (Date.parse(c.committedDate) || 0) <= labeledAt).pop()?.oid ?? null) : null,
     check: ciState(rollup, 'check'), checkGreenAt: ciGreenAt(rollup, null, 'check'), statuses,
   };
 }
+
+/** True when every path is docs only (docs/, *.md, changes/ fragments, CHANGELOG). */
+export const docsOnlyFiles = (files) => files.length > 0 && files.every((f) => /^(docs\/|changes\/|CHANGELOG)|\.md$/.test(f));
 
 const statusOf = (pr, ctx) => pr.statuses?.[ctx]?.state ?? 'missing';
 export const isTrain = (branch) => /^train\/\d+$/.test(String(branch ?? ''));
@@ -261,8 +266,9 @@ export function labelReady(pr, { requireAffected = false } = {}) {
  * PR and label alerts. `prs` = normalizePr()s; `labelHeads` = { [pr]: head } from the last tick (the head each
  * labelled PR had when first seen labelled). -> { alerts, labelHeads } (the new map: labelled PRs only).
  * - labelled + CONFLICTING -> pr-conflict (high, owner named), alert only.
- * - labelled + commits after the label (head committed after the newest `train-ready` label event, or the head moved
- *   since first seen labelled) and no `checker` success on the new head -> pr-commit-after-label; fix (prs): remove the
+ * - labelled + commits after the label (the head moved from the labelled head: first seen labelled, else the newest
+ *   commit at or before the label event, else by commit time), not docs-only (pr.docsOnlyFrom has that head), and no
+ *   `checker` success on the new head -> pr-commit-after-label; fix (prs): remove the
  *   label and comment once per head.
  * - not labelled + labelReady -> pr-label-ready; fix (labels) adds the label; without that fix the alert shows once
  *   `check` has been green greenMin min.
@@ -276,10 +282,15 @@ export function prAlerts(prs, { now, labelHeads = {}, owner = () => '', labelFix
     const subj = `#${pr.number} ${pr.branch}`;
     if (pr.labeled) {
       const prev = labelHeads[pr.number];
-      const moved = (pr.labeledAt != null && pr.headAt != null && pr.headAt > pr.labeledAt) || (prev != null && prev !== pr.head);
+      // the labelled head: first seen labelled (state), else the head at the label event; unknown -> commit times
+      const from = prev ?? pr.labelHead ?? null;
+      const moved = from ? from !== pr.head : pr.labeledAt != null && pr.headAt != null && pr.headAt > pr.labeledAt;
+      // commits since the labelled head that touch only docs / *.md / fragments keep the label (shell: docsOnlyFrom)
+      const docsOnly = moved && from != null && !!pr.docsOnlyFrom?.has?.(from);
       const checked = statusOf(pr, CHECKER_CONTEXT) === 'success';
-      if (moved && !checked) {
-        heads[pr.number] = prev ?? pr.head;
+      if (docsOnly) heads[pr.number] = from;
+      else if (moved && !checked) {
+        heads[pr.number] = from ?? pr.head;
         alerts.push(alert('pr-commit-after-label', subj, 'warn',
           `commits after ${LABEL} (head ${short(pr.head)}${prev && prev !== pr.head ? `, labelled at ${short(prev)}` : ''}), no ${CHECKER_CONTEXT} success on the new head; owner ${who}`, {
             fix: { check: 'prs', type: 'unlabel', pr: pr.number, head: pr.head, branch: pr.branch, desc: `remove ${LABEL} from #${pr.number} and comment` } }));
@@ -586,7 +597,7 @@ function processes(filter = '') {
   return (Array.isArray(j) ? j : [j]).map((p) => ({ pid: Number(p.pid), ppid: Number(p.ppid), name: p.name ?? '', cmd: p.cmd ?? '', created: Number(p.created) || 0 }));
 }
 
-const OPEN_PRS_QUERY = `query($owner:String!,$name:String!){ repository(owner:$owner,name:$name){ pullRequests(states:OPEN,first:100,baseRefName:"master",orderBy:{field:CREATED_AT,direction:DESC}){ nodes{ number title headRefName headRefOid isDraft mergeable labels(first:30){nodes{name}} timelineItems(last:40,itemTypes:[LABELED_EVENT]){nodes{__typename ... on LabeledEvent{createdAt label{name}}}} commits(last:1){nodes{commit{oid committedDate statusCheckRollup{contexts(first:100){nodes{__typename ... on CheckRun{name status conclusion completedAt startedAt} ... on StatusContext{context state description createdAt}}}}}}} } } } }`;
+const OPEN_PRS_QUERY = `query($owner:String!,$name:String!){ repository(owner:$owner,name:$name){ pullRequests(states:OPEN,first:100,baseRefName:"master",orderBy:{field:CREATED_AT,direction:DESC}){ nodes{ number title headRefName headRefOid isDraft mergeable labels(first:30){nodes{name}} timelineItems(last:40,itemTypes:[LABELED_EVENT]){nodes{__typename ... on LabeledEvent{createdAt label{name}}}} recent: commits(last:40){nodes{commit{oid committedDate}}} commits(last:1){nodes{commit{oid committedDate statusCheckRollup{contexts(first:100){nodes{__typename ... on CheckRun{name status conclusion completedAt startedAt} ... on StatusContext{context state description createdAt}}}}}}} } } } }`;
 
 // ---- context: everything the checks read, gathered once per tick ---------------------------------------------------
 
@@ -603,7 +614,18 @@ function gather(o) {
     ctx.prs = tryGet('prs', () => {
       const [owner, name] = REPO.split('/');
       const j = JSON.parse(read(['gh', 'api', 'graphql', '-F', `owner=${owner}`, '-F', `name=${name}`, '-f', `query=${OPEN_PRS_QUERY}`], { timeout: 90_000 }));
-      return (j?.data?.repository?.pullRequests?.nodes ?? []).map(normalizePr);
+      const prs = (j?.data?.repository?.pullRequests?.nodes ?? []).map(normalizePr);
+      // docs-only commits after the label (CLAUDE.md: a verdict still counts across docs / CHANGELOG / fragment changes)
+      const st = readJsonFile(FILES.state) ?? {};
+      for (const p of prs) {
+        if (!p.labeled) continue;
+        p.docsOnlyFrom = new Set();
+        for (const from of new Set([st.labelHeads?.[p.number], p.labelHead].filter((x) => x && x !== p.head))) {
+          const d = exec(['git', 'diff', '--name-only', from, p.head]);
+          if (d.status === 0 && docsOnlyFiles(d.out.split('\n').map((x) => x.trim()).filter(Boolean))) p.docsOnlyFrom.add(from);
+        }
+      }
+      return prs;
     });
   }
   if (need('prs', 'labels', 'laptop')) {

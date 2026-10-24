@@ -3,7 +3,7 @@ import {
   parseArgs, parseList, scratchFiles, alert, applySince, actionText, parseLockText, lockAlerts, findOrphans, orphanAlerts,
   normalizePr, labelReady, prAlerts, ownerMap, versionCommit, releaseAlerts, indexScript, previewLabel, pagesAlerts,
   autoTrainAlerts, nonTestFiles, laptopAlerts, parseLooseIso, parseBrief, cloudAlerts, reopenText, labelComment,
-  unlabelComment, closeMemberComment, NS_CMD, E2E_CMD, LIMITS,
+  unlabelComment, closeMemberComment, docsOnlyFiles, NS_CMD, E2E_CMD, LIMITS,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/watchdog.mjs';
 
@@ -132,11 +132,12 @@ describe('watchdog: orphans', () => {
 const ctxNode = (name: string, state: string, createdAt = '2026-10-24T10:00:00Z', description = '') => ({ __typename: 'StatusContext', context: name, state, description, createdAt });
 const runNode = (name: string, conclusion: string, completedAt = '2026-10-24T10:00:00Z') => ({ __typename: 'CheckRun', name, status: 'COMPLETED', conclusion, completedAt, startedAt: completedAt });
 function prNode({ number = 7, branch = 'feature/x', head = SHA('a'), labels = [] as string[], labeledAt = null as string | null, committedDate = '2026-10-24T09:00:00Z',
-  contexts = [runNode('check', 'SUCCESS')] as unknown[], mergeable = 'MERGEABLE', isDraft = false } = {}) {
+  contexts = [runNode('check', 'SUCCESS')] as unknown[], mergeable = 'MERGEABLE', isDraft = false, recent = [] as { oid: string; committedDate: string }[] } = {}) {
   return {
     number, title: 't', headRefName: branch, headRefOid: head, isDraft, mergeable,
     labels: { nodes: labels.map((name) => ({ name })) },
     timelineItems: { nodes: labeledAt ? [{ __typename: 'LabeledEvent', createdAt: labeledAt, label: { name: 'train-ready' } }] : [] },
+    recent: { nodes: recent.map((c) => ({ commit: c })) },
     commits: { nodes: [{ commit: { oid: head, committedDate, statusCheckRollup: { contexts: { nodes: contexts } } } }] },
   };
 }
@@ -197,6 +198,19 @@ describe('watchdog: PRs and the label convention', () => {
     expect(prAlerts([rechecked], { now: NOW, labelHeads: { 7: SHA('c') } })).toEqual({ alerts: [], labelHeads: { 7: SHA('a') } });
     // trains are never touched
     expect(prAlerts([normalizePr(prNode({ branch: 'train/65', labels: ['train-ready'], mergeable: 'CONFLICTING' }))], { now: NOW }).alerts).toEqual([]);
+  });
+
+  it('finds the labelled head and keeps the label across docs-only commits', () => {
+    const recent = [{ oid: SHA('1'), committedDate: '2026-10-24T09:00:00Z' }, { oid: SHA('2'), committedDate: '2026-10-24T09:20:00Z' }, { oid: SHA('3'), committedDate: '2026-10-24T09:45:00Z' }];
+    const p = normalizePr(prNode({ head: SHA('3'), labels: ['train-ready'], labeledAt: '2026-10-24T09:30:00Z', committedDate: '2026-10-24T09:45:00Z', recent }));
+    expect(p.labelHead).toBe(SHA('2'));
+    const r = prAlerts([p], { now: NOW });
+    expect(r.alerts[0].kind).toBe('pr-commit-after-label');
+    expect(r.labelHeads).toEqual({ 7: SHA('2') });
+    expect(prAlerts([{ ...p, docsOnlyFrom: new Set([SHA('2')]) }], { now: NOW })).toEqual({ alerts: [], labelHeads: { 7: SHA('2') } });
+    expect(docsOnlyFiles(['docs/a.md', 'changes/feature-x.md', 'CHANGELOG.md', 'README.md'])).toBe(true);
+    expect(docsOnlyFiles(['docs/a.md', 'tests/a.test.ts'])).toBe(false);
+    expect(docsOnlyFiles([])).toBe(false);
   });
 
   it('writes one comment per head (markers)', () => {

@@ -52,7 +52,7 @@ edges). Patterns copied from `scripts/auto-train.mjs` (tick, status, touch lock,
 | --- | --- | --- |
 | locks | `lock-dead-pid` high: heavy.lock / heavy2.lock names a pid not running on this host; `lock-stale` warn: no pid, 60+ min old, no node process at all; `lock-old` info: live pid, 240+ min | `locks`: break a dead-pid lock only when a known writer wrote it (heavy-lock.mjs, the laptop-queue service, a touch lock); re-read, rename aside, verify, delete (the heavy-lock break pattern). A pid-less lock is never broken |
 | orphans | `orphan` warn: tail.exe / grep.exe / node e2e runner (`scripts/run-e2e.mjs`, `scripts/e2e-*.mjs`, the runner's `vite preview`) whose parent pid is gone or reused, 30+ min old | `orphans`: `taskkill /PID <pid> /T /F` only when the command line matches Night Shift (`NightShift`, `Mobile-Coop`, its scripts, `vite preview --port 41xx`) and the pid still has the same start time and command line |
-| prs | `pr-conflict` high: a `train-ready` PR is CONFLICTING (owner named); `pr-commit-after-label` warn: commits after the label (head committed after the newest label event, or the head moved since first seen labelled) and no `checker` success on the new head | `prs`: remove `train-ready` and comment once per head (`<!-- watchdog:unlabel:<sha> -->`). Conflicts stay alert only |
+| prs | `pr-conflict` high: a `train-ready` PR is CONFLICTING (owner named); `pr-commit-after-label` warn: the head moved from the labelled head (first seen labelled, else the newest commit at or before the label event, else by commit time), the commits since touch more than docs / `*.md` / fragments, and no `checker` success on the new head | `prs`: remove `train-ready` and comment once per head (`<!-- watchdog:unlabel:<sha> -->`). Conflicts stay alert only |
 | labels | `pr-label-ready`: an unlabelled PR meets the label convention (below); warn after `check` has been green 30 min, info at once when the fix is on | `labels`: add `train-ready` (head and label re-read first) and comment once per head |
 | release | `release-dev-lag` warn (5-min grace): dev behind master; `release-dev-diverged` high: dev not an ancestor; `release-tag-missing` warn (5 min): no `v<master version>` tag; `release-member-open` warn (10 min): an open non-train PR whose head is in master | `release`: `git push origin <master>:refs/heads/dev` (fast-forward only, refs re-read), `git push origin <release commit>:refs/tags/v<version>` (the oldest first-parent commit carrying master's version: the train merge), `gh pr close <n>` with a comment (re-checked open, same head, in master) |
 | pages | `pages-behind` high: `/preview/` serves another version 15+ min after master's release commit; `pages-unreadable` warn (15 min) | none |
@@ -78,7 +78,8 @@ A PR gets `train-ready` from the watchdog (with `--fix labels`) only when all ho
   (a FIX verdict may post `-f state=failure ... description="<who> FIX: <one line>"`);
 - once present, `affected-e2e` = success (PR #251's affected suites); `--require-affected` makes it mandatory;
 - not a draft, not CONFLICTING, not a `train/<n>` head.
-A commit after the label removes the label (with `--fix prs`) unless the new head also has `checker` success.
+A commit after the label removes the label (with `--fix prs`) unless the new head also has `checker` success or the
+commits since the labelled head touch only docs, `*.md`, `changes/` fragments or CHANGELOG.
 
 ## Rules it keeps
 - Never forces, never merges, never deletes a branch, never touches master; it closes only PRs whose head is in master,
