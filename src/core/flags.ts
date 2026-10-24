@@ -64,6 +64,14 @@ export interface Flags {
   /** (sector-redesign perf) Sector Ops guards whose body and shadows cannot reach the screen skip the render
    *  (`sectorGuardFreeze.ts`); `?guardfreeze=0`: off, for comparisons. */
   guardFreeze: boolean;
+  /** (mission-framework, owner Marlow Build) Missions on Sector Ops maps (`?mission=<id>` picks one) and the Hints
+   *  setting; `?missions=1` on. Switch-on: Michael's walk of Three Grey Coats / Two-Key Ledger, target 2026-10-27; then
+   *  the default flips to `!== '0'`. Tests set `flags.missions` (a plain object) in `beforeAll` and restore it. */
+  missions: boolean;
+  /** (mission-framework, owner Marlow Build) The co-op kit's new moves (pull-up, shutter, any later kit kind);
+   *  `?coopkit=1` on. Off keeps Marlow Yard as it is (M1). Switch-on: Michael's walk of the kit with Player Build's clips,
+   *  target 2026-10-28; then `!== '0'`. Tests set `flags.coopKit` in `beforeAll` and restore it. */
+  coopKit: boolean;
 }
 
 /** (mocap-trial) An on / off URL value: "1" true, "0" false, anything else (or absent) null. */
@@ -133,4 +141,7 @@ export const flags: Flags = {
   animTier: params.get('animtier') !== '0',
   guardSun: params.get('guardsun') !== '0',
   guardFreeze: params.get('guardfreeze') !== '0',
+  // (mission-framework FLG) dark until Michael's walks: `?missions=1` / `?coopkit=1` on; the switch-on makes them `!== '0'`
+  missions: params.get('missions') === '1',
+  coopKit: params.get('coopkit') === '1',
 };

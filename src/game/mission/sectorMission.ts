@@ -66,9 +66,10 @@ export function parseGuardId(defs: readonly SectorDef[], id: string | undefined)
   return { sec, k };
 }
 
-/** `?mission=<id>` (`flags.mission`, shared with Infiltration's autostart; null: none). */
+/** `?mission=<id>` (`flags.mission`, shared with Infiltration's autostart; null: none). (FLG) Null while
+ *  `flags.missions` is off (`?missions=1` turns it on): Sector Ops runs as master. */
 export function missionParam(): string | null {
-  return flags.mission;
+  return flags.missions ? flags.mission : null;
 }
 
 /** The map's mission named `id` (null: no id, or the map has none of that id). */

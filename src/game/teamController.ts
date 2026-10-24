@@ -1,4 +1,5 @@
 import { Vector3 } from '../core/babylon';
+import { flags } from '../core/flags';
 import { hyp2 } from '../core/mathx';
 import { G } from '../physics/groups';
 import { TEAM } from '../config/movement';
@@ -780,8 +781,9 @@ export class TeamController implements KitHost {
     const free = !g.traversal.committed && !g.traversal.attached && c.grounded && !c.override;
     let near = Infinity;
     for (const m of mates) near = Math.min(near, hyp2(m.pos.x - c.pos.x, m.pos.z - c.pos.z));
-    // (mission KIT0) the co-op kit's moves first: one that applies here takes the press
-    const kit = this.kitIdle(coopPressed, free, near);
+    // (mission KIT0) the co-op kit's moves first: one that applies here takes the press. (FLG) Only with `?coopkit=1`
+    // (`flags.coopKit`): off, no kit offer anywhere (Marlow Yard's 4.3-4.5 m lips keep the leg-up, M1)
+    const kit = flags.coopKit ? this.kitIdle(coopPressed, free, near) : null;
     if (kit !== null) return kit;
     if (free) {
       // a mate crouched in reach (a leg-up) or hanging right over us (the relay)
