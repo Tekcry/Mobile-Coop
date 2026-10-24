@@ -1,17 +1,23 @@
 # coop-real - STATE
 
 ## Now
-Planned (2026-10-24 ~22:00, Opus planner). Next: group 1, H1 (Opus, starts with the lifecycle probe) and H2 (Sonnet)
-in parallel. Open: none for Michael (A1-A9 assumed, BRIEF.md).
+Plan check applied (2026-10-24, PLAN-CHECK 1-18). Group 1: H2 done (e735dc8a); H1a then H1b running on feature/cr-h1
+(Opus, starts with the lifecycle probe); H2b part-3 registration is a lead edit. Then group 2: C1 (Sonnet, Opus brief)
+∥ C2 (Opus). Open: desktop dev lane, pending orchestrator answer (heavy2.lock lane for H1 / C1 / C2 smoke, else laptop
+alone requests). None for Michael (A1-A9 assumed, BRIEF.md).
 
 ## Known before the run
 - S2 is a sure KNOWN BUG on master: Course mode never sends a client lamp round (coopClient.ts:188-197, coopHost.ts:202).
 - P6, P7 have fixes on master (coop-walk-fixes, train 30) never proven by input; R7 placement fixed (4.85.0), the drop
   itself not. The suite decides which marks they get.
-- Open PR #317 coop4 (Guard AI, draft) edits src/net widely: F slices rebase in the train, never merge master in.
+- Open PR #317 coop4 (Guard AI, draft) edits src/net widely: PR B goes first (never the same train); if #317 is
+  train-ready first, F1b / F2b / F3 rebase onto feature/coop4. Never merge master in.
 
 ## Done
 - 2026-10-24: BRIEF, PLAN, STATE.
+- 2026-10-24: H2 runner wiring (e735dc8a). Plan check PASS WITH FIXES (d626f05c).
+- 2026-10-24: Plan check applied: H1 -> H1a / H1b, three parts, C1 scripted cases, KNOWN BUG with `expect`, F1 / F2 split
+  into a / b halves, run 1 doubled (seeded) + e2e-netmove, gates from finding 13.
 
 ## Resume prompt
 ```

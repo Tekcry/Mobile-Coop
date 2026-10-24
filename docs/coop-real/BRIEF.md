@@ -27,8 +27,8 @@ clear the marks.
 
 ## Limits
 - Test code in `scripts/` plus the smallest runner / e2e-lib changes; game code only in the fix slices (PLAN F1-F4).
-- Wall time: under ~4 min for the whole suite on one laptop slot (`E2E_GPU=1`, CLAUDE.md:66-68; the laptop queue's pr
-  requests). Two parts, each under ~2 min.
+- Wall time: three parts, each <= 2 min on its own laptop slot (`E2E_GPU=1`, CLAUDE.md:66-68; the laptop queue's pr
+  requests), so the suite's wall time is its longest part (PLAN-CHECK 14).
 - No refining: a dead prompt or bug the sweep finds outside this job's five goes to its owner's list, not fixed here.
 - Wire changes do not bump `PROTOCOL_VERSION` (the train does).
 
@@ -41,21 +41,29 @@ anything, and pass-through wrappers that count calls (`events.emit`, `weaponAudi
 Not allowed: teleports, `onUse`, `takedown.start`, `applyDamage`, `input.state.set` (bypasses the device layer),
 `weapons.switchTo`, `cam.yaw` writes, `courseBay` / `session` writes, `events.emit` calls. Why: every walk bug sat
 behind a poke that skipped the step Michael's hands take (reach, facing, menu row, real ray, real tab life).
+Enforced: every `page.evaluate` goes through the lib's `read` (read-only) or a `drive*` helper; K1 greps for the rest.
 
 ## Assumed decisions (Michael not needed; undo in brackets)
 - A1 Map: Marlow Yard A1 + A2 from the lounge (no `courseBay` poke); A1 has the passive grabbable `a1-checker`, the
-  apron flood lamp (group 11), doors, the wicket bolt and a body; A2 the taught carry. [Pick other sets in PLAN H1.]
-- A2 Boot by the autostart URL counts as launch config, not a poke; the lobby path stays e2e-coop's. [Click the lobby.]
+  apron flood lamp (group 11), doors and the wicket bolt (no placed body: the body case makes one); A2 the taught carry. [Pick other sets in PLAN H1.]
+- A2 The first boot by the autostart URL counts as launch config, not a poke; the lobby path stays e2e-coop's. Rejoin
+  goes Michael's way: B3 reloads without autostart and picks "Rejoin <code>" by pad, B4 (new tab) joins by code by pad
+  (PLAN-CHECK 5). [Click the lobby.]
 - A3 Host on keyboard + mouse, client on the pad, so both device paths are real. [Swap in `real-lib` `who`.]
 - A4 Netsim gates: `E2E_NETSIM_GATE=1` keeps e2e-lib's `assert` failing under netsim (today it only reports,
   e2e-lib.mjs:387-395); the runner sets `E2E_NETSIM=typical` + the gate for this suite. [Drop the runner env entry.]
-- A5 KNOWN BUG = an expected-fail case in the suite: a fail prints `KNOWN BUG <id> -> <slice>` and does not fail the
-  run; a pass prints `UNEXPECTED PASS <id>` and fails it, so the fix slice removes the mark. [Delete the marks.]
+- A5 KNOWN BUG = an expected-fail case in the suite: only an assert matching the mark's `expect` text prints
+  `KNOWN BUG <id> -> <slice>` and does not fail the run (any other throw fails it); a pass prints `UNEXPECTED PASS <id>`
+  and fails it, so the fix slice removes the mark. Marked: only failures seen on 2 seeded laptop runs; sweep finds outside
+  the five get `T1-<row>` marks naming the owner's ROADMAP item (PLAN-CHECK 9, 10). [Delete the marks.]
 - A6 A test-only drop limit `&netdrop=<s>` on `?net=local` (localTransport.ts:79, 60 s today) so a frozen tab drops in
   ~8 s, as a real WebRTC peer does. [Remove the param; the case then waits 60 s.]
 - A7 Under automation the bgTick worker is off (`navigator.webdriver`, src/net/bgTicks.ts:10); the suite launches with
-  `--disable-blink-features=AutomationControlled` so a hidden page behaves as Michael's does. [Drop the flag.]
-- A8 "Changes game state" = the host's or client's state hash (PLAN H1) or an event in the pass-through log moves
-  within 3 s of sim time after the row runs. [Change `PROMPT_S`.]
-- A9 Fix ownership: this job fixes F1-F4 in `src/net` / `src/game` (Opus). Dead prompts outside the five go to their
-  owner: map data / sets to Marlow Build, guard reactions to Guard AI. [Hand a fix to its owner instead.]
+  `--disable-blink-features=AutomationControlled` and without e2e-lib's three background-throttling flags
+  (e2e-lib.mjs:21), so a hidden page behaves as Michael's does; the H1a probe runs both ways (PLAN-CHECK 6). [Drop both.]
+- A8 "Changes game state" = the row kind's expected key (PLAN "The generic checks" table; unlisted kinds: keys beyond a
+  pre-row control window) moves, on the host for a client row, within `PROMPT_S` = 3 sim s (takedowns 6 s) after the
+  row's hold or finishing strike (PLAN-CHECK 1, 15). [Change `PROMPT_S`.]
+- A9 Fix ownership: this job fixes F1a / F1b / F2a / F2b / F3 / F4 in `src/net` / `src/game` / `src/audio` (Opus), PR B
+  before #317 coop4. Dead prompts outside the five go to their owner (T1 marks): map data / sets to Marlow Build, guard
+  reactions to Guard AI. [Hand a fix to its owner instead.]
