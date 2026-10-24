@@ -1,0 +1,17 @@
+{
+  "id": "20261024T075851-night-shift-sector-o-cfacf4bc-9788",
+  "sha": "cfacf4bc7af83ccd5f5600c8b4af4b8a5c1f5eef",
+  "branch": "feature/sector-redesign-bake",
+  "pr": 333,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-lightbake",
+    "e2e-darkness",
+    "e2e-sectorops:6",
+    "e2e-coop",
+    "e2e-netmove"
+  ],
+  "set": "bake",
+  "note": "per-section campus lamp bake"
+}
