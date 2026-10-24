@@ -954,8 +954,16 @@ export class GameState implements AppState {
     // compiled in each run: hitches); capped so a material that never reports ready cannot hold the load
     // (guard-models G7b) with the guard figures: LOD2 of every guard base in, and the guard shader compiled, on the same
     // screen and under the same cap (`guardWarm.ts`; the flag off waits for exactly what it did)
+    // (section-bake, SB5) a map baking per section: its live section's lamps (section 0 to start; the client's `ls`
+    // moves it later) land during the load, beside the warm-up; the other sections bake on in the background
     const ready = g.scene.whenReadyAsync();
-    await Promise.race([flags.guardModels ? Promise.all([ready, warmGuardModels(g.scene, opts.map.id)]) : ready, new Promise((r) => setTimeout(r, WARMUP_MAX_MS))]);
+    const sb = world.lightBake?.sections;
+    await Promise.all([
+      Promise.race([flags.guardModels ? Promise.all([ready, warmGuardModels(g.scene, opts.map.id)]) : ready, new Promise((r) => setTimeout(r, WARMUP_MAX_MS))]),
+      sb ? sb.whenReady(sb.plan.live) : null,
+    ]);
+    // (SB14) from here the bake's cache write waits for a section change or the match's end (no mid-play hitch)
+    sb?.markPlaying();
     return g;
   }
 
@@ -1223,6 +1231,8 @@ export class GameState implements AppState {
     this.target.dispose();
     this.vfx.dispose();
     this.player.dispose();
+    // (section-bake, SB11) a background lamp bake stops with the match (nothing more lands, nothing is cached)
+    this.world.lightBake?.sections?.dispose();
     this.world.dispose();
   }
 

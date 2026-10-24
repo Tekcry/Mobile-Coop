@@ -678,6 +678,8 @@ export class SectorMode implements GameMode {
   /** Section `i` loads: its guards (unaware, on their routes; `?sectorGuards=N` caps them) and its devices. */
   private loadSection(i: number): void {
     const s = this.run.defs[i];
+    // (section-bake) the lamp bake (a map baking per section) bakes this section first
+    if (s) this.g.world.lightBake?.sections?.setLive(i);
     this.deskSec = s ? i : -1;
     this.ct?.setLive(s ? i : -1);
     // (cap fix) co-op mirrors this section's items only (plus the untagged ones)
@@ -827,7 +829,10 @@ export class SectorMode implements GameMode {
       if (this.run.extractStep(dt, all)) this.complete();
       return;
     }
-    this.connIn.allInside = all;
+    // (section-bake, SB9) the cycle waits until the next section's lamps are in (a map baking per section; in play they
+    // landed long before: the whole background bake takes well under a section's play)
+    const sb = this.g.world.lightBake?.sections;
+    this.connIn.allInside = all && (!sb || sb.ready(this.run.index + 1));
     this.connIn.doorwayClear = !doorway;
     const prev = this.run.index;
     const ev = this.run.step(dt, this.connIn);
