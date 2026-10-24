@@ -176,7 +176,11 @@ behind a VPN adapter).
   suspicious -> investigating, squad radio, the shout, a spotter taken out first tells nobody, LKP + ghost + converge +
   search ends, (walk 4.82) a lone guard reports then moves up on the last known position, the probable-area search ('search area': the near dark spot checked, the room behind a wall not, three
   searchers on three spots), patrols, the optic cable (the door menu pick, the view under the door at floor height, the look limits,
-  night vision, the tip never seen, the kneeling body seen, crouch leaves, a sealed door refuses)
+  night vision, the tip never seen, the kneeling body seen, crouch leaves, a sealed door refuses); (coop4 AI6) 'four
+  intruders (coop4)': the local player plus up to 3 test-only stand-in refs (`t.fakes`): a calm guard with 4 in view
+  casts <= 9 rays a think and sees all 4 in turn, 4 own slots / LKPs, the alarm's reinforcements split (the raiser's
+  first), a team shares one hunt and is ticked on its own LKP, a leaver's slot kept for his rejoin, a new id takes a gone
+  slot; a 2-player control (today's rules). The 3-4 browser asserts: `docs/coop4/briefs/AI6-E2E-SPEC.md`
 - `e2e-guard-carry` Warehouse Infiltration (High): a calm holstered grunt and officer (S21 carry) and then drawing ones
   are drawn: body among the active meshes, material ready, GPU-skinned effect (no CPU-skinning fallback), no effect
   compile error (its error line printed). Run with `E2E_GPU=1`
