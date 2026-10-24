@@ -5,7 +5,7 @@
 > signposted in the world, no countdown that closes a route, no forced timers in stealth; Marlow Yard may use timed
 > drills); 3.2 A15 "At most one signposted hard rule" (G290: up to 2
 > strict rules, breaking one restarts the section); A9's authored fixed spots (G151: team moves anywhere with room);
-> section 6's movement-run ideas: G11's cut of paired behaviour is lifted for static lookouts and paired patrols that
+> section 5's movement-run ideas: G11's cut of paired behaviour is lifted for static lookouts and paired patrols that
 > check on each other (2026-10-25).
 
 A working digest of the Chaos Theory (CT) co-op research for Night Shift: the kit, what the prototype needs from audio and

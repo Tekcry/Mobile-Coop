@@ -13,7 +13,7 @@ The decided modes (current rules: docs/DECISIONS.md, the newest entry wins):
   marks and objective list (G292).
 - Sector Ops (`campusOps` Saltmarsh Park, five sections S1-S5; `warehouseOps` is the old map): 1 to 4 players, solo
   always possible (G280, G308).
-- Every mode: up to 2 strict rules per mission, signposted in the briefing and objective list; breaking one restarts
+- Campaign and Sector Ops: up to 2 strict rules per mission, signposted in the briefing and objective list; breaking one restarts
   the section from its checkpoint and the mission continues (G290). No markers, no waypoints, no maps, no minimap,
   compass or objective blip; an optional hint layer, off by default (G290; 2026-10-25 "No maps at all", "Remove it
   too"). Objectives "must name what and where" (2026-10-25). Marlow Yard is the guided exception (G292).

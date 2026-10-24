@@ -1,19 +1,23 @@
 # Movement, camera and traversal
 Purpose: the operator's movement, camera, back-to-wall, door peek, traversal anchors and attached states.
-Design authority: docs/DECISIONS.md (G1, G210, G227; G25-G39 where not replaced), then docs/design-bible.md (Sections 4 and 5.3).
+Design authority: docs/DECISIONS.md (G1, G16-G39, G210, G227), then docs/design-bible.md (Sections 4 and 5.3).
 
 Michael tunes movement himself as needed; movement slices and movement research are stopped (G227, replacing G150's
-tune-until-sign-off and G4's "tuned after Michael plays"). CT movement references are ignored (G210: "the ct movement is
+tune-until-sign-off). CT movement references are ignored (G210: "the ct movement is
 getting worse. Can you ignore CT movement references."): analogue speed from the stick, LT held aims, three weapon
 states, RT tap knocks out / hold kills, traversal auto-holsters (docs/anim-rework/BRIEF.md). History of how the code got
 here: docs/archive/ct-movement.md, docs/locomotion/ and the git log.
 
 ## Decided direction
-Replaced, do not build (G210, G227): the CT footage movement rules G17 (shoulder swap only while aiming), G18 / G96
-(back-to-wall on L3, the exact CT pad layout; controls are G210's), G25 (walking-circle turns, no pivot), G26 / G27
-(freeze mid-stride, ease after 1.7 s), G30 (modern layer limited to CT), G31 (sprint-only moves removed), G32 (roll on
-held crouch), G33 (flick turn), G35 / G36 (0.35 m/s wall shuffle, peek at once) and the CT camera framing and behaviour
-of G28 / G29. The code below is what is built; Michael changes it by hand. Still standing:
+- Built (CT prototype F1a): G17, the shoulder swap only while aiming (`player/player.ts`); G18, back-to-wall on L3
+  (input-and-loop.md, binding table).
+- Removed (bible 6): sprint and the sprint-only moves (fast ladder climb, fast rappel descent, small gap hops, sprint
+  door bash; G31), the quick 180 (G33), the planted pivot (G25) and the braking stop (G26).
+- Not a build target; Michael tunes by hand (G210, G227): the rest of the CT footage values - G25's walking-circle turn,
+  G26 / G27's mid-stride freeze and 1.7 s ease, G30's modern layer, G32's roll on held crouch, G33's 0.4 s flick turn,
+  G35 / G36's 0.35 m/s wall shuffle and peek at once, and G28 / G29's camera framing and behaviour. The code below is
+  what is built.
+Still standing:
 - Decided and built (G16): no aim assist on any input (the pad setting `gamepad.aimAssist` was removed, no-aim-assist).
 - Decided (G38): one camera height for every operator (the shared body capsule).
 - Decided and built (G62, CT prototype M1): no sprint; the `dash` action id stays for photo mode's fast pan

@@ -19,8 +19,8 @@ Changed by later decisions:
   V1 keeps the optic cable.
 - G97: at a door the optic cable is one choice of the CT door menu (open, stealth open, bash, optic cable).
 - G23: interrogation is a choice of CT's grab menu (knock out, kill, interrogate).
-- G210 (replaces G96's exact CT pad layout): controls follow the anim-rework (docs/systems/input-and-loop.md); the
-  proposals in section 2 are checked against the built binding table.
+- G96: bindings follow CT's pad layout as built, with the anim-rework's aim, holster and strike (input-and-loop.md);
+  the proposals in section 2 are checked against the built binding table.
 - loco M20 Q1: the SWAT turn and the lean-out aim are removed.
 - G12: desktop only (no touch controls).
 
@@ -47,7 +47,7 @@ Changed by later decisions:
 
 ## 2. Inputs
 Tools use existing inputs wherever possible. Every binding below is a proposal; the build session checks it against the
-built binding table (input-and-loop.md; G210) and with grep in `src/input/keyBindings.ts` and `src/input/gamepadMapping.ts`, and stops and asks Michael
+built binding table (input-and-loop.md) and with grep in `src/input/keyBindings.ts` and `src/input/gamepadMapping.ts`, and stops and asks Michael
 if one is taken.
 
 | Use | Keyboard and mouse | Gamepad |

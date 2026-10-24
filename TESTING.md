@@ -4,9 +4,8 @@ Desktop only (G12): pad first, then keyboard and mouse. One current checklist pl
 on the build under test: the live game, the one chosen preview (G85) or a local `npm run dev`. F3 (or `?debug=1`) shows
 the debug overlay. Tick each item; note anything off in Pause > Report feedback.
 
-Items marked (CT prototype) describe today's movement as built. The CT movement rules they came from are replaced:
-CT movement references are ignored (G210) and Michael tunes movement himself (G227), so test what is built, never a CT
-target.
+Items marked (CT prototype) describe today's movement as built. CT movement values are not build targets: CT movement
+references are ignored (G210) and Michael tunes movement himself (G227), so test what is built, never a CT target.
 Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-version lists:
 [docs/archive/testing-history.md](docs/archive/testing-history.md) (3.0.0 to the consolidation) and
 [docs/archive/TESTING-pre-3.0.md](docs/archive/TESTING-pre-3.0.md).
@@ -32,7 +31,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   the next section loads and the far door opens. The extraction shows time, kills, times spotted and GHOST when there
   were none. Being seen raises ALARM STAGE and more guards come. Going down restarts the section at the room. Solo
   finishes it (team doors keep a solo route, G280).
-- [ ] (legacy map) Sector Ops Warehouse (`warehouseOps`, three sections) with night vision off: each section's routes and objective read by lamp light, with dark
+- [ ] (legacy map) Sector Ops Warehouse (`warehouseOps`, three sections) with night vision off: each section's routes
+  and objective read by lamp light, with dark
   pockets between; sections 2 and 3 each offer three routes (`docs/warehouse-s23/WALK.md`). Every lamp is an LED
   fitting (sector-fixes L): a flush panel under a room ceiling, a strip on short wires under the roof, a slim bulkhead on
   a wall bracket; a room's fittings share one height on a regular grid or row (some dark, over the pockets), none stands

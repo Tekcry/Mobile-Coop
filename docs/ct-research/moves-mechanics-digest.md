@@ -1,8 +1,8 @@
 # CT co-op moves and mechanics - digest
 
 > Research record (2026-10-18). Where it disagrees with docs/DECISIONS.md or docs/VISION.md, those win. Superseded
-> points: 1.1's G81 marked spots (G151: team moves anywhere with room); 2.2's "30-second revive, 2 per mission" (G188:
-> revive syringes per difficulty and checkpoints); 2.5 and 2.14 "at most one signposted hard rule per mission" (G290: up
+> points: 1.1's G81 marked spots (G151: team moves anywhere with room); 2.2's "30-second revive, 2 per mission" (Sector
+> Ops: G188 syringes and checkpoints; the campaign keeps the 30 s revive, G126); 2.5 and 2.14 "at most one signposted hard rule per mission" (G290: up
 > to 2 strict rules, breaking one restarts the section); 2.14's timer note (2026-10-25: campaign and Sector Ops use soft
 > windows only, no countdown that closes a route; Marlow Yard may use timed drills); 2.6 heavies (campaign per G155; Sector Ops has dogs, late armour and riot shields, G297, G307;
 > helmets by difficulty, 2026-10-25); 2.17's camera (G210, G227: CT movement references are ignored, Michael tunes it);

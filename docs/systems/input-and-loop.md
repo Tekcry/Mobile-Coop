@@ -1,6 +1,6 @@
 # Game loop and input
 Purpose: the fixed-step game loop, the action map and the gamepad and keyboard / mouse sources.
-Design authority: docs/DECISIONS.md (G16-G24, G210, G227), then docs/design-bible.md (Sections 4 and 8).
+Design authority: docs/DECISIONS.md (G16-G24, G96, G210, G227), then docs/design-bible.md (Sections 4 and 8).
 
 Desktop only: pad first, then keyboard and mouse (loco D1, G12). No touch movement or combat (M21).
 
@@ -14,8 +14,9 @@ Game touch (marlow-bays item 29, Michael's scope "Menus + camera"; `input/touchL
   class `touch-play`; a mouse press, a key or the pad hides it); a tap pauses. Hidden in the Anim Studio.
 
 ## Decided direction
-- Replaced, do not build (G210, G227): G96's exact CT pad layout and G18's back-to-wall on L3. Controls follow the
-  anim-rework (G210, below); Michael tunes the rest himself (G227). The binding table below is what is built.
+- Built (CT prototype F1a): G18, back-to-wall on L3, and G17, the shoulder swap only while aiming (binding table). G96's
+  CT pad layout is the base of the table; the anim-rework (S1, below) set aim, holster and strike. Michael tunes the
+  rest by hand (G227); the binding table below is what is built.
 - Built in the CT prototype M1 (loco M20 Q8): no sprint. The `dash` action id stays (photo mode's fast pan) but nothing in the
   game binds it.
 - Built (G19, G97, G23; one menu since CT prototype G5, Michael 2026-10-19: "identical"): the CT context action menu.
