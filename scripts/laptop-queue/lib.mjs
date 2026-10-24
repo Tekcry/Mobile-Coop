@@ -526,12 +526,78 @@ export function assertKey(line) {
   return String(line ?? '').replace(/\[[^\]]*\]/g, '').replace(/\d+(?:\.\d+)?/g, '#').replace(/\s+/g, ' ').trim();
 }
 
+// ---------- flake budget and quarantine (process audit 2026-10-24 finding 5; replaces "flake stands") ----------
+
+/** Days a flake counts against its suite's budget. */
+export const FLAKE_BUDGET_DAYS = 7;
+/** Flakes a suite may have in FLAKE_BUDGET_DAYS; one more quarantines it (autoQuarantine). */
+export const FLAKE_BUDGET = 2;
+/** How long an automatic quarantine lasts. */
+export const QUARANTINE_TTL_MS = 48 * 3600_000;
+export const DEFAULT_OWNER = 'Night Shift | Orchestrator';
+
+/** The live quarantine entry for suite (its own name, or a whole-suite entry for a part), null when none or expired. */
+export function quarantined(list, suite, now) {
+  const base = String(suite).split(':')[0];
+  return (list ?? []).find((q) => (q?.suite === suite || q?.suite === base) && Date.parse(q.expiry) > now) ?? null;
+}
+
+/** The owner of suite in an owners map (its own name, then the whole suite), else DEFAULT_OWNER. */
+export function suiteOwner(owners, suite) {
+  return owners?.[suite] ?? owners?.[String(suite).split(':')[0]] ?? DEFAULT_OWNER;
+}
+
+/** Adds one run per suite name to day counts { 'YYYY-MM-DD': { suite: n } }; days older than keepDays drop. New map. */
+export function countRuns(days, suites, now, keepDays = FLAKE_BUDGET_DAYS) {
+  const out = {};
+  const oldest = new Date(now - keepDays * 86400_000).toISOString().slice(0, 10);
+  for (const [d, m] of Object.entries(days ?? {})) if (d >= oldest) out[d] = { ...m };
+  const today = new Date(now).toISOString().slice(0, 10);
+  out[today] ??= {};
+  for (const s of suites) out[today][s] = (out[today][s] ?? 0) + 1;
+  return out;
+}
+
 /**
- * The failure stands without an alone rerun: the same suite flaked within windowMs on the same assert key. A flake
- * recorded without a key (older state) or a failure with no assert never matches, so it is rerun.
+ * Per-suite budget rows for the suites that flaked in the window: { suite, runs, flakes, rate, over } (over = flakes past
+ * budget), worst first. flakes = state.flakes ({ suite, date }), days = countRuns' map.
  */
-export function flakeStands(flakes, suite, key, now, windowMs) {
-  return Boolean(key) && (flakes ?? []).some((f) => f.suite === suite && f.key === key && now - Date.parse(f.date) < windowMs);
+export function flakeBudget(flakes, days, now, windowDays = FLAKE_BUDGET_DAYS, budget = FLAKE_BUDGET) {
+  const since = now - windowDays * 86400_000;
+  const oldest = new Date(since).toISOString().slice(0, 10);
+  const count = new Map();
+  for (const f of flakes ?? []) if (Date.parse(f.date) >= since) count.set(f.suite, (count.get(f.suite) ?? 0) + 1);
+  const rows = [...count].map(([suite, n]) => {
+    let runs = 0;
+    for (const [d, m] of Object.entries(days ?? {})) if (d >= oldest) runs += m[suite] ?? 0;
+    runs = Math.max(runs, n);
+    return { suite, runs, flakes: n, rate: n / runs, over: n > budget };
+  });
+  return rows.sort((a, b) => b.flakes - a.flakes || b.rate - a.rate || a.suite.localeCompare(b.suite));
+}
+
+/**
+ * New quarantine entries for the over-budget rows that no list already quarantines: { suite, owner, expiry, reason, auto }.
+ * lists = the arrays to check (the committed file's and the service's own).
+ */
+export function autoQuarantine(rows, lists, owners, now, ttlMs = QUARANTINE_TTL_MS) {
+  const out = [];
+  for (const r of rows ?? []) {
+    if (!r.over || lists.some((l) => quarantined(l, r.suite, now))) continue;
+    out.push({ suite: r.suite, owner: suiteOwner(owners, r.suite), expiry: new Date(now + ttlMs).toISOString(), reason: `flake budget: ${r.flakes} flakes in ${r.runs} runs over ${FLAKE_BUDGET_DAYS} d (budget ${FLAKE_BUDGET})`, auto: true });
+  }
+  return out;
+}
+
+/** Markdown: the budget rows (flaked suites only) with each one's quarantine, or '' when nothing flaked. */
+export function flakeSummary(rows, quarantine, owners, now) {
+  if (!rows?.length) return '';
+  const lines = [`Flake budget (${FLAKE_BUDGET_DAYS} d, ${FLAKE_BUDGET} flakes allowed; over it a suite is quarantined: it runs, its failure prints KNOWN FLAKY):`, '', '| Suite | Flakes / runs | Owner | Quarantine |', '| --- | --- | --- | --- |'];
+  for (const r of rows) {
+    const q = quarantined(quarantine, r.suite, now);
+    lines.push(`| ${r.suite} | ${r.flakes} / ${r.runs} (${Math.round(r.rate * 100)}%) | ${q?.owner ?? suiteOwner(owners, r.suite)} | ${q ? `until ${q.expiry.slice(0, 16).replace('T', ' ')} UTC` : r.over ? 'over budget' : '-'} |`);
+  }
+  return lines.join('\n');
 }
 
 /**

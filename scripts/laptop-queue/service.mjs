@@ -77,7 +77,7 @@ import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, trainSoon, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, dupKey, duplicates, failureExcerpt, flakeStands, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest } from './lib.mjs';
+import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, trainSoon, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS } from './lib.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
 const DESKTOP = process.env.LQ_WORKER === 'desktop';
@@ -106,7 +106,6 @@ const TRAIN_SOLO_MS = Number(process.env.LQ_TRAIN_SOLO_MIN ?? 10) * 60_000;
 const TRAIN_GAP_MS = Number(process.env.LQ_TRAIN_GAP_MIN ?? 3) * 60_000;
 const TRAIN_BUILD_MAX_MS = Number(process.env.LQ_TRAIN_BUILD_MAX_MIN ?? 20) * 60_000;
 const POLL_MS = 30_000;
-const FLAKE_WINDOW_MS = 24 * 3600_000;
 const DUP_WINDOW_MS = Number(process.env.LQ_DUP_WINDOW_MIN ?? 60) * 60_000;
 const AFFECTED_POLL_MS = Number(process.env.LQ_AFFECTED_POLL_MIN ?? 2) * 60_000; // laptop: the affected pass (0 = off)
 const AFFECTED_MAX_AGE_MS = Number(process.env.LQ_AFFECTED_MAX_AGE_H ?? 24) * 3600_000; // older PR heads get no auto request (0 = no limit)
@@ -143,6 +142,7 @@ const state = readJson('state.json', {});
 state.done ??= {};
 state.trains ??= {};
 state.flakes ??= [];
+state.suiteRuns ??= {}; // { day: { suite: runs } }, the flake budget's denominator (lib countRuns)
 // times.json (refreshed from real runs) over the repo's scripts/e2e-times.json as the seed
 let seed = {};
 try { seed = JSON.parse(fs.readFileSync(path.join(HERE, 'scripts/e2e-times.json'), 'utf8')); } catch { /* no seed */ }
@@ -645,7 +645,7 @@ async function prepare(port, sha, logFile, stop, ctl) {
 /** One run-e2e call on a slot; returns the parsed run plus its exit code and the last 40 lines of its output. */
 async function e2e(port, suites, jobs, logFile, ctl) {
   freePort(port);
-  const env = { E2E_PORT: port, E2E_JOBS: String(jobs), E2E_GPU: '1', E2E_SUITE_TIMEOUT: '900' };
+  const env = { E2E_PORT: port, E2E_JOBS: String(jobs), E2E_GPU: '1', E2E_SUITE_TIMEOUT: '900', E2E_QUARANTINE_FILE: file('quarantine.json') };
   const code = await sh(`node scripts/run-e2e.mjs ${suites.join(' ')}`, { cwd: SLOTS[port].dir, env, logFile, ctl });
   freePort(port);
   const text = fs.readFileSync(logFile, 'utf8').split(/^\$ node scripts\/run-e2e.mjs /m).pop() ?? '';
@@ -665,16 +665,14 @@ function sectionOf(runDir, suite) {
 }
 
 /**
- * Reruns each failed (non-known-flaky) suite once alone; a pass is a flake. Mutates result.suites, returns flake names.
- * The failure stands unrerun only when the same suite flaked within 24 h on the same assert (assertKey): a new assert
- * on a suite that flaked before is rerun (train 40 ctcourse:4, 2026-10-24).
+ * Reruns each failed (non-quarantined) suite once alone; a pass is a flake (state.flakes, counted against the suite's
+ * flake budget, see updateBudget). Mutates result.suites, returns flake names. Replaces "flake stands" (process audit
+ * 2026-10-24): a suite that keeps flaking goes over budget and into quarantine with an owner and an expiry instead.
  */
 async function rerunFlakes(result, slotOf, job, runDir, fallback = PORTS[0], ctl) {
   const flakes = [];
-  const now = Date.now();
   for (const x of result.suites.filter((s) => !s.ok && !s.flaky && !s.report)) {
     const key = assertKey(failureExcerpt(sectionOf(runDir, x.s)).assert);
-    if (flakeStands(state.flakes, x.s, key, now, FLAKE_WINDOW_MS)) { log(`${x.s} flaked within 24 h on the same assert, failure stands`); continue; }
     if (DRY || ctl?.why) continue;
     const port = slotOf[x.s] ?? fallback;
     log(`rerun ${x.s} alone on ${port}`);
@@ -697,6 +695,32 @@ function failureComment(job, result, runDir) {
   return parts.join('\n');
 }
 
+/**
+ * Counts this result's suite runs, prunes state.flakes to the budget window, quarantines over-budget suites for 48 h in
+ * quarantine.json (run-e2e reads it through E2E_QUARANTINE_FILE), writes flake-budget.md, and returns the summary of the
+ * suites this result flaked or failed as KNOWN FLAKY ('' when none) for the PR comment.
+ */
+function updateBudget(result) {
+  const now = Date.now();
+  state.suiteRuns = countRuns(state.suiteRuns, result.suites.filter((x) => !x.report).map((x) => x.s), now);
+  state.flakes = state.flakes.filter((f) => now - Date.parse(f.date) < FLAKE_BUDGET_DAYS * 86400_000);
+  let repo = { owners: {}, quarantine: [] };
+  try { repo = { ...repo, ...JSON.parse(fs.readFileSync(path.join(HERE, 'scripts/e2e-quarantine.json'), 'utf8')) }; } catch { /* no file */ }
+  const own = readJson('quarantine.json', []).filter((q) => Date.parse(q.expiry) > now);
+  const rows = flakeBudget(state.flakes, state.suiteRuns, now);
+  const added = autoQuarantine(rows, [repo.quarantine, own], repo.owners, now);
+  for (const q of added) log(`quarantine ${q.suite} until ${q.expiry} (owner ${q.owner}): ${q.reason}`);
+  const quarantine = [...repo.quarantine, ...own, ...added];
+  writeJson('quarantine.json', [...own, ...added]);
+  if (!DRY) { try { fs.writeFileSync(file('flake-budget.md'), `${flakeSummary(rows, quarantine, repo.owners, now) || 'No flakes in the window.'}
+`); } catch { /* summary only */ } }
+  saveState();
+  const touched = new Set([...(result.flakes ?? []), ...result.suites.filter((x) => !x.ok && x.flaky).map((x) => x.s)]);
+  const mine = rows.filter((r) => touched.has(r.suite));
+  for (const s of touched) if (!mine.some((r) => r.suite === s) && quarantined(quarantine, s, now)) mine.push({ suite: s, runs: 0, flakes: 0, rate: 0, over: false });
+  return flakeSummary(mine, quarantine, repo.owners, now);
+}
+
 /** Posts the verdict on ctx (a context or a list: an affected request posts affected-e2e too), comments a failure, folds the times. */
 function finish(job, ctx, result, runDir, prNumber) {
   const bad = result.suites.filter((s) => !s.ok && !s.flaky && !s.report);
@@ -704,7 +728,13 @@ function finish(job, ctx, result, runDir, prNumber) {
   const full = `${DESKTOP ? 'desktop: ' : ''}${result.suites.length ? describe(result) : 'no result parsed, see log'}`;
   const desc = full.length > 140 ? `${full.slice(0, 137)}...` : full; // GitHub rejects a status description over 140
   for (const c of [ctx].flat()) postStatus(job.sha, ok ? 'success' : 'failure', c, desc); // an affected request: also affected-e2e
-  if (!ok && prNumber && !DRY) postComment(prNumber, failureComment(job, result, runDir));
+  const budget = updateBudget(result);
+  if (!ok && prNumber && !DRY) postComment(prNumber, failureComment(job, result, runDir) + (budget ? `
+
+${budget}` : ''));
+  else if (budget && prNumber && !DRY) postComment(prNumber, `laptop-e2e passed on ${job.sha.slice(0, 8)} (${job.ref}) with flakes.
+
+${budget}`);
   times = mergeTimes(times, result.suites);
   writeJson('times.json', times);
   return ok;

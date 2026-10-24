@@ -51,13 +51,19 @@ const PARTS = { 'e2e-desktop': ['1', '2', '4'], 'e2e-ctcourse': ['1', '2', '3', 
 const expand = (list) => list.flatMap((s) => (PARTS[s] ? PARTS[s].map((n) => `${s}:${n}`) : [s]));
 const REQUIRED_JOBS = new Set(expand(REQUIRED));
 
-// Suites that fail now and then for reasons not yet fixed (docs/backlog.md, "Flaky e2e suites"). They always run and are always reported:
-// a failure is printed as KNOWN FLAKY and does not fail the run, a failure of any other suite does. Never skipped.
-// (co-op test fix, 2026-10-19) e2e-coop and e2e-netmove left: 3 solo rounds and 2 full runs pass after the fix;
-// e2e-weapons-carry left after the same 2 clean full runs (the process audit's rule). e2e-pad stays: it failed full run 2
-// in its remap section (docs/backlog.md; parked, not fixed). Add a suite only with its failure written up there.
-const KNOWN_FLAKY = new Set(['e2e-pad']);
-const flaky = (s) => KNOWN_FLAKY.has(s.split(':')[0]);
+// Quarantined suites (flake budget, process audit 2026-10-24): scripts/e2e-quarantine.json (committed: suite, owner, expiry,
+// reason) plus the laptop queue's automatic list (`E2E_QUARANTINE_FILE`, over-budget suites for 48 h). They always run
+// and are always reported: until its expiry a failure prints as KNOWN FLAKY and does not fail the run; a failure of
+// any other suite (or of an expired entry) does. An entry names a part (e2e-sectorops:6) or a whole suite. Never skipped.
+const QUARANTINE = [];
+for (const f of ['scripts/e2e-quarantine.json', process.env.E2E_QUARANTINE_FILE].filter(Boolean)) {
+  try {
+    const j = JSON.parse(readFileSync(f, 'utf8'));
+    QUARANTINE.push(...(Array.isArray(j) ? j : (j.quarantine ?? [])));
+  } catch { /* no file: nothing quarantined from it */ }
+}
+const quarantineOf = (s) => QUARANTINE.find((q) => (q.suite === s || q.suite === s.split(':')[0]) && Date.parse(q.expiry) > Date.now());
+const flaky = (s) => Boolean(quarantineOf(s));
 
 // The folder -> suites maps and the selection live in scripts/e2e-affected.mjs (pure): QUICK_COVERS for `--quick` (master's map
 // unchanged), DIRECT_COVERS for `--affected`, WIDE_COVERS for `--affected --wide`.
@@ -254,6 +260,6 @@ if (fullRun && !allFailed.length) {
   writeFileSync(TIMES_FILE, JSON.stringify(Object.fromEntries(Object.entries(known).sort(([a], [b]) => a.localeCompare(b))), null, 1) + '\n');
 }
 if (flakyFailed.length) console.log(`
-*** KNOWN FLAKY, failed this run (docs/backlog.md): ${flakyFailed.map((r) => r.s).join(', ')} - rerun them alone before reading anything into it ***`);
+*** KNOWN FLAKY (quarantined), failed this run: ${flakyFailed.map((r) => { const q = quarantineOf(r.s); return `${r.s} (owner ${q.owner}, until ${q.expiry})`; }).join(', ')} - rerun them alone before reading anything into it ***`);
 console.log(failed.length ? `\n${failed.length} suite(s) failed: ${failed.map((r) => r.s).join(', ')}` : '\nall e2e suites passed');
 process.exit(failed.length ? 1 : 0);

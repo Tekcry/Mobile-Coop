@@ -72,8 +72,9 @@ Format: `N. Item - destination - status`.
 
 ## Flaky e2e suites
 
-`scripts/run-e2e.mjs` has these in `KNOWN_FLAKY`: they always run, a failure is printed "KNOWN FLAKY" and does not fail
-the run, a failure in any other suite does. Remove a suite from that list when it is fixed. Rerun a suspect alone
+`scripts/e2e-quarantine.json` lists the quarantined suites (owner, expiry, reason; the flake budget in
+`docs/systems/testing-tools.md`): they always run, a failure is printed "KNOWN FLAKY" and does not fail the run until
+the expiry, a failure in any other suite does. Remove the entry when the test is fixed. Rerun a suspect alone
 (`E2E_PORT=4191 node scripts/run-e2e.mjs e2e-coop`) before reading anything into one failure.
 
 Process audit (2026-10-19, approved by Michael; `docs/process-audit/REPORT.md` section 2): the co-op suites are fixed

@@ -69,9 +69,12 @@ Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then
   `e2e-kestrel`, `e2e-camera-bounds`, `e2e-security`. AUDIO (`--audio`): `e2e-music`, `e2e-score`, `e2e-foley`,
   `e2e-weapon-audio`. GPU (`--gpu`, refuses without `E2E_GPU=1`): `e2e-darkness`, `e2e-desktop:3`, `e2e-coop-gpu`. REPORT: `anim-audit`
   (never fails a run; quick picks it for `src/anim`, `src/player`, `src/net`).
-- Known flaky (`KNOWN_FLAKY`; backlog "Flaky e2e suites"): `e2e-pad` only since the co-op test fix (2026-10-19). A suite
-  on the list always runs; its failure prints KNOWN FLAKY and does not fail the run. Any other failure counts only if it also
-  fails in a solo rerun.
+- Known flaky = quarantined (flake budget, process audit 2026-10-24 finding 5): `scripts/e2e-quarantine.json` lists
+  { suite, owner, expiry, reason } (a part like `e2e-sectorops:6` or a whole suite; `e2e-pad` until 2026-11-07) and
+  `owners` (who fixes each suite's flakes); run-e2e also reads `E2E_QUARANTINE_FILE` (the laptop queue's automatic list).
+  A quarantined suite always runs; until its expiry its failure prints KNOWN FLAKY (owner, expiry) and does not fail the
+  run. An expired entry counts again. Add an entry only with an owner, an expiry and the failure written up (backlog).
+  Any other failure counts only if it also fails in a solo rerun.
 - The two-page suites (e2e-coop, e2e-netmove, e2e-ctcourse, e2e-course) wait on the pages' own sim clocks
   (`e2e-net-lib.mjs` `until` / `waitSim`, `setSimPages`): on software GL the sim runs at a fraction of real time
   (at most 4 fixed steps per rendered frame), so a wall-clock timeout expired mid-move. A wall cap (10 x the timeout,
@@ -533,8 +536,14 @@ e2e for you and posts the verdict as a commit status on the tested sha. No messa
   never supersede each other, and each PR branch takes its turn in arrival order beside the leads' requests. Opt out
   per PR with the label `no-affected-e2e`. Heads older than `LQ_AFFECTED_MAX_AGE_H` (24 h; 0 = no limit) and fork heads
   (no merge-base on the laptop) are skipped. A lead's own `request.mjs --affected` still works as before.
-- Flakes: a failed suite reruns once alone on the same sha; a pass counts as a pass and is logged as a flake (state.json,
-  for its owner to fix); a suite that flaked in the last 24 h is not rerun again.
+- Flakes and the flake budget (replaces "flake stands", 2026-10-24): a failed, non-quarantined suite reruns once alone on
+  the same sha; a pass counts as a pass and is logged as a flake (state.json `flakes`, runs per day in `suiteRuns`). A
+  suite may flake 2 times in 7 days (lib `FLAKE_BUDGET`, `FLAKE_BUDGET_DAYS`); the next flake puts it in quarantine for
+  48 h (`C:/NightShift/scratch/laptop-queue/quarantine.json`, owner from `scripts/e2e-quarantine.json` `owners`, else
+  the orchestrator), so later runs print it KNOWN FLAKY instead of rerunning it. `flake-budget.md` in the same folder
+  holds the per-suite rates; a run that flaked or hit a quarantined failure adds that table to its PR comment (a
+  passing run comments only then). The owner fixes the test and removes or shortens the entry; an auto entry just expires.
+  The desktop worker keeps its own list (`laptop-queue-desktop/`).
 - Manual runs keep working: the service uses the `C:/NightShift/heavy-<slot>.lock` files and waits while one is held; its
   log says "<port> waiting on manual lock: <holder>" once per holder and the wait in minutes when it takes the lock.
 - Desktop overflow lane (Michael 2026-10-23 ~20:45): the same service with `LQ_WORKER=desktop` (task

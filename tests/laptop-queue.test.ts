@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, flakeStands, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, trainSoon, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, trainSoon, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS } from '../scripts/laptop-queue/lib.mjs';
 // @ts-expect-error plain .mjs module without types
 import { selectSuites, WIDE_COVERS } from '../scripts/e2e-affected.mjs';
 
@@ -454,24 +454,65 @@ describe('overlapping trains (queue)', () => {
   });
 });
 
-describe('assertKey / flakeStands', () => {
+describe('assertKey', () => {
   const lantern = "Error: timed out waiting for A3: LANTERN's line reaches the client [host: sim 90.45 s in 90.1 s wall (x1.00), 60 fps]";
   const grilleStop = 'timed out waiting for A8: N2 is at the grille stop (route index 2)';
-  const relock = 'Error: ASSERT: A8 pass 2: the grille is locked again on the host';
   it('drops bracketed timing and numbers', () => {
     expect(assertKey(lantern)).toBe(assertKey(lantern.replace('90.45', '90.30').replace('60 fps', '120 fps')));
     expect(assertKey(grilleStop)).toBe('timed out waiting for A#: N# is at the grille stop (route index #)');
     expect(assertKey('')).toBe('');
   });
-  it('a failure stands only on the same suite and assert within the window', () => {
-    const flakes = [{ suite: 'e2e-ctcourse:4', key: assertKey(grilleStop), date: new Date(NOW - 3600_000).toISOString() }];
-    const day = 24 * 3600_000;
-    expect(flakeStands(flakes, 'e2e-ctcourse:4', assertKey(grilleStop), NOW, day)).toBe(true);
-    expect(flakeStands(flakes, 'e2e-ctcourse:4', assertKey(relock), NOW, day)).toBe(false);
-    expect(flakeStands(flakes, 'e2e-ctcourse:2', assertKey(grilleStop), NOW, day)).toBe(false);
-    expect(flakeStands(flakes, 'e2e-ctcourse:4', assertKey(grilleStop), NOW + day, day)).toBe(false);
-    expect(flakeStands(flakes, 'e2e-ctcourse:4', '', NOW, day)).toBe(false);
-    expect(flakeStands([{ suite: 'e2e-ctcourse:4', date: new Date(NOW).toISOString() }], 'e2e-ctcourse:4', assertKey(grilleStop), NOW, day)).toBe(false);
+});
+
+describe('flake budget and quarantine', () => {
+  const day = 86400_000;
+  const at = (ms: number) => new Date(NOW - ms).toISOString();
+  it('quarantined matches a part or a whole suite, never past expiry', () => {
+    const list = [{ suite: 'e2e-pad', owner: 'P', expiry: at(-day), reason: 'r' }, { suite: 'e2e-sectorops:6', owner: 'S', expiry: at(-day), reason: 'r' }, { suite: 'e2e-menus', owner: 'O', expiry: at(day), reason: 'old' }];
+    expect(quarantined(list, 'e2e-pad', NOW)?.owner).toBe('P');
+    expect(quarantined(list, 'e2e-sectorops:6', NOW)?.owner).toBe('S');
+    expect(quarantined(list, 'e2e-sectorops:1', NOW)).toBeNull();
+    expect(quarantined(list, 'e2e-menus', NOW)).toBeNull();
+    expect(quarantined(undefined, 'e2e-pad', NOW)).toBeNull();
+  });
+  it('suiteOwner: the part, then the suite, then the orchestrator', () => {
+    const owners = { 'e2e-sectorops': 'S', 'e2e-sectorops:6': 'S6' };
+    expect(suiteOwner(owners, 'e2e-sectorops:6')).toBe('S6');
+    expect(suiteOwner(owners, 'e2e-sectorops:1')).toBe('S');
+    expect(suiteOwner(owners, 'smoke')).toBe(DEFAULT_OWNER);
+  });
+  it('countRuns adds today and drops days past the window', () => {
+    const old = new Date(NOW - 9 * day).toISOString().slice(0, 10);
+    const today = new Date(NOW).toISOString().slice(0, 10);
+    const days = countRuns({ [old]: { smoke: 4 }, [today]: { smoke: 1 } }, ['smoke', 'e2e-pad'], NOW);
+    expect(days).toEqual({ [today]: { smoke: 2, 'e2e-pad': 1 } });
+  });
+  it('flakeBudget: flaked suites only, over past the budget, worst first, old flakes ignored', () => {
+    const today = new Date(NOW).toISOString().slice(0, 10);
+    const flakes = [
+      ...Array.from({ length: FLAKE_BUDGET + 1 }, (_, i) => ({ suite: 'e2e-ctcourse:1', date: at(i * 3600_000) })),
+      { suite: 'e2e-sectorops:6', date: at(3600_000) },
+      { suite: 'e2e-menus', date: at(8 * day) },
+    ];
+    const rows = flakeBudget(flakes, { [today]: { 'e2e-ctcourse:1': 10, 'e2e-sectorops:6': 4 } }, NOW);
+    expect(rows.map((r: { suite: string; flakes: number; runs: number; over: boolean }) => [r.suite, r.flakes, r.runs, r.over])).toEqual([['e2e-ctcourse:1', FLAKE_BUDGET + 1, 10, true], ['e2e-sectorops:6', 1, 4, false]]);
+    // runs never below flakes (runs counted before the budget existed)
+    expect(flakeBudget([{ suite: 'x', date: at(0) }], {}, NOW)[0]).toMatchObject({ runs: 1, rate: 1 });
+  });
+  it('autoQuarantine: over-budget suites not already quarantined, owner from the map, 48 h', () => {
+    const rows = [{ suite: 'e2e-ctcourse:1', runs: 10, flakes: 3, rate: 0.3, over: true }, { suite: 'e2e-pad', runs: 9, flakes: 5, rate: 0.5, over: true }, { suite: 'smoke', runs: 9, flakes: 1, rate: 0.1, over: false }];
+    const repo = [{ suite: 'e2e-pad', owner: 'P', expiry: at(-day), reason: 'r' }];
+    const out = autoQuarantine(rows, [repo, []], { 'e2e-ctcourse': 'Marlow' }, NOW);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ suite: 'e2e-ctcourse:1', owner: 'Marlow', auto: true, expiry: new Date(NOW + QUARANTINE_TTL_MS).toISOString() });
+    expect(autoQuarantine(rows, [repo, out], {}, NOW)).toEqual([]);
+  });
+  it('flakeSummary: a table row per suite with its quarantine, empty for no rows', () => {
+    expect(flakeSummary([], [], {}, NOW)).toBe('');
+    const q = [{ suite: 'e2e-ctcourse:1', owner: 'Marlow', expiry: new Date(NOW + day).toISOString(), reason: 'r' }];
+    const md = flakeSummary([{ suite: 'e2e-ctcourse:1', runs: 10, flakes: 3, rate: 0.3, over: true }, { suite: 'smoke', runs: 4, flakes: 1, rate: 0.25, over: false }], q, {}, NOW);
+    expect(md).toContain('| e2e-ctcourse:1 | 3 / 10 (30%) | Marlow | until ');
+    expect(md).toContain(`| smoke | 1 / 4 (25%) | ${DEFAULT_OWNER} | - |`);
   });
 });
 
