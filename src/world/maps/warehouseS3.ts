@@ -338,11 +338,11 @@ export function buildAssemblyS3(b: LevelBuilder): void {
   // (LR16-W S3, L5) the secure store at the cage's back: sheet steel on the mesh, a top over the back racks and the west
   // side (the officer's restock corner stays in shadow at night; the counter is outside it). The top stops at z -6.85, clear
   // of a player hanging from the crane walkway's north lip (body z -7.53 to -6.93); it still cuts lamp #77's rays to the
-  // officer (they cross y 2.4 at z -6.14 / -6.65).
+  // officer (they cross y 2.4 at z -6.14 / -6.65). Only the top is overhead; the side panel is a wall on the fence line.
   p0 = b.boxes.length;
   b.box(1.5, 2.43, -6.425, 3.0, 0.06, 0.85, STEEL);
-  b.box(0, 1.2, -7.325, 0.06, 2.4, 2.65, STEEL);
   ov(p0);
+  b.box(0, 1.2, -7.325, 0.06, 2.4, 2.65, STEEL);
   nl(p0);
   b.door(2.45, 0, -4.0, 1.1, PI / 2, { swing: 1 });
   b.block(4.7, -4.35, 1.4, 1.0, 0.5, DESK);

@@ -6,18 +6,18 @@ Design authority: docs/DECISIONS.md (G76, G99-G102), then docs/design-bible.md (
 - Decided (G76): CT's gadget and attachment set, settled by the CT co-op research (Deferred in DECISIONS). The 7 gadgets
   below are the current build, not the final set. The tool specs waiting on Kestrel and the research (optic cable,
   lockpick, hacking, pistol disruptor, launcher rounds, interrogation, knife) are in `docs/systems/ct-toolkit.md`.
-- Decided, not built yet (G100): an instant cut between modes in CT's order (thermal, electro, night, off); no flip.
-  Code: the cycle is off -> night -> thermal -> electro with a 0.2 s flip.
+- Built (G100, G181): an instant cut, no flip; the wheel picks the mode and one button turns it on and off.
 - Decided (G99): the modes are night, thermal and electro (built).
-- Decided, not built yet (G101, G102): CT grain; thermal follows CT (CT colour ramp, people behind closed doors as a dim
-  silhouette). Code: no seeing through walls, grain on all three modes (`vfx/visionLook.ts`).
+- Built (G101, G102; LR16-6): CT grain; thermal follows CT (CT colour ramp; people behind closed doors as a dim blue
+  posed silhouette, never through walls or glass: `docs/systems/lighting.md`, Thermal and electro).
 - Decided, not built yet (G45): thermal never sees through glass.
 - The player's tri-rotor drone is deleted (G7, G115); the enemy `droneOp` recon drone stays (`docs/systems/ai.md`).
 
 ## Vision modes (locomotion step 14)
-- The goggles button (pad View tap, KBM N) cycles off -> night -> thermal -> electro -> off (`game/vision.ts`
-  `VisionState`, `VISION_CYCLE`). Each switch is one `VISION.flip` 0.2 s goggle flip with the image changing at the middle;
-  a press during a flip queues one more flip to the newest mode. The HUD label (NV / THERMAL / ELECTRO) shows for 1.5 s.
+- The goggles button (pad View tap, KBM N) turns the wheel's selected mode on and off (`game/vision.ts` `VisionState`
+  `toggle`; G181); a wheel pick with the goggles on switches to it (`select`). Every change is an instant cut (G100): the
+  first frame drawn after it is the new mode. Any change of the mode on screen shows the HUD label (NV / THERMAL /
+  ELECTRO) for 1.5 s; the goggle sound plays on on / off only.
 - Render-only and local-only (D8): never sent, never read by gameplay. Perception, the light meter and alarms give the same
   result in every mode (`tests/visionIsolation.test.ts`, e2e-stealth-ai `vision-detect`).
 - Thermal: every live rig (player, team-mates, remote avatars, guards) and every dog body (`DogModel.setHeat`) glows at

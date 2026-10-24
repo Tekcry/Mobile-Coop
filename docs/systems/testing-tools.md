@@ -155,7 +155,9 @@ behind a VPN adapter).
 - `e2e-darkness` (GPU list) display brightness targets (bible L5): on the Warehouse a matte 50% grey card (`World.addLightProbe`)
   at field levels ~0.12 / 0.27 / 0.40 / 0.70, the camera 0.8 m in front, the HUD hidden; the screenshot centre as Rec.
   709 luma at Epic, night vision off and on (`REPORT=1` prints without asserting); turning with night vision on reads
-  as moving every frame; night vision's bloom runs every frame
+  as moving every frame; night vision's bloom runs every frame; (LR16-6) thermal: the button cuts on the first frame
+  both ways, a guard placed 1.2 m behind a shut hinged door shows one silhouette that reads dim blue at his chest as
+  projected on screen against the same pixels with him gone, none with the door open
 - `e2e-coop-gpu` (GPU list, port 4189) the real menu flow, two players (shared and separate contexts at High, shared at Epic; `COOPGPU_ALL=1` adds separate at Epic): fails on a "failed to load" console message, no host avatar or LOD on the joiner, the host not drawn (body mesh enabled, visible, active, bounds over 0.5 m), or "Connecting to host" still shown; `scripts/repro-coop-avatar.mjs` is the diagnostic version
 - `e2e-combat` weapons (rifle, `pistolSd` magazine 15), hits, headshots, reload, swap, grenades, barrels, death /
   respawn
@@ -174,7 +176,11 @@ behind a VPN adapter).
   suspicious -> investigating, squad radio, the shout, a spotter taken out first tells nobody, LKP + ghost + converge +
   search ends, (walk 4.82) a lone guard reports then moves up on the last known position, the probable-area search ('search area': the near dark spot checked, the room behind a wall not, three
   searchers on three spots), patrols, the optic cable (the door menu pick, the view under the door at floor height, the look limits,
-  night vision, the tip never seen, the kneeling body seen, crouch leaves, a sealed door refuses)
+  night vision, the tip never seen, the kneeling body seen, crouch leaves, a sealed door refuses); (coop4 AI6) 'four
+  intruders (coop4)': the local player plus up to 3 test-only stand-in refs (`t.fakes`): a calm guard with 4 in view
+  casts <= 9 rays a think and sees all 4 in turn, 4 own slots / LKPs, the alarm's reinforcements split (the raiser's
+  first), a team shares one hunt and is ticked on its own LKP, a leaver's slot kept for his rejoin, a new id takes a gone
+  slot; a 2-player control (today's rules). The 3-4 browser asserts: `docs/coop4/briefs/AI6-E2E-SPEC.md`
 - `e2e-guard-carry` Warehouse Infiltration (High): a calm holstered grunt and officer (S21 carry) and then drawing ones
   are drawn: body among the active meshes, material ready, GPU-skinned effect (no CPU-skinning fallback), no effect
   compile error (its error line printed). Run with `E2E_GPU=1`

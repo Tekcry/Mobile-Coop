@@ -2,6 +2,93 @@
 
 RESUMED ~23:55 (new account; orchestrator: overnight mode, one slice at a time, testing backlog first, save at 5-hour ~95%):
 #247 laptop afp PASS on fd34263e + CI green -> train-ready label added, orchestrator told (joins train 39 with #269).
+~19:35: PR #318 guard-models OPEN (flag off; dbfec6ad; SW fix aba0953a). Laptop: G9 set on 89c10827 (43619-...-6637) +
+e2e-offline on aba0953a (52107-...-3749): green -> label train-ready + orchestrator. #308 train 54 FAIL: e2e-course 'clone'
+-> Opus triage + fix running on feature/rig-pose-fix; e2e-tuner-phone solo on 23353993 (51717-...-cb4a). On fix: relabel
+#308 + tell orchestrator (it closes #316). #314 waiting CI + laptop (40217 coop / netmove, 41745 pad / mouse).
+~19:10: perf batch DONE (feature/gm-perf 408ab154; PERF-REPORT.md): F1 frozen base / shield materials, F2 pose in the LOD
+skeleton's onBeforeCompute (culled + no shadow list = no pose; moon CSM casters still pose), T1 guard-cap render.figure vs
+render.s1 + active-mesh tally per class. Cap A/B queued (set gm-perf-cap). STATE fix: G8 "Poser solve PASS" = NOT MEASURED
+(ai.anim never rendered). If gun tally ~13 / guard -> S13 merge guns (weaponModel.ts). gm-perf merges into guard-models
+after the PR (or rides it if the numbers pass the gate first: then flip flags.ts:131).
+~19:00: guard-models MERGE-CHECK-A PASS (4f2e1a57); PR CHECK-B FAIL B1 (14ebd55a): vite.config.ts:115 SW urlPattern uses an
+imported regex that workbox serialises without the import -> every same-origin runtime-cache match throws, offline cache
+broken for everyone. Opus fix round running (self-contained urlPatterns, sw.js pin test, build, doc polish). Then rerun
+e2e-offline (+ the rest of the G9 set if it failed) on the fix head, PR. STATE Open to add: G10 sheet defect list + "no
+sheet notes from Michael yet" (lead, after the fix round pushes).
+~18:45: guard-models MASTER MERGED (8809aab9 + assets 89c10827: 7 conflicts resolved, S11 items + thawPose line, PROTOCOL
+master 50 + G6n look bits; assets never precached: src/pwa/precacheGlobs.ts globIgnores, tests/guardAssetsOffline.test.ts;
+build OK, SW 77 entries no guard-). Running: merge check A (MERGE-CHECK-A.md, AI / wire), PR check B (MERGE-CHECK-B.md,
+flag-off landing), G9 e2e set 20261024T043619-player-build-89c10827-6637, perf batch on feature/gm-perf (worktree gm-perf:
+F1 frozen materials, F2 lazy pose, guard-cap render.figure + tally; PERF-REPORT.md). Then: PR (flag off) + train-ready;
+perf branch merges after, cap A/B, flip decision. #308 relabelled after master merge (23353993).
+~18:25: Test Runner takes world.ts updateSunCasters (S9b). OURS in guard-cap.mjs (they will not touch it until guard-models
+merges): `render.figure` timer around GuardBody.frame in onBeforeRenderObservable + per-guard active-mesh tally by name
+prefix. Perf batch after the master merge (branch gm-perf off feature/guard-models): F1 + F2 + timer + tally -> cap rerun;
+if the tally confirms guns ~13 parts each -> S13 merge each gun into one mesh (weaponModel.ts, ours).
+~18:20: perf profile done (read-only): gap is render() CPU, not active meshes. Ours, after the master merge lands (same
+worktree): F1 freeze guard materials (guardFigure.ts:127 `p.freeze()` after the plugin; guardShield.ts; test: no
+prepareDefines after the first ready frame; est. -0.4-0.7 ms + GC), F2 pose lazily / visible-only (guardFigure.ts:617-691
+-> skeleton onBeforeComputeObservable like smoothBody.ts:161, keep LOD pick + half-rate; est. -0.2-0.3). Told Test
+Runner: S8b render.figure timer (G8 "poser PASS" was never measured: fix STATE), world.ts:328 updateSunCasters skip
+disabled (their S9), S13 = guns as ~13 instanced parts (weaponModel.ts:143-163, ours if their tally confirms).
+~18:05: guard-models PR with flag OFF approved (orchestrator), conditions: conflict-free (merge master ourselves; master's
+protocol.ts + G6n look bits) and the 29 MB never precached / fetched while the flag is off. Opus agent doing the master
+merge (S11 items + thawPose figure.update line) + SW precache exclusion + build, on feature/guard-models. G9 request on
+b25947e6 withdrawn (stale). Then: G9 e2e set on the merged head, Opus checker on the merge, PR, train-ready. Perf profile
+(read-only Opus, PLAN2 S13 mesh count) running.
+~17:40: #314 R3 contextual (Michael ~14:55) c69b698c + CHECK-R3 PASS (979da9d7). Pending: CI on 979da9d7, laptop
+coop + netmove on 52258028 (40217-...-60f5), pad + mouse on c69b698c (41745-...-47f6); all green -> gh pr edit 314
+--add-label train-ready + orchestrator. guard-models G8 cap3 on 0fd85e2b DONE (3/3 steps): waiting for Test Runner's
+results branch (shots/g8c-*); then flip flags.ts:131 or report.
+~17:20: #314 fix round 52258028 (panel message, trp snapshot) -> RECHECK PASS (2408cfa4). Laptop: e2e-coop + netmove on
+52258028 (20261024T040217-player-build-52258028-60f5); e2e-pad + mouse from f96633aa (20261024T034805-...-53c1, still valid:
+the fix touched no input). All green + Michael's R3 answer -> label #314 train-ready (apply his R3 choice first if it
+changes bindings: then pad / mouse rerun).
+~17:05: #314 CHECK-M FAIL B1 (OPEN TRAP opens the panel on one machine only; not reachable yet, no trap placed): Opus fix
+round on feature/optic-coop (open via the host like doors: client request, host validate + broadcast, joiner snapshot).
+Then re-check (fresh Opus) + laptop netmove / coop on the fix head. guard-models S11 check PASS (STATE ~17:00: the master
+merge must keep 3 items + the thawPose figure.update line).
+~16:55: PR #314 optic-coop OPEN (f96633aa = base f32aaf17 + optic-coop-2 34b3116e M1 / M2 / polish): CHECK-M.md Opus
+check running + laptop e2e-pad / mouse / netmove / coop 20261024T034805-player-build-f96633aa-53c1. Michael asked (via
+orchestrator): R3 ping shares Zoom (a keep / b contextual / c move Zoom / d move Ping). Train-ready after check + laptop +
+his answer.
+RESUMED ~16:45 (window reset; weekly 78%, binds tonight): #308 TRAIN-READY (label added; 667cbd80 CI green + laptop all
+pass). optic-coop: checks A + B PASS, laptop 7/7 on f32aaf17; optic-coop-2 builder (M1 gap menu, M2 ping middle mouse /
+R3, polish 256 cap + first-frame ping) RESUMED after the limit cut it off; then merge into feature/optic-coop, small Opus
+check of the delta, netmove + coop rerun on the new head, PR (wire), train-ready. guard-models: S11 MERGED (0fd85e2b),
+Opus checker running (S11-CHECK.md), G8 cap A/B queued 20261024T034348-player-build-0fd85e2b-fa9c (flip flags.ts:131 if
+sectorops 24 alert and campus 24 patrol are within +0.5 ms p95). S12 not needed.
+~16:10: optic-coop BUILT (feature/optic-coop f32aaf17; docs/optic-coop/REPORT.md; wire mv.m 'optic' + sub / a / ph): two
+Opus checkers (CHECK-A.md wire, CHECK-B.md gameplay) + laptop netmove / coop / stealth-ai / ctcourse
+(20261024T030538-player-build-f32aaf17-7c2a) in parallel; then PR + train-ready. Michael questions sent via orchestrator:
+gap entry input (F taken), ping binding. S11 builder still running (gm-s11).
+SAVE ~16:00 (orchestrator 88%): WIP pushed feature/gm-s11 82d12dc1 (S11 Opus builder was running: resume it from its head
+with docs/guard-models/reports/S11-REPORT.md as the target; brief in guard-models STATE ~15:55) and feature/optic-coop
+b930cdc4 (#15 optic cable rest, Opus builder running: target docs/optic-coop/REPORT.md). Laptop queued: #308
+e2e-stealth-ai alone on 667cbd80 (20261024T025416-player-build-667cbd80-9eff): pass + CI green -> gh pr edit 308
+--add-label train-ready + message orchestrator. G8 rerun c76cf326 (20261024T020601-player-build-c76cf326-e643): verdict
+-> flip flags.ts:131 or S11 / S12. All other worktrees clean + pushed.
+~15:40: #308 CI test stub fixed (d49097df); laptop 18/19, e2e-stealth-ai "search area / near" FAIL (guard sees the player
+0.3 s after a tp): Opus fix running on feature/rig-pose-fix, then e2e-stealth-ai alone on the fix head. Spare jobs #2 #3 #7
+#11 #16 all already on master (told orchestrator); #12 = #308. NEW: #15 optic cable rest (co-op MoveState optic + team
+pings + non-door anchors), Opus builder in worktree optic-coop (feature/optic-coop off master; docs/optic-coop/REPORT.md);
+wire change expected (train bumps PROTOCOL). guard-models: G8 rerun queued 20261024T020601-...-e643.
+~15:00: PR #308 rig-pose-fix OPEN (4adf3785; alloc fix merged; checks W1 / S1-A fixed / net B PASS). Laptop 11 suites
+20261024T014839-player-build-4adf3785-d290 (status laptop-e2e/rig-pose-fix): pass -> label train-ready + orchestrator;
+fail -> Opus triage at once. guard-models G8 shadow-cull builder running (gm-g8cull), then cap rerun sectorops +
+campusops, flip decision, guard-models e2e set, guard-models PR.
+~14:40: rig-pose-fix ALL 7 slices merged (988869a8; S1 fix round incl.); checks W1 PASS, S1-A FAIL->fixed; checker B on
+all src/net running (CHECK-NET-B.md). WAITING for CPU < 80% (93% at 14:40) to start: (a) playerVolumes alloc test fix
+(worktree rpf-alloc, branch feature/rpf-alloc: 67.8 B vs 4 x 16 B; find the extra box, do not raise the limit), (b)
+guard-models G8 shadow-cull fix (worktree gm-g8cull: G8 HOLD, sectorops CPU +0.6-1.7 ms p95 vs +0.5; lamp shadow draws
+24->50: figure culling box vs lightRig.ts fillCasters; then rerun cap sectorops + campusops). Then rig-pose laptop batch run
++ fragment + PR. guard-models e2e set after the flip decision.
+~13:30 rig-pose-fix: S1, S2, S5, S6, S7 MERGED (bb750a5b); W1 check PASS (S2/S5/S6/S7). Running: S3 (rpf-s3: guard head,
+dog puppet, one sim eye, hand side, body floor probe), checker A on S1 (CHECK-S1-A.md). Then checker B on all src/net,
+one laptop batch run, fragment, PR. S1 decisions for the orchestrator: client headshot-able on host (x1.3, legs x0.75),
+host uses latest accepted client state (not the 0.1 s drawn copy). guard-models: bake BUNDLED ae211857; checks rerun
+20261024T004757-...-e911 + G8 cap 20261024T004923-...-820d queued (Test Runner relays); MPFB2 now on the laptop.
 ~11:40 NEW JOB rig-pose-fix (Michael ~11:25 approved; on ROADMAP): branch feature/rig-pose-fix (worktree
 rig-pose-fix, own npm ci; off master 4.88.1 0fab0afa; docs/rig-pose-audit/ BRIEF / PLAN / STATE / REPORT). Wave 1 Opus
 builders running: S1 player body model + wall head (rpf-s1), S2 shot origin (rpf-s2), S5 body pos (rpf-s5), S6 dog head

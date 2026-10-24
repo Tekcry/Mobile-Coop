@@ -30,6 +30,11 @@ Design authority: docs/DECISIONS.md (G16, G20, G21, G76, G98, G103-G105), then d
 - `PlayerWeapons` (fixed step) owns fire / reload / swap / grenades; `Ballistics` owns rays and pooled swept projectiles;
   `Explosions` queues detonations (never recursive); `Vfx` pools every effect.
 - Anything shootable implements `Damageable` and registers its bodies with `DamageRegistry`.
+- (rig-pose-fix S1) A player's hit volumes (legs, torso, head: `game/playerHitVolumes.ts`, `G.PLAYER_HITBOX`) and the
+  guards' aim / head points sit on the sim body model (`player/playerVolumes.ts` `playerBody`: feet, yaw, crouch, kneel,
+  pace, weapon raise and pitch, wall side and peek, traversal family; fitted to Wren's rig, mocap ON,
+  `tests/playerVolumesParity.test.ts`), never on the rendered rig, for the local player and the host's view of a client
+  alike; both take head x1.3, legs x0.75 (`playerPartMult`). The suppression near-miss reads the same head.
 - (guard-ai S12) A guard's helmet soaks his first bullet to the head and body armour every bullet to the body
   (`docs/systems/ai.md` "Gear"): `DamageResult.deflect`, 0 dealt; `PlayerWeapons` reports the `deflect` hit kind (HUD
   marker steel blue, a high ping), not a kill. Takedowns, melee, explosions and sleep bolts ignore gear.
@@ -53,6 +58,15 @@ Design authority: docs/DECISIONS.md (G16, G20, G21, G76, G98, G103-G105), then d
   `READY_ELBOW_TUCK` 0.5 with a gun in the hands.
 - No hip fire: a shot needs the drawn phase and `cam.ads >= 0.9` (`fireReady`); fire while holstered is the close strike
   (`docs/systems/takedowns.md`). The crosshair shows only drawn and aiming.
+- (rig-pose-fix S2) Shot origin from the sim (`weapons/shotOrigin.ts`, pure): every player round (ray and projectile)
+  starts at `shotOrigin` (feet, crouch blend, lean, the gun's side from the sim hand clock `PlayerWeapons.hand` (S3), hanging inverted, the aim and the
+  weapon's `muzzle` after attachments), fitted to Wren's rig (muzzle within 3 cm rifle, 8 cm pistol). The wall poke
+  tests the line from the one sim head (S3: S1's body model, `PlayerTarget.body.head`) to it and starts the round there when blocked. That origin is the
+  hit's `sourcePos`, so a client's claimed `shot` origin is the same point. The animated muzzle (`WeaponModel.muzzleWorld`)
+  places only the tracer, flash and casing.
+- (rig-pose-fix S7) Player rounds pass ragdolls: `MASK.PLAYER_SHOT` no longer has `G.RAGDOLL` (ragdolls are visual and per
+  machine; G18). The training dummy's head volume is its sim feet + `hitVolumes(p).headY` + `DUMMY_HEAD` (G16). The swap's
+  hold for a gun changing hands reads the sim clock `PlayerWeapons.hand` (`player/handSwitch.ts`), never the rig (G15).
 - Player spread (`playerSpreadDeg`, weaponStats.ts): base `spreadAds`; crouched and still x0.7; standing still x1; moving
   adds `spreadMove x min(speed, 2.8) / 2.8`; bloom on top, capped at `maxSpread`. `spreadHip` and the hip-fire attachment
   mods are for guards only.

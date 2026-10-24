@@ -850,3 +850,187 @@ describe('course messages (T1b)', () => {
     expect(n).toBeGreaterThanOrEqual(4);
   });
 });
+
+// (rig-pose-fix S1, G1 / G3) One body model for both machines: the owner's `PlayerTarget` builds the sim body from its
+// controller and pose (`localBodyIn`), the host's `RemotePlayer` from the accepted wire state (`wireBodyIn` after the
+// real `pstate` parse); for the same state both give the same hit volumes, perception points and wall head.
+describe('rig-pose-fix S1: same MoveState, same volumes local and on the host', () => {
+  it('free, kneeling, wall peek, ladder and vault: the local and the host body agree within 2 mm', async () => {
+    const { attachLiftOf, emptyPlayerBodyIn, emptyPlayerBodyOut, localBodyIn, peekShare, playerBody, PLAYER_OPERATOR_HEIGHT, wireBodyIn } = await import('../src/player/playerVolumes');
+    const { emptyMoveState, packAttachSub, packMoveState } = await import('../src/player/moveState');
+    const { WALL, WALL_SUB, wallFacing } = await import('../src/player/wallController');
+    const ladder = { id: 0, kind: 'ladder', base: { x: 4, y: 0, z: -3 }, top: { x: 4, y: 5, z: -3 }, facing: 1.1, rung: 0.3, width: 0.45 } as never;
+    type Mv = ReturnType<typeof emptyMoveState>;
+    interface Case {
+      id: string;
+      /** The owner: its controller, weapon, camera, pose and attach lift. */
+      speed: number;
+      localX: number;
+      crouch: number;
+      kneel: boolean;
+      drawn: boolean;
+      raise: number;
+      pitch: number;
+      wall?: { edge: number; dir: number; peek: number };
+      traverse?: { kind: 'climb' | 'vault'; t: number };
+      /** What the owner sends (`localMoveState`), and the host's eased peek / kneel for it. */
+      mv: Mv;
+      anchor?: unknown;
+    }
+    const base = { speed: 0, localX: 0, crouch: 0, kneel: false, drawn: false, raise: 0, pitch: 0 };
+    const cases: Case[] = [
+      { ...base, id: 'aimed strafe', speed: 1.2, localX: 1, drawn: true, raise: 1, pitch: 0.2, mv: { ...emptyMoveState(), dw: 2, r: 1 } },
+      { ...base, id: 'kneel at low ready', crouch: 1, kneel: true, drawn: true, mv: { ...emptyMoveState(), dw: 2 } },
+      { ...base, id: 'wall crouch peek, left edge', crouch: 1, wall: { edge: 1, dir: 1, peek: 1 }, mv: { ...emptyMoveState(), m: 'wall', a: 2, s: 1, sub: WALL_SUB.crouch | WALL_SUB.edgeL | WALL_SUB.peek | WALL_SUB.low } },
+      { ...base, id: 'wall standing, half peek right edge', wall: { edge: -1, dir: -1, peek: 0.5 }, mv: { ...emptyMoveState(), m: 'wall', a: 2, s: 1, sub: WALL_SUB.faceRight | WALL_SUB.edgeR | WALL_SUB.peek } },
+      { ...base, id: 'ladder', traverse: { kind: 'climb', t: 0.37 }, anchor: ladder, mv: { ...emptyMoveState(), m: 'ladder', a: 0, s: 1.4, sub: packAttachSub('on', 1, 'none') } },
+      { ...base, id: 'vault', traverse: { kind: 'vault', t: 0.6 }, mv: { ...emptyMoveState(), m: 'vault', ph: 0.6 } },
+    ];
+    const feet = { x: 4.2, y: 0.5, z: -2.6 };
+    const yaw = 1.1;
+    for (const c of cases) {
+      // the owner (PlayerTarget.sync): the wall stance side and the rig lean as GameState sets them (WallCore.rigLean)
+      const side = c.wall ? wallFacing(c.wall.edge, c.wall.dir) : 0;
+      const lean = c.wall ? (c.wall.edge > 0 ? -1 : 1) * WALL.peekLean * peekShare(c.wall.peek) : 0;
+      const lift = attachLiftOf(c.mv, c.anchor as never, PLAYER_OPERATOR_HEIGHT, { x: 0, y: 0, z: 0 });
+      const owner = {
+        position: feet,
+        controller: { yaw, crouchBlend: c.crouch, kneeling: c.kneel, speed: c.speed, localMove: { x: c.localX } },
+        carry: { raise: c.raise },
+        cam: { pitch: c.pitch },
+        pose: { wall: !!c.wall, wallSide: side, lean, traverse: c.traverse?.kind ?? ('none' as const), traverseT: c.traverse?.t ?? 0, tumble: 0 },
+        rootLift: lift,
+      };
+      const a = playerBody(localBodyIn(owner, c.drawn, WALL.peekLean, emptyPlayerBodyIn()), emptyPlayerBodyOut());
+      // the wire: the owner's state through the real pstate parse, then the host's RemotePlayer.accept mapping
+      const msg = parseMessage({ t: 'pstate', s: { ...ps, x: feet.x, y: feet.y, z: feet.z, yaw, pitch: c.pitch, speed: c.speed, f: c.crouch > 0.5 ? 1 | 16 : 16, mv: packMoveState(c.mv) } });
+      expect(msg?.t, c.id).toBe('pstate');
+      const s = (msg as { s: { x: number; y: number; z: number; yaw: number; pitch: number; speed: number; mv?: Mv } }).s;
+      const hostLift = attachLiftOf(s.mv, c.anchor as never, PLAYER_OPERATOR_HEIGHT, { x: 0, y: 0, z: 0 });
+      // the host's eased peek amount at the owner's (its 0.3 s ease from the bit, settled) and its kneel timer (settled)
+      const b = playerBody(wireBodyIn(s, c.crouch, c.kneel, c.wall?.peek ?? 0, c.localX, 10, hostLift, emptyPlayerBodyIn()), emptyPlayerBodyOut());
+      for (const j of ['pelvis', 'chest', 'neck', 'head'] as const) {
+        const d = Math.hypot(a[j].x - b[j].x, a[j].y - b[j].y, a[j].z - b[j].z);
+        expect(d, `${c.id}: ${j} local vs host`).toBeLessThan(0.002);
+      }
+    }
+  });
+});
+
+// (rig-pose-fix S3, audit G7 / G20) One guard head for every judge: the client's puppet takes its head volume from
+// `guardHead` on the inputs it gives its rig (`puppetHeadIn`), never the rig's `headNode`; the host records each guard's
+// sim head and the head the client is shown (`Enemy.wireHead` = `guardHead(wireHeadIn(...))`) and judges a client's head
+// claim against the rewound heads (`shotHistory.ts`), never `feet + 1.62 / 1.15`.
+describe('rig-pose-fix S3: one guard head (puppet, host history, judge)', () => {
+  it('puppet head = host guardHead for the same inputs', async () => {
+    const { guardHead, guardHeadRest, newHeadIn, wireHeadIn, PHASE_UNKNOWN } = await import('../src/ai/guardHead');
+    const { puppetHeadIn } = await import('../src/net/puppetHead');
+    const { ENEMIES } = await import('../src/ai/enemyDefs');
+    const { readFileSync } = await import('node:fs');
+    type Held = ReturnType<typeof newHeadIn>['held'];
+    const cases: { id: string; kind: 'grunt' | 'heavy'; speed: number; mx: number; mz: number; crouch: number; aim: number; held?: Held; heldK?: number; poseW?: number }[] = [
+      { id: 'still, low ready', kind: 'grunt', speed: 0, mx: 0, mz: 0, crouch: 0, aim: 0.2 },
+      { id: 'patrol walk', kind: 'grunt', speed: 1.4, mx: 0, mz: 1.4, crouch: 0, aim: 0.2 },
+      { id: 'aimed strafe', kind: 'grunt', speed: 1.1, mx: 0.9, mz: -0.63, crouch: 0, aim: 1 },
+      { id: 'crouched advance', kind: 'heavy', speed: 0.9, mx: -0.3, mz: 0.85, crouch: 0.7, aim: 1 },
+      { id: 'dash', kind: 'grunt', speed: 4.2, mx: 0.4, mz: 4.18, crouch: 0, aim: 0.2 },
+      { id: 'walked hostage', kind: 'grunt', speed: 0.8, mx: 0, mz: 0.8, crouch: 0, aim: 0, held: 'hostage', heldK: 1, poseW: 1 },
+    ];
+    let bobMax = 0;
+    for (const c of cases) {
+      const def = ENEMIES[c.kind];
+      const rest = guardHeadRest(def.height, def.build, def.gun !== null, def.melee ? 0 : def.runSpeed);
+      // the host's sim inputs (Enemy.syncHitboxes): the gait clock, the aim pitch; no wall / lean here
+      const host = { ...newHeadIn(), x: 3.1, y: 0.4, z: -7.2, yaw: 2.3, crouch: c.crouch, speed: c.speed, moveX: c.mx, moveZ: c.mz, phase: 0.31, aim: c.aim, aimPitch: 0, held: c.held ?? null, heldK: c.heldK ?? 0, poseW: c.poseW ?? 0 };
+      const shown = { x: 0, y: 0, z: 0 };
+      guardHead(wireHeadIn(host, newHeadIn()), rest, shown);
+      // the puppet: the same wire state (interpolated feet / yaw, eased crouch / speed, its travel direction, raise)
+      const sp = c.speed;
+      const ph = puppetHeadIn(newHeadIn(), host.x, host.y, host.z, host.yaw, c.crouch, sp, sp > 0 ? c.mx / sp : 0, sp > 0 ? c.mz / sp : 0, c.aim);
+      expect(ph.phase).toBe(PHASE_UNKNOWN);
+      ph.held = host.held;
+      ph.heldK = host.heldK;
+      ph.poseW = host.poseW;
+      const pup = { x: 0, y: 0, z: 0 };
+      guardHead(ph, rest, pup);
+      for (const k of ['x', 'y', 'z'] as const) expect(pup[k], `${c.id} ${k}`).toBeCloseTo(shown[k], 9);
+      // against the host's own sim head (its gait clock): only the stride bob / dash share, at any phase
+      for (let i = 0; i < 16; i++) {
+        const sim = { x: 0, y: 0, z: 0 };
+        guardHead({ ...host, phase: i / 16 }, rest, sim);
+        bobMax = Math.max(bobMax, Math.hypot(sim.x - pup.x, sim.y - pup.y, sim.z - pup.z));
+      }
+    }
+    console.info(`puppet head vs the host's sim head (gait clock, every phase): max ${(bobMax * 100).toFixed(1)} cm`);
+    expect(bobMax).toBeLessThan(0.06);
+    // the lean round an edge is not on the wire: the host's head moves ~1 m the client never sees (the judge keeps both)
+    {
+      const def = ENEMIES.grunt;
+      const rest = guardHeadRest(def.height, def.build, true, def.runSpeed);
+      const lean = { ...newHeadIn(), aim: 1, wall: true, wallSide: 1, lean: 1, leanDrop: 1 };
+      const a = { x: 0, y: 0, z: 0 };
+      const b = { x: 0, y: 0, z: 0 };
+      guardHead(lean, rest, a);
+      guardHead(wireHeadIn(lean, newHeadIn()), rest, b);
+      expect(Math.hypot(a.x - b.x, a.z - b.z)).toBeGreaterThan(0.77);
+    }
+    // the puppet's wiring: no rig head read, no drawn dog head
+    const src = readFileSync('src/net/enemyPuppet.ts', 'utf8');
+    expect(src).not.toMatch(/headNode|dog\.head|getAbsolutePosition/);
+    expect(src).toMatch(/puppetHeadIn\(this\.headIn/);
+    expect(src).toMatch(/guardHead\(this\.headIn, this\.headRest, this\.head\)/);
+    expect(src).toMatch(/dogHead\(this\.pos, this\.yaw, this\.speed, DOG_MEAN_PHASE/);
+  });
+
+  it('judge uses the rewound head', async () => {
+    const { judgeRewound, newRewound, pushHist, rewindHist } = await import('../src/net/shotHistory');
+    const { readFileSync } = await import('node:fs');
+    const h: Parameters<typeof pushHist>[0] = [];
+    // a guard walking +X at half crouch; his sim head leans out 0.9 m to -Z (a peek), the shown head over his feet
+    for (let i = 0; i < 30; i++) {
+      const t = i * 0.05;
+      const feet = { x: t * 2, y: 0, z: 0 };
+      pushHist(h, 24, t, feet, 0.5, { x: feet.x + 0.1, y: 1.25, z: -0.9 }, { x: feet.x + 0.1, y: 1.3, z: 0 });
+    }
+    expect(h.length).toBe(24);
+    expect(h[0]!.t).toBeCloseTo(0.3, 9);
+    const rw = newRewound();
+    // now 1.45; the claim's rt 1.225: between the samples at 1.2 and 1.25
+    expect(rewindHist(h, 1.225, 1.45, 0.6, rw)).toBe(true);
+    expect(rw.feet.x).toBeCloseTo(2.45, 9);
+    expect(rw.head.x).toBeCloseTo(2.55, 9);
+    expect(rw.head.z).toBeCloseTo(-0.9, 9);
+    expect(rw.wire.y).toBeCloseTo(1.3, 9);
+    // too old: clamped to now - 0.6
+    const old = newRewound();
+    rewindHist(h, 0.1, 1.45, 0.6, old);
+    expect(old.feet.x).toBeCloseTo(1.7, 9);
+    // a shooter 10 m ahead of him (+X), the ray along -X through a point (the two heads 0.9 m apart across it)
+    const shooter = { x: 12.5, y: 0, z: 0 };
+    const at = (p: { x: number; y: number; z: number }) => ({ origin: { x: 12.5, y: p.y, z: p.z }, dir: { x: -1, y: 0, z: 0 }, part: 'head' as const });
+    const body = { x: 0, y: 0, z: 0 };
+    const aim = { x: 0, y: 0, z: 0 };
+    // through the rewound sim head: accepted, judged at it
+    const v1 = judgeRewound(at(rw.head), shooter, rw, 1, 50, 1.1, 1, body, aim);
+    expect(v1.ok).toBe(true);
+    expect([aim.x, aim.y, aim.z]).toEqual([rw.head.x, rw.head.y, rw.head.z]);
+    // through the rewound shown head (what the client's puppet drew): accepted, judged at it
+    const v2 = judgeRewound(at(rw.wire), shooter, rw, 1, 50, 1.1, 1, body, aim);
+    expect(v2.ok).toBe(true);
+    expect(aim.y).toBeCloseTo(1.3, 9);
+    // the old stance constant passed anything near feet + 1.62; a claim 0.9 m over both heads is refused now
+    const high = { x: rw.feet.x, y: 1.3 + 0.9, z: 0 };
+    const v3 = judgeRewound(at(high), shooter, rw, 1, 50, 1.1, 1, body, aim);
+    expect(v3.ok).toBe(false);
+    if (!v3.ok) expect(v3.reason).toBe('miss');
+    // a body claim keeps the stance centre (crouch 0.5 at the rewind: not crouched, feet + 1.0)
+    const vb = judgeRewound({ ...at({ x: rw.feet.x, y: 1.0, z: 0 }), part: 'body' }, shooter, rw, 1, 50, 1.1, 1, body, aim);
+    expect(vb.ok).toBe(true);
+    expect(body.y).toBeCloseTo(1.0, 9);
+    // the host's wiring: the history holds simHead / wireHead, the dead rig branch is gone
+    const src = readFileSync('src/net/coopHost.ts', 'utf8');
+    expect(src).toMatch(/pushHist\(h, HISTORY_MAX, this\.time, e\.pos, e\.crouchBlend, e\.simHead, e\.wireHead\(w\)\)/);
+    expect(src).toMatch(/judgeRewound\(/);
+    expect(src).not.toMatch(/headNode|posed|rwBody/);
+  });
+});

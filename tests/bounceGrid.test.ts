@@ -220,8 +220,15 @@ describe('(LR16-1) nsGrid2 green channel = field bounce', () => {
       'ivec3 hb = ivec3(step(vec3(0.5), f));',
       `int tx = (eh >> (hb.x == 1 ? ${BOUNCE_T_SHIFT[1]} : ${BOUNCE_T_SHIFT[0]})) & 3;`,
       `if (tx > 0 && d.x >= float(tx) * ${BOUNCE_T_STEP}) h ^= 1;`,
+      'int mx = xa.x | (xa.z << 2) | (xb.x << 4) | (xb.z << 6);',
+      'int my = ya.x | (ya.y << 1) | (yb.x << 4) | (yb.y << 5);',
+      'int mz = za.x | (za.y << 1) | (za.z << 2) | (za.w << 3);',
       'for (int r = 0; r < 7; r++) {',
+      'int g = c | ((c & mx) << 1) | ((c >> 1) & mx) | ((c & my) << 2) | ((c >> 2) & my) | ((c & mz) << 4) | ((c >> 4) & mz);',
       'if (g == c) break;',
+      'vec4 wa = vec4(wx * (1.0 - f.y), wx * f.y) * (1.0 - f.z) * vec4(notEqual(ivec4(c) & ivec4(1, 2, 4, 8), ivec4(0)));',
+      'vec4 wb = vec4(wx * (1.0 - f.y), wx * f.y) * f.z * vec4(notEqual(ivec4(c) & ivec4(16, 32, 64, 128), ivec4(0)));',
+      'float sv = wa.x * va.x + wa.y * va.y + wa.z * va.z + wa.w * va.w + wb.x * vb.x + wb.y * vb.y + wb.z * vb.z + wb.w * vb.w;',
       'return vec2(amb, sw > 0.0 ? sv / sw : vh);',
     ]) expect(NS_GRID2_GLSL).toContain(line);
     // (LR16-P F3) no local arrays: dynamically indexed ones spill to local memory on NVIDIA

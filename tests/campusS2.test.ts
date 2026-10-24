@@ -165,7 +165,7 @@ describe('Saltmarsh Park section 2 (HQ), registration and shape', () => {
 
   it('the spawn layout carries the S2 rooms, switches, hide spots and nav seeds', () => {
     expect(lay.rooms!.length).toBeGreaterThan(S2_ROOMS.length);
-    expect(lay.switches!.length).toBe(5 + 7 + 9 + 8 + 9);
+    expect(lay.switches!.length).toBe(5 + 6 + 9 + 8 + 9);
     expect(lay.navSeeds!.some((s) => s.y === 4.4)).toBe(true);
     expect(lay.alarms!.filter((a) => a.section === 1).length).toBe(2);
     expect(lay.alarms!.find((a) => a.section === 1 && a.pos.y > 4)).toBeTruthy();
@@ -382,6 +382,7 @@ describe('S2 cameras, alarms, objective, routes', () => {
     for (const h of lay.hideSpots!.filter((q) => q.pos.z > -30 && q.pos.x < 5 && q.pos.x > -45 && q.pos.z < 7 && q.pos.z > -29.5)) expect(onNav(h.pos.x, h.pos.z, h.pos.y), `hide (${h.pos.x}, ${h.pos.z})`).toBe(true);
     for (const s of lay.switches!.filter((q) => q.pos.z > -30 && q.pos.x > -45 && q.pos.x < 5 && q.pos.z < 7)) expect(nearNav(s.pos.x, s.pos.z, s.pos.y), `switch (${s.pos.x}, ${s.pos.z})`).toBe(true);
     for (const a of lay.alarms!.filter((q) => q.section === 1)) expect(nearNav(a.pos.x, a.pos.z, a.pos.y), `alarm (${a.pos.x}, ${a.pos.z})`).toBe(true);
+    for (const bd of lay.boards!.filter((q) => q.groups.includes(S2_GROUPS.atrium))) expect(nearNav(bd.pos.x, bd.pos.z, bd.pos.y), 'reception panel board').toBe(true);
   });
 });
 
@@ -553,14 +554,19 @@ describe('S2 lighting (SPEC "Lighting")', () => {
     expect(group(S1_GROUPS.parkW).length).toBe(8);
   });
 
-  it('the switches: the reception panel cuts the atrium, one switch at each stair door for each balcony (L1 and L2), the kitchen, the L1 corridor (lure #7); the stair doors are within 2.5 m', () => {
+  it('the reception panel is a board (untimed, section 1) and no switch; one switch at each stair door for each balcony (L1 and L2), the kitchen, the L1 corridor (lure #7); the stair doors are within 2.5 m', () => {
     const sw = lay.switches!.filter((s) => s.group >= 50);
-    expect(sw.filter((s) => s.group === S2_GROUPS.atrium).length).toBe(1);
+    expect(sw.filter((s) => s.group === S2_GROUPS.atrium).length).toBe(0);
     expect(sw.filter((s) => s.group === S2_GROUPS.l1Bal).length).toBe(2);
     expect(sw.filter((s) => s.group === S2_GROUPS.l2Bal).length).toBe(2);
     expect(sw.filter((s) => s.group === S2_GROUPS.kitchen).length).toBe(1);
     expect(sw.filter((s) => s.group === S2_GROUPS.l1Cor).length).toBe(1);
-    const atrium = sw.find((s) => s.group === S2_GROUPS.atrium)!;
+    const boards = lay.boards!.filter((q) => q.groups.includes(S2_GROUPS.atrium));
+    expect(boards.length).toBe(1);
+    const atrium = boards[0]!;
+    expect(atrium.groups).toEqual([S2_GROUPS.atrium]);
+    expect(atrium.window).toBeUndefined();
+    expect(atrium.section).toBe(1);
     // the panel is in the foyer (reception), 10 m from #1: a lure
     expect(atrium.pos.x).toBeGreaterThan(-30);
     expect(atrium.pos.x).toBeLessThan(-8);
@@ -609,7 +615,7 @@ describe('S2 lighting (SPEC "Lighting")', () => {
     expect(rec.length).toBe(1);
     expect([rec[0]!.x, rec[0]!.y, rec[0]!.z]).toEqual([-20, 3.9, -26.5]);
     // the panel stands in the same room, on his floor
-    const panel = lay.switches!.find((s) => s.group === S2_GROUPS.atrium)!;
+    const panel = lay.boards!.find((q) => q.groups.includes(S2_GROUPS.atrium))!;
     expect(roomAt(rooms, panel.pos.x, panel.pos.z, panel.pos.y + 0.1)).toBe(mine);
   });
 

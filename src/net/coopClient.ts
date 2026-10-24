@@ -3,7 +3,8 @@ import type { GameState, NetAttachment } from '../game/gameState';
 import type { TakedownVictim } from '../game/takedownController';
 import type { Blip } from '../ui/hud/minimap';
 import type { BlobShadows } from '../vfx/blobShadows';
-import { Body } from '../ai/body';
+import { Body, deathLieOn } from '../ai/body';
+import { newLie } from '../ai/bodyLie';
 import { ClientCarry } from './clientCarry';
 import { CarryView } from './carryView';
 import { carryChange, clientBodyPrompt } from './bodyCarryNet';
@@ -52,6 +53,7 @@ import { BOLT_DEPTH, SECTOR_RESTART_TITLE, boltById, boltHalfSpan, type SectorRa
 import { barkLine, BARK_EVENTS, RADIO_BARKS } from '../ai/barks';
 import { HelmetDrops } from '../ai/helmetDrops';
 import { DeflectLedger } from './puppetGear';
+import { stampKeptBodies } from './keptBodies';
 import { DESK_NONE, deskItemId, deskModeOf } from '../game/sectorDesks';
 import { placeSlot, startSlotPoints } from '../game/spawnPlace';
 import type { SlotPoint } from '../game/spawnSlots';
@@ -86,6 +88,10 @@ export class CoopClient implements NetAttachment {
   private readonly mirrorSeen = new Set<string>();
   /** (coop-carry fix round) Each mirrored body item by enemy id, with the host's lying state (`bodyPrompt`). */
   private bodyItems = new Map<string, { it: Interactable; on: boolean }>();
+  /** (rig-pose-fix S5) Scratch for a kill's body lie (the host's `Body` lie, P13). */
+  private deathLie = newLie();
+  /** (LR16-6 fix) When each kept body went down (`time`): its body-heat cooling (`stampBodies`). Render only. */
+  private readonly keptAt = new Map<string, number>();
   private dying: EnemyPuppet[] = [];
   private clock = new ClockSync();
   private sendT = 0;
@@ -226,6 +232,9 @@ export class CoopClient implements NetAttachment {
       if (kind === 'gas' || kind === 'flash' || kind === 'emp' || kind === 'noise') s.toHost({ t: 'gadget', kind, x: at.x, y: at.y, z: at.z });
     };
     g.takedownVictims = () => this.puppetList;
+    // (LR16-6 fix) our kept bodies cool as the host's do (render-only body heat)
+    g.bodyStamp = (f) => this.stampBodies(f);
+    this.offs.push(() => (g.bodyStamp = null));
     // wall medkit stations are the host's, mirrored (the host heals: health is host-authoritative)
     const own = g.interactables;
     if (own) for (const it of own.items.filter((x) => x.kind === 'medkitWall')) own.remove(it);
@@ -646,6 +655,12 @@ export class CoopClient implements NetAttachment {
     this.s.toHost({ t: 'td', target: v.id, ph, lethal, kind: 'assist' });
   }
 
+  /** (joint-interrogation, G148) Our bluff on a partner's hostage (the BLUFF row): the host checks and stores it, and its
+   *  `feed` line comes back; a denial (`tdDenied` on a partner-held puppet) changes nothing here (A6). */
+  jointBluff(v: TakedownVictim): void {
+    this.s.toHost({ t: 'td', target: v.id, ph: 'start', lethal: false, kind: 'bluff' });
+  }
+
   private applySelf(p: PlayerState): void {
     this.selfSpotted = (p.f & PF.spotted) !== 0;
     const g = this.g;
@@ -770,14 +785,24 @@ export class CoopClient implements NetAttachment {
                 break;
               }
             }
-            const away = p.pos.subtract(g.player.position);
-            away.y = 0;
-            away.normalize().scaleInPlace(12).addInPlaceFromFloats(0, 3, 0);
-            // (coop-carry) a `Body` as the host's: a ragdoll under the budget, else laid flat (was disposed: nothing to
-            // carry here)
-            const body = new Body(g.scene, g.world, p.def, false, rig, away, this.canRagdoll());
+            // (rig-pose-fix S5, P13) the host's Body lies at his sim feet and yaw at death plus the settle along the fall
+            // (`bodyLie.ts`). The wire carries no body position, so the same lie from the puppet's last host state, the
+            // fall away from his killer (the host's is the killing round's or blow's way); the ragdoll eases onto it
+            const s = p.buf.latest();
+            const fx = s ? s.x : p.pos.x;
+            const fy = s ? s.y : p.pos.y;
+            const fz = s ? s.z : p.pos.z;
+            const src = e.by === me ? g.player.position : (this.avatars.get(e.by)?.pos ?? g.player.position);
+            const away = new Vector3(fx - src.x, 0, fz - src.z);
+            const lie = deathLieOn(this.deathLie, g.ballistics, fx, fy, fz, s ? s.yaw : p.yaw, away.x, away.z, rig.p);
+            if (away.lengthSquared() > 1e-6) away.normalize();
+            away.scaleInPlace(12).addInPlaceFromFloats(0, 3, 0);
+            // (coop-carry) a `Body` as the host's: a ragdoll under the budget, else laid straight on the lie (was disposed:
+            // nothing to carry here)
+            const body = new Body(g.scene, g.world, p.def, false, rig, away, this.canRagdoll(), lie);
             body.enemyId = e.enemy;
             this.kept.set(e.enemy, body);
+            this.keptAt.set(e.enemy, this.time);
             // (fix round) the host's item may have come first (the snapshot before this event): its prompt now
             this.bodyPrompt(e.enemy);
           } else this.dying.push(p);
@@ -1216,6 +1241,12 @@ export class CoopClient implements NetAttachment {
     return true;
   }
 
+  /** (LR16-6 fix) `GameState.bodyStamp`: mark the kept bodies' rigs as bodies this render frame with their age, so
+   *  their body heat cools as the host cools its own (`paintHeat`). Render only, no allocation (`keptBodies.ts`). */
+  stampBodies(f: number): void {
+    stampKeptBodies(this.kept, this.keptAt, this.time, f);
+  }
+
   private dropBody(id: string): void {
     const r = this.kept.get(id);
     if (!r) return;
@@ -1225,6 +1256,7 @@ export class CoopClient implements NetAttachment {
     this.views.delete(id);
     this.carriers.delete(id);
     this.kept.delete(id);
+    this.keptAt.delete(id);
     r.dispose();
   }
 
@@ -1287,6 +1319,7 @@ export class CoopClient implements NetAttachment {
     this.puppetList = [];
     this.dying.length = 0;
     this.kept.clear();
+    this.keptAt.clear();
     this.holdPulses.clear();
     this.ints?.dispose();
     this.g.explosions.onLocalBlast = null;

@@ -4,6 +4,7 @@ import { CQ, dropCurve, liftCurve, type DropState, type LiftState } from './clos
 import { SOCKET_YAW, socketLocal } from '../ai/carryPose';
 import type { Body } from '../ai/body';
 import { BODY } from '../ai/bodies';
+import { carrySide } from '../ai/bodyLie';
 import type { GameState } from './gameState';
 import { G } from '../physics/groups';
 import { hyp2 } from '../core/mathx';
@@ -24,13 +25,6 @@ export function carryShoulderY(rig: CharacterRig): number {
   const p = rig.p;
   const chestY = p.y.waist + 0.13 * (rig.height / 1.75);
   return p.y.shoulder - chestY + 0.12;
-}
-
-/** (G7) The shoulder a body goes on: 1 right when its head (`headYaw`, rad, 0 = +Z) lies to the right of the carrier
- *  facing it (`liftYaw`), -1 left (CT 110936, 052704; a right hoist of a body lying head-left swung the head through
- *  his back). */
-export function carrySideOf(headYaw: number, liftYaw: number): number {
-  return Math.sin(headYaw) * Math.cos(liftYaw) - Math.cos(headYaw) * Math.sin(liftYaw) >= 0 ? 1 : -1;
 }
 
 /** What the local carrier's owner does around the carry (the host / solo `StealthSystems`, the co-op client's
@@ -132,8 +126,9 @@ export class BodyCarry {
     // carrying stays)
     c.standUp();
     this.hoisting = false;
-    // kneel beside the chest on the side he stands, facing it; at most a metre's step, never through a wall
-    const yaw = b.liftPoints(this.liftChest, this.liftL, this.liftR);
+    // kneel beside the chest on the side he stands, facing it; at most a metre's step, never through a wall. (rig-pose-fix
+    // S5, G9) The chest and the way the head lies are the body's sim lie, never the ragdoll's pose
+    const yaw = b.lieChest(this.liftChest);
     const ch = this.liftChest;
     const p = c.pos;
     let px = -Math.cos(yaw);
@@ -154,7 +149,7 @@ export class BodyCarry {
     this.liftFrom.copyFrom(p);
     this.liftYaw = Math.atan2(ch.x - to.x, ch.z - to.z);
     // the head to his right: over the right shoulder (CT); to his left: the left one (mirrored)
-    this.carrySide = carrySideOf(yaw, this.liftYaw);
+    this.carrySide = carrySide(yaw, this.liftYaw);
     g.events.emit('body', { action: 'pickup' });
     return true;
   }
@@ -169,6 +164,7 @@ export class BodyCarry {
     const s = Math.sin(c.yaw);
     const co = Math.cos(c.yaw);
     const at = new Vector3(c.pos.x + s * 0.7, c.pos.y, c.pos.z + co * 0.7);
+    // (rig-pose-fix S5) it lies (sim) across in front of him, pelvis at `at`, head to his right
     b.drop(new Vector3(s * CQ.dropImpulse, CQ.dropImpulseDown, co * CQ.dropImpulse), this.hooks.canRagdoll(), at, c.yaw + Math.PI / 2);
     this.carry = null;
     this.release();
@@ -195,7 +191,8 @@ export class BodyCarry {
     const sd = this.carrySide;
     const at = new Vector3(c.pos.x + co * 0.5 * sd, c.pos.y, c.pos.z - s * 0.5 * sd);
     const k = CQ.dropImpulse;
-    b.drop(new Vector3(co * k * sd + s * k * 0.3, CQ.dropImpulseDown, -s * k * sd + co * k * 0.3), this.hooks.canRagdoll(), at, c.yaw + Math.PI / 2);
+    // (rig-pose-fix S5) it lies (sim) along his side, pelvis at `at`, head toward his back (the torso hung down it)
+    b.drop(new Vector3(co * k * sd + s * k * 0.3, CQ.dropImpulseDown, -s * k * sd + co * k * 0.3), this.hooks.canRagdoll(), at, c.yaw + Math.PI);
     this.carry = null;
     this.hooks.noise(DROP_NOISE, at);
     this.g.events.emit('body', { action: 'drop' });
@@ -348,7 +345,8 @@ export class BodyCarry {
       w = lc.hands;
       if (lc.atBody) {
         // crouched over it: the hands under its shoulders
-        b.liftPoints(this.liftChest, this.liftL, this.liftR);
+        // (P8: presentation) the body's shoulders as drawn
+        b.shoulders(this.liftL, this.liftR);
         const near = this.nearSide();
         const a = near ? this.liftR : this.liftL;
         const o = near ? this.liftL : this.liftR;

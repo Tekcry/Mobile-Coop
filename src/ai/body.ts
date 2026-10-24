@@ -1,10 +1,13 @@
 import { Quaternion, Vector3, type Scene, type TransformNode } from '../core/babylon';
 import { CharacterRig } from '../player/characterRig';
+import { G } from '../physics/groups';
 import type { World } from '../world/world';
+import type { Ballistics } from '../weapons/ballistics';
 import type { EnemyDef } from './enemyDefs';
 import type { Enemy } from './enemy';
 import { Ragdoll } from './ragdoll';
-import { attachToShoulder, captureLying, hoistAt, slideAt } from './carryPose';
+import { attachToShoulder, captureLying, hoistAt, layAt, slideAt } from './carryPose';
+import { deathLie, dropLie, fallYaw, headReach, LIE, lieAt, newLie, settleMax, type BodyLie, type LieBody } from './bodyLie';
 
 let nextBody = 1;
 
@@ -19,18 +22,55 @@ export function buildBodyRig(scene: Scene, world: World, def: EnemyDef, name: st
   return rig;
 }
 
-const headV = new Vector3();
+const rayA = new Vector3();
+const rayB = new Vector3();
+const layQ = new Quaternion();
+
+/**
+ * (rig-pose-fix S5) The lie at death on the sim (`bodyLie.deathLie`): the guard's sim feet (x, y, z) and yaw, the death
+ * impulse's horizontal way (dirX, dirZ), the body's proportions, and the clear room along the fall on the static
+ * collision (`bal`; null: open floor). The host's `Body` and the co-op client's ragdoll both take it.
+ * (rig-pose-fix S3, CHECK-W1 polish 1) Then one down ray on the static collision from over the settled pelvis: the body
+ * lies on the floor found there (killed at a ledge lip, the pelvis settles over the drop; killed mid-air, on a ladder or
+ * a drop, the floor is below his feet); no floor within `LIE.floorDrop` under his feet: it lies at his feet's height.
+ */
+export function deathLieOn(out: BodyLie, bal: Pick<Ballistics, 'hitDistance'> | null, x: number, y: number, z: number, yaw: number, dirX: number, dirZ: number, p: LieBody): BodyLie {
+  let room = Infinity;
+  if (bal) {
+    const h = fallYaw(yaw, dirX, dirZ);
+    const reach = settleMax(p) + headReach(p);
+    rayA.set(x, y + LIE.rayY, z);
+    rayB.set(x + Math.sin(h) * reach, y + LIE.rayY, z + Math.cos(h) * reach);
+    room = bal.hitDistance(rayA, rayB, G.STATIC);
+  }
+  deathLie(out, x, y, z, yaw, dirX, dirZ, p, room);
+  if (bal) {
+    const top = y + LIE.floorUp;
+    const len = LIE.floorUp + LIE.floorDrop;
+    rayA.set(out.x, top, out.z);
+    rayB.set(out.x, top - len, out.z);
+    const d = bal.hitDistance(rayA, rayB, G.STATIC);
+    if (d < len - 1e-4) lieAt(out, out.x, top - d, out.z, out.headYaw, p);
+  }
+  return out;
+}
 
 /**
  * A downed enemy (killed or knocked out): a settled ragdoll that stays where it fell (or a still body when no
  * ragdoll could be spared), which enemies can find, the player can carry (a fresh rig posed over the
  * shoulder) and put down again (a short ragdoll drop) or hide in a container (gone for good). A knocked-out
  * victim found by an enemy is revived (Blacklist: non-lethal victims wake only if found).
+ *
+ * (rig-pose-fix S5, audit G8 / G9) Where it lies is sim: `pos` and `lie` are set at death from the guard's sim state
+ * (`deathLieOn`) and on a put down from the drop point (`bodyLie.dropLie`), never read back from the rig. The ragdoll
+ * is visual and eases onto the lie when it settles (`Ragdoll.snapTo`); without one the rig is laid straight on it.
  */
 export class Body {
   readonly id = `b${nextBody++}`;
-  /** Pelvis world position (updated per step). */
+  /** The pelvis on the floor (sim: the lie's pelvis; unchanged while carried). */
   readonly pos = new Vector3();
+  /** (S5) How it lies (sim): the pelvis (= `pos`), the chest point, the way the head points. */
+  readonly lie: BodyLie = newLie();
   found = false;
   hidden = false;
   carried = false;
@@ -59,13 +99,17 @@ export class Body {
     rig: CharacterRig,
     impulse: Vector3,
     ragdollOk: boolean,
+    /** (S5) Where it lies (sim, `deathLieOn`). */
+    lie: BodyLie,
   ) {
     rig.heldWeapon = null;
     rig.emote = null;
-    if (ragdollOk) this.ragdoll = new Ragdoll(scene, rig, impulse, true);
-    else this.lay(rig);
+    this.setLie(lie);
+    if (ragdollOk) {
+      this.ragdoll = new Ragdoll(scene, rig, impulse, true);
+      this.ragdoll.snapTo(lie.x, lie.y, lie.z, lie.headYaw);
+    } else this.lay(rig);
     this.rig = rig;
-    this.sync();
   }
 
   /** The body's rig, for render-only passes (step 14: a fresh body cools in thermal vision); null once gone. */
@@ -83,24 +127,27 @@ export class Body {
     return !this.hidden && !this.carried && !!this.rig;
   }
 
-  /** No physics to spare: lay the rig flat where it stands. */
+  private setLie(l: BodyLie): void {
+    const o = this.lie;
+    o.x = l.x;
+    o.y = l.y;
+    o.z = l.z;
+    o.cx = l.cx;
+    o.cy = l.cy;
+    o.cz = l.cz;
+    o.headYaw = l.headYaw;
+    this.pos.set(l.x, l.y, l.z);
+  }
+
+  /** No physics to spare: lay the rig straight on its lie (pelvis on the lie's, head its way). */
   private lay(rig: CharacterRig): void {
-    const r = rig.root;
-    r.rotation.x = -Math.PI / 2;
-    r.position.y += rig.p.chest.d * 0.5;
+    const l = this.lie;
+    layAt(rig, l.x, l.y, l.z, l.headYaw, layQ);
   }
 
   update(dt: number): void {
     this.age += dt;
     this.ragdoll?.update(dt);
-    if (!this.carried) this.sync();
-  }
-
-  private sync(): void {
-    const rig = this.rig;
-    if (!rig || rig.disposed) return;
-    rig.hips.computeWorldMatrix(true);
-    this.pos.copyFrom(rig.hips.getAbsolutePosition());
   }
 
   /** Pick up at once: the corpse goes, a fresh rig is posed over the carrier's shoulder (`chest` node of their rig). */
@@ -114,21 +161,22 @@ export class Body {
     return rig;
   }
 
-  /** (G7) The lying body for the carrier's step-in and hands: its chest point, its shoulders; returns the way its head
-   *  points (rad, 0 = +Z). */
-  liftPoints(outChest: Vector3, outL: Vector3, outR: Vector3): number {
+  /** (G7, S5) The lying body's chest point for the carrier's step-in (sim, the lie); returns the way its head points
+   *  (rad, 0 = +Z). */
+  lieChest(out: Vector3): number {
+    const l = this.lie;
+    out.set(l.cx, l.cy, l.cz);
+    return l.headYaw;
+  }
+
+  /** (G7, P8: presentation) The lying body's shoulders as drawn, for the carrier's hands. */
+  shoulders(outL: Vector3, outR: Vector3): void {
     const rig = this.rig;
-    if (!rig) return 0;
-    rig.torso.computeWorldMatrix(true);
-    outChest.copyFrom(rig.torso.getAbsolutePosition());
+    if (!rig) return;
     rig.shoulderL.computeWorldMatrix(true);
     outL.copyFrom(rig.shoulderL.getAbsolutePosition());
     rig.shoulderR.computeWorldMatrix(true);
     outR.copyFrom(rig.shoulderR.getAbsolutePosition());
-    rig.hips.computeWorldMatrix(true);
-    rig.headNode.computeWorldMatrix(true);
-    headV.copyFrom(rig.headNode.getAbsolutePosition()).subtractInPlace(rig.hips.getAbsolutePosition());
-    return Math.atan2(headV.x, headV.z);
   }
 
   /** (G7, row 6) The hoist begins: the corpse goes, a fresh rig lies straight where it lay (hips, head the same way),
@@ -173,23 +221,19 @@ export class Body {
     outR.copyFrom(rig.kneeR.getAbsolutePosition());
   }
 
-  /** Put down: off the shoulder into a short ragdoll drop, or (no ragdoll to spare) laid flat at `at`. */
-  drop(impulse: Vector3, ragdollOk: boolean, at: Vector3, yaw: number): void {
+  /** Put down: off the shoulder into a short ragdoll drop, or (no ragdoll to spare) laid straight. Either way it lies
+   *  (sim, S5) with the pelvis at the drop point `at` and the head toward `headYaw` (rad, 0 = +Z). */
+  drop(impulse: Vector3, ragdollOk: boolean, at: Vector3, headYaw: number): void {
     const rig = this.rig;
     if (!rig || !this.carried) return;
     rig.root.computeWorldMatrix(true);
     rig.root.setParent(null);
     this.carried = false;
-    if (ragdollOk) this.ragdoll = new Ragdoll(this.scene, rig, impulse, true, 2.2);
-    else {
-      const r = rig.root;
-      r.rotationQuaternion = null;
-      r.rotation.set(0, yaw, 0);
-      r.position.copyFrom(at);
-      for (const n of [rig.hipL, rig.hipR, rig.kneeL, rig.kneeR, rig.shoulderL, rig.shoulderR, rig.neck]) n.rotationQuaternion!.copyFromFloats(0, 0, 0, 1);
-      this.lay(rig);
-    }
-    this.sync();
+    this.setLie(dropLie(this.lie, at.x, at.y, at.z, headYaw, rig.p));
+    if (ragdollOk) {
+      this.ragdoll = new Ragdoll(this.scene, rig, impulse, true, 2.2);
+      this.ragdoll.snapTo(this.lie.x, this.lie.y, this.lie.z, this.lie.headYaw);
+    } else this.lay(rig);
   }
 
   /** Into a container / vent: gone for good. */

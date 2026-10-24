@@ -48,7 +48,7 @@
  * - kit panels with accent coves from the 9.2 m slab's top to the roof on the four walls (81, 83, 84), accent slots under the gallery's
  *   front (82), on the office roof (83), the lobby's ceiling and the vault's roof (84). No lamp is added.
  */
-import type { GuardInfo } from '../../../ai/guardInfo';
+import type { GuardIntel } from '../../../game/intel';
 import { hyp2 } from '../../../core/mathx';
 import type { EgressGate, FlagGate, IsolatorGate, MainsGate, PickupGate } from '../../../game/course/courseDef';
 import type { LaserPanelDef } from '../../../game/laserPanels';
@@ -80,8 +80,16 @@ export const A8_N2_WAITS = [5, A8_PASS_WAIT, 5, A8_PASS_WAIT, A8_PASS_WAIT];
 export const A8_N2_FACES = [Math.PI / 2, Number.NaN, Math.PI / 2, Number.NaN, Number.NaN];
 /** The officer's post (seated at the console, his back to the door) and what he gives up when held (set doc section 2, G206, P14). */
 export const A8_OFFICER_POST = { x: 142.9, z: 74.7, y: 4.4 } as const;
-export const A8_OFFICER_INFO: GuardInfo = {
+/** (joint-interrogation, G148) His joint-only lines (a read during a partner's live bluff): the request-to-exit on the lobby's
+ *  south wall (`A8_RTE_AT`, `A8_RTE_GATE_ON`), and night two's loop (`patrolPeriod` of `A8_N2_ROUTE` at the grunt's patrol pace:
+ *  39.8 s, rounded to forty; the grille stop is `A8_N2_WAITS[2]`, 5 s). The flag has no consumer yet (PLAN section 3). */
+export const A8_JOINT_FLAG = 'a8-joint';
+export const A8_OFFICER_INFO: GuardIntel = {
   lines: ['The board under the gallery kills the hall lights. The grille is on the same circuit.', 'Both time locks turn together. The beams in the lobby drop with them.'],
+  joint: {
+    lines: ['The button inside the lobby, south wall. It opens the grille and keeps it open.', 'Night two stops at the grille five seconds, every forty. Then back to the desk.'],
+    flag: A8_JOINT_FLAG,
+  },
 };
 
 /** The console (course device and N3 console), its pickup gate, the flag the cameras name, the timed loop, the three cameras. */
@@ -588,6 +596,8 @@ export function buildA8Strongroom(b: LevelBuilder, kit: FacilityKit): A8Part {
   );
   p.bay.radio.push(
     { at: 'enter', text: "Last one. Everything you've done tonight, in one room. Take your time." },
+    // (joint-interrogation, G148) the teach, as A reaches the gallery
+    { at: 'a8-split', text: 'The duty officer clams up with one of you. Two of you, he might say more.' },
     { at: `warn:${A8_NIGHT_GATE}`, text: 'Lights back in five.' },
     { at: `warn:${A8_NIGHT_GATE}`, text: "Grille's locking again." },
     { at: `warn:${A8_CONSOLE_GATE}`, text: 'Cameras back in five.' },

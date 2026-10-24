@@ -8,12 +8,11 @@
 import { Vector3 } from '../core/babylon';
 import type { Body } from '../ai/body';
 import { CQ } from '../game/closeQuarters';
-import { carryShoulderX, carryShoulderY, carrySideOf } from '../game/bodyCarry';
+import { carryShoulderX, carryShoulderY } from '../game/bodyCarry';
+import { carrySide, lieLift } from '../ai/bodyLie';
 import type { RemoteAvatar } from './remoteAvatar';
 
 const chest = new Vector3();
-const sL = new Vector3();
-const sR = new Vector3();
 
 /** Seconds the shown load eases in once the body is on the shoulder. */
 const LOAD_IN = 0.4;
@@ -28,9 +27,10 @@ export class CarryView {
     readonly body: Body,
     readonly avatar: RemoteAvatar,
   ) {
-    // the shoulder the owner's lift chose: the side the head lies, seen from where he stands
-    const headYaw = body.liftPoints(chest, sL, sR);
-    this.side = carrySideOf(headYaw, Math.atan2(chest.x - avatar.pos.x, chest.z - avatar.pos.z));
+    // the shoulder the owner's lift chose: the side the head lies, seen from where he stands (rig-pose-fix S5: the
+    // body's sim lie, never the ragdoll's pose)
+    const headYaw = body.lieChest(chest);
+    this.side = carrySide(headYaw, Math.atan2(chest.x - avatar.pos.x, chest.z - avatar.pos.z));
     body.beginHoist();
     avatar.carrySide = this.side;
     avatar.carryKnees = body;
@@ -53,7 +53,8 @@ export class CarryView {
     a.carryLoad = this.shouldered ? Math.min(1, (this.t - CQ.liftRise) / LOAD_IN) : 0;
   }
 
-  /** Put down at his side (the ragdoll, or laid flat over the budget): as the owner's hand-over. */
+  /** Put down at his side (the ragdoll, or laid flat over the budget): as the owner's hand-over (rig-pose-fix S5: it lies
+   *  along his side, head toward his back). */
   drop(ragdollOk: boolean): Vector3 {
     const a = this.avatar;
     const s = Math.sin(a.yaw);
@@ -61,7 +62,7 @@ export class CarryView {
     const sd = this.side;
     const at = new Vector3(a.pos.x + co * 0.5 * sd, a.pos.y, a.pos.z - s * 0.5 * sd);
     const k = CQ.dropImpulse;
-    this.body.drop(new Vector3(co * k * sd + s * k * 0.3, CQ.dropImpulseDown, -s * k * sd + co * k * 0.3), ragdollOk, at, a.yaw + Math.PI / 2);
+    this.body.drop(new Vector3(co * k * sd + s * k * 0.3, CQ.dropImpulseDown, -s * k * sd + co * k * 0.3), ragdollOk, at, a.yaw + Math.PI);
     this.clear();
     return at;
   }
@@ -70,8 +71,10 @@ export class CarryView {
    *  let-go leaves it. */
   letGo(ragdollOk: boolean): Vector3 {
     const b = this.body;
-    const at = b.pos.clone();
-    b.drop(new Vector3(0, 0, 0), ragdollOk, at, this.avatar.yaw + Math.PI / 2);
+    // (rig-pose-fix S5) the same sim lie: the drop point is the floor under its pelvis, the head the way it lay
+    const v = b.view;
+    const at = new Vector3(b.pos.x, v ? b.pos.y - lieLift(v.p) : b.pos.y, b.pos.z);
+    b.drop(new Vector3(0, 0, 0), ragdollOk, at, b.lie.headYaw);
     this.clear();
     return at;
   }

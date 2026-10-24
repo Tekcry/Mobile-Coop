@@ -5,6 +5,7 @@
 import type { GuardInfo } from '../ai/guardInfo';
 import { PATROL, type PatrolRoute } from '../ai/patrol';
 import { hyp2 } from '../core/mathx';
+import type { JointIntel } from './jointInterrogation';
 
 export const INTEL = { reach: 30, camDyMin: -1, camDyMax: 4.5, guardDy: 2, lineMax: 60, labelMax: 40, donePh: 0.8 } as const;
 
@@ -16,6 +17,8 @@ export interface IntelCode {
 /** A guard's authored information with door codes (map data: declare `const X: GuardIntel = {...}` then `info: X`). */
 export interface GuardIntel extends GuardInfo {
   readonly codes?: readonly IntelCode[];
+  /** (joint-interrogation, G148) Lines given only to a joint read (a partner's live bluff), and their course flag. */
+  readonly joint?: JointIntel;
 }
 
 /** What the patrol intel reads off a guard: `Enemy` satisfies it, the route through the Guard AI getter

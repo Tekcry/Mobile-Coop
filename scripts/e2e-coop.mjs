@@ -1054,6 +1054,63 @@ try {
     assert(solid >= 0 && (solid & 0x4) === 0, `the client's held guard is not solid to bodies there (membership ${solid})`);
     // (A4: the CT grab menu opens on the client; Knock out is the first entry, A picks it)
     await until(B, () => window.__app.current.grabMenu.open, null, 4000, 'the client grab menu opens');
+    // (joint-interrogation, G148) host bluffs, client reads: the guard gets solo and joint information on both pages (the
+    // host's enemy, the client's puppet); the host beside the client's hostage holds A, the BLUFF row is first (above TEAM
+    // TAKEDOWN) and its release sends the bluff; the client holds A on its INTERROGATE row and lets go: the read ends on the
+    // host with the bluff live, so both feeds show the joint line and the host counts one joint read. The client still
+    // holds him (the team takedown below). Real input (`input.state` interact) and the real menu rows on both pages.
+    console.log('joint interrogation: host bluffs, client reads');
+    {
+      const JI = { lines: ['e2e solo'], joint: { lines: ['e2e joint'], flag: 'e2e-joint' } };
+      await GA(([id, info]) => { window.__app.current.enemyMgr.enemies.find((x) => x.id === id).info = info; }, [gg, JI]);
+      await GB(([id, info]) => { window.__app.current.net.puppets.get(id).info = info; }, [gg, JI]);
+      const j0 = await GA(() => window.__app.current.net.joints);
+      await GA((id) => {
+        const g = window.__app.current;
+        const e = g.enemyMgr.enemies.find((x) => x.id === id);
+        const yaw = [...g.net.remotes.values()][0].state.yaw;
+        // 1.1 m to the hostage's side (off the holder's line), facing him (as the team takedown below)
+        const x = e.pos.x + Math.cos(yaw) * 1.1;
+        const z = e.pos.z - Math.sin(yaw) * 1.1;
+        g.player.controller.teleport(new g.player.position.constructor(x, e.pos.y + 0.05, z), Math.atan2(e.pos.x - x, e.pos.z - z));
+      }, gg);
+      await until(A, (id) => { const g = window.__app.current; const o = g.takedown.offer; return o?.plan.kind === 'assist' && o.e.id === id && g.ctxMenu.count >= 2; }, gg, 6000, "joint: the host is offered the team takedown on the client's hostage");
+      const rows = await GA(() => { const m = window.__app.current.ctxMenu; return m.opts.slice(0, m.count).map((o) => `${o.kind}:${o.opt}:${o.label}`); });
+      assert(rows[0] === 'joint:bluff:Bluff' && rows[1]?.endsWith(':Team takedown'), `joint: the host's list has BLUFF above TEAM TAKEDOWN (${rows.join(' / ')})`);
+      // the host holds A: the list opens on its first row, BLUFF; the release runs it
+      await GA(() => window.__app.input.state.set('e2e', 'interact', true));
+      try {
+        await until(A, () => { const m = window.__app.current.ctxMenu; return m.state === 'active' && m.opts[m.sel]?.opt === 'bluff'; }, null, 6000, 'joint: hold A on the host highlights BLUFF');
+      } finally {
+        await GA(() => window.__app.input.state.set('e2e', 'interact', false));
+      }
+      await until(A, (id) => { const b = window.__app.current.net.bluffs.values().next().value; return !!b && b.eid === id; }, gg, 4000, 'joint: the host stores its bluff on the guard');
+      await until(B, () => (document.querySelector('.hud-feed')?.textContent ?? '').includes('Bluff on'), null, 4000, 'joint: the client sees the bluff line');
+      // the client holds A on its hostage: the list opens on INTERROGATE (he has information); the release runs the read
+      await GB(() => window.__app.input.state.set('e2e', 'interact', true));
+      try {
+        await until(B, () => { const m = window.__app.current.ctxMenu; return m.state === 'active' && m.opts[m.sel]?.opt === 'interrogate'; }, null, 6000, 'joint: hold A on the client highlights INTERROGATE');
+      } finally {
+        await GB(() => window.__app.input.state.set('e2e', 'interact', false));
+      }
+      await until(A, (n) => window.__app.current.net.joints === n + 1, j0, 10000, 'joint: the host counts the joint read');
+      for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
+        await until(P, () => (document.querySelector('.hud-feed')?.textContent ?? '').includes('e2e joint'), null, 5000, `joint: the ${tag} feed shows the joint line`);
+      }
+      const after = await GA((id) => { const g = window.__app.current; const e = g.enemyMgr.enemies.find((x) => x.id === id); return { bluffs: g.net.bluffs.size, info: e.info ?? null }; }, gg);
+      assert(after.bluffs === 0 && after.info === null, `joint: the bluff is spent and the guard has nothing left (${JSON.stringify(after)})`);
+      assert(await GB((id) => window.__app.current.takedown.hostage?.id === id, gg), 'joint: the client still holds him after the read');
+      assert(true, 'joint interrogation: host bluffs, client reads, both see the joint line');
+      // a bluff on a guard nobody holds (he has joint information on the host): denied, nothing stored
+      const free = await GB((gid) => { for (const [id, p] of window.__app.current.net.puppets) if (id !== gid && p.alive && !p.taken && !p.partnerHeld) return id; return ''; }, gg);
+      const marked = free ? await GA((id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id && x.alive && !x.taken); if (e) e.info = { lines: ['e2e free'], joint: { lines: ['e2e free joint'] } }; return !!e; }, free) : false;
+      if (marked) {
+        await GB((id) => { const g = window.__app.current; g.net.jointBluff(g.net.puppets.get(id)); }, free);
+        await wait(800);
+        assert((await GA(() => window.__app.current.net.bluffs.size)) === 0, 'joint: a bluff on a guard nobody holds is denied (nothing stored)');
+        await GA((id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); if (e) e.info = null; }, free);
+      } else console.log('    joint: no free guard on both pages for the denial check (skipped)');
+    }
     // (coop-walk-fixes P6, Michael 4.72: "if coop partner holds guard, host doesnt have option for takedown.") the host
     // beside the client's hostage is offered the team takedown, and it knocks him out there: the hold ends, a dual takedown.
     // (The client's own finisher from the hold goes the same td done path as the client takedown above.)
