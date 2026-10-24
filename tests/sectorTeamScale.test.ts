@@ -465,3 +465,22 @@ describe('Guard AI AI5 response shape, wired optionally (coop4 AI5)', () => {
     expect(set).toHaveBeenLastCalledWith(null);
   });
 });
+
+describe('sweep source by team size (coop4 data check polish)', () => {
+  it('a 2-player alarm team sweeps only the spawned guards\' points; a restart at 4 adds the tagged ones', () => {
+    let size = 2;
+    const routed = (x: number, minPlayers?: number) => ({ ...guard(x, 30, minPlayers), route: [[x, 30], [x, 40]] as [number, number][] });
+    const d = sec('s1', 0, true, { guards: [routed(0), routed(10, 3), routed(20), routed(30, 4)] });
+    const { m, load, em } = sector([d], [player('local')], () => size);
+    const nt = vi.spyOn(em, 'newTeam');
+    load(0);
+    m.onAlarm();
+    expect((nt.mock.calls[0]![2] as unknown[]).length).toBe(2);
+    em.despawnAll();
+    size = 4;
+    m.run.restartSection();
+    load(0);
+    m.onAlarm();
+    expect((nt.mock.calls[1]![2] as unknown[]).length).toBe(4);
+  });
+});

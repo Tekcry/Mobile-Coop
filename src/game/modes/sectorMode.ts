@@ -39,6 +39,7 @@ import {
   exitZone,
   guardForTeam,
   responseTeamSize,
+  sweepSourceOf,
   intelItemId,
   keypadItemId,
   inDoorway,
@@ -52,6 +53,7 @@ import {
   type SectorDef,
   type SectorResponseOut,
   type SectorResponseShape,
+  type SweepSource,
 } from '../sectors';
 import { killScore } from './score';
 import { SectionStartState } from '../sectorReset';
@@ -1049,21 +1051,21 @@ export class SectorMode implements GameMode {
   /** (guard-ai S13) Scratch for a response team's kinds. */
   private readonly teamKinds: EnemyKind[] = [];
   /** (guard-ai S13) Each section's sweep source (its guards' route points, and the stand posts of the guards without a
-   *  route; dogs left out), built the first time the section's alarm brings a team. */
-  private readonly sweepSrc = new Map<SectorDef, [readonly (readonly [number, number])[][], [number, number][]]>();
+   *  route; dogs left out), built the first time the section's alarm brings a team; (coop4 data check) per team size,
+   *  only the guards spawned for that team (`guardForTeam`), so a 1-2 player sweep is master's. */
+  private readonly sweepSrc = new Map<SectorDef, (SweepSource | undefined)[]>();
 
-  private sweepSource(s: SectorDef): [readonly (readonly [number, number])[][], [number, number][]] {
-    let v = this.sweepSrc.get(s);
+  private sweepSource(s: SectorDef): SweepSource {
+    const size = this.run.teamSize;
+    let bySize = this.sweepSrc.get(s);
+    if (!bySize) {
+      bySize = [];
+      this.sweepSrc.set(s, bySize);
+    }
+    let v = bySize[size];
     if (!v) {
-      const routes: (readonly [number, number])[][] = [];
-      const posts: [number, number][] = [];
-      for (const q of s.guards) {
-        if (q.kind === 'dog') continue;
-        if (q.route && q.route.length) routes.push(q.route);
-        else posts.push([q.x, q.z]);
-      }
-      v = [routes, posts];
-      this.sweepSrc.set(s, v);
+      v = sweepSourceOf(s.guards, size);
+      bySize[size] = v;
     }
     return v;
   }

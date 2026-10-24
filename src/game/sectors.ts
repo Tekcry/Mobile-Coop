@@ -548,6 +548,24 @@ export function guardForTeam(slot: { readonly minPlayers?: number }, players: nu
   return (slot.minPlayers ?? 0) <= players;
 }
 
+/** (guard-ai S13) A section's sweep source: its guards' route points, and the posts of the guards without a route. */
+export type SweepSource = [readonly (readonly [number, number])[][], [number, number][]];
+
+/**
+ * (guard-ai S13; coop4 data check) The sweep source of a section's guard list for a team of `players`: only the guards
+ * that spawn for that team (`guardForTeam`), dogs left out. A team of 1-2 gets master's (the untagged list). Load-time.
+ */
+export function sweepSourceOf(guards: readonly SectorGuard[], players: number): SweepSource {
+  const routes: (readonly [number, number])[][] = [];
+  const posts: [number, number][] = [];
+  for (const q of guards) {
+    if (q.kind === 'dog' || !guardForTeam(q, players)) continue;
+    if (q.route && q.route.length) routes.push(q.route);
+    else posts.push([q.x, q.z]);
+  }
+  return [routes, posts];
+}
+
 /**
  * (coop4 A9, lead decision) An alarm's `send` held to the live guard cap: the section's own `base` (`perStage`) always
  * goes (pending until there is room, as at 2 players); the 3-4 player extras only up to `headroom` (the cap less the

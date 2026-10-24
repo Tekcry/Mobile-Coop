@@ -27,7 +27,7 @@ import type { NavGrid } from '../src/ai/navGrid';
 import type { DamageRegistry } from '../src/game/damage';
 import type { Ballistics } from '../src/weapons/ballistics';
 import type { Vfx } from '../src/vfx/vfx';
-import { checkSectorGuards, guardForTeam, SECTOR, type SectorDef } from '../src/game/sectors';
+import { checkSectorGuards, guardForTeam, SECTOR, sweepSourceOf, type SectorDef } from '../src/game/sectors';
 import { CAMPUS_SECTORS, CAMPUS_SECURITY } from '../src/world/maps/campusSectors';
 import { WAREHOUSE_SECTORS } from '../src/world/maps/warehouseSectors';
 import { hyp2 } from '../src/core/mathx';
@@ -635,6 +635,29 @@ describe('coop4 A8: the minPlayers tags never change a small team', () => {
         expect(outFull[i], `${s.id} guard ${i + 1}`).toBe(outBase[bi]);
         bi++;
       }
+    }
+  });
+});
+
+describe('coop4 data check polish: the alarm sweep source follows the team', () => {
+  /** Master's sweep source: every guard of the (untagged) list, dogs left out. */
+  const master = (guards: SectorDef['guards']) => {
+    const routes: (readonly [number, number])[][] = [];
+    const posts: [number, number][] = [];
+    for (const q of guards) {
+      if (q.kind === 'dog') continue;
+      if (q.route && q.route.length) routes.push(q.route);
+      else posts.push([q.x, q.z]);
+    }
+    return [routes, posts];
+  };
+  it('every section: a team of 1 or 2 sweeps master\'s points; 3 and 4 add only the guards spawned for them', () => {
+    for (const s of [...CAMPUS_SECTORS, ...WAREHOUSE_SECTORS]) {
+      const base = s.guards.filter((g) => g.minPlayers === undefined);
+      expect(sweepSourceOf(s.guards, 1), s.id).toEqual(master(base));
+      expect(sweepSourceOf(s.guards, 2), s.id).toEqual(master(base));
+      for (const n of [3, 4]) expect(sweepSourceOf(s.guards, n), `${s.id} x${n}`).toEqual(master(s.guards.filter((g) => guardForTeam(g, n))));
+      expect(sweepSourceOf(s.guards, 4), s.id).toEqual(master(s.guards));
     }
   });
 });
