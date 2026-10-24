@@ -38,6 +38,8 @@ interface Projectile {
 
 /** Shared ray/projectile logic for player and enemy weapons. */
 export class Ballistics {
+  /** Reused by every cast. (guard-ai R1) Not reset here: Havok's raycast resets it from the segment, and `reset()` with
+   *  no arguments allocates two `Vector3.Zero()`. */
   private res = new PhysicsRaycastResult();
   /** (camera-cue fix) The one ray query every cast reuses (no object literal per ray). */
   private readonly q = { membership: G.PROJECTILE, collideWith: 0 };
@@ -73,7 +75,6 @@ export class Ballistics {
   /** Raycast and resolve what was hit. Reuses an internal result object. */
   /** True when nothing in `collideWith` lies between the two points (no allocation). */
   clear(from: Vector3, to: Vector3, collideWith: number): boolean {
-    this.res.reset();
     this.q.collideWith = collideWith;
     this.eng.raycastToRef(from, to, this.res, this.q);
     return !this.res.hasHit;
@@ -81,7 +82,6 @@ export class Ballistics {
 
   /** Distance to the first hit in `collideWith` along the segment, or the segment's length (no allocation). */
   hitDistance(from: Vector3, to: Vector3, collideWith: number): number {
-    this.res.reset();
     this.q.collideWith = collideWith;
     this.eng.raycastToRef(from, to, this.res, this.q);
     return this.res.hasHit ? Vector3.Distance(from, this.res.hitPoint) : Vector3.Distance(from, to);
@@ -92,7 +92,6 @@ export class Ballistics {
    * shared result (`hasHit`, `body`, `hitPoint`; read it before the next cast). No allocation, nothing resolved.
    */
   cast(from: Vector3, to: Vector3, collideWith: number): PhysicsRaycastResult {
-    this.res.reset();
     this.q.collideWith = collideWith;
     this.eng.raycastToRef(from, to, this.res, this.q);
     return this.res;
@@ -104,7 +103,6 @@ export class Ballistics {
    *  plain level wall as armour (Havok's default filter on the level container), so a guard whose muzzle line touched
    *  his own cover held fire and lost his wind-up (e2e-enemies "sniper relocates after its shots"). */
   armouredFirst(from: Vector3, to: Vector3, collideWith: number): boolean {
-    this.res.reset();
     this.q.collideWith = collideWith;
     this.eng.raycastToRef(from, to, this.res, this.q);
     const r = this.res;
@@ -113,7 +111,6 @@ export class Ballistics {
   }
 
   ray(from: Vector3, to: Vector3, collideWith: number): RayHit {
-    this.res.reset();
     this.q.collideWith = collideWith;
     this.eng.raycastToRef(from, to, this.res, this.q);
     const r = this.res;

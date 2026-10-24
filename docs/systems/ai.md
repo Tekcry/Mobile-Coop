@@ -33,7 +33,7 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   `maxRate`; `instantDetect` (point blank, lit, in focus); `stepMeter` (rises by what exceeds `leak`, holds `hold`, drains
   `decay`); `noiseSuspicion(dist, radius)`; `losClear` (one `MASK.SIGHT` ray, clear when nothing is hit nearer than
   the point less the slack) casts through `Ballistics.hitDistance` when it has it, without allocating (guard-ai R1; the
-  recon drone too), else through `ray` (test doubles, editor rays, a slack of 0).
+  recon drone and the editor too), else through `ray` (test doubles, a slack of 0).
 - `ai/alertState.ts` (pure): `AlertMachine` unaware -> suspicious -> investigating -> alert -> searching -> cooldown
   (`ALERT` times, `SENSITIVITY` per level). `Enemy.alerted` = level alert (combat).
 - `Enemy`: perceives at ~4 Hz (rays to chest, head, hips; hips skipped in combat), integrates the meter per fixed step
