@@ -60,9 +60,9 @@ import { BREAKER, gearHit, type GearHit, type GuardGear } from './gear';
 import { buildArmourParts, buildHelmetPart, buildShieldPart, gearColour, HELMET_FIT } from './gearParts';
 import { guardAim } from './guardStance';
 import { SWEEP_NEAR, type SweepTeam } from './sweepTeam';
-import { MAX_INTRUDERS, mayBeSeen, pickTarget, TARGETS } from './targetPick';
+import { MAX_INTRUDERS, mayBeSeen, PERCEIVE, perceiveOrder, pickTarget, TARGETS } from './targetPick';
 // (guard-ai S24) one last known position per intruder
-import { INTRUDERS, slotOf } from './intruders';
+import { COOP4, INTRUDERS, slotOf } from './intruders';
 
 /** (guard-ai S12) Scratch for `gearHit` (one hit at a time; the damage path allocates nothing for gear). */
 const GEAR_OUT: GearHit = { mult: 1, knockOff: false, stagger: 0 };
@@ -81,6 +81,8 @@ const P_EXPO = new Float64Array(MAX_INTRUDERS);
 /** The light on him (NaN: not read, he could not be seen). */
 const P_LIGHT = new Float64Array(MAX_INTRUDERS);
 const P_ANGLE = new Float64Array(MAX_INTRUDERS);
+/** (coop4 AI2) The order players are started in under the ray budget (`perceiveOrder`; 3+ players only). */
+const P_ORDER = new Int8Array(MAX_INTRUDERS);
 /** One player's sight input (the chosen player's goes to `Enemy.sight`). */
 const P_SIGHT: SightInput = { dist: 0, angle: 0, light: 1, crouched: false, speed: 0, exposure: 0, sensitivity: 1, pitch: 0 };
 
@@ -280,6 +282,12 @@ export class Enemy implements Damageable {
   /** (guard-ai S23) Bit `i`: player `i` of `players()` in sight at the last think (`seesIndex`). (coop4 AI1) `i` is the
    *  player's team slot (`slotOf`): the index until N1 sets `TeamRef.slot`. */
   private seenMask = 0;
+  /** (coop4 AI2, A181) Thinks so far: rotates who waits when the ray budget binds (3+ players). */
+  private perRR = 0;
+  /** (coop4 AI2) Sight rays cast for players at the last think (<= `PERCEIVE.maxRays` at 3+ players). */
+  raysThink = 0;
+  /** (coop4 AI2) Sight rays cast since the manager last read it (`EnemyManager.raysThisStep` sums and zeroes it). */
+  raysStep = 0;
   private thinkT = Math.random() * 0.25;
   /** Light level on the target at the last think (0 dark .. 1 lit). */
   targetLight = 1;
@@ -2144,12 +2152,29 @@ export class Enemy implements Damageable {
       const d = Vector3.Distance(p.feet, this.pos);
       P_DIST[i] = d;
       if (near < 0 || d < P_DIST[near]!) near = i;
-      const angle = wrapAngle(Math.atan2(p.feet.x - this.pos.x, p.feet.z - this.pos.z) - this.yaw);
-      P_ANGLE[i] = angle;
+      P_ANGLE[i] = wrapAngle(Math.atan2(p.feet.x - this.pos.x, p.feet.z - this.pos.z) - this.yaw);
+    }
+    // (coop4 AI2, A181) the rays: 1-2 players in index order, uncapped (today: at most 6); 3+ players in
+    // `perceiveOrder` (the one he perceives, his intruder's, then the rest nearest first, rotated each think), each
+    // started only while the think stays within `PERCEIVE.maxRays` (a player left out keeps rate 0 / los 0 this think)
+    const capped = n >= COOP4.from;
+    const m = capped ? perceiveOrder(n, cur, hi, P_DIST, this.perRR, P_ORDER) : n;
+    // wraps at 12 (a multiple of every tail length 1-4: the rotation never skips a step)
+    if (capped) this.perRR = this.perRR >= 11 ? 0 : this.perRR + 1;
+    let used = 0;
+    for (let j = 0; j < m; j++) {
+      const i = capped ? P_ORDER[j]! : j;
+      const d = P_DIST[i]!;
+      if (!(d < Infinity)) continue;
+      const p = players[i]!;
+      const angle = P_ANGLE[i]!;
       if (!mayBeSeen(d, angle, p.speed, alerted, dog)) continue;
+      const t = p.target;
+      const cost = (t.headPoint ? 2 : 1) + (alerted ? 0 : 1);
+      if (capped && used + cost > PERCEIVE.maxRays) continue;
+      used += cost;
       // line of sight to the chest, head and hips: in combat any of them is enough to shoot at; the fraction
       // in view scales how fast an unaware enemy notices
-      const t = p.target;
       t.aimPoint(this.tmp);
       // (G44) elevation of the chest above the eye line: the vertical view limit (perception `pitchFactor`)
       const pitch = Math.atan2(this.tmp.y - eye.y, hyp2(this.tmp.x - eye.x, this.tmp.z - eye.z));
@@ -2200,6 +2225,8 @@ export class Enemy implements Damageable {
       // (coop4 AI1) the bit is the player's team slot (the one seam, `slotOf`; today his index)
       if (expo > 0) mask |= 1 << slotOf(p, i);
     }
+    this.raysThink = used;
+    this.raysStep += used;
     // the target: the best seen (calm), the one he is fighting while he sees him (combat); `TARGETS.all` false: the
     // nearest only (before S23)
     const k = near < 0 ? -1 : TARGETS.all ? pickTarget(n, alerted, TARGETS.sticky ? cur : -1, hi, P_LOS, P_RATE, P_DIST) : near;

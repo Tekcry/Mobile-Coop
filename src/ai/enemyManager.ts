@@ -155,6 +155,9 @@ export class EnemyManager {
   lkpValid = false;
   /** Seconds since an alerted enemy last had a player in sight. (guard-ai S24) The freshest intruder's (mirrored). */
   sightT = 99;
+  /** (coop4 AI2) Sight rays every guard's think cast for players during the last `update` (summed from
+   *  `Enemy.raysStep`; tests and the Test Runner measure read it). Each guard's own think: `Enemy.raysThink`. */
+  raysThisStep = 0;
   /** (guard-ai S24, A146) One last known position per intruder (player id -> slot); each guard hunts one (`Enemy.hunt`). */
   readonly intruders = new IntruderBoard();
   /** (guard-ai S24) `lkpOf`'s reused vector per slot. */
@@ -3259,6 +3262,7 @@ export class EnemyManager {
   }
 
   update(dt: number): void {
+    this.raysThisStep = 0;
     this.sightT += dt;
     this.intruders.step(dt);
     // (guard-ai S20) the door gate, built once (the door list is fixed for the map)
@@ -3361,6 +3365,9 @@ export class EnemyManager {
     const doors = this.world.doors;
     for (const e of this.enemies) {
       e.update(dt);
+      // (coop4 AI2) the sight rays his think cast this update
+      this.raysThisStep += e.raysStep;
+      e.raysStep = 0;
       // walking into a closed door pushes it open
       if (doors.list.length && e.alive) doors.pushOpen(e.pos.x, e.pos.z);
     }
