@@ -1,7 +1,7 @@
 # Night Shift - vision (read this first)
 
 Owner: the orchestrator; updated at every DECISIONS fold. Read from origin/master. Citations: `docs/DECISIONS.md`
-(G283-G339 land with #386 / #396) or ROADMAP "Decided" 2026-10-25 by time. A newer Michael decision wins.
+(G283-G343 land with #386 / #396) or ROADMAP "Decided" 2026-10-25 by time. A newer Michael decision wins.
 
 ## 1. Pitch
 - Pure Chaos Theory (CT) co-op at its core, with original names, story and art (G1, G5, G6). Michael: "I want the game
@@ -15,15 +15,15 @@ Owner: the orchestrator; updated at every DECISIONS fold. Read from origin/maste
 | | Campaign | Marlow Yard (training) | Sector Ops |
 | --- | --- | --- | --- |
 | Players | Exactly 2, no bot (G2, G48) | 2 (G308) | 1-4 (G308) |
-| Maps | Mission 1 Tallow Wharf (mission-framework PLAN; Decided ~10:45) | `ctcourse` | `campusOps` Saltmarsh Park S1-S5 (G328); `warehouseOps` legacy |
+| Maps | Mission 1 Tallow Wharf (G340; name from the mission-framework PLAN) | `ctcourse` | `campusOps` Saltmarsh Park S1-S5 (G328); `warehouseOps` the old map, still selectable (G298) |
 | Prototypes | Three Grey Coats, Two-Key Ledger (G291) | - | Split Shift, Code Relay (G291) |
 | Co-op need | A forced co-op traversal move every section (G292) | Teaches the co-op basics (G292) | Team doors with a solo route (G280) |
 | Routes | Spine between sections, loops inside, 2+ per section (G285) | 1 route; splits late, as teaching (G292) | 2-3 routes, parallel objectives (G190, G291) |
 | Guidance | In-world only; hint layer off by default (G290) | Guidance marks and the objective list (G292) | As campaign |
 | Strict rules | Up to 2, signposted, "ghost" is one; a break restarts the section (G290) | Not set | As campaign; global, per team or split (G291) |
-| Timers | Soft windows only (G334) | Timed drills allowed (Decided ~10:45) | Soft windows only (G334) |
+| Timers | Soft windows only (G334) | Timed drills allowed (G342) | Soft windows only (G334) |
 | Difficulty | CT fixed levels, host picks (G106, G131) | As campaign | Fixed per op, stars; a higher clear fills the lower (G331) |
-| Guards | No heavies or dogs; helmets by difficulty, alarm-stage helmets on easier (G155, Decided ~10:45) | Normal, armed (G279, G298) | S1-S5: 15 / 18 / 20 / 25 / 26, cap 32 (G328, G332); guards, reinforcements, syringes scale with players (G331); dogs, late armour, riot shields (G297, G307); helmets by difficulty (G338) |
+| Guards | No heavies or dogs (G155); harder difficulties always have helmets, on the hardest they cannot be shot off; alarm-stage helmets on easier (G341) | Normal, armed (G279, G298) | S1-S5: 15 / 18 / 20 / 25 / 26, cap 32 (G328, G332); guards, reinforcements, syringes scale with players (G331); dogs, late armour, riot shields (G297, G307); harder difficulties always have helmets, on the hardest they cannot be shot off (G338) |
 | Downed | 30 s revive, twice per mission (G126) | Checkpoint restart is a full reset (G312) | Revive syringes, no lives (G188) |
 | Light | Real-world lux bands (G329) | Lit, players cut it (G279) | Lit like a real site, lux bands (G297, G329) |
 
@@ -37,7 +37,7 @@ Owner: the orchestrator; updated at every DECISIONS fold. Read from origin/maste
 - Co-op traversal kit: boost up a wall, throw over a gap, human ladder / pull-up, hold a shutter or door, rope brace /
   descent, vent unlock for the partner (G293).
 - Objectives: short plain English, fade in and out; a tap on View (Select) or O shows the current one ~5 s; it shows on
-  every update (Decided ~10:45).
+  every update (G343).
 - CMU mocap on by default (G264, G298). Refining and full detail art allowed (G288, G309).
 
 ## 4. Ten hard rules (the tie-breakers)
