@@ -3,6 +3,17 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 42 (2026-10-24 ~23:30, account swap resume; wins over SAVE 41 where they differ):**
+- Resume checks 23:24: service live (node pid 68760, task NightShift-laptop-queue Running); both locks held by train 70
+  73908a1a (started 23:13, sharded 4189+4192, live pid); no duplicate Test Runner; train 69 done 23:11.
+- #356 CI `test` was red: changes/feature-affected-flake.md lacked the "# <title>" first line. Fixed f89751fd (fragment
+  only, so laptop request ...-7ba216f1-949a still counts once it runs; it waits behind train 70 and the alone holds).
+  Next: CI green + 949a green -> label train-ready, message the Orchestrator.
+- feature/laptop-queue-3 cut off f89751fd (worktree C:/NightShift/Mobile-Coop-laptop-queue-3, node_modules junction to
+  -affected-flake). Opus implementer building SAVE 41 fixes (1)-(3) in the background; then one Opus checker, PR (base
+  feature/affected-flake until #356 merges), rides with #356.
+- guard-cap perf-retry / M1 still queued (M1 yielded to train 70); push results when they run.
+
 **Test Runner SAVE 41 (2026-10-24 ~23:08, 5-hour cap save, overnight; wins over SAVE 40 where they differ):**
 - coop4-fix3 (Guard AI, ...52e3dc13-6504, #317 e2e-coop): NOT stuck (23:10 check). Train 69 193622f7 holds both laptop
   slots since 22:56 and the aged-alone hold blocks new pr claims ("queue: 0 request(s)" is after the filters). No desktop
