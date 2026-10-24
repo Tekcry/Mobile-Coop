@@ -1,0 +1,17 @@
+{
+  "id": "20261024T070522-night-shift-sector-o-1f61b0af-ed50",
+  "sha": "1f61b0af330be1a49dbc94080dd33ceec3ec0f77",
+  "branch": "feature/coop4-pol",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove",
+    "e2e-ctcourse",
+    "e2e-course",
+    "e2e-section-rating"
+  ],
+  "set": "coop4-pol",
+  "note": "coop4 polish batch + UI2 (follow-up PR after #317)"
+}
