@@ -3,17 +3,29 @@ Purpose: the game modes as built, the Fallow training course, what `?legacy=1` p
 HQ economy and cosmetics.
 Design authority: docs/DECISIONS.md (G2, G7, G8, G78, G111, G116), then docs/design-bible.md (Sections 5.8 and 6).
 
-The decided game is a 2-player co-op campaign that cannot be completed solo (G2), with the Fallow bunker as the co-op
-tutorial (G78). Hunter is the one non-CT mode kept, parked (G7). Wave, team deathmatch, free-for-all, every
-player-versus-player mode and the old solo Training mode are deleted (G8, G12, G116; deletion logs in
-docs/consolidation/). The campaign mission framework is not built yet: today's missions run in Infiltration.
+The decided modes (current rules: docs/DECISIONS.md, the newest entry wins):
+- Campaign: exactly 2 players, cannot be completed solo, no bot (G2, G253); every section forces a co-op traversal move
+  with no solo bypass (G292, G293). The first prototypes (Three Grey Coats, Two-Key Ledger) go on a new small campaign
+  map (G293; the mission-framework job). The campaign mission framework is not built yet: today's missions run in
+  Infiltration.
+- Marlow Yard (`ctcourse`, Course mode): the 2-player co-op training course; guided and linear, it keeps its guidance
+  marks and objective list (G292).
+- Sector Ops (`campusOps` Saltmarsh Park, five sections S1-S5; `warehouseOps` is the old map): 1 to 4 players, solo
+  always possible (G280, G308).
+- Every mode: up to 2 strict rules per mission, signposted in the briefing and objective list; breaking one restarts
+  the section from its checkpoint and the mission continues (G290). No markers, no waypoints, no maps, no minimap,
+  compass or objective blip; an optional hint layer, off by default (G290; 2026-10-25 "No maps at all", "Remove it
+  too"). Objectives "must name what and where" (2026-10-25). Marlow Yard is the guided exception (G292).
+Hunter is the one non-CT mode kept, parked (G7). Wave, team deathmatch, free-for-all, every player-versus-player mode
+and the old solo Training mode are deleted (G8, G12, G116; deletion logs in docs/consolidation/).
 
 ## Modes as built (`ModeId`)
 | Id | Name | Where | Status |
 | --- | --- | --- | --- |
 | `infiltration` | Infiltration | Play screen (default), co-op lobby | Live; the campaign's mission runner until the mission framework job ("Campaign" is the player-facing name, kestrel 2026-10-11) |
 | `sandbox` | Free Roam | Play screen, co-op lobby | Live; no guards (Proving Grounds adds training dummies) |
-| `course` | Training course | Co-op only (two players) | Live on `courselab` and the Fallow bunker; reached by `?autostart=bunker&mode=course` until a listed map offers it (the lobby shows it only then) |
+| `course` | Training course | Co-op only (two players) | Live on Marlow Yard (`ctcourse`, the co-op training course, G292; `?autostart=ctcourse&mode=course`); also on `courselab` and the Fallow bunker (older course maps) |
+| `sector` | Sector Ops | Main menu, solo or co-op lobby | Live on `campusOps` (Saltmarsh Park) and `warehouseOps` (the old map); see below |
 | `clear` | Hunter | `?legacy=1` | Parked (G7: comes back later) |
 | `mission` | Mission | `?legacy=1` | Parked (the old mission mode; it does not return as team-versus-team, G8) |
 
@@ -25,7 +37,9 @@ docs/consolidation/). The campaign mission framework is not built yet: today's m
   `ObjectiveChain`, `DOWNLOAD`, `evaluateRules`, `missionRating`), `game/modes/infiltrationMode.ts` (insertion
   teleport, room squads up to `SQUAD_CAP` 9, per-objective interactables with `onUse`: kinds `terminal`, `charge`,
   `vip`, `intel`, `extract`; download progress within `DOWNLOAD.range`, `noticed()` -> `enemyMgr.hear`; `Vip`
-  (`game/vip.ts`) follows by A*; mission rules fail at once; `finish` sets `stats.missionId / rating / bonuses`).
+  (`game/vip.ts`) follows by A*; as built a broken mission rule fails the mission at once (G290 replaces this: up to 2
+  strict rules, breaking one restarts the section; the mission framework builds it); `finish` sets
+  `stats.missionId / rating / bonuses`).
   `GameOptions.missionId / insertion`; `GameMode.onInteract`. The four Warehouse missions are listed; six missions on
   the parked 2.x maps stay in the data, unlisted. `window.__missions` for tests.
 - Stealth rating hook: `game/playstyle.ts` `StealthRating` (`GameState.style`; counters alarms / kills / knock-outs /
@@ -36,11 +50,19 @@ docs/consolidation/). The campaign mission framework is not built yet: today's m
 - Difficulty: CT's fixed levels only (G106): Rookie, Normal, Realistic, Perfectionist (`DifficultyPreset`,
   `ai/archetypes.ts`); no sliders, no alarm-tolerance setting. In co-op the host's level runs on both pages.
 
-## Sector Ops (`sector`, feature/sector-ops)
-- Main menu entry, solo or co-op (`?autostart=warehouseOps&mode=sector`). Map `warehouseOps` (`world/maps/warehouseOps.ts`:
-  `buildWarehouse(b, opts)` with the openings between sections walled, the connector rooms and the M8 pieces; the plain
-  Warehouse calls it with no options and is unchanged). Data in `world/maps/warehouseSectors.ts` (sections, guards with
-  their `takedownSpot`, routes, reinforcement points, `perStage`, devices tagged `section`).
+## Sector Ops (`sector`)
+- Main menu entry, solo or co-op, 1 to 4 players (G308; coop4, PR #317, lifts the cap from 2; solo always has a route
+  past team doors, G280). Guards, reinforcements and revive syringes scale with the player count ("Keep scaling",
+  2026-10-25; coop4).
+- The map is `campusOps`, Saltmarsh Park (`?autostart=campusOps&mode=sector`; `world/maps/campusOps.ts`, sections in
+  `campusSectors.ts`, `campusS1.ts`..`campusS5.ts`): five sections, S1 gatehouse and car park, S2 HQ atrium, S3 labs,
+  S4 data hall, S5 Old House (G295, G297). Guard counts signed off 2026-10-25 ~08:50: S1 15, S2 18, S3 20, S4 per its
+  sign-off, S5 26; 32 alive is a ceiling, not a target (G187), and room to manoeuvre comes first (G190).
+- The old map `warehouseOps` stays selectable (G298; `?autostart=warehouseOps&mode=sector`;
+  `world/maps/warehouseOps.ts`: `buildWarehouse(b, opts)` with the openings between sections walled, the connector
+  rooms and the M8 pieces; data in `world/maps/warehouseSectors.ts`: sections, guards with their `takedownSpot`, routes,
+  reinforcement points, `perStage`, devices tagged `section`). Its three sections are not the Sector Ops layout rule
+  (G295 replaced G186's three sections).
 - Pure: `game/sectors.ts` (`SectorRun`, `ConnectorMachine`: locked, open, cycling, sealed; `restartSection`),
   `game/sectorCheck.ts` (`SightWorld`: eye-height sight lines through the level's pieces, the M8 takedown check;
   tests only). Mode: `game/modes/sectorMode.ts` (doors by position, `loadSection` / `unloadSection`, `CtDevices.setLive`,
@@ -52,11 +74,14 @@ docs/consolidation/). The campaign mission framework is not built yet: today's m
   "Unbolt" (`Interactable.side`); using it unlocks the door for both. A section restart bolts its doors again.
   Pure: `SectorBolts`, `onBoltSide`, `boltItemId` / `boltById`. Test hooks: `__sector.boltInfo()`,
   `__sector.useBolt(sec, k)`, `debug().bolts`.
-- Difficulty stars (M7, A11): `save/sectorRecord.ts`, kv key `sector:ops` (per op id: the presets completed and the best
-  time per preset; no profile change, no SAVE_VERSION bump). The extraction calls `markCompleted(map.id, difficulty,
-  time)` (solo and co-op host; the co-op client on a won `end`, no time). The menu entry opens `SectorOpsScreen`
-  (`ui/screens/missionsScreen.ts`: maps with `sectors` and the `sector` mode; `starsText` in DIFFICULTIES order, best
-  times in the context panel), then the briefing. The main menu counter and the host's lobby Map row show the stars.
+- Difficulty stars (M7, A11, G189): fixed difficulty levels per op, one star each. Decided 2026-10-25, not built yet:
+  a clear on tier N fills every star below N too (Michael: "Completing a higher difficulty also considers the lower
+  tiers completed also"); as built only the cleared tier's star fills. `save/sectorRecord.ts`, kv key `sector:ops`
+  (per op id: the presets completed and the best time per preset; no profile change, no SAVE_VERSION bump). The
+  extraction calls `markCompleted(map.id, difficulty, time)` (solo and co-op host; the co-op client on a won `end`, no
+  time). The menu entry opens `SectorOpsScreen` (`ui/screens/missionsScreen.ts`: maps with `sectors` and the `sector`
+  mode; `starsText` in DIFFICULTIES order, best times in the context panel), then the briefing. The main menu counter
+  and the host's lobby Map row show the stars.
 - Revive syringes (M7, A10): co-op only. The host's `ReviveClock.cap` is `syringesFor(difficulty)` (Rookie 3, Normal 2,
   Realistic 1, Perfectionist 1), per op (a restart keeps the count used); the HUD line shows "Syringes n"
   (`sectorInfoHtml`; solo shows none). An operator out (no syringe left, or the window over) calls
@@ -96,15 +121,15 @@ docs/consolidation/). The campaign mission framework is not built yet: today's m
   Synced takedowns count in `BayStats.synced`. The best per set goes to `rating:sections` under `ctcourse`. The
   finale keeps its Ghost / Silent / Loud tier; its marks are a results line beside it.
 
-## The Fallow training course (`course`)
+## The training course (`course`: Marlow Yard, the Fallow bunker)
 - `game/modes/courseMode.ts` runs the pure `game/course/CourseState` (gates, airlocks, drills, restart) from a map's
   `MapLayout.course`; co-op only (host P1, client P2; `?autostart=courselab&mode=course` single player for tests); radio
   as LANTERN barks. Wire and drill ticks: coop.md. HUD: ui.md.
 - Everyone down restarts the bay at the checkpoint airlock (squad, gates, light groups, shot-out lamps). The dev solo
   flag (`?course=solo`, F3) lets one player work both halves (G48: the testing route, no bot). Anti-stuck resets stay
-  (G80); boosts only at marked spots (G81).
-- Friendly fire is on in the course today (training D38); G49 replaces that decision with the CT co-op research's
-  answer, not made yet.
+  (G80). Team moves work anywhere with room (G151 replaced G81's marked spots).
+- Friendly fire: a host option, on by default (G141, settles G49). As built it is on in Course mode only, with no host
+  option yet (`CoopHost.ff`).
 - Decided, not built yet (G79): the bunker's drills are rebuilt on the CT moves after the prototype.
 
 ## Parked content (`?legacy=1`)

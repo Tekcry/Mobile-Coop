@@ -3,9 +3,10 @@ Purpose: transports, the host and client sims, the wire protocol, co-op sync, te
 wire.
 Design authority: docs/DECISIONS.md (G2, G48-G52), then docs/design-bible.md (Section 5.9).
 
-The game is a 2-player co-op campaign (G2, G50): no bot partner (G48), no 3-4 player play, no player-versus-player
-mode (G8, G9; Wave, deathmatch and free-for-all are deleted). Co-op is tested with two browser tabs, the two-page e2e
-suites and the bunker's solo switch (G48). Every feature works in co-op; committed moves are host-approved; vision,
+Player counts per mode: campaign missions and Marlow Yard (Course mode) take exactly 2 players (G2, G50, G292); Sector
+Ops takes 1 to 4 (G308, built by coop4 in PR #317; until it lands, `capacity('sector')` on master is still 2). No bot
+partner (G48), no player-versus-player mode (G8, G9; Wave, deathmatch and free-for-all are deleted). Co-op is tested
+with two browser tabs (four for Sector Ops once coop4 lands), the two-page e2e suites and the bunker's solo switch (G48). Every feature works in co-op; committed moves are host-approved; vision,
 camera and rumble stay local; partners never pass through each other (loco D8, G52).
 
 ## Entry and transport (`src/net`)
@@ -27,9 +28,9 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   same version the custom difficulty (`dc`) and carried medkits (`PlayerState.mk`, MoveState `medkit`, `cmove` kind
   `medkit`, pickup kind `medkit`). Earlier steps: git log and docs/locomotion/LOG.md. Next wire train: afp AF6 (#247), the partner's gait - `PlayerState.t` (the joiner's send clock, timed by the host through a `ClockSync`), `gph` (gait clock), `qs` / `hs` (the CT stop), `mo` / `mt` (motion state and its time), `ax` / `az` (acceleration); the partner renders 0.13 s (host) / 0.16 s (joiner) behind.
 - Caps: `MAX_PLAYERS` 4 (room cap on the wire), `MAX_ENEMIES` 32, `MAX_EVENTS` 48, `MAX_ITEMS` 128, `MAX_DOORS` 256.
-- `NetMode`: `sandbox | clear | infiltration | course`; `capacity(mode)`: `course` takes `COURSE_MAX` 2, the others
-  `COOP_MAX` 4; it gates joins and `startMatch`. Decided, not built yet (G2, G50): two players in every mode (`COOP_MAX`
-  2 and the lobby's "Co-op for 2-4" text).
+- `NetMode`: `sandbox | clear | infiltration | course | sector`; `capacity(mode)` gates joins and `startMatch`. On
+  master `course` and `sector` take `COURSE_MAX` 2 and the legacy modes `COOP_MAX` 4. The rule: Marlow Yard and the
+  campaign 2 (G2), Sector Ops up to 4 (G308; coop4, PR #317, adds `SECTOR_MAX` 4). Never cap Sector Ops at 2.
 - `lobby` / `start` carry the mode, map, `mission` (Infiltration), `weather`, the host's fixed difficulty level (shown
   read-only on the client) and `bay` (course start). (`start.lf`, the host's lamp falloff, LR13, is gone since LR16a.)
 - `PlayerState.mv` (`player/moveState.ts`): mode index (`MOVE_MODES`, append only), anchor, sub bits, phase, takedown
@@ -469,7 +470,7 @@ client next to a device first.
   shoots it out as its own round would (`StealthSystems.shootLight`). (rig-pose-fix S7) The origin may be up to
   `LAMP_SHOT_ORIGIN` 2.1 m (was 2) from feet + 1.2, so an inverted-hang claim (up to 2.013 m) is taken. Switches are items (`use`) as before. Change
   detection reads the registry only when its `version` moved (no allocation unless it sends). Course mode: see `course`.
-- `NetMode` `sector`, two players. The host runs `SectorMode` and sends `sector` (host -> all) on a device change and
+- `NetMode` `sector`, 1 to 4 players (G308; 2 on master until coop4, PR #317, lands). The host runs `SectorMode` and sends `sector` (host -> all) on a device change and
   every 0.5 s: `sec` (`SecWire`: (26) each camera's clock, jams, each player's jam left `ch` and cooldown `cd`, the
   jammed / recovering devices `dv`, alarm stage; the same field rides the course message) and (protocol 24) `ls` the live section (-1
   during a connector cycle), `lk` the locked door indices, `dn` the camera ids shot out, `sy` the revive syringes left.
