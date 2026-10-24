@@ -55,3 +55,4 @@ Briefs for other sessions: T1 / D1 Guard AI, C2 Test Runner. Progress in STATE.m
 PR / train-ready / blocked / Michael needed. One batch PR per train; tests per PLAN slice rows.
 ```
 - BRIEFS WRITTEN AHEAD (a9742192): docs/guard-cap/briefs/M2, C1, N1, K1 (on gate heads; re-check lines after each merge). Scope changes folded into PLAN rows / BRIEF A4: C1 also waits for coop4 + optic + carry; K1 floor 26; M2 smaller; N1 3 h. Preview of guard-models + gm-perf merged: origin/feature/gm-flip 979a02b3.
+- CLOUD (orchestrator ~19:00): M2 posted OPEN on cloud-queue (briefs/guard-cap-M2.md, 3b3c6136): base gm-flip 979a02b3, branch feature/guard-cap-m2, one commit touching scripts/guard-cap.mjs only. On done: Sonnet checker, then after gm-perf merges cherry-pick onto feature/guard-cap and run the laptop smoke. C1 / N1 / K1 stay off the cloud queue until their measurement trigger (M1 / M0 verdict) and gates: building them now would be speculative.
