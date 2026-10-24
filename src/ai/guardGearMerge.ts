@@ -1,4 +1,4 @@
-import { BoundingInfo, Matrix, Mesh, Quaternion, VertexBuffer, type Color4, type InstancedMesh, type Scene, type TransformNode } from '../core/babylon';
+import { BoundingInfo, Matrix, Mesh, Quaternion, TransformNode, VertexBuffer, type Color4, type InstancedMesh, type Scene } from '../core/babylon';
 import { flags } from '../core/flags';
 import type { CharacterRig } from '../player/characterRig';
 import type { SmoothBodyLibrary } from '../player/smoothBody';
@@ -16,7 +16,9 @@ import { mergeParts, type MergedBody, type MergePart } from '../player/smoothBod
  * `partMat`, the merged meshes with `partSkinMat` (the same `make()` settings plus the voxel / smooth plugins, frozen),
  * as the merged body and gun do. Heat and flash: the gear parts had none (pattern.w 0, no flash) and still have none.
  * Hi and low LOD as the part bases had (`trackLod`). Geometry is built once per (library, parts, joints) and shared by
- * every guard that matches (Babylon geometry sharing); each guard's mesh is its own (his skeleton). `?guardmerge=0`, no
+ * every guard that matches (Babylon geometry sharing); each guard's mesh is its own (his skeleton). A part's place is
+ * its local chain up to the merge parent (never world x inverse world: the key is the same wherever and however he
+ * stands), and the merged meshes receive shadows as the merged body does (gm-perf polish). `?guardmerge=0`, no
  * merged body, or a part not a library instance on one of the body's joints: null, the parts stay as before.
  * Build time only (gear is built the first time a guard needs it); render only (gameplay reads the gear flags).
  */
@@ -29,6 +31,29 @@ interface Built {
 const SOURCES = new WeakMap<SmoothBodyLibrary, Map<string, Built>>();
 
 const tmpQ = new Quaternion();
+const tmpL = new Matrix();
+const tmpC = new Matrix();
+
+/** `n`'s local matrix (scaling, rotation, position) into `out`. */
+function localOf(n: TransformNode, out: Matrix): void {
+  const q = n.rotationQuaternion ?? Quaternion.FromEulerVectorToRef(n.rotation, tmpQ);
+  Matrix.ComposeToRef(n.scaling, q, n.position, out);
+}
+
+/**
+ * `node`'s matrix in `ancestor`'s space into `out`: its local matrix, then each parent's up to `ancestor` (row vectors:
+ * child first). Independent of where `ancestor` stands; false when the parent chain does not reach `ancestor`.
+ */
+function localTo(node: TransformNode, ancestor: TransformNode, out: Matrix): boolean {
+  localOf(node, out);
+  for (let p = node.parent; p !== ancestor; p = p.parent) {
+    if (!(p instanceof TransformNode)) return false;
+    localOf(p, tmpL);
+    out.multiplyToRef(tmpL, tmpC);
+    out.copyFrom(tmpC);
+  }
+  return true;
+}
 
 function libraryOf(part: InstancedMesh | undefined): { lib: SmoothBodyLibrary; src: Mesh } | null {
   const src = part?.sourceMesh as Mesh | undefined;
@@ -98,7 +123,7 @@ function source(scene: Scene, lib: SmoothBodyLibrary, d: MergedBody, name: strin
   mesh.setIndices(d.indices);
   mesh.material = lib.skinMaterial;
   mesh.isPickable = false;
-  mesh.receiveShadows = like.receiveShadows;
+  mesh.receiveShadows = true; // as the merged body (`smoothBody.ts`): one rule for all merged gear
   mesh.layerMask = like.layerMask;
   mesh.isVisible = false;
   // (a skinned source never draws: only meshes that share its geometry; disabled so it is never evaluated)
@@ -121,10 +146,12 @@ export function mergeRigGear(rig: CharacterRig, parts: readonly InstancedMesh[],
   const loParts: MergePart[] = [];
   const key: string[] = [];
   for (const part of parts) {
-    const bone = body.nodes.indexOf(part.parent as TransformNode);
+    const joint = part.parent as TransformNode;
+    const bone = body.nodes.indexOf(joint);
     if (bone < 0 || libraryOf(part)?.lib !== lib) return null;
-    const q = part.rotationQuaternion ?? Quaternion.FromEulerVectorToRef(part.rotation, tmpQ);
-    const inp = partInput(lib, part, Matrix.Compose(part.scaling, q, part.position).m, bone);
+    const m = new Matrix(); // its own (kept in the merge input)
+    if (!localTo(part, joint, m)) return null;
+    const inp = partInput(lib, part, m.m, bone);
     if (!inp) return null;
     hiParts.push(inp.hi);
     loParts.push(inp.lo);
@@ -149,7 +176,7 @@ export function mergeRigGear(rig: CharacterRig, parts: readonly InstancedMesh[],
     m.numBoneInfluencers = 1;
     m.material = lib.skinMaterial;
     m.isPickable = false;
-    m.receiveShadows = src0.receiveShadows;
+    m.receiveShadows = true;
     m.layerMask = src0.layerMask;
     // the body's rest box (plus its margins): culled with him (the skinned bounds never refresh)
     m.setBoundingInfo(new BoundingInfo(box.minimum.clone(), box.maximum.clone()));
@@ -176,15 +203,14 @@ export function mergeStaticParts(parent: TransformNode, parts: readonly Instance
   if (!from) return null;
   const { lib, src: src0 } = from;
   const scene = src0.getScene();
-  parent.computeWorldMatrix(true);
-  const inv = parent.getWorldMatrix().clone().invert();
   const hiParts: MergePart[] = [];
   const loParts: MergePart[] = [];
   const key: string[] = [];
   for (const part of parts) {
     if (libraryOf(part)?.lib !== lib) return null;
-    part.computeWorldMatrix(true);
-    const inp = partInput(lib, part, part.getWorldMatrix().multiply(inv).m, 0);
+    const m = new Matrix(); // its own (kept in the merge input)
+    if (!localTo(part, parent, m)) return null;
+    const inp = partInput(lib, part, m.m, 0);
     if (!inp) return null;
     hiParts.push(inp.hi);
     loParts.push(inp.lo);
