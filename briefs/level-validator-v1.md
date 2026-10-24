@@ -36,3 +36,24 @@ such as edge-disjoint paths). Michael widened the first run to ALL FIVE campus s
 Push `feature/level-validator-v1` (one or more commits; trailer "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>").
 Then add a report at the end of this file (exports, checks, test count, deviations, any M1-M4 point you could not
 follow) and set `status: done feature/level-validator-v1 <sha>`. Marlow Build runs one Opus checker and merges it.
+
+## Shared contract: docs/design/metrics.json shape (fixed by the lead 2026-10-24 ~20:16; V1 reads it, V1a writes it)
+```
+{
+  "source": "docs/design/scale-sheet.md",
+  "sizes": {            // from scale-sheet sections 1 and 3 (metres)
+    "door_w": 1.2, "door_min_w": 1.0, "door_h": 2.1, "door_double_w": [1.8, 2.0], "opening_w": [2.5, 3.5],
+    "corridor_min_w": 3.0, "corridor_w": [3.5, 4.0], "play_space_min_short": 6.0,
+    "ceiling_room": 3.0, "ceiling_hall": [4.5, 6.0], "storey_h": 3.3,
+    "fire_stair_w": 1.3, "open_stair_w": <from section 3 if listed, else omitted>,
+    "step_player": 0.42, "step_nav": 0.45, "nav_cell": 0.5, "agent_radius": 0.32, "headroom": 1.7
+  },
+  "roomParams": { <section 7 parameter table, keys verbatim: room_scale, room_round_m, camera floors ...> },
+  "rooms": { "<class>": { "minW", "minL", "maxW", "maxL", "cameraFloor", "ceilMin", "ceilMax" (number or "open"),
+                          "encounter": "yes" | "conditional" | "no" } },   // section 7 GAME sizes (already scaled)
+  "rules": { <section 8 table, keys verbatim: split_speed_mps, reach_speed_mps, split_max_s, split_parity_pct,
+             reach_max_s, shared_min_w_m, shadow_min_frac, shadow_max_frac, vantage_min_frac, los_break_max_s,
+             step_band_min_m, step_band_max_m, grid_m> }
+}
+```
+A key missing from the sheet is omitted (never invented); the validator WARNs once for a missing key and skips that check.
