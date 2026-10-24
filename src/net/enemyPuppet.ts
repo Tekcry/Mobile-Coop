@@ -1,4 +1,4 @@
-import { Vector3, type InstancedMesh, type Scene } from '../core/babylon';
+import { Vector3, type AbstractMesh, type InstancedMesh, type Scene } from '../core/babylon';
 import type { CharacterRig, FkPose } from '../player/characterRig';
 import type { WeaponModel } from '../weapons/weaponModel';
 import { GuardCq, koCurve, seedOf, type GuardCqMode, type KoState } from '../game/closeQuarters';
@@ -92,7 +92,7 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
   private shield: InstancedMesh | null = null;
   /** The S12 placeholder parts, built the first time his bits ask for them, then shown or hidden. */
   private helmetPart: InstancedMesh | null = null;
-  private armourParts: InstancedMesh[] | null = null;
+  private armourParts: AbstractMesh[] | null = null;
   private gearHex = '';
   /** The `al` his gear was last set from (-1: none yet). */
   private gearAl = -1;
