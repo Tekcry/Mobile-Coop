@@ -16,7 +16,7 @@
 // 4. (item 29: the viewport size alone picks the layout) 1920 x 1080 with touch: the desktop dock (never the sheet), the
 //    one-finger orbit works there too (touch gestures in every layout), the readout off (a touch device); resized to an
 //    iPad, 1180 x 820 landscape: the dock; 820 x 1180 portrait: the bottom sheet.
-import { launch, assert, frames } from './e2e-lib.mjs';
+import { launch, assert, frames, press } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 let failed = false;
@@ -115,14 +115,32 @@ const topBlock = (page, scroll = true) =>
     return out;
   }, scroll);
 
-/** A held D-pad direction on the fake pad (13 down), `n` presses. */
-async function padDir(page, b, n) {
-  for (let i = 0; i < n; i++) {
-    await page.evaluate((b) => window.__pad.set(b, 1), b);
-    await frames(page, 2);
-    await page.evaluate((b) => window.__pad.set(b, 0), b);
-    await frames(page, 2);
+/**
+ * (flake fix, train 54) The pad's focus walked down the open tab one D-pad press at a time until the drawer has scrolled
+ * (`max` presses at most): the top block (`topBlock`, as it is) and the focused row's place in the panel, after each press.
+ * Each press is held for exactly ONE input poll (e2e-lib `press`): a hold of rendered frames lost presses when the frame
+ * limiter skipped polls (a release never polled reads as one long hold) or stepped twice on the wall-clock repeat under
+ * load, so a fixed count of 10 ended anywhere (the drawer unscrolled, st 0, on the laptop's train 54 run).
+ */
+async function padWalk(page, b, max) {
+  let out = null;
+  for (let i = 0; i < max; i++) {
+    await press(page, b);
+    const tb = await topBlock(page, false);
+    const f = await page.evaluate(() => {
+      const el = document.querySelector('.anim-tune');
+      const m = el.querySelector('.tt-focus');
+      if (!m) return null;
+      const pr = el.getBoundingClientRect();
+      const r = m.getBoundingClientRect();
+      const play = el.querySelector('.studio-play')?.getBoundingClientRect();
+      // shows: inside the panel's view, below the playback bar (nothing sticky over it)
+      return { top: Math.round(r.top - pr.top), bottom: Math.round(r.bottom - pr.top), shows: r.bottom <= pr.bottom + 1 && (!play || r.top >= play.bottom - 1) };
+    });
+    out = { ...tb, focus: f, presses: i + 1 };
+    if (tb.st > 0) break;
   }
+  return out;
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -267,9 +285,8 @@ async function padDir(page, b, n) {
     const rt2 = await rowSizes(page);
     assert(rt2.body.includes('input-gamepad') && Math.abs(rt2.hi - rt.hi) < 1, `a tap during pad use keeps the pad mode and the layout (${rt2.body})`);
     // (phase 2) the pad's focus walked down the Body tab scrolls the drawer: the tabs and the playback bar still show
-    await padDir(page, 13, 10);
-    const tp2 = await topBlock(page, false);
-    assert(tp2.st > 0 && tp2.tab.ok && tp2.play.ok, `pad focus down the Body tab: the drawer scrolled and the tabs and playback bar show (${JSON.stringify(tp2)})`);
+    const tp2 = await padWalk(page, 13, 40);
+    assert(tp2.st > 0 && tp2.tab.ok && tp2.play.ok && !!tp2.focus?.shows, `pad focus down the Body tab: the drawer scrolled, the focused row shows below the tabs and playback bar, which show (${JSON.stringify(tp2)})`);
     assert(real(errors).length === 0, `no console errors (landscape): ${real(errors).slice(0, 3).join(' | ')}`);
   } catch (e) {
     console.error(e);
