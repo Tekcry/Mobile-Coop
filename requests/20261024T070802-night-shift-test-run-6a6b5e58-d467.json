@@ -1,0 +1,14 @@
+{
+  "id": "20261024T070802-night-shift-test-run-6a6b5e58-d467",
+  "sha": "6a6b5e58cf4bbcf4dce3e4d92ef23d8427cd6de1",
+  "branch": "",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Test Runner",
+  "steps": [
+    "node scripts/guard-cap.mjs --maps=sectorops --counts=0,24 --cells=alert,patrol --out=C:/NightShift/scratch/gr2/rep-r4-head"
+  ],
+  "env": {},
+  "set": "gr2-rep-r4-head",
+  "note": "#323 sectorops alert regression: interleaved repeat"
+}
