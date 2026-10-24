@@ -111,17 +111,49 @@ A level is a linear spine of encounter spaces joined by connectors.
 3. Sightlines and glass let a player plan the next space early.
 
 ## 11. Co-op layering
-1. **Solo first.** Sections 1-10 are fully met in solo. Co-op routes are extra routes on top, never required.
-2. **Solo invariance.** One map build for solo and co-op. Co-op routes are ordinary architecture with a real reason solo
-   cannot use them (a fire-escape ladder pulled up, a high hatch); no locked-door teases, no co-op markers.
-3. **Out of solo reach.** A co-op lip is at least 0.5 m above the highest solo reach from its floor (constant:
-   `WALL_JUMP.maxUp` 3.8) and within the co-op reach (constant: `TEAM.boostMax` 4.5): build at 4.3-4.5 m.
-4. **No softlocks.** Every surface a co-op route reaches is also reachable solo by another route, so a downed player can
-   be revived (constant: revive needs the reviver within 1.5 m of height; there is no bleed-out) and anyone can leave
-   alone.
-5. **Unplanned boost targets.** Every lip and pipe between solo reach and co-op reach above its floor is a planned co-op
-   route, sits on a solo-reachable surface, or has its ledge removed.
-6. **Co-op verbs** are the ones the game has (brace and boost, human ladder, dual takedown). New verbs are Future work.
+Rewritten 2026-10-24 for two players (Michael 2026-10-24, "Add 1-4 as extras"; closes Open items 1, which Michael ruled
+"Co-op only" on 2026-10-22; the old solo rules are summarised there). The authority for co-op flow is the CT co-op
+research (G3, G117; `docs/ct-research/levels-digest.md` section 3). Each rule names the check of
+`scripts/level-validate.mjs` that tests it on the map's connectivity graph (section 13); sizes, speeds and times come
+from `docs/design/metrics.json`, generated from the scale sheet. Times and reach are targets declared in the graph
+before geometry and measured in greybox (the measurement step after the validator job): a map whose measured value
+misses its target fails.
+1. **Two players, always.** Every campaign map is completable by two players and by no fewer (G2, G50, G111); no solo
+   route and no solo fallback is required. Sector Ops keeps solo play working past its team doors (G280) and may list
+   3-4 players once the 4-player job lands (Michael 2026-10-23, ROADMAP); the graph lists the counts in `meta.players`.
+   Check: `checkReach` (two-player reach of every space, objective and exfil).
+2. **Linear spine between sections, loops inside them.** A map is a chain of sections in order (CT missions are one
+   continuous level, `levels-digest.md`). Every path from insertion to exfil passes every section in order, and two
+   sections join by one spine connector. Inside a section, at least 2 independent (edge-disjoint) routes join its entry
+   to its exit, so the pair can split up, loop and re-hide (3.3, 3.4). No route skips a section. Checks: `checkSpine`,
+   `checkRedundancy`.
+3. **Splits are short and even.** A split is a stretch where the partners take different legs and meet again at a
+   defined merge point (CT research: no separation without a merge point). Each leg takes at most 90 s at stealth pace
+   (1.3 m/s, crouch gear 3: about 117 m of path), and the two legs' times are within 20% of each other. Leg times are
+   summed from link traversal times (a link's `time_s`, else its length over the speed for its kind), not from room
+   lengths. Check: `checkCoop`.
+4. **Partners act for each other.** Every split has at least one assist: one leg's action opens, darkens or disables
+   something for the other leg (a door opened, lights cut, a camera jammed). Check: `checkCoop`.
+5. **An overwatch spot per split.** Each split has one spot from which one partner sees the other's leg and can cover
+   it (spot a guard, cut a light, jam a camera). Check: `checkCoop`.
+6. **A downed partner is reachable within 15 s.** From any point of one leg of a split, the other partner reaches any
+   point of the other leg within 15 s at 3.0 m/s (run, G40): about 45 m of path. The revive window is 30 s (G126,
+   `REVIVE_WINDOW` in `src/game/reviveClock.ts`; the revive itself takes 2.5 s), so the reach leaves time to clear the
+   room first. No softlock: every surface a co-op route reaches is also reached by another route without a co-op move,
+   so a downed player can always be reached and revived (constant: the reviver within 1.5 m of height). Checks:
+   `checkCoop` (reach), `checkReach` (no softlock).
+7. **Room for two.** A shared route (both partners moving through together) is at least 2.0 m wide; corridors stay
+   3.5-4.0 m (scale sheet). Check: `checkCoop` (`shared` links), `checkDimensions` (corridors).
+8. **Co-op reach.** A co-op lip is at least 0.5 m above the highest one-player reach from its floor (constant:
+   `WALL_JUMP.maxUp` 3.8) and within the co-op reach (constant: `TEAM.boostMax` 4.5): build at 4.3-4.5 m (G57: one band
+   for the boost and the human ladder). Co-op routes are ordinary architecture with a real reason one player cannot use
+   them (a fire-escape ladder pulled up, a high hatch; 16.0); no locked-door teases. Unplanned boost targets: every lip
+   and pipe between one-player reach and co-op reach above its floor is a planned co-op route, sits on a surface reached
+   without a co-op move, or has its ledge removed. Team moves work anywhere with room (G151, which replaced G81's marked
+   spots), so every such lip is a real boost target. Check: the co-op lip unit test (15).
+9. **Co-op verbs and coverage.** Co-op verbs are the ones the game has (brace and boost, human ladder, dual takedown);
+   no rope (G110); new verbs are Future work. Co-op routes are in at least half of the encounter spaces and in every
+   section. Guard counts are recorded per player count in the graph. Check: `checkCoop` (coverage).
 
 ## 12. Engine constraints (re-confirm per map)
 State on 2026-10-18 (after the consolidation deletions). Every number is a starting value tuned after the CT prototype
@@ -391,12 +423,17 @@ The standard changes only with Michael's approval, so these rules stand as writt
    follow the CT co-op level research (G3, G117).
    Michael 2026-10-22: "Co-op only" wins: these solo rules do not bind campaign maps; section 11 is rewritten for
    two players when the campaign spec resumes.
+   **Resolved 2026-10-24:** section 11 is rewritten for two players, rules 11.1-11.9 (Michael 2026-10-24, "Add 1-4 as
+   extras"). Replaced 2026-10-24, the old section 11: 11.1 "Solo first" (sections 1-10 met in solo, co-op routes extra)
+   and 11.2 "Solo invariance" (one build for solo and co-op) are dropped; 11.3 (lip band) and 11.5 (unplanned boost
+   targets) are now 11.8; 11.4 (no softlocks) is now 11.6 without "anyone can leave alone"; 11.6 (co-op verbs) is now
+   11.9. The solo ghost run in 15 reads as a two-player ghost run.
 2. 3.6 "Guards do not look up": the engine has no vertical sight limit today (12.1); the decision is "guards see poorly
    above them" (G44), a limit, not blindness.
 3. 11.5 "Unplanned boost targets": two-player boosts work only at marked spots (G81), so an unmarked lip cannot be a
-   boost target once that is built.
+   boost target once that is built. (Now 11.8. G81 was replaced by G151, "Anywhere with room", 2026-10-18.)
 4. 11.3 builds co-op lips at 4.3-4.5 m from the boost reach; the human ladder reaches 4.1 m in code until G57 (4.5 m)
-   is built.
+   is built. (Now 11.8.)
 5. Section 13 puts design docs in `docs/prompts/<map>-design.md`; the decision is one folder per map under one maps
    folder (G55).
 6. Section 14 phases ("stopping for Michael after each") predate "prototype, then orchestrator" for every multi-step
