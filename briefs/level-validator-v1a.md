@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-24T09:12Z
 
 # level-validator V1a: scripts/metrics-gen.mjs + tests/metricsGen.test.ts + docs/design/metrics.json (Marlow Build)
 
