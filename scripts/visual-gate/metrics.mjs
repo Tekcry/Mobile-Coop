@@ -253,10 +253,10 @@ function boxAt(s, w, h, x, y, r) {
  * Box blur of radius r (summed-area table, edges clamped), luma 0..1.
  * @param {LumaImage} img
  * @param {number} r
+ * @param {Float64Array} [s] the image's summed-area table when the caller already has it
  */
-function boxBlur(img, r) {
+function boxBlur(img, r, s = sat(img)) {
   const { w, h } = img;
-  const s = sat(img);
   const out = new Float32Array(w * h);
   for (let y = 0, i = 0; y < h; y++) for (let x = 0; x < w; x++, i++) out[i] = boxAt(s, w, h, x, y, r) / 255;
   return out;
@@ -286,10 +286,20 @@ function maskMean(luma, mask) {
  * @returns {Haze}
  */
 export function haze(img, mask) {
+  return hazeWith(img, mask, stats(img, mask).p5, boxBlur(img, 1));
+}
+
+/**
+ * `haze` on a prebuilt r 1 blur and the mask's p5 (measure shares both).
+ * @param {LumaImage} img
+ * @param {Mask} mask
+ * @param {number} veil the mask's p5
+ * @param {Float32Array} b box blur r 1 of img, luma 0..1
+ * @returns {Haze}
+ */
+function hazeWith(img, mask, veil, b) {
   const { w, h, luma } = img;
-  const veil = stats(img, mask).p5;
   const inner = erode(mask, w, h, 2);
-  const b = boxBlur(img, 1);
   let n = 0;
   let lap = 0;
   let sum = 0;
@@ -314,9 +324,19 @@ export function haze(img, mask) {
  * @returns {number}
  */
 export function blotch(img, mask) {
+  return blotchWith(img, mask, sat(img));
+}
+
+/**
+ * `blotch` on a prebuilt summed-area table (measure shares it).
+ * @param {LumaImage} img
+ * @param {Mask} mask
+ * @param {Float64Array} s summed-area table of img
+ * @returns {number}
+ */
+function blotchWith(img, mask, s) {
   const { w, h, luma } = img;
   const inner = erode(mask, w, h, 24);
-  const s = sat(img);
   let n = 0;
   let sumL = 0;
   let mean = 0; // Welford on D
@@ -338,23 +358,38 @@ export function blotch(img, mask) {
 
 /** Ridge run: a pixel is a ridge pixel in a run of at least this many above-threshold pixels along its edge. */
 const ARC_RUN = 12;
+/** Median histogram: 256 bins of G x ARC_Q (1/16 level of slope each); bins below ARC_FLOOR_BIN hold G < 1.5 / 255. */
+const ARC_BINS = 256;
+const ARC_Q = 255 * 16;
+const ARC_FLOOR_BIN = 24;
 
 /**
  * Hard light arcs: G = Sobel magnitude (divided by 8, so G is the per-pixel luma slope 0..1) of a box blur r 1;
  * T = max(6 / 255, 4 x the median G over the mask); a ridge pixel has G > T and lies in a run of >= 12 consecutive
- * G > T pixels along its edge's tangent (perpendicular to its gradient; one pixel per step on the rounded tangent, both
- * ways, inside the image). Returns ridge pixels / mask pixels (0 when the mask is empty).
+ * G > T samples along its edge's tangent (perpendicular to its gradient; sample k = round(p + k x unit tangent),
+ * k = +-1..11, both ways, inside the image). Returns ridge pixels / mask pixels (0 when the mask is empty).
  * @param {LumaImage} img
  * @param {Mask} mask
  * @returns {number}
  */
 export function arc(img, mask) {
+  return arcWith(img, mask, null);
+}
+
+/**
+ * `arc` on a prebuilt r 1 blur (measure shares it), or null to build it here (after the empty-mask early out).
+ * @param {LumaImage} img
+ * @param {Mask} mask
+ * @param {Float32Array | null} blur box blur r 1 of img, luma 0..1
+ * @returns {number}
+ */
+function arcWith(img, mask, blur) {
   const { w, h } = img;
   const len = w * h;
   let n = 0;
   for (let i = 0; i < len; i++) if (mask[i]) n++;
   if (n === 0 || w < 3 || h < 3) return 0;
-  const b = boxBlur(img, 1);
+  const b = blur ?? boxBlur(img, 1);
   const g = new Float32Array(len); // border pixels stay 0
   for (let y = 1; y < h - 1; y++) {
     for (let x = 1; x < w - 1; x++) {
@@ -364,11 +399,7 @@ export function arc(img, mask) {
       g[i] = Math.sqrt(gx * gx + gy * gy) / 8;
     }
   }
-  const vals = new Float32Array(n);
-  for (let i = 0, k = 0; i < len; i++) if (mask[i]) vals[k++] = g[i];
-  vals.sort();
-  const median = vals[Math.max(1, Math.ceil(n / 2)) - 1];
-  const t = Math.max(6 / 255, 4 * median);
+  const t = Math.max(6 / 255, 4 * arcMedian(g, mask, n));
   let ridge = 0;
   for (let y = 1; y < h - 1; y++) {
     for (let x = 1; x < w - 1; x++) {
@@ -377,22 +408,52 @@ export function arc(img, mask) {
       const gx = b[i - w + 1] + 2 * b[i + 1] + b[i + w + 1] - b[i - w - 1] - 2 * b[i - 1] - b[i + w - 1];
       const gy = b[i + w - 1] + 2 * b[i + w] + b[i + w + 1] - b[i - w - 1] - 2 * b[i - w] - b[i - w + 1];
       const m = Math.sqrt(gx * gx + gy * gy);
-      const dx = Math.round(-gy / m); // tangent = gradient turned 90 degrees
-      const dy = Math.round(gx / m);
+      const tx = -gy / m; // unit tangent = gradient turned 90 degrees
+      const ty = gx / m;
       let run = 1;
       for (let sgn = 1; sgn >= -1 && run < ARC_RUN; sgn -= 2) {
-        let px = x + sgn * dx;
-        let py = y + sgn * dy;
-        while (run < ARC_RUN && px >= 0 && py >= 0 && px < w && py < h && g[py * w + px] > t) {
+        // exact tangent, accumulated position rounded per step (no rounded unit step: that walks off slanted edges)
+        for (let k = 1; run < ARC_RUN; k++) {
+          const px = Math.round(x + sgn * k * tx);
+          const py = Math.round(y + sgn * k * ty);
+          if (px < 0 || py < 0 || px >= w || py >= h || !(g[py * w + px] > t)) break;
           run++;
-          px += sgn * dx;
-          py += sgn * dy;
         }
       }
       if (run >= ARC_RUN) ridge++;
     }
   }
   return ridge / n;
+}
+
+/**
+ * Exact lower median (rank max(1, ceil(n / 2))) of g over the mask, by a 256-bin histogram: when the median's bin lies
+ * below 1.5 / 255 the threshold is the 6 / 255 floor anyway, so 0 is returned; else only that bin is sorted.
+ * @param {Float32Array} g
+ * @param {Mask} mask
+ * @param {number} n mask pixels (> 0)
+ */
+function arcMedian(g, mask, n) {
+  const len = g.length;
+  const counts = new Uint32Array(ARC_BINS);
+  for (let i = 0; i < len; i++) {
+    if (!mask[i]) continue;
+    const q = (g[i] * ARC_Q) | 0;
+    counts[q < ARC_BINS ? q : ARC_BINS - 1]++;
+  }
+  const rank = Math.max(1, Math.ceil(n / 2));
+  let bin = 0;
+  let before = 0;
+  while (before + counts[bin] < rank) before += counts[bin++];
+  if (bin < ARC_FLOOR_BIN) return 0; // median < 1.5 / 255, so 4 x median < 6 / 255
+  const vals = new Float32Array(counts[bin]);
+  for (let i = 0, k = 0; i < len; i++) {
+    if (!mask[i]) continue;
+    const q = (g[i] * ARC_Q) | 0;
+    if ((q < ARC_BINS ? q : ARC_BINS - 1) === bin) vals[k++] = g[i];
+  }
+  vals.sort();
+  return vals[rank - before - 1];
 }
 
 /**
@@ -434,18 +495,30 @@ export function measure(img, masks, want) {
   const whole = stats(img, fullMask(img.w, img.h));
   /** @type {Record<string, RegionMetrics>} */
   const regions = {};
+  // one summed-area table and one r 1 blur per call, built on first use and shared by every region
+  /** @type {Float64Array | null} */
+  let s = null;
+  /** @type {Float32Array | null} */
+  let b = null;
   for (const name of Object.keys(masks)) {
     const mask = masks[name];
     /** @type {RegionMetrics} */
     const r = stats(img, mask);
     for (const metric of want[name] ?? []) {
       if (metric === 'haze') {
-        const hz = haze(img, mask);
+        s ??= sat(img);
+        b ??= boxBlur(img, 1, s);
+        const hz = hazeWith(img, mask, r.p5, b);
         r.veil = hz.veil;
         r.contrast = hz.contrast;
-      } else if (metric === 'blotch') r.blotch = blotch(img, mask);
-      else if (metric === 'arc') r.arc = arc(img, mask);
-      else throw new Error(`measure: unknown metric ${metric}`);
+      } else if (metric === 'blotch') {
+        s ??= sat(img);
+        r.blotch = blotchWith(img, mask, s);
+      } else if (metric === 'arc') {
+        s ??= sat(img);
+        b ??= boxBlur(img, 1, s);
+        r.arc = arcWith(img, mask, b);
+      } else throw new Error(`measure: unknown metric ${metric}`);
     }
     regions[name] = r;
   }
@@ -472,7 +545,8 @@ const clean = (x) => Math.round(x * 1e9) / 1e9;
 /**
  * The display range a grey card at gameplay `level` must read in (BRIEF A15): within 0.03 of a DARK row's level, that
  * row's min / max +-0.02 (`row` = its index); otherwise the band's union range +-0.02 (`row` null). `skip` when the level
- * is within 0.03 (strictly) of a band edge. min clamped at 0, max at 1. No interpolation.
+ * is within 0.03 (strictly, less a 1e-9 slack, so exactly 0.03 never skips) of a band edge. min clamped at 0, max at 1.
+ * No interpolation.
  * @param {number} level
  * @returns {{ min: number, max: number, band: 'dark' | 'mid' | 'lit', row: number | null, skip: boolean }}
  */
@@ -503,7 +577,8 @@ export function parityRange(level) {
       max = Math.max(max, r.max);
     }
   }
-  const skip = Math.abs(level - lo) < PARITY_EDGE || Math.abs(level - hi) < PARITY_EDGE;
+  // 1e-9 slack: a level exactly 0.03 from an edge (0.25, 0.31, 0.57, 0.63) never skips, whatever the float rounding
+  const skip = Math.abs(level - lo) < PARITY_EDGE - 1e-9 || Math.abs(level - hi) < PARITY_EDGE - 1e-9;
   return {
     min: clean(Math.max(0, min - PARITY_PAD)),
     max: clean(Math.min(1, max + PARITY_PAD)),

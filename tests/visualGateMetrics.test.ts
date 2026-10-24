@@ -217,6 +217,28 @@ describe('arc', () => {
   it('an empty mask -> 0', () => {
     expect(arc(img(W, H, disc(0)), new Uint8Array(W * H))).toBe(0);
   });
+
+  // a straight hard edge through the centre at `deg` from the x axis, S levels high (vg1-check polish 1)
+  const line = (deg: number, s: number, soft = 0) => {
+    const c = Math.cos((deg * Math.PI) / 180);
+    const sn = Math.sin((deg * Math.PI) / 180);
+    return img(W, H, (x, y) => {
+      const d = -(x - 128) * sn + (y - 80) * c;
+      if (soft === 0) return d < 0 ? 40 + s : 40;
+      return 40 + s * (1 - smooth(d / soft + 0.5));
+    });
+  };
+
+  it('a straight hard edge (S = 60) at 25 and 64 deg -> > 0 (no blind orientation sector)', () => {
+    expect(arc(line(25, 60), m)).toBeGreaterThan(0.005);
+    expect(arc(line(64, 60), m)).toBeGreaterThan(0.005);
+    for (let deg = 0; deg <= 90; deg += 5) expect(arc(line(deg, 60), m)).toBeGreaterThan(0.005);
+  });
+
+  it('the same slanted edges soft (40 px smoothstep) -> 0', () => {
+    expect(arc(line(25, 60, 40), m)).toBe(0);
+    expect(arc(line(64, 60, 40), m)).toBe(0);
+  });
 });
 
 describe('leak', () => {
@@ -288,6 +310,60 @@ describe('parity', () => {
     expect(parityRange(0.29).skip).toBe(true);
     expect(parityRange(0.61).skip).toBe(true);
     expect(parityRange(0.4).skip).toBe(false);
+  });
+
+  it('levels exactly 0.03 from a band edge never skip, on repeat and under +-1e-12 (1e-9 slack)', () => {
+    for (const l of [0.25, 0.31, 0.57, 0.63]) {
+      const p = parityRange(l);
+      expect(p.skip).toBe(false);
+      expect(parityRange(l)).toEqual(p);
+      expect(parityRange(l + 1e-12)).toEqual(p);
+      expect(parityRange(l - 1e-12)).toEqual(p);
+    }
+  });
+});
+
+describe('shared passes and the quantised arc median (vg1p cost)', () => {
+  const m = fullMask(W, H);
+  const ramp = (x: number) => 40 + (x / (W - 1)) * 160;
+  const lumps = (x: number, y: number) => {
+    let v = 0;
+    for (let cy = 20; cy < H; cy += 60) for (let cx = 20; cx < W; cx += 60) v += 20 * (1 - smooth(Math.sqrt((x - cx) ** 2 + (y - cy) ** 2) / 20));
+    return v;
+  };
+  const disc = (x: number, y: number) => (Math.sqrt((x - 128) ** 2 + (y - 80) ** 2) < 50 ? 140 : 40);
+  const stripes = (x: number) => (Math.floor(x / 4) % 2 ? 120 : 30);
+  const r = rng(11);
+  // dense edges + noise: the arc median is far above the 1.5 / 255 floor bin, so the exact in-bin select runs
+  const busy = img(W, H, (x, y) => disc(x, y) + 60 * Math.sin(x / 3) * Math.cos(y / 5) + (r() * 2 - 1) * 20);
+
+  it('outputs match the pre-polish full-sort / separate-blur values within 1e-6', () => {
+    expect(blotch(img(W, H, ramp), m)).toBeCloseTo(0.0004224105354699218, 6);
+    expect(blotch(img(W, H, (x, y) => ramp(x) + lumps(x, y)), m)).toBeCloseTo(0.02554016879711311, 6);
+    expect(arc(img(W, H, disc), m)).toBeCloseTo(0.02998046875, 6);
+    expect(arc(busy, m)).toBeCloseTo(0.000244140625, 6);
+    const hz = haze(img(W, H, stripes), m);
+    expect(hz.veil).toBeCloseTo(0.11764705882352941, 6);
+    expect(hz.contrast).toBeCloseTo(0.18148821543652005, 6);
+    expect(haze(img(W, H, (x) => stripes(x) + (255 - stripes(x)) * 0.5), m).contrast).toBeCloseTo(0.04331504217710173, 6);
+  });
+
+  it('measure (one shared table / blur, veil from the region stats) equals the standalone metrics on 3 images', () => {
+    const masks = { full: m, wall: rectMask(0, 0, 200, 120), upper: rectMask(30, 60, 256, 160), empty: new Uint8Array(W * H) };
+    const want = { full: ['haze', 'blotch', 'arc'], wall: ['arc', 'blotch'], upper: ['haze', 'arc'], empty: ['haze', 'arc', 'blotch'] };
+    for (const im of [img(W, H, (x, y) => ramp(x) + lumps(x, y)), img(W, H, disc), busy]) {
+      const out = measure(im, masks, want);
+      for (const [name, metrics] of Object.entries(want)) {
+        const mask = masks[name as keyof typeof masks];
+        const reg = out.regions[name];
+        expect(reg).toMatchObject(stats(im, mask));
+        for (const metric of metrics) {
+          if (metric === 'haze') expect({ veil: reg.veil, contrast: reg.contrast }).toEqual(haze(im, mask));
+          else if (metric === 'blotch') expect(reg.blotch).toBe(blotch(im, mask));
+          else expect(reg.arc).toBe(arc(im, mask));
+        }
+      }
+    }
   });
 });
 

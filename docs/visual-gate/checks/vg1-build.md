@@ -67,3 +67,41 @@ passes (blotch SAT, two r 1 blurs, Sobel, the median sort), so it grows little w
 - No GPU / laptop run needed for this slice. VG7 / VG8 set the real thresholds; the arc normalisation (item 1) means any
   arc rule numbers are on the per-pixel-slope scale.
 - If VG5 needs speed, `blotch` / `arc` / `haze` could work on the mask's bounding box instead of the whole frame.
+
+## Polish (vg1p)
+Brief `briefs/visual-gate-vg1-polish.md` (cloud-queue), branch `feature/visual-gate-vg1p` off a3362896; vg1-check.md
+polish items 1, 5 and 6 (2-4 are VG5's). Public API, signatures and output shapes unchanged.
+
+1. **arc orientation gap (polish 1).** `arc` steps along the exact unit tangent and rounds the accumulated position
+   (`round(x + k tx)`, `round(y + k ty)`, k = +-1..11) instead of a rounded unit step. A straight hard edge (S = 60)
+   now reads > 0 at every angle 0-90 deg in 5 deg steps (0.012-0.025; before: 0 at 20-30 and 60-70 deg); at S = 20 the
+   old blind sectors (10-35, 55-80 deg) read 0.001-0.010. Soft (40 px smoothstep) edges and +-8 noise still read 0.
+   Behaviour change: the run is now 12 samples one pixel of arc length apart (11 px along the tangent at every angle;
+   the old 45 deg step was 1.41 px), so values move a little: hard disc S = 100 0.0253 -> 0.0300. Any arc baseline
+   taken before this change must be retaken (none is stored yet: VG7 sets them).
+2. **parity float slack (polish 6).** The edge skip is `|level - edge| < 0.03 - 1e-9`, so a level exactly 0.03 from an
+   edge never skips (0.31 used to skip: 0.31 - 0.28 = 0.02999...97 in floats). Deterministic under +-1e-12.
+3. **cost (polish 5).** `measure` builds one summed-area table and one r 1 blur per call, on first use, shared by
+   every region's haze, blotch (the table) and arc (the blur); haze takes the region's p5 from the stats `measure`
+   already has instead of a second `stats`. The arc median is a 256-bin histogram of G x 4080 (1/16 level of slope per
+   bin): when the median's bin is below 1.5 / 255 the threshold is the 6 / 255 floor anyway, else only that one bin is
+   sorted, so the median stays exact (no full float sort). Public `haze` / `blotch` / `arc` wrap internal
+   `hazeWith` / `blotchWith` / `arcWith`. Outputs: identical (|diff| 0) to the step-2 module on 4770 numbers (18
+   synthetic images at 256 x 160, 97 x 61 and 960 x 540, incl. heavy noise where the median is above the floor; 5
+   masks incl. tiny and empty; `measure` plus each standalone metric). No module state (VG1 "no globals"), so scratch
+   arrays are still per call, never per pixel.
+
+**Timing** (the vg1-build benchmark: `measure` on 960 x 540, wall 760 x 280 blotch + arc, upper 960 x 200 haze, floor
+960 x 160; mean of 20 after 3 warm-ups, Node 22, cloud VM, 4 cores at load ~4): before 61.4 / 65.6 ms per shot (original)
+and 61.5 ms (after steps 1-2), after step 3 31.3 / 27.8 ms: about half.
+
+**Tests** (`tests/visualGateMetrics.test.ts`, 43, was 38): arc straight hard edge S = 60 at 25 / 64 deg and every 5 deg
+> 0.005; the same edges soft -> 0; parity 0.25 / 0.31 / 0.57 / 0.63 never skip, equal on repeat and +-1e-12; pre-polish
+values pinned within 1e-6 (blotch ramp / lumps, arc hard disc and a busy image with the median above the floor, haze
+stripes / fog); `measure` equals the standalone metrics region by region on 3 images.
+```
+npx vitest run tests/visualGateMetrics.test.ts --maxWorkers=2   -> 43 passed (43)
+npx tsc --noEmit -p .                                           -> exit 0
+npx eslint tests/visualGateMetrics.test.ts                      -> clean (metrics.mjs is eslint-ignored)
+grep -nE "^import|require\(" scripts/visual-gate/metrics.mjs    -> nothing
+```
