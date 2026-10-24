@@ -911,7 +911,8 @@ conflict fix. 2 Opus checkers on AI / src/net PRs (1 on small hygiene slices); O
 laptop runs: cd C:/NightShift/Mobile-Coop-laptop-queue-svc && node scripts/laptop-queue/request.mjs --sha <sha>
 --pr <n> --set <name> --jobs 2 --requester "Night Shift | Guard AI Build" --suites "a b" (verdict = GitHub status
 laptop-e2e/<set>; wait with a background `until gh api .../commits/<sha>/statuses` loop, never polling turns).
-Laptop auto mode blocks `gh pr edit --add-label`: ask the orchestrator to label train-ready.
+Laptop auto mode blocks `gh pr edit --add-label`: tell the orchestrator at train-ready (normal process) and flag the
+block to Michael (laptop allow rule); never ask a peer to do the blocked action for you.
 Master 4.93.0 (6e8a450b), PROTOCOL 52 (tests read the constant; the train bumps).
 Open:
 1. #313 co-op client body carry (feature/guard-ai-coop-carry, worktree -coop-carry): master 4.93.0 merged 1d2f3e1d
