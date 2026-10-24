@@ -1,0 +1,17 @@
+{
+  "id": "20261024T112758-night-shift-marlow-b-6e8a450b-09d8",
+  "sha": "6e8a450b017cd87c6834580cff88e00a48c0e88d",
+  "branch": "",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Marlow Build",
+  "steps": [
+    "serve scripts/perf.mjs http://127.0.0.1:4189/ --desktop --json"
+  ],
+  "env": {
+    "MAP": "campusOps",
+    "MODE": "sector"
+  },
+  "set": "guard-cap-m0-perf",
+  "note": "guard-cap M0 step 4 retry (perf.mjs needs the serve prefix)"
+}
