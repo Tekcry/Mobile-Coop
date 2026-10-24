@@ -248,6 +248,14 @@ export class SectorMission {
     return this.runner.finished;
   }
 
+  /**
+   * (fix round) A rule restart or the mission's end is waiting out its hold: the mode holds its exits (a connector or the
+   * extraction finished inside the hold would forgive the broken rule).
+   */
+  get holding(): boolean {
+    return this.pendT >= 0;
+  }
+
   // ---- hooks from SectorMode ----
 
   /** A section begins (`beginSection`): a new one is snapshot; a restart's begin keeps the state `restarted` restored. */
@@ -274,10 +282,14 @@ export class SectorMission {
    */
   restarted(team?: 'a' | 'b'): void {
     if (this.over) return;
+    // (fix round) a one-chance end waiting out its hold still ends the mission (a restart cannot skip it)
+    if (this.pendT >= 0 && this.pendEnd) return;
     const own = this.own;
+    // (fix round) a restart that lands on a pending team restart is that team's (everyone down meanwhile, the pause menu)
+    const pending = this.pendT >= 0 ? this.pendTeam : undefined;
     this.pendT = -1;
     if (!own) {
-      team = undefined;
+      team = pending;
       if (this.hasOneChance) {
         this.tracker.onFail(-1);
         if (this.tracker.update(this.now, this.runner) === RULE_END) this.broke(RULE_END);

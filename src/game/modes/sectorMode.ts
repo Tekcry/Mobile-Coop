@@ -1169,6 +1169,8 @@ export class SectorMode implements GameMode {
    * (mission-framework EN2) `team`: a mission's team rule broke; the world restarts whole, the mission state of that team only.
    */
   restartSection(team?: 'a' | 'b'): void {
+    // (EN2 fix) an everyone-down countdown still running is covered by this restart (no second one after it)
+    this.restartT = -1;
     const g = this.g;
     const prev = this.run.index;
     const ev = this.run.restartSection();
@@ -1305,7 +1307,7 @@ export class SectorMode implements GameMode {
       }
       if (near && this.run.download(dt)) this.objectiveDone(s);
       else if (near) g.hud.setObjective(`${o.label} ${Math.floor((this.run.progress / SECTOR.downloadTime) * 100)}%`);
-    } else if (this.run.phase === 'connector' || this.run.phase === 'extract') this.exitStep(dt, s, g.playerRefsInto(this.refs));
+    } else if ((this.run.phase === 'connector' || this.run.phase === 'extract') && !this.mission?.holding) this.exitStep(dt, s, g.playerRefsInto(this.refs));
   }
 
   frameUpdate(dt: number): void {
