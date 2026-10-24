@@ -117,7 +117,7 @@ export function formatReport(r) {
   return out.join('\n');
 }
 
-export const PLAN_PATH = /^docs\/(?:.+\/)?PLAN[^/]*\.md$/;
+export const PLAN_PATH = /^docs\/(?:.+\/)?PLAN\d*\.md$/;
 
 /** `origin/feature/x:docs/x/PLAN.md` -> `{ branch, path }` (git refs cannot contain `:`). */
 export function parsePair(s) {

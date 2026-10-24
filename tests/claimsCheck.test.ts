@@ -27,6 +27,7 @@ describe('claims-check: parsing', () => {
     expect(PLAN_PATH.test('docs/guard-render/PLAN2.md')).toBe(true);
     expect(PLAN_PATH.test('docs/anim-natural/n4c/PLAN.md')).toBe(true);
     expect(PLAN_PATH.test('docs/guard-render/STATE.md')).toBe(false);
+    expect(PLAN_PATH.test('docs/coop-real/PLAN-CHECK.md')).toBe(false);
     expect(parsePair('origin/feature/a:docs/a/PLAN.md')).toEqual({ branch: 'origin/feature/a', path: 'docs/a/PLAN.md' });
     expect(() => parsePair('nocolon')).toThrow();
     expect(parseArgs(['--plan', 'docs/x/PLAN.md', '--since-days', '3', 'b:p'])).toMatchObject({ plan: 'docs/x/PLAN.md', sinceDays: 3, pairs: [{ branch: 'b', path: 'p' }] });
