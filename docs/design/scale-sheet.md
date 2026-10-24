@@ -72,3 +72,75 @@ The grid blocks a cell within 0.32 m of a wall face. Cell centres sit every 0.5 
 Stair risers 115 - 190 mm, goings 240 - 355 mm, 2R + G 550 - 700 mm, 2 - 18 risers per flight. Accessible door clear opening 850 mm and passing space 1.8 m (AS 1428.1 via a third-party summary, unverified). Our numbers sit inside these. Gameplay widths are larger than code on purpose.
 
 Sources: [NCC 2022 Housing Provisions Part 11.2.2](https://abcb.gov.au/editions/ncc-2022/adopted/housing-provisions/11-safe-movement-and-access/part-112-stairway-and-ramp-construction), [NCC 2019 Vol 2 Part 3.9.1](https://ncc.abcb.gov.au/editions/2019/ncc-2019-volume-two/part-39-safe-movement-and-access/part-391-stairway-and-ramp), [Sydney Access Consultants](https://sydneyaccessconsultants.com.au/articles/282-is-your-door-wide-enough-for-a-wheelchair.html).
+
+## 7. Room sizes by type
+
+Added 2026-10-24 (Michael, "Add 1-4 as extras", changes M1 and M2: scale the room table 1.3-1.5x real, one source of truth). `scripts/metrics-gen.mjs` reads this section and section 8 into `docs/design/metrics.json`; the level validator reads every size from that JSON. Values are tuned in greybox. Never edit the JSON by hand: edit this sheet and regenerate.
+
+How a row is built:
+
+1. Real size: the stealth-level skill's room table (`docs/level-validator/source/SKILL.md` 3.5), or a Marlow estimate where the skill has no row (source column says which).
+2. Game size = real x Scale (1.4, the middle of 1.3-1.5; it matches the corridor and door scaling: corridor 3.5-4.0 vs real about 2.4, door 1.2 vs 0.9), rounded to the nearest 0.5 m.
+3. Camera floor on the short side (w): the game min w is raised to the floor if the scaled value is lower. Max w, min l and max l are not floored.
+
+Parameters (one value per row, keys are fixed):
+
+| Key | Value | Unit | Note |
+| --- | --- | --- | --- |
+| `room_scale` | 1.4 | factor | real x this, tuned in greybox (range 1.3-1.5) |
+| `room_round_m` | 0.5 | m | game size rounded to this |
+| `camera_floor_encounter_m` | 6.0 | m | short side of an encounter space (play space, section 3) |
+| `camera_floor_walkthrough_m` | 3.5 | m | short side of any room a player walks through |
+| `camera_floor_corridor_m` | 3.0 | m | corridor (section 3: never under 3.0; target 3.5-4.0) |
+
+Rules the table rests on (section 2: the boom needs 0.78 m of shoulder clearance each side and 2.4 m behind the player):
+
+- An encounter space is at least 6.0 m on the short side. A class marked `conditional` may be an encounter space only when the built room is 6.0 m or more on the short side; a class marked `no` is never an encounter space.
+- Every other room a player walks through is at least 3.5 m on the short side, except a corridor (3.0 floor), a stair core (exempt, `Camera floor` 0.0), a duct or a recess (section 3 sizes).
+- `Ceiling` is not scaled (section 3: 3.0 m rooms, 4.5 - 6.0 m halls); `open` means no ceiling.
+- Stair core is Scale 1.0 on purpose: the fire stair is 1.3 m wide with a 1.3 m landing (section 3) and the built `SW_CORE` is 2.6 x 5.6 (`campusS2.ts:90`).
+
+In the table every cell holds one value; units are in the header; `w` is the short side (w <= l); `Encounter` is `yes`, `conditional` or `no`.
+
+| Class | Real min w (m) | Real min l (m) | Real max w (m) | Real max l (m) | Scale | Game min w (m) | Game min l (m) | Game max w (m) | Game max l (m) | Camera floor (m) | Ceiling min (m) | Ceiling max (m) | Encounter | Source | Note |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `private_office` | 3.0 | 4.0 | 4.0 | 5.0 | 1.4 | 4.0 | 5.5 | 5.5 | 7.0 | 3.5 | 3.0 | 3.0 | no | skill 3.5 | never an encounter space |
+| `open_office` | 10.0 | 15.0 | 30.0 | 40.0 | 1.4 | 14.0 | 21.0 | 42.0 | 56.0 | 6.0 | 3.0 | 3.3 | yes | skill 3.5 |  |
+| `meeting_room` | 4.0 | 6.0 | 6.0 | 10.0 | 1.4 | 5.5 | 8.5 | 8.5 | 14.0 | 3.5 | 3.0 | 3.0 | conditional | skill 3.5 | encounter only at 6 m short side |
+| `restroom` | 3.0 | 5.0 | 6.0 | 8.0 | 1.4 | 4.0 | 7.0 | 8.5 | 11.0 | 3.5 | 3.0 | 3.0 | no | skill 3.5 |  |
+| `break_room` | 5.0 | 6.0 | 8.0 | 10.0 | 1.4 | 7.0 | 8.5 | 11.0 | 14.0 | 6.0 | 3.0 | 3.0 | yes | skill 3.5 |  |
+| `server_room` | 6.0 | 8.0 | 15.0 | 20.0 | 1.4 | 8.5 | 11.0 | 21.0 | 28.0 | 6.0 | 3.0 | 4.5 | yes | skill 3.5 |  |
+| `security_room` | 4.0 | 5.0 | 6.0 | 8.0 | 1.4 | 5.5 | 7.0 | 8.5 | 11.0 | 3.5 | 3.0 | 3.0 | conditional | skill 3.5 | encounter only at 6 m short side |
+| `gatehouse` | 3.0 | 4.0 | 5.0 | 8.0 | 1.4 | 4.0 | 5.5 | 7.0 | 11.0 | 3.5 | 3.0 | 3.0 | conditional | Marlow estimate | not in skill table; encounter only at 6 m short side |
+| `lobby` | 10.0 | 12.0 | 25.0 | 30.0 | 1.4 | 14.0 | 17.0 | 35.0 | 42.0 | 6.0 | 4.5 | 9.0 | yes | skill 3.5 | ceiling 9.0 = atrium |
+| `lab` | 5.0 | 6.0 | 9.0 | 18.0 | 1.4 | 7.0 | 8.5 | 12.5 | 25.0 | 6.0 | 3.0 | 4.5 | yes | Marlow estimate | not in skill table |
+| `warehouse` | 25.0 | 40.0 | 60.0 | 120.0 | 1.4 | 35.0 | 56.0 | 84.0 | 168.0 | 6.0 | 6.0 | 12.0 | yes | skill 3.5 |  |
+| `loading_dock` | 15.0 | 20.0 | 30.0 | 40.0 | 1.4 | 21.0 | 28.0 | 42.0 | 56.0 | 6.0 | 4.5 | 8.0 | yes | skill 3.5 | apron; may be open to the sky |
+| `plant_room` | 4.0 | 6.0 | 14.0 | 20.0 | 1.4 | 6.0 | 8.5 | 19.5 | 28.0 | 6.0 | 4.0 | 6.0 | yes | Marlow estimate | not in skill table; camera floor lifts min w |
+| `storage` | 3.0 | 3.0 | 10.0 | 18.0 | 1.4 | 4.0 | 4.0 | 14.0 | 25.0 | 3.5 | 3.0 | 6.0 | conditional | Marlow estimate | not in skill table; encounter only at 6 m short side |
+| `corridor` | 1.5 | 2.0 | 3.0 | 60.0 | 1.4 | 3.0 | 3.0 | 4.0 | 84.0 | 3.0 | 3.0 | 3.0 | no | skill 3.5 + scale sheet 3 | w capped at 4.0 by scale sheet 3; target 3.5-4.0 |
+| `stair_core` | 2.6 | 5.6 | 6.0 | 8.0 | 1.0 | 2.6 | 5.6 | 6.0 | 8.0 | 0.0 | 3.3 | 3.3 | no | scale sheet 3 + campusS2 SW_CORE | scale 1.0: stair geometry is set in section 3; 3.3 = storey height; camera floor 0 = exempt |
+| `car_park` | 10.0 | 15.0 | 40.0 | 60.0 | 1.4 | 14.0 | 21.0 | 56.0 | 84.0 | 6.0 | 2.4 | 3.3 | yes | Marlow estimate | not in skill table; deck, may be open |
+| `yard` | 10.0 | 10.0 | 60.0 | 90.0 | 1.4 | 14.0 | 14.0 | 84.0 | 126.0 | 6.0 | open | open | yes | Marlow estimate | not in skill table; no ceiling |
+
+## 8. Validator numbers
+
+Added 2026-10-24 (Michael, changes M2 and M4). The speeds, times and targets the level validator (`scripts/level-validate.mjs`) uses. One value per row; the unit is in the key and in the Unit column; keys are fixed (the generator reads them by key).
+
+| Key | Value | Unit | Source |
+| --- | --- | --- | --- |
+| `split_speed_mps` | 1.3 | m/s | stealth pace, crouch gear 3 (section 1 `GEARS`); used for split-leg traversal time |
+| `reach_speed_mps` | 3.0 | m/s | run speed, G40; used for reaching a downed partner |
+| `split_max_s` | 90 | s | longest planned split leg (Michael 4); about 117 m at `split_speed_mps` |
+| `split_parity_pct` | 20 | % | split legs within this of each other, by traversal time (Michael 4, M4) |
+| `reach_max_s` | 15 | s | a downed partner reachable within this (Michael 4); about 45 m at `reach_speed_mps` |
+| `shared_min_w_m` | 2.0 | m | link marked `shared` (both partners move together) is at least this wide |
+| `shadow_min_frac` | 0.4 | fraction of floor | encounter space floor in shadow, lower bound (Michael 3) |
+| `shadow_max_frac` | 0.6 | fraction of floor | encounter space floor in shadow, upper bound (Michael 3) |
+| `vantage_min_frac` | 0.7 | fraction of space | a vantage sees at least this share of the space (Michael 3) |
+| `los_break_max_s` | 5 | s | line of sight breakable within this from any point of a stealth route (Michael 3) |
+| `step_band_min_m` | 0.40 | m | level changes between this and `step_band_max_m` are forbidden (player 0.42 vs nav 0.45 disagree, section 3) |
+| `step_band_max_m` | 0.45 | m | upper edge of the forbidden step band |
+| `grid_m` | 0.5 | m | snap grid for every size, width, height and length (nav cell, section 1) |
+
+Shadow, vantage and line-of-sight numbers are declared targets in the graph and are measured in greybox (M4); a map fails if the measurement misses the target.
