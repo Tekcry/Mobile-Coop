@@ -1,6 +1,6 @@
 import { Vector3, type Scene } from '../core/babylon';
 import { dropBadDoorMove, dropBadWallMove } from '../player/moveState';
-import { attachLiftOf, BODY_KNEEL_STILL, crouchBlendOf, crouchStep, emptyPlayerBodyIn, emptyPlayerBodyOut, playerBody, PLAYER_OPERATOR_HEIGHT, wireBodyIn } from '../player/playerVolumes';
+import { attachLiftOf, crouchBlendOf, crouchStep, emptyPlayerBodyIn, emptyPlayerBodyOut, playerBody, PLAYER_OPERATOR_HEIGHT, wireBodyIn, wireKneel, wireTense } from '../player/playerVolumes';
 import { PlayerHitVolumes, playerPartMult } from '../game/playerHitVolumes';
 import { WALL, WALL_SUB, wallPeekOffset } from '../player/wallController';
 import { Health } from '../game/health';
@@ -48,7 +48,7 @@ export class RemotePlayer implements Damageable {
   readonly bodyIn = emptyPlayerBodyIn();
   readonly body = emptyPlayerBodyOut();
   /** The crouch flag eased as the owner's controller eases it (`crouchStep`, linear amount) and the still-crouched time
-   *  (the kneel, `BODY_KNEEL_STILL`). */
+   *  (the kneel, `wireKneel`: not in the tense sneak). */
   private crouchK = 0;
   private kneelT = 0;
   private readonly liftTmp = { x: 0, y: 0, z: 0 };
@@ -169,7 +169,9 @@ export class RemotePlayer implements Damageable {
     // the travel's sideways share from the accepted step (the owner's local move)
     const strafe = d > 0.01 ? Math.abs(dx * Math.cos(s.yaw) - dz * Math.sin(s.yaw)) / d : 0;
     const lift = attachLiftOf(s.mv, anchors && s.mv ? anchors.all[s.mv.a] : undefined, PLAYER_OPERATOR_HEIGHT, this.liftTmp);
-    wireBodyIn(s, crouchBlendOf(this.crouchK), this.kneelT > BODY_KNEEL_STILL, this.peekK, strafe, MAX_SPEED, lift, this.bodyIn);
+    // (S1 fix round, check A B1) no kneel in the tense sneak, as the owner's controller (one rule, the same guards)
+    const tense = wireTense(crouched, (s.f & PF.grounded) !== 0, mvm, s.x, s.z);
+    wireBodyIn(s, crouchBlendOf(this.crouchK), wireKneel(this.kneelT, tense), this.peekK, strafe, MAX_SPEED, lift, this.bodyIn);
     this.sync();
   }
 

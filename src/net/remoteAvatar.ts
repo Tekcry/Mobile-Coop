@@ -38,7 +38,7 @@ import { bodyRigRoot, bodyRigWallGap } from '../anim/tune';
 import { clearGripAxis } from '../player/attachGrips';
 import { GRAB } from '../game/takedown';
 import { easeRemoteSpeed, isShownTeleport, REMOTE_SPEED_MAX, seedHeading } from './remoteSeed';
-import { bodyFromMoveState, PLAYER_OPERATOR_HEIGHT, type PlayerBodyIn } from '../player/playerVolumes';
+import { bodyFromMoveState, PLAYER_OPERATOR_HEIGHT, wireKneel, type PlayerBodyIn } from '../player/playerVolumes';
 import type { MoveState } from '../player/moveState';
 import { RemoteShots } from './remoteShots';
 import { bodyPoint, CQ, ease, holdHandsLocal, koCurve, type KoState } from '../game/closeQuarters';
@@ -106,6 +106,8 @@ export class RemoteAvatar {
   private speed = 0;
   /** (F3) Crouched and still (s): the owner's kneel (its controller: crouched and still for `KNEEL_STILL` s). */
   private kneelT = 0;
+  /** (rig-pose-fix S1 fix round, check A B1) This frame's tense sneak (no kneel beside an unaware guard), for `bodyIn`. */
+  private tense = false;
   /** (G1, audit row 18) Landing recovery (s) from the fall the snapshots show, as the owner's controller times it. */
   private landT = 0;
   private airTop = Number.NaN;
@@ -643,6 +645,7 @@ export class RemoteAvatar {
     this.kneelT = this.crouch > 0.5 && this.speed < 0.15 && (mv?.m === 'ground' || mv?.m === 'wall' || mv?.m === 'doorPeek') ? this.kneelT + dt : 0;
     // (G1, audit row 26) the tense sneak: crouched on the ground near an unaware guard (the same guards as the owner's)
     const tense = this.crouch > 0.5 && mv?.m === 'ground' && tenseNear(this.pos.x, this.pos.z);
+    this.tense = tense;
     // (G1, audit row 18) the landing clip from the fall the snapshots show (the owner's controller: recovery from 3 m/s)
     const onGround = (f & PF.grounded) !== 0 || mp.traverse !== 'none';
     if (!onGround) this.airTop = Number.isNaN(this.airTop) ? this.pos.y : Math.max(this.airTop, this.pos.y);
@@ -814,7 +817,7 @@ export class RemoteAvatar {
     out.z = this.pos.z;
     out.yaw = this.bodyYaw;
     out.crouch = this.crouch;
-    out.kneel = this.kneelT > KNEEL_STILL;
+    out.kneel = wireKneel(this.kneelT, this.tense, KNEEL_STILL);
     out.speed = this.speed;
     const sp = hyp2(this.vx, this.vz);
     out.strafe = sp > 0.01 ? Math.abs(this.vx * Math.cos(this.bodyYaw) - this.vz * Math.sin(this.bodyYaw)) / sp : 0;
