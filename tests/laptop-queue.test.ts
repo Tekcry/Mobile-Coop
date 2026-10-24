@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, flakeStands, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, trainSoon, manualLocks } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, flakeStands, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, trainSoon, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES } from '../scripts/laptop-queue/lib.mjs';
 
 const NOW = Date.UTC(2026, 9, 23, 20, 0, 0);
 const idAt = (min: number, tag: string): string => {
@@ -341,8 +341,8 @@ describe('desktop trains', () => {
     'not a log line',
   ].join('\n');
   it('workerActivity: the newest push of that worker and whether it claims trains', () => {
-    expect(workerActivity(log, 'laptop')).toEqual({ last: t(12) * 1000, trainClaims: true });
-    expect(workerActivity(log, 'desktop')).toEqual({ last: t(3) * 1000, trainClaims: false });
+    expect(workerActivity(log, 'laptop')).toEqual({ last: t(12) * 1000, trainClaims: true, openTrain: '' });
+    expect(workerActivity(log, 'desktop')).toEqual({ last: t(3) * 1000, trainClaims: false, openTrain: '' });
     const none = workerActivity('', 'laptop');
     expect(none.last).toBeNaN();
     expect(none.trainClaims).toBe(false);
@@ -354,6 +354,83 @@ describe('desktop trains', () => {
     expect(desktopTrainGate({ ...base, trainAgeMs: MIN })).toBe('train head too new');
     expect(desktopTrainGate({ ...base, laptop: { last: NaN, trainClaims: false } })).toMatch(/does not claim trains/);
     expect(desktopTrainGate({ ...base, laptop: workerActivity(log.replace('claim train 37', 'claim x'), 'laptop') })).toMatch(/does not claim trains/);
+  });
+  // overlap plan section 3: the laptop runs train 64 (claimed, no done / release yet), train 65 may go to the desktop
+  const running = [
+    `${t(1)} claim train 64 (lock taken) (laptop)`,
+    `${t(2)} claim train 64 (laptop)`,
+    `${t(12)} done train 63 (laptop)`,
+    `${t(30)} claim train 63 (laptop)`,
+  ].join('\n');
+  it('workerActivity: openTrain is the newest claimed train with no later done / release', () => {
+    expect(workerActivity(running, 'laptop').openTrain).toBe('64');
+    expect(workerActivity(`${t(0)} done train 64 (laptop)
+${running}`, 'laptop').openTrain).toBe('');
+    expect(workerActivity(`${t(0)} release train 64 (closed) (laptop)
+${running}`, 'laptop').openTrain).toBe('');
+    expect(workerActivity(running, 'desktop').openTrain).toBe('');
+    // train 100 vs 99 by time, not text; a same-second done after the claim (listed first) closes it
+    expect(workerActivity(`${t(1)} claim train 100 (laptop)
+${t(5)} claim train 99 (laptop)`, 'laptop').openTrain).toBe('100');
+    expect(workerActivity(`${t(1)} done train 64 (laptop)
+${t(1)} claim train 64 (laptop)`, 'laptop').openTrain).toBe('');
+  });
+  it('beside the laptop own train a different train passes the gate at once, the same train does not', () => {
+    const base = { laptop: workerActivity(running, 'laptop'), now: NOW, silentMs: 10 * MIN, trainAgeMs: 5 * MIN, graceMs: 2 * MIN };
+    expect(desktopTrainGate({ ...base, train: '65' })).toBe('');
+    expect(desktopTrainGate({ ...base, train: '64' })).toBe('laptop active 1 min ago');
+    expect(desktopTrainGate(base)).toBe(''); // no train named: any train other than 64 may pass (the pre-check)
+    expect(desktopTrainGate({ ...base, train: '65', trainAgeMs: MIN })).toBe('train head too new');
+    expect(desktopTrainGate({ ...base, train: '65', laptop: { ...base.laptop, trainClaims: false } })).toMatch(/does not claim trains/);
+    // no open train: the silence rule as before
+    expect(desktopTrainGate({ ...base, train: '65', laptop: workerActivity(`${t(0)} done train 64 (laptop)
+${running}`, 'laptop') })).toBe('laptop active 0 min ago');
+  });
+});
+
+describe('overlapping trains (queue)', () => {
+  const t64 = { sha: 'b'.repeat(40), n: '64' };
+  const t65 = { sha: 'c'.repeat(40), n: '65' };
+  const rerun = (min: number, n: string) => ({ ...req(min, 'pr', `r${n}`, 'auto-train'), trainRerun: true, pr: 1, set: `train${n}-rerun` });
+  it('sortTrains orders by number, not text', () => {
+    expect(sortTrains([{ n: '100' }, { n: '99' }, { n: '64' }]).map((x: { n: string }) => x.n)).toEqual(['64', '99', '100']);
+  });
+  it('pick takes the lowest pending train whatever the list order', () => {
+    expect(pick({ trains: [t65, t64], requests: [] }, NOW, slots(false, false))).toEqual({ kind: 'train', train: t64 });
+  });
+  it('a lower train rerun goes before a higher pending train, on one free slot', () => {
+    const r64 = rerun(5, '64');
+    expect(pick({ trains: [t65], requests: [req(10, 'pr'), r64] }, NOW, slots(false, false))).toEqual({ kind: 'request', request: r64, slot: '4189' });
+    expect(pick({ trains: [t65], requests: [r64] }, NOW, slots(true, false))).toEqual({ kind: 'request', request: r64, slot: '4192' });
+    expect(pick({ trains: [t65], requests: [r64] }, NOW, slots(true, true))).toBeNull();
+  });
+  it('a rerun of the same or a higher train waits behind the pending train', () => {
+    expect(pick({ trains: [t64], requests: [rerun(5, '64')] }, NOW, slots(false, false))).toEqual({ kind: 'train', train: t64 });
+    expect(pick({ trains: [t64], requests: [rerun(5, '65')] }, NOW, slots(true, false))).toBeNull();
+    // a rerun with no train number (no set, no train/ branch) never jumps a train
+    expect(pick({ trains: [t64], requests: [{ ...req(5, 'pr'), trainRerun: true, pr: 1 }] }, NOW, slots(false, false))).toEqual({ kind: 'train', train: t64 });
+  });
+  it('rerunTrain reads the set, then a train/<n> branch', () => {
+    expect(rerunTrain({ set: 'train64-rerun' })).toBe('64');
+    expect(rerunTrain({ branch: 'train/7' })).toBe('7');
+    expect(rerunTrain({ set: 'lr16w', branch: 'feature/x' })).toBe('');
+    expect(trainBelow('64', '65')).toBe(true);
+    expect(trainBelow('65', '65')).toBe(false);
+    expect(trainBelow('', '65')).toBe(false);
+    expect(trainBelow('64', '?')).toBe(false);
+  });
+  it('the build marker holds back only trains at or above the train being built', () => {
+    const t66 = { sha: 'd'.repeat(40), n: '66' };
+    expect(trainsUnderMarker([t64, t65, t66], { train: '65' })).toEqual([t64]);
+    expect(trainsUnderMarker([t64, t65], { train: '?' })).toEqual([]);
+    expect(trainsUnderMarker([t65], { train: '65' })).toEqual([]);
+  });
+  it('voidMisses: a failed listing keeps the count, a missing head counts up, a listed head resets', () => {
+    const heads = new Set([t64.sha]);
+    expect(voidMisses(0, t65.sha, heads)).toBe(1);
+    expect(voidMisses(1, t65.sha, heads)).toBe(VOID_MISSES);
+    expect(voidMisses(1, t65.sha, null)).toBe(1);
+    expect(voidMisses(1, t64.sha, heads)).toBe(0);
   });
 });
 

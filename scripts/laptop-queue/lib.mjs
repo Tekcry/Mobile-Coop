@@ -99,8 +99,9 @@ export function desktopSlotGate(s) {
 /**
  * What to start next. queue = { trains: [{ sha, n }], requests: [request] }, slots = [{ port, busy }].
  * Returns { kind: 'train', train } or { kind: 'alone', request } (both need BOTH slots idle), { kind: 'request',
- * request, slot } (one free slot), or null. A pending train wins and, while a slot is busy, blocks all new work so the
- * slots drain (preemption). A train rerun (trainRerun, oldest first) comes next, on one free slot, ahead of every other
+ * request, slot } (one free slot), or null. The lowest pending train wins and, while a slot is busy, blocks all new work
+ * so the slots drain (preemption); only a rerun of a LOWER train (rerunTrain) goes before it, on one free slot (overlap
+ * plan section 3: train N's rerun never waits behind N+1's full run). A train rerun (trainRerun, oldest first) comes next, on one free slot, ahead of every other
  * request and alone run. An alone request over ALONE_AGE_MIN old blocks pr / full work the same way (never starved).
  * Among pr / full requests the requester goes by arrival (the requester whose OLDEST open request has the smallest id),
  * and that requester's NEWEST non-alone request runs (older ones are stale; superseded() normally retires them).
@@ -108,8 +109,13 @@ export function desktopSlotGate(s) {
 export function pick(queue, now, slots) {
   const idle = slots.filter((s) => !s.busy);
   const bothIdle = idle.length === slots.length;
-  if (queue.trains.length > 0) return bothIdle ? { kind: 'train', train: queue.trains[0] } : null;
   const reqs = [...queue.requests].sort(sortById);
+  if (queue.trains.length > 0) {
+    const front = sortTrains(queue.trains)[0];
+    const early = reqs.find((r) => r.trainRerun && trainBelow(rerunTrain(r), front.n));
+    if (early) return idle[0] ? { kind: 'request', request: early, slot: idle[0].port } : null;
+    return bothIdle ? { kind: 'train', train: front } : null;
+  }
   const rerun = reqs.find((r) => r.trainRerun);
   if (rerun) return idle[0] ? { kind: 'request', request: rerun, slot: idle[0].port } : null;
   const alone = reqs.filter((r) => r.kind === 'alone');
@@ -171,6 +177,42 @@ export function superseded(requests, isAncestor) {
     }
   });
   return out;
+}
+
+/** Train heads by train number, lowest first (ls-remote lists them as text: train/100 before train/99). New array. */
+export function sortTrains(trains) {
+  return [...(trains ?? [])].sort((a, b) => Number(a.n) - Number(b.n));
+}
+
+/** true when train number a is below b (both numeric); '?' or '' never is. */
+export function trainBelow(a, b) {
+  const x = Number(a);
+  const y = Number(b);
+  return String(a ?? '') !== '' && String(b ?? '') !== '' && Number.isFinite(x) && Number.isFinite(y) && x < y;
+}
+
+/** The train a train rerun belongs to: its set train<n>-rerun (auto-train rerunSet), else a train/<n> branch; '' when neither. */
+export function rerunTrain(r) {
+  return /^train(\d+)-rerun$/.exec(String(r?.set ?? ''))?.[1] ?? /^train\/(\d+)$/.exec(String(r?.branch ?? ''))?.[1] ?? '';
+}
+
+/**
+ * Trains the desktop may still start while auto-train's build marker stands: only those below the train being built
+ * (overlap plan section 3; the N+1 build must not hold back train N). An unreadable marker ('?') blocks every train.
+ */
+export function trainsUnderMarker(trains, marker) {
+  return (trains ?? []).filter((t) => trainBelow(t.n, marker?.train));
+}
+
+/**
+ * Void-train watch: consecutive checks on which a running train head was not an open train PR head. heads = the open
+ * train PR head shas (a Set), or null when the listing failed (the count stays). The run is cut at VOID_MISSES, so one
+ * bad listing never kills it (as withdrawn requests).
+ */
+export const VOID_MISSES = 2;
+export function voidMisses(prev, sha, heads) {
+  if (!heads) return prev;
+  return heads.has(sha) ? 0 : prev + 1;
 }
 
 /**
@@ -457,33 +499,44 @@ export function trainBuildFailed(statuses) {
 
 /**
  * A worker's claim pushes on the laptop-queue branch, from `git log --format="%ct %s" -- claims/` lines (writeClaims
- * subjects end "(<worker>)"): { last, trainClaims } = epoch ms of its newest push (NaN when none) and whether it ever
- * pushed a "claim train ..." (it runs the service that claims trains).
+ * subjects end "(<worker>)", newest first): { last, trainClaims, openTrain } = epoch ms of its newest push (NaN when
+ * none), whether it ever pushed a "claim train ..." (it runs the service that claims trains), and the train number of its
+ * newest "claim train <n>" with no later "done train <n>" / "release train <n>" ('' when none: it runs no train).
  */
 export function workerActivity(logText, worker) {
   let last = NaN;
   let trainClaims = false;
   const tail = ` (${worker})`;
+  const seen = new Map(); // train n -> { t, open } of its newest event (the first line wins a same-second tie)
   for (const l of String(logText).replace(/\r\n/g, '\n').split('\n')) {
     const m = /^(\d+) (.*)$/.exec(l.trim());
     if (!m || !m[2].endsWith(tail)) continue;
     const t = Number(m[1]) * 1000;
     if (!(t <= last)) last = t;
     if (m[2].startsWith('claim train ')) trainClaims = true;
+    const e = /^(claim|done|release) train (\d+)\b/.exec(m[2]);
+    if (e && !(seen.get(e[2])?.t >= t)) seen.set(e[2], { t, open: e[1] === 'claim' });
   }
-  return { last, trainClaims };
+  let openTrain = '';
+  let openAt = -Infinity;
+  for (const [n, e] of seen) if (e.open && e.t > openAt) { openTrain = n; openAt = e.t; }
+  return { last, trainClaims, openTrain };
 }
 
 /**
  * Desktop train gate: '' when the desktop may take a train head, else why not. a = { laptop: workerActivity(...,
- * 'laptop'), now, silentMs, trainAgeMs, graceMs }. Only while the laptop has pushed no claim / done for silentMs, only
- * once the laptop claims trains itself (an older laptop service would rerun a desktop-claimed train), and only for a
- * head older than graceMs (a live idle laptop claims a new head within one pass). The claim push stays the real guard.
+ * 'laptop'), now, silentMs, trainAgeMs, graceMs, train }. Only while the laptop has pushed no claim / done for silentMs,
+ * or while it runs a DIFFERENT train (laptop.openTrain; overlap plan section 3: train N+1 goes to the desktop beside N;
+ * train omitted = any train other than the laptop's), only once the laptop claims trains itself (an older laptop service
+ * would rerun a desktop-claimed train), and only for a head older than graceMs (a live idle laptop claims a new head
+ * within one pass). The claim push stays the real guard.
  */
 export function desktopTrainGate(a) {
   if (!a.laptop.trainClaims) return 'laptop service does not claim trains yet';
+  const open = String(a.laptop.openTrain ?? '');
+  const beside = open !== '' && (a.train === undefined || String(a.train) !== open);
   const quiet = a.now - a.laptop.last;
-  if (quiet < a.silentMs) return `laptop active ${Math.round(quiet / 60_000)} min ago`;
+  if (!beside && quiet < a.silentMs) return `laptop active ${Math.round(quiet / 60_000)} min ago`;
   if (!(a.trainAgeMs >= a.graceMs)) return 'train head too new';
   return '';
 }

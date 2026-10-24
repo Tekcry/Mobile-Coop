@@ -44,11 +44,18 @@
 // locks): at start and every LQ_TASK_GUARD_MIN (10; 0 = off) min, disables (never stops, kills or deletes) each stale
 // scheduled task (lib staleTasks; allowlist + env LQ_TASK_ALLOW, a comma list) and pushes alerts/<ts>-<worker>-tasks.json to the
 // laptop-queue branch. --dry-run only logs what it would disable.
+// Overlapping trains (Michael 2026-10-24 ~21:00, docs/orchestrator/overlap-trains-PLAN.md section 3; inert while no
+// stacked trains exist): pending trains run lowest number first and a lower train's rerun goes before a higher train
+// (lib pick); the desktop takes a second, different train while the laptop runs one (lib workerActivity openTrain,
+// desktopTrainGate); auto-train's build marker holds back only trains at or above the one being built (lib
+// trainsUnderMarker); a running train whose head is no longer an open train PR head (closed, voided or rebuilt; two
+// checks LQ_TRAIN_VOID_POLL_S (60) s apart, lib voidMisses) is killed, posts laptop-e2e error "train closed" and
+// releases its claim.
 import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, trainSoon, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, dupKey, duplicates, failureExcerpt, flakeStands, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo } from './lib.mjs';
+import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, trainSoon, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, dupKey, duplicates, failureExcerpt, flakeStands, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES } from './lib.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
 const DESKTOP = process.env.LQ_WORKER === 'desktop';
@@ -70,6 +77,7 @@ const PORTS = Object.keys(SLOTS);
 const TRAIN_JOBS = process.env.LQ_TRAIN_JOBS ?? (DESKTOP ? '1' : '3');
 const LAPTOP_SILENT_MS = Number(process.env.LQ_LAPTOP_SILENT_MIN ?? 10) * 60_000;
 const TRAIN_GRACE_MS = 2 * 60_000; // a live idle laptop claims a new train head within one pass (30 s)
+const TRAIN_VOID_POLL_MS = Number(process.env.LQ_TRAIN_VOID_POLL_S ?? 60) * 1000;
 // a train that has held some slots this long while another stays locked (a manual run) runs unsharded on the ones it holds
 const TRAIN_SOLO_MS = Number(process.env.LQ_TRAIN_SOLO_MIN ?? 10) * 60_000;
 const TRAIN_GAP_MS = Number(process.env.LQ_TRAIN_GAP_MIN ?? 3) * 60_000;
@@ -425,7 +433,14 @@ function pendingTrains() {
     const st = sts.find((s) => s.context === 'laptop-e2e')?.state ?? '';
     if (st === '' || (st === 'pending' && !claimed.has(m[1]))) out.push({ sha: m[1], n: m[2], stale: st === 'pending', ageMs: age * 1000 });
   }
-  return out;
+  return sortTrains(out); // ls-remote order is text order; the lowest train runs first (overlap plan section 3)
+}
+
+/** The head shas of the open train/<n> PRs, or null when the listing failed (the void-train watch then waits). */
+function openTrainHeads() {
+  try {
+    return new Set(JSON.parse(gh(['pr', 'list', '-R', REPO, '--state', 'open', '--limit', '200', '--json', 'headRefName,headRefOid', '--jq', '[.[] | select(.headRefName | startswith("train/")) | .headRefOid]']) || '[]'));
+  } catch { return null; }
 }
 
 // ---------- processes, locks, ports ----------
@@ -621,12 +636,31 @@ async function runTrain(train, ports = PORTS) {
   const runDir = path.join(STATE_DIR, 'runs', id);
   log(`train ${train.n} ${train.sha.slice(0, 8)}: start`);
   const locks = {};
+  // void-train watch (overlap plan section 3): a head that left the open train PR heads (closed, voided or rebuilt)
+  // twice in a row has every slot's command tree killed (cut); nothing new starts and the run ends with closedEnd
+  const ctls = Object.fromEntries(ports.map((p) => [p, { child: null, why: '' }]));
+  let misses = 0;
+  let voided = false;
+  const watch = DRY ? null : setInterval(() => {
+    if (voided) return;
+    misses = voidMisses(misses, train.sha, openTrainHeads());
+    if (misses < VOID_MISSES) return;
+    voided = true;
+    log(`train ${train.n} ${train.sha.slice(0, 8)}: no longer an open train PR head (closed, voided or rebuilt), run stopped`);
+    for (const c of Object.values(ctls)) cut(c, 'closed');
+  }, TRAIN_VOID_POLL_MS);
+  const closedEnd = () => {
+    postStatus(train.sha, 'error', 'laptop-e2e', `${DESKTOP ? 'desktop: ' : ''}train closed`);
+    writeClaims([train.sha], 'release', `release train ${train.n} (closed)`);
+    claimed.delete(train.sha);
+  };
   try {
     // every slot, or after TRAIN_SOLO_MS holding some while the rest stay locked: unsharded on the ones held
     for (let since = 0; ;) {
       for (const p of ports) locks[p] ||= await takeLock(p, `train ${train.n}`, train.sha, { once: true });
       const held = ports.filter((p) => locks[p]);
       if (held.length === ports.length) break;
+      if (voided) return closedEnd();
       if (held.length) since ||= Date.now();
       if (since && Date.now() - since >= TRAIN_SOLO_MS) {
         log(`train ${train.n}: ${ports.filter((p) => !locks[p]).join('+')} still locked after ${Math.round(TRAIN_SOLO_MS / 60_000)} min, running on ${held.join('+')} alone`);
@@ -643,8 +677,10 @@ async function runTrain(train, ports = PORTS) {
       claimed.delete(train.sha);
       return;
     }
+    if (voided) return closedEnd();
     postStatus(train.sha, 'pending', 'laptop-e2e', `${DESKTOP ? 'desktop: ' : ''}${ports.length > 1 ? 'sharded' : 'unsharded on'} ${ports.join('+')}`);
-    const prep = await Promise.all(ports.map((p) => prepare(p, train.sha, path.join(runDir, `${p}.log`))));
+    const prep = await Promise.all(ports.map((p) => prepare(p, train.sha, path.join(runDir, `${p}.log`), undefined, ctls[p])));
+    if (voided) return closedEnd();
     if (prep.includes('fetch')) {
       // not a verdict: the pending status is now unclaimed (stale) and the next pass picks the train again
       log(`train ${train.n}: fetch failed, retried next pass`);
@@ -662,7 +698,8 @@ async function runTrain(train, ports = PORTS) {
     const bins = shard(list, times, ports.length);
     bins.forEach((b, i) => log(`bin ${ports[i]}: ${b.suites.length} suites, weight ${Math.round(b.weight)} s`));
     const t0 = Date.now();
-    const runs = await Promise.all(ports.map((p, i) => e2e(p, bins[i].suites, TRAIN_JOBS, path.join(runDir, `${p}.log`))));
+    const runs = await Promise.all(ports.map((p, i) => e2e(p, bins[i].suites, TRAIN_JOBS, path.join(runDir, `${p}.log`), ctls[p])));
+    if (voided) return closedEnd();
     const prNumber = Number(gh(['pr', 'list', '-R', REPO, '--head', `train/${train.n}`, '--json', 'number', '--jq', '.[0].number'], { soft: true })) || 0;
     // a shard that died before its summary (or lost suites) is a failure, never a partial success
     const broken = ports.findIndex((p, i) => !runComplete(runs[i], bins[i].suites.length, true));
@@ -678,11 +715,15 @@ async function runTrain(train, ports = PORTS) {
     const slotOf = {};
     runs.forEach((r, i) => r.suites.forEach((s) => { slotOf[s.s] = ports[i]; }));
     const result = { suites: runs.flatMap((r) => r.suites), wall: 0, flakes: [] };
-    result.flakes = await rerunFlakes(result, slotOf, job, runDir, ports[0]);
+    result.flakes = await rerunFlakes(result, slotOf, job, runDir, ports[0], ctls[ports[0]]);
+    if (voided) return closedEnd();
+    // the verdict below may release the train at once: the watch must never cut it after this point
+    if (watch) clearInterval(watch);
     result.wall = (Date.now() - t0) / 1000;
     const ok = finish(job, 'laptop-e2e', result, runDir, prNumber);
     state.trains[train.sha] = { result: ok ? 'success' : 'failure', wall: result.wall, date: new Date().toISOString() };
   } finally {
+    if (watch) clearInterval(watch);
     // only slots this train locked: an unheld one may be serving a manual run
     for (const p of ports) { if (locks[p]) { releaseLock(p, locks[p]); freePort(p); } }
     saveState();
@@ -930,11 +971,12 @@ function applyDuplicates(requests) {
  */
 function desktopTrains() {
   const laptop = workerActivity(git(['log', '-n', '2000', '--format=%ct %s', 'origin/laptop-queue', '--', 'claims/'], { soft: true }), 'laptop');
-  const gate = (ageMs) => desktopTrainGate({ laptop, now: Date.now(), silentMs: LAPTOP_SILENT_MS, trainAgeMs: ageMs, graceMs: TRAIN_GRACE_MS });
+  const gate = (ageMs, train) => desktopTrainGate({ laptop, now: Date.now(), silentMs: LAPTOP_SILENT_MS, trainAgeMs: ageMs, graceMs: TRAIN_GRACE_MS, train });
   const off = gate(Infinity);
   if (off) return { trains: [], why: off };
   const all = pendingTrains().filter((t) => !claimed.has(t.sha));
-  const trains = all.filter((t) => !gate(t.ageMs));
+  // per head: beside the laptop's own train only a different train passes (lib desktopTrainGate)
+  const trains = all.filter((t) => !gate(t.ageMs, t.n));
   return { trains, why: all.length && !trains.length ? 'train head too new' : '' };
 }
 
@@ -951,7 +993,7 @@ function trainBuilding() {
   const key = `${m.key} ${m.stale}`;
   if (key !== markerLogged) {
     markerLogged = key;
-    log(m.stale ? `train ${m.train} build marker ${Math.round(m.ageMs / 60_000)} min old: ignored as stale` : `train ${m.train} building: no new claims`);
+    log(m.stale ? `train ${m.train} build marker ${Math.round(m.ageMs / 60_000)} min old: ignored as stale` : `train ${m.train} building: no new claims (lower trains still start)`);
   }
   return m.stale ? null : m;
 }
@@ -978,8 +1020,14 @@ async function pass() {
   } else if (!aloneHold) aloneHoldLogged = '';
   const desktopWait = {};
   if (DESKTOP) {
-    // auto-train's build (its vitest waits on heavy.lock) goes first: no new request or train while it builds
-    if (trainBuilding()) return;
+    // auto-train's build (its vitest waits on heavy.lock) goes first: no new request while it builds, and no train at or
+    // above the one being built; a lower train (N while N+1 builds on it) still starts (lib trainsUnderMarker)
+    const building = trainBuilding();
+    if (building) {
+      queue.trains = trainsUnderMarker(queue.trains, building);
+      if (queue.trains.length === 0) return;
+      queue.requests = [];
+    }
     const backlog = queue.requests.length;
     queue.requests = queue.requests.filter((r) => r.kind === 'pr' && !r.trainRerun); // a train rerun is the laptop's (desktop failed)
     const why = {};
