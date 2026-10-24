@@ -598,12 +598,25 @@ describe('role guards out of sight in the open (guard-ai S27, A161)', () => {
   it('(e) R_NONE (a lone guard, or coordinated false: no roles): today steps, the cover-to-cover advance', () => {
     const r = roleProbe({ role: R_NONE });
     const g = r.step();
-    // today's chase: an advance pick on the last known position (more than 7 m away) or a walk-up on it
+    // (guard-ai polish A16) today's chase, exactly: 16 m from the last known position (> 7 m), so the advance pick
+    // (`pickAdvance`: score dT + dMe / 2) takes c0 (0, -7) and bounds to it; no open wait, so no other reservation
     expect(r.p.wantCrouch).toBe(false);
-    expect(r.p.state === 'seekCover' || g.point !== null).toBe(true);
-    const s = roleProbe({ role: R_SEARCH });
-    s.step();
-    expect(s.p.wantCrouch).toBe(false);
+    expect([r.p.state, r.p.coverIdx, g.point]).toEqual(['seekCover', 0, null]);
+    expect(r.ctx.reserveCover).toHaveBeenCalledTimes(1);
+    expect(r.ctx.reserveCover).toHaveBeenCalledWith(r.e, 0);
+    // no cover to bound to: the S8 walk-up on the last known position (the clear line), at the advance pace
+    const w = roleProbe({ role: R_NONE, covers: [] });
+    for (let i = 0; i < 60; i++) {
+      const gw = w.step();
+      expect(gw.point).toEqual([0, 0]);
+      expect(gw.speed).toBeCloseTo(ENEMIES.grunt.walkSpeed * 1.15, 9);
+      expect([w.p.state, w.p.wantCrouch]).toEqual(['chase', false]);
+    }
+    expect(w.ctx.reserveCover).not.toHaveBeenCalled();
+    const s = roleProbe({ role: R_SEARCH, covers: [] });
+    for (let i = 0; i < 60 * 4; i++) s.step();
+    expect([s.p.state, s.p.wantCrouch]).toEqual(['chase', false]);
+    expect(s.ctx.reserveCover).not.toHaveBeenCalled();
   });
 });
 
