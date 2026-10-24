@@ -15,8 +15,11 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
 - Train 72 4b4b5bd5 (#364, 4.99.0, includes #356 affected-flake) running on both slots since 23:53; f02d runs after it.
 - laptop-queue-3 head 34a9ed4d pushed (pick order f6dfeb36: per requester highest priority then oldest; priority does
   not jump other requesters, one-line change in pick if the Orchestrator wants that). Train conflict notes in
-  docs/laptop-queue/STATE.md. Running at the save: fresh Opus checker on f785331b..34a9ed4d. On resume, if no verdict
-  arrived, rerun that checker; PASS -> PR to master (#356 is in train 72), message the Orchestrator train-ready.
+  docs/laptop-queue/STATE.md. Checker 2 PASS; added 'dev' to the merge / release fetches (f464fa11). PR #366 opened
+  to master, train-ready sent to the Orchestrator (it labels). After merge: update the laptop service first.
+- Marlow asked (00:13) to drop request ...-2d8f201e-96b3 (superseded by ...-0fe98298-0388, set joint-flake-3, #365); the
+  service's own superseded() should retire it; if it runs anyway, withdraw it (request.mjs has no withdraw: commit
+  "withdraw <id>" on the laptop-queue branch like Guard AI did).
 - feature/laptop-queue-3 (worktree C:/NightShift/Mobile-Coop-laptop-queue-3, head 459aa0e2 pushed): fixes 1-3
   (f785331b), CPU gate without BelowNormal/Idle (3d580204), fetch narrow + lock retry (325f92ba), checker FIX round
   (bd2d7e25, 459aa0e2). Agent adding the Orchestrator's pick-order fix (oldest per requester + priority field). NEVER
