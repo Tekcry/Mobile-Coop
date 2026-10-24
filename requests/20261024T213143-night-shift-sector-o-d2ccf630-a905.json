@@ -1,0 +1,13 @@
+{
+  "id": "20261024T213143-night-shift-sector-o-d2ccf630-a905",
+  "sha": "d2ccf6305cb9962772d619b92ab8e09c21338062",
+  "branch": "feature/sector-redesign-bake4",
+  "pr": 385,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-lightbake",
+    "e2e-sectorops:6"
+  ],
+  "set": "bake4"
+}
