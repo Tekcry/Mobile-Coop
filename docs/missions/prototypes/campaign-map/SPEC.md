@@ -78,7 +78,7 @@ agent preamble. Hyphens, never em dashes.
 | W3 | east-post / west-post (objectives) | 0 | 4 x 6 each | key alcoves, 21 m apart, no line of sight | 3 / 3 |
 | W3 | passage | 0 | 3.5 x 10 | strongroom passage: grille, chute iron door, coal yard door | 3 |
 | W3 | strongroom (objective) | 0 | 6 x 8 | ledger presses, two-key door (TKL step 3-4) | 4 |
-| W3 | chute | 2.2 | 1.2 x 6 (1.5 high) | brick coal chute, passage to the yard hatch | 3 |
+| W3 | chute | 4.4 | 1.2 x 6 (1.5 high) | brick coal chute from the passage's iron door (4.4 m), falling to the yard hatch (2.2 m up the coal yard wall) | 3 |
 | W3 | coal-yard (choke) | 0 | 14 x 16 | coal bays, hoist beam, cart gate | 3 |
 | W3 | cartway (exit) | 0 | 4 x 6 | covered cartway to the wharf back lane | 2 |
 | W4 | back-lane (entry, checkpoint) | 0 | 4 x 76 | service lane behind the sheds | 2 |
@@ -163,7 +163,7 @@ reason solo cannot do it; no-softlock is the validator's reach check (0 ERR). Ki
 | C1 | W1 | canal-steps -> gallery (4.5 m), market -> gallery (4.4 m) | Boost up a wall | The trimmer takes his ladder home; bare brick end wall, no ledge below |
 | C2 | W1 | fish-hall -> service-passage | Hold shutter | Winding gear broken: one lifts and holds, the other crawls the 0.9 m gap; the back door is barred on the passage side until he lifts the bar |
 | C3 | W2 | arcade -> walkway (4.5 m): boost at the west pier, then the rope there or the pull-up at the east lip | Boost; rope (climb up); pull-up | No stair reaches the walkway (tenants use their own back stairs); plastered pier with no handhold. The boost puts the first player up (`TEAM.boostMax` 4.5); the human ladder grabs only 4.1 m, so it is not used |
-| C4 | W2 | pawn-loft -> reading-room, pie-loft -> clock-loft | Throw over a gap | The lightwell between the loft rows: 2.5 m from the south lofts' full-height taking-in doors to the north lofts' iron landing stages |
+| C4 | W2 | pawn-loft -> reading-room, pie-loft -> clock-loft | Throw over a gap | The lightwell between the loft rows: 2.5 m from the south lofts' open-fronted taking-in bays (no lintel, 3.6 m clear) to the north lofts' iron landing stages |
 | C5 | W2 -> W3 | arcade-roof -> w3-roof (spine) | Throw over a gap | The arcade lane, 2.5 m at a break in both parapets (the old lane bridge's landing); the fire-escape bridge door opens only from the counting house side |
 | C7 | W3 | passage -> chute (4.4 m) + yard hatch + coal yard door | Vent unlock | Chute door 4.4 m up the wall; hatch bolted on the chute side; coal yard door barred on the yard side. The only ways into the coal yard (the choke), so both missions cross W3 through it |
 | C8 | W4 | back-lane -> shed-two | Hold shutter | Chain gear seized; 0.9 m crawl gap |
@@ -241,9 +241,13 @@ Resolved (graph changed to the engine's facts, 2026-10-25; ids unchanged, missio
      The map still uses all six approved kit moves.
 2. **Throw.** The runner lands `TEAM.throwDist` 3.2 m past the thrower (`throwLanding`, `teamMoves.ts:174-190`; host
    bound +-1 m, `throwLandingOk` `:193`; `movement.ts:483-487`). The lightwell throws and the lane throw are now 2.5 m
-   gaps (still over the 1.95 m split band): from the south lofts' full-height taking-in doors (2.8 m, for `throwUp` 2.2
-   and the arc) to 1 m iron landing stages on the north lofts, and across the lane at a break in both parapets (the old
-   lane bridge's landing). No sash window is a launch or a landing. GB2 proves each with the `throwLandingOk` test.
+   gaps (still over the 1.95 m split band): from the south lofts' open-fronted taking-in bays (the old hoist bays, no
+   lintel, 3.6 m clear to the hoist hood) to 1 m iron landing stages on the north lofts, and across the lane at a break
+   in both parapets (the old lane bridge's landing). The bays are open, not doors, because the throw needs free air to
+   the thrower's floor + 3.2 m (`teamController.ts:926-932`) and tests the arc at head height, feet + 1.6
+   (`:956-967`): under a 2.8 m lintel it works only with the thrower 0.35-0.7 m inside and the runner close. Any door
+   used for a throw instead must be at least 3.4 m high. No sash window is a launch or a landing. GB2 proves each with
+   the `throwLandingOk` test.
 3. **Human ladder.** `TEAM.ladderGrab` 4.1 m (`movement.ts:464`) is under the 4.5 m walkway lip, so that link is now a
    boost (`boostMax` 4.5); the second player comes up by the rope or the pull-up. No ladder lip is left on the map.
 4. **Jetty pull-up lip** is 4.4 m (ledge at -4.4, quay ladder 4.4), inside the pull-up band 4.3-4.5 (`PULL.min` =
@@ -286,6 +290,12 @@ Graph edits by the engine fit (2026-10-25, Engine questions "Resolved"; validato
 3.5 / 3.5 / 4 -> 2.5; `w3-roof -> w3-west-wing` team_rope 8.4 -> drop 4.2; `w3-roof -> w3-coal-yard` team_rope
 removed; `w4-gantry -> w4-shed-three` team_rope 10 -> `w4-back-lane -> w4-shed-three` coop_boost 4.4;
 `w4-canal-ledge` storey -4.2 -> -4.4 (quay ladder and jetty pull-up 4.2 -> 4.4). 37 spaces, 72 links as before.
+
+Graph edits by the spec fix round (2026-10-25; validator still 0 / 6): `w3-chute` storey 2.2 -> 4.4. The storey was the
+wrong one: the passage -> chute boost of 4.4 m is the forcing height (2.2 m would be a solo climb), and a space's storey
+is the floor where you enter it. The chute falls from the iron door to its yard hatch 2.2 m up the coal yard wall (the
+hatch link's `level_change` 2.2 is unchanged). The lightwell throw launches are open-fronted taking-in bays, not 2.8 m
+doors (Engine questions, Resolved 2).
 
 The six remaining WARNs, each justified (LD: "justify the size in the design doc"):
 1. `w1-canal-steps` custom: an 8 x 10 m stone landing stair from the canal. It is a landing, not a room, and under the

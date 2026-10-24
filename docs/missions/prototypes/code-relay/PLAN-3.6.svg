@@ -285,6 +285,6 @@
 <text x="0" y="94" font-size="9" fill="#7a3fa0" font-weight="bold">2</text><text x="26" y="94" font-size="9">sync</text><text x="86" y="94" font-size="9">sync-s4-noc</text><text x="250" y="94" font-size="9">s4-noc</text><text x="400" y="94" font-size="9" fill="#333">code_source, src planned (the NOC console release, issued by ~</text>
 <text x="0" y="107" font-size="9" fill="#0b7a75" font-weight="bold">3</text><text x="26" y="107" font-size="9">lead</text><text x="86" y="107" font-size="9">lead:cr-3a</text><text x="250" y="107" font-size="9" fill="#b00020">s4-sec (not drawn)</text><text x="400" y="107" font-size="9" fill="#333">lead for objective 1 (cr-3a)</text>
 <text x="0" y="120" font-size="9" fill="#0b7a75" font-weight="bold">4</text><text x="26" y="120" font-size="9">lead</text><text x="86" y="120" font-size="9">lead:sync-s4-noc</text><text x="250" y="120" font-size="9" fill="#b00020">s4-deck (not drawn)</text><text x="400" y="120" font-size="9" fill="#333">lead for sync sync-s4-noc</text>
-<text x="0" y="139" font-size="9" fill="#333">rules: noAlarms (mission); namedTarget (a); noBodies (b)</text>
+<text x="0" y="139" font-size="9" fill="#333">rules: noAlarms (mission); namedTarget (a)</text>
 </g>
 </svg>

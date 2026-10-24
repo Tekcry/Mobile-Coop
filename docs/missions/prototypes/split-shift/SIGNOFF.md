@@ -15,8 +15,10 @@
 ![Split Shift second floor](PLAN-8.4.svg)
 
 ## Intent check
-1. Michael asked (2026-10-24 ~22:12, decision 4): first Sector Ops prototypes Split Shift and Code Relay, 4 players,
-   parallel objectives for two teams or one player doing them all.
+1. Michael picked (2026-10-24 ~22:12, multiple choice): "first prototypes: Three Grey Coats + Two-Key Ledger
+   (campaign, 2p) and Split Shift + Code Relay (Sector Ops, 4p)"; earlier that evening: "Sector Ops 4-player co-op,
+   parallel objectives for two teams or a solo player doing them all, strict rules allowed too (global / per team /
+   split)".
 2. What this is: a 1-4 player mission in the HQ block (S2). One team works upstairs and is never seen; the other works
    the ground floor and cuts the power so the first can hack the building computer.
 3. What the player does (co-op about 14 min, solo about 23 min, rated lower):
@@ -28,6 +30,8 @@
      brings the reception officer with him, and Shadow must hold the plant room dark. The atrium board can split them.
    - **5.** Everyone meets at the bridge landing and crosses the glazed bridge.
    - **Optional (either team):** photograph the lighting schedule in the second-floor board room (reward: one syringe).
+   - **Solo:** one player does every step in turn. The briefing tells them how to do the hack alone: cut the power,
+     then go up; the officer's walk down to the plant room and back gives about two minutes.
 4. Rules (2, one per team, in the briefing and the objective list):
    - Ghost: never seen. That includes Shadow being seen upstairs.
    - Shadow: no alarms (no panel, no camera).
@@ -35,8 +39,8 @@
 5. What it costs: paper only until you pick. Sector Ops' HQ plan already holds every device this needs, as planned
    devices: the comms-room camera panel, the held east-wing cut, the facilities keypad, the two leads and the bridge pair
    door's solo line. After you pick, Sector Ops builds them, Guard AI adds 1 reaction, and the mission engine handles a
-   per-team restart. Validator: 0 mission errors and 0 mission warnings. The campus plan's own 4 errors are 3 device
-   ids and 1 lead for Sector Ops to fix (BEAT.md Graph notes).
+   per-team restart. Validator, on Sector Ops' latest campus plan: 0 errors, 119 warnings, all the campus plan's own;
+   0 from the mission (BEAT.md Graph notes).
 
 ## The decision
 Q: Approve Split Shift as specced?

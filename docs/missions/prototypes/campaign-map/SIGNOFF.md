@@ -19,22 +19,24 @@
 4. **W3 counting house:** vent unlock, the only way into the coal yard and out (leg-up into the coal chute, unbolt the
    yard hatch and the barred door for the partner). The west wing is a 4.2 m drop through the light-well lantern.
 5. **W4 wharf sheds:** hold shed two's seized shutter; boost in through shed three's lane-side window (4.4 m);
-   pull-up from the canal ledge onto the jetty (4.4 m). All six approved kit moves are used; no section has a solo way
-   through.
+   pull-up from the canal ledge onto the jetty (4.4 m). All six approved kit moves are used, with two adjustments to fit
+   the engine: the pull-up stands in for the human ladder (the ladder reaches only 4.1 m, under the 4.5 m lips), and the
+   rope is a climb up only (one braces at the top, the other climbs). No section has a solo way through.
 6. **Three Grey Coats:** W1 -> W2 -> W3 (crossing, no step) -> W4: tally book on the gallery, Teale in the reading
    room, the coal chute in W3, the candle chest in shed three (boosted in from the lane), the boat.
 7. **Two-Key Ledger:** W2 -> W3 -> W4: the clerk's call in the pie loft, the throw to the counting house, one player per
    wing for the two keys, out through the coal chute, shed two's shutter, the boat.
 
 ## Intent check
-1. Michael said (2026-10-24 ~22:50, M4): Three Grey Coats + Two-Key Ledger go on a new small campaign map, "graph ->
-   spec + sign-off page -> greybox overnight". M3: every section forces a co-op traversal move, no solo bypass.
-2. What you approve: the layout above and the forced co-op moves, before the greybox is built overnight.
-3. What it does not do: no new moves beyond the approved kit; guard counts are estimates until the measured pass (V6).
-4. What it costs: greybox GB0-GB6 plus the measured pass, about 14 h of slices. Every co-op move now fits the code
-   (SPEC "Engine questions", Resolved): the rope is a climb up of 2.2-6 m, so the three rope descents became a drop, the
-   coal chute and a boost; the throw lands 3.2 m out, so its gaps are 2.5 m; the human ladder reaches 4.1 m, so the
-   4.5 m walkway lip takes a boost; the jetty lip is 4.4 m, in the pull-up band.
+1. Michael said (2026-10-24 ~22:45): "All campaign missions are strictly coop and cannot be completed solo, must have
+   forced coop traversal to proceed". And at ~22:50, on putting both missions on a new small map: "If it's ready before
+   I'm awake, continue to make progress".
+2. What you approve: the layout above and the forced co-op moves, before the greybox is built.
+3. What it does not do: no new moves beyond the approved kit; guard counts are estimates until the greybox is measured.
+4. What it costs: seven greybox slices plus the measured pass, about 14 h. Every co-op move now fits the engine as
+   built (SPEC.md, "Engine questions", Resolved): the rope is a climb up of 2.2-6 m, so the three rope descents became a
+   drop, the coal chute and a boost; the throw lands 3.2 m out, so its gaps are 2.5 m; the human ladder reaches 4.1 m,
+   so the 4.5 m walkway lip takes a boost; the jetty lip is 4.4 m, inside the pull-up's 4.3-4.5 m reach.
 
 ## The decision
 Q: Build the Tallow Wharf greybox to this layout and these forced co-op moves?

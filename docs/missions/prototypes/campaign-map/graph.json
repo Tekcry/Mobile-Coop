@@ -230,7 +230,7 @@
       "area": [[44, 62, 54, 70]],
       "tension": 2,
       "tags": [],
-      "note": "Lit desk lamp; full-height taking-in door (2.8 m) over the lightwell faces the reading room."
+      "note": "Lit desk lamp; an open-fronted taking-in bay over the lightwell faces the reading room (the old hoist bay: no lintel, 3.6 m clear to the hoist hood, so the throw arc is free)."
     },
     {
       "id": "w2-reading-room",
@@ -463,8 +463,8 @@
       "section": "W3",
       "type": "duct",
       "room_class": "custom",
-      "function": "The coal chute: a 1.2 x 1.5 brick chute from the iron door high in the passage to the hatch in the coal yard pavement",
-      "storey": 2.2,
+      "function": "The coal chute: a 1.2 x 1.5 brick chute from the iron door 4.4 m up the passage wall, falling to the hatch 2.2 m up the coal yard wall over the coal heap; storey 4.4 is the iron door's sill, where the boost lands",
+      "storey": 4.4,
       "size": [1.2000000000000028, 6, 1.5],
       "area": [[96.5, 50, 97.7, 56]],
       "tension": 3,
@@ -952,7 +952,7 @@
       "length": 11,
       "time_s": 5,
       "at": [50.5, 4.5, 71.375],
-      "reason": "Across the lightwell: from the pawn loft's full-height taking-in door to the reading room's iron landing stage, 2.5 m across (B4 throw: lands TEAM.throwDist 3.2 m past the thrower)"
+      "reason": "Across the lightwell: from the pawn loft's open-fronted taking-in bay (no lintel, 3.6 m clear: the throw needs free air 3.2 m over the thrower's floor along the arc) to the reading room's iron landing stage, 2.5 m across (B4 throw: lands TEAM.throwDist 3.2 m past the thrower)"
     },
     {
       "from": "w2-pie-loft",
@@ -963,7 +963,7 @@
       "length": 11.5,
       "time_s": 5,
       "at": [63, 4.5, 71.375],
-      "reason": "Across the lightwell: from the pie loft's taking-in door to the clock-mender's iron landing stage, 2.5 m across"
+      "reason": "Across the lightwell: from the pie loft's open-fronted taking-in bay (no lintel, 3.6 m clear) to the clock-mender's iron landing stage, 2.5 m across"
     },
     {
       "from": "w2-reading-room",

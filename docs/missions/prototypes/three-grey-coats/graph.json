@@ -27,14 +27,14 @@
       "hint": "Shed three has the lit loading door. The chest has a candle stencilled on the lid." },
     { "id": "tgc-5", "section": "W4", "space": "w4-boat", "team": "all", "kind": "extract", "after": ["tgc-4"],
       "lead": "w4-gantry", "minutes": 3,
-      "text": "Both of you, down the jetty steps to the boat under the crane",
-      "hint": "The boat waits at the jetty steps under the crane. Both of you must be aboard." }
+      "text": "Both of you, over the gangway to the boat under the crane",
+      "hint": "The boat waits at the jetty under the crane. The gangway is the quiet way aboard. Both of you must be aboard." }
   ],
   "rules": [
     { "kind": "namedTarget", "scope": "mission", "step": "tgc-3", "text": "Rule - question only Pell's courier" }
   ],
   "route": ["w1-canal-steps", "w1-tea-stall", "w1-market", "w1-gallery", "w1-warden-office", "w1-fish-hall",
-    "w1-service-passage", "w2-arcade", "w2-walkway", "w2-pawn-loft", "w2-reading-room", "w2-lane-window",
+    "w1-service-passage", "w2-arcade", "w2-walkway", "w2-pawn-loft", "w2-reading-room", "w2-arcade", "w2-walkway", "w2-lane-window",
     "w2-arcade-roof", "w3-roof", "w3-east-wing", "w3-passage", "w3-chute", "w3-coal-yard", "w3-cartway",
     "w4-back-lane", "w4-gantry", "w4-shed-three",
     "w4-shed-two", "w4-shed-yard", "w4-canal-ledge", "w4-jetty", "w4-boat"]

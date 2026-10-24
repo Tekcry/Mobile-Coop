@@ -3,7 +3,7 @@
 Map: Saltmarsh Park (`campusOps`), section S2 HQ atrium and offices only (`sections: ['s2']`, start = C1's checkpoint
 (-20, 0, -32), `campusSectors.ts:356`). Sources: BRIEF A9 / A14 / A16, PLAN 2-3, audit 4-5 ("Team Ghost undetected
 upstairs while Team Shadow holds a power cut"), `docs/story.md`. Layout: Sector Ops' plan graph
-`origin/feature/sector-redesign-signoff:docs/sector-redesign/graph/plan/campusOps-S2.json` (space and sync ids below, at 6b13cd32).
+`origin/feature/sector-redesign-signoff:docs/sector-redesign/graph/plan/campusOps-S2.json` (space and sync ids below, at fe3ef35f).
 Sector Ops' S2 page, `S2-detail.md` and `SYNC.md` now carry every node this chart asked for; **(pending)** marks a
 device that is still planned, not built.
 
@@ -19,7 +19,7 @@ east wing at the plant room and keeps it dark long enough for the hack, without 
 - **Team Shadow = Team B** (slots 1 and 3): track B, ground: the post and mail rooms, foyer, hall, east plant room.
   Zones: reception, lobby, goods. Both tracks meet at the bridge landing (zone c2, in neither track: shared).
 - 2 players: one each; 3 players: the third joins Ghost. **Solo:** one player does every step in the order 1B, 1A, 2,
-  3, 4A, 5 (about 24 min, rated lower). The one simultaneous beat (Shadow holds the cut while Ghost hacks) has a named
+  3, 4A, 5 (about 23 min with the optional, rated lower). The one simultaneous beat (Shadow holds the cut while Ghost hacks) has a named
   solo fallback, in the briefing: the cut sends the facilities officer down to the plant room and back, about two minutes.
 
 ## Rules (2, one per team; none at mission scope; a solo player carries both)
@@ -36,7 +36,7 @@ east wing at the plant room and keeps it dark long enough for the hack, without 
   back, the facilities officer returns to his desk); a Ghost restart drops the camera loop. Engine note (EN2): today
   `restartSection` (sectorMode.ts:1158) resets the whole section for everyone; a per-team restart is the lead's call.
 
-## Beat chart (per team 4 steps incl. extraction; co-op ~16 min, solo ~24 min)
+## Beat chart (per team 4 steps incl. extraction; co-op ~14 min, the graph's budget; solo ~23 min, every step)
 | # | Team | Campus space | Min | Objective-list line (no markers) | In-world lead | Sync node -> opens for the other team | Gives / needs | Hint (off by default) |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 1A | Ghost | s2-core-sw -> s2-l1-plan -> s2-l1-kitchen door | 3 | Up the post room's fire stair; listen at the first-floor kitchen for the facilities code | Overheard: the coffee pair (#5-6, `campusSectors.ts:93-125`) rehearse the code at the kitchen door (pending: intel entry) | - | gives `s2-fac-code` | "The kitchen is the lit room off the west balcony. Stand at its door, out of the lamp." |
@@ -45,7 +45,7 @@ east wing at the plant room and keeps it dark long enough for the hack, without 
 | 3 | Shadow | s2-foyer -> s2-plant-g | 3 | Cut the east wing at the switchgear in the east plant room | Reception officer's radio (#1, :86): "Facilities, your east boards tripped again." + `s2-board` | **sync-s2-power** (power_cut, held, no timer): the facilities office and the L1 wing go dark; the facilities officer (#7, :127) leaves the BMS desk for the plant room. Opens the hack for Ghost | needs `s2-board` (new mechanic: holding a cut) | "The plant room door is in the foyer's east wall, behind the desk's back." |
 | 4A | Ghost | s2-l1-wing -> s2-l1-facilities | 3 | Into the dark facilities office and hack the BMS terminal | The office's cold lamp goes out (the light language: the dark is the way in) | - (the existing objective opens C2) | needs `s2-fac-code` (sync-s2-kpfac, pending) | "The office door is beside the corridor light switch. Leave the switch alone." |
 | 4B | Shadow | s2-hall -> s2-foyer -> s2-plant-g | 3 | Hold the plant room dark until Ghost is out of the office | **Twist:** the facilities officer stops at reception and brings the reception officer with him | optional assist **sync-s2-atrium** (power_cut, built: S2_BOARDS `campusS2.ts:192`): pulling the atrium board sends #1 to his own board (guard-ai LR16-4), splitting the pair | - | "Two of them now. The atrium board is on the foyer wall. He always fixes his own lights first." |
-| 5 | All | s2-core-ne -> s2-l1-landing | 2 | Everyone to the bridge landing and over the glazed bridge | The bridge officer (K2, #11, :135) at the card door; the BMS hack opened it | - | - | "Shadow: the north-east fire stair from the hall. K2 faces the doorways." |
+| 5 | All | s2-core-ne -> s2-l1-landing | 2 | Everyone to the bridge landing and over the glazed bridge | The bridge officer (K2, #11, :135) at the card door; the BMS hack opened it | - | - | "Shadow: the north-east fire stair from the hall. The bridge officer faces the doorways." |
 - **Twist (4B):** the cut was meant to draw one man. The facilities officer collects the reception officer on the way
   down (they walk the hall together). Shadow, under no alarms and with alarm-rcp beside the desk, must split them or
   take them in the dark plant room (hide spot (2.5, 0, -24), `campusS2.ts:164`). Ghost's hack is on a clock now.
@@ -72,6 +72,7 @@ A player in the C1 checkpoint after a restart must make the landing too; the mis
 ## Radio (voiceable, British spelling, 90 characters or less each)
 - LANTERN (start): "Evening, Night Shift. Two teams. Ghost upstairs, Shadow on the ground floor."
 - LANTERN (start): "Ghost, nobody upstairs sees you. Shadow, nobody pulls a panel. Simple."
+- LANTERN (briefing, solo): "On your own? Cut the east wing, then go up. He's two minutes down and back."
 - SEXTON (start): "Shadow, stay downstairs. If a man upstairs sees you, it's Ghost who pays."
 - TALLY (after 2): "Cameras on a loop. Reception's watching a very quiet foyer."
 - TALLY (after 3): "East wing's dark. Facilities officer's up and grumbling. He's heading down."
@@ -92,11 +93,9 @@ A player in the C1 checkpoint after a restart must make the landing too; the mis
 | sync-s2-plantlog | intel (document) | s2-mail | plant log in a parcel cage, grants `s2-board`; the post-room note points to it | planned | s2-post: sorting table (-35, -26) |
 | guard reaction | guard-ai | s2-l1-facilities -> s2-plant-g | #7 walks to the new board when 55 / 56 go dark (LR16-4 lure), via reception (twist) | planned (Guard AI) | - |
 
-Approve this beat chart?
-
-## Graph notes (SS graph, 2026-10-25 ~00:05, over Sector Ops 6b13cd32)
+## Graph notes (SS graph, 2026-10-25, over Sector Ops fe3ef35f)
 - `graph.json` encodes this chart on Sector Ops' plan graph `graph/plan/campusOps-S2.json`
-  (origin/feature/sector-redesign-signoff 6b13cd32). Steps: ss-1a, ss-1b, ss-2, ss-3, ss-4a, ss-4b (the twist), ss-opt,
+  (origin/feature/sector-redesign-signoff fe3ef35f). Steps: ss-1a, ss-1b, ss-2, ss-3, ss-4a, ss-4b (the twist), ss-opt,
   ss-5. Teams: a = Ghost, b = Shadow. Start: s2-foyer.
 - Every node this chart asked for is now a real node in that graph's `syncs`, placed as the chart wrote it. The
   objectives name them in `sync` (the node the step uses) and `assist` (an optional one); neither is a validator field.
@@ -115,24 +114,23 @@ Approve this beat chart?
 - Tracks: `tracks` keeps a `y` band per team (Ghost 4.4-12.3, Shadow 0-4.4), because L1 and L2 sit over the ground
   floor's footprint (EN2 needs the height test). Sector Ops' own `tracks` object (A / B routes, meet and exfil at the
   landing) agrees with it.
-- Validator (mission-validator 4ea5d26bf, the five plan graphs + this file): 4 errors, 118 warnings. All of them are
-  the campus graphs' own: the run without a mission gives the same 4 / 118. Mission errors 0, mission warnings 0.
-  - The 4 errors are in Sector Ops' S2 `syncs`. `sync-s2-kpfac`, `sync-s2-kitchen` and `sync-s2-plantlog` do not use the
-    contract's `sync-s2-<name>` id, and `sync-s2-kitchen` has `lead: "-"`, which is not a space. Sector Ops: rename the
-    three (for example sync-s2-kpfac, sync-s2-kitchen, sync-s2-plantlog) and give the kitchen lead a space
-    (s2-l1-plan). In a scratch copy with those changes the run has 0 errors. This file's `sync` names then follow the
-    rename.
+- Validator (mission-validator 4ea5d26bf, the five plan graphs at fe3ef35f + this file): 0 errors, 119 warnings, all
+  campus-own (the run without a mission gives the same 0 / 119), 0 mission errors, 0 mission warnings.
+  - Sector Ops' fix round (fe3ef35f) renamed the three S2 nodes to the contract's ids (`kp-fac` -> `sync-s2-kpfac`,
+    `lead-s2-kitchen` -> `sync-s2-kitchen`, `lead-s2-plantlog` -> `sync-s2-plantlog`) and gave the kitchen node a lead
+    space (`s2-l1-kitchen`). This file already uses the new ids.
   - The first pass's 6 mission warnings are gone. The extraction counts as exfil (tracks.exfil). S2 now has a choke,
     s2-l1-wing (the comms room is only reached through it). The choke check now covers only the mission's sections.
 - Plans: one per storey, `scripts/graph-svg.mjs` over Sector Ops' `S2-plan-<y>.svg` (`--base-bounds -50,-36,34,12`),
-  drawn from the plan graph's real `area` boxes. A scratch render copy only wraps each `area` box as a one-box list
-  (graph-svg reads a list), keeps one storey's spaces, links and nodes, and colours the teams (blue Ghost, orange Shadow,
-  replacing Sector Ops' validator split tags).
+  drawn from the plan graph's real `area` boxes, all at fe3ef35f (plan graph `git show
+  origin/feature/sector-redesign-signoff:docs/sector-redesign/graph/plan/campusOps-S2.json`, base SVGs from
+  `docs/sector-redesign/signoff/`). A scratch render copy only wraps each `area` box as a one-box list (graph-svg reads
+  a list), keeps one storey's spaces, links and nodes, and colours the teams (blue Ghost, orange Shadow, replacing
+  Sector Ops' validator split tags).
   - `PLAN-0.svg`: the ground floor, Shadow's steps 1B, 3, 4B, and Ghost's SW stair.
   - `PLAN-4.4.svg`: the first floor, Ghost's steps 1A, 2, 4A and the landing (5).
   - `PLAN-8.4.svg`: the second floor, the optional board room. The roof (12.3) is not drawn: no step uses it.
-  - A lead pin on another storey is listed as not drawn. `sync-s2-kitchen`'s own lead is '-' (the error above).
+  - A lead pin on another storey is listed as not drawn.
 - Still for others:
-  1. Sector Ops: the 3 sync ids and the kitchen lead space (the 4 errors above).
-  2. Guard AI: #7 walks to the plant room through reception when 55 / 56 go dark (the twist).
-  3. Engine (EN2): the held cut, the patch-panel camera loop, the pair door's solo window, per-team restart.
+  1. Guard AI: #7 walks to the plant room through reception when 55 / 56 go dark (the twist).
+  2. Engine (EN2): the held cut, the patch-panel camera loop, the pair door's solo window, per-team restart.

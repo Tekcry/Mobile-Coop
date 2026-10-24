@@ -3,7 +3,7 @@
 Map: Saltmarsh Park (`campusOps`), section S4 Data hall only (`sections: ['s4']`, start = C3's checkpoint (24, 0, 8),
 `campusS4Data.ts:176`). Sources: BRIEF A9 / A14 / A16, PLAN 2-3, audit 4-5 ("interrogate a code, the vault team enters
 it in 30 s"), `docs/story.md`. Layout: Sector Ops' plan graph
-`origin/feature/sector-redesign-signoff:docs/sector-redesign/graph/plan/campusOps-S4.json` (space and sync ids below, at 6b13cd32).
+`origin/feature/sector-redesign-signoff:docs/sector-redesign/graph/plan/campusOps-S4.json` (space and sync ids below, at fe3ef35f).
 Sector Ops' S4 page, `S4-detail.md` and `SYNC.md` now carry every node this chart asked for; **(pending)** marks a
 device that is still planned, not built.
 
@@ -18,17 +18,21 @@ the roof to the NOC and makes the right man issue it; the other waits in the cag
   riser, north corridor, security room, NOC mezzanine. Zones: yard, deck, nc, sec, noc.
 - **Team Vault = Team B** (slots 1 and 3): track B, ground / service: the dock, service corridor, battery room, hall,
   cage. Zones: dock, lobby, batt, cold-w, cold-e, hall-w, pod-1, pod-4, cage. Both meet at the colonnade (zone c4, shared).
-- 2 players: one each; 3 players: the third joins Relay. **Solo:** one player does it all in the order 1B, 2B, 2A (the
-  roster gives 1A's answer), 3A, 3B, 4, 5 (about 26 min, rated lower; the roof is skipped). The simultaneous beat (Relay
-  issues, Vault enters within 30 s) has a named solo fallback in the briefing: alone, the duty officer issues a
-  maintenance release instead, good for 90 seconds.
+- 2 players: one each; 3 players: the third joins Relay. **Solo:** one player does it all in the order 1B, 2A (the
+  roster gives 1A's answer; in by the compound's cable-pull door on the dock code, the riser and the north corridor),
+  2B (the front gate, now that the desk loop has the cage camera), 3A, 3B, 4, 5 (about 27 min with the optional, rated
+  lower; the roof is skipped). The simultaneous beat (Relay issues, Vault enters within 30 s) has a named solo fallback
+  in the briefing: alone, the duty officer issues a maintenance release instead, good for 90 seconds.
 
-## Rules (mission 1, Relay 1, Vault 1; a solo player carries all three)
+## Rules (2: mission 1, Relay 1; each team and a solo player carry at most 2, Michael's cap)
 | Scope | Rule | Briefing line | Objective-list line |
 | --- | --- | --- | --- |
 | mission | `noAlarms` | "No alarms, anyone. An alarm and the NOC locks the cage. The logs go with it." | "Rule - no alarms" |
 | a | `namedTarget` (target #14 "Dunmore", decoy #15 "Pryce") | "Relay: question only the duty officer. Ask the other and the release is cancelled." | "Team Relay - question only the duty officer" |
-| b | `noBodies` | "Vault: no bodies found. The hall is walked every forty seconds." | "Team Vault - no bodies found" |
+- Relay carries 2 (no alarms, the duty officer), Vault 1 (no alarms), a solo player 2.
+- The 3-rule variant is the sign-off's option 2 ("Lift your 2-rule cap for this mission"): it adds Vault's `noBodies`
+  (scope b; briefing "Vault: no bodies found. The hall is walked every forty seconds."; objective line "Team Vault - no
+  bodies found"), and a solo player then carries 3. Not in `graph.json`.
 - Signposting: the briefing lines, a rule row under the title and under each team's title in the objective list,
   LANTERN's reminder at the section start, the rating card's rule rows. Cameras count as alarms (section-rating default).
 - **Breaking one (M1):** LANTERN's line, then section restart from the C3 checkpoint. A mission rule (an alarm) sends
@@ -37,20 +41,21 @@ the roof to the NOC and makes the right man issue it; the other waits in the cag
   Questioning Pryce spooks Dunmore (A11: he respawns unalerted at the bolt point) and breaks Relay's rule; knocking
   Dunmore out before he talks breaks it too (no release is possible). Knock-outs are allowed on everyone else.
 
-## Beat chart (per team 5 steps incl. the twist and extraction; co-op ~17 min, solo ~26 min)
+## Beat chart (per team 5 steps incl. the twist and extraction; co-op ~17 min, solo ~27 min)
 | # | Team | Campus space | Min | Objective-list line (no markers) | In-world lead | Sync node -> opens for the other team | Gives / needs | Hint (off by default) |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1A | Relay | s4-dock -> s4-yard -> s4-deck | 4 | Over the generator compound and up the plant ladder; hear who has the NOC tonight | Overheard: the deck patrol (#13, `campusS4Data.ts:59`) radios "Dunmore, it's chiller three again" (pending) | - | gives `s4-noc-duty` (Dunmore, west seat) | "The ladder is on the building's east wall. The dog walks the other side of the tanks." |
+| 1A | Relay | s4-dock -> s4-yard -> s4-deck | 4 | Over the generator compound to the roof deck (a leg-up onto the plant ladder, or alone up the cable riser); hear who has the NOC tonight | Overheard: the deck patrol (#13, `campusS4Data.ts:59`) radios "Dunmore, it's chiller three again" (pending) | - | gives `s4-noc-duty` (Dunmore, west seat) | "The plant ladder is on the east wall: one gives the other a leg-up. Alone, the riser door at the compound's dark north end takes the dock code." |
 | 1B | Vault | s4-dock | 2 | Read the dock board for the door codes, between the dock pair's trips | The board line "plant doors 2208, battery room the same" (:202), lit by the dock floods | **sync-s4-dockboard** (code_source, built): the code opens kp-batt for Vault and kp-deck (the riser door) for Relay | gives `s4-codes` | "The board is at the west end of the dock, by the door to the service corridor." |
 | 2A | Relay | s4-deck -> s4-baskets -> s4-riser -> s4-nc -> s4-sec | 4 | Down the cable riser to the north corridor; loop the hall cameras at the security desk | The riser hatch the deck patrol covers; the desk lit by its monitors (the operator #5, :46, sits at it) | **sync-s4-desk** (camera_loop, built `desk-sec4` :165): loop (30 s), then off until a restart: cam-cage, cam-mantrap, cam-dock4. Opens the cage front for Vault | needs `s4-codes` (kp-deck) | "The side door from the north corridor is behind the operator. The supervisor sits by the panel." |
 | 2B | Vault | s4-svc -> s4-batt -> s4-hall -> s4-cage | 4 | Through the dark battery room to the cage; get inside and wait at the terminal | The keyholder (#9, :52) at the front gate under cam-cage; his line "Nobody runs that terminal without a NOC release" | - (rear dual-custody gate: two Vault players press together; one player uses the front gate after sync-s4-desk) | needs `s4-codes` (kp-batt) | "Cold aisles under the cable baskets are the dark way. The keyholder never turns round." |
 | 3A | Relay | s4-sec -> s4-noc | 3 | Up to the NOC; make the duty officer issue a cage release | `s4-noc-duty` + Dunmore's seat placard at the window (pending); Pryce sits beside him | **sync-s4-noc** (code_source): the release goes to the cage terminal; Vault has 30 s (solo 90 s) | needs `s4-noc-duty`; gives `s4-release` (new mechanic: named interrogation) | "Two at the window. Deal with the other one first, quietly. Then ask the right one." |
 | 3B | Vault | s4-cage | 3 | Enter the release at the cage terminal and pull the build and signing logs | Relay's call; the terminal screen turns from red to the release prompt | **sync-s4-cagekp** (code_sink): the 10 s download (:180) opens C4 for everyone | needs `s4-release` (new mechanic: relayed code window) | "Be at the terminal before Relay asks. Thirty seconds is not long." |
 | 4 | Both | s4-noc (window) + s4-hall -> s4-cage | 2 | **Twist:** keep the cage clear: the release has called the mobile supervisor | Relay sees the hall from the NOC window (armoured glass, the section's vantage) and calls him | - | - | "He walks the west aisle to the centre aisle. Relay can see all of it." |
-| 5 | All | s4-hall -> s4-ups -> s4-cc | 3 | Everyone out through the UPS room and down the colonnade | The colonnade sentry (K3, #19, :69) posted at the C4 door | - | - | "The UPS room door is in the hall's north-west corner. K3 faces east, into the corridor." |
+| 5 | All | s4-hall -> s4-ups -> s4-cc | 3 | Everyone out through the UPS room and down the colonnade | The colonnade sentry (K3, #19, :69) posted at the C4 door | - | - | "The UPS room door is in the hall's north-west corner. The colonnade sentry faces east, into the corridor." |
 - **Twist (4):** the release posts to the site log; the mobile supervisor (#20, :71, body armour) leaves the west aisle for
-  the cage front to check it, while the download runs. Vault (no bodies found) must keep him off the cage or take him
-  where nobody finds him; Relay at the window calls his position. Pryce's screen shows it too, if he is still awake.
+  the cage front to check it, while the download runs. Vault must keep him off the cage, or take him down where the
+  hall walk will not find him (a found body starts a search, and a search that reaches a panel breaks the no-alarms
+  rule); Relay at the window calls his position. Pryce's screen shows it too, if he is still awake.
 - **Optional (Relay):** "Wipe tonight's footage at the security desk" (a second desk action, 8 s, the supervisor at his
   monitors beside it). Lead: SEXTON. Reward: `gadget` (one extra gadget charge, section-rating's Grant). Hint: "The
   footage is on the desk. It takes longer than a loop. Do it when the room is quiet."
@@ -72,6 +77,7 @@ sent back to C3 by a restart crosses the dock and the hall again; the mission do
 
 ## Radio (voiceable, British spelling, 90 characters or less each)
 - LANTERN (start): "Evening, Night Shift. The data hall. Relay over the roof, Vault through the batteries."
+- LANTERN (briefing, solo): "On your own, he issues a maintenance release. Ninety seconds, not thirty. Run."
 - TALLY (start): "That terminal wants a NOC release. A release lasts thirty seconds. I didn't design it."
 - SEXTON (after 1A): "Dunmore. West seat. The other one's Pryce. Leave Pryce's opinions out of it."
 - TALLY (after 2A): "Cage camera's looping. Then it's off. Nobody's watching the cage but you."
@@ -96,11 +102,9 @@ sent back to C3 by a restart crosses the dock and the hall again; the mission do
 | footage drive (optional) | interact | s4-sec | second desk action, 8 s | planned | - |
 | twist reaction | guard-ai / mission | s4-hall | #20 walks to the cage front on the release | planned (Guard AI) | - |
 
-Approve this beat chart?
-
-## Graph notes (CR graph, 2026-10-25 ~00:05, over Sector Ops 6b13cd32)
+## Graph notes (CR graph, 2026-10-25, over Sector Ops fe3ef35f)
 - `graph.json` encodes this chart on Sector Ops' plan graph `graph/plan/campusOps-S4.json`
-  (origin/feature/sector-redesign-signoff 6b13cd32). Steps: cr-1a, cr-1b, cr-2a, cr-2b, cr-3a, cr-3b, cr-4 (the twist),
+  (origin/feature/sector-redesign-signoff fe3ef35f). Steps: cr-1a, cr-1b, cr-2a, cr-2b, cr-3a, cr-3b, cr-4 (the twist),
   cr-opt, cr-5. Teams: a = Relay, b = Vault. Start: s4-dock.
 - Changes in this pass:
   - cr-1b's lead and view are now `s4-lobby`: the dark goods lane at the dock's goods door (Sector Ops' lobby vantage,
@@ -108,7 +112,9 @@ Approve this beat chart?
     `s3-dock`, which is S3's own goods dock, not where the board is read. The board's own lead is the board itself
     (`sync-s4-dockboard`, lead s4-dock), but 1B is in the start room and the validator wants the lead outside the
     step's room, so the next real space that sees the board is named.
-  - cr-5's s4-cc now carries Sector Ops' `exfil` tag.
+  - cr-5's s4-cc is Sector Ops' `tracks.exfil` in S4 (fe3ef35f; the space tag is gone, as in S2).
+  - Rules (spec fix round): Vault's `noBodies` is out of `rules`, so the mission has 2 (no alarms for everyone, Relay's
+    duty officer) and no team or solo player carries more than 2. The 3-rule variant is the sign-off's option 2.
   - Sync ids are unchanged: sync-s4-dockboard, sync-s4-desk, sync-s4-noc, sync-s4-cagekp. Sector Ops' two extra nodes,
     `sync-s4-ess-board` (Vault darkens the NOC and the security room, 25 s) and `sync-s4-yard-board` (the compound flood,
     20 s), are optional openers: no step needs them, so no objective names them.
@@ -118,20 +124,18 @@ Approve this beat chart?
   room, hall, cage.
 - MissionDef fields kept in the graph for EN2: cr-3a has `target` #14 Dunmore, `decoys` #15 Pryce and `bolt`
   (28, 0, 45.8). cr-3b has `window` 30 and `soloWindow` 90. Tracks: Relay owns the roof deck by height (y >= 7.3, EN2).
-- Validator (mission-validator 4ea5d26bf, the five plan graphs + this file): 4 errors, 120 warnings. The 4 errors and
-  118 of the warnings are the campus graphs' own (the run without a mission gives the same 4 / 118). The 4 errors are
-  Sector Ops' S2 sync ids (see Split Shift's Graph notes), not this mission's. Mission errors 0, mission warnings 2:
-  - A solo player carries 3 rules. This is by design and named in the briefing; the sign-off offers the 2-rule option.
-  - "No choke node" in S4. The colonnade (s4-cc) is the exit and the choke itself (K3), reached from both the battery
-    room and the UPS room: the two tracks meet at the exit (A16).
-  - In the campus 118: "exfil 's4-cc' is not in the last section S5". That is the map's spine check, which reads the five
-    files as one walk that ends in S5. It is right for that walk, so the validator is not changed for it. Sector Ops can
-    name s4-cc in an S4 `tracks.exfil` instead of the tag, as S2 does: the mission check reads that now, and this WARN goes.
-  - The first pass's other warnings are gone: the extraction is tagged, and the choke check covers only S4.
+- Validator (mission-validator 4ea5d26bf, the five plan graphs at fe3ef35f + this file): 0 errors, 120 warnings: 119
+  campus-own (the run without a mission gives 0 / 119), 0 mission errors, 1 mission warning:
+  - "No choke node" in S4. The colonnade (s4-cc) is the exit and the choke itself (the colonnade sentry), reached from
+    both the battery room and the UPS room: the two tracks meet at the exit (A16).
+  - Gone: the solo-carries-3-rules warning (2 rules now), the campus "exfil 's4-cc' is not in the last section S5"
+    (Sector Ops moved the exfil to `tracks.exfil`), and the first pass's others (the choke check covers only S4).
 - Plans: one per storey, `scripts/graph-svg.mjs` over Sector Ops' `S4-plan-<y>.svg` (`--base-bounds -16,10,46,54`),
-  drawn from the plan graph's real `area` boxes. A scratch render copy only wraps each `area` box as a one-box list
-  (graph-svg reads a list), keeps one storey's spaces, links and nodes, and colours the teams as Sector Ops' S4 plan
-  does (orange Relay, blue Vault).
+  drawn from the plan graph's real `area` boxes, all at fe3ef35f (plan graph `git show
+  origin/feature/sector-redesign-signoff:docs/sector-redesign/graph/plan/campusOps-S4.json`, base SVGs from
+  `docs/sector-redesign/signoff/`). A scratch render copy only wraps each `area` box as a one-box list (graph-svg reads
+  a list), keeps one storey's spaces, links and nodes, and colours the teams as Sector Ops' S4 plan does (orange Relay,
+  blue Vault).
   - `PLAN-0.svg`: the ground floor, every step but 1A and 3A.
   - `PLAN-3.6.svg`: the NOC mezzanine (3A), with the plenum (3.2) and the cable baskets (4.4).
   - `PLAN-7.3.svg`: the roof deck (1A), now its full box over the block on its own storey.

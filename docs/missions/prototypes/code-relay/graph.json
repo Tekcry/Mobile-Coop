@@ -1,11 +1,11 @@
 {
-  "_about": "Code Relay mission nodes (mission-framework CR). Mission part only: validate with Sector Ops' campus plan graphs, `node scripts/level-validate.mjs docs/sector-redesign/graph/plan/campusOps-S{1,2,3,4,5}.json <this file>` (mission-validator branch). Space and sync ids are Sector Ops' (origin/feature/sector-redesign-signoff 6b13cd32, graph/plan/campusOps-S4.json `syncs`; s4-cc carries the `exfil` tag there). `sync` on an objective names the campus sync node the step uses; `target`, `decoys`, `bolt`, `window`, `soloWindow` are MissionDef fields (PLAN section 2), not validator fields. Beat chart: BEAT.md; notes: BEAT.md 'Graph notes'.",
+  "_about": "Code Relay mission nodes (mission-framework CR). Mission part only: validate with Sector Ops' campus plan graphs, `node scripts/level-validate.mjs docs/sector-redesign/graph/plan/campusOps-S{1,2,3,4,5}.json <this file>` (mission-validator branch). Space and sync ids are Sector Ops' (origin/feature/sector-redesign-signoff fe3ef35f, graph/plan/campusOps-S4.json `syncs`; the extraction s4-cc is that file's `tracks.exfil`, not a space tag). Rules: 2 (Michael's cap); the 3-rule variant with Vault's noBodies is the sign-off's option 2, not in this file. `sync` on an objective names the campus sync node the step uses; `target`, `decoys`, `bolt`, `window`, `soloWindow` are MissionDef fields (PLAN section 2), not validator fields. Beat chart: BEAT.md; notes: BEAT.md 'Graph notes'.",
   "mission": { "id": "codeRelay", "mode": "sector", "players": [1, 2, 3, 4], "start": "s4-dock", "budget": 17 },
   "objectives": [
     { "id": "cr-1a", "section": "S4", "space": "s4-deck", "team": "a", "kind": "intel", "gives": "s4-noc-duty",
       "lead": "s4-yard", "seen_from": "s4-yard", "minutes": 4,
-      "text": "Over the generator compound and up the plant ladder; hear who has the NOC tonight",
-      "hint": "The ladder is on the building's east wall. The dog walks the other side of the tanks." },
+      "text": "Over the generator compound to the roof deck (a leg-up onto the plant ladder, or alone up the cable riser); hear who has the NOC tonight",
+      "hint": "The plant ladder is on the east wall: one gives the other a leg-up. Alone, the riser door at the compound's dark north end takes the dock code." },
     { "id": "cr-1b", "section": "S4", "space": "s4-dock", "team": "b", "kind": "intel", "gives": "s4-codes",
       "lead": "s4-lobby", "seen_from": "s4-lobby", "minutes": 2, "sync": "sync-s4-dockboard",
       "text": "Read the dock board for the door codes, between the dock pair's trips",
@@ -39,12 +39,11 @@
       "hint": "The footage is on the desk. It takes longer than a loop. Do it when the room is quiet." },
     { "id": "cr-5", "section": "S4", "space": "s4-cc", "team": "all", "kind": "extract", "after": ["cr-3b", "cr-4"],
       "minutes": 3, "text": "Everyone out through the UPS room and down the colonnade",
-      "hint": "The UPS room door is in the hall's north-west corner. K3 faces east, into the corridor." }
+      "hint": "The UPS room door is in the hall's north-west corner. The colonnade sentry faces east, into the corridor." }
   ],
   "rules": [
     { "kind": "noAlarms", "scope": "mission", "text": "Rule - no alarms" },
-    { "kind": "namedTarget", "scope": "a", "step": "cr-3a", "text": "Team Relay - question only the duty officer" },
-    { "kind": "noBodies", "scope": "b", "text": "Team Vault - no bodies found" }
+    { "kind": "namedTarget", "scope": "a", "step": "cr-3a", "text": "Team Relay - question only the duty officer" }
   ],
   "tracks": [
     { "team": "a", "name": "Relay", "zones": ["yard", "deck", "nc", "sec", "noc"],

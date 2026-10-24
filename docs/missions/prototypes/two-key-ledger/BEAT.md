@@ -1,8 +1,8 @@
 # Two-Key Ledger - beat chart (campaign prototype, 2 players)
 
 Map: Tallow Wharf (A18). Route W2 arcade lofts -> W3 counting house -> W4 wharf sheds (`mission.start` = W2).
-Sources: PLAN 2 (step kinds, rules, `sync`), PLAN 4a (kit), audit 4-5, research 3 (bank vault, Palisade, two-key
-concept 4), `docs/story.md`.
+Sources: PLAN 2 (step kinds, rules, `sync`), PLAN 4a (kit), audit 4-5, research 3, concept 4,
+`docs/story.md`.
 
 ## Premise
 Gaunt & Lisle has kept the wharf's books since before the canal had a name. Someone paid for Halcyon's failover
@@ -25,7 +25,7 @@ rates, and they go home tonight. Night Shift takes the ledger and leaves nobody 
 | 1 | W2 | 4 | intel | Listen to the night clerk on his supper break in the pie shop loft | Overheard: the clerk on the loft telephone ("East gate's the founding year again. On the brass."); landmark: the brass plate over Gaunt & Lisle's door, seen from the loft window | Boost then pull-up (arcade ground -> loft walkway: west pier, then the east lip); throw over the arcade lane (loft roof -> counting house roof, the W2 exit) | - | gives `tkl-gate-code` (the founding year) |
 | 2 | W3 | 4 | exploit | Into the counting house: the east gate by the yard, the west wing from the roof | Landmark: the copper clock turret over the roof; the code from the brass plate | - (W3's forced move is step 4's vent unlock; A drops 4.2 m through the light-well lantern onto the west wing gallery) | - (the pair splits for the first time) | needs `tkl-gate-code` (east gate keypad) |
 | 3 | W3 | 5 | sync | Turn both strongroom keys together: the east wing key post and the west wing key post | Document: the brass notice at each post ("Both keys. Together. By order of the partners."); TALLY counts | (the split from step 2 puts one player in each wing) | Synced key turn: both hold a key, a shared 3-count, both turn within 1.0 s | - |
-| 4 | W3 | 4 | carry (twist) | Take the ledger from the strongroom and leave by the coal chute to the yard | Landmark: the coal chute's iron door in the strongroom passage; the porter's lodge lamp coming on | Vent unlock (boost into the coal chute, unbolt the yard hatch from the far side) | Tell-tale bell: a device that sends a guard to it | - |
+| 4 | W3 | 4 | carry (twist) | Take the ledger from the strongroom and leave by the coal chute to the yard | Landmark: the coal chute's iron door in the strongroom passage; the porter's lodge lamp coming on | Vent unlock (boost into the coal chute, out by the yard hatch, unbar the coal yard door for the booster) | Tell-tale bell: a device that sends a guard to it | - |
 | 5 | W4 | 3 | extract | Both of you, through the wharf sheds to the boat at the jetty steps | Landmark: the crane's red lamp over the jetty | Hold shutter (shed two loading shutter); pull-up (canal ledge -> jetty lip) | - | - |
 
 - **Twist (step 4):** the open strongroom rings an old tell-tale bell in the porter's lodge. The porter walks from the
@@ -43,14 +43,16 @@ rates, and they go home tonight. Night Shift takes the ledger and leaves nobody 
   A heard the code, only B types it.
 - Step 3 (swap point): both turn a key at once, A west, B east; the strongroom between the wings opens.
 - Steps 4-5: **B = Ears** (watches the porter from the strongroom passage grille and calls him: "Corridor. Thirty
-  seconds."); **A = Hands** (carries the ledger; boosted by B into the coal chute, unbolts the yard hatch for B). At the
-  sheds B lifts the loading shutter for A, A pulls B up the jetty lip.
+  seconds."); **A = Hands** (carries the ledger; boosted by B into the coal chute, crawls to the yard hatch, unbolts it
+  and climbs down into the coal yard, then unbars the coal yard door; B comes out of the passage through that door). At
+  the sheds B lifts the loading shutter for A, who crawls through shed two to the jetty; B goes round by the shed yard
+  and the quay ladder to the canal ledge, and A pulls B up the jetty lip.
 
 ## Hint lines (Settings > Gameplay > Hints, off by default)
 1. The night clerk eats in the pie shop loft. Listen from the loft walkway outside.
 2. The founding year is on the brass plate over the front door. The east gate takes it.
 3. Each of you holds a key. Turn when the count says turn, not before.
-4. The coal chute is in the strongroom passage. One boosts, the other unbolts the yard hatch.
+4. The coal chute is in the strongroom passage. One boosts, the other crawls out by the yard hatch and unbars the coal yard door.
 5. The boat waits at the jetty steps under the crane. The shed shutter is the way through.
 
 ## Radio (text now, voiceable later; each line <= 90 characters)

@@ -9,8 +9,9 @@
 ![Three Grey Coats plan](PLAN.svg)
 
 ## Intent check
-1. Michael asked (2026-10-24 ~22:12, decision 4): the first campaign prototypes are Three Grey Coats and Two-Key Ledger,
-   2 players, strictly co-op, on a new small map (M3, M4).
+1. Michael said (2026-10-24 ~22:45): "All campaign missions are strictly coop and cannot be completed solo, must have
+   forced coop traversal to proceed". At ~22:12 he picked Three Grey Coats and Two-Key Ledger as the first campaign
+   prototypes, and at ~22:50 put them on a new small map: "If it's ready before I'm awake, continue to make progress".
 2. What this is: a 2-player night mission across Tallow Wharf (about 20 min). Three couriers in the same grey coat
    leave the canal market. The players work out which one is Pell's, question him quietly in the arcade lofts, and
    take the cipher from a tea chest in shed three.
@@ -20,8 +21,10 @@
    - **2. W1 (4 min):** split leads. The one on the gallery reads the warden's tally book. The one on the floor listens
      to the porters at the tea stall. Together the two halves point to the black umbrella. Out through the fish hall
      shutter: one holds it, the other crawls under.
-   - **3. W2 lofts (5 min):** a boost and the rope onto the loft walkway, a throw over the lightwell, then question
-     Teale in the reading room. He says: "Shed three. Candle on the lid."
+   - **3. W2 lofts (5 min):** a boost and the rope onto the loft walkway, a throw over the lightwell, then one player
+     questions Teale in the reading room while the other watches from the arcade roof. He says: "Shed three. Candle on
+     the lid." The only way back out is down the lit public stair; the watcher calls it clear, then pulls the other back
+     up onto the walkway, and both climb through the corner loft to the arcade roof.
    - **Crossing W3 (no step):** a throw over the arcade lane onto the counting-house roof, down the fire escape into the
      east wing, then the coal chute: one is boosted in, unbolts the yard hatch and unbars the yard door for the other.
      Both come out in the coal yard, then the cartway to the wharf lane.
@@ -29,16 +32,16 @@
      then climbs the crane to the gantry to watch. Teale's two minders arrive and walk the yard. The cipher was in the
      chest all along.
    - **5. W4 (3 min):** both get to the boat under the crane's red lamp. A pull-up gets the second player from the canal
-     ledge onto the jetty.
+     ledge onto the jetty; the gangway is the quiet way aboard.
    - **Optional (W2, 2 min):** read Pell's courier rota in the pawnbroker's loft. Reward: one extra gadget charge.
 4. Rule (1, the whole mission): "Rule - question only Pell's courier." It is the last line of the briefing and sits
    under the title in the objective list. Questioning a decoy (Fenn or Garrow), or killing Teale before he talks,
-   breaks it. LANTERN says the line, and the team goes back to the W2 checkpoint. Teale is now unalerted in the
+   breaks it. LANTERN says the line, and the team goes back to the arcade checkpoint. Teale is now unalerted in the
    clock-mender's back loft, so the retry needs a new route. No markers: the objective lines name the places, and the
    hint layer is off by default.
-5. What it costs: paper only until you pick. After that, the mission data goes on the wharf (GB5), and the restart
-   needs one engine exception: it has to keep the "spooked" flag (EN2). Validator: 0 errors, 6 warnings, all on the
-   map's own custom-size spaces (BEAT.md Graph notes).
+5. What it costs: paper only until you pick. After that, the mission is wired into the wharf greybox (the guards and
+   missions slice), and the section restart needs one engine exception: it has to remember that Teale was spooked.
+   Validator: 0 errors, 6 warnings, all on the map's own custom-size spaces (BEAT.md Graph notes).
 
 ## The decision
 Q: Approve Three Grey Coats as specced?

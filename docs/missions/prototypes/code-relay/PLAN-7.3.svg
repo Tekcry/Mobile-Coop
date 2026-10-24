@@ -188,6 +188,6 @@
 <text x="0" y="67" font-size="9" font-weight="bold">#</text><text x="26" y="67" font-size="9" font-weight="bold">node</text><text x="86" y="67" font-size="9" font-weight="bold">id</text><text x="250" y="67" font-size="9" font-weight="bold">space</text><text x="400" y="67" font-size="9" font-weight="bold">detail</text><line x1="0" y1="71" x2="660" y2="71" stroke="#999" stroke-width="0.5"/>
 <text x="0" y="81" font-size="9" fill="#1f4e9c" font-weight="bold">1</text><text x="26" y="81" font-size="9">objective</text><text x="86" y="81" font-size="9">cr-1a</text><text x="250" y="81" font-size="9">s4-deck</text><text x="400" y="81" font-size="9" fill="#333">intel, team a, S4</text>
 <text x="0" y="94" font-size="9" fill="#0b7a75" font-weight="bold">2</text><text x="26" y="94" font-size="9">lead</text><text x="86" y="94" font-size="9">lead:cr-1a</text><text x="250" y="94" font-size="9" fill="#b00020">s4-yard (not drawn)</text><text x="400" y="94" font-size="9" fill="#333">lead for objective 1 (cr-1a)</text>
-<text x="0" y="113" font-size="9" fill="#333">rules: noAlarms (mission); namedTarget (a); noBodies (b)</text>
+<text x="0" y="113" font-size="9" fill="#333">rules: noAlarms (mission); namedTarget (a)</text>
 </g>
 </svg>
