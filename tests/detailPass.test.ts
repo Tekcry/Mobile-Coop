@@ -16,8 +16,7 @@ describe('map detail pass (3.0)', () => {
       map.build(b, 1);
       const before = [...b.boxes];
       const added = detailPieces(before, map.id, 'epic');
-      // (mission-framework GB0) Tallow Wharf's shell stub has few exposed walls until its sections are built (GB1-GB4)
-      expect(added.length, map.id).toBeGreaterThan(map.id === 'tallowWharf' ? 0 : 20);
+      expect(added.length, map.id).toBeGreaterThan(20);
       expect(added.every((p) => !p.collide && p.noLedge && p.detail)).toBe(true);
       const after = [...before, ...added];
       // (piece ids of the cylinders shift past the added boxes; the faces themselves must match)

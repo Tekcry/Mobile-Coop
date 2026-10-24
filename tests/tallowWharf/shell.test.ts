@@ -15,7 +15,7 @@ import { W2 } from '../../src/world/maps/tallowWharfW2';
 import { W3 } from '../../src/world/maps/tallowWharfW3';
 import { W4 } from '../../src/world/maps/tallowWharfW4';
 import { duct, DUCT, SECTION_BOX, SECTION_IDS, STANDIN_TAGS, standIn, screen, WHARF_BOUNDS } from '../../src/world/maps/tallowWharfKit';
-import { builtWharf, GRAPH, linksOf, pullCheck, ropeCheck, solidOf, space, spacesIn, throwCheck } from './helpers';
+import { builtWharf, downHit, GRAPH, linksOf, pullCheck, ropeCheck, solidOf, space, spacesIn, throwCheck } from './helpers';
 
 const top = (p: BoxPiece): number => p.c[1] + p.s[1] / 2;
 const bottom = (p: BoxPiece): number => p.c[1] - p.s[1] / 2;
@@ -100,6 +100,23 @@ describe('tallowWharf: the map', () => {
       for (const s of spacesIn(id))
         for (const [x0, z0, x1, z1] of s.area) expect(x0 >= bx0 && z0 >= bz0 && x1 <= bx1 && z1 <= bz1, `${s.id} in ${id}`).toBe(true);
     }
+  });
+});
+
+describe('tallowWharf: the ladders', () => {
+  it('every ladder tops out on a floor: within 0.05 of top.y at top + 0.4 along its facing (the climb\'s LADDER_TOPOUT_IN)', () => {
+    const { b } = builtWharf();
+    const solid = solidOf(b);
+    const ladders = b.anchors.ladders;
+    expect(ladders.length).toBeGreaterThanOrEqual(4);
+    const bad: string[] = [];
+    for (const l of ladders) {
+      const x = l.top.x + Math.sin(l.facing) * 0.4;
+      const z = l.top.z + Math.cos(l.facing) * 0.4;
+      const f = downHit(solid, x, l.top.y + 1, z, l.top.y - 1);
+      if (!(Math.abs(f - l.top.y) <= 0.05)) bad.push(`ladder (${l.base.x}, ${l.base.z}) top ${l.top.y}: floor ${f} at (${x.toFixed(2)}, ${z.toFixed(2)})`);
+    }
+    expect(bad).toEqual([]);
   });
 });
 

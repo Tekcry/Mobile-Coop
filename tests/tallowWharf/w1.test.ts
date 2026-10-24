@@ -11,6 +11,7 @@ import { STANDIN_TAGS } from '../../src/world/maps/tallowWharfKit';
 import {
   anchorsOf,
   builtWharf,
+  climbRoom,
   COOP_BAND,
   GRAPH,
   legUpTarget,
@@ -30,13 +31,16 @@ const box = [0, 6, 40, 62] as const;
 const inBox = (x: number, z: number): boolean => x >= box[0] && x <= box[2] && z >= box[1] && z <= box[3];
 
 describe('W1 sizes against the graph', () => {
-  it('has one room per W1 graph space (7), with the graph area and storey', () => {
+  /** The listed deviations from the graph's area: the tea stall stops at z 14 (rooms may not overlap; the graph box runs into the market). */
+  const OVERRIDE: Record<string, [number, number, number, number]> = { 'w1-tea-stall': [12, 6, 20, 14] };
+
+  it('has one room per W1 graph space (7), with the graph area (the tea stall is the listed deviation) and storey', () => {
     expect(W1.rooms).toHaveLength(7);
     expect(spacesIn('W1')).toHaveLength(7);
     for (const s of spacesIn('W1')) {
       const r = W1.rooms.find((p) => p.id === s.id);
       expect(r, s.id).toBeDefined();
-      const a = s.area[0]!;
+      const a = OVERRIDE[s.id] ?? s.area[0]!;
       expect(r!.minX).toBeCloseTo(a[0], 2);
       expect(r!.minZ).toBeCloseTo(a[1], 2);
       expect(r!.maxX).toBeCloseTo(a[2], 2);
@@ -47,7 +51,8 @@ describe('W1 sizes against the graph', () => {
   });
 
   it('lists its deviations, and the map carries the rooms', () => {
-    expect(W1.deviations.map((d) => d.space).sort()).toEqual(['w1-gallery', 'w1-warden-office']);
+    expect(W1.deviations.map((d) => d.space).sort()).toEqual(['w1-gallery', 'w1-tea-stall', 'w1-warden-office']);
+    for (const id of Object.keys(OVERRIDE)) expect(W1.deviations.some((d) => d.space === id), id).toBe(true);
     for (const r of W1.rooms) expect(layout.rooms!.some((p) => p.id === r.id)).toBe(true);
     expect(GRAPH.meta.section_info.W1!.box).toEqual([0, 6, 40, 62]);
   });
@@ -75,6 +80,8 @@ describe('W1 boost lips (C1)', () => {
       expect((spot.x - lip.a.x) * lip.n.x + (spot.z - lip.a.z) * lip.n.z).toBeGreaterThan(0);
       expect(roomForBoost(solid, spot, spot.facing)).toBe(true);
       expect(soloJumpThreats(solid, lip)).toEqual([]);
+      // the climb-up off the lip has a standing body's room inside the face (AttachController.climbRoom)
+      expect(climbRoom(solid, lip)).toEqual([]);
     });
   }
 

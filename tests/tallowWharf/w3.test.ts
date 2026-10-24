@@ -15,6 +15,7 @@ import { SECTION_BOX } from '../../src/world/maps/tallowWharfKit';
 import {
   anchorsOf,
   builtWharf,
+  climbRoom,
   COOP_BAND,
   downHit,
   GREY_KEEP_CLEAR,
@@ -31,6 +32,7 @@ import {
 const top = (p: BoxPiece): number => p.c[1] + p.s[1] / 2;
 const bottom = (p: BoxPiece): number => p.c[1] - p.s[1] / 2;
 const lip = W3.lips[0]!;
+const ROOF = 8.4;
 const legUp = W3.legUps[0]!;
 const [BX0, BZ0, BX1, BZ1] = SECTION_BOX.W3;
 const inBox = (x: number, z: number): boolean => x >= BX0 && x <= BX1 && z >= BZ0 && z <= BZ1;
@@ -49,7 +51,7 @@ const ALL_SHUT: ShutDoor[] = Object.values(SHUT);
 
 describe('W3: sizes against the graph', () => {
   const OVERRIDE: Record<string, [number, number, number, number]> = {
-    'w3-chute': [96.5, 50.0, 97.7, 52.3],
+    'w3-chute': [96.5, 50.0, 97.7, 52.0],
     'w3-cartway': [88, 34, 92, 38],
   };
 
@@ -110,6 +112,8 @@ describe('W3: C7, the chute boost', () => {
     expect(Math.min(...sill.map((p) => p.s[2]))).toBeGreaterThanOrEqual(0.6 - 1e-6);
     // wall -> chute floor: continuous top at 4.4 from the wall face (z 52.3) to the hatch (z 50.0)
     for (const z of [52.1, 51.5, 50.8, 50.2]) expect(downHit(solid, 97.1, 5.0, z, 3.0), `z ${z}`).toBeCloseTo(4.4, 6);
+    // the climb-up off the lip has a standing body's room inside the face (AttachController.climbRoom): the 1.9 opening and hood
+    expect(climbRoom(solid, lip)).toEqual([]);
   });
 
   it('the chute interior is at least 1.5 high (a crouch, 1.15, fits) and 1.2 wide; the duct is walled and lidded', () => {
@@ -226,7 +230,7 @@ describe('W3: drops cannot skip C7', () => {
   const { b } = builtWharf();
   const solid = solidOf(b);
 
-  it('the coal-yard drop guard is a collide noLedge screen over x 82-98 at z 52, y 8.4-10.6', () => {
+  it('the coal-yard drop guard is a collide noLedge screen over x 82-100 at z 52, y 8.4-10.6 (over the vestibule too)', () => {
     const g = W3.dropGuards.find((d) => d.id === 'w3-dg-coalyard')!;
     expect(g).toBeDefined();
     expect(g.y).toBeCloseTo(8.4, 9);
@@ -236,9 +240,36 @@ describe('W3: drops cannot skip C7', () => {
     const x0 = Math.min(...boxes.map((p) => p.c[0] - p.s[0] / 2));
     const x1 = Math.max(...boxes.map((p) => p.c[0] + p.s[0] / 2));
     expect(x0).toBeLessThanOrEqual(82 + 1e-6);
-    expect(x1).toBeGreaterThanOrEqual(98 - 1e-6);
+    expect(x1).toBeGreaterThanOrEqual(100 - 1e-6);
     // taller than the 1.8 m mantle: nothing to climb it by
     expect(g.h).toBeGreaterThan(1.8);
+  });
+
+  it('a drop off the roof\'s south edge at x 82-100 never lands on a floor linked to the coal yard: each down-cast from y 9 at z 51.5 is behind an unmantleable screen or reaches no yard floor', () => {
+    const MANTLE = 1.8;
+    // a piece across the roof edge (z 51.4-52.6) from the roof surface to over the mantle: the step off is shut there
+    const screened = (x: number): boolean =>
+      solid.some((p) => Math.abs(x - p.c[0]) < p.s[0] / 2 && p.c[2] - p.s[2] / 2 < 52.6 && p.c[2] + p.s[2] / 2 > 51.4 && bottom(p) <= ROOF + 0.05 && top(p) > ROOF + MANTLE);
+    const { nav, restore } = soloNav(b, 4, W3.navSeeds, ALL_SHUT);
+    try {
+      const bad: string[] = [];
+      for (let x = 82.05; x < 100; x += 0.1) {
+        if (screened(x)) continue;
+        const f = downHit(solid, x, 9, 51.5, -1);
+        if (Number.isFinite(f) && nav.findPath([x, 51.5], [90, 46], 1e6, f, 0) !== null) bad.push(`x ${x.toFixed(2)} lands at ${f.toFixed(2)}`);
+      }
+      expect(bad).toEqual([]);
+      // control: the casts themselves do reach the yard (the vestibule x 98-99.85 included), so it is the screen that holds
+      expect(downHit(solid, 98.9, 9, 51.5, -1)).toBeCloseTo(0, 6);
+      expect(nav.findPath([98.9, 51.5], [90, 46], 1e6, 0, 0)).not.toBeNull();
+    } finally {
+      restore();
+    }
+    // the mantle way round: the fire escape's half landing (top 4.2, x 100.2-101.5) is over the mantle under the dividing wall x 100
+    let wallTop = Infinity;
+    for (let z = 49.2; z < 51.7; z += 0.1) wallTop = Math.min(wallTop, Math.max(...solid.filter((p) => Math.abs(100 - p.c[0]) < p.s[0] / 2 && Math.abs(z - p.c[2]) < p.s[2] / 2 && bottom(p) < 4.2).map(top)));
+    expect(downHit(solid, 100.8, 5, 50.4, 3)).toBeCloseTo(4.2, 6);
+    expect(wallTop - 4.2).toBeGreaterThan(MANTLE);
   });
 
   it('nothing standable floats over the coal yard above 1.5 m except the chute duct (its only exit is the bolted hatch)', () => {

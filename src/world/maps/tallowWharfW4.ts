@@ -29,8 +29,11 @@ const C = {
   hull: '#4a4036',
 };
 
-/** The clerestory sash (shed three's north wall): a 1.2 x 1.2 opening over the boost lip. */
-const SASH = { x0: 78.4, x1: 79.6, y0: 4.4, y1: 5.6 } as const;
+/** The clerestory sash (shed three's north wall): a 1.2 wide x 2.0 high opening over the boost lip (2.0: a standing body's room for the climb-up, `AttachController.climbRoom`). */
+const SASH = { x0: 78.4, x1: 79.6, y0: 4.4, y1: 6.4 } as const;
+/** The sheds' walls run 0-6.7 and their roofs 6.7-7.0 (over the sash head 6.4-6.7). */
+const SHED_TOP = 6.7;
+const SHED_ROOF = 7.0;
 const LIP_ID = 'w4-lip-clerestory';
 const LIP_X = [78.65, 79.35] as const;
 /** Shed north walls: 0.6 thick, centred on z 28 (face at z 28.3). */
@@ -132,30 +135,30 @@ function build(b: LevelBuilder): void {
   b.mark(i0, { noLedge: true });
 
   // ---- shed three (x 72-86): walls, roof, the clerestory sash, the tea-chest stack ----
-  wall(b, false, 72, 9.85, NORTH.face, [[18.4, 19.6]], 0, 6, T, C.wall); // west wall: the yard door at z 19
+  wall(b, false, 72, 9.85, NORTH.face, [[18.4, 19.6]], 0, SHED_TOP, T, C.wall); // west wall: the yard door at z 19
   doorIn(b, false, 72, 19, 0);
-  wall(b, false, 86, 9.85, NORTH.face, [[18.4, 19.6]], 0, 6, T, C.wall); // party wall with shed two: the fire door at z 19
+  wall(b, false, 86, 9.85, NORTH.face, [[18.4, 19.6]], 0, SHED_TOP, T, C.wall); // party wall with shed two: the fire door at z 19
   doorIn(b, false, 86, 19, 0);
-  wall(b, true, 10, 72, 86, [[77.5, 80.5]], 0, 6, T, C.wall, 3.0); // south wall: the sliding loading door (3.0 wide)
+  wall(b, true, 10, 72, 86, [[77.5, 80.5]], 0, SHED_TOP, T, C.wall, 3.0); // south wall: the sliding loading door (3.0 wide)
   b.door(77.5, 0, 10, 3, PI / 2, { height: 3, leaf: 'slide' });
-  // north wall: 0-4.4 all along (the lip's face), over it 4.4-6 but the sash
+  // north wall: 0-4.4 all along (the lip's face), over it 4.4-6.7 but the sash
   bx(b, 72, 86, 0, SASH.y0, NORTH.at - OUTER / 2, NORTH.face, C.wall);
-  bx(b, 72, SASH.x0, SASH.y0, 6, NORTH.at - OUTER / 2, NORTH.face, C.wall);
-  bx(b, SASH.x1, 86, SASH.y0, 6, NORTH.at - OUTER / 2, NORTH.face, C.wall);
-  bx(b, SASH.x0, SASH.x1, SASH.y1, 6, NORTH.at - OUTER / 2, NORTH.face, C.wall);
-  bx(b, 71.85, 86.15, 6.0, 6.3, 9.85, NORTH.face, C.roof);
-  bx(b, 74, 84, 6.3, 6.9, 24, 26, C.glaze, false); // north-light glazing (visual)
+  bx(b, 72, SASH.x0, SASH.y0, SHED_TOP, NORTH.at - OUTER / 2, NORTH.face, C.wall);
+  bx(b, SASH.x1, 86, SASH.y0, SHED_TOP, NORTH.at - OUTER / 2, NORTH.face, C.wall);
+  bx(b, SASH.x0, SASH.x1, SASH.y1, SHED_TOP, NORTH.at - OUTER / 2, NORTH.face, C.wall);
+  bx(b, 71.85, 86.15, SHED_TOP, SHED_ROOF, 9.85, NORTH.face, C.roof);
+  bx(b, 74, 84, SHED_ROOF, SHED_ROOF + 0.6, 24, 26, C.glaze, false); // north-light glazing (visual)
   bx(b, 77.5, 80.5, 0, 2.0, 25.5, 27.7, C.crate); // the tea-chest stack under the sash: the way down
   // the planned lip: a manual ledge on the noLedge wall face, x 78.65-79.35, top 4.4, normal +z (the lane)
   b.ledge(LIP_X[1], NORTH.face, LIP_X[0], NORTH.face, 4.4, { drop: 4.4, canHang: true, canClimbUp: true });
 
   // ---- shed two (x 86-100): the reserved shutter in the north wall, the canal door in the south wall ----
-  wall(b, true, NORTH.at, 86, 100, [[90.5, 93.5]], 0, 6, OUTER, C.wall, 3.0);
+  wall(b, true, NORTH.at, 86, 100, [[90.5, 93.5]], 0, SHED_TOP, OUTER, C.wall, 3.0);
   standIn(b, W4_SHUTTER);
-  wall(b, true, 10, 86, 100, [[92.4, 93.6]], 0, 6, T, C.wall);
+  wall(b, true, 10, 86, 100, [[92.4, 93.6]], 0, SHED_TOP, T, C.wall);
   doorIn(b, true, 10, 93, 0);
-  bx(b, 85.85, 100, 6.0, 6.3, 9.85, NORTH.face, C.roof);
-  bx(b, 88, 98, 6.3, 6.9, 24, 26, C.glaze, false);
+  bx(b, 85.85, 100, SHED_TOP, SHED_ROOF, 9.85, NORTH.face, C.roof);
+  bx(b, 88, 98, SHED_ROOF, SHED_ROOF + 0.6, 24, 26, C.glaze, false);
 
   // ---- the crane gantry (y 10) over the yard and shed three, its north arm, the ladders ----
   bx(b, 48, 85.2, Y.gantry - 0.3, Y.gantry, 15, 19, C.steel);
@@ -226,6 +229,7 @@ export const W4: WharfSection = {
     { space: 'w4-canal-ledge', why: 'the bed is one walkable slab over the whole W4 canal (x 44-120, z 0-6); the room keeps the graph area' },
     { space: 'w4-gantry', why: 'the walkway runs to x 85.2 so the north arm (x 84-85.2, z 19-29.4, caged) joins it; the arm ladder (84.6, 29.85) is 5.0 m from the clerestory lip; the graph marker (74, 0, 24.5) moves. Ladders are placed by the engine convention (the climber faces the wall: the quay ladder at (58, 5.55) facing +z, the yard leg at (60, 14.55) facing +z, the arm ladder facing -z), not the brief\'s outward-facing yaws' },
     { space: 'w4-shed-two', why: 'the shutter marker (87.5, 0, 25.5) moves to the wall opening at x 92' },
+    { space: 'w4-shed-three', why: 'the clerestory sash is 1.2 x 2.0 (y 4.4-6.4), not 1.2 x 1.2, and the shed walls run to 6.7 (roofs 6.7-7.0, both sheds): the climb-up off the lip needs a standing body\'s room (AttachController.climbRoom)' },
     { space: 'w4-jetty', why: 'the gangway and the jetty steps are one element (a stair x 86.75-89.25 down to the boat deck at -1)' },
     { space: 'w4-boat', why: 'the gangway and the jetty steps are one element (a stair x 86.75-89.25 down to the boat deck at -1)' },
   ],

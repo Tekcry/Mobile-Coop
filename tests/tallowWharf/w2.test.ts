@@ -8,7 +8,7 @@ import type { BoxPiece } from '../../src/world/levelBuilder';
 import { TEAM, WALL_JUMP } from '../../src/config/movement';
 import { W2 } from '../../src/world/maps/tallowWharfW2';
 import { SECTION_BOX } from '../../src/world/maps/tallowWharfKit';
-import { anchorsOf, builtWharf, COOP_BAND, downHit, GREY_KEEP_CLEAR, legUpTarget, onPlannedLip, pullCheck, roomForBoost, ropeCheck, soloJumpThreats, soloNav, solidOf, space, spacesIn, throwCheck } from './helpers';
+import { anchorsOf, builtWharf, climbRoom, COOP_BAND, downHit, GREY_KEEP_CLEAR, legUpTarget, onPlannedLip, pullCheck, roomForBoost, ropeCheck, soloJumpThreats, soloNav, solidOf, space, spacesIn, throwCheck } from './helpers';
 
 const { b } = builtWharf();
 const solid = solidOf(b);
@@ -66,6 +66,8 @@ describe('W2: C3, the walkway (boost, pull, rope)', () => {
     expect(roomForBoost(solid, u, u.facing)).toBe(true);
     // the spot is on the lip's approach side, 0.5 m off the pier's face
     expect(Math.abs(u.z - (lip.a.z + lip.n.z * 0.5))).toBeLessThan(1e-9);
+    // the climb-up off the lip has a standing body's room inside the face (AttachController.climbRoom)
+    expect(climbRoom(solid, lip)).toEqual([]);
   });
 
   it('pull: pullCheck is ok for the east lip (band 4.5, an open edge, the catch point in reach)', () => {
@@ -95,14 +97,6 @@ describe('W2: C3, the walkway (boost, pull, rope)', () => {
 });
 
 describe('W2: the throws (C4 lightwell x2, C5 lane)', () => {
-  /** W3's corner-bay roof stage (GB3) when the merged map has no floor at the lane landing yet: a stand-in box, top 8.4. */
-  const withStage = (t: (typeof W2.throws)[number]): readonly BoxPiece[] => {
-    const probe = throwCheck(solid, t);
-    if (Number.isFinite(probe.floorY)) return solid;
-    const [x0, z0, x1, z1] = t.stage;
-    return [...solid, { c: [(x0 + x1) / 2, t.thrower.y - 0.1, (z0 + z1) / 2], s: [x1 - x0, 0.2, z1 - z0], yaw: 0, pitch: 0, color: '#000', collide: true, visible: true, noLedge: true }];
-  };
-
   it('has the three throws, each a 2.5 m level gap (landing 3.2 m past the thrower)', () => {
     expect(W2.throws.map((t) => t.id)).toEqual(['w2-throw-pawn', 'w2-throw-pie', 'w2-throw-lane']);
   });
@@ -110,7 +104,8 @@ describe('W2: the throws (C4 lightwell x2, C5 lane)', () => {
   for (const id of ['w2-throw-pawn', 'w2-throw-pie', 'w2-throw-lane']) {
     it(`${id}: throwLandingOk, floor within throwDrop, head room, clear arc, clear air over the thrower, landing inside the stage`, () => {
       const t = W2.throws.find((q) => q.id === id)!;
-      const r = throwCheck(withStage(t), t);
+      // (the lane throw lands on W3's real corner-bay roof: the merged map has every section, no stand-in)
+      const r = throwCheck(solid, t);
       expect(r.ok).toBe(true);
       expect(Math.abs(r.floorY - t.thrower.y)).toBeLessThanOrEqual(TEAM.throwDrop);
       expect(r.head).toBeGreaterThanOrEqual(1.2);
@@ -225,8 +220,16 @@ describe('W2: no solo bypass, the reverse lightwell jump closed', () => {
       expect(nav.findPath([42, 55], [60, 60.5], 1e6, 0, 4.5)).toBeNull();
       expect(nav.findPath([42, 55], [46, 66], 1e6, 0, 4.5)).toBeNull();
       expect(nav.findPath([42, 55], [60, 66], 1e6, 0, 4.5)).toBeNull();
-      // control: the walkway -> lane-window loft leg is open (the ladder leg to the roof is not in the nav grid)
-      expect(nav.findPath([60, 60.5], [72, 66], 1e6, 4.5, 4.5)).not.toBeNull();
+      // control, the roof route: the walkway reaches the hatch ladder's foot in the lane-window loft (the climber's spot, the
+      // standoff off the line), the ladder tops out on the roof slab, and the roof reaches the exit (the ladder is not in the nav grid)
+      const ladder = b.anchors.ladders.find((l) => Math.abs(l.base.x - 72) < 1e-6 && Math.abs(l.base.y - 4.5) < 1e-6)!;
+      expect(ladder).toBeDefined();
+      const fx = Math.sin(ladder.facing);
+      const fz = Math.cos(ladder.facing);
+      expect(nav.findPath([60, 60.5], [ladder.base.x - fx * 0.32, ladder.base.z - fz * 0.32], 1e6, 4.5, 4.5)).not.toBeNull();
+      const out = { x: ladder.top.x + fx * 0.4, z: ladder.top.z + fz * 0.4 };
+      expect(downHit(solid, out.x, ladder.top.y + 1, out.z, ladder.top.y - 0.3)).toBeCloseTo(8.4, 6);
+      expect(nav.findPath([out.x, out.z], [W2.exit[0], W2.exit[2]], 1e6, 8.4, 8.4)).not.toBeNull();
     } finally {
       restore();
     }
@@ -250,10 +253,13 @@ describe('W2: no solo bypass, the reverse lightwell jump closed', () => {
     expect(hole(72, 66)).toBe(false);
     expect(hole(70, 66)).toBe(true);
     expect(hole(74, 66)).toBe(true);
-    const ladder = b.anchors.ladders.find((l) => Math.abs(l.base.x - 72) < 1e-6 && Math.abs(l.base.z - 65.3) < 1e-6);
+    const ladder = b.anchors.ladders.find((l) => Math.abs(l.base.x - 72) < 1e-6 && Math.abs(l.base.z - 66.15) < 1e-6);
     expect(ladder).toBeDefined();
     expect(ladder!.base.y).toBeCloseTo(4.5, 9);
     expect(ladder!.top.y).toBeCloseTo(8.4, 9);
+    // the top at the hole's north edge (z 66.6), the foot over the loft floor
+    expect(ladder!.top.z).toBeCloseTo(66.6, 6);
+    expect(downHit(solid, ladder!.base.x, 5.5, ladder!.base.z - 0.32, 4.2)).toBeCloseTo(4.5, 6);
   });
 
   it('the taking-in doors: no collide box outside the door plane gives a standable top (z 70-70.6, the door x range, y 4.3-4.7)', () => {

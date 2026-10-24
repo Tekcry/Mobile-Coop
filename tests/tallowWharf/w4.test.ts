@@ -10,7 +10,7 @@ import type { BoxPiece } from '../../src/world/levelBuilder';
 import { TEAM, WALL_JUMP } from '../../src/config/movement';
 import { PULL } from '../../src/game/kit/pullUp';
 import { SECTION_BOX, STANDIN_TAGS } from '../../src/world/maps/tallowWharfKit';
-import { anchorsOf, builtWharf, COOP_BAND, GREY_KEEP_CLEAR, legUpTarget, onPlannedLip, pullCheck, roomForBoost, soloJumpThreats, soloNav, solidOf, space, spacesIn } from './helpers';
+import { anchorsOf, builtWharf, climbRoom, COOP_BAND, GREY_KEEP_CLEAR, legUpTarget, onPlannedLip, pullCheck, roomForBoost, soloJumpThreats, soloNav, solidOf, space, spacesIn } from './helpers';
 import { W4, W4_DROP_GUARDS, W4_GUARD_GAPS, W4_LIP, W4_PULL, W4_SHUTTER } from '../../src/world/maps/tallowWharfW4';
 
 const { b } = builtWharf();
@@ -66,10 +66,12 @@ describe('W4 C9: the clerestory boost', () => {
     expect(l.top).toBeCloseTo(4.4, 6);
     expect(l.nz).toBeGreaterThan(0.99);
     expect(roomForBoost(solid, SPOT, SPOT.facing)).toBe(true);
+    // the climb-up off the lip has a standing body's room inside the face (AttachController.climbRoom): the 2.0 sash, the 6.7 roof
+    expect(climbRoom(solid, W4_LIP)).toEqual([]);
   });
 
-  it('the sash is open (a 1.2 wide gap at 4.4-5.6) and the tea-chest stack under it is 2.0 and noLedge', () => {
-    const wallPieces = solid.filter((p) => inRect(p, 78.45, 79.55, 27.75, 28.25) && bottom(p) > 4.39 && top(p) < 5.61);
+  it('the sash is open (a 1.2 wide gap at 4.4-6.4) and the tea-chest stack under it is 2.0 and noLedge', () => {
+    const wallPieces = solid.filter((p) => inRect(p, 78.45, 79.55, 27.75, 28.25) && top(p) > 4.41 && bottom(p) < 6.39);
     expect(wallPieces).toEqual([]);
     const stack = solid.find((p) => Math.abs(p.c[0] - 79) < 0.01 && Math.abs(p.s[0] - 3) < 1e-6 && Math.abs(p.c[2] - 26.6) < 0.01);
     expect(stack).toBeDefined();

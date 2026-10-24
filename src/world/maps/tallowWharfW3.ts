@@ -37,7 +37,10 @@ const UNDER = 8.1;
 /** A low ceiling's underside: the wings, the hall, the strongroom, the posts and the office. */
 const CEIL = 3.3;
 const YARD_WALL = 6.0;
+const YARD_WALL_DIVIDE = 6.5;
 const PASSAGE_CEIL = 6.0;
+/** The chute opening's head and the hood's underside over the lip (4.4 + 1.9: a standing body's room for the climb-up). */
+const CHUTE_HEAD = 6.3;
 const COLOUR_MOON: [number, number, number] = [0.7, 0.8, 1];
 const COLOUR_WARM: [number, number, number] = [1, 0.85, 0.6];
 
@@ -48,8 +51,9 @@ export const W3_KEY_POSTS = { east: [109, 0, 76.4], west: [88, 0, 76.4] } as con
 const LIP_CHUTE: CoopLip = { id: 'w3-lip-chute', y: 4.4, floor: 0, a: { x: 96.75, z: 52.3 }, b: { x: 97.45, z: 52.3 }, n: { x: 0, z: 1 } };
 const LEGUP_CHUTE = { lip: 'w3-lip-chute', x: 97.1, y: 0, z: 53.2, facing: { x: 0, z: -1 } } as const;
 
-/** The roof's coal-yard edge: a solid screen over the 1.8 m mantle with no lip (a drop onto the yard would skip C7). */
-const DG_COALYARD: DropGuard = { id: 'w3-dg-coalyard', a: { x: 82, z: 52 }, b: { x: 98, z: 52 }, y: ROOF_Y, h: 2.2 };
+/** The roof's coal-yard edge: a solid screen over the 1.8 m mantle with no lip (a drop onto the yard would skip C7). It runs to
+ *  x 100, over the vestibule x 98-99.85 behind the coal-yard door too (the vestibule opens onto the yard). */
+const DG_COALYARD: DropGuard = { id: 'w3-dg-coalyard', a: { x: 82, z: 52 }, b: { x: 100, z: 52 }, y: ROOF_Y, h: 2.2 };
 
 const DOORS: Readonly<Record<string, readonly [number, number, number]>> = {
   'w3-bridge': [82, 8.4, 69.2],
@@ -93,7 +97,7 @@ const room = (id: string, name: string, r: Rect, o: { minY?: number; maxY?: numb
 
 const ROOMS: RoomDef[] = [
   room('w3-roof', 'Counting house roof', [82, 52, 120, 80], { minY: 8.4 }),
-  room('w3-chute', 'Coal chute', [96.5, 50.0, 97.7, 52.3], { minY: 4.4 }),
+  room('w3-chute', 'Coal chute', [96.5, 50.0, 97.7, 52.0], { minY: 4.4 }),
   room('w3-east-yard', 'East yard', [100, 38, 114, 52], { maxY: 4 }),
   room('w3-lodge', 'Gate lodge', [114, 44, 120, 52], { maxY: 4 }),
   room('w3-east-wing', 'East wing', [106, 52, 120, 74], { maxY: 8 }),
@@ -116,7 +120,7 @@ function build(b: LevelBuilder): void {
   mass(b, 82, 79.7, 120, 80, ROOF_Y, ROOF_Y + PARAPET);
   mass(b, 119.7, 52, 120, 79.7, ROOF_Y, ROOF_Y + PARAPET);
   for (const [z0, z1] of [[52, 64.5], [67.5, 68.3], [70.1, 79.7]] as const) mass(b, 82, z0, 82.3, z1, ROOF_Y, ROOF_Y + PARAPET);
-  mass(b, 98, 52, 106.3, 52.3, ROOF_Y, ROOF_Y + PARAPET);
+  mass(b, 100, 52, 106.3, 52.3, ROOF_Y, ROOF_Y + PARAPET);
   mass(b, 107.6, 52, 120, 52.3, ROOF_Y, ROOF_Y + PARAPET);
   screen(b, DG_COALYARD);
   // the bridge door frame (opens from the counting-house side; GB5 bolts it)
@@ -179,18 +183,22 @@ function build(b: LevelBuilder): void {
   mass(b, 114, 44, 120, 52, 3.0, CEIL);
   wall(b, false, 114, 44, 52, [[47.4, 48.6]], 0, 3.0);
   doorIn(b, false, 114, 48, 0);
-  wall(b, false, 100, 38, 52, [], 0, YARD_WALL);
+  // the yards' dividing wall x 100 is 6.5 (not 6.0): the fire escape's half landing (4.2) is 2.3 under its top, over the 1.8 mantle
+  wall(b, false, 100, 38, 52, [], 0, YARD_WALL_DIVIDE);
   wall(b, true, 38, 100, 114, [], 0, YARD_WALL);
   mass(b, 114, 34, 120, 44, 0, 12);
   mass(b, 100, 34, 114, 38, 0, 12);
 
   // ---- the passage (x 96-106 z 52-55.5), the chute duct and the strongroom ----
-  fill(b, [96, 52, 106, 55.5], [], PASSAGE_CEIL, UNDER);
-  // south wall z 52 (OUTER): 0-4.4 below the chute (the lip's wall), the coal-yard door, the old coal hole; above: the chute opening
+  // the passage ceiling, open 6.0-6.3 over the chute opening's inner half (z 52-52.3): the climb-up off the lip stands there
+  fill(b, [96, 52, 106, 55.5], [[96.5, 52, 97.7, 52.3]], PASSAGE_CEIL, CHUTE_HEAD);
+  fill(b, [96, 52, 106, 55.5], [], CHUTE_HEAD, UNDER);
+  // south wall z 52 (OUTER): 0-4.4 below the chute (the lip's wall), the coal-yard door, the old coal hole; above: the chute
+  // opening 4.4-6.3 (`AttachController.climbRoom`), the wall to 6.5 over it
   wall(b, true, 52, 96, 101, [[98.4, 99.6]], 0, 4.4, OUTER);
   doorIn(b, true, 52, 99, 0);
   wall(b, true, 52, 101, 106, [[103.9, 105.1]], 0, 4.4, OUTER, undefined, 1.5);
-  wall(b, true, 52, 96, 106, [[96.5, 97.7]], 4.4, PASSAGE_CEIL, OUTER, undefined, 1.5);
+  wall(b, true, 52, 96, 106, [[96.5, 97.7]], 4.4, CHUTE_HEAD + 0.2, OUTER, undefined, CHUTE_HEAD - 4.4);
   b.ledge(LIP_CHUTE.b.x, LIP_CHUTE.a.z, LIP_CHUTE.a.x, LIP_CHUTE.a.z, LIP_CHUTE.y);
   // the old coal hole (secret duct, passage -> east yard)
   duct(b, [[104.5, 52.3], [104.5, 49.2]], 0);
@@ -202,12 +210,17 @@ function build(b: LevelBuilder): void {
   wall(b, true, 64, 96, 106, [], 0, CEIL);
   mass(b, 96, 55.5, 98, 64, 0, UNDER);
   mass(b, 104, 55.5, 106, 64, 0, UNDER);
-  // the chute duct: floor top 4.4 out over the coal yard on a corbel, 1.5 high, the bolted hatch in its south end wall
+  // the chute duct: floor top 4.4 out over the coal yard on a corbel, 1.5 high, the bolted hatch in its south end wall; over the
+  // lip's end (z 50.9-52.3) a hood 6.3-6.5 (1.9 clear: the climb-up's standing room), the step between the lid and the hood closed
   mass(b, 96.3, 49.8, 97.9, 52.3, 4.2, 4.4);
   mass(b, 96.5, 50.4, 97.7, 51.7, 3.0, 4.2);
-  mass(b, 96.3, 49.8, 96.5, 51.7, 4.4, 5.9);
-  mass(b, 97.7, 49.8, 97.9, 51.7, 4.4, 5.9);
-  mass(b, 96.3, 49.8, 97.9, 52.3, 5.9, 6.1);
+  mass(b, 96.3, 49.8, 96.5, 50.9, 4.4, 5.9);
+  mass(b, 97.7, 49.8, 97.9, 50.9, 4.4, 5.9);
+  mass(b, 96.3, 50.9, 96.5, 51.7, 4.4, CHUTE_HEAD);
+  mass(b, 97.7, 50.9, 97.9, 51.7, 4.4, CHUTE_HEAD);
+  mass(b, 96.3, 49.8, 97.9, 50.9, 5.9, 6.1);
+  mass(b, 96.3, 50.7, 97.9, 50.9, 6.1, CHUTE_HEAD + 0.2);
+  mass(b, 96.3, 50.9, 97.9, 52.3, CHUTE_HEAD, CHUTE_HEAD + 0.2);
   doorIn(b, true, 50.0, 97.1, 4.4, { h: 1.5 });
 
   // ---- the front hall (x 96-106 z 64-72), the heating duct behind it ----
@@ -287,7 +300,7 @@ export const W3: WharfSection = {
     { pos: new Vector3(90.6, 0, 55.4), yaw: 0, group: 85 },
     { pos: new Vector3(115.8, 0, 74.6), yaw: 0, group: 87 },
   ],
-  hideSpots: [{ pos: new Vector3(84, 0, 72) }, { pos: new Vector3(85, 0, 44) }],
+  hideSpots: [{ pos: new Vector3(84, 0, 72) }, { pos: new Vector3(85, 0, 44.6) }],
   navSeeds: [
     new Vector3(100, 8.4, 70),
     new Vector3(106, 0, 44),
@@ -320,7 +333,11 @@ export const W3: WharfSection = {
     { id: 'w3-cartway', label: 'W3 cartway', pos: new Vector3(90, 0, 36), yaw: PI },
   ],
   deviations: [
-    { space: 'w3-chute', why: 'floor 4.4 not 2.2 (0.1 question 5): a 1.2 x 2.3 duct x 96.5-97.7 z 50.0-52.3 out over the coal yard, its hatch in the south end wall' },
+    { space: 'w3-chute', why: 'floor 4.4 not 2.2 (0.1 question 5): a 1.2 x 2.0 duct x 96.5-97.7 z 50.0-52.0 out over the coal yard (the room stops at z 52.0, rooms may not overlap; the duct floor runs on to the lip at z 52.3), its hatch in the south end wall; the opening and a hood over the lip end (z 50.9-52.3) are 1.9 high for the climb-up' },
+    { space: 'w3-east-wing', why: 'the bulkhead stair has both doors (east wing and roof) at the north end: a two-flight switchback has both doors at one end' },
+    { space: 'w3-passage', why: "the passage's west door is at z 52.95 not 53.75 (a wall 0.9 m from the booster's side probe fails roomForBoost)" },
+    { space: 'w3-coal-yard', why: "the coal-yard door is at x 99.0 not 99.5 (x 99.5 is inside the yards' dividing wall): a one-door vestibule x 98-99.85 z 50-51.7 is carved from it, open to the yard; the roof's drop guard runs on to x 100 over it" },
+    { space: 'w3-east-yard', why: "the fire escape's band is z 49.1-52.0 less 0.3 (the wing and passage walls are 0.6 thick, their yard face z 51.7); its upper flight is steeper (a 4.8 m run: the yard has no room for 7.1 m); the dividing wall x 100 is 6.5 so the half landing (4.2) is out of the 1.8 m mantle" },
     { space: 'w3-cartway', why: 'z 34-38 not 34-40: the graph box overlaps the coal yard at z 38-40' },
     { space: 'w3-front-hall', why: 'not a graph space: the 10 x 8 hall between the wings (the link w3-east-wing -> w3-west-wing)' },
     { space: 'w3-roof', why: "the fire escape's marker [107, 8.4, 52] is its head landing (x 106.3-107.6)" },

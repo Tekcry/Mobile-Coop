@@ -42,7 +42,7 @@ const room = (id: string, name: string, a: readonly [number, number, number, num
 
 const ROOMS: RoomDef[] = [
   room('w1-canal-steps', 'Canal steps', [2, 6, 12, 14], { minY: 0, maxY: 4.4 }),
-  room('w1-tea-stall', 'Tea stall', [12, 6, 20, 14.5], { minY: 0, maxY: 4.4 }),
+  room('w1-tea-stall', 'Tea stall', [12, 6, 20, 14], { minY: 0, maxY: 4.4 }),
   room('w1-market', 'Night market', [6, 14, 36, 44], { minY: 0, maxY: 4.4 }),
   room('w1-gallery', 'Gallery', [2, 14, 6, 46], { minY: 4.5 }),
   room('w1-warden-office', "Warden's office", [0, 46, 8, 54], { minY: 4.5 }),
@@ -167,7 +167,7 @@ export const W1: WharfSection = {
     { pos: new Vector3(11.5, 0, 35.5), yaw: -Math.PI / 2, group: 61 },
     { pos: new Vector3(24.4, 0, 44.6), yaw: 0, group: 62 },
     { pos: new Vector3(5.2, 4.5, 46.6), yaw: 0, group: 63 },
-    { pos: new Vector3(13, 0, 13.3), yaw: 0, group: 64 },
+    { pos: new Vector3(13, 0, 12.9), yaw: 0, group: 64 },
   ],
   hideSpots: [{ pos: new Vector3(20, 0, 23.6) }, { pos: new Vector3(9.5, 0, 46) }],
   navSeeds: [new Vector3(7, 0, 10), new Vector3(20, 0, 28), new Vector3(4, 4.5, 30), new Vector3(3, 4.5, 50), new Vector3(20, 0, 51), new Vector3(20, 0, 60), new Vector3(38, 0, 60)],
@@ -192,6 +192,7 @@ export const W1: WharfSection = {
   deviations: [
     { space: 'w1-warden-office', why: "The warden's stair core (walls x 6.2 and 7.8, z 44-52) stands in the office's south-east corner and the fire-stair link marker moved from [12.5, 0, 39.5] to the stair's foot door [7, 0, 44]; the office's own box is unchanged." },
     { space: 'w1-gallery', why: 'The market lip is 4.5 m (the graph says 4.4): the gallery is one 4.5 m floor. GBM re-measures.' },
+    { space: 'w1-tea-stall', why: 'z max 14, not 14.5: rooms may not overlap, and the graph box runs 0.5 m into the market (z 14-44); a stall is not inside the market, so the two are disjoint, not nested.' },
   ],
   entry: [7, 0, 10],
   exit: [38, 0, 60],

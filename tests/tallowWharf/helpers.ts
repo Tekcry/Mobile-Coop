@@ -1,12 +1,12 @@
 /**
  * Tallow Wharf test helpers (mission-framework GB0, shared by GB1-GB5; frozen after GB0): the graph, the built map, the
- * solid pieces, the leg-up / throw / pull / rope replicas of `TeamController`'s checks (analytic casts over the collision
+ * solid pieces, the leg-up / climb-up / throw / pull / rope replicas of `TeamController`'s checks (analytic casts over the collision
  * boxes in place of Havok's), and the guards' nav grid with the bolted / shuttered doors shut. Every number is read from the
  * game's tables, never retuned.
  */
 import { readFileSync } from 'node:fs';
 import type { Vector3 } from '../../src/core/babylon';
-import { findJumpTarget, generateLedges, type Ledge, type TraversalAnchors } from '../../src/world/anchors';
+import { findJumpTarget, generateLedges, LEDGE, type Ledge, type TraversalAnchors } from '../../src/world/anchors';
 import { LevelBuilder, type BoxPiece } from '../../src/world/levelBuilder';
 import type { MapLayout } from '../../src/world/mapDef';
 import { MOVEMENT, TEAM } from '../../src/config/movement';
@@ -196,6 +196,32 @@ export function onPlannedLip(l: Ledge, lips: readonly CoopLip[]): boolean {
     }
     return true;
   });
+}
+
+/**
+ * `AttachController.climbRoom` (`attachController.ts:1057`) analytically: the climb-up off a lip needs a standing body's room
+ * (`roomAt`: `MOVEMENT.standHeight` 1.75 m free over the lip top) just inside the face. The game probes 0.45 m in (the hang
+ * point `HANG.out` out, then `HANG.out + 0.45` back); this checks every depth up to 0.67 m in (the `warehouseCoopS3.test.ts:105`
+ * precedent), at the lip's ends (clamped by `LEDGE.edgeMargin`, as `hangPoint` clamps) and its middle. Returns the blocked
+ * samples: empty when the climb-up has room.
+ */
+export function climbRoom(solid: readonly BoxPiece[], lip: { y: number; a: { x: number; z: number }; b: { x: number; z: number }; n: { x: number; z: number } }): string[] {
+  const dx = lip.b.x - lip.a.x;
+  const dz = lip.b.z - lip.a.z;
+  const len = hyp2(dx, dz);
+  const m = Math.min(LEDGE.edgeMargin, len / 2);
+  const y0 = lip.y + 0.1;
+  const y1 = lip.y + 0.05 + MOVEMENT.standHeight;
+  const out: string[] = [];
+  for (const s of [m, len / 2, len - m]) {
+    for (const d of [0.05, 0.25, 0.45, 0.67]) {
+      const x = lip.a.x + (dx / len) * s - lip.n.x * d;
+      const z = lip.a.z + (dz / len) * s - lip.n.z * d;
+      const hit = solid.find((p) => bottom(p) < y1 && top(p) > y0 && Math.abs(x - p.c[0]) < p.s[0] / 2 && Math.abs(z - p.c[2]) < p.s[2] / 2);
+      if (hit) out.push(`(${x.toFixed(2)}, ${z.toFixed(2)}) ${d} in: box (${hit.c.map((v) => v.toFixed(2)).join(', ')}) y ${bottom(hit).toFixed(2)}-${top(hit).toFixed(2)}`);
+    }
+  }
+  return out;
 }
 
 // ---- the partner throw ----

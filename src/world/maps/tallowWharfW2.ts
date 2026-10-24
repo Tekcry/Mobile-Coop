@@ -196,7 +196,9 @@ function build(b: LevelBuilder): void {
 
   // ---- the arcade roof (8.4): lead flat over the loft row with the hatch, parapets, the old bridge landing, the fire-escape deck ----
   slab(b, [44, 62, 76, 70.1], ROOF, 0.3, [[71.4, 65.4, 72.6, 66.6]], LEAD);
-  b.ladder(72, 65.3, LOFT, ROOF, 0); // the fixed loft ladder up the hatch (the dormer window shares the opening)
+  // the fixed loft ladder up the hatch (the dormer window shares the opening): the line 0.45 short of the hole's north edge, so
+  // the top is at that edge (z 66.6) and the top-out (+0.4) lands on the slab at z 67.0, not over the hole (the campus S3 convention)
+  b.ladder(72, 66.15, LOFT, ROOF, 0);
   blk(b, 44, 69.9, 76, 70.1, ROOF, ROOF + PARAPET, IRON); // parapet on z 70
   blk(b, 44, 62, 44.2, 70, ROOF, ROOF + PARAPET, IRON); // parapet on x 44
   // x 76: broken at z 64.5-67.5 (the bridge landing) and z 68.6-69.8 (the deck)
@@ -242,9 +244,9 @@ export const W2: WharfSection = {
     { pos: new Vector3(50.2, LOFT, 62.6), yaw: 0, group: 73 },
     { pos: new Vector3(51.8, LOFT, 74.3), yaw: 0, group: 74 },
     { pos: new Vector3(47.8, LOFT, 78.8), yaw: PI, group: 75 },
-    { pos: new Vector3(55.8, LOFT, 72.4), yaw: -PI / 2, group: 76 },
+    { pos: new Vector3(55.4, LOFT, 72.4), yaw: -PI / 2, group: 76 },
   ],
-  hideSpots: [{ pos: new Vector3(60, LOFT, 79) }, { pos: new Vector3(42, 0, 61) }],
+  hideSpots: [{ pos: new Vector3(59.4, LOFT, 79) }, { pos: new Vector3(42, 0, 61) }],
   navSeeds: [
     new Vector3(58, 0, 55),
     new Vector3(60, LOFT, 60.5),
