@@ -2,6 +2,45 @@
 
 RESUMED ~23:55 (new account; orchestrator: overnight mode, one slice at a time, testing backlog first, save at 5-hour ~95%):
 #247 laptop afp PASS on fd34263e + CI green -> train-ready label added, orchestrator told (joins train 39 with #269).
+~19:35: PR #318 guard-models OPEN (flag off; dbfec6ad; SW fix aba0953a). Laptop: G9 set on 89c10827 (43619-...-6637) +
+e2e-offline on aba0953a (52107-...-3749): green -> label train-ready + orchestrator. #308 train 54 FAIL: e2e-course 'clone'
+-> Opus triage + fix running on feature/rig-pose-fix; e2e-tuner-phone solo on 23353993 (51717-...-cb4a). On fix: relabel
+#308 + tell orchestrator (it closes #316). #314 waiting CI + laptop (40217 coop / netmove, 41745 pad / mouse).
+~19:10: perf batch DONE (feature/gm-perf 408ab154; PERF-REPORT.md): F1 frozen base / shield materials, F2 pose in the LOD
+skeleton's onBeforeCompute (culled + no shadow list = no pose; moon CSM casters still pose), T1 guard-cap render.figure vs
+render.s1 + active-mesh tally per class. Cap A/B queued (set gm-perf-cap). STATE fix: G8 "Poser solve PASS" = NOT MEASURED
+(ai.anim never rendered). If gun tally ~13 / guard -> S13 merge guns (weaponModel.ts). gm-perf merges into guard-models
+after the PR (or rides it if the numbers pass the gate first: then flip flags.ts:131).
+~19:00: guard-models MERGE-CHECK-A PASS (4f2e1a57); PR CHECK-B FAIL B1 (14ebd55a): vite.config.ts:115 SW urlPattern uses an
+imported regex that workbox serialises without the import -> every same-origin runtime-cache match throws, offline cache
+broken for everyone. Opus fix round running (self-contained urlPatterns, sw.js pin test, build, doc polish). Then rerun
+e2e-offline (+ the rest of the G9 set if it failed) on the fix head, PR. STATE Open to add: G10 sheet defect list + "no
+sheet notes from Michael yet" (lead, after the fix round pushes).
+~18:45: guard-models MASTER MERGED (8809aab9 + assets 89c10827: 7 conflicts resolved, S11 items + thawPose line, PROTOCOL
+master 50 + G6n look bits; assets never precached: src/pwa/precacheGlobs.ts globIgnores, tests/guardAssetsOffline.test.ts;
+build OK, SW 77 entries no guard-). Running: merge check A (MERGE-CHECK-A.md, AI / wire), PR check B (MERGE-CHECK-B.md,
+flag-off landing), G9 e2e set 20261024T043619-player-build-89c10827-6637, perf batch on feature/gm-perf (worktree gm-perf:
+F1 frozen materials, F2 lazy pose, guard-cap render.figure + tally; PERF-REPORT.md). Then: PR (flag off) + train-ready;
+perf branch merges after, cap A/B, flip decision. #308 relabelled after master merge (23353993).
+~18:25: Test Runner takes world.ts updateSunCasters (S9b). OURS in guard-cap.mjs (they will not touch it until guard-models
+merges): `render.figure` timer around GuardBody.frame in onBeforeRenderObservable + per-guard active-mesh tally by name
+prefix. Perf batch after the master merge (branch gm-perf off feature/guard-models): F1 + F2 + timer + tally -> cap rerun;
+if the tally confirms guns ~13 parts each -> S13 merge each gun into one mesh (weaponModel.ts, ours).
+~18:20: perf profile done (read-only): gap is render() CPU, not active meshes. Ours, after the master merge lands (same
+worktree): F1 freeze guard materials (guardFigure.ts:127 `p.freeze()` after the plugin; guardShield.ts; test: no
+prepareDefines after the first ready frame; est. -0.4-0.7 ms + GC), F2 pose lazily / visible-only (guardFigure.ts:617-691
+-> skeleton onBeforeComputeObservable like smoothBody.ts:161, keep LOD pick + half-rate; est. -0.2-0.3). Told Test
+Runner: S8b render.figure timer (G8 "poser PASS" was never measured: fix STATE), world.ts:328 updateSunCasters skip
+disabled (their S9), S13 = guns as ~13 instanced parts (weaponModel.ts:143-163, ours if their tally confirms).
+~18:05: guard-models PR with flag OFF approved (orchestrator), conditions: conflict-free (merge master ourselves; master's
+protocol.ts + G6n look bits) and the 29 MB never precached / fetched while the flag is off. Opus agent doing the master
+merge (S11 items + thawPose figure.update line) + SW precache exclusion + build, on feature/guard-models. G9 request on
+b25947e6 withdrawn (stale). Then: G9 e2e set on the merged head, Opus checker on the merge, PR, train-ready. Perf profile
+(read-only Opus, PLAN2 S13 mesh count) running.
+~17:40: #314 R3 contextual (Michael ~14:55) c69b698c + CHECK-R3 PASS (979da9d7). Pending: CI on 979da9d7, laptop
+coop + netmove on 52258028 (40217-...-60f5), pad + mouse on c69b698c (41745-...-47f6); all green -> gh pr edit 314
+--add-label train-ready + orchestrator. guard-models G8 cap3 on 0fd85e2b DONE (3/3 steps): waiting for Test Runner's
+results branch (shots/g8c-*); then flip flags.ts:131 or report.
 ~17:20: #314 fix round 52258028 (panel message, trp snapshot) -> RECHECK PASS (2408cfa4). Laptop: e2e-coop + netmove on
 52258028 (20261024T040217-player-build-52258028-60f5); e2e-pad + mouse from f96633aa (20261024T034805-...-53c1, still valid:
 the fix touched no input). All green + Michael's R3 answer -> label #314 train-ready (apply his R3 choice first if it
