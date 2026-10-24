@@ -26,10 +26,44 @@ try {
     const V = g.player.position.constructor;
     const st = a.input.state;
     const c = g.player.controller;
+    // (coop4 AI6, A180) the stand-in players of `fakes` (test only, never a game feature: G2 / G48 / G50) and the
+    // game's own remotes, put back by `reset`
+    const fakeList = [];
+    const soloRemotes = g.remotePlayers;
     // helpers kept on window for the scenarios
     window.__t = {
       V,
+      fakeList,
+      /** (coop4 AI6, A180) Up to 3 stand-in `PlayerRef`s ([x, z] or [x, z, id]; ids `fake1..3`) as `g.remotePlayers()`
+       *  (the AI's `players()` = the local player, then these). Returns the live list (splice / push it for a leave or
+       *  a rejoin). `reset` restores the game's remotes. */
+      fakes(list) {
+        fakeList.length = 0;
+        for (let i = 0; i < list.length && i < 3; i++) fakeList.push(this.fake(list[i][2] ?? `fake${i + 1}`, list[i][0], list[i][1]));
+        g.remotePlayers = () => fakeList;
+        return fakeList;
+      },
+      /** One stand-in: feet on the nav floor at (x, z), set by the test; alive; aim / head points at feet + 1.3 / 1.65
+       *  (crouched 0.95 / 1.15); damage a no-op; light pinned to `lit` (the game's light pass cannot overwrite it). */
+      fake(id, x, z) {
+        const cell = em.nav.cellOf(x, z, 0);
+        const feet = new V(x, cell >= 0 ? em.nav.height[cell] : 0, z);
+        const ref = { id, feet, speed: 0, crouched: false, cover: null, coverT: 0, spotted: false, height: 1.75, head: null, shield: null, lit: 1 };
+        Object.defineProperty(ref, 'light', { get: () => ref.lit, set: () => {}, enumerable: true });
+        ref.target = {
+          id,
+          team: 'player',
+          alive: true,
+          center: (o) => o.set(feet.x, feet.y + (ref.crouched ? 0.8 : 1.1), feet.z),
+          aimPoint: (o) => o.set(feet.x, feet.y + (ref.crouched ? 0.95 : 1.3), feet.z),
+          headPoint: (o) => o.set(feet.x, feet.y + (ref.crouched ? 1.15 : 1.65), feet.z),
+          applyDamage: () => ({ dealt: 0, killed: false }),
+        };
+        return ref;
+      },
       reset() {
+        fakeList.length = 0;
+        g.remotePlayers = soloRemotes;
         em.clear();
         em.coordinated = true;
         // (an alarm in an earlier scenario queues Hunter's reinforcements)
@@ -2748,6 +2782,373 @@ try {
     assert(r.maxStall <= r.openWait + 0.5, `no role guard out of sight, upright and still outside cover for more than ${r.openWait + 0.5} s (${f(r.maxStall)} s: ${r.stallWho})`);
     assert(r.viol <= r.slack, `no overwatch round along a line a wall blocks once he has held fire for it (${r.viol} rounds, slack ${r.slack} in ${r.blockedSamples} blocked samples; rounds ${r.rounds}, held ${r.held})`);
     assert(r.blockedMateT < 1 || r.blockedHeld > 0, `an overwatch with a blocked line held his fire while a mate moved (${f(r.blockedMateT)} s blocked, held +${r.blockedHeld})`);
+  });
+
+  // (coop4 AI6; A170, A171, A174, A176, A180, A181) Guards against up to 4 intruders in ONE browser: the local player
+  // plus up to 3 test-only stand-in PlayerRefs (`t.fakes`). Sim-time steps, Math.random seeded per run, the guards' own
+  // alarm already up (no panel run) until the alarm part raises it itself (the mode's `onAlarm` muted: no Hunter wave).
+  // 'rays': one calm guard, 4 crouched players in the dark in his field: <= 9 sight rays a think (`raysThink`), at most 3
+  // started a think, all 4 seen in turn; 2 players: 6, uncapped. 'four': 4 guards, 4 lit players: 4 own slots / LKPs;
+  // the alarm's lone reinforcements split over the intruders, the raiser's first (`nextAlarmHunt` order); a team shares
+  // one hunt, two teams hunt two intruders and are ticked on their own LKPs; a leaver's slot is kept and his rejoin takes
+  // it back (`intruderLeft`); a new id takes a gone slot and its hunters drop. 'two': the 2-player control (today's rules:
+  // every reinforcement and team on the alarm's intruder, teams on the freshest). Restored at the end: the intruder
+  // board's ids, the live cap, the game's remotes.
+  await scen('four intruders (coop4)', async () => {
+    await G(() => {
+      const t = window.__t;
+      const em = window.__app.current.enemyMgr;
+      t.ids0 = em.intruders['ids'].slice();
+      t.max0 = em.maxAlive;
+    });
+    try {
+      // the layout on the factory floor: 4 players in a row 6 m apart, a guard 6 m in front of each on a clear line; for
+      // 'rays' one guard 8 m in front of 4 players 2 m apart (all inside his focus)
+      const L = await G(() => {
+        const g = window.__app.current;
+        const nav = g.enemyMgr.nav;
+        const V = window.__t.V;
+        const ray = (ax, ay, az, bx, by, bz) => g.ballistics.ray(new V(ax, ay, az), new V(bx, by, bz), 1).hit;
+        const lineClear = (a, b) => !ray(a[0], 1.5, a[1], b[0], 1.5, b[1]) && !ray(a[0], 0.9, a[1], b[0], 0.9, b[1]);
+        const floorOk = ([x, z]) => {
+          if (x < -3 || x > 23 || z < -8 || z > 11) return false;
+          const c = nav.cellOf(x, z, 0);
+          return c >= 0 && nav.isWalkable(c) && Math.abs(nav.height[c]) < 0.3;
+        };
+        for (const zp of [-6, -5, -4, -3, -2, -1, 0, 1, 2, 3]) {
+          for (const x0 of [-2, -1, 0, 1, 2, 3, 4]) {
+            const P = [0, 1, 2, 3].map((i) => [x0 + 6 * i, zp]);
+            const guards = P.map(([x, z]) => [x, z + 6]);
+            if (!P.every(floorOk) || !guards.every(floorOk) || !P.every((p, i) => lineClear(guards[i], p))) continue;
+            const RG = [x0 + 9, zp + 8];
+            const RP = [0, 1, 2, 3].map((i) => [x0 + 6 + 2 * i, zp]);
+            if (!floorOk(RG) || !RP.every(floorOk) || !RP.every((p) => lineClear(RG, p))) continue;
+            return { P, guards, RG, RP };
+          }
+        }
+        return null;
+      });
+      assert(L, 'a factory-floor layout: 4 players 6 m apart, a guard 6 m in front of each, and a rays guard 8 m from 4 players, all on clear lines');
+      if (!L) return;
+
+      // ---- rays: one calm guard, 4 (then 2) crouched players still in the dark in his focus at ~8 m ----
+      const R = await G((L) => {
+        const t = window.__t;
+        const em = window.__app.current.enemyMgr;
+        const rnd = Math.random;
+        let seed = 6161;
+        Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+        const run = (nFakes) => {
+          t.reset();
+          em.alarmRaised = true;
+          t.light(0);
+          t.crouch(true);
+          t.tp(L.RP[0][0], L.RP[0][1], 0);
+          const fs = [...t.fakes(L.RP.slice(1, 1 + nFakes))];
+          for (const f of fs) {
+            f.lit = 0;
+            f.crouched = true;
+          }
+          const e = t.spawn('grunt', L.RG[0], L.RG[1], Math.PI);
+          t.step(0.5);
+          const rays = [];
+          let maxSeen = 0;
+          let union = 0;
+          for (let k = 0; k < 180; k++) {
+            t.step(1 / 60);
+            // one guard: rays this update = his think's (0: no think this update)
+            if (em.raysThisStep <= 0 || e.alerted) continue;
+            let bits = 0;
+            let seen = 0;
+            for (let s = 0; s < 4; s++) {
+              if (!e.seesIndex(s)) continue;
+              bits |= 1 << s;
+              seen++;
+            }
+            union |= bits;
+            maxSeen = Math.max(maxSeen, seen);
+            rays.push(e.raysThink);
+          }
+          return { n: em.players().length, c4: em.coop4(), rays, max: Math.max(0, ...rays), maxSeen, union, perRR: e.perRR, alerted: e.alerted };
+        };
+        try {
+          return { four: run(3), two: run(1) };
+        } finally {
+          Math.random = rnd;
+          t.crouch(false);
+          t.light(null);
+        }
+      }, L);
+      assert(R.four.n === 4 && R.four.c4 && R.four.rays.length >= 6, `rays: 4 players, coop4 on, a calm guard thinks with them in view (${R.four.rays.length} calm thinks, alerted ${R.four.alerted})`);
+      assert(R.four.max <= 9 && R.four.max >= 8, `rays: at most 9 sight rays a think with 4 in view, the budget used (max ${R.four.max}: ${R.four.rays.join(',')})`);
+      assert(R.four.maxSeen <= 3 && R.four.union === 15, `rays: at most 3 players started a think, all 4 seen in turn (max ${R.four.maxSeen} a think, seen bits ${R.four.union.toString(2)})`);
+      assert(R.two.n === 2 && !R.two.c4 && R.two.max === 6 && R.two.perRR === 0 && R.two.union === 3, `rays, 2 players: today's uncapped 6 rays, no rotation, both seen (${JSON.stringify(R.two)})`);
+
+      // ---- four: 4 guards, 4 lit players (the local one + 3 stand-ins) ----
+      const F = await G((L) => {
+        const t = window.__t;
+        const g = window.__app.current;
+        const em = g.enemyMgr;
+        const ib = em.intruders;
+        const st = window.__app.input.state;
+        const rnd = Math.random;
+        let seed = 6262;
+        Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+        try {
+          t.reset();
+          // fresh slots for this run (the ids persist across `em.clear`; restored at the end)
+          ib['ids'].fill('');
+          ib.gone.fill(0);
+          ib.clear();
+          em.maxAlive = 32;
+          em.alarmRaised = true;
+          t.light(1);
+          t.tp(L.P[0][0], L.P[0][1], 0);
+          const fs = [...t.fakes(L.P.slice(1))];
+          for (const f of fs) f.speed = 1;
+          const guards = L.guards.map(([x, z]) => t.spawn('grunt', x, z, Math.PI));
+          const ids = ['local', 'fake1', 'fake2', 'fake3'];
+          const known = () => ids.every((id) => ib.find(id) >= 0 && ib.valid[ib.find(id)] === 1);
+          // each player sways a little (the local one strafes, the stand-ins' feet move each step) until all 4 are known
+          let k = 0;
+          let maxRays = 0;
+          while (!known() && k++ < 400) {
+            const w = k % 20 < 10 ? 0.25 : -0.25;
+            st.setMove('t', w > 0 ? 0.6 : -0.6, 0);
+            for (let i = 0; i < fs.length; i++) fs[i].feet.x = L.P[i + 1][0] + w;
+            t.step(0.05);
+            for (const e of guards) maxRays = Math.max(maxRays, e.raysThink);
+          }
+          st.setMove('t', 0, 0);
+          for (let i = 0; i < fs.length; i++) {
+            fs[i].feet.x = L.P[i + 1][0];
+            fs[i].speed = 0;
+          }
+          const feet = [g.localRef.feet, ...fs.map((f) => f.feet)];
+          const slots = ids.map((id) => ib.find(id));
+          const seen = {
+            at: +(k * 0.05).toFixed(2),
+            n: em.players().length,
+            c4: em.coop4(),
+            slots,
+            valid: slots.map((s) => (s >= 0 ? ib.valid[s] : 0)),
+            err: slots.map((s, i) => (s >= 0 ? +Math.hypot(ib.x[s] - feet[i].x, ib.z[s] - feet[i].z).toFixed(2) : 99)),
+            ghosts: ids.map((id) => em.ghostOf(id, new t.V())),
+            maxRays,
+          };
+          // -- the alarm: raised by a guard who hunts someone (the mode's wave muted), then 5 lone reinforcements, two
+          // teams of 2, one more lone
+          const raiser = guards.find((e) => e.alive && e.hunt >= 0) ?? null;
+          if (!raiser) return { seen, raiser: false };
+          em.alarmRaised = false;
+          const oa = em.onAlarm;
+          em.onAlarm = null;
+          try {
+            em.raiseAlarm(raiser, null);
+          } finally {
+            em.onAlarm = oa;
+          }
+          g.mode.pending.length = 0;
+          const alarm = em.alarmHunt;
+          // the order `alarmHunts` gives: the alarm's slot, then every other known slot, freshest sighting first (ties:
+          // the lower slot)
+          const order = [];
+          if (alarm >= 0 && ib.valid[alarm] === 1 && ib.gone[alarm] !== 1) order.push(alarm);
+          order.push(...[0, 1, 2, 3].filter((s) => s !== alarm && ib.valid[s] === 1 && ib.gone[s] !== 1).sort((a, b) => ib.seenT[a] - ib.seenT[b] || a - b));
+          const told = (e) => (e.hunt >= 0 ? e.hunt : e.pendingHunt);
+          let n = 0;
+          const reinf = () => {
+            const e = em.spawnReinforcement('grunt', new t.V(-21 + (n % 4) * 0.9, 0, 17 - Math.floor(n / 4) * 0.9), 0, 0, null);
+            n++;
+            return e;
+          };
+          const lone = [];
+          for (let i = 0; i < 5; i++) {
+            const e = reinf();
+            lone.push(e ? told(e) : null);
+          }
+          const teams = [];
+          const T = [];
+          for (let j = 0; j < 2; j++) {
+            const tm = em.newTeam(0, null, [], L.P, 6);
+            const members = [];
+            for (let i = 0; i < 2; i++) {
+              const e = reinf();
+              if (!e) continue;
+              em.joinTeam(e, tm);
+              members.push(told(e));
+            }
+            T.push(tm);
+            teams.push({ hunt: tm.hunt, members });
+          }
+          const last = reinf();
+          const alarmPart = { raiser: true, alarm, raiserHunt: raiser.hunt, order, lone, teams, last: last ? told(last) : null };
+          // -- each team ticked on its own intruder's LKP (the manager's `teamsStep`, read at the tick)
+          const rec = T.map(() => null);
+          T.forEach((tm, j) => {
+            const f = tm.tick;
+            tm.tick = function (v, x, z) {
+              const h = tm.hunt;
+              rec[j] = { v, x, z, own: h >= 0 ? [ib.x[h], ib.z[h], ib.valid[h]] : null, mirror: [em.lkp.x, em.lkp.z] };
+              return f.call(this, v, x, z);
+            };
+          });
+          t.step(1 / 60);
+          const ticks = T.map((tm, j) => ({ hunt: tm.hunt, ...rec[j] }));
+          // -- fake2 leaves (his ref gone from the list, `intruderLeft`), then rejoins: his first shot after it (the
+          // host's remote-shot path `em.noise(pos, reach, id)`, too quiet for anyone to hear) is his first report
+          const f2 = fs[1];
+          const s2 = ib.find('fake2');
+          const lkp2 = s2 >= 0 ? [ib.x[s2], ib.z[s2]] : [0, 0];
+          t.fakeList.splice(t.fakeList.indexOf(f2), 1);
+          em.intruderLeft('fake2');
+          t.step(0.5);
+          const left = { s2, slot: ib.find('fake2'), gone: ib.gone[s2], valid: ib.valid[s2], moved: +Math.hypot(ib.x[s2] - lkp2[0], ib.z[s2] - lkp2[1]).toFixed(3), n: em.players().length };
+          t.fakeList.push(f2);
+          em.noise(f2.feet, 0.5, 'fake2');
+          const out = new t.V();
+          const back = { slot: ib.find('fake2'), gone: ib.gone[s2], valid: ib.valid[s2], moved: +Math.hypot(ib.x[s2] - lkp2[0], ib.z[s2] - lkp2[1]).toFixed(3), ghost: em.ghostOf('fake2', out), n: em.players().length };
+          // -- fake3 leaves and a new player (fake4) joins where he stood: with no free slot his first report takes fake3's
+          // gone slot; the guards and the team on it drop it at once
+          const f3 = fs[2];
+          const s3 = ib.find('fake3');
+          t.fakeList.splice(t.fakeList.indexOf(f3), 1);
+          em.intruderLeft('fake3');
+          t.step(0.1);
+          t.fakeList.push(t.fake('fake4', f3.feet.x, f3.feet.z));
+          const hunters = () => em.enemies.filter((e) => e.alive && e.hunt === s3).length;
+          const before = { hunters: hunters(), teams: T.filter((tm) => tm.hunt === s3).length, n: em.players().length };
+          em.noise(f3.feet, 0.5, 'fake4');
+          const reuse = { s3, before, slot: ib.find('fake4'), old: ib.find('fake3'), idOf: ib.idOf(s3), valid: ib.valid[s3], hunters: hunters(), teams: T.filter((tm) => tm.hunt === s3).length, others: ['local', 'fake1', 'fake2'].map((id) => ib.find(id)) };
+          return { seen, ...alarmPart, ticks, left, back, reuse };
+        } finally {
+          Math.random = rnd;
+          st.setMove('t', 0, 0);
+          t.light(null);
+          em.maxAlive = t.max0;
+        }
+      }, L);
+      const s = F.seen;
+      assert(s.n === 4 && s.c4, `four: 4 players, coop4 on (${s.n})`);
+      assert(new Set(s.slots).size === 4 && s.slots.every((x) => x >= 0 && x < 4) && s.valid.every((v) => v === 1), `four: each of the 4 players seen has his own valid slot (slots ${s.slots}, valid ${s.valid}, all known at ${s.at} s)`);
+      assert(s.err.every((d) => d < 2.5), `four: each slot's LKP is at its own player (m off: ${s.err})`);
+      assert(s.ghosts.every((v) => v >= 1), `four: ghostOf reads a known position for each (${s.ghosts})`);
+      assert(s.maxRays <= 9, `four: no guard casts more than 9 sight rays a think (max ${s.maxRays})`);
+      assert(F.raiser, 'four: a guard who hunts someone raises the alarm');
+      if (!F.raiser) return;
+      const o = F.order;
+      const m = o.length;
+      assert(F.alarm === F.raiserHunt && o[0] === F.alarm && m === 4, `alarm: the raiser's intruder is the alarm's, first in the split over 4 known (alarm ${F.alarm}, order ${o})`);
+      assert(F.lone.every((h, i) => h === o[i % m]), `alarm: 5 lone reinforcements hunt the split in turn, the raiser's first (${F.lone} vs ${o})`);
+      assert(new Set(F.lone.slice(0, 4)).size === 4, `alarm: the first 4 reinforcements hunt 4 different intruders (${F.lone})`);
+      assert(F.teams.every((tm) => tm.members.length === 2 && tm.members.every((h) => h === tm.hunt)), `team: every member hunts his team's one intruder (${JSON.stringify(F.teams)})`);
+      assert(F.teams[0].hunt === o[5 % m] && F.teams[1].hunt === o[6 % m] && F.teams[0].hunt !== F.teams[1].hunt, `team: the two teams take the next two in the split, different intruders (${F.teams.map((tm) => tm.hunt)} vs ${o})`);
+      assert(F.last === o[7 % m], `team: the members' later draws go back (the next lone takes ${o[7 % m]}: ${F.last})`);
+      const near = (a, b, d = 0.01) => Math.abs(a - b) < d;
+      assert(F.ticks.every((k) => k.v === true && k.own && k.own[2] === 1 && near(k.x, k.own[0]) && near(k.z, k.own[1])), `sweep: each team is ticked on its own intruder's LKP (${JSON.stringify(F.ticks)})`);
+      assert(Math.hypot(F.ticks[0].x - F.ticks[1].x, F.ticks[0].z - F.ticks[1].z) > 3 && F.ticks.some((k) => Math.hypot(k.x - k.mirror[0], k.z - k.mirror[1]) > 3), `sweep: the two teams sweep from two LKPs, not both from the freshest (${JSON.stringify(F.ticks)})`);
+      assert(F.left.n === 3 && F.left.slot === F.left.s2 && F.left.gone === 1 && F.left.valid === 1 && F.left.moved < 0.01, `leave: fake2's slot is kept (gone, LKP kept) while he is out (${JSON.stringify(F.left)})`);
+      assert(F.back.n === 4 && F.back.slot === F.left.s2 && F.back.gone === 0 && F.back.valid === 1 && F.back.moved < 0.01 && F.back.ghost >= 1, `rejoin: fake2 takes his slot back with its LKP (${JSON.stringify(F.back)})`);
+      const r = F.reuse;
+      assert(r.before.n === 4 && r.before.hunters >= 1, `reuse: fake3's slot ${r.s3} is hunted when he leaves (${JSON.stringify(r.before)})`);
+      assert(r.slot === r.s3 && r.old === -1 && r.idOf === 'fake4' && r.valid === 0, `reuse: a new id (fake4) takes fake3's gone slot, its old LKP dropped (${JSON.stringify(r)})`);
+      assert(r.hunters === 0 && r.teams === 0 && new Set([...r.others, r.slot]).size === 4, `reuse: its hunters and team drop it, nobody else's slot moves (${JSON.stringify(r)})`);
+
+      // ---- two: the 2-player control (local + 1 stand-in): today's rules ----
+      const W = await G((L) => {
+        const t = window.__t;
+        const g = window.__app.current;
+        const em = g.enemyMgr;
+        const ib = em.intruders;
+        const st = window.__app.input.state;
+        const rnd = Math.random;
+        let seed = 6363;
+        Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+        try {
+          t.reset();
+          ib['ids'].fill('');
+          ib.gone.fill(0);
+          ib.clear();
+          em.maxAlive = 32;
+          em.alarmRaised = true;
+          t.light(1);
+          t.tp(L.P[0][0], L.P[0][1], 0);
+          const fs = [...t.fakes(L.P.slice(1, 2))];
+          fs[0].speed = 1;
+          const guards = L.guards.slice(0, 2).map(([x, z]) => t.spawn('grunt', x, z, Math.PI));
+          const ids = ['local', 'fake1'];
+          const known = () => ids.every((id) => ib.find(id) >= 0 && ib.valid[ib.find(id)] === 1);
+          let k = 0;
+          while (!known() && k++ < 400) {
+            const w = k % 20 < 10 ? 0.25 : -0.25;
+            st.setMove('t', w > 0 ? 0.6 : -0.6, 0);
+            fs[0].feet.x = L.P[1][0] + w;
+            t.step(0.05);
+          }
+          st.setMove('t', 0, 0);
+          fs[0].feet.x = L.P[1][0];
+          fs[0].speed = 0;
+          const slots = ids.map((id) => ib.find(id));
+          const raiser = guards.find((e) => e.alive && e.hunt >= 0) ?? null;
+          if (!raiser) return { n: em.players().length, c4: em.coop4(), slots, raiser: false };
+          em.alarmRaised = false;
+          const oa = em.onAlarm;
+          em.onAlarm = null;
+          try {
+            em.raiseAlarm(raiser, null);
+          } finally {
+            em.onAlarm = oa;
+          }
+          g.mode.pending.length = 0;
+          const told = (e) => (e.hunt >= 0 ? e.hunt : e.pendingHunt);
+          let n = 0;
+          const reinf = () => em.spawnReinforcement('grunt', new t.V(-21 + n++ * 0.9, 0, 17), 0, 0, null);
+          const lone = [];
+          for (let i = 0; i < 3; i++) {
+            const e = reinf();
+            lone.push(e ? told(e) : null);
+          }
+          const tm = em.newTeam(0, null, [], L.P, 3);
+          const members = [];
+          for (let i = 0; i < 2; i++) {
+            const e = reinf();
+            if (!e) continue;
+            em.joinTeam(e, tm);
+            members.push(told(e));
+          }
+          let rec = null;
+          const f = tm.tick;
+          tm.tick = function (v, x, z) {
+            rec = { v, x, z, valid: em.lkpValid, mirror: [em.lkp.x, em.lkp.z] };
+            return f.call(this, v, x, z);
+          };
+          t.step(1 / 60);
+          return { n: em.players().length, c4: em.coop4(), slots, raiser: true, alarm: em.alarmHunt, lone, team: { hunt: tm.hunt, members }, tick: rec, peers: tm.peers === null };
+        } finally {
+          Math.random = rnd;
+          st.setMove('t', 0, 0);
+          t.light(null);
+          em.maxAlive = t.max0;
+        }
+      }, L);
+      assert(W.n === 2 && !W.c4 && new Set(W.slots).size === 2 && W.slots.every((x) => x >= 0), `two: 2 players, coop4 off, two slots (${JSON.stringify(W.slots)})`);
+      assert(W.raiser, 'two: a guard who hunts someone raises the alarm');
+      if (!W.raiser) return;
+      assert(W.alarm >= 0 && W.lone.every((h) => h === W.alarm), `two: every lone reinforcement hunts the alarm's intruder (today; alarm ${W.alarm}, ${W.lone})`);
+      assert(W.team.hunt === -1 && W.team.members.every((h) => h === W.alarm), `two: no team hunt, the members hunt the alarm's intruder (today; ${JSON.stringify(W.team)})`);
+      assert(W.tick && W.tick.v === W.tick.valid && Math.abs(W.tick.x - W.tick.mirror[0]) < 0.01 && Math.abs(W.tick.z - W.tick.mirror[1]) < 0.01 && W.peers, `two: the team is ticked on the freshest LKP, no peers (today; ${JSON.stringify(W.tick)})`);
+    } finally {
+      await G(() => {
+        const t = window.__t;
+        const em = window.__app.current.enemyMgr;
+        t.reset();
+        const ids = em.intruders['ids'];
+        for (let i = 0; i < ids.length; i++) ids[i] = t.ids0[i] ?? '';
+        em.intruders.gone.fill(0);
+        em.intruders.clear();
+        em.maxAlive = t.max0;
+      });
+    }
   });
 
   const real = errors.filter((e) => !/GPU stall|WebGL|swiftshader|Automatic fallback|AudioContext/i.test(e));

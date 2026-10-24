@@ -235,3 +235,21 @@ per remote, `r.state`); `removeRemote` calling `intruderLeft`; later the per-cli
   gives their draws back); own-LKP sweep, `sweepStart` spread + `pointBusy` dedupe (#302 kept); roles rotation,
   `targetCoverT(slot)`, `spotted` per slot. Flags `SWEEP4`, `FIGHTS4`. All gated at 3+ players; 2-player identity test.
   Sector Ops wiring of sectorMode.ts:943-960 and `SectorDef.responseShape` pending. Log: `docs/coop4/briefs/AI5-BUILT.md`.
+
+### AI6 built (Opus builder, 2026-10-24)
+- e2e-stealth-ai scenario 'four intruders (coop4)' (`scripts/e2e-stealth-ai.mjs`, the last block), one browser: test
+  helper `t.fakes([[x, z], ...])` / `t.fake(id, x, z)` / `t.fakeList` in the script's own `window.__t` (no src edit):
+  up to 3 stand-in `PlayerRef`s as `g.remotePlayers()` (ids `fake1..3`, feet set each step, alive, aim / head at feet +
+  1.3 / 1.65, damage no-op, light pinned), `reset` restores the game's remotes (A180). Runs, each seeded, sim-time steps:
+  'rays' (one calm guard, 4 crouched players in the dark in his focus: `raysThink` <= 9 and >= 8, at most 3 started a
+  think, all 4 seen in turn; 2 players: 6, `perRR` 0); 'four' (4 guards, 4 lit players: 4 distinct valid slots, LKP at
+  each player, `ghostOf` >= 1, no guard over 9 rays; alarm raised by a hunting guard with the mode's `onAlarm` muted: 5
+  lone reinforcements hunt the `alarmHunts` order in turn, the raiser's first, 4 different; two teams of 2 share one
+  hunt each, the next two in the order, the members' draws given back; each team ticked on its own LKP, not both on the
+  freshest; `intruderLeft(fake2)` keeps his slot gone with its LKP, his first shot after the rejoin takes it back; fake3
+  leaves and a new id `fake4` takes his slot, hunters and team drop it at once); 'two' (2-player control: coop4 off,
+  every reinforcement and team member on `alarmHunt`, team hunt -1, ticked on the freshest, no peers). The board's ids,
+  `maxAlive` and the remotes are restored at the end. `node --check` clean; not run (laptop queue).
+- 3-4 browser asserts for Sector Ops / Test Runner: `docs/coop4/briefs/AI6-E2E-SPEC.md` ((1)-(6) of section 1 "AI6",
+  what to stage, read and pass, the 2-player control and the laptop measure).
+- Docs: `docs/systems/testing-tools.md` (e2e-stealth-ai line), `TESTING.md` (the S24 co-op line). Unit tests unchanged.
