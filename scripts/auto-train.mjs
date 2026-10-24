@@ -616,7 +616,8 @@ export function autoDropCase(train, d, rp) {
   if (d?.state !== 'failed' || train.laptop?.state !== 'failure' || train.ci === 'failure' || train.vitest === 'failure') return null;
   // a desktop failure whose FAIL list is cut (no laptop rerun was possible) stays "failed" for the orchestrator
   if (desktopFailSuites(train.laptop.description) !== null) return null;
-  return { failing: failSuites(train.laptop.description), reason: d.reason };
+  // confirm: the train's own first failure; a guessed drop (tier 2-3) waits for one rerun first (confirmPlan)
+  return { failing: failSuites(train.laptop.description), reason: d.reason, confirm: true };
 }
 
 /** At most this many failing suites (distinct, parts as their suite) are auto-dropped; more is master / the machine, not a member. */
@@ -688,6 +689,40 @@ export function pickDrops(members, failing, { map = DIRECT_COVERS } = {}) {
   const x = [...among].sort((a, b) => (b.m.labeledAt ?? -Infinity) - (a.m.labeledAt ?? -Infinity) || b.m.pr - a.m.pr)[0];
   const why = code.length === 1 ? 'the only code member' : top > 0 ? `a tie at ${top} src/ files under its folders, newest ${LABEL}` : `no member touches its folders, newest ${LABEL}`;
   return { drops: [{ pr: x.m.pr, branch: x.m.branch, suite: x.suite, tier: 3 }], reason: `no member maps to ${fails.join(',')}; #${x.m.pr}: ${why}` };
+}
+
+/**
+ * Confirm before a guess (laptop-queue-5): the train's own laptop failure whose drop is a guess (every pick tier 2-3: no
+ * member maps to the failing suite) first reruns the failing suites once on the same head (request.mjs --train-rerun,
+ * set train<n>-rerun, recorded as `rerun` like a desktop rerun); only a failed rerun drops, a pass posts laptop-e2e
+ * success and the train releases. -> null (drop now: a tier-1 pick, or the rerun failed) or a rerunPlan-shaped
+ * { action: 'request' | 'wait' | 'none', state, reason, suites, set } (+ `requestFailed`).
+ */
+export function confirmPlan(train, prev, drops, failing, { now = Date.now(), staleMin = RERUN_STALE_MIN } = {}) {
+  if (!train || !drops?.length || drops.some((x) => x.tier === 1)) return null;
+  const t = `train ${train.n}`;
+  const set = rerunSet(train.n);
+  const rec = prev?.rerun && prev.rerun.head === train.head ? prev.rerun : null;
+  const suites = rec?.suites ?? [...new Set(failing ?? [])];
+  if (!rec) {
+    const failed = prev?.rerunRequestFailed && prev.rerunRequestFailed.head === train.head ? prev.rerunRequestFailed : null;
+    const tries = failed ? Number(failed.count) || 1 : 0;
+    if (tries >= RERUN_REQUEST_MAX) {
+      return { action: 'none', state: 'rerun-request-failed', suites, set, requestFailed: failed,
+        reason: `${t}: the confirm rerun request of ${suites.join(',')} on ${short(train.head)} failed ${tries} times (last: exit ${failed.exit}: ${failed.why}); not retried` };
+    }
+    return { action: 'request', state: 'laptop-rerun', suites, set, ...(failed ? { requestFailed: failed } : {}),
+      reason: `${t}: no member maps to ${suites.join(',')}: one confirm rerun (${set}) on ${short(train.head)} before a drop${tries ? `, try ${tries + 1}/${RERUN_REQUEST_MAX}` : ''}` };
+  }
+  const r = train.rerun ?? { state: 'missing', description: '' };
+  if (r.state === 'failure') return null;
+  const ageMin = (now - Date.parse(rec.at)) / 60_000;
+  if (r.state !== 'success' && ageMin >= staleMin) {
+    return { action: 'none', state: 'rerun-stale', suites, set,
+      reason: `${t}: confirm rerun ${rec.id} of ${suites.join(',')} on ${short(train.head)}: no ${rerunContext(train.n)} verdict ${Math.floor(ageMin)} min after the request` };
+  }
+  return { action: 'wait', state: 'laptop-rerun', suites, set,
+    reason: `${t}: confirm rerun ${rec.id} of ${suites.join(',')} on ${short(train.head)} ${r.state === 'missing' ? 'queued' : r.state}${r.state === 'success' ? ' (waiting for laptop-e2e)' : ''}` };
 }
 
 /** The `gh pr edit` argv dropping LABEL (null without it) and the comment (null when one with `marker` exists). */
@@ -1031,7 +1066,7 @@ function labeledAt(pr) {
  * the remaining train-ready PRs in this tick (pacing skipped: the failed train already passed it). Anything it cannot
  * work out (no failing suite, an unreadable diff, nothing to drop) keeps the old state "failed" for the orchestrator.
  */
-async function autoDrop(t, o, labelExists, base, c) {
+async function autoDrop(t, o, labelExists, base, c, prev) {
   const left = (why) => { log(`autodrop: ${why}: left for the orchestrator`); return { ...base, state: 'failed', reason: `${c.reason}; autodrop: ${why}, left for the orchestrator` }; };
   const asserts = failureAsserts(prLabelsBodies(t.pr).bodies, t.head);
   const failing = c.failing.length ? c.failing : Object.keys(asserts);
@@ -1049,6 +1084,9 @@ async function autoDrop(t, o, labelExists, base, c) {
   }
   const pick = pickDrops(members, failing);
   if (!pick.drops.length) return left(pick.reason);
+  // a guessed drop (tier 2-3) on the train's own first failure waits for one confirm rerun (confirmPlan)
+  const cp = c.confirm ? confirmPlan(t, prev, pick.drops, failing, { now: Date.now(), staleMin: RERUN_STALE }) : null;
+  if (cp) return rerunStep(t, { ...cp, reason: `${cp.reason} (${pick.reason})` }, base);
   log(`autodrop: train ${t.n} failed ${failing.join(',')}: ${pick.reason}`);
   for (const d of pick.drops) {
     const m = members.find((x) => x.pr === d.pr);
@@ -1150,7 +1188,7 @@ async function step(o) {
   const rp = d.action === 'release' ? null : rerunPlan(t, prev, { now: Date.now(), staleMin: RERUN_STALE });
   // a laptop failure (or a failed laptop rerun) drops the culprit and rebuilds at once; --no-autodrop: wait as before
   const drop = o.noAutodrop ? null : autoDropCase(t, d, rp);
-  if (drop) return autoDrop(t, o, labelExists, base, drop);
+  if (drop) return autoDrop(t, o, labelExists, base, drop, prev);
   if (rp) return rerunStep(t, rp, base);
   // the laptop verdict is past its expected wall: the fast poll goes to POLL_LATE_S (laptopLate)
   const late = d.state === 'pending' && laptopLate({ since: t.laptopSince, description: t.laptop.description, now: Date.now() });

@@ -4,7 +4,7 @@ import {
   nextTrainNumber, pacing, parseChangelogHeading, parseLeftOut, parseTrainTitle, planBuild, rebuildSkip, releaseArgs, releaseKind, scratchFiles,
   stackedTips, versionFromSubjects, rerunArgs, rerunContext, rerunPlan, buildMarkerPath, clearBuildMarker, withBuildMarker, writeBuildMarker, leftOutPlan, RERUN_STALE_MIN, RERUN_REQUEST_MAX,
   checkWaitReason, ciLabel, holdForChecks, selfUpdatePlan, CHECK_WAIT_MIN, fastPollPlan, FAST_POLL_S, FAST_POLL_MAX_MIN, LOCK_STALE_MIN, FAST_POLL_LATE_S, LAPTOP_EXPECT_MIN, pendingSince, laptopLate,
-  failSuites, failureAsserts, autoDropCase, pickDrops, dropPlan, closeTrainBody, suiteBase, repeatedSuites, carryLastDrop, AUTODROP_MAX_SUITES,
+  failSuites, failureAsserts, autoDropCase, pickDrops, dropPlan, closeTrainBody, suiteBase, repeatedSuites, carryLastDrop, AUTODROP_MAX_SUITES, confirmPlan,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/auto-train.mjs';
 // @ts-expect-error plain .mjs script without types
@@ -597,6 +597,29 @@ describe('auto-train: auto-drop on a failed train (Michael 2026-10-24 "Auto-drop
     expect(failureAsserts([c('99999999', 'x')], head)).toEqual({});
     expect(failureAsserts([c('abcdef12', 'x').replace(/\n/g, '\r\n')], head)).toMatchObject({ 'e2e-lightbake': 'x' });
     expect(failureAsserts(undefined, head)).toEqual({});
+  });
+
+  it('confirms a guessed drop (tier 2-3) with one rerun on the same head; tier 1 and a failed rerun drop at once', () => {
+    const train = (o: Record<string, unknown> = {}) => ({ n: 64, pr: 341, head, version: '4.96.0', ci: 'success', vitest: 'missing', versionCommit: true,
+      laptop: { state: 'failure', description: '38/39 pass, 600 s; FAIL: e2e-ctcourse:4' }, rerun: { state: 'missing', description: '' }, ageMin: 30, ...o });
+    const t = train();
+    expect(autoDropCase(t, decide({ train: t }), null)).toMatchObject({ confirm: true });
+    const guess = [{ pr: 288, branch: 'feature/a', suite: 'e2e-ctcourse', tier: 3 }];
+    expect(confirmPlan(t, null, [{ ...guess[0], tier: 1 }], ['e2e-ctcourse:4'])).toBeNull();
+    expect(confirmPlan(t, null, guess, ['e2e-ctcourse:4'])).toMatchObject({ action: 'request', state: 'laptop-rerun', suites: ['e2e-ctcourse:4'], set: 'train64-rerun',
+      reason: expect.stringMatching(/no member maps to e2e-ctcourse:4: one confirm rerun/) });
+    expect(confirmPlan(t, null, [{ ...guess[0], tier: 2 }], ['e2e-ctcourse:4'])).toMatchObject({ action: 'request' });
+    const rec = { rerun: { head, id: 'r9', suites: ['e2e-ctcourse:4'], set: 'train64-rerun', at: new Date(NOW - 10 * MIN).toISOString() } };
+    expect(confirmPlan(t, rec, guess, ['e2e-ctcourse:4'], { now: NOW })).toMatchObject({ action: 'wait', state: 'laptop-rerun', reason: expect.stringMatching(/r9 .* queued/) });
+    expect(confirmPlan(t, { rerun: { ...rec.rerun, head: 'other' } }, guess, ['e2e-ctcourse:4'], { now: NOW })).toMatchObject({ action: 'request' });
+    expect(confirmPlan(t, rec, guess, ['e2e-ctcourse:4'], { now: NOW + 120 * MIN })).toMatchObject({ action: 'none', state: 'rerun-stale' });
+    expect(confirmPlan(train({ rerun: { state: 'failure', description: '0/1 pass, 80 s; FAIL: e2e-ctcourse:4' } }), rec, guess, ['e2e-ctcourse:4'], { now: NOW })).toBeNull();
+    const failed = (count: number) => ({ rerunRequestFailed: { head, exit: 1, why: 'push', count } });
+    expect(confirmPlan(t, failed(2), guess, ['e2e-ctcourse:4'])).toMatchObject({ action: 'request', reason: expect.stringMatching(/try 3\/6/) });
+    expect(confirmPlan(t, failed(RERUN_REQUEST_MAX), guess, ['e2e-ctcourse:4'])).toMatchObject({ action: 'none', state: 'rerun-request-failed' });
+    // a failed desktop rerun is already the second failure: no confirm flag
+    const desk = train({ laptop: { state: 'failure', description: 'desktop: 38/39 pass, 600 s; FAIL: e2e-coop' }, rerun: { state: 'failure', description: '0/1 pass, 80 s; FAIL: e2e-coop' } });
+    expect(autoDropCase(desk, decide({ train: desk }), rerunPlan(desk, rec, { now: NOW }))?.confirm).toBeUndefined();
   });
 
   it('drops on a laptop failure or a failed laptop rerun only; CI, vitest, a pending rerun and stale stay as before', () => {
