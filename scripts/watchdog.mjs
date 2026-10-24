@@ -2,25 +2,10 @@
 // path"): a deterministic tick, run every 2 min by a scheduled task (scripts/watchdog-task.ps1) from the dedicated
 // checkout C:/NightShift/Mobile-Coop-watchdog-live, that looks at the machine, GitHub, the queues and Pages and writes
 // alerts to C:/NightShift/scratch/watch-status.json: { time, alerts: [{ id, severity, kind, subject, detail, since,
-// action }], ... }. The orchestrator's cron reads only that file. Contract, checks and fixes: docs/systems/watchdog.md.
-// Checks (pure helpers below, tests/watchdog.test.ts; gh / git / fs / process I/O in the shell part):
-//   locks      heavy.lock / heavy2.lock: a dead pid, or no pid and old with no node running
-//   orphans    tail.exe / grep.exe (alert only) / node e2e runners whose parent process is gone
-//   prs        train-ready PRs CONFLICTING (owner by branch), commits after the label
-//   labels     PRs ready for train-ready (CI check green + `checker` status success + `affected-e2e`, required once #356 is in)
-//   release    dev behind master, master's version tag missing, member PRs whose head is in master still open
-//   pages      /preview/ serves master's version within 15 min of the release
-//   autotrain  auto-train status stale / failed / error, its checkout behind origin/master
-//   laptop     laptop-queue claims with no sign of life, old requests, stale requests (branch moved)
-//   cloud      cloud-queue briefs claimed 90+ min with no branch push
-// Alerts only by default. `--fix <list>` (comma list of locks, orphans, prs, labels, release, cloud) turns on the fixes
-// of those checks, one at a time; every fix re-reads what it acts on right before acting and is idempotent.
-// Usage: node scripts/watchdog.mjs tick [--dry-run] [--fix <list>] [--checks <list>] [--require-affected | --no-require-affected] [--self-update | --no-self-update]
-// --dry-run: no write anywhere (no push, label, comment, close, kill, lock break, self-update); fixes are printed as
-// "[dry-run] would ..."; the status and log go to watch-status.dryrun.json / runs/watchdog.dryrun.log. It still runs
-// `git fetch origin` (local refs only) so the queues and ancestry are current.
-// Files (WATCHDOG_SCRATCH moves them): status C:/NightShift/scratch/watch-status.json, state watch-state.json (alert
-// first-seen times, label heads, Pages cache, the mid-action marker), log runs/watchdog.log, lock watchdog.lock.
+// action }], ... }. The orchestrator's cron reads only that file. Checks, fixes, flags, files and the label
+// convention: docs/systems/watchdog.md (pure helpers below, tests/watchdog.test.ts; gh / git / fs / process I/O in the
+// shell part). Alerts only by default; `--fix <list>` turns on one check's fixes at a time; every fix re-reads what it
+// acts on right before acting and is idempotent. It never closes, merges or force-pushes anything.
 // Exit: 0 tick done (also when another tick holds the lock), 1 usage error or a crash outside the checks.
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -96,10 +81,7 @@ export function alert(kind, subject, severity, detail, { fix = null, graceMin = 
   return { id: `${kind}:${subject}`, severity, kind, subject, detail, fix, graceMin, advice };
 }
 
-/**
- * Stamps each alert with `since` (first seen, carried in `prev` by id) and holds back the ones still inside their
- * grace. -> { shown, held: [{ id, severity, detail, since, graceMin }], since } (`since` = the new map: only the ids seen this tick, so a cleared alert starts over).
- */
+/** Stamps `since` (first seen, by id from `prev`), holds alerts in grace -> { shown, held, since (ids seen this tick) }. */
 export function applySince(alerts, prev, now) {
   const since = {};
   const shown = [];
@@ -142,12 +124,7 @@ export function parseLockText(text) {
 }
 export const KNOWN_LOCK_WRITERS = ['heavy-lock', 'laptop-queue', 'touch'];
 
-/**
- * Alerts for one lock: `l` = { path, text (null = absent), mtimeMs }; `env` = { now, host, alive(pid), nodeLive }.
- * A pid that is not running (on this host) -> high, fixable (break) only when a known writer wrote it; no pid and over
- * lockStaleMin with no node process at all -> warn, alert only; a live pid over lockOldMin -> info; no pid over
- * lockOldMin (file time) with node running -> warn, alert only.
- */
+/** Alerts for one lock (docs/systems/watchdog.md, locks): `l` = { path, text (null = absent), mtimeMs }. */
 export function lockAlerts(l, { now, host = os.hostname(), alive = pidAlive, nodeLive = true, limits = LIMITS }) {
   if (l.text == null) return [];
   const p = parseLockText(l.text);
@@ -182,11 +159,8 @@ export const E2E_CMD = /(?:^|[\s"'\\/])scripts[\\/](?:run-e2e|e2e-[\w-]+)\.mjs\b
 export const NS_CMD = /NightShift|Mobile-Coop|(?:^|[\s"'\\/])scripts[\\/](?:run-e2e|e2e-[\w-]+|laptop-queue[\\/][\w-]+|auto-train|merge-train|watchdog)\.mjs\b|vite(?:\.js)?["']?\s+preview\s+--port\s+41(?:73|79|89|91|92)\b/i;
 
 /**
- * Orphans in a process list [{ pid, ppid, name, cmd, created (ms) }]: tail.exe / grep.exe / node e2e runners whose
- * parent is gone (no such pid, or that pid started after the child: reused) and that are at least `minAgeMin` old (a
- * Git Bash pipeline's short-lived fork parent makes young pipeline members look parentless). killable only for a node
- * e2e runner with a Night Shift command line (NS_CMD), killMin+ old, whose pid / parent pid no heavy lock names
- * (`lockPids`); `why` says why not.
+ * Orphans in [{ pid, ppid, name, cmd, created (ms) }]: parent gone (or its pid reused: started later), minAgeMin+ old
+ * (young pipeline members look parentless). killable only per docs/systems/watchdog.md (orphans); `why` says why not.
  */
 export function findOrphans(procs, now, { minAgeMin = LIMITS.orphanMin, killMin = LIMITS.orphanKillMin, lockPids = new Set() } = {}) {
   const byPid = new Map(procs.map((p) => [p.pid, p]));
@@ -224,9 +198,10 @@ export function orphanAlerts(orphans) {
  * labeledAt, headAt, labelHead, check, checkGreenAt, statuses: { context: { state, description, at } } } (newest status per context).
  */
 export function normalizePr(node) {
-  const commit = node?.commits?.nodes?.[0]?.commit ?? {};
-  // commits(last:1) can lag headRefOid: its checks and statuses count only when it is the head
-  const onHead = commit.oid === node.headRefOid;
+  // the rollup of the head commit itself (headRef's target, not the commit list, whose order follows commit dates);
+  // its checks and statuses count only while it is still headRefOid
+  const commit = node?.headRef?.target ?? {};
+  const onHead = !!commit.oid && commit.oid === node.headRefOid;
   const rollup = onHead ? commit.statusCheckRollup?.contexts?.nodes ?? [] : [];
   const statuses = {};
   for (const s of rollup) {
@@ -264,13 +239,13 @@ export const docsOnlyFiles = (files) => files.length > 0 && files.every((f) => /
 const statusOf = (pr, ctx) => pr.statuses?.[ctx]?.state ?? 'missing';
 export const isTrain = (branch) => /^train\/\d+$/.test(String(branch ?? ''));
 
-/**
- * Whether a PR may get `train-ready` (the label convention, docs/systems/watchdog.md): not a train, not a draft, not
- * CONFLICTING, CI `check` success, commit status `checker` success on the head, and `affected-e2e` success when the
- * head has one (or always, with requireAffected, unless the PR has NO_AFFECTED_LABEL). -> { ready, why }.
- */
-export function labelReady(pr, { requireAffected = false } = {}) {
-  const no = (why) => ({ ready: false, why });
+/** The required checks that are red (failure) on the PR's current head: CI `check`, `checker`, `affected-e2e`. */
+export const redChecks = (pr) => [pr.check === 'failure' ? 'check' : null,
+  ...[CHECKER_CONTEXT, AFFECTED_CONTEXT].map((c) => (statusOf(pr, c) === 'failure' ? c : null))].filter(Boolean);
+
+/** Whether a PR may get `train-ready` (the label convention, docs/systems/watchdog.md) -> { ready, why, affectedMissing }. */
+export function labelReady(pr, { requireAffected = true } = {}) {
+  const no = (why, affectedMissing = false) => ({ ready: false, why, affectedMissing });
   if (isTrain(pr.branch)) return no('train PR');
   if (pr.draft) return no('draft');
   if (pr.mergeable === 'CONFLICTING') return no('conflicting');
@@ -278,24 +253,17 @@ export function labelReady(pr, { requireAffected = false } = {}) {
   const checker = statusOf(pr, CHECKER_CONTEXT);
   if (checker !== 'success') return no(`${CHECKER_CONTEXT} ${checker}`);
   const aff = statusOf(pr, AFFECTED_CONTEXT);
-  if (aff === 'missing' && requireAffected && !pr.labels?.includes(NO_AFFECTED_LABEL)) return no(`${AFFECTED_CONTEXT} missing`);
+  if (aff === 'missing' && requireAffected && !pr.labels?.includes(NO_AFFECTED_LABEL)) return no(`${AFFECTED_CONTEXT} unavailable`, true);
   if (aff !== 'missing' && aff !== 'success') return no(`${AFFECTED_CONTEXT} ${aff}`);
   const desc = pr.statuses[CHECKER_CONTEXT].description;
   return { ready: true, why: `check green, ${CHECKER_CONTEXT} success${desc ? ` (${desc})` : ''}${aff === 'success' ? `, ${AFFECTED_CONTEXT} success` : ''}` };
 }
 
 /**
- * PR and label alerts. `prs` = normalizePr()s; `labelHeads` = { [pr]: head } from the last tick (the head each
- * labelled PR had when first seen labelled). -> { alerts, labelHeads } (the new map: labelled PRs only).
- * - labelled + CONFLICTING -> pr-conflict (high, owner named), alert only.
- * - labelled + commits after the label (the head moved from the labelled head: first seen labelled, else the newest
- *   commit at or before the label event, else by commit time), not docs-only (pr.docsOnlyFrom has that head), and no
- *   `checker` success on the new head -> pr-commit-after-label; fix (prs): remove the
- *   label and comment once per head.
- * - not labelled + labelReady -> pr-label-ready; fix (labels) adds the label; without that fix the alert shows once
- *   `check` has been green greenMin min.
+ * PR and label alerts (kinds and fixes: docs/systems/watchdog.md, prs / labels). `prs` = normalizePr()s; `labelHeads`
+ * = { [pr]: head } from the last tick (each labelled PR's head when first seen labelled). -> { alerts, labelHeads }.
  */
-export function prAlerts(prs, { now, labelHeads = {}, owner = () => '', labelFix = false, requireAffected = false, limits = LIMITS } = {}) {
+export function prAlerts(prs, { now, labelHeads = {}, owner = () => '', labelFix = false, requireAffected = true, limits = LIMITS } = {}) {
   const alerts = [];
   const heads = {};
   for (const pr of prs) {
@@ -310,12 +278,18 @@ export function prAlerts(prs, { now, labelHeads = {}, owner = () => '', labelFix
       // commits since the labelled head that touch only docs / *.md / fragments keep the label (shell: docsOnlyFrom)
       const docsOnly = moved && from != null && !!pr.docsOnlyFrom?.has?.(from);
       const checked = statusOf(pr, CHECKER_CONTEXT) === 'success';
-      if (docsOnly) heads[pr.number] = from;
+      const red = redChecks(pr);
+      const unlabel = (reason) => ({ fix: { check: 'prs', type: 'unlabel', pr: pr.number, head: pr.head, branch: pr.branch, reason, desc: `remove ${LABEL} from #${pr.number} and comment` } });
+      if (red.length) {
+        heads[pr.number] = from ?? pr.head;
+        const reason = `${red.join(', ')} red on head ${short(pr.head)}`;
+        alerts.push(alert('pr-label-red', subj, 'warn', `${LABEL} but ${reason}; owner ${who}`, unlabel(reason)));
+      } else if (docsOnly) heads[pr.number] = from;
       else if (moved && !checked) {
         heads[pr.number] = from ?? pr.head;
         alerts.push(alert('pr-commit-after-label', subj, 'warn',
-          `commits after ${LABEL} (head ${short(pr.head)}${prev && prev !== pr.head ? `, labelled at ${short(prev)}` : ''}), no ${CHECKER_CONTEXT} success on the new head; owner ${who}`, {
-            fix: { check: 'prs', type: 'unlabel', pr: pr.number, head: pr.head, branch: pr.branch, desc: `remove ${LABEL} from #${pr.number} and comment` } }));
+          `commits after ${LABEL} (head ${short(pr.head)}${prev && prev !== pr.head ? `, labelled at ${short(prev)}` : ''}), no ${CHECKER_CONTEXT} success on the new head; owner ${who}`,
+          unlabel(`commits landed after \`${LABEL}\` (head ${short(pr.head)} has no \`${CHECKER_CONTEXT}\` success)`)));
       } else heads[pr.number] = pr.head;
       if (pr.mergeable === 'CONFLICTING') {
         alerts.push(alert('pr-conflict', subj, 'high', `${LABEL} but CONFLICTING with master; owner ${who}`, { advice: `alert only (tell ${who}: fix the conflict on the branch)` }));
@@ -323,8 +297,13 @@ export function prAlerts(prs, { now, labelHeads = {}, owner = () => '', labelFix
       continue;
     }
     const lr = labelReady(pr, { requireAffected });
-    if (!lr.ready) continue;
+    if (!lr.ready && !lr.affectedMissing) continue;
     const greenMin = pr.checkGreenAt ? mins(now - pr.checkGreenAt) : 0;
+    if (lr.affectedMissing) {
+      alerts.push(alert('pr-affected-unavailable', subj, 'warn', `ready but ${AFFECTED_CONTEXT} unavailable on head ${short(pr.head)}: not labelled; owner ${who}`, {
+        advice: `alert only (run ${AFFECTED_CONTEXT} on the head, label it ${NO_AFFECTED_LABEL}, or WATCHDOG_REQUIRE_AFFECTED=0 to opt out)` }));
+      continue;
+    }
     if (!labelFix && greenMin < limits.greenMin) continue;
     alerts.push(alert('pr-label-ready', subj, labelFix ? 'info' : 'warn', `${lr.why}; green ${greenMin} min, no ${LABEL}; owner ${who}`, {
       fix: { check: 'labels', type: 'label', pr: pr.number, head: pr.head, branch: pr.branch, why: lr.why, desc: `add ${LABEL} to #${pr.number}` } }));
@@ -334,17 +313,12 @@ export function prAlerts(prs, { now, labelHeads = {}, owner = () => '', labelFix
 
 /** Comment bodies (with a per-head marker, so each is posted once per head). */
 export const labelComment = (head, why) => `Watchdog: added \`${LABEL}\` on ${short(head)} (${why}).\n\n<!-- watchdog:label:${head} -->`;
-export const unlabelComment = (head) => [
-  `Watchdog: commits landed after \`${LABEL}\` (head ${short(head)} has no \`${CHECKER_CONTEXT}\` success), so the label was removed and this PR no longer joins trains.`,
-  `Run the checker on the new head (it posts the \`${CHECKER_CONTEXT}\` commit status, docs/systems/watchdog.md) and the label comes back, or re-add it by hand.`,
+export const unlabelComment = (head, reason) => [
+  `Watchdog: ${reason}, so \`${LABEL}\` was removed and this PR no longer joins trains.`,
+  `Fix it and run the checker on the new head (it posts the \`${CHECKER_CONTEXT}\` commit status, docs/systems/watchdog.md) and the label comes back, or re-add it by hand.`,
   `<!-- watchdog:unlabel:${head} -->`].join('\n\n');
-export const closeMemberComment = (head, version) => `Watchdog: this PR's head ${short(head)} is in master (${version}), so it was merged through a train; closing it.\n\n<!-- watchdog:close:${head} -->`;
 
-/**
- * Owner names by branch / PR: `override` = { branch or branch prefix: owner } (C:/NightShift/scratch/watch-owners.json),
- * then the newest laptop-queue request naming the branch or PR (its requester), then a cloud brief's "Lead:" for its
- * "New branch:", else "job <branch without feature/>". -> owner(branch, pr) -> string.
- */
+/** Owner names (docs/systems/watchdog.md, Owners) -> owner(branch, pr) -> string. */
 export function ownerMap({ requests = [], briefs = [], override = {} } = {}) {
   const byBranch = new Map();
   const byPr = new Map();
@@ -377,10 +351,7 @@ export function versionCommit(log) {
   return { version: head.version, sha: pick.sha, at: pick.at };
 }
 
-/**
- * Release-tail alerts. r = { master, dev, devBehind (dev is an ancestor of master), version, versionSha, tagExists,
- * members: [{ number, branch, head, inMaster }] (open non-train PRs; inMaster = head is an ancestor of master) }.
- */
+/** r = { master, dev, devBehind, version, versionSha, tagExists, members: [{ number, branch, head, inMaster }] }. */
 export function releaseAlerts(r, { limits = LIMITS } = {}) {
   const out = [];
   if (r.master && r.dev && r.dev !== r.master) {
@@ -401,8 +372,7 @@ export function releaseAlerts(r, { limits = LIMITS } = {}) {
   for (const m of r.members ?? []) {
     if (!m.inMaster || isTrain(m.branch) || ['dev', 'master'].includes(m.branch)) continue;
     out.push(alert('release-member-open', `#${m.number} ${m.branch}`, 'warn', `head ${short(m.head)} is in master but the PR is still open`, {
-      graceMin: limits.memberGraceMin,
-      fix: { check: 'release', type: 'close', pr: m.number, head: m.head, version: r.version, desc: `gh pr close ${m.number} with a comment` } }));
+      graceMin: limits.memberGraceMin, advice: `alert only (member PR ${m.number} merged into master but open: close by hand)` }));
   }
   return out;
 }
@@ -463,11 +433,8 @@ export function autoTrainAlerts(a, { limits = LIMITS } = {}) {
 export const nonTestFiles = (files) => files.filter((f) => f && !/^(docs\/|tests\/|scripts\/e2e|changes\/|CHANGELOG)|\.md$/.test(f));
 
 /**
- * q = { requests: [{ id, sha, branch, pr, requester, set, pin }], claims: { [id]: claim } (claims/<id>.json, a train:
- * claims/<sha>.json), trainHeads: Set of open train heads, activity: { laptop, desktop } (ms of each worker's newest push
- * on the branch), desktopBeat (ms, the desktop service's newest log write), stale: { [id]: { ref, files } }, now }.
- * Sign of life of an open claim = newest of its `at`, its `beat` (when the service writes one), its worker's newest
- * push and (desktop) the service log. Over claimSilentMin -> lq-claim-silent; claim over claimStuckMin -> lq-claim-stuck.
+ * q = { requests, claims: { [id or train sha]: claim }, trainHeads: Set, activity: { laptop, desktop } (newest push ms),
+ * desktopBeat (ms), stale: { [id]: { ref, files } }, now }. Sign of life: docs/systems/watchdog.md.
  */
 export function laptopAlerts(q, { limits = LIMITS } = {}) {
   const out = [];
@@ -520,11 +487,7 @@ export function parseBrief(text) {
   return { status, by, at, branch, lead, line };
 }
 
-/**
- * b = [{ path, blob, text, pushed (true: the branch has a commit after the claim; false: no such branch or none after
- * the claim; null: unknown) }], now. Claimed claimMin+ min and not pushed -> cloud-claim-stale; fix (cloud) reopens it
- * when the push is known missing.
- */
+/** b = [{ path, blob, text, pushed (true / false: a commit after the claim or not; null: unknown) }]; reopen only on false. */
 export function cloudAlerts(briefs, { now, limits = LIMITS } = {}) {
   const out = [];
   for (const b of briefs) {
@@ -563,8 +526,8 @@ const AUTOTRAIN_STATUS = process.env.WATCHDOG_AUTOTRAIN_STATUS || path.join(proc
 const AUTOTRAIN_VBS = path.join(SCRATCH, 'auto-train-task.vbs');
 const DESKTOP_LQ_DIR = process.env.WATCHDOG_LQ_DESKTOP_DIR || path.join(SCRATCH, 'laptop-queue-desktop');
 const OWNERS_FILE = path.join(SCRATCH, 'watch-owners.json');
-// affected-e2e required by default once the laptop service posts it on every PR head (#356 on this checkout)
-const REQUIRE_AFFECTED = process.env.WATCHDOG_REQUIRE_AFFECTED ? process.env.WATCHDOG_REQUIRE_AFFECTED === '1' : !!lq.AFFECTED_REQUESTER;
+// affected-e2e is required for the label by default (no labelling without it); WATCHDOG_REQUIRE_AFFECTED=0 opts out
+const REQUIRE_AFFECTED = process.env.WATCHDOG_REQUIRE_AFFECTED !== '0';
 let DRY = false;
 let FILES = scratchFiles(SCRATCH, false);
 
@@ -621,7 +584,7 @@ function processes(filter = '') {
   return (Array.isArray(j) ? j : [j]).map((p) => ({ pid: Number(p.pid), ppid: Number(p.ppid), name: p.name ?? '', cmd: p.cmd ?? '', created: Number(p.created) || 0 }));
 }
 
-const OPEN_PRS_QUERY = `query($owner:String!,$name:String!){ repository(owner:$owner,name:$name){ pullRequests(states:OPEN,first:100,baseRefName:"master",orderBy:{field:CREATED_AT,direction:DESC}){ nodes{ number title headRefName headRefOid isDraft mergeable labels(first:30){nodes{name}} timelineItems(last:40,itemTypes:[LABELED_EVENT]){nodes{__typename ... on LabeledEvent{createdAt label{name}}}} recent: commits(last:40){nodes{commit{oid committedDate checkSuites(first:5){nodes{createdAt}}}}} commits(last:1){nodes{commit{oid committedDate statusCheckRollup{contexts(first:100){nodes{__typename ... on CheckRun{name status conclusion completedAt startedAt} ... on StatusContext{context state description createdAt}}}}}}} } } } }`;
+const OPEN_PRS_QUERY = `query($owner:String!,$name:String!){ repository(owner:$owner,name:$name){ pullRequests(states:OPEN,first:100,baseRefName:"master",orderBy:{field:CREATED_AT,direction:DESC}){ nodes{ number title headRefName headRefOid isDraft mergeable labels(first:30){nodes{name}} timelineItems(last:40,itemTypes:[LABELED_EVENT]){nodes{__typename ... on LabeledEvent{createdAt label{name}}}} recent: commits(last:40){nodes{commit{oid committedDate checkSuites(first:5){nodes{createdAt}}}}} headRef{target{... on Commit{oid committedDate statusCheckRollup{contexts(first:100){nodes{__typename ... on CheckRun{name status conclusion completedAt startedAt} ... on StatusContext{context state description createdAt}}}}}}} } } } }`;
 
 // ---- context: everything the checks read, gathered once per tick ---------------------------------------------------
 
@@ -712,7 +675,8 @@ function checkPrs(ctx, o, state, which) {
   if (!ctx.prs) throw new Error(`PR list unavailable: ${ctx.errors.prs}`);
   const r = prAlerts(ctx.prs, { now: ctx.now, labelHeads: state.labelHeads ?? {}, owner: ctx.owner, labelFix: o.fix.has('labels'), requireAffected: o.requireAffected ?? REQUIRE_AFFECTED });
   ctx.labelHeads = r.labelHeads;
-  return r.alerts.filter((a) => (which === 'labels' ? a.kind === 'pr-label-ready' : a.kind !== 'pr-label-ready'));
+  const labelKind = (a) => a.kind === 'pr-label-ready' || a.kind === 'pr-affected-unavailable';
+  return r.alerts.filter((a) => (which === 'labels') === labelKind(a));
 }
 
 function checkRelease(ctx) {
@@ -848,21 +812,10 @@ async function runFix(f) {
       }
       const marker = `<!-- watchdog:${f.type}:${f.head} -->`;
       if (!(v.comments ?? []).some((c) => String(c.body).includes(marker))) {
-        read(['gh', 'pr', 'comment', String(f.pr), '--repo', REPO, '--body', add ? labelComment(f.head, f.why) : unlabelComment(f.head)]);
+        read(['gh', 'pr', 'comment', String(f.pr), '--repo', REPO, '--body', add ? labelComment(f.head, f.why) : unlabelComment(f.head, f.reason)]);
       }
       log(`  #${f.pr}: ${add ? 'added' : 'removed'} ${LABEL}`);
       return `fixed: ${add ? 'labelled' : 'label removed'}`;
-    }
-    case 'close': {
-      if (DRY) return would(`gh pr close ${f.pr} --comment "${closeMemberComment(f.head, f.version).split('\n')[0]}"`);
-      const v = ghPr(f.pr);
-      if (v.state !== 'OPEN') return 'already closed';
-      if (v.headRefOid !== f.head) return 'skipped: the head moved';
-      const master = git(['ls-remote', 'origin', 'refs/heads/master']).split('\t')[0];
-      if (!gitOk(['merge-base', '--is-ancestor', f.head, master])) return 'skipped: the head is not in master';
-      read(['gh', 'pr', 'close', String(f.pr), '--repo', REPO, '--comment', closeMemberComment(f.head, f.version)]);
-      log(`  closed #${f.pr}`);
-      return 'fixed: closed';
     }
     case 'push-dev': {
       if (DRY) return would(`git push origin ${f.master}:refs/heads/dev`);
@@ -978,7 +931,7 @@ async function main(argv) {
   const lock = takeTouchLock(FILES.lock, `watchdog${DRY ? ' dry-run' : ''}`, { staleMin: 10, log });
   if (!lock.release) { log(`lock held (${lock.holder}, ${Math.round(lock.ageMin)} min): skipping this tick`); return 0; }
   try {
-    log(`tick${DRY ? ' (dry run: nothing is pushed, labelled, commented, closed, killed or broken)' : ''} in ${REPO_DIR}${o.fix.size ? `, fixes: ${[...o.fix].join(',')}` : ', alerts only'}`);
+    log(`tick${DRY ? ' (dry run: nothing is pushed, labelled, commented, killed or broken)' : ''} in ${REPO_DIR}${o.fix.size ? `, fixes: ${[...o.fix].join(',')}` : ', alerts only'}`);
     const s = await tick(o);
     for (const a of s.alerts) console.log(`  ${a.severity.padEnd(4)} ${a.id}: ${a.detail} -> ${a.action}`);
   } finally { lock.release(); }

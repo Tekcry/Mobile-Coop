@@ -1,14 +1,10 @@
-# Registers (or with -Unregister removes) the Windows scheduled task "NightShift watchdog" that runs
-# `node scripts/watchdog.mjs tick` every 2 minutes (docs/systems/watchdog.md). Modelled on scripts/auto-train-task.ps1:
-# headless (wscript.exe runs a small generated .vbs that starts node with a hidden window), current user, only while
-# logged on (gh and git keep their credentials), IgnoreNew (a long tick is never doubled).
-# The task runs from a DEDICATED checkout that no agent uses (default C:\NightShift\Mobile-Coop-watchdog-live, detached
-# at origin/master; created here when missing). The watchdog self-updates that checkout to origin/master at each tick
-# start when no fix is mid-way.
-#   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\watchdog-task.ps1 [-RepoDir <checkout>] [-Minutes 2] [-Fix "locks,labels"] [-TickArgs "..."]
-#   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\watchdog-task.ps1 -Unregister
-# -Fix: the opt-in fixes (comma list of locks, orphans, prs, labels, release, cloud); empty = alerts only. Re-run the
-# installer with a longer list to enable the next one (it replaces the task).
+# Registers (or with -Unregister removes) the scheduled task "NightShift watchdog": `node scripts/watchdog.mjs tick`
+# every 2 min, hidden (wscript + a generated .vbs), current user, while logged on, IgnoreNew (docs/systems/watchdog.md;
+# modelled on scripts/auto-train-task.ps1). It runs from a dedicated checkout no agent uses (detached origin/master,
+# created here when missing), which the watchdog self-updates.
+#   powershell -NoProfile -ExecutionPolicy Bypass -File scripts\watchdog-task.ps1 [-RepoDir <dir>] [-Minutes 2] [-Fix "locks,labels"] [-TickArgs "..."] [-Unregister]
+# -Fix: opt-in fixes, a comma list of locks, orphans, prs (unlabel), labels, release (dev fast-forward, tag; never a PR
+# close), cloud; empty = alerts only. Re-run with a longer list to enable the next one (it replaces the task).
 param(
   [switch]$Unregister,
   [string]$RepoDir = 'C:\NightShift\Mobile-Coop-watchdog-live',

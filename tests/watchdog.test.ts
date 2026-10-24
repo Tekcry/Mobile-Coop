@@ -3,7 +3,7 @@ import {
   parseArgs, parseList, scratchFiles, alert, applySince, actionText, parseLockText, lockAlerts, findOrphans, orphanAlerts,
   normalizePr, labelReady, prAlerts, ownerMap, versionCommit, releaseAlerts, indexScript, previewLabel, pagesAlerts,
   autoTrainAlerts, nonTestFiles, laptopAlerts, parseLooseIso, parseBrief, cloudAlerts, reopenText, labelComment,
-  unlabelComment, closeMemberComment, docsOnlyFiles, NS_CMD, E2E_CMD, LIMITS,
+  unlabelComment, redChecks, docsOnlyFiles, NS_CMD, E2E_CMD, LIMITS,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/watchdog.mjs';
 
@@ -140,14 +140,15 @@ describe('watchdog: orphans', () => {
 
 const ctxNode = (name: string, state: string, createdAt = '2026-10-24T10:00:00Z', description = '') => ({ __typename: 'StatusContext', context: name, state, description, createdAt });
 const runNode = (name: string, conclusion: string, completedAt = '2026-10-24T10:00:00Z') => ({ __typename: 'CheckRun', name, status: 'COMPLETED', conclusion, completedAt, startedAt: completedAt });
+type RecentCommit = { oid: string; committedDate: string; checkSuites?: { nodes: { createdAt: string }[] } };
 function prNode({ number = 7, branch = 'feature/x', head = SHA('a'), labels = [] as string[], labeledAt = null as string | null, committedDate = '2026-10-24T09:00:00Z',
-  contexts = [runNode('check', 'SUCCESS')] as unknown[], mergeable = 'MERGEABLE', isDraft = false, recent = [] as { oid: string; committedDate: string; checkSuites?: { nodes: { createdAt: string }[] } }[] } = {}) {
+  contexts = [runNode('check', 'SUCCESS')] as unknown[], mergeable = 'MERGEABLE', isDraft = false, recent = [] as RecentCommit[] } = {}) {
   return {
     number, title: 't', headRefName: branch, headRefOid: head, isDraft, mergeable,
     labels: { nodes: labels.map((name) => ({ name })) },
     timelineItems: { nodes: labeledAt ? [{ __typename: 'LabeledEvent', createdAt: labeledAt, label: { name: 'train-ready' } }] : [] },
     recent: { nodes: recent.map((c) => ({ commit: c })) },
-    commits: { nodes: [{ commit: { oid: head, committedDate, statusCheckRollup: { contexts: { nodes: contexts } } } }] },
+    headRef: { target: { oid: head, committedDate, statusCheckRollup: { contexts: { nodes: contexts } } } } as { target: { oid: string } } | null,
   };
 }
 
@@ -160,19 +161,26 @@ describe('watchdog: PRs and the label convention', () => {
     expect(p.statuses['laptop-e2e'].state).toBe('failure');
   });
 
-  it('labels only on green check + checker success (+ affected-e2e when present or required)', () => {
+  it('labels only on green check + checker success + affected-e2e (required by default, opt-out)', () => {
     const base = { contexts: [runNode('check', 'SUCCESS'), ctxNode('checker', 'SUCCESS', undefined, 'Opus PASS')] };
-    expect(labelReady(normalizePr(prNode(base)))).toEqual({ ready: true, why: 'check green, checker success (Opus PASS)' });
-    expect(labelReady(normalizePr(prNode({ contexts: [runNode('check', 'SUCCESS')] })))).toEqual({ ready: false, why: 'checker missing' });
+    const off = { requireAffected: false };
+    expect(labelReady(normalizePr(prNode(base)), off)).toEqual({ ready: true, why: 'check green, checker success (Opus PASS)' });
+    expect(labelReady(normalizePr(prNode({ contexts: [runNode('check', 'SUCCESS')] })), off)).toMatchObject({ ready: false, why: 'checker missing' });
     expect(labelReady(normalizePr(prNode({ contexts: [runNode('check', 'FAILURE'), ctxNode('checker', 'SUCCESS')] }))).why).toBe('check failure');
-    expect(labelReady(normalizePr(prNode({ contexts: [...base.contexts, ctxNode('affected-e2e', 'PENDING')] }))).why).toBe('affected-e2e pending');
+    expect(labelReady(normalizePr(prNode({ contexts: [...base.contexts, ctxNode('affected-e2e', 'PENDING')] })), off).why).toBe('affected-e2e pending');
     expect(labelReady(normalizePr(prNode({ contexts: [...base.contexts, ctxNode('affected-e2e', 'SUCCESS')] }))).why).toMatch(/affected-e2e success$/);
-    expect(labelReady(normalizePr(prNode(base)), { requireAffected: true }).why).toBe('affected-e2e missing');
-    expect(labelReady(normalizePr(prNode({ ...base, labels: ['no-affected-e2e'] })), { requireAffected: true }).ready).toBe(true);
-    // commits(last:1) lagging the head: its checks do not count
+    // default: no affected-e2e status -> not ready, flagged
+    expect(labelReady(normalizePr(prNode(base)))).toEqual({ ready: false, why: 'affected-e2e unavailable', affectedMissing: true });
+    expect(labelReady(normalizePr(prNode({ ...base, labels: ['no-affected-e2e'] }))).ready).toBe(true);
+    // a head commit that is no longer headRefOid (or no headRef): its checks do not count
     const lag = prNode(base);
     lag.headRefOid = SHA('n');
     expect(normalizePr(lag)).toMatchObject({ head: SHA('n'), check: 'missing', checkGreenAt: null, statuses: {}, headAt: null });
+    expect(normalizePr({ ...prNode(base), headRef: null })).toMatchObject({ check: 'missing', statuses: {} });
+    // a rebased head whose commit date is older than the rest of the commit list is still read from the head itself
+    const rebased = normalizePr(prNode({ ...base, committedDate: '2026-10-20T09:00:00Z',
+      recent: [{ oid: SHA('a'), committedDate: '2026-10-20T09:00:00Z' }, { oid: SHA('z'), committedDate: '2026-10-24T09:00:00Z' }] }));
+    expect(rebased).toMatchObject({ check: 'success', statuses: { checker: { state: 'success' } } });
     expect(labelReady(normalizePr(prNode({ ...base, isDraft: true }))).why).toBe('draft');
     expect(labelReady(normalizePr(prNode({ ...base, mergeable: 'CONFLICTING' }))).why).toBe('conflicting');
     expect(labelReady(normalizePr(prNode({ ...base, branch: 'train/65' }))).why).toBe('train PR');
@@ -181,11 +189,32 @@ describe('watchdog: PRs and the label convention', () => {
   it('alerts a ready unlabelled PR after 30 green min, or at once with --fix labels', () => {
     const contexts = [runNode('check', 'SUCCESS', iso(NOW - 20 * MIN)), ctxNode('checker', 'SUCCESS')];
     const prs = [normalizePr(prNode({ contexts }))];
-    expect(prAlerts(prs, { now: NOW }).alerts).toEqual([]);
-    expect(prAlerts(prs, { now: NOW + 11 * MIN }).alerts[0]).toMatchObject({ kind: 'pr-label-ready', severity: 'warn' });
-    const [a] = prAlerts(prs, { now: NOW, labelFix: true }).alerts;
+    const off = { requireAffected: false };
+    expect(prAlerts(prs, { now: NOW, ...off }).alerts).toEqual([]);
+    expect(prAlerts(prs, { now: NOW + 11 * MIN, ...off }).alerts[0]).toMatchObject({ kind: 'pr-label-ready', severity: 'warn' });
+    const [a] = prAlerts(prs, { now: NOW, labelFix: true, ...off }).alerts;
     expect(a).toMatchObject({ kind: 'pr-label-ready', severity: 'info' });
     expect(a.fix).toMatchObject({ check: 'labels', type: 'label', pr: 7, head: SHA('a') });
+    // affected-e2e required (the default) and missing: an alert, never a label fix
+    const [u] = prAlerts(prs, { now: NOW, labelFix: true }).alerts;
+    expect(u).toMatchObject({ kind: 'pr-affected-unavailable', fix: null });
+    expect(u.detail).toMatch(/affected-e2e unavailable/);
+    expect(u.advice).toMatch(/WATCHDOG_REQUIRE_AFFECTED=0/);
+  });
+
+  it('drops the label when any required check is red on the current head, even with checker success', () => {
+    const red = normalizePr(prNode({ labels: ['train-ready'], labeledAt: '2026-10-24T09:30:00Z', committedDate: '2026-10-24T09:45:00Z',
+      contexts: [runNode('check', 'FAILURE'), ctxNode('checker', 'SUCCESS')] }));
+    expect(redChecks(red)).toEqual(['check']);
+    const r = prAlerts([red], { now: NOW, labelHeads: { 7: SHA('c') } });
+    expect(r.alerts).toHaveLength(1);
+    expect(r.alerts[0].kind).toBe('pr-label-red');
+    expect(r.alerts[0].fix).toMatchObject({ check: 'prs', type: 'unlabel', pr: 7, head: SHA('a'), reason: 'check red on head aaaaaaaa' });
+    // an unmoved or docs-only head, and a red checker / affected-e2e status, count too
+    const still = normalizePr(prNode({ labels: ['train-ready'], contexts: [runNode('check', 'SUCCESS'), ctxNode('checker', 'FAILURE'), ctxNode('affected-e2e', 'ERROR')] }));
+    expect(redChecks(still)).toEqual(['checker', 'affected-e2e']);
+    expect(prAlerts([{ ...still, docsOnlyFrom: new Set([SHA('c')]) }], { now: NOW, labelHeads: { 7: SHA('c') } }).alerts[0].kind).toBe('pr-label-red');
+    expect(redChecks(normalizePr(prNode({ contexts: [runNode('check', 'SUCCESS'), ctxNode('checker', 'PENDING')] })))).toEqual([]);
   });
 
   it('flags a labelled CONFLICTING PR with its owner', () => {
@@ -215,12 +244,13 @@ describe('watchdog: PRs and the label convention', () => {
   });
 
   it('finds the labelled head and keeps the label across docs-only commits', () => {
-    const recent = [{ oid: SHA('1'), committedDate: '2026-10-24T09:00:00Z' }, { oid: SHA('2'), committedDate: '2026-10-24T09:20:00Z' }, { oid: SHA('3'), committedDate: '2026-10-24T09:45:00Z' }];
+    const [c1, c2, c3]: [RecentCommit, RecentCommit, RecentCommit] = [{ oid: SHA('1'), committedDate: '2026-10-24T09:00:00Z' }, { oid: SHA('2'), committedDate: '2026-10-24T09:20:00Z' }, { oid: SHA('3'), committedDate: '2026-10-24T09:45:00Z' }];
+    const recent = [c1, c2, c3];
     const p = normalizePr(prNode({ head: SHA('3'), labels: ['train-ready'], labeledAt: '2026-10-24T09:30:00Z', committedDate: '2026-10-24T09:45:00Z', recent }));
     expect(p.labelHead).toBe(SHA('2'));
     // push time beats commit time: 2 was committed before the label but its check suite (the push) came after it
     const suite = (t: string) => ({ nodes: [{ createdAt: `2026-10-24T${t}:00Z` }] });
-    const pushed = [{ ...recent[0], checkSuites: suite('09:01') }, { ...recent[1], checkSuites: suite('09:40') }, recent[2]];
+    const pushed = [{ ...c1, checkSuites: suite('09:01') }, { ...c2, checkSuites: suite('09:40') }, c3];
     expect(normalizePr(prNode({ head: SHA('3'), labels: ['train-ready'], labeledAt: '2026-10-24T09:30:00Z', recent: pushed })).labelHead).toBe(SHA('1'));
     const r = prAlerts([p], { now: NOW });
     expect(r.alerts[0].kind).toBe('pr-commit-after-label');
@@ -233,8 +263,9 @@ describe('watchdog: PRs and the label convention', () => {
 
   it('writes one comment per head (markers)', () => {
     expect(labelComment(SHA('a'), 'why')).toContain(`<!-- watchdog:label:${SHA('a')} -->`);
-    expect(unlabelComment(SHA('a'))).toContain(`<!-- watchdog:unlabel:${SHA('a')} -->`);
-    expect(closeMemberComment(SHA('a'), '4.96.0')).toMatch(/is in master \(4\.96\.0\)/);
+    const un = unlabelComment(SHA('a'), 'check red on head aaaaaaaa');
+    expect(un).toContain(`<!-- watchdog:unlabel:${SHA('a')} -->`);
+    expect(un).toMatch(/^Watchdog: check red on head aaaaaaaa, so `train-ready` was removed/);
   });
 
   it('names owners: override, newest queue request, cloud brief lead, else the job', () => {
@@ -259,14 +290,14 @@ describe('watchdog: release tail', () => {
     expect(versionCommit([])).toBeNull();
   });
 
-  it('dev behind (fast-forward fix), diverged (alert only), tag missing, open members in master', () => {
+  it('dev behind (fast-forward fix), diverged (alert only), tag missing, open members in master (alert only, never closed)', () => {
     const r = releaseAlerts({ master: SHA('m'), dev: SHA('d'), devBehind: true, version: '4.96.0', versionSha: SHA('v'), tagExists: false,
       members: [{ number: 5, branch: 'feature/x', head: SHA('x'), inMaster: true }, { number: 6, branch: 'feature/y', head: SHA('y'), inMaster: false }, { number: 7, branch: 'train/9', head: SHA('t'), inMaster: true }] });
     expect(r.map((a: { kind: string }) => a.kind)).toEqual(['release-dev-lag', 'release-tag-missing', 'release-member-open']);
     expect(r[0].fix).toMatchObject({ check: 'release', type: 'push-dev', master: SHA('m'), dev: SHA('d') });
     expect(r[0].graceMin).toBe(LIMITS.devGraceMin);
     expect(r[1].fix).toMatchObject({ type: 'push-tag', tag: 'v4.96.0', sha: SHA('v') });
-    expect(r[2].fix).toMatchObject({ type: 'close', pr: 5 });
+    expect(r[2]).toMatchObject({ fix: null, advice: 'alert only (member PR 5 merged into master but open: close by hand)' });
     const div = releaseAlerts({ master: SHA('m'), dev: SHA('d'), devBehind: false, version: '4.96.0', tagExists: true, members: [] });
     expect(div).toHaveLength(1);
     expect(div[0]).toMatchObject({ kind: 'release-dev-diverged', severity: 'high', fix: null });
