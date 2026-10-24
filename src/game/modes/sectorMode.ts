@@ -191,11 +191,6 @@ export function slotOfId(g: GameState, refs: PlayerRef[], id: string, none: numb
   return none;
 }
 
-/** (coop4 D1) The devices' jam intent with the sender's slot (D1 adds the third argument; until then it is ignored). */
-interface SlotJam {
-  onRemoteJam(tgt: string, eye: readonly [number, number, number] | undefined, slot: number): void;
-}
-
 /**
  * Sector Ops (feature/sector-ops A12, M7): the map's sections in order. A section's guards spawn when it loads
  * (unaware, on their routes); its objective (hack, grab or download) unlocks its connector's near door; every living
@@ -1388,9 +1383,8 @@ export class SectorMode implements GameMode {
   }
 
   /** Co-op host: a client's held jammer target, on the sender's slot (coop4 D1; one no longer listed reads as 1). */
-  onRemoteJam(id: string, tgt: string, eye?: readonly [number, number, number]): void {
-    const ct: SlotJam | null = this.ct;
-    ct?.onRemoteJam(tgt, eye, slotOfId(this.g, this.refs, id, 1));
+  onRemoteJam(id: string, tgt: string, eye?: readonly [number, number, number], slot?: number): void {
+    this.ct?.onRemoteJam(tgt, eye, slot ?? slotOfId(this.g, this.refs, id, 1));
   }
 
   blips(): Blip[] {

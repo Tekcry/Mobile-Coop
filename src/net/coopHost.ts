@@ -223,8 +223,8 @@ export class CoopHost implements NetAttachment {
     this.reviveTime = REVIVE_TIME / hqStats(g.opts.hq ?? defaultHq()).reviveSpeed;
     // (sector-ops step 3, M7, A10) Sector Ops: the revives are the op's syringes, per difficulty
     // (coop4 A4) plus one per player beyond 2, from the team when the op starts (a late joiner does not change it).
-    // TODO(coop4 SM): drop the cast once SM's `syringesFor(preset, players = 2)` is merged (until then the count is ignored)
-    if (mode === 'sector') this.reviveClock.cap = (syringesFor as (p: typeof g.opts.difficulty, players?: number) => number)(g.opts.difficulty, s.players.size);
+    // (coop4 A4) the team pool scales with the players at the op start (late joiners do not change it)
+    if (mode === 'sector') this.reviveClock.cap = syringesFor(g.opts.difficulty, s.players.size);
     this.lampTx = mode === 'sector' ? new LampSender() : null;
     this.soloRemotes = g.remotePlayers;
     g.remotePlayers = () => this.remoteRefs;
