@@ -1,0 +1,18 @@
+{
+  "id": "20261024T173652-night-shift-test-run-3be7d1a2-0337",
+  "sha": "3be7d1a20b0b6392f681806a426af4c9e0183c38",
+  "branch": "",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Test Runner",
+  "steps": [
+    "node scripts/guard-cap.mjs --maps=campus --counts=0,12,16,24,32 --cells=patrol,away,alert --warm=5 --secs=10 --out=C:/NightShift/scratch/guard-cap/r4100-campus",
+    "node scripts/guard-cap.mjs --maps=ctcourse --counts=0,12,24 --cells=patrol,away,alert --warm=5 --secs=10 --out=C:/NightShift/scratch/guard-cap/r4100-ctcourse",
+    "node scripts/guard-cap.mjs --maps=sectorops --counts=12,16,32 --cells=patrol,away,alert --warm=5 --secs=10 --out=C:/NightShift/scratch/guard-cap/r4100-so",
+    "node scripts/guard-cap.mjs --maps=campus --counts=32 --cells=alert --warm=5 --secs=10 --out=C:/NightShift/scratch/guard-cap/r4100-c32a-r2",
+    "node scripts/guard-cap.mjs --maps=campus --counts=32 --cells=alert --warm=5 --secs=10 --out=C:/NightShift/scratch/guard-cap/r4100-c32a-r3"
+  ],
+  "env": {},
+  "set": "guard-cap-4100",
+  "note": "post-release alone measure 4.100.0: campus 0-32 + ctcourse 0/12/24 + sectorops 12/16/32, then campus 32 alert x2 more (14.8 ms vs 12 in M0)"
+}
