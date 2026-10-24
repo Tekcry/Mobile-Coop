@@ -37,7 +37,7 @@ const git = (args, { env = {}, input, soft = false } = {}) => {
   }
 };
 
-if (!opts.sha) { console.error('usage: request.mjs --sha <ref> (--suites "a b" | --full | --alone --step "<cmd>") [--pr N] [--set s] [--jobs N] [--requester t] [--note t] [--pin] [--dry-run]'); process.exit(1); }
+if (!opts.sha) { console.error('usage: request.mjs --sha <ref> (--suites "a b" | --affected [--wide] | --full | --alone --step "<cmd>") [--pr N] [--set s] [--jobs N] [--requester t] [--note t] [--pin] [--dry-run]'); process.exit(1); }
 
 if (opts.affected && (opts.suites || opts.full || opts.alone || opts['train-rerun'])) { console.error('--affected replaces --suites (no --full / --alone / --train-rerun)'); process.exit(1); }
 if (opts.wide && !opts.affected) { console.error('--wide needs --affected'); process.exit(1); }
