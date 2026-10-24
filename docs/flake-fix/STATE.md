@@ -20,8 +20,8 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   full-4100-r2. Results: soaks give flake rates (owners: e2e-coop Marlow; ctcourse / sectorops Sector Ops / Marlow);
   guard-cap -> feature/guard-cap-results docs/guard-cap/run-4100/ + guard-render PLAN2 note.
 - feature/laptop-queue-4 (worktree C:/NightShift/Mobile-Coop-laptop-queue-4, stacked on #366 f3eaceed): Opus agent
-  building audit fixes (1) desktop 4191 heavy.lock gate logs the holder + dead-pid stale break, (2) auto-train "CI
-  running" vs "CI missing". Then checker, PR (base master once #366 releases in train 74), train-ready message.
+  audit fixes (1) desktop 4191 heavy.lock gate logs the holder + dead-pid stale break, (2) auto-train "CI running" vs
+  "CI missing". Checker PASS; PR #374 open (train 74 = 4.100.0 released #366); train-ready sent (Orchestrator labels).
 - Watchdog install is a desktop scheduled task: Orchestrator / Michael runs
   `powershell -NoProfile -ExecutionPolicy Bypass -File C:\NightShift\Mobile-Coop\scripts\watchdog-task.ps1`
   (alerts only by default) after pulling C:/NightShift/Mobile-Coop to master.
