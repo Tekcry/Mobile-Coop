@@ -134,8 +134,11 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
 - `player/attachGrips.ts` `AttachGrips` (hand / foot `GripStepper`s; shared by `AttachController.grips` and `RemoteAvatar`)
   and `player/traversePath.ts` `traversePath` (committed move paths; the remote replays a `MoveCommit`).
 - Host checks: `validate.ts` `moveSpeedCap` (gear pace x `MOVE_TOLERANCE` 1.15) / `attachedClamp` (`ATTACH_SLACK` 0.5) in
-  `RemotePlayer.accept`; `RemotePlayer.followPose` and `Hitboxes.sync(feet, head, hips)` lay the capsules along hips ->
-  head; host `Hist` keeps the posed head / hips and the mode for `judge`. Co-op details: `docs/systems/coop.md`.
+  `RemotePlayer.accept`; (rig-pose-fix S1) the client's split hit volumes, perception points and wall head come from the
+  sim body model (`player/playerVolumes.ts` `playerBody`, `wireBodyIn` of the accepted state), as the client's own
+  (`localBodyIn`), never from the host's drawn copy; a partner's friendly-fire boxes (`Hitboxes.sync(feet, head, hips)`)
+  take the model of the drawn copy's state (`RemoteAvatar.bodyIn`). Host `Hist` keeps the mode for `judge`. Co-op details:
+  `docs/systems/coop.md`.
 
 ## Manual jump
 - `LEAP` (`config/movement.ts`): the jump action (Y / E) leaps when traversal has nothing on offer
@@ -305,8 +308,9 @@ The code below is the locomotion run's build. Where Michael has decided otherwis
   each way. Pose only: firing is not blocked yet.
 - Light parity (bible 5.1): the light meter samples the chest and the head at its real place (`LightField.bodyLevel`): the
   local body's peek offset; a remote's from its MoveState (`wallPeekOffset`, conservative). On the wall the meter's head
-  sample and perception's exposure points are the posed rig's head and chest (`CharacterRig.posedHead` / `posedChest`), the
-  same joints the hit volumes follow. Guards see the body, never the camera.
+  sample and perception's exposure points (and the HUD exposure) are the sim body's head and chest (rig-pose-fix S4, A2
+  supersedes A51: `playerBody` of the wall state, side, crouch and the peek's share, fitted to the rig within 2-5 cm), the
+  same model the hit volumes follow, on the owner and the host alike. Guards see the body, never the camera.
 
 ## Door open (CT prototype G6, AUDIT-WALLS row 4)
 - The door menu's Open is a short committed move (`world/doorOpen.ts`, pure `DoorOpenCore`, `DOOR_OPEN`; `GameState.doorOpenStep`):

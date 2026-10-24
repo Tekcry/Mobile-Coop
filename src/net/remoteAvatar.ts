@@ -38,6 +38,8 @@ import { bodyRigRoot, bodyRigWallGap } from '../anim/tune';
 import { clearGripAxis } from '../player/attachGrips';
 import { GRAB } from '../game/takedown';
 import { easeRemoteSpeed, isShownTeleport, REMOTE_SPEED_MAX, seedHeading } from './remoteSeed';
+import { bodyFromMoveState, PLAYER_OPERATOR_HEIGHT, type PlayerBodyIn } from '../player/playerVolumes';
+import type { MoveState } from '../player/moveState';
 import { RemoteShots } from './remoteShots';
 import { bodyPoint, CQ, ease, holdHandsLocal, koCurve, type KoState } from '../game/closeQuarters';
 
@@ -149,6 +151,10 @@ export class RemoteAvatar {
   private pb = { x: 0, y: 0, z: 0 };
   /** The movement mode shown now (tests, host checks). */
   mode: MoveMode = 'ground';
+  /** (rig-pose-fix S1) The capsule's yaw (the owner's; on a wall the face normal, not the side-on visual turn) and the
+   *  MoveState at the render time: the sim body model's input (`bodyIn`). */
+  private bodyYaw = 0;
+  private bodyMv: MoveState | undefined = undefined;
   /** The attached anchor, position along it and attach sub bits of the last state (team moves: a hanging relay offer). */
   anchor = -1;
   sub = 0;
@@ -321,8 +327,10 @@ export class RemoteAvatar {
     this.xb.apply(s, dt);
     this.pos.set(s.x, s.y, s.z);
     this.yaw = s.yaw;
+    this.bodyYaw = s.yaw;
     const st = s.state;
     const mv = st.mv;
+    this.bodyMv = mv;
     this.pitch = st.pitch;
     this.flags = st.f;
     this.shots.observe(st.sc);
@@ -361,6 +369,7 @@ export class RemoteAvatar {
       const to = s.to.mv;
       const sv = from && to && from.m === 'wall' && to.m === 'wall' && from.a === to.a ? from.s + (to.s - from.s) * Math.max(0, Math.min(1, s.k)) : mv!.s;
       wallPoint(wseg, sv, COVER_STANDOFF, this.wp);
+      this.bodyYaw = this.wp.yaw;
       // across the wall: where the owner's capsule actually rests (its collision skin keeps it a little out)
       const off = Math.max(-0.05, Math.min(0.1, (this.pos.x - this.wp.x) * wseg.nx + (this.pos.z - this.wp.z) * wseg.nz));
       this.pos.x = this.wp.x + wseg.nx * off;
@@ -792,6 +801,33 @@ export class RemoteAvatar {
     this.onFire?.(def.class, muzzle, def.id, quiet);
   }
 
+
+  /**
+   * (rig-pose-fix S1, G11 / G12) The sim body model's input from this copy at the render time: the interpolated
+   * position, the owner's capsule yaw, the eased crouch and peek, the kneel, the pace and its sideways share, the
+   * MoveState's mode fields and the attach lift. A partner's friendly-fire volumes (client `PartnerTarget`, host
+   * `partnerBoxes`) come from `playerBody` on it, never from this rig's pose. No allocation.
+   */
+  bodyIn(out: PlayerBodyIn): PlayerBodyIn {
+    out.x = this.pos.x;
+    out.y = this.pos.y;
+    out.z = this.pos.z;
+    out.yaw = this.bodyYaw;
+    out.crouch = this.crouch;
+    out.kneel = this.kneelT > KNEEL_STILL;
+    out.speed = this.speed;
+    const sp = hyp2(this.vx, this.vz);
+    out.strafe = sp > 0.01 ? Math.abs(this.vx * Math.cos(this.bodyYaw) - this.vz * Math.sin(this.bodyYaw)) / sp : 0;
+    out.pitch = this.pitch;
+    out.height = PLAYER_OPERATOR_HEIGHT;
+    bodyFromMoveState(this.bodyMv, this.peekK, out);
+    const att = !!this.bodyMv && isAttachedMode(this.bodyMv.m);
+    const l = this.grips.lift;
+    out.liftX = att ? l.x : 0;
+    out.liftY = att ? l.y : 0;
+    out.liftZ = att ? l.z : 0;
+    return out;
+  }
   dispose(): void {
     this.pouches.dispose();
     for (const m of this.models.values()) m.dispose();

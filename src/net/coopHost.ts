@@ -32,6 +32,7 @@ import { barkIndex } from '../ai/barks';
 import { wireCarry } from './puppetCarry';
 import { localMoveState } from '../game/localMoveState';
 import { emptyMoveState, moveChanged } from '../player/moveState';
+import { emptyPlayerBodyIn, emptyPlayerBodyOut, playerBody } from '../player/playerVolumes';
 import { hostCrackOk } from '../world/doorPeek';
 import { contactDelay, GRAB } from '../game/takedown';
 import { hangHoldStep, hangingMove, type HangSpot } from './hangHold';
@@ -1617,20 +1618,18 @@ export class CoopHost implements NetAttachment {
     }
   }
 
-  private readonly posedHeadTmp = new Vector3();
+  /** (rig-pose-fix S1, G12) A partner's sim body (friendly-fire volumes from the drawn copy's state, not its rig). */
+  private readonly partnerIn = emptyPlayerBodyIn();
+  private readonly partnerOut = emptyPlayerBodyOut();
+  private readonly partnerHead = new Vector3();
+  private readonly partnerHips = new Vector3();
   frameUpdate(dt: number): void {
     const now = performance.now() / 1000 - INTERP_DELAY;
     this.holdClock.frame(now, this.time);
     for (const r of this.remotes.values()) {
       r.avatar.update(dt, now);
-      if (r.alive) {
-        const rig = r.avatar.rig;
-        rig.hips.computeWorldMatrix(true);
-        rig.headNode.computeWorldMatrix(true);
-        r.followPose(rig.hips.getAbsolutePosition(), rig.headNode.getAbsolutePosition());
-        // (step 12b fix r2, light parity) on a wall: perception's head point and the light meter read the posed head
-        r.setPosedHead(r.state?.mv?.m === 'wall' ? rig.posedHead(this.posedHeadTmp) : null);
-      } else r.setPosedHead(null);
+      // (rig-pose-fix S1, G3 / G4) the client's hit volumes, perception points and wall head come from its sim body at
+      // the accepted state (`RemotePlayer.accept`), no longer from this drawn copy's rig
       r.blocker?.sync(r.avatar.pos, r.crouched, r.alive && !partnerPassable(r.avatar.mode));
       const hb = this.partnerBoxes.get(r.id);
       if (!hb) continue;
@@ -1639,10 +1638,8 @@ export class CoopHost implements NetAttachment {
         continue;
       }
       hb.setEnabled(true);
-      const rig = r.avatar.rig;
-      rig.hips.computeWorldMatrix(true);
-      rig.headNode.computeWorldMatrix(true);
-      hb.sync(r.avatar.pos, rig.headNode.getAbsolutePosition(), rig.hips.getAbsolutePosition());
+      const b = playerBody(r.avatar.bodyIn(this.partnerIn), this.partnerOut);
+      hb.sync(r.avatar.pos, this.partnerHead.set(b.head.x, b.head.y, b.head.z), this.partnerHips.set(b.pelvis.x, b.pelvis.y, b.pelvis.z));
     }
   }
 

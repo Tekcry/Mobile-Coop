@@ -30,6 +30,11 @@ Design authority: docs/DECISIONS.md (G16, G20, G21, G76, G98, G103-G105), then d
 - `PlayerWeapons` (fixed step) owns fire / reload / swap / grenades; `Ballistics` owns rays and pooled swept projectiles;
   `Explosions` queues detonations (never recursive); `Vfx` pools every effect.
 - Anything shootable implements `Damageable` and registers its bodies with `DamageRegistry`.
+- (rig-pose-fix S1) A player's hit volumes (legs, torso, head: `game/playerHitVolumes.ts`, `G.PLAYER_HITBOX`) and the
+  guards' aim / head points sit on the sim body model (`player/playerVolumes.ts` `playerBody`: feet, yaw, crouch, kneel,
+  pace, weapon raise and pitch, wall side and peek, traversal family; fitted to Wren's rig, mocap ON,
+  `tests/playerVolumesParity.test.ts`), never on the rendered rig, for the local player and the host's view of a client
+  alike; both take head x1.3, legs x0.75 (`playerPartMult`). The suppression near-miss reads the same head.
 - (guard-ai S12) A guard's helmet soaks his first bullet to the head and body armour every bullet to the body
   (`docs/systems/ai.md` "Gear"): `DamageResult.deflect`, 0 dealt; `PlayerWeapons` reports the `deflect` hit kind (HUD
   marker steel blue, a high ping), not a kill. Takedowns, melee, explosions and sleep bolts ignore gear.

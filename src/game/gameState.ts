@@ -1582,10 +1582,11 @@ export class GameState implements AppState {
     let ox = wc && wc.phase === 'on' ? wc.exX : 0;
     let oz = wc && wc.phase === 'on' ? wc.exZ : 0;
     let hh = h;
-    // (step 12b) on the wall the head sample is the real posed head (peek, the mirrored open-side lean, the low-wall
-    // side lean under the top), as perception's exposure points
+    // (step 12b; rig-pose-fix S4, A2 supersedes A51) on the wall the head sample is the sim body's head (the peek, the
+    // side-on crouch: `playerBody`, fitted to the rig), the point perception's exposure and the host's view of this
+    // player read too (light parity on both machines)
     if (wc && wc.phase === 'on' && this.player.pose.wall) {
-      const hd = this.player.rig.posedHead(this.posedHead);
+      const hd = this.target.body.head;
       const hs = posedHeadSample(p.x, p.y, p.z, hd.x, hd.y, hd.z, this.headSample);
       ox = hs.ox;
       oz = hs.oz;
@@ -1596,7 +1597,7 @@ export class GameState implements AppState {
     const rs = this.remotePlayers();
     for (let i = 0; i < rs.length; i++) {
       const r = rs[i]!;
-      // (step 12b fix r2) on a wall: the host's posed copy's head (the same sample as the remote's headPoint)
+      // (step 12b fix r2; rig-pose-fix S4) on a wall: the remote's sim body head (the same sample as its headPoint)
       const rh = r.head;
       if (rh) {
         const hs = posedHeadSample(r.feet.x, r.feet.y, r.feet.z, rh.x, rh.y, rh.z, this.headSample);
@@ -1652,8 +1653,6 @@ export class GameState implements AppState {
   }
 
   private lightFrom = new Vector3();
-  private readonly posedHead = new Vector3();
-  private readonly posedChest = new Vector3();
   private lightTo = new Vector3();
   private lightRay = new PhysicsRaycastResult();
   private readonly floorFrom = new Vector3();
@@ -1960,7 +1959,8 @@ export class GameState implements AppState {
     this.player.fixedUpdate(dt, inp);
     // (tuner-ui) the studio's treadmill: a state on the spot is held where it started
     if (this.studio && !this.paused) this.studio.afterStep();
-    this.target.sync();
+    // (rig-pose-fix S1) the sim body: hit volumes, perception points, the wall head sample
+    this.target.sync(this.weapons.drawPhase !== DRAW_HOLSTERED);
     this.weapons.fixedUpdate(dt, inp);
     this.ballistics.update(dt);
     this.grenades.update(dt);
@@ -3088,8 +3088,9 @@ export class GameState implements AppState {
       if (eyes.length >= 4) break;
     }
     const c = p.controller;
-    // (step 12b) back to a wall the head and chest samples are the real posed body (peek, open-side lean, side lean)
-    if (p.pose.wall) exposurePointsPosed(p.position, c.crouchBlend, Math.cos(c.yaw), -Math.sin(c.yaw), p.pose.lean, p.rig.posedHead(this.posedHead), p.rig.posedChest(this.posedChest), this.expPts, p.rig.height);
+    // (step 12b; rig-pose-fix S4, P12) back to a wall the head and chest samples are the sim body's (the peek, the side-on
+    // crouch), the points the guards and the light meter read
+    if (p.pose.wall) exposurePointsPosed(p.position, c.crouchBlend, Math.cos(c.yaw), -Math.sin(c.yaw), p.pose.lean, this.target.body.head, this.target.body.chest, this.expPts, p.rig.height);
     else exposurePoints(p.position, c.crouchBlend, Math.cos(c.yaw), -Math.sin(c.yaw), p.pose.lean, this.expPts, p.rig.height);
     this.exposure = exposureFraction(this.expPts, eyes, (a, b) => {
       this.rayA.set(a.x, a.y, a.z);

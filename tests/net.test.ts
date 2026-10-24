@@ -850,3 +850,69 @@ describe('course messages (T1b)', () => {
     expect(n).toBeGreaterThanOrEqual(4);
   });
 });
+
+// (rig-pose-fix S1, G1 / G3) One body model for both machines: the owner's `PlayerTarget` builds the sim body from its
+// controller and pose (`localBodyIn`), the host's `RemotePlayer` from the accepted wire state (`wireBodyIn` after the
+// real `pstate` parse); for the same state both give the same hit volumes, perception points and wall head.
+describe('rig-pose-fix S1: same MoveState, same volumes local and on the host', () => {
+  it('free, kneeling, wall peek, ladder and vault: the local and the host body agree within 2 mm', async () => {
+    const { attachLiftOf, emptyPlayerBodyIn, emptyPlayerBodyOut, localBodyIn, peekShare, playerBody, PLAYER_OPERATOR_HEIGHT, wireBodyIn } = await import('../src/player/playerVolumes');
+    const { emptyMoveState, packAttachSub, packMoveState } = await import('../src/player/moveState');
+    const { WALL, WALL_SUB, wallFacing } = await import('../src/player/wallController');
+    const ladder = { id: 0, kind: 'ladder', base: { x: 4, y: 0, z: -3 }, top: { x: 4, y: 5, z: -3 }, facing: 1.1, rung: 0.3, width: 0.45 } as never;
+    type Mv = ReturnType<typeof emptyMoveState>;
+    interface Case {
+      id: string;
+      /** The owner: its controller, weapon, camera, pose and attach lift. */
+      speed: number;
+      localX: number;
+      crouch: number;
+      kneel: boolean;
+      drawn: boolean;
+      raise: number;
+      pitch: number;
+      wall?: { edge: number; dir: number; peek: number };
+      traverse?: { kind: 'climb' | 'vault'; t: number };
+      /** What the owner sends (`localMoveState`), and the host's eased peek / kneel for it. */
+      mv: Mv;
+      anchor?: unknown;
+    }
+    const base = { speed: 0, localX: 0, crouch: 0, kneel: false, drawn: false, raise: 0, pitch: 0 };
+    const cases: Case[] = [
+      { ...base, id: 'aimed strafe', speed: 1.2, localX: 1, drawn: true, raise: 1, pitch: 0.2, mv: { ...emptyMoveState(), dw: 2, r: 1 } },
+      { ...base, id: 'kneel at low ready', crouch: 1, kneel: true, drawn: true, mv: { ...emptyMoveState(), dw: 2 } },
+      { ...base, id: 'wall crouch peek, left edge', crouch: 1, wall: { edge: 1, dir: 1, peek: 1 }, mv: { ...emptyMoveState(), m: 'wall', a: 2, s: 1, sub: WALL_SUB.crouch | WALL_SUB.edgeL | WALL_SUB.peek | WALL_SUB.low } },
+      { ...base, id: 'wall standing, half peek right edge', wall: { edge: -1, dir: -1, peek: 0.5 }, mv: { ...emptyMoveState(), m: 'wall', a: 2, s: 1, sub: WALL_SUB.faceRight | WALL_SUB.edgeR | WALL_SUB.peek } },
+      { ...base, id: 'ladder', traverse: { kind: 'climb', t: 0.37 }, anchor: ladder, mv: { ...emptyMoveState(), m: 'ladder', a: 0, s: 1.4, sub: packAttachSub('on', 1, 'none') } },
+      { ...base, id: 'vault', traverse: { kind: 'vault', t: 0.6 }, mv: { ...emptyMoveState(), m: 'vault', ph: 0.6 } },
+    ];
+    const feet = { x: 4.2, y: 0.5, z: -2.6 };
+    const yaw = 1.1;
+    for (const c of cases) {
+      // the owner (PlayerTarget.sync): the wall stance side and the rig lean as GameState sets them (WallCore.rigLean)
+      const side = c.wall ? wallFacing(c.wall.edge, c.wall.dir) : 0;
+      const lean = c.wall ? (c.wall.edge > 0 ? -1 : 1) * WALL.peekLean * peekShare(c.wall.peek) : 0;
+      const lift = attachLiftOf(c.mv, c.anchor as never, PLAYER_OPERATOR_HEIGHT, { x: 0, y: 0, z: 0 });
+      const owner = {
+        position: feet,
+        controller: { yaw, crouchBlend: c.crouch, kneeling: c.kneel, speed: c.speed, localMove: { x: c.localX } },
+        carry: { raise: c.raise },
+        cam: { pitch: c.pitch },
+        pose: { wall: !!c.wall, wallSide: side, lean, traverse: c.traverse?.kind ?? ('none' as const), traverseT: c.traverse?.t ?? 0, tumble: 0 },
+        rootLift: lift,
+      };
+      const a = playerBody(localBodyIn(owner, c.drawn, WALL.peekLean, emptyPlayerBodyIn()), emptyPlayerBodyOut());
+      // the wire: the owner's state through the real pstate parse, then the host's RemotePlayer.accept mapping
+      const msg = parseMessage({ t: 'pstate', s: { ...ps, x: feet.x, y: feet.y, z: feet.z, yaw, pitch: c.pitch, speed: c.speed, f: c.crouch > 0.5 ? 1 | 16 : 16, mv: packMoveState(c.mv) } });
+      expect(msg?.t, c.id).toBe('pstate');
+      const s = (msg as { s: { x: number; y: number; z: number; yaw: number; pitch: number; speed: number; mv?: Mv } }).s;
+      const hostLift = attachLiftOf(s.mv, c.anchor as never, PLAYER_OPERATOR_HEIGHT, { x: 0, y: 0, z: 0 });
+      // the host's eased peek amount at the owner's (its 0.3 s ease from the bit, settled) and its kneel timer (settled)
+      const b = playerBody(wireBodyIn(s, c.crouch, c.kneel, c.wall?.peek ?? 0, c.localX, 10, hostLift, emptyPlayerBodyIn()), emptyPlayerBodyOut());
+      for (const j of ['pelvis', 'chest', 'neck', 'head'] as const) {
+        const d = Math.hypot(a[j].x - b[j].x, a[j].y - b[j].y, a[j].z - b[j].z);
+        expect(d, `${c.id}: ${j} local vs host`).toBeLessThan(0.002);
+      }
+    }
+  });
+});
