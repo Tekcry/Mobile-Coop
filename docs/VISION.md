@@ -10,6 +10,8 @@ Owner: the orchestrator; updated at every DECISIONS fold. Read from origin/maste
   (`docs/story.md` 1).
 - Light and shadow is the core: "like a showcase no matter where you look" (G316).
 - Desktop PWA, pad first, then keyboard and mouse (G12).
+- The campaign recreates the experience of the CT co-op levels with original maps and story (G3).
+- Current focus: `docs/ROADMAP.md` "Now" on origin/feature/menu. The 2026-10-19 "Current goal" (basic training level first, visual pass last) is replaced by G288 and G309.
 
 ## 2. Modes
 | | Campaign | Marlow Yard (training) | Sector Ops |
