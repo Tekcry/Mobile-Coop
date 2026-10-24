@@ -611,7 +611,8 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   where they disagree. Host only, no protocol or save change; each has an undo const (BRIEF.md).
   - A184: an investigating guard whose spot has no path (a locked shut door, no way round) walks to the reached nav
     cell nearest it (`findPath` gained a `partial` argument and a `partialEnd` field in `navGrid.ts`: the expanded cell
-    with the lowest octile to the goal) and counts as arrived there; he faces the spot and `investigateLook` ends it,
+    with the lowest octile to the goal among cells within `LAYER_PICK` of the goal cell's height, so the end stays on
+    the goal's storey; none reached on it: the lowest octile plus the height gap in cells) and counts as arrived there; he faces the spot and `investigateLook` ends it,
     not `ALERT.investigateMax`. Search, patrol and chase are unchanged (`NEAR_SIDE`).
   - A185: one noise gives one "I heard something." bark however many searchers hear it: the first searcher in the
     manager's list who may bark says it (`hearSearch(.., mayBark)` returns whether he barked; the manager's
@@ -623,8 +624,11 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
     the one he hunts (A166 at the alert), and `calledMask` marks the told slot and his hunt only (`ALERT_RECALL`).
   - A188: in a combat plan search only the first searcher takes the last known position and looks 3 s there
     (`SearchPlan.lkpBy`, `AiContext.searchLkp`); the others take plan points at once. The holder stays set after his
-    look, freed only when he leaves the search or the centre moves; a rebuild on the same centre keeps it, so nobody
-    looks twice (`POLISH2.lkpOnce`).
+    look, freed when he leaves the search, goes down, changes hunt or is off the combat plan search (a body / KO search,
+    his own stimulus: `planSweep` reads `inCombatSearch` / `ownSearch`), or the centre moves; a rebuild on the same
+    centre keeps it, so nobody looks twice. A mate told no asks again at each later spot pick until he has looked
+    there (`lkpWait`; that look keeps `searchK`), so a holder taken down before his look leaves it to a mate
+    (`POLISH2.lkpOnce`).
   - A189: a flank bound may be up to `COVER_DETOUR.flankK` 2.5 x the straight line + 3 m; point bounds, `pickCover`
     and open waits keep `k` 1.5.
   - A190: a calm guard instantly detects any player in his instant range and focus (`instantDetect(P_SIGHT)`), and
@@ -635,9 +639,9 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
     line best first in the try loop (at most 6 casts, `COVER_TRIES` A*), instead of spending casts on any top-3
     entrant. The 6 casts go to the 6 best by score: if all 6 are armoured and a worse candidate is clear, he picks
     nothing (before, index-order casts could land on it) (`ARMOUR_CAST_LATE`).
-  - A193: a heard spot snaps to the noise's storey (`hearSearch` takes the noise `y`; NaN: his own) (`HEAR_STOREY`).
-    The search spot has no height, so the fix changes the snap's x/z only, for a column without his own storey; a
-    guard directly under a mezzanine step still walks his own floor (a spot height for `goTo` is its own slice).
+  - A193: DEFERRED, off (`HEAR_STOREY = false`, code kept): a heard spot snapping to the noise's storey pinned him at
+    his floor's edge (`goTo` has no spot height and paths on his own storey). It waits for the spot-height slice; a
+    heard spot stays on his own storey (A11).
   - A194: in cover, `blockCover` / the too-close exit read the known spot only when he has a hunt position, a
     sighting or a stimulus; else today's feet rule. Hardening, not reachable today (`KNOWN_NEEDS_SPOT`).
   - T1: `tests/reconDroneSight.test.ts` covers the recon drone's sight verdict (a hit within 0.3 m of the aim point

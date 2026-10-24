@@ -3168,11 +3168,12 @@ export class EnemyManager {
         const e = this.byNum(num);
         if (!e || !e.alive || e.level !== 'searching' || !e.onPlan || e.hunt !== s || e.crew?.sweeping) p.release(num);
       }
-      // (polish2 A188) the last known position's holder by the same rule (not `onPlan`: it is no plan point)
+      // (polish2 A188) the last known position's holder by the same rule (not `onPlan`: it is no plan point); (fix) and
+      // once he is off the combat plan search (pulled onto a body / KO search, his own stimulus)
       const lb = p.lkpBy;
       if (lb >= 0) {
         const e = this.byNum(lb);
-        if (!e || !e.alive || e.level !== 'searching' || e.hunt !== s || e.crew?.sweeping) p.lkpBy = -1;
+        if (!e || !e.alive || e.level !== 'searching' || e.hunt !== s || e.crew?.sweeping || !e.inCombatSearch || e.ownSearch) p.lkpBy = -1;
       }
     }
   }

@@ -638,7 +638,9 @@ A184-A194, ranked by player-visible impact; the source ids are the checkers' (S2
 only, no protocol or save change. T1 (the recon drone's sight verdict) is a test only: `tests/reconDroneSight.test.ts`.
 - **A184** (S28-CHECK-B F2) An investigating guard whose spot is behind a locked door with no way round walks to the
   nearest reachable point (the reached nav cell nearest the goal: `findPath` gained a `partial` argument and a
-  `partialEnd` field in `navGrid.ts`) and counts as arrived there, then faces the spot until `investigateLook` ends it;
+  `partialEnd` field in `navGrid.ts`; fix round: the nearest among reached cells within `LAYER_PICK` 1.2 m of the
+  goal's height, so the end stays on the goal's storey, not straight above / below it up a stair; none on it: the
+  octile plus the height gap in cells) and counts as arrived there, then faces the spot until `investigateLook` ends it;
   before: he stood where he was until `ALERT.investigateMax` 20 s. Search, patrol and combat chase are unchanged. Undo:
   `NEAR_SIDE = false` in `src/ai/enemy.ts`.
 - **A185** (S26-CHECK-B 7) One "I heard something." per noise however many searchers hear it (all of them still go):
@@ -653,7 +655,11 @@ only, no protocol or save change. T1 (the recon drone's sight verdict) is a test
   `ALERT_RECALL = false` in `src/ai/enemy.ts`.
 - **A188** (S25B-CHECK-B P5) In a combat plan search only the first searcher looks at the last known position
   (`SearchPlan.lkpBy`, `AiContext.searchLkp`); the rest take plan points at once. The holder stays set after his look, freed
-  only when he leaves the search or the centre moves (a same-centre rebuild keeps it, so nobody looks twice). A lone
+  when he leaves the search, goes down, changes hunt, or is off the combat plan search (pulled onto a body / KO search,
+  his own stimulus: `planSweep`), or the centre moves (a same-centre rebuild keeps it, so nobody looks twice). Fix
+  round: a mate told no asks again at each later spot pick until he has looked there (`lkpWait`; that look keeps
+  `searchK`), so a holder taken down before his look leaves the LKP to a mate (a holder freed after his look costs one
+  more 3 s look). A lone
   searcher and the parked modes are unchanged. Undo: `POLISH2.lkpOnce = false` in `src/ai/enemyManager.ts`.
 - **A189** (POLISH-CHECK-A 3) A flank bound may be up to 2.5 x the straight line + 3 m (`COVER_DETOUR.flankK`), since a
   flank bends round the player's cover by design; point bounds, `pickCover` and open waits keep 1.5. Undo:
@@ -667,10 +673,11 @@ only, no protocol or save change. T1 (the recon drone's sight verdict) is a test
   `ARMOUR_FIRE.coverCasts` 6, and at most `COVER_TRIES` A*), not for any top-3 entrant in index order. The 6 casts go to the 6 best by score: all 6
   armoured with a worse candidate clear means he picks nothing (before, index-order casts could land on it). Without
   armour: unchanged. Undo: `ARMOUR_CAST_LATE = false` in `src/ai/enemy.ts`.
-- **A193** (S26-CHECK-B 9 remainder) A heard spot snaps to the noise's storey, not the searcher's (`hearSearch` takes the
-  noise `y`; NaN: his own). Limit: the search spot has no height, so only the snap's x/z changes, for a column without
-  his own storey; a guard directly under a mezzanine step still walks his own floor (a spot height for `goTo` is its
-  own slice). Undo: `HEAR_STOREY = false` in `src/ai/enemy.ts`.
+- **A193** (S26-CHECK-B 9 remainder) DEFERRED (off: `HEAR_STOREY = false` in `src/ai/enemy.ts`, the code kept). Built: a
+  heard spot snaps to the noise's storey (`hearSearch` takes the noise `y`; NaN: his own). POLISH2-CHECK-B 1: with no
+  spot height `goTo` paths on his own storey, so a spot snapped off his floor (a balcony, a catwalk) pins him at the
+  floor's edge for the rest of the search. Waits for the spot-height slice (keep the snapped cell's height for a heard
+  or plan / ring spot and pass it to `goTo`); the guardPolish2 test asserts the off behaviour, the on case is skipped.
 - **A194** (POLISH-CHECK-A 2) The in-cover known-spot exits (`blockCover`, too close) need a spot: a hunt position, a
   sighting or a stimulus; else today's feet rule. Hardening, not reachable today. Undo: `KNOWN_NEEDS_SPOT = false` in
   `src/ai/enemy.ts`.

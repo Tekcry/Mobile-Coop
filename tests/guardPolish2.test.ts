@@ -323,7 +323,7 @@ function searcher(at: [number, number, number?], o: Record<string, unknown> = {}
 }
 
 
-describe("A193: a heard spot snaps to the noise's storey", () => {
+describe("A193 (DEFERRED, HEAR_STOREY off): a heard spot snaps to the searcher's own storey (A11)", () => {
   /** A 10 x 10 m ground floor and an upper floor at 4 m over x >= 6 only (two seeds: no stairs modelled). */
   function twoStorey(): NavGrid {
     return new NavGrid({
@@ -343,12 +343,12 @@ describe("A193: a heard spot snaps to the noise's storey", () => {
     });
   }
 
-  it('a step on the ground floor heard from the upper floor (x >= 6 only): the spot by the step on the ground (A11: the upper floor past x 6)', () => {
+  it('off: a step on the ground floor heard from the upper floor (x >= 6 only) snaps to his own storey (past x 6), as A11', () => {
     const nav = twoStorey();
     const e = searcher([8, 5, 4], {}, { nav });
     e.aware.set('searching');
     e.hearSearch(5.2, 0, 5.2);
-    expect(e.spot[0]).toBeLessThan(5.5);
+    expect(e.spot[0]).toBeGreaterThan(6);
     // the noise on his own storey: his storey, as A11
     const g = searcher([8, 5, 4], {}, { nav });
     g.aware.set('searching');
@@ -359,6 +359,15 @@ describe("A193: a heard spot snaps to the noise's storey", () => {
     h.aware.set('searching');
     h.hearSearch(5.2, Number.NaN, 5.2);
     expect(h.spot[0]).toBeGreaterThan(6);
+  });
+  // The on case (HEAR_STOREY = true): kept for the spot-height slice that turns A193 back on (with a walk: he reaches
+  // the spot on the noise's storey, or skips it as unreachable). Skipped while A193 is deferred (POLISH2-CHECK-B 1).
+  it.skip('on (deferred): the same step snaps by the step on the ground floor', () => {
+    const nav = twoStorey();
+    const e = searcher([8, 5, 4], {}, { nav });
+    e.aware.set('searching');
+    e.hearSearch(5.2, 0, 5.2);
+    expect(e.spot[0]).toBeLessThan(5.5);
   });
 });
 

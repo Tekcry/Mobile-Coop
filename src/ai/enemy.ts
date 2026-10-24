@@ -311,9 +311,10 @@ const OW_HIGH_PEEK = true;
  *  one only when it is the told one, and he calls the seen one in once (a contact naming him), so that fight has a
  *  reporter. Undo: false (no call; the seen one marked called). */
 const ALERT_RECALL = true;
-/** (polish2 A193) A heard spot (`hearSearch`) snaps to the storey nearest the noise's height, not his own. Undo: false
- *  (his own storey, A11). */
-const HEAR_STOREY = true;
+/** (polish2 A193, DEFERRED: off) A heard spot (`hearSearch`) snaps to the storey nearest the noise's height, not his
+ *  own. Off until a spot-height slice passes the spot's y to `goTo`: with no spot height `goTo` paths on his own storey,
+ *  so a spot snapped off his floor pins him at its edge for the search (POLISH2-CHECK-B 1). Off: his own storey (A11). */
+const HEAR_STOREY = false;
 /** (polish2 A190) A calm guard instantly detects any player in his instant range and focus (`instantDetect`), not only
  *  the one he picked: the nearest such player is his target. Combat unchanged. Undo: false (the picked player only). */
 const INSTANT_ANY = true;
@@ -515,6 +516,12 @@ export class Enemy implements Damageable {
   private planN = 0;
   /** (polish A12) The current spot is a heard noise (`hearSearch`): its look end keeps `searchK`. */
   private heardSpot = false;
+  /** (polish2 A188 fix) `searchLkp` said no at his first look (a mate holds the last known position): while set he asks
+   *  again at each later spot pick of this combat plan search (the holder may drop out before his look). */
+  private lkpWait = false;
+  /** (polish2 A188 fix) The current spot is the last known position taken late (`lkpWait`): its look end (or skip)
+   *  keeps `searchK` and ends the wait. */
+  private lkpLate = false;
   /** (polish A13) The current plan point was moved by a hold-room / device-room clamp: finished with `reached` false. */
   private spotClamped = false;
   private routePath: Waypoint[] = [];
@@ -556,6 +563,11 @@ export class Enemy implements Damageable {
   /** (guard-ai S26) This search follows combat (tests / e2e). */
   get inCombatSearch(): boolean {
     return this.combatSearch;
+  }
+  /** (polish2 A188 fix) Searching round his own stimulus, not his intruder's last known position (the manager frees
+   *  the position's hold). */
+  get ownSearch(): boolean {
+    return this.searchOwn;
   }
 
   /** (guard-ai S26) Seconds since his last re-aim on a noise in a fight or a search (99 none; the manager's throttle). */
@@ -1080,6 +1092,8 @@ export class Enemy implements Damageable {
     if (this.aware.level === 'searching') {
       this.aware.t = 0;
       this.searchK = 0;
+      this.lkpWait = false;
+      this.lkpLate = false;
       this.planN = 0;
       this.planPoint = false;
       this.spotSet = false;
@@ -1099,6 +1113,8 @@ export class Enemy implements Damageable {
     if (this.aware.level === 'searching') {
       this.aware.t = 0;
       this.searchK = 0;
+      this.lkpWait = false;
+      this.lkpLate = false;
       this.planN = 0;
       this.planPoint = false;
       this.spotSet = false;
@@ -2102,6 +2118,8 @@ export class Enemy implements Damageable {
     }
     if (to === 'searching') {
       this.searchK = 0;
+      this.lkpWait = false;
+      this.lkpLate = false;
       this.planN = 0;
       this.spotSet = false;
       if (from === 'alert') {
@@ -2750,14 +2768,22 @@ export class Enemy implements Damageable {
           const cz = this.hasStimulus && !k ? this.stimulus[1] : k ? k.z : this.pos.z;
           this.planPoint = false;
           this.heardSpot = false;
+          this.lkpLate = false;
           this.spotClamped = false;
           // (polish A13) a high-security post searches from his leash's edge: no plan point (it would be clamped)
           const secure = PLAN_CLAMP && this.postDef !== null && this.postDef.highSecurity;
           // (polish2 A188) in a combat plan search only one searcher looks at the last known position first: a mate has
           // it, so he takes a plan point (or the ring) at once
           const planSearch = lvl === 'searching' && this.combatSearch && !this.searchOwn && !secure && this.hunt >= 0 && SEARCH_AREA.enabled;
-          if (this.searchK === 0 && planSearch && this.ctx.searchLkp && !this.ctx.searchLkp(this)) this.searchK = 1;
-          if (this.searchK === 0) {
+          if (this.searchK === 0 && planSearch && this.ctx.searchLkp && !this.ctx.searchLkp(this)) {
+            this.searchK = 1;
+            this.lkpWait = true;
+          } else if (this.lkpWait && planSearch && this.ctx.searchLkp?.(this)) {
+            // (polish2 A188 fix) told no at his first look: asked again at each pick while he has not looked there (its
+            // holder went down or was pulled off): yes, the position is this spot
+            this.lkpLate = true;
+          }
+          if (this.searchK === 0 || this.lkpLate) {
             this.spot[0] = cx;
             this.spot[1] = cz;
           } else if (lvl === 'searching' && this.combatSearch && !this.searchOwn && !secure && this.hunt >= 0 && SEARCH_AREA.enabled && this.ctx.searchPoint?.(this, this.spot)) {
@@ -2797,7 +2823,10 @@ export class Enemy implements Damageable {
             if (this.planPoint) this.planOver(!(PLAN_CLAMP && this.spotClamped));
             // (polish A12) a heard spot keeps the ring's place
             if (this.heardSpot) this.heardSpot = false;
-            else this.searchK++;
+            else if (this.lkpLate) {
+              this.lkpLate = false;
+              this.lkpWait = false;
+            } else this.searchK++;
             this.spotSet = false;
           }
           // look round: sweep either side of the arrival facing
@@ -2817,7 +2846,10 @@ export class Enemy implements Damageable {
           // unreachable: skip it
           if (this.planPoint) this.planOver(false);
           if (this.heardSpot) this.heardSpot = false;
-          else this.searchK++;
+          else if (this.lkpLate) {
+            this.lkpLate = false;
+            this.lkpWait = false;
+          } else this.searchK++;
           this.spotSet = false;
         }
         // (guard-ai S19) hurrying to it: a jog (`paceSpeed`), else his calm pace

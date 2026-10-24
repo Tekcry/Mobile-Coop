@@ -67,6 +67,8 @@ interface FakeGuard {
   level: string;
   hunt: number;
   onPlan: boolean;
+  inCombatSearch: boolean;
+  ownSearch: boolean;
   pos: Vector3;
   def: { kind: string };
   handler: null;
@@ -75,7 +77,7 @@ interface FakeGuard {
 let n = 0;
 function guard(x: number, z: number): FakeGuard {
   const num = 9700 + n++;
-  return { id: `s${num}`, num, alive: true, alerted: false, level: 'searching', hunt: 0, onPlan: true, pos: new Vector3(x, 0, z), def: { kind: 'grunt' }, handler: null };
+  return { id: `s${num}`, num, alive: true, alerted: false, level: 'searching', hunt: 0, onPlan: true, inCombatSearch: true, ownSearch: false, pos: new Vector3(x, 0, z), def: { kind: 'grunt' }, handler: null };
 }
 
 type Priv = { ctx: AiContext; slotFlowStep(dt: number): void; planSweep(): void; planClock: number; raiseAlarm(e: Enemy, p: null): void };
@@ -709,5 +711,65 @@ describe('(polish2 A188) one look at the last known position per plan', () => {
     e.searchOwn = true;
     spots(e, 2);
     expect(searchLkp).not.toHaveBeenCalled();
+  });
+
+  /** (fix) A real searcher (num 4242) on the real manager's plan round the LKP (0, 0), with `holder` holding it. */
+  async function wired(holder: FakeGuard) {
+    const m = manager([holder]);
+    const lkp = (g: FakeGuard | Searcher) => m.ctx.searchLkp!(g as unknown as Enemy);
+    const e = await searcher({
+      searchPoint: (g, out) => m.ctx.searchPoint!(g, out),
+      searchDone: (g, r) => m.ctx.searchDone!(g, r),
+      searchLkp: (g) => m.ctx.searchLkp!(g),
+      lkpOf: (sl) => m.ctx.lkpOf!(sl),
+    });
+    m.em.enemies.push(e as unknown as Enemy);
+    combat(e);
+    e.pos.set(2, 0, -2);
+    return { ...m, lkp, e };
+  }
+
+  it('(fix) told no, he asks again at each pick: its holder knocked out before his look, a mate looks at the LKP', async () => {
+    const a = guard(0, -2);
+    const { priv, plan, lkp, e } = await wired(a);
+    expect(lkp(a)).toBe(true);
+    // a holds it: e starts on plan points (B4: never the centre itself)
+    const before = spots(e, 2);
+    expect(before.some((q) => q[0] === 0 && q[1] === 0)).toBe(false);
+    expect(plan.lkpBy).toBe(a.num);
+    // a is knocked out on his way (down: not alive) and the sweep frees it
+    a.alive = false;
+    priv.planSweep();
+    expect(plan.lkpBy).toBe(-1);
+    // e's next pick takes the LKP and looks there, then goes on with the plan
+    const after = spots(e, 3);
+    expect(after.slice(1).some((q) => q[0] === 0 && q[1] === 0)).toBe(true);
+    expect(plan.lkpBy).toBe(e.num);
+    const i = after.findIndex((q) => q[0] === 0 && q[1] === 0);
+    expect(after.length).toBeGreaterThan(i + 1);
+  });
+
+  it('(fix) a holder pulled onto a body search (or his own search) frees the LKP for a mate', async () => {
+    const b = guard(1, -2);
+    const { priv, plan, lkp, e } = await wired(b);
+    // b takes it first, then is freed; the real searcher takes it on his first pick
+    expect(lkp(b)).toBe(true);
+    b.level = 'cooldown';
+    priv.planSweep();
+    b.level = 'searching';
+    expect(spots(e, 1)).toEqual([[0, 0]]);
+    expect(plan.lkpBy).toBe(e.num);
+    expect(lkp(b)).toBe(false);
+    // e finds a body: still searching, alive, on the same hunt, but off the combat plan search
+    e.bodySearch(3, -6);
+    expect((e as unknown as Enemy).level).toBe('searching');
+    expect(e.hunt).toBe(0);
+    priv.planSweep();
+    expect(plan.lkpBy).toBe(-1);
+    expect(lkp(b)).toBe(true);
+    // a holder on his own stimulus search frees it too
+    b.ownSearch = true;
+    priv.planSweep();
+    expect(plan.lkpBy).toBe(-1);
   });
 });
