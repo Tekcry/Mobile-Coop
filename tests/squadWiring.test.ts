@@ -34,6 +34,7 @@ interface FakeGuard {
   incident: number;
   state: string;
   coverIdx: number;
+  roleBound: boolean;
   tacticsProfile: number;
   seesTarget: boolean;
   def: { melee: object | null; kind: string; scale: number; usesCover: boolean };
@@ -74,6 +75,7 @@ function guard(x: number, z: number, o: Partial<FakeGuard> = {}): FakeGuard {
     incident: -1,
     state: 'chase',
     coverIdx: -1,
+    roleBound: false,
     tacticsProfile: 0,
     seesTarget: false,
     def: { melee: null, kind: 'grunt', scale: 1, usesCover: true },
@@ -264,7 +266,8 @@ describe('squad roles wired (coordinated)', () => {
     expect(gs[2]!.moving).toBe(false);
     // the flank is already on its way (it started while the point held): the point waits, the overwatch covers
     gs[2]!.state = 'seekCover';
-    gs[2]!.coverIdx = gs[2]!.cover; // (polish B2) on its way = a trip to his role cover (Enemy.boundTo sets coverIdx)
+    gs[2]!.coverIdx = gs[2]!.cover;
+    gs[2]!.roleBound = true; // (polish B2) on its way = a role bound (Enemy.boundTo sets roleBound)
     roles();
     expect(gs[0]!.moving).toBe(false);
     expect(gs[1]!.mates).toBe(true);
@@ -468,6 +471,7 @@ function roleProbe(o: { role: number; cover?: number; moving?: boolean; mates?: 
     tacticsProfile: P_STANDARD,
     roleGoal: { point: null, speed: 0, face: null },
     coverIdx: -1,
+    onRoleBound: false,
     state: o.state ?? 'chase',
     stateT: 0,
     coverPicked: false,

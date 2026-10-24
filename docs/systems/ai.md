@@ -223,7 +223,8 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   point bounds cover to cover (`profile.advanceHold` between bounds, out of sight), walks the last stretch (`closing`)
   when no cover is left; overwatch's low cover needs one view ray to the LKP (`TACTICS.viewChecks` 4, a blind one
   blocked `TACTICS.blockS` 5 s), suppresses the LKP while a mate moves; flank (groups of 3+) bounds to cover >= 60 deg
-  off the point's bearing; the rest search (today's). One of point / flank moves at a time (standard). Out of sight in
+  off the point's bearing; the rest search (today's). One of point / flank moves at a time (standard; polish B2: the
+  one on his way is the one on a role bound, `Enemy.roleBound`). Out of sight in
   the open a role guard waits for the group, crouched (guard-ai S27, A161: `Enemy.roleStep`'s open wait, at most
   `SQUAD.openWait` 3 s, or the second think with no role cover at all: the first only crouches), then takes today's
   cover pick (`pickCover`, reserved
@@ -588,8 +589,10 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
     is a fault (the reset walk), as consoles. A cut circuit with no incident, no walker and still off is unmarked in
     `DarkList` after `BREAKER_WALK.retry` 20 s, so late discovery finds it again (a walker knocked out, the alarm, the
     30 s give-up).
-  - B2: the one-mover rule counts only a trip to the role's own cover (`seekCover` with `coverIdx` = its role cover),
-    so an open-wait pick no longer lifts the flank's hold.
+  - B2: the one-mover rule counts only a role bound (`seekCover` with `Enemy.roleBound`: set by `boundTo`, cleared by
+    any other cover pick, any state change and a new role), so an open-wait pick no longer lifts the flank's hold, and a
+    point whose role cover is re-picked for the last ~2 m of his bound (the advance rule) still holds it. Undo
+    `POLISH_B.roleTrip` false: any `seekCover` counts.
   - B3: hearing in a fight restarts the 1.5 s throttle only for his hunt's noise or one whose slot he takes; a searcher
     switched by `tell` to another slot re-tells it (`retell`), so no stale `pendingHunt`.
   - B4: the search plan keeps its searched points (fixed arrays, cleared on a moved centre or a full reset);
