@@ -1,0 +1,16 @@
+{
+  "id": "20261024T180406-affected-e2e-d45d526e-b472",
+  "sha": "d45d526e963701e9ed023e6130d7dfd4007888f5",
+  "branch": "feature/guard-ai-polish2",
+  "pr": 377,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-guard-carry",
+    "e2e-sectorops:1",
+    "e2e-stealth-ai",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #377"
+}
