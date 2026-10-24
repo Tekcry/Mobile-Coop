@@ -302,10 +302,31 @@ describe('parity', () => {
     expect(parityRange(0.42)).toMatchObject({ row: 2 }); // within 0.03 of 0.4
   });
 
-  it('off-row levels take the band union +-0.02; near a band edge they skip', () => {
-    expect(parityRange(0.5)).toMatchObject({ min: 0.1, max: 0.37, band: 'mid', row: null, skip: false });
-    expect(parityRange(0.2)).toMatchObject({ min: 0, max: 0.11, band: 'dark', row: null, skip: false });
+  it('off-row levels (A32, vg5t): each bound linear between the two rows +-0.02, the end rows beyond; near a band edge they skip', () => {
+    // 0.5 between 0.40 (0.12-0.35) and 0.70 (0.45-1): t = 1/3
+    const mid = parityRange(0.5);
+    expect(mid).toMatchObject({ band: 'mid', row: null, skip: false });
+    expect(mid.min).toBeCloseTo(0.12 + (0.45 - 0.12) / 3 - 0.02, 9);
+    expect(mid.max).toBeCloseTo(0.35 + (1 - 0.35) / 3 + 0.02, 9);
+    // 0.2 between 0.12 (0-0.04) and 0.27 (0-0.09)
+    const dark = parityRange(0.2);
+    expect(dark).toMatchObject({ min: 0, band: 'dark', row: null, skip: false });
+    expect(dark.max).toBeCloseTo(0.04 + (0.05 * 0.08) / 0.15 + 0.02, 9);
+    // 0.324 between 0.27 (0-0.09) and 0.40 (0.12-0.35): the VG5 laptop run's moon card (luma 0.085) is inside
+    const low = parityRange(0.324);
+    expect(low.min).toBeLessThan(0.085);
+    expect(low.max).toBeGreaterThan(0.085);
+    // beyond the end rows: the end row's range (the curve is monotone)
     expect(parityRange(0.9)).toMatchObject({ min: 0.43, max: 1, band: 'lit', row: null, skip: false });
+    expect(parityRange(0.05)).toMatchObject({ min: 0, max: 0.06, band: 'dark', row: null, skip: false });
+    // bounds never fall going up the levels
+    let prev = parityRange(0);
+    for (let l = 0.01; l <= 1.0001; l += 0.01) {
+      const p = parityRange(l);
+      expect(p.min).toBeGreaterThanOrEqual(prev.min - 1e-9);
+      expect(p.max).toBeGreaterThanOrEqual(prev.max - 1e-9);
+      prev = p;
+    }
     expect(parityRange(0.27).skip).toBe(true);
     expect(parityRange(0.29).skip).toBe(true);
     expect(parityRange(0.61).skip).toBe(true);

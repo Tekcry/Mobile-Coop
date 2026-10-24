@@ -15,8 +15,9 @@
  * metrics null when the shot threw (error set). Numbers rounded to 5 decimals.
  * @typedef {{ key: string, id: string, map: string, preset: 'low' | 'epic', rigState: 'on' | 'off' | null,
  *   metrics: ShotMetrics | null, skips: RegionSkip[],
- *   settle: { meter: number, field: number, simS: number, guards: number, flickering: number, alarm: AlarmDelta | null } | null,
- *   converged: boolean, aimReady: boolean, error: string | null, ms: number }} ShotRecord
+ *   settle: { meter: number, field: number, simS: number, guards: number, flickering: number, alarm: AlarmDelta | null,
+ *     drift?: number, fieldFeet?: number, flickeringAll?: number } | null,
+ *   converged: boolean, noisy?: boolean, aimReady: boolean, error: string | null, ms: number }} ShotRecord
  */
 /**
  * One L5 parity row: a grey card (kind 'card', Epic only) or a view's meter vs light field (kind 'meter', every view
@@ -32,7 +33,7 @@
  * @typedef {{ v: 1, verdict: 'clean' | 'flagged' | 'error', sha: string | null, version: string, train: number | null,
  *   renderer: string, shots: number, flags: number, known: number, parity: number, newKeys: number, warnings: number,
  *   errors: number, base: { version: string, approver: string | null } | null, wallS: number, reason: string | null,
- *   top: string[], recorded: boolean, thumbs: string[] }} VisualSummary
+ *   top: string[], recorded: boolean, thumbs: string[], regionSkips?: number }} VisualSummary
  */
 
 // visual-gate VG5: the gate's pure scoring (docs/visual-gate/briefs/VG5.md, PLAN sections 2-5, BRIEF A2, A8, A10,
@@ -50,6 +51,10 @@ export const MIN_BLOTCH_PX = 400;
 export const BLOTCH_ERODE = 24;
 /** meter = field parity: a miss when |meter - field| is over this (A22). */
 export const METER_TOL = 0.02;
+/** (vg5t) A WARN when the player settled more than this many metres from the view's feet (pushed out of a collider). */
+export const DRIFT_WARN_M = 0.3;
+/** (vg5t, vg5-check polish 2) At most this many `<key> <region> (<why>)` entries on the one region-skips WARN line. */
+const MAX_SKIP_LIST = 20;
 /** Grey card luma: mean of the centre CARD_PATCH x CARD_PATCH px (e2e-darkness `readLuma`). */
 export const CARD_PATCH = 10;
 /** Default deadline in seconds (the train step kills at 300 s, A12 / PLAN 6). */
@@ -305,28 +310,78 @@ export function scoreShot({ key, item, preset, rigState, metrics, base, tol, ski
 }
 
 /**
- * A grey card at gameplay `level` with display `luma` (A15): `skip: 'edge'` near a band edge (ok), else ok when
- * luma is inside parityRange's min..max.
+ * A grey card at gameplay `level` with display `luma` (A15, A32): `skip: 'edge'` near a band edge (ok), else ok when
+ * luma is inside parityRange's min..max. (vg5t, vg5-check polish 3) A non-finite level or luma is `skip: 'error'`
+ * (scoreRun makes it a run error), never a pass.
  * @param {number} level @param {number} luma
- * @returns {{ min: number, max: number, ok: boolean, skip: null | 'edge' }}
+ * @returns {{ min: number | null, max: number | null, ok: boolean, skip: null | 'edge' | 'error' }}
  */
 export function cardCheck(level, luma) {
+  if (!Number.isFinite(level) || !Number.isFinite(luma)) return { min: null, max: null, ok: true, skip: 'error' };
   const r = parityRange(level);
   if (r.skip) return { min: r.min, max: r.max, ok: true, skip: 'edge' };
   return { min: r.min, max: r.max, ok: luma >= r.min && luma <= r.max, skip: null };
 }
 
 /**
- * meter = field (A22): a miss when |meter - field| > METER_TOL; with flickering lights in the settle a miss is
- * `skip: 'flicker'` (ok, a WARN), not a miss.
+ * meter = field (A22): a miss when |meter - field| > METER_TOL; with a flickering light reaching the body in the settle
+ * (harness `flickerNear`, vg5t) a miss is `skip: 'flicker'` (ok, a WARN), not a miss. (vg5t, vg5-check polish 3) A
+ * non-finite meter or field is `skip: 'error'` (scoreRun makes it a run error): `NaN > tol` would read ok.
  * @param {number} meter @param {number} field @param {number} flickering
- * @returns {{ d: number, ok: boolean, skip: null | 'flicker' }}
+ * @returns {{ d: number, ok: boolean, skip: null | 'flicker' | 'error' }}
  */
 export function meterCheck(meter, field, flickering) {
+  if (!Number.isFinite(meter) || !Number.isFinite(field)) return { d: NaN, ok: true, skip: 'error' };
   const d = Math.abs(meter - field);
   if (!(d > METER_TOL + 1e-12)) return { d, ok: true, skip: null };
   if (flickering > 0) return { d, ok: true, skip: 'flicker' };
   return { d, ok: false, skip: null };
+}
+
+/**
+ * (vg5t) Parity rows of a saved run checked again under the current rules (`--rescore`): a card with a finite level and
+ * luma through `cardCheck`, a meter row with a finite meter and field through `meterCheck` (its flickering count from
+ * the matching shot's settle, `meter-<key>`). Rows without numbers (no camera, a thrown card) are kept as saved.
+ * @param {ParityRow[]} rows
+ * @param {Array<{ key: string, settle?: { flickering?: number } | null }>} [shots]
+ * @returns {ParityRow[]}
+ */
+export function recheckParity(rows, shots = []) {
+  const byKey = new Map((shots ?? []).map((s) => [s.key, s]));
+  return (rows ?? []).map((p) => {
+    if (p.kind === 'card' && typeof p.level === 'number' && typeof p.luma === 'number') {
+      const c = cardCheck(p.level, p.luma);
+      return { ...p, min: c.min, max: c.max, ok: c.ok, skip: c.skip };
+    }
+    if (p.kind === 'meter' && typeof p.meter === 'number' && typeof p.field === 'number') {
+      const fl = byKey.get(p.id.replace(/^meter-/, ''))?.settle?.flickering ?? 0;
+      const m = meterCheck(p.meter, p.field, fl);
+      return { ...p, ok: m.ok, skip: m.skip };
+    }
+    return p;
+  });
+}
+
+/**
+ * (vg5t, vg5-check polish 2) The one WARN line naming every region a shot skipped (`behind` / `small` /
+ * `blotch-small`), so VG8 sees them without a calibrated rule: `regions skipped on N shots: <key> <region> (<why>); ...`
+ * (at most MAX_SKIP_LIST entries), or null when none. Lines without the `WARN ` prefix (the block adds it).
+ * @param {Array<{ key: string, skips?: RegionSkip[] }>} records
+ * @returns {{ line: string | null, count: number }}
+ */
+export function regionSkipLine(records) {
+  /** @type {string[]} */
+  const entries = [];
+  let shots = 0;
+  for (const r of records ?? []) {
+    const sk = r?.skips ?? [];
+    if (!sk.length) continue;
+    shots++;
+    for (const s of sk) entries.push(`${r.key} ${s.region} (${s.why})`);
+  }
+  if (!entries.length) return { line: null, count: 0 };
+  const more = entries.length > MAX_SKIP_LIST ? `; ... ${entries.length - MAX_SKIP_LIST} more` : '';
+  return { line: `regions skipped on ${shots} shot${shots === 1 ? '' : 's'}: ${entries.slice(0, MAX_SKIP_LIST).join('; ')}${more}`, count: entries.length };
 }
 
 /** @param {number | null | undefined} v */
@@ -421,8 +476,8 @@ export function topFlags(flags, parity, n = 3) {
  * @typedef {{ items: Record<string, any>, picks: Record<string, BaselinePick>, rulesOnly: boolean,
  *   tolerances?: Record<string, Partial<Tolerances>> }} ScoreCtx
  * @typedef {{ flags: Flag[], skipped: string[], known: string[], newKeys: string[], warnings: string[], errors: string[],
- *   parity: ParityRow[], notRun: string[], shots: number, measured: number, verdict: 'clean' | 'flagged' | 'error',
- *   reason: string | null }} Score
+ *   parity: ParityRow[], notRun: string[], shots: number, measured: number, regionSkips?: number,
+ *   verdict: 'clean' | 'flagged' | 'error', reason: string | null }} Score
  */
 
 /**
@@ -467,7 +522,11 @@ export function scoreRun(raw, ctx) {
     if (rec.aimReady === false) warnings.push(`${rec.key}: scene not ready`);
     const al = rec.settle?.alarm;
     if (al?.raised) warnings.push(`${rec.key}: alarm raised in the settle (stage ${String(al.before.stage)} -> ${String(al.after.stage)}, reinforced ${String(al.before.reinforced)} -> ${String(al.after.reinforced)})`);
+    const drift = rec.settle?.drift;
+    if (typeof drift === 'number' && drift > DRIFT_WARN_M) warnings.push(`${rec.key}: player settled ${f4(drift)} m from the view's feet (meter and field read where it stands)`);
   }
+  const rs = regionSkipLine(records.filter((r) => !r.error && r.metrics));
+  if (rs.line) warnings.push(rs.line);
   const parity = raw.parity ?? [];
   for (const p of parity) {
     if (p.skip === 'flicker') warnings.push(`${p.id}: meter ${f4(p.meter)} vs field ${f4(p.field)} with flickering lights (not counted)`);
@@ -477,7 +536,7 @@ export function scoreRun(raw, ctx) {
   warnings.push(...(raw.warnings ?? []));
   const notRun = raw.notRun ?? [];
   const { verdict, reason } = decide({ errors, flags, parity, picks, rulesOnly: ctx.rulesOnly, renderers: raw.renderers ?? [], notRun });
-  return { flags, skipped, known: knownLines(items, flags, evaluated), newKeys, warnings, errors, parity, notRun, shots: records.length, measured, verdict, reason };
+  return { flags, skipped, known: knownLines(items, flags, evaluated), newKeys, warnings, errors, parity, notRun, shots: records.length, measured, regionSkips: rs.count, verdict, reason };
 }
 
 /**
@@ -521,6 +580,7 @@ export function summarize({ score, sha, version, train, renderer, picks, wallMs,
     top: topFlags(score.flags, score.parity),
     recorded: !!recorded,
     thumbs: [...(thumbs ?? [])],
+    regionSkips: score.regionSkips ?? 0,
   };
 }
 

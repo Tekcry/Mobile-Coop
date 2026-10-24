@@ -19,7 +19,7 @@ import { lumaFromRgba, measure, leak } from './visual-gate/metrics.mjs';
 import { pickBaseline, shotKey } from './visual-gate/storeLib.mjs';
 import { fetchStore, readRecords, isAncestorFn, recordRun } from './visual-gate/store.mjs';
 import { DEADLINE_S, EXIT, planMasks, cardLuma, cardCheck, meterCheck, baselineCutoff, scoreRun, summarize, renderBlock,
-  runRecord, shouldRecord, thumbsToPush, roundMetrics, round5 } from './visual-gate/gate.mjs';
+  runRecord, shouldRecord, thumbsToPush, roundMetrics, round5, recheckParity } from './visual-gate/gate.mjs';
 
 const USAGE = 'usage: node scripts/e2e-visual.mjs <url> [--json f] [--png d] [--only id,id] [--maps a,b] [--serial] [--extra <params>] [--record | --no-record] [--rules-only] [--cards n] [--version x.y.z] [--deadline s] [--scratch d] [--rescore <result.json>]\n       node scripts/e2e-visual.mjs <url> --time [--json <file>] [--png <dir>] [--only id,id] [--maps a,b] [--serial]';
 /** Map order per browser (smallest bake first). */
@@ -222,6 +222,16 @@ async function timeMain(opts, vp, maps) {
 
 // ---------- the gate (VG5) ----------
 
+/** (vg5t, vg5-check polish 4) End gate / rescore mode by `process.exitCode`, not `process.exit`: the block printed just
+ * before reaches a POSIX pipe in full (an async write `exit` would cut). A backstop exit after `ms` (unref'd, so it never
+ * holds the process) still ends a run that a stray handle keeps alive, well before the train step's 300 s kill. */
+export function finish(code, proc = process, timer = setTimeout, ms = 5000) {
+  proc.exitCode = code;
+  const t = timer(() => proc.exit(code), ms);
+  t?.unref?.();
+  return code;
+}
+
 const SHA40 = /^[0-9a-f]{40}$/;
 /** Renderer strings compared trimmed with inner whitespace collapsed. */
 const normR = (s) => String(s ?? '').trim().replace(/\s+/g, ' ');
@@ -307,9 +317,14 @@ const itemsOf = (vp) => Object.fromEntries([...vp.VIEWS, ...vp.RIGS].map((i) => 
 /** @param {Record<string, unknown>} o every number rounded to 5 decimals (one level) */
 const round1 = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, typeof v === 'number' ? round5(v) : v]));
 
-function meterRow(v, preset, st) {
+/** The meter = field row of a view (A22). The note: d, flickering lights reaching the body of the map's (vg5t), and the
+ * player's drift from the view's feet when over 5 cm (meter and field are both read where the player stands). */
+export function meterRow(v, preset, st) {
   const m = meterCheck(st.meter, st.field, st.flickering);
-  return { kind: 'meter', id: `meter-${v.id}@${preset}`, map: v.map, view: v.id, at: v.feet, level: null, luma: null, meter: round5(st.meter), field: round5(st.field), min: null, max: null, ok: m.ok, skip: m.skip, note: `d ${round5(m.d)}${st.flickering ? `, ${st.flickering} flickering` : ''}` };
+  const notes = [m.skip === 'error' ? `meter ${st.meter} field ${st.field} not finite` : `d ${round5(m.d)}`];
+  if (st.flickering || st.flickeringAll) notes.push(`${st.flickering ?? 0} of ${st.flickeringAll ?? st.flickering} flickering near`);
+  if (typeof st.drift === 'number' && st.drift > 0.05) notes.push(`drift ${round5(st.drift)} m`);
+  return { kind: 'meter', id: `meter-${v.id}@${preset}`, map: v.map, view: v.id, at: v.feet, level: null, luma: null, meter: round5(st.meter), field: round5(st.field), min: null, max: null, ok: m.ok, skip: m.skip, note: notes.join(', ') };
 }
 
 function cardRow(c, o) {
@@ -325,7 +340,7 @@ function cardRow(c, o) {
 async function shotOne(g, page, boot, item, preset, state, out) {
   const key = shotKey(item.id, preset, state);
   const t = now();
-  const rec = { key, id: item.id, map: item.map, preset, rigState: state, metrics: null, skips: [], settle: null, converged: false, aimReady: false, error: null, ms: 0 };
+  const rec = { key, id: item.id, map: item.map, preset, rigState: state, metrics: null, skips: [], settle: null, converged: false, noisy: false, aimReady: false, error: null, ms: 0 };
   let img = null;
   let leakMask = null;
   try {
@@ -336,8 +351,10 @@ async function shotOne(g, page, boot, item, preset, state, out) {
     rec.metrics = roundMetrics(measure(img, pm.masks, pm.want));
     rec.skips = pm.skips;
     const st = s.settle;
-    rec.settle = { meter: round5(st.meter), field: round5(st.field), simS: round5(st.simS), guards: st.guards, flickering: st.flickering ?? 0, alarm: st.alarm ?? null };
+    rec.settle = { meter: round5(st.meter), field: round5(st.field), simS: round5(st.simS), guards: st.guards, flickering: st.flickering ?? 0, alarm: st.alarm ?? null,
+      drift: round5(st.drift ?? 0), fieldFeet: round5(st.fieldFeet ?? st.field), flickeringAll: st.flickeringAll ?? st.flickering ?? 0 };
     rec.converged = !!s.converge?.ok;
+    rec.noisy = !!s.converge?.noisy;
     rec.aimReady = s.aimReady !== false;
     if (state === 'on') leakMask = pm.masks.leak ?? null;
     try {
@@ -439,7 +456,7 @@ async function gateMap(g, mapId, preset, out) {
         const res = await card(page, c.at, spot);
         const luma = cardLuma(lumaFromRgba(res.capture.rgba, res.capture.w, res.capture.h));
         const cc = cardCheck(res.level, luma);
-        const notes = [spot.light, ...(res.converge.ok ? [] : ['unsteady']), ...(res.aimReady ? [] : ['scene not ready'])];
+        const notes = [spot.light, ...(res.converge.ok ? [] : ['unsteady']), ...(res.converge.noisy ? ['noisy'] : []), ...(res.aimReady ? [] : ['scene not ready']), ...(cc.skip === 'error' ? [`level ${res.level} luma ${luma} not finite`] : [])];
         out.parity.push(cardRow(c, { level: round5(res.level), luma: round5(luma), min: cc.min, max: cc.max, ok: cc.ok, skip: cc.skip, note: notes.join(', ') }));
         if (opts.png) writeFileSync(join(opts.png, `${c.id}.png`), res.capture.png);
       } catch (e) {
@@ -560,7 +577,7 @@ async function gateMain(opts, vp, maps) {
   }
   console.log(`\n${renderBlock(summary, score, { browsers, rulesOnly: opts.rulesOnly })}`);
   pruneScratch(root);
-  process.exit(EXIT[summary.verdict]);
+  finish(EXIT[summary.verdict]);
 }
 
 /** `--rescore <result.json>`: score a saved result (shots, rigs, parity rows) against the current viewpoints rules and
@@ -571,7 +588,8 @@ async function rescoreMain(opts, vp) {
     j = JSON.parse(readFileSync(opts.rescore, 'utf8'));
   } catch (e) {
     console.error(`e2e-visual: --rescore ${opts.rescore}: ${msg(e)}`);
-    process.exit(EXIT.usage);
+    finish(EXIT.usage);
+    return;
   }
   const renderer = normR(j.renderer);
   const renderers = Array.isArray(j.renderers) ? j.renderers.map(normR) : renderer ? [renderer] : [];
@@ -587,7 +605,7 @@ async function rescoreMain(opts, vp) {
   }
   const tolerances = await loadTolerances(warnings);
   const browsers = Array.isArray(j.browsers) ? j.browsers : [];
-  const raw = { shots: j.shots ?? [], rigs: j.rigs ?? [], parity: j.parity ?? [], errors, renderers, notRun: j.notRun ?? [], wallMs: j.ms ?? 0, browsers, warnings };
+  const raw = { shots: j.shots ?? [], rigs: j.rigs ?? [], parity: recheckParity(j.parity ?? [], [...(j.shots ?? []), ...(j.rigs ?? [])]), errors, renderers, notRun: j.notRun ?? [], wallMs: j.ms ?? 0, browsers, warnings };
   const score = scoreRun(raw, { items: itemsOf(vp), picks, rulesOnly: opts.rulesOnly, tolerances });
   const summary = summarize({ score, sha: j.sha ?? null, version: String(j.version ?? '0.0.0'), train: j.train ?? null, renderer, picks, wallMs: raw.wallMs, recorded: false, thumbs: [] });
   if (opts.json) {
@@ -595,7 +613,7 @@ async function rescoreMain(opts, vp) {
     writeFileSync(opts.json, `${JSON.stringify({ rescoreOf: opts.rescore, summary, flags: score.flags, warnings: score.warnings, errors: score.errors }, null, 1)}\n`);
   }
   console.log(renderBlock(summary, score, { browsers, rulesOnly: opts.rulesOnly }));
-  process.exit(EXIT[summary.verdict]);
+  finish(EXIT[summary.verdict]);
 }
 
 /** An error block for a crash in gate or rescore mode (VG6 still reads a verdict). */
@@ -640,7 +658,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     console.error(`e2e-visual: ${e?.stack ?? e}`);
     if (gateMode) {
       console.log(`\n${crashBlock(e)}`);
-      process.exit(EXIT.error);
+      finish(EXIT.error);
+      return;
     }
     process.exit(1);
   });

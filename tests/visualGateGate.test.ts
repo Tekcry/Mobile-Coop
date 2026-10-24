@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import { MIN_REGION_PX, MIN_BLOTCH_PX, METER_TOL, CARD_PATCH, EXIT, planMasks, cardLuma, tolFor, stripThin, nextPatch,
   baselineCutoff, skippedRules, lintRules, scoreShot, cardCheck, meterCheck, knownLines, decide, topFlags, scoreRun,
-  summarize, renderBlock, runRecord, shouldRecord, thumbsToPush,
+  summarize, renderBlock, runRecord, shouldRecord, thumbsToPush, regionSkipLine, recheckParity, DRIFT_WARN_M,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/visual-gate/gate.mjs';
 // @ts-expect-error plain .mjs process script without types
@@ -248,11 +248,82 @@ describe('visual-gate gate: parity checks', () => {
     expect(cardCheck(0.7, 0.6)).toMatchObject({ ok: true, skip: null });
   });
 
+  it('cardCheck (A32): the VG5 laptop run\'s three misses pass between the rows; a dark-reading mid card still misses', () => {
+    // card-so-s2-aisle-1, card-m-a5-kiosk-2, card-cp-s1-f-1 (master 46a7cf85): A15's mid union 0.10-0.37 missed them
+    expect(cardCheck(0.46591, 0.41671)).toMatchObject({ ok: true, skip: null });
+    expect(cardCheck(0.48405, 0.41176)).toMatchObject({ ok: true, skip: null });
+    expect(cardCheck(0.32436, 0.08498)).toMatchObject({ ok: true, skip: null });
+    // F6 "Marlow dark": a card at 0.5 reading 0.15 passed A15's 0.10 floor; between the rows its floor is 0.21
+    expect(cardCheck(0.5, 0.15)).toMatchObject({ ok: false, skip: null });
+    expect(cardCheck(0.5, 0.15).min).toBeCloseTo(0.21, 9);
+  });
+
+  it('cardCheck (polish 3): a non-finite level or luma is skip error, never a pass', () => {
+    expect(cardCheck(NaN, 0.3)).toEqual({ min: null, max: null, ok: true, skip: 'error' });
+    expect(cardCheck(0.4, Infinity)).toMatchObject({ skip: 'error' });
+  });
+
   it('meterCheck: d 0.03 misses, with flicker it is skipped; d 0.01 ok', () => {
     expect(meterCheck(0.33, 0.3, 0)).toMatchObject({ ok: false, skip: null });
     expect(meterCheck(0.33, 0.3, 0).d).toBeCloseTo(0.03, 9);
     expect(meterCheck(0.33, 0.3, 2)).toMatchObject({ ok: true, skip: 'flicker' });
     expect(meterCheck(0.31, 0.3, 0)).toMatchObject({ ok: true, skip: null });
+  });
+
+  it('meterCheck (polish 3): a NaN or infinite meter / field is skip error (NaN > tol used to read ok)', () => {
+    expect(meterCheck(NaN, 0.3, 0)).toMatchObject({ ok: true, skip: 'error' });
+    expect(meterCheck(0.3, NaN, 0).skip).toBe('error');
+    expect(meterCheck(0.3, -Infinity, 1).skip).toBe('error');
+    // the run turns it into an error, not a clean pass
+    const { raw, ctx } = fixture();
+    raw.parity[0] = { ...raw.parity[0]!, meter: NaN, ok: true, skip: 'error', note: 'meter NaN field 0.3 not finite' };
+    const score = scoreRun(raw, ctx);
+    expect(score.verdict).toBe('error');
+    expect(score.errors).toContain('meter-m-test@low: meter NaN field 0.3 not finite');
+  });
+
+  it('recheckParity: cards and meter rows of a saved run under the current rules; rows without numbers kept', () => {
+    const rows = [
+      { kind: 'card', id: 'card-so-s2-aisle-1', level: 0.46591, luma: 0.41671, min: 0.1, max: 0.37, ok: false, skip: null, note: 'lamp' },
+      { kind: 'card', id: 'card-x-2', level: null, luma: null, min: null, max: null, ok: true, skip: 'no-camera', note: 'x' },
+      { kind: 'meter', id: 'meter-cp-s3-c@low', meter: 0.4153, field: 0.3519, ok: true, skip: 'flicker', note: 'd 0.06' },
+      { kind: 'meter', id: 'meter-m-x@low', meter: 0.4153, field: 0.3519, ok: true, skip: 'flicker', note: 'd 0.06' },
+    ];
+    const shots = [{ key: 'cp-s3-c@low', settle: { flickering: 1 } }, { key: 'm-x@low', settle: { flickering: 0 } }];
+    const out = recheckParity(rows, shots);
+    expect(out[0]).toMatchObject({ ok: true, skip: null, note: 'lamp' });
+    expect(out[0].min).toBeCloseTo(0.1726, 9);
+    expect(out[1]).toEqual(rows[1]);
+    expect(out[2]).toMatchObject({ ok: true, skip: 'flicker' });
+    expect(out[3]).toMatchObject({ ok: false, skip: null });
+    expect(rows[0]!.ok).toBe(false); // the input is not changed
+  });
+});
+
+describe('visual-gate gate: region skips and drift (vg5t)', () => {
+  it('regionSkipLine: one line naming every skipped region, a count, capped at 20 entries', () => {
+    expect(regionSkipLine([{ key: 'a@low', skips: [] }])).toEqual({ line: null, count: 0 });
+    const one = regionSkipLine([{ key: 'm-a2-vantage@low', skips: [{ region: 'upper', why: 'small' }] }, { key: 'b@low', skips: [] }, { key: 'c@epic', skips: [{ region: 'wall', why: 'behind' }, { region: 'floor', why: 'blotch-small' }] }]);
+    expect(one).toEqual({ line: 'regions skipped on 2 shots: m-a2-vantage@low upper (small); c@epic wall (behind); c@epic floor (blotch-small)', count: 3 });
+    const many = regionSkipLine(Array.from({ length: 25 }, (_, i) => ({ key: `k${i}@low`, skips: [{ region: 'upper', why: 'small' }] })));
+    expect(many.count).toBe(25);
+    expect(many.line).toMatch(/^regions skipped on 25 shots: k0@low upper \(small\);/);
+    expect(many.line).toMatch(/; \.\.\. 5 more$/);
+  });
+
+  it('scoreRun: the region-skip WARN (once), its count in the summary, and a drift WARN over DRIFT_WARN_M', () => {
+    const { raw, ctx } = fixture();
+    expect(DRIFT_WARN_M).toBe(0.3);
+    raw.shots[0] = { ...raw.shots[0]!, skips: [{ region: 'upper', why: 'small' }] as never, settle: { ...raw.shots[0]!.settle, drift: 0.62 } as never };
+    raw.shots[1] = { ...raw.shots[1]!, settle: { ...raw.shots[1]!.settle, drift: 0.2 } as never };
+    const { score, summary, text } = block(raw, ctx);
+    expect(score.verdict).toBe('clean');
+    expect(summary.regionSkips).toBe(1);
+    expect(text).toContain('WARN regions skipped on 1 shot: m-test@low upper (small)');
+    expect(text).toContain("WARN m-test@low: player settled 0.6200 m from the view's feet (meter and field read where it stands)");
+    expect(text).not.toContain('m-test@epic: player settled');
+    const plain = fixture();
+    expect(block(plain.raw, plain.ctx).summary.regionSkips).toBe(0);
   });
 });
 
@@ -318,7 +389,7 @@ function fixture({ darken = false, miss = false, many = 0 } = {}) {
   return { raw, ctx: { items, picks, rulesOnly: false, tolerances: {} } };
 }
 
-const SUMMARY_KEYS = ['v', 'verdict', 'sha', 'version', 'train', 'renderer', 'shots', 'flags', 'known', 'parity', 'newKeys', 'warnings', 'errors', 'base', 'wallS', 'reason', 'top', 'recorded', 'thumbs'];
+const SUMMARY_KEYS = ['v', 'verdict', 'sha', 'version', 'train', 'renderer', 'shots', 'flags', 'known', 'parity', 'newKeys', 'warnings', 'errors', 'base', 'wallS', 'reason', 'top', 'recorded', 'thumbs', 'regionSkips'];
 
 function block(raw: ReturnType<typeof fixture>['raw'], ctx: ReturnType<typeof fixture>['ctx']) {
   const score = scoreRun(raw, ctx);

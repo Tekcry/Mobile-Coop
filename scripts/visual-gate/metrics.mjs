@@ -543,10 +543,13 @@ const PARITY_EDGE = 0.03;
 const clean = (x) => Math.round(x * 1e9) / 1e9;
 
 /**
- * The display range a grey card at gameplay `level` must read in (BRIEF A15): within 0.03 of a DARK row's level, that
- * row's min / max +-0.02 (`row` = its index); otherwise the band's union range +-0.02 (`row` null). `skip` when the level
- * is within 0.03 (strictly, less a 1e-9 slack, so exactly 0.03 never skips) of a band edge. min clamped at 0, max at 1.
- * No interpolation.
+ * The display range a grey card at gameplay `level` must read in (BRIEF A15, A32): within 0.03 of a DARK row's level,
+ * that row's min / max +-0.02 (`row` = its index); between two rows, each bound linearly between the two rows' bounds
+ * +-0.02 (A32, vg5t: the bible pins the curve at 4 levels only, and the mid band's one row (0.40, 12-35%) cannot hold
+ * a 0.47 card, which the curve renders at ~0.42 on its way to the lit row's 45% at 0.70; A15's band union flagged every
+ * such card); below the first row the first row's range, above the last the last row's (the curve is monotone).
+ * `skip` when the level is within 0.03 (strictly, less a 1e-9 slack, so exactly 0.03 never skips) of a band edge. min
+ * clamped at 0, max at 1. `band` is the gameplay band (`bandOf`).
  * @param {number} level
  * @returns {{ min: number, max: number, band: 'dark' | 'mid' | 'lit', row: number | null, skip: boolean }}
  */
@@ -571,10 +574,27 @@ export function parityRange(level) {
     min = DARK[row].min;
     max = DARK[row].max;
   } else {
-    for (const r of DARK) {
-      if (r.band !== band) continue;
-      min = Math.min(min, r.min);
-      max = Math.max(max, r.max);
+    // A32: between the two rows around the level (rows are in level order), else the nearest end row
+    /** @typedef {{ level: number, min: number, max: number }} DarkRow */
+    const at = (/** @type {number} */ i) => /** @type {DarkRow} */ (DARK[i]);
+    const first = at(0);
+    const last = at(DARK.length - 1);
+    if (level <= first.level) {
+      min = first.min;
+      max = first.max;
+    } else if (level >= last.level) {
+      min = last.min;
+      max = last.max;
+    } else {
+      for (let i = 0; i + 1 < DARK.length; i++) {
+        const a = at(i);
+        const b = at(i + 1);
+        if (level < a.level || level > b.level) continue;
+        const t = (level - a.level) / (b.level - a.level);
+        min = a.min + (b.min - a.min) * t;
+        max = a.max + (b.max - a.max) * t;
+        break;
+      }
     }
   }
   // 1e-9 slack: a level exactly 0.03 from an edge (0.25, 0.31, 0.57, 0.63) never skips, whatever the float rounding

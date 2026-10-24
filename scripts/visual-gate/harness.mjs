@@ -5,9 +5,9 @@
 /** @typedef {{ query: string, label: string }} MapCfg */
 /** @typedef {{ browser: any, ctx: any, page: any, errors: string[], renderer: string, chrome: string, bootMs: number, torchCount: number }} Boot */
 /** @typedef {{ feet: Vec3, rig: null | { guard: { pos: Vec3, yaw: number }, torch: boolean, doorAt: Vec3 | null }, minSimS?: number, wallCapMs?: number }} SettleSpec */
-/** @typedef {{ meter: number, field: number, simS: number, ms: number, guards: number, torch: null | { want: boolean, has: boolean }, othersLit: number, door: null | { shut: boolean, dist: number }, flickering: number, alarm: null | { before: { stage: unknown, reinforced: number | null }, after: { stage: unknown, reinforced: number | null }, raised: boolean } }} SettleResult */
-/** @typedef {{ flickers: number, swayed: boolean }} PinResult */
-/** @typedef {{ ok: boolean, frames: number, reads: number, lastDelta: number, ms: number }} ConvergeResult */
+/** @typedef {{ meter: number, field: number, fieldFeet: number, pos: Vec3, drift: number, simS: number, ms: number, guards: number, torch: null | { want: boolean, has: boolean }, othersLit: number, door: null | { shut: boolean, dist: number }, flickering: number, flickeringAll: number, alarm: null | { before: { stage: unknown, reinforced: number | null }, after: { stage: unknown, reinforced: number | null }, raised: boolean } }} SettleResult */
+/** @typedef {{ flickers: number, swayed: boolean, bars: number }} PinResult */
+/** @typedef {{ ok: boolean, noisy: boolean, frames: number, reads: number, lastDelta: number, lastQ: number, ms: number }} ConvergeResult */
 /** @typedef {{ pts: Pt2[], behind: boolean }} Projection */ // behind: a corner with clip w <= 0 (VG5 skips that region)
 /** @typedef {{ w: number, h: number, rgba: Uint8Array, png: Buffer, ms: number }} Capture */
 /** @typedef {{ id: string, rigState: 'on' | 'off' | null, settle: SettleResult, pin: PinResult, converge: ConvergeResult, regions: Record<string, Projection>, capture: Capture, ms: { settle: number, pin: number, aim: number, converge: number, capture: number, total: number } }} ShotRaw */
@@ -68,11 +68,51 @@ export function gridDelta(a, b) {
   return m;
 }
 
+/** The `q` quantile (nearest rank, 0..1) of the cell differences of two grids: q 0.9 of 144 cells ignores the 14 that
+ * move most (vg5t: TAAU shimmer on a sub-pixel bright line moves a few cells by 0.01-0.02 for ever). */
+export function gridDeltaQ(a, b, q = 0.9) {
+  if (a.length !== b.length) throw new Error(`gridDeltaQ: length ${a.length} vs ${b.length}`);
+  if (!a.length) return 0;
+  const d = a.map((v, i) => Math.abs(v - b[i])).sort((x, y) => x - y);
+  return d[Math.min(d.length - 1, Math.max(0, Math.ceil(q * d.length) - 1))];
+}
+
 /** Converged when the last `need` deltas are all under `tol`. */
 export function isConverged(deltas, tol = 0.004, need = 3) {
   if (deltas.length < need) return false;
   for (let i = deltas.length - need; i < deltas.length; i++) if (!(deltas[i] < tol)) return false;
   return true;
+}
+
+/** Converge defaults: `tol` per cell, `need` deltas in a row; the noisy-steady path (vg5t) takes the `q` quantile under
+ * `tol` while the worst cell stays under `maxTol` (a shimmer, not a frame still settling). */
+export const CONVERGE = Object.freeze({ tol: 0.004, need: 3, q: 0.9, maxTol: 0.03 });
+
+/** 'steady' (every cell under tol for `need` reads), 'noisy' (the q quantile under tol and every cell under maxTol for
+ * `need` reads: a few cells shimmer for ever under TAAU jitter, e.g. a railing at Epic), else null (still settling). */
+export function convergeState(maxDeltas, qDeltas, o = CONVERGE) {
+  const { tol, need, maxTol } = { ...CONVERGE, ...o };
+  if (isConverged(maxDeltas, tol, need)) return 'steady';
+  if (isConverged(qDeltas, tol, need) && isConverged(maxDeltas, maxTol, need)) return 'noisy';
+  return null;
+}
+
+/** Flickering lights that reach the body at `(x, y, z)` (feet) with head height `h`: a light whose `radius` (+0.5 m)
+ * covers the chest (0.6 h) or head (0.95 h) sample of `bodyLevel` (src/world/lightField.ts). A light with no radius
+ * counts. Self-contained (it runs in the page from its source text). */
+export function flickerNear(reg, x, y, z, h) {
+  let n = 0;
+  for (const id of reg?.flickering ?? []) {
+    const l = reg.lights?.[id];
+    if (!l) continue;
+    const r = typeof l.radius === 'number' ? l.radius + 0.5 : Infinity;
+    const dx = l.x - x;
+    const dz = l.z - z;
+    const dc = Math.sqrt(dx * dx + (l.y - (y + 0.6 * h)) ** 2 + dz * dz);
+    const dh = Math.sqrt(dx * dx + (l.y - (y + 0.95 * h)) ** 2 + dz * dz);
+    if (Math.min(dc, dh) <= r) n++;
+  }
+  return n;
 }
 
 /** A world point to screen px through a row-vector matrix (Babylon `view.multiply(projection).toArray()`):
@@ -186,7 +226,7 @@ export async function bootMap({ url, map, preset, extra = '' }) {
 }
 
 /** The settle, run in the page from its source text (self-contained: the placement helpers come in as arguments). */
-async function settleInPage({ feet, rig, minS, cap, lateRounds }, pickRigGuard, placeGuards, unplaced) {
+async function settleInPage({ feet, rig, minS, cap, lateRounds }, pickRigGuard, placeGuards, unplaced, flickerNear) {
   const w0 = performance.now();
   const app = window.__app;
   const g = app.current;
@@ -232,11 +272,21 @@ async function settleInPage({ feet, rig, minS, cap, lateRounds }, pickRigGuard, 
     k = placeGuards(late, null, rig, bd, feet, k);
     placed += late.length;
   }
-  // 3. meter and field, the same tick
+  // 3. meter and field, the same tick. (vg5t) The field is read where the meter samples, the player's feet as they
+  // stand (a teleport into a collider leaves the body pushed aside), and at the view's feet too; `drift` is the gap.
   const meter = g.lightLevel;
-  const field = g.world.lightField.bodyLevel(feet[0], feet[1], feet[2], 1.7);
+  const lf = g.world.lightField;
+  const p = g.player.position;
+  const pos = [p.x, p.y, p.z];
+  const drift = Math.sqrt((p.x - feet[0]) ** 2 + (p.y - feet[1]) ** 2 + (p.z - feet[2]) ** 2);
+  const field = lf.bodyLevel(p.x, p.y, p.z, 1.7);
+  const fieldFeet = drift > 1e-3 ? lf.bodyLevel(feet[0], feet[1], feet[2], 1.7) : field;
   const simS = g.time - t0;
-  const flickering = g.world.level.lights?.flickering?.length ?? 0;
+  // (vg5t) every map has a flickering light somewhere; only one that reaches the body can move the meter between its
+  // 10 Hz sample and this read, so `flickering` counts those (A22's WARN), `flickeringAll` the map's
+  const reg = g.world.level.lights;
+  const flickeringAll = reg?.flickering?.length ?? 0;
+  const flickering = flickerNear(reg, p.x, p.y, p.z, 1.7);
   const alarm1 = alarmOf();
   const alarm = alarm0 || alarm1
     ? {
@@ -273,7 +323,7 @@ async function settleInPage({ feet, rig, minS, cap, lateRounds }, pickRigGuard, 
     if (bestD > 1.5) throw new Error(`settle: nearest door ${bestD.toFixed(2)} m from doorAt ${rig.doorAt} (max 1.5)`);
     if (!door.shut) throw new Error(`settle: rig door not shut (target ${best.target}, open ${best.open})`);
   }
-  return { meter, field, simS, ms: Math.round(performance.now() - w0), guards: placed, torch, othersLit, door, flickering, alarm };
+  return { meter, field, fieldFeet, pos, drift, simS, ms: Math.round(performance.now() - w0), guards: placed, torch, othersLit, door, flickering, flickeringAll, alarm };
 }
 
 /** PLAN section 3 steps 1-3 in one page evaluate: sim running, place everyone, settle, assert, read meter and field.
@@ -287,7 +337,7 @@ export async function settle(page, spec) {
     cap: spec.wallCapMs ?? 20000,
     lateRounds: LATE_ROUNDS,
   };
-  return page.evaluate(`(${settleInPage})(${JSON.stringify(arg)}, ${pickRigGuard}, ${placeGuards}, ${unplaced})`);
+  return page.evaluate(`(${settleInPage})(${JSON.stringify(arg)}, ${pickRigGuard}, ${placeGuards}, ${unplaced}, ${flickerNear})`);
 }
 
 /** The pin, run in the page from its source text (synchronous: nothing awaits between its steps). */
@@ -318,11 +368,22 @@ function pinInPage(unplaced) {
     }
     reg.swayVersion++;
   }
+  // (vg5t) the cinematic letterbox off: sector and clear modes open with `g.letterbox(2.8)` (a section change 2.6), it
+  // counts down in sim time only (the pin stops it), so its bars (11% of the height, top and bottom) were in every shot
+  // of a boot's first ~3 s of settles, their height set by the view order. `bars` = the amount it had.
+  let bars = 0;
+  const post = g.post;
+  if (post && typeof post.bars === 'number') {
+    bars = post.bars;
+    post.barsTarget = 0;
+    post.bars = 0;
+  }
+  if (typeof g.letterboxT === 'number') g.letterboxT = 0;
   g.photoFreeze(true);
   document.body.classList.add('photo-mode');
   g.player.rig.setEnabled(false);
   for (const e of g.enemyMgr?.enemies ?? []) e.bodyRig?.setEnabled(false);
-  return { flickers, swayed };
+  return { flickers, swayed, bars };
 }
 
 /** PLAN section 3 step 4, ONE synchronous evaluate: sim pinned, flicker 1, pendants at rest, photo mode, rigs hidden.
@@ -365,10 +426,12 @@ async function readGrid(page, cols, rows) {
   return page.evaluate(decodeExpr(png.toString('base64'), `(${gridMeans.toString()})(px, w, h, ${cols}, ${rows})`));
 }
 
-/** Render until a full-frame cols x rows grid holds still: 30 frames, then a read every 10 frames until the last 3
- * deltas are all under `tol`, at most `maxMs` (8 s) of reads. TAAU jitters every frame even pinned (C0 P3). */
+/** Render until a full-frame cols x rows grid holds still: 30 frames, then a read every 10 frames until `convergeState`
+ * says steady (the last 3 max-cell deltas under `tol`) or noisy (vg5t: the 0.9 quantile under `tol`, the max under
+ * `maxTol`), at most `maxMs` (8 s) of reads. TAAU jitters every frame even pinned (C0 P3); on a sub-pixel bright line
+ * (a railing at Epic) it never stops, which cost the 8 s cap on 4-6 Epic renders a run (M0, VG5 laptop runs). */
 export async function converge(page, opts = {}) {
-  const { tol = 0.004, need = 3, maxMs = 8000, warm = 30, every = 10, cols = 16, rows = 9 } = opts;
+  const { tol = CONVERGE.tol, need = CONVERGE.need, q = CONVERGE.q, maxTol = CONVERGE.maxTol, maxMs = 8000, warm = 30, every = 10, cols = 16, rows = 9 } = opts;
   const { frames } = await lib();
   const t0 = now();
   await frames(page, warm);
@@ -376,16 +439,21 @@ export async function converge(page, opts = {}) {
   let prev = await readGrid(page, cols, rows);
   let reads = 1;
   const deltas = [];
+  const qDeltas = [];
+  const o = { tol, need, maxTol };
   const r0 = now();
-  while (!isConverged(deltas, tol, need) && now() - r0 < maxMs) {
+  while (!convergeState(deltas, qDeltas, o) && now() - r0 < maxMs) {
     await frames(page, every);
     n += every;
     const cur = await readGrid(page, cols, rows);
     reads++;
     deltas.push(gridDelta(prev, cur));
+    qDeltas.push(gridDeltaQ(prev, cur, q));
     prev = cur;
   }
-  return { ok: isConverged(deltas, tol, need), frames: n, reads, lastDelta: deltas.length ? deltas[deltas.length - 1] : NaN, ms: Math.round(now() - t0) };
+  const state = convergeState(deltas, qDeltas, o);
+  const last = (a) => (a.length ? a[a.length - 1] : NaN);
+  return { ok: state !== null, noisy: state === 'noisy', frames: n, reads, lastDelta: last(deltas), lastQ: last(qDeltas), ms: Math.round(now() - t0) };
 }
 
 /** The photo camera's view x projection, row-vector order (Babylon `toArray()`). */
