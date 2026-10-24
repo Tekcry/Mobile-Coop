@@ -2770,7 +2770,7 @@ console.log('coop4 guard AI (AI6): three intruders over four pages - each pair h
             const em = g.enemyMgr;
             const b = em.intruders;
             const e = em.enemies.find((x) => x.id === a.gid);
-            if (!st.init) { st.init = true; Object.assign(st, { phase: 'crouch', maxMeter: 0, nonCalm: 0, cautionSteps: 0, turnSteps: 0, cValid: 0, hostSlot: 0, tTurn: -1, turnBy: '', loc: null, sawC: false, err: '', runT0: -1, cSpd: { crouch: 0, run: 0 }, dMin: { crouch: 99, run: 99 }, levels: [], lastLv: '' }); }
+            if (!st.init) { st.init = true; Object.assign(st, { phase: 'crouch', maxMeter: 0, nonCalm: 0, cautionSteps: 0, turnSteps: 0, cValid: 0, hostSlot: 0, tTurn: -1, turnBy: '', loc: null, sawC: false, err: '', runT0: -1, searchT0: -1, searchSteps: 0, minHeardAt: 99, cSpd: { crouch: 0, run: 0, search: 0 }, dMin: { crouch: 99, run: 99, search: 99 }, levels: [], lastLv: '' }); }
             if (!e) return;
             const s = b.find(a.idC);
             st.maxMeter = Math.max(st.maxMeter, e.meter);
@@ -2799,14 +2799,19 @@ console.log('coop4 guard AI (AI6): three intruders over four pages - each pair h
             if (st.phase === 'crouch') {
               if (!calm) st.nonCalm++;
               if (s >= 0 && b.valid[s] === 1) st.cValid++;
-            } else if (st.phase === 'run') {
+            } else {
               // (ai6 triage 5) "turns / investigates": a heard step at tier 1 only turns him (`Enemy.hearTurn`: `turnT`
               // set, meter capped under `suspicious`, the level kept), tier 2 gets him sent (investigating); either counts
-              if (st.tTurn < 0 && (!calm || (e.turnT ?? 0) > 0)) { st.tTurn = g.time - st.runT0; st.turnBy = !calm ? e.level : 'turn'; }
+              if (st.phase === 'run' && st.tTurn < 0 && (!calm || (e.turnT ?? 0) > 0)) { st.tTurn = g.time - st.runT0; st.turnBy = !calm ? e.level : 'turn'; }
+              // (ai6 triage 7) the search leg: his level and his re-aim clock (`heardAt`, 99 none) per step
+              if (st.phase === 'search') {
+                if (e.level === 'searching') st.searchSteps++;
+                st.minHeardAt = Math.min(st.minHeardAt, e.heardAt ?? 99);
+              }
               if (!st.loc && s >= 0 && b.valid[s] === 1 && b.locT[s] < 1) {
                 const x0 = a.a[0], z0 = a.a[1], x1 = a.b[0], z1 = a.b[1];
                 const t = Math.max(0, Math.min(1, ((b.x[s] - x0) * (x1 - x0) + (b.z[s] - z0) * (z1 - z0)) / ((x1 - x0) ** 2 + (z1 - z0) ** 2)));
-                st.loc = { s, owner: b.idOf ? b.idOf(s) : null, locT: b.locT[s], seenT: b.seenT[s], dPath: Math.hypot(b.x[s] - (x0 + (x1 - x0) * t), b.z[s] - (z0 + (z1 - z0) * t)), t: g.time - st.runT0, level: e.level, sawC: st.sawC };
+                st.loc = { s, owner: b.idOf ? b.idOf(s) : null, locT: b.locT[s], seenT: b.seenT[s], dPath: Math.hypot(b.x[s] - (x0 + (x1 - x0) * t), b.z[s] - (z0 + (z1 - z0) * t)), phase: st.phase, t: g.time - (st.phase === 'search' ? st.searchT0 : st.runT0), level: e.level, sawC: st.sawC };
               }
             }
           } catch (e) {
@@ -2884,15 +2889,40 @@ console.log('coop4 guard AI (AI6): three intruders over four pages - each pair h
         const loc = c3.loc;
         const why3 = jl({ hr: Math.round(hr), tTurn: f2(c3.tTurn), turnBy: c3.turnBy, turnSteps: c3.turnSteps, cautionSteps: c3.cautionSteps, loc, sawC: c3.sawC, hostValidSteps: c3.hostSlot, err: c3.err, cSpd: c3.cSpd, dMin: c3.dMin, levels: c3.levels, at: leg.at });
         assert(c3.tTurn >= 0 && c3.tTurn <= 2.5, `AI6 (3): within 2 s the guard turns / investigates (not calm after ${f2(c3.tTurn)} s of the run) (${why3})`);
-        assert(!!loc && loc.locT < 1, `AI6 (3): a heard step locates C's slot (locT < 1) (${why3})`);
-        if (loc) {
-          assert(loc.dPath <= 2.5, `AI6 (3): the located position is within 2.5 m of C's run path (${f2(loc.dPath)} m) (${why3})`);
-          if (hooks.idOf) assert(loc.owner === idC, `AI6 (3): the located slot is C's (owner ${loc.owner}) (${why3})`);
+        // (ai6 triage 7) "once in a search or fight a heard step locates C" (AI6-E2E-SPEC (3)): a calm guard never locates
+        // by ear. `EnemyManager.hear` sends only an alerted or searching guard to `hearFight` -> `reportHeard`
+        // (enemyManager.ts:2724-2727, :2777); a calm one turns (tier 1) or goes to the board (tier 2, investigating, still
+        // no locate) (:2728-2743). The run above gave tier 1 only: C peaked at 3.07 m/s (the 3 m leg turns him round
+        // before full speed), a 1.2 + (3.07 - 1.4) * 1.6 = 3.87 m reach (`noiseRadius`, movement.ts:152), and tier 2 is
+        // inside half of it (`investigateDb` 6, hearing.ts:26), 1.94 m; he came no closer than 2.33 m. So the locate gets its
+        // own leg, as the spec stages it: the guard searches round his own feet (`Enemy.searchAt`, the plain search a
+        // body or a cut light starts; `searching` at his next step, alertState.ts:155) and C runs the same leg. In a
+        // search any body noise from tier 1 locates its maker (`combatHearAct`, hearing.ts:122-127), and C's run steps
+        // already reached tier 1 here (he turned).
+        await GH(([gid, idc]) => {
+          const em = window.__app.current.enemyMgr;
+          const b = em.intruders;
+          const s = b.find(idc);
+          if (s >= 0) { b.forget(s); b.seenT[s] = 99; b.locT[s] = 99; }
+          const e = em.enemies.find((x) => x.id === gid);
+          if (e) e.searchAt(e.pos.x, e.pos.z);
+        }, [leg.id, idC]);
+        await until(HA, (gid) => window.__app.current.enemyMgr.enemies.find((x) => x.id === gid)?.level === 'searching', leg.id, 5000, 'AI6 (3): the guard searches (searchAt)');
+        await GH(() => { const s = window.__ai6s; s.phase = 'search'; s.searchT0 = window.__app.current.time; s.loc = null; });
+        const hsr = await waitHostSim(HA, 8000, async () => { await steer(); });
+        await stop();
+        const c4 = await GH(() => ({ ...window.__ai6s }));
+        const loc4 = c4.loc;
+        const why4 = jl({ hs: Math.round(hsr), loc: loc4, sawC: c4.sawC, searchSteps: c4.searchSteps, minHeardAt: f2(c4.minHeardAt), hostValidSteps: c4.hostSlot, err: c4.err, cSpd: c4.cSpd, dMin: c4.dMin, levels: c4.levels, stealth: await GH(() => window.__app.current.enemyMgr.stealth), at: leg.at });
+        assert(!!loc4 && loc4.locT < 1, `AI6 (3): searching, a heard step locates C's slot (locT < 1) (${why4})`);
+        if (loc4) {
+          assert(loc4.dPath <= 2.5, `AI6 (3): the located position is within 2.5 m of C's run path (${f2(loc4.dPath)} m) (${why4})`);
+          if (hooks.idOf) assert(loc4.owner === idC, `AI6 (3): the located slot is C's (owner ${loc4.owner}) (${why4})`);
           else skip('IntruderBoard.idOf');
-          if (!loc.sawC) assert(loc.seenT === 99, `AI6 (3): located, not seen: seenT of C's slot is 99 (${loc.seenT}) (${why3})`);
-          else console.log('    (AI6 (3): the guard saw C when he turned, seenT not asserted)');
+          if (!loc4.sawC) assert(loc4.seenT === 99, `AI6 (3): located, not seen: seenT of C's slot is 99 (${loc4.seenT}) (${why4})`);
+          else console.log('    (AI6 (3): the guard saw C, seenT not asserted)');
         }
-        assert(c3.hostSlot === 0, `AI6 (3): the host never has a valid slot (${c3.hostSlot} steps) (${why3})`);
+        assert(c4.hostSlot === 0, `AI6 (3): the host never has a valid slot (${c4.hostSlot} steps) (${why4})`);
         // a noisy hold: the pulse coopHost's onHoldPulse makes (`em.hear(item, r, 'noise', null, id)`), in a fight
         // (ai6 triage 5) the holder stands at his item: C (wherever the run left him, 0-3 m along the leg) goes to the leg's
         // end and the item is there (walkable, checked). The guard in a fight needs no light, so if he sees C the sighting
