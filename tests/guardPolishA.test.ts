@@ -88,7 +88,7 @@ function roleProbe(o: { role: number; cover?: number; moving?: boolean; mates?: 
     blockCover: vi.fn(),
     stealth: () => true,
     lkpOf: () => lkp,
-    ballistics: { clear: vi.fn(() => line.clear), ray: vi.fn((_a: Vector3, b: Vector3) => ({ hit: false, point: b })), armouredFirst: () => false },
+    ballistics: { clear: vi.fn((_a: Vector3, _b: Vector3, _mask: number) => line.clear), ray: vi.fn((_a: Vector3, b: Vector3) => ({ hit: false, point: b })), armouredFirst: () => false },
     vfx: { tracer: vi.fn(), muzzleFlash: vi.fn() },
     diff: DIFFICULTY.normal,
     players: () => [],
@@ -317,7 +317,7 @@ describe('A7 / A8: the suppress line', () => {
   it('A8: the line test is blocked by props too (ENEMY_SHOT stops on them)', () => {
     const r = overwatch();
     r.step();
-    const mask = r.ctx.ballistics.clear.mock.calls[0]![2] as unknown as number;
+    const mask = r.ctx.ballistics.clear.mock.calls[0]![2];
     expect(mask & G.STATIC).toBeTruthy();
     expect(mask & G.PROP).toBeTruthy();
   });
