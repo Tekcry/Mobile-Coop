@@ -1,0 +1,19 @@
+{
+  "id": "20261024T045507-player-build-408ab154-c37c",
+  "sha": "408ab154524be408893ad77cc87e55536eab6a7f",
+  "branch": "",
+  "pr": null,
+  "kind": "alone",
+  "requester": "player-build",
+  "steps": [
+    "npm run build",
+    "node scripts/guard-cap.mjs --maps=sectorops,campusops --counts=0,12,24 --cells=patrol,away,alert --query=guardmodels=1 --out=C:/NightShift/scratch/gm-perf/on",
+    "node scripts/guard-cap.mjs --maps=sectorops,campusops --counts=0,12,24 --cells=patrol,away,alert --query=guardmodels=0 --out=C:/NightShift/scratch/gm-perf/off"
+  ],
+  "env": {
+    "E2E_GPU": "1",
+    "E2E_PORT": "4189"
+  },
+  "set": "gm-perf-cap",
+  "note": "guard-models perf batch (frozen materials, lazy pose; new render.figure / render.s1 timers and active_gun_per_guard tally). Please push like shots/g8c-*"
+}
