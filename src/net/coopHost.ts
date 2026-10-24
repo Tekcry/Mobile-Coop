@@ -15,7 +15,7 @@ import type { NetSession } from './session';
 import { TickLimiter, type CourseWire } from '../game/course/courseWire';
 import type { SecWire } from '../game/ctDevices';
 import { syringesFor, type SectorNetExtra } from '../game/sectors';
-import { eventQueueKeeps, gaitWire, motionWire, ITEM_KINDS, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, BARK_CAM, BARK_TEXT, hitConfirmKind, packAlert, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, wirePlayerState } from './protocol';
+import { DROP_BODY_ID, eventQueueKeeps, gaitWire, motionWire, ITEM_KINDS, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, BARK_CAM, BARK_TEXT, hitConfirmKind, packAlert, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, wirePlayerState } from './protocol';
 import { RemoteAvatar } from './remoteAvatar';
 import { RemotePlayer } from './remotePlayer';
 import { HoldClock, holdFeed, stepHoldFeed, type HoldFeed } from './holdFeed';
@@ -58,6 +58,11 @@ import { HALL_BACK_HOLD } from '../game/jammer';
 import { JOIN_PLACE, JOIN_RESYNC, JOIN_REVIVE_QUIET_S, JoinWatch } from './joinWatch';
 import { ClockSync, HOST_INTERP_DELAY } from './interp';
 import { CT } from '../config/movement';
+import type { Body } from '../ai/body';
+import { BODY } from '../ai/bodies';
+import { DROP_NOISE } from '../game/bodyCarry';
+import { bodyItem, hideOk, inCarryReach, pickupDenied } from './bodyCarryNet';
+import { CarryView } from './carryView';
 
 import type { CharacterRig } from '../player/characterRig';
 
@@ -128,6 +133,8 @@ export class CoopHost implements NetAttachment {
   private itemsSig = '';
   private doorsSig = '';
   private bodiesSig = '';
+  /** (coop-carry) Each client's body carry (by player id): the host's `Body` (carried) shown on its avatar. */
+  private carries = new Map<string, CarryView>();
   private history = new Map<string, Hist[]>();
   private tallies = new Map<string, Tally>();
   private offs: (() => void)[] = [];
@@ -470,6 +477,8 @@ export class CoopHost implements NetAttachment {
       this.release(eid);
     }
     if (this.teamPairs.has(id)) this.onTeamMove(id, 'end', '', 0, 0, 0);
+    // (coop-carry) a body it carried is put down where it stood
+    this.remoteDrop(id);
     this.joins.hold(id, { x: r.feet.x, y: r.feet.y, z: r.feet.z, yaw: r.state?.yaw ?? 0 });
     this.g.hud.setNetNotice(`${name} disconnected - reconnecting... (room ${this.s.code})`);
     this.g.app.toasts.show(`${name} disconnected. Their place is held for 10 minutes (room ${this.s.code}).`, 'warn');
@@ -514,6 +523,7 @@ export class CoopHost implements NetAttachment {
     if (r.held) this.g.hud.setNetNotice(null);
     this.dropRevive(id);
     for (const [eid, s] of this.seized) if (s.by === id) this.release(eid);
+    this.remoteDrop(id);
     r.dispose();
     this.remotes.delete(id);
     const i = this.remoteRefs.indexOf(r.ref);
@@ -532,6 +542,8 @@ export class CoopHost implements NetAttachment {
   }
 
   private onRemoteDeath(r: RemotePlayer): void {
+    // (coop-carry) down: the body drops where he fell
+    this.remoteDrop(r.id);
     this.g.hud.feedItem(`${r.avatar.info.name} is down`, 'warn');
     if (!this.g.mode) {
       this.respawnIn.set(r.id, 3); // free roam
@@ -739,6 +751,19 @@ export class CoopHost implements NetAttachment {
 
   /** A client used a mirrored item: it must be usable, and in reach of where the host has the client. */
   private onUse(r: RemotePlayer, id: string): void {
+    // (coop-carry) body requests never reach the host's own carry items (they would carry for the host)
+    if (id === DROP_BODY_ID) {
+      this.remoteDrop(r.id);
+      return;
+    }
+    if (id.startsWith('body-')) {
+      this.remotePickUp(r, id);
+      return;
+    }
+    if (id.startsWith('hide-')) {
+      this.remoteHide(r, id);
+      return;
+    }
     if (!r.alive) return;
     const it = this.g.interactables?.items.find((i) => i.id === id);
     if (!it || !it.enabled || it.done) return;
@@ -1364,12 +1389,15 @@ export class CoopHost implements NetAttachment {
     const ints = this.g.interactables;
     const list = ints?.items ?? [];
     for (let pass = 0; pass < 2; pass++) {
+      // (coop-carry) the bodies (lying, or whose shoulder they are on) after the course devices and crates
+      if (pass === 1) this.bodyItems(out);
       for (const it of list) {
         if (out.length >= MAX_ITEMS) break;
         if ((it.id.startsWith('c-') || it.kind === 'crate') !== (pass === 0)) continue;
         if (ints && !ints.inScope(it)) continue;
         const k = it.kind as NetItem['k'];
-        if (!ITEM_KINDS.includes(k)) continue;
+        // (coop-carry) bodies go as `bodyItems` (with their carrier), not as the host's own pick-up items
+        if (k === 'body' || !ITEM_KINDS.includes(k)) continue;
         const n: NetItem = { id: it.id, k, x: it.pos.x, y: it.pos.y, z: it.pos.z, yaw: it.node.rotation.y, label: it.label.slice(0, 24), hold: it.holdTime, reach: it.reach ?? 1.8, on: it.enabled && !it.done };
         // (30, Q12) a noisy hold's radius: the client's own hold pulses it back (`use.pulse`) and its noise meter reads it
         if (it.holdTime > 0 && it.holdNoise) n.hn = it.holdNoise;
@@ -1377,6 +1405,96 @@ export class CoopHost implements NetAttachment {
       }
     }
     return out;
+  }
+
+  /** (coop-carry) One item per body not hidden: lying (`on`) or carried (`by`: the host's own carry from its lift, a
+   *  client's from the host's accept). */
+  private bodyItems(out: NetItem[]): void {
+    const em = this.g.enemyMgr;
+    if (!em) return;
+    const own = this.g.stealth?.carry ?? null;
+    for (const b of em.bodies) {
+      if (out.length >= MAX_ITEMS) break;
+      if (!b.enemyId || b.hidden) continue;
+      const by = b === own ? this.s.selfId : this.carrierOf(b);
+      out.push(bodyItem(b.id, b.enemyId, b.pos.x, b.pos.y, b.pos.z, b.present, by, BODY.reach));
+    }
+  }
+
+  /** (coop-carry) The client carrying body `b` ('' none). */
+  private carrierOf(b: Body): string {
+    for (const [id, v] of this.carries) if (v.body === b) return id;
+    return '';
+  }
+
+  /** (coop-carry) A client asks to pick body `id` (`body-<Body.id>`) up: the host's carry rules, then the lift begins
+   *  (`Body.beginHoist`: off the floor list at once), on the client's shoulder here at `CQ.liftRise`. */
+  private remotePickUp(r: RemotePlayer, id: string): void {
+    const em = this.g.enemyMgr;
+    const b = em?.bodies.find((x) => `body-${x.id}` === id);
+    if (!b) return;
+    let seizing = false;
+    for (const sz of this.seized.values()) if (sz.by === r.id) seizing = true;
+    const deny = pickupDenied({
+      alive: r.alive,
+      held: r.held,
+      carrying: this.carries.has(r.id),
+      seizing,
+      mode: r.state?.mv?.m,
+      present: b.present,
+      taken: this.g.stealth?.carry === b || this.carrierOf(b) !== '',
+      bx: b.pos.x,
+      by: b.pos.y,
+      bz: b.pos.z,
+      fx: r.feet.x,
+      fy: r.feet.y,
+      fz: r.feet.z,
+      reach: BODY.reach,
+    });
+    if (deny === 'far') r.violations++;
+    if (deny) return;
+    this.carries.set(r.id, new CarryView(b, r.avatar));
+  }
+
+  /** (coop-carry) Client `id`'s body put down at its side (its put down's hand-over, its death, its drop-out): a ragdoll
+   *  the guards hear (`DROP_NOISE`) and can find. */
+  private remoteDrop(id: string): void {
+    const v = this.carries.get(id);
+    if (!v) return;
+    this.carries.delete(id);
+    const at = v.drop(this.g.enemyMgr?.canRagdoll() ?? false);
+    this.g.enemyMgr?.hear(at, DROP_NOISE);
+  }
+
+  /** (coop-carry) A client hides its body at hiding spot `id` (`hide-<i>`, the host's item): carrying and in reach. */
+  private remoteHide(r: RemotePlayer, id: string): void {
+    const v = this.carries.get(r.id);
+    const it = this.g.interactables?.items.find((i) => i.id === id && i.kind === 'hide');
+    if (!it || !hideOk(r.alive, !!v, inCarryReach(it.pos.x, it.pos.y, it.pos.z, r.feet.x, r.feet.y, r.feet.z, it.reach ?? 1.5))) return;
+    this.carries.delete(r.id);
+    v!.hide();
+    const st = this.g.stealth;
+    if (st) st.bodiesHidden++;
+    this.g.hud.feedItem(`${r.avatar.info.name}: body hidden`);
+  }
+
+  /** (coop-carry) Each fixed step: the clients' carries (the hoist lands at `CQ.liftRise`); a carrier down or held drops
+   *  it where he stands; a body the match removed (a restart, the cap) ends its carry. */
+  private carryStep(dt: number): void {
+    const em = this.g.enemyMgr;
+    for (const [id, v] of this.carries) {
+      const r = this.remotes.get(id);
+      if (!em || em.bodies.indexOf(v.body) < 0 || v.body.hidden) {
+        v.clear();
+        this.carries.delete(id);
+        continue;
+      }
+      if (!r || !r.alive || r.held) {
+        this.remoteDrop(id);
+        continue;
+      }
+      v.step(dt);
+    }
   }
 
   private doors(): number[] {
@@ -1415,7 +1533,7 @@ export class CoopHost implements NetAttachment {
     const bodies: string[] = [];
     for (const b of this.g.enemyMgr?.bodies ?? []) if (b.enemyId && !b.hidden && !b.carried && bodies.length < MAX_ENEMIES) bodies.push(b.enemyId);
     const bsig = bodies.join();
-    const isig = items.map((i) => `${i.id}${i.on ? 1 : 0}${i.label}`).join();
+    const isig = items.map((i) => `${i.id}${i.on ? 1 : 0}${i.label}${i.by ?? ''}`).join();
     const dcr = this.cracked();
     const dsig = `${doors.join()}/${dcr.join()}`;
     if (isig !== this.itemsSig || dsig !== this.doorsSig || bsig !== this.bodiesSig || this.itemsT <= 0) {
@@ -1498,6 +1616,7 @@ export class CoopHost implements NetAttachment {
     if (this.throwKo.active && this.g.enemyMgr) this.throwKo.step(this.time, this.g.enemyMgr.enemies);
     this.itemsT -= dt;
     for (const r of this.remotes.values()) r.update(dt);
+    if (this.carries.size) this.carryStep(dt);
     // revive points follow the bodies; client-held enemies are let go if the client never finishes
     for (const [id, it] of this.revives) {
       const r = this.remotes.get(id);
