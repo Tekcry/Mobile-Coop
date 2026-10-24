@@ -852,6 +852,8 @@ export interface SectorTally {
   spotted: number;
   /** (section-rating S2) Each section's marks (bitmask; -1 not rated). Omitted: no marks on the line. */
   marks?: readonly number[];
+  /** (mission-framework POL1) A later mission start: the sections before this index were skipped, never played. */
+  skipped?: number;
 }
 
 export function fmtTime(s: number): string {
@@ -862,15 +864,19 @@ export function fmtTime(s: number): string {
 /** The result line: time, kills, times spotted, and "Ghost" when there are none of either (A4). */
 export function sectorResult(t: SectorTally): { ghost: boolean; line: string; marks?: readonly number[] } {
   const ghost = t.kills === 0 && t.spotted === 0;
-  const line = `Time ${fmtTime(t.time)}  ·  Kills ${t.kills}  ·  Spotted ${t.spotted}${ghost ? '  ·  GHOST' : ''}${marksText(t.marks)}`;
+  const line = `Time ${fmtTime(t.time)}  ·  Kills ${t.kills}  ·  Spotted ${t.spotted}${ghost ? '  ·  GHOST' : ''}${marksText(t.marks, t.skipped ?? 0)}`;
   return { ghost, line, marks: t.marks };
 }
 
-/** (section-rating S2) "  ·  Marks 4/4 3/4 -": each section's marks of 4 ("-" not rated); '' when none are given. */
-function marksText(marks: readonly number[] | undefined): string {
+/** (section-rating S2) "  ·  Marks 4/4 3/4 -": each section's marks of 4 ("-" not rated; "skip" an unrated section
+ *  before `skipped`, a later mission start); '' when none are given. */
+function marksText(marks: readonly number[] | undefined, skipped: number): string {
   if (!marks || marks.length === 0) return '';
   let out = '  ·  Marks';
-  for (const m of marks) out += m < 0 ? ' -' : ` ${markCount(m)}/4`;
+  for (let i = 0; i < marks.length; i++) {
+    const m = marks[i]!;
+    out += m >= 0 ? ` ${markCount(m)}/4` : i < skipped ? ' skip' : ' -';
+  }
   return out;
 }
 

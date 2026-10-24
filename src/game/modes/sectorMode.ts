@@ -1040,7 +1040,7 @@ export class SectorMode implements GameMode {
   /** Lethal kills (knock-outs are not kills, A4) and times spotted (guard detections plus camera alarms). */
   result(): ReturnType<typeof sectorResult> {
     const g = this.g;
-    return sectorResult({ time: this.t, kills: Math.max(0, g.stats.kills - g.stats.knockouts), spotted: g.style.detections + this.camAlarms, marks: this.run.marks });
+    return sectorResult({ time: this.t, kills: Math.max(0, g.stats.kills - g.stats.knockouts), spotted: g.style.detections + this.camAlarms, marks: this.run.marks, skipped: this.mission?.startIndex ?? 0 });
   }
 
   /**
