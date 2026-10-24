@@ -38,6 +38,14 @@ run), S9 + S10 builders in parallel once Sector Ops confirms the freeze / world.
   N m of the lamp, or add a near-feet floor sample like the moon path) and re-measure. e2e gr2-e2e (smoke sectorops
   darkness lightbake stealth-ai on 9f7dddbb) queued, verdict pending. S9b (3360b85b) not yet in any A/B or checker.
 
+- 2026-10-24 ~17:55 regression diagnosis (Opus, read-only, ~75%): NOT S10. In Sector Ops the only shadowing spots are
+  the intensity-0 torch / char atlas slots, skipped at sectorGuardFreezeView.ts:348, so spotN = 0 and the S10 lamp
+  path never runs; most of the 24 alert guards are on screen (no frustum freezing). Torch-atlas draws follow the AI's
+  torch aim (master itself: 34.2 at 12 guards vs 17.9 at 24). Noise: the branch's 0-guard alert cell had p95 13.6 vs
+  master 3.4. S9 fill costs ~0.02-0.05 ms. Queued to settle it: diag a/b/c (S10 pre-fix, guardfreeze=0, head) and
+  interleaved repeats base / head / base (sectorops 0,24 alert + patrol; out C:/NightShift/scratch/gr2/rep-*). Decide on
+  medians across repeats. Open (older): the freeze never sees the atlas shadow lights (view:348).
+
 ## Phase 1 (history)
 ## Now
 **CLOSED 2026-10-23 ~17:10** (orchestrator approved: close with #225, M1 CPU overage to the polish list; perf tuning
