@@ -239,6 +239,9 @@ export const DIRECT_COVERS = {
   'src/game/modes/': [...GAME, 'e2e-sectorops'],
   'src/game/missions.ts': [...GAME, 'e2e-missions'],
   'src/game/sectors': [...GAME, 'e2e-sectorops'],
+  // (mission-framework GB6) the mission framework and the co-op kit: the Tallow Wharf mission runs (e2e-sectorops:wharf-*)
+  'src/game/mission/': [...GAME, 'e2e-sectorops', 'e2e-section-rating'],
+  'src/game/kit/': [...GAME, 'e2e-coop', 'e2e-sectorops'],
   // (section-rating) the rating rules and record: their own suite (the modes that rate are --wide)
   'src/game/rating/': ['e2e-section-rating'],
   // (checker FIX) the co-op team moves need two pages; the Marlow Yard devices are driven by e2e-ctcourse's set steps
@@ -283,6 +286,8 @@ export const DIRECT_COVERS = {
   'src/world/maps/warehouseOps.ts': ['e2e-sectorops'],
   'src/world/maps/warehouseSectors.ts': ['e2e-sectorops'],
   'src/world/maps/warehouseS': ['e2e-sectorops', 'e2e-levels', 'e2e-anchors'],
+  // (mission-framework GB6) Tallow Wharf: its missions run in e2e-sectorops (wharf-tgc / wharf-tkl)
+  'src/world/maps/tallowWharf': ['e2e-sectorops', 'e2e-levels', 'e2e-anchors'],
   // the Warehouse map itself: its routes suite (legacy) and the usual world suites
   'src/world/maps/warehouse.ts': ['e2e-ct-warehouse', 'e2e-levels', 'e2e-anchors'],
   'src/world/maps/warehouseDress': ['e2e-ct-warehouse', 'e2e-levels', 'e2e-anchors'],
