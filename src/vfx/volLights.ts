@@ -78,12 +78,10 @@ export function writeVolLights(
   dir: Float32Array,
   col: Float32Array,
 ): number {
-  let k = 0;
   for (let i = 0; i < n; i++) {
     // lamps and LED fittings scatter under their shade (a short cone), torches and floods along the beam
     // (stopped by geometry): vol-cone-fix
-    writeVolLight(lights[ids[i]!]!, k, pos, dir, col, lampBeams);
-    k++;
+    writeVolLight(lights[ids[i]!]!, i, pos, dir, col, lampBeams);
   }
-  return k;
+  return n;
 }

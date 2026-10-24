@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.100.6 - Train 81: Sector Ops polish 3 (2026-10-25, PR #392; #379)
+- Light bake: when the moon bake fails while a section bake still waits on its cache read, no section baker starts
+  afterwards (it used to start one that nobody stopped).
+- Vol lights: `writeVolLights` writes slot `i` and returns `n` (one counter, not two); the wiring guard test reads its
+  sources relative to the test file and names what to do when its regex stops matching.
+
 ## 4.100.5 - Train 80: pr-size loads its script from the base branch (2026-10-25, PR #391; #378)
 - CI: the `pr-size` job runs `scripts/pr-size.mjs` (and `glob-match.mjs`) as taken from the base branch, so PR
   branches cut before 4.100.0, which lack the script, no longer fail `check` with "Cannot find module".
