@@ -1,0 +1,14 @@
+{
+  "id": "20261024T034505-night-shift-test-run-6b44efb8-f69d",
+  "sha": "6b44efb8ecc85352d87e21d4742a2c0d759eed34",
+  "branch": "",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Test Runner",
+  "steps": [
+    "node scripts/guard-cap.mjs --maps=sectorops,campus --counts=0,12,24 --cells=patrol,away,alert --out=C:/NightShift/scratch/gr2/cap-6b44efb8"
+  ],
+  "env": {},
+  "set": "gr2-cap-base",
+  "note": "guard-render-2 S9+S10 guard-cap (B: master base)"
+}
