@@ -6,7 +6,9 @@ Sonnet strict briefs / data checks. No desktop e2e: laptop queue (C:/NightShift/
 Walk cap 3 (ROADMAP Decided ~21:50): no new animation features until Michael walks AF0-AF6; every anim PR carries a ~1-2 min look video path in its body. Checker PASS -> `gh api repos/Tekcry/Mobile-Coop/statuses/<sha> -f state=success -f context=checker -f description="Opus PASS"`.
 Message the orchestrator only at PR open / train-ready / blocked / Michael. Push this file with push-resume.sh.
 
-## Now (2026-10-24 ~23:06 SAVE at 85%; resume after the 03:10 reset. G10a bake garments ~6/16 at 23:05, ~15 min per job at par 2. OVERNIGHT (orchestrator 22:30): no swap tonight, burn to the cap per 5-hour window, save at ~92%, orchestrator resumes us after each reset; no question dialogs: assume, log in BRIEF, carry on)
+## Now (2026-10-24 ~23:30, resumed after the unplanned 23:20 swap; 5-hour resets 2026-10-25 04:10. OVERNIGHT: burn to the cap per window, save at ~92%; no question dialogs: assume, log in BRIEF, carry on)
+- 23:30: G10a bake RESTART 3 (scratch/ctcore/g10a-desktop-bake3.sh, steps g10a-bake/steps3.txt, logs run3.log + r3-step1..6.log): garments 10 ok / 6 failed before (average-jacket numpy OOM at par 2; 5 spawn 0xC0000142 after the swap), so garments par 2, then a par 1 pass, then gear / lods / check / sheet. Dies with this session's console: restart the same way (unchanged jobs skip).
+- 23:30: coop-real: Opus H1 finisher relaunched on feature/cr-h1 (probe + smoke on the desktop dev lane heavy2.lock / 4189, CPU < 60% gate; fills H1-REPORT). Cloud F1a (feature/cr-f1a f3fc26ec) + F1b (feature/cr-f1b b49f79fc) DONE: two Opus checkers running (A tests both merged, B wire + #317 conflict map).
 | Job | Branch (worktree C:/NightShift/Mobile-Coop-<x>) | Head | Next |
 | --- | --- | --- | --- |
 | #318 guard-models, #314 optic-coop, #331 player-batch-24 | - | - | MERGED (trains 58 / 59 / 62). |
