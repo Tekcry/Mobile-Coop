@@ -373,7 +373,10 @@ Worktrees (node_modules junctions to Mobile-Coop-sector-redesign-bake2): -polish
    head fe16741b, checker status posted; orchestrator labels on green CI; Test Runner #366 overlaps service.mjs (the
    later train resolves). #366 released (train 74): import line resolved 05:05, head 3cb88b3f, 153 tests; orchestrator labels on green CI. CLOUD: briefs visual-gate-vg5 (gate runner, off a3362896) + visual-gate-vg1-polish (metrics
    polish 1 / 5 / 6) open on cloud-queue bcbc3608; + sector-redesign-polish3 (fog P1-P3, bake2 polish 5 lightBake
-   held.dead; off master fc4dc9ab; 24e7949b). On done: one checker each (Opus), merge / PR (polish3 = own patch PR).
+   held.dead; off master fc4dc9ab; 24e7949b). ALL THREE DONE by cloud ~05:00: vg5 4a32654c, vg1p a925aafc, polish3
+   62aa2320 (PR #379 open 05:15). IN FLIGHT 05:12: three Opus checkers in worktrees -visual-gate-vg5 / -vg1p /
+   -sector-redesign-polish3 -> checks/vg5-check.md, vg1p-check.md, polish3-check.md (uncommitted; rerun if missing).
+   PASS -> merge vg5 / vg1p into feature/visual-gate; #379 checker status + train-ready on green affected-e2e.
    After #361 lands: bake3 check polish (Math.min retry cap, held-order test) + bake2 polish 3 in a later batch.
 4. Marlow Build mission-framework EN2 adds hook lines in sectorMode.ts / sectors.ts / campusOps.ts on master
    (conflicts resolved in the train); no reply needed.
