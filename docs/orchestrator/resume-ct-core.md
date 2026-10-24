@@ -2,6 +2,11 @@
 
 RESUMED ~23:55 (new account; orchestrator: overnight mode, one slice at a time, testing backlog first, save at 5-hour ~95%):
 #247 laptop afp PASS on fd34263e + CI green -> train-ready label added, orchestrator told (joins train 39 with #269).
+~15:40: #308 CI test stub fixed (d49097df); laptop 18/19, e2e-stealth-ai "search area / near" FAIL (guard sees the player
+0.3 s after a tp): Opus fix running on feature/rig-pose-fix, then e2e-stealth-ai alone on the fix head. Spare jobs #2 #3 #7
+#11 #16 all already on master (told orchestrator); #12 = #308. NEW: #15 optic cable rest (co-op MoveState optic + team
+pings + non-door anchors), Opus builder in worktree optic-coop (feature/optic-coop off master; docs/optic-coop/REPORT.md);
+wire change expected (train bumps PROTOCOL). guard-models: G8 rerun queued 20261024T020601-...-e643.
 ~15:00: PR #308 rig-pose-fix OPEN (4adf3785; alloc fix merged; checks W1 / S1-A fixed / net B PASS). Laptop 11 suites
 20261024T014839-player-build-4adf3785-d290 (status laptop-e2e/rig-pose-fix): pass -> label train-ready + orchestrator;
 fail -> Opus triage at once. guard-models G8 shadow-cull builder running (gm-g8cull), then cap rerun sectorops +
