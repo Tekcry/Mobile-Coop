@@ -98,3 +98,32 @@ None yet. Open questions: PLAN.md "Questions for Michael" (asked later, native m
   interpolation between rows. Undo: interpolate piecewise-linearly (the first PLAN draft).
 - A16 Warehouse boots `autostart=warehouse&mode=clear` (e2e-darkness.mjs:10, the L5 reference), not
   sector-lights-shots' `mode=sandbox` (:35); the copied coords do not depend on the mode (C0 P14). Undo: `mode=sandbox`.
+- A17 (group B briefs, 2026-10-24) VG6 ships as its own PR from master (branch `feature/visual-gate-train`), not on
+  feature/visual-gate: the job branch base bd54dfcd has a 161-line-older `service.mjs` / `lib.mjs`, the job never
+  merges master, and the laptop-queue job edits `lib.mjs` and `tests/laptop-queue.test.ts` in parallel. The pure part
+  goes in a new `scripts/laptop-queue/visual.mjs` + `tests/laptopQueueVisual.test.ts` (not lib.mjs / the big test);
+  `service.mjs` gets 6 listed changes only. The step is inert until a train head carries `scripts/e2e-visual.mjs`, so
+  the two PRs merge in either order. Undo: cherry-pick the VG6 commit onto feature/visual-gate (resolve against master
+  in the train) and move `visualVerdict` into lib.mjs.
+- A18 Baseline cutoff: a train run (`VG_TRAIN` set) compares with releases before its own version (`pickBaseline`
+  version = package.json); any other run (PR `--suites e2e-visual`, proof, VG7) uses the next patch of package.json's
+  version, so its own base release counts; `--version` overrides. Undo: always package.json's version.
+- A19 The train post-step runs only after the train's `laptop-e2e` passed; a failed head gets no `visual-gate` status
+  (it is dropped and rebuilt, and 3 min of 4189 would delay the rebuild's run). Undo: `visualPlan` ignores `trainOk`.
+- A20 A train run by the desktop lane posts `visual-gate` error "skipped: desktop lane (laptop GPU only)" (GitHub has no
+  skipped state; error = could not run, never success); baselines are laptop-renderer keyed. Undo: post nothing.
+- A21 Gate verdict: error (exit 3) when a shot / card / boot threw, the two browsers' renderers differ, no baseline
+  exists for the renderer (not under `--rules-only`), or the 285 s deadline stopped shots; else flagged (exit 1) on any
+  non-known flag or parity miss; else clean (0). Error wins and keeps the flags listed. Unsteady converge, scene not
+  ready, a raised alarm, regions too small / behind and calibrated rules that could not be evaluated are WARN / SKIPPED
+  lines, not errors (VG1 polish 3: a too-small region is reported, never trusted as blotch 0). Undo: promote any of
+  them to error in `gate.mjs` `decide`.
+- A22 Parity mechanics: cards at VG3's points use e2e-darkness's direction rule (strongest lamp, moon, else an open
+  direction; camera 0.8 m along it) after a fresh settle and pin at the view's feet; the card level is
+  `lightField.levelAt` read after the pin (flicker held at 1, as in the image: VG2 polish 3); meter = field (0.02) on
+  every view and preset, a miss with flickering lights in the settle is a WARN, not a miss. Undo: card level from the
+  settle read; meter misses always count.
+- A23 Recording: train runs record whatever the verdict (an error or flagged run is stored but A8 keeps it out of the
+  baseline unless accepted); runs with `--only`, `--maps` or `--extra` never record; `--rules-only` (no baseline read,
+  no compare) is for proofs, VG5's own laptop run and checks before VG7's first accept. Thumbs: a flagged key's webp as
+  `<key>`, its baseline run's scratch thumb as `<key>.base`. Undo: record green runs only; drop `--rules-only`.
