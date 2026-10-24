@@ -1516,7 +1516,10 @@ export class EnemyManager {
     let best: Enemy | null = null;
     let bp: AlarmPanel | null = null;
     let bd = Infinity;
-    for (const e of this.enemies) {
+    // (guard-ai polish B10) index loop (2 Hz, no iterator)
+    const list = this.enemies;
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i]!;
       if (!e.alive || !e.alerted || e.def.melee) continue;
       const p = nearestPanel(this.alarms, e.pos.x, e.pos.z, 2, e.pos.y);
       if (!p) continue;
@@ -1550,8 +1553,10 @@ export class EnemyManager {
         reg.setOn(ts[i]!.id, false);
       }
     }
-    // acquire
-    for (const e of this.enemies) {
+    // acquire; (guard-ai polish B10) index loop (every step, no iterator)
+    const list = this.enemies;
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i]!;
       if (!e.alive || this.torchOwner.includes(e) || !e.torchWanted(field)) continue;
       const k = this.torchOwner.indexOf(null);
       if (k < 0) break;
