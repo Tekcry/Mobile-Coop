@@ -125,3 +125,73 @@ refutes ~13 gun parts per guard). If ON still misses with `render.figure` small,
 - tests/guardFigure.test.ts (4 new tests, `posed` helper)
 
 Open: no changelog fragment line (the lead owns `changes/feature-guard-models.md`); STATE.md's Poser line (above).
+
+## S13: active meshes per guard (PLAN2 S13)
+
+**Cause of the +15-19 found: the guard gun as 18 instanced parts, already fixed by perfg.** g8 (cf5a2bf8) and g8c
+(0fd85e2b) predate master's perfg (057403f5, "merged guard gun"), which this branch got with the master merge 8809aab9.
+In those builds a grunt's rifle drew as its 18 part instances (`weaponModel.ts:138-163`: 16 `def.model` parts + 2
+receiver details): body 1 + gun 18 = 19, exactly campusops patrol/facing's slope ((668 - 212) / 24 = 19.0); sectorops
+15.25 (some parts frustum-culled). ON equals OFF because the gun is the same in both paths. Since perfg the gun is one
+instance of a merged source per gun type (`enemyGunMerge.ts`), so 408ab154 (the A/B now running) already carries it.
+
+**Count at this head** (tests/guardActiveMeshes.test.ts: a host `Enemy` built and framed as the game does on a
+NullEngine, stubbed hitboxes, camera on him; every mesh in the camera pass's active list):
+
+| Guard | Before (as measured, pre-perfg) | 408ab154 | S13 |
+| --- | --- | --- | --- |
+| Flag off, grunt, no gear (guard-cap's spawn) | 19: body 1, gun parts 18 | 2: body, gun | 2 |
+| Flag off, grunt, helmet + armour | 24: + helmet 1, armour 4 | 7 | **4**: body, gun, helmet, armour 1 |
+| Flag off, enforcer, helmet + armour | 26: + shield 1, visor 1 | 9 | **5**: shield 1 |
+| Flag on, grunt (gear = figure pieces) | 19: figure LOD 1, gun parts 18 | 2: figure LOD, gun | 2 |
+
+Per class, parts path -> merged: rifle 18 -> 1, pistolSd 7 -> 1 (perfg); S1 armour 4 -> 1, S1 shield + visor 2 -> 1
+(S13); helmet 1 (unchanged). No torch, light proxy, holster, magazine, pouch, knife or glow mesh exists on a guard:
+torches are pooled lights, holsters set `thighGear` only, grenade pouches and the knife are Wren's, glows are Wren's
+goggle. Under the figure, helmet / vest / plate / pouches / holster are pieces of the one LOD mesh.
+
+**Built (render only).**
+- `src/ai/guardGearMerge.ts` (new): `mergeRigGear` turns the S1 armour (2 chest plates, 2 shoulder caps on 3 joints) into
+  ONE mesh skinned rigidly on the merged body's own skeleton (bone per joint from `SmoothBody.nodes`, bind = identity
+  as the body's parts), low LOD tracked, culled with the body's rest box; geometry built once per (library, parts,
+  joints) and shared by every matching guard (Babylon geometry sharing), each guard's mesh its own (his skeleton).
+  Nothing new per frame: the body's per-render bone pose already computes those bones; no observer, no skeleton.
+  `mergeStaticParts` turns the enforcer's S1 shield + visor into one instance of a shared merged source.
+- Both use `partSkinMat` (frozen; the same `make()` settings plus the smooth plugin), as the merged body and gun do;
+  per-vertex colour / pattern / `color2` / `ppos` / `pnrm` are the instance values. The gear parts had no heat or
+  flash and still have none. Off (`?guardmerge=0`), no merged body (stand-in rigs, flag-off tests) or a part off the
+  body's joints: the parts stay, as before.
+- `src/ai/gearParts.ts`: `buildArmourParts` returns `[merged]` (the caller's `isVisible` loop hides / shows it; host
+  `Enemy` and co-op `EnemyPuppet` unchanged but the field type `AbstractMesh[]`), the merged hi + low LOD in the shadow
+  list as the body's; `buildShieldPart` returns the merged instance.
+- `src/player/smoothBody.ts`: `extras` (meshes skinned on the body with its rest box): a ragdoll's re-parent frees them
+  with the body (`alwaysSelectAsActiveMesh`), so a dead guard's armour is never culled by a stale box.
+- `scripts/guard-cap.mjs` tally: a mesh named `*-gun` (perfg's merged gun) counts as `gun` (on 408ab154 it reads as
+  `other`: there `active_gun_per_guard` 0 and `other` ~1 a guard mean "merged", not "missing").
+- Gameplay untouched: a guard's shot origin is `Enemy.muzzle` = `eye()` + sim yaw offsets (enemy.ts:3315-3322), never
+  the gun mesh; gear flags (`helmet` / `armour`) stay the gameplay state, the meshes only show them. Wren's guns
+  (`WeaponModel` with the baked mesh) untouched: `weaponModel.ts` not changed.
+
+**Expected saving.** The big one (perfg's gun, ~17 fewer active meshes per on-screen guard, ~400 at 24 facing, both
+paths) is in 408ab154: at ~1.5-2.5 us per active instance (world matrix, frustum test, activation, instance buffer
+fill, again per shadow pass that draws it) about -0.6 to -1.0 ms of active-mesh evaluation at 24 guards vs g8c. S13
+proper adds -3 per armoured guard and -1 per S1 enforcer on the flag-off path only (~-0.1 to -0.2 ms with a fully
+geared section of 24); 0 with the figures (already 2 a guard).
+
+**Tests (one at a time).** tests/guardActiveMeshes.test.ts 5 new: flag-off grunt with gun + helmet + armour = 4 (body,
+gun, helmet, armour), gear off = 2, enforcer = 5; flag-on = 2 (figure LOD, gun); the parts paths (rifle 18, pistolSd 7,
+armour 4, shield 2); parity: merged armour (skinned at the joints' world matrices), shield and both guns' world bounds
+equal their parts' union within 1 mm, full and low LOD, on a moved and turned rig; shared geometry between two guards,
+own skeletons, no new observer / skeleton / mesh / geometry over 5 frames, a ragdoll re-parent frees the armour with
+the body, the rig's dispose takes it and the other guard keeps the geometry. Unchanged and passing: guardFigure 21,
+guardBody 16, guardAssets 34, enemyGunMerge 3, smoothBody 4, smoothBodyMerge 3, gearWiring 21, coopTorches 12,
+coopGuardCarry 8, guardShieldShare 2, guardHelmetDrop 3, animGear 9, weapons 15. `npx tsc --noEmit -p .` clean; eslint
+on the changed files clean. No e2e, no GPU, no full vitest.
+
+**Laptop A/B.** (1) The 408ab154 cap run against g8c answers the gun: per-guard active meshes ON and OFF should drop
+from 15-19 to ~2 (`active_guard_per_guard`; on 408ab154 the merged gun is in `other`). (2) S13's armour needs geared
+guards, which guard-cap's spawn never gives: real section guards with gear, flag off, before / after at this head and
+408ab154: `MAP=warehouseOps MODE=sector EXTRA=guardmodels=0 node scripts/perf.mjs --desktop --json` (E2E_GPU=1,
+port 4189), reading active meshes and render() CPU. Files: src/ai/guardGearMerge.ts (new), src/ai/gearParts.ts,
+src/ai/enemy.ts, src/net/enemyPuppet.ts (type only), src/player/smoothBody.ts, scripts/guard-cap.mjs,
+tests/guardActiveMeshes.test.ts (new).
