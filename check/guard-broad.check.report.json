@@ -4,22 +4,22 @@
  "problems": [],
  "summary": {
   "bufferTris": [
-   8557,
-   4254,
-   1445
+   11423,
+   4321,
+   1637
   ],
   "shownTris": [
    {
-    "heavy": 8557,
-    "enforcer": 9357
+    "heavy": 11423,
+    "enforcer": 12223
    },
    {
-    "heavy": 4254,
-    "enforcer": 4554
+    "heavy": 4321,
+    "enforcer": 4621
    },
    {
-    "heavy": 1445,
-    "enforcer": 1565
+    "heavy": 1637,
+    "enforcer": 1757
    }
   ],
   "bodyTris": 1193
@@ -31,7 +31,7 @@
    {
     "lod": 0,
     "file": "lods/guard-broad-lod0.glb",
-    "bufferTris": 8557,
+    "bufferTris": 11423,
     "draws": 1,
     "bones": [
      "root",
@@ -99,12 +99,12 @@
       "format": "ktx2"
      }
     ],
-    "vertices": 9341,
+    "vertices": 11241,
     "mixedTris": 0,
     "pieceAttrUint8": true,
     "shownTris": {
-     "heavy": 8557,
-     "enforcer": 9357
+     "heavy": 11423,
+     "enforcer": 12223
     },
     "bodyTris": 1193,
     "headTris": {
@@ -113,7 +113,7 @@
     "eyeTris": 448,
     "hairCapTris": {},
     "pieceTris": {
-     "uniform": 1939,
+     "uniform": 4805,
      "balaclava": 532,
      "helmet_heavy": 936,
      "plate_heavy": 1768,
@@ -123,7 +123,7 @@
    {
     "lod": 1,
     "file": "lods/guard-broad-lod1.glb",
-    "bufferTris": 4254,
+    "bufferTris": 4321,
     "draws": 1,
     "bones": [
      "root",
@@ -181,12 +181,12 @@
       "format": "ktx2"
      }
     ],
-    "vertices": 5879,
+    "vertices": 5138,
     "mixedTris": 0,
     "pieceAttrUint8": true,
     "shownTris": {
-     "heavy": 4254,
-     "enforcer": 4554
+     "heavy": 4321,
+     "enforcer": 4621
     },
     "bodyTris": 398,
     "headTris": {
@@ -195,7 +195,7 @@
     "eyeTris": 0,
     "hairCapTris": {},
     "pieceTris": {
-     "uniform": 1693,
+     "uniform": 1760,
      "balaclava": 198,
      "helmet_heavy": 398,
      "plate_heavy": 894,
@@ -205,7 +205,7 @@
    {
     "lod": 2,
     "file": "lods/guard-broad-lod2.glb",
-    "bufferTris": 1445,
+    "bufferTris": 1637,
     "draws": 1,
     "bones": [
      "root",
@@ -263,12 +263,12 @@
       "format": "ktx2"
      }
     ],
-    "vertices": 2298,
+    "vertices": 2245,
     "mixedTris": 0,
     "pieceAttrUint8": true,
     "shownTris": {
-     "heavy": 1445,
-     "enforcer": 1565
+     "heavy": 1637,
+     "enforcer": 1757
     },
     "bodyTris": 149,
     "headTris": {
@@ -277,7 +277,7 @@
     "eyeTris": 0,
     "hairCapTris": {},
     "pieceTris": {
-     "uniform": 462,
+     "uniform": 654,
      "balaclava": 79,
      "helmet_heavy": 146,
      "plate_heavy": 345,

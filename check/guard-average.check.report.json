@@ -4,25 +4,25 @@
  "problems": [],
  "summary": {
   "bufferTris": [
-   32310,
-   11799,
-   3709
+   38051,
+   12128,
+   3840
   ],
   "shownTris": [
    {
-    "grunt": 12071,
-    "droneOp": 12075,
-    "officer": 12609
+    "grunt": 14423,
+    "droneOp": 14427,
+    "officer": 15998
    },
    {
-    "grunt": 4921,
-    "droneOp": 4892,
-    "officer": 5128
+    "grunt": 4985,
+    "droneOp": 4956,
+    "officer": 5393
    },
    {
-    "grunt": 1645,
-    "droneOp": 1635,
-    "officer": 1763
+    "grunt": 1676,
+    "droneOp": 1666,
+    "officer": 1863
    }
   ],
   "bodyTris": 1194
@@ -34,7 +34,7 @@
    {
     "lod": 0,
     "file": "lods/guard-average-lod0.glb",
-    "bufferTris": 32310,
+    "bufferTris": 38051,
     "draws": 1,
     "bones": [
      "root",
@@ -102,13 +102,13 @@
       "format": "ktx2"
      }
     ],
-    "vertices": 27742,
+    "vertices": 31226,
     "mixedTris": 0,
     "pieceAttrUint8": true,
     "shownTris": {
-     "grunt": 12071,
-     "droneOp": 12075,
-     "officer": 12609
+     "grunt": 14423,
+     "droneOp": 14427,
+     "officer": 15998
     },
     "bodyTris": 1194,
     "headTris": {
@@ -126,8 +126,8 @@
      "fade": 690
     },
     "pieceTris": {
-     "uniform": 1707,
-     "uniform_jacket": 2645,
+     "uniform": 4059,
+     "uniform_jacket": 6034,
      "cap": 488,
      "cap_officer": 540,
      "beanie": 448,
@@ -145,7 +145,7 @@
    {
     "lod": 1,
     "file": "lods/guard-average-lod1.glb",
-    "bufferTris": 11799,
+    "bufferTris": 12128,
     "draws": 1,
     "bones": [
      "root",
@@ -203,13 +203,13 @@
       "format": "ktx2"
      }
     ],
-    "vertices": 13428,
+    "vertices": 11954,
     "mixedTris": 0,
     "pieceAttrUint8": true,
     "shownTris": {
-     "grunt": 4921,
-     "droneOp": 4892,
-     "officer": 5128
+     "grunt": 4985,
+     "droneOp": 4956,
+     "officer": 5393
     },
     "bodyTris": 398,
     "headTris": {
@@ -227,8 +227,8 @@
      "fade": 240
     },
     "pieceTris": {
-     "uniform": 1321,
-     "uniform_jacket": 1756,
+     "uniform": 1385,
+     "uniform_jacket": 2021,
      "cap": 198,
      "cap_officer": 197,
      "beanie": 178,
@@ -246,7 +246,7 @@
    {
     "lod": 2,
     "file": "lods/guard-average-lod2.glb",
-    "bufferTris": 3709,
+    "bufferTris": 3840,
     "draws": 1,
     "bones": [
      "root",
@@ -304,13 +304,13 @@
       "format": "ktx2"
      }
     ],
-    "vertices": 5229,
+    "vertices": 4556,
     "mixedTris": 0,
     "pieceAttrUint8": true,
     "shownTris": {
-     "grunt": 1645,
-     "droneOp": 1635,
-     "officer": 1763
+     "grunt": 1676,
+     "droneOp": 1666,
+     "officer": 1863
     },
     "bodyTris": 149,
     "headTris": {
@@ -328,8 +328,8 @@
      "fade": 0
     },
     "pieceTris": {
-     "uniform": 504,
-     "uniform_jacket": 676,
+     "uniform": 535,
+     "uniform_jacket": 776,
      "cap": 77,
      "cap_officer": 75,
      "beanie": 58,

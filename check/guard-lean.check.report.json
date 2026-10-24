@@ -4,22 +4,22 @@
  "problems": [],
  "summary": {
   "bufferTris": [
-   30701,
-   11417,
-   3456
+   36243,
+   11718,
+   3694
   ],
   "shownTris": [
    {
-    "runner": 11411,
-    "sniper": 11772
+    "runner": 13958,
+    "sniper": 14767
    },
    {
-    "runner": 4833,
-    "sniper": 4913
+    "runner": 4882,
+    "sniper": 5165
    },
    {
-    "runner": 1509,
-    "sniper": 1638
+    "runner": 1651,
+    "sniper": 1734
    }
   ],
   "bodyTris": 1194
@@ -31,7 +31,7 @@
    {
     "lod": 0,
     "file": "lods/guard-lean-lod0.glb",
-    "bufferTris": 30701,
+    "bufferTris": 36243,
     "draws": 1,
     "bones": [
      "root",
@@ -99,12 +99,12 @@
       "format": "ktx2"
      }
     ],
-    "vertices": 25197,
+    "vertices": 28754,
     "mixedTris": 0,
     "pieceAttrUint8": true,
     "shownTris": {
-     "runner": 11411,
-     "sniper": 11772
+     "runner": 13958,
+     "sniper": 14767
     },
     "bodyTris": 1194,
     "headTris": {
@@ -122,8 +122,8 @@
      "fade": 690
     },
     "pieceTris": {
-     "uniform_rolled": 1712,
-     "work": 1885,
+     "uniform_rolled": 4707,
+     "work": 4432,
      "cap": 488,
      "beanie": 448,
      "boonie": 522,
@@ -137,7 +137,7 @@
    {
     "lod": 1,
     "file": "lods/guard-lean-lod1.glb",
-    "bufferTris": 11417,
+    "bufferTris": 11718,
     "draws": 1,
     "bones": [
      "root",
@@ -195,12 +195,12 @@
       "format": "ktx2"
      }
     ],
-    "vertices": 12739,
+    "vertices": 11529,
     "mixedTris": 0,
     "pieceAttrUint8": true,
     "shownTris": {
-     "runner": 4833,
-     "sniper": 4913
+     "runner": 4882,
+     "sniper": 5165
     },
     "bodyTris": 398,
     "headTris": {
@@ -218,8 +218,8 @@
      "fade": 242
     },
     "pieceTris": {
-     "uniform_rolled": 1489,
-     "work": 1625,
+     "uniform_rolled": 1741,
+     "work": 1674,
      "cap": 198,
      "beanie": 178,
      "boonie": 197,
@@ -233,7 +233,7 @@
    {
     "lod": 2,
     "file": "lods/guard-lean-lod2.glb",
-    "bufferTris": 3456,
+    "bufferTris": 3694,
     "draws": 1,
     "bones": [
      "root",
@@ -291,12 +291,12 @@
       "format": "ktx2"
      }
     ],
-    "vertices": 4824,
+    "vertices": 4378,
     "mixedTris": 0,
     "pieceAttrUint8": true,
     "shownTris": {
-     "runner": 1509,
-     "sniper": 1638
+     "runner": 1651,
+     "sniper": 1734
     },
     "bodyTris": 149,
     "headTris": {
@@ -314,8 +314,8 @@
      "fade": 0
     },
     "pieceTris": {
-     "uniform_rolled": 552,
-     "work": 487,
+     "uniform_rolled": 648,
+     "work": 629,
      "cap": 77,
      "beanie": 58,
      "boonie": 78,
