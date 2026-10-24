@@ -320,6 +320,10 @@ const INSTANT_ANY = true;
 /** (polish2 A191) A device responder whose investigation ends calm and who goes straight back to his device search
  *  (A1) says no "Clear." / "Standing down." (the task's stand-down radio call stays). Undo: false. */
 const RESUME_QUIET = true;
+/** (polish2 A192) An armour pick keeps its best `ARMOUR_FIRE.coverCasts` candidates uncast and casts each fire line in
+ *  the try loop, best first (at most `coverCasts` casts, at most `COVER_TRIES` A*). Undo: false (a cast for any top-3
+ *  entrant in cover-index order inside the score loop). */
+const ARMOUR_CAST_LATE = true;
 /** (polish A2) `pickCover`'s best candidates (index, score), best first; module scratch (one pick at a time). */
 const CV_IDX = new Int32Array(8);
 const CV_SCORE = new Float64Array(8);
@@ -3530,6 +3534,9 @@ export class Enemy implements Damageable {
     const armourPick = this.armourPick;
     this.armourPick = false;
     let casts = 0;
+    // (polish2 A192) armour: keep the best `coverCasts` (within `CV_IDX`), their fire lines cast in the try loop below
+    const late = armourPick && ARMOUR_CAST_LATE;
+    const keepN = late ? Math.min(ARMOUR_FIRE.coverCasts, CV_IDX.length) : tries;
     for (let i = 0; i < cover.length; i++) {
       if (i === skip) continue;
       const c = cover[i]!;
@@ -3558,17 +3565,17 @@ export class Enemy implements Damageable {
       CQ_THREAT.z = this.knownPt[1];
       const q = coverQuality(CQ_SPOT, CQ_THREATS);
       const score = dMe + Math.abs(dT - 14) * 0.5 - q * 6;
-      if (kept < tries || score < CV_SCORE[kept - 1]!) {
+      if (kept < keepN || score < CV_SCORE[kept - 1]!) {
         // (guard-ai S16) away from armour: only a spot whose fire line (standing muzzle -> the target) is clear of it,
         // cast only for a spot that would be kept (with one try: the new best), at most `ARMOUR_FIRE.coverCasts` per pick
-        if (armourPick) {
+        if (armourPick && !late) {
           if (casts >= ARMOUR_FIRE.coverCasts) continue;
           casts++;
           this.fireFrom.set(c.pos.x, c.pos.y + (EYE_STAND - 0.2) * this.def.scale, c.pos.z);
           if (this.ctx.ballistics.armouredFirst(this.fireFrom, t.target.aimPoint(this.fireTo), MASK.ENEMY_SHOT)) continue;
         }
         // insert by score (a full list drops its worst)
-        let j = kept < tries ? kept++ : kept - 1;
+        let j = kept < keepN ? kept++ : kept - 1;
         while (j > 0 && CV_SCORE[j - 1]! > score) {
           CV_SCORE[j] = CV_SCORE[j - 1]!;
           CV_IDX[j] = CV_IDX[j - 1]!;
@@ -3578,11 +3585,19 @@ export class Enemy implements Damageable {
         CV_IDX[j] = i;
       }
     }
-    for (let k = 0; k < kept; k++) {
+    let paths = 0;
+    for (let k = 0; k < kept && paths < tries; k++) {
       const best = CV_IDX[k]!;
+      const c = cover[best]!;
+      // (polish2 A192) its fire line now, best first (`kept` <= `coverCasts`): armour on it, the next
+      if (late) {
+        casts++;
+        this.fireFrom.set(c.pos.x, c.pos.y + (EYE_STAND - 0.2) * this.def.scale, c.pos.z);
+        if (this.ctx.ballistics.armouredFirst(this.fireFrom, t.target.aimPoint(this.fireTo), MASK.ENEMY_SHOT)) continue;
+      }
       // a mate holds it: the next
       if (!this.ctx.reserveCover(this, best)) continue;
-      const c = cover[best]!;
+      paths++;
       const path = this.ctx.nav.findPath([this.pos.x, this.pos.z], [c.pos.x, c.pos.z], 3000, this.pos.y, c.pos.y);
       if (!path || this.detour(path, c.pos.x, c.pos.z)) {
         this.ctx.releaseCover(this);

@@ -424,3 +424,31 @@ describe('A191: a device responder back on his search says no "Clear."', () => {
     expect(bark).toHaveBeenCalledWith('clear');
   });
 });
+
+describe('A192: an armour pick casts its fire lines best first', () => {
+  it('10 candidates, the first 7 by index armoured, the best-scored clear: picked, with <= 6 casts (4.98: none, its casts spent in index order)', () => {
+    // 14 m from the last known position (the origin), the guard at (0, -16): index 9 nearest him (the best score)
+    const covers: ReturnType<typeof cp>[] = [];
+    for (let k = 0; k < 10; k++) {
+      const th = 0.9 - k * 0.09;
+      covers.push(cp(14 * Math.sin(th), -14 * Math.cos(th)));
+    }
+    const r = roleProbe({ role: R_NONE, covers });
+    const armoured = (x: number) => covers.findIndex((c) => Math.abs(c.pos.x - x) < 1e-6) <= 6;
+    const cast = vi.fn((from: Vector3) => armoured(from.x));
+    Object.assign(r.ctx.ballistics, { armouredFirst: cast });
+    Object.assign(r.e, { armourPick: true });
+    expect(r.p.pickCover()).toBe(true);
+    expect(r.p.coverIdx).toBe(9);
+    expect(cast.mock.calls.length).toBeGreaterThan(0);
+    expect(cast.mock.calls.length).toBeLessThanOrEqual(6);
+    // no armour pick: no cast, the same best
+    const s = roleProbe({ role: R_NONE, covers });
+    const none = vi.fn(() => true);
+    Object.assign(s.ctx.ballistics, { armouredFirst: none });
+    expect(s.p.pickCover()).toBe(true);
+    expect(s.p.coverIdx).toBe(9);
+    expect(none).not.toHaveBeenCalled();
+  });
+
+});
