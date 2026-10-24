@@ -1,4 +1,4 @@
-status: claimed Night Shift | Sector Ops Build (desktop; Cloud Builder 1 claim stale after the swap, no commits) 2026-10-23T19:59+1100
+status: done feature/sector-redesign-lr16t 45e0e86a
 
 Lead note (Sector Ops Build ~20:40): BASE CHANGED - build from feature/sector-redesign-lr16int @ f8008542 (not c7a26ca7). The checker fix round there made every PBR torch path use the meter's feathered nsLampCone (lamp plugin), lightRig.place takes SPOT_EXP / LAMP_EXP, new tests/lampTorchCone.test.ts (keep it green; worst meter vs picture < 1e-6), door / prop spheres in the char-shadow cone fit; see docs/sector-redesign/checks/lr16-batch-fix.md. Line numbers in this brief are pre-fix: re-anchor. LR16e and LR16-1 are being built in parallel from c7a26ca7 (lampBake.ts / bakedLamps.ts / world.ts other regions; LAMP_VERSION: leave it, the lead sets it at the merge). Unit tests only, vitest --maxWorkers=2.
 
@@ -203,3 +203,6 @@ Opus (new render path, shader, parity rules). Estimate ~1.5 windows; ~600-800 li
 
 
 Reopened 2026-10-23 ~20:05 (orchestrator): Cloud Builder 1 stopped at the account swap with this claimed. Resume from the head of its feature branch on origin if it is ahead of the brief base (WIP), else start from the base.
+
+## Report (lead, 2026-10-24)
+Built on the desktop by Sector Ops Build after the cloud claim went stale; released in #291 (4.88.0, on master).

@@ -1,4 +1,4 @@
-status: claimed Night Shift | Sector Ops Build (desktop; Cloud Builder 1 claim stale after the swap, no commits) 2026-10-23T19:59+1100
+status: done feature/sector-redesign-lr16e 603a36c3
 
 Lead note (Sector Ops Build ~20:20): a fix round is landing on lr16int (torch SpotLight feather, char-shadow cone fit, lights.contribution). Build from c7a26ca7 as written; the lead merges. Do not edit src/world/lightRig.ts torch code, src/world/charShadows.ts or src/world/lights.ts. Desktop-free: unit tests only, vitest --maxWorkers=2.
 
@@ -128,3 +128,6 @@ Opus. Estimate ~1 window; ~250-350 lines incl. tests.
 
 
 Reopened 2026-10-23 ~20:05 (orchestrator): Cloud Builder 1 stopped at the account swap with this claimed. Resume from the head of its feature branch on origin if it is ahead of the brief base (WIP), else start from the base.
+
+## Report (lead, 2026-10-24)
+Built on the desktop by Sector Ops Build after the cloud claim went stale; released in #291 (4.88.0, on master).
