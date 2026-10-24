@@ -378,6 +378,9 @@ Worktrees (node_modules junctions to Mobile-Coop-sector-redesign-bake2): -polish
    -sector-redesign-polish3 (uncommitted; rerun if missing) -> checker status + train-ready on green affected-e2e.
    Laptop: M0 (visual-m0, fc4dc9ab) and VG5 rules-only gate run (visual-vg5, master 46a7cf85, json + png to
    C:/NightShift/scratch/visual-gate/vg5 on the laptop) queued -> write M0.md + VG5 laptop verdict into vg5-check.md.
+   Group C briefs VG7 (2 phases) + P1-P7 committed d1e45ddc (A24-A30; laptop ~65-70 min total). CLOUD: bake4 +
+   vg3-polish CLAIMED 18:21Z; visual-gate-vg7-p1 (phase 1 tools) OPEN 42c479be. Phase 2 = lead's laptop request after
+   M0.md exists (VG7.md "Preconditions").
    S5 CR7 rope fixed a2cf369a (rappel down, rope up); Marlow validator 0 errors over all five + both missions.
    Also IN FLIGHT 05:15: Opus writer for briefs VG7.md + P1-P7.md in -visual-gate (uncommitted; lead commits; rerun if
    missing). CLOUD open 5b0acb04: sector-redesign-bake4 (stacked on #361: Math.min retry cap, held-order test, bake2
