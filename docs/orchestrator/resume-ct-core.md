@@ -2,6 +2,10 @@
 
 RESUMED ~23:55 (new account; orchestrator: overnight mode, one slice at a time, testing backlog first, save at 5-hour ~95%):
 #247 laptop afp PASS on fd34263e + CI green -> train-ready label added, orchestrator told (joins train 39 with #269).
+~17:40: #314 R3 contextual (Michael ~14:55) c69b698c + CHECK-R3 PASS (979da9d7). Pending: CI on 979da9d7, laptop
+coop + netmove on 52258028 (40217-...-60f5), pad + mouse on c69b698c (41745-...-47f6); all green -> gh pr edit 314
+--add-label train-ready + orchestrator. guard-models G8 cap3 on 0fd85e2b DONE (3/3 steps): waiting for Test Runner's
+results branch (shots/g8c-*); then flip flags.ts:131 or report.
 ~17:20: #314 fix round 52258028 (panel message, trp snapshot) -> RECHECK PASS (2408cfa4). Laptop: e2e-coop + netmove on
 52258028 (20261024T040217-player-build-52258028-60f5); e2e-pad + mouse from f96633aa (20261024T034805-...-53c1, still valid:
 the fix touched no input). All green + Michael's R3 answer -> label #314 train-ready (apply his R3 choice first if it
