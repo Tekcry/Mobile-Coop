@@ -1008,8 +1008,9 @@ WIP snapshots (branches untouched): origin/wip/guard-ai-polish-fix ba1dc579 (fix
 45c00990 (scripts/t1-shadow-look.mjs, 501 lines). If the worktree is behind, `git checkout <wip> -- .` then finish.
 1. #317 coop4 (feature/coop4, worktree C:/NightShift/Mobile-Coop-coop4): fix3 52e3dc13 e2e-coop FAIL further on:
    AI6 (1) + (2) PASS; AI6 (3) "a calm grunt facing the wall ... spawns" fails at all 4 tried spots (cap [9,17]).
-   Opus TRIAGE 4 RUNNING -> docs/coop4/checks/ai6-triage-4.md (fixes + pushes a clear test bug itself). Then requeue
-   e2e-coop on the new head (set coop4-fix4). Green -> `gh pr ready 317` + orchestrator train-ready.
+   Triage 4 = TEST bug (leg ends 3.00-3.26 m vs a 3 m reach: never heard), fixed e6d673e3 (test-only; triage note).
+   e2e-coop on e6d673e3 queued (set coop4-fix4, ...-e6c8), background wait. Risk: the run leg never ran ("turns within
+   2 s" at 2.6-3.0 m may need the leg at 2.2 m, test-only). Green -> `gh pr ready 317` + orchestrator train-ready.
    CONFLICT with master (one hunk src/net/protocol.ts): orchestrator agreed no master merge; if auto-train leaves #317
    out, by-hand train merge: master's PROTOCOL_VERSION line + coop4's MAX_PLAYERS comment and `slotFromList` import.
 2. #363 polish TRAIN-READY at 4bf05803 (CI green, checker status success, laptop polish3s 7/7 PASS; orchestrator asked
