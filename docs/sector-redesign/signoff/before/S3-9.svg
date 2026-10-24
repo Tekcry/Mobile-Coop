@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="660" height="420" viewBox="0 0 660 420" font-family="monospace" font-size="9">
+<rect width="660" height="420" fill="#f4f2ec"/>
+<line x1="0.0" y1="0" x2="0.0" y2="420" stroke="#d8d4c8" stroke-width="1"/><text x="2" y="10" fill="#a09a8a">4</text>
+<line x1="60.0" y1="0" x2="60.0" y2="420" stroke="#d8d4c8" stroke-width="1"/><text x="62" y="10" fill="#a09a8a">10</text>
+<line x1="120.0" y1="0" x2="120.0" y2="420" stroke="#d8d4c8" stroke-width="1"/><text x="122" y="10" fill="#a09a8a">16</text>
+<line x1="180.0" y1="0" x2="180.0" y2="420" stroke="#d8d4c8" stroke-width="1"/><text x="182" y="10" fill="#a09a8a">22</text>
+<line x1="240.0" y1="0" x2="240.0" y2="420" stroke="#d8d4c8" stroke-width="1"/><text x="242" y="10" fill="#a09a8a">28</text>
+<line x1="300.0" y1="0" x2="300.0" y2="420" stroke="#d8d4c8" stroke-width="1"/><text x="302" y="10" fill="#a09a8a">34</text>
+<line x1="360.0" y1="0" x2="360.0" y2="420" stroke="#d8d4c8" stroke-width="1"/><text x="362" y="10" fill="#a09a8a">40</text>
+<line x1="420.0" y1="0" x2="420.0" y2="420" stroke="#d8d4c8" stroke-width="1"/><text x="422" y="10" fill="#a09a8a">46</text>
+<line x1="480.0" y1="0" x2="480.0" y2="420" stroke="#d8d4c8" stroke-width="1"/><text x="482" y="10" fill="#a09a8a">52</text>
+<line x1="540.0" y1="0" x2="540.0" y2="420" stroke="#d8d4c8" stroke-width="1"/><text x="542" y="10" fill="#a09a8a">58</text>
+<line x1="600.0" y1="0" x2="600.0" y2="420" stroke="#d8d4c8" stroke-width="1"/><text x="602" y="10" fill="#a09a8a">64</text>
+<line x1="660.0" y1="0" x2="660.0" y2="420" stroke="#d8d4c8" stroke-width="1"/><text x="662" y="10" fill="#a09a8a">70</text>
+<line x1="0" y1="420.0" x2="660" y2="420.0" stroke="#d8d4c8" stroke-width="1"/><text x="2" y="418" fill="#a09a8a">-36</text>
+<line x1="0" y1="360.0" x2="660" y2="360.0" stroke="#d8d4c8" stroke-width="1"/><text x="2" y="358" fill="#a09a8a">-30</text>
+<line x1="0" y1="300.0" x2="660" y2="300.0" stroke="#d8d4c8" stroke-width="1"/><text x="2" y="298" fill="#a09a8a">-24</text>
+<line x1="0" y1="240.0" x2="660" y2="240.0" stroke="#d8d4c8" stroke-width="1"/><text x="2" y="238" fill="#a09a8a">-18</text>
+<line x1="0" y1="180.0" x2="660" y2="180.0" stroke="#d8d4c8" stroke-width="1"/><text x="2" y="178" fill="#a09a8a">-12</text>
+<line x1="0" y1="120.0" x2="660" y2="120.0" stroke="#d8d4c8" stroke-width="1"/><text x="2" y="118" fill="#a09a8a">-6</text>
+<line x1="0" y1="60.0" x2="660" y2="60.0" stroke="#d8d4c8" stroke-width="1"/><text x="2" y="58" fill="#a09a8a">0</text>
+<line x1="0" y1="0.0" x2="660" y2="0.0" stroke="#d8d4c8" stroke-width="1"/><text x="2" y="-2" fill="#a09a8a">6</text>
+<rect x="-1.5" y="-180" width="3" height="360" fill="rgb(172,172,180)" fill-opacity="0.85" stroke="#333" stroke-width="0.6" transform="translate(0.0 180.0) rotate(0.00)"/>
+<text x="0.0" y="180.0" text-anchor="middle" fill="#7a1010">3.3</text>
+<line x1="-433.0" y1="296.0" x2="-433.0" y2="284.0" stroke="#10a040" stroke-width="4"/>
+<line x1="-433.0" y1="296.0" x2="-433.0" y2="284.0" stroke="#10a040" stroke-width="4"/>
+<line x1="-31.0" y1="61.0" x2="-19.0" y2="61.0" stroke="#10a040" stroke-width="4"/>
+<line x1="-31.0" y1="61.0" x2="-19.0" y2="61.0" stroke="#10a040" stroke-width="4"/>
+<line x1="-115.0" y1="276.0" x2="-115.0" y2="264.0" stroke="#10a040" stroke-width="4"/>
+<line x1="-115.0" y1="96.0" x2="-115.0" y2="84.0" stroke="#10a040" stroke-width="4"/>
+<line x1="-86.0" y1="60.0" x2="-74.0" y2="60.0" stroke="#10a040" stroke-width="4"/>
+<line x1="-376.0" y1="100.0" x2="-364.0" y2="100.0" stroke="#10a040" stroke-width="4"/>
+<line x1="-340.0" y1="56.0" x2="-340.0" y2="44.0" stroke="#10a040" stroke-width="4"/>
+<line x1="-246.0" y1="285.0" x2="-234.0" y2="285.0" stroke="#10a040" stroke-width="4"/>
+<line x1="-146.0" y1="285.0" x2="-134.0" y2="285.0" stroke="#10a040" stroke-width="4"/>
+<line x1="-206.0" y1="60.0" x2="-194.0" y2="60.0" stroke="#10a040" stroke-width="4"/>
+<line x1="-396.0" y1="-321.0" x2="-384.0" y2="-321.0" stroke="#10a040" stroke-width="4"/>
+<text x="656" y="416" text-anchor="end" font-size="12" fill="#333">Saltmarsh Park - Sector Ops - storey y 9 - 1 m = 10 px, grid 6 m, north up</text>
+<rect x="8" y="402" width="100" height="5" fill="#333"/><text x="8" y="398" fill="#333" font-size="11">10 m</text>
+<polygon points="130,386 124,406 136,406" fill="#333"/><text x="126" y="382" fill="#333" font-size="11">N</text>
+</svg>

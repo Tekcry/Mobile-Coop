@@ -1,8 +1,10 @@
 // Plan SVGs of a map, headless (Node, no browser): builds the map's data with its LevelBuilder (loaded through Vite's
 // SSR module loader, the same transform the unit tests use) and writes one top-down SVG per storey.
 //
-// Usage: node scripts/plan-svg.mjs [mapId]        (default: bunker)
-// Output: test-results/training/plan-<y>.svg       (one per storey floor y; never committed)
+// Usage: node scripts/plan-svg.mjs [mapId] [--floors 8.8,4.4,0] [--bounds x0,z0,x1,z1] [--out dir] [--prefix name]
+//        (defaults: bunker, floors 16,6,0, the whole map, test-results/training, plan)
+// Output: <out>/<prefix>-<y>.svg (one per storey floor y). --bounds keeps the pieces and anchors whose centre lies in
+// the box and frames the plan to it (a section crop for a sign-off page).
 //
 // Scale 1 m = 10 px, a 6 m grid, north (+z) up. Boxes are drawn by height over their storey floor (darker = taller)
 // and labelled with that height when there is room; overhead pieces (roof slabs) are left out. Anchors: ladders (L),
@@ -12,12 +14,20 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createServer } from 'vite';
 
-const mapId = process.argv[2] ?? 'bunker';
-const OUT = resolve('test-results/training');
+const argv = process.argv.slice(2);
+const opt = (k) => {
+  const i = argv.indexOf(k);
+  return i >= 0 ? argv[i + 1] : undefined;
+};
+const mapId = argv[0] && !argv[0].startsWith('--') ? argv[0] : 'bunker';
+const OUT = resolve(opt('--out') ?? 'test-results/training');
+const PREFIX = opt('--prefix') ?? 'plan';
+const BOUNDS = opt('--bounds')?.split(',').map(Number);
+const inB = (x, z) => !BOUNDS || (x >= BOUNDS[0] && x <= BOUNDS[2] && z >= BOUNDS[1] && z <= BOUNDS[3]);
 const S = 10;
 const GRID = 6;
 // storey floors (m): a piece belongs to the highest floor at or below its base + 2 m (pits and trenches stay with it)
-const FLOORS = [16, 6, 0];
+const FLOORS = (opt('--floors')?.split(',').map(Number) ?? [16, 6, 0]).sort((a, c) => c - a);
 
 const server = await createServer({ server: { middlewareMode: true, hmr: false }, appType: 'custom', logLevel: 'error', optimizeDeps: { noDiscovery: true, include: [] } });
 try {
@@ -31,7 +41,7 @@ try {
   const storeyOf = (y) => FLOORS.find((f) => y >= f - 2) ?? FLOORS[FLOORS.length - 1];
   const written = [];
   for (const f of FLOORS) {
-    const boxes = b.boxes.filter((p) => !p.overhead && storeyOf(p.c[1] - p.s[1] / 2) === f && p.s[1] > 0.03);
+    const boxes = b.boxes.filter((p) => !p.overhead && storeyOf(p.c[1] - p.s[1] / 2) === f && p.s[1] > 0.03 && inB(p.c[0], p.c[2]));
     if (!boxes.length) continue;
     const near = (y) => storeyOf(y) === f;
     // extent: the storey's pieces plus 3 m
@@ -46,6 +56,7 @@ try {
     }
     minX = Math.floor((minX - 3) / GRID) * GRID; maxX = Math.ceil((maxX + 3) / GRID) * GRID;
     minZ = Math.floor((minZ - 3) / GRID) * GRID; maxZ = Math.ceil((maxZ + 3) / GRID) * GRID;
+    if (BOUNDS) [minX, minZ, maxX, maxZ] = BOUNDS;
     const W = (maxX - minX) * S;
     const H = (maxZ - minZ) * S;
     const px = (x) => ((x - minX) * S).toFixed(1);
@@ -93,8 +104,11 @@ try {
     for (const s of lay.playerSpawns) if (near(s.pos.y)) o.push(`<circle cx="${px(s.pos.x)}" cy="${pz(s.pos.z)}" r="4" fill="#20a020"/>`);
     for (const d of lay.debugPoints ?? []) if (near(d.pos.y)) { o.push(`<circle cx="${px(d.pos.x)}" cy="${pz(d.pos.z)}" r="5" fill="none" stroke="#8020a0" stroke-width="2"/>`); label(d.pos.x + 0.6, d.pos.z + 0.6, d.id, '#8020a0'); }
     o.push(`<text x="${W - 4}" y="${H - 4}" text-anchor="end" font-size="12" fill="#333">${def.name} - storey y ${f} - 1 m = ${S} px, grid ${GRID} m, north up</text>`);
+    // scale bar (10 m) and north arrow, bottom left
+    o.push(`<rect x="8" y="${H - 18}" width="${10 * S}" height="5" fill="#333"/><text x="8" y="${H - 22}" fill="#333" font-size="11">10 m</text>`);
+    o.push(`<polygon points="${10 * S + 30},${H - 34} ${10 * S + 24},${H - 14} ${10 * S + 36},${H - 14}" fill="#333"/><text x="${10 * S + 26}" y="${H - 38}" fill="#333" font-size="11">N</text>`);
     o.push('</svg>');
-    const file = resolve(OUT, `plan-${f}.svg`);
+    const file = resolve(OUT, `${PREFIX}-${f}.svg`);
     writeFileSync(file, o.join('\n'));
     written.push(`${file} (${boxes.length} pieces)`);
   }
