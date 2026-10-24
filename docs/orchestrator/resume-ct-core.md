@@ -2,6 +2,12 @@
 
 RESUMED ~23:55 (new account; orchestrator: overnight mode, one slice at a time, testing backlog first, save at 5-hour ~95%):
 #247 laptop afp PASS on fd34263e + CI green -> train-ready label added, orchestrator told (joins train 39 with #269).
+~18:45: guard-models MASTER MERGED (8809aab9 + assets 89c10827: 7 conflicts resolved, S11 items + thawPose line, PROTOCOL
+master 50 + G6n look bits; assets never precached: src/pwa/precacheGlobs.ts globIgnores, tests/guardAssetsOffline.test.ts;
+build OK, SW 77 entries no guard-). Running: merge check A (MERGE-CHECK-A.md, AI / wire), PR check B (MERGE-CHECK-B.md,
+flag-off landing), G9 e2e set 20261024T043619-player-build-89c10827-6637, perf batch on feature/gm-perf (worktree gm-perf:
+F1 frozen materials, F2 lazy pose, guard-cap render.figure + tally; PERF-REPORT.md). Then: PR (flag off) + train-ready;
+perf branch merges after, cap A/B, flip decision. #308 relabelled after master merge (23353993).
 ~18:25: Test Runner takes world.ts updateSunCasters (S9b). OURS in guard-cap.mjs (they will not touch it until guard-models
 merges): `render.figure` timer around GuardBody.frame in onBeforeRenderObservable + per-guard active-mesh tally by name
 prefix. Perf batch after the master merge (branch gm-perf off feature/guard-models): F1 + F2 + timer + tally -> cap rerun;
