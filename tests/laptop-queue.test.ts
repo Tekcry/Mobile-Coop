@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, trainSoon, releasingTrain, readyOrPending, RELEASE_HOLD_MS, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, supersedeStatuses, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, trainSoon, releasingTrain, readyOrPending, RELEASE_HOLD_MS, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS } from '../scripts/laptop-queue/lib.mjs';
 // @ts-expect-error plain .mjs module without types
 import { selectSuites, WIDE_COVERS } from '../scripts/e2e-affected.mjs';
 
@@ -1020,5 +1020,21 @@ describe('affected e2e on every PR head', () => {
     const y1 = a(30, 'y1', 'feature/y');
     expect(pick({ trains: [], requests: [y1, lead, x1] }, NOW, slots(false, false))?.request).toBe(x1);
     expect(pick({ trains: [], requests: [y1, lead] }, NOW, slots(false, false))?.request).toBe(lead);
+  });
+});
+
+describe('supersedeStatuses', () => {
+  const orig = { id: '20261024T120000-guard-ai-aaaaaaaa', sha: 'a'.repeat(40), kind: 'pr', requester: 'guard-ai', suites: ['e2e-coop', 'e2e-menus'], set: '' };
+  it('a superseded laptop rerun closes the desktop FAIL pending on its context; plain requests post nothing', () => {
+    const rr = laptopRerunRequest(orig, ['e2e-coop'], { now: Date.UTC(2026, 9, 24, 12, 30), suffix: 'beef' });
+    expect(supersedeStatuses(rr, 'NEW-ID')).toEqual([{ sha: orig.sha, state: 'error', context: contextName('pr', '', orig.suites), description: 'superseded by NEW-ID' }]);
+    expect(supersedeStatuses(orig, 'NEW-ID')).toEqual([]);
+    expect(supersedeStatuses(undefined, 'NEW-ID')).toEqual([]);
+  });
+  it('an affected request closes affected-e2e; its laptop rerun closes both', () => {
+    const aff = { ...orig, requester: AFFECTED_REQUESTER, set: 'affected' };
+    expect(supersedeStatuses(aff, 'N')).toEqual([{ sha: orig.sha, state: 'error', context: AFFECTED_CTX, description: 'superseded by a newer head (N)' }]);
+    const rr = laptopRerunRequest(aff, ['e2e-coop'], { now: Date.UTC(2026, 9, 24, 12, 30), suffix: 'beef' });
+    expect(supersedeStatuses(rr, 'N').map((x: { context: string }) => x.context)).toEqual(['laptop-e2e/affected', AFFECTED_CTX]);
   });
 });

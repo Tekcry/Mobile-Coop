@@ -904,3 +904,16 @@ export function desktopFailDesc(suites, cpu) {
 export function laptopRerunRequest(r, suites, { now, suffix }) {
   return { id: `${requestId(now, r.requester, r.sha)}-${suffix}`, sha: r.sha, branch: r.branch ?? '', pr: r.pr ?? null, kind: 'pr', requester: r.requester, suites: [...suites], set: r.set || (r.suites ?? []).join('+'), laptopRerun: true, note: `desktop failure of ${r.id}, rerun on the laptop` };
 }
+
+/**
+ * The statuses applySupersedes closes when request `old` is retired by `by` (a newer head): [{ sha, state, context,
+ * description }]. A laptop rerun closes its "desktop FAIL ..., laptop rerun queued" pending on its own context (else it
+ * stays pending forever: the rerun never runs); an auto affected request (rerun or not) closes its affected-e2e.
+ */
+export function supersedeStatuses(old, by) {
+  if (!old) return [];
+  const out = [];
+  if (old.laptopRerun) out.push({ sha: old.sha, state: 'error', context: contextName(old.kind, old.set, old.suites ?? []), description: `superseded by ${by}` });
+  if (old.requester === AFFECTED_REQUESTER) out.push({ sha: old.sha, state: 'error', context: AFFECTED_CTX, description: `superseded by a newer head (${by})` });
+  return out;
+}

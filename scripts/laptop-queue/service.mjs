@@ -85,7 +85,7 @@ import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, trainSoon, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS } from './lib.mjs';
+import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, trainSoon, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS } from './lib.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
 const DESKTOP = process.env.LQ_WORKER === 'desktop';
@@ -1193,9 +1193,9 @@ function applySupersedes(requests) {
     if (DRY) continue;
     state.done[id] = { result: 'superseded', by, date };
     doneSynced.add(id);
-    // an auto affected request's older head: its pending affected-e2e is closed (the newer head has its own)
-    const old = requests.find((r) => r.id === id);
-    if (old?.requester === AFFECTED_REQUESTER) postStatus(old.sha, 'error', AFFECTED_CTX, `superseded by a newer head (${by})`);
+    // an auto affected request's older head: its pending affected-e2e is closed (the newer head has its own); a laptop
+    // rerun's "desktop FAIL ..., laptop rerun queued" pending is closed too (lib supersedeStatuses)
+    for (const s of supersedeStatuses(requests.find((r) => r.id === id), by)) postStatus(s.sha, s.state, s.context, s.description);
   }
   saveState();
   return requests.filter((r) => !sup.has(r.id));
