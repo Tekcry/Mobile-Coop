@@ -5,12 +5,15 @@
      Sections marked (fill or delegate) can say "Propose in Phase 1/2 for my approval" instead of a design. -->
 
 ## Context (fill)
-Silent But Deadly (repo Tekcry/Mobile-Coop). Base branch: `<base branch>`. Create branch `feature/<map-id>-map` from
-`<base branch>` and work only there. Never merge into any branch and never merge any branch into yours; Michael merges
-to test on the preview.
+Night Shift (repo Tekcry/Mobile-Coop). Base branch: `master`. Create branch `feature/<map-id>-map` from master
+and work only there. Never merge into any branch and never merge any branch into yours; the train merges it
+(`docs/RULES.md` "Getting to master").
 
 Goal: a new listed map, `<map-id>` ("<Map name>"): <2-3 sentences: the building, the setting, the fantasy>. It follows
 `docs/level-design.md` (the level design standard) in full.
+
+Mode: <campaign | sector | training>. The mode's profile in `docs/level-design.md` ("Modes and tags") binds this map;
+its graph sets `meta.mode` to the same value.
 
 ## Scope: existing systems only (fixed)
 - This work builds a map, a mission entry, tests, dev scripts and docs. It adds no new game systems: no new movement,
@@ -37,8 +40,8 @@ Goal: a new listed map, `<map-id>` ("<Map name>"): <2-3 sentences: the building,
 3. One phase at a time. At the start of each phase re-read this spec (`docs/prompts/<map-id>.md`), the progress log and
    the approved design docs, then print a short plan (files and functions, one line each). Do only that phase.
 4. End of each phase: run the listed checks, report results honestly (never claim a check passed unless you ran it in
-   this phase; paste the summary line), list what changed, update the progress log, commit and push, then STOP and wait
-   for Michael's go-ahead.
+   this phase; paste the summary line), list what changed, update the progress log, commit and push. Michael's gates are
+   the one-click sign-offs of `docs/level-design.md` section 14.
 5. Save this spec verbatim to `docs/prompts/<map-id>.md` in Phase 0. Never edit it without approval; proposed changes go
    in the progress log under "Spec change requests".
 6. Progress log: `docs/prompts/<map-id>-progress.md` (phase, status, files changed, decisions, tests with results, open
@@ -48,7 +51,8 @@ Goal: a new listed map, `<map-id>` ("<Map name>"): <2-3 sentences: the building,
 8. Update the map's docs and the changelog fragment (`changes/<branch-with-dashes>.md`; never `CHANGELOG.md`, G183) at the end
    of each phase that adds playable content.
 9. Hyphens, never em dashes. Follow `CLAUDE.md` "Hard rules" and `docs/systems/conventions.md`.
-10. Checks: `npm run check`; e2e after a build, single suites with `npm run e2e -- <suite>`.
+10. Checks: `npm run typecheck:fast` and single `npx vitest run <file>` runs; CI runs `npm run check`; e2e through the
+    laptop queue (`docs/RULES.md` "Test tiers").
 
 ## Building brief (fill)
 - Building type and era: <e.g. 2021 colocation data centre>
@@ -80,42 +84,34 @@ Spaces in path order. For each: what it is, what is there tonight, the new mecha
 secret), the loop, the guards' jobs, isolation moments and overlaps, toys, the objective, the connector after it.
 1. <Space> (<storey>, <n> guards): <...>
 2. <...>
-Guard total: <n> (9 or fewer so every guard spawns at the start).
+Guard total per player count: <n> (as many as realistically possible, inside the mode's caps; level-design 4.9, 12.1).
 
 ## Co-op routes (fill or delegate)
-Existing verbs only (brace and boost, human ladder, dual takedown). Each route: where, the real reason solo cannot use
-it, the solo route to the same surface.
+The co-op kit of `docs/level-design.md` 11.9 (moves the game lacks are built by their co-op job first). Each route:
+where, its graph kind, the real reason one player cannot use it, and per mode: campaign, the forced co-op gate of each
+section and its way back (11.10, 11.6); Sector Ops, the solo route past it (11.6, G280); training, the move it teaches.
 - C1: <...>
 
 ## Mission and modes (fill)
-- `modes`: <e.g. ['infiltration', 'clear', 'sandbox']>. Do not change any mode's default map.
-- Mission: id <...>, name <...>, insertion(s) <...>, brief <...>, objectives in route order <...>, rules <...>.
-- Theme: <time of day, light level, faction, grade, weathers>.
+- `modes`: <e.g. ['infiltration', 'sandbox']>. Do not change any mode's default map.
+- Mission: id <...>, name <...>, insertion(s) <...>, brief <...>, objectives in route order, each naming what and
+  where (level-design 6.4, 13 "Objective and lead plan") <...>, strict rules (up to 2, level-design 9.3) <...>.
+- Theme: <time of day, light bands per space type (level-design 5.5), faction, grade, weathers>.
 - `reinforce`, `alarms`, `hideSpots`, `switches`: <...>
 
 ## Engine questions for Phase 0 (fill)
 <Anything this map relies on that needs confirming, e.g. "Is a 10 m rappel allowed?">
 
-## Phases (fixed; per `docs/level-design.md` section 14)
-- **Phase 0** - Setup and investigation: branch, save this spec, progress log; confirm every fact this spec and
-  `docs/level-design.md` section 12 rely on by grep; answer the engine questions; report how to build each element
-  from the engine files only. Stop.
-- **Phase 1** - Architectural design (docs only): building brief and floor plans per section 13. Stop for review.
-- **Phase 2** - Gameplay design (docs only): every section 13 deliverable, self-critique included. Stop for approval.
-- Before Phase 3 (build): the map's connectivity graph (`docs/level-validator/graph-schema.md`) passes
-  `node scripts/level-validate.mjs` with 0 errors; WARNs are justified in the design doc. (Michael 2026-10-24, "Add 1-4
-  as extras".)
-- **Phase 3..n** - Build one storey or area per phase, no guards; `scripts/plan-svg.mjs` comparison; the section 15
-  tests that need no guards; perf budgets. Stop after each.
-- **Guards and mission** - squads, alarms, mission entry; the remaining section 15 tests; `e2e-missions`, `e2e-clear`
-  updated; full `npm run e2e`; perf with guards. Stop.
-- **Dressing, readability and verification** - Michael's phone notes first; dressing that tells the building's story;
-  full checks; vantage screenshots at Low and Ultra. Stop.
+## Phases (fixed)
+`docs/level-design.md` section 14 owns the phases and their gates (validator gate before greybox, one-click sign-off,
+greybox exit with `--require-measured`, route-runs and the walk card); section 13 owns the deliverables, section 15 the
+acceptance tests. Phase 0 also confirms by grep every fact this spec and level-design section 12 rely on and reports how
+to build each element from the engine files only.
 
 ## Future recommendations (fixed)
 At the end of the last phase, one paragraph each on systems this map would benefit from (how they would fit the existing
 code, which space would use them). Do not build them.
 
 ## Report format (fixed)
-Files changed (one line each); Decisions; checks run with their summary lines; anything left undone; manual phone checks
-for Michael per space (also in `TESTING.md`); then STOP.
+Files changed (one line each); Decisions; checks run with their summary lines; anything left undone; the walk-card
+lines for Michael per space (also in `TESTING.md`); then STOP.
