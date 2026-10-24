@@ -140,7 +140,7 @@ function partnerUnderLip() {
 }
 
 /** The holder's prompt, then its state after a Co-op press. */
-function holderPress(): { prompt: string; state: string; mode: string } {
+function holderPress(): { prompt: string | null; state: string; mode: string | null } {
   const f = holderOnLip();
   f.tick(1);
   const prompt = f.tm.prompt;
