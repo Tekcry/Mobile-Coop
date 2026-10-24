@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-24T11:50Z
+status: done feature/visual-gate-vg2 cb0ba57c
 
 # visual-gate VG2 (cloud copy of docs/visual-gate/briefs/VG2.md on feature/visual-gate @ 0b7f46f4)
 
@@ -171,3 +171,29 @@ import { parseArgs } from '../scripts/e2e-visual.mjs';
 Built (functions, deviations from this brief and why), the pin order as implemented (step by step, with the page
 fields used), the old-build `?.` list, test results, the M0 request command, the local step-line check, files touched,
 open items (anything VG5 must know). Final message: done / not done, test results, open items (short).
+
+## Report (Night Shift | Cloud Builder 1, 2026-10-24)
+Branch `feature/visual-gate-vg2` @ cb0ba57c (one commit on 0b7f46f4). Full report: `docs/visual-gate/checks/vg2-build.md`
+(pin order with page fields, the `?.` list, test output, the M0 command, the step-line check, open items).
+- Files (the four listed only): `scripts/visual-gate/harness.mjs`, `scripts/e2e-visual.mjs`,
+  `tests/visualGateHarness.test.ts`, the report. Zero src diff (vs 0b7f46f4 and vs feature/visual-gate 3fd594e5); no
+  hook, the sim is pinned with `__app.loop.timeScale = 0`.
+- Checks: `npx vitest run tests/visualGateHarness.test.ts --maxWorkers=2` 13/13; `npx tsc --noEmit -p tsconfig.json`
+  clean (used instead of `typecheck:fast`: worktrees share node_modules here); eslint on the test clean; `node --check`
+  both scripts ok. No browser, e2e, GPU or build run.
+- Step-line check (no browser, Linux): `git archive <tree> scripts/e2e-visual.mjs scripts/visual-gate | tar -xf -` on
+  a scratch tree extracts both; `serve.mjs` passes trailing args through (`process.argv.slice(2)`, serve.mjs:16 on
+  master); the extracted script runs up to loading `viewpoints.mjs` and exits 2 (VG3 not on this branch, expected).
+  cmd.exe not testable here: the service runs steps with `shell: true` (service.mjs:480); only `&&` and `|` used. The
+  step fails fast until VG2 and VG3 are both merged into feature/visual-gate (`git archive` errors on a missing path).
+- M0 request: the brief's command (with `--png`), master sha to fill in at send time.
+- Deviations: settle computes its sim-time target in the page from the live torch count (same formula as
+  `settleTarget`; `shoot`'s `boot` arg unused for now); one extra `Rig` typedef line after the verbatim contract;
+  `aim` returns `{ ready, ms }` instead of throwing; converge's 8 s cap starts after the first read (as e2e-darkness);
+  `gridMeans` unrounded luma; settle also throws on a rig with no guard or a map with no door; e2e-visual exports
+  `MAP_ORDER` / `timingTable`, JSON adds `browsers`, `consoleErrors`, per-shot `behind` / `kind`, card ids
+  `card-<view>-<k>`, default url localhost:4173, exits 2 without `--time`.
+- Open items for VG5: quadrupeds are not parked (a live enemy can push a shut door, enemyManager.ts:3490; a dog can walk
+  into frame); once pinned, player / guard rigs stay hidden through later settles; a shot on a never-ready scene is not
+  flagged in `ShotRaw`; cards are timing-only (+x facing, under the last pin); the 0.004 converge tolerance may not hold
+  against Epic TAAU jitter (M0's converge-fail column will tell).
