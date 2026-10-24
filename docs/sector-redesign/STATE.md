@@ -279,15 +279,16 @@ asleep, full burn to the cap each window, save at ~92%, the orchestrator resumes
 dialogs: decide, log assumed decisions in the BRIEF. coop4 / #317 / feature/coop4-pol are GUARD AI BUILD's: do not push there.
 1. #354 bake2 (feature/sector-redesign-bake2 @ 54cdb9e1, fragment added) OPEN + train-ready; laptop bake2 3/3 PASS on
    90bf843b; auto-train takes it on green CI. Act on the train verdict; Opus triage on red.
-2. FOG2 (cloud build d0e7f2f4, worktree -fog2, node_modules junction): fresh Opus check IN FLIGHT ->
-   docs/sector-redesign/checks/fog-wiring-check.md + changes/feature-sector-redesign-fog2.md. PASS -> PR to master
-   (unit tests only, CI check), train-ready, message the orchestrator. FIX -> one Opus fix round. Rerun the check if missing.
+2. #357 fog2 (feature/sector-redesign-fog2 @ 65e36232, Opus check PASS, polish P1-P3 held in checks/fog-wiring-check.md)
+   OPEN + train-ready (~23:20, orchestrator told). Act on the train verdict.
+2b. DISK (~23:15): desktop C: hit 0.03 GB free (git failed); ~6 GB at ~23:30. 74 clean, pushed old sector-redesign
+   worktrees (~35 GB) listed in C:/NightShift/scratch/sector-ops-removable-worktrees.txt; auto mode DENIED my bulk
+   removal, orchestrator asked (Michael's call). Make NO new desktop worktree (~490 MB each) until space returns.
 3. CLOUD brief briefs/sector-redesign-bake3.md (cloud-queue 6dccd057, open): bake2 polish P1 / P2 / P4 on
    feature/sector-redesign-bake3 off 54cdb9e1. On done: one checker, then PR stacked after #354.
 4. VISUAL-GATE (docs/visual-gate/STATE.md holds its resume block): C0 = FIX (M1 pin order, M2 campus sectorGuards=1).
-   IN FLIGHT: Opus fix round + group A briefs docs/visual-gate/briefs/VG1-VG4.md on feature/visual-gate. Then: VG1 / VG4
-   (pure scripts + vitest) as cloud-queue briefs, VG2 (Opus) / VG3 (Sonnet) as desktop agents in worktrees
-   -visual-gate-vg2 / -vg3 (stale branches feature/visual-gate-vg1 / -vg4 at 69cb185a hold nothing: reset them).
+   C0 fixed + group A briefs at 0b7f46f4; DISPATCHED ~23:30: VG1 Opus agent in worktree -visual-gate-vg1 (lead commits),
+   VG2 / VG3 / VG4 cloud briefs (cloud-queue 6e29ea80). Detail: docs/visual-gate/STATE.md "Now" (3fd594e5).
 5. CAMPUS SIGN-OFF PAGES (orchestrator ~22:50; Marlow Build leads mission-framework): branch feature/sector-redesign-signoff
    (worktree -signoff, cut from feature/level-validator = PR #346; c088b7e9). Done: plan-svg --floors / --bounds / --out /
    --prefix; before plans signoff/before/S<N>-<y>.svg; plan graphs docs/sector-redesign/graph/plan/ (players [1,2,3,4]);
