@@ -33,7 +33,7 @@ off master 95849c26). Builder: Opus. Report: `docs/sector-redesign/checks/sectio
 
 ## Data per section
 - `world/maps/campusBake.ts`: per section a list of plan rects (x0, z0, x1, z1; full height): the section's footprint
-  (SPEC "Map structure decision") plus every connector box it shares (`CAMPUS_SECTORS[k].connector` belongs to k and
+  (SPEC "Map structure decision"; S5 out to the west fence and the jetty, x -70) plus every connector box it shares (`CAMPUS_SECTORS[k].connector` belongs to k and
   k + 1), grown by `SECTION_MARGIN` 2 m.
 - `world/sectionBake.ts` (pure): per lamp a section bitmask (Smi, up to 30 sections): the lamp counts for every
   section whose rects its influence square touches. Influence (SB3) = the lamp's plan square of half-size reach +
@@ -113,3 +113,6 @@ off master 95849c26). Builder: Opus. Report: `docs/sector-redesign/checks/sectio
 - SB12 e2e and tools that drive sections in sim time (`e2e-sectorops` `run()`, `perf.mjs`, `campus-art-shots.mjs`)
   wait for the whole bake after boot (`window.__app.current.world.lightBake.sections.done`).
 - SB13 Worker failure: inline retry of the lamp.
+- SB14 (added in the build) The cache write clones the whole result on the main thread (~133 MB): once the match plays
+  it waits for the next section change (the connector cycle) or the match's end (`SectionBaker.markPlaying`,
+  `saveIfDue`). A bake that finishes during the load is cached at once. [Save at `complete` always.]

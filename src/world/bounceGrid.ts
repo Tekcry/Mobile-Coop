@@ -123,21 +123,37 @@ export class BounceGrid {
 
   /**
    * (section-bake) The bake grew (more lamps landed; `SectionBaker` joins every landed lamp's bounce again in light
-   * order): read the new boxes, cells and wall bits and sum every lit lamp again. The sums are exact integers, so the
-   * grid equals the one a full bake makes once every lamp is in. Load-time cost (one landing batch), the whole grid
-   * marked dirty for the picture's re-pack. The lamp ids and their weights stay.
+   * order): read the new boxes, cells and wall bits and add the lamps `fresh[0 .. k)` that landed (their box was empty
+   * until now) at their weights; only their boxes are re-quantised and marked dirty. When the grid had no bounce yet
+   * (its arrays are made now) or no list is given, every lit lamp is summed again. The sums are exact integers, so the
+   * grid equals the one a full bake makes once every lamp is in. Landing time only (one batch), never per frame.
    */
-  adopt(bounce: LampBounce): void {
+  adopt(bounce: LampBounce, fresh?: ArrayLike<number>, k = 0): void {
+    const was = this.active ? this.g : null;
+    const empty = new Uint8Array(fresh ? k : 0);
+    const B0 = this.boxes;
+    for (let j = 0; j < empty.length; j++) {
+      const o = fresh![j]! * BOUNCE_BOX_STRIDE;
+      empty[j] = o + 5 >= B0.length || B0[o + 3]! * B0[o + 4]! * B0[o + 5]! === 0 ? 1 : 0;
+    }
     this.load(bounce);
     if (!this.active) return;
-    this.acc.fill(0);
-    this.g.fill(0);
-    for (let i = 0; i < this.ids.length; i++) if (this.w[i]! !== 0) this.apply(i, this.w[i]!);
-    const d = this.dirty;
-    d[0] = d[1] = d[2] = 0;
-    d[3] = this.n[0];
-    d[4] = this.n[1];
-    d[5] = this.n[2];
+    if (fresh && was === this.g) {
+      for (let j = 0; j < k; j++) {
+        const i = fresh[j]!;
+        // (weight 0 too: its wall bits are new, the box goes to the dirty box)
+        if (i >= 0 && i < this.ids.length && empty[j]) this.apply(i, this.w[i]!);
+      }
+    } else {
+      this.acc.fill(0);
+      this.g.fill(0);
+      for (let i = 0; i < this.ids.length; i++) if (this.w[i]! !== 0) this.apply(i, this.w[i]!);
+      const d = this.dirty;
+      d[0] = d[1] = d[2] = 0;
+      d[3] = this.n[0];
+      d[4] = this.n[1];
+      d[5] = this.n[2];
+    }
     this.version++;
   }
 

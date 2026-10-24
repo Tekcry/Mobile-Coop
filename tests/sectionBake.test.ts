@@ -265,6 +265,23 @@ describe('section bake: parity with the full bake', () => {
     expect(sb.done).toBe(false);
   });
 
+  it('once playing, the cache write waits for a section change or the end (SB14)', async () => {
+    const { set, baked } = strip();
+    const hp = handPool(2);
+    const sb = new SectionBaker({ shapes: set.shapes, lights: baked.lights, lo: set.lo, hi: set.hi, masks: lampSectionMasks(baked.lights, DEF), sections: 3, key: 'lamps:test', pool: hp.pool });
+    sb.start();
+    sb.markPlaying();
+    let last = 0;
+    while (last >= 0) last = await hp.finishOne();
+    await sb.finished;
+    expect(sb.saveDue).toBe(true);
+    // a restart (the same section) is not a quiet moment; the next section is
+    sb.setLive(0);
+    expect(sb.saveDue).toBe(true);
+    sb.setLive(1);
+    expect(sb.saveDue).toBe(false);
+  }, 120_000);
+
   it('a failed worker job is baked inline (never a dark lamp)', async () => {
     const { set, baked } = strip();
     let calls = 0;

@@ -124,8 +124,6 @@ describe('campus bake regions', () => {
       expect(bad, `section ${k + 1}`).toBe('');
     }
     expect(counts.every((c) => c > 0 && c < n), counts.join(',')).toBe(true);
-    // (the build report's numbers)
-    console.log(`campus lamps ${n}; per section ${counts.join(' / ')}`);
   });
 });
 

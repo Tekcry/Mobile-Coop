@@ -938,6 +938,8 @@ export class GameState implements AppState {
     // moves it later) land during the load, beside the warm-up; the other sections bake on in the background
     const sb = world.lightBake?.sections;
     await Promise.all([Promise.race([g.scene.whenReadyAsync(), new Promise((r) => setTimeout(r, WARMUP_MAX_MS))]), sb ? sb.whenReady(sb.plan.live) : null]);
+    // (SB14) from here the bake's cache write waits for a section change or the match's end (no mid-play hitch)
+    sb?.markPlaying();
     return g;
   }
 

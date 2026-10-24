@@ -4,7 +4,9 @@
  * visibility in place (the full-size buffer `World` hands to the light field and the baked lamps), its bounce joined
  * again in light order. Listeners (`LightField`, `BakedLamps`) hear each landing batch; `whenReady(k)` resolves once
  * section k's lamps are all in. When every lamp has landed the joined result (byte-identical to `bakeLevelLamps`) is
- * cached under the full key, so the next load is a plain cache hit.
+ * cached under the full key, so the next load is a plain cache hit. (SB14) The cache write clones the whole result on the
+ * main thread (~133 MB on the campus), so once the match plays it waits for a quiet moment: the next section change
+ * (the connector cycle), or the match's end.
  * Landing runs in promise callbacks between frames, never per frame.
  */
 import { bakeLamps, BOX_STRIDE, LAMP_STRIDE, type LampResult } from './lampBake';
@@ -54,6 +56,10 @@ export class SectionBaker {
   disposed = false;
   /** Lamps baked inline after a worker failed (SB13). */
   inlineRetries = 0;
+  /** (SB14) The match plays (`GameState.create` after its load): the cache write waits for a section change or the end. */
+  playing = false;
+  /** (SB14) The joined result is waiting to be cached. */
+  saveDue = false;
   /** ms from `start` to the live section ready / to the last lamp (logged, tests). */
   liveMs = -1;
   totalMs = -1;
@@ -99,7 +105,22 @@ export class SectionBaker {
 
   /** Section `k` is live (the host's `loadSection`, the client's `ls`): it bakes first. Ignores -1 / out of range. */
   setLive(k: number): void {
+    const was = this.plan.live;
     this.plan.setLive(k);
+    // (SB14) a section change is a quiet moment for the cache write
+    if (this.plan.live !== was) this.saveIfDue();
+  }
+
+  /** The match starts playing (`GameState.create`): from now on the cache write waits for a quiet moment. */
+  markPlaying(): void {
+    this.playing = true;
+  }
+
+  /** (SB14) Cache the joined result now if it is waiting. */
+  saveIfDue(): void {
+    if (!this.saveDue || !this.inp.key) return;
+    this.saveDue = false;
+    void saveLamps(this.inp.key, this.result);
   }
 
   /** Section `k`'s lamps have all landed (true past the sections). */
@@ -120,6 +141,8 @@ export class SectionBaker {
 
   /** Stop: the workers end, nothing more lands, nothing is cached (SB11). Waiters are released. */
   dispose(): void {
+    // (SB14) a finished bake is cached as the match ends (a loading moment); an unfinished one is dropped
+    this.saveIfDue();
     if (this.disposed) return;
     this.disposed = true;
     if (!this.inp.pool) this.pool?.dispose();
@@ -212,7 +235,8 @@ export class SectionBaker {
     for (const w of this.waiters) w.resolve();
     this.waiters.length = 0;
     BAKERS.delete(this.result);
-    if (this.inp.key) void saveLamps(this.inp.key, this.result);
+    this.saveDue = !!this.inp.key;
+    if (!this.playing) this.saveIfDue();
     this.finish();
   }
 }

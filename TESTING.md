@@ -61,6 +61,11 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Lamp light (LR16a: one photometric model, no Lamp falloff row in Settings > Gameplay): start Sector Ops: the S1
   goods-in floor between the strips reads lit (meter and picture agree), Marlow station 2 still reads; a guard's torch
   beam has a soft edge, and the meter fades with it at the beam's edge (LR16 fix).
+- [ ] (section-bake) Saltmarsh Park cold load: clear the site data (or a private window), start the campus and time
+  the load against the last build: it starts sooner. In S1 the car park floods and the meter read as before; within
+  the first minute nothing on screen pops (far buildings' lamps fade in). Play into S2 through C1: S2 is lit at once.
+  Co-op: a client joining while the host is in S2 or later gets the section's lamps within seconds. Reload: a warm
+  load as before.
 - [ ] Failing tube (LR16-5): stand under the stutter tube (Warehouse Ops: the trade offices corridor panel, west half;
   campusOps: HQ L1 breakout kitchen; Marlow Yard: the A7 south rack strip): every few seconds it chatters or drops
   out, the floor, the fitting and the light meter go with it; shoot it and it stays dark.

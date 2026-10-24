@@ -179,7 +179,7 @@ export class LightField {
     if (!lamps) return;
     const seen = bakeVisSampler(lamps.r);
     for (let j = 0; j < k; j++) lampDoorListInto(this.lampDoors, ls[j]!, lamps.baked.lights, this.doors, seen, this.doorSlots);
-    if (lamps.r.bounce) this.bounce.adopt(lamps.r.bounce);
+    if (lamps.r.bounce) this.bounce.adopt(lamps.r.bounce, ls, k);
   }
 
   /**
