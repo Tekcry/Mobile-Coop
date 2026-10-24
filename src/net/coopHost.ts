@@ -15,7 +15,7 @@ import type { NetSession } from './session';
 import { TickLimiter, type CourseWire } from '../game/course/courseWire';
 import type { SecWire } from '../game/ctDevices';
 import { syringesFor, type SectorNetExtra } from '../game/sectors';
-import { DROP_BODY_ID, eventQueueKeeps, gaitWire, motionWire, ITEM_KINDS, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, BARK_CAM, BARK_TEXT, hitConfirmKind, packAlert, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, wirePlayerState } from './protocol';
+import { DROP_BODY_ID, eventQueueKeeps, gaitWire, motionWire, ITEM_KINDS, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, BARK_CAM, BARK_TEXT, hitConfirmKind, packAlert, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, type UseOnlyGadget, wirePlayerState } from './protocol';
 import { RemoteAvatar } from './remoteAvatar';
 import { RemotePlayer } from './remotePlayer';
 import { HoldClock, holdFeed, stepHoldFeed, type HoldFeed } from './holdFeed';
@@ -39,7 +39,7 @@ import { hangHoldStep, hangingMove, type HangSpot } from './hangHold';
 import { koCurve, type KoState } from '../game/closeQuarters';
 import { checkTeamRequest, isKitKind, type TeamMoveKind, type TeamSide } from '../game/teamMoves';
 import { kitMove } from '../game/kit/registry';
-import { kitEnd, kitPairOver, newKitPair, pullLag, type KitPair } from './kitNet';
+import { kitEnd, kitPairOver, newKitPair, pullLag, sameAttempt, type KitPair } from './kitNet';
 import { ThrowKo } from './throwKo';
 import { checkCommitted, type CKind, type CTargetView } from '../game/committedMoves';
 import { STRIKE, STRIKE_DUR } from '../game/elbowStrike';
@@ -749,9 +749,14 @@ export class CoopHost implements NetAttachment {
       }
       case 'gused': {
         // (mission NET) a client's frag / mine / sticky cam thrown or placed (no effect message): the mode counts it
-        const last = this.gusedAt.get(r.id) ?? -9;
-        if (!r.alive || this.time - last < 0.25) return;
-        this.gusedAt.set(r.id, this.time);
+        // (NET2) the rate window is per kind: a different gadget at once still counts
+        let at = this.gusedAt.get(r.id);
+        if (!at) {
+          at = { frag: -9, mine: -9, stickyCam: -9 };
+          this.gusedAt.set(r.id, at);
+        }
+        if (!r.alive || this.time - at[msg.kind] < 0.25) return;
+        at[msg.kind] = this.time;
         this.g.mode?.onRemoteGadget?.(r.id, msg.kind);
         break;
       }
@@ -1072,6 +1077,8 @@ export class CoopHost implements NetAttachment {
   private teamPairs = new Map<string, string>();
   /** (mission NET) The kit pairs (both ids -> the pair): who may end it how, the pull-up's start and verdict. */
   private kitPairs = new Map<string, KitPair>();
+  /** (NET2) A hang-down / rope pair's start (both ids -> host t0): its ends' attempt check. */
+  private pairT0 = new Map<string, number>();
   private teamLast = new Map<string, number>();
   private teamMv = emptyMoveState();
   /** (throw-ko) Partner throws in flight: the thrown player coming down on a guard knocks him out (host-authoritative). */
@@ -1104,16 +1111,16 @@ export class CoopHost implements NetAttachment {
   private onTeamMove(by: string, kind: TeamMoveKind | 'end' | 'hangEnd', partner: string, target: number, ss: number, gy: number, lx?: number, lz?: number): void {
     const self = this.s.selfId;
     if (kind === 'hangEnd' || kind === 'end') this.lapseKitPair(by);
+    // (NET2) a hangEnd's `ss` is its attempt key (`kitAttemptKey` of the start's t0; 0 unknown): a stale end is ignored
     if (kind === 'hangEnd' && this.kitPairs.has(by)) {
-      this.kitHangEnd(by, target === 1 ? 'drop' : 'pull');
+      this.kitHangEnd(by, target === 1 ? 'drop' : 'pull', ss);
       return;
     }
     if (kind === 'hangEnd') {
       // (CT prototype B5) either player ends the hang-down: pulled up (0) or dropped (1, the holder's release)
       const other = this.teamPairs.get(by);
-      if (!other) return;
-      this.teamPairs.delete(by);
-      this.teamPairs.delete(other);
+      if (!other || !sameAttempt(this.pairT0.get(by), ss)) return;
+      this.unpair(by, other);
       const k = target === 1 ? 'drop' : 'pull';
       this.s.send({ t: 'tend', a: by, b: other, k });
       if (by === self || other === self) this.g.team.ended(k);
@@ -1143,8 +1150,9 @@ export class CoopHost implements NetAttachment {
       const why = checkTeamRequest({ kind, a, b, target: -1, targetUp: gy - b.y, sinceLast: now - (this.teamLast.get(by) ?? -99), land });
       this.teamLast.set(by, now);
       if (why) return deny(why);
-      this.lapseKitPair(by);
-      this.lapseKitPair(partner);
+      // (NET2) a new move ends both players' earlier pairs (a pull-up's kept pair, a lingering shutter)
+      this.unpairOf(by);
+      this.unpairOf(partner);
       if (m?.paired) {
         this.teamPairs.set(by, partner);
         this.teamPairs.set(partner, by);
@@ -1164,12 +1172,17 @@ export class CoopHost implements NetAttachment {
     const why = checkTeamRequest({ kind, a, b, target: anchor ? target : -1, targetUp: gy - b.y, sinceLast: now - (this.teamLast.get(by) ?? -99), land });
     this.teamLast.set(by, now);
     if (why) return deny(why);
+    // (NET2) a new move ends both players' earlier pairs: a pull-up's kept pair no longer takes this move's hangEnd
+    this.unpairOf(by);
+    this.unpairOf(partner);
     if (toss && land) {
       // (CT prototype B4) the partner throw: the runner flies over the thrower to the claimed (bounded) landing; (B5) the
       // hang-down: `a` is lowered head-first at the claimed (bounded) hang point by the holder `b` (a pair until it ends)
       if (kind === 'hang' || kind === 'rope') {
         this.teamPairs.set(by, partner);
         this.teamPairs.set(partner, by);
+        this.pairT0.set(by, now);
+        this.pairT0.set(partner, now);
       }
       const start = { kind, a: by, b: partner, target: -1, s: 0, t0: now, l: [land.x, land.y, land.z] as [number, number, number] };
       if (kind === 'throw') this.throwKo.start(by, now, a.x, a.y, a.z, land.x, land.y, land.z);
@@ -1187,9 +1200,9 @@ export class CoopHost implements NetAttachment {
   }
 
   /** (mission NET) A kit pair's end from `by`: the kit's rules (`kitEnd`), relayed to both as `tend` k. */
-  private kitHangEnd(by: string, k: 'pull' | 'drop'): void {
+  private kitHangEnd(by: string, k: 'pull' | 'drop', key: number): void {
     const p = this.kitPairs.get(by);
-    if (!p) return;
+    if (!p || !sameAttempt(p.t0, key)) return;
     const self = this.s.selfId;
     const v = kitEnd(p, by, k, this.time, pullLag(p.b === self));
     if (!v) return;
@@ -1206,13 +1219,27 @@ export class CoopHost implements NetAttachment {
 
   /** Two players no longer in a team move together (the pair and its kit record). */
   private unpair(a: string, b: string): void {
-    if (this.teamPairs.get(a) === b) this.teamPairs.delete(a);
-    if (this.teamPairs.get(b) === a) this.teamPairs.delete(b);
+    if (this.teamPairs.get(a) === b) {
+      this.teamPairs.delete(a);
+      this.pairT0.delete(a);
+    }
+    if (this.teamPairs.get(b) === a) {
+      this.teamPairs.delete(b);
+      this.pairT0.delete(b);
+    }
     const p = this.kitPairs.get(a);
     if (p && (p.b === b || p.a === b)) {
       this.kitPairs.delete(a);
       if (this.kitPairs.get(b) === p) this.kitPairs.delete(b);
     }
+  }
+
+  /** (NET2) Player `id`'s earlier pairs end without a word (a new move of theirs was accepted). */
+  private unpairOf(id: string): void {
+    const p = this.kitPairs.get(id);
+    if (p) this.unpair(p.a, p.b);
+    const o = this.teamPairs.get(id);
+    if (o !== undefined) this.unpair(id, o);
   }
 
   /** (mission NET) A player down mid-move: their pair ends (the partner's move ends as on a leave). */
@@ -1505,8 +1532,8 @@ export class CoopHost implements NetAttachment {
   /** (Q12) Each client's last accepted hold noise pulse (host time). */
   private holdPulseAt = new Map<string, number>();
   private gadgetAt = new Map<string, number>();
-  /** (mission NET) Each client's last `gused` (a frag / mine / sticky cam used; 4 a second at most). */
-  private gusedAt = new Map<string, number>();
+  /** (mission NET) Each client's last `gused` per kind (a frag / mine / sticky cam used; 4 a second each at most). */
+  private gusedAt = new Map<string, Record<UseOnlyGadget, number>>();
 
   private color(id: string): string {
     return this.s.players.get(id)?.tag.color ?? '#4fdc7c';
@@ -1752,6 +1779,21 @@ export class CoopHost implements NetAttachment {
     return this.time;
   }
 
+  /** (spare 9) Guard `e` held by client `by` (its MoveState `sub` / `ph`, each step): when the client's interrogation
+   *  ends, the host spends his information and gives the team the intel. */
+  private clientRead(e: Enemy, by: string, sub: number, ph: number): void {
+    const eid = e.id;
+    if (interrogationEnded(this.interPh.get(eid) ?? -1, sub)) {
+      const info = e.info;
+      // (joint-interrogation) checked before `takeInfo` spends him; the holder (by) is never his own bluffer
+      const joint = !!info && info.lines.length > 0 && this.jointFor(eid, by, jointOf(info));
+      // (mission NET) the guard's id (a mission's interrogate step, the decoy's spook) and the client's (its team)
+      if (takeInfo(e)) revealIntel(this.g, e.pos, info, eid, by);
+      if (joint) revealJoint(this.g, e.pos, jointOf(info));
+    }
+    this.interPh.set(eid, sub & 2 ? ph : -1);
+  }
+
   fixedUpdate(dt: number): void {
     this.time += dt;
     if (this.strikes.size) this.runStrikes();
@@ -1798,16 +1840,7 @@ export class CoopHost implements NetAttachment {
           if (stepHoldFeed(s, at.x + sy * GRAB.hold + cy * GRAB.side, at.z + cy * GRAB.hold - sy * GRAB.side, this.holdClock, this.time, dt)) e.pos.set(s.hfX, at.y, s.hfZ);
           e.holdAt(s.hfX, at.y, s.hfZ, yaw);
           // (G7) the client's knockout lowers him here too, its interrogation turns his head (MoveState ph / sub)
-          // (spare 9) the client's interrogation ended: the host spends his information and gives the team the intel
-          if (interrogationEnded(this.interPh.get(eid) ?? -1, mv.sub)) {
-            const info = e.info;
-            // (joint-interrogation) checked before `takeInfo` spends him; the holder (s.by) is never his own bluffer
-            const joint = !!info && info.lines.length > 0 && this.jointFor(eid, s.by, jointOf(info));
-            // (mission NET) the guard's id (a mission's interrogate step, the decoy's spook) and the client's (its team)
-            if (takeInfo(e)) revealIntel(this.g, e.pos, info, e.id, s.by);
-            if (joint) revealJoint(this.g, e.pos, jointOf(info));
-          }
-          this.interPh.set(eid, mv.sub & 2 ? mv.ph : -1);
+          this.clientRead(e, s.by, mv.sub, mv.ph);
           if (mv.sub & 2) e.holdPose('interrogate', mv.ph);
           else if (mv.ph > 0 && !(mv.sub & 1)) {
             const ko = koCurve(mv.ph, this.koTmp);
