@@ -95,9 +95,11 @@ if (opts.set) req.set = opts.set;
 if (opts.note) req.note = opts.note;
 if (opts.pin) req.pin = true;
 if (opts.priority !== undefined) req.priority = Number(opts.priority);
-// suite names checked against the sha's own scripts/ (lib knownSuites); an unreadable tree skips the check
-const tree = kind === 'pr' ? git(['ls-tree', '--name-only', sha, 'scripts/'], { soft: true }).split('\n').filter(Boolean) : [];
-const problem = requestProblem(req, tree.length ? { known: knownSuites(tree) } : {});
+// suite names checked against the sha's own scripts/ (lib knownSuites; --full-tree: also from a subdirectory); an
+// unreadable listing refuses a pr request rather than skip the check
+const tree = kind === 'pr' ? git(['ls-tree', '--full-tree', '--name-only', sha, 'scripts/'], { soft: true }).split('\n').filter(Boolean) : [];
+if (kind === 'pr' && !tree.length) { console.error(`bad request: cannot list scripts/ at ${sha} to check the suite names`); process.exit(1); }
+const problem = requestProblem(req, kind === 'pr' ? { known: knownSuites(tree) } : {});
 if (problem) { console.error(`bad request: ${problem}`); process.exit(1); }
 const json = `${JSON.stringify(req, null, 2)}\n`;
 
