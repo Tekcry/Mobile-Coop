@@ -111,10 +111,26 @@ export function guardPlayUrls(manifests: readonly GuardManifest[], minOnly: bool
   return out;
 }
 
+/** The bases the helmet drop cuts helmet_std from, in order (broad has helmet_heavy only, no drop anchor). */
+const HELMET_BASES: readonly GuardBase[] = ['average', 'lean'];
+
+/**
+ * The first guard base in this build whose files hold helmet_std (null: Wren stands in, or none has it), resolved
+ * through `assetOf`: the helmet drop loads its LOD1 (`helmetManifest`, `helmetDropSource`, guardHelmet.ts).
+ */
+export function helmetManifestOf(assetOf: (base: GuardBase) => GuardAsset): GuardManifest | null {
+  for (const b of HELMET_BASES) {
+    const a = assetOf(b);
+    if (!a.standIn && a.manifest.pieces.includes('helmet_std')) return a.manifest;
+  }
+  return null;
+}
+
 /**
  * (gm-polish) Every guard file play fetches, for the menu's offline warm: each base's play LODs (`guardPlayUrls`: every
- * LOD2 first; `minOnly`: LOD2 only) and the shield's LOD1 (the only shield LOD drawn, `guardShieldFor`). A base Wren
- * stands in for adds nothing (her files are warmed by her own call); the shield goes only with a real base (a
+ * LOD2 first; `minOnly`: LOD2 only), the shield's LOD1 (the only shield LOD drawn, `guardShieldFor`) and the helmet
+ * drop's LOD1 (`helmetManifestOf`; at full gfx already among the play LODs, at `?gfx=min` the one LOD1 base file). A base
+ * Wren stands in for adds nothing (her files are warmed by her own call); the shield goes only with a real base (a
  * stand-in enforcer keeps the placeholder part).
  */
 export function guardWarmUrls(minOnly: boolean): string[] {
@@ -122,6 +138,8 @@ export function guardWarmUrls(minOnly: boolean): string[] {
   const out = guardPlayUrls(real.map((a) => a.manifest), minOnly);
   const shield = real.length ? shieldUrls()?.[LOD_1] : undefined;
   if (shield) out.push(shield);
+  const helmet = helmetManifestOf(guardAsset)?.urls[LOD_1];
+  if (helmet && !out.includes(helmet)) out.push(helmet);
   return out;
 }
 

@@ -2,8 +2,8 @@
  * (gm-polish) The menu warms every guard file play fetches into the offline cache (`warmGuardFiles`, menuScene.ts after
  * Wren's chain), so a first offline play of a base no map has used yet draws the guard figures, not the merged body:
  * - full: each of the three bases' play LODs (every LOD2 first, then LOD0, LOD1) and the shield's LOD1 (the one LOD the
- *   enforcer draws), 10 files, each fetched once through the worker;
- * - `?gfx=min`: the three LOD2 files and the shield's LOD1;
+ *   enforcer draws), 10 files, each fetched once through the worker (the helmet drop's LOD1 is among them);
+ * - `?gfx=min`: the three LOD2 files, the shield's LOD1 and the helmet drop's LOD1 (the average base's, guardHelmet.ts);
  * - `?guardmodels=0`: no fetch at all;
  * - a second call (the menu rebuilds its preview on every look change) fetches nothing more.
  */
@@ -35,7 +35,7 @@ const name = (u: string): string => u.slice(u.lastIndexOf('/') + 1).replace(/\?.
 
 describe('warmGuardFiles (the menu warm)', () => {
   it('full: the three bases\' play LODs (LOD2 first) and the shield\'s LOD1, each once', async () => {
-    const { warmGuardFiles, guardAsset, shieldUrls } = await fresh();
+    const { warmGuardFiles, guardAsset, shieldUrls, helmetManifestOf } = await fresh();
     for (const b of ['average', 'lean', 'broad'] as const) expect(guardAsset(b).standIn).toBe(false);
     expect(await warmGuardFiles(false)).toBe(10);
     expect(fetched.map(name)).toEqual([
@@ -45,15 +45,21 @@ describe('warmGuardFiles (the menu warm)', () => {
       'guard-shield_riot-lod1.glb',
     ]);
     expect(fetched).toContain(shieldUrls()![2]);
+    expect(fetched).toContain(helmetManifestOf(guardAsset)!.urls[2]);
     // the menu calls again on every preview rebuild: nothing more is fetched
     expect(await warmGuardFiles(false)).toBe(10);
     expect(fetched.length).toBe(10);
   });
 
-  it('?gfx=min: the LOD2 files and the shield\'s LOD1 only', async () => {
-    const { warmGuardFiles } = await fresh();
-    expect(await warmGuardFiles(true)).toBe(4);
-    expect(fetched.map(name)).toEqual(['guard-average-lod2.glb', 'guard-lean-lod2.glb', 'guard-broad-lod2.glb', 'guard-shield_riot-lod1.glb']);
+  it('?gfx=min: the LOD2 files, the shield\'s LOD1 and the helmet drop\'s LOD1 only', async () => {
+    const { warmGuardFiles, guardAsset, helmetManifestOf } = await fresh();
+    expect(await warmGuardFiles(true)).toBe(5);
+    expect(fetched.map(name)).toEqual([
+      'guard-average-lod2.glb', 'guard-lean-lod2.glb', 'guard-broad-lod2.glb', 'guard-shield_riot-lod1.glb',
+      'guard-average-lod1.glb',
+    ]);
+    // the exact file the helmet drop loads (guardHelmet.ts, `helmetDropSource`)
+    expect(fetched).toContain(helmetManifestOf(guardAsset)!.urls[2]);
   });
 
   it('a file already in the cache is not fetched again', async () => {

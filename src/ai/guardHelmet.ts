@@ -12,8 +12,8 @@ import type { GlbModel } from '../operators/lab/glb';
 import { loadModel } from '../operators/runtime/figure';
 import { guardLibrary, type GuardGlbMesh } from '../operators/runtime/guardFigure';
 import { LOD_1 } from '../operators/runtime/manifest';
-import { guardAsset } from '../operators/guards/guardAssets';
-import type { GuardBase, GuardManifest } from '../operators/guards/gearMask';
+import { guardAsset, helmetManifestOf } from '../operators/guards/guardAssets';
+import type { GuardManifest } from '../operators/guards/gearMask';
 import { srgbToLinear } from '../operators/guards/guardTints';
 
 /** A drop mesh and its own box size (m): `HelmetDrops` scales each drop to the box it is asked for. */
@@ -25,7 +25,6 @@ export interface HelmetMeshSource {
 }
 
 const HELMET = 'helmet_std';
-const HELMET_BASES: readonly GuardBase[] = ['average', 'lean'];
 /** The fabric slots' neutral (SPEC 8): the helmet shell sits on the neutral grey; the colour over it is its tint. */
 const FABRIC_NEUTRAL = 0.4;
 
@@ -36,11 +35,7 @@ const BY_SCENE = new WeakMap<Scene, Entry>();
 
 /** The first guard base in this build whose files hold helmet_std (null: Wren stands in, or none has it). */
 export function helmetManifest(): GuardManifest | null {
-  for (const b of HELMET_BASES) {
-    const a = guardAsset(b);
-    if (!a.standIn && a.manifest.pieces.includes(HELMET)) return a.manifest;
-  }
-  return null;
+  return helmetManifestOf(guardAsset);
 }
 
 /** The scene's helmet drop mesh, or null (loading, or none in the build). The first call starts the load. */
