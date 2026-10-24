@@ -1,6 +1,14 @@
 # Guard AI - state
 
 ## Now
+~22:35 (new account, laptop; OVERNIGHT mode from the orchestrator: no swap, full burn to the cap, save ~92%, no
+question dialogs: decide, log A-numbers in BRIEF). #317: alone-coop4-4p on 1b04e5bd PASS 3/3 (349 s); e2e-coop on
+bc96ecee (laptop-e2e/coop4-fix2) running, background wait. Green -> gh pr ready 317 + orchestrator train-ready.
+NEW: no-refining rule lifted (ROADMAP Decided ~21:50) -> polish batch job feature/guard-ai-polish (worktree
+C:/NightShift/Mobile-Coop-guard-ai-polish off master 92d0205d). Opus planner RUNNING -> docs/guard-ai/POLISH-PLAN.md
+(verified items from the polish lists, <=4 file-disjoint builder groups). Then Opus builders in parallel, 2 checkers,
+laptop set, one PR.
+
 ~22:10: triage 2 = test bug: AI6 (1) C's workshop hide (20, -24.75) was in sight through the workshop facade door /
 window, so a guard saw C hide (LKP moved 10.28 m, correct AI). Fixed bc96ecee (hide -> 2.75, -24.75; lkpWorst
 diagnostic; docs/coop4/checks/ai6-lkp-triage.md). Queued e2e-coop on bc96ecee (set coop4-fix2). The 4p status
