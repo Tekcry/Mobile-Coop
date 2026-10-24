@@ -385,6 +385,13 @@ ${running}`, 'laptop').openTrain).toBe('');
 ${t(5)} claim train 99 (laptop)`, 'laptop').openTrain).toBe('100');
     expect(workerActivity(`${t(1)} done train 64 (laptop)
 ${t(1)} claim train 64 (laptop)`, 'laptop').openTrain).toBe('');
+    // an orphaned older claim (its done push lost) never stays open once the laptop finished a later train (checker FIX)
+    expect(workerActivity(`${t(2)} done train 65 (laptop)
+${t(8)} claim train 65 (laptop)
+${t(40)} claim train 63 (laptop)`, 'laptop').openTrain).toBe('');
+    expect(workerActivity(`${t(1)} claim train 66 (laptop)
+${t(2)} done train 65 (laptop)
+${t(40)} claim train 63 (laptop)`, 'laptop').openTrain).toBe('66');
   });
   it('beside the laptop own train a different train passes the gate at once, the same train does not', () => {
     const base = { laptop: workerActivity(running, 'laptop'), now: NOW, silentMs: 10 * MIN, trainAgeMs: 5 * MIN, graceMs: 2 * MIN };

@@ -524,10 +524,12 @@ export function workerActivity(logText, worker) {
     const e = /^(claim|done|release) train (\d+)\b/.exec(m[2]);
     if (e && !(seen.get(e[2])?.t >= t)) seen.set(e[2], { t, open: e[1] === 'claim' });
   }
-  let openTrain = '';
-  let openAt = -Infinity;
-  for (const [n, e] of seen) if (e.open && e.t > openAt) { openTrain = n; openAt = e.t; }
-  return { last, trainClaims, openTrain };
+  // only the NEWEST train claim counts: an older claim whose done push was lost must never look open for good (checker FIX)
+  let newest = '';
+  let newestAt = -Infinity;
+  for (const [n, e] of seen) if (e.open && e.t > newestAt) { newest = n; newestAt = e.t; }
+  for (const e of seen.values()) if (e.t > newestAt) newest = ''; // a later done / release of any train: the laptop moved on
+  return { last, trainClaims, openTrain: newest };
 }
 
 /**
