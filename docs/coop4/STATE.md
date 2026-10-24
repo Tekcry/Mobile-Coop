@@ -3,6 +3,9 @@
 Brief: `docs/coop4/BRIEF.md`. Plan: `docs/coop4/PLAN.md`. Branch `feature/coop4` (from master a10382bc, 4.89.x, `PROTOCOL_VERSION` 49). Lead: Night Shift | Sector Ops Build.
 
 ## Now (2026-10-24 ~18:10, after the account swap)
+- ~19:20 ALONE on 3f1c946f: sectorops 7 PASS, 9 PASS, 8 FAIL ("slot 2 drops and rejoins ... put back where it stood" timed
+  out; page 2 at (-21.05, 0.02, -24.02), a checkpoint-ring spot). IN FLIGHT: Opus triage + fix on feature/coop4
+  (checks/p8-rejoin-fix.md). Then rerun the alone set on the fix head, merge the fix into -pol, queue pol's alone set.
 - #317 laptop on 3f1c946f: laptop-e2e/coop4 PASS 14/14 (1342 s, 18:11); alone set (sectorops 7-9, request ...-3f1c946f-fbd4)
   still unclaimed in the queue at 19:00. coop4-pol regular set PASS 8/8 (989 s) on 1f61b0af. lightField alloc flake fix
   134f6abe on -pol (orchestrator cherry-picked it as #327).
