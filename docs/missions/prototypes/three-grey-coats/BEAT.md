@@ -1,6 +1,7 @@
 # Three Grey Coats - beat chart (campaign prototype, 2 players)
 
-Map: Tallow Wharf (A18). Route W1 night market -> W2 arcade lofts -> W4 wharf sheds (`mission.start` = W1).
+Map: Tallow Wharf (A18). Route W1 night market -> W2 arcade lofts -> W3 counting-house roof (crossing only, no step) ->
+W4 wharf sheds (`mission.start` = `w1-canal-steps`, `sections` W1 W2 W3 W4; Graph notes).
 Sources: PLAN 2 (step kinds, rules), PLAN 4a (kit), audit 4-5, research 3 (Lady Boyle, Freelancer), `docs/story.md`.
 
 ## Premise
@@ -91,10 +92,41 @@ Size classes: S = short side 6-10 m, M = 10-20 m, L = over 20 m (play space >= 6
 - W2 pawnbroker's loft: S, decoy Fenn plus the optional rota desk. W2 pie shop (ground): decoy Garrow.
 - W2 lightwell: 3-4 m gap between south and north lofts (team throw); the arcade roof skylight is the W2 vantage.
 - W2 clock-mender's back loft: S, Teale's bolt point, reached only over the lightwell or the roofs.
-- W2 -> W4 link: the arcade roof to the crane gantry (TGC enters W4 high; TKL enters W4 from W3).
+- W2 -> W3 -> W4 (no TGC step in W3): a team throw over the arcade lane from the arcade roof to the counting-house roof,
+  a rope from the coal yard hoist beam down into the coal yard (one braces), out the cartway to the wharf back lane,
+  then up the crane's leg ladder to the gantry (TGC enters W4 from the lane and climbs high; TKL enters W4 the same way).
 - W4 crane gantry: M, the W4 vantage over the shed yard and jetty; rope anchor above shed three's roof hatch.
 - W4 shed three: M, tea chests, lit loading door (step 4 `seen_from` the gantry), dark side aisle.
 - W4 shed yard: L, the minders' walking pair after the twist; W4 jetty and boat: S extraction zone, pull-up lip from the canal ledge
   (height per KIT-PULL).
 
-SIGNOFF question (placeholder): "Approve this beat chart?"
+## Graph notes (graph.json, 2026-10-25)
+- Files: `graph.json` holds the mission nodes only (`mission`, `objectives[]`, `rules[]`) on the map ids of
+  `campaign-map/graph.json`. Validator (mission-validator branch, map + mission merged): 0 ERR, 6 WARN, all from the
+  map's own spaces: `room_class custom` on w1-canal-steps (an 8 x 10 landing, under the yard minimum), w2-arcade-roof and
+  w3-roof (roof walks), w3-chute (a crouch duct) and w4-boat (a boat deck), plus w3-chute's 1.2 m width being off the
+  0.5 m grid (the scale sheet's duct is 1.2 x 1.5). The mission nodes add none.
+- Renames (BEAT name -> map id): arcade roof skylight -> `w2-arcade-roof`; loft window -> `w2-lane-window`; jetty and
+  boat -> `w4-jetty` + `w4-boat` (the boat is the exfil); fish hall service shutter -> the shutter link
+  `w1-fish-hall` -> `w1-service-passage`; lightwell -> two `team_throw` links (pawn loft -> reading room, pie loft ->
+  clock loft); coal chute -> `w3-chute`; every other space -> its BEAT name with a section prefix (`w1-market`,
+  `w2-reading-room`, `w2-clock-loft`, `w4-shed-three` and so on).
+- Route: the validator's spine is a straight chain W1 -> W2 -> W3 -> W4, so TGC cannot skip W3. `mission.sections` lists
+  all four. W3 has no step: `w3-roof`, the hoist-beam rope into `w3-coal-yard` (W3's forced co-op move for this
+  mission), out `w3-cartway` to `w4-back-lane`, then the crane leg ladder to `w4-gantry`. The top-level `route` in
+  graph.json lists the spaces both players use (gold in PLAN.svg); it is not a validator field.
+- Budget 20 min: the steps add up to 19 (21 with the optional), plus about 1 min for the W3 crossing.
+- Leads and views per step (`lead` / `seen_from`): 1 the canal steps for both (the lit clock). 2 the objective space
+  is the warden's office (the tally book); its `lead` is the tea stall (the other half); `seen_from` is the gallery
+  (the lit office door at its north end). 3 the arcade (the umbrella going up the public stair) / the loft walkway
+  (the reading room lamp). Optional: the walkway for both (the lit rota desk). 4 Teale's answer in the reading room /
+  the gantry (shed three's lit loading door). 5 extraction, exempt; `lead` set to the gantry (the crane's red lamp).
+- `new_mechanic`: `split_leads` (step 2), `named_target` (step 3). Intel -> exploit: `tgc-courier` (2 -> 3) and
+  `tgc-chest` (3 -> 4). The twist is step 4.
+- Ghost route (no loud link): into the reading room by the lightwell throw, not the lit public stair. Out of shed three
+  through shed two's canal door, not the lit loading door. Onto the boat by the gangway, not the jetty steps.
+- Not validator fields: `target` `tgc-teale`, `decoys` `tgc-fenn` / `tgc-garrow`, and `bolt` [65, 4.5, 76.75] (the
+  middle of `w2-clock-loft`) on step 3, for GB5's MissionDef (PLAN 2).
+- The map's guard counts and phases may still change; the mission uses only space ids.
+
+SIGNOFF question: see `SIGNOFF.md` ("Approve Three Grey Coats as specced?").
