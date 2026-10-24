@@ -441,59 +441,95 @@ const TRAV: Partial<Record<TraverseKind, readonly number[]>> = {
 
 const acc = new Float64Array(12);
 
-/** Index and fraction of `v` on the knots (clamped). Writes `kn`. */
-const kn = { i: 0, f: 0 };
-function knot(ks: readonly number[], v: number): void {
+// The helpers' doubles (value, weight, knot fraction, the frame) go through `sc`, never through a parameter: V8 boxes a
+// double passed to a call it does not inline (a 16 B HeapNumber), and which of these helpers Turbofan inlines into a
+// caller varies run to run (the allocation test read 51.9, 67.8 or 80.5 B a call on the same code). Only Smis and
+// objects cross a call, so `playerBody` allocates nothing whatever is inlined.
+const SV = 0; // the value on the knots (knot, add1, addMove: the speed; add2: the outer value)
+const SV2 = 1; // add2's inner value
+const SW = 2; // the weight
+const SF = 3; // the knot's fraction (knot writes it, add reads it)
+const BX = 4; // the frame (put): the body's base, the yaw's sin / cos, the height scale, the mirror
+const BY = 5;
+const BZ = 6;
+const SN = 7;
+const CS = 8;
+const SK = 9;
+const MR = 10;
+const sc = new Float64Array(11);
+/** The knot's index (knot writes it). */
+const ki = new Int32Array(1);
+
+/** Index (`ki[0]`) and fraction (`sc[SF]`) of `sc[slot]` on the knots (clamped). */
+function knot(ks: readonly number[], slot: number): void {
+  const v = sc[slot]!;
   const n = ks.length;
   if (v <= ks[0]!) {
-    kn.i = 0;
-    kn.f = 0;
+    ki[0] = 0;
+    sc[SF] = 0;
     return;
   }
   if (v >= ks[n - 1]!) {
-    kn.i = n - 2;
-    kn.f = 1;
+    ki[0] = n - 2;
+    sc[SF] = 1;
     return;
   }
   let i = 0;
   while (i < n - 2 && v > ks[i + 1]!) i++;
-  kn.i = i;
-  kn.f = (v - ks[i]!) / (ks[i + 1]! - ks[i]!);
+  ki[0] = i;
+  sc[SF] = (v - ks[i]!) / (ks[i + 1]! - ks[i]!);
 }
 
-/** acc += w x (row i of `t` blended to row i + 1 by f), rows of 12. */
-function add(t: readonly number[], w: number, i: number, f: number): void {
+/** acc += sc[SW] x (row i of `t` blended to row i + 1 by sc[SF]), rows of 12. */
+function add(t: readonly number[], i: number): void {
+  const w = sc[SW]!;
   if (w === 0) return;
+  const f = sc[SF]!;
   const a = i * 12;
   const b = a + 12;
   const g = 1 - f;
   for (let k = 0; k < 12; k++) acc[k] = acc[k]! + w * (g * t[a + k]! + (f > 0 ? f * (t[b + k] ?? 0) : 0));
 }
 
-/** acc += w x the table `t` over the knots `ks` at `v`. */
-function add1(t: readonly number[], ks: readonly number[], v: number, w: number): void {
-  if (w === 0) return;
-  knot(ks, v);
-  add(t, w, kn.i, kn.f);
+/** acc += sc[SW] x row `i` of `t` (a fraction of 0). */
+function addRow(t: readonly number[], i: number): void {
+  sc[SF] = 0;
+  add(t, i);
 }
 
-/** acc += w x the speed table `t` at `sp` (scaled down to 0 below the first knot). */
-function addMove(t: readonly number[], ks: readonly number[], sp: number, w: number): void {
+/** acc += sc[SW] x the table `t` over the knots `ks` at sc[SV]. */
+function add1(t: readonly number[], ks: readonly number[]): void {
+  if (sc[SW] === 0) return;
+  knot(ks, SV);
+  add(t, ki[0]!);
+}
+
+/** acc += sc[SW] x the speed table `t` at sc[SV] (scaled down to 0 below the first knot). Overwrites sc[SW]. */
+function addMove(t: readonly number[], ks: readonly number[]): void {
+  const w = sc[SW]!;
+  const sp = sc[SV]!;
   if (w === 0 || sp <= 0.01) return;
   const k0 = ks[0]!;
-  add1(t, ks, sp, sp < k0 ? (w * sp) / k0 : w);
+  sc[SW] = sp < k0 ? (w * sp) / k0 : w;
+  add1(t, ks);
 }
 
-/** acc += w x the 2D table `t` (rows over `ka` outer, `kb` inner) at (a, b). */
-function add2(t: readonly number[], ka: readonly number[], kb: readonly number[], a: number, b: number, w: number): void {
+/** acc += sc[SW] x the 2D table `t` (rows over `ka` outer, `kb` inner) at (sc[SV], sc[SV2]). Overwrites sc[SW]. */
+function add2(t: readonly number[], ka: readonly number[], kb: readonly number[]): void {
+  const w = sc[SW]!;
   if (w === 0) return;
-  knot(ka, a);
-  const ia = kn.i;
-  const fa = kn.f;
-  knot(kb, b);
+  knot(ka, SV);
+  const ia = ki[0]!;
+  const fa = sc[SF]!;
+  knot(kb, SV2);
   const nb = kb.length;
-  add(t, w * (1 - fa), ia * nb + kn.i, kn.f);
-  if (fa > 0) add(t, w * fa, (ia + 1) * nb + kn.i, kn.f);
+  const ib = ki[0]!;
+  sc[SW] = w * (1 - fa);
+  add(t, ia * nb + ib);
+  if (fa > 0) {
+    sc[SW] = w * fa;
+    add(t, (ia + 1) * nb + ib);
+  }
 }
 
 /**
@@ -505,13 +541,24 @@ export function playerBody(i: PlayerBodyIn, out: PlayerBodyOut): PlayerBodyOut {
   const trav = i.traverse !== 'none' ? TRAV[i.traverse] : undefined;
   let mirror = 1;
   if (trav) {
-    if (trav.length === 12) add(trav, 1, 0, 0);
-    else add1(trav, FIT_T9, i.traverseT, 1);
+    if (trav.length === 12) {
+      sc[SW] = 1;
+      addRow(trav, 0);
+    } else {
+      sc[SV] = i.traverseT;
+      sc[SW] = 1;
+      add1(trav, FIT_T9);
+    }
   } else if (i.wall) {
-    const pe = Math.max(0, Math.min(1, i.peek));
-    add2(i.drawn ? WALL_D : WALL_H, FIT_CW, FIT_PE3, c, pe, 1);
-    addMove(SLIDE_0, SP_WALL0, i.speed, 1 - c);
-    addMove(SLIDE_1, SP_WALL1, i.speed, c);
+    sc[SV] = c;
+    sc[SV2] = Math.max(0, Math.min(1, i.peek));
+    sc[SW] = 1;
+    add2(i.drawn ? WALL_D : WALL_H, FIT_CW, FIT_PE3);
+    sc[SV] = i.speed;
+    sc[SW] = 1 - c;
+    addMove(SLIDE_0, SP_WALL0);
+    sc[SW] = c;
+    addMove(SLIDE_1, SP_WALL1);
     mirror = i.wallSide < 0 ? -1 : 1;
   } else {
     const d = i.drawn ? 1 : 0;
@@ -519,47 +566,70 @@ export function playerBody(i: PlayerBodyIn, out: PlayerBodyOut): PlayerBodyOut {
     const wh = 1 - d;
     const wl = d * (1 - r);
     const p = Math.max(-0.5, Math.min(0.5, i.pitch));
-    add1(STILL_H, FIT_C5, c, wh);
-    add1(STILL_L, FIT_C5, c, wl);
-    add2(STILL_A, FIT_C3, FIT_P5, c, p, r);
+    sc[SV] = c;
+    sc[SW] = wh;
+    add1(STILL_H, FIT_C5);
+    sc[SW] = wl;
+    add1(STILL_L, FIT_C5);
+    sc[SV2] = p;
+    sc[SW] = r;
+    add2(STILL_A, FIT_C3, FIT_P5);
     if (i.kneel) {
-      add(KNEEL_H, wh, 0, 0);
-      add(KNEEL_L, wl, 0, 0);
-      add1(KNEEL_A, FIT_P5, p, r);
+      sc[SW] = wh;
+      addRow(KNEEL_H, 0);
+      sc[SW] = wl;
+      addRow(KNEEL_L, 0);
+      sc[SV] = p;
+      sc[SW] = r;
+      add1(KNEEL_A, FIT_P5);
     } else if (i.speed > 0.01) {
-      addMove(MOVE_H0, SP_STAND, i.speed, wh * (1 - c));
-      addMove(MOVE_H1, SP_CROUCH, i.speed, wh * c);
-      addMove(MOVE_L0, SP_STAND, i.speed, wl * (1 - c));
-      addMove(MOVE_L1, SP_CROUCH, i.speed, wl * c);
+      sc[SV] = i.speed;
+      sc[SW] = wh * (1 - c);
+      addMove(MOVE_H0, SP_STAND);
+      sc[SW] = wh * c;
+      addMove(MOVE_H1, SP_CROUCH);
+      sc[SW] = wl * (1 - c);
+      addMove(MOVE_L0, SP_STAND);
+      sc[SW] = wl * c;
+      addMove(MOVE_L1, SP_CROUCH);
       // aimed: ahead / back and the strafe, by the travel's sideways share
       const sd = Math.max(0, Math.min(1, i.strafe));
-      addMove(MOVE_AF0, SP_AIM, i.speed, r * (1 - c) * (1 - sd));
-      addMove(MOVE_AS0, SP_AIM, i.speed, r * (1 - c) * sd);
-      addMove(MOVE_AF1, SP_AIM, i.speed, r * c * (1 - sd));
-      addMove(MOVE_AS1, SP_AIM, i.speed, r * c * sd);
+      sc[SW] = r * (1 - c) * (1 - sd);
+      addMove(MOVE_AF0, SP_AIM);
+      sc[SW] = r * (1 - c) * sd;
+      addMove(MOVE_AS0, SP_AIM);
+      sc[SW] = r * c * (1 - sd);
+      addMove(MOVE_AF1, SP_AIM);
+      sc[SW] = r * c * sd;
+      addMove(MOVE_AS1, SP_AIM);
     }
   }
-  const k = i.height / PLAYER_OPERATOR_HEIGHT;
-  const s = Math.sin(i.yaw);
-  const co = Math.cos(i.yaw);
-  const bx = i.x + (trav ? i.liftX : 0);
-  const by = i.y + (trav ? i.liftY : 0);
-  const bz = i.z + (trav ? i.liftZ : 0);
-  put(out.pelvis, 0, bx, by, bz, s, co, k, mirror);
-  put(out.chest, 3, bx, by, bz, s, co, k, mirror);
-  put(out.neck, 6, bx, by, bz, s, co, k, mirror);
-  put(out.head, 9, bx, by, bz, s, co, k, mirror);
+  sc[SK] = i.height / PLAYER_OPERATOR_HEIGHT;
+  sc[SN] = Math.sin(i.yaw);
+  sc[CS] = Math.cos(i.yaw);
+  sc[BX] = i.x + (trav ? i.liftX : 0);
+  sc[BY] = i.y + (trav ? i.liftY : 0);
+  sc[BZ] = i.z + (trav ? i.liftZ : 0);
+  sc[MR] = mirror;
+  put(out.pelvis, 0);
+  put(out.chest, 3);
+  put(out.neck, 6);
+  put(out.head, 9);
   return out;
 }
 
-function put(o: V3, a: number, bx: number, by: number, bz: number, s: number, c: number, k: number, mirror: number): void {
-  const side = acc[a]! * k * mirror;
+/** Joint `a` (acc[a .. a + 2]: side, up, forward) to world, in the frame `sc[BX .. MR]`. */
+function put(o: V3, a: number): void {
+  const k = sc[SK]!;
+  const s = sc[SN]!;
+  const c = sc[CS]!;
+  const side = acc[a]! * k * sc[MR]!;
   const up = acc[a + 1]! * k;
   const fwd = acc[a + 2]! * k;
   // right (cos, -sin), forward (sin, cos)
-  o.x = bx + side * c + fwd * s;
-  o.y = by + up;
-  o.z = bz - side * s + fwd * c;
+  o.x = sc[BX]! + side * c + fwd * s;
+  o.y = sc[BY]! + up;
+  o.z = sc[BZ]! - side * s + fwd * c;
 }
 
 /** The peek's share from an eased peek amount (the owner's smoothstep, `poseFromMoveState`'s lean). */
