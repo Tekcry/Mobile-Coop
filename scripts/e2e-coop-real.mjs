@@ -97,6 +97,19 @@ async function smoke() {
     const aa = await L.aimAt(h.A, 'kbm', [me.x + Math.sin(yaw) * 10, me.y + 1.5, me.z + Math.cos(yaw) * 10], { tol: 0.02 }).catch((e) => ({ r: e.message }));
     console.log(`  (host aimAt by mouse, 100 deg right, past the viewport edge: ${JSON.stringify(aa)})`);
     L.assert(ab.r === 'ok' && aa.r === 'ok', 'aimAt by stick and by mouse both converge');
+    // (lead note) one aimed shot each: LT / right button held to ADS, then the trigger / left button
+    for (const [P, who, tag] of [[h.B, 'pad', 'client'], [h.A, 'kbm', 'host']]) {
+      const f = await L.fireOne(P, who, 4000, { ads: true });
+      L.assert(f.ads && f.after > f.before, `${tag} fires one aimed round by ${who} (ADS ${f.ads}, shots ${f.before} -> ${f.after})`);
+    }
+    // (lead note) the co-op pause-menu restart by keys on the host; the client stays in the match
+    await L.waitHostSim(h.A, 500);
+    const r0 = await L.read(h.A, () => window.__app.current.time);
+    await L.pauseRestart(h.A, 'kbm');
+    await L.inMatch(h.B, 'client after the host restart');
+    const r1 = await L.read(h.A, () => ({ t: window.__app.current.time, top: window.__app.screens.top?.el?.className ?? null }));
+    console.log(`  (host pause restart: sim ${r0.toFixed(1)} -> ${r1.t.toFixed(1)}, top screen ${r1.top})`);
+    L.assert(r1.top === null, 'host "Restart at checkpoint" by keys: back in play, the client still in the match');
     const errs = L.gameErrors(h);
     L.assert(errs.length === 0, `smoke: no console errors (${errs.slice(0, 3).join(' | ')})`);
   } finally {

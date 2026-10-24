@@ -475,13 +475,24 @@ async function mouseAim(P, tgt, tol, maxS) {
 export const shotCount = (P) => P.evaluate(() => window.__app.current.weapons.shotCount);
 
 /** Fire one round on `who`'s device: hold the trigger / left button until `shotCount` steps (sim `timeout`). Returns
- *  { before, after, t } (t: the page's sim time at the step). */
-export async function fireOne(P, who, timeout = 4000) {
+ *  { before, after, t, ads } (t: the page's sim time at the step). `ads`: aim first (LT / right button held until
+ *  `player.ads`, released after the shot), as a player fires a pistol. */
+export async function fireOne(P, who, timeout = 4000, { ads = false } = {}) {
   const before = await shotCount(P);
-  await holdUntil(P, who, 'fire', (n) => window.__app.current.weapons.shotCount > n, before, `${who} fires one round`, timeout);
+  if (ads) await hold(P, who, 'ads', true);
+  let aimed = false;
+  try {
+    if (ads) {
+      await until(P, () => window.__app.current.player.ads === true, null, 3000, `${who} aims down sights`);
+      aimed = true;
+    }
+    await holdUntil(P, who, 'fire', (n) => window.__app.current.weapons.shotCount > n, before, `${who} fires one round`, timeout);
+  } finally {
+    if (ads) await hold(P, who, 'ads', false);
+  }
   const after = await shotCount(P);
   const t = await P.evaluate(() => window.__app.current.time);
-  return { before, after, t };
+  return { before, after, t, ads: aimed };
 }
 
 // ------------------------------------------------------------------------------------------------- pickRow

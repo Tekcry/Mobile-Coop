@@ -302,6 +302,35 @@ export async function faceTo(P, who, yaw) {
   return { r: 'ok' };
 }
 
+/** Page-side: the page is in a modal view (optic cable, door peek, a remote / cam view, the gadget wheel). */
+const inModal = () => {
+  const g = window.__app.current;
+  return !!(g?.optic?.active || g?.doorPeek?.active || g?.gadgets?.remote || g?.gadgets?.wheelOpen);
+};
+
+/**
+ * Back out of a modal view on page P by input: crouch (B / C: optic, remote view), then the stick pulled back (pad left
+ * stick down / S held: door peek, optic), up to 4 tries. Never Esc (that opens the pause menu). Returns true when none
+ * is left.
+ */
+export async function leaveModal(P, who) {
+  for (let i = 0; i < 4; i++) {
+    if (!(await P.evaluate(inModal))) return true;
+    if (i % 2 === 0) await tap(P, who, 'crouch');
+    else if (who === 'pad') {
+      await P.evaluate(() => window.__pad.axis(1, 1));
+      await waitHostSim(P, 450).catch(() => {});
+      await P.evaluate(() => window.__pad.axis(1, 0));
+    } else {
+      await P.keyboard.down('KeyS');
+      await waitHostSim(P, 450).catch(() => {});
+      await P.keyboard.up('KeyS');
+    }
+    await until(P, `() => !(${inModal})()`, null, 1500, 'the modal view closes').catch(() => {});
+  }
+  return !(await P.evaluate(inModal));
+}
+
 /**
  * (PLAN "Sweep", PLAN-CHECK 3) The sweep at a route stop: on each page in `pages` ([[P, who], ...]), face 8 headings and
  * read every prompt (`prompts`); then run each prompt once (by label) through `runRow`, at the heading where it showed,
@@ -314,33 +343,64 @@ export async function sweepStop(h, stop, { pages = [[h.A, 'kbm'], [h.B, 'pad']],
   const noise = await controlWindow(h);
   const out = [];
   const skipOf = skip ?? ((p) => DESTRUCTIVE.test(p.label) || (p.src === 'world' && !WORLD_PROMPT_INPUT[p.id]));
+  const exact = (label) => new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
   for (const [P, who] of pages) {
     const side = P === h.A ? 'host' : 'client';
     const seen = new Map();
-    const base = (await me(P)).yaw;
-    for (let k = 0; k < headings; k++) {
-      const yaw = base + (k * 2 * Math.PI) / headings;
-      await faceTo(P, who, yaw).catch(() => {});
-      for (const p of await prompts(P)) {
+    const note = (yaw, list) => {
+      for (const p of list) {
         const key = `${p.src}:${p.label}`;
         if (!seen.has(key)) seen.set(key, { p, yaw });
       }
-    }
-    console.log(`  sweep ${stop} [${variant}] ${side}: ${seen.size} prompt(s): ${JSON.stringify([...seen.keys()])}`);
-    for (const [key, { p, yaw }] of seen) {
-      const id = `${side}:${key}`;
-      if (done.has(id) || skipOf(p)) continue;
-      done.add(id);
-      const r = { page: side, heading: +yaw.toFixed(2), prompt: key, ok: true, err: '' };
-      try {
+    };
+    const base = (await me(P)).yaw;
+    const scan = async () => {
+      for (let k = 0; k < headings; k++) {
+        const yaw = base + (k * 2 * Math.PI) / headings;
         await faceTo(P, who, yaw).catch(() => {});
-        await runRow(h, P, who, new RegExp(`^${p.label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i'), { noise });
+        note(yaw, await prompts(P));
+      }
+    };
+    await scan();
+    console.log(`  sweep ${stop} [${variant}] ${side}: ${seen.size} prompt(s): ${JSON.stringify([...seen.keys()])}`);
+    // (lead note, C1 brief) a row changes the world (a door opened turns "Open door" into "Close door"; an optic row
+    // leaves the page in a modal view), so the list is re-read before each row: after a row the page backs out of any
+    // modal view, the rows at that heading are added, and a queued row no longer offered at its heading is looked for
+    // over a fresh scan; one still absent is recorded as gone (not dead).
+    for (let n = 0; n < 40; n++) {
+      const next = [...seen].find(([key, { p }]) => !done.has(`${side}:${key}`) && !skipOf(p));
+      if (!next) break;
+      const [key, { p, yaw }] = next;
+      done.add(`${side}:${key}`);
+      const r = { page: side, heading: +yaw.toFixed(2), prompt: key, ok: true, err: '' };
+      await faceTo(P, who, yaw).catch(() => {});
+      if (!(await prompts(P)).some((x) => `${x.src}:${x.label}` === key)) {
+        await scan();
+        const at = [...seen].find(([k]) => k === key)?.[1];
+        let found = false;
+        if (at) {
+          await faceTo(P, who, at.yaw).catch(() => {});
+          found = (await prompts(P)).some((x) => `${x.src}:${x.label}` === key);
+        }
+        if (!found) {
+          r.gone = true;
+          out.push(r);
+          continue;
+        }
+      }
+      try {
+        await runRow(h, P, who, exact(p.label), { noise });
       } catch (e) {
         r.ok = false;
         r.err = String(e.message).split('\n')[0];
       }
       out.push(r);
+      const left = await leaveModal(P, who);
+      if (!left) console.log(`  (sweep ${stop} ${side}: still in a modal view after "${key}")`);
+      note((await me(P)).yaw, await prompts(P));
     }
+    const gone = out.filter((r) => r.page === side && r.gone).map((r) => r.prompt);
+    if (gone.length) console.log(`  sweep ${stop} [${variant}] ${side}: gone after an earlier row: ${JSON.stringify(gone)}`);
   }
   const bad = out.filter((r) => !r.ok);
   for (const r of bad) console.log(`  SWEEP FAIL ${stop} [${variant}] ${r.page} "${r.prompt}": ${r.err}`);
