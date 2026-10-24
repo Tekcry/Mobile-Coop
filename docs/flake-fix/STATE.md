@@ -3,6 +3,26 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 46 (2026-10-25 ~09:00, before the ~09:10 cap, reset 13:10; wins over SAVE 45 where they differ):**
+- Master 4.100.3 6c3f4a87 (train 78 green 43/43). #374 re-labelled train-ready by the Orchestrator (head 283daf5d).
+- Queued for the gap (pinned, on 6c3f4a87): ...-c55f full-41003, ...-10bf full-41003-r2, ...-bcd3 gpu-41003
+  (npm run e2e:gpu), ...-3471 guard-cap-41003 (-> scratch/guard-cap/r41003-campus / -so), ...-d42f soak-flaky-41003
+  (e2e-coop + e2e-pad x3). Still from 08:23 on 833db92e: d088 full (running 08:36), fb83 perf-campus-x3, b82d
+  soak-coop, 43db guard-cap ct24/c32, 40a4 flake-repeat-t76 (course / netmove / ctcourse:1 / :3 x3).
+  On resume: read scratch/laptop-queue/runs/<id>/; flake rates to owners (e2e-coop / e2e-pad Player Build; course /
+  ctcourse Marlow; netmove Player Build); quarantine or fix-request per run; guard-cap -> feature/guard-cap-results
+  run-41002/ and run-41003/; perf medians into the guard-render PLAN2 note.
+- feature/laptop-queue-5 (worktree C:/NightShift/Mobile-Coop-laptop-queue-5, stacked on #374 283daf5d), pushed
+  d3f77714: request.mjs --suites split + unknown-suite refusal, auto-train tier-2/3 confirm rerun before a drop,
+  laptop spare work after LQ_SPARE_IDLE_MIN idle (docs/laptop-queue/spare-jobs.json). 302 unit tests pass. A fresh
+  Opus checker was running at the save: if no verdict in git, rerun the checker on 283daf5d..origin/feature/laptop-queue-5,
+  then PR (base master once #374 merges, else base feature/laptop-queue-4), train-ready message to the Orchestrator.
+- Desktop svc (Orchestrator's): it follows origin/feature/laptop-queue; steps sent (checkout origin/master, re-run
+  install-task.ps1 -Worker desktop -DesktopCpu 80 -DesktopBacklog 0).
+- Laptop cleanup DONE: 54 worktrees removed (scratch/wt-removed.log), C:/NightShift 70.2 -> 43.7 GB.
+- guard-cap C2 (Marlow's PLAN2 addition): gate open items #317, C1 (waits #375 + #317), Guard AI shadow rule;
+  --query on origin/feature/guard-cap d76b5372. Plan in SAVE 45 below.
+
 **Test Runner SAVE 45 (2026-10-25 ~08:30, new account; wins over SAVE 44 where they differ). FULL BURN (Michael ~08:25):**
 - Master 4.100.2 833db92e; train 78 93aa87ac (#380 bake-abort, 4.100.3) running sharded 4189+4192 from 08:22.
   Service live (pid 1380). No locks held. Plain C:/NightShift/Mobile-Coop is on feature/training-bunker with a
