@@ -3,12 +3,8 @@ Purpose: every npm command, the headless e2e suites with what each checks, the h
 Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then docs/design-bible.md (Section 9).
 
 ## Commands
-- `npm run dev` - dev server (`vite --host`, also reachable on the LAN)
-- `npm run editor` - the Kestrel level editor on this PC (`editor.html`, port 5199, dev server only; docs/kestrel/editor.md)
-- `npm run build` - typecheck + production build into `dist/`
-- `npm test` - Vitest unit tests (node env, `fake-indexeddb` for save tests)
-- `npm run lint` - ESLint (typescript-eslint)
-- `npm run check` - lint + tests + build (what every job end must pass)
+The core commands (dev, build, typecheck, test, lint, check, e2e and its variants): `docs/RULES.md` "Commands". Also:
+- `npm run dev` serves with `vite --host` (also reachable on the LAN); `npm run editor` opens `editor.html` on port 5199
 - `npm run icons` - regenerate procedural PWA icons into `public/icons/`
 - `npm run sfx:fetch` / `sfx:render` (movement foley), `sfx:fetch-weapons` / `sfx:render-weapons` (weapon sounds),
   `music:fetch` / `music:orch` (the score): download the CC0 sources (SHA-256 checked) into git-ignored caches and
@@ -18,16 +14,11 @@ Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then
   `npm run e2e:audio` - the audio suites; `npm run e2e:gpu` - the visual read-backs (Michael's PC, `E2E_GPU=1` only);
   `npm run e2e:editor` - the level editor suite (not required).
 
-## Test tiers (process audit, approved by Michael 2026-10-19; CLAUDE.md "Sessions" is the rule)
-| Change | Runs | Where |
-| --- | --- | --- |
-| Docs only (`*.md`, `docs/**`) | nothing; CI's `npm run check` on the PR is enough | any machine |
-| A step | `npm run check` once at the step's end + the suites the step names, or `e2e:quick` | desktop, or the laptop test runner when the desktop lock is held (CLAUDE.md "Machines") |
-| A slice (a playtestable batch pushed to a preview) | `e2e:quick` + `e2e-ctcourse`, plus `e2e-coop` / `e2e-netmove` when `src/net`, `src/player` or `src/game` changed | desktop, or the laptop test runner on the pushed commit |
-| A PR / merge to master | the full `npm run e2e` once on the PR head (`E2E_JOBS=2`, nothing else running) + CI `check`; after the merge nothing more unless a conflict fix touched `src/` (then quick) | desktop, or the laptop test runner (`E2E_JOBS=1`, slower) when the desktop is busy |
-| Visual or perf work | `npm run e2e:gpu`, perf budgets, contact sheets | Michael's PC only |
-- One runner per machine: never two e2e runners, or a `check` beside a full run (the 2026-10-19 full run overlapped
-  another job's runner and an orphan `check` and read 30-60 % slow).
+## Test tiers
+Which change runs what, where, and on which machine: `docs/RULES.md` "Test tiers" and "Machines" (the only owner).
+This page lists the suites and how they are picked.
+
+## Stale literals in asserts
 - Asserts that copy a tuning value go stale when the table changes (the holster budget read 400 ms against
   `HOLSTER_TIME` 0.55). Read the number from the game's own table (through `window.__app`) instead of a literal when a
   suite is next touched. Known literals: e2e-netmove's walk-off (1.55 m in 6 s, crouched), e2e-ctcourse's 12 s leg-up
@@ -45,9 +36,9 @@ Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then
   sets in sequence (test-speed A3). `scripts/e2e-times.json` holds 150 s per part as an estimate until a clean full run
   rewrites it (pending laptop run). `e2e-sectorops` runs as `e2e-sectorops:1` to `:5` (sector-fixes-r RE: the suite before slice R, the
   solo route checks, the co-op routes of sections 1-3); named alone it runs all five in sequence.
-- Pool size: default min(5, cores / 3) (`--jobs=N` / `E2E_JOBS`); use `E2E_JOBS=2` on Michael's 8-thread desktop and on
-  cloud VMs (two suites at a time, G94).
-- A suite past `E2E_SUITE_TIMEOUT` (default 600 s) is killed and fails. Full runs on this desktop use
+- Pool size: default min(5, cores / 3) (`--jobs=N` / `E2E_JOBS`). The laptop queue sets it per run (the numbers:
+  `docs/RULES.md` "Machines"); cloud VMs use `E2E_JOBS=2`.
+- A suite past `E2E_SUITE_TIMEOUT` (default 600 s) is killed and fails. The laptop queue runs with
   `E2E_SUITE_TIMEOUT=900` (e2e-desktop takes about 553 s and e2e-mouse about 405 s solo).
 - `--quick` (`--since=<ref>`, default: the working tree plus unpushed commits): `smoke` + the suites mapped to the
   changed folders (`QUICK_COVERS` in `scripts/e2e-affected.mjs`, master's map unchanged, first match wins: the studio files (`src/anim/studio*`, `tuneHistory`,
@@ -70,12 +61,7 @@ Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then
   `e2e-kestrel`, `e2e-camera-bounds`, `e2e-security`. AUDIO (`--audio`): `e2e-music`, `e2e-score`, `e2e-foley`,
   `e2e-weapon-audio`. GPU (`--gpu`, refuses without `E2E_GPU=1`): `e2e-darkness`, `e2e-desktop:3`, `e2e-coop-gpu`. REPORT: `anim-audit`
   (never fails a run; quick picks it for `src/anim`, `src/player`, `src/net`).
-- Known flaky = quarantined (flake budget, process audit 2026-10-24 finding 5): `scripts/e2e-quarantine.json` lists
-  { suite, owner, expiry, reason } (a part like `e2e-sectorops:6` or a whole suite; `e2e-pad` until 2026-11-07) and
-  `owners` (who fixes each suite's flakes); run-e2e also reads `E2E_QUARANTINE_FILE` (the laptop queue's automatic list).
-  A quarantined suite always runs; until its expiry its failure prints KNOWN FLAKY (owner, expiry) and does not fail the
-  run. An expired entry counts again. Add an entry only with an owner, an expiry and the failure written up (backlog).
-  Any other failure counts only if it also fails in a solo rerun.
+- Flaky and quarantined suites: "Flakes and quarantine" below.
 - The two-page suites (e2e-coop, e2e-netmove, e2e-ctcourse, e2e-course) wait on the pages' own sim clocks
   (`e2e-net-lib.mjs` `until` / `waitSim`, `setSimPages`): on software GL the sim runs at a fraction of real time
   (at most 4 fixed steps per rendered frame), so a wall-clock timeout expired mid-move. A wall cap (10 x the timeout,
@@ -132,15 +118,8 @@ Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then
   drops GPU suites and suites without a script.
 
 ## Ports
-Two jobs on one PC never share a port. Each job names its pair in its RULES (G94).
-| Port | Use |
-| --- | --- |
-| 4173 | `e2e-lib` / `anim-audit` / `perf.mjs` default when no url is given |
-| 4179 | `run-e2e.mjs` default (`E2E_PORT`), `scripts/kestrel/render-top.mjs` |
-| 4189 | locomotion run, GPU (`E2E_GPU=1`) runs |
-| 4191 | the consolidation (and the locomotion run's software-GL e2e) |
-| 4195-4199 | the menu-ui job |
-| 5199 | `npm run editor` |
+Which port is for what, and freeing one: `docs/RULES.md` "Ports" (G94). Script defaults when no port or url is given:
+4173 (`e2e-lib`, `anim-audit`, `perf.mjs`) and 4179 (`run-e2e.mjs`, `E2E_PORT`; `scripts/kestrel/render-top.mjs`).
 `E2E_HOST` overrides the host; on Windows the runner binds 127.0.0.1 (`localhost` can resolve to a blocked `::1`
 behind a VPN adapter).
 
@@ -519,8 +498,9 @@ behind a VPN adapter).
   `--check`: exit 0 on success, non-zero when a table is missing or malformed.
 
 ## Laptop queue
-A service on the laptop (`scripts/laptop-queue/service.mjs`, one scheduled task, see `docs/laptop-queue/PLAN.md`) runs
-e2e for you and posts the verdict as a commit status on the tested sha. No message per verdict.
+A service on the laptop (`scripts/laptop-queue/service.mjs`, one scheduled task every minute; its first build plan:
+`docs/archive/laptop-queue-PLAN-2026-10-23.md`, history) runs e2e for you and posts the verdict as a commit status on the
+tested sha. No message per verdict. Slots, job counts and the desktop's gates: `docs/RULES.md` "Machines".
 - Request (from any desktop, never touches your working tree): `node scripts/laptop-queue/request.mjs --sha <ref> [--pr N]
   [--set name] [--jobs N] [--requester "<title>"] (--suites "e2e-coop e2e-netmove" | --full | --alone --step "<cmd>" [--env K=V])`.
   Needs a pushed sha. It pushes `requests/<id>.json` to the `laptop-queue` branch and prints the id. `--dry-run` shows
@@ -560,25 +540,17 @@ e2e for you and posts the verdict as a commit status on the tested sha. No messa
   never supersede each other, and each PR branch takes its turn in arrival order beside the leads' requests. Opt out
   per PR with the label `no-affected-e2e`. Heads older than `LQ_AFFECTED_MAX_AGE_H` (24 h; 0 = no limit) and fork heads
   (no merge-base on the laptop) are skipped. A lead's own `request.mjs --affected` still works as before.
-- Flakes and the flake budget (replaces "flake stands", 2026-10-24): a failed, non-quarantined suite reruns once alone on
-  the same sha; a pass counts as a pass and is logged as a flake (state.json `flakes`, runs per day in `suiteRuns`). A
-  suite may flake 2 times in 7 days (lib `FLAKE_BUDGET`, `FLAKE_BUDGET_DAYS`); the next flake puts it in quarantine for
-  48 h (`C:/NightShift/scratch/laptop-queue/quarantine.json`, owner from `scripts/e2e-quarantine.json` `owners`, else
-  the orchestrator), so later runs print it KNOWN FLAKY instead of rerunning it. `flake-budget.md` in the same folder
-  holds the per-suite rates; a run that flaked or hit a quarantined failure adds that table to its PR comment (a
-  passing run comments only when it recorded a new flake). Only flakes after a suite's last auto quarantine count, so it
-  does not renew on the same flakes. The owner fixes the test and removes or shortens a committed entry; an auto entry
-  just expires. The desktop worker keeps its own list (`laptop-queue-desktop/`). Commits cut before this change ignore
-  `E2E_QUARANTINE_FILE` and keep their hardcoded e2e-pad.
+- Flakes, the flake budget and auto-quarantine: "Flakes and quarantine" below.
 - Manual runs keep working: the service uses the `C:/NightShift/heavy-<slot>.lock` files and waits while one is held; its
   log says "<port> waiting on manual lock: <holder>" once per holder and the wait in minutes when it takes the lock.
 - Desktop overflow lane (Michael 2026-10-23 ~20:45): the same service with `LQ_WORKER=desktop` (task
   `NightShift-desktop-queue`, `install-task.ps1 -Worker desktop`) takes pr requests only, on 4191 in
-  `C:/NightShift/Mobile-Coop-testrun-4191` under `C:/NightShift/heavy.lock`, `E2E_GPU=1 E2E_JOBS=1`, and starts one only
-  while more than 3 requests wait and desktop CPU is under 60%. Full and alone runs stay on the laptop. Trains too, unless
-  the laptop is silent: no claim / done push by the laptop for 10 min (`LQ_LAPTOP_SILENT_MIN`) and the head is over 2 min
-  old; then the desktop takes the train (no backlog gate; lock and CPU gates kept), sharded on 4191+4192, E2E_JOBS=1. Its
-  statuses read "desktop: ..."; logs `C:/NightShift/scratch/laptop-queue-desktop/runs/<id>/` on the desktop.
+  `C:/NightShift/Mobile-Coop-testrun-4191` under `C:/NightShift/heavy.lock` (and 4192 in `...-testrun-4192` under
+  `heavy2.lock`), `E2E_GPU=1 E2E_JOBS=1`. Its start gates (backlog, CPU, lock, laptop silent for trains) are in
+  `docs/RULES.md` "Machines"; the env names are `LQ_DESKTOP_BACKLOG` (service default 3, `install-task.ps1` default 0),
+  `LQ_DESKTOP_CPU` / `LQ_DESKTOP_CPU2` (80; CPU of Normal-priority processes) and `LQ_LAPTOP_SILENT_MIN` (10). Full and
+  alone runs stay on the laptop. Its statuses read "desktop: ..."; logs
+  `C:/NightShift/scratch/laptop-queue-desktop/runs/<id>/` on the desktop.
   While auto-train runs `merge-train build` it writes `<AUTO_TRAIN_SCRATCH or C:/NightShift/scratch>/auto-train-building.json` ({ train, version,
   pid, at }; deleted after); while that file exists and is younger than `LQ_BUILD_MARKER_MAX_MIN` (30) min the desktop
   starts no new request or train (log "train <n> building: no new claims", once per marker; an older one is ignored as
@@ -600,6 +572,27 @@ e2e for you and posts the verdict as a commit status on the tested sha. No messa
   action mentions `C:\NightShift\scratch` or `laptop-runner.ps1`. Log line "task guard: disabled <name> (<state>, <why>)";
   each pass that disabled something pushes `alerts/<ts>-<worker>-tasks.json` ({ worker, disabled, at }) to the `laptop-queue`
   branch for the orchestrator. `--dry-run` logs "would disable" / "keeps" only.
+
+## Flakes and quarantine
+The only owner of the flaky-suite rule (process audit 2026-10-24 finding 5; replaces "flake stands" and the old
+`KNOWN_FLAKY` list in `docs/backlog.md`).
+- What counts: a failure in a quarantined suite before its expiry prints KNOWN FLAKY (owner, expiry) and does not fail
+  the run; the suite still runs. Any other failure counts only if it also fails in a solo rerun on the same sha. A
+  suite that fails and then passes on the same sha is a flake: it counts as a pass, and its owner fixes the test in the
+  next batch PR. A crash or timeout mid-suite is never a pass.
+- Committed quarantine: `scripts/e2e-quarantine.json` lists { suite, owner, expiry, reason } (a part like
+  `e2e-sectorops:6` or a whole suite) and `owners` (who fixes each suite's flakes). Add an entry only with an owner, an
+  expiry and the failure written up in `docs/backlog.md`. An expired entry counts again; the owner removes or shortens
+  the entry once the test is fixed. run-e2e also reads `E2E_QUARANTINE_FILE` (the queue's automatic list below).
+- Auto-quarantine (laptop queue): a failed, non-quarantined suite reruns once alone on the same sha; a pass is logged as
+  a flake (state.json `flakes`, runs per day in `suiteRuns`). A suite may flake 2 times in 7 days (lib `FLAKE_BUDGET`,
+  `FLAKE_BUDGET_DAYS`); the next flake quarantines it for 48 h (`C:/NightShift/scratch/laptop-queue/quarantine.json`,
+  owner from `owners`, else the orchestrator), so later runs print it KNOWN FLAKY instead of rerunning it.
+  `flake-budget.md` in the same folder holds the per-suite rates; a run that flaked or hit a quarantined failure adds
+  that table to its PR comment (a passing run comments only when it recorded a new flake). Only flakes after a suite's
+  last auto quarantine count, so it does not renew on the same flakes; an auto entry just expires. The desktop worker
+  keeps its own list (`laptop-queue-desktop/`). Commits cut before this change ignore `E2E_QUARANTINE_FILE` and keep
+  their hardcoded e2e-pad.
 
 ## GPU runs (Michael's PC only)
 - `E2E_GPU=1 npm run e2e` (or any script, e.g. `E2E_GPU=1 node scripts/perf.mjs --desktop --budget`): `e2e-lib` launches
