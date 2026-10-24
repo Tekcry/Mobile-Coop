@@ -3,7 +3,7 @@
 # Run from any checkout: bash docs/orchestrator/queue-audit.sh
 # Flags each open request (no done claim) on origin/laptop-queue:
 #   STALE   its sha's branch has since changed non-test files (the verdict cannot count): withdraw it
-#   DUP     an older request from the same requester + set: keep the newest only
+#   DUP     an older request from the same requester + set + branch (or PR) with overlapping suites: keep the newest only
 #   BIG     more than 2 suites on a PR whose diff vs master does not touch src/net (CLAUDE.md "Fewer per-PR runs")
 #   CLAIM   claimed more than 90 min ago and not done (stuck claim)
 # A request with "pin": true (deliberate old-sha A/B run) is never flagged STALE or DUP.
@@ -35,8 +35,21 @@ for (let i = 0; i < names.length; i++) {
 const n = reqs.length;
 const first = (s, re) => { const m = s.match(re); return m ? m[1] : ''; };
 const reqOf = j => first(j, /"requester": "([^"]*)"/), setOf = j => first(j, /"set": "([^"]*)"/);
-const newest = {};
-for (let i = 0; i < n; i++) { const s = setOf(out[i]); if (s) newest[reqOf(out[i]) + '|' + s] = ids[i]; }
+// DUP: an open request is a dup only of a NEWER open request with the same requester + set + branch (else PR number)
+// and an overlapping suite list (an empty list overlaps anything). Different branch / PR is never a dup.
+const brOf = j => first(j, /"branch": "([^"]*)"/) || (first(j, /"pr": *(\d+)/) ? 'pr' + first(j, /"pr": *(\d+)/) : '');
+const suitesOf = j => { const m = j.replace(/[\n ]/g, '').match(/"suites":\[([^\]]*)\]/); return m ? m[1].split(',').filter(Boolean) : []; };
+const open = i => !out[n + i].includes('"done":true');
+const newestOf = i => {
+  const set = setOf(out[i]); if (!set) return '';
+  const req = reqOf(out[i]), br = brOf(out[i]), su = suitesOf(out[i]); let hit = '';
+  for (let m = i + 1; m < n; m++) {
+    if (!open(m) || setOf(out[m]) !== set || reqOf(out[m]) !== req || brOf(out[m]) !== br) continue;
+    const sm = suitesOf(out[m]);
+    if (!su.length || !sm.length || su.some(x => sm.includes(x))) hit = ids[m];
+  }
+  return hit;
+};
 const US = '\x1f'; const lines = [];
 for (let i = 0; i < n; i++) {
   const j = out[i], cl = out[n + i];
@@ -46,7 +59,7 @@ for (let i = 0; i < n; i++) {
   const sm = j.replace(/[\n ]/g, '').match(/"suites":\[([^\]]*)\]/);
   if (sm) k = sm[1].split(',').map(x => x.replace(/"/g, '').replace(/e2e-/g, '')).filter(Boolean).length;
   const pin = /"pin": *true/.test(j) ? '1' : '';
-  lines.push([ids[i], first(j, /"sha": "([0-9a-f]*)"/), first(j, /"kind": "([^"]*)"/), req, set, k, pin, newest[req + '|' + set] || '', first(cl, /"at":"([^"]*)"/)].join(US));
+  lines.push([ids[i], first(j, /"sha": "([0-9a-f]*)"/), first(j, /"kind": "([^"]*)"/), req, set, k, pin, newestOf(i), first(cl, /"at":"([^"]*)"/)].join(US));
 }
 process.stdout.write(lines.join('\n') + (lines.length ? '\n' : ''));
 EOJS
@@ -74,7 +87,7 @@ audit_one() {
     fi
   fi
   [ -n "$b" ] && flags="$flags STALE($b +$c files)"
-  [ -z "$pin" ] && [ -n "$set" ] && [ "$newest" != "$id" ] && flags="$flags DUP(newer ${newest:0:15})"
+  [ -z "$pin" ] && [ -n "$newest" ] && flags="$flags DUP(newer ${newest:0:15})"
   if [ "$kind" = "pr" ] && [ "$k" -gt 2 ] && ! git diff --name-only origin/master...$sha 2>/dev/null | grep -q '^src/net/'; then flags="$flags BIG($k suites, no src/net)"; fi
   if [ -n "$at" ]; then age=$(( (now - $(date -d "$at" +%s)) / 60 )); [ $age -gt 90 ] && flags="$flags CLAIM(${age} min)"; fi
   echo "${id:0:15} ${sha:0:8} ${req#Night Shift | } [$set] n=$k${flags:+ <-$flags}"
