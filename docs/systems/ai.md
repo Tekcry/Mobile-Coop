@@ -590,7 +590,7 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
     `DarkList` after `BREAKER_WALK.retry` 20 s, so late discovery finds it again (a walker knocked out, the alarm, the
     30 s give-up).
   - B2: the one-mover rule counts only a role bound (`seekCover` with `Enemy.roleBound`: set by `boundTo`, cleared by
-    any other cover pick, any state change and a new role), so an open-wait pick no longer lifts the flank's hold, and a
+    any other cover pick and any state change; a role switch mid-walk keeps it), so an open-wait pick no longer lifts the flank's hold, and a
     point whose role cover is re-picked for the last ~2 m of his bound (the advance rule) still holds it. Undo
     `POLISH_B.roleTrip` false: any `seekCover` counts.
   - B3: hearing in a fight restarts the 1.5 s throttle only for his hunt's noise or one whose slot he takes; a searcher
