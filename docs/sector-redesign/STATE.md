@@ -371,8 +371,7 @@ Worktrees (node_modules junctions to Mobile-Coop-sector-redesign-bake2): -polish
    fc4dc9ab; json + png to C:/NightShift/scratch/visual-gate/m0 on the laptop) -> write docs/visual-gate/M0.md, apply
    the PLAN 7 ladder. PR #367 VG6: master merged on the branch (service.mjs conflict, both sides kept, 135 tests),
    head fe16741b, checker status posted; orchestrator labels on green CI; Test Runner #366 overlaps service.mjs (the
-   later train resolves). #366 is in train 74: when it releases, merge master into feature/visual-gate-train again,
-   keep #366 lib.mjs import + add the visual.mjs import (~:92; the only clash), node --check, push; orchestrator labels. CLOUD: briefs visual-gate-vg5 (gate runner, off a3362896) + visual-gate-vg1-polish (metrics
+   later train resolves). #366 released (train 74): import line resolved 05:05, head 3cb88b3f, 153 tests; orchestrator labels on green CI. CLOUD: briefs visual-gate-vg5 (gate runner, off a3362896) + visual-gate-vg1-polish (metrics
    polish 1 / 5 / 6) open on cloud-queue bcbc3608; + sector-redesign-polish3 (fog P1-P3, bake2 polish 5 lightBake
    held.dead; off master fc4dc9ab; 24e7949b). On done: one checker each (Opus), merge / PR (polish3 = own patch PR).
    After #361 lands: bake3 check polish (Math.min retry cap, held-order test) + bake2 polish 3 in a later batch.
