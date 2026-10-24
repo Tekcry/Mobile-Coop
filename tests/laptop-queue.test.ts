@@ -992,6 +992,7 @@ describe('train reruns', () => {
     expect(contextName('pr', undefined, ['e2e-coop'], true)).toBe('laptop-e2e/rerun-coop');
     expect(contextName('pr', '', ['e2e-' + 'x'.repeat(60)], true).length).toBe('laptop-e2e/'.length + 40);
     expect(rerunPassed(['e2e-coop', 'e2e-netmove'])).toBe('laptop rerun passed: e2e-coop,e2e-netmove (desktop fail)');
+    expect(rerunPassed(['e2e-coop'], 'confirm rerun')).toBe('laptop rerun passed: e2e-coop (confirm rerun)');
     const long = rerunPassed(Array.from({ length: 20 }, (_, i) => `e2e-suite-${i}`));
     expect(long.length).toBe(140);
     expect(long.endsWith('... (desktop fail)')).toBe(true);

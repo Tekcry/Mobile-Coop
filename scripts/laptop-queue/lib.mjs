@@ -39,9 +39,9 @@ export function contextName(kind, set, suites = [], trainRerun = false) {
   return `laptop-e2e/${kind === 'alone' ? 'alone-' : ''}${clean}`;
 }
 
-/** The `laptop-e2e` description a passed train rerun posts: "laptop rerun passed: <suites> (desktop fail)", 140 chars. */
-export function rerunPassed(suites) {
-  const tail = ' (desktop fail)';
+/** The `laptop-e2e` description a passed train rerun posts: "laptop rerun passed: <suites> (<why>)", 140 chars (why: desktop fail, or confirm rerun). */
+export function rerunPassed(suites, why = 'desktop fail') {
+  const tail = ` (${why})`;
   let list = (suites ?? []).join(',');
   const room = 140 - 'laptop rerun passed: '.length - tail.length;
   if (list.length > room) list = `${list.slice(0, room - 3)}...`;

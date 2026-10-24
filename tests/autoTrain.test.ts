@@ -617,6 +617,14 @@ describe('auto-train: auto-drop on a failed train (Michael 2026-10-24 "Auto-drop
     const failed = (count: number) => ({ rerunRequestFailed: { head, exit: 1, why: 'push', count } });
     expect(confirmPlan(t, failed(2), guess, ['e2e-ctcourse:4'])).toMatchObject({ action: 'request', reason: expect.stringMatching(/try 3\/6/) });
     expect(confirmPlan(t, failed(RERUN_REQUEST_MAX), guess, ['e2e-ctcourse:4'])).toMatchObject({ action: 'none', state: 'rerun-request-failed' });
+    // the request carries the confirm flag and note; a passed confirm rerun releases even without the laptop-e2e post
+    expect(confirmPlan(t, null, guess, ['e2e-ctcourse:4'])).toMatchObject({ confirm: true });
+    expect(rerunArgs({ sha: head, suites: ['e2e-ctcourse:4'], pr: 341, set: 'train64-rerun', confirm: true }).slice(-2)).toEqual(['--note', 'confirm rerun']);
+    const passed = train({ rerun: { state: 'success', description: '1/1 pass' }, confirm: ['e2e-ctcourse:4'] });
+    expect(decide({ train: passed })).toMatchObject({ state: 'releasing', action: 'release', rerunRelease: ['e2e-ctcourse:4'], reason: expect.stringMatching(/confirm rerun of a laptop/) });
+    expect(decide({ train: { ...passed, confirm: undefined } })).toMatchObject({ state: 'failed' }); // no confirm record: a laptop failure stands
+    expect(decide({ train: { ...passed, ci: 'pending' } })).toMatchObject({ state: 'failed' });
+    expect(confirmPlan({ ...passed, ci: 'pending' }, rec, guess, ['e2e-ctcourse:4'], { now: NOW })).toMatchObject({ action: 'wait', reason: expect.stringMatching(/releases once CI is green/) });
     // a failed desktop rerun is already the second failure: no confirm flag
     const desk = train({ laptop: { state: 'failure', description: 'desktop: 38/39 pass, 600 s; FAIL: e2e-coop' }, rerun: { state: 'failure', description: '0/1 pass, 80 s; FAIL: e2e-coop' } });
     expect(autoDropCase(desk, decide({ train: desk }), rerunPlan(desk, rec, { now: NOW }))?.confirm).toBeUndefined();

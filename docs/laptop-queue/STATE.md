@@ -4,11 +4,11 @@
 - 2026-10-25: laptop-queue-5 (feature/laptop-queue-5, worktree C:/NightShift/Mobile-Coop-laptop-queue-5, stacked on
   feature/laptop-queue-4 head 283daf5d, PR #374), three fixes:
   - request.mjs `--suites` splits on spaces / commas (lib `splitSuites`); unknown names refused at request time
-    against the sha's scripts/ (lib `knownSuites` :81, `requestProblem(r, { known })`; the service's parse is unchanged).
+    against the sha's scripts/ (lib `knownSuites`, `requestProblem(r, { known })`; the service's parse is unchanged).
   - auto-train confirm rerun: a tier 2-3 (guessed) drop on the train's own first laptop failure waits for one
-    `--train-rerun` on the same head; only a failed rerun drops (scripts/auto-train.mjs `confirmPlan` :701, autoDrop).
-  - Spare work: laptop service `sparePass` (service.mjs :439) + lib `spareNext` / `spareRequest` / `spareRecord`
-    (:1003), list `docs/laptop-queue/spare-jobs.json`, env `LQ_SPARE_IDLE_MIN` (5, 0 = off). PLAN.md "Spare work".
+    `--train-rerun` on the same head; only a failed rerun drops (scripts/auto-train.mjs `confirmPlan`, `autoDrop`; `decide` releases on its pass via the record's `confirm`).
+  - Spare work: laptop service `sparePass` + lib `spareNext` / `spareRequest` / `spareRecord`; a pending train stops
+    a spare run (lib `cutShort`, done, not re-queued); `pick` takes spares only when nothing else is open. List `docs/laptop-queue/spare-jobs.json`, env `LQ_SPARE_IDLE_MIN` (5, 0 = off). PLAN.md "Spare work".
 - 2026-10-25 ~04:40: laptop-queue-4 (feature/laptop-queue-4, worktree C:/NightShift/Mobile-Coop-laptop-queue-4, stacked on
   feature/laptop-queue-3 = PR #366 head f3eaceed; PR #374), Orchestrator waste audit (gap 00:20-04:10), three fixes:
   - request.mjs fills `branch` and `pr` by default (171 open requests had branch ""): lib `pickBranch` (lib.mjs, above
