@@ -374,8 +374,8 @@ Worktrees (node_modules junctions to Mobile-Coop-sector-redesign-bake2): -polish
    later train resolves). #366 released (train 74): import line resolved 05:05, head 3cb88b3f, 153 tests; orchestrator labels on green CI. CLOUD: briefs visual-gate-vg5 (gate runner, off a3362896) + visual-gate-vg1-polish (metrics
    polish 1 / 5 / 6) open on cloud-queue bcbc3608; + sector-redesign-polish3 (fog P1-P3, bake2 polish 5 lightBake
    held.dead; off master fc4dc9ab; 24e7949b). ALL THREE DONE + CHECKED: vg1p PASS merged d38acf7e; VG5 PASS merged
-   2fd31847 (polish 1-5 held in checks/vg5-check.md); polish3 = PR #379, checker IN FLIGHT -> checks/polish3-check.md in
-   -sector-redesign-polish3 (uncommitted; rerun if missing) -> checker status + train-ready on green affected-e2e.
+   2fd31847 (polish 1-5 held in checks/vg5-check.md); polish3 = PR #379, Opus check PASS, head ac0f1f3a (checker status
+   posted); affected-e2e queued on 62aa2320 (docs-only delta) -> label train-ready on green (orchestrator OK if capped).
    Laptop: M0 (visual-m0, fc4dc9ab) and VG5 rules-only gate run (visual-vg5, master 46a7cf85, json + png to
    C:/NightShift/scratch/visual-gate/vg5 on the laptop) queued -> write M0.md + VG5 laptop verdict into vg5-check.md.
    Group C briefs VG7 (2 phases) + P1-P7 committed d1e45ddc (A24-A30; laptop ~65-70 min total). CLOUD: bake4 +
