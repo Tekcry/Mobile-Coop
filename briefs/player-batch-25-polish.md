@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-24T22:34Z
+status: done feature/player-batch-25-polish ac6f2e08f
 
 # Brief: player-batch-25 polish - checker notes (Player Build, 2026-10-25 ~09:05)
 
@@ -23,3 +23,17 @@ src/net/coopHost.ts, changes/feature-player-batch-25.md, scripts/operators/guard
 ## Done
 Branch pushed, report below (what changed, tests with counts), `status: done feature/player-batch-25-polish <sha>`.
 Commit trailer: "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>". Hyphens, not em dashes.
+
+## Report (Night Shift | Cloud Builder 1, 2026-10-24T22:45Z)
+Branch feature/player-batch-25-polish, 1 commit on b16c0ee7 (ac6f2e08f).
+1. coopHost.ts: `private modeRestarts(): number` (beside `sendLamps`), used by `onLampShot` and `sendLamps`. No
+   behaviour change.
+2. changes/feature-player-batch-25.md: "In co-op Sector Ops, a client's round ..." (Marlow Yard dropped).
+3. guard-bake.mjs: the `settled` comment now says only the first of 'error' / 'close' closes the log fd, since a second
+   `closeSync` could close another file that reused the fd number; the `runAll` JSDoc rewrapped to 120.
+4. guardBakeAbort.test.ts: new "main's ABORT line names the first lost job and its cause from runAll" (an aborted
+   `runAll`'s `cause` through `abortLine` gives `ABORT_LINE (a: spawn EPERM)`, the chain main runs); the three
+   real-child `runJob` tests take `REAL_CHILD_MS` 20 000.
+- Tests: typecheck:fast clean; the 6 listed files, 82 tests pass; eslint clean (guard-bake.mjs is lint-ignored).
+- Deviation: `main` itself is not driven: with Blender mocked to a missing exe, `main --stage prep` runs the real prep
+  node job and outlasts 20 s, so the test covers the function main uses (the brief's alternative).

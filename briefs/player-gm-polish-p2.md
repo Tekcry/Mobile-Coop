@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-24T22:34Z
+status: done feature/gm-polish-p2 c6d011871
 
 # Brief: gm-polish P2 - gfx=min guard warm misses the helmet drop LOD (Player Build, 2026-10-25 ~09:05)
 
@@ -22,3 +22,19 @@ src/operators/guards/guardAssets.ts) fetches the 3 LOD2 base files + the shield 
 ## Done
 Branch pushed, report below (what changed, tests with counts), `status: done feature/gm-polish-p2 <sha>`.
 Commit trailer: "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>". Hyphens, not em dashes.
+
+## Report (Night Shift | Cloud Builder 1, 2026-10-24T22:45Z)
+Branch feature/gm-polish-p2, 1 commit on 7945363b (c6d011871).
+- guardAssets.ts: new `helmetManifestOf(assetOf)` (the helmet drop's base lookup, Babylon-free: average, else lean,
+  real files holding helmet_std); `guardWarmUrls` appends `helmetManifestOf(guardAsset)?.urls[LOD_1]` when not already
+  in the list. Full gfx: unchanged, 10 (guard-average-lod1.glb was already among them; the test now asserts it). gfx=min:
+  5 (3 LOD2, shield LOD1, guard-average-lod1.glb).
+- tests/guardWarmMenu.test.ts: min case expects 5 with the helmet file, full case checks the helmet file is in the 10.
+- scripts/e2e-offline.mjs: does not hardcode the min count; untouched.
+- Tests: typecheck:fast clean; guardWarmMenu, guardAssets, guardAssetsOffline + guardHelmetDrop, 50 tests pass; the 6
+  other files that mock guardAssets (guardBody, guardLampCasters, guardFigureWarm, guardFrozenPose, guardShieldShare,
+  guardActiveMeshes) + helmetDrops, 36 pass; eslint clean.
+- Deviation: src/ai/guardHelmet.ts edited (not in the list). The lookup lived there; guardAssets.ts cannot import it
+  (Babylon, and a cycle). A first try moved `helmetManifest` wholesale and broke guardHelmetDrop.test.ts (it mocks
+  `guardAsset` on the module, which an in-module call bypasses), so guardHelmet.ts keeps `helmetManifest()` as
+  `helmetManifestOf(guardAsset)` through its import. No behaviour change there.
