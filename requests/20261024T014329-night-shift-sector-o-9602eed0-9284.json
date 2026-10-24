@@ -1,0 +1,15 @@
+{
+  "id": "20261024T014329-night-shift-sector-o-9602eed0-9284",
+  "sha": "9602eed01a35f3d2096de35652accee668506c49",
+  "branch": "feature/sector-redesign-lr16b2",
+  "pr": 307,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-sectorops:6",
+    "e2e-darkness",
+    "e2e-coop"
+  ],
+  "set": "lr16b2",
+  "note": "PR 307: LR16-4 + LR16-6 + polish 2"
+}
