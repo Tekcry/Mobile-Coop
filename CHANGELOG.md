@@ -1,5 +1,10 @@
 # Changelog
 
+## 4.100.3 - Train 77: Guard bake: stop on a lost console (2026-10-25, PR #382; #380)
+- Tools: the offline guard bake (`scripts/operators/guard-bake.mjs`) stops a stage at the first job whose launch dies
+  with a lost console (exit 0xC0000142, or a failure under 2 s with no output), waits for running jobs, prints
+  "ABORT: console lost, restart the bake detached" and exits 5 without pushing, instead of failing every remaining job.
+
 ## 4.100.2 - Train 76: Co-op Course mode: client lamp shots (walk bug S2); Laptop queue: visual-gate after green trains (2026-10-25, PR #381; #371, #367)
 
 ### Co-op Course mode: client lamp shots (walk bug S2)
