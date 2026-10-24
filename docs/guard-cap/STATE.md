@@ -1,6 +1,7 @@
 # Guard cap: state
 
 ## Now (2026-10-24 ~18:25; orchestrator go ~18:15 for M0 + M1 + the R1 brief; gated slices wait for merges)
+- 2026-10-24 ~22:30 (resume): M0 ran (laptop, 6/7 steps; step 4 campus perf.mjs failed: no server, needs the `serve ` prefix). Data only on the laptop (C:/NightShift/scratch/guard-cap/m0-6e8a450b-r{1,2}-{so,campus,ctcourse}); Test Runner asked ~22:30 to push it to feature/guard-cap-results docs/guard-cap/run-m0/. Perf retry queued 20261024T112758-night-shift-marlow-b-6e8a450b-09d8 (set guard-cap-m0-perf). M1 smoke ran on the desktop instead (74a90c1c clean); full M1 queued 20261024T084755-...-a55a12b3-6a46 (set guard-cap-m1, not yet claimed: do not re-queue). NEXT: when run-m0 lands, Opus read vs PLAN section 2 (medians r1 / r2) -> REPORT.md.
 - M0 QUEUED: laptop alone request 20261024T071756-night-shift-marlow-b-6e8a450b-650d (set guard-cap-m0, master 6e8a450b):
   only the cells #323 gr2-rep does not cover: sectorops 12/16/32, campus 0-32, ctcourse 0/12/24, cells patrol/away/alert,
   r1 + r2, plus campus perf.mjs (step 4). Queue order: train 57, Test Runner gr2 alone runs, then this. Test Runner pushes
