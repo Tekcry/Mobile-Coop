@@ -22,6 +22,7 @@ Message the orchestrator only at PR open / train-ready / blocked / Michael. Push
 | player-batch-25 | feature/player-batch-25 (#384 + #380 merged in) | e8d848ce | AGENT: #384 polish (restart not yet polled), #380 polish (spawn error text, runJob test). Checker, then PR after #384 / #380 merge. |
 
 ## Open
+- e2e-coop quarantine is ours until 2026-10-26 (Test Runner 08:45): soak 5/5 alone on 3be7d1a2; one fail at JOBS=3 sharded (laptop scratch/laptop-queue/runs/20261024T173702-night-shift-test-run-3be7d1a2-b1fd/4189.log L821-921) "co-op on the guards": host holds its guard in front of the client (0.38 m). Load-only so far; soak-coop-41002 x5 queued on master 833db92e behind train 78. Repeats -> fix in the next batch PR (player-batch-25 or later).
 - guard-models STATE.md top: G8 numbers, S11 merge notes (in master merge now), G10 look list (no sheet notes from Michael yet), garment seam gaps, MERGE-CHECK-A/B polish (lightRig caster refill not behind the flag; `die` figure update after frozen solveNow).
 - Test Runner owns guard-render phase 2 (feature/guard-render-2 PLAN2: S9 sun cascades, S9b updateSunCasters skip disabled, S10 freeze); guard-cap.mjs is ours until guard-models merges.
 - Spare jobs #2 #3 #7 #11 #16 already on master; #12 = #308; #15 = #314.
