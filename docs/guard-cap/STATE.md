@@ -8,7 +8,8 @@
   base r1/r3/r5 = master 6b44efb8, r2 = 3360b85b, r4 = #323 head 6a6b5e58) to docs/guard-cap/run-gr2/<set>/, one message.
 - M1 BUILDING: Sonnet, worktree C:/NightShift/Mobile-Coop-guard-cap-m1, branch feature/guard-cap-m1 -> scripts/guard-cap-coop.mjs.
   Next: Sonnet checker, merge into feature/guard-cap, laptop GPU smoke then the full M1 run (alone).
-- R1 BRIEF SENT to Guard AI Build (docs/guard-cap/briefs/R1.md); it starts after its #313 master merge. Marlow does not touch src/ai.
+- R1 TAKEN by Guard AI Build (~18:30): Opus builder on feature/guard-ai-r1-rays off 6e8a450b (brief docs/guard-cap/briefs/R1.md);
+  Opus checker + laptop e2e-stealth-ai / e2e-enemies, PR into the next train; it copies Marlow at train-ready. Marlow does not touch src/ai.
 
 ## Next (lead: Night Shift | Marlow Build)
 1. M1 checker -> merge -> laptop alone request (smoke: --maps=campus --counts=0,12 --players=2 --secs=3; then the full run).
