@@ -997,32 +997,35 @@ block only. Branch guard before every write. Never merge master into a branch. 2
 Opus triage on every laptop failure; laptop runs: cd C:/NightShift/Mobile-Coop-laptop-queue-svc && node
 scripts/laptop-queue/request.mjs --sha <sha> --pr <n> --set <name> --jobs 2 --requester "Night Shift | Guard AI Build"
 --suites "a b" (verdict = GitHub status laptop-e2e/<set>; background wait loop that breaks only on
-success|failure|error, never on null). Laptop auto mode blocks `gh pr edit --add-label`: tell the orchestrator at
-train-ready. Before pushing a PR head: vitest the tests importing the changed modules AND their direct importers
-(src/ai: also tests importing enemy.ts / enemyManager.ts; Proxy doubles hide new methods). OVERNIGHT mode (orchestrator
-2026-10-24 ~22:30): no swap, full burn to each cap, save ~92%, no question dialogs (decide, log A-numbers in BRIEF).
-No-refining rule LIFTED (ROADMAP Decided ~21:50). Laptop CPU shared with Test Runner: keep agents' vitest at
---maxWorkers=1-2 while a train runs.
-Open:
-1. #317 coop4 (feature/coop4, worktree C:/NightShift/Mobile-Coop-coop4): alone-coop4-4p PASS on 1b04e5bd. e2e-coop
-   failed 3x on test bugs (triage notes docs/coop4/checks/ai6-e2e-coop-triage.md, ai6-lkp-triage.md, ai6-triage-3.md:
-   staging radio alarm spawned a response team in the hide lane). Fix 52e3dc13 queued: status laptop-e2e/coop4-fix3
-   (orchestrator asked Test Runner for a laptop lane). Green -> `gh pr ready 317` + orchestrator train-ready (it adds
-   big-pr). Red -> Opus triage at once (AI6 (3) crouch / run / hold legs never ran yet).
-2. Polish batch (feature/guard-ai-polish, plan docs/guard-ai/POLISH-PLAN.md fda75ca8: A1-A17 enemy.ts, B1-B10
-   enemyManager / squadRoles / searchArea / breaker, C1-C4 targetPick / doors / docs). Builders on worktrees
-   C:/NightShift/Mobile-Coop-guard-ai-polish-a / -b / -c (branches feature/guard-ai-polish-a/b/c; node_modules junction
-   to -polish). C DONE 73f10cc7. A / B were mid-build at the save (WIP 1c9fafd9 / 63fbb29d): if their agents are gone,
-   start an Opus builder per group "finish from WIP: git log + diff vs fda75ca8, plan items left". Then merge a, b, c
-   into feature/guard-ai-polish, trim fragment + ai.md for skipped items (C's note: drop the S15 "keeps what it was first
-   taken for" sentence if B1 landed), run CORE vitest (82 files, plan "Vitest per group", chunks of ~20,
-   --maxWorkers=2), 2 Opus checkers in parallel with the laptop set (plan "e2e": e2e-stealth-ai e2e-sectorops e2e-coop
-   e2e-ctcourse e2e-enemies e2e-tactics e2e-ct-warehouse), PR to master (minor), train-ready.
-3. T1 OPEN on cloud-queue (3e3f38a3; M0: ai.anim 55-59% of sim growth). Cloud Builder 1 builds it; on `status: done`
-   review the branch feature/guard-ai-t1-anim-tier, then laptop e2e-sectorops + e2e-enemies, PR. D1-D2 CLOSED.
-4. Mission hooks (Marlow, after Michael signs off the mission specs): em.missionOrder(guardTag, 'reset' | 'walk',
-   postId, via?) wrapping Enemy.resetBreaker (enemy.ts:1285) / Enemy.sendTo (:1138). Wait for Marlow's go.
-5. Polish still deferred / Michael's calls: A148 reinforcements at spawn; S23 client arcs / LKP ghost; S25 flares;
-   POLISH-PLAN "Deferred". After #317 merges: feature/coop4-pol (Sector Ops polish + UI2, 134f6abe) needs its own
-   alone 7-9 set. #317 polish: snapBudget headroom, stale comment coopHost.ts:589, teamSizeOf TODO sectorMode.ts:201.
+success|failure|error, never on null). QUEUE RULE: the queue runs a requester's NEWEST open request first (lib.mjs
+pick): keep ONE open request at a time, in priority order; withdraw = delete requests/<id>.json on branch laptop-queue
+(gh api -X DELETE contents). Laptop auto mode blocks `gh pr edit --add-label`: tell the orchestrator at train-ready.
+Before pushing a PR head: vitest the tests importing the changed modules AND their direct importers (--maxWorkers=2).
+OVERNIGHT mode: no swap, full burn to each cap, save ~92%, no question dialogs (decide, log A-numbers in BRIEF).
+Open (save 2026-10-25 ~00:05; agents die at the cap: relaunch each from its brief + WIP):
+1. #317 coop4 (feature/coop4, worktree C:/NightShift/Mobile-Coop-coop4): fix3 52e3dc13 request ...-6504 (set coop4-fix3)
+   is the ONLY open request. Green -> `gh pr ready 317` + orchestrator train-ready. Red -> Opus triage at once.
+   CONFLICT with master (one hunk src/net/protocol.ts): orchestrator agreed no master merge; if auto-train leaves #317
+   out, by-hand train merge: master's `PROTOCOL_VERSION = 55` + coop4's MAX_PLAYERS comment and `slotFromList` import.
+2. #363 polish (feature/guard-ai-polish, worktree C:/NightShift/Mobile-Coop-guard-ai-polish; big-pr labelled): check A
+   PASS, check B FIX 1 (docs/guard-ai/slices/POLISH-CHECK-B.md "Blocking": B2 two movers after a mid-bound re-pick).
+   Opus FIX ROUND was RUNNING (roleBound flag on Enemy, set in boundTo, cleared on open-wait / other pickCover trips /
+   stop; manager point / flank going test + e2e-stealth-ai.mjs:2745 movers use it; guardPolishB re-pick case; ai.md B2
+   lines). Its WIP is committed at the save: if not finished, relaunch "finish the fix round from WIP, brief =
+   POLISH-CHECK-B Blocking". Then vitest (POLISH-PLAN "Vitest per group" CORE + group lists, chunks of 24), push,
+   request set polish: e2e-stealth-ai e2e-sectorops e2e-coop e2e-ctcourse e2e-enemies e2e-tactics e2e-ct-warehouse
+   (AFTER fix3 is claimed: newest-first rule), one re-check of B2 only, train-ready.
+3. #360 T1 HELD (ROADMAP Decided, assumed: keep tier 4; BRIEF A183 on the polish branch). Worktree
+   C:/NightShift/Mobile-Coop-guard-ai-t1. An Opus agent was writing scripts/t1-shadow-look.mjs (guard just out of view,
+   shadow in view; contact sheets tier on vs &animtier=0) + a software-GL dry run; then queue it as an alone GPU request
+   on the T1 head AND on master (tier 4) for Michael's morning pack. After gm-flip lands: shadow-in-view counts as seen
+   in animTierView.ts, measure the saving left. Requeue T1's e2e-sectorops + e2e-enemies only if Michael picks ship 8.
+4. Polish batch 2: Opus planner was writing docs/guard-ai/POLISH2-PLAN.md (polish worktree, uncommitted: commit it) from
+   POLISH-PLAN "Deferred" + POLISH-CHECK-A polish 1-4; stacked on feature/guard-ai-polish (new branch off its fix head);
+   builders after #363's fix round.
+5. Mission hooks (Marlow, after Michael signs off the mission specs): em.missionOrder(guardTag, 'reset' | 'walk',
+   postId, via?) wrapping Enemy.resetBreaker / Enemy.sendTo. Wait for Marlow's go.
+6. Michael's calls: A148 reinforcements at spawn; S23 client arcs / LKP ghost; S25 flares. After #317 merges:
+   feature/coop4-pol (134f6abe) needs its own alone 7-9 set; #317 polish: snapBudget headroom, stale comment
+   coopHost.ts:589, teamSizeOf TODO sectorMode.ts:201.
 ```
