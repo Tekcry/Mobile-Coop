@@ -378,8 +378,8 @@ let aloneHoldLogged = '';
 /** Why no new non-train work starts this pass (lib trainSoon), '' when it may; set by pendingTrains (laptop). */
 let soon = '';
 let soonLogged = '';
-let aloneSoonWhy = '';
 let aloneSoonLogged = '';
+let openTrainCount = -1; // open train/<n> PRs at the last listing (-1: unknown)
 let manualLogged = '';
 /** lib trainSoon from GitHub: a building train PR (no version head yet), else the last train release and its candidates. */
 /** Open train-ready PRs whose CI check passed (0 when unreadable: never hold on a GitHub error). */
@@ -415,12 +415,12 @@ function pendingTrains() {
     log(`train PR list failed, trains skipped this pass: ${String(e.message).split('\n')[0]}`);
     aloneHold = { n: '?', sha: '', laptop: 'unknown' };
     soon = ''; // never hold new claims on a GitHub error (checker FIX)
-    aloneSoonWhy = '';
+    openTrainCount = -1;
     return out;
   }
   git(['fetch', '-q', 'origin', '+refs/heads/train/*:refs/remotes/origin/train/*'], { soft: true });
   if (!DESKTOP) soon = trainSoonNow(openPrs);
-  if (!DESKTOP) aloneSoonWhy = openPrs.length ? '' : aloneSoon(0, readyCandidates());
+  openTrainCount = openPrs.length;
   // every open train PR head without a laptop-e2e success holds alone requests (a status read error counts as none),
   // except heads that can never get one here: older than LQ_TRAIN_MAX_AGE_H or a failed auto-train/* build (as below)
   aloneHold = trainHold(openPrs.flatMap((p) => {
@@ -781,6 +781,7 @@ async function runRequest(r, port) {
   const ctl = { child: null, why: '', by: null };
   let started = false;
   let startedAt = NaN; // an alone run's steps start: under ALONE_PREEMPT_MIN a pending train still cuts it (lib cutShort)
+  let yieldedSteps = false; // an alone run gave the slots to a train between steps (not done)
   let progress = () => NaN; // a pr run's share of its expected wall: past PREEMPT_MAX_PROGRESS it is never cut
   const watch = DRY ? null : setInterval(() => {
     const trains = trainsNow();
@@ -861,6 +862,7 @@ async function runRequest(r, port) {
           writeClaims([r.id], 'release', `release ${r.id} (yields to train ${tr.n})`);
           claimed.delete(r.id);
           preemptedAlone.add(r.id);
+          yieldedSteps = true;
           return;
         }
         const line = step.startsWith('serve ') ? `node scripts/laptop-queue/serve.mjs ${step.slice(6)}` : step;
@@ -911,7 +913,7 @@ async function runRequest(r, port) {
     if (state.done[r.id]) state.done[r.id].key = dupKey(r); // the duplicate check reads it for LQ_DUP_WINDOW_MIN
     saveState();
     if (state.done[r.id] && writeClaims([r.id], 'done', `done ${r.id}`) === true) doneSynced.add(r.id);
-    if (!yielded && ctl.why !== 'train') log(`${r.id}: done`);
+    if (!yielded && !yieldedSteps && ctl.why !== 'train') log(`${r.id}: done`);
   }
 }
 
@@ -1082,7 +1084,9 @@ async function pass() {
     queue.requests = queue.requests.filter((r) => (aged ? r.trainRerun : r.kind !== 'alone'));
   } else if (!aloneHold) aloneHoldLogged = '';
   // before any train PR exists: a green train-ready PR keeps new alone claims back (aged and preempted ones still start)
-  if (!DESKTOP && aloneSoonWhy && queue.requests.some((r) => r.kind === 'alone')) {
+  // (the green train-ready count is read only then: one gh call per pass while an alone request waits and no train is open)
+  const aloneSoonWhy = !DESKTOP && openTrainCount === 0 && queue.requests.some((r) => r.kind === 'alone') ? aloneSoon(0, readyCandidates()) : '';
+  if (aloneSoonWhy) {
     const aged = agedAlone(queue.requests, Date.now());
     if (aloneSoonWhy !== aloneSoonLogged) { aloneSoonLogged = aloneSoonWhy; log(`${aloneSoonWhy}: no new alone claims`); }
     queue.requests = queue.requests.filter((r) => r.kind !== 'alone' || r === aged || preemptedAlone.has(r.id));

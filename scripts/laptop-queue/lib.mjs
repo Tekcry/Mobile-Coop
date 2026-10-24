@@ -188,7 +188,16 @@ export function superseded(requests, isAncestor) {
  */
 export function runProgress(suites, times, jobs, elapsedMs) {
   if (!(suites ?? []).length || !Object.keys(times ?? {}).length) return NaN;
-  const bins = shard(suites, times, Math.max(1, Number(jobs) || 1));
+  // a named suite runs as its parts (e2e-desktop -> e2e-desktop:1..4, the keys times.json holds); a suite with no time
+  // at all makes the estimate unknown (NaN: cut as before), never a 1 s guess (checker FIX)
+  const parts = [];
+  for (const s of suites) {
+    const own = Object.keys(times).filter((k) => k.startsWith(`${s}:`));
+    if (own.length) parts.push(...own);
+    else if (Number.isFinite(times[s])) parts.push(s);
+    else return NaN;
+  }
+  const bins = shard(parts, times, Math.max(1, Number(jobs) || 1));
   const wallS = Math.max(...bins.map((b) => b.weight));
   return wallS > 0 ? elapsedMs / (wallS * 1000) : NaN;
 }

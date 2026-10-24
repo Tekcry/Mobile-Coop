@@ -693,7 +693,14 @@ describe('runProgress / aloneSoon', () => {
     const times = { a: 100, b: 100, c: 50 };
     expect(runProgress(['a', 'b'], times, 2, 50_000)).toBeCloseTo(0.5);
     expect(runProgress(['a', 'b'], times, 1, 100_000)).toBeCloseTo(0.5);
-    expect(runProgress(['a', 'x'], times, 1, 150_000)).toBeCloseTo(150 / (100 + 100)); // unknown suite at the median (100)
+    // a named suite counts as its parts (times.json holds e2e-desktop:1..n), ahead of a stale base key
+    const parts = { 'e2e-desktop:1': 40, 'e2e-desktop:2': 44, 'e2e-sectorops': 43, 'e2e-sectorops:1': 117 };
+    expect(runProgress(['e2e-desktop'], parts, 1, 42_000)).toBeCloseTo(0.5);
+    expect(runProgress(['e2e-desktop'], parts, 2, 22_000)).toBeCloseTo(0.5);
+    expect(runProgress(['e2e-sectorops'], parts, 1, 117_000)).toBeCloseTo(1);
+    // any suite with no time at all: unknown (cut as before), never a 1 s guess (checker FIX)
+    expect(runProgress(['a', 'x'], times, 1, 150_000)).toBeNaN();
+    expect(runProgress(['x'], times, 1, 150_000)).toBeNaN();
     expect(runProgress([], times, 1, 1000)).toBeNaN();
     expect(runProgress(['a'], {}, 1, 1000)).toBeNaN();
   });
