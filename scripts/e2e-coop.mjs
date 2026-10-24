@@ -1994,6 +1994,7 @@ try {
 console.log('lobby caps: slots by mode, Start blocked over the cap, Room full, Marlow lobby for 2');
 {
   let lb = null;
+  /** Live error arrays (each page's, filled as errors come), flattened at the end. */
   const lerrs = [];
   try {
     const H = await hostAndJoin(url, 1, { viewport: { width: 1280, height: 640 } });
@@ -2006,7 +2007,7 @@ console.log('lobby caps: slots by mode, Start blocked over the cap, Room full, M
     /** Open a page and join the room by its code (the Join with code screen). */
     const joinPage = async () => {
       const o = await openPage(H.ctx, url, 'net=local');
-      lerrs.push(...o.errors);
+      lerrs.push(o.errors);
       await o.page.click('.main-menu .btn:has-text("Co-op")');
       await o.page.click('.btn:has-text("Join with code")');
       await o.page.keyboard.type(lcode.toLowerCase());
@@ -2076,7 +2077,7 @@ console.log('lobby caps: slots by mode, Start blocked over the cap, Room full, M
     failed = true;
     console.error(String(e));
   } finally {
-    errs.push(...lerrs);
+    errs.push(...lerrs.flat());
     await lb?.close();
   }
 }
