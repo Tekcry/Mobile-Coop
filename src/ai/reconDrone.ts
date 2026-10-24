@@ -176,8 +176,8 @@ export class ReconDrone implements Damageable {
         if (ang < D.half || below) {
           this.eye.set(this.pos.x, this.pos.y - 0.12, this.pos.z);
           best.target.aimPoint(this.to);
-          const h = this.ballistics.ray(this.eye, this.to, MASK.SIGHT);
-          if (!h.hit || h.distance > Vector3.Distance(this.eye, this.to) - 0.3) {
+          // (guard-ai R1) allocation-free: the first hit's distance, or the segment's length on a miss
+          if (this.ballistics.hitDistance(this.eye, this.to, MASK.SIGHT) > Vector3.Distance(this.eye, this.to) - 0.3) {
             rate = D.rate * (1 - bd / D.range) * (best.crouched ? 0.7 : 1) * perception * 2;
           }
         }
