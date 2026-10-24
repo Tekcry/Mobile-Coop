@@ -20,7 +20,7 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   head c0aeb2a5): ALONE_AGE_MIN 30 + aged alone blocks pr claims under a clearing train hold, desktop CPU gates 80/80,
   task trigger 1 min, train-soon hold (building / 3 min after a release), manual-lock slots skipped; two checker FIX
   rounds done. Add train-ready when CI on c0aeb2a5 is green. After it merges: re-run install-task.ps1 on the laptop
-  with -Follow origin/master (the service still follows origin/feature/laptop-queue, now merged) - Stop-ScheduledTask
+  with -Follow origin/master (Michael runs it: scheduled-task changes are his; the Orchestrator has both command lines) - Stop-ScheduledTask
   leaves node alive, so only re-register (no stop) and let the service self-update; the desktop's re-run is the
   Orchestrator's (-Worker desktop).
 - coop4-4p alone on 3f1c946f (#317 gate): FAIL e2e-sectorops:8 (rejoin not put back where it stood); Sector Ops told.
