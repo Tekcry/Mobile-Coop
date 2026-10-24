@@ -2,11 +2,19 @@
 // PR) through the version step (G183): CHANGELOG from changes/ (scripts/changelog-assemble.mjs), `npm version`, CI on
 // that exact commit, and only on a green run the merge, the tag and the dev pointer. It replaces the orchestrator's
 // hand-run "Merge procedure" (docs/orchestrator/STATE.md on feature/menu).
-// `build` does the slow work once, in order: merge the members, checkout + push train/<n>, open the train PR, bump
-// PROTOCOL_VERSION to master+1 (a stacked build: its base head's + 1) when a member touches the wire (src/net and what protocol.ts imports), make the version
-// commit (CHANGELOG heading with the PR number), push it (CI and the laptop start at once) and end: no local vitest and
-// no heavy.lock wait (audit 2026-10-24: CI's `test` job runs the full vitest on that head and release waits for green
-// CI; AUTO_TRAIN_BUILD_MARKER, set by auto-train, is deleted right after that push). `release` then only checks, waits for green CI on that head, merges, tags and moves dev. A train built by the
+// `build` does the slow work once, in order: merge the members, then (audit 2026-10-24 finding 9) build the version
+// commit on git objects (CHANGELOG assembled from the merged members' fragments, PROTOCOL_VERSION to master+1, a
+// stacked build: its base head's + 1, when a member touches the wire, package files): a bad fragment, an empty train or
+// nothing new stops here with nothing pushed. The version, kind and title come from the members actually merged
+// (deriveRelease: a left-out member never names the release). Then ONE push of train/<n> at the version commit (CI and
+// the laptop start at once; AUTO_TRAIN_BUILD_MARKER, set by auto-train, is deleted right after it), and only then the
+// train PR (the heading names the PR number GitHub will give; a race rewrites it with one more push). No local vitest
+// and no heavy.lock wait: CI's `test` job runs the full vitest on that head and release waits for green CI.
+// `release` then only checks, waits for green CI on that head, merges (body: DEPLOY_MARKER) and runs the idempotent
+// tail: tag v<version> if origin has none, move dev if it lacks the merge, close member PRs in master, dispatch the one
+// Pages deploy (deploy.yml, tested_sha) and, after the train lock, wait <= MERGE_TRAIN_DEPLOY_WAIT_MIN (20) for it and
+// print whether /preview/version.json serves the version. `release` of a train already in master runs only that tail;
+// `repair` runs it for the latest released version. A train built by the
 // older script (no version commit) is still released the old way (merge master, version commit, push, CI, merge).
 // Conflicts: CHANGELOG.md and changes/* are resolved (both sides kept, incoming block first, never a block dropped);
 // any other conflicting file leaves that branch out (build) or stops the run (release / single, exit 3).
@@ -16,6 +24,8 @@
 //   node scripts/merge-train.mjs build <n> <version> "<title>" <branch>... [--on <sha>] [--keep] [--no-test] [--dry-run]
 //   node scripts/merge-train.mjs release <n> <version> "<title>" [--resume] [--head <sha>] [--no-fallback] [--dry-run]
 //   node scripts/merge-train.mjs single <branch> <version> "<title>" [--dry-run]
+//   node scripts/merge-train.mjs repair [--dry-run]
+// <n> is normalised ("063" -> 63).
 // --head <sha> (release): STOP unless origin/train/<n> is that sha after the fetch (the head CI and the laptop passed
 // on). Every merge is `gh pr merge --match-head-commit <the head it verified>`, so a push after the check cannot merge.
 // --no-fallback (release): STOP instead of the old-style release when the train has no version commit (auto-train).
@@ -42,8 +52,8 @@
 // mergeable" / "base branch was modified"; after the merge the merge commit's tree must equal the head's (exit 5 if not).
 // Foreign-version guard (release / single, always on): a first-parent commit of origin/master..head that is another
 // train's version commit means the head would pull an unreleased train into master: STOP, exit 4.
-// Exit: 0 built / merged (or dry run done), 1 usage or other error (also: --keep over a version commit, a fix commit
-// without --resume, release of an already merged train, release with a version other than the train's version
+// Exit: 0 built / merged / tail repaired (or dry run done), 1 usage or other error (also: --keep over a version commit, a fix commit
+// without --resume, a version commit that does not validate (nothing pushed), repair with no merge found, release with a version other than the train's version
 // commit, --head mismatch, --no-fallback with no version commit, version not above master's, train lock held, a bad
 // --on base), 2 CI failed on release / single (nothing merged), 3 conflict stop (build with no member merged; release
 // when master moved since build, or a stacked train whose base or merge tree no longer matches: rebuild), 4 base train
