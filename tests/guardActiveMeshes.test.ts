@@ -98,45 +98,203 @@ async function setup() {
     }
     return { e, by, names, total: names.length };
   };
-  return { B, scene, world, casters, guard, ENEMIES };
+  return { B, scene, world, casters, guard, level };
 }
 
+type Mtx = import('../src/core/babylon').Matrix;
+type AnyMesh = import('../src/core/babylon').Mesh;
+
+/** World box [min x, y, z, max x, y, z] of local `pos`, each vertex under matrix `w(v)`. */
+async function boxOf(pos: ArrayLike<number>, w: (v: number) => Mtx, out = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity]): Promise<number[]> {
+  const { Vector3 } = await import('../src/core/babylon');
+  const t = new Vector3();
+  for (let v = 0; v < pos.length / 3; v++) {
+    Vector3.TransformCoordinatesFromFloatsToRef(pos[v * 3]!, pos[v * 3 + 1]!, pos[v * 3 + 2]!, w(v), t);
+    out[0] = Math.min(out[0]!, t.x);
+    out[1] = Math.min(out[1]!, t.y);
+    out[2] = Math.min(out[2]!, t.z);
+    out[3] = Math.max(out[3]!, t.x);
+    out[4] = Math.max(out[4]!, t.y);
+    out[5] = Math.max(out[5]!, t.z);
+  }
+  return out;
+}
+
+/** The union of instances' world boxes (their source's full or low LOD). */
+async function partsBox(parts: readonly AbstractMesh[], low: boolean, lib: { low(m: AnyMesh): AnyMesh }): Promise<number[]> {
+  const { VertexBuffer } = await import('../src/core/babylon');
+  const out = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
+  for (const p of parts) {
+    p.computeWorldMatrix(true);
+    const src = (p as unknown as { sourceMesh: AnyMesh }).sourceMesh;
+    const m = low ? lib.low(src) : src;
+    const w = p.getWorldMatrix();
+    await boxOf(m.getVerticesData(VertexBuffer.PositionKind)!, () => w, out);
+  }
+  return out;
+}
+
+function near(a: number[], b: number[], tol = 0.001): void {
+  for (let i = 0; i < 6; i++) expect([i, Math.abs(a[i]! - b[i]!) <= tol, a[i], b[i]]).toEqual([i, true, a[i], b[i]]);
+}
+
+const ENEMY_GUN = { body: '#2a2d31', grip: '#17191c', accent: '#3a3f45' };
+
 describe('S13: active meshes per on-screen guard', () => {
-  it('flag off (S1 body): body, gun, helmet, armour', async () => {
-    const { guard } = await setup();
-    for (const kind of ['grunt', 'enforcer'] as const) {
-      const g = await guard(kind);
-      console.log(`S13 count flag off ${kind}: ${g.total} ${JSON.stringify(g.by)} [${g.names.join(', ')}]`);
-      expect(g.by.body).toBe(1);
-      expect(g.by.gun).toBe(1);
-      g.e.dispose();
-    }
+  it('flag off (S1 body): a grunt with gun + helmet + armour <= 4 (7 before S13, 23 as measured before perfg); enforcer 5 (9)', async () => {
+    const { guard, scene, level } = await setup();
+    const g = await guard('grunt');
+    console.log(`S13 count flag off grunt: ${g.total} ${JSON.stringify(g.by)} [${g.names.join(', ')}]`);
+    expect(g.total).toBeLessThanOrEqual(4);
+    expect(g.by).toEqual({ body: 1, gun: 1, helmet: 1, armour: 1 });
+    // gear off: the merged armour hides by the caller's `isVisible` loop, the helmet as before
+    g.e.setGear({ helmet: false, armour: false });
+    scene.render();
+    expect(scene.getActiveMeshes().length).toBe(level.size + 2);
+    g.e.dispose();
+    const g2 = await guard('enforcer');
+    console.log(`S13 count flag off enforcer: ${g2.total} ${JSON.stringify(g2.by)} [${g2.names.join(', ')}]`);
+    expect(g2.by).toEqual({ body: 1, gun: 1, helmet: 1, armour: 1, shield: 1 });
+    g2.e.dispose();
   });
 
-  it('flag on (figure): figure LOD, gun', async () => {
+  it('flag on (figure): figure LOD + gun = 2 (his gear is figure pieces)', async () => {
     const { flags } = await import('../src/core/flags');
     flags.guardModels = true;
     const { guard } = await setup();
     const g = await guard('grunt');
     console.log(`S13 count flag on grunt: ${g.total} ${JSON.stringify(g.by)} [${g.names.join(', ')}]`);
-    expect(g.by.figure).toBe(1);
-    expect(g.by.gun).toBe(1);
+    expect(g.total).toBeLessThanOrEqual(4);
+    expect(g.by).toEqual({ figure: 1, gun: 1 });
   });
 
-  it('before perfg: a guard gun as its instanced parts', async () => {
+  it('before: the parts paths (guns before perfg, as measured in g8 / g8c; armour and shield before S13)', async () => {
     const { B, scene, world } = await setup();
     const { WeaponModel } = await import('../src/weapons/weaponModel');
     const { WEAPONS } = await import('../src/weapons/weaponDefs');
     const { ENEMIES } = await import('../src/ai/enemyDefs');
-    const ids = new Set<string>();
-    for (const d of Object.values(ENEMIES)) if (d.gun) ids.add(d.gun);
-    const out: string[] = [];
-    for (const id of ids) {
-      const g = new WeaponModel(scene, world.parts as never, WEAPONS[id as keyof typeof WEAPONS], { body: '#2a2d31', grip: '#17191c', accent: '#3a3f45' }, new B.TransformNode(`h-${id}`, scene));
-      out.push(`${id} ${g.parts.length}`);
+    const { buildArmourParts, buildShieldPart } = await import('../src/ai/gearParts');
+    const { CharacterRig } = await import('../src/player/characterRig');
+    const counts: Record<string, number> = {};
+    for (const d of Object.values(ENEMIES)) {
+      if (!d.gun || counts[d.gun] !== undefined) continue;
+      const g = new WeaponModel(scene, world.parts, WEAPONS[d.gun], ENEMY_GUN, new B.TransformNode(`h-${d.gun}`, scene));
+      counts[d.gun] = g.parts.length;
       g.dispose();
     }
-    console.log(`S13 gun parts per weapon (pre-perfg active meshes): ${out.join(', ')}`);
-    expect(out.length).toBeGreaterThan(0);
+    // a rig with no merged body (`?guardmerge=0`): the 4 armour instances and the 2 shield parts stay
+    const { flags } = await import('../src/core/flags');
+    flags.guardMerge = false;
+    const rig = new CharacterRig(scene, (shape, hex, slot) => world.parts.instance(shape, hex, `enemy-${slot}`), ENEMIES.grunt.look, ENEMIES.grunt.height, 'nm', { merge: true });
+    expect(rig.voxel).toBeNull();
+    counts.armour = buildArmourParts(world as never, rig, '#444').length;
+    const sh = buildShieldPart(world as never, rig.root, 1);
+    counts.shield = 1 + sh.getChildMeshes().length;
+    console.log(`S13 before (parts): ${JSON.stringify(counts)}`);
+    expect(counts.rifle).toBe(18);
+    expect(counts.armour).toBe(4);
+    expect(counts.shield).toBe(2);
+  });
+
+  it('visual parity: merged armour, shield and gun bounds equal their parts\' union within 1 mm (full and low LOD)', async () => {
+    const { B, scene, world } = await setup();
+    const { flags } = await import('../src/core/flags');
+    const { buildEnemyRig } = await import('../src/ai/enemyRig');
+    const { buildArmourParts, buildShieldPart } = await import('../src/ai/gearParts');
+    const { mergeGun } = await import('../src/ai/enemyGunMerge');
+    const { WeaponModel } = await import('../src/weapons/weaponModel');
+    const { WEAPONS } = await import('../src/weapons/weaponDefs');
+    const { ENEMIES } = await import('../src/ai/enemyDefs');
+    const lib = world.parts;
+    const { rig } = buildEnemyRig(scene, world as never, ENEMIES.grunt, 'par');
+    rig.root.position.set(1.5, 0.2, -2);
+    rig.root.rotation.y = 0.7;
+    rig.root.computeWorldMatrix(true);
+    const body = rig.voxel!;
+    expect(body).not.toBeNull();
+    // the parts as S1 drew them (merge off for this call only), then the merged mesh on the same rig
+    flags.guardMerge = false;
+    const parts = buildArmourParts(world as never, rig, '#556070');
+    flags.guardMerge = true;
+    expect(parts.length).toBe(4);
+    const want = [await partsBox(parts, false, lib), await partsBox(parts, true, lib)];
+    for (const p of parts) p.dispose();
+    const merged = buildArmourParts(world as never, rig, '#556070');
+    expect(merged.length).toBe(1);
+    const hi = merged[0] as AnyMesh;
+    const lo = hi.getLODLevels()[0]!.mesh!;
+    expect(hi.skeleton).toBe(body.skeleton);
+    expect(lo.skeleton).toBe(body.skeleton);
+    expect(hi.material).toBe(lib.skinMaterial);
+    expect(lib.skinMaterial.isFrozen).toBe(true);
+    for (const n of body.nodes) n.computeWorldMatrix(true);
+    for (const [i, m] of [hi, lo].entries()) {
+      const mi = m.getVerticesData(B.VertexBuffer.MatricesIndicesKind)!;
+      near(await boxOf(m.getVerticesData(B.VertexBuffer.PositionKind)!, (v) => body.nodes[mi[v * 4]!]!.getWorldMatrix()), want[i]!);
+    }
+    // the shield and its visor
+    flags.guardMerge = false;
+    const sh0 = buildShieldPart(world as never, rig.root, 1.1);
+    flags.guardMerge = true;
+    const shParts = [sh0, ...sh0.getChildMeshes()];
+    expect(shParts.length).toBe(2);
+    const shWant = [await partsBox(shParts, false, lib), await partsBox(shParts, true, lib)];
+    sh0.dispose();
+    const sh = buildShieldPart(world as never, rig.root, 1.1);
+    expect(sh.getChildMeshes().length).toBe(0);
+    sh.computeWorldMatrix(true);
+    for (const [i, m] of [sh.sourceMesh, sh.sourceMesh.getLODLevels()[0]!.mesh!].entries()) {
+      near(await boxOf(m.getVerticesData(B.VertexBuffer.PositionKind)!, () => sh.getWorldMatrix()), shWant[i]!);
+    }
+    // the guns (perfg's merge; the bounds as S13 asks)
+    for (const id of ['rifle', 'pistolSd'] as const) {
+      const hand = new B.TransformNode(`hand-${id}`, scene);
+      hand.position.set(0.4, 1.3, -0.2);
+      hand.rotation.set(0.3, -0.8, 0.1);
+      const g = new WeaponModel(scene, lib, WEAPONS[id], ENEMY_GUN, hand);
+      const gWant = [await partsBox(g.parts, false, lib), await partsBox(g.parts, true, lib)];
+      const inst = mergeGun(scene, g, `par-${id}`)!;
+      inst.computeWorldMatrix(true);
+      for (const [i, m] of [inst.sourceMesh, inst.sourceMesh.getLODLevels()[0]!.mesh!].entries()) {
+        near(await boxOf(m.getVerticesData(B.VertexBuffer.PositionKind)!, () => inst.getWorldMatrix()), gWant[i]!);
+      }
+    }
+  });
+
+  it('shared geometry per look; nothing new per frame (no observer, skeleton, mesh or geometry); a ragdoll frees it with the body', async () => {
+    const { scene, world, casters } = await setup();
+    const { buildEnemyRig } = await import('../src/ai/enemyRig');
+    const { buildArmourParts } = await import('../src/ai/gearParts');
+    const { ENEMIES } = await import('../src/ai/enemyDefs');
+    const a = buildEnemyRig(scene, world as never, ENEMIES.grunt, 'sa').rig;
+    const b = buildEnemyRig(scene, world as never, ENEMIES.grunt, 'sb').rig;
+    const obs = scene.onBeforeRenderObservable.observers.length;
+    const skels = scene.skeletons.length;
+    const ma = buildArmourParts(world as never, a, '#445566')[0] as AnyMesh;
+    const mb = buildArmourParts(world as never, b, '#445566')[0] as AnyMesh;
+    expect(ma.geometry).toBe(mb.geometry);
+    expect(ma.skeleton).not.toBe(mb.skeleton);
+    expect(casters).toContain(ma);
+    expect(casters).toContain(ma.getLODLevels()[0]!.mesh);
+    expect(scene.onBeforeRenderObservable.observers.length).toBe(obs);
+    expect(scene.skeletons.length).toBe(skels);
+    scene.render();
+    const meshes = scene.meshes.length;
+    const geos = scene.geometries.length;
+    for (let i = 0; i < 5; i++) scene.render();
+    expect(scene.meshes.length).toBe(meshes);
+    expect(scene.geometries.length).toBe(geos);
+    expect(ma.alwaysSelectAsActiveMesh).toBe(false);
+    // a ragdoll re-parents a joint: the body and its merged gear are always active from the next render
+    a.voxel!.nodes[1]!.parent = null;
+    scene.render();
+    expect(a.voxel!.meshes[0]!.alwaysSelectAsActiveMesh).toBe(true);
+    expect(ma.alwaysSelectAsActiveMesh).toBe(true);
+    expect(mb.alwaysSelectAsActiveMesh).toBe(false);
+    // the rig takes it with it; the other guard keeps the shared geometry
+    a.dispose();
+    expect(ma.isDisposed()).toBe(true);
+    expect(mb.isDisposed()).toBe(false);
+    expect(mb.getTotalVertices()).toBeGreaterThan(0);
   });
 });
