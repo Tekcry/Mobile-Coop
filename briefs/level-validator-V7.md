@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-24T11:29Z
+status: done feature/level-validator-v7 97873079
 
 # level-validator V7: Marlow Yard (ctcourse) connectivity graph + first validator run (Marlow Build, job level-validator)
 
@@ -41,3 +41,25 @@ files `a1Gate.ts` .. `a8Strongroom.ts`.
 - `npx vitest run tests/levelValidate.test.ts --maxWorkers=2` still passes.
 - Push the branch, report at the end of this brief (space / link / split counts, ERR / WARN totals, the worst three
   findings, deviations), `status: done`.
+
+## Report (Night Shift | Cloud Builder 1, 2026-10-24)
+Branch `feature/level-validator-v7` @ 97873079 (one commit on 4ccb6aea). Files: `docs/marlow-final/graph/ctcourse.json`,
+`docs/level-validator/marlow-run/REPORT.md` only.
+- Graph AS BUILT: 55 spaces (8 encounter, 7 holding-room checkpoints L1-L7, start a1-lounge, exfil a8-dock), 85 links
+  (7 spine, 7 coop_boost, 3 human_ladder, 1 team_rope, 4 pair_gate, 6 drop, 25 opening, 18 door, 15 double_door,
+  5 open_stair, 1 fire_stair), 3 splits (a4, a7, a8 via `split:` tags). `area` on every space, `vantage.at` on 7 of 8
+  encounters, link `at` where 2+ openings; every coordinate cites its code line.
+- Validator: no schema / parse error; 49 ERR, 81 WARN, 8 INFO (pending V6), exit 1. Measure pending
+  (`scripts/level-measure.mjs` not on 4ccb6aea). `npx vitest run tests/levelValidate.test.ts` 86/86.
+- Worst three: (1) A2 neck has no high approach (two watchers on the staging deck = the high route; X2b closures killed
+  SPEC's secret route, routes never cross); (2) A8 office single approach, one-way 1.2 m stair, five high beats in a
+  row, SPEC's N2 drop takedown has no drop line; (3) 7 of 8 encounters miss the 0.4-0.6 shadow band (lit by default,
+  SPEC 7 P4) and 6 of 8 vantages see < 70% (estimates). Also: A1 wall top co-op-only (revive), A7 split legs 16.5 vs
+  36.9 s by hand, A3 / A4 co-op moves have no graph kind. Verdicts: A1 / A2 / A4 / A7 / A8 patch, A3 / A5 / A6 OK, no
+  re-plan.
+- Deviations (each in REPORT "Modelling choices", reversible): holding rooms as spaces (all 8 M3 redundancy ERRs run
+  through the airlock door; interior counts given by hand); service corridors / plant room not spaces (closed void,
+  facility.ts:694-698); encounter typing per campus rule V5f-3 (camera-only spaces and A3 office 2 = connector; A1 no
+  encounter); schema gaps: partner throw as `coop_boost` without `level_change`, hang-down as `drop`, synced-hack doors
+  as `pair_gate`; heights from collision (10 m hall roof); A4 leg a `time_s` at run pace 3.0 m/s; the generator script
+  was a scratch file, not committed. The builder could not write REPORT.md itself; I wrote it from its text.
