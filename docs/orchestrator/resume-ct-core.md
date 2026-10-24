@@ -2,6 +2,10 @@
 
 RESUMED ~23:55 (new account; orchestrator: overnight mode, one slice at a time, testing backlog first, save at 5-hour ~95%):
 #247 laptop afp PASS on fd34263e + CI green -> train-ready label added, orchestrator told (joins train 39 with #269).
+~19:35: PR #318 guard-models OPEN (flag off; dbfec6ad; SW fix aba0953a). Laptop: G9 set on 89c10827 (43619-...-6637) +
+e2e-offline on aba0953a (52107-...-3749): green -> label train-ready + orchestrator. #308 train 54 FAIL: e2e-course 'clone'
+-> Opus triage + fix running on feature/rig-pose-fix; e2e-tuner-phone solo on 23353993 (51717-...-cb4a). On fix: relabel
+#308 + tell orchestrator (it closes #316). #314 waiting CI + laptop (40217 coop / netmove, 41745 pad / mouse).
 ~19:10: perf batch DONE (feature/gm-perf 408ab154; PERF-REPORT.md): F1 frozen base / shield materials, F2 pose in the LOD
 skeleton's onBeforeCompute (culled + no shadow list = no pose; moon CSM casters still pose), T1 guard-cap render.figure vs
 render.s1 + active-mesh tally per class. Cap A/B queued (set gm-perf-cap). STATE fix: G8 "Poser solve PASS" = NOT MEASURED
