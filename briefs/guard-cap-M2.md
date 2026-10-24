@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-24T08:17Z
 
 # guard-cap M2: guard-cap.mjs light buckets, `near` cell, alive count (Marlow Build, job guard-cap)
 
