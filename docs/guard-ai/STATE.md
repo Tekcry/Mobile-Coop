@@ -1,6 +1,11 @@
 # Guard AI - state
 
 ## Now
+~21:30: laptop coop4 on 1b04e5bd FAIL 14/15: e2e-coop AI6 block (1)-(3) deterministic (run + rerun): "timed out
+waiting for AI6: the host sees page 3 at -15.75, -24.75" (logs C:/NightShift/scratch/laptop-queue/runs/
+20261024T083207-night-shift-guard-ai-1b04e5bd-0c2d). Opus triage RUNNING -> docs/coop4/checks/ai6-e2e-coop-triage.md
+(uncommitted in -coop4; lead commits). coop4-4p verdict pending (background wait).
+
 ~20:45 (new account, laptop; swap live 20:50): laptop coop4 / coop4-4p on 1b04e5bd preempted by train 64 #341, both
 requests still open (background status wait running). M0 (guard-cap) claimed, no results yet: T1 / D1-D2 stay blocked.
 Open PRs from me: #317 only (draft). #313 / #322 / #326 merged.
