@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkTeamRequest, HANG_SUB, ROPE_SUB, THROW_SUB, type TeamDenial, type TeamKind, type TeamRequest, type TeamSide } from '../src/game/teamMoves';
+import { checkTeamRequest, HANG_SUB, inOpenMove, ROPE_SUB, THROW_SUB, type TeamDenial, type TeamKind, type TeamRequest, type TeamSide } from '../src/game/teamMoves';
 import { TEAM } from '../src/config/movement';
 import { ATTACH_SUB } from '../src/player/moveState';
 
@@ -52,5 +52,22 @@ describe('team-move arbitration: bBusy -> taken (coop4 A20)', () => {
   it('a braced partner busy with someone else is taken, not "braced"', () => {
     expect(checkTeamRequest({ ...valid.boost, bBusy: true })).toBe('taken');
     expect(checkTeamRequest(valid.boost)).toBeNull();
+  });
+});
+
+describe('open-ended hang / rope busy entries end with the climber (coop4 net check M1)', () => {
+  it('a climber alive and posed in the hang or the rope keeps the move running', () => {
+    expect(inOpenMove(side({ mode: 'boost', sub: HANG_SUB }))).toBe(true);
+    expect(inOpenMove(side({ mode: 'boost', sub: ROPE_SUB }))).toBe(true);
+    expect(inOpenMove(side({ mode: 'boost', sub: ROPE_SUB | 1 }))).toBe(true);
+  });
+  it('a missing, dead, landed or plain leg-up climber frees the pair', () => {
+    expect(inOpenMove(null)).toBe(false);
+    expect(inOpenMove(side({ mode: 'boost', sub: HANG_SUB, alive: false }))).toBe(false);
+    expect(inOpenMove(side({ mode: 'ground', sub: HANG_SUB }))).toBe(false);
+    expect(inOpenMove(side({ mode: 'down' }))).toBe(false);
+    expect(inOpenMove(side({ mode: 'boost', sub: 0 }))).toBe(false);
+    expect(inOpenMove(side({ mode: 'boost' }))).toBe(false);
+    expect(inOpenMove(side({ mode: 'brace', sub: HANG_SUB }))).toBe(false);
   });
 });

@@ -53,6 +53,17 @@ export interface TeamRequest {
 
 export type TeamDenial = 'rate' | 'dead' | 'notMates' | 'notBraced' | 'notOffering' | 'far' | 'busy' | 'noTarget' | 'tooHigh' | 'taken';
 
+/** (coop4 A20, net check M1) Seconds after a hang-down / rope starts before the host reads its climber's wire pose (the
+ *  first `pstate` with the move's pose may still be in flight). */
+export const OPEN_MOVE_GRACE = 1;
+
+/** (coop4 A20, net check M1) A hang-down / rope still runs while its climber is alive and posed in it (`boost` + HANG_SUB
+ *  / ROPE_SUB on the wire for the whole move). False for a missing, dead or released climber: its open-ended busy entry
+ *  is over (several client ends send the host nothing). */
+export function inOpenMove(climber: TeamSide | null): boolean {
+  return !!climber && climber.alive && climber.mode === 'boost' && ((climber.sub ?? 0) & (HANG_SUB | ROPE_SUB)) !== 0;
+}
+
 /** The host's check of a team-move request: null = allowed, else why not. */
 export function checkTeamRequest(r: TeamRequest): TeamDenial | null {
   if (r.bBusy === true) return 'taken';

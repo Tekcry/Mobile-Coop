@@ -38,7 +38,7 @@ import { hostCrackOk } from '../world/doorPeek';
 import { contactDelay, GRAB } from '../game/takedown';
 import { hangHoldStep, hangingMove, type HangSpot } from './hangHold';
 import { koCurve, type KoState } from '../game/closeQuarters';
-import { checkTeamRequest, type TeamKind, type TeamSide } from '../game/teamMoves';
+import { checkTeamRequest, inOpenMove, OPEN_MOVE_GRACE, type TeamKind, type TeamSide } from '../game/teamMoves';
 import { ThrowKo } from './throwKo';
 import { checkCommitted, type CKind, type CTargetView } from '../game/committedMoves';
 import { STRIKE, STRIKE_DUR } from '../game/elbowStrike';
@@ -1019,33 +1019,41 @@ export class CoopHost implements NetAttachment {
   private teamPairs = new Map<string, string>();
   /** (coop4 A20) Players in a running team move: id -> its partner and the host time it ends (a timed move: its length
    *  + `TEAM_BUSY_SLACK`; a hang-down / rope: until its end). A player offering serves one partner at a time. */
-  private readonly teamActive = new Map<string, { mate: string; until: number }>();
+  private readonly teamActive = new Map<string, { mate: string; until: number; climber: string; t0: number }>();
 
-  /** (coop4 A20) Is `b` in a running team move with someone other than `a` (a second claimant is denied `taken`)? */
+  /** (coop4 A20) Is `b` in a running team move with someone other than `a` (a second claimant is denied `taken`)? A
+   *  hang-down / rope (open-ended) is over once its climber is no longer posed in it (net check M1: several client ends,
+   *  such as a downed hanger or "partner gone", send the host nothing). Runs on a request only. */
   private teamBusy(b: string, a: string): boolean {
     const e = this.teamActive.get(b);
     if (!e) return false;
-    if (e.until <= this.time) {
-      this.teamActive.delete(b);
+    const openOver = e.until === Infinity && this.time - e.t0 > OPEN_MOVE_GRACE && !inOpenMove(this.teamSide(e.climber));
+    if (e.until <= this.time || openOver) {
+      this.teamClear(b);
       return false;
     }
     return e.mate !== a;
   }
 
-  /** (coop4 A20) `a` and `b` start a team move of `kind` (both busy until it ends). */
+  /** (coop4 A20) `a` (the climber / runner) and `b` start a team move of `kind` (both busy until it ends). */
   private teamMark(kind: TeamKind, a: string, b: string): void {
     const len = kind === 'boost' ? TEAM.boostTime : kind === 'ladder' ? TEAM.relayClimb : kind === 'throw' ? TEAM.throwTime : Infinity;
     const until = this.time + len + TEAM_BUSY_SLACK;
-    this.teamActive.set(a, { mate: b, until });
-    this.teamActive.set(b, { mate: a, until });
+    this.teamActive.set(a, { mate: b, until, climber: a, t0: this.time });
+    this.teamActive.set(b, { mate: a, until, climber: a, t0: this.time });
   }
 
-  /** (coop4 A20) `id`'s team move ended (its end, a drop, a leave): it and its partner are free. */
+  /** (coop4 A20) `id`'s team move ended (its end, a drop, a leave, a stale open move): it and its partner are free, and a
+   *  hang / rope pair entry naming the two is dropped (no stray `tend` later). */
   private teamClear(id: string): void {
     const e = this.teamActive.get(id);
     if (!e) return;
     this.teamActive.delete(id);
     if (this.teamActive.get(e.mate)?.mate === id) this.teamActive.delete(e.mate);
+    if (this.teamPairs.get(id) === e.mate && this.teamPairs.get(e.mate) === id) {
+      this.teamPairs.delete(id);
+      this.teamPairs.delete(e.mate);
+    }
   }
   private teamLast = new Map<string, number>();
   private teamMv = emptyMoveState();
