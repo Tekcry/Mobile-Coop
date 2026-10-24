@@ -216,6 +216,7 @@ interface Sq {
   incident: number;
   state: string;
   coverIdx: number;
+  roleBound: boolean;
   tacticsProfile: number;
   seesTarget: boolean;
   def: { melee: null; kind: string; scale: number; usesCover: boolean };
@@ -247,6 +248,7 @@ function sq(x: number, z: number): Sq {
     incident: -1,
     state: 'chase',
     coverIdx: -1,
+    roleBound: false,
     tacticsProfile: 0,
     seesTarget: false,
     def: { melee: null, kind: 'grunt', scale: 1, usesCover: true },
@@ -277,8 +279,8 @@ function cp(x: number, z: number) {
 // squadWiring's layout: c0 point, c1 overwatch, c2 flank, c3 reporter, c4 a decoy near the point's bearing
 const COVERS = [cp(0, -7), cp(1, -12), cp(12, -4), cp(1, -17.5), cp(3, -9)];
 
-function squad(gs: Sq[]) {
-  const world = { level: { lights: { lights: [], setOn: vi.fn() }, cover: COVERS, coverSegments: [] }, layout: { rooms: [] }, doors: { list: [] } };
+function squad(gs: Sq[], covers = COVERS) {
+  const world = { level: { lights: { lights: [], setOn: vi.fn() }, cover: covers, coverSegments: [] }, layout: { rooms: [] }, doors: { list: [] } };
   const nav = { walk: new Uint8Array(4), nearestWalkable: vi.fn(() => -1), lineClear: vi.fn(() => true), findPath: vi.fn(() => null), heightAt: vi.fn(() => 0) };
   const em = new EnemyManager({} as Scene, world as unknown as World, nav as unknown as NavGrid, {} as DamageRegistry, { clear: vi.fn(() => true) } as unknown as Ballistics, {} as Vfx, DIFFICULTY.normal, () => []);
   for (const g of gs) em.enemies.push(g as unknown as Enemy);
@@ -287,7 +289,7 @@ function squad(gs: Sq[]) {
   return () => priv.rolesStep(TACTICS.tick);
 }
 
-describe('guard-ai polish B2: the one-mover rule counts only a trip to the role cover', () => {
+describe('guard-ai polish B2: the one-mover rule counts only a role bound (Enemy.roleBound)', () => {
   function onTheirWay() {
     const gs = [sq(0, -16), sq(2, -17), sq(-2, -17)];
     const roles = squad(gs);
@@ -295,9 +297,11 @@ describe('guard-ai polish B2: the one-mover rule counts only a trip to the role 
     gs[1]!.coverIdx = 1;
     roles();
     expect(gs.map((g) => ROLES[g.role])).toEqual(['point', 'overwatch', 'flank']);
-    // the flank on its way to its role cover; the point's open-wait pick: a trip to another cover (the decoy)
+    // the flank on its way to its role cover (a bound: Enemy.boundTo sets roleBound); the point's open-wait pick: a trip
+    // to another cover (the decoy; pickCover leaves roleBound false)
     gs[2]!.state = 'seekCover';
     gs[2]!.coverIdx = gs[2]!.cover;
+    gs[2]!.roleBound = true;
     gs[0]!.state = 'seekCover';
     gs[0]!.coverIdx = 4;
     return { gs, roles };
@@ -311,11 +315,34 @@ describe('guard-ai polish B2: the one-mover rule counts only a trip to the role 
     expect(gs[0]!.moving).toBe(false);
     expect(gs[1]!.role).toBe(R_OVERWATCH);
     expect(gs[1]!.mates).toBe(true);
-    // his trip is to his role cover: he is the one on his way, as before
+    // his trip is a role bound: he is the one on his way, as before
     gs[0]!.coverIdx = gs[0]!.cover;
+    gs[0]!.roleBound = true;
     gs[2]!.state = 'chase';
     gs[2]!.coverIdx = -1;
+    gs[2]!.roleBound = false;
     roles();
+    expect(gs[2]!.moving).toBe(false);
+  });
+
+  it('the point mid-bound whose role cover is re-picked (the last ~2 m of a bound): still on his way, the flank stays held', () => {
+    // squadWiring's layout plus a cover past c0: within 2 m of c0 it no longer passes the point's advance rule
+    const covers = [...COVERS, cp(0.5, -5)];
+    const gs = [sq(0, -16), sq(2, -17), sq(-2, -17)];
+    const roles = squad(gs, covers);
+    gs[1]!.state = 'inCover';
+    gs[1]!.coverIdx = 1;
+    roles();
+    expect(gs.map((g) => ROLES[g.role])).toEqual(['point', 'overwatch', 'flank']);
+    // the point's bound to c0, 1.6 m short of it
+    gs[0]!.state = 'seekCover';
+    gs[0]!.coverIdx = 0;
+    gs[0]!.roleBound = true;
+    gs[0]!.pos.set(0, 0, -8.6);
+    roles();
+    expect(gs[0]!.role).toBe(R_POINT);
+    expect(gs[0]!.cover).not.toBe(0);
+    expect(gs[2]!.role).toBe(R_FLANK);
     expect(gs[2]!.moving).toBe(false);
   });
 

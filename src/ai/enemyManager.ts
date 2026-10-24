@@ -91,7 +91,7 @@ export const RADIO_ALARM = true;
 
 /**
  * (guard-ai polish batch, group B) Undo switches of the manager's polish fixes (false: the 4.97.1 behaviour).
- * `roleTrip` (B2): the one-mover rule counts only a trip to his role cover; `hearSlot` (B3): in combat a noise restarts
+ * `roleTrip` (B2): the one-mover rule counts only a role bound (`Enemy.roleBound`, false: any trip); `hearSlot` (B3): in combat a noise restarts
  * his re-aim throttle only when it is his hunt's or he takes its slot, a searcher switched by a noise is re-told;
  * `blindHear` (B6): a flashbanged guard hears nothing (calm guards too); `alarmTell` (B7, A182): the redundant
  * `tell(alarmHunt)` after an alerted spawn (true: it is gone).
@@ -3353,13 +3353,15 @@ export class EnemyManager {
     // (guard-ai polish B5) this group's picks are final: the next group of the tick starts from them
     rolesCommit();
     // one of point and flank on the move at a time: the one already on its way finishes first. (guard-ai polish B2) On
-    // its way = a trip to his role cover: a held point's open-wait pick (another cover) does not lift the flank's hold
+    // its way = a role bound (`roleBound`: the walk `boundTo` started, until he stops), not this tick's role cover (it
+    // is re-picked for the last ~2 m of a bound); a held point's open-wait pick (another cover) does not lift the
+    // flank's hold
     const pt = out.point;
     const fl = out.flank;
     const ptTrip = pt >= 0 && who[pt]!.state === 'seekCover';
     const flTrip = fl >= 0 && who[fl]!.state === 'seekCover';
-    const ptGoing = ptTrip && (!POLISH_B.roleTrip || who[pt]!.coverIdx === out.cover[pt]);
-    const flGoing = flTrip && (!POLISH_B.roleTrip || who[fl]!.coverIdx === out.cover[fl]);
+    const ptGoing = ptTrip && (!POLISH_B.roleTrip || who[pt]!.roleBound);
+    const flGoing = flTrip && (!POLISH_B.roleTrip || who[fl]!.roleBound);
     if (pt >= 0 && fl >= 0 && inp.profile[pt] !== P_AGGRESSIVE && inp.profile[fl] !== P_AGGRESSIVE) {
       if (flGoing && !ptGoing) out.moving[pt] = 0;
       if (ptGoing && !flGoing) out.moving[fl] = 0;

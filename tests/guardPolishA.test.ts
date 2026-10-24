@@ -136,6 +136,7 @@ function roleProbe(o: { role: number; cover?: number; moving?: boolean; mates?: 
     tacticsProfile: P_STANDARD,
     roleGoal: { point: null, speed: 0, face: null },
     coverIdx: -1,
+    onRoleBound: false,
     state: o.state ?? 'chase',
     stateT: 0,
     coverPicked: false,

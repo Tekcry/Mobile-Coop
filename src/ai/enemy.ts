@@ -1106,6 +1106,8 @@ export class Enemy implements Damageable {
     this.stateT = 0;
     this.wantCrouch = false;
     this.coverPicked = false;
+    // (polish B2 fix) a bound ends with the walk (`boundTo` sets it again after its own `seekCover`)
+    this.onRoleBound = false;
   }
 
   /** A noise from (x, z) audible to `radius` (m): suspicion by distance, and a place to look. */
@@ -2815,6 +2817,13 @@ export class Enemy implements Damageable {
   private roleCover = -1;
   /** The group lets him leave cover for it now (one point and one flanker moving at a time). */
   private roleMoving = false;
+  /** (guard-ai polish B2 fix) His `seekCover` walk is a role bound `boundTo` started (not this tick's role cover): set
+   *  there, cleared by any other cover pick, any state change (arrived, left `seekCover`) and a new role. The manager's
+   *  one-mover rule reads it (`roleBound`). */
+  private onRoleBound = false;
+  get roleBound(): boolean {
+    return this.onRoleBound;
+  }
   /** May run (between covers, or aggressive): the e2e / debug read it. */
   roleRun = false;
   /** A squadmate (point or flank) is moving: the overwatch suppresses the last known position. */
@@ -2878,6 +2887,8 @@ export class Enemy implements Damageable {
     if (role !== this.role) {
       this.openT = 0;
       this.openNoCover = false;
+      // (polish B2 fix) a walk the old role started is not this role's bound
+      this.onRoleBound = false;
     }
     this.role = role;
     this.roleCover = cover;
@@ -2977,6 +2988,8 @@ export class Enemy implements Damageable {
     this.coverIdx = idx;
     this.path = path;
     this.peekCycles = 0;
+    // (polish B2 fix) a role bound until he stops walking to it, whatever later ticks pick for his role
+    this.onRoleBound = true;
     return true;
   }
 
@@ -3387,6 +3400,8 @@ export class Enemy implements Damageable {
 
   /** Next bound towards the last known position: cover closer to it (by 3 m at least), facing it, within 12 m. */
   private pickAdvance(tp: P2, ty: number): boolean {
+    // (polish B2 fix) his own pick: no role bound
+    this.onRoleBound = false;
     const cover = this.ctx.cover;
     const myD = hyp2(tp[0] - this.pos.x, tp[1] - this.pos.z);
     let best = -1;
@@ -3441,6 +3456,8 @@ export class Enemy implements Damageable {
    *  A167) The best `COVER_TRIES` are tried in order: one a mate holds, with no path or a detour is skipped for the
    *  next. `skip`: a cover never to pick (the open wait's own role cover while the group holds him). */
   private pickCover(skip = -1): boolean {
+    // (polish B2 fix) today's pick (the open wait's, armour, flanker, sniper): no role bound
+    this.onRoleBound = false;
     const t = this.target;
     if (!t) return false;
     const cover = this.ctx.cover;
