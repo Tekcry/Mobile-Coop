@@ -1,6 +1,9 @@
 # coop-real - STATE
 
 ## Now
+2026-10-25 ~00:12: cr-h1 MERGED here (6204d95f: code done, node --check + localTransport vitest pass). Probe + smoke NOT RUN on the
+desktop (CPU 77-100%): queued on the laptop (set cr-h1-probe, e2e-coop-real:probe + :smoke at 6204d95f); its PROBE lines
+decide B1 / B2 (expected hideBehind / CDP frozen) before C2. C1 builder (Sonnet, briefs/C1.md) starts on this branch.
 2026-10-25 ~00:05 SAVE: F1a feature/cr-f1a 144190a0 + F1b feature/cr-f1b dadacd58 (cloud build, 2 Opus checkers PASS WITH
 FIXES, fix round done, `checker` status posted; laptop sets cr-f1a / cr-f1b queued). Follow-ups: restart-in-flight lamp
 guard, lamp-shot round-count authority, Course onRay install-order test. #317 overlap only coop.md :469. RUNNING at the
