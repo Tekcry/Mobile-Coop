@@ -715,10 +715,10 @@ def run_base(args, kit, L):
                 c = mw @ p.center
                 n = (rot @ p.normal).normalized()
                 pts = [c] + [c + ((mw @ me.vertices[v].co) - c) * 0.8 for v in p.vertices]
-                out = [pokes(q) for q in pts]
-                poking[p.index] = any(out)
+                outside = [pokes(q) for q in pts]
+                poking[p.index] = any(outside)
                 covered[p.index] = all(o_ or tree.ray_cast(q + n * 0.0005, n, HEAD_COVER_REACH)[0] is not None
-                                       for q, o_ in zip(pts, out))
+                                       for q, o_ in zip(pts, outside))
             vis_v = np.zeros(len(me.vertices), bool)
             for p in me.polygons:
                 if not covered[p.index]:
