@@ -6,6 +6,9 @@ Michael ~13:40 chose 24-guard rendering now (ROADMAP "Now: guard-render"). Plan:
 meshes; S14 dormancy dropped: Guard AI builds nothing, AI is 2-5% of a guard). Branch `feature/guard-render-2`
 (worktree C:/NightShift/Mobile-Coop-guard-render-2, from master 6b44efb8). Next: S8a (read Player's c76cf326 G8 cull
 run), S9 + S10 builders in parallel once Sector Ops confirms the freeze / world.ts handover.
+- S9 built (2026-10-24): moon cascades cull casters by view depth too (shadow reach vs split + blend band,
+  `sunCascadeCull.ts` `SunCascadeLists.setDepth` / `fill`, wired in `world.ts` `cascadeList`); unit tests pass. Next: GPU
+  A/B (guard-cap sectorops,campusops 0 / 12 / 24 vs `?guardsun=0`), e2e smoke sectorops darkness lightbake.
 
 ## Phase 1 (history)
 ## Now
