@@ -1,0 +1,16 @@
+{
+  "id": "20261024T235013-affected-e2e-28351205-dc10",
+  "sha": "28351205ef6e18c4a02f0cb6accbf84142aee9a1",
+  "branch": "feature/doc-rules",
+  "pr": 394,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anim",
+    "e2e-combat",
+    "e2e-move",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #394"
+}
