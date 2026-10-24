@@ -459,6 +459,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Optic cable (ct-toolkit 3.2): at a closed door hold A, OPTIC CABLE: she kneels, after about 1.2 s the view is
   under the door on the far side at floor height (feed overlay); the stick turns it (+-75 deg, -10..+60 deg), D-pad
   left toggles vision, B or the stick pulled back leaves; a guard on your side still sees you kneeling.
+- [ ] (optic-coop M1) At an optic gap (a hatch, ceiling panel, grille or shaft top; none placed on a map yet, so a dev
+  level with `opticGap`): hold A: OPEN TRAP (only where a panel covers the gap) and OPTIC CABLE, the door menu's list;
+  OPEN TRAP opens the panel quietly; OPTIC CABLE feeds the cable ("Too far" / "No gap" as at a door). Keyboard: E.
 - [ ] Drainpipe: one reach per hand about a second, feet together; shimmy slow with the legs swinging; ledge climb-up
   ends crouched (hold the stick to stand); ladder slower up, faster down; rappel 0.6 m/s.
 
@@ -615,7 +618,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] (optic-coop) Optic cable seen by the partner: one tab, at a closed door hold A, OPTIC CABLE. The other tab sees her
   kneel in front of the leaf, her right hand down at the door's foot and a thin dark cable running out under the door;
   her view is not shared. When she pulls out (B) the cable shortens and goes, and she stands. Works both ways (host and
-  joiner). A ping from the view (if a ping input is bound) marks what the tip sees on both tabs.
+  joiner). (M2) R3 / middle mouse pings; a ping from the view marks what the tip sees on both tabs, also in the
+  view's first moment. Controls screen: Zoom and Ping both on R3 show as a conflict (expected, reported to Michael).
 - [ ] Close the host tab: the client is told and returns to the menu.
 - [ ] (marlow-bays B+M) Marlow Yard in two tabs (`?net=local&autostart=ctcourse&mode=course`): as the joiner, grab a
   guard and walk: full hold speed, no shoving or jitter; on the host the guard stays in front of the joiner's body.

@@ -8,8 +8,9 @@ import { PAD } from '../src/input/gamepadMapping';
 const padAll = (b = defaultPadBinds()): Record<string, readonly number[]> => ({ ...b, aim: PAD_FIXED.aim, fire: PAD_FIXED.fire });
 
 describe('binding conflicts (step 18)', () => {
-  it('the defaults have none (contextual pairs share one row by design)', () => {
-    expect(findConflicts(padAll())).toEqual([]);
+  it('the defaults have none (contextual pairs share one row by design), except R3: Zoom and Ping (optic-coop M2)', () => {
+    // (optic-coop M2, Michael 2026-10-24 "R3 on pad") R3 was Zoom's: kept on both, the clash reported, nothing moved
+    expect(findConflicts(padAll())).toEqual([{ a: 'zoom', b: 'ping', input: PAD.RS }]);
     expect(findConflicts(defaultBinds())).toEqual([]);
   });
 
@@ -34,6 +35,7 @@ describe('binding conflicts (step 18)', () => {
     const b = defaultPadBinds();
     assignPadBind(b, 'draw', 0, PAD.B);
     assignPadBind(b, 'draw', 1, PAD.B);
+    b.ping = [];
     const c = findConflicts(padAll(b));
     expect(c).toEqual([{ a: 'crouch', b: 'draw', input: PAD.B }]);
     expect([...conflictIds(c)].sort()).toEqual(['crouch', 'draw']);

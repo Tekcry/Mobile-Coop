@@ -38,7 +38,7 @@ import { generateLedges, makeLedge, suppressLedgesNear, TraversalAnchors, type F
 import { LightRegistry, type LightInit } from './lights';
 import { canonicalLightSet } from '../voxel/lightShapes';
 import { sheetMesh, type SheetPiece } from './roofSheets';
-import type { OpticKind, OpticPoint } from '../player/opticCable';
+import { addOpticPoint, OPTIC_POINT_MAX, type OpticKind, type OpticPoint } from '../player/opticCable';
 
 /** Gap between a body in cover and the surface (shared by the player and AI). */
 export const COVER_STANDOFF = coverStandoff(MOVEMENT.radius, proportions('broad').bodyDepthHalf);
@@ -326,11 +326,14 @@ export class LevelBuilder {
    * ceiling panel, a vent grille or a shaft top. (gx, gy, gz) the point in the opening, (nx, ny, nz) the unit normal into
    * the space beyond (floor (0, -1, 0), ceiling (0, 1, 0), wall horizontal), `tip` the checked tip point (default
    * `OPTIC.into` along the normal). Data only: no mesh, no collision (the hatch, panel or grille is the map's own piece).
+   * (optic-coop M1) `trap`: the breakable panel key that covers the gap and opens (the menu's OPEN TRAP); none, nothing
+   * opens. (check A polish 2) At most `OPTIC_POINT_MAX` gaps (the wire's bound): past it the gap is refused with a warning.
    */
-  opticGap(kind: OpticKind, gx: number, gy: number, gz: number, nx: number, ny: number, nz: number, tip?: P3): OpticPoint {
+  opticGap(kind: OpticKind, gx: number, gy: number, gz: number, nx: number, ny: number, nz: number, tip?: P3, trap?: string): OpticPoint {
     const p: OpticPoint = { kind, gap: { x: gx, y: gy, z: gz }, nx, ny, nz };
     if (tip) p.tip = { x: tip.x, y: tip.y, z: tip.z };
-    this.opticPoints.push(p);
+    if (trap) p.trap = trap;
+    if (!addOpticPoint(this.opticPoints, p)) console.warn(`opticGap: past ${OPTIC_POINT_MAX} gaps (the wire's bound); gap at ${gx}, ${gy}, ${gz} refused`);
     return p;
   }
 

@@ -8,7 +8,8 @@
  * back-to-wall (not aiming) / swap shoulder (aiming), R3 zoom (aiming, scoped), RB co-op action (CT's Black), LB
  * selection wheel (hold) / switch weapon (tap), View mission device (no action yet), D-pad left the selected vision mode
  * on / off, right quick-use of the selected gadget. D-pad up / down are unbound in play (the speed rocker is gone,
- * anim-rework S1); they step the held context menu's highlight (fixed).
+ * anim-rework S1); they step the held context menu's highlight (fixed). (optic-coop M2) R3 also pings (co-op; Michael
+ * 2026-10-24), shared with zoom: a default conflict, reported, not moved.
  */
 import type { ButtonAction } from './actions';
 import { PAD, type PadStyle } from './gamepadMapping';
@@ -25,6 +26,7 @@ export type PadBindId =
   | 'throwCam'
   | 'vision'
   | 'device'
+  | 'ping'
   | 'pause';
 
 export interface PadBindDef {
@@ -46,6 +48,9 @@ export const PAD_BINDS: readonly PadBindDef[] = [
   { id: 'vision', label: 'Vision on / off (the mode picked on the wheel)', actions: ['vision'], defaults: [PAD.LEFT] },
   { id: 'throwCam', label: 'Quick-use selected gadget (hold to aim)', actions: ['grenade'], defaults: [PAD.RIGHT] },
   { id: 'device', label: 'Mission device (not in yet)', actions: [], defaults: [PAD.SELECT] },
+  // (optic-coop M2, Michael 2026-10-24) R3, shared with Zoom by default: a conflict the controls screen reports (kept as
+  // Michael set it; nothing moved)
+  { id: 'ping', label: 'Ping (co-op; from the optic view too)', actions: ['ping'], defaults: [PAD.RS] },
   { id: 'pause', label: 'Pause', actions: ['pause'], defaults: [PAD.START] },
 ];
 

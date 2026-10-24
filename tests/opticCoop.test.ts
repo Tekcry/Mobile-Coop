@@ -1,7 +1,7 @@
 /**
  * (optic-coop, ct-toolkit 3.2) The rest of the optic cable: MoveState mode `optic` on the wire, the partner's pose and
  * cable selection, and the gaps other than doors (hatches, ceiling panels, grilles, shaft tops): tip placement and
- * refusal. The protocol number is never asserted (tests read the constant; the train bumps it).
+ * refusal; (M1, M2) the gap action menu, the ping binding and the ping from the tip. The protocol number is never asserted (tests read the constant; the train bumps it).
  */
 import { describe, expect, it } from 'vitest';
 import { OPTIC } from '../src/config/tools';
@@ -30,8 +30,19 @@ import {
   opticPointPlace,
   opticPointRefusal,
   opticSubOf,
+  opticTipRay,
+  addOpticPoint,
   type OpticPoint,
+  type OpticRay,
 } from '../src/player/opticCable';
+import { addGapRows, GAP_KIND, GAP_MENU, gapMenuCandidate, gapMenuOptions, type GapOpt } from '../src/game/gapMenu';
+import { ContextMenu, emptyCtxInput } from '../src/game/contextMenu';
+import { OpticSystem } from '../src/game/opticSystem';
+import { Vector3 } from '../src/core/babylon';
+import { assignBind, BINDS, defaultBinds, keyActionMap } from '../src/input/keyBindings';
+import { defaultPadBinds, padBindTable, PAD_BINDS, PAD_FIXED } from '../src/input/padBinds';
+import { GAME_BINDINGS, mapPad, PAD } from '../src/input/gamepadMapping';
+import { findConflicts } from '../src/input/conflicts';
 
 const DEG = Math.PI / 180;
 const door = { hinge: { x: 0, y: 0, z: 0 }, yaw: 0, width: 0.9, locked: false };
@@ -212,5 +223,114 @@ describe('optic gaps other than doors (ct-toolkit 5, map field optic)', () => {
     c.update(OPTIC.feedOut, false, false);
     expect(c.active).toBe(false);
     expect(c.sub).toBe(0);
+  });
+});
+
+describe('(optic-coop M1) the action menu at a gap: OPEN TRAP where it opens, OPTIC CABLE', () => {
+  it('lists OPEN TRAP then OPTIC CABLE at an openable gap, OPTIC CABLE only where nothing opens', () => {
+    expect(gapMenuOptions(true)).toEqual(['trap', 'optic']);
+    expect(gapMenuOptions(false)).toEqual(['optic']);
+    const m = new ContextMenu();
+    const opts: GapOpt[] = [];
+    m.begin();
+    addGapRows(m, 3, true, opts);
+    m.end();
+    expect(m.count).toBe(2);
+    expect([m.opts[0]!.label, m.opts[1]!.label].map((s) => s.toUpperCase())).toEqual(['OPEN TRAP', 'OPTIC CABLE']);
+    expect(m.opts.slice(0, 2).every((o) => o.kind === GAP_KIND && o.ref === 3 && o.latch && o.hold === 0)).toBe(true);
+    m.begin();
+    addGapRows(m, 3, false, opts);
+    m.end();
+    expect(m.count).toBe(1);
+    expect(m.opts[0]!.opt).toBe('optic');
+    expect(opts).toEqual(['optic']);
+    // the door menu's controls: a scripted tap opens the list latched, the next tap runs the highlighted row
+    const i = emptyCtxInput();
+    i.pressed = true;
+    expect(m.step(i, 1 / 60)).toBe(-1);
+    expect(m.state === 'active' && m.latched).toBe(true);
+    expect(m.step(i, 1 / 60)).toBe(0);
+  });
+  it('the gap in reach: nearest, within 1.6 m and the height band, in front unless at the feet', () => {
+    // a hatch at the feet: no facing needed (camera yaw pi looks to -z)
+    expect(gapMenuCandidate([hatch, grille, panel], 0, 0, 0.3, Math.PI)).toBe(0);
+    // a hatch 1 m ahead (+z) in front of the camera; behind it, none
+    expect(gapMenuCandidate([hatch], 0, 0, -1, 0)).toBe(0);
+    expect(gapMenuCandidate([hatch], 0, 0, -1, Math.PI)).toBe(-1);
+    // past the reach
+    expect(gapMenuCandidate([hatch], 0, 0, -(GAP_MENU.reach + 0.05), 0)).toBe(-1);
+    // a ceiling panel 2.6 m up: in the band from feet at 0.3 m, over it from the floor (2.4 m)
+    expect(gapMenuCandidate([panel], 0, 0.3, 0.2, 0)).toBe(0);
+    expect(gapMenuCandidate([panel], 0, 0, 0.2, 0)).toBe(-1);
+    // the nearer of two in reach
+    expect(gapMenuCandidate([grille, hatch], 1.2, 0, -0.1, 0)).toBe(1);
+    expect(gapMenuCandidate([], 0, 0, 0, 0)).toBe(-1);
+  });
+});
+
+describe('(optic-coop, check A polish 2) the level caps its gaps at the wire bound', () => {
+  it('adds up to OPTIC_POINT_MAX gaps, refuses the next', () => {
+    const list: OpticPoint[] = [];
+    for (let i = 0; i < OPTIC_POINT_MAX; i++) expect(addOpticPoint(list, { ...hatch, gap: { x: i, y: 0, z: 0 } })).toBe(true);
+    expect(addOpticPoint(list, hatch)).toBe(false);
+    expect(list.length).toBe(OPTIC_POINT_MAX);
+    expect(OPTIC_POINT_MAX).toBe(256);
+  });
+});
+
+describe('(optic-coop M2, check A polish 5) a ping from the optic view casts from the tip', () => {
+  it('the tip ray is the tip point and its look from the first step of the view (before any frame moved the camera)', () => {
+    const c = new OpticCore();
+    const r: OpticRay = { x: 9, y: 9, z: 9, dx: 0, dy: 0, dz: 0 };
+    expect(opticTipRay(c, r)).toBe(false);
+    opticPointPlace(grille, 2, -1, c.place);
+    c.start(1, opticSubOf('grille'));
+    expect(opticTipRay(c, r)).toBe(false);
+    expect(r.x).toBe(9);
+    c.update(OPTIC.feedIn + 1e-6, false, false);
+    expect(c.viewing).toBe(true);
+    expect(opticTipRay(c, r)).toBe(true);
+    expect([r.x, r.y, r.z]).toEqual([c.place.tx, c.place.ty, c.place.tz]);
+    expect(r.z).toBeCloseTo(grille.gap.z + OPTIC.into);
+    expect(Math.hypot(r.dx, r.dy, r.dz)).toBeCloseTo(1);
+    // the grille faces +z: the centre look is along it
+    expect(r.dz).toBeCloseTo(1);
+    c.look(0.3, 0.1);
+    opticTipRay(c, r);
+    expect(r.dx).toBeCloseTo(Math.sin(c.yaw) * Math.cos(c.pitch));
+    expect(r.dy).toBeCloseTo(Math.sin(c.pitch));
+  });
+  it('OpticSystem.tipRay writes the tip into the ping origin and direction; outside the view it leaves them', () => {
+    const sys = new OpticSystem({} as never);
+    const o = new Vector3(1, 2, 3);
+    const dir = new Vector3(0, 0, 1);
+    expect(sys.tipRay(o, dir)).toBe(false);
+    expect([o.x, o.y, o.z]).toEqual([1, 2, 3]);
+    opticPointPlace(hatch, 0, 1, sys.core.place);
+    sys.core.start(0, opticSubOf('hatch'));
+    sys.core.update(OPTIC.feedIn + 1e-6, false, false);
+    expect(sys.tipRay(o, dir)).toBe(true);
+    expect([o.x, o.y, o.z]).toEqual([sys.core.place.tx, sys.core.place.ty, sys.core.place.tz]);
+    expect(o.y).toBeCloseTo(-OPTIC.into);
+    // a floor hatch: the look's centre is 50 deg down
+    expect(dir.y).toBeCloseTo(-Math.sin(OPTIC.vertPitch));
+  });
+  it('ping is bound by default: middle mouse (keyboard), R3 (pad), raising the ping action', () => {
+    expect(BINDS.find((b) => b.id === 'ping')).toMatchObject({ actions: ['ping'], defaults: ['Mouse1'] });
+    expect(keyActionMap(defaultBinds()).get('Mouse1')).toEqual(['ping']);
+    expect(PAD_BINDS.find((b) => b.id === 'ping')).toMatchObject({ actions: ['ping'], defaults: [PAD.RS] });
+    expect(GAME_BINDINGS.some(([i, a]) => i === PAD.RS && a === 'ping')).toBe(true);
+    const snap = { buttons: Array.from({ length: 17 }, (_, i) => (i === PAD.RS ? 1 : 0)), axes: [0, 0, 0, 0] };
+    const f = mapPad(snap, { deadzoneLeft: 0.15, deadzoneRight: 0.15, triggerDeadzone: 0.05, curve: 'linear', invertY: false }, padBindTable(defaultPadBinds()));
+    expect(f.buttons.ping).toBe(true);
+  });
+  it('the conflict check: middle mouse is free; R3 is shared with Zoom (reported, Zoom not moved)', () => {
+    expect(findConflicts(defaultBinds())).toEqual([]);
+    expect(findConflicts({ ...defaultPadBinds(), aim: PAD_FIXED.aim, fire: PAD_FIXED.fire })).toEqual([{ a: 'zoom', b: 'ping', input: PAD.RS }]);
+    expect(defaultPadBinds().zoom).toEqual([PAD.RS]);
+    // a key put on the ping is named as a clash with its other verb (warned, both keep it)
+    const k = defaultBinds();
+    expect(assignBind(k, 'ping', 0, 'KeyB')).toBe('zoom');
+    expect(findConflicts(k)).toEqual([{ a: 'zoom', b: 'ping', input: 'KeyB' }]);
   });
 });

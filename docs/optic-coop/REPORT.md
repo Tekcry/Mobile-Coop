@@ -41,4 +41,27 @@ gain `optic`; 43 related files pass one at a time; tsc and eslint clean.
 e2e-netmove gains an "optic cable" section (not run here). Laptop: run
 e2e-netmove, e2e-coop, e2e-stealth-ai, e2e-ctcourse.
 
+## Follow-up (M1, M2)
 
+feature/optic-coop-2, Michael's answers 2026-10-24 ~14:10 (`BRIEF.md`) and checker A's polish 2 and 5.
+
+- M1: `game/gapMenu.ts` (Babylon-free): `GAP_KIND` rows in the one context menu, so the door menu's prompt, highlight
+  and pick on pad and keyboard. OPEN TRAP is listed only where `OpticPoint.trap` names a breakable panel still closed
+  (`LevelBuilder.opticGap(..., tip, trap)`), else OPTIC CABLE only. `gapMenuCandidate`: nearest gap within 1.6 m (the
+  door set's reach) and the cable's height band, in front of the camera unless within 0.5 m; a faced door's set wins.
+  `GameState.gapMenuPick`: OPEN TRAP -> `breakables.open(trap, 'unscrew')` (quiet, local); OPTIC CABLE ->
+  `OpticSystem.pickPoint` ("Too far" / "No gap" on the HUD as at a door). `g.gapMenuOpts` / `g.gapMenuGap` for tests.
+- M2: `BINDS` `ping` (Middle mouse, `Mouse1`), `PAD_BINDS` `ping` (R3) and `GAME_BINDINGS` `[R3, ping]`.
+  Conflicts: middle mouse was free (no keyboard bind, only the tuner's free-mouse drag, which never maps game
+  actions). **R3 was taken by Zoom**: kept on both as Michael set it, nothing moved; `findConflicts` reports
+  Zoom / Ping on R3 on the controls screen and in the old-save migration toast. In play R3 while aiming a scoped
+  weapon in co-op zooms and pings. Open for Michael: keep, make them contextual (allowed pair), or move one.
+- Polish 2: `OPTIC_POINT_MAX` (256) moved to `opticCable.ts` (moveState re-exports it); `addOpticPoint` refuses past it
+  and `opticGap` warns.
+- Polish 5: `opticTipRay` (pure) / `OpticSystem.tipRay`: `sendPing` casts from the tip whenever the view is on, from
+  its first step (before `frameUpdate` moved the camera); `frameUpdate` places the camera from the same ray.
+- Tests: `tests/opticCoop.test.ts` 22 (gap menu rows openable / not, candidate, cap, tip ray, `OpticSystem.tipRay`,
+  ping defaults, conflicts); updated `conflicts`, `padBinds`, `settings` (the R3 conflict), `input` (the doc table's
+  ping row). One at a time: opticCoop, conflicts, padBinds, keybinds, input, settings, tunerMouse, opticCable,
+  moveState, doorPeek pass; tsc and eslint clean. `scripts/e2e-pad.mjs` remap section clears Ping off R3 too and
+  expects the Ping / Zoom conflict after the reset (not run here). Laptop: e2e-pad, e2e-mouse, e2e-netmove, e2e-coop.

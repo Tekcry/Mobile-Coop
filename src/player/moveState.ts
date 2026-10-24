@@ -10,6 +10,7 @@ import type { TraverseKind } from '../anim/animGraph';
 import { CLIMB_UP_CROUCH_K } from '../anim/clips/traverse';
 import { GRAB_KILL_BLOW, killWarp, strikeWarp, TAKEDOWN_BLOW } from '../anim/strikeBody';
 import { WALL } from './wallController';
+import { OPTIC_POINT_MAX } from './opticCable';
 
 /** Every mode on the wire, in a fixed order (an index is a u8). Later phases append, never reorder. */
 export const MOVE_MODES = [
@@ -170,9 +171,10 @@ export function moveChanged(a: MoveState, b: MoveState): boolean {
 const num = (v: unknown, lo: number, hi: number, d: number): number => (typeof v === 'number' && Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d);
 const WORLD = 400;
 /** (optic-coop) Mode `optic`: the highest sub (OPTIC_SUBS in `opticCable.ts`: door, hatch, panel, grille) and the
- *  wire's bound on a gap index (the receiver drops one its level does not have). */
+ *  wire's bound on a gap index (the receiver drops one its level does not have; defined in `opticCable.ts`, where the
+ *  level builder caps its gaps at it). */
 export const OPTIC_SUB_MAX = 3;
-export const OPTIC_POINT_MAX = 256;
+export { OPTIC_POINT_MAX };
 
 /** (optic-coop) A partner's still crouch kneels in these modes (as the owner's controller: free on the ground, side-on
  *  on a wall, at a door frame, feeding the optic cable); the crouch bit and the stillness decide the rest. */
