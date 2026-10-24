@@ -4,24 +4,26 @@
  * Every player round (ray and projectile), the wall-poke fallback and the client's claimed origin (`shot` ox / oy / oz)
  * used to start at `WeaponModel.muzzleWorld` (the gun on `rig.weaponPivot`) and test the barrel against walls from
  * `rig.headNode`: mocap, the tuner's gun sliders, the draw / glide poses and the frame rate moved them, and the fixed
- * step read the last rendered pose. This module gives both points from sim state alone: the feet, the crouch blend, the
+ * step read the last rendered pose. This module gives the origin from sim state alone: the feet, the crouch blend, the
  * lean, the shoulder side, hanging inverted, the aim direction and the weapon's own muzzle point (`WeaponDef.muzzle`,
  * after attachments: a suppressor lengthens the barrel). The animated muzzle stays for the tracer, flash and casing.
+ * (rig-pose-fix S3) The wall-poke test's eye is no longer fitted here: it is the one sim head, S1's body model
+ * (`playerVolumes.playerBody`, `PlayerTarget.body.head`, also the hit volume's and the light sample's head). S2's own
+ * head fit (to the rig at rest, no tuner base) sat 6-15 cm from it in the aimed stances and up to 44 cm at the pitch ends.
  *
  * The model, in the aim's frame (yaw from the aim direction; r right, u up, f forward along the level aim):
  *   origin = feet + B(c, p, lean, side) + dir * muzzleZ + up(p) * muzzleY
- *   eye    = feet + E(c, p, lean, side)
  * c = crouch 0..1, p = aim pitch (rad, clamped to the camera's -1.2 .. 1.05), up(p) = the aim's up (the bore's
- * up). B and E are cubic in p with crouch cross terms; the r row flips with the side (1 right shoulder, -1 left)
+ * up). B is cubic in p with crouch cross terms; the r row flips with the side (1 right shoulder, -1 left)
  * and adds the lean (the rig bends sideways, hips planted); the u / f rows add |lean|.
  * Fitted (least squares, 1 mm rounding) to Wren's rig at rest (NullEngine, `operatorRig`'s build, hands and carrier
  * set, aimed: `aim` 1, `carry` low): rifle and suppressed pistol, both sides, crouch 0 / 0.5 / 1, pitch
  * -1.2 .. 1.05 in 9 steps, lean 0 / +-0.2 (the wall peek's `WALL.peekLean`). Residuals vs the rig muzzle / head node
  * (`tests/shotOrigin.test.ts` holds them): rifle muzzle max 3.2 cm (rms 1.4), pistol max 7.9 cm (rms 2.6: the body
- * clearance pushes the low pistol out 6 cm between pitch -0.3 and -0.6), head max 2.6 / 5.1 cm; the aim turned and the
+ * clearance pushes the low pistol out 6 cm between pitch -0.3 and -0.6); the aim turned and the
  * in-between stances (not fitted) 1.6 / 3.8 cm.
  * Inverted (an inverted pipe, the hang-down; tumble pi, the pistol aimed in world space): its own quadratic in p
- * (max 0.6 cm muzzle, 1.3 cm head at the aim's centre; the body does not turn with the aim inside its yaw range).
+ * (max 0.6 cm muzzle at the aim's centre; the body does not turn with the aim inside its yaw range).
  * Not fitted: the gait (moving aimed), the split / rappel / hostage holds (the upright tables), long guns other than
  * the rifle (the rifle table). The sweep is `tests/shotOrigin.test.ts` with `SHOT_ORIGIN_SWEEP=<file.tsv>`.
  *
@@ -92,31 +94,12 @@ export const SHOT_BASE: { rifle: Table; pistol: Table } = {
   },
 };
 
-/** The head (eye) point, upright. */
-export const SHOT_EYE: { rifle: Table; pistol: Table } = {
-  rifle: {
-    r: [0.015, 0.011, -0.049, 0, 0.002, -0.005, 0.002, -0.002, 0.466, -0.257],
-    u: [1.552, -0.847, 0.247, 0.385, 0.124, -0.219, -0.058, 0.047, -0.011],
-    f: [0.248, 0.043, -0.492, 0.009, 0.053, -0.107, 0.066, -0.057, -0.003],
-  },
-  pistol: {
-    r: [0.021, 0.011, -0.049, -0.001, 0.002, -0.006, 0.001, -0.001, 0.464, -0.256],
-    u: [1.562, -0.854, 0.264, 0.386, 0.12, -0.216, -0.058, 0.05, -0.139],
-    f: [0.25, 0.042, -0.483, 0.009, 0.057, -0.115, 0.063, -0.058, 0.131],
-  },
-};
-
 /** Inverted (pistol): r (x side), u, f as [1, p, p2]. */
-export const SHOT_INV: { base: readonly [Row3, Row3, Row3]; eye: readonly [Row3, Row3, Row3] } = {
+export const SHOT_INV: { base: readonly [Row3, Row3, Row3] } = {
   base: [
     [-0.131, -0.02, 0.012],
     [-0.55, 0.094, 0.274],
     [0.483, 0.176, -0.206],
-  ],
-  eye: [
-    [-0.023, -0.05, 0.002],
-    [-0.436, 0.202, 0.253],
-    [0.236, 0.481, -0.076],
   ],
 };
 
@@ -128,17 +111,17 @@ function q8(t: Row9 | Row10, c: number, p: number): number {
   return t[0] + t[1] * c + t[2] * p + t[3] * c * c + t[4] * c * p + t[5] * p2 + t[6] * p2 * p + t[7] * c * p2;
 }
 
-function frameOffset(s: ShotPose, p: number, eye: boolean): void {
+function frameOffset(s: ShotPose, p: number): void {
   const side = s.side < 0 ? -1 : 1;
   if (s.inverted) {
-    const t = eye ? SHOT_INV.eye : SHOT_INV.base;
+    const t = SHOT_INV.base;
     const p2 = p * p;
     off.r = side * (t[0][0] + t[0][1] * p + t[0][2] * p2);
     off.u = t[1][0] + t[1][1] * p + t[1][2] * p2;
     off.f = t[2][0] + t[2][1] * p + t[2][2] * p2;
     return;
   }
-  const t = (eye ? SHOT_EYE : SHOT_BASE)[s.pistol ? 'pistol' : 'rifle'];
+  const t = SHOT_BASE[s.pistol ? 'pistol' : 'rifle'];
   const c = Math.max(0, Math.min(1, s.crouch));
   const l = s.lean;
   const al = Math.abs(l);
@@ -168,7 +151,7 @@ function aimFrame(s: ShotPose): void {
 /** Where the round starts (world): the sim muzzle. Writes `out`. */
 export function shotOrigin(s: ShotPose, out: P3): P3 {
   aimFrame(s);
-  frameOffset(s, fr.p, false);
+  frameOffset(s, fr.p);
   // right = (fz, -fx) (Babylon: +x right of +z)
   const rx = fr.fz;
   const rz = -fr.fx;
@@ -178,17 +161,5 @@ export function shotOrigin(s: ShotPose, out: P3): P3 {
   out.x = s.x + rx * off.r + fr.fx * off.f + fr.fx * (fr.cp * along - fr.sp * upk);
   out.y = s.y + off.u + fr.sp * along + fr.cp * upk;
   out.z = s.z + rz * off.r + fr.fz * off.f + fr.fz * (fr.cp * along - fr.sp * upk);
-  return out;
-}
-
-/** The sim head (eye) point (world): the wall-poke test runs from here to `shotOrigin`. Writes `out`. */
-export function shotEye(s: ShotPose, out: P3): P3 {
-  aimFrame(s);
-  frameOffset(s, fr.p, true);
-  const rx = fr.fz;
-  const rz = -fr.fx;
-  out.x = s.x + rx * off.r + fr.fx * off.f;
-  out.y = s.y + off.u;
-  out.z = s.z + rz * off.r + fr.fz * off.f;
   return out;
 }

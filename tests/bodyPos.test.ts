@@ -116,6 +116,8 @@ beforeAll(async () => {
   // the floor (top at y 0) and a wall across +Z at z 21 (the fall-room lane at x 20)
   levelStatic('floor', new Vector3(0, -0.5, 0), new Vector3(80, 1, 80));
   levelStatic('wall', new Vector3(20, 1.5, 21), new Vector3(2, 3, 0.3));
+  // (rig-pose-fix S3) a 3 m ledge: top at y 3, x -32..-28, z 28..32 (the floor probe at death)
+  levelStatic('ledge', new Vector3(-30, 1.5, 30), new Vector3(4, 3, 4));
   step();
 });
 
@@ -213,6 +215,31 @@ describe('Body: position and lie from sim (real Havok ragdoll)', () => {
     expect(open.z - 20).toBeCloseTo(settleMax(P), 6);
     expect(wall.z - 20).toBeLessThan(0.01);
     expect(wall.z).toBeGreaterThanOrEqual(20);
+  });
+
+  it('(S3) the floor probe: at a ledge lip or mid-air he lies on the floor below; on the ledge, on its top', () => {
+    const lift = lieLift(P);
+    // on the ledge, falling +X but well short of its edge: on the top (y 3)
+    const on = deathLieOn(newLie(), bal, -31, 3, 30, 0, 1, 0, P);
+    expect(on.y).toBeCloseTo(3 + lift, 3);
+    expect(on.x - -31).toBeCloseTo(settleMax(P), 6);
+    // at the lip (x -28.2), falling +X: the pelvis settles past the edge, over the drop: on the floor (y 0)
+    const lip = deathLieOn(newLie(), bal, -28.2, 3, 30, 0, 1, 0, P);
+    expect(lip.x).toBeGreaterThan(-28);
+    expect(lip.y).toBeCloseTo(lift, 3);
+    expect(lip.cy).toBeCloseTo(lip.y, 9);
+    // mid-air (a ladder, a drop) 2.4 m over open floor: on the floor under him
+    const air = deathLieOn(newLie(), bal, 5, 2.4, -20, 0.4, 0, 0, P);
+    expect(air.y).toBeCloseTo(lift, 3);
+    // the same place without collision (null): the old feet-height lie
+    expect(deathLieOn(newLie(), null, 5, 2.4, -20, 0.4, 0, 0, P).y).toBeCloseTo(2.4 + lift, 9);
+    // no floor within reach (a void deeper than LIE.floorDrop): at the feet's height
+    const deep = deathLieOn(newLie(), bal, 5, 20, -20, 0.4, 0, 0, P);
+    expect(deep.y).toBeCloseTo(20 + lift, 9);
+    // a step up under the settled pelvis (the ledge top 0.25 m over his feet, its side short of the room ray): on it
+    const up = deathLieOn(newLie(), bal, -32.3, 2.75, 30, 0, 1, 0, P);
+    expect(up.x).toBeGreaterThan(-32);
+    expect(up.y).toBeCloseTo(3 + lift, 3);
   });
 
   for (const ragdollOk of [false, true]) {

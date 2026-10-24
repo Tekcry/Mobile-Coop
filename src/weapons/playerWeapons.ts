@@ -33,7 +33,7 @@ import { CLIP_BASE, clipSpeed } from '../anim/tuneClipSpeed'; // (clip-speed, tr
 import { STANCE } from '../player/weaponStance';
 import { computeStats, damageAt, playerSpreadDeg, recoilKick, sampleSpread, NO_UPGRADES, type EffectiveStats, type StatMods, type WeaponUpgrades } from './weaponStats';
 import { addSd, sdStart, spendShot, SUPPRESSED_NOISE } from './sdRounds';
-import { emptyShotPose, shotEye, shotOrigin } from './shotOrigin';
+import { emptyShotPose, shotOrigin } from './shotOrigin';
 import { HandSwitch } from '../player/handSwitch';
 
 export interface LoadoutEntry {
@@ -178,15 +178,22 @@ export class PlayerWeapons {
   private shotE = new Vector3();
   private readonly shotPose = emptyShotPose();
   /**
-   * (rig-pose-fix S7, audit G15) The weapon changing hands, in sim: stepped in the fixed step toward the hand the wall edge /
-   * left-shoulder rule picked (`rig.openLeft`, a flag `gameState.ts` wallStep writes in the fixed step; never the rig's
-   * eased pose). The swap's hold reads this; the rig eases its own copy toward the same target (`HandSwitch`).
+   * (rig-pose-fix S7, audit G15) The weapon changing hands, in sim: stepped in the fixed step toward `handLeft`. The swap's
+   * hold and the shot's side read this; the rig eases its own copy toward the same target (`HandSwitch`).
    */
   readonly hand = new HandSwitch();
+  /** (rig-pose-fix S3) The hand the wall edge / left-shoulder rule picked (true: the left), written by `gameState.ts`
+   *  wallStep in the fixed step before `fixedUpdate` (it also gives `rig.openLeft` the same value for the drawn switch).
+   *  Weapons never read the rig's flag. */
+  handLeft = false;
+  /** (rig-pose-fix S3) The one sim head (`PlayerTarget.body.head`, S1's body model, synced in the fixed step before
+   *  `fixedUpdate`): the wall-poke test's eye. Set by `GameState`; null (a harness without one): no poke test. */
+  simHead: { readonly x: number; readonly y: number; readonly z: number } | null = null;
 
-  /** (rig-pose-fix S2) Where a round of the current weapon fired along `dir` (unit) starts (sim: `shotOrigin`) and the
-   *  sim eye the wall-poke test runs from. Writes `outO` / `outE`; no allocation. */
-  shotPoint(dir: Vector3, outO: Vector3, outE: Vector3): void {
+  /** (rig-pose-fix S2) Where a round of the current weapon fired along `dir` (unit) starts (sim: `shotOrigin`), and
+   *  (S3) the sim eye the wall-poke test runs from (`simHead`, else `outE` is left alone and false is returned). Writes
+   *  `outO` / `outE`; no allocation. */
+  shotPoint(dir: Vector3, outO: Vector3, outE: Vector3): boolean {
     const pl = this.player;
     const c = pl.controller;
     const sp = this.shotPose;
@@ -196,9 +203,9 @@ export class PlayerWeapons {
     sp.z = c.pos.z;
     sp.crouch = c.crouchBlend;
     sp.lean = pl.pose.lean;
-    // the gun's hand by the rig's own rule off the wall (gameState.ts openLeft; aiming leaves the wall): the camera's
-    // shoulder side, settled in the aim pocket (no swap or reload under way)
-    sp.side = pl.cam.shoulder < 0 && this.handSwitchOk ? -1 : 1;
+    // (S3, CHECK-W1 polish) the gun's side from the sim hand clock (`hand`: the wall edge's left hand and the left
+    // shoulder, eased over EDGE_HAND_TIME), so the origin changes sides with the swap's clock and the drawn gun
+    sp.side = this.hand.hand;
     sp.inverted = pl.attachAim?.inverted === true;
     sp.pistol = def.class === 'pistol';
     sp.dx = dir.x;
@@ -207,14 +214,10 @@ export class PlayerWeapons {
     sp.muzzleY = def.muzzle[1];
     sp.muzzleZ = def.muzzle[2];
     shotOrigin(sp, outO);
-    shotEye(sp, outE);
-  }
-
-  /** The current weapon's muzzle in world space (a fresh vector). */
-  muzzlePoint(): Vector3 {
-    const out = new Vector3();
-    this.current.model.muzzleWorld(out);
-    return out;
+    const h = this.simHead;
+    if (!h) return false;
+    outE.set(h.x, h.y, h.z);
+    return true;
   }
 
   constructor(
@@ -635,7 +638,7 @@ export class PlayerWeapons {
     const s = this.current;
     // (anim-natural N3) the Draw section's values for this step (identity unless a slider moved)
     drawTuneApply(drawClass(s.def.class));
-    this.hand.step(dt, this.player.rig.openLeft);
+    this.hand.step(dt, this.handLeft);
     this.player.reload = this.reloading ? this.reloadProgress : -1;
     this.player.reloadEmpty = this.reloadEmpty;
     this.player.reloadQueued = this.reloadQueued;
@@ -1032,12 +1035,12 @@ export class PlayerWeapons {
     // The head, not the camera pivot: leaning out past a cover edge, the pivot stays behind the cover
     // and the line from it would cut the corner the shooter is leaning round.
     // (rig-pose-fix S2, G6) Both points from the sim (`shotOrigin.ts`: feet, crouch, lean, shoulder side, inverted, the
-    // aim, the barrel), never the animated pose; the rig's muzzle only places the tracer, flash and casing (P6).
+    // aim, the barrel; S3: the eye is the one sim head, S1's body model), never the animated pose; the rig's muzzle only
+    // places the tracer, flash and casing (P6).
     s.model.muzzleWorld(this.muzzle);
-    this.shotPoint(this.tmpD, this.shotO, this.shotE);
+    const eye = this.shotPoint(this.tmpD, this.shotO, this.shotE);
     const head = this.shotE;
-    const block = this.ballistics.ray(head, this.shotO, MASK.WORLD);
-    const origin = block.hit ? head : this.shotO;
+    const origin = eye && this.ballistics.ray(head, this.shotO, MASK.WORLD).hit ? head : this.shotO;
     const baseDir = aimPoint.subtract(origin).normalize();
     const spread = this.currentSpread();
     const dir = new Vector3();

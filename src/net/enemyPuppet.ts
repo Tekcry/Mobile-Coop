@@ -22,6 +22,9 @@ import { PG_ARMOUR, PG_DROP, PG_HELMET, predictDeflect, puppetGear } from './pup
 import { carryRaise, carrySlotOf, mayHolster } from '../ai/carryState';
 import { PuppetCarry } from './puppetCarry';
 import type { RigPose } from '../player/characterRig';
+import { emoteSeize, emoteStep, guardHead, guardHeadRest, newEmoteState, newHeadIn, type GuardHeadRest } from '../ai/guardHead';
+import { DOG_MEAN_PHASE, dogHead } from '../ai/dogHead';
+import { puppetHeadIn } from './puppetHead';
 
 /** (guard-ai S9) A dropped helmet for the client's pool (`HelmetDrops.drop`'s arguments). */
 export type PuppetHelmetDrop = (x: number, y: number, z: number, top: number, dx: number, dz: number, hex: string, w: number, h: number, d: number) => void;
@@ -103,6 +106,11 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
   private carryWire = 0;
   /** The rig pose, reused each frame. */
   private readonly rp: RigPose = { speed: 0, localX: 0, localZ: 0, grounded: true, crouch: 0, aimPitch: 0, aim: 0, kick: 0 };
+  /** (rig-pose-fix S3, audit G7) The head hit volume from the sim head model (`guardHead`, as the host's guard), on the
+   *  inputs the rig gets (`puppetHeadIn`), never read back from the rig; the held pose's emote as the host steps it. */
+  private readonly headRest: GuardHeadRest;
+  private readonly headIn = newHeadIn();
+  private readonly emoteSt = newEmoteState();
 
   constructor(
     scene: Scene,
@@ -129,6 +137,7 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
       this.gunCarry = new GuardGunCarry(built.rig, built.gun, carrySlotOf(cls));
     }
     this.hitboxes = new Hitboxes(scene, registry, this, this.def.scale, this.def.build);
+    this.headRest = guardHeadRest(this.def.height, this.def.build, this.def.gun !== null, this.def.melee ? 0 : this.def.runSpeed);
   }
 
   /** (guard-ai S9) Shown wearing (tests / e2e): the helmet, the armour, the shield. */
@@ -243,6 +252,7 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
     if (!rig) return;
     this.cq.seed = seedOf(this.id);
     this.cq.seize(!choke, delay);
+    emoteSeize(this.emoteSt);
     this.gun?.setVisible(false);
     rig.emote = this.cqEmote;
     rig.emoteTime = 0;
@@ -303,6 +313,7 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
       this.hitboxes?.setSolid(false);
       this.cq.seed = seedOf(this.id);
       this.cq.seize(false, 0);
+      emoteSeize(this.emoteSt);
       rig.emote = this.cqEmote;
       rig.emoteTime = 0;
       this.gun?.setVisible(false);
@@ -399,7 +410,8 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
     this.flash = Math.max(0, this.flash - dt * 9);
     if (this.dog) {
       this.dog.update(dt, this.pos.x, this.pos.y, this.pos.z, this.yaw, this.speed, this.alerted ? 1 : 0, this.kick);
-      this.hitboxes?.sync(this.pos, this.dog.head);
+      // (rig-pose-fix S6 / S3) the head from the pure dog head (no gait clock on the wire: its mean phase), not the model
+      this.hitboxes?.sync(this.pos, dogHead(this.pos, this.yaw, this.speed, DOG_MEAN_PHASE, this.alerted ? 1 : 0, this.kick, this.head));
       return;
     }
     const r = this.rig.root;
@@ -417,6 +429,8 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
     rp.crouch = this.crouch;
     rp.aimPitch = 0;
     rp.aim = this.def.melee || this.taken || this.remoteHold ? 0 : this.aim;
+    // (rig-pose-fix S3, G7) the head on these inputs (the raise before the carry, as the host's head reads it)
+    puppetHeadIn(this.headIn, this.pos.x, this.pos.y, this.pos.z, this.yaw, this.crouch, this.speed, rp.localX, rp.localZ, rp.aim);
     rp.kick = this.def.melee ? 0 : this.kick;
     rp.melee = this.def.melee && this.kick > 0 ? 1 - this.kick : -1;
     // (guard-ai A126) the host's carry (S21): holstered he walks with ready hands, the draw / holster clip runs while the
@@ -434,8 +448,9 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
       rp.swapTo = gc.slot;
     }
     this.rig.animate(dt, rp);
-    this.rig.headNode.computeWorldMatrix(true);
-    this.head.copyFrom(this.rig.headNode.getAbsolutePosition());
+    const cq = this.cq;
+    emoteStep(this.emoteSt, this.headIn, this.taken || this.remoteHold, false, cq.mode, cq.delay, cq.k, dt);
+    guardHead(this.headIn, this.headRest, this.head);
     this.hitboxes?.sync(this.pos, this.head);
   }
 

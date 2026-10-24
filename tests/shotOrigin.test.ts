@@ -1,16 +1,17 @@
-// (rig-pose-fix S2, audit G6) The player's shot origin and sim eye from the sim (`src/weapons/shotOrigin.ts`): the pure
+// (rig-pose-fix S2, audit G6) The player's shot origin from the sim (`src/weapons/shotOrigin.ts`; S3: its eye is S1's body head): the pure
 // model, the host's origin checks accept it, and its parity with Wren's rig (NullEngine, as `operatorRig` builds her) at
 // rest in the fitted stances. `SHOT_ORIGIN_SWEEP=<file.tsv>` writes the rig sweep the tables were fitted from (columns:
 // weapon, side, crouch, pitch, lean, inverted, muzzle xyz, head xyz; root at the origin, facing +z; the fit is a least
 // squares of the model's terms on muzzle - barrel and on the head, 1 mm rounding).
 import { describe, expect, it } from 'vitest';
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import type { RigPose } from '../src/player/characterRig';
-import { emptyShotPose, shotEye, shotOrigin, type P3, type ShotPose } from '../src/weapons/shotOrigin';
+import { emptyShotPose, shotOrigin, type P3, type ShotPose } from '../src/weapons/shotOrigin';
 import { WEAPONS } from '../src/weapons/weaponDefs';
 import { withAttachments } from '../src/progression/attachments';
 import { checkShot, SHOT_UNDER } from '../src/net/validate';
 import { LAMP_SHOT_ORIGIN } from '../src/net/lampSync';
+import { emptyPlayerBodyIn, emptyPlayerBodyOut, playerBody } from '../src/player/playerVolumes';
 
 const d3 = (a: P3, b: P3): number => Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2);
 
@@ -40,9 +41,6 @@ describe('shotOrigin: the pure model', () => {
     expect(out.y).toBeLessThan(1.6);
     expect(out.z).toBeGreaterThan(0.8);
     expect(out.z).toBeLessThan(1.05);
-    const e = shotEye(pose(), { x: 0, y: 0, z: 0 });
-    expect(e.y).toBeGreaterThan(out.y);
-    expect(e.z).toBeLessThan(out.z);
   });
 
   it('the left shoulder mirrors the side; a turn of the aim turns both points about the feet; the feet translate them', () => {
@@ -59,7 +57,7 @@ describe('shotOrigin: the pure model', () => {
     expect(t.y).toBeCloseTo(r.y - 1, 9);
   });
 
-  it('a longer barrel (a suppressor) moves the origin along the aim by the added length; the eye does not move', () => {
+  it('a longer barrel (a suppressor) moves the origin along the aim by the added length', () => {
     const base = WEAPONS.rifle;
     const sup = withAttachments(base, ['suppressor']);
     const added = sup.muzzle[2] - base.muzzle[2];
@@ -68,10 +66,9 @@ describe('shotOrigin: the pure model', () => {
     const b = shotOrigin(pose({ pitch, muzzleZ: sup.muzzle[2] }), { x: 0, y: 0, z: 0 });
     expect(b.y - a.y).toBeCloseTo(Math.sin(pitch) * added, 9);
     expect(b.z - a.z).toBeCloseTo(Math.cos(pitch) * added, 9);
-    expect(shotEye(pose({ pitch, muzzleZ: sup.muzzle[2] }), { x: 0, y: 0, z: 0 })).toEqual(shotEye(pose({ pitch }), { x: 0, y: 0, z: 0 }));
   });
 
-  it('crouching lowers both points; the lean moves them to its side; inverted they hang under the feet', () => {
+  it('crouching lowers the origin; the lean moves it to its side; inverted it hangs under the feet', () => {
     const st = shotOrigin(pose(), { x: 0, y: 0, z: 0 });
     const cr = shotOrigin(pose({ crouch: 1 }), { x: 0, y: 0, z: 0 });
     expect(st.y - cr.y).toBeGreaterThan(0.35);
@@ -81,15 +78,12 @@ describe('shotOrigin: the pure model', () => {
     expect(st.x - ll.x).toBeGreaterThan(0.06);
     const inv = shotOrigin(pose({ w: 'pistolSd', inverted: true }), { x: 0, y: 0, z: 0 });
     expect(inv.y).toBeLessThan(-0.3);
-    expect(shotEye(pose({ w: 'pistolSd', inverted: true }), { x: 0, y: 0, z: 0 }).y).toBeLessThan(-0.2);
   });
 
   it('straight up / down and past the camera range stay finite (the stance terms clamp the pitch)', () => {
     for (const p of [-Math.PI / 2, -1.5, 1.4, Math.PI / 2]) {
       const o = shotOrigin(pose({ pitch: p }), { x: 0, y: 0, z: 0 });
-      const e = shotEye(pose({ pitch: p }), { x: 0, y: 0, z: 0 });
-      for (const v of [o.x, o.y, o.z, e.x, e.y, e.z]) expect(Number.isFinite(v)).toBe(true);
-      expect(d3(o, e)).toBeLessThan(1.5);
+      for (const v of [o.x, o.y, o.z]) expect(Number.isFinite(v)).toBe(true);
     }
   });
 });
@@ -174,24 +168,21 @@ const SWEEP_PITCH = [-1.2, -0.9, -0.6, -0.3, 0, 0.3, 0.6, 0.9, 1.05];
 const INV_PITCH = [-0.8, -0.4, 0, 0.3, 0.6];
 
 describe('shotOrigin: parity with Wren rig at rest (NullEngine)', () => {
-  it('the fitted stances: muzzle and head within the fit tolerances; the turned aim and the in-between stances too', async () => {
+  it('the fitted stances: the muzzle within the fit tolerances; the turned aim and the in-between stances too', async () => {
     const rows: string[] = ['w\tside\tc\tp\tlean\tinv\tmx\tmy\tmz\thx\thy\thz'];
     const lines: string[] = [];
     for (const w of ['rifle', 'pistolSd'] as const) {
       const { scene, at } = await wrenRig(w);
-      const worst = { m: 0, h: 0, mi: 0, hi: 0, off: 0, sum: 0, n: 0 };
+      const worst = { m: 0, mi: 0, off: 0, sum: 0, n: 0 };
       const run = (side: number, crouch: number, pitch: number, lean: number, inverted: boolean, yaw: number, fitted: boolean): void => {
         const r = at(side, crouch, pitch, lean, inverted, yaw);
         const s = pose({ w, side, crouch, pitch, lean, inverted, yaw });
         const em = d3(shotOrigin(s, { x: 0, y: 0, z: 0 }), r.muzzle);
-        const eh = d3(shotEye(s, { x: 0, y: 0, z: 0 }), r.head);
         if (!fitted) worst.off = Math.max(worst.off, em);
         else if (inverted) {
           worst.mi = Math.max(worst.mi, em);
-          worst.hi = Math.max(worst.hi, eh);
         } else {
           worst.m = Math.max(worst.m, em);
-          worst.h = Math.max(worst.h, eh);
           worst.sum += em * em;
           worst.n++;
         }
@@ -203,18 +194,62 @@ describe('shotOrigin: parity with Wren rig at rest (NullEngine)', () => {
       for (const [crouch, pitch, lean, yaw] of [[0, 0.15, 0, 0.9], [0.25, -0.45, 0.1, -2.2], [0.75, 0.45, -0.1, 3.0], [1, -0.15, 0, 1.6]] as const) run(1, crouch, pitch, lean, false, yaw, false);
       scene.dispose();
       const rms = Math.sqrt(worst.sum / Math.max(1, worst.n));
-      lines.push(`${w}: muzzle max ${(worst.m * 100).toFixed(1)} cm rms ${(rms * 100).toFixed(1)} cm, head max ${(worst.h * 100).toFixed(1)} cm; turned / in-between muzzle max ${(worst.off * 100).toFixed(1)} cm` + (w === 'pistolSd' ? `; inverted muzzle max ${(worst.mi * 100).toFixed(1)} cm head ${(worst.hi * 100).toFixed(1)} cm` : ''));
+      lines.push(`${w}: muzzle max ${(worst.m * 100).toFixed(1)} cm rms ${(rms * 100).toFixed(1)} cm; turned / in-between muzzle max ${(worst.off * 100).toFixed(1)} cm` + (w === 'pistolSd' ? `; inverted muzzle max ${(worst.mi * 100).toFixed(1)} cm` : ''));
       // tolerances: the fit's residual plus ~1 cm (shotOrigin.ts header); the low pistol's 6 cm body clearance push is in its row
-      const tol = w === 'rifle' ? { m: 0.045, h: 0.035, off: 0.045 } : { m: 0.095, h: 0.06, off: 0.095 };
+      const tol = w === 'rifle' ? { m: 0.045, off: 0.045 } : { m: 0.095, off: 0.095 };
       expect(worst.m, `${w} muzzle`).toBeLessThan(tol.m);
-      expect(worst.h, `${w} head`).toBeLessThan(tol.h);
       expect(worst.off, `${w} turned / in-between`).toBeLessThan(tol.off);
       if (w === 'pistolSd') {
         expect(worst.mi, 'inverted muzzle').toBeLessThan(0.02);
-        expect(worst.hi, 'inverted head').toBeLessThan(0.025);
       }
     }
     for (const l of lines) console.info(`shot origin parity ${l}`);
     if (process.env.SHOT_ORIGIN_SWEEP) writeFileSync(process.env.SHOT_ORIGIN_SWEEP, rows.join('\n'));
+  });
+});
+
+// (rig-pose-fix S3, CHECK-W1 polish 3) One sim head: the wall-poke test's eye is S1's body model head
+// (`PlayerTarget.body.head`), not a second head fitted here. S2's head fit sat 6-15 cm from it aimed (|pitch| <= 0.5) and
+// up to 44 cm at the pitch ends (two fits of `rig.headNode`: at rest vs in game with the tuner base table).
+describe('rig-pose-fix S3: the wall-poke eye is the one sim head (S1 body model)', () => {
+  it('weapons take the eye from PlayerTarget.body.head; gameState wires it; no second head model', () => {
+    const w = readFileSync('src/weapons/playerWeapons.ts', 'utf8');
+    const g = readFileSync('src/game/gameState.ts', 'utf8');
+    const s = readFileSync('src/weapons/shotOrigin.ts', 'utf8');
+    expect(w).not.toMatch(/shotEye|headNode/);
+    expect(w).toMatch(/const h = this\.simHead;/);
+    expect(g).toMatch(/this\.weapons\.simHead = this\.target\.body\.head;/);
+    expect(s).not.toMatch(/export function shotEye/);
+  });
+
+  it('aimed (both weapons, sides, crouch and kneel, the camera pitch range): the head is behind the origin, the poke line short', () => {
+    const bi = emptyPlayerBodyIn();
+    const bo = emptyPlayerBodyOut();
+    const o = { x: 0, y: 0, z: 0 };
+    let minAlong = Infinity;
+    let maxLen = 0;
+    let maxOut = 0;
+    for (const w of ['rifle', 'pistolSd'] as const)
+      for (const crouch of [0, 0.5, 1])
+        for (const kneel of crouch === 1 ? [false, true] : [false])
+          for (const pitch of SWEEP_PITCH)
+            for (const side of [1, -1]) {
+              const s = pose({ w, crouch, pitch, side });
+              shotOrigin(s, o);
+              bi.crouch = crouch;
+              bi.kneel = kneel;
+              bi.drawn = true;
+              bi.raise = 1;
+              bi.pitch = pitch;
+              const h = playerBody(bi, bo).head;
+              minAlong = Math.min(minAlong, (o.x - h.x) * s.dx + (o.y - h.y) * s.dy + (o.z - h.z) * s.dz);
+              maxLen = Math.max(maxLen, d3(o, h));
+              maxOut = Math.max(maxOut, Math.sqrt(h.x * h.x + h.z * h.z));
+            }
+    console.info(`wall-poke line (S1 head -> S2 origin): min along the aim ${minAlong.toFixed(3)} m, max length ${maxLen.toFixed(3)} m, head max ${maxOut.toFixed(3)} m out from the feet`);
+    // the barrel is ahead of the eye along the aim (a wall between them is a barrel through it) and close to it
+    expect(minAlong).toBeGreaterThan(0.05);
+    expect(maxLen).toBeLessThan(1.0);
+    expect(maxOut).toBeLessThan(0.6);
   });
 });
