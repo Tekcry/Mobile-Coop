@@ -49,7 +49,9 @@ const sections = (G) =>
       obj: [s.objective.x, s.objective.y, s.objective.z],
       exit: (s.connector ?? s.extract).box,
       cp: s.connector ? s.connector.checkpoint : null,
-      guards: s.guards.length,
+      // (coop4 A8) the list a team of 1-2 spawns: the minPlayers-tagged guards are only for 3-4 (part 7 checks them)
+      guards: s.guards.filter((g) => g.minPlayers === undefined).length,
+      tagged: s.guards.filter((g) => g.minPlayers !== undefined).length,
       seals: (s.connector?.sealUnlocks ?? []).length,
     })),
   );
