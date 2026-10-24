@@ -2,7 +2,9 @@ import type { RoutePt, SectorDef, SectorGuard } from '../../game/sectors';
 import type { SecurityData } from '../../security/data';
 import type { GearTag } from '../../ai/gear';
 import type { ArmourPiece } from './campusS4Data';
-import { S5_BOX, S5_DOORS } from './campusS5';
+import type { CampusSectionParts } from './campusParts';
+import { buildCampusS5, S5_BOARDS, S5_BOX, S5_DOORS, S5_HIDESPOTS, S5_LASERS, S5_NAV_SEEDS, S5_PANELS, S5_ROOMS, S5_SWITCHES } from './campusS5';
+import { dressS5, HERO_S5, S5_ART_TAGS } from './campusS5Dress';
 
 const PI = Math.PI;
 
@@ -186,4 +188,28 @@ export const S5_SECTOR: SectorDef = {
     { stage: 2, lightsFull: [81, 84], lockDoors: [[-56, 40]] },
     { stage: 3, lightsFull: [80, 88], lockDoors: [[-38, 33.5]] },
   ],
+};
+
+/** (campus-greybox P0) Section 5's parts for the map (`campusSections.ts`). No co-op lips yet; the chimney stacks feed the art pass. */
+export const S5_PARTS: CampusSectionParts = {
+  build: buildCampusS5,
+  spawns: [],
+  pickups: [],
+  hideSpots: S5_HIDESPOTS,
+  switches: S5_SWITCHES,
+  rooms: S5_ROOMS,
+  navSeeds: S5_NAV_SEEDS,
+  lasers: S5_LASERS,
+  panels: S5_PANELS,
+  boards: S5_BOARDS,
+  sector: S5_SECTOR,
+  cameras: S5_CAMERAS,
+  desks: [],
+  levels: { 's5-l1': 4.2 },
+  alarms: S5_ALARMS,
+  coopLips: [],
+  dress: dressS5,
+  artTags: S5_ART_TAGS,
+  hero: HERO_S5,
+  chimneys: S5_BOX.chimneys,
 };

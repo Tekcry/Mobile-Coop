@@ -64,6 +64,21 @@ export interface Flags {
   /** (sector-redesign perf) Sector Ops guards whose body and shadows cannot reach the screen skip the render
    *  (`sectorGuardFreeze.ts`); `?guardfreeze=0`: off, for comparisons. */
   guardFreeze: boolean;
+  /** (campus-greybox; owner Sector Ops Build) The Saltmarsh Park sections (1-5) built from their v2 layouts
+   *  (`src/world/maps/campusV2/`) instead of the live ones. Default `CAMPUS_V2_ON` (none: production unchanged); a
+   *  section joins it when Michael accepts its walk. `?campusv2=1,3`: exactly those sections; `?campusv2=0`: none. Every
+   *  co-op peer must open the same link (the layout is not on the wire). */
+  campusV2: readonly number[];
+}
+
+/** (campus-greybox) The campus sections switched on to their v2 layouts by default: a section number joins this list
+ *  when Michael accepts that section's walk (switch-on; the date goes in the PR body and the ROADMAP). */
+export const CAMPUS_V2_ON: readonly number[] = [];
+
+/** (campus-greybox) `?campusv2=` as a sorted section list (1-5); absent or unreadable: the default. "0" means none. */
+export function readCampusV2(v: string | null): readonly number[] {
+  if (v === null || !/^[0-5](,[0-5])*$/.test(v)) return CAMPUS_V2_ON;
+  return [...new Set(v.split(',').map(Number))].filter((n) => n > 0).sort((a, b) => a - b);
 }
 
 /** (mocap-trial) An on / off URL value: "1" true, "0" false, anything else (or absent) null. */
@@ -133,4 +148,5 @@ export const flags: Flags = {
   animTier: params.get('animtier') !== '0',
   guardSun: params.get('guardsun') !== '0',
   guardFreeze: params.get('guardfreeze') !== '0',
+  campusV2: readCampusV2(params.get('campusv2')),
 };
