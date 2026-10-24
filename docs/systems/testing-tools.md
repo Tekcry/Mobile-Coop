@@ -507,7 +507,7 @@ tested sha. No message per verdict. Slots, job counts and the desktop's gates: `
   the JSON and pushes nothing. An `--alone` step may start with `serve ` (runs `scripts/laptop-queue/serve.mjs`).
 - Order: trains (an `origin/train/<n>` head with no `laptop-e2e` status; both slots, sharded by suite times; a head whose
   `auto-train/*` status is failure or error is skipped), then train reruns, then pr / full
-  requests (one slot), then alone-measurements (both slots; one waiting over 45 min goes ahead of pr work).
+  requests (one slot), then alone-measurements (both slots; one waiting over 30 min (`ALONE_AGE_MIN`) goes ahead of pr work).
 - Train reruns (2026-10-24, auto-train): `request.mjs --train-rerun --pr N --suites "a b" --requester auto-train` writes
   `"trainRerun": true` (kind pr). It runs right after trains, before every other request and alone run, never held by
   the alone hold, on one laptop slot at `E2E_JOBS=1` with the suites at once (no sharding; the desktop never takes it).
@@ -548,7 +548,7 @@ tested sha. No message per verdict. Slots, job counts and the desktop's gates: `
   `C:/NightShift/Mobile-Coop-testrun-4191` under `C:/NightShift/heavy.lock` (and 4192 in `...-testrun-4192` under
   `heavy2.lock`), `E2E_GPU=1 E2E_JOBS=1`. Its start gates (backlog, CPU, lock, laptop silent for trains) are in
   `docs/RULES.md` "Machines"; the env names are `LQ_DESKTOP_BACKLOG` (service default 3, `install-task.ps1` default 0),
-  `LQ_DESKTOP_CPU` / `LQ_DESKTOP_CPU2` (80; CPU of Normal-priority processes) and `LQ_LAPTOP_SILENT_MIN` (10). Full and
+  `LQ_DESKTOP_CPU` / `LQ_DESKTOP_CPU2` (80; CPU of Normal or higher priority processes, lib `gatedCpu`) and `LQ_LAPTOP_SILENT_MIN` (10). Full and
   alone runs stay on the laptop. Its statuses read "desktop: ..."; logs
   `C:/NightShift/scratch/laptop-queue-desktop/runs/<id>/` on the desktop.
   While auto-train runs `merge-train build` it writes `<AUTO_TRAIN_SCRATCH or C:/NightShift/scratch>/auto-train-building.json` ({ train, version,

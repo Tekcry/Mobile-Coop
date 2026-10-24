@@ -144,8 +144,8 @@ an Opus plan; the orchestrator assigns it (G283).
 - The desktop runs e2e suites only as the queue's overflow worker (task `NightShift-desktop-queue`), never by hand; a
   one-off GPU, perf or Blender job runs there only when the job lead says, under `heavy.lock`. The worker takes pr requests
   on 4191 (`heavy.lock`) and 4192 (`heavy2.lock`) at `E2E_JOBS=1`, one new start per pass, each only while a request
-  waits (installed backlog gate 0; `LQ_DESKTOP_BACKLOG`), the slot's lock is free and the desktop CPU of Normal-priority
-  processes is under 80% (`LQ_DESKTOP_CPU` / `LQ_DESKTOP_CPU2`; below-Normal work such as a Blender bake does not
+  waits (installed backlog gate 0; `LQ_DESKTOP_BACKLOG`), the slot's lock is free and the desktop CPU of Normal or higher
+  priority processes is under 80% (lib `gatedCpu`; `LQ_DESKTOP_CPU` / `LQ_DESKTOP_CPU2`; below-Normal work such as a Blender bake does not
   count). Trains only when the laptop has pushed nothing for 10 min (`LQ_LAPTOP_SILENT_MIN`) and the head is over
   2 min old; nothing new while auto-train's build marker is under 30 min old. A desktop failure posts pending and queues
   a laptop rerun, whose verdict is final. `heavy.lock` / `heavy2.lock` also cover builds, Blender bakes and other heavy

@@ -13,7 +13,7 @@
 //                works on a detached commit), the DIRECT tier (the suites that drive the changed area); `--wide` adds the cross-area
 //                readers (WIDE_COVERS); `--list` prints them one per line and exits (the laptop queue and leads use it); picked suites
 //                outside REQUIRED are REPORT ONLY, as in --quick
-// Which change runs what (the test tiers): CLAUDE.md "Sessions" and docs/systems/testing-tools.md.
+// Which change runs what (the test tiers): docs/RULES.md "Test tiers" and docs/systems/testing-tools.md.
 // The slowest suites start first (scripts/e2e-times.json, refreshed by every full run), so the pool stays busy to the end.
 import { spawn, execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';

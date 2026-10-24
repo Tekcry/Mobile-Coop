@@ -33,7 +33,7 @@ the old `warehouseOps` stays selectable), Fallow (`bunker`, parked behind `?lega
 | File | Covers | Read when |
 | --- | --- | --- |
 | `docs/RULES.md` | Sessions, jobs, intake, walk pacing, train-ready, test tiers, machines, swaps, commands, ports, definition of done | Every session start (from origin/master) |
-| `docs/VISION.md` | The game: modes, player counts, the current goal | Every session start (from origin/master) |
+| `docs/VISION.md` | The game summary (modes, player counts) and the current-focus pointer (ROADMAP Now) | Every session start (from origin/master) |
 | `docs/DECISIONS.md` | Michael's decisions G1 onward, deferred and unanswered items | Any design or process question |
 | `docs/design-bible.md` | Pillars, systems, out-of-scope list, level and platform rules | The sections the job touches |
 | `docs/ROADMAP.md` (on origin/feature/menu) | Now, Inbox, Waiting on Michael, Decided, Done (owned by the orchestrator) | The entries a resume block names |
