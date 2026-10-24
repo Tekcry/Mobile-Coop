@@ -1020,11 +1020,11 @@ WIP snapshots (branches untouched): origin/wip/guard-ai-polish-fix ba1dc579 (fix
    shadow in view; contact sheets tier on vs &animtier=0) + a software-GL dry run; then queue it as an alone GPU request
    on the T1 head AND on master (tier 4) for Michael's morning pack. After gm-flip lands: shadow-in-view counts as seen
    in animTierView.ts, measure the saving left. Requeue T1's e2e-sectorops + e2e-enemies only if Michael picks ship 8.
-4. Polish batch 2 = PR #377 (feature/guard-ai-polish2, worktree C:/NightShift/Mobile-Coop-guard-ai-polish2, head
-   d45d526e9; base master; #363 is in master now so its diff is its own delta). Checks: tsc / eslint clean, 80 files
-   1477 tests (group A 104 / 1801 on its head). RUNNING: Opus checkers A (A184 / A186 / A187 / A189 / A190 / A194) +
-   B (A185 / A188 / A191 / A192 / A193, drone test, docs) -> docs/guard-ai/slices/POLISH2-CHECK-A/B.md (lead commits);
-   laptop polish2 (e2e-stealth-ai e2e-ctcourse, ...-802e). Both green -> checker status + orchestrator train-ready.
+4. Polish batch 2 = PR #377 (feature/guard-ai-polish2, worktree C:/NightShift/Mobile-Coop-guard-ai-polish2; base
+   master). Checks (80f42ee66, checker status failure): A FIX 1 (A184 partial end on another storey), B FIX 2 (A193
+   edge pin: HEAR_STOREY off / deferred; A188 LKP left unvisited: re-ask + free lkpBy). Opus FIX ROUND RUNNING (all
+   three). Laptop request on d45d526e9 withdrawn (stale). Next: requeue set polish2 (e2e-stealth-ai e2e-ctcourse) on
+   the fix head + one Opus re-check of the three fixes; green -> checker status + orchestrator train-ready.
    CI `check` red until pr-size hotfix #378 merges (Michael's OK; branches before 4.100.0 lack scripts/pr-size.mjs):
    after it merges `gh run rerun --failed` on #377 / #360 / #317 heads. No master merge.
 5. Mission hooks (Marlow, after Michael signs off the mission specs): em.missionOrder(guardTag, 'reset' | 'walk',
