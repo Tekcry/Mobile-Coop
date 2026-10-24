@@ -48,6 +48,8 @@ export interface Flags {
   weaponLab: boolean;
   /** Sector Ops, dev and tests (`?sectorGuards=N`): at most N guards per section spawn (alarm reinforcements on top). */
   sectorGuards: number | null;
+  /** Dev and tests (`?players=2..4`, clamped): the same-device autostart room (`?net=local`) waits for this many players before it starts; undefined when absent. */
+  players: number | undefined;
   /** (mocap-trial) `?mocap=1` / `?mocap=0`: the mocap locomotion clips on / off for this page, over the stored setting
    *  (Settings > Gameplay > "Mocap locomotion"); null when the page names none. */
   mocap: boolean | null;
@@ -122,6 +124,7 @@ export const flags: Flags = {
   foleyLab: params.get('foleylab') === '1',
   weaponLab: params.get('weaponlab') === '1',
   sectorGuards: /^\d{1,2}$/.test(params.get('sectorGuards') ?? '') ? Number(params.get('sectorGuards')) : null,
+  players: /^\d{1,2}$/.test(params.get('players') ?? '') ? Math.min(4, Math.max(2, Number(params.get('players')))) : undefined,
   mocap: onOffFlag(params.get('mocap')),
   guardMerge: params.get('guardmerge') !== '0',
   animTier: params.get('animtier') !== '0',

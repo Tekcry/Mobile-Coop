@@ -84,7 +84,7 @@ class CoopController {
     this.offs.push(
       ev.on('start', (s) => this.start(s)),
       ev.on('hostLeft', () => this.hostLost()),
-      ev.on('full', () => this.fail('Room full', 'That room already has its two players. Ask the host to free a slot, or host your own room.')),
+      ev.on('full', () => this.fail('Room full', `That room already has its ${capacity(session.mode)} players. Ask the host to free a slot, or host your own room.`)),
       ev.on('lobby', () => {
         // (server browser) the player count changed: the notice now (a full room is taken off)
         this.dir?.post();
@@ -481,8 +481,8 @@ class LobbyScreen extends MenuScreen {
   private renderPlayers(): void {
     const s = this.c.session;
     const ps = [...s.players.values()].sort((a, b) => Number(b.host) - Number(a.host));
-    // (G2) two players: two slots, whatever the mode's wire cap is
-    const slots = Math.max(2, ps.length);
+    // one slot per seat the mode takes (Sector Ops up to 4, Campaign 2)
+    const slots = Math.max(capacity(s.mode), ps.length);
     const hostName = ps.find((p) => p.host)?.name ?? '';
     this.head.textContent = `Room ${s.code} · ${s.isHost ? 'you host' : hostName ? `host: ${hostName}` : 'connecting'}`;
     this.list.replaceChildren(
@@ -501,7 +501,7 @@ class LobbyScreen extends MenuScreen {
     const cap = capacity(s.mode);
     if (!s.hostId) this.status.textContent = 'Connecting to host…';
     else if (s.overCapacity) this.status.textContent = `${MODE_OPTS.find((m) => m.value === s.mode)?.label} takes ${cap} players - pick another mode or wait for someone to leave.`;
-    else if (s.isHost) this.status.textContent = ps.length < 2 ? 'Share the code to invite your partner.' : s.allReady ? 'Everyone is ready.' : 'Waiting for players to ready up.';
+    else if (s.isHost) this.status.textContent = ps.length < 2 ? 'Share the code to invite your teammates.' : s.allReady ? 'Everyone is ready.' : 'Waiting for players to ready up.';
     else this.status.textContent = s.phase === 'playing' ? 'Match in progress - joining…' : 'Waiting for the host to start.';
   }
 
@@ -874,7 +874,7 @@ export async function autoLocalCourse(app: App, api: CoopApi, map: string, mode:
   session.setSettings(mode, map, session.difficulty, '');
   adopt(app, api, session);
   const off = session.events.on('lobby', () => {
-    if (session.phase !== 'lobby' || session.players.size < 2 || !session.allReady || session.overCapacity) return;
+    if (session.phase !== 'lobby' || session.players.size < (flags.players ?? 2) || !session.allReady || session.overCapacity) return;
     off();
     // (after the lobby handler that announced the partner: the match starts on the next task)
     setTimeout(() => session.startMatch(), 0);
