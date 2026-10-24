@@ -1,0 +1,13 @@
+{
+  "id": "20261024T113202-night-shift-test-run-568211b2-f634",
+  "sha": "568211b2a1f897d7642ea52e585ddc3dbd1635cf",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Test Runner",
+  "suites": [
+    "smoke",
+    "e2e-pad",
+    "e2e-sectorops:6"
+  ]
+}
