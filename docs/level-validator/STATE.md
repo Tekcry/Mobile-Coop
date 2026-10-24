@@ -8,6 +8,11 @@ C:/NightShift/Mobile-Coop-level-validator. Michael's uploaded skill (reference, 
 ## Now (2026-10-24 ~20:00, account cap ~20:10)
 Opus PLAN agent started; it pushes BRIEF.md / PLAN.md as WIP. If cut off at the swap: rerun it (prompt below).
 
+## Merged so far
+- DOC 2282fcd4 (4b0cae74), V2 6a697f49 (2e5d23e7), V4 0e0362ce + V3 3ef64512 (6b8fb90a). V1 + V1a OPEN on cloud-queue (contract for metrics.json in both briefs, 1531ff0f).
+- For the checker / Michael (V4/V3 clashes, resolved additions-only): 11.6 states the 30 s REVIVE_WINDOW (src/game/reviveClock.ts:8, G126; old text said no bleed-out); 11.8 cites G151 (replaced G81) but 12.2 still names G81 marked spots (left: additions only outside 11); 11.1 "no fewer than two" scoped to campaign maps (G280 Sector Ops solo play); 6.2 pacing line added beyond PLAN V3 (the validator checks pacing). V2: 8 room classes use "Marlow estimate" real sizes.
+- Next: V0 hands back -> merge -> V5a-e (5 Sonnet, after desktop CPU < 80%, orchestrator ~20:20) -> V5f after V1 + V1a.
+
 ## Running (2026-10-24 ~20:11; orchestrator: start now, cap ~21:00)
 - V0 Opus: C:/NightShift/Mobile-Coop-level-validator-v0, feature/level-validator-v0
 - V2 Sonnet: -v2, feature/level-validator-v2 (scale-sheet.md only)
