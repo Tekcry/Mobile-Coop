@@ -35,8 +35,8 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
   `dryRun`; `rerun` is carried into every status of the same train head, error ticks included, and so is
   `rerunRequestFailed` on error ticks), build marker
   `C:/NightShift/scratch/auto-train-building.json` (`{ train, version, pid, at }`, written just before
-  `merge-train build` (its vitest runs under `heavy.lock`) and deleted in a finally, also on errors; the laptop queue
-  reads it). A `--dry-run` tick uses `auto-train.dryrun.lock`, `runs/auto-train.dryrun.log`,
+  `merge-train build`, deleted by merge-train as soon as the version commit is pushed (`AUTO_TRAIN_BUILD_MARKER`), and
+  again in a finally, also on errors; the laptop queue reads it). A `--dry-run` tick uses `auto-train.dryrun.lock`, `runs/auto-train.dryrun.log`,
   `auto-train-status.dryrun.json` and `auto-train-building.dryrun.json` and never touches the real four.
 - The train lock is shared: `merge-train build / release / single` (not `--dry-run`) take the same
   `auto-train.lock` (same format and staleness; `AUTO_TRAIN_LOCK` overrides the path), so a hand run in the train
@@ -46,7 +46,7 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
 ## State machine (one tick)
 | Situation | State | Action |
 | --- | --- | --- |
-| Open train PR (head `train/<n>`), `auto-train/vitest` failure on its head | failed | none |
+| Open train PR (head `train/<n>`), `auto-train/vitest` failure on its head (older trains only: build no longer runs vitest) | failed | none |
 | CI `check` failed on the head | failed | none |
 | `laptop-e2e` failure from the desktop worker (description starts `desktop:`, with a `FAIL: a,b` list), no rerun recorded for this head | laptop-rerun | `node scripts/laptop-queue/request.mjs --sha <head> --suites "a b" --pr <train PR> --set train<n>-rerun --requester auto-train --train-rerun` (runs right after trains); the request is recorded in the status (`rerun: { head, id, suites, set, at }`) so the head never requests twice. On master's `request.mjs` (before laptop-queue PR #252) `--train-rerun` is silently ignored: the request is a plain pr request with set `train<n>-rerun` (normal pr order, either worker may run it), it exits 0, and a pass posts only `laptop-e2e/train<n>-rerun`, never `laptop-e2e`; with PR #252 it runs right after trains on the laptop and a pass also posts `laptop-e2e` success. A failed request (non-zero exit or no id printed) is logged (`rerunRequestFailed: { head, exit, why, count }`, kept on error ticks) and retried next tick, never fatal |
 | Desktop failure, no rerun recorded, the request failed 6 times on this head (`RERUN_REQUEST_MAX`) | rerun-request-failed | none (orchestrator alert; a new head starts again) |
@@ -63,17 +63,13 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
 | No open train, no `train-ready` PR with a green `check` | idle | none |
 | Candidates, but the last release is under `--min-interval` min old and the laptop queue is not idle (or `--max-per-day` reached) | waiting | none |
 | Candidates, paced to go, and a `train-ready` PR whose `check` is not green yet while its CI still runs (`check` queued / in progress, any other check run or status pending, or `check` missing while lint / test / build-check all passed), for under `AUTO_TRAIN_CHECK_WAIT_MIN` (3) min since that head was first seen waiting (`checkWait: { <head>: <ISO> }` in the status, carried across ticks and error ticks) | holding | none (audit 2: PR #299 missed train 47, its `check` was missing 43 s before it went green); a PR whose CI failed or has no CI activity never holds; after the wait the build goes on without it |
-| Candidates, paced to go | building / built | (the candidates are read again right before the build, so the member list is fresh; build marker written) `merge-train build <n+1> <version> "<title>" <branches...>`; a member left out on a conflict loses `train-ready` and gets a comment; exit 2 -> failed (and an `auto-train/vitest` failure status on the head); exit 3 -> failed (every member left out); exit 4 (vitest not run: the heavy-lock wait timed out; the train is pushed and CI's `check` runs the unit tests) -> pending, the next tick goes on |
+| Candidates, paced to go | building / built | (the candidates are read again right before the build, so the member list is fresh; build marker written) `merge-train build <n+1> <version> "<title>" <branches...>`; a member left out on a conflict loses `train-ready` and gets a comment; exit 3 -> failed (every member left out); any other non-zero exit -> error |
 | Any command error, or no version for the open train | error | none |
 
-- `merge-train build` pushes the version commit (the train head) first and runs vitest after it (audit 2: vitest used
-  to run before the push, so CI and the laptop started ~6 min late). The verdict, statuses and exit codes are
-  unchanged: exit 2 makes auto-train post `auto-train/vitest` failure on the pushed head, which `decide()` treats as
-  failed (never released) and the laptop queue skips (`trainBuildFailed`, a head not started yet); exit 4 is pending.
-  No release can happen while vitest runs: the tick holds the train lock for the whole build, and a hand
-  `merge-train release` needs that lock. Cost: a laptop full run that started on the head before vitest failed is not
-  stopped. The heavy lock is still taken only around vitest (not across the push).
-- The `build` vitest step (under the heavy lock) is load-tolerant: when the full run fails and every failure is a `Test timed out in` or at most 3 test files failed, only those files rerun once with `npx vitest run --no-file-parallelism <files>`; a pass there is ok ("passed on isolated rerun: <files>"), a fail reports the rerun's tail. More than 3 failed files that are not all timeouts fail at once, no rerun.
+- `merge-train build` ends with the push of the version commit (the train head): no local vitest and no `heavy.lock`
+  wait (audit 2026-10-24: train 58 lost ~8 min to it and the desktop queue sat idle 9.5 min on train 59). CI's `test`
+  job runs the full vitest on that head and release waits for green CI, so a unit-test failure still blocks the merge.
+  The build marker is deleted right after that push, so the desktop queue claims the head at once.
 - Version of an open train: its newest `"<version>: version at merge, train <n> (G183)"` commit, else its PR title
   `"<version>: Train <n>: <title>"`, else a CHANGELOG heading that names `Train <n>`.
 - Candidates: open PRs to master labelled `train-ready` (the tick creates the label when missing) whose `check` passed
