@@ -103,7 +103,22 @@ walking speed (climbs, crawls, co-op moves) carry `time_s` on any split leg or r
 | `coop_boost` | **yes** | lip `level_change` 4.3-4.5 (`TEAM.boostMax` 4.5) |
 | `human_ladder` | **yes** | lip `level_change` 4.3-4.5 (ladder grab 4.1 until G57) |
 
-No zipline. Rope and team doors: see "Known gaps" (not yet kinds).
+| `pair_gate` | **yes** | a team door (pair gate / pair bolt, CR5 / CR6): `door` sizes; opens only with both players (lead decision 1) |
+| `team_rope` | **yes** | the two-person rope (G180 over G110, CR7): `level_change` = the climb; needs `time_s` (lead decision 2) |
+| `rappel` | no | one way down (`RAPPEL`, `src/config/movement.ts:370`); `level_change` = the descent; needs `time_s` (lead decision 2) |
+
+No zipline. The core schema's "no rope (G110)" line is out of date: G180 restored the two-person rope (`team_rope`).
+
+## Lead decisions on the known gaps (Marlow Build, 2026-10-24 ~20:25; V1 and V5a-e follow these)
+1. New co-op kind `pair_gate` for team doors (counts as a co-op link in no-softlock and coverage).
+2. New kinds `team_rope` (co-op) and `rappel` (solo, one way by default). Hang-down stays `drop`; jam-and-pass is an
+   `assist` reason, not a kind.
+3. Connectors are single `spine` links (not spaces). For pacing, every `spine` link counts as a release (tension 1).
+4. `length` is middle-to-middle walking length; V1 adds nothing per space (A5's half long side is dropped).
+5. A split leg or reach path through a link with no walking speed (climb, crawl, co-op move, `team_rope`, `rappel`)
+   and no `time_s`: WARN, never a silent walking-speed guess.
+6. `open` ceilings (`yard`) and `exterior` spaces skip the ceiling range check and the 3.0 m ceiling WARN.
+7. The split-leg time rule and dead-end depth are as written in "How the checks read the graph" (V1 matches them).
 
 ## Tags
 
@@ -199,7 +214,7 @@ beside each target, and the map fails if a measurement misses its target.
 - **Cameras, lasers, keypads, alarm panels, light circuits** are not in the graph (design doc / security register);
   an `assist` may name one in its `reason`.
 
-## Known gaps (for the lead; V0 adds no field or enum value)
+## Known gaps (as found by V0; settled in "Lead decisions on the known gaps" above)
 
 1. **Team doors** (pair gate / pair bolt: campus CR5 S4 cage, CR6 S5 archive): no kind. Written as `door` they count
    as solo links, so the no-softlock and coverage checks would miscount. Needs a co-op kind (e.g. `pair_gate`).
