@@ -103,16 +103,22 @@ Tests: `tests/sectorGuardFreezeView.test.ts` (a puppet list frozen / thawed). e2
 M1 rerun with `?guardfreeze=0` A/B. Look shot: a partner's view turning onto a frozen puppet.
 
 ### D1 / D2 brief (Guard AI Build; only if the rule triggers)
+Strict briefs by Guard AI: cloud-queue `briefs/guard-ai-D1-D2.md` and `briefs/guard-ai-T1.md` (876237aa), both "blocked
+waiting M0 verdict"; Marlow Build tells Guard AI when M0 names one. D1 / D2 also wait for gm-perf on master. Guard AI's
+design (2026-10-24 ~19:20) replaces this plan's first sketch:
 - `src/ai/dormancy.ts` (pure): a guard is DORMANT when calm (alert 0, no incident, search or radio task), not in a
   takedown / carry / hold, no alarm stage, and every player (local and remote refs, `playerRefsInto`) is beyond
   `WAKE_R` = his sight range + 5 m and not within 15 m on his storey. Wakes at once on any of those, on `hear()`, a
-  device alert, a found body or a radio call; never on anything graphical (frustum, freeze, LOD, preset). Optional cap:
-  if awake > `MAX_AWAKE` (from M0), the farthest calm guards sleep first; a guard that must wake always wakes.
-- Dormant: think period x4 (`enemy.ts:2136-2138`), no sight rays, patrol on rails (waypoints, no repath), torch placed
-  every frame from pos / yaw (light parity: his torch still lights and the field still reads it), anim tier unchanged.
+  device alert, a found body or a radio call; never on anything graphical (frustum, freeze, LOD, preset).
+- No `MAX_AWAKE` cap: it would break light parity.
+- Dormant guards keep today's think cadence (not x4), so their random sequence stays in step with awake guards.
+- The saving is mainly "rails": a patrol leg skips the per-step `lineClear`. Straight legs stay exact; cornered legs may
+  drift up to nav.cell x1.5 and 0.25 s, never off the nav path. (`mayBeSeen` already skips rays for calm guards past
+  25 m, so sight rays are not the saving.) Torch placed every frame from pos / yaw (light parity), anim tier unchanged.
 - Co-op: the host decides with every player's ref; the client never runs AI; no wire change (dormant guards are still
   in the snapshot).
-- D2: one light / exposure read per player per think window shared by all guards (the `lightAt` at `enemy.ts:232`).
+- D2: only skips the `torchWanted` `levelAt` read for guards that cannot need a torch (each player's light is already
+  read once per step, so a per-player cache would save nothing).
 - Tests: `tests/dormancy.test.ts` (each wake rule; remote player wakes; never reads graphics), the enemy manager tests;
   e2e `e2e-stealth-ai`, `e2e-enemies`, `e2e-sectorops`, `e2e-coop`. Perf: M0 rerun, sim buckets.
 
