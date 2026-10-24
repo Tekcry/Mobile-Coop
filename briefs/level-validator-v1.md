@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-24T09:44Z
+status: done feature/level-validator-v1 e869ea92
 
 # level-validator V1: scripts/level-validate.mjs + tests/levelValidate.test.ts (Marlow Build, job level-validator)
 
@@ -67,3 +67,48 @@ per space; 5. a split leg or reach path through a link with no walking speed and
 checks for `open` ceilings and `exterior` spaces; 7. split-leg time rule and dead-end depth as in that doc's "How the
 checks read the graph". V1a is done (feature/level-validator-v1a f72e640c): read its real `docs/design/metrics.json`
 keys and match them.
+
+## Report (Night Shift | Cloud Builder 1, 2026-10-24)
+Branch `feature/level-validator-v1` @ e869ea92 (one commit on origin/feature/level-validator c7784fc9). Only the two new files.
+
+Exports: `mergeGraphs`, `validate(graph, { metrics, metricsPath })`; checks `checkStructure`, `checkDimensions`,
+`checkReach`, `checkSpine`, `checkEncounters`, `checkRedundancy`, `checkCoop`, `checkPacing` (each
+`(graph, metrics) -> { errors, warns, infos }`); helpers `edgeDisjointPaths` (port of edge_disjoint_paths), `isOneWay`,
+`parseArgs`, `run(argv, { log, root })` (returns the exit code); constants `SPACE_TYPES`, `LINK_KINDS`, `COOP_KINDS`,
+`DEFAULT_METRICS` (the path). CLI guarded as in heavy-lock.mjs.
+CLI: `node scripts/level-validate.mjs <graph.json> [more.json ...] [--metrics <file>]` (default docs/design/metrics.json).
+ERROR, then WARN, then INFO lines, then "N error(s), M warning(s)." Exit 0 clean, 1 any error, 2 bad usage (no file,
+bad JSON, unknown flag; `--rooms` now unknown). No metrics file: one WARN, size/time checks skipped; presence checks
+(e.g. missing shadow_pct) still ERROR.
+
+Checks: vitest tests/levelValidate.test.ts 48/48; `npx tsc --noEmit` clean; eslint on the test clean (script is
+eslint-ignored); `node --check` ok. CLI on docs/level-validator/example.graph.json with the real metrics: 0 errors,
+9 WARNs (all missing-metrics-key), exit 0. No campus graphs on the base yet.
+
+M1-M4: M2 no size/time constant in the script (missing key -> one WARN, check skipped; guard bands print INFO);
+M3 per-section entry->exit edge-disjoint routes inside the section (exactly one entry and one exit per section, else
+ERROR); M4 missing target ERROR, declared target outside the metrics range ERROR, split parity by summed link time;
+guard counts INFO only. Lead decisions 1-7 followed (pair_gate / team_rope co-op; drop / rappel one-way; spine link =
+tension-1 release; length middle-to-middle; untimed climb/crawl WARN; open-ceiling / exterior skip ceiling checks).
+Structural counts kept in code (3 approaches, 2 route kinds, 2 routes, half the encounters, tension 4+ high / 1-2
+release): standard wording, not sizes.
+
+Keys metrics.json lacks (validator reads these names; WARN + skip until metrics-gen extracts them; tests add them
+inline): sizes `ceiling_min` 2.4, `door_h_min` 2.0, `door_h_max` 2.2, `roller_door_w` 3.0, `duct_w` 1.2, `duct_h` 1.5,
+`tunnel_h` 2.1, `wall_jump_max_up` 3.8, `coop_lip` [4.3, 4.5], `split_jump_w` [1.2, 1.95], `split_jump_h` 3.6;
+rules `safe_drop_m` 3.5, `dead_end_max_m` 15, `guards_early` [3, 6], `guards_late` [6, 10], `guards_max` 10. So today
+guards > 10, ceilings < 2.4, door heights, ducts, roller doors and co-op lips are not error-checked: a V1a follow-up.
+
+Deviations: `parseRoomTable` / `--rooms` dropped (superseded). 0.5 m grid WARN only on space w/l, link length and
+corridor / opening / roller-door widths (door, stair, duct widths and all heights are sheet sizes off the grid;
+literal "every width/height" would WARN every door). Safe drop above the limit is a WARN (no fall-damage constant in src).
+Decided: partner reach skips links with no time_s and no walking speed (0 s made ducts free shortcuts; if only such
+links would bring reach under 15 s -> WARN), worst case over both legs to the nearest space of the other leg. Split
+legs: solo links only; fork = outside space leading into both legs' first spaces; rejoin = first space (file order)
+both last leg spaces lead to, not the fork; untimed link = 0 s + WARN, parity then not judged. Routes cross: inside
+each section, excluding entry/exit, the route kinds must connect through shared spaces (else ERROR). Spine: a
+non-spine link crossing sections ERROR; spine must run exit -> next entry (else ERROR); start outside first section /
+exfil outside last WARN. Structure: any structure error stops the run; campaign map must be players [2]; door /
+passage / stair / duct without width or height ERROR; climb without level_change WARN; unknown room_class ERROR.
+Pacing: a peak with no tension 1-2 before the next peak or the end WARN. No-softlock flags only spaces at the end of
+a co-op link (graph-schema wording).
