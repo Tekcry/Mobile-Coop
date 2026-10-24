@@ -25,8 +25,9 @@ is decided.
 
 **Chaos Theory is the authority (G1).** Where this bible and Chaos Theory (CT) behaviour differ, CT behaviour, from the
 CT research, wins: "Pure ct, if it had it, we will use it." (G180). Several systems below are marked "research": they
-stay only if CT has them (G1, G3, G180). Michael's recorded decisions depart from CT on purpose and win; the list of
-those overrides is `docs/VISION.md` section 3.
+stay only if CT has them (G1, G3, G180). Michael's recorded decisions depart from CT on purpose and win (for example
+revive and encounter checkpoints, world pings, both players extract, the perfect rating, any partner rejoins: G126,
+G135, G138, G146, G147; the selection wheel, G181); the full list of those overrides is `docs/VISION.md` section 3.
 
 **History.** Older docs, prompts and code describe earlier directions: a Blacklist-style game (snap cover, Mark & Execute,
 sonar, the Ghost / Panther / Assault economy), phones and touch, Wave and PvP, a traitor finale, a solo campaign and a
@@ -34,7 +35,7 @@ bot partner. That is history. Do not extend it. Section 6 lists what was removed
 
 **What to read.** Sections 0-3, 6 and 9 every job; other sections when the job touches them.
 
-**Reference game.** Splinter Cell: Chaos Theory (2005) is the reference for mechanics and look (G5): its mechanics,
+**Reference game.** Chaos Theory (2005) is the reference for mechanics and look (G5): its mechanics,
 timing, camera, HUD layout and visual style are matched closely. Names, characters, story, organisations, logos, art
 assets, the goggle and the music are original. No reference-game character, gear or organisation name appears anywhere:
 code, UI, specs, docs or research notes (G6). "Chaos Theory" and "CT" may name the reference, and Michael's quoted words
@@ -49,7 +50,7 @@ Michael: "I want the game to be pure chaos theory. Anything that isn't a part of
 exist." (G1)
 
 **Night Shift** (renamed from Silent But Deadly; internal ids keep the old names) is an original third-person stealth
-game that recreates Splinter Cell: Chaos Theory's co-op campaign: its mechanics and its look, with original assets,
+game that recreates Chaos Theory's co-op campaign: its mechanics and its look, with original assets,
 names and story. `docs/VISION.md` is the one-page summary.
 
 - **Three modes** (5.8, 5.9 C1):
@@ -629,9 +630,9 @@ section restart, an interrogate-a-named-target objective (G291).
 
 **Sector Ops** is the second mode beside the campaign (G184): an original take on co-op ops at Chaos Theory pace, a
 playground for movement, stealth and gunplay (G185). It runs in its own session, in parallel with Marlow Yard (G296).
-- **Map:** Saltmarsh Park (`campusOps`), a corporate research campus of five sections S1-S5, one co-op run 30-45 min,
-  with the full detail-art lift (G295, G297, G309). The old Warehouse (`warehouseOps`) stays selectable (G298); its
-  lamps sit on ceilings under translucent corrugated roof sheets (G221).
+- **Map:** Saltmarsh Park (`campusOps`), a corporate research campus of five sections S1-S5 joined by connector rooms
+  (G186), one co-op run 30-45 min, with the full detail-art lift (G295, G297, G309). The old Warehouse (`warehouseOps`)
+  stays selectable (G298); its lamps sit on ceilings under translucent corrugated roof sheets (G221).
 - **Players:** 1-4 (G308, coop4). Solo is always possible: team doors are true two-player pathways, and solo play keeps
   a working route past them (G280, G295).
 - **Objectives and rules:** a section is done by its objective, then its exit; kills are optional, so a ghost run is
@@ -677,9 +678,9 @@ Implementation: `docs/systems/coop.md`.
   one is seen or evidence suggests it (G139). Whether the LKP becomes per player is open (Section 11).
 - **C6 - Downed (the one owner of the revive rule).** The campaign: the partner can revive a downed player within 30
   seconds, at most twice per mission; a revive restores 35% health; both down reloads the last checkpoint (G126; 5.13).
-  Sector Ops: no lives; a partner revives with a limited revive syringe (the count is set by difficulty and grows with
-  the player count, G331); in solo, or with the whole team down, the run restarts at the section's checkpoint (G188).
-  A Marlow Yard checkpoint restart is a full reset (G312).
+  Sector Ops: no lives; a partner revives with a limited revive syringe (resources scale with difficulty, G131, and the
+  count grows with the player count, G331); in solo, or with the whole team down, the run restarts at the section's
+  checkpoint (G188). A Marlow Yard checkpoint restart is a full reset (G312).
 - **C7 - Difficulty.** One per session, chosen by the host (5.7); Sector Ops has fixed levels per op (5.8). Sync timing
   windows never scale (G131).
 - **C8 - Friendly fire** is a host option, on by default (G141). Campaign missions have no heavies or dogs (G155).
@@ -1057,16 +1058,8 @@ spec template) and the standard's phases and gates.
   decision in every map document that relied on the old fact. Room sizes are re-measured after the camera part of the
   prototype (G54).
 
-Each map's documents also include:
-
-- **Light plan per space:** its real-world illuminance band (L17), every lamp, its switch, breaker or group, the real
-  gaps, and which route each light change opens.
-- **Sound plan per space:** ambient zones and loud / quiet floors.
-- **Checkpoint plan:** one encounter checkpoint before each space; replay loss about 10 minutes at most (G126).
-- **Co-op plan per space:** the team-move routes and the other moments that need the pair.
-- **Medkit and civilian plan:** wall medkit stations in every map (G98); where civilians work and why they are there at
-  night.
-- **A map spec** written before blockout from `docs/templates/map-spec.md`.
+Each map's required deliverables (the map spec, light, sound, checkpoint, co-op, medkit and civilian plans) are listed
+in `docs/level-design.md` section 13, its owner. The light plan carries each space's real-world band (L17).
 
 ---
 

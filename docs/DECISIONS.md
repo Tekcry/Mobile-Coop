@@ -26,7 +26,8 @@ chat words), then the source and what it replaces.
 `docs/VISION.md` is the one-page summary of today's game (modes, Michael's overrides of CT, the hard design rules). In
 five lines:
 - Pure Chaos Theory co-op stealth with original names, story and art; Michael's recorded decisions are the only
-  departures (G1, G5, G6). Light and shadow is the core (G316).
+  departures (G1, G5, G6; for example revive and encounter checkpoints, world pings, both players extract, the perfect
+  rating, any partner rejoins: G126, G135, G138, G146, G147). Light and shadow is the core (G316).
 - Campaign: exactly 2 players, never solo, every section forces a co-op traversal move (G2, G292). Marlow Yard: the
   guided 2-player training course (G292, G308). Sector Ops: Saltmarsh Park, 1-4 players, solo always possible (G308).
 - No maps, markers or minimap; objectives name what and where (G290, G336, G339). Up to 2 strict rules, breaking one
@@ -47,19 +48,19 @@ differ.)
 
 **G2. Two-player co-op campaign only.** (Replaced for Sector Ops by G308, 2026-10-23: Sector Ops is 1-4 players with
 solo play; the campaign stays exactly 2.) The campaign is played by exactly two players and cannot be completed solo.
-Michael: "2 player coop campaign only, unable to be completed solo." (directive, 2026-10-17; settles FU-01; replaces page
-answer VIS-01 "Coop campaign first. 2 players maximum.", the bible's solo-first pillar and the 2-4 player wording of bible
-5.9 and loco D8.)
+Michael: "2 player coop campaign only, unable to be completed solo." (directive, 2026-10-17; settles FU-01; replaces
+page answer VIS-01 "Coop campaign first. 2 players maximum.", the bible's solo-first pillar and the 2-4 player wording
+of bible 5.9 and loco D8.)
 
 **G3. Recreate the CT co-op levels.** All CT co-op levels are researched (their design, flow and moves) and that
 experience is recreated. Michael: "We will research all the chaos theory coop levels, their design, flow, moves, etc.,
 and recreate that experience." (directive, 2026-10-17.)
 
 **G4. Working prototype first, refinement later.** (Replaced by G288, 2026-10-24: refining is allowed, paced by the walk
-cap.) Build only the basics needed to make a feature work and test it; no
-hours or days of fine tuning on things that may not be used. Michael: "We must get a working prototype working, only the
-basics required to make it work and functional to test features and gameplay. I don't want to spend hours or days fine
-tuning things that may not be used. Refinement can come later." (directive, 2026-10-17; extends loco M22.)
+cap.) Build only the basics needed to make a feature work and test it; no hours or days of fine tuning on things that
+may not be used. Michael: "We must get a working prototype working, only the basics required to make it work and
+functional to test features and gameplay. I don't want to spend hours or days fine tuning things that may not be used.
+Refinement can come later." (directive, 2026-10-17; extends loco M22.)
 (Replaced by G150 for movement, camera, back-to-wall, doors, palm strike and goggles, 2026-10-18.)
 
 **G5. IP rule: mechanics plus look.** The IP rule stays. CT's mechanics are matched and its visual style and HUD layout
@@ -91,10 +92,9 @@ tuned after Michael plays the prototype. Michael: "Rewrite it now" (VIS-02, 2026
 
 **G11. The nine movement-run ideas: only CT ones survive.** (Replaced by G180, 2026-10-18: the five ideas CT has stay;
 G335, 2026-10-25, adds paired patrols and high-route lookouts.) Of the nine ideas (guards relight lamps, paired
-searches, a
-last-known-position marker, eavesdropping, adaptive music and the rest), the CT co-op research keeps those CT has; the
-rest are dropped. Michael: "Backlog, decide later" (VIS-05), then "Keep only CT ones" (U9, chat, 2026-10-17; loco
-BIBLE-PROPOSALS 1-9.)
+searches, a last-known-position marker, eavesdropping, adaptive music and the rest), the CT co-op research keeps those
+CT has; the rest are dropped. Michael: "Backlog, decide later" (VIS-05), then "Keep only CT ones" (U9, chat, 2026-10-17;
+loco BIBLE-PROPOSALS 1-9.)
 
 ### Platform and performance
 
@@ -228,9 +228,8 @@ through glass. Michael: "Clear sees, frosted not" (STEALTH-08, 2026-10-17.)
 
 **G46. Awake limit reviewed for desktop.** (Replaced by G187, G254 and G289: Sector Ops caps at 32 alive; elsewhere as
 many guards as realistically possible, limited by the measured guard cap.) The 12-awake-characters limit is reviewed
-against desktop performance, without
-phone limits. Michael: "Review this limit against desktop performance allowances without phone." (STEALTH-09,
-2026-10-17.) How it is set (FU-11) is open.
+against desktop performance, without phone limits. Michael: "Review this limit against desktop performance allowances
+without phone." (STEALTH-09, 2026-10-17.) How it is set (FU-11) is open.
 
 **G47. Light parity work sorted out when built.** The parity test, long lamps and motion lights keep their current plans
 and are sorted out when built. Michael: "Sort out when building" (STEALTH-10, 2026-10-17.)
@@ -249,15 +248,15 @@ settles FU-10.) It also replaces training D38 (friendly fire on in the bunker): 
 (Replaced by G141 for friendly fire and G155 for heavies, 2026-10-18.)
 
 **G50. Two players maximum; no 3-4 player test.** (Replaced for Sector Ops by G308, 2026-10-23: up to 4 players there;
-the campaign and Marlow Yard stay at 2.) Michael: "No, focus on 2 player maximum only." (COOP-03, 2026-10-17;
-replaces loco D8's 4-player run and loco A19.)
+the campaign and Marlow Yard stay at 2.) Michael: "No, focus on 2 player maximum only." (COOP-03, 2026-10-17; replaces
+loco D8's 4-player run and loco A19.)
 
 **G51. Co-op tests made reliable, then required.** A short job makes the two co-op suites reliable; then they must pass
 like every other test. Michael: "Fix, then required" (COOP-04, 2026-10-17.)
 
 **G52. Co-op technical items approved.** (Replaced by G180, 2026-10-18, for brace and the dual takedown: both go.)
-Network version 11 for the merge (both earlier uses of 3 noted); the SWAT-turn
-and lean-out network fields are removed when the CT prototype is built; "every team move" means the four that exist
+Network version 11 for the merge (both earlier uses of 3 noted); the SWAT-turn and lean-out network fields are removed
+when the CT prototype is built; "every team move" means the four that exist
 (brace, boost, human ladder, dual takedown) and the other four wait for the co-op phase; partners block each other in
 every co-op mode, using the bunker's built version. Michael: "Approve as written" (chat 31 / COOP-06-1 to COOP-06-4,
 2026-10-17; replaces page answer COOP-06 "One by one"; approves loco A4 and training A49.)
@@ -323,8 +322,8 @@ approves audio AS2, AS3, AS10, AS14, AS16 and AU7.)
 ### Art and characters
 
 **G68. Realistic everywhere.** (Voxel line replaced by G223 and G282, 2026-10-23: no voxel look.) Operators now, guards
-and weapons later from the same pipeline; voxels only as the way the
-world is drawn. Michael: "Realistic everywhere" (ART-02, 2026-10-17.)
+and weapons later from the same pipeline; voxels only as the way the world is drawn. Michael: "Realistic everywhere"
+(ART-02, 2026-10-17.)
 
 **G69. Original goggle, swapped soon.** No three-lens look: a small job swaps in a simple original goggle, and the menu
 uses an original symbol. Michael: "Original goggle" and "Soon" (chat 17 and ART-03, 2026-10-17; consistent with ops D19,
@@ -353,10 +352,10 @@ own branch" (chat 28) and "Operators branch" (U1, chat, 2026-10-17; replaces pag
 ### Weapons and gadgets
 
 **G76. CT kit only.** (Disruptor replaced by G152, 2026-10-18: the held jammer.) One rifle with attachments (sniper,
-shotgun, launcher), one pistol with a light / electronics
-disruptor, and the knife. Every other gun is removed in the clean-up. Gadgets and attachments are CT's set, settled by
-the research. Michael: "CT kit only" (chat 33, 2026-10-17; settles WEAP-01 and WEAP-12; replaces bible 5.6's arsenal and
-its disruptor / jammer split, the kestrel V0 kit list of 2026-10-11, loco A60 and A62.) The other guns go in this merge
+shotgun, launcher), one pistol with a light / electronics disruptor, and the knife. Every other gun is removed in the
+clean-up. Gadgets and attachments are CT's set, settled by the research. Michael: "CT kit only" (chat 33, 2026-10-17;
+settles WEAP-01 and WEAP-12; replaces bible 5.6's arsenal and its disruptor / jammer split, the kestrel V0 kit list of
+2026-10-11, loco A60 and A62.) The other guns go in this merge
 (G115).
 
 ### UI and HUD
@@ -390,9 +389,8 @@ CLAUDE.md, the bible and story.md.)
 
 **G83. Main is the only base.** (Replaced in part by G318 and G286: trains build and merge automatically; dev and
 ct-movement are pointer branches, docs/systems/deploy.md.) One branch per job from main, one merge request each; only
-Michael merges; ct-movement and
-dev are retired. Michael: "Main is the only base" (chat 9 / PROC-01, 2026-10-17; replaces the ct-movement -> dev -> master
-flow in CLAUDE.md, deploy.md and every run's rules.)
+Michael merges; ct-movement and dev are retired. Michael: "Main is the only base" (chat 9 / PROC-01, 2026-10-17;
+replaces the ct-movement -> dev -> master flow in CLAUDE.md, deploy.md and every run's rules.)
 
 **G84. The merged version is 4.0.0.** Michael: "4.0.0" (chat 10 / PROC-08, 2026-10-17; replaces loco A18's 3.7.0 / 3.8.0
 and the training 3.7.0-3.9.0 headings.)
@@ -463,9 +461,9 @@ FU-06, follows G20; voids loco A27, A55, A56, A57, A58 and the carried-medkit co
 shouldn't exist." (settles WEAP-08; replaces the "camera feed" mode in the ops art notes.)
 
 **G100. Instant goggle switch in CT order.** (Replaced by G181, 2026-10-18: the selection wheel picks the mode; the
-goggle flip plays only on on / off.) An instant cut in CT's order (thermal, electro, night, off); no flip.
-Directive: "Anything that isn't a part of the original chaos theory shouldn't exist." (settles WEAP-07; replaces the 0.2 s
-goggle flip.)
+goggle flip plays only on on / off.) An instant cut in CT's order (thermal, electro, night, off); no flip. Directive:
+"Anything that isn't a part of the original chaos theory shouldn't exist." (settles WEAP-07; replaces the 0.2 s goggle
+flip.)
 
 **G101. CT grain.** Grain as in CT. Directive: "Anything that isn't a part of the original chaos theory shouldn't exist."
 (settles WEAP-06; replaces loco M14 (5)'s grain on all three modes and loco A87.)
@@ -475,9 +473,8 @@ silhouette). Directive: "Anything that isn't a part of the original chaos theory
 replaces the door part of loco A26.)
 
 **G103. CT draw timings.** (Replaced by G243, 2026-10-22: real-world draw times, bible 5.6.) About 0.6 s (pistol) and
-0.75 s (rifle) to raise, 0.5-0.6 s to lower. Directive: "Anything
-that isn't a part of the original chaos theory shouldn't exist." (settles WEAP-02; replaces the bible's 0.3 / 0.4 s and the
-draw part of loco A41.)
+0.75 s (rifle) to raise, 0.5-0.6 s to lower. Directive: "Anything that isn't a part of the original chaos theory
+shouldn't exist." (settles WEAP-02; replaces the bible's 0.3 / 0.4 s and the draw part of loco A41.)
 
 **G104. Marksman scope with hold breath, as CT.** Normal aiming has no zoom; the marksman (sniper) scope has hold breath,
 as in CT. Directive: "Anything that isn't a part of the original chaos theory shouldn't exist." (settles WEAP-03;
@@ -495,8 +492,8 @@ D7's custom difficulty.)
 isn't a part of the original chaos theory shouldn't exist." (settles UI-01; with loco M25 (7).)
 
 **G108. Objectives in the menu.** (Replaced as the only place by G343, 2026-10-25: objectives also fade in and out in
-game. Marlow Yard keeps the always-on list, not Fallow: G277, G292; objectives name what
-and where, G336.) Mission objectives live in the menu, as in CT; the Fallow course keeps its always-on list
+game. Marlow Yard keeps the always-on list, not Fallow: G277, G292; objectives name what and where, G336.) Mission
+objectives live in the menu, as in CT; the Fallow course keeps its always-on list
 (training D45). Directive: "Anything that isn't a part of the original chaos theory shouldn't exist." (settles UI-02.)
 
 **G109. Operators move the same.** One CT movement set; operators differ in look and height only. Directive: "Anything
@@ -504,8 +501,8 @@ that isn't a part of the original chaos theory shouldn't exist." (settles ART-11
 differences.)
 
 **G110. No prone crawl, no rope climb.** (Replaced in part by G180, 2026-10-18: CT's two-person rope stays; no prone, no
-solo rope climb.) Directive: "Anything that isn't a part of the original chaos theory shouldn't
-exist." (settles ART-09.)
+solo rope climb.) Directive: "Anything that isn't a part of the original chaos theory shouldn't exist." (settles
+ART-09.)
 
 **G111. Two players settles the solo, 3-4 player and bot questions.** (Replaced in part: Sector Ops is 1-4 players with
 solo play, G280 / G308; Marlow Yard is the only training course, G184 / G292.) No solo route, no solo training course
@@ -555,8 +552,9 @@ To the operators branch (chat 28, G75):
 - Re-checking Wren's kit on the real CT poses (ART-09 option text).
 
 To Kestrel, after the research (chat 4, chat 30):
-- LEVEL-01 Mission 1 size (settled by G340: Tallow Wharf is Mission 1): Michael picked "Kestrel size" with the note "Will require review once all questions are
-  answered. A full vertical slice plan must be made." The bible does not take Kestrel's Mission 1 numbers now: Michael: "No, wait" (U7, G118).
+- LEVEL-01 Mission 1 size (settled by G340: Tallow Wharf is Mission 1): Michael picked "Kestrel size" with the note
+  "Will require review once all questions are answered. A full vertical slice plan must be made." The bible does not
+  take Kestrel's Mission 1 numbers now: Michael: "No, wait" (U7, G118).
 - LEVEL-08-1 to LEVEL-08-5 (editor items), LEVEL-09-1 to LEVEL-09-11 (mission details), LEVEL-10-1 to LEVEL-10-10 (level
   technical items): Michael: "Defer with Kestrel" (chat 30; replaces his page picks "One by one" and "Show me each").
 - Kestrel's open ASK rows and its own map decisions (docs/kestrel/progress.md).
@@ -655,16 +653,16 @@ replaces CTRL-10's "Unbind until return"; with G111 the Fallow course is the onl
 follow the CT co-op research (G3). Michael: "CT research replaces it" (U6, 2026-10-17.)
 
 **G118. The bible waits for Kestrel's Mission 1 size.** (Replaced by G340, 2026-10-25: Tallow Wharf is campaign Mission
-1.) The bible does not take Kestrel's Mission 1 numbers until Kestrel
-is decided after the research (G53). Michael: "No, wait" (U7, 2026-10-17; LEVEL-01 stays deferred.)
+1.) The bible does not take Kestrel's Mission 1 numbers until Kestrel is decided after the research (G53). Michael: "No,
+wait" (U7, 2026-10-17; LEVEL-01 stays deferred.)
 
 U8 (UI-04 to UI-06 go to the menu job) was not asked; chat 32 ("menu calls decided in the menu job") covers it.
 
 ## After the PR opened (2026-10-18, native multiple-choice)
 
 **G119. Wall medkit heal: the research decides.** (Replaced by G180, 2026-10-18: heal by difficulty, single use.) The
-+40 single-use station heal is a placeholder; the CT co-op research
-sets the amount and whether stations are reusable. Michael: "Research decides" (2026-10-18; G98 stands.)
++40 single-use station heal is a placeholder; the CT co-op research sets the amount and whether stations are reusable.
+Michael: "Research decides" (2026-10-18; G98 stands.)
 
 **G120. Mission 8 is written with the missions.** The replacement for the removed traitor plot stays open until the
 missions are planned (STORY-04, G9). Michael: "With the missions" (2026-10-18.)
@@ -692,10 +690,9 @@ entry, the entry here wins and the older entry carries a "Replaced by" note.
 2026-10-18; confirms `docs/story.md` Section 3.)
 
 **G125. Escalating alert tiers, no abort.** (Hard-rule cap replaced by G290, 2026-10-24: up to 2 strict rules, breaking
-one restarts the section.) Alarms raise a shared alert tier that escalates the guards' response; a
-mission does not fail on an alarm count. A mission may have at most one hard rule, and it is signposted. Michael:
-"Escalating alert tiers, no abort" (D-02 research session, 2026-10-18; replaces the bible's "some missions fail at a set
-alarm count".)
+one restarts the section.) Alarms raise a shared alert tier that escalates the guards' response; a mission does not fail
+on an alarm count. A mission may have at most one hard rule, and it is signposted. Michael: "Escalating alert tiers, no
+abort" (D-02 research session, 2026-10-18; replaces the bible's "some missions fail at a set alarm count".)
 
 **G126. 30-second revive, 2 per mission; encounter checkpoints.** A downed player can be revived within a 30-second
 window, at most twice per mission. Encounter checkpoints cap replay loss at about 10 minutes. Both players down reloads
@@ -719,8 +716,9 @@ alongside grounded ones. Michael: "Heightened." (D-07 research session, 2026-10-
 never scale. Michael: "Perception, alert tolerance and resources" (D-08 research session, 2026-10-18; sharpens G106: the
 scaling rides on the fixed difficulty levels.)
 
-**G132. Strictly two humans.** (Replaced for Sector Ops by G308, 2026-10-23: 1-4 players, solo allowed.) No AI partner
-and no solo variants. Michael: "Strictly two humans" (D-09 research session, 2026-10-18; confirms G2, G48, G50, G111.)
+**G132. Strictly two humans.** (Narrowed for Sector Ops by G308 / G280: 1-4 humans, solo allowed; still no AI partner.)
+No AI partner and no solo variants. Michael: "Strictly two humans" (D-09 research session, 2026-10-18; confirms G2, G48,
+G50, G111.)
 
 **G133. Online, split-screen and LAN.** Co-op runs online, split-screen on one machine and over LAN; no cross-play
 commitment. Michael: "Online, split-screen and LAN" (D-10 research session, 2026-10-18; extends bible 5.9 C19's direct
@@ -784,11 +782,10 @@ reaction. Michael: "Yes, non-violent." (D-25 research session, R-17, 2026-10-18;
 (chat, 2026-10-18; replaces the recommended co-op-first order in docs/ct-prototype/PLAN.md.)
 
 **G150. Core feel first.** (Replaced by G227, 2026-10-21: Michael tunes movement himself.) The codebase is kept. A fresh
-session runs one job that rebuilds and fine-tunes CT movement,
-camera, back-to-wall, doors, palm strike and goggles on Wren (Opus for the tuning) until Michael signs off; the co-op
-gameplay slices C1-C7 come after. Michael: "Core feel first" (chat, 2026-10-18; replaces G4 for these core-feel systems,
-which are tuned now rather than later, and narrows G158 to the menu and gameplay prototype slices; Wren is used from this
-job on, ahead of G70's order.)
+session runs one job that rebuilds and fine-tunes CT movement, camera, back-to-wall, doors, palm strike and goggles on
+Wren (Opus for the tuning) until Michael signs off; the co-op gameplay slices C1-C7 come after. Michael: "Core feel
+first" (chat, 2026-10-18; replaces G4 for these core-feel systems, which are tuned now rather than later, and narrows
+G158 to the menu and gameplay prototype slices; Wren is used from this job on, ahead of G70's order.)
 
 **G151. Team moves anywhere with room.** Two-player moves are free wherever the space allows, with a prompt naming the
 move. Michael: "Anywhere with room" (chat, 2026-10-18; replaces G81.)
@@ -805,9 +802,8 @@ tag `archive/ct-research-raw`. Michael: "Digests only" (chat, 2026-10-18; G6 hol
 
 **G155. No heavies or dogs in co-op missions.** (Narrowed to campaign missions by G297 / G307: Sector Ops has dogs, late
 body armour and riot shields; helmets by difficulty, G338.) As in CT, co-op missions have no heavy or dog archetypes;
-armour and
-helmets come with the alarm stages. Michael: "Adopt CT's way" (chat, 2026-10-18; replaces G42's heavies and dogs
-exception and the heavies part of G49.)
+armour and helmets come with the alarm stages. Michael: "Adopt CT's way" (chat, 2026-10-18; replaces G42's heavies and
+dogs exception and the heavies part of G49.)
 
 **G156. Voice chat after the prototype.** Proximity voice (G129) and the always-clear partner voice (G140) are built
 after the prototype. Michael: "After the prototype" (chat, 2026-10-18.)
@@ -816,9 +812,9 @@ after the prototype. Michael: "After the prototype" (chat, 2026-10-18.)
 come to Michael item by item before the first real mission map. Michael: "Review list later" (chat, 2026-10-18.)
 
 **G158. Prototype slices on Sonnet, medium.** (Replaced by G302, 2026-10-23: Opus plans and checks, Sonnet builds from
-strict briefs.) Prototype slices (menu, movement, co-op) are built with Sonnet at medium
-effort; Opus does the fine tuning later. Since G150 this covers the menu and gameplay prototype slices only. Michael:
-"Sonnet, medium" (chat, 2026-10-18; replaces G88 for prototype work.)
+strict briefs.) Prototype slices (menu, movement, co-op) are built with Sonnet at medium effort; Opus does the fine
+tuning later. Since G150 this covers the menu and gameplay prototype slices only. Michael: "Sonnet, medium" (chat,
+2026-10-18; replaces G88 for prototype work.)
 
 **G159. Manual camera.** The exploring camera never moves or adjusts by itself; the player controls it. Michael: "Camera
 doesn't automatically adjust/move at all in CT, it's manually controlled." (M1 feedback, chat, 2026-10-18; replaces G29's
@@ -952,12 +948,12 @@ only prototype quick run" (2026-10-19, weapons job A12, A13; settles part of bib
 
 **G179. Pure-CT movement prototype, then the co-op training bunker.** (Replaced in part by G288, 2026-10-24 (refining
 allowed), and G184 / G292 (Marlow Yard, not Fallow, is the co-op training course).) The prototype is (1) pure-CT
-movement built once
-to the footage numbers (M1-M4: body, manual camera, back-to-wall, doors and the CT pad layout, palm strike and grab,
-goggles), then (2) the Fallow bunker rebuilt as CT's co-op training level on the pure-CT moves, played start to finish
-by two players, with the co-op moves it needs (leg-up and ledge relay, held jammer on a camera, partner throw over a
-laser with the far-side release, hang-down hack, paired scanners, the two-person rope, revive, both players finishing).
-No fine tuning until that loop plays; Michael's notes are queued. Every slice is pushed to the `/ct/` preview
+movement built once to the footage numbers (M1-M4: body, manual camera, back-to-wall, doors and the CT pad layout, palm
+strike and grab, goggles), then (2) the Fallow bunker rebuilt as CT's co-op training level on the pure-CT moves, played
+start to finish by two players, with the co-op moves it needs (leg-up and ledge relay, held jammer on a camera, partner
+throw over a laser with the far-side release, hang-down hack, paired scanners, the two-person rope, revive, both players
+finishing). No fine tuning until that loop plays; Michael's notes are queued. Every slice is pushed to the `/ct/`
+preview
 (`ct-movement`). Implementers are Sonnet medium, Opus for network-sync-heavy slices and anything stuck twice; the
 orchestrator stays Opus. Overnight unattended runs come later, when Michael says. Pumphouse Nine, other maps and extra
 gadgets wait. Michael: "Prototype movement focus first ct-pure, then full coop loop", "It can run overnight but not
@@ -1019,14 +1015,14 @@ the co-op match to Sector Ops. The mode is called Sector Ops, never by a Splinte
 **G185. Sector Ops is Michael's playground.** (Replaced in part by G295-G297, G308 and G309: a new campus map, 1-4
 players, full detail art, not prototype effort.) Michael (2026-10-19, M2, M3): an original take on Conviction's Deniable
 Ops at Chaos Theory pace, solo or co-op, for testing movement and gunplay without a partner. The Warehouse is expanded
-into sections of rising difficulty with cameras and lasers. A section is done by its objective, then its exit; kills
-are optional, so a ghost run is always possible. Prototype effort only.
+into sections of rising difficulty with cameras and lasers. A section is done by its objective, then its exit; kills are
+optional, so a ghost run is always possible. Prototype effort only.
 
-**G186. Sections joined by connectors.** (Replaced by G295, 2026-10-23: the Saltmarsh Park campus, five sections S1-S5.)
-Michael (2026-10-19, M5, M7): distinct sections joined by connector rooms that
-load the next section and unload the last, so each section can hold as many guards as the budget allows. Three
-sections first, from the existing Warehouse (service entrance, racking aisles, factory floor with the mezzanine and
-offices); the courtyard, annex and roof come after Michael has played it. Research and a plan came first (M5b).
+**G186. Sections joined by connectors.** (Replaced in part by G295: the campus S1-S5 replaces the Warehouse sections;
+connector rooms stay.) Michael (2026-10-19, M5, M7): distinct sections joined by connector rooms that load the next
+section and unload the last, so each section can hold as many guards as the budget allows. Three sections first, from
+the existing Warehouse (service entrance, racking aisles, factory floor with the mezzanine and offices); the courtyard,
+annex and roof come after Michael has played it. Research and a plan came first (M5b).
 
 **G187. Guard counts are measured, per mode.** Michael (2026-10-19, M6): aim for 20-25 patrolling guards per section,
 then measure on the PC. `MAX_ALIVE = 12` stays for the other modes; Sector Ops has its own cap (32, the ceiling, not a
@@ -1037,9 +1033,9 @@ the partner with a limited revive syringe; if both are down, or in solo, the run
 connector).
 
 **G189. Difficulty stars per op.** (Star fill refined by G331, 2026-10-25: a clear on tier N fills every star below N.)
-Michael (2026-10-19, M7): each op has difficulty levels shown as stars; finishing an
-op on a difficulty fills its star, shown when the op is highlighted. Stored in its own IndexedDB kv key (`sector:ops`,
-like the course record), so the save shape does not change.
+Michael (2026-10-19, M7): each op has difficulty levels shown as stars; finishing an op on a difficulty fills its star,
+shown when the op is highlighted. Stored in its own IndexedDB kv key (`sector:ops`, like the course record), so the save
+shape does not change.
 
 **G190. Room to manoeuvre beats guard count.** Michael (2026-10-19, M8): "make sure the geometry and layout is altered
 to offer multiple paths to objective and throughout the level. having so many guards in one small area will be
@@ -1048,9 +1044,8 @@ difficult to manage, there must be room to maneuver and take them out silently a
 guards' sight; the count drops before the spacing does (10 / 10 / 11 in the first cut). A check proves it per section.
 
 **G191. Co-op training first, Sector Ops on spare capacity.** (Replaced by G296, 2026-10-23: Sector Ops runs in parallel
-in its own session.) Michael (2026-10-19): "Sector ops should be low priority
-over anything else. I want to get coop training bunker fully functional and running, but sector ops can at least run
-when there is opportunity."
+in its own session.) Michael (2026-10-19): "Sector ops should be low priority over anything else. I want to get coop
+training bunker fully functional and running, but sector ops can at least run when there is opportunity."
 
 **G192. Wheel on LB hold, no lethal switch.** Michael (2026-10-19, dashboard; relayed, not verbatim,
 docs/ct-prototype/DECISIONS.md): the selection wheel stays on LB hold; no lethal / non-lethal switch (LT / RT covers
@@ -1220,22 +1215,22 @@ Security cameras project a faint red laser grid onto the surfaces they watch, al
 Michael's decision, not CT.
 
 **G223. Voxels off by default.** (Replaced by G282, 2026-10-23: the voxel look is retired.) Michael (2026-10-20 ~22:40):
-"there still looks to be voxel graphics in the map which
-is no longer the goal"; he chose "Turn voxels off by default". (Replaces G68's voxel line.)
+"there still looks to be voxel graphics in the map which is no longer the goal"; he chose "Turn voxels off by default".
+(Replaces G68's voxel line.)
 
 **G224. The bunker, then the campaign level; the warehouse rebuild is parked.** (Replaced: the warehouse rebuild by G266
-and G295; the order by G291 / G293, 2026-10-24.) Michael (2026-10-20 ~23:40): "Focus
-should be coop training bunker completion, then campaign level. Movement still needs work which is top priority." and,
-on the warehouse rebuild, "We'll revisit later"; (2026-10-21 ~06:40): "Exclude warehouse rebuild and park it for now.
-We'll continue to use the existing." The co-op training bunker comes first, then the first campaign level, with
-movement top priority; the G201 rebuild is parked and the current Sector Ops warehouse stays
+and G295; the order by G291 / G293, 2026-10-24.) Michael (2026-10-20 ~23:40): "Focus should be coop training bunker
+completion, then campaign level. Movement still needs work which is top priority." and, on the warehouse rebuild, "We'll
+revisit later"; (2026-10-21 ~06:40): "Exclude warehouse rebuild and park it for now. We'll continue to use the
+existing." The co-op training bunker comes first, then the first campaign level, with movement top priority; the G201
+rebuild is parked and the current Sector Ops warehouse stays
 (docs/reviews/warehouse-layout-review.md). The guard AI and model review (docs/reviews/guards-review.md) is not
 scheduled.
 
 **G225. Marlow Yard bunker pass: the full audit shortlist.** (Light level replaced by G279, 2026-10-23, and G329,
-2026-10-25: lit by default, real-world bands.) Michael (2026-10-20 ~23:40; paraphrased): the full
-shortlist of docs/reviews/marlow-yard-audit.md (ceilings, lamp fittings, airlocks, dressing, walls to ceilings, paint,
-lifts, fiction); keep the open floor at 0.30 (the open floor's light level, just over the 0.28 shadow line).
+2026-10-25: lit by default, real-world bands.) Michael (2026-10-20 ~23:40; paraphrased): the full shortlist of
+docs/reviews/marlow-yard-audit.md (ceilings, lamp fittings, airlocks, dressing, walls to ceilings, paint, lifts,
+fiction); keep the open floor at 0.30 (the open floor's light level, just over the 0.28 shadow line).
 
 **G226. Tuner v2: a stage to pose the body and the gun.** Michael (2026-10-21 ~00:20): "I want freedom to manipulate
 the body/animation as needed ... Possibly even a basic stage similar to the old main menu that allows me to make all
@@ -1264,9 +1259,8 @@ use the laptop." The desktop runs full e2e at full power (E2E_JOBS=2); the lapto
 "Machines"). (Replaced by G259's laptop main.)
 
 **G231. The laptop is a full second test slot.** (Replaced by G259, 2026-10-22: the laptop is the main test machine.)
-Michael (2026-10-21 ~17:45): "I'm not on the laptop any more, it can
-be loaded up." Until Michael says otherwise the laptop is a full second test slot (Normal priority, E2E_JOBS=2, any job
-lead's run when free).
+Michael (2026-10-21 ~17:45): "I'm not on the laptop any more, it can be loaded up." Until Michael says otherwise the
+laptop is a full second test slot (Normal priority, E2E_JOBS=2, any job lead's run when free).
 
 **G232. Phone layout for the tuner only.** Michael (2026-10-21 ~19:00): "Is it difficult to do a fast ui adjustment for
 phones only? Touch input and controller will be used." He chose "Yes, tuner only": the animation tuner and Anim Studio
@@ -1293,12 +1287,12 @@ hour, then pause them". The animation tracks run normally until the 5-hour windo
 commit; slice J and the cloud stay paused until the reset or headroom. (Refines G235.)
 
 **G237. Overnight: use the window up to 99%; proceed and review in the morning.** (Replaced by G281 and G304: full burn
-to 100%.) Michael (2026-10-21 ~23:00): "Ignore
-the usage rule for this 5 hour session... The next 5 hour session I will be going to sleep, so monitor 5 hourly usage
-and reduce token usage when needed to keep the session running up until 99%. I'd rather usage as much as possible
-without hitting the limit". Overnight approvals: "Proceed, review AM" (steps waiting on his OK build on best judgement;
-screenshots kept for the morning). The orchestrator projects the window and trims in order Bays Cloud, slice J, then
-lean tracks; sessions self-pause at 97% before starting an agent; all are paused by 99%.
+to 100%.) Michael (2026-10-21 ~23:00): "Ignore the usage rule for this 5 hour session... The next 5 hour session I will
+be going to sleep, so monitor 5 hourly usage and reduce token usage when needed to keep the session running up until
+99%. I'd rather usage as much as possible without hitting the limit". Overnight approvals: "Proceed, review AM" (steps
+waiting on his OK build on best judgement; screenshots kept for the morning). The orchestrator projects the window and
+trims in order Bays Cloud, slice J, then lean tracks; sessions self-pause at 97% before starting an agent; all are
+paused by 99%.
 
 **G238. Sector Ops fixes on spare capacity.** Michael (2026-10-22 ~01:40): his list (warehouse lights, LED fittings,
 camera range and pitch, a subtle grid, lasers in one vision mode and alarm-only, laser power panels, a security room,
@@ -1316,9 +1310,8 @@ camera sees in the dark (IR) on every map, Sector Ops included; light still matt
 
 **G241. Full speed on the weekly; swap accounts at ~98%.** (Replaced by the current swap rule: swap at 100% of the meter
 that caps first, CLAUDE.md "Swaps and context" / docs/RULES.md.) Michael (2026-10-22 ~09:20; weekly at 61%, rising
-~5.5%/h):
-chose "Full speed, swap account": work keeps going, and at weekly ~98% everything is saved and handed off to another
-account with docs/orchestrator/HANDOFF.md (prompts one at a time, as on 2026-10-21).
+~5.5%/h): chose "Full speed, swap account": work keeps going, and at weekly ~98% everything is saved and handed off to
+another account with docs/orchestrator/HANDOFF.md (prompts one at a time, as on 2026-10-21).
 
 **G242. Sway cap lifted to ~5 cm.** Michael (2026-10-22 ~10:40, anim-natural N0 answers): "Lift to ~5 cm" (SWAY_MAX,
 CT Core N2).
@@ -1337,8 +1330,8 @@ test tiers).
 to stretch the 5-hour window): chose "Keep all Opus". Sessions pause at 97% until the reset instead.
 
 **G246. Merge trains: batch when two or more are ready.** (Replaced by G306 and G318, 2026-10-23: rolling automatic
-trains.) Michael (2026-10-22 ~11:25; asked whether to batch updates
-into larger ones tested once): chose "Batch when 2+ ready" (CLAUDE.md test tiers, STATE "Merge procedure").
+trains.) Michael (2026-10-22 ~11:25; asked whether to batch updates into larger ones tested once): chose "Batch when 2+
+ready" (CLAUDE.md test tiers, STATE "Merge procedure").
 
 **G247. A train merges as one PR with one version.** Michael (2026-10-22 ~11:40): chose "One PR per batch". (Refines
 G246.)
@@ -1372,8 +1365,8 @@ SQUAD_CAP 9): "Maximum amount of guards allowable. If there are ways to increase
 then let me know and make suggestions."
 
 **G255. The campaign spec waits.** (Replaced by G291 and G293, 2026-10-24: the campaign prototypes start on a new small
-map.) Michael (2026-10-22 ~14:45): "Ignore campaign spec until Marlow yard and sector ops
-warehouse are fully completed".
+map.) Michael (2026-10-22 ~14:45): "Ignore campaign spec until Marlow yard and sector ops warehouse are fully
+completed".
 
 **G256. Wall block tips the muzzle down.** Michael (2026-10-22 ~16:20, N3b A2, #122): chose "Muzzle down": the gun tips
 muzzle-down about the butt. (Replaces the CT muzzle-up of CT Core audit slice G6, walls and doors.)
@@ -1407,12 +1400,12 @@ would benefit" (CLAUDE.md "GPU for logic e2e"). "Make sure you question rules an
 picking up these things earlier".
 
 **G264. Mocap trial with CMU locomotion, behind a toggle.** (Default off replaced by G298, 2026-10-23: mocap on by
-default.) Michael (2026-10-22 ~20:45, after walking 4.58.0; walk / jog
-/ run, turns and starts / stops, and weapons look broken): "everything else doesn't look convincing". On free mocap:
-"Are there free mocap animations available? I don't want to record anything, and I don't want to impact releasing game
-in future commercially"; then "Trial and cmu animations first. I want to be able to roll back if they aren't good." Job
-mocap-trial (CT Core, top priority): CMU mocap only (free incl. commercial; an approved exception to the "no external
-art" hard rule for CMU mocap), raw BVH kept out of the public repo, locomotion retargeted onto Wren behind a toggle
+default.) Michael (2026-10-22 ~20:45, after walking 4.58.0; walk / jog / run, turns and starts / stops, and weapons look
+broken): "everything else doesn't look convincing". On free mocap: "Are there free mocap animations available? I don't
+want to record anything, and I don't want to impact releasing game in future commercially"; then "Trial and cmu
+animations first. I want to be able to roll back if they aren't good." Job mocap-trial (CT Core, top priority): CMU
+mocap only (free incl. commercial; an approved exception to the "no external art" hard rule for CMU mocap), raw BVH kept
+out of the public repo, locomotion retargeted onto Wren behind a toggle
 (default off), a side-by-side proof for Michael. Weapons stay hand-keyed for now; Mixamo only if he asks later.
 
 **G265. Vent kick: the pad matches the keyboard.** Michael (2026-10-22 ~21:00, T1 feature/vent-kick; the pad's Y then a
@@ -1420,8 +1413,8 @@ late A also kicked, 33 ms): chose "Yes, match keyboard": holding Y does not kick
 kicks.
 
 **G266. Warehouse redesign after Marlow Yard; all loosenings approved.** (Replaced by G295, 2026-10-23: the campus
-redesign.) Michael (2026-10-22 ~21:20): warehouse-redesign
-restarts "After Marlow Yard" (finished and walked); its 15 level-standard loosenings L1-L15
+redesign.) Michael (2026-10-22 ~21:20): warehouse-redesign restarts "After Marlow Yard" (finished and walked); its 15
+level-standard loosenings L1-L15
 (docs/warehouse-redesign/SPEC.md on feature/warehouse-redesign): "Approve all". (Restarts the rebuild G224 parked.)
 
 **G267. R section 2 gets another co-op route.** Michael (2026-10-22 ~21:20; one co-op route left after two proved
@@ -1516,18 +1509,17 @@ tasks, start making progress on the next feature/task." A lead with no PLAN slic
 in its area (Opus plan first) instead of idling; the orchestrator assigns it. First use: Sector Ops 4-player co-op.
 
 **G284. Level standard extras: a connectivity graph and a validator per map.** (Its 40-60% shadow share yields to the
-real-world light band: G329, 2026-10-25.) Michael (2026-10-24 ~20:05, native
-multiple choice after the review of his stealth-level-design skill): "Add 1-4 as extras". `docs/level-design.md` stays
-and gains (1) a connectivity-graph JSON per map before any geometry, checked by a Node validator (port of its
-validate_level.py with our scale-sheet metrics: reachability, solo / co-op completability, 3+ approaches of 2+ kinds,
-dead ends, room sizes, openings, 0.5 m grid, ceilings, 2+ independent routes, co-op coverage, split parity, beat
-pacing); (2) a room-size-by-type table in the scale sheet; (3) numeric targets (routes cross at least once, vantage sees
-~70%, 40-60% of floor in shadow, line of sight breakable within ~5 s, guard counts per space early / late and per player
-count); (4) co-op rules for level-design section 11 (splits <= 90 s, path parity within 20%, partners act for each
-other, an overwatch spot per split, a downed partner reachable within 15 s, shared routes >= 2.0 m wide). A linear
-spine between sections, loops inside them. Every map passes the validator before greybox. Campus is the first run,
-~20:12: "Do the entire campus" (S1-S5). Guard counts (3-6 early, 6-10 late) are checked against our guard sheets before
-they become rules. Arena mode is parked.
+real-world light band: G329, 2026-10-25.) Michael (2026-10-24 ~20:05, native multiple choice after the review of his
+stealth-level-design skill): "Add 1-4 as extras". `docs/level-design.md` stays and gains (1) a connectivity-graph JSON
+per map before any geometry, checked by a Node validator (port of its validate_level.py with our scale-sheet metrics:
+reachability, solo / co-op completability, 3+ approaches of 2+ kinds, dead ends, room sizes, openings, 0.5 m grid,
+ceilings, 2+ independent routes, co-op coverage, split parity, beat pacing); (2) a room-size-by-type table in the scale
+sheet; (3) numeric targets (routes cross at least once, vantage sees ~70%, 40-60% of floor in shadow, line of sight
+breakable within ~5 s, guard counts per space early / late and per player count); (4) co-op rules for level-design
+section 11 (splits <= 90 s, path parity within 20%, partners act for each other, an overwatch spot per split, a downed
+partner reachable within 15 s, shared routes >= 2.0 m wide). A linear spine between sections, loops inside them. Every
+map passes the validator before greybox. Campus is the first run, ~20:12: "Do the entire campus" (S1-S5). Guard counts
+(3-6 early, 6-10 late) are checked against our guard sheets before they become rules. Arena mode is parked.
 
 **G285. The validator: scaled rooms, one metrics source, routes per section, measured targets.** Michael (2026-10-24
 ~20:18) approved G284's plan with four changes: (a) the room table is scaled too (start ~1.3-1.5x real, tuned in
@@ -1576,12 +1568,11 @@ G125's "at most one hard rule"; Marlow Yard's guidance is settled by G292.)
 
 **G291. Mission modes and the first prototypes.** Michael (2026-10-24, the same evening and ~22:12): campaign missions
 are 2-player co-op only with strict rules; Sector Ops is 1-4 player co-op (G308; solo always possible, G280) with
-parallel objectives for two teams (or one
-player doing them all), strict rules allowed globally, per team or per split. First prototypes: Three Grey Coats and
-Two-Key Ledger (campaign, 2p), Split Shift and Code Relay (Sector Ops, 1-4p). Next: a mission-framework job (objective
-chains with parallel tracks, rules per mission / team with section restart, an interrogate-a-named-target objective,
-validator objective and rule nodes), then the four prototypes; the campus S1-S5 fixes are planned against it with
-one-click sign-off.
+parallel objectives for two teams (or one player doing them all), strict rules allowed globally, per team or per split.
+First prototypes: Three Grey Coats and Two-Key Ledger (campaign, 2p), Split Shift and Code Relay (Sector Ops, 1-4p).
+Next: a mission-framework job (objective chains with parallel tracks, rules per mission / team with section restart, an
+interrogate-a-named-target objective, validator objective and rule nodes), then the four prototypes; the campus S1-S5
+fixes are planned against it with one-click sign-off.
 
 **G292. Marlow Yard is a guided linear course; campaign sections force co-op traversal.** Michael (2026-10-24 ~22:45):
 "Marlow is a training course and may have different rules to standard mission, ie its heavily guided and must teach the
@@ -1601,11 +1592,11 @@ vent unlock for the partner, plus "Any other creative coop ideas". (Applies G292
 greybox.)
 
 **G294. Guard off-screen animation tier stays at 4 for now.** (Replaced by G327, 2026-10-25: a shadow in view counts as
-seen.) Orchestrator (2026-10-24 ~23:46, Michael asleep). Assumed,
-undoable. PR #360 (tier 4 -> 8) is held: its "seen" test counts only the camera pass, so a guard just out of view whose
-shadow falls in view updates at 7.5 Hz and the shadow's feet slide 21-75 cm; a visible shadow artefact loses to the CPU
-win. After gm-flip, Guard AI tries "shadow-in-view counts as seen" (`animTierView.ts`) and measures the saving left; a
-GPU look of the case goes in Michael's morning pack. Undo: label #360 train-ready to ship 8 as is.
+seen.) Orchestrator (2026-10-24 ~23:46, Michael asleep). Assumed, undoable. PR #360 (tier 4 -> 8) is held: its "seen"
+test counts only the camera pass, so a guard just out of view whose shadow falls in view updates at 7.5 Hz and the
+shadow's feet slide 21-75 cm; a visible shadow artefact loses to the CPU win. After gm-flip, Guard AI tries
+"shadow-in-view counts as seen" (`animTierView.ts`) and measures the saving left; a GPU look of the case goes in
+Michael's morning pack. Undo: label #360 train-ready to ship 8 as is.
 
 **G295. Sector Ops redesign: larger, up to 5 sections, harder security that makes sense.** Michael (2026-10-23 ~01:08):
 "regarding sector ops, i want to make it larger and with more sections (5 max), accomodate more guards in each section,
@@ -1627,11 +1618,11 @@ morning); the camera-range cut and the lighting rule review on "All maps" (one e
 proposal for Michael).
 
 **G297. Sector Ops: a corporate research campus, 30-45 min, up to 24 guards, dogs.** (Guard count replaced by G289 and
-G328, 2026-10-25: signed-off counts per section, 32 alive ceiling.) Michael (2026-10-23 ~01:20):
-setting "Corporate research campus"; one co-op run "30-45 min"; guards "up to 24, each section should gradually get
-harder with more guards and more security."; security "Include guard dogs" (cameras, lasers, alarm panels, keypads,
-then dogs and armed response). Lighting, the orchestrator's reading of his G295 words: lit like a real site, players
-cut lights to make shadows, dark zones only where believable. (Refines G187's per-section counts for this map.)
+G328, 2026-10-25: signed-off counts per section, 32 alive ceiling.) Michael (2026-10-23 ~01:20): setting "Corporate
+research campus"; one co-op run "30-45 min"; guards "up to 24, each section should gradually get harder with more guards
+and more security."; security "Include guard dogs" (cameras, lasers, alarm panels, keypads, then dogs and armed
+response). Lighting, the orchestrator's reading of his G295 words: lit like a real site, players cut lights to make
+shadows, dark zones only where believable. (Refines G187's per-section counts for this map.)
 
 **G298. Cameras keep IR; every guard armed; both Sector Ops maps; mocap on by default.** Michael (2026-10-23 ~01:25):
 cameras "Keep IR everywhere" (G240 stands: cutting lights beats guards and the light meter, never cameras); no
@@ -1699,21 +1690,21 @@ trains on CI plus at most two area suites; stacked series share a train; trains 
 G246's 2+ trigger; its train trigger and desktop lane are replaced by G318.)
 
 **G307. Reward stealth over shooting as sections get harder.** (Helmet rule (2) replaced by G338, 2026-10-25: helmets by
-difficulty.) Michael (2026-10-23 ~10:10, native multiple choice in
-Character Build, relayed): theme "reward stealth over shooting as sections get harder". (1) bulletproof cameras in later
-sections (shots only ricochet; jam, cut power or slip the sweep; early sections keep shootable cameras); (2) no instant
-headshot kills later (a helmet: the first headshot knocks it off and staggers, the second kills; takedowns stay one
-move); (3) riot-shield enemies only in alert response teams; (4) alarms escalate (armour / helmets and a response team
-per stage; "dont add cameras, that doesnt make sense"); (5) a section rating (undetected / no kills / no alarms /
-bodies hidden) with real rewards; (6) missed patrol check-ins and found bodies raise alert; (7) gunfire alerts the
-section, limited suppressor ammo, no ammo inside a section and one refill between sections: ~10:20 "there should be ammo
-refill inbetween sections for now, but none within sections. and multiple players must be able to use it only once
-each. it should look like a weapons crate" (replaces his ~10:15 "only what you start with" and "scarcer ammo later").
-Assumed, undoable: the crate tops up to the starting loadout, never above; weapon ammo only, gadgets unchanged; it sits
-at the section start / checkpoint; a section restart resets it; a used crate shows per player (that player's slot
-empty, prompt gone). (8) shot lamps draw an investigation, breaker cuts are cleaner; (9) interrogation gives door codes,
-camera routes, patrol timing; (10) armoured routes (bulletproof glass / doors) with a quiet bypass (vent, hack,
-hang-down); (11) response teams stay and search, no stand-down; (12) synced co-op takedowns reward more than shooting;
+difficulty.) Michael (2026-10-23 ~10:10, native multiple choice in Character Build, relayed): theme "reward stealth over
+shooting as sections get harder". (1) bulletproof cameras in later sections (shots only ricochet; jam, cut power or slip
+the sweep; early sections keep shootable cameras); (2) no instant headshot kills later (a helmet: the first headshot
+knocks it off and staggers, the second kills; takedowns stay one move); (3) riot-shield enemies only in alert response
+teams; (4) alarms escalate (armour / helmets and a response team per stage; "dont add cameras, that doesnt make sense");
+(5) a section rating (undetected / no kills / no alarms / bodies hidden) with real rewards; (6) missed patrol check-ins
+and found bodies raise alert; (7) gunfire alerts the section, limited suppressor ammo, no ammo inside a section and one
+refill between sections: ~10:20 "there should be ammo refill inbetween sections for now, but none within sections. and
+multiple players must be able to use it only once each. it should look like a weapons crate" (replaces his ~10:15 "only
+what you start with" and "scarcer ammo later"). Assumed, undoable: the crate tops up to the starting loadout, never
+above; weapon ammo only, gadgets unchanged; it sits at the section start / checkpoint; a section restart resets it; a
+used crate shows per player (that player's slot empty, prompt gone). (8) shot lamps draw an investigation, breaker cuts
+are cleaner; (9) interrogation gives door codes, camera routes, patrol timing; (10) armoured routes (bulletproof glass /
+doors) with a quiet bypass (vent, hack, hang-down); (11) response teams stay and search, no stand-down; (12) synced
+co-op takedowns reward more than shooting;
 (13) heavier late guards: body armour, torso shots only stagger; (14) thermal / night-vision cameras late. Not chosen:
 ghost-run bonus gear.
 
@@ -1885,9 +1876,9 @@ and guarded or locked breakers are allowed at choke points in the campaign and S
 (Loosens `docs/level-design.md`'s "every lit chokepoint can be darkened at least two ways" and bible L8.)
 
 **G334. Soft time windows only.** (Marlow Yard may use timed drills: G342.) Michael (2026-10-25 ~09:45, after two
-examples: a hard route-closing lockdown and a
-soft shift-change window): "Soft windows only". Predictable windows (shift changes, fixed patrol cycles, signposted in
-the world) are allowed; no countdown closes a route; the no-forced-timers rule stays.
+examples: a hard route-closing lockdown and a soft shift-change window): "Soft windows only". Predictable windows (shift
+changes, fixed patrol cycles, signposted in the world) are allowed; no countdown closes a route; the no-forced-timers
+rule stays.
 
 **G335. Static lookouts and paired patrols.** Michael (2026-10-25 ~09:45): "Add both": static lookouts on some high
 routes (pipes, catwalks, vents) and paired patrols that check on each other. G44 (guards see poorly above) stays the base
@@ -1907,10 +1898,10 @@ approved; "Once this has been completed, I want another audit run and review the
 to make sure the vision is clear."
 
 **G338. Helmets by difficulty.** (Campaign part settled by G341, 2026-10-25: the same rule.) Michael (2026-10-25
-~09:45): "Keep CT way" (G155); then, asked again after the docs
-audit about G307's first-headshot helmet (~10:20): "Base it off difficulty, harder difficulties always have helmets, and
-hardest difficulty you can't shoot the helmet off." Asked for Sector Ops. Assumed for the campaign, undoable: CT's
-alarm-stage helmets (G155) plus the same difficulty rule. (Refines G307 (2).)
+~09:45): "Keep CT way" (G155); then, asked again after the docs audit about G307's first-headshot helmet (~10:20): "Base
+it off difficulty, harder difficulties always have helmets, and hardest difficulty you can't shoot the helmet off."
+Asked for Sector Ops. Assumed for the campaign, undoable: CT's alarm-stage helmets (G155) plus the same difficulty rule.
+(Refines G307 (2).)
 
 **G339. No minimap, compass or objective blip.** Michael (2026-10-25 ~10:20): "Remove it too": no minimap, compass or
 objective blip in any mode. mission-framework A10 is void; its A12 one-chance mission end and window rule kinds conflict
