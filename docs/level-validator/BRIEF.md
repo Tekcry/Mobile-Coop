@@ -95,8 +95,9 @@ campus-audit (feature/campus-audit 618cdd69).
   plus `spine` for section connectors. Undo: an alias table in the validator.
 - A5 Speeds for time rules: split legs at 1.3 m/s (crouch gear 3, stealth pace), reach-a-partner at 3.0 m/s (G40 run).
   Times come from link `length` + half of each space's long side. Undo: two constants at the top of the module.
-- A6 One graph per map, sections inside it (`meta.sections` in spine order). Files live in the map's docs folder
-  (campus: `docs/sector-redesign/campusOps.graph.json`). Undo: move files; the CLI takes any path.
+- A6 One graph per map, sections inside it (`meta.sections` in spine order); it may be split into one file per section,
+  which the CLI merges (so sections are written in parallel). Files live in the map's docs folder (campus:
+  `docs/sector-redesign/graph/campusOps-S<n>.json`). Undo: move files; the CLI takes any paths.
 - A7 The room table has one source: the validator reads the V2 table from `docs/design/scale-sheet.md` at run time (the
   pure module takes the table as an argument). Undo: inline a constant.
 - A8 Vantage %, shadow % and LOS-break seconds are the designer's estimates in the graph (no geometry exists yet); V5

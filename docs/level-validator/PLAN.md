@@ -191,7 +191,7 @@ A map's graph is one JSON object, or several files (one per section) the CLI mer
 - V5a / V5b / V5c (Sonnet, parallel, one per section, after V0 lands): write
   `docs/sector-redesign/graph/campusOps-S<n>.json` by hand (A9) from `docs/sector-redesign/SPEC.md` (S1 line 186, S2
   273, S3 327; the element register, the co-op routes table line 516, the posted-guards table line 499) and the built
-  map data: room boxes `S1_ROOMS` (`campusS1.ts:49`), `S2_ROOMS` (`campusS2.ts:142`), S3's rooms in `campusS3.ts`,
+  map data: room boxes `S1_ROOMS` (`campusS1.ts:49`), `S2_ROOMS` (`campusS2.ts:142`), `S3_ROOMS` (`campusS3.ts:116`),
   `C1_BOX` / `C1_GAP` / `S1_DOORS`, `C2_BOX` / `S2_DOORS` / `S2_FLOORS` / `S2_CORES` / `FEATURE_STAIR`, `S3_DOORS` /
   `S3_L1`, co-op lips (`S1_COOP_LIPS`, `S2_COOP_LIPS`), guards per zone from `campusSectors.ts`. The graph describes the
   map AS BUILT (sizes measured from the boxes, door widths from the gaps), not as intended: the point is to find the
