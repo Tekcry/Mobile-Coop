@@ -60,7 +60,7 @@ LODS = (0, 1, 2)
 CAGE = (0.003, 0.012, 0.03)          # selected-to-active cage per LOD (m): the ray starts this far out
 COPY_CAGE = 0.0015                   # a LOD0 piece that is its source unchanged (no decimation)
 COVER_REACH = 0.08                   # body faces whose outward ray meets a garment within this are covered
-POKE_REACH = 0.03                    # (G10a D6) a covered-face head face this far in front of the balaclava pokes through
+HEAD_COVER_REACH = 1.0               # (G10a D6) a face-covered head's face whose outward ray meets the balaclava at all is hidden
 SEAM_TOL = 0.002                     # head seam vertex to body seam vertex (m)
 SCALP_REACH = 0.010                  # LOD2: head vertices this close to the buzz cap take the hair slot
 ISLAND_MIN = 0.02                    # LOD meshes drop loose islands smaller than this (stitches, rivets; they bake in)
@@ -675,9 +675,12 @@ def run_base(args, kit, L):
 
     # ---- (G10a D6) heads whose kinds all wear the balaclava for good (faceCovered, SPEC A14): the head's front pokes
     # through the membrane (the 20-column ring cuts inside the nose, lips and chin; the throat rows ride the neck), which
-    # showed skin from brow to chin. Drop every head face the balaclava covers (the body cover test's rays: outward
-    # within COVER_REACH, or inward within POKE_REACH for a face in front of it), keeping the eye slot, one ring of
-    # margin, the eyes and the seam ring (the body weld).
+    # showed skin from brow to chin. A head sample point is hidden when it pokes out (the segment from it to the head's
+    # centre crosses the balaclava) or its outward ray meets the balaclava at all (only the eye slot lets a ray out);
+    # every face whose sample points (centre and 0.8-inset corners, the body cover test's) are all hidden is dropped.
+    # One ring of margin comes back around what stays, never a poking face; the eyes and the seam ring (the body weld)
+    # always stay. (Measured on the bundled broad LOD0: the head seen in front of the balaclava below the eye slot
+    # went from the whole centre column, brow to chin, to a few cells at the jaw.)
     covered_report = {}
     bal = gear.get('balaclava')
     for hid, got in heads.items():
@@ -699,20 +702,29 @@ def run_base(args, kit, L):
             mi = np.zeros(len(me.polygons), np.int32)
             me.polygons.foreach_get('material_index', mi)
             seam = seam_pairing(o, 'head')[0] >= 0
+            centre = Vector(world_co(o).mean(axis=0))
+
+            def pokes(q):
+                d = centre - q
+                return tree.ray_cast(q, d.normalized(), d.length)[0] is not None
             covered = np.zeros(len(me.polygons), bool)
+            poking = np.zeros(len(me.polygons), bool)
             for p in me.polygons:
                 if mi[p.index] == 1 or seam[list(p.vertices)].any():
                     continue
                 c = mw @ p.center
                 n = (rot @ p.normal).normalized()
                 pts = [c] + [c + ((mw @ me.vertices[v].co) - c) * 0.8 for v in p.vertices]
-                covered[p.index] = all(tree.ray_cast(q + n * 0.0005, n, COVER_REACH)[0] is not None
-                                       or tree.ray_cast(q - n * 0.0005, -n, POKE_REACH)[0] is not None for q in pts)
+                out = [pokes(q) for q in pts]
+                poking[p.index] = any(out)
+                covered[p.index] = all(o_ or tree.ray_cast(q + n * 0.0005, n, HEAD_COVER_REACH)[0] is not None
+                                       for q, o_ in zip(pts, out))
             vis_v = np.zeros(len(me.vertices), bool)
             for p in me.polygons:
                 if not covered[p.index]:
                     vis_v[list(p.vertices)] = True
-            keep = np.array([not covered[p.index] or vis_v[list(p.vertices)].any() for p in me.polygons])
+            keep = np.array([not covered[p.index] or (not poking[p.index] and vis_v[list(p.vertices)].any())
+                             for p in me.polygons])
             tris = lambda m: [len(p.vertices) - 2 for p in m.polygons]   # noqa: E731
             t_all = sum(tris(me))
             drop_faces(o, keep)
