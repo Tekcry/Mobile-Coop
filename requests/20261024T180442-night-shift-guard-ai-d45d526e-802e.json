@@ -1,0 +1,15 @@
+{
+  "id": "20261024T180442-night-shift-guard-ai-d45d526e-802e",
+  "sha": "d45d526e963701e9ed023e6130d7dfd4007888f5",
+  "branch": "",
+  "pr": 377,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-stealth-ai",
+    "e2e-ctcourse"
+  ],
+  "jobs": 2,
+  "set": "polish2",
+  "note": "guard-ai polish batch 2 (area suites: S27, A7 cage)"
+}
