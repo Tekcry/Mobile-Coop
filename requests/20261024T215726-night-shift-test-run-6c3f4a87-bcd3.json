@@ -1,0 +1,15 @@
+{
+  "id": "20261024T215726-night-shift-test-run-6c3f4a87-bcd3",
+  "sha": "6c3f4a879f3d574a4a136f08c5f3a93af9db0b99",
+  "branch": "",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Test Runner",
+  "steps": [
+    "npm run e2e:gpu"
+  ],
+  "env": {},
+  "set": "gpu-41003",
+  "note": "save gap: GPU read-backs",
+  "pin": true
+}
