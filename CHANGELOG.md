@@ -1,5 +1,22 @@
 # Changelog
 
+## 4.89.0 - Train 51: sector-redesign: LR16-4 reception board, LR16-6 vision polish, LR16 polish batch 2; Auto-train audit fixes (2026-10-24, PR #309; #307)
+
+### The S2 reception panel is a breaker board (LR16-4)
+- Campus S2 (HQ atrium): the reception panel is now a real untimed breaker board on the atrium circuit (the three
+  pendants and the reception downlight). Cut it and the officer in reception sees his room go dark, walks to the board
+  and switches the lights back on; take him down at the board first and the atrium stays dark. A shot pendant stays dark.
+  The yard and garden isolators keep their timed windows. No wire or save change.
+
+### Thermal through shut doors (LR16-6)
+- Thermal shows anyone warm behind a shut door as a dim blue figure in their own pose, drawn on the door: guards, your
+  partner and a fresh body (its first half minute). Never through a wall, glass or an open door (the body itself
+  shows then), and only within about 14 m. Your own body in front of the door still covers it. Picture only: guards
+  and the light meter are unchanged; in co-op each player sees their own.
+- Every goggle change is an instant cut; switching modes on the wheel with the goggles on now flashes the HUD label too.
+- Co-op: bodies now cool in thermal on the joining player's screen as they do on the host's, and a guard walking behind a
+  shut door in Sector Ops moves as a figure instead of sliding in his last pose.
+
 ## 4.88.3 - Train 50: Auto-train audit fixes (2026-10-24, PR #306; #304)
 - Auto-train queues one laptop rerun of the failed suites when the desktop worker fails a train
   (`laptop-e2e` "desktop: ...; FAIL: a,b"): `request.mjs --train-rerun`, set `train<n>-rerun`, state `laptop-rerun`,

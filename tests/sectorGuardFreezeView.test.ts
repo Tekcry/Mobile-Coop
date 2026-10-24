@@ -428,6 +428,31 @@ describe('sector-redesign artnext C7-C9: the frozen tier, the thaw and the death
     expect(tier.thawing).toBe(false);
   });
 
+  it('(LR16-6 fix) a frozen rig thermal draws as a door figure (ghostFrame this or last frame) solves; stale or unstamped, frozen', async () => {
+    const { scene, rig, frame } = await thawScene();
+    for (let k = 0; k < 20; k++) frame();
+    rig.root.setEnabled(false);
+    const anim = vi.spyOn(rig, 'animate');
+    frame();
+    frame();
+    expect(anim).not.toHaveBeenCalled();
+    // `DoorGhosts.consider` stamps him with this frame: he walks (the figure moves as he moves), his root still disabled
+    rig.ghostFrame = scene.getFrameId();
+    frame();
+    frame();
+    expect(anim).toHaveBeenCalledTimes(2);
+    expect(rig.root.isEnabled(false)).toBe(false);
+    // one frame behind still counts (the figure is placed in the render frame after the guard's update)
+    scene.render();
+    frame();
+    expect(anim).toHaveBeenCalledTimes(3);
+    // no figure for two frames: frozen again
+    scene.render();
+    frame();
+    frame();
+    expect(anim).toHaveBeenCalledTimes(3);
+  });
+
   it('a death while frozen (`die`): one solve at his current place before the ragdoll reads the bones', async () => {
     const { A, rig, tier, frame } = await thawScene();
     for (let k = 0; k < 20; k++) frame();
