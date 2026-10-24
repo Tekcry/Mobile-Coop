@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { checkTeamRequest, HANG_SUB, inOpenMove, ROPE_SUB, THROW_SUB, type TeamDenial, type TeamKind, type TeamRequest, type TeamSide } from '../src/game/teamMoves';
 import { TEAM } from '../src/config/movement';
 import { ATTACH_SUB } from '../src/player/moveState';
+import { CoopHost } from '../src/net/coopHost';
 
 const side = (o: Partial<TeamSide> = {}): TeamSide => ({ id: 'a', x: 0, y: 0, z: 0, mode: 'ground', alive: true, ...o });
 const base = { target: -1, targetUp: 0, sinceLast: 5 };
@@ -69,5 +70,68 @@ describe('open-ended hang / rope busy entries end with the climber (coop4 net ch
     expect(inOpenMove(side({ mode: 'boost', sub: 0 }))).toBe(false);
     expect(inOpenMove(side({ mode: 'boost' }))).toBe(false);
     expect(inOpenMove(side({ mode: 'brace', sub: HANG_SUB }))).toBe(false);
+  });
+});
+
+describe('a new team move ends any its players were still marked in (coop4 pol, round-check-A P3)', () => {
+  /** A CoopHost stub driving the real `onTeamMove` / `teamBusy`: `sides` is each player's live state (mutable). */
+  function host(sides: Record<string, TeamSide>) {
+    const h = Object.create(CoopHost.prototype) as CoopHost;
+    const send = vi.fn();
+    Object.assign(h, {
+      s: { selfId: 'host', send },
+      g: { world: { level: { anchors: { get: () => null } } }, team: { begin: vi.fn(), ended: vi.fn(), denied: vi.fn() }, mode: null },
+      time: 0,
+      teamLast: new Map(),
+      teamPairs: new Map(),
+      teamActive: new Map(),
+      teamSide: (id: string) => sides[id] ?? null,
+    });
+    const hi = h as unknown as {
+      time: number;
+      teamPairs: Map<string, string>;
+      teamBusy(b: string, a: string): boolean;
+      onTeamMove(by: string, kind: string, partner: string, target: number, ss: number, gy: number, lx?: number, lz?: number): void;
+    };
+    return { hi, send };
+  }
+  const holder = (id: string) => side({ id, y: 4.4, mode: 'brace', sub: HANG_SUB });
+
+  it('a climber whose hang ended silently and who at once hangs from another holder frees the first holder', () => {
+    const sides: Record<string, TeamSide> = { c: side({ id: 'c', y: 4.4, z: 1.2 }), h1: holder('h1'), h2: holder('h2'), x: side({ id: 'x', y: 4.4, z: 1.2 }) };
+    const { hi, send } = host(sides);
+    hi.onTeamMove('c', 'hang', 'h1', -1, 0, 4.4, 0, -1);
+    expect(send).toHaveBeenLastCalledWith(expect.objectContaining({ t: 'tstart', a: 'c', b: 'h1' }));
+    // the hang ends with no message (e.g. the client's "partner gone"); c is back on the ground and at once asks h2
+    hi.time = 5;
+    sides.h2 = { ...holder('h2'), z: 0 };
+    hi.onTeamMove('c', 'hang', 'h2', -1, 0, 4.4, 0, -1);
+    expect(send).toHaveBeenLastCalledWith(expect.objectContaining({ t: 'tstart', a: 'c', b: 'h2' }));
+    // c now hangs (posed in the open move) from h2: h1 is free for anyone, h2 is taken
+    sides.c = side({ id: 'c', y: 4.4, mode: 'boost', sub: HANG_SUB });
+    hi.time = 6;
+    expect(hi.teamBusy('h1', 'x')).toBe(false);
+    expect(hi.teamBusy('h2', 'x')).toBe(true);
+    // the stale hang pair is gone: h1's `end` sends no `tend` that would end c's hang with h2
+    expect(hi.teamPairs.get('h1')).toBeUndefined();
+    expect(hi.teamPairs.get('c')).toBe('h2');
+    send.mockClear();
+    hi.onTeamMove('h1', 'hangEnd', '', 1, 0, 0);
+    expect(send).not.toHaveBeenCalled();
+    expect(hi.teamBusy('h2', 'x')).toBe(true);
+  });
+
+  it('the same pair again (a timed move after a silent hang end) keeps both marked with each other', () => {
+    const sides: Record<string, TeamSide> = { c: side({ id: 'c', y: 4.4, z: 1.2 }), h1: holder('h1'), x: side({ id: 'x' }) };
+    const { hi } = host(sides);
+    hi.onTeamMove('c', 'hang', 'h1', -1, 0, 4.4, 0, -1);
+    hi.time = 5;
+    hi.onTeamMove('c', 'hang', 'h1', -1, 0, 4.4, 0, -1);
+    sides.c = side({ id: 'c', y: 4.4, mode: 'boost', sub: HANG_SUB });
+    hi.time = 6;
+    expect(hi.teamPairs.get('c')).toBe('h1');
+    expect(hi.teamPairs.get('h1')).toBe('c');
+    expect(hi.teamBusy('h1', 'x')).toBe(true);
+    expect(hi.teamBusy('h1', 'c')).toBe(false);
   });
 });

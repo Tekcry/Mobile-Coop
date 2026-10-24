@@ -1093,8 +1093,13 @@ export class CoopHost implements NetAttachment {
     return e.mate !== a;
   }
 
-  /** (coop4 A20) `a` (the climber / runner) and `b` start a team move of `kind` (both busy until it ends). */
+  /** (coop4 A20) `a` (the climber / runner) and `b` start a team move of `kind` (both busy until it ends). A body is in
+   *  one team move at a time: any move either was still marked in ends first (pol, round-check-A P3: a climber whose
+   *  open move ended silently and who at once starts one with another holder no longer leaves the first holder
+   *  `taken`, nor a stale hang pair naming it). Call before the new hang / rope pair is set. */
   private teamMark(kind: TeamKind, a: string, b: string): void {
+    this.teamClear(a);
+    this.teamClear(b);
     const len = kind === 'boost' ? TEAM.boostTime : kind === 'ladder' ? TEAM.relayClimb : kind === 'throw' ? TEAM.throwTime : Infinity;
     const until = this.time + len + TEAM_BUSY_SLACK;
     this.teamActive.set(a, { mate: b, until, climber: a, t0: this.time });
@@ -1181,13 +1186,13 @@ export class CoopHost implements NetAttachment {
     if (toss && land) {
       // (CT prototype B4) the partner throw: the runner flies over the thrower to the claimed (bounded) landing; (B5) the
       // hang-down: `a` is lowered head-first at the claimed (bounded) hang point by the holder `b` (a pair until it ends)
+      this.teamMark(kind, by, partner);
       if (kind === 'hang' || kind === 'rope') {
         this.teamPairs.set(by, partner);
         this.teamPairs.set(partner, by);
       }
       const start = { kind, a: by, b: partner, target: -1, s: 0, t0: now, l: [land.x, land.y, land.z] as [number, number, number] };
       if (kind === 'throw') this.throwKo.start(by, now, a.x, a.y, a.z, land.x, land.y, land.z);
-      this.teamMark(kind, by, partner);
       this.s.send({ t: 'tstart', ...start });
       if (by === self || partner === self) this.g.team.begin(start, self);
       this.g.mode?.onTeamMove?.(by === self ? undefined : by, partner === self ? undefined : partner);
