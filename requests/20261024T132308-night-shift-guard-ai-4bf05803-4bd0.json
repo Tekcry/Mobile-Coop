@@ -1,0 +1,15 @@
+{
+  "id": "20261024T132308-night-shift-guard-ai-4bf05803-4bd0",
+  "sha": "4bf058037225f19e9b61b042879d49321d9313f9",
+  "branch": "",
+  "pr": 363,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-stealth-ai",
+    "e2e-sectorops"
+  ],
+  "jobs": 2,
+  "set": "polish3s",
+  "note": "guard-ai polish + B2 roleBound + re-check fix (area suites)"
+}
