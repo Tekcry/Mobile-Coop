@@ -1,129 +1,765 @@
 {
-  "meta": { "map": "campusOps", "name": "Saltmarsh Park - Sector Ops", "mode": "sector", "players": [2],
-            "sections": ["S1", "S2", "S3", "S4", "S5"] },
+  "meta": {
+    "map": "campusOps",
+    "name": "Saltmarsh Park - Sector Ops",
+    "mode": "sector",
+    "players": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "sections": [
+      "S1",
+      "S2",
+      "S3",
+      "S4",
+      "S5"
+    ]
+  },
   "spaces": [
-    { "id": "s3-c2", "section": "S3", "type": "connector", "room_class": "lobby",
-      "function": "Bridge landing on L1: where the C2 bridge arrives, glass onto the test hall, and the head of the SW fire stair, the only way off it",
-      "storey": 4.5, "size": [12, 30, 4.5], "tension": 2, "tags": ["entry"],
-      "note": "size = S3_ROOMS box s3-c2 (campusS3.ts:118), clear between wall faces 11.7 x 29.7; h = roof slab underside 9.0 - L1 4.5. Guard #1 (officer, post 14, 4.5, -17) stands here. Walls x 22 (solid to 5.8, glass above) and z 0 have no door, so the landing has no link to the L1 north band (build sheet L12). tension: estimate, SPEC gives S3 as 3-4 for the whole section only." },
-    { "id": "s3-lobby", "section": "S3", "type": "connector", "room_class": "lobby",
-      "function": "Ground lobby under the landing: foot of the SW stair and the hall's west door; dark transit space, nobody works here at night",
-      "storey": 0, "size": [12, 30, 4.3], "tension": 1, "tags": [],
-      "note": "size = S3_ROOMS box s3-lobby (campusS3.ts:117); h = L1 slab underside 4.3 (campusS3.ts:43). The SW stair core (2.6 x 5.6) stands free inside it, leaving 1.55 m channels to the west and south walls. No guard. tension: estimate." },
-    { "id": "s3-hall", "section": "S3", "type": "encounter", "room_class": "lab",
-      "function": "Test hall: environmental chamber, shielded EMC room, burn-in racks and crane bay, worked by the floor patrols, the burn-in watcher and the west-door sentry",
-      "storey": 0, "size": [22, 30, 9.0], "tension": 4,
-      "shadow_pct": 0.02, "los_break_s": 2.5, "vantage": { "from": "s3-c2", "sees_pct": 0.45 },
-      "guards": { "2": 5 }, "tags": [],
-      "note": "size = S3_ROOMS box s3-hall (campusS3.ts:119), h = S3_ROOF 9.0. Class lab is the nearest by function and is exceeded (WARN): the sheet has no hall class. Guards #6, #7, #8, #11, #16 (campusSectors.ts:189-208). ESTIMATES, all pending V6: shadow_pct 0.02 = all 11 high bays on (floor within lamp range 12 and the 66 deg cone, box occlusion, 0.25 m grid; one row cut 0.03-0.29, two rows cut 0.47-0.51); sees_pct 0.45 = best eye spot on the landing (21.8, 6.1, -28) through the 5.8-9.0 glass, chest height 1.2, box occlusion (mid-landing 0.21; the crane walkway sees about 0.58); los_break_s 2.5 = 6.7 m to the nearest full-height cover on the stealth route at (23.2, -27.3) / 3.0 m/s. tension: estimate." },
-    { "id": "s3-walkway", "section": "S3", "type": "connector", "room_class": "custom",
-      "function": "Crane walkway along the hall's south wall, the high route and overwatch of the hall patrols; maintenance fitters use it",
-      "storey": 6.0, "size": [1.25, 29.7, 3.0], "tension": 3, "tags": [],
-      "note": "size from S3_BOX.walkway (campusS3.ts:81): x 22.15..51.85, z -29.85..-28.6; h = roof 9.0 - 6.0. custom: no sheet class for a catwalk. Rail 1.1 on the north edge, open at both ladder ends (campusS3.ts:401). tension: estimate." },
-    { "id": "s3-chamber", "section": "S3", "type": "connector", "room_class": "custom",
-      "function": "Roof of the environmental chamber with the refrigeration plant on it; the co-op leg-up lands here (CR3)",
-      "storey": 4.4, "size": [6, 8, 4.6], "tension": 3, "tags": [],
-      "note": "size from S3_BOX.chamber (campusS3.ts:71) and chamberTop 4.4; h = roof 9.0 - 4.4 (SPEC headroom 4.6). The plant (x 33.5..35.5, z -21..-15, to 5.6) takes the east third, leaving a 3.5 m strip on the west. No rails on any edge. custom: a roof deck. tension: estimate." },
-    { "id": "s3-gallery", "section": "S3", "type": "connector", "room_class": "custom",
-      "function": "Steel escape gallery on the hall's north wall with a service spur to the chamber roof; the plant fitters' maintenance access",
-      "storey": 4.5, "size": [1.35, 16, 4.5], "tension": 3, "tags": [],
-      "note": "size from S3_BOX.gallery (campusS3.ts:79): x 28..44, z -9.5..-8.15, clear between the rail and the wall about 1.25; the spur (x 31..35, z -13.5..-9.5) is folded in; h = roof 9.0 - 4.5. custom: no catwalk class. tension: estimate." },
-    { "id": "s3-nstair", "section": "S3", "type": "stair_core", "room_class": "stair_core",
-      "function": "North fire stair with its ground vestibule: joins the hall, the dock and both L1 doors (viewing corridor, back corridor)",
-      "storey": 0, "size": [2.6, 7.7, 4.3], "tension": 2, "tags": [],
-      "note": "size = core x 40..42.6, z -6..-0.15 (5.85) plus the ground vestibule z -7.85..-6 (1.85), inside faces (campusS3.ts:359-369); h = vestibule ceiling (L1 slab underside 4.3), the core above the flights is open to the roof 9.0. The L1 top landing is 1.25 x 1.3. tension: estimate." },
-    { "id": "s3-view", "section": "S3", "type": "connector", "room_class": "corridor",
-      "function": "Glass viewing corridor along the hall's north edge: the doubled guard pair walks it, the keyholder stands at the store hatch, cam-view watches it",
-      "storey": 4.5, "size": [2, 30, 4.5], "tension": 4,
-      "tags": ["sync_pair"],
-      "note": "V5f-3 (one encounter rule): retyped encounter -> connector: a corridor is not a play space (sheet 7 corridor Encounter? no), so its 3 guards (#2, #3, #5) are counted here in the note, not in `guards`; former declared targets shadow_pct 0.15, los_break_s 1.0, vantage s3-nstair 0.1. The loud route is forced past all three in a 1.7 m corridor (S3.md H6). size = S3_ROOMS box s3-view (campusS3.ts:121): 2.0 x 30; clear between wall faces 1.7 (south wall face -7.85, north walls -6.15, glass -6.05). Guards #2, #3 (z -7.4 / -6.6, x 30..44) and #5 (47.8, -7.0) stand in it. ESTIMATES, pending V6: shadow_pct 0.15 = three lamps (y 8.8, range 6, so floor discs of 4.2 m) leave 4.8 m of 30 unlit; sees_pct 0.1 = the stair landing behind the door (a 1.2 m aperture through a 0.3 wall sees about 4 m each way; standing in the doorway sees all but is inside the pair's patrol); los_break_s 1.0 = 2.4 m to the nearest door on the loud route (the stealth route does not use the corridor). tension: estimate." },
-    { "id": "s3-writeup", "section": "S3", "type": "utility", "room_class": "private_office",
-      "function": "Write-up office where the test reports are read over the radio; the desk officer faces the corridor glass",
-      "storey": 4.5, "size": [6, 8, 4.5], "tension": 3, "tags": [],
-      "note": "size = S3_ROOMS box s3-writeup (campusS3.ts:122), clear 5.7 x 7.7. Guard #13 (officer post 25, 4.5, -4.2). Only door is on the viewing corridor. tension: estimate." },
-    { "id": "s3-gown", "section": "S3", "type": "utility", "room_class": "storage",
-      "function": "Gowning room: the way into the clean room past the beam curtain; the gowning sentry stands in it",
-      "storey": 4.5, "size": [3, 6, 4.5], "tension": 3, "tags": [],
-      "note": "size = S3_ROOMS box s3-gown (campusS3.ts:123), clear 2.7 x 5.7. storage is the nearest class (no changing-room class in the sheet). Guard #4 (grunt post 32.2, 4.5, -1.0); las-gown beams across the pass-through (not in the graph). tension: estimate." },
-    { "id": "s3-clean", "section": "S3", "type": "utility", "room_class": "lab",
-      "function": "Clean room behind the pass-through beam curtain; nothing is stored in it and no route uses it",
-      "storey": 4.5, "size": [6, 7, 4.5], "tension": 2, "tags": [],
-      "note": "size = S3_ROOMS box s3-clean (campusS3.ts:124). Dead end: its only opening is the gowning pass-through. Holds only a laminar-flow bench (campusS3Dress.ts:159); S3_PICKUPS is empty. tension: estimate." },
-    { "id": "s3-back", "section": "S3", "type": "connector", "room_class": "corridor",
-      "function": "Store back corridor: joins the north stair's east door, the store's back door and the north corridor",
-      "storey": 4.5, "size": [2, 6, 4.5], "tension": 2, "tags": [],
-      "note": "size = S3_ROOMS box s3-back (campusS3.ts:125): 2.0 x 6; clear between wall faces 1.55 (x 42.9..44.45). tension: estimate." },
-    { "id": "s3-store", "section": "S3", "type": "objective", "room_class": "storage",
-      "function": "Prototype store: the Tidewater board sits on the shelf behind the las-store beam gap; the grab opens C3",
-      "storey": 4.5, "size": [4.4, 7.4, 4.5], "tension": 4, "tags": ["objective"],
-      "note": "size = S3_ROOMS box s3-store (campusS3.ts:126). The shelving partition at x 48.5 leaves one 1.2 m aisle gap (z -4.6..-3.4) with las-store across it; the objective is at (51.0, 4.5, -3.8) beyond it (not in the graph). tension: estimate." },
-    { "id": "s3-strip", "section": "S3", "type": "connector", "room_class": "corridor",
-      "function": "North corridor from the back corridor to the security room door; the shift supervisor walks it",
-      "storey": 4.5, "size": [1.6, 19.4, 4.5], "tension": 3, "tags": [],
-      "note": "size = S3_ROOMS box s3-strip (campusS3.ts:127): 1.6 x 19.4; clear between wall faces 1.3 (z -1.45..-0.15). Guard #15 (officer, loop 43.6..57 at z -0.8). The east end past the security room door (x 57.6..64) is a dead-end stub with a hide spot at (63, 4.5, -0.75). tension: estimate." },
-    { "id": "s3-sec", "section": "S3", "type": "utility", "room_class": "security_room",
-      "function": "Block security room: the operator watches the lab cameras, kettle across the room",
-      "storey": 4.5, "size": [6.4, 12, 4.5], "tension": 2, "tags": [],
-      "note": "size = S3_ROOMS box s3-sec (campusS3.ts:128). Guard #12 (officer, dormant). Only door is on the north corridor. No security desk device (EW10 not built). tension: estimate." },
-    { "id": "s3-dock", "section": "S3", "type": "encounter", "room_class": "loading_dock",
-      "function": "Goods-in dock: the courier's door to the data hall link (C3), the dock desk, the gas cage in its north-east corner",
-      "storey": 0, "size": [8, 18, 4.3], "tension": 3,
-      "shadow_pct": 0.12, "los_break_s": 2.0, "vantage": { "from": "s3-nstair", "sees_pct": 0.75 },
-      "guards": { "2": 2 }, "tags": ["exit"],
-      "note": "size = S3_ROOMS box s3-dock (campusS3.ts:120): 18 x 8, h = L1 slab underside 4.3; the gas cage (x 36..39.55, z -4..-0.15) takes the north-east corner. Class loading_dock is the function (storage would pass); it is far under the sheet minimum. Guards #9 (desk), #10 (patrol) plus cam-dock and alarm-dock (not in the graph). C3 near door (23.4..24.6, z 0) leads to the 3.7 x 16 stub (campusOps.ts:45); the spine link is not written here. ESTIMATES, pending V6: shadow_pct 0.12 (two lamps y 4.0, range 7, floor discs 5.7 m: the east 1.3 m and the cage are dark); sees_pct 0.75 = 0.65 m behind the open stair-vestibule door (x 39.85, z -7.6..-6.4), 0.83 by geometry less the 0.3 wall thickness; los_break_s 2.0 = 5.3 m to the nearest door or the cage wall on the exit leg (31.0, -6.1) / 3.0. tension: estimate." },
-    { "id": "s3-yard", "section": "S3", "type": "exterior", "room_class": "yard",
-      "function": "Strip of open ground between the lab's east wall and the perimeter; the east yard patrol walks it (dormant)",
-      "storey": 0, "size": [6, 30, 12], "tension": 1, "tags": [],
-      "note": "size = S3_ROOMS box s3-yard (campusS3.ts:129); h = 12.0 (open sky). No door or opening of the building leads to it, so the graph has no link; it is reachable over open campus ground (see campus-run/S3.md). Guard #14 (grunt, dormant). tension: estimate." }
+    {
+      "id": "s3-c2",
+      "section": "S3",
+      "type": "connector",
+      "room_class": "corridor",
+      "function": "Bridge landing on L1 along the hall's west side: the C2 bridge arrives here, glass onto the test hall, the head of the west stair and the crane-walkway access; the bridge officer checks cards",
+      "storey": 4.5,
+      "size": [
+        4,
+        19,
+        3
+      ],
+      "tension": 2,
+      "tags": [
+        "entry"
+      ],
+      "note": "RE-PLAN. Box x 10..14, z -30..-11 on L1 (4.5); clear 3.7. h 3.0 = suspended ceiling at 7.5, open in the 2 m crane-access bay at the south end (ship ladder to the walkway door at 6.0). C2 far door (10, 4.5, -14) kept. Guard #1 (officer, posted 12.8, 4.5, -17, faces the C2 door). Replaces the 12 x 30 landing and the 12 x 30 west lobby under it (x 10..22): the floor under the landing (x 10..14) becomes the hall's low aisle. tension: designer value."
+    },
+    {
+      "id": "s3-walkway",
+      "section": "S3",
+      "type": "connector",
+      "room_class": "custom",
+      "function": "Crane walkway at 6.0 along the hall's south wall: the high route over the hall and the hall's scouting vantage; maintenance fitters reach it from the bridge landing",
+      "storey": 6,
+      "size": [
+        1.5,
+        38,
+        3
+      ],
+      "tension": 3,
+      "tags": [],
+      "note": "RE-PLAN. Deck x 14..52, z -29.85..-28.35 (1.5, was 1.25), rail on its north edge, caged ladders to the hall floor at x 18 (SW) and x 51 (SE), a door at its west end into the landing's crane-access bay. h = roof 9.0 - 6.0. custom: no catwalk class in the sheet (WARN, justified in S3-detail.md)."
+    },
+    {
+      "id": "s3-hall",
+      "section": "S3",
+      "type": "encounter",
+      "room_class": "lab",
+      "function": "Test hall: environmental chamber, shielded EMC room, burn-in racks and the crane bay, worked by the floor patrols, the burn-in watcher, the EMC door post, the crane-bay sentry and the stair tour",
+      "storey": 0,
+      "size": [
+        19,
+        42,
+        9
+      ],
+      "tension": 4,
+      "shadow_pct": 0.5,
+      "los_break_s": 3,
+      "vantage": {
+        "from": "s3-walkway",
+        "sees_pct": 0.75
+      },
+      "guards": {
+        "1": 6,
+        "2": 6,
+        "3": 6,
+        "4": 6
+      },
+      "tags": [],
+      "note": "RE-PLAN. Box x 10..52, z -30..-11 (was x 22..52, z -30..-8): the old west lobby joins it as the low aisle under the landing (x 10..14, 4.3 high) and the north band deepens to 11 m. h 9.0 over x 14..52. lab is the nearest class (WARN above max and ceiling, as built). Guards #6, #7 (loop round the chamber), #8 (burn-in), #11 (stair tour), #16 (crane-bay sentry), #17 (NEW, EMC door post). TARGETS, measured in greybox (V6): shadow 0.5 = 5 high bays on 3 circuits over the patrol aisles and the crane bay (cone floor radius about 5.5 m each, about 0.45 of the floor lit), dark low aisle, south strip under the walkway, behind the EMC room and east of the chamber; los_break 3.0 = cover or a dark pocket every 8 m on every stealth line (chamber, EMC room, racks, benches, crane-bay crates, the low aisle); vantage 0.75 from the walkway (eye 7.6 over cover <= 4.4; the chamber and EMC room hide their back sides)."
+    },
+    {
+      "id": "s3-chamber",
+      "section": "S3",
+      "type": "connector",
+      "room_class": "custom",
+      "function": "Roof of the environmental chamber with its refrigeration plant: the CR3 leg-up lands here; the section's landmark (red status beacon on the plant)",
+      "storey": 4.4,
+      "size": [
+        6,
+        8,
+        4.5
+      ],
+      "tension": 3,
+      "tags": [],
+      "note": "Kept: x 30..36, z -22..-14, top 4.4, plant on the east third. Joined to the gallery spur by a 3.0 bridge plate (0.1 step) instead of the 0.5 hop. h = roof 9.0 - 4.4 = 4.6, written 4.5 (grid). custom: roof deck (WARN)."
+    },
+    {
+      "id": "s3-gallery",
+      "section": "S3",
+      "type": "connector",
+      "room_class": "custom",
+      "function": "Steel escape gallery at 4.5 on the hall's north wall with its service spur to the chamber roof and a drop gate at its east end; the plant fitters' access",
+      "storey": 4.5,
+      "size": [
+        1.5,
+        16,
+        4.5
+      ],
+      "tension": 2,
+      "tags": [],
+      "note": "RE-PLAN. Deck x 28..44, z -12.5..-11 (was z -9.5..-8.15, moved with the hall's north wall); spur x 31..35, z -14..-12.5 to the chamber roof; door at (43.2, -11) into the viewing corridor; a sprung drop gate at x 44 (4.5 drop, one way). custom (WARN)."
+    },
+    {
+      "id": "s3-view",
+      "section": "S3",
+      "type": "connector",
+      "room_class": "corridor",
+      "function": "Glass viewing corridor on L1 along the hall's north edge: the doubled guard pair walks it, the keyholder stands at the store hatch, cam-view watches its east end",
+      "storey": 4.5,
+      "size": [
+        4,
+        42,
+        3
+      ],
+      "tension": 3,
+      "tags": [
+        "sync_pair",
+        "split:s3-obj:a"
+      ],
+      "note": "RE-PLAN. Box x 10..52, z -11..-7 (was 2 x 30, clear 1.7): 4.0 between wall lines, 3.7 clear; ceiling 3.0. Glass on the south side x 14..52 over a 1.1 spandrel (A70's 1.7 spandrel goes: the walkway sees the pair, 10 awake on screen worst case). Cover: 0.8 deep sample cases at x 18, 26, 34, 46 and the door recesses (no straight run over 12 m bare). Guards (V5f-3: a corridor holds no encounter, counted here): #2, #3 (pair, x 16..46), #5 (keyholder at the hatch, 49.6, -8.3), #15 (supervisor, east half). Split s3-obj leg a."
+    },
+    {
+      "id": "s3-hoist",
+      "section": "S3",
+      "type": "utility",
+      "room_class": "storage",
+      "function": "L1 goods landing: crates come up from the dock through the hoist hatch; its racking ladder reaches the clean-suite ceiling void; the dark vantage over the dock",
+      "storey": 4.5,
+      "size": [
+        7,
+        11,
+        3
+      ],
+      "tension": 2,
+      "tags": [],
+      "note": "NEW. Box x 10..21, z -7..0. Hoist hatch 3 x 3 in the floor at x 18..21, z -6..-3 (rail on three sides, the hoist chain stowed at night, no ladder): a 4.4 drop into the dock (onto the 0.1 loading pad) and the CR3b leg-up back. Maintenance hatch to the void at (20.5, -1). Unlit at night."
+    },
+    {
+      "id": "s3-writeup",
+      "section": "S3",
+      "type": "utility",
+      "room_class": "meeting_room",
+      "function": "Write-up room where tonight's test reports are read over the radio; the officer's radio line names the sample sign-out board downstairs (the lead for the store code)",
+      "storey": 4.5,
+      "size": [
+        7,
+        9,
+        3
+      ],
+      "tension": 2,
+      "tags": [
+        "reward"
+      ],
+      "note": "RE-PLAN. Box x 21..30, z -7..0, glass front on the corridor. Guard #13 (officer, desk post facing the glass). reward: the lead for sync-s3-code-src (overheard line and the rota on the whiteboard); one door, 9 m deep (dead end allowed, under 15 m)."
+    },
+    {
+      "id": "s3-nstair",
+      "section": "S3",
+      "type": "stair_core",
+      "room_class": "stair_core",
+      "function": "North fire stair between the dock and the test control room: its ground landing opens into both, its L1 door onto the viewing corridor; the pair's split point",
+      "storey": 0,
+      "size": [
+        3.5,
+        6.5,
+        4.5
+      ],
+      "tension": 2,
+      "tags": [],
+      "note": "RE-PLAN. Core x 30..33.5, z -7..-0.5 (was x 40..42.6, 1.25 flights): flights 1.4 wide, 27 risers 0.167, goings 0.28, 1.4 landings; G doors west (dock) and east (control room) at z -6, L1 door south at x 31.6. h 4.5 = floor to floor (WARN against the class 3.3, as every campus stair)."
+    },
+    {
+      "id": "s3-gown",
+      "section": "S3",
+      "type": "utility",
+      "room_class": "storage",
+      "function": "Gowning room: lockers and the interlocked pass-through into the clean room with the las-gown beam curtain; the gowning sentry stands by it",
+      "storey": 4.5,
+      "size": [
+        4,
+        7,
+        3
+      ],
+      "tension": 3,
+      "tags": [],
+      "note": "RE-PLAN. Box x 33.5..37.5, z -7..0 (was 3 x 6). Guard #4 (grunt, post at the pass-through). panel-gown on its north wall, seen from the door (near side, R5). The isolator (sync-s3-isolator) darkens it too."
+    },
+    {
+      "id": "s3-clean",
+      "section": "S3",
+      "type": "utility",
+      "room_class": "lab",
+      "function": "Clean room: the prototype's test bench under a laminar hood; its material airlock opens into the prototype store (the dark way to the objective)",
+      "storey": 4.5,
+      "size": [
+        7,
+        9.5,
+        3
+      ],
+      "tension": 3,
+      "tags": [],
+      "note": "RE-PLAN. Box x 37.5..47, z -7..0 (was 6 x 7, a dead end). Lights off at night (dark route). Two ways out: the pass-through (gowning) and the airlock door (47, -3) into the store. Walk-on ceiling above (the void). The dark alternative to leg a of split s3-obj."
+    },
+    {
+      "id": "s3-store",
+      "section": "S3",
+      "type": "objective",
+      "room_class": "storage",
+      "function": "Prototype store: the Tidewater board on the inner shelf behind the las-store beams; the grab opens C3",
+      "storey": 4.5,
+      "size": [
+        7,
+        11,
+        3
+      ],
+      "tension": 4,
+      "tags": [
+        "objective",
+        "split:s3-obj:a"
+      ],
+      "note": "RE-PLAN. Box x 47..58, z -7..0 (was 4.4 x 7.4). Front bay (hatch, airlock, the void tile) and inner bay past the shelving partition at x 53 (aisle gap z -4..-2.8, las-store across it, panel-store on the front-bay side). Staff door from the east stair landing (58, -6) on kp-store (code sink, opens straight into the inner bay). Warm shelf lamp over the board (goal visible down the corridor from the landing). Split s3-obj leg a (last)."
+    },
+    {
+      "id": "s3-void",
+      "section": "S3",
+      "type": "duct",
+      "room_class": "custom",
+      "function": "Walk-on ceiling void over the clean suite (HEPA filter access): a crouch crawl from the goods landing to a ceiling tile over the store's front bay",
+      "storey": 7.5,
+      "size": [
+        7,
+        37,
+        1.5
+      ],
+      "tension": 2,
+      "tags": [],
+      "note": "NEW. x 21..58, z -7..0 between the 3.0 ceilings (7.5) and the roof slab underside (9.0): 1.5 clear, the sheet's crouch duct (1.2 x 1.5); guards cannot enter (nav headroom 1.7). custom (WARN). The secret way to the objective."
+    },
+    {
+      "id": "s3-estair",
+      "section": "S3",
+      "type": "stair_core",
+      "room_class": "stair_core",
+      "function": "East fire stair: L1 doors to the east lobby and the store's staff door, ground door into the plant room; where the pair rejoins after the objective split",
+      "storey": 0,
+      "size": [
+        3.5,
+        6.5,
+        4.5
+      ],
+      "tension": 2,
+      "tags": [],
+      "note": "NEW (the second and third G-L1 stairs are this and the west stair). Core x 58..61.5, z -7..-0.5; L1 doors south (59.7, -7) and west (58, -6, kp-store, push bar from inside); G door south (59.7, -7) into the plant. x 61.5..64 is the riser (sealed). h 4.5 (WARN, as every campus stair)."
+    },
+    {
+      "id": "s3-east",
+      "section": "S3",
+      "type": "connector",
+      "room_class": "corridor",
+      "function": "L1 east lobby: the viewing corridor's continuation past the hall to the east stair and the security room door; the supervisor's beat",
+      "storey": 4.5,
+      "size": [
+        4,
+        12,
+        3
+      ],
+      "tension": 2,
+      "tags": [],
+      "note": "NEW. Box x 52..64, z -11..-7, over the plant. Guard #15 walks x 44..58.6 (40 s)."
+    },
+    {
+      "id": "s3-sec",
+      "section": "S3",
+      "type": "utility",
+      "room_class": "security_room",
+      "function": "Block security room: the E6 desk loops the block's cameras; the operator's monitor wall shows the corridor, the store hatch and the dock; an escape ladder drops to the plant room",
+      "storey": 4.5,
+      "size": [
+        7,
+        11,
+        3
+      ],
+      "tension": 3,
+      "tags": [
+        "overwatch:s3-obj"
+      ],
+      "note": "RE-PLAN. Box x 53..64, z -18..-11 over the plant (was 6.4 x 12 off a 1.3 m strip, a dead end). Guard #12 (officer, awake now: monitors 26 s, kettle 4 s). Two ways out: the lobby door (58.6, -11) and the escape ladder (54, -17) to the plant. Overwatch of split s3-obj: the monitors show leg a (cam-view) and the desk can loop cam-view and cam-dock."
+    },
+    {
+      "id": "s3-control",
+      "section": "S3",
+      "type": "utility",
+      "room_class": "lab",
+      "function": "Test control room behind the hall's north wall: consoles and an observation window onto the hall, the burn-in logs, and the sample sign-out board that carries the store code",
+      "storey": 0,
+      "size": [
+        11,
+        22,
+        4.3
+      ],
+      "tension": 3,
+      "tags": [
+        "split:s3-obj:b"
+      ],
+      "note": "NEW (replaces the 162 m2 sealed plant under L1 and the old dock's east half). Box x 30..52, z -11..0 less the north stair core. Observation window x 34..39 and 44..50 on z -11, 1.0..2.1 high. Guard #19 (NEW, officer posted at the consoles). Doors: hall (40.6, -11), north stair (33.5, -6), plant (52, -9). Split s3-obj leg b."
+    },
+    {
+      "id": "s3-plant",
+      "section": "S3",
+      "type": "utility",
+      "room_class": "plant_room",
+      "function": "Plant room: the chamber's chillers and the block's lighting distribution board with the timed isolator for the clean suite and the corridor; the plant watch checks the chiller alarms",
+      "storey": 0,
+      "size": [
+        12,
+        23,
+        4.3
+      ],
+      "tension": 3,
+      "tags": [
+        "split:s3-obj:b"
+      ],
+      "note": "NEW (replaces the 264 m2 sealed east annex). Box x 52..64, z -30..-7; h 4.3 under the security room and the east lobby (z -18..-7), 9.0 over the chiller bay. Guard #14 (grunt, moved in from the closed yard). Doors: hall (52, -26.8), control room (52, -9), east stair (59.7, -7); the security room's escape ladder lands at (54, -17); the chilled-water trench to the hall. Split s3-obj leg b (last)."
+    },
+    {
+      "id": "s3-dock",
+      "section": "S3",
+      "type": "encounter",
+      "room_class": "storage",
+      "function": "Goods-in dock: the courier's door to the data hall link (C3) behind the dock desk, the goods roller door to the hall, the gas cage, the hoist hatch overhead; the section's choke",
+      "storey": 0,
+      "size": [
+        11,
+        20,
+        4.3
+      ],
+      "tension": 4,
+      "shadow_pct": 0.45,
+      "los_break_s": 2.5,
+      "vantage": {
+        "from": "s3-hoist",
+        "sees_pct": 0.8
+      },
+      "guards": {
+        "1": 4,
+        "2": 4,
+        "3": 4,
+        "4": 4
+      },
+      "tags": [
+        "exit"
+      ],
+      "note": "RE-PLAN. Box x 10..30, z -11..0 (was 8 x 18). Re-classed loading_dock -> storage (a goods-in room inside the block; the truck apron is outside C3), as S3.md / REPORT allowed. C3 near door (24, 0) kept. Gas cage x 10..13.5, z -3.5..0. Guards #9 (officer, posted at the desk 24.5, -3: the CHOKE, the C3 door at his back), #10 (patrol roller door <-> gas cage), #18 (NEW, grunt, goods-door watch), #20 (NEW, officer, the courier escort: talks with #9 at the desk, walks the C3 stub door and back, 40 s). TARGETS (V6): shadow 0.45 (two white work lamps, desk and roller door; dark west end, gas cage, under the hatch); los_break 2.5 (cage, crates, desk, the stair door); vantage 0.8 from the hoist hatch (prone at the hatch edge 4.5 above, the whole floor under the 4.3 slab except behind the cage)."
+    }
   ],
   "links": [
-    { "from": "s3-c2", "to": "s3-lobby", "kind": "fire_stair", "route": "shadow", "width": 1.25, "level_change": 4.5,
-      "length": 28.5, "reason": "SW fire stair, the only way off the bridge landing (a separate fire compartment)",
-      "note": "width = flight width (campusS3.ts:109-110); core 2.6 x 5.6, doors 1.2 x 2.1 at both ends (L1 east half, G west half); 26 risers of 0.173, tread 0.246 (len 3.2 / 13). length = walk + stair slope." },
-    { "from": "s3-lobby", "to": "s3-hall", "kind": "door", "route": "shadow", "width": 1.2, "height": 2.1,
-      "length": 21.5, "reason": "Hall west door at (22, -18) with the high-bay switch bank beside it and the crane-bay sentry inside" },
-    { "from": "s3-hall", "to": "s3-dock", "kind": "door", "route": "shadow", "width": 1.2, "height": 2.1,
-      "length": 22, "reason": "Dock pass door at (26, -8) in the hall's north wall, clocked by the stair tour officer" },
-    { "from": "s3-hall", "to": "s3-nstair", "kind": "door", "route": "shadow", "width": 1.2, "height": 2.1,
-      "length": 16, "reason": "Stair lobby door at (41.3, -8) in the hall's north wall" },
-    { "from": "s3-dock", "to": "s3-nstair", "kind": "door", "route": "shadow", "width": 1.2, "height": 2.1,
-      "length": 12.5, "reason": "Dock-side door into the stair lobby at (39.85, -7), 1.8 m from the hall door" },
-    { "from": "s3-nstair", "to": "s3-view", "kind": "fire_stair", "route": "loud", "width": 1.25, "level_change": 4.5,
-      "length": 16.5, "reason": "North fire stair up to its L1 landing and out of the south door onto the viewing corridor",
-      "note": "width = flight width (campusS3.ts:111-112); the L1 top landing is 1.25 x 1.3 with two doors. Same physical stair as the link to s3-back." },
-    { "from": "s3-nstair", "to": "s3-back", "kind": "fire_stair", "route": "shadow", "width": 1.25, "level_change": 4.5,
-      "length": 14, "reason": "Same stair, east door at the L1 landing into the store back corridor",
-      "note": "second L1 door of the one north stair, not a second stair." },
-    { "from": "s3-view", "to": "s3-store", "kind": "door", "route": "loud", "width": 1.2, "height": 2.1,
-      "length": 12.5, "reason": "Store hatch door at (46.8, -6), the keyholder's post, covered by cam-view" },
-    { "from": "s3-back", "to": "s3-store", "kind": "door", "route": "shadow", "width": 1.2, "height": 2.1,
-      "length": 5.5, "reason": "Store back door at (44.6, -4.2), keypad kp-store in the SPEC (EW5 not built)" },
-    { "from": "s3-view", "to": "s3-writeup", "kind": "door", "route": "shadow", "width": 1.2, "height": 2.1,
-      "length": 12.5, "reason": "Write-up office door at (28.8, -6) in the glass front" },
-    { "from": "s3-view", "to": "s3-gown", "kind": "door", "route": "shadow", "width": 1.2, "height": 2.1,
-      "length": 9, "reason": "Gowning room door at (31.2, -6)" },
-    { "from": "s3-gown", "to": "s3-clean", "kind": "opening", "route": "shadow", "width": 1.2, "height": 2.1,
-      "length": 5, "reason": "Clean-room pass-through in the x 33 partition, las-gown beams across it, no door leaf" },
-    { "from": "s3-back", "to": "s3-strip", "kind": "opening", "route": "shadow", "width": 1.3, "height": 4.5,
-      "length": 12.5, "reason": "The back corridor turns east into the north corridor (the x 44.6 wall stops at z -1.6)",
-      "note": "width = strip clear width 1.3 (z -1.45..-0.15); full height to the roof." },
-    { "from": "s3-strip", "to": "s3-sec", "kind": "door", "route": "shadow", "width": 1.2, "height": 2.1,
-      "length": 6, "reason": "Security room door at (57, -1.6)" },
-    { "from": "s3-hall", "to": "s3-walkway", "kind": "ladder", "route": "high", "level_change": 6.0,
-      "length": 30.5, "reason": "South-west caged ladder at (23, -28.15) up to the crane walkway",
-      "note": "length = walk to the foot + deck walk to the walkway's middle (the climb itself is level_change); no time_s: no split is tagged in S3." },
-    { "from": "s3-hall", "to": "s3-walkway", "kind": "ladder", "route": "high", "level_change": 6.0,
-      "length": 30.5, "reason": "South-east caged ladder at (51, -28.15), 2.15 m from the first burn-in rack run" },
-    { "from": "s3-hall", "to": "s3-chamber", "kind": "coop_boost", "route": "high", "level_change": 4.4,
-      "length": 22.5, "reason": "CR3: leg-up onto the chamber's west face lip, 4.4 over the hall floor, from (29.2, -18); no ladder (it is behind an anti-climb guard) and no bench or rack within 4 m",
-      "note": "length = walk round the chamber to the boost spot + 3 m on the roof. Up only: there is no linked way down, the roof edge is a 4.4 m drop (not written as a drop link: fall constant unconfirmed)." },
-    { "from": "s3-chamber", "to": "s3-gallery", "kind": "opening", "route": "high", "width": 0.5, "height": 4.6, "level_change": 0.1,
-      "length": 10, "reason": "Gallery service spur ends 0.5 m off the chamber's north face, 0.1 above the roof: a hop across the plant's maintenance gap",
-      "note": "No schema kind for a hop across a 0.5 m gap; written as an opening of width 0.5 (WARN by design) so the chamber roof is solo-reachable from the gallery (LS 11.4)." },
-    { "from": "s3-gallery", "to": "s3-view", "kind": "door", "route": "high", "width": 1.2, "height": 2.1,
-      "length": 10, "reason": "Gallery door at (41.3, -8) in the hall's north wall on L1, opposite the north stair's L1 door" },
-    { "from": "s3-dock", "to": "s4-dock", "kind": "corridor", "route": "spine", "width": 3.7, "height": 3.0, "length": 27,
+    {
+      "from": "s3-c2",
+      "to": "s3-hall",
+      "kind": "fire_stair",
+      "route": "shadow",
+      "width": 1.4,
+      "level_change": 4.5,
+      "length": 31.5,
+      "reason": "West fire stair (core x 14..17.5, z -21..-14.5): L1 door off the landing, G door into the dark low aisle under it",
+      "note": "NEW position (was the SW core x 12..14.6 with 1.25 flights). Flights 1.4."
+    },
+    {
+      "from": "s3-c2",
+      "to": "s3-walkway",
+      "kind": "ladder",
+      "route": "high",
+      "level_change": 1.5,
+      "length": 27.5,
+      "time_s": 12,
+      "reason": "Ship ladder in the landing's crane-access bay up to the walkway door at 6.0 (how the fitters reach the crane)",
+      "note": "time_s at run pace (reach path); not on a split leg."
+    },
+    {
+      "from": "s3-walkway",
+      "to": "s3-hall",
+      "kind": "ladder",
+      "route": "high",
+      "level_change": 6,
+      "length": 28.5,
+      "time_s": 15,
+      "reason": "South-west caged ladder at (18, -28.2)"
+    },
+    {
+      "from": "s3-walkway",
+      "to": "s3-hall",
+      "kind": "ladder",
+      "route": "high",
+      "level_change": 6,
+      "length": 38,
+      "time_s": 18,
+      "reason": "South-east caged ladder at (51, -28.2), by the plant door"
+    },
+    {
+      "from": "s3-hall",
+      "to": "s3-chamber",
+      "kind": "coop_boost",
+      "route": "high",
+      "level_change": 4.4,
+      "length": 9.5,
+      "time_s": 10,
+      "reason": "CR3: leg-up onto the chamber's west face lip 4.4 from (29.2, -18); smooth insulated panels, the chamber ladder behind its padlocked anti-climb guard (A30)"
+    },
+    {
+      "from": "s3-chamber",
+      "to": "s3-hall",
+      "kind": "drop",
+      "route": "high",
+      "level_change": 4.4,
+      "length": 10,
+      "time_s": 5,
+      "reason": "Hang and drop off the chamber roof's west edge (no rail)"
+    },
+    {
+      "from": "s3-chamber",
+      "to": "s3-gallery",
+      "kind": "opening",
+      "route": "high",
+      "width": 3,
+      "height": 4.5,
+      "level_change": 0.1,
+      "length": 8.5,
+      "reason": "The gallery's service spur lands on the chamber roof over a 3.0 steel bridge plate (the plant's maintenance access)"
+    },
+    {
+      "from": "s3-gallery",
+      "to": "s3-view",
+      "kind": "door",
+      "route": "high",
+      "width": 1.2,
+      "height": 2.1,
+      "length": 19.5,
+      "reason": "Gallery door at (43.2, -11) in the corridor's glass wall, 6 m off the store hatch"
+    },
+    {
+      "from": "s3-gallery",
+      "to": "s3-hall",
+      "kind": "drop",
+      "route": "high",
+      "level_change": 4.5,
+      "length": 27,
+      "time_s": 9,
+      "reason": "Sprung drop gate at the gallery's east end (fire escape from the high level; it cannot be climbed from the floor)"
+    },
+    {
+      "from": "s3-c2",
+      "to": "s3-view",
+      "kind": "double_door",
+      "route": "shadow",
+      "width": 1.8,
+      "height": 2.1,
+      "length": 28.5,
+      "reason": "Fire doors at the landing's north end into the viewing corridor's west end"
+    },
+    {
+      "from": "s3-view",
+      "to": "s3-hoist",
+      "kind": "door",
+      "route": "shadow",
+      "width": 1.2,
+      "height": 2.1,
+      "length": 23,
+      "reason": "Goods landing door at (12.6, -7)"
+    },
+    {
+      "from": "s3-view",
+      "to": "s3-writeup",
+      "kind": "door",
+      "route": "shadow",
+      "width": 1.2,
+      "height": 2.1,
+      "length": 10.5,
+      "reason": "Write-up room door at (24.6, -7) in its glass front"
+    },
+    {
+      "from": "s3-nstair",
+      "to": "s3-view",
+      "kind": "fire_stair",
+      "route": "shadow",
+      "width": 1.4,
+      "level_change": 4.5,
+      "length": 13,
+      "reason": "North stair up to its L1 door at (31.6, -7) onto the viewing corridor"
+    },
+    {
+      "from": "s3-view",
+      "to": "s3-gown",
+      "kind": "door",
+      "route": "shadow",
+      "width": 1.2,
+      "height": 2.1,
+      "length": 8.5,
+      "reason": "Gowning room door at (35.5, -7)"
+    },
+    {
+      "from": "s3-gown",
+      "to": "s3-clean",
+      "kind": "door",
+      "route": "shadow",
+      "width": 1.2,
+      "height": 2.1,
+      "length": 7,
+      "reason": "Interlocked pass-through door at (37.5, -3) with the las-gown curtain (3 beams) inside it"
+    },
+    {
+      "from": "s3-clean",
+      "to": "s3-store",
+      "kind": "door",
+      "route": "shadow",
+      "width": 1.2,
+      "height": 2.1,
+      "length": 10.5,
+      "reason": "Material airlock door at (47, -3) into the store's front bay"
+    },
+    {
+      "from": "s3-view",
+      "to": "s3-store",
+      "kind": "door",
+      "route": "loud",
+      "width": 1.2,
+      "height": 2.1,
+      "length": 23.5,
+      "assist": "s3-obj",
+      "reason": "Store hatch at (49.6, -7): the keyholder's post under cam-view; his key, or force",
+      "note": "assist s3-obj: leg b's timed isolator in the plant (sync-s3-isolator) cuts the corridor circuit (group view) for its 45 s window: the keyholder and the hatch go dark for the takedown."
+    },
+    {
+      "from": "s3-view",
+      "to": "s3-east",
+      "kind": "corridor",
+      "route": "shadow",
+      "width": 4,
+      "height": 3,
+      "length": 27,
+      "reason": "The corridor runs on past the hall's north-east corner into the east lobby"
+    },
+    {
+      "from": "s3-store",
+      "to": "s3-estair",
+      "kind": "fire_stair",
+      "route": "shadow",
+      "width": 1.4,
+      "level_change": 4.5,
+      "length": 17,
+      "reason": "Staff door at (58, -6) onto the east stair landing: push bar from inside, kp-store from the stair (sync-s3-code-sink); down to the plant"
+    },
+    {
+      "from": "s3-east",
+      "to": "s3-estair",
+      "kind": "fire_stair",
+      "route": "shadow",
+      "width": 1.4,
+      "level_change": 4.5,
+      "length": 13.5,
+      "reason": "East stair's corridor door at (59.7, -7) on L1"
+    },
+    {
+      "from": "s3-estair",
+      "to": "s3-plant",
+      "kind": "door",
+      "route": "shadow",
+      "width": 1.2,
+      "height": 2.1,
+      "length": 12.5,
+      "reason": "East stair's ground door at (59.7, -7) into the plant room"
+    },
+    {
+      "from": "s3-east",
+      "to": "s3-sec",
+      "kind": "door",
+      "route": "shadow",
+      "width": 1.2,
+      "height": 2.1,
+      "length": 5.5,
+      "reason": "Security room door at (58.6, -11), kp-sec"
+    },
+    {
+      "from": "s3-sec",
+      "to": "s3-plant",
+      "kind": "ladder",
+      "route": "high",
+      "level_change": 4.5,
+      "length": 9.5,
+      "time_s": 9,
+      "reason": "The security room's escape hatch and fixed ladder at (54, -17) down into the plant room"
+    },
+    {
+      "from": "s3-hoist",
+      "to": "s3-void",
+      "kind": "ladder",
+      "route": "secret",
+      "level_change": 3,
+      "length": 25,
+      "time_s": 23,
+      "reason": "Ladder on the goods racking up to the void's maintenance hatch at (20.5, -1)",
+      "note": "time_s: 5.6 m walk at 1.3, 3 m climb, about 19 m crouch crawl at 1.3."
+    },
+    {
+      "from": "s3-void",
+      "to": "s3-store",
+      "kind": "drop",
+      "route": "secret",
+      "level_change": 3,
+      "length": 13,
+      "time_s": 11.5,
+      "reason": "Lift a ceiling tile over the store's front bay at (49.5, -3) and drop 3.0"
+    },
+    {
+      "from": "s3-hoist",
+      "to": "s3-dock",
+      "kind": "drop",
+      "route": "high",
+      "level_change": 4.4,
+      "length": 5,
+      "time_s": 6,
+      "reason": "Hang from the hoist hatch (19.5, -4.5) and drop 4.4 onto the dock's loading pad"
+    },
+    {
+      "from": "s3-dock",
+      "to": "s3-hoist",
+      "kind": "coop_boost",
+      "route": "high",
+      "level_change": 4.4,
+      "length": 5,
+      "time_s": 8,
+      "reason": "CR3b (NEW): leg-up from the loading pad into the hoist hatch, lip 4.4; the hoist chain is stowed at night, no ladder, nothing over 1.0 within 4 m (gas cage 4.5 m off)"
+    },
+    {
+      "from": "s3-hall",
+      "to": "s3-dock",
+      "kind": "roller_door",
+      "route": "loud",
+      "width": 3,
+      "height": 3,
+      "length": 23,
+      "reason": "Goods roller door x 20..23 in the hall's north wall, lit, the goods-door watch beside it"
+    },
+    {
+      "from": "s3-hall",
+      "to": "s3-control",
+      "kind": "door",
+      "route": "shadow",
+      "width": 1.2,
+      "height": 2.1,
+      "length": 23,
+      "reason": "Control-room door at (40.6, -11), clocked by the stair tour"
+    },
+    {
+      "from": "s3-hall",
+      "to": "s3-plant",
+      "kind": "door",
+      "route": "shadow",
+      "width": 1.2,
+      "height": 2.1,
+      "length": 31.5,
+      "reason": "Plant door at (52, -26.8) in the hall's south-east corner, dark under the walkway"
+    },
+    {
+      "from": "s3-plant",
+      "to": "s3-hall",
+      "kind": "duct",
+      "route": "secret",
+      "width": 1.2,
+      "height": 1.5,
+      "length": 40.5,
+      "reason": "Chilled-water trench from the plant under the hall's south strip to the grated pit at the chamber's south-east corner (37, -23)"
+    },
+    {
+      "from": "s3-nstair",
+      "to": "s3-control",
+      "kind": "door",
+      "route": "shadow",
+      "width": 1.2,
+      "height": 2.1,
+      "length": 9.5,
+      "reason": "North stair's ground door east into the control room at (33.5, -6)"
+    },
+    {
+      "from": "s3-nstair",
+      "to": "s3-dock",
+      "kind": "door",
+      "route": "shadow",
+      "width": 1.2,
+      "height": 2.1,
+      "length": 12,
+      "reason": "North stair's ground door west into the dock at (30, -6)"
+    },
+    {
+      "from": "s3-control",
+      "to": "s3-plant",
+      "kind": "door",
+      "route": "shadow",
+      "width": 1.2,
+      "height": 2.1,
+      "length": 23,
+      "reason": "Control room's service door at (52, -9) into the plant room"
+    },
+    {
+      "from": "s3-dock",
+      "to": "s4-dock",
+      "kind": "corridor",
+      "route": "spine",
+      "width": 3.7,
+      "height": 3,
+      "length": 27,
       "reason": "C3 stub connector x 22..26, z 0..16 (campusOps.ts:45): near door 1.2 x 2.1 at (24, 0) in the dock's north wall (campusS3.ts:324,327), far door (24, 16) into S4's loading dock",
-      "note": "V5f-1: spine link added from S3.md \"Spine links for the merge\" (S3 owns the link to S4). Width 3.7 = the stub's clear width (S3.md), off the 0.5 grid as built; both doors 1.2 x 2.1. length 27 = dock middle (31, -4) to the far door about 24 m (S3.md) + 3 m to the S4 dock middle (24, 19)." }
+      "note": "V5f-1: spine link added from S3.md \"Spine links for the merge\" (S3 owns the link to S4). Width 3.7 = the stub's clear width (S3.md), off the 0.5 grid as built; both doors 1.2 x 2.1. length 27 = dock middle (31, -4) to the far door about 24 m (S3.md) + 3 m to the S4 dock middle (24, 19). Kept unchanged by the re-plan (planner rule)."
+    }
+  ],
+  "sync": [
+    {
+      "id": "sync-s3-isolator",
+      "kind": "power_cut",
+      "space": "s3-plant",
+      "src": "planned (engine: src/game/isolators.ts:53 IsolatorBoards, a timed window)",
+      "lead": "s3-plant",
+      "track": "B",
+      "note": "Timed isolator on the lighting board (56, -7.3): cuts the viewing corridor (group view) and the gowning room for 45 s (named in the briefing). Lead: the permit-to-work tag on the board (\"clean suite lighting: isolate here for filter change\") and #14's chiller-alarm grumble."
+    },
+    {
+      "id": "sync-s3-code-src",
+      "kind": "code_source",
+      "space": "s3-control",
+      "src": "planned (engine: src/game/sectorKeypads.ts:10 SectorCodes, a SectorIntel board)",
+      "lead": "s3-writeup",
+      "track": "B",
+      "note": "The sample sign-out board on the control room's north wall (44, -0.3) carries the store code for the courier. Lead: the write-up officer #13 reads the night's handover over the radio (\"store code is on the sign-out board downstairs\")."
+    },
+    {
+      "id": "sync-s3-camloop",
+      "kind": "camera_loop",
+      "space": "s3-sec",
+      "src": "planned (engine: src/game/sectorDesks.ts:14 SecurityDesk, DESK_LOOP_TIME 30 s :34)",
+      "lead": "s3-sec",
+      "track": "A",
+      "note": "The E6 desk loops cam-view and cam-dock (30 s, then off until restart) once the operator #12 is down or at the kettle. Lead: the operator's kettle routine and the monitor wall itself (the corridor, the hatch and the dock on screen)."
+    },
+    {
+      "id": "sync-s3-code-sink",
+      "kind": "code_sink",
+      "space": "s3-store",
+      "src": "planned (engine: src/game/sectorKeypads.ts:10 SectorCodes; kp-store, SPEC S3 register)",
+      "lead": "s3-view",
+      "track": "A",
+      "note": "kp-store on the store's staff door from the east stair landing (58, -6): the code opens the inner bay past las-store. Lead: the keyholder #5 at the hatch (\"use the staff door, I'm not getting up\")."
+    }
   ]
 }

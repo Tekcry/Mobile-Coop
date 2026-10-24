@@ -3,88 +3,177 @@
     "map": "campusOps",
     "name": "Saltmarsh Park - Sector Ops",
     "mode": "sector",
-    "players": [2],
-    "sections": ["S1", "S2", "S3", "S4", "S5"]
+    "players": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "sections": [
+      "S1",
+      "S2",
+      "S3",
+      "S4",
+      "S5"
+    ]
   },
+  "sync": [
+    {
+      "id": "sync-s4-dockboard",
+      "kind": "code_source",
+      "space": "s4-dock",
+      "src": "campusS4Data.ts:202 (S4_SECTOR.intel board at (16, 1.5, 21.85), grants s4-codes)",
+      "lead": "s4-dock",
+      "track": "B",
+      "note": "Helps Team A (Relay). Vault reads the plant doors code; it opens kp-batt for Vault and kp-deck (riser side) for Relay. Lead: the board itself, now under its own 2.4 m lamp at (16, 2.4, 21.5)."
+    },
+    {
+      "id": "sync-s4-desk",
+      "kind": "camera_loop",
+      "space": "s4-sec",
+      "src": "campusS4Data.ts:164-166 (S4_DESKS desk-sec4: cam-cage, cam-mantrap, cam-dock4; E6)",
+      "lead": "s4-nc",
+      "track": "A",
+      "note": "Helps Team B (Vault). Relay loops the hall cameras (30 s, then off until a restart); opens the cage front for Vault. Lead: the side door secNc, moved to (8, 43.5), behind the operator. Optional objective here: the footage wipe (second desk action, 8 s, planned)."
+    },
+    {
+      "id": "sync-s4-noc",
+      "kind": "code_source",
+      "space": "s4-noc",
+      "src": "planned (the NOC console release, issued by interrogating #14 Dunmore at the west seat; named-interrogation mechanic, Marlow)",
+      "lead": "s4-deck",
+      "track": "A",
+      "note": "Helps Team B (Vault). Leads: lead-s4-deckradio = #13's radio line at his stop on the deck (planned, grants s4-noc-duty); lead-s4-roster = duty roster on the security room wall beside the desk at (-3.85, 45.2) (planned, solo's lead); Dunmore's seat placard on the west window seat (1.0, 3.6, 43.0) (planned). Decoy #15 Pryce on the east seat (3.0)."
+    },
+    {
+      "id": "sync-s4-cagekp",
+      "kind": "code_sink",
+      "space": "s4-cage",
+      "src": "planned (release prompt on the cage terminal (18, 0, 38.3), campusS4Data.ts:180 download; 30 s window, solo 90 s maintenance release, both named in the briefing)",
+      "lead": "s4-hall",
+      "track": "B",
+      "note": "Helps everyone. Lead: the keyholder #9's line at the front gate (18, 33). The release calls #20 (mobile supervisor) from the west aisle to the cage front: his path (-2.5, 33) -> north strip z 33 -> (17, 33.5) stays open (planned, Guard AI)."
+    },
+    {
+      "id": "sync-s4-ess-board",
+      "kind": "power_cut",
+      "space": "s4-batt",
+      "src": "planned (BoardDef pattern of S4_BOARDS, campusS4.ts:164): essential lighting board at (-5.5, 0, 27.3), groups noc 76 + sec 77, timed window 25 s",
+      "lead": "s4-batt",
+      "track": "B",
+      "note": "Helps Team A (Relay). Sector Ops' extra node (not in Marlow's chart; a lights-out is not an alarm): Vault darkens the NOC and the security room for Relay's desk loop and the NOC approach. Lead: the board label and #12's line at his north stop. Solo: the security room door is 22 m away at a run, inside 25 s, or skip it."
+    },
+    {
+      "id": "sync-s4-yard-board",
+      "kind": "power_cut",
+      "space": "s4-dock",
+      "src": "campusS4.ts:164 (S4_BOARDS compound board, window 20 s, group yard 75)",
+      "lead": "s4-dock",
+      "track": "B",
+      "note": "At the shared start, B by default. Helps Team A (Relay). Sector Ops' extra, optional opener: Vault cuts the compound flood for Relay's crossing past the gate officer and the dog team (the dog still smells 6 m)."
+    }
+  ],
   "spaces": [
     {
       "id": "s4-dock",
       "section": "S4",
       "type": "encounter",
-      "room_class": "loading_dock",
-      "function": "Loading dock where the 03:00 courier drives are unloaded; C3's far door (24,16) opens into it",
+      "room_class": "storage",
+      "function": "Goods-in bay where the 03:00 courier drives are unloaded off the van; C3's far door (24,16) opens into it; the dock board holds the plant door codes",
       "storey": 0,
-      "size": [6, 20, 7],
+      "size": [
+        6,
+        20,
+        7
+      ],
       "tension": 3,
-      "tags": ["entry"],
-      "shadow_pct": 0,
+      "tags": [
+        "entry"
+      ],
+      "shadow_pct": 0.46,
       "los_break_s": 2,
       "vantage": {
         "from": "s4-dock",
-        "sees_pct": 0.9
+        "sees_pct": 0.85
       },
       "guards": {
         "2": 2
       },
-      "note": "Measured: x 14..34, z 16..22 (S4_BOX.dock), clear 7.0 to the roof slab (S4_ROOF). Estimated, pending V6: shadow_pct 0 (two floods y 6.0, radius 9 by the 1.5 x height rule, cover the whole 20 x 6 floor); sees_pct 0.9 from the C3 door line (only 1.0 m crates, no elevated point: the roof is solid); los_break_s 2 (5 m from the C3 door or the dock west door along the south wall). Guards #17-18 (dock pair)."
-    },
-    {
-      "id": "s4-svc",
-      "section": "S4",
-      "type": "connector",
-      "room_class": "corridor",
-      "function": "Service corridor along the south side: dock to lobby door to the battery room keypad door; the hall panel switches line its north wall",
-      "storey": 0,
-      "size": [2, 18, 3],
-      "tension": 2,
-      "tags": [],
-      "note": "Measured: x -4..14, z 16..18 (S4_ROOMS s4-sc); clear width about 1.75 between wall faces (shell 0.3 at z 16, partition 0.2 at z 18); ceiling slab 3.2 top, underside 3.0 (campusS4.ts:374). Tension is a judgement from the SPEC beat (estimate)."
+      "note": "PLAN. Walls unchanged: x 14..34, z 16..22 (S4_BOX.dock), 7.0 to the roof (ceiling WARN: storage 3-6). Re-classed loading_dock -> storage (AS1): it is an indoor goods-in bay, not a truck apron (loading_dock min 21 x 28 cannot fit the shell). Changes: the two 6.0 floods -> one 3.5 m bay light at (28, 21.5) over the unloading shelf (pool r 5.25 by the 1.5 x height rule, ~45 m2) and a 2.4 m lamp over the dock board (16, 21.5) (r 3.6, ~20 m2) so sync-s4-dockboard reads lit: ~65 of 120 m2, shadow 0.46 (pending V6); the C3 door (24,16), the east door (34,19) and the goods door stay dark. dockWest moves to (14, 17.5) (1.5 m off the corner). New return-air grille in the west wall x 14, z 19.5..21.0, sill 4.4 (CR8, co-op boost into the plenum). Vantage: the dark C3 door threshold, sees 0.85 (crates 1.0 hide the west end), measured in greybox (V6). los_break_s 2: crates, the goods door, the C3 door within 6 m. Guards #17-18 (dock pair, timed loop)."
     },
     {
       "id": "s4-lobby",
       "section": "S4",
       "type": "encounter",
-      "room_class": "lobby",
-      "function": "Hall lobby with the mantrap desk; the mantrap officer admits one at a time",
+      "room_class": "security_room",
+      "function": "Goods-in security lobby: the mantrap desk and its interlock release, the goods counter lane from the dock to the battery room keypad door, the hall lighting panel",
       "storey": 0,
-      "size": [4, 13, 3],
+      "size": [
+        6,
+        18,
+        3
+      ],
       "tension": 3,
       "tags": [],
-      "shadow_pct": 0.39,
-      "los_break_s": 1,
+      "shadow_pct": 0.5,
+      "los_break_s": 1.5,
       "vantage": {
         "from": "s4-lobby",
-        "sees_pct": 0.85
+        "sees_pct": 0.8
       },
       "guards": {
-        "2": 1
+        "2": 2
       },
-      "note": "Measured: main volume x -4..9, z 18..22 (s4-lobby); leftover pockets s4-lobby-b (x 9..12, z 18..19: a 0.8 m slot between partition and mantrap wall) and s4-lobby-c (x 12..14, z 18..22, dead pocket) are not modelled as spaces. Estimated, pending V6: shadow_pct 0.39 (one lamp y 2.8, radius 4.2 at (5,20)); sees_pct 0.85 (desk 0.75 m only); los_break_s 1 (doors within 3 m). Guard #4 (mantrap officer, post (6,20.2))."
+      "note": "PLAN. Re-cut: the service corridor (x -4..14, z 16..18, 1.75 clear) and the hall lobby (z 18..22) merge into one room x -4..14, z 16..22 (box 6 x 18, clear 5.7; the z 18 partition and scLobby go). Class lobby (min 14 x 17) -> security_room (AS2; length 18 over its max 11 is a WARN). Ceiling 3.0 kept (slab 3.0-3.2). Mantrap re-cut to x 8..11, z 19..22; the old slot s4-lobby-b and pocket s4-lobby-c go (the 3 x 3 east of the mantrap is an open trolley alcove). Two 2.8 m lamps on the north side at (2.0, 21.2) and (6.5, 21.2): pools reach z 17.0, so the goods lane along the south wall (z 16.15..17.0) stays dark; lit ~54 of 108 m2: shadow 0.5 (pending V6). Three 1.2 m parcel cages at x 2.0..3.2, 7.0..8.2, 11.5..12.7, z 18.0..18.8 as low cover (a run of 18 m now has cover every 4.5 m). Lobby switch by the dock door (13.85, 18.6); the hall panel switches move to the south wall (-1.4..-0.6, 16.15). Vantage: the dark lane at the dock door, sees 0.8 (the mantrap block hides the alcove). Guards #4 mantrap officer (desk moved to x 0.5..2.1, z 20.6..21.4), #21 goods-in officer (new)."
     },
     {
       "id": "s4-mantrap",
       "section": "S4",
       "type": "connector",
       "room_class": "custom",
-      "function": "Mantrap: two plain doors in a 3 x 3 interlock at the main entrance, cam-mantrap inside",
+      "function": "Mantrap: a 3 x 3 interlock between the lobby and the hall, admits one at a time on the desk release; cam-mantrap inside",
       "storey": 0,
-      "size": [3, 3, 3],
+      "size": [
+        3,
+        3,
+        3
+      ],
       "tension": 4,
       "tags": [],
-      "note": "Measured: x 9..12, z 19..22 (s4-mantrap); walls 3.0 and a lid 3.0..3.1. No section 7 class for an interlock, so custom (WARN, justified by SPEC S4 \"Mantrap at the main entrance\"). Tension is a judgement from the SPEC beat (estimate)."
+      "note": "PLAN. Moved 1 m west: x 8..11, z 19..22 (was 9..12). Outer door (8, 20.5) on its west wall = the interlock pair gate (CR9: desk release (1.3, 21.0) and door reader (7.7, 21.4), 6.4 m apart, 1.0 s window, E3). Inner door (9.5, 22) armoured (E10 arm-mantrap), now opening onto the P2|P3 cold aisle (offsets 3.1 / 2.5 m from the pod doors 6.4 and 12.0). cam-mantrap moves to (10.8, 21.8). custom class: no sheet class for an interlock (WARN, justified)."
+    },
+    {
+      "id": "s4-plenum",
+      "section": "S4",
+      "type": "connector",
+      "room_class": "custom",
+      "function": "Return-air plenum over the lobby ceiling: the hall's hot air returns through grilles in its south wall; a dark crawl route between the baskets, the dock, the battery room and the lobby",
+      "storey": 3.2,
+      "size": [
+        6,
+        18,
+        3.8
+      ],
+      "tension": 2,
+      "tags": [],
+      "note": "PLAN (new space, the built void): x -4..14, z 16..22, floor = the lobby slab top 3.2, clear 3.8 to the roof underside 7.0 (campusS4.ts:374-375 builds the slab; the void is dead air today). Openings: grilles 1.2 x 1.5 at y 4.4 in the hall's south wall where baskets B1 and B2 now end (x 3.0..4.2 and 8.6..9.8, z 22), in the dock's west wall (x 14, z 19.5..21.0) and in the battery room's east wall (x -4, z 19.5..21.0); a 1.2 x 1.2 ceiling access hatch down into the lobby at (-2.0, 17.0). No lamp (nobody works there). Player only (grilles are duct size). custom class (WARN, justified): a plenum has no sheet class."
     },
     {
       "id": "s4-batt",
       "section": "S4",
       "type": "encounter",
       "room_class": "plant_room",
-      "function": "Battery room, dark by design (hydrogen safety): the stealth route's keypad door; the battery checker loops through it",
+      "function": "Battery room: the UPS battery strings and their monitor panel; the essential lighting board for the NOC and security suite on its north wall; the battery checker reads cell voltages",
       "storey": 0,
-      "size": [6, 11.8, 7],
+      "size": [
+        6,
+        11.5,
+        7
+      ],
       "tension": 3,
       "tags": [],
-      "shadow_pct": 1,
-      "los_break_s": 0.5,
+      "shadow_pct": 0.5,
+      "los_break_s": 1,
       "vantage": {
         "from": "s4-batt",
         "sees_pct": 0.8
@@ -92,221 +181,293 @@
       "guards": {
         "2": 1
       },
-      "note": "Measured: x -10..-4, z 16..27.8 (s4-batt), no ceiling slab so clear 7.0 to the roof. Estimated, pending V6: shadow_pct 1.0 (no lamp in the room by design, campusS4.ts:489-491); sees_pct 0.8 (two rack strips 1.2 m high); los_break_s 0.5 (whole room dark). Guard #12 (battery checker, loop z 37 to 20; counted here as zone batt, he also crosses s4-cc and s4-ups)."
+      "note": "PLAN. x -10..-4, z 16..27.5 (was 27.8: the colonnade corridor widens). Ceiling 7.0 to the roof (WARN: plant_room 4-6). kpBatt moves to (-4, 18.5) (1.5 m off the corner; code on the dock board). Battery racks raised 1.2 -> 2.0 and noLedge (the CR8 lip rule: nothing solo-standable within 4 m); the east row shortened to z 21.0..26.5 so the boost spot under the grille (-4.8, 20.2) is clear. One hydrogen-rated 2.4 m lamp over the monitor panel at (-7, 24) (pool r 3.6, ~35 of 69 m2: shadow 0.5, pending V6; was fully dark). New: the essential lighting board (sync-s4-ess-board) at (-5.5, 27.3). battCC moves to (-8.5, 27.5). Vantage: the dark kpBatt doorway, sees 0.8 (racks 2.0 hide the far aisle). Guard #12 battery checker (route through battCC / ccUps)."
     },
     {
       "id": "s4-yard",
       "section": "S4",
       "type": "encounter",
-      "room_class": "yard",
-      "function": "Walled generator compound east of the hall: diesel tanks and generator, the dog team's lane, the yard gate officer",
+      "room_class": "plant_room",
+      "function": "Walled generator compound: diesel tanks and the standby generator, the dog team's lane, the yard gate officer, the tank watch; the plant ladder up to the deck has its anti-climb shield locked",
       "storey": 0,
-      "size": [6, 32, 12],
+      "size": [
+        6,
+        32,
+        12
+      ],
       "tension": 4,
       "tags": [],
-      "shadow_pct": 0,
+      "shadow_pct": 0.45,
       "los_break_s": 2,
       "vantage": {
-        "from": "s4-yard",
+        "from": "s4-deck",
         "sees_pct": 0.8
       },
       "guards": {
-        "2": 3
+        "2": 4
       },
-      "note": "Measured: x 34..40, z 16..48 (S4_BOX.yard), walls 2.8, open sky (12.0 by schema convention). Estimated, pending V6: shadow_pct 0 (two floods y 6.0, radius 9, at (35.35,24) and (35.35,40) cover the strip; the generator and tanks shade about 1 m behind them); sees_pct 0.8 (generator 2.6 and tanks 2.0 high hide the east side); los_break_s 2 (door 2 m, tanks 5 m). Guards #1 handler, #2 dog, #3 gate officer. The 2.0 m yard gate (36.5..38.5, z 16) is locked and unbreachable, so it is not a link."
-    },
-    {
-      "id": "s4-deck",
-      "section": "S4",
-      "type": "encounter",
-      "room_class": "yard",
-      "function": "Roof plant deck (chillers) over the whole building, reached by ladders only; the deck patrol covers the riser hatch",
-      "storey": 7.3,
-      "size": [32, 44, 12],
-      "tension": 3,
-      "tags": [],
-      "shadow_pct": 0.95,
-      "los_break_s": 3,
-      "vantage": {
-        "from": "s4-deck",
-        "sees_pct": 0.85
-      },
-      "guards": {
-        "2": 1
-      },
-      "note": "Measured: x -10..34, z 16..48 at y 7.3 (S4_DECK), open sky (12.0 by convention), four chillers 4 x 2 x 2.0 (S4_BOX.chillers), 2.0 screens on the N, S, W edges, 1.1 parapet east. Estimated, pending V6: shadow_pct 0.95 (four task lights 1.5 m over the deck, radius 2.25, at (6|14|22|28, 34.2); no moon-fill term); sees_pct 0.85 (chillers hide about a tenth); los_break_s 3 (east edge x 32.6, z 36..44 is 7 m from the nearest chiller). Guard #13 (deck patrol, line z 36, x 12..30)."
+      "note": "PLAN. x 34..40, z 16..48, open sky (12.0 by convention). Re-classed yard -> plant_room (AS1: an external plant enclosure; yard min 14 x 14 cannot fit the 6 m strip): length 32 over max 28 and the open ceiling are WARNs. Light: the two floods -> one flood over the tanks at (37, 30), 6.0 m (pool r 9 covers z 21..39, ~108 of 192 m2: shadow 0.45, pending V6); the dock door end, the gate and the north end (generator, the new riser door) are dark. New: the riser's compound door (34, 46.5), keypad (plant doors code). The plant ladder (34.6, 23) now starts at 4.4 above a locked anti-climb shield (CR10 co-op boost; solo down = hang-drop). Vantage: the plant deck's east parapet (x 33.85, z 36..44, dark), looking down, sees 0.8 (generator 2.6 and tanks 2.0 hide short strips). Guards #1 handler + #2 dog (44 s loop), #3 gate officer, #23 tank watch (new)."
     },
     {
       "id": "s4-riser",
       "section": "S4",
       "type": "stair_core",
       "room_class": "stair_core",
-      "function": "Cable riser at the NE corner: caged ladders from the floor to the basket landing and on to the roof deck",
+      "function": "Cable riser at the NE corner: caged ladders from the floor to the basket landing and on to the roof hatch; a cable-pull door out to the compound",
       "storey": 0,
-      "size": [3.4, 6, 7],
+      "size": [
+        3.5,
+        6,
+        7
+      ],
       "tension": 2,
       "tags": [],
-      "note": "Measured: x 30.6..34, z 42..48 (S4_BOX.riser), clear 7.0 to the roof slab. Ladders R1 (32.2,45.05) and R2 (32.2,43.35). Tension is a judgement from the SPEC beat (estimate)."
+      "note": "PLAN. Partition moved x 30.6 -> 30.5 (box 3.5 on the grid); kpDeck at (30.5, 45). New compound door (34, 46.5), keypad. Ladders R1 (32.2,45.05), R2 (32.2,43.35) unchanged. Ceiling 7.0 (WARN: stair_core 3.3). kp-deck gets a second keypad on its riser side (planned, Marlow: Relay comes down the riser into the north corridor; same s4-codes)."
     },
     {
-      "id": "s4-baskets",
-      "section": "S4",
-      "type": "connector",
-      "room_class": "custom",
-      "function": "Cable baskets on ladder racks at 4.4 over the cold aisles: the dark run from the riser landing to the cage; B-N is the 29.5 m spine",
-      "storey": 4.4,
-      "size": [1, 29.5, 2.6],
-      "tension": 4,
-      "tags": [],
-      "note": "Measured: B-N x 3.1..32.6, z 40.8..41.8 (S4_BOX.bN); branches B1, B2, B3 (1.0 x 16.8 each, z 24..40.8), B-cage (1.0 x 6.4, z 34.4..40.8) and the landing (3.15 x 2.45) are folded into this one space. Headroom 2.6 = roof underside 7.0 less basket top 4.4. No section 7 class for a basket run, so custom (WARN). Tension is a judgement from the SPEC beat (estimate)."
-    },
-    {
-      "id": "s4-hall",
+      "id": "s4-deck",
       "section": "S4",
       "type": "encounter",
-      "room_class": "server_room",
-      "function": "Data hall: five roofed hot-aisle pods, 2.0 m cold aisles under the baskets, the centre aisle to the cage, the build-out area in the NW; the NOC overlooks it",
-      "storey": 0,
-      "size": [20, 38, 7],
-      "tension": 5,
+      "room_class": "yard",
+      "function": "Roof plant deck over the whole building: four chillers, pole floods for the night round, the riser hatch, the NOC roof hatch and rooflight",
+      "storey": 7.3,
+      "size": [
+        32,
+        44,
+        12
+      ],
+      "tension": 3,
       "tags": [],
-      "shadow_pct": 0.46,
-      "los_break_s": 2,
+      "shadow_pct": 0.5,
+      "los_break_s": 3,
       "vantage": {
-        "from": "s4-baskets",
-        "sees_pct": 0.45
+        "from": "s4-deck",
+        "sees_pct": 0.8
       },
       "guards": {
-        "2": 6
+        "2": 2
       },
-      "note": "Measured: x -4..34, z 22..42 (S4_BOX.hall); pods P1-P5 each 3.6 x 8 (S4_PODS) with 1.2 m hot aisles; cage x 14..22, z 34..40 inside it. Estimated, pending V6: shadow_pct 0.46 (13 lamps y 3.6, radius 5.4 by the 1.5 x height rule; the 144 m2 of pod interior is roofed and unlit; no other occlusion); sees_pct 0.45 from the basket run (an eye at about 6.0 clears the 3.0 pod roofs but not their far sides; the NOC pane view is lower, the B-N basket sits under its sill); los_break_s 2 (the stealth route sits inside pods and along 2.2 m rack faces). Guards #7, #8 cold-aisle patrols, #9 keyholder, #10-11 hot-aisle checkers (dormant flag has no reader, A99), #20 supervisor."
+      "note": "PLAN. x -10..34, z 16..48, y 7.3 (S4_DECK). Light: the four 1.5 m chiller task lights -> four pole floods 5 m over the deck at (-3, 24), (8, 36), (20, 24), (24, 38) (r 7.5, ~700 of 1408 m2: shadow 0.5, pending V6); the three ways on (plant ladder top (34, 23), riser hatch (32.2, 43.2), NOC hatch (6.6, 47.2)) and the NOC rooflight stay dark (8.3-16 m from a flood). New: NOC roof access hatch 1.2 x 1.2 at x 6.0..7.2, z 46.6..47.8 with rails on three sides; NOC rooflight (fixed wired glass) x 0..4, z 43.5..45.5. Vantage: the dark riser hatch, sees 0.8 (chillers 2.0 hide some). Guards #13 deck patrol, #24 chiller watch (new)."
+    },
+    {
+      "id": "s4-noc",
+      "section": "S4",
+      "type": "encounter",
+      "room_class": "security_room",
+      "function": "NOC mezzanine over the security room: duty officer Dunmore (west seat) and Pryce watch the hall through armoured glass and issue the cage release; roof hatch and escape ladder are its second and third ways out",
+      "storey": 3.6,
+      "size": [
+        6,
+        12,
+        3.4
+      ],
+      "tension": 4,
+      "tags": [
+        "overwatch:s4r"
+      ],
+      "shadow_pct": 0.45,
+      "los_break_s": 2,
+      "vantage": {
+        "from": "s4-deck",
+        "sees_pct": 0.75
+      },
+      "guards": {
+        "2": 2
+      },
+      "note": "PLAN. x -4..8, z 42..48, y 3.6 (S4_NOC); 3.4 clear (WARN: security_room 3.0; length 12 over max 11, WARN). V5f-3: Track A now walks it and it holds guards, so it is an encounter again (was utility, dead end). Fixes the dead end: roof hatch ladder to the deck (6.6, 47.2) and an escape door in its east wall (8, 45.5, y 3.6) onto a 1.2 x 1.2 platform with a caged ladder down into the north corridor (9.4, 45.5) (a staffed mezzanine needs a second exit). Light: one lamp at (1.0, 6.4, 43.6) over the window pair (pool r 4.2, ~40 of 72 m2: shadow 0.45, pending V6), the east end (stair head, hatch, escape door) dark. Vantage: the deck rooflight x 0..4, z 43.5..45.5 (dark), looking down, sees 0.75 (V6). Overwatch for split s4r: the armoured window sees the hall floor and the cage front. Guards #14 duty officer Dunmore (Code Relay target, west seat x 1.0, seat placard), #15 Pryce (decoy, east seat x 3.0). sync-s4-noc: the NOC console release."
     },
     {
       "id": "s4-nc",
       "section": "S4",
       "type": "connector",
       "room_class": "corridor",
-      "function": "North corridor behind the hall: joins the security room side door, the hall door and the riser keypad door; the tour officer clocks it",
+      "function": "North corridor behind the hall: the security room side door, the hall door, the riser keypad door and the foot of the NOC escape ladder; the tour officer clocks it",
       "storey": 0,
-      "size": [6, 22.6, 7],
-      "tension": 3,
+      "size": [
+        6,
+        22.5,
+        7
+      ],
+      "tension": 2,
       "tags": [],
-      "note": "V5f-3 (one encounter rule): retyped encounter -> connector: a corridor is not a play space (sheet 7 corridor Encounter? no) and no built route (S4_ROUTES) walks it; guard #16 (1) is counted here in the note, not in `guards`; former declared targets shadow_pct 1, los_break_s 4, vantage s4-nc 0.95. Measured: x 8..30.6, z 42..48 (S4_BOX.nc), no ceiling slab so clear 7.0. Estimated, pending V6: shadow_pct 1.0 (no lamp, dark by design); sees_pct 0.95 (empty 6 m strip); los_break_s 4 (about 12 m to a door end). Guard #16 (north corridor tour, line z 45.8, x 11..28; dormant flag has no reader)."
+      "note": "PLAN. x 8..30.5, z 42..48 (on the grid now). secNc moves to (8, 43.5) to clear the escape ladder foot (9.4, 45.5). Dark (no lamp). Width 6 over the corridor max 4 and ceiling 7.0: WARNs, as built. Guard #16 tour (dormant) counted here in the note. Dunmore's spook bolt point (Marlow A11) at (28, 45.8) by the riser door: kept clear (the escape ladder foot is at x 9.4)."
     },
     {
       "id": "s4-sec",
       "section": "S4",
-      "type": "utility",
+      "type": "encounter",
       "room_class": "security_room",
-      "function": "Security room: the desk console for the three cameras, the operator and the site supervisor; the NOC stair starts in its north strip",
+      "function": "Security control room: the camera desk (loop, footage wipe), the operator, the site supervisor and the night runner, the duty roster on the wall; the NOC's fire stair rises in its north strip",
       "storey": 0,
-      "size": [6, 12, 3.4],
+      "size": [
+        6,
+        12,
+        3.4
+      ],
       "tension": 3,
-      "tags": [],
-      "note": "V5f-3 (one encounter rule): retyped encounter -> utility: a side room no built route (S4_ROUTES) enters; guards #5-6 (2) are counted here in the note, not in `guards`; former declared targets shadow_pct 0.01, los_break_s 1, vantage s4-sec 0.9. Measured: x -4..8, z 42..48 (S4_BOX.sec); NOC slab underside 3.4 (campusS4.ts:437). Estimated, pending V6: shadow_pct 0.01 (two lamps y 3.1, radius 4.65, cover the room); sees_pct 0.9 (desk 0.75, stair rail 1.1); los_break_s 1 (doors within 6 m). Guards #5 operator, #6 supervisor."
+      "tags": [
+        "split:s4r:a"
+      ],
+      "shadow_pct": 0.5,
+      "los_break_s": 1.5,
+      "vantage": {
+        "from": "s4-sec",
+        "sees_pct": 0.8
+      },
+      "guards": {
+        "2": 3
+      },
+      "note": "PLAN. x -4..8, z 42..48; 3.4 to the NOC slab (WARN: security_room 3.0; length 12 over 11, WARN). V5f-3: Track A now walks it with two guards, so encounter again (was utility). NOC stair rebuilt as a dog-leg fire stair 1.3 wide, 2 x 11 risers (0.165 / 0.28), mid landing x 0..1.4 at y 1.8, flights on z 46.7..48 and 45.4..46.7 between x 1.4 and 4.2, foot at x 4.2..5.5, z 46.7..48, top landing x 4.2..5.5, z 45.4..46.7 (slab hole x 0..4.2, z 45.4..48). New door to the UPS room (-4, 46.5); the operator console shortened to z 43.2..45.6, alarm-sec4 moves to (-3.85, 43.0). Light: the two room lamps -> one warm 2.4 m console lamp at (-2.0, 44.6) (pool r 3.6, ~36 of 72 m2: shadow 0.5, pending V6). Vantage: the dark mid landing of the stair, sees 0.8. Duty roster (lead-s4-roster) on the west wall at (-3.85, 45.2). Split s4r leg a (Relay at sync-s4-desk). Guards #5 operator, #6 site supervisor (armour), #25 night runner (new: back-and-forth desk (0, 43.2) <-> side door (7, 43.5), 30 s, carries the log up to the NOC)."
     },
     {
-      "id": "s4-noc",
+      "id": "s4-hall",
       "section": "S4",
-      "type": "utility",
-      "room_class": "security_room",
-      "function": "NOC mezzanine on the security room: two officers at the armoured window over the hall",
-      "storey": 3.6,
-      "size": [6, 12, 3.4],
-      "tension": 4,
-      "tags": [],
-      "note": "V5f-3 (one encounter rule): retyped encounter -> utility: a dead-end side room no built route (S4_ROUTES) enters; guards #14-15 (2) are counted here in the note, not in `guards`; former declared targets shadow_pct 0.02, los_break_s 2, vantage s4-noc 0.9. Measured: x -4..8, z 42..48 at y 3.6 (S4_NOC), 3.4 clear to the roof; the pane x -3.5..7.5, y 4.6..6.6 is armoured glass (campusS4.ts:405). Estimated, pending V6: shadow_pct 0.02 (two lamps 2.8 m over the mezzanine floor, radius 4.2); sees_pct 0.9 (open mezzanine); los_break_s 2 (stair head to the window about 6 m, no full-height cover). Guards #14-15."
-    },
-    {
-      "id": "s4-cage",
-      "section": "S4",
-      "type": "objective",
-      "room_class": "storage",
-      "function": "Orrin's mesh server cage: the build and signing logs terminal (10 s download, opens C4)",
+      "type": "encounter",
+      "room_class": "server_room",
+      "function": "Data hall: five roofed hot-aisle pods, lit cold aisles under the baskets, the centre aisle to the cage, the build-out area in the NW; the NOC window overlooks it",
       "storey": 0,
-      "size": [6, 8, 7],
+      "size": [
+        20,
+        38,
+        7
+      ],
       "tension": 5,
-      "tags": ["objective"],
-      "note": "Measured: x 14..22, z 34..40 (S4_BOX.cage), 3.0 solid walls 0.1 thick, open top under the 7.0 roof; the B-cage basket (underside 4.0) crosses it at x 17.5..18.5. SPEC says 8 x 8 (z 32..40); built 8 x 6 (z 34..40). Not an encounter: the keyholder stands outside the front gate (counted in s4-hall). Tension is a judgement from the SPEC beat (estimate)."
+      "tags": [
+        "split:s4r:b"
+      ],
+      "shadow_pct": 0.46,
+      "los_break_s": 2,
+      "vantage": {
+        "from": "s4-baskets",
+        "sees_pct": 0.75
+      },
+      "guards": {
+        "2": 7
+      },
+      "note": "PLAN. x -4..34, z 22..42 unchanged (pods, cage, baskets). Size and ceiling over server_room: WARNs, as built. hallCC (-4,29) is walled up (it faced C4 across the colonnade). The cage downlight (18, 2.8, 37) turns warm (the objective lamp). shadow 0.46 as estimated by V5d (pending V6). Vantage: the basket run (dark, above the cones): B1/B2/B3 look straight down the cold aisles, B-cage's south end down the centre aisle, B-N's ends down the west and east margins; hidden: the 48 m2 of roofed hot aisle and short strips behind the spare rack and CRAC units: ~0.75-0.85 of the ~600 m2 walkable floor (declared 0.75, measured in greybox V6; V5d's 0.45 read one eye point). Split s4r leg b (Vault). Code Relay twist: on the release #20 walks the west aisle and the north strip (z 33) to the cage front; the path stays open (no new piece on it). Guards #7, #8 cold-aisle loops, #9 keyholder (front gate), #10-11 hot-aisle checkers (dormant), #20 mobile supervisor, #22 second keyholder (new, loop round the cage)."
     },
     {
       "id": "s4-ups",
       "section": "S4",
       "type": "utility",
       "room_class": "plant_room",
-      "function": "UPS room: battery cabinets along the west wall; the exit route's way from the hall to the colonnade",
+      "function": "UPS room: cabinets on the west wall; both tracks meet here on the way out (hall door, security room door, colonnade door)",
       "storey": 0,
-      "size": [6, 17.8, 7],
+      "size": [
+        6,
+        17,
+        7
+      ],
       "tension": 2,
       "tags": [],
-      "note": "Measured: x -10..-4, z 30.2..48 (s4-ups), cabinets x -9.6..-8.6, z 32..46 (2.0 high), clear 7.0 to the roof. Tension is a judgement from the SPEC beat (estimate)."
+      "note": "PLAN. x -10..-4, z 31..48 (was 30.2: the colonnade widens). ccUps moves to (-5.5, 31); new door to the security room (-4, 46.5). Ceiling 7.0 (WARN). Rejoin space of split s4r. #12 crosses it (counted in s4-batt, as V5f)."
+    },
+    {
+      "id": "s4-baskets",
+      "section": "S4",
+      "type": "connector",
+      "room_class": "custom",
+      "function": "Cable baskets at 4.4 over the cold aisles: the dark run from the riser landing to the cage, now also into the return-air plenum at the hall's south wall",
+      "storey": 4.4,
+      "size": [
+        1,
+        29.5,
+        2.6
+      ],
+      "tension": 3,
+      "tags": [],
+      "note": "PLAN. As built (S4_BOX.bN, b1-b3, bCage) except B1 and B2 run on south from z 24 to the hall's south wall (z 22.15) and end at the plenum grilles (they ended over the south strip with no exit, V5d F8). custom class and 2.6 headroom: WARNs, as built."
+    },
+    {
+      "id": "s4-cage",
+      "section": "S4",
+      "type": "objective",
+      "room_class": "storage",
+      "function": "Orrin's mesh server cage: the build and signing logs terminal (10 s download, opens C4) that needs the NOC release; front gate under cam-cage, rear gate on dual custody",
+      "storey": 0,
+      "size": [
+        6,
+        8,
+        7
+      ],
+      "tension": 5,
+      "tags": [
+        "objective"
+      ],
+      "note": "PLAN. x 14..22, z 34..40 unchanged. sync-s4-cagekp: the release prompt on the terminal (18, 0, 38.3). Front gate (18, 34) stays a plain door with the keyholder #9 and cam-cage (looped by sync-s4-desk); rear pair gate CR5 unchanged. Ceiling 7.0 (WARN: storage max 6)."
     },
     {
       "id": "s4-cc",
       "section": "S4",
       "type": "connector",
       "room_class": "corridor",
-      "function": "Colonnade corridor: the vestibule between the hall, battery room and UPS room with C4's near door in its west wall; the K3 sentry is posted here",
+      "function": "Colonnade corridor: the vestibule between the battery room, the UPS room and C4's near door; the K3 sentry holds it",
       "storey": 0,
-      "size": [2.4, 6, 7],
+      "size": [
+        3.5,
+        6,
+        3
+      ],
       "tension": 3,
-      "tags": ["exit"],
-      "note": "V5f-3 (one encounter rule): retyped encounter -> connector: a corridor is not a play space (sheet 7 corridor Encounter? no) and its only guard is the K3 choke at the C4 door (schema campus convention: the choke sits beside the spine link); guard #19 (1) is counted here in the note, not in `guards`; former declared targets shadow_pct 0, los_break_s 1, vantage s4-cc 1. Measured: x -10..-4, z 27.8..30.2 (s4-cc), no ceiling slab so clear 7.0; clear width about 2.2 between wall faces. Estimated, pending V6: shadow_pct 0 (lamp y 2.8 at (-7,29) covers the 6 x 2.4 room); sees_pct 1.0 (empty); los_break_s 1 (three doors). Guard #19 (K3 colonnade sentry at (-8.5,29), post leash 5, guards c4-gate). The 2.4 m width cannot host an encounter by class; kept as an encounter space because the K3 choke is counted in its space (campus conventions)."
+      "tags": [
+        "exit"
+      ],
+      "note": "PLAN. Widened: x -10..-4, z 27.5..31 (box 3.5, clear 3.3; was 2.4 / 2.2), with a 3.0 ceiling slab (3.0-3.2). Doors: C4 near (-10, 29) unchanged; battCC (-8.5, 27.5) and ccUps (-5.5, 31), 3.0 m offset; hallCC walled up, so no two doors face each other. Guard #19 (K3) re-posted at (-8.8, 30.0) facing east, leash 5, guards c4-gate (the choke), counted in the note."
     }
   ],
   "links": [
     {
       "from": "s4-dock",
-      "to": "s4-svc",
+      "to": "s4-lobby",
       "kind": "door",
       "route": "shadow",
       "width": 1.2,
       "height": 2.1,
-      "reason": "Dock west door into the service corridor's east end (dockWest, (14,17)); the only ground way west for the stealth and the loud route; locked at alarm stage 2",
-      "note": "Both ground routes of S4_ROUTES leave the dock through this one door. Door 1.0 m from the dock SW corner (scale-sheet 5: 1.5).",
+      "reason": "Goods door from the dock into the lobby's dark goods lane (dockWest, moved to (14, 17.5)); alarm stage 2 locks it",
       "length": 19
     },
     {
       "from": "s4-dock",
       "to": "s4-yard",
       "kind": "door",
-      "route": "high",
-      "width": 1.2,
-      "height": 2.1,
-      "reason": "Dock east door to the generator compound (dockEast, (34,19)); start of the high route (compound, plant ladder, deck)",
-      "length": 23.5
-    },
-    {
-      "from": "s4-svc",
-      "to": "s4-lobby",
-      "kind": "door",
       "route": "loud",
       "width": 1.2,
       "height": 2.1,
-      "reason": "Service corridor door into the hall lobby (scLobby, (4,18)); the loud route past the mantrap officer",
-      "note": "Leaf swings south into the 2.0 m corridor (hinge x 3.4): open, its end at z 16.84 leaves 0.69 m to the south wall face; the open leaf has no collision body (doors.ts:103-105, 223).",
-      "length": 4
+      "reason": "Dock east door to the generator compound (dockEast, (34,19)); the floodlit side, the gate officer and the dog team; Track A starts here",
+      "length": 23.5
     },
     {
-      "from": "s4-svc",
-      "to": "s4-batt",
-      "kind": "door",
-      "route": "shadow",
-      "width": 1.2,
-      "height": 2.1,
-      "reason": "Keypad door at the corridor west end into the dark battery room (kpBatt, (-4,17)); code is on the dock board",
-      "note": "Keypad door: closed until the dock board code is read (campusS4Data.ts:198-202). Door 1.0 m from the shell corner (scale-sheet 5: 1.5).",
-      "length": 14.5
+      "from": "s4-dock",
+      "to": "s4-plenum",
+      "kind": "coop_boost",
+      "route": "high",
+      "one_way": true,
+      "level_change": 4.4,
+      "reason": "CR8: leg-up from the dark west end of the dock (14.6, 20.2) to the return-air grille in the dock's west wall (sill 4.4, x 14, z 19.5..21.0), into the plenum",
+      "note": "Lip rules: crates 1.0 high are 3.4 m away (under 1.2, rule 2 holds); no surface 0.6-1.7 under the wall. Solo bypass: the plenum from the baskets (riser ladder). time_s: 5 s boost plus the walk.",
+      "length": 19,
+      "time_s": 20
+    },
+    {
+      "from": "s4-plenum",
+      "to": "s4-dock",
+      "kind": "drop",
+      "route": "high",
+      "level_change": 4.4,
+      "reason": "Hang-drop from the dock grille sill to the dock floor (the hang cuts the fall to about 2.5 m)",
+      "length": 19,
+      "time_s": 16
     },
     {
       "from": "s4-lobby",
       "to": "s4-mantrap",
-      "kind": "door",
+      "kind": "pair_gate",
       "route": "loud",
       "width": 1.2,
       "height": 2.1,
-      "reason": "Mantrap outer door, west wall of the 3 x 3 interlock (mantrapOuter, (9,20.5)); not breachable",
-      "length": 8
+      "reason": "CR9: the mantrap interlock: the outer door (8, 20.5) opens only while the desk release (1.3, 21.0) and the door reader (7.7, 21.4) are pressed within 1.0 s, 6.4 m apart; the real admission is the officer releasing one person at a time",
+      "note": "E3 pair gate data (pairGates, campusS4Data.ts:203 pattern). Solo bypass: kp-batt, the battery room keypad door (the E10 quiet bypass of arm-mantrap). The loud way through the lobby is now a team door; solo goes loud through the compound (hallEast).",
+      "length": 5
     },
     {
       "from": "s4-mantrap",
@@ -315,9 +476,51 @@
       "route": "loud",
       "width": 1.2,
       "height": 2.1,
-      "reason": "Mantrap inner door into the hall (mantrapInner, (10.5,22)); bulletproof (arm-mantrap), no round through it; the quiet bypass is kp-batt",
-      "note": "Armoured door (campusS4.ts:370).",
-      "length": 12.5
+      "reason": "Mantrap inner door (9.5, 22), armoured (E10 arm-mantrap), straight up the P2|P3 cold aisle to the cage",
+      "length": 13
+    },
+    {
+      "from": "s4-lobby",
+      "to": "s4-batt",
+      "kind": "door",
+      "route": "secret",
+      "width": 1.2,
+      "height": 2.1,
+      "reason": "Battery room keypad door at the goods lane's west end (kpBatt, moved to (-4, 18.5)); the code is on the dock board",
+      "note": "Keypad (campusS4Data.ts:198-202). Route secret: an intel-gated way (A4 utility).",
+      "length": 13.5
+    },
+    {
+      "from": "s4-plenum",
+      "to": "s4-lobby",
+      "kind": "drop",
+      "route": "high",
+      "level_change": 3.2,
+      "reason": "Ceiling access hatch (1.2 x 1.2) in the lobby slab at (-2.0, 17.0), over the dark goods lane: drop 3.2 m",
+      "length": 14.5,
+      "time_s": 13
+    },
+    {
+      "from": "s4-batt",
+      "to": "s4-plenum",
+      "kind": "coop_boost",
+      "route": "high",
+      "one_way": true,
+      "level_change": 4.4,
+      "reason": "CR8-west: leg-up from the battery room floor (-4.8, 20.2) to the return-air grille in its east wall (sill 4.4, x -4, z 19.5..21.0)",
+      "note": "Racks raised to 2.0 noLedge and the east row cut back to z 21.0 so nothing within 4 m is solo-standable. Solo bypass: the plenum from the baskets. time_s: 5 s boost plus the walk.",
+      "length": 12,
+      "time_s": 14
+    },
+    {
+      "from": "s4-plenum",
+      "to": "s4-batt",
+      "kind": "drop",
+      "route": "high",
+      "level_change": 4.4,
+      "reason": "Hang-drop from the battery room grille into the room (behind the east rack row)",
+      "length": 12,
+      "time_s": 11
     },
     {
       "from": "s4-batt",
@@ -326,29 +529,18 @@
       "route": "shadow",
       "width": 1.2,
       "height": 2.1,
-      "reason": "Battery room door into the hall's west margin (hallBatt, (-4,25)); stage 3 locks it",
+      "reason": "Battery room door into the hall's dark west margin (hallBatt, (-4,25)); stage 3 locks it",
       "length": 24.5
     },
     {
       "from": "s4-batt",
       "to": "s4-cc",
       "kind": "door",
-      "route": "shadow",
-      "width": 1.2,
-      "height": 2.1,
-      "reason": "Door between the battery room and the colonnade corridor (battCC, (-7,27.8)); the battery checker walks through it",
-      "length": 7
-    },
-    {
-      "from": "s4-cc",
-      "to": "s4-hall",
-      "kind": "door",
       "route": "loud",
       "width": 1.2,
       "height": 2.1,
-      "reason": "Colonnade corridor door straight onto the hall's west margin (hallCC, (-4,29)); the shortest way from the hall to C4",
-      "note": "Door centre 1.2 m from the corridor corners (scale-sheet 5: 1.5). No S4_ROUTES leg uses it (the exit goes round through the UPS room).",
-      "length": 22
+      "reason": "Battery room door into the colonnade corridor (battCC, moved to (-8.5, 27.5)), under the K3 sentry's eyes",
+      "length": 8
     },
     {
       "from": "s4-cc",
@@ -357,19 +549,28 @@
       "route": "shadow",
       "width": 1.2,
       "height": 2.1,
-      "reason": "Door between the colonnade corridor and the UPS room (ccUps, (-7,30.2)); the exit route leaves the hall this way",
-      "note": "Leaf swings south into the 2.4 m corridor (hinge x -7.6): open, its end at z 29.04 leaves 1.14 m to the south wall face, on the exit lane (-7.6,29.5); no collision when open.",
-      "length": 10
+      "reason": "Colonnade corridor door into the UPS room (ccUps, moved to (-5.5, 31)), 3.0 m off battCC",
+      "length": 11
     },
     {
       "from": "s4-ups",
       "to": "s4-hall",
       "kind": "door",
-      "route": "shadow",
+      "route": "secret",
       "width": 1.2,
       "height": 2.1,
-      "reason": "UPS room door into the hall's NW build-out area (hallUps, (-4,38)); the exit route's first door",
+      "reason": "UPS room door into the hall's dark NW build-out area (hallUps, (-4,38)); the back-room way in and the shared way out",
       "length": 23
+    },
+    {
+      "from": "s4-ups",
+      "to": "s4-sec",
+      "kind": "door",
+      "route": "secret",
+      "width": 1.2,
+      "height": 2.1,
+      "reason": "New staff door from the UPS room into the security room (-4, 46.5), behind the UPS cabinets: Track A's way out",
+      "length": 14
     },
     {
       "from": "s4-hall",
@@ -388,7 +589,7 @@
       "route": "shadow",
       "width": 1.2,
       "height": 2.1,
-      "reason": "North corridor door in the hall's north wall (ncDoor, (20,42)); the corridor is dark by design",
+      "reason": "North corridor door in the hall's north wall (ncDoor, (20,42)); the corridor is dark",
       "length": 14.5
     },
     {
@@ -398,7 +599,7 @@
       "route": "shadow",
       "width": 1.2,
       "height": 2.1,
-      "reason": "Side door between the security room and the north corridor (secNc, (8,45)); the north corridor tour clocks it",
+      "reason": "Side door between the security room and the north corridor (secNc, moved to (8, 43.5) to clear the escape ladder)",
       "length": 17.5
     },
     {
@@ -408,8 +609,7 @@
       "route": "high",
       "width": 1.2,
       "height": 2.1,
-      "reason": "Keypad door from the north corridor into the cable riser (kpDeck, (30.6,45)); code is on the dock board",
-      "note": "Keypad door (campusS4Data.ts:198-202).",
+      "reason": "Keypad door from the north corridor into the cable riser (kpDeck, (30.5,45)); code on the dock board",
       "length": 13
     },
     {
@@ -419,7 +619,7 @@
       "route": "loud",
       "width": 1.2,
       "height": 2.1,
-      "reason": "Hall east door onto the generator compound (hallEast, (34,30)); under the compound floods and the dog's lane",
+      "reason": "Hall east door onto the compound (hallEast, (34,30)), under the tank flood and the dog's lane",
       "length": 22.5
     },
     {
@@ -427,23 +627,66 @@
       "to": "s4-noc",
       "kind": "fire_stair",
       "route": "high",
-      "width": 1.2,
+      "width": 1.3,
       "level_change": 3.6,
-      "reason": "The NOC's only stair: one straight steel flight in the security room's north strip, 20 steps rising toward +x (S4_FLIGHT)",
-      "note": "Built as ONE flight of 20 risers (0.18 rise, 0.32 going): scale-sheet 3 / 6 allow 18 per flight and want two flights; width 1.2 vs fire stair 1.3. time_s estimated at 1 s per metre of rise plus the walk.",
-      "length": 18,
-      "time_s": 14
+      "reason": "The NOC's staff stair rebuilt as a dog-leg fire stair: 1.3 wide, 2 x 11 risers 0.165 / 0.28, mid landing 1.3 (was one 1.2 m flight of 20)",
+      "note": "time_s: the walk (13 m) at 1.3 m/s plus 3.6 s of rise.",
+      "length": 13,
+      "time_s": 13
+    },
+    {
+      "from": "s4-noc",
+      "to": "s4-deck",
+      "kind": "ladder",
+      "route": "loud",
+      "level_change": 3.7,
+      "reason": "NOC roof access hatch (x 6.0..7.2, z 46.6..47.8) with a caged ladder from the mezzanine to the plant deck; Track A drops in on the staffed NOC here",
+      "note": "time_s: 1 s per metre of ladder plus the walk.",
+      "length": 21,
+      "time_s": 20
+    },
+    {
+      "from": "s4-noc",
+      "to": "s4-nc",
+      "kind": "ladder",
+      "route": "shadow",
+      "level_change": 3.6,
+      "reason": "NOC escape door (8, 45.5, y 3.6) onto a 1.2 x 1.2 platform and a caged ladder down to the dark north corridor (9.4, 45.5): the mezzanine's second means of escape",
+      "note": "time_s: 1 s per metre of ladder plus the walk.",
+      "length": 17,
+      "time_s": 17
     },
     {
       "from": "s4-yard",
       "to": "s4-deck",
-      "kind": "ladder",
+      "kind": "coop_boost",
       "route": "high",
-      "level_change": 7.3,
-      "reason": "Plant ladder on the building's east wall from the compound floor to the plant deck (campusS4.ts:473); the deck's east parapet has a gap at z 22.4..23.6 for it",
-      "note": "time_s estimated at 1 s per metre of ladder plus the walk at 1.3 m/s.",
+      "one_way": true,
+      "level_change": 4.4,
+      "reason": "CR10: the plant ladder (34.6, 23) has its lower 4.4 m behind a locked anti-climb shield (real plant-ladder security); a leg-up onto the shield top (lip 4.4) reaches the rungs, then 2.9 m of ladder to the deck",
+      "note": "Lip rules: the tanks (2.0 noLedge) are 3.3 m away but not standable; the compound walls 2.8 noLedge. Solo bypass: the riser door, R1, R2 (a longer way). time_s: boost 5 s, ladder 2.9 s, the walk.",
       "length": 41,
-      "time_s": 33
+      "time_s": 39
+    },
+    {
+      "from": "s4-deck",
+      "to": "s4-yard",
+      "kind": "drop",
+      "route": "high",
+      "level_change": 4.4,
+      "reason": "Down the plant ladder to the shield top, hang and drop 4.4 m to the compound floor",
+      "length": 41,
+      "time_s": 35
+    },
+    {
+      "from": "s4-yard",
+      "to": "s4-riser",
+      "kind": "door",
+      "route": "shadow",
+      "width": 1.2,
+      "height": 2.1,
+      "reason": "New cable-pull door from the compound's dark north end into the riser (34, 46.5); keypad on the plant doors code",
+      "length": 17
     },
     {
       "from": "s4-riser",
@@ -451,8 +694,8 @@
       "kind": "ladder",
       "route": "high",
       "level_change": 4.4,
-      "reason": "Caged ladder R1 in the cable riser from the floor to the basket landing (32.2,45.05), up the landing wall gap",
-      "note": "time_s estimated at 1 s per metre of ladder plus the walk.",
+      "reason": "Caged ladder R1 in the cable riser from the floor to the basket landing (32.2,45.05)",
+      "note": "time_s: 1 s per metre of ladder plus the walk.",
       "length": 20,
       "time_s": 16
     },
@@ -460,10 +703,10 @@
       "from": "s4-baskets",
       "to": "s4-deck",
       "kind": "ladder",
-      "route": "high",
+      "route": "shadow",
       "level_change": 2.9,
-      "reason": "Ladder R2 from the basket landing up through the 1.2 x 1.2 roof hatch (31.6..32.8, 42.6..43.8) to the plant deck",
-      "note": "time_s estimated at 1 s per metre of ladder plus the walk.",
+      "reason": "Ladder R2 from the dark basket landing up through the riser roof hatch (31.6..32.8, 42.6..43.8) to the plant deck",
+      "note": "time_s: 1 s per metre of ladder plus the walk.",
       "length": 42,
       "time_s": 33
     },
@@ -474,7 +717,7 @@
       "route": "high",
       "level_change": 4.4,
       "reason": "CR4: leg-up from the dark floor at (4.8,34) onto the CR4 box of cable basket B1 (lip 4.4, x 3.1..4.1, z 32.4..35.6); solo bypass is the riser ladder",
-      "note": "time_s estimated: 5 s boost plus the walk (graph-schema \"about 4-6 s\").",
+      "note": "As built. time_s: 5 s boost plus the walk.",
       "length": 33,
       "time_s": 30
     },
@@ -484,8 +727,8 @@
       "kind": "coop_boost",
       "route": "high",
       "level_change": 4.4,
-      "reason": "CR4-west: the same CR4 box from its west face, boost point (2.4,34) (second lip in CAMPUS_COOP_LIPS)",
-      "note": "time_s estimated: 5 s boost plus the walk. Same box and lip height as the east face; a second link because the lip list holds two entries.",
+      "reason": "CR4-west: the same CR4 box from its west face, boost point (2.4,34)",
+      "note": "As built. time_s: 5 s boost plus the walk.",
       "length": 35.5,
       "time_s": 32
     },
@@ -496,8 +739,7 @@
       "route": "high",
       "one_way": true,
       "level_change": 4.4,
-      "reason": "Hang-down from the east edge of basket B-cage into the cage at (19.3,36.6), after the las-tray beams are jammed (SPEC CR4); engine verb A29",
-      "note": "level_change is the basket top above the cage floor; the hang cuts the real fall by an amount not measured here. Jam-and-pass (one partner jams the panel at (23.5,5.8,41.85), the other crosses) has no schema field. time_s estimated.",
+      "reason": "Hang-down from the east edge of basket B-cage into the cage at (19.3,36.6), after las-tray is jammed (CR4 jam-and-pass); the E10 quiet bypass of arm-noc",
       "length": 12,
       "time_s": 7
     },
@@ -508,8 +750,7 @@
       "route": "high",
       "one_way": true,
       "level_change": 4.4,
-      "reason": "Step off the unrailed basket edge onto the hall floor (B-N south side near x 14): the baskets have rails only on the landing north edge",
-      "note": "Not a designed route: inferred from basket() boxes with no rail (campusS4.ts:324-326, 454-455). Fall damage not modelled. time_s estimated.",
+      "reason": "Hang-drop off a basket edge onto the hall floor (drop takedowns from above; the baskets stay unrailed by design)",
       "length": 18,
       "time_s": 12
     },
@@ -520,7 +761,8 @@
       "route": "loud",
       "width": 1.2,
       "height": 2.1,
-      "reason": "Cage front gate (cageFront, (18,34)) facing the centre aisle, under cam-cage, the keyholder (#9) at its foot",
+      "assist": "s4r",
+      "reason": "Cage front gate (cageFront, (18,34)) facing the centre aisle, the keyholder #9 at its foot; Vault takes it once Relay has looped cam-cage at the security desk (sync-s4-desk)",
       "length": 6.5
     },
     {
@@ -530,9 +772,33 @@
       "route": "shadow",
       "width": 1.2,
       "height": 2.1,
-      "reason": "CR5: dual-custody rear gate (pgCage, (18,40)) in the dark north strip; two key switches at (13.85,39.6) and (21.8,40.15), 8 m apart, pressed within a 1.0 s window",
-      "note": "No schema field for the two key switches, the 8 m spread or the 1.0 s window. Solo bypass: the front gate after the keyholder.",
+      "reason": "CR5: dual-custody rear gate (pgCage, (18,40)) in the dark north strip; key switches (13.85,39.6) and (21.8,40.15), 8 m apart, 1.0 s window",
+      "note": "As built. Solo bypass: the front gate.",
       "length": 11.5
+    },
+    {
+      "from": "s4-plenum",
+      "to": "s4-baskets",
+      "kind": "duct",
+      "route": "secret",
+      "width": 1.2,
+      "height": 1.5,
+      "reason": "Return-air grille at basket B1's new south end (x 3.0..4.2, z 22, y 4.4): step 1.2 m down onto the plenum floor",
+      "note": "time_s: the walk along B1 and B-N at 1.3 m/s plus 2 s for the grille.",
+      "length": 37,
+      "time_s": 30
+    },
+    {
+      "from": "s4-plenum",
+      "to": "s4-baskets",
+      "kind": "duct",
+      "route": "secret",
+      "width": 1.2,
+      "height": 1.5,
+      "reason": "Return-air grille at basket B2's new south end (x 8.6..9.8, z 22, y 4.4)",
+      "note": "time_s: the walk along B2 and B-N at 1.3 m/s plus 2 s for the grille.",
+      "length": 33,
+      "time_s": 27
     },
     {
       "from": "s4-cc",
@@ -544,7 +810,7 @@
       "length": 22,
       "shared": true,
       "reason": "C4 colonnade connector: near door (-10,29) in the colonnade corridor's west wall, far door (-26,29) in the Old House service lobby (x -32..-26, z 26..32); box x -26..-10, z 26..32",
-      "note": "Target id s5-lobby is the S5 entry as the S5 file is expected to name it (S5_ROOMS s5-lobby, campusS5.ts:188); length from the cc centre (-7,29) to that room centre (-29,29). Clear width 5.7: box 6.0 less the 0.3 walls (campusOps.ts:21-34). The incoming C3 spine link (S3 exit to s4-dock) belongs to the S3 file."
+      "note": "Unchanged spine link. Target id s5-lobby is the S5 entry as the S5 file is expected to name it (S5_ROOMS s5-lobby, campusS5.ts:188); length from the cc centre (-7,29) to that room centre (-29,29). Clear width 5.7: box 6.0 less the 0.3 walls (campusOps.ts:21-34). The incoming C3 spine link (S3 exit to s4-dock) belongs to the S3 file."
     }
   ]
 }
