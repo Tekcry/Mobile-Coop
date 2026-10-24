@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-24T11:29Z
 
 # Sector Ops: section-bake inline polish (bake2 check polish P1 / P2 / P4)
 

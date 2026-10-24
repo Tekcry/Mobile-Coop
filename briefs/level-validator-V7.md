@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-24T11:29Z
 
 # level-validator V7: Marlow Yard (ctcourse) connectivity graph + first validator run (Marlow Build, job level-validator)
 
