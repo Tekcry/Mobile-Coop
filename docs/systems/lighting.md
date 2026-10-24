@@ -11,6 +11,15 @@ not change what a camera sees. Lights matter for guards and the meter only. (cam
 rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security cameras).
 
 ## Decided direction
+- Decided, not built yet (2026-10-25 ~09:05, "Real-world levels"): each space type gets a real-world illuminance band
+  from the lighting standards (outdoor car parks AS/NZS 1158.3.1, interiors AS/NZS 1680 / EN 12464); engine light is
+  calibrated to lux once and measured from the bake at greybox exit. Stealth comes only from real gaps (between poles,
+  under the carport, behind cars, cut circuits, shot lamps), never from leaving lit places unlit; the 40-60% shadow-share
+  target yields to the band. Michael: "car parks are generally well lit". The light-realism job (Sector Ops,
+  `feature/light-realism`, S1 car park first) builds the calibration; the level rule lives in docs/level-design.md.
+- Decided (2026-10-25 ~09:45, "Everywhere"): hardened lit choke points are allowed on campaign and Sector Ops maps:
+  un-shootable fixtures and guarded or locked breakers. A route around the choke point always stays. This loosens the
+  older "every lit chokepoint can be darkened at least two ways" (docs/level-design.md).
 - Decided, not built yet (G41): a door past 15% open passes light (one threshold for light, sound and sight). Code:
   `DOOR_SHUT` 0.05 in `world/lightField.ts`.
 - Decided, not built yet (G45): clear glass passes light and sight; frosted glass and blinds pass light only; thermal never
@@ -18,8 +27,9 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
 - Built (G100, G101, G102; prototype A5, lr16v, LR16-6): an instant goggle cut (G181: the wheel picks the mode, one
   button toggles it), CT grain (thermal on warm areas only, none in electro), thermal as CT (CT colour ramp; people
   behind closed doors as a dim blue silhouette, below).
-- Decided, not built yet (G69, G73): an original goggle (no three-lens look); a dim glow on the brow with vision off, a full
-  glow over the eyes with vision on. Code: `player/goggleGlow.ts` lights the current lenses always.
+- Parked (G195, refines G69): Wren keeps her current goggle; the goggle redesign is parked, only the stowed-on-brow
+  export remains (cleanup, G161). Until then the goggle stays over the eyes and only the glow follows G73 (dim with
+  vision off, full with vision on). Code: `player/goggleGlow.ts` lights the current lenses always.
 - Decided (G47): the parity test, long lamps and motion lights keep their plans and are sorted out when built.
 
 ## Light model (3.6: one light function)
@@ -222,9 +232,8 @@ capsules.
   N.L, a lamp whose t7 names a slot multiplies `nsCharShadow` (normal offset 2 cm + 0.4% of the distance, Babylon's shadow
   metric, 2 x 2 bilinear PCF on texelFetch, bias 3 cm, floor 0.15 as the capsules'); its capsule list keeps only the
   characters its map does not hold (a partial fit). A fresh pick draws capsules until its map has been copied once.
-- Budget: one texture per lit shader while on. The voxel level's micro-detail shader (`?voxels=1`) is full at 16 with
-  its one flashlight shadow, so that path keeps the capsules (`World.applyQuality`). Without WebGL2 float or half-float
-  targets the capsules stay.
+- Budget: one texture per lit shader while on. Without WebGL2 float or half-float targets the capsules stay. (The voxel
+  render path and `?voxels=1` are removed, G282.)
 - Parity: the meter and guard perception never had character shadows (capsules were render-only too) and still have
   none. The darkness curve's input (`nsLampRaw`) is unchanged. On screen a mapped lamp's term drops to 0.15 inside a
   silhouette, now also from casters the capsules lacked (partner, bodies, weapons, poses) and on a body's own limbs;
@@ -243,7 +252,9 @@ change.
   `LAMP_VOLUME`: two taps, N.L against the direction, capsule shadows from `VOL_CAPS` 4 nearest characters.
 - Its darkness parameters are `DARK_STANDARD` (gamma-space standard materials).
 
-## Darkness is dark (3.6, bible L5 / L7)
+## The darkness curve (3.6, bible L5 / L7)
+- How bright a space is comes from its lamps and the real-world band for its type ("Decided direction"); the curve only
+  decides how a level of light renders, so a lit car park reads lit and dark reads dark where the real gaps are.
 - Rendering only. `world/darkCurve.ts` (pure): `curve(s) = s x g x w(g s)`, `w(x) = floor + (top - floor) / (1 + (centre /
   x)^steep)`, from a pixel's summed static level `s` (fill + baked moon + baked lamps, as `LightField` sums them) to the
   level it renders with; `g` the night-vision gain. `DARK_DESKTOP` (linear PBR, then the tone map's toe and the sRGB
