@@ -1,4 +1,5 @@
 // Guard heads, pure half (scripts/operators/guardHeadCheck.mjs): budgets, job outputs, report and envelope checks.
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs build script without types
 import * as hc from '../scripts/operators/guardHeadCheck.mjs';
@@ -143,6 +144,35 @@ describe('head report check', () => {
     expect(f.some((x) => /seam rings moved 3/.test(x))).toBe(true);
     expect(f.some((x) => /face-island albedo mean 0.400/.test(x))).toBe(true);
     expect(faceAlbedo(headReport())).toBeCloseTo(0.7467, 3);
+  });
+  it('a short beard (kit facialHair beard) lowers the albedo floor; its means from the first full bake pass, skin ones still fail', () => {
+    const k = kit();
+    const heads = k.heads as { id: string; facialHair?: string }[];
+    heads.find((h) => h.id === 'average-3')!.facialHair = 'beard';
+    heads.find((h) => h.id === 'average-2')!.facialHair = 'stubble';
+    // a8ff2d45 average-3: tile 0.546, face island 0.498
+    const beard = headReport({ head: 'average-3' });
+    Object.assign(beard.faceTile as Record<string, unknown>, { albedoMeanLinear: [0.55, 0.545, 0.543], faceIslandAlbedoMeanLinear: [0.5, 0.497, 0.497] });
+    expect(checkHeadReport(beard, k)).toEqual([]);
+    expect((hc.skinAlbedoBand as Fn<[Kit, Rep], number[]>)(k, beard)).toEqual(hc.SKIN_ALBEDO_BY_FACIAL_HAIR.beard);
+    // the same means on a stubble or clean head are a skin fault
+    for (const id of ['average-2', 'average-1']) {
+      const f = checkHeadReport({ ...beard, head: id }, k);
+      expect(f.some((x) => /neutral albedo mean 0.546 outside 0.55-0.9/.test(x)), id).toBe(true);
+      expect(f.some((x) => /face-island albedo mean 0.498 outside 0.55-0.9/.test(x)), id).toBe(true);
+    }
+    // a beard head still has a floor
+    Object.assign(beard.faceTile as Record<string, unknown>, { faceIslandAlbedoMeanLinear: [0.4, 0.4, 0.4] });
+    expect(checkHeadReport(beard, k)).toEqual(['average-3: face-island albedo mean 0.400 outside 0.45-0.9']);
+    // the kit's facialHair wins; the report's is the fallback for a head the kit does not list that way
+    heads.find((h) => h.id === 'average-3')!.facialHair = 'clean';
+    expect(checkHeadReport({ ...beard, facialHair: 'beard' }, k).some((x) => /outside 0.55-0.9/.test(x))).toBe(true);
+    delete heads.find((h) => h.id === 'average-3')!.facialHair;
+    expect(checkHeadReport({ ...beard, facialHair: 'beard' }, k).some((x) => /outside 0.45-0.9/.test(x))).toBe(true);
+  });
+  it('the shipped kit marks exactly the beard heads (average-3, lean-3), so the band follows its data', () => {
+    const shipped = JSON.parse(readFileSync('scripts/operators/data/guards.json', 'utf8')) as { heads: { id: string; facialHair: string }[] };
+    expect(shipped.heads.filter((h) => hc.SKIN_ALBEDO_BY_FACIAL_HAIR[h.facialHair]).map((h) => h.id)).toEqual(['average-3', 'lean-3']);
   });
 });
 

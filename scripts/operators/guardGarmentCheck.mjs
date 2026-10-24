@@ -1,11 +1,13 @@
 // Guard garment check (docs/guard-models/PLAN.md G2, SPEC 4 / 8): reads the garments/guard-<base>-<part>.json a garments
 // job writes (scripts/operators/py/guard_garment.py) and lists every way it misses the contract. Pure (no fs) apart from
 // the CLI at the bottom; the lead runs it on the laptop bake's outputs:
-//   node scripts/operators/guardGarmentCheck.mjs <out>/garments/guard-*.json
+//   node scripts/operators/guardGarmentCheck.mjs <out>/garments/guard-*.json   (or the folder: <out>/garments)
+// The CLI expands the `*` itself (cliFiles.mjs): cmd.exe, which runs the laptop bake's steps, passes it literally.
 // Exit 1 when any report has a problem. Warnings (Wren's softer limits) print but do not fail.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { expandFileArgs } from './cliFiles.mjs';
 
 /** Limits. seamGap: Wren's check_garment.py (10 mm) warns; past `seamGapFail` the weld is closing a torn seam. */
 export const LIMITS = {
@@ -94,8 +96,10 @@ export function summary(r) {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const files = process.argv.slice(2);
-  if (!files.length) { console.error('usage: guardGarmentCheck.mjs <garments/guard-<base>-<part>.json>...'); process.exit(2); }
+  const usage = 'usage: guardGarmentCheck.mjs <garments/guard-<base>-<part>.json | garments/guard-*.json | garments folder>...';
+  let files = [];
+  try { files = expandFileArgs(process.argv.slice(2)); } catch (e) { console.error(`${e.message}\n${usage}`); process.exit(2); }
+  if (!files.length) { console.error(usage); process.exit(2); }
   const here = path.dirname(fileURLToPath(import.meta.url));
   const layers = JSON.parse(readFileSync(path.join(here, 'py', 'guard_garments.json'), 'utf8'));
   let bad = 0;

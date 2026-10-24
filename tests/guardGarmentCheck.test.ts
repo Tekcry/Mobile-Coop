@@ -1,13 +1,20 @@
 // Guard garment check (PLAN G2): scripts/operators/guardGarmentCheck.mjs against synthetic garments-job reports shaped
 // like guard_garment.py's output (the smoke run's field names).
-import { describe, expect, it } from 'vitest';
+import { spawnSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { afterAll, describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs build script without types
 import * as gc from '../scripts/operators/guardGarmentCheck.mjs';
 import layers from '../scripts/operators/py/guard_garments.json';
+// @ts-expect-error plain .mjs build script without types
+import * as cf from '../scripts/operators/cliFiles.mjs';
 
 type Report = Record<string, unknown> & { objects: { name: string; tris: number; shown: boolean }[] };
 const check = gc.checkGarment as (r: unknown, l: unknown) => { problems: string[]; warnings: string[] };
 const chainOf = gc.chainOf as (l: unknown, b: string, p: string) => string[];
+const expandFileArgs = cf.expandFileArgs as (args: string[], o?: { dirMatch?: RegExp }) => string[];
 
 function sewn(base: string, part: string, over: Partial<Report> = {}): Report {
   const p = (layers.parts as Record<string, { module: string; variant?: string; method: string; layer: number; tint: string }>)[part]!;
@@ -77,5 +84,59 @@ describe('guardGarmentCheck', () => {
   it('rolled sleeves need both cuff edges rolled', () => {
     expect(check(sewn('lean', 'shirt_rolled', { rolled: { rolls: [['x', 1]] } }), layers).problems).toEqual(['rolled: 1 rolled cuff edges, want 2']);
     expect(check(sewn('lean', 'shirt_rolled', { rolled: null }), layers).problems).toHaveLength(1);
+  });
+});
+
+// The laptop bake runs each check step through cmd.exe (child_process shell: true on Windows), which passes
+// `guard-*.json` literally: the CLIs expand it themselves (scripts/operators/cliFiles.mjs).
+describe('check CLIs: file arguments without a shell glob', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'guard-cli-'));
+  const garments = path.join(root, 'garments');
+  mkdirSync(garments);
+  const names = ['guard-average-trousers.json', 'guard-average-shirt.json', 'guard-lean-shirt_rolled.json'];
+  writeFileSync(path.join(garments, names[0]!), JSON.stringify(sewn('average', 'trousers')));
+  writeFileSync(path.join(garments, names[1]!), JSON.stringify(sewn('average', 'shirt')));
+  writeFileSync(path.join(garments, names[2]!), JSON.stringify(sewn('lean', 'shirt_rolled', { rolled: { rolls: [['a', 1], ['b', 1]] } })));
+  writeFileSync(path.join(garments, 'guard-average-trousers.blend'), '');
+  writeFileSync(path.join(garments, 'notes.json'), '{}');
+  const sorted = [...names].sort().map((n) => path.join(garments, n));
+  afterAll(() => rmSync(root, { recursive: true, force: true }));
+
+  it('expands a * / ? in the file name, sorted, and keeps plain paths as given', () => {
+    expect(expandFileArgs([`${garments}/guard-*.json`])).toEqual(sorted);
+    expect(expandFileArgs([`${garments}/guard-average-*.json`])).toEqual(sorted.filter((f) => f.includes('average')));
+    expect(expandFileArgs([`${garments}/guard-lean-shirt_rolle?.json`])).toEqual([path.join(garments, names[2]!)]);
+    expect(expandFileArgs(['a/b.json', 'c.json'])).toEqual(['a/b.json', 'c.json']);
+  });
+
+  it('a folder stands for its guard-*.json reports; duplicates drop', () => {
+    expect(expandFileArgs([garments])).toEqual(sorted);
+    expect(expandFileArgs([garments, `${garments}/guard-*.json`])).toEqual(sorted);
+    expect(expandFileArgs([garments], { dirMatch: /^guard-.+-trousers\.json$/ })).toEqual([path.join(garments, names[0]!)]);
+  });
+
+  it('a pattern or folder with no match, a missing folder, a wildcard folder: errors, never zero reports', () => {
+    expect(() => expandFileArgs([`${garments}/guard-*.glb`])).toThrow(/no file matches/);
+    expect(() => expandFileArgs([`${root}/nothere/guard-*.json`])).toThrow(/not found/);
+    expect(() => expandFileArgs([`${root}/gar*/guard-*.json`])).toThrow(/wildcards only in the file name/);
+    expect(() => expandFileArgs([root])).toThrow(/no file matches/);
+  });
+
+  it('guardGarmentCheck CLI checks every report a literal guard-*.json names', () => {
+    const r = spawnSync(process.execPath, ['scripts/operators/guardGarmentCheck.mjs', `${garments}/guard-*.json`], { encoding: 'utf8', timeout: 30000 });
+    expect(r.stderr).toBe('');
+    expect(r.stdout.split(/\r?\n/).filter((l) => /^ok {3}/.test(l))).toHaveLength(3);
+    expect(r.status).toBe(0);
+    const none = spawnSync(process.execPath, ['scripts/operators/guardGarmentCheck.mjs', `${garments}/guard-*.glb`], { encoding: 'utf8', timeout: 30000 });
+    expect(none.status).toBe(2);
+    expect(none.stderr).toMatch(/no file matches/);
+  });
+
+  it('guardBodyCheck CLI loads the game TypeScript without a loader flag and expands its pattern', () => {
+    const r = spawnSync(process.execPath, ['scripts/operators/guardBodyCheck.mjs', '--kit', 'scripts/operators/data/guards.json', `${garments}/guard-*-body.json`],
+      { encoding: 'utf8', timeout: 30000 });
+    expect(r.stderr).not.toMatch(/ERR_MODULE_NOT_FOUND/);
+    expect(r.stderr).toMatch(/no file matches/);
+    expect(r.status).toBe(2);
   });
 });
