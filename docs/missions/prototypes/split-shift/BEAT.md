@@ -45,15 +45,15 @@ east wing at the plant room and keeps it dark long enough for the hack, without 
 | 2 | Ghost | s2-l1-wing -> s2-l1-comms | 3 | Loop the ground-floor cameras at the comms room patch panel | Overheard: the comms checker (#8, :129) reads "UPS green, cameras green" at the panel each round | **sync-s2-comms** (camera_loop): cam-turnstile, cam-lift, cam-bridge report nothing; opens the foyer crossing behind reception for Shadow, and the landing for both | - (new mechanic: camera loop from a panel) | "Wait for the checker to leave the panel. He comes back every forty seconds." |
 | 3 | Shadow | s2-foyer -> s2-plant-g | 3 | Cut the east wing at the switchgear in the east plant room | Reception officer's radio (#1, :86): "Facilities, your east boards tripped again." + `s2-board` | **sync-s2-power** (power_cut, held, no timer): the facilities office and the L1 wing go dark; the facilities officer (#7, :127) leaves the BMS desk for the plant room. Opens the hack for Ghost | needs `s2-board` (new mechanic: holding a cut) | "The plant room door is in the foyer's east wall, behind the desk's back." |
 | 4A | Ghost | s2-l1-wing -> s2-l1-facilities | 3 | Into the dark facilities office and hack the BMS terminal | The office's cold lamp goes out (the light language: the dark is the way in) | - (the existing objective opens C2) | needs `s2-fac-code` (sync-s2-kpfac, pending) | "The office door is beside the corridor light switch. Leave the switch alone." |
-| 4B | Shadow | s2-foyer (hall end) -> s2-plant-g | 3 | Hold the plant room dark until Ghost is out of the office | **Twist:** the facilities officer stops at reception and brings the reception officer with him | optional assist **sync-s2-atrium** (power_cut, built: S2_BOARDS `campusS2.ts:192`): pulling the atrium board sends #1 to his own board (guard-ai LR16-4), splitting the pair | - | "Two of them now. The atrium board is on the foyer wall. He always fixes his own lights first." |
-| 5 | All | s2-core-ne -> s2-l1-landing | 2 | Everyone to the bridge landing and over the glazed bridge | The bridge officer (K2, #11, :135) at the card door; the BMS hack opened it | - | - | "Shadow: the north-east fire stair from the hall. The bridge officer faces the comms door; the west door is on his blind side." |
+| 4B | Shadow | s2-foyer (hall end) -> s2-plant-g | 3 | Hold the plant room dark until Ghost is out of the office | **Twist:** the facilities officer stops at reception and brings the reception officer with him | optional assist **sync-s2-atrium** (power_cut, built: S2_BOARDS `campusS2.ts:192`): pulling the atrium board sends #1 to his own board (guard-ai LR16-4), splitting the pair | - | "Two of them now. The atrium board is on the foyer wall. He fixes his own lights first." |
+| 5 | All | s2-core-ne -> s2-l1-landing | 2 | Everyone to the bridge landing and over the glazed bridge | The bridge officer (K2, #11, :135) at the card door; the BMS hack opened it | - | - | "Shadow: NE fire stair from the hall. The west door is on the bridge officer's blind side." |
 - **Twist (4B):** the cut was meant to draw one man. The facilities officer collects the reception officer on the way
   down (they walk the hall together). Shadow, under no alarms and with alarm-rcp beside the desk, must split them or
   take them in the dark plant room (hide spot (2.5, 0, -24), `campusS2.ts:164`). Ghost's hack is on a clock now.
 - **Optional (either team):** "Photograph the lighting schedule on the board room wall, second floor" (s2-l2-board, via
   the NE fire stair; dead-end payoff). Lead: the facilities officer "sets the lighting schedule" (:127); TALLY asks for
   it. Reward: `syringe` (one, section-rating's Grant). Hint: "Second floor, north-east corner. The north-strip guard
-  turns back at the wing door. Go in behind him." (#21, S2-detail section 6, turns at the board room's west door)
+  turns back at the wing door." (#21, S2-detail section 6, turns at the east-wing north door (-9, -1.5))
 - **Parallel objectives on separate routes:** 1A (SW stair, L1) and 1B (post / mail, G) run at once; 3 (G east) and the
   Ghost approach to the wing (L1 north plan) run at once. **Sync points:** sync-s2-comms (Ghost -> Shadow) and
   sync-s2-power (Shadow -> Ghost), plus the optional sync-s2-atrium.
@@ -101,7 +101,7 @@ A player in the C1 checkpoint after a restart must make the landing too; the mis
   greybox data for S2 is pushed yet (checked 7c021f01 and every sector-redesign branch). Text fixed to S2-detail's
   numbers: 4B's route (s2-hall is the foyer's hall end), #8's panel stop (2.2, -6.5), the keypad on both facilities
   doors (-4, -1) and (-7.5, 3), the kitchen door (-30, -26), ss-5's hint (K2 faces the comms door, the pg-brg west door
-  is on his blind side) and ss-opt's hint (#21's new north-strip round turns at the board room's west door; the old
+  is on his blind side) and ss-opt's hint (#21's new north-strip round turns at the east-wing north door (-9, -1.5); the old
   hint said nobody came that far). Validator re-run on mission-validator 0c62a921 (VAL-DIMS): numbers below.
 - `graph.json` encodes this chart on Sector Ops' plan graph `graph/plan/campusOps-S2.json`
   (origin/feature/sector-redesign-signoff 7c021f01). Steps: ss-1a, ss-1b, ss-2, ss-3, ss-4a, ss-4b (the twist), ss-opt,

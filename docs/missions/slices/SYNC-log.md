@@ -18,7 +18,7 @@ What Sector Ops changed since the last sync (fe3ef35f):
 What changed in the mission specs (ids, `area` boxes, tracks and exfil already matched; text only):
 - Split Shift (026f61af): 4B route reads s2-foyer (hall end); #8's panel stop (2.2, -6.5); keypad on both facilities
   doors (-4, -1) and (-7.5, 3); kitchen west door (-30, -26), overhear box (-31, -26); ss-5 hint (K2 faces the comms
-  door, pg-brg on his blind side); ss-opt hint (new #21 turns at the board room's west door). Graph notes and SIGNOFF
+  door, pg-brg on his blind side); ss-opt hint (new #21 turns at the east-wing north door (-9, -1.5)). Graph notes and SIGNOFF
   name 7c021f01.
 - Code Relay (e4fd5c07): the merged goods-in lobby: 2B runs s4-lobby's goods lane (s4-svc is gone), Vault's track,
   1B's hint and the hall reinforcement name the goods lane; the dock board's own lamp (C7); new posts in leads and hints
@@ -38,6 +38,6 @@ Validator (`scripts/level-validate.mjs` from feature/mission-validator 0c62a921,
 ### Sector Ops must
 - Nothing in the data. Keep every S2 / S4 space id, sync id and device spot in `SYNC.md` through greybox; when a planned
   node is built, put the `src` line in `SYNC.md` and tell Marlow Build.
-- Doc tidy (optional, no mission effect):
-  - `S4-detail.md` section 7 held item 3: close it. Code Relay 2B now reads `s4-lobby` (goods lane), not `s4-svc`.
-  - `S4-detail.md` line 2 and section 3 heading say a `sync` array; the S4 graph's key is `syncs`.
+- Doc tidy (optional, no mission effect): done in Sector Ops 9eb7b9c6.
+  - Done: `S4-detail.md` section 7 held item 3 closed. Code Relay 2B now reads `s4-lobby` (goods lane), not `s4-svc`.
+  - Done: `S4-detail.md` line 2 and section 3 heading now say `syncs`, the S4 graph's key.
