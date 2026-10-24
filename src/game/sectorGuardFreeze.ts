@@ -35,6 +35,10 @@ export const FREEZE = {
   /** (guard-render S10) The shadow caster's sphere radius over half the body height (m), for lamp shadows: the real
    *  geometry (a rifle shouldered or held out ~1.1-1.3 m from his axis at shoulder height), not the rest box pad. */
   casterPad: 0.6,
+  /** (guard-render S10b) A guard-torch atlas slot draws no shadow of its holder (`TorchShadows.gather` drops him): a
+   *  guard whose feet are within this (m, plan) of the holder's feet found from the torch (`placeTorch` undone) is that
+   *  holder, and the slot is no shadowing light for him. Two bodies never stand this close. */
+  holderR: 0.5,
 } as const;
 
 /** At most this many shadowing spot / point lights are read per frame (the light rig's shadow pool is 2-4). */
@@ -56,6 +60,8 @@ export class FreezeLights {
    *  >= pi / 2: no cone, a point light). */
   readonly spots = new Float64Array(FREEZE_MAX_SPOTS * FREEZE_SPOT_STRIDE);
   spotN = 0;
+  /** (S10b) Per spot the plan feet (x, z) of the guard holding it (a torch atlas slot draws no shadow of him); NaN: none. */
+  readonly holder = new Float64Array(FREEZE_MAX_SPOTS * 2);
   /** More shadowing lights than `spots` holds: nothing is frozen (conservative). */
   overflow = false;
 
@@ -65,8 +71,9 @@ export class FreezeLights {
     this.overflow = false;
   }
 
-  /** A shadowing lamp; (S10) a spot passes its unit axis and half angle, a point light keeps the defaults (no cone). */
-  addSpot(x: number, y: number, z: number, reach: number, dx = 0, dy = -1, dz = 0, half = Math.PI): void {
+  /** A shadowing lamp; (S10) a spot passes its unit axis and half angle, a point light keeps the defaults (no cone);
+   *  (S10b) a guard torch passes its holder's plan feet (hx, hz). */
+  addSpot(x: number, y: number, z: number, reach: number, dx = 0, dy = -1, dz = 0, half = Math.PI, hx = Number.NaN, hz = Number.NaN): void {
     if (this.spotN >= FREEZE_MAX_SPOTS) {
       this.overflow = true;
       return;
@@ -81,6 +88,8 @@ export class FreezeLights {
     s[o + 5] = dy;
     s[o + 6] = dz;
     s[o + 7] = half;
+    this.holder[this.spotN * 2] = hx;
+    this.holder[this.spotN * 2 + 1] = hz;
     this.spotN++;
   }
 }
@@ -152,6 +161,9 @@ export function guardFrustum(pl: ArrayLike<number>, x: number, y: number, z: num
     const vz = z - lz;
     const d = hyp3(vx, vy, vz);
     if (d > reach + rc) continue;
+    // (S10b) his own torch: its map drops him
+    const hx = lights.holder[i * 2]!;
+    if (hx === hx && hyp2(x - hx, z - lights.holder[i * 2 + 1]!) < FREEZE.holderR) continue;
     if (reach === Infinity) return FREEZE_DRAW;
     const cone = half < HALF_PI;
     // outside a spot's cone: that lamp casts no shadow of him

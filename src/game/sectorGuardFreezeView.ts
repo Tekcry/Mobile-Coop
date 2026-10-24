@@ -16,11 +16,18 @@
 // part (re-entering the frustum, the body joining the shadow), or after a cut; a hidden verdict with a blocker within
 // `EDGE` of a sample point (stepping out of cover, a doorway) is re-tested every evaluation. Guards are walked from a
 // rotating start, so the per-evaluation budget is shared fairly.
+// (guard-render S10b) The torch and character shadow atlases (`torchShadows.ts`, `charShadows.ts`) render with
+// intensity-0 slot spots (the real light is the guards' flashlights and the baked lamps): `readLights` skips those
+// lights and reads each ACTIVE slot instead (`FreezeAtlas`), as that slot renders this frame (the atlases place their
+// slots in `World.frame`, before `scene.render`, so this evaluation sees this frame's slots). The atlases list a
+// frozen guard's casters too (the map draws only what is enabled when it renders, after this evaluation) and re-render
+// a slot at once when one of its listed casters is thawed, so a guard thawed here is in every map of this frame.
 // `?guardfreeze=0` turns it off (A/B runs).
 
 import { DirectionalLight, PointLight, SpotLight, Vector3, type Observer, type Scene } from '../core/babylon';
 import type { Enemy } from '../ai/enemy';
-import { hyp3 } from '../core/mathx';
+import { hyp2, hyp3 } from '../core/mathx';
+import { TORCH } from '../world/torches';
 import {
   FREEZE_DRAW,
   FREEZE_LAMP_BIT0,
@@ -46,6 +53,25 @@ export interface FreezeGuards {
  *  (artnext C6) `recasts`, when the ray keeps one, counts the extra casts it made past see-through hits (`seeThroughRay`),
  *  so the freeze's `rays` debug counter includes them. */
 export type FreezeRay = ((from: Vector3, to: Vector3) => number) & { recasts?: number };
+
+/** (guard-render S10b) The guard-torch shadow atlas (`TorchShadows`): per slot its spot light while it holds a torch
+ *  this frame (position, `getShadowDirection()`, `angle`, `shadowMaxZ` as the slot renders), null when unused. */
+export interface FreezeTorchSlots {
+  readonly slotCount: number;
+  slotLight(s: number): SpotLight | null;
+}
+/** (S10b) The character shadow atlas (`CharShadows`): per slot its lamp this frame into `out` (x, y, z, how far from it a
+ *  shadow can land: the map's far plane), false when unused. The map's cone is fitted around the casters drawn, so the
+ *  lamp's whole reach is read, not the cone (a frozen guard is outside a fit made without him). */
+export interface FreezeCharSlots {
+  readonly slotCount: number;
+  slotLamp(s: number, out: Float32Array): boolean;
+}
+/** (S10b) The shadow atlases the freeze reads (either may be absent: a bright map, a tier without them). */
+export interface FreezeAtlas {
+  readonly torch?: FreezeTorchSlots | null;
+  readonly chars?: FreezeCharSlots | null;
+}
 
 /** Occlusion re-test period (camera evaluations) of a guard found hidden. */
 export const RETEST = 4;
@@ -140,6 +166,8 @@ export class SectorGuardFreeze {
   private readonly lastPos = new Vector3(Number.NaN, 0, 0);
   /** (frzpol) The moon-shadow probe: from, to, landing. */
   private readonly probe = new Float64Array(9);
+  /** (S10b) A character-atlas slot's lamp (x, y, z, reach). */
+  private readonly slotLamp4 = new Float32Array(4);
   /** (frzpol) The last test's hidden verdict was near the edge. */
   private edge = false;
   /** (frzpol) The view epoch at the last evaluation. */
@@ -158,6 +186,8 @@ export class SectorGuardFreeze {
     private readonly guards: FreezeGuards,
     private readonly ray: FreezeRay | null = null,
     private readonly views: FreezeViews | null = null,
+    /** (S10b) The torch / character shadow atlases: each active slot is a shadowing light. */
+    private readonly atlas: FreezeAtlas | null = null,
   ) {
     this.obs = scene.onBeforeActiveMeshesEvaluationObservable.add(this.step);
   }
@@ -355,29 +385,62 @@ export class SectorGuardFreeze {
         L.sx = d.x / len;
         L.sy = d.y / len;
         L.sz = d.z / len;
-      } else if (l instanceof SpotLight || l instanceof PointLight) {
+      } else if (l instanceof SpotLight) this.addSpotLight(l);
+      else if (l instanceof PointLight) {
         const p = l.getAbsolutePosition();
         const z = l.shadowMaxZ;
         // (S10) how far from the lamp a shadow can land: the shadow map ends at depth shadowMaxZ along its view axis
-        // (radially up to / cos(half angle) at a spot's rim, sqrt 3 at a cube face corner), the light at its range
-        let reach = Number.isFinite(z) && z > 0 ? z : Infinity;
-        if (l instanceof SpotLight) {
-          const half = l.angle * 0.5;
-          const cos = Math.cos(half);
-          reach = half < Math.PI / 2 ? reach / Math.max(cos, 0.05) : Infinity;
-          const rg = l.range;
-          if (Number.isFinite(rg) && rg > 0 && rg < reach && rg < 1e30) reach = rg;
-          const d = l.getShadowDirection();
-          const len = hyp3(d.x, d.y, d.z) || 1;
-          L.addSpot(p.x, p.y, p.z, reach, d.x / len, d.y / len, d.z / len, half);
-        } else {
-          reach *= Math.sqrt(3);
-          const rg = l.range;
-          if (Number.isFinite(rg) && rg > 0 && rg < reach && rg < 1e30) reach = rg;
-          L.addSpot(p.x, p.y, p.z, reach);
-        }
+        // (sqrt 3 at a cube face corner), the light at its range
+        let reach = Number.isFinite(z) && z > 0 ? z * Math.sqrt(3) : Infinity;
+        const rg = l.range;
+        if (Number.isFinite(rg) && rg > 0 && rg < reach && rg < 1e30) reach = rg;
+        L.addSpot(p.x, p.y, p.z, reach);
       } else L.overflow = true;
     }
+    // (S10b) the atlas slots (intensity 0, skipped above): each active one as it renders this frame; unused ones skipped
+    const A = this.atlas;
+    if (!A) return;
+    const ts = A.torch;
+    if (ts) {
+      for (let s = 0; s < ts.slotCount; s++) {
+        const l = ts.slotLight(s);
+        if (l) this.addSpotLight(l, true);
+      }
+    }
+    const cs = A.chars;
+    if (cs) {
+      const q = this.slotLamp4;
+      for (let s = 0; s < cs.slotCount; s++) {
+        if (cs.slotLamp(s, q)) L.addSpot(q[0]!, q[1]!, q[2]!, q[3]! > 0 ? q[3]! : Infinity);
+      }
+    }
+  }
+
+  /** A shadowing spot as its map renders: position, axis, cone, reach (S10); (S10b) a guard torch slot (`torch`) also
+   *  its holder's feet, `placeTorch` undone as `torchHolderScore` does (the slot's map drops its holder). */
+  private addSpotLight(l: SpotLight, torch = false): void {
+    const p = l.getAbsolutePosition();
+    const z = l.shadowMaxZ;
+    // (S10) how far from the lamp a shadow can land: the shadow map ends at depth shadowMaxZ along its view axis
+    // (radially up to / cos(half angle) at a spot's rim), the light at its range
+    let reach = Number.isFinite(z) && z > 0 ? z : Infinity;
+    const half = l.angle * 0.5;
+    const cos = Math.cos(half);
+    reach = half < Math.PI / 2 ? reach / Math.max(cos, 0.05) : Infinity;
+    const rg = l.range;
+    if (Number.isFinite(rg) && rg > 0 && rg < reach && rg < 1e30) reach = rg;
+    const d = l.getShadowDirection();
+    const len = hyp3(d.x, d.y, d.z) || 1;
+    let hx = Number.NaN;
+    let hz = Number.NaN;
+    const h = hyp2(d.x, d.z);
+    if (torch && h > 1e-6) {
+      const sn = d.x / h;
+      const cs = d.z / h;
+      hx = p.x - sn * TORCH.ahead - cs * TORCH.side;
+      hz = p.z - cs * TORCH.ahead + sn * TORCH.side;
+    }
+    this.lights.addSpot(p.x, p.y, p.z, reach, d.x / len, d.y / len, d.z / len, half, hx, hz);
   }
 
   private thaw(k: number): void {
