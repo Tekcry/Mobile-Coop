@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-24T08:26Z
+status: done feature/gm-look-seeds d212ddfd
 
 # Brief: gm-look-seeds - distinct guard looks within a section, same look after a restart (Player Build)
 
@@ -121,3 +121,45 @@ Not yours (another builder owns them, do not touch): `scripts/operators/**`, `sr
 tsc / eslint clean, the 11 vitest files pass, `git diff --stat 979a02b3` = only the files above. Report at the end of
 this brief (what changed, any squad id in two sets, test counts, deviations), commit trailer
 `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`, then `status: done feature/gm-look-seeds <sha>`.
+
+## Report (Night Shift | Cloud Builder 1, 2026-10-24)
+Branch `feature/gm-look-seeds`, one commit d212ddfd off 979a02b3. No wire change, no `src/net` edit, no PROTOCOL bump.
+
+What changed:
+- `src/ai/guardLook.ts`: `freeLook(preferred, use)` (first `(preferred + k) & 127` with `use[s] === 0`, else
+  `preferred & 127`, no allocation) and `distinctLooks(seeds)` (in place, a local 128 mask that starts again past 128).
+- `src/ai/enemyManager.ts`: `private readonly lookUse = new Uint16Array(128)`; `beginLooks(seeds)` (fill 0, count each);
+  `pointLooks(pts)` (posLook each, `distinctLooks`, `beginLooks`, returns them; beside `lookOfSlot`); `spawn` keeps an
+  explicit look (`& 127`) and moves a keyless one to `freeLook(posLook(...))`, both counted; `joinTeam` un-counts the
+  spawn's seed, then `freeLook(teamLook(...))`, counted; `clear()` zeroes `lookUse`. Nothing per step.
+- `sectorMode.ts` (the `:702` block): slot seeds collected while the pending list is built, `em.beginLooks(looks)`
+  before `this.fill()`. Slot seeds unchanged (exactly `slotLook`).
+- `courseMode.ts` `spawnSquad`: the set's existing slots in `ids` order -> `em.pointLooks(slots)`; spawn with
+  `seeds[j++]` (ids / seeds aligned past the `!s` skip; the `break`-on-null warning logic untouched).
+- `infiltrationMode.ts`: `look?: number` on the pending type; `em.pointLooks(pending slots)` in data order right after
+  the list is built (before `fill` sorts it); `fill` spawns with `q.look`.
+- `changes/feature-gm-look-seeds.md` (patch).
+
+Squad id in two sets: none. Each Marlow set pushes only its own slot ids (`ctcourseSets/a1..a8 p.bay.squad.push`), and
+`ctcourse.ts:66-70` `into(squads, ...)` throws on an id defined twice.
+
+Tests: tsc clean; eslint clean on the 9 changed src / test files. vitest, 11 files, 116 tests, all pass:
+guardLook 13, guardLookDistinct 7 (new), sectorRestart 9, enemyManagerDespawn 4, responseWiring 20, coopGuardAi 15,
+sectorDesk 18, sectorKeypad 19, courseConsole 6, marlowN4Hold 4, changesFragments 1.
+- `guardLook.test.ts`: the exact-key asserts now mirror the rule (`mirror()`: `freeLook` over a local mask in spawn
+  order: slot kept, point / team moved on when taken, the team member's spawn seed given back); all 12 seeds of one
+  `load()` distinct; the second team = its `teamLook` moved past the 12 + 4 before it, 16 distinct. The restart / reload /
+  spawn-order equalities and the map-less stub assert are unchanged.
+- `guardLookDistinct.test.ts`: freeLook (free, next, wrap past 127, all taken); distinctLooks (20 with a found posLook
+  clash -> 20 distinct, deterministic, first claimer keeps; 200 -> every seed, at most twice); Course-style pointLooks
+  (20 distinct incl. a clash pair, reverse spawn order same per point, same after `resetMemory`); Sector-style
+  (beginLooks 12, 4 slots, team of 4, 3 lone `spawnReinforcement`s at one entry point, the other 8 slots: 19 distinct,
+  slots exactly `slotLook`, a second team -> 23 distinct, `despawnAll` + the same sequence identical); joinTeam with 126
+  taken; 140 spawns -> 128 used, none more than twice.
+- The optional Course `bayRestart` harness test: skipped (the CourseMode stubs of courseConsole / marlowN4Hold have no
+  real manager; the manager side of a restart is covered by the pointLooks + `resetMemory` case).
+
+Deviations:
+- `tests/courseConsole.test.ts` and `tests/marlowN4Hold.test.ts` (not in the file list) each gained a stub
+  `pointLooks: () => []` (+ the interface line in courseConsole): their stub enemy managers had no `pointLooks`, so
+  `spawnSquad` threw in 7 of their tests. Returning [] leaves `spawn`'s look -1 as before. Test files only.

@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-24T08:26Z
+status: done feature/gm-perf-polish dae7ab0f
 
 # Brief: gm-perf polish - origin-independent shield merge key, merged shield receives shadows (Player Build)
 
@@ -89,3 +89,28 @@ world whose `addShadowCaster` only records). Cases:
 tsc / eslint clean, the 7 vitest files pass, `git diff --stat 979a02b3` = only the 3 files above. Report at the end of
 this brief (what changed, whether the key test failed on base, test counts, deviations), commit trailer
 `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`, then `status: done feature/gm-perf-polish <sha>`.
+
+## Report (Night Shift | Cloud Builder 1, 2026-10-24)
+Branch `feature/gm-perf-polish`, one commit dae7ab0f off 979a02b3; `git diff --stat 979a02b3` = the 3 files only.
+
+What changed (`src/ai/guardGearMerge.ts`):
+- Item 1: module-private `localOf(node, out)` (:38, `ComposeToRef(scaling, rotationQuaternion ?? FromEulerVectorToRef,
+  position)`) and `localTo(node, ancestor, out)` (:47, walks `parent` to `ancestor`, `out x local(p)` with the
+  preallocated `tmpL` / `tmpC`, false when the chain breaks). `mergeStaticParts` (:211-213) uses it with a `new Matrix()`
+  per part (its own copy for `partInput`); a broken chain returns null. `parent.computeWorldMatrix` / invert / multiply
+  removed. `mergeRigGear` (:150-154) uses the same helper for its one-step chain (behaviour unchanged). `patScale`
+  untouched. `TransformNode` is now a value import from `core/babylon` (for `instanceof`).
+- Item 4: `source()` :126 and `own()` :179 set `receiveShadows = true` (`like` / `src0` still read for `layerMask`).
+  Header comment: one line on the local-chain key and receiving shadows like the body.
+- `changes/feature-gm-perf-polish.md` (patch, 2 bullets).
+
+Key test on base 979a02b3: FAILS there, as asked (the base file swapped in, the test run, this version restored and
+compared byte-identical). Case 1 (origin + 7 roots at +-500..+-5000 m, yaws 0.7..6.0): `expected [1..7] to deeply
+equal []` (every far root built its own source); case 3 (two scale-1.1 shields at far roots): different sources, their
+centres up to ~0.25 mm apart in z (more than the check's ~10 um estimate); case 4: shield source and LOD
+`receiveShadows` false. Case 2 (geometry within 1 mm) passes on base too, as expected.
+
+Tests: tsc clean; eslint clean on the 2 files. vitest, 7 files, 39 tests, all pass: guardGearMergeKey 4 (new),
+guardActiveMeshes 5, guardShieldShare 2, enemyGunMerge 3, gearWiring 21, smoothBodyMerge 3, changesFragments 1.
+
+Deviations: none.
