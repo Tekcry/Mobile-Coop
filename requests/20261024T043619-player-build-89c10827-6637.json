@@ -1,0 +1,21 @@
+{
+  "id": "20261024T043619-player-build-89c10827-6637",
+  "sha": "89c10827fbe17cd8664ebdc89a64459c73687356",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "player-build",
+  "suites": [
+    "e2e-combat",
+    "e2e-takedown",
+    "e2e-stealth",
+    "e2e-guard-carry",
+    "e2e-sectorops",
+    "e2e-ctcourse",
+    "e2e-coop",
+    "e2e-netmove",
+    "e2e-offline"
+  ],
+  "set": "guard-models-g9",
+  "note": "guard-models PR (flag off by default; master 4.90 merged; assets never precached)"
+}
