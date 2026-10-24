@@ -1,0 +1,14 @@
+{
+  "id": "20261024T130257-night-shift-player-b-144190a0-2d55",
+  "sha": "144190a0c811fc14de343d313e382a09468af46c",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-ctcourse",
+    "e2e-course"
+  ],
+  "set": "cr-f1a",
+  "note": "coop-real F1a (Course client applies dead lamps)"
+}
