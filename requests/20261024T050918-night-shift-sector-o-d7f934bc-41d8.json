@@ -1,0 +1,23 @@
+{
+  "id": "20261024T050918-night-shift-sector-o-d7f934bc-41d8",
+  "sha": "d7f934bc6cf176a2a07bfadb5703cf69553e1954",
+  "branch": "feature/coop4",
+  "pr": 317,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove",
+    "e2e-ctcourse",
+    "e2e-course",
+    "e2e-section-rating",
+    "e2e-sectorops:1",
+    "e2e-sectorops:2",
+    "e2e-sectorops:3",
+    "e2e-sectorops:4",
+    "e2e-sectorops:5",
+    "e2e-sectorops:6"
+  ],
+  "set": "coop4",
+  "note": "coop4 integration: regular suites (2-player) incl. Marlow guard"
+}
