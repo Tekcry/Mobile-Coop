@@ -819,9 +819,15 @@ export class BakedLamps implements CharShadowLamps {
   private uploadTile(i: number, z0: number, z1: number): boolean {
     if (z1 <= z0) return true;
     const it = this.vis.getInternalTexture();
-    const eng = this.scene.getEngine() as unknown as { _gl?: WebGL2RenderingContext; _bindTextureDirectly?: (target: number, t: unknown, forUpdate?: boolean) => unknown };
+    const eng = this.scene.getEngine() as unknown as { _gl?: WebGL2RenderingContext; _bindTextureDirectly?: (target: number, t: unknown, forUpdate?: boolean) => unknown; _unpackFlipY?: (value: boolean) => void };
     const gl = eng._gl;
-    if (!it || !gl || typeof gl.texSubImage3D !== 'function' || typeof eng._bindTextureDirectly !== 'function') return false;
+    if (!it || !gl || typeof gl.texSubImage3D !== 'function' || typeof eng._bindTextureDirectly !== 'function' || typeof eng._unpackFlipY !== 'function') return false;
+    // (check B must-fix) WebGL 2 rejects a 3D upload from an ArrayBufferView while UNPACK_FLIP_Y / PREMULTIPLY_ALPHA is on
+    // (INVALID_OPERATION, nothing uploaded). Babylon caches flip-Y and leaves it on after any invertY upload (figure
+    // textures, DynamicTexture.update), so clear it through the engine's cache, as its own updateRawTexture3D does.
+    eng._unpackFlipY(false);
+    const premul = gl.getParameter(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL) as boolean;
+    if (premul) gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
     const B = this.boxes;
     const o = i * BOX_STRIDE;
     const nx = B[o + 3]!;
@@ -832,6 +838,7 @@ export class BakedLamps implements CharShadowLamps {
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
     gl.texSubImage3D(gl.TEXTURE_3D, 0, this.atlas.offsets[i * 2]!, this.atlas.ys[i]!, this.atlas.offsets[i * 2 + 1]! + z0, nx, ny, z1 - z0, gl.RED, gl.UNSIGNED_BYTE, this.r.vis, at + z0 * nx * ny);
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, align);
+    if (premul) gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
     eng._bindTextureDirectly(gl.TEXTURE_3D, null);
     this.tileUploads++;
     return true;

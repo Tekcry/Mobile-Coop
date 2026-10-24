@@ -99,3 +99,7 @@ Members per section: S1 52 lamps / 88.6 s, S2 56 / 46.7 s, S3 42 / 48.2 s, S4 59
 - `e2e-sectorops --part=6` and `--part=7,8,9` (campus parts: cold cache, the e2e-lib wait, the connector gate)
 - `e2e-coop`, `e2e-netmove` (`coopClient.ts`, `gameState.ts`)
 - By hand on the laptop GPU: the TESTING.md section-bake line (cold-load time vs 4.92.0, no pop, S2 lit at once).
+
+## Fix round (lead, 2026-10-24 ~19:55)
+- Check B must-fix: `uploadTile` (src/world/bakedLamps.ts) clears flip-Y through the engine cache (`_unpackFlipY(false)`, as Babylon's updateRawTexture3D) and turns UNPACK_PREMULTIPLY_ALPHA off around `texSubImage3D` (restored after); without `_unpackFlipY` it returns false (the whole-atlas fallback). tsc clean; sectionBake / sectionBakeCampus / bounceGrid 25 pass (1 heavy skipped).
+- Check A: PASS, polish P1-P8 (check-A.md). Check B polish 1-10 (check-B.md). Held for after Michael's playtest.
