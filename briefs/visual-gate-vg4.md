@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-24T11:50Z
+status: done feature/visual-gate-vg4 ebe376eb
 
 # visual-gate VG4 (cloud copy of docs/visual-gate/briefs/VG4.md on feature/visual-gate @ 0b7f46f4)
 
@@ -140,3 +140,23 @@ Keep the whole file < 30 s.
 ## Report `docs/visual-gate/checks/vg4-build.md`
 Built (functions, deviations from this brief and why), test list with pass counts, the CLI outputs above, files touched,
 open items (anything VG5 / VG6 / VG7 must know). Final message: done / not done, test results, open items (short).
+
+## Report (Night Shift | Cloud Builder 1, 2026-10-24)
+Branch `feature/visual-gate-vg4` @ ebe376eb (one commit on 0b7f46f4). Full report: `docs/visual-gate/checks/vg4-build.md`.
+- Files (the five listed only): `scripts/visual-gate/storeLib.mjs` (pure, contract verbatim at top), `store.mjs` (git
+  I/O, request.mjs temp-index pattern), `baseline.mjs` (CLI), `tests/visualGateStore.test.ts`, the report.
+- Tests: `npx vitest run tests/visualGateStore.test.ts --maxWorkers=2` 17/17 (~0.7 s): every pure case incl.
+  pickBaseline (1)-(8); I/O against temp bare remote + work repo (dry run pushes nothing, orphan first commit, parent
+  chain, readRecords, recordAccept, isAncestorFn, work repo unchanged).
+- `npx tsc --noEmit -p tsconfig.json` clean (used instead of `typecheck:fast`: worktrees share node_modules here);
+  eslint on the test clean (config ignores scripts/**/*.mjs); `node --check` the three scripts ok.
+- CLI: `list` -> "no recorded runs (origin/visual-baselines absent or empty)" on stderr, exit 0; `accept --sha 0000000
+  --by x --why y --dry-run` -> "no recorded run for that sha", exit 1. `git ls-remote origin visual-baselines` empty.
+- Deviations: readRecords uses one `git cat-file --batch` (invalid JSON skipped with a warning); isAncestorFn returns
+  false for a sha not in the local repo (other git failures throw); acceptRecord refuses `only: []`; validateRun
+  accepts a missing `rigs`; parseArgs -> help on an incomplete show / accept or unknown flag; pickBaseline skips stored
+  runs with a malformed version (throws only on a malformed current version), newest accept's `by` is the approver;
+  CLI prefix lookup needs >= 7 hex, ambiguous exits 1.
+- Open items: VG5 builds keys with `shotKey`, records pass `validateRun`, renderer string must be stable run to run;
+  VG6 fetches master + store first, missing keys = `new`; VG7's first recordRun creates the branch; a second accept of
+  the same run overwrites `accepted/<version>-<sha8>.json`.
