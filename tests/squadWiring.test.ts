@@ -365,6 +365,17 @@ describe('squad roles and posts (S5 wiring)', () => {
     e.setRole(R_REPORTER, 3, true, false, false, false);
     expect([e.role, p.roleCover, p.roleMoving]).toEqual([R_REPORTER, 3, true]);
   });
+
+  it('(polish B2 re-check) a role switch mid-walk keeps his role bound, so the one-mover rule still counts him', () => {
+    const e = Object.create(Enemy.prototype) as Enemy;
+    Object.assign(e, { postDef: { leash: 0 }, post: [0, 0], ctx: { cover: COVERS }, mateMoving: false, bark: vi.fn() });
+    e.setRole(R_POINT, 0, true, true, false, false);
+    (e as unknown as { onRoleBound: boolean }).onRoleBound = true; // Enemy.boundTo started the bound
+    // re-picked as flank mid-walk (no point cover left in front of him): still on his way
+    e.setRole(R_FLANK, 2, false, true, false, false);
+    expect(e.role).toBe(R_FLANK);
+    expect(e.roleBound).toBe(true);
+  });
 });
 
 // (guard-ai S27) The role guard's own steps on Enemy's prototype (no rig, no scene; a stub ctx, a stub ballistics whose

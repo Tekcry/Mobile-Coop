@@ -2818,8 +2818,8 @@ export class Enemy implements Damageable {
   /** The group lets him leave cover for it now (one point and one flanker moving at a time). */
   private roleMoving = false;
   /** (guard-ai polish B2 fix) His `seekCover` walk is a role bound `boundTo` started (not this tick's role cover): set
-   *  there, cleared by any other cover pick, any state change (arrived, left `seekCover`) and a new role. The manager's
-   *  one-mover rule reads it (`roleBound`). */
+   *  there, cleared by any other cover pick and any state change (arrived, left `seekCover`); a role switch mid-walk
+   *  keeps it. The manager's one-mover rule reads it (`roleBound`). */
   private onRoleBound = false;
   get roleBound(): boolean {
     return this.onRoleBound;
@@ -2887,8 +2887,8 @@ export class Enemy implements Damageable {
     if (role !== this.role) {
       this.openT = 0;
       this.openNoCover = false;
-      // (polish B2 fix) a walk the old role started is not this role's bound
-      this.onRoleBound = false;
+      // (polish B2 re-check) a role switch mid-walk keeps `onRoleBound`: he is still on his way, so the one-mover rule
+      // keeps counting him (the walk ends on arrival, the seekCover timeout or death, all through setState)
     }
     this.role = role;
     this.roleCover = cover;
