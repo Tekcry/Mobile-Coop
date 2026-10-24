@@ -1,0 +1,19 @@
+{
+  "id": "20261024T212339-night-shift-test-run-833db92e-fb83",
+  "sha": "833db92ecf4d494bb88eec5698843089e6cb2c2e",
+  "branch": "",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Test Runner",
+  "steps": [
+    "node scripts/laptop-queue/serve.mjs scripts/perf.mjs http://127.0.0.1:4189/ --desktop --json",
+    "node scripts/laptop-queue/serve.mjs scripts/perf.mjs http://127.0.0.1:4189/ --desktop --json",
+    "node scripts/laptop-queue/serve.mjs scripts/perf.mjs http://127.0.0.1:4189/ --desktop --json"
+  ],
+  "env": {
+    "MAP": "campusOps",
+    "MODE": "sector"
+  },
+  "set": "perf-campus-x3",
+  "note": "rerun of 0c27 (no server); perf campusOps x3"
+}
