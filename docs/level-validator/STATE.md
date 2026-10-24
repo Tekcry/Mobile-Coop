@@ -8,13 +8,15 @@ C:/NightShift/Mobile-Coop-level-validator. Michael's uploaded skill (reference, 
 ## Now (2026-10-24 ~20:00, account cap ~20:10)
 Opus PLAN agent started; it pushes BRIEF.md / PLAN.md as WIP. If cut off at the swap: rerun it (prompt below).
 
-## Plan pushed f2df3f5b (20:06), BEFORE Michael's approval changes below: fold M1-M4 into BRIEF / PLAN first
-(Opus; the planner was re-sent them at ~20:09 and may have pushed a later commit: check git log). Conflicts to fix:
-A7 (validator reads the room table straight from scale-sheet.md) -> replaced by M2's generated metrics JSON;
-A8 (shadow / vantage / LOS are designer estimates) -> M4: targets in the JSON check, measured at greybox;
-"2+ independent routes inside each section" -> M3 (entry to exit per section, every space has `section`);
-V2 room table values -> M1 scaling 1.3-1.5x; split parity -> traversal time on links; A2 guard counts -> compare
-with our guard sheets first. Then start V0 / V1 (cloud-queue) / V2 / V4->V3 / DOC in parallel per PLAN.
+## PLAN DONE 96d03285 (20:07): BRIEF M1-M4 + PLAN "M1-M4 (override the slice text below)" block; ready to build
+- Start now, in parallel (PLAN slice + ownership tables): V0 graph schema (Opus), V1 validator port + Vitest (Sonnet,
+  cloud-queue brief; builds against a test metrics object until V1a), V2 scale-sheet room table x1.4 + section 8
+  "Validator numbers" (Sonnet), V4 then V3 in level-design.md (one Opus agent, same file), DOC (Sonnet / Haiku).
+- Then: V1a metrics-gen + metrics.json + test (Sonnet, cloud, after V2); V5a-c campus S1 / S2 / S3 graphs (Sonnet x3,
+  after V0); V5d first run + REPORT (Opus, after V1 + V1a + V5a-c); one Opus checker; one PR. V6 (greybox measurement,
+  src/) is the step after this PR.
+- Known gap: BRIEF mapping-table rows and V1's constant list still show the old rules; the M block wins (V1's brief
+  writer follows it). Safe-drop height constant TODO (V1 greps; WARN above 3.5 m fallback).
 
 ## Michael's approval changes (~20:08, via the orchestrator; full text ROADMAP Decided top entry, feature/menu)
 - M1 (a) Room-size table scaled ~1.3-1.5x real (like corridors / doors), tuned in greybox; no room passes that the camera cannot work in.
