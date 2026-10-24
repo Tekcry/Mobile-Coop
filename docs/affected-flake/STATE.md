@@ -19,3 +19,11 @@ approved ~21:55. Lead: Night Shift | Test Runner. Worktree C:/NightShift/Mobile-
 ## Next
 - One Opus checker on the branch head (both parts) + laptop request smoke e2e-pad on the same commit; FIX round if
   needed; CI green; PR to master; train-ready; message the Orchestrator.
+
+## Checker (Opus, 568211b2): FIX, done in the fix round
+- Blocking fixed: an expired auto quarantine renewed itself on the same flakes for the 7-day window
+  (state.quarantineStarts; flakeBudget counts only flakes after a suite's last auto quarantine; test added).
+- Also fixed: pass comments only on a new flake; Array guards on both quarantine files; run-e2e q?.owner; docs.
+- Polish list (non-blocking): applyDuplicates can retire an auto request without an affected-e2e verdict (only when a
+  lead passes --set affected with the same sha / suites / pr); laptop and desktop keep split budgets; no max expiry
+  check on committed entries; tests for finish posting both contexts and queueRequester with no branch.

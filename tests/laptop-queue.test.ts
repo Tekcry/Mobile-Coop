@@ -507,6 +507,16 @@ describe('flake budget and quarantine', () => {
     expect(out[0]).toMatchObject({ suite: 'e2e-ctcourse:1', owner: 'Marlow', auto: true, expiry: new Date(NOW + QUARANTINE_TTL_MS).toISOString() });
     expect(autoQuarantine(rows, [repo, out], {}, NOW)).toEqual([]);
   });
+  it('an expired auto quarantine does not renew on the flakes that made it (checker FIX)', () => {
+    const flakes = Array.from({ length: FLAKE_BUDGET + 1 }, (_, i) => ({ suite: 'e2e-ctcourse:1', date: at(3 * day + i * 60_000) }));
+    const started = { 'e2e-ctcourse:1': at(3 * day - 3600_000) };
+    expect(flakeBudget(flakes, {}, NOW)[0].over).toBe(true);
+    const after = flakeBudget(flakes, {}, NOW, undefined, undefined, started);
+    expect(after).toEqual([]);
+    expect(autoQuarantine(after, [[]], {}, NOW)).toEqual([]);
+    const later = [...flakes, ...Array.from({ length: FLAKE_BUDGET + 1 }, (_, i) => ({ suite: 'e2e-ctcourse:1', date: at(day - i * 60_000) }))];
+    expect(flakeBudget(later, {}, NOW, undefined, undefined, started)[0]).toMatchObject({ flakes: FLAKE_BUDGET + 1, over: true });
+  });
   it('flakeSummary: a table row per suite with its quarantine, empty for no rows', () => {
     expect(flakeSummary([], [], {}, NOW)).toBe('');
     const q = [{ suite: 'e2e-ctcourse:1', owner: 'Marlow', expiry: new Date(NOW + day).toISOString(), reason: 'r' }];

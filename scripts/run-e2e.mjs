@@ -59,7 +59,8 @@ const QUARANTINE = [];
 for (const f of ['scripts/e2e-quarantine.json', process.env.E2E_QUARANTINE_FILE].filter(Boolean)) {
   try {
     const j = JSON.parse(readFileSync(f, 'utf8'));
-    QUARANTINE.push(...(Array.isArray(j) ? j : (j.quarantine ?? [])));
+    const list = Array.isArray(j) ? j : j?.quarantine;
+    if (Array.isArray(list)) QUARANTINE.push(...list.filter((q) => q && typeof q.suite === 'string'));
   } catch { /* no file: nothing quarantined from it */ }
 }
 const quarantineOf = (s) => QUARANTINE.find((q) => (q.suite === s || q.suite === s.split(':')[0]) && Date.parse(q.expiry) > Date.now());
@@ -260,6 +261,6 @@ if (fullRun && !allFailed.length) {
   writeFileSync(TIMES_FILE, JSON.stringify(Object.fromEntries(Object.entries(known).sort(([a], [b]) => a.localeCompare(b))), null, 1) + '\n');
 }
 if (flakyFailed.length) console.log(`
-*** KNOWN FLAKY (quarantined), failed this run: ${flakyFailed.map((r) => { const q = quarantineOf(r.s); return `${r.s} (owner ${q.owner}, until ${q.expiry})`; }).join(', ')} - rerun them alone before reading anything into it ***`);
+*** KNOWN FLAKY (quarantined), failed this run: ${flakyFailed.map((r) => { const q = quarantineOf(r.s); return `${r.s} (owner ${q?.owner ?? '?'}, until ${q?.expiry ?? 'expired'})`; }).join(', ')} - rerun them alone before reading anything into it ***`);
 console.log(failed.length ? `\n${failed.length} suite(s) failed: ${failed.map((r) => r.s).join(', ')}` : '\nall e2e suites passed');
 process.exit(failed.length ? 1 : 0);

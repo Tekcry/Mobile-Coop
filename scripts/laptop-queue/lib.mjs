@@ -560,13 +560,18 @@ export function countRuns(days, suites, now, keepDays = FLAKE_BUDGET_DAYS) {
 
 /**
  * Per-suite budget rows for the suites that flaked in the window: { suite, runs, flakes, rate, over } (over = flakes past
- * budget), worst first. flakes = state.flakes ({ suite, date }), days = countRuns' map.
+ * budget), worst first. flakes = state.flakes ({ suite, date }), days = countRuns' map. starts = { suite: ISO } of each
+ * suite's last automatic quarantine: only flakes after it count, so an expired quarantine never renews itself on the
+ * same flakes (checker FIX 2026-10-24: it re-armed every 48 h for the whole 7-day window).
  */
-export function flakeBudget(flakes, days, now, windowDays = FLAKE_BUDGET_DAYS, budget = FLAKE_BUDGET) {
+export function flakeBudget(flakes, days, now, windowDays = FLAKE_BUDGET_DAYS, budget = FLAKE_BUDGET, starts = {}) {
   const since = now - windowDays * 86400_000;
   const oldest = new Date(since).toISOString().slice(0, 10);
   const count = new Map();
-  for (const f of flakes ?? []) if (Date.parse(f.date) >= since) count.set(f.suite, (count.get(f.suite) ?? 0) + 1);
+  for (const f of flakes ?? []) {
+    const t = Date.parse(f.date);
+    if (t >= since && !(t <= Date.parse(starts?.[f.suite] ?? ''))) count.set(f.suite, (count.get(f.suite) ?? 0) + 1);
+  }
   const rows = [...count].map(([suite, n]) => {
     let runs = 0;
     for (const [d, m] of Object.entries(days ?? {})) if (d >= oldest) runs += m[suite] ?? 0;

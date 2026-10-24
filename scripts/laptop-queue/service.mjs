@@ -143,6 +143,7 @@ state.done ??= {};
 state.trains ??= {};
 state.flakes ??= [];
 state.suiteRuns ??= {}; // { day: { suite: runs } }, the flake budget's denominator (lib countRuns)
+state.quarantineStarts ??= {}; // { suite: ISO } of its last automatic quarantine (lib flakeBudget starts)
 // times.json (refreshed from real runs) over the repo's scripts/e2e-times.json as the seed
 let seed = {};
 try { seed = JSON.parse(fs.readFileSync(path.join(HERE, 'scripts/e2e-times.json'), 'utf8')); } catch { /* no seed */ }
@@ -698,17 +699,22 @@ function failureComment(job, result, runDir) {
 /**
  * Counts this result's suite runs, prunes state.flakes to the budget window, quarantines over-budget suites for 48 h in
  * quarantine.json (run-e2e reads it through E2E_QUARANTINE_FILE), writes flake-budget.md, and returns the summary of the
- * suites this result flaked or failed as KNOWN FLAKY ('' when none) for the PR comment.
+ * suites this result flaked or failed as KNOWN FLAKY ('' when none) for the PR comment, and whether it recorded a new flake.
  */
 function updateBudget(result) {
   const now = Date.now();
   state.suiteRuns = countRuns(state.suiteRuns, result.suites.filter((x) => !x.report).map((x) => x.s), now);
   state.flakes = state.flakes.filter((f) => now - Date.parse(f.date) < FLAKE_BUDGET_DAYS * 86400_000);
   let repo = { owners: {}, quarantine: [] };
-  try { repo = { ...repo, ...JSON.parse(fs.readFileSync(path.join(HERE, 'scripts/e2e-quarantine.json'), 'utf8')) }; } catch { /* no file */ }
-  const own = readJson('quarantine.json', []).filter((q) => Date.parse(q.expiry) > now);
-  const rows = flakeBudget(state.flakes, state.suiteRuns, now);
+  try {
+    const j = JSON.parse(fs.readFileSync(path.join(HERE, 'scripts/e2e-quarantine.json'), 'utf8'));
+    repo = { owners: j?.owners && typeof j.owners === 'object' ? j.owners : {}, quarantine: Array.isArray(j?.quarantine) ? j.quarantine : [] };
+  } catch { /* no file or unreadable: nothing committed */ }
+  const read = readJson('quarantine.json', []);
+  const own = (Array.isArray(read) ? read : []).filter((q) => Date.parse(q?.expiry) > now);
+  const rows = flakeBudget(state.flakes, state.suiteRuns, now, undefined, undefined, state.quarantineStarts);
   const added = autoQuarantine(rows, [repo.quarantine, own], repo.owners, now);
+  for (const q of added) state.quarantineStarts[q.suite] = new Date(now).toISOString();
   for (const q of added) log(`quarantine ${q.suite} until ${q.expiry} (owner ${q.owner}): ${q.reason}`);
   const quarantine = [...repo.quarantine, ...own, ...added];
   writeJson('quarantine.json', [...own, ...added]);
@@ -718,7 +724,7 @@ function updateBudget(result) {
   const touched = new Set([...(result.flakes ?? []), ...result.suites.filter((x) => !x.ok && x.flaky).map((x) => x.s)]);
   const mine = rows.filter((r) => touched.has(r.suite));
   for (const s of touched) if (!mine.some((r) => r.suite === s) && quarantined(quarantine, s, now)) mine.push({ suite: s, runs: 0, flakes: 0, rate: 0, over: false });
-  return flakeSummary(mine, quarantine, repo.owners, now);
+  return { summary: flakeSummary(mine, quarantine, repo.owners, now), fresh: (result.flakes ?? []).length > 0 };
 }
 
 /** Posts the verdict on ctx (a context or a list: an affected request posts affected-e2e too), comments a failure, folds the times. */
@@ -728,11 +734,12 @@ function finish(job, ctx, result, runDir, prNumber) {
   const full = `${DESKTOP ? 'desktop: ' : ''}${result.suites.length ? describe(result) : 'no result parsed, see log'}`;
   const desc = full.length > 140 ? `${full.slice(0, 137)}...` : full; // GitHub rejects a status description over 140
   for (const c of [ctx].flat()) postStatus(job.sha, ok ? 'success' : 'failure', c, desc); // an affected request: also affected-e2e
-  const budget = updateBudget(result);
+  const { summary: budget, fresh } = updateBudget(result);
   if (!ok && prNumber && !DRY) postComment(prNumber, failureComment(job, result, runDir) + (budget ? `
 
 ${budget}` : ''));
-  else if (budget && prNumber && !DRY) postComment(prNumber, `laptop-e2e passed on ${job.sha.slice(0, 8)} (${job.ref}) with flakes.
+  // a pass comments only when it recorded a new flake, not on every quarantined failure (e2e-pad would comment every train)
+  else if (fresh && budget && prNumber && !DRY) postComment(prNumber, `laptop-e2e passed on ${job.sha.slice(0, 8)} (${job.ref}) with flakes.
 
 ${budget}`);
   times = mergeTimes(times, result.suites);

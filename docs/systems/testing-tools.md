@@ -542,8 +542,10 @@ e2e for you and posts the verdict as a commit status on the tested sha. No messa
   48 h (`C:/NightShift/scratch/laptop-queue/quarantine.json`, owner from `scripts/e2e-quarantine.json` `owners`, else
   the orchestrator), so later runs print it KNOWN FLAKY instead of rerunning it. `flake-budget.md` in the same folder
   holds the per-suite rates; a run that flaked or hit a quarantined failure adds that table to its PR comment (a
-  passing run comments only then). The owner fixes the test and removes or shortens the entry; an auto entry just expires.
-  The desktop worker keeps its own list (`laptop-queue-desktop/`).
+  passing run comments only when it recorded a new flake). Only flakes after a suite's last auto quarantine count, so it
+  does not renew on the same flakes. The owner fixes the test and removes or shortens a committed entry; an auto entry
+  just expires. The desktop worker keeps its own list (`laptop-queue-desktop/`). Commits cut before this change ignore
+  `E2E_QUARANTINE_FILE` and keep their hardcoded e2e-pad.
 - Manual runs keep working: the service uses the `C:/NightShift/heavy-<slot>.lock` files and waits while one is held; its
   log says "<port> waiting on manual lock: <holder>" once per holder and the wait in minutes when it takes the lock.
 - Desktop overflow lane (Michael 2026-10-23 ~20:45): the same service with `LQ_WORKER=desktop` (task
