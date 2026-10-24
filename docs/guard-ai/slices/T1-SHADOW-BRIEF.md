@@ -164,6 +164,8 @@ Change it to
   - add **A195** with this rule and its undo (`?animshadow=0` per page; code undo: `flags.animShadow` default false).
   - The A-numbers A184-A194 are taken by PR #377. If another PR took A195, use the next free number and tell the lead.
 - `docs/systems/testing-tools.md`: update the t1-shadow-look line with the new options (see "Look rerun").
+- `TESTING.md` (desktop checklist): "Marlow, a guard just out of view under a lamp, his shadow in view: his shadow's
+  feet do not step or slide (`&animshadow=0` shows the old 1/8 rate)".
 
 ## Unit tests
 
