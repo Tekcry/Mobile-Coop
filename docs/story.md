@@ -1,5 +1,10 @@
 # Night Shift - Story and world
 
+> **Status (2026-10-25).** Maps that exist now: Marlow Yard (co-op training, `ctcourse`), Saltmarsh Park (Sector Ops,
+> `campusOps`) and the new small campaign map for the first missions, Three Grey Coats and Two-Key Ledger (working name
+> Tallow Wharf; mission-framework, `docs/missions/`, G293). Mission 1 "Dead Line" on the Kestrel map is paused (G53);
+> the mission list below is the story plan, not the build order.
+
 Version 2.1 - 2026-10-18. (2.1: two-player campaign with Wren and Moth in the field and Tally and Sexton on the radio
 (G2, G71, G112); no traitor and no player-versus-player finale (G9); text now, voiced later (G82); Wren stays 1.68 m
 (G74). 2.0, 2026-10-10: present-day campaign; Mission 1 at a colocation data centre; Mission 5 The Strongroom. 1.2: the
