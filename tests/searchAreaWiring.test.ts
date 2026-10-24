@@ -609,3 +609,31 @@ describe('S25b fix: stale plans and held claims (check A polish 1-4)', () => {
     expect(pr.alarmHunt).toBe(-1);
   });
 });
+
+describe('guard-ai polish B4: a rebuild round the same position hands out new points', () => {
+  it('12 points searched, the plan rebuilt: 12 new ones, none within spacing of a searched point or of the LKP', () => {
+    const g = guard(0, 0);
+    const { ctx, point, plan, priv } = manager([g], 8, { open: true, covers: [], light: () => DARK });
+    const searched: P2[] = [];
+    for (let k = 0; k < SEARCH_AREA.points; k++) {
+      const p = point(g);
+      expect(p).not.toBeNull();
+      searched.push(p!);
+      ctx.searchDone!(g as unknown as Enemy, true);
+    }
+    // exhausted: the ring until the plan is due
+    expect(point(g)).toBeNull();
+    const built = plan.builtAt;
+    priv.planClock += SEARCH_AREA.rebuild + 0.1;
+    const p = point(g);
+    expect(plan.builtAt).toBeGreaterThan(built);
+    expect(p).not.toBeNull();
+    expect(plan.n).toBe(SEARCH_AREA.points);
+    expect(plan.sn).toBe(SEARCH_AREA.points);
+    for (const [x, z] of pts(plan)) {
+      expect(Math.hypot(x - LKP.x, z - LKP.z)).toBeGreaterThanOrEqual(SEARCH_AREA.spacing);
+      for (const [sx, sz] of searched) expect(Math.hypot(x - sx, z - sz)).toBeGreaterThanOrEqual(SEARCH_AREA.spacing);
+    }
+    for (const [x, z] of searched) expect(Math.hypot(x - LKP.x, z - LKP.z)).toBeGreaterThanOrEqual(SEARCH_AREA.spacing);
+  });
+});
