@@ -17,8 +17,15 @@ kind: minor
   Marlow Yard still sends and shows two.
 - Team rules (SM): the syringe pool grows with the team, 1 extra per player beyond 2 (Normal 2, 3, 4 for 2, 3, 4
   players). Each alarm sends 1 extra reinforcement per player beyond 2, never past the 32-guard cap. A synced takedown is
-  any two different players within the window. The section rating, marks and grants stay per team. One operator out still
-  restarts the section for everyone.
+  any two different players within the window. The section rating, marks and grants stay per team. With 1 or 2 players
+  one operator out still restarts the section for everyone (see OUT for 3-4).
+- Operator out (OUT, Michael: "Wait for connector"): with 3 or 4 players, an operator who is out (down with no syringe
+  left, or the revive window over) no longer restarts the section. They wait, with the view following a teammate who is
+  up (next weapon switches to another teammate) and the line "Out - you rejoin at the next connector". Guards ignore them
+  and the connector and extraction do not wait for them. When the team cycles the next connector (or reaches the
+  extraction) they come back beside the team at the new checkpoint, on their own slot, with full health and the
+  section's loadout. The section restarts only when nobody is left up, and a restart brings everyone back. 1-2 players
+  play as before. An out operator counts as a down one for the section rating.
 - Team moves (TM): a player offering a move serves one partner at a time. A second player trying the same brace, rope,
   hang-down, throw or relay is denied with "Your partner is busy with someone else". Two pairs can run moves at the same time.
 - Teammate colours (H1): the partner beacon is blue for slot 0, red for slot 1, amber for slot 2 and violet for slot 3.
@@ -30,6 +37,8 @@ kind: minor
 - Guards (DATA): each Sector Ops section can add up to 2 extra guards for teams of 3 or 4 - 16 in all over the 5 Saltmarsh
   Park sections and the 3 Warehouse sections. They come from the team-door and split routes that 4 players make too easy.
   A team of 1 or 2 faces the same guards as before.
+- Tests (OUT): `e2e-sectorops` part 9 (Saltmarsh Park, 3 pages): slot 2 goes out, the section goes on, the connector
+  cycles with slots 0 and 1, slot 2 comes back beside the host; then everyone down or out restarts the section.
 - Tests (E2E): `e2e-sectorops` parts 7 and 8 run 4 pages of one browser. Part 7 (Saltmarsh Park) checks slots, beacons,
   spawns, light, the jam, the crate, a revive, the connector and a pair gate with 4 players. Part 8 (Warehouse) checks a
   drop and rejoin into the same slot, a late fourth player, two team moves at once and the busy-brace denial. `e2e-coop`
