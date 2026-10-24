@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-24T12:27Z
+status: done feature/visual-gate-vg3 8262611b
 
 # visual-gate VG3 (cloud copy of docs/visual-gate/briefs/VG3.md on feature/visual-gate @ 0b7f46f4)
 
@@ -161,3 +161,13 @@ Assert:
 Built, the source table above, vantage names chosen for the 6 short Marlow ids, regions and how each quad was read,
 parity point choice per map, the rig door / corner per tag, deviations and why, test results, files touched, open items.
 Final message: done / not done, test results, open items (short).
+
+## Report (Night Shift | Cloud Builder 1, 2026-10-24)
+VG3 done: `feature/visual-gate-vg3` @ 8262611b (on 0b7f46f4). Full report: `docs/visual-gate/checks/vg3-build.md`.
+- Added `scripts/visual-gate/viewpoints.mjs` (MAPS 4, PRESETS, VIEWS 26, RIGS 3; coords copied from origin/master 1dc3ecfa with file:line per row and per quad), `tests/visualGateViewpoints.test.ts` (13 tests), the report. Nothing under src/.
+- Quads read from real map boxes (a scratch map dump tagged with source lines, plus a ray-cast frame check: every corner within 48 deg, in-frame samples unoccluded). `wall` on m-a1, m-a3 (F7, x 81-96), m-a6, so-s1-workshop (F4, the z -8.95 wall).
+- Parity: 3 cards per map on m-a5-kiosk, cp-s1-f, so-s1-workshop + so-s2-aisle, wh-floods-dock.
+- Rigs: so-door `warehouseS1.ts:297` / `:311` / `:311`; cp-door `campusS1.ts:205` at all three tags; so-corner = the storage-hall rack aisle (R2N / R3N, `warehouseS2.ts:77`); doors and every wall box within 4 m identical at v4.82.0, v4.88.0, master.
+- Tests: vitest 13/13 (rerun by the builder session: 13/13), typecheck:fast and eslint clean, node --check ok.
+- Deviations: D1 `floor` omitted on 6 views with no floor in frame (m-a1-lounge, m-a6-kerb, m-f-gallery, cp-s2-d, cp-s3-a, cp-s4-a); D2 m-a3 wall on the plaster face z 12.47; D3 so-corner leak quad on the near corner block's camera-side face (facing across the junction would look through the real beam haze); D4 so-corner `src` cites the corner block row.
+- Open for the lead: O1 cp-s2-d's source camera (campus-art-shots.mjs:49) sits inside the SW stair core: move the row's camera, or drop F8 from cp-s2-d (keep it on cp-s2-b, cp-s3-a). O2 cp-s3-c's camera sits on the closed EMC room box face (coverage only). O3 optional GPU look on an origin/master build: `E2E_GPU=1 E2E_PORT=4189 ONLY=s2-d,s3-c,s3-a,s4-a timeout 1200 node scripts/campus-art-shots.mjs C:/NightShift/scratch/visual-gate/vg3-look look` and `E2E_GPU=1 E2E_PORT=4189 timeout 900 node scripts/shots-ctcourse.mjs C:/NightShift/scratch/visual-gate/vg3-look look a1-lounge`. O4 parity lamp levels are estimates (no bounce / sky); VG5 may move a card.
