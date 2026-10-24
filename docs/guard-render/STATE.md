@@ -15,6 +15,14 @@ run), S9 + S10 builders in parallel once Sector Ops confirms the freeze / world.
   away / patrol / alert at 24, sectorops + campusops vs `?guardfreeze=0`), e2e sectorops stealth-ai darkness, a look
   shot of an off-screen guard's lamp shadow sliding into view.
 
+- 2026-10-24 ~14:45: S9 + S10 Opus checker PASS; its two light-parity notes applied in 9f7dddbb (moon SHADOW_DROP 6 m /
+  cap 16 m; a lamp whose shadow probe finds no landing keeps the guard drawn). S8a done: Player's G8 cull run c76cf326
+  (shots/g8b-c76cf326): campus 24 alert frame p95 11.9 ms with figures, maplight 23-30 draws (S12 dropped), moon CSM
+  94-101 draws (S9's target). Queued: guard-cap A/B branch 9f7dddbb vs master 6b44efb8 (sectorops + campus, 0/12/24,
+  patrol / away / alert; out C:/NightShift/scratch/gr2/cap-<sha>) + e2e smoke sectorops darkness lightbake stealth-ai.
+  Then: look shots (cascade splits + blend band, campus roof guard, low moon, off-screen lamp shadow sliding in), PR.
+  Known, older than S10: torch-atlas (charShadows / torchShadows) shadows are not seen by the freeze.
+
 ## Phase 1 (history)
 ## Now
 **CLOSED 2026-10-23 ~17:10** (orchestrator approved: close with #225, M1 CPU overage to the polish list; perf tuning
