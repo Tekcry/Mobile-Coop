@@ -134,6 +134,7 @@ function stage(): { g: GameState; td: TakedownController; ev: Ev[] } {
     enemyMgr: null,
     stealth: null,
     doorPeek: { active: false },
+    optic: { core: { active: false } },
     wallCore: null,
     takedownVictims: () => [],
   } as unknown as GameState & { takedown: TakedownController };

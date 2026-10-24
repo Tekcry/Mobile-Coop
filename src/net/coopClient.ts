@@ -41,7 +41,7 @@ import { keepSimInBackground } from './bgTicks';
 import { OBJ_CONNECTING, objectiveOnSnap, objectiveOnStall } from './objectiveMirror';
 import { hyp3 } from '../core/mathx';
 import { localMoveState } from '../game/localMoveState';
-import { dropBadWallMove, emptyMoveState, moveChanged } from '../player/moveState';
+import { dropBadOpticMove, dropBadWallMove, emptyMoveState, moveChanged } from '../player/moveState';
 import { CrackPrediction } from '../world/doorPeek';
 import { markCompleted } from '../save/sectorRecord';
 import { HoldPulseWatch } from './holdPulse';
@@ -414,6 +414,8 @@ export class CoopClient implements NetAttachment {
       seen.add(p.id);
       // (step 11 r3) a wall segment outside this level: the copy poses as ground, never from a stale face
       dropBadWallMove(p, g.world.level.coverSegments.length);
+      // (optic-coop) an optic gap this level does not have: no kneel spot or cable from it
+      dropBadOpticMove(p, g.world.level.opticPoints.length);
       this.avatar(p)?.buf.push(m.time, p);
     }
     for (const id of [...this.avatars.keys()]) if (!seen.has(id)) this.dropAvatar(id);

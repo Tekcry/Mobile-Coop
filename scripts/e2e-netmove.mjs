@@ -712,6 +712,32 @@ try {
   await until(A, () => !window.__app.current.world.doors.list[0].cracked, null, 5000, 'host clears the crack on close');
   await until(A, () => window.__app.current.net.remotes.values().next().value?.avatar.mode === 'ground', null, 5000, 'host sees the client back on the ground');
 
+  // (optic-coop, ct-toolkit 3.2) the optic cable at the same door: the client's kneel goes on the wire (MoveState mode
+  // optic, sub 0 = door, a = the door, ph = the cable fed out) and the host's copy poses it; the view stays local
+  console.log('optic cable');
+  await allowTeleport(A);
+  const oc = await GB(() => {
+    const g = window.__app.current;
+    const an = g.world.doors.list[0].anchor;
+    const nx = Math.cos(an.yaw);
+    const nz = -Math.sin(an.yaw);
+    const mx = an.hinge.x + Math.sin(an.yaw) * an.width * 0.5;
+    const mz = an.hinge.z + Math.cos(an.yaw) * an.width * 0.5;
+    g.player.controller.teleport(new g.player.position.constructor(mx + nx * 0.7, an.hinge.y + 0.05, mz + nz * 0.7), Math.atan2(-nx, -nz));
+    return { ok: g.optic.pick(0), why: g.optic.refused };
+  });
+  if (!oc.ok && oc.why === 'No gap') console.log(`  SKIP optic cable: the Proving door's far side refuses the tip (${oc.why})`);
+  else {
+    assert(oc.ok, `client starts the optic cable at the door (${oc.why})`);
+    await until(A, () => window.__app.current.net.remotes.values().next().value?.avatar.mode === 'optic', null, 6000, 'host sees the client in mode optic');
+    await until(B, () => window.__app.current.optic.viewing, null, 6000, 'client in the optic view');
+    await wait(600);
+    const om = await GA(() => { const r = window.__app.current.net.remotes.values().next().value; return { mv: r.state.mv, crouch: r.avatar.crouch }; });
+    assert(om.mv.sub === 0 && om.mv.a === 0 && om.mv.ph > 0.9 && om.crouch > 0.5, `host copy: door 0, cable fed out, kneeling (${JSON.stringify(om)})`);
+    await GB(() => window.__app.current.optic.reset());
+    await until(A, () => window.__app.current.net.remotes.values().next().value?.avatar.mode === 'ground', null, 5000, 'host sees the client up from the optic cable');
+  }
+
   // (test-chores-13) role-swapped: the leg-up of the team-moves section with the roles turned round. The host braces
   // (the follower) and the CLIENT leads: it asks for the boost and climbs onto the 4.2 m lip. The same checks as that
   // section, from the other page, plus the poses both ways: the host's brace on the client's copy, the client's hang on

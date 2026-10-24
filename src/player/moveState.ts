@@ -52,6 +52,9 @@ export const MOVE_MODES = [
   // (locomotion step 13) the door peek: `a` the door index, `sub` bit 1 the hinge on the body's right, `ph` the door's
   // drawn crack (0..DOOR.crack); the crack itself is the door's (host-authoritative, snapshot `dcr`)
   'doorPeek',
+  // (ct-toolkit 3.2, optic-coop) the optic cable: `sub` OPTIC_SUBS (0 door, 1 hatch, 2 panel, 3 grille), `a` the door
+  // index (sub 0) or the level's optic gap index, `ph` the cable fed out 0..1; the view at the tip stays local
+  'optic',
 ] as const;
 export type MoveMode = (typeof MOVE_MODES)[number];
 
@@ -166,11 +169,32 @@ export function moveChanged(a: MoveState, b: MoveState): boolean {
 
 const num = (v: unknown, lo: number, hi: number, d: number): number => (typeof v === 'number' && Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d);
 const WORLD = 400;
+/** (optic-coop) Mode `optic`: the highest sub (OPTIC_SUBS in `opticCable.ts`: door, hatch, panel, grille) and the
+ *  wire's bound on a gap index (the receiver drops one its level does not have). */
+export const OPTIC_SUB_MAX = 3;
+export const OPTIC_POINT_MAX = 256;
+
+/** (optic-coop) A partner's still crouch kneels in these modes (as the owner's controller: free on the ground, side-on
+ *  on a wall, at a door frame, feeding the optic cable); the crouch bit and the stillness decide the rest. */
+export function moveKneels(m: MoveMode | undefined): boolean {
+  return m === 'ground' || m === 'wall' || m === 'doorPeek' || m === 'optic';
+}
+
+/** (optic-coop) The receive path's level check for the optic cable at a gap: a gap index this level does not have
+ *  (`pointCount`) drops `mv`. Doors (sub 0) are `dropBadDoorMove`'s. */
+export function dropBadOpticMove(s: { mv?: MoveState }, pointCount: number): boolean {
+  const mv = s.mv;
+  if (!mv || mv.m !== 'optic' || mv.sub === 0 || (mv.a >= 0 && mv.a < pointCount)) return false;
+  delete s.mv;
+  return true;
+}
 
 /** (step 13) The receive path's level check for a door peek: a door index outside this level drops `mv`. */
 export function dropBadDoorMove(s: { mv?: MoveState }, doorCount: number): boolean {
   const mv = s.mv;
-  if (!mv || mv.m !== 'doorPeek' || (mv.a >= 0 && mv.a < doorCount)) return false;
+  // (optic-coop) the optic cable at a door (sub 0) is checked the same way
+  const onDoor = mv && (mv.m === 'doorPeek' || (mv.m === 'optic' && mv.sub === 0));
+  if (!mv || !onDoor || (mv.a >= 0 && mv.a < doorCount)) return false;
   delete s.mv;
   return true;
 }
@@ -201,12 +225,16 @@ export function sanitizeMoveState(raw: unknown, anchorCount = 4096, segCount = 4
   } else if (m === 'doorPeek') {
     // (step 13) a door index in range (the level's door count, MAX_DOORS on the wire), else not a peek
     if (a < 0 || a >= doorCount) return null;
+  } else if (m === 'optic') {
+    // (optic-coop) a known sub; a door index in range (sub 0) or a gap index (the level check is the receiver's)
+    const os = typeof o.sub === 'number' ? Math.floor(o.sub) : -1;
+    if (os < 0 || os > OPTIC_SUB_MAX || a < 0 || a >= (os === 0 ? doorCount : OPTIC_POINT_MAX)) return null;
   } else if (a >= anchorCount || !isAttachedMode(m)) a = -1;
   const out: MoveState = {
     m,
     a,
     s: num(o.s, -WORLD, WORLD, 0),
-    sub: m === 'wall' ? Math.floor(num(o.sub, 0, 0xff, 0)) : m === 'doorPeek' ? Math.floor(num(o.sub, 0, 1, 0)) : Math.floor(num(o.sub, 0, 0xffff, 0)),
+    sub: m === 'wall' ? Math.floor(num(o.sub, 0, 0xff, 0)) : m === 'doorPeek' ? Math.floor(num(o.sub, 0, 1, 0)) : m === 'optic' ? Math.floor(num(o.sub, 0, OPTIC_SUB_MAX, 0)) : Math.floor(num(o.sub, 0, 0xffff, 0)),
     ph: num(o.ph, 0, 1, 0),
     tid: typeof o.tid === 'string' && /^[A-Za-z0-9_-]{0,40}$/.test(o.tid) ? o.tid : '',
     g: Math.floor(num(o.g, 1, 5, 3)),
@@ -311,6 +339,11 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose,
     case 'doorPeek':
       // (step 13) the ground stance at the frame; the hand on the handle is a reach the remote sets from the door
       // (doorPeek parity) the feet on the stance spots when still, as the owner (frame-rate independent)
+      out.settle = true;
+      return out;
+    case 'optic':
+      // (optic-coop) kneeling (or standing under a panel) still in front of the gap: the feet on the stance spots; the
+      // feeding hand and the cable prop are set from the gap by the remote (`opticPlaceOf`)
       out.settle = true;
       return out;
     case 'split':

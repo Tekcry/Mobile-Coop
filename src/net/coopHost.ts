@@ -670,7 +670,7 @@ export class CoopHost implements NetAttachment {
         // (coop-rejoin) a client the match went to again: watched for its reload (its old match may still send first)
         if (this.joins.watching(from)) this.joinStep(r, msg.s.x, msg.s.z);
         if (this.joins.restoring(from)) r.allowTeleport(3);
-        r.accept({ ...msg.s, id: from }, this.time, this.g.world.level.anchors, this.g.world.level.coverSegments, this.g.world.doors.list.length);
+        r.accept({ ...msg.s, id: from }, this.time, this.g.world.level.anchors, this.g.world.level.coverSegments, this.g.world.doors.list.length, this.g.world.level.opticPoints.length);
         r.avatar.buf.push(this.stateTime(r.id, msg.s.t), r.state!);
         if (msg.s.mv) this.g.mode?.onRemoteMove?.(r.id, msg.s.mv.m);
         this.restoreStep(r);

@@ -1,4 +1,6 @@
 import { crackedHandle } from '../world/doorPeek';
+import { OPTIC } from '../config/tools';
+import { emptyOpticPlace, opticCableEnd, opticPlaceOf } from '../player/opticCable';
 import { DOOR } from '../world/doors';
 import { KNEEL_STILL } from '../player/playerController';
 import { tenseNear } from '../player/tenseSneak';
@@ -29,7 +31,7 @@ import { GRAB_KILL_BLOW, KILL_SEEN, KILL_TAIL_END, killWarp, strikeWarp, TAKEDOW
 import { MOVEMENT, RAPPEL, TEAM } from '../config/movement';
 import { GAMEPLAY_HEIGHT } from '../player/attach';
 import { findRopeLip, newRopeLip, ROPE_SUB, ropeLipHands, ropeSeenStep, type RopeSeen } from '../game/teamMoves';
-import { attachGripWeight, climbUpFootWeight, emptyMovePose, isAttachedMode, poseFromMoveState, TAKEDOWN_SUB_BLOW, unpackAttachSub, type MoveCommit, type MoveMode } from '../player/moveState';
+import { attachGripWeight, climbUpFootWeight, emptyMovePose, isAttachedMode, moveKneels, poseFromMoveState, TAKEDOWN_SUB_BLOW, unpackAttachSub, type MoveCommit, type MoveMode } from '../player/moveState';
 import { traversePath, type PathKind } from '../player/traversePath';
 import type { TraverseKind } from '../anim/animGraph';
 import { teamRowOfWire } from '../anim/tuneMoveRows';
@@ -156,6 +158,11 @@ export class RemoteAvatar {
   private pipeKey = 'hands>hands';
   private readonly ropeKey = `remote-${++ropeKeys}`;
   private roped = false;
+  /** (optic-coop) The optic cable: the place its MoveState poses (the kneel's hand, the tip), its prop slot, shown. */
+  private readonly opticPl = emptyOpticPlace();
+  private readonly opticEnd = { x: 0, y: 0, z: 0 };
+  private readonly opticKey = `${this.ropeKey}-optic`;
+  private opticOn = false;
   /** Seconds the remote has held still on its anchor (settling onto the owner's grips waits for it). */
   private stillT = 0;
   private carryW = { low: 1, high: 0, compressed: 0 };
@@ -412,6 +419,25 @@ export class RemoteAvatar {
       this.rig.reachL.w = this.rig.reachR.w = 0;
       this.doorHandOn = false;
     }
+    // (ct-toolkit 3.2, optic-coop) the optic cable: the right hand on the feed point and the cable from it as far as the
+    // owner has fed it (`ph`), placed from the door or gap and where this body kneels, as the owner's (`opticPlaceOf`)
+    const opl = mv?.m === 'optic' && !rp ? opticPlaceOf(mv.sub, this.world.doors.list[mv.a]?.anchor, this.world.level.opticPoints[mv.a], this.pos.x, this.pos.z, DOOR.thickness, this.opticPl) : null;
+    if (opl) {
+      const r = this.rig.reachR;
+      clearGripAxis(r);
+      r.x = opl.hx;
+      r.y = opl.hy;
+      r.z = opl.hz;
+      r.w = Math.min(1, mv!.ph * 3);
+      const e = opticCableEnd(opl, mv!.ph, this.opticEnd);
+      if (mv!.ph > 0.02) this.world.ropes.set(this.opticKey, opl.hx, opl.hy, opl.hz, e.x, e.y, e.z, OPTIC.cableR);
+      else this.world.ropes.hide(this.opticKey);
+      this.opticOn = true;
+    } else if (this.opticOn) {
+      this.rig.reachR.w = 0;
+      this.world.ropes.hide(this.opticKey);
+      this.opticOn = false;
+    }
     // (G7, AUDIT-WALLS rows 5, 19, 20) holding a guard: the owner's hold hands in the body frame (the hostage stands
     // GRAB.hold in front on every machine), lowered with the knockout, the left hand to his jaw interrogating; the
     // bend over him from the same MoveState numbers as the owner's
@@ -631,7 +657,8 @@ export class RemoteAvatar {
     const upside = mp.tumble > 2;
     // (F3) the crouch idle kneel, as the owner's controller decides it (crouched and still a moment, free on the ground)
     // (G6) and side-on crouched on a wall (the graph kneels there only side-on, as the owner's)
-    this.kneelT = this.crouch > 0.5 && this.speed < 0.15 && (mv?.m === 'ground' || mv?.m === 'wall' || mv?.m === 'doorPeek') ? this.kneelT + dt : 0;
+    // (optic-coop) and feeding the optic cable (`moveKneels`; under a ceiling panel the owner stands: no crouch bit)
+    this.kneelT = this.crouch > 0.5 && this.speed < 0.15 && moveKneels(mv?.m) ? this.kneelT + dt : 0;
     // (G1, audit row 26) the tense sneak: crouched on the ground near an unaware guard (the same guards as the owner's)
     const tense = this.crouch > 0.5 && mv?.m === 'ground' && tenseNear(this.pos.x, this.pos.z);
     // (G1, audit row 18) the landing clip from the fall the snapshots show (the owner's controller: recovery from 3 m/s)
@@ -793,6 +820,7 @@ export class RemoteAvatar {
   }
 
   dispose(): void {
+    if (this.opticOn) this.world.ropes.hide(this.opticKey);
     this.pouches.dispose();
     for (const m of this.models.values()) m.dispose();
     this.models.clear();

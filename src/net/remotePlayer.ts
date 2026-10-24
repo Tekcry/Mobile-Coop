@@ -1,7 +1,7 @@
 import { PhysicsBody, PhysicsMotionType, PhysicsShapeCapsule, Quaternion, TransformNode, Vector3, type Scene } from '../core/babylon';
 import { G } from '../physics/groups';
 import { hitVolumes } from '../player/proportions';
-import { dropBadDoorMove, dropBadWallMove } from '../player/moveState';
+import { dropBadDoorMove, dropBadOpticMove, dropBadWallMove } from '../player/moveState';
 import { WALL, WALL_SUB, wallPeekOffset } from '../player/wallController';
 import { Health } from '../game/health';
 import { HALL_BACK_HOLD } from '../game/jammer';
@@ -108,12 +108,14 @@ export class RemotePlayer implements Damageable {
    * Accept a client state. Positions that move faster than humanly possible are clamped
    * towards the claim (the client snaps back on its next correction) and counted.
    */
-  accept(s: PlayerState, now: number, anchors: TraversalAnchors | null = null, segs: readonly CoverSegment[] | null = null, doorCount: number | null = null): void {
+  accept(s: PlayerState, now: number, anchors: TraversalAnchors | null = null, segs: readonly CoverSegment[] | null = null, doorCount: number | null = null, opticCount: number | null = null): void {
     // (step 09, D8) the weapon from the lobby loadout only; holstered while the host sees busy hands or downed
     // (step 11 r3) a wall segment outside this level: no wall pose from a stale face
     if (segs) dropBadWallMove(s, segs.length);
     // (step 13) a door peek on a door this level does not have: no door pose
     if (doorCount !== null) dropBadDoorMove(s, doorCount);
+    // (optic-coop) the optic cable at a gap this level does not have: no kneel pose from it
+    if (opticCount !== null) dropBadOpticMove(s, opticCount);
     s.w = hostWeapon(s.w, this.loadout, this.lastW);
     this.lastW = s.w;
     if (s.mv) s.mv.dw = hostDrawPhase(s.mv, !this.alive);
