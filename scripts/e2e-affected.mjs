@@ -241,6 +241,13 @@ export const DIRECT_COVERS = {
   'src/game/sectors': [...GAME, 'e2e-sectorops'],
   // (section-rating) the rating rules and record: their own suite (the modes that rate are --wide)
   'src/game/rating/': ['e2e-section-rating'],
+  // (checker FIX) the co-op team moves need two pages; the Marlow Yard devices are driven by e2e-ctcourse's set steps
+  'src/game/team': [...GAME, 'e2e-coop'],
+  'src/game/pairPress': [...GAME, 'e2e-coop'],
+  'src/game/dualTakedown': [...GAME, 'e2e-coop'],
+  'src/game/ctDevices': [...GAME, 'e2e-ctcourse'],
+  'src/game/reviveClock': [...GAME, 'e2e-ctcourse'],
+  'src/game/laserPanels': [...GAME, 'e2e-ctcourse'],
   'src/game/': GAME,
   'src/physics/': ['e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-ct'],
   // (guard-ai carry fix) the smooth body and its effect recovery: e2e-guard-carry draws the guards' bodies
@@ -248,6 +255,15 @@ export const DIRECT_COVERS = {
   'src/player/bodyEffectRecovery': ['e2e-guard-carry', 'e2e-move', 'e2e-anim', 'e2e-stealth', 'e2e-clip'],
   'src/player/shoulderCamera': ['e2e-camera-bounds', 'e2e-move', 'e2e-anim', 'e2e-stealth', 'e2e-clip'],
   'src/player/cameraBounds': ['e2e-camera-bounds', 'e2e-move', 'e2e-anim', 'e2e-clip'],
+  // (checker FIX) traversal (ladders, pipes, ledges, vents) and the wall controller: their required suites on top
+  'src/player/traversal': ['e2e-move', 'e2e-anim', 'e2e-stealth', 'e2e-clip', 'e2e-traverse'],
+  'src/player/attach': ['e2e-move', 'e2e-anim', 'e2e-stealth', 'e2e-clip', 'e2e-traverse'],
+  'src/player/gripStepper': ['e2e-move', 'e2e-anim', 'e2e-stealth', 'e2e-clip', 'e2e-traverse'],
+  'src/player/handHold': ['e2e-move', 'e2e-anim', 'e2e-stealth', 'e2e-clip', 'e2e-traverse'],
+  'src/player/traversePath': ['e2e-move', 'e2e-anim', 'e2e-stealth', 'e2e-clip', 'e2e-traverse'],
+  'src/player/ventOpen': ['e2e-move', 'e2e-anim', 'e2e-stealth', 'e2e-clip', 'e2e-traverse'],
+  'src/player/wallController': ['e2e-move', 'e2e-anim', 'e2e-stealth', 'e2e-clip', 'e2e-wall'],
+  'src/player/wallBlock': ['e2e-move', 'e2e-anim', 'e2e-stealth', 'e2e-clip', 'e2e-wall'],
   'src/player/': ['e2e-move', 'e2e-anim', 'e2e-stealth', 'e2e-clip'],
   'src/anim/': ['e2e-anim', 'e2e-clip', 'e2e-move'],
   'src/cover/': ['e2e-stealth', 'e2e-clip', 'e2e-tactics', 'e2e-wall'],
@@ -288,6 +304,8 @@ export const DIRECT_COVERS = {
   'src/security/': ['e2e-security', 'e2e-sectorops'],
   // (section-rating) a kv key, no save shape change: its own suite
   'src/save/ratingRecord': ['e2e-section-rating'],
+  // (checker FIX) the Sector Ops record: the missions screen reads it (as --quick and --wide)
+  'src/save/sectorRecord': ['e2e-sectorops', 'e2e-menus', ...COOP],
   'src/save/': COOP,
   'src/progression/': ['e2e-park', 'e2e-progression'],
   'src/cosmetics/': ['e2e-park', 'e2e-cosmetics'],

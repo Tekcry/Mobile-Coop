@@ -120,6 +120,14 @@ describe('--quick keeps master picks', () => {
 });
 
 describe('--affected: the DIRECT tier (default)', () => {
+  it('checker FIX: traversal, wall, team moves, Marlow devices and the sector record pick their suites', () => {
+    expect(select(['src/player/traversal.ts'])).toContain('e2e-traverse');
+    expect(select(['src/player/wallController.ts'])).toContain('e2e-wall');
+    for (const f of ['src/game/teamMoves.ts', 'src/game/teamController.ts', 'src/game/pairPress.ts', 'src/game/dualTakedown.ts']) expect(select([f])).toContain('e2e-coop');
+    for (const f of ['src/game/ctDevices.ts', 'src/game/reviveClock.ts', 'src/game/laserPanels.ts']) expect(select([f])).toContain('e2e-ctcourse');
+    expect(select(['src/save/sectorRecord.ts'])).toEqual(expect.arrayContaining(['e2e-sectorops', 'e2e-menus', 'e2e-coop']));
+  });
+
   it('defaults to DIRECT_COVERS', () => {
     expect(select(OPTIC_CABLE)).toEqual(select(OPTIC_CABLE, direct));
   });
