@@ -84,7 +84,7 @@ Where this page and a newer Michael decision differ, the decision wins and this 
 - 10-24 ~21:50: no fine tuning until the loop plays (G179) -> refining allowed (G288).
 - 10-24 ~22:12: at most one hard rule (G125) -> up to 2 strict rules, section restart (G290).
 - 10-24 ~22:45: Marlow's stripes go (~22:12) -> Marlow keeps its guidance and one route (G292).
-- 10-25 ~09:05: dark by default, 40-60% floor in shadow (G284) -> real-world lux bands; shadow share yields.
+- 10-25 ~09:05: 40-60% of the floor in shadow (G284) -> real-world lux bands per space; the shadow share yields.
 - 10-25 ~09:45: every lit space has 2 ways to change the light (bible L8) -> hardened choke points allowed.
 - 10-25 ~09:45: briefing map and field-menu map (bible 3, 5.10) -> no maps at all; ~10:20 minimap parked -> removed.
 - 10-25 ~09:45: no timers in stealth -> soft windows allowed, still no route-closing countdown.
