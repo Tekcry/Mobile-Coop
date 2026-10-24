@@ -102,7 +102,9 @@ export function patrolPeriod(r: PatrolRoute, speed: number): number {
 /** A client's interrogation ended: a read was seen (`prevPh` >= 0) and the interrogate bit is gone while the hold goes on.
  *  (joint-flake-3) Any progress counts, not only the last 0.3 s: inside the hold a read always runs to its end
  *  (`TakedownController.holdTalk`), and a host whose frames were over 0.3 s apart (a hitch, load) missed that tail and
- *  lost the read (no intel, no joint read). The host forgets `prevPh` once the hold ends (`CoopHost` seized step). */
+ *  lost the read (no intel, no joint read). The host forgets `prevPh` when a hold ends: normally the td message
+ *  ends it first (`CoopHost.onTakedown` 'done' / 'abort', and a td 'start' resets it), else the seized step on a step
+ *  without the grab, the release or a kill. */
 export function interrogationEnded(prevPh: number, sub: number): boolean {
   return prevPh >= 0 && (sub & 2) === 0;
 }

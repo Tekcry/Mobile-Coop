@@ -295,10 +295,12 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   across of a guard and `throwKoLow`..`throwKoHigh` m over his feet (`teamMoves.throwKoHit`) knock him out through
   `Enemy.knockOut` (melee, `takedown: 'throw'`, the strike's noise), one guard per throw. Credit and the client's view
   ride the existing kill event and guard state sync: no wire change.
-- (spare 9) Interrogation intel: the host / solo `intel` game event becomes `feed` events for every client (`hookHud`). A client's
-  interrogation is seen on the host from its MoveState (`grab`, `sub` bit 2 seen, then the bit drops while the hold goes
-  on: `interrogationEnded`; any progress counts, so a host frame gap over the read's tail no longer loses it): the host spends the guard's information and reveals the intel once (joint-interrogation: plus
-  the joint lines when a partner's bluff is live, checked before the spend). A client interrogating from the
+- (spare 9) Interrogation intel: the host / solo `intel` game event becomes `feed` events for every client (`hookHud`).
+  A client's interrogation is seen on the host from its MoveState (`grab`, `sub` bit 2 seen, then the bit drops while
+  the hold goes on: `interrogationEnded`; any progress counts, so a host frame gap over the read's tail no longer loses
+  it; `interPh` resets at each td 'start' / 'done' / 'abort' and a kill, so an aborted read never counts): the host
+  spends the guard's information and reveals the intel once (joint-interrogation: plus the joint lines when a
+  partner's bluff is live, checked before the spend). A client interrogating from the
   hang-down (`boost`) gives only the guard's own lines (gap). No wire change. A client shows every `feed` event as the radio
   subtitle and as a feed line (the host's intel is in its feed).
 - (anim-studio-2) Team-move animation tuning: the tuner's Co-op sections (`anim/moveTune.ts`, one per move: role A, role

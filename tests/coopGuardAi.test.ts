@@ -266,3 +266,36 @@ describe('guard-ai S9: the puppet (pure parts)', () => {
     expect(guardAim(true, 'unaware', true)).toBe(GUARD_AIM.fire);
   });
 });
+
+// (joint-flake-3 check) the host's last seen interrogation progress per guard (`interPh`) resets at a td 'start', 'abort'
+// / 'done' and a kill: a read aborted mid-way never counts as a finished read on the next hold (`interrogationEnded`
+// counts any progress once the bit drops).
+describe('joint-flake-3: interPh resets at the seize start / end', () => {
+  const seizeHost = () => {
+    const { h, em } = host();
+    const e = { id: 'e1', alive: true, taken: false, level: 'unaware', yaw: 0, pos: new Vector3(0, 0, 0), def: { kind: 'guard', name: 'Guard' }, beginTakedown: vi.fn(), releaseTakedown: vi.fn() };
+    em.enemies.push(e);
+    const interPh = new Map<string, number>();
+    Object.assign(h, { seized: new Map(), interPh, tallies: new Map() });
+    const r = { id: 'C', alive: true, feet: new Vector3(0, 0, 1), ref: { spotted: false } };
+    const td = (ph: 'start' | 'done' | 'abort') => (h as unknown as { onTakedown(r: unknown, m: unknown): void }).onTakedown(r, { t: 'td', target: 'e1', ph, lethal: false });
+    return { h, e, interPh, td };
+  };
+  it("a td 'start' clears a stale read, a td 'abort' clears a partial one", () => {
+    const { e, interPh, td } = seizeHost();
+    interPh.set('e1', 0.4);
+    td('start');
+    expect(e.beginTakedown).toHaveBeenCalledTimes(1);
+    expect(interPh.has('e1')).toBe(false);
+    interPh.set('e1', 0.4);
+    td('abort');
+    expect(e.releaseTakedown).toHaveBeenCalledTimes(1);
+    expect(interPh.has('e1')).toBe(false);
+  });
+  it('a kill clears it', () => {
+    const { h, e, interPh } = seizeHost();
+    interPh.set('e1', 0.4);
+    (h as unknown as { onKill(e: unknown, hit: unknown): void }).onKill(e, { attackerId: 'local', part: 'body' });
+    expect(interPh.has('e1')).toBe(false);
+  });
+});
