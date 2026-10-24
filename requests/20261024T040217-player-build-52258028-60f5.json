@@ -1,0 +1,14 @@
+{
+  "id": "20261024T040217-player-build-52258028-60f5",
+  "sha": "5225802861c518929208d6782383a9b1664a02d4",
+  "branch": "",
+  "pr": 314,
+  "kind": "pr",
+  "requester": "player-build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove"
+  ],
+  "set": "optic-coop-fix",
+  "note": "#314 after the OPEN TRAP host fix (panel message, trp snapshot)"
+}
