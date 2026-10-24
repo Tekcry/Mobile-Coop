@@ -3,7 +3,7 @@
 Brief: `docs/coop4/BRIEF.md`. Plan: `docs/coop4/PLAN.md`. Branch `feature/coop4` (from master a10382bc, 4.89.x, `PROTOCOL_VERSION` 49). Lead: Night Shift | Sector Ops Build.
 
 ## Now (2026-10-24 ~15:45)
-- Plan committed (BRIEF, PLAN, STATE). Lanes starting.
+- Plan bed2a37c. N0 DONE 08267f27 (src/game/playerSlots.ts, 19 tests). RUNNING: TM (-coop4-tm, Sonnet), D1 (-coop4-d1, Opus; SecWire step pushed early), SM (-coop4-sm, Opus), N1 (-coop4-n1, Opus; merges d1 / tm / ui as they push). Marlow Build asked for H1 + L1 (feature/coop4-ui). Guard AI Build building AI1 (feature/guard-ai-coop4) on N0's types; owes hook names (intruder-left, hold-noise owner, team-size). Guard cap stays 32 (extra reinforcements clamped).
 
 ## Next
 - coop4 agents: N0 (slot model + TeamRef, Opus), D1 (devices per slot; SecWire widening first, Opus), TM (team-move `taken`, Sonnet). Then N1 (net core, Opus), SM (sector rules, Opus), E2E (Sonnet), DATA, DOC.
