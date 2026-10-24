@@ -151,5 +151,11 @@ Added 2026-10-24 (Michael, changes M2 and M4). The speeds, times and targets the
 | `guards_early` | 3 - 6 | guards | per encounter space and player count in the first half of the spine; WARN below the low end only, no upper limit (Michael 2026-10-24: "as many guards as realistically possible"; bounded by the guard-cap perf floor and passable routes; level-design 4.9) |
 | `guards_late` | 6 - 10 | guards | the same in the second half of the spine; WARN below the low end only (level-design 4.9) |
 | `safe_drop_m` | 4.5 | m | a drop above this ends in a heavy landing with a recovery (`LANDING.heavy`, `src/player/movement.ts:168`); no fall damage, so the validator only warns |
+| `mission_steps` | 3 - 6 | steps | steps per mission, per team track (a team's steps plus the shared ones); MISSION-DESIGN-AUDIT-2026-10-24 section 4 "Mission = 3-6 steps" (Michael 2026-10-24 ~22:12, mission-framework PLAN VAL) |
+| `mission_step_min` | 2 - 5 | min | planned play time of one step (`minutes` on each objective); audit section 4 "Each step 2-5 min" |
+| `mission_total_min` | 10 - 30 | min | a mission's planned length (`mission.budget`): its required steps at least the low end, every step including the optional one at most the high end; audit section 4 "10-30 min" |
+| `mission_rules_max` | 2 | rules | strict rules a team carries (mission scope plus its own team scope; ghost counts as one); Michael decision 2, 2026-10-24 ~22:12 (lifts G125's one-rule cap) |
+| `sector_parallel_min` | 2 | objectives | Sector Ops: objectives of team a and team b that run at the same time (neither waits on the other); audit section 4 "2-3 parallel objectives" |
+| `sector_syncs_min` | 2 | sync nodes | Sector Ops: sync nodes per mission and per mission section (BRIEF A16: "2+ sync nodes" per campus section); audit section 4 |
 
 Shadow, vantage and line-of-sight numbers are declared targets in the graph and are measured in greybox (M4); a map fails if the measurement misses the target.

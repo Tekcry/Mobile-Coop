@@ -261,6 +261,21 @@
       6,
       10
     ],
-    "safe_drop_m": 4.5
+    "safe_drop_m": 4.5,
+    "mission_steps": [
+      3,
+      6
+    ],
+    "mission_step_min": [
+      2,
+      5
+    ],
+    "mission_total_min": [
+      10,
+      30
+    ],
+    "mission_rules_max": 2,
+    "sector_parallel_min": 2,
+    "sector_syncs_min": 2
   }
 }

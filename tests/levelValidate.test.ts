@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
-  checkCoop, checkDimensions, checkEncounters, checkPacing, checkReach, checkRedundancy, checkSpine, checkStructure,
+  checkCoop, checkDimensions, checkEncounters, checkMarks, checkPacing, checkReach, checkRedundancy, checkSpine, checkStructure,
   edgeDisjointPaths, mergeGraphs, parseArgs, run, validate,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/level-validate.mjs';
@@ -893,5 +893,157 @@ describe('level-validate: greybox measurements (V6d checkMeasured)', () => {
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe('level-validate: kit link kinds, bolted links, guidance marks (mission-framework VAL, A17)', () => {
+  it('team_throw, team_hang, team_pull and shutter are co-op kinds: no softlock flags a space only they reach', () => {
+    for (const kind of ['team_throw', 'team_hang', 'team_pull', 'shutter']) {
+      const g = base();
+      g.spaces.push(sp('a-ledge', 'S1', 'reward', 'storage', [4, 4, 3], 2, ['reward']));
+      g.links.push(ln('a-court', 'a-ledge', kind, 'high', { width: 1.5, level_change: 4.5, length: 6, time_s: 5 }));
+      expectErr(checkReach(g) as Report, `a-ledge: reached only through co-op links (${kind})`);
+    }
+  });
+
+  it('the kit kinds count for co-op coverage', () => {
+    const g = base();
+    Object.assign(link(g, 'a-court', 'a-roof', 'coop_boost'), { kind: 'team_pull' });
+    Object.assign(link(g, 'b-vault', 'b-walk', 'coop_boost'), { kind: 'team_hang' });
+    const r = check(g);
+    expect(r.errors).toEqual([]);
+    expect(r.warns).toEqual([]);
+  });
+
+  it('sizes: shutter width (ERR below the door minimum, ERR missing); team_throw gap and team_hang / team_pull level_change (WARN missing)', () => {
+    const g = base();
+    g.links.push(
+      ln('a-court', 'a-roof', 'shutter', 'loud', { width: 0.9, length: 8 }),
+      ln('b-vault', 'b-walk', 'shutter', 'loud', { length: 8 }),
+      ln('a-court', 'a-roof', 'team_throw', 'loud', { length: 8, time_s: 4 }),
+      ln('a-court', 'a-roof', 'team_hang', 'loud', { length: 8, time_s: 4 }),
+      ln('a-court', 'a-roof', 'team_pull', 'loud', { length: 8, time_s: 4 }),
+    );
+    const r = check(g);
+    expectErr(r, 'link a-court -> a-roof (shutter): width 0.9 m below 1 m', 'link b-vault -> b-walk (shutter): width missing');
+    expectWarn(r, 'link a-court -> a-roof (team_throw): width missing (the gap the throw crosses)');
+    expectWarn(r, 'link a-court -> a-roof (team_hang): level_change missing');
+    expectWarn(r, 'link a-court -> a-roof (team_pull): level_change missing');
+  });
+
+  it('a shutter is judged both ways for a solo twin, like a pair_gate', () => {
+    const g = base();
+    g.links.push(ln('a-court', 'a-hut', 'shutter', 'shadow', { width: 1.2, length: 13 }));
+    expectErr(check(g), 'link a-court -> a-hut (shutter) has a solo twin: link a-court -> a-hut (door)',
+      'link a-court -> a-hut (shutter) (a-hut -> a-court) has a solo twin');
+  });
+
+  it('a bolted solo link is no twin from its near side (one player cannot open it), only from its far side', () => {
+    const g = base();
+    g.links.push(ln('a-court', 'a-hut', 'shutter', 'shadow', { width: 1.2, length: 13 }));
+    Object.assign(link(g, 'a-court', 'a-hut', 'door'), { bolted: true });
+    const twins = check(g).errors.filter((e) => e.includes('solo twin'));
+    expect(twins).toEqual([expect.stringContaining('link a-court -> a-hut (shutter) (a-hut -> a-court) has a solo twin: link a-court -> a-hut (door)')]);
+    // Two players: a bolted link is a normal way (the partner unbolts it), so no-softlock is unchanged.
+    expect((checkReach(g) as Report).errors).toEqual([]);
+  });
+
+  it('bolted and requires_kill must be true or false', () => {
+    const g = base();
+    Object.assign(link(g, 'a-court', 'a-hut', 'door'), { bolted: 'yes', requires_kill: 1 });
+    expectErr(checkStructure(g) as Report, 'bolted must be true or false', 'requires_kill must be true or false');
+  });
+
+  it('a guidance mark is an ERR outside the training profile, on spaces and links', () => {
+    const g = base();
+    Object.assign(space(g, 'a-court'), { mark: 'floor stripe to the hut' });
+    Object.assign(link(g, 'a-court', 'a-hut', 'door'), { mark: 'arrow' });
+    const r = check(g);
+    expectErr(r, 'a-court: guidance mark outside the training profile (no markers on campaign maps; M2)',
+      'link a-court -> a-hut (door): guidance mark outside the training profile');
+    expect((checkMarks(g) as Report).errors).toHaveLength(2);
+    g.meta.mode = 'sector';
+    expectErr(check(g), 'no markers on sector maps');
+  });
+});
+
+describe('level-validate: training profile (meta.mode "training", M1-M2)', () => {
+  const training = (): Graph => {
+    const g = base();
+    g.meta.mode = 'training';
+    return g;
+  };
+
+  it('the minimal graph as a training map passes with 0 errors and 0 warnings; marks are an INFO', () => {
+    const g = training();
+    const r = check(g);
+    expect(r.errors).toEqual([]);
+    expect(r.warns).toEqual([]);
+    Object.assign(space(g, 'a-gate'), { mark: 'stripe' });
+    Object.assign(link(g, 'a-gate', 'a-court', 'opening'), { mark: 'drill marker' });
+    const m = check(g);
+    expect(m.errors).toEqual([]);
+    expect(m.infos).toContainEqual('2 guidance mark(s) (training profile)');
+  });
+
+  it('one route per space: the rule of three is an INFO, not an ERR', () => {
+    const g = training();
+    g.links = g.links.filter((l) => !(l.to === 'a-court' || l.from === 'a-court') || l.kind === 'opening' || l.kind === 'door' || l.kind === 'coop_boost');
+    const r = checkEncounters(g, METRICS) as Report;
+    expect(r.errors.filter((e) => e.startsWith('a-court:'))).toEqual([]);
+    expect(r.infos).toContainEqual(expect.stringContaining('(training: one route allowed)'));
+    g.meta.mode = 'campaign';
+    expectErr(checkEncounters(g, METRICS) as Report, 'a-court: no loud approach');
+  });
+
+  it('one route per section: the two-route rule is an INFO', () => {
+    const g = training();
+    drop(g, 'a-court', 'a-hut', 'double_door');
+    const r = check(g);
+    expect(r.errors.filter((e) => e.includes('independent route'))).toEqual([]);
+    expect(r.infos).toContainEqual(expect.stringContaining("section S1: 1 independent route(s) from entry 'a-gate' to exit 'a-hut' (need 2 edge-disjoint) (training"));
+  });
+
+  it('routes-cross and the secret-route WARN are skipped', () => {
+    const g = training();
+    g.spaces.push(sp('a-side', 'S1', 'connector', 'corridor', [3.5, 14, 3], 2));
+    g.links.push(ln('a-gate', 'a-side', 'corridor', 'loud', { width: 3.5, height: 3, length: 10 }));
+    g.links.push(ln('a-side', 'a-hut', 'corridor', 'loud', { width: 3.5, height: 3, length: 10 }));
+    for (const l of g.links) if (l.from === 'a-court' || l.to === 'a-court') l.route = l.kind === 'roller_door' || l.kind === 'double_door' ? 'shadow' : l.route;
+    for (const l of g.links) if (l.route === 'secret') l.route = 'shadow';
+    const r = checkEncounters(g, METRICS) as Report;
+    expect(r.errors.filter((e) => e.includes('routes never cross'))).toEqual([]);
+    expect(r.warns.filter((w) => w.includes('secret approach'))).toEqual([]);
+    g.meta.mode = 'campaign';
+    expectErr(checkEncounters(g, METRICS) as Report, 'section S1: routes never cross');
+  });
+
+  it('still checked: co-op coverage, no softlock, solo twins, dimensions, pacing, two players and an exfil', () => {
+    const g = training();
+    drop(g, 'a-court', 'a-roof', 'coop_boost');
+    expectErr(check(g), 'section S1 has no co-op link');
+    const s = training();
+    s.spaces.push(sp('a-ledge', 'S1', 'reward', 'storage', [4, 4, 3], 2, ['reward']));
+    s.links.push(ln('a-court', 'a-ledge', 'coop_boost', 'high', { level_change: 4.5, length: 6, time_s: 5 }));
+    expectErr(check(s), 'a-ledge: reached only through co-op links');
+    const t = training();
+    t.links.push(ln('a-court', 'a-roof', 'ladder', 'high', { level_change: 4.5, length: 6, time_s: 6 }));
+    expectErr(check(t), 'link a-court -> a-roof (coop_boost) has a solo twin');
+    const d = training();
+    link(d, 'a-court', 'a-hut', 'door').width = 0.9;
+    expectErr(check(d), 'width 0.9 m below 1 m');
+    const p = training();
+    for (const id of ['a-court', 'a-roof', 'a-hut']) space(p, id).tension = 4;
+    expectErr(check(p), 'pacing: three high beats');
+    const q = training();
+    q.meta.players = [1, 2];
+    space(q, 'b-out').tags = ['exit'];
+    expectErr(checkStructure(q) as Report, 'meta.players: a training map is two players, [2]', "exfil: no space tagged 'exfil'");
+  });
+
+  it('an unknown meta.mode names the three modes', () => {
+    const g = base();
+    g.meta.mode = 'arena';
+    expectErr(checkStructure(g) as Report, "meta.mode: 'arena' is not campaign, sector or training (arena is parked)");
   });
 });
