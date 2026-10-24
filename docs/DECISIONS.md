@@ -1467,3 +1467,95 @@ and G249.)
 three campus props: "nothing should be voxel"): "Retire it". The `?voxels=1` render path, voxel characters / weapons and
 their tests are removed (#236); the lamp / sky / light bakes in `src/voxel` stay as light grids (not drawn). Replaces
 G68's "voxels only as the way the world is drawn" and G223's voxel comparison flag.
+
+**G283. An idle lead starts the next feature.** Michael (2026-10-24 ~15:10, standing rule): "if you ever run out of
+tasks, start making progress on the next feature/task." A lead with no PLAN slice left starts the next roadmap feature
+in its area (Opus plan first) instead of idling; the orchestrator assigns it. First use: Sector Ops 4-player co-op.
+
+**G284. Level standard extras: a connectivity graph and a validator per map.** Michael (2026-10-24 ~20:05, native
+multiple choice after the review of his stealth-level-design skill): "Add 1-4 as extras". `docs/level-design.md` stays
+and gains (1) a connectivity-graph JSON per map before any geometry, checked by a Node validator (port of its
+validate_level.py with our scale-sheet metrics: reachability, solo / co-op completability, approaches, dead ends, room
+sizes, openings, 0.5 m grid, ceilings, independent routes, co-op coverage, split parity, beat pacing); (2) a
+room-size-by-type table in the scale sheet; (3) numeric targets (routes cross at least once, vantage sees ~70%, 40-60%
+of floor in shadow, line of sight breakable within ~5 s, guard counts per space); (4) co-op rules for level-design
+section 11 (splits <= 90 s, path parity within 20%, partners act for each other, an overwatch spot per split, a downed
+partner reachable within 15 s, shared routes >= 2.0 m wide). A linear spine between sections, loops inside them. Every
+map passes the validator before greybox. Campus is the first run, ~20:12: "Do the entire campus" (S1-S5). Guard counts
+(3-6 early, 6-10 late) are checked against our guard sheets before they become rules. Arena mode is parked.
+
+**G285. The validator: scaled rooms, one metrics source, routes per section, measured targets.** Michael (2026-10-24
+~20:18) approved G284's plan with four changes: (a) the room table is scaled too (start ~1.3-1.5x real, tuned in
+greybox); (b) every size comes from one metrics JSON generated from `docs/design/scale-sheet.md`, none hardcoded in the
+script; (c) route redundancy per section: 2+ independent routes from each section's entry to its exit; (d) the declared
+numbers (shadow %, 70% vantage, 5 s line-of-sight break, 15 s revive reach) are targets in the layout check and are
+measured in greybox, and the map fails if the measure differs; split parity uses traversal time, not room length.
+
+**G286. Train speed-ups: auto-drop, 1-minute ticks, overlapping trains.** Michael (2026-10-24 ~21:00, native multiple
+choice; label to master median ~43 min, 5 of 20 trains failed) picked all three: (1) a failing member is dropped and
+the train rebuilds at once; (2) auto-train runs every minute (Michael runs the #335 install-task commands for the queue
+workers); (3) train N+1 builds on train N and tests on the other machine while N runs (Opus plan first, built after
+auto-drop). (Refines G246 and G247.)
+
+**G287. Two test jobs from the process audit: visual-gate and coop-real.** Orchestrator, under G283 (2026-10-24
+~21:32 / ~21:35; ~8 of Michael's ~30 walk finds were visual and 5 were co-op bugs, all passing every test). Assumed,
+undoable. Sector Ops builds visual-gate: fixed viewpoints per map at Low / Epic, picture metrics against the last
+accepted release, a light-parity grid per map; its own status, flags and does not block a release; a look change is
+accepted by Michael or by the orchestrator citing his words. Player Build builds coop-real: an input-only co-op e2e
+(real client inputs, no state pokes, background tab, rejoin, E2E_NETSIM=typical), then its fixes. Test jobs, not
+refining.
+
+**G288. Process audit: four fix packages, refining allowed, walk pacing, one-click sign-off.** Michael (2026-10-24
+~21:50, native multiple choice on `docs/orchestrator/PROCESS-AUDIT-2026-10-24.md`): (1) all four fix packages start
+(watchdog and release path, one rulebook and lean docs, cheap swaps, intake gates and small PRs); (2) the "no refining
+until Michael playtests the core loop" rule is lifted; (3) "Cap 3 + walk card": at most 3 unwalked features per area (a
+lead at the cap works on tests, fixes and automation), and every release gets a 10-minute risk-ranked walk card with
+look videos for animation and lighting; (4) "Yes, one-click sign-off": before greybox or art on a map, or a big look
+change, Michael approves a one-page to-scale plan and a 5-line intent check with one click. (Replaces G179's "No fine
+tuning until that loop plays".)
+
+**G289. Level validator: campus waits for the mission audit; measured pass at greybox exit; dense guards.** Michael
+(2026-10-24 ~22:00, native multiple choice on PR #346): (1) the campus S1-S5 fixes and the S3 re-plan wait for the
+mission design audit, then are planned with its rules and his one-click sign-off; (2) "Yes, require it": a measured
+validator pass (V6 `--require-measured`) is part of the greybox exit; (3) guard density: "I would prefer having as many
+guards as realistically possible to make it challenging." Assumed, undoable: no upper band; each space gets the guards a
+real site would post, pushed high, limited only by the guard-cap perf floor and every route staying passable; the
+validator WARNs only below the 3-6 early / 6-10 late bands. (Extends G254.)
+
+**G290. Mission rules: section restart, up to 2 strict rules, no markers.** Michael (2026-10-24 ~22:12, native multiple
+choice on `docs/orchestrator/MISSION-DESIGN-AUDIT-2026-10-24.md`): (1) breaking a mission rule restarts the section
+(the team goes back to that section's checkpoint, the mission continues); (2) up to 2 strict rules per mission,
+signposted in the briefing and the objective list, "ghost" counting as one; (3) no markers plus an optional hint layer
+(off by default); guidance is in-world only (objective text names places, leads, light language, landmarks). (Replaces
+G125's "at most one hard rule"; Marlow Yard's guidance is settled by G292.)
+
+**G291. Mission modes and the first prototypes.** Michael (2026-10-24, the same evening and ~22:12): campaign missions
+are 2-player co-op only with strict rules; Sector Ops is 4-player co-op with parallel objectives for two teams (or one
+player doing them all), strict rules allowed globally, per team or per split. First prototypes: Three Grey Coats and
+Two-Key Ledger (campaign, 2p), Split Shift and Code Relay (Sector Ops, 4p). Next: a mission-framework job (objective
+chains with parallel tracks, rules per mission / team with section restart, an interrogate-a-named-target objective,
+validator objective and rule nodes), then the four prototypes; the campus S1-S5 fixes are planned against it with
+one-click sign-off.
+
+**G292. Marlow Yard is a guided linear course; campaign sections force co-op traversal.** Michael (2026-10-24 ~22:45):
+"Marlow is a training course and may have different rules to standard mission, ie its heavily guided and must teach the
+players the basics of coop gameplay. All campaign missions are strictly coop and cannot be completed solo, must have
+forced coop traversal to proceed (help player climb a wall, throw coop player over a gap to open a locked pathway for
+the other player, and any suggestions you have). Marlow should be very linear, 1 route (until later sections where it
+teaches multiple objectives/split paths for players to help each other)". Marlow Yard keeps its guidance marks and one
+linear route, with split paths and multiple objectives only in its later sections as teaching; G290's no-markers rule
+and the multi-route rules bind campaign missions and Sector Ops, not Marlow. Every campaign section forces a co-op
+traversal move with no solo bypass. (Extends G253 and G272.)
+
+**G293. The campaign prototypes get a new small map; the co-op traversal kit.** Michael (2026-10-24 ~22:50, native
+multiple choice): Three Grey Coats and Two-Key Ledger go on a new small campaign map, "If it's ready before I'm awake,
+continue to make progress": greybox may proceed overnight before his sign-off; the sign-off page is still made. The
+traversal kit: boost up a wall, throw over a gap, human ladder / pull-up, hold a shutter or door, rope brace / descent,
+vent unlock for the partner, plus "Any other creative coop ideas". (Applies G292; an exception to G288's sign-off before
+greybox.)
+
+**G294. Guard off-screen animation tier stays at 4 for now.** Orchestrator (2026-10-24 ~23:46, Michael asleep). Assumed,
+undoable. PR #360 (tier 4 -> 8) is held: its "seen" test counts only the camera pass, so a guard just out of view whose
+shadow falls in view updates at 7.5 Hz and the shadow's feet slide 21-75 cm; a visible shadow artefact loses to the CPU
+win. After gm-flip, Guard AI tries "shadow in view counts as seen" (`animTierView.ts`) and measures the saving left; a
+GPU look of the case goes in Michael's morning pack. Undo: label #360 train-ready to ship 8 as is.
