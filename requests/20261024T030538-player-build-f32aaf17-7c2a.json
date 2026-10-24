@@ -1,0 +1,16 @@
+{
+  "id": "20261024T030538-player-build-f32aaf17-7c2a",
+  "sha": "f32aaf170bdbad99d7ba2f687bc940a4e009fef6",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "player-build",
+  "suites": [
+    "e2e-netmove",
+    "e2e-coop",
+    "e2e-stealth-ai",
+    "e2e-ctcourse"
+  ],
+  "set": "optic-coop",
+  "note": "#15 optic cable co-op (wire: mv.m optic + sub / a / ph)"
+}
