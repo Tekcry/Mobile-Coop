@@ -1,5 +1,8 @@
 # Changelog
 
+## 4.91.0 - Train 53: Joint interrogation: check fixes; Gameplay reads game state, not the animated body (rig-pose fix) (2026-10-24, PR #315; #311)
+- Co-op joint interrogation: a repeated BLUFF press on the same guard no longer repeats the "Bluff on" line, a bluff is spent and counted only when the guard has joint lines to give, and a player who leaves takes their bluff with them.
+
 ## 4.90.0 - Train 52: Joint interrogation (G148); Gameplay reads game state, not the animated body (rig-pose fix) (2026-10-24, PR #312; #310)
 - Co-op joint interrogation (G148, CT: both players question one captive; some intel comes only this way). Beside a
   guard your partner holds, hold A: a guard with joint information lists BLUFF above TEAM TAKEDOWN. The host accepts the

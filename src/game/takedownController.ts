@@ -477,7 +477,7 @@ export class TakedownController {
         if (!g.puppet) revealIntel(g, e.pos, info); // (spare 9) the client's intel comes from the host
         // (joint-interrogation, G148) the host's own read with a partner's live bluff: the joint lines too. Host / solo
         // holder only (a client holder's read is the host's `seized` path; solo has no `net`, so no bluff)
-        if (!g.puppet && lines && g.net?.jointLive?.(e)) revealJoint(g, e.pos, jointOf(info));
+        if (!g.puppet && lines && g.net?.jointLive?.(e, jointOf(info))) revealJoint(g, e.pos, jointOf(info));
       }
       return true;
     }
