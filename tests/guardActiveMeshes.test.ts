@@ -4,7 +4,7 @@
  * pass counted by class. Flag off (the S1 merged body) and on (the figure), with his held gun, helmet and armour.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AbstractMesh, Scene } from '../src/core/babylon';
+import type { AbstractMesh, Matrix, Mesh, Scene } from '../src/core/babylon';
 import type { GuardManifest } from '../src/operators/guards/gearMask';
 import type { GuardAsset } from '../src/operators/guards/guardAssets';
 import type * as GuardAssets from '../src/operators/guards/guardAssets';
@@ -101,8 +101,8 @@ async function setup() {
   return { B, scene, world, casters, guard, level };
 }
 
-type Mtx = import('../src/core/babylon').Matrix;
-type AnyMesh = import('../src/core/babylon').Mesh;
+type Mtx = Matrix;
+type AnyMesh = Mesh;
 
 /** World box [min x, y, z, max x, y, z] of local `pos`, each vertex under matrix `w(v)`. */
 async function boxOf(pos: ArrayLike<number>, w: (v: number) => Mtx, out = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity]): Promise<number[]> {
@@ -144,7 +144,7 @@ describe('S13: active meshes per on-screen guard', () => {
   it('flag off (S1 body): a grunt with gun + helmet + armour <= 4 (7 before S13, 23 as measured before perfg); enforcer 5 (9)', async () => {
     const { guard, scene, level } = await setup();
     const g = await guard('grunt');
-    console.log(`S13 count flag off grunt: ${g.total} ${JSON.stringify(g.by)} [${g.names.join(', ')}]`);
+    console.info(`S13 count flag off grunt: ${g.total} ${JSON.stringify(g.by)} [${g.names.join(', ')}]`);
     expect(g.total).toBeLessThanOrEqual(4);
     expect(g.by).toEqual({ body: 1, gun: 1, helmet: 1, armour: 1 });
     // gear off: the merged armour hides by the caller's `isVisible` loop, the helmet as before
@@ -153,7 +153,7 @@ describe('S13: active meshes per on-screen guard', () => {
     expect(scene.getActiveMeshes().length).toBe(level.size + 2);
     g.e.dispose();
     const g2 = await guard('enforcer');
-    console.log(`S13 count flag off enforcer: ${g2.total} ${JSON.stringify(g2.by)} [${g2.names.join(', ')}]`);
+    console.info(`S13 count flag off enforcer: ${g2.total} ${JSON.stringify(g2.by)} [${g2.names.join(', ')}]`);
     expect(g2.by).toEqual({ body: 1, gun: 1, helmet: 1, armour: 1, shield: 1 });
     g2.e.dispose();
   });
@@ -163,7 +163,7 @@ describe('S13: active meshes per on-screen guard', () => {
     flags.guardModels = true;
     const { guard } = await setup();
     const g = await guard('grunt');
-    console.log(`S13 count flag on grunt: ${g.total} ${JSON.stringify(g.by)} [${g.names.join(', ')}]`);
+    console.info(`S13 count flag on grunt: ${g.total} ${JSON.stringify(g.by)} [${g.names.join(', ')}]`);
     expect(g.total).toBeLessThanOrEqual(4);
     expect(g.by).toEqual({ figure: 1, gun: 1 });
   });
@@ -190,7 +190,7 @@ describe('S13: active meshes per on-screen guard', () => {
     counts.armour = buildArmourParts(world as never, rig, '#444').length;
     const sh = buildShieldPart(world as never, rig.root, 1);
     counts.shield = 1 + sh.getChildMeshes().length;
-    console.log(`S13 before (parts): ${JSON.stringify(counts)}`);
+    console.info(`S13 before (parts): ${JSON.stringify(counts)}`);
     expect(counts.rifle).toBe(18);
     expect(counts.armour).toBe(4);
     expect(counts.shield).toBe(2);
