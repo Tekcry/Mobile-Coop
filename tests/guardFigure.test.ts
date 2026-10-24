@@ -656,3 +656,132 @@ describe('guard figure stand-in on Wren\'s real LOD2', () => {
     T.GetAbsoluteUrl = abs;
   }, 60_000);
 });
+
+describe('(S11) guard figure CPU levers', () => {
+  it('LOD1 / LOD2 fold the fingers (LOD2 also the toes and clavicles): fewer bones, the kept ones posed where LOD0 poses them', async () => {
+    const { B, G, M, scene, rig, forgetModels } = await setup();
+    const { GUARD_LOD } = await import('../src/operators/runtime/guardLod');
+    const lib = new G.GuardLibrary(scene);
+    const r = rig('ga');
+    // (one fixture file serves every LOD: a finger and the toes in all three, so each fold shows)
+    const a = new G.GuardFigure(lib, r, MANIFEST, 'ga');
+    await a.loadGameLods();
+    const names = (lod: number): string[] => a.lodSkeleton(lod)!.bones.map((b) => b.name);
+    expect(a.lodBoneCount(M.LOD_0)).toBe(23);
+    expect(names(M.LOD_0)).toContain('fingerL_1_1');
+    expect(a.lodBoneCount(M.LOD_1)).toBe(22);
+    expect(names(M.LOD_1).some((n) => n.startsWith('finger'))).toBe(false);
+    expect(names(M.LOD_1)).toContain('toeL');
+    expect(a.lodBoneCount(M.LOD_2)).toBe(20);
+    for (const n of ['fingerL_1_1', ...GUARD_LOD.foldMore]) expect(names(M.LOD_2)).not.toContain(n);
+    // every vertex still points at a bone of its own skeleton (a folded joint's vertices ride its kept ancestor)
+    for (const lod of [M.LOD_1, M.LOD_2]) {
+      const idx = a.lodMeshes(lod)[0]!.getVertexBuffer(B.VertexBuffer.MatricesIndicesKind)!.getData() as Float32Array;
+      expect(Math.max(...idx)).toBeLessThan(a.lodBoneCount(lod));
+    }
+    // a walk: each LOD2 bone sits where the LOD0 bone of the same name sits (< 1e-4 m)
+    const pose = { speed: 1.6, localX: 0, localZ: 1, grounded: true, crouch: 0.3, aimPitch: 0.1, aim: 0, kick: 0, armed: false, stride: 'facing' as const };
+    for (let f = 0; f < 12; f++) r.animate(1 / 60, pose);
+    const cam = new B.FreeCamera('cam', new B.Vector3(0, 1.6, -3), scene);
+    cam.computeWorldMatrix();
+    a.update(cam);
+    expect(a.current).toBe(M.LOD_0);
+    cam.position.set(0, 1.6, -40);
+    cam.computeWorldMatrix();
+    a.update(cam);
+    expect(a.current).toBe(M.LOD_2);
+    refresh(r.root);
+    const at = (lod: number, n: string): InstanceType<typeof B.Vector3> =>
+      boneAbs(a.lodSkeleton(lod)!.bones.find((b) => b.name === n)!, B.Matrix).multiply(a.lodMeshes(lod)[0]!.getWorldMatrix()).getTranslation();
+    for (const n of names(M.LOD_2)) expect(B.Vector3.Distance(at(M.LOD_2, n), at(M.LOD_0, n)), n).toBeLessThan(1e-4);
+    a.dispose();
+    scene.dispose();
+    forgetModels();
+  });
+
+  it('LOD distances: LOD0 under 6 m (GUARD_LOD), LOD1 to 25 m, LOD2 beyond, with the 10 % hysteresis', async () => {
+    const { B, G, M, scene, rig, forgetModels } = await setup();
+    const lib = new G.GuardLibrary(scene);
+    const r = rig('ga');
+    const a = new G.GuardFigure(lib, r, MANIFEST, 'ga');
+    await a.loadGameLods();
+    refresh(r.root);
+    // (measured from the rig's first joint: the camera level with it, so z alone is the distance)
+    const y = a.root.parent ? (a.root.parent as TransformNode).getAbsolutePosition().y : 0;
+    const cam = new B.FreeCamera('cam', new B.Vector3(0, y, -3), scene);
+    cam.computeWorldMatrix();
+    const at = (d: number): number => {
+      cam.position.set(0, y, -d);
+    cam.computeWorldMatrix();
+      a.update(cam);
+      return a.current;
+    };
+    expect(at(3)).toBe(M.LOD_0);
+    expect(at(6.5)).toBe(M.LOD_0); // inside the hysteresis
+    expect(at(6.7)).toBe(M.LOD_1); // past 6 x 1.1 (Wren's figure would still show LOD0: 8 m)
+    expect(at(5.5)).toBe(M.LOD_1);
+    expect(at(5.3)).toBe(M.LOD_0); // under 6 x 0.9
+    expect(at(27)).toBe(M.LOD_1);
+    expect(at(28)).toBe(M.LOD_2);
+    a.dispose();
+    scene.dispose();
+    forgetModels();
+  });
+
+  it('LOD2 poses every other frame, odd and even slots on alternate frames; a LOD switch poses at once; an out-of-phase caller is never halved again', async () => {
+    const { B, G, M, scene, rig, forgetModels } = await setup();
+    const lib = new G.GuardLibrary(scene);
+    const a = new G.GuardFigure(lib, rig('ga'), MANIFEST, 'ga', { slot: 0 });
+    const b = new G.GuardFigure(lib, rig('gb'), MANIFEST, 'gb', { slot: 1 });
+    await Promise.all([a.loadGameLods(), b.loadGameLods()]);
+    let frame = 10;
+    vi.spyOn(scene, 'getFrameId').mockImplementation(() => frame);
+    const cam = new B.FreeCamera('cam', new B.Vector3(0, 1.6, -40), scene);
+    cam.computeWorldMatrix();
+    // the first frame at LOD2 is a LOD switch: both pose
+    a.update(cam);
+    b.update(cam);
+    expect([a.current, b.current]).toEqual([M.LOD_2, M.LOD_2]);
+    expect([a.poses, b.poses]).toEqual([1, 1]);
+    const posedOn: [number[], number[]] = [[], []];
+    for (frame = 11; frame <= 20; frame++) {
+      const pa = a.poses, pb = b.poses;
+      a.update(cam);
+      b.update(cam);
+      if (a.poses > pa) posedOn[0].push(frame);
+      if (b.poses > pb) posedOn[1].push(frame);
+    }
+    expect(posedOn[0]).toEqual([12, 14, 16, 18, 20]);
+    expect(posedOn[1]).toEqual([11, 13, 15, 17, 19]);
+    // an anim tier calling only on odd frames (its own half rate, out of slot 0's phase): every call poses
+    const before = a.poses;
+    for (frame = 23; frame <= 31; frame += 2) a.update(cam);
+    expect(a.poses - before).toBe(5);
+    // a skipped frame leaves the skeleton unmarked (nothing recomputed or uploaded)
+    const dirty = vi.spyOn(a.lodSkeleton(M.LOD_2)!.bones[0]!, 'markAsDirty');
+    frame = 32;
+    a.update(cam);
+    frame = 33;
+    a.update(cam);
+    expect(dirty).toHaveBeenCalledTimes(1);
+    // LOD1 poses every frame
+    cam.position.set(0, 1.6, -15);
+    cam.computeWorldMatrix();
+    const p1 = a.poses;
+    for (frame = 40; frame < 46; frame++) a.update(cam);
+    expect(a.current).toBe(M.LOD_1);
+    expect(a.poses - p1).toBe(6);
+    // back to LOD2: the switch frame poses even off its parity (its bones were left from before)
+    cam.position.set(0, 1.6, -40);
+    cam.computeWorldMatrix();
+    frame = 47;
+    const p2 = a.poses;
+    a.update(cam);
+    expect(a.current).toBe(M.LOD_2);
+    expect(a.poses - p2).toBe(1);
+    a.dispose();
+    b.dispose();
+    scene.dispose();
+    forgetModels();
+  });
+});

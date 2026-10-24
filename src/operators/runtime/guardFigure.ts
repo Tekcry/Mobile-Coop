@@ -7,7 +7,9 @@
  *   PBR, `operatorMaterial`, plus `GuardFigurePlugin`) and its poser setup.
  * - `GuardFigure` (one per guard): over a CharacterRig, as Wren's `OperatorFigure` minus the hero and the goggle: per
  *   loaded LOD its own skeleton posed every frame by the non-allocating `OperatorPoser` (the rig stays the pose
- *   authority); LOD0 / 1 / 2 by camera distance (`pickLod`, Wren's bands and hysteresis, A8), LOD2 loaded first.
+ *   authority); LOD0 / 1 / 2 by camera distance (`pickLod` on the guards' own bands, `GUARD_LOD` in guardLod.ts: 6 /
+ *   25 m, S11; Wren's hysteresis, A8), LOD2 loaded first. (S11) LOD1 / LOD2 fold the fingers (LOD2 also toes and
+ *   clavicles) at load, and LOD2 poses every other frame, staggered per guard.
  *   Per guard only the skeleton, one RGBA8 `gvis` vertex buffer per LOD primitive (tint rgb, a = piece visible with
  *   the flash folded in, `gearMask.ts`) and one index buffer of the visible pieces (rewritten on a gear change), so a
  *   hidden piece is drawn by no pass. `gvis` is rewritten only on a spawn, gear, tint, flash or thermal heat change
@@ -35,6 +37,7 @@ import {
 } from '../guards/gearMask';
 import { loadModel, operatorMaterial, readRig, rigNodes, type RigLike } from './figure';
 import { GuardFigurePlugin } from './guardFigurePlugin';
+import { GUARD_LOD, guardFolds, guardPosesNow } from './guardLod';
 import { pickLod } from './lodPick';
 import { LOD_0, LOD_1, LOD_2, LOD_NAMES, REQUIRED_JOINTS } from './manifest';
 import { OperatorPoser, poserSetup, RIG_JOINTS, RIG_PARENT, TRS, type PoserSetup } from './pose';
@@ -104,10 +107,18 @@ export function buildGuardLod(scene: Scene, model: GlbModel, manifest: GuardMani
   const problems = validateGuardModel(model, manifest, label);
   if (problems.length) throw new Error(problems.join('; '));
   const engine = scene.getEngine();
-  const setup = poserSetup(model.nodes, model.joints);
+  // (S11) the LOD's folded joints (`GUARD_LOD`: fingers at LOD1 / LOD2, toes and clavicles at LOD2) get no bone: their
+  // vertices ride the nearest kept ancestor, so they are never posed or uploaded
+  let kept = model.joints.filter((nd) => !guardFolds(lod, model.nodes[nd]?.name ?? ''));
+  if (!kept.length) kept = model.joints;
+  const setup = poserSetup(model.nodes, kept);
   const slotOfNode = new Map<number, number>();
   for (let s = 0; s < setup.node.length; s++) slotOfNode.set(setup.node[s]!, s);
-  const boneOfSkin = model.joints.map((nd) => slotOfNode.get(nd) ?? 0);
+  const boneOfSkin = model.joints.map((nd) => {
+    let k = nd;
+    while (k >= 0 && !slotOfNode.has(k)) k = model.nodes[k]?.parent ?? -1;
+    return k >= 0 ? slotOfNode.get(k)! : 0;
+  });
   const materials = model.materials.map((m) => {
     const p = operatorMaterial(scene, m, label);
     // the albedo atlas's alpha is the tint mask, never transparency (opaque, no alpha test)
@@ -267,7 +278,13 @@ export interface GuardFigureOptions {
    * bind pose's A-pose arms make that 0.34 m wider each side than the body at rest).
    */
   box?: ArrayLike<number>;
+  /** (S11) Stagger of the half-rate LODs (`GUARD_LOD.halfRateFrom`): odd and even slots pose on alternate frames.
+   *  Default: spawn order (one more per figure built). */
+  slot?: number;
 }
+
+/** (S11) The next default stagger slot (spawn order). */
+let nextSlot = 0;
 
 const ONE = new Vector3(1, 1, 1);
 const TV = new Vector3();
@@ -310,6 +327,11 @@ export class GuardFigure {
   private disposed = false;
   /** (G8 cull) The culling box in this figure's root space (null: each LOD's bind box plus margins). */
   private readonly cullBox: Float32Array | null = null;
+  /** (S11) Half-rate stagger slot, and the render frame of the last pose (-Infinity: never posed). */
+  readonly slot: number;
+  private posedAt = Number.NEGATIVE_INFINITY;
+  /** (S11, tests) Poses written so far (local or world path). */
+  poses = 0;
 
   /** Build it right after the rig, before the rig's first pose: the rig's rest is measured here. */
   constructor(private readonly lib: GuardLibrary, rig: RigLike, readonly manifest: GuardManifest, readonly name: string, opts: GuardFigureOptions = {}) {
@@ -320,6 +342,7 @@ export class GuardFigure {
     this.root = new TransformNode(`${name}-guard`, lib.scene);
     this.root.parent = rig.root;
     this.root.scaling.setAll(opts.scale ?? 1);
+    this.slot = opts.slot ?? nextSlot++;
     // (G8 cull) the rig root's box into the figure root's space (the figure root only scales)
     if (opts.box && opts.box.length >= 6) {
       const k = 1 / (opts.scale ?? 1);
@@ -587,8 +610,9 @@ export class GuardFigure {
   }
 
   /**
-   * Per frame, after the rig's update: the LOD for `camera` (distance with hysteresis), the culling mode, the pose
-   * (local retarget, or the world path while a joint is re-parented). No allocation.
+   * Per frame, after the rig's update: the LOD for `camera` (distance with hysteresis, `GUARD_LOD.edges`), the culling
+   * mode, the pose (local retarget, or the world path while a joint is re-parented); (S11) from `GUARD_LOD.halfRateFrom`
+   * the pose every other frame, staggered by `slot` (a LOD switch and a ragdoll pose at once). No allocation.
    */
   update(camera: Camera | null): void {
     if (this.disposed) return;
@@ -598,8 +622,9 @@ export class GuardFigure {
       const p = this.rig[0]!.getAbsolutePosition();
       dist = hyp3(c.x - p.x, c.y - p.y, c.z - p.z);
     }
-    const want = pickLod(this.current, dist, false, this.have);
-    if (want !== this.current) {
+    const want = pickLod(this.current, dist, false, this.have, GUARD_LOD.edges);
+    const switched = want !== this.current;
+    if (switched) {
       const old = this.current >= 0 ? this.lods[this.current] : null;
       if (old) for (let i = 0; i < old.meshes.length; i++) old.meshes[i]!.setEnabled(false);
       this.current = want;
@@ -623,9 +648,20 @@ export class GuardFigure {
     }
     const l = this.current >= 0 ? this.lods[this.current] : null;
     if (!l || !this.enabled) return;
+    // (S11) half rate far away: the skipped frame keeps last frame's bones (the skeleton is not marked, so nothing is
+    // recomputed or uploaded); a LOD just shown has stale bones and always poses
+    const frame = this.lib.scene.getFrameId();
+    if (!loose && !switched && !guardPosesNow(this.current, this.slot, frame, this.posedAt)) return;
+    this.posedAt = frame;
+    this.poses++;
     if (loose) this.poseWorld(l);
     else this.poseLocal(l);
     l.bones[0]?.markAsDirty();
+  }
+
+  /** (S11, tests) The bone count of LOD `lod` (0 when not loaded): what is posed and uploaded per posed frame. */
+  lodBoneCount(lod: number): number {
+    return this.lods[lod]?.bones.length ?? 0;
   }
 
   /** The retarget: the rig's local transforms through the poser into the bones' local matrices. */

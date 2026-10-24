@@ -10,7 +10,8 @@
  *   guard on a slow load (a failed load leaves the merged body).
  * - Once per render (one observer per scene, before the active meshes are evaluated): thermal heat (the rig's
  *   `heat`), the owner's hit flash, then the figure's LOD pick and pose, skipped while the owner's guard-render S4 anim
- *   tier skipped the rig's solve (`skip`). A ragdoll and a carried body pose every frame (G5's world path).
+ *   tier skipped the rig's solve (`skip`) or the render freeze has the rig root disabled (S11). A ragdoll and a
+ *   carried body pose every frame (G5's world path).
  * - Look and gear changes rewrite the figure's pieces / tints only on a real change. No allocation per frame.
  * - The body follows its rig: a dead guard's rig goes on as his `Body` (ragdoll, carry), and the figure goes with it
  *   (`guardBodyOf(rig)`); it is disposed with the rig (each owner disposes it first; the rig root's dispose is the
@@ -106,7 +107,8 @@ export class GuardBody {
   readonly standIn: boolean;
   /** Hit flash 0..1: the owner writes it each frame (as `CharacterRig.setFlash`). */
   flash = 0;
-  /** The owner's anim tier skipped this frame's solve (`GuardAnimTier`): no pose this frame. Cleared every frame. */
+  /** The owner's anim tier skipped this frame's solve (`GuardAnimTier.skipped`, frozen included): no pose this frame.
+   *  Cleared every frame. */
   skip = false;
   /** The figure draws (its first LOD is in): the merged body is off. */
   shown = false;
@@ -227,8 +229,11 @@ export class GuardBody {
     const f = this.figure;
     f.setHeat(this.rig.heat);
     f.setFlash(this.flash);
-    // (the first show picks a LOD whatever the tier says)
-    if (!this.skip || f.current < 0) f.update(camera);
+    // (the first show picks a LOD whatever the tier says) (S11) no LOD pick or pose while the anim tier skipped the
+    // rig's solve (`skip`, = `GuardAnimTier.skipped`) or the render freeze has the rig root disabled (the freeze's own
+    // signal, the FROZEN tier's `!rig.root.isEnabled(false)`: read here so it holds whatever order the owner's frame
+    // sets `skip` in; a disabled root draws nothing of the figure, and the rig is not solved while frozen)
+    if ((!this.skip && this.rig.root.isEnabled(false)) || f.current < 0) f.update(camera);
     this.skip = false;
     this.shield?.follow();
   }

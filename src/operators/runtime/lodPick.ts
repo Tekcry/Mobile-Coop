@@ -11,11 +11,12 @@ export const LOD_EDGES: readonly [number, number] = [8, 25];
 /** Hysteresis as a fraction of the edge. */
 export const LOD_HYSTERESIS = 0.1;
 
-/** The distance band for `dist` given the LOD currently shown (hysteresis around each edge). */
-export function bandLod(current: number, dist: number): number {
+/** The distance band for `dist` given the LOD currently shown (hysteresis around each edge). `edges`: the band edges
+ *  (default Wren's `LOD_EDGES`; the guard figures pass `GUARD_LOD.edges`). */
+export function bandLod(current: number, dist: number, edges: readonly [number, number] = LOD_EDGES): number {
   let t = current < LOD_0 || current > LOD_2 ? LOD_0 : current;
-  while (t < LOD_2 && dist > LOD_EDGES[t - LOD_0]! * (1 + LOD_HYSTERESIS)) t++;
-  while (t > LOD_0 && dist < LOD_EDGES[t - 1 - LOD_0]! * (1 - LOD_HYSTERESIS)) t--;
+  while (t < LOD_2 && dist > edges[t - LOD_0]! * (1 + LOD_HYSTERESIS)) t++;
+  while (t > LOD_0 && dist < edges[t - 1 - LOD_0]! * (1 - LOD_HYSTERESIS)) t--;
   return t;
 }
 
@@ -23,9 +24,9 @@ export function bandLod(current: number, dist: number): number {
  * The LOD to show: hero for a close-up camera when it is loaded, else the distance band; if the wanted level is not
  * loaded (`have`: bit i = LOD i ready) the nearest loaded game level, preferring more detail; -1 when nothing is ready.
  */
-export function pickLod(current: number, dist: number, closeUp: boolean, have: number): number {
+export function pickLod(current: number, dist: number, closeUp: boolean, have: number, edges: readonly [number, number] = LOD_EDGES): number {
   if (closeUp && have & (1 << LOD_HERO)) return LOD_HERO;
-  const want = closeUp ? LOD_0 : bandLod(current, dist);
+  const want = closeUp ? LOD_0 : bandLod(current, dist, edges);
   if (have & (1 << want)) return want;
   for (let d = 1; d <= 3; d++) {
     const a = want - d;
