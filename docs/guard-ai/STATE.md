@@ -998,8 +998,7 @@ block only. Branch guard before every write. Never merge master into a branch. 2
 Opus triage on every laptop failure; laptop runs: cd C:/NightShift/Mobile-Coop-laptop-queue-svc && node
 scripts/laptop-queue/request.mjs --sha <sha> --pr <n> --set <name> --jobs 2 --requester "Night Shift | Guard AI Build"
 --suites "a b" (verdict = GitHub status laptop-e2e/<set>; background wait loop that breaks only on
-success|failure|error, never on null). QUEUE RULE: the queue runs a requester's NEWEST open request first (lib.mjs
-pick): keep ONE open request at a time, in priority order; withdraw = delete requests/<id>.json on branch laptop-queue
+success|failure|error, never on null). Queue pick is OLDEST-first per requester since 4.100.0 (#366); withdraw = delete requests/<id>.json on branch laptop-queue
 (gh api -X DELETE contents). Laptop auto mode blocks `gh pr edit --add-label`: tell the orchestrator at train-ready.
 Before pushing a PR head: vitest the tests importing the changed modules AND their direct importers (--maxWorkers=2).
 OVERNIGHT mode: no swap, full burn to each cap, save ~92%, no question dialogs (decide, log A-numbers in BRIEF).
@@ -1015,18 +1014,17 @@ WIP snapshots (branches untouched): origin/wip/guard-ai-polish-fix ba1dc579 (fix
    coop4-fix5, ...-9d6d). Next fix if the run leg fails to locate: leg at 2.2 m (test-only).
    CONFLICT with master (one hunk src/net/protocol.ts): orchestrator agreed no master merge; if auto-train leaves #317
    out, by-hand train merge: master's PROTOCOL_VERSION line + coop4's MAX_PLAYERS comment and `slotFromList` import.
-2. #363 polish TRAIN-READY at 4bf05803 (CI green, checker status success, laptop polish3s 7/7 PASS; orchestrator asked
-   to label 04:20). Batch 2 is based on 09d16b80: merge origin/feature/guard-ai-polish into it at its merge step.
+2. #363 polish RELEASED in 4.100.0 (train 74).
 3. #360 T1 HELD (ROADMAP Decided, assumed: keep tier 4; BRIEF A183 on the polish branch). Worktree
    C:/NightShift/Mobile-Coop-guard-ai-t1. An Opus agent was writing scripts/t1-shadow-look.mjs (guard just out of view,
    shadow in view; contact sheets tier on vs &animtier=0) + a software-GL dry run; then queue it as an alone GPU request
    on the T1 head AND on master (tier 4) for Michael's morning pack. After gm-flip lands: shadow-in-view counts as seen
    in animTierView.ts, measure the saving left. Requeue T1's e2e-sectorops + e2e-enemies only if Michael picks ship 8.
-4. Polish batch 2 (feature/guard-ai-polish2, worktree C:/NightShift/Mobile-Coop-guard-ai-polish2): group A DONE (11
-   commits 94f7e724..47fbaa58, 104 files 1801 tests), group B DONE 21c328f4; merged with #363 head 4bf05803 = d30598ff.
-   RUNNING: Sonnet docs reconcile (ai.md / BRIEF / fragment / TESTING vs as-built; scratchpad polish2-A-report.md) +
-   lead vitest on the merged head. Then 2 Opus checkers + laptop area suites (e2e-stealth-ai e2e-ctcourse: A7 cage
-   A184, S27 A186 / A189), PR stacked on #363 (base master), checker status. Michael look item: A186.
+4. Polish batch 2 = PR #377 (feature/guard-ai-polish2, worktree C:/NightShift/Mobile-Coop-guard-ai-polish2, head
+   d45d526e9; base master; #363 is in master now so its diff is its own delta). Checks: tsc / eslint clean, 80 files
+   1477 tests (group A 104 / 1801 on its head). RUNNING: Opus checkers A (A184 / A186 / A187 / A189 / A190 / A194) +
+   B (A185 / A188 / A191 / A192 / A193, drone test, docs) -> docs/guard-ai/slices/POLISH2-CHECK-A/B.md (lead commits);
+   laptop polish2 (e2e-stealth-ai e2e-ctcourse, ...-802e). Both green -> checker status + orchestrator train-ready.
 5. Mission hooks (Marlow, after Michael signs off the mission specs): em.missionOrder(guardTag, 'reset' | 'walk',
    postId, via?) wrapping Enemy.resetBreaker / Enemy.sendTo. Wait for Marlow's go.
 6. Michael's calls: A148 reinforcements at spawn; S23 client arcs / LKP ghost; S25 flares. After #317 merges:
