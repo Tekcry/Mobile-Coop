@@ -67,3 +67,11 @@ Enforced: every `page.evaluate` goes through the lib's `read` (read-only) or a `
 - A9 Fix ownership: this job fixes F1a / F1b / F2a / F2b / F3 / F4 in `src/net` / `src/game` / `src/audio` (Opus), PR B
   before #317 coop4. Dead prompts outside the five go to their owner (T1 marks): map data / sets to Marlow Build, guard
   reactions to Guard AI. [Hand a fix to its owner instead.]
+- A10 C1 brief deviations (2026-10-24 ~23:00, briefs/C1.md section 10, each undone there): S2's host lamp is a lounge
+  cove (group 10), not the yard bulkhead (group 12, no line from the apron over the 4.4 m wall, a1Gate.ts:201, :54);
+  the body case reuses P6b's body (restart + solo knockout only when P6b left none; part 1 may need a split if P6b
+  fails); "hides it" is skipped (A1 has no hide spot); the sweep runs 4 headings, partner idle only (holding / carrying
+  / offering variants skipped until H1b's sweep re-collects rows after each run and leaves modal views).
+- A11 F1a / F1b go to the cloud queue (orchestrator 22:30, overnight): briefs/player-coop-real-F1a.md, -F1b.md on
+  cloud-queue ad3a025b, base a174b082. S2 is a sure bug, so they run ahead of M1; F1b reuses the `shot` message
+  (target `lt-<id>`), no wire change. [Take them back: set the briefs to blocked and build them here after M1.]

@@ -1,9 +1,12 @@
 # coop-real - STATE
 
 ## Now
-Plan check applied (2026-10-24, PLAN-CHECK 1-18). Group 1: H2 done (e735dc8a); H1a then H1b running on feature/cr-h1
-(Opus, starts with the lifecycle probe); H2b part-3 registration is a lead edit. Then group 2: C1 (Sonnet, Opus brief)
-∥ C2 (Opus). Desktop dev lane approved (orchestrator ~22:20): heavy2.lock per run, CPU < ~60% at start, 1 pair, E2E_GPU=1, port
+2026-10-24 ~23:00 (overnight, no swap). Group 1: H2 + H2b done; H1a / H1b code on feature/cr-h1 (c7241fdd + swap
+WIP), an Opus finisher runs the probe + smoke and fills H1-REPORT.md. C1 brief done (briefs/C1.md, c6c70d94; A10).
+F1a / F1b on the cloud queue (A11). Next: merge cr-h1 into coop-real, then group 2: C1 (Sonnet from the brief; check its
+lib names against H1-REPORT) ∥ C2 (Opus). H1b follow-up from the C1 brief: the sweep must re-collect rows after each
+run and leave modal views (else Bash door / Optic cable / Open door stealth read dead); untested lib paths: co-op
+pause restart, ADS before fire, pad RT tap knockout. Desktop dev lane approved (orchestrator ~22:20): heavy2.lock per run, CPU < ~60% at start, 1 pair, E2E_GPU=1, port
 4189, BelowNormal, development only (verdicts via the laptop queue). H2b done (part 3 registered). None for Michael (A1-A9 assumed, BRIEF.md).
 
 ## Known before the run
