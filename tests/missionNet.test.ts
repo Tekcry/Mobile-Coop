@@ -2,7 +2,6 @@
 // client applies it to its own runner (never evaluating), shows the rule line only to a late joiner, the client's
 // interrogation reaches the mission adapter with the guard's id and the client's id, and a client's frag / mine /
 // sticky cam use reaches the host's mode (`gused`).
-import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { parseMessage, USE_ONLY_GADGETS, type Msg } from '../src/net/protocol';
 import { MissionMirror } from '../src/net/missionMirror';
@@ -13,6 +12,7 @@ import { RuleTracker } from '../src/game/mission/ruleTracker';
 import { packMission, type MissionWire } from '../src/game/mission/missionWire';
 import type { MissionDef } from '../src/game/mission/missionDef';
 import { revealIntel } from '../src/game/intelReveal';
+import { INTEL } from '../src/game/intel';
 
 function op(): MissionDef {
   return {
@@ -128,7 +128,24 @@ describe('mission NET: a client interrogation reaches the adapter with the guard
   });
 
   it("the host's client-interrogation path passes the guard's id and the holder's id", () => {
-    expect(readFileSync('src/net/coopHost.ts', 'utf8')).toMatch(/revealIntel\(this\.g, e\.pos, info, e\.id, s\.by\)/);
+    // (NET2) driven through the host: client c1 reads guard e7 (its MoveState sub 2 up to the done phase), then lets go
+    const h = Object.create(CoopHost.prototype) as CoopHost;
+    const got: Record<string, unknown>[] = [];
+    const g = { security: null, enemyMgr: null, hud: { feedItem: () => {} }, mode: null, events: { emit: (t: string, p: Record<string, unknown>) => got.push({ t, ...p }) } };
+    Object.assign(h, { g, interPh: new Map(), bluffs: new Map(), time: 5 });
+    const e = { id: 'e7', pos: { x: 0, y: 0, z: 0 }, info: { lines: ['The guard talks.'] } as { lines: string[] } | null };
+    const read = (sub: number, ph: number): void => (h as unknown as { clientRead(e: unknown, by: string, sub: number, ph: number): void }).clientRead(e, 'c1', sub, ph);
+    read(2, 0.2);
+    read(2, INTEL.donePh);
+    expect(got).toEqual([]);
+    read(0, 0);
+    expect(got).toHaveLength(1);
+    expect(got[0]).toMatchObject({ t: 'intel', eid: 'e7', by: 'c1' });
+    // spent: a second read gives nothing
+    read(2, INTEL.donePh);
+    read(0, 0);
+    expect(got).toHaveLength(1);
+    expect(e.info).toBeNull();
   });
 });
 
@@ -140,21 +157,27 @@ describe('mission NET: every client gadget use reaches the host mode', () => {
     expect(parseMessage({ t: 'gused', kind: 'x' })).toBeNull();
   });
 
-  it('the host calls onRemoteGadget for a gused (4 a second at most, alive only)', () => {
+  it('the host calls onRemoteGadget for a gused (4 a second at most per kind, alive only)', () => {
     const h = Object.create(CoopHost.prototype) as CoopHost;
     const onRemoteGadget = vi.fn();
     const r = { id: 'c1', alive: true, held: false, feet: { x: 0, y: 0, z: 0 } };
     Object.assign(h, { g: { mode: { onRemoteGadget } }, gusedAt: new Map(), time: 10, remotes: new Map([['c1', r]]) });
     const recv = (msg: unknown): void => (h as unknown as { receive(m: unknown, from: string): void }).receive(msg, 'c1');
     recv(parseMessage({ t: 'gused', kind: 'mine' }));
+    recv(parseMessage({ t: 'gused', kind: 'mine' }));
+    // (NET2) a different gadget inside the window still counts
     recv(parseMessage({ t: 'gused', kind: 'frag' }));
-    expect(onRemoteGadget.mock.calls).toEqual([['c1', 'mine']]);
-    (h as unknown as { time: number }).time = 10.3;
+    expect(onRemoteGadget.mock.calls).toEqual([['c1', 'mine'], ['c1', 'frag']]);
+    (h as unknown as { time: number }).time = 10.2;
+    recv(parseMessage({ t: 'gused', kind: 'frag' }));
     recv(parseMessage({ t: 'gused', kind: 'stickyCam' }));
-    expect(onRemoteGadget.mock.calls).toEqual([['c1', 'mine'], ['c1', 'stickyCam']]);
+    expect(onRemoteGadget.mock.calls).toEqual([['c1', 'mine'], ['c1', 'frag'], ['c1', 'stickyCam']]);
+    (h as unknown as { time: number }).time = 10.3;
+    recv(parseMessage({ t: 'gused', kind: 'mine' }));
+    expect(onRemoteGadget).toHaveBeenCalledTimes(4);
     r.alive = false;
     (h as unknown as { time: number }).time = 11;
     recv(parseMessage({ t: 'gused', kind: 'frag' }));
-    expect(onRemoteGadget).toHaveBeenCalledTimes(2);
+    expect(onRemoteGadget).toHaveBeenCalledTimes(4);
   });
 });
