@@ -1,0 +1,13 @@
+{
+  "id": "20261024T072723-night-shift-player-b-762b479f-0044",
+  "sha": "762b479f406af9689fbd5e24ed53bc79b32ee1e8",
+  "branch": "feature/optic-coop",
+  "pr": 314,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-coop"
+  ],
+  "set": "optic-coop-dual",
+  "note": "test-only hardening of the team takedown dual step after a merge-head failure; train-ready gate"
+}
