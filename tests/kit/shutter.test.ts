@@ -4,8 +4,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Vector3 } from '../../src/core/babylon';
 import { checkTeamRequest, SHUTTER_SUB, type TeamRequest, type TeamSide } from '../../src/game/teamMoves';
-import { registerKitMove } from '../../src/game/kit/registry';
-import { addShutterSpec, canCrawl, crawlLane, holderRelease, LOCAL_USER, newShutterDevice, pushForward, SHUTTER, SHUTTER_MOVE, shutterLift, shutterLocal, shutterNoticePoint, shutterRelease, shutterSpecsOf, shutterVisiblyOpen, stepShutter, type ShutterDevice, type ShutterSpec } from '../../src/game/kit/shutter';
+import { kitOfferFree, registerKitMove, unregisterKitMove, type KitMove } from '../../src/game/kit/registry';
+import { PULL_UP } from '../../src/game/kit/pullUp';
+import { addShutterSpec, canCrawl, crawlLane, holderRelease, LOCAL_USER, newShutterDevice, pushForward, SHUTTER, SHUTTER_MOVE, shutterLift, shutterLocal, shutterNoticePoint, shutterRelease, shutterSpecsOf, shutterVisiblyOpen, stepShutter, underShutter, type ShutterDevice, type ShutterSpec } from '../../src/game/kit/shutter';
 import { KIT_POSE_LOCAL, newTeamPoseIn, teamPoseOfState } from '../../src/anim/clips/team';
 import { TeamController } from '../../src/game/teamController';
 import { BODY_STEP, curtainBodyBottom, curtainBox, placeShutter } from '../../src/world/shutterDoor';
@@ -28,9 +29,10 @@ function fakeGame(me: { x: number; z: number }, mate: { x: number; z: number; mo
   const asked: unknown[][] = [];
   const ends: string[] = [];
   const health = { hp: 100 };
+  const mates = [m];
   const g = {
     player: { alive: true, controller, pose: { traverse: 'none', traverseT: 0, tumble: 0 } },
-    net: { teamMates: () => [m], teamRequest: (...a: unknown[]) => asked.push(a), teamHangEnd: (k: string) => ends.push(k) },
+    net: { teamMates: () => mates, teamRequest: (...a: unknown[]) => asked.push(a), teamHangEnd: (k: string) => ends.push(k) },
     app: { toasts: { show: () => {} } },
     traversal: { attached: false, committed: null, attach: { kind: 'none', phase: 'off' } },
     takedown: { active: null },
@@ -40,7 +42,7 @@ function fakeGame(me: { x: number; z: number }, mate: { x: number; z: number; mo
     world: { level: { anchors } },
   };
   const tm = new TeamController(g as never);
-  return { g, tm, mate: m, asked, ends, health, controller };
+  return { g, tm, mate: m, mates, asked, ends, health, controller };
 }
 
 function steps(tm: TeamController, seconds: number, coop = false, b = false): void {
@@ -174,7 +176,8 @@ describe('the holder (KIT-SHUT)', () => {
     expect(tm.state).toBe('none');
     tm.fixedUpdate(DT, true, false);
     expect(tm.state).toBe('shutterOffer');
-    expect([tm.busy, tm.mode, tm.wireSub, tm.wireS]).toEqual([false, 'brace', SHUTTER_SUB, 0]);
+    // (KIT-TICK) the grip pins the holder to the bar: busy (weapons and interact off)
+    expect([tm.busy, tm.mode, tm.wireSub, tm.wireS]).toEqual([true, 'brace', SHUTTER_SUB, 0]);
     expect(dev(tm).user).toBe(LOCAL_USER);
     steps(tm, SHUTTER.grip - 0.1);
     expect(tm.state).toBe('shutterOffer');
@@ -356,6 +359,93 @@ describe('the crawler (KIT-SHUT)', () => {
     expect(kin.z).toBeCloseTo(-SHUTTER.crawlOut);
     // the holder's own drop end already told the host
     expect(late.ends).toEqual([]);
+  });
+});
+
+describe('per-tick upkeep and polish (KIT-TICK)', () => {
+  const holding = { x: 0, z: SHUTTER.holdSpot, mode: 'brace', sub: SHUTTER_SUB, s: SHUTTER.holdGap };
+
+  it('a mate\'s shutter still drops on this page while another kit move claims the idle press', () => {
+    // a pull-up that always claims the idle press, registered ahead of the shutter (the glob's order)
+    const claim: KitMove = {
+      kind: 'pull',
+      newRun: () => ({}),
+      check: () => null,
+      idle(h) {
+        h.prompt = 'pull here';
+        return false;
+      },
+      begin() {},
+      step() {},
+    };
+    unregisterKitMove('shutter');
+    unregisterKitMove('pull');
+    registerKitMove(claim);
+    registerKitMove(SHUTTER_MOVE);
+    try {
+      const { tm, mate } = fakeGame({ x: 1, z: 0.6 }, holding);
+      tm.fixedUpdate(DT, false, false);
+      expect(tm.prompt).toBe('pull here');
+      expect([dev(tm).open, dev(tm).user, dev(tm).phase]).toEqual([SHUTTER.holdGap, 'm', 'held']);
+      // the holder lets go: no shutter MoveState any more
+      mate.mode = 'ground';
+      mate.sub = 0;
+      tm.fixedUpdate(DT, false, false);
+      expect([dev(tm).user, dev(tm).phase]).toEqual(['', 'dropping']);
+      steps(tm, SHUTTER.dropTime + 0.05);
+      expect([dev(tm).phase, dev(tm).open]).toEqual(['closed', 0]);
+    } finally {
+      unregisterKitMove('pull');
+      registerKitMove(PULL_UP);
+    }
+  });
+
+  it('the holder disconnects mid-hold (no mates): the shutter drops; and while this page\'s player is dead', () => {
+    const gone = fakeGame({ x: 1, z: 0.6 }, holding);
+    gone.tm.fixedUpdate(DT, false, false);
+    expect([dev(gone.tm).user, dev(gone.tm).phase]).toEqual(['m', 'held']);
+    gone.mates.length = 0;
+    steps(gone.tm, SHUTTER.dropTime + 0.05);
+    expect([dev(gone.tm).user, dev(gone.tm).phase, dev(gone.tm).open]).toEqual(['', 'closed', 0]);
+
+    const dead = fakeGame({ x: 1, z: 0.6 }, holding);
+    dead.tm.fixedUpdate(DT, false, false);
+    expect(dev(dead.tm).phase).toBe('held');
+    (dead.g.player as { alive: boolean }).alive = false;
+    dead.mate.mode = 'ground';
+    dead.mate.sub = 0;
+    steps(dead.tm, SHUTTER.dropTime + 0.05);
+    expect([dev(dead.tm).user, dev(dead.tm).phase]).toEqual(['', 'closed']);
+  });
+
+  it('the local holder dies mid-hold: the shutter drops on this page', () => {
+    const { g, tm } = fakeGame({ x: 0, z: SHUTTER.holdSpot }, { x: 6, z: 3 });
+    liftAndHold(tm);
+    (g.player as { alive: boolean }).alive = false;
+    steps(tm, SHUTTER.dropTime + 0.1);
+    expect(tm.state).toBe('none');
+    expect([dev(tm).user, dev(tm).phase, dev(tm).open]).toEqual(['', 'closed', 0]);
+  });
+
+  it('underZone 0.3: a partner standing against the curtain is not under it', () => {
+    expect(SHUTTER.underZone).toBe(0.3);
+    const d = newShutterDevice(SPEC);
+    const loc = { across: 0, along: 0 };
+    expect(underShutter(d, 0, 0.25, loc)).toBe(true);
+    expect(underShutter(d, 0.5, -0.29, loc)).toBe(true);
+    expect(underShutter(d, 0, 0.35, loc)).toBe(false);
+    expect(underShutter(d, 0, -0.35, loc)).toBe(false);
+    expect(underShutter(d, SPEC.width / 2 + 0.1, 0, loc)).toBe(false);
+  });
+
+  it('shutterOffer (the grip) is busy; the pull-up\'s offer stays free', () => {
+    expect(SHUTTER_MOVE.busyOffer).toBe(true);
+    expect(kitOfferFree('shutterOffer')).toBe(false);
+    expect(kitOfferFree('pullOffer')).toBe(true);
+    const { tm } = fakeGame({ x: 0, z: SHUTTER.holdSpot }, { x: 6, z: 3 });
+    tm.fixedUpdate(DT, true, false);
+    expect(tm.state).toBe('shutterOffer');
+    expect([tm.active, tm.busy]).toEqual([true, true]);
   });
 });
 

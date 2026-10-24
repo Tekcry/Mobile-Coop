@@ -8,13 +8,15 @@
  * What a move gets:
  * - kind: a `KitKind` (teamMoves.ts), its wire sub bit `KIT_SUB[kind]` (the `brace` / `boost` modes; NET carries it);
  * - states: its pose ids (`KIT_POSE_IDS`, anim/clips/team.ts) ARE the controller's states while it plays. Role b (holder)
- *   rides wire mode `brace`, role a (partner) `boost`; `<move>Offer` is the waiting offer (not `busy`, pose k < 0); a
+ *   rides wire mode `brace`, role a (partner) `boost`; `<move>Offer` is the waiting offer (pose k < 0; not `busy` unless
+ *   the move is `busyOffer`); a
  *   phase with a time in `times` has k = t / time, the rest k = 1 (held);
  * - the host's rule (`check`, called from `checkTeamRequest` after the rate / alive / self checks, before the ground
  *   check), `paired` (the host keeps the pair until an end, as the hang-down / rope) and `claimsPoint` (the request
  *   claims a point `lx, gy, lz` that the start carries as `l`): NET reads these for `tmove` / `tstart`;
  * - the local side through `KitHost` (the TeamController): `idle` before the built-in offers, `begin` on the host's
- *   start, `step` every fixed step in its states, `ended` on the partner's / host's end, `end` on the way out;
+ *   start, `step` every fixed step in its states, `ended` on the partner's / host's end, `end` on the way out, and
+ *   `tick` every fixed step whatever the state (alive or not);
  * - per-controller run data (`newRun`, one per kind per controller: a host and a client page may share a process);
  * - the kit device hook: `KitDevices` per controller (`TeamController.devices`), filled by `setupDevices` once per level
  *   (a shutter's lift point and its gap); the host's checks and the guards' view read the same list.
@@ -122,6 +124,11 @@ export interface KitHost {
   mates(): readonly TeamMate[];
   partnerPos(): { x: number; y: number; z: number } | null;
   partnerYaw(): number;
+  /** The local player's health now (hp; NaN = no target, a headless test). A drop = hurt (the shutter's forced release). */
+  health(): number;
+  /** The drop search ahead of a player at (`px`, `py`, `pz`) facing `yaw` (the hang-down's, reused by the pull-up's
+   *  catch point): the hang point and the floor under it; null = no drop there. The result is scratch (reused). */
+  hangPoint(px: number, py: number, pz: number, yaw: number): { x: number; z: number; floorY: number } | null;
   /** A polite refusal (toast and prompt). */
   refused(text: string): void;
   /** Crouched, still, the brace pose (the leg-up offer's hold). */
@@ -141,9 +148,16 @@ export interface KitMove<R extends object = object> {
   readonly paired?: boolean;
   /** Host: the request claims a point (`lx`, `gy`, `lz`) that the start carries as `l`. */
   readonly claimsPoint?: boolean;
+  /** Its `<move>Offer` holds the player (busy: weapons and interact off), as the shutter's grip pinned to the bar. Default
+   *  false: a waiting offer leaves the player free (the pull-up's). */
+  readonly busyOffer?: boolean;
   newRun(): R;
   /** Host: the request's rule (the shared rate / alive / self checks are done); null = allowed. */
   check(r: TeamRequest): TeamDenial | null;
+  /** Every fixed step for every registered move, whatever the team state (none, a built-in or another kit move's, an
+   *  offer), alive or dead, with or without mates: called before any early return of the controller's fixed step (and
+   *  before `idle` / `step`). For page-wide upkeep that must never freeze (the shutters' drop and a mate's held gap). */
+  tick?(h: KitHost, run: R, dt: number): void;
   /** No move running (before the built-in offers): null = not here (the built-ins run), else whether it took the press.
    *  `free` = on the ground and unattached, `near` = the nearest mate (m). */
   idle?(h: KitHost, run: R, coopPressed: boolean, free: boolean, near: number): boolean | null;
@@ -222,9 +236,14 @@ export function kitStateWireMode(state: KitState): 'brace' | 'boost' {
   return kitStateRole(state) === 'b' ? 'brace' : 'boost';
 }
 
-/** A kit move's waiting offer (`<move>Offer`): the body is held but the player is not `busy`. */
+/** A kit move's waiting offer (`<move>Offer`, pose k = -1); `busy` or not: `kitOfferFree`. */
 export function kitStateOffer(state: string): boolean {
   return state.endsWith('Offer') && KIT_POSE_OF.has(state);
+}
+
+/** A kit offer that leaves the player free (not `busy`): a `<move>Offer` whose move is not `busyOffer`. */
+export function kitOfferFree(state: string): boolean {
+  return kitStateOffer(state) && !(kitMoveOfState(state)?.busyOffer ?? false);
 }
 
 /** A kit state's wire sub bit (its move's). */

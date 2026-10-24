@@ -1,12 +1,12 @@
 // (mission KIT-PULL) The pull-up: the band and its sources, the host rule, the catch window, both sides' phases on the
 // team clock, the missed catch and the cancels. Headless: a fake GameState with one lip (a top at `H` for x < 0.5, the
 // ground at 0, the wall face at x = 0.5) and the real TeamController.
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Vector3 } from '../../src/core/babylon';
 import { LEAP, TEAM, WALL_JUMP } from '../../src/config/movement';
 import { REACH } from '../../src/world/anchors';
 import { checkTeamRequest, PULL_SUB, ropeTopY, type TeamRequest, type TeamSide } from '../../src/game/teamMoves';
-import { kitMove, registerKitMove } from '../../src/game/kit/registry';
+import { kitMove, registerKitMove, type KitHost } from '../../src/game/kit/registry';
 import { checkPullRequest, PULL, PULL_UP, pullBand, pullCatchAt, pullJumpY, pullMissLanding, pullVerdict, type PullRun } from '../../src/game/kit/pullUp';
 import { TeamController } from '../../src/game/teamController';
 import { KIT_POSE_LOCAL } from '../../src/anim/clips/team';
@@ -312,6 +312,18 @@ describe('the partner (KIT-PULL)', () => {
     f.tick(1, true);
     expect(f.asked).toEqual([['pull', 'm', -1, 0, H, expect.closeTo(0.85, 5), expect.closeTo(0, 5)]]);
     expect(f.tm.partner).toBe('m');
+  });
+
+  it('(KIT-TICK) the catch point comes from the typed KitHost.hangPoint (the controller\'s drop search)', () => {
+    const f = partnerGame();
+    const host: KitHost = f.tm;
+    const p = host.hangPoint(0, H, 0, Math.PI / 2)!;
+    expect(p.x).toBeCloseTo(0.85, 5);
+    expect(p.floorY).toBe(0);
+    const spy = vi.spyOn(f.tm, 'hangPoint');
+    f.tick(1, true);
+    expect(spy).toHaveBeenCalledWith(0, H, 0, Math.PI / 2);
+    expect(f.asked).toEqual([['pull', 'm', -1, 0, H, expect.closeTo(0.85, 5), expect.closeTo(0, 5)]]);
   });
 
   it('out of reach of the catch point: a polite refusal, no request', () => {

@@ -9,7 +9,7 @@ import { boostPath, inBoostBand, legUpRoom, relayPath, relaySlot, throwArc, thro
 import { clearGripAxis } from '../player/attachGrips';
 import type { GameState } from './gameState';
 import { KIT_POSE_LOCAL } from '../anim/clips/team';
-import { KitDevices, isKitState, kitMove, kitMoveOfState, kitMoves, kitPoseK, kitStateOffer, kitStateSub, kitStateWireMode, type KitHost, type KitMove, type KitState } from './kit/registry';
+import { KitDevices, isKitState, kitMove, kitMoveOfState, kitMoves, kitOfferFree, kitPoseK, kitStateSub, kitStateWireMode, type KitHost, type KitMove, type KitState } from './kit/registry';
 
 // (mission KIT0) every co-op kit move file registers itself with the registry (`kit/registry.ts`): a new move is a new
 // file in `game/kit/`, no edit here
@@ -148,7 +148,7 @@ export class TeamController implements KitHost {
   }
 
   get busy(): boolean {
-    return this.active && this.state !== 'offer' && this.state !== 'hangOffer' && this.state !== 'ropeOffer' && !kitStateOffer(this.state);
+    return this.active && this.state !== 'offer' && this.state !== 'hangOffer' && this.state !== 'ropeOffer' && !kitOfferFree(this.state);
   }
 
   /** (B5) Hanging head-first from the partner's hands (the interact button stays free: the hack). */
@@ -200,6 +200,8 @@ export class TeamController implements KitHost {
   fixedUpdate(dt: number, coopPressed: boolean, bPressed: boolean, moveY = 0): boolean {
     const g = this.g;
     const c = g.player.controller;
+    // (KIT-TICK) every registered kit move's per-tick upkeep first, whatever the state, alive or not
+    this.kitTick(dt);
     if (!g.player.alive) {
       if (this.state !== 'none') this.end(true);
       this.prompt = null;
@@ -333,6 +335,22 @@ export class TeamController implements KitHost {
       const m = ms[i]!;
       m.setupDevices?.(this, this.kitRunOf(m), this.devices, level);
     }
+  }
+
+  /** (KIT-TICK) Every fixed step, before any early return: each registered move's `tick` (index loop, no allocation). */
+  private kitTick(dt: number): void {
+    const ms = kitMoves();
+    if (!ms.length) return;
+    this.kitSync();
+    for (let i = 0; i < ms.length; i++) {
+      const m = ms[i]!;
+      if (m.tick) m.tick(this, this.kitRunOf(m), dt);
+    }
+  }
+
+  /** (KIT-TICK, `KitHost`) The local player's hp now; NaN = no target (a headless test's GameState). */
+  health(): number {
+    return this.g.target?.health.hp ?? NaN;
   }
 
   /** No move running: the registered kit moves first (null = none applies here, the built-ins run). */
