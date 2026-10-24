@@ -1,10 +1,17 @@
+import { BEACON } from '../../player/goggleGlow';
 import type { BuiltLevel } from '../../world/levelBuilder';
 
 export interface Blip {
   x: number;
   z: number;
   kind: 'enemy' | 'ally' | 'objective' | 'pickup' | 'danger';
+  /** Ally only: 0-based player slot; the dot takes that slot's beacon idle colour (coop4 A15). */
+  slot?: number;
 }
+
+/** Ally dot colour by slot, built once from the beacon table (no per-frame string building). */
+const ALLY_CSS: readonly string[] = BEACON.map((b) => `rgb(${Math.round(b.idle.r * 255)},${Math.round(b.idle.g * 255)},${Math.round(b.idle.b * 255)})`);
+const ALLY_DEFAULT = '#3fc1ff';
 
 const PX_PER_M = 3;
 
@@ -83,7 +90,7 @@ export class Minimap {
     for (const b of blips) {
       const x = (b.x - this.minX) * PX_PER_M;
       const z = (b.z - this.minZ) * PX_PER_M;
-      c.fillStyle = b.kind === 'enemy' ? '#ff4d4d' : b.kind === 'ally' ? '#3fc1ff' : b.kind === 'objective' ? '#ffd23f' : b.kind === 'danger' ? '#ff9f1a' : '#4fdc7c';
+      c.fillStyle = b.kind === 'enemy' ? '#ff4d4d' : b.kind === 'ally' ? (b.slot === undefined ? ALLY_DEFAULT : ALLY_CSS[b.slot] ?? ALLY_DEFAULT) : b.kind === 'objective' ? '#ffd23f' : b.kind === 'danger' ? '#ff9f1a' : '#4fdc7c';
       c.beginPath();
       c.arc(x, z, (b.kind === 'objective' ? 6 : 4.5) / scale, 0, Math.PI * 2);
       c.fill();
