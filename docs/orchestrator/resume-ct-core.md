@@ -2,6 +2,11 @@
 
 RESUMED ~23:55 (new account; orchestrator: overnight mode, one slice at a time, testing backlog first, save at 5-hour ~95%):
 #247 laptop afp PASS on fd34263e + CI green -> train-ready label added, orchestrator told (joins train 39 with #269).
+~11:40 NEW JOB rig-pose-fix (Michael ~11:25 approved; on ROADMAP): branch feature/rig-pose-fix (worktree
+rig-pose-fix, own npm ci; off master 4.88.1 0fab0afa; docs/rig-pose-audit/ BRIEF / PLAN / STATE / REPORT). Wave 1 Opus
+builders running: S1 player body model + wall head (rpf-s1), S2 shot origin (rpf-s2), S5 body pos (rpf-s5), S6 dog head
+(rpf-s6). Then merge each into feature/rig-pose-fix, one Opus checker for the wave (+ a second on src/net), laptop suites,
+wave 2 (S3 guard head incl. S6's enemyPuppet one-liner, S7 small batch), one batch PR. guard-models: full bake queued.
 ~08:00: #269 + #282 RELEASED in 4.85.0 (train 42): coop-rejoin done. MPFB2 zip confirmed on the laptop (Michael):
 the full bake 20261023T202119-...-a8ff2d45-5e1d can run (not started yet; status laptop-e2e/alone-guard-bake-all).
 ~07:50 FULL BURN: #269 + #282 laptop coop + netmove 2/2 PASS on 0e65c3eb (post master merge) -> train 42 ready.
