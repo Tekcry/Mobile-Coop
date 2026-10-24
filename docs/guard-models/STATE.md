@@ -1,6 +1,7 @@
 # Guard models: state
 
 ## Resume
+- 2026-10-25 ~04:30: G10a BAKED AND BUNDLED. Full laptop rebake finished 02:07 (logs scratch/ctcore/g10a-bake/r4-step1..5.log; pushed bake/guard-models: lods 031e7445, check b4ed3f8f, sheet bf8fdfeb): garments 16 built, gear 25, lods 4, check 4, sheet 1 all ok. guardGarmentCheck failed 6 garments on the pre-weld seam gap only; Opus triage: SHIP AS IS (the gap is measured before the weld, build_garment.py:1308-1348 merges every seam pair, so it never reaches the GLB; the same numbers were accepted for #318; G10a did not touch the garment scripts). Gate change (guardGarmentCheck.mjs:12-23, :73-86): the pre-weld gap only warns (> 10 mm Wren's limit, > 30 mm "large, check the gusset on the sheet"), chain copies warn only (finish() deletes them, guard_garment.py:342-344), NEW FAIL: the part's own `sim.weldMoveMaxMm` > 60 mm (the relax-radius cap, build_garment.py:1344); all 16 pass (closest: lean trousers weld move 49 mm). Copied the 12 GLBs + 3 JSON from bake/guard-models bf8fdfeb into src/operators/assets/guards/ (9 base GLBs changed; shield GLBs and the 3 JSON byte-identical); D6 assertion in tests/guardAssets.test.ts (broad-1 head triangles showing in front of the balaclava below the eye slot, LOD0/1/2: 46 / 26 / 18 vs 520 / 120 / 53 on the old bake; limits 80 / 40 / 30). Sheet for Michael: scratch/ctcore/guard-sheet-g10a.png. Next: merge into feature/gm-flip, flip flags.ts guardModels, flag-on suites, checker, PR.
 - ~19:30: PR prep: master 4.90 merged (8809aab9), assets never precached (89c10827), SW runtime-caching rules self-contained (aba0953a; MERGE-CHECK-B B1: the guard rule threw in sw.js and broke offline caching for everyone). MERGE-CHECK-A PASS. Laptop: G9 set on 89c10827 (20261024T043619-...-6637), e2e-offline on aba0953a. Perf batch on feature/gm-perf (408ab154; PERF-REPORT.md), its cap A/B queued (gm-perf-cap). CORRECTION: the G8 "Poser solve PASS" line is NOT MEASURED (ai.anim timed stepHeadless only, the figure poses inside render()); guard-cap now has render.figure (on gm-perf).
 - Open for the look pass (G10): green debug markers on the sheet's faces (sheet overlay), low face variety, tone 0 too pale, jagged hair-cap hairline, very dark uniforms, enforcer shield missing on the sheet ("not in the broad file"), garment seam gaps (see Open), beard baked into the skin tile (takes the skin tint). No sheet notes from Michael yet.
 - ~17:55: G8 after S11 (origin/shots/g8c-0fd85e2b): still HOLD. 24 guards p95 ON vs OFF: sectorops alert 11.1 vs 9.4 (+1.7), sectorops patrol +1.1, campus patrol 9.5 vs 8.1 (+1.4), campus alert 12.0 vs 9.5 (+2.5; ON at the 12 ms target), campus away +0.5. S11a (frozen skip) only acts after the master merge. Plan (told the orchestrator): guard-models PR with the flag OFF (G9 e2e set queued 20261024T042137-player-build-b25947e6-a888); perf follow-up: read-only Opus profile of per-guard Babylon cost (PLAN2 S13 active meshes) running, then a fix and the flip.
@@ -138,7 +139,11 @@ within +0.5 ms and campusops 24 alert stays <= 600 draws.
   41.8 mm (also fails broad trousers through its chain copy; trousers own 22 mm); lean trousers 52.5 mm; lean
   work_trousers 35.7 mm (also fails lean work_jacket through its chain copy; work_jacket own 10.7 mm). Warn over 10 mm
   (Wren's limit): average shirt 21.4, average trousers 20.1, broad trousers 22, lean shirt_rolled 20.3, lean
-  work_jacket 10.7.
+  work_jacket 10.7. The G10a bake (2026-10-25) measured the identical numbers; since then the gap only warns (over 30 mm
+  "large, check the gusset on the sheet") and the gate fails on the weld move over 60 mm instead (Resume 2026-10-25).
+- G10 look items for Michael (from the G10a sheet, scratch/ctcore/guard-sheet-g10a.png):
+  - runner / lean work outfit: skin shows through both inner elbows (already on the #318 sheet; not a G10a regression).
+  - sniper: the shirt hem overlaps the trousers as jagged triangles at the waist.
 
 ## Done
 - 2026-10-23: BRIEF.md (ask, goal, limits, A1-A11) and PLAN.md (G0-G9, budgets, fit, estimate) written.
