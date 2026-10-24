@@ -913,6 +913,9 @@ laptop runs: cd C:/NightShift/Mobile-Coop-laptop-queue-svc && node scripts/lapto
 laptop-e2e/<set>; wait with a background `until gh api .../commits/<sha>/statuses` loop, never polling turns).
 Laptop auto mode blocks `gh pr edit --add-label`: tell the orchestrator at train-ready (normal process) and flag the
 block to Michael (laptop allow rule); never ask a peer to do the blocked action for you.
+Before pushing a PR head: vitest every test file importing the changed modules AND their direct importers (an
+src/ai change: also the tests importing enemy.ts / enemyManager.ts; catch-all Proxy doubles miss new methods: R1
+#326 missed train 59 on consoleNoticeA4). Put this line in every builder brief.
 Master 4.93.0 (6e8a450b), PROTOCOL 52 (tests read the constant; the train bumps).
 Open:
 1. #313 co-op client body carry (feature/guard-ai-coop-carry, worktree -coop-carry): master 4.93.0 merged 1d2f3e1d
