@@ -1,0 +1,23 @@
+{
+  "id": "20261024T014839-player-build-4adf3785-d290",
+  "sha": "4adf3785d7d04f59cdf5100f06a007b7e76511b4",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "player-build",
+  "suites": [
+    "e2e-combat",
+    "e2e-wall",
+    "e2e-netmove",
+    "e2e-coop",
+    "e2e-stealth-ai",
+    "e2e-guard-carry",
+    "e2e-stealth",
+    "e2e-ctcourse",
+    "e2e-sectorops",
+    "e2e-weapons-carry",
+    "e2e-tactics"
+  ],
+  "set": "rig-pose-fix",
+  "note": "rig-pose-fix batch (S1-S7): gameplay reads sim, not the rig"
+}
