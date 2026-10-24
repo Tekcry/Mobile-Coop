@@ -1738,6 +1738,8 @@ export class CoopHost implements NetAttachment {
         }
       }
       s.hfOn = false;
+      // (joint-flake-3) no grab on him this step: a read seen before is over, so a re-grab within TD_MAX never ends it
+      this.interPh.delete(eid);
       if (s.t > TD_MAX || !by || !by.alive) this.release(eid);
     }
     this.remoteNoise(dt);
