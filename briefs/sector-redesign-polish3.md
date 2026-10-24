@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 1 2026-10-24T17:33Z
+status: done feature/sector-redesign-polish3 62aa2320
 
 # Sector Ops: polish batch 3 (fog2 check P1-P3, bake2 check polish 5)
 
@@ -86,3 +86,12 @@ deviations (e.g. chdir unsupported); anything left open.
   `sectionJobs.ts` cap code bake3 changed; behaviour choice, not a unit-test polish.
 - bake2 polish 6 (a lamp failing every way on one peer only): practically unreachable, needs a co-op design call.
 - bake2 polish 7 (`GameState.create` try / catch fault injection): e2e only.
+
+## Report (Night Shift | Cloud Builder 1, 2026-10-24)
+- `feature/sector-redesign-polish3` @ 62aa2320 (one commit on fc4dc9ab); only the 5 listed files (changes fragment, volLights.ts, lightBake.ts, lightBakeAbort.test.ts new, volLightsWiring.test.ts).
+- P1 (`tests/volLightsWiring.test.ts:82-103`): the wiring guard reads `postStack.ts` / `gameState.ts` via `new URL('../src/...', import.meta.url)` inside `process.chdir(os.tmpdir())`, old cwd restored in `finally`. Fail without the fix: the old cwd-relative reads failed with ENOENT on `src/vfx/postStack.ts`.
+- P2: each `expect` carries the brief's message, regexes unchanged. Mutation `postStack.ts:467` `this.opts.lampBeams ?? true` -> `true` went red with "wiring guard: postStack.ts must pass...", then reverted.
+- P3 (`src/vfx/volLights.ts:81-86`): `k` gone; writes slot `i`, returns `n`; still a counted loop, no allocation, doc comment unchanged; volLightsWiring:40-79 and volLights.test green.
+- Polish 5 (`src/world/lightBake.ts:99-122`): `held` gets `dead: false`; the catch sets `held.dead = true` before `held.sb?.dispose()`; `lampJob` returns `null` right after the `readLampCache` await when `held.dead`. Comments tagged `(section-bake robust, polish3)`.
+- New `tests/lightBakeAbort.test.ts` (mocks lampJobs, sectionBake, sectionJobs with a counting fake SectionBaker): A rejects with 'moon', after the cache resolves null 0 constructions / 0 starts (on master's lightBake.ts it failed with 1 construction); B 1 construction, 1 start, 0 disposes, `sections` is that baker.
+- Tests: tsc 0; eslint clean on the 4 code files; the 7 brief files 59/59 (volLightsWiring 4, volLights 8, lightBakeAbort 2, sectionBake 13, sectionBakeRobust 14, lampBake 25, changesFragments 1; rerun by the builder session: 59/59). Fragment `kind: patch`. Deviations: none. Open: none (lead opens the PR).
