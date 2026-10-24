@@ -2423,11 +2423,14 @@ console.log('coop4 guard AI (AI6): three intruders over four pages - each pair h
       };
       const faceTo = (a, b) => Math.atan2(b[0] - a[0], b[1] - a[1]);
       // the three rooms: the host's and B's are S24's (racking hall aisle, factory floor); C's the Warehouse corner with
-      // the fewest lines to either (`hitDistance` between every body point of two rooms; a count of 0 is asserted)
+      // the fewest lines to either (`hitDistance` between every body point of two rooms; a count of 0 is asserted).
+      // (ai6-lkp triage) The workshop's hide is in the dark lane west of the x 14.5 fence (2.75, -24.75): a SightWorld
+      // probe finds 0 of 4468 interior points with a line to it. The old east-lot spot (20, -24.75) is seen from 41 of
+      // 330 workshop points (through the facade door x 17..18.1 and the open window x 11.5), so the pair saw C hide there.
       const R0 = { player: [-14.5, 5.2], guards: [[-15, -2.5], [-14, -2.5]] };
       const R1 = { player: [9, 3], guards: [[8, -6], [9.2, -6]] };
       const R2S = [
-        { name: 'workshop', player: [21, -14.5], guards: [[14, -14.5], [14, -13.3]], lane: [20, -24.75] },
+        { name: 'workshop', player: [21, -14.5], guards: [[14, -14.5], [14, -13.3]], lane: [2.75, -24.75] },
         { name: 'dock', player: [-21, -14], guards: [[-14, -14], [-14, -12.8]], lane: [-16, -24.75] },
         { name: 'mezzanine', player: [22, 15], guards: [[15, 15], [15, 16.2]], lane: [20, -24.75] },
       ];
@@ -2476,7 +2479,7 @@ console.log('coop4 guard AI (AI6): three intruders over four pages - each pair h
             if (!st.init) {
               st.init = true;
               st.guards = em.enemies.filter((e) => a.gids.includes(e.id));
-              Object.assign(st, { next: 0, n: 0, hide: false, badSlots: 0, badHunt: 0, lkpMax: 0, minPos: 1e9, minKnown: 1e9, dSeen: 0, maxRays: 0, maxThink: 0, lv: [], hunts: [], slots: [], err: '' });
+              Object.assign(st, { next: 0, n: 0, hide: false, badSlots: 0, badHunt: 0, lkpMax: 0, lkpWorst: null, minPos: 1e9, minKnown: 1e9, dSeen: 0, maxRays: 0, maxThink: 0, lv: [], hunts: [], slots: [], err: '' });
             }
             const gs = st.guards;
             st.lv = gs.map((e) => (e.alive ? e.level : 'down'));
@@ -2490,7 +2493,14 @@ console.log('coop4 guard AI (AI6): three intruders over four pages - each pair h
             st.n++;
             const s = st.slots;
             if (!(new Set(s).size === 3 && s.every((v) => v >= 0 && b.valid[v] === 1))) st.badSlots++;
-            for (let i = 0; i < 3; i++) if (s[i] >= 0) st.lkpMax = Math.max(st.lkpMax, Math.hypot(b.x[s[i]] - a.stand[i][0], b.z[s[i]] - a.stand[i][1]));
+            for (let i = 0; i < 3; i++) {
+              if (s[i] < 0) continue;
+              const dk = Math.hypot(b.x[s[i]] - a.stand[i][0], b.z[s[i]] - a.stand[i][1]);
+              if (dk > st.lkpMax) {
+                st.lkpMax = dk;
+                st.lkpWorst = { player: i, at: [+b.x[s[i]].toFixed(2), +b.z[s[i]].toFixed(2)], seenT: +b.seenT[s[i]].toFixed(2), locT: +b.locT[s[i]].toFixed(2) };
+              }
+            }
             for (let k = 0; k < gs.length; k++) {
               const e = gs[k];
               const r = a.room[k];
@@ -2529,7 +2539,7 @@ console.log('coop4 guard AI (AI6): three intruders over four pages - each pair h
         await GH(() => { const s = window.__ai6s; s.hide = true; s.next = window.__app.current.time; });
         const hid = await waitHostSim(HA, 6000);
         const c1 = await GH(() => ({ ...window.__ai6s, guards: undefined }));
-        const why = jl({ hid: Math.round(hid), n: c1.n, badSlots: c1.badSlots, badHunt: c1.badHunt, lkpMax: f2(c1.lkpMax), minPos: f2(c1.minPos), minKnown: f2(c1.minKnown), dSeen: c1.dSeen, maxRays: f2(c1.maxRays), maxThink: c1.maxThink, lv: c1.lv, hunts: c1.hunts, slots: c1.slots, err: c1.err });
+        const why = jl({ hid: Math.round(hid), n: c1.n, badSlots: c1.badSlots, badHunt: c1.badHunt, lkpMax: f2(c1.lkpMax), lkpWorst: c1.lkpWorst, minPos: f2(c1.minPos), minKnown: f2(c1.minKnown), dSeen: c1.dSeen, maxRays: f2(c1.maxRays), maxThink: c1.maxThink, lv: c1.lv, hunts: c1.hunts, slots: c1.slots, err: c1.err });
         assert(hid >= 6000, `AI6 (1): 6 s of the host's sim with all three hidden (${why})`);
         assert(!c1.err && c1.n >= 20, `AI6 (1): sampled every 0.25 s (${c1.n} samples) (${why})`);
         assert(c1.badSlots === 0, `AI6 (1): the three slots stay distinct and valid at every sample (${why})`);
