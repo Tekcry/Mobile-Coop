@@ -16,14 +16,23 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   stations (G20, G98).
 - (CT prototype G5) The context action menu, top right (`ui/hud/contextMenuView.ts`, `.hud-ctx` in styles.css): a
   header box (INTERACT, or BACK TO GAME while A is held) over the options box, inside a dim corner-tick frame. CT's
-  fractions of the frame: right edge 3.0 % W, width 27.6 % W, header 3.2 % H tall from 10.7 % H (pushed under the
-  minimap where they would overlap), 0.4 % H gap, rows 3.34 % H apart, cap height 2.0 % H, uppercase Barlow
+  fractions of the frame: right edge 3.0 % W, width 27.6 % W, header 3.2 % H tall from 10.7 % H (as built it is pushed
+  under the minimap where they would overlap; the minimap goes, below), 0.4 % H gap, rows 3.34 % H apart, cap height 2.0 % H, uppercase Barlow
   Condensed. Our own look: steel borders, the highlight a thin outline with bright corner ticks (no fill), a fill line
   on a hold row. It writes the DOM only when `ContextMenu.version` changes. Logic: `docs/systems/input-and-loop.md`.
 - Speed gear pips (`hud.setGear(gear, changes, max)`, shown `GEARS.pipsShow` 1.5 s after a change). Decided, not built
   yet: no gear or stance indicator on the HUD (loco M25 (7), G107: the body shows the stance).
-- Decided, not built yet: mission objectives live in the menu, as in CT (G108); the Fallow course keeps its always-on
-  list (below). The HUD layout follows CT (G77).
+- Decided, not built yet: mission objectives live in the menu, as in CT (G108); Marlow Yard and the Fallow course keep
+  their always-on list (below; G292). The HUD layout follows CT (G77).
+- Decided, not built yet (2026-10-25, every mode): no maps at all, no minimap, no compass, no objective blip. Michael:
+  "No maps at all" (the briefing's annotated top-down map and the field-menu map of known intel, bible 5.10, are removed)
+  and, for the minimap, "Remove it too" (no minimap, compass or objective blip in any mode). As built the HUD still draws
+  the compass strip with its markers (`ui/hud/hud.ts`) and the minimap (`ui/hud/minimap.ts`, `GameState.minimap`).
+  Owner: the menu / briefing owner named at the next plan. Do not add a map, a waypoint or a marker to any mode.
+- Decided, not built yet (G290, 2026-10-25): objectives "must name what and where, but no map, level design must flow
+  naturally towards each objective". Guidance is in-world (place names, signs, landmarks, light language). An optional
+  hint layer exists, off by default (G290). Up to 2 strict mission rules are signposted in the briefing and the
+  objective list (G290). Marlow Yard is the exception: it keeps its guidance marks and always-on list (G292).
 
 ## Menus and screens
 - Every menu is a `Screen` on the `ScreenManager` stack. `FocusNav` is shared: any element with `data-focus` is
