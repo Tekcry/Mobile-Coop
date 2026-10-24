@@ -213,6 +213,9 @@ export interface AiContext {
   /** (guard-ai S25) His claimed plan point is over: looked into (`reached`) or found unreachable; done either way, so
    *  nobody retries it. The manager (`searchDoneFor`) ignores `reached` today: the point is finished either way. */
   searchDone?(e: Enemy, reached: boolean): void;
+  /** (polish2 A188) A combat plan search's first look at his intruder's last known position: true when nobody of the
+   *  plan holds it (he takes it) or he does; false: a mate looks there, he starts on the plan. Absent: true. */
+  searchLkp?(e: Enemy): boolean;
   /** A callout (shown near the speaker; radio lines chirp). (guard-ai S9) `ev`, `n`, `unit`: the table line it is (the
    *  event, its line index, the unit it names; absent for a line said verbatim, a talking pair's), for the co-op host. */
   onBark?(e: Enemy, line: string, radio: boolean, ev?: BarkEvent, n?: number, unit?: number): void;
@@ -2725,6 +2728,10 @@ export class Enemy implements Damageable {
           this.spotClamped = false;
           // (polish A13) a high-security post searches from his leash's edge: no plan point (it would be clamped)
           const secure = PLAN_CLAMP && this.postDef !== null && this.postDef.highSecurity;
+          // (polish2 A188) in a combat plan search only one searcher looks at the last known position first: a mate has
+          // it, so he takes a plan point (or the ring) at once
+          const planSearch = lvl === 'searching' && this.combatSearch && !this.searchOwn && !secure && this.hunt >= 0 && SEARCH_AREA.enabled;
+          if (this.searchK === 0 && planSearch && this.ctx.searchLkp && !this.ctx.searchLkp(this)) this.searchK = 1;
           if (this.searchK === 0) {
             this.spot[0] = cx;
             this.spot[1] = cz;

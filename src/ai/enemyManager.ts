@@ -101,9 +101,10 @@ export const POLISH_B = { roleTrip: true, hearSlot: true, blindHear: true, alarm
 /**
  * (guard-ai polish batch 2) Undo switches of the manager's polish2 fixes (false: the 4.98 behaviour). `oneHeardBark`
  * (A185): one "I heard something." per noise however many searchers hear it (the first in the list who may bark; all
- * of them still walk to it).
+ * of them still walk to it). `lkpOnce` (A188): in a combat plan search only the first searcher looks at the last known
+ * position (`SearchPlan.lkpBy`); the rest take plan points at once.
  */
-export const POLISH2 = { oneHeardBark: true };
+export const POLISH2 = { oneHeardBark: true, lkpOnce: true };
 
 /** (guard-ai S4) The bit of guard key `k` in an awareness mask (0 when out of range). */
 function keyBit(k: number): number {
@@ -697,6 +698,7 @@ export class EnemyManager {
       // (guard-ai S25) the search after combat: his intruder's probable area, one point per searcher
       searchPoint: (e, out) => this.searchPointFor(e, out),
       searchDone: (e) => this.searchDoneFor(e),
+      searchLkp: (e) => this.searchLkpFor(e),
       addBody: (e, rig: CharacterRig, imp: Vector3, lethal: boolean) => {
         // (rig-pose-fix S5) where he lies is sim: his feet and yaw at death, the fall along the impulse, the room on the
         // static collision (rig.p: static proportions); the ragdoll eases onto it
@@ -3127,6 +3129,21 @@ export class EnemyManager {
     return true;
   }
 
+  /** (polish2 A188) `AiContext.searchLkp`: may `e` take his intruder's last known position as his first look? True when
+   *  nobody of the plan holds it (he takes it) or he does; off, the parked modes, no intruder or no plan round the current
+   *  position yet: true (everyone looks, as before). */
+  private searchLkpFor(e: Enemy): boolean {
+    if (!POLISH2.lkpOnce || !SEARCH_AREA.enabled || !this.stealth) return true;
+    const s = e.hunt;
+    if (s < 0 || s >= MAX_INTRUDERS || this.intruders.valid[s] !== 1) return true;
+    this.buildPlan(s);
+    const p = this.plans[s]!;
+    if (p.builtAt < 0 || hyp2(p.cx - this.intruders.x[s]!, p.cz - this.intruders.z[s]!) > PLAN_MOVE) return true;
+    if (p.lkpBy >= 0 && p.lkpBy !== e.num) return false;
+    p.lkpBy = e.num;
+    return true;
+  }
+
   /** `AiContext.searchDone`: the point `e` holds is done (looked into or unreachable), found by his claim (S25a polish
    *  2: never by a saved index). */
   private searchDoneFor(e: Enemy): void {
@@ -3149,6 +3166,12 @@ export class EnemyManager {
         if (num < 0) continue;
         const e = this.byNum(num);
         if (!e || !e.alive || e.level !== 'searching' || !e.onPlan || e.hunt !== s || e.crew?.sweeping) p.release(num);
+      }
+      // (polish2 A188) the last known position's holder by the same rule (not `onPlan`: it is no plan point)
+      const lb = p.lkpBy;
+      if (lb >= 0) {
+        const e = this.byNum(lb);
+        if (!e || !e.alive || e.level !== 'searching' || e.hunt !== s || e.crew?.sweeping) p.lkpBy = -1;
       }
     }
   }
