@@ -4,6 +4,8 @@
     "door_w": 1.2,
     "door_min_w": 1,
     "door_h": 2.1,
+    "door_h_min": 2,
+    "door_h_max": 2.2,
     "door_double_w": [
       1.8,
       2
@@ -12,6 +14,7 @@
       2.5,
       3.5
     ],
+    "roller_door_w": 3,
     "corridor_min_w": 3,
     "corridor_w": [
       3.5,
@@ -23,9 +26,23 @@
       4.5,
       6
     ],
+    "ceiling_min": 2.4,
     "storey_h": 3.3,
     "fire_stair_w": 1.3,
     "open_stair_w": 2.4,
+    "duct_w": 1.2,
+    "duct_h": 1.5,
+    "tunnel_h": 2.1,
+    "coop_lip": [
+      4.3,
+      4.5
+    ],
+    "split_jump_w": [
+      1.2,
+      1.95
+    ],
+    "split_jump_h": 3.6,
+    "wall_jump_max_up": 3.8,
     "step_player": 0.42,
     "step_nav": 0.45,
     "nav_cell": 0.5,
@@ -234,6 +251,17 @@
     "los_break_max_s": 5,
     "step_band_min_m": 0.4,
     "step_band_max_m": 0.45,
-    "grid_m": 0.5
+    "grid_m": 0.5,
+    "dead_end_max_m": 15,
+    "guards_early": [
+      3,
+      6
+    ],
+    "guards_late": [
+      6,
+      10
+    ],
+    "guards_max": 10,
+    "safe_drop_m": 4.5
   }
 }
