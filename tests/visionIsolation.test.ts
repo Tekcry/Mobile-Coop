@@ -51,10 +51,12 @@ describe('vision never changes detection (step 14)', () => {
   });
 
   it('src/ai, src/net and the light meter never read the vision state or its render flags', () => {
-    // the dog's body (DogModel) is the render-only view that carries the glow (like CharacterRig in src/player);
-    // nothing else in src/ai may touch it
+    // the dog's body (DogModel) and the guard's figure (GuardBody, guard-models) are the render-only views that carry
+    // the glow (like CharacterRig in src/player; both run once per render from the scene observer); nothing else in
+    // src/ai may touch it
     for (const f of walk('src/ai')) {
-      if (f.replace(/\\/g, '/').endsWith('src/ai/dogModel.ts')) continue;
+      const n = f.replace(/\\/g, '/');
+      if (n.endsWith('src/ai/dogModel.ts') || n.endsWith('src/ai/guardBody.ts')) continue;
       expect(readFileSync(f, 'utf8'), f).not.toMatch(/vision\.mode|\.heat\b|setHeat|visionKind|bodyFrame|downAge|partHeat|LIVE_DOGS/);
     }
     for (const f of walk('src/net')) expect(readFileSync(f, 'utf8'), f).not.toMatch(/vision|thermal|electro/);

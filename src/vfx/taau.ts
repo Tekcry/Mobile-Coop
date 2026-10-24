@@ -27,9 +27,10 @@ export const VIEW_Z_GLSL = `float sceneViewZ(float d) {
 Effect.ShadersStore['taauFragmentShader'] = `
 precision highp float;
 varying vec2 vUV;
-uniform sampler2D textureSampler;
-uniform sampler2D historySampler;
-uniform sampler2D depthSampler;
+// (LR16-L B1) highp samplers: the default (lowp) runs at fp16 on Apple GPUs, and hyperbolic depth near 1 then steps in slabs
+uniform highp sampler2D textureSampler;
+uniform highp sampler2D historySampler;
+uniform highp sampler2D depthSampler;
 uniform mat4 invView;
 uniform mat4 prevViewProj;
 uniform vec3 camPos;

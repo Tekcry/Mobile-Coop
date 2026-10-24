@@ -42,12 +42,13 @@ Effect.ShadersStore['volumetricFragmentShader'] = `
 precision highp float;
 precision highp sampler3D;
 varying vec2 vUV;
-uniform sampler2D textureSampler;
+// (LR16-L B1) highp samplers: the default (lowp) runs at fp16 on Apple GPUs, and hyperbolic depth near 1 then steps in slabs
+uniform highp sampler2D textureSampler;
 uniform sampler3D skyVis;
 uniform vec4 skyO;
 uniform vec3 skyD;
 uniform vec3 shaftCol;
-uniform sampler2D depthSampler;
+uniform highp sampler2D depthSampler;
 // 1: the depth is the G-buffer's raw view z (0 = nothing drawn); 0: the depth renderer's (z + minZ) / (minZ + maxZ);
 // 2: the scene pass's hardware depth (3.2)
 uniform float depthRaw;

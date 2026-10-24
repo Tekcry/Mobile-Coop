@@ -3,21 +3,22 @@
  * numbers, caps strings/arrays and drops anything unknown. Pure (no DOM/Babylon) and unit-tested.
  */
 import { WEATHER_CHOICES, type WeatherChoice } from '../world/mapDef';
-import { LAMP_FALLOFFS, type LampFalloff } from '../world/lampMath';
 import { sanitizeLook, type AvatarLook } from '../cosmetics/avatarLook';
 import { WEAPON_IDS, type WeaponId } from '../weapons/weaponDefs';
 import { emptyKinds, ENEMY_KINDS, type EnemyKind } from '../ai/enemyDefs';
 import { hyp3 } from '../core/mathx';
-import { packMoveState, sanitizeMoveState, type MoveState } from '../player/moveState';
+import { OPTIC_POINT_MAX, packMoveState, sanitizeMoveState, type MoveState } from '../player/moveState';
 import { CDENY_REASONS, CKINDS, type CDenyReason, type CKind } from '../game/committedMoves';
-import { CLIENT_VERBS, type ClientVerb, type CourseWire } from '../game/course/courseWire';
+import { CLIENT_VERBS, RH_HI, RH_MAX, type ClientVerb, type CourseWire } from '../game/course/courseWire';
 import type { AirlockPhase, PackedCourse } from '../game/course/courseState';
 import type { SecWire } from '../game/ctDevices';
-import type { SectorNetExtra } from '../game/sectors';
+import type { SectorNetExtra, SectorRatingWire } from '../game/sectors';
 import { LAMP_BITS, LAMP_CHARS, LAMP_MAX, type LampWire } from './lampSync';
+import { SWAY } from '../world/lampSway';
+import type { MotionState } from '../anim/motion';
 
-/** 40 (pose-parity + coop-walk-fixes, one bump for the stack at train 30); was 37: the partner's rounds (coop-walk-fixes P7): `PlayerState.sc`, the player's rounds fired mod 256, so a remote plays each round once with its weapon's own (suppressed when `PF.quiet`) sound; the `PF.firing` 0.2 s window replayed one shot twice; also (P6) the team takedown on a partner's hostage is a `td` with kind `assist` (the field existed); 36: partner pose parity (pose-parity): `PF.aimLeft` 64 (the left-shoulder aim, every mode; the ground MoveState `sub` bit 128 is no longer written) and the MoveState `takedown` `sub` bit 1 (`TAKEDOWN_SUB_BLOW`: the blow is running; a choke / the lethal approach poses no arc); 39: guard-ai S9; 38: the host's lamp falloff (sector-redesign lightrev LR13): `start.lf` ('linear' | 'photometric'), which the client's match runs whatever its own setting (a 37 peer would ignore it and bake the other falloff: light parity); 35: the weapons crate (sector-redesign E9-crate): `NetItem` kind `crate` and the `crate` event (host -> all; `fill` false = rejoin re-send); 32-34 taken by open branches (guard-ai 32, marlow-final 33, section-rating 34); 31: Sector Ops light state (sector-redesign slice L): the `lamps` message (host -> all: switched-off and shot-out bitsets, `lampSync.ts`) and a client's lamp shot as a `shot` whose target is `lt-<light id>`; 30: taken by marlow-final (Menu Notes); 29: the lasers' jam point is their power panel (sector-fixes P): the `jam` claim and `sec.dv` name panel ids (`panel-*`), never laser ids (a 28 peer would jam a laser the other side does not know); 28: the `jam` claim carries the client's camera eye `e` (jammer-fixes: the host checks the jam's line of sight from it); 27: rejoin (marlow-bays R): `hello.tok`, `PlayerInfo.away`, the `you` message, the `restore` event; 26: the jammer's rules (marlow-jammer: `sec` carries per-camera clocks `ck`, each player's jam left `ch` and cooldown `cd`, and the jammed / recovering devices `dv`); 25: the guard torch bit `AL_TORCH` in the snapshot's enemy `al` (coop-torches); 24: the `sector` message's live section, door locks, shot cameras and syringes (sector-ops step 3); 23: Sector Ops (the `sector` mode and message); 22: the two-person rope (B7); 21: the paired scanners (course.sec sc); 20: the hang-down (B5); 19: the partner throw (B4); 18: ground MoveState.sub bit 128, the left-shoulder weapon (anim-cleanup); 17: the held jammer (B3). */
-export const PROTOCOL_VERSION = 40;
+/** The wire version. Only this line holds it; tests read it. `scripts/merge-train.mjs build` bumps it once per train with a wire change (history: CHANGELOG, docs/systems/coop.md). */
+export const PROTOCOL_VERSION = 54;
 /** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
 export const MAX_PLAYERS = 4;
 export const COOP_MAX = 4;
@@ -76,6 +77,43 @@ export interface PlayerState {
   sc?: number;
   /** Movement state (3.2.0): back to a wall, attached, committed moves, takedowns (`player/moveState.ts`). */
   mv?: MoveState;
+  /** (afp AF6) The sender's clock when it sent the state (s; a joiner's `pstate` only: the host's snapshots carry
+   *  `time`). */
+  t?: number;
+  /** (afp AF6) The owner's gait clock (cycle 0..1, its MotionDriver phase at the state): the partner's stride in step. */
+  gph?: number;
+  /** (afp AF6) The owner's Chaos Theory stop: the blend to idle (s, 0 none) and the held stride's pace (m/s, 0 none). */
+  qs?: number;
+  hs?: number;
+  /** (afp AF6) The owner's motion driver state (`MOTION_WIRE` index) and its time in it (s): the partner plays the same start /
+   *  stop / turn / pivot moments (it derived them from the measured velocity, at other moments). */
+  mo?: number;
+  mt?: number;
+  /** (afp AF6) The owner's acceleration (world x / z, m/s^2, its motion driver's): the partner's lean and its mocap stop slot
+   *  fire as the owner's (derived from the measured velocity they came ~0.1 s late, or not at all). */
+  ax?: number;
+  az?: number;
+}
+
+/** (afp AF6) `PlayerState.mo`: the motion driver states by index. */
+export const MOTION_WIRE: readonly MotionState[] = ['idle', 'start', 'move', 'stop', 'turn', 'pivot'];
+
+/** (afp AF6) The owner's motion state for the wire (pure); null (a scripted override drives the body): none. */
+export function motionWire(state: MotionState | null, stateT: number, ax: number, az: number, out: { mo?: number; mt?: number; ax?: number; az?: number }): void {
+  const i = state ? MOTION_WIRE.indexOf(state) : -1;
+  if (i < 0) return;
+  out.mo = i;
+  out.mt = Number.isFinite(stateT) ? Math.max(0, Math.min(60, stateT)) : 0;
+  out.ax = Number.isFinite(ax) ? Math.max(-100, Math.min(100, ax)) : 0;
+  out.az = Number.isFinite(az) ? Math.max(-100, Math.min(100, az)) : 0;
+}
+
+/** (afp AF6) The owner's gait fields for the wire from its controller (pure): the gait clock, the CT stop. */
+export function gaitWire(phase: number, ct: boolean, stopEaseT: number, stopHold: boolean, holdSpeed: number, stopEase: number, stopBlend: number, out: { gph?: number; qs?: number; hs?: number }): void {
+  out.gph = Number.isFinite(phase) ? ((phase % 1) + 1) % 1 : 0;
+  const qs = ct ? (stopEaseT >= 0 ? stopEase : stopBlend) : 0;
+  if (qs > 0) out.qs = qs;
+  if (stopHold && holdSpeed > 0) out.hs = holdSpeed;
 }
 
 /** A player state for the wire (the move state packed: its mode as an index). */
@@ -95,24 +133,71 @@ export interface EnemyState {
   st: number;
   hp: number;
   /** Alert level: 0 calm, 1 suspicious / investigating, 2 searching, 3 combat; +4 (`AL_SEIZED`) = seized in a
-   *  takedown; (25) +8 (`AL_TORCH`) = his flashlight is on. `packAlert` builds it. */
+   *  takedown; (25) +8 (`AL_TORCH`) = his flashlight is on; (32) +16 (`AL_CAUTION`) cautious, +32 (`AL_HELMET`) wears a
+   *  helmet, +64 (`AL_ARMOUR`) wears body armour; (37, A126) bits 7-8 (`AL_CARRY`) his S21 weapon carry (`WIRE_CARRY_*`);
+   *  (guard-models G6n) bits 9-15 (`AL_LOOK`) his look seed (`Enemy.look`). `packAlert` builds it. */
   al: number;
 }
 
 /** `EnemyState.al` bits over the alert level (bits 0-1): seized in a takedown, and (protocol 25) the torch on. */
 export const AL_SEIZED = 4;
 export const AL_TORCH = 8;
+/** (32, guard-ai S9) Cautious (S4 / S14 caution: the client's low ready), wearing a helmet, wearing body armour (S12 /
+ *  S13 gear: the client's placeholder parts; the helmet bit falling 1 -> 0 drops his helmet there). */
+export const AL_CAUTION = 16;
+export const AL_HELMET = 32;
+export const AL_ARMOUR = 64;
+/** (37, guard-ai A126) The guard's S21 weapon carry in `al` bits 7-8 (`ai/carryState.ts` GuardCarry's phase, so the
+ *  client runs the same draw / holster clip): 0 drawn (in the hands; low ready or raised come from `st`, the level and
+ *  `AL_CAUTION` as before, and every kind that never holsters stays 0), 1 holstered, 2 drawing, 3 holstering. */
+export const AL_CARRY_SHIFT = 7;
+export const AL_CARRY = 3 << AL_CARRY_SHIFT;
+export const WIRE_CARRY_DRAWN = 0;
+export const WIRE_CARRY_HOLSTERED = 1;
+export const WIRE_CARRY_DRAWING = 2;
+export const WIRE_CARRY_HOLSTERING = 3;
+/** (guard-models G6n, M3) The guard's 7-bit look seed (`Enemy.look`, `ai/guardLook.ts`: set once at spawn from his
+ *  spawn slot) in `al` bits 9-15, so the client builds the same look; it never changes for one guard id. */
+export const AL_LOOK_SHIFT = 9;
+export const AL_LOOK = 127 << AL_LOOK_SHIFT;
+/** Every `al` bit in use (the parser clamps into these). */
+export const AL_MAX = 65535;
 
-/** The wire `al`: alert level 0-3, seized, torch on. A guard without a torch costs what he did before (0-7); a lit one
- *  is 8-11 (calm or investigating 8-9: one JSON digit; searching or in combat 10-11: two) or 12-15 seized: at most one byte more. */
-export function packAlert(level: number, seized: boolean, torch: boolean): number {
-  return (level & 3) | (seized ? AL_SEIZED : 0) | (torch ? AL_TORCH : 0);
+/** The wire `al`: alert level 0-3, seized, torch on, (32) cautious, helmet, armour, (37, A126) the carry 0-3, (G6n) the
+ *  look seed 0-127. A guard without a torch or gear costs what he did before (0-7); a lit one is 8-15; caution and gear
+ *  add at most two JSON digits (16-127); a holstered carry one more (128-511); a look seed adds at most two more. */
+export function packAlert(level: number, seized: boolean, torch: boolean, cautious = false, helmet = false, armour = false, carry = WIRE_CARRY_DRAWN, look = 0): number {
+  return (level & 3) | (seized ? AL_SEIZED : 0) | (torch ? AL_TORCH : 0) | (cautious ? AL_CAUTION : 0) | (helmet ? AL_HELMET : 0) | (armour ? AL_ARMOUR : 0) | ((carry & 3) << AL_CARRY_SHIFT) | ((look & 127) << AL_LOOK_SHIFT);
+}
+
+/** (37, A126) The carry (`WIRE_CARRY_*`) in a wire `al`. */
+export function alertCarry(al: number): number {
+  return (al & AL_CARRY) >> AL_CARRY_SHIFT;
+}
+
+/** (guard-models G6n) The look seed (0-127) in a wire `al`. */
+export function alertLook(al: number): number {
+  return (al & AL_LOOK) >> AL_LOOK_SHIFT;
+}
+
+/** (32, guard-ai S9) The `bark` event's `b` for the security desk's camera line (its text in `t`; `id` the camera). */
+export const BARK_CAM = 254;
+/** (32) The `bark` event's `b` for a line said verbatim by guard `id` (a talking pair's line: its text in `t`). */
+export const BARK_TEXT = 255;
+
+/** (32, guard-ai S9) The confirm a client's round earns (`hitConfirm.kind`): killed, stopped by a helmet or vest
+ *  (`deflect`, as the host's own hit marker), a head hit, a body hit; null when it did nothing (no confirm sent). */
+export function hitConfirmKind(dealt: number, killed: boolean, deflect: boolean, head: boolean): 'hit' | 'head' | 'kill' | 'deflect' | null {
+  if (killed) return 'kill';
+  if (deflect) return 'deflect';
+  if (dealt <= 0) return null;
+  return head ? 'head' : 'hit';
 }
 
 /** A usable thing on the host (mirrored on clients, used through `use`). */
 export interface NetItem {
   id: string;
-  k: 'terminal' | 'cache' | 'switch' | 'alarm' | 'door' | 'intel' | 'charge' | 'revive' | 'medkitWall' | 'crate';
+  k: 'terminal' | 'cache' | 'switch' | 'alarm' | 'door' | 'intel' | 'charge' | 'revive' | 'medkitWall' | 'crate' | 'body';
   x: number;
   y: number;
   z: number;
@@ -121,8 +206,16 @@ export interface NetItem {
   hold: number;
   reach: number;
   on: boolean;
+  /** (30, marlow-final Q12) The hold's noise radius (m) when it is a noisy hold; absent: silent. */
+  hn?: number;
+  /** (coop-carry) A `body` item: the enemy id the body was (the client keeps his body by it). */
+  e?: string;
+  /** (coop-carry) A `body` item: the player carrying it (absent: lying when `on`; gone from the list: hidden). */
+  by?: string;
 }
-export const ITEM_KINDS: readonly NetItem['k'][] = ['terminal', 'cache', 'switch', 'alarm', 'door', 'intel', 'charge', 'revive', 'medkitWall', 'crate'];
+export const ITEM_KINDS: readonly NetItem['k'][] = ['terminal', 'cache', 'switch', 'alarm', 'door', 'intel', 'charge', 'revive', 'medkitWall', 'crate', 'body'];
+/** (coop-carry) The `use` id a client sends to put its carried body down (at its put down's hand-over). */
+export const DROP_BODY_ID = 'drop-body';
 
 /** (polish 8) The host's event queue holds `MAX_EVENTS * 2`; a `crate` fill is never dropped (a dropped one left that
  *  client's use recorded but never filled until a restart). Crate events are bounded by crates x players. */
@@ -140,7 +233,12 @@ export type NetEvent =
   /** (35, E9-crate) `player` used weapons crate `id`: `fill` true = the use itself (that player tops up), false = a
    *  re-send after a rejoin (hide the prompt only, never top up). */
   | { e: 'crate'; player: string; id: string; fill: boolean }
-  | { e: 'hitConfirm'; player: string; kind: 'hit' | 'head' | 'kill' }
+  /** (32/37) `deflect`: the round was stopped by the guard's helmet or vest (guard-ai S12 / S9). */
+  | { e: 'hitConfirm'; player: string; kind: 'hit' | 'head' | 'kill' | 'deflect' }
+  /** (32/37, guard-ai S9) A guard's line as the host shows it: speaker `id` (a guard; with `BARK_CAM` a camera), `b` the
+   *  bark event's index (`BARK_EVENTS`), `n` its line index, `u` the unit it names (0 none); `BARK_CAM` / `BARK_TEXT`
+   *  carry the line in `t` (radio `r`). */
+  | { e: 'bark'; id: string; b: number; n: number; u: number; r: boolean; t?: string }
   /** A player took damage from a source at (x, z). */
   | { e: 'hurt'; player: string; x: number; z: number; boom: boolean }
   | { e: 'revive'; player: string; x: number; y: number; z: number }
@@ -153,7 +251,10 @@ export type NetEvent =
   /** A ping by `player` at a spot or on an enemy (`target`, '' = the spot). */
   | { e: 'ping'; player: string; x: number; y: number; z: number; target: string }
   /** A player's gadget went off / stuck there (gas, flashbang, EMP, noisemaker): everyone sees it. */
-  | { e: 'gadget'; player: string; kind: NetGadget; x: number; y: number; z: number };
+  | { e: 'gadget'; player: string; kind: NetGadget; x: number; y: number; z: number }
+  /** (39, LR16-5b) A swinging pendant's kick (`lampSway.ts`): light `id`, the host's sim time `t`, amplitude `a` (m) and
+   *  heading `h` (rad), applied verbatim (`LightRegistry.swayImpulse`). */
+  | { e: 'sway'; id: number; t: number; a: number; h: number };
 
 export interface EndStats {
   won: boolean;
@@ -170,15 +271,22 @@ export type Msg =
   | { t: 'you'; id: string }
   | { t: 'lobby'; players: PlayerInfo[]; mode: NetMode; map: string; difficulty: Difficulty; phase: 'lobby' | 'playing'; mission: string; weather: WeatherChoice }
   | { t: 'ready'; ready: boolean }
-  | { t: 'start'; mode: NetMode; map: string; seed: number; difficulty: Difficulty; time: number; mission: string; weather: WeatherChoice; bay?: number; /** (38, LR13) the host's lamp falloff: the match's for everyone */ lf: LampFalloff }
+  | { t: 'start'; mode: NetMode; map: string; seed: number; difficulty: Difficulty; time: number; mission: string; weather: WeatherChoice; bay?: number }
   | { t: 'pstate'; s: PlayerState }
   | { t: 'shot'; w: WeaponId; ox: number; oy: number; oz: number; dx: number; dy: number; dz: number; target: string; part: 'head' | 'body'; rt: number; dist: number; dmg: number }
   /** `pk` is a bitmask of available pickups (bit i = pickup i). `info` is plain text, segments split by '|'. */
-  | { t: 'snap'; time: number; players: PlayerState[]; enemies: EnemyState[]; obj: string; info: string; pk: number; items?: NetItem[]; doors?: number[]; dcr?: number[]; bodies?: string[] }
-  /** Client used a mirrored item (the host checks reach and that it is usable). */
-  | { t: 'use'; id: string }
+  /** (optic-coop, CHECK-M B1) `trp`: the optic gaps (`BuiltLevel.opticPoints` indices) whose trap panel is open, sent
+   *  with `doors` (on a change, every few seconds and at a rejoin), so a late joiner opens them too. */
+  | { t: 'snap'; time: number; players: PlayerState[]; enemies: EnemyState[]; obj: string; info: string; pk: number; items?: NetItem[]; doors?: number[]; dcr?: number[]; trp?: number[]; bodies?: string[] }
+  /** Client used a mirrored item (the host checks reach and that it is usable). (30, marlow-final Q12) `pulse`: not the
+   *  use but one noise pulse of a noisy hold under way (its first moment, then every `HOLD_NOISE_PULSE` s); the host
+   *  checks it the same way and its guards hear the item as for the host's own hold (`holdPulse.ts`). */
+  | { t: 'use'; id: string; pulse?: true }
   /** (locomotion step 13) Client door peek: crack door `i` (or close its crack); the host checks reach, closed, unlocked. */
   | { t: 'door'; i: number; crack: boolean }
+  /** (optic-coop, CHECK-M B1) Client OPEN TRAP: open the trap panel over optic gap `g` (index bound `OPTIC_POINT_MAX`);
+   *  the host checks the gap has a closed trap and the client is in reach, opens it, and its snapshots' `trp` carry it. */
+  | { t: 'panel'; g: number }
   /** Client takedown on a host enemy: seize it, finish it (lethal / not), or let go. */
   | { t: 'td'; target: string; ph: 'start' | 'done' | 'abort'; lethal: boolean; kind?: string }
   /** (3.2.0 phase 5) A client asks for a team move with a braced partner (boost onto anchor `target` at `s`, the
@@ -210,7 +318,7 @@ export type Msg =
   /** Training course state (host -> all): when it changes or every COURSE_SEND. */
   | ({ t: 'course' } & CourseWire)
   /** Sector Ops: the cameras' clock, jams and alarm stage (host -> all), on change and every 0.5 s; (24) the live
-   *  section, locked door indices, cameras shot out and the revive syringes left. */
+   *  section, locked door indices, cameras shot out and the revive syringes left; (34) the last section's rating `rt`. */
   | ({ t: 'sector'; sec?: SecWire } & Partial<SectorNetExtra>)
   /** A client's local-only drill verb (DECISIONS C10; at most CTICK_RATE a second). */
   | { t: 'ctick'; verb: ClientVerb }
@@ -278,6 +386,12 @@ function playerState(v: unknown): PlayerState | null {
     w,
     hp: num(v.hp, 0, 100) ?? 100,
     ...(typeof v.sc === 'number' && Number.isFinite(v.sc) ? { sc: Math.floor(Math.max(0, Math.min(255, v.sc))) } : {}),
+    ...(num(v.t, 0, 1e9) !== null ? { t: num(v.t, 0, 1e9)! } : {}),
+    ...(num(v.gph, 0, 1) !== null ? { gph: num(v.gph, 0, 1)! } : {}),
+    ...(num(v.qs, 0, 2) !== null ? { qs: num(v.qs, 0, 2)! } : {}),
+    ...(num(v.hs, 0, 20) !== null ? { hs: num(v.hs, 0, 20)! } : {}),
+    ...(num(v.mo, 0, MOTION_WIRE.length - 1) !== null && num(v.mt, 0, 60) !== null ? { mo: Math.floor(num(v.mo, 0, MOTION_WIRE.length - 1)!), mt: num(v.mt, 0, 60)! } : {}),
+    ...(num(v.ax, -100, 100) !== null && num(v.az, -100, 100) !== null ? { ax: num(v.ax, -100, 100)!, az: num(v.az, -100, 100)! } : {}),
     ...(v.mv !== undefined && sanitizeMoveState(v.mv) ? { mv: sanitizeMoveState(v.mv)! } : {}),
   };
 }
@@ -291,7 +405,7 @@ function enemyState(v: unknown): EnemyState | null {
   const z = num(v.z, -WORLD, WORLD);
   const yaw = num(v.yaw, -1e4, 1e4);
   if (eid === null || !k || x === null || y === null || z === null || yaw === null) return null;
-  return { id: eid, k, x, y, z, yaw, st: Math.floor(num(v.st, 0, 3) ?? 0), hp: num(v.hp, 0, 1) ?? 1, al: Math.floor(num(v.al, 0, 15) ?? 0) };
+  return { id: eid, k, x, y, z, yaw, st: Math.floor(num(v.st, 0, 3) ?? 0), hp: num(v.hp, 0, 1) ?? 1, al: Math.floor(num(v.al, 0, AL_MAX) ?? 0) };
 }
 
 function netItem(v: unknown): NetItem | null {
@@ -302,7 +416,18 @@ function netItem(v: unknown): NetItem | null {
   const y = num(v.y, -50, 100);
   const z = num(v.z, -WORLD, WORLD);
   if (!iid || !k || x === null || y === null || z === null) return null;
-  return { id: iid, k, x, y, z, yaw: num(v.yaw, -10, 10) ?? 0, label: safeText(v.label, 24) || 'Use', hold: num(v.hold, 0, 10) ?? 0, reach: num(v.reach, 0.5, 4) ?? 1.8, on: v.on === true };
+  const item: NetItem = { id: iid, k, x, y, z, yaw: num(v.yaw, -10, 10) ?? 0, label: safeText(v.label, 24) || 'Use', hold: num(v.hold, 0, 10) ?? 0, reach: num(v.reach, 0.5, 4) ?? 1.8, on: v.on === true };
+  // (30, Q12) a noisy hold's radius; absent, 0 or malformed reads as a silent item
+  const hn = num(v.hn, 0, 30);
+  if (hn) item.hn = hn;
+  // (coop-carry) a body item's enemy id and carrier; junk drops the field only
+  if (k === 'body') {
+    const e = id(v.e);
+    if (e) item.e = e;
+    const by = id(v.by);
+    if (by) item.by = by;
+  }
+  return item;
 }
 
 function playerInfo(p: unknown): PlayerInfo | null {
@@ -328,6 +453,15 @@ function netEvent(v: unknown): NetEvent | null {
       if (x === null || y === null || z === null) return null;
       return { e: 'boom', x, y, z, r: num(v.r, 0.5, 12) ?? 4 };
     }
+    case 'sway': {
+      // (39) a light id (an integer in the lamp range), the host's sim time, an amplitude up to the cap, a heading
+      if (typeof v.id !== 'number' || !Number.isInteger(v.id) || v.id < 0 || v.id >= LAMP_MAX) return null;
+      const t = num(v.t, 0, 1e7);
+      const a = num(v.a, 0, SWAY.maxAmp);
+      const h = num(v.h, -Math.PI, Math.PI);
+      if (t === null || a === null || h === null) return null;
+      return { e: 'sway', id: v.id, t, a, h };
+    }
     case 'kill': {
       const enemy = id(v.enemy);
       const kind = oneOf(v.kind, ENEMY_KINDS);
@@ -351,8 +485,20 @@ function netEvent(v: unknown): NetEvent | null {
     }
     case 'hitConfirm': {
       const player = id(v.player);
-      const kind = oneOf(v.kind, ['hit', 'head', 'kill'] as const);
+      const kind = oneOf(v.kind, ['hit', 'head', 'kill', 'deflect'] as const);
       return player && kind ? { e: 'hitConfirm', player, kind } : null;
+    }
+    case 'bark': {
+      const sid = id(v.id);
+      const b = num(v.b, 0, 255);
+      if (!sid || b === null) return null;
+      const bi = Math.floor(b);
+      const text = bi === BARK_CAM || bi === BARK_TEXT;
+      const t = text ? safeText(v.t, 120) : null;
+      if (text && !t) return null;
+      const ev: Extract<NetEvent, { e: 'bark' }> = { e: 'bark', id: sid, b: bi, n: Math.floor(num(v.n, 0, 63) ?? 0), u: Math.floor(num(v.u, 0, 99) ?? 0), r: v.r === true };
+      if (t) ev.t = t;
+      return ev;
     }
     case 'hurt': {
       const player = id(v.player);
@@ -455,6 +601,14 @@ const mission = (v: unknown): string => (typeof v === 'string' && /^[a-z0-9-]{0,
 /** Cameras a `sec` field carries clocks for (SN60 caps a map at 12) and jammed / recovering devices it lists. */
 const SEC_CAMS = 16;
 const SEC_DEVS = 64;
+/** (30 marlow-final N6) Scanner pairs a `sec` field carries. */
+const SEC_SCANS = 8;
+
+/** (B6; 30 marlow-final N6) One scanner pair's `sec.sc` entry: phases 0-3, occupied bits 0-3, progress in tenths of a s. */
+function scanEntry(e: unknown): number[] {
+  const a: unknown[] = Array.isArray(e) ? e : [];
+  return [0, 1, 2, 3, 4].map((i) => Math.round(num(a[i], 0, i < 3 ? 3 : 100) ?? 0));
+}
 
 /** (CT prototype B3; 26 marlow-jammer) The `sec` field of a course / sector message: the jam list, each jammer's use and
  *  cooldown, the devices' jam timelines and the camera clocks, clamped. */
@@ -463,7 +617,8 @@ function secWire(v: unknown): { sec?: SecWire } {
   const j = Array.isArray(v.j) ? v.j : [];
   const ch = Array.isArray(v.ch) ? v.ch : [];
   const cd = Array.isArray(v.cd) ? v.cd : [];
-  const sc: unknown[] | null = Array.isArray(v.sc) ? v.sc : null;
+  // (30) one entry per scanner pair, in the map's order; an entry that is no array reads as idle (the order is kept)
+  const sc: number[][] | null = Array.isArray(v.sc) ? v.sc.slice(0, SEC_SCANS).map(scanEntry) : null;
   const ck: number[] = [];
   if (Array.isArray(v.ck)) for (const x of v.ck.slice(0, SEC_CAMS)) ck.push(num(x, 0, 1e6) ?? 0);
   const dv: [string, number, number][] = [];
@@ -485,8 +640,7 @@ function secWire(v: unknown): { sec?: SecWire } {
       cd: [num(cd[0], 0, 10) ?? 0, num(cd[1], 0, 10) ?? 0],
       dv,
       al: Math.round(num(v.al, 0, 9) ?? 0),
-      // (B6) the scanner pair: phases 0-3, occupied bits 0-3, progress in tenths of a second
-      ...(sc ? { sc: [0, 1, 2, 3, 4].map((i) => Math.round(num(sc[i], 0, i < 3 ? 3 : 100) ?? 0)) } : {}),
+      ...(sc ? { sc } : {}),
     },
   };
 }
@@ -507,7 +661,53 @@ function sectorExtra(raw: Record<string, unknown>): Partial<SectorNetExtra> {
   }
   const sy = num(raw.sy, 0, 9);
   if (sy !== null) out.sy = Math.round(sy);
+  const rt = ratingWire(raw.rt);
+  if (rt) out.rt = rt;
+  // (marlow-polish, inside 42) every section rated so far, as the course message's `rh`
+  const rh = courseRh(raw.rh).rh;
+  if (rh) out.rh = rh;
   return out;
+}
+
+/** (34) Rating counts on the wire: whole numbers 0..RT_COUNT (synced takedowns, grant parts). */
+export const RT_COUNT = 99;
+const rtInt = (v: unknown, lo: number, hi: number): number => Math.round(num(v, lo, hi) ?? 0);
+
+/**
+ * (34, section-rating S3) The `sector` message's `rt`: the last rated section. `sec` -1..63 (-1 none yet), `marks` a
+ * 0-15 bitmask, `synced` and the grant counts whole numbers 0..RT_COUNT. Not an object, or no numeric `sec`: dropped.
+ */
+export function ratingWire(v: unknown): SectorRatingWire | null {
+  if (!isObj(v)) return null;
+  const sec = num(v.sec, -1, 63);
+  if (sec === null) return null;
+  return {
+    sec: Math.round(sec),
+    marks: rtInt(v.marks, 0, 15),
+    synced: rtInt(v.synced, 0, RT_COUNT),
+    gadget: rtInt(v.gadget, 0, RT_COUNT),
+    syringe: rtInt(v.syringe, 0, RT_COUNT),
+    medkit: rtInt(v.medkit, 0, RT_COUNT),
+    alarmStep: rtInt(v.alarmStep, 0, RT_COUNT),
+  };
+}
+
+/** (37, section-rating S6) The `course` message's `rt` (the last rated Marlow set, `ratingWire`'s shape): dropped when bad. */
+function courseRt(v: unknown): { rt?: SectorRatingWire } {
+  const rt = ratingWire(v);
+  return rt ? { rt } : {};
+}
+
+/** (37, S6 fix) The course message's `rh`: one entry per bay (index kept: a bad entry reads -1, unrated), at most
+ *  RH_MAX; not an array: dropped. */
+function courseRh(v: unknown): { rh?: number[] } {
+  if (!Array.isArray(v)) return {};
+  const rh: number[] = [];
+  for (const x of v.slice(0, RH_MAX)) {
+    const n = num(x, -1, RH_HI);
+    rh.push(n === null ? -1 : Math.round(n));
+  }
+  return { rh };
 }
 
 const COURSE_LIST = 256;
@@ -540,7 +740,7 @@ function parseCourse(raw: Obj): Msg | null {
   if (!isObj(s) || !isObj(lights)) return null;
   const stat = (q: unknown) => {
     const o = isObj(q) ? q : {};
-    return { time: n0(o.time, 0, 1e6), detections: n0(o.detections, 0, 1e4), alarms: n0(o.alarms, 0, 1e4), knockouts: n0(o.knockouts, 0, 1e4), kills: n0(o.kills, 0, 1e4), revives: n0(o.revives, 0, 1e4), teamMoves: n0(o.teamMoves, 0, 1e4), bodies: n0(o.bodies, 0, 1e4) };
+    return { time: n0(o.time, 0, 1e6), detections: n0(o.detections, 0, 1e4), alarms: n0(o.alarms, 0, 1e4), knockouts: n0(o.knockouts, 0, 1e4), kills: n0(o.kills, 0, 1e4), revives: n0(o.revives, 0, 1e4), teamMoves: n0(o.teamMoves, 0, 1e4), bodies: n0(o.bodies, 0, 1e4), synced: Math.round(n0(o.synced, 0, 1e4)) };
   };
   const ps = arr(s.pstats);
   const packed: PackedCourse = {
@@ -575,7 +775,7 @@ function parseCourse(raw: Obj): Msg | null {
     const g = num(x[0], -1, 4096);
     if (g !== null && typeof x[1] === 'boolean') groups.push([Math.round(g), x[1]]);
   }
-  return { t: 'course', s: packed, locks: ints(raw.locks, 0, MAX_DOORS - 1, MAX_DOORS), anchors: ints(raw.anchors, 0, 1e5), lights: { groups, dead: ints(lights.dead, 0, 1e5, 1024) }, ref: safeText(raw.ref, 160) ?? '', rn: Math.round(n0(raw.rn, 0, 1e6)), rl: safeText(raw.rl, 160) ?? '', rln: Math.round(n0(raw.rln, 0, 1e6)), ...secWire(raw.sec) };
+  return { t: 'course', s: packed, locks: ints(raw.locks, 0, MAX_DOORS - 1, MAX_DOORS), anchors: ints(raw.anchors, 0, 1e5), lights: { groups, dead: ints(lights.dead, 0, 1e5, 1024) }, ref: safeText(raw.ref, 160) ?? '', rn: Math.round(n0(raw.rn, 0, 1e6)), rl: safeText(raw.rl, 160) ?? '', rln: Math.round(n0(raw.rln, 0, 1e6)), ...secWire(raw.sec), ...courseRt(raw.rt), ...courseRh(raw.rh) };
 }
 
 /** Validate an incoming message. Returns null for anything malformed. */
@@ -612,12 +812,17 @@ export function parseMessage(raw: unknown): Msg | null {
     }
     case 'use': {
       const iid = id(raw.id);
-      return iid ? { t: 'use', id: iid } : null;
+      if (!iid) return null;
+      return raw.pulse === true ? { t: 'use', id: iid, pulse: true } : { t: 'use', id: iid };
     }
     case 'door': {
       const i = typeof raw.i === 'number' && Number.isInteger(raw.i) && raw.i >= 0 && raw.i < MAX_DOORS ? raw.i : null;
       const crack = bool(raw.crack);
       return i === null || crack === null ? null : { t: 'door', i, crack };
+    }
+    case 'panel': {
+      const g = typeof raw.g === 'number' && Number.isInteger(raw.g) && raw.g >= 0 && raw.g < OPTIC_POINT_MAX ? raw.g : null;
+      return g === null ? null : { t: 'panel', g };
     }
     case 'sector':
       return { t: 'sector', ...secWire(raw.sec), ...sectorExtra(raw) };
@@ -729,7 +934,7 @@ export function parseMessage(raw: unknown): Msg | null {
       const map = id(raw.map);
       const seed = num(raw.seed, 0, 2 ** 31);
       if (!mode || !difficulty || !map || seed === null) return null;
-      return { t: 'start', mode, map, difficulty, seed: Math.floor(seed), time: num(raw.time, 0, 1e7) ?? 0, mission: mission(raw.mission), weather: oneOf(raw.weather, WEATHER_CHOICES) ?? 'clear', bay: Math.round(num(raw.bay, 1, 64) ?? 1), lf: oneOf(raw.lf, LAMP_FALLOFFS) ?? 'linear' };
+      return { t: 'start', mode, map, difficulty, seed: Math.floor(seed), time: num(raw.time, 0, 1e7) ?? 0, mission: mission(raw.mission), weather: oneOf(raw.weather, WEATHER_CHOICES) ?? 'clear', bay: Math.round(num(raw.bay, 1, 64) ?? 1) };
     }
     case 'pstate': {
       const s = playerState(raw.s);
@@ -786,6 +991,15 @@ export function parseMessage(raw: unknown): Msg | null {
           if (!cs.includes(d)) cs.push(d);
         }
         out.dcr = cs;
+      }
+      // (optic-coop, CHECK-M B1) open trap panels as optic gap indices: out-of-range entries dropped, never clamped
+      if (Array.isArray(raw.trp)) {
+        const ts: number[] = [];
+        for (const g of raw.trp.slice(0, OPTIC_POINT_MAX)) {
+          if (typeof g !== 'number' || !Number.isInteger(g) || g < 0 || g >= OPTIC_POINT_MAX) continue;
+          if (!ts.includes(g)) ts.push(g);
+        }
+        out.trp = ts;
       }
       if (Array.isArray(raw.bodies)) out.bodies = raw.bodies.slice(0, MAX_ENEMIES).map((b) => id(b)).filter((b): b is string => !!b);
       return out;

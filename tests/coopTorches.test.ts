@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { AL_SEIZED, AL_TORCH, packAlert, parseMessage, type EnemyState } from '../src/net/protocol';
+import { AL_MAX, AL_SEIZED, AL_TORCH, packAlert, parseMessage, type EnemyState } from '../src/net/protocol';
 import { TorchMirror, type TorchHolder } from '../src/net/torchMirror';
 import { LightRegistry } from '../src/world/lights';
 import { LightField } from '../src/world/lightField';
@@ -79,10 +79,10 @@ describe('coop-torches: the wire', () => {
     });
   });
 
-  it('a bad al is clamped into the four bits, never past them', () => {
-    const m = parseMessage({ t: 'snap', time: 1, players: [], enemies: [{ id: 'e1', k: 'grunt', x: 0, y: 0, z: 0, yaw: 0, st: 0, hp: 1, al: 99 }, { id: 'e2', k: 'grunt', x: 0, y: 0, z: 0, yaw: 0, st: 0, hp: 1, al: -3 }], obj: '', info: '' });
+  it('a bad al is clamped into the al bits (protocol 41: S9 and the A126 carry; G6n: the look seed), never past them', () => {
+    const m = parseMessage({ t: 'snap', time: 1, players: [], enemies: [{ id: 'e1', k: 'grunt', x: 0, y: 0, z: 0, yaw: 0, st: 0, hp: 1, al: AL_MAX + 488 }, { id: 'e2', k: 'grunt', x: 0, y: 0, z: 0, yaw: 0, st: 0, hp: 1, al: -3 }], obj: '', info: '' });
     const es = (m as Extract<typeof m, { t: 'snap' }>).enemies;
-    expect(es[0]!.al).toBe(15);
+    expect(es[0]!.al).toBe(AL_MAX);
     expect(es[1]!.al).toBe(0);
   });
 });

@@ -1,5 +1,5 @@
 import { PhysicsRaycastResult, Vector3, type PhysicsEngine, type Scene } from '../core/babylon';
-import { G, isArmoured } from '../physics/groups';
+import { G, isArmouredBody } from '../physics/groups';
 import type { DamageRegistry, Damageable, HitPart, Team } from '../game/damage';
 import type { Prop, PropSystem } from '../world/props';
 import type { Vfx } from '../vfx/vfx';
@@ -38,6 +38,8 @@ interface Projectile {
 
 /** Shared ray/projectile logic for player and enemy weapons. */
 export class Ballistics {
+  /** Reused by every cast. (guard-ai R1) Not reset here: Havok's raycast resets it from the segment, and `reset()` with
+   *  no arguments allocates two `Vector3.Zero()`. */
   private res = new PhysicsRaycastResult();
   /** (camera-cue fix) The one ray query every cast reuses (no object literal per ray). */
   private readonly q = { membership: G.PROJECTILE, collideWith: 0 };
@@ -73,7 +75,6 @@ export class Ballistics {
   /** Raycast and resolve what was hit. Reuses an internal result object. */
   /** True when nothing in `collideWith` lies between the two points (no allocation). */
   clear(from: Vector3, to: Vector3, collideWith: number): boolean {
-    this.res.reset();
     this.q.collideWith = collideWith;
     this.eng.raycastToRef(from, to, this.res, this.q);
     return !this.res.hasHit;
@@ -81,25 +82,35 @@ export class Ballistics {
 
   /** Distance to the first hit in `collideWith` along the segment, or the segment's length (no allocation). */
   hitDistance(from: Vector3, to: Vector3, collideWith: number): number {
-    this.res.reset();
     this.q.collideWith = collideWith;
     this.eng.raycastToRef(from, to, this.res, this.q);
     return this.res.hasHit ? Vector3.Distance(from, this.res.hitPoint) : Vector3.Distance(from, to);
   }
 
-  /** (guard-ai S16) The first hit in `collideWith` along the segment carries the armour bit (an armoured pane or door
-   *  leaf), resolved in `ray`'s order (a hit volume or a prop first is not armour); no allocation (the fire gate). */
+  /**
+   * (sector-redesign perf) A render-only cast (the guard freeze's occlusion rays): the first hit in `collideWith`, as the
+   * shared result (`hasHit`, `body`, `hitPoint`; read it before the next cast). No allocation, nothing resolved.
+   */
+  cast(from: Vector3, to: Vector3, collideWith: number): PhysicsRaycastResult {
+    this.q.collideWith = collideWith;
+    this.eng.raycastToRef(from, to, this.res, this.q);
+    return this.res;
+  }
+
+  /** (guard-ai S16) The first hit in `collideWith` along the segment is armour (an armoured pane or door leaf),
+   *  resolved in `ray`'s order (a hit volume or a prop first is not armour); no allocation (the fire gate).
+   *  (sniper triage) Armour is the struck body's mark (`isArmouredBody`), not the struck shape's bits: those read every
+   *  plain level wall as armour (Havok's default filter on the level container), so a guard whose muzzle line touched
+   *  his own cover held fire and lost his wind-up (e2e-enemies "sniper relocates after its shots"). */
   armouredFirst(from: Vector3, to: Vector3, collideWith: number): boolean {
-    this.res.reset();
     this.q.collideWith = collideWith;
     this.eng.raycastToRef(from, to, this.res, this.q);
     const r = this.res;
     if (!r.hasHit || this.registry.lookup(r.body) || this.props.get(r.body)) return false;
-    return isArmoured((r.shape ?? r.body?.shape)?.filterMembershipMask ?? 0);
+    return isArmouredBody(r.body);
   }
 
   ray(from: Vector3, to: Vector3, collideWith: number): RayHit {
-    this.res.reset();
     this.q.collideWith = collideWith;
     this.eng.raycastToRef(from, to, this.res, this.q);
     const r = this.res;
@@ -117,8 +128,8 @@ export class Ballistics {
     } else {
       const prop = this.props.get(r.body);
       if (prop) out.prop = prop;
-      // (E10) per shot, not per frame: the struck shape's bits (a pane's container or a door leaf carry the armour bit)
-      else if (isArmoured((r.shape ?? r.body?.shape)?.filterMembershipMask ?? 0)) out.armoured = true;
+      // (E10) per shot, not per frame: the struck body is armour (an armoured pane group or door leaf, `markArmoured`)
+      else if (isArmouredBody(r.body)) out.armoured = true;
     }
     return out;
   }

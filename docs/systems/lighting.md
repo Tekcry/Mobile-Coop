@@ -15,9 +15,9 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   `DOOR_SHUT` 0.05 in `world/lightField.ts`.
 - Decided, not built yet (G45): clear glass passes light and sight; frosted glass and blinds pass light only; thermal never
   sees through glass. No glass rule exists in the light field yet.
-- Decided, not built yet (G100, G101, G102): an instant goggle cut in CT's order (thermal, electro, night, off), CT grain,
-  thermal as CT (CT colour ramp; people behind closed doors as a dim silhouette). Code: the 0.2 s flip and grain on every
-  mode, below.
+- Built (G100, G101, G102; prototype A5, lr16v, LR16-6): an instant goggle cut (G181: the wheel picks the mode, one
+  button toggles it), CT grain (thermal on warm areas only, none in electro), thermal as CT (CT colour ramp; people
+  behind closed doors as a dim blue silhouette, below).
 - Decided, not built yet (G69, G73): an original goggle (no three-lens look); a dim glow on the brow with vision off, a full
   glow over the eyes with vision on. Code: `player/goggleGlow.ts` lights the current lenses always.
 - Decided (G47): the parity test, long lamps and motion lights keep their plans and are sorted out when built.
@@ -27,29 +27,32 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   (`voxel/skyBake.ts` `bakeMoon`, 0.5 m cells) and the 1 m ambient grid (`world/ambientGrid.ts`), all from the canonical
   shapes (`voxel/lightShapes.ts`: visible blockout pieces >= 5 cm plus the Medium dressing). Keys hold only the map, seed,
   shapes, lights and the moon's direction.
-- `world/lampMath.ts` (pure): the one formula - linear range falloff x cosine cone (lamps without a cone: the hemisphere
-  below them, exponent 1; spots: squared, cut at the outer angle). `bakedLamps.ts` builds its GLSL from `LAMP_MATH_GLSL` and
-  the same constants (`LAMP_CONE_COS`, `LAMP_EXP`, `SPOT_EXP`; `LIGHT_GAIN` 1.6 is rendering only, `LAMP_LEVEL_GAIN` 1.2
-  gameplay only). `moonLight(theme)`: the moon's gameplay share of `lightLevel`.
-- Lamp falloff (lightrev LR13, prototype, default off): Settings > Gameplay > "Lamp falloff" (`gameplay.lampFalloff`: Classic
-  `linear`, the default / Realistic (test) `photometric`; `?falloff=photo` a dev override, `flags.photoLamps`). In
-  photometric the baked lamps fall off with the inverse square from 3 m (`PHOTO`), windowed to 0 at 1.6 x the radius
-  (`LightRegistry.add` scales fixed lamps' radius once; flashlights unchanged). A light-model rule, not a graphics
-  setting (no preset, governor or quality reads or writes it): `GameState.create` sets the mode once per map load
-  (`lampMath.matchLampFalloff`: the co-op host's `start.lf`, else the URL, else the setting; `GameState.lampFalloff`),
-  before the level adds its lights, so the registry, the bake, the field (meter and guards) and the shaders
-  (`lampMathGlsl()`; the `LAMP_PHOTO` define keeps the two modes' compiled effects apart) all read one mode; never
-  mid-match. Co-op: protocol 38 `start.lf`, the client's row locked to the host's. `?gfx=min` keeps Babylon's linear real
-  lights for the picture (the field is photometric). Not adopted: `docs/lighting-review/PROPOSAL.md` section 7 (LR13),
+- One light model (LR16; no falloff setting). The parts, one line each:
+  - photometric falloff with a smooth near term and a feathered cone: `world/lampMath.ts` (LR16b)
+  - contact-hardening penumbra in the bake: `voxel/lampBake.ts` (LR16e)
+  - one-bounce fill in the ambient grid's G channel: `voxel/lampBounce.ts`, `world/bounceGrid.ts` (LR16-1)
+  - torch shadow atlas: `world/torchShadows.ts`, `world/torchShadowSet.ts` (LR16t)
+  - character shadows on every tier: `world/charShadows.ts`, `world/charShadowSet.ts` (LR16-7 / LR16f / LR16-3)
+- `world/lampMath.ts` (pure): one light model (LR16a, Michael 2026-10-23 ~18:12 "Disable returning to original lighting
+  system, focus on only the one new system"). Baked lamps: the photometric falloff `photoFalloff` (inverse square from
+  3 m, `PHOTO`, windowed to 0 at the reach = radius x 1.6; `LightRegistry.add` scales fixed lamps' radius once,
+  flashlights unchanged) x the cosine cone (lamps without a cone: the hemisphere below them, exponent 1; spots: squared,
+  cut at the outer angle). Flashlights: the linear `lampTerm`. `bakedLamps.ts` builds its GLSL from `LAMP_MATH_GLSL`
+  and the same constants (`LAMP_CONE_COS`, `LAMP_EXP`, `SPOT_EXP`; `LIGHT_GAIN` 1.6 is rendering only,
+  `LAMP_LEVEL_GAIN` 1.2 gameplay only). `moonLight(theme)`: the moon's gameplay share of `lightLevel`. `?gfx=min` keeps Babylon's linear
+  real lights for the picture (the field is photometric). History: `docs/lighting-review/PROPOSAL.md` section 7 (LR13),
   numbers in `docs/sector-redesign/checks/light-measure.md`; tests `tests/lampFalloff.test.ts`.
-- (shadow audit, PROTOTYPE, rides the LR13 toggle) `world/shadowAccuracy.ts`: on exactly when the match runs Realistic
-  (`GameState.create` calls `setShadowAccuracy(matchShadowAccuracy(mode))` with the resolved mode, next to `setLampFalloff`:
-  the host's `start.lf` in co-op, `?falloff=photo`, the setting; never mid-match; read once per field / rig / bake / guards).
-  The field reads the ambient fill trilinearly as the shaders do; each lamp's door list skips doorways the lamp cannot see
-  (`doorSeen`, `bakeVisSampler`; field and shaders build the one list); the light rig sets the game's PBR materials (figures,
-  weapons) to the standard falloff so flashlights light them as they light the level (`gameLightFalloff`) and gives shadow
-  maps to cut beams first (`torchShadowPass`); guards' body-light samples test flashlights against static geometry
-  (`rayOccluder`). Findings: `docs/sector-redesign/checks/light-measure.md` (shadow audit); test `tests/shadowAccuracy.test.ts`.
+- (shadow audit; always on since LR16a) `world/shadowAccuracy.ts`: the field reads the ambient fill trilinearly as the
+  shaders do; each lamp's door list skips doorways the lamp cannot see (`doorSeen`, `bakeVisSampler`; field and shaders
+  build the one list); the light rig sets the game's PBR materials (figures, weapons) to the standard falloff so
+  flashlights light them as they light the level (`gameLightFalloff`) and gives shadow maps to cut beams first
+  (`torchShadowPass`); guards' body-light samples test flashlights against static geometry (`rayOccluder`). Findings:
+  `docs/sector-redesign/checks/light-measure.md` (shadow audit); test `tests/shadowAccuracy.test.ts`.
+  LR15: 8 door slots per lamp (`DOORS_PER_LAMP_ACCURATE`: doors 5-8 in one extra texel per lamp, field and shaders share
+  the list; `LAMP_DOORS8`) and torches without a shadow map drawn in `LampPlugin` with the field's `lampTerm` x a cut at
+  the beam's reach (`LAMP_TORCH`, `lampTorch` UBO); non-PBR lit materials (fences, ropes, decals) then get no unshadowed
+  torch light.
+  Build and check: `docs/sector-redesign/checks/lr15-build.md`, `lr15-check.md`.
 - `world/lightField.ts` (pure) `LightField` (`World.lightField`): `levelAt` = ambient grid + moon x moon visibility + the
   lamps listed for the 2 m column x `LAMP_LEVEL_GAIN` x intensity x formula x trilinear baked visibility, closed doors
   (`Doors.list`, `DOOR_SHUT`) cutting a lamp by one segment-leaf test; `dynamicAt` = non-baked lights (flashlights);
@@ -72,6 +75,11 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   change. `setGroup` skips destroyed lamps, so a shot lamp is never relit. A course mains gate's circuit is never
   relit by a guard (`StealthSystems.mainsGroups`: cutting it opens the gate). Late discovery reads the registry only
   (`destroyed`, `baseOn`, `group`, `version`) and collision for its one ray (`ai/breaker.ts` `DarkList`).
+- (guard-ai LR16-4) The board switch-back sink is wired: `IsolatorBoards.switchBack(i)` (`game/isolators.ts`, the old
+  "GA4 hook point") is what a guard's breaker walk calls at a cut breaker board (`StealthSystems.breakerHost.reset`), so
+  every circuit of the board comes back through `restore` -> `setGroup` -> the sink's `back(i, BACK_HAND)`, as a player's
+  switch-back (labels, wall switches, the `lightSwitch` event, the co-op `lamps` sync). Shot lamps stay dark. A running
+  timed window is the player's: `switchBack` refuses it and the timer brings the circuits back.
 - Guard flashlights (`world/torches.ts`, pure; coop-torches): `addTorchSlots` (dark maps: `FLASHLIGHTS` 4 slots,
   radius 13, intensity 0.85, cone 0.34 / 0.2 rad), `placeTorch` (eye height x scale, 0.35 m ahead, 0.15 m right,
   pitched 0.16 rad down; crouched past half way 1.0 m) and `beamReach` (rendering only) are the one code for the host
@@ -82,7 +90,15 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   from a host-built and a client-built torch.
 - `world/lights.ts` (pure): `LightRegistry` holds state only (lights, on / destroyed, groups, EMP, `zones`, `ambientAt` /
   `zoneAt`, `version`); `contribution` calls `lampMath`; `LIGHT` thresholds 0.28 / 0.6 (bible L6); `visibilityFromLight`;
-  `nearestLights`; `lightOnRay`.
+  `nearestLights`; `lightOnRay` (a padded fixture box or the bulb sphere along the round; walk 4.72: a round landing
+  within `LAMP_MOUNT_REACH` 0.35 m under a head, inside its footprint, counts too, so a head on top of its own pole breaks).
+  The reach is measured at the segment's end, so callers must pass the round's true landing, not a stretched or
+  range-length ray (`lampShotOk` tries the exact claimed landing first). A hit through the reach alone also needs a clear
+  static line straight up from just off the landing to the head's underside (`lampReachProbe`, polish2): a round on a
+  door soffit under a wall lamp on the far face does not break it. `StealthSystems.shotRay`, the client's `lampRay` and
+  the host's `onLampShot` all run that probe (`G.STATIC`), so host and client agree. The fixture box ignores the light's
+  `yaw` (axis-aligned `sx` / `sz`): a bulkhead on an x-facing wall keeps `sx` along x, so its footprint reaches ~0.14 m
+  into the wall; harmless with 0.2 m walls.
 - `world/lightRig.ts`: emissive bulbs (one thin-instanced mesh) for every light, and a fixed pool of `MAX_REAL_LIGHTS` spot
   lights given to the nearest lights at 4 Hz; quality sets how many are lit (`QualityLevel.realLights`). Pool lights are
   never enabled / disabled (no recompiles). Maps without lights create nothing.
@@ -107,7 +123,10 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
 ## Baked lamps (3.2)
 - `voxel/lampBake.ts` (pure, in the bake workers): per fixed light (`bakedLights(reg)`: every kind but flashlight) a box
   over its reach of `LAMP_CELL` 0.2 m cells: the share of the fixture's sample points each air cell sees through
-  conservative occupancy; solid cells take their brightest air neighbour. `packLampAtlas` / `fillLampAtlas`, `lampGrid` (2 m
+  conservative occupancy; solid cells take their brightest air neighbour. (LR16-L) The box's cell planes run through the
+  light point (`lampBox`), so a lamp hung up to a cell under its mount sits under the mount's solid row and never shadows
+  itself from it (walk 4.82 item 8: the toothed dark band on upper walls); `tests/lampBoxAlign.test.ts` audits every map
+  for lamps inside their mount (known data errors listed there). `packLampAtlas` / `fillLampAtlas`, `lampGrid` (2 m
   columns, <= 8 lights each, nearest first; a cone light only in the columns its beam reaches, `lampPlanReach` /
   `lampColumnDist`: radius x sin(its widest angle from straight down) and the cone's plan box, lossless since the
   formula is 0 outside the outer angle; sector-fixes L). `voxel/lampJobs.ts` `bakeLevelLamps` splits the lights across the `WorkerPool`
@@ -120,6 +139,37 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   1 with micro detail): the flashlights. GLSL names must not clash with Babylon's macros (`E` is one).
 - A material made after load gets the lamp plugin on the next frame (`BakedLamps.frame` re-scans when the material count
   changes).
+
+## Moving lights: flicker and stutter (LR16-5, Michael M13)
+- `world/lampFlicker.ts` (pure): a fire's multiplier (value noise 0.75..1, a few Hz) and a failing tube's stutter
+  (mostly on; a burst every ~8 s: chatter off / dim / on, or a drop-out with starter blinks), each a function of the
+  lamp's seed (map id + match seed + registry id) and the sim time only. `STUTTER_TUBES`: one tube per main map,
+  matched by position at `World.create` (`applyMapFlicker`); every `kind: 'fire'` light enrols itself.
+- `LightRegistry.tickFlicker(t)` (once per fixed step in `GameState.updateLight`, before the meter samples; `t` the
+  shared clock `NetAttachment.simTime`, snapped to the 60 Hz step) writes `LightDef.flicker` and bumps `flickerVersion`,
+  never `version` (the caches, the bounce and the lamp sync do not re-run per frame). No wire traffic.
+- Every reader multiplies by `flicker`: `contribution`, the light field (baked and unbaked), the baked lamps' colour
+  texel (`writeFlicker`: the flickering lamps only, no new sampler), the pooled lights, the fitting glow, the haze.
+  Off / shot / jammed stays off: the multiplier never touches `on` / `destroyed`.
+
+## Moving lights: swinging pendants (LR16-5b, Michael M14; Marlow Yard only)
+- `world/lampSway.ts` (pure): a hung fitting on two parallel hangers (bifilar: it translates and stays level, the cone
+  never tilts) swings as a damped pendulum, `w = sqrt(g / L)` from its claimed hangers' mean length, `tau` 5 s. Its offset
+  is a pure function of its kicks (t, amplitude, heading; 4 a pendant in a ring) and the sim time; a kick is capped so
+  the envelope never passes `SWAY.maxAmp` 0.25 m (the visibility stays the rest-pose bake: the audit accepts < 0.3 m).
+- Kicks (solo and host, `GameState`): a round within 0.6 m of the fitting (or landing within 1.5 m), a blast within
+  6 m, a head within 0.35 m of the fitting box; 0.2 s apart per pendant. Co-op: the host sends each accepted kick (the
+  `sway` event, protocol 39) and the client applies it verbatim; a client's own round asks the host (`shot` at
+  `sw-<id>`, re-checked there). No per-frame wire.
+- `SWAY_PENDANTS` (by map id and light position, matched at `World.create` by `applyMapSway`, before the build): every
+  entry that matches a fixture box with 2+ thin vertical hangers above it; the hangers are hidden from the level
+  (`visible = false`, already out of the light bake) and drawn by the light rig with the swing.
+- `LightRegistry.tickSway(t)` (every fixed step, beside `tickFlicker`) writes `LightDef.swx / swy / swz` and bumps
+  `swayVersion`, never `version`. Readers at rest + offset: `contribution` / `lightTerm`, the light field's baked lamp
+  (`lampInto`), the baked lamps' t0 texel and `spheres` (`writeSway`, folded into the frame's one data upload; the
+  capsules, the doors' test and the character shadow follow t0), the rig's fitting and hangers, the pooled light, the
+  haze. At rest: the lamp's visibility (read at the receiver) and the shot test (`lightOnRay`).
+- The character-shadow picker holds a swinging lamp's slot and re-renders its map every frame (`moving`).
 
 ## Character silhouette shadows (LR14, sector-redesign charshadow)
 Rendering only (plan and budget: `docs/lighting-review/LR14-PLAN.md`; build report:
@@ -209,8 +259,9 @@ change.
   (the night-vision smear; `e2e-darkness` checks a turning camera reads as moving). Per-frame code must not call
   `getViewMatrix` / `getTransformationMatrix` / `getDirection*` / `getWorldMatrix` on the active camera before the scene
   renders.
-- The switch: `VisionState` flips over `VISION.flip` 0.2 s and switches at the middle; `CinematicPost` draws the housing as
-  a dark band sweeping down (on) or up (off) (`flipCentre`). Replaced by an instant cut (G100).
+- The switch (G100): an instant cut. `VisionState` has no flip; the first frame drawn after the button or a wheel pick is
+  the new mode (`e2e-darkness` thermal leg). A change of mode on screen flashes the HUD label for 1.5 s; the goggle sound
+  plays on on / off only (G181). Wren's goggle moving to the eyes is the figure's (`figure.setVision`), not the picture's.
 
 ## Thermal and electro (locomotion step 14)
 - `vfx/visionLook.ts` (pure, GLSL `VISION_GLSL`): a `vk` branch in the cinematic post pass (1 thermal, 2 electro). No new
@@ -218,6 +269,25 @@ change.
   instance, or per vertex on merged guard bodies), a white emissive added to the lit colour; the ramp then colours by luma.
   Thermal softens with 4 taps in the same pass. Sensor grain and softening on all three modes (A87). Render-only: the light
   meter, the light bake and guard perception never read it.
+- Through a shut door (G102, LR16-6; `vfx/doorGhosts.ts`, pure rules `vfx/thermalGhost.ts`,
+  `tests/thermalThroughDoor.test.ts`): every rig in `LIVE_RIGS` but the local player's and a dog's hidden stand-in
+  (`CharacterRig.standIn`), with thermal heat >= `THERMAL.doorMinHeat` x `bodyEmit` (guards, partners, a body for its
+  first 30 s), within `THERMAL.doorRange` 14 m, whose floor line from the camera crosses a fully shut leaf (`open` 0)
+  with nothing else static or glass on the sight line (two rays, `G.STATIC | G.GLASS`, the leaf left out). The figure is
+  the rig's posed limbs and head (`vfx/silhouettes.ts`, up to `THERMAL.doorMax` 8 figures in 2 thin-instanced draw
+  calls), each joint slid along its own camera ray to `THERMAL.doorFront` 0.06 m in front of the leaf: it looks exactly
+  like the body, keeps the normal depth test (the player or a crate in front covers it; the wall faces round the frame
+  clip what spills past the leaf). The thermal pass reads it at `THERMAL.doorGhost` 0.62 (`ghostEmissive` divides out
+  the image-processing exposure): heat ~0.15, CT's dim blue. Cost: no texture, no sampler, no pass; 2 draws while a
+  figure shows, 0 otherwise; per frame in thermal a range check per live rig, a door loop and 2 Havok rays per
+  candidate behind a shut door (`Ballistics.hitDistance`, no allocation). Each peer draws its own (host and client both
+  walk `LIVE_RIGS`; vision is never sent); the co-op client cools its kept bodies on the host's curve (`bodyHeat`,
+  stamped through `GameState.bodyStamp` from `net/keptBodies.ts`), so a body stops showing on both peers alike.
+  Guards the Sector Ops render freeze disabled still show and walk: a figure stamps its rig's `ghostFrame`, and
+  `GuardAnimTier.animate` keeps solving a frozen rig stamped this or last frame (at most 8 rigs, CPU only).
+  A vault door (prop leaf, `leaf: 'slide'` anchor) is thick: the figure 0.06 m off its line sits inside the leaf and is
+  hidden, so thermal shows nobody through a steel vault door.
+  Photo mode skips the vision frame, so a photo keeps the silhouettes of the frame it froze on.
 - What glows in each mode: `docs/systems/gadgets.md`.
 - The goggle glow (`player/goggleGlow.ts`): the goggle lenses and a rear battery LED as emissive instances of one unlit
   sphere (one draw), always on (brighter in a vision mode), hidden with the head. Visual only.

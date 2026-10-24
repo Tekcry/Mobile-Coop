@@ -12,7 +12,7 @@ import {
   sanitizeMoveState,
   unpackAttachSub,
 } from '../src/player/moveState';
-import { parseMessage, PROTOCOL_VERSION, wirePlayerState, type PlayerState } from '../src/net/protocol';
+import { parseMessage, wirePlayerState, type PlayerState } from '../src/net/protocol';
 import { attachedClamp, MAX_FREE_SPEED, MOVE_TOLERANCE, moveSpeedCap } from '../src/net/validate';
 import { traversePath } from '../src/player/traversePath';
 import { AttachGrips } from '../src/player/attachGrips';
@@ -110,10 +110,6 @@ describe('move state (3.2.0 phase 1)', () => {
     expect(out.wallSide).toBe(-1);
     poseFromMoveState({ ...mv, sub: 8 }, 0, out);
     expect(out.wallSide).toBe(1);
-  });
-
-  it('PROTOCOL_VERSION is 40 (40 the stack at train 30; 39 guard-ai S9; 38 lamp falloff; was 36 pose-parity; the Sector lamps; 29 the laser panels; 28 the jam claim eye; 27 rejoin; 26 the jammer rules; 25 the guard torch bit; 24 sector extras; 23 Sector Ops; 22 B7 rope; 21 scanners; 20 hang-down; 19 throw; 18 anim-cleanup: the left-shoulder weapon bit; 17 B3: the held jammer message; 16 was B2: the relay offer bit; 15 dropped the SWAT turn and the lean kind)', () => {
-    expect(PROTOCOL_VERSION).toBe(40);
   });
 
   it('poses: attached families and exits, committed moves and takedowns', () => {

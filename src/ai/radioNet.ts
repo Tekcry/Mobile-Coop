@@ -12,6 +12,8 @@
  *   is open in this section, or the call pool (`RADIO_CALLS`) is full. The same caller, incident and kind already open
  *   returns the open call's id (no duplicate). Nothing is sent until the call completes `holdS` s later (`callHold`).
  * - `isOpen(id)` (guard-ai S14): the call is still open (neither completed nor cut).
+ * - `cancelInc(kind, inc)` (coop4 fix): drops the open calls and queued receivers of that incident and kind (a slot
+ *   passed to a new player: its contact calls must not name him).
  * - `cut(caller)` -> number of calls lost: every open call of that caller is dropped (nothing sent, no alarm). Calls that
  *   already completed (receivers queued) are not recalled: they got through.
  * - `tick(dt, view, sink, reaction?, section?)` at 10 Hz:
@@ -31,7 +33,8 @@
  *   reaction multiplier (`diff.reaction x (buff ? ARCHETYPE.officer.reaction : 1)`, the old `callAlert` factor);
  *   `section` is an Int16Array by view index holding each guard's section. Both optional; the manager keeps one of
  *   each beside its `GuardView` and grows them with it. `GuardView` (incidents.ts) is reused unchanged.
- * - Overflow: the receiver queue is a fixed pool of `RADIO.queue` (64) entries. When it is full a new entry is REFUSED
+ * - Overflow: the receiver queue is a fixed pool of `RADIO.queue` (128, coop4 A173: `MAX_INTRUDERS` contacts x 32
+ *   receivers) entries. When it is full a new entry is REFUSED
  *   (the farthest receivers of the newest call miss it) and counted in `dropped`; nothing already queued is lost.
  *   The call pool (`RADIO_CALLS` 16) refuses new calls the same way (`refused`).
  *
@@ -56,8 +59,9 @@ export const RADIO = {
   staggerStep: 0.5,
   staggerDist: 0.02,
   staggerMax: 4.5,
-  /** Receiver queue entries per section (fixed pool). */
-  queue: 64,
+  /** Receiver queue entries per section (fixed pool). (coop4 A173) 128 = `MAX_INTRUDERS` (4) simultaneous contacts x up
+   *  to 32 receivers (a section's guard cap); was 64, which a 4-player fight overflowed (`dropped`). Undo: 64. */
+  queue: 128,
 } as const;
 
 /** Open calls per section (fixed pool). */
@@ -111,6 +115,8 @@ export class RadioNet {
   dropped = 0;
   alarms = 0;
   delivered = 0;
+  /** (coop4 fix) Calls and queued receivers dropped by `cancelInc`. */
+  cancelled = 0;
 
   // ----- open calls -----
   readonly callId = new Int32Array(NC);
@@ -221,6 +227,28 @@ export class RadioNet {
       n++;
     }
     this.lost += n;
+    return n;
+  }
+
+  /**
+   * (coop4 fix, A171 / G139) Incident `inc` of `kind` is void (an intruder slot passed to a new player): its open calls
+   * are dropped (never complete) and its queued receivers are dropped (never delivered). Returns how many (calls +
+   * receivers; counted in `cancelled`). No allocation.
+   */
+  cancelInc(kind: CallKind, inc: number): number {
+    const k = CALL_KIND.indexOf(kind);
+    let n = 0;
+    for (let c = 0; c < NC; c++) {
+      if (!this.callOpen[c] || this.callKind[c] !== k || this.callInc[c] !== inc) continue;
+      this.callOpen[c] = 0;
+      n++;
+    }
+    for (let q = 0; q < NQ; q++) {
+      if (!this.qUsed[q] || this.qKind[q] !== k || this.qInc[q] !== inc) continue;
+      this.qUsed[q] = 0;
+      n++;
+    }
+    this.cancelled += n;
     return n;
   }
 

@@ -4,8 +4,8 @@ import type { Ballistics } from '../weapons/ballistics';
 import { MASK } from '../physics/groups';
 import { CAMERA } from '../config/security';
 import { hyp3 } from '../core/mathx';
-import { CameraUnit, cameraRate, segmentHousingT, stepCamMeter, type CamMeter } from './camera';
-import type { SecurityData } from './data';
+import { CameraUnit, cameraRate, nearestHousing, stepCamMeter, type CamMeter } from './camera';
+import { cameraAlertsGuards, type SecurityData } from './data';
 import type { SecurityView } from './securityView';
 
 /** What the system needs from the match (kept small so tests and the view stay independent of `GameState`). */
@@ -136,6 +136,8 @@ export class SecuritySystem {
   onBody: ((e: CameraBodyEvent) => void) | null = null;
   /** (sector-redesign E8) A round ricocheted off a bulletproof camera at (x, y, z): the effect and sound (GameState). */
   onRicochet: ((x: number, y: number, z: number) => void) | null = null;
+  /** (marlow-final S10) Rounds a bulletproof housing turned (tests). */
+  ricochets = 0;
   private thinkT = 0;
   private bodyT = 0;
   private bodySrc: CamBodySource | null = null;
@@ -208,7 +210,8 @@ export class SecuritySystem {
     const ray = this.host.ballistics;
     for (let i = 0; i < this.cameras.length; i++) {
       const c = this.cameras[i]!;
-      if (!c.sees || c.frozen) continue;
+      // (guard-ai walk 4.82 item 6) a training camera (`guardResponse` false) reports no body: no guard response
+      if (!c.sees || c.frozen || !cameraAlertsGuards(c.def)) continue;
       const seen = this.bodySeen[i]!;
       for (let j = 0; j < bodies.length; j++) {
         const b = bodies[j]!;
@@ -248,19 +251,10 @@ export class SecuritySystem {
   shotRay(from: Vector3, to: Vector3): string | null {
     // (polish 11) the housing nearest along the round, not the first in the list (a far bulletproof camera listed first
     // no longer shields a near shootable one)
-    let c: CameraUnit | null = null;
-    let best = 2;
-    for (let i = 0; i < this.cameras.length; i++) {
-      const k = this.cameras[i]!;
-      if (k.mode === 'destroyed') continue;
-      const t = segmentHousingT(k, from.x, from.y, from.z, to.x, to.y, to.z);
-      if (t >= 0 && t < best) {
-        best = t;
-        c = k;
-      }
-    }
+    const c = nearestHousing(this.cameras, from.x, from.y, from.z, to.x, to.y, to.z);
     if (!c) return null;
     if (c.def.bulletproof) {
+      this.ricochets++;
       this.onRicochet?.(c.x, c.y, c.z);
       return null;
     }

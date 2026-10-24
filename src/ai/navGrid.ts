@@ -394,6 +394,14 @@ export class NavGrid {
     return this.layers === 1 ? col : this.pick(col, this.height[cur]!);
   }
 
+  /** (guard-ai sweep fix) `center` into `out`, no allocation. */
+  centerInto(i: number, out: P2): P2 {
+    const col = i % this.cols;
+    out[0] = this.ox + ((col % this.w) + 0.5) * this.cell;
+    out[1] = this.oz + (((col / this.w) | 0) + 0.5) * this.cell;
+    return out;
+  }
+
   center(i: number): P2 {
     const col = i % this.cols;
     const ix = col % this.w;

@@ -35,8 +35,10 @@ export const MASK = {
   SIGHT: G.STATIC | G.GLASS_FROSTED,
   /** (E2) What muffles a sound as a wall: static geometry and every glass pane. */
   HEARING: G.STATIC | G.GLASS,
-  /** What a player bullet can hit. */
-  PLAYER_SHOT: G.STATIC | G.PROP | G.ENEMY_HITBOX | G.RAGDOLL | G.GLASS_ARMOURED,
+  /** What a player bullet can hit. (rig-pose-fix S7, audit G18) Not `G.RAGDOLL`: a ragdoll is visual and per machine (each
+   *  simulates its own, capped by `BUDGET.maxRagdolls`; the body's sim position is `Body.pos`, S5), so a round passes through
+   *  it as the host's `HOST_LOS` check of a client round already did. Undo: add `G.RAGDOLL` back here. */
+  PLAYER_SHOT: G.STATIC | G.PROP | G.ENEMY_HITBOX | G.GLASS_ARMOURED,
   /** What an enemy bullet can hit (E10: armoured glass stops it; a guard's fire decision must test this mask, not SIGHT). */
   ENEMY_SHOT: G.STATIC | G.PROP | G.PLAYER_HITBOX | G.GLASS_ARMOURED,
   /** (polish 15) What shields a grenade blast: static geometry and every glass pane (the grenade itself bounces off a pane). */
@@ -63,6 +65,24 @@ export function doorMembership(armoured: boolean): number {
 /** (E10) A struck body's bits carry the armour bit: the round stops on it (sparks), never penetrates. */
 export function isArmoured(membership: number): boolean {
   return (membership & G.GLASS_ARMOURED) !== 0;
+}
+
+/**
+ * (guard-ai sniper triage) The bodies that are armour, marked where they are built (an armoured pane group's body in
+ * `LevelBuilder.buildGlass`, an armoured door leaf's in `Doors.addBody`). A ray hit cannot read armour from the struck
+ * shape's bits: Havok reports no leaf for a container hit, and a container's own filter reads as Havok's default (every
+ * bit, the armour bit included) whatever was set on it, so the level's static walls read as armour (tests/armourFireStatic).
+ */
+const ARMOURED_BODIES = new WeakSet<object>();
+
+/** Marks a physics body as armour (rounds stop on it, never through it; a guard's fire gate holds at it). */
+export function markArmoured(body: object): void {
+  ARMOURED_BODIES.add(body);
+}
+
+/** (guard-ai sniper triage) The struck body is armour (`markArmoured`). No allocation. */
+export function isArmouredBody(body: object | null | undefined): boolean {
+  return body !== null && body !== undefined && ARMOURED_BODIES.has(body);
 }
 
 /** Upper bounds so a busy fight can never tank the physics step. */

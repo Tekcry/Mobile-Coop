@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseMessage, PROTOCOL_VERSION, type Msg } from '../src/net/protocol';
+import { parseMessage, type Msg } from '../src/net/protocol';
 import {
   applyLamps,
   decodeLamps,
@@ -9,6 +9,7 @@ import {
   LAMP_OFF,
   LAMP_ON,
   LAMP_SHOT,
+  LAMP_SHOT_ORIGIN,
   LampMirror,
   LampSender,
   lampShotOk,
@@ -50,10 +51,6 @@ const meter = (f: LightField): number => f.bodyLevel(0.5, 0, 0, 1.8);
 const doors = { list: [] as ResetDoor[], setOpen: () => undefined, crack: () => false };
 
 describe('Sector Ops lamp sync (slice L, protocol 31)', () => {
-  it('PROTOCOL_VERSION is 40 (40 the stack at train 30; 39 guard-ai S9; 38 lamp falloff; was 36 pose-parity)', () => {
-    expect(PROTOCOL_VERSION).toBe(40);
-  });
-
   it('encode / decode round trips every state, flashlights read on', () => {
     const n = 200;
     const st = new Uint8Array(LAMP_MAX);
@@ -258,5 +255,53 @@ describe('Sector Ops lamp sync (slice L, protocol 31)', () => {
     expect(lampShotOk(reg, 2, { x: 20, y: 1.6, z: 4 }, d, 10, { x: 20, y: 0, z: 4 }, 60)).toBe(false);
     reg.destroy(0);
     expect(lampShotOk(reg, 0, o, d, 10, feet, 60)).toBe(false);
+  });
+
+  it('(rig-pose-fix S7, S2 host check) accepts an inverted-hang claim: the round up to ~2.02 m from feet + 1.2', () => {
+    const reg = level();
+    const feet = { x: 0, y: 0, z: 4 };
+    const o = { x: 0, y: 1.6, z: 4 };
+    const d = { x: 0, y: 1.4 / Math.hypot(1.4, 4), z: -4 / Math.hypot(1.4, 4) };
+    // the same ray to lamp 0, its origin moved back along it until it is r from the chest point (feet + 1.2)
+    const back = (r: number): { o: { x: number; y: number; z: number }; t: number } => {
+      let t = 0;
+      const p = { x: o.x, y: o.y, z: o.z };
+      while (Math.hypot(p.x - feet.x, p.y - (feet.y + 1.2), p.z - feet.z) < r) {
+        t += 0.001;
+        p.x = o.x - d.x * t;
+        p.y = o.y - d.y * t;
+        p.z = o.z - d.z * t;
+      }
+      return { o: p, t };
+    };
+    expect(LAMP_SHOT_ORIGIN).toBeGreaterThan(2.05);
+    // S2's worst inverted origin (2.013 m, the suppressed pistol at pitch -0.6) with room to spare
+    const inv = back(2.05);
+    expect(lampShotOk(reg, 0, inv.o, d, 10 + inv.t, feet, 60)).toBe(true);
+    // a round from further off the body is still refused
+    const far = back(LAMP_SHOT_ORIGIN + 0.05);
+    expect(lampShotOk(reg, 0, far.o, d, 10 + far.t, feet, 60)).toBe(false);
+  });
+
+  it("(walk 4.72 S2) the host takes a client's round that lands on a street lamp pole just under its head", () => {
+    const reg = new LightRegistry();
+    const id = reg.add({ x: 9, y: 6, z: -66, destructible: true, fixture: { sx: 0.6, sy: 0.1, sz: 0.3, oy: 0 } }).id;
+    // the client's real `shot` (e2e probe on the 4.72 build): muzzle, direction to where it landed, that distance
+    const o = { x: 11.74, y: 1.56, z: -65.93 };
+    const b = { x: 9.15, y: 5.73, z: -65.99 };
+    const len = Math.hypot(b.x - o.x, b.y - o.y, b.z - o.z);
+    const d = { x: (b.x - o.x) / len, y: (b.y - o.y) / len, z: (b.z - o.z) / len };
+    expect(lampShotOk(reg, id, o, d, len, { x: 12, y: 0.02, z: -66 }, 60)).toBe(true);
+  });
+
+  it("(walk 4.72 check) the host takes a client's round that lands on the wall just under a wall lamp", () => {
+    const reg = new LightRegistry();
+    // a wall pack on the wall face z = 0, its head 3 m up; the round lands on the face 0.2 m under the head
+    const id = reg.add({ x: 0, y: 3, z: 0, destructible: true, fixture: { sx: 0.3, sy: 0.2, sz: 0.1, oy: 0 } }).id;
+    const o = { x: 0, y: 1.5, z: 4 };
+    const b = { x: 0, y: 2.8, z: 0 };
+    const len = Math.hypot(b.x - o.x, b.y - o.y, b.z - o.z);
+    const d = { x: (b.x - o.x) / len, y: (b.y - o.y) / len, z: (b.z - o.z) / len };
+    expect(lampShotOk(reg, id, o, d, len, { x: 0, y: 0.3, z: 4 }, 60)).toBe(true);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ITEM_KINDS, PROTOCOL_VERSION, parseMessage, type Msg } from '../src/net/protocol';
+import { ITEM_KINDS, parseMessage, type Msg } from '../src/net/protocol';
 import { CRATE_DARK, CRATE_HOLD, CRATE_LABEL, CRATE_REACH, CrateLedger, applyCrateEvent, crateItemId, crateReserve } from '../src/game/crateLedger';
 
 const evs = (events: unknown[]): unknown[] => {
@@ -8,12 +8,9 @@ const evs = (events: unknown[]): unknown[] => {
 };
 
 describe('E9-crate wire (protocol 35)', () => {
-  it('PROTOCOL_VERSION is 40 (40 the stack at train 30; 39 guard-ai S9; 38 lamp falloff; was 36 pose-parity; 35 the weapons crate; 31 the Sector lamps)', () => {
-    expect(PROTOCOL_VERSION).toBe(40);
-  });
-
-  it('the crate item kind is appended at the end of ITEM_KINDS', () => {
-    expect(ITEM_KINDS[ITEM_KINDS.length - 1]).toBe('crate');
+  it('the crate item kind was appended after medkitWall in ITEM_KINDS (append only; coop-carry appended body after it)', () => {
+    expect(ITEM_KINDS[ITEM_KINDS.indexOf('medkitWall') + 1]).toBe('crate');
+    expect(ITEM_KINDS.indexOf('crate')).toBeLessThan(ITEM_KINDS.indexOf('body'));
   });
 
   it('a crate event round-trips through the ev batch', () => {

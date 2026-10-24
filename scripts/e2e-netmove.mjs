@@ -632,13 +632,14 @@ try {
   }
   await compare('wall peek', 'wall');
   await until(A, () => { const r = window.__app.current.net.remotes.values().next().value; return Math.abs(Math.hypot(r.ref.peekX ?? 0, r.ref.peekZ ?? 0) - 0.35) < 0.01; }, null, 3000, 'host peek offset eased to 0.35 m');
-  // (step 12b fix r2, light parity) the host's head point and light sample are its posed copy's head (ref.head) on
-  // the wall, as the local light meter reads the local posed head: the two heads agree (the MoveState offset is 0.35 m)
+  // (step 12b fix r2, light parity; rig-pose-fix S1 / S4) the host's head point and light sample are the client's sim body
+  // head (ref.head, from its MoveState) on the wall, as the client's own light meter reads its sim body head
+  // (`PlayerTarget.body`): the two heads agree (the MoveState offset is 0.35 m); the client's rig head is logged beside it
   const pl = await GA(() => { const g = window.__app.current; const r = g.net.remotes.values().next().value; const h = r.headPoint(new g.player.position.constructor()); return { px: r.ref.peekX, pz: r.ref.peekZ, h: [h.x, h.y, h.z], ref: !!r.ref.head, hd: Math.hypot(h.x - r.feet.x, h.z - r.feet.z) }; });
-  const plL = await GB(() => { const g = window.__app.current; const p = g.player.position; const h = g.player.rig.posedHead(new p.constructor()); return { h: [h.x, h.y, h.z], hd: Math.hypot(h.x - p.x, h.z - p.z) }; });
+  const plL = await GB(() => { const g = window.__app.current; const p = g.player.position; const h = g.target.body.head; const rh = g.player.rig.posedHead(new p.constructor()); return { h: [h.x, h.y, h.z], hd: Math.hypot(h.x - p.x, h.z - p.z), rig: +Math.hypot(rh.x - h.x, rh.y - h.y, rh.z - h.z).toFixed(3) }; });
   const pd = Math.hypot(pl.h[0] - plL.h[0], pl.h[1] - plL.h[1], pl.h[2] - plL.h[2]);
-  console.log(`  peek head samples: local ${plL.hd.toFixed(3)} m out, host ${pl.hd.toFixed(3)} m out, apart ${pd.toFixed(3)} m`);
-  assert(Math.abs(Math.hypot(pl.px, pl.pz) - 0.35) < 0.01 && pl.ref && pd < 0.05 && plL.hd > 0.1 && pl.hd > 0.1, `the host samples the peeking client's light and head at its posed head, within 5 cm of the client's own (${JSON.stringify({ pl, plL, pd })})`);
+  console.log(`  peek head samples: local ${plL.hd.toFixed(3)} m out, host ${pl.hd.toFixed(3)} m out, apart ${pd.toFixed(3)} m (local sim head ${plL.rig} m from its rig head)`);
+  assert(Math.abs(Math.hypot(pl.px, pl.pz) - 0.35) < 0.01 && pl.ref && pd < 0.05 && plL.hd > 0.1 && pl.hd > 0.1, `the host samples the peeking client's light and head at its sim body head, within 5 cm of the client's own (${JSON.stringify({ pl, plL, pd })})`);
   await GB(() => window.__pad.axis(0, 0));
   await until(B, () => !window.__app.current.wallCore.peekOn && window.__app.current.wallCore.peek === 0, null, 4000, 'client peek eases back');
   // (A3) the weapon hand at a left edge while peeking: WALL_SUB.leftHand (128) reaches the host at the left (b) end only
@@ -711,6 +712,32 @@ try {
   await GB(() => window.__pad.axis(1, 0));
   await until(A, () => !window.__app.current.world.doors.list[0].cracked, null, 5000, 'host clears the crack on close');
   await until(A, () => window.__app.current.net.remotes.values().next().value?.avatar.mode === 'ground', null, 5000, 'host sees the client back on the ground');
+
+  // (optic-coop, ct-toolkit 3.2) the optic cable at the same door: the client's kneel goes on the wire (MoveState mode
+  // optic, sub 0 = door, a = the door, ph = the cable fed out) and the host's copy poses it; the view stays local
+  console.log('optic cable');
+  await allowTeleport(A);
+  const oc = await GB(() => {
+    const g = window.__app.current;
+    const an = g.world.doors.list[0].anchor;
+    const nx = Math.cos(an.yaw);
+    const nz = -Math.sin(an.yaw);
+    const mx = an.hinge.x + Math.sin(an.yaw) * an.width * 0.5;
+    const mz = an.hinge.z + Math.cos(an.yaw) * an.width * 0.5;
+    g.player.controller.teleport(new g.player.position.constructor(mx + nx * 0.7, an.hinge.y + 0.05, mz + nz * 0.7), Math.atan2(-nx, -nz));
+    return { ok: g.optic.pick(0), why: g.optic.refused };
+  });
+  if (!oc.ok && oc.why === 'No gap') console.log(`  SKIP optic cable: the Proving door's far side refuses the tip (${oc.why})`);
+  else {
+    assert(oc.ok, `client starts the optic cable at the door (${oc.why})`);
+    await until(A, () => window.__app.current.net.remotes.values().next().value?.avatar.mode === 'optic', null, 6000, 'host sees the client in mode optic');
+    await until(B, () => window.__app.current.optic.viewing, null, 6000, 'client in the optic view');
+    await wait(600);
+    const om = await GA(() => { const r = window.__app.current.net.remotes.values().next().value; return { mv: r.state.mv, crouch: r.avatar.crouch }; });
+    assert(om.mv.sub === 0 && om.mv.a === 0 && om.mv.ph > 0.9 && om.crouch > 0.5, `host copy: door 0, cable fed out, kneeling (${JSON.stringify(om)})`);
+    await GB(() => window.__app.current.optic.reset());
+    await until(A, () => window.__app.current.net.remotes.values().next().value?.avatar.mode === 'ground', null, 5000, 'host sees the client up from the optic cable');
+  }
 
   // (test-chores-13) role-swapped: the leg-up of the team-moves section with the roles turned round. The host braces
   // (the follower) and the CLIENT leads: it asks for the boost and climbs onto the 4.2 m lip. The same checks as that

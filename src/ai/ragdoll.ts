@@ -3,6 +3,7 @@ import {
   PhysicsBody,
   PhysicsMotionType,
   PhysicsShapeCapsule,
+  Quaternion,
   TransformNode,
   Vector3,
   type PhysicsShape,
@@ -10,6 +11,10 @@ import {
 } from '../core/babylon';
 import { G } from '../physics/groups';
 import type { CharacterRig } from '../player/characterRig';
+
+/** (rig-pose-fix S5) Seconds a settled ragdoll takes to ease onto its body's sim lie. */
+export const SNAP_EASE = 0.3;
+const SNAP_Q = new Quaternion();
 
 /**
  * Five-body ragdoll fitted to the shared rig: torso (pelvis..head), two legs and two arms,
@@ -19,6 +24,10 @@ import type { CharacterRig } from '../player/characterRig';
  * with the world, props and other ragdolls. After settling the physics bodies are removed; the corpse
  * then sinks away, or with `keep` stays where it lies (a body that can be found and carried). The count of
  * simulating ragdolls is capped by `BUDGET.maxRagdolls`.
+ *
+ * (rig-pose-fix S5) Visual only: gameplay reads the body's sim lie (`bodyLie.ts`), never these nodes. A kept body's
+ * ragdoll is given that lie (`snapTo`) and, once it settles, eases there in `SNAP_EASE` s (its pelvis onto the lie's
+ * pelvis, turned about it so its head points the lie's way).
  */
 export class Ragdoll {
   private nodes: TransformNode[] = [];
@@ -27,6 +36,12 @@ export class Ragdoll {
   private t = 0;
   private frozen = false;
   done = false;
+  /** (S5) The sim lie to settle onto (`snapTo`), the ease's clock (< 0: not started) and its start pose. */
+  private snap: { x: number; y: number; z: number; headYaw: number } | null = null;
+  private snapT = -1;
+  private snapFrom: { p: Vector3; q: Quaternion }[] | null = null;
+  private snapP0 = new Vector3();
+  private snapYaw = 0;
 
   constructor(
     private scene: Scene,
@@ -101,6 +116,62 @@ export class Ragdoll {
     return out.copyFrom(this.nodes[0]!.position);
   }
 
+  /** (S5) The sim lie this kept body settles onto: pelvis (x, y, z), head toward `headYaw` (rad, 0 = +Z). */
+  snapTo(x: number, y: number, z: number, headYaw: number): void {
+    this.snap = { x, y, z, headYaw };
+    this.snapT = -1;
+    if (this.frozen) this.beginSnap();
+  }
+
+  /** The way the head points from the pelvis now (rad, 0 = +Z). */
+  headYaw(): number {
+    const r = this.rig;
+    r.hips.computeWorldMatrix(true);
+    r.headNode.computeWorldMatrix(true);
+    const h = r.headNode.getAbsolutePosition();
+    const p = r.hips.getAbsolutePosition();
+    return Math.atan2(h.x - p.x, h.z - p.z);
+  }
+
+  /** Settled: the ease from where physics left it starts (the nodes' poses kept as its start; once per body). */
+  private beginSnap(): void {
+    const s = this.snap;
+    if (!s || this.done || !this.keep) return;
+    this.snapFrom = this.nodes.map((n) => ({ p: n.position.clone(), q: (n.rotationQuaternion ?? Quaternion.Identity()).clone() }));
+    this.snapP0.copyFrom(this.nodes[0]!.position);
+    let d = s.headYaw - this.headYaw();
+    while (d > Math.PI) d -= 2 * Math.PI;
+    while (d < -Math.PI) d += 2 * Math.PI;
+    this.snapYaw = d;
+    this.snapT = 0;
+  }
+
+  private stepSnap(dt: number): void {
+    const s = this.snap;
+    const from = this.snapFrom;
+    if (!s || !from || this.snapT < 0 || this.snapT >= SNAP_EASE) return;
+    this.snapT = Math.min(SNAP_EASE, this.snapT + dt);
+    const e = this.snapT / SNAP_EASE;
+    const a = e * e * (3 - 2 * e);
+    const ang = this.snapYaw * a;
+    const c = Math.cos(ang);
+    const sn = Math.sin(ang);
+    const p0 = this.snapP0;
+    const px = p0.x + (s.x - p0.x) * a;
+    const py = p0.y + (s.y - p0.y) * a;
+    const pz = p0.z + (s.z - p0.z) * a;
+    Quaternion.RotationYawPitchRollToRef(ang, 0, 0, SNAP_Q);
+    for (let i = 0; i < this.nodes.length; i++) {
+      const n = this.nodes[i]!;
+      const f = from[i]!;
+      const lx = f.p.x - p0.x;
+      const lz = f.p.z - p0.z;
+      // turned about the pelvis on the vertical (a yaw takes +Z to (sin, cos)), then carried onto the lie
+      n.position.set(px + lx * c + lz * sn, py + (f.p.y - p0.y), pz - lx * sn + lz * c);
+      n.rotationQuaternion = SNAP_Q.multiplyToRef(f.q, n.rotationQuaternion ?? new Quaternion());
+    }
+  }
+
   update(dt: number): void {
     this.t += dt;
     if (!this.frozen && this.t > this.settleTime) {
@@ -108,7 +179,9 @@ export class Ragdoll {
       for (const b of this.bodies) b.dispose();
       for (const s of this.shapes) s.dispose();
       this.bodies.length = 0;
+      this.beginSnap();
     }
+    if (this.frozen && this.keep) this.stepSnap(dt);
     if (this.frozen && !this.keep) {
       for (const n of this.nodes) n.position.y -= dt * 0.25;
       if (this.t > 5.5) this.dispose();

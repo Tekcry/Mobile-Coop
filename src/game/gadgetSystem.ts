@@ -202,7 +202,7 @@ export class GadgetSystem {
     // the gadget button: held shows the arc, release throws; placed ones go on the press
     const sel = g.weapons.gadgets.selected;
     const use = GADGETS[sel].use;
-    const busy = g.takedown.active !== null || (g.stealth?.carrying ?? false) || g.traversal.attached;
+    const busy = g.takedown.active !== null || (g.carrier?.carrying ?? false) || g.traversal.attached;
     if (inp.pressed('grenade') && !busy) {
       if (sel === 'stickyCam' && this.cams.length && g.weapons.gadgets.count === 0) this.enterRemote('cam', this.cams.length - 1);
       else if (use === 'place') g.weapons.useGadget();
@@ -698,6 +698,19 @@ export class GadgetSystem {
       const r = Math.max(0.3, Math.min(1.5, GADGETS[g.weapons.gadgets.selected].radius * 0.15));
       ring.scaling.set(r, 0.03, r);
     }
+  }
+
+  /**
+   * (section-rating S2) A rating reward: up to `n` more of gadget `id` carried, never above `cap` nor the gadget's max,
+   * and never taken away (a count already at or over the cap stays). Returns how many were added. No allocation.
+   */
+  topUp(id: GadgetId, n: number, cap: number): number {
+    const counts = this.g.weapons.gadgets.counts;
+    const have = counts[id];
+    const to = Math.min(have + Math.max(0, Math.floor(n)), cap, GADGETS[id].max);
+    if (to <= have) return 0;
+    counts[id] = to;
+    return to - have;
   }
 
   /** Checkpoint restock / respawn: gadgets in the world stay. */

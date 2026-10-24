@@ -469,7 +469,8 @@ export function buildCampusS3(b: LevelBuilder): void {
   // yard, the lobby and landing (nobody works there at night), the stairs (emergency fill only), the clean room, the store
   const down = makeCone(0, -1, 0, 1.15);
   for (const [x, z, g] of S3_HIGH_BAYS) lamp(b, x, 8.5, z, { r: 12, i: 0.9, group: g, cone: down, w: 0.7 });
-  for (const x of [27, 37, 47]) lamp(b, x, 8.8, -7, { r: 6, i: 0.7, group: S3_GROUPS.view, w: 0.5 });
+  // LR16d: the east lamp slid 0.35 m off the wall (z -7 -> -7.35, lamp audit)
+  for (const [x, z] of [[27, -7], [37, -7], [47, -7.35]] as const) lamp(b, x, 8.8, z, { r: 6, i: 0.7, group: S3_GROUPS.view, w: 0.5 });
   for (const z of [-23.5, -17.5, -12.2]) lamp(b, 50.2, 2.6, z, { r: 4, i: 0.7, group: S3_GROUPS.burn, cone: makeCone(0.5, -0.85, 0, 1.0), w: 0.4 });
   for (const x of [26, 33]) lamp(b, x, 4.0, -4, { r: 7, i: 0.8, group: S3_GROUPS.dock, cone: down, w: 0.5 });
   lamp(b, 26, 8.8, -3, { r: 6, i: 0.7, group: S3_GROUPS.office, w: 0.5 });

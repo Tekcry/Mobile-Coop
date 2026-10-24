@@ -1,37 +1,36 @@
-# Resume - Night Shift | Player Build (resumed 2026-10-23 16:05 after the swap)
+# Resume - Night Shift | Player Build (2026-10-24 ~19:50 local; older log: history at the end)
 
-Rules: CLAUDE.md on origin/feature/menu "Heavy-usage throughput", "Token rules", "Account swap". No mid-window clears.
-Opus plans / checks / anim + net code; Sonnet builds from strict briefs; desktop CPU < 80%. e2e always E2E_GPU=1:
-laptop (Test Runner, bridge in docs/orchestrator/STATE.md) for coop / netmove / ctcourse and batches, one verdict per
-batch; desktop heavy.lock (4191) / heavy2.lock (4192) for single suites. Agent rules: scratch/mt2/COMMON.md,
-COMMON-SPARE.md (subagents are refused REPORT.md: the lead writes it from the hand-back). Push this file with
-scratch/ctcore/push-resume.sh <abs file> <msg>. Message the orchestrator only at PR open / train-ready / blocked / Michael.
+Rules: CLAUDE.md "Sessions" ("Heavy-usage throughput", "Token rules", "Account swap"). Opus builds / checks anim, net, AI;
+Sonnet strict briefs / data checks. No desktop e2e: laptop queue (C:/NightShift/scratch/ctcore/lq/request.mjs --sha <full>
+--suites "..." | --alone --step "..."); results = GitHub statuses laptop-e2e/<set>; failure excerpts from Test Runner.
+Message the orchestrator only at PR open / train-ready / blocked / Michael. Push this file with push-resume.sh.
 
-## Open (master f16600f5 after train 28 incl. #207). Train 29 origin/train/29 61972cf1 = PROTOCOL 38. Train 30 = my stack (40) right after train 29. Guard AI S9 = train 31 at 41. AF6 = 42 (one wire bump per train, merge order).
-| Job | Branch (folder C:/NightShift/Mobile-Coop-<x>) | Head | Next |
+## Now (master 6e8a450b train 56; 2026-10-24 ~19:35 local)
+| Job | Branch (worktree C:/NightShift/Mobile-Coop-<x>) | Head | Next |
 | --- | --- | --- | --- |
-| #214 batch 23 (+iPad fit, Anim Studio main menu only) | feature/ctcore-batch-23 (ctcore-batch) | 596773d7 | + master 518c3fa1 (4.78.0); + master f16600f5 (coop shot noise: SD_OPEN_NOISE on open rounds) + train/29 (38). |
-| #223 pose-parity | feature/pose-parity | 0b78ed7e | PROTOCOL 40 (one bump for the stack; asserts 40; net.test hello 39 refused / 40 joins). |
-| #231 coop-walk-fixes (walk P6-P7) | feature/coop-walk-fixes | 907bea89 | PROTOCOL 40 tip. Train 30 (7e8b8c51) 38/39: e2e-stealth-ai shot fake read lastShotNoise 0 (gameState.ts:620); test fix 907bea89 (stealth-ai x3, sectorops x1). Desktop e2e-stealth-ai + e2e-sectorops GPU PASS on 907bea89 (sent 18:16); orchestrator rebuilds train 30. Laptop green on 0d7f04ce (coop) + d86007b5 (rest). CI pass x3, TRAIN-READY sent (train 30). |
-| anim-fix-pass (walk P1-P5; PLAN.md:7 maps P1-P7) | feature/anim-fix-pass | origin | AF0-AF3, AF4a, AF5, AF6 merged (236601dc; all checker PASS). AF4b running, WIP save asked 18:1x (afp-af4b from 6dc4ccb2 = afp + AF3; owns animGraph / motion incl. any AF3 fix; carries AF4a pistol grip 1.0, hip swing, kneel knee-out, AF3 elbows 5.9). AF6 checker PASS 2bb1ba3f (polish: wall, lowerBody, test titles; AF6-CHECK.md). Merge into anim-fix-pass after laptop e2e-coop + netmove (brings the stack in). AF6 head b1de49f5 (merged 0d7f04ce); laptop e2e-coop + netmove requested. |
-| spare 15 optic cable (doors, local view, no wire) | feature/optic-cable (optic-cable) | 193724a3 | PR #239 TRAIN-READY sent (CI pass, checker PASS, e2e-stealth-ai GPU PASS). |
+| #318 guard-models (flag OFF) | feature/guard-models | 1569b0f8 | TRAIN-READY (in the next train). |
+| #314 optic-coop | feature/optic-coop | 762b479f | TRAIN-READY. |
+| #331 player-batch-24 | feature/player-batch-24 | fdaef3af | TRAIN-READY (e2e-tuner-phone flake fix, test-only). |
+| gm-flip (follow-up PR, open it from THIS branch, never from gm-perf: gm-perf lacks master's guardHead) | feature/gm-flip (node_modules junction) | 787f05a2 | guard-models + gm-perf (checker PASS) + docs / fragment + gm-mc-polish (checker PASS 787f05a2, GM-MC-POLISH-CHECK polish P1-P4). Cap gate PASS. Next: merge gm-g10a after its checker + laptop rebake pass and the GLBs are copied in, then the cloud branches, flip src/core/flags.ts guardModels `!== '0'`, laptop flag-on suites (enemies coop ctcourse combat guard-carry), PR to master. |
+| G10a guard defects | feature/gm-g10a | 2d810799 | All 6 defects built (G10A-REPORT.md). Sonnet checker running (G10A-CHECK.md). Laptop full rebake queued 20261024T084017-...-2d810799-93ea (set guard-bake-g10a, ~55 min; real smoke for D4 hairline incl. receding LOD1 <= 75 deg / LOD0 <= 800 tris, D6 coveredHeadTris). On pass: copy 12 GLBs + 3 JSON from bake/guard-models into src/operators/assets/guards/, add D6 assertion to tests/guardAssets.test.ts, sheet to Michael, merge into gm-flip. |
+| cloud briefs | origin/cloud-queue 10edabfe | open | player-gm-perf-polish (shield merge key, shield receiveShadows; S) + player-gm-look-seeds (distinct looks per section, no wire change; M). Both off gm-flip 979a02b3. On done: fetch, checker, merge into gm-flip. Keep 1-2 briefs queued ahead. |
 
-## Next
-1. AF4b hand-back -> checker -> merge -> anim-fix-pass PR (AF6 renumber to 42 then).
-3. Stack train-ready sent; renumber only if the orchestrator says so at the build. AF6 -> 42 when it merges into anim-fix-pass via the stack (scratch/ctcore/tests40.js renumbers asserts).
-4. After ANY master / train merge: run every test file with a PROTOCOL_VERSION assert (git grep -l PROTOCOL_VERSION -- tests) + tsc. Agent rules: scratch/ctcore/COMMON-27.md. Follow-ups: intel part B (onIntelCode); relay climber sub bit.
+## Open
+- guard-models STATE.md top: G8 numbers, S11 merge notes (in master merge now), G10 look list (no sheet notes from Michael yet), garment seam gaps, MERGE-CHECK-A/B polish (lightRig caster refill not behind the flag; `die` figure update after frozen solveNow).
+- Test Runner owns guard-render phase 2 (feature/guard-render-2 PLAN2: S9 sun cascades, S9b updateSunCasters skip disabled, S10 freeze); guard-cap.mjs is ours until guard-models merges.
+- Spare jobs #2 #3 #7 #11 #16 already on master; #12 = #308; #15 = #314.
+- AF7-AF9 (briefs/afp-next-pass.md) wait for Michael's walk of AF0-AF6.
 
 ## Resume prompt
 ```
-Night Shift | Player Build: RESUME after the account swap. Model Opus, effort medium. Read CLAUDE.md ("Sessions":
-"Heavy-usage throughput", "Token rules", "Account swap"; on origin/feature/menu if newer than master), then
-docs/orchestrator/resume-ct-core.md on origin/feature/menu (git fetch; git show
-origin/feature/menu:docs/orchestrator/resume-ct-core.md). Copy it to C:/NightShift/scratch/ctcore/resume-ct-core.md and
-push updates with scratch/ctcore/push-resume.sh. A heavy.lock / heavy2.lock naming Player Build with no node / bash
-process of ours is stale: delete it. Turn off unused connectors. Message "Night Shift | Orchestrator" once that you
-resumed, then only at PR open / train-ready / blocked / Michael needed. Work "Next" top down. e2e always E2E_GPU=1.
+Night Shift | Player Build: RESUME after the account swap. Model Opus, effort medium. set_session_title "self" ->
+"Night Shift | Player Build". Read CLAUDE.md (origin/master "Sessions"), then docs/orchestrator/resume-ct-core.md on
+origin/feature/menu (git fetch; git show origin/feature/menu:docs/orchestrator/resume-ct-core.md). Copy it to
+C:/NightShift/scratch/ctcore/resume-ct-core.md and push updates with scratch/ctcore/push-resume.sh. A heavy.lock /
+heavy2.lock naming Player Build with no node / bash process of ours is stale: delete it. Turn off unused connectors.
+Message "Night Shift | Orchestrator" only at PR open / train-ready / blocked / Michael needed. Work "Now" top down:
+check each laptop status listed, label green PRs train-ready. e2e always E2E_GPU=1.
 ```
 
-## History (2026-10-23 window 12:20-14:05)
-Restarted r3 / team-climb / sd-rounds, started spare 9, ipad-fit (Michael ~13:05) and spare 6. #207 laptop 8/8 green,
-then out of train 24 on e2e-clip. Opened #214, #221, #223. Spare 16 was already merged (partner-seed); spare 12 is in #207.
+## History
+- Full log before 2026-10-24 ~19:45: git history of this file on feature/menu (and scratch/ctcore/resume-history-2026-10-24.md on the desktop).

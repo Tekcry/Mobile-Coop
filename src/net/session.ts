@@ -1,6 +1,5 @@
 import { EventBus } from '../core/events';
 import type { WeatherChoice } from '../world/mapDef';
-import type { LampFalloff } from '../world/lampMath';
 import type { AvatarLook } from '../cosmetics/avatarLook';
 import { capacity, parseMessage, PROTOCOL_VERSION, type Difficulty, type Msg, type NetMode, type PlayerInfo } from './protocol';
 import type { Transport } from './transport';
@@ -24,8 +23,6 @@ export interface StartInfo {
   weather: WeatherChoice;
   /** Course mode: the bay to start at (1-based, D20). */
   bay?: number;
-  /** (lightrev LR13, protocol 38) The host's lamp falloff: every peer's match runs it (`GameOptions.lampFalloff`). */
-  lampFalloff: LampFalloff;
 }
 
 export interface SessionEvents {
@@ -37,6 +34,12 @@ export interface SessionEvents {
   away: { id: string; name: string };
   /** (marlow-bays R2, host) A held joiner is back (same player id, new connection). */
   rejoin: { id: string; name: string };
+  /**
+   * (coop-rejoin, host) The running match went to one player (`start` sent to it alone): a late join, a rejoin, or a
+   * reconnect of a player the host never saw drop (a transport that replaced its connection, so no `away`). Its match
+   * (re)loads at the course start, so the host decides where it spawns (`CoopHost`).
+   */
+  late: { id: string };
   hostLeft: Record<string, never>;
   full: Record<string, never>;
 }
@@ -64,8 +67,9 @@ export class NetSession {
   weather: WeatherChoice = 'clear';
   /** Course mode: "Start at bay N" (host, 1-based; D20). */
   courseBay = 1;
-  /** (lightrev LR13, host) The lamp falloff a match started now runs (`coopUi` reads the host's setting / URL override). */
-  hostLampFalloff: () => LampFalloff = () => 'linear';
+  /** (coop-rejoin, host) The course bay a match going to one player starts it at: the current bay, so its load lands
+   *  near the checkpoint (`CoopHost` sets it); null: the match's start bay. */
+  lateBay: (() => number) | null = null;
   phase: 'lobby' | 'playing' = 'lobby';
   private start: StartInfo | null = null;
   private closed = false;
@@ -184,7 +188,11 @@ export class NetSession {
       this.send({ t: 'you', id: pid }, pid);
       if (prev?.away) this.events.emit('rejoin', { id: pid, name: msg.name });
       // late join / reconnect during a match
-      if (this.phase === 'playing' && this.start) this.send(startMsg(this.start), pid);
+      if (this.phase === 'playing' && this.start) {
+        const bay = this.start.mode === 'course' ? this.lateBay?.() : undefined;
+        this.send(startMsg(bay ? { ...this.start, bay } : this.start), pid);
+        this.events.emit('late', { id: pid });
+      }
       return;
     }
     if (!this.players.has(from) || this.players.get(from)!.away) return;
@@ -194,7 +202,7 @@ export class NetSession {
       this.broadcastLobby();
       return;
     }
-    if (msg.t === 'pstate' || msg.t === 'shot' || msg.t === 'blast' || msg.t === 'use' || msg.t === 'td' || msg.t === 'tmove' || msg.t === 'cmove' || msg.t === 'ping' || msg.t === 'gadget' || msg.t === 'door' || msg.t === 'ctick' || msg.t === 'jam') {
+    if (msg.t === 'pstate' || msg.t === 'shot' || msg.t === 'blast' || msg.t === 'use' || msg.t === 'td' || msg.t === 'tmove' || msg.t === 'cmove' || msg.t === 'ping' || msg.t === 'gadget' || msg.t === 'door' || msg.t === 'panel' || msg.t === 'ctick' || msg.t === 'jam') {
       this.events.emit('game', { msg, from });
     }
   }
@@ -242,7 +250,7 @@ export class NetSession {
     if (from !== this.hostId) return;
     if (msg.t === 'start') {
       this.phase = 'playing';
-      this.start = { mode: msg.mode, map: msg.map, seed: msg.seed, difficulty: msg.difficulty, mission: msg.mission, weather: msg.weather, bay: msg.bay ?? 1, lampFalloff: msg.lf };
+      this.start = { mode: msg.mode, map: msg.map, seed: msg.seed, difficulty: msg.difficulty, mission: msg.mission, weather: msg.weather, bay: msg.bay ?? 1 };
       this.events.emit('start', this.start);
       return;
     }
@@ -342,7 +350,7 @@ export class NetSession {
     if (!this.isHost) return null;
     this.phase = 'playing';
     if (this.overCapacity) return null;
-    this.start = { mode: this.mode, map: this.map, seed: Math.floor(Math.random() * 1e9), difficulty: this.difficulty, mission: this.mission, weather: this.weather, bay: this.mode === 'course' ? this.courseBay : 1, lampFalloff: this.hostLampFalloff() };
+    this.start = { mode: this.mode, map: this.map, seed: Math.floor(Math.random() * 1e9), difficulty: this.difficulty, mission: this.mission, weather: this.weather, bay: this.mode === 'course' ? this.courseBay : 1 };
     this.send(startMsg(this.start));
     this.broadcastLobby();
     this.events.emit('start', this.start);
@@ -371,5 +379,5 @@ export class NetSession {
 
 /** The `start` message for a match. */
 function startMsg(s: StartInfo): Msg {
-  return { t: 'start', mode: s.mode, map: s.map, seed: s.seed, difficulty: s.difficulty, time: 0, mission: s.mission, weather: s.weather, bay: s.bay ?? 1, lf: s.lampFalloff };
+  return { t: 'start', mode: s.mode, map: s.map, seed: s.seed, difficulty: s.difficulty, time: 0, mission: s.mission, weather: s.weather, bay: s.bay ?? 1 };
 }

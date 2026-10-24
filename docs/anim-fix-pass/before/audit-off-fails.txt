@@ -1,0 +1,70 @@
+# clipBody (body / weapon vs world, :806-807): not measured: covered by e2e-clip
+# clipWeapon (body / weapon vs world, :806-807): not measured: covered by e2e-clip
+local	flat-stand2	60	footSinkL	4.55 cm	limit 1.00 cm	frame 145
+local	flat-stand2	60	footSinkR	4.39 cm	limit 1.00 cm	frame 119
+local	flat-stand2	60	selfThighs	3.05 cm	limit 2.00 cm	frame 32
+local	flat-stand2	60	rootOvershoot	1.265	limit 1.01 x / backstep 0.001	frame 157
+local	flat-stand4	60	jointRate	47.5 deg	limit 25.0 deg	frame 167
+local	flat-stand4	60	footSinkL	4.33 cm	limit 1.00 cm	frame 115
+local	flat-stand4	60	footSinkR	4.51 cm	limit 1.00 cm	frame 95
+local	flat-stand4	60	selfThighs	3.92 cm	limit 2.00 cm	frame 126
+local	flat-stand4	60	pelvisP2P	5.08 cm	limit 6.00 cm	frame 133
+local	flat-stand4	60	readyElbowL	61.0 deg	limit 8-30	frame 102
+local	flat-stand4	60	readyElbowR	61.0 deg	limit 8-30	frame 164
+local	flat-stand4	60	rootOvershoot	1.297	limit 1.01 x / backstep 0.001	frame 171
+local	flat-stand6	60	jointRate	116.2 deg	limit 25.0 deg	frame 42
+local	flat-stand6	60	pelvisJump	8.36 cm	limit undefined	frame 145
+local	flat-stand6	60	footSinkL	3.96 cm	limit 1.00 cm	frame 144
+local	flat-stand6	60	footSinkR	4.65 cm	limit 1.00 cm	frame 205
+local	flat-stand6	60	selfThighs	3.86 cm	limit 2.00 cm	frame 116
+local	flat-stand6	60	pelvisP2P	16.14 cm	limit 8.00 cm	frame 118
+local	flat-stand6	60	headTravel	16.89 cm	limit pelvis p2p	frame 125
+local	flat-stand6	60	headRoll	14.3 deg	limit 2.0 deg	frame 112
+local	flat-stand6	60	readyElbowL	3.2 deg	limit 55-95	frame 197
+local	flat-stand6	60	readyElbowR	3.2 deg	limit 55-95	frame 178
+local	flat-crouch3	60	footSinkL	7.28 cm	limit 1.00 cm	frame 182
+local	flat-crouch3	60	footSinkR	7.28 cm	limit 1.00 cm	frame 159
+local	flat-crouch3	60	selfThighs	3.14 cm	limit 2.00 cm	frame 266
+local	flat-crouch3	60	rootOvershoot	1.565	limit 1.01 x / backstep 0.001	frame 166
+local	flat-stand2	120	jointRate	24.4 deg	limit 12.5 deg	frame 65
+local	flat-stand2	120	footSinkL	4.46 cm	limit 1.00 cm	frame 89
+local	flat-stand2	120	footSinkR	4.39 cm	limit 1.00 cm	frame 139
+local	flat-stand2	120	selfThighs	2.91 cm	limit 2.00 cm	frame 208
+local	flat-stand2	120	rootOvershoot	1.265	limit 1.01 x / backstep 0.001	frame 314
+local	flat-stand4	120	jointRate	29.4 deg	limit 12.5 deg	frame 376
+local	flat-stand4	120	footSlideL	1.73 cm	limit 1.00 cm	frame 69
+local	flat-stand4	120	footSinkL	4.63 cm	limit 1.00 cm	frame 398
+local	flat-stand4	120	footSinkR	4.51 cm	limit 1.00 cm	frame 192
+local	flat-stand4	120	selfThighs	3.99 cm	limit 2.00 cm	frame 213
+local	flat-stand4	120	pelvisP2P	5.16 cm	limit 6.00 cm	frame 186
+local	flat-stand4	120	readyElbowL	61.0 deg	limit 8-30	frame 371
+local	flat-stand4	120	readyElbowR	61.0 deg	limit 8-30	frame 330
+local	flat-stand4	120	rootOvershoot	1.297	limit 1.01 x / backstep 0.001	frame 342
+local	flat-stand6	120	jointRate	152.8 deg	limit 12.5 deg	frame 84
+local	flat-stand6	120	pelvisJump	4.34 cm	limit undefined	frame 253
+local	flat-stand6	120	footSinkL	4.00 cm	limit 1.00 cm	frame 214
+local	flat-stand6	120	footSinkR	4.61 cm	limit 1.00 cm	frame 411
+local	flat-stand6	120	selfThighs	3.91 cm	limit 2.00 cm	frame 350
+local	flat-stand6	120	pelvisP2P	16.44 cm	limit 8.00 cm	frame 199
+local	flat-stand6	120	headTravel	16.74 cm	limit pelvis p2p	frame 214
+local	flat-stand6	120	headRoll	14.3 deg	limit 2.0 deg	frame 340
+local	flat-stand6	120	readyElbowL	3.7 deg	limit 55-95	frame 167
+local	flat-stand6	120	readyElbowR	3.6 deg	limit 55-95	frame 205
+local	flat-crouch3	120	footSinkL	7.28 cm	limit 1.00 cm	frame 366
+local	flat-crouch3	120	footSinkR	7.28 cm	limit 1.00 cm	frame 320
+local	flat-crouch3	120	selfThighs	3.15 cm	limit 2.00 cm	frame 531
+local	flat-crouch3	120	pelvisP2P	2.20 cm	limit 2.50 cm	frame 380
+local	flat-crouch3	120	rootOvershoot	1.565	limit 1.01 x / backstep 0.001	frame 332
+local	idle	60	selfThighs	3.06 cm	limit 2.00 cm	frame 171
+local	idle	120	selfThighs	2.52 cm	limit 2.00 cm	frame 0
+local	flat-stand2-aim	60	footSinkL	4.78 cm	limit 1.00 cm	frame 83
+local	flat-stand2-aim	60	footSinkR	4.78 cm	limit 1.00 cm	frame 103
+local	flat-stand2-aim	60	gripR	4.43 cm	limit 2.00 cm	frame 28
+local	flat-stand2-aim	60	gripL	20.92 cm	limit 2.00 cm	frame 15
+local	flat-stand2-aim	60	wristSideL	26.1 deg	limit 25.0 deg	frame 6
+local	flat-stand2-aim	60	wristFlexR	94.9 deg	limit 70.0 deg	frame 220
+local	flat-stand2-aim	60	wristSideR	102.3 deg	limit 25.0 deg	frame 14
+local	flat-stand2-aim	60	selfThighs	2.99 cm	limit 2.00 cm	frame 70
+local	flat-stand2-aim	60	selfForearmL	5.73 cm	limit 2.00 cm	frame 12
+local	flat-stand2-aim	60	pelvisP2P	1.77 cm	limit 4.00 cm	frame 119
+local	flat-stand2-aim	60	rootOvershoot	1.265	limit 1.01 x / backstep 0.001	frame 108

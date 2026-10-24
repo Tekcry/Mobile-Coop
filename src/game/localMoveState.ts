@@ -74,6 +74,17 @@ export function localMoveState(g: GameState, out: MoveState): MoveState {
     delete out.c;
     return out;
   }
+  // (ct-toolkit 3.2, optic-coop) the optic cable: the door or gap, its kind (OPTIC_SUBS), the cable fed out; the view
+  // at the tip is never sent
+  const oc = g.optic.core;
+  if (oc.active) {
+    out.m = 'optic';
+    out.a = oc.door;
+    out.sub = oc.sub;
+    out.ph = oc.extension;
+    delete out.c;
+    return out;
+  }
   // (locomotion step 13) the door peek: the door, the hinge side, the door's drawn crack
   const dp = g.doorPeek;
   if (dp.active) {

@@ -55,6 +55,69 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
   and a `collideWith` mask; hit volumes (`ai/hitboxes.ts`, `game/playerTarget.ts`) are ANIMATED bodies
   registered in the `DamageRegistry`, which maps bodies to `Damageable`s.
 
+## Campus art kit
+The detail art of Saltmarsh Park (`campusOps`, Sector Ops) is a shared, instanced prop and material kit drawn over the
+level-builder boxes. Gameplay never reads it: collision, cover, ledges, nav, perception, the light bake and the meter use
+only the boxes. `?gfx=min`, a GLB that fails to load, or `buildCampus(b, { dress: false })` show the plain greybox.
+Plan and rules: `docs/sector-redesign/briefs/ART-PLAN.md`; builds: `docs/sector-redesign/checks/art-kit-build.md`,
+`art-join.md`.
+
+- **Generated, not drawn.** Headless Blender scripts in the repo (`scripts/campus-props/`: `lib.py`, `kit.py`,
+  `hero_s1.py` .. `hero_s5.py`, driver `build.mjs`; `npm run campus-props:build [-- --set kit|hero-s<N>]`). Output is
+  deterministic (byte-identical GLB per run) and lands in `src/world/campusArt/assets/` as `campus-kit.glb/.json` and
+  `hero-s<N>.glb/.json`. Factor-only materials, no UVs, no textures. The kit is 60 ids, about 7 k triangles.
+- **Base dressing by room tag.** Each section lists an art tag per room (`S<N>_ART_TAGS`, `artTags.ts`). The rule table
+  (`dressRules.ts`, `DRESS_RULES`, plus `DOOR_EXTRAS`) fills free floor, wall and ceiling by tag: `per`, `max`, `perRun`,
+  `alt`, `tile`. Finish colours per room come from `finishes.ts`.
+- **Bespoke hero sets.** One catalogue per section (`HERO_S<N>`, ids `H1`..`H5`): S1 gatehouse, S2 atrium, S3 lab block,
+  S4 data hall, S5 Old House strongroom. Placed by hand at exact positions before the base pass.
+- **Dressers.** `src/world/maps/campusS<N>Dress.ts` exports `S<N>_ART_TAGS`, `HERO_S<N>` and `dressS<N>(d)`; the registry
+  is `maps/campusDress.ts` (do not edit). API in `campusArt/dresser.ts`: skins, then heroes, then `d.base()` last.
+  - `d.add(piece, x, y, z, yaw, { cls, why, s?, group?, tint?, free? })`: exact placement. Throws `ArtRuleError`
+    (`rule`: 'K1'..'K13', 'C', 'V', 'S', 'W', 'B', 'FIT'; `msg`) on any keepout, skin-rule, overlap or fit failure.
+  - `d.tryAdd(piece, spots, { cls, why, ... })`: the first `{ x, y, z, yaw }` spot that passes, or -1. Each refusal goes
+    to `d.refusals` (`{ piece, spot, rule, msg }`) and to `report.dropped`. A hero with fallback spots uses it; a hero
+    that may be lost goes in an explicit omitted list the test asserts, never a bare `try / catch`.
+  - `d.skin(piece, boxIndex, yaw, { why, dy?, group? })`: skins one greybox box, scaled within the piece's own fit range.
+  - `d.skinFace(piece, boxIndex, face, { why, group?, tint?, dy?, at?, from?, to?, fitY? })`: a visual panel flush on one
+    face of a box (`'n'` +z, `'e'` +x, `'s'` -z, `'w'` -x), at most `ART_PROUD` (0.05) off it. It writes no box: the
+    greybox face stays the collision, light and sight. Modules go at `at` (one per centre), along `from`..`to`, or at
+    the piece's pitch. All modules or none.
+  - `d.skinHide(...)`: as `skin`, and hides the box's own drawn instance (cars, the S5 van).
+  - `d.skinCyl(piece, cylIndex, { why, group? })`: cylinders (tree trunks).
+  - `d.skinRow(piece, boxIndex, alongX, faceSign, { why, group? })`: tiles a long box with whole modules; `group` goes on
+    every module.
+  - `group` is optional on all skin calls and ties a piece to a circuit group.
+  - Fit: `PropCatalogue.fitRange` gives a piece its own scale range (`fitRange()`; default 0.8-1.25; `batteryRack`
+    0.8-1.3, `labBench` 0.65-1.25, `F:meshPanel` 0.8-1.3, now also fit in height, so a 3.0 m cage wall fits; `kitchenRun` 0.8-1.4).
+  - Floor decals: a visual piece under `DECAL_H` (0.05 m) tall on a floor (`K:floorTileGrid`, `F:glandPlate`) is exempt
+    from K1-K6, K13 and the greybox overlap; its y snaps to 1 mm. K7-K12 still apply.
+  - Door frames: a piece in the catalogue's `frame` list, placed visual, whose hull spans one door's opening (width to
+    width + `FRAME_WRAP` 0.2) and reaches the door head. It passes K1 and K2 for legs through that opening and K3 and K13
+    for that door. It is checked as its jambs and head, so camera rays through the opening stay clear. Check it with
+    `frameDoor`.
+  - Pieces are named `'K:whiteboard'`, `'F:filingCabinet'`, `'H2:atriumModel'`. Find boxes with `boxAt` / `cylAt`
+    (`geometry.ts`).
+- **Keepouts.** `keepouts.ts` builds the shapes once per section (`buildKeepouts`); `blocked` returns the first rule a
+  placement breaks. A prop never lands on one:
+  - K1 player route legs (climbs included); K2 guard patrol legs, entry run-ins, reinforce and sweep points, stage
+    response legs; K3 doors (zone, swing, wall edges); K4 items and the wall round them; K5 takedown spots; K6 hide,
+    spawn, nav seed and checkpoint spots, the extract zone; K7 co-op lips (headroom and the box and wall rules); K8
+    camera sight rays; K9 laser tubes; K10 lamps; K11 traversal anchors; K12 glass boxes; K13 escape doors.
+  - Other rule ids: `C` cover (a new box tall enough to hide behind stays 3.0 m off route and patrol legs), `V` rule V
+    (`ruleV` in `catalogue.ts`), `S` the skin rule, `W` no wall, `B` a box over another box, `FIT` a scale outside the
+    piece's range.
+  - A visual piece that writes no box (a skin, a decal, a frame) keeps the rules its mount gives it, as above.
+  - Every art box is `noLedge`. Light class and the three prop classes: ART-PLAN section 2.
+- **Gameplay gate.** `tests/campusArtGameplay.test.ts` (`-t S<N>`): legs, protected nav cells, patrols, cover, lips,
+  cameras, lasers, reach, ledges, split gaps (computed from the greybox, whatever the dressing order), `checkDressing`,
+  budgets. `tests/campusArtLight.test.ts` bakes and checks every protected point within 0.02. Others: `campusArtKit`
+  (the API above, one case per kit item), `campusDressRules`, `campusArtRender`, `campusS<N>Dress`.
+- **Render.** `campusArtRender.ts` draws one instanced mesh per (section, material); the World hook and
+  `BuiltLevel.hidePieces` (`levelBuilder.ts`) hide the boxes a skin replaces.
+- **Budget.** At most 40 draws, 150 k triangles and 2500 placements per section. Now: S1 35 / S2 33 / S3 27 / S4 19 /
+  S5 29 draws; the campus is 143 draws and 186 k triangles (1930 placements). S1 sits at 35 of 40. Perf budgets: `docs/systems/performance.md`; shots: `scripts/campus-art-shots.mjs`.
+
 ## Characters (one rig for player, enemies, coop remotes, dummies and the menu operator)
 - (anim-natural-n2) Wren's body motion layer (`src/anim/bodyMotion.ts`, pure): per tuner body row (`BODY_MOTION`,
   one literal per field: hipTurn / hipTime, chestTurn / chestTime deg and cycles, sway / swayTime cm and cycles,
@@ -106,7 +169,78 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
   a no-op here (only the player's camera fades a head). Flag `guardMerge` (`?guardmerge=0`: the old instanced parts, for
   comparisons). Casters under 0.3 m are skipped by the lamp / moon shadows (`lightRig.ts`, `world.ts`): heads, hands,
   forearms and feet were, the merged body is not, so they cast shadows now. Measured (24 guards, laptop GPU, Epic):
-  `docs/guard-render/run-s1` against `run-s1-off`.
+  `docs/guard-render/run-s1` against `run-s1-off`. A body effect that will not finish compiling (Babylon's poll timed
+  out, the compile failed, its program was disposed under it, or as a last resort 90 s and 30 frames unready; a slow
+  parallel compile is left to finish, body watchdog) is dropped and recompiled,
+  at most 3 times per variant with a console warning (`bodyEffectRecovery.ts`, guard-ai carry fix: a stall during a
+  new variant's compile left guards invisible on the laptop GPU); the meshes holding it are switched back to GPU
+  skinning (Babylon's first fallback had set `computeBonesUsingShaders` false, drawing the body unskinned; carry fix 2).
+- Guard figures (guard-models, `docs/guard-models/`; `flags.guardModels`: `?guardmodels=1` turns it on and the default is
+  OFF for now, G8 flips it to `!== '0'` after its budget run; `?guardmodels=0` is the merged S1 body above, A10). The
+  seven human kinds (grunt, runner, heavy, sniper, enforcer, droneOp, officer; the dog keeps its model) draw as a
+  `GuardFigure` (`operators/runtime/guardFigure.ts`, on Wren's `OperatorLibrary` / `OperatorPoser`) that `GuardBody`
+  (`ai/guardBody.ts`) builds over the rig in `buildEnemyRig` and `buildBodyRig`; the merged body stays until the
+  figure's first LOD is in, then is disabled. Gameplay never reads it (hitboxes, perception and the light meter read
+  the rig). All male, larger than Wren.
+  - Bases (A2): `average` (grunt, droneOp, officer; ref height 1.77 m), `lean` (runner, sniper; 1.76 m), `broad` (heavy,
+    enforcer; 1.825 m), from the MakeHuman base body, scaled `def.height / refHeight` (within +-2%).
+  - Heads, faces, tones, hair (M1): `average-1..4` and `lean-1..4` (open faces, each with its own iris and
+    clean / stubble / beard), `broad-1` (the eye region under the balaclava); eyes sit inside the head piece. Four skin
+    tones (0-3), hair caps `buzz`, `crop`, `sidepart`, `receding`, `fade`, `bald` (no mesh) in four colours (`black`,
+    `darkbrown`, `brown`, `grey`); heavy and enforcer have no hair cap. Faces are shaped from the CC0 MakeHuman face
+    targets, skin, eyes and hair are baked procedurally in-repo; no face bones, no blink (A15).
+  - Outfits per kind: `uniform` (grunt, droneOp, heavy, enforcer; faction tint), `uniform_rolled` (sniper, sleeves
+    rolled), `work` (runner; his own colour, A11), `uniform_jacket` (officer; his own colour). Headwear: grunt cap /
+    beanie / none, runner beanie / none, sniper boonie / cap, droneOp headset (a cap over it 40% of the time), officer
+    `cap_officer`, heavy and enforcer balaclava. Eyewear: the sniper always wears dark glasses; grunt (clear or dark),
+    droneOp and officer (clear) rarely wear any. Small kit: `radio`, `pouch_belt`, `holster_thigh`, `flashlight_mount`, some fixed per
+    kind (grunt radio and torch mount, officer radio, droneOp belt), the rest picked from the seed.
+  - Gear pieces and the gameplay bits (A5, A14): the gear shows only what stops a round. `Enemy.helmet` /
+    `Enemy.armour` (`GEAR_BY_STAGE`: armour at alarm stage 2, helmet too at 3; response teams) are the wire bits
+    `AL_HELMET` / `AL_ARMOUR`. `applyGear(variant, helmet, armour, plated, kind, out)` turns them into the visible
+    piece set: helmet bit -> `helmet_std` (heavy and enforcer: `helmet_heavy`), which hides the hair cap and the
+    headwear except the balaclava and headset; armour bit -> `vest_soft`; `plate_heavy` always on heavy and enforcer
+    (both `plated`); the enforcer's `shield_riot` is its own GLB skinned on the figure's skeleton (`ai/guardShield.ts`).
+    The seed never adds a helmet or armour the gameplay does not have. A knocked-off helmet (first head hit) hides
+    through the mask and drops as `helmet_std`'s own mesh in the guard's helmet colour (`ai/helmetDrops.ts`,
+    `guardHelmet.ts`, A6); the cap or hair shows again. Carried and fresh bodies keep the guard's seed and gear
+    (`ai/body.ts`).
+  - LODs and the runtime figure: three LODs per base, one skinned mesh and one material each (LOD0 < 8 m, LOD1 8-25 m,
+    LOD2 beyond, 10% hysteresis, `lodPick.ts`; no hero), so a guard is one draw per pass (+1 shield, + gun). Triangle
+    and texture budgets: `performance.md`. Every head, hair cap, headwear, eyewear, kit and gear piece is baked into the
+    base's mesh and tagged per vertex (`_PIECE`, `_TINT`). Static vertex buffers are shared per (base, LOD) per scene
+    (`GuardLibrary`); per guard a skeleton, `gvis` (RGBA8 per vertex: tint rgb for the vertex's slot, alpha = visible /
+    flash / heat, 0 = hidden) and an index buffer of the visible pieces only, rewritten on a spawn, gear, tint or flash
+    change (`operators/guards/gearMask.ts`, pure), so piece toggles cost no draw and hidden pieces leave the shadow
+    maps and the G-buffer. The material plugin (`guardFigurePlugin.ts`, one packed varying) tints where the albedo atlas
+    alpha is set and flashes / heats in the same draw. Culling is a fixed root-local rest box; a ragdoll (a re-parented
+    joint) is always active and poses through the world-matrix path. With the flag on, the level load awaits LOD2 of
+    every base and compiles the guard shader on hidden warm meshes under the warm-up cap (`ai/guardWarm.ts`).
+  - Look seed (M3): `Enemy.look`, a 7-bit seed set once at spawn from the spawn slot (`ai/guardLook.ts`, never
+    `Enemy.num`), so a section restart or a reload gives every slot the same look; it rides the wire (`AL_LOOK`,
+    `coop.md`) so host and client draw the same man. `guardVariant(seed, kind, mapId, out)`
+    (`operators/guards/guardVariant.ts`, pure, no allocation after the first call per kind and map) picks head, skin
+    tone, hair cap and colour, headwear, eyewear, kit and a +-6% colour jitter by the archetype matrix (SPEC section 3);
+    `guardTints.ts` turns it and the faction palette into slot tints.
+  - Files and the offline bake: the bake's output is bundled in `src/operators/assets/guards/` (~29 MB:
+    `guard-<base>-lod0..2.glb`, `guard-<base>.json`, `guard-shield_riot-lod0..2.glb`; KTX2 textures inside the GLBs);
+    `operators/guards/guardAssets.ts` is the one seam (two eager `import.meta.glob` lines: the GLBs as `?url` strings
+    only, nothing fetched; the three JSON files, under 1 KB together, inlined). A base without all its files resolves
+    to the stand-in (Wren's play LODs, untinted, one piece). Guard figures are off by default; their files load only
+    with `?guardmodels=1`, never precached: every fetch is behind `flags.guardModels` (`GuardBody` via
+    `guardModelsFor`, `warmGuardModels`, the helmet drop's mesh, the shield), the precache lists
+    (`src/pwa/precacheGlobs.ts`, used by `vite.config.ts`) take no `.glb` and ignore `**/guard-*.glb` /
+    `**/guard-*.ktx2`, and the runtime rule (`src/pwa/runtimeCaching.ts`) keeps a fetched `/assets/guard-*.glb` in the
+    worker's own `guards` cache (CacheFirst, 24 entries). Tested by `tests/guardAssetsOffline.test.ts` (the lists globbed
+    as workbox does; no fetch with the flag off) and `tests/swRuntimeCaching.test.ts` (every runtime rule self-contained,
+    as workbox writes it into `sw.js` as text, and the built `sw.js` routes each GLB to its cache). Bake (laptop, headless Blender, MPFB2 CC0 data; none on the desktop):
+    `node scripts/operators/guard-bake.mjs --stage <prep|bodies|heads|garments|gear|lods|check|sheet>` runs one stage as
+    parallel jobs and skips jobs whose input hash is unchanged; `guard-sheet.mjs` draws the variety contact sheet. It
+    builds on Wren's pipeline (`scripts/operators/README.md`); plan, spec and per-slice reports: `docs/guard-models/`.
+    Kit data: `scripts/operators/data/guards.json` (ids and budgets, `operators/guards/guardKit.ts` validates).
+  - Tests: `guardKit`, `guardVariant`, `gearMask`, `guardLook`, `guardFigure` (NullEngine), `guardBody`,
+    `guardResolve`, `guardAssets` (the bundled files against the budgets), `guardAssetsOffline`; `e2e-coop` checks the
+    seed and pieces on host and client (`E2E_GUARDMODELS=1`).
 - Rig: root -> body (tumble pivot) -> pelvis(`hips`) -> spine -> chest(`torso`) -> neck -> head(`headNode`, head
   centre); chest -> shoulder -> elbow -> wrist; pelvis -> hip -> knee -> ankle; sockets `weaponPivot` (aim
   pocket), `backSocket`, `hipSocket`. Joints use `rotationQuaternion` (root uses Euler `rotation.y`).
@@ -116,8 +250,8 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
   carrier, pouches, pads, gloves; `helmet: 'trilens'`: balaclava + a three-lens goggle, `rig.setLensGlow` from the
   vision mode). Enemy looks get the map's faction colours (`ai/factions.ts` `factionLook`, `MapTheme.faction`).
 - **Players are Wren (operators step 11e, G123: "Both play as Wren").** The local player, the co-op partner and the
-  main menu's operator are Wren, the realistic operator from the offline pipeline (feature/operators, G68); guards,
-  dummies and the VIP keep the part bodies above (G68: realistic guards later). No dev switch.
+  main menu's operator are Wren, the realistic operator from the offline pipeline (feature/operators, G68); dummies
+  and the VIP keep the part bodies above, and guards keep the merged body unless `?guardmodels=1` (guard figures below). No dev switch.
   - `operators/runtime/playerFigure.ts` `operatorRig()` builds a player's `CharacterRig` at Wren's height (1.68 m,
     G74; build `average`, style `detailed`) and puts an `OperatorFigure` (`operators/runtime/figure.ts`)
     on it. The rig stays the pose and gameplay body: animation, IK, sockets (weapons attach to the rig's sockets as
@@ -193,8 +327,9 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
   swinging leg's knee pole stays nearer the pelvis forward (`KNEE_SWING_SHARE`). The idle's head scan reaches the
   head through `RigTargets.keyScan` (added to the world-stabilised head yaw: the camera aim and look still drive it). Remotes pose the same from MoveState (speed, crouch, the graph's own
   clock); no wire change.
-- (mocap-trial) Mocap locomotion switch (`anim/mocap.ts`; Settings > Gameplay > "Mocap locomotion", the tuner's More >
-  Panel box, `?mocap=0/1`; default off, IndexedDB with the settings): `LOCO.set` picks the clip set the standing holstered
+- (mocap-trial) Mocap locomotion switch (`anim/mocap.ts`; `?mocap=0/1`, then the tuner's More > Panel box for that page;
+  ON otherwise: anim-fix-pass AF5 removed the Settings row and a stored `gameplay.mocapLoco: false` no longer sticks,
+  core/app.ts; the switch is per machine and drives the co-op partner's copy on this machine too): `LOCO.set` picks the clip set the standing holstered
   speed set samples (`speedSet`: the hand-keyed `HAND_KEYED_SET` or `MOCAP_SET`, `anim/clips/mocap/*` in the keyed format;
   the drawn, crouched, idle and wall sets stay hand-keyed), plus its optional one-shot slots (`MocapSlots`: turn in place,
   turn on the move L / R, start, stop). A mocap clip with a `feet` channel drives the planner's clip feet mode

@@ -25,6 +25,10 @@ export const ALERT = {
   investigateMax: 20,
   /** Seconds in combat without sight before searching. */
   lostSight: 12,
+  /** (guard-ai walk 4.82 item 2) Seconds in combat without sight before searching while he is closing on the last known
+   *  position (`AlertInput.closing`): arriving there with nothing to see starts the search (`Enemy.updateAwareness`); this
+   *  only caps a walk that never gets there. */
+  lostSightClosing: 30,
   /** Search length (s). */
   searchTime: 60,
   /** Back to normal after (s) - only after an investigation; never after combat. */
@@ -86,10 +90,13 @@ export interface AlertInput {
   /** (guard-ai S18) This search's length (s; `response.ts` `searchSpec`: a dead body's is longer); absent or 0:
    *  `ALERT.searchTime`. */
   searchFor?: number;
+  /** (guard-ai walk 4.82 item 2) In combat, out of sight, moving up on the last known position (coordinated modes): the
+   *  lost-sight timer is `ALERT.lostSightClosing`, so he keeps the fight (and the position) until he gets there. */
+  closing?: boolean;
 }
 
 export function emptyAlertInput(): AlertInput {
-  return { meter: 0, seeing: false, arrived: false, sinceSeen: 99, heard: false, damaged: false, gunfire: false, called: false, search: false, hold: false, turning: false, calmEnd: false, cautious: false, hunting: false, searchFor: 0 };
+  return { meter: 0, seeing: false, arrived: false, sinceSeen: 99, heard: false, damaged: false, gunfire: false, called: false, search: false, hold: false, turning: false, calmEnd: false, cautious: false, hunting: false, searchFor: 0, closing: false };
 }
 
 export class AlertMachine {
@@ -181,7 +188,8 @@ export class AlertMachine {
         break;
       case 'alert':
         // (alerted by a noise or a call without a sighting: counted from the alert itself)
-        if (!i.seeing && Math.min(i.sinceSeen, this.t) >= ALERT.lostSight) this.set('searching');
+        // (walk 4.82 item 2) closing on the last known position: the longer cap (arriving starts the search)
+        if (!i.seeing && Math.min(i.sinceSeen, this.t) >= (i.closing ? ALERT.lostSightClosing : ALERT.lostSight)) this.set('searching');
         break;
       case 'searching':
         // (guard-ai S6) a hunting (aggressive) guard keeps searching: never calm

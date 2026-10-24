@@ -225,10 +225,11 @@ describe('settings: the analogue speed and weapon state layout (anim-rework S1, 
     expect(notes[0]).toMatch(/left stick sets the speed/);
     expect(notes).toContain('Keyboard: Creep (hold) and Crouch share Alt.');
     expect(notes.some((n) => /Controller: Co-op action .* and Aim share LT/.test(n))).toBe(true);
-    // the plain old layout: what moved, no clash
+    // the plain old layout: what moved; (optic-coop M2, "contextual") Zoom and Ping on R3 are an allowed pair: no clash named
     const plain = controlsMigrationNotes(OLD_413, sanitizeSettings(structuredClone(OLD_413)));
     expect(plain).toHaveLength(2);
     expect(plain[1]).toMatch(/Caps Lock/);
+    expect(plain.some((n) => /Zoom|Ping/.test(n))).toBe(false);
     // a fresh profile or a current save: nothing to say
     expect(controlsMigrationNotes(undefined, defaultSettings())).toEqual([]);
     expect(controlsMigrationNotes(defaultSettings(), defaultSettings())).toEqual([]);
@@ -266,25 +267,23 @@ describe('settings: the CT camera defaults (G3, camV 1)', () => {
   });
 });
 
-describe('(lightrev LR13) Gameplay > Lamp falloff', () => {
-  it('defaults to Classic (linear); settings from before it read Classic; junk is dropped; Realistic is kept', () => {
-    expect(defaultSettings().gameplay.lampFalloff).toBe('linear');
-    expect(sanitizeSettings(PRE_STEP_18).gameplay.lampFalloff).toBe('linear');
-    expect(sanitizeSettings({ gameplay: { lampFalloff: 'bright' } }).gameplay.lampFalloff).toBe('linear');
-    const s = sanitizeSettings({ gameplay: { lampFalloff: 'photometric' } });
-    expect(s.gameplay.lampFalloff).toBe('photometric');
-    expect(sanitizeSettings(structuredClone(s)).gameplay.lampFalloff).toBe('photometric');
+describe('(LR16a) one light model: no Gameplay > Lamp falloff', () => {
+  it('the defaults have no lampFalloff; an old stored key is dropped on load (whitelist parse, no migration)', () => {
+    expect('lampFalloff' in defaultSettings().gameplay).toBe(false);
+    for (const lf of ['linear', 'photometric', 'bright']) {
+      const s = sanitizeSettings({ gameplay: { lampFalloff: lf, crouchToggle: false } });
+      expect('lampFalloff' in s.gameplay).toBe(false);
+      // the rest of the stored gameplay block is kept
+      expect(s.gameplay.crouchToggle).toBe(false);
+    }
   });
-  it('persists in IndexedDB kv/settings like the other settings (no save bump), and is not a graphics setting', async () => {
+  it('an old IndexedDB kv/settings record with lampFalloff loads without it (no save bump)', async () => {
     resetDbCache();
     const st = new SettingsStore();
-    st.update((d) => void (d.gameplay.lampFalloff = 'photometric'));
-    await dbPut('kv', 'settings', st.get());
+    await dbPut('kv', 'settings', { ...st.get(), gameplay: { ...st.get().gameplay, lampFalloff: 'photometric' } });
     const back = sanitizeSettings(await dbGet('kv', 'settings'));
-    expect(back.gameplay.lampFalloff).toBe('photometric');
-    // a graphics preset / Auto never touches it (gameplay never reads graphics state)
-    expect('lampFalloff' in back.video).toBe(false);
-    expect('lampFalloff' in back.video.gfx).toBe(false);
+    expect('lampFalloff' in back.gameplay).toBe(false);
+    expect(back).toEqual(sanitizeSettings(st.get()));
   });
 });
 

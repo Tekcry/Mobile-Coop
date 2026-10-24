@@ -21,7 +21,8 @@ conflicts).
   other mode never reuses the engine's cached compiled effect with the old `nsLampFalloff`.
 - **Co-op**: the host's mode rides the `start` message as `lf` (`NetSession.hostLampFalloff`, set in `coopUi.adopt` from
   the host's setting / URL; `StartInfo.lampFalloff`; `coopUi.start` -> `GameOptions.lampFalloff`). The client's own
-  setting and URL are ignored; in a co-op match its Settings row is a locked row showing the host's. Rejoin / late
+  setting and URL are ignored; in a co-op match the Settings row is a locked row showing the match's mode, for the host
+  too (lrpolish: not only the client's). Rejoin / late
   join re-sends the same start (lf kept). BRIEF A100.
 
 ## Protocol / save

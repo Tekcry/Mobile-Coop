@@ -24,16 +24,28 @@ await Promise.all(CONFIGS.map(async ([name, q], k) => {
     // every PBR material has the plugin, so a material made just before the read is not counted unplugged (a real miss
     // still fails the assert). (load-latent-ui1) 120 s cap: four browsers bake side by side, and under CPU load the
     // loaders and the next frame ran past 5 s
+    // (marlow-final e2e-fix4) and the PBR count unchanged over ~1 s: the laptop GPU run read 10 / 11 (a loader made a
+    // material between this wait and the read; a desktop run reads 20 / 20 once loading ends)
     await page.waitForFunction(() => {
       const pbr = window.__app.current.world.scene.materials.filter((m) => m.getClassName() === 'PBRMaterial');
-      return pbr.every((m) => !!m.pluginManager?.getPlugin('BakedLamps'));
-    }, null, { timeout: 120000 }).catch(() => {});
-    const info = await page.evaluate(() => {
+      const ok = pbr.every((m) => !!m.pluginManager?.getPlugin('BakedLamps'));
+      const s = (window.__lbStable ??= { n: -1, k: 0 });
+      s.k = ok && pbr.length === s.n ? s.k + 1 : 0;
+      s.n = pbr.length;
+      return s.k >= 4;
+    }, null, { timeout: 120000, polling: 250 }).catch(() => {});
+    const read = () => page.evaluate(() => {
       const w = window.__app.current.world;
       const q = window.__app.quality.level;
       const pbr = w.scene.materials.filter((m) => m.getClassName() === 'PBRMaterial');
-      return { ...w.lightInfo(), minimal: !!q.minimal, lamps: !!w.lamps, pbr: pbr.length, plugged: pbr.filter((m) => !!m.pluginManager?.getPlugin('BakedLamps')).length };
+      return { ...w.lightInfo(), minimal: !!q.minimal, lamps: !!w.lamps, pbr: pbr.length, plugged: pbr.filter((m) => !!m.pluginManager?.getPlugin('BakedLamps')).length, unplugged: pbr.filter((m) => !m.pluginManager?.getPlugin('BakedLamps')).map((m) => m.name).join(',') };
     });
+    let info = await read();
+    // (a material made just before the read gets the plugin on the next frame: read again; a real miss stays unplugged)
+    for (let t = 0; t < 3 && info.plugged !== info.pbr; t++) {
+      await frames(page, 6);
+      info = await read();
+    }
     if (name === 'gfx=epic') {
       // (fix round) the level material compiles the lamp plugin with LAMP_LEVEL (no night-vision body fill cap); no other
       // material does (bodies, weapons and props keep the cap)
@@ -67,7 +79,8 @@ await Promise.all(CONFIGS.map(async ([name, q], k) => {
       info.lampLevel = lvl;
       // (LR14) character silhouette shadows: on at Epic (4 lamp slots, one atlas), the level shader compiles
       // LAMP_CSHADOW, the slots near the player copy maps into the atlas, and every drawn shader still fits WebGL's 16
-      // textures with the guards alerted (their flashlights take the rig's shadow pool)
+      // textures with the guards alerted (LR16t: their flashlights are drawn by the baked lamps and shadowed through the
+      // torch atlas, one sampler; the rig's shadow pool stays empty while the atlas is on)
       info.cs = await page.evaluate(async () => {
         const g = window.__app.current;
         const cs = g.world.charShadows;
@@ -76,6 +89,7 @@ await Promise.all(CONFIGS.map(async ([name, q], k) => {
           let max = 0;
           let who = '';
           let pending = 0;
+          const stuck = [];
           let define = false;
           for (const m of g.scene.meshes) {
             if (!m.isEnabled() || !m.isVisible) continue;
@@ -83,6 +97,7 @@ await Promise.all(CONFIGS.map(async ([name, q], k) => {
               if (!sm.getMaterial?.() || !sm.effect) continue;
               if (!sm.effect.isReady()) {
                 pending++;
+                if (stuck.length < 6) stuck.push(sm.getMaterial().name);
                 continue;
               }
               if (sm.effect.defines.includes('#define LAMP_CSHADOW')) define = true;
@@ -93,14 +108,20 @@ await Promise.all(CONFIGS.map(async ([name, q], k) => {
               }
             }
           }
-          return { max, who, pending, define };
+          return { max, who, pending, stuck, define };
         };
+        // (train 55 flake) wait for every drawn shader to finish compiling before counting textures: LR16's Epic
+        // body and level shaders take 30-45 s cold on D3D11 with three browsers (Sector Ops' timing), far past the old
+        // 240-frame wait (~7 s), which then read 14 textures with 5 still pending. Wall-time cap 120 s (past the body
+        // watchdog's 90 s last resort, bodyEffectRecovery STUCK_MS); at least 8 frames so the alert's shaders exist.
         let t = tex();
-        for (let i = 0; i < 240 && (t.pending > 0 || i < 8); i++) {
+        const t0 = performance.now();
+        for (let i = 0; (t.pending > 0 || i < 8) && performance.now() - t0 < 120000; i++) {
           await new Promise((r) => requestAnimationFrame(r));
           if (i % 20 === 19) await new Promise((r) => setTimeout(r, 250));
           t = tex();
         }
+        t.waitMs = Math.round(performance.now() - t0);
         return { on: !!cs?.on, slots: cs?.stats().length ?? 0, stats: cs?.stats() ?? [], copies: cs?.copies ?? 0, ...t };
       });
       // the smooth default at Ray traced: screen space reflections run (no crash)
@@ -139,7 +160,7 @@ try {
   const epic = infos.find(([n]) => n === 'gfx=epic')[1];
   for (const [n, i] of [['gfx=epic', epic]]) {
     assert(i.lamps, `${n}: draws the bake (the baked lamps)`);
-    assert(i.pbr > 0 && i.plugged === i.pbr, `${n}: the lamp plugin is on every PBR material (${i.plugged} / ${i.pbr})`);
+    assert(i.pbr > 0 && i.plugged === i.pbr, `${n}: the lamp plugin is on every PBR material (${i.plugged} / ${i.pbr}${i.unplugged ? `; unplugged: ${i.unplugged}` : ''})`);
   }
   assert(epic.lampLevel?.sky === true, `smooth Epic: the level material takes the fill and probe light by sky visibility (LAMP_SKY, ${JSON.stringify(epic.lampLevel)})`);
   assert(epic.lampLevel?.level === true && epic.lampLevel.others === 0, `smooth Epic: only the level material compiles LAMP_LEVEL (${JSON.stringify(epic.lampLevel)})`);
@@ -149,7 +170,7 @@ try {
   console.log(`  LR14 character shadows: ${JSON.stringify({ on: cs.on, slots: cs.slots, copies: cs.copies, max: cs.max, who: cs.who, stats: cs.stats })}`);
   assert(cs.on && cs.slots === 4 && cs.define, `smooth Epic: character shadow maps on, 4 lamp slots, LAMP_CSHADOW compiled (${JSON.stringify({ on: cs.on, slots: cs.slots, define: cs.define })})`);
   assert(!cs.stats.some((s) => s.casters > 0) || cs.copies > 0, `smooth Epic: a slot with characters in reach copies its map into the atlas (${cs.copies} copies)`);
-  assert(cs.pending === 0 && cs.max > 0 && cs.max <= 16, `smooth Epic with character shadows, guards alerted: every shader within 16 textures (${cs.max}, ${cs.who}, ${cs.pending} pending)`);
+  assert(cs.pending === 0 && cs.max > 0 && cs.max <= 16, `smooth Epic with character shadows, guards alerted: every shader within 16 textures (${cs.max}, ${cs.who}, ${cs.pending} pending after ${cs.waitMs} ms${cs.pending ? `: ${cs.stuck.join(', ')}` : ''})`);
 } catch (e) {
   failed = true;
   console.error(String(e));

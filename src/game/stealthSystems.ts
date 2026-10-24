@@ -1,7 +1,5 @@
-import { TransformNode, Vector3 } from '../core/babylon';
-import type { MoveOverride } from '../player/playerController';
-import { CQ, dropCurve, liftCurve, type DropState, type LiftState } from './closeQuarters';
-import { SOCKET_YAW, socketLocal } from '../ai/carryPose';
+import { Vector3 } from '../core/babylon';
+import { BodyCarry, type LocalCarry } from './bodyCarry';
 import type { Body } from '../ai/body';
 import { BODY } from '../ai/bodies';
 import { ALARM, type AlarmPanel } from '../ai/alarm';
@@ -10,7 +8,7 @@ import type { EnemyManager } from '../ai/enemyManager';
 import type { EnemyKind } from '../ai/enemyDefs';
 import type { Enemy } from '../ai/enemy';
 import type { ReinforceEntry } from '../ai/guardAiData';
-import { groupBaseOn, lightOnRay, type LightRegistry } from '../world/lights';
+import { groupBaseOn, lampReachProbe, lightOnRay, type LightRegistry } from '../world/lights';
 import type { BreakerHost } from '../ai/breaker';
 import { BACK_TIMER, BOARD_REACH, IsolatorBoards, type BoardSink } from './isolators';
 import type { Interactable, Interactables } from './interactables';
@@ -18,11 +16,9 @@ import type { GameState } from './gameState';
 import { DOOR, type DoorState } from '../world/doors';
 import { G, MASK } from '../physics/groups';
 import { hyp2 } from '../core/mathx';
-import { clearGripAxis } from '../player/attachGrips';
 
-/** Noise radii (m): a bulb shot out, a body put down. */
+/** Noise radius (m): a bulb shot out (a body put down: `bodyCarry.ts` DROP_NOISE). */
 const SHOT_LIGHT_NOISE = 5;
-const DROP_NOISE = 3;
 /** (A3, G41) A guard's door is shut this long (s) after he is clear of it. Starting value. */
 const DOOR_GUARD_CLOSE = 1.5;
 /** Door noise radii (m): eased open / shut by hand, bashed open at a sprint. */
@@ -35,14 +31,37 @@ const DOOR_NOTICE_EVERY = 0.25;
 const DOOR_BASH_NOISE = 10;
 
 /**
+ * (marlow-final, ENGINE-ANSWERS Q9) Is (x, z) occupied within `r`: the local player at (px, pz), any co-op partner (a
+ * calm guard must never shut a door onto the client's player), or a live enemy? No allocation.
+ */
+export function spotOccupied(
+  x: number,
+  z: number,
+  r: number,
+  px: number,
+  pz: number,
+  remotes: readonly { feet: { x: number; z: number } }[],
+  enemies: readonly { alive: boolean; pos: { x: number; z: number } }[],
+): boolean {
+  if (hyp2(px - x, pz - z) < r) return true;
+  for (let i = 0; i < remotes.length; i++) {
+    const f = remotes[i]!.feet;
+    if (hyp2(f.x - x, f.z - z) < r) return true;
+  }
+  for (let i = 0; i < enemies.length; i++) {
+    const e = enemies[i]!;
+    if (e.alive && hyp2(e.pos.x - x, e.pos.z - z) < r) return true;
+  }
+  return false;
+}
+
+/**
  * Stealth fixtures in a match (phase 3b): bodies the player can pick up, carry (slow, weapon stowed, hands on
  * the victim), put down or hide in a container; light switches (a room's lamp circuit) and lights shot out
  * (enemies come to look, with a flashlight in the dark); alarm panels the player can disable before an
  * alerted enemy reaches one (reinforcements). Owned by `GameState` in modes with enemies.
  */
-export class StealthSystems {
-  /** The body on the player's shoulder. */
-  carry: Body | null = null;
+export class StealthSystems implements LocalCarry {
   bodiesHidden = 0;
   lightsShot = 0;
   private bodyIts = new Map<Body, Interactable>();
@@ -53,16 +72,17 @@ export class StealthSystems {
   private boardIts: Interactable[] = [];
   /** The "Drop body" action (not in the world: offered while carrying with no hiding spot near). */
   private dropIt: Interactable;
-  private kneeL = new Vector3();
   private doorIts: { d: DoorState; it: Interactable }[] = [];
   /** (A3, G41) Seconds a door a guard opened has stood open and clear (index -> s). A calm guard's door is shut behind him. */
   private guardOpened = new Map<number, number>();
-  private kneeR = new Vector3();
   /** (F1b, door-4) Doors the player opened and nobody has dealt with (door index set). A guard who sees one open raises
    *  suspicion and then shuts it (the G41 close). */
   private playerOpened = new Set<number>();
   private noticeT = 0;
   private noticeA = new Vector3();
+  /** (polish2) The mount-reach probe's ends (`lampReachProbe`). */
+  private readonly reachA = new Vector3();
+  private readonly reachB = new Vector3();
   private noticeB = new Vector3();
 
   constructor(
@@ -71,6 +91,15 @@ export class StealthSystems {
     private ints: Interactables,
     private noise: (r: number, at: Vector3) => void,
   ) {
+    this.carrier = new BodyCarry(g, {
+      canRagdoll: () => em.canRagdoll(),
+      noise: (r, at) => this.noise(r, at),
+      // (G7) let go of before the hoist: offered again
+      onLetGo: (b) => {
+        const it = this.bodyIts.get(b);
+        if (it) ints.setEnabled(it, b.present);
+      },
+    });
     const layout = g.world.layout;
     const reg = g.world.level.lights;
     layout.switches?.forEach((s, i) => {
@@ -101,8 +130,13 @@ export class StealthSystems {
       const sink: BoardSink = {
         cut: (i, x, z) => {
           this.boardChanged(i, false);
-          // the circuit going dark is noticed: the nearest calm armed guard comes to look at the board (as a switch)
-          this.em.lightsOut(x, z);
+          // the circuit going dark is noticed. (guard-ai LR16-4) A breaker board is a wall switch's fault: reported on
+          // its circuit at the board (the S15 reset walk, `breakerHost`); a timed window is the player's, so its cut
+          // stays the S2 look at the board (the lure) and the timer relights it
+          const b = this.boards;
+          const gr = b && !b.timed(i) ? b.liveGroup(i) : -1;
+          if (gr >= 0) this.em.lightsOut(x, z, b!.defs[i]!.pos.y + 2.5, -1, gr);
+          else this.em.lightsOut(x, z);
         },
         back: (i, how) => {
           this.boardChanged(i, true);
@@ -185,11 +219,7 @@ export class StealthSystems {
       const it = this.bodyIts.get(b);
       if (it) ints.remove(it);
       this.bodyIts.delete(b);
-      if (this.carry === b) {
-        this.carry = null;
-        this.endMotion();
-        this.release();
-      }
+      if (this.carry === b) this.carrier.reset();
     };
     em.onBodyFound = (_e, b) => {
       g.events.emit('bodyFound', { x: b.pos.x, z: b.pos.z });
@@ -208,21 +238,56 @@ export class StealthSystems {
     this.bodyIts.set(b, it);
   }
 
+  /** (coop-carry) The local player's carry (`BodyCarry`: the lift, the carry, the put down), moved out of here unchanged. */
+  readonly carrier: BodyCarry;
+
+  /** The body on the player's shoulder. */
+  get carry(): Body | null {
+    return this.carrier.carry;
+  }
+  set carry(b: Body | null) {
+    this.carrier.carry = b;
+  }
+
   /** A body on the shoulder, or (G7) being lifted to it / put down from it: hands busy, no traversal. */
   get carrying(): boolean {
-    return this.carry !== null || this.busy;
+    return this.carrier.carrying;
   }
 
   /** (G7) The lift or the put down is under way (committed: no interact, no movement). */
   get busy(): boolean {
-    return this.liftT >= 0 || this.dropT >= 0;
+    return this.carrier.busy;
+  }
+
+  /** The hero's bend (rad) and pelvis drop (m) this step (GameState hands them to the player pose). */
+  get bend(): number {
+    return this.carrier.bend;
+  }
+  get bendDrop(): number {
+    return this.carrier.bendDrop;
+  }
+  /** (G7) Stepping in to the body under the override this step. */
+  get stepping(): boolean {
+    return this.carrier.stepping;
+  }
+  /** (anim-n4 fix) The body's weight on the shoulder this step, 0..1. */
+  get loadShare(): number {
+    return this.carrier.loadShare;
+  }
+  /** (anim-n4 fix) The lift's step-in to the body 0..1 this step, -1 no lift. */
+  get liftStepK(): number {
+    return this.carrier.liftStepK;
+  }
+  /** (anim-n4) The shoulder the body is on (1 right, -1 left). */
+  get loadSide(): number {
+    return this.carrier.loadSide;
   }
 
   /** While carrying: the interact target is a hiding spot in reach, (G7, row 7: CT opens and closes doors while
    *  carrying, 052704 @ 9, 21-24) else a door in reach the operator faces (open / close only: no stealth open, bash or
    *  optic cable), else "Drop body". Nothing while the lift or the put down runs. */
   carryTarget(feet: Vector3): Interactable | null {
-    if (!this.carry || this.busy) return null;
+    if (!this.carrier.carry || this.carrier.busy) return null;
     const hide = this.ints.nearest(feet, 1.5, 'hide');
     if (hide) return hide;
     const door = this.ints.nearest(feet, 1.5, 'door');
@@ -241,225 +306,30 @@ export class StealthSystems {
     this.pickUp(b);
   }
 
-  // --- (G7, AUDIT-WALLS rows 6-8) the lift, the carry and the put down ---
-  /** Seconds into the lift / the put down (< 0: none). */
-  private liftT = -1;
-  private dropT = -1;
-  private hoisting = false;
-  private lc: LiftState = { atBody: true, hoist: 0, bend: 0, drop: 0, crouch: true, hands: 0, step: 0, load: 0 };
-  private dc: DropState = { slide: 0, bend: 0, drop: 0, hands: 0, load: 0 };
-  private liftFrom = new Vector3();
-  private liftTo = new Vector3();
-  private liftYaw = 0;
-  private liftChest = new Vector3();
-  private liftL = new Vector3();
-  private liftR = new Vector3();
-  private liftKin = new Vector3();
-  private liftOv: MoveOverride = { kinematic: undefined, yaw: 0, turnRate: 8, crouch: true };
-  private liftEye = new Vector3();
-  private liftEye2 = new Vector3();
-  private socket: TransformNode | null = null;
-  private sockL = { th: 0, x: 0, y: 0, z: 0 };
-  /** The hero's bend (rad) and pelvis drop (m) this step (GameState hands them to the player pose). */
-  bend = 0;
-  bendDrop = 0;
-  /** (G7) Stepping in to the body under the override this step. */
-  stepping = false;
-  /** (anim-n4 fix) The body's weight on the shoulder this step, 0..1: the hoist in the lift, 1 carrying, easing out to the
-   *  hand-over in the put down (the carry's lean and hip shift scale by it). */
-  loadShare = 0;
-  /** (anim-n4 fix) The lift's step-in to the body 0..1 this step, -1 no lift (the rig's lift crouch pose, cqGait.ts). */
-  liftStepK = -1;
-
-  /** (G7) The shoulder the body goes on: 1 right (CT 110936, 052704), -1 left when it lies head to his left (a hoist
-   *  over the right shoulder swung the head through his back: tests/g7CloseQuarters). */
-  private carrySide = 1;
-  /** (anim-n4) The shoulder the body is on (1 right, -1 left): the carry walk leans away from it. */
-  get loadSide(): number {
-    return this.carrySide;
-  }
-
-  /** The carry socket's shoulder point in the operator's chest frame (x out to the right, y up from the chest node). */
-  private shoulderX(): number {
-    return this.g.player.rig.p.shoulderHalf * 0.75 * this.carrySide;
-  }
-
-  private shoulderY(): number {
-    const rig = this.g.player.rig;
-    const p = rig.p;
-    const chestY = p.y.waist + 0.13 * (rig.height / 1.75);
-    return p.y.shoulder - chestY + 0.12;
-  }
-
-  /** (G7, row 6, 110936 @ 39.5-42.6) Pick up: a 2.0 s committed lift. Step in to the body's chest and crouch over it
-   *  with the hands at its shoulders (0-0.8 s; crouch cancels), hoist it up onto the right shoulder as he rises
-   *  (0.8-1.6 s), settle (to 2.0 s). Replaces the instant teleport onto the shoulder. */
+  /** (G7) Pick up through the lift (`BodyCarry.pickUp`); the body's item goes off while it is reached for. */
   private pickUp(b: Body): void {
-    if (this.carry || this.busy || !b.present || this.g.traversal.active) return;
-    const g = this.g;
-    const c = g.player.controller;
-    this.carry = b;
-    this.liftT = 0;
-    // (G7 fix round) CT stands up with the body: a crouch toggle from before the lift is cleared (one pressed while
-    // carrying stays)
-    c.standUp();
-    this.hoisting = false;
+    if (!this.carrier.pickUp(b)) return;
     const it = this.bodyIts.get(b);
     if (it) this.ints.setEnabled(it, false);
-    // kneel beside the chest on the side he stands, facing it; at most a metre's step, never through a wall
-    const yaw = b.liftPoints(this.liftChest, this.liftL, this.liftR);
-    const ch = this.liftChest;
-    const p = c.pos;
-    let px = -Math.cos(yaw);
-    let pz = Math.sin(yaw);
-    if ((p.x - ch.x) * px + (p.z - ch.z) * pz < 0) {
-      px = -px;
-      pz = -pz;
-    }
-    const to = this.liftTo;
-    to.set(ch.x + px * CQ.liftSide, p.y, ch.z + pz * CQ.liftSide);
-    const dx = to.x - p.x;
-    const dz = to.z - p.z;
-    const d = hyp2(dx, dz);
-    if (d > CQ.liftStepMax) to.set(p.x + (dx * CQ.liftStepMax) / d, p.y, p.z + (dz * CQ.liftStepMax) / d);
-    this.liftEye.set(p.x, p.y + 0.9, p.z);
-    this.liftEye2.set(to.x, to.y + 0.9, to.z);
-    if (!g.ballistics.clear(this.liftEye, this.liftEye2, G.STATIC)) to.copyFrom(p);
-    this.liftFrom.copyFrom(p);
-    this.liftYaw = Math.atan2(ch.x - to.x, ch.z - to.z);
-    // the head to his right: over the right shoulder (CT); to his left: the left one (mirrored)
-    this.carrySide = Math.sin(yaw) * Math.cos(this.liftYaw) - Math.cos(yaw) * Math.sin(this.liftYaw) >= 0 ? 1 : -1;
-    g.events.emit('body', { action: 'pickup' });
   }
 
-  /** Put the body down at once (a restart, the carrier down): a short ragdoll drop in front. The interact's "Drop body"
-   *  is the 0.8 s put down (`beginDrop`). */
+  /** Put the body down at once (a restart, the carrier down): `BodyCarry.dropCarried`. */
   dropCarried(): void {
-    const b = this.carry;
-    this.endMotion();
-    if (!b) return;
-    const c = this.g.player.controller;
-    const s = Math.sin(c.yaw);
-    const co = Math.cos(c.yaw);
-    const at = new Vector3(c.pos.x + s * 0.7, c.pos.y, c.pos.z + co * 0.7);
-    b.drop(new Vector3(s * CQ.dropImpulse, CQ.dropImpulseDown, co * CQ.dropImpulse), this.em.canRagdoll(), at, c.yaw + Math.PI / 2);
-    this.carry = null;
-    this.release();
-    this.noise(DROP_NOISE, at);
-    this.g.events.emit('body', { action: 'drop' });
+    this.carrier.dropCarried();
   }
 
-  /** (G7, row 8, 110936 @ 45.8-46.6) "Drop body": 0.8 s committed. The shoulder dips, the body rolls off it to the right
-   *  side and the ragdoll takes it at 0.6 s with a small push (was an instant 25 m/s throw 0.7 m in front). */
   private beginDrop(): void {
-    if (!this.carry || this.busy) return;
-    this.dropT = 0;
-  }
-
-  /** The ragdoll takes the body off the shoulder (the put down's hand-over). */
-  private handOver(): void {
-    const b = this.carry;
-    if (!b) return;
-    const c = this.g.player.controller;
-    const s = Math.sin(c.yaw);
-    const co = Math.cos(c.yaw);
-    // his right (co, -s) on a right-shoulder carry (the left mirrored): the side the body was on
-    const sd = this.carrySide;
-    const at = new Vector3(c.pos.x + co * 0.5 * sd, c.pos.y, c.pos.z - s * 0.5 * sd);
-    const k = CQ.dropImpulse;
-    b.drop(new Vector3(co * k * sd + s * k * 0.3, CQ.dropImpulseDown, -s * k * sd + co * k * 0.3), this.em.canRagdoll(), at, c.yaw + Math.PI / 2);
-    this.carry = null;
-    this.noise(DROP_NOISE, at);
-    this.g.events.emit('body', { action: 'drop' });
-  }
-
-  /** Stop a lift / put down (its override and hands off). */
-  private endMotion(): void {
-    if (this.liftT >= 0 || this.dropT >= 0) {
-      const c = this.g.player.controller;
-      if (c.override === this.liftOv) c.override = null;
-    }
-    this.liftT = this.dropT = -1;
-    this.hoisting = false;
-  }
-
-  private holdStill(x: number, y: number, z: number, yaw: number, crouch: boolean): void {
-    const ov = this.liftOv;
-    this.liftKin.set(x, y, z);
-    ov.kinematic = this.liftKin;
-    ov.yaw = yaw;
-    ov.crouch = crouch;
-    this.g.player.controller.override = ov;
-  }
-
-  /** The lift's fixed step. */
-  private liftStep(crouchPressed: boolean): void {
-    const b = this.carry!;
-    const t = (this.liftT += 1 / 60);
-    const lc = liftCurve(t, this.lc);
-    const c = this.g.player.controller;
-    // still crouched at the body: crouch lets it go
-    if (crouchPressed && lc.atBody && t > 0.1) {
-      c.swallowCrouch = true;
-      this.endMotion();
-      this.carry = null;
-      this.release();
-      const it = this.bodyIts.get(b);
-      if (it) this.ints.setEnabled(it, b.present);
-      return;
-    }
-    const f = this.liftFrom;
-    const to = this.liftTo;
-    // (anim-n4 fix) the controller crouch stays on this fixed timeline (from t = 0); the standing step-in and "down until a
-    // foot lands" are the rig's (cqGait.ts CqLiftCrouch, from `liftStepK`): gameplay never reads the animation
-    this.holdStill(f.x + (to.x - f.x) * lc.step, f.y, f.z + (to.z - f.z) * lc.step, this.liftYaw, lc.crouch);
-    this.stepping = lc.step < 1;
-    this.liftStepK = lc.step;
-    this.loadShare = lc.load;
-    this.bend = lc.bend;
-    this.bendDrop = lc.drop;
-    if (!lc.atBody && !this.hoisting && !b.carried) {
-      b.beginHoist();
-      this.hoisting = true;
-    }
-    if (t >= CQ.liftRise && this.hoisting) {
-      b.shoulder(this.g.player.rig.torso, this.shoulderX(), this.shoulderY());
-      this.hoisting = false;
-    }
-    if (t >= CQ.lift) this.endMotion();
-  }
-
-  /** The put down's fixed step. */
-  private dropStep(): void {
-    const t = (this.dropT += 1 / 60);
-    const dc = dropCurve(t, this.dc);
-    const c = this.g.player.controller;
-    this.holdStill(c.pos.x, c.pos.y, c.pos.z, c.yaw, false);
-    this.bend = dc.bend;
-    this.bendDrop = dc.drop;
-    this.loadShare = this.carry ? dc.load : 0;
-    if (this.carry && t >= CQ.dropHand) this.handOver();
-    if (t >= CQ.drop) {
-      this.endMotion();
-      this.release();
-    }
+    this.carrier.beginDrop();
   }
 
   /** Into the container in reach: gone for good, never found. */
   private hideCarried(): void {
-    const b = this.carry;
+    const b = this.carrier.takeOff();
     if (!b) return;
     b.hide();
-    this.carry = null;
     this.bodiesHidden++;
-    this.release();
     this.g.hud.feedItem('Body hidden');
     this.g.events.emit('body', { action: 'hide' });
-  }
-
-  private release(): void {
-    const rig = this.g.player.rig;
-    rig.reachL.w = rig.reachR.w = 0;
   }
 
   private toggle(sw: { it: Interactable; group: number; on: boolean }, reg: LightRegistry): void {
@@ -480,9 +350,19 @@ export class StealthSystems {
     }
   }
 
-  /** (guard-ai S15, A42) The switches as the guards use them (`EnemyManager.breakers`). No allocation. */
+  /** (guard-ai S15, A42) The switches as the guards use them (`EnemyManager.breakers`). (LR16-4) The breaker boards too:
+   *  a cut board with no running window is where a guard turns its circuits back on (`IsolatorBoards.switchBack`); a
+   *  running timed window is the player's, never a fault. No allocation. */
   private readonly breakerHost: BreakerHost = {
     switchOf: (group, x, z, out) => {
+      const bi = this.boards ? this.boards.cutBoard(group, x, z) : -1;
+      if (bi >= 0) {
+        const bp = this.boards!.defs[bi]!.pos;
+        out[0] = bp.x;
+        out[1] = bp.y;
+        out[2] = bp.z;
+        return true;
+      }
       const sws = this.switches;
       let best = -1;
       let bd = Infinity;
@@ -506,14 +386,26 @@ export class StealthSystems {
     // mains gate's circuit (cutting it opens the gate) is never a fault a guard puts right (A63): the S2 incident
     isOff: (group) => {
       if (this.mainsGroups.has(group)) return false;
+      const b = this.boards;
+      // (LR16-4) a running timed window holds it: the player's, the guards leave it to the timer
+      if (b?.holding(group)) return false;
+      if (groupBaseOn(this.g.world.level.lights, group)) return false;
       const sws = this.switches;
       for (let i = 0; i < sws.length; i++) {
         const s = sws[i]!;
-        if (s.group === group) return !s.on && !groupBaseOn(this.g.world.level.lights, group);
+        if (s.group === group) return !s.on;
       }
-      return false;
+      return b !== null && b.cutBoard(group, 0, 0) >= 0;
     },
-    reset: (group) => !this.mainsGroups.has(group) && this.resetCircuit(group),
+    reset: (group) => {
+      if (this.mainsGroups.has(group)) return false;
+      const b = this.boards;
+      if (b?.holding(group)) return false;
+      // (LR16-4) a cut breaker board first: every circuit of it back (its wall switches follow, `boardChanged`)
+      const bi = b ? b.cutBoard(group, 0, 0) : -1;
+      if (bi >= 0) return b!.switchBack(bi);
+      return this.resetCircuit(group);
+    },
   };
   /** (guard-ai S15, A63) The circuits a course mains gate reads (`MapLayout.course`): cutting one opens the gate, so no
    *  guard turns it back on (that would shut the gate on the players). */
@@ -589,7 +481,14 @@ export class StealthSystems {
   /** A hitscan ray: shoot out the first bulb along it. */
   shotRay(from: Vector3, to: Vector3): void {
     const reg = this.g.world.level.lights;
-    this.shootLight(lightOnRay(reg, from.x, from.y, from.z, to.x, to.y, to.z));
+    const id = lightOnRay(reg, from.x, from.y, from.z, to.x, to.y, to.z);
+    if (id < 0) return;
+    // (polish2) a hit only through the mount reach needs a clear static line up from the landing to the head (a round
+    // on a door soffit never breaks the wall lamp over the door's far face); the co-op client and host test the same
+    const a = this.reachA;
+    const h = lampReachProbe(reg, id, from.x, from.y, from.z, to.x, to.y, to.z, a);
+    if (h > 0 && !this.g.ballistics.clear(a, this.reachB.set(a.x, a.y + h, a.z), G.STATIC)) return;
+    this.shootLight(id);
   }
 
   /** Shoot out light `id` (the host's own round, or a co-op client's checked lamp shot, sector-redesign slice L):
@@ -635,11 +534,7 @@ export class StealthSystems {
     // (E4, A50) running isolator windows are dropped; the lamps come back from the section's start state, then
     // `syncSwitches` has the boards read them
     this.boards?.cancel();
-    this.endMotion();
-    if (this.carry) {
-      this.carry = null;
-      this.release();
-    }
+    this.carrier.reset();
   }
 
   /** The alarm went off (a panel `p`, or (guard-ai S6) a command call by radio, `p` null; `e` raised it): banner, horn,
@@ -749,12 +644,10 @@ export class StealthSystems {
     }
   }
 
-  /** Someone (the player or an enemy) stands within `r` of (x, z). */
+  /** Someone (the player, a co-op partner or an enemy) stands within `r` of (x, z). */
   private occupied(x: number, z: number, r: number): boolean {
     const p = this.g.player.position;
-    if (hyp2(p.x - x, p.z - z) < r) return true;
-    for (const e of this.em.enemies) if (e.alive && hyp2(e.pos.x - x, e.pos.z - z) < r) return true;
-    return false;
+    return spotOccupied(x, z, r, p.x, p.z, this.g.remotePlayers(), this.em.enemies);
   }
 
   /** Fixed step: body interact positions, carry movement rules, doors. Call after the corner controller. `crouchPressed`
@@ -762,11 +655,13 @@ export class StealthSystems {
   fixedUpdate(crouchPressed = false): void {
     // (E4) timed isolator windows (allocation-free; a window's end relights through the sink)
     this.boards?.update(1 / 60);
-    this.bend = this.bendDrop = 0;
-    this.stepping = false;
-    this.loadShare = 0;
-    this.liftStepK = -1;
-    for (const { d, it } of this.doorIts) it.label = d.target === 0 ? 'Open door' : 'Close door';
+    for (const { d, it } of this.doorIts) {
+      it.label = d.target === 0 ? 'Open door' : 'Close door';
+      // (S-e2e-fix3b, ENGINE-ANSWERS Q9) a lock only stops a door opening: a door left open when it relocks can still be
+      // shut by hand (the A8 grille after its 25 s window); shut and locked, its item goes off
+      const use = !d.anchor.locked || d.target !== 0;
+      if (it.enabled !== use) this.ints.setEnabled(it, use);
+    }
     if (this.playerOpened.size) this.noticeOpenDoors(1 / 60);
     // (A3, G97) running into a door does nothing special: bashing is the door menu's (CT)
     // (A3, G41) a door a guard opened is shut behind him on a calm patrol, once he is clear of it
@@ -791,104 +686,26 @@ export class StealthSystems {
       const show = b.present && b !== this.carry;
       if (it.enabled !== show) this.ints.setEnabled(it, show);
     }
-    if (!this.g.player.alive && (this.carry || this.busy)) {
-      this.dropCarried();
-      return;
-    }
-    if (this.dropT >= 0) {
-      this.dropStep();
-      return;
-    }
-    if (!this.carry) {
-      // (the body taken away mid-lift: a restart, a test)
-      if (this.liftT >= 0) this.endMotion();
-      return;
-    }
-    if (this.liftT >= 0) {
-      this.liftStep(crouchPressed);
-      return;
-    }
-    // (G7, row 7) carrying: slow (CT 0.4-0.8 m/s, was 2.2), bent forward under the weight
-    const c = this.g.player.controller;
-    c.speedCap = Math.min(c.speedCap, BODY.carrySpeed);
-    this.bend = CQ.carryBend;
-    this.bendDrop = CQ.carryDrop;
-    this.loadShare = 1;
+    this.carrier.fixedUpdate(crouchPressed);
   }
 
-  /** Render frame (before the player animates): the hands on the body (its shoulders as he reaches for it, then its
-   *  legs over the shoulder); (G7) the hoist and the slide off the shoulder pose the carried rig. */
+  /** Render frame (before the player animates): the carry's hands and the carried rig (`BodyCarry`). */
   frameUpdate(): void {
-    const b = this.carry;
-    const rig = this.g.player.rig;
-    if (!b) {
-      // the put down after the hand-over: the hands have let go
-      if (this.dropT >= 0) rig.reachL.w = rig.reachR.w = 0;
-      return;
-    }
-    // (anim-cleanup) a carried body's knees are not a grip axis
-    clearGripAxis(rig.reachR);
-    clearGripAxis(rig.reachL);
-    let w = 1;
-    if (this.liftT >= 0) {
-      const lc = this.lc;
-      w = lc.hands;
-      if (lc.atBody) {
-        // crouched over it: the hands under its shoulders
-        b.liftPoints(this.liftChest, this.liftL, this.liftR);
-        const near = this.nearSide();
-        const a = near ? this.liftR : this.liftL;
-        const o = near ? this.liftL : this.liftR;
-        rig.reachR.x = a.x;
-        rig.reachR.y = a.y - 0.04;
-        rig.reachR.z = a.z;
-        rig.reachR.w = w;
-        rig.reachL.x = o.x;
-        rig.reachL.y = o.y - 0.04;
-        rig.reachL.z = o.z;
-        rig.reachL.w = w * 0.9;
-        return;
-      }
-      if (this.hoisting) b.hoist(this.socketNode(b), this.carrySide, lc.hoist);
-    } else if (this.dropT >= 0) {
-      b.slide(this.shoulderX(), this.shoulderY(), this.dc.slide);
-      w = this.dc.hands;
-    }
-    b.knees(this.kneeL, this.kneeR);
-    rig.reachR.x = this.kneeR.x;
-    rig.reachR.y = this.kneeR.y;
-    rig.reachR.z = this.kneeR.z;
-    rig.reachR.w = w;
-    rig.reachL.x = this.kneeL.x;
-    rig.reachL.y = this.kneeL.y - 0.05;
-    rig.reachL.z = this.kneeL.z;
-    rig.reachL.w = 0.8 * w;
+    this.carrier.frameUpdate();
   }
 
-  /** The body's right shoulder is the nearer one to the operator's right hand (lying either way up). */
-  private nearSide(): boolean {
-    const c = this.g.player.controller;
-    const s = Math.sin(c.yaw);
-    const co = Math.cos(c.yaw);
-    // the hero's right (co, -s): whichever body shoulder lies further that way takes the right hand
-    return (this.liftR.x - this.liftL.x) * co - (this.liftR.z - this.liftL.z) * s > 0;
-  }
-
-  /** The carry socket on the operator's chest (a node there at the socket's local transform), for the hoist. */
-  private socketNode(b: Body): TransformNode {
-    const torso = this.g.player.rig.torso;
-    let n = this.socket;
-    if (!n) {
-      n = this.socket = new TransformNode('carry-socket', torso.getScene());
-      n.parent = torso;
-    }
-    const view = b.view;
-    if (view) {
-      socketLocal(view, this.shoulderX(), this.shoulderY(), this.sockL);
-      n.rotation.set(this.sockL.th, SOCKET_YAW, 0);
-      n.position.set(this.sockL.x, this.sockL.y, this.sockL.z);
-    }
-    return n;
+  /**
+   * (marlow-final N2) A course isolator switched circuit `group` off (or back on) from its cabinet at (x, z): the
+   * registry and the circuit's wall switches follow, and going dark is the lights-out lure at the cabinet (the nearest
+   * calm guard comes to look, as for a wall switch).
+   */
+  isolate(group: number, on: boolean, x: number, z: number): void {
+    this.g.world.level.lights.setGroup(group, on);
+    this.syncGroup(group, on);
+    this.g.events.emit('lightSwitch', { on });
+    // (S-e2e-fix3b) the circuit's group, as a wall switch passes it (guard-ai's coordinated lights-out): a guard who sees
+    // one of its lamps go out (or stands in a room it lights) is a witness; without it only the cabinet point was tested
+    if (!on) this.em.lightsOut(x, z, Number.NaN, -1, group);
   }
 
   /** Set every switch on a circuit to the registry's state (label and indicator too); no event, no noise. */
@@ -907,8 +724,7 @@ export class StealthSystems {
   }
 
   dispose(): void {
-    this.socket?.dispose();
-    this.socket = null;
+    this.carrier.dispose();
     this.em.onBodyAdded = this.em.onBodyRemoved = this.em.onBodyFound = null;
     this.em.onRevived = null;
     this.em.onAlarm = null;

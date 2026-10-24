@@ -12,8 +12,9 @@
  *   collider box grown by his radius `r`) or across it is not taken. A closed door that is not locked is opened the
  *   player's way (`Doors.open(d, 'enemy')`, the same door API: its sound, the guard-opened close behind him and the
  *   co-op door sync stay as they were), and he waits at the leaf until its swing reaches `pass`; a locked door stays
- *   shut and he waits at it, never across (A116: the grid keeps every doorway walkable, as before; the Sector Ops
- *   keypad, bolt, lockdown and pair-gate doors already shut theirs on it, so routes there go round).
+ *   shut and he waits at it, never across (A116: the grid kept every doorway walkable; since guard-ai S28 a locked shut
+ *   door is shut on the grid too, `ai/lockedDoors.ts`, so routes go round it and only a stale route or a straight walk
+ *   meets one here; the Sector Ops keypad, bolt, lockdown and pair-gate closures are as before).
  * A door counts as closed while it is shut or shutting (`target` 0) or still swinging open below `pass`. A guard already
  * inside a leaf (a door shut on him) may step out, never deeper. Allocation-free after the constructor: typed arrays.
  */

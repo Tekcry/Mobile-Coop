@@ -1,6 +1,7 @@
 import type { AbstractMesh, Observer, Scene, Vector3 } from '../core/babylon';
 import { flags } from '../core/flags';
-import { animTierPeriod, animTierStep, newAnimTierIn, newAnimTierState, type AnimTierIn, type AnimTierState } from './animTier';
+import type { CharacterRig, RigPose } from '../player/characterRig';
+import { THAW_REPLANT, animTierPeriod, animTierStep, animTierThaw, newAnimTierIn, newAnimTierState, type AnimTierIn, type AnimTierState } from './animTier';
 
 /**
  * (guard-render S4) The scene side of a guard's anim tier (`animTier.ts` has the rules): whether its merged body was
@@ -48,6 +49,13 @@ export class GuardAnimTier {
   private readonly st: AnimTierState;
   private readonly inp: AnimTierIn = newAnimTierIn();
   private lastFrame = -1;
+  private lastDt = 0;
+
+  /** (guard-models S11) The last update skipped the solve (`dt` returned -1; on master also the FROZEN tier, which
+   *  updates through `dt` before `animate` returns): the guard figure skips its pose (`GuardBody.skip`). */
+  get skipped(): boolean {
+    return this.lastDt < 0;
+  }
 
   /** `body`: the merged body's full mesh (`rig.voxel.meshes[0]`); null (no merged body): never off-screen. */
   constructor(
@@ -59,16 +67,26 @@ export class GuardAnimTier {
     this.st = newAnimTierState(slot);
   }
 
-  /** The time to solve this frame, or -1 to skip (`CharacterRig.animate`'s `solveDt`). */
-  dt(dt: number, pos: Vector3, players: readonly { feet: Vector3 }[], pinned: boolean): number {
+  /** (guard-models G7) Watch `body` from now on: the guard figure's shown LOD mesh once it draws (it changes with the
+   *  LOD), the merged body before. Same mesh, or no track (built without a body): nothing. No allocation. */
+  watch(body: AbstractMesh | null): void {
+    const t = this.seen;
+    if (t && body && t.mesh !== body) t.mesh = body;
+  }
+
+  /** The time to solve this frame, or -1 to skip (`CharacterRig.animate`'s `solveDt`). `frozen` (perfg): the render
+   *  freeze has his rig root disabled (the FROZEN tier: skip, carry capped; the caller skips `animate` entirely).
+   *  `shown`: drawn another way this frame (thermal's door figure), so counted as seen. */
+  dt(dt: number, pos: Vector3, players: readonly { feet: Vector3 }[], pinned: boolean, frozen = false, shown = false): number {
     const s = this.scene;
     const i = this.inp;
+    i.frozen = frozen;
     i.on = flags.animTier;
     i.pinned = pinned;
     const f = s.getFrameId();
     i.rendered = f !== this.lastFrame;
     this.lastFrame = f;
-    i.seen = this.seen === null || this.seen.frame === f;
+    i.seen = shown || this.seen === null || this.seen.frame === f;
     let pd = Infinity;
     for (let k = 0; k < players.length; k++) {
       const q = players[k]!.feet;
@@ -89,6 +107,37 @@ export class GuardAnimTier {
       cd = (c.x - pos.x) ** 2 + (c.z - pos.z) ** 2;
     }
     i.camDist2 = cd;
-    return animTierStep(this.st, animTierPeriod(i), dt);
+    this.lastDt = animTierStep(this.st, animTierPeriod(i), dt);
+    return this.lastDt;
+  }
+
+  /**
+   * The guard's render-frame pose update (`Enemy.frame`). (perfg, the FROZEN tier) A rig whose root the render freeze
+   * disabled is not animated at all (no solve, no weapon glide; the time carried, capped); (artnext C8) the first solve
+   * after a freeze re-plants the feet when he moved more than `THAW_REPLANT` (the C7 thaw normally takes it first).
+   * (LR16-6 fix) A frozen rig thermal drew as a door figure this or last frame (`ghostFrame`) is solved as a seen one,
+   * so the figure walks with him (at most `THERMAL.doorMax` rigs, CPU only; nothing of him drawn but the figure).
+   */
+  animate(rig: CharacterRig, dt: number, s: RigPose, players: readonly { feet: Vector3 }[], pinned: boolean): void {
+    const ghost = rig.ghostFrame >= 0 && rig.ghostFrame >= this.scene.getFrameId() - 1;
+    const frozen = !ghost && !rig.root.isEnabled(false);
+    const thawing = this.st.thaw;
+    const sd = this.dt(dt, rig.root.position, players, pinned, frozen, ghost);
+    if (frozen) return;
+    if (thawing) rig.replantIfMoved(THAW_REPLANT);
+    rig.animate(dt, s, sd);
+  }
+
+  /** (perfg) Frozen at the last update: the next solve is the thaw's. */
+  get thawing(): boolean {
+    return this.st.thaw;
+  }
+
+  /** (artnext C7 / C9) A solve forced outside the frame (the freeze's thaw, a death while frozen): `dt` plus the carried
+   *  time, the feet re-planted if he moved (C8); the weapon glide gets the same time. */
+  solveNow(rig: CharacterRig, dt: number, s: RigPose): void {
+    const sd = animTierThaw(this.st, dt);
+    rig.replantIfMoved(THAW_REPLANT);
+    rig.animate(sd, s, sd);
   }
 }

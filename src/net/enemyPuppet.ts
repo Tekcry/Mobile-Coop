@@ -1,8 +1,8 @@
-import { Vector3, type Scene } from '../core/babylon';
+import { Vector3, type InstancedMesh, type Scene } from '../core/babylon';
 import type { CharacterRig, FkPose } from '../player/characterRig';
 import type { WeaponModel } from '../weapons/weaponModel';
 import { GuardCq, koCurve, seedOf, type GuardCqMode, type KoState } from '../game/closeQuarters';
-import { buildEnemyRig } from '../ai/enemyRig';
+import { buildEnemyRig, GuardGunCarry } from '../ai/enemyRig';
 import { Hitboxes } from '../ai/hitboxes';
 import { DogModel } from '../ai/dogModel';
 import { ENEMIES, type EnemyDef } from '../ai/enemyDefs';
@@ -11,10 +11,29 @@ import type { DamageRegistry, Damageable, DamageResult, HitInfo } from '../game/
 import type { TakedownVictim } from '../game/takedownController';
 import type { World } from '../world/world';
 import { SnapshotBuffer } from './interp';
-import { AL_TORCH, type EnemyState } from './protocol';
+import { AL_ARMOUR, AL_CAUTION, AL_HELMET, AL_TORCH, alertCarry, alertLook, type EnemyState } from './protocol';
 import type { TorchHolder } from './torchMirror';
 import type { GuardInfo } from '../ai/guardInfo';
 import { hyp2 } from '../core/mathx';
+import { buildArmourParts, buildHelmetPart, buildShieldPart, gearColour, HELMET_FIT } from '../ai/gearParts';
+import type { GuardBody } from '../ai/guardBody';
+import { guardHelmetDrop } from '../ai/helmetDrops';
+import { guardShieldFor } from '../ai/guardShield';
+import { wireGuardAim } from '../ai/guardStance';
+import { shieldBlocks } from '../ai/archetypes';
+import { PG_ARMOUR, PG_DROP, PG_HELMET, predictDeflect, puppetGear } from './puppetGear';
+import { carryRaise, carrySlotOf, mayHolster } from '../ai/carryState';
+import { PuppetCarry } from './puppetCarry';
+import type { RigPose } from '../player/characterRig';
+import { emoteSeize, emoteStep, guardHead, guardHeadRest, newEmoteState, newHeadIn, type GuardHeadRest } from '../ai/guardHead';
+import { DOG_MEAN_PHASE, dogHead } from '../ai/dogHead';
+import { puppetHeadIn } from './puppetHead';
+
+/** (guard-ai S9) A dropped helmet for the client's pool (`HelmetDrops.drop`'s arguments). */
+export type PuppetHelmetDrop = (x: number, y: number, z: number, top: number, dx: number, dz: number, hex: string, w: number, h: number, d: number) => void;
+
+/** (guard-ai S9) The gear bits of `EnemyState.al`. */
+const GEAR_BITS = AL_HELMET | AL_ARMOUR;
 
 /** Wire alert level (`EnemyState.al & 3`) -> the local level a takedown reads. */
 const LEVELS: AlertLevel[] = ['unaware', 'investigating', 'searching', 'alert'];
@@ -32,6 +51,9 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
   readonly pos = new Vector3();
   yaw = 0;
   rig: CharacterRig | null;
+  /** (guard-models G7) The host guard's figure over the rig (`flags.guardModels`; null: the merged S1 body, the dog):
+   *  its look from the wire seed (`AL_LOOK`), its pieces from the gear bits; it goes on with the rig after `die`. */
+  private gbody: GuardBody | null = null;
   /** (G7 fix) His rifle (hidden while held, as the host's `Enemy`). */
   private gun: WeaponModel | null = null;
   private dog: DogModel | null = null;
@@ -60,10 +82,48 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
   onShot: ((h: HitInfo) => void) | null = null;
   /** Takedown messages for the host. */
   onTakedown: ((phase: 'start' | 'done' | 'abort', lethal: boolean) => void) | null = null;
+  /** (guard-ai S9) Our round predicted as stopped by his helmet or vest (the marker shows now; `DeflectLedger`). */
+  onDeflect: (() => void) | null = null;
+  /** (guard-ai S9) His helmet bit cleared: a helmet falls (the client's `HelmetDrops`). */
+  onDropHelmet: PuppetHelmetDrop | null = null;
+
+  // ----- (guard-ai S9, protocol 38) gear and caution from the snapshot's `al` -----
+  /** The enforcer's riot shield (by kind, as the host's `Enemy`). */
+  private shield: InstancedMesh | null = null;
+  /** The S12 placeholder parts, built the first time his bits ask for them, then shown or hidden. */
+  private helmetPart: InstancedMesh | null = null;
+  private armourParts: InstancedMesh[] | null = null;
+  private gearHex = '';
+  /** The `al` his gear was last set from (-1: none yet). */
+  private gearAl = -1;
+  /** The direction of our last round his helmet stopped and when (the drop flies along it; else backwards). */
+  private dropDx = 0;
+  private dropDz = 0;
+  private dropT = -1e9;
+  private clock = 0;
+  private cautionBit = false;
+
+  // ----- (guard-ai A126, protocol 38) the S21 weapon carry from the snapshot's `al` (bits 7-8) -----
+  /** Follows the host's carry phase (null: a kind that never holsters, or no gun): holstered / drawing / drawn /
+   *  holstering, posed through the host's own path (`GuardGunCarry`, `RigPose.ready` / `swap`, `carryRaise`). */
+  readonly carry: PuppetCarry | null = null;
+  private gunCarry: GuardGunCarry | null = null;
+  /** The newest wire carry (`alertCarry`, `WIRE_CARRY_*`). */
+  private carryWire = 0;
+  /** (guard-models G6n, M3) The host guard's look seed (`alertLook`, 0-127; `Enemy.look`): read from every snapshot
+   *  state shown, so it is set before the rig first shows; constant for one guard id. */
+  private lookSeed = 0;
+  /** The rig pose, reused each frame. */
+  private readonly rp: RigPose = { speed: 0, localX: 0, localZ: 0, grounded: true, crouch: 0, aimPitch: 0, aim: 0, kick: 0 };
+  /** (rig-pose-fix S3, audit G7) The head hit volume from the sim head model (`guardHead`, as the host's guard), on the
+   *  inputs the rig gets (`puppetHeadIn`), never read back from the rig; the held pose's emote as the host steps it. */
+  private readonly headRest: GuardHeadRest;
+  private readonly headIn = newHeadIn();
+  private readonly emoteSt = newEmoteState();
 
   constructor(
     scene: Scene,
-    world: World,
+    private world: World,
     private registry: DamageRegistry,
     readonly id: string,
     kind: EnemyState['k'],
@@ -72,13 +132,92 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
     const built = buildEnemyRig(scene, world, this.def, `p${id}`);
     this.rig = built.rig;
     this.gun = built.gun;
+    this.gbody = built.figure;
     this.rig.setEnabled(false);
     if (this.def.quadruped) {
+      this.rig.standIn = true;
       this.dog = new DogModel(scene, world.parts, this.def.look.colors.torso, this.def.look.colors.accent);
       this.dog.setVisible(false);
     }
+    // (guard-ai S9, S13) the response team's lead and every enforcer: the shield on his root (shown with the rig)
+    if (this.def.kind === 'enforcer') {
+      // (guard-models G7) with the figures: shield_riot's own GLB on his skeleton once its files are in, as the host
+      const gs = this.gbody ? guardShieldFor(scene, this.gbody, (m) => world.addShadowCaster(m)) : null;
+      if (gs) this.gbody!.shield = gs;
+      else this.shield = buildShieldPart(world, this.rig.root, this.def.scale);
+    }
+    // (guard-ai A126) the carry as the host's `Enemy` builds it: a kind that ever holsters gets the gun's slot
+    if (built.gun && mayHolster(this.def.kind, this.def.gun, !!this.def.melee, this.def.quadruped)) {
+      const cls = built.gun.def.class;
+      this.carry = new PuppetCarry(cls);
+      this.gunCarry = new GuardGunCarry(built.rig, built.gun, carrySlotOf(cls));
+    }
     this.hitboxes = new Hitboxes(scene, registry, this, this.def.scale, this.def.build);
+    this.headRest = guardHeadRest(this.def.height, this.def.build, this.def.gun !== null, this.def.melee ? 0 : this.def.runSpeed);
   }
+
+  /** (guard-ai S9) Shown wearing (tests / e2e): the helmet, the armour, the shield. */
+  get gearShown(): { helmet: boolean; armour: boolean; shield: boolean } {
+    const gb = this.gbody;
+    if (gb) return { helmet: gb.helmetOn, armour: gb.armourOn, shield: (!!this.shield || !!gb.shield) && !this.dead };
+    return { helmet: !!this.helmetPart?.isVisible, armour: !!this.armourParts?.[0]?.isVisible, shield: !!this.shield && !this.dead };
+  }
+
+  /** (guard-models G7, tests / e2e) The figure's visible piece ids (null: no figure). Allocates. */
+  get shownPieces(): string[] | null {
+    return this.gbody ? this.gbody.shownPieces() : null;
+  }
+
+  /** (guard-models G6n) His look seed from the host (`AL_LOOK`), for the guard figure's variant. */
+  get look(): number {
+    return this.lookSeed;
+  }
+
+  /** (guard-ai S9) The host says he is cautious (`AL_CAUTION`): calm, he carries at low ready. */
+  get cautious(): boolean {
+    return this.cautionBit;
+  }
+
+  /** (guard-ai S9) His gear from wire `al` (`puppetGear`): parts built on first need, a helmet falls when its bit
+   *  clears on a guard already shown who did not jump `jumped` m. Only on a gear-bit change (no work per frame). */
+  private applyGear(al: number, jumped: number): void {
+    const prev = this.gearAl;
+    this.gearAl = al;
+    const rig = this.rig;
+    if (!rig || this.dog) return;
+    const bits = puppetGear(prev, al, jumped);
+    // (guard-models G7, A5 / A6) the figure's pieces, and helmet_std's drop box; the placeholder parts only without it
+    const gb = this.gbody;
+    if (gb) {
+      gb.setGear((bits & PG_HELMET) !== 0, (bits & PG_ARMOUR) !== 0);
+      if (bits & PG_DROP) {
+        if (!this.gearHex) this.gearHex = gearColour(this.def, this.world, 'helmet');
+        const ours = this.clock - this.dropT < 1;
+        const d = guardHelmetDrop(this.def.height, this.dropBox);
+        this.onDropHelmet?.(this.pos.x, this.pos.y, this.pos.z, 1.65 * this.def.scale, ours ? this.dropDx : -Math.sin(this.yaw), ours ? this.dropDz : -Math.cos(this.yaw), this.gearHex, d[0]!, d[1]!, d[2]!);
+      }
+      return;
+    }
+    if (bits & PG_HELMET && !this.helmetPart) {
+      this.gearHex = gearColour(this.def, this.world, 'helmet');
+      this.helmetPart = buildHelmetPart(this.world, rig, this.gearHex);
+    }
+    if (bits & PG_ARMOUR && !this.armourParts) this.armourParts = buildArmourParts(this.world, rig, gearColour(this.def, this.world, 'accent'));
+    if (this.helmetPart) this.helmetPart.isVisible = (bits & PG_HELMET) !== 0;
+    const a = this.armourParts;
+    if (a) for (let i = 0; i < a.length; i++) a[i]!.isVisible = (bits & PG_ARMOUR) !== 0;
+    if (bits & PG_DROP) {
+      // along our own round when it was ours (just now), else backwards from his facing (the host's round: A92)
+      const ours = this.clock - this.dropT < 1;
+      const dx = ours ? this.dropDx : -Math.sin(this.yaw);
+      const dz = ours ? this.dropDz : -Math.cos(this.yaw);
+      const H = rig.p.head;
+      this.onDropHelmet?.(this.pos.x, this.pos.y, this.pos.z, 1.65 * this.def.scale, dx, dz, this.gearHex || '#22262b', H.w * HELMET_FIT.w, H.h * HELMET_FIT.h, H.d * HELMET_FIT.d);
+    }
+  }
+
+  /** (guard-models G7) The figure's dropped-helmet box (w, h, d; m), reused. */
+  private readonly dropBox = [0, 0, 0];
 
   get alive(): boolean {
     return !this.dead;
@@ -126,7 +265,21 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
     if (h.kind !== 'bullet') return { dealt: 0, killed: false };
     this.flash = 1;
     this.onShot?.(h);
-    return { dealt: h.amount * (h.part === 'head' ? this.def.headMult : this.def.armor), killed: false };
+    // (guard-ai S9) predicted as the host decides: a front round on the enforcer's shield does nothing; one his helmet
+    // or vest stops is a deflect (the marker now; the host's `hitConfirm` deflect then adds none, `DeflectLedger`)
+    if (this.def.kind === 'enforcer' && !this.taken && shieldBlocks(this.yaw, h.dir.x, h.dir.z)) return { dealt: 0, killed: false };
+    const head = h.part === 'head';
+    if (predictDeflect(this.gearAl < 0 ? 0 : this.gearAl, head, true, h.nonLethal === true, this.def.kind === 'heavy') && !this.dog) {
+      if (head) {
+        const dl = hyp2(h.dir.x, h.dir.z) || 1;
+        this.dropDx = h.dir.x / dl;
+        this.dropDz = h.dir.z / dl;
+        this.dropT = this.clock;
+      }
+      this.onDeflect?.();
+      return { dealt: 0, killed: false, deflect: true };
+    }
+    return { dealt: h.amount * (head ? this.def.headMult : this.def.armor), killed: false };
   }
 
   // --- takedown (local player) ---
@@ -142,6 +295,7 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
     if (!rig) return;
     this.cq.seed = seedOf(this.id);
     this.cq.seize(!choke, delay);
+    emoteSeize(this.emoteSt);
     this.gun?.setVisible(false);
     rig.emote = this.cqEmote;
     rig.emoteTime = 0;
@@ -202,6 +356,7 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
       this.hitboxes?.setSolid(false);
       this.cq.seed = seedOf(this.id);
       this.cq.seize(false, 0);
+      emoteSeize(this.emoteSt);
       rig.emote = this.cqEmote;
       rig.emoteTime = 0;
       this.gun?.setVisible(false);
@@ -258,6 +413,7 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
 
   update(dt: number, renderTime: number): void {
     if (!this.rig || this.dead) return;
+    this.clock += dt;
     if (!this.taken) {
       const s = this.buf.sample(renderTime);
       if (!s) return;
@@ -268,10 +424,16 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
       // (coop-torches) the torch and the crouch it is held at, from the state shown now (as the position)
       this.st = st;
       this.torchBit = (s.state.al & AL_TORCH) !== 0;
+      this.cautionBit = (s.state.al & AL_CAUTION) !== 0;
+      this.carryWire = alertCarry(s.state.al);
+      this.lookSeed = alertLook(s.state.al);
+      // (guard-ai S9) gear from the state shown now; a jump since the last frame is a re-place, not a knock-off
+      if (this.gearAl < 0 || ((s.state.al ^ this.gearAl) & GEAR_BITS) !== 0) this.applyGear(s.state.al, this.placed ? hyp2(this.pos.x - this.prev.x, this.pos.z - this.prev.z) : 0);
       // (G7 fix) held by the partner: lowered with the knockout's own phase (the snapshot's crouch bit flips at half way)
       if (this.remoteHold) this.crouch = this.remoteLower;
       else this.crouch += ((st === 2 ? 1 : 0) - this.crouch) * Math.min(1, dt * 8);
-      this.aim += ((st === 1 || st === 2 ? 1 : 0.2) - this.aim) * Math.min(1, dt * 8);
+      // (guard-ai S9) the host's stance (`guardStance.ts`): searching / investigating raised, cautious and calm low ready
+      this.aim += (wireGuardAim(st, s.state.al & 3, this.cautionBit) - this.aim) * Math.min(1, dt * 8);
     } else {
       // seized by our takedown (posed here, not sampled): the torch bit follows the host's newest state
       const ls = this.buf.latest();
@@ -292,29 +454,53 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
     this.flash = Math.max(0, this.flash - dt * 9);
     if (this.dog) {
       this.dog.update(dt, this.pos.x, this.pos.y, this.pos.z, this.yaw, this.speed, this.alerted ? 1 : 0, this.kick);
-      this.hitboxes?.sync(this.pos, this.dog.head);
+      // (rig-pose-fix S6 / S3) the head from the pure dog head (no gait clock on the wire: its mean phase), not the model
+      this.hitboxes?.sync(this.pos, dogHead(this.pos, this.yaw, this.speed, DOG_MEAN_PHASE, this.alerted ? 1 : 0, this.kick, this.head));
       return;
     }
     const r = this.rig.root;
     r.position.copyFrom(this.pos);
     r.rotation.y = this.yaw;
     this.rig.setFlash(this.flash * 0.75);
+    const gb = this.gbody;
+    if (gb) {
+      // (guard-models G7, M3) the host's seed (read from the state shown: before the rig first shows), the flash
+      gb.setLook(this.lookSeed);
+      gb.flash = this.flash * 0.75;
+    }
     const sy = Math.sin(this.yaw);
     const cy = Math.cos(this.yaw);
     const inv = moved > 1e-4 ? 1 / moved : 0;
-    this.rig.animate(dt, {
-      speed: this.speed,
-      localX: (lx * cy - lz * sy) * inv,
-      localZ: (lx * sy + lz * cy) * inv,
-      grounded: true,
-      crouch: this.crouch,
-      aimPitch: 0,
-      aim: this.def.melee || this.taken || this.remoteHold ? 0 : this.aim,
-      kick: this.def.melee ? 0 : this.kick,
-      melee: this.def.melee && this.kick > 0 ? 1 - this.kick : -1,
-    });
-    this.rig.headNode.computeWorldMatrix(true);
-    this.head.copyFrom(this.rig.headNode.getAbsolutePosition());
+    const rp = this.rp;
+    rp.speed = this.speed;
+    rp.localX = (lx * cy - lz * sy) * inv;
+    rp.localZ = (lx * sy + lz * cy) * inv;
+    rp.grounded = true;
+    rp.crouch = this.crouch;
+    rp.aimPitch = 0;
+    rp.aim = this.def.melee || this.taken || this.remoteHold ? 0 : this.aim;
+    // (rig-pose-fix S3, G7) the head on these inputs (the raise before the carry, as the host's head reads it)
+    puppetHeadIn(this.headIn, this.pos.x, this.pos.y, this.pos.z, this.yaw, this.crouch, this.speed, rp.localX, rp.localZ, rp.aim);
+    rp.kick = this.def.melee ? 0 : this.kick;
+    rp.melee = this.def.melee && this.kick > 0 ? 1 - this.kick : -1;
+    // (guard-ai A126) the host's carry (S21): holstered he walks with ready hands, the draw / holster clip runs while the
+    // gun travels, no raise until it is drawn; held in a takedown the gun is hidden and left where it is (as the host)
+    const pc = this.carry;
+    const gc = this.gunCarry;
+    if (pc && gc) {
+      pc.step(dt, this.carryWire);
+      const cs = pc.c;
+      if (!this.taken && !this.remoteHold) gc.apply(cs);
+      rp.aim = carryRaise(rp.aim, cs);
+      rp.ready = cs.holstered;
+      rp.swap = cs.swapClip();
+      rp.swapFrom = gc.slot;
+      rp.swapTo = gc.slot;
+    }
+    this.rig.animate(dt, rp);
+    const cq = this.cq;
+    emoteStep(this.emoteSt, this.headIn, this.taken || this.remoteHold, false, cq.mode, cq.delay, cq.k, dt);
+    guardHead(this.headIn, this.headRest, this.head);
     this.hitboxes?.sync(this.pos, this.head);
   }
 
@@ -337,6 +523,9 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
       rig.heldWeapon = null;
       rig.emote = null;
     }
+    // (guard-models G7) the figure rides the rig on into its ragdoll, unflashed (freed with the rig)
+    if (this.gbody) this.gbody.flash = 0;
+    this.gbody = null;
     return rig;
   }
 
@@ -352,9 +541,13 @@ export class EnemyPuppet implements Damageable, TakedownVictim, TorchHolder {
     this.hitboxes?.dispose();
     this.hitboxes = null;
     this.registry.removeTarget(this);
+    this.gbody?.dispose();
+    this.gbody = null;
     this.rig?.dispose();
     this.rig = null;
     this.dog?.dispose();
+    this.shield?.dispose();
+    this.shield = null;
     this.dog = null;
   }
 }

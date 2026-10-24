@@ -84,6 +84,8 @@ export { PassPostProcess } from '@babylonjs/core/PostProcesses/passPostProcess';
 export type { PostProcessManager } from '@babylonjs/core/PostProcesses/postProcessManager';
 export type { RenderTargetWrapper } from '@babylonjs/core/Engines/renderTargetWrapper';
 export { Effect } from '@babylonjs/core/Materials/effect';
+// (guard-ai carry fix) the GL state's cached pipelines: a body effect recompiled after a timed-out compile drops its own
+export { getStateObject } from '@babylonjs/core/Engines/thinEngine.functions';
 export { SceneInstrumentation } from '@babylonjs/core/Instrumentation/sceneInstrumentation';
 export { EngineInstrumentation } from '@babylonjs/core/Instrumentation/engineInstrumentation';
 export { ParticleSystem } from '@babylonjs/core/Particles/particleSystem';
@@ -169,6 +171,7 @@ import { SetMissingSideEffectWarningsEnabled } from '@babylonjs/core/Misc/devToo
 import { ThinEngine } from '@babylonjs/core/Engines/thinEngine';
 import type { IPipelineContext } from '@babylonjs/core/Engines/IPipelineContext';
 import type { WebGLPipelineContext } from '@babylonjs/core/Engines/WebGL/webGLPipelineContext';
+import { getStateObject as getGlStateObject } from '@babylonjs/core/Engines/thinEngine.functions';
 SetMissingSideEffectWarningsEnabled(true);
 
 // (gl-warning-fix, backlog 27) A program deleted while its parallel link is still running (KHR_parallel_shader_compile,
@@ -178,9 +181,30 @@ SetMissingSideEffectWarningsEnabled(true);
 // Babylon's own readiness poll stops without touching it. Relies on Babylon internals: tests/glWarningFix.test.ts pins
 // the version and fails loudly on an upgrade (re-check this patch, then bump it there).
 const COMPLETION_STATUS_KHR = 0x91b1;
+/**
+ * (guard-ai body watchdog) Babylon's `resetCachedPipeline`, run by the original delete below, is keyed by NAME (the
+ * effect key): it disposes whatever context is cached under the name now, not the one being deleted. A context deleted
+ * late (the deferred delete here, seconds after its effect was dropped, or a fallback's previous context deleted when
+ * the next one compiles) then flagged the successor compiled under the same key disposed, so that effect could never
+ * become ready (`_isRenderingStateCompiled` is false for a disposed context): the "program disposed, recompiling (2/3)"
+ * right after a body recompile (sector-redesign lr16-lightbake-triage). Unlink the context first: its own cache entry
+ * goes now (a new effect must not pick up a context being deleted), a successor's entry is left alone, and its name is
+ * cleared so the original delete's reset touches nothing. Returns whether the cache held this very context.
+ */
+function unlinkCachedPipeline(ctx: WebGLPipelineContext & Pick<IPipelineContext, '_name'>): boolean {
+  const name = ctx._name;
+  if (!name || !ctx.context) return false;
+  ctx._name = '';
+  const cached = getGlStateObject(ctx.context).cachedPipelines;
+  if (cached[name] !== ctx) return false;
+  delete cached[name];
+  return true;
+}
 const deletePipelineContext = ThinEngine.prototype._deletePipelineContext;
 ThinEngine.prototype._deletePipelineContext = function (this: ThinEngine, pipelineContext: IPipelineContext): void {
   const ctx = pipelineContext as WebGLPipelineContext | null;
+  // (as the original's reset did for its own entry: the context is flagged disposed)
+  if (ctx?.program && unlinkCachedPipeline(ctx)) ctx.dispose();
   if (!ctx?.program || !ctx.isParallelCompiled) {
     deletePipelineContext.call(this, pipelineContext);
     return;
@@ -198,3 +222,18 @@ ThinEngine.prototype._deletePipelineContext = function (this: ThinEngine, pipeli
   };
   release();
 };
+
+/** WebGL2's guaranteed floor for MAX_3D_TEXTURE_SIZE is 256; nearly every GPU (ANGLE D3D11 included) reports 2048. */
+const MAX_3D_TEXTURE_SIZE = 0x8073;
+/**
+ * (lr-tex3d) The GPU's largest 3D texture edge (texels), read from the context: a 3D upload past it fails ("texImage3D:
+ * width, height or depth out of range") and the texture samples 0. 2048 when there is no WebGL2 context (NullEngine in
+ * tests, where nothing uploads). Rendering only: gameplay never reads it.
+ */
+export function max3DTextureSize(engine: object): number {
+  const e = engine as { _gl?: WebGL2RenderingContext | null; webGLVersion?: number };
+  const gl = e._gl;
+  if (!gl || (e.webGLVersion ?? 0) < 2 || typeof gl.getParameter !== 'function') return 2048;
+  const v = Number(gl.getParameter(MAX_3D_TEXTURE_SIZE));
+  return v > 0 ? v : 2048;
+}

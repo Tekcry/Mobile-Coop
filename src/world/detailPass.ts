@@ -47,7 +47,7 @@ export function detailPieces(boxes: readonly BoxPiece[], mapId: string, tier: Ti
     out.push({ c: [cx, cy, cz], s: [sx, sy, sz], yaw, pitch: 0, color, collide: false, visible: true, noLedge: true, detail: true });
   };
   for (const b of boxes) {
-    if (!b.collide || b.visible === false || b.glass || Math.abs(b.pitch) > 1e-3 || b.detail) continue;
+    if (!b.collide || b.visible === false || b.glass || Math.abs(b.pitch) > 1e-3 || b.detail || b.art) continue;
     const [sx, sy, sz] = b.s;
     const bottom = b.c[1] - sy / 2;
     const top = b.c[1] + sy / 2;

@@ -14,7 +14,7 @@ import { emptyPlannerInput, FootPlanner, type FootState } from '../anim/footPlan
 import { CqLiftCrouch } from '../anim/cqGait'; // (anim-n4, track A)
 import { newStrikeBody, strikeBodyAt, strikeBodyPhase, type StrikeBodyOut } from '../anim/strikeBody'; // (anim-natural N4c) the elbow strike's hips and trunk
 import { KNEE_SWING_SHARE, kneePoleYaw, PELVIS_FOLLOW_KEYED, PELVIS_FOLLOW_MAX, pelvisFollow } from '../anim/turnFollow';
-import { LOCO, MOCAP_FEET, MOCAP_LAYERS, mocapLayerK } from '../anim/mocap'; // (mocap-trial)
+import { LOCO, MOCAP_FEET, MOCAP_LAYERS, MOCAP_RUN_POSE, mocapLayerK } from '../anim/mocap'; // (mocap-trial; afp-af2 the run pose)
 import type { MotionState } from '../anim/motion';
 import { MotionDerive } from '../anim/motionDerive';
 import { DEBUG_RIGS } from '../ui/debugVolumes';
@@ -36,11 +36,11 @@ import { gearCompose, GS } from '../anim/tuneGear';
 import { FING_L, FING_LEN, FING_R, FINGER_N, handGripShape, SPREAD_MAX_DEG } from '../anim/fingers';
 import { CLAV_L, CLAV_LEN, CLAV_R, clavActive, clavCompose, clavPoint, clavQuat } from '../anim/clavicle';
 import { GOGGLE_OFFSET, setGoggleOffset } from '../operators/runtime/goggle';
+import { EDGE_HAND_TIME, HandSwitch } from './handSwitch';
 
 /** Creates a unit-sized part mesh (instanced from the shared PartLibrary). `slot` names the colour/pattern slot. */
-/** Weapon changing hands at an open-left back-to-wall edge (s): inside D9's 0.2-0.3 s draw / lean-out step (12b);
- *  a smoothstep with the graph's `hands` clip entered through the Inertializer, never a pop. */
-export const EDGE_HAND_TIME = 0.25;
+// (rig-pose-fix S7, G15) the hand switch's clock is shared with the sim (`handSwitch.ts`): EDGE_HAND_TIME lives there
+export { EDGE_HAND_TIME };
 
 export type PartFactory = (shape: PartShape, hex: string, slot: string) => AbstractMesh;
 
@@ -427,6 +427,11 @@ const REST_SHIFT_RATE = 0.6;
  * capsule), eased over `tau` s: a side-step's weight goes onto the lead foot, then the trailing foot closes under it.
  */
 export const GLIDE_HIP = { share: 1, max: 0.09, tau: 0.08 } as const;
+/** (anim-fix-pass AF4a, Michael P4 "moves around constantly") Crouched, the glide's hips go only `share` of the way to the
+ *  feet's centre (blended in by the crouch), and that shift changes at most `rate` m/s (/ the crouch): every short crouched
+ *  shuffle moved the hips the full way at tau 0.08 with no limit (stop-go 8-11 cm p2p, flips 12.7). The share stays >= 0.85:
+ *  under it the steady strafe's knee bows past 3 cm (e2e-anim's crouched aimed strafe knee-out gate). Standing: GLIDE_HIP. */
+export const GLIDE_HIP_CROUCH = { share: 0.85, max: 0.09, rate: 0.03 } as const;
 /** (mocap-trial-2 strafe fix) In the mocap strafe the hips stay this far (m) inside each planted foot across the body (the
  *  captures keep theirs 4.4 cm inside; the planted knee then stays over its toes). */
 export const STRAFE_HIP_IN = 0.06;
@@ -1024,7 +1029,12 @@ export class CharacterRig {
    * mirrored aim pocket. Dormant until step 12b drives it (WALL_SUB.leftHand).
    */
   openLeft = false;
-  private handBlend = 0;
+  /** (rig-pose-fix S7, G15) The drawn hand switch: this rig's own copy of the sim's clock (`HandSwitch`, the same math and
+   *  target), eased at the render rate. Gameplay reads the sim's (`PlayerWeapons.hand`), never this. */
+  private readonly hs = new HandSwitch();
+  private get handBlend(): number {
+    return this.hs.blend;
+  }
   /**
    * (step 12b, light parity) The posed head centre and chest (torso joint) in world space, refreshed from the root:
    * perception's exposure points and the light meter's head sample read the real pose (a mirrored open-side lean,
@@ -1177,6 +1187,23 @@ export class CharacterRig {
     this.prevRootX += dx;
     this.prevRootZ += dz;
   }
+
+  /** (artnext C8) Before a solve after a skipped stretch (a guard thawed from the render freeze, or seeding his ragdoll):
+   *  when the root moved more than `d` m (horizontal) since the last solve, the feet re-plant, as the 2 m jump rule in
+   *  `animateFrame` does, instead of stretching back to where they were planted. Returns whether it reset. No allocation. */
+  replantIfMoved(d: number): boolean {
+    const p = this.root.position;
+    const jx = p.x - this.prevRootX;
+    const jz = p.z - this.prevRootZ;
+    if (jx * jx + jz * jz <= d * d) return false;
+    this.planner.L.init = this.planner.R.init = false;
+    this.derive.reset();
+    // (the measured velocity starts again from here, as after a jump; a guard's driver supplies its own)
+    this.velX = this.velZ = 0;
+    this.prevRootX = p.x;
+    this.prevRootZ = p.z;
+    return true;
+  }
   /** (locomotion step 22) Acceleration and motion state derived from the measured velocity (remote copies). */
   private derive = new MotionDerive();
   private pelvisDrop = 0;
@@ -1239,17 +1266,9 @@ export class CharacterRig {
   private readySh: { x: number; y: number; z: number } = { x: 0, y: 0, z: 0 };
   private headCap: number | undefined = undefined;
   /** Hand switch progress (open-left edge): 0..1 while changing hands, else -1. */
-  handSwap = -1;
-  private handFrom = 0;
-  /** The hand target the running switch eases toward (a reversal mid-switch restarts from the current blend). */
-  private handTo = 0;
-  /** Where the running switch's progress started (0, or the mirrored progress after a reversal). */
-  private handStart = 0;
-  /** Blend rate (1/s) on the last switch frame, and the Hermite start tangent a reversal carries it into. */
-  private handRate = 0;
-  private handTan = 0;
-  /** Duration (s) of the running switch: EDGE_HAND_TIME, or longer for a fast reversal. */
-  private handDur = EDGE_HAND_TIME;
+  get handSwap(): number {
+    return this.hs.swap;
+  }
   /** Smoothed world aim rotation of the weapon (inertia from the weapon's mass). */
   private aimQ: Quaternion | null = null;
   /** Joint-rate limiter hits (debug overlay warning counter). */
@@ -1914,44 +1933,9 @@ export class CharacterRig {
     }
     this.prevYaw = yaw;
     // weapon changing hands (open-left wall edge, D9): eased over EDGE_HAND_TIME; the graph tucks the weapon in
-    const handTarget = this.openLeft ? 1 : 0;
-    // a new switch, or the target reversing mid-switch: restart from the current blend (no jump, 12b fix r1). A
-    // reversal rewinds: progress restarts at the mirrored point 1 - s (the graph's tuck bump sin(pi * handSwap) stays
-    // continuous and retracts) and the blend keeps its velocity (a cubic Hermite from the current blend and rate to
-    // the new target at rest), so the weapon never steps or snaps direction. The rewind runs at least EDGE_HAND_TIME,
-    // longer when needed so its peak acceleration stays under a plain switch's (6 / T^2)
-    if (this.handSwap < 0 && handTarget !== this.handBlend) {
-      this.handSwap = 0;
-      this.handStart = 0;
-      this.handFrom = this.handBlend;
-      this.handTo = handTarget;
-      this.handTan = 0;
-      this.handDur = EDGE_HAND_TIME;
-    } else if (this.handSwap >= 0 && handTarget !== this.handTo) {
-      const s0 = Math.min(0.999, 1 - this.handSwap);
-      this.handSwap = s0;
-      this.handStart = s0;
-      this.handFrom = this.handBlend;
-      this.handTo = handTarget;
-      const r = Math.abs(this.handRate) * EDGE_HAND_TIME;
-      const x = (4 * r + Math.sqrt(16 * r * r + 144 * Math.abs(handTarget - this.handBlend))) / 12;
-      this.handDur = EDGE_HAND_TIME * Math.min(2, Math.max(1, x));
-      this.handTan = this.handRate * this.handDur;
-    }
-    if (this.handSwap >= 0) {
-      const prev = this.handBlend;
-      this.handSwap = Math.min(1, this.handSwap + ((1 - this.handStart) * dt) / this.handDur);
-      const u = Math.min(1, (this.handSwap - this.handStart) / (1 - this.handStart));
-      const e = u * u * (3 - 2 * u);
-      const v = 1 - u;
-      this.handBlend = Math.min(1, Math.max(0, this.handFrom + (handTarget - this.handFrom) * e + this.handTan * u * v * v));
-      this.handRate = dt > 0 ? (this.handBlend - prev) / dt : 0;
-      if (this.handSwap >= 1) {
-        this.handBlend = handTarget;
-        this.handSwap = -1;
-        this.handRate = 0;
-      }
-    }
+    // (rig-pose-fix S7, G15) the math is the sim clock's (`HandSwitch.step`: a reversal rewinds, no jump), stepped here
+    // at the render rate toward the same target (the local player's `openLeft` is written in the fixed step)
+    this.hs.step(dt, this.openLeft);
     // (strike-pops, n4c polish 1) the graph's tuck bump and the gun's dip read the progress from the blend
     // (`handSwapPh`): a reversal's rewind of `handSwap` flipped their rate in one frame
     i.handSwap = this.handSwap < 0 ? -1 : handSwapPh(this.handBlend);
@@ -2444,7 +2428,14 @@ export class CharacterRig {
     // (n138 fix 2) the keyed offsets (height, forward) change at most KEY_PEL_RATE m/s (unchanged when under it)
     // (mocap-trial) MOCAP_LAYERS.keyPelRate on the mocap share (1: KEY_PEL_RATE exactly; 0 lets the limit go there)
     const kpm = (KEY_PEL_RATE * dt) / mocapLayerK(MOCAP_LAYERS.keyPelRate, t.keyMocap);
-    let kpy = kq.pel[1]! * kk * kw;
+    // (afp-af2, BRIEF A2) past a jog the capture's height rides about its own mean (MOCAP_LAYERS.pelHeight: the clip's
+    // absolute height put the run 6.9 cm and the sprint 12.5 cm under the procedural one, over bent knees), its stance
+    // dip scaled by MOCAP_RUN_POSE.bob and the whole lifted by `lift` (the stance knee under ~35 deg)
+    const runS = this.mocapRunPose(t.keyMocap, kw, kq, pe.roll, t.spine.roll, dt);
+    const pc = 1 - mocapLayerK(MOCAP_LAYERS.pelHeight, runS);
+    const pm = this.runMean[0]!;
+    const pl = this.runLift;
+    let kpy = (kq.pel[1]! + pc * (MOCAP_RUN_POSE.lift * pl - pm - (1 - MOCAP_RUN_POSE.bob) * pl * (kq.pel[1]! - pm))) * kk * kw;
     let kpz = (kq.pel[2]! * kk - pe.z) * kw;
     if (this.keyPelOn) {
       if (kpy > this.keyPelY + kpm) kpy = this.keyPelY + kpm;
@@ -2483,8 +2474,15 @@ export class CharacterRig {
       // (mocap-trial-2 strafe fix) also under the mocap strafe: its hips over the planner's feet, not a fixed hold (knee-out)
       const gk = free || this.input.wall ? 0 : t.keyDrawn * t.aimW * kw;
       const midX = ((L.x + R.x) * 0.5 - rp.x) * Math.cos(yaw) - ((L.z + R.z) * 0.5 - rp.z) * Math.sin(yaw);
-      const want = gk > 0 ? Math.max(-GLIDE_HIP.max, Math.min(GLIDE_HIP.max, midX - pex)) * GLIDE_HIP.share * gk : 0;
-      this.glideShift = approachTo(this.glideShift, want, dt, GLIDE_HIP.tau);
+      // (AF4a) crouched (blended by the crouch) the hips go GLIDE_HIP_CROUCH.share of the way, at most `max` off and
+      // `rate` m/s; crouch 0 keeps GLIDE_HIP as it was
+      const ck = this.input.crouch > 0 ? Math.min(1, this.input.crouch) : 0;
+      const share = GLIDE_HIP.share + (GLIDE_HIP_CROUCH.share - GLIDE_HIP.share) * ck;
+      const gmax = GLIDE_HIP.max + (GLIDE_HIP_CROUCH.max - GLIDE_HIP.max) * ck;
+      const want = gk > 0 ? Math.max(-gmax, Math.min(gmax, midX - pex)) * share * gk : 0;
+      const gs = approachTo(this.glideShift, want, dt, GLIDE_HIP.tau);
+      const gm = ck > 0 ? (GLIDE_HIP_CROUCH.rate * dt) / ck : Infinity;
+      this.glideShift = gs > this.glideShift + gm ? this.glideShift + gm : gs < this.glideShift - gm ? this.glideShift - gm : gs;
       pex += this.glideShift;
     }
     // (mocap-trial-2 strafe fix, the e2e-anim knee-out) in the mocap strafe the hips stay STRAFE_HIP_IN inside each planted
@@ -3041,6 +3039,109 @@ export class CharacterRig {
    * turn follow on top (the hips follow the planted feet), the spine takes the follow back (the chest keeps the facing),
    * chest and neck their keyed local rotations (the neck with the look's yaw share `lookYaw` on top). No allocation.
    */
+  /** (afp-af2) The captures' followed means: pelvis height, pelvis roll / yaw, chest roll / yaw / pitch (stage 2; `runMean1`
+   *  stage 1), whether they hold a value, the run carriage's share (gated mocap share), the followed graph rolls (pelvis,
+   *  spine), the chest pitch target. */
+  private readonly runMean = new Float64Array(6);
+  private readonly runMean1 = new Float64Array(6);
+  private runInit = false;
+  private runShare = 0;
+  private runRoll = 0;
+  private runSpRoll = 0;
+  private runPitch = 0;
+  private runLift = 0;
+  /** (afp-af2) The swivel keepElbowOut applied last frame per side (left, right; rad). */
+  private readonly runElb = new Float64Array(2);
+  private readonly runE = new Vector3();
+  private readonly runQ = new Quaternion();
+
+  /**
+   * (afp-af2, BRIEF A2) Follows the keyed pose's means (MOCAP_RUN_POSE.tau, two stages) and the graph's pelvis / spine roll
+   * (bankLag), and sets this frame's run carriage share: the mocap share `keyMocap` eased in past a jog (MOCAP_RUN_POSE
+   * from / to on the rig's pace). Returns that share of the keyed pose `kw` (0..1, for the pelvis height). No allocation.
+   */
+  private mocapRunPose(keyMocap: number, kw: number, kq: KeyedPose, peRoll: number, spRoll: number, dt: number): number {
+    const R = MOCAP_RUN_POSE;
+    const q = kq.q;
+    const M1 = this.runMean1;
+    const M = this.runMean;
+    const E = this.runE;
+    // the pelvis's own roll / yaw, then the chest's (pelvis x spine x chest, body frame)
+    const P = KQ.pelvis;
+    kP.set(q[P]!, q[P + 1]!, q[P + 2]!, q[P + 3]!);
+    kP.toEulerAnglesToRef(E);
+    const pr = E.z;
+    const py = E.y;
+    const S = KQ.spine;
+    const C = KQ.chest;
+    kS.set(q[S]!, q[S + 1]!, q[S + 2]!, q[S + 3]!);
+    kP.multiplyToRef(kS, kT);
+    kS.set(q[C]!, q[C + 1]!, q[C + 2]!, q[C + 3]!);
+    kT.multiplyToRef(kS, kT);
+    kT.toEulerAnglesToRef(E);
+    const v0 = kq.pel[1]!;
+    if (!this.runInit || !(dt > 0)) {
+      if (!this.runInit) {
+        M1[0] = M[0] = v0;
+        M1[1] = M[1] = pr;
+        M1[2] = M[2] = py;
+        M1[3] = M[3] = E.z;
+        M1[4] = M[4] = E.y;
+        M1[5] = M[5] = E.x;
+        this.runRoll = peRoll;
+        this.runSpRoll = spRoll;
+        this.runInit = true;
+      }
+    } else {
+      const k = 1 - Math.exp(-dt / R.tau);
+      M1[0]! += (v0 - M1[0]!) * k;
+      M1[1]! += (pr - M1[1]!) * k;
+      M1[2]! += (py - M1[2]!) * k;
+      M1[3]! += (E.z - M1[3]!) * k;
+      M1[4]! += (E.y - M1[4]!) * k;
+      M1[5]! += (E.x - M1[5]!) * k;
+      for (let j = 0; j < 6; j++) M[j]! += (M1[j]! - M[j]!) * k;
+      const kb = 1 - Math.exp(-dt / R.bankLag);
+      this.runRoll += (peRoll - this.runRoll) * kb;
+      this.runSpRoll += (spRoll - this.runSpRoll) * kb;
+    }
+    this.runDt = dt;
+    const xl = Math.max(0, Math.min(1, (this.input.speed - R.liftFrom) / (R.liftTo - R.liftFrom)));
+    this.runLift = xl * xl * (3 - 2 * xl);
+    const v = this.input.speed;
+    const x = Math.max(0, Math.min(1, (v - R.from) / (R.to - R.from)));
+    const g = x * x * (3 - 2 * x);
+    this.runShare = g * keyMocap;
+    const u = Math.max(0, Math.min(1, (v - R.pitchFrom) / (R.pitchTo - R.pitchFrom)));
+    this.runPitch = R.pitch + (R.pitchSprint - R.pitch) * u;
+    return kw > 1e-6 ? Math.min(1, this.runShare / kw) : 0;
+  }
+
+  /**
+   * (afp-af2, BRIEF A2) The run carriage over the keyed trunk on the run share (`mocapRunPose`): the capture's mean pelvis
+   * roll / yaw off the hips (MOCAP_LAYERS.trunkMean), its mean chest roll / yaw off and its chest pitch onto the CT
+   * carriage's (the spine carries it, so the chest takes it all), and the graph's followed turn bank on both
+   * (MOCAP_LAYERS.bankWipe: the pelvis its roll, the chest 0.6 of it plus the spine's, as the procedural chain). No allocation.
+   */
+  private mocapRunTrunk(): void {
+    const a = this.runShare;
+    if (a <= 0) return;
+    const m = 1 - mocapLayerK(MOCAP_LAYERS.trunkMean, a);
+    const b = 1 - mocapLayerK(MOCAP_LAYERS.bankWipe, a);
+    if (m === 0 && b === 0) return;
+    const M = this.runMean;
+    const H = this.hips.rotationQuaternion!;
+    const Sp = this.spine.rotationQuaternion!;
+    this.runQ.copyFrom(H);
+    Quaternion.RotationYawPitchRollToRef(-m * M[2]!, 0, -m * M[1]! + b * this.runRoll, kF);
+    kF.multiplyToRef(this.runQ, H);
+    Quaternion.RotationYawPitchRollToRef(-m * M[4]!, m * (this.runPitch - M[5]!), -m * M[3]! + b * (0.6 * this.runRoll + this.runSpRoll), kF);
+    kF.multiplyToRef(this.runQ, kS);
+    kS.multiplyToRef(Sp, kS);
+    Quaternion.InverseToRef(H, kP);
+    kP.multiplyToRef(kS, Sp);
+  }
+
   private keyedTrunk(kq: KeyedPose, w: number, lookYaw: number): void {
     const q = kq.q;
     const P = KQ.pelvis;
@@ -3065,6 +3166,8 @@ export class CharacterRig {
     Quaternion.RotationYawPitchRollToRef(lookYaw, 0, 0, kF);
     kF.multiplyToRef(kT, kT);
     Quaternion.SlerpToRef(this.neck.rotationQuaternion!, kT, w, this.neck.rotationQuaternion!);
+    // (afp-af2) the run carriage and the turn bank over the capture's trunk
+    this.mocapRunTrunk();
   }
 
   /**
@@ -3158,6 +3261,46 @@ export class CharacterRig {
 
   /** (mocap-trial) This frame's share of the Body tune's elbow-out on the keyed arms (MOCAP_LAYERS.elbowOut; 1: as is). */
   private elbowOutK = 1;
+  /** (afp-af2) The arm follower's state per side: elbow and wrist points (chest frame), their rates and the last raw points, 18 a side. */
+  private readonly runArm = new Float64Array(36);
+  private runDt = 0;
+
+  /**
+   * (afp-af2, BRIEF A2 "hands randomly moving around when running") The keyed arm points (`armCapO`: elbow, wrist in the
+   * chest frame) through a critically damped follower (MOCAP_RUN_POSE.armTau) on the run share (MOCAP_LAYERS.armSmooth):
+   * the capture's sharp swing ends and the sprint's jerky arms (wrists 3.5 cm / frame^2) are rounded off. The follower
+   * always tracks (`cont` false: it starts on the points at rest). No allocation.
+   */
+  private mocapRunArm(si: number, cont: boolean): void {
+    const O = this.armCapO;
+    const A = this.runArm;
+    const o = si * 18;
+    const dt = this.runDt;
+    if (!cont || !(dt > 0)) {
+      for (let c = 0; c < 6; c++) {
+        A[o + c] = O[c]!;
+        A[o + 6 + c] = 0;
+        A[o + 12 + c] = O[c]!;
+      }
+      return;
+    }
+    const R = MOCAP_RUN_POSE;
+    const w = 1 / R.armTau;
+    const s = 1 - mocapLayerK(MOCAP_LAYERS.armSmooth, this.runShare);
+    for (let c = 0; c < 6; c++) {
+      const r = O[c]!;
+      // the point's own rate fed forward (armLead): the follower keeps the swing's timing, only its sharp turns round off
+      const rv = ((r - A[o + 12 + c]!) / dt) * R.armLead;
+      A[o + 12 + c] = r;
+      const x = A[o + c]!;
+      let v = A[o + 6 + c]!;
+      v += (w * w * (r - x) + 2 * w * (rv - v)) * dt;
+      const nx = x + v * dt;
+      A[o + c] = nx;
+      A[o + 6 + c] = v;
+      if (s > 0) O[c] = r + (nx - r) * s;
+    }
+  }
   /**
    * (CT prototype G8) One keyed arm over the solved one by `w`: the upper arm turned onto the keyed elbow point and the
    * forearm onto the keyed wrist point (both from the shoulder joint in the chest frame), with the rig's own bone frames
@@ -3188,6 +3331,7 @@ export class CharacterRig {
     O[3] = a[wo]! * kk;
     O[4] = a[wo + 1]! * kk;
     O[5] = a[wo + 2]! * kk;
+    this.mocapRunArm(si, cont);
     this.armCap(si, cont);
     // upper arm onto the keyed elbow
     kV.set(O[0]!, O[1]!, O[2]!);
@@ -3619,7 +3763,19 @@ export class CharacterRig {
     fresh(wr);
     const r = this.p.chest.d * 0.5 + ELBOW_TRUNK_MARGIN;
     const S = sh.getAbsolutePosition();
-    const th = elbowSwivelClear(S, wr.getAbsolutePosition(), el.getAbsolutePosition(), this.hips.getAbsolutePosition(), this.neck.getAbsolutePosition(), r);
+    const th0 = elbowSwivelClear(S, wr.getAbsolutePosition(), el.getAbsolutePosition(), this.hips.getAbsolutePosition(), this.neck.getAbsolutePosition(), r);
+    // (afp-af2) on the run share the swivel (15 deg steps) changes at most MOCAP_RUN_POSE.elbowRate rad/s, in and out: the
+    // capture's tucked elbows grazing the trunk flicked the arm 15 deg in a frame and back
+    const si = side > 0 ? 1 : 0;
+    let th = th0;
+    const es = this.runShare > 0 ? 1 - mocapLayerK(MOCAP_LAYERS.armSmooth, this.runShare) : 0;
+    if (es > 0 && this.runDt > 0) {
+      const p = this.runElb[si]!;
+      const m = MOCAP_RUN_POSE.elbowRate * this.runDt;
+      const lim = th0 > p + m ? p + m : th0 < p - m ? p - m : th0;
+      th = th0 + (lim - th0) * es;
+    }
+    this.runElb[si] = th;
     if (th === 0) return;
     elbHand.copyFrom(wr.absoluteRotationQuaternion);
     wr.getAbsolutePosition().subtractToRef(S, elbAxis);
@@ -4464,6 +4620,12 @@ export class CharacterRig {
   /** (Step 14) set by gameState's render frame while this rig lies as a body: the frame stamp and its age (s). */
   bodyFrame = -1;
   bodyAge = 0;
+  /** (LR16-6) Never drawn: another body is shown in its place (a dog's hidden humanoid rig). Render passes that walk
+   *  `LIVE_RIGS` (thermal's door silhouettes) skip it. Render only. */
+  standIn = false;
+  /** (LR16-6 fix) The scene frame id at which thermal last drew this rig as a door figure (`DoorGhosts`), -1 never: the
+   *  anim tier keeps solving a render-frozen guard while he is one (`GuardAnimTier.animate`). Render only. */
+  ghostFrame = -1;
 
   /** (Step 14) thermal vision's warmth (render only; nothing in gameplay reads it). Only touches buffers on a change. */
   setHeat(k: number): void {

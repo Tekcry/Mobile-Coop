@@ -71,6 +71,9 @@ export const GAME_BINDINGS: ReadonlyArray<[number, ButtonAction]> = [
   [PAD.LS, 'cover'],
   [PAD.LS, 'shoulderSwap'],
   [PAD.RS, 'zoom'],
+  // (optic-coop M2, Michael 2026-10-24 "contextual") R3 also pings: Zoom only while aiming a scoped weapon, Ping
+  // otherwise (`contextPing`; an allowed pair, not a conflict)
+  [PAD.RS, 'ping'],
   [PAD.LEFT, 'vision'],
   [PAD.RIGHT, 'grenade'],
 ];
