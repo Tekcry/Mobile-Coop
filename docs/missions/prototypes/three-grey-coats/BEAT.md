@@ -26,9 +26,9 @@ Grab the wrong man and the right one is gone before the decoy hits the floor.
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 1 | W1 | 3 | reach | Find the three grey coats under the fish hall clock | Landmark: the lit fish hall clock, seen from the canal steps; SEXTON names the spot | Boost up a wall (canal steps -> stall-roof gallery) | - | - |
 | 2 | W1 | 4 | intel | Learn which grey coat is Pell's: the warden's tally book, the tea stall talk | Document: tally book on the warden's desk, gallery office (rules out the brass-tag satchel). Overheard: two porters at the tea stall (rules out the flat cap) | Hold shutter (fish hall service shutter -> arcade passage, the W1 exit) | Split leads: each player holds one half of the answer | gives `tgc-courier` (the black umbrella) |
-| 3 | W2 | 5 | interrogate | Take the grey coat with the black umbrella in the reading room loft | Overheard: SEXTON tracks the umbrella up the arcade stair; the reading room lamp in its window | Human ladder (arcade ground -> loft walkway); throw over the lightwell (south lofts -> north lofts) | Named-target interrogation (decoys spook him) | needs `tgc-courier`; gives `tgc-chest` (shed three, the candle chest) |
-| 4 | W4 | 4 | exploit (twist) | Find the chest stencilled with a candle in shed three | Interrogation answer (Teale: "Shed three. Candle on the lid. Under the tea."); shed three's lit loading door seen from the crane gantry | Rope brace / descent (crane gantry -> shed three roof hatch) | - (the twist is a patrol change) | needs `tgc-chest` |
-| 5 | W4 | 3 | extract | Both of you, down the jetty steps to the boat under the crane | Landmark: the crane's red lamp over the jetty | Pull-up (canal ledge -> jetty lip) | - | - |
+| 3 | W2 | 5 | interrogate | Take the grey coat with the black umbrella in the reading room loft | Overheard: SEXTON tracks the umbrella up the arcade stair; the reading room lamp in its window | Boost and rope (arcade ground -> loft walkway, west pier); throw over the lightwell (south lofts -> north lofts) | Named-target interrogation (decoys spook him) | needs `tgc-courier`; gives `tgc-chest` (shed three, the candle chest) |
+| 4 | W4 | 4 | exploit (twist) | Find the chest stencilled with a candle in shed three | Interrogation answer (Teale: "Shed three. Candle on the lid. Under the tea."); shed three's lit loading door seen from the crane gantry | Boost (back lane -> shed three's lane-side clerestory, 4.4 m) | - (the twist is a patrol change) | needs `tgc-chest` |
+| 5 | W4 | 3 | extract | Both of you, down the jetty steps to the boat under the crane | Landmark: the crane's red lamp over the jetty | Pull-up (canal ledge -> jetty lip, 4.4 m) | - | - |
 
 - **Twist (step 4):** Teale's minders, two men off a launch, arrive at the sheds when he misses his check-in. They add a
   walking pair between shed three and the jetty for the rest of W4. The cipher was never on Teale: he was carrying the
@@ -42,11 +42,12 @@ Grab the wrong man and the right one is gone before the decoy hits the floor.
   **B = Ears** (floor and canal side: listens at the tea stall, tails the coats). B boosts A onto the gallery; A drops
   back to the floor at the gallery's far end. At the fish hall shutter B lifts and holds, A crawls under, then A holds
   the arcade-side bar while B rolls through.
-- Step 3 (swap): B, who tailed the umbrella, climbs A (human ladder) and goes high to the arcade roof skylight as Eyes
+- Step 3 (swap): A boosts B, who tailed the umbrella, onto the walkway at the west pier, and B drops the rope for A.
+  B goes high to the arcade roof skylight as Eyes
   (decoys, the lightwell, the stair); A is thrown over the lightwell by B and takes Teale as Hands. Joint questioning
   (G148) is allowed when B drops in.
-- Steps 4-5: B stays Eyes on the crane gantry and braces the rope; A descends into shed three for the chest. At the jetty
-  A pulls B up the lip.
+- Steps 4-5: in the back lane B boosts A in through shed three's clerestory window, then climbs the crane leg to the
+  gantry and stays Eyes; A takes the chest and leaves by shed two's canal door. At the jetty A pulls B up the lip.
 
 ## Hint lines (Settings > Gameplay > Hints, off by default)
 1. The fish hall clock is the tallest light in the market. The coats stand under it.
@@ -87,18 +88,22 @@ Size classes: S = short side 6-10 m, M = 10-20 m, L = over 20 m (play space >= 6
 - W1 tea stall: S social pocket on the floor with a dark nook within earshot (overheard trigger).
 - W1 fish hall service shutter: the W1 exit and choke, co-op shutter (0.9 m crawl gap) into the arcade passage.
 - W2 arcade ground: M covered passage, three stairs up (one open stair, two fire stairs); checkpoint at its W1 end.
-- W2 loft walkway: M, reached by human ladder from the arcade ground (no solo climb); sees the reading room window.
+- W2 loft walkway: M, reached from the arcade ground by a boost, then the rope or the pull-up for the second (no solo
+  climb; the human ladder grabs only 4.1 m, under the 4.5 m lip); sees the reading room window.
 - W2 reading room loft: S-M, Teale's lit table at the window, dark stacks aisle behind (isolate and question).
 - W2 pawnbroker's loft: S, decoy Fenn plus the optional rota desk. W2 pie shop (ground): decoy Garrow.
-- W2 lightwell: 3-4 m gap between south and north lofts (team throw); the arcade roof skylight is the W2 vantage.
+- W2 lightwell: 3.5 m between the loft rows, a 2.5 m throw gap from the south lofts' taking-in doors to the north
+  lofts' iron landing stages (team throw lands 3.2 m out); the arcade roof skylight is the W2 vantage.
 - W2 clock-mender's back loft: S, Teale's bolt point, reached only over the lightwell or the roofs.
-- W2 -> W3 -> W4 (no TGC step in W3): a team throw over the arcade lane from the arcade roof to the counting-house roof,
-  a rope from the coal yard hoist beam down into the coal yard (one braces), out the cartway to the wharf back lane,
-  then up the crane's leg ladder to the gantry (TGC enters W4 from the lane and climbs high; TKL enters W4 the same way).
-- W4 crane gantry: M, the W4 vantage over the shed yard and jetty; rope anchor above shed three's roof hatch.
+- W2 -> W3 -> W4 (no TGC step in W3): a team throw over the arcade lane (2.5 m) from the arcade roof to the
+  counting-house roof, the roof fire escape into the east wing, the strongroom passage, the coal chute (vent unlock: one
+  boosted in unbolts the yard hatch and unbars the yard door for the other; both end on the ground), out the cartway to
+  the wharf back lane (TGC enters W4 from the lane; TKL enters W4 the same way).
+- W4 crane gantry: M, the W4 vantage over the shed yard, the jetty and shed three's north-light roof.
+- W4 shed three's lane-side clerestory: a 4.4 m sill over a blind wall (boost from the back lane).
 - W4 shed three: M, tea chests, lit loading door (step 4 `seen_from` the gantry), dark side aisle.
 - W4 shed yard: L, the minders' walking pair after the twist; W4 jetty and boat: S extraction zone, pull-up lip from the canal ledge
-  (height per KIT-PULL).
+  (4.4 m, in the KIT-PULL band 4.3-4.5).
 
 ## Graph notes (graph.json, 2026-10-25)
 - Files: `graph.json` holds the mission nodes only (`mission`, `objectives[]`, `rules[]`) on the map ids of
@@ -112,8 +117,10 @@ Size classes: S = short side 6-10 m, M = 10-20 m, L = over 20 m (play space >= 6
   clock loft); coal chute -> `w3-chute`; every other space -> its BEAT name with a section prefix (`w1-market`,
   `w2-reading-room`, `w2-clock-loft`, `w4-shed-three` and so on).
 - Route: the validator's spine is a straight chain W1 -> W2 -> W3 -> W4, so TGC cannot skip W3. `mission.sections` lists
-  all four. W3 has no step: `w3-roof`, the hoist-beam rope into `w3-coal-yard` (W3's forced co-op move for this
-  mission), out `w3-cartway` to `w4-back-lane`, then the crane leg ladder to `w4-gantry`. The top-level `route` in
+  all four. W3 has no step: `w3-roof`, the fire escape into `w3-east-wing`, `w3-passage`, the vent unlock through
+  `w3-chute` into `w3-coal-yard` (W3's forced co-op move for this mission; the hoist-beam rope went, 2026-10-25: the
+  rope is a climb up only, SPEC "Engine questions"), out `w3-cartway` to `w4-back-lane`. In W4: the boost into
+  `w4-shed-three` from the lane, the crane leg ladder to `w4-gantry`. The top-level `route` in
   graph.json lists the spaces both players use (gold in PLAN.svg); it is not a validator field.
 - Budget 20 min: the steps add up to 19 (21 with the optional), plus about 1 min for the W3 crossing.
 - Leads and views per step (`lead` / `seen_from`): 1 the canal steps for both (the lit clock). 2 the objective space

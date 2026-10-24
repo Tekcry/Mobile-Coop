@@ -6,7 +6,7 @@
     "players": [2],
     "sections": ["W1", "W2", "W3", "W4"],
     "bounds": [0, 0, 120, 80],
-    "note": "Campaign map (CMG, mission-framework PLAN 5). World metres, x east, z north (north up), canal along the south edge (z 0-6). Two missions start here: Three Grey Coats (mission.start w1-canal-steps, sections W1 -> W2 -> W3 (crossing, no step) -> W4) and Two-Key Ledger (mission.start w2-arcade, W2 -> W3 -> W4); their mission nodes come from the TGC / TKL slices. The validator spine is linear (W1 -> W2 -> W3 -> W4, no route may skip a section), so TGC crosses W3 on its roof and coal yard only (rope from the hoist beam), with no TGC step there. Lighting (LR1 / G279): lit by default, darkness made by switches, shot lamps and isolated circuits; mixed zones where they play better (each encounter note). Every value is a declared target, pending V6.",
+    "note": "Campaign map (CMG, mission-framework PLAN 5). World metres, x east, z north (north up), canal along the south edge (z 0-6). Two missions start here: Three Grey Coats (mission.start w1-canal-steps, sections W1 -> W2 -> W3 (crossing, no step) -> W4) and Two-Key Ledger (mission.start w2-arcade, W2 -> W3 -> W4); their mission nodes come from the TGC / TKL slices. The validator spine is linear (W1 -> W2 -> W3 -> W4, no route may skip a section), so TGC crosses W3 with no TGC step there: down the roof fire escape into the east wing, then the strongroom passage and the coal chute (vent unlock) into the coal yard and out the cartway. Lighting (LR1 / G279): lit by default, darkness made by switches, shot lamps and isolated circuits; mixed zones where they play better (each encounter note). Every value is a declared target, pending V6.",
     "section_info": {
       "W1": {
         "name": "Night market",
@@ -22,7 +22,7 @@
         "entry": "w2-arcade",
         "exit": "w2-arcade-roof",
         "choke": "w2-walkway",
-        "forced_coop": ["human_ladder / team_pull (arcade -> walkway)", "team_throw (south lofts -> north lofts over the lightwell)", "team_throw (arcade roof -> counting house roof, spine)"]
+        "forced_coop": ["coop_boost + team_rope / team_pull (arcade -> walkway: the first up by the boost at the west pier, the second by the rope there or the pull-up at the east lip)", "team_throw (south lofts -> north lofts over the lightwell)", "team_throw (arcade roof -> counting house roof, spine)"]
       },
       "W3": {
         "name": "Counting house",
@@ -30,7 +30,7 @@
         "entry": "w3-roof",
         "exit": "w3-cartway",
         "choke": "w3-coal-yard",
-        "forced_coop": ["team_rope (roof -> west wing, roof -> coal yard)", "vent unlock: coop_boost into the coal chute + bolted coal yard door"]
+        "forced_coop": ["vent unlock: coop_boost into the coal chute + bolted chute hatch and coal yard door (the only ways into the coal yard, the choke)"]
       },
       "W4": {
         "name": "Wharf sheds",
@@ -38,7 +38,7 @@
         "entry": "w4-back-lane",
         "exit": "w4-boat",
         "choke": "w4-jetty",
-        "forced_coop": ["shutter (lane -> shed two)", "team_rope (gantry -> shed three)", "team_pull (canal ledge -> jetty)"]
+        "forced_coop": ["shutter (lane -> shed two)", "coop_boost (back lane -> shed three, the lane-side clerestory)", "team_pull (canal ledge -> jetty)"]
       }
     }
   },
@@ -204,7 +204,7 @@
       "area": [[44, 59, 76, 62]],
       "tension": 3,
       "tags": [],
-      "note": "No stair reaches it from the arcade (the tenants use their own back stairs): human ladder at its west pier, pull-up at its east lip. Dark (no walkway lamps); within earshot of the pie loft window (TKL step 1). Choke of W2: every route to the roof passes it."
+      "note": "No stair reaches it from the arcade (the tenants use their own back stairs): boost and rope at its west pier, pull-up at its east lip. Dark (no walkway lamps); within earshot of the pie loft window (TKL step 1). Choke of W2: every route to the roof passes it."
     },
     {
       "id": "w2-pie-loft",
@@ -230,7 +230,7 @@
       "area": [[44, 62, 54, 70]],
       "tension": 2,
       "tags": [],
-      "note": "Lit desk lamp; back window over the lightwell faces the reading room."
+      "note": "Lit desk lamp; full-height taking-in door (2.8 m) over the lightwell faces the reading room."
     },
     {
       "id": "w2-reading-room",
@@ -293,14 +293,14 @@
       "area": [[44, 62, 76, 70]],
       "tension": 3,
       "tags": ["exit"],
-      "note": "custom: route surface (roof walk) with no sheet class. BEAT names: TGC \"arcade roof skylight\" (W2 vantage) and TKL \"loft roof\" are this one space. Dark by default; the lane edge has a 1.1 m parapet."
+      "note": "custom: route surface (roof walk) with no sheet class. BEAT names: TGC \"arcade roof skylight\" (W2 vantage) and TKL \"loft roof\" are this one space. Dark by default; the lane edge has a 1.1 m parapet, broken out for 3 m where the old lane bridge landed (the throw point)."
     },
     {
       "id": "w3-roof",
       "section": "W3",
       "type": "exterior",
       "room_class": "custom",
-      "function": "Gaunt & Lisle's flat lead roof over both wings: copper clock turret, the west light-well rail, the coal yard hoist beam; the W3 vantage",
+      "function": "Gaunt & Lisle's flat lead roof over both wings: copper clock turret, the west light-well lantern, the coal yard hoist beam; the W3 vantage",
       "storey": 8.4,
       "size": [28, 38, 12],
       "area": [[82, 52, 120, 80]],
@@ -426,7 +426,7 @@
       "section": "W3",
       "type": "encounter",
       "room_class": "open_office",
-      "function": "West wing clerks' hall round a top-lit light well: dark stacks, the copying desks, the west key post",
+      "function": "West wing clerks' hall round a top-lit light well with an iron gallery at 4.2 m (stair down to the hall): dark stacks, the copying desks, the west key post",
       "storey": 0,
       "size": [14, 22, 3.3],
       "area": [[82, 52, 96, 74]],
@@ -482,7 +482,7 @@
       "area": [[82, 38, 98, 52]],
       "tension": 3,
       "tags": [],
-      "note": "Choke of W3: every route to the exit passes it (rope from the roof, the chute hatch, or the barred passage door). One yard lamp on a photocell over the cart gate; coal bays dark."
+      "note": "Choke of W3: every route to the exit passes it (the chute hatch, or the passage door barred on the yard side). One yard lamp on a photocell over the cart gate; coal bays dark."
     },
     {
       "id": "w3-cartway",
@@ -515,7 +515,7 @@
       "section": "W4",
       "type": "exterior",
       "room_class": "corridor",
-      "function": "Crane gantry: the walkway of the quay crane over the shed yard and shed three's roof; rope anchor over shed three's roof hatch; the W4 vantage",
+      "function": "Crane gantry: the walkway of the quay crane over the shed yard and shed three's north-light roof; the W4 vantage",
       "storey": 10,
       "size": [4, 36, 12],
       "area": [[48, 15, 84, 19]],
@@ -590,7 +590,7 @@
       "type": "exterior",
       "room_class": "corridor",
       "function": "Canal ledge: the stone towpath step at water level under the quay wall, from the quay ladder to the jetty staging",
-      "storey": -4.2,
+      "storey": -4.4,
       "size": [3, 28, 12],
       "area": [[44, 3, 72, 6]],
       "tension": 2,
@@ -820,13 +820,24 @@
     {
       "from": "w2-arcade",
       "to": "w2-walkway",
-      "kind": "human_ladder",
+      "kind": "coop_boost",
       "route": "high",
       "level_change": 4.5,
       "length": 10.5,
       "time_s": 6,
       "at": [60, 0, 60.5],
-      "reason": "Walkway's west end: a plastered pier, 4.5 m to the balustrade, no handhold; one braces, the other climbs him"
+      "reason": "Walkway's west end: a plastered pier, 4.5 m to the balustrade, no handhold: a leg-up puts the first player on it (TEAM.boostMax 4.5; the human ladder grabs only 4.1 m, TEAM.ladderGrab)"
+    },
+    {
+      "from": "w2-arcade",
+      "to": "w2-walkway",
+      "kind": "team_rope",
+      "route": "high",
+      "level_change": 4.5,
+      "length": 10.5,
+      "time_s": 8,
+      "at": [60, 0, 60.5],
+      "reason": "West pier: the player already up braces at the balustrade and drops the rope; the partner climbs the 4.5 m (B7 rope, a climb up inside TEAM.ropeMin-ropeMax 2.2-6.0 m)"
     },
     {
       "from": "w2-arcade",
@@ -937,22 +948,22 @@
       "to": "w2-reading-room",
       "kind": "team_throw",
       "route": "high",
-      "width": 3.5,
+      "width": 2.5,
       "length": 11,
       "time_s": 5,
       "at": [50.5, 4.5, 71.375],
-      "reason": "Across the 3.5 m lightwell from the pawn loft's back window to the reading room's stacks window (B4 throw)"
+      "reason": "Across the lightwell: from the pawn loft's full-height taking-in door to the reading room's iron landing stage, 2.5 m across (B4 throw: lands TEAM.throwDist 3.2 m past the thrower)"
     },
     {
       "from": "w2-pie-loft",
       "to": "w2-clock-loft",
       "kind": "team_throw",
       "route": "high",
-      "width": 3.5,
+      "width": 2.5,
       "length": 11.5,
       "time_s": 5,
       "at": [63, 4.5, 71.375],
-      "reason": "Across the lightwell from the pie loft's back window to the clock-mender's window"
+      "reason": "Across the lightwell: from the pie loft's taking-in door to the clock-mender's iron landing stage, 2.5 m across"
     },
     {
       "from": "w2-reading-room",
@@ -997,11 +1008,11 @@
       "to": "w3-roof",
       "kind": "team_throw",
       "route": "spine",
-      "width": 4,
+      "width": 2.5,
       "length": 41,
       "time_s": 5,
       "at": [80.5, 8.4, 66],
-      "reason": "Across the 4 m arcade lane from the arcade roof parapet to the counting house roof (TKL's W2 exit move)"
+      "reason": "Across the arcade lane where it pinches to 2.5 m: from the arcade roof's lane edge, its parapet broken out where the old lane bridge landed, to the counting house's corner-bay roof, open (TKL's W2 exit move)"
     },
     {
       "from": "w2-arcade-roof",
@@ -1042,24 +1053,13 @@
     {
       "from": "w3-roof",
       "to": "w3-west-wing",
-      "kind": "team_rope",
+      "kind": "drop",
       "route": "high",
-      "level_change": 8.4,
+      "level_change": 4.2,
       "length": 21,
-      "time_s": 14,
+      "time_s": 3,
       "at": [89, 8.4, 63],
-      "reason": "Rope braced on the light-well rail: one braces, the other goes down into the west wing's top-lit hall (TKL step 2)"
-    },
-    {
-      "from": "w3-roof",
-      "to": "w3-coal-yard",
-      "kind": "team_rope",
-      "route": "high",
-      "level_change": 8.4,
-      "length": 32,
-      "time_s": 14,
-      "at": [90, 8.4, 52],
-      "reason": "Rope on the coal yard hoist beam over the yard parapet: one braces, the other goes down (TGC's crossing to the sheds)"
+      "reason": "Through the light-well lantern's opening sash, a 4.2 m drop onto the iron gallery, then its stair into the dark stacks (TKL step 2)"
     },
     {
       "from": "w3-east-yard",
@@ -1322,15 +1322,15 @@
       "reason": "The crane's yard leg ladder"
     },
     {
-      "from": "w4-gantry",
+      "from": "w4-back-lane",
       "to": "w4-shed-three",
-      "kind": "team_rope",
+      "kind": "coop_boost",
       "route": "high",
-      "level_change": 10,
-      "length": 23,
-      "time_s": 14,
-      "at": [78, 10, 17],
-      "reason": "Rope from the jib over shed three's roof hatch: one braces on the gantry, the other goes down (TGC step 4)"
+      "level_change": 4.4,
+      "length": 13.5,
+      "time_s": 5,
+      "at": [79, 0, 28],
+      "reason": "Shed three's lane-side clerestory sash over the bond store's blind north wall, sill 4.4 m: a leg-up from the dark lane, then down onto the tea-chest stacks (TGC step 4)"
     },
     {
       "from": "w4-back-lane",
@@ -1405,7 +1405,7 @@
       "to": "w4-canal-ledge",
       "kind": "ladder",
       "route": "shadow",
-      "level_change": 4.2,
+      "level_change": 4.4,
       "length": 16.5,
       "time_s": 6,
       "at": [58, 0, 6],
@@ -1416,11 +1416,11 @@
       "to": "w4-jetty",
       "kind": "team_pull",
       "route": "high",
-      "level_change": 4.2,
+      "level_change": 4.4,
       "length": 32.5,
       "time_s": 6,
-      "at": [72, -4.2, 6],
-      "reason": "The jetty staging edge, 4.2 m above the ledge: the partner on the jetty catches the jumper and hauls (KIT-PULL)"
+      "at": [72, -4.4, 6],
+      "reason": "The jetty staging edge, 4.4 m above the ledge (the pull-up band 4.3-4.5, PULL.min / max): the partner on the jetty catches the jumper and hauls (KIT-PULL)"
     },
     {
       "from": "w4-jetty",

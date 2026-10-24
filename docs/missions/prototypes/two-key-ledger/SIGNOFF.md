@@ -14,10 +14,10 @@
 2. What this is: a 2-player, about 20 min mission. Night Shift steals a counting house's ledger from a strongroom whose
    door needs two keys turned at once, a wing apart, without killing anyone.
 3. What the players do:
-   - **1. W2, 4 min (intel):** pull-up onto the loft walkway, overhear the night clerk: the east gate code is the
-     founding year on the brass plate. One reads the plate from the corner loft window.
-   - **2. W3, 4 min (exploit):** team throw over the arcade lane to the counting house roof. The pair splits: one goes
-     down a braced rope into the west wing, the other takes the east gate with the code.
+   - **1. W2, 4 min (intel):** a boost and a pull-up onto the loft walkway, overhear the night clerk: the east gate
+     code is the founding year on the brass plate. One reads the plate from the corner loft window.
+   - **2. W3, 4 min (exploit):** team throw over the arcade lane to the counting house roof. The pair splits: one drops
+     through the light-well lantern into the west wing, the other takes the east gate with the code.
    - **3. W3, 5 min (sync):** each holds a key post, TALLY counts, both turn within 1 s. A miss springs both keys back.
    - **4. W3, 4 min (twist):** the open strongroom rings a bell in the porter's lodge and the porter walks in by the
      east gate. The team leaves with the ledger by the coal chute: a leg-up, a crawl, the yard hatch unbolted.

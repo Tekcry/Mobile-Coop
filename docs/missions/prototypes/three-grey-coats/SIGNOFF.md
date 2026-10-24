@@ -20,12 +20,14 @@
    - **2. W1 (4 min):** split leads. The one on the gallery reads the warden's tally book. The one on the floor listens
      to the porters at the tea stall. Together the two halves point to the black umbrella. Out through the fish hall
      shutter: one holds it, the other crawls under.
-   - **3. W2 lofts (5 min):** human ladder onto the loft walkway, a throw over the lightwell, then question Teale in the
-     reading room. He says: "Shed three. Candle on the lid."
-   - **Crossing W3 (no step):** a throw over the arcade lane onto the counting-house roof, and a rope from the hoist
-     beam into the coal yard. Out the cartway to the wharf lane.
-   - **4. W4 sheds (4 min), twist:** up the crane to the gantry. One braces the rope, the other drops into shed three
-     for the candle chest. Teale's two minders arrive and walk the yard. The cipher was in the chest all along.
+   - **3. W2 lofts (5 min):** a boost and the rope onto the loft walkway, a throw over the lightwell, then question
+     Teale in the reading room. He says: "Shed three. Candle on the lid."
+   - **Crossing W3 (no step):** a throw over the arcade lane onto the counting-house roof, down the fire escape into the
+     east wing, then the coal chute: one is boosted in, unbolts the yard hatch and unbars the yard door for the other.
+     Both come out in the coal yard, then the cartway to the wharf lane.
+   - **4. W4 sheds (4 min), twist:** one boosts the other in through shed three's lane-side window for the candle chest,
+     then climbs the crane to the gantry to watch. Teale's two minders arrive and walk the yard. The cipher was in the
+     chest all along.
    - **5. W4 (3 min):** both get to the boat under the crane's red lamp. A pull-up gets the second player from the canal
      ledge onto the jetty.
    - **Optional (W2, 2 min):** read Pell's courier rota in the pawnbroker's loft. Reward: one extra gadget charge.
