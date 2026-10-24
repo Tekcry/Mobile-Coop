@@ -43,6 +43,7 @@ import { addDoorRows, DOOR_KIND, DoorMenuView, guardBehindDoor, type DoorOpt } f
 import { addGapRows, GAP_KIND, gapMenuCandidate, pickOpenTrap, type GapOpt } from './gapMenu';
 import { addGrabRows, GRAB_KIND, GRAB_OPT_LABEL, GRAB_OPTS, GRAB_PASS, GrabMenuView, grabTriggerPick, hasInfo, type GrabOpt } from './grabMenu';
 import { ContextMenu, CtxNav, emptyCtxInput } from './contextMenu';
+import { hasJoint, JOINT_BLUFF_LABEL, JOINT_KIND, type JointIntel } from './jointInterrogation';
 import { StrikeTrigger } from '../player/weaponStance';
 import { DRAW_HOLSTERED } from '../weapons/drawState';
 import { emptyStats, type GameMode, type ModeId, type SessionStats } from './modes/gameMode';
@@ -85,11 +86,12 @@ import { BlobShadows } from '../vfx/blobShadows';
 import { LkpGhost } from '../vfx/lkpGhost';
 import { VisionState } from './vision';
 import { DoorGhosts } from '../vfx/doorGhosts';
+import { bodyHeat } from '../vfx/thermalGhost';
 import { VISION_GAIN } from '../world/darkCurve';
 import { NV_TONE } from '../vfx/nightVision';
 import { ELECTRO_BULB } from '../world/lightRig';
 import { THERMAL, ELECTRO, ELECTRO_KINDS } from '../vfx/visionLook';
-import { visionLabel } from './vision';
+import { visionLabel, type VisionMode } from './vision';
 import { StealthSystems } from './stealthSystems';
 import { SecuritySystem } from '../security/securitySystem';
 import type { CtDevices, SecWire } from './ctDevices';
@@ -231,6 +233,12 @@ export interface NetAttachment {
   /** (P6) This player's team takedown on a partner's hostage: `start`, `done` (`lethal`: the kill) or `abort`. The host
    *  applies its own at `done`; a client asks the host (`td`, kind `assist`), which checks and applies it. */
   assistTakedown?(v: TakedownVictim, ph: 'start' | 'done' | 'abort', lethal: boolean): void;
+  /** (joint-interrogation, G148) This player bluffs the guard `v` a partner holds (the BLUFF row): the host checks and
+   *  stores its own; a client asks the host (`td`, kind `bluff`). A denied bluff shows nothing (A6). */
+  jointBluff?(v: TakedownVictim): void;
+  /** (joint-interrogation) Host only: the host's own read of `v` ends now; true when another player's bluff on him is
+   *  live and `j` (his joint record, read before `takeInfo`) has lines (that bluff is spent and counted: one read pays once). */
+  jointLive?(v: TakedownVictim, j: JointIntel | null): boolean;
   /** (camera-cue fix) Client: the other living players' bodies for the camera cue's own sight test, written into
    *  `out` from index `from` (entries added when missing); returns how many. */
   partnerBodies?(out: SeenBody[], from: number): number;
@@ -545,6 +553,8 @@ export class GameState implements AppState {
       app.input.haptic(suppressed ? 'shotSuppressed' : 'shotLoud'),
     );
     this.target = new PlayerTarget(this.scene, this.registry, this.player);
+    // (rig-pose-fix S3) the wall-poke eye is the one sim head (S1's body model, synced each fixed step before the weapons)
+    this.weapons.simHead = this.target.body.head;
     this.stats = emptyStats(opts.mode, opts.map.id);
     this.localRef = {
       id: 'local',
@@ -1387,6 +1397,9 @@ export class GameState implements AppState {
         // the guard first (CT lists GRAB CHARACTER above a door's set, 052607)
         const o = td.offer;
         if (o && !this.strike.active && !o.lethalOnly) {
+          // (joint-interrogation, G148) the partner's hostage with joint information: BLUFF lists above TEAM TAKEDOWN
+          // (`assist` is only on offer in co-op: `net.partnerHolds`)
+          if (o.plan.kind === 'assist' && hasJoint(o.e)) m.add(JOINT_KIND, 'bluff', -1, JOINT_BLUFF_LABEL);
           if (GRAB_KINDS.includes(o.plan.kind) && !o.e.def.quadruped) m.add(TD_KIND, 'grab', -1, 'Grab character');
           else m.add(TD_KIND, 'ko', -1, TD_LABEL[o.plan.kind]);
         }
@@ -1453,6 +1466,8 @@ export class GameState implements AppState {
       if (!td.offer || td.active) return;
       if (opt === 'grab') td.start();
       else td.start(false);
+    } else if (kind === JOINT_KIND) {
+      if (td.offer && !td.active) this.net?.jointBluff?.(td.offer.e);
     } else if (kind === GRAB_KIND) {
       const g: GrabOpt | undefined = GRAB_OPTS[ref];
       if (g === 'device') this.hud.feedItem(`${GRAB_OPT_LABEL[g]}: not built yet`, 'warn');
@@ -1628,10 +1643,11 @@ export class GameState implements AppState {
     let ox = wc && wc.phase === 'on' ? wc.exX : 0;
     let oz = wc && wc.phase === 'on' ? wc.exZ : 0;
     let hh = h;
-    // (step 12b) on the wall the head sample is the real posed head (peek, the mirrored open-side lean, the low-wall
-    // side lean under the top), as perception's exposure points
+    // (step 12b; rig-pose-fix S4, A2 supersedes A51) on the wall the head sample is the sim body's head (the peek, the
+    // side-on crouch: `playerBody`, fitted to the rig), the point perception's exposure and the host's view of this
+    // player read too (light parity on both machines)
     if (wc && wc.phase === 'on' && this.player.pose.wall) {
-      const hd = this.player.rig.posedHead(this.posedHead);
+      const hd = this.target.body.head;
       const hs = posedHeadSample(p.x, p.y, p.z, hd.x, hd.y, hd.z, this.headSample);
       ox = hs.ox;
       oz = hs.oz;
@@ -1642,7 +1658,7 @@ export class GameState implements AppState {
     const rs = this.remotePlayers();
     for (let i = 0; i < rs.length; i++) {
       const r = rs[i]!;
-      // (step 12b fix r2) on a wall: the host's posed copy's head (the same sample as the remote's headPoint)
+      // (step 12b fix r2; rig-pose-fix S4) on a wall: the remote's sim body head (the same sample as its headPoint)
       const rh = r.head;
       if (rh) {
         const hs = posedHeadSample(r.feet.x, r.feet.y, r.feet.z, rh.x, rh.y, rh.z, this.headSample);
@@ -1698,8 +1714,6 @@ export class GameState implements AppState {
   }
 
   private lightFrom = new Vector3();
-  private readonly posedHead = new Vector3();
-  private readonly posedChest = new Vector3();
   private lightTo = new Vector3();
   private lightRay = new PhysicsRaycastResult();
   private readonly floorFrom = new Vector3();
@@ -2009,7 +2023,8 @@ export class GameState implements AppState {
     this.player.fixedUpdate(dt, inp);
     // (tuner-ui) the studio's treadmill: a state on the spot is held where it started
     if (this.studio && !this.paused) this.studio.afterStep();
-    this.target.sync();
+    // (rig-pose-fix S1) the sim body: hit volumes, perception points, the wall head sample
+    this.target.sync(this.weapons.drawPhase !== DRAW_HOLSTERED);
     this.weapons.fixedUpdate(dt, inp);
     this.ballistics.update(dt);
     this.grenades.update(dt);
@@ -2577,11 +2592,15 @@ export class GameState implements AppState {
   readonly vision = new VisionState();
   /** Seconds since the last vision switch (the HUD label shows for `VISION_LABEL_TIME`). */
   private visionLabelT = 99;
+  /** (LR16-6) The mode on screen at the last render frame (a change, from the button or the wheel, flashes the label). */
+  private visionShown: VisionMode = 'off';
   /** (Step 14) the render frame's stamp (bodies mark their rigs with it), and electro's live device parts. */
   private visionFrame = 0;
   private electroParts: InstancedMesh[] = [];
   private electroK = 0;
   private doorGhosts: DoorGhosts | null = null;
+  /** (LR16-6 fix) Co-op client: stamps its kept bodies (it has no enemy manager) so they cool as the host's do. Render only. */
+  bodyStamp: ((frame: number) => void) | null = null;
 
   /** Goggles per fixed step: the button cycles the modes. */
   private updateVision(_dt: number): void {
@@ -2614,10 +2633,17 @@ export class GameState implements AppState {
     this.post.setVisionKind(kind);
     this.paintHeat(kind === 1);
     this.paintElectro(kind === 2 ? 1 : 0);
-    // (A5, G102) thermal: a dim silhouette of a guard behind a closed door (render only)
-    const gh = (this.doorGhosts ??= new DoorGhosts(this.scene, this.world.doors, (a, b, m) => this.ballistics.ray(a, b, m)));
-    gh.update(kind === 1, this.player.cam.camera.position, this.enemyMgr?.enemies, this.remotePlayers());
+    // (A5, G102; LR16-6) thermal: a dim posed silhouette of anyone warm behind a shut door, from every live rig (guards,
+    // partners, fresh bodies; host and client alike, each peer's own view). Render only: after paintHeat, which sets the heat
+    const gh = (this.doorGhosts ??= new DoorGhosts(this.scene, this.world.doors, (a, b, m) => this.ballistics.hitDistance(a, b, m)));
+    gh.update(kind === 1, this.player.cam.camera.position, LIVE_RIGS, this.player.rig);
     this.world.lightRig.setVisionBoost(Math.max(v.night, kind === 2 ? ELECTRO_BULB : 0));
+    // (LR16-6, G100 / G181) every change of the picture is an instant cut; a wheel switch between modes with the goggles on
+    // flashes the HUD label as the button does (no goggle flip or sound between modes)
+    if (v.mode !== this.visionShown) {
+      this.visionShown = v.mode;
+      this.visionLabelT = 0;
+    }
     this.visionLabelT += dt;
     this.hud.setVision(this.visionLabelT < VISION_LABEL_TIME ? visionLabel(v.mode) : '', v.mode);
   }
@@ -2634,13 +2660,16 @@ export class GameState implements AppState {
         r.bodyAge = bodies[i]!.age;
       }
     }
+    // (LR16-6 fix) the co-op client's kept bodies (no enemy manager there): the same cooling, so a body behind a shut
+    // door stops showing when the host's does
+    if (on && !bodies) this.bodyStamp?.(f);
     for (let i = 0; i < LIVE_RIGS.length; i++) {
       const r = LIVE_RIGS[i]!;
       let k = 0;
       if (on) {
         k = THERMAL.bodyEmit;
         // (a body cools in 1/16 steps: its buffers change a few times a minute, not every frame)
-        if (r.bodyFrame === f) k *= Math.round(16 * Math.max(0, 1 - r.bodyAge / THERMAL.coolTime)) / 16;
+        if (r.bodyFrame === f) k = bodyHeat(r.bodyAge);
       }
       r.setHeat(k);
     }
@@ -2650,7 +2679,7 @@ export class GameState implements AppState {
       let k = 0;
       if (on) {
         k = THERMAL.bodyEmit;
-        if (d.isDown) k *= Math.round(16 * Math.max(0, 1 - d.downAge / THERMAL.coolTime)) / 16;
+        if (d.isDown) k = bodyHeat(d.downAge);
       }
       d.setHeat(k);
     }
@@ -2805,7 +2834,10 @@ export class GameState implements AppState {
     // (F1a, cam-5) on the left shoulder (after the aim's shoulder swap) the weapon is in the left hand too; (anim-cleanup)
     // only settled in the aim pocket, never mid-draw / holster / reload (the travel paths and the reload are
     // right-handed), and the partner sees it (`PF.aimLeft`, net/netShared.ts localFlags)
-    pl.rig.openLeft = w.leftHand || (!w.active && pl.cam.shoulder < 0 && this.weapons.handSwitchOk);
+    // (rig-pose-fix S3) the sim flag lives on the weapons (their hand clock and the shot's side read it); the rig gets
+    // a copy for the drawn switch
+    this.weapons.handLeft = w.leftHand || (!w.active && pl.cam.shoulder < 0 && this.weapons.handSwitchOk);
+    pl.rig.openLeft = this.weapons.handLeft;
     const g = w.seg >= 0 ? segs[w.seg] : undefined;
     pose.wallNx = g ? g.nx : 0;
     pose.wallNz = g ? g.nz : 0;
@@ -3137,8 +3169,9 @@ export class GameState implements AppState {
       if (eyes.length >= 4) break;
     }
     const c = p.controller;
-    // (step 12b) back to a wall the head and chest samples are the real posed body (peek, open-side lean, side lean)
-    if (p.pose.wall) exposurePointsPosed(p.position, c.crouchBlend, Math.cos(c.yaw), -Math.sin(c.yaw), p.pose.lean, p.rig.posedHead(this.posedHead), p.rig.posedChest(this.posedChest), this.expPts, p.rig.height);
+    // (step 12b; rig-pose-fix S4, P12) back to a wall the head and chest samples are the sim body's (the peek, the side-on
+    // crouch), the points the guards and the light meter read
+    if (p.pose.wall) exposurePointsPosed(p.position, c.crouchBlend, Math.cos(c.yaw), -Math.sin(c.yaw), p.pose.lean, this.target.body.head, this.target.body.chest, this.expPts, p.rig.height);
     else exposurePoints(p.position, c.crouchBlend, Math.cos(c.yaw), -Math.sin(c.yaw), p.pose.lean, this.expPts, p.rig.height);
     this.exposure = exposureFraction(this.expPts, eyes, (a, b) => {
       this.rayA.set(a.x, a.y, a.z);

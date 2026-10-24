@@ -81,6 +81,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Co-op two intruders (guard-ai S24): split up and get seen apart (host in one room, joiner in another): each
   fight stays on its own player (the guards who saw the host hunt the host's last seen spot, the joiner's hunt his);
   out of sight, nobody walks to where a player really is without having seen or heard him. Solo is unchanged.
+  (coop4, once 3-4 players can join Sector Ops) The same with three or four players apart; on an alarm the
+  reinforcements go for different players, the one the alarm raiser saw first; 2-player play is unchanged.
 - [ ] Co-op guard AI (guard-ai S9): on the joiner, guards' lines and radio calls show as on the host; a cautious guard
   carries his weapon at low ready on both screens; after an alarm stage 2 / 3 the joiner sees the vests and helmets and
   a response team's shield; the joiner's headshot on a helmeted guard pings as a deflect and the helmet falls on both.
@@ -132,6 +134,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   z-fighting; the frame time of each set (A2 685 skins, A4 667, A6 725 are the heaviest).
 - [ ] (interrogation-intel) Interrogate a guard with information: after his lines the feed shows `Code: ...` (when authored), `Cameras near: n, sweep a-b s` and `Patrols near: n, loop a-b s`; in co-op the partner sees the same lines (a client's interrogation too).
 - [ ] (stealth-pays) An interrogation's door code now acts: Course mode sets it as a course flag (a gate listing it in `externalFlags` opens); Sector Ops holds it for the section (the matching keypad prompt turns to "Enter code" and opens; a section restart drops it). Pending until a map authors guard `info` codes. Checks: `tests/intelPartB.test.ts` (Course flag, repeat is one `flagSet`), `tests/sectorIntelCode.test.ts` (`grantCode`, restart drops it, keypad opens); `e2e-ctcourse` (appended check: `onIntelCode` sets `hasFlag`) and `e2e-sectorops` (check (a2): `onIntelCode('s4-codes')` turns kp-batt to "Enter code") drive the mode hook directly; the real interrogate chain stays in `e2e-takedown` `grab-interrogate-intel`.
+- [ ] (joint-interrogation) Co-op: the partner beside a held A8 officer holds A, BLUFF; the holder INTERROGATEs within 6 s: both see the two joint lines; a solo read gives only his two lines.
 - [ ] (hang-down) Co-op hang-down over a guard (any edge with a drop, e.g. a Sector Ops mezzanine): hanging, LT draws
   the pistol (never the rifle) and aims upside down, RT fires; hold A lists GRAB CHARACTER on a guard by your head (he is
   lifted, then RT tap / Z knocks him out, RT hold kills, no let-go); RT on him without the menu: tap chokes, hold snaps
@@ -232,7 +235,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Guards relight (guard-ai LR16-4, Sector Ops): switch off a hall at its switch with a guard
   watching: a guard comes and switches it back on (a shot lamp stays dark); a timed isolator's lights stay off for its
   window (guards only come to look) and come back on their own.
-  (An untimed Sector Ops breaker board uses the same walk; no map defines one yet.)
+  Campus S2: cut the reception panel board; #1 walks over and switches the atrium back on; take him at the board and it stays dark.
 - [ ] Lasers (guard-ai S17, Sector Ops campus S3 or the warehouse): break a beam near guards, then climb out of the room
   unseen: two guards come to the middle of the beam and search that room only; the reinforcements search there too and
   never head for where you went unless one sees you.
@@ -260,6 +263,10 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   feet cast shadows now (accepted).
 - [ ] Wheel carousel: hold LB (Tab), put the cursor on the vision slot, A (E) cycles night, thermal, electro; release
   selects it. The wheel reopens on that mode. A off the vision slot does nothing.
+- [ ] (LR16-6) Thermal behind a shut door: in Sector Ops or Marlow Yard pick thermal, stand a few metres from a shut door
+  with a guard (or your partner) behind it: a dim blue figure in his pose shows on the door, moves as he moves, and goes
+  when the door opens (his body shows instead), behind a wall or glass, or past ~14 m; your own body in front of the
+  door still covers it. Every vision change (button or wheel) is an instant cut with the HUD label.
 - [ ] (sector-fixes W) The wheel opens on the vision slot: hold LB and tap A with the right stick untouched, the mode
   cycles. Push the stick onto a gun, then let go of the stick: the vision slot lights again (nothing stays picked). Push
   onto a gun and let go of the stick and LB together: the gun is picked. Keys: hold Tab, E cycles; move the mouse out to
@@ -464,6 +471,12 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   OPEN TRAP opens the panel quietly; OPTIC CABLE feeds the cable ("Too far" / "No gap" as at a door). Keyboard: E.
 - [ ] Drainpipe: one reach per hand about a second, feet together; shimmy slow with the legs swinging; ledge climb-up
   ends crouched (hold the stick to stand); ladder slower up, faster down; rappel 0.6 m/s.
+
+### Hits come from game state (rig-pose fix)
+- [ ] Co-op: let a guard shoot each player in turn, standing, crouched and on a wall; both take head / body / leg hits the same way.
+- [ ] Co-op: headshot a guard as the client, also one peeking from cover; it counts as a headshot.
+- [ ] Shoot from a wall edge and while hanging upside down: rounds leave from the gun side and hit where aimed.
+- [ ] Kill a guard at a ledge lip: the body lies on the floor below; pick it up on both machines.
 
 ### Keyboard and mouse
 - [ ] A click captures the mouse (it never fires); W A S D move, the mouse looks, the wheel or = / - change the gear.

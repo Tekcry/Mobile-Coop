@@ -370,7 +370,7 @@ try {
       const h = g.ballistics.ray(from, to.add(dir.scale(0.5)), 169);
       last = { hit: h.hit, target: h.target?.id ?? null, at: [bn.position.x, bn.position.y, bn.position.z].map((v) => +v.toFixed(2)), feet: [r.feet.x, r.feet.y, r.feet.z].map((v) => +v.toFixed(2)) };
       if (!h.hit || h.target !== r) break;
-      g.weapons.resolveHit(h, dir, h.distance, g.weapons.current);
+      g.weapons.resolveHit(h, dir, h.distance, g.weapons.current, from);
     }
     return { down: !r.alive, last };
   });

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { BREAKER, GEAR, GEAR_BY_STAGE, LATE, MISSING, RESPONSE, SHOTS, SWEEP, gearFromTag, gearHit, mergeGear, stageGear, type GearHit, type GuardGear } from '../src/ai/gear';
+import { BREAKER, GEAR, GEAR_BY_STAGE, LATE, MISSING, RESPONSE, RESPONSE_N, SHOTS, SWEEP, gearFromTag, gearHit, mergeGear, responseShape, responseTeam, responseTeamSize, stageGear, type GearHit, type GuardGear, type ResponseShapeOverride } from '../src/ai/gear';
+import type { EnemyKind } from '../src/ai/enemyDefs';
+import { SECTOR } from '../src/game/sectors';
 
 // (guard-ai S11) stealth over shooting: the gear tables and what gear does to one hit (research items 2, 4, 13).
 
@@ -104,5 +106,56 @@ describe('gearFromTag / mergeGear', () => {
     const a = { ...vest };
     expect(mergeGear(a, helmet, a)).toBe(a);
     expect(a).toEqual(both);
+  });
+});
+
+// (coop4 AI5, A175) the response's size and teams by player count (Sector Ops calls it at the alarm).
+describe('coop4 AI5: responseShape', () => {
+  const shape = (stage: number, perStage: number, players: number, headroom: number, over: ResponseShapeOverride | null = null) => {
+    const o = responseShape(stage, perStage, players, headroom, { teams: -1, size: -1 }, over);
+    return [o.size, o.teams];
+  };
+  it('1-2 players: perStage guards in one team, today exactly (no headroom clamp: the cap refuses as before)', () => {
+    for (const players of [0, 1, 2]) {
+      for (const per of [1, 2, 3, 4, 6]) {
+        for (const room of [0, 1, 32]) expect(shape(1, per, players, room)).toEqual([per, 1]);
+        expect(shape(0, per, players, 32)).toEqual([per, 0]);
+      }
+    }
+    expect(RESPONSE_N).toEqual({ extraPerPlayer: 1, splitAt: 4 });
+  });
+  it('3 players: one more, one team; 4 players: two more, two teams of 2 (a shield lead each)', () => {
+    expect(shape(1, 2, 3, 32)).toEqual([3, 1]);
+    expect(shape(2, 2, 4, 32)).toEqual([4, 2]);
+    expect([responseTeamSize(0, 4, 2), responseTeamSize(1, 4, 2)]).toEqual([2, 2]);
+    expect([responseTeamSize(0, 5, 2), responseTeamSize(1, 5, 2), responseTeamSize(2, 5, 2)]).toEqual([3, 2, 0]);
+    expect(responseTeamSize(0, 3, 1)).toBe(3);
+    expect(responseTeamSize(0, 0, 0)).toBe(0);
+    const kinds: EnemyKind[] = [];
+    expect(responseTeam(2, responseTeamSize(1, 4, 2), kinds)).toBe(2);
+    expect(kinds).toEqual(['enforcer', 'grunt']);
+    expect(shape(1, 3, 3, 32)).toEqual([4, 2]);
+    expect(shape(0, 2, 4, 32)).toEqual([4, 0]);
+  });
+  it('headroom: the extras stop at the live cap; the base is never cut', () => {
+    expect(shape(1, 2, 4, 3)).toEqual([3, 1]);
+    expect(shape(1, 2, 4, 2)).toEqual([2, 1]);
+    expect(shape(1, 2, 4, 0)).toEqual([2, 1]);
+    expect(shape(1, 2, 4, -5)).toEqual([2, 1]);
+  });
+  it("one '+1 per player past 2' number: ours equals Sector Ops' fallback (SECTOR.reinforcePerExtra, coop4 A9)", () => {
+    // Sector Ops decision: `shapeResponse` is THE rule; their `alarmStep` extra is only the fallback when the manager
+    // has no `shapeResponse`. src/ai does not import src/game/sectors (layering), so the two numbers are held equal
+    // here. Before the coop4 merge the constant is not on this branch: the default (1) is checked alone.
+    const sm = (SECTOR as unknown as { reinforcePerExtra?: number }).reinforcePerExtra;
+    expect(RESPONSE_N.extraPerPlayer).toBe(sm ?? 1);
+  });
+  it("a section's override: extraPerPlayer, splitAt; undo (0, Infinity) is today", () => {
+    expect(shape(1, 2, 4, 32, { extraPerPlayer: 2 })).toEqual([6, 2]);
+    expect(shape(1, 2, 4, 32, { splitAt: Infinity })).toEqual([4, 1]);
+    expect(shape(1, 2, 3, 32, { splitAt: 3 })).toEqual([3, 2]);
+    expect(shape(1, 2, 4, 32, { extraPerPlayer: 0 })).toEqual([2, 1]);
+    expect(shape(1, 2, 4, 32, { extraPerPlayer: 0, splitAt: 2 })).toEqual([2, 2]);
+    expect(shape(1, 2, 2, 32, { extraPerPlayer: 3, splitAt: 2 })).toEqual([2, 1]);
   });
 });

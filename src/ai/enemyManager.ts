@@ -10,7 +10,8 @@ import { BUDGET, G, MASK } from '../physics/groups';
 import type { CharacterRig } from '../player/characterRig';
 import type { Grenades } from '../weapons/grenades';
 import { GRAVITY } from '../physics/havok';
-import { Body } from './body';
+import { Body, deathLieOn } from './body';
+import { newLie } from './bodyLie';
 import { BODY } from './bodies';
 import type { LightDef, Occluder } from '../world/lights';
 import { rayOccluder } from '../world/shadowAccuracy';
@@ -37,7 +38,7 @@ import type { CameraBodyEvent } from '../security/securitySystem';
 import { Awareness, CAUTION, MAX_KEYS } from './awareness';
 import { bodyNoticed, bodyNoticeRange } from './bodies';
 import { CoverGrid, coverSetFrom, type CoverSet } from './coverGrid';
-import { gearFromTag, mergeGear, RESPONSE, stageGear, type GearTag, type GuardGear } from './gear';
+import { gearFromTag, mergeGear, RESPONSE, responseShape, stageGear, SWEEP4, type GearTag, type GuardGear, type ResponseShape, type ResponseShapeOverride } from './gear';
 import { SweepTeam } from './sweepTeam';
 import { HelmetDrops } from './helmetDrops';
 // (guard-ai S15) breaker faults and late discovery
@@ -64,7 +65,7 @@ import { LockedDoorNav } from './lockedDoors';
 // (guard-ai S22, G6) security consoles switched off: noticed when seen, turned back on (the breaker walk)
 import { CONSOLE_FAULT, CONSOLE_GROUP, ConsoleFaults, consoleInView, isConsoleGroup, V_TAMPER, type ConsoleHost } from './consoleFault';
 // (guard-ai S24, G139) one last known position per intruder
-import { INTRUDERS, IntruderBoard } from './intruders';
+import { ALARM_HUNT, alarmHunts, COOP4, FIGHTS4, INTRUDERS, IntruderBoard, type SlotHunted } from './intruders';
 import { MAX_INTRUDERS } from './targetPick';
 import { SEARCH_AREA, SearchPlan, areaRadius, orderByScore, pointScore } from './searchArea';
 
@@ -155,13 +156,16 @@ export class EnemyManager {
   lkpValid = false;
   /** Seconds since an alerted enemy last had a player in sight. (guard-ai S24) The freshest intruder's (mirrored). */
   sightT = 99;
+  /** (coop4 AI2) Sight rays every guard's think cast for players during the last `update` (summed from
+   *  `Enemy.raysStep`; tests and the Test Runner measure read it). Each guard's own think: `Enemy.raysThink`. */
+  raysThisStep = 0;
   /** (guard-ai S24, A146) One last known position per intruder (player id -> slot); each guard hunts one (`Enemy.hunt`). */
   readonly intruders = new IntruderBoard();
   /** (guard-ai S24) `lkpOf`'s reused vector per slot. */
-  private readonly lkpSlot: Vector3[] = [new Vector3(), new Vector3(), new Vector3(), new Vector3()];
+  private readonly lkpSlot: Vector3[] = Array.from({ length: MAX_INTRUDERS }, () => new Vector3());
   /** (guard-ai S24) Each intruder's chase field (made the first time his slot is valid), the position, nav version and
    *  clock it was built under, the round robin, and the goal scratch (filled in place). */
-  private readonly slotFlow: (Float32Array | null)[] = [null, null, null, null];
+  private readonly slotFlow: (Float32Array | null)[] = Array.from({ length: MAX_INTRUDERS }, (): Float32Array | null => null);
   private readonly slotFlowX = new Float32Array(MAX_INTRUDERS);
   private readonly slotFlowY = new Float32Array(MAX_INTRUDERS);
   private readonly slotFlowZ = new Float32Array(MAX_INTRUDERS);
@@ -174,6 +178,17 @@ export class EnemyManager {
   private readonly flowGoalY = [0];
   /** (guard-ai S24) The intruder of the guard who raised the alarm: the reinforcements hunt him. */
   private alarmHunt = -1;
+  /** (coop4 AI4, A174) The alarm's round robin over `alarmHunts` (`nextAlarmHunt`) and its order scratch (made once). */
+  private alarmK = 0;
+  private readonly alarmList = new Int8Array(MAX_INTRUDERS);
+  /** (coop4 AI5) The guard whose `joinReinforcement` last drew from the round robin (`nextAlarmHunt` advanced), and
+   *  the slot he drew: `joinTeam` right after makes his team share one hunt and gives a later member's draw back. */
+  private drawE: Enemy | null = null;
+  private drawSlot = -1;
+  /** (coop4 AI5, A178) The slot the next roles tick starts its groups from (3+ players; 0 = today). */
+  private rolesRR = 0;
+  /** (coop4 AI5, A175) The live section's response override (`setResponseShape`, Sector Ops at section load). */
+  private shapeOver: ResponseShapeOverride | null = null;
   // ---- (guard-ai S25, A151) the probable-area search after combat ----
   /** One search plan per intruder slot (made once): the cover spots and dark cells his searchers check, each claimed
    *  by one of them (`buildPlan`, `AiContext.searchPoint` / `searchDone`). */
@@ -597,7 +612,7 @@ export class EnemyManager {
       // (guard-ai S24) his intruder's slot (by player id): its last known position follows him; the guard hunts it
       reportSighting: (p) => {
         p.spotted = true;
-        const slot = this.intruders.slotFor(p.id);
+        const slot = this.slotForId(p.id);
         this.reportIntruder(slot, p.feet.x, p.feet.y, p.feet.z, true);
         return slot;
       },
@@ -657,7 +672,10 @@ export class EnemyManager {
       searchPoint: (e, out) => this.searchPointFor(e, out),
       searchDone: (e) => this.searchDoneFor(e),
       addBody: (e, rig: CharacterRig, imp: Vector3, lethal: boolean) => {
-        const b = new Body(scene, world, e.def, lethal, rig, imp, this.canRagdoll());
+        // (rig-pose-fix S5) where he lies is sim: his feet and yaw at death, the fall along the impulse, the room on the
+        // static collision (rig.p: static proportions); the ragdoll eases onto it
+        const lie = deathLieOn(this.deathLie, this.ballistics, e.pos.x, e.pos.y, e.pos.z, e.yaw, imp.x, imp.z, rig.p);
+        const b = new Body(scene, world, e.def, lethal, rig, imp, this.canRagdoll(), lie);
         b.enemyId = e.id;
         b.guardKey = e.key;
         b.guard = e;
@@ -673,6 +691,9 @@ export class EnemyManager {
     };
     this.refreshFlow();
   }
+
+  /** (rig-pose-fix S5) Scratch for a death's lie (the Body copies it). */
+  private readonly deathLie = newLie();
 
   /** Bodies still simulating as ragdolls are under the budget. */
   canRagdoll(): boolean {
@@ -750,6 +771,7 @@ export class EnemyManager {
     this.alarmRunner = null;
     this.alarmBy = '';
     this.alarmHunt = -1;
+    this.alarmK = 0;
     this.contactHunt = -1;
     this.command.clear();
   }
@@ -765,6 +787,8 @@ export class EnemyManager {
     // (S25b, S24 recheck A polish 1) the contact's intruder only while he is still known (not forgotten since)
     const ch = this.contactHunt;
     this.alarmHunt = e.hunt >= 0 ? e.hunt : ch >= 0 && ch < MAX_INTRUDERS && this.intruders.valid[ch] === 1 ? ch : -1;
+    // (coop4 AI4) its first reinforcement hunts the alarm's intruder
+    this.alarmK = 0;
     this.alarmRunner = null;
     this.command.raised();
     this.onAlarm?.(e, p);
@@ -855,6 +879,7 @@ export class EnemyManager {
    *  to combat: in combat with no last known position he would go for the player wherever he is (before S24, A148). */
   joinReinforcement(e: Enemy, section: number, route: readonly (readonly [number, number])[] | null = null): void {
     e.section = section;
+    this.drawE = null;
     if (!this.coordinated) {
       e.alert();
       e.tell(this.alarmHunt);
@@ -865,8 +890,13 @@ export class EnemyManager {
       e.joinAsResponder(route, d.x, d.z, this.roomOf(d.x, d.y, d.z));
       return;
     }
-    // (guard-ai S24) told of the alarm caller's intruder
-    e.joinAsReinforcement(route, this.alarmHunt);
+    // (guard-ai S24) told of the alarm caller's intruder; (coop4 AI4, A174) from 3 players the next in the split
+    const k = this.alarmK;
+    const h = this.nextAlarmHunt();
+    // (coop4 AI5) a draw that moved the round robin: a team member's `joinTeam` may give it back
+    this.drawE = this.alarmK !== k ? e : null;
+    this.drawSlot = h;
+    e.joinAsReinforcement(route, h);
   }
 
   /** (guard-ai S17) The last tripped device's spot (floor height) and board time (-Infinity: none since the clear). */
@@ -979,10 +1009,17 @@ export class EnemyManager {
    * `override` (`SectorDef.sweep`) if given, else `routes` and `posts` (thinned at the switch). Members join with
    * `joinTeam` as they spawn.
    */
-  newTeam(section: number, override: readonly (readonly [number, number])[] | null, routes: readonly (readonly (readonly [number, number])[])[], posts: readonly (readonly [number, number])[]): SweepTeam<Enemy> {
+  newTeam(
+    section: number,
+    override: readonly (readonly [number, number])[] | null,
+    routes: readonly (readonly (readonly [number, number])[])[],
+    posts: readonly (readonly [number, number])[],
+    spread = 3,
+  ): SweepTeam<Enemy> {
     let n = 0;
     for (let i = 0; i < this.teams.length; i++) if (this.teams[i]!.section === section) n++;
-    const t = new SweepTeam<Enemy>(n, section, override, routes, posts);
+    // (coop4 AI5, A177) `spread`: the section's most teams (Sector Ops: `SECTOR.alarmMax` x teams per stage; 3 = today)
+    const t = new SweepTeam<Enemy>(n, section, override, routes, posts, spread);
     this.teams.push(t);
     return t;
   }
@@ -991,6 +1028,19 @@ export class EnemyManager {
   joinTeam(e: Enemy, t: SweepTeam<Enemy>): void {
     t.add(e);
     e.crew = t;
+    // (coop4 AI5, A174 / A176) one intruder per team: the first member's alarm draw is the team's; a later member is
+    // told the team's in place of his own draw, which goes back to the round robin (the next team takes it). 1-2
+    // players: every draw is `alarmHunt` already (today, untouched).
+    if (this.drawE === e) {
+      this.drawE = null;
+      if (ALARM_HUNT.split && this.coop4()) {
+        if (t.hunt < 0) t.hunt = this.drawSlot;
+        else {
+          this.alarmK--;
+          e.retell(t.hunt);
+        }
+      }
+    }
     if (e.def.kind === 'enforcer' && RESPONSE.shieldHelmet && !e.helmet) {
       this.gearB.helmet = true;
       this.gearB.armour = e.armour;
@@ -1747,7 +1797,8 @@ export class EnemyManager {
    * never goes for a player nobody saw or located).
    */
   private sendIn(e: Enemy): void {
-    e.tell(this.commandHunt());
+    // (coop4 AI4, A174) from 3 players: the next in the alarm's split (1-2: command's, today)
+    e.tell(ALARM_HUNT.split && this.coop4() ? this.nextAlarmHunt() : this.commandHunt());
     e.alert();
   }
 
@@ -1756,6 +1807,39 @@ export class EnemyManager {
   private commandHunt(): number {
     const a = this.alarmHunt;
     return a >= 0 && this.intruders.valid[a] === 1 ? a : this.intruders.freshest;
+  }
+
+  /**
+   * (coop4 AI4, A174) The intruder slot the next reinforcement hunts (-1 none). From 3 live players (A170) and
+   * `ALARM_HUNT.split`: round robin (`alarmK`, reset by `resetAlarm` and on the alarm) over `alarmHunts`: the alarm's
+   * intruder first (when still known), then every other known intruder, freshest sighting first, a player who left
+   * skipped. Nobody known, or 1-2 players: `alarmHunt` (today). Each call takes the next one: a lone reinforcement
+   * calls it once (`joinReinforcement`, `sendIn`); a team calls it once for all its members (AI5 `joinTeam`). A
+   * reinforcement refused at the live cap never calls it, so fewer than asked keeps the order. No allocation.
+   */
+  nextAlarmHunt(): number {
+    if (!ALARM_HUNT.split || !this.coop4()) return this.alarmHunt;
+    const b = this.intruders;
+    const n = alarmHunts(this.alarmHunt, b.valid, b.seenT, this.alarmList, b.gone);
+    if (n === 0) return this.alarmHunt;
+    const s = this.alarmList[this.alarmK % n]!;
+    this.alarmK++;
+    return s;
+  }
+
+  /** (coop4 AI5, A175) Sector Ops at section load: the section's response override (`SectorDef.responseShape`; null:
+   *  `RESPONSE_N`). Kept until the next call. */
+  setResponseShape(over: ResponseShapeOverride | null): void {
+    this.shapeOver = over;
+  }
+
+  /**
+   * (coop4 AI5, A175) What alarm stage `stage` sends (Sector Ops, at the alarm): `responseShape` with the live player
+   * count, the live cap's room (`maxAlive - alive`) and the section's override, into `out`. 1-2 players: `perStage`
+   * guards, one team (today). Fewer may still spawn (the cap refuses past it): the teams take what comes. No allocation.
+   */
+  shapeResponse(stage: number, perStage: number, out: ResponseShape): ResponseShape {
+    return responseShape(stage, perStage, this.players().length, this.maxAlive - this.alive, out, this.shapeOver);
   }
 
   spawn(kind: EnemyKind, pos: Vector3, alerted = true, yaw = 0): Enemy | null {
@@ -2547,7 +2631,7 @@ export class EnemyManager {
     // (guard-ai S24) the shot locates its shooter's intruder slot (`by` his player id; null: the freshest, else slot 0);
     // the hearers it sends to combat hunt him
     const b = this.intruders;
-    const slot = by !== null ? b.slotFor(by) : b.freshest >= 0 ? b.freshest : 0;
+    const slot = by !== null ? this.slotForId(by) : b.freshest >= 0 ? b.freshest : 0;
     if (!this.coordinated) {
       for (let i = 0; i < n; i++) {
         const e = list[i]!;
@@ -2668,7 +2752,7 @@ export class EnemyManager {
       e.hearSearch(pos.x, pos.z);
     } else if (state === 2) e.heardInFight();
     if (act !== 2 || by === null) return;
-    const slot = this.intruders.slotFor(by);
+    const slot = this.slotForId(by);
     if (slot < 0) return;
     this.reportHeard(slot, pos);
     const h = e.hunt;
@@ -2718,6 +2802,77 @@ export class EnemyManager {
       if (e.alive && e.hunt === slot && (e.alerted || e.level === 'searching')) return true;
     }
     return false;
+  }
+
+  /** (coop4 AI1) `huntingOf` bound once (the board's reuse pick reads it; no closure per call). */
+  private readonly huntedFn: SlotHunted = (slot: number): boolean => this.huntingOf(slot);
+
+  /** (coop4 A170) At least `COOP4.from` live players: the coop4 rules apply (1-2 players: today exactly). */
+  coop4(): boolean {
+    return this.players().length >= COOP4.from;
+  }
+
+  /**
+   * (coop4 AI1) Player `id`'s intruder slot (every report goes through here: sightings, drones, located shots, heard
+   * steps). A171, gated (A170): with no free slot a gone player's slot is taken over (`IntruderBoard.slotFor`) and
+   * released here (`releaseSlot`); 1-2 players: no reuse (today: -1, reported nowhere).
+   */
+  private slotForId(id: string): number {
+    const b = this.intruders;
+    const slot = b.slotFor(id, this.huntedFn, INTRUDERS.reuse && this.coop4());
+    const r = b.reused;
+    if (r >= 0) {
+      b.reused = -1;
+      this.releaseSlot(r);
+    }
+    return slot;
+  }
+
+  /**
+   * (coop4 AI1, A171) Slot `s` passed to a new player: the old one's search plan, caller, chase field and heard-report
+   * throttle are dropped, every guard hunting it hunts nobody (he keeps searching where he stands), the alarm's and
+   * the last call's intruder no longer name it, and it is forgotten (the mirror follows).
+   */
+  private releaseSlot(s: number): void {
+    if (s < 0 || s >= MAX_INTRUDERS) return;
+    this.plans[s]!.reset(0, 0, -1);
+    this.callers[s] = -1;
+    this.slotFlowVer[s] = -1;
+    this.heardRepAt[s] = -1e9;
+    const list = this.enemies;
+    // (coop4 fix, check A F1) his hunt and any tell still pending (a call, the alarm), and the contact calls on the
+    // net about him: none of them may name the new player
+    for (let i = 0; i < list.length; i++) list[i]!.dropHunt(s);
+    this.radioNet.cancelInc('contact', s);
+    if (this.alarmHunt === s) this.alarmHunt = -1;
+    if (this.contactHunt === s) this.contactHunt = -1;
+    // (coop4 AI5) a team on him sweeps round the freshest again
+    for (let i = 0; i < this.teams.length; i++) if (this.teams[i]!.hunt === s) this.teams[i]!.hunt = -1;
+    this.intruders.forget(s);
+    this.mirror();
+  }
+
+  /**
+   * (coop4 AI1) Host hook: player `id` left the run (the net layer's `removeRemote`). His slot is kept, marked gone,
+   * for his rejoin (the same id takes it back, last known position kept); a new player takes it only when no slot is
+   * free (A171). Unknown id: nothing.
+   */
+  intruderLeft(id: string): void {
+    this.intruders.leave(id);
+  }
+
+  /**
+   * (coop4 AI1) Player `id`'s ghost (the last-known-position silhouette), a read (`find`: never assigns a slot):
+   * 0 none (no slot, or his position is not known), 1 his position is known (written to `out`), 2 show it: known,
+   * unseen > 0.6 s and somebody still hunts him (the rule the host's own ghost uses, gameState `updateHud`). The
+   * per-player ghost on the wire reads it per remote id. No allocation.
+   */
+  ghostOf(id: string, out: Vector3): number {
+    const b = this.intruders;
+    const s = b.find(id);
+    if (s < 0 || s >= MAX_INTRUDERS || b.valid[s] !== 1) return 0;
+    out.set(b.x[s]!, b.y[s]!, b.z[s]!);
+    return b.seenT[s]! > 0.6 && this.huntingOf(s) ? 2 : 1;
   }
 
   /** Intruder `slot`'s last known position (a reused vector per slot), null when -1 / not valid. */
@@ -2990,7 +3145,12 @@ export class EnemyManager {
     // (guard-ai S24, A147) one group per intruder: the guards in combat on him, scored against his last known position
     const b = this.intruders;
     let groups = 0;
-    for (let s = 0; s < MAX_INTRUDERS; s++) {
+    // (coop4 AI5, A178) from 3 players the groups take cover in turn: one slot later each tick (1-2: slot 0 first)
+    const rot = FIGHTS4.rotate && this.coop4();
+    const s0 = rot ? this.rolesRR % MAX_INTRUDERS : 0;
+    if (rot) this.rolesRR = (this.rolesRR + 1) % MAX_INTRUDERS;
+    for (let j = 0; j < MAX_INTRUDERS; j++) {
+      const s = (s0 + j) % MAX_INTRUDERS;
       let fighting = false;
       for (let i = 0; i < list.length && !fighting; i++) {
         const e = list[i]!;
@@ -3041,7 +3201,7 @@ export class EnemyManager {
     inp.lkpX = b.x[slot]!;
     inp.lkpY = b.y[slot]!;
     inp.lkpZ = b.z[slot]!;
-    inp.targetCoverT = this.targetCoverT();
+    inp.targetCoverT = this.targetCoverT(slot);
     // (guard-ai walk 4.82 item 2, Michael: "He should report then attack you") the caller is the reporter only while his
     // call is open (the contact call, then a command call he holds); once it is through he takes a fighting role
     const caller = this.callers[slot]!;
@@ -3093,9 +3253,19 @@ export class EnemyManager {
     return e.alive && e.alerted && !e.taken && !e.passive && !e.runningAlarm && !e.closing && !e.dog && !d.melee && d.usesCover && d.kind !== 'sniper' && d.kind !== 'enforcer' && e.hold === null;
   }
 
-  /** (guard-ai S8) How long a player has held cover (s; the longest), 0 when none does. */
-  private targetCoverT(): number {
+  /** (guard-ai S8) How long a player has held cover (s; the longest), 0 when none does. (coop4 AI5, A178) From 3
+   *  players: the player of intruder `slot` only (`idOf`), so one player camping in cover flips only his own fight. */
+  private targetCoverT(slot: number): number {
     const ps = this.players();
+    if (FIGHTS4.ownCover && this.coop4()) {
+      const id = this.intruders.idOf(slot);
+      if (id === '') return 0;
+      for (let i = 0; i < ps.length; i++) {
+        const p = ps[i]!;
+        if (p.id === id) return p.target.alive && p.cover ? (p.coverT ?? 0) : 0;
+      }
+      return 0;
+    }
     let t = 0;
     for (let i = 0; i < ps.length; i++) {
       const p = ps[i]!;
@@ -3190,6 +3360,7 @@ export class EnemyManager {
   }
 
   update(dt: number): void {
+    this.raysThisStep = 0;
     this.sightT += dt;
     this.intruders.step(dt);
     // (guard-ai S20) the door gate, built once (the door list is fixed for the map)
@@ -3288,10 +3459,13 @@ export class EnemyManager {
     this.updateDrones(dt);
     // (guard-ai S13) the response teams: who leads, and the switch to the sweep after the search; (S24, A150) round the
     // freshest intruder (the mirror)
-    for (let i = 0; i < this.teams.length; i++) this.teams[i]!.tick(this.lkpValid, this.lkp.x, this.lkp.z);
+    this.teamsStep();
     const doors = this.world.doors;
     for (const e of this.enemies) {
       e.update(dt);
+      // (coop4 AI2) the sight rays his think cast this update
+      this.raysThisStep += e.raysStep;
+      e.raysStep = 0;
       // walking into a closed door pushes it open
       if (doors.list.length && e.alive) doors.pushOpen(e.pos.x, e.pos.z);
     }
@@ -3305,13 +3479,7 @@ export class EnemyManager {
       }
     }
     this.updateTorches();
-    // nobody in combat any more: no player is known to be there (takedowns open again)
-    let fighting = false;
-    for (const e of this.enemies) if (e.alive && e.level === 'alert') fighting = true;
-    if (!fighting) {
-      const ps = this.players();
-      for (let i = 0; i < ps.length; i++) ps[i]!.spotted = false;
-    }
+    this.spottedStep();
     // bodies: settle, and sample the light on them now and then (how findable they are)
     const field = this.world.lightField;
     for (const b of this.bodies) {
@@ -3356,11 +3524,53 @@ export class EnemyManager {
         op.alert();
       }
       // (guard-ai S24) that player's slot; the operator hunts him
-      const slot = this.intruders.slotFor(p.id);
+      const slot = this.slotForId(p.id);
       this.reportIntruder(slot, p.feet.x, p.feet.y, p.feet.z, true);
       op.tell(slot);
     } else op.notice(p.feet.x, p.feet.z, Math.min(0.9, 0.3 + d.meter * 0.6));
   };
+
+  /** (guard-ai S13) The response teams: who leads, and the switch to the sweep after the search; (S24, A150) round the
+   *  freshest intruder (the mirror). (coop4 AI5, A176 / A177) From 3 players each team round its own intruder's
+   *  (`SweepTeam.hunt`; unknown: the freshest) and clear of the section's other teams' points (`peers`). */
+  private teamsStep(): void {
+    const c4 = this.coop4();
+    const ib = this.intruders;
+    for (let i = 0; i < this.teams.length; i++) {
+      const t = this.teams[i]!;
+      t.peers = c4 && SWEEP4.dedupe ? this.teams : null;
+      const h = t.hunt;
+      if (c4 && SWEEP4.own && h >= 0 && h < MAX_INTRUDERS && ib.valid[h] === 1) t.tick(true, ib.x[h]!, ib.z[h]!);
+      else t.tick(this.lkpValid, this.lkp.x, this.lkp.z);
+    }
+  }
+
+  /** Nobody in combat any more: no player is known to be there (takedowns open again). (coop4 AI5, A179) From 3
+   *  players, per player: his `spotted` clears once no guard in combat hunts his slot (while one fights on nobody in
+   *  particular, `hunt` -1, nobody's clears but by the old rule). */
+  private spottedStep(): void {
+    let fighting = false;
+    let fightMask = 0;
+    let huntless = false;
+    const list = this.enemies;
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i]!;
+      if (!(e.alive && e.level === 'alert')) continue;
+      fighting = true;
+      if (e.hunt >= 0 && e.hunt < MAX_INTRUDERS) fightMask |= 1 << e.hunt;
+      else huntless = true;
+    }
+    const ps = this.players();
+    if (!fighting) {
+      for (let i = 0; i < ps.length; i++) ps[i]!.spotted = false;
+    } else if (FIGHTS4.spotted && !huntless && this.coop4()) {
+      for (let i = 0; i < ps.length; i++) {
+        const p = ps[i]!;
+        const s = this.intruders.find(p.id);
+        if (s < 0 || (fightMask & (1 << s)) === 0) p.spotted = false;
+      }
+    }
+  }
 
   private updateDrones(dt: number): void {
     const players = this.players();
@@ -3437,6 +3647,10 @@ export class EnemyManager {
     this.intruders.clear();
     this.mirror();
     this.alarmHunt = -1;
+    this.alarmK = 0;
+    // (coop4 AI5) no draw pending, the roles rotation from slot 0
+    this.drawE = null;
+    this.rolesRR = 0;
     // (guard-ai S25) and every search plan
     for (let s = 0; s < MAX_INTRUDERS; s++) this.plans[s]!.reset(0, 0, -1);
     // (guard-ai S26) and the heard-report throttles

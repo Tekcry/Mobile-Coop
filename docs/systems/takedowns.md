@@ -80,7 +80,8 @@ Design authority: docs/DECISIONS.md (G23, G42, G43, G49), then docs/design-bible
   bend over him: `TakedownController.bend` / `bendDrop` / `sway` -> `PlayerPose` -> `AnimInput.bend` (eased in the graph).
 - Bodies (G7, AUDIT-WALLS rows 6-8): `StealthSystems` picks up through a 2.0 s committed lift (`liftCurve`: step in to the
   chest, crouch with the hands under its shoulders to 0.8 s (crouch lets go), the hoist to the shoulder to 1.6 s,
-  settled at 2.0 s); the shoulder is the side the head lies (`carrySide`: a right-shoulder hoist of a body lying head to
+  settled at 2.0 s; rig-pose-fix S5: the step-in target is the body's sim lie, `Body.lieChest`, the hands still read its drawn
+  shoulders); the shoulder is the side the head lies (`bodyLie.carrySide` from the lie's head yaw: a right-shoulder hoist of a body lying head to
   the left swung its head through the carrier's back). `ai/carryPose.ts` poses the fresh carried rig (lying, the hoist
   pivoting at the hips with a 0.3 m bow out in front, the socket, the slide off). Carry: `BODY.carrySpeed` 0.8 m/s, bent
   0.38 rad; while carrying the interact is a hide spot, else a door in reach the operator faces (open / close only),
@@ -98,6 +99,15 @@ Design authority: docs/DECISIONS.md (G23, G42, G43, G49), then docs/design-bible
   row TEAM TAKEDOWN. The attacker stays put facing him for `TAKEDOWN.strike` (the row: a knockout; a held direct press: the kill);
   the guard is never seized or moved by him; the partner letting go first ends it. The host applies it and ends the
   hold; holder and striker are credited together (a dual takedown). Net: `docs/systems/coop.md` (client takedowns).
+- (joint-interrogation, G148) Joint interrogation: on the same `assist` offer, a guard with joint information
+  (`GuardIntel.joint`, `hasJoint`) lists BLUFF (row kind `joint`) above TEAM TAKEDOWN. Roles: the holder reads his face
+  (the existing INTERROGATE, `CQ.interrogate` 1.5 s); the partner bluffs (speech only: no pose, no strike, no lock; the
+  bluffer may walk, A3). Either order works: only the read's end is checked, on the host: a bluff started at most
+  `JOINT.window` 6 s before by a player other than the holder, alive and within `JOINT.reach` 3 m, adds the joint lines
+  for both (`revealJoint`). A1: one chance, a solo read spends the joint part too (`takeInfo` clears `info`). A2: the
+  holder's RT finisher stays live during a bluff and ends the questioning. A4: the holder's row stays INTERROGATE. Net and
+  host rules: `docs/systems/coop.md` (client takedowns). Pure rules: `src/game/jointInterrogation.ts`,
+  `tests/jointInterrogation.test.ts`; e2e-coop "joint interrogation: host bluffs, client reads".
 
 ## From the co-op hang-down (hang-down job; `docs/hang-down/BRIEF.md`)
 CT 1.5 Drop Line: the hanging player can grab and neck-snap a guard below (the only grab entry while hanging) and use

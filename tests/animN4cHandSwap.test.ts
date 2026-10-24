@@ -157,3 +157,56 @@ describe('anim-n4c: the hand swap passes low across the chest (AUDIT row 29)', (
     });
   }
 });
+
+// (rig-pose-fix S7, audit G15) The weapon swap holds on a sim hand-switch clock (`PlayerWeapons.hand`), not on the rig's
+// eased blend (`rig.weaponHand` / `rig.handSwitching`, render rate). The rig eases its own copy with the same maths and
+// target, so the drawn switch is unchanged.
+describe('rig-pose-fix S7: the hand switch runs on a sim clock the rig follows (G15)', () => {
+  it('at 60 fps the rig and the sim clock agree every frame: a switch, a reversal mid-switch and back', async () => {
+    const { HandSwitch } = await import('../src/player/handSwitch');
+    const { rig, scene } = await wrenRig('rifle');
+    const pose = aimedPose();
+    for (let k = 0; k < 30; k++) rig.animate(DT, pose);
+    const sim = new HandSwitch();
+    // left, a reversal at 6 frames (mid-switch), then left again and settled
+    const plan: boolean[] = [];
+    for (let k = 0; k < 6; k++) plan.push(true);
+    for (let k = 0; k < 30; k++) plan.push(false);
+    for (let k = 0; k < 30; k++) plan.push(true);
+    let switching = 0;
+    for (const left of plan) {
+      rig.openLeft = left;
+      rig.animate(DT, pose);
+      sim.step(DT, rig.openLeft);
+      expect(sim.swap).toBe(rig.handSwap);
+      expect(sim.hand).toBe(rig.weaponHand);
+      expect(sim.switching).toBe(rig.handSwitching);
+      if (sim.switching) switching++;
+    }
+    expect(switching).toBeGreaterThan(20);
+    expect(sim.hand).toBe(-1);
+    expect(sim.switching).toBe(false);
+    scene.dispose();
+  });
+
+  it('the sim clock ends a switch on time whatever the render rate: the rig at 30 / 144 fps within one render frame of it', async () => {
+    const { HandSwitch, EDGE_HAND_TIME } = await import('../src/player/handSwitch');
+    const ends: number[] = [];
+    for (const dt of [1 / 60, 1 / 30, 1 / 144]) {
+      const c = new HandSwitch();
+      let t = 0;
+      c.step(dt, true);
+      t += dt;
+      while (c.switching) {
+        c.step(dt, true);
+        t += dt;
+      }
+      expect(c.hand).toBe(-1);
+      expect(c.blend).toBe(1);
+      ends.push(t);
+      expect(Math.abs(t - EDGE_HAND_TIME)).toBeLessThanOrEqual(dt + 1e-9);
+    }
+    // the sim's (1/60) and a 30 fps rig's end within one 30 fps frame
+    expect(Math.abs(ends[0]! - ends[1]!)).toBeLessThanOrEqual(1 / 30 + 1e-9);
+  });
+});
