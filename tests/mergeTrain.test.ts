@@ -13,6 +13,8 @@ import {
   hasTrainMember, hasFragment, syntheticFragment, fragmentPlan, clearBuildMarker,
   baseMarker, parseBaseMarker, withBaseMarker, trainVersionCommits, foreignVersionStop, onBaseCheck, stackedDecision,
   mergeRetryable, retryMerge, mergedTree, treeOf,
+  trainNo, bumpVersion, impliedKind, joinTitles, deriveRelease, bumpPackageJson, bumpPackageLock, versionTreeCommit,
+  DEPLOY_MARKER, tailPlan, parsePreviewVersion, pagesRoot, mergeOfHead, deployDispatchCmd, deployWaitMin,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/merge-train.mjs';
 
@@ -278,8 +280,8 @@ describe('merge-train release pin, version race, train lock', () => {
   });
 
   it('mergeCmd always pins the merge with --match-head-commit', () => {
-    expect(mergeCmd(244, head)).toEqual(['gh', 'pr', 'merge', '244', '--merge', '--match-head-commit', head]);
-    expect(mergeCmd(null, null)).toEqual(['gh', 'pr', 'merge', 'NEW', '--merge', '--match-head-commit', '<tested head>']);
+    expect(mergeCmd(244, head)).toEqual(['gh', 'pr', 'merge', '244', '--merge', '--match-head-commit', head, '--body', DEPLOY_MARKER]);
+    expect(mergeCmd(null, null)).toEqual(['gh', 'pr', 'merge', 'NEW', '--merge', '--match-head-commit', '<tested head>', '--body', DEPLOY_MARKER]);
   });
 
   it('cmpVersion and versionRace: the version must be above master', () => {
@@ -315,16 +317,20 @@ describe('hasTrainMember', () => {
 });
 
 describe('merge-train build ends at the version-commit push (audit 2026-10-24)', () => {
-  it('build runs no local vitest and takes no heavy lock; the marker goes right after the version-commit push', () => {
+  it('build runs no local vitest and takes no heavy lock; validates on objects, pushes once, then the marker and the PR', () => {
     const src = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'merge-train.mjs'), 'utf8');
-    const body = src.slice(src.indexOf('async function build('), src.indexOf('export function clearBuildMarker'));
+    const body = src.slice(src.indexOf('async function build('), src.indexOf('function predictPrNumber'));
     expect(body).not.toMatch(/runVitest|takeHeavyLock|HEAVY_LOCK|npx vitest/);
-    const push = body.lastIndexOf("act(['git', 'push', 'origin', branch]);");
-    const vc = body.indexOf('versionCommit(');
+    const vc = body.indexOf('v = make(predicted)');
+    const push = body.indexOf("act(['git', 'push', ...(keep ? [] : ['--force']), 'origin', `${v.sha}:refs/heads/${branch}`]);");
+    const marker = body.indexOf('clearBuildMarker();');
+    const pr = body.indexOf('ensurePr(');
     expect(vc).toBeGreaterThan(0);
-    expect(push).toBeGreaterThan(vc);
-    expect(body.indexOf('clearBuildMarker();')).toBeGreaterThan(push);
-    expect(body.slice(push, body.indexOf('clearBuildMarker();'))).not.toMatch(/await |run\(|exec\(/);
+    expect(push).toBeGreaterThan(vc); // validated before the push
+    expect(body.slice(0, push).match(/act\(/g)).toBeNull(); // nothing pushed, checked out or opened before it
+    expect(marker).toBeGreaterThan(push);
+    expect(pr).toBeGreaterThan(marker); // the PR opens only after the one push
+    expect(body.slice(push, marker)).not.toMatch(/await |run\(|exec\(/);
   });
 
   it('clearBuildMarker deletes AUTO_TRAIN_BUILD_MARKER and is a no-op without it', () => {
@@ -407,7 +413,7 @@ describe('merge-train stacked builds (--on, overlapping trains)', () => {
     expect(rel.indexOf('foreignVersionStop(')).toBeGreaterThan(0);
     expect(rel.indexOf('foreignVersionStop(')).toBeLessThan(rel.indexOf('findVersionCommit('));
     expect(rel).toMatch(/if \(foreign\) \{ console\.error\(foreign\); return 4; \}/);
-    expect(rel).toMatch(/ciAndMerge\(\{ branch, sha: head, pr, version, stacked \}\)/);
+    expect(rel).toContain('ciAndMerge({ branch, sha: head, pr, version, stacked, n, members })');
     const single = src.slice(src.indexOf('async function single('), src.indexOf('export const trainLockPath'));
     expect(single.indexOf('foreignVersionStop(')).toBeGreaterThan(0);
     expect(single.indexOf('foreignVersionStop(')).toBeLessThan(single.indexOf('mergeMaster('));
@@ -561,5 +567,153 @@ describe('merge-train carry-overs (overlap-trains slice 4)', () => {
     const stripped = withBaseMarker(body, null);
     expect(parseBaseMarker(stripped)).toBeNull();
     expect(stripped).toContain('Train 66: Next');
+  });
+});
+
+describe('merge-train release from the merged members (audit 2026-10-24 finding 9)', () => {
+  it('bumpVersion, impliedKind, joinTitles, trainNo', () => {
+    expect(bumpVersion('4.91.3', 'minor')).toBe('4.92.0');
+    expect(bumpVersion('4.91.3', 'patch')).toBe('4.91.4');
+    expect(impliedKind('4.92.0', '4.91.3')).toBe('minor');
+    expect(impliedKind('4.91.4', '4.91.3')).toBe('patch');
+    expect(joinTitles(['a', 'b', 'a', ' ', 'c'])).toBe('a; b; c');
+    expect(joinTitles(['x'.repeat(150), 'y'.repeat(60), 'z'], 200)).toBe(`${'x'.repeat(150)}; +2 more`);
+    expect(trainNo('063')).toBe('63');
+  });
+
+  it('deriveRelease: a left-out member never names the release; the kind follows the merged fragments', () => {
+    const assembled = { bump: 'patch', parts: [{ title: 'Door fix' }, { title: 'Lamp tweak' }] };
+    // planned: a minor rig-pose member (left out) + two patch members -> patch version, title from the merged parts
+    const r = deriveRelease({ version: '4.91.0', title: 'rig-pose fix; Door fix; Lamp tweak', baseVersion: '4.90.2',
+      planned: ['feature/rig', 'fix/door', 'fix/lamp'], merged: ['fix/door', 'fix/lamp'], assembled });
+    expect(r).toMatchObject({ version: '4.90.3', title: 'Door fix; Lamp tweak', kind: 'patch' });
+    expect(r.notes.join('\n')).toMatch(/feature\/rig left out/);
+    // nothing left out, kinds agree: the caller's version and title stand
+    const same = deriveRelease({ version: '4.91.0', title: 'Hand title', baseVersion: '4.90.2', planned: ['a'], merged: ['a'],
+      assembled: { bump: 'minor', parts: [{ title: 'A' }] } });
+    expect(same).toMatchObject({ version: '4.91.0', title: 'Hand title', notes: [] });
+    // a deliberate jump of the same kind stands
+    expect(deriveRelease({ version: '4.95.0', title: 't', baseVersion: '4.90.2', planned: [], merged: [], assembled: { bump: 'minor', parts: [] } }).version).toBe('4.95.0');
+  });
+
+  it('bumpPackageJson / bumpPackageLock set only the versions', () => {
+    expect(bumpPackageJson('{\n  "name": "x",\n  "version": "4.1.0",\n  "dependencies": { "a": { "version": "1.0.0" } }\n}\n', '4.2.0'))
+      .toBe('{\n  "name": "x",\n  "version": "4.2.0",\n  "dependencies": { "a": { "version": "1.0.0" } }\n}\n');
+    const lock = `${JSON.stringify({ name: 'x', version: '4.1.0', packages: { '': { name: 'x', version: '4.1.0' }, 'node_modules/a': { version: '1.0.0' } } }, null, 2)}\n`;
+    const out = JSON.parse(bumpPackageLock(lock, '4.2.0'));
+    expect([out.version, out.packages[''].version, out.packages['node_modules/a'].version]).toEqual(['4.2.0', '4.2.0', '1.0.0']);
+  });
+
+  it('tailPlan: tag only when missing, dev only when behind; a foreign tag is reported, not moved', () => {
+    expect(tailPlan({ merge: 'm', tagCommit: null, devHasMerge: false })).toEqual({ tag: true, tagWrong: false, dev: true });
+    expect(tailPlan({ merge: 'm', tagCommit: 'm', devHasMerge: true })).toEqual({ tag: false, tagWrong: false, dev: false });
+    expect(tailPlan({ merge: 'm', tagCommit: 'x', devHasMerge: true })).toEqual({ tag: false, tagWrong: true, dev: false });
+  });
+
+  it('deploy: dispatch argv, wait budget, /preview/ version.json, Pages root', () => {
+    expect(deployDispatchCmd('4.92.0', 'abc')).toEqual(['gh', 'workflow', 'run', 'deploy.yml', '--ref', 'master', '-f', 'tested_sha=abc', '-f', 'version=4.92.0']);
+    expect(deployWaitMin({})).toBe(20);
+    expect(deployWaitMin({ MERGE_TRAIN_DEPLOY_WAIT_MIN: '0' })).toBe(0);
+    expect(deployWaitMin({ MERGE_TRAIN_DEPLOY_WAIT_MIN: 'x' })).toBe(20);
+    expect(parsePreviewVersion('{"version":"4.92.0","sha":"abc"}\n')).toEqual({ version: '4.92.0', sha: 'abc' });
+    expect(parsePreviewVersion('<html>404</html>')).toBeNull();
+    expect(parsePreviewVersion(null)).toBeNull();
+    expect(pagesRoot('Tekcry/Mobile-Coop')).toBe('https://tekcry.github.io/Mobile-Coop/');
+  });
+
+  it('the workflows skip a merge-train merge by the exact marker merge-train writes; the dispatch takes tested_sha', () => {
+    const wf = (f: string): string => fs.readFileSync(path.join(__dirname, '..', '.github', 'workflows', f), 'utf8').replace(/\r\n/g, '\n');
+    const deploy = wf('deploy.yml'), preview = wf('preview.yml');
+    expect(deploy.split(DEPLOY_MARKER).length - 1).toBeGreaterThanOrEqual(2); // push and workflow_run guards
+    expect(preview).toContain(DEPLOY_MARKER);
+    expect(deploy).toMatch(/workflow_dispatch:\n\s+inputs:\n\s+tested_sha:/);
+    expect(deploy).toContain('dist/version.json');
+    expect(deploy).not.toMatch(/npm ci\n\s+npm run lint\n\s+npm test/); // the old unconditional re-test is gone
+  });
+
+  it('parseArgs: repair takes no arguments', () => {
+    expect(parseArgs(['repair'])).toEqual({ cmd: 'repair', dry: false });
+    expect(parseArgs(['repair', '--dry-run']).dry).toBe(true);
+    expect(() => parseArgs(['repair', '63'])).toThrow(/unexpected argument/);
+    expect(() => parseArgs(['repair', '--resume'])).toThrow(/--resume does not apply/);
+  });
+
+  it('mergeOfHead: the merge whose second parent is the head', () => {
+    expect(mergeOfHead(['m3 p a', 'm2 p b', 'm1 p c'], 'b')).toBe('m2');
+    expect(mergeOfHead(['m3 p a', ''], 'z')).toBeNull();
+  });
+});
+
+describe('versionTreeCommit on a real git repo (validate before push)', () => {
+  let dir = '';
+  const git = (...a: string[]): string => execFileSync('git', ['-c', 'core.autocrlf=false', ...a], { cwd: dir, encoding: 'utf8' }).trim();
+  const write = (f: string, t: string): void => {
+    fs.mkdirSync(path.dirname(path.join(dir, f)), { recursive: true });
+    fs.writeFileSync(path.join(dir, f), t);
+  };
+  const setup = (files: Record<string, string>): string => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mt-vtc-'));
+    git('init', '-q', '-b', 'master');
+    git('config', 'user.name', 't'); git('config', 'user.email', 't@t');
+    write('CHANGELOG.md', '# Changelog\n\n## 4.90.2 - Old (2026-10-23, PR #1)\n- old\n');
+    write('package.json', '{\n  "name": "x",\n  "version": "4.90.2"\n}\n');
+    write('package-lock.json', `${JSON.stringify({ name: 'x', version: '4.90.2', lockfileVersion: 3, packages: { '': { name: 'x', version: '4.90.2' } } }, null, 2)}\n`);
+    write('changes/README.md', '# fragments\n');
+    for (const [f, t] of Object.entries(files)) write(f, t);
+    git('add', '-A'); git('commit', '-q', '-m', 'train head');
+    return git('rev-parse', 'HEAD');
+  };
+  type Assembled = { bump: string, parts: { title: string }[] };
+  const call = (head: string, extra: Record<string, unknown> = {}) => versionTreeCommit({
+    head, cwd: dir, subject: (v: string) => `${v}: version at merge, train 66 (G183)`,
+    release: (assembled: Assembled) => deriveRelease({ version: '4.91.0', title: 'rig-pose fix; Door fix',
+      baseVersion: '4.90.2', planned: ['feature/rig', 'fix/door'], merged: ['fix/door'], assembled }),
+    opts: (version: string, t: string) => ({ version, title: `Train 66: ${t}`, date: '2026-10-24', pr: 400, members: [398] }),
+    ...extra,
+  });
+  const clean = (): void => { fs.rmSync(dir, { recursive: true, force: true }); };
+
+  it('builds the version commit from the merged members: heading, version, consumed fragments; no ref moves', () => {
+    const head = setup({ 'changes/fix-door.md': '# Door fix\nkind: patch\n- Doors close (#398)\n' });
+    try {
+      const v = call(head, { frags: [{ file: 'changes/test-only.md', text: '# Test only\nkind: patch\n- tests (#399)\n' }] });
+      expect([v.version, v.title]).toEqual(['4.90.3', 'Door fix; Test only']);
+      const cl = git('show', `${v.sha}:CHANGELOG.md`);
+      expect(cl).toMatch(/^## 4\.90\.3 - Train 66: Door fix; Test only \(2026-10-24, PR #400; #398\)$/m);
+      expect(cl).not.toMatch(/rig-pose/);
+      expect(JSON.parse(git('show', `${v.sha}:package.json`)).version).toBe('4.90.3');
+      expect(JSON.parse(git('show', `${v.sha}:package-lock.json`)).packages[''].version).toBe('4.90.3');
+      expect(git('ls-tree', '--name-only', `${v.sha}:changes`)).toBe('README.md');
+      expect(git('log', '-1', '--format=%s', v.sha)).toBe('4.90.3: version at merge, train 66 (G183)');
+      expect(git('rev-parse', 'HEAD')).toBe(head); // nothing checked out or moved
+      expect(git('status', '--porcelain')).toBe('');
+    } finally { clean(); }
+  });
+
+  it('a docs-only train (a synthesised patch fragment only) is a patch release', () => {
+    const head = setup({});
+    try {
+      const v = call(head, { frags: [{ file: 'changes/feature-menu.md', text: '# Docs\nkind: patch\n- docs (#401)\n' }] });
+      expect(v.version).toBe('4.90.3');
+    } finally { clean(); }
+  });
+
+  it('a malformed fragment, an empty train or nothing new throws before anything could be pushed', () => {
+    const bad = setup({ 'changes/bad.md': 'no title line\n- x\n' });
+    try { expect(() => call(bad)).toThrow(/first line must be/); } finally { clean(); }
+    const empty = setup({});
+    try { expect(() => call(empty)).toThrow(/nothing to assemble/); } finally { clean(); }
+    const known = setup({ 'changes/old.md': '# Old\nkind: patch\n- old\n' });
+    try { expect(() => call(known)).toThrow(/nothing new to release/); } finally { clean(); }
+  });
+
+  it('protocol.ts goes into the version commit when given', () => {
+    const head = setup({ 'changes/a.md': '# A\n- a (#5)\n', 'src/net/protocol.ts': 'export const PROTOCOL_VERSION = 7;\n' });
+    try {
+      const v = call(head, { protocol: 'export const PROTOCOL_VERSION = 8;\n' });
+      expect(git('show', `${v.sha}:src/net/protocol.ts`)).toBe('export const PROTOCOL_VERSION = 8;');
+      expect(v.version).toBe('4.91.0'); // a minor fragment: the asked minor stands
+      expect(v.title).toBe('A'); // a planned member left out: the title comes from the merged fragments
+    } finally { clean(); }
   });
 });
