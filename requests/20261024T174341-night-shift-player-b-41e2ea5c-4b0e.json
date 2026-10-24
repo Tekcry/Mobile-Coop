@@ -1,0 +1,18 @@
+{
+  "id": "20261024T174341-night-shift-player-b-41e2ea5c-4b0e",
+  "sha": "41e2ea5ce94ebebd93503f3d66d6cc923fe59aac",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-enemies",
+    "e2e-coop",
+    "e2e-ctcourse",
+    "e2e-combat",
+    "e2e-takedown",
+    "e2e-stealth-ai"
+  ],
+  "set": "gm-flip",
+  "note": "guard models flag ON (default flipped; e2e-coop piece asserts on by default)"
+}
