@@ -48,7 +48,7 @@ import { CrackPrediction } from '../world/doorPeek';
 import { markCompleted } from '../save/sectorRecord';
 import { HoldPulseWatch } from './holdPulse';
 import { BOLT_DEPTH, SECTOR_RESTART_TITLE, boltById, boltHalfSpan, type SectorRatingWire } from '../game/sectors';
-import { OUT_LINE, OutFollow, slotOut } from '../game/sectorOut';
+import { OUT_LINE, OutFollow, OutRestoreLatch, slotOut } from '../game/sectorOut';
 import { barkLine, BARK_EVENTS, RADIO_BARKS } from '../ai/barks';
 import { HelmetDrops } from '../ai/helmetDrops';
 import { DeflectLedger } from './puppetGear';
@@ -124,6 +124,9 @@ export class CoopClient implements NetAttachment {
   private kitSection = 0;
   /** (coop4 OUT) The host's OUT slots (the `sector` message's `ot`; 0 = nobody out). */
   private outMask = 0;
+  /** (coop4 pol, round-check-A P5) The section loadout goes back once per OUT spell, whether `ot` or our down state
+   *  (or our slot) comes first. */
+  private readonly outRestore = new OutRestoreLatch();
   /** (coop4 OUT, A16) Our follow view while we are out. */
   private readonly follow = new OutFollow();
   /** (coop4 round fix) `followStep`'s reused scan context (`followSetAvatar`; mask and session set each step). */
@@ -940,15 +943,8 @@ export class CoopClient implements NetAttachment {
     const ct = this.sec;
     // (coop4 OUT) the OUT slots first: going out puts our section loadout back (as the host does for its own), so the
     // grant and the next connector's record build on it
-    const om = msg.ot ?? 0;
-    if (om !== this.outMask) {
-      const was = this.outSelf;
-      this.outMask = om;
-      if (this.outSelf && !was && !this.g.player.alive) {
-        this.g.weapons.restoreCheckpoint();
-        this.g.hud.setDownTimer(OUT_LINE);
-      }
-    }
+    this.outMask = msg.ot ?? 0;
+    this.outRestoreCheck();
     // (section-rating fix) the rating first: a top-up in the same message as a new `ls` goes into that checkpoint loadout
     if (!this.sawSector) {
       // (integration) a late join / rejoin: a rating already on the wire was shown and granted before we came; it
@@ -1048,6 +1044,8 @@ export class CoopClient implements NetAttachment {
    *  as soon as we are up again or no longer out. */
   private followStep(): void {
     const pl = this.g.player;
+    // (coop4 pol, P5) a rejoin whose `ot` came before its down state (or its slot) restores here, on the next step
+    this.outRestoreCheck();
     if (pl.alive || !this.outSelf) {
       if (pl.followFeet) {
         pl.followFeet = null;
@@ -1062,6 +1060,13 @@ export class CoopClient implements NetAttachment {
     sc.s = this.s;
     this.avatars.forEach(followSetAvatar, sc);
     pl.followFeet = f.pick(this.g.app.input.state.pressed('swapNext') ? 1 : 0);
+  }
+
+  /** (coop4 OUT, pol P5) Going out puts our section loadout back (as the host does for its own), once per OUT spell. */
+  private outRestoreCheck(): void {
+    if (!this.outRestore.due(this.outSelf, !this.g.player.alive)) return;
+    this.g.weapons.restoreCheckpoint();
+    this.g.hud.setDownTimer(OUT_LINE);
   }
 
   fixedUpdate(dt: number): void {

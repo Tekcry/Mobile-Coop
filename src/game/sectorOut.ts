@@ -98,3 +98,22 @@ export class OutFollow {
     this.begin();
   }
 }
+
+/**
+ * (coop4 pol, round-check-A P5) The OUT player's loadout restore, once per OUT spell, whichever arrives first: the
+ * `ot` mask naming our slot or our down state (a rejoin can get the `sector` message before the snapshot that downs
+ * it). `due` is true on the first call that sees out and down since we were last not out; not out re-arms it.
+ */
+export class OutRestoreLatch {
+  private done = false;
+
+  due(out: boolean, down: boolean): boolean {
+    if (!out) {
+      this.done = false;
+      return false;
+    }
+    if (!down || this.done) return false;
+    this.done = true;
+    return true;
+  }
+}

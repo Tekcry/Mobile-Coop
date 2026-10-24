@@ -3,7 +3,7 @@ import { Vector3 } from '../src/core/babylon';
 import type { PlayerRef } from '../src/ai/enemy';
 import { SectorMode } from '../src/game/modes/sectorMode';
 import { CONN_UNLOCK_FAR, SECTOR, SectorRun, type SectorDef } from '../src/game/sectors';
-import { OUT_LINE, OutFollow, followPick, isOutRef, outMask, outWaits, slotOut } from '../src/game/sectorOut';
+import { OUT_LINE, OutFollow, OutRestoreLatch, followPick, isOutRef, outMask, outWaits, slotOut } from '../src/game/sectorOut';
 import { newSectionStats, SyncedDetector } from '../src/game/rating/sectionRating';
 import { SectorDesks } from '../src/game/sectorDesks';
 import { CoopHost } from '../src/net/coopHost';
@@ -41,6 +41,28 @@ describe('OUT: the pure rules', () => {
     expect(slotOut(4, 2)).toBe(true);
     expect(slotOut(4, 1)).toBe(false);
     expect(slotOut(15, 4)).toBe(false);
+  });
+
+  it('OutRestoreLatch (pol P5): one restore per OUT spell, whichever of `ot` and the down state comes first', () => {
+    // the client calls `due(outSelf, !alive)` on each `sector` message and each fixed step; count the restores
+    const run = (steps: [out: boolean, down: boolean][]): number[] => {
+      const l = new OutRestoreLatch();
+      const at: number[] = [];
+      steps.forEach(([o, d], i) => {
+        if (l.due(o, d)) at.push(i);
+      });
+      return at;
+    };
+    // usual order: down, then the `ot` naming our slot
+    expect(run([[false, true], [true, true], [true, true]])).toEqual([1]);
+    // the rejoin order (P5): `ot` first while the snapshot still has us up, then the down state; was skipped before
+    expect(run([[true, false], [true, false], [true, true], [true, true]])).toEqual([2]);
+    // our slot known late (slotOut reads -1 until the lobby): out turns true while down
+    expect(run([[false, true], [false, true], [true, true]])).toEqual([2]);
+    // a revive before `ot` clears: no second restore; the return clears `ot` and re-arms for the next spell
+    expect(run([[true, true], [true, false], [true, true], [false, false], [true, true]])).toEqual([0, 4]);
+    // never out (1-2 players, the course): never
+    expect(run([[false, true], [false, false]])).toEqual([]);
   });
 
   it('followPick: keeps a target up, moves on with the switch input or when it goes, wraps, -1 for nobody', () => {
