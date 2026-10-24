@@ -1,0 +1,17 @@
+{
+  "id": "20261024T004757-player-build-d17ef3c8-e911",
+  "sha": "d17ef3c8aa03eb742baa813f5c6e186006050b73",
+  "branch": "",
+  "pr": null,
+  "kind": "alone",
+  "requester": "player-build",
+  "steps": [
+    "node scripts/operators/guard-bake.mjs --probe",
+    "node scripts/operators/guardBodyCheck.mjs --kit scripts/operators/data/guards.json C:/NightShift/scratch/guard-bake/bodies/guard-*-body.json",
+    "node scripts/operators/guardHeadCheck.mjs --out C:/NightShift/scratch/guard-bake --kit scripts/operators/data/guards.json",
+    "node scripts/operators/guardGarmentCheck.mjs C:/NightShift/scratch/guard-bake/garments/guard-*.json"
+  ],
+  "env": {},
+  "set": "guard-bake-checks",
+  "note": "guard-models: rerun the probe + 3 checks on the a8ff2d45 bake outputs after the check fixes (no rebake)"
+}
