@@ -22,6 +22,11 @@ run), S9 + S10 builders in parallel once Sector Ops confirms the freeze / world.
   patrol / away / alert; out C:/NightShift/scratch/gr2/cap-<sha>) + e2e smoke sectorops darkness lightbake stealth-ai.
   Then: look shots (cascade splits + blend band, campus roof guard, low moon, off-screen lamp shadow sliding in), PR.
   Known, older than S10: torch-atlas (charShadows / torchShadows) shadows are not seen by the freeze.
+- S9b built (2026-10-24): the moon list (`world.ts` `updateSunCasters`) keeps only what Babylon draws from an entry:
+  `sunCasterDrawn` (`sunCascadeCull.ts`) drops disabled (ancestors too), invisible and blocked LOD-level meshes (their
+  master's entry draws the `getLOD` pick); `markSun` on `onEffectiveEnabledStateChangedObservable` refills next frame
+  (as Player's `LightRig.fillCasters`). Static level list unchanged. Expected moon entries per figure guard ~5 -> 2.
+  Unit tests pass. Next: rides the S9 guard-cap A/B.
 
 ## Phase 1 (history)
 ## Now

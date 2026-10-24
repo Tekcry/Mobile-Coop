@@ -50,7 +50,7 @@ import { moonLight } from './lampMath';
 import { roofAt, roofGrid, type RoofGrid } from './roofGrid';
 import { KitRender } from './kit/kitRender';
 import { PropRender } from './props/propRender';
-import { SunCascadeLists, csmSplitLen, csmSplitZ, keepNearCamera, useCascadeLists } from './sunCascadeCull';
+import { SunCascadeLists, csmSplitLen, csmSplitZ, keepNearCamera, sunCasterDrawn, useCascadeLists } from './sunCascadeCull';
 
 /** Flashlight slots on dark maps (enemies searching / investigating in the dark): `torches.ts`. */
 export { FLASHLIGHTS } from './torches';
@@ -322,6 +322,12 @@ export class World {
     return this.cascadeLists.fill(layer, this.sunCasters, g.getCascadeTransformMatrix(layer)?.m ?? null);
   };
 
+  /** (guard-render S9b) A moving caster was enabled or disabled (itself or an ancestor): the moon's list refills on the
+   *  next frame (as `LightRig.fillCasters`), so a newly shown mesh casts at once, not at the next 4 Hz pass. One closure. */
+  private readonly markSun = (): void => {
+    this.sunT = 0;
+  };
+
   /** The moon's list: the static casters + the moving ones under open sky (indoors the roof shades them anyway). */
   private updateSunCasters(dt: number, focus: Vector3): void {
     this.sunT -= dt;
@@ -333,6 +339,10 @@ export class World {
     const cp = focus; // (the player, not the orbit camera: the boom would flip guards at the edge)
     for (let i = 0; i < this.sunMoving.length && !this.staticSun; i++) {
       const m = this.sunMoving[i]!;
+      // (guard-render S9b) only what Babylon would draw from this entry: not a disabled mesh (a figure's other LODs, the
+      // merged body it replaced, a frozen guard) nor a LOD level (its master's entry draws it); `markSun` refills on an
+      // enabled change
+      if (!sunCasterDrawn(m)) continue;
       // (small things - pickups, switches, mags - cast nothing worth a draw per cascade; lamps still take them)
       if (m.getBoundingInfo().boundingSphere.radiusWorld < 0.3) continue;
       // (guard-render S6) guards: in the moon's list only near the player (`GUARD_SUN_REACH`, hysteresis)
@@ -346,7 +356,7 @@ export class World {
         this.sunNear[i] = near;
         if (!near) continue;
       }
-      if (this.bakedMoon && m.isEnabled()) {
+      if (this.bakedMoon) {
         // (smooth-world: no sky bake - the roof grid; under the baked moon a caster indoors shades nothing the bake
         // has not already darkened)
         const b = m.getBoundingInfo().boundingBox;
@@ -403,6 +413,7 @@ export class World {
       this.sunReach.push(flags.guardSun ? sunReach : Infinity);
       this.sunNear.push(true);
       this.sunT = 0;
+      m.onEffectiveEnabledStateChangedObservable.add(this.markSun);
       m.onDisposeObservable.addOnce(() => {
         const i = this.sunMoving.indexOf(m);
         if (i >= 0) {

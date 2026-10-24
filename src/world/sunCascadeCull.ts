@@ -147,6 +147,17 @@ export class SunCascadeLists {
 }
 
 /**
+ * (guard-render S9b) Would Babylon draw this mesh from its own entry in a shadow map's list? The render-list loop skips a
+ * blocked mesh outright (a LOD level of another mesh: `isBlocked` = it has a master, Babylon 9.29 `mesh.pure.js:1033-1035`,
+ * `objectRenderer.js:707`) and draws an entry only while it is enabled (ancestors included) and visible
+ * (`objectRenderer.js:752`). A LOD master stays: its entry draws whichever level `getLOD` picks (`objectRenderer.js:
+ * 719-735`), so a smooth body's low LOD (`partLibrary.trackLod`) casts through the full mesh's entry. Allocation-free.
+ */
+export function sunCasterDrawn(m: AbstractMesh): boolean {
+  return m.isEnabled() && m.isVisible && !m.isBlocked;
+}
+
+/**
  * (S9) The CSM's split depths and lengths live in private fields (Babylon 9.29 `_viewSpaceFrustumsZ`,
  * `_frustumLengths`, the shader's `viewFrustumZ` / `frustumLengths`); `tests/sunCascadeCull.test.ts` fails if they go.
  * Null when absent (the depth test then stays off).

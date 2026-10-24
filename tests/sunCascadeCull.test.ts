@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { RenderTargetTexture } from '@babylonjs/core/Materials/Textures/renderTargetTexture';
 import { NullEngine } from '@babylonjs/core/Engines/nullEngine';
-import { CascadedShadowGenerator, CreateBox, DirectionalLight, FreeCamera, Matrix, Scene, Vector3 } from '../src/core/babylon';
+import { CascadedShadowGenerator, CreateBox, DirectionalLight, FreeCamera, Matrix, Scene, TransformNode, Vector3 } from '../src/core/babylon';
 import {
   GUARD_SUN_REACH,
   SHADOW_DROP,
@@ -15,6 +15,7 @@ import {
   keepNearCamera,
   moonShadowLen,
   shadowInDepth,
+  sunCasterDrawn,
   useCascadeLists,
 } from '../src/world/sunCascadeCull';
 
@@ -227,5 +228,68 @@ describe('CSM split accessors (Babylon private fields)', () => {
     for (const l of ls) expect(l).toBeGreaterThan(0);
     expect(zs[1]! - zs[0]!).toBeCloseTo(ls[1]!, 3);
     spy.mockRestore();
+  });
+});
+
+describe('sunCasterDrawn (S9b: the moon list keeps only what Babylon draws from an entry)', () => {
+  const scene = new Scene(new NullEngine());
+  const cam = new FreeCamera('c', new Vector3(0, 2, -5), scene);
+  scene.activeCamera = cam;
+  const drawn = (ms: ReturnType<typeof CreateBox>[]): string[] => ms.filter(sunCasterDrawn).map((m) => m.name);
+
+  it('skips a disabled mesh and one under a disabled parent; re-enabled comes back, and the change is observed', () => {
+    const root = new TransformNode('guard', scene);
+    const a = CreateBox('a', { size: 1 }, scene);
+    const b = CreateBox('b', { size: 1 }, scene);
+    a.parent = root;
+    b.parent = root;
+    let dirty = 0;
+    const mark = (): void => {
+      dirty++;
+    };
+    a.onEffectiveEnabledStateChangedObservable.add(mark);
+    b.onEffectiveEnabledStateChangedObservable.add(mark);
+    expect(drawn([a, b])).toEqual(['a', 'b']);
+    b.setEnabled(false);
+    expect(drawn([a, b])).toEqual(['a']);
+    expect(dirty).toBe(1);
+    b.setEnabled(true);
+    expect(drawn([a, b])).toEqual(['a', 'b']);
+    expect(dirty).toBe(2);
+    // (a frozen guard: the root goes, every mesh under it is out and each notifies)
+    root.setEnabled(false);
+    expect(drawn([a, b])).toEqual([]);
+    expect(dirty).toBe(4);
+    root.setEnabled(true);
+    expect(drawn([a, b])).toEqual(['a', 'b']);
+    expect(dirty).toBe(6);
+  });
+
+  it('skips an invisible mesh', () => {
+    const m = CreateBox('inv', { size: 1 }, scene);
+    m.isVisible = false;
+    expect(sunCasterDrawn(m)).toBe(false);
+    m.isVisible = true;
+    expect(sunCasterDrawn(m)).toBe(true);
+  });
+
+  it('LOD: the low level is out (blocked, drawn from its master), the master stays and picks the low level far away', () => {
+    const hi = CreateBox('hi', { size: 1 }, scene);
+    const lo = CreateBox('lo', { size: 1 }, scene);
+    hi.addLODLevel(10, lo);
+    expect(lo.isBlocked).toBe(true);
+    expect(drawn([hi, lo])).toEqual(['hi']);
+    hi.position.set(0, 0, 40);
+    hi.computeWorldMatrix(true);
+    expect(hi.getLOD(cam)).toBe(lo);
+    // (the Detail setting re-registers the level: unblocked in between, blocked again after)
+    hi.removeLODLevel(lo);
+    expect(drawn([hi, lo])).toEqual(['hi', 'lo']);
+    hi.addLODLevel(10, lo);
+    expect(drawn([hi, lo])).toEqual(['hi']);
+  });
+
+  it('allocates nothing (by structure)', () => {
+    expect(sunCasterDrawn.toString()).not.toMatch(/\bnew\b|=>|\bfunction\b\s*\(|\[\]/);
   });
 });

@@ -11,3 +11,8 @@ kind: minor
   lamp, out to where the lamp's shadow map ends; none outside a spot's cone) against the view, and where it is in view,
   camera rays to where the shadow of his head and middle lands decide, as for the moon (`src/game/sectorGuardFreeze.ts`,
   `sectorGuardFreezeView.ts`). Render only; `?guardfreeze=0` still turns the freeze off.
+- guard-render S9b: the moon's cascades no longer carry meshes they never draw. A disabled mesh (a guard figure's
+  other LODs, the merged body the figure replaced, a frozen guard), an invisible one, or a low LOD registered under its
+  full mesh (drawn through the full mesh's entry) stays out of the moon's caster list, and the list refills the frame
+  after a caster is enabled or disabled (`src/world/sunCascadeCull.ts` `sunCasterDrawn`, `src/world/world.ts`). CPU
+  only: Babylon already skipped these at draw time, so the shadows look the same.
