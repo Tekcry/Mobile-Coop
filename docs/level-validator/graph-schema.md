@@ -71,9 +71,9 @@ spaces are two links. Links are two-way unless `one_way` is set or the kind is `
 | `height` | m | for openings, ducts, corridors | Clear height (door leaf, lintel, duct); for `split_jump` the face height | per-kind minimums |
 | `length` | m | split legs, reach paths (else optional) | Walking length from the middle of `from` to the middle of `to` along this link, so a chain of links sums to the walk (the validator adds nothing for the spaces in between) | split time, partner reach, 0.5 grid |
 | `time_s` | s | no (use on every climb, crawl and co-op move on a split leg) | Traversal time of the link at the leg's pace (M4); overrides `length` / speed | split legs, partner reach |
-| `level_change` | m | for any height change | Height climbed or dropped (positive number) | ERR in the 0.40-0.45 step band; `wall_jump` <= 3.8 solo reach; co-op lip band 4.3-4.5; drop above the safe-drop height |
+| `level_change` | m | for any height change | Height climbed or dropped (positive number) | ERR in the step band, over 0.40 up to 0.45; `wall_jump` <= 3.8 solo reach; co-op lip band 4.3-4.5; drop above the safe-drop height |
 | `shared` | bool | no | Both partners move through together | ERR `width` < 2.0 |
-| `one_way` | bool | no | Passable only `from` -> `to` | reach, redundancy |
+| `one_way` | bool | no | Passable only `from` -> `to` | reach, redundancy, approaches (counted only at `to`), dead ends (a way out only at `from`) |
 | `assist` | split id | no | On the link of one leg that the other leg's action opens, darkens or disables; `reason` names the action and where it is done | checkCoop: ERR a split with no assist |
 | `reason` | string | no (expected on every link) | One-line real-world reason (level-design 16.9 element register) | not checked; the register row lives in the design doc |
 | `note`, `measured` | | no | As on spaces | |
@@ -97,12 +97,11 @@ walking speed (climbs, crawls, co-op moves) carry `time_s` on any split leg or r
 | `tunnel` | no | walk-in, height 2.1 (2.4 preferred) |
 | `window`, `hatch` | no | width / height as built |
 | `ledge`, `pipe` | no | shimmy runs; `length` = the run |
-| `drop` | no | one way by default; safe-drop height per V1 (WARN above 3.5 until a fall constant is confirmed) |
+| `drop` | no | one way by default; WARN above 4.5 (`safe_drop_m` = `LANDING.heavy`, `src/player/movement.ts:168`; no fall damage) |
 | `wall_jump` | no | `level_change` <= 3.8 (solo `WALL_JUMP.maxUp`) |
 | `split_jump` | no | `width` 1.2-1.95 between faces, `height` >= 3.6 |
 | `coop_boost` | **yes** | lip `level_change` 4.3-4.5 (`TEAM.boostMax` 4.5) |
 | `human_ladder` | **yes** | lip `level_change` 4.3-4.5 (ladder grab 4.1 until G57) |
-
 | `pair_gate` | **yes** | a team door (pair gate / pair bolt, CR5 / CR6): `door` sizes; opens only with both players (lead decision 1) |
 | `team_rope` | **yes** | the two-person rope (G180 over G110, CR7): `level_change` = the climb; needs `time_s` (lead decision 2) |
 | `rappel` | no | one way down (`RAPPEL`, `src/config/movement.ts:370`); `level_change` = the descent; needs `time_s` (lead decision 2) |
@@ -141,12 +140,14 @@ No zipline. The core schema's "no rope (G110)" line is out of date: G180 restore
   player can always be reached and nobody is stranded alone. Solo completability is not checked (A1; G2, G50).
 - **Spine (checkSpine).** Each `spine` link joins consecutive sections (ERR otherwise); removing any section's spaces
   disconnects `start` from `exfil` (ERR: a route skips a section). Loops live inside sections.
-- **Encounter spaces (checkEncounters).** Approaches = links touching the space other than `spine`. ERR fewer than 3
-  approaches or fewer than 2 route kinds; ERR missing any of `shadow`, `high`, `loud`; WARN `secret` in fewer than half
+- **Encounter spaces (checkEncounters).** Approaches = links other than `spine` that can enter the space (a one-way
+  link counts only at its `to` end), from a space that can be entered by a link from somewhere else (a door to a side
+  room entered only from this space is no approach). ERR fewer than 3 approaches or fewer than 2 route kinds; ERR missing any of `shadow`, `high`, `loud`; WARN `secret` in fewer than half
   of the guarded spaces. Routes cross: in each section the route kinds used between entry and exit share at least one
   space (ERR).
-- **Dead ends.** A space with one neighbour (not `start` / `exfil`) is ERR unless it is tagged `reward` or `objective`
-  (or typed so) and `size[1]` <= 15 m (level-design 3.4, 16.6.3).
+- **Dead ends.** A space with at most one way out (not `start` / `exfil`) is ERR unless it is tagged `reward` or
+  `objective` (or typed so) and `size[1]` <= 15 m (level-design 3.4, 16.6.3). Ways out are links, not neighbours: two
+  ladders to one hall are a loop; a one-way link is a way out only at its `from` end (a drop in is none).
 - **Splits (checkCoop).** A leg's time = the link into its first tagged space + the links between its tagged spaces +
   the fastest non-co-op link out of its last tagged space to the rejoin space (the first space both legs reach), each
   as `time_s`, else `length` / 1.3. ERR a leg over 90 s; ERR legs more than 20% apart (M4: time, not room length);
@@ -154,11 +155,18 @@ No zipline. The core schema's "no rope (G110)" line is out of date: G180 restore
   space of leg a to any of leg b, `time_s` else `length` / 3.0, ERR above 15 s. It is measured from every space of one
   leg to the nearest space of the other leg (the worst such space counts), not to every point of the other leg as
   level-design 11.6 could be read: legs up to 117 m long cannot all lie within 45 m of each other.
-- **Co-op coverage.** A co-op link (`coop_boost`, `human_ladder`) touches at least half of the encounter spaces (ERR)
-  and at least one space in every section (ERR).
+- **Co-op coverage.** A co-op link (`coop_boost`, `human_ladder`, `pair_gate`, `team_rope`) touches at least half of
+  the encounter spaces (ERR) and at least one space in every section (ERR).
+- **Solo twins (checkCoop).** A co-op link is a solo twin when one player can make the same move: a solo link from its
+  `from` to its `to`, or a solo path there that does not pass the target, on the co-op link's own `route` and no
+  longer than its `length` (a longer solo route, or one on another route kind, is the no-softlock alternative; a direct
+  solo link with no `length`, or beside a co-op link with none, counts). The move runs `from` -> `to` (a climb's foot
+  to its top); a two-way `pair_gate` is judged both ways. ERR on a `campaign` map (two players only, G2); WARN on
+  Sector Ops (G185: solo completes; G280: team doors stay two-player). The message names both links (campus CR7: the
+  `team_rope` beside the `drop`).
 - **Pacing (checkPacing).** Over the spine order of spaces; see `tension`.
 - **Dimensions (checkDimensions).** Every `size`, `width`, `height`, `length` on the 0.5 m grid (WARN); class and kind
-  rules above; ERR any `level_change` in the 0.40-0.45 band (player 0.42 vs nav 0.45 disagree).
+  rules above; ERR any `level_change` over 0.40 up to 0.45 (the step band: player 0.42 vs nav 0.45 disagree; a 0.40 curb passes).
 - **Guard counts.** Per encounter space and player count, never per section; per-section caps (spawn and alive caps
   of the map) are checked against the guard sheets, not the graph.
 

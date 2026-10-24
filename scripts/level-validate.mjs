@@ -207,15 +207,12 @@ function index(graph) {
   return { meta, spaces, links, byId, sections, secIndex, start, exfils };
 }
 
-/** Distinct neighbours per space over every link, either direction. */
-function neighbours(spaces, links) {
-  const n = new Map(spaces.map((s) => [s.id, new Set()]));
-  for (const l of links) {
-    n.get(l.from)?.add(l.to);
-    n.get(l.to)?.add(l.from);
-  }
-  return n;
-}
+/** Can `l` be walked into space `id`? (Either end of a two-way link; only the `to` end of a one-way link.) */
+const enters = (l, id) => l.to === id || (l.from === id && !isOneWay(l));
+/** Can `l` be walked out of space `id`? */
+const leaves = (l, id) => l.from === id || (l.to === id && !isOneWay(l));
+/** The other end of `l` from `id`. */
+const otherEnd = (l, id) => (l.from === id ? l.to : l.from);
 
 // ---------------------------------------------------------------------------------------------------------------
 // Merge
@@ -566,7 +563,13 @@ export function checkEncounters(graph, metrics) {
   let guardedSecret = 0;
   for (const s of spaces) {
     if (s.type !== 'encounter') continue;
-    const approaches = links.filter((l) => l.route !== 'spine' && (l.from === s.id || l.to === s.id));
+    // Approaches: links that can enter the space (a one-way link only at its `to` end), from a space a player can be
+    // in without having come through this one (a side room entered only from here is no approach).
+    const approaches = links.filter((l) => {
+      if (l.route === 'spine' || !enters(l, s.id)) return false;
+      const far = otherEnd(l, s.id);
+      return links.some((m) => enters(m, far) && otherEnd(m, far) !== s.id);
+    });
     const kinds = new Set(approaches.map((l) => l.route));
     if (approaches.length < 3) c.err(`${s.id}: ${approaches.length} approaches (need 3+)`);
     if (kinds.size < 2) c.err(`${s.id}: approaches use ${kinds.size} route kind(s) (need 2+)`);
@@ -642,14 +645,15 @@ export function checkEncounters(graph, metrics) {
     c.warn(`secret approach in ${guardedSecret} of ${guarded} guarded encounter spaces (aim for half)`);
   }
 
-  // Dead ends (level-design 3.4, 16.6.3): one neighbour, not start / exfil; allowed only for a reward or objective
-  // space no longer than the dead-end limit.
-  const near = neighbours(spaces, links);
+  // Dead ends (level-design 3.4, 16.6.3): at most one link out of the space (links, not neighbours: two ladders to
+  // one hall are a loop; a one-way link counts only at its `from` end), not start / exfil; allowed only for a reward
+  // or objective space no longer than the dead-end limit.
   for (const s of spaces) {
-    if (near.get(s.id).size !== 1 || hasTag(s, 'start') || hasTag(s, 'exfil')) continue;
+    if (links.filter((l) => leaves(l, s.id)).length > 1 || hasTag(s, 'start') || hasTag(s, 'exfil')) continue;
+    if (!links.some((l) => l.from === s.id || l.to === s.id)) continue; // no link at all: checkReach reports it
     const allowed = hasTag(s, 'reward') || hasTag(s, 'objective') || s.type === 'reward' || s.type === 'objective';
     if (!allowed) {
-      c.err(`${s.id}: dead end (one neighbour) not tagged reward or objective`);
+      c.err(`${s.id}: dead end (one way out) not tagged reward or objective`);
       continue;
     }
     const max = c.num('rules.dead_end_max_m', 'the dead-end depth check');
@@ -715,10 +719,10 @@ export function checkRedundancy(graph) {
   return c.r;
 }
 
-/** Co-op coverage, splits (leg time, parity, overwatch, assist, partner reach), shared widths. */
+/** Co-op coverage, solo twins, splits (leg time, parity, overwatch, assist, partner reach), shared widths. */
 export function checkCoop(graph, metrics) {
   const c = collector(metrics);
-  const { spaces, links, byId, sections } = index(graph);
+  const { meta, spaces, links, byId, sections } = index(graph);
 
   // Coverage: a co-op link touches half of the encounter spaces and a space in every section.
   const coopTouched = new Set();
@@ -734,6 +738,35 @@ export function checkCoop(graph, metrics) {
   }
   for (const sec of sections) {
     if (!spaces.some((s) => s.section === sec && coopTouched.has(s.id))) c.err(`section ${sec} has no co-op link`);
+  }
+
+  // Solo twins (campus run V5f, CR7): a co-op move that one player can make anyway: a solo link from the same space to
+  // the same target, or a solo path that does not pass the target, on the co-op link's own `route` and no longer than
+  // it. A longer solo route, or one on another route kind (G280's solo bypass past a guard), is the no-softlock
+  // alternative, not a twin. Lengths prove the detour: a direct solo link with no `length` (or beside a co-op link
+  // with none) is a twin; a multi-link path uses only links with `length`. The co-op move runs from -> to (a climb's
+  // foot to its top); a two-way pair_gate is judged both ways. ERR on a campaign map (two players only, G2); WARN on
+  // Sector Ops, where solo play completes (G185) but team doors stay two-player (G280).
+  const twinAdj = new Map();
+  const soloOn = (route) => {
+    if (!twinAdj.has(route)) twinAdj.set(route, adjacency(links, (l) => !COOP_KINDS.has(l.kind) && l.route === route));
+    return twinAdj.get(route);
+  };
+  const sayTwin = meta.mode === 'campaign' ? c.err : c.warn;
+  for (const l of links) {
+    if (!COOP_KINDS.has(l.kind)) continue;
+    const adj = soloOn(l.route);
+    const coopLen = typeof l.length === 'number' ? l.length : undefined;
+    const moves = [[l.from, l.to]];
+    if (l.kind === 'pair_gate' && !isOneWay(l)) moves.push([l.to, l.from]);
+    for (const [x, y] of moves) {
+      const direct = (adj.get(x) ?? []).find((a) => a.to === y
+        && (coopLen === undefined || typeof a.link.length !== 'number' || a.link.length <= coopLen + EPS));
+      const path = direct ? [direct.link] : coopLen !== undefined ? shortestByLength(adj, x, y, coopLen) : null;
+      if (!path) continue;
+      const way = x === l.from ? '' : ` (${x} -> ${y})`;
+      sayTwin(`${linkName(l)}${way} has a solo twin: ${path.map(linkName).join(', then ')}; one player makes this move alone (make the co-op move the only way at this spot, or remove the solo link)`);
+    }
   }
 
   // Shared routes: both partners move through together.
@@ -904,6 +937,32 @@ function nearest(adj, src, targets, timeOf, skipUntimed) {
       if (!dist.has(a.to) || d < dist.get(a.to)) dist.set(a.to, d);
     }
   }
+}
+
+/** Dijkstra by `length` from `src` to `dst` over arcs whose link has a `length`, at most `max` metres: the links of the
+ *  shortest path, or null. */
+function shortestByLength(adj, src, dst, max) {
+  const dist = new Map([[src, 0]]);
+  const via = new Map();
+  const done = new Set();
+  for (;;) {
+    let u = null;
+    for (const [id, d] of dist) if (!done.has(id) && (u === null || d < dist.get(u))) u = id;
+    if (u === null || dist.get(u) > max + EPS) return null;
+    if (u === dst) break;
+    done.add(u);
+    for (const a of adj.get(u) ?? []) {
+      if (typeof a.link.length !== 'number') continue;
+      const d = dist.get(u) + a.link.length;
+      if (!dist.has(a.to) || d < dist.get(a.to)) {
+        dist.set(a.to, d);
+        via.set(a.to, a);
+      }
+    }
+  }
+  const path = [];
+  for (let id = dst; id !== src; id = via.get(id).from) path.unshift(via.get(id).link);
+  return path;
 }
 
 /** Beat chart over the spine order (sections in order, spaces in file order, each spine link a release): ERR three

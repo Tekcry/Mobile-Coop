@@ -450,9 +450,10 @@ behind a VPN adapter).
   the level-graph validator (pure Node, no Babylon, no `src/` import; CI runs its Vitest, `tests/levelValidate.test.ts`).
   Reads one map graph (several files, one per section, are merged: `meta` from the first, `spaces` and `links`
   concatenated) and checks it against OUR numbers: structure, dimensions (room classes, openings, 0.5 m grid, ceilings,
-  0.40-0.45 m level changes, corridor widths), 2-player reach with no softlock, the linear spine between sections,
-  encounter approaches (3+ of 2+ kinds, shadow + high + loud, routes cross, no dead ends), 2+ edge-disjoint routes per
-  section (entry to exit), co-op coverage and splits (legs <= 90 s, parity within 20% by link traversal time, an
+  level changes in the step band over 0.40 up to 0.45 m, corridor widths), 2-player reach with no softlock, the linear
+  spine between sections, encounter approaches (3+ links that can enter the space, of 2+ kinds, shadow + high + loud,
+  routes cross; dead ends counted by ways out), 2+ edge-disjoint routes per section (entry to exit), co-op coverage,
+  co-op links with a solo twin (ERR on a campaign map, WARN on Sector Ops) and splits (legs <= 90 s, parity within 20% by link traversal time, an
   overwatch space, an assist, partner reach <= 15 s, shared links >= 2.0 m) and beat pacing. Declared `shadow_pct`,
   `sees_pct`, `los_break_s` and partner reach are targets (missing or outside = ERROR); the greybox measurement step
   (V6, later) will write `measured` values beside them. It holds no size or time constant: every number comes from
@@ -466,8 +467,9 @@ behind a VPN adapter).
   room table "Room sizes by type" and section 8 "Validator numbers": speeds, split / reach times, shared width, shadow,
   vantage and LOS targets, step band, grid) and writes `docs/design/metrics.json`, the one source of sizes and times
   for the validator. Run it after every edit to those sheet sections and commit the JSON: `tests/metricsGen.test.ts`
-  fails when the committed JSON differs from a fresh generation. Exit 0 on success, non-zero when a table is missing
-  or malformed.
+  fails when the committed JSON differs from a fresh generation. `node scripts/metrics-gen.mjs --check` writes nothing
+  and compares instead (exit 0 matches, 1 the JSON differs from the sheet, 2 a table is missing or malformed). Without
+  `--check`: exit 0 on success, non-zero when a table is missing or malformed.
 
 ## Laptop queue
 A service on the laptop (`scripts/laptop-queue/service.mjs`, one scheduled task, see `docs/laptop-queue/PLAN.md`) runs

@@ -82,8 +82,9 @@ const withKinds = (): Graph => {
   g.links.push(
     ln('a-court', 'a-hut', 'tunnel', 'secret', { width: 2.5, height: 2.4, length: 13 }),
     ln('a-gate', 'a-roof', 'open_stair', 'high', { width: 2.4, level_change: 4.5, length: 10 }),
-    ln('a-court', 'a-roof', 'wall_jump', 'high', { level_change: 3.5, length: 6, time_s: 4 }),
-    ln('a-court', 'a-roof', 'split_jump', 'high', { width: 1.5, height: 4, level_change: 4.5, length: 6, time_s: 6 }),
+    // Longer than the 6 m coop_boost beside them, so they are other ways up, not its solo twin.
+    ln('a-court', 'a-roof', 'wall_jump', 'high', { level_change: 3.5, length: 8, time_s: 4 }),
+    ln('a-court', 'a-roof', 'split_jump', 'high', { width: 1.5, height: 4, level_change: 4.5, length: 8, time_s: 6 }),
     ln('a-roof', 'a-court', 'drop', 'high', { level_change: 4.5, length: 4, time_s: 2 }),
   );
   return g;
@@ -230,7 +231,43 @@ describe('level-validate: failing fixtures (PLAN V1 list)', () => {
     const g = base();
     g.spaces.push(sp('a-closet', 'S1', 'utility', 'storage', [4, 4, 3], 2));
     g.links.push(ln('a-roof', 'a-closet', 'door', 'shadow', { ...DOOR, length: 8 }));
-    expectErr(check(g), 'a-closet: dead end (one neighbour) not tagged reward or objective');
+    expectErr(check(g), 'a-closet: dead end (one way out) not tagged reward or objective');
+    // A one-way drop in is no second way out.
+    g.links.push(ln('a-roof', 'a-closet', 'drop', 'high', { level_change: 3, length: 4 }));
+    expectErr(check(g), 'a-closet: dead end (one way out)');
+  });
+
+  it('dead ends count links, not neighbours: two ladders to one hall are a loop (campus s3-walkway)', () => {
+    const g = base();
+    g.spaces.push(sp('a-catwalk', 'S1', 'connector', 'corridor', [3.5, 14, 3], 2));
+    g.links.push(ln('a-court', 'a-catwalk', 'ladder', 'high', { level_change: 4.5, length: 8 }));
+    g.links.push(ln('a-court', 'a-catwalk', 'ladder', 'high', { level_change: 4.5, length: 8 }));
+    expect(check(g).errors.filter((e) => e.includes('dead end'))).toEqual([]);
+    g.links.pop();
+    expectErr(check(g), 'a-catwalk: dead end (one way out)');
+  });
+
+  it('rule of three counts only links that can enter the space (one-way links leaving it do not; campus s5-roof)', () => {
+    const g = base();
+    g.links = g.links.filter((l) => !(l.to === 'a-court' || l.from === 'a-court') || l.kind === 'opening' || l.kind === 'door');
+    const out = (kind: string, route: string): Link => ln('a-court', 'a-hut', kind, route, { ...DOOR, length: 13, one_way: true });
+    g.links.push(out('door', 'loud'), out('door', 'high'), out('door', 'secret'));
+    expectErr(checkEncounters(g, METRICS) as Report, 'a-court: 2 approaches (need 3+)');
+    // The same three links turned to lead in are approaches.
+    for (const l of g.links.slice(-3)) [l.from, l.to] = [l.to, l.from];
+    const r = checkEncounters(g, METRICS) as Report;
+    expect(r.errors.filter((e) => e.startsWith('a-court:'))).toEqual([]);
+  });
+
+  it('rule of three: a door from a side room entered only from this space is no approach', () => {
+    const g = base();
+    g.links = g.links.filter((l) => !(l.to === 'a-court' || l.from === 'a-court') || l.kind === 'opening' || l.kind === 'door');
+    g.spaces.push(sp('a-store', 'S1', 'reward', 'storage', [4, 4, 3], 2, ['reward']));
+    g.links.push(ln('a-court', 'a-store', 'door', 'loud', { ...DOOR, length: 8 }));
+    expectErr(checkEncounters(g, METRICS) as Report, 'a-court: 2 approaches (need 3+)');
+    // A second way into the side room (from the roof) makes its door a real approach.
+    g.links.push(ln('a-roof', 'a-store', 'hatch', 'high', { length: 6 }));
+    expect((checkEncounters(g, METRICS) as Report).errors).not.toContainEqual(expect.stringContaining('a-court: 2 approaches'));
   });
 
   it('a reward dead end deeper than the limit', () => {
@@ -526,6 +563,41 @@ describe('level-validate: coverage, routes, structure', () => {
     expectErr(check(g), 'section S1 has no co-op link');
     drop(g, 'b-vault', 'b-walk', 'coop_boost');
     expectErr(check(g), 'co-op links reach 0 of 2 encounter spaces (need at least half)');
+  });
+
+  it('solo twin: a co-op move one player can make by a solo link or path on its route, no longer (campus CR7)', () => {
+    const twin = 'link a-court -> a-roof (coop_boost) has a solo twin: link a-court -> a-roof (ladder)';
+    const g = base();
+    g.links.push(ln('a-court', 'a-roof', 'ladder', 'high', { level_change: 4.5, length: 6, time_s: 6 }));
+    expectErr(check(g), twin);
+    // A longer solo way up, or one on another route kind, is the no-softlock alternative, not a twin.
+    link(g, 'a-court', 'a-roof', 'ladder').length = 8;
+    expect(check(g).errors.filter((e) => e.includes('solo twin'))).toEqual([]);
+    const l = link(g, 'a-court', 'a-roof', 'ladder');
+    l.length = 6;
+    l.route = 'loud';
+    expect(check(g).errors.filter((e) => e.includes('solo twin'))).toEqual([]);
+    // A two-link solo path that does not pass the target counts; the message names every link.
+    const h = base();
+    h.spaces.push(sp('a-stack', 'S1', 'connector', 'corridor', [3.5, 14, 3], 2));
+    h.links.push(ln('a-court', 'a-stack', 'ledge', 'high', { length: 2 }), ln('a-stack', 'a-roof', 'ledge', 'high', { length: 3 }));
+    expectErr(check(h), 'link a-court -> a-roof (coop_boost) has a solo twin: link a-court -> a-stack (ledge), then link a-stack -> a-roof (ledge)');
+  });
+
+  it('solo twin: a pair_gate is judged both ways; Sector Ops gets a WARN, not an ERR', () => {
+    const g = base();
+    g.links.push(ln('a-court', 'a-hut', 'pair_gate', 'shadow', { ...DOOR, length: 13 }));
+    expectErr(check(g), 'link a-court -> a-hut (pair_gate) has a solo twin: link a-court -> a-hut (door)',
+      'link a-court -> a-hut (pair_gate) (a-hut -> a-court) has a solo twin: link a-court -> a-hut (door)');
+    // A one-way solo door out of the hut only twins the way back.
+    const door = link(g, 'a-court', 'a-hut', 'door');
+    Object.assign(door, { from: 'a-hut', to: 'a-court', one_way: true });
+    const back = check(g).errors.filter((e) => e.includes('solo twin'));
+    expect(back).toEqual(['link a-court -> a-hut (pair_gate) (a-hut -> a-court) has a solo twin: link a-hut -> a-court (door); one player makes this move alone (make the co-op move the only way at this spot, or remove the solo link)']);
+    g.meta.mode = 'sector';
+    const r = checkCoop(g, METRICS) as Report;
+    expect(r.errors.filter((e) => e.includes('solo twin'))).toEqual([]);
+    expectWarn(r, 'link a-court -> a-hut (pair_gate) (a-hut -> a-court) has a solo twin');
   });
 
   it('routes cross: route kinds in a section that share no space', () => {

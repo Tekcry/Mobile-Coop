@@ -163,7 +163,7 @@ misses its target fails.
    without a co-op move, or has its ledge removed. Team moves work anywhere with room (G151, which replaced G81's marked
    spots), so every such lip is a real boost target. Check: the co-op lip unit test (15).
 9. **Co-op verbs and coverage.** Co-op verbs are the ones the game has (brace and boost, human ladder, dual takedown);
-   no rope (G110); new verbs are Future work. Co-op routes are in at least half of the encounter spaces and in every
+   no rope climb except CT's two-person rope (G180 replaces G110 for that move; graph kind `team_rope`); new verbs are Future work. Co-op routes are in at least half of the encounter spaces and in every
    section. Guard counts are recorded per player count in the graph. Check: `checkCoop` (coverage).
 
 ## 12. Engine constraints (re-confirm per map)

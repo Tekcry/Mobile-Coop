@@ -39,7 +39,7 @@ Camera needs 0.62 + 0.16 = 0.78 m from the spine to a wall on the shoulder side,
 | Corridor | 3.5 - 4.0 m wide (never under 3.0) |
 | Play space | at least 6 m on the short side |
 | Ceiling | 3.0 m rooms and corridors; 4.5 - 6.0 m halls. Storey height (floor to floor) 3.3 m with a 0.3 slab |
-| Ceiling minimum | 2.4 m clear wherever a player walks; ducts and open sky exempt (level-validator BRIEF mapping, row "Ceiling") |
+| Ceiling minimum | 2.4 m clear wherever a player walks: the validator's hard floor (ERR), not a room height; rooms and corridors stay 3.0 m (row above); ducts and open sky exempt (level-validator BRIEF mapping, row "Ceiling") |
 | Fire stair (enclosed) | 1.3 m wide, two flights and a 1.3 m landing, fire door top and bottom (1.2 wide), the only stairs with doors |
 | Open feature stair | 2.4 m wide, rise 0.165, run 0.285 (slope 0.58, 30 deg), mid landing 2.0 m, no door, rails on open sides |
 | Stair height rule | floor to floor 3.3 m = 20 risers, so two flights of 10 (NCC allows 2 - 18 per flight) |
@@ -134,8 +134,8 @@ Added 2026-10-24 (Michael, changes M2 and M4). The speeds, times and targets the
 
 | Key | Value | Unit | Source |
 | --- | --- | --- | --- |
-| `split_speed_mps` | 1.3 | m/s | stealth pace, crouch gear 3 (section 1 `GEARS`); used for split-leg traversal time |
-| `reach_speed_mps` | 3.0 | m/s | run speed, G40; used for reaching a downed partner |
+| `split_speed_mps` | 1.3 | m/s | stealth pace, crouch gear 2 (`GEARS.crouch[1]`, `src/config/movement.ts:159`); used for split-leg traversal time |
+| `reach_speed_mps` | 3.0 | m/s | standing jog (`GEARS.stand[3]`, `src/config/movement.ts:160`; the run is 4.0, so 3.0 is the stricter choice); used for reaching a downed partner |
 | `split_max_s` | 90 | s | longest planned split leg (Michael 4); about 117 m at `split_speed_mps` |
 | `split_parity_pct` | 20 | % | split legs within this of each other, by traversal time (Michael 4, M4) |
 | `reach_max_s` | 15 | s | a downed partner reachable within this (Michael 4); about 45 m at `reach_speed_mps` |
