@@ -57,8 +57,9 @@ const clip = (s, n) => (s.length > n ? s.slice(0, n - 1) + '~' : s);
 export function mergeGraphs(graphs) {
   const out = { meta: {}, spaces: [], links: [], objectives: [], syncs: [], rules: [], mission: null };
   graphs.forEach((g, i) => {
+    if (!g || typeof g !== 'object') return;
     if (i === 0) out.meta = { ...(g.meta ?? {}) };
-    for (const k of ['spaces', 'links', 'objectives', 'syncs', 'rules']) if (Array.isArray(g[k])) out[k].push(...g[k]);
+    for (const k of ['spaces', 'links', 'objectives', 'syncs', 'rules']) if (Array.isArray(g[k])) out[k].push(...g[k].filter((x) => x && typeof x === 'object'));
     if (!out.mission && g.mission && typeof g.mission === 'object') out.mission = g.mission;
     if (i > 0 && Array.isArray(g.meta?.sections)) {
       const have = new Set(out.meta.sections ?? []);
@@ -224,7 +225,6 @@ export function buildSvg(opt) {
   // ---- svg parts
   const o = [];
   const head = [];
-  const body = [];
   const names2 = names.map((x) => basename(x)).join(', ');
   head.push(`<text x="${MARGIN}" y="24" font-size="16" font-weight="bold">${esc(title)}</text>`);
   head.push(`<text x="${MARGIN}" y="40" font-size="10" fill="#444">graph: ${esc(names2 || '(none)')}   |   ${g.spaces.length} spaces, ${g.links.length} links${g.meta.mode ? `, mode ${esc(g.meta.mode)}` : ''}${Array.isArray(g.meta.sections) ? `, sections ${esc(g.meta.sections.join(' '))}` : ''}</text>`);
