@@ -1,0 +1,16 @@
+{
+  "id": "20261024T073128-night-shift-guard-ai-099bf44d-153b",
+  "sha": "099bf44d9c9f3e484240d5153f0bac29229fd860",
+  "branch": "",
+  "pr": 326,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-stealth-ai",
+    "e2e-enemies",
+    "e2e-combat"
+  ],
+  "jobs": 2,
+  "set": "r1-rays2",
+  "note": "R1 fix round: Ballistics casts no longer reset the result"
+}
