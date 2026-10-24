@@ -194,3 +194,30 @@ describe('NavGrid extra flood seeds', () => {
     for (let i = 0; i < 40 * 40; i++) expect(b.isWalkable(i)).toBe(a.isWalkable(i));
   });
 });
+
+describe('(polish2 A184) findPath partial: the reached cell nearest an unreachable goal', () => {
+  // two floor islands split by a 2 m gap at x -1..1 (both seeded: walkable, no way across)
+  const g = new NavGrid({
+    minX: -10, maxX: 10, minZ: -10, maxZ: 10, cell: 0.5,
+    sample: (x) => ({ h: 0, ok: Math.abs(x) > 1 }),
+    blockers: [], agentRadius: 0.3, stepHeight: 0.45, seed: [-9, -9], extraSeeds: [[5, 0, 5]],
+  });
+  it('default: still null; partial: ends on the near side of the gap, level with the goal, and says so', () => {
+    expect(g.findPath([-6, 2], [6, -3])).toBeNull();
+    expect(g.partialEnd).toBe(false);
+    const p = g.findPath([-6, 2], [6, -3], 6000, Number.NaN, Number.NaN, true);
+    expect(p).not.toBeNull();
+    expect(g.partialEnd).toBe(true);
+    const end = p![p!.length - 1]!;
+    expect(end[0]).toBeLessThan(-1);
+    expect(end[0]).toBeGreaterThan(-2.5);
+    expect(Math.abs(end[1] - -3)).toBeLessThan(0.6);
+    // standing on that end: nothing nearer (null), still a partial end
+    expect(g.findPath([end[0], end[1]], [6, -3], 6000, Number.NaN, Number.NaN, true)).toBeNull();
+    expect(g.partialEnd).toBe(true);
+    // a reachable goal: the full path, not partial
+    const q = g.findPath([-6, 2], [-3, -3], 6000, Number.NaN, Number.NaN, true)!;
+    expect(g.partialEnd).toBe(false);
+    expect(q[q.length - 1]).toEqual([-3, -3]);
+  });
+});

@@ -176,6 +176,11 @@ export class NavGrid {
   private cameLink: Int32Array;
   private stamp: Uint32Array;
   private gen = 1;
+  /** (polish2 A184) The last `findPath` with `partial` found no path and ended at the reached cell nearest the goal
+   *  (or returned null: the start was that cell). */
+  partialEnd = false;
+  /** (polish2 A184) The partial end's cell centre (scratch). */
+  private endP: P2 = [0, 0];
   /**
    * Bumped whenever a closure opens or shuts: an agent holding a path (or a cached flow field) compares it with the
    * value it planned under and replans when it changed.
@@ -587,10 +592,13 @@ export class NavGrid {
   /**
    * A* returning smoothed world waypoints (excluding the start), or null if unreachable. A waypoint carrying a
    * `link` is where a ladder / drop starts; the next one is past its far end.
+   * (polish2 A184) `partial`: with no path, the path ends at the reached cell nearest the goal (lowest octile; its
+   * centre is the last waypoint); that cell is the start: null. `partialEnd` says whether the last call ended short.
    */
-  findPath(from: P2, to: P2, maxExpand = 6000, fromY = Number.NaN, toY = Number.NaN): Waypoint[] | null {
+  findPath(from: P2, to: P2, maxExpand = 6000, fromY = Number.NaN, toY = Number.NaN, partial = false): Waypoint[] | null {
+    this.partialEnd = false;
     const s = this.nearestWalkable(from[0], from[1], 12, fromY);
-    const g = this.nearestWalkable(to[0], to[1], 12, toY);
+    let g = this.nearestWalkable(to[0], to[1], 12, toY);
     if (s < 0 || g < 0) return null;
     if (s === g) return [to];
     const gen = ++this.gen;
@@ -601,7 +609,9 @@ export class NavGrid {
     this.gScore[s] = 0;
     this.came[s] = -1;
     this.cameLink[s] = -1;
-    heap.push(s, this.octile(s, gx, gz));
+    let bestH = this.octile(s, gx, gz);
+    let best = s;
+    heap.push(s, bestH);
     let expanded = 0;
     let found = false;
     while (heap.size && expanded++ < maxExpand) {
@@ -620,11 +630,27 @@ export class NavGrid {
           this.gScore[j] = ng;
           this.came[j] = cur;
           this.cameLink[j] = this.nbLink[k]!;
-          heap.push(j, ng + this.octile(j, gx, gz));
+          const h = this.octile(j, gx, gz);
+          if (h < bestH) {
+            bestH = h;
+            best = j;
+          }
+          heap.push(j, ng + h);
         }
       }
     }
-    if (!found) return null;
+    // (polish2 A184) the nearest reached cell instead (the start itself: nothing nearer to walk to)
+    let tx = to[0];
+    let tz = to[1];
+    if (!found) {
+      if (!partial) return null;
+      this.partialEnd = true;
+      if (best === s) return null;
+      g = best;
+      const c = this.centerInto(best, this.endP);
+      tx = c[0];
+      tz = c[1];
+    }
     const cells: number[] = [];
     const via: number[] = [];
     for (let c = g; c !== -1; c = this.came[c]!) {
@@ -643,8 +669,8 @@ export class NavGrid {
       const lk = last ? -1 : via[k]!;
       if (!last && lk < 0) continue;
       const link = lk >= 0 ? this.links[lk]! : null;
-      const ex = link ? link.pts[0]! : to[0];
-      const ez = link ? link.pts[2]! : to[1];
+      const ex = link ? link.pts[0]! : tx;
+      const ez = link ? link.pts[2]! : tz;
       this.smoothCells(sx, sz, cells, segStart, k - 1, ex, ez, out);
       if (!link) break;
       const wp = out[out.length - 1]!;

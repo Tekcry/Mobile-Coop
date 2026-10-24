@@ -294,6 +294,11 @@ const HEARD_KEEPS_K = true;
 /** (polish A13) A high-security post never takes a search-plan point; a plan point a clamp moved is finished with
  *  `reached` false. Undo: false. */
 const PLAN_CLAMP = true;
+// ----- (guard-ai polish batch 2) undo switches: each flips one polish2 fix back to the 4.98 behaviour -----
+/** (polish2 A184) An investigating guard whose spot has no path (a locked shut door, no way round) walks to the reached
+ *  nav cell nearest it (`findPath` partial) and counts as arrived there (he looks, `investigateLook` ends it). Undo:
+ *  false (he stands where he is until `investigateMax`). */
+const NEAR_SIDE = true;
 /** (polish A2) `pickCover`'s best candidates (index, score), best first; module scratch (one pick at a time). */
 const CV_IDX = new Int32Array(8);
 const CV_SCORE = new Float64Array(8);
@@ -492,6 +497,9 @@ export class Enemy implements Damageable {
   /** (guard-ai S28) The last plan found no path (a locked door shut the way): the next try waits for `routeT`, a new goal
    *  or a grid change, not every frame. */
   private routeMiss = false;
+  /** (polish2 A184) The last plan was partial and he stands on its end (the reached cell nearest the goal): there is
+   *  nothing nearer to walk to. */
+  private routeNear = false;
   /** Searching round its own stimulus (a body, a light) rather than the shared last known position. */
   private searchOwn = false;
   /** (guard-ai S18) The search's kind (`response.ts` `SEARCH_*`): plain, a dead body's (longer, wider), a device's. */
@@ -2552,8 +2560,9 @@ export class Enemy implements Damageable {
   }
 
   /** Head towards a floor point: straight when the line is clear, else along an A* path (replanned when the
-   *  goal moves). Returns the next waypoint, or null when there. */
-  private goTo(p: P2, dt: number, near = 0.6, y = Number.NaN): Waypoint | null {
+   *  goal moves). Returns the next waypoint, or null when there. (polish2 A184) `partial`: with no path he walks to the
+   *  reached cell nearest the goal; standing on it, null with `routeNear` set. */
+  private goTo(p: P2, dt: number, near = 0.6, y = Number.NaN, partial = false): Waypoint | null {
     // no height given: the storey nearest its own (patrol routes and heard spots are floor points)
     if (y !== y) y = this.pos.y;
     const me = this.meP;
@@ -2564,6 +2573,7 @@ export class Enemy implements Damageable {
     if (nav.lineClear(me, p, this.pos.y, y)) {
       this.routePath.length = 0;
       this.routeMiss = false;
+      this.routeNear = false;
       return p;
     }
     this.routeT -= dt;
@@ -2576,8 +2586,9 @@ export class Enemy implements Damageable {
       this.routeVer = nav.version;
       this.routeGoal[0] = p[0];
       this.routeGoal[1] = p[1];
-      this.routePath = nav.findPath(me, p, 3000, this.pos.y, y) ?? [];
+      this.routePath = nav.findPath(me, p, 3000, this.pos.y, y, partial) ?? [];
       this.routeMiss = this.routePath.length === 0;
+      this.routeNear = partial && this.routeMiss && nav.partialEnd === true;
     }
     if (this.routePath.length === 0) return null;
     const wp = this.routePath[0]!;
@@ -2744,8 +2755,16 @@ export class Enemy implements Damageable {
           // look round: sweep either side of the arrival facing
           return { point: null, speed: 0, face: this.lookBase + Math.sin(this.spotLookT * 1.6) * 1.0 };
         }
+        // (polish2 A184) investigating: a spot with no path (a locked door) is walked to its near side; there, he has
+        // arrived (he looks towards it and `investigateLook` ends it as at a reached spot)
+        const part = NEAR_SIDE && lvl === 'investigating';
+        const wp = this.goTo(this.spot, dt, 0.6, Number.NaN, part);
+        if (part && !wp && this.routeNear) {
+          this.rush = false;
+          this.spotArrived = true;
+          return { point: null, speed: 0, face: Math.atan2(this.spot[0] - this.pos.x, this.spot[1] - this.pos.z) };
+        }
         this.spotLookT = 0;
-        const wp = this.goTo(this.spot, dt);
         if (!wp && lvl === 'searching' && this.routePath.length === 0 && d > 1.1) {
           // unreachable: skip it
           if (this.planPoint) this.planOver(false);
