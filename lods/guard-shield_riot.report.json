@@ -138,7 +138,7 @@
  "notes": [],
  "bake": {
   "leftScale": 1,
-  "seconds": 28.3,
+  "seconds": 33.9,
   "device": "OPTIX: NVIDIA GeForce GTX 1080 Ti",
   "seamKept": [
    null,

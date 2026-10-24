@@ -5,7 +5,7 @@
   {
    "lod": 0,
    "file": "lods/guard-lean-lod0.glb",
-   "bufferTris": 30701,
+   "bufferTris": 36243,
    "draws": 1,
    "bones": [
     "root",
@@ -73,12 +73,12 @@
      "format": "ktx2"
     }
    ],
-   "vertices": 25197,
+   "vertices": 28754,
    "mixedTris": 0,
    "pieceAttrUint8": true,
    "shownTris": {
-    "runner": 11411,
-    "sniper": 11772
+    "runner": 13958,
+    "sniper": 14767
    },
    "bodyTris": 1194,
    "headTris": {
@@ -96,8 +96,8 @@
     "fade": 690
    },
    "pieceTris": {
-    "uniform_rolled": 1712,
-    "work": 1885,
+    "uniform_rolled": 4707,
+    "work": 4432,
     "cap": 488,
     "beanie": 448,
     "boonie": 522,
@@ -111,7 +111,7 @@
   {
    "lod": 1,
    "file": "lods/guard-lean-lod1.glb",
-   "bufferTris": 11417,
+   "bufferTris": 11718,
    "draws": 1,
    "bones": [
     "root",
@@ -169,12 +169,12 @@
      "format": "ktx2"
     }
    ],
-   "vertices": 12739,
+   "vertices": 11529,
    "mixedTris": 0,
    "pieceAttrUint8": true,
    "shownTris": {
-    "runner": 4833,
-    "sniper": 4913
+    "runner": 4882,
+    "sniper": 5165
    },
    "bodyTris": 398,
    "headTris": {
@@ -192,8 +192,8 @@
     "fade": 242
    },
    "pieceTris": {
-    "uniform_rolled": 1489,
-    "work": 1625,
+    "uniform_rolled": 1741,
+    "work": 1674,
     "cap": 198,
     "beanie": 178,
     "boonie": 197,
@@ -207,7 +207,7 @@
   {
    "lod": 2,
    "file": "lods/guard-lean-lod2.glb",
-   "bufferTris": 3456,
+   "bufferTris": 3694,
    "draws": 1,
    "bones": [
     "root",
@@ -265,12 +265,12 @@
      "format": "ktx2"
     }
    ],
-   "vertices": 4824,
+   "vertices": 4378,
    "mixedTris": 0,
    "pieceAttrUint8": true,
    "shownTris": {
-    "runner": 1509,
-    "sniper": 1638
+    "runner": 1651,
+    "sniper": 1734
    },
    "bodyTris": 149,
    "headTris": {
@@ -288,8 +288,8 @@
     "fade": 0
    },
    "pieceTris": {
-    "uniform_rolled": 552,
-    "work": 487,
+    "uniform_rolled": 648,
+    "work": 629,
     "cap": 77,
     "beanie": 58,
     "boonie": 78,
@@ -340,7 +340,7 @@
  "notes": [],
  "bake": {
   "leftScale": 1,
-  "seconds": 1980.4,
+  "seconds": 1844.3,
   "device": "OPTIX: NVIDIA GeForce GTX 1080 Ti",
   "seamKept": [
    {
@@ -404,27 +404,27 @@
    "lod0.body": 0.895,
    "lod1.body": 0.862,
    "lod2.body": 0.969,
-   "lod0.garment:trousers": 0.442,
-   "lod1.garment:trousers": 0.648,
-   "lod2.garment:trousers": 0.93,
-   "lod0.garment:boots": 0.616,
-   "lod1.garment:boots": 0.949,
-   "lod2.garment:boots": 0.979,
-   "lod0.garment:gloves": 0.619,
-   "lod1.garment:gloves": 0.845,
+   "lod0.garment:trousers": 0.756,
+   "lod1.garment:trousers": 0.688,
+   "lod2.garment:trousers": 0.886,
+   "lod0.garment:boots": 0.527,
+   "lod1.garment:boots": 0.841,
+   "lod2.garment:boots": 0.99,
+   "lod0.garment:gloves": 0.634,
+   "lod1.garment:gloves": 0.829,
    "lod2.garment:gloves": 0.978,
-   "lod0.garment:shirt_rolled": 0.512,
-   "lod1.garment:shirt_rolled": 0.686,
+   "lod0.garment:shirt_rolled": 0.876,
+   "lod1.garment:shirt_rolled": 0.861,
    "lod2.garment:shirt_rolled": 0.978,
-   "lod0.garment:work_jacket": 0.563,
-   "lod1.garment:work_jacket": 0.76,
-   "lod2.garment:work_jacket": 0.974,
-   "lod0.garment:work_trousers": 0.509,
-   "lod1.garment:work_trousers": 0.705,
-   "lod2.garment:work_trousers": 0.938,
-   "lod0.garment:work_gloves": 0.657,
-   "lod1.garment:work_gloves": 0.845,
-   "lod2.garment:work_gloves": 0.98,
+   "lod0.garment:work_jacket": 0.862,
+   "lod1.garment:work_jacket": 0.821,
+   "lod2.garment:work_jacket": 0.958,
+   "lod0.garment:work_trousers": 0.664,
+   "lod1.garment:work_trousers": 0.915,
+   "lod2.garment:work_trousers": 0.9,
+   "lod0.garment:work_gloves": 0.642,
+   "lod1.garment:work_gloves": 0.792,
+   "lod2.garment:work_gloves": 0.99,
    "lod0.piece:cap": 0.72,
    "lod1.piece:cap": 0.775,
    "lod2.piece:cap": 0.895,

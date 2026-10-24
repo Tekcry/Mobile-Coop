@@ -5,7 +5,7 @@
   {
    "lod": 0,
    "file": "lods/guard-broad-lod0.glb",
-   "bufferTris": 8557,
+   "bufferTris": 11423,
    "draws": 1,
    "bones": [
     "root",
@@ -73,12 +73,12 @@
      "format": "ktx2"
     }
    ],
-   "vertices": 9341,
+   "vertices": 11241,
    "mixedTris": 0,
    "pieceAttrUint8": true,
    "shownTris": {
-    "heavy": 8557,
-    "enforcer": 9357
+    "heavy": 11423,
+    "enforcer": 12223
    },
    "bodyTris": 1193,
    "headTris": {
@@ -87,7 +87,7 @@
    "eyeTris": 448,
    "hairCapTris": {},
    "pieceTris": {
-    "uniform": 1939,
+    "uniform": 4805,
     "balaclava": 532,
     "helmet_heavy": 936,
     "plate_heavy": 1768,
@@ -97,7 +97,7 @@
   {
    "lod": 1,
    "file": "lods/guard-broad-lod1.glb",
-   "bufferTris": 4254,
+   "bufferTris": 4321,
    "draws": 1,
    "bones": [
     "root",
@@ -155,12 +155,12 @@
      "format": "ktx2"
     }
    ],
-   "vertices": 5879,
+   "vertices": 5138,
    "mixedTris": 0,
    "pieceAttrUint8": true,
    "shownTris": {
-    "heavy": 4254,
-    "enforcer": 4554
+    "heavy": 4321,
+    "enforcer": 4621
    },
    "bodyTris": 398,
    "headTris": {
@@ -169,7 +169,7 @@
    "eyeTris": 0,
    "hairCapTris": {},
    "pieceTris": {
-    "uniform": 1693,
+    "uniform": 1760,
     "balaclava": 198,
     "helmet_heavy": 398,
     "plate_heavy": 894,
@@ -179,7 +179,7 @@
   {
    "lod": 2,
    "file": "lods/guard-broad-lod2.glb",
-   "bufferTris": 1445,
+   "bufferTris": 1637,
    "draws": 1,
    "bones": [
     "root",
@@ -237,12 +237,12 @@
      "format": "ktx2"
     }
    ],
-   "vertices": 2298,
+   "vertices": 2245,
    "mixedTris": 0,
    "pieceAttrUint8": true,
    "shownTris": {
-    "heavy": 1445,
-    "enforcer": 1565
+    "heavy": 1637,
+    "enforcer": 1757
    },
    "bodyTris": 149,
    "headTris": {
@@ -251,7 +251,7 @@
    "eyeTris": 0,
    "hairCapTris": {},
    "pieceTris": {
-    "uniform": 462,
+    "uniform": 654,
     "balaclava": 79,
     "helmet_heavy": 146,
     "plate_heavy": 345,
@@ -285,7 +285,7 @@
  "notes": [],
  "bake": {
   "leftScale": 1,
-  "seconds": 1041.2,
+  "seconds": 1440.9,
   "device": "OPTIX: NVIDIA GeForce GTX 1080 Ti",
   "seamKept": [
    {
@@ -331,18 +331,18 @@
    "lod0.body": 0.869,
    "lod1.body": 0.837,
    "lod2.body": 0.949,
-   "lod0.garment:shirt": 0.579,
-   "lod1.garment:shirt": 0.594,
-   "lod2.garment:shirt": 0.881,
-   "lod0.garment:trousers": 0.518,
-   "lod1.garment:trousers": 0.639,
-   "lod2.garment:trousers": 0.949,
-   "lod0.garment:boots": 0.649,
-   "lod1.garment:boots": 0.794,
-   "lod2.garment:boots": 0.993,
-   "lod0.garment:gloves": 0.577,
-   "lod1.garment:gloves": 0.845,
-   "lod2.garment:gloves": 0.965,
+   "lod0.garment:shirt": 0.901,
+   "lod1.garment:shirt": 0.815,
+   "lod2.garment:shirt": 0.964,
+   "lod0.garment:trousers": 0.681,
+   "lod1.garment:trousers": 0.661,
+   "lod2.garment:trousers": 0.88,
+   "lod0.garment:boots": 0.569,
+   "lod1.garment:boots": 0.729,
+   "lod2.garment:boots": 0.977,
+   "lod0.garment:gloves": 0.624,
+   "lod1.garment:gloves": 0.861,
+   "lod2.garment:gloves": 0.978,
    "lod0.piece:balaclava": 0.678,
    "lod1.piece:balaclava": 0.752,
    "lod2.piece:balaclava": 0.719,
