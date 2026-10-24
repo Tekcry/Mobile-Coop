@@ -158,6 +158,14 @@ Brief and decisions SB1-SB14: `docs/sector-redesign/briefs/SECTION-BAKE.md`; bui
 - Parity: per-lamp bytes are independent of the job, so the field at any point of the live section equals the full
   bake's (`tests/sectionBake.test.ts`, exact at random points; the joined result byte-identical). The joined result is
   cached under the full key at the next section change or the match's end (SB14: no mid-play clone).
+- Failures (section-bake robust, `docs/sector-redesign/checks/section-bake-robust.md`): a worker error or a job in flight
+  past `JOB_CAP_MS` (60 s: a worker that died silently) is tried once more on the pool, then baked inline; once the
+  match plays an inline bake waits until the pool is idle, one lamp per task. A lamp that fails every way lands dark for
+  this match only: logged once, and the result is never cached. A load that throws after the bake started
+  (`World.create`) stops its bakers (`disposeSectionBakersSince`). During play a live-section landing goes to the head of
+  the tile queue (budgeted); `setLive` snaps the new live section's fading and queued lamps to full and moves their
+  tiles first. Without `texSubImage3D` the whole atlas goes up for live-section landings and once at the end, never
+  per background batch.
 
 ## Moving lights: flicker and stutter (LR16-5, Michael M13)
 - `world/lampFlicker.ts` (pure): a fire's multiplier (value noise 0.75..1, a few Hz) and a failing tube's stutter
