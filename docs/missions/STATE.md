@@ -1,5 +1,9 @@
 # mission-framework - STATE
 
+## SAVE ~00:25 (orchestrator 85%; no swap, resume at the 03:10 reset)
+- EN1 checker FIX (2 must-fix: per-team step budget in sector mode; per-team restart restore(section, now, team?) / resetSection(..., scope?)) + 4 polish; fix round sent to the EN1 builder (feature/mission-en1). If its fix is not on origin at resume: rerun the fix from this line (Opus, worktree -mission-en1). Then merge EN1 into feature/mission-engine and start EN2 (brief items in the 23:55 block: per-team restart, per-area alarm stages, spookStep (not a flag) survives restore, Guard AI events {name, guardTag, postId, via?}, onAlarm on camera stage for CR) + EN3 (Sonnet, objectiveRows(runner, team, hints)).
+- Running at save: VAL (WIP 97cbd290 on feature/mission-validator), CMG (no file yet: rerun from PLAN row CMG + the BEAT spaces-needed lists if missing), KIT-PULL, KIT-SHUT (no files yet: rerun from PLAN rows if missing), guard-cap M0 REPORT (feature/guard-cap; rerun if REPORT has no "2026-10 re-measure (M0)" section).
+
 ## Now (2026-10-24 ~23:55)
 - ~00:15 EN1 DONE d0532377 (36/36; API in its report: MissionRunner snapshot/restore, RuleTracker, objectiveRows, pack/parseMissionWire); Opus checker running. KIT0 DONE 6a202677 (registry src/game/kit/registry.ts, import.meta.glob load; 342 tests green); KIT-PULL + KIT-SHUT running (worktrees -mission-kit-pull / -kit-shut off kit0); batch checker after both. NET must: fold KitKind into TeamKind (teamMoves.ts, one line) + drop the cast in TeamController.kitRequest; tuner moveTune.ts sections + coop.md text later (FRAG / docs). guard-cap M0 REPORT verdict agent running (feature/guard-cap).
 - Wave 1 DONE so far: KITS 71977e5d; GSVG 6d731e69 + checker fix 074c55c0 (checker FIX 1 must-fix, done; polish: grid 10 m vs plan-svg 6 m, --base id prefixes, = option form, --dump-rooms needs repo cwd, extent cap); BEAT TGC + TKL 95a23229; BEAT SS + CR 7bb695ad. Running: EN1, KIT0, VAL, CMG.
@@ -18,5 +22,5 @@
 
 ## Resume prompt
 ```
-Night Shift | Marlow Build: mission-framework lead (orchestrator ~22:45). Worktree C:/NightShift/Mobile-Coop-mission-framework, branch feature/mission-framework. Read docs/missions/BRIEF.md, PLAN.md, STATE.md "Now". Branch guard before writes. Message "Night Shift | Orchestrator" at PLAN up and PR open.
+Night Shift | Marlow Build: mission-framework lead (+ level-validator V6, guard-cap). Read docs/missions/STATE.md "SAVE" block first (worktrees -mission-framework, -mission-en1, -mission-kit0, -mission-kit-pull, -mission-kit-shut, -mission-validator, -mission-engine; node_modules junctions). For each running slice listed there, check origin for its commit; rerun missing ones from docs/missions/PLAN.md rows. PLAN section 6 waves. V6: docs/level-validator/STATE.md on feature/level-validator-v6 (V6e-2 on cloud-queue; then Opus checker + PR). guard-cap: docs/guard-cap/STATE.md. Rules: CLAUDE.md Sessions; no desktop e2e (laptop queue); single vitest files; message the orchestrator at PR open / train-ready / blocked only. Michael signs off specs in the morning: PR A (feature/mission-framework) must hold all sign-off pages by then.
 ```
