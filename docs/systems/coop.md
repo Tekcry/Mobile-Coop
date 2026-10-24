@@ -483,7 +483,8 @@ client next to a device first.
   snapshot's `info`. Objectives, markers and banners use the item and event mirror.
 - (mission NET, wire change) `ms` the running mission (`MissionWire`, `game/mission/missionWire.ts`: done bits per team,
   facts, rule breaks `rb` and the last line `rl`, rules kept `rk`), parsed by `parseMissionWire` in `sectorExtra`. The
-  client applies it (`net/missionMirror.ts`: a `MissionRunner` from the map's `missions` by id; never evaluated). The
+  client applies it (`net/missionMirror.ts`: a `MissionRunner` from the map's `missions` by id; never evaluated; the
+  client's mission HUD reads `runner`, while `kept` (the rules-kept row of the rating) has no reader yet). The
   rule line reaches a live client as the host's radio line (`feed` event); only a late joiner's first `ms` with breaks
   shows `rl` (its feed). A client interrogation's intel carries the guard id and the client id (`revealIntel` eid / by).
   A client's frag, mine or sticky cam use goes as `gused {kind}` (client -> host, 4 a second at most;

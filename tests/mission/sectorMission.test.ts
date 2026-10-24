@@ -672,4 +672,11 @@ describe('checkMission EN4: start and guard list', () => {
     expect(bad([{ section: 's2', slots: [3] }]).some((e) => e.includes('section s3 has no entry'))).toBe(true);
     expect(bad([{ section: 's2', slots: [0] }, { section: 's3' }]).some((e) => e.includes('guard s2:3 is not in the mission\'s guard list'))).toBe(true);
   });
+  it('(POL1) rejects an interrogate decoy the guard list does not spawn; a spawned decoy passes', () => {
+    const ask = (decoys: string[]): MissionDef['steps'][number] => ({ id: 'ask', section: 's2', team: 'all', kind: 'interrogate', text: 'Ask the clerk', target: 's2:3', decoys, bolt: [1, 0, 2] });
+    const steps = (decoys: string[]): MissionDef['steps'] => [lateStart().steps[0]!, ask(decoys), lateStart().steps[2]!];
+    expect(checkMission(lateStart({ steps: steps(['s2:1']) }), ids())).toEqual([]);
+    const errs = checkMission(lateStart({ steps: steps(['s2:2']) }), ids());
+    expect(errs.some((e) => e.includes('step ask: guard s2:2 is not in the mission\'s guard list'))).toBe(true);
+  });
 });
