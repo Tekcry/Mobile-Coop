@@ -50,7 +50,7 @@ Design authority: docs/DECISIONS.md (G13 tests run as a desktop, G51, G94), then
 - A suite past `E2E_SUITE_TIMEOUT` (default 600 s) is killed and fails. Full runs on this desktop use
   `E2E_SUITE_TIMEOUT=900` (e2e-desktop takes about 553 s and e2e-mouse about 405 s solo).
 - `--quick` (`--since=<ref>`, default: the working tree plus unpushed commits): `smoke` + the suites mapped to the
-  changed folders (`COVERS` in the runner, first match wins: the studio files (`src/anim/studio*`, `tuneHistory`,
+  changed folders (`COVERS` in `scripts/quick-covers.mjs`, which the runner and auto-train read, first match wins: the studio files (`src/anim/studio*`, `tuneHistory`,
   `src/game/studioStage`, `src/world/maps/studio.ts`, `src/save/animTuneStore`, `src/ui/studio*`, `tuneSnapshots`,
   `overlayProject`, `animTune*`, `tuner*` (tunerLayout, tunerMouse, tunerTarget, tunerPhone): `e2e-studio` plus their folder's suites; `tuner*`, `animTune*`, `studioStage` and `src/player/freeView` also `e2e-tuner-phone`), `src/core/quality`, `display`, `settings`
   and `flags` by file, then the folders); an unmapped `src/` path, `e2e-lib`, the runner or `package.json` runs `CORE` = e2e-move,
