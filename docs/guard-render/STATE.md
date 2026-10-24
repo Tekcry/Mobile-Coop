@@ -75,6 +75,11 @@ run), S9 + S10 builders in parallel once Sector Ops confirms the freeze / world.
   runs (47041500, 9f7dddbb, 3360b85b x2, 6b44efb8 x2) are queued and run after the 4189 PR run. Then: the final A/B on
   the head, look shots, PR.
 
+- 2026-10-24 ~18:25: PR #323 open. S9b-fix + S10b Opus checker PASS (polish: frozenCasterSphere also takes non-frozen
+  hidden rigs (dog rig, puppets, camera-hidden local rig) -> restrict to the freeze list; multi-camera second thaw; charShadows.ts:316
+  redundant reset). Orchestrator gate: explain sectorops 24 alert 11.8 vs 8.5 before train-ready. Queued alone after train 57:
+  diag a/b/c + reps r1 base, r2 3360b85b, r3 base, r4 head 6a6b5e58, r5 base (out C:/NightShift/scratch/gr2/rep-*).
+
 ## Phase 1 (history)
 ## Now
 **CLOSED 2026-10-23 ~17:10** (orchestrator approved: close with #225, M1 CPU overage to the polish list; perf tuning
