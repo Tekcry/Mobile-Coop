@@ -1,0 +1,22 @@
+{
+  "id": "20261024T173640-night-shift-test-run-3be7d1a2-0a8b",
+  "sha": "3be7d1a20b0b6392f681806a426af4c9e0183c38",
+  "branch": "",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Test Runner",
+  "steps": [
+    "node scripts/run-e2e.mjs e2e-ctcourse:1",
+    "node scripts/run-e2e.mjs e2e-ctcourse:1",
+    "node scripts/run-e2e.mjs e2e-ctcourse:1",
+    "node scripts/run-e2e.mjs e2e-sectorops:1",
+    "node scripts/run-e2e.mjs e2e-sectorops:1",
+    "node scripts/run-e2e.mjs e2e-sectorops:1",
+    "node scripts/run-e2e.mjs e2e-sectorops:6",
+    "node scripts/run-e2e.mjs e2e-sectorops:6",
+    "node scripts/run-e2e.mjs e2e-sectorops:6"
+  ],
+  "env": {},
+  "set": "soak-flaky",
+  "note": "flake budget fix order: ctcourse:1, sectorops:1, sectorops:6 x3 each on 4.100.0"
+}
