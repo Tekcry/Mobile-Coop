@@ -7,7 +7,7 @@ import type { EnemyDef } from './enemyDefs';
 import type { Enemy } from './enemy';
 import { Ragdoll } from './ragdoll';
 import { attachToShoulder, captureLying, hoistAt, layAt, slideAt } from './carryPose';
-import { deathLie, dropLie, fallYaw, headReach, LIE, newLie, settleMax, type BodyLie, type LieBody } from './bodyLie';
+import { deathLie, dropLie, fallYaw, headReach, LIE, lieAt, newLie, settleMax, type BodyLie, type LieBody } from './bodyLie';
 
 let nextBody = 1;
 
@@ -30,6 +30,9 @@ const layQ = new Quaternion();
  * (rig-pose-fix S5) The lie at death on the sim (`bodyLie.deathLie`): the guard's sim feet (x, y, z) and yaw, the death
  * impulse's horizontal way (dirX, dirZ), the body's proportions, and the clear room along the fall on the static
  * collision (`bal`; null: open floor). The host's `Body` and the co-op client's ragdoll both take it.
+ * (rig-pose-fix S3, CHECK-W1 polish 1) Then one down ray on the static collision from over the settled pelvis: the body
+ * lies on the floor found there (killed at a ledge lip, the pelvis settles over the drop; killed mid-air, on a ladder or
+ * a drop, the floor is below his feet); no floor within `LIE.floorDrop` under his feet: it lies at his feet's height.
  */
 export function deathLieOn(out: BodyLie, bal: Pick<Ballistics, 'hitDistance'> | null, x: number, y: number, z: number, yaw: number, dirX: number, dirZ: number, p: LieBody): BodyLie {
   let room = Infinity;
@@ -40,7 +43,16 @@ export function deathLieOn(out: BodyLie, bal: Pick<Ballistics, 'hitDistance'> | 
     rayB.set(x + Math.sin(h) * reach, y + LIE.rayY, z + Math.cos(h) * reach);
     room = bal.hitDistance(rayA, rayB, G.STATIC);
   }
-  return deathLie(out, x, y, z, yaw, dirX, dirZ, p, room);
+  deathLie(out, x, y, z, yaw, dirX, dirZ, p, room);
+  if (bal) {
+    const top = y + LIE.floorUp;
+    const len = LIE.floorUp + LIE.floorDrop;
+    rayA.set(out.x, top, out.z);
+    rayB.set(out.x, top - len, out.z);
+    const d = bal.hitDistance(rayA, rayB, G.STATIC);
+    if (d < len - 1e-4) lieAt(out, out.x, top - d, out.z, out.headYaw, p);
+  }
+  return out;
 }
 
 /**

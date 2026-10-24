@@ -31,6 +31,10 @@ export const LIE = {
   lift: 0.55,
   /** The ray for the room along the fall starts this high over the feet. */
   rayY: 0.3,
+  /** (rig-pose-fix S3) The floor probe at death: one down ray from this high over the feet (a step up along the fall)
+   *  to this far under them (a ledge drop, a guard shot off a ladder). */
+  floorUp: 0.5,
+  floorDrop: 8,
 } as const;
 
 export function newLie(): BodyLie {

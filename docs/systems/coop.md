@@ -112,6 +112,14 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   `PlayerHitVolumes` on `playerBody(wireBodyIn(accepted state))`, the client's own model, headshots x1.3 and legs x0.75 as
   the local player's + PlayerRef), 15 Hz snapshots, event queue, enemy
   position history for lag compensation, shot / blast checks via pure `validate.ts`, per-player kill tallies in `end`.
+  (rig-pose-fix S3, G7 / G20) One guard head for every judge: the history (`net/shotHistory.ts`, 20 Hz) keeps each
+  guard's sim feet, crouch, sim head (`Enemy.simHead`: `guardHead` / `dogHead`) and the head the client is shown
+  (`Enemy.wireHead`: `guardHead` on the inputs the wire carries, `wireHeadIn`); a client's head claim passes within
+  `checkShot`'s head tolerance (0.7 x 1.1 m x scale, kept: interpolation, crouch ease, bob, head radius) of either rewound
+  head, never `feet + 1.62 / 1.15`. The lean round an edge is not on the wire (up to ~1 m), hence the second head. The
+  client's `EnemyPuppet` head volume is `guardHead` on the inputs it gives its rig (`net/puppetHead.ts`, no `headNode`
+  read; the dog's `dogHead` at `DOG_MEAN_PHASE`): the same as the host's `wireHead` for the same state, 1.2 cm from the
+  host's sim head at any gait phase.
   `CoopClient`: `EnemyPuppet`s + `RemoteAvatar`s interpolated with `SnapshotBuffer` / `ClockSync` (`interp.ts`), sends
   `pstate` at 20 Hz and hits as `shot`; rewards come from `clampEnd` + `coopSessionStats` of the host report.
 - Drawn state (D8, A20 / A41): the host keeps `w` only if it is in the player's lobby `loadout` and forces `dw` 0 while
@@ -196,6 +204,8 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
 - Bodies: the host lists lying bodies in `snap.bodies` when they change; clients keep those ragdolls and drop the rest.
   (rig-pose-fix S5, P13) The wire carries no body position: a client ragdoll eases onto the host's sim lie computed from
   the puppet's last host state (`buf.latest()` feet and yaw) and the fall away from the killer (`deathLieOn`).
+  (rig-pose-fix S3) `deathLieOn` probes the floor under the settled pelvis on both machines (one down ray on the static
+  collision): a guard killed at a ledge lip or mid-air lies on the floor below.
 - Pings (action `ping`: D-pad left tap, Z): `GameState.sendPing` (aim ray) -> `ping` msg / event (host rate 0.8 s) ->
   `ui/hud/pings.ts` (follows a pinged guard, edge arrows off screen).
 - Gadgets: `GadgetSystem.onLocal` reports gas / flash / EMP / noise effects; the host relays them (`gadget`, 1 s rate,

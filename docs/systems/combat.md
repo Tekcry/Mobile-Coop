@@ -59,9 +59,9 @@ Design authority: docs/DECISIONS.md (G16, G20, G21, G76, G98, G103-G105), then d
 - No hip fire: a shot needs the drawn phase and `cam.ads >= 0.9` (`fireReady`); fire while holstered is the close strike
   (`docs/systems/takedowns.md`). The crosshair shows only drawn and aiming.
 - (rig-pose-fix S2) Shot origin from the sim (`weapons/shotOrigin.ts`, pure): every player round (ray and projectile)
-  starts at `shotOrigin` (feet, crouch blend, lean, the camera's shoulder side, hanging inverted, the aim and the
+  starts at `shotOrigin` (feet, crouch blend, lean, the gun's side from the sim hand clock `PlayerWeapons.hand` (S3), hanging inverted, the aim and the
   weapon's `muzzle` after attachments), fitted to Wren's rig (muzzle within 3 cm rifle, 8 cm pistol). The wall poke
-  tests the line from the sim eye (`shotEye`) to it and starts the round at the eye when blocked. That origin is the
+  tests the line from the one sim head (S3: S1's body model, `PlayerTarget.body.head`) to it and starts the round there when blocked. That origin is the
   hit's `sourcePos`, so a client's claimed `shot` origin is the same point. The animated muzzle (`WeaponModel.muzzleWorld`)
   places only the tracer, flash and casing.
 - (rig-pose-fix S7) Player rounds pass ragdolls: `MASK.PLAYER_SHOT` no longer has `G.RAGDOLL` (ragdolls are visual and per

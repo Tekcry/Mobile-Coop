@@ -537,6 +537,8 @@ export class GameState implements AppState {
       app.input.haptic(suppressed ? 'shotSuppressed' : 'shotLoud'),
     );
     this.target = new PlayerTarget(this.scene, this.registry, this.player);
+    // (rig-pose-fix S3) the wall-poke eye is the one sim head (S1's body model, synced each fixed step before the weapons)
+    this.weapons.simHead = this.target.body.head;
     this.stats = emptyStats(opts.mode, opts.map.id);
     this.localRef = {
       id: 'local',
@@ -2756,7 +2758,10 @@ export class GameState implements AppState {
     // (F1a, cam-5) on the left shoulder (after the aim's shoulder swap) the weapon is in the left hand too; (anim-cleanup)
     // only settled in the aim pocket, never mid-draw / holster / reload (the travel paths and the reload are
     // right-handed), and the partner sees it (`PF.aimLeft`, net/netShared.ts localFlags)
-    pl.rig.openLeft = w.leftHand || (!w.active && pl.cam.shoulder < 0 && this.weapons.handSwitchOk);
+    // (rig-pose-fix S3) the sim flag lives on the weapons (their hand clock and the shot's side read it); the rig gets
+    // a copy for the drawn switch
+    this.weapons.handLeft = w.leftHand || (!w.active && pl.cam.shoulder < 0 && this.weapons.handSwitchOk);
+    pl.rig.openLeft = this.weapons.handLeft;
     const g = w.seg >= 0 ? segs[w.seg] : undefined;
     pose.wallNx = g ? g.nx : 0;
     pose.wallNz = g ? g.nz : 0;
