@@ -1,0 +1,14 @@
+{
+  "id": "20261024T131146-night-shift-player-b-85f4f5e7-7329",
+  "sha": "85f4f5e791d8c13ff06c87e9603789184d7dc388",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-coop-real:1",
+    "e2e-coop-real:2"
+  ],
+  "set": "coop-real-c1",
+  "note": "coop-real C1 first run (dev signal before K1; KNOWN BUG S2 expected); keep logs"
+}
