@@ -33,9 +33,9 @@ export class BounceGrid {
   readonly origin: [number, number, number];
   readonly n: [number, number, number];
   /** Per cell, the bounce level (0..1) x 255, x fastest: what the field and the fill texture's green channel read. */
-  readonly g: Uint8Array;
+  g: Uint8Array = new Uint8Array(1);
   /** (fix round) Per cell, the static wall bits (`bounceBits`; 0 where no lamp's box reaches): blue + alpha x 256. */
-  readonly bits: Uint16Array;
+  bits: Uint16Array = new Uint16Array(1);
   /** `sampleInto`'s result (a field, not a return: V8 boxes a returned double). */
   out = 0;
   /** `sampleInto`'s scratch: the 8 corners' bytes, bits and reach. */
@@ -43,9 +43,9 @@ export class BounceGrid {
   private readonly se = new Int32Array(8);
   private readonly sc = new Uint8Array(8);
   /** Per cell, sum of q x weight over the lit lamps. */
-  private readonly acc: Float64Array;
-  private readonly boxes: Int32Array;
-  private readonly data: Uint16Array;
+  private acc: Float64Array = new Float64Array(1);
+  private boxes: Int32Array = new Int32Array(0);
+  private data: Uint16Array = new Uint16Array(0);
   /** Per lamp, where its cells start in `data`. */
   private readonly at: Float64Array;
   /** Registry ids of the baked lamps, in bake order. */
@@ -62,22 +62,30 @@ export class BounceGrid {
   /** The registry version last synced (-1: never). */
   private seen = -1;
   /** The bake gave some bounce (else the field skips the read and `g` is one empty cell). */
-  readonly active: boolean;
+  active = false;
 
   constructor(bounce: LampBounce | null | undefined, ids: ArrayLike<number>, grid: { origin: readonly number[]; n: readonly number[] }) {
     this.origin = [grid.origin[0]!, grid.origin[1]!, grid.origin[2]!];
     this.n = [grid.n[0]!, grid.n[1]!, grid.n[2]!];
-    const cells = this.n[0] * this.n[1] * this.n[2];
     const count = bounce ? Math.min(ids.length, bounce.boxes.length / BOUNCE_BOX_STRIDE) : 0;
-    // (a copy: a box that does not fit this grid - a bake over other bounds - is dropped, never written past the grid)
-    this.boxes = bounce ? bounce.boxes.slice(0, count * BOUNCE_BOX_STRIDE) : new Int32Array(0);
-    this.data = bounce ? bounce.data : new Uint16Array(0);
     this.ids = new Int32Array(count);
     this.w = new Int32Array(count);
     this.at = new Float64Array(count);
+    for (let i = 0; i < count; i++) this.ids[i] = ids[i]!;
+    this.load(bounce);
+  }
+
+  /**
+   * The bake's boxes, cells and wall bits (the constructor; `adopt`). (a copy of the boxes: a box that does not fit this
+   * grid - a bake over other bounds - is dropped, never written past the grid)
+   */
+  private load(bounce: LampBounce | null | undefined): void {
+    const count = this.ids.length;
+    const cells = this.n[0] * this.n[1] * this.n[2];
+    this.boxes = bounce ? bounce.boxes.slice(0, count * BOUNCE_BOX_STRIDE) : new Int32Array(0);
+    this.data = bounce ? bounce.data : new Uint16Array(0);
     let s = 0;
     for (let i = 0; i < count; i++) {
-      this.ids[i] = ids[i]!;
       this.at[i] = s;
       const o = i * BOUNCE_BOX_STRIDE;
       const B = this.boxes;
@@ -87,9 +95,11 @@ export class BounceGrid {
       if (!fits || s > this.data.length) B[o + 3] = B[o + 4] = B[o + 5] = 0;
     }
     const any = count > 0 && this.data.length > 0;
-    this.g = new Uint8Array(any ? cells : 1);
-    this.acc = new Float64Array(any ? cells : 1);
-    this.bits = new Uint16Array(any ? cells : 1);
+    if (!any || this.g.length !== cells) {
+      this.g = new Uint8Array(any ? cells : 1);
+      this.acc = new Float64Array(any ? cells : 1);
+      this.bits = new Uint16Array(any ? cells : 1);
+    } else this.bits.fill(0);
     this.active = any;
     // (fix round) the walls: static, from every lamp's box (OR: two lamps give a cell the same bits)
     const bits = bounce?.bits;
@@ -109,6 +119,26 @@ export class BounceGrid {
         }
       }
     }
+  }
+
+  /**
+   * (section-bake) The bake grew (more lamps landed; `SectionBaker` joins every landed lamp's bounce again in light
+   * order): read the new boxes, cells and wall bits and sum every lit lamp again. The sums are exact integers, so the
+   * grid equals the one a full bake makes once every lamp is in. Load-time cost (one landing batch), the whole grid
+   * marked dirty for the picture's re-pack. The lamp ids and their weights stay.
+   */
+  adopt(bounce: LampBounce): void {
+    this.load(bounce);
+    if (!this.active) return;
+    this.acc.fill(0);
+    this.g.fill(0);
+    for (let i = 0; i < this.ids.length; i++) if (this.w[i]! !== 0) this.apply(i, this.w[i]!);
+    const d = this.dirty;
+    d[0] = d[1] = d[2] = 0;
+    d[3] = this.n[0];
+    d[4] = this.n[1];
+    d[5] = this.n[2];
+    this.version++;
   }
 
   /** Lamps in the grid. */

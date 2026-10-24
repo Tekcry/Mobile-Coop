@@ -941,6 +941,8 @@ export class CoopClient implements NetAttachment {
       this.kitSection = msg.ls;
       this.g.weapons.markCheckpoint();
     }
+    // (section-bake, SB10) the host's live section bakes first here too (a late join or rejoin past section 1)
+    if (msg.ls !== undefined && msg.ls >= 0) this.g.world.lightBake?.sections?.setLive(msg.ls);
     if (ct) {
       if (msg.ls !== undefined && msg.ls !== ct.liveSection) ct.setLive(msg.ls);
       if (msg.dn) ct.applyDestroyed(msg.dn);

@@ -86,23 +86,26 @@ export function lampDoorLists(lights: Float32Array, doors: readonly FieldDoor[],
   const n = lights.length / LAMP_STRIDE;
   const out = new Int16Array(n * slots).fill(-1);
   const near: { k: number; d: number }[] = [];
-  for (let i = 0; i < n; i++) {
-    const o = i * LAMP_STRIDE;
-    near.length = 0;
-    for (let k = 0; k < doors.length; k++) {
-      const a = doors[k]!.anchor;
-      const cx = a.hinge.x + Math.sin(a.yaw) * a.width * 0.5;
-      const cz = a.hinge.z + Math.cos(a.yaw) * a.width * 0.5;
-      const dx = cx - lights[o]!;
-      const dy = a.hinge.y + a.height * 0.5 - lights[o + 1]!;
-      const dz = cz - lights[o + 2]!;
-      const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
-      if (d < lights[o + 3]! + a.width && (!seen || doorSeen(seen, i, doors[k]!))) near.push({ k, d });
-    }
-    near.sort((p, q) => p.d - q.d);
-    for (let j = 0; j < Math.min(slots, near.length); j++) out[i * slots + j] = near[j]!.k;
-  }
+  for (let i = 0; i < n; i++) lampDoorListInto(out, i, lights, doors, seen, slots, near);
   return out;
+}
+
+/** (section-bake) Lamp `i`'s row of `lampDoorLists` written into `out` (a lamp that landed after the load). */
+export function lampDoorListInto(out: Int16Array, i: number, lights: Float32Array, doors: readonly FieldDoor[], seen: BakeVisSampler | undefined, slots: number, near: { k: number; d: number }[] = []): void {
+  const o = i * LAMP_STRIDE;
+  near.length = 0;
+  for (let k = 0; k < doors.length; k++) {
+    const a = doors[k]!.anchor;
+    const cx = a.hinge.x + Math.sin(a.yaw) * a.width * 0.5;
+    const cz = a.hinge.z + Math.cos(a.yaw) * a.width * 0.5;
+    const dx = cx - lights[o]!;
+    const dy = a.hinge.y + a.height * 0.5 - lights[o + 1]!;
+    const dz = cz - lights[o + 2]!;
+    const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    if (d < lights[o + 3]! + a.width && (!seen || doorSeen(seen, i, doors[k]!))) near.push({ k, d });
+  }
+  near.sort((p, q) => p.d - q.d);
+  for (let j = 0; j < slots; j++) out[i * slots + j] = j < near.length ? near[j]!.k : -1;
 }
 
 /** Per baked lamp, unpacked: x, y, z, reach, axis dx, dy, dz, cos cut, exponent, vis offset, box ox, oy, oz, nx, ny, nz. */
@@ -164,6 +167,19 @@ export class LightField {
     this.gz = bake?.lo[2] ?? 0;
     this.bounce = new BounceGrid(lamps?.r.bounce, lamps ? lamps.baked.ids : [], bake ? bake.ambient : { origin: [0, 0, 0], n: [1, 1, 1] });
     this.bounce.sync(reg);
+    // (section-bake) lamps still baking: each landing batch gets its door lists and the bounce grows (the visibility is
+    // read in place from the shared result)
+    const sb = bake?.sections;
+    if (sb && !sb.done && lamps) sb.onLand((ls, k) => this.landed(ls, k));
+  }
+
+  /** (section-bake) Lamps `ls[0 .. k)` landed in the bake: their door lists from their visibility, the bounce re-joined. */
+  private landed(ls: Int32Array, k: number): void {
+    const lamps = this.bake?.lamps;
+    if (!lamps) return;
+    const seen = bakeVisSampler(lamps.r);
+    for (let j = 0; j < k; j++) lampDoorListInto(this.lampDoors, ls[j]!, lamps.baked.lights, this.doors, seen, this.doorSlots);
+    if (lamps.r.bounce) this.bounce.adopt(lamps.r.bounce);
   }
 
   /**

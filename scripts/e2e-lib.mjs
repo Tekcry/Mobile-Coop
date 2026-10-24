@@ -218,6 +218,10 @@ export async function openPage(ctx, url = 'http://localhost:4173/', params = '')
   // autostart: the match itself (the level builds before it starts)
   if (/(^|&)autostart=/.test(params)) {
     await timed('match', () => page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 120000 }).catch(() => {}));
+    // (section-bake, SB12) a map baking its lamps per section (campusOps on a cold cache): the match starts once the
+    // live section is in and the rest lands in the background; suites drive sections in sim time, so wait for all of it
+    // (what the load waited for before). No-op on every other map.
+    await timed('match', () => page.waitForFunction(() => { const s = window.__app?.current?.world?.lightBake?.sections; return !s || s.done || s.disposed; }, null, { timeout: 240000, polling: 250 }).catch(() => {}));
     warmed = false;
     if (PROFILE) prof.bake += await page.evaluate(() => { const w = window.__app?.current?.world; return w?.lightInfo?.().ms ?? 0; }).catch(() => 0);
   }

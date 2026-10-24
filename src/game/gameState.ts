@@ -934,7 +934,10 @@ export class GameState implements AppState {
       });
     // 3.2.2: every material compiled on the loading screen, not mid-match (the benchmark counted 37-57 shaders
     // compiled in each run: hitches); capped so a material that never reports ready cannot hold the load
-    await Promise.race([g.scene.whenReadyAsync(), new Promise((r) => setTimeout(r, WARMUP_MAX_MS))]);
+    // (section-bake, SB5) a map baking per section: its live section's lamps (section 0 to start; the client's `ls`
+    // moves it later) land during the load, beside the warm-up; the other sections bake on in the background
+    const sb = world.lightBake?.sections;
+    await Promise.all([Promise.race([g.scene.whenReadyAsync(), new Promise((r) => setTimeout(r, WARMUP_MAX_MS))]), sb ? sb.whenReady(sb.plan.live) : null]);
     return g;
   }
 
@@ -1202,6 +1205,8 @@ export class GameState implements AppState {
     this.target.dispose();
     this.vfx.dispose();
     this.player.dispose();
+    // (section-bake, SB11) a background lamp bake stops with the match (nothing more lands, nothing is cached)
+    this.world.lightBake?.sections?.dispose();
     this.world.dispose();
   }
 
