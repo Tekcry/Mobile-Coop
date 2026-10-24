@@ -202,7 +202,7 @@ export class GadgetSystem {
     // the gadget button: held shows the arc, release throws; placed ones go on the press
     const sel = g.weapons.gadgets.selected;
     const use = GADGETS[sel].use;
-    const busy = g.takedown.active !== null || (g.stealth?.carrying ?? false) || g.traversal.attached;
+    const busy = g.takedown.active !== null || (g.carrier?.carrying ?? false) || g.traversal.attached;
     if (inp.pressed('grenade') && !busy) {
       if (sel === 'stickyCam' && this.cams.length && g.weapons.gadgets.count === 0) this.enterRemote('cam', this.cams.length - 1);
       else if (use === 'place') g.weapons.useGadget();

@@ -90,6 +90,7 @@ import { ELECTRO_BULB } from '../world/lightRig';
 import { THERMAL, ELECTRO, ELECTRO_KINDS } from '../vfx/visionLook';
 import { visionLabel } from './vision';
 import { StealthSystems } from './stealthSystems';
+import type { LocalCarry, NetCarry } from './bodyCarry';
 import { SecuritySystem } from '../security/securitySystem';
 import type { CtDevices, SecWire } from './ctDevices';
 import type { SectorNetExtra } from './sectors';
@@ -243,6 +244,8 @@ export interface NetAttachment {
   blips?(): Blip[];
   /** (guard-ai S9) Client: where guard `who`'s line shows (over his puppet's head) into `out`; false when not here. */
   barkAt?(who: string, out: Vector3): boolean;
+  /** (coop-carry) Client: the local player's body carry (the host has its own in `StealthSystems`). */
+  readonly carry?: NetCarry;
   dispose(): void;
 }
 
@@ -388,6 +391,10 @@ export class GameState implements AppState {
   readonly mode: GameMode | null = null;
   /** Bodies, switches, shot-out lights and alarm panels (modes with enemies). */
   readonly stealth: StealthSystems | null = null;
+  /** (coop-carry) The local player's body carry: `StealthSystems` (solo / host) or the co-op client's (`net.carry`). */
+  get carrier(): LocalCarry | null {
+    return this.stealth ?? this.net?.carry ?? null;
+  }
   /** Cameras (and later the other security devices) of a map that has `layout.security`; host side, never on a co-op client. */
   readonly security: SecuritySystem | null = null;
   /** (CT prototype B3) The course's held jammer, cameras' jam state and lasers (set by the course mode / client mirror). */
@@ -646,7 +653,7 @@ export class GameState implements AppState {
       if (r) app.input.haptic(r);
     };
     this.player.onFootPlant = () => {
-      if (this.player.controller.gear >= 6 || this.stealth?.carrying) app.input.haptic('footfallHeavy');
+      if (this.player.controller.gear >= 6 || this.carrier?.carrying) app.input.haptic('footfallHeavy');
     };
     this.events.on('takedown', (e) => {
       if (e.phase === 'done') app.input.haptic('takedownDone');
@@ -1286,13 +1293,13 @@ export class GameState implements AppState {
     const inputS = this.app.input.state;
     const pressI = inputS.pressed('interact') && !this.ctxOwnsA;
     // a takedown on offer / running takes the button; (G7) so does a body being lifted or put down
-    if (this.takedown.offer || this.takedown.active || this.stealth?.busy) {
+    if (this.takedown.offer || this.takedown.active || this.carrier?.busy) {
       if (this.interactTarget && !this.interactTarget.done) this.interactTarget.progress = 0;
       this.interactTarget = null;
       this.hud.setInteract(null);
       return;
     }
-    const carryIt = this.stealth?.carryTarget(this.player.position) ?? null;
+    const carryIt = this.carrier?.carryTarget(this.player.position) ?? null;
     const it = carryIt ?? (this.player.alive ? ints.nearest(this.player.position) : null);
     if (it !== this.interactTarget) {
       if (this.interactTarget && !this.interactTarget.done) this.interactTarget.progress = 0;
@@ -1352,7 +1359,7 @@ export class GameState implements AppState {
     // one press never runs both
     const hangDirect = hangActs && td.offer === null && td.active === null;
     this.hangDirectA = hangDirect;
-    const aside =!this.player.alive || (this.team.active && !hangActs) || this.doorPeek.active || this.optic.active || this.gadgets.remote !== null || this.gadgets.wheelOpen || (td.active !== null && !td.menuReady) || (this.stealth?.busy ?? false);
+    const aside =!this.player.alive || (this.team.active && !hangActs) || this.doorPeek.active || this.optic.active || this.gadgets.remote !== null || this.gadgets.wheelOpen || (td.active !== null && !td.menuReady) || (this.carrier?.busy ?? false);
     // (Michael 08:10 / 08:20; anim-rework S1, M3) a held guard: RT tap knocks him out, RT hold kills (KBM Z knocks out
     // too; not aiming: LT aims the pistol over his shoulder and RT then fires); a pick armed from outside (`grabMenu.sel`, scripts) runs on the next A press. Nothing lets him go:
     // B, Y and BACK TO GAME only close the list.
@@ -1383,7 +1390,7 @@ export class GameState implements AppState {
         const dIdx = this.doorMenuCandidate();
         if (dIdx >= 0) addDoorRows(m, dIdx, this.peekOffer === dIdx, this.doorMenu.opts, isSlideDoor(this.world.doors.list[dIdx]!.anchor));
         // (hang-down) no body is picked up from the hang
-        it = hangDirect ? null : ((hangActs ? null : this.stealth?.carryTarget(this.player.position)) ?? this.interactables?.nearest(this.player.position) ?? null);
+        it = hangDirect ? null : ((hangActs ? null : this.carrier?.carryTarget(this.player.position)) ?? this.interactables?.nearest(this.player.position) ?? null);
         let label = it ? it.label : '';
         if (it && it.kind === 'door' && it.id.startsWith('door-')) {
           // a door's own item: the door set covers the closed door faced; else it opens or closes the door
@@ -1465,7 +1472,7 @@ export class GameState implements AppState {
   /** (A3) The closed, unlocked door in reach (1.6 m) the operator faces (within 90 deg of the camera), else -1. */
   private doorMenuCandidate(): number {
     const doors = this.world.doors;
-    if (!doors.list.length || !this.player.alive || this.doorPeek.active || this.optic.active || this.doorOpen.active || (this.wallCore?.active ?? false) || this.traversal.attached || !!this.traversal.committed || this.team.active || this.stealth?.carrying) return -1;
+    if (!doors.list.length || !this.player.alive || this.doorPeek.active || this.optic.active || this.doorOpen.active || (this.wallCore?.active ?? false) || this.traversal.attached || !!this.traversal.committed || this.team.active || this.carrier?.carrying) return -1;
     const p = this.player.position;
     const d = doors.nearest(p.x, p.z, 1.6);
     if (!d || d.target !== 0 || d.anchor.locked || Math.abs(d.anchor.hinge.y - p.y) > 1.2) return -1;
@@ -1788,7 +1795,7 @@ export class GameState implements AppState {
     // (anim-rework S1) blank input under a held context menu or the wheel is not an X release (a held X keeps its press)
     this.player.inputBlank = inp === this.blankInp;
     // a body on the shoulder: no traversal, weapon stowed, slow
-    const carrying = this.stealth?.carrying ?? false;
+    const carrying = this.carrier?.carrying ?? false;
     // a takedown running (from the last step): traversal stands aside
     const busy0 = this.takedown.active !== null || this.strike.active;
     // (step 13) the door peek before back-to-wall: its context press at a door is not a wall press
@@ -1901,6 +1908,7 @@ export class GameState implements AppState {
     // (carry and grab set their caps again each step while they hold)
     this.player.controller.speedCap = Infinity;
     this.stealth?.fixedUpdate(inp.pressed('crouch'));
+    this.net?.carry?.fixedUpdate(inp.pressed('crouch'));
     this.security?.fixedUpdate(dt);
     // (CT prototype B3; Michael 2026-10-20 14:55 "Another button - what makes sense? RF?", read as RB) the pistol jammer:
     // the co-op button (pad RB, KBM F / PgDn) held while aiming the drawn pistol jams the camera or laser under the
@@ -1925,7 +1933,7 @@ export class GameState implements AppState {
     // (G7) close quarters: the bend over a held guard / a body, the hold's sway (the anim graph eases them)
     {
       const pz = this.player.pose;
-      const st = this.stealth;
+      const st = this.carrier;
       pz.bend = this.takedown.bend + (st ? st.bend : 0);
       pz.bendDrop = this.takedown.bendDrop + (st ? st.bendDrop : 0);
       // (marlow-bays T1a) the tuner's carry row: the bend is the body's, not a held guard's
@@ -2478,6 +2486,7 @@ export class GameState implements AppState {
     }
     this.traversal.frameUpdate(dt, alpha);
     this.stealth?.frameUpdate();
+    this.net?.carry?.frameUpdate();
     this.takedown.frameUpdate();
     this.player.frameUpdate(dt, alpha, look, this.paused || this.menuOpen ? this.menuInp.move : this.studio?.drives ? this.studio.inp.move : free ? this.freeInp.move : gadgetInput || this.ctxMenu.state === 'active' ? this.blankInp.move : this.app.input.state.move);
     // (anim-studio) the stage lights onto this frame's root and camera (after the player and the camera moved)
