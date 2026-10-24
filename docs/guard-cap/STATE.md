@@ -30,7 +30,7 @@
 
 ## Resume prompt
 ```
-FIRST (Michael ~19:50): finish campus-audit from docs/campus-audit/STATE.md on origin/feature/campus-audit, then this.
+(campus-audit on origin/feature/campus-audit is PAUSED by Michael ~19:55: do not resume it unless the orchestrator says so.)
 Night Shift | Marlow Build, job lead of guard-cap (set_session_title "self" first if not set).
 Worktree C:/NightShift/Mobile-Coop-guard-cap, branch feature/guard-cap. Guard before every write:
 cd /c/NightShift/Mobile-Coop-guard-cap && test "$(git rev-parse --abbrev-ref HEAD)" = feature/guard-cap && test "$(git rev-parse --show-toplevel)" = "C:/NightShift/Mobile-Coop-guard-cap"
