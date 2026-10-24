@@ -5,6 +5,7 @@ import { clearRejoin, rejoinToken, saveRejoin, type RejoinRecord } from '../core
 import { flags } from '../core/flags';
 import { visibleModes } from '../core/legacy';
 import { h } from '../ui/dom';
+import { BEACON } from '../player/goggleGlow';
 import { MenuScreen, type LegendItem } from '../ui/menuScreen';
 import { Osk } from '../ui/osk';
 import { button, choice, describe, Dialog, lockedRow } from '../ui/widgets';
@@ -478,9 +479,14 @@ class LobbyScreen extends MenuScreen {
     return true;
   }
 
+  /** (coop4) The lobby row's beacon swatch by slot (the BEACON idle colours: 0 blue, 1 red, 2 amber, 3 violet), so a
+   *  row matches the player's marker in the match. Built once. */
+  private static readonly SLOT_CSS: readonly string[] = BEACON.map((b) => `rgb(${Math.round(b.idle.r * 255)}, ${Math.round(b.idle.g * 255)}, ${Math.round(b.idle.b * 255)})`);
+
   private renderPlayers(): void {
     const s = this.c.session;
-    const ps = [...s.players.values()].sort((a, b) => Number(b.host) - Number(a.host));
+    // (coop4) rows in slot order (the host is slot 0), the order of the beacon colours
+    const ps = [...s.players.values()].sort((a, b) => a.slot - b.slot);
     // one slot per seat the mode takes (Sector Ops up to 4, Campaign 2)
     const slots = Math.max(capacity(s.mode), ps.length);
     const hostName = ps.find((p) => p.host)?.name ?? '';
@@ -490,6 +496,7 @@ class LobbyScreen extends MenuScreen {
         h(
           'div',
           { class: `lobby-player${p.id === s.selfId ? ' me' : ''}` },
+          h('span', { class: 'lp-beacon', title: 'Your marker colour in the match', style: { background: LobbyScreen.SLOT_CSS[p.slot] ?? LobbyScreen.SLOT_CSS[0]!, display: 'inline-block', width: '10px', height: '10px', borderRadius: '2px', marginRight: '6px' } }),
           h('span', { class: 'lp-dot', style: { background: p.tag.color } }),
           h('span', { class: 'lp-name', text: p.name }),
           h('span', { class: 'lp-tag', text: p.tag.title }),
