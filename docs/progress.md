@@ -1,6 +1,7 @@
 # Night Shift - progress
 
-> **History (process audit, 2026-10-19):** the job list moved to `docs/ROADMAP.md`; this file keeps the history and the older follow-up backlog. The current state of every job is `docs/ROADMAP.md`.
+> **History.** Current work is `docs/ROADMAP.md` (on origin/feature/menu); the rules are `docs/RULES.md`. This file keeps
+> the history and the older follow-up backlog only; nothing below is a current rule or job order.
 
 **Current status, the queue and what waits on Michael: `docs/ROADMAP.md` (owned by the orchestrator session, 2026-10-19).** The tables below are history and the older follow-up backlog.
 
@@ -8,8 +9,8 @@ Where the project stands: the ordered job list (G90) and the current state. Mich
 Design: `docs/design-bible.md`. Each job updates its row when it starts, opens its PR and is merged. The old Phase 0-7
 table and the phase logs are history: `docs/archive/progress-phases.md`; phase numbers survive only as chapter names.
 
-Every job runs as `CLAUDE.md` "Running a job" says: branch `feature/<job>` from master, folder
-`C:/NightShift/Mobile-Coop-<job>`, its docs in `docs/<job>/`, one PR to master, Michael merges.
+Every job runs as `docs/RULES.md` says (history: branch `feature/<job>` from master, folder
+`C:/NightShift/Mobile-Coop-<job>`, its docs in `docs/<job>/`, one PR to master).
 
 ## Job list (in order, G95)
 
