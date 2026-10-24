@@ -21,7 +21,7 @@ import { RemotePlayer } from './remotePlayer';
 import { HoldClock, holdFeed, stepHoldFeed, type HoldFeed } from './holdFeed';
 import { setPlayerGlow } from '../operators/runtime/playerFigure';
 import { PartnerBlocker, partnerPassable } from './partnerBlocker';
-import { checkBlast, checkShot, clientStepNoise, hostShotAllowed, hostShotWeapon, maxHitDamage, playersHostile, SHOT_UNDER, SHOT_UNDER_HANG } from './validate';
+import { checkBlast, checkShot, clientStepNoise, hostLampShots, hostShotAllowed, hostShotWeapon, maxHitDamage, playersHostile, SHOT_UNDER, SHOT_UNDER_HANG } from './validate';
 import { localFlags, htmlToInfo } from './netShared';
 import { keepSimInBackground } from './bgTicks';
 import { hostHoldPulse, inUseReach } from './holdPulse';
@@ -94,11 +94,6 @@ function alertCode(e: Enemy, torch: boolean): number {
   const l = e.level;
   const a = l === 'alert' ? 3 : l === 'searching' ? 2 : l === 'suspicious' || l === 'investigating' ? 1 : 0;
   return packAlert(a, e.taken, torch, e.caution > 0, e.helmet, e.armour, wireCarry(e.carry.phase), e.look);
-}
-
-/** (coop-real F1b, S2) Does the host take a client's lamp round (`shot` at `lt-<id>`) in this mode? Sector Ops and Course mode. */
-export function hostLampShots(mode: string | undefined): boolean {
-  return mode === 'sector' || mode === 'course';
 }
 
 /**
@@ -1324,10 +1319,13 @@ export class CoopHost implements NetAttachment {
     if (!this.lampShots || !r.alive || !this.g.stealth) return;
     const id = lampTargetId(m.target);
     if (id < 0 || !hostShotAllowed(r.state?.mv?.dw) || !hostShotWeapon(m.w, r.state?.w, r.loadout)) return;
+    // (coop-real F1b fix) an honest repeat round at a lamp we already have out (the client's mirror lags a message):
+    // nothing to do and no violation (`lampShotOk` would refuse it as one)
+    const reg = this.g.world.level.lights;
+    if (reg.lights[id]?.destroyed) return;
     let lim = this.lampLim.get(r.id);
     if (!lim) this.lampLim.set(r.id, (lim = new TickLimiter()));
     if (!lim.take(this.time)) return;
-    const reg = this.g.world.level.lights;
     const o = { x: m.ox, y: m.oy, z: m.oz };
     if (!lampShotOk(reg, id, o, { x: m.dx, y: m.dy, z: m.dz }, m.dist, r.feet, WEAPONS[m.w].range)) {
       r.violations++;
