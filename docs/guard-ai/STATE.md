@@ -1,6 +1,10 @@
 # Guard AI - state
 
 ## Now
+~18:55: #326 R1 TRAIN-READY (head 321ef486: + consoleNoticeA4 double gets hitDistance, its noop proxy answered
+undefined; CI green; laptop r1-rays2 3/3 on 099bf44d); orchestrator asked to label, Marlow told. #313 CI green. Nothing
+running. Next: the next AI item the orchestrator / guard-cap assigns.
+
 ~18:35: #313 checks A + B PASS, laptop 4/4 (e2e-coop flake = joint interrogation, Marlow's): TRAIN-READY. R1 (Marlow's
 guard-cap brief) PR #326: 9008f458 checker PASS + laptop PASS; fix round 099bf44d (no res.reset() per cast), laptop
 r1-rays2 pending. Resume block refreshed.
@@ -916,10 +920,8 @@ Open:
    5d41abdc docs-only. TRAIN-READY (label kept). Polish: CarryView instant drop (carrier down) lands front on the
    owner's page vs side on the others (~0.9 m, 90 deg; CHECK-B P1).
 2. #322 e2e-lightbake pending-compile wait: TRAIN-READY (orchestrator labelled).
-3. #326 R1 allocation-free sight rays (guard-cap brief docs/guard-cap/briefs/R1.md on feature/guard-cap; worktree
-   -r1-rays): 9008f458 laptop r1-rays PASS, checker PASS (slices/R1-CHECK.md on the branch); fix round 099bf44d
-   (Ballistics casts no longer call res.reset(): Havok resets; editor wording); laptop r1-rays2 (stealth-ai, enemies,
-   combat) pending -> ask orchestrator to label, tell Marlow Build (guard-cap lead) R1 done.
+3. #326 R1 allocation-free sight rays (worktree -r1-rays, guard-cap brief docs/guard-cap/briefs/R1.md): TRAIN-READY
+   321ef486 (checker PASS, fix round 099bf44d no res.reset() per cast, laptop r1-rays2 3/3, CI green).
 4. Merged today: #272, #295, #298, #302, #303, #319 coop4 AI side (Sector Ops wires the hooks; AI6-E2E-SPEC.md).
 5. Polish (after Michael's playtest): S24-LEVELS-CHECK redundant tell(alarmHunt) (enemyManager.ts reinforce) and
    parked joinReinforcement; A148 mission reinforcements stand at spawn (Michael's call); cover by straight-line
