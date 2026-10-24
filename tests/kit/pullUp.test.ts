@@ -1,7 +1,7 @@
 // (mission KIT-PULL) The pull-up: the band and its sources, the host rule, the catch window, both sides' phases on the
 // team clock, the missed catch and the cancels. Headless: a fake GameState with one lip (a top at `H` for x < 0.5, the
 // ground at 0, the wall face at x = 0.5) and the real TeamController.
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Vector3 } from '../../src/core/babylon';
 import { LEAP, TEAM, WALL_JUMP } from '../../src/config/movement';
 import { REACH } from '../../src/world/anchors';
@@ -10,6 +10,12 @@ import { kitMove, registerKitMove, type KitHost } from '../../src/game/kit/regis
 import { checkPullRequest, PULL, PULL_UP, pullBand, pullCatchAt, pullJumpY, pullMissLanding, pullVerdict, type PullRun } from '../../src/game/kit/pullUp';
 import { TeamController } from '../../src/game/teamController';
 import { KIT_POSE_LOCAL } from '../../src/anim/clips/team';
+import { flags } from '../../src/core/flags';
+
+// (mission-framework FLG) the kit is dark behind `flags.coopKit` (`?coopkit=1`): these tests drive its offers
+const coopKit0 = flags.coopKit;
+beforeAll(() => void (flags.coopKit = true));
+afterAll(() => void (flags.coopKit = coopKit0));
 
 const H = 4.4;
 const EDGE_X = 0.5;
