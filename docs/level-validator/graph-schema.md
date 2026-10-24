@@ -52,7 +52,7 @@ surface above a floor (a gantry, a roof walk, a cable basket run, a ledge run) t
 | `shadow_pct` | 0-1 | encounter | Declared TARGET: share of the floor in shadow | ERR missing; ERR outside 0.4-0.6 (M4) |
 | `los_break_s` | s | encounter | Declared TARGET: worst-case time to break a guard's line of sight from any point of a stealth route | ERR missing; ERR above 5 (M4) |
 | `vantage` | `{ "from": id, "sees_pct": 0-1 }` | encounter | The observation point (a space id) and the share of the space it sees; it must also see every guard within one cycle, out of view (level-design 3.1: design doc) | ERR missing or unknown `from`; ERR `sees_pct` < 0.7 (M4) |
-| `guards` | `{ "<players>": n }` | encounter | Guards in the space by player count, dogs included (`{ "2": 4 }`); a guard present only from N players counts only in the `"N"` key and above | INFO outside early 3-6 / late 6-10 (M block: INFO until Michael rules on the guard sheets); ERR > 10; ERR a count lower than a smaller player count's |
+| `guards` | `{ "<players>": n }` | encounter | Guards in the space by player count, dogs included (`{ "2": 4 }`); a guard present only from N players counts only in the `"N"` key and above | WARN below 3-6 early / 6-10 late, no upper limit (Michael 2026-10-24, 'as many guards as realistically possible'); ERR a count lower than a smaller player count's |
 | `phase` | `early` / `late` | no | Overrides A3 (first half of the spine by section index = early, second half = late) | guard bands |
 | `note` | string | no | What was not measured or is estimated, and from where (V5 writes one on every guessed value) | ignored by the validator |
 | `measured` | object | no | V6 (greybox measurement): measured values beside the targets; never written by hand. With `area` and `vantage.at`: see "Schema additions" | V6: ERR when a measurement misses its target |
@@ -201,7 +201,7 @@ is `[minX, minZ, maxX, maxZ]`. `measured` is written by `scripts/level-measure.m
 | `vantage.at` | space | `[x, y, z]` | Vantage feet point. Absent: V6 picks the best cell of the `from` space at 1 m stride and writes it to `measured.vantage_at` (the designer pins it after) |
 | `at` | link | `[x, y, z]` | The opening / door point the link passes. Absent: the walkable cell on the shared edge of the two `area`s nearest both centres (ERR in the measure report when that edge has 2+ gaps) |
 | `measured` | space | `{ shadow_pct, sees_pct, vantage_at, los_break_s, cells, geom }` | Measured values beside the declared targets; `cells` = floor cell count |
-| `measured` | link | `{ time_s, path_m }` or `{ time_s: null, why }` | Nav-path time and length; `null` + `why` for a kind the nav grid does not model |
+| `measured` | link | `{ time_s, path_m }` or `{ time_s: null, why }` | Nav-path time and length; `null` + `why` for a kind the nav grid does not model, or a drop / ladder off the nav |
 | `meta.measured` | meta | `{ tool: "level-measure 1", date, geom, splits: { "<id>": { a_s, b_s, reach_s } } }` | Run stamp and per-split measured leg times and partner reach |
 | `geom` | `measured`, `meta.measured` | string | Canonical light-shape hash (`canonicalLightSet(...).hash`) + nav input hash: stale detection |
 
@@ -210,7 +210,7 @@ Measurement definitions (one line each; full text and numbers in V6-PLAN.md; num
 - **Vantage** (`sees_pct`): share of floor cells with `SightWorld.clear(vantage eye at +1.55, cell + 1.0)` within 25 m; light ignored.
 - **LOS break** (`los_break_s`): worst flow-field time from a lit, observed floor cell to the nearest unexposed cell (space + 6 m), at 3.0 m/s.
 - **Reach** (`meta.measured.splits.<id>.reach_s`): worst flow-field time between the two legs' floor cells, both ways, at 3.0 m/s; null when no nav path.
-- **Links** (`time_s`): `findPath` `from` centre -> `at` -> `to` centre, length / 1.3 m/s; off-nav kinds get `null` and the declared `time_s` stays.
+- **Links** (`time_s`): `findPath` `from` centre -> `at` -> `to` centre, length / 1.3 m/s; off-nav kinds, and a `drop` or `ladder` whose path takes no nav link (the guard nav links only 1.0-2.2 m drops), get `null` and the declared `time_s` stays. The partner reach check re-times a measured link at the reach speed from `path_m`.
 
 ## Rule coverage (BRIEF mapping table -> field)
 

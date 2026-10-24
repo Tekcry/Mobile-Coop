@@ -464,7 +464,7 @@ behind a VPN adapter).
   `docs/level-validator/example.graph.json`. First run: campus Sector Ops, all five sections (S1-S5).
 - `npm run level-measure -- <graph.json> [more.json ...] [--write] [--check] [--doors shut] [--map <id>]` (level-validator V6c)
   the greybox measurement CLI. Headless node, no browser, no GPU, no laptop queue (Vite SSR loads the TypeScript as
-  `lamp-audit` does; one node process, ~25 s for a campus light bake on an idle machine, ~2.5 min under desktop load).
+  `lamp-audit` does; one node process, 110-180 s per campus section light bake, measured).
   Builds the graph's `meta.map` from `MAPS`, takes the guards' runtime nav grid (`tests/helpers/runtimeNav.ts`), bakes the
   light field the meter reads (`nodeLightField`, doors open; `--doors shut` re-bakes with every door shut) and measures
   (`src/world/levelMeasure.ts`) for every space that has an `area`: floor shadow %, vantage visibility %, LOS-break time,
@@ -472,7 +472,8 @@ behind a VPN adapter).
   limit. Prints a declared / measured table per space, split and link (a space with no `area` is "no area (skipped)";
   a graph with no `area` at all builds and bakes nothing). `--write` writes `measured` on each space and link and
   `meta.measured` back into the graph file (2 decimals, stable key order, the rest of the file byte-identical);
-  `--check` exits 1 when a value crosses a target or drifts more than 0.05 from the stored one (the validator's
+  `--check` exits 1 when a value crosses a target (encounter spaces; split reach) or drifts from the stored one by more
+  than 0.05 (fractions) / 1.5 s (seconds), or the measure step reported an ERR (the validator's
   `--require-measured` is the presence gate). `--map <id>` measures on another `MAPS` map (the example graph's
   `exampleDepot` is not built: `--map proving`). Exit 0 / 1 / 2 (bad usage, unreadable file, unknown map). Plan:
   `docs/level-validator/V6-PLAN.md`; the greybox exit in `docs/level-design.md` section 14 requires it.

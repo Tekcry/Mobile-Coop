@@ -68,11 +68,11 @@ A level is a linear spine of encounter spaces joined by connectors.
    left in the open.
 8. **Survivable searches.** Every place a player can be spotted on a stealth route has a hide spot or a dark escape
    within the guards' search area.
-9. **Archetype limits.** A map's guard count respects the spawn caps (section 12). Guard counts per encounter space,
-   as INFO targets, not rules: 3-6 early, 6-10 late (first or second half of the spine by section), never above 10,
-   rising with the player count, inside the 12.1 caps. The graph records them per player count and the validator
-   prints them as INFO; they are compared with our guard sheets (campus `campusSectors.ts`, Marlow Yard) before Michael
-   decides whether they become rules. (Michael 2026-10-24, "Add 1-4 as extras".)
+9. **Archetype limits.** A map's guard count respects the spawn caps (section 12). Guard counts per encounter space
+   (first or second half of the spine by section), rising with the player count, inside the 12.1 caps: WARN below 3-6
+   early / 6-10 late, no upper limit (Michael 2026-10-24, "as many guards as realistically possible"). The graph
+   records them per player count; they are compared with our guard sheets (campus `campusSectors.ts`, Marlow Yard).
+   (Michael 2026-10-24, "Add 1-4 as extras".)
 
 ## 5. Light and sound
 1. **Every lit pool has a visible source** (a lamp, a tube, a floodlight, moonlight through a window) and a switch
@@ -342,7 +342,7 @@ Every new map follows these phases, stopping for Michael after each:
   downed-partner reach (11.6) and split leg times (11.3), measured from the light bake and the nav grid; a measured
   value that misses its target fails the map. Measured by `npm run level-measure -- <graph> --write` (the built
   level in node: the light field the meter reads, the guards' nav grid, static sight lines; `--check` re-measures and
-  exits 1 on a missed target or a drift over 0.05), then `node scripts/level-validate.mjs --require-measured` must pass.
+  exits 1 on a missed target, a drift over 0.05 (fractions) / 1.5 s (seconds), or a measure-step ERR), then `node scripts/level-validate.mjs --require-measured` must pass.
   (Michael 2026-10-24, "Add 1-4 as extras".)
 - Every planned traversal element engages from its planned approach (pad).
 - `e2e-anchors.mjs` covers the map.
