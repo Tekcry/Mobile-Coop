@@ -1,0 +1,95 @@
+# Split Shift - beat chart (Sector Ops prototype, 1-4 players)
+
+Map: Saltmarsh Park (`campusOps`), section S2 HQ atrium and offices only (`sections: ['s2']`, start = C1's checkpoint
+(-20, 0, -32), `campusSectors.ts:356`). Sources: BRIEF A9 / A14 / A16, PLAN 2-3, audit 4-5 ("Team Ghost undetected
+upstairs while Team Shadow holds a power cut"), `docs/story.md`. Layout: Sector Ops' plan graph
+`origin/feature/sector-redesign-signoff:docs/sector-redesign/graph/plan/campusOps-S2.json` (space ids below). Its sign-off
+pages `S2.md` / `S2-detail.md` and sync table are not pushed yet: every node marked **(pending)** is assumed from the
+campus code and must be confirmed by Sector Ops' S2 page.
+
+## Premise
+Orrin's facilities officer runs every light and lock in the HQ block from one BMS terminal on the first floor. Hacking it
+gives the lab block's door codes and opens the glazed bridge (the section objective as built). He never leaves his desk
+unless his own lights go out. So one team goes upstairs and is never seen; the other works the ground floor, cuts the
+east wing at the plant room and keeps it dark long enough for the hack, without a single alarm.
+
+## Teams and solo (A9)
+- **Team Ghost = Team A** (slots 0 and 2): track A, upstairs: the SW fire stair, L1 open plan, the kitchen, the east wing,
+  the comms room, the facilities office. Zones: l1-balcony, l2-balcony, kitchen, facilities, comms, l2-stairs, l2-lift.
+- **Team Shadow = Team B** (slots 1 and 3): track B, ground: the post and mail rooms, foyer, hall, east plant room.
+  Zones: reception, lobby, goods. Both tracks meet at the bridge landing (zone c2, in neither track: shared).
+- 2 players: one each; 3 players: the third joins Ghost. **Solo:** one player does every step in the order 1B, 1A, 2,
+  3, 4A, 5 (about 24 min, rated lower). The one simultaneous beat (Shadow holds the cut while Ghost hacks) has a named
+  solo fallback, in the briefing: the cut sends the facilities officer down to the plant room and back, about two minutes.
+
+## Rules (2, one per team; none at mission scope; a solo player carries both)
+| Scope | Rule | Briefing line | Objective-list line |
+| --- | --- | --- | --- |
+| a | `ghost` | "Ghost: never seen. Not by anyone upstairs. That includes Shadow's mistakes up there." | "Team Ghost - never seen" |
+| b | `noAlarms` | "Shadow: no alarms. No panel, no camera. The reception panel is beside his desk." | "Team Shadow - no alarms" |
+- Ghost is scored by the alerted guard's zone (A9): a Shadow player spotted by an upstairs guard breaks Ghost's rule.
+  The radio says so at the section start. Shadow stays downstairs until the hack lands.
+- Signposting: the two briefing lines, the rule row under each team's title in the objective list, LANTERN's reminder
+  at the section start, the rating card's rule rows at the end.
+- **Breaking one (M1):** LANTERN's line, then that team goes back to the C1 checkpoint and its S2 steps and facts reopen
+  (`runner.restore` per team); the other team's done steps stay. Knock-on: a Shadow restart drops the power cut (lights
+  back, the facilities officer returns to his desk); a Ghost restart drops the camera loop. Engine note (EN2): today
+  `restartSection` (sectorMode.ts:1158) resets the whole section for everyone; a per-team restart is the lead's call.
+
+## Beat chart (per team 4 steps incl. extraction; co-op ~16 min, solo ~24 min)
+| # | Team | Campus space | Min | Objective-list line (no markers) | In-world lead | Sync node -> opens for the other team | Gives / needs | Hint (off by default) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1A | Ghost | s2-core-sw -> s2-l1-plan -> s2-l1-kitchen door | 3 | Up the post room's fire stair; listen at the first-floor kitchen for the facilities code | Overheard: the coffee pair (#5-6, `campusSectors.ts:93-125`) rehearse the code at the kitchen door (pending: intel entry) | - | gives `s2-fac-code` | "The kitchen is the lit room off the west balcony. Stand at its door, out of the lamp." |
+| 1B | Shadow | s2-post -> s2-mail | 3 | Take the plant log from the mail room cages, behind the goods-door guard | Document: the sorting-table note in the post room, "Plant log - cage 3 for facilities" (pending) | - | gives `s2-board` (which breaker feeds the east wing) | "He faces into the room. The cages are behind his left shoulder." |
+| 2 | Ghost | s2-l1-wing -> s2-l1-comms | 3 | Loop the ground-floor cameras at the comms room patch panel | Overheard: the comms checker (#8, :129) reads "UPS green, cameras green" at the panel each round | **sync-s2-comms** (camera_loop): cam-turnstile, cam-lift, cam-bridge report nothing; opens the foyer crossing behind reception for Shadow, and the landing for both | - (new mechanic: camera loop from a panel) | "Wait for the checker to leave the panel. He comes back every forty seconds." |
+| 3 | Shadow | s2-foyer -> s2-plant-g | 3 | Cut the east wing at the switchgear in the east plant room | Reception officer's radio (#1, :86): "Facilities, your east boards tripped again." + `s2-board` | **sync-s2-switchgear** (power_cut): the facilities office and the L1 wing go dark; the facilities officer (#7, :127) leaves the BMS desk for the plant room. Opens the hack for Ghost | needs `s2-board` (new mechanic: holding a cut) | "The plant room door is in the foyer's east wall, behind the desk's back." |
+| 4A | Ghost | s2-l1-wing -> s2-l1-facilities | 3 | Into the dark facilities office and hack the BMS terminal | The office's cold lamp goes out (the light language: the dark is the way in) | - (the existing objective opens C2) | needs `s2-fac-code` (kp-fac, pending) | "The office door is beside the corridor light switch. Leave the switch alone." |
+| 4B | Shadow | s2-hall -> s2-foyer -> s2-plant-g | 3 | Hold the plant room dark until Ghost is out of the office | **Twist:** the facilities officer stops at reception and brings the reception officer with him | optional assist **sync-s2-atrium** (power_cut, built: S2_BOARDS `campusS2.ts:192`): pulling the atrium board sends #1 to his own board (guard-ai LR16-4), splitting the pair | - | "Two of them now. The atrium board is on the foyer wall. He always fixes his own lights first." |
+| 5 | All | s2-core-ne -> s2-l1-landing | 2 | Everyone to the bridge landing and over the glazed bridge | The bridge officer (K2, #11, :135) at the card door; the BMS hack opened it | - | - | "Shadow: the north-east fire stair from the hall. K2 faces the doorways." |
+- **Twist (4B):** the cut was meant to draw one man. The facilities officer collects the reception officer on the way
+  down (they walk the hall together). Shadow, under no alarms and with alarm-rcp beside the desk, must split them or
+  take them in the dark plant room (hide spot (2.5, 0, -24), `campusS2.ts:164`). Ghost's hack is on a clock now.
+- **Optional (either team):** "Photograph the lighting schedule on the board room wall, second floor" (s2-l2-board, via
+  the NE fire stair; dead-end payoff). Lead: the facilities officer "sets the lighting schedule" (:127); TALLY asks for
+  it. Reward: `syringe` (one, section-rating's Grant). Hint: "Second floor, north-east corner. The stair-tour officer
+  never comes this far."
+- **Parallel objectives on separate routes:** 1A (SW stair, L1) and 1B (post / mail, G) run at once; 3 (G east) and the
+  Ghost approach to the wing (L1 north plan) run at once. **Sync points:** sync-s2-comms (Ghost -> Shadow) and
+  sync-s2-switchgear (Shadow -> Ghost), plus the optional sync-s2-atrium.
+
+## Alarm escalation per area (EN2: per-area stages; today one site stage, reinforcements `campusSectors.ts:372`)
+- **Upstairs area** (Ghost's zones): a detection raises the upstairs stage 1: balcony downlights full (groups 51, 52),
+  the L2 lift-lobby reinforcement (-36, -7) walks the L2 ring. Ghost's rule has already broken by then.
+- **Ground area** (Shadow's zones): stage 1: atrium lights full (group 50, the board can no longer cut it), the
+  goods-door reinforcement (-40, -16.5) walks the post room.
+- **Site** (stage 2): both areas at stage 1, or a panel pressed (alarm-rcp, alarm-brg, `campusSectors.ts:292`): K2 holds
+  the card door shut until it stands down. A panel also breaks Shadow's rule (restart).
+
+## Extraction
+Every present player holds the bridge landing zone (`SectorRun` extract phase, every living player), then the C2 walk.
+A player in the C1 checkpoint after a restart must make the landing too; the mission does not end without them.
+
+## Radio (voiceable, British spelling, 90 characters or less each)
+- LANTERN (start): "Evening, Night Shift. Two teams. Ghost upstairs, Shadow on the ground floor."
+- LANTERN (start): "Ghost, nobody upstairs sees you. Shadow, nobody pulls a panel. Simple."
+- SEXTON (start): "Shadow, stay downstairs. If a man upstairs sees you, it's Ghost who pays."
+- TALLY (after 2): "Cameras on a loop. Reception's watching a very quiet foyer."
+- TALLY (after 3): "East wing's dark. Facilities officer's up and grumbling. He's heading down."
+- SEXTON (twist): "He's knocked on the reception desk. Two of them coming, Shadow."
+- LANTERN (after 4A): "Codes are in. Bridge door's yours. Everyone to the landing."
+- LANTERN (rule broken, Ghost): "They saw you. Back to the vestibule, Ghost. Shadow, hold what you've got."
+- LANTERN (rule broken, Shadow): "That's a panel. Back to the vestibule, Shadow. The lights come back on."
+- SEXTON (after 5, quiet): "Lovely building. Somebody should tell them about the lighting."
+
+## Nodes needed from Sector Ops (the lead forwards to "Night Shift | Sector Ops Build")
+| Node | Kind | Room (space) | Device / spot | Src | Lead spot |
+| --- | --- | --- | --- | --- | --- |
+| sync-s2-comms | camera_loop | s2-l1-comms | patch panel on the UPS cabinet wall, loops cam-turnstile, cam-lift, cam-bridge | planned | s2-l1-wing: #8's panel stop (1, -6.5) |
+| sync-s2-switchgear | power_cut | s2-plant-g | a breaker board (BoardDef, no window) on the switchgear, groups 55 + 56 | planned | s2-foyer: #1's desk (-20, -24.9) radio line |
+| sync-s2-atrium | power_cut | s2-foyer | the reception board, group 50 (built) | `campusS2.ts:192` | s2-foyer: the board itself, lit by the desk lamp |
+| kp-fac | keypad (code `s2-fac-code`) | s2-l1-facilities | keypad on the office door (-4, 0); EW5 is not built (`campusSectors.ts:360`) | planned | s2-l1-plan: the kitchen door (-28.5, -26) |
+| lead-s2-kitchen | intel (overheard) | s2-l1-plan | the coffee pair's line at the kitchen door, grants `s2-fac-code` | planned | - |
+| lead-s2-plantlog | intel (document) | s2-mail | plant log in a parcel cage, grants `s2-board`; the post-room note points to it | planned | s2-post: sorting table (-35, -26) |
+| guard reaction | guard-ai | s2-l1-facilities -> s2-plant-g | #7 walks to the new board when 55 / 56 go dark (LR16-4 lure), via reception (twist) | planned (Guard AI) | - |
+
+Approve this beat chart?
