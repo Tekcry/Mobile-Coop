@@ -129,3 +129,39 @@ P16. **Line refs** (fix in the next PLAN pass): e2e-darkness `launch` call :300 
   block :309-317 (plan :269-277 is the thermal `place`), guard freeze :219-226, `torchOverride` `enemy.ts:1872-1882`.
   The slice table names this file `checks/C0.md`; the orchestrator asked for `checks/c0-plan-check.md`.
 P17. **Thumb links**: keys contain `@` (`m-a3-lobby@low`); URL-encode it in the PR comment links.
+
+## Lead fix round (Opus planner for the lead, 2026-10-24)
+All refs re-verified on origin/master 92d0205d (4.97.1; master moved past 7ae1eda1 since the check) and the named tags.
+- M1 pin order: PLAN section 3 "Pinning order" rewritten to the 4 steps (sim running: teleport, `team.end`, vision off,
+  every guard stubbed + parked each view, rig guard placed with `yaw`, `torchOverride` per state; settle >= 0.3 s sim
+  and >= torch count + 1 steps, 20 s wall cap; assert `hasTorch`, no other torch, rig door shut, timeScale 1; read meter
+  + field; then the pin block, aim, isReady, converge, assert timeScale still 0). Torch on -> off = full unpin and redo.
+  Same in the VG2 / VG5 rows and `briefs/VG2.md` (`settle`, `pin`, `shoot`).
+- M2: campus query `sectorGuards=1` (PLAN section 1, `briefs/VG3.md` MAPS); VG3's shape test asserts every rig map's
+  query spawns >= 1 guard.
+- P1 adopted: no src hook. Pin = `__app.loop.timeScale = 0` only. Not `loop.paused`: `beforeFrame` resets it every frame
+  (`src/core/app.ts:413`), so that half of P1 does not hold. The job has zero src diff: BRIEF Limits, A6, A14 rewritten;
+  VG2 row and brief harness-only; `tests/shotPin.test.ts` dropped.
+- P2 adopted: flickering lights to 1 + `flickerVersion++`, pendants to rest (`swx/swy/swz = 0` + `swayVersion++`) inside
+  the pin's synchronous block (PLAN 3 step 4; VG2 `pin`).
+- P3 adopted: full-frame 16 x 9 grid convergence, film-grain and bake asserts, renderer read (PLAN 1 "Determinism", 3;
+  VG2 `bootMap`, `converge`).
+- P4 adopted: one alone request per build, ONE step that copies the gate with `git archive ... | tar -xf -` and runs it
+  through `serve.mjs` (prepare cleans the worktree between steps, service.mjs:61-63) (PLAN 7 M0, 8 proof mechanics).
+- P5 adopted: BRIEF A7 (boot without `?gfx=` for the one-page switch). P6: solved by P1 (A14, PLAN 5).
+- P7 adopted: PLAN 7 re-estimated (Epic 44 renders, rig settles, cold bakes per context; ~170-225 s, ladder reordered:
+  parity 1 per map, campus 1 per section, then the one-page switch only if boots dominate); M0 runs on master.
+- P8 adopted: VG5 owns `harness.mjs` in group B; VG1 exports `FLOORS` (PLAN 4, 8; `briefs/VG1.md`).
+- P9, P10, P17 adopted in the VG6 / VG5 rows and PLAN 6 (4192 released first, `e2e()` env / timeout argument, renderer
+  without baseline = error, thumb keys URL-encoded).
+- P11: line refs adopted (run-e2e.mjs:42); adding `e2e-visual` to e2e-affected.mjs held (PLAN 10 "Held polish").
+- P12 adopted: VG3 rig doors unchanged at v4.82.0, v4.88.0, master, cited per tag; guard >= 1.1 m from the door (a live
+  guard within `DOOR.enemyReach` 1.0 m pushes it open: doors.ts:45, :396-401, enemyManager.ts:3483-3491); VG2 asserts
+  the door still shut after the settle.
+- P13 adopted: P3 proof also runs v4.82.0 at its default falloff (settings.ts:167 at that tag).
+- P14 adopted: Warehouse `mode=clear` (new A16). P15 adopted: parity ranges per new A15 (no interpolation).
+- P16 adopted: PLAN section 1 refs moved to origin/master lines; the slice table names `checks/c0-plan-check.md`.
+- New, found while verifying: guards spawned by a campus section change are re-stubbed every view (PLAN 3 step 1);
+  `slowBeat` can restore `timeScale` (gameState.ts:3217, :3304), so `shoot` asserts timeScale 0 after converge.
+- Group A strict briefs written: `docs/visual-gate/briefs/VG1.md` .. `VG4.md`; parallel-safety table at the top of
+  PLAN section 8.

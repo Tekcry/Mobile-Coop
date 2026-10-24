@@ -1,7 +1,8 @@
 # visual-gate - brief
 
 Job lead: Sector Ops Build (ROADMAP on feature/menu :63). Branch `feature/visual-gate`, worktree
-`C:/NightShift/Mobile-Coop-visual-gate`, cut from master bd54dfcd (master is now 4.97.0, 7ae1eda1).
+`C:/NightShift/Mobile-Coop-visual-gate`, cut from master bd54dfcd (master is now 4.97.1, 92d0205d; builders read reused code with
+`git show origin/master:<file>`, since the branch base is older).
 
 ## The ask (orchestrator, 2026-10-24 ~21:35, verbatim)
 After a process audit found ~8 of Michael's ~30 walk finds were visual / GPU problems that passed every test
@@ -38,8 +39,8 @@ One GPU suite, `e2e-visual`, run on the laptop after every train's e2e, that:
 F3 (Marlow S2 door lamp lit nothing, v4.72.0) is on the pre-redesign Marlow layout: covered by F6's metrics, no own view.
 
 ## Limits
-- This is a test, not a look change. The no-refining rule holds: no src change alters a pixel. The one src change
-  allowed is a test-only pin hook (`GameState.shotPin`, PLAN VG2), inert unless a script calls it.
+- This is a test, not a look change. The no-refining rule holds: the job has zero src diff. The harness pins the sim
+  from the page with `__app.loop.timeScale = 0` (C0 P1; PLAN section 3), so there is no `shotPin` hook.
 - No large binaries in master: baselines live on the data branch `visual-baselines` (metrics JSON; small webp thumbs
   of flagged shots only).
 - Laptop GPU only (port 4189, `E2E_GPU=1`). Baselines are keyed by the GPU renderer string; the desktop overflow lane
@@ -65,11 +66,14 @@ None yet. Open questions: PLAN.md "Questions for Michael" (asked later, native m
 - A5 Regions are world-space quads projected in the page, not hand-drawn pixel masks. Undo: allow `rect` in screen
   fractions per region (the metrics take a mask either way).
 - A6 960 x 540, device scale 1, `?gfx=low` / `?gfx=epic` (pins the governor off and the render scale: Low 0.67 TAAU,
-  Epic native), `weather=clear`, night vision off, characters hidden, guards frozen out of view, flicker off, sim
-  paused by `shotPin`. Undo: per-map overrides in viewpoints.mjs.
+  Epic native), `weather=clear`, night vision off, characters hidden, guards frozen out of view, flickering lights
+  held at 1 and pendants at rest, sim pinned by `__app.loop.timeScale = 0` in the PLAN section 3 order. Undo: per-map
+  overrides in viewpoints.mjs.
 - A7 Low and Epic run in two browsers at once (one per preset), one fresh boot per map and preset; M0 (VG2) measures it.
-  If over budget: switch the preset in one page with `QualityManager.setOverride` (the benchmark's path), checked
-  equal to a fresh `?gfx=` boot on 3 views first. Undo: sequential single browser.
+  If over budget: switch the preset in one page with `QualityManager.setOverride` (the benchmark's path). It is
+  ignored under `?gfx=` (graphics-quality.md:37-38), so that page boots WITHOUT `?gfx=` and sets the override at once
+  (which also stops the adaptive governor, :55-57); checked equal to a fresh `?gfx=` boot on 3 views first (C0 P5).
+  Undo: sequential single browser.
 - A8 The baseline for a train is, per shot key `<view>@<preset>`, the newest of: an accepted record, or a green
   recorded run whose sha is an ancestor of origin/master (a released train). A flagged release never becomes the
   baseline unless accepted, so a drift keeps flagging until it is fixed or accepted. Undo: baseline = last release
@@ -84,5 +88,13 @@ None yet. Open questions: PLAN.md "Questions for Michael" (asked later, native m
 - A12 The train post-step runs after the e2e shards on slot 4189 (adds ~3 min wall). Undo: run it as a third shard in
   parallel (needs a free port or the shard balancer to place it).
 - A13 Tolerances = max(spec floor in PLAN, 4 x the run-to-run spread measured by VG7 on one build). Undo: floors only.
-- A14 Old builds for the red proofs run the gate script from this branch against their own dist; every hook is read
-  with `?.` and falls back to the in-page pinning e2e-darkness uses (no `shotPin`, no flicker before v4.88.0).
+- A14 Old builds for the red proofs run the gate script from this branch against their own dist. The pin is the same
+  page-side path on every build (`GameLoop.timeScale`, `src/core/loop.ts:31` and :184, unchanged from v4.60.1 to
+  master), so proofs, the initial baseline and trains pin identically (C0 P1, P6). Only the flicker / sway reads are
+  guarded with `?.` (`reg.flickering`, `reg.sway`: v4.88.0 on). Undo: none needed (no src hook).
+- A15 Parity ranges (C0 P15): the bible fixes four levels and three bands, so a card within 0.03 of a DARK_TARGETS level
+  is checked against that row's min / max +-0.02; any other card against its band's range (the union of that band's
+  rows: dark 0-0.09, mid 0.12-0.35, lit 0.45-1) +-0.02; within 0.03 of a band edge (0.28, 0.6) it is skipped. No
+  interpolation between rows. Undo: interpolate piecewise-linearly (the first PLAN draft).
+- A16 Warehouse boots `autostart=warehouse&mode=clear` (e2e-darkness.mjs:10, the L5 reference), not
+  sector-lights-shots' `mode=sandbox` (:35); the copied coords do not depend on the mode (C0 P14). Undo: `mode=sandbox`.
