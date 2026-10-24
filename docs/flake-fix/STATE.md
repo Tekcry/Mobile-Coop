@@ -9,9 +9,9 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   Marlow's #365 (e2e-coop fix) is train-ready. Nothing for me unless CI goes red.
 - guard-cap M1 (882 s) + m0 perf retry DONE and pushed to feature/guard-cap-results cc88314f (docs/guard-cap/run-m1/,
   run-m0/perf-retry.txt; .log is gitignored, so .txt). Marlow reads the branch.
-- Queued 20261024T171542-night-shift-test-run-fc4dc9ab-f4a0 (alone, set guard-cap-ct24): ctcourse 24 patrol x3 on
-  master -> C:/NightShift/scratch/guard-cap/ct24-r{1,2,3}. When done: push to feature/guard-cap-results
-  docs/guard-cap/run-ct24/ and add the p95s to the guard-render PLAN2 note (SAVE 41).
+- ctcourse 24 patrol repeat x3 DONE, pushed feature/guard-cap-results 415de8935 docs/guard-cap/run-ct24/SUMMARY.md:
+  frame CPU med 7.0-8.2 steady, p95 14.2 / 18.7 / 8.6 (2 of 3 over 12), render() p95 tracks it. Guard-render PLAN2
+  targets: campus 32 alert (render CPU / draws) AND ctcourse 24 patrol tail spikes.
 - feature/test-flakes: PR #369 (head 7abba919): lightField bodyLevel limit = 2 x levelAt + 56 from the same run (CI
   per-process mode 173.2 vs 126.8). Opus checker PASS; train-ready sent; the Orchestrator posts checker + label.
 - 04:37 queued for the 05:15-09:10 gap, all on train 74 head 3be7d1a2 (4.100.0, holds #366 + #365), after the train:
