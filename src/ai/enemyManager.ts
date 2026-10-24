@@ -59,6 +59,8 @@ import { urgentKind } from './response';
 import { ALERT_MISSING, ALERT_SHOTS, AlertCallLog, SectionCounters, unitOf, type SectionCounts } from './sectionAlert';
 // (guard-ai S20) doors on the walker's way
 import { DoorGate } from './doorGate';
+// (guard-ai S28) a locked shut door is a wall on the guards' nav grid
+import { LockedDoorNav } from './lockedDoors';
 // (guard-ai S22, G6) security consoles switched off: noticed when seen, turned back on (the breaker walk)
 import { CONSOLE_FAULT, CONSOLE_GROUP, ConsoleFaults, consoleInView, isConsoleGroup, V_TAMPER, type ConsoleHost } from './consoleFault';
 // (guard-ai S24, G139) one last known position per intruder
@@ -463,6 +465,8 @@ export class EnemyManager {
   breakers: BreakerHost | null = null;
   /** (guard-ai S20) The doors as the walker sees them (built on the first update with doors). */
   private doorGate: DoorGate | null = null;
+  /** (guard-ai S28) Each door's nav closure, held shut while it is locked and shut (built with the gate). */
+  lockedDoors: LockedDoorNav | null = null;
   /** (guard-ai S20) Doors a guard opened at the leaf (`doorStep`; tests). */
   doorOpens = 0;
   /** The tables (tests / e2e read the numbers from here). */
@@ -3190,6 +3194,15 @@ export class EnemyManager {
     this.intruders.step(dt);
     // (guard-ai S20) the door gate, built once (the door list is fixed for the map)
     if (!this.doorGate && this.world.doors.list.length) this.doorGate = new DoorGate(this.world.doors.list);
+    // (guard-ai S28) a lock or unlock since the last update shuts or opens the doorway on the grid (the version bump
+    // below replans the flow field; each guard's held route replans in `Enemy.goTo`)
+    if (!this.lockedDoors && this.world.doors.list.length) {
+      const ld = new LockedDoorNav(this.nav, this.world.doors.list);
+      this.lockedDoors = ld;
+      // a lock set between two updates (a script, the far side's Unbolt) reaches the grid before the next query
+      this.world.doors.onLocked = () => void ld.sync();
+    }
+    this.lockedDoors?.sync();
     this.helmetDrops.update(dt);
     // nobody hunting him any more: an intruder's last known position is forgotten (guard-ai S24: each on its own)
     this.forgetStep();

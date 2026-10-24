@@ -494,12 +494,20 @@ if (!failed) {
     const p = await F.evaluate(() => { const q = window.__app.current.player.position; return { x: q.x, y: q.y, z: q.z }; });
     assert(Math.abs(p.y - 16) < 0.3 && p.x > 0 && p.x < 20 && p.z > 60 && p.z < 74.4, `Fallow: the player spawns on the y 16 floor in B1 (${p.x.toFixed(1)}, ${p.y.toFixed(2)}, ${p.z.toFixed(1)})`);
     // (T4 fix) the nav grid keeps every level (seeded per bay): A5 -> S6 and B5's floor (the SR) -> A5 have paths.
-    // Nav does not model doors (closed or locked): only the level's static pieces block it.
+    // Closed doors are walkable on the grid; (guard-ai S28) a locked shut door is shut on it, so this read of the
+    // level's own connectivity unlocks the course doors for the query and locks them back in the same evaluate (no
+    // frame runs between: the course's lock state is untouched).
     const navp = await F.evaluate(() => {
-      const nav = window.__app.current.nav;
-      const pt = (id) => window.__app.current.world.layout.debugPoints.find((d) => d.id === id).pos;
+      const g = window.__app.current;
+      const nav = g.nav;
+      const doors = g.world.doors;
+      const held = doors.list.filter((d) => d.anchor.locked);
+      for (const d of held) doors.setLocked(d, false);
+      const pt = (id) => g.world.layout.debugPoints.find((d) => d.id === id).pos;
       const path = (a, b) => { const p = pt(a); const q = pt(b); return !!nav && nav.findPath([p.x, p.z], [q.x, q.z], 200000, p.y, q.y) !== null; };
-      return { a5s6: path('A5', 'S6'), b5a5: path('B5-SR', 'A5'), hasNav: !!nav };
+      const r = { a5s6: path('A5', 'S6'), b5a5: path('B5-SR', 'A5'), hasNav: !!nav, locked: held.length };
+      for (const d of held) doors.setLocked(d, true);
+      return r;
     });
     assert(navp.hasNav && navp.a5s6 && navp.b5a5, `Fallow: nav paths A5 -> S6 and B5 floor -> A5 exist (${JSON.stringify(navp)})`);
     const errs = eF.filter((e) => !/WebGL|GPU stall|swiftshader|Trystero|Nostr|ERR_|favicon/i.test(e));
