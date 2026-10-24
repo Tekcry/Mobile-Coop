@@ -75,6 +75,10 @@ as its scripts are pushed; a slice's bake is one request with one step per stage
   `bake/guard-models` with git plumbing (temp index, no checkout, like `request.mjs`); the lead fetches it and copies
   the files into `src/operators/assets/guards/` in a normal commit after `operators:check` passes there.
 - Desktop fallback (A12): the same command under `heavy.lock` with `--par 2`.
+- (gm-bake-abort) A lost console (a job's exit `0xC0000142` after an account swap, or any job failing in under 2 s with
+  an empty log) stops the stage: no new job starts, the running ones finish, the rest are marked not started, and the
+  driver prints `ABORT: console lost, restart the bake detached` and exits 5 (no push). Restart the bake from a detached
+  process.
 - Pure parts (stage graph, hash keys, job split) in `scripts/operators/guardBakePlan.mjs` + Vitest.
 - Model: Sonnet from an Opus brief; Opus checker (it spawns processes and pushes). ~1 h.
 
