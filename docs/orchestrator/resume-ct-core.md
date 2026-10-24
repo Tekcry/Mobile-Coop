@@ -1,17 +1,19 @@
-# Resume - Night Shift | Player Build (2026-10-24 ~19:45, SAVE at weekly 91%; older log: history at the end)
+# Resume - Night Shift | Player Build (2026-10-24 ~18:10 local, resumed on the new account; older log: history at the end)
 
 Rules: CLAUDE.md "Sessions" ("Heavy-usage throughput", "Token rules", "Account swap"). Opus builds / checks anim, net, AI;
 Sonnet strict briefs / data checks. No desktop e2e: laptop queue (C:/NightShift/scratch/ctcore/lq/request.mjs --sha <full>
 --suites "..." | --alone --step "..."); results = GitHub statuses laptop-e2e/<set>; failure excerpts from Test Runner.
 Message the orchestrator only at PR open / train-ready / blocked / Michael. Push this file with push-resume.sh.
 
-## Now (master 4.92.0 has #308 rig-pose-fix)
+## Now (master 6e8a450b train 56; resumed 2026-10-24 ~18:00 local on the new account)
 | Job | Branch (worktree C:/NightShift/Mobile-Coop-<x>) | Head | Next |
 | --- | --- | --- | --- |
-| #318 guard-models (flag OFF) | feature/guard-models (guard-models) | dbfec6ad | Laptop G9 set on 89c10827 (20261024T043619-...-6637) + e2e-offline on aba0953a (52107-...-3749); delta since 89c10827 = SW + docs + tests. Green -> gh pr edit 318 --add-label train-ready + orchestrator. Wire: G6n `al` look bits (train bumps PROTOCOL). |
-| guard-models perf | feature/gm-perf (gm-perf) | 408ab154 | Cap A/B queued (set gm-perf-cap, 20261024T045507-...-c37c; Test Runner pushes shots/*). Gate: figures ON within +0.5 ms CPU p95 of OFF at 24 guards (was +1.1 to +2.5). Read render.figure vs render.s1 and active_gun_per_guard. Pass -> merge gm-perf into guard-models, flip src/core/flags.ts guardModels to `!== '0'`, docs. S13 DONE a64fb335 (PERF-REPORT "## S13"): the 15-19 meshes were the rifle as 18 parts, already merged by master perfg (in 408ab154 via the master merge); S13 adds armour + shield merges (geared guard 7 -> 4). The 408ab154 cap run measures gun + F1 + F2; armour merge needs a perf.mjs run (MAP=warehouseOps MODE=sector EXTRA=guardmodels=0) before / after. Next: read the cap; pass -> merge gm-perf into guard-models (+ an Opus checker on gm-perf), flip the flag. |
-| #314 optic-coop | feature/optic-coop (optic-coop) | 979da9d7 | Checks A / B / M-fix RECHECK / R3 all PASS. Waiting: CI, laptop coop + netmove on 52258028 (40217-...-60f5), pad + mouse on c69b698c (41745-...-47f6). Green -> label train-ready. Michael M1 (gap optic from the action menu), M2 (ping middle mouse / R3; R3 zoom only while scoped) are in docs/optic-coop/BRIEF.md. |
-| #308 rig-pose-fix | feature/rig-pose-fix | eab79164 | RELEASED in 4.92.0. Confirmation runs: e2e-course (52232-...-f1c7), e2e-tuner-phone flake check (51717-...-cb4a): a failure -> follow-up PR. |
+| #318 guard-models | feature/guard-models | dbfec6ad + merge in flight | Laptop green: G9 16/17 on 89c10827 + e2e-offline (set guard-models-sw) on aba0953a. Was CONFLICTING (src/ai/body.ts, enemyManager.ts) + CI test FAIL (visionIsolation: guardBody.ts setHeat; render-only like dogModel -> exempt). Opus agent merging master + test fix. Then: merge gm-perf (after its checker), flip src/core/flags.ts guardModels `!== '0'`, flag-on laptop suites (enemies, coop, ctcourse, combat, guard-carry), label train-ready. |
+| guard-models perf | feature/gm-perf | a64fb335 | Cap A/B on 408ab154 = GATE PASS (origin/shots/gm-perf-408ab154): 24 guards frame p95 ON/OFF sectorops patrol 6.5/6.5, alert 7.2/7.4; campus patrol 9.0/9.7, alert 9.2/10.0. Opus checker running (reports/GM-PERF-CHECK.md). S13 armour merge not measured (fewer meshes; optional perf.mjs). |
+| #314 optic-coop | feature/optic-coop | 979da9d7 + merge in flight | Checks A/B/R3 PASS, laptop coop+netmove 52258028 + pad+mouse c69b698c PASS, CI green. Was CONFLICTING (src/net/remotePlayer.ts, tests/net.test.ts): Opus agent merging master. Then CI -> label train-ready. |
+| G10a guard defects (plan) | - | - | Opus plan of the lead-found sheet defects (shield missing, debug markers, seam gaps) -> C:/NightShift/scratch/ctcore/briefs/gm-g10a.md. Look items wait on Michael's sheet notes (G10). |
+
+#308 rig-pose-fix: DONE (4.92.0; e2e-course pass; tuner-phone solo pass on 23353993, so the train-54 failure was a flake: fix the e2e-tuner-phone drawer scroll wait in the next Player batch PR).
 
 ## Open
 - guard-models STATE.md top: G8 numbers, S11 merge notes (in master merge now), G10 look list (no sheet notes from Michael yet), garment seam gaps, MERGE-CHECK-A/B polish (lightRig caster refill not behind the flag; `die` figure update after frozen solveNow).
