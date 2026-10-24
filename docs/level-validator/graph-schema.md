@@ -7,10 +7,12 @@ map that is already greyboxed (campus) the graph describes the map AS BUILT and 
 
 - Worked example: `docs/level-validator/example.graph.json` (two sections, one spine link, one split with an overwatch
   and an assist; V1's CLI smoke fixture, 0 errors).
-- Rules: `docs/level-validator/BRIEF.md` mapping table and M1-M4; numbers: `docs/design/metrics.json`, generated from
-  `docs/design/scale-sheet.md` sections 1, 3, 7 (room sizes by type) and 8 (validator numbers). No number in this doc
-  or in the validator is a source of truth: the sheet is.
+- Rules: `docs/level-design.md` (its rule index names the check for each rule; `BRIEF.md` and `PLAN.md` here are the
+  job's history); numbers: `docs/design/metrics.json`, generated from `docs/design/scale-sheet.md` sections 1, 3, 7
+  (room sizes by type) and 8 (validator numbers). No number in this doc or in the validator is a source of truth: the
+  sheet is.
 - Severity: **ERR** = validator ERROR (exit 1); **WARN** = justify in the design doc; **INFO** = printed, no exit code.
+  This doc owns the severities.
 - Michael's reference skill (`docs/level-validator/source/`) uses a different schema; where the two differ, this one
   wins (solo flags, `floor`, `beats`, `split_a` / `coop_overwatch` tags and rope kinds are not ours).
 
@@ -29,9 +31,24 @@ map that is already greyboxed (campus) the graph describes the map AS BUILT and 
 | --- | --- | --- | --- | --- |
 | `map` | string | yes | Map id as registered (`campusOps`, `ctcourse`) | report header |
 | `name` | string | yes | Display name | report header |
-| `mode` | string | yes | `campaign` or `sector` (Sector Ops). Arena / deniable ops is parked (no rules) | checkReach |
-| `players` | int[] | yes | Player counts the map supports: `[2]` for every campaign and campus map (G2, G50); Sector Ops may list `[2, 3, 4]` (A2) | guard keys, checkReach |
+| `mode` | string | yes | `campaign`, `sector` (Sector Ops) or `training` (Marlow Yard): the profile below. Arena / deniable ops is parked (no rules) | every profile check |
+| `players` | int[] | yes | Player counts the map supports: `[2]` for campaign and training maps (G2, G50, G308); Sector Ops lists its counts within 1-4, `[1, 2, 3, 4]` (coop4 #317, G308), with guard counts per player count ("Keep scaling", 2026-10-25) | checkStructure, guard keys |
 | `sections` | string[] | yes | Section ids in spine order (`["S1", "S2", ...]`) | checkSpine, checkRedundancy, pacing, early / late |
+
+### Mode profiles (`docs/level-design.md` "Modes and tags")
+
+| Check | `campaign` | `sector` | `training` |
+| --- | --- | --- | --- |
+| Players | ERR not `[2]` | ERR a count outside 1-4 | ERR not `[2]` |
+| Exfil | ERR none | - | - |
+| Routes per encounter (3 approaches, 2 kinds, shadow / high / loud, secret share), routes cross, 2 routes per section | as below | as below | skipped (one route, G292) |
+| Forced co-op gate per section | ERR a section whose exit solo links reach from its entry | - | - |
+| Gate reach (a way back over each co-op link) | ERR none; ERR over `reach_max_s` | - | - |
+| No softlock | - | ERR | - |
+| Solo twins | ERR | WARN | WARN |
+| Guard bands | WARN below | WARN below | INFO below |
+| Alive ceiling | - | ERR a section over `sector_alive_max` at a player count | - |
+| Shadow share | INFO | INFO | INFO |
 
 ## `spaces[]`
 
@@ -49,10 +66,10 @@ surface above a floor (a gantry, a roof walk, a cable basket run, a ledge run) t
 | `size` | [w, l, h] | yes | Metres; w = short side, l = long side, h = clear height above the floor (ceiling, slab underside or the next obstruction; open sky: the height you could stand up to, 12.0 if nothing) | ERR h < 2.4; WARN h < 3.0 in rooms and corridors; class ceiling range (WARN outside; an `open` class skips it); 0.5 grid (WARN off-grid); camera floors via the class (encounter w >= 6.0, walk-through w >= 3.5, corridor 3.0-4.0, target 3.5-4.0) |
 | `tension` | int 1-5 | yes | Beat chart intensity (level-design 6.2, 13) | checkPacing: ERR three spaces >= 4 in a row on the spine; WARN the map opens above 2; WARN no 1-2 after a peak |
 | `tags` | string[] | yes (may be empty) | See "Tags" | reach, spine, splits, dead ends |
-| `shadow_pct` | 0-1 | encounter | Declared TARGET: share of the floor in shadow | ERR missing; ERR outside 0.4-0.6 (M4) |
+| `shadow_pct` | 0-1 | no | Share of the floor in shadow, for information: the real-world light band (scale sheet section 9, level-design 5.5) is the light target since 2026-10-25 | INFO outside `shadow_min_frac`-`shadow_max_frac` |
 | `los_break_s` | s | encounter | Declared TARGET: worst-case time to break a guard's line of sight from any point of a stealth route | ERR missing; ERR above 5 (M4) |
 | `vantage` | `{ "from": id, "sees_pct": 0-1 }` | encounter | The observation point (a space id) and the share of the space it sees; it must also see every guard within one cycle, out of view (level-design 3.1: design doc) | ERR missing or unknown `from`; ERR `sees_pct` < 0.7 (M4) |
-| `guards` | `{ "<players>": n }` | encounter | Guards in the space by player count, dogs included (`{ "2": 4 }`); a guard present only from N players counts only in the `"N"` key and above | INFO outside early 3-6 / late 6-10 (M block: INFO until Michael rules on the guard sheets); ERR > 10; ERR a count lower than a smaller player count's |
+| `guards` | `{ "<players>": n }` | encounter | Guards in the space by player count, dogs included (`{ "2": 4 }`); a guard present only from N players counts only in the `"N"` key and above | WARN below the `guards_early` / `guards_late` band (training: INFO), no upper limit (level-design 4.9); `sector`: ERR when a section's spaces sum to more than `sector_alive_max` at one player count; ERR a count lower than a smaller player count's |
 | `phase` | `early` / `late` | no | Overrides A3 (first half of the spine by section index = early, second half = late) | guard bands |
 | `note` | string | no | What was not measured or is estimated, and from where (V5 writes one on every guessed value) | ignored by the validator |
 | `measured` | object | no | Reserved for V6 (greybox measurement): measured values beside the targets; never written by hand | V6: ERR when a measurement misses its target |
@@ -102,7 +119,8 @@ walking speed (climbs, crawls, co-op moves) carry `time_s` on any split leg or r
 | `split_jump` | no | `width` 1.2-1.95 between faces, `height` >= 3.6 |
 | `coop_boost` | **yes** | lip `level_change` 4.3-4.5 (`TEAM.boostMax` 4.5) |
 | `human_ladder` | **yes** | lip `level_change` 4.3-4.5 (ladder grab 4.1 until G57) |
-| `pair_gate` | **yes** | a team door (pair gate / pair bolt, CR5 / CR6): `door` sizes; opens only with both players (lead decision 1) |
+| `pair_gate` | **yes** | a team door (pair gate / pair bolt, CR5 / CR6), a shutter or door one partner holds, a door unlocked from the far side after a vent or a throw: `door` sizes; opens only with both players (lead decision 1); once opened it stays open (the gate's way back) |
+| `coop_throw` | **yes** | throw the partner over a gap (kit, G293): `width` = the gap; needs `time_s`; no size band until the move is built |
 | `team_rope` | **yes** | the two-person rope (G180 over G110, CR7): `level_change` = the climb; needs `time_s` (lead decision 2) |
 | `rappel` | no | one way down (`RAPPEL`, `src/config/movement.ts:370`); `level_change` = the descent; needs `time_s` (lead decision 2) |
 
@@ -135,16 +153,22 @@ No zipline. The core schema's "no rope (G110)" line is out of date: G180 restore
 
 ## How the checks read the graph
 
-- **Two-player reach (checkReach).** Every space, every `objective` and `exfil` is reachable from `start` over all
-  links (ERR). No softlock: every space a co-op link reaches is also reachable without co-op links (ERR), so a downed
-  player can always be reached and nobody is stranded alone. Solo completability is not checked (A1; G2, G50).
+- **Reach (checkReach).** Every space, every `objective` and `exfil` is reachable from `start` over all links (ERR).
+  Then per mode (level-design 11.6): `sector`, no softlock: every space a co-op link reaches is also reachable without
+  co-op links (ERR), so a downed or solo player is never stranded (G280). `campaign`, gate reach: every co-op link has
+  a way back from its `to` to its `from` over solo links (an opened `pair_gate` counts) within `reach_max_s` at
+  `reach_speed_mps` (`time_s`, else `length` / speed) (ERR none or too slow; WARN when only links with no `time_s` make
+  it). `training`: neither. Solo completability is not checked (A1; G2, G50).
+- **Forced co-op gate (checkCoop, `campaign`).** In each section, the solo links inside it (no co-op kind, no `spine`)
+  must not join its `entry` to its `exit` (ERR: "every campaign section forces a co-op traversal move", G292).
 - **Spine (checkSpine).** Each `spine` link joins consecutive sections (ERR otherwise); removing any section's spaces
   disconnects `start` from `exfil` (ERR: a route skips a section). Loops live inside sections.
 - **Encounter spaces (checkEncounters).** Approaches = links other than `spine` that can enter the space (a one-way
   link counts only at its `to` end), from a space that can be entered by a link from somewhere else (a door to a side
-  room entered only from this space is no approach). ERR fewer than 3 approaches or fewer than 2 route kinds; ERR missing any of `shadow`, `high`, `loud`; WARN `secret` in fewer than half
-  of the guarded spaces. Routes cross: in each section the route kinds used between entry and exit share at least one
-  space (ERR).
+  room entered only from this space is no approach). `campaign` and `sector`: ERR fewer than 3 approaches or fewer than
+  2 route kinds; ERR missing any of `shadow`, `high`, `loud`; WARN `secret` in fewer than half of the guarded spaces.
+  Routes cross: in each section the route kinds used between entry and exit share at least one space (ERR). `training`
+  skips these and the two-routes-per-section check (one route, G292).
 - **Dead ends.** A space with at most one way out (not `start` / `exfil`) is ERR unless it is tagged `reward` or
   `objective` (or typed so) and `size[1]` <= 15 m (level-design 3.4, 16.6.3). Ways out are links, not neighbours: two
   ladders to one hall are a loop; a one-way link is a way out only at its `from` end (a drop in is none).
@@ -155,31 +179,33 @@ No zipline. The core schema's "no rope (G110)" line is out of date: G180 restore
   space of leg a to any of leg b, `time_s` else `length` / 3.0, ERR above 15 s. It is measured from every space of one
   leg to the nearest space of the other leg (the worst such space counts), not to every point of the other leg as
   level-design 11.6 could be read: legs up to 117 m long cannot all lie within 45 m of each other.
-- **Co-op coverage.** A co-op link (`coop_boost`, `human_ladder`, `pair_gate`, `team_rope`) touches at least half of
+- **Co-op coverage.** A co-op link (`coop_boost`, `human_ladder`, `coop_throw`, `pair_gate`, `team_rope`) touches at least half of
   the encounter spaces (ERR) and at least one space in every section (ERR).
 - **Solo twins (checkCoop).** A co-op link is a solo twin when one player can make the same move: a solo link from its
   `from` to its `to`, or a solo path there that does not pass the target, on the co-op link's own `route` and no
   longer than its `length` (a longer solo route, or one on another route kind, is the no-softlock alternative; a direct
   solo link with no `length`, or beside a co-op link with none, counts). The move runs `from` -> `to` (a climb's foot
   to its top); a two-way `pair_gate` is judged both ways. ERR on a `campaign` map (two players only, G2); WARN on
-  Sector Ops (G185: solo completes; G280: team doors stay two-player). The message names both links (campus CR7: the
-  `team_rope` beside the `drop`).
+  Sector Ops (G185: solo completes; G280: team doors stay two-player) and on `training`. The message names both links
+  (campus CR7: the `team_rope` beside the `drop`).
 - **Pacing (checkPacing).** Over the spine order of spaces; see `tension`.
 - **Dimensions (checkDimensions).** Every `size`, `width`, `height`, `length` on the 0.5 m grid (WARN); class and kind
   rules above; ERR any `level_change` over 0.40 up to 0.45 (the step band: player 0.42 vs nav 0.45 disagree; a 0.40 curb passes).
-- **Guard counts.** Per encounter space and player count, never per section; WARN below the early / late band, no upper
-  limit (Michael 2026-10-24: as many as realistically possible, bounded by the guard-cap perf floor); per-section caps (spawn and alive caps
-  of the map) are checked against the guard sheets, not the graph.
+- **Guard counts.** Per encounter space and player count: WARN below the early / late band (`training`: INFO), no upper
+  limit (Michael 2026-10-24: as many as realistically possible, bounded by the guard-cap perf floor). `sector`: per
+  section and player count, the spaces' counts sum to at most `sector_alive_max` (ERR; G187). The campaign and
+  training spawn caps (`SQUAD_CAP`, `SET_GUARDS_MAX`, level-design 12.1) are checked against the guard sheets.
 
 ## Estimating the targets before geometry (M4, A8)
 
-The graph is written before any geometry, so `shadow_pct`, `sees_pct` and `los_break_s` are the designer's declared
-targets, not measurements. Write the number you are designing for, and say in the design doc how the layout delivers
+The graph is written before any geometry, so `sees_pct` and `los_break_s` (and the optional `shadow_pct`) are the
+designer's declared targets, not measurements. Write the number you are designing for, and say in the design doc how the layout delivers
 it. V6 (greybox measurement) later samples the light bake, the nav grid and nav-grid path times, writes `measured`
 beside each target, and the map fails if a measurement misses its target.
 
 - **`shadow_pct`.** Sketch the lit pools: each working fixture lights roughly a circle of radius 1.5 x its mount height;
-  sum the lit area over the floor area (`w x l`), shadow = 1 - lit. Aim at 0.5 so greybox has room both ways.
+  sum the lit area over the floor area (`w x l`), shadow = 1 - lit. Information only (INFO): the light target is the
+  real-world band of the space type (scale sheet section 9).
 - **`sees_pct`.** From the vantage, count the floor the eye reaches over cover: a high vantage (>= 3 m above the floor)
   over cover <= 1.8 m sees most of an open floor; tall racks, pods and partitions hide their back sides. Do not
   declare more than you can draw as a view cone on the plan.
@@ -198,7 +224,7 @@ beside each target, and the map fails if a measurement misses its target.
 | Corridor | `kind: corridor` + `width`; `room_class: corridor` + `size` | | Topology (spine) | `meta.sections`, `section`, `route: spine` |
 | Stairs | `fire_stair` / `open_stair` `width` (rise / run: design doc) | | 2+ independent routes | `entry`, `exit`, `section` |
 | Vent / crawlspace | `duct` / `tunnel` `width`, `height` | | Solo completability | dropped (A1); 2-player reach from `start` |
-| Ceiling | `size[2]`, `room_class` | | No softlock | co-op `kind`s, `one_way` |
+| Ceiling | `size[2]`, `room_class` | | No softlock (`sector`), gate reach (`campaign`) | co-op `kind`s, `one_way`, `length`, `time_s` |
 | Step / curb | `level_change` | | Co-op coverage | co-op `kind`s, `section` |
 | Above 2.0 m needs help | `kind` + `level_change` | | Split parity, split length | `split:<id>:*`, `length`, `time_s` |
 | Split-jump corridor | `split_jump` `width`, `height` | | Overwatch | `overwatch:<id>` |
@@ -206,24 +232,13 @@ beside each target, and the map fails if a measurement misses its target.
 | Room-class sizes | `room_class`, `size`, `type` | | Reach a downed partner | split tags, `length`, `time_s` |
 | Cover spacing | design doc (not in the graph) | | Space for two | `shared`, `width` |
 | Patrol loops | design doc / guard sheets (not in the graph) | | Beat pacing | `tension`, spine order |
-| Guards per space | `guards`, `phase` | | Shadow | `shadow_pct` (+ V6 `measured`) |
+| Guards per space | `guards`, `phase` | | Shadow (INFO), light band | `shadow_pct` (+ V6 `measured`); band: scale sheet 9 |
 | Observation point | `vantage` (every guard in one cycle: design doc) | | LOS break | `los_break_s` (+ V6 `measured`) |
 
-## Campus conventions (first run: all five sections S1-S5)
+## Campus conventions
 
-- **Storeys.** One space per walkable surface: `storey` is its walking height (S2 `S2_FLOORS` 0 / 4.4 / 8.4 / 12.3;
-  S5 G 0, L1 4.2, roof 8.4; S4 NOC mezzanine 3.6, plant deck 7.3, cable baskets 4.4). Stairs and ladders between
-  them are links with `level_change`. A route surface with no section 7 class (roof walk, basket run, deck) is
-  `custom` (WARN, justified) until the sheet gets classes for them.
-- **Connectors C1-C4 are `spine` links, not spaces.** One `corridor` (or the narrowest door) link from the section's
-  `exit` space to the next section's `entry` space; `length` = the connector's walk; `reason` names both doors. As a
-  space, the connector's single near door (K1, K2 chokes) would fail the section's two-route check by design.
-- **Posted choke guards (K1-K4)** count in their space's `guards`; the choke itself is the single spine link or a
-  `note`.
-- **Dogs count as guards** (SPEC "Dogs count"). Campus guard counts do not scale by player count: `players: [2]`, one
-  key `"2"`. `minPlayers` exists only on Kestrel devices (3+ players), not on campus guards.
-- **Cameras, lasers, keypads, alarm panels, light circuits** are not in the graph (design doc / security register);
-  an `assist` may name one in its `reason`.
+The campus graphs (`docs/sector-redesign/graph/`) follow `docs/level-validator/campus-run/CONVENTIONS.md`: storeys,
+connectors as `spine` links, posted choke guards, dogs, and what stays out of the graph.
 
 ## Known gaps (as found by V0; settled in "Lead decisions on the known gaps" above)
 

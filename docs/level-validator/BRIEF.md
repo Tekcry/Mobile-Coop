@@ -1,5 +1,7 @@
 # level-validator - brief
 
+> History: the job record. Current rules are `docs/level-design.md` and `docs/level-validator/graph-schema.md`.
+
 Lead: Night Shift | Marlow Build. Branch `feature/level-validator`, worktree `C:/NightShift/Mobile-Coop-level-validator`.
 Plan by Opus (2026-10-24 ~20:00). Michael's uploaded skill (reference only): `docs/level-validator/source/` (SKILL.md,
 validate_level.py, example_level.json). **Our standard wins wherever the two differ.**
@@ -91,8 +93,8 @@ campus-audit (feature/campus-audit 618cdd69).
 | Room-class sizes | skill 3.5 table | V2 table in the scale sheet, camera-adjusted; play space >= 6 m short side; the validator reads that table | scale-sheet 3 + V2 |
 | Cover spacing | 3-6 m, never > 8 m open | stepping stones every 4-8 m; recess every 8 m; no straight run > 12 m (not in the graph: design doc) | level-design 3.5; scale-sheet 5 |
 | Patrol loops | 20-45 s, crossings 3-8 s | 25-45 s, stops 3-6 s, gaps 3-8 s (not in the graph: guard sheets, `tests/campus*.test.ts`) | level-design 4.3 |
-| Guards per space | 3-6 early, 6-10 late, ERR > 10 | per encounter space, per player count: early 3-6, late 6-10 (WARN outside), ERR > 10; per section ERR above the map's caps (`SQUAD_CAP` 9 spawn, `MAX_ALIVE` 12, campus screen cap 12); count rises with players | Michael (3); level-design 12.1; `campusSectors.ts` `CAMPUS_SCREEN_CAP` |
-| Shadow | 40-60% | 40-60% of an encounter space's floor (WARN outside, ERR missing) | Michael (3) |
+| Guards per space | 3-6 early, 6-10 late, ERR > 10 | per encounter space, per player count: WARN below early 3-6 / late 6-10, no upper limit (Michael 2026-10-24 ~22:00, "as many guards as realistically possible"); Sector Ops ERR above `sector_alive_max` 32 per section; count rises with players | Michael (3), G289; level-design 4.9, 12.1 |
+| Shadow | 40-60% | INFO only since 2026-10-25: the real-world light band per space type wins (scale sheet 9) | Michael (3); 2026-10-25 ~09:05 |
 | Observation point | 70% | a vantage per encounter space seeing ~70% (WARN < 0.7, ERR missing) + our 3.1 (every guard within one cycle, out of view) | Michael (3); level-design 3.1 |
 | LOS break | ~5 s | `los_break_s` <= 5 per encounter space (WARN above, ERR missing) | Michael (3) |
 | Rule of three | 3+ approaches, 2+ kinds | 3+ approaches of 2+ kinds (ERR) AND our 3.2: a shadow, a high and a loud route each (ERR), a secret route in half the guarded spaces (WARN) | Michael (1); level-design 3.2 |
@@ -101,10 +103,10 @@ campus-audit (feature/campus-audit 618cdd69).
 | Topology | prefer hubs and loops | linear spine of sections: every start -> exfil path passes every section in order (ERR on a skip); loops inside a section | Michael; level-design 3, 3.3, 15; CT research |
 | 2+ independent routes | start -> objective, edge-disjoint | per section, entry -> exit, edge-disjoint >= 2 (ERR); the spine connector between sections is single on purpose | Michael (1); level-design 3.3, 3.4 |
 | Solo completability | ERR if solo cannot finish | dropped: the campaign is two players and cannot be completed solo; instead 2-player completability (ERR) | G2, G50; level-design Open items 1 |
-| No softlock | (solo fallback) | every space reached by a co-op link is also reachable by a non-co-op route (ERR), so a downed player can be reached | level-design 11.4 |
-| Co-op coverage | half of encounters | co-op route in at least half the encounter spaces (ERR) and in every section (ERR); co-op kinds = our verbs only (boost, human ladder; dual takedown as a space tag) | Michael (1); level-design 11.6; G110 (no rope) |
-| Split parity | lengths within 20% | split legs within 20% by path length (ERR) | Michael (4) |
-| Split length | none | each leg <= 90 s at 1.3 m/s (crouch gear 3) = 117 m (ERR) | Michael (4); scale-sheet 1 speeds |
+| No softlock | (solo fallback) | Sector Ops: every space reached by a co-op link is also reachable by a non-co-op route (ERR); campaign: a forced co-op gate per section, each with a way back within the revive reach (ERR) | level-design 11.6, 11.10 |
+| Co-op coverage | half of encounters | co-op route in at least half the encounter spaces (ERR) and in every section (ERR); co-op kinds = the kit of level-design 11.9 (boost, human ladder, throw, pair gate, two-person rope; dual takedown as a space tag) | Michael (1); level-design 11.9; `team_rope` (G180 over G110) |
+| Split parity | lengths within 20% | split legs within 20% by traversal time (ERR; M4) | Michael (4) |
+| Split length | none | each leg <= 90 s at 1.3 m/s (crouched sneak, gear 2) = 117 m (ERR) | Michael (4); scale-sheet 1 speeds |
 | Overwatch | one per split section (WARN) | one per split, seeing that split's legs (ERR) | Michael (4) |
 | Partners act for each other | link interaction (manual) | each split has >= 1 `assist` (one leg's action opens / darkens / disables for the other) (ERR) | Michael (4) |
 | Reach a downed partner | 15 s | from any space of one leg to any space of the other <= 15 s at 3.0 m/s = 45 m (ERR) | Michael (4); G40 speed 3.0 |
