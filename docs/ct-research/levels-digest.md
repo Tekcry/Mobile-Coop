@@ -1,5 +1,9 @@
 # Chaos Theory co-op levels - scrubbed digest
 
+> Research record (2026-10-18): what the reference levels did, not Night Shift's rules. Where it disagrees with
+> docs/DECISIONS.md, docs/VISION.md or docs/level-design.md, those win; e.g. its timers and stacked fail rules are not
+> ours (2026-10-25: soft windows only; G290: up to 2 strict rules, section restart).
+
 Digest of `source/01-coop-levels.md` (with `source/00-index.md` for conventions and `source/raw/08`, `09`, `11`, `12`
 for level patterns, pacing, wow moments and anti-patterns). Written 2026-10-18 for Night Shift co-op prototype work.
 

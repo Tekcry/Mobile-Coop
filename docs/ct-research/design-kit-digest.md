@@ -1,5 +1,12 @@
 # Design kit digest - the research's co-op design kit against Night Shift's docs
 
+> Research record (2026-10-18). Where it disagrees with docs/DECISIONS.md or docs/VISION.md, those win. Superseded
+> points: 1.8 rule 5 "hard fail only for the mission's one declared rule" (G290: up to 2 strict rules, breaking one
+> restarts the section, the mission continues); 1.11 rule 8 "every lit area on the critical path can be darkened" and
+> 3.7's "two ways to darken" row (2026-10-25: real-world light bands per space type, and hardened lit choke points are
+> allowed everywhere as long as a route around stays); any timer rule (2026-10-25: soft windows only, no countdown that
+> closes a route); any map, marker or minimap (2026-10-25: no maps, minimap, compass or blip in any mode).
+
 Date: 2026-10-18. Branch `feature/ct-research`. Scrubbed (G6, G114): no reference-game character, gear or organisation
 names; "Chaos Theory" / "CT" name the reference. Generic verb names are the kit's own.
 

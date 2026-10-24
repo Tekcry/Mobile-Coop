@@ -1,5 +1,12 @@
 # Kit, audio and design findings - digest (scrubbed)
 
+> Research record (2026-10-18). Where it disagrees with docs/DECISIONS.md or docs/VISION.md, those win. Superseded
+> points: 3.2 A14 "Show timers" and the visible-timer row (2026-10-25: soft windows only, signposted in the world; no
+> countdown that closes a route, no forced timers in stealth); 3.2 A15 "At most one signposted hard rule" (G290: up to 2
+> strict rules, breaking one restarts the section); A9's authored fixed spots (G151: team moves anywhere with room);
+> section 6's movement-run ideas: G11's cut of paired behaviour is lifted for static lookouts and paired patrols that
+> check on each other (2026-10-25).
+
 A working digest of the Chaos Theory (CT) co-op research for Night Shift: the kit, what the prototype needs from audio and
 atmosphere, the design findings, which open questions block a prototype, and a CT check of the nine movement-run ideas
 (G11). It turns the raw research into proposals for Michael. Nothing here is decided until Michael says so.
