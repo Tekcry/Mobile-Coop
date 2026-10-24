@@ -1,5 +1,18 @@
 # Changelog
 
+## 4.88.2 - Train 49: Guard body compile cap 90 s; Response team sweep never stalls (2026-10-24, PR #305; #303, #302)
+
+### Guards route round locked doors
+- Guards no longer stall at a locked door on their way (Marlow Yard A7's cage door): a locked, shut door is a wall to
+  their pathing and they go round it; unlocked, the way through opens again (guard-ai S28).
+
+### Response team sweep never stalls
+- A response team sweeping a Sector Ops section no longer stalls behind a jam: a leader held short of a sweep point
+  plans again, then moves on to the next point, and a guard pressed into a wall's edge walks free (guard-ai sweep fix).
+
+### Guard body compile cap 90 s
+- Guard bodies: the last-resort cap for a body shader still compiling is now 90 s (was 45 s), so the bigger lighting shaders are never restarted while still compiling with several browsers at once.
+
 ## 4.88.1 - Train 48: e2e-ctcourse A2 crossing settle (2026-10-24, PR #301; #299)
 - Tests: e2e-ctcourse:1 A2 waits up to 6 s for the neck crossing to read dark and equal on both pages after the cut, and names the host's baked / dynamic level and lit torches on a miss (a host-only torch is named as the known co-op torch parity gap) (train 45 / 46 flake: host 1.000, client 0.141).
 
