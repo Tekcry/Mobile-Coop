@@ -40,11 +40,11 @@
    - Relay: question only the duty officer.
    - Relay carries 2, Vault 1, a solo player 2.
    - An alarm sends both teams back to the checkpoint. Breaking Relay's rule sends only Relay back.
-5. What it costs: paper only until you pick. Sector Ops' S4 plan already reserves every device. 7 of them are marked
+5. What it costs: paper only until you pick. Sector Ops' S4 plan already reserves every device. 8 of them are marked
    planned (the NOC release, the cage code prompt, the roster, the deck radio line, the seat placard, the footage
-   drive, the riser-side keypad). Guard AI adds the supervisor's walk to the cage. The mission engine handles the
-   named interrogation, the 30 s window and the per-team restart. Validator, on Sector Ops' latest campus plan: 0
-   errors; 1 mission warning, by design (the colonnade exit is the section's choke; BEAT.md Graph notes).
+   drive, the riser-side keypad, the compound's riser door keypad). Guard AI adds the supervisor's walk to the cage. The mission engine handles the
+   named interrogation, the 30 s window and the per-team restart. Validator, on the campus plan you signed off this
+   morning (S4 as drawn, one goods-in lobby): 0 errors; 1 mission warning, by design (the colonnade exit is the section's choke; BEAT.md Graph notes).
 
 ## The decision
 Q: Approve Code Relay as specced?

@@ -1,5 +1,5 @@
 {
-  "_about": "Split Shift mission nodes (mission-framework SS). Mission part only: validate with Sector Ops' campus plan graphs, `node scripts/level-validate.mjs docs/sector-redesign/graph/plan/campusOps-S{1,2,3,4,5}.json <this file>` (mission-validator branch). Space and sync ids are Sector Ops' (origin/feature/sector-redesign-signoff fe3ef35f, graph/plan/campusOps-S2.json `syncs`). `sync` on an objective names the campus sync node the step uses and `assist` an optional one (neither is a validator field). The extraction s2-l1-landing is Sector Ops' `tracks.exfil` in that file, not a space tag. Beat chart: BEAT.md; differences and node needs: BEAT.md 'Graph notes'.",
+  "_about": "Split Shift mission nodes (mission-framework SS). Mission part only: validate with Sector Ops' campus plan graphs, `node scripts/level-validate.mjs docs/sector-redesign/graph/plan/campusOps-S{1,2,3,4,5}.json <this file>` (mission-validator branch). Space and sync ids are Sector Ops' (origin/feature/sector-redesign-signoff 7c021f01, Michael's sign-off picks; S2 unchanged since fe3ef35f; graph/plan/campusOps-S2.json `syncs`). `sync` on an objective names the campus sync node the step uses and `assist` an optional one (neither is a validator field). The extraction s2-l1-landing is Sector Ops' `tracks.exfil` in that file, not a space tag. Beat chart: BEAT.md; differences and node needs: BEAT.md 'Graph notes'.",
   "mission": { "id": "splitShift", "mode": "sector", "players": [1, 2, 3, 4], "start": "s2-foyer", "budget": 14 },
   "objectives": [
     { "id": "ss-1a", "section": "S2", "space": "s2-l1-kitchen", "team": "a", "kind": "intel", "gives": "s2-fac-code",
@@ -30,10 +30,10 @@
     { "id": "ss-opt", "section": "S2", "space": "s2-l2-board", "team": "all", "kind": "interact",
       "optional": { "reward": "syringe" }, "lead": "s2-l1-facilities", "seen_from": "s2-l2-wing", "minutes": 3,
       "text": "Optional: photograph the lighting schedule on the board room wall, second floor",
-      "hint": "Second floor, north-east corner. The stair-tour officer never comes this far." },
+      "hint": "Second floor, north-east corner. The north-strip guard turns back at the wing door. Go in behind him." },
     { "id": "ss-5", "section": "S2", "space": "s2-l1-landing", "team": "all", "kind": "extract", "after": ["ss-4a", "ss-4b"],
       "minutes": 2, "assist": "sync-s2-pairdoor", "text": "Everyone to the bridge landing and over the glazed bridge",
-      "hint": "Shadow: the north-east fire stair from the hall. The bridge officer faces the doorways." }
+      "hint": "Shadow: the north-east fire stair from the hall. The bridge officer faces the comms door; the west door is on his blind side." }
   ],
   "rules": [
     { "kind": "ghost", "scope": "a", "text": "Team Ghost - never seen" },
