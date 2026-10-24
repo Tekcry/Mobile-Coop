@@ -1,0 +1,16 @@
+{
+  "id": "20261024T181931-night-shift-player-b-e7bd1201-a1b0",
+  "sha": "e7bd12014c54ebb42ab452818c8867214944aa27",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove",
+    "e2e-ctcourse",
+    "e2e-sectorops"
+  ],
+  "set": "coop-lamp-guard",
+  "note": "F1c stale lamp round guard (src/net), stacked on #371"
+}
