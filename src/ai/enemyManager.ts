@@ -64,7 +64,7 @@ import { LockedDoorNav } from './lockedDoors';
 // (guard-ai S22, G6) security consoles switched off: noticed when seen, turned back on (the breaker walk)
 import { CONSOLE_FAULT, CONSOLE_GROUP, ConsoleFaults, consoleInView, isConsoleGroup, V_TAMPER, type ConsoleHost } from './consoleFault';
 // (guard-ai S24, G139) one last known position per intruder
-import { COOP4, INTRUDERS, IntruderBoard, type SlotHunted } from './intruders';
+import { ALARM_HUNT, alarmHunts, COOP4, INTRUDERS, IntruderBoard, type SlotHunted } from './intruders';
 import { MAX_INTRUDERS } from './targetPick';
 import { SEARCH_AREA, SearchPlan, areaRadius, orderByScore, pointScore } from './searchArea';
 
@@ -174,6 +174,9 @@ export class EnemyManager {
   private readonly flowGoalY = [0];
   /** (guard-ai S24) The intruder of the guard who raised the alarm: the reinforcements hunt him. */
   private alarmHunt = -1;
+  /** (coop4 AI4, A174) The alarm's round robin over `alarmHunts` (`nextAlarmHunt`) and its order scratch (made once). */
+  private alarmK = 0;
+  private readonly alarmList = new Int8Array(MAX_INTRUDERS);
   // ---- (guard-ai S25, A151) the probable-area search after combat ----
   /** One search plan per intruder slot (made once): the cover spots and dark cells his searchers check, each claimed
    *  by one of them (`buildPlan`, `AiContext.searchPoint` / `searchDone`). */
@@ -750,6 +753,7 @@ export class EnemyManager {
     this.alarmRunner = null;
     this.alarmBy = '';
     this.alarmHunt = -1;
+    this.alarmK = 0;
     this.contactHunt = -1;
     this.command.clear();
   }
@@ -765,6 +769,8 @@ export class EnemyManager {
     // (S25b, S24 recheck A polish 1) the contact's intruder only while he is still known (not forgotten since)
     const ch = this.contactHunt;
     this.alarmHunt = e.hunt >= 0 ? e.hunt : ch >= 0 && ch < MAX_INTRUDERS && this.intruders.valid[ch] === 1 ? ch : -1;
+    // (coop4 AI4) its first reinforcement hunts the alarm's intruder
+    this.alarmK = 0;
     this.alarmRunner = null;
     this.command.raised();
     this.onAlarm?.(e, p);
@@ -865,8 +871,8 @@ export class EnemyManager {
       e.joinAsResponder(route, d.x, d.z, this.roomOf(d.x, d.y, d.z));
       return;
     }
-    // (guard-ai S24) told of the alarm caller's intruder
-    e.joinAsReinforcement(route, this.alarmHunt);
+    // (guard-ai S24) told of the alarm caller's intruder; (coop4 AI4, A174) from 3 players the next in the split
+    e.joinAsReinforcement(route, this.nextAlarmHunt());
   }
 
   /** (guard-ai S17) The last tripped device's spot (floor height) and board time (-Infinity: none since the clear). */
@@ -1747,7 +1753,8 @@ export class EnemyManager {
    * never goes for a player nobody saw or located).
    */
   private sendIn(e: Enemy): void {
-    e.tell(this.commandHunt());
+    // (coop4 AI4, A174) from 3 players: the next in the alarm's split (1-2: command's, today)
+    e.tell(ALARM_HUNT.split && this.coop4() ? this.nextAlarmHunt() : this.commandHunt());
     e.alert();
   }
 
@@ -1756,6 +1763,24 @@ export class EnemyManager {
   private commandHunt(): number {
     const a = this.alarmHunt;
     return a >= 0 && this.intruders.valid[a] === 1 ? a : this.intruders.freshest;
+  }
+
+  /**
+   * (coop4 AI4, A174) The intruder slot the next reinforcement hunts (-1 none). From 3 live players (A170) and
+   * `ALARM_HUNT.split`: round robin (`alarmK`, reset by `resetAlarm` and on the alarm) over `alarmHunts`: the alarm's
+   * intruder first (when still known), then every other known intruder, freshest sighting first, a player who left
+   * skipped. Nobody known, or 1-2 players: `alarmHunt` (today). Each call takes the next one: a lone reinforcement
+   * calls it once (`joinReinforcement`, `sendIn`); a team calls it once for all its members (AI5 `joinTeam`). A
+   * reinforcement refused at the live cap never calls it, so fewer than asked keeps the order. No allocation.
+   */
+  nextAlarmHunt(): number {
+    if (!ALARM_HUNT.split || !this.coop4()) return this.alarmHunt;
+    const b = this.intruders;
+    const n = alarmHunts(this.alarmHunt, b.valid, b.seenT, this.alarmList, b.gone);
+    if (n === 0) return this.alarmHunt;
+    const s = this.alarmList[this.alarmK % n]!;
+    this.alarmK++;
+    return s;
   }
 
   spawn(kind: EnemyKind, pos: Vector3, alerted = true, yaw = 0): Enemy | null {
@@ -3506,6 +3531,7 @@ export class EnemyManager {
     this.intruders.clear();
     this.mirror();
     this.alarmHunt = -1;
+    this.alarmK = 0;
     // (guard-ai S25) and every search plan
     for (let s = 0; s < MAX_INTRUDERS; s++) this.plans[s]!.reset(0, 0, -1);
     // (guard-ai S26) and the heard-report throttles

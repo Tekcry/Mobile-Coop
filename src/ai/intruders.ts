@@ -32,6 +32,37 @@ export function slotOf(ref: PlayerRef, index: number): number {
   return s !== undefined ? s : index;
 }
 
+/** (coop4 AI4, A174) `split`: from 3 live players (A170) the alarm's reinforcements are spread over every known
+ *  intruder (`alarmHunts`, `EnemyManager.nextAlarmHunt`); false: all hunt the alarm's (today). */
+export const ALARM_HUNT = { split: true } as const;
+
+/**
+ * (coop4 AI4, A174) The order the alarm's reinforcements hunt the known intruders in, into `out` (length >=
+ * `MAX_INTRUDERS`); returns how many. The alarm's slot first (when valid), then every other valid slot by smallest
+ * `seenT` (the freshest sighting first; ties: the lower slot). `gone` (the board's, optional): a slot whose player left
+ * is skipped (nobody to hunt there). None valid: 0 (the caller keeps today's rule). Pure, no allocation (an insertion
+ * into `out`, at most 4 entries).
+ */
+export function alarmHunts(alarm: number, valid: Uint8Array, seenT: Float32Array, out: Int8Array, gone: Uint8Array | null = null): number {
+  let n = 0;
+  const first = alarm >= 0 && alarm < MAX_INTRUDERS && valid[alarm] === 1 && !(gone !== null && gone[alarm] === 1);
+  if (first) out[n++] = alarm;
+  const from = n;
+  for (let s = 0; s < MAX_INTRUDERS; s++) {
+    if (s === alarm || valid[s] !== 1 || (gone !== null && gone[s] === 1)) continue;
+    const t = seenT[s]!;
+    let k = n;
+    // ascending seenT; slots come in ascending order, so a tie stays behind the lower slot
+    while (k > from && seenT[out[k - 1]!]! > t) {
+      out[k] = out[k - 1]!;
+      k--;
+    }
+    out[k] = s;
+    n++;
+  }
+  return n;
+}
+
 /** `slotFor`'s "is anybody hunting slot s" (the manager's `huntingOf`, bound once). */
 export type SlotHunted = (slot: number) => boolean;
 

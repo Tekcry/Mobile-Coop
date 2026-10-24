@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { COOP4, INTRUDERS, IntruderBoard, slotOf } from '../src/ai/intruders';
+import { ALARM_HUNT, alarmHunts, COOP4, INTRUDERS, IntruderBoard, slotOf } from '../src/ai/intruders';
 import { MAX_INTRUDERS } from '../src/ai/targetPick';
 import type { PlayerRef } from '../src/ai/enemy';
 
@@ -205,5 +205,35 @@ describe('IntruderBoard: leave, rejoin, reuse (coop4 AI1)', () => {
     expect(slotOf(r, 2)).toBe(2);
     expect(slotOf({ ...r, slot: 3 } as unknown as PlayerRef, 1)).toBe(3);
     expect(slotOf({ ...r, slot: 0 } as unknown as PlayerRef, 1)).toBe(0);
+  });
+});
+
+describe('alarmHunts (coop4 AI4, A174)', () => {
+  const v = (...a: number[]) => Uint8Array.from(a);
+  const t = (...a: number[]) => Float32Array.from(a);
+  const order = (alarm: number, valid: Uint8Array, seenT: Float32Array, gone: Uint8Array | null = null) => {
+    const out = new Int8Array(4).fill(-9);
+    const n = alarmHunts(alarm, valid, seenT, out, gone);
+    return Array.from(out.subarray(0, n));
+  };
+
+  it("the alarm's slot first, then the others freshest sighting first", () => {
+    expect(ALARM_HUNT.split).toBe(true);
+    expect(order(1, v(1, 1, 1, 0), t(2, 5, 0, 99))).toEqual([1, 2, 0]);
+    expect(order(3, v(1, 1, 1, 1), t(4, 1, 3, 9))).toEqual([3, 1, 2, 0]);
+  });
+
+  it('ties: the lower slot first; never-seen (located only) last', () => {
+    expect(order(-1, v(1, 1, 1, 1), t(2, 2, 99, 2))).toEqual([0, 1, 3, 2]);
+  });
+
+  it("the alarm's slot forgotten or none: freshest first; nobody known: 0", () => {
+    expect(order(1, v(1, 0, 1, 0), t(3, 0, 1, 99))).toEqual([2, 0]);
+    expect(order(-1, v(0, 1, 0, 1), t(99, 4, 99, 2))).toEqual([3, 1]);
+    expect(order(2, v(0, 0, 0, 0), t(1, 1, 1, 1))).toEqual([]);
+  });
+
+  it('a slot whose player left is skipped, the alarm one too', () => {
+    expect(order(0, v(1, 1, 1, 1), t(0, 1, 2, 3), v(1, 0, 1, 0))).toEqual([1, 3]);
   });
 });

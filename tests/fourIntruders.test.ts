@@ -247,3 +247,85 @@ describe('coop4 AI1: four intruders, slot reuse', () => {
     expect(em.ghostOf('b', out)).toBe(0);
   });
 });
+
+describe('coop4 AI4: the alarm draw, which intruders the reinforcements hunt (A174)', () => {
+  type Alarm = { raiseAlarm(e: Enemy, p: null): void; alarmHunt: number; sendIn(e: Enemy): void };
+
+  /** `live` players seen one second apart (a, then b, then c...: a's sighting the oldest); b's hunter raises the alarm. */
+  function alarmed(live: number) {
+    const ps = [player('a', 0, 0), player('b', 30, 0), player('c', 60, 0), player('d', 90, 0)].slice(0, live);
+    const gs = ps.map((p) => guard(p.feet.x, -10));
+    const m = manager(gs, ps);
+    ps.forEach((p, i) => {
+      if (i) m.em.intruders.step(1);
+      sees(gs[i]!, p);
+    });
+    const pr = m.em as unknown as Alarm;
+    pr.raiseAlarm(E(gs[1]!), null);
+    /** One lone reinforcement joins (Sector Ops' `joinReinforcement`): the slot he is told to hunt. */
+    const join = (): number => {
+      const g = guard(40, 40, { alerted: false, level: 'unaware' });
+      g.ctx = m.ctx;
+      g.joinAsReinforcement = vi.fn();
+      m.em.joinReinforcement(E(g), 0, null);
+      expect(g.joinAsReinforcement).toHaveBeenCalledTimes(1);
+      return g.joinAsReinforcement.mock.calls[0]![1] as number;
+    };
+    return { ...m, ps, gs, pr, join };
+  }
+
+  it("3 known, the alarm on slot 1: four lone reinforcements hunt 1, then the freshest (2), then 0, then 1 again", () => {
+    const { em, pr, join } = alarmed(3);
+    expect(em.coop4()).toBe(true);
+    expect(pr.alarmHunt).toBe(1);
+    expect(Array.from(em.intruders.seenT.subarray(0, 3))).toEqual([2, 1, 0]);
+    expect([join(), join(), join(), join()]).toEqual([1, 2, 0, 1]);
+  });
+
+  it("the alarm's slot forgotten: the freshest first, then the rest", () => {
+    const { em, join } = alarmed(3);
+    em.intruders.forget(1);
+    expect([join(), join(), join()]).toEqual([2, 0, 2]);
+  });
+
+  it('a player who left is not hunted; the alarm reset starts again at the alarm slot', () => {
+    const { em, gs, pr, join } = alarmed(3);
+    em.intruderLeft('c');
+    expect([join(), join(), join()]).toEqual([1, 0, 1]);
+    em.resetAlarm();
+    pr.raiseAlarm(E(gs[1]!), null);
+    expect(join()).toBe(1);
+  });
+
+  it('a guard spawned alerted (sendIn) takes the next one too', () => {
+    const { em, pr } = alarmed(3);
+    const told: number[] = [];
+    for (let k = 0; k < 3; k++) {
+      const g = guard(40, 40, { alerted: false, level: 'unaware' }) as FakeGuard & { alert(): void };
+      g.ctx = (em as unknown as Priv).ctx;
+      g.tell = vi.fn((s: number) => told.push(s));
+      g.alert = () => {
+        g.alerted = true;
+      };
+      pr.sendIn(E(g));
+    }
+    expect(told).toEqual([1, 2, 0]);
+  });
+
+  it('fewer than asked (the live cap refuses one): the order is kept, nothing is skipped', () => {
+    const { em, join } = alarmed(3);
+    em.maxAlive = 0;
+    expect(em.spawnReinforcement('grunt', new Vector3(40, 0, 40), 0, 0, null)).toBeNull();
+    expect([join(), join()]).toEqual([1, 2]);
+  });
+
+  it('A170: at 2 players every reinforcement hunts the alarm caller\'s intruder (today), even once it is forgotten', () => {
+    const { em, pr, join } = alarmed(2);
+    expect(em.coop4()).toBe(false);
+    expect(pr.alarmHunt).toBe(1);
+    expect([join(), join(), join(), join()]).toEqual([1, 1, 1, 1]);
+    expect(em.nextAlarmHunt()).toBe(1);
+    em.intruders.forget(1);
+    expect([join(), join()]).toEqual([1, 1]);
+  });
+});
