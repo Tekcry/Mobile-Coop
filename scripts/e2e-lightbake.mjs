@@ -89,6 +89,7 @@ await Promise.all(CONFIGS.map(async ([name, q], k) => {
           let max = 0;
           let who = '';
           let pending = 0;
+          const stuck = [];
           let define = false;
           for (const m of g.scene.meshes) {
             if (!m.isEnabled() || !m.isVisible) continue;
@@ -96,6 +97,7 @@ await Promise.all(CONFIGS.map(async ([name, q], k) => {
               if (!sm.getMaterial?.() || !sm.effect) continue;
               if (!sm.effect.isReady()) {
                 pending++;
+                if (stuck.length < 6) stuck.push(sm.getMaterial().name);
                 continue;
               }
               if (sm.effect.defines.includes('#define LAMP_CSHADOW')) define = true;
@@ -106,14 +108,20 @@ await Promise.all(CONFIGS.map(async ([name, q], k) => {
               }
             }
           }
-          return { max, who, pending, define };
+          return { max, who, pending, stuck, define };
         };
+        // (train 55 flake) wait for every drawn shader to finish compiling before counting textures: LR16's Epic
+        // body and level shaders take 30-45 s cold on D3D11 with three browsers (Sector Ops' timing), far past the old
+        // 240-frame wait (~7 s), which then read 14 textures with 5 still pending. Wall-time cap 120 s (past the body
+        // watchdog's 90 s last resort, bodyEffectRecovery STUCK_MS); at least 8 frames so the alert's shaders exist.
         let t = tex();
-        for (let i = 0; i < 240 && (t.pending > 0 || i < 8); i++) {
+        const t0 = performance.now();
+        for (let i = 0; (t.pending > 0 || i < 8) && performance.now() - t0 < 120000; i++) {
           await new Promise((r) => requestAnimationFrame(r));
           if (i % 20 === 19) await new Promise((r) => setTimeout(r, 250));
           t = tex();
         }
+        t.waitMs = Math.round(performance.now() - t0);
         return { on: !!cs?.on, slots: cs?.stats().length ?? 0, stats: cs?.stats() ?? [], copies: cs?.copies ?? 0, ...t };
       });
       // the smooth default at Ray traced: screen space reflections run (no crash)
@@ -162,7 +170,7 @@ try {
   console.log(`  LR14 character shadows: ${JSON.stringify({ on: cs.on, slots: cs.slots, copies: cs.copies, max: cs.max, who: cs.who, stats: cs.stats })}`);
   assert(cs.on && cs.slots === 4 && cs.define, `smooth Epic: character shadow maps on, 4 lamp slots, LAMP_CSHADOW compiled (${JSON.stringify({ on: cs.on, slots: cs.slots, define: cs.define })})`);
   assert(!cs.stats.some((s) => s.casters > 0) || cs.copies > 0, `smooth Epic: a slot with characters in reach copies its map into the atlas (${cs.copies} copies)`);
-  assert(cs.pending === 0 && cs.max > 0 && cs.max <= 16, `smooth Epic with character shadows, guards alerted: every shader within 16 textures (${cs.max}, ${cs.who}, ${cs.pending} pending)`);
+  assert(cs.pending === 0 && cs.max > 0 && cs.max <= 16, `smooth Epic with character shadows, guards alerted: every shader within 16 textures (${cs.max}, ${cs.who}, ${cs.pending} pending after ${cs.waitMs} ms${cs.pending ? `: ${cs.stuck.join(', ')}` : ''})`);
 } catch (e) {
   failed = true;
   console.error(String(e));
