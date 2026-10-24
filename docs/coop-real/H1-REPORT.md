@@ -31,6 +31,12 @@ Picks (PLAN 77-86: B1 = hidden, rAF ~0, timers > 0; B2 = `frozen` with interval 
 - B2: NONE: CDP `Page.setWebLifecycleState frozen` is ignored on a visible headless page (no `freeze` event, timers at
   10 Hz, evaluate not blocked, the host kept the client 10 s past `netdrop` 8 s). `lib.lifecycle(P, 'frozen')` (the
   expected pick) must not be used for B2.
+- Probe 2 (92edc3e5, set coop-real-probe2, run 20261024T173509, both flag sets) and C2's pick: B1 = window minimized
+  (`Browser.setWindowBounds`) + `spoofHidden`: minimize is the only row with rAF stopped (0.6-0.9 Hz) and timers alive
+  (8-10 Hz) but it leaves `visible`, so the spoof adds `hidden` + `visibilitychange` (the game's hidden path: co-op pause
+  menu, bgTick sim); the host shares the window and is pumped. B2 = CDP `Debugger.pause` on the client: the only row with
+  rAF, timers, worker, channel and bgTick all 0 (`frozen`, also once minimized, changed nothing); evaluate blocks until
+  `Debugger.resume`, so no read of the client and only the host as a clock page meanwhile.
 - Next probe (rows added in the triage commit, `probe.mjs`): the shared window minimized (`Browser.setWindowBounds`;
   both pages hidden, the host pumped from Node) as the B1 candidate; minimized then `frozen`, and `Debugger.pause` on the
   client (main thread stopped: timers, rAF, channel and the wire silent) as B2 candidates. C2's B1 / B2 wait for it.
