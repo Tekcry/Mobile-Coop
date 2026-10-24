@@ -13,12 +13,16 @@ export function browserExe() {
 /** (coop-real H2) The switch behind `launch({ hideAutomation: true })`: `navigator.webdriver` reads false. Opt-in per suite (e2e-coop-real). */
 export const AUTOMATION_FLAG = '--disable-blink-features=AutomationControlled';
 
+/** (coop-real H1) The background-throttling switches every suite runs with (below); Playwright adds the same three by
+ *  default. `launch({ realBackground: true })` leaves all of them out, so a hidden page throttles as in Michael's Chrome. */
+export const BACKGROUND_FLAGS = ['--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'];
+
 /** Chromium flags: software GL (SwiftShader) by default; E2E_GPU=1 the hardware GPU (Windows: ANGLE D3D11, GPU blocklist ignored). */
-export function browserArgs() {
+export function browserArgs({ realBackground = false } = {}) {
   // (test-speed) no background throttling: a two-page suite's second page is the background tab, and Chromium throttles
   // its timers and renderer (page 2 of e2e-coop fell to 1 frame/s with another suite alongside); anim-audit had these
   // for its remote run, now every suite has them
-  const base = ['--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'];
+  const base = ['--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required', ...(realBackground ? [] : BACKGROUND_FLAGS)];
   // E2E_UNCAP=1 (frame-time measurements): no display-rate limit on requestAnimationFrame, so a frame cost is not hidden by a 60 / 120 Hz cap
   if (process.env.E2E_UNCAP === '1') base.push('--disable-frame-rate-limit', '--disable-gpu-vsync');
   if (!GPU) return ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', ...base];
@@ -31,7 +35,7 @@ export function browserArgs() {
  * to the top left mid-run (Michael, 2026-10-09): GPU runs fake pointer lock. E2E_HEADED=1 (debugging only) opens a window
  * parked off-screen and fakes it too. */
 export const HEADED = process.env.E2E_HEADED === '1';
-export function launchOptions({ hideAutomation = false } = {}) {
+export function launchOptions({ hideAutomation = false, realBackground = false } = {}) {
   // the runner sets E2E_RUNNER=1: a headed window there steals focus and the cursor, so it is an error, never a fallback
   if (HEADED && process.env.E2E_RUNNER === '1') {
     console.error('E2E ERROR: a suite tried to launch a HEADED browser (E2E_HEADED=1) under the runner. Headed is for single-suite debugging only: unset E2E_HEADED.');
@@ -39,10 +43,12 @@ export function launchOptions({ hideAutomation = false } = {}) {
   }
   // (coop-real H2) hideAutomation (off by default): navigator.webdriver reads false, so the game's own 'not under
   // automation' paths run (src/net/bgTicks.ts: the bgTick worker that keeps a hidden co-op page alive)
-  const args = [...browserArgs(), ...(hideAutomation ? [AUTOMATION_FLAG] : [])];
+  const args = [...browserArgs({ realBackground }), ...(hideAutomation ? [AUTOMATION_FLAG] : [])];
+  // (coop-real H1) realBackground: Playwright's own default switches carry the same three; leave those out too
+  const ign = realBackground ? { ignoreDefaultArgs: BACKGROUND_FLAGS } : {};
   const exe = browserExe();
-  if (HEADED) return { headless: false, ...(exe ? { executablePath: exe } : {}), args: [...args, '--window-position=-32000,-32000', '--window-size=1280,720', '--no-startup-window-focus'] };
-  return { headless: true, ...(exe ? { executablePath: exe } : GPU ? { channel: 'chromium' } : {}), args };
+  if (HEADED) return { headless: false, ...ign, ...(exe ? { executablePath: exe } : {}), args: [...args, '--window-position=-32000,-32000', '--window-size=1280,720', '--no-startup-window-focus'] };
+  return { headless: true, ...ign, ...(exe ? { executablePath: exe } : GPU ? { channel: 'chromium' } : {}), args };
 }
 
 /** Every run, every page (the cursor grab came back when only headed / GPU runs had it): a page-side pointer lock that never touches the real cursor. */
@@ -89,11 +95,12 @@ if (PROFILE) {
 let warmed = true;
 
 /** A desktop context (no touch, no mobile user agent): the game is desktop only (pad, keyboard and mouse). */
-export async function launch({ url = 'http://localhost:4173/', params = '', viewport = { width: 1280, height: 640 }, args = [], context = {}, hideAutomation = false } = {}) {
+export async function launch({ url = 'http://localhost:4173/', params = '', viewport = { width: 1280, height: 640 }, args = [], context = {}, hideAutomation = false, realBackground = false } = {}) {
   // (`args`: extra Chromium switches, e.g. anim-audit's remote run keeps a background page's timers unthrottled)
   // (`hideAutomation`: adds AUTOMATION_FLAG, off by default; e2e-coop-real opts in)
   // (`context`: extra browser context options, e.g. e2e-tuner-phone's `hasTouch` / `isMobile`)
-  const lo = launchOptions({ hideAutomation });
+  // (`realBackground`: none of BACKGROUND_FLAGS, off by default; e2e-coop-real opts in)
+  const lo = launchOptions({ hideAutomation, realBackground });
   const browser = await timed('launch', () => chromium.launch({ ...lo, args: [...lo.args, ...args] }));
   const ctx = await browser.newContext({ viewport, acceptDownloads: true, ...context });
   // context level: covers every page of the context, including ones a suite opens itself (ctx.newPage())
