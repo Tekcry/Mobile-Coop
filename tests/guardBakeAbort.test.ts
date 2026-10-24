@@ -149,9 +149,20 @@ describe('abort text', () => {
     expect(abortLine(null)).toBe(ABORT_LINE);
     expect(abortLine('a: spawn ENOENT')).toBe(`${ABORT_LINE} (a: spawn ENOENT)`);
   });
+  it('main\'s ABORT line names the first lost job and its cause from runAll', async () => {
+    // main: `const run = await runAll(...)`, then `console.error(abortLine(run.cause))` when `run.aborted`
+    const run: Runner = (a) => Promise.resolve(a.job.id === 'a'
+      ? { ok: false, code: null, ms: 3, bytes: 0, err: 'EPERM', message: 'could not start: spawn EPERM' }
+      : { ok: true, code: 0, ms: 9000, bytes: 4000 });
+    const out = await runAll(todo(), ctx, { par: 1, run });
+    expect(out.aborted).toBe(true);
+    expect(abortLine(out.cause)).toBe(`${ABORT_LINE} (a: spawn EPERM)`);
+  });
 });
 
 describe('runJob', () => {
+  /** The real-child tests spawn node: a busy machine can take seconds to start it. */
+  const REAL_CHILD_MS = 20_000;
   let outDir = '';
   beforeEach(() => { outDir = mkdtempSync(path.join(os.tmpdir(), 'gm-bake-runjob-')); });
   afterEach(() => { rmSync(outDir, { recursive: true, force: true }); });
@@ -168,13 +179,13 @@ describe('runJob', () => {
     expect(readFileSync(path.join(outDir, 'logs', 'x.log'), 'utf8')).toBe('0123456789');
     expect(consoleLost(r)).toBe(false);
     expect(existsSync(path.join(outDir, 'x.hash'))).toBe(false);
-  });
+  }, REAL_CHILD_MS);
 
   it('reports exit 0 with its outputs as ok and writes the hash', async () => {
     const r = await runJob({ job: { id: 'y', outputs: [] }, hash: 'abc' }, { outDir }, node("process.stdout.write('ok')"));
     expect(r).toMatchObject({ ok: true, code: 0, bytes: 2 });
     expect(readFileSync(path.join(outDir, 'y.hash'), 'utf8')).toBe('abc\n');
-  });
+  }, REAL_CHILD_MS);
 
   it('reports a spawn error by its code, with no exit code and an empty log', async () => {
     const missing = path.join(outDir, 'no-such-blender.exe');
@@ -186,7 +197,7 @@ describe('runJob', () => {
     expect(r.message).toMatch(/^could not start: .*ENOENT/);
     expect(consoleLost(r)).toBe(true);
     expect(abortCause(r)).toBe('spawn ENOENT');
-  });
+  }, REAL_CHILD_MS);
 });
 
 describe('stageExit', () => {

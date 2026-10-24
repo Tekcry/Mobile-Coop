@@ -1334,7 +1334,7 @@ export class CoopHost implements NetAttachment {
     // (player-batch-25) a restart `sendLamps` has not polled yet (the pause menu's restart runs outside the mode's
     // fixedUpdate, so `lampRestartAt` lags it by up to a frame): the round cannot be judged against it, so it is
     // dropped the same way (Sector Ops and Course mode both count `restarts`)
-    if (((this.g.mode as { restarts?: number } | null)?.restarts ?? 0) !== this.lampRestarts) return;
+    if (this.modeRestarts() !== this.lampRestarts) return;
     // (coop-real F1b fix) an honest repeat round at a lamp we already have out (the client's mirror lags a message):
     // nothing to do and no violation (`lampShotOk` would refuse it as one)
     const reg = this.g.world.level.lights;
@@ -1797,11 +1797,16 @@ export class CoopHost implements NetAttachment {
     this.sendLamps(dt);
   }
 
+  /** The mode's restart count (Sector Ops and Course mode count `restarts`; 0 in the others). */
+  private modeRestarts(): number {
+    return (this.g.mode as { restarts?: number } | null)?.restarts ?? 0;
+  }
+
   /** (sector-redesign slice L, protocol 31) Sector Ops: the fixed lights' state on a change, a join / rejoin, a section
    *  restart and every `LAMP_KEEPALIVE` s. Allocation-free unless it sends. (coop-real F1c) In every mode it first notes
    *  the time of the mode's last restart (`lampRestartAt`, the stale lamp round rule). */
   private sendLamps(dt: number): void {
-    const rs = (this.g.mode as { restarts?: number } | null)?.restarts ?? 0;
+    const rs = this.modeRestarts();
     if (rs !== this.lampRestarts) {
       this.lampRestarts = rs;
       this.lampForce = true;

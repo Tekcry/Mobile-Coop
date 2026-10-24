@@ -133,7 +133,8 @@ export function runJob(a, ctx, cmdFor = commandFor) {
   return new Promise((resolve) => {
     let settled = false;
     const done = (r) => {
-      // a failed spawn emits 'error' and may still emit 'close': the first one wins
+      // a failed spawn emits 'error' and may still emit 'close': only the first one closes the log fd, since a second
+      // closeSync could close another file that has reused the fd number since
       if (settled) return;
       settled = true;
       try { closeSync(fd); } catch { /* closed */ }
@@ -182,9 +183,9 @@ export function abortLine(cause) {
   return cause ? `${ABORT_LINE} (${cause})` : ABORT_LINE;
 }
 
-/** Runs the 'run' jobs with at most `par` at once and 2 GPU-bound ones; returns { results (by job id),
- *  aborted, cause }. The first job that fails as `consoleLost` stops new starts (`cause`: its id and `abortCause`): the running jobs finish, the rest are
- *  marked not started. */
+/** Runs the 'run' jobs with at most `par` at once and 2 GPU-bound ones; returns { results (by job id), aborted,
+ *  cause }. The first job that fails as `consoleLost` stops new starts (`cause`: its id and `abortCause`): the running
+ *  jobs finish, the rest are marked not started. */
 export async function runAll(todo, ctx, { par, maxGpu = 2, run = runJob }) {
   const pending = todo.map((a) => a.job);
   const byId = new Map(todo.map((a) => [a.job.id, a]));
