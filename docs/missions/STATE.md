@@ -1,5 +1,7 @@
 # mission-framework - STATE
 
+- ~00:40 EN2 DONE (2109b102, 57010ebb, 0f0f8c2a; world restarts whole, mission state per team; MissionTrack.y; missionEvent {name,guardTag,postId,via?}: c1 / c1-door, c2 / c2-door). Merged EN3 + KIT0 + kit-pull + kit-shut into feature/mission-engine -> 9e87b4b3 (tsc clean). Laptop: e2e-sectorops (1-6 + mission) + section-rating + ctcourse + menus on 9e87b4b3 (set mission-engine-en23). RUNNING: EN2+EN3 checker (C:/NightShift/scratch/mission-en23-check.md), spec batch checker (C:/NightShift/scratch/mission-spec-check.md). Graph engine-fit DONE a643558d (rope up only; throws 2.5 m; ladder -> boost; jetty 4.4). NEXT: spec PASS -> PR A; EN23 PASS + laptop green -> NET (Opus, TWO checkers; lists in kit + en23 reports; + KitMove tick fix) and GB0 (Sonnet, Opus brief) -> GB1-4.
+
 ## SAVE 2026-10-25 ~00:05 (orchestrator save, cap ~00:15, resume at the 04:10 reset)
 DONE this window: EN1 + fix 37247995 (merged into feature/mission-engine, pushed); VAL + fix 6936a6e4 + fragment a8a7f77a; KIT-PULL 830abf69; KIT-SHUT 85189e05; CMG e11b9e06; CMS 99f6f08c; TGC 1e260340; TKL 39b4c933; SS + CR first pass 522533f7. Laptop queued: e2e-levels on a8a7f77a (set mission-val).
 RUNNING at save (rerun any whose result is not on origin; WIP pushed where files existed):
