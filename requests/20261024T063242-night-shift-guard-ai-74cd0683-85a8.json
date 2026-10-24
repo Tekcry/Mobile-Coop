@@ -1,0 +1,13 @@
+{
+  "id": "20261024T063242-night-shift-guard-ai-74cd0683-85a8",
+  "sha": "74cd0683de94890a5e387899321df13da47fcef6",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-lightbake"
+  ],
+  "jobs": 1,
+  "set": "lightbake-wait"
+}
