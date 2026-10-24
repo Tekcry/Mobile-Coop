@@ -35,17 +35,23 @@ Brief: `docs/coop4/BRIEF.md`. Plan: `docs/coop4/PLAN.md`. Branch `feature/coop4`
 
 ## Resume prompt
 ```
-You are the coop4 job lead (Sector Ops up to 4 co-op players; Marlow Yard stays 2).
-Worktree C:/NightShift/Mobile-Coop-coop4, branch feature/coop4. Guard before every write:
+You are the coop4 job lead (session "Night Shift | Sector Ops Build"; Sector Ops up to 4 co-op players; Marlow Yard stays 2).
+Worktree C:/NightShift/Mobile-Coop-coop4, branch feature/coop4 (draft PR Tekcry/Mobile-Coop#317). Guard before every write:
 cd /c/NightShift/Mobile-Coop-coop4 && test "$(git rev-parse --abbrev-ref HEAD)" = feature/coop4 && test "$(git rev-parse --show-toplevel)" = "C:/NightShift/Mobile-Coop-coop4"
-Read CLAUDE.md ("Sessions", "Hard rules", "Definition of done"), docs/systems/agent-preamble.md,
-then docs/coop4/STATE.md, docs/coop4/BRIEF.md (M1, A1-A27) and docs/coop4/PLAN.md (slices N0-T1, lanes, test plan).
-Lanes: coop4 agents N0 -> N1, D1 -> SM, TM -> E2E; Marlow Build H1 + L1 on feature/coop4-ui;
-Guard AI Build the AI slice (src/ai only, docs/coop4/briefs/AI.md); DATA after SM.
-Rules: never edit src/game/course, courseMode.ts, ctcourse maps or src/ai; never write PROTOCOL_VERSION
-(the train bumps it once); single player never imports src/net statically; hot paths do not allocate.
-One Opus checker per net / devices batch, Sonnet for UI / data; at most 1 fix round per slice.
-e2e on the laptop queue only (E2E_GPU=1; e2e-sectorops parts 7-8 alone in a slot, E2E_LOAD_MS=240000).
-M1 default (a) unless Michael answers. Progress goes in STATE.md; message the orchestrator only for a PR, a block or Michael.
-Next step: the first unchecked item under "Next" in STATE.md.
+Read CLAUDE.md ("Sessions", "Hard rules"), then this file's "Now", docs/coop4/BRIEF.md (M1 answered b, A1-A27), PLAN.md.
+Built and checked: N0, N1, D1, SM, TM, H1 + L1 (Marlow Build), DATA, E2E parts 7-9, DOC (Marlow Build), round (open-move fix,
+AI5 wiring, sweepSource, OUT = M1 b) + round fix 3f1c946f (checks A + B FIX -> fixed). Guard AI's side is PR #319
+(feature/guard-ai-coop4); both ride ONE train (the train bumps PROTOCOL once).
+Laptop on 3f1c946f (verdicts as GitHub statuses / PR #317 comments): laptop-e2e/coop4 (regular 2-player suites incl.
+Marlow guard) and laptop-e2e/alone-coop4-4p (sectorops 7, 8, 9). Laptop request CLI: copy scripts/laptop-queue/request.mjs
++ lib.mjs from origin/master to scratch; --sha --pr 317 --branch feature/coop4 --set <s> --suites "..." (4-page parts as
+--alone --step "node scripts/run-e2e.mjs e2e-sectorops:7" ... --env E2E_GPU=1 --env E2E_LOAD_MS=240000 --env E2E_JOBS=1).
+Next: both green -> merge feature/coop4-e2eai if done (Guard AI's AI6 asserts, SKIP without #319; scripts only), mark #317
+ready (gh pr ready 317), add label train-ready, message the orchestrator (train with #319). Red -> one Opus triage + fix round.
+If E2E-AI was cut off: rerun its builder from docs/coop4/checks (prompt: AI6-E2E-SPEC asserts on origin/feature/guard-ai-coop4,
+each SKIP when a #319 hook is missing; files scripts/e2e-coop.mjs, e2e-sectorops.mjs, e2e-net-lib.mjs) off the branch head.
+Rules: never edit src/game/course, courseMode.ts, ctcourse maps or src/ai; never write PROTOCOL_VERSION; single player never
+imports src/net statically; hot paths never allocate; never merge master into feature/coop4 (the train resolves conflicts).
+Message the orchestrator only for a PR, a block or Michael. Sector-redesign (the other job) is idle until Michael's playtest
+(its STATE on feature/sector-redesign-polish).
 ```
