@@ -1,5 +1,13 @@
 # Guard render: state
 
+## Now: phase 2 (2026-10-24, lead Test Runner)
+Michael ~13:40 chose 24-guard rendering now (ROADMAP "Now: guard-render"). Plan: `docs/guard-render/PLAN2.md`
+(S8 measure, S9 cascade depth cull, S10 freeze lamp rule, S11 / S12 Player's figure and torch-cone cuts, S13 active
+meshes; S14 dormancy dropped: Guard AI builds nothing, AI is 2-5% of a guard). Branch `feature/guard-render-2`
+(worktree C:/NightShift/Mobile-Coop-guard-render-2, from master 6b44efb8). Next: S8a (read Player's c76cf326 G8 cull
+run), S9 + S10 builders in parallel once Sector Ops confirms the freeze / world.ts handover.
+
+## Phase 1 (history)
 ## Now
 **CLOSED 2026-10-23 ~17:10** (orchestrator approved: close with #225, M1 CPU overage to the polish list; perf tuning
 waits for Michael's playtest, current goal). Every planned slice is on master (S1, S3a, S5, S6, S7, S4; S2 skipped:
