@@ -1,6 +1,11 @@
 # Guard AI - state
 
 ## Now
+~14:45: spare job #14 (orchestrator, Marlow's list feature/menu 0bbc71b5): co-op body carry on the CLIENT. Worktree
+C:/NightShift/Mobile-Coop-guard-ai-coop-carry, feature/guard-ai-coop-carry off master 6b44efb8 (npm ci'd; PROTOCOL 48,
+the train bumps). Opus planner + builder RUNNING (slices/COOP-CARRY.md: plan, then build, unit, e2e-coop block). Then 2 Opus
+checkers (src/net) + laptop e2e-coop, e2e-netmove, e2e-guard-carry; one PR (minor).
+
 ~14:30: brain LOD SKIPPED (orchestrator: guard-cap #180 shows AI 0.02-0.06 ms per guard, render-bound); Test Runner told.
 Test Runner confirms (guard-cap cf5a2bf8, origin/shots/g8-cf5a2bf8 COMPARE.md): AI manager 0.004-0.013 ms of
 ~0.22-0.28 ms per guard. Its Opus planner writes docs/guard-render/PLAN2.md; possible src/ai item = a gameplay-only
