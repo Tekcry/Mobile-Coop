@@ -11,8 +11,8 @@ one message (each with title, model, effort and machine, from the table), as the
 | # | Session title | Model | Effort | Where |
 | --- | --- | --- | --- | --- |
 | 1 | Night Shift \| Orchestrator | Opus 5.5 | high | desktop |
-| 2 | Night Shift \| Player Build | Opus 5.5 | medium | desktop |
-| 3 | Night Shift \| Marlow Build | Opus 5.5 | medium | desktop |
+| 2 | Night Shift \| Player Build | Opus 5.5 | high | desktop |
+| 3 | Night Shift \| Marlow Build | Opus 5.5 | high | desktop |
 | 4 | Night Shift \| Sector Ops Build | Opus 5.5 | high | desktop |
 | 5 | Night Shift \| Test Runner | Opus 5.5 | medium | laptop |
 | 6 | Night Shift \| Guard AI Build | Opus 5.5 | high | laptop |

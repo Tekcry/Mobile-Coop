@@ -34,7 +34,7 @@ train-ready / blocked / needs Michael.
   process-audit packages (ROADMAP Now 3-6).
 
 ## Player Build
-- Opus 5.5, medium, desktop.
+- Opus 5.5, high, desktop.
 - Resume: the "Resume prompt" block of `docs/orchestrator/resume-ct-core.md` on origin/feature/menu
   (`git show origin/feature/menu:docs/orchestrator/resume-ct-core.md`; working copy C:/NightShift/scratch/ctcore/,
   pushed with scratch/ctcore/push-resume.sh), then its "Now" table.
@@ -42,18 +42,20 @@ train-ready / blocked / needs Michael.
   cap: no new animation features until Michael walks AF0-AF6; every animation PR carries a 1-2 min look video path.
 
 ## Marlow Build
-- Opus 5.5, medium, desktop.
-- Resume: the last fenced block of `docs/marlow-final/STATE.md` on origin/feature/marlow-final; it names the current
-  job's resume block (level-validator: `docs/level-validator/STATE.md` on origin/feature/level-validator; guard-cap:
-  `docs/guard-cap/STATE.md` on origin/feature/guard-cap).
+- Opus 5.5, high, desktop.
+- Resume: the current job first, `docs/missions/STATE.md` on origin/feature/mission-framework; then the last fenced
+  block of `docs/marlow-final/STATE.md` on origin/feature/marlow-final (other jobs: level-validator
+  `docs/level-validator/STATE.md` on origin/feature/level-validator; guard-cap `docs/guard-cap/STATE.md` on
+  origin/feature/guard-cap).
 - Area: Marlow Yard, section rating, level validator, guard cap. campus-audit stays paused unless Michael asks.
 
 ## Sector Ops Build
 - Opus 5.5, high, desktop.
 - Resume: the last fenced block of `docs/sector-redesign/STATE.md` on origin/feature/sector-redesign-polish (worktree
-  C:/NightShift/Mobile-Coop-sector-redesign-polish); visual-gate keeps its own STATE once planned.
-- Area: Sector Ops (Saltmarsh Park, map campusOps), lighting on every map, visual gate. No campus S1-S3 layout change
-  until the level validator lands, Michael's campus walk notes are in, and he signs off the to-scale plan.
+  C:/NightShift/Mobile-Coop-sector-redesign-polish); visual-gate: `docs/visual-gate/STATE.md` on
+  origin/feature/visual-gate.
+- Area: Sector Ops (Saltmarsh Park, map campusOps), lighting on every map, visual gate. Campus S1-S5 fixes and the S3
+  re-plan are planned against mission-framework and need Michael's one-click sign-off before any layout change.
 
 ## Test Runner
 - Opus 5.5, medium, laptop.
