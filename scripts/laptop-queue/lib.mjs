@@ -19,11 +19,26 @@ export function requestId(now, requester, sha) {
   return `${ts}-${slug || 'anon'}-${String(sha).slice(0, 8)}`;
 }
 
-/** Commit status context: `laptop-e2e/<set>` (alone: `laptop-e2e/alone-<set>`), set cut to [a-z0-9+._-], 40 chars. */
-export function contextName(kind, set, suites = []) {
-  const raw = set || (kind === 'full' ? 'full' : suites.join('+'));
-  const clean = String(raw).toLowerCase().replace(/[^a-z0-9+._-]/g, '-').slice(0, 40) || 'run';
+/**
+ * Commit status context: `laptop-e2e/<set>` (alone: `laptop-e2e/alone-<set>`), set cut to [a-z0-9+._-], 40 chars. A train
+ * rerun with a set uses that same `laptop-e2e/<set>` (auto-train sends `--set train<n>-rerun` and reads
+ * `laptop-e2e/train<n>-rerun`); only one with no set gets `laptop-e2e/rerun-<suites short>` (the suites without their
+ * e2e- prefix, joined by +, 40 chars with "rerun-").
+ */
+export function contextName(kind, set, suites = [], trainRerun = false) {
+  const cut = (raw, n) => String(raw).toLowerCase().replace(/[^a-z0-9+._-]/g, '-').slice(0, n);
+  if (trainRerun && !set) return `laptop-e2e/rerun-${cut((suites ?? []).map((s) => String(s).replace(/^e2e-/, '')).join('+'), 34) || 'run'}`;
+  const clean = cut(set || (kind === 'full' ? 'full' : suites.join('+')), 40) || 'run';
   return `laptop-e2e/${kind === 'alone' ? 'alone-' : ''}${clean}`;
+}
+
+/** The `laptop-e2e` description a passed train rerun posts: "laptop rerun passed: <suites> (desktop fail)", 140 chars. */
+export function rerunPassed(suites) {
+  const tail = ' (desktop fail)';
+  let list = (suites ?? []).join(',');
+  const room = 140 - 'laptop rerun passed: '.length - tail.length;
+  if (list.length > room) list = `${list.slice(0, room - 3)}...`;
+  return `laptop rerun passed: ${list}${tail}`;
 }
 
 /** The problem with a request object, or '' when it is fine. */
@@ -35,6 +50,7 @@ export function requestProblem(r) {
   const strings = (a) => Array.isArray(a) && a.length > 0 && a.every((x) => typeof x === 'string' && x);
   if (r.kind === 'pr' && !strings(r.suites)) return 'pr request needs suites';
   if (r.kind === 'alone' && !strings(r.steps)) return 'alone request needs steps';
+  if (r.trainRerun && (r.kind !== 'pr' || !(Number(r.pr) > 0))) return 'train rerun needs kind pr and a pr number';
   return '';
 }
 
@@ -81,7 +97,8 @@ export function desktopSlotGate(s) {
  * What to start next. queue = { trains: [{ sha, n }], requests: [request] }, slots = [{ port, busy }].
  * Returns { kind: 'train', train } or { kind: 'alone', request } (both need BOTH slots idle), { kind: 'request',
  * request, slot } (one free slot), or null. A pending train wins and, while a slot is busy, blocks all new work so the
- * slots drain (preemption). An alone request over ALONE_AGE_MIN old blocks pr / full work the same way (never starved).
+ * slots drain (preemption). A train rerun (trainRerun, oldest first) comes next, on one free slot, ahead of every other
+ * request and alone run. An alone request over ALONE_AGE_MIN old blocks pr / full work the same way (never starved).
  * Among pr / full requests the requester goes by arrival (the requester whose OLDEST open request has the smallest id),
  * and that requester's NEWEST non-alone request runs (older ones are stale; superseded() normally retires them).
  */
@@ -90,6 +107,8 @@ export function pick(queue, now, slots) {
   const bothIdle = idle.length === slots.length;
   if (queue.trains.length > 0) return bothIdle ? { kind: 'train', train: queue.trains[0] } : null;
   const reqs = [...queue.requests].sort(sortById);
+  const rerun = reqs.find((r) => r.trainRerun);
+  if (rerun) return idle[0] ? { kind: 'request', request: rerun, slot: idle[0].port } : null;
   const alone = reqs.filter((r) => r.kind === 'alone');
   const aged = alone.find((r) => {
     const t = idTime(r.id);
@@ -113,17 +132,19 @@ const suiteBase = (s) => String(s).replace(/:.*$/, '');
  * with the same requester and the same kind ('pr' or 'full' only, never 'alone'), when either both name the same
  * non-empty `set`, or R.sha is N.sha or an ancestor of it (isAncestor(R.sha, N.sha); injected, false on doubt) and N
  * covers every suite of R ('full': always; 'pr': ":part" suffixes ignored). Two different non-empty sets never
- * supersede (deliberate configurations, e.g. a flag off / on pair); nor does a request with no requester.
+ * supersede (deliberate configurations, e.g. a flag off / on pair); nor does a request with no requester, nor a pinned
+ * one (`pin: true`, request.mjs --pin: an A/B or baseline run kept on purpose; it may still supersede older ones).
  */
 export function superseded(requests, isAncestor) {
   const reqs = [...requests].sort(sortById);
   const out = new Map();
   reqs.forEach((r, i) => {
     if (r.kind !== 'pr' && r.kind !== 'full') return;
+    if (r.pin) return;
     if (!r.requester || r.requester === 'unknown') return;
     for (let j = reqs.length - 1; j > i; j--) {
       const n = reqs[j];
-      if (n.id === r.id || n.requester !== r.requester || n.kind !== r.kind) continue;
+      if (n.id === r.id || n.requester !== r.requester || n.kind !== r.kind || Boolean(n.trainRerun) !== Boolean(r.trainRerun)) continue;
       const rSet = typeof r.set === 'string' && r.set !== '' ? r.set : '';
       const nSet = typeof n.set === 'string' && n.set !== '' ? n.set : '';
       if (rSet && nSet && rSet !== nSet) continue;
@@ -137,6 +158,101 @@ export function superseded(requests, isAncestor) {
     }
   });
   return out;
+}
+
+/**
+ * auto-train's build marker (auto-train-building.json, { train, version, pid, at }, written while `merge-train build`
+ * runs): null when absent (text null), else { train, key, ageMs, stale }. Its age is from `at` (the file's mtime when
+ * unreadable); stale = not younger than maxMs (a marker left by a killed auto-train never blocks for good).
+ */
+export function buildMarker(text, mtimeMs, now, maxMs) {
+  if (text === null || text === undefined) return null;
+  let m = {};
+  try { m = JSON.parse(text) ?? {}; } catch { /* unreadable: mtime only */ }
+  const at = Date.parse(m.at);
+  const ageMs = now - (Number.isFinite(at) ? at : mtimeMs);
+  return { train: m.train ?? '?', key: [m.train, m.version, m.pid, Number.isFinite(at) ? m.at : mtimeMs].join('|'), ageMs, stale: !(ageMs < maxMs) };
+}
+
+/**
+ * What a request runs, as one string: sha, kind, train-rerun flag, suites (sorted) or steps (in order), env (sorted),
+ * set, jobs and pr (a different set posts a different context, --jobs 1 is a solo rerun, a pr gets the failure comment).
+ * Requester and note do not count (two sessions asking for the same run on the same sha).
+ */
+export function dupKey(r) {
+  const env = Object.entries(r.env ?? {}).map(([k, v]) => `${k}=${v}`).sort();
+  const what = r.kind === 'alone' ? r.steps ?? [] : r.kind === 'pr' ? [...(r.suites ?? [])].sort() : [];
+  const opt = (v) => (v === undefined || v === null || v === '' ? '' : String(v));
+  return JSON.stringify([r.sha, r.kind, Boolean(r.trainRerun), what, env, opt(r.set), opt(r.jobs), opt(r.pr)]);
+}
+
+/**
+ * Open requests that repeat another request: Map(id -> the id it duplicates). requests = the open ones plus the claimed
+ * or running ones (`active: true`, never marked themselves); recentDone = [{ id, key: dupKey, result, date }]. An open
+ * request R is a duplicate (same dupKey) of an active request, else of the oldest older open request, else of a request
+ * done within windowMs before now with result success. A failure / error / build / nosha / incomplete result never
+ * retires a request (a rerun of a failure is meant to run: checker FIX 2026-10-24, the desktop retired the laptop
+ * reruns of its own failures). Different requesters still match (player a8ff2d45, 2026-10-23: supersede only joins
+ * one requester's pr / full requests and never alone ones); a different set, jobs or pr does not (dupKey).
+ */
+export function duplicates(requests, recentDone, now, windowMs) {
+  const reqs = [...(requests ?? [])].sort(sortById);
+  const out = new Map();
+  const active = new Map();
+  const firstOpen = new Map();
+  for (const r of reqs) if (r.active && !active.has(dupKey(r))) active.set(dupKey(r), r.id);
+  const done = new Map();
+  for (const d of recentDone ?? []) {
+    if (!d?.key || d.result !== 'success' || !(now - Date.parse(d.date) < windowMs)) continue;
+    if (!done.has(d.key)) done.set(d.key, d.id);
+  }
+  for (const r of reqs) {
+    if (r.active) continue;
+    const k = dupKey(r);
+    const by = active.get(k) ?? firstOpen.get(k) ?? done.get(k);
+    if (by) out.set(r.id, by); else firstOpen.set(k, r.id);
+  }
+  return out;
+}
+
+/**
+ * state.done without the entries older than maxMs whose done claim is on the branch (synced(id) true); entries with no
+ * readable date stay. A new object; the service prunes on every state save (7 days).
+ */
+export function pruneDone(done, now, maxMs, synced = () => true) {
+  const out = {};
+  for (const [id, d] of Object.entries(done ?? {})) {
+    const t = Date.parse(d?.date);
+    if (Number.isFinite(t) && !(now - t < maxMs) && synced(id)) continue;
+    out[id] = d;
+  }
+  return out;
+}
+
+/**
+ * The train a non-train run gives its slot back to, or null: the first pending train head (pendingTrains non-empty)
+ * while the run (r = the request) has not started its suites or steps (started = false: lock wait, fetch, npm ci,
+ * build). A train rerun never yields (it runs at train priority).
+ */
+export function yieldTo(r, started, trains) {
+  if (started || r?.trainRerun || !(trains ?? []).length) return null;
+  return trains[0];
+}
+
+/**
+ * Why a running request stops early, or '': 'withdrawn' when its request file left the laptop-queue branch (the
+ * service decides that from two listings in a row, so one bad listing never kills a run); 'train' when a train head is
+ * pending and the run is a plain pr request already in its suites (before that, yieldTo gives the slot back), but only
+ * when every other run on this worker (others) is a plain pr request too: a train starts with both slots idle, so
+ * killing one beside a full, alone or train-rerun run would only waste it. A train rerun, a full run and an alone run
+ * never give way to a train once started (Orchestrator audit 2026-10-24: a withdrawn request held 4191 for 67 min and
+ * train 56 waited 11 min; checker FIX: no preemption beside a run that cannot give way).
+ */
+const preemptible = (r) => r?.kind === 'pr' && !r.trainRerun;
+export function cutShort(r, { withdrawn = false, trains = [], started = false, others = [] } = {}) {
+  if (withdrawn) return 'withdrawn';
+  if (started && preemptible(r) && (trains ?? []).length && (others ?? []).every(preemptible)) return 'train';
+  return '';
 }
 
 /**
@@ -257,6 +373,16 @@ export function failureExcerpt(sectionText) {
 }
 
 /**
+ * The open train that holds alone requests back, or null: the first open train PR head (heads = [{ n, sha, laptop }],
+ * laptop = its laptop-e2e state, '' for none) without a laptop-e2e success. A failed train still open waits for a rerun
+ * or a release decision, and a head still building has no status yet: both hold (CLAUDE.md "measurements that need a
+ * slot alone only while no train is queued"; train 46 waited 30 min behind the LR16-8 sheets, 2026-10-24).
+ */
+export function trainHold(heads) {
+  return (heads ?? []).find((h) => h.laptop !== 'success') ?? null;
+}
+
+/**
  * An assert line reduced to what names it: bracketed parts ([host: sim 90.30 s ...] timing and state dumps) dropped,
  * numbers as #, spaces collapsed. '' for no assert.
  */
@@ -311,4 +437,32 @@ export function desktopTrainGate(a) {
   if (quiet < a.silentMs) return `laptop active ${Math.round(quiet / 60_000)} min ago`;
   if (!(a.trainAgeMs >= a.graceMs)) return 'train head too new';
   return '';
+}
+
+const SCRATCH_RE = /c:[\\/]+nightshift[\\/]+scratch/i;
+const RUNNER_RE = /laptop-runner\.ps1/i;
+
+/**
+ * Stale scheduled tasks for the task guard (2026-10-23 23:59: 87 hand-made NightShift-chain-* one-shots fired again and
+ * held the slot locks for hours). tasks = [{ name, path, state, actions: [{ execute, args }], ends: [EndBoundary] }],
+ * allow = exact names. Stale: not Disabled, not allowed, and its name starts NightShift- or an action mentions
+ * C:\NightShift\scratch or laptop-runner.ps1. Allowed: a name in allow, or NightShift-run-* with a trigger EndBoundary
+ * (one-shot-task.ps1). Allowed names skip the action rule too (the auto-train task runs a .vbs in scratch).
+ * Returns [{ name, path, state, why }].
+ */
+export function staleTasks(tasks, allow) {
+  const ok = new Set(allow ?? []);
+  const out = [];
+  for (const t of tasks ?? []) {
+    const name = String(t?.name ?? '');
+    if (!name || t.state === 'Disabled' || ok.has(name)) continue;
+    if (name.startsWith('NightShift-run-') && (t.ends ?? []).some((e) => e)) continue;
+    const acts = (t.actions ?? []).map((a) => `${a?.execute ?? ''} ${a?.args ?? ''}`);
+    let why = '';
+    if (name.startsWith('NightShift-')) why = 'not on the allowlist';
+    else if (acts.some((a) => SCRATCH_RE.test(a))) why = 'runs from C:\\NightShift\\scratch';
+    else if (acts.some((a) => RUNNER_RE.test(a))) why = 'runs laptop-runner.ps1';
+    if (why) out.push({ name, path: t.path ?? '\\', state: t.state, why });
+  }
+  return out;
 }

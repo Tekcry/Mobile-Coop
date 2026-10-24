@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, flakeStands, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, flakeStands, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort } from '../scripts/laptop-queue/lib.mjs';
 
 const NOW = Date.UTC(2026, 9, 23, 20, 0, 0);
 const idAt = (min: number, tag: string): string => {
@@ -119,6 +119,14 @@ describe('superseded', () => {
     const o = r(30, 'o', { suites: ['e2e-ctcourse:2'] });
     const n = r(10, 'n', { sha: SHA('2'), suites: ['e2e-ctcourse'] });
     expect(superseded([o, n], anc([[SHA('1'), SHA('2')]])).get(o.id)).toBe(n.id);
+  });
+  it('a pinned request is never superseded, but may supersede an older one', () => {
+    const o = r(30, 'o', { pin: true });
+    const n = r(10, 'n');
+    expect(superseded([o, n], never).size).toBe(0);
+    const o2 = r(30, 'o2');
+    const n2 = r(10, 'n2', { pin: true });
+    expect(superseded([o2, n2], never).get(o2.id)).toBe(n2.id);
   });
   it('a chain maps each old request to the newest request that supersedes it', () => {
     const a = r(30, 'a');
@@ -367,5 +375,234 @@ describe('assertKey / flakeStands', () => {
     expect(flakeStands(flakes, 'e2e-ctcourse:4', assertKey(grilleStop), NOW + day, day)).toBe(false);
     expect(flakeStands(flakes, 'e2e-ctcourse:4', '', NOW, day)).toBe(false);
     expect(flakeStands([{ suite: 'e2e-ctcourse:4', date: new Date(NOW).toISOString() }], 'e2e-ctcourse:4', assertKey(grilleStop), NOW, day)).toBe(false);
+  });
+});
+
+describe('staleTasks', () => {
+  const ps = (args: string) => [{ execute: 'powershell', args }];
+  const chain = ps('-NoProfile -WindowStyle Hidden -File C:\\NightShift\\scratch\\chain-1023af.ps1');
+  const allow = ['NightShift-laptop-queue', 'NightShift-desktop-queue', 'NightShift auto-train'];
+  const t = (name: string, state: string, actions = chain, ends: string[] = ['']) => ({ name, path: '\\', state, actions, ends });
+  it('a NightShift-chain-* task is stale unless Disabled; a Running one is still listed (disabled, run left alone)', () => {
+    expect(staleTasks([t('NightShift-chain-x', 'Ready')], allow)).toEqual([{ name: 'NightShift-chain-x', path: '\\', state: 'Ready', why: 'not on the allowlist' }]);
+    expect(staleTasks([t('NightShift-chain-x', 'Disabled')], allow)).toEqual([]);
+    expect(staleTasks([t('NightShift-chain-y', 'Running')], allow).map((x: { state: string }) => x.state)).toEqual(['Running']);
+  });
+  it('the allowlisted tasks are never stale, even with an action in scratch (auto-train runs a .vbs there)', () => {
+    const vbs = [{ execute: 'wscript.exe', args: '//B //NoLogo "C:\\NightShift\\scratch\\auto-train-task.vbs"' }];
+    expect(staleTasks([t('NightShift-laptop-queue', 'Running', ps('-Command "node scripts/laptop-queue/service.mjs"')), t('NightShift-desktop-queue', 'Ready'), t('NightShift auto-train', 'Ready', vbs)], allow)).toEqual([]);
+    expect(staleTasks([t('NightShift-extra', 'Ready')], [...allow, 'NightShift-extra'])).toEqual([]);
+  });
+  it('NightShift-run-* is allowed only with an EndBoundary (one-shot-task.ps1)', () => {
+    expect(staleTasks([t('NightShift-run-a', 'Ready', chain, ['2026-10-24T11:00:00Z'])], allow)).toEqual([]);
+    expect(staleTasks([t('NightShift-run-b', 'Ready', chain, [''])], allow).map((x: { why: string }) => x.why)).toEqual(['not on the allowlist']);
+    expect(staleTasks([t('NightShift-run-c', 'Ready', chain, [])], allow)).toHaveLength(1);
+  });
+  it('any other task is stale only when an action runs laptop-runner.ps1 or from C:\\NightShift\\scratch', () => {
+    expect(staleTasks([t('MyRunner', 'Ready', ps('-File C:/Users/Micha/laptop-runner.ps1'))], allow)).toEqual([{ name: 'MyRunner', path: '\\', state: 'Ready', why: 'runs laptop-runner.ps1' }]);
+    expect(staleTasks([t('Other', 'Ready', [{ execute: 'C:/NightShift/scratch/x.cmd', args: '' }])], allow).map((x: { why: string }) => x.why)).toEqual(['runs from C:\\NightShift\\scratch']);
+    expect(staleTasks([t('MyRunner', 'Disabled', ps('-File laptop-runner.ps1'))], allow)).toEqual([]);
+    expect(staleTasks([t('OneDrive Standalone Update Task', 'Ready', [{ execute: 'OneDriveSetup.exe', args: '/reporting' }])], allow)).toEqual([]);
+  });
+});
+
+describe('trainHold', () => {
+  it('holds alone requests while any open train lacks a laptop-e2e success', () => {
+    expect(trainHold([])).toBe(null);
+    expect(trainHold([{ n: '46', sha: 'a', laptop: 'success' }])).toBe(null);
+    expect(trainHold([{ n: '46', sha: 'a', laptop: 'success' }, { n: '47', sha: 'b', laptop: '' }])).toEqual({ n: '47', sha: 'b', laptop: '' });
+    expect(trainHold([{ n: '46', sha: 'a', laptop: 'failure' }])?.n).toBe('46'); // failed, still open: rerun or release pending
+    expect(trainHold([{ n: '46', sha: 'a', laptop: 'pending' }])?.n).toBe('46');
+  });
+});
+
+describe('duplicates', () => {
+  const SHA = 'a8ff2d45d5054c0da3492d100771aecc3e4531af';
+  const W = 60 * 60_000;
+  const r = (min: number, tag: string, o: Record<string, unknown> = {}) => ({ id: idAt(min, tag), requester: 'A', kind: 'pr', sha: SHA, suites: ['e2e-coop', 'e2e-enemies'], ...o });
+  const bake = { kind: 'alone', set: 'guard-bake-all', suites: undefined, steps: ['node a.mjs --probe', 'node a.mjs --stage sheet'], env: { E2E_GPU: '1' } };
+
+  it('the same run from another requester, open and older, is the one kept', () => {
+    const o = r(30, 'o');
+    const n = r(10, 'n', { requester: 'B', suites: ['e2e-enemies', 'e2e-coop'] });
+    expect([...duplicates([n, o], [], NOW, W)]).toEqual([[n.id, o.id]]);
+  });
+  it('a different set, jobs or pr is a different run (checker FIX: own context, solo rerun, failure comment)', () => {
+    const o = r(30, 'o', { set: 'flag-on' });
+    expect(duplicates([o, r(10, 'n', { set: 'flag-off' })], [], NOW, W).size).toBe(0);
+    expect(duplicates([o, r(10, 'n')], [], NOW, W).size).toBe(0);
+    expect(duplicates([o, r(10, 'n', { set: 'flag-on', jobs: 1 })], [], NOW, W).size).toBe(0);
+    expect(duplicates([o, r(10, 'n', { set: 'flag-on', pr: 301 })], [], NOW, W).size).toBe(0);
+    expect(duplicates([o, r(10, 'n', { set: 'flag-on', requester: 'B' })], [], NOW, W).size).toBe(1);
+  });
+  it('a request equal to a claimed or running one never runs; the active one is never marked', () => {
+    const a = { ...r(30, 'a'), active: true };
+    const n = r(10, 'n');
+    expect([...duplicates([a, n], [], NOW, W)]).toEqual([[n.id, a.id]]);
+    expect(duplicates([{ ...r(5, 'b'), active: true }, a], [], NOW, W).size).toBe(0);
+  });
+  it('alone requests match on steps in order and env (the a8ff2d45 57-min bake, sent twice 34 s apart)', () => {
+    const first = r(1, 'first', bake);
+    const again = r(0, 'again', { ...bake, requester: 'Player Build' });
+    expect(duplicates([first, again], [], NOW, W).get(again.id)).toBe(first.id);
+    expect(duplicates([first, r(0, 'swap', { ...bake, steps: [...bake.steps].reverse() })], [], NOW, W).size).toBe(0);
+    expect(duplicates([first, r(0, 'cpu', { ...bake, env: { E2E_GPU: '0' } })], [], NOW, W).size).toBe(0);
+  });
+  it('the real a8ff2d45 pair (pr e2e-enemies set gm-enemies-off, then the alone bake) is two different runs', () => {
+    const pr = r(1, 'pr', { requester: 'player-build', suites: ['e2e-enemies'], set: 'gm-enemies-off' });
+    const al = r(0, 'al', { requester: 'player-build', ...bake });
+    expect(duplicates([pr, al], [], NOW, W).size).toBe(0);
+  });
+  it('a different sha, kind or suite list is kept', () => {
+    const o = r(30, 'o');
+    expect(duplicates([o, r(10, 'n', { sha: 'b'.repeat(40) })], [], NOW, W).size).toBe(0);
+    expect(duplicates([o, r(10, 'n', { suites: ['e2e-coop'] })], [], NOW, W).size).toBe(0);
+    expect(duplicates([r(30, 'f', { kind: 'full', suites: undefined }), r(10, 'n', { kind: 'full', suites: undefined })], [], NOW, W).size).toBe(1);
+    expect(duplicates([r(30, 'f', { kind: 'full', suites: undefined }), r(10, 'n')], [], NOW, W).size).toBe(0);
+  });
+  it('only a request done with success within the window is matched (never a failure: a rerun of it is meant to run)', () => {
+    const n = r(5, 'n');
+    const done = (min: number, result: string) => ({ id: idAt(min + 20, 'd'), key: dupKey(r(0, 'x')), result, date: new Date(NOW - min * 60_000).toISOString() });
+    for (const bad of ['failure', 'error', 'build', 'nosha', 'incomplete']) expect(duplicates([n], [done(30, bad)], NOW, W).size).toBe(0);
+    expect(duplicates([n], [done(30, 'success')], NOW, W).get(n.id)).toBe(done(30, 'success').id);
+    expect(duplicates([n], [done(61, 'success')], NOW, W).size).toBe(0);
+    expect(duplicates([n], [done(10, 'superseded'), done(10, 'duplicate')], NOW, W).size).toBe(0);
+    expect(duplicates([n], [{ id: 'old', result: 'success', date: new Date(NOW).toISOString() }], NOW, W).size).toBe(0);
+  });
+  it('checker scenarios: a desktop failure then a laptop re-request; a --jobs 1 solo rerun of a failure; another --set', () => {
+    const first = r(40, 'desk', { requester: 'guard-ai', pr: 300 });
+    const doneAs = (result: string) => [{ id: first.id, key: dupKey(first), result, date: new Date(NOW - 20 * 60_000).toISOString() }];
+    // the desktop ran it and failed: the same request again (to run on the laptop) runs
+    const again = r(10, 'again', { requester: 'guard-ai', pr: 300 });
+    expect(duplicates([again], doneAs('failure'), NOW, W).size).toBe(0);
+    expect(duplicates([again], doneAs('success'), NOW, W).get(again.id)).toBe(first.id);
+    // a solo rerun of the failure at --jobs 1 runs, even next to a success of the default run
+    const solo = r(10, 'solo', { requester: 'guard-ai', pr: 300, jobs: 1 });
+    expect(duplicates([solo], doneAs('failure'), NOW, W).size).toBe(0);
+    expect(duplicates([solo], doneAs('success'), NOW, W).size).toBe(0);
+    // another set of the same suites on the same sha (a flag off / on pair) runs, open, active or done
+    const other = r(10, 'other', { requester: 'guard-ai', pr: 300, set: 'gm-off' });
+    expect(duplicates([other], doneAs('success'), NOW, W).size).toBe(0);
+    expect(duplicates([{ ...first, active: true }, other], [], NOW, W).size).toBe(0);
+  });
+  it('three equal open requests all point at the oldest', () => {
+    const [a, b, c] = [r(30, 'a'), r(20, 'b'), r(10, 'c')];
+    const m = duplicates([c, b, a], [], NOW, W);
+    expect(m.get(b.id)).toBe(a.id);
+    expect(m.get(c.id)).toBe(a.id);
+    expect(m.has(a.id)).toBe(false);
+  });
+});
+
+describe('cutShort', () => {
+  const t = { sha: 'a'.repeat(40), n: '57' };
+  it('a withdrawn request stops whatever its kind or phase', () => {
+    for (const kind of ['pr', 'full', 'alone']) {
+      expect(cutShort({ kind }, { withdrawn: true })).toBe('withdrawn');
+      expect(cutShort({ kind }, { withdrawn: true, trains: [t], started: true })).toBe('withdrawn');
+    }
+    expect(cutShort({ kind: 'pr', trainRerun: true }, { withdrawn: true })).toBe('withdrawn');
+  });
+  it('a pending train preempts a plain pr request only once its suites started', () => {
+    expect(cutShort({ kind: 'pr' }, { trains: [t], started: true })).toBe('train');
+    expect(cutShort({ kind: 'pr' }, { trains: [t], started: false })).toBe('');
+    expect(cutShort({ kind: 'pr' }, { trains: [], started: true })).toBe('');
+  });
+  it('never preempts beside a run that cannot give way (the train needs both slots)', () => {
+    const run = { trains: [t], started: true };
+    expect(cutShort({ kind: 'pr' }, { ...run, others: [{ kind: 'pr' }] })).toBe('train');
+    expect(cutShort({ kind: 'pr' }, { ...run, others: [{ kind: 'full' }] })).toBe('');
+    expect(cutShort({ kind: 'pr' }, { ...run, others: [{ kind: 'alone' }] })).toBe('');
+    expect(cutShort({ kind: 'pr' }, { ...run, others: [{ kind: 'pr', trainRerun: true }] })).toBe('');
+    expect(cutShort({ kind: 'pr' }, { withdrawn: true, others: [{ kind: 'full' }] })).toBe('withdrawn');
+  });
+  it('never preempts a train rerun, a full or an alone run', () => {
+    expect(cutShort({ kind: 'pr', trainRerun: true }, { trains: [t], started: true })).toBe('');
+    expect(cutShort({ kind: 'full' }, { trains: [t], started: true })).toBe('');
+    expect(cutShort({ kind: 'alone' }, { trains: [t], started: true })).toBe('');
+    expect(cutShort({ kind: 'pr' })).toBe('');
+  });
+});
+
+describe('yieldTo', () => {
+  const t = { sha: 'a'.repeat(40), n: '47' };
+  it('a run not yet in its suites / steps yields to the first pending train', () => {
+    expect(yieldTo({ kind: 'pr' }, false, [t])).toBe(t);
+    expect(yieldTo({ kind: 'alone' }, false, [t, { ...t, n: '48' }])).toBe(t);
+  });
+  it('never once started, without a train, or for a train rerun', () => {
+    expect(yieldTo({ kind: 'pr' }, true, [t])).toBeNull();
+    expect(yieldTo({ kind: 'full' }, false, [])).toBeNull();
+    expect(yieldTo({ kind: 'pr', trainRerun: true }, false, [t])).toBeNull();
+  });
+});
+
+describe('train reruns', () => {
+  const rerun = (min: number, tag = 'rr') => ({ ...req(min, 'pr', tag, 'auto-train'), trainRerun: true, pr: 301, suites: ['e2e-coop'] });
+  it('goes right after trains, ahead of older pr work and an aged alone run, on one free slot', () => {
+    const rr = rerun(1);
+    const q = { trains: [], requests: [req(30, 'pr', 'p'), req(60, 'alone', 'al'), rr] };
+    expect(pick(q, NOW, slots(false, false))).toEqual({ kind: 'request', request: rr, slot: '4189' });
+    expect(pick(q, NOW, slots(true, false))).toEqual({ kind: 'request', request: rr, slot: '4192' });
+    expect(pick(q, NOW, slots(true, true))).toBeNull();
+    expect(pick({ trains: [train], requests: [rr] }, NOW, slots(false, false))).toEqual({ kind: 'train', train });
+  });
+  it('the oldest rerun first', () => {
+    const a = rerun(20, 'a');
+    expect(pick({ trains: [], requests: [rerun(5, 'b'), a] }, NOW, slots(false, false))?.request).toBe(a);
+  });
+  it('context, description and validation', () => {
+    // with a set: the normal set context (auto-train's --set train<n>-rerun is what it reads back)
+    expect(contextName('pr', 'train47-rerun', ['e2e-coop', 'e2e-netmove'], true)).toBe('laptop-e2e/train47-rerun');
+    expect(contextName('pr', '', ['e2e-coop', 'e2e-netmove'], true)).toBe('laptop-e2e/rerun-coop+netmove');
+    expect(contextName('pr', undefined, ['e2e-coop'], true)).toBe('laptop-e2e/rerun-coop');
+    expect(contextName('pr', '', ['e2e-' + 'x'.repeat(60)], true).length).toBe('laptop-e2e/'.length + 40);
+    expect(rerunPassed(['e2e-coop', 'e2e-netmove'])).toBe('laptop rerun passed: e2e-coop,e2e-netmove (desktop fail)');
+    const long = rerunPassed(Array.from({ length: 20 }, (_, i) => `e2e-suite-${i}`));
+    expect(long.length).toBe(140);
+    expect(long.endsWith('... (desktop fail)')).toBe(true);
+    const ok = { id: 'x', sha: 'a'.repeat(40), kind: 'pr', suites: ['e2e-coop'], trainRerun: true, pr: 301 };
+    expect(requestProblem(ok)).toBe('');
+    expect(requestProblem({ ...ok, pr: null })).toMatch(/train rerun/);
+    expect(requestProblem({ ...ok, kind: 'full' })).toMatch(/train rerun/);
+  });
+  it('a rerun and a plain request are never superseded by or duplicates of each other', () => {
+    const plain = { ...req(30, 'pr', 'p', 'auto-train'), sha: 'a'.repeat(40), suites: ['e2e-coop'] };
+    const rr = { ...rerun(10), sha: 'a'.repeat(40) };
+    expect(superseded([plain, rr], () => true).size).toBe(0);
+    expect(duplicates([plain, rr], [], NOW, 3600_000).size).toBe(0);
+  });
+});
+
+describe('pruneDone', () => {
+  const at = (days: number) => new Date(NOW - days * 24 * 3600_000).toISOString();
+  const WEEK = 7 * 24 * 3600_000;
+  it('drops entries over 7 days old whose done claim is on the branch; keeps new, unsynced and undated ones', () => {
+    const done = { old: { result: 'success', date: at(8) }, oldUnsynced: { result: 'failure', date: at(9) }, fresh: { result: 'failure', date: at(1) }, nodate: { result: 'success' } };
+    const out = pruneDone(done, NOW, WEEK, (id: string) => id !== 'oldUnsynced');
+    expect(Object.keys(out).sort()).toEqual(['fresh', 'nodate', 'oldUnsynced']);
+    expect(done).toHaveProperty('old'); // a new object
+    expect(Object.keys(pruneDone(done, NOW, WEEK))).not.toContain('old');
+  });
+});
+
+describe('buildMarker', () => {
+  const MAX = 30 * 60_000;
+  const at = (min: number) => new Date(NOW - min * 60_000).toISOString();
+  const text = (min: number) => JSON.stringify({ train: '48', version: '4.80.0', pid: 123, at: at(min) });
+  it('no file, no marker', () => {
+    expect(buildMarker(null, NaN, NOW, MAX)).toBeNull();
+  });
+  it('a fresh marker blocks, one over the limit is stale', () => {
+    expect(buildMarker(text(5), NaN, NOW, MAX)).toMatchObject({ train: '48', stale: false, ageMs: 5 * 60_000 });
+    expect(buildMarker(text(30), NaN, NOW, MAX)?.stale).toBe(true);
+  });
+  it('an unreadable marker ages from the file time', () => {
+    expect(buildMarker('{oops', NOW - 60_000, NOW, MAX)).toMatchObject({ train: '?', stale: false });
+    expect(buildMarker('', NOW - 31 * 60_000, NOW, MAX)?.stale).toBe(true);
+  });
+  it('the key changes per marker (logged once each)', () => {
+    expect(buildMarker(text(5), NaN, NOW, MAX)?.key).not.toBe(buildMarker(text(4), NaN, NOW, MAX)?.key);
+    expect(buildMarker(text(5), NaN, NOW + 1000, MAX)?.key).toBe(buildMarker(text(5), NaN, NOW, MAX)?.key);
   });
 });
