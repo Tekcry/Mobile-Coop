@@ -1009,8 +1009,10 @@ WIP snapshots (branches untouched): origin/wip/guard-ai-polish-fix ba1dc579 (fix
 1. #317 coop4 (feature/coop4, worktree C:/NightShift/Mobile-Coop-coop4): fix3 52e3dc13 e2e-coop FAIL further on:
    AI6 (1) + (2) PASS; AI6 (3) "a calm grunt facing the wall ... spawns" fails at all 4 tried spots (cap [9,17]).
    Triage 4 = TEST bug (leg ends 3.00-3.26 m vs a 3 m reach: never heard), fixed e6d673e3 (test-only; triage note).
-   e2e-coop on e6d673e3 queued (set coop4-fix4, ...-e6c8), background wait. Risk: the run leg never ran ("turns within
-   2 s" at 2.6-3.0 m may need the leg at 2.2 m, test-only). Green -> `gh pr ready 317` + orchestrator train-ready.
+   fix4 FAIL further (guard unaware -> cooldown mid crouch-walk): triage 5 = TEST bug (a statue's missing-partner radio
+   call made him cautious; cautious counts as calm by design), fixed c740ac86 (statues' radio quiet in (3), calm =
+   unaware | cooldown, run leg counts a tier-1 turn, hold leg C at the item). e2e-coop on c740ac86 queued (set
+   coop4-fix5, ...-9d6d). Next fix if the run leg fails to locate: leg at 2.2 m (test-only).
    CONFLICT with master (one hunk src/net/protocol.ts): orchestrator agreed no master merge; if auto-train leaves #317
    out, by-hand train merge: master's PROTOCOL_VERSION line + coop4's MAX_PLAYERS comment and `slotFromList` import.
 2. #363 polish TRAIN-READY at 4bf05803 (CI green, checker status success, laptop polish3s 7/7 PASS; orchestrator asked
