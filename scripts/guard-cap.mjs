@@ -65,6 +65,8 @@ const GFX = opt('gfx', 'epic');
 const [VW, VH] = opt('viewport', '1920x1080').split('x').map(Number);
 const KIND = opt('kind', 'grunt');
 const CELLS = opt('cells', 'patrol,away,alert').split(',');
+// (guard-models G8) extra URL query for every page, e.g. --query=guardmodels=1 (figures on) or guardmodels=0
+const QUERY = opt('query', '').replace(/^[?&]/, '');
 const PORT = Number(process.env.E2E_PORT ?? 4189);
 const URL = `http://127.0.0.1:${PORT}/`;
 const PAGE_TIMEOUT = 15 * 60_000;
@@ -567,7 +569,7 @@ const withTimeout = (p, ms, what) => Promise.race([p, new Promise((_, rej) => se
 const CELL_TIMEOUT = (WARM + SECS * 4 + 120) * 1000;
 
 async function runPage(map, n, ctl) {
-  const params = `${mapQuery(map)}&gfx=${GFX}`;
+  const params = `${mapQuery(map)}&gfx=${GFX}${QUERY ? `&${QUERY}` : ''}`;
   log(`${map} x ${n}: boot (${params})`);
   const l = await launch({ url: URL, params, viewport: { width: VW, height: VH } });
   const { browser, page, errors } = l;
