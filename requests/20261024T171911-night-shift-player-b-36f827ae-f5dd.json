@@ -1,0 +1,16 @@
+{
+  "id": "20261024T171911-night-shift-player-b-36f827ae-f5dd",
+  "sha": "36f827aebef4df68b91a2fedea3437521b7ebae9",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove",
+    "e2e-ctcourse",
+    "e2e-course"
+  ],
+  "set": "coop-lamp-fix",
+  "note": "S2 lamp fix PR (src/net)"
+}
