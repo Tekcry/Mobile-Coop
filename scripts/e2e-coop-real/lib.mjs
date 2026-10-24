@@ -521,7 +521,7 @@ export async function pickRow(P, who, re, { timeout = 6000 } = {}) {
         await until(P, (sel) => window.__app.current.ctxMenu.sel !== sel || window.__app.current.ctxMenu.state !== 'active', s.sel, 4000, `the ${who} highlight steps ${dir}`);
       }
     }
-    row = await P.evaluate(() => { const m = window.__app.current.ctxMenu; const o = m.opts[m.sel]; return o ? { label: o.label, kind: o.kind, opt: o.opt, hold: o.hold, index: m.sel } : null; });
+    row = await P.evaluate(() => { const m = window.__app.current.ctxMenu; const o = m.opts[m.sel]; return o ? { label: o.label, kind: o.kind, opt: o.opt, ref: o.ref, hold: o.hold, index: m.sel } : null; });
     if (!row || !re.test(row.label)) throw new Error(`the ${who} highlight is not on "${re.source}" (${JSON.stringify(row)})`);
     if (row.hold > 0) await until(P, () => window.__app.current.ctxMenu.state !== 'active', null, (row.hold + 4) * 1000, `the ${who} hold row "${row.label}" fills and runs`);
   } finally {

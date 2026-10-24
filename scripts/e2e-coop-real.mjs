@@ -10,6 +10,7 @@
 import { existsSync } from 'node:fs';
 import * as L from './e2e-coop-real/lib.mjs';
 import { probe } from './e2e-coop-real/probe.mjs';
+import * as S from './e2e-coop-real/sweep.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const PART = process.argv.find((a) => a.startsWith('--part='))?.slice(7) ?? '';
@@ -22,6 +23,8 @@ async function runPart(n) {
   console.log(`e2e-coop-real part ${n}${mod.NAME ? `: ${mod.NAME}` : ''}`);
   const h = await L.bootPair(url, mod.BOOT ?? {});
   try {
+    await S.installTaps(h.A);
+    await S.installTaps(h.B);
     await mod.run(h);
     const errs = L.gameErrors(h);
     L.assert(errs.length === 0, `part ${n}: no console errors (${errs.slice(0, 3).join(' | ')})`);
@@ -36,6 +39,8 @@ async function smoke() {
   const t0 = Date.now();
   const h = await L.bootPair(url, {});
   try {
+    await S.installTaps(h.A);
+    await S.installTaps(h.B);
     console.log(`smoke: pair booted in ${((Date.now() - t0) / 1000).toFixed(1)} s (netsim ${process.env.E2E_NETSIM ?? 'off'})`);
     const net = await L.read(h.B, () => ({ sim: !!globalThis.__netsim, webdriver: navigator.webdriver }));
     L.assert(net.sim === !!process.env.E2E_NETSIM && net.webdriver === false, `both pages boot by URL (client netsim ${net.sim}, webdriver ${net.webdriver})`);
@@ -79,8 +84,9 @@ async function smoke() {
         continue;
       }
       const label = rows.rows[rows.count - 1].label;
-      const r = await L.pickRow(P, who, new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`));
-      L.assert(r.label === label, `${tag} pickRow by ${who} ran "${r.label}" (row ${r.index + 1} of ${rows.count})`);
+      const noise = await S.controlWindow(h);
+      const r = await S.runRow(h, P, who, new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`), { noise });
+      L.assert(r.row.label === label, `${tag} pickRow by ${who} ran "${r.row.label}" (row ${r.row.index + 1} of ${rows.count}); expected keys moved (host ${JSON.stringify(r.host)}, client ${JSON.stringify(r.client)})`);
     }
     // aim: the client's camera onto the host's head by the right stick; the host's 100 deg to the right by the mouse
     const hostHead = await L.read(h.A, () => { const p = window.__app.current.player.position; return [p.x, p.y + 1.6, p.z]; });
@@ -109,6 +115,7 @@ try {
   console.error(e);
   L.run.failed = true;
 }
+S.knownBugSummary();
 if (L.run.failed) {
   console.error('FAILED');
   process.exit(1);
