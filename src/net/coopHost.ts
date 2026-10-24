@@ -19,7 +19,9 @@ import { eventQueueKeeps, gaitWire, motionWire, ITEM_KINDS, MAX_DOORS, MAX_EVENT
 import { RemoteAvatar } from './remoteAvatar';
 import { RemotePlayer } from './remotePlayer';
 import { HoldClock, holdFeed, stepHoldFeed, type HoldFeed } from './holdFeed';
-import { setPlayerGlow } from '../operators/runtime/playerFigure';
+import { goggleColour } from '../operators/runtime/goggle';
+import type { OperatorFigure } from '../operators/runtime/figure';
+import type { PlayerSlot, TeamRef } from '../game/playerSlots';
 import { PartnerBlocker, partnerPassable } from './partnerBlocker';
 import { checkBlast, checkShot, clientStepNoise, hostShotAllowed, hostShotWeapon, maxHitDamage, playersHostile, SHOT_UNDER, SHOT_UNDER_HANG } from './validate';
 import { localFlags, htmlToInfo } from './netShared';
@@ -57,7 +59,7 @@ import { canWalk, spawnProbe, startSlotPoints } from '../game/spawnPlace';
 import { HALL_BACK_HOLD } from '../game/jammer';
 import { JOIN_PLACE, JOIN_RESYNC, JOIN_REVIVE_QUIET_S, JoinWatch } from './joinWatch';
 import { ClockSync, HOST_INTERP_DELAY } from './interp';
-import { CT } from '../config/movement';
+import { CT, TEAM } from '../config/movement';
 
 import type { CharacterRig } from '../player/characterRig';
 
@@ -75,6 +77,8 @@ const SHOT_NOISE = 28;
 /** A client takedown: the victim within this of the client (m), and let go after this long without an outcome (s). */
 const TD_REACH = 3;
 const TD_MAX = 6;
+/** (coop4 A20) A timed team move keeps both players busy this long past its length (s). */
+const TEAM_BUSY_SLACK = 0.5;
 
 interface Hist {
   t: number;
@@ -104,6 +108,30 @@ function alertCode(e: Enemy, torch: boolean): number {
   return packAlert(a, e.taken, torch, e.caution > 0, e.helmet, e.armour, wireCarry(e.carry.phase));
 }
 
+/** (coop4) A remote's or a ref's player slot. */
+function slotKey(x: TeamRef | RemotePlayer): number {
+  return x instanceof RemotePlayer ? x.ref.slot : x.slot;
+}
+
+/** (coop4) Insertion sort by player slot, in place (<= 4 entries, no allocation). */
+function sortBySlot<T extends TeamRef | RemotePlayer>(a: T[]): void {
+  for (let i = 1; i < a.length; i++) {
+    const p = a[i]!;
+    const k = slotKey(p);
+    let j = i - 1;
+    while (j >= 0 && slotKey(a[j]!) > k) {
+      a[j + 1] = a[j]!;
+      j--;
+    }
+    a[j + 1] = p;
+  }
+}
+
+/** (G135, coop4 A15) A body's goggle colour by player slot: slot 0 keeps the lens asset's green (`goggleColour`). */
+function glowBySlot(figure: OperatorFigure, slot: number): void {
+  figure.setGlowColour(slot === 0 ? null : goggleColour(slot));
+}
+
 /**
  * Host side of a match. The host runs the full simulation (AI, modes, pickups, objectives) and owns every outcome:
  * client shots are re-checked against lag-compensated positions, client grenades are re-detonated here, health for
@@ -113,8 +141,8 @@ function alertCode(e: Enemy, torch: boolean): number {
  */
 export class CoopHost implements NetAttachment {
   private remotes = new Map<string, RemotePlayer>();
-  /** The remotes' refs in join order, kept on join / leave so `g.remotePlayers()` never allocates. */
-  private readonly remoteRefs: PlayerRef[] = [];
+  /** The remotes' refs in slot order (coop4), kept on join / leave so `g.remotePlayers()` never allocates. */
+  private readonly remoteRefs: TeamRef[] = [];
   /** The solo accessor this host replaced (restored on dispose). */
   private readonly soloRemotes: () => readonly PlayerRef[];
   private queue: NetEvent[] = [];
@@ -190,7 +218,9 @@ export class CoopHost implements NetAttachment {
     if (this.ff) g.target.friendly = (h) => this.friendly(h, s.selfId);
     this.reviveTime = REVIVE_TIME / hqStats(g.opts.hq ?? defaultHq()).reviveSpeed;
     // (sector-ops step 3, M7, A10) Sector Ops: the revives are the op's syringes, per difficulty
-    if (mode === 'sector') this.reviveClock.cap = syringesFor(g.opts.difficulty);
+    // (coop4 A4) plus one per player beyond 2, from the team when the op starts (a late joiner does not change it).
+    // TODO(coop4 SM): drop the cast once SM's `syringesFor(preset, players = 2)` is merged (until then the count is ignored)
+    if (mode === 'sector') this.reviveClock.cap = (syringesFor as (p: typeof g.opts.difficulty, players?: number) => number)(g.opts.difficulty, s.players.size);
     this.lampTx = mode === 'sector' ? new LampSender() : null;
     this.soloRemotes = g.remotePlayers;
     g.remotePlayers = () => this.remoteRefs;
@@ -204,6 +234,9 @@ export class CoopHost implements NetAttachment {
           this.lampForce = true;
         }
         for (const id of [...this.remotes.keys()]) if (!players.some((p) => p.id === id)) this.removeRemote(id);
+        // (coop4) slots never move during a match; the refs follow the session's table all the same
+        for (const [id, r] of this.remotes) r.ref.slot = this.slotOf(id);
+        sortBySlot(this.remoteRefs);
         this.recolour();
       }),
       s.events.on('peerLeft', ({ id, name }) => {
@@ -237,11 +270,16 @@ export class CoopHost implements NetAttachment {
     this.offs.push(keepSimInBackground(g));
   }
 
-  /** (G135) Every body's goggle colour from its player slot (host green, partner cyan): the partner beacon. */
+  /** (G135, coop4 A15) Every body's goggle colour from its player slot (`GOGGLE_COLOURS`: host green, then cyan,
+   *  magenta, warm white): the partner beacon. */
   private recolour(): void {
-    const ps = [...this.s.players.values()];
-    setPlayerGlow(this.g.player.figure, ps, this.s.selfId);
-    for (const [id, r] of this.remotes) setPlayerGlow(r.avatar.figure, ps, id);
+    glowBySlot(this.g.player.figure, 0);
+    for (const [id, r] of this.remotes) glowBySlot(r.avatar.figure, this.slotOf(id));
+  }
+
+  /** (coop4 A10) Players in the session: connected plus held (the host and every remote, held ones included). */
+  teamSize(): number {
+    return 1 + this.remotes.size;
   }
 
   /** Attacker id on the wire ('local' / '' = the host). */
@@ -361,7 +399,9 @@ export class CoopHost implements NetAttachment {
     const g = this.g;
     const avatar = new RemoteAvatar(g.world, g.vfx, g.ballistics, p);
     avatar.onFire = (cls, at, gun, quiet) => g.events.emit('remoteShot', { cls, x: at.x, y: at.y, z: at.z, gun, quiet });
-    const r = new RemotePlayer(g.scene, g.registry, p.id, avatar, this.spawnPoint(this.remotes.size + 1));
+    const slot = this.slotOf(p.id);
+    const r = new RemotePlayer(g.scene, g.registry, p.id, avatar, this.spawnPoint(slot));
+    r.ref.slot = slot;
     r.onDamaged = (h) => this.push({ e: 'hurt', player: p.id, x: h.sourcePos.x, z: h.sourcePos.z, boom: h.kind === 'explosion' });
     r.onDeath = () => this.onRemoteDeath(r);
     r.loadout = p.loadout;
@@ -377,6 +417,7 @@ export class CoopHost implements NetAttachment {
     this.partnerBoxes.get(p.id)?.setSolid(false);
     this.remotes.set(p.id, r);
     this.remoteRefs.push(r.ref);
+    sortBySlot(this.remoteRefs);
     if (!this.tallies.has(p.id)) this.tallies.set(p.id, emptyTally());
   }
 
@@ -392,14 +433,11 @@ export class CoopHost implements NetAttachment {
     this.joins.late(id, startSlotPoints(this.g, this.s.lateBay?.()), this.time);
   }
 
-  /** (coop-rejoin) Player slot of remote `id`: 1 + its place among the joiners (the host is slot 0). */
-  private slotOf(id: string): number {
-    let i = 1;
-    for (const k of this.remotes.keys()) {
-      if (k === id) return i;
-      i++;
-    }
-    return 1;
+  /** (coop-rejoin, coop4 A19) Player slot of remote `id`: the session's slot table (fixed for the match; the host is
+   *  slot 0); 1 for an id the table does not know. */
+  private slotOf(id: string): PlayerSlot {
+    const s = this.s.slotOf(id);
+    return s === -1 || s === 0 ? 1 : s;
   }
 
   /** (coop-rejoin) The host's feet and facing (a spawn beside the host starts from it). */
@@ -470,6 +508,7 @@ export class CoopHost implements NetAttachment {
       this.release(eid);
     }
     if (this.teamPairs.has(id)) this.onTeamMove(id, 'end', '', 0, 0, 0);
+    this.teamClear(id);
     this.joins.hold(id, { x: r.feet.x, y: r.feet.y, z: r.feet.z, yaw: r.state?.yaw ?? 0 });
     this.g.hud.setNetNotice(`${name} disconnected - reconnecting... (room ${this.s.code})`);
     this.g.app.toasts.show(`${name} disconnected. Their place is held for 10 minutes (room ${this.s.code}).`, 'warn');
@@ -487,7 +526,10 @@ export class CoopHost implements NetAttachment {
   private resume(r: RemotePlayer): void {
     this.rejoining.delete(r.id);
     r.held = false;
-    if (!this.remoteRefs.includes(r.ref)) this.remoteRefs.push(r.ref);
+    if (!this.remoteRefs.includes(r.ref)) {
+      this.remoteRefs.push(r.ref);
+      sortBySlot(this.remoteRefs);
+    }
     this.joins.resume(r.id, this.time);
     // (E9-crate, A106) the crates it used: its prompt stays gone (`fill` false: no top-up)
     for (const id of this.g.crates?.usedBy(r.id) ?? []) this.push({ e: 'crate', player: r.id, id, fill: false });
@@ -511,6 +553,10 @@ export class CoopHost implements NetAttachment {
     this.partnerBoxes.delete(id);
     this.joins.drop(id);
     this.rejoining.delete(id);
+    this.teamClear(id);
+    // (coop4, Guard AI AI1) the guards forget this intruder's slot (the same id rejoining gets its slot and last known
+    // position back); optional until feature/guard-ai-coop4 lands
+    (this.g.enemyMgr as { intruderLeft?(id: string): void } | null)?.intruderLeft?.(id);
     if (r.held) this.g.hud.setNetNotice(null);
     this.dropRevive(id);
     for (const [eid, s] of this.seized) if (s.by === id) this.release(eid);
@@ -704,7 +750,8 @@ export class CoopHost implements NetAttachment {
       case 'jam':
         // (CT prototype B3) the held jammer's target; the host steps the charge and the stand-still rule itself
         // (jammer-fixes, 27) with the client's camera eye: the host checks the line from where the client aimed
-        if (r.alive) this.g.mode?.onRemoteJam?.(r.id, msg.tgt, msg.e);
+        // (coop4 D1) with the sender's slot: its jam's entry in `SecWire`
+        if (r.alive) this.g.mode?.onRemoteJam?.(r.id, msg.tgt, msg.e, r.ref.slot);
         break;
       case 'td':
         this.onTakedown(r, msg);
@@ -768,7 +815,9 @@ export class CoopHost implements NetAttachment {
     const f = r.feet;
     if (!it?.holdNoise || !hostHoldPulse(it, r.alive, f.x, f.y, f.z, this.time, this.holdPulseAt.get(r.id) ?? -Infinity)) return;
     this.holdPulseAt.set(r.id, this.time);
-    em.hear(it.pos, it.holdNoise);
+    // (coop4, Guard AI A172) the noise names its holder (as the host's own hold does): guards already fighting or
+    // searching locate him; calm guards ignore the maker
+    em.hear(it.pos, it.holdNoise, 'noise', null, r.ref.id);
   }
 
   /** Course mode: the course state, locks and lights to every client. */
@@ -964,6 +1013,36 @@ export class CoopHost implements NetAttachment {
 
   /** Pairs in a human ladder (each id -> the other). */
   private teamPairs = new Map<string, string>();
+  /** (coop4 A20) Players in a running team move: id -> its partner and the host time it ends (a timed move: its length
+   *  + `TEAM_BUSY_SLACK`; a hang-down / rope: until its end). A player offering serves one partner at a time. */
+  private readonly teamActive = new Map<string, { mate: string; until: number }>();
+
+  /** (coop4 A20) Is `b` in a running team move with someone other than `a` (a second claimant is denied `taken`)? */
+  private teamBusy(b: string, a: string): boolean {
+    const e = this.teamActive.get(b);
+    if (!e) return false;
+    if (e.until <= this.time) {
+      this.teamActive.delete(b);
+      return false;
+    }
+    return e.mate !== a;
+  }
+
+  /** (coop4 A20) `a` and `b` start a team move of `kind` (both busy until it ends). */
+  private teamMark(kind: TeamKind, a: string, b: string): void {
+    const len = kind === 'boost' ? TEAM.boostTime : kind === 'ladder' ? TEAM.relayClimb : kind === 'throw' ? TEAM.throwTime : Infinity;
+    const until = this.time + len + TEAM_BUSY_SLACK;
+    this.teamActive.set(a, { mate: b, until });
+    this.teamActive.set(b, { mate: a, until });
+  }
+
+  /** (coop4 A20) `id`'s team move ended (its end, a drop, a leave): it and its partner are free. */
+  private teamClear(id: string): void {
+    const e = this.teamActive.get(id);
+    if (!e) return;
+    this.teamActive.delete(id);
+    if (this.teamActive.get(e.mate)?.mate === id) this.teamActive.delete(e.mate);
+  }
   private teamLast = new Map<string, number>();
   private teamMv = emptyMoveState();
   /** (throw-ko) Partner throws in flight: the thrown player coming down on a guard knocks him out (host-authoritative). */
@@ -999,6 +1078,7 @@ export class CoopHost implements NetAttachment {
       if (!other) return;
       this.teamPairs.delete(by);
       this.teamPairs.delete(other);
+      this.teamClear(by);
       const k = target === 1 ? 'drop' : 'pull';
       this.s.send({ t: 'tend', a: by, b: other, k });
       if (by === self || other === self) this.g.team.ended(k);
@@ -1009,6 +1089,7 @@ export class CoopHost implements NetAttachment {
       if (!other) return;
       this.teamPairs.delete(by);
       this.teamPairs.delete(other);
+      this.teamClear(by);
       this.s.send({ t: 'tend', a: by, b: other });
       if (other === self) this.g.team.ended();
       return;
@@ -1024,7 +1105,7 @@ export class CoopHost implements NetAttachment {
     const now = this.time;
     const toss = kind === 'throw' || kind === 'hang' || kind === 'rope';
     const land = toss && lx !== undefined && lz !== undefined ? { x: lx, y: gy, z: lz } : undefined;
-    const why = checkTeamRequest({ kind, a, b, target: anchor ? target : -1, targetUp: gy - b.y, sinceLast: now - (this.teamLast.get(by) ?? -99), land });
+    const why = checkTeamRequest({ kind, a, b, target: anchor ? target : -1, targetUp: gy - b.y, sinceLast: now - (this.teamLast.get(by) ?? -99), land, bBusy: this.teamBusy(partner, by) });
     this.teamLast.set(by, now);
     if (why) return deny(why);
     if (toss && land) {
@@ -1036,6 +1117,7 @@ export class CoopHost implements NetAttachment {
       }
       const start = { kind, a: by, b: partner, target: -1, s: 0, t0: now, l: [land.x, land.y, land.z] as [number, number, number] };
       if (kind === 'throw') this.throwKo.start(by, now, a.x, a.y, a.z, land.x, land.y, land.z);
+      this.teamMark(kind, by, partner);
       this.s.send({ t: 'tstart', ...start });
       if (by === self || partner === self) this.g.team.begin(start, self);
       this.g.mode?.onTeamMove?.(by === self ? undefined : by, partner === self ? undefined : partner);
@@ -1044,6 +1126,7 @@ export class CoopHost implements NetAttachment {
     // the relay climbs the hanger's own ledge at the hanger's own spot (never the climber's claim)
     const relay = kind === 'ladder';
     const start = { kind, a: by, b: partner, target: relay ? (b.anchor ?? -1) : anchor ? target : -1, s: relay ? (b.s ?? 0) : ss, t0: now };
+    this.teamMark(kind, by, partner);
     this.s.send({ t: 'tstart', ...start });
     if (by === self || partner === self) this.g.team.begin(start, self);
     this.g.mode?.onTeamMove?.(by === self ? undefined : by, partner === self ? undefined : partner);
@@ -1563,7 +1646,7 @@ export class CoopHost implements NetAttachment {
         continue;
       }
       this.respawnIn.delete(id);
-      this.reviveOne(id, this.spawnPoint([...this.remotes.keys()].indexOf(id) + 1));
+      this.reviveOne(id, this.spawnPoint(this.slotOf(id)));
     }
     this.histT -= dt;
     if (this.histT <= 0) {
@@ -1691,11 +1774,15 @@ export class CoopHost implements NetAttachment {
     const area: SlotPoint[] = c0 && hyp2(c0.x - at.x, c0.z - at.z) < 1 ? cps : [{ x: at.x, y: at.y, z: at.z, yaw: this.g.player.cam.yaw }];
     const others: SpawnBody[] = [{ x: at.x, y: at.y, z: at.z }];
     const probe = spawnProbe(this.g);
-    let i = 1;
-    for (const r of this.remotes.values()) {
+    // (coop4 A14) slot by slot (1, 2, 3): each on its slot of the checkpoint or the first free ring spot beside it,
+    // clear of the ones placed before it
+    const order = this.bySlot;
+    order.length = 0;
+    for (const r of this.remotes.values()) order.push(r);
+    sortBySlot(order);
+    for (const r of order) {
       const o: SlotPoint = { x: 0, y: 0, z: 0, yaw: 0 };
-      slotSpawn(area, i, others, probe, o);
-      i++;
+      slotSpawn(area, r.ref.slot, others, probe, o);
       const p = new Vector3(o.x, o.y, o.z);
       others.push(p);
       // (fix round, check A P2) a restore still repeating (join or held spot) stops: it would pull the partner back
@@ -1710,8 +1797,11 @@ export class CoopHost implements NetAttachment {
     }
   }
 
+  /** (coop4) Scratch: the remotes in slot order (`onRespawn`). */
+  private readonly bySlot: RemotePlayer[] = [];
+
   reviveAll(): void {
-    for (const r of this.remotes.values()) if (!r.alive) this.reviveOne(r.id, this.spawnPoint([...this.remotes.keys()].indexOf(r.id) + 1));
+    for (const r of this.remotes.values()) if (!r.alive) this.reviveOne(r.id, this.spawnPoint(r.ref.slot));
   }
 
   pickers(): { id: string; feet: Vector3; needs: (k: PickupKind) => boolean }[] {
@@ -1732,7 +1822,7 @@ export class CoopHost implements NetAttachment {
   blips(): Blip[] {
     const out: Blip[] = [];
     for (const r of this.remotes.values()) {
-      out.push({ x: r.feet.x, z: r.feet.z, kind: 'ally' });
+      out.push({ x: r.feet.x, z: r.feet.z, kind: 'ally', slot: r.ref.slot });
     }
     return out;
   }

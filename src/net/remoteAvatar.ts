@@ -195,8 +195,8 @@ export class RemoteAvatar {
     this.rig = op.rig;
     this.figure = op.figure;
     this.rig.carrier = true;
-    // (A5, G135) partner beacon: the host is player 1 (blue), a joiner player 2 (red); both ends hold `info.host`
-    this.rig.setBeacon(info.host ? 1 : 2);
+    // (A5, G135, coop4 A15) partner beacon by the player's slot (blue, red, amber, violet); no slot: host 1, joiner 2
+    this.rig.setBeacon(Number.isInteger(info.slot) && info.slot >= 0 ? info.slot + 1 : info.host ? 1 : 2);
     loadPlayLods(this.figure);
     this.pouches = new GrenadePouches(world.parts, this.rig, undefined, false);
     for (const m of this.pouches.parts) world.addShadowCaster(m);
