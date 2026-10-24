@@ -50,7 +50,7 @@ import { moonLight } from './lampMath';
 import { roofAt, roofGrid, type RoofGrid } from './roofGrid';
 import { KitRender } from './kit/kitRender';
 import { PropRender } from './props/propRender';
-import { SunCascadeLists, keepNearCamera, useCascadeLists } from './sunCascadeCull';
+import { SunCascadeLists, csmSplitLen, csmSplitZ, keepNearCamera, useCascadeLists } from './sunCascadeCull';
 
 /** Flashlight slots on dark maps (enemies searching / investigating in the dark): `torches.ts`. */
 export { FLASHLIGHTS } from './torches';
@@ -310,10 +310,16 @@ export class World {
   private readonly cascadeLists = new SunCascadeLists();
   private readonly sunReach: number[] = [];
   private readonly sunNear: boolean[] = [];
-  /** (guard-render S6) Each cascade draws only the casters over its square (`sunCascadeCull.ts`; exact). */
+  /** (guard-render S6) Each cascade draws only the casters over its square (`sunCascadeCull.ts`; exact); (S9) and only
+   *  those whose shadow can land at a view depth that samples the cascade (split + blend band). Under the baked moon
+   *  (the only time these lists run) the list holds moving casters only: the static level is not in this path. */
   private readonly cascadeList = (layer: number): AbstractMesh[] | null => {
     const g = this.shadow;
-    return g instanceof CascadedShadowGenerator ? this.cascadeLists.fill(layer, this.sunCasters, g.getCascadeTransformMatrix(layer)?.m ?? null) : null;
+    if (!(g instanceof CascadedShadowGenerator)) return null;
+    const cam = this.scene.activeCamera;
+    const d = this.sun.direction;
+    this.cascadeLists.setDepth(cam ? cam.getViewMatrix().m : null, csmSplitZ(g), csmSplitLen(g), g.cascadeBlendPercentage, d.x, d.y, d.z);
+    return this.cascadeLists.fill(layer, this.sunCasters, g.getCascadeTransformMatrix(layer)?.m ?? null);
   };
 
   /** The moon's list: the static casters + the moving ones under open sky (indoors the roof shades them anyway). */
