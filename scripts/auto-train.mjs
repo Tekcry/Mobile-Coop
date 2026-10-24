@@ -2,26 +2,38 @@
 // (every 5 min from a scheduled task, scripts/auto-train-task.ps1) looks at GitHub and does at most one thing:
 //   open train (an open PR whose head is train/<n>): CI `check` + the laptop's commit status `laptop-e2e` on its head
 //     both success -> `merge-train release` (exit 3, master moved -> `merge-train build` the same members, next version);
-//     any failure -> state "failed" (nothing destructive: the orchestrator decides which member leaves); pending ->
+//     a desktop `laptop-e2e` failure ("desktop: ...; FAIL: a,b") -> ONE laptop rerun of those suites per head
+//     (request.mjs --set train<n>-rerun --train-rerun, state "laptop-rerun", recorded as `rerun` in the status); a
+//     `laptop-e2e/train<n>-rerun` success on the head with CI green releases through decide() (also on master's
+//     request.mjs, which runs it as a plain pr request and posts only that context), its failure -> "failed", no
+//     verdict AUTO_TRAIN_RERUN_STALE_MIN (60) min after the request -> "rerun-stale", a request that failed 6 times ->
+//     "rerun-request-failed";
+//     any other failure -> state "failed" (nothing destructive: the orchestrator decides which member leaves); pending ->
 //     wait; no laptop status 3 h after the head was pushed -> state "stale"; CI green but no laptop status 10 min
 //     after (AUTO_TRAIN_LAPTOP_MISSING_MIN) -> state "laptop-missing" (waitingMin in the status).
 //   no open train: open PRs to master labelled `train-ready` with a green `check` on their head (plus feature/menu
 //     when it differs from master in docs only, riding along) -> `merge-train build <n+1> <version> "<title>" ...`,
-//     paced: only once the last release is --min-interval min old (default 60) or the laptop queue is idle.
+//     paced: only once the last release is --min-interval min old (default 60) or the laptop queue is idle; held
+//     (state "holding") up to AUTO_TRAIN_CHECK_WAIT_MIN (3) min per head while a train-ready PR's check still runs;
+//     the candidates are re-read right before the build.
 // It calls scripts/merge-train.mjs (next to this file) only through its CLI, with cwd = the train worktree
 // (--worktree, default C:/NightShift/Mobile-Coop-train). It reads GitHub through gh / ls-remote (no fetch of its own),
 // never forces a push, never touches dev or master; every write (gh or merge-train) goes through act(), which only
 // prints under --dry-run. Contract and states: docs/systems/auto-train.md.
 // Usage: node scripts/auto-train.mjs tick [--dry-run] [--worktree <dir>] [--min-interval <min>] [--max-per-day <n>]
 // --preview-next (with --dry-run only): ignore an open train and show the build the next tick without one would make.
+// Fast poll: a tick that ends waiting (pending, laptop-rerun, holding) keeps its lock and runs the step again every
+// AUTO_TRAIN_FAST_POLL_S (60) s up to AUTO_TRAIN_FAST_POLL_MAX_MIN (4) min from its start, stopping on any state
+// change; --once and --dry-run never poll.
 // Release is `merge-train release ... --head <the tested head> --no-fallback` (pinned; never the old-style path); a
 // train without a version commit is state "error" ("rebuild"). merge-train build exit 4 (vitest not run) is pending.
 // A failed rebuild after release exit 3 is recorded (`rebuildFailed`) and skipped until the train head or master moves.
 // Files: lock C:/NightShift/scratch/auto-train.lock (wx, stale when untouched 30 min; a heartbeat keeps a long build's
 // lock fresh; merge-train takes the same lock for a hand run), log C:/NightShift/scratch/runs/auto-train.log, status
 // C:/NightShift/scratch/auto-train-status.json (one line: state, train, version, head, reason, time, ...); --dry-run
-// uses auto-train.dryrun.lock, runs/auto-train.dryrun.log and auto-train-status.dryrun.json. AUTO_TRAIN_SCRATCH env
-// moves them all.
+// uses auto-train.dryrun.lock, runs/auto-train.dryrun.log and auto-train-status.dryrun.json. Build marker
+// C:/NightShift/scratch/auto-train-building.json ({ train, version, pid, at }; dry: auto-train-building.dryrun.json),
+// written just before `merge-train build` and deleted in a finally. AUTO_TRAIN_SCRATCH env moves them all.
 // Exit: 0 tick done (the outcome is the status state; also when another tick holds the lock), 1 usage or error.
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -36,6 +48,10 @@ export const MENU_BRANCH = 'feature/menu';
 export const STALE_HOURS = 3;
 export const LOCK_STALE_MIN = 30;
 export const LAPTOP_MISSING_MIN = 10;
+/** Minutes a recorded laptop rerun may go without a verdict before the state turns "rerun-stale". */
+export const RERUN_STALE_MIN = 60;
+/** Failed rerun requests (request.mjs non-zero exit) per head before the state turns "rerun-request-failed". */
+export const RERUN_REQUEST_MAX = 6;
 
 // ---- pure helpers (tests/autoTrain.test.ts) -----------------------------------------------------------------------
 
@@ -139,8 +155,16 @@ const IGNORED = new Set(['CANCELLED', 'SKIPPED', 'NEUTRAL', 'STALE']);
  * queued entries win (a rerun is going); cancelled / skipped ones are ignored; otherwise the newest finished entry.
  */
 export function ciState(rollup, name = 'check') {
-  const items = (rollup ?? []).filter((r) => (r.__typename === 'StatusContext' ? r.context : r.name) === name);
+  const items = (rollup ?? []).filter((r) => rollupName(r) === name);
   if (!items.length) return 'missing';
+  return rollupItemsState(items) ?? 'pending';
+}
+
+/** A rollup entry's name: a StatusContext's context, a CheckRun's name. */
+const rollupName = (r) => (r?.__typename === 'StatusContext' ? r.context : r?.name);
+
+/** The state of one name's rollup entries: 'success' | 'failure' | 'pending', or null when every entry is ignored (cancelled / skipped). */
+function rollupItemsState(items) {
   const norm = items.map((r) => {
     const time = Date.parse(r.completedAt || r.startedAt || r.createdAt || '') || 0;
     if (r.__typename === 'StatusContext') {
@@ -152,9 +176,62 @@ export function ciState(rollup, name = 'check') {
     if (IGNORED.has(c)) return null;
     return { time, s: c === 'SUCCESS' ? 'success' : 'failure' };
   }).filter(Boolean);
-  if (!norm.length) return 'pending';
+  if (!norm.length) return null;
   if (norm.some((x) => x.s === 'pending')) return 'pending';
   return norm.sort((a, b) => b.time - a.time)[0].s;
+}
+
+/** The CI jobs the aggregate `check` needs (.github/workflows/deploy.yml); `check` appears only once they are done. */
+export const CHECK_SIBLINGS = ['lint', 'test', 'build-check'];
+/** Minutes the build waits for a train-ready PR whose `check` is still running (AUTO_TRAIN_CHECK_WAIT_MIN). */
+export const CHECK_WAIT_MIN = 3;
+
+/**
+ * Audit 2 item 1 (PR #299 missed train 47: its `check` was "missing" 43 s before it went green): why CI is still
+ * running toward `name` on a head, or null when it is not (check finished, CI failed, or no CI activity at all).
+ * Running: `name` itself pending (queued / in progress); or any other check run or status pending; or `name` missing
+ * while its sibling jobs (CHECK_SIBLINGS) all passed (the aggregate job is about to be created). Any failed entry
+ * (newest per name; cancelled / skipped ignored) means CI failed: null.
+ */
+export function checkWaitReason(rollup, name = 'check', siblings = CHECK_SIBLINGS) {
+  const states = new Map();
+  for (const nm of new Set((rollup ?? []).map(rollupName).filter(Boolean))) {
+    const s = rollupItemsState((rollup ?? []).filter((r) => rollupName(r) === nm));
+    if (s) states.set(nm, s);
+  }
+  const own = states.get(name) ?? null;
+  if (own === 'success' || own === 'failure') return null;
+  if ([...states.values()].includes('failure')) return null;
+  if (own === 'pending') return `${name} running`;
+  const running = [...states].filter(([nm, s]) => nm !== name && s === 'pending').map(([nm]) => nm);
+  if (running.length) return `${name} missing, CI running (${running.join(', ')})`;
+  const sibs = siblings.filter((s) => states.has(s));
+  if (sibs.length && sibs.every((s) => states.get(s) === 'success')) return `${name} missing, ${sibs.join(', ')} green (${name} not created yet)`;
+  return null;
+}
+
+/**
+ * Audit 2 item 1: hold the build while a train-ready PR's `check` is still running, so it rides this train.
+ * `waiting` = [{ pr, branch, head, why }] (train-ready PRs whose check is not success, `why` = checkWaitReason, null
+ * when not running); `firstSeen` = { [head]: ISO } from the last status (`checkWait`). Each head waits at most `waitMin`
+ * from when it was first seen waiting. -> { hold, reason, waiting: [{ ...c, waitedMin, expired }], firstSeen } (the new
+ * map: only heads still waiting, so a green or failed head drops out).
+ */
+export function holdForChecks(waiting, now, firstSeen = {}, waitMin = CHECK_WAIT_MIN) {
+  const next = {};
+  const list = [];
+  for (const c of waiting ?? []) {
+    if (!c?.why || !c.head) continue;
+    const t0 = Date.parse(firstSeen?.[c.head] ?? '') || now;
+    next[c.head] = new Date(t0).toISOString();
+    const waitedMin = Math.max(0, (now - t0) / 60_000);
+    list.push({ ...c, waitedMin, expired: waitedMin >= waitMin });
+  }
+  const live = list.filter((c) => !c.expired);
+  const reason = live.length
+    ? `holding the build up to ${waitMin} min for ${live.map((c) => `#${c.pr} (${c.why}, ${Math.floor(c.waitedMin * 60)} s)`).join(', ')}`
+    : list.length ? `not waiting longer for ${list.map((c) => `#${c.pr}`).join(', ')} (${waitMin} min passed)` : '';
+  return { hold: live.length > 0, reason, waiting: list, firstSeen: next };
 }
 
 /** A commit status context in a combined-status JSON (`gh api .../commits/<sha>/status`) -> { state, description } (state 'missing' when absent). */
@@ -236,6 +313,14 @@ export function decide({ train, candidates = [], paceReason = null, now = Date.n
     if (!train.versionCommit) return { state: 'error', action: 'none', reason: `train ${train.n} has no version commit: rebuild` };
     if (train.vitest === 'failure') return { state: 'failed', action: 'none', reason: `${t}: vitest failed at build on ${short(train.head)}` };
     if (train.ci === 'failure') return { state: 'failed', action: 'none', reason: `${t}: CI check failed on ${short(train.head)}` };
+    // A desktop failure whose laptop rerun passed on this head (`laptop-e2e/train<n>-rerun` success in the head's
+    // combined status) is releasable: Orchestrator, "treat a laptop pass as releasable". On master's request.mjs the
+    // rerun posts only that context, never `laptop-e2e` success, so without this the train would wait forever.
+    const rerunSuites = train.laptop.state === 'failure' && train.rerun?.state === 'success' ? desktopFailSuites(train.laptop.description) : null;
+    if (rerunSuites?.length && train.ci === 'success') {
+      return { state: 'releasing', action: 'release', rerunRelease: rerunSuites,
+        reason: `${t}: CI green and the laptop rerun of ${rerunSuites.join(',')} passed (${rerunContext(train.n)} success on ${short(train.head)}; desktop ${LAPTOP_CONTEXT} failure)` };
+    }
     if (train.laptop.state === 'failure') {
       return { state: 'failed', action: 'none', reason: `${t}: ${LAPTOP_CONTEXT} failed on ${short(train.head)}${train.laptop.description ? ` (${train.laptop.description})` : ''}` };
     }
@@ -282,7 +367,136 @@ export function scratchFiles(scratch, dry) {
     log: path.join(scratch, 'runs', `auto-train${x}.log`),
     status: path.join(scratch, `auto-train-status${x}.json`),
     realStatus: path.join(scratch, 'auto-train-status.json'),
+    building: buildMarkerPath(scratch, dry),
   };
+}
+
+// ---- build marker (audit 2026-10-24 item 3): the laptop queue sees a `merge-train build` (vitest under heavy.lock) --
+
+/** The build marker in `scratch`: auto-train-building.json (a dry run: auto-train-building.dryrun.json). */
+export const buildMarkerPath = (scratch, dry) => path.join(scratch, `auto-train-building${dry ? '.dryrun' : ''}.json`);
+
+/** Writes the marker { train, version, pid, at } through `fsi` (injected fs); never throws: true when written. */
+export function writeBuildMarker(file, { train, version, pid = process.pid, at = new Date().toISOString() }, fsi = fs) {
+  try {
+    fsi.mkdirSync(path.dirname(file), { recursive: true });
+    fsi.writeFileSync(file, `${JSON.stringify({ train, version, pid, at })}\n`);
+    return true;
+  } catch { return false; }
+}
+
+/** Deletes the marker through `fsi`; never throws (absent is fine): true when gone. */
+export function clearBuildMarker(file, fsi = fs) {
+  try { fsi.rmSync(file, { force: true }); return true; } catch { return false; }
+}
+
+/** Runs `fn` with the marker written just before and deleted in a finally (also when `fn` throws or rejects). */
+export async function withBuildMarker(file, info, fn, fsi = fs) {
+  writeBuildMarker(file, info, fsi);
+  try { return await fn(); } finally { clearBuildMarker(file, fsi); }
+}
+
+// ---- laptop rerun after a desktop failure (audit 2026-10-24 item 2) ----------------------------------------------
+
+/** The desktop worker's `laptop-e2e` description prefix (scripts/laptop-queue/service.mjs, LQ_WORKER=desktop). */
+export const DESKTOP_PREFIX = 'desktop:';
+/** The rerun's request set and its failure context (`laptop-e2e/<set>`; a pass posts `laptop-e2e` itself). */
+export const rerunSet = (n) => `train${n}-rerun`;
+export const rerunContext = (n) => `${LAPTOP_CONTEXT}/${rerunSet(n)}`;
+
+/**
+ * The failed suites of a desktop `laptop-e2e` description ("desktop: 37/39 pass, 512 s; known flaky: x; FAIL: a,b",
+ * scripts/laptop-queue/lib.mjs describe): null when it is not the desktop's; [] when no suite list can be trusted (no
+ * "FAIL:" part, a list cut by the 140-char limit ("..."), or an odd name).
+ */
+export function desktopFailSuites(description) {
+  const d = String(description ?? '').trim();
+  if (!d.startsWith(DESKTOP_PREFIX)) return null;
+  const m = /;\s*FAIL:\s*(.*)$/.exec(d);
+  if (!m || m[1].trim().endsWith('...')) return [];
+  const suites = m[1].split(',').map((s) => s.trim()).filter(Boolean);
+  if (!suites.every((s) => /^[A-Za-z0-9._:+-]+$/.test(s))) return [];
+  return [...new Set(suites)];
+}
+
+/**
+ * One laptop rerun per train head after a desktop failure. `train` as in decide() plus `rerun` (the
+ * `laptop-e2e/train<n>-rerun` status); `prev` = the last status JSON (its `rerun: { head, id, suites, set, at }` and
+ * `rerunRequestFailed: { head, exit, why, count }`); `now` and `staleMin` time a recorded rerun out.
+ * -> null (not a desktop laptop failure, or no suites: decide() keeps "failed"; or the rerun passed on this head with
+ * CI green: decide() releases), or { action: 'request' | 'wait' | 'none', state, reason, suites, set } (+ `rerun` =
+ * the recorded request for this head, `requestFailed` = the failed-request record for this head).
+ * States: laptop-rerun (request / wait), failed (the rerun failed), rerun-stale (no verdict `staleMin` min after the
+ * request), rerun-request-failed (RERUN_REQUEST_MAX failed requests on this head).
+ */
+export function rerunPlan(train, prev, { now = Date.now(), staleMin = RERUN_STALE_MIN } = {}) {
+  if (!train || train.laptop?.state !== 'failure' || train.vitest === 'failure' || train.ci === 'failure') return null;
+  const suites = desktopFailSuites(train.laptop.description);
+  if (!suites?.length) return null;
+  const t = `train ${train.n}`;
+  const set = rerunSet(train.n);
+  const r = train.rerun ?? { state: 'missing', description: '' };
+  // the rerun passed on this head and CI is green: decide() releases (the normal release path)
+  if (r.state === 'success' && train.ci === 'success') return null;
+  const rec = prev?.rerun && prev.rerun.head === train.head ? prev.rerun : null;
+  if (!rec) {
+    const failed = prev?.rerunRequestFailed && prev.rerunRequestFailed.head === train.head ? prev.rerunRequestFailed : null;
+    const tries = failed ? Number(failed.count) || 1 : 0;
+    if (tries >= RERUN_REQUEST_MAX) {
+      return { action: 'none', state: 'rerun-request-failed', suites, set, requestFailed: failed,
+        reason: `${t}: the laptop rerun request of ${suites.join(',')} on ${short(train.head)} failed ${tries} times (last: exit ${failed.exit}: ${failed.why}); not retried` };
+    }
+    return { action: 'request', state: 'laptop-rerun', suites, set, ...(failed ? { requestFailed: failed } : {}),
+      reason: `${t}: desktop failed ${suites.join(',')} on ${short(train.head)}: requesting one laptop rerun (${set})${tries ? `, try ${tries + 1}/${RERUN_REQUEST_MAX}` : ''}` };
+  }
+  const recSuites = rec.suites ?? suites;
+  if (r.state === 'success') {
+    return { action: 'wait', state: 'laptop-rerun', suites: recSuites, set, rerun: rec,
+      reason: `${t}: laptop rerun ${rec.id} of ${recSuites.join(',')} passed on ${short(train.head)}; waiting for CI check (${train.ci})` };
+  }
+  const ageMin = (now - Date.parse(rec.at)) / 60_000;
+  if (r.state !== 'failure' && ageMin >= staleMin) {
+    return { action: 'none', state: 'rerun-stale', suites: recSuites, set, rerun: rec,
+      reason: `${t}: laptop rerun ${rec.id} of ${recSuites.join(',')} on ${short(train.head)}: no ${rerunContext(train.n)} verdict ${Math.floor(ageMin)} min after the request (${r.state === 'missing' ? 'no status' : r.state})` };
+  }
+  if (r.state === 'failure') {
+    return { action: 'none', state: 'failed', suites: recSuites, set, rerun: rec,
+      reason: `${t}: laptop rerun ${rec.id} of ${recSuites.join(',')} failed on ${short(train.head)}${r.description ? ` (${r.description})` : ''}` };
+  }
+  return { action: 'wait', state: 'laptop-rerun', suites: recSuites, set, rerun: rec,
+    reason: `${t}: laptop rerun ${rec.id} of ${recSuites.join(',')} on ${short(train.head)} ${r.state === 'missing' ? 'queued' : r.state}` };
+}
+
+/** request.mjs arguments of the rerun (scripts/laptop-queue/request.mjs; `--train-rerun` runs it right after trains). */
+export const rerunArgs = ({ sha, suites, pr, set }) => ['--sha', sha, '--suites', suites.join(' '), '--pr', String(pr), '--set', set,
+  '--requester', 'auto-train', '--train-rerun'];
+
+// ---- fast poll (audit 2 item 3): a waiting tick re-checks every minute instead of waiting for the next 5-min run ----
+
+/** Seconds between fast polls (AUTO_TRAIN_FAST_POLL_S) and the window from the tick's start (AUTO_TRAIN_FAST_POLL_MAX_MIN). */
+export const FAST_POLL_S = 60;
+export const FAST_POLL_MAX_MIN = 4;
+/** The waiting states a tick keeps polling: an open train waiting on CI / the laptop / a laptop rerun, or the build hold. */
+export const FAST_POLL_STATES = ['pending', 'laptop-rerun', 'holding'];
+
+/**
+ * Whether the tick polls again (it keeps its tick lock): `state` = this step's state, `startedAt` / `now` in ms,
+ * opts { pollS, maxMin, once, dry, prevState } (`prevState` = the state before this step, null on the first one).
+ * Polls only in a waiting state (FAST_POLL_STATES), never under --once or --dry-run, stops on any state change, and
+ * only while the next poll starts within `maxMin` of the tick's start (4: done before the next 5-min task run).
+ * -> { poll, delayMs, reason }.
+ */
+export function fastPollPlan(state, startedAt, now, { pollS = FAST_POLL_S, maxMin = FAST_POLL_MAX_MIN, once = false, dry = false, prevState = null } = {}) {
+  const no = (reason) => ({ poll: false, delayMs: 0, reason });
+  if (once) return no('--once');
+  if (dry) return no('dry run');
+  if (!(pollS > 0) || !(maxMin > 0)) return no('fast poll off');
+  if (prevState != null && state !== prevState) return no(`state changed (${prevState} -> ${state})`);
+  if (!FAST_POLL_STATES.includes(state)) return no(`${state} is not a waiting state`);
+  const delayMs = pollS * 1000;
+  const at = now + delayMs - startedAt;
+  if (at > maxMin * 60_000) return no(`fast poll window over (${maxMin} min)`);
+  return { poll: true, delayMs, reason: `${state}: polling again in ${pollS} s (${Math.round(at / 1000)} s into the tick, up to ${maxMin} min)` };
 }
 
 /** True when every path is documentation (Markdown anywhere or under docs/). */
@@ -300,7 +514,12 @@ const LOCK = FILES.lock;
 const LOG = FILES.log;
 const STATUS = FILES.status;
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const LAPTOP_MISSING = (() => { const v = Number(process.env.AUTO_TRAIN_LAPTOP_MISSING_MIN); return process.env.AUTO_TRAIN_LAPTOP_MISSING_MIN && Number.isFinite(v) && v >= 0 ? v : LAPTOP_MISSING_MIN; })();
+const envMin = (name, dflt) => { const v = Number(process.env[name]); return process.env[name] && Number.isFinite(v) && v >= 0 ? v : dflt; };
+const LAPTOP_MISSING = envMin('AUTO_TRAIN_LAPTOP_MISSING_MIN', LAPTOP_MISSING_MIN);
+const RERUN_STALE = envMin('AUTO_TRAIN_RERUN_STALE_MIN', RERUN_STALE_MIN);
+const CHECK_WAIT = envMin('AUTO_TRAIN_CHECK_WAIT_MIN', CHECK_WAIT_MIN);
+const POLL_S = envMin('AUTO_TRAIN_FAST_POLL_S', FAST_POLL_S);
+const POLL_MAX_MIN = envMin('AUTO_TRAIN_FAST_POLL_MAX_MIN', FAST_POLL_MAX_MIN);
 let CWD = 'C:/NightShift/Mobile-Coop-train';
 let LOCK_TEXT = null; // our tick lock's text, handed to merge-train (AUTO_TRAIN_LOCK_TEXT) so it runs under it
 
@@ -376,12 +595,13 @@ function contains(a, b) {
 
 function parseOpts(argv) {
   const [cmd, ...rest] = argv;
-  if (cmd !== 'tick') throw new Error('usage: node scripts/auto-train.mjs tick [--dry-run] [--worktree <dir>] [--min-interval <min>] [--max-per-day <n>] [--preview-next]');
+  if (cmd !== 'tick') throw new Error('usage: node scripts/auto-train.mjs tick [--dry-run] [--once] [--worktree <dir>] [--min-interval <min>] [--max-per-day <n>] [--preview-next]');
   const o = { minInterval: 60, maxPerDay: 0, worktree: CWD };
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     const num = () => { const v = Number(rest[++i]); if (!Number.isFinite(v) || v < 0) throw new Error(`${a} needs a number >= 0`); return v; };
     if (a === '--dry-run') continue;
+    else if (a === '--once') o.once = true;
     else if (a === '--min-interval') o.minInterval = num();
     else if (a === '--max-per-day') o.maxPerDay = num();
     else if (a === '--worktree') o.worktree = rest[++i];
@@ -437,19 +657,30 @@ function openTrain() {
     ci: ciState(p.statusCheckRollup, 'check'),
     ciGreenAt: ciGreenAt(p.statusCheckRollup, combined, 'check'),
     laptop: contextStatus(combined, LAPTOP_CONTEXT),
+    rerun: contextStatus(combined, rerunContext(n)),
     vitest: contextStatus(combined, VITEST_CONTEXT).state,
     ageMin: (Date.now() - since) / 60_000,
   };
 }
 
-/** Train-ready PRs with a green check on their head, plus feature/menu when it is docs-only ahead of master. */
+/**
+ * Train-ready PRs with a green check on their head, plus feature/menu when it is docs-only ahead of master.
+ * -> { cands, waiting }: `waiting` = the train-ready PRs whose check is not green, with `why` = checkWaitReason (null
+ * when CI is not running: failed or no activity) for holdForChecks.
+ */
 function candidates(labelExists) {
   const out = [];
+  const waiting = [];
   if (labelExists) {
     const prs = readJson(['gh', 'pr', 'list', '--state', 'open', '--base', 'master', '--label', LABEL, '--limit', '100', '--json', 'number,headRefName,headRefOid,title,statusCheckRollup']);
     for (const p of prs) {
       const ci = ciState(p.statusCheckRollup, 'check');
-      if (ci !== 'success') { log(`  #${p.number} ${p.headRefName}: check ${ci}, not a candidate`); continue; }
+      if (ci !== 'success') {
+        const why = checkWaitReason(p.statusCheckRollup, 'check');
+        log(`  #${p.number} ${p.headRefName}: check ${ci}, not a candidate${why ? ` (CI still running: ${why})` : ''}`);
+        waiting.push({ pr: p.number, branch: p.headRefName, head: p.headRefOid, why });
+        continue;
+      }
       out.push({ pr: p.number, branch: p.headRefName, head: p.headRefOid, title: p.title });
     }
   }
@@ -459,7 +690,7 @@ function candidates(labelExists) {
     if (c && c.ahead > 0 && c.files.length < 300 && docsOnly(c.files)) out.push({ pr: null, branch: MENU_BRANCH, head: undefined, title: null });
     else if (c && c.ahead > 0) log(`  ${MENU_BRANCH}: ${c.ahead} commit(s) ahead but not docs-only, left for the orchestrator`);
   }
-  return out;
+  return { cands: out, waiting };
 }
 
 /** Members with fragments read at their heads, stacked bases marked build:false; then the plan. */
@@ -491,18 +722,33 @@ function nextN() {
   return nextTrainNumber(branches, titles);
 }
 
-/** One comment per PR head asking the lead to clear its conflict. */
+/**
+ * A left-out member: { remove: the `gh pr edit` argv dropping LABEL (null when the PR does not carry it), comment: the
+ * comment body (null when this head already has one, by its marker) }. The label goes so the member stops being a
+ * candidate (no repeat empty builds); the lead re-adds it after fixing the conflict (audit 2026-10-24 item 4).
+ */
+export function leftOutPlan({ pr, branch, head, n, why, labels = [], bodies = [] }) {
+  const marker = `<!-- auto-train:left-out:${head} -->`;
+  const comment = bodies.some((b) => String(b).includes(marker)) ? null : [
+    `Auto-train: \`${branch}\` (${short(head)}) was left out of train ${n}: ${why}.`,
+    `Please fix the conflict with master on this branch (or on train/${n}). The \`${LABEL}\` label has been removed, so this PR no longer joins trains: re-add \`${LABEL}\` once the conflict is fixed and \`check\` is green.`,
+    marker].join('\n\n');
+  const remove = labels.includes(LABEL) ? ['gh', 'pr', 'edit', String(pr), '--remove-label', LABEL] : null;
+  return { remove, comment };
+}
+
+/** Per left-out PR: drop its `train-ready` label (logged; a failure is logged, not fatal) and comment once per head. */
 function commentLeftOut(cands, left, n) {
   for (const l of left) {
     const c = cands.find((x) => x.branch === l.branch);
     if (!c?.pr) continue;
-    const marker = `<!-- auto-train:left-out:${c.head} -->`;
-    const bodies = readJson(['gh', 'pr', 'view', String(c.pr), '--json', 'comments']).comments.map((x) => x.body);
-    if (bodies.some((b) => b.includes(marker))) continue;
-    act(['gh', 'pr', 'comment', String(c.pr), '--body', [
-      `Auto-train: \`${c.branch}\` (${short(c.head)}) was left out of train ${n}: ${l.why}.`,
-      `Please fix the conflict with master on this branch (or on train/${n}); it keeps the \`${LABEL}\` label and joins the next train once \`check\` is green.`,
-      marker].join('\n\n')]);
+    const v = readJson(['gh', 'pr', 'view', String(c.pr), '--json', 'comments,labels']);
+    const lp = leftOutPlan({ pr: c.pr, branch: c.branch, head: c.head, n, why: l.why, labels: (v.labels ?? []).map((x) => x.name), bodies: (v.comments ?? []).map((x) => x.body) });
+    if (lp.remove) {
+      log(`  #${c.pr} ${c.branch}: left out of train ${n}, removing ${LABEL}`);
+      try { act(lp.remove); } catch (e) { log(`  #${c.pr}: label removal failed: ${e.message}`); }
+    }
+    if (lp.comment) act(['gh', 'pr', 'comment', String(c.pr), '--body', lp.comment]);
   }
 }
 
@@ -510,7 +756,8 @@ function commentLeftOut(cands, left, n) {
 async function build(n, cands, { rebuildOf } = {}) {
   const p = plan(cands);
   log(`build train ${n}: ${p.version} (${p.kind}, master ${p.masterVersion}) "${p.title}" <- ${p.branches.join(' ')}`);
-  const r = await mergeTrain(['build', String(n), p.version, p.title, ...p.branches]);
+  log(`  build marker ${FILES.building} (deleted when the build ends)`);
+  const r = await withBuildMarker(FILES.building, { train: n, version: p.version }, () => mergeTrain(['build', String(n), p.version, p.title, ...p.branches]));
   const base = { train: n, version: p.version, members: p.branches };
   if (r.dry) return { ...base, state: 'building', reason: `${rebuildOf ? 'rebuild' : 'build'} would run (dry run)` };
   const head = exec(['git', 'ls-remote', 'origin', `refs/heads/train/${n}`]).out.split('\t')[0].trim() || null;
@@ -546,13 +793,28 @@ async function build(n, cands, { rebuildOf } = {}) {
 
 /** No open train: candidates, pacing, build. */
 async function noTrain(o, labelExists) {
-  const cands = candidates(labelExists);
+  const { cands, waiting } = candidates(labelExists);
   const queue = laptopQueue();
   const paceReason = pacing({ now: Date.now(), releases: releaseTimes(), minIntervalMin: o.minInterval, maxPerDay: o.maxPerDay, queue });
   const d = decide({ train: null, candidates: cands, paceReason });
+  // audit 2 item 1: a train-ready PR whose check is still running holds the build up to CHECK_WAIT per head (first
+  // seen waiting: `checkWait` in the status, carried across ticks)
+  const h = holdForChecks(waiting, Date.now(), readStatus(FILES.realStatus)?.checkWait ?? {}, CHECK_WAIT);
+  const checkWait = Object.keys(h.firstSeen).length ? { checkWait: h.firstSeen } : {};
+  if (d.action === 'build' && h.hold) {
+    log(`decision: holding - ${h.reason}`);
+    return { state: 'holding', reason: h.reason, candidates: cands.map((c) => c.branch), ...checkWait };
+  }
+  if (h.reason) log(`  ${h.reason}`);
   log(`decision: ${d.state} - ${d.reason}${queue ? ` (laptop queue ${queue})` : ''}`);
-  if (d.action !== 'build') return { state: d.state, reason: d.reason, candidates: cands.map((c) => c.branch) };
-  return build(nextN(), cands);
+  if (d.action !== 'build') return { state: d.state, reason: d.reason, candidates: cands.map((c) => c.branch), ...checkWait };
+  // re-read the candidates right before the build, so the member list is fresh (a PR that just went green rides along)
+  const fresh = candidates(labelExists).cands;
+  const fd = decide({ train: null, candidates: fresh, paceReason });
+  if (fd.action !== 'build') { log(`decision (re-read): ${fd.state} - ${fd.reason}`); return { state: fd.state, reason: fd.reason, candidates: fresh.map((c) => c.branch) }; }
+  const added = fresh.filter((c) => !cands.some((x) => x.branch === c.branch && x.head === c.head)).map((c) => c.branch);
+  if (added.length) log(`  re-read: ${added.join(', ')} new or moved since the decision`);
+  return build(nextN(), fresh);
 }
 
 async function step(o) {
@@ -561,20 +823,25 @@ async function step(o) {
   if (!t) return noTrain(o, labelExists);
   const d = decide({ train: t, laptopMissingMin: LAPTOP_MISSING });
   log(`train ${t.n} #${t.pr} ${short(t.head)} ${t.version ?? '?'}: CI ${t.ci}, laptop ${t.laptop.state}${t.laptop.description ? ` (${t.laptop.description})` : ''}, age ${Math.round(t.ageMin)} min -> ${d.state}: ${d.reason}`);
-  const base = { train: t.n, version: t.version, head: t.head, pr: t.pr };
+  const prev = readStatus(FILES.realStatus);
+  // The rerun record rides along in every status of the same head, so that head never requests twice.
+  const base = { train: t.n, version: t.version, head: t.head, pr: t.pr, ...(prev?.rerun?.head === t.head ? { rerun: prev.rerun } : {}) };
+  // a releasable train (a laptop-e2e pass, or a desktop failure whose laptop rerun passed) goes the normal release way
+  const rp = d.action === 'release' ? null : rerunPlan(t, prev, { now: Date.now(), staleMin: RERUN_STALE });
+  if (rp) return rerunStep(t, rp, base);
   if (d.action !== 'release') return { ...base, state: d.state, reason: d.reason, ...(d.waitingMin != null ? { waitingMin: d.waitingMin } : {}) };
   const master = exec(['git', 'ls-remote', 'origin', 'refs/heads/master']).out.split('\t')[0].trim() || null;
-  const prev = readStatus(FILES.realStatus);
   if (rebuildSkip(prev, t.head, master)) {
     log(`skip: ${prev.reason} (train head and master unchanged)`);
     return { ...base, state: 'failed', reason: prev.reason, rebuildFailed: prev.rebuildFailed };
   }
   const r = await mergeTrain(releaseArgs(t));
-  if (r.dry) return { ...base, state: 'releasing', reason: `${d.reason}; release would run (dry run)` };
+  if (r.dry) return { ...base, state: 'releasing', reason: `${d.reason}; release would run (dry run)${d.rerunRelease ? `: released on the laptop rerun of ${d.rerunRelease.join(',')}` : ''}` };
   if (r.code === 0) {
-    log(`RELEASED train ${t.n} as ${t.version}`);
+    const onRerun = d.rerunRelease ? `released on the laptop rerun of ${d.rerunRelease.join(',')}` : '';
+    log(`RELEASED train ${t.n} as ${t.version}${onRerun ? `: ${onRerun}` : ''}`);
     const next = await noTrain(o, labelExists);
-    return { ...next, released: `${t.version} (train ${t.n})` };
+    return { ...next, released: `${t.version} (train ${t.n}${onRerun ? `, ${onRerun}` : ''})` };
   }
   if (r.code === 3) {
     log(`master moved since train ${t.n} was built: rebuilding ${t.members.join(', ')} with the next version`);
@@ -591,6 +858,31 @@ async function step(o) {
   if (r.code === 2) return { ...base, state: 'failed', reason: `train ${t.n}: CI failed at release (merge-train exit 2)` };
   if (/not the tested head/.test(r.out)) return { ...base, state: 'pending', reason: `train ${t.n}: its head moved after the check (release --head STOP): re-read next tick` };
   return { ...base, state: 'error', reason: `merge-train release exit ${r.code}: ${r.out.trim().split('\n').slice(-3).join(' | ')}` };
+}
+
+/**
+ * A desktop failure: queue one laptop rerun of the failed suites (request.mjs --train-rerun), or report the one already
+ * queued for this head. A failed request (non-zero exit or no id printed) is logged in the status (`rerunRequestFailed`
+ * with its count for this head) and retried next tick, up to RERUN_REQUEST_MAX tries (then "rerun-request-failed");
+ * it is never fatal.
+ */
+function rerunStep(t, rp, base) {
+  log(`laptop rerun: ${rp.reason}`);
+  if (rp.action !== 'request') return { ...base, state: rp.state, reason: rp.reason, ...(rp.requestFailed ? { rerunRequestFailed: rp.requestFailed } : {}) };
+  const cmd = ['node', path.join(HERE, 'laptop-queue', 'request.mjs'), ...rerunArgs({ sha: t.head, suites: rp.suites, pr: t.pr, set: rp.set })];
+  if (DRY) { log(`  [dry-run] would run (cwd ${CWD}): ${show(cmd)}`); return { ...base, state: rp.state, reason: `${rp.reason} (dry run)` }; }
+  log(`  > (cwd ${CWD}) ${show(cmd)}`);
+  const r = exec(cmd);
+  const id = r.out.trim().split('\n').pop()?.trim() ?? '';
+  if (r.status !== 0 || !id) {
+    const why = (r.err || r.out).trim().split('\n').slice(-2).join(' | ').slice(0, 300) || 'no request id printed';
+    const count = (rp.requestFailed ? Number(rp.requestFailed.count) || 1 : 0) + 1;
+    log(`  rerun request failed (exit ${r.status}, ${count}/${RERUN_REQUEST_MAX}): ${why}`);
+    return { ...base, state: rp.state, reason: `${rp.reason}; request failed (exit ${r.status}): ${why}; ${count < RERUN_REQUEST_MAX ? 'retry next tick' : 'no more retries'} (${count}/${RERUN_REQUEST_MAX})`,
+      rerunRequestFailed: { head: t.head, exit: r.status, why, count } };
+  }
+  const rerun = { head: t.head, id, suites: rp.suites, set: rp.set, at: new Date().toISOString() };
+  return { ...base, state: rp.state, reason: `train ${t.n}: laptop rerun ${id} of ${rp.suites.join(',')} queued (${rp.set})`, rerun };
 }
 
 /** The last status line (JSON) or null. */
@@ -617,15 +909,44 @@ async function main(argv) {
   const unlock = takeLock();
   if (!unlock) return 0;
   log(`tick${DRY ? ' (dry run: nothing is created, pushed, merged, labelled or commented)' : ''} in ${CWD}`);
+  const startedAt = Date.now();
   let status;
-  try { status = await step(o); } catch (e) { status = { state: 'error', reason: e.message.slice(0, 500) }; log(`ERROR: ${e.message}`); }
-  finally { unlock(); }
+  try {
+    status = await safeStep(o);
+    writeStatus(status);
+    // audit 2 item 3: a waiting tick keeps its lock and re-checks every POLL_S s up to POLL_MAX_MIN from its start,
+    // stopping at once on a state change (the step already acted on it: release, build, ...); status written each poll
+    for (let prevState = null; ;) {
+      const fp = fastPollPlan(status.state, startedAt, Date.now(), { pollS: POLL_S, maxMin: POLL_MAX_MIN, once: !!o.once, dry: DRY, prevState });
+      if (!fp.poll) { if (prevState != null || FAST_POLL_STATES.includes(status.state)) log(`fast poll: stop (${fp.reason})`); break; }
+      log(`fast poll: ${fp.reason}`);
+      await new Promise((r) => setTimeout(r, fp.delayMs));
+      prevState = status.state;
+      status = await safeStep(o);
+      writeStatus(status);
+    }
+  } finally { unlock(); }
+  return status.state === 'error' ? 1 : 0;
+}
+
+/** step() with errors turned into an error status that keeps the rerun record (no second request), the failed-request count and checkWait. */
+async function safeStep(o) {
+  try { return await step(o); } catch (e) {
+    const prevStatus = readStatus(FILES.realStatus);
+    log(`ERROR: ${e.message}`);
+    return { state: 'error', reason: e.message.slice(0, 500), ...(prevStatus?.rerun ? { rerun: prevStatus.rerun } : {}),
+      ...(prevStatus?.rerunRequestFailed ? { rerunRequestFailed: prevStatus.rerunRequestFailed } : {}),
+      ...(prevStatus?.checkWait ? { checkWait: prevStatus.checkWait } : {}) };
+  }
+}
+
+/** Writes the one-line status JSON (and logs it). */
+function writeStatus(status) {
   const line = JSON.stringify({ state: status.state, train: status.train ?? null, version: status.version ?? null, head: status.head ?? null,
     reason: status.reason, time: new Date().toISOString(), ...(DRY ? { dryRun: true } : {}),
     ...Object.fromEntries(Object.entries(status).filter(([k]) => !['state', 'train', 'version', 'head', 'reason'].includes(k))) });
   fs.writeFileSync(STATUS, `${line}\n`);
   log(`status: ${line}`);
-  return status.state === 'error' ? 1 : 0;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
-  bumpVersion, ciGreenAt, ciState, contextStatus, decide, docsOnly, fragmentInfo, fragmentPath, joinTitles, laptopMissing, laptopQueueState, membersFromSubjects,
+  bumpVersion, ciGreenAt, ciState, contextStatus, decide, desktopFailSuites, docsOnly, fragmentInfo, fragmentPath, joinTitles, laptopMissing, laptopQueueState, membersFromSubjects,
   nextTrainNumber, pacing, parseChangelogHeading, parseLeftOut, parseTrainTitle, planBuild, rebuildSkip, releaseArgs, releaseKind, scratchFiles,
-  stackedTips, versionFromSubjects,
+  stackedTips, versionFromSubjects, rerunArgs, rerunContext, rerunPlan, buildMarkerPath, clearBuildMarker, withBuildMarker, writeBuildMarker, leftOutPlan, RERUN_STALE_MIN, RERUN_REQUEST_MAX,
+  checkWaitReason, holdForChecks, CHECK_WAIT_MIN, fastPollPlan, FAST_POLL_S, FAST_POLL_MAX_MIN, LOCK_STALE_MIN,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/auto-train.mjs';
 
 const MIN = 60_000;
+const NOW = Date.parse('2026-10-24T10:00:00Z');
 const frag = (title: string, kind?: string) => `# ${title}\n${kind ? `kind: ${kind}\n` : ''}- entry\n`;
 
 describe('auto-train: versions and titles', () => {
@@ -263,5 +265,229 @@ describe('auto-train: release pin, rebuild loop guard, dry-run files', () => {
     expect(dry.log).toMatch(/auto-train\.dryrun\.log$/);
     expect(dry.realStatus).toBe(real.status);
     expect(new Set([real.lock, real.log, real.status, dry.lock, dry.log, dry.status]).size).toBe(6);
+  });
+});
+
+describe('auto-train: laptop rerun after a desktop failure', () => {
+  const head = 'abcdef1234567890';
+  const desk = 'desktop: 37/39 pass, 512 s; known flaky: e2e-pad; FAIL: e2e-coop,ctcourse:4';
+  const train = (o: Record<string, unknown> = {}) => ({ n: 47, pr: 301, head, version: '4.90.0', ci: 'success', vitest: 'missing', versionCommit: true,
+    laptop: { state: 'failure', description: desk }, rerun: { state: 'missing', description: '' }, ageMin: 30, ...o });
+
+  it('parses the failed suites of a desktop description only', () => {
+    expect(desktopFailSuites(desk)).toEqual(['e2e-coop', 'ctcourse:4']);
+    expect(desktopFailSuites('desktop: 38/39 pass, 300 s; flake: x; FAIL: e2e-menus')).toEqual(['e2e-menus']);
+    expect(desktopFailSuites('desktop: 39/39 pass, 300 s')).toEqual([]);
+    expect(desktopFailSuites('desktop: no result parsed, see log')).toEqual([]);
+    expect(desktopFailSuites('desktop: 30/39 pass, 300 s; FAIL: e2e-a,e2e-b,e2e-c...')).toEqual([]);
+    expect(desktopFailSuites('desktop: 1/2 pass, 3 s; FAIL: bad name')).toEqual([]);
+    expect(desktopFailSuites('37/39 pass, 512 s; FAIL: e2e-coop')).toBeNull();
+    expect(desktopFailSuites(undefined)).toBeNull();
+  });
+
+  it('requests one rerun of the failed suites for a new head', () => {
+    expect(rerunPlan(train(), null)).toMatchObject({ action: 'request', state: 'laptop-rerun', suites: ['e2e-coop', 'ctcourse:4'], set: 'train47-rerun' });
+    expect(rerunPlan(train(), { rerun: { head: 'otherhead', id: 'r0', suites: ['x'] } })).toMatchObject({ action: 'request' });
+    expect(rerunContext(47)).toBe('laptop-e2e/train47-rerun');
+    expect(rerunArgs({ sha: head, suites: ['e2e-coop', 'ctcourse:4'], pr: 301, set: 'train47-rerun' })).toEqual(['--sha', head, '--suites', 'e2e-coop ctcourse:4',
+      '--pr', '301', '--set', 'train47-rerun', '--requester', 'auto-train', '--train-rerun']);
+  });
+
+  it('never requests twice for the same head: waits, then fails on the rerun failure', () => {
+    const prev = { state: 'laptop-rerun', rerun: { head, id: 'r1', suites: ['e2e-coop'], set: 'train47-rerun' } };
+    expect(rerunPlan(train(), prev)).toMatchObject({ action: 'wait', state: 'laptop-rerun', reason: expect.stringMatching(/rerun r1 of e2e-coop on abcdef12 queued/) });
+    expect(rerunPlan(train({ rerun: { state: 'pending', description: '1/1' } }), prev)).toMatchObject({ action: 'wait' });
+    expect(rerunPlan(train({ rerun: { state: 'failure', description: '0/1 pass' } }), prev)).toMatchObject({ action: 'none', state: 'failed',
+      reason: expect.stringMatching(/laptop rerun r1 of e2e-coop failed on abcdef12 \(0\/1 pass\)/) });
+  });
+
+  it('keeps "failed" for a laptop failure, unparsed suites, or a CI / vitest failure; a rerun pass releases', () => {
+    expect(rerunPlan(train({ laptop: { state: 'failure', description: '37/39 pass, 512 s; FAIL: e2e-coop' } }), null)).toBeNull();
+    expect(rerunPlan(train({ laptop: { state: 'failure', description: 'desktop: no result parsed, see log' } }), null)).toBeNull();
+    expect(rerunPlan(train({ ci: 'failure' }), null)).toBeNull();
+    expect(rerunPlan(train({ vitest: 'failure' }), null)).toBeNull();
+    expect(rerunPlan(train({ laptop: { state: 'pending', description: 'desktop: sharded 4191+4192' } }), null)).toBeNull();
+    const passed = train({ laptop: { state: 'success', description: 'laptop rerun passed: 2/2' } });
+    expect(rerunPlan(passed, { rerun: { head, id: 'r1', suites: ['e2e-coop'] } })).toBeNull();
+    expect(decide({ train: passed })).toMatchObject({ state: 'releasing', action: 'release' });
+  });
+
+  it('a rerun-context pass with CI green releases through decide() (master request.mjs posts only that context)', () => {
+    const rerunOk = train({ rerun: { state: 'success', description: '2/2 pass, 140 s' } });
+    const prev = { rerun: { head, id: 'r1', suites: ['e2e-coop', 'ctcourse:4'], set: 'train47-rerun', at: new Date(NOW - 30 * MIN).toISOString() } };
+    expect(rerunPlan(rerunOk, prev, { now: NOW })).toBeNull();
+    expect(rerunPlan(rerunOk, null, { now: NOW })).toBeNull(); // no record (status lost): still no second request
+    const d = decide({ train: rerunOk });
+    expect(d).toMatchObject({ state: 'releasing', action: 'release', rerunRelease: ['e2e-coop', 'ctcourse:4'] });
+    expect(d.reason).toMatch(/laptop rerun of e2e-coop,ctcourse:4 passed \(laptop-e2e\/train47-rerun success on abcdef12/);
+  });
+
+  it('a rerun pass waits for CI, and never releases a CI / vitest failure or a non-desktop laptop failure', () => {
+    const prev = { rerun: { head, id: 'r1', suites: ['e2e-coop'], set: 'train47-rerun', at: new Date(NOW - 90 * MIN).toISOString() } };
+    const ok = { rerun: { state: 'success', description: '1/1' } };
+    expect(rerunPlan(train({ ...ok, ci: 'pending' }), prev, { now: NOW })).toMatchObject({ action: 'wait', state: 'laptop-rerun',
+      reason: expect.stringMatching(/rerun r1 of e2e-coop passed on abcdef12; waiting for CI check \(pending\)/) });
+    expect(decide({ train: train({ ...ok, ci: 'pending' }) }).action).toBe('none');
+    expect(decide({ train: train({ ...ok, ci: 'failure' }) })).toMatchObject({ state: 'failed', action: 'none' });
+    expect(decide({ train: train({ ...ok, vitest: 'failure' }) })).toMatchObject({ state: 'failed', action: 'none' });
+    expect(decide({ train: train({ ...ok, laptop: { state: 'failure', description: '37/39 pass, 512 s; FAIL: e2e-coop' } }) })).toMatchObject({ state: 'failed' });
+    expect(decide({ train: train({ ...ok, laptop: { state: 'failure', description: 'desktop: no result parsed, see log' } }) })).toMatchObject({ state: 'failed' });
+    expect(decide({ train: train() })).toMatchObject({ state: 'failed', action: 'none' }); // no rerun verdict yet
+  });
+
+  it('a recorded rerun with no verdict for AUTO_TRAIN_RERUN_STALE_MIN turns rerun-stale, naming the request', () => {
+    expect(RERUN_STALE_MIN).toBe(60);
+    const prev = (min: number) => ({ rerun: { head, id: 'r1', suites: ['e2e-coop'], set: 'train47-rerun', at: new Date(NOW - min * MIN).toISOString() } });
+    expect(rerunPlan(train(), prev(59), { now: NOW })).toMatchObject({ action: 'wait', state: 'laptop-rerun' });
+    expect(rerunPlan(train(), prev(61), { now: NOW })).toMatchObject({ action: 'none', state: 'rerun-stale',
+      reason: expect.stringMatching(/laptop rerun r1 of e2e-coop on abcdef12: no laptop-e2e\/train47-rerun verdict 61 min after the request \(no status\)/) });
+    expect(rerunPlan(train({ rerun: { state: 'pending', description: 'running' } }), prev(61), { now: NOW })).toMatchObject({ state: 'rerun-stale', reason: expect.stringMatching(/\(pending\)/) });
+    expect(rerunPlan(train(), prev(15), { now: NOW, staleMin: 10 })).toMatchObject({ state: 'rerun-stale' });
+    expect(rerunPlan(train({ rerun: { state: 'failure', description: '0/1' } }), prev(61), { now: NOW })).toMatchObject({ state: 'failed' });
+    expect(rerunPlan(train(), { rerun: { head, id: 'r0', suites: ['e2e-coop'] } }, { now: NOW })).toMatchObject({ action: 'wait' }); // no time recorded
+  });
+
+  it('retries a failed request up to RERUN_REQUEST_MAX times per head, then rerun-request-failed', () => {
+    expect(RERUN_REQUEST_MAX).toBe(6);
+    const failed = (count: number | undefined, h = head) => ({ rerunRequestFailed: { head: h, exit: 1, why: 'push rejected', ...(count == null ? {} : { count }) } });
+    expect(rerunPlan(train(), failed(undefined), { now: NOW })).toMatchObject({ action: 'request', requestFailed: { head }, reason: expect.stringMatching(/try 2\/6/) });
+    expect(rerunPlan(train(), failed(5), { now: NOW })).toMatchObject({ action: 'request', reason: expect.stringMatching(/try 6\/6/) });
+    expect(rerunPlan(train(), failed(6), { now: NOW })).toMatchObject({ action: 'none', state: 'rerun-request-failed',
+      requestFailed: { count: 6 }, reason: expect.stringMatching(/failed 6 times \(last: exit 1: push rejected\); not retried/) });
+    const other = rerunPlan(train(), failed(6, 'otherhead'), { now: NOW });
+    expect(other).toMatchObject({ action: 'request' });
+    expect(other.requestFailed).toBeUndefined();
+  });
+});
+
+describe('auto-train: build marker', () => {
+  const memFs = () => {
+    const files = new Map<string, string>();
+    return { files, mkdirSync: () => undefined, writeFileSync: (f: string, t: string) => { files.set(f, t); }, rmSync: (f: string) => { files.delete(f); } };
+  };
+
+  it('sits in the scratch dir beside the other files, a dry run with its own suffix', () => {
+    expect(buildMarkerPath('S', false)).toMatch(/^S[\\/]auto-train-building\.json$/);
+    expect(buildMarkerPath('S', true)).toMatch(/^S[\\/]auto-train-building\.dryrun\.json$/);
+    expect(scratchFiles('S', false).building).toBe(buildMarkerPath('S', false));
+    expect(scratchFiles('S', true).building).toBe(buildMarkerPath('S', true));
+  });
+
+  it('writes { train, version, pid, at } and deletes it; never throws', () => {
+    const m = memFs();
+    expect(writeBuildMarker('S/b.json', { train: 47, version: '4.90.0', pid: 123, at: '2026-10-24T10:00:00.000Z' }, m)).toBe(true);
+    expect(JSON.parse(m.files.get('S/b.json')!)).toEqual({ train: 47, version: '4.90.0', pid: 123, at: '2026-10-24T10:00:00.000Z' });
+    expect(clearBuildMarker('S/b.json', m)).toBe(true);
+    expect(m.files.size).toBe(0);
+    const broken = { mkdirSync: () => { throw new Error('EACCES'); }, writeFileSync: () => undefined, rmSync: () => { throw new Error('EBUSY'); } };
+    expect(writeBuildMarker('S/b.json', { train: 1, version: '1.0.0' }, broken)).toBe(false);
+    expect(clearBuildMarker('S/b.json', broken)).toBe(false);
+  });
+
+  it('is present while the build runs and gone after, also on an error', async () => {
+    const m = memFs();
+    let seen: string | undefined;
+    await expect(withBuildMarker('S/b.json', { train: 47, version: '4.90.0' }, async () => { seen = m.files.get('S/b.json'); return 7; }, m)).resolves.toBe(7);
+    expect(JSON.parse(seen!)).toMatchObject({ train: 47, version: '4.90.0', pid: process.pid });
+    expect(m.files.size).toBe(0);
+    await expect(withBuildMarker('S/b.json', { train: 47, version: '4.90.0' }, async () => { throw new Error('boom'); }, m)).rejects.toThrow('boom');
+    expect(m.files.size).toBe(0);
+  });
+});
+
+describe('auto-train: left out on a conflict', () => {
+  const head = '0123456789abcdef';
+  const base = { pr: 288, branch: 'feature/a', head, n: 47, why: 'conflicts in src/x.ts' };
+
+  it('removes train-ready and comments once per head that the lead re-adds the label', () => {
+    const p = leftOutPlan({ ...base, labels: ['train-ready', 'other'], bodies: [] });
+    expect(p.remove).toEqual(['gh', 'pr', 'edit', '288', '--remove-label', 'train-ready']);
+    expect(p.comment).toMatch(/^Auto-train: `feature\/a` \(01234567\) was left out of train 47: conflicts in src\/x\.ts\./);
+    expect(p.comment).toMatch(/label has been removed/);
+    expect(p.comment).toMatch(/re-add `train-ready` once the conflict is fixed/);
+    expect(p.comment).not.toMatch(/keeps the/);
+    expect(p.comment).toMatch(/<!-- auto-train:left-out:0123456789abcdef -->$/);
+  });
+
+  it('skips the removal without the label and the comment when this head has one', () => {
+    const first = leftOutPlan({ ...base, labels: ['train-ready'] });
+    const again = leftOutPlan({ ...base, labels: [], bodies: ['hi', first.comment!] });
+    expect(again).toEqual({ remove: null, comment: null });
+    expect(leftOutPlan({ ...base, head: 'fedcba9876543210', labels: [], bodies: [first.comment!] }).comment).toMatch(/fedcba98/);
+    expect(leftOutPlan({ ...base, labels: ['train-ready'], bodies: [first.comment!] })).toMatchObject({ remove: expect.any(Array), comment: null });
+  });
+});
+
+describe('auto-train: hold the build for a running check (audit 2 item 1)', () => {
+  const run = (name: string, conclusion: string, status = 'COMPLETED', at = '2026-10-24T09:59:00Z') => ({ __typename: 'CheckRun', name, status, conclusion, completedAt: at, startedAt: at });
+  const ctx = (context: string, state: string) => ({ __typename: 'StatusContext', context, state, createdAt: '2026-10-24T09:59:00Z' });
+
+  it('checkWaitReason: running while check or any other job is queued / in progress, or check is about to appear', () => {
+    expect(checkWaitReason([run('lint', 'SUCCESS'), run('test', '', 'IN_PROGRESS'), run('build-check', '', 'QUEUED')])).toMatch(/check missing, CI running \(test, build-check\)/);
+    expect(checkWaitReason([run('lint', 'SUCCESS'), run('test', 'SUCCESS'), run('build-check', 'SUCCESS'), run('check', '', 'QUEUED')])).toBe('check running');
+    // PR #299: every sibling green, the aggregate check not created yet (43 s)
+    expect(checkWaitReason([run('lint', 'SUCCESS'), run('test', 'SUCCESS'), run('build-check', 'SUCCESS'), run('build', 'SKIPPED')])).toMatch(/check not created yet/);
+    expect(checkWaitReason([run('lint', 'SUCCESS'), ctx('laptop-e2e/a', 'PENDING')])).toMatch(/CI running \(laptop-e2e\/a\)/);
+  });
+
+  it('checkWaitReason: null when check finished, CI failed or there is no CI activity', () => {
+    expect(checkWaitReason([run('check', 'SUCCESS')])).toBeNull();
+    expect(checkWaitReason([run('check', 'FAILURE')])).toBeNull();
+    expect(checkWaitReason([run('lint', 'FAILURE'), run('test', '', 'IN_PROGRESS')])).toBeNull();
+    expect(checkWaitReason([run('lint', 'SUCCESS'), ctx('laptop-e2e', 'FAILURE'), run('check', '', 'QUEUED')])).toBeNull();
+    expect(checkWaitReason([])).toBeNull();
+    expect(checkWaitReason(undefined)).toBeNull();
+    expect(checkWaitReason([run('build', 'SKIPPED'), run('check', 'CANCELLED')])).toBeNull();
+    // the siblings present (here only lint) all green: check about to appear
+    expect(checkWaitReason([run('lint', 'SUCCESS')])).toMatch(/not created yet/);
+  });
+
+  it('holdForChecks: holds up to waitMin per head from when it was first seen, then builds without it', () => {
+    const w = [{ pr: 299, branch: 'feature/a', head: 'aaa', why: 'check running' }, { pr: 300, branch: 'feature/b', head: 'bbb', why: null }];
+    const first = holdForChecks(w, NOW, {}, CHECK_WAIT_MIN);
+    expect(first.hold).toBe(true);
+    expect(first.firstSeen).toEqual({ aaa: new Date(NOW).toISOString() });
+    expect(first.reason).toMatch(/holding the build up to 3 min for #299 \(check running, 0 s\)/);
+    const later = holdForChecks(w, NOW + 2 * MIN, first.firstSeen, 3);
+    expect(later).toMatchObject({ hold: true, firstSeen: first.firstSeen });
+    const done = holdForChecks(w, NOW + 3 * MIN, first.firstSeen, 3);
+    expect(done.hold).toBe(false);
+    expect(done.reason).toMatch(/not waiting longer for #299/);
+    expect(done.firstSeen).toEqual(first.firstSeen);
+    // a new head starts its own wait; heads no longer waiting drop out
+    const moved = holdForChecks([{ ...w[0], head: 'ccc' }], NOW + 3 * MIN, first.firstSeen, 3);
+    expect(moved.hold).toBe(true);
+    expect(moved.firstSeen).toEqual({ ccc: new Date(NOW + 3 * MIN).toISOString() });
+    expect(holdForChecks([], NOW, first.firstSeen, 3)).toEqual({ hold: false, reason: '', waiting: [], firstSeen: {} });
+    expect(holdForChecks(w, NOW, {}, 0).hold).toBe(false);
+  });
+});
+
+describe('auto-train: fast poll of a waiting tick (audit 2 item 3)', () => {
+  const S = 1000;
+
+  it('polls every 60 s in a waiting state while the next poll starts within 4 min of the tick', () => {
+    expect(FAST_POLL_S).toBe(60);
+    expect(FAST_POLL_MAX_MIN).toBe(4);
+    for (const st of ['pending', 'laptop-rerun', 'holding']) expect(fastPollPlan(st, NOW, NOW + 5 * S)).toMatchObject({ poll: true, delayMs: 60 * S });
+    expect(fastPollPlan('pending', NOW, NOW + 3 * MIN, { prevState: 'pending' }).poll).toBe(true); // next at 4:00
+    expect(fastPollPlan('pending', NOW, NOW + 3 * MIN + S, { prevState: 'pending' })).toMatchObject({ poll: false, reason: expect.stringMatching(/window over/) });
+    expect(fastPollPlan('pending', NOW, NOW, { pollS: 30, maxMin: 1 }).delayMs).toBe(30 * S);
+  });
+
+  it('never polls under --once or --dry-run, when off, outside a waiting state, or after a state change', () => {
+    expect(fastPollPlan('pending', NOW, NOW, { once: true })).toMatchObject({ poll: false, reason: '--once' });
+    expect(fastPollPlan('pending', NOW, NOW, { dry: true })).toMatchObject({ poll: false, reason: 'dry run' });
+    expect(fastPollPlan('pending', NOW, NOW, { pollS: 0 }).poll).toBe(false);
+    expect(fastPollPlan('pending', NOW, NOW, { maxMin: 0 }).poll).toBe(false);
+    for (const st of ['idle', 'waiting', 'built', 'building', 'releasing', 'failed', 'error', 'stale', 'laptop-missing', 'rerun-stale']) {
+      expect(fastPollPlan(st, NOW, NOW).poll).toBe(false);
+    }
+    expect(fastPollPlan('laptop-rerun', NOW, NOW + MIN, { prevState: 'pending' })).toMatchObject({ poll: false, reason: 'state changed (pending -> laptop-rerun)' });
+  });
+
+  it('a polling tick stays far inside the tick lock staleness (touched every minute anyway)', () => {
+    expect(FAST_POLL_MAX_MIN).toBeLessThan(5);
+    expect(FAST_POLL_MAX_MIN * 3).toBeLessThan(LOCK_STALE_MIN);
   });
 });
