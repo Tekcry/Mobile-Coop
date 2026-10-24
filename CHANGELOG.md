@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.100.4 - Train 79: Laptop queue: dead-pid heavy.lock broken at the desktop gate, "CI running" in the auto-train status (2026-10-25, PR #390; #374)
+### Changed
+- Laptop queue: the desktop slot gate logs the slot lock's holder once per change ("4191 held by heavy.lock: <text>") and breaks a lock whose pid is dead on this host when its text is unchanged on a second read (logged; a lock with no pid or a live pid is respected). A train's slot-lock wait breaks such a lock too.
+- Auto train: the status and log say "CI running" (was "CI missing" or "CI pending") while a CI run for the head has no conclusion yet; "CI missing" only when the head has no CI run or check at all.
+- Requests fill `branch` and `pr` by default (the asked ref; nothing for a sha already on master; the requester's checkout when the sha is its head; else the one remote work branch at or containing it, and its open PR), so failure comments reach the right PR and queue audits can see each request's branch.
+
 ## 4.100.3 - Train 78: Guard bake: stop on a lost console (2026-10-25, PR #383; #380)
 - Tools: the offline guard bake (`scripts/operators/guard-bake.mjs`) stops a stage at the first job whose launch dies
   with a lost console (exit 0xC0000142, or a failure under 2 s with no output), waits for running jobs, prints
