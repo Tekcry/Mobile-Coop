@@ -209,7 +209,7 @@ Wire: `course` gains `PackedCourse.st` (the live station), `rs` (retry count) an
   orchestrator orders: R1 and F1 first (small), map-ready rebases its `courseMode.ts` hunk. `ctcourseReplan` must be
   in map-ready's warm list when both are on master (a one-line follow-up for whichever lands second).
 - **feature/player-batch-j19 (Player):** `session.ts`, `coopUi.ts`, `protocol.ts` (`lobby` / `start` gain `ff`),
-  `coopHost.ts`. F1's `session.ts` line (the room map) and `coopUi.ts` Start check are separate hunks.
+  `coopHost.ts`. R1's `session.ts` line (the room map) and F1's `coopUi.ts` Start check are separate hunks.
 - **claims-check (2026-10-25 ~20:50, master's script):** 32 overlaps, all files above plus `flags.ts` one-liners
   (campus-greybox, char-shadow-meter, guard-ai-mission-hooks, sector-batch, guard-rules) and `coopHost.ts`
   (player-hygiene, guard-rules, sector-batch); test-runner-j20 (14 branches) on `scripts/run-e2e.mjs` and
@@ -228,9 +228,9 @@ done flag, kit id and stand-in gate), the A8 retry steps (board drill, gallery u
 paired hack), LANTERN's retry line per station (what and where, G343), the security register per set (cameras, beams,
 guards: LD 4.11, 13; guards A1 0, A2 1, A3 0, A4 3, A5 2, A6 1, A7 2, A8 3 = 12, with station 13's kiosk watcher and
 station 17's pod-leg technician in their stations' `guards` lists and the reason per extra guard from section 2; the A6
-fallback noted on station 16), and the order inside A4 (deadweight before the console press, graph.json :98). It is the data
-every set slice copies. Est. docs only. Checks: doc lint. Done: every badge of `replan-plan.svg` and every graph space
-with `drill_s` has a row; marks sit inside their graph space's `area` (G0). Flag: none.
+fallback noted on station 16), and the order inside A4 (deadweight before the console press, graph.json :98). It is
+the data every set slice copies. Est. docs only. Checks: doc lint. Done: every badge of `replan-plan.svg` and every
+graph space with `drill_s` has a row; marks sit inside their graph space's `area` (G0). Flag: none.
 
 **G0 Graph for the gates, first pass (Sonnet, docs / data; lead note 2).** `graph.json`: `area` box lists
 (`[minX, minZ, maxX, maxZ][]`, V6 schema) on all 53 spaces, copied from the v7 as-built graph
@@ -253,8 +253,14 @@ takes `CTLIGHT_VARIANT=replan` and writes `tests/ctcourse/replan/<set>.light.jso
 (`scripts/run-e2e.mjs:45-48`), `e2e-ctcourse.mjs` parts 5-8 boot `ctcourseReplan` and walk the modules in
 `scripts/e2e-ctcourse/replan/` (stubs re-export the built ones until each set slice replaces its own), part budgets in
 `scripts/e2e-times.json`.
+- **First commit (the seam with R1, pushed before anything else):** `src/game/course/stationDef.ts` (verbatim), the
+  flag in `flags.ts`, `SetPart.bay.stations` in `types.ts`, the `stations: p.bay.stations` line in the bay merge
+  (`ctcourse.ts:100-110`) and the one optional line `stations?: readonly StationDef[];` in `BayDef`
+  (`src/game/course/courseDef.ts`, with its `import type`). After that commit S0 never edits `courseDef.ts` again; R1
+  branches from it and owns `courseDef.ts` from then on.
 - Files: the claims rows above for flags, maps, ctcourse, greybox, types, facility, replan/**, marlowCircuits,
-  stationDef, `tests/ctcourse/replan/variant.test.ts` (new), `tests/ctcourseLight.test.ts`,
+  stationDef, `src/game/course/courseDef.ts` (the one `BayDef` line, first commit only),
+  `tests/ctcourse/replan/variant.test.ts` (new), `tests/ctcourseLight.test.ts`,
   `tests/ctcourse/facility.test.ts`, `tests/marlowLightingCircuits.test.ts`, `scripts/run-e2e.mjs`,
   `scripts/e2e-ctcourse.mjs`, `scripts/e2e-ctcourse/replan/*.mjs` (stubs), `scripts/e2e-times.json`,
   `changes/feature-marlow-replan-s0.md`. Est. 800.
@@ -265,17 +271,20 @@ takes `CTLIGHT_VARIANT=replan` and writes `tests/ctcourse/replan/<set>.light.jso
   `?autostart=ctcourseReplan&mode=course` and walks parts 5-8 green; the flag off changes nothing.
 - Flag: `marlowReplan`.
 
-**R1 Station retry runtime (Opus; PR 2; two Opus checkers: wire).** `BayDef.stations` and `retry` in `courseDef.ts`
-(validated in `validateCourse` :324+); `CourseState` keeps the live station (advanced by each `doneFlag`),
-`retryStation()` resets only that station's gates, flags, drill timer and role claim (earlier stations stay done),
-`startStation(n)` for `?course=station:<n>`; `PackedCourse.st` + `parseCourse` (`protocol.ts:750-792`); `spotFail.ts`
-generalised: `retry: 'station'` fires on a guard in combat or a camera's full detection on a player (A22), `retry:
-'caught'` after `CAUGHT_HOLD` 2 s of combat (A14), on a station's `drillS` running out (A23); `courseMode.ts`: the trigger
-(:592-600) calls the station retry (LANTERN's line, `SPOT_HOLD`), resets that station's guards by id (the
+**R1 Station retry runtime (Opus; PR 2; two Opus checkers: wire).** Branches from S0's first commit (which already has
+the `stations?` line in `BayDef` and the `ctcourse.ts` mapping); R1 validates the stations and their `retry` in
+`courseDef.ts` (`validateCourse` :324+) without touching that line; `CourseState` keeps the live station (advanced by
+each `doneFlag`), `retryStation()` resets only that station's gates, flags, drill timer and role claim (earlier stations
+stay done), `startStation(n)` for `?course=station:<n>`; `PackedCourse.st` + `parseCourse` (`protocol.ts:750-792`);
+`spotFail.ts` generalised: `retry: 'station'` fires on a guard in combat or a camera's full detection on a player (A22),
+`retry: 'caught'` after `CAUGHT_HOLD` 2 s of combat (A14), on a station's `drillS` running out (A23); `courseMode.ts`:
+the trigger (:592-600) calls the station retry (LANTERN's line, `SPOT_HOLD`), resets that station's guards by id (the
 `dropSquad` / `spawnSquad` path per guard, :913-958) and devices (`ct.repair` for its cameras), lamps of its circuit,
 respawns both at `marks` through `checkpointPos()` / `checkpointSpawns()` (:887-900; the client is placed by the host's
 `onRespawn`, no new event); the A3 `HallRule` and the A2 `spotFail` are not set on `ctcourseReplan`; the drill pointer
-shows the next station's mark as built (Q18) and a drill-mark guard test pins it. The built `ctcourse` keeps its rules.
+shows the next station's mark as built (Q18) and a drill-mark guard test pins it; the host's room map is
+`ctcourseReplan` when `flags.marlowReplan` (`session.ts:64`, moved here from F1: it needs S0's flag). The built
+`ctcourse` keeps its rules.
 - **Route-run hooks (J13 R4c, origin/feature/route-runs-2 `docs/route-runs/PLAN.md:192-221`).** R4c's course watcher
   reads a rise of `window.__course.restarts` on every poll and names the cause (seen / timer / other). R1 gives it:
   `CourseState.restarts` (a count, 0 at match start) and `CourseState.lastRetry` (`{ n, st, cause }`, `st` the station
@@ -286,8 +295,9 @@ shows the next station's mark as built (Q18) and a drill-mark guard test pins it
   `window.__course` is the `CourseMode` (`courseMode.ts:292`), so `CourseMode.restarts` and `lastRetry` are getters on
   the state. Client: the mirror object (`courseMode.ts:1362`) gains `restarts: w.s.rs` and `lastRetry: { st: w.s.st,
   cause: w.s.rc }`, so the harness reads the same hook on host and client. No new event, no save.
-- Files: `src/game/course/{courseDef,courseState,spotFail,courseWire}.ts`, `src/game/modes/courseMode.ts`,
-  `src/net/protocol.ts`, `tests/courseStation.test.ts` (new), `tests/spotFail.test.ts`, `tests/course.test.ts`,
+- Files: `src/game/course/{courseDef,courseState,spotFail,courseWire}.ts` (`courseState.ts` except F1's hunks),
+  `src/game/modes/courseMode.ts`, `src/net/protocol.ts`, `src/net/session.ts` (the room-map line),
+  `tests/courseStation.test.ts` (new), `tests/spotFail.test.ts`, `tests/course.test.ts`,
   `tests/courseMarks.test.ts` (the `parseCourse` round trip of `st` goes in `courseStation.test.ts`, not `net.test.ts`),
   `changes/feature-marlow-replan-r1.md`. Est. 950.
 - Checks: vitest on those files plus `tests/ctcourse.test.ts`; laptop: affected-e2e (GAME, e2e-course, e2e-ctcourse,
@@ -298,29 +308,30 @@ shows the next station's mark as built (Q18) and a drill-mark guard test pins it
   with both back on its marks; each of those retries raises `window.__course.restarts` by one on host and client with
   `lastRetry.cause` `seen`, `caught`, `timer` and `out` in turn (unit test in `tests/courseStation.test.ts`: the count
   and cause through `pack()` -> `parseCourse` -> the client mirror object); the built `ctcourse` behaves as today (its
-  tests unchanged).
-- Flag: `marlowReplan` (only `ctcourseReplan` carries stations). Depends on: S0's first commit (`stationDef.ts`).
+  tests unchanged); the flag off leaves the room on `ctcourse`.
+- Flag: `marlowReplan` (only `ctcourseReplan` carries stations). Depends on: S0's first commit (`stationDef.ts`, the
+  flag, `SetPart.bay.stations`, the `ctcourse.ts` mapping, the `BayDef` line).
 
 **F1 Live rule fixes (Opus; PR 3; two Opus checkers: src/net).** Fixes to the shipped yard, allowed at the walk cap
 (G355; A21): the revive cap stays 2 in Course mode (`coopHost.addSyringes` ignores course grants, :834-837; gadget and
 medkit grants kept; M3 / R35); one player out no longer restarts the bay, only both down does (G349 campaign rule;
-:568-581); Host Start needs 2 players in Course mode unless `?course=solo` (`coopUi.ts:628-635`, R36); the host's room
-map is `ctcourseReplan` when `flags.marlowReplan` (`session.ts:64`); the A2 entry vantage joins the sight test (M8, `tests/ctcourse/a2CarriageShed.test.ts:1366-1371`).
+:568-581); Host Start needs 2 players in Course mode unless `?course=solo` (`coopUi.ts:628-635`, R36); the A2 entry
+vantage joins the sight test (M8, `tests/ctcourse/a2CarriageShed.test.ts:1366-1371`). F1 reads no `marlowReplan` flag
+and needs nothing from S0 (the room-map line is R1's), so it branches from master and ships first.
 - **How the out player comes back ("out until the next checkpoint", G126 / G349).** Every Marlow airlock needs both
   players inside (`courseState.ts:1155-1162`, `need()` = 2) and every station is a co-op move, so the survivor alone
   could not move on. The fix: while one partner is out, the bay's exit airlock cycles with the one living player.
   `CourseState` gains `out: [boolean, boolean]`, `setOut(p, on)` and a private `oneMay()` (`solo` or a player out);
   `need()` returns 1 under `oneMay()`, and the pair gate's "one player works both halves" check (today `solo` only,
-  `pressPair`, `courseState.ts:1112`) reads `oneMay()` too. Drill ticks and team moves are unchanged: on the built yard a team move
-  between the survivor and the exit airlock still needs the partner, and there the pause-menu bay restart (both
-  respawn) stays the way on, as today for every one-out; on the re-plan the station retry below brings the partner
-  back at once. In course mode
-  `goOut` (:568-581) calls `setOut(p, true)` instead of `onPlayerDeath()`, then `g.mode.onPlayerOut?.()` (a no-op on
-  `CourseMode` until R1). When the airlock seals, the checkpoint advances as on any seal and the host respawns the out
-  player inside it, at their slot of `checkpointSpawns()` (`courseMode.ts:896-900`; the client through the existing
-  respawn path, `CoopHost.onRespawn` :1897), and clears `out`. Any respawn of the out player (a seal, a bay restart, a
-  station retry) clears `out`. Revives used stay used (the cap is per mission). The survivor going down too = both down:
-  the bay restarts from its holding room as today (G312).
+  `pressPair`, `courseState.ts:1112`) reads `oneMay()` too. Drill ticks and team moves are unchanged: on the built yard
+  a team move between the survivor and the exit airlock still needs the partner, and there the pause-menu bay restart
+  (both respawn) stays the way on, as today for every one-out; on the re-plan the station retry below brings the partner
+  back at once. In course mode `goOut` (:568-581) calls `setOut(p, true)` instead of `onPlayerDeath()`, then
+  `g.mode.onPlayerOut?.()` (a no-op on `CourseMode` until R1). When the airlock seals, the checkpoint advances as on any
+  seal and the host respawns the out player inside it, at their slot of `checkpointSpawns()` (`courseMode.ts:896-900`;
+  the client through the existing respawn path, `CoopHost.onRespawn` :1897), and clears `out`. Any respawn of the out
+  player (a seal, a bay restart, a station retry) clears `out`. Revives used stay used (the cap is per mission). The
+  survivor going down too = both down: the bay restarts from its holding room as today (G312).
 - **On `ctcourseReplan` (R1's part, not F1's):** R1 adds `CourseMode.onPlayerOut()`: on a bay with stations, a player
   going out starts that station's retry after `SPOT_HOLD` (cause `out`), and the out player respawns at the station
   retry's marks with the survivor, so an untimed co-op station never strands the survivor. On a bay without stations
@@ -328,16 +339,16 @@ map is `ctcourseReplan` when `flags.marlowReplan` (`session.ts:64`); the A2 entr
 - **File split with R1:** F1 owns only the `out` field, `setOut()`, `oneMay()`, the body of `need()` and the pair
   gate's one-player check in `courseState.ts`; R1 never edits those lines and F1 edits nothing else in that file (hunk
   ownership, as S0 / R1 below).
-- Files: `src/net/coopHost.ts`, `src/net/coopUi.ts`, `src/net/session.ts`, `src/game/course/courseState.ts` (the hunks
-  above only), `tests/courseRuleFixes.test.ts` (new), `tests/ctcourse/a2CarriageShed.test.ts`,
-  `changes/feature-marlow-replan-f1.md`. Est. 400.
+- Files: `src/net/coopHost.ts`, `src/net/coopUi.ts`, `src/game/course/courseState.ts` (the hunks above only),
+  `tests/courseRuleFixes.test.ts` (new), `tests/ctcourse/a2CarriageShed.test.ts`, `changes/feature-marlow-replan-f1.md`.
+  Est. 400.
 - Checks: vitest on those plus `tests/course.test.ts`; grep `scripts/` for e2e that rely on one-out restarts or the
   syringe cap (`scripts/e2e-ctcourse/revive.mjs`) and update them in the same PR; laptop: co-op group + affected-e2e.
 - Done looks like: three ratings later the cap is still 2; one player out with the partner up keeps the bay running;
   `tests/courseRuleFixes.test.ts` has the case "P2 out, P1 steps on the airlock pad, it cycles, P2 respawns in the
   airlock with the checkpoint advanced" (and P2's `out` cleared); a second case "P2 out, P1 goes down: both down, the
-  bay restarts from its holding room"; a lone host cannot Start Marlow Yard; the flag off leaves the room on `ctcourse`.
-- Flag: none (rule fixes), except the map choice reads `marlowReplan`.
+  bay restarts from its holding room"; a lone host cannot Start Marlow Yard.
+- Flag: none (rule fixes on the shipped yard). Depends on: nothing in this plan.
 
 **Set slices (Sonnet greybox from strict Opus briefs; one checker per batch of three).** Each: guards round the
 removed pieces in `<set>.ts`, everything new in `replan/<set>.ts` (geometry, closers, guards per lesson, stations from
@@ -347,7 +358,8 @@ STATIONS.md, objective lines naming what and where, stand-ins, lamps, `FLOOR_HOL
 spotted retry per guarded station landing both at its marks, one drill retry, stand-ins open), and a changelog
 fragment. Checks: vitest `tests/ctcourse/replan/<set>.test.ts tests/ctcourse/replan/variant.test.ts
 tests/ctcourseLight.test.ts`; `CTLIGHT_VARIANT=replan CTLIGHT_WRITE=<set>` then a clean rerun; affected-e2e
-(e2e-ctcourse 1-8). Flag: `marlowReplan`. Depends on: S0 and R1 (cut from the lead's merge of both).
+(e2e-ctcourse 1-8). Flag: `marlowReplan`. Depends on: S0 and R1 (cut from the lead's merge of both; the PRs open only
+after S0 and R1 are released, wave 2).
 
 | Slice | PR | Set | Main work | Est. |
 | --- | --- | --- | --- | --- |
@@ -392,12 +404,17 @@ deletion (likely over 1.5k: split per set pair or the orchestrator's `big-pr` la
 | `kitMoves` ids `plankBridge`, `deadweight`, `chimneyPair`, `swingPass`, `dropCatch` (Player's flag) | off | Night Shift \| Player Build | Player's dates (2-4 days after Campaign's kit PR) | that move's slice and its KS slice on master, its walk item accepted; until then the station's stand-in is open |
 
 ## Order and waves
-- **Wave 1, now (parallel, no shared files):** D1 (Opus, docs), G0 (Sonnet, docs: `graph.json` / `validate-run.txt`),
-  S0 (Sonnet), F1 (Opus); R1 (Opus) starts from S0's first pushed commit (`stationDef.ts` + flag). D1 and G0 both live
-  in `docs/marlow-replan/` but in different files (STATIONS.md vs graph.json / validate-run.txt).
+- **Wave 1, now (parallel, no shared files or hunks):** D1 (Opus, docs), G0 (Sonnet, docs: `graph.json` /
+  `validate-run.txt`), S0 (Sonnet), F1 (Opus, from master, needs nothing from S0: ships first); R1 (Opus) branches from
+  S0's first pushed commit (`stationDef.ts`, the flag, `SetPart.bay.stations`, the `ctcourse.ts` mapping, the `BayDef`
+  line; S0 section). File seams: S0 owns `courseDef.ts` for that one line in its first commit only, then R1; R1 owns
+  `courseState.ts` except F1's `out` / `need()` / pair-gate hunks; the room-map line in `session.ts` is R1's. D1 and G0
+  both live in `docs/marlow-replan/` but in different files (STATIONS.md vs graph.json / validate-run.txt).
 - **Wave 2, when S0 and R1 pass their checkers (lead merges both into `feature/marlow-replan-base`):** the seven set
-  slices in parallel (G-A1A7, G-A2, G-A3, G-A4, G-A5, G-A6, G-A8), each in its own worktree; briefs written during
-  wave 1. G-A2, G-A3, G-A6 wait for #441 on master if it is not there yet (they touch its set files).
+  slices build in parallel (G-A1A7, G-A2, G-A3, G-A4, G-A5, G-A6, G-A8), each in its own worktree; briefs written during
+  wave 1. Their PRs open only after S0 and R1 are released (on master): `scripts/pr-size.mjs` counts against the merge
+  base, so a PR cut from the S0 + R1 merge would count ~1.75k extra lines before then. G-A2, G-A3, G-A6 wait for #441
+  on master if it is not there yet (they touch its set files).
 - **Wave 3:** R2 (after #441), G1 (after the set slices; its gate steps wait on J12 PR A + S2 + S4 and J13 R6 / R8).
 - **Then:** KS1-KS5 as Player's moves land; the walk card; C1 after acceptance.
 
