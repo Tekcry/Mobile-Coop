@@ -54,6 +54,9 @@ export interface Flags {
   /** (mixamo-retarget I2) `?mixamo=1` / `?mixamo=0`: the Mixamo traversal captures on Wren (hang, shimmy, climb-up, ladder,
    *  vent crawl; `src/anim/mixamo.ts`); null when the page names none = off (default OFF until the orchestrator rules). */
   mixamo: boolean | null;
+  /** (mixamo-retarget Toggle) `?anim=hand|cmu|mixamo`: the Animation source for this page over the stored setting
+   *  (Options > Gameplay > "Animation source", `src/anim/animSource.ts`); null when the page names none. */
+  anim: 'hand' | 'cmu' | 'mixamo' | null;
   /** (guard-render S1) Guards draw as one merged smooth mesh each (`SmoothBody`); `?guardmerge=0`: the parts, for comparisons. */
   guardMerge: boolean;
   /** (guard-models G7, A10) Guards draw as the operator-pipeline figure (`src/ai/guardBody.ts`); `?guardmodels=0` keeps
@@ -131,6 +134,7 @@ export const flags: Flags = {
   sectorGuards: /^\d{1,2}$/.test(params.get('sectorGuards') ?? '') ? Number(params.get('sectorGuards')) : null,
   mocap: onOffFlag(params.get('mocap')),
   mixamo: onOffFlag(params.get('mixamo')),
+  anim: ((v) => (v === 'hand' || v === 'cmu' || v === 'mixamo' ? v : null))(params.get('anim')),
   guardMerge: params.get('guardmerge') !== '0',
   // (guard-models G7) default off until G8's budget run: `?guardmodels=1` on; G8 makes it `!== '0'`
   guardModels: params.get('guardmodels') === '1',
