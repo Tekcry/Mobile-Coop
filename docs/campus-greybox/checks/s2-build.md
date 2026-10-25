@@ -102,3 +102,62 @@ Findings for the lead:
 
 Pending PC run: e2e-sectorops parts 1-6 on the S2-a head (flag off); the v2 CR2 probes are e2e-sectorops `:2264-2267`
 (v1 numbers, for SW-2).
+
+## S2-G3 - L1 rooms
+
+Files: `src/world/maps/campusV2/s2.ts`, `s2Dress.ts`, `tests/campusV2S2L1.test.ts` (and the dress-log comparison in the G1 /
+G2 tests now ignores greybox box indices, which move with every added piece).
+
+Built (file:line at the G3 commit):
+- C8 `s2.ts:617-623`: south band wall z -22.5 x -30..-7.5 with doors x -25 / -17 / -10 (swing south into the rooms); the
+  kitchen west wall at x -30 (z -30..-22.5) with its door z -26; the x -21 partition kept, x -13 removed; the project
+  room's door into the SE meeting room (-7.5, -27) in the x -7.5 wall (`s2.ts:580-581`).
+- C9 `s2.ts:624-639`: MR1 walls z -20 / -14 (x -44..-35.5), north door (-40, -14), glass front x -35.5 with its door
+  (-35.5, -17); MR2 glass z 0 (x -44..-34) door (-39, 0), side wall x -34 door (-34, 3); MR3 glass z 0 (x -26..-16) door
+  (-21, 0), side walls x -26 / -16, door (-16, 3). Fronts frosted to `S2_FROSTED_BAND` 1.2, clear above (as built: no
+  head box over the glass).
+- C10 `s2.ts:578-606`: x -7.5 wall z -30..0.5 with gaps -27 / -21 / -3; the glazed partition x -7.5 z 0.5..5.5 (clear) with
+  its door (-7.5, 3); a wall stub x -7.5 z 5.5..6; wing walls x -2.5 (z -17.5..-4.5, doors -16 pg-brg and -7.5 comms),
+  z -17.5, z -10.5 (door x 1), z -4.5; the facilities south wall z -1 (door -4, swing north) and its z -1..0 stub on
+  x -0.1; the old landing / comms walls and the old facilities z 0 wall and glass removed; NE pocket kept. North UPS
+  cabinet to z -5.2 (`s2.ts:646`). Switch 56 to (-5.6, 4.4, -1.5) (`s2.ts:230`).
+- C12 `s2.ts:607-616`: the steel sunshade x -7..-1, z 6..7.2, top 4.4, 0.2 thick (noLedge box) with a manual hang ledge on
+  its north edge (normal +z); the window (BA7) `windowAt(-4, 5.9, 6, 1.2, 1.2, 0, { sill: 5.3, open: true, breakable: true })`;
+  `FAC_WINDOW` `s2.ts:48`. The north shell wall is split per floor (`s2.ts:459-469`), the L1 piece leaving the window gap.
+- C15 `s2.ts:101` `NEAR_D` 1.3. Flights G-L1 12 x 0.183 (going 0.29), L1-L2 11 x 0.182, L2-roof 11 x 0.177 (going 0.32),
+  all inside NCC. Door positions as built (Q3 default); no vision panels (Q4 default; the graph note goes in with G6b).
+- Swings: the wing hall doors (-4, -1) north, (-2.5, -7.5) and (-2.5, -16) east, (-4.5, -23) south; the south ring doors
+  south. Each open leaf lies in its room box (tested).
+- Rooms BA2 `s2.ts:176-191`: the fifteen L1 boxes of the brief table. Tags `s2Dress.ts:30-44` (l1project, l1semeet,
+  l1comms, l1landing 'office-cell'; strips l1west / l1south / l1east, l1ne, l1wingn, l1wings 'office-open').
+
+Sync-node src lines (planned nodes this slice builds): the comms room for sync-s2-comms (`s2.ts:593-600`, the desk is
+G5a); the pg-brg door (-2.5, -16) for sync-s2-pairdoor `s2.ts:594`; the two facilities doors for sync-s2-kpfac
+(-4, -1) `s2.ts:603` and (-7.5, 3) `s2.ts:585`; the kitchen west door (-30, -26) for sync-s2-kitchen `s2.ts:621-622`.
+
+Dress: tags only; the kitchen counter and BMS desk boxes are unchanged. The dress log gains no line (tested, box index
+ignored).
+
+Tests: `tests/campusV2S2L1.test.ts` 14 / 14 pass (BA2 table, PG areas, MR1-MR3 enclosure, class checks, every L1 nav cell
+in a room, doors, swings, spacing, `Doors.nearest(-7.5, 3, 1.2)` on L1 with a NullEngine scene, wing walls, cabinets and
+switch, sunshade / ledge / window, core flights, dress log). G1 17 / 17, G2 19 / 19. Flag-off set 69 / 69. Typecheck and
+eslint clean.
+
+Assumptions: BA2, BA7, Q3 and Q4 defaults as the brief. New:
+- **A-G3-1** The x -7.5 wall north of the glazed partition (z 5.5..6) is closed with a wall stub (the brief leaves it
+  unsaid). Undo: drop `s2.ts:586`.
+- **A-G3-2** The sunshade slab itself is noLedge and carries one manual ledge on its north edge (no generated ledges on its
+  ends). Undo: drop the mark.
+- **A-G3-3** Glass fronts keep the as-built form (2.4 tall, no head box over the glass or the glass doors).
+- **A-G3-4** "Each room box matches PG" for MR1-MR3 is checked as the built enclosure on the PG area (MR1-MR3 are not
+  RoomDefs in the BA2 table: they sit inside l1sw / l1north).
+
+Findings for the lead:
+- **F-G3-1** The sunshade ledge (4.4, inside the 4.3-4.5 co-op band) stands over walkable ground north of the building
+  (nav cells at y 0 under it, x -6..-2, z 6.6..7.9). If players can reach that ground, it is an unlisted co-op boost lip
+  into the facilities window (no keypad); if they cannot, a player who drops off the ledge (4.4, a safe drop) is outside
+  the building. Not in the brief; worth a look at the walk / route-runs.
+- **F-G3-2** MR1-MR3 have no RoomDef of their own (BA2 puts them inside l1sw / l1north), so their HUD room is the open
+  plan's. Room tags and G5c lighting follow from that (G5c's open-plan fittings fall inside MR1, MR2 and MR3).
+
+Pending PC run: e2e-sectorops parts 1-6 on the S2-b head (flag off).
