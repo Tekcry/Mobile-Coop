@@ -43,7 +43,7 @@ Slice S1 of `PLAN.md` (REPORT items G1-G5, G11, G12, G14, P12; ranked fixes 1 an
   only; `recordHistory` / `judge` untouched), `src/net/partnerTarget.ts`, `src/net/remoteAvatar.ts` (`bodyIn`, two
   fields), `src/player/wallController.ts` (doc only), `tests/net.test.ts` (one case), `scripts/e2e-netmove.mjs` (the peek
   head check compares the host's head to the client's sim head; the client's rig head is logged beside it).
-- Docs: `docs/systems/combat.md`, `coop.md`, `movement.md`; `docs/locomotion/DECISIONS.md` (A51 marked superseded).
+- Docs: `docs/systems/combat.md`, `coop.md`, `movement.md`; `docs/archive/locomotion/DECISIONS.md` (A51 marked superseded).
 - Not touched: S2 / S5 / S6 files, `src/net/coopClient.ts`, `src/ai/enemy.ts` (its `PlayerRef.head` doc comment still
   says "posed copy": stale, cosmetic, for whoever next owns enemy.ts).
 

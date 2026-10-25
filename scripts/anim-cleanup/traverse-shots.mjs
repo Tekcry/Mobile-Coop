@@ -7,7 +7,7 @@ import path from 'node:path';
 import { launch, waitOperator } from '../e2e-lib.mjs';
 
 const PORT = Number(process.env.E2E_PORT ?? 4189);
-const out = process.argv[2] ?? 'docs/anim-cleanup/audit/traverse';
+const out = process.argv[2] ?? 'docs/archive/anim-cleanup/audit/traverse';
 const only = process.argv.slice(3);
 mkdirSync(out, { recursive: true });
 

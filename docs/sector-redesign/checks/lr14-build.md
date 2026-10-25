@@ -1,6 +1,6 @@
 # LR14 build - character silhouette shadows from lamps
 Branch `feature/sector-redesign-charshadow` (off `-lightrev` 7c403385, `-lightrev` 8ccf7822 merged in). Plan:
-`docs/lighting-review/LR14-PLAN.md`. Michael (~14:42): "yes i want to include this system now as its one of the main
+`docs/archive/lighting-review/LR14-PLAN.md`. Michael (~14:42): "yes i want to include this system now as its one of the main
 focus of the game".
 
 ## Built

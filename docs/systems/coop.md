@@ -1,7 +1,7 @@
 # Co-op
 Purpose: transports, the host and client sims, the wire protocol, co-op sync, team moves and the training course's
 wire.
-Design authority: docs/DECISIONS.md (G2, G48-G52), then docs/design-bible.md (Section 5.9).
+Design authority: docs/DECISIONS.md (G2, G48-G52, G180, G349), then docs/design-bible.md (Section 5.9).
 
 Player counts per mode: campaign missions and Marlow Yard (Course mode) take exactly 2 players (G2, G50, G292); Sector
 Ops takes 1 to 4 (G308, built by coop4 in PR #317; until it lands, `capacity('sector')` on master is still 2). No bot
@@ -26,7 +26,7 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   locomotion 10 together (G52); 12 = Wave, team deathmatch, free-for-all and PvP removed (`NetMode`, `team`, `ptd`,
   `frag`, snapshot `score` / `tl`, end `waves` / `winner`); 13 = emotes removed (`emote` message and event), then in the
   same version the custom difficulty (`dc`) and carried medkits (`PlayerState.mk`, MoveState `medkit`, `cmove` kind
-  `medkit`, pickup kind `medkit`). Earlier steps: git log and docs/locomotion/LOG.md. Next wire train: afp AF6 (#247), the partner's gait - `PlayerState.t` (the joiner's send clock, timed by the host through a `ClockSync`), `gph` (gait clock), `qs` / `hs` (the CT stop), `mo` / `mt` (motion state and its time), `ax` / `az` (acceleration); the partner renders 0.13 s (host) / 0.16 s (joiner) behind.
+  `medkit`, pickup kind `medkit`). Earlier steps: git log and docs/archive/locomotion/LOG.md. Next wire train: afp AF6 (#247), the partner's gait - `PlayerState.t` (the joiner's send clock, timed by the host through a `ClockSync`), `gph` (gait clock), `qs` / `hs` (the CT stop), `mo` / `mt` (motion state and its time), `ax` / `az` (acceleration); the partner renders 0.13 s (host) / 0.16 s (joiner) behind.
 - Caps: `MAX_PLAYERS` 4 (room cap on the wire), `MAX_ENEMIES` 32, `MAX_EVENTS` 48, `MAX_ITEMS` 128, `MAX_DOORS` 256.
 - `NetMode`: `sandbox | clear | infiltration | course | sector`; `capacity(mode)` gates joins and `startMatch`. On
   master `course` and `sector` take `COURSE_MAX` 2 and the legacy modes `COOP_MAX` 4. The rule: Marlow Yard and the
@@ -50,8 +50,8 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   the hand toward the tip as far as `ph` (`opticPlaceOf`, `opticCableEnd`: the same code as the owner's own cable,
   `world.ropes` slot `<remote>-optic`). The view at the tip is local, never sent. A ping from the view uses the
   existing ping: `sendPing` casts from `cam.gamePos`, which `OpticSystem.frameUpdate` sets to the tip, and the hit goes
-  to the host (`ping` message) and to every player (`ping` event); no ping input is bound yet (`gameState.ts`
-  "pings are unbound for now").
+  to the host (`ping` message) and to every player (`ping` event); the ping input (R3 / middle mouse, below) works
+  from the view.
 - OPEN TRAP (optic-coop M1, CHECK-M B1): the trap panel over an optic gap is collision (`Breakables`, `G.STATIC`:
   movement, shots, perception rays), so its open goes through the host like a door. A client's pick sends client ->
   host `panel {g}` (`g` the gap index, wire bound `OPTIC_POINT_MAX`; `NetAttachment.panelOpen`, client only) and
@@ -192,6 +192,13 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
       helmet. No second message carries the look.
     - Bodies: `snap.bodies` carries enemy ids only, so no record carries a seed: a client's ragdoll is its own puppet's
       rig (it had the seed), a carried body is never mirrored, and the host reads `body.guard.look`.
+- Guard intel (stealth-pays client intel; wire change, the train bumps `PROTOCOL_VERSION`): `EnemyState.in` is 1 while
+  the host's guard has unspent interrogation intel (`hasInfo(e)`: Marlow course slots, Sector Ops slots, a revived guard
+  through `inherit`), absent otherwise (0 bytes for most guards). `protocol.markIntel` writes it in `CoopHost`'s
+  snapshot; the parser keeps it only when exactly 1. `EnemyPuppet.setIntel` offers INTERROGATE from the flag's rise
+  (`info` = the course slot's lines from `infoAtSpawn` (`spawnInfo`), else `guardInfo.HOST_INFO`: no lines, the
+  host's intel feed answers) and drops it when the host clears it, so a host or client interrogation, a rejoin and a
+  revive show the same on both screens. A local spend is not undone while the flag is still set.
     - Tests: `tests/guardLook.test.ts` (round trip of every seed with every other bit, parser clamp, restart, team
       distinctness, a peer at `PROTOCOL_VERSION - 1` refused); `e2e-coop` (seed equal on both screens, same seed after a
       course bay restart, helmet bit drop on both; the visible-piece asserts with `E2E_GUARDMODELS=1`).
@@ -260,6 +267,9 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   (`hear(.., 'noise', null, r.ref.id)`): a searching or alerted guard who hears one locates the client's slot only and
   walks to it / turns his hunt to it; the host's slot never moves for it. Host only, no wire change.
 - Downed: `revive` interactables on bodies (`NetAttachment.onLocalDeath` / `onRespawn`); everyone down -> the mode.
+  The campaign and Marlow Yard share G126's rule (G349): a revive within `REVIVE_WINDOW` 30 s, at most
+  `REVIVES_PER_MISSION` 2 (`game/reviveClock.ts`); a player past them is out (`CoopHost.goOut`): the course restarts
+  the bay, Sector Ops the section (its syringes per difficulty, below).
 - Bodies: the host lists lying bodies in `snap.bodies` when they change; clients keep those bodies (`Body`, coop-carry) and drop the rest.
   (rig-pose-fix S5, P13) The wire carries no body position: a client `Body` lies on the host's sim lie computed from
   the puppet's last host state (`buf.latest()` feet and yaw) and the fall away from the killer (`deathLieOn`), its
@@ -283,13 +293,16 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   a door faced, Drop body) and pose. A partner's carry shows on both pages through `RemoteAvatar.carryLoad` /
   `carrySide` / `carryKnees` (the bend, the carry lean, the hands on the knees). Save shape unchanged. Tests:
   `tests/coopCarry.test.ts`; e2e-coop "client carries a body".
-- Pings (action `ping`: D-pad left tap, Z): `GameState.sendPing` (aim ray) -> `ping` msg / event (host rate 0.8 s) ->
-  `ui/hud/pings.ts` (follows a pinged guard, edge arrows off screen).
+- Pings (action `ping`: R3, which zooms instead while aiming a scoped weapon (`contextPing`); KBM middle mouse;
+  `input/padBinds.ts`, `input/keyBindings.ts`): `GameState.sendPing` (aim ray) -> `ping` msg / event (host rate
+  0.8 s) -> `ui/hud/pings.ts` (follows a pinged guard, edge arrows off screen).
 - Gadgets: `GadgetSystem.onLocal` reports gas / flash / EMP / noise effects; the host relays them (`gadget`, 1 s rate,
   <= 40 m) and runs `remoteEffect` on its guards.
-- Team moves: brace and boost, human ladder, dual takedown (two finishes within `DUAL_WINDOW` 1.5 s -> banner; counted in `StealthRating.duals` and the `dualTakedown` event for
-  section-rating (spare 12), no extra knockout). These
-  are the moves that exist; the other four of loco D8 wait for the co-op phase (G52).
+- Team moves (G180, CT's set, built): the leg-up (`boost`), the ledge relay (`ladder`; the wire names stay), the
+  partner throw, the hang-down and the two-person rope (`TeamKind`, `game/teamMoves.ts`). G52's brace and dedicated
+  dual takedown are gone (G180). CT's double takedown is two ordinary takedowns timed together: two finishes within
+  `DUAL_WINDOW` 1.5 s (`game/dualTakedown.ts`) -> banner; counted in `StealthRating.duals` and the `dualTakedown` event
+  for section-rating (spare 12), no extra knockout.
 - (throw-ko) Partner throw onto a guard (CT: landing on a guard knocks him out): at a throw's `tstart` the host records
   the flight (`net/throwKo.ts`, `ThrowKo`: `throwArc` from the thrown player's feet as the host has them to the bounded
   landing, from the host's start time) and replays it each fixed step; descending feet within `TEAM.throwKoReach` m
@@ -479,7 +492,7 @@ client next to a device first.
   during a connector cycle), `lk` the locked door indices, `dn` the camera ids shot out, `sy` the revive syringes left.
   The client's `CtDevices` mirror runs `setLive(ls)` (other sections' cameras off, lasers dark, no jam targets), breaks
   or repairs cameras from `dn` and sets door locks from `lk`. The HUD line (section, alarm, syringes) comes with the
-  snapshot's `info`. Objectives, markers and banners use the item and event mirror.
+  snapshot's `info`. Objectives, the exit item and banners use the item and event mirror (no markers: G339).
 - (section-rating, protocol 42) `rt` the last section rating `{ sec, marks, synced, gadget, syringe, medkit, alarmStep }`
   (`SectorRatingWire`; `sec` -1 none yet, `marks` 0-15, the rest whole 0-99; junk drops `rt` only). The host rates a
   section as its connector unloads it (the extraction rates the last one, sent at once, its grant fields zeroed) and

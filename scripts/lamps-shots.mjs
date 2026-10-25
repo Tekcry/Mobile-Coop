@@ -2,12 +2,12 @@
 // the ceiling fittings of sections 1, 2 and 3 seen from below (are any floating?) and one under the translucent roof
 // sheets. Records draw calls per view, one PNG per view and one labelled sheet: <dir>/sheet-lamps-epic.png.
 // Serves dist/ with `vite preview` (needs a prior `npm run build`). GPU: E2E_GPU=1 on port 4189. Never headed.
-// Usage: E2E_GPU=1 E2E_PORT=4189 timeout 1200 node scripts/lamps-shots.mjs docs/warehouse-lamps/shots
+// Usage: E2E_GPU=1 E2E_PORT=4189 timeout 1200 node scripts/lamps-shots.mjs docs/archive/warehouse-lamps/shots
 import { spawn } from 'node:child_process';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { launch } from './e2e-lib.mjs';
 
-const [dir = 'docs/warehouse-lamps/shots'] = process.argv.slice(2);
+const [dir = 'docs/archive/warehouse-lamps/shots'] = process.argv.slice(2);
 const PORT = Number(process.env.E2E_PORT ?? 4189);
 const URL = `http://127.0.0.1:${PORT}/`;
 const GFX = 'epic';

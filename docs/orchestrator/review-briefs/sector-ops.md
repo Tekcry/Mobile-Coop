@@ -3,7 +3,7 @@
 Michael (G355): "All current maps/features should be revised once documentation work has been completed". No src, test, map or config change.
 
 ## Docs
-origin/master after #398, #402, #404 land (until then read `C:/NightShift/Mobile-Coop-doc-polish-l`).
+origin/master after #407 (and #400) land (until then read origin/feature/doc-final: `git show origin/feature/doc-final:<path>`).
 
 ## Scope
 - Saltmarsh Park S1-S5: `src/world/maps/campusOps.ts`, campusS1-S5*.ts, campusSectors.ts, campusBake.ts, `src/world/campusArt/`; `src/game/modes/sectorMode.ts`, sector*.ts in `src/game/`; stars `src/save/sectorRecord.ts`; `docs/sector-redesign/` (sign-offs, G328); campus graphs in `docs/level-validator/campus-run/`; feature/campus-greybox c2f1f131 (BRIEF, PLAN, lanes S1-S5); `warehouseOps` (the old map).

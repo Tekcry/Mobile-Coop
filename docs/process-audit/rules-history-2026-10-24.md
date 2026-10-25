@@ -38,7 +38,7 @@ until Michael lifts it.
 - A PWA (Vite + TypeScript + Babylon.js 9 + Havok) on GitHub Pages, desktop only: pad first, then keyboard and mouse (G12).
 - Michael's decisions: `docs/DECISIONS.md` (G1, G2, ...). Design: `docs/design-bible.md`. Story and in-game text: `docs/story.md`.
 - The co-op training level is Marlow Yard (map `ctcourse`, Course mode, `?autostart=ctcourse&mode=course`; CT prototype
-  B1, `docs/ct-prototype/`). Fallow (map `bunker`, `docs/training/`) is parked behind `?legacy=1`.
+  B1, `docs/ct-prototype/`). Fallow (map `bunker`, `docs/archive/training/`) is parked behind `?legacy=1`.
 - The internal ids keep the old name (IndexedDB `shoulder-strike`, export magic `shoulder-strike-save`, co-op app id).
 
 ## Sessions (process audit, approved by Michael 2026-10-19)
@@ -288,17 +288,17 @@ then `netstat -ano | grep ":4191 .*LISTENING"` must print nothing. The runner st
 | `docs/story.md` | Story, setting, characters, radio and writing rules | Any in-game text, briefing or mission writing |
 | `docs/level-design.md`, `docs/templates/map-spec.md`, `docs/design/scale-sheet.md` | The map standard (engine facts in Section 12), the map spec template, the size sheet | Any map or engine-fact change |
 | `docs/ct-prototype/` | The CT prototype job: the training course Marlow Yard (`CTCOURSE-SPEC.md`), slices, playtests | The CT prototype and training-level work |
-| `docs/locomotion/` | History: the movement run, its CT research (`CT-RESEARCH.md`), the first prototype plan (`PROTOTYPE-PLAN.md`) | Only for movement history |
-| `docs/consolidation/` | The consolidation run: audit, questions, Michael's answers, deletion logs | History of the 4.0.0 merge |
+| `docs/archive/locomotion/` | History: the movement run, its CT research (`CT-RESEARCH.md`), the first prototype plan (`PROTOTYPE-PLAN.md`) | Only for movement history |
+| `docs/archive/consolidation/` | The consolidation run: audit, questions, Michael's answers, deletion logs | History of the 4.0.0 merge |
 | `docs/operators/` | The operators run (feature/operators): Wren and Moth, the offline art pipeline (`scripts/operators/`), its decisions D1 onward (G75) | Operator art and Wren in-game work |
-| `docs/training/` | History: the Fallow bunker run (parked behind `?legacy=1`) | Only if Fallow returns |
+| `docs/archive/training/` | History: the Fallow bunker run (parked behind `?legacy=1`) | Only if Fallow returns |
 | `docs/process-audit/` | The 2026-10-19 process audit: report, approved changes | Questions about the test lists or these rules |
 | `docs/menu-ui/` | The Arkham Knight style menu plan (G77) | The menu job |
 | `docs/audio/`, `docs/music/`, `docs/audio-credits.md` | Foley, weapon audio and music logs and plans; CC0 credits | Sound and music work |
 | `docs/research/` | Night vision and lamp research | Vision and light work |
 | `docs/kestrel/` | The Kestrel map project and editor (paused until after the CT co-op research, G53) | Kestrel work only |
 | `docs/archive/ct-movement.md`, `docs/archive/ct-movement-progress.md` | The pre-prototype CT movement build (history; current rules: `docs/systems/movement.md`) | Only for movement history |
-| `docs/prompts/` | Old phase specs (Phase 0-1) and the music spec (history) | Do not read unless a job names them |
+| `docs/archive/prompts/` | Old phase specs (Phase 0-1) and the music spec (history) | Do not read unless a job names them |
 | `docs/archive/` | Retired maps, old changelog, testing and progress history | Do not read |
 | `TESTING.md` | The short desktop checklist and the release checklist | Ending a job |
 | `docs/systems/testing-tools.md` | Every e2e suite, helper scripts, debug overlay | Running or writing tests |

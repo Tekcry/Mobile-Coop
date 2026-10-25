@@ -15,7 +15,7 @@ atmosphere, the design findings, which open questions block a prototype, and a C
 **Sources.** `docs/ct-research/source/04-kit.md`, `07-audio-and-atmosphere.md`, `08-reception-and-design-findings.md`,
 `06-open-questions.md`, `03-mechanics.md` (guard senses, medkits, scoring), `00-index.md` (conventions), and Michael's
 decisions D-01 to D-25 in `docs/ct-research/source/raw/OPEN_QUESTIONS.md`. Night Shift context: `docs/DECISIONS.md`
-(G2, G11, G49, G63, G66, G67, G76, G82, G98, G99, G100, G113, G119), `docs/locomotion/BIBLE-PROPOSALS.md` (1-9),
+(G2, G11, G49, G63, G66, G67, G76, G82, G98, G99, G100, G113, G119), `docs/archive/locomotion/BIBLE-PROPOSALS.md` (1-9),
 `src/game/gadgets.ts`, `src/game/gadgetSystem.ts`, `src/config/arsenal.ts`, `src/weapons/weaponDefs.ts`,
 `src/game/vision.ts`.
 
@@ -427,7 +427,7 @@ values, not research.
 
 ## 5. G11: the nine movement-run ideas against CT
 
-G11 (Michael, 2026-10-17): "Keep only CT ones." The nine are `docs/locomotion/BIBLE-PROPOSALS.md` 1-9.
+G11 (Michael, 2026-10-17): "Keep only CT ones." The nine are `docs/archive/locomotion/BIBLE-PROPOSALS.md` 1-9.
 
 | # | Idea | Does CT have it? | Verdict |
 |---|---|---|---|
@@ -471,6 +471,6 @@ Result: **keep 1 (lights part), 2, 5, 6, 9; drop 3, 4, 7, 8.**
   jammer timing)
 - `docs/ct-research/source/raw/OPEN_QUESTIONS.md` (R-01 to R-23 status; D-01 to D-25)
 - `docs/DECISIONS.md` (vision summary, G2, G4, G11, G49, G52, G58-G67, G76, G82, G95, G98-G100, G113-G122)
-- `docs/locomotion/BIBLE-PROPOSALS.md` (proposals 1-9)
+- `docs/archive/locomotion/BIBLE-PROPOSALS.md` (proposals 1-9)
 - Code: `src/game/gadgets.ts`, `src/game/gadgetSystem.ts`, `src/world/lights.ts`, `src/config/arsenal.ts`,
   `src/weapons/weaponDefs.ts`, `src/game/vision.ts`, `src/game/gameState.ts`

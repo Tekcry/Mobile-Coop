@@ -5,12 +5,12 @@
 // "inside": the player is stood on the brightest spots in the camera's frame until the camera's own meters see them
 // (the shot fails, exit 1, if none is seen). "jammed": every camera whose cue is drawn goes blind. Needs `npm run build`.
 // GPU: E2E_GPU=1 on port 4189. Never headed, no pointer lock.
-// Usage: E2E_GPU=1 E2E_PORT=4189 timeout 900 node scripts/camera-cue-shots.mjs docs/camera-cue/shots slice1 high
+// Usage: E2E_GPU=1 E2E_PORT=4189 timeout 900 node scripts/camera-cue-shots.mjs docs/archive/camera-cue/shots slice1 high
 import { spawn } from 'node:child_process';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { launch } from './e2e-lib.mjs';
 
-const [dir = 'docs/camera-cue/shots', suffix = 'slice1', gfx = 'high'] = process.argv.slice(2);
+const [dir = 'docs/archive/camera-cue/shots', suffix = 'slice1', gfx = 'high'] = process.argv.slice(2);
 const PORT = Number(process.env.E2E_PORT ?? 4189);
 const URL = `http://127.0.0.1:${PORT}/`;
 

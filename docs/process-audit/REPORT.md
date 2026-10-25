@@ -223,7 +223,7 @@ Rules:
     Mission behind `?legacy=1` in REQUIRED. CLAUDE.md: parked systems get no new work. Yet a failure there blocks
     every PR.
 14. **Redundant flaky entry.** KNOWN_FLAKY lists e2e-bunker, which is LEGACY (it never fails a run anyway).
-15. **Doc index.** It points the CT prototype job at `docs/locomotion/`; the job's docs are `docs/ct-prototype/`.
+15. **Doc index.** It points the CT prototype job at `docs/archive/locomotion/`; the job's docs are `docs/ct-prototype/`.
 16. **Legacy list.** CLAUDE.md says `e2e:legacy` covers "Hunter, progression, cosmetics"; it also runs e2e-bunker.
 17. **Machines rule.** The laptop "light work only" rule (Michael, 2026-10-19) lives only in job STATE files and
     ROADMAP, not in CLAUDE.md.
@@ -273,17 +273,17 @@ Existing jobs keep their files as history (no renames); the format applies to ne
 ### Docs that read as current but are not (mark as history with a one-line banner; approve)
 | File | Says | Is |
 | --- | --- | --- |
-| `docs/locomotion/STATE.md` | "Consolidation to master ... then the CT prototype" | done (PR #3, #9) |
-| `docs/consolidation/HANDOVER.md` | resume point for the consolidation run | done (PR #3) |
-| `docs/training/STATE.md` | "PAUSED for Michael's walk 2" | Fallow parked (CT prototype B1) |
+| `docs/archive/locomotion/STATE.md` | "Consolidation to master ... then the CT prototype" | done (PR #3, #9) |
+| `docs/archive/consolidation/HANDOVER.md` | resume point for the consolidation run | done (PR #3) |
+| `docs/archive/training/STATE.md` | "PAUSED for Michael's walk 2" | Fallow parked (CT prototype B1) |
 | `docs/menu-ui/STATE.md` | "The run has not started" | merged (PR #8, #11) |
 | `docs/kestrel/progress.md`, `handover.md` | live stage table | paused (G53) |
 | `docs/operators/STATE.md` | cleanup, then Moth next | the cleanup job waits on the playtest (ROADMAP); Moth later |
-| `docs/goggle/PLAN.md` | parked (already marked) | parked; branch not merged (below) |
-| `docs/anim-cleanup/STATE.md` | "waits for Michael to merge" | merged (#12) |
+| `docs/archive/goggle/PLAN.md` | parked (already marked) | parked; branch not merged (below) |
+| `docs/archive/anim-cleanup/STATE.md` | "waits for Michael to merge" | merged (#12) |
 | `docs/ct-prototype/STATE.md` on master | "Updated 2026-10-18" | the live state is on feature/ct-prototype |
 | `docs/progress.md` | job list in places (the definition of done still says so) | history; ROADMAP is the job list |
-| CLAUDE.md doc index rows for `docs/locomotion/` and `docs/training/` | current jobs | history / parked |
+| CLAUDE.md doc index rows for `docs/archive/locomotion/` and `docs/archive/training/` | current jobs | history / parked |
 
 ### Branches (remote; nothing deleted, deletion is Michael's)
 | Branch | Status | Evidence | Suggestion |

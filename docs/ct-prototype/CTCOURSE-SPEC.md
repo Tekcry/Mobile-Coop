@@ -74,7 +74,7 @@ Positions: bay origin x0 = 22 (n - 1), z north, y up. "No light change" = under 
 | L26-L28 | S5 kill-house lamps, flush panels `{0.6, 0.05, 0.6}` at 3.85 under the roof slab, 0.8: front room (x0 + 11, z 7, r 8), back room over the hack panel (x0 + 14.2, z 3, r 8), over the medkit (x0 + 14.6, z 11.5, r 6) | The mock-up's ceiling panels | The rooms, the hack panel, the medkit | 16.8.1 |
 | L29 | S7 wall-top lamp (x0 + 9, 7.35, z 7), flush strip, 0.7, r 5 | A high hall's ceiling fitting over the rope wall | The holder on the wall top; no ground | 16.8.1 |
 
-Lamp colour (render only): cool white `[0.85, 0.92, 1]` (was the sodium default); S4 `[1, 0.82, 0.8]`. Light values before and after: `docs/marlow-bunker/LIGHT.md`.
+Lamp colour (render only): cool white `[0.85, 0.92, 1]` (was the sodium default); S4 `[1, 0.82, 0.8]`. Light values before and after: `docs/archive/marlow-bunker/LIGHT.md`.
 
 ### marlow-variety rows (the marlow-bunker polish list)
 | Id | Element | Real-world reason (one line) | Gameplay use | Rule |
@@ -92,7 +92,7 @@ Lamp colour (render only): cool white `[0.85, 0.92, 1]` (was the sodium default)
 | V11 | S4 hazard frame round the red release (white with red marks) | A safety release is framed | Finds the release (no light change) | 8 |
 | V12 | Hazard stripes on every course door frame (black, white diagonals) | Doors in a training bunker are hazard-marked | Finds the doors (no light change) | 16.3.1 |
 
-### sector-fixes S rows (the security room, `docs/sector-fixes/s/PLAN.md`)
+### sector-fixes S rows (the security room, `docs/archive/sector-fixes/s/PLAN.md`)
 | Id | Element | Real-world reason (one line) | Gameplay use | Rule |
 | --- | --- | --- | --- | --- |
 | SR1 | S3 security room, x0 + 7.6-13.6, z 8-14 (5.7 x 5.7 m inside) under the 4.5 m slab: new west and south walls (0.3 m, to the ceiling, `noLedge`); a 1.2 m door (z 9.2-10.4, lintel 2.1 m, steel frame, a plain unlocked door) in the far lobby's cross wall x0 + 13.6; camera space `tight` | The blast cell's guarded security room, off the secure side behind the camera | Optional co-op beat for whoever crossed first: the door is behind the camera, out of frame at every sweep angle; nothing new to climb | 16.6.2 |

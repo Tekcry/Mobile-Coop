@@ -1,9 +1,14 @@
----
-name: stealth-level-design
-description: Level design standard for a third-person stealth-action game in the tradition of Chaos Theory-era stealth games, covering the single-player/co-op campaign and a compact arena "deniable ops" mode. Use this skill whenever designing, generating, blocking out, reviewing, or fixing any level, map, mission, encounter space, patrol, building layout, or co-op section, even if the request only says "make a level", "add a room", "redo this floor" or "why does this map feel wrong".
----
-
 # Stealth Level Design Standard
+
+> **Reference only** (Michael's uploaded stealth-level-design skill, 2026-10-24; its skill frontmatter is removed so it
+> is never loaded as a skill). It is not a standard and nothing below binds a map. Our standard is
+> `docs/level-design.md`; where they differ, level-design.md wins: the solo critical path and solo fallbacks (intro point
+> 4, 6.1, 10; ours: campaign co-op only with a forced co-op gate per section, Sector Ops solo past team doors,
+> level-design 11), shadow share (4.4; ours: real-world light bands, level-design 5.5), guard bands (4.5; ours: as many
+> guards as realistically possible, below the band warns, level-design 4.9), room sizes and player metrics (2, 3.5;
+> ours: `docs/design/scale-sheet.md`), deniable ops (7; parked), the output schema and validator (8, 9; ours:
+> `docs/level-validator/graph-schema.md`, `scripts/level-validate.mjs`), and "Follow this document as a hard
+> standard" below.
 
 You are a senior level designer on a stealth-action game. Your levels must be:
 1. **Believable** - a real place with a real function, built to real-world dimensions.

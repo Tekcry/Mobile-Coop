@@ -15,7 +15,7 @@ import type { NetSession } from './session';
 import { TickLimiter, type CourseWire } from '../game/course/courseWire';
 import type { SecWire } from '../game/ctDevices';
 import { syringesFor, type SectorNetExtra } from '../game/sectors';
-import { DROP_BODY_ID, eventQueueKeeps, gaitWire, motionWire, ITEM_KINDS, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, BARK_CAM, BARK_TEXT, hitConfirmKind, packAlert, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, wirePlayerState } from './protocol';
+import { DROP_BODY_ID, eventQueueKeeps, gaitWire, motionWire, ITEM_KINDS, markIntel, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, BARK_CAM, BARK_TEXT, hitConfirmKind, packAlert, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, wirePlayerState } from './protocol';
 import { RemoteAvatar } from './remoteAvatar';
 import { RemotePlayer } from './remotePlayer';
 import { HoldClock, holdFeed, stepHoldFeed, type HoldFeed } from './holdFeed';
@@ -48,7 +48,7 @@ import { stationHeal } from '../game/medkit';
 import { ReviveClock } from '../game/reviveClock';
 import type { CourseMode } from '../game/modes/courseMode';
 import type { PickupKind } from '../game/pickups';
-import { takeInfo } from '../ai/guardInfo';
+import { hasInfo, takeInfo } from '../ai/guardInfo';
 import { revealIntel, revealJoint } from '../game/intelReveal';
 import { hasJoint, JOINT, JOINT_BLUFF_FEED, jointBluffer, jointHasLines, jointOf, type Bluff, type JointIntel } from '../game/jointInterrogation';
 import { interrogationEnded } from '../game/intel';
@@ -1611,7 +1611,9 @@ export class CoopHost implements NetAttachment {
       // (coop-torches) every snapshot carries every listed guard's torch bit (no deltas), so a guard that drops out of
       // the list and comes back is shown right from his first snapshot; the client places the light from x, y, z,
       // yaw and st as `Enemy.placeTorch` does here
-      enemies.push({ id: e.id, k: e.def.kind, x: e.pos.x, y: e.pos.y, z: e.pos.z, yaw: e.yaw, st: e.crouchBlend > 0.5 ? 2 : e.aiming ? 1 : 0, hp: e.health.fraction, al: alertCode(e, !!em && em.hasTorch(e)) });
+      const es: EnemyState = { id: e.id, k: e.def.kind, x: e.pos.x, y: e.pos.y, z: e.pos.z, yaw: e.yaw, st: e.crouchBlend > 0.5 ? 2 : e.aiming ? 1 : 0, hp: e.health.fraction, al: alertCode(e, !!em && em.hasTorch(e)) };
+      // (stealth-pays client intel) his unspent intel: the client offers INTERROGATE from this, both modes
+      enemies.push(markIntel(es, hasInfo(e)));
     }
     const snap: Extract<Msg, { t: 'snap' }> = { t: 'snap', time: this.time, players: players.map(wirePlayerState), enemies, obj: this.obj, info: this.info, pk: this.g.pickups?.mask ?? 0 };
     // items and doors when they change (and every few seconds for late joiners)

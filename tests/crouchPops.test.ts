@@ -1,6 +1,6 @@
 // (crouch-pops) Michael's Body tune (idle / walk / jog / run trackMul 0.05, the crouched rows 1) changed rows at crouch
 // 0.5 and then eased the stance width over BODY_TAU: a step in the width's velocity mid-crouch (e2e-anim's two crouch
-// pops, docs/crouch-pops/BRIEF.md). The Body base now blends the standing row toward the crouched row by the crouch
+// pops, docs/archive/crouch-pops/BRIEF.md). The Body base now blends the standing row toward the crouched row by the crouch
 // amount (CP-A2). Asserted on the posed rig, CT-driven (helpers/mocapPlayer), mocap OFF and ON:
 // - the stance width's velocity changes by no more than 0.5 cm per 60 Hz frame over the transition;
 // - the e2e-anim pop metric (the worst velocity change of the hips, wrists, head and the knees over planted feet, in the

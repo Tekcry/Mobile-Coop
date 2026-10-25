@@ -10,7 +10,7 @@ Source keys (file:line):
 - **R10** `git show archive/ct-research-raw:docs/ct-research/source/raw/10_ai_detection_and_alarms.md` (raw, unscrubbed:
   read for facts only, never copy names; G154) | **R03** `.../source/03-mechanics.md` | **R07** `.../source/07-audio-and-atmosphere.md`
 - **DEC** `docs/DECISIONS.md` | **BIB** `docs/design-bible.md` | **LD** `docs/level-design.md` |
-  **REV** `git show origin/feature/menu:docs/reviews/guards-review.md` | **PRO** `docs/ct-prototype/`
+  **REV** `git show origin/feature/menu:docs/archive/reviews/guards-review.md` | **PRO** `docs/ct-prototype/`
 - Confidence tags as in the digests: [C] confirmed (2+ sources), [1] one source, [?] unknown, [A] analysis (the
   researchers' design reading, not a CT fact).
 

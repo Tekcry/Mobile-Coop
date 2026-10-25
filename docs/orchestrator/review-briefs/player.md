@@ -3,7 +3,7 @@
 Michael (G355): "All current maps/features should be revised once documentation work has been completed". No src, test, map or config change.
 
 ## Docs
-origin/master after #398, #402, #404 land (until then read `C:/NightShift/Mobile-Coop-doc-polish-l`).
+origin/master after #407 (and #400) land (until then read origin/feature/doc-final: `git show origin/feature/doc-final:<path>`).
 
 ## Scope
 Every live map players move on: `ctcourse`, `campusOps`, `warehouseOps`; Tallow Wharf from `git show origin/feature/mission-engine:src/world/maps/tallowWharf.ts`.

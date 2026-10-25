@@ -8,9 +8,9 @@ Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.m
 - `docs/templates/map-spec.md`: the template for a new map's spec (fill it, then run its phases).
 - Map specs: Marlow Yard in `docs/marlow-final/` (SPEC.md, PLAN.md), Saltmarsh Park in `docs/sector-redesign/`
   (SPEC.md, PLAN.md), Tallow Wharf (campaign Mission 1) and the first four mission prototypes in `docs/missions/` (the
-  mission-framework job, PR #372), Kestrel in `docs/kestrel/` (paused, G53), the Fallow bunker in `docs/training/`.
-  Decided, not built yet (G55): one folder per map under one maps folder. The retired maps (the 1934 Exchange, Trunk
-  Annex, Dead Line v1 and v2) are deleted; their design files are in `docs/archive/maps/`.
+  mission-framework job, PR #372), Kestrel in `docs/kestrel/` (paused, G53), the Fallow bunker in
+  `docs/archive/training/`. Decided, not built yet (G55): one folder per map under one maps folder. The retired maps
+  (the 1934 Exchange, Trunk Annex, Dead Line v1 and v2) are deleted; their design files are in `docs/archive/maps/`.
 
 ## World and player
 - Maps (`world/maps/*.ts`) are `MapDef`s: a `build(builder, seed)` that places modular pieces through
@@ -129,7 +129,8 @@ Plan and rules: `docs/sector-redesign/briefs/ART-PLAN.md`; builds: `docs/sector-
   pre-layer Wren fixture).
 - (anim-weight) The local player's Weight layers (lean, bank, plant / landing load, chest / head / arm / gear springs,
   anticipation) sit after the graph's pose in `AnimGraph.writeTargets` (`weightApplyPose`) and on the carried guns
-  (`WeaponModel.weightGear`); local pose only, identity by default (`src/anim/weight.ts`, `docs/anim-tuner/WEIGHT.md`).
+  (`WeaponModel.weightGear`); local pose only, identity by default (`src/anim/weight.ts`,
+  `docs/archive/anim-tuner/WEIGHT.md`).
 - Wren's hands (weapons job, anim-cleanup): morph targets `gripR`, `gripL`, `wrapR`, `relaxR`, `relaxL` on her game files,
   blended by `rig.handGrip` and `rig.rightTrigger` (trigger, support, wrap, relaxed). Magazines are a separate `<id>-mag`
   mesh moved by the reload clips (`reloadClipFor`); the audit sheets are `scripts/anim-cleanup/sheets.mjs` and
@@ -167,7 +168,7 @@ Plan and rules: `docs/sector-redesign/briefs/ART-PLAN.md`; builds: `docs/sector-
   a no-op here (only the player's camera fades a head). Flag `guardMerge` (`?guardmerge=0`: the old instanced parts, for
   comparisons). Casters under 0.3 m are skipped by the lamp / moon shadows (`lightRig.ts`, `world.ts`): heads, hands,
   forearms and feet were, the merged body is not, so they cast shadows now. Measured (24 guards, laptop GPU, Epic):
-  `docs/guard-render/run-s1` against `run-s1-off`. A body effect that will not finish compiling (Babylon's poll timed
+  `docs/archive/guard-render/run-s1` against `run-s1-off`. A body effect that will not finish compiling (Babylon's poll timed
   out, the compile failed, its program was disposed under it, or as a last resort 90 s and 30 frames unready; a slow
   parallel compile is left to finish, body watchdog) is dropped and recompiled,
   at most 3 times per variant with a console warning (`bodyEffectRecovery.ts`, guard-ai carry fix: a stall during a

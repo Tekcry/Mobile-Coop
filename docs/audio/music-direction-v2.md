@@ -4,7 +4,7 @@
 > `music-v2-archive`. Kept for history; the state logic of Section 7 and the mix rules of Section 10 carry into v3.
 
 Version 2.1 - 2026-10-09 (Stage V1, round 2). Replaces `docs/audio/music-direction.md` (v0.1, kept for history).
-Brief: `C:\NightShift\bundles\music-direction-v2.md`. Build and staging rules: `docs/prompts/music-spec.md` Section 2.
+Brief: `C:\NightShift\bundles\music-direction-v2.md`. Build and staging rules: `docs/archive/prompts/music-spec.md` Section 2.
 Approval: Michael, by ear in the music lab.
 
 **Why v2:** Michael heard the M1 calm and combat states and did not like them. The score keeps the found-sound skin

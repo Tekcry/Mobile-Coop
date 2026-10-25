@@ -14,7 +14,7 @@ guard-cap campus 24 facing: CPU p95 17.8 patrol / 19.7 alert, draws 541 / 589. T
 brief. Overage = the guards, ~0.28-0.34 ms CPU each.
 
 ## Cause (where a guard's CPU goes)
-Sources: guard-render's laptop guard-cap runs in the repo (`docs/guard-render/run-s6-on`, `run-s4-on` in 7f4bb197) and a
+Sources: guard-render's laptop guard-cap runs in the repo (`docs/archive/guard-render/run-s6-on`, `run-s4-on` in 7f4bb197) and a
 NullEngine micro-benchmark on this branch (24 grunts, merged body, rifle, 4 shadow passes; desktop under load, so only
 the ratios count; the probe file was not committed).
 1. The AI is not it. Sim per 60 Hz step per guard (Sector Ops, laptop): AI manager 0.004 ms, perceive 0.001 ms,

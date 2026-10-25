@@ -1,4 +1,4 @@
-// coop-fix GPU suite (docs/coop-fix/FIX-REPORT.md): the host's character is drawn on the joiner at High and Epic, through
+// coop-fix GPU suite (docs/archive/coop-fix/FIX-REPORT.md): the host's character is drawn on the joiner at High and Epic, through
 // the REAL menu flow (title -> main menu -> Co-op -> Host a room / Join with code -> lobby -> Ready -> Start mission,
 // Marlow Yard, Course mode), on the GPU (`E2E_GPU=1`, Michael's PC, `npm run e2e:gpu`, port 4189). The bug it guards: at
 // gfx high / epic the baked-lamp plugin on a shared figure material broke a later material clone, the partner figure
