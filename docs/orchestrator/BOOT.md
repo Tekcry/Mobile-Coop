@@ -95,7 +95,7 @@ Message "Night Shift | Orchestrator" only at PR open / train-ready / blocked / n
   train-ready tell the orchestrator (RULES "Getting to master").
 
 ## Cloud Builder
-- Model as Michael starts it; cloud (claude.ai/code on Tekcry/Mobile-Coop). Cannot message other sessions: git is the
+- Model as the orchestrator starts it (one per swap; PROMPTS.md line 8); cloud (claude.ai/code on Tekcry/Mobile-Coop). Cannot message other sessions: git is the
   output. No conformance review: its briefs come only from the cloud-queue README.
 - Read `docs/systems/agent-preamble.md` (origin/master), then README.md on the orphan branch cloud-queue
   (`git fetch origin cloud-queue; git show origin/cloud-queue:README.md`) and run its "Cloud builders" loop until the
