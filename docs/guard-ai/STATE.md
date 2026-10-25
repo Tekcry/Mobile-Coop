@@ -1000,18 +1000,22 @@ C:/NightShift/Mobile-Coop-laptop-queue-svc && node scripts/laptop-queue/request.
 laptop-e2e/<set>; background wait loop. Laptop auto mode blocks labels: tell the orchestrator at train-ready.
 DOCS-FIRST HOLD (G346, G355): no new game work until Michael signs off the folded plan (ROADMAP Now row 6);
 finished PRs may ship.
-Open (save 2026-10-25 ~16:35, booted on the laptop, holding):
-1. Conformance review PR #423 MERGED (head fc3f3feb): checker PASS (CHECK.md, fix round
-   1 applied), 40 gaps, 7 hard-rule breaks, 9 Michael questions (CONFORMANCE.md 1e), folded into
-   docs/orchestrator/FOLDED-PLAN.md. HOLD until the orchestrator messages at the row 6 sign-off.
-2. #360 PAUSED to row 6 (Michael 13:30). Head 155d68a3 (look script split out to draft #414,
-   feature/guard-ai-t1-look-script). Draft; requests withdrawn. Resume: measure + look as --alone requests (sets
-   t1-shadow-measure / t1-shadow-look2, quote "&" queries for cmd.exe), T1-SHADOW-REPORT.md, 2 Opus checkers.
-3. #317 coop4 HOLD (orchestrator: row 16 after row 6). laptop-e2e/coop4-fix7 green on 24ba2e518. Before release:
-   CONFORMANCE D3 (dark coop4 flag) and D4 (campaign room cap from the mission). Conflicts: protocol.ts (keep
-   master's PROTOCOL_VERSION, coop4's MAX_PLAYERS comment), coopHost.ts, docs coop.md / testing-tools.md.
-4. After sign-off (ROADMAP row 14): lookouts + paired patrols (G335), helmets by tier (G350), dogs (G348); row 11
-   character shadows in perception (G352, with Sector Ops); spot-height slice (slices/SPOT-HEIGHT-BRIEF.md, A196).
-5. Waiting: mission hooks em.missionOrder (Campaign Build's go); Michael's calls A148 / S23 / S25; after #317:
-   feature/coop4-pol (134f6abe) alone 7-9 set, snapBudget headroom, comment coopHost.ts:589, TODO sectorMode.ts:201.
+Open (save 2026-10-25 ~18:30; row 6 SIGNED OFF ~17:00, hold lifted, full burn; order J1 -> J4, J15, J6, J16):
+1. J1 docs PR #435 (feature/guard-ai-docs-j1, worktree -guard-ai-docs-j1): checker FIX 1 applied, PASS posted on
+   398d5f05. Waits for watchdog label / train.
+2. J4 G327 PR #438 (feature/guard-ai-g327 = #360 + master merge; #360 CLOSED): 2 Opus checkers running (commit as
+   slices/G327-CHECK-A/B.md); laptop alone measure set g327-measure (agent writes slices/T1-SHADOW-REPORT.md).
+3. J4 #317 coop4 READY, ships ON (Q16). D4 room cap hook 0837f147 (NetSession.roomCap / cap). Laptop sets coop4-full
+   + alone-coop4-4p queued on 0837f147; 2 Opus checkers -> docs/coop4/checks/release-check-A/B.md. Master conflicts
+   (protocol.ts, coopHost.ts, coop.md, testing-tools.md) resolved train-side by hand.
+4. J6 src/ai allocations (D1, D2): Opus builder on feature/guard-ai-alloc (worktree -guard-ai-alloc); then PR + 2 checkers.
+5. J15 guard-rules: Opus planner -> docs/guard-rules/BRIEF.md + PLAN.md on feature/guard-rules (worktree -guard-rules);
+   then plan checker, builders. Answers: Q9 dog kill = kill + lose score, Q12 no campaign riot shields, Q13 vent
+   lookout overlooks the run / exit; helmets Realistic + Perfectionist, Perfectionist locked.
+6. Next plans: J16 perception half (Q14 cast shadow = a faint cue; after Sector Ops' J16 PR); J26 mission guard
+   reactions (Michael signed #372 pages ~18:05): Two-Key Ledger bell sends the porter, Split Shift facilities officer
+   to the plant room and back with reception, Code Relay release calls the supervisor to the cage (BEAT.md on
+   feature/mission-framework; em.missionOrder over Enemy.sendTo enemy.ts:1260 / resetBreaker :1407).
+7. Later: feature/coop4-pol (134f6abe) alone 7-9 set, snapBudget headroom, comment coopHost.ts:589, TODO
+   sectorMode.ts:201. Sector Ops: lighting.md:28 restates the G45 glass rule (J1 checker polish 7).
 ```
