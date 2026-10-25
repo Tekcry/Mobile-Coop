@@ -1003,7 +1003,7 @@ C:/NightShift/Mobile-Coop-laptop-queue-svc && node scripts/laptop-queue/request.
 laptop-e2e/<set>. Withdraw = delete requests/<id>.json on origin/laptop-queue (plumbing commit, never in the svc
 worktree). Background wait: scratchpad wait-status.sh "<sha>:<context>" ... Laptop auto mode blocks labels: tell the
 orchestrator at train-ready. Walk cap: Guard AI AT CAP (new behaviour dark; rule fixes ship on, G355).
-Open (2026-10-25 ~23:30 SAVE, new session after a swap; full burn; order J4, J6, J15, J26, J16). Checker statuses: a LONE
+Open (2026-10-26 ~00:15, new session after a swap; full burn; order J4, J6, J15, J26, J16). Checker statuses: a LONE
 `gh api repos/Tekcry/Mobile-Coop/statuses/<sha> -f ...`. Local tsc / vitest builders only while laptop CPU < ~80%.
 File every gate request WITH the head push; post the checker the moment it passes (orchestrator 23:05: #446 missed
 train 106 by 2 min). One affected run per head covers its suites: no duplicate requests.
@@ -1014,7 +1014,7 @@ train 106 by 2 min). One affected run per head covers its suites: no duplicate r
    protocol 63, coop.md, testing-tools.md) and runs e2e-sectorops:7/:8/:9 alone on the train head. Never push to
    feature/coop4. Polish -> coop4-pol: sectorMode.ts:1434 OUT slot from RemotePlayer.ref.slot; main.ts:332 text;
    coopUi.ts:87 roomCap; testing-tools part 9 bullet.
-3. J6 #446 head 97c6338f: TRAIN-READY (labelled; missed train 106, next train).
+3. J6 #446 MERGED.
 4. J15 PR1 #450 (feature/guard-rules 211a66d5): checker success posted ~23:25; laptop-e2e/rules-pr1 on a78d7093 green
    (6/7, known-flaky ctcourse:4); only affected-e2e on 211a66d5 (091818) pending. #450 CONFLICTS with master in two docs (docs/systems/ai.md,
    takedowns.md), so CI `check` never ran; orchestrator told (train merge by hand). Green -> checker on the head, tell
@@ -1027,17 +1027,19 @@ train 106 by 2 min). One affected run per head covers its suites: no duplicate r
    S6 pairs + fragment. All checks PASS (S4/S6 A + B, PR3-RECHECK-A/B); checker posted on 48394def2. Laptop set
    laptop-e2e/rules-pr3 queued on e3df84001 (48394def2 is a docs-only delta). PR3 opens after PR2 merges (base master).
    Polish list: checks/S6-CHECK-A/B.md, PR3-RECHECK-A/B.md polish.
-   J15 PR4 wave 4 RUNNING from 48394def2: Opus builders S7 lookouts (worktree -guard-rules-s7, feature/guard-rules-s7)
-   and S8 dog release (-guard-rules-s8, feature/guard-rules-s8); briefs docs/guard-rules/slices/S7/S8-BRIEF.md (lead
-   decisions S7-a, S7-d, S8-a). S8's ai.md lines come in its report: lead folds them on -s8. Then 2 Opus checkers
-   each; S9 (campus data) cut from S7's head after it passes; PR4 branch = merge into a new branch off PR3.
-   node_modules: junctions -> guard-ai-s24.
+   J15 PR4 wave 4 (base 48394def2). S8 dog release DONE: feature/guard-rules-s8 c74ad59e8 (code a5d18b277), checks
+   A + B PASS (docs/guard-rules/checks/S8-CHECK-A/B.md), checker posted; tsc + 29 vitest green. S7 lookouts: steps
+   1-5 on feature/guard-rules-s7 7b9687b42; an Opus builder (new session) finishes step 6 (e2e-sectorops lookouts)
+   and ai.md, folding S8's lines (+ "already searching starts over", fill-queue dogs, S8-d). Then 2 Opus checkers on
+   S7; S9 (campus data) cut from S7's head after it passes; PR4 branch = merge -s7, -s8 (and S9) into a new branch
+   off PR3. S8 polish: e2e margin 15 -> 20 m (e2e-stealth-ai.mjs:3317), restartSearch() helper, dead leader at
+   enemy.ts:1690; walk item 7 says camera alarms send dogs round their handlers. node_modules: junctions -> guard-ai-s24.
 7. J26 mission hooks: plan PASS (044258624). Every slice starts after J15 PR4 merges: S1a -> S1b; S2 -> S3 -> S4.
    Campaign Build SENT the PLAN's C1-C7. A9 per-area stages dark: Michael's click at his walk.
 8. Test Runner request (J20 S6b): seed the 5 Math.random sites in src/ai (enemy.ts think cadence x2, enemyManager
    radio delays x2, reconDrone start angle) after J6 lands and PR-C (tests/replayDeterminism.test.ts) is on master.
 9. J16 perception half (Q14 cast shadow = faint cue): plan after Sector Ops' J16 PR. Later: coop4-pol (134f6abe),
    snapBudget headroom, coopHost.ts:589 comment, TODO sectorMode.ts:201.
-Next: S7 / S8 builders -> 2 Opus checkers each, then S9; background wait on #317 / #450 affected, rules-pr2-early, rules-pr3 (scratchpad
-wait-status.sh).
+Next: S7 builder -> 2 Opus checkers, then S9; background wait on laptop-e2e/affected for #317 / #450, rules-pr2-early,
+rules-pr3 (scratchpad wait-status.sh polls a sha:context list).
 ```
