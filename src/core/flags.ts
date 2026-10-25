@@ -64,6 +64,15 @@ export interface Flags {
   /** (sector-redesign perf) Sector Ops guards whose body and shadows cannot reach the screen skip the render
    *  (`sectorGuardFreeze.ts`); `?guardfreeze=0`: off, for comparisons. */
   guardFreeze: boolean;
+  /** (guard-rules S6, A10, A11) Pairs that walk together check on each other at once; posted pairs talk and check.
+   *  `?guardpairs=1`. DEFAULT OFF until walk item 5 (owner Guard AI Build, switch-on target 2026-10-29). */
+  guardPairs: boolean;
+  /** (guard-rules S7, A9) Lookout posts: never sent, never leave, radio a sighting. `?lookouts=1`. DEFAULT OFF until
+   *  walk item 6 (owner Guard AI Build, switch-on target 2026-10-29). */
+  lookouts: boolean;
+  /** (guard-rules S8, A12) Alarm stage dogs leave the heel for the last known position. `?dogrelease=1`. DEFAULT OFF
+   *  until walk item 7 (owner Guard AI Build, switch-on target 2026-10-29). */
+  dogRelease: boolean;
 }
 
 /** (mocap-trial) An on / off URL value: "1" true, "0" false, anything else (or absent) null. */
@@ -133,4 +142,8 @@ export const flags: Flags = {
   animTier: params.get('animtier') !== '0',
   guardSun: params.get('guardsun') !== '0',
   guardFreeze: params.get('guardfreeze') !== '0',
+  // (guard-rules F0) dark until their walk items are accepted (PLAN "Flags"): `=1` turns each on
+  guardPairs: params.get('guardpairs') === '1',
+  lookouts: params.get('lookouts') === '1',
+  dogRelease: params.get('dogrelease') === '1',
 };
