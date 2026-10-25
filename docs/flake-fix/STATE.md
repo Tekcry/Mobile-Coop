@@ -13,7 +13,10 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   conflict is resolved in its train. Train 91 (#424) next on the laptop at the 14:03 save.
 - 14:16: train 91 (#424, 19c3db9c) started; it had waited on d9b8 (gap full, 43/43, done 14:12) and #418's affected
   (24/24, done 14:15). Withdrew ...-2158 full-4102-r2 so no gap full run takes a slot ahead of a train.
-- Next: read the five remaining SAVE 49 run folders (scratch/laptop-queue/runs/<id>/) and send flake rates to owners; push
+- 14:42 (Orchestrator): withdrew 5966 / 484e / 222f / cabc (aged alone runs jumped PR work; #400 missed train 92).
+  Rule from now: no full or alone gap runs while any PR is train-ready or a train is pending. Only d9b8 (full 43/43)
+  ran; 5966 was preempted at 14:35 and left laptop-e2e/alone-soak-flaky-4102 pending on 39668c06 (a master sha, no gate).
+- Next: queue gap runs only when no PR is train-ready and no train pending; no run folders to read beyond d9b8 (scratch/laptop-queue/runs/<id>/) and send flake rates to owners; push
   guard-cap r4102-* to feature/guard-cap-results run-4102/; triage any red train at once (Opus); reopen #422 only
   after the Orchestrator's plan sign-off.
 
