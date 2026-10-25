@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 2 2026-10-25T13:51Z
 
 # campaign J8 G0: shared Tallow data, night floor, medkits, level-and-drop check (Sonnet 5.5)
 
