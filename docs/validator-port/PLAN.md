@@ -34,7 +34,7 @@ Five PRs, each under ~1.5k counted lines, each with one Opus checker (FOLDED-PLA
 | --- | --- | --- | --- | --- |
 | A gate core | `feature/validator-port` | S0, S3, D-A | ~1,390 (S0 ~930, S3 ~460) | S0, S3 checker PASS |
 | B measure core | `feature/validator-port-measure` (from origin/master) | S1, D-B | ~1,050 | S1 checker PASS |
-| B2 measure CLI, sheet rows | `feature/validator-port-measure-cli` (from B's head; merges S7a's branch) | S2, S7a, D-B2 | ~740 (S2 ~630, S7a ~110) | B merged on master |
+| B2 measure CLI, sheet rows | `feature/validator-port-measure-cli` (from B's head; merges S7a's branch) | S2, S7a, D-B2 | ~790 (S2 ~680, S7a ~110) | B merged on master |
 | C training, perfect run, CI, graphs | `feature/validator-port-train` (from A's head after S0; merges A's, B's and B2's branches) | S4, S6, S5, S7b, S9, S10, D-C, I-C | ~1,400 (S4 ~530, S6 ~330, S5 ~270, S7b ~170, S10 ~100, S9 0) | A, B and B2 merged on master (so C's diff is its own) |
 | D mission re-cut | `feature/validator-port-mission` (from A's head; merges C's branch) | S8, D-D, I-D | ~1,060 | C merged on master |
 
@@ -42,7 +42,7 @@ S0's ~930: the helper move (master `scripts/level-validate.mjs:27-72` and `:79-2
 then PROFILES and the twelve mode tests ~90, wiring, flag, merge and `linkTime` ~60, the A25 kinds ~40, five stubs
 ~45, `levelProfiles` ~200, inline `levelValidate` fixture edits ~40, re-exports ~20. PR B grew past the cap with
 `resolvePoints` (S1 ~1,050: V6's 589 + 220 test lines, way back ~100, resolver ~120, master API fixes ~20) and
-`--points` (S2 ~630: V6's 438, `ways_back` and `--points` ~60, CLI test ~130), so the measure CLI is its own PR (B2),
+`--points` (S2 ~680: V6's 438, `ways_back` and `--points` ~60, `--flags` ~50, CLI test ~130), so the measure CLI is its own PR (B2),
 and the small S7a rides it. Branch merges between these integration branches are feature-branch merges; none merges
 master.
 
@@ -101,7 +101,7 @@ lists every file the slice may touch; no two slices running at once own the same
 | --- | --- | --- | --- | --- | --- | --- |
 | S0 | Lib split, PROFILES (Q29 row), module wiring, `--require-measured` flag, mission-node merge, `linkTime` measured, A25 kinds | `scripts/level-graph-lib.mjs`, `scripts/level-validate.mjs`, `scripts/level-checks/{measured,training,perfect,engine}.mjs` (stubs), `scripts/mission-validate.mjs` (stub), `tests/levelProfiles.test.ts`, `tests/levelValidate.test.ts`, `docs/level-validator/example.graph.json` | ~930 | Opus | - | `levelValidate`, `levelProfiles` |
 | S1 | Port `levelMeasure.ts` to master; add way-back measure and J13's `resolvePoints` | `src/world/levelMeasure.ts`, `tests/levelMeasure.test.ts` | ~1,050 | Opus | - | `levelMeasure` |
-| S2 | Port `level-measure.mjs` CLI; write `ways_back`; `--points` | `scripts/level-measure.mjs`, `tests/levelMeasureCli.test.ts` | ~630 | Sonnet | S1's exported API (V6's + `resolvePoints`) | `levelMeasureCli` |
+| S2 | Port `level-measure.mjs` CLI; write `ways_back`; `--points`; `--flags` (J17) | `scripts/level-measure.mjs`, `tests/levelMeasureCli.test.ts` | ~680 | Sonnet | S1's exported API (V6's + `resolvePoints`) | `levelMeasureCli` |
 | S7a | V12 + sheet rows: metrics-gen rejects unknown flags; rows `nav_floor_depth_m`, `ladder_grab_m`, MV's six `mission_*` rows; relay lip derivation (A24) | `scripts/metrics-gen.mjs`, `tests/metricsGen.test.ts`, `docs/design/scale-sheet.md`, `docs/design/metrics.json` | ~110 | Sonnet | #443 (merged 4.103.3) | `metricsGen` |
 | S3 | `checkMeasured` port with V1 and V2 | `scripts/level-checks/measured.mjs`, `tests/levelMeasured.test.ts`, `docs/validator-port/fragments/S3.md` | ~460 | Opus | S0 | `levelMeasured` |
 | S6 | Ghost / no-kill paths, `requires_kill`, `mark`; T H4 static test | `scripts/level-checks/perfect.mjs`, `tests/levelPerfect.test.ts`, `tests/noForcedKill.test.ts`, `docs/validator-port/fragments/S6.md` | ~330 | Opus | S0 | `levelPerfect`, `noForcedKill` |
@@ -171,7 +171,11 @@ index, `geom` equal to `measureGraph`'s).
 write `meta.measured.ways_back` with `--write`; add `--points <out.json>` (writes `resolvePoints`' result for the
 merged graphs, section 8; touches no graph file; combines with `--check`, not with `--write`); export its pure parts
 (`parseArgs`, the JSON text patcher) for `tests/levelMeasureCli.test.ts` (unknown option exit 2, `--doors` values,
-`--points` with and without a path, a patch that leaves the rest of the file byte-identical). No `package.json` edit
+`--points` with and without a path, a patch that leaves the rest of the file byte-identical, and a second `--write`
+of the same values that changes no byte, so J17's switch-on re-measures diff only what moved). Add `--flags
+<key>=<value>[,<value>]` (J17's ask, section 7): after loading `src/core/flags.ts` through the same SSR loader and before
+the map builds, set that key of `flags` (a number list, a number or a boolean, by the key's current type); an unknown
+key exits 2; repeatable; the test sets an existing key and refuses a made-up one (+~50 lines). No `package.json` edit
 (S5 owns it): run it as `node scripts/level-measure.mjs`. Done: the CLI test green;
 `node scripts/level-measure.mjs docs/level-validator/example.graph.json --map proving` exits 0, and with
 `--points <tmp>.json` writes one entry per space and per merged link.
@@ -347,6 +351,36 @@ mission-node merge to S0; `mark` and `requires_kill` to S6; `mission_*` rows to 
   left. Its relay row hand-over is A24 (S7a); its "check later" rows are BRIEF Out of scope.
 - **Orchestrator J1 / J2:** J1 fixes LD 13's Marlow folder line; J2 gives Q24 / Q29 G numbers. D-A / D-C touch LD
   11.9 (its tag and graph kinds), 14 (3) item (1), the 15 measured line and the rule index only.
+- **Claims overlaps** (`node scripts/claims-check.mjs --plan docs/validator-port/PLAN.md --name feature/validator-port`,
+  2026-10-25: 26 overlaps with 40 open plans; none on maps, wire or save). In order of weight:
+  - **J17 campus-greybox:** the five live `docs/sector-redesign/graph/campusOps-S{1..5}.json`,
+    `docs/level-validator/graph-sets.json`, `scripts/level-measure.mjs`, `docs/systems/testing-tools.md`. Order: J12
+    first, as J17's PLAN :120 already says. J12's S10 owns the live graph files until J17's SW-<N> moves each v2 file
+    over (J17 BRIEF A13; J17 lanes edit only `graph/v2/`); S5 writes `graph-sets.json` and J17 changes a section's counts
+    at its switch-on; S2 writes `level-measure.mjs` (with the `--flags` argument J17 asked for, below), so J17's MEAS-0 is
+    not needed; J17's testing-tools lines go after D-C. Each SW-<N> re-measures all five live graphs with
+    `level-measure.mjs --write` and runs `tests/levelMeasureCampus.test.ts` green in the same PR (one whole-map `geom`
+    hash makes all five stale; campus-greybox 9f36223c1 PLAN :134, :310-318). So: PR B2 (S2, `--write`) and PR C (S10's
+    campus re-measure and the drift test) land before J17's first SW-<N>; after PR C, J12 does not re-measure the live
+    campus graphs again (SW-<N> owns every later re-measure); `--write` output is stable (same build, same bytes; S2
+    test).
+  - **J17's two asks** (its PLAN :15, :51; BRIEF A18). (1) `--flags campusV2=1,2,3,4,5` on `level-measure.mjs`: yes, in
+    S2 (a generic `--flags <key>=<value>` that sets that key of `src/core/flags.ts`'s `flags` before the map builds,
+    unknown key exit 2; +~50 lines), because it keeps `level-measure.mjs` one owner's file and drops J17's MEAS-0 slice.
+    (2) Accept `unavoidable` on a guarded exit connector (master `scripts/level-validate.mjs:796` WARNs "not a guarded
+    encounter space"): no. graph-schema defines the tag as "a guarded encounter space" (`:162`) and keeps `guards` on
+    encounter spaces (`:77`), so widening it is a change to the standard's graph rules that no Michael answer covers
+    (A22). J17's fallback stands: the WARN, justified in the graph note (its A18), which greybox exit allows.
+  - **J24 coop-kit and J10 light-realism:** `docs/design/scale-sheet.md`, `docs/level-design.md`. Different rows and
+    sections: J24 sheet row 57 (rope), its band rows per move and LD 11.9 kinds per move, 12.1-12.3 and open item 1; J10
+    sheet section 9 and LD 5.5; J12 sheet section 8, the `mission_*` rows and the relay row 56 (S7a), LD 11.9's tag and
+    `vent_unlock`, 14, 15 and the rule index (D-A, D-C). No order: whichever merges second rebases its doc lines. The
+    content seam with J24 is "Seam with J24" below.
+  - **J13 route-runs-2:** `docs/level-design.md`, `docs/systems/testing-tools.md`. Order: J12's D-A / D-C first; J13's
+    R8 goes last (its PLAN :32-40).
+  - **sector-batch:** `docs/level-design.md` 12 (its Doors bullet :351-352); J12 does not touch 12. No order.
+  - **J20 test-runner (14 branches), char-shadow-meter, hud-guidance (4 branches), map-ready:**
+    `docs/systems/testing-tools.md` only, each in its own section. No order: the second to merge rebases.
 
 ## 8. What J13 route-runs needs from this port
 
