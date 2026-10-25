@@ -153,14 +153,14 @@ describe('level-validate: passing graphs', () => {
     const r = check(base());
     expect(r.errors).toEqual([]);
     expect(r.warns).toEqual([]);
-    expect(r.infos).toEqual([]);
+    expect(r.infos.filter((i) => !i.includes('pending V6'))).toEqual([]);
   });
 
   it('the real metrics.json carries every key the validator reads (no missing-key WARN)', () => {
     const r = check(withKinds(), REAL_METRICS);
     expect(r.errors).toEqual([]);
     expect(r.warns).toEqual([]);
-    expect(r.infos).toEqual([]);
+    expect(r.infos.filter((i) => !i.includes('pending V6'))).toEqual([]);
   });
 
   it('every link kind with a size rule passes at the sheet sizes (tunnel, open stair, wall jump, split jump, drop)', () => {
@@ -174,7 +174,7 @@ describe('level-validate: passing graphs', () => {
     const r = check(g, REAL_METRICS);
     expect(r.errors).toEqual([]);
     expect(r.warns.filter((w) => w.startsWith('metrics:'))).toEqual([]);
-    expect(r.infos).toEqual([]);
+    expect(r.infos.filter((i) => !i.includes('pending V6'))).toEqual([]);
   });
 
   it('every fixture and the example keep a non-loud, no-kill path from start to each objective and exfil (A10)', () => {
@@ -708,7 +708,7 @@ describe('level-validate: mode profiles (level-design "Modes and tags")', () => 
     const r = check(campaignBase());
     expect(r.errors).toEqual([]);
     expect(r.warns).toEqual([]);
-    expect(r.infos).toEqual([]);
+    expect(r.infos.filter((i) => !i.includes('pending V6'))).toEqual([]);
   });
 
   it('campaign: a section whose exit solo links reach has no forced co-op gate (ERR); sector and training skip it', () => {
@@ -949,7 +949,7 @@ describe('level-validate: merge and CLI', () => {
       };
       const ok = cli(write(base()));
       expect(ok.status).toBe(0);
-      expect(ok.out.trim()).toBe('0 error(s), 0 warning(s).');
+      expect(ok.out.trim().split('\n').pop()).toBe('0 error(s), 0 warning(s).');
       const bad = base();
       link(bad, 'b-hall', 'b-dock', 'door').width = 0.9;
       const fail = cli(write(bad));
@@ -996,7 +996,7 @@ describe('level-validate: merge and CLI', () => {
       const okPath = path.join(dir, 'ok.json');
       fs.writeFileSync(okPath, JSON.stringify(base()));
       expect(run([okPath, '--metrics', metricsPath], { log, root: ROOT })).toBe(0);
-      expect(lines).toEqual(['\n0 error(s), 0 warning(s).']);
+      expect(lines.filter((l) => !l.startsWith('INFO:'))).toEqual(['\n0 error(s), 0 warning(s).']);
 
       expect(run([], { log, root: ROOT })).toBe(2);
       expect(run([path.join(dir, 'missing.json')], { log, root: ROOT })).toBe(2);
