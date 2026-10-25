@@ -3,6 +3,18 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 60 (2026-10-26 ~08:45, new account; session [f6b0ef]; wins over SAVE 59):**
+- Service pid 37704 healthy (task NightShift-laptop-queue running). Old Test Runner [3394f7] offline, nothing to close.
+- Train 111 (PR-C #445) released 05:59. Conformance review long done (#410, #432, #444).
+- Train 112 (#491): laptop 41/43 green on version commit f0dd603a; docs-only lint fix 546a2286 moved the head, so a full
+  rerun (train112-rerun, 4189, JOBS=1) runs since 08:28 and releases by itself. Same waste as the laptop-queue-7 item.
+- PR-A opened as #492 (head 8a8d000c = 0d7eab1e + D-A docs + fragment). D-A was written on master's testing-tools.md
+  (`git checkout origin/master -- <file>` then edit, net zero lines at the 720 budget): merges clean, no master merge.
+  Fresh Opus checker on 8a8d000c running; post `checker` (or ask the Orchestrator if auto mode blocks it).
+- Mixamo re-files: queue was empty at boot, nothing to re-file.
+- Next: #492 checker -> train-ready; then PR-B (D-B the same way on master's copy after #492 merges; Job-done line,
+  j20-parity-pre-1..3 precheck first), laptop-queue-7, j20-perf alone when the queue is quiet.
+
 **Test Runner SAVE 59 (2026-10-26 ~00:45, before the 00:54 cap; session [6aaff9]; wins over SAVE 58):**
 - Train 109 (#475 laptop-queue-6) laptop 42/43 green (studio flake). Service pid 12732 healthy.
 - MIXAMO FIRST ALL NIGHT (Michael ~00:15 via Orchestrator 00:20: "add all mixamo animations in game, i will fine tune
