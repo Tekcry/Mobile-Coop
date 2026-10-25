@@ -136,8 +136,14 @@ export function retryHook(s: Pick<PackedCourse, 'rs' | 'rt' | 'rc'>): { restarts
 }
 
 /** (J14 R1, STATIONS.md SA2) LANTERN's line for a station retry: the bay's `retry:<id>:timer` line for a drill window,
- *  else its `retry:<id>` line; null (no line) when the bay has none. */
+ *  else its `retry:<id>` line; (A26) `other` only its `retry:<id>:other` line; null (no line) when the bay has none. */
 export function retryLine(radio: readonly { at: string; text: string }[], stationId: string, cause: StationCause): string | null {
+  // (J14 A26) a soft-lock way out says only its own line (`retry:<id>:other`), never the station's seen line
+  if (cause === 'other') {
+    const ok = retryKey(stationId, 'other');
+    for (let i = 0; i < radio.length; i++) if (radio[i]!.at === ok) return radio[i]!.text;
+    return null;
+  }
   if (cause === 'timer') {
     const tk = retryKey(stationId, true);
     for (let i = 0; i < radio.length; i++) if (radio[i]!.at === tk) return radio[i]!.text;
@@ -353,7 +359,8 @@ export class CourseMode implements GameMode {
   /**
    * (J14 R1, host only: the client never runs CourseMode) The set code's retry entry: station `n`'s drill window missed
    * (`timer`) or one of its beams broken (`seen`) retries it, through the same path as a guard's alert (`restarts`,
-   * `lastRetry`, `retryOff`, the marks). False: `n` is not the live station, its retry is 'none' or off, a retry or a bay
+   * `lastRetry`, `retryOff`, the marks); `other` (J14 A26) is a set's way out of a soft-lock, taken by a 'none' station
+   * too (A1's early drop into the yard). False: `n` is not the live station, its retry is 'none' (bar `other`) or off, a retry or a bay
    * restart is already under way. The world side (guards, lamps, respawn) runs at this step's `handle` (safe to call
    * from inside a device or guard update: nothing reentrant).
    */
@@ -1225,7 +1232,7 @@ export class CourseMode implements GameMode {
     const st = this.state!;
     const def = st.stationDef(n);
     if (!def) return;
-    const line = cause === 'seen' || cause === 'caught' || cause === 'timer' ? retryLine(st.currentBay.radio, def.id, cause) : null;
+    const line = cause === 'seen' || cause === 'caught' || cause === 'timer' || cause === 'other' ? retryLine(st.currentBay.radio, def.id, cause) : null;
     if (line) {
       this.radioQ.unshift(line);
       if (this.radioQ.length > 4) this.radioQ.length = 4;

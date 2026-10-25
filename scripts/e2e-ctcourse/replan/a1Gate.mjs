@@ -6,6 +6,8 @@
 //      locked on both pages (nobody has been on the wall top), and the host is put back on the apron;
 //   3. the client on the striped mark claims A (the booster) and boosts the host onto the apron-face lip; the host pulls up
 //      onto the wall top: `a1-top1`, station 2 live, the boost step ticked on both pages; the wicket still locked;
+//   3b. (J14 A26) the host drops into the yard before the ladder: after the trap grace station 2 retries (cause `other`) on
+//      both pages, the host back on the wall top, the client at the striped mark, station 1 still done;
 //   4. the human ladder: the host on the top lowers into a hang on the apron face, offers the relay, the client climbs him
 //      and both pull up onto the top: `a1-top`, no station live, the ladder step ticked, the wicket unlocked on both pages;
 //   5. both drop into the yard (no fall damage); the client opens the wicket and walks back to the apron and in again (the
@@ -85,6 +87,16 @@ export async function walk(t, n) {
   for (const P of [A, B]) await ticked(P, 'a1-boost');
   assert(await lockedOnClient(), 'A1: the wicket is still locked on the client');
 
+  // ---- 3b. (A26) the host drops into the yard before the ladder: never a trap, station 2 retries (cause other) ----
+  console.log('  A1 (re-plan): an early drop into the yard puts both back at station 2');
+  const r0 = await GA(() => window.__course.restarts);
+  await dropIntoYard(A, moveHost, 9, 'A1 early drop host');
+  await until(A, (r0) => window.__course.restarts > r0 && window.__course.lastRetry?.st === 2 && window.__course.lastRetry.cause === 'other', r0, 20000, 'A1: the early drop retries station 2 (cause other)');
+  await until(B, () => window.__course.lastRetry?.st === 2 && window.__course.lastRetry.cause === 'other', null, 15000, 'A1: the client reads the retry');
+  await until(A, () => { const p = window.__app.current.player.controller.pos; return p.y > 4 && Math.abs(p.x - 12) < 0.5 && Math.abs(p.z - 6) < 0.8; }, null, 8000, 'A1: the host (B) is back on the wall top');
+  await until(B, () => { const p = window.__app.current.player.controller.pos; return p.y < 0.5 && Math.abs(p.x - 10.5) < 0.6 && Math.abs(p.z - 6) < 0.6; }, null, 8000, 'A1: the client (A) is back at the striped mark');
+  assert((await hasFlag('a1-top1')) && (await station()) === 2, 'A1: station 1 stays done, station 2 live');
+
   // ---- 4. station 2: the human ladder ----
   console.log('  A1 (re-plan): station 2, the human ladder');
   await lowerIntoHang(A, moveHost, EDGE_APRON, 6, -Math.PI / 2, 'A1 ladder host');
@@ -115,7 +127,10 @@ export async function walk(t, n) {
   await setDamage(A, 0);
   for (const P of [A, B]) await sees(P, /holding room one/, 'A1: the closing line');
   await moveClient(13.2, 11, 0.1, -Math.PI / 2);
-  const aid = await GA((cid) => window.__app.current.world.layout.course.doors[cid], WICKET_DOOR);
+  // the station 2 retry (3b) shut the bolt again
+  assert((await use(B, `c-${WICKET_GATE}`)) === 'ok', 'A1: the client unbolts the wicket from the yard side');
+  await until(A, (id) => !!window.__course.debug().gates[id], WICKET_GATE, 8000, 'A1: the bolt gate opens again');
+  const aid =await GA((cid) => window.__app.current.world.layout.course.doors[cid], WICKET_DOOR);
   assert((await use(B, `door-${aid}`)) === 'ok', 'A1: the client opens the wicket');
   const wi = await doorIndex(WICKET_DOOR);
   await until(A, (i) => window.__app.current.world.doors.list[i].open > 0.5, wi, 8000, 'A1: the wicket opens (host)');

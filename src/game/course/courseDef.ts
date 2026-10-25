@@ -109,10 +109,11 @@ export function warnKey(gateId: string): string {
 
 /**
  * (J14 R1, STATIONS.md SA2) The `bay.radio` key of LANTERN's line when station `id` retries (what and where, G343): `seen`
- * / `caught` at `retry:<id>`, a drill window (`timer`) at `retry:<id>:timer`. No line: the retry is silent.
+ * / `caught` at `retry:<id>`, a drill window (`timer`, or `true`) at `retry:<id>:timer`, a set's soft-lock way out
+ * (`other`, J14 A26) at `retry:<id>:other`. No line: the retry is silent.
  */
-export function retryKey(stationId: string, timer = false): string {
-  return timer ? `retry:${stationId}:timer` : `retry:${stationId}`;
+export function retryKey(stationId: string, kind: boolean | 'timer' | 'other' = false): string {
+  return kind === 'other' ? `retry:${stationId}:other` : kind ? `retry:${stationId}:timer` : `retry:${stationId}`;
 }
 
 const STATION_RETRY: readonly string[] = ['none', 'station', 'caught'];
