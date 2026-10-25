@@ -417,12 +417,16 @@ verbatim in each suite through that suite's page-eval helper:
       row is Current, which is right enough (the section is loaded).
   - `coopClient.ts`: in Sector Ops (`g.opts.mode === 'sector'`, `:188`) one `SectorListMirror`; `onText` from the one
     host-objective write B3 adds; `objectiveLines()` on the attachment returns
-    `this.list?.lines(this.g.world.map.sectors ?? []) ?? null`. A late join or rejoin past section 1 works the same (its first `ls` and objective arrive together).
+    `this.list?.lines(this.g.world.map.sectors ?? []) ?? null`. Order rule: the section number (`sector` message, every 0.5 s or on change) and the host objective (snapshot,
+    applied only on change) arrive in either order, so the mirror keeps the last host objective it saw and re-applies
+    it whenever a new section number arrives (keeping the guard for two sections that share an exit label); a late join
+    or rejoin past section 1 then lands on the right row.
   - `GameState.objectiveLines()`: `this.mode?.objectiveLines?.()`, then `this.net?.objectiveLines?.()` when non-null,
     then the Infiltration chain, then the current line. Pause menu only, not a hot path.
   - vitest `tests/sectorObjectives.test.ts`: host rows per phase; client late join at section 2; the connector window
     with two sections sharing an exit label (no false exit row); the download percent; a restart from the exit step;
-    `ls` -1 ignored; the op end (all Done); no sector data -> `null`.
+    `ls` -1 ignored; the op end (all Done); no sector data -> `null`; the objective arriving before the first section
+    number in section 1; a late join during section 2's exit step (lands on the exit row).
   - e2e `scripts/e2e-sectorops.mjs` part 1, the co-op block "co-op client mirrors the live section" (`:751-`): after the
     connector (section 2 live on the client), `window.__app.current.objectiveLines()` on the client page lists section
     1's objective and exit Done and section 2's objective Current, and matches the host page's labels and states.
