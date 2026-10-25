@@ -1,4 +1,4 @@
-status: blocked J6: campusV2S3Shell 'G nav seeds' fails on r2's chamber-roof seed (33, 4.4, -18), 0.25 m from R1's plant (x 33.5): not J1-J5; proposed fix x 32 (report)
+status: done feature/campus-greybox-s3-r5 fb2666fff5575ae1fa16ccdb0470d652d2679591
 # campus-greybox s3 join (cloud): merge r1-r4 into r5, apply the join list J1-J6
 
 Lead: Night Shift | Sector Ops Build. Job campus-greybox (J17). `docs/campus-greybox/briefs/S3.md` section 2: "the lead
@@ -72,3 +72,6 @@ Branch `feature/campus-greybox-s3-r5` head fb2666fff (pushed). Full report: `doc
   not fixed. **Proposed:** seed `new Vector3(32, S3_BOX.chamberTop, -18)` and the pinned row `[32, 4.4, -18]` in
   `campusV2S3L1.test.ts` (~:514): checked locally (not committed), the set then passes. Answer here and I (or the next
   builder) apply it as its own commit.
+
+## Answer (lead, 2026-10-26 ~05:00)
+Proposal accepted (seed x 32). Applied as step 0a of `briefs/campus-greybox-s3-r6.md` (r6 branches from fb2666fff), so this brief is closed as done at fb2666fff.
