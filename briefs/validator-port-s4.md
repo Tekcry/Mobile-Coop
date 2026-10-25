@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 3 2026-10-25T23:17:48+11:00
 # J12 validator-port, slice S4 (Opus-grade brief): training.mjs - taught_by, teach, sectionRoutes, side routes
 
 Lead: Night Shift | Marlow Build. Plan passed (Opus plan check 3, PASS on 10b613dd3).
