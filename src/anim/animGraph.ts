@@ -56,7 +56,7 @@ import { KEYED_GLIDE_STRAFE } from './clips/keyed/glide_strafe';
 import { KEYED_GLIDE_BACK } from './clips/keyed/glide_back';
 import { studioDriveTargets, type StudioDrive } from './studioDrive';
 import { MOVE_IDS, newGraphPlaying, type GraphPlaying } from './nowPlaying'; // (tuner-clarity S1)
-import { HANG_IDLE_SECONDS, SHIMMY_SPEED, SHIMMY_TRAVEL, STAND_FADE, WREN_TRAV } from './mixamo'; // (mixamo-retarget I2)
+import { HANG_IDLE_SECONDS, KEEP_CH, SHIMMY_SPEED, SHIMMY_TRAVEL, STAND_FADE, WREN_TRAV } from './mixamo'; // (mixamo-retarget I2)
 import { bodyMotionBands, bodyMotionStep, KEY_MOTION, newBodyMotion, newBodyMotionIn, scaleKeyedArms, type BodyMotion } from './bodyMotion';
 import { KEYED_SNEAK } from './clips/keyed/sneak';
 import { KEYED_CROUCH_WALK } from './clips/keyed/crouch_walk';
@@ -2911,7 +2911,8 @@ export class AnimGraph {
   /**
    * (mixamo-retarget I2) A Wren traversal frame from the resolved Mixamo table (`WREN_TRAV`, `mixamo.ts`): plays the
    * slot's capture (a null slot: its hand-made clip), sets `travNow` and returns true; false when every slot this kind
-   * uses is hand-made (the caller plays `tc` as before). Allocation-free.
+   * uses is hand-made (the caller plays `tc` as before). The channels `MIXAMO_KEEP` names for the move stay the hand-made
+   * clip's (where the body sits against the grips). Allocation-free.
    * - hang: the hanging idle on its own clock, the shimmy left / right over it by the pace along the lip (the direction
    *   from the pendulum: the hips trail the hands, so a swing to the left is a shimmy to the right); a pipe hang (no
    *   pendulum) keeps the hand-made clip when moving.
@@ -2929,24 +2930,35 @@ export class AnimGraph {
       const S = SHIMMY_SPEED;
       this.hangIdleT = (this.hangIdleT + dt / HANG_IDLE_SECONDS) % 1;
       this.shimT = (this.shimT + (i.speed * dt) / (SHIMMY_TRAVEL * k)) % 1;
-      this.hangMoveW = approach(this.hangMoveW, i.speed > S.on ? 1 : 0, S.fade, dt);
-      if (this.hangLip && i.speed > S.on && Math.abs(t) > S.swing) this.hangDir = approach(this.hangDir, t < 0 ? 1 : 0, S.dirFade, dt);
+      const moving = i.speed > S.on;
+      this.hangMoveW = (moving ? 1 : 0) + (this.hangMoveW - (moving ? 1 : 0)) * Math.exp(-dt / S.fade);
+      if (this.hangLip && moving && Math.abs(t) > S.swing) this.hangDir = (t < 0 ? 1 : 0) + (this.hangDir - (t < 0 ? 1 : 0)) * Math.exp(-dt / S.dirFade);
       const mv = this.hangMoveW;
       const r = this.hangDir;
       const sl = this.hangLip ? W.shimmyL : null;
       const sr = this.hangLip ? W.shimmyR : null;
+      const keep = KEEP_CH.hang;
+      this.keepSave(src, keep);
       // the idle, then left and right over it (sequential blends: their shares come out mv x (1 - r) and mv x r)
       const b = mv * r;
-      this.hangPart(src, W.hangIdle, this.hangIdleT, swing, 1);
-      this.hangPart(src, sl, this.shimT, swing, b < 1 ? (mv - b) / (1 - b) : 0);
-      this.hangPart(src, sr, this.shimT, swing, b);
+      const a = b < 1 ? (mv - b) / (1 - b) : 0;
+      if (W.hangIdle) overClip(src, W.hangIdle, this.hangIdleT, 1);
+      else overClip(src, HANG, swing, 1);
+      if (a > 0) overClip(src, sl ?? HANG, sl ? this.shimT : swing, a);
+      if (b > 0) overClip(src, sr ?? HANG, sr ? this.shimT : swing, b);
+      this.keepApply(src, keep, HANG, swing);
       this.travNow = (mv < 0.5 ? W.hangIdle : r < 0.5 ? sl : sr) ?? tc;
       return true;
     }
     if (i.traverse === 'climb' || i.traverse === 'crawl') {
-      const c = i.traverse === 'climb' ? W.ladder : W.crawl;
+      const ladder = i.traverse === 'climb';
+      const c = ladder ? W.ladder : W.crawl;
       if (c === null) return false;
-      overClip(src, c, t - Math.floor(t), 1);
+      const keep = ladder ? KEEP_CH.climb : KEEP_CH.crawl;
+      const ct = t - Math.floor(t);
+      this.keepSave(src, keep);
+      overClip(src, c, ct, 1);
+      this.keepApply(src, keep, tc, ct);
       this.travNow = c;
       return true;
     }
@@ -2954,24 +2966,37 @@ export class AnimGraph {
     const kk = clamp(t, 0, 1);
     if (this.travFrom === 'climb') {
       if (W.ladderTop === null) return false;
+      this.keepSave(src, KEEP_CH.topOut);
       overClip(src, W.ladderTop, kk, 1);
+      this.keepApply(src, KEEP_CH.topOut, CLIMB_UP, kk);
       this.travNow = W.ladderTop;
       return true;
     }
     if (this.travFrom !== 'hang') return false;
-    const a = W.climbUpCrouch ?? CLIMB_UP;
-    const b = W.climbUpStand ?? CLIMB_UP;
-    if (a === CLIMB_UP && b === CLIMB_UP) return false;
-    overClip(src, a, kk, 1);
-    const sw = b === a ? 0 : smoothstep((kk - CLIMB_UP_CROUCH_K) / STAND_FADE);
-    overClip(src, b, kk, sw);
-    this.travNow = sw > 0.5 ? b : a;
+    const ca = W.climbUpCrouch ?? CLIMB_UP;
+    const cb = W.climbUpStand ?? CLIMB_UP;
+    if (ca === CLIMB_UP && cb === CLIMB_UP) return false;
+    this.keepSave(src, KEEP_CH.climbUp);
+    overClip(src, ca, kk, 1);
+    const sw = cb === ca ? 0 : smoothstep((kk - CLIMB_UP_CROUCH_K) / STAND_FADE);
+    if (sw > 0) overClip(src, cb, kk, sw);
+    this.keepApply(src, KEEP_CH.climbUp, CLIMB_UP, kk);
+    this.travNow = sw > 0.5 ? cb : ca;
     return true;
   }
 
-  /** (I2) One part of the hang at weight `w`: its capture at `t`, or (null) the hand-made HANG on the pendulum. */
-  private hangPart(src: Pose, c: Clip | null, t: number, swing: number, w: number): void {
-    if (w > 0) overClip(src, c ?? HANG, c ? t : swing, w);
+  /** (I2) The kept channels' values before the capture (the base pose under a channel the hand-made clip does not key). */
+  private readonly keepBase = new Float64Array(64);
+  private keepSave(src: Pose, keep: readonly number[]): void {
+    for (let j = 0; j < keep.length; j++) this.keepBase[j] = src[keep[j]!]!;
+  }
+  /** (I2) The kept channels back to the hand-made clip `hand` at `t` (as the hand-made path would have set them). */
+  private keepApply(src: Pose, keep: readonly number[], hand: Clip, t: number): void {
+    for (let j = 0; j < keep.length; j++) {
+      const ch = keep[j]!;
+      const cv = hand.curves[ch];
+      src[ch] = cv ? evalCurve(cv, t) : this.keepBase[j]!;
+    }
   }
 
   /** (anim-bake-1022) This rig's rifle low ready and pistol low ready (`wrenReady` swaps the references, set once). */

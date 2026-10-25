@@ -18,6 +18,7 @@
  */
 import type { Clip } from './clip';
 import { flags } from '../core/flags';
+import { CH, type Channel } from './pose';
 import { MOCAP_HANGING_IDLE, MOCAP_HANGING_IDLE_SECONDS } from './clips/mixamo/trav_hanging_idle';
 import { MOCAP_BRACED_HANG_SHIMMY_LEFT } from './clips/mixamo/trav_braced_hang_shimmy_left';
 import { MOCAP_BRACED_HANG_SHIMMY_RIGHT } from './clips/mixamo/trav_braced_hang_shimmy_right';
@@ -69,6 +70,19 @@ export const SHIMMY_SPEED = { on: 0.15, fade: 0.12, dirFade: 0.1, swing: 0.01 } 
 /** The climb-up's stand-up end fades in over this much k past the crouch (about 0.1 s of the 1.3 s exit). */
 export const STAND_FADE = 0.08;
 
+/** A traversal move a capture plays in (the hang family, the ladder, the vent crawl, the lip climb-up, the top-out). */
+export type MixamoMove = 'hang' | 'climb' | 'crawl' | 'climbUp' | 'topOut';
+
+/**
+ * Per move: the channels the hand-made clip keeps over the capture. The game puts the root against the anchor for its
+ * own clips (`attachPose`, `CLIMB_UP_PATH`) and the rig's reach / plant IK puts the hands and feet on the grips: a
+ * capture's own pelvis placement can take the shoulders out of reach of the grips (bible 5.12.2 #2, hands within 1 cm),
+ * so these stay the hand-made clip's (tests/mixamoTraverse.test.ts, tests/climbHands.test.ts measure it).
+ */
+export const MIXAMO_KEEP: Record<MixamoMove, Channel[]> = { hang: [], climb: [], crawl: [], climbUp: [], topOut: [] };
+/** `MIXAMO_KEEP` as channel indices (rebuilt by `resolveMixamo`; the graph reads them). */
+export const KEEP_CH: Record<MixamoMove, number[]> = { hang: [], climb: [], crawl: [], climbUp: [], topOut: [] };
+
 /** The switch's state: `on` the flag, `studio` the Studio's capture slug ('' none). Written by the setters only. */
 export const MIXAMO: { on: boolean; studio: string } = { on: false, studio: '' };
 
@@ -89,6 +103,11 @@ export function resolveMixamo(): void {
     if (pick.slot === 'climbUpStand') T.climbUpCrouch = pick.clip;
   }
   T.any = SLOTS.some((s) => T[s] !== null);
+  for (const m of Object.keys(MIXAMO_KEEP) as MixamoMove[]) {
+    const out = KEEP_CH[m];
+    out.length = 0;
+    for (const c of MIXAMO_KEEP[m]) out.push(CH[c]);
+  }
 }
 
 /** The flag (`?mixamo=1`): the captures on Wren's traversal (those `MIXAMO_ON` lets play). */
