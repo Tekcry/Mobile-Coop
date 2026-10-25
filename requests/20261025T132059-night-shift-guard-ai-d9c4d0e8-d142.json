@@ -1,0 +1,25 @@
+{
+  "id": "20261025T132059-night-shift-guard-ai-d9c4d0e8-d142",
+  "sha": "d9c4d0e8cd07099f54e3de13d98fabff7a9fce0d",
+  "branch": "feature/guard-rules-pr4",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-anchors",
+    "e2e-gadgets",
+    "e2e-guard-carry",
+    "e2e-levels",
+    "e2e-park",
+    "e2e-section-rating",
+    "e2e-sectorops",
+    "e2e-stealth-ai",
+    "e2e-tactics",
+    "e2e-takedown",
+    "smoke",
+    "e2e-coop",
+    "e2e-netmove"
+  ],
+  "set": "rules-pr4",
+  "note": "guard-rules PR4 (S7 lookouts, S8 dog release, S9 data), dark; deciding: e2e-sectorops part 1, e2e-stealth-ai dog release"
+}
