@@ -1000,7 +1000,7 @@ C:/NightShift/Mobile-Coop-laptop-queue-svc && node scripts/laptop-queue/request.
 laptop-e2e/<set>. Withdraw = delete requests/<id>.json on origin/laptop-queue (plumbing commit, never in the svc
 worktree). Background wait: scratchpad wait-status.sh "<sha>:<context>" ... Laptop auto mode blocks labels: tell the
 orchestrator at train-ready. Walk cap: Guard AI AT CAP (new behaviour dark; rule fixes ship on, G355).
-Open (SAVE 2026-10-25 ~19:10; full burn; order J1 -> J4, J6, J15, J26, J16):
+Open (SAVE 2026-10-25 ~19:20; full burn; order J1 -> J4, J6, J15, J26, J16):
 1. J1 #435 checker PASS on 398d5f05; affected-e2e queued. Waits for watchdog label / train.
 2. J4 G327 #438 (5e42c152): checks A PASS + B fix applied. Gates: laptop-e2e/g327-coop (5e42c152), g327-measure
    (alone, 1ebdda52; then write slices/T1-SHADOW-REPORT.md from the run log in C:/NightShift/scratch/laptop-queue/runs/),
@@ -1009,15 +1009,20 @@ Open (SAVE 2026-10-25 ~19:10; full burn; order J1 -> J4, J6, J15, J26, J16):
 3. J4 #317 coop4 (3100d035) ships ON (Q16). Check A PASS, B fix applied. Gates: laptop-e2e/coop4-full2 +
    alone-coop4-4p (both on 3100d035). Green -> post checker (A PASS + B fix round), tell orchestrator train-ready.
    CONFLICTING with master (protocol.ts): train resolves (keep master PROTOCOL_VERSION + coop4 comment).
-4. J6 #446 (feature/guard-ai-alloc 864520c4): Opus checkers A / B running -> docs/guard-ai/slices/ALLOC-CHECK-A/B.md
-   (lead commits). laptop-e2e/alloc-coop queued. Follow-up for owners: src/weapons spreadDir, src/vfx tracer, src/cover.
-5. J15 guard-rules: plan PASS (dd1981116, PLAN-CHECK.md 2 rounds). Wave 1 builders: S1 on feature/guard-rules-s1
-   (worktree -guard-rules-s1), S2 on feature/guard-rules-s2 (-s2; Player-owned takedownController.ts:278 one line:
-   tell Player Build). Then merge s1 + s2 into feature/guard-rules, 2 Opus checkers, PR1. Waves 2-4 per PLAN.
-   Orchestrator told: J17 campus S4/S5 data waits for PR1; A14 Marlow shield lead for Marlow Build to confirm.
-6. J26 mission hooks: BRIEF + PLAN a6d8daec2; Opus plan check running -> PLAN-CHECK.md. Builds after J15's
-   overlapping slices. After PASS send Campaign Build C1-C6 (incl. C3: restarted() must re-raise done steps' events).
-   Lead calls: A4 porter hears the bell via the hearing model + state gate; A9 per-area stages dark, Michael at walk.
+4. J6 #446 (feature/guard-ai-alloc): checks A + B FIX (slices/ALLOC-CHECK-A/B.md; checker failure posted on
+   864520c4): tsc TS2322 in tests/guardAiAllocManager.test.ts:34 + per-guard known point (KNOWN_TP kept by routePath).
+   Opus fix round was running; WIP 3d36aacb (save). If cut off, restart it from the branch head (full tsc, the 26-file
+   vitest set). Then both checkers re-check only their items, request alloc-coop (e2e-coop + e2e-netmove) on the new
+   head, post checker, tell orchestrator. Allocation follow-ups logged by Player Build (weapons / vfx / cover).
+5. J15 guard-rules: plan PASS; A14 settled (Marlow drops its shield lead, S1, stealthSystems.ts:594; 074a551a3).
+   S2 DONE 71cec23d (feature/guard-rules-s2; Player Build OK; if Player's J6 S3 scan refactor lands first, re-place
+   `e.def.quadruped ||` on its scan loop). S1 builder was running; WIP edb988fb (save): restart from the branch head
+   if cut off. Then merge s1 + s2 into feature/guard-rules (merge the -s2 fragment into changes/feature-guard-rules.md),
+   PR1 (minor), 2 Opus checkers, laptop: affected + e2e-coop / e2e-netmove + e2e-ctcourse + e2e-takedown.
+   Orchestrator told: J17 campus S4/S5 data waits for PR1.
+6. J26 mission hooks: plan PASS (044258624; 2 check rounds). Every slice starts after J15 PR4 merges:
+   S1a -> S1b; S2 -> S3 -> S4. TODO now: send Campaign Build the PLAN's C1-C7 (C3 restarted() re-raises done steps'
+   events; C7 lamps / SEXTON lines follow em.orderPhase). A9 per-area stages dark: Michael's click at his walk.
 7. Test Runner request (J20 S6b): seed the 5 Math.random sites in src/ai (enemy.ts think cadence x2, enemyManager
    radio delays x2, reconDrone start angle) after J6 lands and PR-C (tests/replayDeterminism.test.ts) is on master;
    shrink its allowlist in the same PR.
