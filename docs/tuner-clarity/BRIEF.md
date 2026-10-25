@@ -46,6 +46,14 @@ Nothing yet (no multiple-choice question asked for this job).
 - A6. No change to any animation value, clip, default or the game's look; no look video (tool change). The PR carries
   panel screenshots instead. Undo: revert the PR.
 - A7. The tuner's phone layout (G232: touch is allowed in the tuner) gets the same labels and the Now playing line.
+- A8. (planner) Hands & feet has foot position only, no foot rotation; the setting that turned his foot is most likely
+  Body > Joints "Left / Right ankle turn". The warnings name that row. Undo: point them elsewhere once he confirms.
+- A9. (planner) The Keys tab gets one part per leg plus the finger parts, so nothing keyed sits under "Whole body".
+  Undo: regroup in `tunerTarget.ts keyRow`.
+- A10. (planner) Rows for moves with no motion-capture take say "Hand-made"; camera and gear rows get no tag.
+- A11. (planner) "Not playing now" marks only rows tied to a body state that is not the one playing.
+- A12. (planner) The More > Panel "Mocap locomotion" box keeps its behaviour and gets a plain label ("Use motion
+  capture for walking and running (off = hand-made)"). Undo: the old string.
 
 ## Gates
 Opus PLAN.md, a fresh Opus plan checker, then build; Opus builds and checks animation code; e2e `e2e-studio` and
