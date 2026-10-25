@@ -7,11 +7,13 @@
  * column lists more lamps than the shaders hold, no moon. Each set's tuned levels live in its own
  * `tests/ctcourse/<set>.light.json` (one file per set, so parallel builders never share one): every spot within 0.08 of
  * its tuning and no band change but at a band's edge. `CTLIGHT_PRINT=1` prints each set's json to paste after a re-tune.
+ * (J14 S0) `CTLIGHT_VARIANT=replan` runs the same frame on the re-planned yard (`ctcourseReplan`, `buildCtcourse(b, { replan:
+ * true })`) and reads / writes `tests/ctcourse/replan/<set>.light.json` instead; without it the built yard and its files.
  */
 import { beforeAll, describe, expect, it } from 'vitest';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { LevelBuilder } from '../src/world/levelBuilder';
-import { buildCtcourse, ctcourse, LIGHT_SPOTS } from '../src/world/maps/ctcourse';
+import { buildCtcourse, ctcourse, ctcourseReplan, LIGHT_SPOTS, LIGHT_SPOTS_REPLAN } from '../src/world/maps/ctcourse';
 import { SET_IDS, inSet, type LightSpot, type SetId } from '../src/world/maps/ctcourseSets/types';
 import { MOVEMENT } from '../src/config/movement';
 import { dressingOn } from '../src/world/detailPass';
@@ -25,8 +27,12 @@ import { moonLight } from '../src/world/lampMath';
 import { LIGHT } from '../src/world/lights';
 import { MARLOW_LEVEL } from '../src/world/lighting/levels';
 
+/** (J14) The variant under test: the built yard, or the re-plan with `CTLIGHT_VARIANT=replan`. */
+const REPLAN = process.env.CTLIGHT_VARIANT === 'replan';
+const MAP = REPLAN ? ctcourseReplan : ctcourse;
+const SPOTS = REPLAN ? LIGHT_SPOTS_REPLAN : LIGHT_SPOTS;
 const b = new LevelBuilder();
-const built = buildCtcourse(b);
+const built = buildCtcourse(b, { replan: REPLAN });
 const reg = b.lights;
 let bake: LightBake;
 let open: LightField;
@@ -35,12 +41,12 @@ let bakeMs = 0;
 
 beforeAll(() => {
   const t0 = performance.now();
-  const set = canonicalLightSet(b.boxes, b.cylinders, 'ctcourse', dressingOn(ctcourse));
-  reg.ambient = ctcourse.theme.lightLevel ?? 0.75;
-  const mL = moonLight(ctcourse.theme);
+  const set = canonicalLightSet(b.boxes, b.cylinders, MAP.id, dressingOn(MAP));
+  reg.ambient = MAP.theme.lightLevel ?? 0.75;
+  const mL = moonLight(MAP.theme);
   const sky = Math.max(0, reg.ambient - mL);
   const ambient = buildAmbientGrid({ ambientAt: (x, y, z) => { const v = reg.zoneAt(x, y, z); return v === v ? v : sky; } }, set.lo, set.hi);
-  const s = ctcourse.theme.sunDir;
+  const s = MAP.theme.sunDir;
   const l = Math.sqrt(s[0] * s[0] + s[1] * s[1] + s[2] * s[2]);
   const dir: [number, number, number] = [-s[0] / l, -s[1] / l, -s[2] / l];
   const n: [number, number, number] = [0, 1, 2].map((k) => Math.max(1, Math.ceil((set.hi[k]! - set.lo[k]!) / MOON_CELL))) as [number, number, number];
@@ -75,8 +81,8 @@ const groupIds = (groups: readonly number[]): number[] => reg.lights.filter((l) 
 const levelOf = (p: LightSpot): number =>
   p.band === 'standby' || p.band === 'house' ? withOff(lampIds(), () => read(p)) : p.band === 'cut' ? withOff(groupIds(p.off ?? []), () => read(p)) : read(p);
 
-const ALL: [SetId | 'facility', LightSpot][] = (Object.entries(LIGHT_SPOTS) as [SetId | 'facility', readonly LightSpot[]][]).flatMap(([k, spots]) => spots.map((p) => [k, p] as [SetId | 'facility', LightSpot]));
-const tunedFile = (id: SetId): string => `tests/ctcourse/${id}.light.json`;
+const ALL: [SetId | 'facility', LightSpot][] = (Object.entries(SPOTS) as [SetId | 'facility', readonly LightSpot[]][]).flatMap(([k, spots]) => spots.map((p) => [k, p] as [SetId | 'facility', LightSpot]));
+const tunedFile = (id: SetId): string => (REPLAN ? `tests/ctcourse/replan/${id}.light.json` : `tests/ctcourse/${id}.light.json`);
 
 describe('Marlow Yard light frame (marlow-final 0d)', () => {
   it('bakes in node fast enough for the unit run; every lamp is in the bake', () => {
@@ -86,9 +92,9 @@ describe('Marlow Yard light frame (marlow-final 0d)', () => {
   });
 
   it('the spots the frame reads are the ones the build gives (LIGHT_SPOTS = the parts\' spots)', () => {
-    expect(LIGHT_SPOTS.facility.map((p) => p.name)).toEqual(built.facility.lightSpots.map((p) => p.name));
-    for (const p of built.parts) expect(LIGHT_SPOTS[p.id].map((s) => s.name)).toEqual(p.lightSpots.map((s) => s.name));
-    for (const id of SET_IDS) expect(LIGHT_SPOTS[id].some((p) => p.band === 'read' || p.band === 'pool'), `${id} has a lit spot`).toBe(true);
+    expect(SPOTS.facility.map((p) => p.name)).toEqual(built.facility.lightSpots.map((p) => p.name));
+    for (const p of built.parts) expect(SPOTS[p.id].map((s) => s.name)).toEqual(p.lightSpots.map((s) => s.name));
+    for (const id of SET_IDS) expect(SPOTS[id].some((p) => p.band === 'read' || p.band === 'pool'), `${id} has a lit spot`).toBe(true);
   });
 
   it('every spot reads in its band: pools lit, floors read, pockets dark, cut circuits dark, standby and house fills', () => {
@@ -143,7 +149,7 @@ describe('Marlow Yard light frame (marlow-final 0d)', () => {
   });
 
   it('indoor: no moon; every lamp under the bake box top', () => {
-    expect(moonLight(ctcourse.theme)).toBe(0);
+    expect(moonLight(MAP.theme)).toBe(0);
     expect(bake.moonLight).toBe(0);
     for (const l of reg.lights) if (l.kind !== 'flashlight') expect(l.y + 0.2).toBeLessThanOrEqual(bake.hi[1]);
   });
@@ -153,13 +159,13 @@ describe('Marlow Yard light frame (marlow-final 0d)', () => {
   it.runIf(process.env.CTLIGHT_PRINT === '1' || !!process.env.CTLIGHT_WRITE)('prints / writes the levels (one json per set)', () => {
     const out: string[] = [`bake ${(bakeMs / 1000).toFixed(1)} s, ${lampIds().length} lamps`];
     const write = process.env.CTLIGHT_WRITE ?? '';
-    for (const [k, spots] of Object.entries(LIGHT_SPOTS)) {
+    for (const [k, spots] of Object.entries(SPOTS)) {
       const levels: Record<string, number> = {};
       for (const p of spots) levels[p.name] = Number(levelOf(p).toFixed(2));
       const text = `${JSON.stringify({ levels }, null, 1)}\n`;
       out.push(`--- ${k === 'facility' ? 'facility (band checks only)' : tunedFile(k as SetId)}\n${text}`);
       if (k !== 'facility' && (write === 'all' || write === k)) {
-        mkdirSync('tests/ctcourse', { recursive: true });
+        mkdirSync(REPLAN ? 'tests/ctcourse/replan' : 'tests/ctcourse', { recursive: true });
         writeFileSync(tunedFile(k as SetId), text);
       }
     }
@@ -171,7 +177,7 @@ describe('Marlow Yard light frame (marlow-final 0d)', () => {
     const nearEdge = (v: number): boolean => Math.min(Math.abs(v - LIGHT.shadow), Math.abs(v - LIGHT.lit)) <= 0.05;
     const bad: string[] = [];
     for (const id of SET_IDS) {
-      const spots = LIGHT_SPOTS[id];
+      const spots = SPOTS[id];
       if (!existsSync(tunedFile(id))) {
         bad.push(`${id}: no ${tunedFile(id)} (run CTLIGHT_PRINT=1 and paste its block)`);
         continue;

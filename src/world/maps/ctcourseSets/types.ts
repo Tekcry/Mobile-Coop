@@ -430,6 +430,23 @@ export function boxInSet(id: SetId, inner: Box, pad = 0): boolean {
   return false;
 }
 
+/** (J14) The highest station number: 18 badges, A8's badge is four retry steps (STATIONS.md), so 1-21. */
+export const STATION_MAX = 21;
+
+/** (J14) Station numbers unique across the parts of one course build; one line per problem. */
+export function checkStationNumbers(parts: readonly SetPart[]): string[] {
+  const bad: string[] = [];
+  const owner = new Map<number, string>();
+  for (const p of parts) {
+    for (const st of p.bay.stations ?? []) {
+      const was = owner.get(st.n);
+      if (was !== undefined) bad.push(`station number ${st.n} is in both ${was} and ${st.id}`);
+      else owner.set(st.n, st.id);
+    }
+  }
+  return bad;
+}
+
 /**
  * The contract's rules for one set part (the map test runs it on every part): ids by prefix, light groups in range,
  * every placed thing inside the set box, cameras within the budget, guards at most 3, objective steps in the set's bay
@@ -500,13 +517,15 @@ export function checkSetPart(p: SetPart): string[] {
     own(z.flag, 'pass zone flag');
     if (!boxInSet(id, z.box, 0.01)) bad.push(at(`pass zone '${z.id}' is outside the set box`));
   }
-  // (J14) the bay's stations (replan variant): numbers whole, 1-18 and rising, marks and the guards they reset the set's own
-  let lastStation = 0;
+  // (J14) the bay's stations (replan variant): numbers whole, 1-21 (A8's badge 18 is four steps) and unique; the array is
+  // play order and need not rise (A4 is 9, 8, 10); marks and the guards they reset the set's own. Unique across the course:
+  // `checkStationNumbers`.
+  const seenStation = new Set<number>();
   for (const st of p.bay.stations ?? []) {
     own(st.id, 'station');
-    if (!Number.isInteger(st.n) || st.n < 1 || st.n > 18) bad.push(at(`station '${st.id}' number ${st.n} is not 1-18`));
-    else if (st.n <= lastStation) bad.push(at(`station '${st.id}' number ${st.n} does not rise (after ${lastStation})`));
-    lastStation = st.n;
+    if (!Number.isInteger(st.n) || st.n < 1 || st.n > STATION_MAX) bad.push(at(`station '${st.id}' number ${st.n} is not 1-${STATION_MAX}`));
+    else if (seenStation.has(st.n)) bad.push(at(`station '${st.id}' number ${st.n} is used twice in the bay`));
+    seenStation.add(st.n);
     for (const m of st.marks) if (!inSet(id, m.x, m.z)) bad.push(at(`station '${st.id}' mark (${m.x}, ${m.z}) is outside the set box`));
     for (const g of st.guards) if (!p.bay.squad.includes(g)) bad.push(at(`station '${st.id}' guard '${g}' is not in the bay's squad`));
   }

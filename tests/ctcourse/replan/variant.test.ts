@@ -16,7 +16,7 @@ import { getMap, MAPS } from '../../../src/world/maps';
 import { isListedMap } from '../../../src/world/maps/listed';
 import { slabWithHoles } from '../../../src/world/maps/ctcourseGreybox';
 import { REPLAN_BUILDERS, REPLAN_FLOOR_HOLES } from '../../../src/world/maps/ctcourseSets/replan';
-import { SET_IDS, checkSetPart, emptyPart, setBay } from '../../../src/world/maps/ctcourseSets/types';
+import { SET_IDS, STATION_MAX, checkSetPart, checkStationNumbers, emptyPart, setBay } from '../../../src/world/maps/ctcourseSets/types';
 
 const built = buildCtcourse(new LevelBuilder());
 const replan = buildCtcourse(new LevelBuilder(), { replan: true });
@@ -57,8 +57,15 @@ describe('Marlow re-plan variant base (J14 S0)', () => {
     expect(c.def.airlocks.map((a) => a.id)).toEqual(built.layout.course!.def.airlocks.map((a) => a.id));
   });
 
-  it('every re-plan part passes the set-part contract', () => {
+  it('every re-plan part passes the set-part contract, and station numbers are unique across the course', () => {
     for (const p of replan.parts) expect(checkSetPart(p), p.id).toEqual([]);
+    expect(checkStationNumbers(replan.parts)).toEqual([]);
+    const a = emptyPart('a1Gate');
+    const b2 = emptyPart('a2CarriageShed');
+    const s = { n: 4, id: 'a1-x', lesson: 'x', marks: [{ x: 1, z: 1, y: 0, yaw: 0 }, { x: 1, z: 1, y: 0, yaw: 0 }], retry: 'none', guards: [], gates: [], doneFlag: 'f' } as StationDef;
+    a.bay.stations = [s];
+    b2.bay.stations = [{ ...s, id: 'a2-x' }];
+    expect(checkStationNumbers([a, b2]).join()).toMatch(/station number 4 is in both a1-x and a2-x/);
   });
 
   it('with the S0 stubs (no holes) the re-plan course groups are the re-plan table and the facility spots are the built ones', () => {
@@ -86,7 +93,7 @@ describe('Marlow re-plan variant base (J14 S0)', () => {
     expect(edge.boxes.reduce((a, p) => a + p.s[0] * p.s[2], 0)).toBeCloseTo(160 * 78 - 10 * 8, 6);
   });
 
-  it("checkSetPart checks the stations: numbers 1-18 and rising, marks inside the set box, guards in the squad, ids the set's", () => {
+  it("checkSetPart checks the stations: numbers 1-21 and unique (play order need not rise), marks inside the set box, guards in the squad, ids the set's", () => {
     const mark = (x: number, z: number): StationDef['marks'][0] => ({ x, z, y: 0, yaw: 0 });
     const st = (o: Partial<StationDef>): StationDef => ({ n: 1, id: 'a2-plank', lesson: 'plank_bridge', marks: [mark(40, 10), mark(41, 10)], retry: 'station', guards: [], gates: [], doneFlag: 'a2-plank-done', ...o });
     const run = (stations: StationDef[], squad: string[] = []): string => {
@@ -96,10 +103,13 @@ describe('Marlow re-plan variant base (J14 S0)', () => {
       return checkSetPart(p).filter((l) => /station/.test(l)).join('\n');
     };
     expect(run([st({}), st({ n: 2, id: 'a2-vent' })])).toBe('');
-    expect(run([st({ n: 0 })])).toMatch(/not 1-18/);
-    expect(run([st({ n: 19 })])).toMatch(/not 1-18/);
-    expect(run([st({ n: 1.5 })])).toMatch(/not 1-18/);
-    expect(run([st({ n: 3 }), st({ n: 3, id: 'a2-vent' })])).toMatch(/does not rise/);
+    expect(STATION_MAX).toBe(21);
+    expect(run([st({ n: 0 })])).toMatch(/not 1-21/);
+    expect(run([st({ n: 22 })])).toMatch(/not 1-21/);
+    expect(run([st({ n: 1.5 })])).toMatch(/not 1-21/);
+    expect(run([st({ n: 21 })])).toBe('');
+    expect(run([st({ n: 9 }), st({ n: 8, id: 'a2-vent' }), st({ n: 10, id: 'a2-last' })])).toBe('');
+    expect(run([st({ n: 3 }), st({ n: 3, id: 'a2-vent' })])).toMatch(/used twice/);
     expect(run([st({ marks: [mark(40, 10), mark(90, 10)] })])).toMatch(/outside the set box/);
     expect(run([st({ guards: ['a2-shunter'] })])).toMatch(/not in the bay's squad/);
     expect(run([st({ guards: ['a2-shunter'] })], ['a2-shunter'])).not.toMatch(/squad/);
