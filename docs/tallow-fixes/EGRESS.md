@@ -98,5 +98,3 @@ from the door plane, `onBoltSide`).
    (the loft ends at z 67.6) leaves opening onto the lightwell, and a 4.5 m rise cannot fit a flight and landing in
    the 5.6 m of loft left (24 risers of 0.1875 need a 5.5 m run plus a landing). Along the facade the 6.5 m flight fits
    (x 46-52.3), and the walkway door lands on its top landing.
-</content>
-</invoke>

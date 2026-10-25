@@ -316,8 +316,6 @@ real gap)
 7. **W2 medkit in the pawn fire stair's top landing** (the landlord's first-aid box), not "the beadle's office" (no such
    room is built); W3's on the bulkhead stair's top landing (the porters' roof access), not the lodge (the porter is in
    it); W4's on the lane wall by the shed doors (no shed office is built). Briefs G2-G4 give the points.
-</content>
-</invoke>
 
 Fix round 1 adds three light picks, numbered with the LP report's list (`scratch/campaign/tallow-lp-report.md`):
 13. **The W1 warden's office is closed (M1):** the warden is out on his rounds; only his desk lamp is left on. The
