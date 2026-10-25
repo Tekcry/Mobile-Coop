@@ -9,15 +9,27 @@
  * `BODY_STEP` steps, so a lift rebuilds it a handful of times): sight and rounds pass under it, and nobody fits under
  * it upright or crouched (crouch 1.15 m > the 0.9 m hold gap); the only way through is the crawl (kinematic).
  *
- * Map use: `placeShutter(b, spec)` while building (the opening is a gap in the map's own wall, `spec.width` wide), then
- * `new ShutterDoors(scene, level)` with the world, `arm()` once the nav grid is built, `update(team.devices.list)` each
- * frame (wiring: KIT-SHUT report). Babylon only through `core/babylon`.
+ * Guards (J8-J9 A15): the opening is closed on the guards' nav grid for good (the winding gear is broken, the chain
+ * seized): `arm(nav)` adds one closure per shutter, shut, after the grid is built (built at grid time the opening's far
+ * side could be cut off as unreachable). Players keep the opening: the crawl is kinematic.
+ *
+ * Light (J8-J9 A16, light parity): each shutter is also an always-shut leaf in the world's light-door list
+ * (`shutterLightLeaf`, `World.lightDoors`), the list the gameplay field (`LightField`), the baked lamps on screen and the
+ * torch shadows test closed doors with, so the curtain stops lamp light in the meter, the guards' view and the picture
+ * through one path; the held gap passes no lamp light (its few seconds). The bake itself sees the opening as air.
+ *
+ * Map use: `placeShutter(b, spec)` while building (the opening is a gap in the map's own wall, `spec.width` wide). The
+ * world (J9 S1, `world.ts`) builds `ShutterDoors(scene, level)` when the level has specs, casts the curtains into the
+ * flashlights' shadows, and arms them with the doors after the nav grid (`World.armDoors(nav)`); the team controller
+ * calls `update(devices.list)` each fixed step after the kit ticks, on host and client. Babylon only through
+ * `core/babylon`.
  */
 import { Color3, CreateBox, Matrix, PBRMaterial, PhysicsBody, PhysicsMotionType, PhysicsShapeBox, Quaternion, TransformNode, Vector3, type Mesh, type Scene } from '../core/babylon';
 import { G, doorMembership } from '../physics/groups';
 import type { KitDevice } from '../game/kit/registry';
 import { SHUTTER, addShutterSpec, isShutterDevice, shutterSpecsOf, type ShutterSpec } from '../game/kit/shutter';
 import type { LevelBuilder } from './levelBuilder';
+import type { FieldDoor } from './lightField';
 
 /** The curtain's thickness, the head box (roller housing) and the side guides (m). */
 export const SHUTTER_PIECE = {
@@ -64,14 +76,84 @@ export function placeShutter(b: LevelBuilder, spec: ShutterSpec): ShutterSpec {
   return spec;
 }
 
-interface Slot {
+/**
+ * (J9 S1, A15) The guards' nav closure over an opening: as a door's (`sectorStage` `STAGE_NAV_ACROSS` deep, the width
+ * + `STAGE_NAV_ALONG` long), so the cells either side of the plane within `across` are shut.
+ */
+export const SHUTTER_NAV = { across: 0.35, alongPad: 0.5 } as const;
+
+/** The nav grid calls the closures need (`NavGrid`; the AI's grid, host and solo only). */
+export interface ShutterNav {
+  addClosure(cx: number, cz: number, hx: number, hz: number, yaw: number, y: number): number;
+  setClosed(id: number, on: boolean): void;
+}
+
+/** A shutter's nav closure rect in `NavGrid.addClosure`'s terms: hx along the shutter, hz across (its normal is the yaw). */
+export interface ShutterNavRect {
+  cx: number;
+  cz: number;
+  hx: number;
+  hz: number;
+  yaw: number;
+  y: number;
+}
+
+export function shutterNavRect(spec: ShutterSpec, out: ShutterNavRect): ShutterNavRect {
+  out.cx = spec.x;
+  out.cz = spec.z;
+  out.hx = (spec.width + SHUTTER_NAV.alongPad) / 2;
+  out.hz = SHUTTER_NAV.across;
+  out.yaw = spec.yaw;
+  out.y = spec.y;
+  return out;
+}
+
+/** (J9 S1, A15) Shut each shutter's opening on the guards' grid (build time; allocates). Returns the closure ids. */
+export function closeShutterNav(nav: ShutterNav, specs: readonly ShutterSpec[]): number[] {
+  const r: ShutterNavRect = { cx: 0, cz: 0, hx: 0, hz: 0, yaw: 0, y: 0 };
+  const ids: number[] = [];
+  for (const sp of specs) {
+    shutterNavRect(sp, r);
+    const id = nav.addClosure(r.cx, r.cz, r.hx, r.hz, r.yaw, r.y);
+    nav.setClosed(id, true);
+    ids.push(id);
+  }
+  return ids;
+}
+
+/**
+ * (J9 S1, A16) A shutter as a light door that is always shut: the leaf over the whole opening, in the door convention
+ * (`FieldDoor`: the hinge at one end, the leaf along (sin yaw, cos yaw), so yaw = the shutter's normal + 90 degrees).
+ */
+export function shutterLightLeaf(spec: ShutterSpec): FieldDoor {
+  const ax = Math.cos(spec.yaw);
+  const az = -Math.sin(spec.yaw);
+  const h = spec.width / 2;
+  return { anchor: { hinge: { x: spec.x - ax * h, y: spec.y, z: spec.z - az * h }, yaw: spec.yaw + Math.PI / 2, width: spec.width, height: spec.height }, open: 0 };
+}
+
+/** The level's shutters as always-shut light doors (none = []). */
+export function shutterLightLeaves(level: unknown): FieldDoor[] {
+  return shutterSpecsOf(level).map(shutterLightLeaf);
+}
+
+/** One curtain's live state (the world piece). */
+export interface ShutterSlot {
   spec: ShutterSpec;
   holdGap: number;
   open: number;
   bottom: number;
+  index: number;
+}
+
+/** The curtains of a level, in spec order (pure: the `ShutterDoors` slots without their bodies). */
+export function shutterSlotsOf(level: unknown): ShutterSlot[] {
+  return shutterSpecsOf(level).map((spec, index) => ({ spec, holdGap: Math.min(spec.holdGap ?? SHUTTER.holdGap, spec.height), open: 0, bottom: 0, index }));
+}
+
+interface Slot extends ShutterSlot {
   body: PhysicsBody | null;
   node: TransformNode | null;
-  index: number;
 }
 
 /** The level's shutter curtains: one thin-instanced mesh, a static body each (armed after the nav grid). */
@@ -81,6 +163,8 @@ export class ShutterDoors {
   private mesh: Mesh | null = null;
   private buf: Float32Array | null = null;
   private armed = false;
+  /** (A15) Each shutter's closure on the guards' nav grid (empty without a grid: a co-op client, a sandbox). */
+  private navIds: number[] = [];
   private readonly m = new Matrix();
   private readonly q = new Quaternion();
   private readonly sc = new Vector3();
@@ -91,13 +175,13 @@ export class ShutterDoors {
     private readonly scene: Scene,
     level: unknown,
   ) {
-    const specs = shutterSpecsOf(level);
-    if (!specs.length) return;
-    specs.forEach((spec, index) => {
-      const slot: Slot = { spec, holdGap: Math.min(spec.holdGap ?? SHUTTER.holdGap, spec.height), open: 0, bottom: 0, body: null, node: null, index };
+    const slots = shutterSlotsOf(level);
+    if (!slots.length) return;
+    for (const s of slots) {
+      const slot: Slot = { ...s, body: null, node: null };
       this.slots.push(slot);
-      this.byId.set(spec.id, slot);
-    });
+      this.byId.set(slot.spec.id, slot);
+    }
     const mat = new PBRMaterial('shutterMat', scene);
     mat.albedoColor = Color3.FromHexString(SHUTTER_PIECE.color).toLinearSpace();
     mat.metallic = 0.6;
@@ -108,7 +192,7 @@ export class ShutterDoors {
     const mesh = CreateBox('shutters', { size: 1 }, scene);
     mesh.material = mat;
     mesh.isPickable = false;
-    this.buf = new Float32Array(specs.length * 16);
+    this.buf = new Float32Array(slots.length * 16);
     mesh.thinInstanceSetBuffer('matrix', this.buf, 16, false);
     this.mesh = mesh;
     for (const s of this.slots) this.write(s);
@@ -131,11 +215,21 @@ export class ShutterDoors {
     this.m.copyToArray(this.buf!, s.index * 16);
   }
 
-  /** Collision on (call once the nav grid is built: the guards' grid keeps the opening as the map makes it). */
-  arm(): void {
+  /**
+   * Collision on, and (A15) each opening shut on the guards' grid when one is given (`nav`: the host's / solo grid; a
+   * co-op client has none). Call once the nav grid is built (`World.armDoors`): built at grid time, a shut opening
+   * could cut its far side off as unreachable.
+   */
+  arm(nav: ShutterNav | null = null): void {
     if (this.armed) return;
     this.armed = true;
     for (const s of this.slots) this.addBody(s);
+    if (nav && this.slots.length) this.navIds = closeShutterNav(nav, this.slots.map((s) => s.spec));
+  }
+
+  /** (tests, tooling) The closures `arm` shut on the guards' grid. */
+  get navClosures(): readonly number[] {
+    return this.navIds;
   }
 
   private addBody(s: Slot): void {

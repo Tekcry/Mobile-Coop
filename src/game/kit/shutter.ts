@@ -21,8 +21,8 @@
  * under it (`stepShutter` floor) and the crawler is pushed clear to the nearer side (`pushTarget`).
  *
  * Guards: `ShutterDevice.visible` (open past `SHUTTER.visibleFrac` of its hold gap, the doors' `DOOR.driveShut` rule),
- * `opens` / `openFor` and `shutterNoticePoint` are what the open-door notice reads (`stealthSystems.noticeOpenDoors`);
- * the Guard AI hook is listed in the KIT-SHUT report (not wired here).
+ * `opens` / `noticed` and `shutterNoticePoint` are what the held-shutter notice reads (`shutterNoticedBy`, called from
+ * `stealthSystems.noticeOpenShutters`, J9 S2); the opening is shut on the guards' nav grid (`shutterDoor.ts`, J9 S1).
  *
  * Numbers are Night Shift's own starting values (the move is not in CT; PLAN 4a gives the 0.9 m gap).
  */
