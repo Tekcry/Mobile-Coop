@@ -56,7 +56,7 @@ import { KEYED_GLIDE_STRAFE } from './clips/keyed/glide_strafe';
 import { KEYED_GLIDE_BACK } from './clips/keyed/glide_back';
 import { studioDriveTargets, type StudioDrive } from './studioDrive';
 import { MOVE_IDS, newGraphPlaying, type GraphPlaying } from './nowPlaying'; // (tuner-clarity S1)
-import { HANG_IDLE_SECONDS, KEEP_CH, SHIMMY_SPEED, SHIMMY_TRAVEL, STAND_FADE, HOLD_FEET_CH, WREN_HOLD, WREN_TRAV } from './mixamo'; // (mixamo-retarget I2)
+import { HANG_IDLE_SECONDS, KEEP_CH, SHIMMY_SPEED, SHIMMY_TRAVEL, HOLD_FEET_CH, WREN_HOLD, HOLD_K0, HOLD_SPAN, HOLD_FROM, HOLD_STAND, HOLD_EASE, WREN_TRAV } from './mixamo'; // (mixamo-retarget I2)
 import { bodyMotionBands, bodyMotionStep, KEY_MOTION, newBodyMotion, newBodyMotionIn, scaleKeyedArms, type BodyMotion } from './bodyMotion';
 import { KEYED_SNEAK } from './clips/keyed/sneak';
 import { KEYED_CROUCH_WALK } from './clips/keyed/crouch_walk';
@@ -698,9 +698,11 @@ const MX_MOVE_W = 4;
 const MX_DIR = 5;
 const MX_IDLE_T = 6;
 const MX_SHIM_T = 7;
+/** (I2b) the held climb-up capture's weight (`WREN_HOLD`) */
+const MX_CW = 8;
 /** A fresh `mx` (the shimmy's direction starts centred). */
 function newMx(): Float64Array {
-  const m = new Float64Array(8);
+  const m = new Float64Array(9);
   m[MX_DIR] = 0.5;
   return m;
 }
@@ -3034,36 +3036,43 @@ export class AnimGraph {
     this.keepSave(src, KEEP_CH.climbUp);
     // (I2b) a capture with a hold (`WREN_HOLD`, the braced take): the hand-made climb-up under it while the hands hold
     // the lip, the capture blended in as the grips let go (smoothstep written out: no double argument)
-    // (the feet stay the hand-made climb-up's to the crouch: `HOLD_FEET_CH`)
+    // (the feet stay the hand-made climb-up's to the crouch: `HOLD_FEET_CH`; every hold value read from the typed
+    // `WREN_HOLD` and the capture's weight kept in `mx[MX_CW]`: no double boxed)
     const H = WREN_HOLD;
-    const hold = H.k0 >= 0 && ca !== CLIMB_UP;
-    let cw = 1;
+    const k0 = H[HOLD_K0]!;
+    const hold = k0 >= 0 && ca !== CLIMB_UP;
+    mx[MX_CW] = 1;
     if (hold) {
       this.mxOver(src, CLIMB_UP);
       for (let j = 0; j < HOLD_FEET_CH.length; j++) this.holdBase[j] = src[HOLD_FEET_CH[j]!]!;
-      const v = (ct - H.k0) / H.span;
-      cw = v <= 0 ? 0 : v >= 1 ? 1 : v * v * (3 - 2 * v);
-      mx[MX_W] = cw;
+      const v = (ct - k0) / H[HOLD_SPAN]!;
+      mx[MX_CW] = v <= 0 ? 0 : v >= 1 ? 1 : v * v * (3 - 2 * v);
+      mx[MX_W] = mx[MX_CW]!;
       // the take's end eased to a stop at the crouch over `ease` of k (its last ease / 2 not reached; the take is cut
       // mid-move at the crouch)
       const C = CLIMB_UP_CROUCH_K;
-      const q = ct <= H.k0 ? H.from : ct >= C ? C : H.from + ((ct - H.k0) * (C - H.from)) / (C - H.k0);
-      const e = H.ease;
-      const r = C - q;
-      mx[MX_T] = e > 0 && r < e ? C - e / 2 - (r * r) / (2 * e) : q;
+      const from = H[HOLD_FROM]!;
+      // (each branch a store of its own: a phi of the typed reads and the module constant boxed one double a frame)
+      if (ct <= k0) mx[MX_T] = from;
+      else if (ct >= C) mx[MX_T] = C;
+      else mx[MX_T] = from + ((ct - k0) * (C - from)) / (C - k0);
+      const e = H[HOLD_EASE]!;
+      const r = C - mx[MX_T]!;
+      if (e > 0 && r < e) mx[MX_T] = C - e / 2 - (r * r) / (2 * e);
     }
     this.mxOver(src, ca);
     mx[MX_T] = ct;
     if (hold) for (let j = 0; j < HOLD_FEET_CH.length; j++) src[HOLD_FEET_CH[j]!] = this.holdBase[j]!;
     // (smoothstep written out: no double argument)
-    const u = (ct - CLIMB_UP_CROUCH_K) / (hold ? H.stand : STAND_FADE);
+    // (the hold's stand fade; `STAND_FADE` there without a hold: resolveMixamo)
+    const u = (ct - CLIMB_UP_CROUCH_K) / H[HOLD_STAND]!;
     const sw = cb === ca || u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u);
     if (sw > 0) {
       mx[MX_W] = sw;
       this.mxOver(src, cb);
     }
     this.keepApply(src, KEEP_CH.climbUp, CLIMB_UP);
-    this.travNow = sw > 0.5 ? cb : cw > 0.5 ? ca : CLIMB_UP;
+    this.travNow = sw > 0.5 ? cb : mx[MX_CW]! > 0.5 ? ca : CLIMB_UP;
     return true;
   }
 

@@ -57,9 +57,9 @@ export const MIXAMO_ON: Record<string, boolean> = {
   hanging_idle: true,
   braced_hang_shimmy_left: true,
   braced_hang_shimmy_right: true,
-  // off (visibly broken, I2b): the palms leave the lip 58 cm and the shoulders 0.85 m from it (arm 0.54) before the foot is
-  // on top (climbHands harness; hand-made 0.0 cm / 0.49 m)
-  braced_hang_to_crouch: false,
+  // on (I2b, under its hold `MIXAMO_HOLD`): palms 0.0 cm on the lip, shoulders 0.49 m (arm 0.54), wrists' velocity change
+  // 2.8 cm a frame at the release (cap 3.0; hand-made 2.8), trunk 8.6 / 2.8 cm (caps 9.6 / 3.1): tests/climbHands.test.ts
+  braced_hang_to_crouch: true,
   // off (visibly broken, I2b): its stand-up end turns the hips 86 deg (pelYaw to 1.5 rad) and snaps the trunk 19.7 cm and
   // the wrists 11.1 cm velocity change in a frame (k 0.85; limits 9.6 / 3; climbHands harness)
   freehang_climb: false,
@@ -83,17 +83,27 @@ export const STAND_FADE = 0.08;
 
 /**
  * (I2b) Per lip climb-up capture: the hand-made climb-up (CLIMB_UP) plays under it while the hands hold the lip and the
- * capture blends in as the grips let go (smoothstep over k `k0` .. `k0 + span`; the game's `CLIMB_UP_HANDS`,
- * moveState.ts). The braced take pulls up with its feet on the wall and its trunk upright: played from k 0 its shoulders
- * went 0.85 m from the lip (arm 0.54) and the palms 58 cm off it before the right foot was on the top (k 0.59, the game
- * needs it by the release, 0.475: tests/climbHands.test.ts).
+ * capture blends in once the grips have mostly let go (smoothstep over k `k0` .. `k0 + span`; the grips: the game's
+ * `CLIMB_UP_HANDS`, k 0.475 - 0.643, moveState.ts), its clock from the take's k `from` at `k0` to the crouch, then the
+ * hand-made stand-up fades in over `stand` of k. The braced take pulls up with its feet on the wall and its trunk upright:
+ * played from k 0 its shoulders went 0.85 m from the lip (arm 0.54) and the palms 58 cm off it before the right foot was
+ * on the top (k 0.59, the game needs it by the release, 0.475: tests/climbHands.test.ts). Blended in with the grips (k0
+ * 0.475) its lower shoulders put the lip grips out of the arms' reach over k 0.53 - 0.59 and the wrists snapped back as
+ * the grips let go (3.5 - 3.7 cm velocity change a frame, cap 3.0); from k 0.58 the grips are past that and the wrists are
+ * the hand-made climb-up's (2.8 cm). The capture's share peaks about 0.7 near k 0.75 (the stand-up fades in from 0.654).
  */
 export const MIXAMO_HOLD: Readonly<Record<string, { k0: number; span: number; from: number; stand: number; ease: number }>> = {
-  braced_hang_to_crouch: { k0: 0.475, span: 0.168, from: 0.475, stand: 0.08, ease: 0 },
+  braced_hang_to_crouch: { k0: 0.58, span: 0.2, from: 0.56, stand: 0.34, ease: 0 },
 };
-/** The resolved hold of the `climbUpCrouch` slot's capture (`k0` -1: none, the capture from k 0); `stand` its stand-up
- *  fade (k; `STAND_FADE` without a hold). The graph reads it. */
-export const WREN_HOLD: { k0: number; span: number; from: number; stand: number; ease: number } = { k0: -1, span: 1, from: 0, stand: STAND_FADE, ease: 0 };
+/** The resolved hold of the `climbUpCrouch` slot's capture, by the `HOLD_*` slots (`k0` -1: none, the capture from k 0;
+ *  `stand` its stand-up fade, k: `STAND_FADE` without a hold). The graph reads it: typed, so no double it reads is boxed
+ *  (an object's double fields boxed 16 B a frame on the hold's path: tests/mixamoTraverse.test.ts "no allocation"). */
+export const WREN_HOLD = new Float64Array(5);
+export const HOLD_K0 = 0;
+export const HOLD_SPAN = 1;
+export const HOLD_FROM = 2;
+export const HOLD_STAND = 3;
+export const HOLD_EASE = 4;
 /**
  * (I2b) Under a hold the feet stay the hand-made climb-up's to the crouch (the stand-up's capture fades its own in): the
  * braced take's right foot steps onto the top at k 0.53 - 0.6 (fRY up to 0.18 m over its crouch height), the game has it
@@ -138,19 +148,19 @@ export function resolveMixamo(): void {
     if (pick.slot === 'climbUpStand') T.climbUpCrouch = pick.clip;
   }
   T.any = SLOTS.some((s) => T[s] !== null);
-  WREN_HOLD.k0 = -1;
-  WREN_HOLD.span = 1;
-  WREN_HOLD.stand = STAND_FADE;
-  WREN_HOLD.ease = 0;
-  WREN_HOLD.from = 0;
+  WREN_HOLD[HOLD_K0] = -1;
+  WREN_HOLD[HOLD_SPAN] = 1;
+  WREN_HOLD[HOLD_STAND] = STAND_FADE;
+  WREN_HOLD[HOLD_EASE] = 0;
+  WREN_HOLD[HOLD_FROM] = 0;
   for (const [slug, r] of Object.entries(MIXAMO_TRAV)) {
     const h = MIXAMO_HOLD[slug];
     if (h && T.climbUpCrouch === r.clip) {
-      WREN_HOLD.k0 = h.k0;
-      WREN_HOLD.span = h.span;
-      WREN_HOLD.stand = h.stand;
-      WREN_HOLD.ease = h.ease;
-      WREN_HOLD.from = h.from;
+      WREN_HOLD[HOLD_K0] = h.k0;
+      WREN_HOLD[HOLD_SPAN] = h.span;
+      WREN_HOLD[HOLD_STAND] = h.stand;
+      WREN_HOLD[HOLD_EASE] = h.ease;
+      WREN_HOLD[HOLD_FROM] = h.from;
     }
   }
   for (const m of Object.keys(MIXAMO_KEEP) as MixamoMove[]) {

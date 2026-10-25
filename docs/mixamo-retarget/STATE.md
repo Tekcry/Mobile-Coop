@@ -57,3 +57,10 @@
   the clip's hand channels do nothing in the climb-up (the graph's ready hands overwrite hLX..hRZ, animGraph ~1701): the
   wrists follow the capture's trunk, so wrist smoothing must come from the trunk / timing, not the hand channels. Swept
   span, k0, from, ease, stand, per-channel keeps: none under 3.0 yet. Left: braced under 3.0, freehang end, report.
+- At the save (10:05, usage cap): braced_hang_to_crouch ON (not yet committed-tested in full): hold k0 0.58 span 0.2
+  from 0.56 stand 0.34 (the capture blends in after the grips are mostly off: its lower shoulders had put the grips out of
+  reach over k 0.53-0.59). climbHands with it on: palms 0.0, shoulders 0.488 m, wrists 2.8 cm (cap 3.0), trunk 8.6 / 2.8
+  (caps 9.6 / 3.1); climbHands + mocapGuards pass, mixamoTraverse 12/12 (allocation fixed: WREN_HOLD is a Float64Array,
+  the capture weight in mx[MX_CW], no phi of typed reads and module constants; it boxed 16 B a frame since 80b37ab).
+  Other rows unchanged: ladder ON (19.9 cm vs 15.7), crawl ON (3.4 / 1.7), freehang_climb OFF (trunk 19.7, wrists 11.1).
+  Left: typecheck + eslint on this head, rerun climbHands, freehang_climb end, I2B-REPORT rewrite, changes fragment.

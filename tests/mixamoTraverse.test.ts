@@ -101,7 +101,7 @@ function differ(a: number[], b: number[]): number {
 }
 
 /** The sequence's frame ranges by name (indices into `sequence()`). */
-const AT = { idle: 59, shimR: 119, shimL: 179, climbCrouch: 180 + 30, climbStand: 180 + 74, pipe: 180 + 79 + 30 + 59, ladder: 180 + 79 + 30 + 60 + 30 + 59, topOut: 180 + 79 + 30 + 60 + 30 + 60 + 40, crawl: 180 + 79 + 30 + 60 + 30 + 60 + 52 + 59, team: 180 + 79 + 30 + 60 + 30 + 60 + 52 + 60 + 30 };
+const AT = { idle: 59, shimR: 119, shimL: 179, climbCrouch: 180 + 58, climbStand: 180 + 74, pipe: 180 + 79 + 30 + 59, ladder: 180 + 79 + 30 + 60 + 30 + 59, topOut: 180 + 79 + 30 + 60 + 30 + 60 + 40, crawl: 180 + 79 + 30 + 60 + 30 + 60 + 52 + 59, team: 180 + 79 + 30 + 60 + 30 + 60 + 52 + 60 + 30 };
 
 describe('mixamo I2: the switch and the resolved Wren table', () => {
   it('the flag reads ?mixamo=0/1 (absent: null = off) and the table starts hand-made', () => {
@@ -191,6 +191,7 @@ describe('mixamo I2: the graph', () => {
       // the hips trail the hands: a swing to the left (traverseT < 0) is a shimmy to the right
       expect(r.trav[AT.shimR]).toBe(name('braced_hang_shimmy_right', HANG.name));
       expect(r.trav[AT.shimL]).toBe(name('braced_hang_shimmy_left', HANG.name));
+      // (I2b) k 0.744: the braced capture's hold has it in (MIXAMO_HOLD: from k 0.58), the stand-up not yet past half
       expect(r.trav[AT.climbCrouch]).toBe(name('braced_hang_to_crouch', CLIMB_UP.name));
       expect(r.trav[AT.climbStand]).toBe(name('freehang_climb', CLIMB_UP.name));
       expect(r.trav[AT.pipe]).toBe(HANG.name);
@@ -268,8 +269,15 @@ describe('mixamo I2: the graph', () => {
     });
     const handHang = switchStep(hang, hangAt);
     const handLad = switchStep(lad, ladAt);
-    // (I2b) the hand-made ladder to the top-out capture (the ladder capture to it: the anchor test's first exit frame)
+    // (I2b) the braced capture's held climb-up (hand-made under it to k 0.58): the hanging idle capture to it is a capture to
+    // capture switch across a move change, inertialized too
+    setMixamo(true);
+    expect(WREN_TRAV.climbUpCrouch).not.toBeNull();
+    const heldHang = switchStep(hang, hangAt);
+    // (I2b) the hand-made ladder to the top-out capture (the ladder capture to it: the anchor test's first exit frame), and
+    // the hanging idle to the hand-made climb-up (the braced capture off)
     MIXAMO_ON.climbing_ladder = false;
+    MIXAMO_ON.braced_hang_to_crouch = false;
     setMixamo(true);
     expect(WREN_TRAV.hangIdle).not.toBeNull();
     expect(WREN_TRAV.climbUpCrouch).toBeNull();
@@ -277,9 +285,10 @@ describe('mixamo I2: the graph', () => {
     expect(WREN_TRAV.ladderTop).not.toBeNull();
     const capHang = switchStep(hang, hangAt);
     const capLad = switchStep(lad, ladAt);
-    console.info(`(mixamo I2) largest channel change on the switch frame: hanging idle -> climb-up ${capHang.toFixed(4)} (hand-made ${handHang.toFixed(4)}), ladder -> top-out capture ${capLad.toFixed(4)} (hand-made ${handLad.toFixed(4)})`);
+    console.info(`(mixamo I2) largest channel change on the switch frame: hanging idle -> climb-up ${capHang.toFixed(4)} (held braced ${heldHang.toFixed(4)}, hand-made ${handHang.toFixed(4)}), ladder -> top-out capture ${capLad.toFixed(4)} (hand-made ${handLad.toFixed(4)})`);
     // (before the fix: 0.73 rad hanging idle -> climb-up, 0.92 ladder -> top-out; the hand-made switches 0.40 and 0.25)
     expect(capHang).toBeLessThanOrEqual(handHang * 1.25);
+    expect(heldHang).toBeLessThanOrEqual(handHang * 1.25);
     expect(capLad).toBeLessThanOrEqual(handLad * 1.25);
   });
 
