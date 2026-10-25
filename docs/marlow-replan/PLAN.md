@@ -199,7 +199,9 @@ Wire: `course` gains `PackedCourse.st` (the live station), `rs` (retry count) an
   `docs/level-validator/**`, S9's `docs/marlow-final/graph/**` (the as-built graph). This job claims none of those; it
   supplies the re-planned graph (`docs/marlow-replan/graph.json`).
 - **J13 feature/route-runs-2 (ours):** `scripts/route-run*`, `docs/route-runs/**`, `docs/level-design.md`. No overlap;
-  J13 reads our graph, the station hook and R1's `window.__course.restarts` / `lastRetry` (R4c).
+  J13 reads our graph, the station hook and R1's `window.__course.restarts` / `lastRetry` / `retryOff(n)` (R4c). The
+  J13 lead is told R1's names and the cause mapping (`seen` / `caught` -> seen, `timer` -> timer, `out` / `down` ->
+  other; R1 "Retry-off switch") when this PLAN passes its checker.
 - **feature/coop-kit (Player):** `teamMoves.ts`, `teamController.ts`, `src/world/plankBridge.ts`,
   `src/world/counterweightGrate.ts`, `src/game/kit/*`, `flags.ts` (`kitMoves`). No overlap except `flags.ts`; KS1-KS5
   only call Player's devices from `replan/<set>.ts`.
@@ -302,6 +304,17 @@ shows the next station's mark as built (Q18) and a drill-mark guard test pins it
   `window.__course` is the `CourseMode` (`courseMode.ts:292`), so `CourseMode.restarts` and `lastRetry` are getters on
   the state. Client: the mirror object (`courseMode.ts:1362`) gains `restarts: w.s.rs` and `lastRetry: { st: w.s.st,
   cause: w.s.rc }`, so the harness reads the same hook on host and client. No new event, no save.
+- **Retry-off switch and cause names for R4c (plan check 2 fix 2).** On the second seen retry from one space R4c turns
+  "that set's retry rule off ... read from J14's build" and pushes the robots past. R1 gives it
+  `window.__course.retryOff(n)` on the host: `CourseMode.retryOff(n)` calls `CourseState.retryOff(n)`, which puts
+  station `n` in a `retryOff` set the trigger reads live, so that station's retry acts as `'none'` (a guard alert, a
+  caught hold or a drill window ending plays out with no retry) until the bay restarts (`restart()` clears the set, so a
+  downed bay restart turns it back on). `StationDef` stays readonly (S0's file unchanged). Returns true, or false for an
+  `n` not in the live bay (on the built `ctcourse` there are no stations: R4c keeps master's `spotFail` path there).
+  Host only: retries are the host's call, the harness drives the host page (`verb()`, `setFlag()`), and the client
+  mirror has no `retryOff`. Cause mapping R4c uses for its seen / timer / other: `seen` and `caught` -> seen, `timer` ->
+  timer, `out` and `down` -> other. So an A8 caught retry whose alert rose more than 2 s earlier still reads as seen,
+  never as a second `other` (R4c's only `restart-loop` dead stop).
 - **One out and both down (level-design 9.4 [Training], unchanged; plan check 2 fix 1).** On `ctcourseReplan` a player
   out with no revives left takes the path both down takes, as on the built yard: `coopHost.goOut` (:568-581, not edited)
   calls `CourseMode.onPlayerDeath()`, the bay restarts from its holding room after `RESTART_DELAY`, a full reset with
@@ -327,6 +340,8 @@ shows the next station's mark as built (Q18) and a drill-mark guard test pins it
   `tests/courseStation.test.ts`: the count and cause through `pack()` -> `parseCourse` -> the client mirror object);
   one player out in station 2 (partner up) restarts the bay from its holding room, a full reset with station 1 undone
   (level-design 9.4, G312; `restarts` +1, cause `out`); both down after station 2 does the same (A17; cause `down`);
+  after `window.__course.retryOff(2)` a second guard alert in station 2 does not retry (no rise in `restarts`, players
+  stay put) and a bay restart turns station 2's retry back on (unit test in `tests/courseStation.test.ts`);
   `checkpointSpawns()` returns station marks only during a station retry (a rejoining client then too) and the airlock
   slots otherwise; the built `ctcourse` behaves as today (its tests unchanged); the flag off leaves the room on
   `ctcourse`.
