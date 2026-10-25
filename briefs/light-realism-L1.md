@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 2 2026-10-25T23:19:49+11:00
 # light-realism L1 (cloud): the S1 car park lit to the real-world band, measured, and its sign-off page
 
 Lead: Night Shift | Sector Ops Build. Job light-realism (FOLDED-PLAN J10, ROADMAP Now row 13; Michael Q2 "Never", Q3
