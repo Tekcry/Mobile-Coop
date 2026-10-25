@@ -144,8 +144,8 @@ save: none (settings.gameplay.sprintHold dropped, an old stored value ignored; a
 - **R8** (M1): `STRIKE.recover` 1.4 s (`STRIKE_DUR` 1.48). `strikeBody.ts` is re-timed in seconds, not phase: the wind-up
   and contact keep today's absolute times (contact at 0.08 s), the extra 0.8 s is the follow-through and a guarded
   settle back to rest (no frozen hold). The host follows `STRIKE_DUR` by itself. The Mixamo `elbow_strike` and
-  `cross_punch` clips play this strike by default (see "Mixamo hand-offs"): the re-timed procedural strike is the
-  rollback (`?mixamo=0`) and plays only where a clip is visibly broken.
+  `cross_punch` clips play this strike when the animation source is Mixamo (see "Mixamo hand-offs"); the default
+  game keeps the re-timed procedural strike.
 - **R9**: `cmove` gains optional `l: 1` (strike only, parsed as a boolean); `commitRequest(kind, id, target, lethal)`;
   the host keeps it in its strike record and `applyHit(..., lethal)` takes it as a parameter (the host's own strike
   passes `this.lethal`). A client's RT hold then kills on the host as solo does.
@@ -154,8 +154,8 @@ save: none (settings.gameplay.sprintHold dropped, an old stored value ignored; a
   `gameAudio.ts:159` (own steps) and `net/validate.ts` (the host's estimate for a carrying client). Carrying, a crouch
   press is swallowed and the controller held standing (bible 5.3 "standing").
 - **R11** (A6, dark): `BodyCarry.beginPutDown()`: about 1.6 s committed, kneel and lay the body along the side with the
-  hands on it to the ground, no `noise` call. The kneel is the Mixamo `kneel_down` clip by default (see "Mixamo
-  hand-offs"); a procedural kneel only if the clip is visibly broken, and as the `?mixamo=0` rollback. A "Put down"
+  hands on it to the ground, no `noise` call. The kneel is procedural in the default game and the Mixamo
+  `kneel_down` clip when the animation source is Mixamo (see "Mixamo hand-offs"). A "Put down"
   row above "Drop body" when `flags.putDown`; the client sends `use` with a new id `put-body` (`protocol.ts` beside
   `DROP_BODY_ID`), the host's `onUse` lays it down quietly.
   Partner view (G400 "players must look exact"): `MOVE_MODES` gains `putDown` (`src/player/moveState.ts`, appended,
@@ -209,7 +209,7 @@ From `docs/mixamo-retarget/PLAN.md` "Hand-offs" (origin/master: "carry, kneel_do
 rows 12-14. G399 ("mocap only" for players) makes capture over hand-keyed poses the intent. The clip modules are on
 master in `src/anim/clips/mixamo/` (not at this branch's base 2148ec969: each slice cuts from current master); J19
 claims them read only and never re-emits them.
-| Clip | Slice | Use | Replaces (the rollback) |
+| Clip | Slice | Use (source Mixamo) | The default game's move |
 | --- | --- | --- | --- |
 | `carry_body_walking` (gait) | S7 | the body-carry walk, through the `cqGait.ts` carry layer | the procedural carry bend / lean (`CQ.carryBend`, `carryDrop`) |
 | `carry_body_idle` (loop) | S7 | standing with a body on the shoulder | the procedural carry stand |
@@ -218,19 +218,22 @@ claims them read only and never re-emits them.
 | `cross_punch` (timed) | S2 | the alternative for the same strike; one of the two plays, whichever reads better at a glance | the re-timed `strikeBody.ts` |
 
 Rules for every row:
-- Default ON (ROADMAP "Decided" 2026-10-26 ~00:15, Michael: "add all mixamo animations in game, i will fine tune as
-  needed. make this priority overnight"): the clips play in the default game; Michael tunes them in the Anim Studio,
-  no walk first. The `mixamo` flag (`?mixamo=0/1`, `src/core/flags.ts`) and the clip's `MIXAMO_ON` row
-  (`src/anim/mixamo.ts`) are the Mixamo lead's: J19 asks for the row on and never edits either file; `?mixamo=0` is the
-  hand-made rollback and comparison.
-- Mixamo wins over the hand-made move unless visibly broken (a spin, a pop seen at a glance, limbs through the body,
-  a bad foot slide); only then the hand-made move plays, with the reason in the PR body. A8 readings (as
-  `docs/mixamo-retarget/I1-REPORT.md` on origin/feature/mixamo-i3: seam step, largest bone step a frame, knees x hips,
-  knee outside ankle, elbow outside shoulder; planted slide for the carry walk; contact time and the victim's reaction
-  beat for the strike) are recorded as information in the PR body and go on the polish list; they keep no clip off.
-- Flag off (or the row off) is byte-identical to the hand-made move: a test pins it.
+- A choice, not the default (ROADMAP "Decided" 2026-10-26 ~00:25, Michael: "update - dont set mixamo moves as default
+  in game, allow toggle between hand made, cmu, and mixamo"; replaces the ~00:15 "switched on"): a global setting
+  "Animation source: Hand-made / CMU / Mixamo" (Options and the Anim Studio; default = today's game). These clips play
+  only when the player picks Mixamo; Michael tunes them in the Anim Studio. The setting, its URL value
+  (`?anim=mixamo` once the toggle lands), the `mixamo` flag and the `MIXAMO_ON` rows (`src/anim/mixamo.ts`) are the
+  Mixamo lead's: J19 reads the setting, asks for the rows on, and never edits those files.
+- Within the Mixamo source, the clip wins over the hand-made move unless visibly broken (a spin, a pop seen at a
+  glance, limbs through the body, a bad foot slide); only then the hand-made move plays, with the reason in the PR
+  body. A8 readings (as `docs/mixamo-retarget/I1-REPORT.md` on origin/feature/mixamo-i3: seam step, largest bone step
+  a frame, knees x hips, knee outside ankle, elbow outside shoulder; planted slide for the carry walk; contact time and
+  the victim's reaction beat for the strike) are recorded as information in the PR body and go on the polish list;
+  they keep no clip off.
+- Any other source (or the row off) is byte-identical to today's move: a test pins it.
 - Co-op: remotes pose from `MoveState` (`strike` / `putDown` `ph`) and the carry mirror (`RemoteAvatar.carryLoad`), so
-  a partner plays the same clip as the owner with no extra field (G400).
+  a partner plays the same move as the owner with no extra J19 field (G400); which source a partner's remote uses must
+  match the owner's, and how that reaches the wire is the toggle owner's (J19 adds no field).
 
 ## Slices
 Each slice is one PR to master. Parallel slices never share a file (the claims above split per slice). Waves: W1 (S2,
@@ -259,13 +262,13 @@ since the base, and its brief re-finds every cited line at brief time.
 - Files: `src/game/elbowStrike.ts`, `src/anim/strikeBody.ts`, `tests/elbowStrike.test.ts`, `tests/strikePops.test.ts`,
   `tests/animN4cStrike.test.ts`, `tests/animN4dKill.test.ts`; read only: `src/anim/clips/mixamo/elbow_strike.ts`,
   `src/anim/clips/mixamo/cross_punch.ts` (Mixamo hand-off). Est. ~500.
-- Checks: vitest on those (A8 readings recorded, each clip vs the re-timed procedural strike; `?mixamo=0`
-  byte-identical); affected-e2e (GAME + `e2e-anim`, `e2e-clip`, `e2e-move`), `anim-audit`; `e2e-coop` +
-  `e2e-netmove` requested; look video (the default game): strikes from four sides, a whiff; `?mixamo=0` only for a
-  hand-made comparison.
-- Done looks like: contact as quick as today, free 1.4 s after it, the arm settles with no pop or freeze; the Mixamo
-  strike plays by default unless visibly broken, the A8 readings in the PR body as information.
-- Flag: none for R8 (Q34, ships on); the Mixamo clips under `mixamo` (the Mixamo lead's).
+- Checks: vitest on those (A8 readings recorded, each clip vs the re-timed procedural strike; the default
+  source byte-identical); affected-e2e (GAME + `e2e-anim`, `e2e-clip`, `e2e-move`), `anim-audit`; `e2e-coop` +
+  `e2e-netmove` requested; look video: strikes from four sides and a whiff, each filmed on the default source and
+  on Mixamo (`?anim=mixamo` once the toggle lands) for comparison.
+- Done looks like: contact as quick as today, free 1.4 s after it, the arm settles with no pop or freeze; with the
+  source on Mixamo the Mixamo strike plays unless visibly broken, the A8 readings in the PR body as information.
+- Flag: none for R8 (Q34, ships on); the Mixamo clips under the animation-source setting (the Mixamo lead's).
 
 **S3 Co-op rules on the wire (Opus; two Opus checkers). W1. R9, R33, R38.**
 - Files: `src/game/strikeController.ts`, `src/game/committedMoves.ts`, `src/game/playerTarget.ts`, `src/game/health.ts`,
@@ -329,12 +332,14 @@ R11, Mixamo carry and kneel.**
   `coopHost.ts`, `coopClient.ts`, `protocol.ts`, `flags.ts` moved on 38e92f5d3, and S3 / S6 land first).
 - Checks: vitest (carry step noise > 0 while moving; crouch swallowed; put-down makes no noise, drop makes 3 m; the
   `putDown` mode packs / parses and poses the same kneel on a remote; `CarryView.putDown` lowers the body in step with
-  `ph` and ends in the owner's lie; A8 readings for the three clips recorded; `?mixamo=0` byte-identical); the co-op
-  group + GAME + `e2e-guard-carry`, `e2e-weapons-carry`, `e2e-foley`; look video (the default game): carry, drop,
-  put down (`?putdown=1`), owner and partner screens side by side; `?mixamo=0` only for a hand-made comparison.
+  `ph` and ends in the owner's lie; A8 readings for the three clips recorded; the default source byte-identical); the
+  co-op group + GAME + `e2e-guard-carry`, `e2e-weapons-carry`, `e2e-foley`; look video: carry, drop, put down
+  (`?putdown=1`), owner and partner screens side by side, each filmed on the default source and on Mixamo
+  (`?anim=mixamo` once the toggle lands).
 - Done looks like: a guard hears a carrier's steps at 2.5 m; no crouch with a body up; with `?putdown=1` "Put down"
   lays the body quietly, host and client, and the partner sees the same kneel and the body lowered, not dropped.
-- Flag: R10 none (rule fix); R11 `putDown` (dark); the Mixamo clips under `mixamo` (the Mixamo lead's).
+- Flag: R10 none (rule fix); R11 `putDown` (dark); the Mixamo clips under the animation-source setting (the
+  Mixamo lead's).
 
 **S8a Look-video recorder (Sonnet from a strict Opus brief). W1. R31 tool.**
 - Files: `scripts/look-video.mjs`. Est. ~300. Checks: CI `check`; one smoke recording on the laptop GPU tier (or the
