@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 3 2026-10-25T22:57Z
+status: done feature/tallow-fixes-g1 b16d4bc561941f765341f3cd8ea78789777b0ede
 
 # campaign J8 G1 (cloud copy of docs/tallow-fixes/briefs/G1.md on the base)
 
@@ -171,3 +171,67 @@ Checks green; the diff touches the two W1 files and step 10's lines only; the re
 the ladder yaw found, the leaf `swing` used, and every deviation with its reason.
 
 ## Report (append below)
+
+### Report (Night Shift | Cloud Builder 3, built by a Sonnet 5.5 agent, 2026-10-25 ~23:30Z)
+Branch `feature/tallow-fixes-g1` from e144a9216, head b16d4bc56. No blocker. **One deviation needs the lead's OK**
+(deviation 2 below).
+
+**Commits** (prefix `tallow G1:`, Sonnet 5.5 attribution):
+- 4ae2d63e (steps 1-2): lights, switch and conduits, with their tests.
+- 1489390d (steps 3-9): cover, hide spots, medkit, vantages, the ladder and cage, the header, and the rest of the
+  tests.
+- b16d4bc5 (step 10): the bolt.
+
+**Files.** Four, +537 / -32. `tallowWharfW1.ts` +129 and `w1.test.ts` +433. The step 10 lines are only:
+- `tallowWharfSectors.ts`: the `W1_BOLTS` entry `{ at: at2(W1.doors['w1-gallery-ladder']!), side: [0, 1] }` and one
+  comment line.
+- `sectors.test.ts`: the counts `[2, 5, 4, 2]` -> `[3, 5, 4, 2]`, `CORES['w1-ladder-cage'] = [6.0, 14.4, 7.75, 15.6]`,
+  and the `want.W1` row `['w1-ladder-cage', 'w1-canal-steps']`.
+
+**What was built** (W1 file):
+- The header comment rewritten.
+- 28 lamps through `lamp()`. Group 63 is the desk lamp only. `W1_DESKS` is exported; the desk is visual only.
+- Switch 64 at (16, 0, 12.6).
+- `W1_CONDUITS` exported, 19 runs (4 / 4 / 10 / 1), drawn by a local `conduit()`.
+- 8 cover blocks, 6 hide spots, the medkit at (2.15, 0, 7.0) yaw PI/2, and 4 vantage debug points.
+- The ladder `b.ladder(6.45, 15, 0, 4.5, -PI/2)`, an iron cage (three walls 0.1 thick), the door
+  `doorIn(b, true, 14.4, 6.6, 0, { w: 1.0 })`, and `DOORS['w1-gallery-ladder'] = [6.6, 0, 14.4]`.
+- No stair added.
+
+**Checks:**
+- `npx vitest run tests/tallowWharf/w1.test.ts tests/tallowWharf/shell.test.ts tests/tallowWharf/sectors.test.ts
+  --maxWorkers=2`: 3 files, 102 passed (`w1.test.ts` 46, was 30). I re-ran it and it passed.
+- Extra: `tests/tallowWharf/` as a whole, plus `campaignGuards` and `mission/sectorMission`, 216 passed.
+- `npm run typecheck:fast` clean; eslint on the 4 files clean.
+
+**Asked for:**
+- Ladder yaw: -PI/2 works as written, no flip. The top-out lands at (5.6, 4.5, 15.0) on the deck and the step-off is
+  (7.15, 15.0). The shell ladder test passes.
+- Leaf `swing`: +1, the default. With the hinge at x 6.1 and yaw PI/2, the open leaf points to -z, toward the canal
+  steps and away from the ladder. A test checks the direction.
+- Nav seeds: none needed.
+
+**Levels** (all within the targets):
+- S lane between lamps 1.000; far edge 0.450; west strip 0.257; N lane 0.686; clock end 0.800.
+- Stall-back aisle 0.252; side door 0.378; canal 0.337; tea counter 1.0.
+- Hall centre / west bay / shutter bay 1.0 / 0.970 / 0.821.
+- Desk pool 1.0; office at the hatch 0.140.
+- Passage at the shutter 1.0; between fittings 0.802.
+
+**Vantages and hide spots:**
+- Vantage levels 0.244 / 0.244 / 0.140 / 0.140. All 4 sightlines are clear, and the old-point control is blocked.
+- Hide-spot distances to the 9 takedown spots are the brief's 3.6, 3.9, 1.8, 4.5, 5.5, 4.5, 3.5, 5.4, 2.7 m.
+
+**Deviations:**
+1. The existing door-name list test in `w1.test.ts` gains `w1-gallery-ladder`, because `DOORS` gained the entry.
+2. **For the lead.** In "C1 stays forced", `soloLevelThreats` also skips the solid building mass (top at `MASS_TOP`,
+   12 m), not only the deck.
+   - With only the deck skipped, it flags three unreachable mass blocks at x 0-2 beside the deck and the lips.
+   - A control test still bites on cage pieces: a solid top at 4.5 over the cage footprint is flagged.
+   - The brief said "only the deck skipped": confirm, or say how to treat those mass tops.
+3. The lamp-table test compares the registry's `radius` with `lampReach(r)`, because `LightRegistry.add` stores the
+   reach.
+4. Three commits, not one per step: steps 3-9 share one file pair, and the tests pass only together.
+
+**Pending PC run:** e2e and GPU. Pending the bake (LIGHT.md): D1 / GBM `sees_pct` for the vantages, LM / GBM lux, and a
+walk of the cage and the ladder.
