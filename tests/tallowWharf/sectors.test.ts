@@ -458,6 +458,7 @@ describe('tallowWharf bolts', () => {
     // places that are no room: the stair cores and the W3 coal-yard vestibule; 'open' = no room or core (a lightwell, open air)
     const CORES: Record<string, [number, number, number, number]> = {
       'w1-warden-core': [6.2, 44, 7.8, 52],
+      'w1-ladder-cage': [6.0, 14.4, 7.75, 15.6],
       'w2-pawn-core': [52.2, 62.2, 53.8, 69.9],
       'w2-pie-core': [56.2, 62.2, 57.8, 69.9],
       'w3-coalyard-vestibule': [98, 50, 99.85, 51.7],
@@ -470,7 +471,7 @@ describe('tallowWharf bolts', () => {
     };
     // [draw side, other side] per bolt, in the brief's order
     const want: Record<string, [string, string][]> = {
-      W1: [['w1-warden-core', 'w1-market'], ['w1-service-passage', 'w1-fish-hall']],
+      W1: [['w1-warden-core', 'w1-market'], ['w1-service-passage', 'w1-fish-hall'], ['w1-ladder-cage', 'w1-canal-steps']],
       W2: [['w2-pawn-loft', 'w2-pawn-core'], ['w2-pie-loft', 'w2-pie-core'], ['w2-clock-loft', 'w2-reading-room'], ['w2-pawn-loft', 'open'], ['w2-pie-loft', 'open']],
       W3: [['w3-chute', 'open'], ['w3-coalyard-vestibule', 'w3-passage'], ['w3-roof', 'open'], ['w3-cartway', 'w3-coal-yard']],
       W4: [['w4-shed-three', 'w4-shed-yard'], ['w4-jetty', 'w4-shed-yard']],
@@ -488,7 +489,7 @@ describe('tallowWharf bolts', () => {
   });
 
   it('the bolt counts and indexes are the brief\'s (the flags W<n>-bolt<k> fix them)', () => {
-    expect(WHARF_SECTORS.map((s) => s.bolts?.length)).toEqual([2, 5, 4, 2]);
+    expect(WHARF_SECTORS.map((s) => s.bolts?.length)).toEqual([3, 5, 4, 2]);
     expect(WHARF_SECTORS[1]!.bolts![3]!.w).toBe(2.0);
     expect(WHARF_SECTORS[1]!.bolts![4]!.w).toBe(2.0);
   });
