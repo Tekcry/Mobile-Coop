@@ -9,7 +9,7 @@ file:line below was re-found on origin/master 2148ec96.
 
 | # | File | Line(s) on master | Change |
 | --- | --- | --- | --- |
-| 1 | `src/game/interactables.ts` | :1-5 imports; :84 constructor; :133-137 the default (`extract`) branch | export `drawsExitBeacon(mode: ModeId): boolean` (false for `sector`); constructor gets a third parameter `exitBeacon = true`; `add` draws nothing for `extract` when it is false (`light` stays null, `parts` empty). The item, its zone use and `nearest`'s skip (:162) are unchanged |
+| 1 | `src/game/interactables.ts` | :1-5 imports; :81-84 constructor; :134-137 the default (`extract`) branch | export `drawsExitBeacon(mode: ModeId): boolean` (false for `sector`); constructor gets a third parameter `exitBeacon = true`; `add` draws nothing for `extract` when it is false (`light` stays null, `parts` empty). The item, its zone use and `nearest`'s skip (:162) are unchanged |
 | 2 | `src/game/gameState.ts` | :728 | `new Interactables(this.scene, world.parts, drawsExitBeacon(opts.mode))`; :43 import. :839 (free roam) unchanged |
 | 3 | `src/net/coopClient.ts` | :247 | `new Interactables(g.scene, g.world.parts, drawsExitBeacon(g.opts.mode))`; :18 import. No wire change |
 | 4 | `src/world/maps/campusSectors.ts` | :315 S1, :406 S3 | the new `label` strings (BRIEF A4) |
@@ -33,8 +33,8 @@ shipped feature, G355).
 - The beacon is drawn by `Interactables.add`, which knows the kind but not the mode, and the co-op client builds its
   own `Interactables` (coopClient.ts:247) from the host's item list. A constructor switch, set by both builders, is the
   smallest explicit form; a global or a per-id rule would hide it. Cost: one line in `src/net` (BRIEF A3).
-- The S1-S5 place words come from the map's own room tags (`S1_ROOMS`..`S5_ROOMS`, `src/world/maps/campusS1.ts:50-60`,
-  `campusS2.ts:143-159`, `campusS3.ts:115-140`, `campusS4.ts:210-229`, `campusS5.ts:179-200`), so the test ties each
+- The S1-S5 place words come from the map's own room tags (`S1_ROOMS`..`S5_ROOMS`, declared at `src/world/maps/campusS1.ts:49`,
+  `campusS2.ts:142`, `campusS3.ts:116`, `campusS4.ts:209`, `campusS5.ts:178`), so the test ties each
   line to where the objective really is: S1 (19.3, 0, -76) Gatehouse; S2 (-6.5, 4.4, 4.3) Facilities Office; S3 (51,
   4.5, -3.8) Prototype Store; S4 (18, 0, 38.3) Server Cage; S5 (-43, 0, 43.4) Strongroom. Each point is in exactly one
   room by `inRoom` (`src/world/rooms.ts`, with the height).
