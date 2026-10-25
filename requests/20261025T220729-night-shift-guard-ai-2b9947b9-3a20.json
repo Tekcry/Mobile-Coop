@@ -1,0 +1,15 @@
+{
+  "id": "20261025T220729-night-shift-guard-ai-2b9947b9-3a20",
+  "sha": "2b9947b9a236cd0bfc79c02b2c8c3bb9feeb7a28",
+  "branch": "feature/guard-ai-mission-hooks-s1a2",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-stealth-ai",
+    "e2e-sectorops",
+    "e2e-stealth"
+  ],
+  "set": "mh-s1a2-early",
+  "note": "J26 S1a-2 fix head early run (stacked on J15 PR4, no PR yet)"
+}
