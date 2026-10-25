@@ -79,37 +79,37 @@ lists every file the slice may touch; no two slices running at once own the same
 | I-D | Integration chore: add the mission example set to the manifest, rerun every set with `--write` (mission checks change the counts) | `docs/level-validator/graph-sets.json`, saved run files | docs | Haiku | S8, C's branch merged in | `levelGraphs` |
 
 The docs slices are one at a time on `graph-schema.md`, `level-design.md` and `testing-tools.md`, in the order D-A,
-D-B2, D-C, D-D, each from the previous one's head (D-A and D-B / D-B2 touch different files, so they may overlap). Code slices
-write their schema text into `docs/validator-port/fragments/<slice>.md`; the docs slice folds it. D-A also writes the
-A25 kinds into graph-schema "Link kinds" and the level-design 11.9 graph-kind list (master `docs/level-design.md:306-313`;
-its "a `bolted` door (unlocked from the far side after a vent or a throw)" becomes `vent_unlock` for the vent, `bolted`
-staying for the throw), cited to ROADMAP Decided ~18:05 and Q25.
+D-B2, D-C, D-D, each from the previous one's head (D-A and D-B / D-B2 touch different files, so they may overlap). Code
+slices write their schema text into `docs/validator-port/fragments/<slice>.md`; the docs slice folds it. D-A also writes
+the A25 kinds into graph-schema "Link kinds" and the level-design 11.9 graph-kind list (master
+`docs/level-design.md:306-313`; its "a `bolted` door (unlocked from the far side after a vent or a throw)" becomes
+`vent_unlock` for the vent, `bolted` staying for the throw), cited to ROADMAP Decided ~18:05 and Q25.
 
 ## 3. Slice detail ("done looks like")
 
 **S0 (Opus).** Move the shared helpers of `level-validate.mjs` (`collector`, `index`, `arcsOf`, `adjacency`, `adjOf`,
 `reachable`, `edgeDisjointPaths`, `soloArcsOf`, `linkTime`, `enters` / `leaves` / `otherEnd`, `isOneWay`, `hasTag`,
 `fmt`, `linkName`, the kind sets, `SPLIT_TAG`, `OVERWATCH_TAG`) to `scripts/level-graph-lib.mjs`; `level-validate.mjs`
-imports and re-exports every name it exports today (tests unchanged). Add `PROFILES` (campaign / sector / training)
-and read it in place of each `meta.mode` test (master `scripts/level-validate.mjs:59-61`, `:66`, `:291-293`,
-`:313-316`, `:561-562`, `:663`, `:750`, `:807`, `:849`, `:860`, `:870`, `:913`); the training row turns co-op coverage
-off, solo twins to INFO (A7, Q29; master `:883-899`, `:913`) and the ghost path to INFO (A10). The six new kinds of
-A25 join the kind sets (master `:29-55`: `LINK_KINDS`, `COOP_KINDS`, `TWO_WAY_GATES`, `ONE_WAY_KINDS`, the `NEEDS_*`
-sets as their stand-ins), `soloArcsOf` (`:225-227`) treats `vent_unlock` as a `bolted` link, and `checkDimensions`
-(its kit cases, `:459-475`) prints one INFO per new kind used ("no size band yet: move not built"; `vent_unlock` reads the door
-rows). `linkTime` reads `measured.path_m` / speed first (A6). `mergeGraphs` concatenates `objectives`,
-`rules`, `syncs` (`sync` read as `syncs`) and keeps `mission` / `tracks` (MV `scripts/level-validate.mjs` mergeGraphs,
-0c62a921). `validate(graph, { metrics, metricsPath, requireMeasured })` runs core, then `checkMeasured`, `checkTraining`,
+imports and re-exports every name it exports today (tests unchanged). Add `PROFILES` (campaign / sector / training) and
+read it in place of each `meta.mode` test (master `scripts/level-validate.mjs:59-61`, `:66`, `:291-293`, `:313-316`,
+`:561-562`, `:663`, `:750`, `:807`, `:849`, `:860`, `:870`, `:913`); the training row turns co-op coverage off, solo
+twins to INFO (A7, Q29; master `:883-899`, `:913`) and the ghost path to INFO (A10). The six new kinds of A25 join the
+kind sets (master `:29-55`: `LINK_KINDS`, `COOP_KINDS`, `TWO_WAY_GATES`, `ONE_WAY_KINDS`, the `NEEDS_*` sets as their
+stand-ins), `soloArcsOf` (`:225-227`) treats `vent_unlock` as a `bolted` link, and `checkDimensions` (its kit cases,
+`:459-475`) prints one INFO per new kind used ("no size band yet: move not built"; `vent_unlock` reads the door rows).
+`linkTime` reads `measured.path_m` / speed first (A6). `mergeGraphs` concatenates `objectives`, `rules`, `syncs` (`sync`
+read as `syncs`) and keeps `mission` / `tracks` (MV `scripts/level-validate.mjs` mergeGraphs, 0c62a921).
+`validate(graph, { metrics, metricsPath, requireMeasured })` runs core, then `checkMeasured`, `checkTraining`,
 `checkPerfect`, `checkEngine` (stubs returning empty reports, signatures fixed here: `(graph, metrics, opts)`), then
 `checkMission` (stub). `perfect.mjs` stub also exports `perfectPaths(graph, { start, targets, exfil, keep })` (S8 calls
 it). `parseArgs` accepts `--require-measured` (V6 lines, master `:1190-1211`). Pre-adapt the existing fixtures to the
 BRIEF's new schema so wave-2 checks do not break them: training fixtures get `meta.taught_by` and one `teach` element on
 their one route (A8); check every fixture and `example.graph.json` keeps a non-loud path from `start` to each objective
 and `exfil` (A10). `tests/levelProfiles.test.ts`: the PROFILES table per mode, the Q29 coverage skip, solo twin INFO on
-training, the flag parse, the mission-node merge, and the A25 kinds (each counts as co-op coverage; `vent_unlock`
-solo only from its `to` end; `drop_catch` one-way unless `one_way: false`; the INFO band line; J14's A3 shape, a
-`duct` plus a `vent_unlock`, clears "section has no co-op link"). Done: `levelValidate` and `levelProfiles` green, campus and example
-counts unchanged except training coverage.
+training, the flag parse, the mission-node merge, and the A25 kinds (each counts as co-op coverage; `vent_unlock` solo
+only from its `to` end; `drop_catch` one-way unless `one_way: false`; the INFO band line; on a campaign fixture, a
+section whose only co-op link is a `vent_unlock` behind a `duct` (J14's A3 shape) passes "section has no co-op link").
+Done: `levelValidate` and `levelProfiles` green, campus and example counts unchanged except training coverage.
 
 **S1 (Opus).** Take `src/world/levelMeasure.ts` and `tests/levelMeasure.test.ts` whole from v6 8f551e18 (they carry the
 V6 fix commits 0410023e, 2ab1fe18, c9e520ed). Re-verify against master's changed `src/ai/navGrid.ts` (`findPath` gained
@@ -142,7 +142,9 @@ built); the six `mission_*` rows copied from MV 0c62a921 `docs/design/scale-shee
 merged in 4.103.3): the section 3 row (`scale-sheet.md:56`) states the derived ceiling, `TEAM.relayMax` 4.6
 (`src/config/movement.ts:476`, `src/game/teamMoves.ts:64`) + `HANG.drop` 1.9 (`src/world/anchors.ts:219`) = 6.5 m,
 and keeps the band's number 4.3 - 4.6 until Michael answers (STATE open question); on his yes the row becomes
-4.3 - 6.5 and `metrics.json` is regenerated in the same change. Regenerate `metrics.json`. No `kit` block (A12). Done:
+4.3 - 6.5 and `metrics.json` is regenerated in the same change. The new rows' approval is the folded plan's J12 row
+(A12); the relay number is not. Regenerate `metrics.json`. No `kit` block (A12). S7a rides PR B2; PRs C and D get its
+rows by merging B2's branch (C) and C's branch (D). Done:
 `metricsGen` green with a `--help` / `--chek` case (exit 2, file untouched), the new keys, and a relay pin
 (`sizes.hang_lip[1]` <= `TEAM.relayMax` + `HANG.drop`, both imported from the code); in the same test file a case runs
 `validate()` (master `scripts/level-validate.mjs`; S0 keeps its signature) on a one-link fixture with the
@@ -190,9 +192,12 @@ the end of PR C).
 **S8 (Opus, joint).** Re-cut MV 0c62a921's `scripts/mission-validate.mjs` (539 lines) onto the lib (import from
 `level-graph-lib.mjs`, not `level-validate.mjs`); ghost / pacifist runs call `perfectPaths` with the mission's primary
 objectives (no duplicate path code); drop `oneChance` / `window` from `RULE_KINDS` (A19); keep a mission node on a
-`training` map an ERR (L3). `tests/missionValidate.test.ts` (540 lines) re-cut the same way; `mission-schema.md` and
-`example.mission.json` from MV with the kind list fixed. Campaign Build reads the schema and kind lists before the
-checker (A20). Done: green; `node scripts/level-validate.mjs` on the example map + mission gives MV's 0 / 0.
+`training` map an ERR (L3); add a direct ERR for a `rules` node on a `training` map citing Q5 (A19), whatever J22
+decides. It uses the `mission_*` rows from S7a (in D's branch through C's, which merged B2's).
+`tests/missionValidate.test.ts` (540 lines) re-cut the same way, plus the Q5 case (a training graph with `rules` and no
+mission: one Q5 ERR); `mission-schema.md` and `example.mission.json` from MV with the kind list fixed. Campaign Build
+reads the schema and kind lists before the checker (A20). Done: green; `node scripts/level-validate.mjs` on the example
+map + mission gives MV's 0 / 0.
 
 **S9 (Sonnet).** v7's `ctcourse.json` onto master at `docs/marlow-final/graph/` with `mode: "training"`,
 `meta.taught_by` and `teach` elements from SPEC per-set "teach" lines as built (A16; each cites its SPEC line in

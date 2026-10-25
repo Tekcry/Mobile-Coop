@@ -28,6 +28,12 @@ In scope:
 Out of scope (owner): the route-run pass rule and harness (J13, Q7); the lux band check (J10 fills scale sheet 9,
 then plugs into the measured checks, M V5); Marlow Yard map fixes and its re-plan (J14); the campus v2 graphs and the
 Sector Ops player-count WARN (J17, M V9); Tallow Wharf's graph fixes (J8); the old warehouse map (frozen, Q26).
+Later validator checks, not J12 (owner Marlow Build; the orchestrator puts them on the ROADMAP as a later validator
+job): the rule-index rows #443 marks "check later" (master `docs/level-design.md:706-744`): 3.1 room for two, 3.10
+exit run time, 6.2 minute targets, 11.11 teamwork counts, 16.2.7 two staircases per multi-storey building; the 15
+two-player tests are e2e and playtest (map jobs). A training WARN for a set over `SET_GUARDS_MAX` 3 (Q11) is also
+later: the cap is enforced in code (`src/world/maps/ctcourseSets/types.ts:191`, `:465`), and a graph check needs a new
+scale-sheet row (Michael's approval).
 
 ## Michael said (verbatim, binding)
 - 2026-10-24 ~22:45 (G292): "Marlow is a training course and may have different rules to standard mission, ie its
@@ -57,6 +63,8 @@ Sector Ops player-count WARN (J17, M V9); Tallow Wharf's graph fixes (J8); the o
 - 2026-10-25 ~16:40, Q7: "Never stuck (Recommended)" ("Pass = it never gets stuck; the times it was seen go on your walk
   card"). J13's rule; this job supplies the positions it walks (PLAN section 8).
 - 2026-10-25 ~16:50, Q26: "Freeze it" (no more work on `warehouseOps`).
+- 2026-10-25 ~18:05 (ROADMAP Decided, mission sign-off pages), co-op kit: "Deadweight,Drop Catch,Chimney Pair,Swing
+  Pass"; Plank Bridge: "Add it" (all five join the kit; graph kinds A25).
 
 ## Recorded decisions this job follows
 G2 (campaign two players), G57 (human ladder 4.5 m, decided, not built: code 4.1), G127 (no mission forces a kill),
@@ -130,7 +138,10 @@ Authority order: `CLAUDE.md` on origin/master; Michael's answers above win over 
   guards' nav grid, LD 12.1); WARN a `human_ladder` lip above 4.1 m (LD open item 1: G57 not built). ERR a `team_rope`
   whose `to` storey is below its `from` (sheet section 3: "a climb up only, no descent"; from mission-validator
   VAL-DIMS). Mission-validator's hand-kept `kit` block in metrics.json is dropped: master's `checkDimensions` already
-  reads the kit bands from sheet section 3. Undo: delete the rows and the module.
+  reads the kit bands from sheet section 3. Approval: the sheet changes only with Michael's approval
+  (`docs/design/scale-sheet.md:2`); these rows and MV's `mission_*` rows (S7a) are the signed-off folded plan's J12
+  row ("engine-fact WARNs", "mission-validator re-cut"; FOLDED-PLAN line 172, V10), which he approved. The relay
+  number (A24) is not covered by it. Undo: delete the rows and the module.
 - **A24 Relay lip ceiling derived, number left to Michael (#443 hand-over, lead decision 2026-10-25 ~20:30).** #443
   (merged in 4.103.3) left the sheet's Relay lip row (`docs/design/scale-sheet.md:56`, `sizes.hang_lip` 4.3 - 4.6,
   read by `scripts/metrics-gen.mjs:109`) for J12 to derive. `TEAM.relayMax` 4.6 (`src/config/movement.ts:476`) caps
@@ -167,7 +178,10 @@ Authority order: `CLAUDE.md` on origin/master; Michael's answers above win over 
   `example.mission.json`, `missionValidate.test.ts`, the mission-node merge, the `mission_*` sheet rows. Dropped: its
   training-profile and kit changes (superseded by A7-A9, A12). `RULE_KINDS` loses `oneChance` and `window` (G334; J7
   drops them from the engine). A mission node on a `training` map stays ERR (Marlow keeps its course objectives) until
-  J22 settles how Marlow Yard joins the campaign list (Q6). Undo: restore the kinds; question L3.
+  J22 settles how Marlow Yard joins the campaign list (Q6). A `rules` node on a `training` map is an ERR whatever J22
+  decides, because of Q5 ("all are retries in marlow yard"): strict rules have no place there. Today that only follows
+  from MV's mission checks (`mission-validate.mjs:156-157` no mission on training, `:247-248` no rules without a
+  mission); S8 adds a direct ERR citing Q5 and pins it with a test. Undo: restore the kinds; question L3.
 - **A20 Seam with Campaign Build.** Marlow Build builds the re-cut and owns `level-validate.mjs`, the lib, the check
   modules and `mission-validate.mjs` code; Campaign Build owns the mission contract (`mission-schema.md` fields and the
   step / rule / sync kind lists, which mirror its engine types) and reviews PR D. Interface: `checkMission(graph,
@@ -177,10 +191,13 @@ Authority order: `CLAUDE.md` on origin/master; Michael's answers above win over 
 - **A21 V7 / V8 split.** FOLDED-PLAN lists V7 and V8 under J14. Their validator half (A7-A9) is built here, as the
   lead's J12 brief says; J14 writes `taught_by` / `teach` into the re-planned graph and fixes the map. Undo: move S4 to
   J14.
-- **A22 Standard text.** level-design.md changes with Michael's recorded answers (authority 1): 11.9 coverage becomes
-  [Campaign] [SectorOps] (Q29); the training profile gains Q24 and `taught_by`; 14 (3) item (1) and the 15 measured line
-  become live with their commands; the rule index gains the new checks. Cited as ROADMAP Decided 2026-10-25 ~16:50 Q24
-  / Q29 until J2 gives them G numbers. No other rule changes. Undo: revert the docs slice.
+- **A22 Standard text.** level-design.md changes with Michael's recorded answers (authority 1). #443 (merged in
+  4.103.3) already wrote Q24 into the training profile (master `docs/level-design.md:39-60`) and the 3.2 / 11.2
+  Training lines, so J12 is left with: 11.9's coverage sentence tagged [Campaign] [SectorOps] (Q29) and its graph-kind
+  list gaining the A25 kinds (ROADMAP Decided ~18:05, Q25); one training-profile sentence naming `taught_by`; 14 (3)
+  item (1) and the 15 measured line live with their commands; rule-index rows for the new checks. Cited as ROADMAP
+  Decided 2026-10-25 ~16:50 Q24 / Q29 until J2 gives them G numbers. No other rule changes. Undo: revert the docs
+  slices.
 
 - **A25 Six new co-op link kinds (lead decision 2026-10-25 ~20:30).** `LINK_KINDS` and `COOP_KINDS` gain
   `vent_unlock` (Q25) and the five moves Michael added to the kit (ROADMAP Decided ~18:05: "Deadweight,Drop Catch,
