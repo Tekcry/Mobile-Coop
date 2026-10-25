@@ -1,0 +1,145 @@
+ERROR: a4-secroom: 6 x 6 m below security_room minimum 5.5 x 7
+ERROR: link a8-office -> a8-lobby-outer (fire_stair): width 1.2 m below 1.3 m
+ERROR: a2-neck: vantage sees_pct 0.3 below 0.7
+ERROR: a4-secroom: vantage sees_pct 0.4 below 0.7
+ERROR: a5-inner: vantage sees_pct 0.35 below 0.7
+ERROR: a6-floor: vantage sees_pct 0.6 below 0.7
+ERROR: a7-hall: vantage sees_pct 0.3 below 0.7
+ERROR: a8-office: vantage sees_pct 0.5 below 0.7
+ERROR: a1-cabin: dead end (one way out) not tagged reward or objective
+ERROR: a4-dispatch: dead end (one way out) not tagged reward or objective
+ERROR: split a4: legs 37.5 s vs 20.7 s differ by 45% (max 20%)
+ERROR: split a7: legs never rejoin (no space both a7-hall and a7-pod lead to)
+ERROR: split a8 leg a: no solo link leads into a8-gallery
+ERROR: pacing: three high beats (4+) in a row: a8-hall, a8-gallery, a8-office
+ERROR: a2-neck: measured sees_pct 0.22 below 0.7 (declared 0.3)
+ERROR: a4-secroom: measured sees_pct 0 below 0.7 (declared 0.4)
+ERROR: a5-inner: measured sees_pct 0.5 below 0.7 (declared 0.35)
+ERROR: a6-floor: measured sees_pct 0.59 below 0.7 (declared 0.6)
+ERROR: a7-hall: measured sees_pct 0.1 below 0.7 (declared 0.3)
+ERROR: a8-hall: measured sees_pct 0.64 below 0.7 (declared 0.8)
+ERROR: split a4: measured legs 37.5 s vs 20.7 s differ by 45% (max 20%)
+ERROR: split a7: no measured a_s (--require-measured)
+ERROR: split a7: no measured b_s (--require-measured)
+ERROR: split a8: no measured a_s (--require-measured)
+ERROR: split a8: measured reach_s 16.5 s above 15 s
+ERROR: section A1: 2 routes (a1-lounge > a1-apron > a1-yard > a1-hold-l1 | a1-lounge > a1-apron > a1-walltop > a1-yard > a1-hold-l1) up to taught_by A7 (a side route; one guided route per section, A8)
+ERROR: section A1: teach 'leg-up' at link a1-apron -> a1-walltop (coop_boost) is avoided by an entry-to-exit path (without it a1-hold-l1 is still reached; the section does not force it, A8)
+ERROR: section A2: 2 routes (a2-west > a2-neck > a2-east > a2-hold-l2 | a2-west > a2-staging > a2-east > a2-hold-l2) up to taught_by A7 (a side route; one guided route per section, A8)
+ERROR: section A2: teach 'light-isolation' at a2-neck is avoided by an entry-to-exit path (without it a2-hold-l2 is still reached; the section does not force it, A8)
+ERROR: section A3: 3 routes (a3-west-lobby > a3-corridor > a3-east-lobby > a3-hold-l3 | a3-west-lobby > a3-office1 > a3-office2 > a3-office3 > a3-corridor > a3-east-lobby > a3-hold-l3 | a3-west-lobby > a3-office1 > a3-office2 > a3-corridor > a3-east-lobby > a3-hold-l3) up to taught_by A7 (a side route; one guided route per section, A8)
+ERROR: section A4: 3 routes (a4-secroom > a4-passage > a4-mouth > split:a4 > a4-aisle2 > a4-dock > a4-hold-l4 | a4-secroom > a4-passage > a4-mouth > split:a4 > a4-dock > a4-hold-l4 | a4-secroom > a4-passage > a4-mouth > split:a4 > a4-mezz > a4-dock > a4-hold-l4) up to taught_by A7 (a side route; one guided route per section, A8)
+ERROR: section A4: split 'a4' up to taught_by A7 (no split until the last kit move is taught, A8)
+ERROR: section A5: 2 routes (a5-apron > a5-inner > a5-switchroom > a5-trench > a5-hold-l5 | a5-apron > a5-inner > a5-trench > a5-hold-l5) up to taught_by A7 (a side route; one guided route per section, A8)
+ERROR: section A5: teach 'partner-throw' at link a5-apron -> a5-inner (coop_boost) is avoided by an entry-to-exit path (without it a5-hold-l5 is still reached; the section does not force it, A8)
+ERROR: section A6: teach 'rope' at link a6-floor -> a6-gallery (team_rope) is avoided by an entry-to-exit path (without it a6-hold-l6 is still reached; the section does not force it, A8)
+ERROR: section A6: teach 'hang-down' at link a6-bridge -> a6-cage (drop) is avoided by an entry-to-exit path (without it a6-hold-l6 is still reached; the section does not force it, A8)
+ERROR: section A7: split 'a7' up to taught_by A7 (no split until the last kit move is taught, A8)
+WARN:  a1-lounge: room_class custom (justify the size in the design doc)
+WARN:  a1-apron: room_class custom (justify the size in the design doc)
+WARN:  a1-cabin: room_class custom (justify the size in the design doc)
+WARN:  a1-cabin: ceiling 2.5 m below the 3 m room ceiling
+WARN:  a1-walltop: room_class custom (justify the size in the design doc)
+WARN:  a1-yard: room_class custom (justify the size in the design doc)
+WARN:  a1-hold-l1: room_class custom (justify the size in the design doc)
+WARN:  a2-west: room_class custom (justify the size in the design doc)
+WARN:  a2-cabin: room_class custom (justify the size in the design doc)
+WARN:  a2-cabin: ceiling 2.5 m below the 3 m room ceiling
+WARN:  a2-neck: room_class custom (justify the size in the design doc)
+WARN:  a2-staging: room_class custom (justify the size in the design doc)
+WARN:  a2-east: room_class custom (justify the size in the design doc)
+WARN:  a2-hold-l2: room_class custom (justify the size in the design doc)
+WARN:  a3-west-lobby: room_class custom (justify the size in the design doc)
+WARN:  a3-office1: 5.5 x 8 m above private_office maximum 5.5 x 7
+WARN:  a3-office2: 5.5 x 8 m above private_office maximum 5.5 x 7
+WARN:  a3-office3: 5.5 x 8 m above private_office maximum 5.5 x 7
+WARN:  a3-east-lobby: room_class custom (justify the size in the design doc)
+WARN:  a3-hold-l3: room_class custom (justify the size in the design doc)
+WARN:  a4-passage: room_class custom (justify the size in the design doc)
+WARN:  a4-mouth: room_class custom (justify the size in the design doc)
+WARN:  a4-back-aisle: room_class custom (justify the size in the design doc)
+WARN:  a4-east-lane: room_class custom (justify the size in the design doc)
+WARN:  a4-main-aisle: room_class custom (justify the size in the design doc)
+WARN:  a4-dock: room_class custom (justify the size in the design doc)
+WARN:  a4-dispatch: room_class custom (justify the size in the design doc)
+WARN:  a4-dispatch: ceiling 2.9 m below the 3 m room ceiling
+WARN:  a4-aisle2: room_class custom (justify the size in the design doc)
+WARN:  a4-mezz: room_class custom (justify the size in the design doc)
+WARN:  a4-hold-l4: room_class custom (justify the size in the design doc)
+WARN:  a5-apron: room_class custom (justify the size in the design doc)
+WARN:  a5-inner: room_class custom (justify the size in the design doc)
+WARN:  a5-switchroom: room_class custom (justify the size in the design doc)
+WARN:  a5-trench: room_class custom (justify the size in the design doc)
+WARN:  a5-hold-l5: room_class custom (justify the size in the design doc)
+WARN:  a6-sump: room_class custom (justify the size in the design doc)
+WARN:  a6-floor: ceiling 10 m outside plant_room 4-6 m
+WARN:  a6-cage: room_class custom (justify the size in the design doc)
+WARN:  a6-gallery: room_class custom (justify the size in the design doc)
+WARN:  a6-bridge: room_class custom (justify the size in the design doc)
+WARN:  a6-hold-l6: room_class custom (justify the size in the design doc)
+WARN:  a7-lobby: room_class custom (justify the size in the design doc)
+WARN:  a7-corridor: ceiling 3.5 m outside corridor 3-3 m
+WARN:  a7-pod: room_class custom (justify the size in the design doc)
+WARN:  a7-pod: ceiling 2.6 m below the 3 m room ceiling
+WARN:  a7-cage: room_class custom (justify the size in the design doc)
+WARN:  a7-cage: ceiling 2.4 m below the 3 m room ceiling
+WARN:  a7-hold-l7: room_class custom (justify the size in the design doc)
+WARN:  a8-vestibule: room_class custom (justify the size in the design doc)
+WARN:  a8-gallery: room_class custom (justify the size in the design doc)
+WARN:  a8-lobby-outer: room_class custom (justify the size in the design doc)
+WARN:  a8-lobby-inner: room_class custom (justify the size in the design doc)
+WARN:  a8-vault: room_class custom (justify the size in the design doc)
+WARN:  a8-dock: room_class custom (justify the size in the design doc)
+WARN:  link a2-west -> a2-neck (opening): width 2 m outside 2.5-3.5 m
+WARN:  link a2-neck -> a2-east (opening): width 2 m outside 2.5-3.5 m
+WARN:  link a2-staging -> a2-east (open_stair): width 1.2 m below 2.4 m
+WARN:  link a4-east-lane -> a4-main-aisle (opening): width 8 m outside 2.5-3.5 m
+WARN:  link a4-east-lane -> a4-mezz (open_stair): width 1.2 m below 2.4 m
+WARN:  link a4-main-aisle -> a4-dock (opening): width 8 m outside 2.5-3.5 m
+WARN:  link a4-mezz -> a4-dock (open_stair): width 1.2 m below 2.4 m
+WARN:  link a5-apron -> a5-inner (opening): width 6 m outside 2.5-3.5 m
+WARN:  link a5-apron -> a5-inner (coop_boost): level_change missing
+WARN:  link a5-inner -> a5-trench (opening): width 1.5 m outside 2.5-3.5 m
+WARN:  link a6-floor -> a6-gallery (open_stair): width 1.2 m below 2.4 m
+WARN:  link a6-gallery -> a6-bridge (opening): width 5 m outside 2.5-3.5 m
+WARN:  link a8-vestibule -> a8-hall (opening): width 17 m outside 2.5-3.5 m
+WARN:  link a8-hall -> a8-gallery (open_stair): width 1.2 m below 2.4 m
+WARN:  link a8-lobby-outer -> a8-lobby-inner (opening): width 11 m outside 2.5-3.5 m
+WARN:  link a8-lobby-outer -> a8-lobby-inner (coop_boost): level_change missing
+WARN:  link a8-vault -> a8-dock (opening): width 7.5 m outside 2.5-3.5 m
+WARN:  pacing: no release (1-2) after the peak at a7-corridor before a7-cage
+WARN:  a4-secroom: measured sees_pct 0 vs declared 0.4 (apart by more than 0.1; update the declared target)
+WARN:  a4-dock: measured sees_pct 0.84 vs declared 0.7 (apart by more than 0.1; update the declared target)
+WARN:  a5-inner: measured sees_pct 0.5 vs declared 0.35 (apart by more than 0.1; update the declared target)
+WARN:  a5-inner: measured los_break_s 0.83 s vs declared 3 s (apart by more than 1.5 s; update the declared target)
+WARN:  a7-hall: measured sees_pct 0.1 vs declared 0.3 (apart by more than 0.1; update the declared target)
+WARN:  a8-hall: measured sees_pct 0.64 vs declared 0.8 (apart by more than 0.1; update the declared target)
+WARN:  a8-office: measured sees_pct 0.86 vs declared 0.5 (apart by more than 0.1; update the declared target)
+WARN:  link a4-mouth -> a4-east-lane (opening): measured time_s 11.95 s vs declared 5 s (apart by more than 1.5 s; update the declared target)
+WARN:  link a4-east-lane -> a4-main-aisle (opening): measured time_s 11.31 s vs declared 5.5 s (apart by more than 1.5 s; update the declared target)
+WARN:  link a4-main-aisle -> a4-dock (opening): measured time_s 14.27 s vs declared 6.5 s (apart by more than 1.5 s; update the declared target)
+INFO:  a2-neck: shadow_pct 0.05 outside 0.4-0.6 (information; the light band is the target)
+INFO:  a4-secroom: shadow_pct 0 outside 0.4-0.6 (information; the light band is the target)
+INFO:  a4-secroom: 1 guards (2 players) below the early band 3-6
+INFO:  a4-dock: shadow_pct 0.1 outside 0.4-0.6 (information; the light band is the target)
+INFO:  a4-dock: 2 guards (2 players) below the early band 3-6
+INFO:  a5-inner: shadow_pct 0.3 outside 0.4-0.6 (information; the light band is the target)
+INFO:  a5-inner: 1 guards (2 players) below the late band 6-10
+INFO:  a6-floor: 1 guards (2 players) below the late band 6-10
+INFO:  a7-hall: shadow_pct 0.2 outside 0.4-0.6 (information; the light band is the target)
+INFO:  a7-hall: 1 guards (2 players) below the late band 6-10
+INFO:  a8-hall: shadow_pct 0.3 outside 0.4-0.6 (information; the light band is the target)
+INFO:  a8-hall: 2 guards (2 players) below the late band 6-10
+INFO:  a8-office: shadow_pct 0 outside 0.4-0.6 (information; the light band is the target)
+INFO:  a8-office: 1 guards (2 players) below the late band 6-10
+INFO:  a2-neck: measured shadow_pct 0 outside 0.4-0.6, declared 0.05 (information; the light band is the target)
+INFO:  a4-secroom: measured shadow_pct 0 outside 0.4-0.6, declared 0 (information; the light band is the target)
+INFO:  a4-dock: measured shadow_pct 0.31 outside 0.4-0.6, declared 0.1 (information; the light band is the target)
+INFO:  a4-dock: measured shadow_pct 0.31 vs declared 0.1 (apart by more than 0.1; update the declared target)
+INFO:  a5-inner: measured shadow_pct 0.48 vs declared 0.3 (apart by more than 0.1; update the declared target)
+INFO:  a6-floor: measured shadow_pct 0.59 vs declared 0.4 (apart by more than 0.1; update the declared target)
+INFO:  a7-hall: measured shadow_pct 0.47 vs declared 0.2 (apart by more than 0.1; update the declared target)
+INFO:  a8-hall: measured shadow_pct 0.58 vs declared 0.3 (apart by more than 0.1; update the declared target)
+INFO:  a8-office: measured shadow_pct 0.02 outside 0.4-0.6, declared 0 (information; the light band is the target)
+
+37 error(s), 83 warning(s).
