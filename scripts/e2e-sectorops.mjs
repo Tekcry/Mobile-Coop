@@ -2443,6 +2443,50 @@ if (want(6)) {
   await run(CAMPUS, async ({ page }) => campusS3Part(page));
 }
 
+// (test-runner-j20 S6c, H8) every guard the mode spawns is alive: campus sections 2-5 (S1 is the boot check in the first
+// part-6 block). `loadSection` / `unloadSection` are TS-private on SectorMode, callable from the page (BRIEF A10). The
+// guards stay put (enemyMgr.update off); each alive guard must stand within 2 m of its slot's floor (none fell through).
+if (want(6)) {
+  console.log('campus ops (H8): every guard of sections 2-5 is alive after its load, none fell through the floor');
+  const t0 = Date.now();
+  await run(CAMPUS, async ({ G, sim }) => {
+    await sim(0.6);
+    await G(() => { const g = window.__app.current; g.target.damageMul = 0; g.enemyMgr.update = () => {}; if (g.security) g.security.fixedUpdate = () => {}; });
+    const S = await sections(G);
+    for (let i = 1; i <= 4; i++) {
+      const st = await G((k) => { const s = window.__app.current.world.map.sectors[k]; return [s.start.x, s.start.y, s.start.z, s.start.yaw]; }, i);
+      await tp(G, st[0], st[1], st[2], st[3]);
+      await G((k) => { const m = window.__sector; m.unloadSection(); m.loadSection(k); }, i);
+      await sim(3);
+      const r = await G((k) => {
+        const g = window.__app.current;
+        const slots = g.world.map.sectors[k].guards;
+        const live = g.enemyMgr.enemies.filter((e) => e.alive);
+        // one guard per slot, paired greedily by 3D distance: S3 stacks slots (the dock grunt at (25, -4.5) on the
+        // ground under the write-up desk officer at (25, -4.2) on L1), so the nearest slot in x/z alone can be the
+        // wrong deck. A guard that fell off a deck still fails: its own slot is left to it, 4.5 m above.
+        const bad = [];
+        const pairs = [];
+        live.forEach((e, a) => slots.forEach((s, b) => pairs.push([Math.hypot(e.pos.x - s.x, e.pos.y - (s.y ?? 0), e.pos.z - s.z), a, b])));
+        pairs.sort((p, q) => p[0] - q[0]);
+        const match = new Map();
+        const used = new Set();
+        for (const [, a, b] of pairs) if (!match.has(a) && !used.has(b)) { match.set(a, slots[b]); used.add(b); }
+        live.forEach((e, a) => {
+          const s = match.get(a);
+          const y = s ? s.y ?? 0 : null;
+          if (!s || Math.hypot(e.pos.x - s.x, e.pos.z - s.z) > 3 || Math.abs(e.pos.y - y) > 2) bad.push([e.pos.x.toFixed(1), e.pos.y.toFixed(1), e.pos.z.toFixed(1), y]);
+        });
+        return { alive: g.enemyMgr.alive, total: g.enemyMgr.enemies.length, bad };
+      }, i);
+      console.log(`  ${S[i].id}: ${r.alive} alive of ${S[i].guards} slots (${r.total} in the manager), ${r.bad.length} off their floor`);
+      assert(r.alive === S[i].guards && r.total === S[i].guards, `campusOps ${S[i].id}: every guard the load spawns is alive (${r.alive} alive, ${r.total} in the manager, ${S[i].guards} slots)`);
+      assert(r.bad.length === 0, `campusOps ${S[i].id}: every guard stands within 2 m of its slot's floor, none fell through (${JSON.stringify(r.bad)})`);
+    }
+  });
+  console.log(`H8 block: ${Math.round((Date.now() - t0) / 1000)} s`);
+}
+
 // (guard-ai S5, goal 7, M1, A10, A12) Posts. No live map has a posted guard yet (Course Ready fills K1-K4), so the test
 // hook spawns guards on an open stretch of section 1 and gives them posts with `em.placeSlot` (no map data edited). The
 // section's own guards go, the cameras are held, the player stands far off in the dark. (a) A vault-door guard (leash 3,

@@ -142,10 +142,12 @@ e2e-netmove and e2e-ctcourse passed 3 solo rounds and 2 full runs on the laptop.
   printed) and #71 ("the guard there sees the peeking head only": los true, head false); passed solo on both. On #67
   (S2b) the edge peek fails solo too: real there. Suspect load timing in the peek sampling. Not on `KNOWN_FLAKY`; if it
   fails a third time on a head without S2b, read its log and add a settle wait.
-- **e2e-kestrel, e2e-camera-bounds (not flaky, failing on master; moved to LEGACY, Kestrel paused)** - both fail alone on master 9295c65 (the Wren merge)
-  and on feature/weapons: kestrel "camera rays along the tour: ... 133 inside them go to P04"; camera-bounds "level U
-  (U-Z4V): crouched, walking its length and turning, the camera stays between floor and ceiling". Camera vs level checks,
+- **e2e-kestrel (not flaky, failing on master; moved to LEGACY, Kestrel paused)** - fails alone on master 9295c65 (the Wren merge)
+  and on feature/weapons: "camera rays along the tour: ... 133 inside them go to P04". Camera vs level check,
   found by the weapons job (2026-10-19); for the test fixes job or the camera tuning.
+- **e2e-camera-bounds (LEGACY, parked with Kestrel; known failure)** - fails at level U (U-Z4V): the operator falls
+  through the floor (head y -33 to -35), so the camera check reads below the floor. Known legacy failure: REPORT ONLY
+  in affected runs once J20 T4 lands (S3a); for the camera tuning or the test fixes job.
 - **e2e-foley** (moved to AUDIO, parked) - the walk-plants check sits on its threshold at the step-22 walk speed (0.64 m/s: 3 or 4 plants against >= 4). Retuned with the CT prototype's speeds.
 - **e2e-bunker** (LEGACY, off the flaky list) - "the partner teleported across the host's spot is never solid" fails intermittently (training REVIEW-NOTES T5b2 under load; in the consolidation 2 of 4 solo runs failed with 6-13 frames solid, 2 passed). Suspect: host-page timing in the desktop browser context (snapshot gaps near the 0.3 s stall rule). The co-op test fixes job (G51) looks at it with e2e-coop and e2e-netmove.
 - **e2e-anim draw pop (fixed in feature/anim-cleanup)** - the draw from holstered popped (~0.14 per frame on the right
