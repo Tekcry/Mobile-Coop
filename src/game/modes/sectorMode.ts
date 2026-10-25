@@ -547,11 +547,29 @@ export class SectorMode implements GameMode {
     for (const m of this.stageRun.missing) console.warn(`[sector] ${m}`);
   }
 
-  /** (E5) The alarm went from stage `from` to `to` in the current section (or a section began at `to`): its stage actions. */
-  private stageActions(from: number, to: number): void {
+  /**
+   * (E5) The alarm went from stage `from` to `to` in the current section (or a section began at `to`): its stage actions.
+   * `live` false: a section start replaying a carried stage (no dog release, guard-rules S8-a).
+   */
+  private stageActions(from: number, to: number, live = true): void {
     const r = this.stageRun?.raise(this.run.index, from, to);
     if (r?.lights) this.g.stealth?.syncSwitches();
     if (r?.doors) this.secT = 0;
+    // (guard-rules S8, A12) dark: the stage lets the live section's dogs off the heel
+    if (live && r?.dogs && flags.dogRelease) this.releaseDogs();
+  }
+
+  /** (guard-rules S8, A12) Every living, free dog of the live section runs to the last known position and searches
+   *  it (`Enemy.releaseHeel` decides who is free). Host / solo; event time only. */
+  private releaseDogs(): void {
+    const em = this.g.enemyMgr;
+    if (!em) return;
+    const list = em.enemies;
+    const sec = this.run.index;
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i]!;
+      if (e.dog && e.section === sec) e.releaseHeel();
+    }
   }
 
   /**
@@ -746,8 +764,9 @@ export class SectorMode implements GameMode {
     const cp = this.run.checkpoint;
     this.checkpoint.set(cp.x, cp.y, cp.z);
     this.reinforceK = 0;
-    // (E5) a section entered (or restarted) at an alarm stage starts with that stage's actions, before the start state
-    this.stageActions(0, this.run.alarm);
+    // (E5) a section entered (or restarted) at an alarm stage starts with that stage's actions, before the start state;
+    // (guard-rules S8-a) its doors and lights, not the dog release: its guards are still in the fill queue
+    this.stageActions(0, this.run.alarm, false);
     if (kit) {
       this.g.weapons.markCheckpoint();
       // (G22) the lamps (switched, shot, jammed) and doors as the section begins: a restart puts them back
