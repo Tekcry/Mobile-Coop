@@ -412,9 +412,8 @@ Plan and rules: `docs/sector-redesign/briefs/ART-PLAN.md`; builds: `docs/sector-
   LOD2 has no finger joints. A clavicle per side (`clavL` / `clavR`, `anim/clavicle.ts`, input `rig.clavIn`; at zero
   the shoulders are exactly as before) and goggle joints `goggleUse` / `goggleStow` under the head (`GOGGLE_OFFSET`,
   copied per rig in `goggleFrame`). Asset patch: `scripts/anim-skeleton/skin.mjs`; docs/anim-skeleton). Keyed clips carry optional channels `clav`, `fing`,
-  `leg` (FK legs over the planner by a per-key weight) and `legd` (per-joint leg deltas, 9 a side: hip pitch / yaw /
-  roll, knee, ankle pitch / roll, toe, ankle yaw, shin twist; 18 a frame, `KEYED_LEGD` in `anim/keyed.ts`; a planted
-  leg is re-solved onto its plant, `anim/legDelta.ts`, so the foot never slides; `rig.footSlide` reports it); the Keys tab edits them on every
+  `leg` (FK legs over the planner by a per-key weight) and `legd` (per-joint leg deltas; a planted leg is re-solved onto
+  its plant, `anim/legDelta.ts`, so the foot never slides; `rig.footSlide` reports it); the Keys tab edits them on every
   clip and a clip opts in on its first edit (anim-skeleton S3 / S4). Joints rows `clavicleL` / `clavicleR`.; a weapon hand out of reach brings its shoulder forward (`PROTRACT_MAX` 7 cm). Swaps: holster at 38%, take the next from its
   slot at 58%, in the aim pocket at 80% (0.9 s). Co-op remotes build the same from the lobby `loadout`. Deaths: `Ragdoll` = 5 Havok bodies (torso, legs, arms) with ball-and-socket joints at hips
   and shoulders, limbs never collide with their own torso, capped by `BUDGET.maxRagdolls`.

@@ -139,8 +139,9 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
     "Warn when an edit changes nothing" (on by default; saved as `clarityWarn` in the tuner's `ui` record).
   - Keys tab: the fixed note `KEYS_MOCAP_NOTE` ("Keys change the hand-made moves only") sits above the existing hint.
     Legs are their own parts, "Left leg (key)" and "Right leg (key)" (`ui/tunerTarget.ts` `keyRow`), with ankle twist
-    (ankle yaw) and shin twist rows per leg (`legL_ankleYaw`, `legL_shinTwist`; `anim/keyed.ts` `KD`, see
-    `docs/systems/world-and-characters.md`). Fingers are "Left / Right fingers (key)". "Whole body" no longer holds
+    (ankle yaw) and shin twist rows per leg (`legL_ankleYaw`, `legL_shinTwist`). The key channel `legd` is 9 a side
+    (hip pitch / yaw / roll, knee, ankle pitch / roll, toe, ankle yaw, shin twist; 18 a frame, `KEYED_LEGD` in
+    `anim/keyed.ts`; the channel itself: `docs/systems/world-and-characters.md`). Fingers are "Left / Right fingers (key)". "Whole body" no longer holds
     keyed rows. The readout adds "(motion capture plays this in the game)" on walk, jog, run, sneak and glide strafe.
   - More > Panel box `MOCAP_BOX_LABEL`: "Motion capture for walk, jog, run, sneak and aimed strafe (off = hand-made)".
     The label changed; the switch, `mocapHost` and the save are unchanged.
