@@ -37,6 +37,11 @@ const SHEETS = path.join(OUT, 'mixamo', 'sheets');
 
 export const KINDS = ['gait', 'loop', 'timed'];
 export const TRAVELS = ['z', '+x', '-x', 'none'];
+/** (mixamo-retarget I6) The planner bands a gait recipe may name (emit.mjs's tables; a sprint is the run band, as CMU's). */
+export const GAITS = ['walk', 'jog', 'run'];
+/** (mixamo-retarget I6) The locomotion slots a recipe may take (mocap.ts `LocoClipSet`): a gait band slot is a gait,
+ *  start / stop a timed one-shot (played by progress over the CMU slot's seconds). Add a slot here and in `MixamoLocoSlot`. */
+export const SLOTS = { walk: 'gait', jog: 'gait', run: 'gait', sprint: 'gait', start: 'timed', stop: 'timed' };
 /** The keyed channels a recipe may keep beyond the required ones (only `head` is emitted in this slice). */
 export const CHANNELS = ['head', 'clav', 'fing', 'fore'];
 /** The body states the Studio can pin (src/anim/tune.ts BODY_GROUPS; read from the file, so this stays a plain script). */
@@ -92,7 +97,8 @@ export function validateRecipes(json, { groups = bodyGroups() } = {}) {
     if (!(r.inPlace === 'auto' || typeof r.inPlace === 'boolean')) e('inPlace must be "auto" or a boolean');
     if (r.kind === 'loop' && r.inPlace !== true) e('a loop is in place');
     if (r.kind === 'gait' && r.inPlace !== false) e('a gait is not in place');
-    if (r.kind === 'gait' && r.gait !== 'walk') e('gait band: walk (the only one the emitter maps)');
+    if (r.kind === 'gait' && !GAITS.includes(r.gait)) e(`gait band from ${GAITS.join(', ')}`);
+    if (r.slot !== undefined && SLOTS[r.slot] !== r.kind) e(`slot ${r.slot} takes a ${SLOTS[r.slot] ?? '(no such slot)'} recipe`);
     if (!Array.isArray(r.channels) || r.channels.some((c) => !CHANNELS.includes(c))) e(`channels from ${CHANNELS.join(', ')}`);
     const st = r.studio;
     if (!st || typeof st !== 'object') e('studio row missing');
@@ -103,7 +109,7 @@ export function validateRecipes(json, { groups = bodyGroups() } = {}) {
       for (const k of ['crouch', 'circle', 'drawn', 'aim']) if (st[k] !== undefined && typeof st[k] !== 'boolean') e(`studio ${k} must be a boolean`);
       for (const k of Object.keys(st)) if (!['body', 'move', 'crouch', 'circle', 'drawn', 'aim'].includes(k)) e(`studio ${k} unknown (cycle is measured)`);
     }
-    for (const k of Object.keys(r)) if (!['kind', 'file', 'title', 'note', 'target', 'trim', 'travel', 'inPlace', 'gait', 'ownTrack', 'channels', 'studio', 'limits'].includes(k)) e(`unknown field ${k}`);
+    for (const k of Object.keys(r)) if (!['kind', 'file', 'title', 'note', 'target', 'trim', 'travel', 'inPlace', 'gait', 'ownTrack', 'channels', 'studio', 'limits', 'slot'].includes(k)) e(`unknown field ${k}`);
     out.push({ slug, ...r });
   }
   if (errs.length) throw new Error(`mixamo recipes:\n  ${errs.join('\n  ')}`);

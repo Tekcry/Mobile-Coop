@@ -43,6 +43,8 @@ const PLAN_KINDS: Record<string, string> = {
   crouched_walking: 'gait', carry_body_walking: 'gait', crawling_prone: 'gait', standing_idle: 'loop', carry_body_idle: 'loop',
   crouch_to_stand: 'timed', stand_to_crouch: 'timed', elbow_strike: 'timed', cross_punch: 'timed', kneel_down: 'timed',
   kneeling_pull_up: 'timed', pulling_up_to_a_ledge: 'timed', lifting_heavy_object: 'timed',
+  // (mixamo-retarget I6) the locomotion set
+  walking: 'gait', jogging: 'gait', running: 'gait', fast_run: 'gait', start_walking: 'timed', stop_walking: 'timed', run_to_stop: 'timed',
 };
 
 const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
@@ -53,7 +55,7 @@ const bad = (slug: string, patch: Record<string, unknown>): unknown => {
 };
 
 describe('mixamoEmit: recipes', () => {
-  it('the committed recipes are valid: the 12 keyed slugs with the plan\'s kinds', () => {
+  it('the committed recipes are valid: the keyed slugs with the plan\'s kinds', () => {
     const rs = E.loadRecipes();
     expect(Object.fromEntries(rs.map((r) => [r.slug, r.kind]))).toEqual(PLAN_KINDS);
     for (const r of rs) expect(r.channels).toContain('head');
@@ -70,6 +72,10 @@ describe('mixamoEmit: recipes', () => {
     expect(() => E.validateRecipes(bad('cross_punch', { trim: [2, 1] }))).toThrow(/trim/);
     expect(() => E.validateRecipes(bad('cross_punch', { speed: 3 }))).toThrow(/unknown field speed/);
     expect(() => E.validateRecipes({ version: 2, clips: {} })).toThrow(/version: 1/);
+    // (mixamo-retarget I6) the gait bands and the locomotion slots
+    expect(() => E.validateRecipes(bad('jogging', { gait: 'trot' }))).toThrow(/jogging: gait band from walk, jog, run/);
+    expect(() => E.validateRecipes(bad('start_walking', { slot: 'walk' }))).toThrow(/slot walk takes a gait recipe/);
+    expect(() => E.validateRecipes(bad('walking', { slot: 'hop' }))).toThrow(/no such slot/);
   });
 });
 
