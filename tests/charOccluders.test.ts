@@ -4,7 +4,7 @@
  * no allocation, and no graphics state (G352, bible P1 / L11 / L13; PLAN section 4).
  */
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { CAPSULE, capsuleTransmit, CHAR_LIGHT, CharOccluders, holds, LAMP_CAPSULE_GLSL, OCC, OCC_KIND, occKey } from '../src/world/charOccluders';
 import { bytesPerCall, HEAP_NUMBER, inputs, sink } from './helpers/allocPerCall';
 
@@ -318,5 +318,21 @@ describe('no graphics state (CLAUDE.md: gameplay never reads graphics state; PLA
       expect(code, f).not.toMatch(/CHAR_SHADOW_PRESET|LampSlotPicker|charShadowSpec|ShadowQuality|governor|qualityManager/);
     }
     expect(read).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe('the flag (BRIEF A9: dark until Michael\'s walk)', () => {
+  it('flags.charShadowLight is false without ?charlight=1 and true with it', async () => {
+    vi.resetModules();
+    vi.stubGlobal('location', { search: '' });
+    expect((await import('../src/core/flags')).flags.charShadowLight).toBe(false);
+    vi.resetModules();
+    vi.stubGlobal('location', { search: '?charlight=0' });
+    expect((await import('../src/core/flags')).flags.charShadowLight).toBe(false);
+    vi.resetModules();
+    vi.stubGlobal('location', { search: '?debug=1&charlight=1' });
+    expect((await import('../src/core/flags')).flags.charShadowLight).toBe(true);
+    vi.unstubAllGlobals();
+    vi.resetModules();
   });
 });
