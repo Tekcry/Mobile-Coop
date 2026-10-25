@@ -1,0 +1,12 @@
+{
+  "id": "20261025T175554-night-shift-sector-o-8706493a-a2d9",
+  "sha": "8706493a4e802df9a0782e485bf65462cbeb8db3",
+  "branch": "feature/campus-greybox-s4",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-sectorops"
+  ],
+  "set": "campus-s4"
+}
