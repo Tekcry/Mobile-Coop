@@ -3,7 +3,8 @@
  * (a plain object implementing `StationHooks`): the kiosk flood (light group 52) dark while station 13 is live arms the window;
  * the flood lit again before `a5-release` retries 13 once (cause `timer`); the release set first, or a flood shot out (dark for
  * good), is no fail; a lit flood before any window opens is no fail; `laser-a5` tripped retries 13 once (cause `seen`), checked
- * before the flood rule; an `epoch()` change disarms the window; nothing happens while 13 is not live. The tick reads only
+ * before the flood rule; an `epoch()` change disarms the window; (fix 1) only a lit-to-dark change within the attempt arms it
+ * (a jam running on past a retry does not), and a refused `retry()` spends nothing; nothing happens while 13 is not live. The tick reads only
  * `live`, `lit`, `flag`, `tripped`, `epoch` and calls `retry`.
  */
 import { describe, expect, it } from 'vitest';
@@ -233,6 +234,102 @@ describe('A5 station tick: station 13, the flood window and the beam trip', () =
     f.s.flood = true;
     f.step(30);
     expect(f.retries).toEqual([]);
+  });
+
+  /**
+   * (fix 1) A fake with the real retry's hold (`CourseMode.stationRetry`): a retry taken bumps the epoch (the hook clears
+   * the trip with it) and holds 1.5 s, inside which `retry()` refuses; a retry never touches the flood (a jam runs on).
+   * `refuse` makes every call refused (a retry under way for another cause).
+   */
+  function held() {
+    const f = fake();
+    const st = { hold: 0, refuse: false, taken: 0 };
+    const accepted: [number, string][] = [];
+    f.h.retry = (n, cause) => {
+      f.retries.push([n, cause]);
+      if (st.refuse || st.hold > 0 || n !== f.s.live) return false;
+      accepted.push([n, cause]);
+      st.taken++;
+      f.s.epoch += 1;
+      f.s.tripped = false;
+      st.hold = 90;
+      return true;
+    };
+    const step = (n = 1): void => {
+      for (let i = 0; i < n; i++) {
+        a5Tick(f.h, 1 / 60);
+        if (st.hold > 0) st.hold--;
+      }
+    };
+    return { ...f, st, accepted, step };
+  }
+
+  it('(fix 1 a) a retry with the flood still jammed dark: the flood coming back after the hold is no second retry', () => {
+    const f = held();
+    f.fresh();
+    // the flood jammed (lit -> dark: a window), then a beam broken: one seen retry
+    f.s.flood = false;
+    f.step(30);
+    f.s.tripped = true;
+    f.step();
+    expect(f.accepted).toEqual([[13, 'seen']]);
+    // the jam runs on through the hold and after it, then the flood comes back with both on their marks
+    f.step(90 + 60);
+    f.s.flood = true;
+    f.step(120);
+    expect(f.retries).toEqual([[13, 'seen']]);
+  });
+
+  it('(fix 1 b) the flood back inside the hold calls nothing, and a refused call spends nothing: a later failure in the attempt still retries', () => {
+    const f = held();
+    f.fresh();
+    f.s.flood = false;
+    f.step(30);
+    f.s.tripped = true;
+    f.step();
+    // the flood back while the retry's hold runs: no call, so nothing is spent
+    f.step(30);
+    f.s.flood = true;
+    f.step(30);
+    expect(f.retries).toEqual([[13, 'seen']]);
+    // after the hold a beam trip in the same attempt is taken
+    f.step(60);
+    f.s.tripped = true;
+    f.step();
+    expect(f.accepted).toEqual([[13, 'seen'], [13, 'seen']]);
+    // a timer failure whose retry() is refused (a retry under way for another cause) spends nothing either
+    f.step(120);
+    f.st.refuse = true;
+    f.s.flood = false;
+    f.step(30);
+    f.s.flood = true;
+    f.step();
+    expect(f.retries.at(-1)).toEqual([13, 'timer']);
+    expect(f.accepted).toHaveLength(2);
+    f.st.refuse = false;
+    f.s.tripped = true;
+    f.step();
+    expect(f.accepted).toEqual([[13, 'seen'], [13, 'seen'], [13, 'seen']]);
+  });
+
+  it('(fix 1) a fresh jam after the retry still times out once', () => {
+    const f = held();
+    f.fresh();
+    f.s.flood = false;
+    f.step(30);
+    f.s.tripped = true;
+    f.step();
+    // the old jam ends after the hold (no fail), then the players jam the flood again and it comes back before the release
+    f.step(120);
+    f.s.flood = true;
+    f.step(60);
+    expect(f.retries).toEqual([[13, 'seen']]);
+    f.s.flood = false;
+    f.step(60 * 4);
+    f.s.flood = true;
+    f.step(120);
+    expect(f.accepted).toEqual([[13, 'seen'], [13, 'timer']]);
+    expect(f.retries).toEqual([[13, 'seen'], [13, 'timer']]);
   });
 
   it('reads only live, lit(52), flag(a5-release), tripped(laser-a5) and epoch; calls retry(13, ...) and nothing else', () => {
