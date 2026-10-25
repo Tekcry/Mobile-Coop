@@ -1,0 +1,22 @@
+{
+  "id": "20261025T213744-night-shift-sector-o-b95911c0-4c80",
+  "sha": "b95911c04f41d0212e4655ebf3969108433c5ae3",
+  "branch": "feature/map-ready-s1",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-anim",
+    "e2e-combat",
+    "e2e-desktop",
+    "e2e-gadgets",
+    "e2e-lightbake",
+    "e2e-move",
+    "e2e-park",
+    "e2e-tactics",
+    "e2e-takedown",
+    "smoke"
+  ],
+  "set": "map-ready-s1",
+  "note": "map-ready S1 fix1"
+}
