@@ -32,6 +32,10 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
 - Scheduled task: `scripts/auto-train-task.ps1` registers "NightShift auto-train" every minute (`-Minutes`, default 1;
   hidden window through wscript, current user, only while logged on); `-Unregister` removes it. Register it from a checkout that does not
   change branch (`-RepoDir`), never from the train worktree.
+- Self-update (`selfUpdate`, `selfUpdatePlan`): on an idle tick (state `idle`: no open train, no candidate) it fetches
+  master and, when the checkout it runs from (not the train worktree) is behind origin/master and clean, checks out a
+  detached origin/master; the next tick runs the new scripts. A dirty checkout or a failed fetch is logged and skipped;
+  `--dry-run` only prints it. The watchdog's `autotrain-behind` alert fires when that checkout has lagged 60 min.
 - Files (`AUTO_TRAIN_SCRATCH` moves them): lock `C:/NightShift/scratch/auto-train.lock` (created `wx`; a running tick
   touches it every minute; untouched for 30 min = stale and replaced; a held lock skips the tick), log
   `C:/NightShift/scratch/runs/auto-train.log` (merge-train output included), status
