@@ -489,18 +489,16 @@ Course Ready's prep notes: origin/feature/marlow-bays docs/marlow-final-prep/ (M
 ## Resume prompt
 ```
 Night Shift | Marlow Build (Opus 5.5 high, desktop). Rules: docs/RULES.md + docs/VISION.md from origin/master; boot: docs/orchestrator/BOOT.md "Marlow Build" (origin/feature/menu).
-Area: Marlow Yard, level validator, route-runs, guard cap. Campaign work (mission-framework #372, Tallow Wharf, ROADMAP rows 0b / 7 / 8, review 2b) belongs to Campaign Build since 2026-10-25 ~12:50.
-HOLD (G346, G355): docs first. Until Michael signs off the folded plan (ROADMAP Now row 6): no new game work; finished PRs may ship.
-Conformance review DONE: #417 merged 2026-10-25 (docs/conformance-marlow/CONFORMANCE.md on master: gap table H / M / V / K, section 3 build order, 8 questions for Michael). Nothing open in this area.
-JOB NOW = HOLD (orchestrator 13:53, Michael "plan comes first"): no doc-fix slices, no cloud briefs, no game code until the orchestrator says the folded plan (ROADMAP Now row 6) is signed off. Then: ROADMAP Now rows 13 (route-runs + V6 PR) and 15 (Marlow Yard downed G349, drill retry G361, strict rule late G357, later sections G363).
-Other jobs (resume from their STATE, only after the hold lifts unless they are finished PRs):
-- level-validator: V0-V5 merged (#346). V6 (--require-measured) on origin/feature/level-validator-v6 8f551e18, 20 commits, no PR yet: docs/level-validator/STATE.md there.
-- route-runs (G330): origin/feature/route-runs docs/route-runs/STATE.md (plan WIP, no BRIEF / PLAN yet).
-- guard-cap: origin/feature/guard-cap docs/guard-cap/STATE.md (M0 / M1 verdicts in REPORT.md; C1 waits #375 + #317; C2 brief for Test Runner; T1 = #360, Guard AI).
-- marlow-final (this file): the Marlow Yard redesign; the Next list above is pre-review and is re-planned from the conformance gaps.
-Shipped (nothing owed): #291 LR16-M, #299, #310, #311, #346, #417.
-Open for Michael: joint interrogation A1 / A2; W5 A2 re-walk; restart shuts doors locked at set start (assumed); solo no-alarms reward = medkit heal.
-Polish list (after Michael playtests): A8 rail glass sliver; A2 top rail 0.02 over posts; A7 cabinet dressing; A2 wait (41,12.5) sight margin; device alarm stage carries across sets.
+Area: Marlow Yard, level validator, route-runs, guard cap, level standard (docs/level-design.md, docs/templates/map-spec.md).
+Row 6 SIGNED OFF (Michael ~17:00): no hold. Plan = origin/feature/menu docs/orchestrator/FOLDED-PLAN.md (Marlow: J1, J5, J12, J13, J14, J21); Michael's 39 answers in ROADMAP "Decided" override it. Desktop CPU: start agents only when the orchestrator says CPU < 80% (hold from ~18:10 may still stand: ask).
+State at the 18:20 save (each PR: check `checker` status on its head; none -> one fresh Opus checker):
+- #436 J1 docs (feature/marlow-docs-j1 90b0ed82, worktree Mobile-Coop-marlow-docs-j1): checker PASS; train-ready when CI green. Nothing owed.
+- #441 J5 Marlow objective lines (feature/marlow-objective-place 8609e12e): needs its Opus checker (text + tests/ctcourse/objectivePlace.test.ts; affected-e2e runs e2e-ctcourse).
+- #443 G157 level standard (feature/level-standard-g157 49318153): needs its Opus checker (Michael approved the 12 changes ~18:20; also Q5 / Q11 / Q24 in the Training profile).
+- J12 validator-port: plan done, origin/feature/validator-port cd0a5f68 docs/validator-port/{BRIEF,PLAN,STATE}.md (STATE = the one live validator resume block). Next: fresh Opus plan checker (BRIEF + PLAN); on PASS write S0 / S1 / S2 / S7a briefs, launch wave 1.
+- J13 route-runs: plan done, origin/feature/route-runs-2 32b709dc docs/route-runs/ (old feature/route-runs is stale, 1 commit). Next: fresh Opus plan checker; on PASS R1 / R2 / R3 in parallel, then R4a. Q1 (co-op stubs, A1 assumed) is with the orchestrator for Michael. R8 lands after Test Runner's J20 and after #443.
+- J14 Marlow Yard re-plan: planner was mid-work at the save; WIP origin/feature/marlow-replan 527ac416 (docs/marlow-replan/graph.json only). Rerun the planner from its brief (scope: BRIEF, REPLAN.md one page for Michael, to-scale SVGs, graph.json on training profile + validate-run.txt, STATE; Michael's Q5, Q11, Q18, Q24, Q25, Q29, Q2, Q6; format like origin/feature/sector-redesign-signoff docs/sector-redesign/signoff/). When ready: message the orchestrator "re-plan page ready for Michael".
+- J21 guard cap: docs on #436; resume block docs/guard-cap/STATE.md. Waits for Guard AI's J4 (G327) on master, then C1.
 Process (walk cap, train-ready, locks, laptop requests): RULES "Walk pacing", "Getting to master", "Machines". Message the orchestrator only at PR open / train-ready / blocked / needs Michael.
-Next: hold until the orchestrator messages the row 6 sign-off; then CONFORMANCE.md section 3 order (H7 V6 port first), Opus plans + plan checker before any build.
+Next: checkers for #441, #443, J12 plan, J13 plan (when CPU allows); rerun the J14 planner if its report is missing.
 ```
