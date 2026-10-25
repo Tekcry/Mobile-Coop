@@ -38,15 +38,20 @@ Owner: Marlow Build. Status: current.
 - Plan check 3 PASS on 10b613dd3. Wave 1 (~22:30): S0 PASS (fix round, C:/NightShift/scratch/marlow/j12-s0-check-2.md)
   and merged: PR A head dae93b996; `feature/validator-port-train` (C) and `-mission` (D) cut from it. S1 = PR #460
   (train-ready, train 104). S2 PASS on 44fecbbb6 (j12-s2-check.md; polish P1-P4 for D-B2); B2 PR waits for S7a.
-- Wave 2: S3 Opus local in C:/NightShift/Mobile-Coop-validator-port-s3 (feature/validator-port-s3, into A). Desktop
-  load to the cloud (orchestrator / Michael ~22:10): S7a, S7b, S5, S4, S6, S8 are cloud-queue briefs
-  (`briefs/validator-port-<slice>.md`, base dae93b996 except S7a master); merge each done branch into C (S4, S6, S7b,
-  S5) or D (S8) after its checker. S7a still unclaimed at 22:45 -> build it on the desktop at BelowNormal.
+- ~22:45 save: PR A = #464 (S0 only, ~1,111 lines; checker carried, docs only since). Size fallback: S3 is its own PR
+  (A2) after A, with D-A docs; S3 on feature/validator-port-s3 (7ffb76460, checker FIX, j12-s3-check.md: mergeGraphs
+  loses meta.measured of files 2+, null way back WARN on two-way gates) - Opus fix round running in
+  C:/NightShift/Mobile-Coop-validator-port-s3 (lead allowed the `mergeGraphs` edit). After it: fresh check of the fixes.
+- S7a PASS (e5a930811, j12-s7a-check.md) merged into B2 (feature/validator-port-measure-cli 258e8cd3b); D-B2 docs on
+  cloud-queue `briefs/validator-port-db2.md`; B2 PR opens once #460 is on master (train 104).
+- Desktop load to the cloud (Michael ~22:10): S7b, S5, S4, S6, S8 are open cloud-queue briefs (base dae93b996); merge
+  each done branch into C (S4, S6, S7b, S5) or D (S8) after its checker. Campaign seam: Tallow `bolted_in` link field
+  (C:/NightShift/scratch/marlow/j12-notes.md) for PR C.
 - Lead polish left (one docs commit here): check-3 P1-P6; Campaign Build ~21:30: Tallow C5 link becomes 32 after J8 D0
   deletes link 30 (match is map:from>to, so only the BRIEF / PLAN "link 33" wording goes stale); both spots
   `exception: "long_throw"`, gap 4.9 m; pie link 29 stays a plain throw.
-Next: S3 done -> Opus checker -> merge into A, D-A docs + fragment, open PR A; each cloud brief done -> checker -> merge
-into C / D; S7a done -> B2 PR (S2 + S7a, D-B2).
+Next: S3 fix round done -> fresh Opus check of fixes -> PR A2 after #464 lands; cloud briefs done -> checker -> merge
+into C / D; #460 on master + D-B2 done -> open PR B2.
 
 ## Done
 - 2026-10-25 fix round 2 (plan check 2 FIX on c4ed19163, report `C:/NightShift/scratch/marlow/j12-plan-check-2.md`):
