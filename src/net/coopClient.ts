@@ -23,7 +23,7 @@ import { kitAttemptKey } from './kitNet';
 import { MissionMirror } from './missionMirror';
 import type { TeamId } from '../game/mission/missionDef';
 import type { MissionRunner } from '../game/mission/missionRunner';
-import { MissionFeed, missionObjectiveLines, missionViewerTeam } from '../game/mission/missionFeed';
+import { MissionFeed, missionObjectiveLines, missionViewerTeam, stepWithPercent } from '../game/mission/missionFeed';
 import type { ObjectiveLine } from '../ui/screens/pauseScreen';
 import { CT } from '../config/movement';
 import { CLIENT_INTERP_DELAY, ClockSync, sendClock } from './interp';
@@ -1002,7 +1002,10 @@ export class CoopClient implements NetAttachment {
       if (mr) {
         this.viewerStale = true;
         // (mission-rules R6) the host's live section is our runner's section, so its steps open here too (the mirror
-        // only applies done and fact bits; without a section no step is ever open on this page)
+        // only applies done and fact bits; without a section no step is ever open on this page). (R6 polish) Two short
+        // connector windows follow from it: for ~1.5 s after the host unloads a section `ls` is -1, so no step is open
+        // and the line is the host's (its exit line); from the next section's load until its far door opens we are
+        // already on that section's first step, while still inside the sealed connector.
         const sid = msg.ls !== undefined && msg.ls >= 0 ? this.g.world.map.sectors?.[msg.ls]?.id : undefined;
         const si = sid === undefined ? -1 : mr.sectionIndex(sid);
         if (si !== mr.section) {
@@ -1393,9 +1396,15 @@ export class CoopClient implements NetAttachment {
     return this.missionViewer;
   }
 
-  /** (mission-rules R6) Our objective line: our current mission step, else (none, or no mission) the host's line. */
+  /**
+   * (mission-rules R6) Our objective line: our current mission step, else (none, or no mission) the host's line. (R6
+   * polish, J7-PLAN section 7 item 1) While the host's line is that same step with its download percent ("<step> NN%"),
+   * the host's line, so the percent shows here too.
+   */
   private missionObj(): string {
-    return (this.missionRunning() && this.missionFeed.text) || this.hostObj;
+    const step = this.missionRunning() ? this.missionFeed.text : '';
+    if (!step) return this.hostObj;
+    return stepWithPercent(this.hostObj, step) ? this.hostObj : step;
   }
 
   /**

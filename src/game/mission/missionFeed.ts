@@ -9,7 +9,7 @@
  * bolted shows its moved line (`boltText`, R1 / A18) on both pages (the spook fact rides `ms.f`).
  */
 import type { ObjectiveLine } from '../../ui/screens/pauseScreen';
-import { spookFact, teamForSlot, type MissionDef, type MissionStep, type TeamId } from './missionDef';
+import { spookFact, teamForSlot, type MissionCond, type MissionDef, type MissionStep, type TeamId } from './missionDef';
 import { STEP_DONE, STEP_OPEN, type MissionRunner } from './missionRunner';
 import { rulesLine, stepLine } from './missionText';
 
@@ -76,7 +76,8 @@ export class MissionFeed {
       this.version = -1;
       return this.set(-1, false, '', null);
     }
-    if (runner === this.runner && runner.version === this.version && viewer === this.viewer && hints === this.hints) return false;
+    const same = runner === this.runner;
+    if (same && runner.version === this.version && viewer === this.viewer && hints === this.hints) return false;
     this.runner = runner;
     this.version = runner.version;
     this.viewer = viewer;
@@ -86,7 +87,8 @@ export class MissionFeed {
     if (!s) return this.set(-1, false, '', null);
     const moved = movedStep(runner, s);
     const hint = hints && mine(s, viewer) ? (s.hint ?? null) : null;
-    if (i === this.step && moved === this.moved && this.text !== '') return this.set(i, moved, this.text, hint);
+    // (R6 polish) the text is kept only for the same step of the same runner (another runner's step i is another line)
+    if (same && i === this.step && moved === this.moved && this.text !== '') return this.set(i, moved, this.text, hint);
     return this.set(i, moved, stepLine(runner.def, i, moved), hint);
   }
 
@@ -105,6 +107,38 @@ export class MissionFeed {
     this.hint = hint;
     return changed;
   }
+}
+
+/** `c` holds flag `flag` anywhere (no allocation). */
+function condReads(c: MissionCond, flag: string): boolean {
+  if ('flag' in c) return c.flag === flag;
+  const l = 'all' in c ? c.all : c.any;
+  for (let i = 0; i < l.length; i++) if (condReads(l[i]!, flag)) return true;
+  return false;
+}
+
+/**
+ * (mission-rules R6 polish) Step `s` is the one the section's own objective completes: done on `flag` (the section's
+ * `<section>-obj`, set when its objective is used: a download, a hack, a grab), by its `done` condition or, with none, by
+ * its id. The host's download percent attaches only to that step's line. No allocation.
+ */
+export function missionStepReads(s: MissionStep, flag: string): boolean {
+  return s.done ? condReads(s.done, flag) : s.id === flag;
+}
+
+/**
+ * (mission-rules R6 polish, J7-PLAN section 7 item 1) The host's objective line `host` is the step line `step` plus a
+ * download percent (" NN%"): the co-op client keeps the host's percent on that step. No allocation.
+ */
+export function stepWithPercent(host: string, step: string): boolean {
+  const n = step.length;
+  const k = host.length - n;
+  if (!step || k < 3 || k > 5 || !host.startsWith(step) || host.charCodeAt(n) !== 32 || host.charCodeAt(host.length - 1) !== 37) return false;
+  for (let i = n + 1; i < host.length - 1; i++) {
+    const c = host.charCodeAt(i);
+    if (c < 48 || c > 57) return false;
+  }
+  return true;
 }
 
 /**
