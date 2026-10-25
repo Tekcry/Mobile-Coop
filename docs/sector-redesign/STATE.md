@@ -361,9 +361,12 @@ game work. Finished PRs may ship. Message the orchestrator only at PR open / tra
    12 Michael questions). Fresh Opus checker started ~13:45 (report: session scratchpad check-report.md, may be lost
    at a swap). If no `checker` status on the PR head: start a fresh Opus checker (re-find every file:line, rule
    quotes, missed scope, needs-Michael calls), one fix round, post `checker`, message the orchestrator.
-1. bake5 (feature/sector-redesign-bake5 @ 28b1737f, worktree -sector-redesign-bake2): finished, checker PASS on
-   522727fb (head adds the check report only), merges clean on master 4.102.0. PR not opened (auto mode blocked
-   gh pr create ~13:25): Michael opens it or allows gh pr create. Then post `checker` on the head.
+1. DOC FIXES from CONFORMANCE.md (Michael 13:50 via orchestrator: docs only, parallel; no game code):
+   feature/sector-ops-docfix (worktree -sector-ops-docfix, off master 4632c933: lighting.md L16 / L17, campus-run
+   header notes L13, sector-redesign SPEC / BRIEF / PLAN L12 + stale counts) -> docs PR when pushed; plan updates on
+   feature/campus-greybox, feature/light-realism (BRIEF / PLAN / S1-carpark / STATE rewritten, L14) and
+   feature/visual-gate. Each branch: check its log; rerun a missing part from the review rows. bake5 = PR #421
+   (orchestrator opened it and posted checker, Michael OK 13:52-13:55).
 2. HELD until row 6 (plans only, no code):
    - campus-greybox (Now row 9): feature/campus-greybox @ c2f1f131 (BRIEF, PLAN, STATE, briefs S1..S5); worktree
      C:/NightShift/Mobile-Coop-campus-greybox. Resume from docs/campus-greybox/STATE.md on that branch.
