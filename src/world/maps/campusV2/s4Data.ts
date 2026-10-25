@@ -58,8 +58,10 @@ export const S4_GUARDS: GearGuard[] = [
   { kind: 'grunt', x: 0.8, z: 24.7, yaw: 0, route: [[0.8, 24.7], [0.8, 33.0]], waits: [6, 6], takedownSpot: [0.8, 24.7], role: 'checker', zone: 'pod-1', squad: 3, dormant: true, reason: 'Reads the pod thermometers' },
   { kind: 'grunt', x: 24.0, z: 33.0, yaw: PI, route: [[24.0, 33.0], [24.0, 24.7]], waits: [6, 6], takedownSpot: [24.0, 24.7], role: 'checker', zone: 'pod-4', squad: 3, dormant: true, reason: 'Reads the pod thermometers' },
   // 12 the battery checker (G4.6, D:107, P7): starts in the battery room, walks the aisle x -7 (D:107's x -8.5 is inside the west rack),
-  // through battCC (-8.5, 27.5), the colonnade and ccUps (-5.5, 31) to the UPS room's north end and back; counted in s4-batt; cycle 35.8 / 0.99 + 6 = 42.1 s
-  { kind: 'grunt', x: -7.0, z: 21.0, yaw: 0, route: [[-7.0, 21.0], [-7.4, 26.9], [-8.3, 28.4], [-5.5, 30.0], [-5.5, 37.0], [-5.5, 30.0], [-8.3, 28.4], [-7.4, 26.9]], waits: [3, 0, 0, 0, 3, 0, 0, 0], takedownSpot: [-7.0, 21.0], role: 'checker', zone: 'batt', squad: 4, reason: 'Reads cell voltages with his torch' },
+  // through battCC (-8.5, 27.5), the colonnade and ccUps (-5.5, 31) to the UPS room's north end and back; counted in s4-batt; cycle 35.8 / 0.99 + 6 = 42.1 s.
+  // M8 (G4.6): the brief's spot (-7.0, 21.0) is seen down the battery room by K3 #19 through battCC (0 s isolated); the spot moves along his own route
+  // to (-5.5, 35.4) in the UPS room (3.25 s isolated in a 15 s window, CHECK_SPOT)
+  { kind: 'grunt', x: -7.0, z: 21.0, yaw: 0, route: [[-7.0, 21.0], [-7.4, 26.9], [-8.3, 28.4], [-5.5, 30.0], [-5.5, 37.0], [-5.5, 30.0], [-8.3, 28.4], [-7.4, 26.9]], waits: [3, 0, 0, 0, 3, 0, 0, 0], takedownSpot: [-5.5, 35.4], role: 'checker', zone: 'batt', squad: 4, reason: 'Reads cell voltages with his torch' },
   // 13 the deck patrol (on the deck): along the chillers' north side, covering the riser hatch
   { kind: 'grunt', x: 12, y: DECK, z: 36, yaw: PI / 2, route: [[12, 36], [30, 36]], waits: [3, 3], takedownSpot: [12, 36], role: 'patrol', zone: 'deck', squad: 5, reason: 'A chiller alarm earlier tonight; covers the riser hatch' },
   // 14-15 the NOC pair (on the mezzanine): at the window over the hall
@@ -77,8 +79,9 @@ export const S4_GUARDS: GearGuard[] = [
   // 21 (G4.6, D:106, P8) the goods-in officer: round the mantrap and the parcel cages along the lane, stopping 4 s at the dock end and 6 s
   // with #4 at the desk end (the straight z 19.6 line crosses the mantrap box); cycle 24.3 / 0.935 + 10 = 36.0 s; talks with #4 (index 3)
   { kind: 'officer', x: 12.5, z: 19.6, yaw: PI, route: [[12.5, 19.6], [13.4, 17.4], [6.1, 17.4], [5.0, 19.6], [6.1, 17.4], [13.4, 17.4]], waits: [4, 0, 0, 6, 0, 0], takedownSpot: [12.5, 19.6], role: 'goods-in', zone: 'lobby', squad: 1, pair: 3, reason: 'Goods-in officer: checks the 03:00 drives along the lane to the mantrap desk' },
-  // 22 (G4.6, D:112, P9) the second keyholder: round the cage, his south leg at z 32.4 (#9 is posted at (18, 33)); cycle 34.8 / 0.935 + 4 = 41.2 s
-  { kind: 'officer', x: 13.5, z: 32.4, yaw: 0, route: [[13.5, 32.4], [13.5, 40.8], [22.5, 40.8], [22.5, 32.4]], waits: [1, 1, 1, 1], takedownSpot: [22.5, 40.8], role: 'keyholder', zone: 'cage', squad: 3, reason: 'Second keyholder: dual custody, walks round the cage' },
+  // 22 (G4.6, D:112, P9) the second keyholder: round the cage, his south leg at z 32.5 (the brief's z 32.4 is off the nav grid, 0.25 m from pod P3's
+  // rack end: moved 0.1 m north, reported; #9 is posted at (18, 33)); cycle 34.6 / 0.935 + 4 = 41.0 s
+  { kind: 'officer', x: 13.5, z: 32.5, yaw: 0, route: [[13.5, 32.5], [13.5, 40.8], [22.5, 40.8], [22.5, 32.5]], waits: [1, 1, 1, 1], takedownSpot: [22.5, 40.8], role: 'keyholder', zone: 'cage', squad: 3, reason: 'Second keyholder: dual custody, walks round the cage' },
   // 23 (G4.6, D:108) the tank watch, in the compound facing the gate
   { kind: 'grunt', x: 38.5, z: 31, yaw: PI, takedownSpot: [38.5, 31.5], role: 'watch', zone: 'yard', squad: 0, reason: 'Tank watch: diesel was stolen from the tanks twice' },
   // 24 (G4.6, D:109) the chiller watch, on the deck

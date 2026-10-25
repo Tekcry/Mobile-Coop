@@ -10,6 +10,7 @@ import { NavGrid, type NavBlocker, type NavSample } from '../src/ai/navGrid';
 import { hyp2 } from '../src/core/mathx';
 import { PERCEPTION } from '../src/ai/perception';
 import { checkSectorCodes } from '../src/game/sectors';
+import { addDoorClosure, doorFinder } from '../src/game/sectorStage';
 import { lampReach } from '../src/world/lampMath';
 import { generateLedges } from '../src/world/anchors';
 import { SightWorld } from '../src/game/sectorCheck';
@@ -536,6 +537,67 @@ describe('G4.5 compound, riser, deck (D:36-40, C21-C25)', () => {
     for (const [x, z] of [[-3, 24], [8, 36], [20, 24], [24, 38]] as const) {
       const pole = findBox([x - 0.075, x + 0.075, 7.3, 12.3, z - 0.075, z + 0.075]);
       expect(pole?.noLedge, `pole (${x}, ${z})`).toBe(true);
+    }
+  });
+});
+
+describe('G4.6 sealing and door separation (T4:632-684 on the v2 build)', () => {
+  const S4_BOX = m.s4.S4_BOX;
+  const S4_DECK = m.s4.S4_DECK;
+  const FOOT = { x0: -10, x1: 40, z0: 16, z1: 48 };
+  const inFoot = (x: number, z: number): boolean => x >= FOOT.x0 && x <= FOOT.x1 && z >= FOOT.z0 && z <= FOOT.z1;
+
+  it('sealing: a flood from the start on the nav (doors open, ladders as links) never leaves the S4 footprint plus the C3 and C4 boxes; the deck screens and parapet as built', () => {
+    // C3's near door (into S3), C4's far door (into S5) and the yard gate are the section's ends: shut them on the grid
+    const find = doorFinder(b.anchors.doors);
+    const ends = [find(24, 0), find(-26, 29), find(37.5, 16)].map((d) => addDoorClosure(nav, d!));
+    for (const id of ends) nav.setClosed(id, true);
+    const seen = new Uint8Array(nav.walk.length);
+    const start = nav.cellOf(S4.start.x, S4.start.z, 0);
+    const queue = [start];
+    seen[start] = 1;
+    const linksFrom = new Map<number, number[]>();
+    for (const l of nav.links) {
+      (linksFrom.get(l.a) ?? linksFrom.set(l.a, []).get(l.a)!).push(l.b);
+      if (l.kind === 'ladder') (linksFrom.get(l.b) ?? linksFrom.set(l.b, []).get(l.b)!).push(l.a);
+    }
+    const outside: string[] = [];
+    const allowed = (x: number, z: number): boolean => inFoot(x, z) || (x >= S4_BOX.c3[0] - 0.5 && x <= S4_BOX.c3[2] + 0.5 && z >= S4_BOX.c3[1] - 0.5 && z <= S4_BOX.c3[3] + 0.5) || (x >= S4_BOX.c4[0] - 0.5 && x <= S4_BOX.c4[2] + 0.5 && z >= S4_BOX.c4[1] - 0.5 && z <= S4_BOX.c4[3] + 0.5);
+    let count = 0;
+    while (queue.length) {
+      const i = queue.pop()!;
+      count++;
+      const [x, z] = nav.center(i % nav.cols);
+      if (!allowed(x, z)) outside.push(`(${x}, ${z}, ${nav.height[i]!.toFixed(1)})`);
+      for (const j of [...nav.neighbours(i), ...(linksFrom.get(i) ?? [])]) if (!seen[j] && nav.walk[j]) {
+        seen[j] = 1;
+        queue.push(j);
+      }
+    }
+    for (const id of ends) nav.setClosed(id, false);
+    expect(count).toBeGreaterThan(2000);
+    expect(outside.slice(0, 5)).toEqual([]);
+    // the deck's north, south and west edges carry 2.0 screens (7.3-9.3); the east parapet (inside S4, over the compound) 1.1 with the ladder gap
+    const screens = solid.filter((p) => Math.abs(bottom(p) - S4_DECK) < 1e-6 && Math.abs(p.s[1] - 2.0) < 1e-6 && (p.c[2] > 47.5 || p.c[2] < 16.5 || p.c[0] < -9.5));
+    expect(screens.length).toBe(3);
+    expect(screens.every((p) => p.noLedge)).toBe(true);
+    const parapet = solid.filter((p) => Math.abs(bottom(p) - S4_DECK) < 1e-6 && Math.abs(p.s[1] - 1.1) < 1e-6 && Math.abs(p.c[0] - 34) < 1e-6);
+    expect(parapet.length).toBe(2);
+    expect(parapet.some((p) => p.c[2] + p.s[2] / 2 > 22.4 && p.c[2] - p.s[2] / 2 < 23.6)).toBe(false);
+  });
+
+  it('door separation: every keypad, pair gate, lockdown and connector door centre is >= 1.2 m (plan) from every other door anchor centre on any floor', () => {
+    const centres = b.anchors.doors.map((d) => [d.hinge.x + (Math.sin(d.yaw) * d.width) / 2, d.hinge.z + (Math.cos(d.yaw) * d.width) / 2] as const);
+    const special: (readonly [number, number])[] = [S4_DOORS.c3Far, S4_DOORS.c4Near, ...S4.keypads!.map((k) => k.at), ...S4.pairGates!.map((g) => g.door)];
+    for (const a of S4.stageActions!) for (const d of a.lockDoors ?? []) special.push(d);
+    expect(special.length).toBeGreaterThanOrEqual(8);
+    for (const sp of special) {
+      const same = centres.filter((c) => hyp2(c[0] - sp[0], c[1] - sp[1]) < 0.05);
+      expect(same.length, `door at ${sp}`).toBe(1);
+      for (const c of centres) {
+        if (hyp2(c[0] - sp[0], c[1] - sp[1]) < 0.05) continue;
+        expect(hyp2(c[0] - sp[0], c[1] - sp[1]), `door ${sp} vs door ${c}`).toBeGreaterThanOrEqual(1.2);
+      }
     }
   });
 });
