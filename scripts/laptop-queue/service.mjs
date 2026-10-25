@@ -102,7 +102,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pidAlive, staleName } from '../heavy-lock.mjs';
-import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, trainSoon, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, markReport, perfStep, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, REPEAT_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting } from './lib.mjs';
+import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, trainSoon, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, markReport, perfStep, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, REPEAT_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, trainParity, trainBins, parityLine } from './lib.mjs';
 import { visualPlan, visualEnv, visualVerdict, visualComment, VISUAL_CONTEXT, VISUAL_SUITE, VISUAL_SH_TIMEOUT_MS } from './visual.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
@@ -298,6 +298,18 @@ const realOpenNow = (listed = openListed) => realWaiting(DESKTOP ? listed.filter
 // ---------- claims (laptop-queue branch) ----------
 
 const QREF = 'refs/remotes/origin/laptop-queue';
+
+// Light parity on every train (J20 S7, Q27): the run-time switch config/train-parity.json on the laptop-queue branch
+// (no release needed; LQ_TRAIN_PARITY=off overrides per worker), read once per train after its fetch (lib trainParity).
+let parityLogged = '';
+/** Refetches the laptop-queue branch, reads the parity switch, logs it when it changed. Returns lib trainParity. */
+function readParity() {
+  git(['fetch', '-q', 'origin', `+refs/heads/laptop-queue:${QREF}`], { soft: true });
+  const p = trainParity(git(['show', `${QREF}:config/train-parity.json`], { soft: true }), process.env.LQ_TRAIN_PARITY);
+  const line = parityLine(p);
+  if (line !== parityLogged) { log(line); parityLogged = line; }
+  return p;
+}
 const gitIdEnv = () => (git(['config', 'user.email'], { soft: true }) ? {} : { GIT_AUTHOR_NAME: 'laptop-queue', GIT_AUTHOR_EMAIL: 'laptop-queue@localhost', GIT_COMMITTER_NAME: 'laptop-queue', GIT_COMMITTER_EMAIL: 'laptop-queue@localhost' });
 
 /**
@@ -1035,13 +1047,14 @@ async function runTrain(train, ports = PORTS) {
       state.trains[train.sha] = { result: nosha ? 'nosha' : 'build', date: new Date().toISOString() };
       return;
     }
+    const parity = readParity();
     const list = cmd('node', ['scripts/run-e2e.mjs', '--list'], { cwd: SLOTS[ports[0]].dir }).split('\n').map((x) => x.trim()).filter(Boolean);
-    const bins = shard(list, times, ports.length);
+    const bins = trainBins(list, parity, times, ports.length);
     bins.forEach((b, i) => log(`bin ${ports[i]}: ${b.suites.length} suites, weight ${Math.round(b.weight)} s`));
     // the expected e2e wall (heaviest shard at TRAIN_JOBS) restamps the pending status: auto-train polls every 30 s
     // once this status is older than it (laptop-queue-3; auto-train's laptopLate)
     const expS = Math.max(...bins.filter((b) => b.suites.length).map((b) => expectedWallS(b.suites, times, TRAIN_JOBS)));
-    if (Number.isFinite(expS)) postStatus(train.sha, 'pending', 'laptop-e2e', `${DESKTOP ? 'desktop: ' : ''}${ports.length > 1 ? 'sharded' : 'unsharded on'} ${ports.join('+')}, expect ~${Math.round(expS)} s`);
+    if (Number.isFinite(expS) || parity.off) postStatus(train.sha, 'pending', 'laptop-e2e', `${DESKTOP ? 'desktop: ' : ''}${ports.length > 1 ? 'sharded' : 'unsharded on'} ${ports.join('+')}${Number.isFinite(expS) ? `, expect ~${Math.round(expS)} s` : ''}${parity.off ? '; parity off' : ''}`);
     const t0 = Date.now();
     const runs = await Promise.all(ports.map((p, i) => e2e(p, bins[i].suites, TRAIN_JOBS, path.join(runDir, `${p}.log`), ctls[p])));
     if (voided) return closedEnd();
@@ -1347,11 +1360,13 @@ function dispatch(p) {
 let previewed = false;
 function planTrain(sha = '<train sha>', ports = PORTS) {
   previewed = true;
+  const parity = readParity();
   const list = cmd('node', ['scripts/run-e2e.mjs', '--list'], { soft: true }).split('\n').map((x) => x.trim()).filter(Boolean);
-  const bins = shard(list, times, ports.length);
+  const bins = trainBins(list, parity, times, ports.length);
+  const all = bins.flatMap((b) => b.suites);
   bins.forEach((b, i) => log(`dry-run: bin ${ports[i]} (weight ${Math.round(b.weight)} s): ${b.suites.map((s) => `${s}=${Math.round(times[s] ?? 0) || 'median'}`).join(' ')}`));
-  postStatus(sha, 'pending', 'laptop-e2e', `${DESKTOP ? 'desktop: ' : ''}sharded ${ports.join('+')}`);
-  postStatus(sha, 'success', 'laptop-e2e', `${list.length}/${list.length} pass, <wall> s`);
+  postStatus(sha, 'pending', 'laptop-e2e', `${DESKTOP ? 'desktop: ' : ''}sharded ${ports.join('+')}${parity.off ? '; parity off' : ''}`);
+  postStatus(sha, 'success', 'laptop-e2e', `${all.length}/${all.length} pass, <wall> s`);
   log(DESKTOP ? 'dry-run: visual-gate would post error "skipped: desktop lane (laptop GPU only)"' : `dry-run: then e2e-visual on ${ports[0]} when laptop-e2e passes and the head has scripts/e2e-visual.mjs (env ${JSON.stringify(visualEnv({ n: '<n>', sha }))}), status visual-gate`);
   return Promise.resolve();
 }
