@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 2 2026-10-25T23:16:20+11:00
 
 # campaign J7 R7: PR E e2e asserts (Sonnet 5.5 or Opus)
 
