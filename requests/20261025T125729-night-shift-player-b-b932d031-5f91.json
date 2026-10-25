@@ -1,0 +1,18 @@
+{
+  "id": "20261025T125729-night-shift-player-b-b932d031-5f91",
+  "sha": "b932d03114b1252580e2149daede99963b0489a9",
+  "branch": "feature/mixamo-i3",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-anim",
+    "e2e-move",
+    "e2e-stealth",
+    "anim-audit",
+    "e2e-clip",
+    "e2e-weapons-carry"
+  ],
+  "set": "mixamo-i3",
+  "note": "mixamo I3 (contains I1): stance + idle/crouch-walk switch, rows off"
+}
