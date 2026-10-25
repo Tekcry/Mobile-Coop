@@ -1003,37 +1003,34 @@ C:/NightShift/Mobile-Coop-laptop-queue-svc && node scripts/laptop-queue/request.
 laptop-e2e/<set>. Withdraw = delete requests/<id>.json on origin/laptop-queue (plumbing commit, never in the svc
 worktree). Background wait: scratchpad wait-status.sh "<sha>:<context>" ... Laptop auto mode blocks labels: tell the
 orchestrator at train-ready. Walk cap: Guard AI AT CAP (new behaviour dark; rule fixes ship on, G355).
-Open (2026-10-25 ~22:00, new account; full burn; order J4, J6, J15, J26, J16). Laptop gh login works again; the
-~21:38 local commits are pushed. Checker statuses: a LONE `gh api repos/Tekcry/Mobile-Coop/statuses/<sha> -f ...`.
-Laptop CPU ~99% while trains run: no local tsc / vitest builders until it drops under ~80%.
-1. J4 G327 #438 head 8af8ff6a: TRAIN-READY, in train 105 (SAVE ~22:40, all worktrees clean and pushed). #414 still draft (undraft blocked
-   by auto mode; Michael asked).
+Open (2026-10-25 ~23:15, new session after a swap; full burn; order J4, J6, J15, J26, J16). Checker statuses: a LONE
+`gh api repos/Tekcry/Mobile-Coop/statuses/<sha> -f ...`. Local tsc / vitest builders only while laptop CPU < ~80%.
+1. J4 G327 #438 MERGED (train 105). #414 (T1 look script) still draft: undraft is Michael's (auto mode).
 2. J4 #317 coop4 head 3100d035 ships ON (Q16). Release checks A + B PASS (docs/guard-ai/checks/coop4-release-check-A/B.md,
    a7653ca7f); checker posted. affected-e2e FAIL 09:52Z "slot 4192 gave no result" (infra); re-request
-   20261025T100447 queued. The orchestrator
-   resolves the 4-file master conflict in the train (coopHost markIntel, protocol 63, coop.md, testing-tools.md) and
-   runs e2e-sectorops:7/:8/:9 alone on the train head. Never push to feature/coop4. Polish -> coop4-pol: sectorMode.ts:1434
-   OUT slot from RemotePlayer.ref.slot; main.ts:332 text; coopUi.ts:87 roomCap; testing-tools part 9 bullet.
-3. J6 #446 head 97c6338f: TRAIN-READY ~22:51 (affected 4/4, alloc-coop 2/2, checker posted); orchestrator told.
-4. J15 PR1 #450 (feature/guard-rules 211a66d5): check A PASS, B FIX (TESTING.md) applied (docs only). Gates queued:
-   laptop-e2e/rules-pr1 on a78d7093 (091057) + affected-e2e on 211a66d5 (091818). #450 CONFLICTS with master in two
-   docs (docs/systems/ai.md, takedowns.md), so CI `check` never ran; orchestrator told (train merge by hand). Green ->
-   checker on the head, tell orchestrator. PR2 polish (build on -s5 now, never on feature/guard-rules): responseTeam shield arg default true (gear.ts:178) -> false; KILL_BASE.dog undo keeps
-   the headshot bonus off (score.ts:17); GearGuard type redundant.
-5. J15 S5 repeat alarms (PR2): be49ac06 on feature/guard-rules-s5; checks A + B PASS (docs/guard-rules/checks/
-   S5-CHECK-A/B.md). PR1 + S5 polish DONE on -s5 69257d7b1, checks A + B PASS (checks/PR2-POLISH-CHECK-A/B.md,
-   e18039094). Early run queued on e18039094: laptop-e2e/rules-pr2-early (20261025T113525, priority -1: sectorops,
-   enemies, coop, netmove, ctcourse). After PR1 merges: merge -s5 into feature/guard-rules, PR2 + affected. PR body lists the skipped polish (PR1-A2 wire bit, PR1-A4 J17, PR1-B e2e names,
-   S5-A3 walk note) and the merge note: mission-engine calls responseTeam without `shield`; keep sectorMode's
-   `s.shieldTeams === true` (Campaign Build told). Then wave 3: F0 (lead) then S4 / S6 from
-   docs/guard-rules/slices/{F0,S4,S6}-BRIEF.md (2b76f1364 on -s5).
-   node_modules junctions: guard-rules(-s5) -> guard-ai-s24 directly.
-6. J26 mission hooks: plan PASS (044258624). Every slice starts after J15 PR4 merges: S1a -> S1b; S2 -> S3 -> S4.
+   20261025T100447 queued. The orchestrator resolves the 4-file master conflict in the train (coopHost markIntel,
+   protocol 63, coop.md, testing-tools.md) and runs e2e-sectorops:7/:8/:9 alone on the train head. Never push to
+   feature/coop4. Polish -> coop4-pol: sectorMode.ts:1434 OUT slot from RemotePlayer.ref.slot; main.ts:332 text;
+   coopUi.ts:87 roomCap; testing-tools part 9 bullet.
+3. J6 #446 head 97c6338f: TRAIN-READY (labelled; missed train 106, next train).
+4. J15 PR1 #450 (feature/guard-rules 211a66d5): checks A + B done. Gates queued: laptop-e2e/rules-pr1 on a78d7093
+   (running ~23:00) + affected-e2e on 211a66d5 (091818). #450 CONFLICTS with master in two docs (docs/systems/ai.md,
+   takedowns.md), so CI `check` never ran; orchestrator told (train merge by hand). Green -> checker on the head, tell
+   orchestrator.
+5. J15 PR2 = feature/guard-rules-s5 e18039094 (S5 + PR1 polish, checks A + B PASS). Early run queued:
+   laptop-e2e/rules-pr2-early (20261025T113525). After PR1 merges: merge -s5 into feature/guard-rules, PR2 + affected.
+   PR body lists the skipped polish (PR1-A2 wire bit, PR1-A4 J17, PR1-B e2e names, S5-A3 walk note) and the merge
+   note: mission-engine calls responseTeam without `shield`; keep sectorMode's `s.shieldTeams === true`.
+6. J15 PR3 wave 3 RUNNING: F0 flags 452e23035 on feature/guard-rules-f0 (off e18039094, so PR2 stays as checked).
+   Opus builders: S4 barks (worktree -guard-rules-s4, branch feature/guard-rules-s4) and S6 pairs (-guard-rules-s6,
+   feature/guard-rules-s6), both from F0, briefs docs/guard-rules/slices/S4/S6-BRIEF.md. Then: lead folds S6's ai.md
+   lines, merges s4 + s6 into feature/guard-rules-f0 (PR3 branch), 2 Opus checkers, laptop set per PLAN "Tests and
+   e2e per PR" PR3. PR3 opens after PR2 merges (base = master). node_modules: junctions -> guard-ai-s24.
+7. J26 mission hooks: plan PASS (044258624). Every slice starts after J15 PR4 merges: S1a -> S1b; S2 -> S3 -> S4.
    Campaign Build SENT the PLAN's C1-C7. A9 per-area stages dark: Michael's click at his walk.
-7. Test Runner request (J20 S6b): seed the 5 Math.random sites in src/ai (enemy.ts think cadence x2, enemyManager
-   radio delays x2, reconDrone start angle) after J6 lands and PR-C (tests/replayDeterminism.test.ts) is on master;
-   shrink its allowlist in the same PR.
-8. J16 perception half (Q14 cast shadow = faint cue): plan after Sector Ops' J16 PR.
-9. Later: coop4-pol (134f6abe), snapBudget headroom, coopHost.ts:589 comment, TODO sectorMode.ts:201.
-Next: laptop gates 2-4 (background wait; #438 train-ready ~22:25, labelled); #414 undraft is Michael's (auto mode).
+8. Test Runner request (J20 S6b): seed the 5 Math.random sites in src/ai (enemy.ts think cadence x2, enemyManager
+   radio delays x2, reconDrone start angle) after J6 lands and PR-C (tests/replayDeterminism.test.ts) is on master.
+9. J16 perception half (Q14 cast shadow = faint cue): plan after Sector Ops' J16 PR. Later: coop4-pol (134f6abe),
+   snapBudget headroom, coopHost.ts:589 comment, TODO sectorMode.ts:201.
+Next: S4 / S6 builders -> checkers; laptop gates 2, 4, 5 (background wait on the four statuses).
 ```
