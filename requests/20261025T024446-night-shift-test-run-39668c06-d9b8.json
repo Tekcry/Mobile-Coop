@@ -1,0 +1,11 @@
+{
+  "id": "20261025T024446-night-shift-test-run-39668c06-d9b8",
+  "sha": "39668c06ad1efbb160b5a973848b52d746c17c22",
+  "branch": "",
+  "pr": null,
+  "kind": "full",
+  "requester": "Night Shift | Test Runner",
+  "set": "full-4102-r1",
+  "note": "save gap: full e2e on master 4.102.1",
+  "pin": true
+}
