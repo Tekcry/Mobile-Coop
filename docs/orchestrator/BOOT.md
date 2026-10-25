@@ -11,8 +11,8 @@ orchestrator; a lead whose resume location changes tells it in its next message.
    in ROADMAP "Now" and your area's walk-cap count in "Waiting on Michael"
    (`git show origin/feature/menu:docs/ROADMAP.md | grep ...`).
 4. Until Michael signs off the folded plan (ROADMAP Now row 6), your first job is your conformance review
-   (`docs/orchestrator/review-briefs/<lead>.md` on origin/feature/menu: `player`, `marlow`, `sector-ops`, `guard-ai`,
-   `test-runner`); no new game work (G346, G355); finished PRs may ship. The review is plan only: no src, test, map,
+   (`docs/orchestrator/review-briefs/<lead>.md` on origin/feature/menu: `player`, `marlow`, `campaign`, `sector-ops`,
+   `guard-ai`, `test-runner`); no new game work (G346, G355); finished PRs may ship. The review is plan only: no src, test, map,
    script or config change; output a docs PR with `docs/conformance-<lead>/CONFORMANCE.md` and a checker (ROADMAP Now
    phase 1).
 5. Refresh your resume block to <= 40 lines with the docs-first hold and fix its pointers (`CLAUDE.md "Sessions"` ->
@@ -30,9 +30,12 @@ Message "Night Shift | Orchestrator" only at PR open / train-ready / blocked / n
 - First: check `C:/NightShift/heavy.lock` / `heavy2.lock` (RULES "Machines"); stop tail / grep watchers older than the swap (STATE
   "Known"); recreate the cron from STATE "Cron prompt"; `get_usage`; read `C:/NightShift/scratch/auto-train-status.json`
   and act on failed / stale / error; reopen any cloud-queue brief still claimed by an old Cloud Builder.
-- Then print boot lines 2-7 from PROMPTS.md in one message (title, model, effort, machine each), as the last thing in
-  that message, and check ListAgents that all come up under their titles.
-- Standing work: ROADMAP phase 0 (land #407, #400, #408; ship finished PRs), fold the five gap lists (row 6), walk card
+- Then START the four desktop leads (Player, Marlow, Sector Ops, Campaign; PROMPTS.md lines 2-5) and one Cloud Builder
+  (line 8) yourself with start_session (initiation user_asked: Michael ~12:50, "automate as much as possible"), each
+  with its boot line as the prompt; give Michael only the two laptop boot lines (Guard AI, Test Runner; lines 6-7) in
+  one message (title, model, effort, machine each), as the last thing in that message. Check ListAgents that all come
+  up under their titles.
+- Standing work: ROADMAP phase 0 (land #407, #400, #408; ship finished PRs), fold the six gap lists (row 6), walk card
   per release, bottleneck audits (cron), daily fold of Decided into docs/DECISIONS.md.
 
 ## Player Build
@@ -46,16 +49,22 @@ Message "Night Shift | Orchestrator" only at PR open / train-ready / blocked / n
 
 ## Marlow Build
 - Opus 5.5, high, desktop.
+- Resume: the last fenced block of `docs/marlow-final/STATE.md` on origin/feature/marlow-final. Other jobs:
+  level-validator `docs/level-validator/STATE.md` on origin/feature/level-validator (on master after #407:
+  `docs/archive/level-validator/STATE.md`); V6 on origin/feature/level-validator-v6 (same path); route-runs
+  `docs/route-runs/STATE.md` on origin/feature/route-runs; guard-cap `docs/guard-cap/STATE.md` on origin/feature/guard-cap.
+- Worktrees: C:/NightShift/Mobile-Coop-<job> per job (marlow-final, level-validator, level-validator-v6, route-runs,
+  guard-cap); the conformance review in its own (C:/NightShift/Mobile-Coop-conformance-marlow).
+- First job: review-briefs/marlow.md. Area: Marlow Yard, level validator, route-runs, guard cap.
+
+## Campaign Build
+- Opus 5.5, high, desktop (new 2026-10-25 ~12:50; takes the campaign work from Marlow Build).
 - Resume: `docs/missions/STATE.md` on origin/feature/mission-framework (newest SAVE; engine WIP on
-  origin/feature/mission-engine, same path); then the last fenced block of `docs/marlow-final/STATE.md` on
-  origin/feature/marlow-final. Other jobs: level-validator `docs/level-validator/STATE.md` on origin/feature/level-validator
-  (on master after #407: `docs/archive/level-validator/STATE.md`); V6 on origin/feature/level-validator-v6 (same path);
-  route-runs `docs/route-runs/STATE.md` on origin/feature/route-runs; guard-cap `docs/guard-cap/STATE.md` on
-  origin/feature/guard-cap.
-- Worktrees: C:/NightShift/Mobile-Coop-<job> per job (mission-framework, mission-engine, marlow-final,
-  level-validator, level-validator-v6, route-runs, guard-cap); the conformance review in its own
-  (C:/NightShift/Mobile-Coop-conformance-marlow).
-- First job: review-briefs/marlow.md. Area: Marlow Yard, missions and Tallow Wharf, level validator, guard cap.
+  origin/feature/mission-engine, same path).
+- Worktrees: C:/NightShift/Mobile-Coop-<job> per job (mission-framework, mission-engine); the conformance review in its
+  own (C:/NightShift/Mobile-Coop-conformance-campaign).
+- First job: review-briefs/campaign.md. Area: Tallow Wharf, mission framework / engine (`docs/missions/`), campaign
+  rules (strict rules, objective popup on View / O, compass / blip / maps removal: G336, G339, G343, G351).
 
 ## Sector Ops Build
 - Opus 5.5, high, desktop.
