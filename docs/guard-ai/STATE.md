@@ -1021,7 +1021,7 @@ Open (SAVE 2026-10-25 ~19:20; full burn; order J1 -> J4, J6, J15, J26, J16):
    PR1 (minor), 2 Opus checkers, laptop: affected + e2e-coop / e2e-netmove + e2e-ctcourse + e2e-takedown.
    Orchestrator told: J17 campus S4/S5 data waits for PR1.
 6. J26 mission hooks: plan PASS (044258624; 2 check rounds). Every slice starts after J15 PR4 merges:
-   S1a -> S1b; S2 -> S3 -> S4. TODO now: send Campaign Build the PLAN's C1-C7 (C3 restarted() re-raises done steps'
+   S1a -> S1b; S2 -> S3 -> S4. Campaign Build SENT the PLAN's C1-C7 (~19:20) (C3 restarted() re-raises done steps'
    events; C7 lamps / SEXTON lines follow em.orderPhase). A9 per-area stages dark: Michael's click at his walk.
 7. Test Runner request (J20 S6b): seed the 5 Math.random sites in src/ai (enemy.ts think cadence x2, enemyManager
    radio delays x2, reconDrone start angle) after J6 lands and PR-C (tests/replayDeterminism.test.ts) is on master;
