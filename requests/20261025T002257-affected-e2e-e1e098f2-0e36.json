@@ -1,0 +1,16 @@
+{
+  "id": "20261025T002257-affected-e2e-e1e098f2-0e36",
+  "sha": "e1e098f242118065be94f609c942d8800eda300c",
+  "branch": "feature/doc-guard",
+  "pr": 400,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anim",
+    "e2e-combat",
+    "e2e-move",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #400"
+}
