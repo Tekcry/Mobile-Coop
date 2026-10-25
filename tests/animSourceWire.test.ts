@@ -278,20 +278,21 @@ describe('source wire: no allocation a frame', () => {
     i.crouch = 1;
     i.speed = 0.7;
     i.localZ = 1;
+    // one graph and one loop for both readings, the reference first (two graphs, or the handed one warmed alone, read
+    // whichever tier V8 left each in: 1744 B against 171 B on 1 run in 3, either way round, the same code)
+    let handOn = false;
     const run = (n: number): void => {
       for (let k = 0; k < n; k++) {
-        g.animSource = 'mixamo';
+        if (handOn) g.animSource = 'mixamo';
         g.update(DT, i);
       }
     };
-    const handed = await bytesPerCall(run, 0);
-    const ref = new AnimGraph(proportions('average', 1.68));
-    ref.wrenReady = true;
     setAnimSource('mixamo');
-    const runRef = (n: number): void => {
-      for (let k = 0; k < n; k++) ref.update(DT, i);
-    };
-    const page = await bytesPerCall(runRef, 0);
+    const page = await bytesPerCall(run, 0);
+    setAnimSource('cmu');
+    handOn = true;
+    const handed = await bytesPerCall(run, 0);
+    expect(g.sourceTables()).toBe(SOURCE_TABLES.mixamo);
     console.info(`(source wire) bytes a frame: handed mixamo ${handed} (page mixamo ${page})`);
     expect(handed).toBeLessThanOrEqual(page + HEAP_NUMBER);
   }, 240_000);
