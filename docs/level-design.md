@@ -315,10 +315,11 @@ declared in the graph before geometry and measured in greybox: a map whose measu
    Plank Bridge (G403; bible 5.9 C4); and the synced takedown (4.4). A move the game does
    not have yet is built by its co-op job before a map relies on it. Graph kinds: `coop_boost` (boost), `human_ladder`
    (human ladder), `team_pull` (pull-up), `team_hang` (hang-down relay), `team_throw` (throw over a gap), `shutter`
-   (hold a shutter or door), `pair_gate` (team door), a `bolted` door (unlocked from the far side after a vent or a
-   throw), `team_rope` (rope). Each kit move's size band is in scale sheet section 3. Co-op routes are in at least half
-   of the encounter spaces and in every section. Check: `checkCoop` (coverage), `checkDimensions` (bands). [Training]
-   The coverage check does not bind: each exercise forces the move it teaches (G392).
+   (hold a shutter or door), `pair_gate` (team door), `vent_unlock` (the door a crawler opens from the far side after a
+   vent, Q25), a `bolted` door (unlocked from the far side after a throw), `team_rope` (rope). Each kit move's size
+   band is in scale sheet section 3. Co-op routes are in at least half of the encounter spaces and in every section.
+   Check: `checkCoop` (coverage), `checkDimensions` (bands). [Training] The coverage check does not bind: each exercise
+   forces the move it teaches (G392).
 10. **A forced co-op gate per section.** [Campaign] Every section forces a co-op traversal move with no solo bypass:
    the section's exit cannot be reached from its entry by solo links alone (Michael 2026-10-24 ~22:45: "must have forced
    coop traversal to proceed", G292). Each gate keeps its way back (11.6). Check: `checkRedundancy` (forced gate).
