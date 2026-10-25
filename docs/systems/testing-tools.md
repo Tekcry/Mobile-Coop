@@ -629,13 +629,13 @@ The only owner of the flaky-suite rule (process audit 2026-10-24 finding 5; repl
   owner from `owners`, else the orchestrator), so later runs print it KNOWN FLAKY instead of rerunning it.
   `flake-budget.md` in the same folder holds the per-suite rates; a run that flaked or hit a quarantined failure adds
   that table to its PR comment (a passing run comments only when it recorded a new flake). Only flakes after a suite's
-  last auto quarantine count, so it does not renew on the same flakes; an auto entry just expires.
+  last auto quarantine count, so it does not renew on the same flakes; an auto entry just expires. The desktop worker
+  keeps its own list (`laptop-queue-desktop/`). Commits cut before this change ignore `E2E_QUARANTINE_FILE` and keep
+  their hardcoded e2e-pad.
 - Repeat quarantine (Michael 2026-10-25, folded plan Q30, "Becomes blocking"): a suite that would be quarantined a
   second time within 14 days of its last quarantine is not quarantined again. It stays blocking (its failures fail the
   run) and its owner gets a fix job on the ROADMAP. Until the queue code does this (Test Runner job J20), the Test
-  Runner applies it by hand from `flake-budget.md` and tells the orchestrator. The desktop worker
-  keeps its own list (`laptop-queue-desktop/`). Commits cut before this change ignore `E2E_QUARANTINE_FILE` and keep
-  their hardcoded e2e-pad.
+  Runner applies it by hand from `flake-budget.md` and tells the orchestrator.
 
 ## GPU runs (Michael's PC only)
 - `E2E_GPU=1 npm run e2e` (or any script, e.g. `E2E_GPU=1 node scripts/perf.mjs --desktop --budget`): `e2e-lib` launches
