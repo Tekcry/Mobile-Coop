@@ -88,6 +88,7 @@ import { effectMode, sliderEffect, type EffectMode } from './tunerEffect';
 import type { KeyedClip } from '../anim/keyed';
 import { LOCO } from '../anim/mocap';
 import { NOW_PLAYING, bodyWord, nowPlayingGuardText, nowPlayingKey, nowPlayingText } from '../anim/nowPlaying';
+import { mocapSource } from '../anim/mocapSources';
 import {
   CLARITY_WARN_LABEL,
   KEYS_CAPTURED_NOTE,
@@ -3619,8 +3620,11 @@ export class AnimTunePanel {
       // (marlow-bays item 29) the loop playing now: one of her keyed clips (the studio), a gun in hand or not; a change
       // greys the rows that do nothing in it
       // (tuner-clarity S4) `mocap`: no studio keyed clip pins the body and the capture plays 90 % or more of it
-      const keyedPin = !!se && se.kind === 'keyed' && studioBodyPin(se) !== '';
-      const m = effectMode(keyedPin, se ? !!se.drawn || !!TUNE_STATE.gun : !!TUNE_STATE.gun, STUDIO.spot, !keyedPin && NOW_PLAYING.mocap >= REACH_NOW_BANDS.capture);
+      // (mixamo-retarget M5) a motion capture in the studio plays as the game plays it (the mocap share, studioDrive): the
+      // rows the game keeps off a capture grey here too
+      const capPin = !!se && se.kind === 'keyed' && se.clip !== null && mocapSource(se.clip.name) !== null;
+      const keyedPin = !capPin && !!se && se.kind === 'keyed' && studioBodyPin(se) !== '';
+      const m = effectMode(keyedPin, se ? !!se.drawn || !!TUNE_STATE.gun : !!TUNE_STATE.gun, STUDIO.spot, capPin || (!keyedPin && NOW_PLAYING.mocap >= REACH_NOW_BANDS.capture));
       if (m !== this.effMode) {
         this.effMode = m;
         for (const s of this.sections) this.applyEffect(s);
