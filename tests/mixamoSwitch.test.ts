@@ -16,7 +16,7 @@
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
-import { KEYED_IDLE_PERIOD_S, MIXAMO_ON, setMixamo, STANDING_IDLE_SECONDS, WREN_KEYED } from '../src/anim/mixamo';
+import { KEYED_IDLE_PERIOD_S, MIXAMO_LOCO, MIXAMO_ON, setMixamo, STANDING_IDLE_SECONDS, WREN_KEYED } from '../src/anim/mixamo';
 import { applyMocapSwitch, HAND_KEYED_SET, LOCO, MOCAP_SET, setMocapLocomotion } from '../src/anim/mocap';
 import { AnimGraph, defaultInput, KEYED_IDLE_PERIOD, type AnimInput } from '../src/anim/animGraph';
 import { KEYED_IDLE } from '../src/anim/clips/keyed/idle';
@@ -32,6 +32,10 @@ import { bytesPerCall, HEAP_NUMBER } from './helpers/allocPerCall';
 
 /** MIXAMO_ON as shipped (a test that forces a row puts it back). */
 const ON0 = { ...MIXAMO_ON };
+/** (I6) The locomotion rows off: these tests isolate the I1 idle and crouched walk (I6's are tests/mixamoLoco.test.ts). */
+const locoOff = (): void => {
+  for (const k of Object.keys(MIXAMO_LOCO)) MIXAMO_ON[k] = false;
+};
 afterEach(() => {
   Object.assign(MIXAMO_ON, ON0);
   setMixamo(false);
@@ -192,6 +196,7 @@ describe('mixamo I1 (b): on', () => {
   }, 120_000);
 
   it('the crouched walk: in LOCO.set only with the mocap switch on (A2); its row false keeps the CMU clip', () => {
+    locoOff();
     MIXAMO_ON.crouched_walking = true;
     setMixamo(true);
     expect(WREN_KEYED.crouchWalk).toBe(MOCAP_CROUCHED_WALKING);
@@ -221,6 +226,7 @@ describe('mixamo I1 (b): on', () => {
   });
 
   it('the crouched sneak on Wren\'s graph moves with the capture (mocap switch on), the idle row aside', () => {
+    locoOff();
     setMocapLocomotion(true);
     const off = runGraph(true);
     MIXAMO_ON.standing_idle = false;
