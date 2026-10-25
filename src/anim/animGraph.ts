@@ -45,20 +45,20 @@ import { hyp2 } from '../core/mathx';
 import { emptyActionWeights, type TuneActionWeights } from './tuneMoveRows';
 import { effortSpeed } from './effort';
 import { clearKeyedArms, KEYED_FEET, KEYED_FEET_SIDE, KF, layerMul, mirrorKeyed, mixKeyed, newKeyedPose, sampleKeyed, type KeyedClip, type KeyedPose } from './keyed';
-import { HAND_KEYED_SET, LOCO, MOCAP_FEET, MOCAP_LAYERS, MOCAP_SLOT, MocapSlots, mocapLayerK, type ClipFeetFrame, type LocoClipSet, type SlotLegValues } from './mocap'; // (mocap-trial)
+import { HAND_KEYED_SET, MOCAP_FEET, MOCAP_LAYERS, MOCAP_SLOT, MocapSlots, mocapLayerK, type ClipFeetFrame, type LocoClipSet, type SlotLegValues } from './mocap'; // (mocap-trial)
 import { KEYED_WALK } from './clips/keyed/walk';
 import { KEYED_JOG } from './clips/keyed/jog';
 import { KEYED_RUN } from './clips/keyed/run';
 import { KEYED_IDLE } from './clips/keyed/idle';
-import { WREN_KEYED } from './mixamo'; // (mixamo-retarget I1) Wren's keyed idle
+import { ANIM_SOURCE, PAGE_TABLES, sourceTablesFor, type AnimSource, type SourceTables } from './animSource'; // (mixamo-retarget Source wire)
 import { KEYED_READY_STANCE } from './clips/keyed/ready_stance';
 import { KEYED_GLIDE_FWD } from './clips/keyed/glide_fwd';
 import { KEYED_GLIDE_STRAFE } from './clips/keyed/glide_strafe';
-import { STANCE_SHOT, WREN_STANCE } from './mixamo'; // (mixamo-retarget I3) Wren's stance shots
+import { STANCE_SHOT } from './mixamo'; // (mixamo-retarget I3) Wren's stance shots
 import { KEYED_GLIDE_BACK } from './clips/keyed/glide_back';
 import { studioDriveTargets, type StudioDrive } from './studioDrive';
 import { MOVE_IDS, newGraphPlaying, type GraphPlaying } from './nowPlaying'; // (tuner-clarity S1)
-import { HANG_IDLE_SECONDS, KEEP_CH, SHIMMY_SPEED, SHIMMY_TRAVEL, STAND_FADE, WREN_TRAV } from './mixamo'; // (mixamo-retarget I2)
+import { HANG_IDLE_SECONDS, KEEP_CH, SHIMMY_SPEED, SHIMMY_TRAVEL, STAND_FADE } from './mixamo'; // (mixamo-retarget I2)
 import { bodyMotionBands, bodyMotionStep, KEY_MOTION, newBodyMotion, newBodyMotionIn, scaleKeyedArms, type BodyMotion } from './bodyMotion';
 import { KEYED_SNEAK } from './clips/keyed/sneak';
 import { KEYED_CROUCH_WALK } from './clips/keyed/crouch_walk';
@@ -935,8 +935,8 @@ export class AnimGraph {
    *  feet (`kA`), its blended root travel per cycle and duty. */
   private readonly mSlots = new MocapSlots();
   private mSet: LocoClipSet = HAND_KEYED_SET;
-  /** (mt2-guardgate) This frame's switch for this rig (`LOCO.mocap && i.mocapOk`), its clip set (LOCO.set, or the hand-keyed
-   *  set off) and slots (LOCO.slots, or none off): every mocap read in the graph goes through these. */
+  /** (mt2-guardgate) This frame's switch for this rig (its source's `loco.mocap && i.mocapOk`), its clip set (`loco.set`, or the hand-keyed
+   *  set off) and slots (`loco.slots`, or none off): every mocap read in the graph goes through these. */
   private mOn = false;
   /** (afp CI fix) The anim-fix-pass rows apply this frame: a Wren rig (`wrenReady`: the player, the partner, the studio and
    *  menu puppets) or a carrier (`i.mocapOk`; a bare graph). The crouch carriage and step line (AF3) and the crouched gun
@@ -1097,10 +1097,12 @@ export class AnimGraph {
     const k = p.height / 1.75;
     const mass = clamp(i.weight, 0.5, 1.6);
     this.nSlots = 0;
-    this.mOn = LOCO.mocap && i.mocapOk;
+    // (mixamo-retarget Source wire) this graph's source's tables (the page's, or a remote owner's): a compare a frame
+    const L = this.sourceTables().loco;
+    this.mOn = L.mocap && i.mocapOk;
     this.afRig = i.mocapOk || this.wrenReady;
-    this.mS = this.mOn ? LOCO.set : HAND_KEYED_SET;
-    this.mSl = this.mOn && LOCO.slots;
+    this.mS = this.mOn ? L.set : HAND_KEYED_SET;
+    this.mSl = this.mOn && L.slots;
     this.mSide = this.mOn && this.mS.strafeL !== null && this.mS.strafeR !== null;
     let trigger = false;
 
@@ -1305,8 +1307,8 @@ export class AnimGraph {
       const tc = i.traverse === 'climbUp' && !i.ledgeClimb ? CLIMB_UP_TEAM : TRAVERSE_CLIP[i.traverse];
       // (mixamo-retarget I2) Wren with a Mixamo capture in the slot plays it (`mixamo.ts`); else the hand-made clip
       // (dt as a field: no boxed double argument)
-      if (WREN_TRAV.any) this.mx[MX_DT] = dt;
-      const cap = WREN_TRAV.any && this.wrenReady && this.mixamoTrav(src, i, tc);
+      if (this.srcTab.trav.any) this.mx[MX_DT] = dt;
+      const cap = this.srcTab.trav.any && this.wrenReady && this.mixamoTrav(src, i, tc);
       if (!cap) {
         this.travNow = tc; // (mixamo-retarget M5) for `playing.trav` (display only)
         // cycles (climb, crawl) wrap the cadence clock; committed moves clamp their progress
@@ -2031,7 +2033,7 @@ export class AnimGraph {
       this.keyedSet(ph, this.mOn ? this.mPace : es, loco + still > 1e-4 ? still / (loco + still) : 0, o);
       // (mixamo-retarget I3) Wren's stance shot over the standing / crouched pose by the still share (moving keeps the
       // hand-made blend), less the drawn and wall shares; both shots null (the flag off): skipped, byte-identical
-      if (this.wrenReady && (WREN_STANCE.down !== null || WREN_STANCE.up !== null)) {
+      if (this.wrenReady && (this.srcTab.stance.down !== null || this.srcTab.stance.up !== null)) {
         this.snK = crouchK;
         this.snDt = dt;
         this.snW = o.keyW > 0 && loco + still > 1e-4 ? (still / (loco + still)) * (1 - dS) * (1 - this.keyWallS) : 0;
@@ -2220,7 +2222,7 @@ export class AnimGraph {
     // (mixamo-retarget I1) the idle: a Wren rig's from WREN_KEYED (the hand-made KEYED_IDLE over 12 s, or with ?mixamo=1
     // the Mixamo standing idle over its 6 s), every other rig's the hand-made one (HAND_IDLE: an unarmed rig walking along
     // its facing reaches this set too); read by reference, so off it is the same clip and period as before
-    const KI = this.wrenReady ? WREN_KEYED : HAND_IDLE;
+    const KI = this.wrenReady ? this.srcTab.keyed : HAND_IDLE;
     if (needIdle) sampleKeyed(KI.idle, this.idleT / KI.idlePeriod, 1, this.kB);
     // the idle's scan: the keyed neck's yaw in the body frame (the sum of the chain's local yaws), by the idle's share
     let scan = 0;
@@ -2291,7 +2293,7 @@ export class AnimGraph {
     const flip = this.snFlip;
     if (flip < 1) this.snFlip = Math.min(1, flip + this.snDt / STANCE_SHOT.flip);
     if (dir === 0) return;
-    const S = WREN_STANCE;
+    const S = this.srcTab.stance;
     const cNew = dir > 0 ? S.down : S.up;
     const cOld = flip < 1 ? (this.snOld > 0 ? S.down : S.up) : null;
     // the edge fades and the kneel (smoothsteps written out: no call with double arguments)
@@ -3031,7 +3033,7 @@ export class AnimGraph {
    *   top-out: its capture on the same progress. A drainpipe's or a team climb-up stays hand-made.
    */
   private mixamoTrav(src: Pose, i: AnimInput, tc: Clip): boolean {
-    const W = WREN_TRAV;
+    const W = this.srcTab.trav;
     const t = i.traverseT;
     const mx = this.mx;
     const dt = mx[MX_DT]!;
@@ -3166,6 +3168,37 @@ export class AnimGraph {
   }
   get wrenReady(): boolean {
     return this.readyLow === WREN_READY_LOW;
+  }
+
+  /** (mixamo-retarget Source wire) The owner's Animation source handed to this graph (a remote player's: the wire's
+   *  `PlayerState.an`); null: this page's (`ANIM_SOURCE`, overrides and the Studio's pick included). */
+  private srcOwn: AnimSource | null = null;
+  /** The source `srcTab` was picked for (undefined: not yet) and its tables (`animSource.ts`; rewritten in place). */
+  private srcKey: AnimSource | null | undefined = undefined;
+  private srcTab: SourceTables = PAGE_TABLES;
+  /**
+   * (mixamo-retarget Source wire, G400: "players must look exact in everyones games") The Animation source this graph
+   * draws with: the local player's (and every graph no one hands one: the Studio, menus, guards) is the setting
+   * (`ANIM_SOURCE.source`, read live); a remote player's graph is handed its owner's (`RemoteAvatar` from the wire), and
+   * then reads that source's own tables. Setting it costs nothing until the next frame's compare.
+   */
+  get animSource(): AnimSource {
+    return this.srcOwn ?? ANIM_SOURCE.source;
+  }
+  set animSource(s: AnimSource) {
+    this.srcOwn = s;
+  }
+  /** Back to this page's source (the setting), as a graph no one handed one. */
+  followPageSource(): void {
+    this.srcOwn = null;
+  }
+  /** This graph's clip tables for its source (a compare a frame; re-picked only when the source changes). */
+  sourceTables(): SourceTables {
+    if (this.srcOwn !== this.srcKey) {
+      this.srcKey = this.srcOwn;
+      this.srcTab = sourceTablesFor(this.srcOwn);
+    }
+    return this.srcTab;
   }
 
   /** (anim-rework S3) The low ready toward the pistol's by the pistol weight, into a scratch pose (no allocation). */

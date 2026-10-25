@@ -125,22 +125,35 @@ export const KEEP_CH: Record<MixamoMove, number[]> = { hang: [], climb: [], craw
 export const MIXAMO: { on: boolean; studio: string } = { on: false, studio: '' };
 
 /** The resolved Wren table the graph reads (the same object always: fields rewritten once per change). */
-export const WREN_TRAV: WrenTravTable = { any: false, hangIdle: null, shimmyL: null, shimmyR: null, climbUpCrouch: null, climbUpStand: null, ladder: null, ladderTop: null, crawl: null };
+export const WREN_TRAV: WrenTravTable = newWrenTrav();
 
 const SLOTS: readonly MixamoTravSlot[] = ['hangIdle', 'shimmyL', 'shimmyR', 'climbUpCrouch', 'climbUpStand', 'ladder', 'ladderTop', 'crawl'];
 
-/** Rebuild `WREN_TRAV` from the flag, `MIXAMO_ON` and the Studio's pick (once per change; not per frame). */
-export function resolveMixamo(): void {
-  const T = WREN_TRAV;
+/** An empty traversal table (every slot the hand-made clip). */
+export function newWrenTrav(): WrenTravTable {
+  return { any: false, hangIdle: null, shimmyL: null, shimmyR: null, climbUpCrouch: null, climbUpStand: null, ladder: null, ladderTop: null, crawl: null };
+}
+
+/**
+ * (source wire) Fill a traversal table for the captures on (`on`) or off and a Studio pick (`studio`, '' none) from
+ * `MIXAMO_ON` (pure; once per change). The page's `WREN_TRAV` and each Animation source's own table
+ * (`animSource.ts` SOURCE_TABLES) are filled by it.
+ */
+export function fillWrenTrav(T: WrenTravTable, on: boolean, studio: string): void {
   for (const s of SLOTS) T[s] = null;
-  if (MIXAMO.on) for (const [slug, r] of Object.entries(MIXAMO_TRAV)) if (MIXAMO_ON[slug]) T[r.slot] = r.clip;
-  const pick = MIXAMO_TRAV[MIXAMO.studio];
+  if (on) for (const [slug, r] of Object.entries(MIXAMO_TRAV)) if (MIXAMO_ON[slug]) T[r.slot] = r.clip;
+  const pick = MIXAMO_TRAV[studio];
   if (pick) {
     T[pick.slot] = pick.clip;
     // the free-hang climb is a whole climb-up (hang to standing): picked, it plays the crouch part too
     if (pick.slot === 'climbUpStand') T.climbUpCrouch = pick.clip;
   }
   T.any = SLOTS.some((s) => T[s] !== null);
+}
+
+/** Rebuild `WREN_TRAV` from the flag, `MIXAMO_ON` and the Studio's pick (once per change; not per frame). */
+export function resolveMixamo(): void {
+  fillWrenTrav(WREN_TRAV, MIXAMO.on, MIXAMO.studio);
   for (const m of Object.keys(MIXAMO_KEEP) as MixamoMove[]) {
     const out = KEEP_CH[m];
     out.length = 0;
@@ -206,16 +219,21 @@ export const STANDING_IDLE_SECONDS = 6;
 export const KEYED_IDLE_PERIOD_S = 12;
 
 /** The resolved keyed clips on Wren (the same object always: fields rewritten once per change). */
-export const WREN_KEYED: { idle: KeyedClip; idlePeriod: number; crouchWalk: KeyedClip | null } = { idle: KEYED_IDLE, idlePeriod: KEYED_IDLE_PERIOD_S, crouchWalk: null };
+export type WrenKeyed = { idle: KeyedClip; idlePeriod: number; crouchWalk: KeyedClip | null };
+export const WREN_KEYED: WrenKeyed = { idle: KEYED_IDLE, idlePeriod: KEYED_IDLE_PERIOD_S, crouchWalk: null };
+
+/** (source wire) Fill a keyed table for the captures on (`on`) or off from `MIXAMO_ON` (pure; once per change). */
+export function fillWrenKeyed(K: WrenKeyed, on: boolean): void {
+  const idle = on && MIXAMO_ON.standing_idle === true;
+  K.idle = idle ? MOCAP_STANDING_IDLE : KEYED_IDLE;
+  K.idlePeriod = idle ? STANDING_IDLE_SECONDS : KEYED_IDLE_PERIOD_S;
+  K.crouchWalk = on && MIXAMO_ON.crouched_walking === true ? MOCAP_CROUCHED_WALKING : null;
+}
 
 /** Rewrite `WREN_KEYED` from the flag and `MIXAMO_ON`, and hand the crouched walk to the mocap set (once per change). */
 function resolveMixamoKeyed(): void {
-  const K = WREN_KEYED;
-  const idle = MIXAMO.on && MIXAMO_ON.standing_idle === true;
-  K.idle = idle ? MOCAP_STANDING_IDLE : KEYED_IDLE;
-  K.idlePeriod = idle ? STANDING_IDLE_SECONDS : KEYED_IDLE_PERIOD_S;
-  K.crouchWalk = MIXAMO.on && MIXAMO_ON.crouched_walking === true ? MOCAP_CROUCHED_WALKING : null;
-  setMocapCrouchWalk(K.crouchWalk);
+  fillWrenKeyed(WREN_KEYED, MIXAMO.on);
+  setMocapCrouchWalk(WREN_KEYED.crouchWalk);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -228,7 +246,8 @@ function resolveMixamoKeyed(): void {
 // Kept above the load-time `setMixamo` line: `WREN_STANCE` must exist when it first resolves.
 
 /** The resolved stance shots on Wren (the same object always: fields rewritten once per change). */
-export const WREN_STANCE: { down: KeyedClip | null; up: KeyedClip | null } = { down: null, up: null };
+export type WrenStance = { down: KeyedClip | null; up: KeyedClip | null };
+export const WREN_STANCE: WrenStance = { down: null, up: null };
 
 /**
  * The shot's fades: `edge` the share of the stance blend over which the shot fades in at its start and out at its end
@@ -239,9 +258,13 @@ export const STANCE_SHOT = { edge: 0.4, flip: 0.08 } as const;
 
 /** Rewrite `WREN_STANCE` from the flag and `MIXAMO_ON` (once per change). */
 function resolveMixamoStance(): void {
-  const S = WREN_STANCE;
-  S.down = MIXAMO.on && MIXAMO_ON.stand_to_crouch === true ? MOCAP_STAND_TO_CROUCH : null;
-  S.up = MIXAMO.on && MIXAMO_ON.crouch_to_stand === true ? MOCAP_CROUCH_TO_STAND : null;
+  fillWrenStance(WREN_STANCE, MIXAMO.on);
+}
+
+/** (source wire) Fill a stance table for the captures on (`on`) or off from `MIXAMO_ON` (pure; once per change). */
+export function fillWrenStance(S: WrenStance, on: boolean): void {
+  S.down = on && MIXAMO_ON.stand_to_crouch === true ? MOCAP_STAND_TO_CROUCH : null;
+  S.up = on && MIXAMO_ON.crouch_to_stand === true ? MOCAP_CROUCH_TO_STAND : null;
 }
 
 setMixamo(flags.mixamo === true);
