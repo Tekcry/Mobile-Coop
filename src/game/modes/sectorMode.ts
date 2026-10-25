@@ -917,6 +917,11 @@ export class SectorMode implements GameMode {
     if (this.codes.grantCode(flag, this.run.index)) this.keypadLabels();
   }
 
+  /** (guard-rules S5) At the stage cap (or a section with no `perStage`) the next alarm sends no one. */
+  alarmQuiet(): boolean {
+    return this.run.nextAlarmSends() < 1;
+  }
+
   /** A guard's alarm: up one stage, and guards come in hunting (A3). The mode brings its own reinforcements. */
   onAlarm(): boolean {
     const up = this.run.alarm;

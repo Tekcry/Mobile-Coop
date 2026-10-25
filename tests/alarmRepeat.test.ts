@@ -7,6 +7,7 @@ import { ENEMIES, type EnemyKind } from '../src/ai/enemyDefs';
 import { SectorMode } from '../src/game/modes/sectorMode';
 import { SECTOR, SectorRun, type SectorDef } from '../src/game/sectors';
 import { SectorDesks } from '../src/game/sectorDesks';
+import { StealthSystems } from '../src/game/stealthSystems';
 import { Vector3, type Scene } from '../src/core/babylon';
 import type { AiContext, Enemy } from '../src/ai/enemy';
 import type { World } from '../src/world/world';
@@ -346,6 +347,36 @@ describe('Sector Ops: the stage climbs with each guard alarm (sector harness)', 
     (em.teams[0]!.members[0] as unknown as Fake).level = 'searching';
     priv(em).repeatStep(0.1);
     expect(em.alarmOpen()).toBe(true);
+  });
+
+  it('at the stage cap a repeat guard alarm sends no team: the banner is the plain alarm line (StealthSystems.onAlarm)', () => {
+    const { m, em, load } = sector();
+    load();
+    const s = Object.create(StealthSystems.prototype) as StealthSystems;
+    const banner = vi.fn();
+    const g = {
+      hud: { banner },
+      events: { emit: vi.fn() },
+      style: { record: vi.fn() },
+      world: { layout: { reinforce: [new Vector3(60, 0, 0)] } },
+      player: { position: new Vector3(0, 0, 0) },
+      mode: m,
+    };
+    Object.assign(s, { g, em, panels: [], entryScratch: [], teamKinds: [], teamRoutes: [], teamPosts: [] });
+    em.onAlarm = (e, p) => (s as unknown as { onAlarm(e: Enemy, p: AlarmPanel | null): void }).onAlarm(e, p);
+    const raiser = asE(fighter(0, 0));
+    priv(em).raiseAlarm(raiser, null);
+    expect(banner).toHaveBeenLastCalledWith('ALARM', 'Reinforcements inbound', 2200);
+    expect([m.run.alarm, em.teams.length]).toEqual([1, 1]);
+    // cameras took it to the cap; the lock opens; the next guard alarm sends no one
+    m.run.alarm = SECTOR.alarmMax;
+    priv(em).repeatStep(ALARM_REPEAT.rearm);
+    banner.mockClear();
+    priv(em).raiseAlarm(raiser, null);
+    expect(em.guardAlarms).toBe(2);
+    expect(em.teams.length).toBe(1);
+    expect(banner).toHaveBeenCalledWith('ALARM', '', 2200);
+    expect(banner).not.toHaveBeenCalledWith('ALARM', 'Reinforcements inbound', 2200);
   });
 
   it('the section load turns repeats on; each guard alarm after its response is in adds a stage, up to 3; a restart clears it', () => {
