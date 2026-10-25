@@ -372,8 +372,13 @@ shows the next station's mark as built (Q18) and a drill-mark guard test pins it
 **F1 Live rule fixes (Opus; PR 3; two Opus checkers: src/net).** Three fixes to the shipped yard, each a gap the Marlow
 conformance review lists, allowed at the walk cap (G355; A21): the revive cap stays 2 in Course mode
 (`coopHost.addSyringes` ignores course grants, :834-837; gadget and medkit grants kept; M3 / R35); Host Start needs 2
-players in Course mode unless `?course=solo` (`coopUi.ts:628-635`, R36); the A2 entry vantage joins the sight test (M8,
-`tests/ctcourse/a2CarriageShed.test.ts:1366-1371`). The downed rule does not change: one player out (no revives left)
+players in Course mode on every build, live included, the lobby saying why (`coopUi.ts:628-635`, R36; Michael picked
+~21:42 "Yes, everywhere now", BRIEF "Michael picked"); the A2 entry vantage joins the sight test (M8,
+`tests/ctcourse/a2CarriageShed.test.ts:1366-1371`). The Start check has no solo exception: `?course=solo` stays a
+dev-only test switch (`courseSoloFlag()`, `courseMode.ts:44-48`, true only under `import.meta.env.DEV`; it boots the
+course single player without the lobby, `main.ts:447`), never walk advice. F1's PR body names the release that carries
+it (the first version that refuses a one-player Marlow start), so the walk card tells Michael to bring his second PC.
+The downed rule does not change: one player out (no revives left)
 still restarts the bay, as both down does (level-design 9.4; `coopHost.ts:568-581`, not edited; conformance-marlow
 :112 lists it as conforming; REPLAN "no change to the downed rule"). F1 reads no `marlowReplan` flag, does not edit
 `courseState.ts` and needs nothing from S0 (the room-map line is R1's), so it branches from master and ships first.
@@ -384,7 +389,8 @@ still restarts the bay, as both down does (level-design 9.4; `coopHost.ts:568-58
   lone-host Course start (`scripts/e2e-ctcourse/revive.mjs` first) and update them in the same PR; laptop: co-op group
   + affected-e2e.
 - Done looks like: `tests/courseRuleFixes.test.ts` shows three ratings later the cap is still 2 (gadget and medkit
-  grants still land) and a lone host's Start refused in Course mode, allowed with `?course=solo`, the lobby saying why;
+  grants still land) and a lone host's Start refused in Course mode on every build (the case runs with DEV off and on,
+  and with `?course=solo` in the URL: still refused), the lobby saying why;
   the M8 sight case passes; one player out still restarts the bay (the built tests and `revive.mjs` unchanged on that).
 - Flag: none (rule fixes on the shipped yard). Depends on: nothing in this plan. Order with Campaign's mission-rules:
   claims section.
@@ -473,6 +479,8 @@ deletion (likely over 1.5k: split per set pair or the orchestrator's `big-pr` la
 - Per PR: CI `check`, `checker`, `affected-e2e` (train-ready).
 
 ## Walk items (for the orchestrator's card; menu: co-op lobby, host page with `?marlowreplan=1`, Marlow Yard)
+Every Marlow walk needs two players: a partner, or Michael's second PC joining with the room code (Marlow Yard will not
+start with one player once F1 is live, on either yard).
 - Every set: one way through; side routes closed by pallets, locked doors and screens; only the Strongroom has
   choices - accept when no set can be crossed without its lesson.
 - A2 or A4: get seen by the shunter / a camera - accept when both land back at that step's start, earlier steps stay
@@ -482,9 +490,10 @@ deletion (likely over 1.5k: split per set pair or the orchestrator's `big-pr` la
 - A5 and A6 new spaces (wall gap, trench, drive pit): accept when they read as real places and the stand-in crossings
   are obvious until each new move is on.
 - Lamps: A4 back aisle, A6 sump, A8 vestibule all working - accept when no dark corner comes from a dead light.
-- F1 (live on the built yard, so before the re-plan walk): a lone host can no longer Start Marlow Yard (Michael walked
-  4.82.0 solo) - it needs a partner, or `?course=solo` on the host page; rate a set well three times - accept when
-  the lobby says why a lone host cannot start and revives still stop at two.
+- F1 (live on the built yard, so before the re-plan walk): from the release F1's PR names, Marlow Yard will not start
+  with one player (Michael walked 4.82.0 solo; he picked "Yes, everywhere now" ~21:42) - bring the second PC and join
+  with the room code; try Start alone first, then with both players rate a set well three times - accept when the
+  lobby says why one player cannot start and revives still stop at two.
 
 ## Assumed decisions (A13+, each with its undo)
 - **A13** `meta.taught_by` is "A6" (the set where drop catch, the last kit move, is taught alone, J12 BRIEF A8), so
@@ -514,8 +523,9 @@ deletion (likely over 1.5k: split per set pair or the orchestrator's `big-pr` la
   today's set standby level; lux bands are tuned when J10's band table lands. The built yard keeps its pockets until
   switch-on. Undo: port the lamps to the built yard as a rule fix if switch-on slips.
 - **A21** F1's three rule fixes (revive cap 2, the lone-host Start block, the M8 sight test) ship on, now, on the built
-  yard (G355: fixes to shipped features are allowed at the cap; each is a conformance-listed gap). The downed rule is
-  not among them: one out still restarts the bay (level-design 9.4, plan check 2 fix 1). Undo: revert F1.
+  yard (G355: fixes to shipped features are allowed at the cap; each is a conformance-listed gap). The Start block is
+  Michael's pick, not an assumption (~21:42 "Yes, everywhere now", BRIEF): unconditional, live, no flag. The downed
+  rule is not among them: one out still restarts the bay (level-design 9.4, plan check 2 fix 1). Undo: revert F1.
 - **A22** "Spotted" in A1-A7 includes a camera's full detection (A3's IR camera, A4 C1-C3 after the loop, A7's
   cameras), not only guards; the A3 send-back becomes this retry. Undo: guards only.
 - **A23** A drill running out = the station retry at its own marks ("Retry the drill only", ~11:55: no checkpoint reload,

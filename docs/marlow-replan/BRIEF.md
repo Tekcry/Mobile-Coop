@@ -34,6 +34,10 @@ All 2026-10-25, ROADMAP "Decided" on origin/feature/menu. These override every o
   a static watcher at the release kiosk facing the floodlit strip (the floodlight jam becomes necessary). Fallback: if
   the A6 noise test is silent (A6 below), the A5 watcher moves to the A6 pit side instead.
 - ~20:40 (via the orchestrator) A5 chimney gap: "1.4 m (Recommended)" (J14 PLAN A19).
+- ~21:42 (native multiple choice, J14 plan check 3; ROADMAP Decided) Marlow Yard with one player: "Yes, everywhere now"
+  (other options "Only on the new yard, keep solo starts (Recommended)" / "No, allow solo on both"). Marlow Yard
+  refuses to start with one player on today's yard and the re-plan yard, live builds included; Michael walks it with
+  his second PC or a partner. Built by PLAN slice F1 (live, unflagged).
 
 ## What the plan does (detail: graph.json, replan-plan.svg)
 - One forced route through A1-A7: every side route closed. A8 is the one late area that keeps side routes, for training
