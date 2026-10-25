@@ -76,10 +76,11 @@ were seen go on Michael's walk card. The same run measures Marlow Yard's run tim
   ever be a notice; it appears once J16 builds it.
 - **Dead stops.** A robot is **stuck** when its progress along the planned path grows by less than 0.5 m in 8 s of game
   time while it is walking (A4), or a link step (a door, ladder, drop) runs past its time limit, or a door on the path
-  stays locked, or (course mode) the game sends the pair back twice from one place (A14). Each stop is logged with its
-  place, the graph link, its class (no nav path / could not follow / step timed out / locked / restart loop) and a
-  screenshot; the harness then moves the robot past that link (logged as a recovery) so one
-  run reports every stop on the route. A run with any stop fails.
+  stays locked, or (course mode) the game sends the pair back twice from one place with no guard, camera or timer
+  behind it (A14). Each stop is logged with its place, the graph link, its class (no nav path / could not follow / step
+  timed out / locked / restart loop) and a screenshot; the harness then moves the robot past that link (logged as a
+  recovery) so one run reports every stop on the route. A run with any stop fails. Being seen, however often, is never
+  a stop (Q7; course restarts: "Restarts and retries").
 - **Pass (Q7).** A map passes its route-runs when no run has a dead stop. Detections never fail it; their times and
   causes go on Michael's walk card. Nothing else is a pass rule (not the time, not the number of detections); a run
   that could not be planned or set up (A8, A15) has not passed, because it was not walked.
@@ -114,21 +115,33 @@ were seen go on Michael's walk card. The same run measures Marlow Yard's run tim
 - **Restarts and retries (course mode).** On master a set with `spotFail` restarts from its start when one of its squad
   is alerted (`courseMode.ts:593-596`; set A2 Carriage Shed); after J14 every mistake is a retry of that station or step
   in place, and in set A8 the guards first react as on a mission (marlow-replan `REPLAN.md` "If it goes wrong" column
-  and its BRIEF A1; Q5). The harness sees each one (`window.__course.restarts` going up, or a robot moved more than 3 m between two polls
-  without a harness placement), logs it as a detection with `restart: set | retry`, re-joins its planned path at the
-  step nearest where the game put the robots and walks on; the clock keeps running. The game's restart or retry is the
-  forgive step there (A2 does not also calm the guards). A second restart from the same graph space in one run is a
-  `restart-loop` dead stop: logged with a screenshot, then the harness turns that set's spotted rule off in the page for
-  the rest of the set (master: the bay's `spotFail`; after J14: its retry rule, read from J14's build), logs that, and
-  places the robots past the link where they were seen (a recovery). A run never loops (A14).
+  and its BRIEF A1; Q5). The harness sees each one (`window.__course.restarts` going up, or a robot moved more than 3 m
+  between two polls without a harness placement), names its cause, re-joins its planned path at the step nearest where
+  the game put the robots and walks on; the clock keeps running. The game's restart or retry is the forgive step there
+  (A2 does not also calm the guards). Causes (A14):
+  - **Seen** (a guard rose to `alert` on a robot or a camera alarm fired in the 2 s of game time before it, or J14's
+    build records the retry as "seen"): a **detection** with `restart: set | retry`, never a dead stop, however often
+    it happens (Q7). On the second one from the same graph space in one run the harness still breaks the loop: it logs
+    it, turns that set's spotted / retry rule off in the page for the rest of the set (master: the bay's `spotFail`;
+    after J14: its retry rule, read from J14's build), and places the robots past the link where they were seen. That
+    is a logged **push past**, not a dead stop; the walk-card line says "seen again at <place>, robot pushed past".
+  - **Timer** (no guard or camera in that window, and the step has a time limit in the course data, or J14's build
+    records a timer retry: a blackout, a camera loop or a timed step ran out): logged as a restart line with
+    `restart: timer`, not a detection (no one saw them). On the second timer retry from the same step the harness
+    completes that step's open drills as **drill stubs** (A13, with `why: timer`) and walks on; the M9 line lists the
+    step as "not made at sneak pace".
+  - **Other** (neither): logged with `restart: other`. A second one from the same graph space is a `restart-loop` dead
+    stop (screenshot, then the push past above), the only restart that fails a run: something sent the pair back twice
+    with no guard and no timer behind it. A run never loops (A14).
 - **Output.** Per map a JSON report and a plain Markdown report saved with the map's docs, beside its graph:
   `<graph folder>/route-run/route-run.json` and `REPORT.md` (campus: `docs/sector-redesign/graph/route-run/`), each
   stamped with the game version, the commit, the graph files and their V6 `geom` hash. `REPORT.md` ends with a
   **walk-card snippet**: one plain line per route (route, time, "never stuck" or the stops, each time seen with who and
-  why), ready to paste into `docs/templates/walk-card.md`'s items. The map lead commits the report at greybox exit.
+  why, each push past as "seen again at <place>, robot pushed past"), ready to paste into `docs/templates/walk-card.md`'s items. The map lead commits the report at greybox exit.
 - **Marlow Yard run time (M9).** The training run reports its total: walked time + co-op holds + objective and drill
   holds, against the 15-20 min band (900-1200 s, G272), summed over its per-section parts. The M9 line lists every
-  stubbed drill and co-op move with its hold, and every restart or retry. It is a lower bound (a robot does not wait out
+  stubbed drill and co-op move with its hold, every restart or retry by cause (seen / timer / other), every push past,
+  and every timed step "not made at sneak pace" (two timer retries, then drill stubs). It is a lower bound (a robot does not wait out
   patrols, and a stubbed drill is held for A13's time, not played) and report only; Michael's two-player walk confirms
   it.
 - **Where it runs.** Every run is an e2e run: the laptop queue only, `E2E_GPU=1`, as an alone request with one step
@@ -178,7 +191,10 @@ were seen go on Michael's walk card. The same run measures Marlow Yard's run tim
   standard changes only with Michael's approval (its header; master `CLAUDE.md`), and Q7 approved "never stuck", not
   these numbers. Undo: change the constants (a tool change). Moving them into the standard or scale-sheet 8 as level
   numbers needs Michael's approval first.
-- A5: A run that needed a recovery has no valid time ("n/a, stuck"); the stop is what matters.
+- A5: A run that needed a recovery after a dead stop has no valid time ("n/a, stuck"); the stop is what matters. A push
+  past after a repeat detection, or drill stubs after two timer retries (A14), is not a dead stop: the run keeps its
+  time, marked "includes N push-pasts" or "N steps not made at sneak pace", and its verdict is `pass` if nothing else
+  stopped it.
 - A6: Sector Ops maps run with 2 players (the signed-off counts); the follower trails the leader. Undo: `--players`.
 - A7: Secret routes are not run on their own (G330 names dark / high / loud); a planned path may pass a `secret` link.
   Undo: add `secret` to the planner's kinds.
@@ -198,12 +214,16 @@ were seen go on Michael's walk card. The same run measures Marlow Yard's run tim
   link that carries `teach`), with no second hold when that link was already held as a co-op stub on this run; else
   10 s. Never the space's `drill_s`: that is the drill's limit, not how long it takes. Undo: `--drill-hold <s>`, or the
   constant in `scripts/route-run/course.mjs`.
-- A14: Restart loop (course mode): a second restart or retry from the same graph space in one run is a `restart-loop`
-  dead stop, then the set's spotted rule goes off for the rest of that set and the robots are placed past the link (a
-  recovery), so a run never loops. Why a stop: a pair sent back twice from one place has not got past it, which is what
-  Q7's "never stuck" guards against. A robot does not wait out a patrol, so it can be seen twice where a person would
-  wait: the checker reruns the stop and reads its screenshot before a map lead is asked to fix anything (PLAN Risks).
-  Undo: allow more restarts per space (a constant in `course.mjs`).
+- A14: Restarts by cause (course mode, Scope "Restarts and retries"). Seen: every one is a detection, never a dead stop
+  (Q7: "the times it was seen go on your walk card"); the second from the same graph space in one run turns the set's
+  spotted / retry rule off for the rest of that set and places the robots past the link, a logged push past with the
+  walk-card line "seen again at <place>, robot pushed past". Why: a robot walks the same line at the same pace against
+  fixed patrols, so a place that sees it once sees it again after the reset; a person would wait, the robot does not,
+  and that is a detection for Michael's card, not a stuck map. Timer: `restart: timer`, never a detection; the second
+  from the same step completes its drills as drill stubs, listed on the M9 line as "not made at sneak pace". Other (no
+  guard, camera or timer): the second from the same graph space is the only `restart-loop` dead stop. The 2 s cause
+  window and the two-per-place limit are tool constants in `course.mjs`. Undo: allow more restarts per place, or widen
+  the window (constants in `course.mjs`).
 - A15: Guards present (as J20's H8 alive-at-start check, J20 S6c): at each section's start the harness logs every
   guard the mode spawned, alive and above y -5. A section with a missing or fallen guard gives its runs `unplannable`
   (reason `guards missing`), so no run is scored against a missing guard field. Undo: log only.
