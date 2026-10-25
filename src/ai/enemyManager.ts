@@ -244,7 +244,8 @@ export class EnemyManager {
   /** A knocked-out enemy was revived (modes count it back in). */
   onRevived: ((e: Enemy, b: Body) => void) | null = null;
   bodiesFound = 0;
-  /** Alarm panels on the map; raised once per match (reinforcements). */
+  /** Alarm panels on the map (reinforcements): raised once per load, or (guard-rules S5) up to `ALARM_REPEAT.max`
+   *  with `alarmRepeat`. */
   readonly alarms: AlarmPanel[] = [];
   /** A guard alarm was raised (since the load): sticky for its readers (the carry rule, the alarm's intruder). New
    *  raises are gated by the repeat lock (`alarmOpen`), not by this. */
@@ -902,8 +903,9 @@ export class EnemyManager {
 
   /**
    * (guard-ai S6, design 7, M4) A contact call from `caller` got through: the alarm is owed. Stealth modes with the radio
-   * alarm on, no alarm yet: the officer in the caller's voice range (alive, free) holds the command call, else the caller,
-   * else the next guard in the fight. One command call at a time (the net refuses a second).
+   * alarm on, while a new alarm may be raised (`alarmOpen`): the officer in the caller's voice range (alive, free) holds
+   * the command call, else the caller, else the next guard in the fight. One command call at a time (the net refuses a
+   * second).
    */
   private contactThrough(caller: number): void {
     if (!RADIO_ALARM || !this.stealth || !this.coordinated || !this.alarmOpen()) return;
