@@ -27,6 +27,7 @@ approved on 2026-10-24 and the five that joined on 2026-10-25.
 | Hold shutter / door | One lifts and holds it. The other crawls under. | Built on the engine branch | W1: the fish hall shutter (the exit). W4: shed two's loading shutter |
 | Rope brace / climb | One braces at the top, the other climbs (2.2-6 m). No descent in the engine; the map's descents became drops. | Exists | W2: the loft walkway's west pier, for the second player up |
 | Vent unlock for the partner | One gives a leg-up into the duct. The other unbolts the vent from the far side. | Exists (boost, then unbolt) | W3: the coal chute, its yard hatch and the coal yard door |
+(2026-10-25: "human ladder" on this page means the 4.1 m relay ladder. The human ladder is now the shoulder stand, its own move (4.5 m, J24, Player Build), not used on Tallow Wharf yet. The map does not change.)
 
 ## Joined (Michael 2026-10-25 ~18:05, all five)
 

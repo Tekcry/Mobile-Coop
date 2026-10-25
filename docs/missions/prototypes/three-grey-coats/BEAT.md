@@ -97,7 +97,7 @@ Size classes: S = short side 6-10 m, M = 10-20 m, L = over 20 m (play space >= 6
 - W1 fish hall service shutter: the W1 exit and choke, co-op shutter (0.9 m crawl gap) into the arcade passage.
 - W2 arcade ground: M covered passage, three stairs up (one open stair, two fire stairs); checkpoint at its W1 end.
 - W2 loft walkway: M, reached from the arcade ground by a boost, then the rope or the pull-up for the second (no solo
-  climb; the human ladder grabs only 4.1 m, under the 4.5 m lip); sees the reading room window.
+  climb; the relay ladder grabs only 4.1 m, under the 4.5 m lip); sees the reading room window.
 - W2 reading room loft: S-M, Teale's lit table at the window, dark stacks aisle behind (isolate and question).
 - W2 pawnbroker's loft: S, decoy Fenn plus the optional rota desk. W2 pie shop (ground): decoy Garrow.
 - W2 lightwell: 3.5 m between the loft rows, a 2.5 m throw gap from the south lofts' open-fronted taking-in bays (no lintel, 3.6 m clear) to the north

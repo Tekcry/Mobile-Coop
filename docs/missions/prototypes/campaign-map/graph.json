@@ -827,7 +827,7 @@
       "length": 10.5,
       "time_s": 6,
       "at": [60, 0, 60.5],
-      "reason": "Walkway's west end: a plastered pier, 4.5 m to the balustrade, no handhold: a leg-up puts the first player on it (TEAM.boostMax 4.5; the human ladder grabs only 4.1 m, TEAM.ladderGrab)"
+      "reason": "Walkway's west end: a plastered pier, 4.5 m to the balustrade, no handhold: a leg-up puts the first player on it (TEAM.boostMax 4.5; the relay ladder grabs only 4.1 m, TEAM.ladderGrab)"
     },
     {
       "from": "w2-arcade",
