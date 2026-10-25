@@ -291,7 +291,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   seen, he fires only once drawn; calm again, he holsters after about 15 s. A high-security post, and every guard once
   the alarm is up, stays at low ready. Co-op (A126): on the client the same guard is holstered, draws and holsters
   with the host (a moment behind), never stuck at low ready.
-- [ ] View tap switches the goggles; a guard's footsteps and your own sound right with the music in every alert state.
+- [ ] D-pad left (N) turns the goggles on and off; a guard's footsteps and your own sound right with the music in every alert state.
 - [ ] Night vision in a dark room: green, readable with grey steps, no flat murk; Wren and the guards are shaped and not
   glowing white; lamps and fixtures glow, lit walls do not. The goggle frame is wide and thin (almost the whole screen
   clear, a soft dark band only at the edges and corners).
@@ -518,8 +518,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 
 ### Keyboard and mouse
 - [ ] A click captures the mouse (it never fires); W A S D move, the mouse looks, the wheel or = / - change the gear.
-- [ ] RMB aims, LMB fires, C crouches, Space backs to a wall, E traverses, F uses, R reloads, X / Q swap, G gadget, Tab
-  wheel, N goggles, Z ping, V shoulder swap; Esc pauses and Resume re-captures.
+- [ ] RMB aims, LMB fires, C crouches, Space jumps, Caps Lock backs to a wall, E uses, F is the co-op action, R reloads,
+  X draws / holsters, T / Q swap, Z knocks out, G gadget, Tab wheel, N goggles, middle mouse pings, V shoulder swap;
+  Esc or P pauses and Resume re-captures.
 - [ ] Settings > Mouse & Keyboard: rebind a key, a conflict warns, Esc cancels a capture.
 - [ ] (marlow-bays slice T) Animation tuner (Pause > Animation tuner, or the Anim Studio): the cursor stays free; drag
   the scene with the left button to turn the camera, the wheel zooms, sliders and lists click; no shot fires. F4 (or the

@@ -181,8 +181,9 @@ Still standing:
   brace; B ends brace / bottom / top. Y order in `GameState`: takedown > team > traversal > interact.
 - Net: `tmove` (client -> host), `tstart` / `tdeny` / `tend`; `CoopHost.onTeamMove` checks both sides (`teamSide`: MoveState
   mode, 1 s rate) and starts it on both. MoveState modes `brace`, `boost`, `stacked`. A teleport drops a committed move.
-- Decided (G52, G57, G151): team moves work anywhere with room, with a prompt naming the move (G151 replaced G81's
-  marked spots); one co-op ledge band 4.3-4.5 m. The campaign's co-op traversal kit adds throw over a gap, hold a
+- Decided (G57, G151, G180): team moves work anywhere with room, with a prompt naming the move (G151 replaced G81's
+  marked spots); the built set is CT's (leg-up, ledge relay, partner throw, hang-down, rope; G52's brace and dual
+  takedown went with G180); one co-op ledge band 4.3-4.5 m. The campaign's co-op traversal kit adds throw over a gap, hold a
   shutter or door, rope brace / descent and vent unlock for the partner, "plus any other creative coop ideas" (G293);
   every campaign section forces one with no solo bypass (G292).
 
