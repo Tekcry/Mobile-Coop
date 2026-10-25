@@ -1,0 +1,15 @@
+{
+  "id": "20261025T175428-night-shift-sector-o-86fb41f8-9dd0",
+  "sha": "86fb41f8ce35ff8fb200efbb3d014451a4eef481",
+  "branch": "feature/light-realism-l1",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-sectorops",
+    "e2e-lightbake",
+    "e2e-levels",
+    "e2e-anchors"
+  ],
+  "set": "light-realism-l1-e2e"
+}
