@@ -21,6 +21,7 @@ import { CH } from './pose';
 import { ANIM_BASE } from './animBase';
 import { ATTACH_FRAMING, CAMERA, WALL_CAMERA } from '../config/camera';
 import { registerTuneSection, TUNE_STATE_BAG, tuneSectionEase } from './tuneRegistry';
+import { copyPlaying, NOW_PLAYING, type GraphPlaying } from './nowPlaying'; // (tuner-clarity S1)
 
 export const BODY_GROUPS = [
   'idle',
@@ -524,6 +525,8 @@ export interface TuneRigIn {
   plantL: TuneTarget;
   plantR: TuneTarget;
   root: { rotation: { y: number } };
+  /** (tuner-clarity S1) The rig's animation graph: `tuneEnd` copies what it played into NOW_PLAYING (the panel's line). */
+  graph?: { readonly playing: Readonly<GraphPlaying> };
 }
 
 /** Saved grip targets (x y z cx cy cz) x 4, restored by `tuneEnd`. */
@@ -613,8 +616,13 @@ export function tuneBegin(p: TunePoseIn, rig: TuneRigIn, dt = 0): void {
   shiftTarget(rig.plantR, 3, fx * ff + fz * fo, fu, fz * ff - fx * fo);
 }
 
-/** After the local player's `rig.animate`: the grip targets back, `TUNE_CUR` back to identity. No allocation. */
+/**
+ * After the local player's `rig.animate`: the grip targets back, `TUNE_CUR` back to identity, and (tuner-clarity S1) what
+ * its graph played this frame into NOW_PLAYING (the only writer: display only). No allocation.
+ */
 export function tuneEnd(rig: TuneRigIn): void {
+  const g = rig.graph;
+  if (g !== undefined) copyPlaying(g.playing, NOW_PLAYING);
   if (shifted) {
     restoreTarget(rig.reachL, 0);
     restoreTarget(rig.reachR, 1);
