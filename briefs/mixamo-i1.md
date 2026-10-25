@@ -1,4 +1,4 @@
-status: open
+status: blocked built locally by Player Build (Opus, desktop) 2026-10-25T23:02 - do not claim
 priority: top
 
 # Brief: mixamo I1 - Mixamo standing idle (and crouched walk if it measures) on Wren behind `?mixamo=1` (Player Build)
