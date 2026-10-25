@@ -3,6 +3,7 @@
 //   node scripts/mocap/mixamo.mjs [--dir <fbx folder>] [--only <slug,slug,...>] [--force] [--dry]
 //     (--only: those files alone; the manifest keeps its other entries. mixamo-retarget I6)
 //     -> build/mocap/mixamo/raw/<slug>.json + build/mocap/mixamo/manifest.json
+//     (I7: the root files plus the `pack-*` subfolders, one level; dumps stay flat, by slug. BATCH2-PLAN "(2)")
 // The FBX folder is C:/NightShift/scratch/mixamo/clips/ (or MIXAMO_DIR / --dir): raw Mixamo files never enter the repo.
 // File names keep their spaces and parentheses; they reach Blender inside a jobs JSON file, never on a command line.
 // Blender runs at below-normal priority (the desktop CPU rule); the lead wraps the run in heavy.lock (RULES "Machines").
@@ -19,30 +20,89 @@ export const MIXAMO_OUT = path.join(ROOT, 'build', 'mocap', 'mixamo');
 export const DUMP_PY = path.join(ROOT, 'scripts', 'mocap', 'py', 'mixamo_dump.py');
 
 /**
+ * (mixamo-retarget I7) The pack subfolders (`pack-*`, one level under the clip folder): their slug prefixes and their
+ * names as the Mixamo site gives them (BATCH2-PLAN "(2) Driver change"). An unknown `pack-<x>` gets the prefix `<x>`
+ * (`-` -> `_`) and its folder name as its pack name.
+ */
+export const PACK_PREFIX = { 'pack-pistol': 'pistol', 'pack-rifle': 'rifle', 'pack-shooter': 'shooter', 'pack-action-adventure': 'aa' };
+export const PACK_NAME = {
+  'pack-pistol': 'Pistol/Handgun Locomotion Pack',
+  'pack-rifle': 'Pro Rifle Pack',
+  'pack-shooter': 'Shooter Pack',
+  'pack-action-adventure': 'Action Adventure Pack',
+};
+const PACK_RE = /^pack-[^/\\]+$/i;
+
+/** The pack folder of a clip path relative to the clip folder (`pack-rifle/walk forward.fbx` -> `pack-rifle`), or null. */
+export function packOf(file) {
+  const parts = file.split(/[/\\]/);
+  return parts.length > 1 && PACK_RE.test(parts[0]) ? parts[0] : null;
+}
+
+/** A pack folder's slug prefix (`pack-rifle` -> `rifle`). */
+export function packPrefix(pack) {
+  return PACK_PREFIX[pack] ?? pack.replace(/^pack-/i, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+}
+
+/** The Mixamo title of a file: its name without folder, `.fbx` and any `(...)` note. */
+export function titleOf(file) {
+  return path.posix.basename(file.replace(/\\/g, '/')).replace(/\.fbx$/i, '').replace(/\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+/**
  * The Clip map's slug rule: the file name without `.fbx` and without any `(...)` note, lower case, every run of
  * characters other than letters and digits -> `_`, trimmed. The note is returned apart (the recipe keeps it).
  * (mixamo-retarget I6) A note that starts with "Mirror" (the site's Mirror box, e.g. "Walking Left Turn (Mirror = right
  * turn).fbx") is another take of the same title: its slug gets `_mirror`, so the two do not collide.
+ * (I7) A digits-only note (`idle (2).fbx`, the site's numbered twins) gives `_<n>`. A file in a pack folder (`file`
+ * relative to the clip folder, or `pack` given) gets the pack prefix (`idle.fbx` in pack-rifle -> `rifle_idle`) unless
+ * its slug already starts with it (`pistol idle.fbx` -> `pistol_idle`). Root files slug as before.
  */
-export function slugOf(file) {
-  const base = file.replace(/\.fbx$/i, '');
+export function slugOf(file, pack = packOf(file)) {
+  const base = path.posix.basename(file.replace(/\\/g, '/')).replace(/\.fbx$/i, '');
   const notes = [...base.matchAll(/\(([^)]*)\)/g)].map((m) => m[1].trim()).filter(Boolean);
-  const slug = base.replace(/\([^)]*\)/g, ' ').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  let slug = base.replace(/\([^)]*\)/g, ' ').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
   if (!slug) throw new Error(`mixamo: "${file}" has no letters or digits left for a slug`);
-  const mirror = notes.some((n) => /^mirror\b/i.test(n));
-  return { slug: mirror ? `${slug}_mirror` : slug, note: notes.join('; ') || null };
+  if (pack) {
+    const pre = packPrefix(pack);
+    if (pre && slug !== pre && !slug.startsWith(`${pre}_`)) slug = `${pre}_${slug}`;
+  }
+  if (notes.some((n) => /^mirror\b/i.test(n))) slug += '_mirror';
+  const num = notes.find((n) => /^\d+$/.test(n));
+  if (num !== undefined) slug += `_${num}`;
+  return { slug, note: notes.join('; ') || null };
 }
 
-/** The FBX files in `dir` with their slugs; stops on two files with the same slug. */
+/** A readdir entry's name, and whether it is a folder (a test's mocked readdir may hand plain names: files). */
+const entryName = (e) => (typeof e === 'string' ? e : e.name);
+const isDir = (e) => typeof e !== 'string' && e.isDirectory();
+
+/**
+ * The FBX files in `dir` and in its `pack-*` subfolders (one level) with their slugs, sorted by path; stops on two files
+ * with the same slug. (I7) `file` is the path relative to `dir` with `/` (`pack-rifle/walk forward.fbx`), `pack` the
+ * folder or null, `title` the credits title cell's text ("Pro Rifle Pack: walk forward"; a root file its title alone).
+ */
 export function listClips(dir, { readdir = readdirSync } = {}) {
-  const files = readdir(dir).filter((f) => /\.fbx$/i.test(f)).sort();
+  const files = [];
+  for (const e of readdir(dir, { withFileTypes: true })) {
+    const name = entryName(e);
+    if (isDir(e)) {
+      if (!PACK_RE.test(name)) continue;
+      for (const f of readdir(path.join(dir, name), { withFileTypes: true })) {
+        if (!isDir(f) && /\.fbx$/i.test(entryName(f))) files.push(`${name}/${entryName(f)}`);
+      }
+    } else if (/\.fbx$/i.test(name)) files.push(name);
+  }
+  files.sort();
   const seen = new Map();
   return files.map((file) => {
-    const { slug, note } = slugOf(file);
+    const pack = packOf(file);
+    const { slug, note } = slugOf(file, pack);
     const other = seen.get(slug);
     if (other) throw new Error(`mixamo: "${file}" and "${other}" both slug to "${slug}"; rename one`);
     seen.set(slug, file);
-    return { file, slug, note, fbx: path.join(dir, file) };
+    const title = pack ? `${PACK_NAME[pack] ?? pack}: ${titleOf(file)}` : titleOf(file);
+    return { file, slug, note, pack, title, fbx: path.join(dir, file) };
   });
 }
 
@@ -109,7 +169,7 @@ export function manifestOf(planned, { readDump = defaultIo.readDump } = {}) {
     version: 1,
     clips: planned.map((c) => {
       const d = readDump(c.dump);
-      return { file: c.file, slug: c.slug, note: c.note, sha256: c.sha256, dump: path.relative(ROOT, c.dump).split(path.sep).join('/'), frames: d.frames, fps: d.fps };
+      return { file: c.file, slug: c.slug, note: c.note, pack: c.pack ?? null, title: c.title ?? null, sha256: c.sha256, dump: path.relative(ROOT, c.dump).split(path.sep).join('/'), frames: d.frames, fps: d.fps };
     }),
   };
 }
