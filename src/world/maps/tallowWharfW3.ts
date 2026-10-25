@@ -344,6 +344,22 @@ function build(b: LevelBuilder): void {
   wall(b, true, 34, 88, 92, [[88.5, 91.5]], 0, 3.0, T, undefined, 3.0);
   mass(b, 88, 34, 92, 38, 3.0, CEIL);
 
+  // ---- cover (A9: a hide spot by every takedown spot), each a collide `noLedge` mass ----
+  // east yard: the coal merchant's handcart, inside guard 0's loop
+  mass(b, 104.0, 42.6, 105.4, 43.6, 0, 1.1);
+  // lodge: the porter's coat cupboard
+  mass(b, 119.2, 50.0, 120, 51.4, 0, 2.0);
+  // east wing, the press recesses: deed presses on the west wall (the strongroom mass's face) and the east wall
+  mass(b, 106, 59.2, 106.7, 60.8, 0, 2.4);
+  mass(b, 106, 61.8, 106.7, 63.4, 0, 2.4);
+  mass(b, 119.3, 59.2, 120, 60.8, 0, 2.4);
+  // west wing, the aisles between the new shelf ranges, and the day-book box at the first range's foot
+  mass(b, 92.4, 56.5, 93.0, 62.5, 0, 2.2);
+  mass(b, 94.0, 56.5, 94.6, 62.5, 0, 2.2);
+  mass(b, 91.5, 56.6, 92.3, 57.4, 0, 0.9);
+  // front hall: the post-sack bin
+  mass(b, 102.6, 70.8, 103.4, 71.6, 0, 1.1);
+
   // ---- lights (LIGHT.md section 4: 31 lamps, groups 80-90, every one on) ----
   // 80: the gate lamp over the keypad door, the yard flood on a bracket under the lodge's eaves (aimed west-south-west across the
   // yard; wall x 114 tops at 3.0, the lodge roof is 3.0-3.3), and the head lamp on the bracket arm of an iron lamp post on the
@@ -389,7 +405,20 @@ export const W3: WharfSection = {
     { pos: new Vector3(95.6, 0, 66.4), yaw: -PI / 2, group: 85 },
     { pos: new Vector3(115.8, 0, 74.6), yaw: 0, group: 87 },
   ],
-  hideSpots: [{ pos: new Vector3(84, 0, 72) }, { pos: new Vector3(85, 0, 44.6) }],
+  hideSpots: [
+    { pos: new Vector3(84, 0, 72) },
+    { pos: new Vector3(85, 0, 44.6) },
+    // the handcart, the lodge cupboard, the west presses, the east press, the day-book box, the post-sack bin
+    { pos: new Vector3(104.7, 0, 44.0) },
+    { pos: new Vector3(118.8, 0, 50.7) },
+    { pos: new Vector3(107.1, 0, 60.0) },
+    { pos: new Vector3(107.1, 0, 62.6) },
+    { pos: new Vector3(118.9, 0, 60.0) },
+    { pos: new Vector3(91.9, 0, 56.2) },
+    { pos: new Vector3(103.0, 0, 70.4) },
+  ],
+  // A8: the porters' first-aid box on the north wall of the bulkhead stair's top landing (the roof access), not the lodge (the porter sleeps in it)
+  medkits: [{ pos: new Vector3(114.0, 8.4, 69.15), yaw: PI }],
   navSeeds: [
     new Vector3(100, 8.4, 70),
     new Vector3(106, 0, 44),
