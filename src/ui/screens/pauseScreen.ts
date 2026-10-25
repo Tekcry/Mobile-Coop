@@ -8,7 +8,7 @@ import { FeedbackFormScreen } from './feedbackScreen';
 /** Extra pause-menu rows added at run time (dev tools: the level editor's walk test adds "Back to editor"). Empty in play. */
 export const pauseExtraRows: { label: string; act: () => void }[] = [];
 
-/** One mission objective and its state (G108: the objectives live in the menu). */
+/** One mission objective and its state (G108: the objectives live in the menu; G343: the menu keeps the full list). */
 export interface ObjectiveLine {
   label: string;
   done: boolean;
