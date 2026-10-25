@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-25T23:44:51+11:00
 # campus-greybox s4 fix 1 (cloud): CR8 / CR8-west sills must be climbable
 
 Lead: Night Shift | Sector Ops Build. Job campus-greybox (J17). The S4 lane checker (Sonnet, code review, 2026-10-25
