@@ -3623,6 +3623,226 @@ try {
     }
   });
 
+  await scen('mission group (guard-ai-mission-hooks S1b)', async () => {
+    // (guard-ai-mission-hooks S1b, D7, A6) Two events of one name and via are one group. (a) Both come: B, tagged at the
+    // via, waits there; A walks in from the far side; the group leaves when A gets there, A leads to the post and B
+    // follows ORDER.followGap behind; A's look-round ends the group. (b) B busy at the event (investigating a bottle):
+    // he never joins, A waits ORDER.joinWait at the via, then goes alone. Sim-time steps only; Math.random seeded.
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const nav = em.nav;
+      const O = em.orderTable;
+      const rnd = Math.random;
+      let seed = 5151;
+      Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      // OrderLeg states (missionOrders.ts)
+      const LEG_TO_POST = 3;
+      const LEG_FOLLOW = 8;
+      const track = (seen, name) => {
+        const ph = em.orderPhase(name);
+        if (seen[seen.length - 1] !== ph) seen.push(ph);
+      };
+      const hyp = (a, x, z) => Math.hypot(a.pos.x - x, a.pos.z - z);
+      const hide = [-22, -24];
+      const floor = (x, z) => {
+        const c = nav.cellOf(x, z, 0);
+        return c >= 0 && nav.isWalkable(c) && Math.abs(nav.height[c]) < 0.3;
+      };
+      // the points (the 'dog release' floor check): via V on open floor, a post P 8-12 m from V on a straight line, a
+      // spawn for A 10-14 m from V on the far side from P (straight to V), B's spot within 1.5 m of V
+      let pick = null;
+      for (const v of [[0, 5], [3, 5.5], [-14.5, 4], [4, 1]]) {
+        if (pick) break;
+        if (!floor(v[0], v[1]) || Math.hypot(v[0] - hide[0], v[1] - hide[1]) < 12) continue;
+        let p = null;
+        for (const rr of [10, 9, 11, 8, 12]) {
+          if (p) break;
+          for (let a = 0; a < 24; a++) {
+            const x = v[0] + Math.sin((a / 24) * Math.PI * 2) * rr;
+            const z = v[1] + Math.cos((a / 24) * Math.PI * 2) * rr;
+            if (!floor(x, z) || Math.hypot(x - hide[0], z - hide[1]) < 12 || !nav.lineClear(v, [x, z], 0, 0)) continue;
+            p = [x, z];
+            break;
+          }
+        }
+        if (!p) continue;
+        const away = Math.atan2(v[0] - p[0], v[1] - p[1]);
+        let sa = null;
+        for (const rr of [11, 10, 12, 13, 14]) {
+          if (sa) break;
+          for (const o of [0, 0.26, -0.26, 0.52, -0.52, 0.79, -0.79]) {
+            const x = v[0] + Math.sin(away + o) * rr;
+            const z = v[1] + Math.cos(away + o) * rr;
+            if (!floor(x, z) || Math.hypot(x - hide[0], z - hide[1]) < 12 || !nav.lineClear([x, z], v, 0, 0)) continue;
+            sa = [x, z];
+            break;
+          }
+        }
+        if (!sa) continue;
+        let sb = null;
+        for (const [ox, oz] of [[1, 0], [-1, 0], [0, 1], [0, -1], [0.7, 0.7], [-0.7, -0.7]]) {
+          if (floor(v[0] + ox, v[1] + oz)) {
+            sb = [v[0] + ox, v[1] + oz];
+            break;
+          }
+        }
+        if (sb) pick = { v, p, sa, sb };
+      }
+      if (!pick) return { pick: null };
+      const { v: V, p: P, sa, sb } = pick;
+      const posts = [{ id: 'e2e-via', x: V[0], z: V[1] }, { id: 'e2e-post', x: P[0], z: P[1] }];
+      const setup = () => {
+        t.light(0);
+        t.tp(hide[0], hide[1], 0);
+        t.crouch(true);
+        em.setMissionMap(['wh'], posts);
+        const A = t.spawn('grunt', sa[0], sa[1], Math.atan2(V[0] - sa[0], V[1] - sa[1]));
+        em.placeSlot(A, { yaw: A.yaw, zone: 'e2e-g1' }, 0);
+        const B = t.spawn('grunt', sb[0], sb[1], 0);
+        em.placeSlot(B, { yaw: 0, zone: 'e2e-g2' }, 0);
+        return { A, B };
+      };
+      const order = () => {
+        em.missionOrder('e2e-g1', 'walk', 'e2e-post', 'e2e-via', 'e2e-grp');
+        em.missionOrder('e2e-g2', 'walk', 'e2e-post', 'e2e-via', 'e2e-grp');
+      };
+      const out = { pick, table: { joinWait: O.joinWait, followGap: O.followGap, atVia: O.atVia } };
+      try {
+        // ----- (a) both come -----
+        {
+          const { A, B } = setup();
+          t.step(0.3);
+          order();
+          const seen = [];
+          track(seen, 'e2e-grp');
+          let tt = 0;
+          let aAt = -1;
+          let leftAt = -1;
+          let bFar = 0;
+          let membersAtWalk = -1;
+          let groupAtWalk = false;
+          let waitAtLeave = -1;
+          let passed = -1;
+          const gaps = [];
+          let order1 = true;
+          let doneAt = -1;
+          for (let k = 0; k < 900 && doneAt < 0; k++) {
+            t.step(0.1);
+            tt += 0.1;
+            track(seen, 'e2e-grp');
+            const ph = em.orderPhase('e2e-grp');
+            if (aAt < 0 && hyp(A, V[0], V[1]) <= O.atVia) aAt = tt;
+            if (aAt < 0) bFar = Math.max(bFar, hyp(B, V[0], V[1]));
+            if (leftAt < 0 && ph === 'walking') {
+              leftAt = tt;
+              membersAtWalk = em.orderMembers('e2e-grp');
+              const oa = em.orderOf(A);
+              groupAtWalk = !!oa && oa.group && oa.lead;
+              waitAtLeave = oa ? oa.waitT : -1;
+            }
+            // the last leg, once A has passed B: B 1.0-3.5 m behind, A nearer the post
+            if (leftAt > 0 && ph === 'walking' && A.leg.state === LEG_TO_POST && B.leg.state === LEG_FOLLOW) {
+              const aP = hyp(A, P[0], P[1]);
+              const bP = hyp(B, P[0], P[1]);
+              if (passed < 0 && aP < bP) passed = tt;
+              if (passed > 0 && tt > passed + 1) {
+                const d = Math.hypot(A.pos.x - B.pos.x, A.pos.z - B.pos.z);
+                gaps.push(d);
+                if (!(d >= 1.0 && d <= 3.5 && aP < bP)) order1 = false;
+              }
+            }
+            if (ph === 'done') doneAt = tt;
+          }
+          const ends = [[A.pos.x, A.pos.z], [B.pos.x, B.pos.z]];
+          const after = [em.orderOf(A), em.orderOf(B)];
+          let away = [0, 0];
+          for (let k = 0; k < 50; k++) {
+            t.step(0.1);
+            away = [Math.max(away[0], hyp(A, ends[0][0], ends[0][1])), Math.max(away[1], hyp(B, ends[1][0], ends[1][1]))];
+          }
+          out.a = {
+            seen, aAt, leftAt, bFar, membersAtWalk, groupAtWalk, waitAtLeave, gapN: gaps.length, order1,
+            gapMin: gaps.length ? Math.min(...gaps) : -1, gapMax: gaps.length ? Math.max(...gaps) : -1, doneAt, after, away,
+            levels: [A.level, B.level],
+          };
+        }
+        // ----- (b) B busy at the event: A waits joinWait, then goes alone -----
+        t.reset();
+        {
+          const { A, B } = setup();
+          t.step(0.3);
+          // a bottle 3 m from B, on his side away from A (as 'one investigates'): he is sent to it
+          const ux = (sb[0] - sa[0]) / Math.hypot(sb[0] - sa[0], sb[1] - sa[1]);
+          const uz = (sb[1] - sa[1]) / Math.hypot(sb[0] - sa[0], sb[1] - sa[1]);
+          em.hear(new t.V(B.pos.x + ux * 3, B.pos.y, B.pos.z + uz * 3), 8);
+          let k0 = 0;
+          for (; k0 < 60 && B.incident < 0; k0++) t.step(0.1);
+          out.bIncident = B.incident;
+          order();
+          const ofB = em.orderOf(B);
+          const members0 = em.orderMembers('e2e-grp');
+          const seen = [];
+          track(seen, 'e2e-grp');
+          let tt = 0;
+          let aAt = -1;
+          let leftAt = -1;
+          let aFarWhileWait = 0;
+          let gatherOk = true;
+          let membersAtWalk = -1;
+          let atPost = 99;
+          let doneAt = -1;
+          for (let k = 0; k < 1200 && doneAt < 0; k++) {
+            t.step(0.1);
+            tt += 0.1;
+            track(seen, 'e2e-grp');
+            const ph = em.orderPhase('e2e-grp');
+            if (aAt < 0 && hyp(A, V[0], V[1]) <= O.atVia) aAt = tt;
+            if (aAt > 0 && leftAt < 0) {
+              if (ph !== 'gathering') gatherOk = false;
+              aFarWhileWait = Math.max(aFarWhileWait, hyp(A, V[0], V[1]));
+            }
+            if (leftAt < 0 && ph === 'walking') {
+              leftAt = tt;
+              membersAtWalk = em.orderMembers('e2e-grp');
+            }
+            atPost = Math.min(atPost, hyp(A, P[0], P[1]));
+            if (ph === 'done') doneAt = tt;
+          }
+          out.b = { ofB, members0, seen, aAt, leftAt, wait: leftAt - aAt, gatherOk, aFarWhileWait, membersAtWalk, atPost, doneAt, ofBAfter: em.orderOf(B) };
+        }
+        return out;
+      } finally {
+        Math.random = rnd;
+        em.setMissionMap([], []);
+        t.crouch(false);
+        t.light(null);
+      }
+    });
+    const s = (v) => JSON.stringify(v);
+    const f2 = (v) => v.toFixed(2);
+    assert(r.pick, 'mission group: a via, a post 8-12 m off and a far-side spawn on open floor');
+    if (r.pick) {
+      const a = r.a;
+      const T = r.table;
+      console.log(`  group: A walks ${f2(a.aAt)} s to the via; the group leaves at ${f2(a.leftAt)} s (waited ${f2(a.waitAtLeave)} s); gap ${f2(a.gapMin)}-${f2(a.gapMax)} m over ${a.gapN} samples`);
+      assert(a.bFar <= 1.5, `mission group: B waits at the via until A is there (${f2(a.bFar)} m from it at most, spawned 1 m off)`);
+      assert(a.aAt > 0 && a.leftAt > 0 && a.leftAt - a.aAt <= 0.5, `mission group: the group leaves within 0.5 s of A at the via (A ${f2(a.aAt)} s, left ${f2(a.leftAt)} s)`);
+      assert(a.membersAtWalk === 2 && a.groupAtWalk, `mission group: two members, A leading, as they leave (${a.membersAtWalk}, group/lead ${a.groupAtWalk})`);
+      assert(a.gapN >= 10 && a.order1, `mission group: on the last leg B stays 1.0-3.5 m behind A, A nearer the post (followGap ${T.followGap}; ${f2(a.gapMin)}-${f2(a.gapMax)} m, ${a.gapN} samples)`);
+      assert(s(a.seen) === s(['gathering', 'walking', 'arrived', 'done']), `mission group: phases gathering -> walking -> arrived -> done (${s(a.seen)})`);
+      assert(a.after[0] === null && a.after[1] === null && a.away[0] > 1 && a.away[1] > 1, `mission group: both off it and walking back (${s(a.after)}, ${f2(a.away[0])} / ${f2(a.away[1])} m)`);
+      const b = r.b;
+      console.log(`  busy: B incident ${r.bIncident}; A at the via ${f2(b.aAt)} s, waited ${f2(b.wait)} s (joinWait ${T.joinWait} s)`);
+      assert(r.bIncident >= 0, `mission group: B is sent to the bottle before the order (incident ${r.bIncident})`);
+      assert(b.ofB === null && b.ofBAfter === null && b.members0 === 1, `mission group: busy B never joins (${s(b.ofB)}, ${b.members0} member)`);
+      assert(b.aAt > 0 && Math.abs(b.wait - T.joinWait) <= 1 && b.gatherOk && b.aFarWhileWait <= T.atVia + 0.5, `mission group: A waits joinWait at the via, gathering (${f2(b.wait)} s, ${f2(b.aFarWhileWait)} m from it)`);
+      assert(b.membersAtWalk === 1 && b.atPost < 1, `mission group: then A walks alone to the post (${b.membersAtWalk} member, ${f2(b.atPost)} m)`);
+      assert(s(b.seen) === s(['gathering', 'walking', 'arrived', 'done']), `mission group: busy phases gathering -> walking -> arrived -> done (${s(b.seen)})`);
+    }
+  });
+
   const real = errors.filter((e) => !/GPU stall|WebGL|swiftshader|Automatic fallback|AudioContext/i.test(e));
   assert(real.length === 0, `no console errors (${real.join(' | ')})`);
 } catch (e) {
