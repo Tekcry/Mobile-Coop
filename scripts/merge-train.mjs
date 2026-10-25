@@ -18,6 +18,10 @@
 // older script (no version commit) is still released the old way (merge master, version commit, push, CI, merge).
 // Conflicts: CHANGELOG.md and changes/* are resolved (both sides kept, incoming block first, never a block dropped);
 // any other conflicting file leaves that branch out (build) or stops the run (release / single, exit 3).
+// Doc-lint (build): after each member merges, scripts/doc-lint.mjs runs on the merged tree (git objects); a member that
+// adds a doc-lint ERROR (e.g. two members together over a doc budget) is left out like a conflict, so CI `lint` cannot
+// fail the train head. A lint that cannot run, or a tree whose scripts/doc-lint.mjs differs from this script's copy
+// (a member changing the rules), is logged and ends the check for the rest of the build, never a stop.
 // The merges are computed on git objects (`git merge-tree`, `git commit-tree`), so --dry-run moves no ref, worktree
 // or remote (it only fetches) and prints what a real run would do.
 // Usage:
@@ -65,11 +69,12 @@ import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { assemble, assembleDir, parseFragment, releaseHeading, summary } from './changelog-assemble.mjs';
 import { fetchOrigin } from './fetch-retry.mjs';
 import { takeTouchLock } from './heavy-lock.mjs';
 import { archiveInWorktree, archiveMoves, grepReaders, jobDoneJobs, readersNote, rewriteArchiveLinks } from './job-archive.mjs';
+import { lintDocs, matchAny } from './doc-lint.mjs';
 
 const DRY = process.argv.includes('--dry-run');
 const TRAIN_LOCK_STALE_MIN = 30; // the same staleness as auto-train's tick lock
@@ -759,6 +764,79 @@ function mergeMaster(head, label) {
   return null;
 }
 
+// ---- doc-lint on the merged tree (audit 2026-10-26: trains 111 and 112 each failed CI `lint` on one line over a doc
+// budget that no member broke alone, ~7 h lost; build now leaves out the member whose merge adds a doc-lint ERROR)
+
+/** A doc-lint ERROR's identity across merges: check, file and message with numbers blanked (a count that moves keeps it). */
+export const lintKey = (f) => `${f.check}|${f.file}|${f.msg.replace(/\d+/g, '#')}`;
+
+/** The ERRORs of `after` whose key no ERROR of `before` has (what one merge added). */
+export function newLintErrors(before, after) {
+  const had = new Set(before.filter((f) => f.level === 'ERROR').map(lintKey));
+  return after.filter((f) => f.level === 'ERROR' && !had.has(lintKey(f)));
+}
+
+/** The LEFT OUT reason for a member that added doc-lint ERRORs (at most `max` named). */
+export function lintWhy(errors, max = 2) {
+  const named = errors.slice(0, max).map((f) => `${f.file}:${f.line} ${f.msg}`).join('; ');
+  return `doc-lint with master and the members before it: ${named}${errors.length > max ? ` (+${errors.length - max} more)` : ''}`;
+}
+
+/** Splits `git cat-file --batch` output (a Buffer) into the blobs' texts, in request order (a missing one: null). */
+export function parseCatFileBatch(buf) {
+  const out = [];
+  let pos = 0;
+  while (pos < buf.length) {
+    const nl = buf.indexOf(10, pos);
+    if (nl < 0) break;
+    const header = buf.subarray(pos, nl).toString('utf8').split(' ');
+    if (header[1] === 'missing' || header.length < 3) { out.push(null); pos = nl + 1; continue; }
+    const size = Number(header[2]);
+    out.push(buf.subarray(nl + 1, nl + 1 + size).toString('utf8'));
+    pos = nl + 1 + size + 1;
+  }
+  return out;
+}
+
+/** doc-lint findings for the tree of commit `sha`, read from git objects (no worktree; scripts/doc-lint.mjs rules). */
+export function docLintAt(sha, cwd) {
+  const paths = run(['git', 'ls-tree', '-r', '-z', '--name-only', sha], { cwd, raw: true }).split('\0').filter(Boolean);
+  const set = new Set(paths), dirs = new Set();
+  for (const p of paths) {
+    let d = path.posix.dirname(p);
+    while (d && d !== '.' && !dirs.has(d)) { dirs.add(d); d = path.posix.dirname(d); }
+  }
+  const configs = ['docs/stale-terms.json', 'docs/doc-owners.json', 'docs/doc-lint.json'];
+  const read = (list) => {
+    const r = spawnSync('git', ['cat-file', '--batch'], { cwd, input: list.map((p) => `${sha}:${p}\n`).join(''), maxBuffer: 1 << 30, windowsHide: true });
+    if (r.status !== 0) throw new Error(`git cat-file --batch failed: ${String(r.stderr ?? r.error?.message ?? '').trim()}`);
+    return parseCatFileBatch(r.stdout);
+  };
+  const [stale, owners, lint] = read(configs).map((t) => JSON.parse(t ?? '{}'));
+  const md = paths.filter((p) => p.endsWith('.md') && matchAny(p, lint.include ?? ['**/*.md']) && !matchAny(p, lint.exclude ?? []));
+  const texts = read(md);
+  const files = new Map(md.map((p, i) => [p, texts[i] ?? '']));
+  const exists = (p) => { const q = p.replace(/^\.\//, '').replace(/\/+$/, ''); return set.has(q) || dirs.has(q); };
+  return lintDocs({ files, exists, config: { staleTerms: stale, owners, lint }, today: today() });
+}
+
+/**
+ * True when the tree of `sha` holds the same scripts/doc-lint.mjs as the one this script imports (`runner`): only then
+ * do docLintAt's findings match what CI runs on that tree (a member may change the rules with the docs that need them).
+ */
+export function sameLintRules(sha, cwd, runner = fileURLToPath(new URL('./doc-lint.mjs', import.meta.url))) {
+  const r = exec(['git', 'rev-parse', `${sha}:scripts/doc-lint.mjs`], { cwd });
+  return r.status === 0 && r.out.trim() === run(['git', 'hash-object', runner], { cwd });
+}
+
+/** docLintAt that never stops a build: null (logged) when the tree's doc-lint rules differ or the lint itself fails. */
+function docLintSafe(sha) {
+  try {
+    if (!sameLintRules(sha)) { console.log(`  doc-lint: scripts/doc-lint.mjs differs at ${sha.slice(0, 8)}, not checked from here on`); return null; }
+    return docLintAt(sha);
+  } catch (e) { console.warn(`WARNING: doc-lint on ${sha.slice(0, 8)} failed, not checked from here on: ${e.message}`); return null; }
+}
+
 /** The changelog assembly a real run would write at `sha`, read from git objects (dry runs). */
 function assembleAt(sha, opts) {
   const ls = exec(['git', 'ls-tree', '--name-only', `${sha}:changes`]);
@@ -1161,6 +1239,7 @@ async function build({ n, version, title, branches, keep, on = null }) {
     if (!isAncestor('origin/master', head)) console.warn('WARNING: origin/master is not in that head; release will STOP (exit 3) until the train is rebuilt');
   } else head = base ? base.sha : rev('origin/master');
   const included = [], kept = [], left = [];
+  let lintBefore = docLintSafe(head);
   for (const b of branches) {
     console.log(`merging origin/${b}`);
     if (!exists(`origin/${b}`)) { left.push({ b, why: 'no such branch on origin' }); continue; }
@@ -1168,6 +1247,10 @@ async function build({ n, version, title, branches, keep, on = null }) {
     if (isAncestor(`origin/${b}`, head)) { console.log('  already in (nothing to merge)'); kept.push(b); continue; }
     const m = mergeObjects(head, rev(`origin/${b}`), `Merge origin/${b} into train/${n}`);
     if (m.blocking) { left.push({ b, why: `conflicts in ${m.blocking.join(', ')}` }); console.log(`  LEFT OUT: ${m.blocking.join(', ')}`); continue; }
+    const lintAfter = lintBefore ? docLintSafe(m.sha) : null;
+    const added = lintAfter ? newLintErrors(lintBefore, lintAfter) : [];
+    if (added.length) { const why = lintWhy(added); left.push({ b, why }); console.log(`  LEFT OUT: ${why}`); continue; }
+    lintBefore = lintAfter; // null once a lint could not run: later members go unchecked, never judged on a stale base
     head = m.sha; included.push(b); kept.push(b);
   }
   // feature/menu alone is never a train: nothing is pushed and no PR is opened (exit 3, as with no member)
