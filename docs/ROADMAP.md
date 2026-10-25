@@ -38,7 +38,7 @@ the cap (G355).
 | 13 | route-runs (G330; feature/route-runs 9b8ee6ca) + V6 PR (feature/level-validator-v6 8f551e18) | Marlow | Plan checker | 6 |
 | 14 | Lookouts + paired patrols (G335), helmets by tier (G350), dogs (G348), #360 redone as shadow-in-view (G327, wip/guard-ai-t1-shadow; close #360 when that PR opens, never label it) | Guard AI | Plan checker; two checkers | 4, 6 |
 | 15 | Marlow Yard: downed (G349), drill retry (G361), strict rule late (G357), later sections (G363) | Marlow | Checker | 6 |
-| 16 | coop-real (#388), coop4 (#317: laptop-e2e/coop4-fix7 green on 24ba2e518, held draft; at the row 6 sign-off tell Guard AI to mark it ready + two Opus checkers), gm-flip (#375, after Michael's picks) | Player, Guard AI | As today | 6 |
+| 16 | guard-ai #360 T1 anim tier + feature/guard-ai-t1-look-script (paused by Michael 13:30 until the row 6 sign-off: then tell Guard AI to resume); coop-real (#388), coop4 (#317: laptop-e2e/coop4-fix7 green on 24ba2e518, held draft; at the row 6 sign-off tell Guard AI to mark it ready + two Opus checkers), gm-flip (#375, after Michael's picks) | Player, Guard AI | As today | 6 |
 | 17 | Flake budget + affected-e2e per head; laptop-queue-5 follow-ups | Test Runner | Plan checker | 5 |
 
 Not ranked yet (process, re-ranked at row 6): overlap slice 4 (scripts/auto-train.mjs;
