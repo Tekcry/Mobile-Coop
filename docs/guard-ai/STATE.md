@@ -1005,6 +1005,8 @@ worktree). Background wait: scratchpad wait-status.sh "<sha>:<context>" ... Lapt
 orchestrator at train-ready. Walk cap: Guard AI AT CAP (new behaviour dark; rule fixes ship on, G355).
 Open (2026-10-25 ~23:15, new session after a swap; full burn; order J4, J6, J15, J26, J16). Checker statuses: a LONE
 `gh api repos/Tekcry/Mobile-Coop/statuses/<sha> -f ...`. Local tsc / vitest builders only while laptop CPU < ~80%.
+File every gate request WITH the head push; post the checker the moment it passes (orchestrator 23:05: #446 missed
+train 106 by 2 min). One affected run per head covers its suites: no duplicate requests.
 1. J4 G327 #438 MERGED (train 105). #414 (T1 look script) still draft: undraft is Michael's (auto mode).
 2. J4 #317 coop4 head 3100d035 ships ON (Q16). Release checks A + B PASS (docs/guard-ai/checks/coop4-release-check-A/B.md,
    a7653ca7f); checker posted. affected-e2e FAIL 09:52Z "slot 4192 gave no result" (infra); re-request
