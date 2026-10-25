@@ -476,6 +476,41 @@ describe('the sets\' station ticks (fix 6, lead decision a)', () => {
   });
 });
 
+describe('stand-in gates (fix 7, lead decision b)', () => {
+  const gates: BayDef['gates'] = [
+    { kind: 'pickup', id: 'g-s1', switchId: 'sw1', flag: 'key1', perPlayer: false },
+    { kind: 'pickup', id: 'g-s2', switchId: 'sw2', flag: 'key2', perPlayer: false },
+    { kind: 'lever', id: 'g-walk', switchId: 'sw5', doorId: 'D5' },
+  ];
+  const plank = (): CourseDef => def({ gates }, [station(1), station(2, { kit: 'plankBridge', standIn: 'g-walk', gates: ['g-s2', 'g-walk'] })]);
+  it('the stand-in opens as its station goes live (no kit move is playable yet) and stays open through its retry', () => {
+    const r = rig(plank(), { doors: ['D5'] });
+    const d5 = r.doors[0]!;
+    expect(r.st.isGateOpen('g-walk')).toBe(false);
+    expect(d5.anchor.locked).toBe(true);
+    r.st.setFlag('s1-done');
+    expect(r.st.isGateOpen('g-walk')).toBe(true);
+    r.step();
+    expect(d5.anchor.locked).toBe(false);
+    r.guard('gd2').alerted = true;
+    r.step();
+    expect(r.mode.lastRetry).toEqual({ st: 2, cause: 'seen' });
+    expect(r.st.isGateOpen('g-walk')).toBe(true);
+    expect(d5.anchor.locked).toBe(false);
+    // a bay restart: station 1 live again, the stand-in shut until station 2 goes live
+    r.step(20);
+    r.mode.restartCheckpoint();
+    r.step();
+    expect(r.st.station()).toBe(1);
+    expect(r.st.isGateOpen('g-walk')).toBe(false);
+  });
+  it('a first station with a stand-in opens it at the bay start; a station without one opens nothing', () => {
+    const st = new CourseState(def({ gates }, [station(1, { kit: 'deadweight', standIn: 'g-walk' }), station(2)]));
+    expect(st.isGateOpen('g-walk')).toBe(true);
+    expect(new CourseState(def({ gates })).isGateOpen('g-walk')).toBe(false);
+  });
+});
+
 describe('a retry\'s gate doors (fix 3)', () => {
   it('the retried station\'s gate door is shut and locked again; an earlier station\'s door stays open', () => {
     const gates: BayDef['gates'] = [

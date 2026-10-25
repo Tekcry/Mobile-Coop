@@ -141,6 +141,16 @@ interface StRt {
 }
 
 const NO_ST_RT: StRt[] = [];
+
+/**
+ * (J14 R1 fix 7, lead decision b) Is station kit move `kit` playable on the host? How it is detected: it is not, in any
+ * build yet. Player's move hookups (KS1-KS5, with their `kitMoves` switch on feature/coop-kit) are not on master, so this
+ * answers false and every station's stand-in gate opens as its station goes live. Each KS slice replaces this with the
+ * host's `kitMoves` check for its move (true: the stand-in stays locked and the real move is the way through).
+ */
+export function kitMoveOn(_kit: NonNullable<StationDef['kit']>): boolean {
+  return false;
+}
 const NO_GATE_DOORS: readonly string[] = [];
 
 interface GateRt {
@@ -339,6 +349,8 @@ export class CourseState {
     });
     this.hasStations = any;
     this.emitBayStarted();
+    // (fix 7) the first station's stand-in (none on the re-plan today: station 1 teaches the boost)
+    if (any) this.openStandIn();
   }
 
   private gateRt(id: string): GateRt | null {
@@ -709,8 +721,13 @@ export class CourseState {
     if (!s || this.over || s.def.retry === 'none' || this.retryOffSet.has(s.def.n)) return false;
     if (n !== undefined && n !== s.def.n) return false;
     const sn = s.def.n;
+    // (fix 7) a stand-in standing open stays open (and its flag set) through the retry
+    const keep = this.standInGate(s);
+    const kd = keep?.def;
+    const keepFlag = kd && (kd.kind === 'flag' || kd.kind === 'anchorLock' || kd.kind === 'pickup' || kd.kind === 'pair') ? kd.flag : undefined;
     for (let i = 0; i < s.gates.length; i++) {
       const g = s.gates[i]!;
+      if (g === keep) continue;
       const d = g.def;
       if (d.kind === 'flag' || d.kind === 'anchorLock' || d.kind === 'pickup' || (d.kind === 'pair' && d.flag !== undefined)) {
         const f = d.flag!;
@@ -720,7 +737,9 @@ export class CourseState {
       }
       this.resetGate(g);
     }
-    for (const [flag, k] of this.flagSt) if (k === sn) this.dropFlag(flag);
+    for (const [flag, k] of this.flagSt) if (k === sn && flag !== keepFlag) this.dropFlag(flag);
+    // a stand-in the station's own gates do not hold (or one shut by hand) opens again
+    this.openStandIn();
     this.roleHoldT = ROLE_HOLD;
     this.tickGen++;
     this.restarts++;
@@ -742,16 +761,45 @@ export class CourseState {
   private newBayStations(): void {
     this.stIdx = 0;
     this.advanceStations();
+    this.openStandIn();
   }
 
-  /** Move the live station on past every station whose done flag is set (global or either player's). No allocation. */
+  /** Move the live station on past every station whose done flag is set (global or either player's); (fix 7) the new
+   *  live station's stand-in opens. No allocation. */
   private advanceStations(): void {
     const list = this.stRt[this.bay] ?? NO_ST_RT;
+    const was = this.stIdx;
     while (this.stIdx < list.length) {
       const s = list[this.stIdx]!;
-      if (!this.flags.has(s.def.doneFlag) && !this.flags.has(s.d1) && !this.flags.has(s.d2)) return;
+      if (!this.flags.has(s.def.doneFlag) && !this.flags.has(s.d1) && !this.flags.has(s.d2)) break;
       this.stIdx++;
     }
+    if (this.stIdx !== was) this.openStandIn();
+  }
+
+  /** (J14 R1 fix 7) Station `s`'s stand-in gate when it is to stand open (its kit move is not playable), else null. */
+  private standInGate(s: StRt): GateRt | null {
+    const id = s.def.standIn;
+    if (id === undefined || (s.def.kit !== undefined && kitMoveOn(s.def.kit))) return null;
+    return this.gateRt(id);
+  }
+
+  /**
+   * (J14 R1 fix 7, lead decision b; PLAN "The five new-move stations") The live station's stand-in gate opens as the
+   * station goes live while its kit move is not playable (`kitMoveOn`), and stays open through its retries. Host state:
+   * the course wire's `gates` / `flags` take it to the client.
+   */
+  private openStandIn(): void {
+    const s = this.liveRt();
+    const g = s ? this.standInGate(s) : null;
+    if (!g || this.gateOpen(g)) return;
+    const d = g.def;
+    if (d.kind === 'flag' || d.kind === 'anchorLock') {
+      this.addFlag(d.flag, g.bay);
+      return;
+    }
+    if ((d.kind === 'pickup' || d.kind === 'pair') && d.flag !== undefined) this.addFlag(d.flag, g.bay);
+    this.setOpen(g, true);
   }
 
   /** A station retry drops a flag: as `clearFlag` (fix 5: `flagCleared`, so the mode's console edge tells the guards a
