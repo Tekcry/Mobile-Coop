@@ -228,11 +228,11 @@ and `rc` (its cause), all R1;
 - **claims-check (2026-10-25 ~21:23, master's script, `--plan` on this PLAN):** 43 overlaps (41 at plan check 2; the
   two new are slice branches of campus-greybox and hud-guidance), all files above plus `flags.ts` one-liners
   (campus-greybox x4, char-shadow-meter x2, guard-ai-mission-hooks, sector-batch, guard-rules x4) and `coopHost.ts`
-  (player-hygiene, guard-rules, sector-batch); mission-rules x4 (above); test-runner-j20 (14 branches) and campus-greybox on
-  `scripts/run-e2e.mjs` (S0 adds parts 5-8 to `PARTS` only: a separate hunk); test-runner-j20 on
+  (player-hygiene, guard-rules, sector-batch); mission-rules x4 (above); test-runner-j20 (14 branches) and
+  campus-greybox on `scripts/run-e2e.mjs` (S0 adds parts 5-8 to `PARTS` only: a separate hunk); test-runner-j20 on
   `scripts/e2e-ctcourse.mjs`; coop-kit and player-hygiene on `protocol.ts` (R1 touches only `parseCourse`), coop-kit
-  on `coopHost.ts` / `flags.ts`. No other job claims a Marlow set
-  file, `ctcourseSets/replan/**`, `src/game/course/**` or the map `ctcourseReplan`.
+  on `coopHost.ts` / `flags.ts`. No other job claims a Marlow set file, `ctcourseSets/replan/**`,
+  `src/game/course/**`, `scripts/e2e-ctcourse/revive.mjs` or the map `ctcourseReplan`.
 
 ## Slices and PRs
 Each slice is one PR to master unless grouped. Branches `feature/marlow-replan-<slice>` in
@@ -308,14 +308,19 @@ shows the next station's mark as built (Q18) and a drill-mark guard test pins it
 `ctcourse` keeps its rules.
 - **Route-run hooks (J13 R4c, origin/feature/route-runs-2 `docs/route-runs/PLAN.md:192-221`).** R4c's course watcher
   reads a rise of `window.__course.restarts` on every poll and names the cause (seen / timer / other). R1 gives it:
-  `CourseState.restarts` (a count, 0 at match start) and `CourseState.lastRetry` (`{ n, st, cause }`, `st` the station
-  retried, `cause` `'seen' | 'caught' | 'timer' | 'out' | 'down'`), packed as `PackedCourse.rs` (count) and `rc` (last
-  cause) beside `st`. Every station retry increments `restarts` and records its cause: `seen` (A1-A7 guard combat or a
-  camera's full detection), `caught` (A8 `CAUGHT_HOLD`), `timer` (a `drillS` window or A8 timed step ending); a downed
-  bay restart (next bullet) also increments it, with `out` (one player out) or `down` (both down). Host:
+  `CourseState.restarts` (a count, 0 at match start) and `CourseState.lastRetry`, one shape on host and client:
+  `type LastRetry = { st: number; cause: RetryCause } | null` with `type RetryCause = 'seen' | 'caught' | 'timer' |
+  'out' | 'down'` (both in `courseState.ts`), `null` before the first retry; `st` is the station live when the retry
+  fired (the one retried; for `out` / `down` the station the bay restart interrupted; 0 on a bay without stations), so
+  it can differ from the live `st` after a bay restart. Packed as `PackedCourse.rs` (count), `rt` (`lastRetry.st`) and
+  `rc` (`lastRetry.cause`) beside `st`. Every station retry increments `restarts` and records its cause: `seen` (A1-A7
+  guard combat or a camera's full detection), `caught` (A8 `CAUGHT_HOLD`), `timer` (a `drillS` window or A8 timed step
+  ending); a downed bay restart (two bullets down) also increments it, with `out` (one player out) or `down` (both
+  down). Host:
   `window.__course` is the `CourseMode` (`courseMode.ts:292`), so `CourseMode.restarts` and `lastRetry` are getters on
-  the state. Client: the mirror object (`courseMode.ts:1362`) gains `restarts: w.s.rs` and `lastRetry: { st: w.s.st,
-  cause: w.s.rc }`, so the harness reads the same hook on host and client. No new event, no save.
+  the state. Client: the mirror object (`courseMode.ts:1362`) gains `restarts: w.s.rs` and `lastRetry: w.s.rc ? { st:
+  w.s.rt, cause: w.s.rc } : null` (the same `LastRetry`, not the live station), so the harness reads the same hook on
+  host and client. No new event, no save.
 - **Retry-off switch and cause names for R4c (plan check 2 fix 2).** On the second seen retry from one space R4c turns
   "that set's retry rule off ... read from J14's build" and pushes the robots past. R1 gives it
   `window.__course.retryOff(n)` on the host: `CourseMode.retryOff(n)` calls `CourseState.retryOff(n)`, which puts
@@ -333,23 +338,27 @@ shows the next station's mark as built (Q18) and a drill-mark guard test pins it
   the bay's stations undone (G312), both respawn in the checkpoint airlock. R1 adds no `onPlayerOut` and no station
   retry on out; it only records the restart: `restarts` +1 with cause `out` when one player was still up as the restart
   began, `down` when both were down.
-- **`src/net` rule:** `st`, `rs` and `rc` are parsed in `src/net/protocol.ts` (`parseCourse`) only, as plain fields; no
-  new static import from `src/game` into `src/net` (CLAUDE.md co-op rule; `import type` only if a type is needed).
+- **`src/net` rule:** `st`, `rs`, `rt` and `rc` are parsed in `src/net/protocol.ts` (`parseCourse`) only, as plain
+  fields; no new static import from `src/game` into `src/net` (CLAUDE.md co-op rule; `import type` only if a type is
+  needed).
 - **Respawn points:** `checkpointSpawns()` returns the station's two marks only while a station retry is placing the
   players (host and a client rejoining during it); otherwise it returns the checkpoint airlock's slots as today, so a
   rejoin, a seal or a both-down restart never lands on a station mark.
 - Files: `src/game/course/{courseDef,courseState,spotFail,courseWire}.ts`,
   `src/game/modes/courseMode.ts`, `src/net/protocol.ts`, `src/net/session.ts` (the room-map line),
   `tests/courseStation.test.ts` (new), `tests/spotFail.test.ts`, `tests/course.test.ts`,
-  `tests/courseMarks.test.ts` (the `parseCourse` round trip of `st` goes in `courseStation.test.ts`, not `net.test.ts`),
-  `changes/feature-marlow-replan-r1.md`. Est. 950.
+  `tests/courseMarks.test.ts` (the `parseCourse` round trip of `st` / `rs` / `rt` / `rc` goes in
+  `courseStation.test.ts`, not `net.test.ts`),
+  `changes/feature-marlow-replan-r1.md`. Est. ~1,100 (re-estimated at plan check 2: the station runtime ~650, the
+  route-run hooks and `retryOff` ~150, the wire fields and mirror ~50, tests ~250; under the ~1.5k cap).
 - Checks: vitest on those files plus `tests/ctcourse.test.ts`; laptop: affected-e2e (GAME, e2e-course, e2e-ctcourse,
   e2e-section-rating) + the co-op group (protocol).
 - Done looks like: in a unit course of two stations, a guard alert in station 2 puts both players at station 2's marks
   with station 1 still done and station 1's downed guard still down; a `caught` bay ignores a 1.5 s combat and retries
   at 2 s; a drill window ending retries in place; each of those retries raises `window.__course.restarts` by one on
-  host and client with `lastRetry.cause` `seen`, `caught` and `timer` in turn (unit test in
-  `tests/courseStation.test.ts`: the count and cause through `pack()` -> `parseCourse` -> the client mirror object);
+  host and client with `lastRetry` `{ st: 2, cause }` and cause `seen`, `caught` and `timer` in turn (unit test in
+  `tests/courseStation.test.ts`: the count and `lastRetry` through `pack()` -> `parseCourse` -> the client mirror
+  object, equal on both sides);
   one player out in station 2 (partner up) restarts the bay from its holding room, a full reset with station 1 undone
   (level-design 9.4, G312; `restarts` +1, cause `out`); both down after station 2 does the same (A17; cause `down`);
   after `window.__course.retryOff(2)` a second guard alert in station 2 does not retry (no rise in `restarts`, players
@@ -447,7 +456,7 @@ deletion (likely over 1.5k: split per set pair or the orchestrator's `big-pr` la
 - **Wave 2, when S0 and R1 pass their checkers (lead merges both into `feature/marlow-replan-base`):** the seven set
   slices build in parallel (G-A1A7, G-A2, G-A3, G-A4, G-A5, G-A6, G-A8), each in its own worktree; briefs written during
   wave 1. Their PRs open only after S0 and R1 are released (on master): `scripts/pr-size.mjs` counts against the merge
-  base, so a PR cut from the S0 + R1 merge would count ~1.75k extra lines before then. G-A2, G-A3, G-A6 wait for #441
+  base, so a PR cut from the S0 + R1 merge would count ~1.9k extra lines before then. G-A2, G-A3, G-A6 wait for #441
   on master if it is not there yet (they touch its set files).
 - **Wave 3:** R2 (after #441), G1 (after the set slices; its gate steps wait on J12 PR A + S2 + S4 and J13 R6 / R8).
 - **Then:** KS1-KS5 as Player's moves land; the walk card; C1 after acceptance.
