@@ -4,35 +4,27 @@ Rules: docs/RULES.md on origin/master; the game: docs/VISION.md. Start: docs/orc
 swap: HANDOFF.md (newest block). History (old Master lines, Pacing, Sessions, merge procedure, Now log, resume prompt):
 archive/STATE-history.md. Keep this file current, not appended: replace a line when it changes.
 
-## Now (2026-10-25 ~08:30)
-- Account swap ~08:15. FULL BURN at 100% until Michael says slow down (Michael ~08:25: "I want to hit the 5 hour cap
-  as quick as possible as the weekly reset soon"; weekly 34%, resets 11:00; 5-hour resets 13:10). Every lead runs all
-  independent slices in parallel up to desktop CPU ~80%; Cloud Builder kept fed (3+ open briefs).
-- #378 pr-size hotfix: Michael labels it (~08:28); then leads rerun failed jobs on #372 / #373 / #377 / #379.
-  #380 re-labelled ~08:27 (train 77 drop = e2e-stealth-ai one-mover flake, Guard AI owns it). #374 CONFLICTING.
-- Older (2026-10-24 ~23:30, superseded where they disagree):
-- Master 4.98.1 (train 68 #354). Train 69 #358 (4.98.2 = #357 fog2) and train 70 #359 (4.98.3 = #353 release path):
-  CI + laptop pending. #317 coop4 fix3 52e3dc13 on the laptop.
-- Process audit packages (PROCESS-AUDIT-2026-10-24.md, approved ~21:50) are PRs: #347 rulebook + docs/lean-orchestrator
-  (fix round 3; merge lean into feature/menu after #347 releases), #349 swap tools and #351 intake gates (fix round 2),
-  #350 watchdog (status check), #353 release path (train 70). Running orchestrator agents: HANDOFF newest block.
-- mission-framework (Marlow lead, PLAN d80cb783, wave 1; ROADMAP Now 3); campus S1-S5 planned against it (Sector Ops).
-- Disk: C: hit 0 GB ~22:40; free-disk.ps1 in the orchestrator scratchpad removes idle clean worktrees (Michael ~22:55);
-  scratch copies wait for Michael.
-- Walk cap: every area is at the cap (ROADMAP "Waiting on Michael"); leads at the cap take tests / fixes / automation.
-  Next walk card goes out with the next release.
+## Now (2026-10-25 ~12:45)
+Detail: ROADMAP "Now" (rewritten ~12:35) and HANDOFF "State at the switch"; this list is the standing frame only.
+- Master 4.101.1 (train 86 #406); train 87 (#409, 4.101.2 = #384) running.
+- Docs first (G346, G355): no new game work until Michael signs off the folded plan (ROADMAP Now row 6); finished PRs
+  ship. Full burn at 100% until Michael says slow down.
+- Phase 0: land #407 (feature/doc-final) and #400 (feature/doc-guard, stacked on #407) together; #408 laptop-queue-5
+  (Test Runner). Phase 1: each lead's conformance review (review-briefs/<lead>.md), then fold the five gap lists.
 - Auto-train: scheduled task "NightShift auto-train" every 1 min from C:/NightShift/Mobile-Coop-autotrain (a master
   checkout that self-updates); status C:/NightShift/scratch/auto-train-status.json, log scratch/runs/auto-train.log.
-- Laptop queue: task NightShift-laptop-queue (laptop) and NightShift-desktop-queue (desktop overflow, CPU 80 gates),
-  both following origin/master; log C:/NightShift/scratch/laptop-queue/.
+- Laptop queue: task NightShift-laptop-queue (laptop) and NightShift-desktop-queue (desktop overflow), both following
+  origin/master; log C:/NightShift/scratch/laptop-queue/. Watchdog task installed ~12:25 (-Fix labels,prs).
 - Cloud: Cloud Builder 1 on the orphan branch cloud-queue; leads keep 1-2 briefs open.
 - Worktrees: this session C:/NightShift/Mobile-Coop-menu (feature/menu); trains C:/NightShift/Mobile-Coop-train.
 
 ## Known
-- 2026-10-25 04:31 waste audit (capped gap 00:20-04:10): ~170 min of pipeline lost because 4 PRs green by 00:34 / laptop-done by 01:24 were labelled only at 04:16, and the laptop (171 min) and desktop 4192 (159 min) idled with 0 requests queued. RULE at every ~92% save: (1) the orchestrator runs its independent Opus re-check on every PR whose lead checker passed and labels train-ready on CI `check` + `checker` alone (the train's laptop run covers the rest; leads cannot self-post `checker`, auto mode blocks it); (2) Test Runner queues ~3 h of session-free laptop / desktop work (full master e2e, soaks, alone A/B, guard-cap repeats) before the cap; (3) leads restart Cloud Builder briefs so it has 3+ open.
+- Train-ready and who labels: RULES "Getting to master". At every ~92% save Test Runner queues ~3 h of session-free
+  laptop / desktop work before the cap and leads keep Cloud Builder at 3+ open briefs (04:31 waste audit; full text in
+  archive/STATE-history.md).
 - At each swap: stop tail / grep watchers older than the swap:
   `Get-CimInstance Win32_Process -Filter "Name='tail.exe' OR Name='grep.exe'" | Where-Object { $_.CreationDate -lt (Get-Date '<swap time>') } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }`.
-- Locks: a lock whose pid is dead on this host is stale and the next take breaks it (heavy-lock, the queue service); a lock with no pid is never broken automatically: ask its owner (docs/RULES.md "Machines").
+- Locks: RULES "Machines".
 - If a laptop session is missing from ListAgents (Remote Control bridge drop), tell Michael in one line to reopen it;
   the queue service keeps running without it.
 - On Windows a "stopped" background runner can survive: `taskkill /T /F` on its PID and confirm the tree is gone.
@@ -55,8 +47,8 @@ archive/STATE-history.md. Keep this file current, not appended: replace a line w
 - Merge green, checked work without asking; ask in chat when auto mode blocks a step only he can approve.
 - Start new sessions only from his own words in the desktop app; when the app refuses a start, propose a card
   (own_initiative) and tell him to click it.
-- When auto mode on the laptop blocks a lead's `gh pr edit <n> --add-label train-ready`, check `gh pr checks <n>` and the
-  `checker` status, then add the label from the desktop without asking ("Always label for them"). `gh pr close` is
+- When auto mode on the laptop blocks a lead's train-ready label, verify it by RULES "Getting to master" and add it from
+  the desktop without asking ("Always label for them"). `gh pr close` is
   allowed on the desktop for failed train PRs and stale PRs whose content is on master.
 - Bottlenecks are the orchestrator's standing job: every cron run names the biggest wait, its cause and a fix; fix what
   is in your authority at once, bring the rest to him with a measurement and a proposal. Question the rules themselves:
