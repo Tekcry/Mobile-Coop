@@ -1,0 +1,18 @@
+{
+  "id": "20261025T005242-affected-e2e-ace1aa01-b4a9",
+  "sha": "ace1aa01ceb90c4ebbea12a0b9810ea0d13845c1",
+  "branch": "feature/doc-sweep",
+  "pr": 402,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "anim-audit",
+    "e2e-anim",
+    "e2e-coop-gpu",
+    "e2e-pad",
+    "e2e-security",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #402"
+}
