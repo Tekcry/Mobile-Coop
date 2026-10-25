@@ -1,0 +1,13 @@
+{
+  "id": "20261025T090658-night-shift-guard-ai-97c6338f-290e",
+  "sha": "97c6338f40ee81e2a5c406c55e09858988c5d077",
+  "branch": "feature/guard-ai-alloc",
+  "pr": 446,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove"
+  ],
+  "set": "alloc-coop"
+}
