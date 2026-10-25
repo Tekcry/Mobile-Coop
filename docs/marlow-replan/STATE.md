@@ -24,16 +24,23 @@ Owner: Marlow Build. Status: current.
 - Plan check 3 (FIX, 2 items in F1, C:/NightShift/scratch/marlow/j14-plan-check-3.md) answered dda93c788 (Michael ~21:42
   "Yes, everywhere now": 2 players on every build, `?course=solo` dev only) and 0e79cd741 (course grant syringe 0).
   Plan check 4 PASS on 0e79cd741 (j14-plan-check-4.md); polish open (49 overlaps). J13 told the R1 hooks (route-runs-2 STATE).
-- Wave 1 running (~22:10): S0 Sonnet in C:/NightShift/Mobile-Coop-marlow-replan-s0 (first commit aa37044a9),
-  R1 Opus in -marlow-replan-r1 (from aa37044a9), F1 Opus in -marlow-replan-f1 (from master), D1 Opus in
-  -marlow-replan-d1 (STATIONS.md), G0 Sonnet in -marlow-replan-g0 (graph.json areas). Campaign told the coopUi Start seam.
+- Wave 1 at the ~22:45 save (reports in C:/NightShift/scratch/marlow/; lead notes for wave 2 and seams:
+  j14-wave2-notes.md - read it):
+  - F1 = PR #463 (10dc0a9e9): two Opus checkers PASS, status posted; laptop affected-e2e + `rating` (e2e-section-rating)
+    running. Train-ready when green. Tell the orchestrator.
+  - S0 built (feature/marlow-replan-s0 464228fbc, first commit aa37044a9): Opus checker running -> j14-s0-check.md
+    (missing: rerun). Open PR 1 on PASS. Open question: `ctcourseReplan` in DEV_MAPS vs R1's lobby `roomMap()`.
+  - R1 built (feature/marlow-replan-r1 4d8c53ff6): two Opus checkers running -> r1-check-a.md, r1-check-b.md; on both
+    PASS post `checker` and open PR 2 after PR 1.
+  - D1 (STATIONS.md) and G0 (graph areas, check fixed 7bc609ba2) merged here. D1 check + seven wave-2 briefs being
+    written to `docs/marlow-replan/briefs/` -> j14-d1-check.md.
 - PLAN map: code today `PLAN.md:8-50`; design `:52-137`; claims `:138-236`; slices `:237-438` (R1 `:295`, F1 `:372`);
   flags `:439`; waves `:445`; gates `:464`; walk items `:475`; A13-A25 `:489`; Assume and log `:528`; risks `:534`.
 - Blocks elsewhere: Player coop-kit part 2 + `kitMoves` (KS1-KS5); Guard AI board-noticed hook (KS5); J12 PR A / S2 /
   S4 / D-A and J13 R6 / R8 for G1's gates.
 - Marlow Yard is AT CAP: everything but F1 ships dark behind `marlowReplan` (target walk-ready Tue 27 Oct evening).
-- Next: S0 / R1 / F1 done -> fresh Opus checker (two on R1, F1); F1 PASS -> PR + co-op group request; S0 + R1 PASS ->
-  merge into feature/marlow-replan-base, wave 2 set slices (briefs once D1 lands); restart a dead builder from its head.
+- Next: S0 + R1 PASS -> merge both into feature/marlow-replan-base, fill its sha into the seven briefs, post them on
+  cloud-queue (tsc + vitest only; Michael ~22:10 desktop load to cloud); PRs 1 / 2 open; rerun any missing check.
 
 ## Done
 - ~21:30 Plan check 2 answered: fix 1 (F1 drops one-out), fix 2 (R1 retryOff + cause mapping), polish (43 overlaps,
