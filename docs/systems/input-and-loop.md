@@ -1,6 +1,6 @@
 # Game loop and input
 Purpose: the fixed-step game loop, the action map and the gamepad and keyboard / mouse sources.
-Design authority: docs/DECISIONS.md (G16-G24, G96), then docs/design-bible.md (Sections 4 and 8).
+Design authority: docs/DECISIONS.md (G16-G24, G96, G210, G227), then docs/design-bible.md (Sections 4 and 8).
 
 Desktop only: pad first, then keyboard and mouse (loco D1, G12). No touch movement or combat (M21).
 
@@ -14,21 +14,21 @@ Game touch (marlow-bays item 29, Michael's scope "Menus + camera"; `input/touchL
   class `touch-play`; a mouse press, a key or the pad hides it); a tap pauses. Hidden in the Anim Studio.
 
 ## Decided direction
-- Decided, not built yet (G96): CT's default pad layout, copied button for button. The CT prototype rebinds the table
-  below; until then it is the locomotion run's layout.
-- Decided, not built yet (G18): back-to-wall on L3 (code: A, `cover`); A stays for doors and other actions.
+- Built (CT prototype F1a): G18, back-to-wall on L3, and G17, the shoulder swap only while aiming (binding table). G96's
+  CT pad layout is the base of the table; the anim-rework (S1, below) set aim, holster and strike. Michael tunes the
+  rest by hand (G227); the binding table below is what is built.
 - Built in the CT prototype M1 (loco M20 Q8): no sprint. The `dash` action id stays (photo mode's fast pan) but nothing in the
-  game binds it: L3 is unbound until M3 puts back-to-wall there.
+  game binds it.
 - Built (G19, G97, G23; one menu since CT prototype G5, Michael 2026-10-19: "identical"): the CT context action menu.
   See "The context action menu (G5)" below.
 - Decided, not built yet (G22): remap capture cancels with Menu / Start or Esc; B stays bindable. Code: B held 1 s or Esc.
 - Decided (G21, built): a mission starts holstered; a swap while holstered picks the gun the next aim draws; swap works
   while aiming; grenades and gadgets work holstered.
 - Decided (G24, G98, built): emotes and the carried medkit are deleted; View held does nothing.
-- Built (anim-rework S1, Michael 2026-10-20, M1-M4, A1-A3; `docs/anim-rework/BRIEF.md` section 1): the analogue speed
-  (no gears), the three weapon states (holstered / low ready / aiming), LT held aims, X tap holsters / draws and X held
-  reloads, RT tap knockout / hold kill, traversal holsters and returns the state. This replaces the F1a draw toggle and
-  the step 17 speed gears; `docs/ct-prototype/CT-CONTROLS.md` is history.
+- Built (anim-rework S1, Michael 2026-10-20, M1-M4, A1-A3; `docs/archive/anim-rework/BRIEF.md` section 1): the analogue
+  speed (no gears), the three weapon states (holstered / low ready / aiming), LT held aims, X tap holsters / draws and X
+  held reloads, RT tap knockout / hold kill, traversal holsters and returns the state. This replaces the F1a draw toggle
+  and the step 17 speed gears; `docs/ct-prototype/CT-CONTROLS.md` is history.
 - No aim assist on any input (G16, built: no-aim-assist 2026-10-21). The pad settings have no `aimAssist` field; an old
   stored value is dropped by `sanitizeSettings` (no save change: settings are not in the save schema).
 
@@ -60,8 +60,8 @@ call in the last second, or manual mode, stands the tick down. Single player nev
   `kbm`) and sets the `body.input-*` classes; CSS uses them for the focus ring and glyph prompts.
 - `GamepadSource` scans for pads on every poll, not just on `gamepadconnected` (some browsers expose a pad only after its
   first button press).
-- Pad (anim-rework S1, `docs/anim-rework/BRIEF.md` section 1): `GAME_BINDINGS` in `gamepadMapping.ts` (raw buttons). LT
-  is the held aim (`ads`, analog), RT `fire`. X is the plain `draw` button: the player reads its tap / hold
+- Pad (anim-rework S1, `docs/archive/anim-rework/BRIEF.md` section 1): `GAME_BINDINGS` in `gamepadMapping.ts` (raw
+  buttons). LT is the held aim (`ads`, analog), RT `fire`. X is the plain `draw` button: the player reads its tap / hold
   (`player/weaponStance.ts`). A is always interact (Michael 2026-10-20 14:55: "Interact always"; it no longer
   reloads with the gun out). D-pad up / down are free in play; they step the held context menu (`CTX_BINDINGS`,
   `ctxUp` / `ctxDown`, fixed). In menus Y = `uiAlt` (`Screen.onAlt`, Loadout: customise); menu buttons are `UI_BINDINGS`.
@@ -135,7 +135,7 @@ Edit the table and the code together.
 | Co-op action; jammer (aiming the pistol) | `coop` | RB | R1 / R | `coop` (F, PageDown) | CT's Black button: team moves; held while aiming the drawn pistol, the jammer (Michael 14:55) |
 | Vision on / off | `vision` | D-pad left | D-pad left | `goggles` (N) | F1a, G181: toggles the mode picked on the wheel (night first), never cycles between modes |
 | Shoulder swap | `shoulderSwap` | L3 | L3 / LS | `shoulder` (V) | G17: only while aiming; L3 is the wall button when not aiming (F1a) |
-| Mission device | `none` | View (not in yet) | Create / Minus | - | CT's Back button; no action yet |
+| Mission device | `none` | View (not in yet) | Create / Minus | - | CT's Back button. Decided, not built yet (G343, G351; owner bible 5.10): a tap on View / Select or O (keyboard) shows the current objective, what and where, for about 5 s (ui.md, HUD) |
 | Ping (co-op) | `ping` | R3 | R3 / RS | `ping` (Middle mouse) | optic-coop M2 (Michael 2026-10-24: "Bind ping: middle mouse on keyboard, R3 on pad; it works from the optic view too"): marks the spot or guard under the crosshair for the team; in the optic view it casts from the tip from the view's first step (`OpticSystem.tipRay`). R3 is also Zoom, by context (Michael 2026-10-24 ~14:55: "contextual: R3 pings normally and zooms only while aiming a scoped weapon (no ping while scoped). Keyboard: middle mouse pings."): aiming a scoped weapon R3 zooms and does not ping, otherwise it pings and does not zoom (`contextPing` / `contextZoom`, `input/conflicts.ts`); an allowed pair, no conflict. Middle mouse pings in any state |
 | Pause | `pause` | Menu | Options / Plus | `pause` (P); Esc | - |
 

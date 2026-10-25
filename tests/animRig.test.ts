@@ -1,4 +1,4 @@
-// (anim-rig, docs/anim-rework/RIG.md) The rig extension: toe joints, the keyed wrist frame, the sling sockets.
+// (anim-rig, docs/archive/anim-rework/RIG.md) The rig extension: toe joints, the keyed wrist frame, the sling sockets.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { keyedClip, KW, newKeyedPose, sampleKeyed } from '../src/anim/keyed';

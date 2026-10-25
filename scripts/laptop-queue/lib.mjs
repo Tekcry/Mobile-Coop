@@ -155,15 +155,17 @@ export function desktopSlotGate(s) {
  * that the file exists): what to do with a slot lock read twice. `first` / `second` are the file text of two reads
  * (null: absent); `host` this machine, `alive(pid)` the pid probe (heavy-lock.mjs pidAlive). -> { action, why }:
  * 'free' (no lock), 'break' (it names a pid that is dead on this host and both reads match, so no fresh taker raced
- * us), or 'hold' (no parseable pid, another host, a live pid, or the text changed between the reads). Same rule as
- * heavy-lock.mjs isStale: an old-format line with no pid is never broken.
+ * us), or 'hold' (no parseable pid, another host, a live pid, or the text changed between the reads). Same rule and
+ * parser as heavy-lock.mjs isStale: an old-format line with no pid is never broken; the service's own "laptop-queue |
+ * ... pid <n> | <iso>" line names no host and is this machine's (2026-10-25 ~10:51: a killed desktop service's pid 4484
+ * lines held heavy.lock / heavy2.lock for 10+ min because the gate read no pid in them).
  */
 export function slotLockDecision(first, second, { host, alive }) {
   const a = first == null ? '' : String(first).trim();
   if (!a) return { action: 'free', why: 'no lock' };
   const { pid, host: h } = parseLock(a);
   if (pid === null) return { action: 'hold', why: 'no pid in the lock' };
-  if (h !== host) return { action: 'hold', why: `pid ${pid} is on ${h}, not ${host}` };
+  if (h !== null && h !== host) return { action: 'hold', why: `pid ${pid} is on ${h}, not ${host}` };
   if (alive(pid)) return { action: 'hold', why: `pid ${pid} is alive` };
   const b = second == null ? '' : String(second).trim();
   if (b !== a) return { action: 'hold', why: 'the lock changed between two reads' };
@@ -444,13 +446,24 @@ export function dupKey(r) {
  * retires a request (a rerun of a failure is meant to run: checker FIX 2026-10-24, the desktop retired the laptop
  * reruns of its own failures). Different requesters still match (player a8ff2d45, 2026-10-23: supersede only joins
  * one requester's pr / full requests and never alone ones); a different set, jobs or pr does not (dupKey).
+ * An auto affected request (AFFECTED_REQUESTER) is retired only against another affected request (active, else open) or
+ * a recent success, never against another requester's open or running run: that run posts no affected-e2e, so the
+ * head's check would stay pending (Orchestrator audit 2026-10-25; duplicateStatuses posts the retired one's status).
  */
 export function duplicates(requests, recentDone, now, windowMs) {
   const reqs = [...(requests ?? [])].sort(sortById);
   const out = new Map();
   const active = new Map();
+  const activeAff = new Map();
   const firstOpen = new Map();
-  for (const r of reqs) if (r.active && !active.has(dupKey(r))) active.set(dupKey(r), r.id);
+  const firstOpenAff = new Map();
+  const aff = (r) => r.requester === AFFECTED_REQUESTER;
+  for (const r of reqs) {
+    if (!r.active) continue;
+    const k = dupKey(r);
+    if (!active.has(k)) active.set(k, r.id);
+    if (aff(r) && !activeAff.has(k)) activeAff.set(k, r.id);
+  }
   const done = new Map();
   for (const d of recentDone ?? []) {
     if (!d?.key || d.result !== 'success' || !(now - Date.parse(d.date) < windowMs)) continue;
@@ -459,8 +472,10 @@ export function duplicates(requests, recentDone, now, windowMs) {
   for (const r of reqs) {
     if (r.active) continue;
     const k = dupKey(r);
-    const by = active.get(k) ?? firstOpen.get(k) ?? done.get(k);
-    if (by) out.set(r.id, by); else firstOpen.set(k, r.id);
+    const by = aff(r) ? activeAff.get(k) ?? firstOpenAff.get(k) ?? done.get(k) : active.get(k) ?? firstOpen.get(k) ?? done.get(k);
+    if (by) { out.set(r.id, by); continue; }
+    if (!firstOpen.has(k)) firstOpen.set(k, r.id);
+    if (aff(r) && !firstOpenAff.has(k)) firstOpenAff.set(k, r.id);
   }
   return out;
 }
@@ -858,6 +873,13 @@ export function desktopTrainGate(a) {
   return '';
 }
 
+/**
+ * The permanent scheduled tasks the task guard never disables (exact names; service.mjs adds env LQ_TASK_ALLOW).
+ * "NightShift watchdog" (scripts/watchdog-task.ps1) runs C:\NightShift\scratch\watchdog-task.vbs, so without its entry
+ * staleTasks disabled it within one guard pass (Orchestrator audit 2026-10-25).
+ */
+export const TASK_ALLOW = ['NightShift-laptop-queue', 'NightShift-desktop-queue', 'NightShift auto-train', 'NightShift watchdog'];
+
 const SCRATCH_RE = /c:[\\/]+nightshift[\\/]+scratch/i;
 const RUNNER_RE = /laptop-runner\.ps1/i;
 
@@ -925,9 +947,11 @@ export function affectedSuites(run, sha, { base = 'origin/master', wide = false 
 /**
  * The open PR heads the affected pass must handle now: [{ pr, sha, branch }], PR order kept. prs = `gh pr list --json
  * number,headRefName,headRefOid,isDraft,labels,statusCheckRollup` rows. Skipped: a train/* branch, a draft, the
- * AFFECTED_SKIP_LABEL label, a head with any affected-e2e status already (its StatusContext in the rollup: pending,
- * success or failure), a head an affected request already names (`requests`: the open, claimed or running ones), and
- * one this process enqueued (`seen`, a Set of shas: the push the next listing has not caught up with).
+ * AFFECTED_SKIP_LABEL label, a head with a final affected-e2e status already (its StatusContext in the rollup: success,
+ * failure or error), a head an affected request already names (`requests`: the open, claimed or running ones), and
+ * one this process enqueued (`seen`, a Set of shas: the push the next listing has not caught up with). A head whose
+ * affected-e2e is pending with no such request is stuck (its request was retired or withdrawn without a final status,
+ * Orchestrator audit 2026-10-25) and is requested again: { pr, sha, branch, stuck: true }.
  */
 export function affectedNeeds(prs, requests = [], seen = new Set()) {
   const have = new Set((requests ?? []).filter((r) => r?.requester === AFFECTED_REQUESTER).map((r) => r.sha));
@@ -937,9 +961,11 @@ export function affectedNeeds(prs, requests = [], seen = new Set()) {
     const branch = String(p?.headRefName ?? '');
     if (!/^[0-9a-f]{40}$/.test(sha) || !branch || branch.startsWith('train/') || p.isDraft) continue;
     if ((p.labels ?? []).some((l) => (typeof l === 'string' ? l : l?.name) === AFFECTED_SKIP_LABEL)) continue;
-    if ((p.statusCheckRollup ?? []).some((s) => s?.context === AFFECTED_CTX)) continue;
+    const st = (p.statusCheckRollup ?? []).find((s) => s?.context === AFFECTED_CTX);
+    const pending = Boolean(st) && String(st.state ?? '').toUpperCase() === 'PENDING';
+    if (st && !pending) continue;
     if (have.has(sha) || seen.has(sha)) continue;
-    out.push({ pr: Number(p.number), sha, branch });
+    out.push({ pr: Number(p.number), sha, branch, ...(pending ? { stuck: true } : {}) });
   }
   return out;
 }
@@ -994,13 +1020,19 @@ export function laptopRerunRequest(r, suites, { now, suffix }) {
 /**
  * The statuses applySupersedes closes when request `old` is retired by `by` (a newer head): [{ sha, state, context,
  * description }]. A laptop rerun closes its "desktop FAIL ..., laptop rerun queued" pending on its own context (else it
- * stays pending forever: the rerun never runs); an auto affected request (rerun or not) closes its affected-e2e.
+ * stays pending forever: the rerun never runs); an auto affected request (rerun or not) closes its affected-e2e, or,
+ * when the surviving request (`survivor`, optional) is an affected request on the same sha, hands affected-e2e over to
+ * it (pending "handed over to <by>"; the survivor posts the verdict there).
  */
-export function supersedeStatuses(old, by) {
+export function supersedeStatuses(old, by, survivor = null) {
   if (!old) return [];
   const out = [];
   if (old.laptopRerun) out.push({ sha: old.sha, state: 'error', context: contextName(old.kind, old.set, old.suites ?? []), description: `superseded by ${by}` });
-  if (old.requester === AFFECTED_REQUESTER) out.push({ sha: old.sha, state: 'error', context: AFFECTED_CTX, description: `superseded by a newer head (${by})` });
+  if (old.requester === AFFECTED_REQUESTER) {
+    out.push(survivor?.requester === AFFECTED_REQUESTER && survivor.sha === old.sha
+      ? { sha: old.sha, state: 'pending', context: AFFECTED_CTX, description: `handed over to ${by}` }
+      : { sha: old.sha, state: 'error', context: AFFECTED_CTX, description: `superseded by a newer head (${by})` });
+  }
   return out;
 }
 
@@ -1057,4 +1089,52 @@ export function realWaiting(listed, claimedIds = new Set()) {
 /** state.spare after queueing job `index` on `sha`: only that sha's sets are kept (an older sha never blocks again). */
 export function spareRecord(history, sha, index, set) {
   return { last: index, n: (history?.n ?? 0) + 1, ran: { [sha]: [...new Set([...(history?.ran?.[sha] ?? []), set])] } };
+}
+
+/**
+ * The statuses applyDuplicates posts when request `old` is retired as a duplicate of `by` (Orchestrator audit
+ * 2026-10-25: a retired affected request left affected-e2e pending forever). Only an auto affected request posts:
+ * survivor (the open, claimed or running request `by`) an affected request -> affected-e2e pending "handed over to
+ * <by>" (it posts the verdict); else doneResult 'success' (`by` passed this exact run here) -> affected-e2e success
+ * "duplicate of <by>, passed"; else error "duplicate of <by>, no affected verdict" (lib duplicates never retires an
+ * affected request against another requester's run, so this is a fallback). Others: [] (the survivor posts on the same
+ * context).
+ */
+export function duplicateStatuses(old, by, survivor = null, doneResult = '') {
+  if (old?.requester !== AFFECTED_REQUESTER) return [];
+  const s = (state, description) => [{ sha: old.sha, state, context: AFFECTED_CTX, description }];
+  if (survivor?.requester === AFFECTED_REQUESTER) return s('pending', `handed over to ${by}`);
+  if (!survivor && doneResult === 'success') return s('success', `duplicate of ${by}, passed`);
+  return s('error', `duplicate of ${by}, no affected verdict`);
+}
+
+/**
+ * The statuses for a request withdrawn before it ran (its file left the laptop-queue branch while unclaimed; a running
+ * one posts its own "withdrawn by the requester, run stopped"): an auto affected request closes affected-e2e, a laptop
+ * rerun closes its "desktop FAIL ..., laptop rerun queued" pending (both would stay pending forever).
+ */
+export function withdrawnStatuses(old) {
+  if (!old) return [];
+  const out = [];
+  const description = 'withdrawn by the requester (not run)';
+  if (old.laptopRerun) out.push({ sha: old.sha, state: 'error', context: contextName(old.kind, old.set, old.suites ?? []), description });
+  if (old.requester === AFFECTED_REQUESTER) out.push({ sha: old.sha, state: 'error', context: AFFECTED_CTX, description });
+  return out;
+}
+
+/**
+ * Open requests whose file left the branch (withdrawn), two listings in a row as for a running request (one bad
+ * listing never counts). tracked = Map(id -> request) of open requests seen before, listed = the ids on the branch now
+ * (the caller skips an empty listing), misses = Map(id -> listings missed so far). -> { gone: [request], misses: the new
+ * Map } (an id listed again starts over).
+ */
+export function vanishedRequests(tracked, listed, misses = new Map()) {
+  const gone = [];
+  const next = new Map();
+  for (const [id, r] of tracked ?? []) {
+    if (listed.has(id)) continue;
+    const n = (misses.get(id) ?? 0) + 1;
+    if (n >= 2) gone.push(r); else next.set(id, n);
+  }
+  return { gone, misses: next };
 }

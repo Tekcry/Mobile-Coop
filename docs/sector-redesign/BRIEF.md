@@ -15,14 +15,14 @@ with master 4.63.1 (d21f4eda). Started 2026-10-23 ~01:45. Report to "Night Shift
   review lighting also, i think the rules may be too strict and the levels are very dark and unrealistic. there
   shouldnt always be shadows, the player may have to make shadows (disabling lights etc). ask me questions as needed"
 - M2 (~01:40): "Stop r2, fold into redesign": r2-nav / r2-bolt engine fixes kept; the r2 warehouse geometry work
-  (r2-paths, r2-jump) stopped, its findings kept as spec notes (docs/sector-fixes/r/R2-PATHS.md, R2-JUMP.md).
+  (r2-paths, r2-jump) stopped, its findings kept as spec notes (docs/archive/sector-fixes/r/R2-PATHS.md, R2-JUMP.md).
 - M3 (~01:40): "Parallel, own session": Course Ready leads this job and drops the marlow-final second-builder role;
   Marlow Yard and mocap keep first claim on the laptop.
 - M4 (~01:40): "Plan, then build": research, then SPEC.md (from docs/templates/map-spec.md) and PLAN.md for up to 5
   sections, then greybox slices straight on. Michael reviews both in the morning.
 - M5 (~01:40): camera-range cut and lighting rule review on "All maps": the range cut is one engine change (its own
   small PR, `feature/camera-range`; keep off ctDevices.ts / securityRoom.ts, owned by Menu Notes tonight); the lighting
-  review is one proposal for Michael, shared with Menu Notes' lighting agent in `docs/lighting-review/PROPOSAL.md`
+  review is one proposal for Michael, shared with Menu Notes' lighting agent in `docs/archive/lighting-review/PROPOSAL.md`
   (on origin/feature/marlow-final): loosenings proposed, never applied without his approval.
 - Earlier, kept: 2026-10-23 ~00:45 "true 2-player pathways that cannot be used solo, but doesnt break solo play".
 
@@ -34,7 +34,7 @@ lighting where players make their own shadows. Prototype first (CLAUDE.md curren
 
 ## Limits
 - docs/level-design.md and docs/templates/map-spec.md change only with Michael's approval: proposals go in
-  docs/lighting-review/PROPOSAL.md or a "Proposed loosenings" list in SPEC.md.
+  docs/archive/lighting-review/PROPOSAL.md or a "Proposed loosenings" list in SPEC.md.
 - Hard rules (CLAUDE.md): no runtime network, light parity, gameplay never reads graphics state, hot paths allocate nothing.
 - Sector Ops stays low priority for the laptop behind Marlow Yard and mocap.
 
@@ -252,7 +252,7 @@ Lead, slice 1 check (2026-10-23, checks/slice1-check.md PASS; one fix round):
 Lead, A64 lift (2026-10-23, guard-render S1 / S3a / S5 / S6 / S7 in; checks/a64-lift.md):
 - A99 The A64 screen cap goes from 6 awake guards to 12 guards, every guard counted (`CAMPUS_SCREEN_CAP` in
   `campusSectors.ts`; the S2-S5 screen-count tests assert it, same sampling as A64 / A70). Basis: guard-render's merged
-  body run (`docs/guard-render/run-s1`, laptop 4090, Epic 1920x1080) holds Sector Ops 24 alive / 12 in sight alert at
+  body run (`docs/archive/guard-render/run-s1`, laptop 4090, Epic 1920x1080) holds Sector Ops 24 alive / 12 in sight alert at
   frame CPU p95 11.1 ms, GPU p95 7.2 ms (60 Hz line 12 / 15), and Marlow 24 in sight at 8.6 / 5.6; 12 in sight is the
   densest cell measured on a sector map, and the campus scene (with the detail art) is not measured yet, so the cap stays
   at the measured cell, not 24. `dormant` is not read by any code (guard-render shipped no sleep; its S4 anim tiers, in

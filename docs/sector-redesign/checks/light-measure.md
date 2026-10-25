@@ -7,7 +7,7 @@ light meter and the guards read. The picture uses the same formula (`lampMath.ts
 1.6 / `LAMP_LEVEL_GAIN` 1.2 x N.L x albedo, then the darkness curve (`DARK_DESKTOP`) on the level without N.L. No GPU
 run was made (the probe's numbers are the field's; the picture is derived through `darkCurve`); the GPU check is in the
 proposal's test plan. Probe: `scripts/light-measure/` (`PROBE_TREE`, `PROBE_S1`, `PROBE_M5`, `PROBE_PHOTO`).
-Analysis and the proposal: `docs/lighting-review/PROPOSAL.md` "Walk 4.72 S1".
+Analysis and the proposal: `docs/archive/lighting-review/PROPOSAL.md` "Walk 4.72 S1".
 
 Note on names: Michael's "S1 Sector Ops ... goods in" is map `warehouseOps` section 1 (the Goods-in Bay, x -24..-8,
 z -18..-8.8; lamps `S1_LAMPS` in `src/world/maps/warehouseS1.ts:73`), not `campusOps` (Saltmarsh Park has no goods-in

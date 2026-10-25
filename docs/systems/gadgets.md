@@ -1,11 +1,14 @@
 # Gadgets and vision
 Purpose: the goggle vision modes, the gadget set, the wheel, remote views and effects.
-Design authority: docs/DECISIONS.md (G76, G99-G102), then docs/design-bible.md (Section 5.5).
+Design authority: docs/DECISIONS.md (G76, G99-G102, G152, G153), then docs/design-bible.md (Section 5.5).
 
 ## Decided direction
 - Decided (G76): CT's gadget and attachment set, settled by the CT co-op research (Deferred in DECISIONS). The 7 gadgets
   below are the current build, not the final set. The tool specs waiting on Kestrel and the research (optic cable,
-  lockpick, hacking, pistol disruptor, launcher rounds, interrogation, knife) are in `docs/systems/ct-toolkit.md`.
+  lockpick, hacking, launcher rounds, interrogation, knife) are in `docs/systems/ct-toolkit.md`. The pistol's held
+  jammer (G152) is built (below).
+- Decided, not built yet (G152): the thrown EMP gadget goes; the held jammer replaces it. Code: EMP is still on the
+  wheel.
 - Built (G100, G181): an instant cut, no flip; the wheel picks the mode and one button turns it on and off.
 - Decided (G99): the modes are night, thermal and electro (built).
 - Built (G101, G102; LR16-6): CT grain; thermal follows CT (CT colour ramp; people behind closed doors as a dim blue
@@ -14,10 +17,11 @@ Design authority: docs/DECISIONS.md (G76, G99-G102), then docs/design-bible.md (
 - The player's tri-rotor drone is deleted (G7, G115); the enemy `droneOp` recon drone stays (`docs/systems/ai.md`).
 
 ## Vision modes (locomotion step 14)
-- The goggles button (pad View tap, KBM N) turns the wheel's selected mode on and off (`game/vision.ts` `VisionState`
-  `toggle`; G181); a wheel pick with the goggles on switches to it (`select`). Every change is an instant cut (G100): the
-  first frame drawn after it is the new mode. Any change of the mode on screen shows the HUD label (NV / THERMAL /
-  ELECTRO) for 1.5 s; the goggle sound plays on on / off only.
+- The goggles button (pad D-pad left, KBM N; `vision` in `input/padBinds.ts`) turns the wheel's selected mode on and
+  off (`game/vision.ts` `VisionState` `toggle`; G181); a wheel pick with the goggles on switches to it (`select`).
+  Every change is an instant cut (G100): the first frame drawn after it is the new mode. Any change of the mode on
+  screen shows the HUD label (NV / THERMAL / ELECTRO) for 1.5 s; the goggle sound plays on on / off only. View /
+  Select is not the goggles: it shows the current objective (G343, `docs/systems/ui.md`).
 - Render-only and local-only (D8): never sent, never read by gameplay. Perception, the light meter and alarms give the same
   result in every mode (`tests/visionIsolation.test.ts`, e2e-stealth-ai `vision-detect`).
 - Thermal: every live rig (player, team-mates, remote avatars, guards) and every dog body (`DogModel.setHeat`) glows at
@@ -73,8 +77,9 @@ Design authority: docs/DECISIONS.md (G76, G99-G102), then docs/design-bible.md (
   blast).
 - Sticky cam: stick-on; its feed is a remote view (`enterRemote('cam')`, `CinematicPost.setFeed`): fire = lure ping, Y =
   release its sleeping gas once, X = next cam, B / crouch / gadget = back.
-- Gadget counts and the loadout: the loadout presets are named Silent / Flash / Loud in code (`progression/suit.ts`);
-  decided, not built yet (G105): Stealth / Assault / Recommended everywhere.
+- Gadget counts and the loadout: the loadout presets are named Silent / Flash / Loud in code (`progression/suit.ts`).
+  Decided, not built yet (G153, replaces G105's presets): each mission issues fixed, complementary kits (G134) and
+  players do not choose a loadout.
 
 ## Security cameras and lasers (sector-fixes C, Michael 2026-10-22 items 3-5)
 - Camera aim (`security/camera.ts`): each camera's map data may set `aim` (m, the floor point at the centre of its frame:
@@ -89,7 +94,7 @@ Design authority: docs/DECISIONS.md (G76, G99-G102), then docs/design-bible.md (
   by the guard terms with the falloff over that range, 1 - (d / range)^2 (`CAMERA.edgePow`), not the guard's 25 m: close
   to the old fill times inside the zone, 0 at its edge, so the picked-up reach (`cameraReach`) is ~0.84-0.97 of the range
   by stance. One `cameraSight` serves the host's think and the co-op client's cue: no wire change. Measured per camera:
-  `docs/camera-range/MEASURE.md` (`tests/cameraReach.test.ts`).
+  `docs/archive/camera-range/MEASURE.md` (`tests/cameraReach.test.ts`).
 - Cue (`security/cameraCue.ts`, `vfx/cameraCueView.ts`): the sample grid spans the pitched field, the rays reach
   `cueReach(range)`, and the shader's frame mask (`CUE_MASK_GLSL`, mirrored by `cueEdge`) takes the camera's pitch and
   range, so the grid is drawn only where the camera can detect. Normal vision is very subtle (`CUE.line` 0.055,

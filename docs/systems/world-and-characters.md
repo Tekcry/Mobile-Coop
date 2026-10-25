@@ -3,25 +3,23 @@ Purpose: maps, the level builder, the Warehouse, and the shared character rig (p
 Design authority: docs/DECISIONS.md (G53-G57, G68-G75), then docs/design-bible.md (Sections 5.12 and 7).
 
 ## Level design
-- `docs/level-design.md`: the standard every map follows - architecture first ("why is it here?"), a linear spine of
-  encounter spaces, a dark vantage and three routes plus a secret per guarded space, loops not dead ends, guards with
-  jobs, isolation moments and overlapping coverage, light from fixtures, sound from materials, teach / test / twist
-  pacing, co-op layering (Section 11; its solo-first rules are an open item against G2), engine facts (Section 12),
-  required design deliverables (section 13), phases (section 14) and acceptance tests (section 15).
+- The level rules live in `docs/level-design.md` only (the standard every map follows, per mode); this file does not
+  restate them. Read it, then docs/DECISIONS.md, before laying out a map.
 - `docs/templates/map-spec.md`: the template for a new map's spec (fill it, then run its phases).
-- Map specs and their progress logs live in `docs/prompts/<map-id>.md` and `docs/prompts/<map-id>-progress.md`; Kestrel
-  in `docs/kestrel/`, the bunker in `docs/training/`. Decided, not built yet (G55): one folder per map under one maps
-  folder, Kestrel and the bunker moved there after the merge. Kestrel is paused until the CT co-op research (G53).
-  The retired maps (the 1934 Exchange, Trunk Annex, Dead Line v1 and v2) are deleted; their design files are in
-  `docs/archive/maps/`.
+- Map specs: Marlow Yard in `docs/marlow-final/` (SPEC.md, PLAN.md), Saltmarsh Park in `docs/sector-redesign/`
+  (SPEC.md, PLAN.md), Tallow Wharf (campaign Mission 1) and the first four mission prototypes in `docs/missions/` (the
+  mission-framework job, PR #372), Kestrel in `docs/kestrel/` (paused, G53), the Fallow bunker in
+  `docs/archive/training/`. Decided, not built yet (G55): one folder per map under one maps folder. The retired maps
+  (the 1934 Exchange, Trunk Annex, Dead Line v1 and v2) are deleted; their design files are in `docs/archive/maps/`.
 
 ## World and player
 - Maps (`world/maps/*.ts`) are `MapDef`s: a `build(builder, seed)` that places modular pieces through
   `LevelBuilder` and returns a `MapLayout` (spawns, props, objectives, pickups, optional `rooms`). Register in
-  `world/maps/index.ts` (`MAPS`: `warehouse`, `proving` (Proving Grounds), `kestrel`, `seclab` (debug map, off every
-  menu), `courselab` and `bunker` (the Fallow bunker, built from `bunkerUpper` / `bunkerPlant` / `bunkerShaft` /
-  `bunkerDeep`); an unknown id falls back to Proving Grounds). `listed.ts` `LISTED_MAP_IDS` (`warehouse`, `proving`,
-  `kestrel`) is the pure list content filters on (`MISSIONS` = `ALL_MISSIONS` on listed maps); the first map listing a
+  `world/maps/index.ts` (`MAPS`: `warehouse`, `warehouseOps` (the old Sector Ops map), `campusOps` (Saltmarsh Park,
+  Sector Ops), `proving` (Proving Grounds), `kestrel`, `seclab` (debug map, off every menu), `ctcourse` (Marlow Yard,
+  Course mode), `courselab`, and with `?legacy=1` `bunker` (the Fallow bunker, built from `bunkerUpper` /
+  `bunkerPlant` / `bunkerShaft` / `bunkerDeep`); an unknown id falls back to Proving Grounds). `listed.ts`
+  `LISTED_MAP_IDS` (`warehouse`, `proving`, `kestrel`, `campusOps`) is the pure list content filters on (`MISSIONS` = `ALL_MISSIONS` on listed maps); the first map listing a
   mode is its default (a mode change on the Play screen starts on its default map). The 2.x maps are parked in
   `maps/parked.ts` (not imported). Free Roam
   (`sandbox`) places the training dummies only on Proving Grounds. `LevelBuilder.wallX/wallZ` build walls with door gaps.
@@ -131,7 +129,8 @@ Plan and rules: `docs/sector-redesign/briefs/ART-PLAN.md`; builds: `docs/sector-
   pre-layer Wren fixture).
 - (anim-weight) The local player's Weight layers (lean, bank, plant / landing load, chest / head / arm / gear springs,
   anticipation) sit after the graph's pose in `AnimGraph.writeTargets` (`weightApplyPose`) and on the carried guns
-  (`WeaponModel.weightGear`); local pose only, identity by default (`src/anim/weight.ts`, `docs/anim-tuner/WEIGHT.md`).
+  (`WeaponModel.weightGear`); local pose only, identity by default (`src/anim/weight.ts`,
+  `docs/archive/anim-tuner/WEIGHT.md`).
 - Wren's hands (weapons job, anim-cleanup): morph targets `gripR`, `gripL`, `wrapR`, `relaxR`, `relaxL` on her game files,
   blended by `rig.handGrip` and `rig.rightTrigger` (trigger, support, wrap, relaxed). Magazines are a separate `<id>-mag`
   mesh moved by the reload clips (`reloadClipFor`); the audit sheets are `scripts/anim-cleanup/sheets.mjs` and
@@ -169,7 +168,7 @@ Plan and rules: `docs/sector-redesign/briefs/ART-PLAN.md`; builds: `docs/sector-
   a no-op here (only the player's camera fades a head). Flag `guardMerge` (`?guardmerge=0`: the old instanced parts, for
   comparisons). Casters under 0.3 m are skipped by the lamp / moon shadows (`lightRig.ts`, `world.ts`): heads, hands,
   forearms and feet were, the merged body is not, so they cast shadows now. Measured (24 guards, laptop GPU, Epic):
-  `docs/guard-render/run-s1` against `run-s1-off`. A body effect that will not finish compiling (Babylon's poll timed
+  `docs/archive/guard-render/run-s1` against `run-s1-off`. A body effect that will not finish compiling (Babylon's poll timed
   out, the compile failed, its program was disposed under it, or as a last resort 90 s and 30 frames unready; a slow
   parallel compile is left to finish, body watchdog) is dropped and recompiled,
   at most 3 times per variant with a console warning (`bodyEffectRecovery.ts`, guard-ai carry fix: a stall during a

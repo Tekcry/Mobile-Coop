@@ -18,7 +18,7 @@ import { SWAY } from '../world/lampSway';
 import type { MotionState } from '../anim/motion';
 
 /** The wire version. Only this line holds it; tests read it. `scripts/merge-train.mjs build` bumps it once per train with a wire change (history: CHANGELOG, docs/systems/coop.md). */
-export const PROTOCOL_VERSION = 57;
+export const PROTOCOL_VERSION = 59;
 /** Room cap on the wire; co-op modes take `COOP_MAX` (the training course `COURSE_MAX`). */
 export const MAX_PLAYERS = 4;
 export const COOP_MAX = 4;
@@ -137,6 +137,9 @@ export interface EnemyState {
    *  helmet, +64 (`AL_ARMOUR`) wears body armour; (37, A126) bits 7-8 (`AL_CARRY`) his S21 weapon carry (`WIRE_CARRY_*`);
    *  (guard-models G6n) bits 9-15 (`AL_LOOK`) his look seed (`Enemy.look`). `packAlert` builds it. */
   al: number;
+  /** (stealth-pays client intel) 1: he has unspent interrogation intel (the host's `Enemy.info`); absent otherwise.
+   *  Host-authoritative: a revived guard, a client rejoin and an interrogation on either side all follow it. */
+  in?: 1;
 }
 
 /** `EnemyState.al` bits over the alert level (bits 0-1): seized in a takedown, and (protocol 25) the torch on. */
@@ -192,6 +195,14 @@ export function hitConfirmKind(dealt: number, killed: boolean, deflect: boolean,
   if (deflect) return 'deflect';
   if (dealt <= 0) return null;
   return head ? 'head' : 'hit';
+}
+
+/** (stealth-pays client intel) The host's writer of `EnemyState.in`: set while the guard has unspent intel, absent
+ *  otherwise (no bytes for a guard without). */
+export function markIntel(s: EnemyState, has: boolean): EnemyState {
+  if (has) s.in = 1;
+  else delete s.in;
+  return s;
 }
 
 /** A usable thing on the host (mirrored on clients, used through `use`). */
@@ -405,7 +416,9 @@ function enemyState(v: unknown): EnemyState | null {
   const z = num(v.z, -WORLD, WORLD);
   const yaw = num(v.yaw, -1e4, 1e4);
   if (eid === null || !k || x === null || y === null || z === null || yaw === null) return null;
-  return { id: eid, k, x, y, z, yaw, st: Math.floor(num(v.st, 0, 3) ?? 0), hp: num(v.hp, 0, 1) ?? 1, al: Math.floor(num(v.al, 0, AL_MAX) ?? 0) };
+  const out: EnemyState = { id: eid, k, x, y, z, yaw, st: Math.floor(num(v.st, 0, 3) ?? 0), hp: num(v.hp, 0, 1) ?? 1, al: Math.floor(num(v.al, 0, AL_MAX) ?? 0) };
+  if (v.in === 1) out.in = 1;
+  return out;
 }
 
 function netItem(v: unknown): NetItem | null {

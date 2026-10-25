@@ -1,6 +1,6 @@
 // anim-natural N0 audit helper (desktop GPU look, under C:/NightShift/heavy.lock; needs a prior `npm run build`).
 // Serves dist/ on 4189, plays Wren's animations and writes, per row, a labelled contact sheet (webp, < 600 KB) under
-// docs/anim-natural/audit/ plus the naturalness numbers sampled every 60 Hz step into docs/anim-natural/audit/metrics.json:
+// docs/archive/anim-natural/audit/ plus the naturalness numbers sampled every 60 Hz step into docs/archive/anim-natural/audit/metrics.json:
 //   trunk: pelvis yaw, shoulder-line yaw and their twist (deg, in the root frame), their correlation (< 0 = counter-rotation)
 //   sway: pelvis lateral / vertical range (cm), head vertical range (cm), head yaw / pitch range (deg)
 //   hands: wrist forward range (cm, root frame) and peak / mean wrist speed (m/s, root frame)
@@ -19,7 +19,7 @@ import { launch, waitOperator } from '../e2e-lib.mjs';
 
 // (N0 leftovers) NAT_PORT: 4191 for a software-GL logic check (no E2E_GPU); the GPU sheets stay on 4189
 const PORT = Number(process.env.NAT_PORT ?? 4189);
-const OUT = 'docs/anim-natural/audit';
+const OUT = 'docs/archive/anim-natural/audit';
 const MET = `${OUT}/metrics.json`;
 const group = process.argv[2] ?? 'studio';
 const arg = (k, d) => process.argv.find((a) => a.startsWith(`--${k}=`))?.split('=')[1] ?? d;

@@ -1,6 +1,6 @@
 # Stealth AI, enemy archetypes and modes
 Purpose: perception, alert states, enemy behaviour, archetypes, difficulty, the navigation grid and the game-mode hooks.
-Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible.md (Section 5.7).
+Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350), then docs/design-bible.md (Section 5.7).
 
 ## Decided direction
 - Decided, built (G41; ct-prototype A3, F1b door-4): guards close doors behind them on a calm patrol and notice any door
@@ -18,12 +18,31 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
 - Decided, not built yet (G45): clear glass passes light and sight; frosted glass and blinds pass light only.
 - Decided, not built yet (G40): the two slowest standing and the three slowest crouched speeds are silent (code:
   `NOISE_QUIET`, `docs/systems/movement.md`); level rules and sensor rules are re-checked with it.
-- Decided (G46): the 12-awake limit (`MAX_ALIVE`) is reviewed against desktop performance; how it is set is open (FU-11).
-- Decided (G42, G49): every human guard can be palm-struck; dogs cannot; heavies, friendly fire and similar details follow
-  the CT co-op research (`docs/systems/takedowns.md`).
+- Decided, built (G46, G187, G254): guard counts are measured per mode. `MAX_ALIVE` 12 stays for the other modes;
+  Sector Ops has its own cap, 32 alive (`SECTOR.maxAlive`), a ceiling, not a target. Michael wants "as many guards as
+  realistically possible" (G289, G254), limited by the guard-cap perf floor and passable routes; room to manoeuvre
+  beats count (G190). Per-space bands are info; the validator WARNs only below them (G289).
+- Decided (G42, G155, G297, G307): every human guard can be palm-struck; dogs cannot. Per mode:
+  - Campaign co-op missions: no heavy or dog archetypes; armour comes with the alarm stages (G155, "Adopt CT's way").
+  - Sector Ops: guard dogs (G297); later sections add body armour (torso shots only stagger), riot shields only in
+    alert response teams, and armour per alarm stage (G307).
+  - Dogs (G348): no takedown, sleeping gas knocks one out, a dog can be distracted, killing one carries a penalty.
+    What is built and what is not: `docs/systems/takedowns.md` (Decided direction).
+  - Helmets: the rule is owned by bible 5.6 (G338, G341, G350): on Realistic and Perfectionist every guard wears one
+    and on Perfectionist it cannot be shot off; on Rookie and Normal helmets come with the alarm stages; the same in
+    the campaign and Sector Ops. Not built yet: helmets come from a slot tag, a section default or the alarm stage
+    (`ai/gear.ts` `GEAR_BY_STAGE`), never from the difficulty.
+  - Friendly fire: a host option, on by default (G141; coop.md).
 - Decided (G106, built): CT's fixed difficulty levels; no sliders, no alarm-tolerance setting.
-- Decided (G11): of the movement run's AI ideas (guards relight lamps, paired searches, eavesdropping and the rest) only
-  those CT has survive, settled by the research.
+- Decided (G11, G180, G335): of the movement run's AI ideas (guards relight lamps, paired searches, eavesdropping and
+  the rest) only those CT has survive, with one exception: Michael "Add both" (G335) - static
+  lookouts on some high routes (pipes, catwalks, vents) and paired patrols that check on each other. G44 (poor sight
+  above) stays the base rule; a lookout is the deliberate exception on its route. Guard AI plans it first; not built
+  yet.
+- Decided (G327, "Yes, shadow in view = seen"): a guard whose shadow falls in view animates at full rate
+  (`animTierView.ts`; replaces G294's assumption). Not built yet: shadow passes do not count as seen.
+- Decided, not built yet (G352): guard perception reads the players' real-time character shadows, as the picture
+  shows them (light parity; `docs/systems/lighting.md`). Today guards read only the light field.
 - Decided (G47): the light parity test, long lamps and motion lights are sorted out when built.
 
 ## Stealth AI (2.0 phase 3a)
@@ -195,6 +214,7 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   normal hit reaction (combat on the shot's origin, contact call) and a `deflect` bark. Both return
   `DamageResult.deflect`. Placeholder parts (A45): the rig's combat-helmet part on the head node, the armour plates on
   the torso and shoulders, built on first use and toggled. Host-only (S9 carries the gear bits and the confirm).
+  Decided, not built yet: helmets by difficulty (G350; owner bible 5.6), see "Decided direction".
 - Section alert (guard-ai S14, stealth over shooting items 6 and 7, A40 / A41, A70-A76; `ai/sectionAlert.ts` pure:
   `AlertCallLog`, `SectionCounters`, `unitOf`; numbers `MISSING` / `SHOTS` in `ai/gear.ts`). A missed check-in (a
   radio check's miss, one call per check; a talking pair's partner who never came) -> the caller's `missing` call
@@ -224,7 +244,9 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
   when no cover is left; overwatch's low cover needs one view ray to the LKP (`TACTICS.viewChecks` 4, a blind one
   blocked `TACTICS.blockS` 5 s), suppresses the LKP while a mate moves; flank (groups of 3+) bounds to cover >= 60 deg
   off the point's bearing; the rest search (today's). One of point / flank moves at a time (standard; polish B2: the
-  one on his way is the one on a role bound, `Enemy.roleBound`). Out of sight in
+  one on his way is the one on a role bound, `Enemy.roleBound`; one-mover triage: with the point on a role bound,
+  `assignRoles` never makes a guard on one too, such as a reporter or overwatch still walking, the flank
+  (`RoleInput.bound`, undo `ONE_MOVER.roles`)). Out of sight in
   the open a role guard waits for the group, crouched (guard-ai S27, A161: `Enemy.roleStep`'s open wait, at most
   `SQUAD.openWait` 3 s, or the second think with no role cover at all: the first only crouches), then takes today's
   cover pick (`pickCover`, reserved
@@ -607,6 +629,45 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
     key only in the light / breaker branches, and the per-step `EnemyManager` loops are index loops.
   - C1 (A169): above (Every player is seen). C2: above (Locked doors on the grid). C3: `losClear`'s ray-only miss is
     tested with distance 0.
+- Guard AI polish batch 2 (2026-10-25, `docs/guard-ai/POLISH2-PLAN.md`, A184-A194). Each line changes the text above
+  where they disagree. Host only, no protocol or save change; each has an undo const (BRIEF.md).
+  - A184: an investigating guard whose spot has no path (a locked shut door, no way round) walks to the reached nav
+    cell nearest it (`findPath` gained a `partial` argument and a `partialEnd` field in `navGrid.ts`: the expanded cell
+    with the lowest octile to the goal among cells within `LAYER_PICK` of the goal cell's height, so the end stays on
+    the goal's storey; none reached on it: the lowest octile plus the height gap in cells) and counts as arrived there; he faces the spot and `investigateLook` ends it,
+    not `ALERT.investigateMax`. Search, patrol and chase are unchanged (`NEAR_SIDE`).
+  - A185: one noise gives one "I heard something." bark however many searchers hear it: the first searcher in the
+    manager's list who may bark says it (`hearSearch(.., mayBark)` returns whether he barked; the manager's
+    `hearBarked`); all of them still walk to it (`POLISH2.oneHeardBark`).
+  - A186: a high-cover overwatch suppressing while a mate bounds holds his peek point (edge / side step) in the hide
+    phase too, so `suppressLkp` casts from there and the line starts past his wall. Low cover unchanged
+    (`OW_HIGH_PEEK`).
+  - A187: told of one intruder (`pendingHunt`) and seeing another at the alert step, he makes one contact call naming
+    the one he hunts (A166 at the alert), and `calledMask` marks the told slot and his hunt only (`ALERT_RECALL`).
+  - A188: in a combat plan search only the first searcher takes the last known position and looks 3 s there
+    (`SearchPlan.lkpBy`, `AiContext.searchLkp`); the others take plan points at once. The holder stays set after his
+    look, freed when he leaves the search, goes down, changes hunt or is off the combat plan search (a body / KO search,
+    his own stimulus: `planSweep` reads `inCombatSearch` / `ownSearch`), or the centre moves; a rebuild on the same
+    centre keeps it, so nobody looks twice. A mate told no asks again at each later spot pick until he has looked
+    there (`lkpWait`; that look keeps `searchK`), so a holder taken down before his look leaves it to a mate
+    (`POLISH2.lkpOnce`).
+  - A189: a flank bound may be up to `COVER_DETOUR.flankK` 2.5 x the straight line + 3 m; point bounds, `pickCover`
+    and open waits keep `k` 1.5.
+  - A190: a calm guard instantly detects any player in his instant range and focus (`instantDetect(P_SIGHT)`), and
+    the nearest one detected is his target over `pickTarget` and `CALM_KEEP` (`INSTANT_ANY`). Combat unchanged.
+  - A191: a responder whose investigation ends back to his device search says no "Clear." / "Standing down." bark
+    (the task's `standDown` radio call stays) (`RESUME_QUIET`).
+  - A192: an armour pick keeps its best `ARMOUR_FIRE.coverCasts` 6 candidates uncast while scoring, then casts the fire
+    line best first in the try loop (at most 6 casts, `COVER_TRIES` A*), instead of spending casts on any top-3
+    entrant. The 6 casts go to the 6 best by score: if all 6 are armoured and a worse candidate is clear, he picks
+    nothing (before, index-order casts could land on it) (`ARMOUR_CAST_LATE`).
+  - A193: DEFERRED, off (`HEAR_STOREY = false`, code kept): a heard spot snapping to the noise's storey pinned him at
+    his floor's edge (`goTo` has no spot height and paths on his own storey). It waits for the spot-height slice; a
+    heard spot stays on his own storey (A11).
+  - A194: in cover, `blockCover` / the too-close exit read the known spot only when he has a hunt position, a
+    sighting or a stimulus; else today's feet rule. Hardening, not reachable today (`KNOWN_NEEDS_SPOT`).
+  - T1: `tests/reconDroneSight.test.ts` covers the recon drone's sight verdict (a hit within 0.3 m of the aim point
+    sees; a miss sees; no ray outside the cone unless within 3 m).
 
 ## Enemy archetypes (2.0 phase 6)
 - `ai/archetypes.ts` (pure, `ARCHETYPE`): `heavyMult` (by `fromFront`), `shieldBlocks`, `grabRule` (heavy frontal = lethal
@@ -620,7 +681,7 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106), then docs/design-bible
 - `EnemyManager`: `ReconDrone`s (`ai/reconDrone.ts`: the `droneOp` guard's own drone; Damageable sphere, orbit, camera
   cone, `onDroneSpot`, `empAt`), officer buffs (2 Hz), the alarm runner weighted to officers, `joinSquad` +
   `radioCheckNow` (period `ARCHETYPE.radio`, stealth only), radio delays x reaction x officer.
-- Which archetypes stay is settled by the CT co-op research (G1, G49).
+- Which archetypes each mode uses: "Decided direction" above (G155, G297, G307).
 - (marlow-bays item 24) Every guard rig (`buildEnemyRig`: the host's guards and the co-op client's puppets) reads its
   tuned base table (`anim/animBaseGuard.ts`) plus the tuner's guard rows (`anim/tuneGuard.ts`; `rig.guardRows`), never
   Wren's; the brain reads only the posed rig (the head is the eye), as before. Untuned: bit-identical.

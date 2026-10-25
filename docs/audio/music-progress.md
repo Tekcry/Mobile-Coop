@@ -737,7 +737,7 @@ all synthesised in code. Research `docs/music/research.md`, design `docs/music/s
 
 ---
 
-Spec: `docs/prompts/music-spec.md` (Section 2 rules still apply). Direction: `docs/audio/music-direction-v2.md`
+Spec: `docs/archive/prompts/music-spec.md` (Section 2 rules still apply). Direction: `docs/audio/music-direction-v2.md`
 (replaces `music-direction.md`). Brief: `C:\NightShift\bundles\music-direction-v2.md`. Branch: `feature/music`.
 
 ## Status

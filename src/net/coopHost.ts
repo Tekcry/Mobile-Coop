@@ -15,13 +15,13 @@ import type { NetSession } from './session';
 import { TickLimiter, type CourseWire } from '../game/course/courseWire';
 import type { SecWire } from '../game/ctDevices';
 import { syringesFor, type SectorNetExtra } from '../game/sectors';
-import { DROP_BODY_ID, eventQueueKeeps, gaitWire, motionWire, ITEM_KINDS, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, BARK_CAM, BARK_TEXT, hitConfirmKind, packAlert, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, wirePlayerState } from './protocol';
+import { DROP_BODY_ID, eventQueueKeeps, gaitWire, motionWire, ITEM_KINDS, markIntel, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, BARK_CAM, BARK_TEXT, hitConfirmKind, packAlert, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, wirePlayerState } from './protocol';
 import { RemoteAvatar } from './remoteAvatar';
 import { RemotePlayer } from './remotePlayer';
 import { HoldClock, holdFeed, stepHoldFeed, type HoldFeed } from './holdFeed';
 import { setPlayerGlow } from '../operators/runtime/playerFigure';
 import { PartnerBlocker, partnerPassable } from './partnerBlocker';
-import { checkBlast, checkShot, clientStepNoise, hostLampShots, hostShotAllowed, hostShotWeapon, maxHitDamage, playersHostile, SHOT_UNDER, SHOT_UNDER_HANG } from './validate';
+import { checkBlast, checkShot, clientStepNoise, hostLampShots, hostShotAllowed, hostShotWeapon, lampShotStale, maxHitDamage, playersHostile, SHOT_UNDER, SHOT_UNDER_HANG } from './validate';
 import { localFlags, htmlToInfo } from './netShared';
 import { keepSimInBackground } from './bgTicks';
 import { hostHoldPulse, inUseReach } from './holdPulse';
@@ -48,7 +48,7 @@ import { stationHeal } from '../game/medkit';
 import { ReviveClock } from '../game/reviveClock';
 import type { CourseMode } from '../game/modes/courseMode';
 import type { PickupKind } from '../game/pickups';
-import { takeInfo } from '../ai/guardInfo';
+import { hasInfo, takeInfo } from '../ai/guardInfo';
 import { revealIntel, revealJoint } from '../game/intelReveal';
 import { hasJoint, JOINT, JOINT_BLUFF_FEED, jointBluffer, jointHasLines, jointOf, type Bluff, type JointIntel } from '../game/jointInterrogation';
 import { interrogationEnded } from '../game/intel';
@@ -184,6 +184,9 @@ export class CoopHost implements NetAttachment {
   private lampForce = true;
   /** The mode's restart count last seen (a section restart forces a `lamps` send). */
   private lampRestarts = 0;
+  /** (coop-real F1c) The host sim time (`time`) of the mode's last set / section restart (Course mode, Sector Ops):
+   *  a client's lamp round fired before it is stale (`lampShotStale`). */
+  private lampRestartAt = -Infinity;
   /** A client's lamp shots: rate limit per client (a lamp shot is a second message for a round). */
   private lampLim = new Map<string, TickLimiter>();
   private readonly lampA = new Vector3();
@@ -1319,11 +1322,15 @@ export class CoopHost implements NetAttachment {
    * round's origin at the shooter's body, the lamp first along the claimed ray in its own registry (`lampShotOk`) and a
    * clear static line to it; then shoots it out as its own round would (sparks, noise, a guard comes to look). The
    * client sees it dark from the next `lamps` message (Sector Ops) or `course` message (`lights.dead`, Course mode).
+   * A round fired before the mode's last restart is dropped quietly (`lampShotStale`, coop-real F1c).
    */
   private onLampShot(r: RemotePlayer, m: Extract<Msg, { t: 'shot' }>): void {
     if (!this.lampShots || !r.alive || !this.g.stealth) return;
     const id = lampTargetId(m.target);
     if (id < 0 || !hostShotAllowed(r.state?.mv?.dw) || !hostShotWeapon(m.w, r.state?.w, r.loadout)) return;
+    // (coop-real F1c) a round fired before the last set / section restart (in flight across it): the restart put the
+    // lamps back, so it would shoot one out in the fresh run; dropped with no violation, before the rate limit
+    if (lampShotStale(m.rt, this.lampRestartAt)) return;
     // (coop-real F1b fix) an honest repeat round at a lamp we already have out (the client's mirror lags a message):
     // nothing to do and no violation (`lampShotOk` would refuse it as one)
     const reg = this.g.world.level.lights;
@@ -1604,7 +1611,9 @@ export class CoopHost implements NetAttachment {
       // (coop-torches) every snapshot carries every listed guard's torch bit (no deltas), so a guard that drops out of
       // the list and comes back is shown right from his first snapshot; the client places the light from x, y, z,
       // yaw and st as `Enemy.placeTorch` does here
-      enemies.push({ id: e.id, k: e.def.kind, x: e.pos.x, y: e.pos.y, z: e.pos.z, yaw: e.yaw, st: e.crouchBlend > 0.5 ? 2 : e.aiming ? 1 : 0, hp: e.health.fraction, al: alertCode(e, !!em && em.hasTorch(e)) });
+      const es: EnemyState = { id: e.id, k: e.def.kind, x: e.pos.x, y: e.pos.y, z: e.pos.z, yaw: e.yaw, st: e.crouchBlend > 0.5 ? 2 : e.aiming ? 1 : 0, hp: e.health.fraction, al: alertCode(e, !!em && em.hasTorch(e)) };
+      // (stealth-pays client intel) his unspent intel: the client offers INTERROGATE from this, both modes
+      enemies.push(markIntel(es, hasInfo(e)));
     }
     const snap: Extract<Msg, { t: 'snap' }> = { t: 'snap', time: this.time, players: players.map(wirePlayerState), enemies, obj: this.obj, info: this.info, pk: this.g.pickups?.mask ?? 0 };
     // items and doors when they change (and every few seconds for late joiners)
@@ -1787,15 +1796,17 @@ export class CoopHost implements NetAttachment {
   }
 
   /** (sector-redesign slice L, protocol 31) Sector Ops: the fixed lights' state on a change, a join / rejoin, a section
-   *  restart and every `LAMP_KEEPALIVE` s. Allocation-free unless it sends. */
+   *  restart and every `LAMP_KEEPALIVE` s. Allocation-free unless it sends. (coop-real F1c) In every mode it first notes
+   *  the time of the mode's last restart (`lampRestartAt`, the stale lamp round rule). */
   private sendLamps(dt: number): void {
-    const tx = this.lampTx;
-    if (!tx) return;
     const rs = (this.g.mode as { restarts?: number } | null)?.restarts ?? 0;
     if (rs !== this.lampRestarts) {
       this.lampRestarts = rs;
       this.lampForce = true;
+      this.lampRestartAt = this.time;
     }
+    const tx = this.lampTx;
+    if (!tx) return;
     const w = tx.step(this.g.world.level.lights, dt, this.lampForce);
     this.lampForce = false;
     if (w) this.s.send({ t: 'lamps', n: w.n, of: w.of, sh: w.sh });

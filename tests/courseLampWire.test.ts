@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { parseMessage, type Msg } from '../src/net/protocol';
 import { CoopHost } from '../src/net/coopHost';
-import { hostLampShots } from '../src/net/validate';
+import { hostLampShots, lampShotStale, LAMP_RESTART_SLACK } from '../src/net/validate';
+import { CLIENT_INTERP_DELAY } from '../src/net/interp';
 import { CoopClient, clientLampShots } from '../src/net/coopClient';
 import { LightRegistry } from '../src/world/lights';
 import { addTorchSlots } from '../src/world/torches';
@@ -52,14 +53,14 @@ function wire(m: unknown): Shot {
 }
 
 /** A host stand-in on CoopHost's prototype in the Course shape (`lampShots` true, no `LampSender`). */
-function host(reg: LightRegistry, lampShots = true) {
+function host(reg: LightRegistry, lampShots = true, restartAt = -Infinity) {
   const h = Object.create(CoopHost.prototype) as CoopHost;
   const shootLight = vi.fn((id: number) => reg.destroy(id));
-  const g = { world: { level: { lights: reg } }, stealth: { shootLight }, ballistics: { clear: () => true, hitDistance: () => 1e9 } };
-  Object.assign(h, { g, lampShots, lampTx: null, lampLim: new Map(), time: 10, lampA: new Vector3(), lampB: new Vector3() });
+  const g = { world: { level: { lights: reg } }, stealth: { shootLight }, ballistics: { clear: () => true, hitDistance: () => 1e9 }, mode: { restarts: 0 } };
+  Object.assign(h, { g, lampShots, lampTx: null, lampLim: new Map(), time: 10, lampA: new Vector3(), lampB: new Vector3(), lampRestartAt: restartAt, lampRestarts: 0, lampForce: false });
   const r = { id: 'C', alive: true, feet: { ...FEET }, state: { mv: { dw: 2 }, w: 'pistolSd' }, loadout: ['pistolSd'], violations: 0 };
   const onLampShot = (m: Shot): void => (h as unknown as { onLampShot(r: unknown, m: Shot): void }).onLampShot(r, m);
-  return { r, onLampShot, shootLight };
+  return { h, g, r, onLampShot, shootLight };
 }
 
 /** The client's real lamp round for lamp 0, through the wire. */
@@ -146,5 +147,56 @@ describe('coop-real F1b: Course mode client lamp shots reach the host', () => {
     for (let i = 0; i < 4; i++) bad.onLampShot(m);
     expect(bad.r.violations).toBe(4);
     expect(bad.shootLight).not.toHaveBeenCalled();
+  });
+});
+
+describe('coop-real F1c: no stale lamp round across a restart', () => {
+  type HostLamps = { sendLamps(dt: number): void; time: number; lampRestartAt: number; lampRestarts: number; lampLim: Map<string, unknown> };
+
+  it('the rule: a round fired before the restart (plus the slack) is stale, one fired at the respawn is not', () => {
+    expect(lampShotStale(0, -Infinity)).toBe(false);
+    const R = 12;
+    // fired 0.5 s before the restart
+    expect(lampShotStale(R - CLIENT_INTERP_DELAY - 0.5, R)).toBe(true);
+    // fired 0.1 s after: inside the slack (the client's clock jitter)
+    expect(lampShotStale(R - CLIENT_INTERP_DELAY + 0.1, R)).toBe(true);
+    // fired at the Sector Ops respawn, 0.3 s after
+    expect(lampShotStale(R - CLIENT_INTERP_DELAY + 0.3, R)).toBe(false);
+    expect(LAMP_RESTART_SLACK).toBeLessThan(0.3);
+  });
+
+  it('the host notes the restart time in every mode (Course mode: no LampSender)', () => {
+    const { h, g } = host(level());
+    const hl = h as unknown as HostLamps;
+    hl.time = 12;
+    g.mode.restarts = 1;
+    hl.sendLamps(1 / 60);
+    expect(hl.lampRestartAt).toBe(12);
+    expect(hl.lampRestarts).toBe(1);
+    hl.time = 13;
+    hl.sendLamps(1 / 60);
+    expect(hl.lampRestartAt).toBe(12);
+  });
+
+  it('a round fired before the restart is dropped quietly, before the rate limit', () => {
+    const m = clientShot();
+    const reg = level();
+    const { h, r, onLampShot, shootLight } = host(reg, true, 6);
+    onLampShot(m);
+    expect(shootLight).not.toHaveBeenCalled();
+    expect(reg.lights[0]!.destroyed).toBe(false);
+    expect(r.violations).toBe(0);
+    expect((h as unknown as HostLamps).lampLim.has('C')).toBe(false);
+  });
+
+  it('a round fired after the restart still lands', () => {
+    const m = clientShot();
+    const reg = level();
+    const { r, onLampShot, shootLight } = host(reg, true, 4);
+    onLampShot(m);
+    expect(shootLight).toHaveBeenCalledTimes(1);
+    expect(shootLight).toHaveBeenCalledWith(0);
+    expect(reg.lights[0]!.destroyed).toBe(true);
+    expect(r.violations).toBe(0);
   });
 });

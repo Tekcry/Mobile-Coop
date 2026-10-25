@@ -5,7 +5,7 @@
  * lit enough to see without night vision; the pockets (the takedown spots off every route, the lane's east half, the charge
  * bay, two rack tops) stay dark; sections 1 and 3 do not change; no 2 m column lists more lamps than the shaders hold.
  * `WH2LIGHT_PRINT=<file>` writes every point's level without the section 2 lamps and with them (the table in
- * `docs/warehouse-s23/LIGHT-S2.md`).
+ * `docs/archive/warehouse-s23/LIGHT-S2.md`).
  */
 import { writeFileSync } from 'node:fs';
 import { beforeAll, describe, expect, it } from 'vitest';

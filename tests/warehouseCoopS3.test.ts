@@ -1,5 +1,5 @@
 /**
- * (sector-fixes R3) Sector Ops section 3's co-op-only routes and its team door (docs/sector-fixes/r/R3.md): the zone-valve
+ * (sector-fixes R3) Sector Ops section 3's co-op-only routes and its team door (docs/archive/sector-fixes/r/R3.md): the zone-valve
  * platform beside the hall main (east bay), the crane bridge's drive platform over the CNC cell with the sprinkler branch,
  * and the plant room's service door into the fire-exit lobby, bolted from the lobby side. Built from the real `warehouseOps`.
  */

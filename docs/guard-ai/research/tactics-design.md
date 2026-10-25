@@ -1,6 +1,6 @@
 # Guard brain upgrade - design (job guard-ai, 2026-10-23)
 
-Spec: `docs/guard-ai/BRIEF.md` M1-M6 and goals 1-9. Base: `docs/reviews/guards-review.md` (origin/feature/menu) plan
+Spec: `docs/guard-ai/BRIEF.md` M1-M6 and goals 1-9. Base: `docs/archive/reviews/guards-review.md` (origin/feature/menu) plan
 A-H, `docs/systems/ai.md`, code on feature/guard-ai (4.64.0 + g44-above). Prototype first: every number below is a
 starting value. All new logic is pure (no Babylon import, `P2 = [x, z]` tuples, typed arrays), Vitest-tested; Enemy /
 EnemyManager only feed it and act on its output.

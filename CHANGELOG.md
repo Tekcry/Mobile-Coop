@@ -1,5 +1,176 @@
 # Changelog
 
+## 4.102.0 - Train 88: Docs: level standard per mode, archive sweep, re-audit fixes G344-G363; Stealth pays: client intel (2026-10-25, PR #411; #407, #389)
+
+### Stealth pays: client intel
+- Co-op: the client can interrogate any guard the host says still has intel (revived guards, after a rejoin, and
+  Sector Ops guards once their slots carry intel), and a guard the host interrogated no longer offers INTERROGATE on the client. Wire change: an
+  optional `EnemyState.in` flag (absent for guards without intel).
+
+### Level standard per mode
+- Level standard (`docs/level-design.md`) now states its rules per mode: every rule is tagged [All] / [Campaign] /
+  [SectorOps] / [Training], with a profile per mode and a rule index (rule, modes, metrics key, validator check,
+  owner). Campaign sections each force a co-op traversal move with a way back; Sector Ops keeps solo routes past team
+  doors; Marlow Yard is a guided linear course with timed drills. Guards as many as realistically possible (Sector Ops
+  32 alive ceiling), real-world light bands replace the shadow share, up to 2 strict rules with section restart,
+  objectives name what and where with no maps, measured validator pass and bot route-runs at greybox exit.
+- Level validator: `meta.mode` campaign / sector / training profiles (forced co-op gate and gate reach, no softlock and
+  the alive ceiling, no route counts for training), the co-op kit kinds (`team_throw`, `team_hang`, `team_pull`, `shutter`) and `bolted` doors, shadow share as INFO. The scale sheet gets
+  `sector_alive_max` and a light-band placeholder; the uploaded stealth skill is reference only.
+
+### Level standard re-audit fixes
+- Level standard (`docs/level-design.md`): campaign missions run on the Sector Ops runtime with a 32 alive ceiling;
+  engine facts rewritten from the code (five speeds, no sprint, silent bands, guard sight above, doors, camera); one
+  checkpoint rule and a downed rule per mode; Marlow Yard's training rules (timed drills, strict rules taught late,
+  campaign downed rule, 15-20 min); security devices with a security register; unavoidable guards in Sector Ops;
+  helmets and dogs per the 2026-10-25 answers; killing a civilian restarts the section; history cut, profiles point
+  to the rules.
+- Level validator: the alive ceiling also checks campaign maps; co-op kit size bands (pull-up, relay, rope, throw,
+  shutter) from new scale-sheet rows; no softlock reads bolted doors one way; `drill_s` (training only) and the
+  `unavoidable` tag. The scale sheet gets the current camera, silent speeds, an interim light rule and patrol timing.
+- The level-validator job's STATE / BRIEF / PLAN / V1-check / V6-PLAN moved to `docs/archive/level-validator/`.
+
+### Process docs polish (doc-clarity re-audit, slice P)
+- Docs: one authority order list in CLAUDE.md (ROADMAP "Decided" right after Michael); RULES owns "assume and log"
+  overnight, the train-ready rule (who labels, the stuck `affected-e2e` case), stale locks, the laptop queue order, CI's
+  four jobs, cloud sessions running unit tests only, the weekly branch clean-up and a walk cap that limits switch-on
+  only; the subagent preamble reads VISION plus RULES "A job" and "Test tiers" and gains a "Cloud sessions" section;
+  swaps, deploy, auto-train (self-update), watchdog and testing-tools (task guard allowlist) match the code; the
+  map-spec, walk-card, brief and plan-check templates follow the current rules.
+
+### Systems docs re-audit polish
+- Docs: the systems docs and TESTING.md follow the current decisions: the held pistol jammer (G152), complementary
+  kits fixed per mission (G134, G153), real-world draw times (G243), CT's team moves (G180), ping on R3 / middle
+  mouse and goggles on D-pad left, dogs (G348), Marlow Yard downed and strict rules (G349, G357), civilian kills
+  restart the section (G353), helmets, the objective popup and no maps point to their bible owners, character
+  shadows for the meter and guards (G352, not built yet); links point at docs/archive/ for moved job folders.
+
+### Finished job docs archived
+- Docs: 93 finished job folders moved from `docs/` to `docs/archive/<name>/` (names kept, nothing deleted), so
+  `docs/` holds only the core docs and the live jobs (39 entries, was 132). Links and backticked paths in live docs now point at
+  the archive paths.
+- Dev shot scripts and the camera-reach table writer default their output to the archived folders.
+
+## 4.101.2 - Train 87: Co-op lamp shots: no stale round after a restart (2026-10-25, PR #409; #384)
+- In co-op (Marlow Yard and Sector Ops), a client's round at a lamp fired just before a set or section restart no
+  longer shoots that lamp out in the fresh run. No wire change.
+
+## 4.101.1 - Train 86: Laptop queue: dead-pid slot locks, watchdog allowlist, affected-e2e never stuck; Guard AI: one-mover fix; Saltmarsh Park section bake: stuck workers replaced (2026-10-25, PR #406; #403, #387, #385)
+
+### Guard AI: one-mover fix
+- Guard AI: a guard still walking to his reporter or overwatch cover is no longer made the flank while the point is
+  on his own bound, so only one of point and flank is ever on the move at a time (the one-mover rule; e2e-stealth-ai
+  'squad roles' was red on 4.100.2). Undo: `ONE_MOVER.roles` false in `src/ai/squadRoles.ts`.
+
+### Saltmarsh Park section bake: stuck workers replaced
+- A light-bake worker that stops answering is now shut down and replaced when its lamp gives up on it, so the rest of
+  the bake keeps every worker instead of running one short. A silently dead worker holds the load about 90 s at worst
+  (the earlier note said about 85 s; the 5 s check counts on both tries).
+
+### Laptop queue: dead-pid slot locks, watchdog allowlist, affected-e2e never stuck
+- Slot locks: `scripts/heavy-lock.mjs` `parseLock` reads the laptop queue service's own line
+  (`laptop-queue | <label> <sha> pid <n> | <iso>`, no host: this machine) as well as the heavy-lock line, so a slot lock
+  left by a killed service is broken at the desktop gate (and by `heavy-lock.mjs take` / `check`) once its pid is dead.
+  A lock with no pid is still never broken automatically (2026-10-25: pid 4484 held heavy.lock / heavy2.lock 10+ min).
+- Task guard: "NightShift watchdog" is on the allowlist (`TASK_ALLOW` in `scripts/laptop-queue/lib.mjs`); its .vbs in
+  `C:\NightShift\scratch` no longer gets it disabled.
+- affected-e2e: a duplicate affected request hands affected-e2e over to the surviving affected request (pending "handed
+  over to <id>") or posts success when it repeats a recent pass, and is never retired against another requester's run;
+  a supersede on the same sha hands over instead of posting error; an affected request or laptop rerun withdrawn before
+  it ran posts error "withdrawn by the requester (not run)"; a head whose affected-e2e is pending with no open, claimed
+  or running affected request is requested again.
+
+## 4.101.0 - Train 85: Design bible rewritten to today's game; decisions fold G324-G343; Rules in one place; Guard AI polish batch 2; Co-op e2e boot wait (2026-10-25, PR #405; #396, #394, #377, #373)
+
+### Design bible rewritten to today's game; decisions fold G324-G343
+- docs/design-bible.md: rewritten in place to the current decisions (G1-G343): three modes and player counts
+  (campaign and Marlow Yard 2, Sector Ops 1-4), refining allowed, up to 2 strict rules with section restart, no maps,
+  minimap, compass or objective blip in any mode, objectives that fade in and out (View / Select or O), real-world
+  light levels (L17), hardened choke points with a route around, Sector Ops as one current block (Saltmarsh Park
+  S1-S5, signed-off counts, scaling, stars, helmets by difficulty), the same helmet rule in the campaign, Tallow Wharf
+  as campaign Mission 1, Marlow Yard timed drills, G180's team moves, rope and medkits, Marlow Yard as the training
+  course (Fallow parked), one owner for the revive rule (5.9 C6), the work order and open list; dated notes folded into
+  the text.
+- docs/DECISIONS.md: the 2026-10-25 roadmap decisions folded in as G324-G343; "Replaced by" notes on 46 superseded
+  entries; the one-page vision replaced by a pointer to docs/VISION.md; G291 says Sector Ops is 1-4 players.
+
+### Rules in one place
+- Process rules move from `CLAUDE.md` into `docs/RULES.md`, read from origin/master at every session start; `CLAUDE.md`
+  is now a short, stable stub (what Night Shift is, read RULES.md and VISION.md from master, the authority order, the
+  code hard rules). The module map and doc index move to `docs/INDEX.md`.
+- One owner per rule: one train-ready definition (CI `check` + `checker` + `affected-e2e`, labelled by the watchdog),
+  desktop CPU gates as the queue really runs them, a 1-minute auto-train tick, swaps (a save, fresh sessions at a swap,
+  resume after a same-account reset); testing-tools owns the flaky rule; session-method, agent-preamble and auto-train
+  point to RULES.md instead of restating it.
+- The laptop queue's first build plan is archived (`docs/archive/laptop-queue-PLAN-2026-10-23.md`).
+
+### Co-op e2e boot wait
+- e2e: `launch` / `openPage` (`scripts/e2e-lib.mjs`) no longer wait 120 s for the match on the page that hosts a
+  `?net=local&autostart=...&mode=course|sector` room: that match starts only when the second page joins, so the wait
+  ends once the page hosts alone in the lobby. Saves about 2 minutes per boot in e2e-ctcourse (each of its 4 parts),
+  e2e-course (the walk URL) and e2e-bunker.
+
+### Guard AI polish batch 2
+- Guard AI polish: a guard sent to a noise behind a locked door he cannot get through now walks to the nearest point
+  he can reach and looks from there, instead of standing where he was (A184).
+- Guard AI polish: several guards searching who hear the same step now give one "I heard something." between them,
+  not one each in the same moment (A185).
+- Guard AI polish: a guard covering from behind a high wall while a mate moves up holds his peek spot, so his
+  covering fire starts from where he can see (A186).
+- Guard AI polish: guards searching the same spot no longer all walk to your last known position and look there; the
+  first does, once, and the rest take their search points at once; if he is taken down before he gets there, a mate
+  goes instead (A188).
+- Guard AI polish (co-op): a guard who goes alert on a call about one player while he sees the other calls that
+  player in once (A187). A calm guard who sees one player far off and the other clearly lit right in front of him
+  notices the near one at once (A190).
+- Guard AI polish: a flank walk may bend further round your cover before it is dropped (A189). A responder who goes
+  back to searching a device room no longer says "Clear." first (A191).
+- Guard AI polish (code health): armour cover checks go to the best cover spots first (A192); a guard in cover with
+  nothing to go on stays in cover (A194); new test for the recon drone's sight.
+
+## 4.100.9 - Train 84: Docs: system docs match the current rules (2026-10-25, PR #401; #395)
+- Docs (doc-clarity, systems slice): the system docs, TESTING.md, the backlog and the research digests now state the
+  current rules. Player counts per mode (campaign and Marlow Yard 2, Sector Ops 1-4); Sector Ops is the five-section
+  Saltmarsh Park campus; section restart and up to 2 strict rules; no maps, minimap, compass or blip; stars fill every
+  tier below a clear; guard caps, per-mode archetypes, helmets by difficulty, lookouts and paired patrols; real-world
+  light bands and hardened choke points; the objective fade with View / O (decided). The CT movement rules G210 / G227 replaced are marked replaced. The research
+  digests, docs/ct-prototype/ and docs/progress.md carry history banners; docs/story.md gets a status note.
+
+## 4.100.8 - Train 83: One-page game vision (2026-10-25, PR #399; #393)
+- docs/VISION.md: a one-page vision every session reads first: the pitch, the three modes (campaign, Marlow Yard,
+  Sector Ops) side by side, Michael's overrides of pure CT, ten hard design rules, build gates, what is never in the
+  game, each line citing its G entry or ROADMAP Decided time.
+
+## 4.100.7 - Train 82: Decisions fold G283-G323 (2026-10-25, PR #397; #386)
+- docs/DECISIONS.md: roadmap decisions of 2026-10-24 ~15:10 to ~23:46 folded in as G283-G294 (idle-lead rule, level
+  validator and standard extras, train speed-ups, test jobs, process audit, mission rules and prototypes, Marlow Yard
+  and campaign co-op traversal, guard off-screen animation tier).
+- docs/DECISIONS.md: the archived roadmap decisions of 2026-10-23 ~01:08 to ~21:08 not yet recorded folded in as
+  G295-G323 (Sector Ops redesign, Guard AI, models and pacing, stealth over shooting, Sector Ops 4 players, guard
+  models, lighting, release and pipeline speed-ups, moving lights).
+- docs/design-bible.md: dated notes for most of G283-G323; the voxel retirement lines in 5.14 and 5.16 now cite G282.
+
+## 4.100.6 - Train 81: Sector Ops polish 3 (2026-10-25, PR #392; #379)
+- Light bake: when the moon bake fails while a section bake still waits on its cache read, no section baker starts
+  afterwards (it used to start one that nobody stopped).
+- Vol lights: `writeVolLights` writes slot `i` and returns `n` (one counter, not two); the wiring guard test reads its
+  sources relative to the test file and names what to do when its regex stops matching.
+
+## 4.100.5 - Train 80: pr-size loads its script from the base branch (2026-10-25, PR #391; #378)
+- CI: the `pr-size` job runs `scripts/pr-size.mjs` (and `glob-match.mjs`) as taken from the base branch, so PR
+  branches cut before 4.100.0, which lack the script, no longer fail `check` with "Cannot find module".
+
+## 4.100.4 - Train 79: Laptop queue: dead-pid heavy.lock broken at the desktop gate, "CI running" in the auto-train status (2026-10-25, PR #390; #374)
+### Changed
+- Laptop queue: the desktop slot gate logs the slot lock's holder once per change ("4191 held by heavy.lock: <text>") and breaks a lock whose pid is dead on this host when its text is unchanged on a second read (logged; a lock with no pid or a live pid is respected). A train's slot-lock wait breaks such a lock too.
+- Auto train: the status and log say "CI running" (was "CI missing" or "CI pending") while a CI run for the head has no conclusion yet; "CI missing" only when the head has no CI run or check at all.
+- Requests fill `branch` and `pr` by default (the asked ref; nothing for a sha already on master; the requester's checkout when the sha is its head; else the one remote work branch at or containing it, and its open PR), so failure comments reach the right PR and queue audits can see each request's branch.
+
+## 4.100.3 - Train 78: Guard bake: stop on a lost console (2026-10-25, PR #383; #380)
+- Tools: the offline guard bake (`scripts/operators/guard-bake.mjs`) stops a stage at the first job whose launch dies
+  with a lost console (exit 0xC0000142, or a failure under 2 s with no output), waits for running jobs, prints
+  "ABORT: console lost, restart the bake detached" and exits 5 without pushing, instead of failing every remaining job.
+
 ## 4.100.2 - Train 76: Co-op Course mode: client lamp shots (walk bug S2); Laptop queue: visual-gate after green trains (2026-10-25, PR #381; #371, #367)
 
 ### Co-op Course mode: client lamp shots (walk bug S2)

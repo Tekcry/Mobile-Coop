@@ -28,7 +28,7 @@ Status: COMPLETE (spec writer, 2026-10-23)
   (1.8 m sliding doors, kit glass passes light, brushed steel and 3000 / 5000 K LEDs, LED read light vs accent lines);
   geometry clashes fixed in A3, A4, A5, A6, A7 and A8; per-player lines now use role claims; the gap list folded in
   (N1 / N3 rewritten, N9-N14 added, P17 glass, Course Ready's rule clashes resolved); LD 3.9 lit checkpoints added to
-  the rule review; P2 / P4 point at `docs/lighting-review/PROPOSAL.md` (Michael 01:40); Course Ready's greybox helpers
+  the rule review; P2 / P4 point at `docs/archive/lighting-review/PROPOSAL.md` (Michael 01:40); Course Ready's greybox helpers
   adopted (A3 corridor 17.5 m, A6 gland plate 0.55 m and a 4.2 m cage under a 5 m bridge); a CONSTRAINTS checklist
   cover added to section 17; per-set file ownership for PLAN.md.
 - Changelog (spec writer, ~02:15, engine-answers pass): ENGINE-ANSWERS Q1-13 folded in (P7 applied as A8
@@ -305,7 +305,7 @@ Proposal P4 (section 15) asks Michael whether "lit by default, players make the 
 every map (his "in game levels are quite dark and not realistic"; and 01:40, for all maps: "review lighting also, i
 think the rules may be too strict and the levels are very dark and unrealistic. there shouldnt always be shadows, the
 player may have to make shadows (disabling lights etc)"). The shared all-maps proposal is
-`docs/lighting-review/PROPOSAL.md` (the lighting agent). Nothing in the standard is changed by this spec: the map is
+`docs/archive/lighting-review/PROPOSAL.md` (the lighting agent). Nothing in the standard is changed by this spec: the map is
 built to the "This spec" column and every row is a proposal.
 
 ## 8. Stealth verbs found in the building
@@ -954,9 +954,9 @@ the builders can switch to in under a slice. Numbers T1-T18 are CONSTRAINTS sect
 | P | Rule | What the design uses | Reason | Fallback if Michael says no |
 | --- | --- | --- | --- | --- |
 | P1 | LD 3.1 / bible L7 entry vantage is dark; LD 3.9 checkpoints are dark | A concealed vantage: out of every guard's view by occlusion (a van end, the drum stack, the sump kerb, a counter), dark only where a mixed zone allows; holding rooms lit (0.30) but out of every guard's view | M6: sets are lit by default; the holding rooms are facility lobbies | A dark mixed-zone pocket (no fitting, reason in the register) at each vantage; holding-room lamps on a dimmer at 0.2 |
-| P2 | G225 "keep the open floor at 0.30" (T6) | Sets' `ambientZone` at 0.14 standby; 0.30 kept in the lounge, holding rooms and dock | M6 "lit, players cut it": a cut circuit must be dark (under 0.28) or isolation teaches nothing. Shared all-maps review: `docs/lighting-review/PROPOSAL.md` | Keep 0.30: isolations then work only as guard lures, never as darkness |
+| P2 | G225 "keep the open floor at 0.30" (T6) | Sets' `ambientZone` at 0.14 standby; 0.30 kept in the lounge, holding rooms and dock | M6 "lit, players cut it": a cut circuit must be dark (under 0.28) or isolation teaches nothing. Shared all-maps review: `docs/archive/lighting-review/PROPOSAL.md` | Keep 0.30: isolations then work only as guard lures, never as darkness |
 | P3 | LD 6.3, bible 5.8 / 6 "no forced timers in stealth sections" (T4, CR 6) | Device windows only: A2 15 s, A4 / A8 60 s loop, A8 25 s lights, the jam's 5 s; player-started, shown, re-armable, never a fail; no course clock | Michael asked for "timed isolation" and "timed jammer exercises" | Windows become held: an isolator stays off while a player holds it (`timedHold`), the console stays off until restart (today) |
-| P4 | Level design standard for every map (M5 "review the rule", M6 "levels are quite dark and not realistic") | Proposed new LD 5.5: "Spaces are lit as the real building would be at night. Darkness is made by the players (switches, isolators, jams, shots) or is where the building really has none." | Michael's note covers all levels (01:40: "the rules may be too strict and the levels are very dark and unrealistic ... the player may have to make shadows"); the all-maps proposal is `docs/lighting-review/PROPOSAL.md` (lighting agent), never applied here | Apply to Marlow Yard only |
+| P4 | Level design standard for every map (M5 "review the rule", M6 "levels are quite dark and not realistic") | Proposed new LD 5.5: "Spaces are lit as the real building would be at night. Darkness is made by the players (switches, isolators, jams, shots) or is where the building really has none." | Michael's note covers all levels (01:40: "the rules may be too strict and the levels are very dark and unrealistic ... the player may have to make shadows"); the all-maps proposal is `docs/archive/lighting-review/PROPOSAL.md` (lighting agent), never applied here | Apply to Marlow Yard only |
 | P5 | LD 9.2-9.3, G125 at most one hard rule (T5) | Not used. ROUTE-DRAFT wanted "an alarm resets the set"; this spec keeps escalation and A3's send-back only | - | (If Michael wants it: alarm stage 3 restarts the set, about 30 lines) |
 | P6 | Template "guard total 9 or fewer" (T8) | 12 role-players in the yard (11 perceiving), at most 3 alive per set (Course mode spawns per set; `MAX_ALIVE` 12; G254 "maximum amount") | Every set from A2 needs a live guard; A4 and A8 need pairs. Also listed (T8): the passive A1 checker is classed as a role-player prop, not a section-4 guard | Drop `a4-dock2` and `a8-night2` and the A1 checker's slot moves to A4 (9) |
 | P7 | (Applied as assumed A8, ENGINE-ANSWERS Q2) Course mode ran with `em.stealth` false: a spotted guard radios everyone within 22 m, chases the players' real positions, never searches or cools down, and detections never count | `em.stealth = true` in Course mode (1 line, built in 0a): shout, call-in, shared last known position, search, cooldown, the detection stat | The false setting was the harsher one and broke the rating; this is P7's own former fallback, so it is logged for Michael, not asked | Back to false (1 line) |
@@ -1020,7 +1020,7 @@ the builders can switch to in under a slice. Numbers T1-T18 are CONSTRAINTS sect
 | `scripts/e2e-anchors.mjs:9` (ctcourse places no anchors) | Still none planned (no ladders, pipes, ducts) | No change; if a builder adds an anchor, add ctcourse there |
 | GPU and shot scripts with coordinates: `shots-ctcourse.mjs`, `nv-shots.mjs`, `sector-lights-shots.mjs:62-64`, `sector-fixes-c-shots.mjs:18` (`cam-s3`, `laser-s4`), `camera-cue-shots.mjs`, `wheel-shots.mjs` | New ids and places | Slice 0d rewrites `shots-ctcourse.mjs` to read one `SHOT_VANTAGES` export per set (the per-set GPU shots of M5); update the others' ids |
 | `PROTOCOL_VERSION` 29 | N6 | 30, with the tests that assert it |
-| Docs: `docs/ct-prototype/CTCOURSE-SPEC.md`, `TESTING.md:45-60`, `:263-294`, `docs/systems/testing-tools.md:33`, `:42-44`, `docs/course-ready/WALKTHROUGH.md`, `docs/systems/coop.md` (N1-N6) | Superseded | CTCOURSE-SPEC gets a header pointing here (slice 0d); TESTING per-set checks, testing-tools, coop.md and WALKTHROUGH rewritten in slice 9 from the slice reports |
+| Docs: `docs/ct-prototype/CTCOURSE-SPEC.md`, `TESTING.md:45-60`, `:263-294`, `docs/systems/testing-tools.md:33`, `:42-44`, `docs/archive/course-ready/WALKTHROUGH.md`, `docs/systems/coop.md` (N1-N6) | Superseded | CTCOURSE-SPEC gets a header pointing here (slice 0d); TESTING per-set checks, testing-tools, coop.md and WALKTHROUGH rewritten in slice 9 from the slice reports |
 | Swing-door verbs on the new sliding doors (crack, peek, bash) | `leaf: 'slide'` | N9 |
 
 ## 17. 16.10 review answers

@@ -1,5 +1,9 @@
 # V6 - greybox measurement (M4) - plan
 
+> **History, archived 2026-10-25 (doc-clarity).** The level-validator job's record, kept for reference only. The
+> current rules are `docs/level-design.md`, the graph format `docs/level-validator/graph-schema.md`, the numbers
+> `docs/design/scale-sheet.md`. Where this file differs from them, they win.
+
 Opus plan, 2026-10-24. Lead: Night Shift | Marlow Build. Follows the level-validator PR (PLAN.md M4, slice table V6).
 Docs only until the lead starts the slices; every builder starts from `docs/systems/agent-preamble.md`.
 
@@ -11,7 +15,7 @@ Measure on the built greybox what the graph only declares, write it as `measured
 3. **LOS-break time**: worst nav-path time from an exposed floor cell to the nearest break cell, at the run speed.
 4. **Partner revive reach** per split: worst nav-path time from any cell of one leg to the nearest cell of the other.
 5. **Link traversal times**: nav-path time `from` centre -> link point -> `to` centre, at the kind's speed.
-Numbers come from `docs/design/metrics.json` `rules` (shadow 0.4-0.6, vantage 0.7, LOS 5 s, reach 15 s, split 90 s /
+Numbers come from `docs/design/metrics.json` `rules` (shadow 0.4-0.6 as INFO, vantage 0.7, LOS 5 s, reach 15 s, split 90 s /
 20%, speeds 1.3 / 3.0); none is hard-coded (M2).
 
 ## Approach: node only, no browser, no GPU (no laptop queue)
@@ -64,12 +68,14 @@ Everything V6 needs is pure TypeScript already run in node by tests and one scri
   `hatch`): `time_s: null`, `why`; the validator keeps the declared `time_s`. `ladder` and `drop` are nav links.
 
 ## Validator rules (V6d, `checkMeasured`)
-- ERR `measured.shadow_pct` outside `shadow_min_frac`-`shadow_max_frac`; ERR `measured.sees_pct` < `vantage_min_frac`;
+- INFO `measured.shadow_pct` outside `shadow_min_frac`-`shadow_max_frac` (the light band wins, level-design 5.5; its
+  lux check comes with the light-realism values); ERR `measured.sees_pct` < `vantage_min_frac`;
   ERR `measured.los_break_s` > `los_break_max_s`; ERR `meta.measured.splits.<id>.reach_s` > `reach_max_s`.
 - Split legs use `measured.time_s` before `time_s` before `length` / speed, so the 90 s and 20% rules fail on measurement.
 - WARN measured vs declared apart by > 0.10 (fractions) or > 1.5 s: the design doc's declared target is out of date.
 - INFO `pending V6` per encounter with no `measured`; `--require-measured` turns it into ERR (the greybox gate).
-  Making that flag part of the Phase 3 / greybox exit in `docs/level-design.md` needs Michael's approval (hard rule).
+  The flag is part of the greybox exit in `docs/level-design.md` section 14 (Michael 2026-10-24 ~22:00, "Yes, require
+  it", G289 (2)).
 
 ## Slices (at most 5; one PR after a fresh Opus checker over all five)
 | Id | What | Model | Files owned | Gate / tests | Est. |
@@ -105,6 +111,6 @@ nothing in `src/` that the game imports).
   measured shadow %, vantage %, LOS-break s; per split the measured leg times and revive reach; link times beside the
   declared ones; a PASS / FAIL column and the worst offenders first.
 - `node scripts/level-validate.mjs docs/sector-redesign/graph/campusOps-S*.json` prints lines such as
-  `ERR s2-hall: measured shadow_pct 0.31 below 0.40 (declared 0.50)` and `INFO s3-lab: pending V6`.
-- One decision for Michael (native multiple choice, at the PR): make `--require-measured` part of the greybox exit in
-  `docs/level-design.md` section 14, yes or no.
+  `ERR s2-hall: measured sees_pct 0.55 below 0.7 (declared 0.75)` and `INFO s3-lab: pending V6`.
+- Decided (Michael 2026-10-24 ~22:00, "Yes, require it"): `--require-measured` is part of the greybox exit in
+  `docs/level-design.md` section 14.

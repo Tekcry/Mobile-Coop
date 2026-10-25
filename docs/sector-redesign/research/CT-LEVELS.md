@@ -240,7 +240,7 @@ park lit; closed offices on motion or switched off; plant, risers, roof and serv
 - A light-out must send the fixer somewhere useful (LS 4.6), and a switch by the door is a real ambush spot.
 - Our cameras see in the dark by IR (G240), unlike CT where darkness alone beat ordinary cameras [MM 2.7]: so light
   is for guards and the meter, cameras need the jammer, a route round, or the security room.
-- Lighting rule loosenings are a separate proposal (`docs/lighting-review/PROPOSAL.md`, M5); nothing here changes LS.
+- Lighting rule loosenings are a separate proposal (`docs/archive/lighting-review/PROPOSAL.md`, M5); nothing here changes LS.
 
 ## 6. Flow
 

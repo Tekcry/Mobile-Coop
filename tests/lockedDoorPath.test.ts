@@ -358,3 +358,42 @@ describe('(guard-ai sweep fix round) out of a blocked cell a thin wall splits: h
     }
   });
 });
+
+describe('(polish2 A184) an investigation behind a locked door with no way round: the near side, then the look', () => {
+  it('a noise inside the locked room: he walks to the closure\'s near side and the look (`investigateLook`) ends it, not `investigateMax`', async () => {
+    const { AlertMachine, ALERT, emptyAlertInput } = await import('../src/ai/alertState');
+    const s = await setup(false, true);
+    const aware = new AlertMachine();
+    aware.set('investigating');
+    const inv = s.e as unknown as {
+      calmDecide(dt: number): { point: P2 | null; speed: number; face: number | null };
+      spotArrived: boolean;
+    };
+    Object.assign(s.e, {
+      aware, reviving: null, crew: null, entry: null, lc: { active: false }, stimulus: [GOAL[0], GOAL[1]], hasStimulus: true,
+      hold: null, searchRoom: null, postDef: null, spot: [0, 0], spotSet: false, spotArrived: false, spotLookT: 0, lookBase: 0,
+      rush: false, routeNear: false, lure: { active: false }, brkGroup: -1,
+    });
+    (s.e as unknown as { ctx: Record<string, unknown> }).ctx.coordinated = () => true;
+    const input = emptyAlertInput();
+    let endT = -1;
+    let minDoor = Infinity;
+    for (let i = 0; i < 60 * (ALERT.investigateMax + 2) && endT < 0; i++) {
+      s.ln.sync();
+      const g = inv.calmDecide(1 / 60);
+      s.e.move(1 / 60, g.point, g.speed, g.face);
+      s.doors.step(1 / 60);
+      input.arrived = inv.spotArrived;
+      aware.step(1 / 60, input);
+      minDoor = Math.min(minDoor, Math.hypot(s.e.pos.x, s.e.pos.z));
+      if (aware.level !== 'investigating') endT = i / 60;
+    }
+    // on his own side, close to the shut doorway (the closure's near side), never through it
+    expect(s.e.pos.x).toBeLessThan(0);
+    expect(minDoor).toBeLessThan(1.5);
+    // ended by the look at the near side (walk ~3 m + 4 s), well before the 20 s cap
+    expect(endT).toBeGreaterThan(ALERT.investigateLook);
+    expect(endT).toBeLessThan(ALERT.investigateMax - 5);
+    expect(s.finds()).toBeLessThan(30);
+  });
+});

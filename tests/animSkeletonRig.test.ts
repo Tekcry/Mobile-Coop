@@ -1,4 +1,4 @@
-// (anim-skeleton S2, docs/anim-skeleton/PLAN.md) The runtime rig drives the skin's new joints: the finger drive (pure),
+// (anim-skeleton S2, docs/archive/anim-skeleton/PLAN.md) The runtime rig drives the skin's new joints: the finger drive (pure),
 // the poser's extra rotations (fingers chained, the goggle offset), the clavicle on the rig and through readRig into the
 // poser, the per-rig goggle copy, and the figure on the real Wren files (the hero's grip morphs off where its bones close
 // the hand, A9). The bit identity of every pre-T3 joint is tests/animSkeletonIdentity.test.ts.

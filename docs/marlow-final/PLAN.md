@@ -39,11 +39,11 @@ slice with up to 6 parallel Opus agents; Course Ready no longer builds marlow-fi
 | `src/game/doorMenu.ts`, `src/world/doorOpen.ts` (N9) | 0g |
 | `src/world/kit/*`, `scripts/facility-kit/*`, `KIT.md` | the job lead (kit fixes only) |
 | `src/world/props/*`, `scripts/facility-props/*`, `PROPS.md` | the props agent (0f) |
-| `src/world/lighting/*`, `tests/marlowLighting*.test.ts`, `LIGHTING-PLAN.md`, `docs/lighting-review/PROPOSAL.md` | the lighting agent |
+| `src/world/lighting/*`, `tests/marlowLighting*.test.ts`, `LIGHTING-PLAN.md`, `docs/archive/lighting-review/PROPOSAL.md` | the lighting agent |
 | `tests/ctcourse.test.ts` (whole-map frame), `tests/ctcourseLight.test.ts` (frame), the five map-coupled tests (`guardInfo`, `jammer`, `laserPanels`, `scanners`, `camSpaces` / `smoothWorldLight`) | 0d |
 | `scripts/e2e-ctcourse.mjs` (runner, shared helpers, part dispatch), `scripts/run-e2e.mjs`, `scripts/e2e-times.json`, `scripts/shots-ctcourse.mjs` | 0d |
 | `docs/marlow-final/plans/facility-*.svg`, `docs/ct-prototype/CTCOURSE-SPEC.md` (pointer header) | 0d |
-| `SPEC.md`, `PLAN.md`, `CONSTRAINTS.md`, `STATE.md`, `BRIEF.md`, `TESTING.md`, `docs/systems/*`, `docs/course-ready/WALKTHROUGH.md`, `changes/feature-marlow-final.md`, `package.json` | the job lead (slice 9 for the docs) |
+| `SPEC.md`, `PLAN.md`, `CONSTRAINTS.md`, `STATE.md`, `BRIEF.md`, `TESTING.md`, `docs/systems/*`, `docs/archive/course-ready/WALKTHROUGH.md`, `changes/feature-marlow-final.md`, `package.json` | the job lead (slice 9 for the docs) |
 
 ### Per-set files: only that set's slice edits these
 For set `<set>` in `a1Gate`, `a2CarriageShed`, `a3OfficeRange`, `a4GoodsShed`, `a5Substation`, `a6PumpHouse`,
@@ -153,7 +153,7 @@ Per-set notes (what is special; sizes are greybox + dressing):
 ### Slice 9 - verification and the PR
 - Goal: the whole route proven and documented (SPEC sections 12, 15, 20).
 - Owns: the job lead's shared docs (`TESTING.md` per-set desktop checks, `docs/systems/testing-tools.md`,
-  `docs/systems/coop.md` N1-N9, `docs/course-ready/WALKTHROUGH.md`, `changes/feature-marlow-final.md` with the
+  `docs/systems/coop.md` N1-N9, `docs/archive/course-ready/WALKTHROUGH.md`, `changes/feature-marlow-final.md` with the
   old-best-times note, STATE.md); `scripts/e2e-ctcourse.mjs` for the cross-set checks below.
 - Depends on: slices 1-8 done.
 - Work: revive on each co-op surface (A1 yard, A2 staging, A6 gallery, A8 gallery); a ghost run with every bonus on a
@@ -217,7 +217,7 @@ Character Build queue.
 - Greybox helpers: not yet tested (0g); `GREY_KEEP_CLEAR` 3.0 m is unchecked against `soloJumpReach`; no overwatch
   ledge or one-way drop helper (not needed on this route). The A6 bridge vs cage clash is settled in SPEC (5 m bridge,
   4.2 m cage); the plate is 0.55 m.
-- `LIGHTING-PLAN.md` and `docs/lighting-review/PROPOSAL.md` are being written; set agents read the per-set sections
+- `LIGHTING-PLAN.md` and `docs/archive/lighting-review/PROPOSAL.md` are being written; set agents read the per-set sections
   when they land, and SPEC section 7 wins a clash.
 - Instructor figures (N14), signage plates and automatic doors are Future items; the gallery ships with empty chairs.
 - Proposals P1-P17 wait for Michael; nothing in the standard changes until he answers.

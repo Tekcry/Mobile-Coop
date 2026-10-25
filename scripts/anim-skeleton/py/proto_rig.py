@@ -1,4 +1,4 @@
-"""anim-skeleton P0 prototype (docs/anim-skeleton/PLAN.md P0): a real clavicle (R2), per-finger joints (R1) and FK legs
+"""anim-skeleton P0 prototype (docs/archive/anim-skeleton/PLAN.md P0): a real clavicle (R2), per-finger joints (R1) and FK legs
 per key (R3) on Wren's game LOD0, with the skin following, in one test clip `skeleton_test`, rendered as contact sheets.
 
 Runs headless on a COPY of the anim-rig build (build/anim-skeleton/wren-lods.blend); never saves over it (--save writes
@@ -28,7 +28,7 @@ Steps:
      open and spread; 24-48 a left-leg FK kick (chamber: hip flex 60, knee 70, ankle plantarflex 20, toe up 20; extend:
      hip 70, knee 15), the right leg planted (untouched).
   f. Renders (Eevee, Workbench fallback), clay override, stamped labels; two WebP contact sheets in
-     docs/anim-skeleton/proto/.
+     docs/archive/anim-skeleton/proto/.
   g. build/anim-skeleton/proto-report.json.
 """
 import argparse
@@ -66,7 +66,7 @@ if tuple(bpy.app.version) != (5, 2, 2):
 ROOT = args.root
 BUILD = os.path.join(ROOT, 'build', 'anim-skeleton')
 TILES = os.path.join(BUILD, 'tiles')
-DOCS = os.path.join(ROOT, 'docs', 'anim-skeleton', 'proto')
+DOCS = os.path.join(ROOT, 'docs', 'archive', 'anim-skeleton', 'proto')
 os.makedirs(TILES, exist_ok=True)
 os.makedirs(DOCS, exist_ok=True)
 

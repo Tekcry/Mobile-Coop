@@ -120,7 +120,14 @@ jobs:
           BASE_REF: ${{ github.base_ref }}
           HEAD_REF: ${{ github.head_ref }}
           PR: ${{ github.event.pull_request.number }}
-        run: node scripts/pr-size.mjs --base "origin/$BASE_REF" --head HEAD --branch "$HEAD_REF" --pr "$PR"
+        # The script (and its one local import) comes from the BASE branch, not the PR head: branches cut before the
+        # gate existed lack scripts/pr-size.mjs. git still runs in the checkout, so the measured diff is unchanged.
+        run: |
+          mkdir -p "$RUNNER_TEMP/pr-size"
+          for f in pr-size.mjs glob-match.mjs; do
+            git show "origin/$BASE_REF:scripts/$f" > "$RUNNER_TEMP/pr-size/$f"
+          done
+          node "$RUNNER_TEMP/pr-size/pr-size.mjs" --base "origin/$BASE_REF" --head HEAD --branch "$HEAD_REF" --pr "$PR"
 
   check:
     needs: [lint, test, build-check, pr-size]

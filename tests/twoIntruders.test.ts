@@ -641,3 +641,50 @@ describe('guard-ai polish A4 / A15: calls on a switch and the real alert()', () 
     expect((em as unknown as { callers: Int32Array }).callers[sb]).toBe(e.num);
   });
 });
+
+describe('(polish2 A187) told of A, he goes alert seeing B', () => {
+  it('he hunts B and calls B in once (one contact naming B, callers[B] him); calledMask has A and B', () => {
+    const A = player('host', 0, 0);
+    const B = player('guest', 30, 0);
+    const { em, ctx } = manager([], [A, B]);
+    const sa = ctx.reportSighting(A);
+    const sb = ctx.reportSighting(B);
+    const rc = vi.spyOn(ctx, 'radioCall');
+    // a calm guard on the real prototype (`tell`, `onLevel`, `takeSighting`, `callContact`), as A15's
+    const fake = guard(28, -6, { alerted: false, level: 'unaware' }) as unknown as Record<string, unknown>;
+    const e = Object.create(Enemy.prototype) as Enemy;
+    for (const [k, v] of Object.entries(fake)) {
+      if (k === 'radio' || k === 'tell') continue;
+      let d: PropertyDescriptor | undefined;
+      for (let o: object | null = Enemy.prototype; o && !d; o = Object.getPrototypeOf(o) as object | null) d = Object.getOwnPropertyDescriptor(o, k);
+      if (d && d.get && !d.set) continue;
+      (e as unknown as Record<string, unknown>)[k] = v;
+    }
+    Object.assign(e, {
+      ctx, aware: new AlertMachine(), health: { alive: true }, alertIn: { called: false }, lc: { stop() {}, active: false },
+      lure: { cancel() {}, active: false }, walker: { rejoin() {} }, rng: new Rng(1), camBody: null, pendingHunt: -1, calledMask: 0,
+      called: 0, brkGroup: -1, incident: -1, meter: 0, loudAlert: false, gunfire: false, target: null, los: false, state: 'idle',
+      searchRoom: null, reviving: null, hasStimulus: false, sawOnce: false, stimulus: [0, 0], lastKnown: new Vector3(), knownV: new Vector3(),
+      setState(this: { state: string }, st: string) {
+        this.state = st;
+      },
+    });
+    em.enemies.push(e);
+    // a mate's call about A reaches him (told A), and the call takes him to combat in a step where he sees B
+    e.tell(sa);
+    const p = e as unknown as { pendingHunt: number; alertIn: { called: boolean }; target: PlayerRef | null; los: boolean; calledMask: number; aware: AlertMachine; onLevel(a: string, b: string): void };
+    expect(p.pendingHunt).toBe(sa);
+    p.alertIn.called = true;
+    p.target = B;
+    p.los = true;
+    p.aware.set('alert');
+    p.onLevel('unaware', 'alert');
+    expect(e.hunt).toBe(sb);
+    const contacts = rc.mock.calls.filter((c) => c[2] === 'contact');
+    expect(contacts.length).toBe(1);
+    expect(contacts[0]![1]).toBe(sb);
+    expect((em as unknown as { callers: Int32Array }).callers[sb]).toBe(e.num);
+    expect(p.calledMask & (1 << sa)).toBeTruthy();
+    expect(p.calledMask & (1 << sb)).toBeTruthy();
+  });
+});

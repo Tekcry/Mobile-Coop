@@ -6,7 +6,7 @@ template, section by section. For Michael's morning review (M4) with PLAN.md and
 Authority: BRIEF M1-M10 > DECISIONS > bible > `docs/level-design.md` (LS) > this spec. Inputs: `research/CT-LEVELS.md`
 (CT rules R1-R10), `research/CONCEPT.md` (the campus), `research/ENGINE.md` (engine facts EF1-EF10 = its section 0,
 gaps G1-G25 = its section 6), R2-PATHS.md (pair bolt), R2-JUMP.md (`soloTopLandingReach`), the lighting proposal
-(`docs/lighting-review/PROPOSAL.md` on origin/feature/marlow-final, items LR1-LR12), `docs/warehouse-redesign/SPEC.md`.
+(`docs/archive/lighting-review/PROPOSAL.md` on origin/feature/marlow-final, items LR1-LR12), `docs/archive/warehouse-redesign/SPEC.md`.
 Frame: x west to east, z south to north (+z north), y up, metres; yaw 0 = +z; camera `facing` in degrees, 0 = +z.
 ENGINE.md gaps are written EG1-EG25; DECISIONS items "DEC G155"; engine work items EW1..; guard-ai items GA1..
 

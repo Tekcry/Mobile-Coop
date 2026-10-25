@@ -1,4 +1,4 @@
-// anim-skeleton S1 (docs/anim-skeleton/PLAN.md): gives the shipped Wren GLBs a real clavicle and finger joints, and the
+// anim-skeleton S1 (docs/archive/anim-skeleton/PLAN.md): gives the shipped Wren GLBs a real clavicle and finger joints, and the
 // LOD0 / LOD1 glove fingers knuckle loops so they bend smoothly, without a full operator rebuild (the garment blends are
 // not on this machine; bake_lods.py makes the same thing on the next full bake through py/skeleton.py).
 //

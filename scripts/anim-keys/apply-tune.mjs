@@ -2,7 +2,7 @@
 //   node --import ./scripts/operators/ts-resolve.mjs scripts/anim-keys/apply-tune.mjs <anim-tune-YYYY-MM-DD.json> [--out <dir>]
 // Reads the panel's Export file (or a saved snapshot), adds each `key.<clip>.<key>` delta to that key's fields and
 // writes scripts/anim-keys/keys/<clip>.json (or <dir>/<clip>.json), one file per edited clip, then prints the build
-// command that bakes each clip into src/anim/clips/keyed/<clip>.ts. docs/tuner-v2/ITEM4.md.
+// command that bakes each clip into src/anim/clips/keyed/<clip>.ts. docs/archive/tuner-v2/ITEM4.md.
 // Writing in place refuses a key file that already differs from git HEAD (a second run would add the edits twice);
 // --force overrides. After baking, reset the Keys section before the next export.
 // (marlow-bays item 23) A key's timing edit moves its `phase`; written in place, src/anim/tuneKeysMeta.ts is

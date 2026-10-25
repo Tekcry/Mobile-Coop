@@ -13,7 +13,10 @@ in, then adds the subagent's role, its step or slice and the previous step's han
   other folders or branches, or files other jobs own (the job lead lists them).
 
 ## What to follow
-- The rules: `git show origin/master:CLAUDE.md` (hard rules, "Sessions", test tiers), never a branch copy.
+- From master, never a branch or worktree copy: `git show origin/master:docs/VISION.md` (the game) and only the
+  "A job" and "Test tiers" sections of the process rules, not the whole file:
+  `git show origin/master:docs/RULES.md | awk '/^\*\*(A job|Test tiers)/{p=1} /^\*\*(Getting to master|Machines)/{p=0} p'`.
+  `CLAUDE.md` (code hard rules, authority order) is already loaded; on a branch, its origin/master copy wins.
 - `docs/DECISIONS.md` (the G entries your brief cites), then the job's `BRIEF.md` ("Michael said" is binding,
   "Michael picked" is the option he chose) and `PLAN.md`. Do not widen an assumption past what the brief says; an
   assumption that would loosen a Michael-only rule goes back to the job lead as a question.
@@ -25,11 +28,13 @@ in, then adds the subagent's role, its step or slice and the previous step's han
 
 ## Checks
 - Repeat runs: `npm run typecheck:fast` and `npx vitest run <files>`. Never a full `npm run check` (CI runs it).
-- e2e only through the laptop queue: `node scripts/laptop-queue/request.mjs --sha <full sha> --pr <n> --suites "<suites>"
-  --set <name> --requester "<lead title>"`; the verdict is the `laptop-e2e/<set>` commit status. Every e2e is `E2E_GPU=1`.
+- e2e only through the laptop queue (a PR head's `affected-e2e` runs by itself): `node scripts/laptop-queue/request.mjs
+  --sha <full sha> --pr <n> --suites "<suites>" --set <name> --requester "<lead title>"`; the verdict is the
+  `laptop-e2e/<set>` commit status. Every e2e is `E2E_GPU=1`.
 - A one-off GPU or Blender job on the desktop (only when the job lead says): take `C:/NightShift/heavy.lock` with
   `node scripts/heavy-lock.mjs take ...`, run, release in the same shell command; free the port before and after.
-- A crash or timeout mid-suite is not a pass. A failure in a KNOWN FLAKY suite counts only if a solo rerun also fails.
+- A crash or timeout mid-suite is not a pass. Which failures count (quarantine, solo reruns):
+  `docs/systems/testing-tools.md` "Flakes and quarantine".
 - Never run `npm run dev`, `npm run preview` or a watch mode. Every shell command has a timeout. Logs: `tail` or `grep`.
   Nothing headed, no new windows, Blender only with `-b`.
 
@@ -38,9 +43,22 @@ in, then adds the subagent's role, its step or slice and the previous step's han
   like" per item). It blocks on broken, unplayable or off-intent work; cosmetic notes go on the polish list.
 - It posts its verdict as a commit status on the head it checked:
   `gh api repos/Tekcry/Mobile-Coop/statuses/<sha> -f state=success -f context=checker -f description="<model> PASS"`
-  (`state=failure`, `description="<model> FIX"` for a fix list).
+  (`-f state=failure` and `description="<model> FIX"` for a fix list).
 - A plan checker reads BRIEF and PLAN only: intent against Michael's words, gates (walk cap, visual sign-off, level
   validator), and the claims (files, maps, wire and save paths, slice sizes under ~1.5k lines).
+
+## Cloud sessions (Night Shift | Cloud Builder <k>)
+A cloud builder has no `C:/NightShift` folders, no laptop queue and no GPU. These replace the rules above where they
+differ; everything else holds.
+- Loop and brief format: the `cloud-queue` README (`git show origin/cloud-queue:README.md`). Fetch `cloud-queue`, reset
+  your local `cloud-queue` to it, claim the oldest `status: open` brief, build on the brief's new branch from its base.
+- Guard before every write: `test "$(git rev-parse --abbrev-ref HEAD)" = <the brief's new branch>` (no folder check).
+  Edit only the files the brief lists.
+- Checks: tsc and the vitest files the brief names only. No e2e, no GPU, no `npm run check` (`docs/RULES.md` "Test
+  tiers"). Write every e2e or GPU check in the brief's report as "pending PC run"; the lead runs them on the laptop
+  queue after it takes the branch.
+- Report at the end of the brief, then `status: done <branch> <sha>`; a question the brief cannot settle:
+  `status: blocked <reason>`. Cloud sessions cannot message back.
 
 ## Report
 Write the step's report where the job lead says (built, numbers used, files, commits, skipped, tests changed, results,
