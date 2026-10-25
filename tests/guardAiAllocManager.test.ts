@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { EnemyManager } from '../src/ai/enemyManager';
-import type { Enemy } from '../src/ai/enemy';
+import type { Enemy, PlayerRef } from '../src/ai/enemy';
 import type { NavGrid } from '../src/ai/navGrid';
 import { DIFFICULTY } from '../src/ai/archetypes';
 import { Vector3, type Scene } from '../src/core/babylon';
@@ -31,7 +31,7 @@ function manager(ps: FakePlayer[]) {
       return out;
     },
   };
-  const em = new EnemyManager({} as Scene, world as unknown as World, nav as unknown as NavGrid, {} as DamageRegistry, {} as Ballistics, {} as Vfx, DIFFICULTY.normal, () => ps);
+  const em = new EnemyManager({} as Scene, world as unknown as World, nav as unknown as NavGrid, {} as DamageRegistry, {} as Ballistics, {} as Vfx, DIFFICULTY.normal, () => ps as unknown as readonly PlayerRef[]);
   em.stealth = false;
   const p = em as unknown as { refreshFlow(): void; assignFlanker(): void; ctx: { searchSlot(e: Enemy): number } };
   return { em, p, calls, nav };
