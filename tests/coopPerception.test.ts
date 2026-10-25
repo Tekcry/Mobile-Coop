@@ -405,3 +405,33 @@ describe('guard-ai polish A9 / A10: a new target in combat', () => {
     expect(d2.p.target).toBe(near.ref);
   });
 });
+
+describe('(polish2 A190) a calm guard instantly detects any player in his instant range and focus', () => {
+  it('watching A (far, a high rate), B lit 1.5 m in focus: the target is B and the meter is full this think', () => {
+    const A = player('a', 0, 5, { light: 1 });
+    const B = player('b', 0.3, 1.5, { light: 1, chest: true });
+    const { p } = guard([A, B]);
+    // he has been watching A (A169 keeps him on A while B's rate is not 1.25 x A's)
+    p.target = A.ref;
+    p.perceive();
+    expect(p.target).toBe(B.ref);
+    expect((p as unknown as { meter: number }).meter).toBe(1);
+    // B out of his instant range: A169's keep again (A)
+    B.ref.feet.z = 3;
+    const g = guard([A, B]);
+    g.p.target = A.ref;
+    (g.p as unknown as { meter: number }).meter = 0;
+    g.p.perceive();
+    expect(g.p.target).toBe(A.ref);
+    expect((g.p as unknown as { meter: number }).meter).toBe(0);
+  });
+
+  it('in combat: unchanged (he keeps the one he fights while he sees him)', () => {
+    const A = player('a', 0, 5, { light: 1 });
+    const B = player('b', 0.3, 1.5, { light: 1, chest: true });
+    const { p } = guard([A, B], { alerted: true });
+    p.target = A.ref;
+    p.perceive();
+    expect(p.target).toBe(A.ref);
+  });
+});
