@@ -1,5 +1,5 @@
 # Character shadows in the light meter (J16, meter half)
-Owner: Sector Ops Build. Status: plan (2026-10-25). Branch `feature/char-shadow-meter`.
+Owner: Sector Ops Build. Status: plan (2026-10-25), revised for plan check 1. Branch `feature/char-shadow-meter`.
 Source: FOLDED-PLAN (origin/feature/menu `docs/orchestrator/FOLDED-PLAN.md`) section 3 break 4, section 4 row J16:
 "Character shadows read by meter and guards (one fixed lamp set; G 1d split, Sector Ops PR first)". Reviews: Sector Ops
 L1, L16, V9; Guard AI C1, C3, "1d"; Player H7; Test Runner H1 (`docs/conformance-*/CONFORMANCE.md`).
@@ -69,8 +69,14 @@ operator's capsule from the sim body (Player); lux calibration and lamp levels (
   snapshot (a wire change; the train bumps `PROTOCOL_VERSION`).
 - A8 Cast-shadow cue: floor footprints only (a shadow climbing a wall is not a cue in v1), host and solo only, players'
   shadows only. Undo: add wall points from the lamp's baked visibility (a fill change, same layout).
-- A9 Flag `charShadowLight` in src/core/flags.ts, default off (`?charlight=1` on), owner Sector Ops; switched on when
-  Michael walks it (Sector Ops walk cap, G288). Guard AI's and Player's PRs ride the same flag. Undo: flip the default.
+- A9 Flag `charShadowLight` in src/core/flags.ts, default off (`?charlight=1` on). Owner: Sector Ops Build. Walk
+  areas (G288 caps): Lighting (the meter under a shadow at Low and Epic), Sector Ops (campus and warehouse, the maps
+  walked) and Guard AI (the faint cue, Guard AI's item). Switch-on trigger: the walk card of the first release train
+  that has J10's L1 re-bake, this job's PR B and Guard AI's cue PR on master carries the item (PLAN section 6); Michael's
+  yes on it flips the default in the next train (a one-line Sector Ops PR); a no keeps it dark and his note becomes the
+  fix list. All three areas are at cap today (ROADMAP "Waiting on Michael"), so the item waits its turn and no date is
+  set. Guard AI's and Player's PRs ride this flag while it is off; one landing after switch-on brings its own flag and
+  walk item. Undo: flip the default.
 - A10 Characters counted: players, guards, dogs, bodies (a carried body follows its carrier). Until Guard AI's and
   Player's PRs land, the interim fill gives upright capsules for players and live guards (today's `rtCapsules`
   numbers), so nothing regresses.
@@ -78,11 +84,21 @@ operator's capsule from the sim body (Player); lux calibration and lamp levels (
   0.1 ms p95 per meter tick on campus S5 with 4 players, measured in the build report.
 - A12 Built dark before J10 lands: every test computes its expectation from the field, never a literal level. The GPU
   parity card's numbers and Michael's walk wait for J10's re-bake (PLAN "After J10").
+- A13 The GPU card (Sector Ops V9) goes in J11's `scripts/e2e-parity.mjs` part 4 after J11's PR B is on master, not
+  in `e2e-darkness.mjs` (J11's C1 moves every grey card out of it; J20's S7 runs e2e-darkness on trains only until
+  then). Undo: the card is one block; it can sit in its own part 5.
 
 ## Wording once it lands (FOLDED-PLAN section 5; orchestrator owns the bible)
-- Settings help (src/ui/screens/settingsScreen.ts:340) proposed: "The lamps nearest you cast the real shape of guards,
-  your partner, bodies and weapons. Off: soft round shadows (cheaper). Auto: on from High shadows. Looks only: a
-  shadow on you darkens the light meter and what guards see the same way at every setting."
+- Settings help (src/ui/screens/settingsScreen.ts:340, after J1 #433). Two strings in `CHAR_SHADOW_HELP`
+  (charShadowSet.ts), picked by the flag:
+  - Flag off: #433's text unchanged: "The lamps nearest you cast the real shape of guards, your partner, bodies and
+    weapons. Off: soft round shadows (cheaper). Auto: follows Shadows (the nearest lamp on Low and Medium, more lamps
+    from High). Looks only: the light meter and the guards are the same either way."
+  - Flag on: "The lamps nearest you cast the real shape of guards, your partner, bodies and weapons. Off: soft round
+    shadows (cheaper). Auto: follows Shadows (the nearest lamp on Low and Medium, more lamps from High). Looks only: a
+    shadow on you darkens the light meter and what guards see by the same amount at every setting."
+  - Both match `CHAR_SHADOW_PRESET` (Low and Medium 1 lamp, High 2, Ultra 3, Epic 4; Shadows Off none); a test reads
+    the table (PLAN S5). Only the flag-on string says the meter darkens.
 - lighting.md and the bible, one wording for P1 / L11: "Every preset darkens a character's shadow on you from the same
   lamps by the same amount; higher presets draw the real outline from the nearest lamps, the others draw soft round
   shadows."
