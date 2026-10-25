@@ -49,4 +49,5 @@
   animGraph carryShot / strikeShot (keyed block), strikeBodyAt scale + 1 line in characterRig (strikeCap), new test file.
 - Measured: carry walk/idle not visibly broken (rows on); elbow_strike / cross_punch off (hips spin 92 / 55 deg over planted feet,
   knee 29 / 23 cm out). mixamoCarryStrike 10/10 at 84308c97; mixamoTraverse alloc failed (+128 B, update() size?): gate + shots moved
-  into methods (carryGate / mixamoShots) after it, not yet rerun. Left: rerun the list, I5-REPORT.md, changes/feature-mixamo-i5.md.
+  into methods (carryGate / mixamoShots): it passes solo (hang 1664 vs 2368) but failed again in the 13-file run (112 pass);
+  open: check it on b932d031 (pre-I5) in the same 13-file run. I5-REPORT.md and changes/feature-mixamo-i5.md written; eslint clean.
