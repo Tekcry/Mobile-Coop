@@ -1,6 +1,6 @@
 # mission-framework - STATE
 
-## RESUME 2026-10-25 ~14:15 (Night Shift | Campaign Build; read this block first, older blocks are history)
+## RESUME 2026-10-25 ~14:05 save (Night Shift | Campaign Build; read this block first, older blocks are history)
 Owner since 2026-10-25 ~12:50: Campaign Build (took Tallow Wharf, mission framework / engine and campaign rules from
 Marlow Build; Marlow keeps level-validator V6, route-runs, guard-cap). Process: `docs/RULES.md` and `docs/VISION.md`
 from origin/master; start steps: `docs/orchestrator/BOOT.md` "Campaign Build" on origin/feature/menu.
@@ -9,8 +9,7 @@ DOCS-FIRST HOLD (G346, G355; ROADMAP Now phase 1 row 2b): until Michael signs of
 game work here. Finished PRs may ship. Job 1 = the plan-only conformance review
 (`docs/orchestrator/review-briefs/campaign.md` on origin/feature/menu): branch feature/conformance-campaign, worktree
 C:/NightShift/Mobile-Coop-conformance-campaign. DONE: PR #419 (S1-S25 summary, 7 Michael questions, proposed
-jobs). Checker PASS on c0d8c058 (scratch/conformance-campaign/checker.md); polish fix round head 6b2b8635, re-check ->
-checker2.md (rerun if missing). PASS -> post `checker` on the head, tell the orchestrator, then HOLD.
+jobs). Checkers PASS (c0d8c058 full; fix round 6b2b8635), `checker` success posted on 6b2b8635; orchestrator told.
 HOLD (Michael 13:53 "plan comes first"): no doc fixes, no cloud briefs, no PRs until the orchestrator says Michael signed
 off row 6. WIP kept, no PR: wip/campaign-doc-fixes 953f198f (HG12 menu SPEC / code inventory);
 feature/mission-engine-flg-gb6 c74ce8f5 (local FLG + GB6 merges + 2 e2e lines; feature/mission-engine stays 00b6cde9
@@ -39,6 +38,8 @@ Parked by the hold (all on origin unless noted; resume after row 6 sign-off, ROA
 Laptop queue: `node scripts/laptop-queue/request.mjs --sha <full> --pr <n> --suites "<space separated>" --set <name>
 --requester "Night Shift | Campaign Build"`. Walk cap, train-ready and locks: RULES "Walk pacing", "Getting to
 master", "Machines". Message "Night Shift | Orchestrator" only at PR open / train-ready / blocked / needs Michael.
+Next: HOLD. If #419 goes red, fix it. On the orchestrator's row 6 sign-off message: restart the #372 spec docs from
+the restart notes above, then ROADMAP Now 7-8 per CONFORMANCE.md 1d.
 
 ## SAVE 2026-10-25 ~09:05 (5-hour save; reset 13:10; read with the block below)
 - NET3 550d99c4: checkers A + B PASS (mission-net3-check-{a,b}.md). Merge into engine AFTER the GB5 fix round: conflict only in tests/mission/sectorMission.test.ts (same decoy test as POL1): keep engine's copy, drop NET3's a56ebeab6 hunk; flip GB6 `const NET3 = true` in that merge. NET4 polish brief on cloud-queue (briefs/mission-framework-net4.md: late() uses sectorMission, checkMission id clamp, changelog + coop.md lines).
