@@ -1,0 +1,14 @@
+{
+  "id": "20261025T035734-affected-e2e-c821bd5a-853a",
+  "sha": "c821bd5a64bf4af0a9b0518570243d54112e485d",
+  "branch": "feature/doc-hygiene",
+  "pr": 425,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-camera-bounds"
+  ],
+  "set": "affected",
+  "laptopRerun": true,
+  "note": "desktop failure of 20261025T030112-affected-e2e-c821bd5a-af21, rerun on the laptop"
+}
