@@ -3,7 +3,7 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
-**Test Runner SAVE 59 (2026-10-26 ~00:30; session [6aaff9]; wins over SAVE 58):**
+**Test Runner SAVE 59 (2026-10-26 ~00:45, before the 00:54 cap; session [6aaff9]; wins over SAVE 58):**
 - Train 109 (#475 laptop-queue-6) laptop 42/43 green (studio flake). Service pid 12732 healthy.
 - MIXAMO FIRST ALL NIGHT (Michael ~00:15 via Orchestrator 00:20: "add all mixamo animations in game, i will fine tune
   as needed. make this priority overnight"). Player Build's Mixamo requests (sets mixamo-*, #477, I3 / I4 / switch-on
@@ -16,7 +16,16 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   stopped", done 00:07). heavy.lock is on the desktop: Orchestrator to confirm it is free.
 - Next queue PR (laptop-queue-7, from the 23:57 audit): skip affected requests on CONFLICTING PRs; smallest-first among
   PRs whose check + checker are green; check laptop-queue-6 holds claims across the next train.
-- Still waiting: #445 affected f3e4c511 and j20-s6c 259bbe55 (background watcher). Then SAVE 58 Next line.
+- 00:40: #477 new head 9be7701f: Player's co-op set re-filed as 000013; the service skipped its auto affected run
+  ("no merge-base ... not fetched"), so I filed it by hand and re-filed as 000014 (a late auto duplicate ...133515-b70c
+  withdrawn). 000011 (old head 21728ba6) is retired by superseded(). Next free prefix: 000015.
+- Pause 00:54 to 04:50 (5-hour cap, Orchestrator SAVE 00:35). Queue ~24 requests deep plus spare jobs: enough
+  session-free work, nothing extra filed. Mixamo requests filed during the pause are NOT re-filed: do it first on resume.
+- Laptop C:/NightShift/Mobile-Coop sits on feature/training-bunker (gone) with a local edit to src/world/bakedLamps.ts
+  (not mine; RULES: it should stay on master). Ask the Orchestrator whose it is before touching it.
+- Still waiting: #445 affected f3e4c511 and j20-s6c 259bbe55 (both queued).
+- Next: on resume, re-file any new Mixamo request (git grep -il mixamo origin/laptop-queue -- requests/), read the #445
+  and j20-s6c verdicts, then SAVE 58 Next line (PR-C merge -> D-A docs, PR-A, PR-B, j20-parity-pre-2), laptop-queue-7.
 
 **Test Runner SAVE 58 (2026-10-25 ~23:30, Orchestrator save at 69%; session [cc496b]; wins over SAVE 57):**
 - Service pid 12732 healthy. Trains 106 (42/43, flake e2e-ctcourse:4) and 107 (43/43) green. Queue 18 requests deep
