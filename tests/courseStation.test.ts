@@ -411,6 +411,26 @@ describe('the cause of a retry never repeats it (fix 4)', () => {
   });
 });
 
+describe('flags a retry drops (fix 5)', () => {
+  it('a console gate\'s flag set in station 2: the retry clears it with flagCleared and the guards hear the console is on', () => {
+    const st = new CourseState(def());
+    st.setFlag('s1-done');
+    expect(st.press('sw2', 0)).toBeNull();
+    st.clearEvents();
+    expect(st.retryStation('seen')).toBe(true);
+    expect(st.events).toContainEqual({ t: 'flagCleared', flag: 'key2' });
+    const r = rig(def(), { consoles: [{ id: 'sw2', guard: 'gd2', flag: 'key2' }], devices: { sw2: { x: 1, y: 0, z: 2, yaw: 0 } } });
+    r.st.setFlag('s1-done');
+    expect(r.st.press('sw2', 0)).toBeNull();
+    r.step();
+    expect(r.consoleCalls).toEqual([['sw2', false]]);
+    r.guard('gd2').alerted = true;
+    r.step();
+    expect(r.mode.lastRetry).toEqual({ st: 2, cause: 'seen' });
+    expect(r.consoleCalls.at(-1)).toEqual(['sw2', true]);
+  });
+});
+
 describe('a retry\'s gate doors (fix 3)', () => {
   it('the retried station\'s gate door is shut and locked again; an earlier station\'s door stays open', () => {
     const gates: BayDef['gates'] = [

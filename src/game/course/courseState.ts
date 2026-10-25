@@ -754,10 +754,13 @@ export class CourseState {
     }
   }
 
+  /** A station retry drops a flag: as `clearFlag` (fix 5: `flagCleared`, so the mode's console edge tells the guards a
+   *  looped console is back on); the caller counts `tickGen` once. */
   private dropFlag(flag: string): void {
     if (!this.flags.delete(flag)) return;
     this.flagBay.delete(flag);
     this.flagSt.delete(flag);
+    this.events.push({ t: 'flagCleared', flag });
   }
 
   /** A gate back to shut (a restart or a station retry); a mains gate stays open while its group is off. */
