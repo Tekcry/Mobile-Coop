@@ -438,6 +438,15 @@ behind a VPN adapter).
   `SHOT_VANTAGES` entry of Marlow Yard (the facility's `f-*` and each set's `a<n>-*`), written as
   `<dir>/<name>-<suffix>.png`, with the printed `meter field` row per vantage (fails when the two differ by more than
   0.02: light parity). `prefix` limits it to one set.
+- `E2E_GPU=1 E2E_PORT=4189 node scripts/t1-shadow-look.mjs [outDir] [frames=24] [--fps=60,30] [--gfx=epic] [--map=<query>]
+  [--query=<query>] [--need=hip] [--select-only]` (guard-ai T1; serves `dist/` itself, needs `npm run build`;
+  headless): the look capture of an off-view guard whose lamp shadow is in view, frames driven by hand, three passes on
+  one build: `tier` (default URL, the T1-SHADOW rule on), `full` (`&animtier=0`) and `cam` (`&animshadow=0`, camera-only
+  seen: must reproduce the slide); contact sheets per fps (`-tier`, `-full`, `-cam`, `-compare` = the three rows,
+  `-shadow` = his shadow alone), raw frames and `run.json` in `outDir` (default
+  `C:/NightShift/scratch/t1-shadow-look/<sha8>/`); prints the solve frames, the frames his body was camera-drawn (must be
+  none) and shadow-seen, his shadow's pixels and the planted-foot slide. `--need=hip` keeps only legs whose hip shadow
+  lands in view while he is culled (else it lists the best hip-shadow offsets tried). Software GL is a dry run only.
 - `node scripts/soak.mjs [minutes=10] [url]` (`MAP=`, `MODE=`, default Hunter) real-time soak: pacing, CPU, adaptive
   quality, heap growth (leak check)
 - `node scripts/anim-tune-bake.mjs <anim-tune-YYYY-MM-DD.json> [--dry-run] [--only section,...] [--allow-shared]`
