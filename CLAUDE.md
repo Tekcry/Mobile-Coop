@@ -33,21 +33,24 @@ and the orchestrator fixes VISION.
   `hyp3`, never `Math.hypot` (`docs/systems/conventions.md`).
 - Gameplay never reads graphics state (presets, LOD, the governor), only collision, occupancy, anchors, the light bake
   and the noise model. Light parity: the picture, the light meter and guard perception agree; one lighting system.
-- IP: CT's mechanics, visual style and HUD layout are copied closely; names, characters, organisations, story, logos,
-  UI art, art assets, the goggle and the music are original (G5, G69). No reference-game character, gear or
+- IP: CT's mechanics, visual style and HUD layout are copied closely, never CT's art assets; names, characters,
+  organisations, story, logos, UI art, the goggle and the score are original (G5, G69; free licensed assets: G407,
+  below). No reference-game character, gear or
   organisation names anywhere: code, UI, specs, docs, research notes (G6). "Chaos Theory" / "CT" may name the
   reference; Michael's quotes stay verbatim (G114). Never trace CT animation frame by frame.
-- No external art, except CC0 textures for detail, the CC0 base body of the operator pipeline (bible 5.14) and CMU
-  motion-capture takes (converted clips bundled, raw files not committed, credited in `docs/art-credits.md`); operator
-  and guard meshes come from in-repo offline scripts (Blender, headless). CC0 recordings may be used for any sound
-  (G58), bundled and credited in `docs/audio-credits.md` (score samples: `docs/audio/samples.md`); WebAudio synthesis
+- Free assets (G407): any free animation, sound, texture, model, music sample or other asset whose licence allows
+  commercial sale may be used: CC0 / public domain, CC-BY (the creator credited) and royalty-free game licences such as
+  Mixamo; never non-commercial, no-derivatives, share-alike or unclear licences. Each records its source URL and
+  licence in `docs/art-credits.md` or `docs/audio-credits.md` (score samples: `docs/audio/samples.md`); raw downloads
+  are not committed where the licence or size says so. Motion capture (CMU, Mixamo) is retargeted onto the game's own
+  rigs (G406); operator and guard meshes come from in-repo offline scripts (Blender, headless); WebAudio synthesis
   stays where it sounds better. The menu font Barlow Condensed (SIL OFL) is bundled in `src/ui/fonts/` (menu-ui MD1).
 - Every new map follows `docs/level-design.md`; its spec starts from `docs/templates/map-spec.md` and may tighten the
   standard, never loosen it without Michael's written approval; the standard and template change only with his
   approval. An engine-fact change in level-design Section 12 updates it and lists the map decisions that relied on it.
 - Desktop only (G12), pad first, then keyboard and mouse (loco D1, bible P7; tests run as a desktop, G13): no phone or
   touch work, except that a phone can launch the game for testing on the minimum settings and menus / HUD fit an iPad
-  (G182); the Kestrel editor keeps its phone launcher with no new work (G15). Removed and parked systems (bible
-  Section 6) get no new work; nothing is drawn as voxels. Story is text radio and subtitles, every line written so it
-  can be voiced later (G82).
+  (G182), and menu taps and touch look in play stay (G395); the Kestrel editor keeps its phone launcher with no new work
+  (G15). Removed and parked systems (bible Section 6) get no new work; nothing is drawn as voxels. Story is text radio
+  and subtitles, every line written so it can be voiced later (G82).
 - Unfinished work ships dark behind its flag in `src/core/flags.ts`.
