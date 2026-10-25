@@ -72,8 +72,9 @@ on a train (L8, V3, V4, T3), a blind 0.27 row (V5) and a flicker exemption that 
 - **A8 One parity check.** The new suite is the release gate for picture vs meter. The visual gate (feature/visual-gate,
   unmerged) drops its parity cards and meter rows when it lands, so V5 and V8 are fixed once, here. Undo: port A6 and A7
   into `metrics.mjs:581` and the gate BRIEF A22.
-- **A9 Late-join hint scope.** The `start` message carries `ls` (the host's live bake section) only when the map bakes
-  per section and that section is above 0. A client with a full cache hit ignores it (it has every lamp). Course `bay`
+- **A9 Late-join hint scope.** The `start` message to a late joiner carries `ls` (the host's live Sector Ops section)
+  only when that section is above 0. A client on a map that does not bake per section, or with a full cache hit,
+  ignores it (it has every lamp). Course `bay`
   is unchanged. Undo: drop the field; the client bakes section 0 first as today.
 - **A10 e2e-coop-gpu stays off the train run.** T3's option 1 named it; Q27 covers meter vs picture only. Undo: add it
   to `REQUIRED` in C2.

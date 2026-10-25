@@ -88,8 +88,9 @@ carries `Job-done: light-parity`.
 Messages (all optional fields, parsed and clamped in `src/net/protocol.ts`):
 - `start` gains `ls?: number` (integer 1..63): the host's live bake section, sent only to a late joiner / rejoiner
   (`session.ts:190-195`) when the host's map bakes per section and its live section is above 0 (A9). Host source: a
-  `lateSection` hook on `NetSession` beside `lateBay`, set by `CoopHost` to the bake's live section
-  (`g.world.lightBake?.sections?.plan.live`). Client path: `StartInfo.ls` -> `GameOptions.sectionStart` (`CoopUi`) ->
+  `lateSection` hook on `NetSession` beside `lateBay`, set by `CoopHost` to the last live section it sent in the
+  `sector` message (`coopHost.ts:818-820`, `SectorMode.netExtra` `src/game/modes/sectorMode.ts:1347`), not its own bake
+  (a host with a full cache hit has no baker while its joiner may miss). Client path: `StartInfo.ls` -> `GameOptions.sectionStart` (`CoopUi`) ->
   `WorldOptions.liveSection` -> `bakeLevelLight` input `live` -> `new SectionBaker({ ..., live })`. `GameState.create`
   already waits for `sb.plan.live`, so the client's load now waits for the host's section. Single player never sets it.
 - `lfail` (client -> host, new): `{ t: 'lfail', ids: number[] }`, 1-8 registry ids each `< LAMP_MAX`. Sent once per
