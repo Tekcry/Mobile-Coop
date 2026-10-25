@@ -35,6 +35,7 @@ Detail: ROADMAP "Now" (rewritten ~12:35) and HANDOFF "State at the switch"; this
 - Every save prints the orchestrator prompt (PROMPTS.md section 1), even when no swap is planned (Michael ~23:20).
 - List running orchestrator checkers / fix agents in each save block; the next orchestrator relaunches them first
   (23:05 rule).
+- Tooling follow-up (13:35 audit, next tooling PR after #412): merge-train release returns after merge + tag + dev move and leaves the deploy watch to later ticks (~6 min per train lost); auto-train retries gh once inside a tick instead of ending in error; #412 pacing must not count alone requests as busy.
 - A conflict only in docs/** or *.md never keeps a PR out of a train: resolve it in the train worktree (keep both sides).
 - Stacked PRs (base = another feature branch) stay open after their train merges: close every member whose head is in
   master with a comment naming the train PR.
