@@ -14,12 +14,13 @@ import type { Ballistics } from '../src/weapons/ballistics';
 import type { Vfx } from '../src/vfx/vfx';
 import type { PartLibrary } from '../src/world/partLibrary';
 import type { Body } from '../src/ai/body';
+import type * as EnemyModule from '../src/ai/enemy';
 
 // `EnemyManager.revive` builds the woken guard with `new Enemy`: here a stand-in on the real prototype (`guard`), so the
 // test drives `revive` itself (its stage gear and `ruleHelmet` call).
 const made = vi.hoisted(() => ({ make: null as ((kind: EnemyKind) => unknown) | null }));
 vi.mock('../src/ai/enemy', async (importOriginal) => {
-  const m = await importOriginal<typeof import('../src/ai/enemy')>();
+  const m = await importOriginal<typeof EnemyModule>();
   const Enemy = function (_ctx: unknown, def: { kind: EnemyKind }) {
     return made.make!(def.kind);
   };
