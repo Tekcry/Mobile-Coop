@@ -3,24 +3,30 @@ Owner: Sector Ops Build. Branch `feature/char-shadow-meter`, worktree `C:/NightS
 
 ## Resume
 - Job: FOLDED-PLAN J16, meter half (Sector Ops PR first; Guard AI perception and Player operator capsule after).
-- Status: plan written (BRIEF, PLAN, research/current.md). No code. Waits for a fresh Opus plan checker (RULES
-  Intake 4), then S1.
+- Status: plan revised for plan check 1 (PLAN-CHECK.md, FIX, 6 items, all addressed). No code. Waits for a fresh Opus
+  plan checker.
 - Michael: "Meter and guards read them"; Q14 "A faint cue". No open question; A6 (moon at Shadows Off) goes to the
   orchestrator for his next look.
-- Design: fixed per-point lamp set (every lit lamp >= 0.04 in the column, plus moon and flashlights); one sim capsule
-  per character in `src/world/charOccluders.ts`; the picture's round shadows read the same capsules; nothing on the
-  wire; `ShadowCues` for Guard AI. Flag `charShadowLight` default off (`?charlight=1`).
+- Claims: PLAN.md:6-34 (block); claims-check rerun: 22 overlaps, all "rebase, no shared lines" or ordered, PLAN.md:192-221.
+  For the orchestrator (other leads): guard-rules, guard-ai-mission-hooks, player-batch-j19, coop-kit, hud-guidance,
+  coop4 (named dependency: `playerRefsInto` slot order, keyed by id here), test-runner-j20, route-runs-2.
+- Slices: PLAN.md:136-143 (one owner per file; only S3 runs in parallel, two new files); done looks like
+  PLAN.md:150-180; PRs PLAN.md:182-190 (A = S1 + S2 ~1.33k, B = S3 + S3b + S4 + S5 ~0.93k).
+- Order: J1 #433 first (settings line, lighting.md:225 L16 fix already there); S1 -> S2 -> S3b -> S4 -> S5 on the job
+  branch; S3 on `feature/char-shadow-meter-s3` from S1's interface commit (PLAN.md:105-107); S4 after J11 PR B
+  (C1 + C2) is on master, card in `e2e-parity.mjs` part 4 (BRIEF.md:87-89 A13); J10 re-bake before S4's numbers and
+  the walk (PLAN.md:252-261).
+- Flag: BRIEF.md:72-79 A9 (`charShadowLight`, owner Sector Ops Build; walk areas Lighting, Sector Ops, Guard AI for the
+  cue; switched on by Michael's yes on the first release walk card with J10's re-bake, PR B and Guard AI's cue PR).
+- Settings text: BRIEF.md:91-103 (two strings by flag, from #433's wording, matches `CHAR_SHADOW_PRESET`).
 - Code anchors: meter gameState.ts:1659-1701; field lightField.ts:229-352, :413-432; picture capsules
   gameState.ts:907-914, bakedLamps.ts:692-724, GLSL :1312-1332; silhouette pick charShadowSet.ts:46-58, :197;
-  perception enemy.ts:2447; bodies enemyManager.ts:3666-3675.
-- PRs: A = S1 + S2 (~1.27k, Opus), B = S3 + S4 + S5 (~0.91k; S3 Opus, S4 Sonnet, S5 Haiku). Two Opus checkers each;
-  PR A also needs e2e-coop + e2e-netmove (src/game).
-- J10 dependency: build dark now; GPU card numbers, thresholds and the walk after J10's re-bake (PLAN section 5).
-- Next: start a fresh Opus plan checker on BRIEF + PLAN at this branch head; on PASS brief S1 (Opus, worktree
-  `feature/char-shadow-meter`) and S3 (Opus, `feature/char-shadow-meter-s3`, after S1's interface commit).
+  perception enemy.ts:2447; bodies enemyManager.ts:3666-3675; settings settingsScreen.ts:339-340.
+- Next: start a fresh Opus plan checker on BRIEF + PLAN at this branch head (PLAN-CHECK.md check 1 is the prior verdict).
 
 ## Done
 - 2026-10-25: research/current.md, BRIEF.md, PLAN.md, STATE.md (Opus planner).
+- 2026-10-25: plan check 1 FIX (Opus); PLAN and BRIEF revised for its 6 items (Opus planner).
 
 ## History
 - 2026-10-25: branch cut from origin/master 2148ec969.
