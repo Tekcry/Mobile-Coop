@@ -258,9 +258,11 @@ export class EnemyManager {
   guardAlarms = 0;
   /** (guard-rules S5) The repeat lock opened since the last guard alarm: the next may be raised. */
   private rearmed = false;
-  /** (guard-rules S5) Seconds since the last guard alarm, and the first response team it brought (`teams` index). */
+  /** (guard-rules S5) Seconds since the last guard alarm, and the response teams it brought (`teams` indices
+   *  `alarmTeam0` up to, not including, `alarmTeamN`: a later camera or laser stage's team is not one of them). */
   private alarmAgo = 0;
   private alarmTeam0 = 0;
+  private alarmTeamN = 0;
   /** (guard-rules S5) The repeat table (tests / e2e read the numbers from here). */
   readonly alarmRepeatTable = ALARM_REPEAT;
   /** The alarm went off: `e` raised it, at panel `p` (null: (guard-ai S6) by radio, a command call that got through). */
@@ -822,6 +824,7 @@ export class EnemyManager {
     this.guardAlarms = 0;
     this.alarmAgo = 0;
     this.alarmTeam0 = 0;
+    this.alarmTeamN = 0;
     this.alarmRunner = null;
     this.alarmBy = '';
     this.alarmHunt = -1;
@@ -840,25 +843,32 @@ export class EnemyManager {
 
   /**
    * (guard-rules S5, A7) Per step: after a guard alarm, with repeats on and fewer than `ALARM_REPEAT.max` raised this load,
-   * the lock opens once a member of a response team the alarm brought is searching (its response is in), or `rearm` s
-   * after it. Only a raise this manager made counts (`guardAlarms`): an `alarmRaised` set from outside stays shut.
+   * the lock opens once a member of a response team the alarm brought is searching where he was sent (its response is
+   * in: `teamSearching`), or `rearm` s after it. Only a raise this manager made counts (`guardAlarms`): an
+   * `alarmRaised` set from outside stays shut.
    */
   private repeatStep(dt: number): void {
     if (!this.alarmRaised || this.rearmed || !this.alarmRepeat || !ALARM_REPEAT.enabled) return;
     const n = this.guardAlarms;
     if (n < 1 || n >= ALARM_REPEAT.max) return;
     this.alarmAgo += dt;
-    if (this.alarmAgo >= ALARM_REPEAT.rearm || this.teamSearching(this.alarmTeam0)) this.rearmed = true;
+    if (this.alarmAgo >= ALARM_REPEAT.rearm || this.teamSearching(this.alarmTeam0, this.alarmTeamN)) this.rearmed = true;
   }
 
-  /** (guard-rules S5) A living, free member of a response team from `teams[from]` on is searching. No allocation. */
-  private teamSearching(from: number): boolean {
+  /**
+   * (guard-rules S5, A7) A living, free member of a response team `teams[from]` up to `teams[to]` (not included) is
+   * searching and has arrived: not still running his entry route in, and a device responder (`joinAsResponder`,
+   * searching from the moment he spawns) only once he stands at a search spot. No allocation.
+   */
+  private teamSearching(from: number, to: number): boolean {
     const ts = this.teams;
-    for (let i = from; i < ts.length; i++) {
+    const end = to < ts.length ? to : ts.length;
+    for (let i = from; i < end; i++) {
       const ms = ts[i]!.members;
       for (let j = 0; j < ms.length; j++) {
         const m = ms[j]!;
-        if (m.alive && !m.taken && m.level === 'searching') return true;
+        if (!m.alive || m.taken || m.level !== 'searching' || m.entering) continue;
+        if (!m.responder || m.atSearchSpot) return true;
       }
     }
     return false;
@@ -873,6 +883,7 @@ export class EnemyManager {
     this.rearmed = false;
     this.alarmAgo = 0;
     this.alarmTeam0 = this.teams.length;
+    this.alarmTeamN = this.alarmTeam0;
     this.guardAlarms++;
     this.alarmBy = p ? 'panel' : 'radio';
     // (guard-ai S24) the reinforcements hunt the intruder of the guard who raised it; (S24 fix) he has none: the one the
@@ -885,6 +896,8 @@ export class EnemyManager {
     this.alarmRunner = null;
     this.command.raised();
     this.onAlarm?.(e, p);
+    // (guard-rules S5) the teams the mode made for it (`newTeam`, at once; their members spawn later)
+    this.alarmTeamN = this.teams.length;
   }
 
   /**

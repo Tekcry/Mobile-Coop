@@ -1742,6 +1742,12 @@ export class Enemy implements Damageable {
     return this.entry !== null;
   }
 
+  /** (guard-rules S5) Standing at his investigation or search spot this step, looking round (a device responder has
+   *  arrived: `EnemyManager.teamSearching`). */
+  get atSearchSpot(): boolean {
+    return this.spotArrived;
+  }
+
   /**
    * (guard-ai S6, design 7, M1 "any reinforcements must be aggressive") He came in on the alarm: profile aggressive, told
    * by command (the next step he is in combat on the shared last known position, `radio(0)`: he answers, he does not call

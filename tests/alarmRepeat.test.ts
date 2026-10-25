@@ -180,6 +180,40 @@ describe('the repeat lock (manager, radio alarms)', () => {
     expect([em.guardAlarms, em.sectionCounts.radioAlarms, team.length]).toEqual([3, 3, 3]);
   });
 
+  it("a team made after the alarm (a camera or laser stage) searching does not open it; the alarm's own does", () => {
+    const { em } = manager();
+    em.alarmRepeat = true;
+    const team = teamOnAlarm(em);
+    priv(em).raiseAlarm(asE(fighter(0, 0)), null);
+    // a later camera stage's team, already searching
+    const later = em.newTeam(0, null, [], []);
+    later.members.push(asE(fake('grunt', 40, 0, { level: 'searching' })));
+    priv(em).repeatStep(1);
+    expect(em.alarmOpen()).toBe(false);
+    team[0]!.level = 'searching';
+    priv(em).repeatStep(0.1);
+    expect(em.alarmOpen()).toBe(true);
+  });
+
+  it('a member still entering, or a device responder not yet at his spot, does not open it', () => {
+    const { em } = manager();
+    em.alarmRepeat = true;
+    const team = teamOnAlarm(em);
+    priv(em).raiseAlarm(asE(fighter(0, 0)), null);
+    const m = team[0]! as Fake & { entering?: boolean; responder?: boolean; atSearchSpot?: boolean };
+    // searching on his run-in route: not in yet
+    Object.assign(m, { level: 'searching', entering: true });
+    priv(em).repeatStep(1);
+    expect(em.alarmOpen()).toBe(false);
+    // a device responder searches from the moment he spawns: only once he stands at his search spot
+    Object.assign(m, { entering: false, responder: true, atSearchSpot: false });
+    priv(em).repeatStep(1);
+    expect(em.alarmOpen()).toBe(false);
+    m.atSearchSpot = true;
+    priv(em).repeatStep(0.1);
+    expect(em.alarmOpen()).toBe(true);
+  });
+
   it('no team member searching: the lock opens ALARM_REPEAT.rearm s after the alarm, not before', () => {
     const { em } = manager();
     em.alarmRepeat = true;
@@ -294,6 +328,25 @@ describe('Sector Ops: the stage climbs with each guard alarm (sector harness)', 
     const load = () => (m as unknown as { loadSection(i: number): void }).loadSection(0);
     return { m, em, spawned, load };
   }
+
+  it("a camera stage's team after the guard alarm does not open the lock; the guard alarm's team does", () => {
+    const { m, em, load } = sector();
+    load();
+    priv(em).raiseAlarm(asE(fighter(0, 0)), null);
+    expect([m.run.alarm, em.teams.length]).toEqual([1, 1]);
+    // a camera has someone at full awareness: `CtDevices` raised its stage, the mode sends that stage's team
+    const mm = m as unknown as { ct: { alarm: number }; cameraAlarm(): void };
+    Object.assign(m, { camAlarms: 0, secStats: { camAlarms: 0, alarms: 0 } });
+    mm.ct.alarm = 2;
+    mm.cameraAlarm();
+    expect([m.run.alarm, em.teams.length, em.guardAlarms]).toEqual([2, 2, 1]);
+    (em.teams[1]!.members[0] as unknown as Fake).level = 'searching';
+    priv(em).repeatStep(1);
+    expect(em.alarmOpen()).toBe(false);
+    (em.teams[0]!.members[0] as unknown as Fake).level = 'searching';
+    priv(em).repeatStep(0.1);
+    expect(em.alarmOpen()).toBe(true);
+  });
 
   it('the section load turns repeats on; each guard alarm after its response is in adds a stage, up to 3; a restart clears it', () => {
     const { m, em, spawned, load } = sector();
