@@ -1824,6 +1824,9 @@ export class GameState implements AppState {
       this.pause();
       return;
     }
+    // (G343, BRIEF A5) View / O shows the objective again, every mode and both co-op sides; not under the pause or field
+    // menu (co-op runs the sim under it: the line would pop up behind the menu)
+    if (!this.paused && !this.menuOpen && realIn.pressed('objective')) this.hud.showObjective();
     // (tuner-camera) the tuner's free view: the game reads its own input (the orbit's move, the fly demo loop), none of
     // the devices' buttons
     // (anim-studio) the studio's loop player drives the game while it plays a loop
