@@ -1,6 +1,37 @@
 # mission-framework - STATE
 
-## RESUME 2026-10-25 ~18:25 (Night Shift | Campaign Build; read this block first, older blocks are history)
+## RESUME 2026-10-25 ~19:15 save (Night Shift | Campaign Build; read this block first, older blocks are history)
+Process: RULES + VISION from origin/master; start steps BOOT.md "Campaign Build" (origin/feature/menu). Plan: ROADMAP
+"Now" + FOLDED-PLAN J-rows; Michael's "Decided" answers win. Desktop builder cap: 2 at once (orchestrator ~18:50) until
+it says CPU < 80%. New rule ~19:00: free assets with commercial-sale licences allowed, credited (orchestrator msg).
+Working notes, reports, plans: C:/NightShift/scratch/campaign/ (checker reports *-check*.md, builder reports hg-*.md).
+1. #372 (this branch, head ab90a071 + this STATE): checker PASS x2 rounds, big-pr on; train-ready follows CI. Polish:
+   coop-kit SIGNOFF.md:30 note needs a blank line above it (renders as a table row).
+2. J1 docs #434: MERGED.
+3. FLG fix: two Opus checkers PASS; engine pushed. origin/feature/mission-engine 08c9e094 = engine + FLG + GB5/GB6 +
+   J7 PLAN. Laptop: set mission-flg-fix on f8b06637 queued (wharf-tgc / tkl / mission + coop group). First GB6 run on
+   c74ce8f5 FAILED 1/3 in 44 s (wharf-tgc, wharf-tkl; logs on the laptop only): if f8b06637 also fails, Opus triage
+   with the laptop log (ask Test Runner for C:/NightShift/scratch/laptop-queue/runs/<id>/).
+4. J3 hud-guidance PR A #447 (feature/hud-guidance ececda7e, worktree -hud-guidance): minimap / compass / blips / HQ
+   radar out, save v10. Two Opus checkers PASS (one docs fix round), checker status on ececda7e. Waits on
+   affected-e2e, then train-ready -> message the orchestrator. Polish for PR B: HUD-present guard on the no-minimap
+   checks, delete Grenades.positions(), damage.ts:38 comment, e2e-desktop wp > inset, ui.md:22 wrap, STATE.
+5. J3b PR B: branch feature/hud-guidance-b (cut from b28293c1); B1 popup builder (Opus) on feature/hud-guidance-b1
+   (worktree -hud-guidance-b1, WIP 9ad0b4f4; brief scratch/campaign/hg-b1-brief.md, report hg-b1-report.md). Next
+   B2 (Sonnet) parallel with B1; B3 / B4 / B5 Opus (src/net, two checkers); merge order B1 -> B3 -> B4. Forward-merge
+   PR A fix rounds into B. Plan: docs/hud-guidance/PLAN.md (plan check PASS after two fix rounds).
+6. J7 (mission rules): BRIEF docs/mission-rules/BRIEF.md, PLAN docs/missions/slices/J7-PLAN.md on the engine
+   branch (08c9e094). Lead ruling: a Teale KO / kill before he talks = protected section restart (G353), not a rule
+   break, he stays at his table; only a rule break moves him (signed TGC page). Fresh plan re-check running (report
+   scratch/campaign/j7-plan-recheck.md); PASS -> R0 then builders per the plan's waves.
+7. J8 / J9 Tallow: plan scratch/campaign/J8-J9-PLAN.md (lead answers at its end); plan check running
+   (j8-j9-plan-check.md). Michael asked via the orchestrator: closed Tallow rooms night-lit only (A1, assumed).
+8. TW23 Tallow SPEC onto the template (G157 template from #443): builder (Opus) on feature/tallow-spec (worktree
+   -tallow-spec, stacked on #372, WIP 2ad3ed9b; report scratch/campaign/tw23-report.md). PR after #372 merges.
+9. Known gaps: mission-validator still needs an optional reward and must accept `boltText` (J12, Marlow).
+Next: rerun any agent whose report file is missing (B1, TW23, J7 re-check, J8-J9 check); B2 when a slot frees; J7 R0.
+
+## OLD RESUME 2026-10-25 ~18:25 (history) (Night Shift | Campaign Build; read this block first, older blocks are history)
 Process: `docs/RULES.md` + `docs/VISION.md` from origin/master; start steps `docs/orchestrator/BOOT.md` "Campaign Build"
 (origin/feature/menu). Plan: FOLDED-PLAN (feature/menu) signed off ~17:00; Michael's answers in ROADMAP "Decided"
 override it. Tallow hold LIFTED ~18:05 ("Build now, walk later"); all six #372 pages signed off; the 12 level-rule
