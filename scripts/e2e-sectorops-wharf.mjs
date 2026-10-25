@@ -177,6 +177,9 @@ async function run(id) {
         return t.state;
       }
     });
+    // (wharf e2e fix) the client presses only once it sees the holder's offer (brace + PULL_SUB 8 on the wire): a press before
+    // it arrives is the client's own standing offer (the throw, or a "no room" refusal under the jetty) and the hold eats it
+    await until(B, () => (window.__app.current.net?.teamMates?.() ?? []).some((m) => m.mode === 'brace' && ((m.sub ?? 0) & 8) !== 0), null, 8000, `${c.id}: the client sees the pull-up offer`);
     await holdUntil(B, RB, () => ['pullJump', 'pullHang', 'pullScramble'].includes(window.__app.current.team.state), `${c.id}: the client jumps for the hands`);
     await hostStepResult(A, key, 8000, `${c.id}: the host catches`);
     await until(A, () => (window.__app.current.team.__log ?? []).some((e) => e[1] === 'pullHaul'), null, 8000, `${c.id}: the host hauls (pullHaul)`);
@@ -555,6 +558,8 @@ async function run(id) {
       assert(hf4[1] > 4.2, `W4 C9: the host stands in the clerestory (${JSON.stringify(hf4)})`);
       await useItem('W4-obj', 75.5, 0.1, 15, PI);
       await until(A, () => { const m = window.__mission; return (m.runner.doneBits >> m.runner.def.steps.findIndex((s) => s.id === 'tgc-4')) & 1; }, null, 8000, 'tgc-4 is done');
+      // (wharf e2e fix) the step's events are raised on the mission's next host tick, not inside the item's use
+      await until(A, () => window.__mev.some((e) => e.name === 'mindersArrive'), null, 3000, 'the minders event').catch(() => {});
       const mev = await GA(() => window.__mev.slice());
       assert(mev.some((e) => e.name === 'mindersArrive' && e.guardTag === 'tgc-minders' && e.postId === 'w4-quay'), `the minders are sent (${JSON.stringify(mev)})`);
       await mirror('W4');
@@ -614,8 +619,8 @@ async function run(id) {
       await until(A, () => { const m = window.__mission; return (m.runner.doneBits >> m.runner.def.steps.findIndex((s) => s.id === 'tkl-2')) & 1; }, null, 8000, 'tkl-2 is done again');
       // tkl-3: both strongroom keys inside the 1.0 s window, the host's turn and the client's in one host evaluate
       const pg = SEC[2].pair;
-      await moveHost(pg.a.at[0], pg.a.at[1], PI);
-      await moveClient(pg.b.at[0], pg.b.at[1], PI);
+      await moveHost(pg.a[0], pg.a[1], PI);
+      await moveClient(pg.b[0], pg.b[1], PI);
       await GA(() => {
         const g = window.__app.current;
         const t = window.__sector.team;
@@ -625,6 +630,8 @@ async function run(id) {
       });
       await until(A, () => window.__sector.debug().pairGates[2][0] === true, null, 8000, 'the strongroom gate opens');
       await until(A, () => { const m = window.__mission; return (m.runner.doneBits >> m.runner.def.steps.findIndex((s) => s.id === 'tkl-3')) & 1; }, null, 8000, 'tkl-3 is done');
+      // (wharf e2e fix) the step's events are raised on the mission's next host tick
+      await until(A, () => window.__mev.some((e) => e.name === 'telltale'), null, 3000, 'the telltale event').catch(() => {});
       const mev = await GA(() => window.__mev.slice());
       assert(mev.some((e) => e.name === 'telltale' && e.guardTag === 'w3-lodge-porter' && e.postId === 'w3-passage'), `the lodge porter is sent (${JSON.stringify(mev)})`);
 
