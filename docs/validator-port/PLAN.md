@@ -131,11 +131,15 @@ unchanged (they have non-loud paths); a fixture with a loud-only objective ERRs;
 
 **S4 (Opus).** `training.mjs` per A8 / A9: `meta.taught_by` (ERR missing or not in `meta.sections` on `training`; ERR
 present on another mode), `teach` (link string field or `teach:<move>` space tag), per-section edge-disjoint count with
-`edgeDisjointPaths`, the choke test (every entry-to-exit path passes the element: remove it and the exit is
-unreachable), `split:` tags before `taught_by`, late side routes with the campaign route rules reused from core
-(`checkEncounters` / `checkRedundancy` logic called per section through the lib, not copied). Done: green; the v7
-ctcourse graph run in a temp copy with `mode: training` and a `taught_by` shows the side-route ERRs in A2, A5, A6, A7
-(v7 REPORT "Interior redundancy": A1, A3, A4, A8 have one route).
+`edgeDisjointPaths` after merging each split's leg spaces into one node (A23), the choke test (every entry-to-exit
+path passes the element: remove it and the exit is unreachable), `split:` tags before `taught_by`, late side routes
+with the campaign route rules reused from core (`checkEncounters` / `checkRedundancy` logic called per section through
+the lib, not copied). Test cases (A23): a late section whose only second way is a split, no guard: no ERR; a late
+section with a split plus a real side route and no guard: ERR; the same with a guarded encounter space: the campaign
+route rules run. Done: green; the v7 ctcourse graph run in a temp copy with `mode: training` and `taught_by: "A7"`
+shows the side-route ERRs in A2, A5, A6 and the `split:` ERRs for splits `a4` and `a7`; A8 (after `taught_by`, one
+route once split `a8` is merged) gets neither. v7 REPORT "Interior redundancy": A1, A3, A4, A8 have one route; A7's
+second way is split `a7` (`a7-hall` split:a7:a; `a7-corridor`, `a7-pod` split:a7:b), not a side route.
 
 **S7b (Sonnet).** `engine.mjs` per A12, reading `rules.nav_floor_depth_m` and `rules.ladder_grab_m` through
 `collector.num` (a missing key: one WARN, check skipped). Done: green; v7 ctcourse's three `human_ladder` links are
@@ -270,5 +274,5 @@ mission-node merge to S0; `mark` and `requires_kill` to S6; `mission_*` rows to 
 - The campus drift test takes ~3 min; it keeps V6's 600 s timeouts. If CI time becomes a problem, the lead moves it
   behind an env switch and the laptop runs it (question for the Test Runner, not assumed).
 - PR B sits near the 1.5k cap: fallback in section 1.
-- Marlow Yard's graph will fail the training profile hard (side routes in A2, A5, A6, A7; A8 pacing); that is the
+- Marlow Yard's graph will fail the training profile hard (side routes in A2, A5, A6; splits before `taught_by`; A8 pacing); that is the
   intent (H6) and J14's work list, not a validator bug.

@@ -97,13 +97,21 @@ Authority order: `CLAUDE.md` on origin/master; Michael's answers above win over 
   co-op kit move is taught on its own (ERR missing on a `training` map). New `teach`: a link field `teach: "<move>"` or
   a space tag `teach:<move>`, free text from the map's teach list, so moves with no link kind (jam relay, console loop,
   synced takedown, V7) count. In every section up to and including `taught_by`: ERR 2+ edge-disjoint routes from entry
-  to exit (a side route), ERR a `split:` tag, ERR no `teach` element, ERR a `teach` element that some entry-to-exit path
-  avoids (the section is not forced). Undo: WARN instead of ERR, or drop the module from `validate()`.
-- **A9 Late Marlow sections, Q24.** After `taught_by`, a section with 2+ routes must hold a guarded encounter space
-  (a side route only "when training against enemies"), else ERR; such a section runs the campaign route rules on itself
-  (three approaches of two kinds with shadow / high / loud on its guarded spaces, routes cross, 2 edge-disjoint routes)
-  as ERR ("same design rules as a campaign mission area"). Splits are allowed there (G292). Undo: WARN, or only routes
-  cross (question L1).
+  to exit (a side route; routes counted as A23 says), ERR a `split:` tag, ERR no `teach` element, ERR a `teach` element
+  that some entry-to-exit path avoids (the section is not forced). Undo: WARN instead of ERR, or drop the module from
+  `validate()`.
+- **A9 Late Marlow sections, Q24.** After `taught_by`, a section with 2+ routes (counted as A23 says) must hold a
+  guarded encounter space (a side route only "when training against enemies"), else ERR; such a section runs the
+  campaign route rules on itself (three approaches of two kinds with shadow / high / loud on its guarded spaces, routes
+  cross, 2 edge-disjoint routes) as ERR ("same design rules as a campaign mission area"). Splits are allowed there
+  (G292). Undo: WARN, or only routes cross (question L1).
+- **A23 A split's two legs are one route (lead decision 2026-10-25 ~20:30).** Before A8 / A9 count a section's routes,
+  every space tagged `split:<id>:a` or `split:<id>:b` is merged into one node per split `<id>`, so a declared split
+  is one route, not a side route. A late section whose only second way is a split needs no guard and gets no campaign
+  route rules (G292: "until later sections where it teaches multiple objectives/split paths"; Q11: "Doesn't
+  necessarily always need a guard"); a split plus a real side route counts 2 routes and A9 applies. Before
+  `taught_by` the split is still an ERR by its tag (A8). Undo: count the legs as two routes (drop the merge in
+  `training.mjs`).
 - **A10 Perfect-run and marker checks on every map (VISION 4 rules 3-5).** New link field `requires_kill` (bool). In
   every mode: ERR when no ghost path (no `loud` link, no `requires_kill` link) leads from `start` to every `objective`
   space and on to `exfil` (Sector Ops, which needs no exfil: to the last section's `exit`); ERR when no no-kill path (no
