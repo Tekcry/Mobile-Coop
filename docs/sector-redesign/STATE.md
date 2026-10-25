@@ -358,9 +358,9 @@ Order: Guard AI J15 guard-rules PR1 (#450) lands before any J17 lane PR (S1-S5) 
 J10 datasheet: numbers only (ROADMAP Decided ~20:50); never commit the file. Python is not installed: scripts in node.
 1. PRs (watchdog labels train-ready when green; Opus triage on any laptop failure):
    - #457 J5 sector-marks (Job-done): Opus x2 PASS, CI green; affected-e2e queued on the laptop.
-   - #459 J16 A1: CI test failed on caf75f9dd (sourcesInto 90.8 B > 72, lightField.test.ts:780); fixed 97ca3ad28
-     (pushLv typed slot; local CI-like mode 67.2 B), merged into job branch d39a40af1. Sonnet delta checker running;
-     then CI + affected-e2e on 97ca3ad28.
+   - #459 J16 A1: CI test red: sourcesInto 90.4 B > 72 (lightField.test.ts:780) on CI Node 22; desktop Node 24 reads
+     59-67. 97ca3ad28 (pushLv slot, Sonnet delta PASS) did not move CI. Cloud brief char-shadow-meter-a1-node22
+     (4a456976d) reproduces on Node 22 and fixes in code on the PR branch; then a delta checker on the new head.
 2. BUILDING / CHECKING:
    - J10 L0 fold DONE on feature/light-realism-l0 3e78d0df2 (tsc fix, report checks/l0-fold-build.md; measure output
      in C:/NightShift/scratch/light-realism/l0-fold-measure/). Opus PASS 067ddea30 (status on 1cefe25eb; 5 polish items in checks/l0-fold-check.md, for L1 / L2).
