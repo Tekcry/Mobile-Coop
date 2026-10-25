@@ -2,8 +2,8 @@
 
 Process audit 2026-10-24, finding 6 (Michael approved ~21:50): swaps were the biggest single cost. Measured over 3 days:
 ~16 swaps, save -> every session up again median ~35 min, 8+ agents / runs lost at cutoffs, dead cloud builders' claims
-reopened by hand. The timing rules (save at ~92%, orchestrator prompt at 95%, Michael swaps at 100%, whichever limit binds
-first) stay in `docs/RULES.md` ("Swaps and context"); this file is the commands.
+reopened by hand. The timing rules (when to save, when Michael swaps, what the orchestrator prints) are in
+`docs/RULES.md` "Swaps and context"; this file is the commands.
 
 ## Targets
 | Measure | Before (3 days to 10-24) | Target |
@@ -48,17 +48,13 @@ node scripts/swap.mjs save --commit-wip
 - On the laptop: same commands; paths come from `--repo` / env `SWAP_REPO`,
   `--root` / `NS_ROOT` (default `C:/NightShift`, where the heavy locks live) and `--scratch` / `SWAP_SCRATCH`.
 
-Re-run `save` until it prints `SAFE`, then keep working to 100% as `docs/RULES.md` says. At 95% the orchestrator posts the next
-orchestrator prompt; it is safe to log out once the binding meter is at 100% and the last `save` said `SAFE` (`docs/RULES.md`).
+Re-run `save` until it prints `SAFE`, then keep working to 100%. The ~92% save is also when the orchestrator prints its
+own boot line; logging out waits for 100% and a last `SAFE` (both in `docs/RULES.md` "Swaps and context").
 
 ## After the swap: boot
-Michael pastes one short boot line per session title; each session resumes from its own STATE resume block on origin, not
-from chat history:
-
-```
-Night Shift | <Title>: set_session_title "self" to this title, read `git show origin/master:CLAUDE.md` (current rulebook),
-then docs/<job>/STATE.md resume block on origin/feature/<job>; run `node scripts/swap.mjs status` and carry on.
-```
+Michael pastes one short boot line per session title; each session resumes from its own STATE resume block on origin,
+not from chat history. The boot lines are in `docs/orchestrator/PROMPTS.md` (on origin/feature/menu, the
+orchestrator's); `node scripts/swap.mjs status` shows what each machine still holds.
 
 Cloud builders of the old account are dead after a swap. Claim expiry stays manual until the heartbeat patch
 (`docs/cloud-queue-README.patch.md`) is applied to the cloud-queue README: today's builders do not re-stamp their claims,
@@ -75,7 +71,8 @@ The heartbeat (builders re-stamp `status: claimed <title> <iso>` every 30 min) i
 (`docs/cloud-queue-README.patch.md` until it is applied there).
 
 ## Worktree clean-up
-340+ worktrees slow every scan. Remove clean worktrees of merged branches (branches are never deleted: Michael's call):
+340+ worktrees slow every scan. Remove clean worktrees of merged branches (`prune` never deletes a branch; the weekly
+branch clean-up rule is in `docs/RULES.md` "Branches and previews"):
 
 ```sh
 node scripts/swap.mjs prune --dry-run            # list: clean, merged into origin/master, git dir idle 24 h+

@@ -13,7 +13,7 @@ M9 lit like a real site and players cut lights, M10 dogs and armed response).
    (`MAX_ENEMIES`, `src/net/protocol.ts:22`). 24 guards + `alarmMax 3 x perStage` reinforcements must stay <= 32.
    The guard-cap perf run (12 / 16 / 24 awake) has **never been run**: `origin/feature/guard-cap` has the script and an
    empty report ("Not run yet"). Only measurement: ~2.6 ms main thread for 12 guards, sim p95 2.2-2.3 ms for 10 vs a
-   2.9 ms budget (`docs/sector-ops/PLAN.md` section 6). 24 awake is an unmeasured perf risk.
+   2.9 ms budget (`docs/archive/sector-ops/PLAN.md` section 6). 24 awake is an unmeasured perf risk.
 3. Runner and dog are melee-only (`src/config/enemies.json`); the melee branch in `decide()` returns before the gun
    code (`src/ai/enemy.ts:1173`), so arming a kind is data: give it a `weapon`, set `melee: null`.
 4. Guard-to-guard: shouts, radio call-ins, a shared last known position, body discovery with KO revival and squad
@@ -309,7 +309,7 @@ mirrors its layout `groups` only, `courseMode.ts:727-735`): needs a wire field a
   still crouched player under suspicious for a full cycle); 16.8.1 every lamp has an owner, fitting and switch.
 - The engine itself has no darkness rule: it only needs `LIGHT.shadow` 0.28 for "in shadow". The darkness comes from
   map data (ambient 0.3 and lamp layout) and these rules.
-- The lighting proposal (`docs/lighting-review/PROPOSAL.md`) is **untracked** in `C:/NightShift/Mobile-Coop-marlow-final`
+- The lighting proposal (`docs/archive/lighting-review/PROPOSAL.md`) is **untracked** in `C:/NightShift/Mobile-Coop-marlow-final`
   (not on any branch): "lit by default, the players make the dark"; LR1 lit-by-default rule, LR2-4 vantage / checkpoint
   / isolation become "concealed or darkenable", LR5 ways to darken = switch, breaker / isolator, jammer, shot (not only a
   shot), LR6 timed isolators, LR7 standby fill 0.14 in encounter spaces, 0.30 in transit, LR12 the Sector sync gap.

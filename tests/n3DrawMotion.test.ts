@@ -1,5 +1,5 @@
 // (anim-natural N3) The draw / holster / swap motion: the pure phase curves (anim/drawMotion.ts), the Draw tuner section,
-// the real-world times (docs/anim-natural/n3/DRAW-TIMES.md), and the real rig on a NullEngine (Wren, the real
+// the real-world times (docs/archive/anim-natural/n3/DRAW-TIMES.md), and the real rig on a NullEngine (Wren, the real
 // PlayerWeapons, WeaponStance and WeaponCarry, tests/helpers/drawHarness): one continuous move with no stop between its
 // start and its settle, no one-frame jump, nothing moving again once it is over (the "random stop": the gun held at the
 // swap clip's level pocket, then pitched into the low ready as the overlay faded), and the same final poses as before N3

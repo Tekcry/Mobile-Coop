@@ -2,7 +2,7 @@
 // Builds each weapon headless in the pinned Blender (scripts/operators/blender.mjs refuses any other version):
 // py/build_weapon.py -> build/weapons/<id>/<id>.glb (PNG textures) + report; then every texture is encoded to KTX2
 // (UASTC, the operators' settings: scripts/operators/ktx2.mjs) and the GLB repacked with KHR_texture_basisu, and the
-// game copy written to src/weapons/assets/<id>.glb. --render writes the review renders to docs/weapons/renders/.
+// game copy written to src/weapons/assets/<id>.glb. --render writes the review renders to docs/archive/weapons/renders/.
 import { execFileSync, spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -14,7 +14,7 @@ import { SEED } from '../operators/paths.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const OUT = path.join(ROOT, 'build', 'weapons');
 const ASSETS = path.join(ROOT, 'src', 'weapons', 'assets');
-const RENDERS = path.join(ROOT, 'docs', 'weapons', 'renders');
+const RENDERS = path.join(ROOT, 'docs', 'archive', 'weapons', 'renders');
 const PY = path.join(ROOT, 'scripts', 'weapons', 'py', 'build_weapon.py');
 const KTX_BIN = process.env.KTX_BIN ?? 'C:/Program Files/KTX-Software/bin';
 const exe = (n) => path.join(KTX_BIN, process.platform === 'win32' ? `${n}.exe` : n);

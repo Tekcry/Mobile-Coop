@@ -2,7 +2,7 @@
 
 Research agent, 2026-10-23 (overnight, Michael asleep: assumptions logged in section 6, no questions).
 Inputs: BRIEF M1-M10, `docs/level-design.md` (LS), `docs/templates/map-spec.md`, `docs/design/scale-sheet.md`,
-`docs/story.md`, `docs/warehouse-redesign/SPEC.md` (old map), R2-PATHS.md (origin/feature/sector-fixes-r2-paths),
+`docs/story.md`, `docs/archive/warehouse-redesign/SPEC.md` (old map), R2-PATHS.md (origin/feature/sector-fixes-r2-paths),
 `research/CT-LEVELS.md` (its ten rules are followed here). ENGINE.md had not landed when this was written.
 Frame as the old spec: x west to east, z south to north (+z north), y up, metres. All names are original (G6).
 

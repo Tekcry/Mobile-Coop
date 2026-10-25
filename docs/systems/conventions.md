@@ -25,8 +25,8 @@ Design authority: docs/design-bible.md (Section 9). What the game is: docs/VISIO
 - Pure logic (maths, validation, migrations) stays free of Babylon and the DOM so it is unit-testable in node.
 - Strict TS (`noUncheckedIndexedAccess`, `verbatimModuleSyntax`: `import type`). Babylon only through
   `src/core/babylon.ts`. Single player never imports `src/net` statically.
-- Every job updates `CHANGELOG.md` (under "Unreleased" until Michael merges, G93), TESTING.md when the desktop
-  checklist changes, and the system docs it touches.
+- Every job adds one changelog fragment, `changes/<branch-with-dashes>.md` (`changes/README.md`; never edits
+  `CHANGELOG.md`), updates TESTING.md when the desktop checklist changes, and the system docs it touches.
 
 ## Hot paths
 - Hot paths must not allocate (no closures, iterators or temporary vectors in AI / nav / anim loops; `for` with an

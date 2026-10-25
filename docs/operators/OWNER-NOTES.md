@@ -1,6 +1,6 @@
 # Operators run - owner notes (Michael)
 
-Keep this file current to the end of the run. Modelled on docs/locomotion/OWNER-NOTES.md.
+Keep this file current to the end of the run. Modelled on docs/archive/locomotion/OWNER-NOTES.md.
 
 ## Rule
 Project knowledge lives in git, never only in Claude memory or chat: Michael swaps Claude accounts. Every decision,
@@ -34,7 +34,7 @@ the renders a checker is about to review when it starts that checker, and still 
 Both runs go in parallel on two machines. Locomotion step 25 (weapon / holster) and later (27 contact, 30 co-op
 bodies, 32 metrics freeze) should be tuned against the real Wren model; it becomes a game asset at step 10, then a
 short integration session (own branch, dev switch `?operator=wren`). The note was sent to the Locomotion Build session
-(Remote Control) to record in docs/locomotion; delivery is not confirmed.
+(Remote Control) to record in docs/archive/locomotion; delivery is not confirmed.
 
 ## Hardware library helper (Michael, 2026-10-16)
 A parallel session on the second machine, after the locomotion run completes, builds the rigid hardware generators

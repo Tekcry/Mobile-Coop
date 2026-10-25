@@ -2007,7 +2007,7 @@ conflicts: master deleted nothing the operators work had touched.
   36 ok; KNOWN FLAKY failed: e2e-netmove, e2e-coop, e2e-pad; 5 failed: e2e-anchors, e2e-kestrel, e2e-camera-bounds,
   e2e-music, e2e-editor. Serial rerun of the 5: e2e-anchors and e2e-music pass (load); e2e-kestrel ("camera rays along
   the tour"), e2e-camera-bounds (level U) and e2e-editor fail. All three are the pre-existing Kestrel-owned failures in
-  master's consolidation PR (docs/consolidation/PR-BODY.md 48, AGENT-PREAMBLE.md 42); none touches operators code.
+  master's consolidation PR (docs/archive/consolidation/PR-BODY.md 48, AGENT-PREAMBLE.md 42); none touches operators code.
 - Merge commit a804c48 (not pushed). Uncommitted after it: this LOG draft, STATE.md, the orchestrator's 11d / 11e step
   file edits, and a line-ending-only touch of tests/__snapshots__/visionIsolation.test.ts.snap from the Vitest run.
 - Status: merged; check passed; e2e failures are master's known ones.
@@ -2019,7 +2019,7 @@ Status: draft (implementer). D31 / G123 (Wren is the player body for both player
 Michael (2026-10-18: "I want wren in the game first"). Assumed decisions A96-A98. No asset changes.
 
 **Built**
-- `docs/operators-runtime/SURVEY.md` (player body, co-op bodies, cameras, shadows, gameplay isolation, bundling;
+- `docs/archive/operators-runtime/SURVEY.md` (player body, co-op bodies, cameras, shadows, gameplay isolation, bundling;
   file:line) and `DESIGN.md` (modules and API, manifest, LOD / hero choice, bundling, sizes and load time, sharing,
   skeleton link, materials, goggle states, the asset follow-up, disposal, the 11e integration map, risks).
 - Pure, Babylon-free (`src/operators/runtime/`): `manifest.ts` (LOD names, `manifestFromUrls`, `validateManifest`,

@@ -35,13 +35,13 @@ visual or performance result; mark every such check "pending PC run".
   Push only with: git push -u origin feature/operators-runtime. Never merge into or push feature/operators,
   feature/ct-locomotion, ct-movement, dev or master. Commit after each phase.
 - NEW FILES ONLY, in: src/operators/runtime/ (code), tests/operatorsRuntime*.test.ts (tests),
-  docs/operators-runtime/ (your docs). Do not edit any existing file. In particular never edit:
+  docs/archive/operators-runtime/ (your docs). Do not edit any existing file. In particular never edit:
   src/player/characterRig.ts, src/anim/*, src/core/* (including babylon.ts and flags.ts), src/operators/kit.ts,
   src/operators/operatorBody.ts, src/operators/lab/*, scripts/operators/*, docs/operators/* (another run owns them),
   and anything feature/ct-locomotion changes - list those files first with:
   git diff --name-only $(git merge-base origin/feature/operators origin/feature/ct-locomotion) origin/feature/ct-locomotion
   If a change to an existing file is truly needed (for example a Babylon side-effect import in src/core/babylon.ts),
-  do not make it: write it into docs/operators-runtime/INTEGRATION.md as an exact patch for the PC session.
+  do not make it: write it into docs/archive/operators-runtime/INTEGRATION.md as an exact patch for the PC session.
 - Do NOT follow docs/operators/RULES.md, STATE.md or its step loop: that is the asset run, not you. Do follow the
   project rules in CLAUDE.md "Hard rules": Babylon only through src/core/babylon.ts (import from it; if something you
   need is not exported or needs a side-effect import, record the patch as above); strict TS with
@@ -77,7 +77,7 @@ visual or performance result; mark every such check "pending PC run".
   a proposal for the asset run to adopt.
 
 # 3. Phases (one or more subagents each; you review between phases)
-Keep docs/operators-runtime/STATE.md current after every phase (phase done, next, open questions, decisions you
+Keep docs/archive/operators-runtime/STATE.md current after every phase (phase done, next, open questions, decisions you
 assumed with how to undo). It is the resume point if the session stops.
 
 Phase 1 - Survey (3 read-only Explore agents in parallel, "very thorough"; each returns a short written map with
@@ -93,9 +93,9 @@ file:line references, not file dumps):
   C. Gameplay isolation: the light meter, guard perception and any code that reads the player body's meshes or bounds
      (confirm swapping the mesh cannot change gameplay; list anything that would). Plus the locomotion branch's changed
      file list (command in section 1) and what it changes in CharacterRig node names or structure.
-  Then write docs/operators-runtime/SURVEY.md from the three reports (you write it, briefly).
+  Then write docs/archive/operators-runtime/SURVEY.md from the three reports (you write it, briefly).
 
-Phase 2 - Design (one Plan agent, Opus): write docs/operators-runtime/DESIGN.md: module layout and public APIs;
+Phase 2 - Design (one Plan agent, Opus): write docs/archive/operators-runtime/DESIGN.md: module layout and public APIs;
   the manifest format and proposed asset names; LOD selection (distance bands with hysteresis, per-camera, the hero
   rule from D21 with a registry of close-up cameras, phone always LOD2-class); platform gating and service worker
   exclusion; loading and caching (shared GPU resources across co-op players of the same operator); skeleton link and
@@ -117,10 +117,10 @@ Phase 4 - Babylon side (one general-purpose agent): the loader and instance (thr
 Phase 5 - Independent review (a FRESH Opus agent, read-only except its review file): re-run npm run check; read the
   diff; check every rule in section 1 (new files only, no forbidden edits, hot-path allocation, Math.hypot, import
   type, Babylon import surface, phone gating, gameplay isolation, no network); check the design against SPEC 6.3 / 6.4
-  and D13, D19-D21. Writes docs/operators-runtime/REVIEW-r1.md: PASS or a numbered fix list. Up to 2 fix rounds (a
+  and D13, D19-D21. Writes docs/archive/operators-runtime/REVIEW-r1.md: PASS or a numbered fix list. Up to 2 fix rounds (a
   fixer agent, then a fresh reviewer). Still failing: record it as open in STATE.md and continue.
 
-Phase 6 - Handover (you): docs/operators-runtime/INTEGRATION.md for the PC session after locomotion merges and the
+Phase 6 - Handover (you): docs/archive/operators-runtime/INTEGRATION.md for the PC session after locomotion merges and the
   asset run's step 10 lands: the exact files and lines to change (player body creation, menu and close-up cameras,
   co-op remote bodies, service worker, babylon.ts side-effect imports, flags), each as a concrete patch or
   instruction; the e2e suite to add or extend; the checks only the GPU PC can do (perf budgets from SPEC 6.4 and

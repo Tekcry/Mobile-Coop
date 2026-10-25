@@ -1,14 +1,14 @@
 // anim-skeleton S3b GPU look (desktop, E2E_GPU=1, under C:/NightShift/heavy.lock): serves dist/ on 4189, boots the Anim
 // Studio at ?gfx=high (Wren's LOD0, the studio's stage light), plays `keyed:skeleton_test` and pauses it at six frames
 // (rest, shrug, right shoulder forward + curling, fist, kick chamber + spread, extension), each from a front three-quarter
-// camera, laid out as one labelled contact sheet: docs/anim-skeleton/s3/skeleton-test-studio.webp (< 600 KB).
+// camera, laid out as one labelled contact sheet: docs/archive/anim-skeleton/s3/skeleton-test-studio.webp (< 600 KB).
 //   E2E_GPU=1 node scripts/anim-skeleton/gpushot-s3.mjs            (needs a prior `npm run build`)
 import { spawn, spawnSync } from 'node:child_process';
 import { mkdirSync, statSync, writeFileSync } from 'node:fs';
 import { launch, waitOperator } from '../e2e-lib.mjs';
 
 const PORT = 4189;
-const OUT = 'docs/anim-skeleton/s3';
+const OUT = 'docs/archive/anim-skeleton/s3';
 const FRAMES = [
   [0, 'f0 rest'],
   [5, 'f5 shrug both 20'],

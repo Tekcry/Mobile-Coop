@@ -13,8 +13,8 @@ templates, commands and roles. Where it seems to disagree with `docs/RULES.md`, 
 Every new job, and every new phase of a job, goes through the gates in order; the templates are in `docs/templates/`.
 1. **BRIEF**: `docs/<job>/BRIEF.md` from `docs/templates/brief.md`. "Michael said" is his words verbatim with the time
    and where (chat, walk note), never the orchestrator's paraphrase; "Michael picked" is the exact option text he
-   clicked. Then goal, limits and assumptions A1, A2, ... with how to undo each. A question that loosens a Michael-only
-   rule goes to him through the orchestrator by day; at night the rule as written stands and that part waits.
+   clicked. Then goal, limits and assumptions A1, A2, ... with how to undo each. An assumption that loosens a
+   Michael-only rule follows `docs/RULES.md` "Intake" step 2 (a question by day, assumed and logged overnight).
 2. **PLAN**: `docs/<job>/PLAN.md` from `docs/templates/plan.md`: slices, each with files, checks and "done looks like",
    and a **claims block** (fenced ` ```claims `): the files / globs, maps, PROTOCOL (wire) messages and save shape the
    job changes. The lead commits BRIEF + PLAN and pushes before the checker starts.

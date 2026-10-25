@@ -1,5 +1,5 @@
 /**
- * (sector-fixes R1) Sector Ops section 1's co-op-only routes and its team door (docs/sector-fixes/r/R1.md): the plant-room
+ * (sector-fixes R1) Sector Ops section 1's co-op-only routes and its team door (docs/archive/sector-fixes/r/R1.md): the plant-room
  * service door over the yard (a 4.4 m sill onto the plant deck), the goods-in hoist monorail (a 4.4 m pipe over the east
  * lane) and the mess's back door bolted from the mess side. Built from the real `warehouseOps` map.
  */

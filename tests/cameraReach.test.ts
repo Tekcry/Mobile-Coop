@@ -2,7 +2,7 @@
  * (camera-range, Michael 2026-10-23: "cameras need to have less range (they currently pick the player up well outside
  * of the intended area)") Every camera of every live map, scanned with its map's own pieces (`cameraReachScan.ts`):
  * the 4.63.1 engine ("before": the guard's 25 m falloff cut at an 18 m range) against the engine now (`camRange`,
- * `cameraRate`). `CAMERA_REACH_WRITE=1` also writes the table to docs/camera-range/MEASURE.md.
+ * `cameraRate`). `CAMERA_REACH_WRITE=1` also writes the table to docs/archive/camera-range/MEASURE.md.
  */
 import { describe, expect, it } from 'vitest';
 import { writeFileSync } from 'node:fs';
@@ -135,7 +135,7 @@ describe('camera reach on every live map (camera-range)', () => {
     // (marlow-final 0d) Sector Ops 7 + the Security Lab 2, plus the rebuilt Marlow Yard's cameras (its sets own the count)
     expect(rs.filter((r) => r.map !== 'ctcourse').length).toBe(9);
     expect(rs.some((r) => r.map === 'ctcourse')).toBe(true);
-    if (process.env.CAMERA_REACH_WRITE === '1') writeFileSync('docs/camera-range/MEASURE.md', report(rs));
+    if (process.env.CAMERA_REACH_WRITE === '1') writeFileSync('docs/archive/camera-range/MEASURE.md', report(rs));
     // (train build) all live maps; ~140 s on a loaded desktop
   }, 360_000);
 

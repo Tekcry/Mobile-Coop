@@ -17,7 +17,7 @@ and playable, no polishing, every number a starting value (G10).
   reads graphics state, single player never imports src/net statically, saves only via src/save).
 - docs/DECISIONS.md (G entries your brief cites). The plan: `C:\NightShift\Mobile-Coop-ct-research\docs\ct-prototype\PLAN.md`
   (read-only; it lives on the research branch until that PR merges). Footage numbers:
-  docs/locomotion/PROTOTYPE-PLAN.md and docs/locomotion/research/ct-measure-*.md.
+  docs/archive/locomotion/PROTOTYPE-PLAN.md and docs/archive/locomotion/research/ct-measure-*.md.
 - Co-op parity: remotes pose from MoveState; a wire change bumps PROTOCOL_VERSION (13 -> 14 once for this branch).
 - Before changing a default, speed, timing or binding, grep scripts/ and tests/ for assertions on it; update them to
   the new numbers or mark them `// prototype: revisit` and skip, never leave them failing.

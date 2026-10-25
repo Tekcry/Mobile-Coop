@@ -2,7 +2,7 @@
 
 Opus builder, branch `feature/sector-redesign-lightrev`, 2026-10-23 ~14:40-15:10. Michael ~14:35 "Try it first": ship
 the photometric falloff default OFF behind an in-game setting; the meter, the guards and the shaders switch together.
-Proposal: `docs/lighting-review/PROPOSAL.md` section 7 (LR13). Base: `origin/master` 4.75.0 merged first (5efc4c87, no
+Proposal: `docs/archive/lighting-review/PROPOSAL.md` section 7 (LR13). Base: `origin/master` 4.75.0 merged first (5efc4c87, no
 conflicts).
 
 ## What was built
