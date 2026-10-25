@@ -11,6 +11,11 @@ kit, guard models; maps `ctcourse`, `campusOps`, `warehouseOps` and Tallow Wharf
 Fix sizes: S under 2 h, M 2-6 h, L over 6 h or its own job. "Needs Michael" = a missing or conflicting decision, or a
 fix that loosens a Michael-only rule; the options are in section 1b, as native multiple choice.
 
+Summary: 10 hard-rule breaks (H1-H10: touch look, 5 hot-path allocation sites, `Math.hypot`, banned names in a doc,
+character shadows, G327 shadow anim rate, the partner minimap blip), 39 rule and decision gaps (R1-R39), 9 stale docs
+(D1-D9), 9 questions for Michael (Q1-Q9). Three own jobs (L): character-shadow parity (H7), civilians (R15), the
+shoulder stand and rope descent kit moves (R32, R34).
+
 ## 1. Gap table
 
 ### 1a. Hard-rule breaks (CLAUDE.md "Hard rules (code)", VISION 4)
