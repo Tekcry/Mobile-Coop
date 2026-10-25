@@ -1003,27 +1003,30 @@ C:/NightShift/Mobile-Coop-laptop-queue-svc && node scripts/laptop-queue/request.
 laptop-e2e/<set>. Withdraw = delete requests/<id>.json on origin/laptop-queue (plumbing commit, never in the svc
 worktree). Background wait: scratchpad wait-status.sh "<sha>:<context>" ... Laptop auto mode blocks labels: tell the
 orchestrator at train-ready. Walk cap: Guard AI AT CAP (new behaviour dark; rule fixes ship on, G355).
-Open (SAVE 2026-10-25 ~21:15; full burn; order J4, J6, J15, J26, J16). LAPTOP gh LOGIN BROKEN since ~21:02 (HTTP
-401; git push works): Michael asked to run `gh auth login`; until then the orchestrator posts checker statuses and
-reports gates. Checker statuses: a LONE `gh api repos/Tekcry/Mobile-Coop/statuses/<sha> -f ...` (nothing chained).
-1. J4 G327 #438 head 8af8ff6a: checker posted ~20:20; affected-e2e request 20261025T090223 waits in the queue (Marlow
-   first tonight). After train-ready: undraft #414.
+Open (2026-10-25 ~22:00, new account; full burn; order J4, J6, J15, J26, J16). Laptop gh login works again; the
+~21:38 local commits are pushed. Checker statuses: a LONE `gh api repos/Tekcry/Mobile-Coop/statuses/<sha> -f ...`.
+Laptop CPU ~99% while trains run: no local tsc / vitest builders until it drops under ~80%.
+1. J4 G327 #438 head 8af8ff6a: checker posted ~20:20; affected-e2e request 20261025T090223 waits in the queue (train
+   103 first). After train-ready: undraft #414.
 2. J4 #317 coop4 head 3100d035 ships ON (Q16). Release checks A + B PASS (docs/guard-ai/checks/coop4-release-check-A/B.md,
-   a7653ca7f); orchestrator posted checker ~21:35. Left: affected-e2e (request 20261025T100447). The orchestrator
+   a7653ca7f); checker posted. affected-e2e FAIL 09:52Z "slot 4192 gave no result" (infra); re-request
+   20261025T100447 queued. The orchestrator
    resolves the 4-file master conflict in the train (coopHost markIntel, protocol 63, coop.md, testing-tools.md) and
    runs e2e-sectorops:7/:8/:9 alone on the train head. Never push to feature/coop4. Polish -> coop4-pol: sectorMode.ts:1434
    OUT slot from RemotePlayer.ref.slot; main.ts:332 text; coopUi.ts:87 roomCap; testing-tools part 9 bullet.
 3. J6 #446 head 97c6338f: re-checks A + B PASS (slices/ALLOC-RECHECK-A/B.md). Gates queued: laptop-e2e/alloc-coop
    (20261025T090658) + affected (090651). Green -> checker posted, tell orchestrator.
 4. J15 PR1 #450 (feature/guard-rules 211a66d5): check A PASS, B FIX (TESTING.md) applied (docs only). Gates queued:
-   laptop-e2e/rules-pr1 on a78d7093 (091057) + affected-e2e on 211a66d5 (091818). Green -> checker on the head, tell
-   orchestrator. PR2 polish: responseTeam shield arg default true (gear.ts:178) -> false; KILL_BASE.dog undo keeps
+   laptop-e2e/rules-pr1 on a78d7093 (091057) + affected-e2e on 211a66d5 (091818). #450 CONFLICTS with master in two
+   docs (docs/systems/ai.md, takedowns.md), so CI `check` never ran; orchestrator told (train merge by hand). Green ->
+   checker on the head, tell orchestrator. PR2 polish (build on -s5 now, never on feature/guard-rules): responseTeam shield arg default true (gear.ts:178) -> false; KILL_BASE.dog undo keeps
    the headshot bonus off (score.ts:17); GearGuard type redundant.
 5. J15 S5 repeat alarms (PR2): be49ac06 on feature/guard-rules-s5; checks A + B PASS (docs/guard-rules/checks/
    S5-CHECK-A/B.md, a09495007 local on -s5). After PR1 merges: merge -s5 into feature/guard-rules, PR2 with the PR1
    polish above + S5 polish (stale comments enemyManager.ts:247/:892; newest-team only in teamSearching :855 and
    joinAsResponder :985; no "Reinforcements inbound" at stage cap), laptop affected + e2e-coop + e2e-ctcourse.
-   Then wave 3: F0 flags (lead) then S4 / S6. node_modules junctions: guard-rules(-s5) -> guard-ai-s24 directly.
+   Then wave 3: F0 flags (lead) then S4 / S6; Opus slice briefs -> docs/guard-rules/slices/{F0,S4,S6}-BRIEF.md on -s5.
+   node_modules junctions: guard-rules(-s5) -> guard-ai-s24 directly.
 6. J26 mission hooks: plan PASS (044258624). Every slice starts after J15 PR4 merges: S1a -> S1b; S2 -> S3 -> S4.
    Campaign Build SENT the PLAN's C1-C7. A9 per-area stages dark: Michael's click at his walk.
 7. Test Runner request (J20 S6b): seed the 5 Math.random sites in src/ai (enemy.ts think cadence x2, enemyManager
@@ -1031,6 +1034,5 @@ reports gates. Checker statuses: a LONE `gh api repos/Tekcry/Mobile-Coop/statuse
    shrink its allowlist in the same PR.
 8. J16 perception half (Q14 cast shadow = faint cue): plan after Sector Ops' J16 PR.
 9. Later: coop4-pol (134f6abe), snapBudget headroom, coopHost.ts:589 comment, TODO sectorMode.ts:201.
-Next: FIRST push local commits (feature/guard-ai: coop4 release checks a7653ca7f + this STATE; feature/guard-rules-s5:
-S5 checks a09495007) once the laptop gh login is fixed (gh auth login + gh auth setup-git); then laptop gates 1-4.
+Next: laptop gates 1-4 (background wait); PR2 polish on -s5 once CPU < 80%; wave 3 briefs.
 ```
