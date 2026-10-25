@@ -118,9 +118,13 @@ export const S2_CORES: readonly Core[] = [SW_CORE, NE_CORE];
 /** The roof bulkheads' top. */
 export const BULKHEAD_TOP = 14.9;
 /** The near landing's depth along the core and the far (half) landing's. */
-/** (S2-G3, C15, Q3 default) 1.2 -> 1.3: each core door sits fully on a 1.3 m flat landing (SS:43, SS:62). */
-const NEAR_D = 1.3;
-const FAR_D = 0.8;
+/** (S2-G3, C15, Q3 default) 1.2 -> 1.3: each core door sits fully on a 1.3 m flat landing (SS:43, SS:62).
+ *  (S2-G6b, A-G6b-2) 1.3 -> 1.4 and the half landing 0.8 -> 0.9: at 1.3 / 0.8 a flight's upper end fell within 0.08 m of a 0.5 m nav
+ *  cell centre (the SW near end, the NE far end), where the down-cast hits the pitched ramp's end cap (normal y 0.5) and the cell is
+ *  not walkable: no path from L1 to L2 in either core on the runtime nav grid. At 1.4 / 0.9 no cell centre is that close. The door
+ *  still sits fully on the landing (1.4 >= 1.3); the flights go 3.3 long (going 0.275 / 0.30, 2R + G 0.64-0.66, inside NCC). */
+export const NEAR_D = 1.4;
+export const FAR_D = 0.9;
 
 /** A core with its walls: the footprint a slab leaves open. */
 export const coreFoot = (c: Core): Rect => [c.x0 - 0.2, c.x1 + 0.2, c.z0 - 0.2, c.z1 + 0.2];

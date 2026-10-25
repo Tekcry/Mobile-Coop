@@ -351,25 +351,29 @@ describe('S2-G3 the east wing (C10), the sunshade and window (C12), the cores (C
     expect(solid.some((p) => Math.abs(p.c[2] - 6) < 1e-6 && Math.abs(p.c[0] + 4) < 1e-6 && p.c[1] + p.s[1] / 2 <= 5.3 + 1e-6 && p.c[1] - p.s[1] / 2 >= L1 - 1e-6)).toBe(true);
   });
 
-  it('C15: the cores near landing is 1.3; the flights G-L1 12 x 0.183 over 3.5 (0.29), L1-L2 and L2-roof 11 x 0.18 / 0.177 (0.32); each door on its 1.3 landing (doors as built, Q3)', () => {
+  it('C15: the cores near landing is 1.4 (A-G6b-2: at least the Q3 1.3), the half landing 0.9; the flights G-L1 12 x 0.183 over 3.3 (0.275), L1-L2 and L2-roof 11 x 0.18 / 0.177 (0.30); each door on its landing (doors as built, Q3)', () => {
     for (const c of S2.S2_CORES) {
       const fl = S2.coreFlights(c);
-      for (const f of fl) expect(f.len).toBeCloseTo(c.z1 - c.z0 - 1.3 - 0.8);
+      for (const f of fl) expect(f.len).toBeCloseTo(c.z1 - c.z0 - S2.NEAR_D - S2.FAR_D);
+      expect(S2.NEAR_D).toBe(1.4);
+      expect(S2.FAR_D).toBe(0.9);
       expect(fl[0]!.steps).toBe(12);
       expect(fl[0]!.rise / fl[0]!.steps).toBeCloseTo(0.183, 3);
-      expect(fl[0]!.len / fl[0]!.steps).toBeCloseTo(0.29, 2);
+      expect(fl[0]!.len / fl[0]!.steps).toBeCloseTo(0.275, 3);
       for (const k of [2, 4]) {
         expect(fl[k]!.steps).toBe(11);
-        expect(fl[k]!.len / fl[k]!.steps).toBeCloseTo(0.32, 2);
+        expect(fl[k]!.len / fl[k]!.steps).toBeCloseTo(0.3, 2);
       }
       expect(fl[2]!.rise / fl[2]!.steps).toBeCloseTo(0.18, 2);
       expect(fl[4]!.rise / fl[4]!.steps).toBeCloseTo(0.177, 3);
       for (const f of fl) expect(f.rise / f.steps, 'NCC riser').toBeLessThanOrEqual(0.19);
+      for (const f of fl) expect(2 * (f.rise / f.steps) + f.len / f.steps, 'NCC 2R + G').toBeLessThanOrEqual(0.7);
+      for (const f of fl) expect(2 * (f.rise / f.steps) + f.len / f.steps, 'NCC 2R + G').toBeGreaterThanOrEqual(0.55);
     }
     // SW door in the east wall at z -23 (z -23.6..-22.4) on the near landing z -23.7..-22.4; NE door in the south wall at x 1.5
     expect(S2.SW_CORE.door).toEqual({ wall: 'E', c: -23 });
     expect(S2.NE_CORE.door).toEqual({ wall: 'S', c: 1.5 });
-    expect(S2.SW_CORE.z1 - 1.3).toBeLessThanOrEqual(-23 - 0.6 + 1e-9);
+    expect(S2.SW_CORE.z1 - S2.NEAR_D).toBeLessThanOrEqual(-23 - 0.6 + 1e-9);
   });
 });
 
