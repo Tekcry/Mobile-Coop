@@ -3278,6 +3278,127 @@ try {
     }
   });
 
+  await scen('dog release (guard-rules S8)', async () => {
+    // (guard-rules S8, A12) The alarm stage lets a dog off its handler's heel (`Enemy.releaseHeel`; the mode calls it on a
+    // `releaseDogs` raise behind `flags.dogRelease`, a vitest case: this page has no per-scenario flag). The dog heels,
+    // is released on a known position 12-15 m off, hurries there (`rushing`), searches it, then heels on its handler again.
+    // The handler stays calm and put. A grunt is no dog: `releaseHeel` returns false.
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const nav = em.nav;
+      const rnd = Math.random;
+      let seed = 8088;
+      Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      try {
+        t.light(0);
+        // the player far off, dark and crouched (the 'noise' scenario's far spot)
+        const hide = [-22, -24];
+        t.tp(hide[0], hide[1], 0);
+        t.crouch(true);
+        // a handler spot proven open by earlier scenarios ('lkp': (0, 5); 'noise': (-14.5, 4)), the dog 1 m beside him,
+        // and a known position 12-15 m off on the same floor with a straight walkable line from the dog (nav cells)
+        const floor = (x, z) => {
+          const c = nav.cellOf(x, z, 0);
+          return c >= 0 && nav.isWalkable(c) && Math.abs(nav.height[c]) < 0.3;
+        };
+        let pick = null;
+        for (const hp of [[0, 5], [-14.5, 4]]) {
+          if (pick) break;
+          const dx = hp[0] + 1;
+          const dz = hp[1];
+          if (!floor(hp[0], hp[1]) || !floor(dx, dz)) continue;
+          for (const rr of [13, 14, 12, 15]) {
+            if (pick) break;
+            for (let a = 0; a < 24; a++) {
+              const kx = dx + Math.sin((a / 24) * Math.PI * 2) * rr;
+              const kz = dz + Math.cos((a / 24) * Math.PI * 2) * rr;
+              if (!floor(kx, kz) || Math.hypot(kx - hide[0], kz - hide[1]) < 15) continue;
+              if (!nav.lineClear([dx, dz], [kx, kz], 0, 0)) continue;
+              pick = { hx: hp[0], hz: hp[1], dx, dz, kx, kz };
+              break;
+            }
+          }
+        }
+        if (!pick) return { pick: null };
+        const { hx, hz, dx, dz, kx, kz } = pick;
+        const h = t.spawn('grunt', hx, hz, 0);
+        const d = t.spawn('dog', dx, dz, 0);
+        d.handler = h;
+        const others = () => {
+          for (const x of em.enemies) if (x !== h && x !== d) x.passive = true;
+        };
+        const atHeel = () => {
+          // the heel spot the dog's own calm step aims at (`calmDecide`: `ARCHETYPE.dog.heel` beside him)
+          const sp = d['spot'];
+          return { toSpot: Math.hypot(d.pos.x - sp[0], d.pos.z - sp[1]), spotToH: Math.hypot(sp[0] - h.pos.x, sp[1] - h.pos.z) };
+        };
+        // 1. it heels
+        for (let i = 0; i < 20; i++) {
+          others();
+          t.step(0.1);
+        }
+        const heel0 = { ...atHeel(), level: d.level, toH: Math.hypot(d.pos.x - h.pos.x, d.pos.z - h.pos.z) };
+        const grunt = h.releaseHeel();
+        const h0 = { x: h.pos.x, z: h.pos.z };
+        // 2. a known position, then the release (at once: the board forgets an unhunted intruder after 2 s)
+        em['reportIntruder'](0, kx, 0, kz, true);
+        const lkp = { valid: em.lkpValid, x: em.lkp.x, z: em.lkp.z };
+        const went = d.releaseHeel();
+        let maxFromH = 0;
+        let rushed = false;
+        let nearK = 99;
+        let searchingThere = false;
+        let hCalm = true;
+        let hMoved = 0;
+        let k = 0;
+        for (; k < 150; k++) {
+          others();
+          t.step(0.1);
+          const toK = Math.hypot(d.pos.x - kx, d.pos.z - kz);
+          maxFromH = Math.max(maxFromH, Math.hypot(d.pos.x - h.pos.x, d.pos.z - h.pos.z));
+          if (d.rushing && toK > 2) rushed = true;
+          nearK = Math.min(nearK, toK);
+          if (toK < 1.5 && d.level === 'searching') searchingThere = true;
+          if (h.level !== 'unaware' && h.level !== 'cooldown') hCalm = false;
+          hMoved = Math.max(hMoved, Math.hypot(h.pos.x - h0.x, h.pos.z - h0.z));
+        }
+        const mid = { level: d.level, t: +d.aware.t.toFixed(1) };
+        // 3. the search runs out (`ALERT.searchTime` 60 s from the release), plus up to 20 s: back at heel (held 1 s)
+        let held = 0;
+        let j = 0;
+        for (; j < 650 && held < 10; j++) {
+          others();
+          t.step(0.1);
+          const a = atHeel();
+          if ((d.level === 'cooldown' || d.level === 'unaware') && a.toSpot < 1.5) held++;
+          else held = 0;
+          if (h.level !== 'unaware' && h.level !== 'cooldown') hCalm = false;
+          hMoved = Math.max(hMoved, Math.hypot(h.pos.x - h0.x, h.pos.z - h0.z));
+        }
+        const heel1 = { ...atHeel(), level: d.level, toH: Math.hypot(d.pos.x - h.pos.x, d.pos.z - h.pos.z), held, steps: 20 + k + j };
+        return { pick, heel0, grunt, lkp, went, maxFromH, rushed, nearK, searchingThere, mid, hCalm, hMoved, hLevel: h.level, heel1 };
+      } finally {
+        Math.random = rnd;
+        t.crouch(false);
+        t.light(null);
+      }
+    });
+    assert(r.pick, 'dog release: an open handler spot and a known position 12-15 m off on the same floor');
+    if (!r.pick) return;
+    const s = JSON.stringify(r);
+    assert(r.heel0.toSpot < 1.5 && r.heel0.spotToH < 2, `dog release: the dog heels by its handler first (${JSON.stringify(r.heel0)})`);
+    assert(r.grunt === false, 'dog release: releaseHeel on a grunt returns false');
+    assert(r.lkp.valid && Math.hypot(r.lkp.x - r.pick.kx, r.lkp.z - r.pick.kz) < 0.5, `dog release: the known position is set (${JSON.stringify(r.lkp)})`);
+    assert(r.went === true, 'dog release: releaseHeel on the calm dog returns true');
+    assert(r.maxFromH > 3, `dog release: it leaves the heel (${r.maxFromH.toFixed(2)} m from the handler; ${s})`);
+    assert(r.rushed, `dog release: it hurries on the way (${s})`);
+    assert(r.nearK < 1.5 && r.searchingThere, `dog release: it gets to the known position and searches there (closest ${r.nearK.toFixed(2)} m; ${s})`);
+    assert(r.hCalm && r.hMoved < 0.5, `dog release: the handler stays calm and put (${r.hLevel}, moved ${r.hMoved.toFixed(2)} m)`);
+    assert(r.heel1.held >= 10 && r.heel1.toSpot < 1.5 && r.heel1.spotToH < 2, `dog release: the search over, it heels on its handler again (${JSON.stringify(r.heel1)}, mid ${JSON.stringify(r.mid)})`);
+  });
+
   const real = errors.filter((e) => !/GPU stall|WebGL|swiftshader|Automatic fallback|AudioContext/i.test(e));
   assert(real.length === 0, `no console errors (${real.join(' | ')})`);
 } catch (e) {
