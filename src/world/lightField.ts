@@ -25,14 +25,19 @@ import { lightTerm, type LightRegistry, type Occluder } from './lights';
 import { CHAR_LIGHT, type CharOccluders } from './charOccluders';
 import { BOX_STRIDE, LAMP_CELL, LAMP_GRID, LAMP_GRID_SLOTS, LAMP_STRIDE, lampGrid, lampGridBase, type LampResult } from '../voxel/lampBake';
 
-/** A door leaf as the field needs it (`Doors.list` entries fit): closed when `open` is below `DOOR_SHUT`. */
+/** A door leaf as the field needs it (`Doors.list` entries fit): shut for light when `open` is `DOOR_SHUT` or less. */
 export interface FieldDoor {
   anchor: { hinge: { x: number; y: number; z: number }; yaw: number; width: number; height: number };
   open: number;
 }
 
-/** A door this far open or less stops light (its collision body is there until it starts to swing). */
-export const DOOR_SHUT = 0.05;
+/**
+ * (sector-batch, G41 "one 15% threshold for light, sound and sight") A door open this far or less stops light: in the
+ * field (`doorBlocks`), the bake's shut flags the shaders read (`BakedLamps`) and the torch shadow set
+ * (`pickTorchDoors`). The same number as `DOOR.driveShut` (`world/doors.ts`, where a stick-driven door turns from a
+ * crack into a real opening; `tests/doorLight.test.ts` pins them equal). A peek crack keeps `open` 0.
+ */
+export const DOOR_SHUT = 0.15;
 /** Doors per door texel of the GPU's lamp data (`lampDoorLists`' default list length). */
 export const DOORS_PER_LAMP = 4;
 /** (LR15, shadow audit 2) Doors a baked lamp tests: two door texels in the GPU's lamp data, so a 5th-8th shut door in a

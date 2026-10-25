@@ -32,10 +32,12 @@ import {
   KEYS_CAPTURED_CLIPS,
   KEYS_CAPTURED_NOTE,
   KEYS_MOCAP_NOTE,
+  keyToolField,
   MOCAP_BOX_LABEL,
   MOCAP_STATE_OF,
   REACH_TITLES,
   REACH_WORDS,
+  reachBand,
   reachSummary,
   rowNote,
   rowNow,
@@ -45,10 +47,18 @@ import {
   sectionRule,
   WORKS_INSTEAD,
   type Reach,
+  type ReachBand,
   type ReachNow,
 } from '../src/ui/tunerReach';
 
-const now = (state: ReachNow['state'], mocapShare: number, switchOn = true): ReachNow => ({ state, mocapShare, switchOn });
+/** What plays now; the band is the share's plain band (no history) unless one is given. */
+const now = (state: ReachNow['state'], mocapShare: number, switchOn = true, drawn = false, band?: ReachBand): ReachNow => ({
+  state,
+  mocapShare,
+  band: band ?? reachBand('mid', switchOn ? mocapShare : 0),
+  switchOn,
+  drawn,
+});
 const REACHES: readonly Reach[] = ['mocap', 'keyed', 'both', 'none'];
 
 describe('tuner clarity: the reach table', () => {
@@ -223,6 +233,69 @@ describe('tuner clarity: the reach table', () => {
     expect(editWarning('keys', keyGroupId('walk', 1), 'chest_pitch', now(null, 1))).toBe('');
   });
 
+
+  it('latches the band with hysteresis: enter at 0.9 / 0.1, leave only past 0.88 / 0.12', () => {
+    const run = (start: ReachBand, shares: readonly number[]): ReachBand[] => {
+      let b = start;
+      return shares.map((s) => (b = reachBand(b, s)));
+    };
+    // the capture edge: enter at 0.9, hold down to 0.88, leave under it; no flip while it hovers in 0.88..0.9
+    expect(run('mid', [0.85, 0.89, 0.9, 0.89, 0.88, 0.895, 0.9, 0.879])).toEqual(['mid', 'mid', 'capture', 'capture', 'capture', 'capture', 'capture', 'mid']);
+    expect(run('mid', [0.899, 0.881, 0.899, 0.885])).toEqual(['mid', 'mid', 'mid', 'mid']);
+    // the hand-made edge: enter at 0.1, hold up to 0.12, leave over it; no flip while it hovers in 0.1..0.12
+    expect(run('mid', [0.15, 0.11, 0.1, 0.11, 0.12, 0.105, 0.121])).toEqual(['mid', 'mid', 'handMade', 'handMade', 'handMade', 'handMade', 'mid']);
+    expect(run('mid', [0.101, 0.119, 0.101])).toEqual(['mid', 'mid', 'mid']);
+    // a jump across the mix goes straight to the other band
+    expect(run('capture', [0.05])).toEqual(['handMade']);
+    expect(run('handMade', [0.95])).toEqual(['capture']);
+  });
+
+  it('tags and warns by the latched band, never the raw share', () => {
+    // the share dropped to 0.89 but the band holds at capture: still "Not playing now", still the capture warning
+    const held = now('walk', 0.89, true, false, 'capture');
+    expect(rowNow('keyed', 'walk', held)).toBe('off');
+    expect(editWarning('body', 'walk', 'armSwingMul', held)).toContain('motion capture is playing the walk');
+    // the share rose to 0.9 but the band is still the mix (not entered yet): as it is, no warning
+    const mix = now('walk', 0.9, true, false, 'mid');
+    expect(rowNow('keyed', 'walk', mix)).toBe('keyed');
+    expect(editWarning('body', 'walk', 'armSwingMul', mix)).toBe('');
+    // the hand-made edge the same way
+    expect(rowNow('mocap', 'walk', now('walk', 0.11, true, false, 'handMade'))).toBe('off');
+    expect(rowNow('mocap', 'walk', now('walk', 0.1, true, false, 'mid'))).toBe('mocap');
+    // the switch off: hand-made whatever the band
+    expect(rowNow('keyed', 'walk', now('walk', 1, false, false, 'capture'))).toBe('keyed');
+  });
+
+  it('names the field a key tool warns about: Wave its channel, the others the picked slider, none picked: nothing', () => {
+    expect(keyToolField('wave', 'chest_pitch', '')).toBe('chest_pitch');
+    expect(keyToolField('wave', 'chest_pitch', 'armL_elbow')).toBe('chest_pitch');
+    expect(keyToolField('wave', 'all', '')).toBe('');
+    expect(keyToolField('smooth', 'chest_pitch', 'armL_elbow')).toBe('armL_elbow');
+    // no slider picked: the Wave channel (always a real field) is not used, so no trunk words
+    expect(keyToolField('smooth', 'chest_pitch', '')).toBe('');
+    expect(keyToolField('apply', 'pelvis_pitch', '')).toBe('');
+  });
+
+  it('warns that a row for her with no gun out shows nothing while a gun is drawn', () => {
+    const drawn = now('walk', 1, true, true);
+    const line = 'Not on screen: this row is for her with no gun out. Holster to see it.';
+    // the holstered (weapon "none") rows of Hands & feet, Gun in hand and Joints
+    expect(editWarning('hand', 'hand.none.walk', 'footLFwd', drawn)).toBe(line);
+    expect(editWarning('weapon', 'weapon.none.walk', 'fingerCurl', drawn)).toBe(line);
+    expect(editWarning('joint', 'joint.none.walk', 'ankleL_y', drawn)).toBe(line);
+    // the same with the capture at any share: a gun drawn is what hides the row
+    expect(editWarning('hand', 'hand.none.walk', 'footLFwd', now('walk', 0, true, true))).toBe(line);
+    // holstered: unchanged (nothing to say for a row that shows)
+    expect(editWarning('hand', 'hand.none.walk', 'footLFwd', now('walk', 1))).toBe('');
+    // rows with a gun, rows with no weapon level and other states' rows are as before
+    expect(editWarning('hand', 'hand.rifle.walk', 'handLFwd', drawn)).toBe(editWarning('hand', 'hand.rifle.walk', 'handLFwd', now('walk', 1)));
+    expect(editWarning('joint', 'joint.walk', 'ankleL_y', drawn)).toBe('');
+    expect(editWarning('body', 'walk', 'kneeOutMul', drawn)).toBe('');
+    expect(editWarning('hand', 'hand.none.jog', 'footLFwd', drawn)).toBe(editWarning('hand', 'hand.none.jog', 'footLFwd', now('walk', 1)));
+    expect(editWarning('guardJoint', 'guard.joint.walk', 'kneeL_x', drawn)).toBe('');
+    expect(editWarning('hand', 'hand.none.walk', 'footLFwd', now(null, 1, true, true))).toBe('');
+  });
+
   it('keeps every shown string in plain words (A1, A2, A12)', () => {
     expect(KEYS_MOCAP_NOTE).toBe('Keys change the hand-made moves only. Motion-capture moves are changed in Body > Joints, Hands & feet and Limb reach.');
     expect(MOCAP_BOX_LABEL).toBe('Motion capture for walk, jog, run, sneak and aimed strafe (off = hand-made)');
@@ -241,6 +314,7 @@ describe('tuner clarity: the reach table', () => {
       editWarning('body', 'walk', 'leanAdd', now('walk', 1)),
       editWarning('step', 'step.run', 'lift', now('run', 1)),
       editWarning('body', 'jog', 'kneeOutMul', now('sneak', 1)),
+      editWarning('hand', 'hand.none.walk', 'footLFwd', now('walk', 1, true, true)),
     ];
     // "Keyed" may name the Anim Studio's box; no "keyed" / "procedural" / "mocap" jargon otherwise
     for (const s of shown) expect(s.replace(/\bKeyed in the Anim Studio\b/g, ''), s).not.toMatch(/procedural|keyed|mocap|\bIK\b|\bFK\b/i);

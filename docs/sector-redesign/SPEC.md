@@ -142,11 +142,18 @@ jammer, a route round, shooting them, or (EW10) the security desk. Total 13 > th
 **Lasers (R5).** Raise an alarm stage, never kill; each has one power panel (jam it to cut the bands), visible from
 the near side, with a reason. Drawn in night vision only (engine fact): every laser fixture is a visible emitter box.
 
-**Lighting rules (M9; LR1-LR12 applied, A33-A44).** Working areas are lit with a visible fitting, a circuit (`group`) and a
-switch or board where a real one would be (LS 5.1, 16.8.1). Encounter spaces use a standby fill under the shadow
-line, `ambientZone` 0.14 (LR7 applied, A10 / A39), so a cut circuit is true
-dark for picture, meter and guards. Outdoors: moon + sodium columns; transit spaces and connectors 0.30. Dark only
-where nobody works, each dark pocket named with its reason. "Breakers" and "boards" are real boards since EW8 (A11):
+**Lighting rules (M9, G329; LR1-LR12 applied, A33-A44).** Every space is lit to the real-world band for its type
+(car parks and roads AS/NZS 1158.3.1, interiors AS/NZS 1680 / EN 12464; docs/level-design.md 5.5 and scale sheet
+section 9). The band values come from the light-realism job after one engine-to-lux calibration (Michael 2026-10-25
+"Australian standards"; he approves the band table and the S1 car-park light map together; FOLDED-PLAN J10). Every
+light works: no dead fitting and no lit place left unlit (Michael 2026-10-25 "Never"). Stealth comes only from real
+gaps: between poles, under carports, behind cars and cover, cut circuits and shot lamps. The 40-60% shadow share is
+not a target (G329, G284). Working areas are lit with a visible fitting, a circuit (`group`) and a switch or board where
+a real one would be (LS 5.1, 16.8.1). Encounter spaces use a standby fill, `ambientZone` 0.14 (LR7 applied, A10 / A39),
+so a cut circuit is true dark for picture, meter and guards; the fill is a tuning input under the band, never a way to
+make a lit place dark. Outdoors: moon + sodium columns; transit spaces and connectors 0.30. Places with no fitting are
+dark only where a real site has none (outside the lit site, behind a fence), each named with its reason. "Breakers"
+and "boards" are real boards since EW8 (A11):
 guards relight cut breakers and boards (guard-ai S15, LR16-4); timed isolators stay the player's. A light cut draws the
 nearest calm armed guard within 25 m (engine `lightsOut`); the S2 reception panel is the one untimed board (lure #1). **Co-op light parity needs slice L (protocol 31)** before any co-op playtest
 that cuts a light (EF7).
@@ -157,8 +164,11 @@ guard-ai's alarm response teams. The tables' enforcer rows place an officer, S5'
 runner, heavy, sniper or droneOp (A3, A12; droneOp is not mirrored in co-op). Dogs are melee animals at a handler's
 heel (A2). Every guard has an employer (Larchmont), a job, a reason at each stop, a cycle of 25-45 s with stops 3-6 s,
 an isolation moment (LS 4.4: spot and second, written in the slice's guard sheet) and an overlap partner (LS 4.5).
-Data tags per guard (our data, guard-ai reads them): `post | zone | squad | reason`. Counts 8 / 12 / 16 / 20 / 24 with
-`perStage` 2 and `alarmMax` 3: S5 peaks at 24 + 6 = 30 <= `SECTOR.maxAlive` 32 and `MAX_ENEMIES` 32 (EF2). Dogs count.
+Data tags per guard (our data, guard-ai reads them): `post | zone | squad | reason`. Counts at two players (one player
+the same): S1 15, S2 18, S3 20, S4 25, S5 26 (G328, G362); 3-4 players add tagged extras (G331). The v1 build in the
+section tables below holds 8 / 12 / 16 / 20 / 24; campus-greybox v2 (FOLDED-PLAN J17) builds the signed-off counts.
+`perStage` 2 and `alarmMax` 3; alive guards never pass `SECTOR.maxAlive` 32 and `MAX_ENEMIES` 32 (G332, EF2): at S5,
+extras and reinforcements fill only up to 32 (Michael 2026-10-25 "Keep 32, fill rest"). Dogs count.
 Perf (guard-cap #180, A64): render-bound, ~4-6 visible awake guards fit 60 Hz at Epic. Counts stay; no more than 6
 awake guards on screen at once from any player position (layout breaks the view); far guards tagged `dormant: true`
 (never a K choke guard, a mid-cycle pair or a handler). Guard-render (Character Build) provides LOD and dormancy.
@@ -176,14 +186,14 @@ alerts, GA6 aggressive reinforcements with flank / cover / report. Until GA2 lan
 (lockdown, lights to full, the response team's deploy route); fallback: stage reinforcements only.
 
 **Observation (R8, LS 3.1).** Each space opens on a two-person vantage out of every guard's view for the whole cycle,
-from which every guard there is seen within one cycle. Vantages are dark or occluded (A23); those
-that rely on occlusion are marked (A23).
+from which every guard there is seen within one cycle. Each vantage is hidden by a real occluder or by a circuit the
+players cut, never by a dark pocket in a lit place (G329; A23 retired); those that rely on occlusion are marked.
 
 ---
 
 ## The route
 
-### S1 - Gatehouse, staff car park and forecourt (8 guards, ~6 min, tension 2: lights + cameras)
+### S1 - Gatehouse, staff car park and forecourt (15 guards at two players, G328; v1 table: 8; ~6 min, tension 2: lights + cameras)
 **Footprint** x -40..26, z -80..-34 (66 x 46), ground only. Perimeter: weldmesh 2.4 (`fence`) on z -80 (gate x 8..14)
 and x -40 / x 26; the HQ south facade (z -30) and the lab block's west flank close the north.
 
@@ -240,12 +250,14 @@ and x -40 / x 26; the HQ south facade (z -30) and the lab block's west flank clo
 | alarm-gh | Alarm panel in the gatehouse by the door | The site | Where the officer raises it | Inside a lit room with two officers | - |
 Lasers: none (outdoors; R2-CT: lasers come with assets). Keypads: none (S2 teaches them).
 
-**Lighting.** Lit: sodium columns on the car park (two groups: `s1-park-w` (8 columns), `s1-park-e` (6), cut at the
-feeder pillar board), lane floodlight (photocell, shot only), gatehouse interior (switch by its door: lure #1), canopy
-downlights (C1 door circuit; switch inside C1: not cuttable from S1), forecourt bollards (`s1-fore`, board in the
-delivery yard). Dark by reason: the verge (outside the lit site), the bin-store lane (no fitting behind the fence), the
-bike shelter (fitting tagged out: a fault ticket on the post), the plant roof and canopy top. The player makes the
-rest: the west-half board, one column shot, the forecourt bollards.
+**Lighting.** The car park is lit to the outdoor car-park band ("car parks are generally well lit", G329); the light-realism
+job sets the column count and levels against it (FOLDED-PLAN J10). Lit: sodium columns on the car park (two groups:
+`s1-park-w` (8 columns), `s1-park-e` (6) in v1, cut at the feeder pillar board), lane floodlight (photocell, shot only),
+gatehouse interior (switch by its door: lure #1), canopy downlights (C1 door circuit; switch inside C1: not cuttable
+from S1), forecourt bollards (`s1-fore`, board in the delivery yard), the bike shelter fitting. Dark by reason: the
+verge (outside the lit site), the bin-store lane (no fitting behind the fence), the plant roof and canopy top. Real
+gaps: between columns, behind cars. The player makes the rest: the west-half board, one column shot, the forecourt
+bollards.
 
 **Observe and plan.** From the verge (dark, behind the gatehouse): #1 and #2 through the gatehouse glass, the pair's loop,
 the smoker. From the canopy top (co-op): #5, #8, cam-walk's sweep. The player learns which half one board kills, who
@@ -270,12 +282,12 @@ Stage 2: +2 (grunt / officer). Stage 3: +2. (EW9: lights to full; C1 stays opena
 | E11 | Column lamps, bollards, floodlight | Car park / forecourt lighting | Lit pools; cut or shot | 16.8.1 |
 | E12 | Dock door (locked) | Goods-in to HQ | S2 side door (opens when C1 seals) | 16.3.5 |
 
-### S2 - HQ atrium and offices (12 guards, ~7 min, tension 3: + keypads, alarm panels, glass)
+### S2 - HQ atrium and offices (18 guards at two players, G328; v1 table: 12; ~7 min, tension 3: + keypads, alarm panels, glass)
 **Footprint** x -44..4, z -30..6 (48 x 36). G 0 (4.4 high), L1 4.4, L2 8.4, roof 12.3; the atrium x -26..-10,
 z -20..-4 runs to a roof light at 13.2. Two enclosed fire stairs (SW x -42..-39.4, z -28..-22.4; NE x 0..2.6,
 z 0..5.6) with roof bulkheads; a feature stair in the atrium (lit, watched: the loud way up). `navLayers` 5 (EG16).
 **Rooms.** G: reception and turnstiles (S), café under the atrium (N half), post room (SW, the C1 side), lift lobby
-(dummy lift doors), mail / goods room (dock door from S1). L1: balconies, open-plan offices N and E (PIR off), meeting
+(dummy lift doors), mail / goods room (dock door from S1). L1: balconies, open-plan offices N and E (own switch), meeting
 rooms with glass fronts (EW6; greybox fence panels), breakout kitchen, facilities office (NE, the objective), comms
 room with UPS, the C2 bridge landing (E, x 4). L2: offices, executive meeting suite, lift lobby. Roof: plant room,
 atrium roof light (look-down only), two bulkheads.
@@ -316,15 +328,15 @@ lighting schedule. Opens C2.
 | alarm-rcp, alarm-brg | Alarm panels at reception and the bridge landing | The building | Guard posts | Both beside posted guards | - |
 **Lighting.** Lit: atrium pendants and the reception downlight (`s2-atrium`, reception panel: lure #1, who sees his own
 room go dark - from the desk the pendants are above the L1 slab line; each lamp shootable), balcony downlights
-(`s2-l1-bal`, `s2-l2-bal`, switch at each stair door), corridor night level 25% per floor, kitchen, facilities office.
-Dark by reason: open-plan offices and meeting rooms (PIR, nobody there), fire stairs (emergency pools at
-landings), comms room (LEDs), roof plant room.
-**Observe.** From the post room door (dark): #1, #2, cam-turnstile. From the SW stair L1 door (vision panel; occlusion
-vantage, A23): #3, #4 in opposite phase, #5-6, #7 through the facilities glass.
+(`s2-l1-bal`, `s2-l2-bal`, switch at each stair door), corridor night level 25% per floor, kitchen, facilities office, open-plan offices and meeting rooms (each on its own
+switch by the door, cuttable), fire stairs (stair lights on a riser circuit), comms room and roof plant room (door
+switches). Every room is lit to its band (G329; values from J10); none is left dark with a working fitting.
+**Observe.** From the post room door (behind the door frame and the post cages): #1, #2, cam-turnstile. From the SW
+stair L1 door (vision panel; occlusion vantage): #3, #4 in opposite phase, #5-6, #7 through the facilities glass.
 **Escalation.** Stage 1 search; stage 2: reinforce at the goods door and the L2 lift lobby; stage 3 +2. EW9: the bridge
 card door locks at stage 2 with the NE stair's roof route left open (no softlock).
 
-### S3 - Lab block (16 guards, ~8 min, tension 3-4: + lasers, clear glass)
+### S3 - Lab block (20 guards at two players, G328; v1 table: 16; ~8 min, tension 3-4: + lasers, clear glass)
 **Footprint** x 10..64, z -30..0 (54 x 30). G 0 (4.5), L1 4.5; test hall x 22..52, z -28..-8, 9.0 clear with a crane
 rail at 6.0; north band (z -8..0) two storeys. Stairs: north (x 40..42.6, z -6..-0.4) and south-west (x 12..14.6).
 **Rooms.** G: test hall with the environmental chamber (x 30..36, z -22..-14, 4.4 high, refrigeration plant on top) and
@@ -371,14 +383,15 @@ security room; steel escape gallery at 4.5 on the hall's north wall (door into t
 | kp-store, kp-sec | Keypads, store and security room | Store; camera room | Access control | Codes from the S2 BMS hack (EW5) | - |
 | alarm-dock, alarm-sec | Panels at the dock desk and the security room | The block | Guard posts | - | - |
 **Lighting.** Lit: high-bay LEDs in three rows (`s3-hb-1..3`, switch bank by the west door: lure #16, #8; fittings at
-8.5 shootable; jammer), viewing corridor (two door switches), burn-in task lights, dock. Dark by reason: chamber
-roofs (no fittings above 4.4), the EMC room (shielded, off when not testing), gas cage, east yard between windows.
-**Observe.** From the C2 landing glass (occlusion vantage, A23; dark landing once `s2` corridor light is off): the whole
-hall. From the north stair half-landing (dark): #2-3, #13, #5.
+8.5 shootable; jammer), viewing corridor (two door switches), burn-in task lights, dock, the EMC room (its own switch inside the
+shielded door, cuttable), gas cage (bulkhead on the hall circuit). Dark by reason (no fitting): chamber roofs (no
+fittings above 4.4), the east yard between window spill pools.
+**Observe.** From the C2 landing glass (occlusion vantage; the landing goes dark once the players cut the `s2`
+corridor circuit): the whole hall. From the north stair half-landing (dark): #2-3, #13, #5.
 **Escalation.** Stage 1 search; stage 2 reinforce at the dock and the west door; EW9: the store locks at stage 2 with
 its back corridor open.
 
-### S4 - Data hall (20 guards incl. 1 dog, ~9 min, tension 4: + dog, mantrap, dual custody)
+### S4 - Data hall (25 guards at two players incl. 1 dog, G328; v1 table: 20; ~9 min, tension 4: + dog, mantrap, dual custody)
 **Footprint** x -10..40, z 16..48 (50 x 32). Hall x -4..34, z 20..44, 7.0 clear; hot-aisle containment pods (roofs 3.0,
 `noLedge`, not a route), cable baskets on ladder racks at 4.4 over the cold aisles, slab 7.0 (2.6 m over the baskets:
 headroom OK, the tightest; fallback slab 7.5). NOC on a 3.6 m mezzanine with a window over the hall; UPS and battery
@@ -427,14 +440,15 @@ Opens C4.
 | pg-cage | Dual-custody key switches | The cage rear gate | Two-person rule | 8 m apart: two bodies | 1.0 s window (EW4) |
 | alarm-sec4, alarm-mt, alarm-dk | Panels: security room, mantrap, dock | The hall | Guard posts | - | - |
 **Lighting.** Lit: cold-aisle LEDs (`s4-cold-1..3`, hall panel by the mantrap: lure #4), NOC, dock floodlight (shot),
-compound floodlights (board in the compound: lure #1-2, the dog searches by nose). Dark: above the pods (nobody works
-at 3-7 m), plant deck (task lights at each chiller), the riser, the battery room (lights off; PIR is A6).
-**Observe.** From the C3 roller-door lobby (dark): the dock pair and the yard. From the battery room door: two aisles.
+compound floodlights (board in the compound: lure #1-2, the dog searches by nose). Also lit: plant deck (task lights at each
+chiller), the riser and the battery room (door switches, cuttable). Dark by reason (no fitting): above the pods
+(nobody works at 3-7 m).
+**Observe.** From the C3 roller-door lobby (behind the half-open roller door): the dock pair and the yard. From the battery room door: two aisles.
 From the plant deck through the NOC roof light: #14-15. The dog is heard before it is seen.
 **Escalation.** Stage 1 search; stage 2: the handler releases the dog to the last seen spot (EW9; fallback: the dog
 stays at heel), reinforce at the dock and the UPS corridor; stage 3 +2 grunts.
 
-### S5 - The Old House (24 guards incl. 2 dogs, ~10 min, tension 5, the set piece)
+### S5 - The Old House (26 guards at two players incl. 2 dogs, G328; v1 table: 24; ~10 min, tension 5, the set piece)
 **Footprint** x -66..-26, z 18..48 (40 x 30). Brick, G 0 (4.2), L1 4.2, lead roof 8.4 with a 1.1 parapet; stair hall
 with a first-floor gallery (centre); inner light well (x -48..-44, z 30..34, open to the sky, no door, a window into
 the anteroom); walled garden (W, 2.8 walls); lake terrace (N) to the boathouse jetty (extraction x -50..-40, z 60..66).
@@ -486,8 +500,9 @@ back, A15). Roof: walk, chimney stacks, stair bulkhead.
 | alarm-ctl, alarm-ante, alarm-ter | Panels: control room, anteroom, terrace gate | The house | Guard posts | - | - |
 **Lighting.** Lit: chandelier (shoot: a lure for #13-14) and gallery wall lights (`s5-gal`, switch at each end), boardroom,
 anteroom, terrace bollards and garden uplights (`s5-garden`, board in the service wing: lure #21 and the garden dog
-team), roof walk dark except the marksman's position light. Dark: archive aisles (per-aisle lights off), the garden's
-west wall, the boathouse path under the trees, the roof behind the chimneys, the light well.
+team), archive aisles (per-aisle switches, cuttable), the marksman's position light on the roof walk. Dark by reason (no
+fitting): the roof walk, the garden's west wall, the boathouse path under the trees, the roof behind the chimneys, the
+light well (open to the sky).
 **Observe.** From the colonnade end (dark): the service wing and a dog team. From the archive: the gallery and, through
 the audit room glass (EW6), the anteroom. From the roof bulkhead: the marksman and both dog teams. A ghost run never
 meets the response team.
@@ -533,7 +548,11 @@ a player downed on the top is revived).
   on." / "You want three things: the prototype board, the build logs and the key that signs them." / "Larchmont runs
   the guarding. Armed, bored, and tonight they have a ceremony to watch." / "Gate, offices, labs, data hall, then the
   Old House. Lights are on everywhere. Make your own dark."
-- Objectives in route order: S1 download, S2 hack, S3 grab, S4 download, S5 grab + extract.
+- Objectives in route order: S1 download, S2 hack, S3 grab, S4 download, S5 grab + extract. Each objective line is
+  short plain English naming what and where (VISION 4 rule 5; G336, G343, G351; the S1, S3, S4 and S5 lines get their
+  place in FOLDED-PLAN J5). The `extract` zone has no world marker: no beacon or pole; the door, signs and light guide
+  (G290, level-design 6.4; J5 removes the beacon). S4 / S5 helmets follow difficulty, not a section tag (G350; J15);
+  armour may stay as G307 late armour.
 - Per section in `SectorDef`: `reinforce` (2-3 points each, named above), `perStage` 2, `alarms`, `switches`,
   `hideSpots`, `routes` (the M8 check data), `bolts` none.
 
@@ -568,17 +587,17 @@ Michael ~01:42: "Apply, logged and undoable". Applied **for this map only** as a
 with its undo); `docs/level-design.md`, the template and the bible are not edited. The design above is built to them.
 | A | # | Rule | Applied as | Why | Used by | Undo |
 | --- | --- | --- | --- | --- | --- | --- |
-| A23 | P1 | LS 3.1 dark entry vantage | Out of every guard's view by darkness or occlusion (same as LR2) | A lit site has few dark doorways | S2 SW stair door, S3 C2 landing | Each occlusion vantage gets a dark pocket |
+| A23 | P1 | LS 3.1 dark entry vantage | Retired (G329): each vantage is hidden by a real occluder or a cuttable circuit, never a dark pocket | G329 allows no lit place left unlit | S2 SW stair door, S3 C2 landing | - |
 | A24 | P2 | LS 3.5 stepping stones 4-8 m | A light cuttable from the route counts | M1 "make shadows" | S1 car park, S4 cold aisles | Add cover / hide spots at 4-8 m |
 | A25 | P3 | LS 5.1 | Lit default with standby fill (LR1, LR7) | M9 | all | Ambient 0.30, darker default |
 | A26 | P4 | LS 5.2 two ways to darken | One way, or crossed by timing, at a deliberate lit test | Photocell columns, S3 viewing corridor | S1, S3 | Add a second way (board / jam) |
-| A27 | P5 | LS 4.4 isolation in the dark | Alone and unwatched, dark or darkenable from cover (LR4) | Lit work posts | S1 #2, S4 #14-15 | Move those stops into dark pockets |
+| A27 | P5 | LS 4.4 isolation in the dark | Alone and unwatched, dark or darkenable from cover (LR4) | Lit work posts | S1 #2, S4 #14-15 | Move those stops behind an occluder or onto a cuttable circuit (G329) |
 | A28 | P6 | LS 15 darkness test | Lit vantages tested for "out of sight" (LR8) | Follows P1 | tests | Dark-only test |
 | A29 | P7 | LS 11.6 co-op verbs | Adds the two-person rope, hang-down, jam-and-pass, pair gate | All exist in the engine or the course | CR4-CR7 | CR4 basket overwatch only, CR5-CR6 pair bolts, CR7 cut |
 | A30 | P8 | LS 11.2 no locked-door teases | Visible dual-control doors and a padlocked ladder guard allowed | Real hardware with an owner (16.3.5) | CR3, CR5, CR6 | No ladder on the chamber; plain doors |
 | A31 | P9 | Warehouse L1-L15 (DEC G266) | Carried to the campus | Same prototype stage | all | Per-rule, back to LS |
-| A32 | P10 | LS 4.2 patrol mix per space | Per section | 8-24 guards per section | all | Re-mix adjacent spaces |
-| A33 | LR1 | New LS 5.5 "lit by default" | Spaces lit as the real building; players make the dark; named dark pockets | M1, M9 | all | Dark default |
+| A32 | P10 | LS 4.2 patrol mix per space | Per section | 15-26 guards per section (G328) | all | Re-mix adjacent spaces |
+| A33 | LR1 | New LS 5.5 "lit by default" | Spaces lit as the real building; players make the dark; dark only where a real site has no fitting, named (G329) | M1, M9 | all | Dark default |
 | A34 | LR2 | LS 3.1 | = A23 | | | = A23 |
 | A35 | LR3 | LS 3.9 checkpoint in the dark | Dark, or a quiet connector no guard enters | Connectors at 0.30 | C1-C4 | Connectors to 0.14 |
 | A36 | LR4 | LS 4.4 | = A27 | | | = A27 |
@@ -587,7 +606,7 @@ with its undo); `docs/level-design.md`, the template and the bible are not edite
 | A39 | LR7 | G225 fill 0.30 | Encounter spaces 0.14 standby fill, transit 0.30 (= A10) | Cut circuits read dark | all | 0.30 everywhere |
 | A40 | LR8 | LS 15 darkness test | = A28, plus: a cut circuit drops the pool under 0.28 on host and client | Parity | tests | = A28 |
 | A41 | LR9 | Bible L7 | Darkness is the exception, and true dark | Reading | all | - |
-| A42 | LR10 | Template / space sheet Lights field | Slice build sheets record the lit default, circuits, cut ways, dark pockets | Build contract | build sheets | Old field |
+| A42 | LR10 | Template / space sheet Lights field | Slice build sheets record the lit default, circuits, cut ways, places with no fitting | Build contract | build sheets | Old field |
 | A43 | LR11 | Bible 7 light plan | Same per section in the build sheets | Build contract | build sheets | Old field |
 | A44 | LR12 | LS 12.1 sync fact | Recorded; slice L (protocol 31) closes it | Fact | slice L | - |
 | A45 | P12 | Template "existing systems only" | This job builds the EW items above | M1 needs them | all | Map only; EW items become Future |

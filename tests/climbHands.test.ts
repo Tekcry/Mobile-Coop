@@ -4,6 +4,7 @@
 // it from k 0.32 (31 cm off by 0.36, 65 cm by 0.52) whatever the grip weight; the wrists' velocity changed 23.5 cm in a
 // frame at the release (docs/archive/traverse-fix-2/REPORT.md).
 import { beforeAll, describe, expect, it } from 'vitest';
+import { setMixamo } from '../src/anim/mixamo';
 import type { Ledge } from '../src/world/anchors';
 
 type V3 = { x: number; y: number; z: number };
@@ -179,11 +180,18 @@ function motion(frames: Frame[], group: readonly number[], i0 = 1): { step: numb
   return { step, pop };
 }
 
-describe('(traverse-fix-2) the ledge climb-up hands', () => {
+// (mixamo-retarget I2) and with the `mixamo` flag on: the Mixamo captures MIXAMO_ON lets play on Wren's hang and
+// climb-up (src/anim/mixamo.ts) hold the same bounds
+describe.each([false, true])('(traverse-fix-2) the ledge climb-up hands (mixamo %s)', (mixamo) => {
   let run: Awaited<ReturnType<typeof climb>>;
   beforeAll(async () => {
-    run = await climb(60);
-  });
+    setMixamo(mixamo);
+    try {
+      run = await climb(60);
+    } finally {
+      setMixamo(false);
+    }
+  }, 600_000);
   const within = (k0: number, k1: number): Frame[] => run.frames.filter((f) => f.k >= k0 - 1e-9 && f.k <= k1 + 1e-9);
 
   it('the palms stay on the lip (within 1.5 cm, no slide) until the right foot is on the top, then let go by the crouch', () => {

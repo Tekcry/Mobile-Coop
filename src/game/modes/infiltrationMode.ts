@@ -4,7 +4,6 @@ import type { HitInfo } from '../damage';
 import type { GameState } from '../gameState';
 import type { GameMode } from './gameMode';
 import type { Interactable } from '../interactables';
-import type { Blip } from '../../ui/hud/minimap';
 import { hyp2 } from '../../core/mathx';
 import { DOWNLOAD, evaluateRules, MISSIONS, missionById, missionRating, ObjectiveChain, type MissionDef, type ObjectiveDef } from '../missions';
 import { Vip } from '../vip';
@@ -294,12 +293,6 @@ export class InfiltrationMode implements GameMode {
     }
     this.g.hud.banner('DOWN', '', 2500);
     this.g.scheduleRespawn(this.checkpoint, 3);
-  }
-
-  blips(): Blip[] {
-    const out: Blip[] = [];
-    for (const it of this.its) if (it.enabled && !it.done) out.push({ x: it.pos.x, z: it.pos.z, kind: 'objective' });
-    return out;
   }
 
   dispose(): void {

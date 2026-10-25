@@ -15,6 +15,7 @@ import type { MapDef } from '../world/mapDef';
 import { Player } from '../player/player';
 import { defaultLook, type AvatarLook } from '../cosmetics/avatarLook';
 import { PauseScreen, type ObjectiveLine } from '../ui/screens/pauseScreen';
+import { FieldNotes } from './fieldNotes';
 import { PauseLook } from '../vfx/pauseLook';
 import { mapLampBeams } from '../vfx/volLights';
 import { DamageRegistry, type Damageable } from './damage';
@@ -29,7 +30,6 @@ import { Hud, type HudFrame } from '../ui/hud/hud';
 import type { WheelView } from '../ui/hud/gadgetWheel';
 import { keyLabels } from '../ui/prompts';
 import { PING_LIFE, PING_MAX } from '../ui/hud/pings';
-import { Minimap, type Blip } from '../ui/hud/minimap';
 import { TrainingDummy } from './trainingDummy';
 import { G, MASK } from '../physics/groups';
 import { buildNavGrid } from '../ai/navBuild';
@@ -189,6 +189,8 @@ export interface NetAttachment {
   onLocalDeath(): boolean;
   /** Host: the session ended (broadcast results). */
   onEnd?(won: boolean, subtitle: string): void;
+  /** (hud-guidance B4, HG8) Client: Field Terminal > Objectives rows; null: none (GameState shows its own). */
+  objectiveLines?(): ObjectiveLine[] | null;
   /** Host: revive every downed player (wave cleared). */
   reviveAll?(): void;
   /** (3.2.0 phase 5) Team-mates for team moves (co-op: everyone; TDM: the same side). */
@@ -259,7 +261,6 @@ export interface NetAttachment {
   /** Extra pickers for pickups (host: remote players). */
   pickers?(): { id: string; feet: Vector3; needs: (k: PickupKind) => boolean }[];
   onPickup?(kind: PickupKind, who: string): void;
-  blips?(): Blip[];
   /** (guard-ai S9) Client: where guard `who`'s line shows (over his puppet's head) into `out`; false when not here. */
   barkAt?(who: string, out: Vector3): boolean;
   /** (coop-carry) Client: the local player's body carry (the host has its own in `StealthSystems`). */
@@ -351,7 +352,6 @@ export class GameState implements AppState {
   readonly weapons: PlayerWeapons;
   readonly target: PlayerTarget;
   readonly hud: Hud;
-  readonly minimap: Minimap;
   readonly traversal: TraversalController;
   /** Current footstep noise radius (m), for the HUD and tests. */
   noise = 0;
@@ -415,9 +415,6 @@ export class GameState implements AppState {
   private time = 0;
   private respawnT = -1;
   private onTarget = false;
-  private tmp = new Vector3();
-  /** Extra blips/markers contributed by the active mode. */
-  extraBlips: () => Blip[] = () => [];
   readonly nav: NavGrid | null = null;
   readonly enemyMgr: EnemyManager | null = null;
   readonly pickups: Pickups | null = null;
@@ -538,6 +535,9 @@ export class GameState implements AppState {
   private wallOv: MoveOverride = {};
   static rewardHook: RewardHook | null = null;
   readonly events = new EventBus<GameEvents>();
+  /** (hud-guidance B5, R12, BRIEF A9) Field Terminal > Notes: this match's interrogation lines (solo / host: the `intel`
+   *  event; a co-op client: the host's `feed` events, `coopClient.ts`). A new match is a new GameState: empty. */
+  readonly notes = new FieldNotes();
   private audio: { frame(dt: number): void; dispose(): void } | null = null;
   private localRef: PlayerRef;
   /** (guard-ai S26) The local player's id (his own noises locate him: `EnemyManager.hear`'s `by`). */
@@ -656,8 +656,6 @@ export class GameState implements AppState {
     this.takedown.handsMul = this.suit.hands;
     for (const id of GADGET_IDS) if (this.suit.gadgets) this.weapons.gadgets.counts[id] += this.suit.gadgets;
     if (opts.gadget && (GADGET_IDS as readonly string[]).includes(opts.gadget)) this.weapons.gadgets.select(opts.gadget as GadgetId);
-    this.minimap = new Minimap(world.level);
-    this.hud.setMinimap(this.minimap);
 
     this.weapons.events.onHit = (kind, weapon) => {
       this.hud.hitMarker(kind);
@@ -703,6 +701,10 @@ export class GameState implements AppState {
     });
     this.events.on('strike', (e) => {
       if (e.result !== 'miss') app.input.haptic('elbowHit');
+    });
+    // (hud-guidance B5) solo / host: every interrogation's lines (the client's own come from the host as `feed`)
+    this.events.on('intel', (e) => {
+      for (const line of e.lines) this.notes.add(line);
     });
     this.player.onLand = (v) => {
       this.vfx.landDust(this.player.position, Math.min(1.5, v / 8));
@@ -767,7 +769,6 @@ export class GameState implements AppState {
         // the round lands somewhere: a thud / ricochet close by is heard
         this.enemyMgr?.hear(b, IMPACT_NOISE);
       };
-      this.extraBlips = () => [...(this.mode?.blips() ?? []), ...(this.pickups?.blips() ?? []), ...(this.net?.blips?.() ?? [])];
       app.debug.extra.set('ai', () => {
         const em = this.enemyMgr;
         if (!em) return '';
@@ -783,9 +784,6 @@ export class GameState implements AppState {
       });
     }
 
-    if (this.puppet || opts.mode === 'sandbox') {
-      this.extraBlips = () => [...(this.pickups?.blips() ?? []), ...(this.net?.blips?.() ?? [])];
-    }
     // (LR16-5b) Marlow Yard's swinging pendants (solo and host; a co-op client asks the host, `CoopClient.swayRay`): our
     // rounds, the guards' rounds and blasts kick them on the shared clock; the host sends each accepted kick
     // (`CoopHost`: `onKick`). Head bumps: `updateLight`. The hooks are made once here, not per frame.
@@ -1281,6 +1279,8 @@ export class GameState implements AppState {
 
   /** The mission's objectives and their state for the pause menu (G108). */
   objectiveLines(): ObjectiveLine[] {
+    const own = this.mode?.objectiveLines?.() ?? this.net?.objectiveLines?.();
+    if (own) return own;
     const m = this.mode;
     if (m instanceof InfiltrationMode) {
       const c = m.chain;
@@ -1323,6 +1323,7 @@ export class GameState implements AppState {
         {
           coop: !!this.net,
           objectives: () => this.objectiveLines(),
+          notes: () => this.notes.lines(),
           dof: this.stack.hasDof,
           notice,
           // (marlow-bays items 3-4, A1) host actions in co-op: the client sees them disabled, "Host only"
@@ -1935,6 +1936,9 @@ export class GameState implements AppState {
       this.pause();
       return;
     }
+    // (G343, BRIEF A5) View / O shows the objective again, every mode and both co-op sides; not under the pause or field
+    // menu (co-op runs the sim under it: the line would pop up behind the menu)
+    if (!this.paused && !this.menuOpen && realIn.pressed('objective')) this.hud.showObjective();
     // (tuner-camera) the tuner's free view: the game reads its own input (the orbit's move, the fly demo loop), none of
     // the devices' buttons
     // (anim-studio) the studio's loop player drives the game while it plays a loop
@@ -2235,9 +2239,6 @@ export class GameState implements AppState {
       }
     }
   }
-
-  /** Enemy blips on the minimap last frame (tests). */
-  enemyBlips = 0;
 
   /** Holds the brightness calibration at its default. Unused since G9 (no traitor finale, no Confrontation); nothing sets it. */
   brightnessLocked = false;
@@ -3710,33 +3711,9 @@ export class GameState implements AppState {
       crosshair: this.weapons.drawPhase === 2 && this.player.ads,
       onTarget: this.onTarget,
       ads: this.player.cam.ads > 0.5,
-      yaw: cam.yaw,
-      markers: [],
     };
-    const blips: Blip[] = [];
-    // Hunter / Infiltration: no enemy blips (find them yourself) unless the HQ radar is bought (within its range)
-    const stealthMode = this.mode instanceof ClearMode || this.mode instanceof InfiltrationMode || this.mode instanceof SectorMode;
-    const radar = stealthMode ? this.hq.radar : Infinity;
-    let enemyBlips = 0;
-    if (radar > 0) {
-      const pp = this.player.position;
-      for (const t of this.registry.hostiles('player')) {
-        t.center(this.tmp);
-        if (hyp2(this.tmp.x - pp.x, this.tmp.z - pp.z) > radar) continue;
-        blips.push({ x: this.tmp.x, z: this.tmp.z, kind: 'enemy' });
-        enemyBlips++;
-      }
-    }
-    this.enemyBlips = enemyBlips;
-    for (const g of this.grenades.positions()) blips.push({ x: g.x, z: g.z, kind: 'danger' });
-    blips.push(...this.extraBlips());
-    for (const b of blips) {
-      if (b.kind === 'objective') f.markers.push({ bearing: Math.atan2(b.x - this.player.position.x, b.z - this.player.position.z), kind: 'objective' });
-    }
     this.hud.update(f);
     this.updateCoverHud();
-    const p = this.player.controller.renderPos;
-    this.minimap.draw(performance.now(), p.x, p.z, cam.yaw, blips);
   }
 }
 

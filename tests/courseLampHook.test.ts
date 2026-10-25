@@ -73,7 +73,7 @@ function make(mode: string, sway: { n: number } | null) {
     bodyStamp: null,
     interactables: null,
     scene: null,
-    hud: { setObjective(): void {} },
+    hud: { setObjective(): void {}, setNetStatus(): void {} },
     ctDev: null as { ricochetRay: Ray } | null,
   };
   const s = { events: { on: () => () => undefined }, toHost: vi.fn(), selfId: 'C', players: new Map() };

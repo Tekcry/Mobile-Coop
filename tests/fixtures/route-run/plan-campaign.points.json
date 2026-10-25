@@ -1,0 +1,38 @@
+{
+  "geom": "fixture-plan-campaign",
+  "spaces": [
+    {"id":"s1-street","section":"S1","storey":0,"floorY":0,"boxes":[[0,0,40,8]],"centre":[20,0,4],"cells":1280},
+    {"id":"s1-alley","section":"S1","storey":0,"floorY":0,"boxes":[[0,8,8,30]],"centre":[4,0,19],"cells":704},
+    {"id":"s1-roof","section":"S1","storey":4.5,"floorY":4.5,"boxes":[[8,8,30,14]],"centre":[19,4.5,11],"cells":528},
+    {"id":"s1-yard","section":"S1","storey":0,"floorY":0,"boxes":[[8,14,30,30]],"centre":[19,0,22],"cells":1408},
+    {"id":"s1-office","section":"S1","storey":0,"floorY":0,"boxes":[[30,22,36,30]],"centre":[33,0,26],"cells":192},
+    {"id":"s1-dock","section":"S1","storey":0,"floorY":0,"boxes":[[12,30,30,36]],"centre":[21,0,33],"cells":432},
+    {"id":"s2-lobby","section":"S2","storey":0,"floorY":0,"boxes":[[40,30,50,40]],"centre":[45,0,35],"cells":400},
+    {"id":"s2-catwalk","section":"S2","storey":4,"floorY":4,"boxes":[[50,26,70,30]],"centre":[60,4,28],"cells":320},
+    {"id":"s2-hall","section":"S2","storey":0,"floorY":0,"boxes":[[50,30,70,44]],"centre":[60,0,37],"cells":1120},
+    {"id":"s2-east","section":"S2","storey":0,"floorY":0,"boxes":[[70,30,76,37]],"centre":[73,0,33.5],"cells":168},
+    {"id":"s2-west","section":"S2","storey":0,"floorY":0,"boxes":[[70,37,76,44]],"centre":[73,0,40.5],"cells":168},
+    {"id":"s2-control","section":"S2","storey":0,"floorY":0,"boxes":[[76,30,84,44]],"centre":[80,0,37],"cells":448},
+    {"id":"s2-exit","section":"S2","storey":0,"floorY":0,"boxes":[[84,30,90,44]],"centre":[87,0,37],"cells":336}
+  ],
+  "links": [
+    {"from":"s1-street","to":"s1-alley","kind":"opening","route":"shadow","at":[4,0,8],"atFrom":"edge","gaps":1,"measured":null},
+    {"from":"s1-street","to":"s1-roof","kind":"ladder","route":"high","at":[19,0,8],"atFrom":"edge","gaps":1,"measured":null},
+    {"from":"s1-alley","to":"s1-yard","kind":"opening","route":"shadow","at":[8,0,22],"atFrom":"edge","gaps":1,"measured":null},
+    {"from":"s1-roof","to":"s1-yard","kind":"drop","route":"high","at":[19,4.5,14],"atFrom":"edge","gaps":1,"measured":null},
+    {"from":"s1-street","to":"s1-yard","kind":"roller_door","route":"loud","at":[28,0,11],"atFrom":"declared","gaps":null,"measured":null},
+    {"from":"s1-yard","to":"s1-office","kind":"door","route":"loud","at":[30,0,26],"atFrom":"edge","gaps":1,"measured":null},
+    {"from":"s1-yard","to":"s1-dock","kind":"door","route":"shadow","at":[16,0,30],"atFrom":"declared","gaps":null,"measured":null},
+    {"from":"s1-yard","to":"s1-dock","kind":"pair_gate","route":"loud","at":[26,0,30],"atFrom":"declared","gaps":null,"measured":null},
+    {"from":"s1-dock","to":"s2-lobby","kind":"corridor","route":"spine","at":null,"atFrom":"none","gaps":0,"measured":null},
+    {"from":"s2-lobby","to":"s2-hall","kind":"door","route":"shadow","at":[50,0,32],"atFrom":"declared","gaps":null,"measured":null},
+    {"from":"s2-lobby","to":"s2-hall","kind":"double_door","route":"loud","at":[50,0,38],"atFrom":"declared","gaps":null,"measured":null},
+    {"from":"s2-lobby","to":"s2-catwalk","kind":"ladder","route":"high","at":[50,0,30],"atFrom":"declared","gaps":null,"measured":null},
+    {"from":"s2-catwalk","to":"s2-hall","kind":"ladder","route":"high","at":[60,4,30],"atFrom":"edge","gaps":1,"measured":null},
+    {"from":"s2-hall","to":"s2-east","kind":"door","route":"shadow","at":[70,0,33.5],"atFrom":"edge","gaps":1,"measured":null},
+    {"from":"s2-hall","to":"s2-west","kind":"opening","route":"loud","at":[70,0,40.5],"atFrom":"edge","gaps":1,"measured":null},
+    {"from":"s2-east","to":"s2-control","kind":"door","route":"shadow","at":[76,0,33.5],"atFrom":"edge","gaps":1,"measured":null},
+    {"from":"s2-west","to":"s2-control","kind":"door","route":"loud","at":[76,0,40.5],"atFrom":"edge","gaps":1,"measured":null},
+    {"from":"s2-control","to":"s2-exit","kind":"door","route":"shadow","at":[84,0,37],"atFrom":"edge","gaps":1,"measured":null}
+  ]
+}
