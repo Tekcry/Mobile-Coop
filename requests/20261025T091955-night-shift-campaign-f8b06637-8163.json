@@ -1,0 +1,15 @@
+{
+  "id": "20261025T091955-night-shift-campaign-f8b06637-8163",
+  "sha": "f8b066373f38960eaf1ed4df8e899cda10526f16",
+  "branch": "feature/mission-engine-flg-gb6",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Campaign Build",
+  "suites": [
+    "e2e-sectorops:wharf-tkl",
+    "e2e-sectorops:wharf-tgc"
+  ],
+  "set": "mission-flg-fix",
+  "laptopRerun": true,
+  "note": "desktop failure of 20261025T072015-night-shift-campaign-f8b06637-bcc3, rerun on the laptop"
+}
