@@ -111,6 +111,13 @@ from cover, cut circuits and shot lamps.
   rerun on the RAB ALEDS3T readings, the fit missed on the lamp's shape (RMS level error 0.318), so the anchors stay
   chosen, not measured (`measure/calibration.md` section 3).
 
+- **A14** (L0 fold, L0 check note 1) The lux measure adds lamps in lux, not in level: each baked lamp is read alone,
+  turned into lux over the reference floor and added (`sumLux`, `src/world/lux.ts`); band checks read that sum. The
+  engine keeps adding levels (picture, meter and guards unchanged; parity untouched), so an overlap of pools looks
+  brighter than its lux reading (two S1 columns at one point: shown at level 0.796, measured 10.5 lx). Undo: band checks
+  on the summed level again (`bandCheck` without its `lux` argument in `luxGrid.ts`), or the engine change written in
+  PLAN L1 (lamps summed in lux in `LightField.levelInto` and both shader lamp loops), which needs its own decision.
+
 ## Questions for Michael
 None now. One question rides the S1 sign-off (`SIGNOFF.md`, PLAN L1): approve the band table and the S1 light map
 (Q3). The anchors (A2) and the car-park category (A5) are shown on that page as what "Changes first" leads to.

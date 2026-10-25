@@ -1,7 +1,7 @@
 /**
  * light-realism L0: the reference test (Q3 "one test that matches the game's brightness to real light units"; PLAN L0,
- * BRIEF A13). One real 6 m single-arm LED car-park column, from its maker's published photometric data read off a web
- * page (never a downloaded or bought file, A4), against the same column in the engine's lamp terms on open ground:
+ * BRIEF A13). One real 6 m single-arm LED car-park column, from its maker's published photometric data (numbers only,
+ * the file never committed: `REFERENCE`), against the same column in the engine's lamp terms on open ground:
  *
  *   real:   horizontal lux at the ground (y 0) at 0, 3, 6, 9, 12 m from the column's foot along the arm's axis
  *           (iso-lux diagram, or E = I(theta) x cos^3(theta) / h^2 from the candela table), plus the night floor's lux
@@ -28,7 +28,7 @@ export const DISTANCES = [0, 3, 6, 9, 12] as const;
 /** The pass line (PLAN L0). */
 export const PASS = { rms: 0.03, point: 0.05 } as const;
 
-/** One real fitting's published data, as read off its maker's page by the lead. */
+/** One real fitting's published data (numbers only), as derived by the lead. */
 export interface ReferenceFitting {
   maker: string;
   model: string;
@@ -46,12 +46,26 @@ export interface ReferenceFitting {
 }
 
 /**
- * The reference fitting. None yet: no maker's page found on 2026-10-25 gives a car-park column's candela table or
- * iso-lux diagram in the page itself (the data sits in IES / LDT files and PDF datasheets, which A4 / A13 rule out
- * without Michael's OK). Pages tried: calibration.md "Search". Fill this and re-run the test when a page is found or
- * Michael allows one datasheet download (A13's undo).
+ * The reference fitting (Michael's pick, 2026-10-25 ~21:00: "Yes, numbers only (Recommended)"): RAB Lighting ALEDS3T,
+ * 80 W 5000 K Type III area light, IES test DLF2207109-4a (Deliver Co., 2022-07-29), from the maker's published
+ * photometric file https://www.rablighting.com/downloads/ies/aleds3t-80w-5k-dlf2207109-4a.ies (product page
+ * https://www.rablighting.com/product/ALEDS3T). Numbers only, file not committed: the maker's terms bar commercial use
+ * and copying of the file, so only these five derived ground readings are used (credited in `docs/art-credits.md`); no
+ * IES file is committed, bundled or copied into the repo. Derived by the lead from the candela table (linear
+ * interpolation on the vertical angle, C0 forward): E = I(theta) x cos(theta) / d^2 on the ground, 6 m mount, 0.8 m
+ * arm toward the points.
  */
-export const REFERENCE: ReferenceFitting | null = null;
+export const REFERENCE: ReferenceFitting | null = {
+  maker: 'RAB Lighting',
+  model: 'ALEDS3T 80 W 5000 K Type III (IES test DLF2207109-4a)',
+  source: 'https://www.rablighting.com/downloads/ies/aleds3t-80w-5k-dlf2207109-4a.ies (numbers only, file not committed)',
+  read: '2026-10-25, Night Shift | Sector Ops Build; Michael picked "Yes, numbers only (Recommended)"',
+  lumens: 10742,
+  mountH: 6.0,
+  arm: 0.8,
+  method: 'candela',
+  lux: [32.1, 53.9, 47.7, 25.4, 11.2],
+};
 
 /** The engine's falloff x cone of the column at ground distance `d` from its foot (no intensity, gain or floor). */
 export function engineShape(d: number, arm: number = ENGINE_COLUMN.arm): number {
@@ -94,7 +108,7 @@ export interface FitResult {
   maxAbs: number;
   verdict: 'measured' | 'chosen, not measured';
   /** The free best fit: the level at 10 lx and the intensity solved on the 5 points, the level at 1 lx held (`freeFit`). */
-  free: { level1: number; level10: number; intensity: number; rms: number };
+  free: { level1: number; level10: number; intensity: number; rms: number; edge: boolean };
 }
 
 /**
@@ -129,44 +143,54 @@ export function fitReference(lux: readonly number[], lumens: number, arm: number
  * The free fit beside A2: the curve's slope and the intensity both solved on the 5 points, the 1 lx anchor held at
  * `LIGHT.shadow` (0.28). Both anchors and the intensity cannot be solved together from one fitting: when the engine's
  * shape matches the real one, any anchor pair with a matching intensity fits equally (the family a + b x log10(floor
- * lux) = floor level), so one anchor has to be held. Minimises sum (floor + k f_i - a - b log10(E_i + E_floor))^2 over
- * b and k (linear in both), the floor's lux read on the fitted curve itself (fixed point, 50 rounds).
+ * lux) = floor level), so one anchor has to be held. Minimises sum (floor + k f_i - a - b log10(E_i + E_floor(b)))^2,
+ * the floor's lux read on the curve being tried: for each slope b the best k is closed form, and b is searched over
+ * `FREE_SLOPE` (a 0.005 grid, then golden section). (The L0 build's fixed-point version wandered off on the real fitting
+ * and stopped at a worse point than A2 itself; the search cannot.) `edge`: the best slope sits on the range's end, so
+ * the shapes disagree too much for a slope to mean anything.
  */
+export const FREE_SLOPE = { lo: 0.05, hi: 1.0 } as const;
 function freeFit(lux: readonly number[], f: readonly number[]): FitResult['free'] {
   const a: number = LUX_ANCHORS.lo.level;
-  let b = LUX_ANCHORS.hi.level - LUX_ANCHORS.lo.level;
+  let ff = 0;
+  for (const q of f) ff += q * q;
   let k = 0;
-  for (let round = 0; round < 50; round++) {
+  const sqAt = (b: number): number => {
     const floorLux = Math.pow(10, (FLOOR_LEVEL - a) / b);
-    // rows [log10 E, -f] x [b, k] = floor - a
-    let m00 = 0, m01 = 0, m11 = 0, v0 = 0, v1 = 0;
-    const y = FLOOR_LEVEL - a;
+    let num = 0;
+    for (let i = 0; i < lux.length; i++) num += f[i]! * (a + b * Math.log10(lux[i]! + floorLux) - FLOOR_LEVEL);
+    k = ff > 0 ? num / ff : 0;
+    let sq = 0;
     for (let i = 0; i < lux.length; i++) {
-      const p = Math.log10(lux[i]! + floorLux);
-      const q = -f[i]!;
-      m00 += p * p;
-      m01 += p * q;
-      m11 += q * q;
-      v0 += p * y;
-      v1 += q * y;
+      const r = FLOOR_LEVEL + k * f[i]! - (a + b * Math.log10(lux[i]! + floorLux));
+      sq += r * r;
     }
-    const det = m00 * m11 - m01 * m01;
-    if (Math.abs(det) < 1e-15) break;
-    const nb = (v0 * m11 - m01 * v1) / det;
-    const nk = (m00 * v1 - m01 * v0) / det;
-    if (!(nb > 1e-3)) break;
-    const done = Math.abs(nb - b) < 1e-12 && Math.abs(nk - k) < 1e-12;
-    b = nb;
-    k = nk;
-    if (done) break;
+    return sq;
+  };
+  const STEP = 0.005;
+  let best = FREE_SLOPE.lo;
+  let bestSq = Infinity;
+  for (let b = FREE_SLOPE.lo; b <= FREE_SLOPE.hi + 1e-12; b += STEP) {
+    const sq = sqAt(b);
+    if (sq < bestSq) {
+      bestSq = sq;
+      best = b;
+    }
   }
-  const floorLux = Math.pow(10, (FLOOR_LEVEL - a) / b);
-  let sq = 0;
-  lux.forEach((e, i) => {
-    const r = FLOOR_LEVEL + k * f[i]! - (a + b * Math.log10(e + floorLux));
-    sq += r * r;
-  });
-  return { level1: a, level10: a + b, intensity: k, rms: Math.sqrt(sq / lux.length) };
+  // golden section on the grid point's neighbours
+  let lo = Math.max(FREE_SLOPE.lo, best - STEP);
+  let hi = Math.min(FREE_SLOPE.hi, best + STEP);
+  const g = (Math.sqrt(5) - 1) / 2;
+  for (let it = 0; it < 80; it++) {
+    const m1 = hi - g * (hi - lo);
+    const m2 = lo + g * (hi - lo);
+    if (sqAt(m1) <= sqAt(m2)) hi = m2;
+    else lo = m1;
+  }
+  const b = (lo + hi) / 2;
+  const sq = sqAt(b);
+  const edge = b - FREE_SLOPE.lo < STEP || FREE_SLOPE.hi - b < STEP;
+  return { level1: a, level10: a + b, intensity: k, rms: Math.sqrt(sq / lux.length), edge };
 }
 
 export interface Calibration {

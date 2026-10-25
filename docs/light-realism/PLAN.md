@@ -186,6 +186,33 @@ picture shows the field it reads.
   keeps cutting each half, `:125-133`). Intensity and reach tuned until the car park meets P11a (A5).
 - Engine alternative, not taken (A6): skip a lamp's own mount in the march (`lampBake.ts:263`). It changes every map's
   bake and every visual-gate baseline, and loosens the LR16-L rule the test guards; the data fix is local and real.
+- **Lamps add in lux (L0 check note 1, BRIEF A14; done in the L0 fold).** The engine sums lamp levels; the curve is a
+  log, so a summed level read on it over-reads overlaps (two S1 columns at one point: level 0.796, ~41 lx on the curve,
+  ~10.5 lx real). `lux-grid.mjs` now reads each baked lamp alone (`LightField.lampAt`), turns each into lux over the
+  reference floor (`lampLux`, `LAMP_LUX_BASE` 0.244) and adds them (`sumLux`, `src/world/lux.ts`); the band check reads
+  that sum (`bandCheck(levels, band, lux)`), pinned by `tests/lux.test.ts` "lamps add in lux". L1 tunes the columns to
+  P11a on this reading, so a P11a pass needs real-site spacing, not stacked pools. The picture, meter and guards still
+  add levels: an overlap looks brighter than its lux reading. SIGNOFF.md's "How bright counts as lit" carries one
+  line on it.
+  - Engine change that would make the picture agree, NOT in L1 (engine files outside this job's claims; every map's
+    look, every visual-gate baseline and guard sight change; needs its own decision and Michael's look sign-off): in
+    `src/world/lightField.ts` `levelInto` (`:261-298`), keep the non-lamp part `base` (ambient + bounce + moon), add
+    each lamp as `E += lampLux(this.res)` instead of `v += this.res` (`:292`), then `v = luxToLevel(levelToLux(base) +
+    E)`; the same per fragment in both shader lamp loops (`src/world/bakedLamps.ts:1023` volume, `:1660` surface) on the
+    scalar level before it tints the colour, with `lampLux` / `luxToLevel` written into `LAMP_MATH_GLSL`
+    (`lampMath.ts`); `lux.ts` would then be imported by `lightField.ts` (the grep test in `tests/lux.test.ts` changes
+    with it). A14's undo.
+- **Reference fitting's shape (L0 fold, `measure/calibration.md` section 3).** The RAB ALEDS3T throws forward (brightest
+  3-6 m out, 11 lx at 12 m); the engine's column (downward cone) is brightest under the pole and at the night floor
+  by 9-12 m (RMS level error 0.318: the anchors stay chosen, not measured). Real P11a spacing counts on the forward
+  throw: L1 meets the band with closer columns, longer reach or a cone tipped toward the bays (map data), and lists the
+  column spacing it ends with beside a real P11a layout's on S1-carpark.md.
+- **Open before the L2 briefs (L0 check note 2): interior bands over 178 lx.** `LUX_CEIL` (level 1.0) is 178 lx, so the
+  gatehouse, offices and security rooms (320 lx) are "saturated". With levels alone a saturated band passes only where
+  every cell reads level 1.0; with lamps added in lux (above) it passes where the mean reaches 178 lx (overlapping lamps
+  can). Decide for L2 (lead, or with SIGNOFF.md's band table): (a) keep: a saturated band's floor is 178 lx mean on
+  the lux sum, plus the point minimum; or (b) a lower floor from the curve (bands.md 3b lists them at level 0.92-1.0).
+  Nothing in L1's car park depends on it (P11a 14 lx is inside the curve).
 - `tests/lampBoxAlign.test.ts:206-208`: the 15 `ON_ITS_POST` campusOps entries leave (the light points no longer sit
   over their posts); the bollard entries stay until L2-S1; ids re-keyed if the new row shifts them (`:216-218`).
 - `tests/campusS1.test.ts:424-439`: column counts per circuit; a new test: every column's light point is at least

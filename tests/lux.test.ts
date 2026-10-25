@@ -6,7 +6,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { BAND_MAX_FACTOR, bandCheck, levelToLux, luxToLevel, LUX_ANCHORS, LUX_CEIL, LUX_FLOOR, LUX_OFFSET, LUX_SLOPE } from '../src/world/lux';
+import { BAND_MAX_FACTOR, bandCheck, LAMP_LUX_BASE, lampLux, levelToLux, luxToLevel, LUX_ANCHORS, LUX_CEIL, LUX_FLOOR, LUX_OFFSET, LUX_SLOPE, sumLux } from '../src/world/lux';
 import { LIGHT } from '../src/world/lights';
 import { moonLight } from '../src/world/lampMath';
 import { campusOps } from '../src/world/maps/campusOps';
@@ -104,7 +104,8 @@ describe('reference test (Q3, A13): calibrate.ts against calibration.md', () => 
     const prof = engineProfile();
     expect(prof.map((p) => p.d)).toEqual([...DISTANCES]);
     const rows = new Map<number, number>();
-    for (const m of CAL_MD.matchAll(/^\| (\d+) m \| ([\d.]+) \| ([\d.]+) \| ([\d.]+) \|/gm)) rows.set(Number(m[1]), Number(m[3]));
+    const engineSide = CAL_MD.slice(CAL_MD.indexOf('### Engine side'), CAL_MD.indexOf('### Real side'));
+    for (const m of engineSide.matchAll(/^\| (\d+) m \| ([\d.]+) \| ([\d.]+) \| ([\d.]+) \|/gm)) rows.set(Number(m[1]), Number(m[3]));
     for (const p of prof) {
       const md = rows.get(p.d);
       expect(md, `calibration.md engine row ${p.d} m`).toBeDefined();
@@ -130,7 +131,41 @@ describe('reference test (Q3, A13): calibrate.ts against calibration.md', () => 
       expect(Math.abs(cal.fit!.intensity - num('Fitted intensity'))).toBeLessThanOrEqual(0.005);
       expect(Math.abs(cal.fit!.rms - num('RMS level error'))).toBeLessThanOrEqual(0.005);
       expect(REFERENCE.lux).toHaveLength(DISTANCES.length);
+      // the real-side table: real lux and the fitted engine level per distance (within 0.005)
+      const realSide = CAL_MD.slice(CAL_MD.indexOf('### Real side'), CAL_MD.indexOf('## 4.'));
+      const rows = [...realSide.matchAll(/^\| (\d+) m \| ([\d.]+) \| ([\d.]+) \| ([\d.]+) \|/gm)];
+      expect(rows.map((m) => Number(m[1]))).toEqual([...DISTANCES]);
+      rows.forEach((m, i) => {
+        expect(Number(m[2])).toBe(REFERENCE.lux[i]);
+        expect(Math.abs(Number(m[4]) - cal.fit!.points[i]!.engineLevel)).toBeLessThanOrEqual(0.005);
+      });
     }
+  });
+
+  it('the reference is the RAB ALEDS3T numbers Michael picked (numbers only, no IES file in the repo)', () => {
+    expect(REFERENCE).not.toBeNull();
+    expect(REFERENCE!.lux).toEqual([32.1, 53.9, 47.7, 25.4, 11.2]);
+    expect(REFERENCE!.mountH).toBe(6.0);
+    expect(REFERENCE!.arm).toBe(ENGINE_COLUMN.arm);
+    expect(REFERENCE!.source).toContain('rablighting.com');
+    expect(CAL_MD).toContain('Yes, numbers only (Recommended)');
+    // the fit misses on shape (the verdict stays A13's fallback, with the error written down)
+    const cal = runCalibration();
+    expect(cal.verdict).toBe('chosen, not measured');
+    expect(cal.fit!.rms).toBeGreaterThan(PASS.rms);
+    expect(cal.fit!.free.edge).toBe(true);
+    // never commit, bundle or copy the photometric file
+    const found: string[] = [];
+    const walk = (dir: string): void => {
+      for (const n of readdirSync(dir)) {
+        if (n === 'node_modules' || n === '.git' || n === 'dist') continue;
+        const p = join(dir, n);
+        if (statSync(p).isDirectory()) walk(p);
+        else if (/\.(ies|ldt)$/i.test(n)) found.push(p);
+      }
+    };
+    for (const d of ['src', 'public', 'scripts', 'docs', 'tests']) walk(join(__dirname, '..', d));
+    expect(found).toEqual([]);
   });
 
   it('the fit recovers a known column exactly (synthetic: real lux made from the engine through the curve)', () => {
@@ -153,6 +188,59 @@ describe('reference test (Q3, A13): calibrate.ts against calibration.md', () => 
     expect(fit.rms).toBeGreaterThan(PASS.rms);
     expect(fit.verdict).toBe('chosen, not measured');
     expect(() => runCalibration({ maker: 'x', model: 'y', source: 'z', read: 'r', lumens: 5000, mountH: 8, arm: 0.8, method: 'candela', lux: [1, 1, 1, 1, 1] })).toThrow(/mounted at 8/);
+  });
+});
+
+describe('lamps add in lux, not in level (L0 check note 1)', () => {
+  const floorLux = levelToLux(FLOOR_LEVEL);
+  // one S1 column (intensity 0.9) on open ground: its level contribution under itself and 3 m out
+  const under = engineLevel(0, ENGINE_COLUMN.s1Intensity) - FLOOR_LEVEL;
+  const out3 = engineLevel(3, ENGINE_COLUMN.s1Intensity) - FLOOR_LEVEL;
+  // the real sum: each lamp's lux alone (what the curve reads for it over the reference floor, less that floor) added
+  const alone = (d: number): number => levelToLux(FLOOR_LEVEL + d) - floorLux;
+
+  it('reads lamps over the reference test floor', () => {
+    expect(LAMP_LUX_BASE).toBe(FLOOR_LEVEL);
+  });
+
+  it('one lamp alone reads as the curve reads it', () => {
+    expect(sumLux(FLOOR_LEVEL, [under])).toBeCloseTo(levelToLux(FLOOR_LEVEL + under), 9);
+    expect(sumLux(FLOOR_LEVEL, [under])).toBeCloseTo(5.64, 2);
+    expect(sumLux(FLOOR_LEVEL, [])).toBeCloseTo(floorLux, 12);
+    expect(lampLux(0)).toBe(0);
+    expect(lampLux(-0.1)).toBe(0);
+  });
+
+  it('two overlapping lamps read their real sum, not the summed level on the curve', () => {
+    // two columns lighting the same point fully (the checker's case): ~10.5 lx real, ~41 lx on the curve
+    const two = sumLux(FLOOR_LEVEL, [under, under]);
+    expect(two).toBeCloseTo(floorLux + 2 * alone(under), 9);
+    expect(two).toBeCloseTo(10.5, 1);
+    const onCurve = levelToLux(FLOOR_LEVEL + 2 * under);
+    expect(onCurve).toBeGreaterThan(40);
+    expect(onCurve / two).toBeGreaterThan(3.5);
+    // the mid-point of two columns 6 m apart (each 3 m out): ~6.9 lx real against ~18.8 lx on the curve
+    const mid = sumLux(FLOOR_LEVEL, [out3, out3]);
+    expect(mid).toBeCloseTo(floorLux + 2 * alone(out3), 9);
+    expect(mid).toBeCloseTo(6.85, 1);
+    expect(levelToLux(FLOOR_LEVEL + 2 * out3)).toBeGreaterThan(18);
+    // unequal lamps and a typed array (the measure's scratch buffer), count-limited
+    const buf = new Float64Array([under, out3, 0.5]);
+    expect(sumLux(FLOOR_LEVEL, buf, 2)).toBeCloseTo(floorLux + alone(under) + alone(out3), 9);
+    // a lamp's lux does not depend on the cell's other light: the same two lamps over a brighter fill add the same lux
+    expect(sumLux(0.3, [under, under]) - levelToLux(0.3)).toBeCloseTo(two - floorLux, 9);
+  });
+
+  it('bandCheck checks the lux it is given (one value per cell)', () => {
+    const levels = [FLOOR_LEVEL + 2 * under, FLOOR_LEVEL + 2 * under];
+    const P11A = { avg: 14, min: 3 };
+    // on the curve the doubled cells read ~41 lx and pass P11a; added in lux they read ~10.5 lx and fail its mean
+    expect(bandCheck(levels, P11A).passMean).toBe(true);
+    const real = bandCheck(levels, P11A, [sumLux(FLOOR_LEVEL, [under, under]), sumLux(FLOOR_LEVEL, [under, under])]);
+    expect(real.meanLux).toBeCloseTo(10.5, 1);
+    expect(real.meanLevel).toBeCloseTo(FLOOR_LEVEL + 2 * under, 12);
+    expect(real.passMean).toBe(false);
+    expect(() => bandCheck(levels, P11A, [1])).toThrow(/2 levels but 1 lux/);
   });
 });
 

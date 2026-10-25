@@ -5,7 +5,7 @@
  *   level = 0.28 + 0.32 x log10(lux), clamped 0..1;   lux = 10 ^ ((level - 0.28) / 0.32)
  *
  * anchored at 1 lx = `LIGHT.shadow` (0.28, the meter's dark line) and 10 lx = `LIGHT.lit` (0.60). Lamps still add
- * linearly in the engine; the curve only labels a summed level in lux, so the picture, the meter and guard perception
+ * linearly in the engine; the curve only labels a level in lux (the measure adds lamps in lux: `sumLux`), so the picture, the meter and guard perception
  * are unchanged by it (light parity holds by construction). Measurement only: imported by scripts and tests (and the
  * level validator, J12), never by gameplay or rendering (`tests/lux.test.ts` greps for it). Pure, Babylon-free.
  * Why a log curve, the night-floor check and the reference test: `docs/light-realism/research/bands.md` section 2 and
@@ -39,6 +39,35 @@ export function levelToLux(level: number): number {
 /** The lux of level 0 (~0.13 lx) and of level 1 (~178 lx): the curve's ends. Brighter than `LUX_CEIL` reads fully lit. */
 export const LUX_FLOOR = levelToLux(0);
 export const LUX_CEIL = levelToLux(1);
+
+/**
+ * (L0 check, lead note 1) Lamps add in lux, not in level. The engine sums lamp levels linearly and the curve is a log,
+ * so reading a summed level on the curve over-reads overlapping lamps: two S1 columns each reading 5.6 lx alone sum
+ * to level 0.796, which the curve reads as ~41 lx, against ~10.5 lx real. The measure therefore reads each lamp on its
+ * own and adds the lux: one lamp's lux is what the curve gives it alone over the reference test's night floor
+ * (`LAMP_LUX_BASE`, the campus open ground the curve was set against: `calibrate.ts` `FLOOR_LEVEL`, tied by a test),
+ * minus that floor's own lux; the cell's lux is its non-lamp part (ambient, moon, bounce) on the curve plus the lamps'
+ * lux. One lamp alone over the reference floor reads exactly as before. The engine (picture, meter, guards) still adds
+ * levels: this is the measure's correction, not a light change (parity untouched). The engine change that would make
+ * the two agree is written in PLAN L1 (BRIEF A14).
+ */
+export const LAMP_LUX_BASE = 0.244;
+
+/** One lamp's lux from its level contribution `dLevel` at a point (0 or less: 0; capped where the curve tops out). */
+export function lampLux(dLevel: number): number {
+  if (!(dLevel > 0)) return 0;
+  return levelToLux(LAMP_LUX_BASE + dLevel) - levelToLux(LAMP_LUX_BASE);
+}
+
+/**
+ * A point's lux with its lamps added in lux: `base` is the level without the lamps (ambient + moon + bounce), `lamps`
+ * each lamp's level contribution there. Allocation-free over the array.
+ */
+export function sumLux(base: number, lamps: ArrayLike<number>, count: number = lamps.length): number {
+  let e = levelToLux(base);
+  for (let i = 0; i < count; i++) e += lampLux(lamps[i]!);
+  return e;
+}
 
 /**
  * A space's band (BRIEF A4): the standard's maintained average as the floor of the space's mean lux, up to `maxFactor`
@@ -79,15 +108,22 @@ export interface BandResult {
   pass: boolean;
 }
 
-/** Check a space's cell levels (open cells at its plane; solids left out by the caller) against its band. */
-export function bandCheck(levels: readonly number[], band: LuxBand): BandResult {
+/**
+ * Check a space's cell levels (open cells at its plane; solids left out by the caller) against its band. `lux`, when
+ * given (one value per level, e.g. `sumLux` per cell), is what the band is checked on; otherwise each level is read on
+ * the curve. A band above the curve's top (`saturated`) needs a mean of at least `LUX_CEIL`: with levels alone that is
+ * every cell at level 1; with lamps added in lux it is the mean (L0 check note 2, open for L1 / L2: PLAN L1).
+ */
+export function bandCheck(levels: readonly number[], band: LuxBand, lux?: readonly number[]): BandResult {
   const n = levels.length;
+  if (lux && lux.length !== n) throw new Error(`bandCheck: ${n} levels but ${lux.length} lux values`);
   let sumL = 0;
   let sumLux = 0;
   let minLux = Infinity;
   let maxLux = 0;
-  for (const v of levels) {
-    const lx = levelToLux(v);
+  for (let i = 0; i < n; i++) {
+    const v = levels[i]!;
+    const lx = lux ? lux[i]! : levelToLux(v);
     sumL += v;
     sumLux += lx;
     if (lx < minLux) minLux = lx;

@@ -5,7 +5,8 @@
  * (lamp visibility + bounce, `bakeLamps`), the moon and the ambient grid over a crop round them, and samples
  * `LightField.levelAt` - the function the light meter and the guards read - on a 1 m grid over each space at its
  * measurement plane (BRIEF A3) and at the meter's height (floor + 1.0). Each space gets its level and lux grids, the
- * band check (`bandCheck`, A4) and an SVG heat map. Spaces, types, planes and bands come from
+ * band check (`bandCheck`, A4) and an SVG heat map. Lux adds the lamps in lux, each lamp read on its own (`LightField.lampAt`,
+ * `sumLux`; L0 check note 1), not the summed level on the curve; the level grids are what the picture and meter show. Spaces, types, planes and bands come from
  * `docs/light-realism/spaces/<map>.json`. Never part of `npm test`; changes nothing in src/.
  */
 import { LevelBuilder } from '../../src/world/levelBuilder';
@@ -17,7 +18,7 @@ import { buildAmbientGrid } from '../../src/world/ambientGrid';
 import { LightField, type FieldDoor } from '../../src/world/lightField';
 import { moonLight } from '../../src/world/lampMath';
 import { LIGHT, type LightDef } from '../../src/world/lights';
-import { bandCheck, levelToLux, LUX_ANCHORS, type BandResult, type LuxBand } from '../../src/world/lux';
+import { bandCheck, LUX_ANCHORS, sumLux, type BandResult, type LuxBand } from '../../src/world/lux';
 
 /** One space of a spaces file. */
 export interface SpaceDef {
@@ -57,6 +58,7 @@ export interface SpaceOut {
   why: string | null;
   /** The grid: x from `x0` east in `step`, z from `z0` (north) south in `step`. */
   grid: { x0: number; z0: number; step: number; cols: number; rows: number };
+  /** `lux`: per cell, the lamps added in lux (`sumLux`); the band check reads it. */
   plane: { y: number; stats: Stats; check: BandResult | null; level: (number | null)[][]; lux: (number | null)[][] };
   meter: { y: number; stats: Stats; level: (number | null)[][] };
 }
@@ -71,6 +73,7 @@ export interface Stats {
   darkShare: number;
   midShare: number;
   litShare: number;
+  /** Lamps added in lux (`sumLux`). */
   meanLux: number;
   minLux: number;
 }
@@ -173,23 +176,50 @@ export async function run(opts: RunOpts): Promise<GridOut> {
     return false;
   };
 
-  const sample = (sp: SpaceDef, y: number): { level: (number | null)[][]; vals: number[] } => {
+  // a cell's lux with the lamps added in lux: each baked lamp read on its own; the rest (ambient, moon, bounce) is the
+  // level minus the lamps, or, where the level is clamped at 1, rebuilt from its parts (the ambient's source unsmoothed)
+  const contrib = new Float64Array(ids.length);
+  const luxAt = (x: number, y: number, z: number, v: number): number => {
+    let sum = 0;
+    for (let i = 0; i < ids.length; i++) {
+      const c = field.lampAt(i, x, y, z);
+      contrib[i] = c;
+      sum += c;
+    }
+    let base: number;
+    if (v < 1 - 1e-9) base = v - sum;
+    else {
+      const zv = reg.zoneAt(x, y, z);
+      base = (zv === zv ? zv : sky) + field.bounceAt(x, y, z) + mL * field.moonAt(x, y, z);
+    }
+    return sumLux(base < 0 ? 0 : base > 1 ? 1 : base, contrib);
+  };
+
+  const sample = (sp: SpaceDef, y: number): { level: (number | null)[][]; lux: (number | null)[][]; vals: number[]; luxVals: number[] } => {
     const level: (number | null)[][] = [];
+    const lux: (number | null)[][] = [];
     const vals: number[] = [];
+    const luxVals: number[] = [];
     for (let z = sp.rect.maxZ; z >= sp.rect.minZ - 1e-9; z -= step) {
       const row: (number | null)[] = [];
+      const lrow: (number | null)[] = [];
       for (let x = sp.rect.minX; x <= sp.rect.maxX + 1e-9; x += step) {
         if (solidAt(x, y, z)) {
           row.push(null);
+          lrow.push(null);
           continue;
         }
         const v = field.levelAt(x, y, z);
+        const e = luxAt(x, y, z, v);
         row.push(r3(v));
+        lrow.push(r2(e));
         vals.push(v);
+        luxVals.push(e);
       }
       level.push(row);
+      lux.push(lrow);
     }
-    return { level, vals };
+    return { level, lux, vals, luxVals };
   };
 
   const out: SpaceOut[] = [];
@@ -199,7 +229,7 @@ export async function run(opts: RunOpts): Promise<GridOut> {
     const my = floor + 1.0;
     const p = sample(sp, py);
     const mtr = sample(sp, my);
-    const check = sp.band ? bandCheck(p.vals, sp.band) : null;
+    const check = sp.band ? bandCheck(p.vals, sp.band, p.luxVals) : null;
     const cols = p.level[0]?.length ?? 0;
     out.push({
       id: sp.id,
@@ -211,8 +241,8 @@ export async function run(opts: RunOpts): Promise<GridOut> {
       verify: !!sp.verify,
       why: sp.why ?? null,
       grid: { x0: sp.rect.minX, z0: sp.rect.maxZ, step, cols, rows: p.level.length },
-      plane: { y: r3(py), stats: stats(p.vals), check: check ? roundCheck(check) : null, level: p.level, lux: p.level.map((row) => row.map((v) => (v === null ? null : r2(levelToLux(v))))) },
-      meter: { y: r3(my), stats: stats(mtr.vals), level: mtr.level },
+      plane: { y: r3(py), stats: stats(p.vals, p.luxVals), check: check ? roundCheck(check) : null, level: p.level, lux: p.lux },
+      meter: { y: r3(my), stats: stats(mtr.vals, mtr.luxVals), level: mtr.level },
     });
     log(`sampled ${sp.id} (${cols} x ${p.level.length})`);
   }
@@ -231,6 +261,7 @@ export async function run(opts: RunOpts): Promise<GridOut> {
       moonLight: r3(mL),
       thresholds: { shadow: LIGHT.shadow, lit: LIGHT.lit },
       curve: `level = ${LUX_ANCHORS.lo.level} + ${r3(LUX_ANCHORS.hi.level - LUX_ANCHORS.lo.level)} x log10(lux)`,
+      luxSum: 'lamps added in lux, each read alone over the reference floor (sumLux, L0 check note 1)',
       ms: Date.now() - t0,
     },
     spaces: out,
@@ -238,13 +269,16 @@ export async function run(opts: RunOpts): Promise<GridOut> {
   };
 }
 
-function stats(vals: number[]): Stats {
+function stats(vals: number[], luxVals: number[]): Stats {
   const nn = vals.length;
   if (!nn) return { n: 0, min: 0, mean: 0, max: 0, u0: 0, darkShare: 0, midShare: 0, litShare: 0, meanLux: 0, minLux: 0 };
-  let sum = 0, min = Infinity, max = -Infinity, dark = 0, mid = 0, lit = 0, lux = 0;
-  for (const v of vals) {
+  let sum = 0, min = Infinity, max = -Infinity, dark = 0, mid = 0, lit = 0, lux = 0, minLux = Infinity;
+  for (let i = 0; i < nn; i++) {
+    const v = vals[i]!;
+    const e = luxVals[i]!;
     sum += v;
-    lux += levelToLux(v);
+    lux += e;
+    if (e < minLux) minLux = e;
     if (v < min) min = v;
     if (v > max) max = v;
     if (v < LIGHT.shadow) dark++;
@@ -252,7 +286,7 @@ function stats(vals: number[]): Stats {
     else lit++;
   }
   const mean = sum / nn;
-  return { n: nn, min: r3(min), mean: r3(mean), max: r3(max), u0: r3(min / mean), darkShare: r3(dark / nn), midShare: r3(mid / nn), litShare: r3(lit / nn), meanLux: r2(lux / nn), minLux: r2(levelToLux(min)) };
+  return { n: nn, min: r3(min), mean: r3(mean), max: r3(max), u0: r3(min / mean), darkShare: r3(dark / nn), midShare: r3(mid / nn), litShare: r3(lit / nn), meanLux: r2(lux / nn), minLux: r2(minLux) };
 }
 
 function roundCheck(c: BandResult): BandResult {

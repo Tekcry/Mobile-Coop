@@ -83,7 +83,7 @@ async function calibrate() {
     console.log('  d (m)  real lx  real level  engine level  engine lx  err level  err lux %');
     for (const p of c.fit.points) console.log(`  ${String(p.d).padStart(5)}  ${f2(p.realLux).padStart(7)}  ${f3(p.realLevel).padStart(10)}  ${f3(p.engineLevel).padStart(12)}  ${f2(p.engineLux).padStart(9)}  ${f3(p.errLevel).padStart(9)}  ${p.errLuxPct.toFixed(1).padStart(9)}`);
     console.log(`  fitted intensity ${f3(c.fit.intensity)} (${f3(c.fit.intensityPerKlm)} per 1,000 lm), RMS level error ${f3(c.fit.rms)}, worst point ${f3(c.fit.maxAbs)}`);
-    console.log(`  free fit (1 lx held at ${c.fit.free.level1}): 10 lx = ${f3(c.fit.free.level10)}, intensity ${f3(c.fit.free.intensity)}, RMS ${f3(c.fit.free.rms)}`);
+    console.log(`  free fit (1 lx held at ${c.fit.free.level1}): 10 lx = ${f3(c.fit.free.level10)}, intensity ${f3(c.fit.free.intensity)}, RMS ${f3(c.fit.free.rms)}${c.fit.free.edge ? ' (slope at the search range end: no slope fits)' : ''}`);
   }
 }
 
