@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { checkMission, missionSpawnsGuard, type MissionDef, type MissionEvent, type MissionRule } from '../../src/game/mission/missionDef';
-import { RULE_HOLD, TEAM_A_BIT, TEAM_B_BIT, TEAM_BOTH } from '../../src/game/mission/ruleTracker';
+import { checkMission, missionSpawnsGuard, spookFact, type MissionDef, type MissionEvent, type MissionRule } from '../../src/game/mission/missionDef';
+import { MissionRunner } from '../../src/game/mission/missionRunner';
+import { objectiveRows, PROTECTED_LINE } from '../../src/game/mission/missionText';
+import { applyMissionWire } from '../../src/game/mission/missionWire';
+import { RULE_HOLD, SCOPE_MISSION, TEAM_A_BIT, TEAM_B_BIT, TEAM_BOTH } from '../../src/game/mission/ruleTracker';
 import {
-  MISSION_FAILED_TITLE,
+  MISSION_RESTART_HOLD,
   RULE_BROKEN_TITLE,
+  SECTION_RESTART_TITLE,
   SectorMission,
   applyMissionStart,
   missionStartIndex,
@@ -20,6 +24,8 @@ import { SectorMode } from '../../src/game/modes/sectorMode';
 import { SectorRun, type SectorDef, type SectorPhase } from '../../src/game/sectors';
 import { CAMPUS_SECTORS } from '../../src/world/maps/campusSectors';
 import { CAMPUS_MISSION_TEST } from '../../src/world/maps/campusMissionTest';
+import { THREE_GREY_COATS } from '../../src/world/maps/tallowWharfMissions';
+import { WHARF_SECTORS } from '../../src/world/maps/tallowWharfSectors';
 
 // (mission-framework EN2) the Sector Ops adapter over a fake mode: lifecycle, the exit gate, a rule break's restart (whole
 // and per team), spook across a restart, per-area alarm stages with the height band, Guard AI events, no blips
@@ -141,9 +147,6 @@ class FakeHost implements SectorMissionHost {
   finish(): void {
     this.log.push('finish');
     this.m.extracted();
-  }
-  fail(line: string): void {
-    this.log.push(`fail ${line}`);
   }
   say(line: string): void {
     this.log.push(`say ${line}`);
@@ -429,29 +432,26 @@ describe('SectorMission (adapter over the mode)', () => {
     expect(h.m.holding).toBe(false);
   });
 
-  it('one chance (A12): a break ends the mission instead of a restart; so does everyone down', () => {
-    const rules: MissionRule[] = [noKills, { kind: 'oneChance', scope: 'mission', text: 'One try.' }];
-    const h = make(twoSections(rules), DEFS());
+  it('(mission-rules R1, G290) no break ends the mission; a restart the adapter did not ask for only restores', () => {
+    const h = make(twoSections(), DEFS());
+    h.codes.add('code1');
+    run(h, 0.2);
+    expect(h.m.runner.isDone(0)).toBe(true);
+    // everyone down (the mode's restart, not the mission's): the section's state goes back, nothing is said
+    h.restart();
+    expect(h.m.runner.isDone(0)).toBe(false);
+    run(h, RULE_HOLD + 0.2);
+    expect(h.restarts).toEqual([undefined]);
+    expect(h.m.ruleRestarts).toBe(0);
+    expect(h.m.tracker.breaks).toBe(0);
+    expect(h.log.some((l) => l.startsWith('say') || l.startsWith('banner'))).toBe(false);
+    expect(h.m.over).toBe(false);
+    // a rule's break: a restart, the mission goes on
     h.m.kill(false, 'local');
-    run(h, 0.1);
-    expect(h.log).toContain(`banner ${MISSION_FAILED_TITLE}`);
-    run(h, RULE_HOLD + 0.1);
-    expect(h.restarts).toEqual([]);
-    expect(h.log).toContain('fail No kills broken. The mission is over.');
-    expect(h.m.over).toBe(true);
-    // everyone down (a restart the mission did not ask for)
-    const d = make(twoSections(rules), DEFS());
-    d.restart();
-    run(d, RULE_HOLD + 0.2);
-    expect(d.log.some((l) => l.startsWith('fail One chance broken'))).toBe(true);
-    // (fix round) a pause-menu restart during the end's hold does not skip it
-    const p = make(twoSections(rules), DEFS());
-    p.m.kill(false, 'local');
-    run(p, 0.5);
-    p.restart();
-    run(p, RULE_HOLD);
-    expect(p.log).toContain('fail No kills broken. The mission is over.');
-    expect(p.m.over).toBe(true);
+    run(h, 0.1 + RULE_HOLD + 0.1);
+    expect(h.restarts.length).toBe(2);
+    expect(h.m.ruleRestarts).toBe(1);
+    expect(h.m.over).toBe(false);
   });
 
   it('(fix round) a restart that lands on a pending team restart keeps it that team\'s', () => {
@@ -531,6 +531,237 @@ describe('SectorMission (adapter over the mode)', () => {
     expect(w.rb).toBe(2);
     expect(w.rl).toBe('No gadgets broken. Back to the section checkpoint.');
     expect(w.rk[0]).toBe(0);
+  });
+});
+
+// (mission-rules R1) Three Grey Coats' protected courier: a knock-out before he talks restarts the section with him at his
+// table (A2, Michael ~20:25 "Restart the section (Recommended)", BRIEF M6); a kill before he talks breaks the named-target
+// rule and he moves to the clock-mender's back loft, as a decoy read does (the page Michael signed, "He moves")
+
+const TEALE = 6;
+const FENN = 7;
+const GARROW = 8;
+const TGC3 = THREE_GREY_COATS.steps.findIndex((s) => s.id === 'tgc-3');
+const TGC3_STEP = THREE_GREY_COATS.steps[TGC3]!;
+const BOLT_AT = [65, 4.5, 76.75];
+
+/** A TGC run on the real Tallow sections, W1 done, entered W2 (tgc-3 open). */
+function tgcAtW2(def: MissionDef = THREE_GREY_COATS): FakeHost {
+  const h = make(def, WHARF_SECTORS, 2);
+  for (const c of ['tgc-1', 'tgc-tally', 'tgc-tea']) h.codes.add(c);
+  run(h, 0.2);
+  h.enter(1);
+  run(h, 0.2);
+  return h;
+}
+
+/** Tick until `cond` holds (at most `s` seconds); true when it did. */
+function until(h: FakeHost, cond: () => boolean, s = 10): boolean {
+  for (let t = 0; t < s; t += 0.1) {
+    if (cond()) return true;
+    h.m.tick(0.1);
+  }
+  return cond();
+}
+
+const tgc3Row = (r: MissionRunner): string | undefined => objectiveRows(r, 'all', false).find((x) => x.step === TGC3)?.text;
+const banners = (h: FakeHost): string[] => h.log.filter((l) => l.startsWith('banner'));
+
+/** A client page's runner fed the host's wire (the fact bits carry the spook fact). */
+function clientRow(h: FakeHost): string | undefined {
+  const c = new MissionRunner(h.m.def, 2);
+  c.snapshot(h.m.runner.section, 0);
+  applyMissionWire(c, h.m.wire());
+  return tgc3Row(c);
+}
+
+describe('SectorMission (mission-rules R1): Three Grey Coats, Teale before he talks', () => {
+  it('the base: tgc-3 open in W2 with its reading-room line; the spook fact is kept on restore and never polled', () => {
+    const h = tgcAtW2();
+    expect(h.m.runner.section).toBe(1);
+    expect(h.m.runner.isOpen(TGC3)).toBe(true);
+    expect(tgc3Row(h.m.runner)).toBe(TGC3_STEP.text);
+    expect(TGC3_STEP.bolt).toEqual(BOLT_AT);
+    const polled = (h.m as unknown as { pollFlag: string[] }).pollFlag;
+    expect(polled).not.toContain(spookFact(TGC3_STEP));
+    expect(h.m.runner.flags).toContain(spookFact(TGC3_STEP));
+  });
+
+  it('knocked out -> SECTION RESTART, PROTECTED_LINE, no break counted, no move; W2 restarts with him at his table', () => {
+    const h = tgcAtW2();
+    const m = h.m;
+    h.slots[TEALE]!.ko = true;
+    run(h, 0.1);
+    expect(banners(h)).toEqual([`banner ${SECTION_RESTART_TITLE}`]);
+    expect(h.log).toContain(`say ${PROTECTED_LINE}`);
+    expect(m.tracker.breaks).toBe(0);
+    expect(m.tracker.protectedBreaks).toBe(1);
+    expect(m.tracker.kept(SCOPE_MISSION) & 1).toBe(1);
+    expect(m.runner.spookStep).toBe(-1);
+    expect(m.holding).toBe(true);
+    expect(h.restarts).toEqual([]);
+    // he lies there through the hold: one restart only
+    expect(until(h, () => h.restarts.length > 0, MISSION_RESTART_HOLD + 0.5)).toBe(true);
+    expect(h.restarts).toEqual([undefined]);
+    expect(m.ruleRestarts).toBe(1);
+    run(h, 1);
+    expect(banners(h).length).toBe(1);
+    expect(h.bolts).toEqual([]);
+    expect(h.slots[TEALE]!.ko).toBe(false);
+    expect(m.runner.isOpen(TGC3)).toBe(true);
+    expect(m.runner.hasFlag(spookFact(TGC3_STEP))).toBe(false);
+    expect(tgc3Row(m.runner)).toBe(TGC3_STEP.text);
+    expect(clientRow(h)).toBe(TGC3_STEP.text);
+    expect(m.tracker.breaks).toBe(0);
+  });
+
+  it('killed -> RULE BROKEN, breaks 1, he bolts to the back loft after the restart and tgc-3 names it on host and client', () => {
+    const h = tgcAtW2();
+    const m = h.m;
+    h.slots[TEALE]!.alive = false;
+    run(h, 0.1);
+    expect(banners(h)).toEqual([`banner ${RULE_BROKEN_TITLE}`]);
+    expect(h.log).toContain('say Named target broken. Back to the section checkpoint.');
+    expect(m.tracker.breaks).toBe(1);
+    expect(m.tracker.protectedBreaks).toBe(0);
+    expect(m.tracker.kept(SCOPE_MISSION) & 1).toBe(0);
+    expect(m.runner.spookStep).toBe(TGC3);
+    // the spook fact at once (the wire tells the client during the hold); nothing bolts a dead man
+    expect(m.runner.hasFlag(spookFact(TGC3_STEP))).toBe(true);
+    expect(h.bolts).toEqual([]);
+    // one break however many ticks he lies dead
+    run(h, 1);
+    expect(m.tracker.breaks).toBe(1);
+    expect(until(h, () => h.restarts.length > 0, MISSION_RESTART_HOLD)).toBe(true);
+    expect(h.restarts).toEqual([undefined]);
+    run(h, 0.2);
+    expect(h.bolts).toEqual([{ k: TEALE, at: BOLT_AT }]);
+    expect(m.runner.hasFlag(spookFact(TGC3_STEP))).toBe(true);
+    expect(m.runner.isOpen(TGC3)).toBe(true);
+    expect(tgc3Row(m.runner)).toBe(TGC3_STEP.boltText);
+    expect(clientRow(h)).toBe("Take the grey coat with the black umbrella in the clock-mender's back loft");
+    run(h, 3);
+    expect(m.tracker.breaks).toBe(1);
+    expect(banners(h).length).toBe(1);
+    expect(h.bolts.length).toBe(1);
+  });
+
+  it('killed while the mission scope is held (just after a restart): nothing that tick; the break and the move once the hold ends', () => {
+    const h = tgcAtW2();
+    const m = h.m;
+    h.slots[TEALE]!.ko = true;
+    run(h, 0.1);
+    expect(until(h, () => h.restarts.length > 0, MISSION_RESTART_HOLD + 0.5)).toBe(true);
+    expect(m.tracker.held).toBe(true);
+    h.slots[TEALE]!.alive = false;
+    run(h, 0.1);
+    expect(m.tracker.breaks).toBe(0);
+    expect(m.runner.spookStep).toBe(-1);
+    expect(banners(h).length).toBe(1);
+    expect(until(h, () => m.tracker.breaks > 0, RULE_HOLD + 0.5)).toBe(true);
+    expect(m.tracker.held).toBe(false);
+    expect(m.runner.spookStep).toBe(TGC3);
+    expect(banners(h)).toEqual([`banner ${SECTION_RESTART_TITLE}`, `banner ${RULE_BROKEN_TITLE}`]);
+    expect(m.tracker.protectedBreaks).toBe(1);
+  });
+
+  it('a decoy read (Garrow) -> the same RULE BROKEN, bolt and moved row as the kill; the bolt is no protected break', () => {
+    const h = tgcAtW2();
+    const m = h.m;
+    m.intel(h.slots[GARROW]!.id);
+    expect(m.runner.spookStep).toBe(TGC3);
+    expect(h.bolts).toEqual([{ k: TEALE, at: BOLT_AT }]);
+    expect(m.runner.hasFlag(spookFact(TGC3_STEP))).toBe(true);
+    run(h, 0.1);
+    expect(banners(h)).toEqual([`banner ${RULE_BROKEN_TITLE}`]);
+    expect(m.tracker.breaks).toBe(1);
+    expect(clientRow(h)).toBe(TGC3_STEP.boltText);
+    expect(until(h, () => h.restarts.length > 0, MISSION_RESTART_HOLD + 0.5)).toBe(true);
+    run(h, 0.2);
+    expect(h.bolts.length).toBe(2);
+    expect(h.bolts[1]).toEqual({ k: TEALE, at: BOLT_AT });
+    expect(tgc3Row(m.runner)).toBe(TGC3_STEP.boltText);
+    expect(clientRow(h)).toBe(TGC3_STEP.boltText);
+    run(h, 3);
+    expect(m.tracker.protectedBreaks).toBe(0);
+    expect(m.tracker.breaks).toBe(1);
+  });
+
+  it('a decoy read, then Teale knocked out at the bolt point: a protected restart, the move kept; then killed there: a second break', () => {
+    const h = tgcAtW2();
+    const m = h.m;
+    m.intel(h.slots[FENN]!.id);
+    run(h, 0.1);
+    expect(until(h, () => h.restarts.length > 0, MISSION_RESTART_HOLD + 0.5)).toBe(true);
+    run(h, RULE_HOLD + 0.2);
+    expect(h.bolts.length).toBe(2);
+    // knocked out at the bolt point
+    h.slots[TEALE]!.ko = true;
+    run(h, 0.1);
+    expect(banners(h)[1]).toBe(`banner ${SECTION_RESTART_TITLE}`);
+    expect(m.tracker.breaks).toBe(1);
+    expect(m.runner.spookStep).toBe(TGC3);
+    expect(until(h, () => h.restarts.length > 1, MISSION_RESTART_HOLD + 0.5)).toBe(true);
+    run(h, RULE_HOLD + 0.2);
+    expect(h.bolts.length).toBe(3);
+    expect(tgc3Row(m.runner)).toBe(TGC3_STEP.boltText);
+    // killed at the bolt point
+    h.slots[TEALE]!.alive = false;
+    run(h, 0.1);
+    expect(banners(h)[2]).toBe(`banner ${RULE_BROKEN_TITLE}`);
+    expect(m.tracker.breaks).toBe(2);
+    expect(until(h, () => h.restarts.length > 2, MISSION_RESTART_HOLD + 0.5)).toBe(true);
+    run(h, 0.2);
+    expect(h.bolts.length).toBe(4);
+    expect(tgc3Row(m.runner)).toBe(TGC3_STEP.boltText);
+    expect(m.tracker.protectedBreaks).toBe(1);
+  });
+
+  it('after tgc-3 is done he is fair game: killed or knocked out -> nothing', () => {
+    for (const how of ['ko', 'kill'] as const) {
+      const h = tgcAtW2();
+      h.m.intel(h.slots[TEALE]!.id);
+      expect(h.m.runner.isDone(TGC3)).toBe(true);
+      if (how === 'ko') h.slots[TEALE]!.ko = true;
+      else h.slots[TEALE]!.alive = false;
+      run(h, 1);
+      expect(banners(h)).toEqual([]);
+      expect(h.m.tracker.breaks + h.m.tracker.protectedBreaks).toBe(0);
+    }
+  });
+
+  it('knocked out in the same tick his intel completes the step -> nothing', () => {
+    const h = tgcAtW2();
+    h.m.intel(h.slots[TEALE]!.id);
+    h.slots[TEALE]!.ko = true;
+    run(h, 0.5);
+    expect(banners(h)).toEqual([]);
+  });
+
+  it('a step no named-target rule covers (rules: []): his kill is the protected restart, no move', () => {
+    const h = tgcAtW2({ ...THREE_GREY_COATS, rules: [] });
+    h.slots[TEALE]!.alive = false;
+    run(h, 0.1);
+    expect(banners(h)).toEqual([`banner ${SECTION_RESTART_TITLE}`]);
+    expect(h.log).toContain(`say ${PROTECTED_LINE}`);
+    expect(h.m.tracker.breaks).toBe(0);
+    expect(h.m.runner.spookStep).toBe(-1);
+    expect(until(h, () => h.restarts.length > 0, MISSION_RESTART_HOLD + 0.5)).toBe(true);
+    run(h, 1);
+    expect(h.bolts).toEqual([]);
+    expect(tgc3Row(h.m.runner)).toBe(TGC3_STEP.text);
+  });
+
+  it('Fenn or Garrow knocked out or killed, or no Teale spawned (slotGuard null) -> no restart', () => {
+    const h = tgcAtW2();
+    h.slots[FENN]!.ko = true;
+    h.slots[GARROW]!.alive = false;
+    run(h, 1);
+    expect(banners(h)).toEqual([]);
+    (h.slots as (FakeGuard | undefined)[])[TEALE] = undefined;
+    run(h, 1);
+    expect(banners(h)).toEqual([]);
+    expect(h.m.tracker.breaks + h.m.tracker.protectedBreaks).toBe(0);
   });
 });
 
