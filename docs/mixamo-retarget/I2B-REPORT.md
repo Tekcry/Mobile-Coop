@@ -1,68 +1,62 @@
-# I2b report: traversal clip fixes, rows on
-Owner: mixamo-retarget lead. Status: current (branch feature/mixamo-i2b, from feature/mixamo-i2 21728ba6).
+# I2b report: traversal clip fixes, every row on
+Owner: mixamo-retarget lead. Status: current (branch feature/mixamo-i2b, from feature/mixamo-i2; merged ec486d6b).
 
 Rule used (Michael 2026-10-26, via the coordinator): where a Mixamo clip and a hand-made clip cover the same move the
 capture wins (row true) unless it is visibly broken in play (a spin, a pop, hands far off the grips); a worse number
 alone is tuned in the Anim Studio. Hands on the lip stay a hard gate on the lip climb-up (`tests/climbHands.test.ts`).
-The `mixamo` flag and its default are untouched (a separate slice builds the "Animation source" setting).
+The `mixamo` flag and its default are untouched: the rows only play under the Mixamo source (a separate slice builds
+the "Animation source" setting).
+
+## Rows (MIXAMO_ON, headless, Wren rig, 60 Hz)
+| Capture | Row | Reading with it on | Cap | Hand-made |
+| --- | --- | --- | --- | --- |
+| hanging_idle, shimmy left / right | on | palms 0.00 cm, soles 0.00 | 1 cm | 0.00 / 0.00 |
+| climbing_ladder | on | palms 0.00 cm; soles 38.4 cm (the rig's climb foot cap, not contact); into the top-out the first frame moves the right ankle 19.9 cm | soles hand-made + 10 cm; switch frame hand-made + 5 cm | 0.00; 31.6; 15.7 |
+| climbing_ladder_to_standing | on | top-out palms 3.15 cm | hand-made + 0.2 cm | 11.8 |
+| crawling_hands_and_knees | on | joints 3.4 cm a frame, 1.7 cm velocity change (spYaw -0.10..0.15, was -4.72..-1.42) | 6 / 4 cm | 0.5 / 0.1 |
+| braced_hang_to_crouch | on | climbHands: palms 0.0 cm on the lip, slide 0.4, foot on top k 0.474, shoulders 0.488 m (arm 0.538), knee 2.6 cm clear, release wrists 2.8 cm a frame | 1.5 cm; k <= 0.475; 0.538 m; 2.4 cm; 3.0 cm | 0.0; 0.474; 0.49 m; 2.6; 2.8 |
+| freehang_climb (stand-up past the crouch) | on | climbHands whole exit: trunk 8.9 / 3.07 cm (step / velocity change a frame), arms 12.2 / 9.8, legs 17.0 / 20.9, toes 19.6 / 24.6; release wrists 2.8 | trunk 9.6 / 3.1; arms 16.2 / 23.5; legs 17.4 / 24.2; toes 20.9 / 39.9; wrists 3.0 | trunk 8.6 / 2.7, arms 12.2 / 6.2, wrists 2.8 |
+
+Both lip climb-up captures play together in a match (braced in the `climbUpCrouch` slot, free-hang in `climbUpStand`);
+the climbHands mixamo-on run measures that pair. As captured (no stand-up fix) the pair read trunk 15.7 / 5.1 cm.
 
 ## What changed
-- `scripts/mocap/mixamoChannels.mjs:294,301,367-377`: the yaw fix. A segment (hips or chest) pitched past
-  `YAW_FROM_RIGHT` (75 deg) at any frame of a take takes its yaw from its right axis for the whole take
-  (`yawOfRight`). Cause: the yaw came from the forward axis; with the crawl's chest at 87-105 deg pitch the forward
-  points near the vertical and its heading turns half a circle as the pitch crosses 90 deg (not a wrap: the track was
-  already unwrapped, so unwrapping could not fix it). `:720` the module note says which segment.
-- Re-emitted: `trav_crawling_hands_and_knees.ts` (chest), `trav_freehang_climb.ts` (chest, pitch to 110 deg),
-  `trav_braced_hang_to_crouch.ts` (chest, to 93 deg); `CHANNELS.md` the same three sections. The other five traversal
-  modules and `mocapSources.ts` are byte-identical (`git diff` empty); no keyed or CMU file touched.
-- `src/anim/mixamo.ts:56-73`: MIXAMO_ON rows with the readings below; the doc comment states the new rule.
-- `tests/mixamoTraverse.test.ts:530-548`: the crawl check asserts a visible-break cap (joint step <= 6 cm, velocity
-  change <= 4 cm a frame) and that the shipped table plays the capture; `:569-572` the ladder's soles capped at the
-  hand-made + 10 cm (weak measure, I2-REPORT "Known gaps"), every other state still within 1 cm / the hand-made.
+- `scripts/mocap/mixamoChannels.mjs`: the yaw fix. A segment (hips or chest) pitched past `YAW_FROM_RIGHT` (75 deg) at
+  any frame of a take takes its yaw from its right axis for the whole take (the forward axis near the vertical turned
+  its heading half a circle as the crawl's chest crossed 90 deg; the track was already unwrapped). Re-emitted
+  `trav_crawling_hands_and_knees.ts`, `trav_freehang_climb.ts`, `trav_braced_hang_to_crouch.ts` and their `CHANNELS.md`
+  sections; the other five traversal modules byte-identical.
+- `src/anim/animGraph.ts` (traverse): a capture giving way to another across a move change (`mxKind`) is inertialized,
+  as capture <-> hand-made was (the ladder capture to the top-out capture jumped a joint 23.5 cm, now 19.9).
+- Braced hold (`src/anim/mixamo.ts` `MIXAMO_HOLD`, typed `WREN_HOLD`; graph climb-up branch): the hand-made climb-up
+  plays under the capture while the hands hold the lip; the capture blends in by smoothstep over k 0.58 - 0.78, its clock
+  from the take's k 0.56 at 0.58 to the crouch; the feet stay the hand-made climb-up's to the crouch (`HOLD_FEET_CH`);
+  the stand-up fades in over 0.34 of k. Blended in earlier (k0 0.475) the capture's lower shoulders put the grips out
+  of reach over k 0.53 - 0.59 and the wrists snapped 3.5 - 3.7 cm as the grips let go.
+- Free-hang stand-up (`MIXAMO_STAND`, typed `WREN_STAND`; graph): the take's yaw turn (`pelYaw`, `spYaw`) kept at 0.15
+  of its own over the hand-made climb-up's (the take turns the hips to 1.5 rad and ends at 0.89), and its clock past
+  the crouch slowed mid-way and quicker at the ends (x + 0.45 sin(2 pi x) / 2 pi over the crouch to the end: the same
+  take, start and end). Only with a capture in the stand slot; the hand-made stand-up is untouched.
+- Hot paths: every hold / stand value is read from a `Float64Array`, the capture weight lives in `mx[MX_CW]`, the
+  yaw bases in a typed array (an object's double fields had boxed 16 B a frame); "no allocation" reads 0.0 B a frame on
+  every capture path.
+- `tests/mixamoTraverse.test.ts`: the crawl's visible-break cap and shipped check; the ladder soles capped at hand-made
+  + 10 cm; the top-out switch frame at hand-made + 5 cm with the ladder capture on.
 
-## Readings (headless, Wren rig)
-| Capture | Before (I2) | After (I2b) | Hand-made | Row |
-| --- | --- | --- | --- | --- |
-| crawling_hands_and_knees | spYaw -4.72..-1.42 rad; joints 13.8 cm a frame, 24.9 pop | spYaw -0.10..0.15; 3.4 cm, 1.7 pop | 0.5 / 0.1 | on |
-| climbing_ladder | palms 0.00, soles 38.4 cm | unchanged; on, the top-out's first frame jumps a joint 23.5 cm (capture to capture) | 0.00 / 31.6; 15.7 | on (fix round: 19.9 cm, below) |
-| braced_hang_to_crouch | palms 29.3 cm | climbHands: palms 58.5 cm off the lip, shoulders 0.85 m (arm 0.54), knee 2.0 cm into the clearance, wrists 16.5 pop | 0.0 cm, 0.49 m, 2.6, 2.8 | off |
-| freehang_climb | trunk 20 cm a frame, wrists 9.9 pop | trunk 19.7 / 9.9 pop, wrists 11.1 pop at k 0.85 (hips turn to 1.5 rad) | 8.6 / 2.7, 2.8 | off |
-Unchanged and on: hanging_idle, both shimmies (palms 0.00), climbing_ladder_to_standing (palms 7.0 vs 11.8).
-
-## Fix round (00:30-00:45)
-- `src/anim/animGraph.ts:1284-1288,3029-3031`: a capture giving way to another capture across a move change (`mxKind`,
-  the traversal kind) triggers the inertializer, as capture <-> hand-made did; the hang's idle / shimmy blend (same
-  kind) does not. Flag off: no capture plays, nothing changes.
-- climbing_ladder on: the top-out's first frame moves the right ankle 19.9 cm (was 23.5; hand-made 15.7); top-out palms
-  3.15 cm (was 4.15). `tests/mixamoTraverse.test.ts` caps that frame at hand-made + 5 cm when the ladder capture is on;
-  the inertializer test measures the hand-made ladder to the top-out capture (ladder row set off inside it).
-- Allocation test: passed once (1344 vs 1360 B), failed once (568 vs 440 B, rounds 1616/568... vs 440): the JIT swing,
-  left to the #477 fixer making it robust on feature/mixamo-i2.
-
-## Why two stay off (visible, at the first save the ladder too)
-- climbing_ladder: from the ladder capture the top-out capture's first frame jumps a joint 23.5 cm (hand-made 15.7):
-  a capture-to-capture switch the graph does not inertialize (`animGraph.ts` `mxLast` is capture vs hand-made only).
-- braced_hang_to_crouch: the hands leave the lip by about half a metre before the foot is on top.
-- freehang_climb: the take's own stand-up turns the hips 86 deg and back inside 0.45 s of game time (the take runs
-  x2.85); the trunk snaps 20 cm in a frame at k 0.85, well past the 0.08 stand fade, so trimming or realigning the fade
-  does not reach it.
+## Sweeps (scratch harness, not committed)
+- Braced: span, k0, from, ease, stand and per-channel keeps; under 3.0 cm on the release wrists only once the capture
+  comes in after the grips are mostly off (k0 0.58, span 0.2, from 0.56, stand 0.34: 2.8).
+- Free-hang (with braced on): yaw 1 / 0.5 / 0 as timed trunk 15.7 / 14.1 / 11.7; the take cut short at k 0.85 - 0.92
+  (played slower) 9.9 - 11.4 and worse with the mid slow-down; yaw 0 slow 0.3 - 0.5: 9.4 - 8.6 / 3.06; yaw 0.15 slow
+  0.45: 8.9 / 3.07 (picked: keeps some of the take's turn, arms 9.8 vs 11.3 at yaw 0); yaw 0.3: 10.0 (fails).
+- The trunk's 3.06 - 3.07 cm velocity change is at k 0.667 (the stand-up's first frames); 0.03 cm under the cap.
 
 ## Tests
-See the hand-back. typecheck:fast, eslint on touched files, vitest mixamoTraverse, climbHands, mocapGuards (unchanged),
-mocapSwitch, animSkeletonIdentity, changesFragments, mixamoChannels.
+typecheck:fast, eslint (mixamo.ts, animGraph.ts, mixamoTraverse.test.ts) clean. vitest climbHands, mocapGuards,
+mixamoTraverse (12/12, allocation 0.0 B), mocapSwitch, animSkeletonIdentity, changesFragments: 42 passed, 1 skipped.
 
-## Deviations
-- The brief said unwrap the yaw track: it was already unwrapped; the fault was the forward-axis heading near 90 deg
-  pitch. Fixed at the source instead.
-- Row rule changed mid-slice to "capture wins unless visibly broken" (coordinator, Michael 2026-10-26). The ladder's
-  worse soles alone would not keep it off (the test now caps them at hand-made + 10 cm for when it is on).
-- `tests/mixamoTraverse.test.ts` "no allocation" failed once on the last run (hand-made rounds fell to 312 / 72 B, a JIT
-  swing; the earlier full run passed 1344 vs 1360); no graph code changed in this slice.
-- No per-clip anchor offset tried for braced / ladder (out of time before the 00:52 cap).
-
-## Open
-- freehang_climb: re-centre the stand-up's hip turn (pelYaw toward 0 past the crouch) and retime the stand-up end;
-  then climbHands with it on.
-- braced_hang_to_crouch: hold the palms on the lip until release (a per-clip reach alignment of hLX..hRZ / the pelvis
-  toward the lip through k 0.475), then climbHands with it on.
+## Known gaps / for the Studio
+- Free-hang stand-up wrists: a one-frame 11 cm velocity change at k 0.86 at yaw 0 (9.8 cm at the picked 0.15, under the
+  arms cap 23.5; hand-made 6.2); outside the release window climbHands caps at 3 cm. Worth a look in play.
+- Free-hang alone (braced row off, or the Studio pick) fades its stand-up in over 0.08 of k, not 0.34: not measured.
 - Crawl: no hand / knee anchor measure (no vent crawl state in the harness), as in I2.

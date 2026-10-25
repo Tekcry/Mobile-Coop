@@ -64,3 +64,11 @@
   the capture weight in mx[MX_CW], no phi of typed reads and module constants; it boxed 16 B a frame since 80b37ab).
   Other rows unchanged: ladder ON (19.9 cm vs 15.7), crawl ON (3.4 / 1.7), freehang_climb OFF (trunk 19.7, wrists 11.1).
   Left: typecheck + eslint on this head, rerun climbHands, freehang_climb end, I2B-REPORT rewrite, changes fragment.
+- At the save (10:35, account swap; I2b done, head 9a3e3650e + this docs commit): every row ON. braced_hang_to_crouch
+  (hold k0 0.58 span 0.2 from 0.56 stand 0.34): palms 0.0, shoulders 0.488 m, release wrists 2.8 cm (cap 3.0).
+  freehang_climb ON via MIXAMO_STAND (yaw turn kept at 0.15, clock x + 0.45 sin(2 pi x) / 2 pi past the crouch): trunk
+  8.9 / 3.07 cm (caps 9.6 / 3.1; 15.7 / 5.1 as captured), arms 12.2 / 9.8 (caps 16.2 / 23.5). Ladder ON (19.9 cm vs
+  15.7), crawl ON (3.4 / 1.7), hang family ON. typecheck, eslint, vitest climbHands + mocapGuards + mixamoTraverse
+  (allocation 0.0 B) + mocapSwitch + animSkeletonIdentity + changesFragments: 42 pass, 1 skipped. I2B-REPORT rewritten,
+  changes fragment kind minor. Left: laptop e2e (e2e-traverse e2e-coop e2e-netmove plus affected) on a PR head; play
+  check of the free-hang stand-up's wrists (9.8 cm one-frame flick at k 0.86); the flag default unchanged.
