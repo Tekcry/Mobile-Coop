@@ -1011,10 +1011,9 @@ train 106 by 2 min). One affected run per head covers its suites: no duplicate r
 2. J4 #317 coop4 ships ON (Q16). Master conflict fixed on feature/coop4 (orchestrator 00:20 asked the lead): merges
    6206c9434 + 8e8d611cd, follow-ups 8094af038, acce9707b (lobby "partner" at cap 2), 603f23a43 (docs, check B fixes) =
    head 603f23a43. Minimap dots dropped (G339). Check B FIX docs-only, applied (docs/guard-ai/checks/coop4-merge-check-B.md).
-   Check A (src/net) was running at the pause: rerun a fresh Opus check A on 603f23a43 (scope: the merge's src/net
-   resolution against both parents, PROTOCOL_VERSION 64 kept, markIntel before snapEnemyState). A + B PASS -> checker
-   status, `gh pr ready 317` (still draft). affected queued on 603f23a43 (20261025T133459). Polish -> coop4-pol:
-   sectorMode OUT slot from RemotePlayer.ref.slot; main.ts:332 text; run-e2e.mjs:152 comment `:1`-`:5`.
+   Check A PASS (coop4-merge-check-A.md); checker posted on 603f23a43; #317 marked ready. affected queued on 603f23a43
+   (20261025T133459). Green -> tell the orchestrator train-ready. Polish -> coop4-pol: snapBudget fake guards `in: 1`,
+   main.ts:332 Co-op card text, duplicate "(coop4 A4)" comment, sectorMode OUT slot, run-e2e.mjs:152 comment.
 3. J6 #446 MERGED.
 4. J15 PR1 #450 head b718293df (master merged in, docs conflict fixed by hand): merge re-check PASS
    (docs/guard-ai/checks/guard-rules-pr1-merge-recheck.md), checker posted; MERGEABLE; affected queued on b718293df.
@@ -1038,6 +1037,6 @@ train 106 by 2 min). One affected run per head covers its suites: no duplicate r
    radio delays x2, reconDrone start angle) after J6 lands and PR-C (tests/replayDeterminism.test.ts) is on master.
 9. J16 perception half (Q14 cast shadow = faint cue): plan after Sector Ops' J16 PR. Later: coop4-pol (134f6abe),
    snapBudget headroom, coopHost.ts:589 comment, TODO sectorMode.ts:201.
-Next: coop4 check A on 603f23a43 -> checker + ready #317; wait (background) on #450 / #317 affected, rules-pr2-early,
-rules-pr3, rules-pr4; train-ready -> tell the orchestrator; then J26 S1a briefs (after PR4).
+Next: wait (background) on #450 / #317 affected, rules-pr2-early, rules-pr3, rules-pr4; green -> tell the orchestrator
+train-ready; then J26 S1a briefs (after PR4).
 ```
