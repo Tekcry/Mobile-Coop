@@ -24,7 +24,7 @@ Seen: the camera's own meters, any `sinceSeen === 0` (seen at the last think).
 
 ## Files
 New: src/security/cameraCue.ts (pure), src/vfx/cameraCueView.ts (Babylon), tests/cameraCue.test.ts,
-scripts/camera-cue-shots.mjs. Changed: src/game/ctDevices.ts (builds, updates (host fixedUpdate, client frame), disposes the
+scripts/archive/camera-cue-shots.mjs. Changed: src/game/ctDevices.ts (builds, updates (host fixedUpdate, client frame), disposes the
 cue; `debug().cue`), scripts/e2e-ctcourse.mjs station 3 (the suite that owns the jammed camera), CHANGELOG.md.
 
 ## Tests and results

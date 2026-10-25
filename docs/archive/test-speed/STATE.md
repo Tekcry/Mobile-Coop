@@ -27,7 +27,7 @@ open; the orchestrator sets the version (patch).
   rest) by cross-session message, with a branch, a commit and the suites. Order: CT Core first, then the others by
   arrival; a request comes before any test-speed run (stop a running test-speed run: kill the `laptop-runner.ps1`
   PowerShell tree, delete `C:/NightShift/heavy.lock` if it was left).
-- Each request: `powershell -NoProfile -ExecutionPolicy Bypass -File C:/NightShift/Mobile-Coop-test-speed/scripts/laptop-runner.ps1 -Label <name> -Commit <sha> -Steps "<steps>" -Low`
+- Each request: `powershell -NoProfile -ExecutionPolicy Bypass -File C:/NightShift/Mobile-Coop-test-speed/scripts/archive/laptop-runner.ps1 -Label <name> -Commit <sha> -Steps "<steps>" -Low`
   with `RUN_TIMEOUT=1200` when asked; `E2E_JOBS=1`, BelowNormal, port 4191, headless (the script does all of that).
   Steps: `check`, `build`, `full`, or suite names (one suite per step to keep going after a failure).
 - Reply to the requester with pass / fail per suite, the failing assert (from the suite's `.log` / `.err`, the
@@ -71,7 +71,7 @@ open; the orchestrator sets the version (patch).
 ## Done
 - 2026-10-20: full runs 6 and 7 clean (the done criteria); docs; the PR to master. Runner requests served between runs
   (CT Core PR #43, 6546a1ca, 534962d0, PR #52; Menu Notes nv-pass; anim-rig; Sector Ops PR #50).
-- 2026-10-20: rounds 1-7 of load fixes (Findings and fixes); full runs 1-5 at jobs=2 on the laptop (Runs); the laptop runner script in the repo (scripts/laptop-runner.ps1).
+- 2026-10-20: rounds 1-7 of load fixes (Findings and fixes); full runs 1-5 at jobs=2 on the laptop (Runs); the laptop runner script in the repo (scripts/archive/laptop-runner.ps1).
 - 2026-10-20: branch off master 4fe98222 (4.12.0); BRIEF, PLAN, STATE.
 
 ## Resume prompt
@@ -81,7 +81,7 @@ Read CLAUDE.md "Sessions" (above all "Machines" and "The laptop is the test runn
 docs/test-speed/BRIEF.md and docs/test-speed/STATE.md in C:/NightShift/Mobile-Coop-test-speed (branch feature/test-speed,
 pushed; git fetch first).
 1. Laptop test runner: when CT Core, the orchestrator (relaying for the other jobs) or another job lead messages a
-   branch, an exact commit and named suites, run them with C:/NightShift/Mobile-Coop-test-speed/scripts/laptop-runner.ps1
+   branch, an exact commit and named suites, run them with C:/NightShift/Mobile-Coop-test-speed/scripts/archive/laptop-runner.ps1
    (STATE "The laptop runner": Mobile-Coop-testrun detached at the commit, npm ci only when package-lock.json changed,
    E2E_PORT=4191, E2E_JOBS=1, BelowNormal, the laptop heavy.lock, one at a time, CT Core first, then by arrival).
    Reply to the job lead with pass / fail per suite, the failing assert, the run time and the commit; copy

@@ -19,12 +19,12 @@
   bottom right in play, menu legends sit above it. Settings text updated.
 - Per frame: change detection now compares fields and an Int32Array of counts (no key string built each frame); glyph
   HTML rewritten only when an item's glyph changes. `selectionWheel.ts` untouched.
-- `scripts/wheel-shots.mjs`: port / exited-server / served-index guard from nv-shots; Marlow Yard, FPS banner on, wheel
+- `scripts/archive/wheel-shots.mjs`: port / exited-server / served-index guard from nv-shots; Marlow Yard, FPS banner on, wheel
   held open with the flashbang highlighted; `<dir>/wheel-<suffix>-<w>x<h>.png` at 1920x1080 and 2170x1000. Not run.
 
 ## Files
 src/ui/hud/gadgetWheel.ts, src/ui/hud/wheelLayout.ts (new), src/styles.css (wheel block, banner), src/ui/debugOverlay.ts
-(comment), src/ui/screens/settingsScreen.ts (banner text), scripts/wheel-shots.mjs (new), scripts/e2e-gadgets.mjs,
+(comment), src/ui/screens/settingsScreen.ts (banner text), scripts/archive/wheel-shots.mjs (new), scripts/e2e-gadgets.mjs,
 tests/wheelLayout.test.ts (new), docs/systems/gadgets.md, CHANGELOG.md.
 
 ## Tests

@@ -1,7 +1,7 @@
-// slice 5 shots only (pause, objectives, quit confirm, results): node scripts/menu-shots5.mjs [outDir]
+// slice 5 shots only (pause, objectives, quit confirm, results): node scripts/archive/menu-shots5.mjs [outDir]
 // Needs a server on E2E_PORT serving dist/ (`node node_modules/vite/bin/vite.js preview --port 4191 --strictPort --host 127.0.0.1`).
 // 1920 x 1080 PNGs, software GL: a layout check, not a visual quality result (the blur needs the GPU run).
-import { launch, frames } from './e2e-lib.mjs';
+import { launch, frames } from '../e2e-lib.mjs';
 import { mkdirSync } from 'node:fs';
 
 const out = process.argv[2] ?? 'docs/menu-ui/shots';

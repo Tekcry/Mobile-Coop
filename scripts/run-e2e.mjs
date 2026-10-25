@@ -18,7 +18,7 @@
 import { spawn, execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { cpus } from 'node:os';
-import { selectSuites, suitesForFile, QUICK_COVERS, DIRECT_COVERS, WIDE_COVERS } from './e2e-affected.mjs';
+import { selectSuites, suitesForFile, QUICK_COVERS, DIRECT_COVERS, WIDE_COVERS, LEGACY, GPU } from './e2e-affected.mjs';
 
 const PORT = Number(process.env.E2E_PORT ?? 4179);
 // Windows: `localhost` can resolve to ::1, which a VPN adapter on the PC blocks (EACCES): bind and browse the IPv4 loopback there
@@ -33,13 +33,10 @@ const SUITE_TIMEOUT = Number(process.env.E2E_SUITE_TIMEOUT ?? 600) * 1000;
 // LEGACY = parked content (Hunter / Mission, the economy and cosmetics, Fallow, Kestrel, the Warehouse routes and AI
 // archetypes); AUDIO = the sound suites; GPU = visual read-backs (no visual result from SwiftShader).
 const REQUIRED = ['smoke', 'e2e-pad', 'e2e-mouse', 'e2e-menus', 'e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-stealth', 'e2e-weapons-carry', 'e2e-anim', 'e2e-combat', 'e2e-clip', 'e2e-tactics', 'e2e-wall', 'e2e-stealth-ai', 'e2e-guard-carry', 'e2e-takedown', 'e2e-gadgets', 'e2e-levels', 'e2e-park', 'e2e-coop', 'e2e-netmove', 'e2e-course', 'e2e-ctcourse', 'e2e-sectorops', 'e2e-section-rating', 'e2e-ct', 'e2e-lightbake', 'e2e-feedback', 'e2e-desktop', 'e2e-offline', 'e2e-studio', 'e2e-tuner-phone'];
-// e2e-wall:flanker = e2e-wall's Warehouse (Clear) flanker section; e2e-bunker: Fallow, parked behind ?legacy=1 (CT prototype B1)
-const LEGACY = ['e2e-progression', 'e2e-cosmetics', 'e2e-clear', 'e2e-bunker', 'e2e-missions', 'e2e-modes', 'e2e-enemies', 'e2e-ct-warehouse', 'e2e-wall:flanker', 'e2e-kestrel', 'e2e-camera-bounds', 'e2e-security'];
+// LEGACY and GPU live in scripts/e2e-affected.mjs (the affected requests leave them out: affectedGateSuites)
 // the suites written for `?legacy=1` pages (LEGACY=1 makes e2e-lib add it); the others moved to LEGACY run as they always did
 const NEEDS_LEGACY_FLAG = new Set(['e2e-progression', 'e2e-cosmetics', 'e2e-clear', 'e2e-bunker']);
 const AUDIO = ['e2e-music', 'e2e-score', 'e2e-foley', 'e2e-weapon-audio'];
-// e2e-desktop:3 = the Epic renderer booting in a match; e2e-coop-gpu = the host drawn on the joiner at High / Epic (menu flow)
-const GPU = ['e2e-darkness', 'e2e-desktop:3', 'e2e-coop-gpu'];
 // REPORT = the animation audit harness: printed as REPORT ONLY, never fails a run. Only a quick run picks it (with
 // `--quick`, for `src/anim`, `src/player`, `src/net`); animation jobs run it by name.
 const REPORT = ['anim-audit'];

@@ -1,10 +1,10 @@
 // Selection wheel shots (wheel-ui): serves dist/ with `vite preview`, opens Marlow Yard, holds the wheel open (as
 // e2e-gadgets does) with the FPS banner on and a segment highlighted, and shoots it at 16:9 and 2.17:1 (phone landscape):
 // <dir>/wheel-<suffix>-<w>x<h>.png. Needs a prior `npm run build`. GPU: E2E_GPU=1 on port 4189. Never headed.
-// Usage: E2E_GPU=1 E2E_PORT=4189 timeout 900 node scripts/wheel-shots.mjs docs/archive/wheel-ui/shots after
+// Usage: E2E_GPU=1 E2E_PORT=4189 timeout 900 node scripts/archive/wheel-shots.mjs docs/archive/wheel-ui/shots after
 import { spawn } from 'node:child_process';
 import { mkdirSync, readFileSync } from 'node:fs';
-import { launch } from './e2e-lib.mjs';
+import { launch } from '../e2e-lib.mjs';
 
 const [dir = 'docs/archive/wheel-ui/shots', suffix = 'after'] = process.argv.slice(2);
 const PORT = Number(process.env.E2E_PORT ?? 4189);

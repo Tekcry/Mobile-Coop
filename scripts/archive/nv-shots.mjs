@@ -1,10 +1,10 @@
 // Night vision shots (nv-pass): serves dist/ with `vite preview`, one headless browser per map and preset, each row shot
 // with vision off and night vision on, then one labelled contact sheet per preset: <dir>/sheet-<suffix>-<gfx>.png.
 // Needs a prior `npm run build`. GPU: E2E_GPU=1 on port 4189. Never headed, no pointer lock.
-// Usage: E2E_GPU=1 E2E_PORT=4189 timeout 1500 node scripts/nv-shots.mjs docs/archive/nv-pass/shots before epic,medium,min
+// Usage: E2E_GPU=1 E2E_PORT=4189 timeout 1500 node scripts/archive/nv-shots.mjs docs/archive/nv-pass/shots before epic,medium,min
 import { spawn } from 'node:child_process';
 import { mkdirSync, readFileSync } from 'node:fs';
-import { launch } from './e2e-lib.mjs';
+import { launch } from '../e2e-lib.mjs';
 
 const [dir = 'docs/archive/nv-pass/shots', suffix = 'after', gfxList = 'epic,medium,min'] = process.argv.slice(2);
 const PORT = Number(process.env.E2E_PORT ?? 4189);

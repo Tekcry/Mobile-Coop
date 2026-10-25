@@ -32,10 +32,13 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
 - Scheduled task: `scripts/auto-train-task.ps1` registers "NightShift auto-train" every minute (`-Minutes`, default 1;
   hidden window through wscript, current user, only while logged on); `-Unregister` removes it. Register it from a checkout that does not
   change branch (`-RepoDir`), never from the train worktree.
-- Self-update (`selfUpdate`, `selfUpdatePlan`): on an idle tick (state `idle`: no open train, no candidate) it fetches
-  master and, when the checkout it runs from (not the train worktree) is behind origin/master and clean, checks out a
-  detached origin/master; the next tick runs the new scripts. A dirty checkout or a failed fetch is logged and skipped;
-  `--dry-run` only prints it. The watchdog's `autotrain-behind` alert fires when that checkout has lagged 60 min.
+- Self-update (`selfUpdate`, `selfUpdatePlan`): the checkout the scripts run from (`C:/NightShift/Mobile-Coop-autotrain`,
+  detached) fast-forwards to origin/master on an idle tick and right after each release, before the next train is
+  built (so that train is built and released by the same `merge-train.mjs`); never between a train's build and its
+  release, never on a dirty tree or a non-fast-forward. Log: `self-updated to <sha> (<when>)` or `self-update
+  skipped: <why>`. (Audit 2026-10-25: back-to-back trains left no idle tick; the checkout sat at train 80, master 86.)
+  A dirty checkout or a failed fetch is logged and skipped; `--dry-run` only prints it. The watchdog's
+  `autotrain-behind` alert fires when that checkout has lagged 60 min.
 - Files (`AUTO_TRAIN_SCRATCH` moves them): lock `C:/NightShift/scratch/auto-train.lock` (created `wx`; a running tick
   touches it every minute; untouched for 30 min = stale and replaced; a held lock skips the tick), log
   `C:/NightShift/scratch/runs/auto-train.log` (merge-train output included), status
@@ -132,9 +135,13 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
   (`gh pr close --comment`; the branch stays); then the no-train path runs in the same tick without pacing and without
   the dropped branches. Log: one `DROPPED #<pr> <branch> from train <n>: <suite> (tier k)` line each; status: the next
   train's fields plus `dropped: [{ pr, branch, suite }]`, `closedTrain: { train, pr, head, failing }`, `dropReason`.
-- The pacing laptop queue: `origin/laptop-queue` read through the GitHub tree API. Busy while any `*.json` sits under a
-  `pending/` folder (or is named `pending*`) or any `running*` file or `running/` folder exists; idle otherwise. No
-  such branch: the interval alone paces.
+- The pacing laptop queue: `origin/laptop-queue` read in one GitHub GraphQL call (the `requests/` names and the
+  `claims/` texts; `laptopQueueState`). Busy while a `requests/<id>.json` has no `claims/<id>.json` yet (queued; a
+  request id over 12 h old no longer counts, a bad request is never claimed) or a claim is open (`"done": false`,
+  `at` under 3 h old: a request or train head running); idle otherwise (every finished, superseded, duplicate or
+  withdrawn request has a done claim). No such branch: the interval alone paces. (Audit 2026-10-25: the old read
+  looked for `pending/` and `running*` markers the branch never had, so 483 ticks in a row read idle, 0 waits; the
+  "Optional, for pacing" line under "What the laptop queue service provides" still names that old layout.)
 
 ## What the orchestrator does
 - `failed`: drop the culprit (remove its `train-ready` label, close the train PR; the next tick builds a new train

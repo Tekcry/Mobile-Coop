@@ -1,5 +1,5 @@
-// Boot-to-main-menu time under software GL (menu-notes): `E2E_PORT=4191 node scripts/menu-boot-time.mjs 3` with dist/ served on that port.
-import { launch } from './e2e-lib.mjs';
+// Boot-to-main-menu time under software GL (menu-notes): `E2E_PORT=4191 node scripts/archive/menu-boot-time.mjs 3` with dist/ served on that port.
+import { launch } from '../e2e-lib.mjs';
 const url = `http://127.0.0.1:${process.env.E2E_PORT}/`;
 const runs = +(process.argv[2] ?? 3);
 for (let i = 0; i < runs; i++) {
