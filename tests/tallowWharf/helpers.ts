@@ -9,7 +9,8 @@ import type { Vector3 } from '../../src/core/babylon';
 import { findJumpTarget, generateLedges, LEDGE, type Ledge, type TraversalAnchors } from '../../src/world/anchors';
 import { LevelBuilder, type BoxPiece } from '../../src/world/levelBuilder';
 import type { MapLayout } from '../../src/world/mapDef';
-import { MOVEMENT, TEAM } from '../../src/config/movement';
+import { LEAP, MOVEMENT, TEAM } from '../../src/config/movement';
+import { GRAVITY } from '../../src/physics/havok';
 import { hyp2 } from '../../src/core/mathx';
 import { ropeRoom, throwArc, throwLanding, throwLandingOk, throwRoom, type RopeRoom, type ThrowRoom } from '../../src/game/teamMoves';
 import { PULL, pullBand, type PullBand } from '../../src/game/kit/pullUp';
@@ -18,6 +19,8 @@ import type { CoopLip } from '../../src/world/maps/ctcourseGreybox';
 import type { NavGrid } from '../../src/ai/navGrid';
 import type { WharfPull, WharfRope, WharfThrow } from '../../src/world/maps/tallowWharfKit';
 import { runtimeNav } from '../helpers/runtimeNav';
+import { SOLO_TOP_SPEED, soloJumpReach, soloTopLandingReach, type CoopTop } from '../helpers/soloJumpReach';
+import facts from '../../scripts/kestrel/facts.json';
 
 export { soloJumpThreats } from '../helpers/soloJumpReach';
 export { COOP_BAND, GREY_KEEP_CLEAR } from '../../src/world/maps/ctcourseGreybox';
@@ -389,4 +392,84 @@ export function soloNav(b: LevelBuilder, layers: number, seeds: readonly Vector3
       for (const i of closed) nav.walk[i] = 1;
     },
   };
+}
+
+// ---- the level-and-drop gap check (J8 G0, PLAN A28) ----
+
+/** The vault reach (scripts/kestrel/facts.json, F04): a piece no higher than this over the take-off is vaulted, never a wall in the flight. */
+const VAULT_MAX = facts.traverse.vaultMax.value;
+const G = -GRAVITY.y;
+// local copies of soloJumpReach.ts's private helpers (not exported there)
+const topOf = (p: BoxPiece): number => p.c[1] + p.s[1] / 2;
+/** (x, y, z) inside the piece, or within `r` of it in plan. */
+const insideOf = (p: BoxPiece, x: number, y: number, z: number, r = 0): boolean =>
+  Math.abs(x - p.c[0]) < p.s[0] / 2 + r && Math.abs(y - p.c[1]) < p.s[1] / 2 && Math.abs(z - p.c[2]) < p.s[2] / 2 + r;
+/** The body column a spot needs clear (most of `MOVEMENT.radius`). */
+const BODY_R = MOVEMENT.radius * 0.8;
+/** Body heights over the feet the flight samples. */
+const FLIGHT_BODY = [0.1, 0.9, 1.7] as const;
+
+/**
+ * (J8 G0, PLAN A28) The twin of `soloTopLandingThreats` for tops at or above the co-op top `q`: a solo player who reaches a
+ * level or higher top (by stairs, a ladder, a drop) and runs off it onto `q`. Keeps tops at or over `q.top - 0.05` (the
+ * existing helpers cover the lower ones), over 0.3 m, deep enough to stand on, with crouch room over the take-off, and NO
+ * mantle skip (tops at these heights are reached by stairs, ladders and drops; all of W2 is `noLedge`). Reach:
+ * `soloTopLandingReach(t, q.top) + extra`, and, when `edges.noLedge` is false (a stage edge a hand can take), also the in-air
+ * grab `soloJumpReach(t, q.top) + extra`; the larger applies. The flight follows the jump's arc (pace `SOLO_TOP_SPEED`, feet
+ * `t + LEAP.vy s - G s^2 / 2`) from the take-off spot to the nearest point of `q`, the body at feet +0.1 / +0.9 / +1.7; a
+ * piece blocks it only when its top is more than the vault reach (1.25) over the take-off or it is deep enough to stand on
+ * (a railing is vaulted, a thin screen over head height is not). The landing spot itself (inside `q`'s plan box) is not
+ * tested. `skip` leaves out the co-op top's own pieces and planned solo ways on.
+ */
+export function soloLevelThreats(solid: readonly BoxPiece[], q: CoopTop, skip: (p: BoxPiece) => boolean = () => false, extra = 0.2, edges: { noLedge: boolean } = { noLedge: true }): string[] {
+  const out: string[] = [];
+  const qcx = (q.x0 + q.x1) / 2;
+  const qcz = (q.z0 + q.z1) / 2;
+  for (const p of solid) {
+    const t = topOf(p);
+    if (t <= 0.3 || t < q.top - 0.05 || skip(p)) continue;
+    if (Math.min(p.s[0], p.s[2]) < LEDGE.climbDepth) continue;
+    const land = soloTopLandingReach(t, q.top);
+    const grab = edges.noLedge ? 0 : soloJumpReach(t, q.top);
+    const reach0 = Math.max(land, grab);
+    if (reach0 <= 0) continue;
+    const reach = reach0 + extra;
+    // broad phase: the footprints' plan gap
+    const gx = Math.max(0, Math.abs(p.c[0] - qcx) - p.s[0] / 2 - (q.x1 - q.x0) / 2);
+    const gz = Math.max(0, Math.abs(p.c[2] - qcz) - p.s[2] / 2 - (q.z1 - q.z0) / 2);
+    if (hyp2(gx, gz) >= reach) continue;
+    const r0 = hyp2(p.s[0], p.s[2]) / 2 + reach + hyp2(q.x1 - q.x0, q.z1 - q.z0) + 1;
+    const near = solid.filter((o) => o !== p && hyp2(o.c[0] - p.c[0], o.c[2] - p.c[2]) < r0 + hyp2(o.s[0], o.s[2]) / 2);
+    // only these can block the flight: over the vault reach above the take-off, or deep enough to stand on
+    const walls = near.filter((o) => topOf(o) > t + VAULT_MAX || Math.min(o.s[0], o.s[2]) >= LEDGE.climbDepth);
+    let best: { x: number; z: number; d: number } | null = null;
+    const nx = Math.max(1, Math.ceil(p.s[0] / 0.2));
+    const nz = Math.max(1, Math.ceil(p.s[2] / 0.2));
+    for (let i = 0; i <= nx; i++)
+      for (let k = 0; k <= nz; k++) {
+        const x = p.c[0] - p.s[0] / 2 + Math.min(p.s[0] - 0.01, Math.max(0.01, (p.s[0] * i) / nx));
+        const z = p.c[2] - p.s[2] / 2 + Math.min(p.s[2] - 0.01, Math.max(0.01, (p.s[2] * k) / nz));
+        const qx = Math.max(q.x0, Math.min(q.x1, x));
+        const qz = Math.max(q.z0, Math.min(q.z1, z));
+        const d = hyp2(x - qx, z - qz);
+        if (d >= reach || (best && d >= best.d)) continue;
+        let room = true;
+        for (let y = t + 0.05; y <= t + MOVEMENT.crouchHeight && room; y += 0.1) if (near.some((o) => insideOf(o, x, y, z, BODY_R))) room = false;
+        if (!room) continue;
+        // the flight along the arc; the landing spot (inside the co-op top's plan box) is not tested
+        let clear = true;
+        for (let st = 1; st <= 20 && clear; st++) {
+          const f = st / 20;
+          const fx = x + (qx - x) * f;
+          const fz = z + (qz - z) * f;
+          if (fx > q.x0 && fx < q.x1 && fz > q.z0 && fz < q.z1) continue;
+          const s = (d * f) / SOLO_TOP_SPEED;
+          const feet = t + LEAP.vy * s - 0.5 * G * s * s;
+          for (const dy of FLIGHT_BODY) if (walls.some((o) => insideOf(o, fx, feet + dy, fz))) clear = false;
+        }
+        if (clear) best = { x, z, d };
+      }
+    if (best) out.push(`top ${t.toFixed(2)} at (${p.c[0]}, ${p.c[2]}): ${best.d.toFixed(2)} m from the co-op top at ${q.top}, a running jump lands up to ${reach.toFixed(2)}`);
+  }
+  return out;
 }
