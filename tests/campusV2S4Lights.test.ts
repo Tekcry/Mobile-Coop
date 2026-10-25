@@ -158,3 +158,37 @@ describe('G4.4 console lamp and north corridor lights (D:35, 0.5 rule 4)', () =>
     }
   });
 });
+
+describe('G4.5 deck lights and the riser lamp (D:40, 0.5 rule 4)', () => {
+  it('G4.5 deck lights: group 79 = 4 task lights + 4 pole floods, no switch; group 75 still the board\'s two floods (window 20); the riser lamp on 141 with one switch on nav within 1.5 m of kpDeck', () => {
+    const deck = s4Lights.filter((q) => q.group === 79);
+    expect(deck.length).toBe(8);
+    expect(deck.filter((q) => q.y === 8.8).length).toBe(4);
+    const floods = deck.filter((q) => q.y === 12.3);
+    expect(floods.map((q) => [q.x, q.z]).sort((p, q) => p[0]! - q[0]!)).toEqual([[-3, 24], [8, 36], [20, 24], [24, 38]]);
+    for (const f of floods) {
+      expect(f.radius).toBeCloseTo(lampReach(7.5));
+      expect(f.intensity).toBe(0.9);
+    }
+    expect(S4_SWITCHES.some((s) => s.group === 79)).toBe(false);
+    expect(lay.switches!.some((s) => s.group === 79)).toBe(false);
+    expect(lay.boards!.some((q) => q.groups.includes(79))).toBe(false);
+    const yardLamps = s4Lights.filter((q) => q.group === 75);
+    expect(yardLamps.length).toBe(2);
+    const yard = lay.boards!.find((q) => q.groups.includes(75))!;
+    expect(yard.groups).toEqual([75]);
+    expect(yard.window).toBe(20);
+    const riser = s4Lights.filter((q) => q.group === 141);
+    expect(riser.length).toBe(1);
+    expect([riser[0]!.x, riser[0]!.y, riser[0]!.z]).toEqual([31.2, 3.5, 47.2]);
+    expect(riser[0]!.cone).toBeNull();
+    expect(riser[0]!.intensity).toBe(0.7);
+    const sw = S4_SWITCHES.filter((s) => s.group === 141);
+    expect(sw.length).toBe(1);
+    expect([sw[0]!.pos.x, sw[0]!.pos.z]).toEqual([30.75, 46.2]);
+    expect(sw[0]!.yaw).toBeCloseTo(PI / 2);
+    expect(nearNav(30.75, 46.2, 0), 'riser switch on nav').toBe(true);
+    expect(hyp2(sw[0]!.pos.x - S4_DOORS.kpDeck[0], sw[0]!.pos.z - S4_DOORS.kpDeck[1])).toBeLessThanOrEqual(1.5);
+    expect(s4Lights.length).toBe(Object.values(S4_LIGHTS).flat().length);
+  });
+});

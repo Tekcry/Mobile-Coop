@@ -60,7 +60,10 @@ export const S4_DOORS = {
   /** C4's near door (the colonnade corridor's west wall; the S1 test asserts it). */
   c4Near: [-10, 29] as [number, number],
   kpBatt: [-4, 18.5] as [number, number],
-  kpDeck: [30.6, 45] as [number, number],
+  /** (G4.5 C22) the riser partition moved to x 30.5. */
+  kpDeck: [30.5, 45] as [number, number],
+  /** (G4.5 D:37, BT:102) the cable-pull door from the compound into the riser, keypad on the plant doors code. */
+  kpRiser: [34, 46.5] as [number, number],
   pgCage: [18, 40] as [number, number],
   cageFront: [18, 34] as [number, number],
   dockWest: [14, 17.5] as [number, number],
@@ -96,6 +99,9 @@ export const S4_FLIGHTS = [
 /** The pods' west x (each x0..x0 + 3.6, z 24..32): P1-P5. The hot-aisle centres are x0 + 1.8. */
 export const S4_PODS: readonly number[] = [-1.0, 4.6, 10.2, 22.2, 27.8];
 
+/** (G4.5 C25) The deck's pole floods' feet [x, z]. */
+export const S4_DECK_POLES: readonly (readonly [number, number])[] = [[-3, 24], [8, 36], [20, 24], [24, 38]];
+
 /** The plan boxes the tests read: [x0, z0, x1, z1]. */
 export const S4_BOX = {
   foot: [-10, 16, 34, 48] as const,
@@ -105,8 +111,8 @@ export const S4_BOX = {
   battery: [-10, 16, -4, 27.5] as const,
   ups: [-10, 31, -4, 48] as const,
   sec: [-4, 42, 8, 48] as const,
-  nc: [8, 42, 30.6, 48] as const,
-  riser: [30.6, 42, 34, 48] as const,
+  nc: [8, 42, 30.5, 48] as const,
+  riser: [30.5, 42, 34, 48] as const,
   cage: [14, 34, 22, 40] as const,
   podZ: [24, 32] as const,
   racksTop: 2.2,
@@ -176,6 +182,15 @@ export const S4_COOP_LIPS: readonly CoopLip[] = [
     top: { x0: -4, x1: 14, z0: 16, z1: 22, top: 3.2 },
     boost: { floor: 0, x: -4.8, z: 20.2 },
     solo: 'as CR8',
+  },
+  // (G4.5, CR10, D:38) the plant ladder's anti-climb cage top (x 34.15..35.05, z 22.4..23.6, top 4.4) from the compound floor
+  {
+    id: 'CR10',
+    section: 3,
+    lip: { x: 35.05, z0: 22.4, z1: 23.6, y: 4.4, n: { x: 1, z: 0 } },
+    top: { x0: 34.15, x1: 35.05, z0: 22.4, z1: 23.6, top: 4.4 },
+    boost: { floor: 0, x: 35.65, z: 23.0 },
+    solo: 'the cable-pull door (kp-riser, the dock board code), R1 and R2',
   },
 ];
 
@@ -252,6 +267,8 @@ export const S4_SWITCHES: NonNullable<MapLayout['switches']> = [
   { pos: new Vector3(-4.3, 0, 26.2), yaw: -PI / 2, group: S4_GROUPS.batt },
   // (G4.4, 0.5 rule 4, derived) the north corridor's circuit: inside ncDoor (20, 42) on its latch side
   { pos: new Vector3(21.2, 0, 42.3), yaw: 0, group: S4_GROUPS.nc },
+  // (G4.5, 0.5 rule 4, derived) the riser's circuit: inside kpDeck (30.5, 45) on its latch side
+  { pos: new Vector3(30.75, 0, 46.2), yaw: PI / 2, group: S4_GROUPS.riser },
 ];
 
 /** Section 4's rooms (HUD tags; no squads). Stacked rooms carry their storey (`minY` / `maxY`); none overlap (the lobby and hall are cut round the mantrap and the cage). */
@@ -273,8 +290,8 @@ export const S4_ROOMS: RoomDef[] = [
   { id: 's4-cage', name: 'Server Cage', minX: 14, maxX: 22, minZ: 34, maxZ: 40, maxY: 7.2 },
   { id: 's4-sec', name: 'Security Room', minX: -4, maxX: 8, minZ: 42, maxZ: 48, maxY: 3.5 },
   { id: 's4-noc', name: 'NOC', minX: -4, maxX: 8, minZ: 42, maxZ: 48, minY: 3.5, maxY: 7.2 },
-  { id: 's4-nc', name: 'North Corridor', minX: 8, maxX: 30.6, minZ: 42, maxZ: 48, maxY: 7.2 },
-  { id: 's4-riser', name: 'Cable Riser', minX: 30.6, maxX: 34, minZ: 42, maxZ: 48, maxY: 7.2 },
+  { id: 's4-nc', name: 'North Corridor', minX: 8, maxX: 30.5, minZ: 42, maxZ: 48, maxY: 7.2 },
+  { id: 's4-riser', name: 'Cable Riser', minX: 30.5, maxX: 34, minZ: 42, maxZ: 48, maxY: 7.2 },
   { id: 's4-yard', name: 'Generator Compound', minX: 34, maxX: 40, minZ: 16, maxZ: 48 },
   { id: 's4-deck', name: 'Plant Deck', minX: -10, maxX: 34, minZ: 16, maxZ: 48, minY: 7.2 },
 ].map((r) => ({ ...r, squad: [] }));
@@ -326,6 +343,11 @@ export const S4_LIGHTS = {
   // ---- added (G4.4): the warm console lamp over the desk (C20, D:35 / D:60; a 2.4 m lamp, r 3.6, on the security circuit),
   // the north corridor's three fittings (0.5 rule 4; S2 G5c values; derived: n = ceil(22.5 / 8) = 3 evenly on the centre line)
   console: [{ x: -2.0, y: 2.4, z: 44.6, r: 3.6, i: 0.8, group: S4_GROUPS.sec, cone: DOWN, w: 0.3, color: WARM }],
+  // ---- added (G4.5): the four deck pole floods 5.0 m over the deck (C25, D:40; group 79 has no switch: external plant-deck
+  // lighting on a photocell, the LD 5.1 named reason; cut by shooting), the riser's stair-class fitting (0.5 rule 4, derived:
+  // S3's stair fitting values, off the R1 ladder line)
+  deckFloods: S4_DECK_POLES.map(([x, z]) => ({ x, y: 12.3, z, r: 7.5, i: 0.9, group: S4_GROUPS.deck, cone: makeCone(0, -1, 0, 1.15), w: 0.6 })),
+  riser: [{ x: 31.2, y: 3.5, z: 47.2, r: 4, i: 0.7, group: S4_GROUPS.riser, w: 0.3 }],
   nc: [11.75, 19.25, 26.75].map((x) => ({ x, y: 3.5, z: 45, r: 5, i: 0.8, group: S4_GROUPS.nc, cone: makeCone(0, -1, 0, 1.2), w: 0.4 })),
 } satisfies Record<string, readonly S4Lamp[]>;
 
@@ -480,11 +502,12 @@ export function buildCampusS4(b: LevelBuilder): void {
   wall(b, true, 16, -10.15, 34.15, 0, D, [doorHole(24, 0)]);
   wall(b, true, 48, -10.15, 34.15, 0, D, []);
   wall(b, false, -10, 15.85, 48.15, 0, D, [doorHole(29, 0)]);
-  wall(b, false, 34, 15.85, 48.15, 0, D, [doorHole(19, 0), doorHole(30, 0)]);
+  wall(b, false, 34, 15.85, 48.15, 0, D, [doorHole(19, 0), doorHole(30, 0), doorHole(46.5, 0)]);
   doorAt(b, true, 16, 24, 0, 1);
   doorAt(b, false, -10, 29, 0, 1);
   doorAt(b, false, 34, 19, 0, -1);
   doorAt(b, false, 34, 30, 0, -1);
+  doorAt(b, false, 34, 46.5, 0, 1); // (G4.5 D:37, BT:102) kp-riser, the cable-pull door (opens into the compound)
   // (G4.4 C17 / C19) the roof slab (7.0-7.3) as one rect minus the riser's roof hatch, the NOC roof hatch and the NOC rooflight
   const [hx0, hz0, hx1, hz1] = S4_BOX.hatch;
   for (const r of cutRect([-10, 34, 16, 48], [[hx0, hx1, hz0, hz1], NOC_HATCH, ROOFLIGHT])) bx(b, r[0], r[1], R, D, r[2], r[3], ROOF, { overhead: true, noLedge: true });
@@ -610,12 +633,13 @@ export function buildCampusS4(b: LevelBuilder): void {
   rl.noLedge = true;
   rl.overhead = true;
   // the security room / north corridor partition (x 8: the side door, and (G4.4 C18, D:33) the NOC escape door at 3.6 onto a
-  // platform and a caged ladder down to the corridor) and the corridor / riser partition (x 30.6, kp-deck)
+  // platform and a caged ladder down to the corridor) and the corridor / riser partition (x 30.5, kp-deck; G4.5 C22)
   wall(b, false, 8, 42, 48, 0, R, [doorHole(43.5, 0), doorHole(45.5, S4_NOC)], P);
-  wall(b, false, 30.6, 42, 48, 0, R, [doorHole(45, 0)], P);
+  wall(b, false, 30.5, 42, 48, 0, R, [doorHole(45, 0)], P);
   doorAt(b, false, 8, 43.5, 0, 1);
   doorAt(b, false, 8, 45.5, S4_NOC, -1); // opens into the NOC (P4)
-  doorAt(b, false, 30.6, 45, 0, 1);
+  doorAt(b, false, 30.5, 45, 0, 1);
+  b.box(30.62, 1.3, 45.85, 0.02, 0.15, 0.1, '#3a3d40', 0, 0, false); // kp-deck riser side (Code Relay BT:100)
   bx(b, 8.1, 9.3, 3.4, 3.6, 44.9, 46.1, STEEL, { noLedge: true });
   rail(b, 8.1, 9.3, 46.0, 46.1, S4_NOC);
   rail(b, 8.1, 9.3, 44.9, 45.0, S4_NOC);
@@ -644,8 +668,15 @@ export function buildCampusS4(b: LevelBuilder): void {
   const [tx0, tz0, tx1, tz1] = S4_BOX.tanks;
   // (polish 1, L6) 2.0 noLedge: no tank-top step to the 2.8 east wall 0.85 m away
   bx(b, tx0, tx1, 0, 2.0, tz0, tz1, CAGE, { noLedge: true });
-  // the plant ladder on the building's east wall up to the deck
-  b.ladder(34.6, 23, 0, D, -PI / 2);
+  // (G4.5 C23, D:38, P6) the plant ladder behind a locked anti-climb cage: the ladder starts on the cage top (4.4); the cage is
+  // not noLedge (its east top edge is CR10); the north and south edges lose their ledges, so only the east lip stays
+  bx(b, 34.15, 35.05, 0, 4.4, 22.4, 23.6, STEEL);
+  b.ladder(34.6, 23, 4.4, D, -PI / 2);
+  // ASSUMPTION A2: radius 0.4, not the brief's 0.5: `suppressLedgesNear` takes every ledge whose nearest point is within r, and the
+  // east lip's ends are 0.45 m from these two points (x 35.05 vs 34.6), so r 0.5 removed the east lip too and CR10 could not hang.
+  // Undo: 0.5 (and no CR10).
+  b.noLedge(34.6, 22.4, 0.4);
+  b.noLedge(34.6, 23.6, 0.4);
 
   // ---- the plant deck (top 7.3): chillers; 2.0 acoustic screens on the north, south and west edges, a 1.1 parapet on the east edge (the ladder gap z 22.4..23.6)
   for (const [x0, z0, x1, z1] of S4_BOX.chillers) bx(b, x0, x1, D, D + 2.0, z0, z1, PLANT, { noLedge: true });
@@ -654,6 +685,8 @@ export function buildCampusS4(b: LevelBuilder): void {
   bx(b, -10.15, -9.85, D, D + 2.0, 16.15, 47.85, WALL_DARK, { noLedge: true });
   bx(b, 33.85, 34.15, D, D + 1.1, 16.15, 22.4, STEEL, { noLedge: true });
   bx(b, 33.85, 34.15, D, D + 1.1, 23.6, 47.85, STEEL, { noLedge: true });
+  // (G4.5 C25, D:40) the four floodlight poles (the floods are in `S4_LIGHTS.deckFloods`, 5.0 over the deck)
+  for (const [x, z] of S4_DECK_POLES) bx(b, x - 0.075, x + 0.075, D, D + 5.0, z - 0.075, z + 0.075, STEEL, { noLedge: true });
 
   // ---- the laser fixtures (every band a visible emitter box at each end, R5)
   for (const l of S4_LASERS) {

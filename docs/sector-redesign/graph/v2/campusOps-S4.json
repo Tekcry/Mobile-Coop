@@ -242,7 +242,7 @@
       "guards": {
         "2": 4
       },
-      "note": "PLAN. x 34..40, z 16..48, open sky (12.0 by convention). Re-classed yard -> plant_room (AS1: an external plant enclosure; yard min 14 x 14 cannot fit the 6 m strip): length 32 over max 28 and the open ceiling are WARNs. Light: the two floods -> one flood over the tanks at (37, 30), 6.0 m (pool r 9 covers z 21..39, ~108 of 192 m2: shadow 0.45, pending V6); the dock door end, the gate and the north end (generator, the new riser door) are dark. New: the riser's compound door (34, 46.5), keypad (plant doors code). The plant ladder (34.6, 23) now starts at 4.4 above a locked anti-climb shield (CR10 co-op boost; solo down = hang-drop). Vantage: the plant deck's east parapet (x 33.85, z 36..44, dark), looking down, sees 0.8 (generator 2.6 and tanks 2.0 hide short strips). Guards #1 handler + #2 dog (44 s loop), #3 gate officer, #23 tank watch (new)."
+      "note": "BUILT G4.5 (kp-riser door (34, 46.5) s4.ts:510, keypad s4Data.ts:204; the plant ladder from 4.4 above the cage s4.ts:673-679 (A2: noLedge radius 0.4, so the east lip stays); CR10 s4.ts:188; the two compound floods stay on the board (yard 75), the plan's single flood (37, 30) is not built) (A19: as-built lamps kept). x 34..40, z 16..48, open sky (12.0 by convention). Re-classed yard -> plant_room (AS1: an external plant enclosure; yard min 14 x 14 cannot fit the 6 m strip): length 32 over max 28 and the open ceiling are WARNs. Light: the two floods -> one flood over the tanks at (37, 30), 6.0 m (pool r 9 covers z 21..39, ~108 of 192 m2: shadow 0.45, pending V6); the dock door end, the gate and the north end (generator, the new riser door) are dark. New: the riser's compound door (34, 46.5), keypad (plant doors code). The plant ladder (34.6, 23) now starts at 4.4 above a locked anti-climb shield (CR10 co-op boost; solo down = hang-drop). Vantage: the plant deck's east parapet (x 33.85, z 36..44, dark), looking down, sees 0.8 (generator 2.6 and tanks 2.0 hide short strips). Guards #1 handler + #2 dog (44 s loop), #3 gate officer, #23 tank watch (new)."
     },
     {
       "id": "s4-riser",
@@ -264,7 +264,7 @@
       ],
       "tension": 2,
       "tags": [],
-      "note": "PLAN. Partition moved x 30.6 -> 30.5 (box 3.5 on the grid); kpDeck at (30.5, 45). New compound door (34, 46.5), keypad. Ladders R1 (32.2,45.05), R2 (32.2,43.35) unchanged. Ceiling 7.0 (WARN: stair_core 3.3). kp-deck gets a second keypad on its riser side (planned, Marlow: Relay comes down the riser into the north corridor; same s4-codes)."
+      "note": "BUILT G4.5 (partition x 30.5 s4.ts:638, kpDeck (30.5, 45) s4.ts:641, riser-side keypad prop s4.ts:642 (Code Relay BT:100); kpRiser (34, 46.5) s4.ts:510; riser lamp S4_LIGHTS.riser s4.ts:350 (31.2, 3.5, 47.2) r 4 i 0.7 on circuit riser 141, switch (30.75, 0, 46.2) s4.ts:271; rooms s4.ts:276-277). Partition moved x 30.6 -> 30.5 (box 3.5 on the grid); kpDeck at (30.5, 45). New compound door (34, 46.5), keypad. Ladders R1 (32.2,45.05), R2 (32.2,43.35) unchanged. Ceiling 7.0 (WARN: stair_core 3.3). kp-deck gets a second keypad on its riser side (planned, Marlow: Relay comes down the riser into the north corridor; same s4-codes)."
     },
     {
       "id": "s4-deck",
@@ -295,7 +295,7 @@
       "guards": {
         "2": 2
       },
-      "note": "BUILT G4.4 (NOC roof hatch x 6.0..7.2, z 46.6..47.8 s4.ts:490, rails s4.ts:602-605; rooflight s4.ts:607-611) (A19: as-built lamps kept; the deck pole floods land in G4.5). x -10..34, z 16..48, y 7.3 (S4_DECK). Light: the four 1.5 m chiller task lights -> four pole floods 5 m over the deck at (-3, 24), (8, 36), (20, 24), (24, 38) (r 7.5, ~700 of 1408 m2: shadow 0.5, pending V6); the three ways on (plant ladder top (34, 23), riser hatch (32.2, 43.2), NOC hatch (6.6, 47.2)) and the NOC rooflight stay dark (8.3-16 m from a flood). New: NOC roof access hatch 1.2 x 1.2 at x 6.0..7.2, z 46.6..47.8 with rails on three sides; NOC rooflight (fixed wired glass) x 0..4, z 43.5..45.5. Vantage: the dark riser hatch, sees 0.8 (chillers 2.0 hide some). Guards #13 deck patrol, #24 chiller watch (new)."
+      "note": "BUILT G4.5 (four pole floods S4_LIGHTS.deckFloods s4.ts:349 at 12.3 over (-3, 24), (8, 36), (20, 24), (24, 38), r 7.5 i 0.9 on group 79 (no switch: photocell), poles s4.ts:688-689; the four chiller task lights stay) (A19: as-built lamps kept, the deck floods add light). BUILT G4.4 (NOC roof hatch x 6.0..7.2, z 46.6..47.8 s4.ts:490, rails s4.ts:602-605; rooflight s4.ts:607-611) (A19: as-built lamps kept; the deck pole floods land in G4.5). x -10..34, z 16..48, y 7.3 (S4_DECK). Light: the four 1.5 m chiller task lights -> four pole floods 5 m over the deck at (-3, 24), (8, 36), (20, 24), (24, 38) (r 7.5, ~700 of 1408 m2: shadow 0.5, pending V6); the three ways on (plant ladder top (34, 23), riser hatch (32.2, 43.2), NOC hatch (6.6, 47.2)) and the NOC rooflight stay dark (8.3-16 m from a flood). New: NOC roof access hatch 1.2 x 1.2 at x 6.0..7.2, z 46.6..47.8 with rails on three sides; NOC rooflight (fixed wired glass) x 0..4, z 43.5..45.5. Vantage: the dark riser hatch, sees 0.8 (chillers 2.0 hide some). Guards #13 deck patrol, #24 chiller watch (new)."
     },
     {
       "id": "s4-noc",
@@ -713,7 +713,8 @@
       "width": 1.2,
       "height": 2.1,
       "reason": "Keypad door from the north corridor into the cable riser (kpDeck, (30.5,45)); code on the dock board",
-      "length": 13
+      "length": 13,
+      "note": "BUILT G4.5 (kpDeck (30.5, 45) s4.ts:638-642)."
     },
     {
       "from": "s4-yard",
@@ -767,7 +768,7 @@
       "one_way": true,
       "level_change": 4.4,
       "reason": "CR10: the plant ladder (34.6, 23) has its lower 4.4 m behind a locked anti-climb shield (real plant-ladder security); a leg-up onto the shield top (lip 4.4) reaches the rungs, then 2.9 m of ladder to the deck",
-      "note": "Lip rules: the tanks (2.0 noLedge) are 3.3 m away but not standable; the compound walls 2.8 noLedge. Solo bypass: the riser door, R1, R2 (a longer way). time_s: boost 5 s, ladder 2.9 s, the walk.",
+      "note": "BUILT G4.5 (CR10 s4.ts:188-196; cage s4.ts:673; the ladder from 4.4 s4.ts:674; A2: noLedge radius 0.4). Lip rules: the tanks (2.0 noLedge) are 3.3 m away but not standable; the compound walls 2.8 noLedge. Solo bypass: the riser door, R1, R2 (a longer way). time_s: boost 5 s, ladder 2.9 s, the walk.",
       "length": 41,
       "time_s": 39
     },
@@ -779,7 +780,8 @@
       "level_change": 4.4,
       "reason": "Down the plant ladder to the shield top, hang and drop 4.4 m to the compound floor",
       "length": 41,
-      "time_s": 35
+      "time_s": 35,
+      "note": "BUILT G4.5 (the plant ladder down to the cage top, s4.ts:673-674; hang-drop 4.4)."
     },
     {
       "from": "s4-yard",
@@ -789,7 +791,8 @@
       "width": 1.2,
       "height": 2.1,
       "reason": "New cable-pull door from the compound's dark north end into the riser (34, 46.5); keypad on the plant doors code",
-      "length": 17
+      "length": 17,
+      "note": "BUILT G4.5 (kp-riser (34, 46.5) s4.ts:510, keypad s4Data.ts:204)."
     },
     {
       "from": "s4-riser",

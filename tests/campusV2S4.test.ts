@@ -9,6 +9,7 @@ import type { BoxPiece, LevelBuilder as LB } from '../src/world/levelBuilder';
 import { NavGrid, type NavBlocker, type NavSample } from '../src/ai/navGrid';
 import { hyp2 } from '../src/core/mathx';
 import { PERCEPTION } from '../src/ai/perception';
+import { checkSectorCodes } from '../src/game/sectors';
 import { lampReach } from '../src/world/lampMath';
 import { generateLedges } from '../src/world/anchors';
 import { SightWorld } from '../src/game/sectorCheck';
@@ -130,6 +131,7 @@ function analyticNav(rect: readonly [number, number, number, number], cell = 0.5
   });
 }
 const nav = analyticNav([-28, -2, 42, 50]);
+const pathTo = (a: readonly number[], c: readonly number[]) => nav.findPath([a[0]!, a[1]!], [c[0]!, c[1]!], 200000, a[2] ?? 0, c[2] ?? 0);
 const onNav = (x: number, z: number, y = 0): boolean => nav.isWalkable(nav.cellOf(x, z, y)) && Math.abs(nav.heightAt(x, z, y) - y) < 0.6;
 /** A walkable nav cell on floor y within r of (x, z): a switch or panel stands on a wall, its user beside it. */
 const nearNav = (x: number, z: number, y: number, r = 1.1): boolean => {
@@ -373,8 +375,6 @@ describe('G4.3 west strip (D:27-30, C12-C15)', () => {
 });
 
 describe('G4.4 NOC block (D:31-35, C16-C20)', () => {
-  const pathTo = (a: readonly number[], c: readonly number[]) => nav.findPath([a[0]!, a[1]!], [c[0]!, c[1]!], 200000, a[2] ?? 0, c[2] ?? 0);
-
   it('G4.4 fire stair: two flights w 1.3, 11 risers, riser 0.15-0.19, going 0.24-0.355, 2R + G 0.55-0.70; the mid landing top 1.8; the spine to 4.7; three rails; a path from the security room to the NOC by the flights; headroom >= 1.7 over every flight cell', () => {
     expect(S4_FLIGHTS.length).toBe(2);
     for (const f of S4_FLIGHTS) {
@@ -492,6 +492,51 @@ describe('G4.4 NOC block (D:31-35, C16-C20)', () => {
     const walled = new SightWorld([...b.boxes.map((p) => (p === pane ? { ...p, glass: undefined } : p)), ...leaves], b.cylinders);
     expect(world.clear(2, 8.9, 44.5, 1.0, 4.6, 43.6)).toBe(true);
     expect(walled.clear(2, 8.9, 44.5, 1.0, 4.6, 43.6)).toBe(false);
+  });
+});
+
+describe('G4.5 compound, riser, deck (D:36-40, C21-C25)', () => {
+  it('G4.5 riser: the partition at x 30.5 with kp-deck (30.5, 45); kp-riser a door anchor at (34, 46.5) on floor 0; the kp-deck prop on the riser face; checkSectorCodes []; nav compound (37, 45) -> riser (32.2, 46.5)', () => {
+    expect(inRect(30.45, 30.55, 42.1, 44.3, 0, 7).length).toBeGreaterThan(0);
+    expect(solid.some((p) => Math.abs(x0(p) - 30.45) < 1e-6 && Math.abs(x1(p) - 30.75) < 1e-6), 'the old x 30.6 partition is gone').toBe(false);
+    expect(m.s4.S4_BOX.nc).toEqual([8, 42, 30.5, 48]);
+    expect(m.s4.S4_BOX.riser).toEqual([30.5, 42, 34, 48]);
+    expect(S4_DOORS.kpDeck).toEqual([30.5, 45]);
+    expect(S4_DOORS.kpRiser).toEqual([34, 46.5]);
+    expect(doorAt(30.5, 45), 'kp-deck door').toBeTruthy();
+    const kr = doorAt(34, 46.5)!;
+    expect(kr).toBeTruthy();
+    expect(kr.hinge.x).toBeCloseTo(34);
+    expect(kr.hinge.z).toBeCloseTo(45.9);
+    expect(kr.swing).toBe(1);
+    // the keypad's riser side: a visual prop on the partition's east face (x 30.6), beside the door
+    const prop = b.boxes.find((p) => Math.abs(p.c[0] - 30.62) < 1e-6 && Math.abs(p.c[1] - 1.3) < 1e-6 && Math.abs(p.c[2] - 45.85) < 1e-6)!;
+    expect(prop).toBeTruthy();
+    expect(prop.collide).toBe(false);
+    expect(prop.c[0] - prop.s[0] / 2).toBeGreaterThanOrEqual(30.6 - 1e-6);
+    // the keypads: kp-batt, kp-deck, kp-riser, all on the dock board's code; the codes check passes
+    expect(S4.keypads!.map((k) => [...k.at])).toEqual([[-4, 18.5], [30.5, 45], [34, 46.5]]);
+    expect(S4.keypads!.every((k) => k.code === 's4-codes')).toBe(true);
+    expect(S4.intel!.some((n) => n.grants === 's4-codes' && n.line === 'Dock board: plant doors 2208, battery room the same.')).toBe(true);
+    expect(m.sectors.CAMPUS_SECTORS.length).toBe(5);
+    expect(checkSectorCodes(m.sectors.CAMPUS_SECTORS)).toEqual([]);
+    // the compound -> the riser through kp-riser (doors open)
+    expect(pathTo([37, 45, 0], [32.2, 46.5, 0])).not.toBeNull();
+    expect(pathTo([32.2, 46.5, 0], [37, 45, 0])).not.toBeNull();
+    // rooms follow the partition
+    expect(S4_ROOMS.find((r) => r.id === 's4-nc')).toMatchObject({ minX: 8, maxX: 30.5 });
+    expect(S4_ROOMS.find((r) => r.id === 's4-riser')).toMatchObject({ minX: 30.5, maxX: 34 });
+  });
+
+  it('G4.5 plant ladder and deck poles: the cage 34.15..35.05 x 22.4..23.6 up to 4.4, the ladder 4.4 -> 7.3 at (34.6, 23); four poles 0.15 square 5.0 over the deck at (-3, 24), (8, 36), (20, 24), (24, 38)', () => {
+    expect(findBox([34.15, 35.05, 0, 4.4, 22.4, 23.6])).toBeTruthy();
+    const l = b.anchors.ladders.find((q) => q.base.x === 34.6 && q.base.z === 23)!;
+    expect(l.base.y).toBeCloseTo(4.4);
+    expect(l.top.y).toBeCloseTo(7.3);
+    for (const [x, z] of [[-3, 24], [8, 36], [20, 24], [24, 38]] as const) {
+      const pole = findBox([x - 0.075, x + 0.075, 7.3, 12.3, z - 0.075, z + 0.075]);
+      expect(pole?.noLedge, `pole (${x}, ${z})`).toBe(true);
+    }
   });
 });
 

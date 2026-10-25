@@ -201,6 +201,7 @@ export const S4_SECTOR: SectorDef = {
   keypads: [
     { at: [S4_DOORS.kpBatt[0], S4_DOORS.kpBatt[1]], code: 's4-codes' },
     { at: [S4_DOORS.kpDeck[0], S4_DOORS.kpDeck[1]], code: 's4-codes' },
+    { at: [S4_DOORS.kpRiser[0], S4_DOORS.kpRiser[1]], code: 's4-codes' }, // kp-riser (Code Relay BT:102)
   ],
   intel: [{ kind: 'board', grants: 's4-codes', line: 'Dock board: plant doors 2208, battery room the same.', at: [16.0, 1.5, 21.85], yaw: PI }],
   pairGates: [{ door: [S4_DOORS.pgCage[0], S4_DOORS.pgCage[1]], a: { at: [13.85, 39.6], yaw: -PI / 2 }, b: { at: [21.8, 40.15], yaw: 0 } }],

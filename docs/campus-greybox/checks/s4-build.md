@@ -201,3 +201,39 @@ sight line, and blocked when the pane is solid), `tests/campusV2S4Lights.test.ts
 if the lead wants the north exit the screen needs a gap); NOC desk 2 is omitted by the kit; `F:monitorWall` moved to the west wall.
 **Pending PC run:** `e2e-sectorops:1` .. `:6` (default flags); E2E-1 / E2E-2 (v2): the hatch ladder, the escape ladder and the
 fire stair climb, the nav of the dog-leg flights, the deck exit.
+
+## G4.5 Compound, riser, deck, CR10 (D:36-40, C21-C25)
+
+**Files:** `s4.ts`, `s4Data.ts`, `tests/campusV2S4.test.ts`, `tests/campusV2S4Coop.test.ts`, `tests/campusV2S4Lights.test.ts`, the
+graph, the fragment, this report. (`s4Dress.ts` unchanged: no skinned box moved; the cage and poles get no art.)
+
+**Built (s4.ts lines):**
+- C22 riser partition x 30.5 (:638, door :641); `S4_BOX.nc = [8, 42, 30.5, 48]`, `riser = [30.5, 42, 34, 48]` (:114-115); rooms
+  `s4-nc` maxX 30.5, `s4-riser` minX 30.5 (:276-277); `S4_DOORS.kpDeck = [30.5, 45]`. Riser-side keypad prop (:642).
+- kp-riser: `doorHole(46.5, 0)` in the shell east wall, `doorAt(34, 46.5, 0, 1)` into the compound (:510); `S4_DOORS.kpRiser = [34, 46.5]`
+  (:66); keypad `{ at: [34, 46.5], code: 's4-codes' }` in `S4_SECTOR.keypads` (`s4Data.ts:204`, `// kp-riser (Code Relay BT:102)`).
+- C23 cage `bx(34.15, 35.05, 0, 4.4, 22.4, 23.6, STEEL)` (not noLedge), ladder `b.ladder(34.6, 23, 4.4, D, -PI / 2)`, two `noLedge`
+  points (:673-679) - see A2.
+- C25 four poles (`S4_DECK_POLES`, :103; built :688-689).
+- CR10 in `S4_COOP_LIPS` (:188).
+- Lights: `deckFloods` x4 at 12.3, r 7.5, i 0.9, cone 1.15, w 0.6, group 79 (:349); `riser` (31.2, 3.5, 47.2) r 4 i 0.7 no cone w 0.3 group 141
+  (:350); switch (30.75, 0, 46.2) yaw PI / 2 on 141 (:271). The two compound floods stay on the yard board (75); the plan's single flood is
+  not built (0.5 rule 2). Group 79 has no switch (photocell, the LD 5.1 named reason).
+
+**Sync nodes:** none built or moved; the yard board (33.85, 0, 20.8) group 75, 20 s is unmoved (`s4.ts:186`).
+
+**Graph:** `s4-yard`, `s4-riser`, `s4-deck` and the CR10, `s4-deck -> s4-yard`, `s4-yard -> s4-riser`, `s4-nc -> s4-riser` link notes -> "BUILT G4.5 (...)".
+
+**Tests:** `tests/campusV2S4.test.ts` 15 -> 17 (riser: partition, kp-deck, kp-riser, prop, codes, the compound -> riser path; plant ladder
+and poles); `tests/campusV2S4Coop.test.ts` 24 -> 29 (CR10 as briefed; no solo jump / top landing; rules 2, 3, 5; no floor attach by `reach()`
+and the cage top attaches; the planned ledge; the lip list now CR4, CR4-west, CR8, CR8-west, CR10); `tests/campusV2S4Lights.test.ts` 4 -> 5 (group
+79 = 4 + 4, no switch; group 75; riser lamp on 141 with its switch). Slice set: 8 files, all pass (counts at the end of the report); typecheck clean.
+
+**Assumptions:**
+- **A2 (deviation, undo: 0.5)** `b.noLedge(34.6, 22.4, 0.5)` / `(34.6, 23.6, 0.5)` as briefed also remove the east lip: `suppressLedgesNear`
+  drops every ledge whose nearest point is within r, and the lip's ends are 0.45 m from those points. The first CR10 ledge test showed no
+  `canHang` ledge left. Built with radius 0.4 (the north and south edges still go; the east lip stays).
+**Deviations:** A2.
+**Findings for the lead:** A2 (the brief's literal 0.5 kills CR10; a test that builds `generateLedges` alone misses it, the noLedge points apply in
+`LevelBuilder.build`). The test helper applies them (`noLedgeAt`) to see the real result.
+**Pending PC run:** `e2e-sectorops:1` .. `:6` (default flags); E2E-1 / E2E-2 (v2): the CR10 leg-up and the cage-top ladder attach, the kp-riser door.

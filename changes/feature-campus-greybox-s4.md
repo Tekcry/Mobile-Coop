@@ -18,3 +18,7 @@ kind: patch
   gets a roof hatch with a ladder to the plant deck, an escape door onto a platform and a caged ladder down to the north
   corridor (the side door moves north to clear it), and a rooflight onto the NOC seats; a warm console lamp in the
   security room and three lamps with their own switch in the north corridor.
+- S4-G4.5: the riser partition moves 0.1 m west and its keypad door shows a keypad on the riser side; a new keypad door
+  (the cable-pull door) joins the generator compound to the riser; the plant ladder now starts on top of a locked
+  anti-climb cage (a co-op leg-up onto the cage reaches the rungs); four floodlight poles light the plant deck; the riser
+  has a lamp with its own switch.
