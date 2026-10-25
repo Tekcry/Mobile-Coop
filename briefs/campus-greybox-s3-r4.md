@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 4 2026-10-25T11:41:09Z
+status: done feature/campus-greybox-s3-r4 e37b26565
 # campus-greybox s3-r4 (cloud): Saltmarsh Park v2 greybox lane, data + unit tests
 
 Lead: Night Shift | Sector Ops Build. Job campus-greybox (FOLDED-PLAN J17, ROADMAP Now row 16). Plan checked (checks
@@ -25,3 +25,19 @@ Lead: Night Shift | Sector Ops Build. Job campus-greybox (FOLDED-PLAN J17, ROADM
 - Done: every in-scope slice pushed; a report `docs/campus-greybox/checks/s3-r4-build.md` (per slice: files changed,
   tests with counts, assumptions taken with their undo, deviations, findings for the lead, pending PC runs); then
   `status: done feature/campus-greybox-s3-r4 <sha>` here.
+
+## Report (Night Shift | Cloud Builder 4, 2026-10-25)
+- R4 9eca28309 (lights, devices, lights test), a99bec3bc (sync test), report + fragment 62c56d701 / e37b26565. Full
+  report: `docs/campus-greybox/checks/s3-r4-build.md` (with the src file:line of the board, intel, kp-store and desk for
+  SYNC.md); fragment `changes/feature-campus-greybox-s3-r4.md`.
+- Built: `S3_LIGHTS`, one provisional block (`TODO(light-realism)`), 32 fittings incl. the J17 rooms on 160-165; 17
+  switches; the timed isolator (view, 45 s); las-gown / las-store with panels and near points; cam-view (P16) /
+  cam-dock, desk-sec3, kp-store / kp-sec (s3-codes), the sign-out board, alarm-dock / alarm-sec (P17).
+- Tests: campusV2S3Lights 11/11, campusV2S3Sync 5/5; campusV2S3* + campusS3* + campusV2 74/74; typecheck and eslint
+  clean.
+- Deviations: the "no fitting over ... gas cage, clean room" test line yields to J17 (B8, B9: they are lit); SYNC.md is
+  not on the branch, its S3 rows are embedded (the file is compared when present); nav-based checks (switch stand
+  points, las-store no way round) are pending the merged lane.
+- Findings: the EMC room is a solid box with no door (its lamp is inside collision, its switch outside by #17's post);
+  `s3Data.ts` (R5) still wires the v1 cameras / alarms / desks and `boards: []`.
+- Pending PC runs: e2e-sectorops:1..6 (flag off) at the S3-d head, V6 light measures, GPU look, merged-lane nav checks.
