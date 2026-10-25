@@ -1,5 +1,62 @@
 # Changelog
 
+## 4.106.0 - Train 112: Guard rules; Objective pop-up, objective list and Notes; Saltmarsh Park lamp light ships pre-built (dark); Marlow batch fixes; Mixamo traversal captures on Wren (dark); Doors: one 15% light threshold; +1 more (2026-10-26, PR #491; #483, #482, #477, #474, #471, #469, #450)
+
+### Guard rules
+- Helmets follow the difficulty in Sector Ops (and the campaign, which runs on it): on Realistic and Perfectionist every
+  guard wears a helmet from the start. On Perfectionist a helmet is never shot off: the first headshot only staggers
+  him and the second kills. On Rookie and Normal guards are bare-headed until alarm stage 2.
+- Alarm stage 2 now gives every guard a helmet as well as body armour.
+- Riot shields lead the alarm response teams only in the later Saltmarsh Park sections (4 and 5). Earlier sections,
+  the warehouse and Marlow Yard send armed guards only.
+- Killing a guard dog now counts as a kill (no Perfect, no "No kills") and costs score. Knocking one out with gas
+  still scores as a knockout.
+- Sector Ops data checks reject a riot shield guard placed on the map and any helmet named in map data: helmets come
+  from the difficulty and the alarm stage. Saltmarsh Park sections 4 and 5 keep their body armour.
+- Dogs can no longer be taken down in any way (behind, side, drop, from a ledge, the co-op team takedown); in co-op
+  the host also refuses a takedown on a dog. Sleeping gas still knocks a dog out.
+
+### Objective pop-up, objective list and Notes
+- A tap of View (pad) or O (keyboard) shows the current objective for a few seconds; it also shows whenever the
+  objective changes (G343).
+- Sector Ops: Pause > Objectives lists the full objective list for the operation, on the host and the co-op client
+  (G343).
+- Pause > Notes: the lines learned from interrogations this match, newest focused, "No notes yet" when empty. A co-op
+  client keeps the intel and keypad radio lines only; a client that drops and rejoins starts with empty notes.
+- Co-op: connection notices no longer take over the objective line; they show on their own status line.
+- Tests: e2e-sectorops, e2e-pad, e2e-mouse, e2e-coop, e2e-takedown and e2e-menus check the pop-up, the binds, the
+  objective list and the Notes screen.
+
+### Saltmarsh Park lamp light ships pre-built (dark)
+- Loading: the campus lamp light is now baked once when the game is built and shipped with it (5 files, 5.5 MB), so a
+  player's PC no longer bakes it at the start of a match. Off by default (`?mapready=1`, flag `mapReady`) until the
+  Sector Ops and Marlow Yard walks land; any mismatch falls back to the PC bake as before.
+- Tests: the shipped light matches the PC bake byte for byte; a stale, missing or damaged file is never used.
+
+### Marlow batch fixes
+- e2e-ctcourse A8 pass 2: the close by hand of the relocked grille waits until the door's item is live on the host, so
+  a `use` read between the two host steps of a relock no longer reads 'disabled' (train 106 flake; docs/backlog.md
+  "Flaky e2e suites").
+
+### Mixamo traversal captures on Wren (dark)
+- Behind `?mixamo=1` (off by default): Wren's ledge hang plays the Mixamo hanging idle, the shimmy left / right by the
+  way she moves along the lip, and the ladder top-out its capture; guards and team climb-ups keep the hand-made clips.
+  On the hang and the shimmies the palms stay on their grips as on the hand-made clip; the top-out misses its grips by
+  7 cm (the hand-made clip by 11.8).
+- The ladder climb, both lip climb-up captures and the vent crawl stay hand-made in matches for now (they took the hands
+  or feet off their holds, or popped); the Anim Studio still plays every traversal capture on its loop and says which
+  ones stay hand-made.
+
+### Doors: one 15% light threshold
+- Light: a door opened or closed by hand now stops lamp light until it is past 15% open, the same line a slowly
+  pushed door already used (it was 5%); the light meter, the picture and torch light agree.
+
+### Sector Ops: stars fill lower, Perfect, Saltmarsh Park stars on the menu
+- Sector Ops: clearing an op on a harder difficulty now fills every easier star too (old records included).
+- Sector Ops: a run with no kills and no alarm is marked PERFECT on the result line and the extraction banner.
+- Main menu: the stars beside Sector Ops are Saltmarsh Park's, and its line names Saltmarsh Park.
+- Tests: a data check that every Saltmarsh Park section with team doors keeps a route past them for a solo player.
+
 ## 4.105.3 - Train 111: Test Runner batch (J20), PR-C: quarantine and hard-rule checks (2026-10-26, PR #486; #445)
 - Every REQUIRED e2e suite has an owner in `scripts/e2e-quarantine.json`, and `tests/e2eQuarantine.test.ts` checks the
   file (owners, complete entries, ISO expiry, each quarantined suite written up in `docs/backlog.md`).

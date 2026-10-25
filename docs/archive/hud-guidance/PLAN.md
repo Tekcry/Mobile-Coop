@@ -1,7 +1,7 @@
 # hud-guidance: plan
 Owner: Campaign Build. Status: current.
 
-Lead: Night Shift | Campaign Build. Planner: Opus 5.5, master 2148ec969. Brief: `docs/hud-guidance/BRIEF.md`.
+Lead: Night Shift | Campaign Build. Planner: Opus 5.5, master 2148ec969. Brief: `docs/archive/hud-guidance/BRIEF.md`.
 Sources: FOLDED-PLAN J3 / J3b (origin/feature/menu), `docs/conformance-campaign/CONFORMANCE.md` Part C (HG1-HG9, the
 removal inventory, "Tests that assert the old behaviour"), Player R12 / R24 / H9, Sector Ops M1 / M2 / M5 / M6, Marlow
 H2, Test Runner T2. Every file:line below was re-read on master 2148ec969 (the review read 829a9332; most lines held,
@@ -78,7 +78,7 @@ save: hq.radar (removed; SAVE_VERSION 9 -> 10)
   (Campaign's own engine line) touch `gameState.ts`, `sectorMode.ts`, `coopClient.ts`, `coopHost.ts`;
   `origin/feature/player-docs-j1` touches `docs/systems/input-and-loop.md` in other hunks (row 139 is not in it). Order:
   master lands first (CONFORMANCE 1d item 1); the engine rebase cost is below.
-- `node scripts/claims-check.mjs --plan docs/hud-guidance/PLAN.md --name feature/hud-guidance` (18:20): 4 file-level
+- `node scripts/claims-check.mjs --plan docs/archive/hud-guidance/PLAN.md --name feature/hud-guidance` (18:20): 4 file-level
   overlaps, all in other hunks of shared files, for the orchestrator to order:
   - `feature/guard-rules`: `sectorMode.ts` (helmets at start, ~:951), `coopHost.ts` (`start` deny ~:892),
     `e2e-sectorops.mjs` (S13 block :3583-3660). Ours: `blips()` :1355, B4's new method; A3 / B4 add lines near the
