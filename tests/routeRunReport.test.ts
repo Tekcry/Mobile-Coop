@@ -3,11 +3,11 @@ import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs tool script without types
 import { buildReport, jsonText, merge } from '../scripts/route-run/report.mjs';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-type Obj = Record<string, any>;
+type Obj = Record<string, unknown>;
 
 const fixture = (name: string): string => readFileSync(new URL(`./fixtures/route-run/${name}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const campaignLog = (): Obj => JSON.parse(fixture('report-campaign-log.json'));
+// The parsed fixture is untyped on purpose: tests reach into it freely.
+const campaignLog = () => JSON.parse(fixture('report-campaign-log.json'));
 
 const header = (over: Obj = {}): Obj => ({
   map: 'ctcourse',
@@ -20,10 +20,10 @@ const header = (over: Obj = {}): Obj => ({
 });
 
 const run = (over: Obj = {}): Obj => ({
-  id: 'A2',
+  id: 'full',
   section: 'A2',
-  kind: 'main',
-  covers: [['carriage_shed', 'main']],
+  kind: null,
+  covers: [],
   time_s: 185,
   walked_m: 100,
   guards: { spawned: 2, alive: 2 },
@@ -143,8 +143,39 @@ describe('route-run report', () => {
     const bad = buildReport({ ...header(), runs: [run({ unplannable: 'guards missing' })] });
     expect(bad.json.runs[0]).toMatchObject({ verdict: 'unplannable', why: 'guards missing', time_s: null });
     expect(bad.json.summary.verdict).toBe('fail');
-    expect(walkCard(bad.markdown)[0]).toContain('not walked (guards missing)');
+    expect(walkCard(bad.markdown)[0]).toBe('Whole course, A2: not walked: the route could not be planned.');
     expect(buildReport(header()).json.summary.verdict).toBe('fail');
+  });
+
+  it('puts an unplannable reason in plain words on the walk card and keeps the raw reason in the run section', () => {
+    const raw = 'link 4 (s1-street -> s1-yard, roller_door) has no point';
+    const { json, markdown } = buildReport({
+      ...header({ mode: 'campaign' }),
+      runs: [
+        run({ id: 'S1-shadow', section: 'S1', kind: 'shadow', covers: [['s1_yard', 'shadow']], unplannable: raw }),
+        run({ id: 'S1-high', section: 'S1', kind: 'high', covers: [['s1_roof', 'high']], unplannable: 'space s1_roof has no area' }),
+      ],
+    });
+    expect(json.runs[0].why).toBe(raw);
+    expect(markdown).toContain(`- Result: NOT WALKED - ${raw}`);
+    expect(walkCard(markdown)).toEqual([
+      'S1 shadow route (yard): not walked: the map data is missing a position for the roller door from the street to the yard.',
+      'S1 high route (roof): not walked: the map data is missing the floor area of the roof.',
+    ]);
+  });
+
+  it('names the training run "Whole course", its parts by section and set name, with no route kind needed', () => {
+    const log = {
+      ...header(),
+      runs: [run({ section: null, time_s: 1000 }), run({ section: 'A1', time_s: 300 }), run({ section: 'A2', name: 'Carriage Shed', time_s: 350 })],
+    };
+    const lines = walkCard(buildReport(log).markdown);
+    expect(lines).toEqual(['Whole course: 16:40, never stuck.', 'Whole course, A1: 5:00, never stuck.', 'A2 Carriage Shed: 5:50, never stuck.']);
+    for (const l of lines) expect(l).not.toMatch(/Full|full|main/);
+  });
+
+  it('says objective holds are left out of the Marlow time while the log has no field for them', () => {
+    expect(m9(buildReport({ ...header(), runs: [run()] }).markdown)).toContain('Objective holds: not in the run log yet, so left out of the held time');
   });
 
   it('passes for detections only, however many', () => {
@@ -234,6 +265,7 @@ describe('route-run report', () => {
       ...header(),
       runs: [
         run({
+          name: 'Carriage Shed',
           time_s: 185,
           detections: [seen(72, 'set'), seen(100, 'set')],
           restarts: [

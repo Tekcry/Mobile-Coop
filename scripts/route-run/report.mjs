@@ -6,7 +6,8 @@
 // Input log (R4a): the header fields of the JSON shape plus `runs[]`; a run holds the same fields as the output run.
 // Verdict, why, time and the summary are always worked out here, never trusted from the log.
 // Extra, optional input: run.unplannable (the planner's
-// reason) and run.walkedLinks (count of links the robots really walked).
+// reason), run.walkedLinks (count of links the robots really walked) and run.name (a course section's set name, for
+// the walk card only; R1 does not emit it, R4a may add it from the graph).
 
 export const TOOL = 'route-run 1';
 /** The Marlow Yard run-length band in game seconds (G272, 15-20 min). Report only, never a pass rule (A11). */
@@ -53,7 +54,6 @@ export function humanise(id) {
   return s;
 }
 
-const titleCase = (s) => s.replace(/\b[a-z]/g, (c) => c.toUpperCase());
 
 /** Game seconds -> "2:31". */
 export function formatTime(s) {
@@ -223,7 +223,9 @@ export function buildReport(log) {
     runs,
     summary,
   };
-  return { json, markdown: renderMarkdown(json) };
+  // Course section names ride beside the JSON (its shape is fixed by the PLAN): run.name, else none.
+  const names = ordered.map((r) => str(r.name, null));
+  return { json, markdown: renderMarkdown(json, names) };
 }
 
 /** The exact text of route-run.json: two-space indent, one trailing newline. */
@@ -356,24 +358,53 @@ function stuckSentence(run) {
   return `Stuck ${times(stops.length)}: ${stops.map(one).join('; ')}.`;
 }
 
-function routeLabel(run) {
-  const spaces = [];
-  for (const c of run.covers) {
-    const name = humanise(Array.isArray(c) ? c[0] : c);
-    if (name && !spaces.includes(name)) spaces.push(name);
-  }
+/**
+ * A route run is named by section, kind and the spaces it covers ("S1 shadow route (gatehouse, car park)"). The
+ * training run (R1's `full`, kind null, no covers) is "Whole course"; a section part of it is named by its section and
+ * set name when the log gives one ("A2 Carriage Shed"), else "Whole course, A2".
+ */
+function routeLabel(run, name) {
   const sec = run.section ? `${run.section} ` : '';
   if (ROUTE_KINDS.includes(run.kind)) {
+    const spaces = [];
+    for (const c of run.covers) {
+      const space = humanise(Array.isArray(c) ? c[0] : c);
+      if (space && !spaces.includes(space)) spaces.push(space);
+    }
     return `${sec}${run.kind} route${spaces.length ? ` (${spaces.join(', ')})` : ''}`;
   }
-  const name = spaces.length ? titleCase(spaces.join(', ')) : titleCase(humanise(run.id));
-  return `${sec}${name}`.trim();
+  if (name) return `${sec}${name}`.trim();
+  return run.section ? `Whole course, ${run.section}` : 'Whole course';
+}
+
+/** The planner's reason (R1 `unplannable`, BRIEF A8) in plain words for the walk card; the raw text stays in `why`. */
+export function plainWhy(why) {
+  const first = String(why ?? '').split('; ')[0];
+  const more = String(why ?? '').includes('; ') ? ', and more' : '';
+  let m;
+  let out = 'the route could not be planned';
+  if ((m = /^link \S+ \((\S+) -> (\S+), (\S+)\) has no point$/.exec(first))) {
+    out = `the map data is missing a position for the ${humanise(m[3])} from the ${humanise(m[1])} to the ${humanise(m[2])}`;
+  } else if ((m = /^space (\S+) has no area$/.exec(first))) {
+    out = `the map data is missing the floor area of the ${humanise(m[1])}`;
+  } else if ((m = /^space (\S+) has no centre/.exec(first))) {
+    out = `the map data is missing a position for the ${humanise(m[1])}`;
+  } else if ((m = /^space (\S+) is not in the graph$/.exec(first))) {
+    out = `the map data has no ${humanise(m[1])}`;
+  } else if ((m = /^section (\S+) has no (entry|exit) space$/.exec(first))) {
+    out = `section ${m[1]} has no way ${m[2] === 'entry' ? 'in' : 'out'} in the map data`;
+  } else if ((m = /^no (start|exfil) space$/.exec(first))) {
+    out = `the map data has no ${m[1] === 'start' ? 'start' : 'way out'}`;
+  } else if ((m = /^no way from (\S+) .*to (\S+)$/.exec(first))) {
+    out = `there is no way through from the ${humanise(m[1])} to the ${humanise(m[2])}`;
+  }
+  return out + more;
 }
 
 /** One plain line per run, in Michael's words: no ids, hashes or jargon. */
-function walkCardLine(run) {
-  const label = routeLabel(run);
-  if (run.verdict === 'unplannable') return `${label}: not walked (${run.why}).`;
+function walkCardLine(run, name) {
+  const label = routeLabel(run, name);
+  if (run.verdict === 'unplannable') return `${label}: not walked: ${plainWhy(run.why)}.`;
   const head = run.verdict === 'stuck' ? `${label}: no valid time.` : `${label}: ${formatTime(run.time_s ?? 0)}, never stuck.`;
   const parts = [head];
   if (run.verdict === 'stuck') parts.push(stuckSentence(run));
@@ -450,11 +481,13 @@ function m9Line(json) {
     `Restarts by cause: ${cause('seen')}, ${cause('timer')}, ${cause('other')}`,
     `Pushed past: ${list(pushed)}`,
     `Not made at sneak pace: ${list(slow)}`,
+    // BRIEF M9 also counts objective holds; the run log has no field for them until R4a logs them.
+    'Objective holds: not in the run log yet, so left out of the held time',
   );
   return `${bits.join('. ')}.`;
 }
 
-function renderMarkdown(json) {
+function renderMarkdown(json, names = []) {
   const s = json.summary;
   const out = [];
   out.push(`# Route run report: ${json.map ?? 'unknown map'}`, '');
@@ -478,8 +511,8 @@ function renderMarkdown(json) {
   out.push('', `Total: ${plural(s.runs, 'run', 'runs')}, ${s.stuck} stuck, ${s.unplannable} not walked, ${s.detections} seen, ${s.notices} noticed, valid time ${formatTime(s.runTime_s)}.`, '');
 
   out.push('## Runs', '');
-  for (const r of json.runs) {
-    out.push(`### ${routeLabel(r)} (${r.id ?? 'no id'})`, '');
+  for (const [i, r] of json.runs.entries()) {
+    out.push(`### ${routeLabel(r, names[i])} (${r.id ?? 'no id'})`, '');
     out.push(`- Result: ${resultCell(r)}${r.why ? ` - ${r.why}` : ''}`);
     out.push(`- Time: ${timeCell(r)}, walked ${round1(r.walked_m)} m, guards ${r.guards.alive} alive of ${r.guards.spawned}`);
     out.push(`- Seen: ${r.detections.length ? '' : 'never'}`.trimEnd());
@@ -510,7 +543,7 @@ function renderMarkdown(json) {
   }
 
   out.push('## Walk card', '');
-  for (const r of json.runs) out.push(`- ${walkCardLine(r)}`);
+  for (const [i, r] of json.runs.entries()) out.push(`- ${walkCardLine(r, names[i])}`);
   out.push('');
   return out.join('\n');
 }
