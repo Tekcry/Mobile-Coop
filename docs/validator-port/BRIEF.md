@@ -93,7 +93,7 @@ Authority order: `CLAUDE.md` on origin/master; Michael's answers above win over 
   `split_max_s` or legs apart by more than `split_parity_pct`; ERR a campaign co-op link with no measured way back
   (`meta.measured.ways_back`). A `null` reach or way back (only moves the nav grid does not model) is a WARN to justify
   in the design doc, and the declared time is then checked as today (ERR over `reach_max_s`). Undo: make null an ERR
-  (question L2).
+  (lead answer L2).
 - **A6 Measured times feed the time checks.** Split legs, partner reach and gate reach use a link's `measured.path_m` /
   speed when present, else `time_s`, else `length` / speed (V6 used `measured.time_s` and re-timed for reach; same
   numbers). Undo: drop the measured branch in `linkTime`.
@@ -113,23 +113,22 @@ Authority order: `CLAUDE.md` on origin/master; Michael's answers above win over 
   guarded encounter space (a side route only "when training against enemies"), else ERR; such a section runs the
   campaign route rules on itself (three approaches of two kinds with shadow / high / loud on its guarded spaces, routes
   cross, 2 edge-disjoint routes) as ERR ("same design rules as a campaign mission area"). Splits are allowed there
-  (G292). Undo: WARN, or only routes cross (question L1).
-- **A23 A split's two legs are one route (lead decision 2026-10-25 ~20:30).** Before A8 / A9 count a section's routes,
-  every space tagged `split:<id>:a` or `split:<id>:b` is merged into one node per split `<id>`, so a declared split
-  is one route, not a side route. A late section whose only second way is a split needs no guard and gets no campaign
-  route rules (G292: "until later sections where it teaches multiple objectives/split paths"; Q11: "Doesn't
-  necessarily always need a guard"); a split plus a real side route counts 2 routes and A9 applies. Before
-  `taught_by` the split is still an ERR by its tag (A8). Undo: count the legs as two routes (drop the merge in
-  `training.mjs`).
+  (G292). Undo: WARN, or only routes cross (lead answer L1).
+- **A23 A split's two legs are one route (lead decision 2026-10-25, plan-check fix round 1).** Before A8 / A9 count a
+  section's routes, every space tagged `split:<id>:a` or `split:<id>:b` is merged into one node per split `<id>`, so a
+  declared split is one route, not a side route. A late section whose only second way is a split needs no guard and gets
+  no campaign route rules (G292: "until later sections where it teaches multiple objectives/split paths"; Q11: "Doesn't
+  necessarily always need a guard"); a split plus a real side route counts 2 routes and A9 applies. Before `taught_by`
+  the split is still an ERR by its tag (A8). Undo: count the legs as two routes (drop the merge in `training.mjs`).
 - **A10 Perfect-run and marker checks on every map (VISION 4 rules 3-5).** New link field `requires_kill` (bool). The
   ghost path (no `loud` link, no `requires_kill` link) from `start` to every `objective` space and on to `exfil` (Sector
   Ops, which needs no exfil: to the last section's `exit`): ERR when missing on `campaign` and `sector`, INFO on
-  `training` (lead decision 2026-10-25 ~20:30: Marlow has no perfect-run rating, Q5 "all are retries"; Q29 "does not
-  need the same checks"; and Q24 forces every section onto one route, so a forced section through a `loud` link could
-  not be fixed). The no-kill path (no `requires_kill` link) stays ERR in every mode, `training` included (VISION 4 rule
-  4, G127). `mark` on a space or link: ERR on `campaign` and `sector`, INFO count on `training`. A mission graph runs
-  the same paths over the mission's primary objectives (mission-validate reuses the helper). Undo: the ghost row of
-  `PROFILES` back to ERR, or drop `perfect.mjs` from `validate()`.
+  `training` (lead decision 2026-10-25, plan-check fix round 1: Q5 "all are retries"; Q29 "does not need the same
+  checks"; and Q24 forces every section onto one route, so a forced section through a `loud` link could not be fixed).
+  The no-kill path (no `requires_kill` link) stays ERR in every mode, `training` included (VISION 4 rule 4, G127).
+  `mark` on a space or link: ERR on `campaign` and `sector`, INFO count on `training`. A mission graph runs the same
+  paths over the mission's primary objectives (mission-validate reuses the helper). Undo: the ghost row of `PROFILES`
+  back to ERR, or drop `perfect.mjs` from `validate()`.
 - **A11 Ghost = no loud link.** G146's "no alarms" has no graph field; the loud route (force, LD 3.2) is the nearest
   fact. Undo: a `raises_alarm` link field read instead of `route: loud`.
 - **A12 Engine facts from the sheet (V10).** Two new scale-sheet section 8 rows: `nav_floor_depth_m` 1.5 (written as a
@@ -142,16 +141,16 @@ Authority order: `CLAUDE.md` on origin/master; Michael's answers above win over 
   (`docs/design/scale-sheet.md:2`); these rows and MV's `mission_*` rows (S7a) are the signed-off folded plan's J12
   row ("engine-fact WARNs", "mission-validator re-cut"; FOLDED-PLAN line 172, V10), which he approved. The relay
   number (A24) is not covered by it. Undo: delete the rows and the module.
-- **A24 Relay lip ceiling derived, number left to Michael (#443 hand-over, lead decision 2026-10-25 ~20:30).** #443
-  (merged in 4.103.3) left the sheet's Relay lip row (`docs/design/scale-sheet.md:56`, `sizes.hang_lip` 4.3 - 4.6,
-  read by `scripts/metrics-gen.mjs:109`) for J12 to derive. `TEAM.relayMax` 4.6 (`src/config/movement.ts:476`) caps
-  the hanger's root over the climber's floor (`src/game/teamMoves.ts:64`); a ledge hanger's root is `HANG.drop` 1.9
-  under the lip (`src/world/anchors.ts:219`, `hangPoint` `:640`, at the 1.75 m gameplay height of
-  `src/player/attach.ts:299`, so no scaling). Derived lip ceiling = 4.6 + 1.9 = 6.5 m. S7a writes this derivation into
-  the row and pins it with a test (the band's top never above `relayMax` + `HANG.drop`); the band's number stays 4.6
-  until Michael answers (open question in STATE), because the sheet changes only with his approval. Until then
-  `checkDimensions` keeps ERRing a `team_hang` lip above 4.6 (`scripts/level-validate.mjs:461-467`). Undo: drop the
-  derivation text and the pin test.
+- **A24 Relay lip ceiling derived, number left to Michael (#443 hand-over, lead decision 2026-10-25, plan-check fix
+  round 1).** #443 (merged in 4.103.3) left the sheet's Relay lip row (`docs/design/scale-sheet.md:56`, `sizes.hang_lip`
+  4.3 - 4.6, read by `scripts/metrics-gen.mjs:109`) for J12 to derive. `TEAM.relayMax` 4.6
+  (`src/config/movement.ts:476`) caps the hanger's root over the climber's floor (`src/game/teamMoves.ts:64`); a ledge
+  hanger's root is `HANG.drop` 1.9 under the lip (`src/world/anchors.ts:219`, `hangPoint` `:640`, at the 1.75 m gameplay
+  height of `src/player/attach.ts:299`, so no scaling). Derived lip ceiling = 4.6 + 1.9 = 6.5 m. S7a writes this
+  derivation into the row and pins it with a test (the band's top never above `relayMax` + `HANG.drop`); the band's
+  number stays 4.6 until Michael answers (open question in STATE), because the sheet changes only with his approval.
+  Until then `checkDimensions` keeps ERRing a `team_hang` lip above 4.6 (`scripts/level-validate.mjs:461-467`). Undo:
+  drop the derivation text and the pin test.
 - **A13 metrics-gen flags (V12).** Any argument other than `--check` (including `--help`) prints the usage and exits 2,
   writing nothing, as level-validate does. Undo: one `if`.
 - **A14 Validator in CI (V6).** `docs/level-validator/graph-sets.json` lists every committed graph set (files, flags,
@@ -181,7 +180,7 @@ Authority order: `CLAUDE.md` on origin/master; Michael's answers above win over 
   J22 settles how Marlow Yard joins the campaign list (Q6). A `rules` node on a `training` map is an ERR whatever J22
   decides, because of Q5 ("all are retries in marlow yard"): strict rules have no place there. Today that only follows
   from MV's mission checks (`mission-validate.mjs:156-157` no mission on training, `:247-248` no rules without a
-  mission); S8 adds a direct ERR citing Q5 and pins it with a test. Undo: restore the kinds; question L3.
+  mission); S8 adds a direct ERR citing Q5 and pins it with a test. Undo: restore the kinds; lead answer L3.
 - **A20 Seam with Campaign Build.** Marlow Build builds the re-cut and owns `level-validate.mjs`, the lib, the check
   modules and `mission-validate.mjs` code; Campaign Build owns the mission contract (`mission-schema.md` fields and the
   step / rule / sync kind lists, which mirror its engine types) and reviews PR D. Interface: `checkMission(graph,
@@ -199,8 +198,8 @@ Authority order: `CLAUDE.md` on origin/master; Michael's answers above win over 
   Decided 2026-10-25 ~16:50 Q24 / Q29 until J2 gives them G numbers. No other rule changes. Undo: revert the docs
   slices.
 
-- **A25 Six new co-op link kinds (lead decision 2026-10-25 ~20:30).** `LINK_KINDS` and `COOP_KINDS` gain
-  `vent_unlock` (Q25) and the five moves Michael added to the kit (ROADMAP Decided ~18:05: "Deadweight,Drop Catch,
+- **A25 Six new co-op link kinds (lead decision 2026-10-25, plan-check fix round 1).** `LINK_KINDS` and `COOP_KINDS`
+  gain `vent_unlock` (Q25) and the five moves Michael added to the kit (ROADMAP Decided ~18:05: "Deadweight,Drop Catch,
   Chimney Pair,Swing Pass", Plank Bridge "Add it"): `plank_bridge`, `deadweight`, `chimney_pair`, `swing_pass`,
   `drop_catch`. J14's re-plan graph (origin/feature/marlow-replan `docs/marlow-replan/graph.json`) draws them today as
   stand-ins with a `move` field (plank_bridge as `pair_gate`, deadweight as `shutter`, chimney_pair as `team_rope`,
@@ -208,12 +207,12 @@ Authority order: `CLAUDE.md` on origin/master; Michael's answers above win over 
   (its `validate-run.txt`: "section A3 has no co-op link"). Per kind: each takes the needed fields of its stand-in
   (`vent_unlock` those of `door`); `plank_bridge`, `deadweight` and `vent_unlock` stay open both ways once passed (as
   `pair_gate` / `shutter`); `vent_unlock` is the door the crawler opens from its `to` side (the vent is its own `duct`
-  link), so a solo arc runs only from its `to` end, as a `bolted` link; `drop_catch` is one-way by default (as
-  `drop`); `chimney_pair` climbs both ways; `swing_pass` is one-way only when the graph says so (as `team_throw`). No
-  size band yet: none of the five moves is built (J14 BRIEF A3), so `checkDimensions` prints one INFO per new kind
-  used and checks nothing more (`vent_unlock` gets the door rows); each move's co-op job adds its scale-sheet section 3
-  row (Michael approves sheet changes) and its `checkDimensions` case when the move lands. A kind does not imply
-  `teach` (A8); the map still writes it. Undo: drop the six names from the sets (J14 keeps its stand-ins).
+  link), so a solo arc runs only from its `to` end, as a `bolted` link; `drop_catch` is one-way by default (as `drop`);
+  `chimney_pair` climbs both ways; `swing_pass` is one-way only when the graph says so (as `team_throw`). No size band
+  yet: none of the five moves is built (J14 BRIEF A3), so `checkDimensions` prints one INFO per new kind used and checks
+  nothing more (`vent_unlock` gets the door rows); each move's co-op job adds its scale-sheet section 3 row (Michael
+  approves sheet changes) and its `checkDimensions` case when the move lands. A kind does not imply `teach` (A8); the
+  map still writes it. Undo: drop the six names from the sets (J14 keeps its stand-ins).
 
 ## Lead answers (Marlow Build, 2026-10-25 ~19:00)
 None of these loosens a Michael-only rule; each settles a reading of his words.
