@@ -230,6 +230,28 @@ export function gatedCpu({ total, bgMs, elapsedMs, cores }) {
   return Math.round(Math.min(100, Math.max(0, total - bg)));
 }
 
+/** Front tier of lib pick (laptop-queue-7): a branch naming a LQ_FRONT_BRANCHES entry (case-insensitive substring), or an early-id re-file (no id time, or before 2020). */
+export function isFront(r, frontBranches = []) {
+  const t = idTime(r?.id);
+  if (!Number.isFinite(t) || t < Date.UTC(2020, 0, 1)) return true;
+  const b = String(r?.branch ?? '').toLowerCase();
+  return Boolean(b) && (frontBranches ?? []).some((f) => f && b.includes(String(f).toLowerCase()));
+}
+
+/**
+ * Ids of the requests that are green PR work: kind pr (not a train or laptop rerun, not spare) whose PR is on the board
+ * at the request's own sha with a green check + checker (a stale sha is not green). board = lib prBoard Map; empty = none.
+ */
+export function greenIds(requests, board) {
+  const out = new Set();
+  for (const r of requests ?? []) {
+    if (r.kind !== 'pr' || r.trainRerun || r.laptopRerun || r.requester === SPARE_REQUESTER) continue;
+    const b = board?.get(r.pr);
+    if (b && b.green && b.head === r.sha) out.add(r.id);
+  }
+  return out;
+}
+
 /**
  * What to start next. queue = { trains: [{ sha, n }], requests: [request] }, slots = [{ port, busy }].
  * Returns { kind: 'train', train } or { kind: 'alone', request } (both need BOTH slots idle), { kind: 'request',
@@ -249,6 +271,11 @@ export function gatedCpu({ total, bgMs, elapsedMs, cores }) {
  * Spare work (SPARE_REQUESTER) is picked only when no other request is open: never aged, never at the front. The
  * service also sets queue.realOpen (lib realWaiting on the full listing, before its alone hold filters) so a real
  * request it holds back still keeps a spare from starting.
+ * queue.order (laptop-queue-7, the service passes it; absent = the arrival rule above) changes only which pr / full request
+ * runs next: 1. the front tier (isFront: a LQ_FRONT_BRANCHES branch or an early-id re-file), oldest first; 2. green PR heads
+ * (order.green, a Set of ids), smallest order.wallS first, unknown wall last, ties by id, skipped for this pick when the
+ * oldest non-front request, green or not, has waited over order.maxWaitMs (the starvation bound); 3. the arrival rule over
+ * the non-front requests. Trains, reruns and aged alone runs go before all of it; spare-only picks ignore it.
  */
 export function pick(queue, now, slots) {
   const all = [...queue.requests].sort(sortById);
@@ -274,6 +301,27 @@ function pickFrom(queue, now, slots) {
   const aged = alone.find((r) => front.has(r.id)) ?? agedAlone(alone, now);
   if (aged) return bothIdle ? { kind: 'alone', request: aged } : null;
   const nonAlone = reqs.filter((r) => r.kind !== 'alone');
+  const order = queue.order;
+  if (order && idle[0]) {
+    const early = nonAlone.find((r) => isFront(r, order.frontBranches));
+    const rest = nonAlone.filter((r) => r !== early && !isFront(r, order.frontBranches));
+    let chosen = early;
+    if (!chosen) {
+      const oldest = rest.find((r) => Number.isFinite(idTime(r.id)));
+      const starved = order.maxWaitMs > 0 && oldest && now - idTime(oldest.id) > order.maxWaitMs;
+      if (!starved) {
+        const wall = (r) => { const w = order.wallS?.[r.id]; return Number.isFinite(w) ? w : Infinity; };
+        chosen = rest.filter((r) => order.green?.has(r.id)).sort((a, b) => wall(a) - wall(b) || sortById(a, b))[0];
+      }
+    }
+    if (chosen) return { kind: 'request', request: chosen, slot: idle[0].port };
+    return arrivalNext(rest, alone, idle, bothIdle);
+  }
+  return arrivalNext(nonAlone, alone, idle, bothIdle);
+}
+
+/** pickFrom's arrival rule over the non-alone requests (sorted by id): the longest-waiting requester, priority, oldest. */
+function arrivalNext(nonAlone, alone, idle, bothIdle) {
   const first = nonAlone[0]; // the oldest request overall belongs to the requester who has waited longest
   const prio = (r) => (Number.isInteger(r.priority) ? r.priority : 0);
   let next;

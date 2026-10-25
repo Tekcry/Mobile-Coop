@@ -104,7 +104,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pidAlive, staleName } from '../heavy-lock.mjs';
-import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, nextTrain, fitsBeforeTrain, releasingTrain, readyHeads, seenSince, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, prBoard, conflictRetire, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting } from './lib.mjs';
+import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, nextTrain, fitsBeforeTrain, releasingTrain, readyHeads, seenSince, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, conflictRetire, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting } from './lib.mjs';
 import { visualPlan, visualEnv, visualVerdict, visualComment, VISUAL_CONTEXT, VISUAL_SUITE, VISUAL_SH_TIMEOUT_MS } from './visual.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
@@ -144,6 +144,9 @@ const AFFECTED_POLL_MS = Number(process.env.LQ_AFFECTED_POLL_MIN ?? 2) * 60_000;
 const SPARE_IDLE_MIN = Number(process.env.LQ_SPARE_IDLE_MIN ?? 5); // laptop: spare work after this many idle min (0 = off)
 const PR_BOARD_MS = Number(process.env.LQ_PR_BOARD_S ?? 60) * 1000; // both workers: the PR board read (lib prBoard)
 const SKIP_CONFLICTING = process.env.LQ_SKIP_CONFLICTING !== '0'; // 0 = a conflicting PR head still runs
+const GREEN_FIRST = process.env.LQ_GREEN_FIRST !== '0'; // 0 = arrival order only (lib pick queue.order)
+const FRONT_BRANCHES = (process.env.LQ_FRONT_BRANCHES ?? 'mixamo').split(',').map((x) => x.trim()).filter(Boolean); // branch front tier, empty = none
+const GREEN_MAX_WAIT_MS = Number(process.env.LQ_GREEN_MAX_WAIT_MIN ?? 30) * 60_000; // starvation bound of the green tier (0 = none)
 const AFFECTED_MAX_AGE_MS = Number(process.env.LQ_AFFECTED_MAX_AGE_H ?? 24) * 3600_000; // older PR heads get no auto request (0 = no limit)
 const argv = process.argv.slice(2);
 const ONCE = argv.includes('--once');
@@ -562,6 +565,7 @@ let soonLogged = '';
 let aloneSoonLogged = '';
 let openTrainCount = -1; // open train/<n> PRs at the last listing (-1: unknown)
 let manualLogged = '';
+let orderLogged = ''; // the last "order:" log line's front / green ids
 /** The open PR board (lib prBoard), read by prBoardNow every LQ_PR_BOARD_S s; empty after a GitHub error. */
 let board = new Map();
 let lastBoard = 0;
@@ -1589,6 +1593,16 @@ async function pass() {
     const key = JSON.stringify(held);
     if (key !== manualLogged) { manualLogged = key; for (const [p, line] of Object.entries(held)) log(`${p} under a manual lock, no new claims there: ${line}`); }
     for (const p of Object.keys(held)) virtual[p] = true;
+  }
+  // front first, then green PR heads smallest wall first, then arrival (lib pick queue.order); built after every filter above
+  if (GREEN_FIRST) {
+    const green = greenIds(queue.requests, board);
+    const wallS = {};
+    for (const r of queue.requests) if (green.has(r.id)) wallS[r.id] = expectedWallS(r.suites, times, r.jobs ?? (DESKTOP ? 1 : 2));
+    queue.order = { green, wallS, frontBranches: FRONT_BRANCHES, maxWaitMs: GREEN_MAX_WAIT_MS };
+    const frontIds = queue.requests.filter((r) => r.kind !== 'alone' && isFront(r, FRONT_BRANCHES)).map((r) => r.id);
+    const key = `${frontIds.join(',')}|${[...green].sort().join(',')}`;
+    if (key !== orderLogged) { orderLogged = key; if (frontIds.length || green.size) log(`order: front ${frontIds.length}, green ${green.size} (smallest first)`); }
   }
   let started = false;
   for (let i = 0; i < 4 && !started; i++) {

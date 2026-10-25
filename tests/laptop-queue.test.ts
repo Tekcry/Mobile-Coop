@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, nextTrain, fitsBeforeTrain, FIT_SLACK, readyHeads, seenSince, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, prBoard, conflictRetire, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, nextTrain, fitsBeforeTrain, FIT_SLACK, readyHeads, seenSince, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, conflictRetire, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting } from '../scripts/laptop-queue/lib.mjs';
 
 const spareReq = (min: number, kind: string) => ({ ...req(min, kind, 'spare', 'laptop-queue spare') });
 // @ts-expect-error plain .mjs module without types
@@ -50,6 +50,105 @@ describe('pick', () => {
     const b = req(20, 'full', 'b');
     expect(pick({ trains: [], requests: [b, a] }, NOW, slots(true, false))).toEqual({ kind: 'request', request: a, slot: '4192' });
     expect(pick({ trains: [], requests: [b, a] }, NOW, slots(true, true))).toBeNull();
+  });
+});
+
+describe('pick: front, green smallest first', () => {
+  const pr = (min: number, tag: string, extra: Record<string, unknown> = {}) => ({ ...req(min, 'pr', tag, tag), pr: 1, sha: tag, ...extra });
+  const order = (green: string[], wall: Record<string, number> = {}, extra: Record<string, unknown> = {}) => ({
+    green: new Set(green), wallS: wall, frontBranches: ['mixamo'], maxWaitMs: 30 * 60_000, ...extra,
+  });
+  const run = (requests: any[], o: any, extra: Record<string, unknown> = {}) =>
+    pick({ trains: [], requests, order: o, ...extra }, NOW, slots(false, false))?.request;
+
+  it('a green 12 s request beats an older plain request', () => {
+    const plain = pr(20, 'plain');
+    const green = pr(5, 'green');
+    expect(run([plain, green], order([green.id], { [green.id]: 12 }))).toBe(green);
+  });
+  it('two green: the smaller wall first, unknown wall last, ties by id', () => {
+    const a = pr(10, 'a');
+    const b = pr(9, 'b');
+    const c = pr(8, 'c');
+    expect(run([a, b, c], order([a.id, b.id, c.id], { [a.id]: 206, [b.id]: 12 }))).toBe(b);
+    expect(run([a, c], order([a.id, c.id], { [a.id]: 206 }))).toBe(a);
+    expect(run([c, b], order([b.id, c.id], {}))).toBe(b);
+  });
+  it('a mixamo-branch request (not green) beats a green one; an early-id re-file beats green', () => {
+    const green = pr(5, 'green');
+    const mix = pr(1, 'mix', { branch: 'feature/Mixamo-x' });
+    expect(run([green, mix], order([green.id], { [green.id]: 12 }))).toBe(mix);
+    const early = { id: '000006-old-d7a3b887', kind: 'pr', requester: 'old', pr: 2, sha: 'old' };
+    expect(run([green, early], order([green.id], { [green.id]: 12 }))).toBe(early);
+    expect(isFront({ id: idAt(1, 'x'), branch: 'feature/mixamo-x' }, ['mixamo'])).toBe(true);
+    expect(isFront({ id: idAt(1, 'x'), branch: 'feature/mixamo-x' }, [])).toBe(false);
+    expect(isFront({ id: idAt(1, 'x'), branch: 'feature/other' }, ['mixamo'])).toBe(false);
+  });
+  it('front tier goes oldest first', () => {
+    const m1 = pr(10, 'm1', { branch: 'mixamo-a' });
+    const m2 = pr(20, 'm2', { branch: 'mixamo-b' });
+    expect(run([m1, m2], order([]))).toBe(m2);
+  });
+  it('trains, train reruns and an aged alone request still go first', () => {
+    const green = pr(5, 'green');
+    const o = order([green.id], { [green.id]: 12 });
+    expect(pick({ trains: [train], requests: [green], order: o }, NOW, slots(false, false))).toEqual({ kind: 'train', train });
+    const rerun = { ...req(3, 'pr', 'rr', 'rr'), trainRerun: true };
+    expect(pick({ trains: [], requests: [green, rerun], order: o }, NOW, slots(false, false))?.request).toBe(rerun);
+    const alone = req(50, 'alone');
+    expect(pick({ trains: [], requests: [green, alone], order: o }, NOW, slots(false, false))).toEqual({ kind: 'alone', request: alone });
+    expect(pick({ trains: [], requests: [green, alone], order: o }, NOW, slots(true, false))).toBeNull();
+  });
+  it('max wait: a plain request 31 min old runs in arrival order this pick, under 30 min the green goes first', () => {
+    const old = pr(31, 'old');
+    const green = pr(5, 'green');
+    expect(run([old, green], order([green.id], { [green.id]: 12 }))).toBe(old);
+    const young = pr(29, 'young');
+    expect(run([young, green], order([green.id], { [green.id]: 12 }))).toBe(green);
+    expect(run([old, green], order([green.id], { [green.id]: 12 }, { maxWaitMs: 0 }))).toBe(green);
+  });
+  it('max wait: a green 206 s request 31 min old beats a newer green 12 s one; a front request beats both', () => {
+    const big = pr(31, 'big');
+    const small = pr(5, 'small');
+    const o = order([big.id, small.id], { [big.id]: 206, [small.id]: 12 });
+    expect(run([big, small], o)).toBe(big);
+    const mix = pr(2, 'mix', { branch: 'mixamo-z' });
+    expect(run([big, small, mix], o)).toBe(mix);
+  });
+  it('max wait counts the oldest non-front request even when it is not green', () => {
+    const plain = pr(40, 'plain');
+    const g1 = pr(10, 'g1');
+    const g2 = pr(5, 'g2');
+    expect(run([plain, g1, g2], order([g1.id, g2.id], { [g1.id]: 200, [g2.id]: 12 }))).toBe(plain);
+  });
+  it('no order, or an empty one, matches the arrival rule', () => {
+    const a = pr(30, 'a');
+    const b = pr(20, 'b');
+    const c = { ...req(10, 'full', 'c', 'c') };
+    for (const requests of [[a, b], [c, b], [b]]) {
+      expect(pick({ trains: [], requests, order: undefined }, NOW, slots(false, false))).toEqual(pick({ trains: [], requests }, NOW, slots(false, false)));
+      expect(run(requests, { green: new Set(), wallS: {}, frontBranches: [], maxWaitMs: 0 })).toBe(pick({ trains: [], requests }, NOW, slots(false, false))?.request);
+    }
+    const fresh = req(20, 'alone');
+    expect(pick({ trains: [], requests: [fresh], order: order([]) }, NOW, slots(false, false))?.kind).toBe('alone');
+    expect(pick({ trains: [], requests: [fresh, b], order: order([]) }, NOW, slots(true, true))).toBeNull();
+  });
+  it('spare-only picks ignore the order', () => {
+    const s = spareReq(5, 'pr');
+    expect(pick({ trains: [], requests: [s], order: order([s.id], {}, { frontBranches: ['x'] }) }, NOW, slots(false, false))?.request).toBe(s);
+  });
+  it('greenIds: green head at the request sha only; stale sha, reruns, spare and non-pr are not', () => {
+    const board = new Map([[1, { head: 'a', conflicting: false, green: true }], [2, { head: 'b', conflicting: false, green: false }], [3, { head: 'new', conflicting: false, green: true }]]);
+    const ok = { ...req(1, 'pr', 'ok'), pr: 1, sha: 'a' };
+    const notGreen = { ...req(2, 'pr', 'ng'), pr: 2, sha: 'b' };
+    const stale = { ...req(3, 'pr', 'st'), pr: 3, sha: 'old' };
+    const rerun = { ...req(4, 'pr', 'rr'), pr: 1, sha: 'a', trainRerun: true };
+    const lrerun = { ...req(5, 'pr', 'lr'), pr: 1, sha: 'a', laptopRerun: true };
+    const spare = { ...spareReq(6, 'pr'), pr: 1, sha: 'a' };
+    const full = { ...req(7, 'full', 'fu'), pr: 1, sha: 'a' };
+    const got = greenIds([ok, notGreen, stale, rerun, lrerun, spare, full], board);
+    expect([...got]).toEqual([ok.id]);
+    expect(greenIds([ok], new Map()).size).toBe(0);
   });
 });
 

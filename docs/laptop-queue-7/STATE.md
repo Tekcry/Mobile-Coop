@@ -15,4 +15,8 @@ Slice A done: lib.mjs prBoard :700, affectedNeeds conflicting :1010ish, conflict
 service.mjs env :PR_BOARD_MS / SKIP_CONFLICTING, affectedPass skip :469, prBoardNow :573, applyConflicts :1446, pass()
 call :1510; tests in "affected e2e on every PR head" (4 new). Vitest 156 pass, typecheck:fast clean.
 
-Next: slice B (front, green smallest-first, then arrival; uses `board`).
+Slice B done: lib.mjs isFront :234, greenIds :245, pickFrom order tiers :305 (+ arrivalNext after it), pick doc header;
+service.mjs env GREEN_FIRST / FRONT_BRANCHES / GREEN_MAX_WAIT_MS ~:147, queue.order + "order:" log :1602 (before the pick loop);
+tests: describe "pick: front, green smallest first" (11) beside the first pick describe. Vitest 167 pass, typecheck:fast clean.
+
+Next: slice C (a train head that moves; Opus).
