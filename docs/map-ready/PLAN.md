@@ -8,7 +8,10 @@ Findings with file:line: `docs/map-ready/research/start-path.md` (rows 1-15 belo
 Michael's four fixes and where they are built: (1) settings before the warm-up, characters / guards / weapons warmed
 behind the loading screen: S2 (`quality`, `bodies`, `shaders`) and S3. (2) campus lamp bakes shipped pre-built: S4.
 (3) loading starts in the lobby once the map is picked: S11, with S5's start handshake. (4) characters, guards, weapons
-and compiled shaders kept between maps: S9 (files and textures) and S10 (compiled shaders).
+and compiled shaders kept between maps: S9 (files and textures) and S10 (compiled shaders). As planned, (3) and (4)
+are narrower than his words (the level is built at Start, each match gets a fresh scene: BRIEF A18, A19); BRIEF Q3
+asks him. Q3's second or third option adds S12 (one scene, only the level swapped) and S13 (the level built in the
+lobby), sketched at the end of section 3; until he answers they are not built. Plan check 2: `PLAN-CHECK-2.md`.
 
 ## 1. Claims
 ```claims
@@ -30,6 +33,12 @@ files:
   - src/world/props/propRender.ts
   - src/world/campusArt/campusArtRender.ts
   - src/voxel/sectionJobs.ts
+  - src/voxel/lampJobs.ts
+  - src/world/surfacePlugin.ts
+  - src/world/levelMaterialPlugin.ts
+  - src/player/smoothBodyPlugin.ts
+  - src/operators/runtime/guardFigurePlugin.ts
+  - src/cosmetics/patternPlugin.ts
   - src/operators/runtime/figure.ts
   - src/ai/guardWarm.ts
   - src/ai/guardHelmet.ts
@@ -126,7 +135,9 @@ warehouse; Epic; a cold run (fresh profile: no bake or shader cache), 3 cached r
 - Files: `src/core/mapReadyStats.ts`, `src/game/gameState.ts` (wire the stats; no behaviour change),
   `src/world/bakedLamps.ts` (a landing / re-scan counter), `scripts/map-ready-measure.mjs`,
   `tests/mapReadyStats.test.ts`. Est. lines: 480.
-- Checks: `npx vitest run tests/mapReadyStats.test.ts`, tsc; affected e2e. Then one laptop 4189 alone request
+- Checks: `npx vitest run tests/mapReadyStats.test.ts`, tsc; affected e2e plus `e2e-coop` + `e2e-netmove` requested
+  by hand if the affected set lacks them (`src/game/gameState.ts`: RULES "Test tiers" checker gate for `src/game`).
+  Then one laptop 4189 alone request
   (`--suites` none, steps: the measure script, `E2E_GPU=1`) -> `docs/map-ready/research/baseline.md`.
 - Done looks like: the baseline table names, per map, seconds to reveal (cold, cached, repeat in the page), how much
   builds in the 10 s after it (expected: campus cold shows programs > 0, landings > 0, pop-ins > 0), the warehouse row
@@ -141,7 +152,7 @@ state held (no fixed steps, `simulating` false, input off, clock 0; the frame up
 `shaders`, `probe`, `bake-all` (reading today's `sections.done` and a new `BakedLamps.tilesPending`) and `warm`
 steps; the cap and fallback (A3); the release order in section 2, including the start objective re-applied at the
 release (G343 / G351); the boot bar's step text ("Building lights", "Compiling shaders", "Loading Wren", "Final
-checks"). A `NetAttachment` hook pair for S5 (`holdsStart(): boolean`, `onLocalReady(info)`), unused until S5.
+checks"; S5 adds "Waiting for partner" for its `peers` step). A `NetAttachment` hook pair for S5 (`holdsStart(): boolean`, `onLocalReady(info)`), unused until S5.
 `scripts/e2e-lib.mjs`: with `mapready=1` in the URL, `openPage` waits for `__mapReady.released` (so suites never step
 a held sim).
 - Files: `src/game/mapGate.ts`, `src/game/gameState.ts`, `src/main.ts`, `src/core/flags.ts`, `src/world/world.ts`
@@ -158,11 +169,12 @@ a held sim).
   S2 adds two hooks, and its B1 adds the objective popup. S2 cuts from the master after hud-guidance PR A if A is on
   master by then; otherwise S2 goes first and A rebases (one-line conflict in the interface). If B1 is not on master
   when S2 lands, S2's release re-applies the current objective through `hud.setObjective` (today's call), which B1's
-  popup then shows; B1's builder keeps that call (noted in both PRs).
+  popup then shows; B1's builder keeps that call (noted in both PRs). After `feature/sector-batch` PR A / PR B
+  (`main.ts`, `gameState.ts` `NetHooks`, `flags.ts`; section 7) or rebase on them.
 - Flag: `mapReady`.
 
-**S3 Warm what arrives later (Opus 5.5). Fix (1).** The guard body variant warmed per kind on the merged-body path
-too (`ai/guardWarm.ts` today warms only `?guardmodels=1`), so a guard spawned after the release (inside 7 m, A8; a
+**S3 Warm what arrives later (Opus 5.5; two independent Opus checkers, Guard AI reviews the `src/ai` part: RULES "A
+job"). Fix (1).** The guard body variant warmed per kind on the merged-body path too (`ai/guardWarm.ts` today warms only `?guardmodels=1`), so a guard spawned after the release (inside 7 m, A8; a
 course bay's squad; a reinforcement) compiles nothing; course mode lists its bays' kinds at load (`courseMode.ts`);
 the helmet drop and shield meshes start loading at load when the run's guards can carry them (`guardHelmet.ts`,
 `guardShield.ts`); audio ready promises for the `audio` step and for S11's preload (`gameAudio.ts`, `weaponAudio.ts`,
@@ -196,13 +208,17 @@ time from the current map data, never committed, read only on an exact key match
    `LampResult` and return it as a hit (`lightBake.ts:104-106` path); any mismatch, missing file or bad size -> null,
    and the PC bakes as today. A preloaded copy (S11) is used when its key matches. `src/pwa/runtimeCaching.ts`: a
    `bakes` runtime rule (cache-first, like `guards`); `precacheGlobs.ts`: `**/bakes/**` ignored.
-4. Wait-all (the old S4): with the flag on, `bake-all` waits for every campus section; when all lamps are in at the
-   release, `markPlaying` writes the joined result to the cache then (SB14 allows it: not mid-play) instead of at the
-   first section change (row 12). With a shipped hit nothing is written (the file is the cache).
+4. Cache write at the release: S4 owns only the `markPlaying` write (`voxel/sectionJobs.ts`): when all lamps are in
+   at the release, `markPlaying` writes the joined result to the cache then (SB14 allows it: not mid-play) instead of
+   at the first section change (row 12). With a shipped hit nothing is written (the file is the cache; if that skip
+   needs a change in `voxel/lampJobs.ts`, it is in S4's files). The `bake-all` wait for every section is S2's
+   (`game/mapGate.ts`); S4 runs in W1 before S2 and only exposes `sections.done` as today.
 5. CI: `.github/workflows/deploy.yml` (build-check and the deploy builds) and `preview.yml` restore / save
-   `node_modules/.cache/prebake` with `actions/cache` keyed on `hashFiles('src/world/**', 'src/voxel/**')`, so a
-   build without a lamp or level change bakes nothing.
-- Files: `src/world/lightBake.ts`, `src/world/shippedBake.ts`, `src/voxel/sectionJobs.ts`, `src/pwa/runtimeCaching.ts`,
+   `node_modules/.cache/prebake` with `actions/cache`, key `prebake-${{ hashFiles('src/**', 'scripts/prebake/**') }}`
+   and `restore-keys: prebake-` (the newest folder comes back on any miss; the prebake reads it only under the exact
+   lamp key, so a build without a lamp or level change bakes nothing even when other `src` files moved).
+- Files: `src/world/lightBake.ts`, `src/world/shippedBake.ts`, `src/voxel/sectionJobs.ts`, `src/voxel/lampJobs.ts`
+  (only if the shipped-hit skip needs it), `src/pwa/runtimeCaching.ts`,
   `src/pwa/precacheGlobs.ts`, `vite.config.ts`, `scripts/prebake.mjs`, `scripts/prebake/**`,
   `.github/workflows/deploy.yml`, `.github/workflows/preview.yml`, `tests/shippedBake.test.ts`,
   `tests/sectionBake*.test.ts`; `package.json` (shared). Est. lines: 1,000 (no baked data in git).
@@ -227,7 +243,8 @@ gate runs as solo plus "a hold snapshot applied" in `content`; then it sends `mr
 screen until `go`. Host: its gate, then holds (clock 0, a snapshot at 2 Hz so clients build puppets and partners,
 nothing else sent) until every start player's `mr` or the grace (A5), then broadcasts `go` and releases. A client with
 no `go` by its cap plus 30 s reveals into the existing "Waiting for host..." text (`net/objectiveMirror.ts`) and the
-host-drop path. Late joiners and rejoiners: local gate only, never `mr` / `go`. `mr` joins the host whitelist
+host-drop path. Boot bar text in the `peers` step (through S2's step-text hook): "Waiting for partner" on the host and
+on a client waiting for `go` (walk item 3). Late joiners and rejoiners: local gate only, never `mr` / `go`. `mr` joins the host whitelist
 (`session.ts:205`); both get `parseMessage` cases (`protocol.ts:796-1046`).
 - Files: `src/net/protocol.ts`, `src/net/session.ts`, `src/net/coopHost.ts`, `src/net/coopClient.ts`,
   `tests/mapReadyNet.test.ts`, `scripts/e2e-ctcourse.mjs` (the co-op assertions). Est. lines: 650.
@@ -287,7 +304,8 @@ match's defines (the step past S11's data preload, A19); Marlow Yard / warehouse
 - Checks: a fresh Opus plan checker reads SHORTEN.md against BRIEF (A12, A13) and the numbers; the lead accepts it.
 - Done looks like: SHORTEN.md names the top 3 remaining costs in seconds from the laptop run, one chosen cut with its
   files, size (a build slice under 800 lines), model and checks, and what it hands to the V12 owner if one exists.
-- Order: its plan after the after-S11 laptop run; its build slice joins this PLAN as S12 when accepted.
+- Order: its plan after the after-S11 laptop run; its build slice joins this PLAN as S14 when accepted (S12 / S13 are
+  Q3's).
 
 **S9 Kept parts: model files and textures (Opus 5.5). Fix (4).** A `core/keptParts.ts` holder that lives on the
 `App` (not on a match): (a) one parsed-file cache for every GLB the match reads: kit, props and campus art move from
@@ -326,11 +344,14 @@ drops every kept effect (a stripped effect cannot rebuild itself). A plugin audi
 (`world/bakedLamps.ts:1387+`, `world/surfacePlugin.ts`, `world/levelMaterialPlugin.ts`, `player/smoothBodyPlugin.ts`,
 `operators/runtime/guardFigurePlugin.ts`, `cosmetics/patternPlugin.ts`) must depend only on its defines and module
 constants, so an equal key always means equal code; any per-map value found moves into a define or a uniform in this
-slice (one more file each, listed in the PR) or its material is kept out of the budget.
+slice (the five plugin files are in the claims block for this; only those the audit finds are edited, listed in the
+PR) or its material is kept out of the budget.
 - Files: `src/core/app.ts`, `src/core/keptParts.ts`, `tests/pluginCode.test.ts` (two plugin instances made for two
   different maps give the same code for the same defines), `tests/keptParts.test.ts` (kept effects survive a release
-  and are returned on the same key; no kept effect reaches its old material; context loss drops them). Plugin files only
-  if the audit finds a per-map value. Est. lines: 550.
+  and are returned on the same key; no kept effect reaches its old material; context loss drops them). Plugin files
+  (claimed) only if the audit finds a per-map value: `src/world/surfacePlugin.ts`, `src/world/levelMaterialPlugin.ts`,
+  `src/player/smoothBodyPlugin.ts`, `src/operators/runtime/guardFigurePlugin.ts`, `src/cosmetics/patternPlugin.ts`
+  (`world/bakedLamps.ts` is already claimed). Est. lines: 550 (+ up to ~20 a plugin).
 - Checks: vitest `tests/pluginCode.test.ts tests/keptParts.test.ts`, tsc; affected e2e plus `e2e-lightbake` (repeat
   load in the page, S6's assert run by hand before S6 lands) and `e2e-desktop` (quality changes mid-match still apply).
 - Done looks like: the second load of a map in the same page creates 0 new programs for kept materials (S1 counter);
@@ -356,18 +377,42 @@ change cancels the old preload; leaving the lobby or briefing drops what the kep
   seconds on a first-ever load and near-instant on a repeat (the after-S11 run, A12); in co-op both lobby lines read
   "Map ready" before the host's Start and S5's handshake releases both together.
 - Order: after S2 (`main.ts`), S3 (`guardKindsFor`, audio promises), S4 (`shippedBake.ts`), S9 (kept parts), and after
-  `feature/player-batch-j19` S3 (its lobby rows, `coopUi.ts:518-526`). Then the after-S11 laptop alone run (same
+  `feature/player-batch-j19` S3 (its lobby rows, `coopUi.ts:518-526`) and `feature/sector-batch` PR A / PR B
+  (`briefingScreen.ts` :57 / :60, `main.ts`; section 7). Then the after-S11 laptop alone run (same
   script as S1) feeds Q2 and S8.
 - Flag: `mapReady` (off: no preload, no lobby line).
 
+**S12 and S13: Michael's fixes (3) and (4) in full (only with Q3's second or third option; sketch, not briefed).**
+Neither is built until Q3 picks it. When picked, the planner researches them (`research/one-scene.md`: every system
+that holds a scene reference and its clean-up), writes them out in this section with files and checks, and a fresh
+Opus plan checker passes them before any build.
+- S12 One scene, only the level swapped (Opus 5.5; two independent Opus checkers, Guard AI reviews `src/ai` and
+  `src/net`). The match scene lives on the `App` for the session; at a map change the level (`World`: voxel sections,
+  kit / props / art meshes, Havok static bodies, nav grid, lamps, devices) is disposed and the next one built in the
+  same scene; the player, partner, weapons, guard pool and post stack stay as objects and are reset (place, state,
+  timers). Every match system gets a `reset()` and a leak test: after 3 swaps the heap is within 5% of after 1 and no
+  object of an old level is reachable (the 3.1.7 guard). Likely files: `core/app.ts`, `game/gameState.ts`,
+  `world/world.ts`, the guard director and pool, the device and pickup systems, `net/coopHost.ts`,
+  `net/coopClient.ts`. Est. ~1,400 lines in two PRs (the reset hooks, then the swap). Flag: `mapReady`. Order: after
+  S10 and S11 (it replaces S10's hand-over in `releaseState` for the swap path).
+- S13 The level built in the lobby (Opus 5.5; two independent Opus checkers for its `coopUi.ts` part). With S12, the
+  picked map's level is built into the kept scene, disabled, while the menu stage renders (solo: briefing open; co-op:
+  every peer when the lobby names the map); a first-ever load also renders it once to a small hidden target so its
+  shaders compile in the lobby. Never two levels at once: a map change disposes the half-built one. Est. ~700 lines.
+  Order: after S12. Memory: the menu stage plus one level in the lobby, inside the unchanged memory target
+  (FOLDED-PLAN Q4).
+- With Q3's first option neither is built; they return only if the after-S11 run shows repeat loads above
+  near-instant (Q2).
+
 Order: W1 (now, disjoint files): S1, S4, S9. W2: S2 (after S1), S10 (after S9). W3: S3 (after S2), S5 (after S2 and
 j19 S3). W4: S11 (after S2, S3, S4, S9, j19 S3). W5: S6 (after S5, S11), then the after-S11 laptop alone run, S8's
-plan, Q2. S7 after Q1 and that run. Parallel slices run in their own worktrees (`feature/map-ready-s<k>`).
+plan, Q2. S7 after Q1 and that run. S12 then S13 after S11, only if Q3 picks them. Parallel slices run in their own
+worktrees (`feature/map-ready-s<k>`).
 
 ## 4. Flags (dark until accepted)
 | Flag | Default | Owner | Switch-on date | Switches on when |
 | --- | --- | --- | --- | --- |
-| `mapReady` (`?mapready=1`) | off | Night Shift \| Sector Ops Build | after the Sector Ops and Marlow Yard walks land (both at cap), target 2026-11-01 | S2-S6 and S9-S11 passed, Q1 answered, Michael accepts the walk items below on campusOps (solo, co-op) and Marlow Yard (co-op) |
+| `mapReady` (`?mapready=1`) | off | Night Shift \| Sector Ops Build | after the Sector Ops and Marlow Yard walks land (both at cap), target 2026-11-01 | S2-S6 and S9-S11 passed (and S12 / S13 if Q3 adds them), Q1 and Q3 answered, Michael accepts the walk items below on campusOps (solo, co-op) and Marlow Yard (co-op) |
 
 A16 (the seed-free bake key) is not behind the flag: same bytes, a cache bug fix.
 
@@ -399,6 +444,11 @@ Marlow Yard (ctcourse):
   the runtime part; over the cap it stops and re-plans.
 - Prebake time on CI: about the desktop's S1 section (88.6 s single thread) per lamp or level change; the
   `actions/cache` key keeps other builds at zero. The laptop's e2e builds bake once per lamp change in each checkout.
+- Prebake on local builds: it runs in every `npm run build`, flag on or off, so each worktree's first build after a
+  lamp or level change spends ~90 s of all cores (vitest pool) on the desktop and the laptop. Against the desktop CPU
+  target (RULES "Machines"): `node_modules/.cache/prebake` is per worktree, so parallel jobs each bake once per lamp
+  change; S4 logs the desktop seconds and, if a busy desktop shows the cost, adds `PREBAKE=0` (skip; the build then
+  has no shipped bake and the PC bakes as today) for non-release builds, noted in testing-tools.md by S7.
 - Kept effects (S10) are the 3.1.7 leak's ground: a missed back-reference keeps a whole match alive. Mitigation: the
   heap check over 3 loads (S9, S10), the strip list from Babylon 9.29's own fields, and the flag.
 - A cold campus bake on a dev build (no shipped files) may outlast the cap (S1 alone 22 s at 4 workers; a dead worker
@@ -410,14 +460,30 @@ Marlow Yard (ctcourse):
   `e2e-sectorops` by themselves; J20 T5 (`feature/test-runner-j20`) adds it. Until that merges the lead requests
   `e2e-sectorops` part 6 by hand on S2 / S4 / S11 PRs.
 - Q1 (cap) is Michael's: until answered the build uses 45 s behind the dark flag (A2, logged overnight). Q2 (load
-  numbers, the warehouse line) comes after the after-S11 run (A12, A14).
+  numbers, the warehouse line) comes after the after-S11 run (A12, A14). Q3 (how far fixes (3) and (4) go): until
+  answered S9-S11 build option 1 (A18, A19, logged as narrowing his pick); options 2 and 3 add S12 / S13 after S11,
+  so no W1-W4 work is wasted either way.
 
 ## 7. Overlaps
-`node scripts/claims-check.mjs --plan docs/map-ready/PLAN.md --name feature/map-ready` (2026-10-25 ~19:40, this
-PLAN): 27 overlaps across 12 jobs (sub-branches of one job counted once below). No other plan claims the new files of
-S4, S9, S10 or S11 (`lightBake.ts`, `shippedBake.ts`, `keptParts.ts`, `figure.ts`, kit / props / art renders,
-`preload.ts`, `briefingScreen.ts`, `vite.config.ts`, the workflows, `pwa/*`) except `coopUi.ts` (j19). Every overlap
-is a shared big file in other functions; whichever lands second rebases on its branch.
+`node scripts/claims-check.mjs --plan docs/map-ready/PLAN.md --name feature/map-ready` (2026-10-25 ~20:00, this
+PLAN after plan check 2): 34 plans with claims, 33 overlaps across 13 jobs (sub-branches of one job counted once
+below), exit 1 (overlaps listed, none a blocker). No other plan claims the new files of S4, S9, S10 or S11
+(`lightBake.ts`, `shippedBake.ts`, `keptParts.ts`, `figure.ts`, kit / props / art renders, `preload.ts`,
+`vite.config.ts`, the workflows, `pwa/*`, `lampJobs.ts`, the five S10 plugin files) except `coopUi.ts` (j19) and
+`briefingScreen.ts` (sector-batch, below). S12 / S13 (Q3) are not claimed yet: their files join this block when they
+are planned, with a new claims-check. Every overlap is a shared big file in other functions; whichever lands second
+rebases on its branch.
+- `feature/sector-batch` (Sector Ops, same lead, J18; PR A = B1-B3 on `feature/sector-batch`, PR B = B4 on
+  `feature/sector-batch-out`): `gameState.ts` (B4: `returnOut?` in `NetHooks` after :229; S2's hooks go in
+  `NetAttachment` :177), `main.ts` (B1: :164, :257 menu stars; S2: :412 boot fade, S11: `app.preload` hook),
+  `flags.ts` (one line each), `ui/screens/briefingScreen.ts` (B1 :60, B4 :57: the briefing text lines in
+  `briefBlock()`; S11 adds the "Map loading" / "Map ready" line under Start in `build()`), `coopHost.ts` (B4 :580,
+  :1894-1921; S5 the start hold ~:1701), `coopClient.ts` (B4 :618; S5 `go` handling), `e2e-sectorops.mjs` (B1 :123,
+  :151-153, :163; B4 a block after :983; S6 part 6 :1946-1957), `TESTING.md` (B1 :46-48, B4 after :51; S7 one line at
+  the end of its list), `lighting.md` (B3 :23-24; S7 the "Per-section lamp bake" section). No shared line. Order: both
+  sector-batch PRs land first (they start now and are small: ~465 and ~260 lines); S2, S5, S6, S7 and S11 cut from the
+  master that carries them, or rebase if one slips (the second to land takes both edits in `briefingScreen.ts` and
+  `main.ts`). Sector-batch's own PLAN section 7 already lists map-ready the same way.
 - `feature/player-batch-j19` (Player): `gameState.ts`, `protocol.ts`, `coopHost.ts`, `coopClient.ts`, `session.ts`,
   `coopUi.ts`, `flags.ts`, `gameAudio.ts`; wire `cmove`, `revive`, `lobby`, `start`, `use`. Its S3 adds `ff` to
   `lobby` / `start` and the lobby rows (`coopUi.ts:518-526`). Order: S5 and S11 cut from the master after j19 S3 (S5
@@ -436,11 +502,11 @@ is a shared big file in other functions; whichever lands second rebases on its b
 - `feature/char-shadow-meter` (Lighting): `bakedLamps.ts` (a GLSL import), `flags.ts`, `gameState.ts`, `lighting.md`,
   `testing-tools.md`. Its PLAN:205 already lists map-ready (no shared lines; flags one line each). S1 / S2 touch
   `bakedLamps.ts` counters only.
-- `feature/light-realism` (Sector Ops lighting): `lighting.md`; maps campusOps, warehouse. Its campus lamp moves change
+- `feature/light-realism` (+ `-l0`; Sector Ops lighting): `lighting.md`; maps campusOps, warehouse. Its campus lamp moves change
   the lamp key, so the prebake bakes again on its PR (A15: nothing to sync by hand); S7 edits only the "Per-section
   lamp bake" section of `lighting.md`.
 - `feature/guard-ai-mission-hooks` (Guard AI): `flags.ts` (its own flag lines). One line each.
-- `feature/test-runner-j20` (+ 12 slice branches; Test Runner): `e2e-sectorops.mjs`, `e2e-ctcourse.mjs`,
+- `feature/test-runner-j20` (+ 14 slice branches; Test Runner): `e2e-sectorops.mjs`, `e2e-ctcourse.mjs`,
   `testing-tools.md`. S6 / S7 start after its S6c / PR-C merge or append without editing its lines.
 - `feature/route-runs-2` (Marlow): `testing-tools.md` (one new section). S7 appends its own section.
 - `flags.ts` and `gameState.ts` are on most plans: one new flag line; S1 / S2 keep their `gameState.ts` changes to

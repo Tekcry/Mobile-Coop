@@ -3,7 +3,8 @@ Owner: Night Shift | Sector Ops Build. Status: current.
 
 Lead: Night Shift | Sector Ops Build. Started: 2026-10-25. Base: master 2148ec96 (src unchanged to b81c4945). Source:
 ROADMAP row 17 and "Decided" (origin/feature/menu), FOLDED-PLAN J21 (section 4), CONFORMANCE S V10-V12 and T T14.
-Research: `docs/map-ready/research/start-path.md`. Plan check 1: `docs/map-ready/PLAN-CHECK.md` (FIX, folded here).
+Research: `docs/map-ready/research/start-path.md`. Plan checks 1 and 2: `docs/map-ready/PLAN-CHECK.md`,
+`PLAN-CHECK-2.md` (both FIX, folded here; check 2's fix 1 is Q3 below).
 
 ## Michael said
 - 2026-10-25 ~16:50, native multiple choice, Q31 "Saltmarsh Park load time?" (his own words in place of the options):
@@ -33,14 +34,18 @@ for the settings in use, the player, partner, guards and weapons loaded and draw
 player is ready before play starts. The wait has a written cap; past it play starts with what is ready. And the wait
 shrinks: the campus lamps come pre-built with the game, loading starts in the lobby as soon as the map is picked, and
 the costly shared parts (parsed models, decoded textures, compiled shaders) stay alive between matches, so a first-ever
-load takes seconds and a repeat load is near-instant.
+load takes seconds and a repeat load is near-instant. How far fixes (3) and (4) go (one scene kept with only the level
+swapped, and the level itself built in the lobby) is Michael's call: Q3. Until he answers, the PLAN builds the
+recommended option (A18, A19), which is narrower than his words, and says so.
 
 ## Limits
 - Out of scope: guard-cap C1 / C2 and 60 fps at 32 guards (Q4), campus frame time (V10) and allocation churn (T14),
   `perf.mjs` map-label fix (T14, Test Runner), the body-shader cost work itself (V12 held slice: S8 here only plans
   the shortening), the menu's own load gate (done, `world/menuGate.ts`), Tallow (Michael lifted the hold ~18:05; no
-  Tallow map is built yet, so none is traced; the gate is per state and covers it when it lands), phone (G12), a single
-  persistent scene with the level swapped in place (A18).
+  Tallow map is built yet, so none is traced; the gate is per state and covers it when it lands), phone (G12). Held
+  for Michael, not dropped: one persistent scene with only the level swapped (his fix (4) word for word) and the level
+  built in the lobby (his fix (3) in full) are not in this PLAN's build until Q3 is answered; Q3's second and third
+  options add them as S12 / S13 (PLAN section 3).
 - Rules that hold: gameplay never reads graphics state (CLAUDE.md; the gate only delays the sim's start, nothing in the
   sim reads it; the shipped bake is the same bytes the PC would bake, A15); no runtime network (the shipped bake is a
   same-origin file in the build like the GLBs); co-op code only in `src/net` behind the dynamic import; a wire change
@@ -83,8 +88,9 @@ load takes seconds and a repeat load is near-instant.
   messages at the start (research 2). This is the load handshake fix (3) needs at the start; the lobby preload itself
   sends nothing (A19). Undo: drop S5; the host sends nothing new.
 - A7: Flag `mapReady` (`?mapready=1`), default off, owner Night Shift | Sector Ops Build. It gates the gate, the hold,
-  the shipped-bake read, the kept parts and the lobby preload. Switch-on when Michael has walked it on campusOps (solo
-  and co-op) and Marlow Yard, and both areas are under the cap. Undo: n/a (flag off is today).
+  the shipped-bake read, the kept parts and the lobby preload (and S12 / S13 if Q3 adds them). Switch-on when Q1 and
+  Q3 are answered, Michael has walked it on campusOps (solo and co-op) and Marlow Yard, and both areas are under the
+  cap. Undo: n/a (flag off is today).
 - A8: Guards inside `SPAWN_MIN_DIST` 7 m of a player still wait to spawn (gameplay rule, `sectorMode.ts:127`); their
   body variant is warmed by kind on the loading screen, so their late arrival compiles nothing. Undo: none needed.
 - A9: The weapon sound sprite and the first music cue decode inside the gate (same cap); with the lobby preload they
@@ -121,21 +127,28 @@ load takes seconds and a repeat load is near-instant.
 - A17: Only campusOps ships pre-built (Michael named the campus). Marlow Yard and warehouse bake in full on the PC
   before play (cached after A16). If the after-S11 run shows either bake costing more than 2 s on a first load, it
   joins the same manifest (one entry, same script), logged in PLAN. Undo: n/a.
-- A18: Fix (4) "keep characters, guards, weapons and compiled shaders between maps and swap only the level" is built as:
+- A18 (narrows Michael's ~18:50 pick (4); Q3 by day; overnight logged and sent to the orchestrator for his next
+  look): fix (4) "keep characters, guards, weapons and compiled shaders between maps and swap only the level" is built as:
   their costly parts stay alive on the engine between matches (parsed model files, decoded textures, compiled shader
   programs), and each match still gets a fresh scene in which the level, the rigs and the meshes are rebuilt from those
   kept parts (cheap: no fetch, transcode or compile). The kept set is at most what one match uses (the player's and
   partner's play LODs, the weapons in the loadouts, the last map's guard kinds; never the 55 MB hero), counted inside
   the unchanged memory target (Q4), and is dropped on a GPU context loss. A persistent scene with only the level
-  swapped is not built (every system would have to clean up perfectly; a leak there keeps a whole match alive, the
-  3.1.7 bug). Undo / extend: if the after-S11 run shows repeat loads still above near-instant because of scene
-  rebuild cost, a persistent-scene job is planned then.
-- A19: Fix (3) "start loading the map in the lobby once it is picked": solo, when the map's briefing opens (Sector Ops,
+  swapped is not built until Q3 says so (the recommended option; why: every system would have to clean up perfectly,
+  and a leak there keeps a whole match alive, the 3.1.7 bug). What a repeat load still rebuilds under A18: the level
+  (`World.create`: voxel sections, kit / props / art meshes, Havok bodies, nav grid, lamps from the cache), the rigs and
+  meshes instanced from kept files, the guards and devices; S1 measures those seconds per map. Undo / extend: Q3's
+  second option builds S12 (one scene, level swapped) now; its third builds S12 after S11 whatever the numbers; with
+  the first, S12 comes back only if the after-S11 run shows repeat loads above near-instant (Q2).
+- A19 (narrows Michael's ~18:50 pick (3); Q3 by day; overnight logged and sent to the orchestrator for his next look):
+  fix (3) "start loading the map in the lobby once it is picked": solo, when the map's briefing opens (Sector Ops,
   Missions, Free Roam all open `BriefingScreen`); co-op, on every peer when the host's lobby settings name the map. The
   lobby preload does everything that needs no match scene: the map's model files, the shipped bake files, the player's
   and partner's LODs, the loadout's weapons and the map's guard kinds (parsed, textures decoded and held as kept parts),
-  the weapon sound sprite and first music cue. The scene build and a first-ever shader compile start at Start (they
-  need the match scene); the menu stage stays alive in the lobby (never two matches in memory). The lobby shows its own
+  the weapon sound sprite and first music cue. The level build (`World.create`, Havok, nav grid, the Marlow Yard /
+  warehouse PC bake) and a first-ever shader compile start at Start. That is a design choice, not a hard limit: a
+  second, unrendered scene could be built while the menu stage lives (Q3's second and third options, S13). Under A19
+  the menu stage alone stays alive in the lobby (never a level and the menu built at once). The lobby shows its own
   progress line ("Map loading 62%" / "Map ready"), local only, no wire. A map change cancels and preloads the new one;
   leaving the lobby drops what is not kept. Undo: the hooks are not called (flag off).
 
@@ -143,11 +156,31 @@ load takes seconds and a repeat load is near-instant.
 - Q1: "When a map starts, how long may the loading screen wait for it to finish building (first load after an update;
   later loads are much quicker)?" - options: "45 s, then play (Recommended)" / "30 s, then play (some pop-in on a first
   load)" / "90 s, then play". Decision pack: the cold body-shader compiles (29-44 s on a first-ever load, V12), the
-  research table, and that the campus lamps now ship pre-built (no bake wait) and repeat loads aim at near-instant.
+  research table, and that the campus lamps now ship pre-built (no bake wait; the game download grows by up to 48 MB
+  for them, A15's cap) and repeat loads aim at near-instant.
   Blocks: switch-on and the performance.md line (S7), nothing in the build (flag dark). Default until answered: A2
   (45 s), logged overnight as "loosens performance.md WARMUP_MAX_MS 6 s".
 - Q2 (later, after the after-S11 laptop run, not asked now): the load-time numbers for Q31's review (first-ever and
   repeat, campus, Marlow Yard, warehouse) and, if needed, the warehouse line (A14).
+- Q3 (fixes (3) and (4) as picked ~18:50; asked by day, one click, native multiple choice; the recommended option is
+  narrower than his words, so he decides): "Your fast-loads pick said: start loading the map in the lobby, and keep
+  characters, guards, weapons and shaders between maps and swap only the level. How far should we build it?" -
+  options, recommended first:
+  1. "Keep the costly parts, build the level at Start (Recommended)" - the lobby loads the map's files, textures and
+     sounds; characters, guards, weapons and compiled shaders are kept between maps; the level and the bodies are
+     rebuilt at Start from the kept parts (nothing downloaded or compiled again). If repeat loads are still not
+     near-instant when measured, the full version is planned then.
+  2. "Full version now: one scene, level built in the lobby" - the game keeps one scene all session and swaps only the
+     level, and the next level is built while you wait in the lobby. Quickest repeat loads; adds two slices (about two
+     days) and risks the old memory leak (3.1.7: one missed clean-up keeps a whole old match in memory).
+  3. "Recommended now, full version straight after" - option 1 first, then option 2's two slices after it, whatever
+     the measured times.
+  Decision pack: the 3.1.7 leak in two lines; what a repeat load still rebuilds under option 1 (A18) with S1's
+  measured seconds per map when S1 is in (asked by day without waiting if it is not); memory: option 2 holds the
+  menu and one built level at once in the lobby, inside the unchanged memory target (FOLDED-PLAN Q4); the S12 / S13
+  sketch (PLAN section 3). Blocks: nothing in W1-W4 (S9, S10 and S11 are needed by every option); options 2 and 3 add
+  S12 and S13 after S11; the flag's switch-on waits for the answer. Default until answered: option 1 (A18, A19),
+  logged overnight as "narrows Michael's ~18:50 pick (3) and (4)" and sent to the orchestrator.
 
 ## Sign-off needed
 No map, layout or look change (the shipped bake is the same bytes, A15). The lobby and briefing gain one progress
