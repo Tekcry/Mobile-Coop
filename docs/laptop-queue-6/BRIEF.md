@@ -25,31 +25,40 @@ Evidence (`C:/NightShift/scratch/laptop-queue/log.txt`, UTC; local = UTC+11; mer
 | 106 | 105: 11:43:07 | 11:48:37 | 11:46:07 | 11:47:00 guard-ai-a78d7093-04fe (rules-pr1) | 11:50:20 | 3.3 min |
 
 Total 22.4 slot-min in 5 trains (the 23:05 window's 13.6 = the last three rows). Each cut run is queued again, so its
-whole wall is redone. In every row a green train-ready PR not in any train was waiting when the run was claimed
-(train 102: #455 labelled 10:23:55; 105: #438 labelled 11:23:59, 6 s before the 11:24:05 claim; 106: #464 11:44:37),
-so the next train was predictable. Train 102 shows the second gap: a candidate that turns ready long after a release
+whole wall is redone. In 5 of the 6 rows a green train-ready PR not in any train was visible when the run was claimed
+(train 102: #455 labelled 10:23:55; 106: #464 11:44:37), so the next train was predictable. The exception is
+10dc0a9e: #438 was labelled 11:23:59 and the 11:24:01 pass did not see it (A8). Train 102 shows the second gap: a candidate that turns ready long after a release
 (no gap at all then) gets its train ~3 min later (10:23:55 label, 10:26:54 head).
 
-None of the cut runs could have finished in time: coop-real suites have no times.json entry, 10dc0a9e and rules-pr1
+None of the cut runs could have finished before its train: coop-real suites have no times.json entry, 10dc0a9e and rules-pr1
 were ~10-11 min of suites. Short runs did fit in the same windows (3889cfce 3 suites 12 s, marlow rating 85 s).
 Prep overhead (claim to done minus suite wall) measured 74-111 s on 5 runs.
 
 ## Assumed decisions
-- A1. Predict the next train's arrival (ETA) instead of a fixed gap: ETA = max(merge + 6.5 min, first time the
-  candidate was seen ready + 3 min); during an open train's releasing state ETA = laptop success + 2 min + 6.5 min.
-  Undo: set `LQ_TRAIN_GAP_MIN=3 LQ_TRAIN_LATE_MIN=0 LQ_TRAIN_READY_LAG_MIN=0` (the old 3-min gap, no late window).
+- A1. Predict the next train's arrival (ETA) instead of a fixed gap. ETA = max(merge + 6.5 min, first time a candidate
+  head was seen with a GREEN check + 3 min); while an open train is releasing, merge = laptop success + 2 min. A
+  candidate whose check still runs keeps a releasing / merged hold on (ETA from the merge only) but never sets or
+  extends the ETA, and never starts a hold by itself: auto-train builds only on a green check and holds at most 3 min
+  per running head (auto-train.md:80). A failed check counts for nothing. Undo: `LQ_TRAIN_GAP_MIN=3
+  LQ_TRAIN_LATE_MIN=0 LQ_TRAIN_READY_LAG_MIN=0` (the old 3-min gap, no late window).
 - A2. Measure from the merge time, not from the deploy run: one fewer GitHub call per pass, and the build lag after the
   deploy still has to be guessed. Undo: read the newest `deploy.yml` workflow_dispatch run and anchor ETA on its end.
 - A3. While the hold is on, a pr request still starts when it fits: 120 s prep + 1.2 x its expected wall (times.json,
-  lib `expectedWallS`) ends before ETA. Unknown suites, full and alone runs never fit. Undo: `LQ_FIT_PREP_S=99999`.
-- A4. The hold ends at ETA + 5 min (`LQ_TRAIN_LATE_MIN`) even with candidates waiting (auto-train paced, at its daily
-  cap or holding on a red check): at most 11.5 min of idle slots per release, 8 min per newly ready PR. Undo: env.
-- A5. The cut side is unchanged (lib `cutShort`, 80% progress rule): prevention removes all 6 cases; a grace for a
-  near-done run would delay every train and none of the 6 was near done. Undo: n/a.
+  lib `expectedWallS`) ends before ETA. Unknown suites, full and alone runs never fit. A fitted run caught by an early
+  train relies on lib `cutShort`'s 80% rule (train 105's head came at merge + 6.58 min against the 6.5 gap).
+  Undo: `LQ_FIT_PREP_S=99999`.
+- A4. Pacing assumption: auto-train builds right after the release (same tick, auto-train.md:74). If its pacing waits
+  (min interval, daily cap, a check-wait hold), the hold ends at ETA + 5 min (`LQ_TRAIN_LATE_MIN`) anyway: at most
+  11.5 min of held slots per release, 8 min per newly green PR. Undo: env.
+- A5. The cut side is unchanged (lib `cutShort`, 80% rule): none of the 6 cut runs was near done, and a grace would
+  delay every train. Prevention catches 5 of the 6 (not 10dc0a9e, A8). Undo: n/a.
 - A6. `LQ_RELEASE_HOLD_MIN` / `RELEASE_HOLD_MS` retire (the releasing ETA replaces them). Undo: revert the PR.
 - A7. Candidates that merged with the last train (still labelled until the release tail closes them) no longer count:
   a head already in `origin/master` is excluded. Undo: drop the master test in `readyHeads`'s inTrain.
-- A8. A candidate labelled seconds before a claim may still be missed (105: 6 s); not chased. Undo: n/a.
-- A9. Cost, replayed on the 5 trains: the 6 cut runs are held (22.4 slot-min saved); 3 runs that happened to finish
-  before a late train are held too (eab8c758 10:43:49, ffb7f02a 11:04:02, 97c6338f 11:46:14; ~11.6 slot-min of
-  idle slots, the work runs after the train). Net ~11 slot-min saved per 5 trains plus no repeat runs.
+- A8. A candidate labelled seconds before a claim is missed: train 105's 11:24:01 pass saw no candidate (#438 labelled
+  11:23:59), so 10dc0a9e (claimed 11:24:05, cut 11:30:58, 6.9 slot-min) is still lost. Not chased. Undo: n/a.
+- A9. Cost, replayed on trains 102-106: 5 cut runs held, ~15.5 slot-min saved; 3 runs that happened to finish before a
+  late train are held too (eab8c758 10:43:49, ffb7f02a 11:04:02, 97c6338f 11:46:14; ~11.6 slot-min of idle slots, the
+  work runs after the train). Net ~+4 slot-min per 5 trains, plus 5 fewer repeat runs and their PR delay.
+- A10. First-seen-green times persist in state.json (`state.trainReady`), so a service restart does not re-stamp them.
+  Undo: drop the key (a restart then restarts the ready lag).
