@@ -3,7 +3,7 @@
 Michael (G355): "All current maps/features should be revised once documentation work has been completed". No script, test, queue or config change.
 
 ## Docs
-origin/master after #407 (and #400) land (until then read `C:/NightShift/Mobile-Coop-doc-polish-l`).
+origin/master after #407 (and #400) land (until then read origin/feature/doc-final: `git show origin/feature/doc-final:<path>`).
 
 ## Scope
 - Suites: `scripts/run-e2e.mjs`, `scripts/e2e-*.mjs`, `scripts/e2e-affected.mjs` (`DIRECT_COVERS`), `scripts/e2e-quarantine.json`, `scripts/e2e-times.json`, `tests/` (vitest); `TESTING.md`.
