@@ -1,7 +1,7 @@
 // Laptop queue (docs/laptop-queue/PLAN.md): the pure logic, no fs, no child_process, no network. service.mjs (the loop)
 // and request.mjs (the desktop CLI) import it; tests/laptop-queue.test.ts covers it. e2e-affected.mjs is pure too (the
 // suite selection affectedSuites shares with request.mjs --affected).
-import { selectSuites, affectedGateSuites, DIRECT_COVERS, WIDE_COVERS } from '../e2e-affected.mjs';
+import { selectSuites, affectedGateSuites, affectedReportSuites, withWireSuites, DIRECT_COVERS, WIDE_COVERS } from '../e2e-affected.mjs';
 // parseLock is pure (heavy-lock.mjs's own fs use stays in its functions, none run on import)
 import { parseLock } from '../heavy-lock.mjs';
 
@@ -435,7 +435,9 @@ export function dupKey(r) {
   const opt = (v) => (v === undefined || v === null || v === '' ? '' : String(v));
   // a laptop rerun of a desktop failure never matches the desktop run it rechecks (that run is still active when it is
   // pushed); the extra element only on reruns, so older keys in state.done stay comparable
-  return JSON.stringify([r.sha, r.kind, Boolean(r.trainRerun), what, env, opt(r.set), opt(r.jobs), opt(r.pr), ...(r.laptopRerun ? ['laptopRerun'] : [])]);
+  // (J20 T4) the sorted report suites only when present, for the same reason
+  const report = Array.isArray(r.report) && r.report.length ? [['report', ...[...r.report].sort()]] : [];
+  return JSON.stringify([r.sha, r.kind, Boolean(r.trainRerun), what, env, opt(r.set), opt(r.jobs), opt(r.pr), ...(r.laptopRerun ? ['laptopRerun'] : []), ...report]);
 }
 
 /**
@@ -964,19 +966,25 @@ export function queueRequester(r) {
  * The suites a committed change must pass, shared by request.mjs --affected and the service's affected pass: the files
  * from the merge-base of `base` and sha to sha (`git diff --name-only --no-renames`), through e2e-affected selectSuites
  * (DIRECT_COVERS; wide: WIDE_COVERS). run(args) runs git and returns its stdout (injected: this file stays pure); it must
- * throw on failure (a failed diff read as "no files" would pass the head). Returns { base: merge-base, files, suites },
- * or null when there is no merge-base or git failed; suites [] = no browser suite reached (docs / unit only).
+ * throw on failure (a failed diff read as "no files" would pass the head). The wire rule (J20 T1, e2e-affected
+ * withWireSuites) reads src/net/protocol.ts at sha (`git show <sha>:src/net/protocol.ts`), so a PR that edits the
+ * wire's imports is judged by its own protocol.ts. Returns { base: merge-base, files, suites, report }, or null when
+ * there is no merge-base or git failed; suites = the gate (affectedGateSuites), report = the LEGACY / AUDIO suites the
+ * selection reached, run REPORT ONLY (J20 T4, BRIEF A1); suites [] = no gate suite reached (docs / unit only).
  */
 export function affectedSuites(run, sha, { base = 'origin/master', wide = false } = {}) {
   let mb;
   let out;
+  let protocol;
   try {
     mb = String(run(['merge-base', base, sha]) ?? '').trim();
     if (!mb) return null;
     out = String(run(['diff', '--name-only', '--no-renames', mb, sha]) ?? '');
+    protocol = String(run(['show', `${sha}:src/net/protocol.ts`]) ?? '');
   } catch { return null; }
   const files = out.split(/\r?\n/).map((f) => f.trim()).filter(Boolean);
-  return { base: mb, files, suites: affectedGateSuites(selectSuites(files, wide ? WIDE_COVERS : DIRECT_COVERS)) };
+  const picked = withWireSuites(selectSuites(files, wide ? WIDE_COVERS : DIRECT_COVERS), files, protocol);
+  return { base: mb, files, suites: affectedGateSuites(picked), report: affectedReportSuites(picked) };
 }
 
 /**
@@ -1008,10 +1016,26 @@ export function affectedNeeds(prs, requests = [], seen = new Set()) {
 /**
  * The request the affected pass enqueues for a PR head: the shape request.mjs --affected writes (kind pr, set
  * 'affected', so its own context is laptop-e2e/affected), requester AFFECTED_REQUESTER, the PR number (the failure
- * comment goes there). suffix = 4 random hex (injected), as request.mjs adds.
+ * comment goes there). suffix = 4 random hex (injected), as request.mjs adds. report (optional, J20 T4): the LEGACY /
+ * AUDIO suites that run after the gate ones, REPORT ONLY; written only when non-empty.
  */
-export function affectedRequest({ now, pr, sha, branch, suites, suffix }) {
-  return { id: `${requestId(now, AFFECTED_REQUESTER, sha)}-${suffix}`, sha, branch, pr: Number(pr), kind: 'pr', requester: AFFECTED_REQUESTER, suites: [...suites], set: 'affected', note: `auto affected-e2e, PR #${pr}` };
+export function affectedRequest({ now, pr, sha, branch, suites, suffix, report = [] }) {
+  return { id: `${requestId(now, AFFECTED_REQUESTER, sha)}-${suffix}`, sha, branch, pr: Number(pr), kind: 'pr', requester: AFFECTED_REQUESTER, suites: [...suites], ...(report?.length ? { report: [...report] } : {}), set: 'affected', note: `auto affected-e2e, PR #${pr}` };
+}
+
+/** True when `suite` (whole, or a `name:N` part of a listed whole suite) is in `list`. */
+const inList = (list, suite) => Array.isArray(list) && (list.includes(suite) || (String(suite).includes(':') && list.includes(String(suite).split(':')[0])));
+
+/**
+ * The result rows of request r with its report suites marked { report: true, ok: true } (J20 T4, BRIEF A1 / A2): a row
+ * whose suite (or its whole suite) is in r.report, and, for an affected request (AFFECTED_REQUESTER), every row
+ * affectedGateSuites drops (LEGACY / GPU / AUDIO: an affected request queued by master code from before J20 has no
+ * report list, and a runner from before J20 S2 ignores E2E_REPORT). A lead's request without a report list is left
+ * alone. Pure: returns new rows.
+ */
+export function markReport(r, suites) {
+  const aff = r?.requester === AFFECTED_REQUESTER;
+  return (suites ?? []).map((x) => (inList(r?.report, x.s) || (aff && affectedGateSuites([x.s]).length === 0) ? { ...x, report: true, ok: true } : { ...x }));
 }
 
 // ---------- desktop failures rechecked on the laptop (Orchestrator waste audit 2026-10-24, laptop-queue-3) ----------
@@ -1046,10 +1070,24 @@ export function desktopFailDesc(suites, cpu) {
  * The laptop-only request for a desktop run's failed suites: same sha, set, pr, requester and branch, suites = the
  * failed ones, "laptopRerun": true (the desktop never claims it). With no set, the set is the original suites joined
  * by "+", so the rerun posts its verdict on the very context the desktop left pending (lib contextName). suffix = 4
- * random hex (injected), as request.mjs adds.
+ * random hex (injected), as request.mjs adds. An affected request's rerun never gates on LEGACY / GPU / AUDIO (J20
+ * item a, BRIEF A2: affectedGateSuites; a lead's named request keeps every suite it listed); null when no suite is left.
  */
 export function laptopRerunRequest(r, suites, { now, suffix }) {
+  if (r.requester === AFFECTED_REQUESTER) suites = affectedGateSuites(suites);
+  if (!suites?.length) return null;
   return { id: `${requestId(now, r.requester, r.sha)}-${suffix}`, sha: r.sha, branch: r.branch ?? '', pr: r.pr ?? null, kind: 'pr', requester: r.requester, suites: [...suites], set: r.set || (r.suites ?? []).join('+'), laptopRerun: true, note: `desktop failure of ${r.id}, rerun on the laptop` };
+}
+
+/**
+ * An alone step with perf budgets enforced (J20 T14 S, BRIEF A8): a step that runs `scripts/perf.mjs` without
+ * `--budget` and without `--no-budget` (an explicit measure-only run) gets ` --budget` appended; other steps unchanged.
+ */
+export function perfStep(step) {
+  const s = String(step ?? '');
+  if (!/(^|[\s/\\])scripts[/\\]perf\.mjs(\s|$)/.test(s)) return s;
+  if (/(^|\s)--(no-)?budget(\s|=|$)/.test(s)) return s;
+  return `${s} --budget`;
 }
 
 /**
