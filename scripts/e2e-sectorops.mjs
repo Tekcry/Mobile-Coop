@@ -2461,12 +2461,21 @@ if (want(6)) {
         const g = window.__app.current;
         const slots = g.world.map.sectors[k].guards;
         const live = g.enemyMgr.enemies.filter((e) => e.alive);
+        // one guard per slot, paired greedily by 3D distance: S3 stacks slots (the dock grunt at (25, -4.5) on the
+        // ground under the write-up desk officer at (25, -4.2) on L1), so the nearest slot in x/z alone can be the
+        // wrong deck. A guard that fell off a deck still fails: its own slot is left to it, 4.5 m above.
         const bad = [];
-        for (const e of live) {
-          let best = null;
-          for (const s of slots) { const d = Math.hypot(e.pos.x - s.x, e.pos.z - s.z); if (!best || d < best.d) best = { d, y: s.y ?? 0 }; }
-          if (!best || best.d > 3 || Math.abs(e.pos.y - best.y) > 2) bad.push([e.pos.x.toFixed(1), e.pos.y.toFixed(1), e.pos.z.toFixed(1), best ? best.y : null]);
-        }
+        const pairs = [];
+        live.forEach((e, a) => slots.forEach((s, b) => pairs.push([Math.hypot(e.pos.x - s.x, e.pos.y - (s.y ?? 0), e.pos.z - s.z), a, b])));
+        pairs.sort((p, q) => p[0] - q[0]);
+        const match = new Map();
+        const used = new Set();
+        for (const [, a, b] of pairs) if (!match.has(a) && !used.has(b)) { match.set(a, slots[b]); used.add(b); }
+        live.forEach((e, a) => {
+          const s = match.get(a);
+          const y = s ? s.y ?? 0 : null;
+          if (!s || Math.hypot(e.pos.x - s.x, e.pos.z - s.z) > 3 || Math.abs(e.pos.y - y) > 2) bad.push([e.pos.x.toFixed(1), e.pos.y.toFixed(1), e.pos.z.toFixed(1), y]);
+        });
         return { alive: g.enemyMgr.alive, total: g.enemyMgr.enemies.length, bad };
       }, i);
       console.log(`  ${S[i].id}: ${r.alive} alive of ${S[i].guards} slots (${r.total} in the manager), ${r.bad.length} off their floor`);
