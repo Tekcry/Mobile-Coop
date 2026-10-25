@@ -374,13 +374,13 @@
       "section": "W3",
       "type": "reward",
       "room_class": "private_office",
-      "function": "The partners' office: the day book under a warm desk lamp (TKL optional, syringe)",
+      "function": "The partners' office: the day book under a warm desk lamp (TKL optional, no reward)",
       "storey": 0,
       "size": [4, 7, 3],
       "area": [[113, 74, 120, 78]],
       "tension": 2,
       "tags": ["reward"],
-      "note": "Dead end that pays off (reward, 7 m deep)."
+      "note": "Dead end that pays off (the day book, 7 m deep). The `reward` type and tag are the validator's dead-end payoff kind; the campaign optional gives no item (Michael 2026-10-25, folded plan Q19: \"None (Recommended)\")."
     },
     {
       "id": "w3-east-post",
@@ -764,6 +764,7 @@
       "from": "w1-fish-hall",
       "to": "w1-service-passage",
       "kind": "shutter",
+      "gap": 0.9,
       "route": "shadow",
       "width": 3,
       "length": 9,
@@ -826,7 +827,7 @@
       "length": 10.5,
       "time_s": 6,
       "at": [60, 0, 60.5],
-      "reason": "Walkway's west end: a plastered pier, 4.5 m to the balustrade, no handhold: a leg-up puts the first player on it (TEAM.boostMax 4.5; the human ladder grabs only 4.1 m, TEAM.ladderGrab)"
+      "reason": "Walkway's west end: a plastered pier, 4.5 m to the balustrade, no handhold: a leg-up puts the first player on it (TEAM.boostMax 4.5; the relay ladder grabs only 4.1 m, TEAM.ladderGrab)"
     },
     {
       "from": "w2-arcade",
@@ -1336,6 +1337,7 @@
       "from": "w4-back-lane",
       "to": "w4-shed-two",
       "kind": "shutter",
+      "gap": 0.9,
       "route": "shadow",
       "width": 3,
       "length": 17,

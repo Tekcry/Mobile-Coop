@@ -1,5 +1,7 @@
 # mission-framework: sign-off - Two-Key Ledger (campaign, Tallow Wharf W2 -> W3 -> W4)
 
+Signed off by Michael 2026-10-25 ~18:05 (his pick is at the bottom).
+
 ## Picture
 - Plan: [`PLAN.svg`](PLAN.svg) (scale 1 m = 10 px, north up). The whole Tallow Wharf map; Two-Key Ledger uses W2 (arcade lofts),
   W3 (counting house) and W4 (wharf sheds), W1 is drawn for context. Magenta links are co-op moves. Pins: objectives
@@ -26,7 +28,8 @@
    - **5. W4, 3 min (extract):** one holds shed two's shutter, the other crawls under and goes through the shed to the
      jetty. The holder goes round by the shed yard and the quay ladder to the canal ledge and is pulled up onto the
      jetty. Both board the boat.
-   - **Optional (W3):** copy the partners' day book in the east wing office (reward: one syringe).
+   - **Optional (W3):** copy the partners' day book in the east wing office (no reward: campaign
+     optional objectives give none, Michael's Q19 "None (Recommended)"; the day book dates the payment).
 4. Rule (1, whole mission): no kills; knock-outs are fine. Signposted in the briefing ("Rule: no kills. Knock them down
    if you must."), under the objective-list title ("Rule - no kills."), and by LANTERN's line on a break. A kill sends
    both players back to that section's checkpoint; the mission continues. Every guarded space keeps a dark route and a
@@ -34,7 +37,7 @@
 5. What it costs: paper only until you pick. After that: the map greybox, a synced key-turn device, Guard AI
    adds one reaction (a bell sends the porter to it), the mission engine handles the section restart. Validator: 0
    errors; 6 warnings, all the map's own (5 custom room sizes, the coal chute's 1.2 m crouch width), none from the
-   mission.
+   mission; since Q19 the optional has no reward, so the validator gives 1 error until it is updated to match.
 
 ## The decision
 Q: Approve Two-Key Ledger as specced?
@@ -43,4 +46,5 @@ Q: Approve Two-Key Ledger as specced?
 - "Rework: send it back with my notes"
 
 ## Michael's pick
-<!-- filled by the orchestrator: <YYYY-MM-DD ~HH:MM> picked: "<option text>" -->
+2026-10-25 ~18:05 picked: "Hears and reacts (Recommended)" (option 1: the bell sends the porter, a Guard AI reaction).
+Signed off.

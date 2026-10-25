@@ -33,7 +33,8 @@ rates, and they go home tonight. Night Shift takes the ledger and leaves nobody 
   through the east gate is now his way in: the team leaves by the coal chute instead. The no-kill rule bites here: he is
   one man in a corridor, and he may only be avoided or knocked out.
 - **Optional (W3):** "Copy the partners' day book in the east wing office" (document under a warm desk lamp, one door
-  from the east key post). Reward: `syringe` (through section-rating's Grant). Story: the day book dates the payment.
+  from the east key post). No reward: campaign optional objectives give none (Michael 2026-10-25, folded plan Q19:
+  "None (Recommended)"). Story: the day book dates the payment.
 - **Extraction (step 5):** both players hold the boat zone (`SectorRun` extract phase, every living player).
 
 ## Roles (asymmetric, swap at the midpoint = step 3)
@@ -115,7 +116,9 @@ Size classes: S = short side 6-10 m, M = 10-20 m, L = over 20 m (play space >= 6
 - Validator (mission-validator branch, map + this file): 0 errors, 6 warnings, all the map's own (custom room class on
   w1-canal-steps, w2-arcade-roof, w3-roof, w3-chute, w4-boat; w3-chute's 1.2 m width is off the 0.5 m grid, which is the
   scale sheet's crouch duct). No mission warning: choke nodes found in W2 (walkway), W3 (coal yard) and W4 (jetty);
-  forced co-op holds in every section; the ghost and pacifist runs pass.
+  forced co-op holds in every section; the ghost and pacifist runs pass. Since Michael's Q19 ("None (Recommended)",
+  2026-10-25) tkl-opt is `"optional": {}` with no reward; the mission validator still wants a reward on it and gives
+  1 ERR until the validator branch follows Q19 (follow-up for the lead).
 - PLAN.svg: `node scripts/graph-svg.mjs <campaign-map/graph.json> <graph.json> --out PLAN.svg --title ...` (whole map;
   W1 is drawn for context only).
 

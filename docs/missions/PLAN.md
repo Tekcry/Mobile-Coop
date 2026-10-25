@@ -30,12 +30,12 @@ export interface MissionStep {
   gives?: string; needs?: string;                 // intel -> exploit: a fact flag (a code, a route, which target); exploit opens only with it
   target?: string; decoys?: string[]; bolt?: [number, number, number];   // interrogate: named guard (SectorGuard slot), wrong ones spook him to `bolt`
   item?: string; site?: string;                   // carry / plant: the item id and the place it goes (plant-not-take)
-  window?: number; soloWindow?: number;           // sync: both halves within `window` s; one player alone gets `soloWindow` (named in the briefing)
+  window?: number; soloWindow?: number;           // sync: both halves within `window` s (solo: `soloWindow`, named in the briefing); a miss resets the step to try again, never a fail (G334)
   twist?: boolean;
-  optional?: { reward: 'gadget' | 'syringe' | 'medkit' };   // paid through section-rating's Grant (sectionRating.ts:94), never a new currency
+  optional?: { reward?: 'gadget' | 'syringe' | 'medkit' };  // Sector Ops only, paid through section-rating's Grant (sectionRating.ts:94); campaign: none (Q19)
 }
-export type RuleKind = 'ghost' | 'noKills' | 'noAlarms' | 'noBodies' | 'namedTarget' | 'noGadgets' | 'plantNotTake' | 'oneChance' | 'window';
-export interface MissionRule { kind: RuleKind; scope: 'mission' | 'a' | 'b'; text: string; step?: string; seconds?: number }
+export type RuleKind = 'ghost' | 'noKills' | 'noAlarms' | 'noBodies' | 'namedTarget' | 'noGadgets' | 'plantNotTake';
+export interface MissionRule { kind: RuleKind; scope: 'mission' | 'a' | 'b'; text: string; step?: string }   // every break restarts the section (G290)
 export interface MissionTrack { team: 'a' | 'b'; zones: string[]; boxes: [number, number, number, number][] }  // SectorGuard.zone (sectors.ts:93) + plan boxes
 export interface MissionDef {
   id: string; mode: 'campaign' | 'sector'; players: number[];      // campaign [2]; Sector Ops [1,2,3,4] (A1)
@@ -69,20 +69,29 @@ export function checkMission(d: MissionDef, guards: ReadonlySet<string>): string
   test, per track); an alarm or body found by the position of the device / body in a track's boxes, else against both.
   Other rules: `gadget` event (gameEvents.ts:32) + `onRemoteGadget` (gameMode.ts:93) for no gadgets; `intel` event
   (gameEvents.ts:7) gains `eid` (intelReveal.ts:9, :26; callers takedownController.ts:477-480, coopHost.ts:1727-1728) for
-  named target; interactable use for plant-not-take; the step clock for a named window.
+  named target; interactable use for plant-not-take. No rule runs on a clock: time windows are soft only (G334), so
+  there is no window rule and no seconds countdown.
 - **Section restart on a broken rule**: the host says the rule's line (radio) and calls `SectorMode.restartSection()`
   (sectorMode.ts:1158; Marlow's `spotFail` precedent courseMode.ts:585-599). It already resets: objective / connector /
   alarm stage (`SectorRun.restartSection` sectors.ts:800), team doors and pair gates, section codes (`rekey`), guards and
   their memory, loadout, gadgets in the world, crates, cameras, lamps and doors, the rating counters (`freshCounters`;
   a restart never re-rates). Added: `runner.restore(section)`, tracker reset, a 2 s hold (courseMode.ts:100 `SPOT_HOLD`
-  pattern) so a rule cannot fire again before both players respawn. `oneChance` (opt-in) ends the mission instead (A12).
+  pattern) so a rule cannot fire again before both players respawn. No rule ends the mission: G339 voided A12's
+  one-chance and window kinds, so every strict-rule break restarts the section (G290).
+- **Protected characters**: knocking out or killing a named character the mission needs (an interrogation target
+  before he talks) restarts the section the same way (G353; Michael ~11:20: "Section restart"), so a mission can
+  never stall.
+- **Code to bring in line**: the engine branch (feature/mission-engine) was built before G339 and Q19 and still has the
+  `oneChance` / `window` rule kinds, the blip reader and a required reward on optional steps (the wharf missions carry
+  a gadget and a syringe). The code changes follow these docs (ROADMAP Now 7-8).
 - **Spook** (A11): interrogating a decoy despawns the real target and respawns him unalerted at `bolt` with his info
   (enemyManager.ts:1705 `despawn`, :1864 `spawn`; no src/ai change). With the `namedTarget` rule a decoy read also breaks it.
 - **Extraction**: the `extract` step is `SectorRun`'s extract phase (sectors.ts:777-782: every living player holds the zone).
 - **Objective list HUD** (`src/ui/hud/missionHud.ts`, text from `missionText.ts`): rows per team ("Team A - Ghost: reach
-  the second-floor records room"), the rules line under the title, done rows ticked; no compass / minimap objective
-  blip while a mission runs (sectorMode.ts:1355-1357 returns [] ; A10). Hint line under the current row only when
-  `gameplay.hints` (new, default false; settings.ts:98 type, :161 default, :375 sanitize; settingsScreen.ts:156 row in
+  the second-floor records room"), the rules line under the title, done rows ticked. There is no minimap, compass or
+  objective blip in any mode (G339, A10 void); the list's place names are the only guidance (G336). Hint line
+  under the current row only when `gameplay.hints` (new, default false; settings.ts:98 type, :161 default, :375
+  sanitize; settingsScreen.ts:156 row in
   Gameplay, :213 reset). Marlow's `courseMarkers` drill marker (courseMode.ts:85-98) is untouched (M1).
 - **Co-op sync, host-authoritative**: the `sector` message (protocol.ts:322, parse `sectorExtra` :649) gains optional
   `ms?: MissionWire` = `{ id, st: number[] (done bits per team), f: number (facts bits), rb: number (rule-break counter),
@@ -92,7 +101,9 @@ export function checkMission(d: MissionDef, guards: ReadonlySet<string>): string
   `PROTOCOL_VERSION` (protocol.ts:21) is not bumped (the train does).
 - **Rating hook**: no second scoring system. The card (`RatingView`, gameState.ts:534) keeps its four marks from the
   site-wide stats; a mission adds `rules?: { text, kept }[]` and, in Sector Ops, per-team marks (the same `rateSection`
-  over each team's `SectionStats`). Optional objective rewards go through `rewardsFor` caps (sectionRating.ts:153).
+  over each team's `SectionStats`). Sector Ops optional objective rewards go through `rewardsFor` caps
+  (sectionRating.ts:153). Campaign optional objectives give no reward (Michael 2026-10-25, folded plan Q19: "None
+  (Recommended)"); they carry story only.
 
 ## 4. Forced co-op traversal kit (M3, Michael ~22:50: all six approved; every campaign section forces at least one)
 Gameplay first with existing or placeholder clips; Player Build owns animation (clip list in 4c). Wire kinds:
@@ -103,25 +114,27 @@ Gameplay first with existing or placeholder clips; Player Build owns animation (
 | --- | --- | --- | --- |
 | Boost up a wall (leg-up) | exists: `boost` teamMoves.ts:111-160, teamController.ts:250, clips team.ts:29 | data only (4.3-4.5 lip) | none new |
 | Throw over a gap | exists: `throw` (B4) teamMoves.ts:174-240, teamController.ts:230-247 | data only (+ validator kind `team_throw`) | none new |
-| Human ladder (climb the hanging partner) | exists: relay `ladder` teamMoves.ts:123-133, teamController.ts:212-253 | data only | none new |
+| Human ladder (shoulder stand: one stands on the partner's shoulders to reach a high lip, G57) | new: its own move, Player Build's shoulder stand (J24 part 1, feature/coop-kit); the kit branch adds its wire kind `stand`. The relay `ladder` (teamMoves.ts:123-133, teamController.ts:212-253) is a different move | J24 part 1, then `stand` on the kit branch | Player Build's (J24) |
 | Pull-up (catch a jumping partner at a lip and haul) | new; nearest: hang-down `pull` end teamMoves.ts:282-292 | KIT-PULL | pullOffer, pullCatch, pullHaul (top; see 4c); pullJump, pullHang, pullScramble (bottom). Placeholder: hangOffer / hangPull / relayUp |
 | Hold shutter / door (one lifts and holds, the other crawls under) | new; nearest: course `hold` / `timedHold` gates courseDef.ts:57-59 (a held switch, course mode only) | KIT-SHUT | shutterLift, shutterHold (loop), shutterDrop; crawlUnder (partner, 0.9 m gap). Placeholder: brace / crouch walk |
 | Rope brace / descent | exists: two-person rope (B7) teamMoves.ts:301-357, `ropeSlide` :327, clips ropeOffer / ropeHold / ropeClimb / ropeSlide | data only | none new |
 | Vent unlock for the partner | exists as a composition: leg-up into a `duct`, unbolt from the far side (`SectorBolt` sectors.ts:237-338; Marlow A1 does it, a1Gate.ts:229-230) | data only | none new |
 
-### 4b. Proposed (planner's, original names; for Michael's pick, `docs/missions/prototypes/coop-kit/SIGNOFF.md`)
-| Move (proposed) | What | Code | Cost | Clips |
+### 4b. Adopted (planner's original names; Michael 2026-10-25 ~18:05 on `docs/missions/prototypes/coop-kit/SIGNOFF.md`: all five join)
+| Move | What | Code | Cost | Clips |
 | --- | --- | --- | --- | --- |
 | Deadweight | one hangs on a chain so a counterweighted grate lifts for the other | new gate on the hang attach | S (Opus 0.5 d) | chainGrab, chainHang, chainDrop |
 | Chimney Pair | both brace back to back in a 1.2-1.6 m shaft and climb together | new attach mode | M (1-1.5 d) | chimneyBrace, chimneyClimb (both) |
 | Drop Catch | one drops from above the safe drop into the partner's arms: silent landing | new (team request + landing) | S (0.5 d) | catchReady, catchTake, dropInto |
 | Swing Pass | one braced on a pipe swings the partner across a shaft | new (throw arc variant) | M (1 d) | swingAnchor, swingRide, swingRelease |
 | Plank Bridge | both carry a scaffold board and lay it over a gap; guards notice it | new two-person carry + prop | L (2 d) | plankLift, plankCarry (both), plankLay |
-SIGNOFF question: "Which proposed moves join the kit?" (multi-select; default none: the approved six already cover the map).
+Michael's pick: "Deadweight,Drop Catch,Chimney Pair,Swing Pass", and for Plank Bridge: "Add it". Each gets its own
+kit slice after KIT-PULL and KIT-SHUT, on the KIT0 registry, dark behind `coopKit`; Player Build makes the clips.
 
 ### 4c. Anim list for Player Build (the lead agrees it with "Night Shift | Player Build")
 AGREED with Player Build ~23:30 (supersedes the 4a clip names): roles as team.ts, b = top / holder, a = partner / climber; holder ids `<move>Offer` / `<move>Hold`. Pull: b pullOffer, pullCatch, pullHaul; a pullJump, pullHang, pullScramble. Shutter: b shutterOffer, shutterLift, shutterHold (loop), shutterDrop; a crawlUnder. `TeamPoseMove` gains 'pull' | 'shutter'. Holder poses are procedural in TeamPoser (brace clip + bend / bendDrop / reachL/R / root offset), not clip files; phase on the shared team clock (`k`, TEAM_LINK); shutter exposes the gap height to TeamPoseIn (`depth` or a new field). Player's poses land after Michael walks AF0-AF6; placeholders until then.
-KIT-PULL: 6 clips; KIT-SHUT: 4 clips (above). Proposed moves only after Michael picks. Each clip: role (a / b), loop or
+KIT-PULL: 6 clips; KIT-SHUT: 4 clips (above). The five adopted moves (4b): their clips are agreed with Player Build
+when each slice starts. Each clip: role (a / b), loop or
 one-shot, ~duration, the existing placeholder the slice uses until the clip lands (`src/anim/clips/team.ts`,
 `TeamPoseMove` :29 gains the new move ids in KIT0).
 
@@ -135,7 +148,7 @@ engine, kit, campaign map greybox). Two slices never share a file at the same ti
 | Id | What | Model | Files owned | Gate / tests | Est | Depends |
 | --- | --- | --- | --- | --- | --- | --- |
 | EN1 | Engine core: types, runner, rule tracker, text, wire pack | Opus | `src/game/mission/{missionDef,missionRunner,ruleTracker,missionText,missionWire}.ts`; `tests/mission/*.test.ts` (one per file) | `npx vitest run tests/mission/`, `typecheck:fast` | 4 h | - |
-| EN2 | Sector Ops wiring: adapter, restart on rule break, spook, intel `eid`, blips, test mission | Opus | `src/game/mission/sectorMission.ts`; `src/game/modes/sectorMode.ts` (hooks only: :341-350, :775-807, :1158, :1311, :1343, :1355); `src/game/gameEvents.ts`; `src/game/intelReveal.ts`; `src/game/takedownController.ts`; `src/world/mapDef.ts`; `src/game/sectors.ts` (`SectorNetExtra.ms?` :894); `src/world/maps/campusMissionTest.ts` (2-section test mission on S1-S2); `src/world/maps/campusOps.ts:86`; `tests/mission/sectorMission.test.ts`; e2e part `mission` in e2e-sectorops (new file `scripts/e2e-sectorops-mission.mjs`, `scripts/run-e2e.mjs:50`) | vitest file + `tests/sectorRestart.test.ts`, `tests/sectorRatingHost.test.ts`; laptop: e2e-sectorops:1-6 + mission part, e2e-section-rating, e2e-ctcourse:1-4 | 5 h | EN1 |
+| EN2 | Sector Ops wiring: adapter, restart on rule break, spook, intel `eid`, test mission (no blip: G339 removes it in every mode) | Opus | `src/game/mission/sectorMission.ts`; `src/game/modes/sectorMode.ts` (hooks only: :341-350, :775-807, :1158, :1311, :1343); `src/game/gameEvents.ts`; `src/game/intelReveal.ts`; `src/game/takedownController.ts`; `src/world/mapDef.ts`; `src/game/sectors.ts` (`SectorNetExtra.ms?` :894); `src/world/maps/campusMissionTest.ts` (2-section test mission on S1-S2); `src/world/maps/campusOps.ts:86`; `tests/mission/sectorMission.test.ts`; e2e part `mission` in e2e-sectorops (new file `scripts/e2e-sectorops-mission.mjs`, `scripts/run-e2e.mjs:50`) | vitest file + `tests/sectorRestart.test.ts`, `tests/sectorRatingHost.test.ts`; laptop: e2e-sectorops:1-6 + mission part, e2e-section-rating, e2e-ctcourse:1-4 | 5 h | EN1 |
 | EN3 | Objective list HUD + hint setting | Sonnet (strict brief) | `src/ui/hud/missionHud.ts`; `src/core/settings.ts`; `src/ui/screens/settingsScreen.ts`; `tests/settings.test.ts`, `tests/settingsCover.test.ts` | vitest 2 files; laptop: e2e-menus | 2 h | EN1 |
 | KIT0 | Kit plumbing: new TeamKind ids, a move registry so each move lives in its own file, kit device hook | Opus | `src/game/teamMoves.ts:12`; `src/game/teamController.ts:199-280`; `src/game/kit/registry.ts`; `src/anim/clips/team.ts:29` (ids only, agreed with Player Build); `tests/kit/registry.test.ts` | vitest; `tests/hangDownNet.test.ts` stays green | 2 h | - |
 | KIT-PULL | Pull-up move (host rule, timing, landing) | Opus | `src/game/kit/pullUp.ts`; `tests/kit/pullUp.test.ts` | vitest; e2e-coop after NET | 4 h | KIT0 |
@@ -155,6 +168,7 @@ engine, kit, campaign map greybox). Two slices never share a file at the same ti
 | GB5 | Sector + mission data: guards, routes, connectors, intel, bolts, pair gates; TGC + TKL MissionDefs | Sonnet (Opus brief) | `src/world/maps/tallowWharfSectors.ts`; `src/world/maps/tallowWharfMissions.ts`; `tests/tallowWharf/sectors.test.ts` (`checkSectors` sectors.ts:548, `checkSectorCodes` :211, `checkMission`) | vitest | 2 h | GB1-4, EN1, TGC, TKL |
 | GB6 | Mission e2e on the wharf: both missions start to extraction, one forced co-op move per section, a broken rule restarts the section | Sonnet | `scripts/e2e-sectorops-wharf.mjs` (part of e2e-sectorops) | laptop: that part | 2 h | GB5, EN2, NET |
 | GBM | Measured pass: `level-measure --write`, then `level-validate --require-measured` 0 ERR | Sonnet | `docs/missions/prototypes/campaign-map/graph.json` (`measured` fields only) | in a local merge worktree (engine + validator branches, never pushed) | 1 h | GB1-5, VAL, V6's measure CLI |
+| EN4 | Mission start section + per-mission guard lists (A23): `mission.start` picks the first sector; a MissionDef carries its guard slots so only its sections and guards spawn | Opus | `src/game/mission/sectorMission.ts`; `src/game/modes/sectorMode.ts` (hook lines); `tests/mission/sectorMission.test.ts` | vitest; laptop e2e-sectorops:mission | 2 h | EN2, GB5 |
 | FRAG | Changelog fragments, STATE, TESTING.md lines | Haiku | `changes/feature-mission-*.md`, `TESTING.md` | - | 0.3 h per PR | each PR |
 
 Validator detail (VAL): nodes `mission` (id, mode, players, start, budget), `objectives[]` (id, section, space, team,
@@ -173,7 +187,7 @@ route per space and per section allowed (INFO), routes-cross skipped, marks allo
 dimensions and pacing still checked.
 
 Prototype spec contents: BEAT.md = beat chart (3-6 steps, 2-5 min each, one new mechanic max per step, an intel ->
-exploit step, one twist, one optional with its reward, extraction, the 1-2 rules and how they are signposted, each step's
+exploit step, one twist, one optional (a reward in Sector Ops only), extraction, the 1-2 rules and how they are signposted, each step's
 objective line and its in-world lead, the hint line); graph.json = level-validator schema + the nodes above; PLAN.svg =
 GSVG output (campus missions over Sector Ops' `S<N>-plan-<y>.svg`); SIGNOFF.md = one question. Campaign map (CMG / CMS):
 "Tallow Wharf", a small canal-side merchants' quarter at night, 4 sections W1 night market, W2 arcade lofts, W3 counting
@@ -183,7 +197,8 @@ house (east and west wings, strongroom), W4 wharf sheds (extraction); about 120 
 campusSectors.ts:306), S2 HQ atrium and offices (campusS2.ts, campusSectors.ts:354), S3 Lab block (campusS3.ts,
 campusSectors.ts:399), S4 Data hall (campusS4.ts, campusS4Data.ts:172), S5 The Old House (campusS5.ts, campusS5Data.ts:163).
 Split Shift = S2 (Team Ghost L1-L2 offices, Team Shadow G-floor plant / breaker power cut); Code Relay = S4 (code from a
-named NOC officer, cage keypad, 30 s window named in the briefing). SS / CR writers read Sector Ops' pages
+named NOC officer, cage keypad; the release lasts 30 s and can be asked for again, a soft window with no hard
+countdown, G334; Michael 2026-10-25 ~18:05: "Approve, code re-askable (Recommended)"). SS / CR writers read Sector Ops' pages
 (`origin/feature/sector-redesign-signoff:docs/sector-redesign/signoff/`, `graph/plan/campusOps-S<N>.json`) and send room or
 node needs to "Night Shift | Sector Ops Build" through the lead.
 
@@ -213,6 +228,6 @@ node needs to "Night Shift | Sector Ops Build" through the lead.
   end, the greybox PR waits for it, the rest of PR C does not.
 - Sector Ops' sign-off may rename campus spaces: SS / CR graphs reference ids from their plan graphs and are re-run then.
 - New kit moves use placeholder clips until Player Build's clips land; the e2e asserts states, not poses.
-- Open: Code Relay S4 or S5 (A14); one-chance opt-in UI (a briefing toggle, later); whether optional objectives keep
-  their reward across a restart (planned: no, the section's work resets).
+- Open: whether a Sector Ops optional
+  objective keeps its reward across a restart (planned: no, the section's work resets).
 - Assumed decisions A6-A18 are in BRIEF.md with how to undo each.

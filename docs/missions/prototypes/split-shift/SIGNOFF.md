@@ -1,5 +1,7 @@
 # mission-framework: sign-off - Split Shift (Sector Ops, campus S2)
 
+Signed off by Michael 2026-10-25 ~18:05 (his pick is at the bottom).
+
 ## Picture
 - Plans, one per storey (scale 1 m = 10 px, north up), each over Sector Ops' plan of that storey; blue = Team Ghost's
   rooms, orange = Team Shadow's. Pins: objectives (circles), devices (diamonds), leads (squares), table below each plan.
@@ -39,7 +41,7 @@
 5. What it costs: paper only until you pick. Sector Ops' HQ plan already holds every device this needs, as planned
    devices: the comms-room camera panel, the held east-wing cut, the facilities keypad, the two leads and the bridge pair
    door's solo line. After you pick, Sector Ops builds them, Guard AI adds 1 reaction, and the mission engine handles a
-   per-team restart. Validator, on Sector Ops' latest campus plan: 0 errors, 119 warnings, all the campus plan's own;
+   per-team restart. Validator, on the campus plan you signed off this morning (S2 as drawn): 0 errors, 119 warnings, all the campus plan's own;
    0 from the mission (BEAT.md Graph notes).
 
 ## The decision
@@ -48,4 +50,4 @@ Q: Approve Split Shift as specced?
 - "Rework: send it back with my notes"
 
 ## Michael's pick
-<!-- filled by the orchestrator: <YYYY-MM-DD ~HH:MM> picked: "<option text>" -->
+2026-10-25 ~18:05 picked: "Approve as drawn" (option 1). Signed off.

@@ -74,7 +74,7 @@ agent preamble. Hyphens, never em dashes.
 | W3 | east-yard (encounter, checkpoint) | 0 | 14 x 14 | walled yard, keypad east gate, fire escape | 4 |
 | W3 | lodge | 0 | 6 x 8 | porter's lodge, tell-tale bell (TKL twist) | 2 |
 | W3 | east-wing / west-wing (encounters) | 0 | 14 x 22 each | clerks' halls; the west one round a top-lit light well with an iron gallery at 4.2 | 4 / 4 |
-| W3 | partners-office (reward) | 0 | 4 x 7 | day book (TKL optional) | 2 |
+| W3 | partners-office (payoff dead end) | 0 | 4 x 7 | day book (TKL optional, no reward) | 2 |
 | W3 | east-post / west-post (objectives) | 0 | 4 x 6 each | key alcoves, 21 m apart, no line of sight | 3 / 3 |
 | W3 | passage | 0 | 3.5 x 10 | strongroom passage: grille, chute iron door, coal yard door | 3 |
 | W3 | strongroom (objective) | 0 | 6 x 8 | ledger presses, two-key door (TKL step 3-4) | 4 |
@@ -162,7 +162,7 @@ reason solo cannot do it; no-softlock is the validator's reach check (0 ERR). Ki
 | --- | --- | --- | --- | --- |
 | C1 | W1 | canal-steps -> gallery (4.5 m), market -> gallery (4.4 m) | Boost up a wall | The trimmer takes his ladder home; bare brick end wall, no ledge below |
 | C2 | W1 | fish-hall -> service-passage | Hold shutter | Winding gear broken: one lifts and holds, the other crawls the 0.9 m gap; the back door is barred on the passage side until he lifts the bar |
-| C3 | W2 | arcade -> walkway (4.5 m): boost at the west pier, then the rope there or the pull-up at the east lip | Boost; rope (climb up); pull-up | No stair reaches the walkway (tenants use their own back stairs); plastered pier with no handhold. The boost puts the first player up (`TEAM.boostMax` 4.5); the human ladder grabs only 4.1 m, so it is not used |
+| C3 | W2 | arcade -> walkway (4.5 m): boost at the west pier, then the rope there or the pull-up at the east lip | Boost; rope (climb up); pull-up | No stair reaches the walkway (tenants use their own back stairs); plastered pier with no handhold. The boost puts the first player up (`TEAM.boostMax` 4.5); the relay ladder grabs only 4.1 m, so it is not used (the human ladder, the shoulder stand, is its own move, not used here yet) |
 | C4 | W2 | pawn-loft -> reading-room, pie-loft -> clock-loft | Throw over a gap | The lightwell between the loft rows: 2.5 m from the south lofts' open-fronted taking-in bays (no lintel, 3.6 m clear) to the north lofts' iron landing stages |
 | C5 | W2 -> W3 | arcade-roof -> w3-roof (spine) | Throw over a gap | The arcade lane, 2.5 m at a break in both parapets (the old lane bridge's landing); the fire-escape bridge door opens only from the counting house side |
 | C7 | W3 | passage -> chute (4.4 m) + yard hatch + coal yard door | Vent unlock | Chute door 4.4 m up the wall; hatch bolted on the chute side; coal yard door barred on the yard side. The only ways into the coal yard (the choke), so both missions cross W3 through it |
@@ -248,8 +248,8 @@ Resolved (graph changed to the engine's facts, 2026-10-25; ids unchanged, missio
    (`:956-967`): under a 2.8 m lintel it works only with the thrower 0.35-0.7 m inside and the runner close. Any door
    used for a throw instead must be at least 3.4 m high. No sash window is a launch or a landing. GB2 proves each with
    the `throwLandingOk` test.
-3. **Human ladder.** `TEAM.ladderGrab` 4.1 m (`movement.ts:464`) is under the 4.5 m walkway lip, so that link is now a
-   boost (`boostMax` 4.5); the second player comes up by the rope or the pull-up. No ladder lip is left on the map.
+3. **Relay ladder.** `TEAM.ladderGrab` 4.1 m (`movement.ts:464`) is under the 4.5 m walkway lip, so that link is now a
+   boost (`boostMax` 4.5); the second player comes up by the rope or the pull-up. No relay-ladder lip is left on the map. The human ladder (the shoulder stand, 4.5 m, J24) is its own move and is not used on Tallow Wharf yet.
 4. **Jetty pull-up lip** is 4.4 m (ledge at -4.4, quay ladder 4.4), inside the pull-up band 4.3-4.5 (`PULL.min` =
    `WALL_JUMP.maxUp` + 0.5, `PULL.max` = `TEAM.boostMax`, `src/game/kit/pullUp.ts:51-53` on
    `feature/mission-kit-pull`). The validator still does not band `team_pull`.

@@ -1,8 +1,21 @@
 # Co-op traversal kit - sign-off
 
+Signed off by Michael 2026-10-25 ~18:05 (his pick is at the bottom).
+
 Michael said (2026-10-24 ~22:50, picking the six moves below): "Any other creative coop ideas". This page answers that.
 
-Campaign missions are strictly co-op. Every section forces at least one kit move. Six moves are approved. Five more are proposed. Michael picks which proposed moves join the kit.
+Campaign missions are strictly co-op. Every section forces at least one kit move. The kit has eleven moves: the six
+approved on 2026-10-24 and the five that joined on 2026-10-25.
+
+## Intent check (5 lines)
+1. Michael said (2026-10-24 ~22:50): "Any other creative coop ideas".
+2. What this is: five new two-player moves for the campaign's forced co-op traversal, on top of the six approved moves.
+3. What changes for the player: more ways the pair must work together to climb, drop and cross: a chain that lifts a
+   grate, a caught drop, a shaft climbed back to back, a swing across a shaft and a carried plank laid over a gap.
+4. What it does not do: it does not change Tallow Wharf's signed-off layout (the map uses the six approved moves), and
+   no move gets a solo way round it.
+5. What it costs: about 5-5.5 days of build (S 0.5 + S 0.5 + M 1-1.5 + M 1 + L 2), one slice per move after the six
+   approved moves, plus 14 new animation clips from Player Build; each ships dark behind the `coopKit` flag.
 
 ## Approved (Michael 2026-10-24 ~22:50)
 
@@ -14,8 +27,9 @@ Campaign missions are strictly co-op. Every section forces at least one kit move
 | Hold shutter / door | One lifts and holds it. The other crawls under. | Built on the engine branch | W1: the fish hall shutter (the exit). W4: shed two's loading shutter |
 | Rope brace / climb | One braces at the top, the other climbs (2.2-6 m). No descent in the engine; the map's descents became drops. | Exists | W2: the loft walkway's west pier, for the second player up |
 | Vent unlock for the partner | One gives a leg-up into the duct. The other unbolts the vent from the far side. | Exists (boost, then unbolt) | W3: the coal chute, its yard hatch and the coal yard door |
+(2026-10-25: "human ladder" on this page means the 4.1 m relay ladder. The human ladder is now the shoulder stand, its own move (4.5 m, J24, Player Build), not used on Tallow Wharf yet. The map does not change.)
 
-## Proposed - your pick
+## Joined (Michael 2026-10-25 ~18:05, all five)
 
 | Move | What the two players do | Cost | New animation clips |
 | --- | --- | --- | --- |
@@ -32,11 +46,11 @@ Q: Do any proposed moves join the kit now?
 - "Add the two small ones: Deadweight and Drop Catch (half a day each)"
 - "Add the ones I name in my notes below"
 
-Default if no answer: None for now.
-
 ## What happens next
 
-Each move Michael picks gets its own build slice. The slices come after the six approved moves. Player Build makes the clips for them. Moves not picked stay out of the kit.
+Each of the five moves gets its own build slice. The slices come after the six approved moves. Player Build makes the
+clips for them.
 
 ## Michael's pick
-<!-- filled by the orchestrator: <YYYY-MM-DD ~HH:MM> picked: "<option text>" -->
+2026-10-25 ~18:05 picked: "Deadweight,Drop Catch,Chimney Pair,Swing Pass", and for Plank Bridge: "Add it". All five
+proposed moves join the kit. Signed off.

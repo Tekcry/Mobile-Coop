@@ -48,6 +48,9 @@ These override the brief where they differ (decision 3's "Marlow's stripes go" i
 - M5 (~22:50) Co-op traversal kit, all approved: boost up a wall, throw over a gap, human ladder / pull-up, hold shutter /
   door, rope brace / descent, vent unlock for the partner; plus "Any other creative coop ideas" (PLAN 4b, marked
   proposed). Every campaign section forces at least one; the new map uses several.
+- M6 (2026-10-25 ~20:25, native multiple choice, relayed by the orchestrator) Three Grey Coats, a knock-out before Teale
+  talks: Michael picked "Restart the section (Recommended)": the section restarts from its checkpoint with Teale at his
+  table; not a rule break. A kill before he talks stays a rule break and he moves (signed page ~18:05).
 
 ## Assumed decisions (planner, PLAN.md 2026-10-24 ~23:30; each undoable)
 - A6 Campaign maps run on Sector Ops' runtime (`SectorMode`, `mode=sector`) with `players: [2]`; Marlow and Course mode are
@@ -59,13 +62,13 @@ These override the brief where they differ (decision 3's "Marlow's stripes go" i
 - A9 Teams: slots 0 and 2 = Team A, 1 and 3 = Team B; with 2-3 players one each (the third joins A); solo carries both.
   Attribution: kills, knock-outs, gadgets, interrogations by player slot; ghost by the alerted guard's track zone;
   alarms and found bodies by position in a track's boxes, else against both teams. Undo: mission-scope rules only.
-- A10 The hint layer is text only (`gameplay.hints`, default off, Settings > Gameplay). While a mission runs the Sector
-  Ops compass / minimap objective blip is off, hints on or not. Marlow's course markers are unchanged. Undo: hints on
-  also shows the blip.
+- A10 The hint layer is text only (`gameplay.hints`, default off, Settings > Gameplay). The minimap, compass and
+  objective blip are removed in every mode (G339, which voids the rest of A10), hints on or not. Marlow's course
+  markers are unchanged.
 - A11 Spook: a decoy's interrogation despawns the real target and respawns him unalerted at an authored bolt point with
   his info (no Guard AI change); with the named-target rule it also breaks the rule. Undo: spook = alerted search.
-- A12 Breaking the opt-in one-chance rule ends the mission; a named window running out restarts the section. Undo:
-  one-chance as a restart.
+- A12 Replaced (G339): there is no one-chance rule and no window rule. Every strict-rule break restarts the section
+  (G290), and time windows are soft only, with no countdown that closes a route (G334).
 - A13 Three branches: `feature/mission-framework` (docs, specs, graph-svg; PR A), `feature/mission-validator` stacked on
   `feature/level-validator-v6` (PR B, same train as V6), `feature/mission-engine` (engine, kit, wharf greybox; PR C).
   Undo: one branch and one PR.
@@ -85,3 +88,16 @@ These override the brief where they differ (decision 3's "Marlow's stripes go" i
   mark) is an ERR outside the training profile. Undo: docs only, no validator change.
 - A18 The campaign map is "Tallow Wharf" (original name), 4 sections W1-W4, about 120 x 80 m; Three Grey Coats runs
   W1 -> W2 -> W4, Two-Key Ledger W2 -> W3 -> W4. Undo: rename or re-cut at the spec sign-off.
+- A19 (lead, 2026-10-25 ~05:00, greybox briefs `slices/GB-briefs.md` 0.1) The three 2.5 m throw gaps can be jumped solo,
+  so the loft-side doors are bolted from the far side and the W2 walkway boost keeps W2 forced. Undo: narrow the gaps
+  below a solo jump, or drop the bolts.
+- A20 There is no fall damage, so the roof drops that would skip the coal chute and jetty moves get 2.2 m drop guards
+  (a W3 roof-edge parapet, a caged gantry). Undo: remove the guards once a fall-damage rule exists.
+- A21 The W3 restart point is the head of the roof bulkhead stair, shared by both missions. Undo: one point per mission.
+- A22 Shutters are reserved as data (a closed stand-in panel) until the kit `tick` hook, world wiring and NET land; until
+  then W1's shutter exit and TKL's shed two way are closed, and playtests use debug teleports. Undo: none (temporary).
+- A23 Two engine follow-ups before GB6 (slice EN4): a mission may start at a later section (TKL starts at W2; the sector
+  run always starts at section 0 today), and per-mission guard lists (one map, two missions). Undo: one mission per map.
+- A24 Three Grey Coats: killing Teale before he talks breaks the rule and he moves, as on the page Michael signed
+  (~18:05, "He moves"). Knocking him out before he talks restarts the section with Teale still at his table: answered
+  by Michael, M6.

@@ -1,5 +1,147 @@
 # mission-framework - STATE
 
+## RESUME 2026-10-25 ~19:15 save (Night Shift | Campaign Build; read this block first, older blocks are history)
+Process: RULES + VISION from origin/master; start steps BOOT.md "Campaign Build" (origin/feature/menu). Plan: ROADMAP
+"Now" + FOLDED-PLAN J-rows; Michael's "Decided" answers win. Desktop builder cap: 2 at once (orchestrator ~18:50) until
+it says CPU < 80%. New rule ~19:00: free assets with commercial-sale licences allowed, credited (orchestrator msg).
+Working notes, reports, plans: C:/NightShift/scratch/campaign/ (checker reports *-check*.md, builder reports hg-*.md).
+1. #372 (this branch, head ab90a071 + this STATE): checker PASS x2 rounds, big-pr on; train-ready follows CI. Polish:
+   coop-kit SIGNOFF.md:30 note needs a blank line above it (renders as a table row).
+2. J1 docs #434: MERGED.
+3. FLG fix: two Opus checkers PASS; engine pushed. origin/feature/mission-engine 08c9e094 = engine + FLG + GB5/GB6 +
+   J7 PLAN. Laptop: set mission-flg-fix on f8b06637 queued (wharf-tgc / tkl / mission + coop group). First GB6 run on
+   c74ce8f5 FAILED 1/3 in 44 s (wharf-tgc, wharf-tkl; logs on the laptop only): if f8b06637 also fails, Opus triage
+   with the laptop log (ask Test Runner for C:/NightShift/scratch/laptop-queue/runs/<id>/).
+4. J3 hud-guidance PR A #447 (feature/hud-guidance ececda7e, worktree -hud-guidance): minimap / compass / blips / HQ
+   radar out, save v10. Two Opus checkers PASS (one docs fix round), checker status on ececda7e. Waits on
+   affected-e2e, then train-ready -> message the orchestrator. Polish for PR B: HUD-present guard on the no-minimap
+   checks, delete Grenades.positions(), damage.ts:38 comment, e2e-desktop wp > inset, ui.md:22 wrap, STATE.
+5. J3b PR B: branch feature/hud-guidance-b (cut from b28293c1); B1 popup builder (Opus) on feature/hud-guidance-b1
+   (worktree -hud-guidance-b1, WIP 9ad0b4f4; brief scratch/campaign/hg-b1-brief.md, report hg-b1-report.md). Next
+   B2 (Sonnet) parallel with B1; B3 / B4 / B5 Opus (src/net, two checkers); merge order B1 -> B3 -> B4. Forward-merge
+   PR A fix rounds into B. Plan: docs/hud-guidance/PLAN.md (plan check PASS after two fix rounds).
+6. J7 (mission rules): BRIEF docs/mission-rules/BRIEF.md, PLAN docs/missions/slices/J7-PLAN.md on the engine
+   branch (08c9e094). Lead ruling: a Teale KO / kill before he talks = protected section restart (G353), not a rule
+   break, he stays at his table; only a rule break moves him (signed TGC page). Fresh plan re-check running (report
+   scratch/campaign/j7-plan-recheck.md); PASS -> R0 then builders per the plan's waves.
+7. J8 / J9 Tallow: plan scratch/campaign/J8-J9-PLAN.md (lead answers at its end); plan check running
+   (j8-j9-plan-check.md). Michael asked via the orchestrator: closed Tallow rooms night-lit only (A1, assumed).
+8. TW23 Tallow SPEC onto the template (G157 template from #443): builder (Opus) on feature/tallow-spec (worktree
+   -tallow-spec, stacked on #372, WIP 2ad3ed9b; report scratch/campaign/tw23-report.md). PR after #372 merges.
+9. Known gaps: mission-validator still needs an optional reward and must accept `boltText` (J12, Marlow).
+Next: rerun any agent whose report file is missing (B1, TW23, J7 re-check, J8-J9 check); B2 when a slot frees; J7 R0.
+
+## OLD RESUME 2026-10-25 ~18:25 (history) (Night Shift | Campaign Build; read this block first, older blocks are history)
+Process: `docs/RULES.md` + `docs/VISION.md` from origin/master; start steps `docs/orchestrator/BOOT.md` "Campaign Build"
+(origin/feature/menu). Plan: FOLDED-PLAN (feature/menu) signed off ~17:00; Michael's answers in ROADMAP "Decided"
+override it. Tallow hold LIFTED ~18:05 ("Build now, walk later"); all six #372 pages signed off; the 12 level-rule
+changes (G157) adopted ~18:20 (`docs/orchestrator/G157-12-changes.md` on feature/menu; Marlow edits level-design).
+Campaign jobs: J1 docs, J3 / J3b hud-guidance, J7 engine rules, J8 / J9 Tallow greybox + shutters, J22 campaign mode,
+J23 Tallow design docs, TW23 (SPEC onto the template), J25 / J26 later.
+1. J1 docs PR #434 (feature/campaign-j1-docs, C:/NightShift/Mobile-Coop-campaign-j1-docs): Opus checker PASS on
+   d51ef9d2; train-ready when CI is green. Polish (later, J3): tighten the stale-term allowLines; drop the coop.md
+   blip exception when J3 removes blips; menu-ui/DECISIONS.md MD7 Map marker.
+2. #372 (this branch): picks recorded 4f707252, rewards dropped 16a603ab (Q19), restart notes 26969f6a. Next: fresh
+   checker on the head, then the orchestrator adds big-pr. Assumed: a Teale KO / kill restarts the section from its
+   checkpoint, he does not then move (undo: add the move in the TGC BEAT).
+3. FLG (mission flags): checker FIX (C:/NightShift/scratch/mission-flg-check.md); fix round f8b06637 on
+   origin/feature/mission-engine-flg-gb6 (URL gate `mapBootAllowed`, host `sm` gated, owner Campaign); tsc + 2 test
+   files green. Needs two Opus checkers (src/net/session.ts), then push the engine (local
+   C:/NightShift/Mobile-Coop-mission-engine = feature/mission-engine + FLG + GB6 merges, head f8b06637).
+4. Laptop: set mission-flg-gb6 on c74ce8f5 (wharf-tgc, wharf-tkl, sectorops:mission), first GB6 run.
+5. Plans running / written to C:/NightShift/scratch/campaign/: J7-PLAN.md, J8-J9-PLAN.md; hud-guidance plan on
+   feature/hud-guidance (C:/NightShift/Mobile-Coop-hud-guidance, npm ci done): docs/hud-guidance/{BRIEF,PLAN,STATE}.md.
+   Each needs an Opus plan checker, then builders in parallel.
+6. Known gaps: mission-validator (origin/feature/mission-validator) still requires an optional reward (now fails TGC /
+   TKL graphs: J12 with Marlow); engine code still has oneChance / window, blips, rewards (J7).
+7. Co-op kit order (orchestrator ~18:30, Player's J24 plan feature/coop-kit 34cfcad2): Player's part 1 (rope descent,
+   shoulder stand) lands first; then the kit branch (feature/mission-engine-flg-gb6) adds wire kind `stand` and folds
+   the `coopKit` flag into Player's per-move `kitMoves` list; Player's part 2 (the 5 new moves) starts after the kit
+   registry PR is on master. Plan: hud-guidance PLAN pushed 2a702629 (A1 Opus + A3 Sonnet first, after a plan check).
+CPU: the orchestrator paused new agents ~18:10 until desktop CPU < 80%.
+Next: when CPU allows, #372 checker + two FLG checkers + TW23 builder; plan checkers on J3 / J7 / J8-J9; builders.
+
+## OLD RESUME 2026-10-25 ~14:05 (history) save (Night Shift | Campaign Build; read this block first, older blocks are history)
+Owner since 2026-10-25 ~12:50: Campaign Build (took Tallow Wharf, mission framework / engine and campaign rules from
+Marlow Build; Marlow keeps level-validator V6, route-runs, guard-cap). Process: `docs/RULES.md` and `docs/VISION.md`
+from origin/master; start steps: `docs/orchestrator/BOOT.md` "Campaign Build" on origin/feature/menu.
+
+DOCS-FIRST HOLD (G346, G355; ROADMAP Now phase 1 row 2b): until Michael signs off the folded plan (Now row 6), no new
+game work here. Finished PRs may ship. Job 1 = the plan-only conformance review
+(`docs/orchestrator/review-briefs/campaign.md` on origin/feature/menu): branch feature/conformance-campaign, worktree
+C:/NightShift/Mobile-Coop-conformance-campaign. DONE: PR #419 (S1-S25 summary, 7 Michael questions, proposed
+jobs). Checkers PASS (c0d8c058 full; fix round 6b2b8635), `checker` success posted on 6b2b8635; orchestrator told.
+HOLD (Michael 13:53 "plan comes first"): no doc fixes, no cloud briefs, no PRs until the orchestrator says Michael signed
+off row 6. WIP kept, no PR: wip/campaign-doc-fixes 953f198f (HG12 menu SPEC / code inventory);
+feature/mission-engine-flg-gb6 c74ce8f5 (local FLG + GB6 merges + 2 e2e lines; feature/mission-engine stays 00b6cde9
+until FLG / GB6 checkers pass); cloud brief campaign-tallow-design withdrawn after Cloud Builder 1 claimed it (its WIP,
+if any, on feature/tallow-design-docs). Restart notes for the #372 spec docs: GB6-brief.md :85, :113 (blips); PLAN
+:38, :72 (window / seconds) with :37, :78, :83-84, :138, :217; coop-kit SIGNOFF has no intent check; TKL page reward
+is a syringe (MF5); TGC page: Teale KO / kill softlocks (MF6).
+Boot ~16:00 (new account): #419 MERGED. #372 conflicted with master only in CLAUDE.md: fixed by syncing CLAUDE.md
+to origin/master (BOOT step 5).
+PR A #372 (feature/mission-framework, this branch; code head 5181c9db): open; CI check green on the rerun, affected-e2e green;
+no `checker` status, no `big-pr` label yet. ROADMAP Now 0b: the orchestrator ships it (checker on its head, big-pr,
+Michael's sign-off pages). STATE-only pushes here restart its CI: batch them.
+
+Parked by the hold (all on origin unless noted; resume after row 6 sign-off, ROADMAP Now 7-8):
+1. Engine origin/feature/mission-engine 00b6cde9 = GB5 fix round b0cc988c (report scratch/gb5-fix-report.md; needs a
+   fresh checker) + NET3 merged (checkers A + B PASS).
+2. LOCAL ONLY in C:/NightShift/Mobile-Coop-mission-engine (HEAD bc9e6981, 8 commits ahead, not pushed): merges of
+   feature/mission-flg c6542289 (FLG: flags `missions` / `coopKit`; report scratch/mission-flg-report.md; no checker
+   yet) and feature/mission-gb6 cb562510 (GB6 wharf e2e; scratch/mission-gb6-report.md; never run) + 2 uncommitted
+   lines (`missions=1` param in e2e-sectorops-mission.mjs, `const NET3 = true` in e2e-sectorops-wharf.mjs). Both
+   branches are on origin; push the merge only after their checkers pass.
+3. SS / CR hint-length fix merged here 5181c9db (Sonnet sync check FIX is answered; no re-check run).
+4. NET4 polish brief on cloud-queue (briefs/mission-framework-net4.md). GBM waits for V6 (Marlow).
+5. Phase 2 rows (after sign-off): Now 7 rule fixes (compass / blip / minimap / briefing and field-menu maps removed,
+   objective popup View / O ~5 s, G336 G339 G343 G351); Now 8 GB5 / GB6, the 3 gate-reach ERRs (w2-reading-room
+   20.0 s, w2-clock-loft 28.2 s, w4-jetty 15.8 s), A10 void, A12 re-plan (G339, G334), campaign cap 32 (G359).
+
+Laptop queue: `node scripts/laptop-queue/request.mjs --sha <full> --pr <n> --suites "<space separated>" --set <name>
+--requester "Night Shift | Campaign Build"`. Walk cap, train-ready and locks: RULES "Walk pacing", "Getting to
+master", "Machines". Message "Night Shift | Orchestrator" only at PR open / train-ready / blocked / needs Michael.
+Next: HOLD. If #419 goes red, fix it. On the orchestrator's row 6 sign-off message: restart the #372 spec docs from
+the restart notes above, then ROADMAP Now 7-8 per CONFORMANCE.md 1d.
+
+## SAVE 2026-10-25 ~09:05 (5-hour save; reset 13:10; read with the block below)
+- NET3 550d99c4: checkers A + B PASS (mission-net3-check-{a,b}.md). Merge into engine AFTER the GB5 fix round: conflict only in tests/mission/sectorMission.test.ts (same decoy test as POL1): keep engine's copy, drop NET3's a56ebeab6 hunk; flip GB6 `const NET3 = true` in that merge. NET4 polish brief on cloud-queue (briefs/mission-framework-net4.md: late() uses sectorMission, checkMission id clamp, changelog + coop.md lines).
+- WIP pushed: feature/mission-engine d45cdb4a (GB5 fix round in progress: tallowWharfSectors.ts, W2.ts, sectors.test.ts; resume from gb5-check.md must-fix 1-4, report gb5-fix-report.md), feature/mission-flg 3bc6be9c (FLG in progress: flags.ts, sectorMission.ts, teamController.ts, settingsScreen.ts; brief = PRC-split.md FLG). GB6 bdbb124a registered suites only: the script scripts/e2e-sectorops-wharf.mjs is not written yet (brief GB6-brief.md).
+- SS / CR sync: Sonnet check FIX (mission-sync-check.md: 5 hints > 90 chars + 4 older overages) -> Opus fix round on feature/mission-sync; then merge feature/mission-sync into feature/mission-framework again.
+- Orchestrator answers: C1-C9 stay STACKED (no retarget), label members together once each passes; big-pr for C8 and PR B on open.
+- NEW JOB route-runs (ROADMAP Now 16): C:/NightShift/Mobile-Coop-route-runs, feature/route-runs off master 6c3f4a87 (no node_modules: npm ci once before builders). Opus plan running -> docs/route-runs/{BRIEF,PLAN,STATE}.md; if missing at resume, rerun the planner (ROADMAP Now 16 + Decided 2026-10-25 ~09:05 "Bot route-runs + your walk"), then an Opus plan checker, then builders in parallel.
+
+## RESUME 2026-10-25 ~09:20 (new account, full burn; read this block first)
+DONE since 08:20: EN4 + NET2 checkers A + B PASS (laptop en4 9/9 on c4a7e58f). GB5 533c02a6. POL1 453bae7b (merged into engine, ff). NET3 550d99c4 (feature/mission-net3: start.sm sector mission id, client follows host, host offSection / firstPlace, team 'end' attempt key, FIXED_DT, decoy test; 331 tests). SS / CR re-synced to Sector Ops SYNC.md 7c021f01 (Michael's S1-S5 picks) 9cb3a627, merged here 79996fd7 (0 mission ERR). Briefs GB6 / GBM / PRC-split 14cebca3 (docs/missions/slices/).
+RUNNING (reports in C:/NightShift/scratch/; rerun from the brief if no result on origin):
+1. GB5 checker FIX (gb5-check.md: Fenn faces desk, tgc-opt board in stair core, takedown spots, retyped coords) -> Opus fix round in -mission-engine (commits "mission-framework GB5 fix:"; report gb5-fix-report.md). Then a fresh checker on the fix.
+2. NET3 checkers A (mission-net3-check-a.md, also covers POL1) + B (wire, -mission-net3-cb detached; -check-b.md); statuses checker-a / checker-b on 550d99c4. Laptop set mission-net3 (coop, netmove, sectorops:mission). Both PASS -> merge NET3 into engine and flip GB6's `const NET3` to true in that merge.
+3. GB6 Sonnet (-mission-gb6, feature/mission-gb6; suites e2e-sectorops:wharf-tgc / :wharf-tkl) -> merge into engine -> laptop.
+4. FLG Opus (-mission-flg, feature/mission-flg: flags missions 10-27 / coopKit 10-28; no pull offer on Marlow lips with coopKit off) -> checker -> merge into engine before the PR C split.
+5. SS / CR sync Sonnet checker (mission-sync-check.md, status on 9cb3a627).
+Laptop: mission-engine-gb5 on 533c02a6 (sectorops:mission, coop, netmove). Suites are SPACE separated (a comma-joined request fails).
+WAITING: V6 fix on cloud-queue (Cloud Builder 1; fix commits 0410023e / 2ab1fe18 on V6) -> review -> V6 PR -> PR B; GBM after V6 done + greybox checker PASS. PR A #372: orchestrator close / reopen sweep after #378 (do not gh run rerun). Asked the orchestrator: stacked PR bases for C1-C9, big-pr for C8 and PR B.
+guard-cap: M1 verdict bbdedebf (caps stay; C1 + C2 triggered; Michael 08:50 "shadow in view = seen"); C2 brief 1f2db1f5 with Test Runner (gate #317 + C1 + Guard AI rule); --query d76b5372; C1 (ours, Opus) waits gm-flip #375 + coop4 #317: ping Test Runner when C1 is on master.
+Sector Ops pings when S2 / S4 greybox data lands: re-run SS / CR validate. campusOps.ts: our only lines are the CAMPUS_MISSION_TEST import + `missions:` after `sectors:` (told the orchestrator).
+
+- ~05:15 NET checkers A + B PASS (polish -> later batch: stale pull pair in kitPairs ~3.9 s, host-holder 1-tick catch, attempt id on hangEnd, shutter pair lapse, courseMode gadget kinds, per-kind gused window, behavioural revealIntel test) -> merged into engine aba7dc44 (tsc clean); laptop mission-net set on 5d3f7ae1 pending. GB0 DONE 563b9e6d (shell, kit, W1-W4 stubs; Tallow Wharf shows in the Sector Ops menu / lobby: GB5 adds a listed filter or leaves it unlisted). GB1-GB4 RUNNING (Sonnet, worktrees -mission-gb1..4, branches feature/mission-gb1..4 off 563b9e6d). Then merge all four into engine -> Sonnet greybox checker -> GB5 -> EN4.
+- ~04:45 PR A #372 OPEN (specs + six sign-off pages; spec checker FIX -> fix round 83174c38; no big-pr needed); label train-ready on CI green (if auto mode blocks, the orchestrator labels). GB-briefs aa762a41; engine merged mission-framework 286c290c; GB0 RUNNING (Sonnet, engine worktree). BRIEF A19-A23 + PLAN EN4 19d5579b. NET DONE feature/mission-net 5d3f7ae1 (on d1c3ad4c; gused for frag / mine / stickyCam; kitNet.ts verdicts; missionMirror.ts; pull verdictWait 0.25): checkers A (mission wire) + B (kit wire) RUNNING (C:/NightShift/scratch/mission-net-check-{a,b}.md), laptop coop / netmove / sectorops / ctcourse on 5d3f7ae1 (set mission-net). After both PASS: merge mission-net into mission-engine. Kit e2e (pull / shutter in co-op) needs a map that places them: after GB + kit-tick.
+
+- ~05:45 Greybox fix round DONE 09664eda (113 tests; new asserts fail on old maps; climbRoom + ladder top-out tests). Playtest note: W4 north arm end (z 29.4) 3.0 m over shed three roof: check a step-off cannot skip C8-C10. RUNNING: GB5 (Sonnet, engine worktree; + EN4 start/guards, cart gate both leaves, W3_KEY_POSTS, unlisted map filter), EN4+NET2 checkers A (-mission-en4 detached) + B (-mission-net2 detached) -> C:/NightShift/scratch/mission-en4-net2-check-{a,b}.md. NEXT: NET3 (mission id in lobby start -> startSlotPoints), GB6 (wharf e2e) after GB5 + NET3, GBM after V6 fix.
+
+## SAVE 2026-10-25 ~05:25 (orchestrator save, cap ~05:35, resume at the 09:10 reset)
+DONE since 04:20: EN2 fix d1c3ad4c; NET 5d3f7ae1 (checkers A + B PASS) merged into engine aba7dc44; GB0 563b9e6d + GB1-4 (8dd371b2, 8fbc33e6, d1c822e5, 9cf0ac43) merged -> engine cf3532f4 (tsc clean; tallowWharf tests pass; ONE FAIL rooms.test.ts:125 w1-tea-stall overlaps w1-market). PR A #372 open: CI red ONLY on pr-size (known CI bug; orchestrator hotfix #378 waits for Michael) -> after #378 merges: gh run rerun 40118368406 --failed, then label train-ready (or ask the orchestrator). V6 fast-forwarded to V6e-2 425c4e20 (feature/level-validator-v6; #346 merged). Cloud done: kit-tick 93ef5c1e, val-dims 0c62a921.
+Laptop queued: mission-engine-gb on cf3532f4 (coop, netmove, sectorops, ctcourse, section-rating, menus, levels); mission-net on 5d3f7ae1; mission-engine-en2fix on d1c3ad4c.
+RUNNING at save (rerun any whose result is missing; reports in C:/NightShift/scratch/):
+1. Greybox checker FIX (greybox-check.md: 3 room overlaps, W3 roof drop / mantle skips C7, C7 / C9 no climb room, W2 hatch ladder tops out in the hole) -> fix round RUNNING (Opus, engine worktree; rerun from the report if no commit "GB: fix round" on origin); then GB5 (Sonnet, GB-briefs.md GB5 + W3 cart-gate both leaves bolted, W3_KEY_POSTS, unlisted map filter) -> GB6 / GBM.
+2. V6 checker FIX (v6-check.md: shadow band on non-encounters, reach speed, drop times, guard-band docs) -> fix round POSTED on cloud-queue briefs/level-validator-V6-fix.md (pushes to feature/level-validator-v6). On done: review, then PR (V6, base master); then PR B (feature/mission-validator, now incl. VAL-DIMS 0c62a921) stacked on it.
+3. KIT-TICK PASS -> merged into engine 8d4dcb14 (polish later: crawl request timeout run.asked into tick). Campus a2cf369a (S5 rope -> rappel + climb) 0 ERR with kit dims; SS / CR 0 ERR.
+4. VAL-DIMS PASS -> merged into feature/mission-validator 0c62a921. Tallow shutters gap 0.9 added. Sector Ops told: S5 s5-arch -> s5-well rope is a descent (1 campus ERR until they flip it).
+5. EN4 DONE (2c4ffd0c WIP + 2d49b032 + 5d6ec8c4; 107 tests): MissionDef.start, guards [{section, slots?}], HUD on g.hud.el (host) and coopClient.ts:221-227 / :1162 (client), spawnPlace.ts:101 start points. GAP (NET3): a co-op client learns the sector mission only from its own ?mission= URL (session.ts clears it outside infiltration): carry the mission id in the lobby start message -> startSlotPoints.
+MERGED EN4 + NET2 into engine c4a7e58f (tsc clean). NEXT at resume: TWO Opus checkers on EN4 + NET2 (diff 8d4dcb14..c4a7e58f, src/net + sectorMode hooks); laptop coop / netmove / sectorops (incl. mission + HUD assert) on c4a7e58f; then NET3 (mission id in lobby start) + GB5.
+6. NET2 DONE 156cd4ff (feature/mission-net2; also touched coopClient.ts :304 / :340 for the attempt key in hangEnd s field; clientRead extracted :1784). NOT yet checked: TWO Opus checkers with EN4 (CPU 100% at the 05:30 cap).
+After 5 + 6: merge both into engine; one Opus checker on EN4 + NET2 (+ second Opus on NET2 src/net); laptop coop / netmove / sectorops.
+
 ## RESUME 2026-10-25 ~04:20 (window reset; next 09:10)
 - PR #365: checker B PASS, A FIX -> fix 0fe98298; CI + laptop 2/2 green. Orchestrator re-checks the fix and labels (self-approval blocked here).
 - Engine 9e87b4b3 laptop e2e 13/13 PASS (sectorops 1-6 + mission, section-rating, ctcourse, menus). EN2+EN3 checker FIX (double restart, oneChance end skippable) -> EN2 fix round RUNNING (EN2 builder, feature/mission-engine; also hold-exit during pending restart, objective codes before gate, decoy slot, spook-while-held, namedTarget intel lines, flags.mission, Hints text).
@@ -53,5 +195,5 @@ KIT notes for NET / Player / Guard AI: pull catchDrop 1.8 m under edge (Player: 
 
 ## Resume prompt
 ```
-Night Shift | Marlow Build: mission-framework lead (+ joint-flake-3 game fix, level-validator V6, guard-cap). Read docs/missions/STATE.md "SAVE 2026-10-25 ~00:05" block first: it lists the 5 agents running at the save with their worktrees and briefs; for each, check origin for its result and rerun it if missing (briefs: PLAN.md rows + that block). Worktrees: -mission-framework, -mission-engine, -mission-kit0, -mission-kit-pull, -mission-kit-shut, -mission-validator, -joint-flake-3 (node_modules junctions). Laptop queue CLI: git archive origin/master scripts into scratch, node <scratch>/scripts/laptop-queue/request.mjs --sha <sha> --set <name> --requester "Night Shift | Marlow Build" --suites "...". PLAN section 6 waves. V6: docs/level-validator/STATE.md on feature/level-validator-v6 (V6e-2 on cloud-queue; then Opus checker + PR; PR B stacks on it). guard-cap: docs/guard-cap/STATE.md (M1 queued after train 68). Rules: CLAUDE.md Sessions; no desktop e2e; single vitest files --maxWorkers=2; message the orchestrator at PR open / train-ready / blocked only. Michael signs off specs in the morning: PR A must hold all sign-off pages.
+Night Shift | Campaign Build: read docs/missions/STATE.md "RESUME 2026-10-25 ~13:10" block first (docs-first hold; job 1 = conformance review, feature/conformance-campaign). Rules: docs/RULES.md and docs/VISION.md from origin/master; start steps docs/orchestrator/BOOT.md "Campaign Build" on origin/feature/menu.
 ```

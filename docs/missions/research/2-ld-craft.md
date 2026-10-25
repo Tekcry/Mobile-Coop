@@ -33,7 +33,7 @@ Researched 2026-10-24. Each claim has a URL. Quotes are verbatim and under 15 wo
 - **Intel, then exploitation.** Hitman 3 leans into gathering intel from the world, with branching outcomes. It also cuts a linear first-run beat (Chongqing) on replay. https://videogameschronicle.com/review/hitman-3
 - **Planning choice picks the prep.** In GTA V's Jewel Store, the Smart or Loud choice decides the prep missions, gear and crew role. https://gta.fandom.com/wiki/Casing_the_Jewel_Store
 - **Sub-goals of about 2 min, plus escalation audio.** Murky Station adds a music layer per completed sub-objective, and completion times drop by a third to a half as players learn (80.lv, above).
-- **Phase rules inside one mission.** Blacklist's Briggs Missile Plant starts undetected and non-lethal, and lethal force opens later. https://digitaltrends.com/?p=439902
+- **Phase rules inside one mission.** A Blacklist story co-op mission (a missile plant) starts undetected and non-lethal, and lethal force opens later. https://digitaltrends.com/?p=439902
 - **Failure branches the mission instead of ending it.** In Payday 2, a loud day can add an escape level. https://en.wikipedia.org/wiki/Payday_2
 - **Optional objectives drive replay.** SC Chaos Theory reviews credited optional objectives and loose structure. https://gamespot.com/videos/tom-clancys-splinter-cell-chaos-theory-video-revie/2300-6121211/
 - **Fewer, richer threads beat many thin ones.** Hitman 3 has fewer Mission Stories, but deeper ones (VGC, above).
@@ -52,14 +52,14 @@ Researched 2026-10-24. Each claim has a URL. Quotes are verbatim and under 15 wo
 - **Split information between players.** In GTFO one player reads a code and another enters it. There is little direction, so the team scouts together. https://www.cgmagonline.com/articles/features/rethinking-the-co-op-shooter-with-gtfo
 - **Parallel work.** Payday 3: "players can do a lot of different things in parallel" and "there is not one linear path". Payday 2's non-linear sub-objectives let teams split (gamingbolt and 80.lv, above). Ready or Not splits a squad into Red and Blue elements for simultaneous breaches. https://www.gamingnexus.com/Article/16245/Ready-or-Not/
 - **Rule-constrained missions with 3-4 players (Michael's correction):**
-  - *Shared hard rule:* Blacklist Grim missions "need to be completed without detection" (Zack Cooper). In co-op, either player being detected fails both. https://blog.playstation.com/2013/05/23/splinter-cell-blacklist-co-op-2-of-4-mission-types-revealed/ ; https://digitaltrends.com/?p=439902
+  - *Shared hard rule:* Blacklist's strict no-alarm intel missions "need to be completed without detection" (Zack Cooper). In co-op, either player being detected fails both. https://blog.playstation.com/2013/05/23/splinter-cell-blacklist-co-op-2-of-4-mission-types-revealed/ ; https://digitaltrends.com/?p=439902
   - *Shared budget:* Payday 2's alarm triggers on a team-wide 4-kill threshold (80.lv, above). Community reports say pagers are a pool of 4 shared by the whole team (forum source, unverified). https://steamcommunity.com/app/218620/discussions/8/527273452871145511
   - *Graded instead of binary:* Ready or Not grades rules of engagement after the mission, with penalties that scale with severity. Barricaded Suspects requires arrests for a high score. https://readyornot.wiki.gg/wiki/Ready_or_Not
   - *Soft fail per player:* Payday 3 escorts a caught player out of a private area instead of raising the alarm (gamingbolt, above).
   - *Critical NPC:* in Payday 3, killing a Lead Guard ends stealth. https://tvtropes.org/pmwiki/pmwiki.php/VideoGame/PAYDAY3
   - *Score credit:* Blacklist co-op scoring reflects both partners' styles, so a loud partner costs the stealth player (digitaltrends, above).
   - *Inference:* with 4 players and 2 parallel teams, one player's mistake fails 3 others, so prefer graded or escalating rules (search, then lockdown, then fail) over one-strike fails. Exceptions are short, clearly flagged ghost phases. Give each pair its own rule-bearing sub-objective, such as an interrogation target or a no-kill zone, so responsibility is local.
-- **Solo scaling.** Blacklist Briggs missions "have to be played with a partner". https://blog.playstation.com/2013/05/23/splinter-cell-blacklist-co-op-2-of-4-mission-types-revealed/ . *Inference:* every co-op gate needs a solo bypass (a longer route or a tool), or the mission is tagged co-op-only.
+- **Solo scaling.** Blacklist's story co-op missions "have to be played with a partner". https://blog.playstation.com/2013/05/23/splinter-cell-blacklist-co-op-2-of-4-mission-types-revealed/ . *Inference:* every co-op gate needs a solo bypass (a longer route or a tool), or the mission is tagged co-op-only.
 
 ## 6. Process
 - **Beat chart:** one page with a row per location: mechanics, story, what the player learns, time, content and audio. "do not overload player with new information". https://www.gamedeveloper.com/design/beat-chart-game-designer-s-best-friend

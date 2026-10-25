@@ -1,5 +1,7 @@
 # mission-framework: sign-off - Tallow Wharf (campaign map)
 
+Signed off by Michael 2026-10-25 ~18:05 (his pick is at the bottom).
+
 ## Picture
 - Plan: [`PLAN.svg`](PLAN.svg) (scale 1 m = 10 px, north up, scale bar, grid 10 m). Magenta = forced co-op moves;
   dashed = upper storeys (lofts 4.5 m, roofs 8.4 m, crane gantry 10 m).
@@ -22,6 +24,7 @@
    pull-up from the canal ledge onto the jetty (4.4 m). All six approved kit moves are used, with two adjustments to fit
    the engine: the pull-up stands in for the human ladder (the ladder reaches only 4.1 m, under the 4.5 m lips), and the
    rope is a climb up only (one braces at the top, the other climbs). No section has a solo way through.
+   (2026-10-25: "human ladder" on this page means the 4.1 m relay ladder. The human ladder is now the shoulder stand, its own move (4.5 m, J24, Player Build), not used on Tallow Wharf yet. The map does not change.)
 6. **Three Grey Coats:** W1 -> W2 -> W3 (crossing, no step) -> W4: tally book on the gallery, Teale in the reading
    room, the coal chute in W3, the candle chest in shed three (boosted in from the lane), the boat.
 7. **Two-Key Ledger:** W2 -> W3 -> W4: the clerk's call in the pie loft, the throw to the counting house, one player per
@@ -37,6 +40,7 @@
    built (SPEC.md, "Engine questions", Resolved): the rope is a climb up of 2.2-6 m, so the three rope descents became a
    drop, the coal chute and a boost; the throw lands 3.2 m out, so its gaps are 2.5 m; the human ladder reaches 4.1 m,
    so the 4.5 m walkway lip takes a boost; the jetty lip is 4.4 m, inside the pull-up's 4.3-4.5 m reach.
+   (2026-10-25: "human ladder" on this page means the 4.1 m relay ladder. The human ladder is now the shoulder stand, its own move (4.5 m, J24, Player Build), not used on Tallow Wharf yet. The map does not change.)
 
 ## The decision
 Q: Build the Tallow Wharf greybox to this layout and these forced co-op moves?
@@ -45,4 +49,9 @@ Q: Build the Tallow Wharf greybox to this layout and these forced co-op moves?
 - "Re-plan the map"
 
 ## Michael's pick
-<!-- filled by the orchestrator: <YYYY-MM-DD ~HH:MM> picked: "<option text>" -->
+2026-10-25 ~18:05 picked (his own words, closest to option 1): "approve as drawn, id rather physically walk the map
+once built and confirm changes". Signed off: the greybox is built to this layout, and any changes are confirmed on his
+walk of the built map.
+
+The same evening he lifted the Tallow hold (folded plan Q1): "Build now, walk later (Recommended)". The 12 proposed
+level-rule changes still come to him alongside the build; he confirms them on that walk.

@@ -21,7 +21,7 @@
       "text": "Take the ledger from the strongroom and leave by the coal chute to the yard",
       "hint": "The coal chute is in the strongroom passage. One boosts, the other crawls out by the yard hatch and unbars the coal yard door." },
     { "id": "tkl-opt", "section": "W3", "space": "w3-partners-office", "team": "all", "kind": "interact",
-      "optional": { "reward": "syringe" }, "after": ["tkl-2"], "lead": "w3-east-wing", "seen_from": "w3-east-wing",
+      "optional": {}, "after": ["tkl-2"], "lead": "w3-east-wing", "seen_from": "w3-east-wing",
       "minutes": 3,
       "text": "Optional: copy the partners' day book in the east wing office",
       "hint": "The partners' office is one door from the east key post. Its desk lamp is the warm one." },
