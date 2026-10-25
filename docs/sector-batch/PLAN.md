@@ -51,7 +51,7 @@ all under the ~1.5k cap. B3 is small: the light constant, two tests and the doc 
 | --- | --- | --- | --- |
 | 1 | `src/game/sectorSolo.ts` | new | pure, Babylon-free: `teamDoorPoints(d)` (pair gate `door`, every bolt `at`), `legCrossesDoor(...)`, `checkSoloRoutes(defs, doorAt)`: per section with team doors, at least one route whose legs (`pts[i] -> pts[i+1]`, y from `RoutePt`) cross no team door's leaf (door from `doorAt`, `StageDoorInfo`; leaf widened `SOLO_DOOR_PAD` 0.3 m each side; leg y within `ZONE_Y_TOL` of the leaf's floor); messages name the section, the doors and the routes (BRIEF A6) |
 | 2 | `tests/sectorSolo.test.ts` | new | synthetic sections: a pair gate across a corridor, one route through it and one round it (pass), only the route through (fail), a leg on another floor (pass), a bolt (fail), no door at a team door point (an error), no team doors (pass) |
-| 3 | `tests/campusSoloRoute.test.ts` | new | `checkSoloRoutes(CAMPUS_SECTORS, doorFinder(b.anchors.doors))` is `[]` on the built campus (as `tests/campusS4.test.ts:35-36` builds it); the rule bites (a copy of S4 with only its loud route fails) |
+| 3 | `tests/campusSoloRoute.test.ts` | new | `checkSoloRoutes(CAMPUS_SECTORS, doorFinder(b.anchors.doors))` is `[]` on the built campus (as `tests/campusS4.test.ts:35-36` builds it); the rule bites (per section with team doors, one route straight across its first team door at the leaf floor fails alone and passes beside the real routes; no live route crosses a gate at its floor, fix round 2026-10-25 ~23:30) |
 
 On master the team doors are S4's cage pair gate (`src/world/maps/campusS4Data.ts:203`) and S5's pair gate
 (`src/world/maps/campusS5Data.ts:183`); S1-S3 have none (J17's v2 adds S2's). A failure stops the builder (BRIEF A8).

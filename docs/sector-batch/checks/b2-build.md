@@ -54,3 +54,5 @@ declared route (PLAN 9's S4 / S5 risk did not happen).
 
 ## Pending PC runs
 - None: the brief names no e2e or GPU leg.
+
+- Closed by the lead (2026-10-25 ~23:30, after the Opus checker FIX): the bite case now builds one route straight across each section's first team door at the leaf floor; `tests/campusSoloRoute.test.ts` + `tests/sectorSolo.test.ts` 9/9 on the desktop.
