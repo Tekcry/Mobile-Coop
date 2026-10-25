@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 3 2026-10-26T01:02+11:00
 
 # campaign J7 R8: PR F e2e flips (Sonnet 5.5 or Opus)
 
