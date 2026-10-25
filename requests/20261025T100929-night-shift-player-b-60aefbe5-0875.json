@@ -1,0 +1,12 @@
+{
+  "id": "20261025T100929-night-shift-player-b-60aefbe5-0875",
+  "sha": "60aefbe532500345f8b151db88acf252382de976",
+  "branch": "",
+  "pr": 452,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-studio,e2e-anim"
+  ],
+  "set": "mixamo"
+}
