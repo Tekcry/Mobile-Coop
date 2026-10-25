@@ -181,6 +181,15 @@ export function hasModel(url: string): boolean {
   return MODELS.has(url);
 }
 
+/** (map-ready S9) A kit / props / campus art GLB through the parsed-file cache (flag on), counted as a kept file of
+ *  `scene` (reused: it was parsed or being read already). */
+export async function loadKeptModel(scene: object, url: string): Promise<GlbModel> {
+  const reused = hasModel(url);
+  const model = await loadModel(url);
+  kept.useFile(scene, url, reused);
+  return model;
+}
+
 /** Drops the parsed files (frees their buffers; the GPU copies stay with their scene). */
 export function forgetModels(): void {
   MODELS.clear();
