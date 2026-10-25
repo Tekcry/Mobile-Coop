@@ -42,8 +42,7 @@ Mixamo skeleton is never used in the game. Source labels per clip: `src/anim/moc
 each clip module is committed. A clip is `mocap_<slug>`: `src/anim/clips/mixamo/<slug>.ts` (keyed) or
 `src/anim/clips/mixamo/trav_<slug>.ts` (traversal channel clip).
 
-Licence sentence: to be copied from the Mixamo FAQ (A11) (https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html;
-the automated read was refused with 403, so copy it by hand and record the date read here).
+Licence sentence (Mixamo FAQ, read 2026-10-26 by the orchestrator): you can "use both characters and animations royalty free for personal, commercial, and non-profit" projects. Source: https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html.
 
 | Files (repo path) | Mixamo title (file as downloaded) | Clip name | Source (URL) | Terms | Date added | Used by |
 | --- | --- | --- | --- | --- | --- | --- |
