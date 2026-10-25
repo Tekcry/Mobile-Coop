@@ -14,7 +14,7 @@ PC runs.
    `Uint8Array(OCC.max)` taken marks; indexed loops, `hyp2` for the cull (`<= FILL.reach`), no closures / literals /
    spread. `pictureInto`: players in contract order, then repeated nearest-pick by squared horizontal midpoint distance
    to slot 0 (strict `<`, so a tie keeps the lower slot).
-2. dc14a1bb `tests/charOccluderFill.test.ts` (new), 9 cases: put = add byte for byte (66 capsules + overflow 7, no
+2. dc14a1bb `tests/charOccluderFill.test.ts` (new), 9 cases: put = add byte for byte (1 player + 70 victims: 64 fit, overflow 7, no
    write past `OCC.max`); local slot = `rtCapsule`, crouch lowers the top by 0.35 x 1.75, peek moves the head end only,
    the 0.5 m top; remote keys `occKey(1, s)` stable; victims (dead out, 31 m from all out, 31 m from local / 5 m from
    remote in, owner `occKey(2, i)`, exactly at the reach in); two machines same bytes; `pictureInto` (players first,
