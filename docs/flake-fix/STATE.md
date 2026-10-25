@@ -18,7 +18,8 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   PRs whose check + checker are green; check laptop-queue-6 holds claims across the next train.
   Also (05:10): a train head that moves after its laptop run (train 111: a docs-only CI fix on the version commit) is
   never run (pendingTrains needs the "version at merge" subject) and auto-train sits in "laptop missing": rerun it or
-  count a docs-only delta as covered. Carrying the status by hand is blocked by auto mode (CI bypass).
+  count a docs-only delta as covered. Carrying the status by hand is blocked by auto mode (CI bypass). And let a
+  train rerun use both slots when nothing else is train-critical (it runs at JOBS=1, service.mjs ~:1220).
 - 00:40: #477 new head 9be7701f: Player's co-op set re-filed as 000013; the service skipped its auto affected run
   ("no merge-base ... not fetched"), so I filed it by hand and re-filed as 000014 (a late auto duplicate ...133515-b70c
   withdrawn). 000011 (old head 21728ba6) is retired by superseded(). Next free prefix: 000015.
