@@ -198,10 +198,11 @@ Shared with other open work (the orchestrator orders; recommendation below):
   12.2, 12.3 and open item 1 (claims-check overlap on the file, not the lines).
 - Changelog fragments `changes/feature-coop-kit-<slice>.md` are per-slice shared files (not claimed).
 - **Order (agreed with the orchestrator ~18:25 2026-10-25, `docs/orchestrator/resume-ct-core.md` on
-  origin/feature/menu; Campaign's `docs/missions/STATE.md` item 7):** part 1 PRs go first (small, ready on master's
-  code); Campaign's mission-engine kit PR merges over them, adds `stand` to its `BuiltinTeamKind` / `TEAM_KINDS`, and
-  folds its `coopKit` flag into `kitMoves` as ids `pull` and `shutter` (Campaign Build does the fold in that PR; the
-  `?coopkit=1` URL becomes `?kitmoves=pull,shutter`). Part 2 starts after that kit PR (KIT0 + NET) is on master.
+  origin/feature/menu; Campaign's `docs/missions/STATE.md` item 7; changed with Campaign Build 2026-10-26 ~09:50):**
+  part 1 waits behind the Mixamo slices, so Campaign's Tallow S1 / S4 and its kit PR land first on its own `coopKit`
+  flag. A1 then folds `coopKit` into `kitMoves` as ids `pull` and `shutter` (A1 does the fold; `?coopkit=1` stays as an
+  alias for `?kitmoves=pull,shutter`) and adds `stand` to `BuiltinTeamKind` / `TEAM_KINDS` if Campaign has not. Part 2
+  starts after that kit PR (KIT0 + NET) is on master.
 
 ## Slices: part 1
 
