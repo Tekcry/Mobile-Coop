@@ -195,7 +195,7 @@ code: `src/game/takedownController.ts`.
 - Tests: `tests/lookout.test.ts` (new: never sent, never leaves, a lure turns him in place, the radio sends someone
   else, flag off = today), `tests/posts.test.ts`, `tests/postsWiring.test.ts`. e2e: `scripts/e2e-sectorops.mjs` "posts
   (guard-ai S5)" (2453): with the flag, a lookout turns and someone else comes.
-- Docs: `docs/systems/ai.md` (Decided direction 36-40, Posts 147-161; Q13's vent placement rule for map authors).
+- Docs: `docs/systems/ai.md` (Decided direction 36-40, Posts 145-162; Q13's vent placement rule for map authors).
 - Est. lines: ~450. Flag: `lookouts`. Done looks like (flag on): the S5 roof marksman holds the roof, turns to noises,
   radios what he sees and is never sent off it.
 
@@ -257,6 +257,13 @@ Unit files per slice are listed in each slice.
 - Guard AI's own jobs: J4 (G327 on `src/ai/animTierView.ts`, coop4) and J6's `src/ai` hot-path part (enemyManager /
   enemy) are claims overlaps: the orchestrator orders them against J15's waves. J13 (cause log) can reuse S4's cause
   bit; J26 (per-area alarms) builds on S5's lock.
+
+- `node scripts/claims-check.mjs --plan docs/guard-rules/PLAN.md --name feature/guard-rules --since-days 3` (2026-10-25,
+  exit 1): overlaps with coop-kit (`flags.ts`, `coopHost.ts`, wire), hud-guidance (`sectorMode.ts`, `coopHost.ts`,
+  `e2e-sectorops.mjs`), map-ready (`flags.ts`, `coopHost.ts`, `e2e-sectorops.mjs`, campusOps, wire), player-batch-j19
+  (`takedownController.ts`, `coopHost.ts`, `flags.ts`, `e2e-takedown.mjs`, wire), player-hygiene
+  (`takedownController.ts`, `coopHost.ts`), test-runner-j20 (`e2e-sectorops.mjs`). For the orchestrator to order; each
+  J15 edit there is a few lines (S2's one-line deny and scan skip, F0's flag block, S1 / S8's sectorMode lines).
 
 ## Flags (dark until accepted)
 | Flag | Default | Owner | Switch-on date | Switches on when |
