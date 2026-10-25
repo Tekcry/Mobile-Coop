@@ -1,4 +1,4 @@
-# Resume - Night Shift | Player Build (2026-10-25 ~18:20 SAVE; older log: history at the end)
+# Resume - Night Shift | Player Build (2026-10-25 ~20:20 SAVE at the 5-hour meter 94%; older log: history at the end)
 
 Rules: docs/RULES.md on origin/master: "A job." (Full burn bullet), "Machines.", "Swaps and context.". Opus builds / checks anim, net, AI;
 Sonnet strict briefs / data checks. No desktop e2e: laptop queue (C:/NightShift/scratch/ctcore/lq/request.mjs --sha <full>
@@ -8,7 +8,7 @@ Walk cap, checker status, train-ready and locks: RULES "Walk pacing" (the cap li
 Message the orchestrator only at PR open / train-ready / blocked / Michael. Push this file with push-resume.sh.
 
 ## Now (2026-10-25 ~18:20 SAVE at the 5-hour meter; row 6 SIGNED OFF ~17:00, full burn; plan FOLDED-PLAN.md + ROADMAP Decided Q34-Q39)
-CPU CAP (orchestrator ~18:50): up to 2 builder agents per lead, tsc / single vitest only, no Blender / npm run build / e2e by hand, until it says CPU < 80%. RUNNING 20:00: J6 S1 + S3 builders, mixamo plan checker.
+CPU CAP (orchestrator ~18:50): up to 2 builder agents per lead, tsc / single vitest only, no Blender / npm run build / e2e by hand, until it says CPU < 80%. RUNNING at the 20:20 SAVE: J6 S1 + S3 Opus builders (told to push WIP; relaunch from their branch heads + PLAN S1 / S3 if cut off), mixamo planner adding the clip file map to PLAN (relaunch: add the file map from the orchestrator's 20:15 list if PLAN lacks it). Queued on the laptop: gm-polish 8aabbe90 (e2e-offline + e2e-menus), coop-real-c1c / c2b.
 | Job | Branch (worktree C:/NightShift/Mobile-Coop-<x>) | Head | Next |
 | --- | --- | --- | --- |
 | J1 docs PR #437 | feature/player-docs-j1 | 16c6cb99 | TRAIN-READY 19:00 (Opus recheck PASS, `checker` posted, orchestrator told). Polish (later docs PR): Moth still amber in docs/operators/SPEC.md:65,:498, BRIEF.md:35, steps/13:7 (G196 purple); movement.md:61-62 'under an override' too broad (cover glide has no pivot). |
