@@ -3,6 +3,24 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 57 (2026-10-25 ~22:40, Orchestrator save; session [55e15e]; wins over SAVE 56):**
+- Laptop GitHub login works again; SAVE 56's three branches pushed; BOOT swap note removed by the Orchestrator.
+- Service pid 12732 healthy. Trains 103 and 104 done; train 105 running at the save. All Test Runner worktrees clean
+  and pushed.
+- PR-C #445: S6c fix 259bbe55 Opus checker PASS (posted by the Orchestrator on Michael's ~22:31 OK; auto mode blocks
+  my own `checker` posts). Conflict with master (docs/systems/testing-tools.md only) fixed by a master merge, head
+  f3e4c511 MERGEABLE, `checker` carried over. NOTE: RULES "A job" says leads never merge master in; a docs-only
+  conflict is hand-resolved in the train instead - do that next time. affected-e2e on f3e4c511 queued (...113341-8aae).
+  j20-s6c laptop run on 259bbe55 queued (...105350-82df).
+- Marlow first (ROADMAP Decided ~20:50): Mixamo #452's run first, then Marlow's. Marlow #463 re-filed as 000007 /
+  000008 (both ran). Mixamo 3754df04: my 000006 re-file was superseded by an auto re-request (112128-bb75, the
+  rename read as a withdrawal); re-filed that as 20261025T000009-affected-e2e-3754df04-bb75. Check it ran, not
+  superseded again; when its verdict posts, tell the Orchestrator. Re-file lesson: rename the newest auto request
+  only, and check the log for "superseded" a few minutes later.
+- j20-perf alone request: its copy is on the DESKTOP (C:/NightShift/scratch/orchestrator/j20-perf-request.json), not
+  on the laptop; ask the Orchestrator to re-file it when the queue is quiet. No gap runs queued (trains pending).
+- Next: results of j20-s6c and #445 affected; PR-C merge -> D-A docs, open PR-A (0d7eab1e), then PR-B; j20-parity-pre-2.
+
 **Test Runner SAVE 56 (2026-10-25 ~21:38, Orchestrator save at 92%; session [9a49d8]; wins over SAVE 55):**
 - LAPTOP GITHUB LOGIN EXPIRED (~21:05): `gh` 401 and `git push` "could not read Username". Michael must run
   `gh auth login -h github.com` then `gh auth setup-git` on the laptop. Until then the Orchestrator pushes laptop-queue
