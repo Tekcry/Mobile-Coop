@@ -60,9 +60,9 @@ export const MIXAMO_ON: Record<string, boolean> = {
   // on (I2b, under its hold `MIXAMO_HOLD`): palms 0.0 cm on the lip, shoulders 0.49 m (arm 0.54), wrists' velocity change
   // 2.8 cm a frame at the release (cap 3.0; hand-made 2.8), trunk 8.6 / 2.8 cm (caps 9.6 / 3.1): tests/climbHands.test.ts
   braced_hang_to_crouch: true,
-  // off (visibly broken, I2b): its stand-up end turns the hips 86 deg (pelYaw to 1.5 rad) and snaps the trunk 19.7 cm and
-  // the wrists 11.1 cm velocity change in a frame (k 0.85; limits 9.6 / 3; climbHands harness)
-  freehang_climb: false,
+  // on (I2b, its stand-up `MIXAMO_STAND`: the hip turn kept at 0.15, the clock slowed mid-way): trunk 8.9 / 3.07 cm a frame
+  // (caps 9.6 / 3.1; was 15.7 / 5.1 as captured), arms 12.2 / 9.8 (caps 16.2 / 23.5): tests/climbHands.test.ts
+  freehang_climb: true,
   // on (I2b): palms 0.00 cm (hand-made 0.00); soles 38 cm vs 32 (the rig's climb foot cap, not contact); into the top-out
   // the first frame moves the right ankle 19.9 cm (hand-made 15.7; 23.5 before the capture-to-capture trigger, animGraph)
   climbing_ladder: true,
@@ -110,6 +110,27 @@ export const HOLD_EASE = 4;
  * on the top by the release (k 0.475).
  */
 export const HOLD_FEET_CH: readonly number[] = (['fLX', 'fLZ', 'fLY', 'fLPitch', 'fRX', 'fRZ', 'fRY', 'fRPitch'] as const).map((c) => CH[c]);
+
+/**
+ * (I2b) Per stand-up capture (the `climbUpStand` slot, past the crouch): its clock runs the same take from the crouch to
+ * its end but slowed through the middle and quicker at the ends (game x 0..1 over the crouch to the end, the take's
+ * x + slow sin(2 pi x) / 2 pi: speed 1 - slow mid-way, 1 + slow at the ends), and its yaw turn (`STAND_YAW_CH`) is kept at
+ * `yaw` of the take's over the hand-made climb-up's. The free-hang take (x2.85, M4) turns the hips 86 deg (pelYaw to 1.5
+ * rad, still 0.89 at its end) and pitches the chest back up 1.2 rad in 0.08 s as it stands: played as captured the trunk
+ * stepped 15.7 cm and changed velocity 5.1 cm in a frame (caps 9.6 / 3.1, tests/climbHands.test.ts). Swept (to the take's
+ * end; cut short at k 0.85 - 0.92 every reading was worse): yaw 0 slow 0.4 - 0.5 trunk 8.6 / 3.06; yaw 0.15 slow 0.45
+ * 8.9 / 3.07, the arms 12.2 / 9.8 (caps 16.2 / 23.5); yaw 0.3 the trunk 10.0.
+ */
+export const MIXAMO_STAND: Readonly<Record<string, { yaw: number; slow: number }>> = {
+  freehang_climb: { yaw: 0.15, slow: 0.45 },
+};
+/** The resolved stand-up of the `climbUpStand` slot's capture, by the `STAND_*` slots (typed: no double boxed; none:
+ *  yaw 1, slow 0, the take as captured). */
+export const WREN_STAND = new Float64Array(2);
+export const STAND_YAW = 0;
+export const STAND_SLOW = 1;
+/** The stand-up capture's yaw channels `STAND_YAW` scales toward the hand-made climb-up's. */
+export const STAND_YAW_CH: readonly number[] = (['pelYaw', 'spYaw'] as const).map((c) => CH[c]);
 
 /** A traversal move a capture plays in (the hang family, the ladder, the vent crawl, the lip climb-up, the top-out). */
 export type MixamoMove = 'hang' | 'climb' | 'crawl' | 'climbUp' | 'topOut';
@@ -161,6 +182,15 @@ export function resolveMixamo(): void {
       WREN_HOLD[HOLD_STAND] = h.stand;
       WREN_HOLD[HOLD_EASE] = h.ease;
       WREN_HOLD[HOLD_FROM] = h.from;
+    }
+  }
+  WREN_STAND[STAND_YAW] = 1;
+  WREN_STAND[STAND_SLOW] = 0;
+  for (const [slug, r] of Object.entries(MIXAMO_TRAV)) {
+    const s = MIXAMO_STAND[slug];
+    if (s && T.climbUpStand === r.clip) {
+      WREN_STAND[STAND_YAW] = s.yaw;
+      WREN_STAND[STAND_SLOW] = s.slow;
     }
   }
   for (const m of Object.keys(MIXAMO_KEEP) as MixamoMove[]) {

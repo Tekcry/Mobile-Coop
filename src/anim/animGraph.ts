@@ -56,7 +56,7 @@ import { KEYED_GLIDE_STRAFE } from './clips/keyed/glide_strafe';
 import { KEYED_GLIDE_BACK } from './clips/keyed/glide_back';
 import { studioDriveTargets, type StudioDrive } from './studioDrive';
 import { MOVE_IDS, newGraphPlaying, type GraphPlaying } from './nowPlaying'; // (tuner-clarity S1)
-import { HANG_IDLE_SECONDS, KEEP_CH, SHIMMY_SPEED, SHIMMY_TRAVEL, HOLD_FEET_CH, WREN_HOLD, HOLD_K0, HOLD_SPAN, HOLD_FROM, HOLD_STAND, HOLD_EASE, WREN_TRAV } from './mixamo'; // (mixamo-retarget I2)
+import { HANG_IDLE_SECONDS, KEEP_CH, SHIMMY_SPEED, SHIMMY_TRAVEL, HOLD_FEET_CH, WREN_HOLD, HOLD_K0, HOLD_SPAN, HOLD_FROM, HOLD_STAND, HOLD_EASE, WREN_STAND, STAND_YAW, STAND_SLOW, STAND_YAW_CH, WREN_TRAV } from './mixamo'; // (mixamo-retarget I2)
 import { bodyMotionBands, bodyMotionStep, KEY_MOTION, newBodyMotion, newBodyMotionIn, scaleKeyedArms, type BodyMotion } from './bodyMotion';
 import { KEYED_SNEAK } from './clips/keyed/sneak';
 import { KEYED_CROUCH_WALK } from './clips/keyed/crouch_walk';
@@ -3069,7 +3069,20 @@ export class AnimGraph {
     const sw = cb === ca || u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u);
     if (sw > 0) {
       mx[MX_W] = sw;
-      this.mxOver(src, cb);
+      if (cb === CLIMB_UP) this.mxOver(src, cb);
+      else {
+        // (I2b) a stand-up capture (`WREN_STAND`, typed): its clock slowed through the middle of the stand-up and quicker
+        // at its ends (x + slow sin(2 pi x) / 2 pi over the crouch to the end: the same take, start and end), and its yaw
+        // turn kept at `yaw` of its own over the hand-made climb-up's
+        const S = WREN_STAND;
+        const YC = STAND_YAW_CH;
+        for (let j = 0; j < YC.length; j++) this.standBase[j] = src[YC[j]!]!;
+        const x = (ct - CLIMB_UP_CROUCH_K) / (1 - CLIMB_UP_CROUCH_K);
+        mx[MX_T] = CLIMB_UP_CROUCH_K + (1 - CLIMB_UP_CROUCH_K) * (x + (S[STAND_SLOW]! * Math.sin(2 * Math.PI * x)) / (2 * Math.PI));
+        this.mxOver(src, cb);
+        mx[MX_T] = ct;
+        for (let j = 0; j < YC.length; j++) src[YC[j]!] = this.standBase[j]! + S[STAND_YAW]! * (src[YC[j]!]! - this.standBase[j]!);
+      }
     }
     this.keepApply(src, KEEP_CH.climbUp, CLIMB_UP);
     this.travNow = sw > 0.5 ? cb : mx[MX_CW]! > 0.5 ? ca : CLIMB_UP;
@@ -3094,6 +3107,8 @@ export class AnimGraph {
 
   /** (I2b) The hand-made climb-up's feet under a held capture (`HOLD_FEET_CH`). */
   private readonly holdBase = new Float64Array(8);
+  /** (I2b) The yaw channels under the stand-up capture (`STAND_YAW_CH`). */
+  private readonly standBase = new Float64Array(2);
   /** (I2) The kept channels' values before the capture (the base pose under a channel the hand-made clip does not key). */
   private readonly keepBase = new Float64Array(64);
   private keepSave(src: Pose, keep: readonly number[]): void {
