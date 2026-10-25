@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { LevelBuilder } from '../src/world/levelBuilder';
 import { LightField } from '../src/world/lightField';
-import { LightRegistry } from '../src/world/lights';
+import { LightRegistry, makeCone } from '../src/world/lights';
 import { SHUTTER, shutterSpecsOf, type ShutterSpec } from '../src/game/kit/shutter';
 import { SHUTTER_NAV, closeShutterNav, placeShutter, shutterLightLeaf, shutterLightLeaves, shutterNavRect, shutterSlotsOf, type ShutterNavRect } from '../src/world/shutterDoor';
 import { runtimeNav } from './helpers/runtimeNav';
@@ -140,13 +140,13 @@ describe('light: the curtain is an always-shut leaf (A16)', () => {
   });
 
   for (const spec of [SPEC_Z, SPEC_X]) {
-    it(`the field reports the opening closed (yaw ${spec.yaw.toFixed(2)}): a lamp across it gives no light; beside it, as before`, () => {
+    it(`the field reports the opening closed (yaw ${spec.yaw.toFixed(2)}): a light across it gives none; its own side as before`, () => {
       const reg = new LightRegistry();
       reg.ambient = 0;
       const nx = Math.sin(spec.yaw);
       const nz = Math.cos(spec.yaw);
-      // a lamp 2 m off the plane on one side, a point 2 m off on the other, both through the opening
-      reg.add({ x: spec.x - 2 * nx, y: 1.5, z: spec.z - 2 * nz, radius: 8, intensity: 1 });
+      // a light 2 m off the plane on one side aimed across it (a flashlight: no bake), a point 2 m off on the other
+      reg.add({ kind: 'flashlight', x: spec.x - 2 * nx, y: 1.5, z: spec.z - 2 * nz, radius: 8, intensity: 1, cone: makeCone(nx, -0.1, nz, 0.7) });
       const open = new LightField(null, reg);
       const shut = new LightField(null, reg, [shutterLightLeaf(spec)]);
       const px = spec.x + 2 * nx;
