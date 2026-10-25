@@ -39,6 +39,7 @@ Owner: Marlow Build. Status: current.
 Next: fresh plan checker on d24920f6c (BRIEF + PLAN head; later commits touch STATE only).
 
 ## Done
+- 2026-10-25 fix round 2 (plan check 2 FIX on c4ed19163, report `C:/NightShift/scratch/marlow/j12-plan-check-2.md`), IN PROGRESS: 1 side routes A26 + S4 cases + J13 line (3b04793c); 2 claims block in PLAN section 1 (WIP, overlaps not yet listed in section 7). Left: 2 section 7 overlap order; 3 J24 seam (rope both ways, drop `ladder_grab_m`, band rows with coop-kit); 4 `mergeGraphs` into the lib (S0, PR A +40); lead note A27 Tallow long-throw exception; polish P1-P9; STATE resume block.
 - 2026-10-25 fix round 1 (plan check FIX on cd0a5f68): 1 J13 `resolvePoints` + `--points`, no link id (9202d10f);
   2 split legs = one route, A23, S4 cases (e478e008); 3 relay lip A24 in S7a (c0bfacc5); 4 ghost INFO on training
   (c12a9dcb); A25 new kinds (04c07a84); 5 PR recount, five PRs, fallbacks (cc969b5d); P1-P7, P9 (6b90717d,

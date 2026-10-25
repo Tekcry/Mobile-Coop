@@ -50,6 +50,47 @@ Fallbacks, each named before it is needed: PR A over 1.5k -> S3 becomes its own 
 PR C over 1.5k -> S6 becomes its own PR right after A (it needs only S0); C and D then merge its branch. PR D over
 1.5k -> the `missionValidate` test cases for the kind lists move to a follow-up PR with Campaign's kind-list pin (A20).
 
+### Claims
+
+Every file in section 2's "Owns" column (`package.json` and `changes/**` are shared files, not claimed). Overlaps with
+other open jobs and their order: section 7 "Claims overlaps".
+
+```claims
+files:
+  - scripts/level-graph-lib.mjs
+  - scripts/level-validate.mjs
+  - scripts/level-checks/**
+  - scripts/mission-validate.mjs
+  - scripts/level-graphs.mjs
+  - scripts/level-measure.mjs
+  - scripts/metrics-gen.mjs
+  - src/world/levelMeasure.ts
+  - tests/levelValidate.test.ts
+  - tests/levelProfiles.test.ts
+  - tests/levelMeasure.test.ts
+  - tests/levelMeasureCli.test.ts
+  - tests/levelMeasured.test.ts
+  - tests/levelMeasureCampus.test.ts
+  - tests/levelTraining.test.ts
+  - tests/levelPerfect.test.ts
+  - tests/levelEngine.test.ts
+  - tests/levelGraphs.test.ts
+  - tests/noForcedKill.test.ts
+  - tests/metricsGen.test.ts
+  - tests/missionValidate.test.ts
+  - docs/level-validator/**
+  - docs/marlow-final/graph/**
+  - docs/sector-redesign/graph/campusOps-S*.json
+  - docs/design/scale-sheet.md
+  - docs/design/metrics.json
+  - docs/level-design.md
+  - docs/systems/testing-tools.md
+  - docs/validator-port/**
+maps: none
+protocol: none
+save: none
+```
+
 ## 2. Slices
 
 Each slice runs in its own worktree `C:/NightShift/Mobile-Coop-validator-port-<slice>` on
