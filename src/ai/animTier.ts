@@ -9,8 +9,9 @@
  *   (a long freeze does not fast-forward springs and clocks); the first update after it always solves (the thaw);
  * - off (`?animtier=0`), pinned (in a takedown / held / carried, a scripted emote, climbing) or within
  *   `ANIM_TIER_NEAR_PLAYER` of any player (local or remote): every frame;
- * - off-screen (a render happened since the last update and the guard's merged body was drawn in no local view):
- *   every `ANIM_TIER_OFFSCREEN` th frame;
+ * - off-screen (a render happened since the last update, the guard's merged body was drawn in no local view and, A195
+ *   guard-cap T1-SHADOW, no shadow of his can be in one: `animTierView.ts`): every `offPeriod` th frame
+ *   (`ANIM_TIER_OFFSCREEN`, guard-cap T1: 8; `?animoff=N` overrides it for A/B runs);
  * - beyond `ANIM_TIER_FAR` from the nearest local camera (the rig's anim LOD distance, never scaled by the Detail
  *   setting: PLAN S3): every `ANIM_TIER_FAR_PERIOD` th frame;
  * - else every frame.
@@ -24,8 +25,8 @@
 export const ANIM_TIER_FAR = 22;
 /** Within this horizontal distance (m) of any player a guard always solves every frame. */
 export const ANIM_TIER_NEAR_PLAYER = 4;
-/** Solve every Nth frame off-screen. */
-export const ANIM_TIER_OFFSCREEN = 4;
+/** Solve every Nth frame off-screen (guard-cap T1: 4 -> 8, off-screen only; the far tier is visible and stays 2). */
+export const ANIM_TIER_OFFSCREEN = 8;
 /** Solve every Nth frame when far. */
 export const ANIM_TIER_FAR_PERIOD = 2;
 /** (perfg) The FROZEN tier's period: never solve while frozen. */
@@ -51,18 +52,20 @@ export interface AnimTierIn {
   camDist2: number;
   /** Squared horizontal distance to the nearest player (m^2; Infinity with none). */
   playerDist2: number;
+  /** (guard-cap T1-SHADOW) The off-screen period (`ANIM_TIER_OFFSCREEN`; `flags.animOff` overrides it for A/B runs). */
+  offPeriod: number;
 }
 
 export function newAnimTierIn(): AnimTierIn {
-  return { frozen: false, on: true, pinned: false, rendered: false, seen: true, camDist2: 0, playerDist2: Infinity };
+  return { frozen: false, on: true, pinned: false, rendered: false, seen: true, camDist2: 0, playerDist2: Infinity, offPeriod: ANIM_TIER_OFFSCREEN };
 }
 
-/** The solve period (frames) for this frame's inputs: `ANIM_TIER_FROZEN` (0), 1, `ANIM_TIER_FAR_PERIOD` or
- *  `ANIM_TIER_OFFSCREEN`. */
+/** The solve period (frames) for this frame's inputs: `ANIM_TIER_FROZEN` (0), 1, `ANIM_TIER_FAR_PERIOD` or the
+ *  off-screen `offPeriod` (`ANIM_TIER_OFFSCREEN`). */
 export function animTierPeriod(i: AnimTierIn): number {
   if (i.frozen) return ANIM_TIER_FROZEN;
   if (!i.on || i.pinned || i.playerDist2 < ANIM_TIER_NEAR_PLAYER * ANIM_TIER_NEAR_PLAYER) return 1;
-  if (i.rendered && !i.seen) return ANIM_TIER_OFFSCREEN;
+  if (i.rendered && !i.seen) return i.offPeriod;
   if (i.camDist2 > ANIM_TIER_FAR * ANIM_TIER_FAR) return ANIM_TIER_FAR_PERIOD;
   return 1;
 }
