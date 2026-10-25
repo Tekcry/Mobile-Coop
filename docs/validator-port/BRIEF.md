@@ -127,6 +127,16 @@ Authority order: `CLAUDE.md` on origin/master; Michael's answers above win over 
   whose `to` storey is below its `from` (sheet section 3: "a climb up only, no descent"; from mission-validator
   VAL-DIMS). Mission-validator's hand-kept `kit` block in metrics.json is dropped: master's `checkDimensions` already
   reads the kit bands from sheet section 3. Undo: delete the rows and the module.
+- **A24 Relay lip ceiling derived, number left to Michael (#443 hand-over, lead decision 2026-10-25 ~20:30).** #443
+  (merged in 4.103.3) left the sheet's Relay lip row (`docs/design/scale-sheet.md:56`, `sizes.hang_lip` 4.3 - 4.6,
+  read by `scripts/metrics-gen.mjs:109`) for J12 to derive. `TEAM.relayMax` 4.6 (`src/config/movement.ts:476`) caps
+  the hanger's root over the climber's floor (`src/game/teamMoves.ts:64`); a ledge hanger's root is `HANG.drop` 1.9
+  under the lip (`src/world/anchors.ts:219`, `hangPoint` `:640`, at the 1.75 m gameplay height of
+  `src/player/attach.ts:299`, so no scaling). Derived lip ceiling = 4.6 + 1.9 = 6.5 m. S7a writes this derivation into
+  the row and pins it with a test (the band's top never above `relayMax` + `HANG.drop`); the band's number stays 4.6
+  until Michael answers (open question in STATE), because the sheet changes only with his approval. Until then
+  `checkDimensions` keeps ERRing a `team_hang` lip above 4.6 (`scripts/level-validate.mjs:461-467`). Undo: drop the
+  derivation text and the pin test.
 - **A13 metrics-gen flags (V12).** Any argument other than `--check` (including `--help`) prints the usage and exits 2,
   writing nothing, as level-validate does. Undo: one `if`.
 - **A14 Validator in CI (V6).** `docs/level-validator/graph-sets.json` lists every committed graph set (files, flags,

@@ -47,7 +47,7 @@ lists every file the slice may touch; no two slices running at once own the same
 | S0 | Lib split, PROFILES (Q29 row), module wiring, `--require-measured` flag, mission-node merge, `linkTime` measured | `scripts/level-graph-lib.mjs`, `scripts/level-validate.mjs`, `scripts/level-checks/{measured,training,perfect,engine}.mjs` (stubs), `scripts/mission-validate.mjs` (stub), `tests/levelProfiles.test.ts`, `tests/levelValidate.test.ts`, `docs/level-validator/example.graph.json` | ~560 | Opus | - | `levelValidate`, `levelProfiles` |
 | S1 | Port `levelMeasure.ts` to master; add way-back measure and J13's `resolvePoints` | `src/world/levelMeasure.ts`, `tests/levelMeasure.test.ts` | ~900 | Opus | - | `levelMeasure` |
 | S2 | Port `level-measure.mjs` CLI; write `ways_back`; `--points` | `scripts/level-measure.mjs`, `tests/levelMeasureCli.test.ts` | ~520 | Sonnet | S1's exported API (V6's + `resolvePoints`) | `levelMeasureCli` |
-| S7a | V12 + sheet rows: metrics-gen rejects unknown flags; rows `nav_floor_depth_m`, `ladder_grab_m`, MV's six `mission_*` rows | `scripts/metrics-gen.mjs`, `tests/metricsGen.test.ts`, `docs/design/scale-sheet.md`, `docs/design/metrics.json` | ~70 | Sonnet | - | `metricsGen` |
+| S7a | V12 + sheet rows: metrics-gen rejects unknown flags; rows `nav_floor_depth_m`, `ladder_grab_m`, MV's six `mission_*` rows; relay lip derivation (A24) | `scripts/metrics-gen.mjs`, `tests/metricsGen.test.ts`, `docs/design/scale-sheet.md`, `docs/design/metrics.json` | ~70 | Sonnet | - | `metricsGen` |
 | S3 | `checkMeasured` port with V1 and V2 | `scripts/level-checks/measured.mjs`, `tests/levelMeasured.test.ts`, `docs/validator-port/fragments/S3.md` | ~460 | Opus | S0 | `levelMeasured` |
 | S6 | Ghost / no-kill paths, `requires_kill`, `mark`; T H4 static test | `scripts/level-checks/perfect.mjs`, `tests/levelPerfect.test.ts`, `tests/noForcedKill.test.ts`, `docs/validator-port/fragments/S6.md` | ~330 | Opus | S0 | `levelPerfect`, `noForcedKill` |
 | S4 | Training checks (A8, A9) | `scripts/level-checks/training.mjs`, `tests/levelTraining.test.ts`, `docs/validator-port/fragments/S4.md` | ~420 | Opus | S0 | `levelTraining` |
@@ -113,8 +113,15 @@ merged graphs, section 8; touches no graph file; combines with `--check`, not wi
 **S7a (Sonnet).** `scripts/metrics-gen.mjs:211-227`: any argument other than `--check` prints the usage and exits 2,
 nothing written (A13). Scale sheet section 8 gains `nav_floor_depth_m` 1.5 (source: the nav sampler casts down to y -2,
 `src/ai/navBuild.ts:32-34`; LD 12.1) and `ladder_grab_m` 4.1 (`TEAM.ladderGrab`, `src/config/movement.ts:464`; G57 4.5 not
-built); the six `mission_*` rows copied from MV 0c62a921 `docs/design/scale-sheet.md`. Regenerate `metrics.json`. No
-`kit` block (A12). Done: `metricsGen` green with a `--help` / `--chek` case (exit 2, file untouched) and the new keys.
+built); the six `mission_*` rows copied from MV 0c62a921 `docs/design/scale-sheet.md`. Relay lip (A24, after #443,
+merged in 4.103.3): the section 3 row (`scale-sheet.md:56`) states the derived ceiling, `TEAM.relayMax` 4.6
+(`src/config/movement.ts:476`, `src/game/teamMoves.ts:64`) + `HANG.drop` 1.9 (`src/world/anchors.ts:219`) = 6.5 m,
+and keeps the band's number 4.3 - 4.6 until Michael answers (STATE open question); on his yes the row becomes
+4.3 - 6.5 and `metrics.json` is regenerated in the same change. Regenerate `metrics.json`. No `kit` block (A12). Done:
+`metricsGen` green with a `--help` / `--chek` case (exit 2, file untouched), the new keys, and a relay pin
+(`sizes.hang_lip[1]` <= `TEAM.relayMax` + `HANG.drop`, both imported from the code); in the same test file a case runs
+`validate()` (master `scripts/level-validate.mjs`; S0 keeps its signature) on a one-link fixture with the
+band from `metrics.json`: a `team_hang` lip at the band's top passes, 0.1 m above it ERRs (true for either answer).
 
 **S3 (Opus).** `measured.mjs` = V6's `checkMeasured` (v6 8f551e18 `scripts/level-validate.mjs:977-1075`) with: shadow
 share and its drift INFO (A4, V1); the presence gate of A5 (V2): encounter spaces, splits (`a_s`, `b_s`, `reach_s`;
