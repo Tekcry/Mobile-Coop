@@ -29,6 +29,8 @@ const E = emitMod as {
   movingSpan: (t: Take) => { a: number; b: number; thr: number; peak: number };
   emitLoop: (d: Inter, rig: Rig, name: string) => Out;
   emitTimed: (d: Inter, rig: Rig, name: string) => Out;
+  emitTurn: (d: Inter, rig: Rig, rec: { slug: string; turnDeg: number }) => Out;
+  faceTake: (d: Inter, take: Take, seg: number[]) => Inter & { travel: { headingDeg: number; bodyTurnedDeg: number; facesBack: boolean } };
   emitRecipe: (d: Inter, rig: Rig, rec: Recipe) => Res;
   sourceRow: (rec: Recipe, res: Res) => string;
   writeKeyedBlock: (text: string, rows: Record<string, string>, o?: { keep?: boolean }) => string;
@@ -45,6 +47,8 @@ const PLAN_KINDS: Record<string, string> = {
   kneeling_pull_up: 'timed', pulling_up_to_a_ledge: 'timed', lifting_heavy_object: 'timed',
   // (mixamo-retarget I6) the locomotion set
   walking: 'gait', jogging: 'gait', running: 'gait', fast_run: 'gait', start_walking: 'timed', stop_walking: 'timed', run_to_stop: 'timed',
+  right_turn: 'turn', left_turn: 'turn', walking_left_turn: 'turn', walking_left_turn_mirror: 'turn', left_strafe_walking: 'gait',
+  right_strafe_walking: 'gait', crouched_sneaking_left: 'gait', crouched_sneaking_right: 'gait', walking_backwards: 'loop', run_backwards: 'loop',
 };
 
 const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
@@ -76,6 +80,12 @@ describe('mixamoEmit: recipes', () => {
     expect(() => E.validateRecipes(bad('jogging', { gait: 'trot' }))).toThrow(/jogging: gait band from walk, jog, run/);
     expect(() => E.validateRecipes(bad('start_walking', { slot: 'walk' }))).toThrow(/slot walk takes a gait recipe/);
     expect(() => E.validateRecipes(bad('walking', { slot: 'hop' }))).toThrow(/no such slot/);
+    expect(() => E.validateRecipes(bad('right_turn', { turnDeg: undefined }))).toThrow(/a turn names turnDeg/);
+    expect(() => E.validateRecipes(bad('walking', { turnDeg: 90 }))).toThrow(/turnDeg is a turn's/);
+    expect(() => E.validateRecipes(bad('left_strafe_walking', { gait: 'walk' }))).toThrow(/sideways gait/);
+    expect(() => E.validateRecipes(bad('left_strafe_walking', { travel: '+x' }))).toThrow(/strafeL travels -x/);
+    expect(() => E.validateRecipes(bad('walking', { cycles: 1.5 }))).toThrow(/cycles/);
+    expect(() => E.validateRecipes(bad('right_turn', { slot: 'strafeR' }))).toThrow(/slot strafeR takes a gait recipe/);
   });
 });
 
@@ -164,6 +174,37 @@ describe('mixamoEmit: the emit kinds on synthetic intermediates', () => {
     expect(out.def.pel[3 * (N - 1) + 1]!).toBeCloseTo(-0.3 / K, 4);
   });
 
+  it('(I6) turn: by the yaw turned, from the turn start to turnDeg of the monotone root yaw', () => {
+    const n = 61; // 1 s turning 120 deg right after 0.25 s still
+    const yaw = (k: number): number => (k < 15 ? 0 : Math.min(1, (k - 15) / 40) * (120 * Math.PI) / 180);
+    const out = E.emitTurn(inter(n, false, () => 0, { root: Array.from({ length: n }, (_, k) => [0, 0, yaw(k)]) }), rig, { slug: 'test_turn', turnDeg: 90 });
+    expect(out.report.turnedDeg as number).toBeCloseTo(90, 0);
+    expect(out.seconds).toBeGreaterThan(0.45);
+    expect(out.seconds).toBeLessThan(0.6);
+    expect(out.def.frames).toBeGreaterThanOrEqual(16);
+    expect(out.def.feet).toBeUndefined();
+  });
+
+  it('(I6) faceTake: a sideways loop faces the take (its reverse when the chest faces away), travelling along x', () => {
+    const n = 60;
+    const along = (): Inter => inter(n, true, () => 0, { root: Array.from({ length: n }, (_, k) => [0, (1.2 * k) / n, 0]), cycleDistance: 1.2 });
+    const take = (chestYaw: number): Take => {
+      const t = takeOf(121, (s, i) => (s === 'root' ? [-i / 100, 0.9, 0] : [0, 0, 0]));
+      t.quat.set('thorax', Array.from({ length: 121 }, () => [0, Math.sin(chestYaw / 2), 0, Math.cos(chestYaw / 2)]));
+      return t;
+    };
+    const L = E.faceTake(along(), take(0), [0, 120]);
+    expect(L.travel.headingDeg).toBeCloseTo(-90, 3);
+    expect(L.travel.facesBack).toBe(false);
+    const last = L.root[n - 1]!;
+    expect(last[0]!).toBeCloseTo(-1.2 * (n - 1) / n, 4);
+    expect(last[1]!).toBeCloseTo(0, 4);
+    // the chest turned round: the take faces away from its rest facing, so -x travel is the body's right
+    const B = E.faceTake(along(), take(Math.PI * 0.9), [0, 120]);
+    expect(B.travel.facesBack).toBe(true);
+    expect(B.travel.headingDeg).toBeCloseTo(90, 3);
+  });
+
   const rec = (kind: string, slug: string): Recipe => ({ ...(RECIPES.clips[slug] as Omit<Recipe, 'slug'>), slug, kind });
 
   it('gait: strike-warped, clip feet falling back at the stride; a gait without strikes falls back to a loop', () => {
@@ -219,7 +260,8 @@ describe('mixamoEmit: the committed keyed modules', () => {
       expect(first).toMatch(/GENERATED.*Do not edit/);
       const row = MOCAP_SOURCES[clip.name]!;
       expect(row.source).toBe('mixamo');
-      expect(row.title).toBe(RECIPES.clips[slug]!.title);
+      const r = RECIPES.clips[slug]!;
+      expect(row.title).toBe(/^Mirror/.test(r.note ?? '') ? `${r.title} (${r.note})` : r.title);
       expect(row.take).toBe(RECIPES.clips[slug]!.file);
       expect(row.studio.kind).toBe('keyed');
     }
@@ -239,6 +281,12 @@ describe('mixamoEmit: the committed keyed modules', () => {
         expect(st.cycle).toBeCloseTo(secs, 3);
         continue;
       }
+      if (PLAN_KINDS[slug] === 'turn') {
+        // (I6) played by the yaw turned: no seconds constant; the row cycles over the take's seconds
+        expect(mod[`MOCAP_${slug.toUpperCase()}_SECONDS`], slug).toBeUndefined();
+        expect(st.cycle, slug).toBeGreaterThan(0.3);
+        continue;
+      }
       // closure: the step from the last frame to frame 0 (pelvis and arm points) against the clip's own steps
       const step = (i: number, j: number): number => {
         let s = 0;
@@ -252,17 +300,21 @@ describe('mixamoEmit: the committed keyed modules', () => {
       if (!clip.feet) continue;
       // planted frames fall back by stride / N a frame (the root moves stride per cycle)
       const errs: number[] = [];
+      // (I6) a sideways cycle's planted foot falls back along its travel axis
+      const [ux, uz] = clip.travel === '+x' ? [1, 0] : clip.travel === '-x' ? [-1, 0] : [0, 1];
       for (let s = 0; s < 2; s++) for (let i = 0; i < N; i++) {
         const j = (i + 1) % N;
         if (!clip.feet[i * 10 + s * 5 + 4] || !clip.feet[j * 10 + s * 5 + 4]) continue;
         const dz = clip.feet[j * 10 + s * 5 + 2]! - clip.feet[i * 10 + s * 5 + 2]!;
-        errs.push(Math.abs(dz + clip.stride / N) * K * 100);
+        const dx = clip.feet[j * 10 + s * 5]! - clip.feet[i * 10 + s * 5]!;
+        errs.push(Math.hypot(dz + (uz * clip.stride) / N, dx + (ux * clip.stride) / N) * K * 100);
       }
       errs.sort((a, b) => a - b);
       expect(errs.length, slug).toBeGreaterThan(0);
       expect(errs[errs.length >> 1]!, `${slug}: planted foot vs the root, median cm/frame`).toBeLessThan(1);
       // the Studio walks it at its own pace: a gait's row moves forward over its cycle
-      expect(st.move, slug).toBe('fwd');
+      // (the sideways ones: the right on the treadmill, the left in place, as the CMU strafes)
+      expect(st.move ?? 'none', slug).toBe(clip.travel === 'z' ? 'fwd' : clip.travel === '+x' ? 'side' : 'none');
     }
   });
 });

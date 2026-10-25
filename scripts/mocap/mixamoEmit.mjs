@@ -17,6 +17,11 @@
 // - timed: a one-shot by progress over its own seconds: trimmed to its moving span (`movingSpan`: the mean joint speed
 //   over the threshold, TRIM.margin s each side), root as the take's own path with its heading taken out progressively
 //   (buildSlot's segment root; in place when A4 detects it), sampled at ONESHOT_FPS, plus `MOCAP_<SLUG>_SECONDS`.
+// - (I6) turn: a one-shot by the yaw turned (emit.mjs's turn path, as the CMU turns): trimmed as `timed`, the root
+//   following the body's facing, sampled from the turn's start to `turnDeg` (+ right) of the monotone root yaw; the game
+//   plays it by the yaw it turns (90 deg a clip, mocap.ts MocapSlots), so its seconds never set the game's timing.
+// - (I6) gait `cycles`: a take holding several cycles (its last frame still repeating its first) keeps its first one;
+//   a sideways gait (travel +x / -x, band `strafe`) has its root turned to the take's facing first (`faceTake`).
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -35,13 +40,18 @@ export const CLIPS_MD = path.join(ROOT, 'docs', 'mixamo-retarget', 'CLIPS.md');
 const INTER = path.join(OUT, 'mixamo', 'keyed');
 const SHEETS = path.join(OUT, 'mixamo', 'sheets');
 
-export const KINDS = ['gait', 'loop', 'timed'];
+export const KINDS = ['gait', 'loop', 'timed', 'turn'];
 export const TRAVELS = ['z', '+x', '-x', 'none'];
-/** (mixamo-retarget I6) The planner bands a gait recipe may name (emit.mjs's tables; a sprint is the run band, as CMU's). */
-export const GAITS = ['walk', 'jog', 'run'];
+/** (mixamo-retarget I6) The planner bands a gait recipe may name (emit.mjs's tables; a sprint is the run band, as CMU's;
+ *  `strafe` the sideways band, travel +x / -x). */
+export const GAITS = ['walk', 'jog', 'run', 'strafe'];
 /** (mixamo-retarget I6) The locomotion slots a recipe may take (mocap.ts `LocoClipSet`): a gait band slot is a gait,
- *  start / stop a timed one-shot (played by progress over the CMU slot's seconds). Add a slot here and in `MixamoLocoSlot`. */
-export const SLOTS = { walk: 'gait', jog: 'gait', run: 'gait', sprint: 'gait', start: 'timed', stop: 'timed' };
+ *  start / stop a timed one-shot (played by progress over the CMU slot's seconds), the turns a turn (by the yaw turned),
+ *  the strafes a sideways gait. Add a slot here and in `MixamoLocoSlot`. */
+export const SLOTS = {
+  walk: 'gait', jog: 'gait', run: 'gait', sprint: 'gait', start: 'timed', stop: 'timed',
+  turnInPlace: 'turn', turnMoveL: 'turn', turnMoveR: 'turn', strafeL: 'gait', strafeR: 'gait',
+};
 /** The keyed channels a recipe may keep beyond the required ones (only `head` is emitted in this slice). */
 export const CHANNELS = ['head', 'clav', 'fing', 'fore'];
 /** The body states the Studio can pin (src/anim/tune.ts BODY_GROUPS; read from the file, so this stays a plain script). */
@@ -57,6 +67,7 @@ export const DUP = { deg: 2, cm: 1 };
 /** The joints the trim's speed reads (slot names of the take; every one M2 maps). */
 const TRIM_SLOTS = ['root', 'head', 'lradius', 'rradius', 'lhand', 'rhand', 'ltibia', 'rtibia', 'lfoot', 'rfoot'];
 
+const r1 = (x) => Math.round(x * 10) / 10;
 const r2 = (x) => Math.round(x * 100) / 100;
 const r3 = (x) => Math.round(x * 1000) / 1000;
 
@@ -98,6 +109,12 @@ export function validateRecipes(json, { groups = bodyGroups() } = {}) {
     if (r.kind === 'loop' && r.inPlace !== true) e('a loop is in place');
     if (r.kind === 'gait' && r.inPlace !== false) e('a gait is not in place');
     if (r.kind === 'gait' && !GAITS.includes(r.gait)) e(`gait band from ${GAITS.join(', ')}`);
+    if (r.kind === 'gait' && GAITS.includes(r.gait) && (r.gait === 'strafe') !== (r.travel === '+x' || r.travel === '-x')) e('a sideways gait (travel +x / -x) is the strafe band, and only it');
+    if (r.cycles !== undefined && !(r.kind === 'gait' && Number.isInteger(r.cycles) && r.cycles >= 1 && r.trim === 'auto')) e('cycles: a whole number of cycles in a gait take (trim auto)');
+    if (r.kind === 'turn' && !(typeof r.turnDeg === 'number' && Math.abs(r.turnDeg) > 0 && Math.abs(r.turnDeg) <= 180)) e('a turn names turnDeg (+ right, - left, up to 180)');
+    if (r.turnDeg !== undefined && r.kind !== 'turn') e('turnDeg is a turn\'s');
+    if (r.slot === 'strafeL' && r.travel !== '-x') e('strafeL travels -x');
+    if (r.slot === 'strafeR' && r.travel !== '+x') e('strafeR travels +x');
     if (r.slot !== undefined && SLOTS[r.slot] !== r.kind) e(`slot ${r.slot} takes a ${SLOTS[r.slot] ?? '(no such slot)'} recipe`);
     if (!Array.isArray(r.channels) || r.channels.some((c) => !CHANNELS.includes(c))) e(`channels from ${CHANNELS.join(', ')}`);
     const st = r.studio;
@@ -109,7 +126,7 @@ export function validateRecipes(json, { groups = bodyGroups() } = {}) {
       for (const k of ['crouch', 'circle', 'drawn', 'aim']) if (st[k] !== undefined && typeof st[k] !== 'boolean') e(`studio ${k} must be a boolean`);
       for (const k of Object.keys(st)) if (!['body', 'move', 'crouch', 'circle', 'drawn', 'aim'].includes(k)) e(`studio ${k} unknown (cycle is measured)`);
     }
-    for (const k of Object.keys(r)) if (!['kind', 'file', 'title', 'note', 'target', 'trim', 'travel', 'inPlace', 'gait', 'ownTrack', 'channels', 'studio', 'limits', 'slot'].includes(k)) e(`unknown field ${k}`);
+    for (const k of Object.keys(r)) if (!['kind', 'file', 'title', 'note', 'target', 'trim', 'travel', 'inPlace', 'gait', 'ownTrack', 'channels', 'studio', 'limits', 'slot', 'cycles', 'turnDeg'].includes(k)) e(`unknown field ${k}`);
     out.push({ slug, ...r });
   }
   if (errs.length) throw new Error(`mixamo recipes:\n  ${errs.join('\n  ')}`);
@@ -171,6 +188,39 @@ export function movingSpan(take, o = TRIM) {
   return { a: Math.max(0, a - m), b: Math.min(n - 1, b + m), thr: r3(thr), peak: r3(peak) };
 }
 
+/**
+ * (I6) A sideways loop turned so its root faces the take's facing (yaw 0) and travels along x: buildSlot points a loop's
+ * root along its travel. The facing is the take's +Z (the adapter's rest facing; the strafes' head looks along it while
+ * their hips and chest turn 50-70 deg into the travel, so m3.mjs's pelvis-mean faceRoot would not do), or its reverse
+ * when the chest's mean yaw over the segment is nearer that (a take facing away from its measured rest). The CMU
+ * faceRoot's transform, by that angle. Mutates `d`.
+ */
+export function faceTake(d, take, [a, b]) {
+  const P = take.pos.get('root');
+  const ia = Math.round(a), ib = Math.round(b);
+  const h = Math.atan2(P[ib][0] - P[ia][0], P[ib][2] - P[ia][2]);
+  let s = 0, c = 0;
+  for (let i = ia; i <= ib; i++) {
+    const f = q4.rotate(take.quat.get('thorax')[i], [0, 0, 1]);
+    const y = Math.atan2(f[0], f[2]);
+    s += Math.sin(y); c += Math.cos(y);
+  }
+  const back = Math.abs(Math.atan2(s, c)) > Math.PI / 2;
+  const off = (back ? Math.PI : 0) - h;
+  const pi = d.joints.indexOf('pelvis');
+  const R = q4.yaw(-off);
+  const rot3 = (p) => q4.rotate(R, p);
+  d.root = d.root.map((r) => { const p = rot3([r[0], 0, r[1]]); return [p[0], p[2], r[2]]; });
+  d.pel = d.pel.map(rot3);
+  d.pos = d.pos.map((f) => f.map(rot3));
+  d.rot = d.rot.map((f) => f.map((q, j) => (j === pi ? q4.norm(q4.mul(R, q)) : q)));
+  const last = d.root[d.root.length - 1];
+  const dir = Math.atan2(last[0], last[1]);
+  d.travel = { headingDeg: r1(dir * R2D), bodyTurnedDeg: r1(-off * R2D), facesBack: back };
+  (d.notes ??= []).push(`(I6) faceTake: the cycle was turned by ${r1(-off * R2D)} deg so the root faces the take's facing${back ? ' (reversed: the chest faces away from the rest facing)' : ''}; the root travels at heading ${r1(dir * R2D)} deg (+90 = right).`);
+  return d;
+}
+
 /** The intermediate of one recipe: the take, its span and the buildSlot result (`load` injectable for tests). */
 export function buildIntermediate(rig, rec, { load = (slug) => loadMixamoTake(slug) } = {}) {
   const take = load(rec.slug);
@@ -179,15 +229,21 @@ export function buildIntermediate(rig, rec, { load = (slug) => loadMixamoTake(sl
   if (Array.isArray(rec.trim)) {
     a = Math.max(0, Math.round(rec.trim[0] * take.fps));
     b = Math.min(take.frames - 1, Math.round(rec.trim[1] * take.fps));
-  } else if (rec.kind === 'timed') {
+  } else if (rec.kind === 'timed' || rec.kind === 'turn') {
     span = movingSpan(take);
     a = span.a; b = span.b;
+  } else if (rec.kind === 'gait' && (rec.cycles ?? 1) > 1) {
+    // (I6) the first of `cycles` (the whole take is periodic: its last frame repeats its first)
+    b = (take.frames - 1) / rec.cycles;
   }
-  const loop = rec.kind !== 'timed';
-  const inPlace = rec.inPlace === 'auto' ? !!take.inPlace : rec.inPlace;
+  const loop = rec.kind === 'gait' || rec.kind === 'loop';
+  // (I6) a turn's root follows the body's facing (the yaw it is played by), never fixed in place
+  const inPlace = rec.kind === 'turn' ? false : rec.inPlace === 'auto' ? !!take.inPlace : rec.inPlace;
   // the loader is handed the take already read (buildSlot reads it again through `load`)
   const d = buildSlot(rig, { slot: `mixamo_${rec.slug}`, kind: rec.kind }, { take: rec.slug, segment: [a, b], loop }, '', null,
     { load: () => take, licence: MIXAMO_LICENCE, inPlace });
+  // (I6) a sideways cycle: the root turned to the body's facing, travelling along x (emitCycle then aligns it exactly)
+  if (rec.kind === 'gait' && (rec.travel === '+x' || rec.travel === '-x')) faceTake(d, take, [a, b]);
   return { d, take, dup, span, segment: [a, b], inPlace };
 }
 
@@ -227,6 +283,12 @@ export function emitTimed(d, rig, name) {
   return emitOneShot(d, rig, { name, kind: 'start', typed: true, gait: 'walk' }, startAt(d));
 }
 
+/** (I6) A turn by the yaw turned (emitOneShot's turn path, `turnDeg` + right); `seconds` the take's seconds over it. */
+export function emitTurn(d, rig, rec) {
+  const out = emitOneShot(d, rig, { name: rec.slug, kind: 'turn', turnDeg: rec.turnDeg, typed: true, gait: 'walk' }, null);
+  return { ...out, seconds: out.report.takeSeconds };
+}
+
 /** A gait cycle (emitCycle, the capture's own track); `null` with the reason when the cycle has no strikes to warp. */
 export function emitGait(d, rig, rec) {
   let out;
@@ -253,6 +315,7 @@ export function emitRecipe(d, rig, rec) {
     if (g.out) out = g.out;
     else { fallback = `no gait cycle (${g.reason}): emitted as a loop with its travel, no clip feet`; kind = 'loop'; out = emitLoop(d, rig, rec.slug); }
   } else if (rec.kind === 'loop') out = emitLoop(d, rig, rec.slug);
+  else if (rec.kind === 'turn') out = emitTurn(d, rig, rec);
   else out = emitTimed(d, rig, rec.slug);
   if (!rec.channels.includes('head')) delete out.def.head;
   return { out, kind, fallback };
@@ -264,13 +327,14 @@ export const secondsName = (slug) => `MOCAP_${slug.toUpperCase()}_SECONDS`;
 /** The module text: this emitter's header, then emit.mjs's body (`moduleSource`). */
 export function moduleText(rec, d, res, info) {
   const timed = res.kind === 'timed';
-  const spec = { name: rec.slug, typed: timed, kind: 'start', ...(timed ? { seconds: secondsName(rec.slug) } : {}) };
+  const spec = { name: rec.slug, typed: timed || res.kind === 'turn', kind: 'start', ...(timed ? { seconds: secondsName(rec.slug) } : {}) };
   let body = moduleSource(spec, d, res.out);
   body = body.slice(body.indexOf("import { keyedClip } from '../../keyed';"));
   body = body.replace('from the first push', 'from its first moving frame (the trimmed span)');
   const [f0, f1] = info.frames30;
   const what = res.kind === 'gait' ? `Gait cycle (${res.out.def.frames} frames, phase 0 at the left strike, clip feet)`
     : res.kind === 'loop' ? `Loop (${res.out.def.frames} frames at even phases, no clip feet)${res.fallback ? '; a gait recipe emitted as a loop (CLIPS.md)' : ''}`
+      : res.kind === 'turn' ? `Turn by the yaw turned (${res.out.def.frames} frames over ${r3(res.out.report.turnedDeg)} deg, ${r3(res.out.seconds)} s of take)`
       : `One-shot by progress (${res.out.def.frames} frames over ${r3(res.out.seconds)} s)`;
   const head = `// GENERATED by scripts/mocap/mixamoEmit.mjs (mixamo-retarget M3). Do not edit: rerun the emitter (recipe in
 // scripts/mocap/data/mixamo-clips.json, numbers in docs/mixamo-retarget/CLIPS.md). Source: Mixamo (mixamo.com, Adobe),
@@ -290,7 +354,9 @@ export function sourceRow(rec, res) {
   if (move && move !== 'none') parts.push(`move: '${move}'`);
   for (const k of ['crouch', 'drawn', 'aim', 'circle']) if (st[k] && !(k === 'circle' && move !== 'fwd')) parts.push(`${k}: true`);
   const esc = (s) => s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-  return `  mocap_${rec.slug}: { source: 'mixamo', title: '${esc(rec.title)}', take: '${esc(rec.file)}', credit: MIXAMO_CREDIT, studio: { ${parts.join(', ')} } },`;
+  // (I6) a Mirror take keeps its note in the label (two rows would read the same title)
+  const title = /^mirror\b/i.test(rec.note ?? '') ? `${rec.title} (${rec.note})` : rec.title;
+  return `  mocap_${rec.slug}: { source: 'mixamo', title: '${esc(title)}', take: '${esc(rec.file)}', credit: MIXAMO_CREDIT, studio: { ${parts.join(', ')} } },`;
 }
 
 const BEGIN = '// @mixamo-keyed-begin';
@@ -348,6 +414,10 @@ export function clipsDoc(results, { checked }) {
     notes.push(`in place ${r.inPlace ? 'yes' : 'no'} (A4 travel ${r.take.report.travelCm} cm)`);
     if (r.span) notes.push(`moving span ${r3(r.span.a / FPS)}-${r3(r.span.b / FPS)} s of ${r3((r.take.frames - 1) / FPS)} s (threshold ${r.span.thr} m/s, peak ${r.span.peak})`);
     notes.push(`last frame vs first ${r.dup.deg} deg / ${r.dup.cm} cm`);
+    if (r.rec.cycles > 1) notes.push(`the first of ${r.rec.cycles} cycles in the take`);
+    if (r.rec.slot) notes.push(`game slot \`${r.rec.slot}\``);
+    if (r.res.kind === 'turn') notes.push(`turned ${r2(r.res.out.report.turnedDeg)} deg (recipe ${r.rec.turnDeg}) over ${r3(r.res.out.seconds)} s of take`);
+    if (r.d.travel) notes.push(`sideways: travel heading ${r.d.travel.headingDeg} deg, the take's facing ${r.d.travel.bodyTurnedDeg} deg off the travel root (faceTake)`);
     if (r.res.kind === 'gait') notes.push(`duty ${r3(r.res.out.def.duty)}, half ${r3(r.res.out.def.half)}, capture lift ${r2(r.res.out.report.liftH * 100)} cm`);
     if (r.res.fallback) notes.push(r.res.fallback);
     if (r.rec.limits) notes.push(`limits: ${r.rec.limits}`);
