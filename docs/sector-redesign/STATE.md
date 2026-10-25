@@ -350,17 +350,13 @@ then git worktree remove --force. Train-ready = message + `gh pr edit <n> --add-
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (refreshed 2026-10-25 ~13:30 after the 13:10 reset; new orchestrator).
+Night Shift | Sector Ops Build: RESUME (refreshed 2026-10-25 ~16:10 after the swap; new account).
 git fetch; read docs/RULES.md and docs/VISION.md from origin/master (never a branch copy); BOOT.md "Sector Ops Build"
 on origin/feature/menu. Full burn.
 DOCS-FIRST HOLD (G346, G355; BOOT common start 4): until Michael signs off the folded plan (ROADMAP Now row 6) no new
 game work. Finished PRs may ship. Message the orchestrator only at PR open / train-ready / blocked / needs Michael.
-0. FIRST JOB: conformance review, plan only (brief docs/orchestrator/review-briefs/sector-ops.md on
-   origin/feature/menu). PR #420 (feature/conformance-sector-ops @ 419b54c1, worktree
-   C:/NightShift/Mobile-Coop-conformance-sector-ops): docs/conformance-sector-ops/CONFORMANCE.md is complete (63 rows,
-   12 Michael questions). Fresh Opus checker started ~13:45 (report: session scratchpad check-report.md, may be lost
-   at a swap). If no `checker` status on the PR head: start a fresh Opus checker (re-find every file:line, rule
-   quotes, missed scope, needs-Michael calls), one fix round, post `checker`, message the orchestrator.
+0. Conformance review DONE: #420 merged (train 92, 4.102.4), folded into docs/orchestrator/FOLDED-PLAN.md on
+   feature/menu. Sector Ops jobs there: J5, J6 (one line), J10, J11, J16, J17, J18, J21; doc fixes J1 (section 5).
 1. DOC FIXES STOPPED (Michael 13:53 "plan comes first", via orchestrator): no PR, no cloud briefs. WIP pushed only on
    feature/sector-ops-docfix (874c3e81 lighting.md L16 / L17, campus-run REPORT + S1 notes L13; 26fe2e57 SPEC / BRIEF /
    PLAN L12 + stale counts; fragment one placeholder bullet). Left for resume: S2.md:168, S4.md:154, run.txt notes;
@@ -378,7 +374,6 @@ game work. Finished PRs may ship. Message the orchestrator only at PR open / tra
 Laptop requests: node scripts/laptop-queue/request.mjs (RULES "Machines"); suite names are e2e-*.
 Rules: RULES on origin/master only; never restate them here.
 Previous blocks: git log -p on this file.
-Next: #420 review DONE at aca518a5 (checker FIX -> fix round 977bc3a1 -> Opus re-check FIX on one line -> fixed
-  aca518a5). `checker` status not posted (auto mode blocks self-approval): Michael posts it or approves. Then HOLD until
-  the orchestrator says row 6 is signed off; resume the doc-fix WIP (item 1) and the held jobs (item 2).
+Next: HOLD until the orchestrator messages that Michael signed off row 6; then J1 doc fixes (item 1 WIP) and the
+  held jobs (item 2) in FOLDED-PLAN order.
 ```
