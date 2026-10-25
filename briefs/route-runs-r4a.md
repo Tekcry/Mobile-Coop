@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 3 2026-10-25T23:40:42+11:00
+status: open
 # J13 route-runs, slice R4a (Opus-grade brief): harness core, one page
 
 Lead: Night Shift | Marlow Build. Plan passed (Opus plan check 3, PASS on 6fab6ef0f). R1, R2 and R3 are on master.

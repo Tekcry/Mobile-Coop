@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 2 2026-10-25T23:29:30+11:00
+status: open
 
 # Brief: player-hygiene S1 - Player step and traversal make no per-step garbage, behaviour bit-identical (Player Build)
 
