@@ -1,5 +1,10 @@
 # Changelog
 
+## 4.103.7 - Train 102: Route-runs: route planner; Mission framework: specs and sign-off pages, graph-svg (2026-10-25, PR #458; #455, #372)
+- Route-runs (J13 R1): a route planner for the robot test runs. From a map's connectivity graph and its points table it
+  picks the fewest runs that walk every declared approach (shadow, high, loud) of every guarded space, plus the one
+  start-to-exfil run on Marlow Yard and the late sections that keep a side route. Tooling and tests only.
+
 ## 4.103.6 - Train 101: Fold: Michael's plan answers (G364-G407) (2026-10-25, PR #454; #442)
 - Docs: Michael's decisions of 2026-10-25 folded as G364-G407 (session layout, the folded-plan sign-off and its 39
   answers, the mission sign-off pages, five more co-op kit moves, the 12 level-rule changes, near-instant map loads,
