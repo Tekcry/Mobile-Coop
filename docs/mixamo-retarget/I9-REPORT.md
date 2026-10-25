@@ -2,7 +2,8 @@
 Owner: Player Build. Status: current. (2026-10-26, feature/mixamo-i9; plan: [BATCH2-PLAN.md](BATCH2-PLAN.md) I7, I9.)
 
 ## Built
-- Merged origin/feature/mixamo-i6 (cccb7b45: MIXAMO_LOCO, credits, I6 report) into the branch (9f5847d04).
+- Merged origin/feature/mixamo-i6 (cccb7b45: MIXAMO_LOCO, credits, I6 report) into the branch (9f5847d04); fix round:
+  its new head ba01d0f7 (I4: recipe `turn` / `armIn`, stance trims) merged too (32ac667d3), both sides' options and rows kept.
 - I7: `scripts/mocap/mixamoDup.mjs` (duplicate check, `dupOf` / `dupCm` in the manifest; the emitter skips a `dupOf`
   clip); recipe options in `mixamoEmit.mjs`: pack files (`pack-rifle/walk forward.fbx`, row title "Pro Rifle Pack: walk
   forward"), travel `-z` and `auto`, `mirror`, `place` 'game' | 'studio'; `mixamoTake.mjs` `mirrorTake` and
@@ -10,7 +11,7 @@ Owner: Player Build. Status: current. (2026-10-26, feature/mixamo-i9; plan: [BAT
   `KeyedTravel` gains `'-z'` (`keyed.ts`, a type only: nothing reads `travel` at runtime).
 - I9: the 123 new files dumped (Blender, heavy.lock, about 2 min); 108 keyed recipes (the plan's 123 less its 15 channel
   clips, which wait for I11), all emitted: 24 game-slot modules in `src/anim/clips/mixamo/`, 84 Anim Studio only
-  modules in `src/anim/clips/mixamo/studio/` (the folder I8 loads lazily; `studio.ts` globs it eagerly until then).
+  modules in `src/anim/clips/mixamo/studio/`.
   108 rows in the `mocapSources.ts` keyed block, 108 rows in `docs/art-credits.md`, CLIPS.md regenerated, one TESTING line.
 - Every one of the 108 is in the Anim Studio's motion-capture list ("Motion capture (Mixamo): rifle walk forward").
 
@@ -30,6 +31,20 @@ Owner: Player Build. Status: current. (2026-10-26, feature/mixamo-i9; plan: [BAT
   19 of them; 5 more have no clean strikes. Game-slot ones among them: `pistol_walk_backward`, `pistol_strafe`,
   `rifle_walk_backward`, `rifle_walk_left`.
 - `aa_left_turn` / `aa_right_turn` do not turn the hips (0 deg of yaw): emitted as one-shots by progress, not turns.
+
+## Lazy load (fix round: the checker found ~1.9 MB of new clips in the entry chunk)
+- The 108 new modules (the 24 game slots, which no game code names yet, and `studio/`) are one lazy chunk:
+  `src/anim/studioCapturesLazy.ts` globs them; `studio.ts` reaches it only through one `import()`
+  (`loadStudioCaptures`, once) and its own eager glob leaves out the same names. Batch 1, I4 and I6 stay eager.
+- The load starts when the Anim Studio opens (`studioStage.ts` constructor, and the panel's `sync` on show); when it
+  lands the motion-capture group refills in table order (entries already listed keep their objects) and the Loop list
+  rebuilds its options. All 108 rows show once loaded. The frame loop never runs it (`studioEntry` is unchanged).
+- `npm run build` (heavy.lock): entry chunk `index-*.js` 4,064.17 kB (gzip 1,382.45 kB) after;
+  `studioCapturesLazy-*.js` 1,422.51 kB (gzip 531.39 kB). Before (438830085) the same code sat in the entry chunk: about
+  5,487 kB (gzip ~1,914 kB), derived as entry + lazy chunk (not built separately). Grep of the entry chunk:
+  `name:"mocap_aa_idle"`, `name:"mocap_rifle_jump_up"`, `name:"mocap_pistol_idle"` 0 (each 1 in the lazy chunk);
+  `name:"mocap_walking"` 1. Clip modules in the entry 50 (12 CMU + 38 Mixamo), in the lazy chunk 108. The names still
+  occur once in the entry as `mocapSources.ts` row keys (title, take, cycle: no clip data).
 
 ## Per clip: game slot or Anim Studio only
 Game slot (24, `place` game; wired later, not in this slice):
@@ -58,11 +73,19 @@ aa_hard_landing, aa_falling_to_roll.
   diagonal, arc, facing reversed); recipe options refused with their reasons; `rowTitle` / `modulePath`; every module in
   its `place` folder; a backward cycle's planted feet fall back along -z and its row backs on the treadmill; every pack
   clip's credits title cell starts with its pack name and names the file; a Studio-only module's "Used by" says so.
+- Fix round: `npm run typecheck:fast` green; tests/studioCapturesLazy.test.ts (new: none of the 108 before the fill, all
+  108 in table order after it, the eager / lazy sets split the folder, no src file names a lazy module); animStudio's
+  capture-group test awaits the fill. 14 files (studioCapturesLazy, animStudio, animStudio2, guardTune, marlowT1a,
+  mixamoTraverse, nowPlaying, tunerEffect, tunerLayout, tunerMouse, tunerReach, tunerReachProbe, mocapSources,
+  mixamoEmit) 187 pass; after the i6 merge mixamoEmit, mixamoTake, mocapSources, mixamoLoco, mixamoStance, mixamoDriver,
+  mixamoSwitch 79 pass + 1 skip. eslint clean on the touched files.
 
 ## Not done / left
-- No in-game wiring: the game slots wait for I8 (lazy load) and I10 / I13. The default source (CMU) is unchanged:
-  nothing in `animGraph` / `mixamo.ts` reads the new modules.
-- Bundle: the 108 modules (about 2.5 MB of TS) load eagerly through `studio.ts` until I8 splits `studio/` off.
+- No in-game wiring: the game slots wait for I10 / I13. The default source (CMU) is unchanged: nothing in `animGraph` /
+  `mixamo.ts` reads the new modules. When I10 / I13 import a game slot, they take its name out of the lazy patterns
+  (`studioCapturesLazy.ts` and the negated list in `studio.ts`) or load it through I8's `ensureMixamo`;
+  tests/studioCapturesLazy.test.ts fails while a src file names a lazy module.
+- Bundle: done in the fix round (above). I8's game-capture loader (`ensureMixamo`, batch 1 off the entry) is still open.
 - The 4 game-slot gaits that fell back need a backward / toe-first pin window in `emit.mjs` (I10, before wiring), or
   stay on the planner's steps.
 - Laptop: e2e-studio, anim-audit (no e2e on the desktop).

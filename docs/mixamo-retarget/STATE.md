@@ -106,3 +106,10 @@ At the save (2026-10-26 ~10:35, I9 fix round, feature/mixamo-i9, head before thi
   eslint clean, 14 related vitest files 187 pass. Polish (7692c5804): 24 gaits line, toe-first pin window in I10, changelog.
 - Left: `npm run build` waiting on heavy.lock (laptop-queue holds it; take --wait 120 running), entry-chunk size before /
   after and the studio/ name grep, I9-REPORT numbers, final STATE line.
+
+I9 fix round done (2026-10-26 ~10:45, feature/mixamo-i9):
+- Build (heavy.lock, released): entry `index-*.js` 4,064.17 kB (gzip 1,382.45) after; lazy `studioCapturesLazy-*.js`
+  1,422.51 kB (gzip 531.39), 108 clips; before ~5,487 kB (gzip ~1,914; entry + lazy, not built separately). Entry grep:
+  `name:"mocap_aa_idle"` / `rifle_jump_up` / `pistol_idle` 0, `mocap_walking` 1 (50 clip modules left in the entry).
+- I9-REPORT "Lazy load" section, tests, left list updated. Left: checker on the new head; laptop e2e-studio, anim-audit;
+  I8 `ensureMixamo` (batch 1 off the entry); I10 / I13 wiring (move a wired slot out of the lazy patterns); I11.
