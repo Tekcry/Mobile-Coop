@@ -1003,24 +1003,22 @@ C:/NightShift/Mobile-Coop-laptop-queue-svc && node scripts/laptop-queue/request.
 laptop-e2e/<set>. Withdraw = delete requests/<id>.json on origin/laptop-queue (plumbing commit, never in the svc
 worktree). Background wait: scratchpad wait-status.sh "<sha>:<context>" ... Laptop auto mode blocks labels: tell the
 orchestrator at train-ready. Walk cap: Guard AI AT CAP (new behaviour dark; rule fixes ship on, G355).
-Open (2026-10-25 ~20:10, new session after swap; full burn; order J1 -> J4, J6, J15, J26, J16):
-1. J1 #435 MERGED (train 99).
-2. J4 G327 #438: T1-SHADOW-REPORT.md written + performance.md line (8af8ff6a, docs only; shadow rule 0.07-0.18 ms,
-   ship as built). Gates left: g327-look (alone, d6a24987 = #438 + #414 script on scratch/g327-look; preempted by
-   train 99, still queued). Green -> post checker on #438 head, tell orchestrator; then undraft #414.
-3. J4 #317 coop4 (3100d035) ships ON (Q16). Check A PASS, B fix applied. Gates: laptop-e2e/coop4-full2 +
-   alone-coop4-4p (both on 3100d035, queued). Green -> post checker (A PASS + B fix round), tell orchestrator.
-   CONFLICTING with master (protocol.ts): train resolves (keep master PROTOCOL_VERSION + coop4 comment).
-   Background wait: scratchpad wait-status.sh on items 2-3.
-4. J6 #446 (feature/guard-ai-alloc): Opus fix round RESTARTED ~19:55 from WIP 3d36aacb (slices/ALLOC-CHECK-A/B.md:
-   tsc TS2322 guardAiAllocManager.test.ts:34, per-guard KNOWN_TP). Stale affected request on 3d36aacb withdrawn.
-   Then both checkers re-check only their items, request alloc-coop (e2e-coop + e2e-netmove) on the new head, post
-   checker, tell orchestrator. Allocation follow-ups logged by Player Build (weapons / vfx / cover).
-5. J15 guard-rules: S1 Opus builder RESTARTED ~19:55 from WIP edb988fb (+ untracked helmetRule / killScore tests).
-   S2 DONE 71cec23d (feature/guard-rules-s2; if Player's J6 S3 scan refactor lands first, re-place
-   `e.def.quadruped ||` on its scan loop). Then merge s1 + s2 into feature/guard-rules (merge the -s2 fragment into
-   changes/feature-guard-rules.md), PR1 (minor), 2 Opus checkers, laptop: affected + e2e-coop / e2e-netmove +
-   e2e-ctcourse + e2e-takedown. Orchestrator told: J17 campus S4/S5 data waits for PR1.
+Open (2026-10-25 ~20:15; full burn; order J4, J6, J15, J26, J16). Checker statuses: auto mode blocks my own
+`gh api .../statuses` post (self-approval); per RULES the orchestrator posts it: send it the verdicts.
+1. J4 G327 #438 head 8af8ff6a: ALL GATES GREEN (A PASS, B docs fix applied, g327-coop, measure ->
+   slices/T1-SHADOW-REPORT.md, look d6a24987 0 px diff). Orchestrator told ~20:08 (checker status to post).
+   After train-ready: undraft #414.
+2. J4 #317 coop4 (3100d035) ships ON (Q16). Check A PASS, B fix applied. Gates: laptop-e2e/coop4-full2 +
+   alone-coop4-4p (queued). Green -> tell orchestrator (checker: A PASS + B fix round). CONFLICTING with master
+   (protocol.ts): train resolves (keep master PROTOCOL_VERSION + coop4 comment).
+3. J6 #446 head 97c6338f: fix round done (slices/ALLOC-FIX.md on the branch), re-checks A + B PASS
+   (slices/ALLOC-RECHECK-A/B.md). Gate: laptop-e2e/alloc-coop (e2e-coop + e2e-netmove, queued). Green -> tell
+   orchestrator.
+4. J15 PR1 #450 (feature/guard-rules a78d7093 = S1 4e264118 + S2 71cec23d, one fragment; ~950 counted lines).
+   Opus checkers A / B RUNNING -> docs/guard-rules/checks/PR1-CHECK-A/B.md. Laptop set rules-pr1 (e2e-coop
+   e2e-netmove e2e-ctcourse e2e-takedown) queued + affected. Then PR2 = S5 (alarm), branch from feature/guard-rules
+   after PR1 merges (PLAN "Parallel groups" row 2). Orchestrator: J17 campus S4/S5 data waits for PR1.
+5. Background wait: scratchpad wait-status.sh on the laptop gates (items 2-4).
 6. J26 mission hooks: plan PASS (044258624). Every slice starts after J15 PR4 merges: S1a -> S1b; S2 -> S3 -> S4.
    Campaign Build SENT the PLAN's C1-C7. A9 per-area stages dark: Michael's click at his walk.
 7. Test Runner request (J20 S6b): seed the 5 Math.random sites in src/ai (enemy.ts think cadence x2, enemyManager
@@ -1028,5 +1026,5 @@ Open (2026-10-25 ~20:10, new session after swap; full burn; order J1 -> J4, J6, 
    shrink its allowlist in the same PR.
 8. J16 perception half (Q14 cast shadow = faint cue): plan after Sector Ops' J16 PR.
 9. Later: coop4-pol (134f6abe), snapBudget headroom, coopHost.ts:589 comment, TODO sectorMode.ts:201.
-Next: read agent results (J6 fix round, J15 S1) and the laptop gates in items 2-3.
+Next: read PR1 checkers (item 4) and the laptop gates (items 2-4).
 ```
