@@ -54,9 +54,13 @@ files:
   - scripts/e2e-sectorops.mjs
   - scripts/e2e-ctcourse.mjs
   - scripts/e2e-coop.mjs
+  - scripts/e2e-takedown.mjs
+  - scripts/e2e-menus.mjs
+  - scripts/e2e-coop-gpu.mjs
   - scripts/e2e-pad.mjs
   - scripts/e2e-mouse.mjs
   - docs/systems/ui.md
+  - docs/systems/coop.md
   - docs/systems/input-and-loop.md
   - docs/systems/testing-tools.md
   - TESTING.md
@@ -215,7 +219,9 @@ client (G343 "the menu keeps the full list"; Sector Ops is 1-4 players, G308).
   notes to the pause menu), `src/ui/screens/pauseScreen.ts` (Notes row + read-only screen), `src/net/coopClient.ts`
   (`case 'feed'` `:861-865` adds the text), `tests/fieldNotes.test.ts` (new), `scripts/e2e-takedown.mjs` or
   `scripts/e2e-sectorops.mjs` (one check after an existing interrogation; add the file to the claims when picked).
-  Est. 220 lines. After B1 and B4 (shares `gameState.ts`, `pauseScreen.ts`).
+  Picked: `e2e-takedown` `grab-interrogate-intel` (the real interrogation, solo: Pause > Notes lists its lines); neither
+  suite interrogates on a client, so `e2e-coop`'s intel relay (`:985`) asserts the notes on host and client, and
+  `e2e-menus` gets the new pause row list and "No notes yet". Est. 220 lines. After B1 and B4 (shares `gameState.ts`, `pauseScreen.ts`).
 - Checks: `npm run typecheck:fast`; `npx vitest run tests/fieldNotes.test.ts`; e2e-coop (client notes), the suite
   picked.
 - Done looks like: after an interrogation, Field Terminal > Notes lists its lines on both screens; a new match starts

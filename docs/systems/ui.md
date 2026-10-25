@@ -44,7 +44,10 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   `InputManager.applyModeClass`) show the pad's glyphs whenever a pad is the last device used. The binding table:
   `docs/systems/input-and-loop.md`.
 - Menus register entries via `MainMenuScreen.entries` and settings tabs via `extraSettingsTabs`.
-- Pause menu (`PauseScreen`, the field terminal): Resume, Objectives, (marlow-bays items 3-4) Restart at checkpoint
+- Pause menu (`PauseScreen`, the field terminal): Resume, Objectives, (hud-guidance B5, R12) Notes (`NotesScreen`,
+  read only: this match's interrogation lines from `GameState.notes`, a `FieldNotes` list of at most 24, a repeat kept
+  once, oldest first with the newest focused, "No notes yet" when empty; a co-op client's come from the host's `feed`
+  events), (marlow-bays items 3-4) Restart at checkpoint
   (Sector Ops and the course, `GameMode.restartCheckpoint`: the same clean retry as everyone down) and, in co-op,
   Return to lobby (`SessionCallbacks.lobby`: the host's `backToLobby`, every client follows), then Settings, Report
   feedback, the dev rows and Quit to menu. Both confirm in a `Dialog` that opens on Stay. In co-op they are host
