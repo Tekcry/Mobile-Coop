@@ -17,9 +17,13 @@
   - PR-A (`-pra` 0d7eab1e: S1 + S2 + S5): checker FIX (e2e-verdict.mjs picked as a phantom suite) fixed by me; a narrow
     Opus re-check was running. Queue `laptop-e2e/j20-pra` (smoke e2e-move) on 0d7eab1e. Not opened yet: D-A goes on
     after PR-C merges (master), then open PR-A. S5 perf alone run j20-perf on 58125696 (information for J21).
-  - PR-B: `-s3a` b4464dbd (S3b + S1 merge + S3a + NOT_SUITE_SCRIPTS e2e-verdict); Opus checker was running. S7 waits for
-    the darkness precheck (j20-parity-pre-1..3 on master b81c4945) and Sector Ops' Q27 reply; then `-prb` = s3a + S7,
-    D-B after PR-A merges; PR-B body: `Job-done: test-runner-j20`, the fixjob alert kind, the RULES train-row line.
+  - PR-B: `-prb` = `-s7` b1969b8c (S3b + S1 merge + S3a + e2e-verdict fix + S7); checkers PASS on b4464dbd
+    (S3b+S3a) and b1969b8c (S7). Ships with parity ON (no config/train-parity.json): before PR-B releases, the 3
+    precheck runs (j20-parity-pre-1..3 on master b81c4945) must be green, else push the off switch and tell Sector Ops.
+    D-B after PR-A merges; PR-B body: `Job-done: test-runner-j20`, the fixjob alert kind, the RULES train-row line,
+    LQ_TRAIN_PARITY accepts only `off`. Checker polish to fold in D-B / later: report names unknown at the sha, a head
+    without protocol.ts skipped as "no merge-base", perfStep on chained steps.
+- Watcher (background, this session only): scratchpad watch-j20.sh exits on the first J20 queue result.
 - Sent: Sector Ops (Q27 + loadSection), Guard AI (Math.random x5: acked, after J6 alloc and PR-C; ping it when PR-C
   merges), orchestrator (PR-C open, fixjob alerts, J20 shape). Still to send: Marlow Build (H8 check in e2e-ctcourse).
 - S7 way out: `config/train-parity.json` `{ "off": true, "why", "by" }` on the `laptop-queue` branch, or
