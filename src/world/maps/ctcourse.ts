@@ -1,4 +1,5 @@
 import { Vector3 } from '../../core/babylon';
+import { flags } from '../../core/flags';
 import type { MapDef, MapLayout } from '../mapDef';
 import { LevelBuilder } from '../levelBuilder';
 import { FacilityKit } from '../kit/facilityKit';
@@ -80,8 +81,15 @@ function into<T>(dst: Record<string, T>, src: Record<string, T>, what: string): 
   }
 }
 
+/** (J14) How many times `buildCtcourse` ran in this module instance (the load-cost pin in the variant test). */
+let buildCount = 0;
+export function ctcourseBuildCount(): number {
+  return buildCount;
+}
+
 /** Build the facility and every set into `b` and merge them (the map's `build`; `opts.replan`: the re-plan yard). */
 export function buildCtcourse(b: LevelBuilder, opts: CtcourseOpts = {}): CtcourseBuild {
+  buildCount++;
   const replan = opts.replan === true;
   const kit = new FacilityKit(b);
   const c0 = pieceCount(b);
@@ -234,11 +242,26 @@ export const LIGHT_SPOTS: Readonly<Record<SetId | 'facility', readonly LightSpot
 /** The GPU shot vantages: the facility's and each set's (`scripts/shots-ctcourse.mjs`). */
 export const SHOT_VANTAGES: readonly ShotVantage[] = [...LOAD.facility.shotVantages, ...LOAD.parts.flatMap((p) => p.shotVantages)];
 
-/** (J14) The re-plan's data build at load, registered under its own map id (the lobby's "Start at" counts its bays). */
-const LOAD_REPLAN = buildCtcourse(new LevelBuilder(), { replan: true });
-registerCourse('ctcourseReplan', LOAD_REPLAN.layout.course!.def);
+/**
+ * (J14) The re-plan's data build, memoised: it runs only when something asks for it, so a page with the flag off builds
+ * one yard at load, not two. It registers under its own map id (the lobby's "Start at" counts its bays) when
+ * `?marlowreplan=1` is on or the page autostarts `ctcourseReplan`; the course start registers it anyway (`courseMode`).
+ */
+let replanBuild: CtcourseBuild | null = null;
+export function replanLoad(): CtcourseBuild {
+  return (replanBuild ??= buildCtcourse(new LevelBuilder(), { replan: true }));
+}
+if (flags.marlowReplan || flags.autostart === 'ctcourseReplan') registerCourse('ctcourseReplan', replanLoad().layout.course!.def);
 
-/** (J14) The re-plan's co-op lips, light-test spots and GPU vantages (the set slices' tests and `CTLIGHT_VARIANT=replan`). */
-export const COOP_LIPS_REPLAN: readonly CoopLip[] = LOAD_REPLAN.parts.flatMap((p) => p.lips);
-export const LIGHT_SPOTS_REPLAN: Readonly<Record<SetId | 'facility', readonly LightSpot[]>> = Object.fromEntries([['facility', LOAD_REPLAN.facility.lightSpots], ...LOAD_REPLAN.parts.map((p) => [p.id, p.lightSpots] as const)]) as Record<SetId | 'facility', LightSpot[]>;
-export const SHOT_VANTAGES_REPLAN: readonly ShotVantage[] = [...LOAD_REPLAN.facility.shotVantages, ...LOAD_REPLAN.parts.flatMap((p) => p.shotVantages)];
+/** (J14) The re-plan's co-op lips, light-test spots and GPU vantages (the set slices' tests and `CTLIGHT_VARIANT=replan`); the first call builds it. */
+export function coopLipsReplan(): readonly CoopLip[] {
+  return replanLoad().parts.flatMap((p) => p.lips);
+}
+export function lightSpotsReplan(): Readonly<Record<SetId | 'facility', readonly LightSpot[]>> {
+  const l = replanLoad();
+  return Object.fromEntries([['facility', l.facility.lightSpots], ...l.parts.map((p) => [p.id, p.lightSpots] as const)]) as Record<SetId | 'facility', LightSpot[]>;
+}
+export function shotVantagesReplan(): readonly ShotVantage[] {
+  const l = replanLoad();
+  return [...l.facility.shotVantages, ...l.parts.flatMap((p) => p.shotVantages)];
+}

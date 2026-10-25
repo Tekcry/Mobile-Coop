@@ -5,13 +5,13 @@
  * slab-with-holes helper; the station rules in `checkSetPart`; the re-plan circuit table (every light works, Q2). Each set
  * slice adds its own cases in `tests/ctcourse/replan/<set>.test.ts`.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { flags } from '../../../src/core/flags';
 import { layoutKnownIds, registeredBayCount, validateCourse } from '../../../src/game/course/courseDef';
 import type { StationDef } from '../../../src/game/course/stationDef';
 import { LevelBuilder } from '../../../src/world/levelBuilder';
 import { MARLOW_CIRCUITS, MARLOW_CIRCUITS_REPLAN, MARLOW_POCKETS, MARLOW_POCKETS_REPLAN, MARLOW_TIMED, circuitOf, marlowCourseGroups, validateMarlowCircuits } from '../../../src/world/lighting/marlowCircuits';
-import { buildCtcourse, ctcourse, ctcourseReplan, LIGHT_SPOTS, LIGHT_SPOTS_REPLAN, SPOT_FAIL } from '../../../src/world/maps/ctcourse';
+import { buildCtcourse, ctcourse, ctcourseReplan, LIGHT_SPOTS, lightSpotsReplan, replanLoad, SPOT_FAIL } from '../../../src/world/maps/ctcourse';
 import { getMap, MAPS } from '../../../src/world/maps';
 import { isListedMap } from '../../../src/world/maps/listed';
 import { slabWithHoles } from '../../../src/world/maps/ctcourseGreybox';
@@ -34,10 +34,38 @@ describe('Marlow re-plan variant base (J14 S0)', () => {
     expect(MAPS.some((m) => m.id === 'ctcourseReplan')).toBe(false);
     expect(getMap('ctcourse')).toBe(ctcourse);
     expect(ctcourse.id).toBe('ctcourse');
-    expect(registeredBayCount('ctcourseReplan')).toBe(8);
+    // flag off: only the built course registers at load; the re-plan's own data build has its eight bays
+    expect(registeredBayCount('ctcourseReplan')).toBe(0);
+    expect(replanLoad().layout.course!.def.bays.length).toBe(8);
     expect(registeredBayCount('ctcourse')).toBe(8);
     expect(ctcourseReplan.build(new LevelBuilder(), 1).course!.def.id).toBe('ctcourseReplan');
     expect(ctcourse.build(new LevelBuilder(), 1).course!.def.id).toBe('ctcourse');
+  });
+
+  it('importing ctcourse.ts with the flag off builds the yard once; the re-plan builds on first ask, once (S0 check fix 1)', async () => {
+    vi.resetModules();
+    const m = await import('../../../src/world/maps/ctcourse');
+    const cd = await import('../../../src/game/course/courseDef');
+    expect(m.ctcourseBuildCount()).toBe(1);
+    expect(cd.registeredBayCount('ctcourse')).toBe(8);
+    expect(cd.registeredBayCount('ctcourseReplan')).toBe(0);
+    const a = m.replanLoad();
+    expect(m.replanLoad()).toBe(a);
+    expect(m.ctcourseBuildCount()).toBe(2);
+  });
+
+  it('with ?marlowreplan=1 the import also builds and registers the re-plan (the lobby counts its bays)', async () => {
+    vi.stubGlobal('location', { search: '?marlowreplan=1' });
+    try {
+      vi.resetModules();
+      const m = await import('../../../src/world/maps/ctcourse');
+      const cd = await import('../../../src/game/course/courseDef');
+      expect(m.ctcourseBuildCount()).toBe(2);
+      expect(cd.registeredBayCount('ctcourseReplan')).toBe(8);
+    } finally {
+      vi.unstubAllGlobals();
+      vi.resetModules();
+    }
   });
 
   it('every set has a re-plan builder; the built yard builds without them (same parts, no stations)', () => {
@@ -71,7 +99,7 @@ describe('Marlow re-plan variant base (J14 S0)', () => {
   it('with the S0 stubs (no holes) the re-plan course groups are the re-plan table and the facility spots are the built ones', () => {
     expect(replan.layout.course!.groups).toEqual(marlowCourseGroups(MARLOW_CIRCUITS_REPLAN));
     if (REPLAN_FLOOR_HOLES.length > 0) return;
-    expect(LIGHT_SPOTS_REPLAN.facility.map((s) => s.name)).toEqual(LIGHT_SPOTS.facility.map((s) => s.name));
+    expect(lightSpotsReplan().facility.map((s) => s.name)).toEqual(LIGHT_SPOTS.facility.map((s) => s.name));
   });
 
   it('slabWithHoles: no holes is the one slab b.floor makes; holes are left open and the rest is covered', () => {

@@ -51,7 +51,8 @@ const PART = Number(process.argv.find((a) => a.startsWith('--part='))?.slice(7) 
 const REPLAN = PART >= 5;
 const MAP_ID = REPLAN ? 'ctcourseReplan' : 'ctcourse';
 const SETS = REPLAN ? REPLAN_SETS : BUILT_SETS;
-const Q = `net=local&autostart=${MAP_ID}&mode=course`;
+// (J14 S0 fix 1) the re-plan parts carry the flag too, as a host on the re-plan does
+const Q = `net=local&autostart=${MAP_ID}&mode=course${REPLAN ? '&marlowreplan=1' : ''}`;
 const GROUPS = { 1: [1, 2], 2: [3, 4], 3: [5, 6], 4: [7, 8], 5: [1, 2], 6: [3, 4], 7: [5, 6], 8: [7, 8] };
 const [FIRST, LAST] = GROUPS[PART] ?? [1, 8];
 

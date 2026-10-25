@@ -13,7 +13,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { LevelBuilder } from '../src/world/levelBuilder';
-import { buildCtcourse, ctcourse, ctcourseReplan, LIGHT_SPOTS, LIGHT_SPOTS_REPLAN } from '../src/world/maps/ctcourse';
+import { buildCtcourse, ctcourse, ctcourseReplan, LIGHT_SPOTS, lightSpotsReplan } from '../src/world/maps/ctcourse';
 import { SET_IDS, inSet, type LightSpot, type SetId } from '../src/world/maps/ctcourseSets/types';
 import { MOVEMENT } from '../src/config/movement';
 import { dressingOn } from '../src/world/detailPass';
@@ -30,7 +30,7 @@ import { MARLOW_LEVEL } from '../src/world/lighting/levels';
 /** (J14) The variant under test: the built yard, or the re-plan with `CTLIGHT_VARIANT=replan`. */
 const REPLAN = process.env.CTLIGHT_VARIANT === 'replan';
 const MAP = REPLAN ? ctcourseReplan : ctcourse;
-const SPOTS = REPLAN ? LIGHT_SPOTS_REPLAN : LIGHT_SPOTS;
+const SPOTS = REPLAN ? lightSpotsReplan() : LIGHT_SPOTS;
 const b = new LevelBuilder();
 const built = buildCtcourse(b, { replan: REPLAN });
 const reg = b.lights;
