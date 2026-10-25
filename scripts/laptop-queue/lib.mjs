@@ -1252,3 +1252,38 @@ export function vanishedRequests(tracked, listed, misses = new Map()) {
   }
   return { gone, misses: next };
 }
+
+/**
+ * Light parity on every train (J20 S7, Q27, BRIEF A7): the suites appended to the train's full list on both workers
+ * (E2E_GPU=1). e2e-darkness until Sector Ops Build's per-map parity cards (J11) replace it; `[]` turns it off for good.
+ */
+export const TRAIN_PARITY = ['e2e-darkness'];
+
+/**
+ * The train's parity suites, pure. env = LQ_TRAIN_PARITY (`off` -> none, wins over the file); text = the run-time
+ * switch `config/train-parity.json` on the laptop-queue branch: missing, empty or bad JSON -> base; `{ "off": true,
+ * "why", "by" }` -> none; `{ "suites": [...] }` -> that list (a non-array -> base). Returns { suites, off, why }.
+ */
+export function trainParity(text, env = '', base = TRAIN_PARITY) {
+  if (String(env ?? '').trim().toLowerCase() === 'off') return { suites: [], off: true, why: 'LQ_TRAIN_PARITY=off' };
+  let j = null;
+  try { j = text && String(text).trim() ? JSON.parse(String(text)) : null; } catch { j = null; }
+  if (!j || typeof j !== 'object' || Array.isArray(j)) return { suites: [...base], off: false, why: '' };
+  if (j.off === true) return { suites: [], off: true, why: [j.why, j.by && `by ${j.by}`].filter(Boolean).join(', ') || 'config/train-parity.json' };
+  if (!('suites' in j) || !Array.isArray(j.suites)) return { suites: [...base], off: false, why: '' };
+  const suites = [...new Set(j.suites.filter((s) => typeof s === 'string' && s.trim()).map((s) => s.trim()))];
+  return suites.length ? { suites, off: false, why: '' } : { suites: [], off: true, why: 'config/train-parity.json suites []' };
+}
+
+/** The train list: `list` plus those of `suites` not already in it (order kept, no duplicates). */
+export function trainList(list, suites) {
+  const out = [...list];
+  for (const s of suites ?? []) if (!out.includes(s)) out.push(s);
+  return out;
+}
+
+/** The parity log line ("train parity: <suites> | off (<why>)"); the service logs it only when it changes. */
+export const parityLine = (p) => (p.off ? `train parity: off (${p.why})` : `train parity: ${p.suites.join(' ')}`);
+
+/** The train's shard bins with its parity suites (service runTrain and the dry-run plan). */
+export const trainBins = (list, parity, times, bins) => shard(trainList(list, parity.suites), times, bins);
