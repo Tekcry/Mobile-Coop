@@ -26,7 +26,8 @@
 //   approach link of that route kind, read as checkEncounters reads approaches), the cheapest path entry -> in through
 //   such an approach -> the section's objectives -> exit (the approach may come before or after the objectives,
 //   whichever is cheaper). Cost: `time_s`, else `length` / split speed; links of another route kind x3, `spine` x1;
-//   one-way and drop links only forward; two players, so co-op and `bolted` links are normal ways. A greedy set cover
+//   one-way and drop links only forward, a co-op move only forward (a team door or shutter both ways, as the validator's
+//   gate reach reads them); two players, so co-op and `bolted` links are normal ways. A greedy set cover
 //   keeps the fewest such runs that cover every pair, then a run is added for any route kind the section's links declare
 //   that no kept run walks (a kind ending at a connector). Identical step lists merge.
 //   Training (`meta.mode: training`): one run start -> objectives -> exfil (steps cut per section in `parts`), plus the
@@ -136,13 +137,19 @@ function context(graphs, points, opts) {
     splits, legOf, hasPoints: !!points };
 }
 
+/** Co-op kinds a pair passes both ways (a team door, a held shutter), as the validator's gate reach reads them. Every
+ *  other co-op move (a boost, a throw) goes `from` -> `to` only unless the link sets `one_way: false`. */
+const TWO_WAY_COOP = new Set(['pair_gate', 'shutter']);
+const forwardOnly = (l) => isOneWay(l)
+  || (COOP_KINDS.has(l.kind) && !TWO_WAY_COOP.has(l.kind) && l.one_way !== false);
+
 /** Directed arcs { from, to, link } of `links` (two for a two-way link), only between spaces `keep` accepts. */
 function arcsOf(links, keep) {
   const arcs = [];
   for (const l of links) {
     if (!keep(l.from) || !keep(l.to)) continue;
     arcs.push({ from: l.from, to: l.to, link: l });
-    if (!isOneWay(l)) arcs.push({ from: l.to, to: l.from, link: l });
+    if (!forwardOnly(l)) arcs.push({ from: l.to, to: l.from, link: l });
   }
   return arcs;
 }
@@ -253,7 +260,7 @@ export function sectionRouteCount(graphs, section) {
   for (const l of g.links) {
     if (l.route === 'spine' || !ids.has(l.from) || !ids.has(l.to)) continue;
     add(l.from, l.to);
-    if (!isOneWay(l)) add(l.to, l.from);
+    if (!forwardOnly(l)) add(l.to, l.from);
   }
   const goal = node.get(exit.id);
   let count = 0;
@@ -639,7 +646,7 @@ export function planRuns(graphs, points = null, opts = {}) {
   return { map: meta.map, mode: meta.mode, sections: ctx.sections, notes, pairs, kinds, runs, candidates };
 }
 
-/** The (space, kind) pairs and route kinds a run's steps walk, recomputed from the steps alone (for checks). */
+/** Every link step a run walks, split legs included, in step order (checks recompute coverage from these). */
 export function walkedBy(run) {
   const links = [];
   for (const s of flat(run.steps)) if (s.type === 'link') links.push(s);
