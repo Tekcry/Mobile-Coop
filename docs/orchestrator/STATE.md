@@ -36,9 +36,12 @@ Detail: ROADMAP "Now" (rewritten ~12:35) and HANDOFF "State at the switch"; this
   the user settings allow rule matches it, while a command chained with `;` / `&&` goes to the auto-mode filter and is
   blocked as self-approval (2026-10-25 ~20:12). Tell leads the same.
 - Laptop SSH link (2026-10-25 ~20:00, Michael picked "Yes, guide me"): desktop key ~/.ssh/id_ed25519 (MICHAEL-PC);
-  laptop ALIENWARE-X16 user Micha, 192.168.1.249; Michael ran the OpenSSH Server install as admin. Once
-  `Test-NetConnection ALIENWARE-X16 -Port 22` passes and Michael adds the SSH connection in the desktop app, start
-  Guard AI and Test Runner there with start_session (target ssh) at each swap instead of printing their boot lines.
+  laptop ALIENWARE-X16 user Micha, 192.168.1.249. Key login from the desktop works (tested 2026-10-25 ~20:47); the
+  desktop app has the SSH connection "AME Laptop" (folder C:\NightShift). start_session refuses Windows SSH hosts
+  ("cannot place a session there yet", 20:58), so at each swap print the two laptop boot lines; Michael starts them
+  from the desktop app (New session -> AME Laptop -> C:\NightShift) or on the laptop. Retry start_session at each swap.
+- Cloud Builder: start_session target cloud is refused from this session (project folder C:/NightShift is not a git
+  checkout); Michael starts it under New session -> Cloud (Tekcry/Mobile-Coop) when open briefs wait.
 - On Windows a "stopped" background runner can survive: `taskkill /T /F` on its PID and confirm the tree is gone.
 - After a release CI failure: fix on train/<n>, wait for CI, then
   `node scripts/merge-train.mjs release <n> <version> "<title>" --resume`.
@@ -47,6 +50,10 @@ Detail: ROADMAP "Now" (rewritten ~12:35) and HANDOFF "State at the switch"; this
 - Every save prints the orchestrator prompt (PROMPTS.md section 1), even when no swap is planned (Michael ~23:20).
 - List running orchestrator checkers / fix agents in each save block; the next orchestrator relaunches them first
   (23:05 rule).
+- Tooling follow-up (20:58 audit): set the train-building no-new-claims gate as soon as a train-ready candidate exists
+  during a release (train 101 waited 17 min behind 2 lead claims); kill a queue run when no suite finishes in ~15 min
+  (#317 hung slot 4192 65 min, 0/22); desktop CPU gate: lead sub-steps at BelowNormal or let one slot start when the
+  other is idle; watchdog misreads re-filed T000001 ids as old.
 - Tooling follow-up (13:35 audit, next tooling PR after #412): merge-train release returns after merge + tag + dev move and leaves the deploy watch to later ticks (~6 min per train lost); auto-train retries gh once inside a tick instead of ending in error; #412 pacing must not count alone requests as busy.
 - Auto-train pacing OFF since 15:35 (task re-registered with `--min-interval 0`): laptopQueueState counted the desktop's claims as "laptop busy" and held train 93 17 min with the laptop idle. Fix in the next tooling PR: count only `worker === 'laptop'` claims, then restore the default. Label only PRs that merge cleanly with master (a docs conflict: hand-merge it in the train).
 - A conflict only in docs/** or *.md never keeps a PR out of a train: resolve it in the train worktree (keep both sides).

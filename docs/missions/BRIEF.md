@@ -48,6 +48,9 @@ These override the brief where they differ (decision 3's "Marlow's stripes go" i
 - M5 (~22:50) Co-op traversal kit, all approved: boost up a wall, throw over a gap, human ladder / pull-up, hold shutter /
   door, rope brace / descent, vent unlock for the partner; plus "Any other creative coop ideas" (PLAN 4b, marked
   proposed). Every campaign section forces at least one; the new map uses several.
+- M6 (2026-10-25 ~20:25, native multiple choice, relayed by the orchestrator) Three Grey Coats, a knock-out before Teale
+  talks: Michael picked "Restart the section (Recommended)": the section restarts from its checkpoint with Teale at his
+  table; not a rule break. A kill before he talks stays a rule break and he moves (signed page ~18:05).
 
 ## Assumed decisions (planner, PLAN.md 2026-10-24 ~23:30; each undoable)
 - A6 Campaign maps run on Sector Ops' runtime (`SectorMode`, `mode=sector`) with `players: [2]`; Marlow and Course mode are
@@ -96,6 +99,5 @@ These override the brief where they differ (decision 3's "Marlow's stripes go" i
 - A23 Two engine follow-ups before GB6 (slice EN4): a mission may start at a later section (TKL starts at W2; the sector
   run always starts at section 0 today), and per-mission guard lists (one map, two missions). Undo: one mission per map.
 - A24 Three Grey Coats: killing Teale before he talks breaks the rule and he moves, as on the page Michael signed
-  (~18:05, "He moves"). Knocking him out before he talks is not on that page: it restarts the section with Teale still
-  at his table (protected character, G353), so the mission never stalls. To confirm with Michael. Undo: treat the
-  knock-out like a kill (a rule break, he moves).
+  (~18:05, "He moves"). Knocking him out before he talks restarts the section with Teale still at his table: answered
+  by Michael, M6.
