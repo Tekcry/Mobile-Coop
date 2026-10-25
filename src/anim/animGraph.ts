@@ -55,6 +55,7 @@ import { KEYED_GLIDE_FWD } from './clips/keyed/glide_fwd';
 import { KEYED_GLIDE_STRAFE } from './clips/keyed/glide_strafe';
 import { KEYED_GLIDE_BACK } from './clips/keyed/glide_back';
 import { studioDriveTargets, type StudioDrive } from './studioDrive';
+import { MOVE_IDS, newGraphPlaying, type GraphPlaying } from './nowPlaying'; // (tuner-clarity S1)
 import { bodyMotionBands, bodyMotionStep, KEY_MOTION, newBodyMotion, newBodyMotionIn, scaleKeyedArms, type BodyMotion } from './bodyMotion';
 import { KEYED_SNEAK } from './clips/keyed/sneak';
 import { KEYED_CROUCH_WALK } from './clips/keyed/crouch_walk';
@@ -700,6 +701,13 @@ export class AnimGraph {
   readonly out = emptyTargets();
   /** (anim-studio) The Anim Studio's loop player (`studioDrive.ts`): set on one rig's graph inside the studio only. */
   drive: StudioDrive | null = null;
+  /**
+   * (tuner-clarity S1, BRIEF A3) What this graph plays (`nowPlaying.ts`): the motion-capture, hand-keyed and graph-code
+   * shares of the body, the captured move and the studio's clip, written at the end of each `update` (`notePlaying`).
+   * The same object every frame; display only (`tuneEnd` copies the local player's into NOW_PLAYING): nothing in the
+   * graph or the game reads it back.
+   */
+  readonly playing: GraphPlaying = newGraphPlaying();
   /** Final pose (after inertialization) and the pre-inertialization source. */
   readonly pose: Pose = newPose();
   private src: Pose = newPose();
@@ -1980,7 +1988,65 @@ export class AnimGraph {
     o.readyShoulder.z = -0.01 + this.readyFz * fw * k;
     if (this.drive !== null) studioDriveTargets(this.drive, o, dt); // (anim-studio) the loop player's clip; null outside the studio
     this.bodyMotion(i, o, dt);
+    this.notePlaying(o); // (tuner-clarity S1) after the studio drive; display only
     return o;
+  }
+
+  /**
+   * (tuner-clarity S1, BRIEF A3) `playing` from this frame's targets: the capture share is the standing holstered gait and
+   * slots (`keyMocap`), the crouched sneak capture (`mcK`) and the aimed strafe capture (`keyStrafe` of the keyed share);
+   * the rest of the keyed share is hand-keyed, the rest of the body graph code. The move: the strongest capture part (the
+   * strongest slot's part of the standing capture, the gait's rest of it, the sneak, the strafe); with no capture share
+   * the holstered speed set's nearer clip. A studio drive with a clip: its clip, no capture (`studioDriveTargets`).
+   * Numbers and one reference written field by field; its one argument an object (no boxed doubles). No allocation.
+   */
+  private notePlaying(o: RigTargets): void {
+    const P = this.playing;
+    const d = this.drive;
+    if (d !== null && d.clip !== null) {
+      P.mocap = 0;
+      P.keyed = o.keyW;
+      P.code = 1 - o.keyW;
+      P.move = MOVE_IDS.clip;
+      P.clip = d.clip;
+      return;
+    }
+    const km = o.keyMocap;
+    const kc = this.mcK;
+    const sk = o.keyW * o.keyStrafe;
+    const m = km + kc + sk;
+    P.mocap = m;
+    P.keyed = o.keyW - m;
+    P.code = 1 - o.keyW;
+    P.clip = null;
+    let mv: number = this.sNear;
+    let best = km;
+    if (this.mSl && km > 0 && this.mShare > 0) {
+      // the strongest slot; its part of the standing capture (`mShare` holds the gait and every slot over it)
+      const sl = this.mSlots;
+      let w = sl.wStart;
+      let sm: number = MOVE_IDS.start;
+      if (sl.wStop > w) {
+        w = sl.wStop;
+        sm = MOVE_IDS.stop;
+      }
+      if (sl.wTurn > w) {
+        w = sl.wTurn;
+        sm = sl.turnSpot ? MOVE_IDS.turnSpot : MOVE_IDS.turnMove;
+      }
+      const sp = (km * w) / this.mShare;
+      best = km - sp;
+      if (sp > best) {
+        best = sp;
+        mv = sm;
+      }
+    }
+    if (kc > best) {
+      best = kc;
+      mv = MOVE_IDS.sneak;
+    }
+    if (sk > best) mv = MOVE_IDS.strafe;
+    P.move = mv;
   }
 
   /** (anim-natural-n2) The body motion layer's inputs and eased gate (preallocated). */
@@ -2241,6 +2307,9 @@ export class AnimGraph {
   private sWalk = 1;
   /** (mocap-trial, A3) The speed set's blended root travel per cycle (1.75 m units; 0: no clip feet). */
   private sStride = 0;
+  /** (tuner-clarity S1) The holstered speed set's nearer clip (MOVE_IDS walk 0 .. sprint 3), for `playing`: written by
+   *  the holstered call only (into `kA`), never by the drawn legs' call (into `kC`). */
+  private sNear = 0;
 
   /**
    * (anim-rework S2, split out in S3) The standing speed set: walk -> jog -> run cross-faded by the effort pace
@@ -2256,10 +2325,12 @@ export class AnimGraph {
     let c0: KeyedClip = S.walk;
     let c1: KeyedClip = S.jog;
     let t = wJog;
+    let n0 = 0; // (tuner-clarity S1) c0's MOVE_IDS index
     if (wRun > 0) {
       c0 = S.jog;
       c1 = S.run;
       t = wRun;
+      n0 = 1;
     }
     // (mocap-trial-2, sprint, BRIEF A6) past the run: run -> sprint (the set's sprint clip; null: the run stays the top)
     if (S.sprint !== null) {
@@ -2268,8 +2339,11 @@ export class AnimGraph {
         c0 = S.run;
         c1 = S.sprint;
         t = wSpr;
+        n0 = 2;
       }
     }
+    // (tuner-clarity S1) the nearer clip, from the holstered call only (the drawn legs' call samples into kC)
+    if (out === this.kA) this.sNear = t < 0.5 ? n0 : n0 + 1;
     const B = KEYED_WALK_BAND;
     this.sWalk = c0 === S.walk ? 1 - t : 0;
     this.sHalf = c0.half + (c1.half - c0.half) * t;
