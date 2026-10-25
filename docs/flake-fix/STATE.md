@@ -16,6 +16,12 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
 - 14:42 (Orchestrator): withdrew 5966 / 484e / 222f / cabc (aged alone runs jumped PR work; #400 missed train 92).
   Rule from now: no full or alone gap runs while any PR is train-ready or a train is pending. Only d9b8 (full 43/43)
   ran; 5966 was preempted at 14:35 and left laptop-e2e/alone-soak-flaky-4102 pending on 39668c06 (a master sha, no gate).
+- Known failure (Orchestrator triage 14:5x): LEGACY e2e-camera-bounds (parked Kestrel) fails on every run today at
+  level U (U-Z4V): the operator falls through the floor (head y -33 to -35). Unrelated to #400 / #425; it gated them
+  only because their requests predate 1492f92 (train 91, affectedGateSuites). Clean reruns 2b79 / e2fd requested by
+  the Orchestrator. After the plan sign-off: add it to docs/backlog.md "Flaky e2e suites" as a known legacy failure.
+- After the plan sign-off (queue upkeep): lib laptopRerunRequest passes its suites through affectedGateSuites
+  (scripts/e2e-affected.mjs) so an old request never gates on a LEGACY / GPU suite; a unit test; Opus checker.
 - Next: queue gap runs only when no PR is train-ready and no train pending; no run folders to read beyond d9b8 (scratch/laptop-queue/runs/<id>/) and send flake rates to owners; push
   guard-cap r4102-* to feature/guard-cap-results run-4102/; triage any red train at once (Opus); reopen #422 only
   after the Orchestrator's plan sign-off.
