@@ -1,0 +1,18 @@
+{
+  "id": "20261025T102656-night-shift-campaign-eb231778-22d3",
+  "sha": "eb2317784aeefa76a7b0d971625c28812e3ba30b",
+  "branch": "feature/mission-rules",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Campaign Build",
+  "suites": [
+    "e2e-sectorops",
+    "e2e-sectorops:wharf-tgc",
+    "e2e-sectorops:wharf-tkl",
+    "e2e-section-rating",
+    "e2e-coop",
+    "e2e-netmove",
+    "e2e-menus"
+  ],
+  "set": "j7-prd"
+}
