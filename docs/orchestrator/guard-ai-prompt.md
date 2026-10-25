@@ -2,7 +2,7 @@
 
 Michael wants the guard AI work run on his other account in a cloud session (isolated). That account was out of usage on
 2026-10-21 ~00:30; paste this when it resets. Session: Night Shift | Guard AI (cloud). Model: Opus. Effort: high.
-The plan it builds is docs/reviews/guards-review.md (on feature/menu). The orchestrator reviews and merges its PR.
+The plan it builds is docs/archive/reviews/guards-review.md (on feature/menu). The orchestrator reviews and merges its PR.
 
 ```
 Night Shift | Guard AI (cloud). Job guard-ai for Night Shift, repo Tekcry/Mobile-Coop.

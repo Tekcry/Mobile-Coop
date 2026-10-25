@@ -21,7 +21,7 @@ import { RemotePlayer } from './remotePlayer';
 import { HoldClock, holdFeed, stepHoldFeed, type HoldFeed } from './holdFeed';
 import { setPlayerGlow } from '../operators/runtime/playerFigure';
 import { PartnerBlocker, partnerPassable } from './partnerBlocker';
-import { checkBlast, checkShot, clientStepNoise, hostLampShots, hostShotAllowed, hostShotWeapon, maxHitDamage, playersHostile, SHOT_UNDER, SHOT_UNDER_HANG } from './validate';
+import { checkBlast, checkShot, clientStepNoise, hostLampShots, hostShotAllowed, hostShotWeapon, lampShotStale, maxHitDamage, playersHostile, SHOT_UNDER, SHOT_UNDER_HANG } from './validate';
 import { localFlags, htmlToInfo } from './netShared';
 import { keepSimInBackground } from './bgTicks';
 import { hostHoldPulse, inUseReach } from './holdPulse';
@@ -184,6 +184,9 @@ export class CoopHost implements NetAttachment {
   private lampForce = true;
   /** The mode's restart count last seen (a section restart forces a `lamps` send). */
   private lampRestarts = 0;
+  /** (coop-real F1c) The host sim time (`time`) of the mode's last set / section restart (Course mode, Sector Ops):
+   *  a client's lamp round fired before it is stale (`lampShotStale`). */
+  private lampRestartAt = -Infinity;
   /** A client's lamp shots: rate limit per client (a lamp shot is a second message for a round). */
   private lampLim = new Map<string, TickLimiter>();
   private readonly lampA = new Vector3();
@@ -1319,11 +1322,15 @@ export class CoopHost implements NetAttachment {
    * round's origin at the shooter's body, the lamp first along the claimed ray in its own registry (`lampShotOk`) and a
    * clear static line to it; then shoots it out as its own round would (sparks, noise, a guard comes to look). The
    * client sees it dark from the next `lamps` message (Sector Ops) or `course` message (`lights.dead`, Course mode).
+   * A round fired before the mode's last restart is dropped quietly (`lampShotStale`, coop-real F1c).
    */
   private onLampShot(r: RemotePlayer, m: Extract<Msg, { t: 'shot' }>): void {
     if (!this.lampShots || !r.alive || !this.g.stealth) return;
     const id = lampTargetId(m.target);
     if (id < 0 || !hostShotAllowed(r.state?.mv?.dw) || !hostShotWeapon(m.w, r.state?.w, r.loadout)) return;
+    // (coop-real F1c) a round fired before the last set / section restart (in flight across it): the restart put the
+    // lamps back, so it would shoot one out in the fresh run; dropped with no violation, before the rate limit
+    if (lampShotStale(m.rt, this.lampRestartAt)) return;
     // (coop-real F1b fix) an honest repeat round at a lamp we already have out (the client's mirror lags a message):
     // nothing to do and no violation (`lampShotOk` would refuse it as one)
     const reg = this.g.world.level.lights;
@@ -1787,15 +1794,17 @@ export class CoopHost implements NetAttachment {
   }
 
   /** (sector-redesign slice L, protocol 31) Sector Ops: the fixed lights' state on a change, a join / rejoin, a section
-   *  restart and every `LAMP_KEEPALIVE` s. Allocation-free unless it sends. */
+   *  restart and every `LAMP_KEEPALIVE` s. Allocation-free unless it sends. (coop-real F1c) In every mode it first notes
+   *  the time of the mode's last restart (`lampRestartAt`, the stale lamp round rule). */
   private sendLamps(dt: number): void {
-    const tx = this.lampTx;
-    if (!tx) return;
     const rs = (this.g.mode as { restarts?: number } | null)?.restarts ?? 0;
     if (rs !== this.lampRestarts) {
       this.lampRestarts = rs;
       this.lampForce = true;
+      this.lampRestartAt = this.time;
     }
+    const tx = this.lampTx;
+    if (!tx) return;
     const w = tx.step(this.g.world.level.lights, dt, this.lampForce);
     this.lampForce = false;
     if (w) this.s.send({ t: 'lamps', n: w.n, of: w.of, sh: w.sh });
