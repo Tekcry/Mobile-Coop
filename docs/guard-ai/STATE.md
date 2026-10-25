@@ -1006,7 +1006,7 @@ orchestrator at train-ready. Walk cap: Guard AI AT CAP (new behaviour dark; rule
 Open (2026-10-25 ~22:00, new account; full burn; order J4, J6, J15, J26, J16). Laptop gh login works again; the
 ~21:38 local commits are pushed. Checker statuses: a LONE `gh api repos/Tekcry/Mobile-Coop/statuses/<sha> -f ...`.
 Laptop CPU ~99% while trains run: no local tsc / vitest builders until it drops under ~80%.
-1. J4 G327 #438 head 8af8ff6a: TRAIN-READY, labelled; rides the train after 104. #414 still draft (undraft blocked
+1. J4 G327 #438 head 8af8ff6a: TRAIN-READY, in train 105 (SAVE ~22:40, all worktrees clean and pushed). #414 still draft (undraft blocked
    by auto mode; Michael asked).
 2. J4 #317 coop4 head 3100d035 ships ON (Q16). Release checks A + B PASS (docs/guard-ai/checks/coop4-release-check-A/B.md,
    a7653ca7f); checker posted. affected-e2e FAIL 09:52Z "slot 4192 gave no result" (infra); re-request
@@ -1023,8 +1023,8 @@ Laptop CPU ~99% while trains run: no local tsc / vitest builders until it drops 
    the headshot bonus off (score.ts:17); GearGuard type redundant.
 5. J15 S5 repeat alarms (PR2): be49ac06 on feature/guard-rules-s5; checks A + B PASS (docs/guard-rules/checks/
    S5-CHECK-A/B.md). PR1 + S5 polish DONE on -s5 69257d7b1, checks A + B PASS (checks/PR2-POLISH-CHECK-A/B.md,
-   e18039094). After PR1 merges: merge -s5 into feature/guard-rules, PR2; gates affected + e2e-coop + e2e-ctcourse +
-   e2e-sectorops + e2e-enemies. PR body lists the skipped polish (PR1-A2 wire bit, PR1-A4 J17, PR1-B e2e names,
+   e18039094). Early run queued on e18039094: laptop-e2e/rules-pr2-early (20261025T113525, priority -1: sectorops,
+   enemies, coop, netmove, ctcourse). After PR1 merges: merge -s5 into feature/guard-rules, PR2 + affected. PR body lists the skipped polish (PR1-A2 wire bit, PR1-A4 J17, PR1-B e2e names,
    S5-A3 walk note) and the merge note: mission-engine calls responseTeam without `shield`; keep sectorMode's
    `s.shieldTeams === true` (Campaign Build told). Then wave 3: F0 (lead) then S4 / S6 from
    docs/guard-rules/slices/{F0,S4,S6}-BRIEF.md (2b76f1364 on -s5).
