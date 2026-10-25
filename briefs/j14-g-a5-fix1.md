@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 4 2026-10-25T23:24Z
 # J14 Marlow re-plan, slice G-A5 fix round 1 (Opus): station 13 floodlight timer after a retry
 
 Lead: Night Shift | Marlow Build. Checker (fresh Opus) verdict on G-A5 676a11e4f: FIX, one blocking item. Full report:
