@@ -1,0 +1,18 @@
+{
+  "id": "20261025T070038-affected-e2e-b3202ea0-7b2e",
+  "sha": "b3202ea0b58d480193d2e8abe7c89f5ebcd1f6fc",
+  "branch": "feature/sector-ops-docs",
+  "pr": 433,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-desktop",
+    "e2e-feedback",
+    "e2e-menus",
+    "e2e-pad",
+    "e2e-park",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #433"
+}
