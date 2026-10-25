@@ -220,3 +220,50 @@ Verdict: FIX (B4 and the claims only; B1, B2, B3 and B5 are sound as briefed)
 - PLAN :5-9 and STATE: note that master 4e5e9959 leaves the B3 / B4 anchors unchanged, so the builders need not stop.
 - B2: S5's pair gate is on L1 with no L1 route point, so S5 passes trivially (check 1 note); the rule-bites case can
   only bite on S4. Fine as briefed.
+
+## Check 3
+Checker: Claude Opus 5.5 (fresh plan checker, wrote neither the plan nor checks 1-2), 2026-10-25 ~21:38, PLAN at
+206ab376. Read: master CLAUDE.md, RULES (Intake 4, "A job"), VISION; BRIEF, PLAN, STATE, briefs B1-B5; FOLDED-PLAN J18
+(feature/menu :179); ROADMAP Decided Q16 / Q20 / Q26. Code read on origin/feature/coop4 3100d035, origin/master
+9ad370a9, b81c4945 and origin/feature/mission-engine d31a6e364 (= mission-rules-r1 66c35a754 on these lines).
+Verdict: PASS
+
+### Check 2 items
+1. Fixed. Brief B4's coop4 anchors match 3100d035: `onPlayerOut(id?)` sectorMode.ts:1429, gate line :1432
+   (`outWaits(teamSizeOf(g, this.refs))`), comment :1424-1428 ending "1-2 players: unchanged.", import :59, `flags`
+   import :13, `returnOut()` :1451 called at `connEvents` :921 and `complete()` :1085; `SECTOR.outWaitsMin` 3
+   sectors.ts:541; `GameState.outIds` :474; `NetHooks.returnOut?(ids)` gameState.ts:236; `CoopHost.goOut` ->
+   `onPlayerOut?.(id === selfId ? 'local' : id)` coopHost.ts:647, `returnOut(ids)` :652, `followStep` :1845; client
+   `outSelf` :147, OUT line :651. `outWaits` sectorOut.ts:12-15; test ranges :151-166, :176-193, :195-203, :205-216,
+   :218-228 match. No second out set, hook, `returnOut` signature, `src/net` / wire / `gameState.ts` edit: the change is
+   one gate line plus a pure `outWaitsFor`. No team-size gate exists in coop4's net code (only sectorMode.ts:1432 reads
+   `outWaits`), so the gate line alone carries the rule to 2 players. Gate on #317: step 0 checks coop4 on master
+   (today it is not: no `sectorOut.ts` on 9ad370a9), A24, PLAN 6 / 7.
+2. Fixed. PLAN 6 / 7 name mission-rules / -r1 (mission-engine) on `sectors.ts:864` and `sectorMode.ts:1020`; the
+   merged line in PLAN 7 matches mission-engine's `marksText(t.marks, t.skipped ?? 0)` (:867 there) and
+   `skipped: this.mission?.startIndex ?? 0` (:1043 there). Order PR A first, A25, STATE hand-off line.
+
+### Intent and gates
+- Q20 "30 seconds then death and wait until next section door": with the flag at 2 players a downed partner not revived
+  in `REVIVE_WINDOW` 30 (coop4 reviveClock.ts:8) goes out via `goOut` -> `onPlayerOut`, the team plays on, and he comes
+  back at the connector's far-door unlock (the next section door) or the extraction; everyone down restarts (G188).
+  Dark behind `sectorOutWait` at the walk cap (A1, logged for Michael); Q16 keeps 3-4 live as coop4 ships.
+- Perfect (G146): every stage rise goes through `raiseAlarm` (b81c4945 sectors.ts:787-791; callers sectorMode.ts:915,
+  :926). A camera alarm at stage 0 always raises (CtDevices' own stage is ahead), so `alarmsRaised` > 0 for any alarm;
+  restart (:812) and `advance` leave it alone; the `restartSection` test case (3 raised, stage back to 1) is right;
+  `debug()` spreads `result()` (:1396), so the e2e `a.perfect === false` reads it. Kills keep knock-outs out (A4).
+- Q26: warehouseOps untouched (duct dropped A22; the gate rig and e2e only read it, A21).
+- Claims: every slice file is in the block (sectorOut.ts, sectorOut.test.ts, coop.md included); maps / protocol /
+  save none, true. Sizes PR A ~430, PR B ~190, PR C ~70, under cap. Models: Sonnet builders from strict Opus briefs;
+  B4 one Opus checker plus e2e-coop / e2e-netmove / part 9 (no `src/net`, RULES "A job"); fine.
+
+### Polish (not blocking)
+- Brief B4 step 4b: part 9's closing `}` is coop4 :4720 (console line :4722), not :4718; the builder re-reads on
+  master anyway.
+- Brief B4 step 2: the briefing text reads `flags.sectorOutWait` on the page that shows it, so a client without
+  `?sectoroutwait=1` reads the old line while the host's rule applies. Put the param on both pages in the TESTING item
+  (the e2e already passes it to every page via `params`).
+- Brief B1 head: master 9ad370a9 shifts `sectors.ts` by one line from :82-90 down (`raiseAlarm` :788 / :790 there);
+  harmless since B1 builds on b81c4945, but "every code line unchanged" overstates it.
+- B4 step 5c: coop4's "Revive syringes" bullet lacks the fold's G385 sentence that master has; #317's master merge
+  settles it, and B4's replace range (from "An operator out" to "(A20).") fits either text.
