@@ -1,0 +1,12 @@
+{
+  "id": "20261025T230123-night-shift-guard-ai-9f81055a-e777",
+  "sha": "9f81055a1d6b03cf13f6a1285624934fc00daf75",
+  "branch": "feature/guard-ai-mission-hooks-s1b",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-stealth-ai"
+  ],
+  "set": "mh-s1b-early"
+}
