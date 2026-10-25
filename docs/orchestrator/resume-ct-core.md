@@ -10,6 +10,7 @@ Message the orchestrator only at PR open / train-ready / blocked / Michael. Push
 ## Now (2026-10-25 ~14:05 SAVE; cap ~14:18. All branches pushed, nothing running.)
 | Job | Branch (worktree C:/NightShift/Mobile-Coop-<x>) | Head | Next |
 | --- | --- | --- | --- |
+| tuner-clarity (ROADMAP Now 0c, NEW 15:30, ahead of the hold by Michael) | feature/tuner-clarity (Mobile-Coop-tuner-clarity) | see STATE | docs/tuner-clarity/STATE.md resume block: BRIEF done, Opus PLAN in progress -> plan checker -> slices -> e2e-studio + e2e-tuner-phone -> PR. |
 | Conformance review PR #416 (ROADMAP Now phase 1 row 1) | feature/conformance-player (Mobile-Coop-conformance-player) | 4a819e6a | Checker PASS on c8f49f4b; polish applied as 4a819e6a (docs only); a fresh Opus recheck posts `checker` on 4a819e6a (if missing, start a new fresh checker on the delta). Then HOLD (Michael 13:53 "plan comes first"): no doc fixes, no cloud briefs, no game code until the orchestrator says resume after row 6 sign-off. |
 | player-doc-fixes (stopped) | feature/player-doc-fixes (Mobile-Coop-player-doc-fixes) | 71ba10e1 | WIP, unreviewed, no PR: 2 operators docs (H6 names, S7). Resume after sign-off: S1-S9 + H6 per CONFORMANCE.md 1c (bible / DECISIONS rows are the orchestrator's fold). |
 | #380, #384, #373, #389 | - | - | MERGED (train 88 and before). |
@@ -20,7 +21,7 @@ Message the orchestrator only at PR open / train-ready / blocked / Michael. Push
 | coop-real (draft PR #388) | feature/coop-real | 80b9a0ad | c1b 0/3; triage agent from the old account is gone: restart an Opus triage (use --pr 388). |
 | coop-real C2 part 3 | feature/coop-real-c2 | d2f1d940 | laptop-e2e/coop-real-c2 FAILURE (e2e-coop-real:3 0/1, desktop 2026-10-24 22:37Z); merge into coop-real after the triage lands, then K1. |
 
-Next: HOLD (Michael 13:53 "plan comes first"). #416 labels itself when CI `test` is green (checker PASS on 4a819e6a). On the orchestrator's resume after row 6 sign-off: work its folded plan for the Player rows of #416 (S1-S9 docs on feature/player-doc-fixes first), then the jobs above top down (gm-polish triage, coop-real triage, #375 `gh pr ready` after the look picks).
+Next: tuner-clarity first (STATE.md); everything else HOLD (Michael 13:53 "plan comes first"). #416 labels itself when CI `test` is green (checker PASS on 4a819e6a). On the orchestrator's resume after row 6 sign-off: work its folded plan for the Player rows of #416 (S1-S9 docs on feature/player-doc-fixes first), then the jobs above top down (gm-polish triage, coop-real triage, #375 `gh pr ready` after the look picks).
 
 ## Open
 - e2e-coop quarantine is ours until 2026-10-26 (Test Runner 08:45): soak 5/5 alone on 3be7d1a2; one fail at JOBS=3 sharded (laptop scratch/laptop-queue/runs/20261024T173702-night-shift-test-run-3be7d1a2-b1fd/4189.log L821-921) "co-op on the guards": host holds its guard in front of the client (0.38 m). Load-only so far; soak-coop-41002 x5 queued on master 833db92e behind train 78. Repeats -> fix in the next batch PR (player-batch-25 or later).
