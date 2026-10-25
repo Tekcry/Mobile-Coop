@@ -27,9 +27,14 @@ files:
   - src/game/gameState.ts
   - src/game/mapGate.ts
   - src/game/preload.ts
+  - src/game/compileOrder.ts
+  - src/game/shaderWarm.ts
+  - src/core/compileLog.ts
   - src/game/modes/courseMode.ts
   - src/world/world.ts
   - src/world/bakedLamps.ts
+  - src/world/charShadows.ts
+  - src/world/torchShadowSet.ts
   - src/world/lightBake.ts
   - src/world/shippedBake.ts
   - src/world/kit/kitRender.ts
@@ -69,6 +74,10 @@ files:
   - tests/keptParts.test.ts
   - tests/pluginCode.test.ts
   - tests/preload.test.ts
+  - tests/compileLog.test.ts
+  - tests/compileOrder.test.ts
+  - tests/lampLoopForm.test.ts
+  - tests/shaderWarm.test.ts
   - scripts/prebake.mjs
   - scripts/prebake/**
   - scripts/e2e-lib.mjs
@@ -356,6 +365,58 @@ Q3's pack). S2's priority compile order is already in (not a candidate).
   miss.
 - Order: its plan right after S1's baseline and S2 (W2), so its build slices run alongside W3-W4; the after-S11 run
   re-measures against 20 s. S12 / S13 are not built (Q3 option 1).
+- Written 2026-10-26 (`SHORTEN.md`), before S1's baseline and S2's measure ran (the lead's call): its seconds are the
+  V12 / LR16 numbers in git (one cold Epic body variant 29.3 s solo, 36.7-43.5 s on campus; the pre-LR16 body under
+  8 s), and S14's log fills the per-map table on the laptop. The gap has two parts: the body lamp shader's size on
+  fxc (LR16, gradient reads inside the 24-slot loop force unrolling), and S2's gate starting each compile group only
+  after the last one finished. V12's held body-shader slice has no ROADMAP owner: S15 is it (A13; the lead tells the
+  orchestrator). Build slices (briefs `briefs/S14.md`-`S16.md`; sizes incl. tests):
+
+**S14 Compile log and parallel priority compile (Opus 5.5; Opus checker; cloud-safe).** A pure `core/compileLog.ts`
+(each new program: kind from its defines, compile ms, programs in flight, `window.__compileLog`, flag-free like S1)
+and a pure `game/compileOrder.ts`: the gate's four compile groups start without waiting on each other (level and
+guards at `quality` + `content`, the player's at `bodies`, the rest once those three started), `?compileorder=serial`
+keeps S2's order for A/B; `map-ready-measure.mjs` gains `--runs cold`, `--compile-order serial` and the log's table.
+- Files: `src/core/compileLog.ts`, `src/game/compileOrder.ts`, `src/game/gameState.ts` (S1 / S2's map-ready members
+  only), `scripts/map-ready-measure.mjs`, `tests/compileLog.test.ts`, `tests/compileOrder.test.ts`. Est. lines: 650.
+- Checks: vitest `tests/compileLog.test.ts tests/compileOrder.test.ts tests/mapGate.test.ts tests/mapReadyStats.test.ts
+  tests/menuGate.test.ts`, tsc; affected e2e plus `e2e-coop` + `e2e-netmove` (`src/game` gate); one laptop alone cold
+  run, parallel and serial -> `research/compile-times.md` (the lead).
+- Done looks like: the run names each map's long variants by kind, the body keys per character kind, peak in flight,
+  and the `shaders` step parallel vs serial (expected: about the longest variant vs about the sum).
+- Order: after S1 and S2 (base `feature/map-ready-s2` until the lead merges them); parallel with S3, S5, S11 (none
+  claims `gameState.ts`) and S15. Flag: `mapReady` for the order; the log reads only.
+
+**S15 The body lamp loop without forced unrolling (Opus 5.5; Opus checker; laptop GPU per step).** Under a
+`LAMP_NOUNROLL` define set with `mapReady`: step 1 fingerprints today's lamp, char-shadow, torch and volume-mix code
+(flag off byte-identical); step 2 `textureLod(lampVis, uvw, 0.0)` in place of `texture()` inside the loops (no mips:
+the same texels); step 3, only if the body variant is still over 8 s, loop bounds from a uniform holding the same
+constants; still over: STOP and re-plan. Same texels, iterations and math: no look change intended; any GPU diff
+stops it for Michael's sign-off.
+- Files: `src/world/bakedLamps.ts`, `src/world/charShadows.ts`, `src/world/torchShadowSet.ts`,
+  `tests/lampLoopForm.test.ts`. Est. lines: 350.
+- Checks: vitest `tests/lampLoopForm.test.ts tests/pluginCode.test.ts tests/glslPrecision.test.ts
+  tests/charShadows.test.ts tests/charShadowReach.test.ts tests/lampPluginClone.test.ts tests/lampPluginGap.test.ts`,
+  tsc; per step a laptop alone cold run with S14's log; at the end `npm run e2e:gpu` flag off and on, `e2e-darkness`,
+  `e2e-lightbake` with `mapready=1`, `e2e-desktop:3`, affected, and a contact-sheet pair in the PR body.
+- Done looks like: the cold Epic body variant at most 8 s on the laptop; all three maps reveal with `capHit` false
+  within 20 s (expected after S14 + S15: est. 12-18 s), or the numbers go to Michael (Q2, SHORTEN section 4).
+- Order: parallel with S14 (disjoint files); its timing runs need S14 merged in. Flag: `mapReady` (the define).
+
+**S16 Lobby shader warm (Opus 5.5; Opus checker; conditional).** Built only if a first-ever Epic load still hits the
+cap after S14 + S15 and Michael accepts A20 (below). The briefing / lobby compiles the picked map's body, guard and
+weapon programs in a small unrendered scene (no level: Q3 option 1), S10 keeps them, the match reuses them; step 1
+proves the keys equal in NullEngine or STOPs.
+- Files: `src/game/shaderWarm.ts`, `src/game/preload.ts`, `tests/shaderWarm.test.ts`. Est. lines: 600.
+- Checks: vitest `tests/shaderWarm.test.ts tests/preload.test.ts tests/keptParts.test.ts tests/pluginCode.test.ts`,
+  tsc; affected plus the co-op group; a laptop alone cold run through the briefing.
+- Done looks like: a Start after "Map ready" compiles no body, guard or weapon program and reveals with `capHit`
+  false on all three maps.
+- Order: after S10, S11, S14 and S15, on its trigger. Flag: `mapReady`. Proposed A20 (for the lead to log in BRIEF
+  and send to the orchestrator): the briefing and lobby also compile the map's character shaders, beyond Q3 option
+  1's "files, textures and sounds" and A19's "a first-ever shader compile starts at Start"; undo: not called.
+- Not slices: fewer Epic body variants (S17, only if S14's log shows more than one body key per character kind) and
+  the Marlow Yard / warehouse PC bake (A17's rule: inside `World.create`, before the cap clock).
 
 **S9 Kept parts: model files and textures (Opus 5.5; Opus checker). Fix (4).** A `core/keptParts.ts` holder that
 lives on the `App` (not on a match): (a) one parsed-file cache for every GLB the match reads: kit, props and campus art move from
@@ -461,8 +522,9 @@ Opus plan checker passes them before any build.
 
 Order: W1 (now, disjoint files): S1, S4, S9. W2: S2 (after S1), S10 (after S9). W3: S3 (after S2), S5 (after S2 and
 j19 S3). W4: S11 (after S2, S3, S4, S9, j19 S3). S2, S5, S6 and S11 also cut from the master that carries #317
-`feature/coop4` (ROADMAP row 10, before this job's row 17), or rebase if it slips (section 7). S8's plan (Q1's 20 s) right after S1 and S2;
-its build slices (S14, ...) alongside W3-W4. W5: S6 (after S5, S11), then the after-S11 laptop alone run, Q2. S7
+`feature/coop4` (ROADMAP row 10, before this job's row 17), or rebase if it slips (section 7). S8's plan (Q1's 20 s,
+`SHORTEN.md`) right after S1 and S2; its build slices alongside W3-W4: S14 and S15 in parallel after S1 + S2 (S15's
+timing runs after S14 is in), S16 only on its trigger after S10, S11, S14, S15. W5: S6 (after S5, S11), then the after-S11 laptop alone run, Q2. S7
 after that run. S12 / S13 are not built (Q3 option 1). Parallel slices run in their own worktrees (`feature/map-ready-s<k>`).
 
 ## 4. Flags (dark until accepted)
@@ -592,3 +654,8 @@ Two open PR branches have no claims block, so claims-check cannot see them; foun
   manifest and bakes on the PC as today.
 - `flags.ts` and `gameState.ts` are on most plans: one new flag line; S1 / S2 keep their `gameState.ts` changes to
   `create`, `enter`, the update entry checks and new private members.
+- S8's slices (2026-10-26, `claims-check` after `git fetch`: 57 plans with claims, 56 overlaps, none on S14-S16's
+  new files): `core/compileLog.ts`, `game/compileOrder.ts`, `game/shaderWarm.ts`, `world/charShadows.ts`,
+  `world/torchShadowSet.ts` and their tests are claimed by no other plan, and the no-claims branches
+  (`feature/light-parity`, `feature/sector-redesign-polish`, `feature/visual-gate`, `feature/guard-cap`,
+  `feature/guard-ai`) do not touch `charShadows.ts`, `torchShadowSet.ts` or `bakedLamps.ts` against master.
