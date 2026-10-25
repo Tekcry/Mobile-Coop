@@ -82,7 +82,7 @@ export const THREE_GREY_COATS: MissionDef = {
       text: "Optional: read Pell's courier rota in the pawnbroker's loft",
       hint: 'The lit desk beside the pawnbroker\'s walkway door. Fenn sits with his back to it.',
       after: ['tgc-2'],
-      optional: { reward: 'gadget' },
+      optional: {},
       done: { flag: 'tgc-opt' },
     },
     {
@@ -187,7 +187,7 @@ export const TWO_KEY_LEDGER: MissionDef = {
       text: "Optional: copy the partners' day book in the east wing office",
       hint: "The partners' office is one door from the east key post. Its desk lamp is the warm one.",
       after: ['tkl-2'],
-      optional: { reward: 'syringe' },
+      optional: {},
       done: { flag: 'tkl-opt' },
     },
     {

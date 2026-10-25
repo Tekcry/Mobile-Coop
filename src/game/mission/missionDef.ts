@@ -49,7 +49,7 @@ export interface MissionStep {
   soloWindow?: number;
   twist?: boolean;
   /** Paid through section-rating's Grant (`rewardsFor` caps), never a new currency. Never blocks the section. */
-  optional?: { reward: RewardKind };
+  optional?: { reward?: RewardKind };
   /** (EN2) Guard AI walk-to hooks, raised (host, gameEvents `missionEvent`) when the step is done; again when a restart redoes it. */
   events?: MissionEvent[];
 }
@@ -244,7 +244,7 @@ export function checkMission(d: MissionDef, guards: ReadonlySet<string>, talkers
       if (solo && !(typeof s.soloWindow === 'number' && s.soloWindow > 0)) out.push(`${p}: sync needs soloWindow > 0 (players include 1)`);
     } else if (s.window !== undefined || s.soloWindow !== undefined) out.push(`${p}: window on a ${s.kind} step`);
     if (s.optional) {
-      if (!REWARD_KINDS.includes(s.optional.reward)) out.push(`${p}: optional reward ${String(s.optional.reward)}`);
+      if (s.optional.reward !== undefined && !REWARD_KINDS.includes(s.optional.reward)) out.push(`${p}: optional reward ${String(s.optional.reward)}`);
       if (s.kind === 'extract') out.push(`${p}: the extraction cannot be optional`);
     }
     for (const ev of s.events ?? []) if (!ev.name || !ev.guardTag || !ev.postId) out.push(`${p}: an event needs name, guardTag and postId`);
