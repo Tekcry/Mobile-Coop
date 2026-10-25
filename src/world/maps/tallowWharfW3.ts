@@ -17,6 +17,12 @@ import { doorIn, duct, lamp, mass, OUTER, PARAPET, screen, T, wall, type DropGua
  * roof's coal-yard edge is a 2.2 m drop guard so a drop cannot skip it. Every box is `noLedge` but the one planned lip
  * (`w3-lip-chute`, a manual ledge).
  *
+ * J8 tallow-fixes G3: the house is lit to LIGHT.md section 4 (31 lamps, groups 80-90, every one on: no light left off; the lights
+ * basis), the yard fire escape runs down east to a foot beside the east gate (D0's TKL default, EGRESS E9), and cover, hide spots,
+ * a medkit and the encounter vantages are added (A8, A9, G157 6). No W3 stair is added (EGRESS section 3, pick 4): the bulkhead
+ * stair and the fire escape are met by their 16.5 m separation. The corner bay (x 82-86.5) and its parapet break are unchanged
+ * (A28 C5: the widening is on the W2 side).
+ *
  * Deviations from the brief (each also in the report): the east-wing / roof stair doors are both at the north end (a two-flight
  * switchback has both doors at one end); the passage's west door is at z 52.95 not 53.75 (a wall 0.9 m from the booster's side
  * probe fails `roomForBoost`); the coal-yard door is at x 99.0 not 99.5 (x 99.5 is inside the yards' dividing wall, so a one-door
@@ -125,6 +131,8 @@ const DOORS: Readonly<Record<string, readonly [number, number, number]>> = {
   'w3-coalyard-door': [99.0, 0, 52],
   'w3-strongroom': [101, 0, 55.5],
   'w3-east-gate': [112, 0, 52],
+  // the bulkhead stair's foot leaf (A30: G2 bolts it, TKL only; the top leaf shares its x / z and is not named)
+  'w3-bulkhead-foot': [112.5, 0, 68],
   'w3-conn-near': [90.9, 0, 38],
   // the roller leaf beside the wicket: GB5 bolts both leaves of the cart gate
   'w3-conn-roller': [89.4, 0, 38],
@@ -180,12 +188,12 @@ const ROOMS: RoomDef[] = [
 function build(b: LevelBuilder): void {
   // ---- the roof ----
   fill(b, ROOF, [LANTERN, CORE], UNDER, ROOF_Y);
-  // parapets (1.1): north z 80, east x 120, west x 82 (break z 64.5-67.5 for the throw, the bridge door frame z 68.3-70.1), south z 52 east of the drop guard (break at the fire escape head)
+  // parapets (1.1): north z 80, east x 120, west x 82 (break z 64.5-67.5 for the throw, the bridge door frame z 68.3-70.1), south z 52 east of the drop guard (break at the fire escape head x 108.0-109.3)
   mass(b, 82, 79.7, 120, 80, ROOF_Y, ROOF_Y + PARAPET);
   mass(b, 119.7, 52, 120, 79.7, ROOF_Y, ROOF_Y + PARAPET);
   for (const [z0, z1] of [[52, 64.5], [67.5, 68.3], [70.1, 79.7]] as const) mass(b, 82, z0, 82.3, z1, ROOF_Y, ROOF_Y + PARAPET);
-  mass(b, 100, 52, 106.3, 52.3, ROOF_Y, ROOF_Y + PARAPET);
-  mass(b, 107.6, 52, 120, 52.3, ROOF_Y, ROOF_Y + PARAPET);
+  mass(b, 100, 52, 108.0, 52.3, ROOF_Y, ROOF_Y + PARAPET);
+  mass(b, 109.3, 52, 120, 52.3, ROOF_Y, ROOF_Y + PARAPET);
   screen(b, DG_COALYARD);
   // the bridge door frame (opens from the counting-house side; GB5 bolts it)
   wall(b, false, 82.15, 68.3, 70.1, [[68.6, 69.8]], ROOF_Y, 11.0, T);
@@ -216,13 +224,14 @@ function build(b: LevelBuilder): void {
   doorIn(b, false, 112.5, 68, 0);
   doorIn(b, false, 112.5, 68, ROOF_Y);
 
-  // ---- the fire escape (roof -> east yard): an external iron stair against the yard face of the wing and passage walls ----
-  mass(b, 106.3, 50.4, 107.6, 52.0, 8.2, ROOF_Y);
-  // flight A: from the head (x 106.3, y 8.4) west down to the half landing (x 101.5, y 4.2): a steep 4.8 m run (the yard has no room for 7.1 m)
-  b.stairs(103.9, 51.05, 1.3, 4.8, 4.2, flight.steps, '#8d949b', PI / 2, 4.2);
-  mass(b, 100.2, 49.1, 101.5, 51.7, 4.0, 4.2);
-  // flight B: from the half landing (x 101.5, y 4.2) east down to the yard (x 108.6, y 0)
-  b.stairs(101.5 + flight.len / 2, 49.75, 1.3, flight.len, 4.2, flight.steps, '#8d949b', -PI / 2, 0);
+  // ---- the fire escape (roof -> east yard): an external iron stair against the yard face of the wing and passage walls; it runs
+  // down east to a foot beside the east gate (D0's TKL default, EGRESS E9) ----
+  mass(b, 108.0, 50.4, 109.3, 52.0, 8.2, ROOF_Y);
+  // flight A: from the half landing (x 103.2, y 4.2) up east to the head (x 108.0, y 8.4): a steep 4.8 m run (the yard has no room for 7.1 m)
+  b.stairs(105.6, 51.05, 1.3, 4.8, 4.2, flight.steps, '#8d949b', PI / 2, 4.2);
+  mass(b, 101.9, 49.1, 103.2, 51.7, 4.0, 4.2);
+  // flight B: from the half landing (x 103.2, y 4.2) down east to the yard (ramp x 103.2-110.325; the foot (110.6, 0, 49.75) is 2.6 m plan from the gate centre)
+  b.stairs(103.2 + flight.len / 2, 49.75, 1.3, flight.len, 4.2, flight.steps, '#8d949b', -PI / 2, 0);
 
   // ---- the east wing (x 106-120 z 52-74), the posts and the office behind it ----
   fill(b, [106, 52, 120, 80], [CORE], CEIL, UNDER);
@@ -411,16 +420,24 @@ export const W3: WharfSection = {
     { id: 'w3-chute-spot', label: 'W3 chute boost spot', pos: new Vector3(97.1, 0, 53.2), yaw: PI },
     { id: 'w3-coal-yard', label: 'W3 coal yard', pos: new Vector3(90, 0, 46), yaw: PI },
     { id: 'w3-cartway', label: 'W3 cartway', pos: new Vector3(90, 0, 36), yaw: PI },
+    { id: 'w3-fire-escape-head', label: 'W3 fire escape head (roof)', pos: new Vector3(108.65, 8.4, 51.2), yaw: PI },
+    { id: 'w3-fire-escape-foot', label: 'W3 fire escape foot (east gate)', pos: new Vector3(110.6, 0, 49.75), yaw: PI / 2 },
+    { id: 'w3-vantage-yard-a', label: 'W3 yard vantage A (fire escape half landing)', pos: new Vector3(102.55, 4.2, 49.6), yaw: PI },
+    { id: 'w3-vantage-yard-b', label: 'W3 yard vantage B (fire escape half landing)', pos: new Vector3(102.55, 4.2, 51.2), yaw: PI },
+    { id: 'w3-vantage-east-a', label: 'W3 east wing vantage A (east key post alcove)', pos: new Vector3(111.5, 0, 77.0), yaw: PI },
+    { id: 'w3-vantage-east-b', label: 'W3 east wing vantage B (east key post alcove)', pos: new Vector3(110.4, 0, 77.6), yaw: PI },
+    { id: 'w3-vantage-west-a', label: 'W3 west wing vantage A (iron gallery south strip)', pos: new Vector3(86.7, 4.2, 60.6), yaw: PI },
+    { id: 'w3-vantage-west-b', label: 'W3 west wing vantage B (iron gallery south strip)', pos: new Vector3(87.9, 4.2, 60.6), yaw: PI },
   ],
   deviations: [
     { space: 'w3-chute', why: 'floor 4.4 not 2.2 (0.1 question 5): a 1.2 x 2.0 duct x 96.5-97.7 z 50.0-52.0 out over the coal yard (the room stops at z 52.0, rooms may not overlap; the duct floor runs on to the lip at z 52.3), its hatch in the south end wall; the opening and a hood over the lip end (z 50.9-52.3) are 1.9 high for the climb-up' },
     { space: 'w3-east-wing', why: 'the bulkhead stair has both doors (east wing and roof) at the north end: a two-flight switchback has both doors at one end' },
     { space: 'w3-passage', why: "the passage's west door is at z 52.95 not 53.75 (a wall 0.9 m from the booster's side probe fails roomForBoost)" },
     { space: 'w3-coal-yard', why: "the coal-yard door is at x 99.0 not 99.5 (x 99.5 is inside the yards' dividing wall): a one-door vestibule x 98-99.85 z 50-51.7 is carved from it, open to the yard; the roof's drop guard runs on to x 100 over it" },
-    { space: 'w3-east-yard', why: "the fire escape's band is z 49.1-52.0 less 0.3 (the wing and passage walls are 0.6 thick, their yard face z 51.7); its upper flight is steeper (a 4.8 m run: the yard has no room for 7.1 m); the dividing wall x 100 is 6.5 so the half landing (4.2) is out of the 1.8 m mantle" },
+    { space: 'w3-east-yard', why: "the fire escape runs down east to a foot beside the east gate, D0's TKL default; band z 49.1-52.0 less 0.3; upper flight steeper (a 4.8 m run); the dividing wall x 100 is 6.5" },
     { space: 'w3-cartway', why: 'z 34-38 not 34-40: the graph box overlaps the coal yard at z 38-40' },
     { space: 'w3-front-hall', why: 'not a graph space: the 10 x 8 hall between the wings (the link w3-east-wing -> w3-west-wing)' },
-    { space: 'w3-roof', why: "the fire escape's marker [107, 8.4, 52] is its head landing (x 106.3-107.6)" },
+    { space: 'w3-roof', why: "the fire escape's marker [108.65, 8.4, 52] (D0, EGRESS E9) is its head landing x 108.0-109.3" },
   ],
   entry: [100, 8.4, 70],
   exit: [90, 0, 36],
