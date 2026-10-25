@@ -141,6 +141,7 @@ interface StRt {
 }
 
 const NO_ST_RT: StRt[] = [];
+const NO_GATE_DOORS: readonly string[] = [];
 
 interface GateRt {
   def: GateDef;
@@ -343,6 +344,11 @@ export class CourseState {
   private gateRt(id: string): GateRt | null {
     for (const g of this.gates) if (g.def.id === id) return g;
     return null;
+  }
+
+  /** (J14 R1 fix 3) The course doors gate `id` unlocks (none for a device id or an unknown gate). */
+  gateDoorIds(id: string): readonly string[] {
+    return this.gateRt(id)?.doors ?? NO_GATE_DOORS;
   }
 
   private condAny(list: readonly StepCond[]): CondRt {

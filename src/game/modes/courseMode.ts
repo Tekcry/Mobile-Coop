@@ -247,6 +247,10 @@ export class CourseMode implements GameMode {
   private readonly startState = new SectionStartState();
   /** (S10) Set by `bayStarted` / `bayRestart`: after this step's locks the doors are recorded (1) or put back (2). */
   private doorStep = 0;
+  /** (J14 R1 fix 3) The doors open (1) or shut (0) as the current set began, by door index (`takeDoorStart`). */
+  private doorStart = new Uint8Array(0);
+  /** (fix 3) The station whose gate doors this step's `handle` puts back (after the locks), or null. */
+  private retryDoorSt: StationDef | null = null;
   /** (S10) Set restarts done (tests; every bay restart, the pause menu's and the built yard's spotted one too). */
   private bayRestarts = 0;
   /** (J14 R1) A camera reached full detection of a player since the last step (the station rule's `seen`, A22). */
@@ -816,9 +820,50 @@ export class CourseMode implements GameMode {
     this.dirty = true;
     this.applyLocks();
     // (S10, M3) after the locks: a set start records its doors, a restart puts them back (locked ones too: shut as they began)
-    if (this.doorStep === 1) this.startState.take(this.g.world.level.lights, this.g.world.doors);
-    else if (this.doorStep === 2) this.lastDoors = this.startState.applyDoors(this.g.world.doors, true);
+    if (this.doorStep === 1) {
+      this.startState.take(this.g.world.level.lights, this.g.world.doors);
+      this.takeDoorStart();
+    } else if (this.doorStep === 2) this.lastDoors = this.startState.applyDoors(this.g.world.doors, true);
     this.doorStep = 0;
+    // (J14 R1 fix 3) a station retry: its gates' doors as the set began, now their locks are back on
+    const rd = this.retryDoorSt;
+    if (rd) {
+      this.retryDoorSt = null;
+      this.lastDoors = this.restoreStationDoors(rd);
+    }
+  }
+
+  /** (fix 3) Each door open (1) or shut (0) as the set began (beside `startState`, whose record is its own). */
+  private takeDoorStart(): void {
+    const ds = this.g.world.doors.list;
+    if (this.doorStart.length !== ds.length) this.doorStart = new Uint8Array(ds.length);
+    for (let i = 0; i < ds.length; i++) this.doorStart[i] = ds[i]!.target === 1 ? 1 : 0;
+  }
+
+  /**
+   * (J14 R1 fix 3, PLAN R1 "resets only that station's gates") Station `def`'s gate doors back as the set began: open or
+   * shut, uncracked (a player-opened door never closes itself, so a relocked but open door would let the players walk past
+   * the retried station). Only those doors; the rest of the set's doors stay as they are. Returns how many changed.
+   */
+  private restoreStationDoors(def: StationDef): number {
+    const st = this.state!;
+    const doors = this.g.world.doors;
+    let n = 0;
+    for (const id of def.gates) {
+      for (const cid of st.gateDoorIds(id)) {
+        const d = this.doorOf.get(cid);
+        if (!d || d.index >= this.doorStart.length) continue;
+        let changed = false;
+        if (d.cracked) changed = doors.crack(d, false) || changed;
+        const open = this.doorStart[d.index] === 1;
+        if ((d.target === 1) !== open) {
+          doors.setOpen(d, open);
+          changed = true;
+        }
+        if (changed) n++;
+      }
+    }
+    return n;
   }
 
   private onEvent(e: CourseEvent): void {
@@ -1060,6 +1105,8 @@ export class CourseMode implements GameMode {
     this.ct?.repair(-1);
     this.ct?.holdZones(2);
     this.resetStationLights(def);
+    // (fix 3) its gates' doors as the set began, once this step's locks are back on (`handle`)
+    this.retryDoorSt = def;
     this.placeSt = def;
     this.placeT = PLACE_HOLD;
     g.scheduleRespawn(this.checkpointPos(), 0.5);

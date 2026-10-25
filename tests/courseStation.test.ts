@@ -14,6 +14,7 @@ import { RESTART_DELAY } from '../src/config/course';
 import { parseMessage } from '../src/net/protocol';
 import { roomMap } from '../src/net/session';
 import type { GameState } from '../src/game/gameState';
+import type { SecurityConsole } from '../src/game/course/securityRoom';
 
 const DT = 0.1;
 
@@ -83,24 +84,52 @@ function fakeGuard(slot: string, o: Partial<FakeEnemy> = {}): FakeEnemy {
   return { slot, id: `e${guardSeq}`, key: guardSeq, ko: false, alive: true, alerted: false, passive: false, setPatrol: () => undefined, ...o };
 }
 
+interface FakeDoor {
+  anchor: { id: number; locked: boolean; hinge: { y: number } };
+  target: 0 | 1;
+  cracked: boolean;
+  index: number;
+  cx: number;
+  cz: number;
+}
+
+/** Rig options: course doors (by course id), security consoles and course devices. */
+interface RigOpts {
+  doors?: string[];
+  consoles?: SecurityConsole[];
+  devices?: CourseLayout['devices'];
+}
+
 /** A CourseMode on a stub GameState: enough for its fixed step, squad, restart and respawn paths (no Babylon scene). */
-function rig(d: CourseDef) {
+function rig(d: CourseDef, o: RigOpts = {}) {
   const enemies: FakeEnemy[] = [];
   const despawned: FakeEnemy[] = [];
   const respawns: { x: number; y: number; z: number }[] = [];
   const said: string[] = [];
+  const doorList: FakeDoor[] = (o.doors ?? []).map((_id, i) => ({ anchor: { id: 100 + i, locked: false, hinge: { y: 0 } }, target: 0, cracked: false, index: i, cx: 0, cz: 0 }));
   const lay: CourseLayout = {
     def: d,
-    doors: {},
-    devices: {},
+    doors: Object.fromEntries((o.doors ?? []).map((id, i) => [id, 100 + i])),
+    devices: o.devices ?? {},
     squads: { gd1: { kind: 'grunt', x: 1, z: 1, yaw: 0 }, gd2: { kind: 'grunt', x: 2, z: 2, yaw: 0 } },
+    ...(o.consoles ? { consoles: o.consoles } : {}),
   };
   let spawning = '';
   const bodies: { carried: boolean; enemyId: string }[] = [];
+  /** What the guards' memory was told: console toggles, and how often a retry cleared the calls and positions. */
+  const consoleCalls: [string, boolean][] = [];
+  const cleared = { radio: 0, board: 0, alarm: 0, intruders: 0 };
   const em = {
     stealth: true,
     enemies,
     bodies,
+    lkpValid: false,
+    sightT: 99,
+    radioNet: { clear: () => cleared.radio++ },
+    board: { clear: () => cleared.board++ },
+    intruders: { clear: () => cleared.intruders++ },
+    resetAlarm: () => cleared.alarm++,
+    consoleState: (id: string, _x: number, _y: number, _z: number, on: boolean) => consoleCalls.push([id, on]),
     get anyAlerted() {
       return enemies.some((e) => e.alive && e.alerted);
     },
@@ -117,6 +146,20 @@ function rig(d: CourseDef) {
     resetMemory: () => (enemies.length = 0),
     placeSlot: () => undefined,
   };
+  const doors = {
+    list: doorList,
+    setLocked: (dr: FakeDoor, on: boolean) => (dr.anchor.locked = on),
+    setOpen: (dr: FakeDoor, open: boolean) => (dr.target = open ? 1 : 0),
+    open: (dr: FakeDoor) => {
+      dr.target = 1;
+      return true;
+    },
+    crack: (dr: FakeDoor, on: boolean) => {
+      const was = dr.cracked;
+      dr.cracked = on;
+      return was !== on;
+    },
+  };
   const player = { position: new Vector3(0, 0, 0), alive: true, cam: { yaw: 0 } };
   const remote = { id: 'peer-2', feet: new Vector3(1, 0, 0), target: { alive: true } };
   const g = {
@@ -132,7 +175,7 @@ function rig(d: CourseDef) {
     security: null,
     scheduleRespawn: (at: Vector3) => respawns.push({ x: at.x, y: at.y, z: at.z }),
     world: {
-      doors: { list: [] },
+      doors,
       level: { lights: { lights: [], version: 0 } },
       layout: { course: lay, playerSpawns: [{ pos: new Vector3(-5, 0, 0), yaw: 0 }, { pos: new Vector3(-4, 0, 0), yaw: 0 }] },
     },
@@ -143,6 +186,9 @@ function rig(d: CourseDef) {
   const mode = new CourseMode(g);
   mode.layout = lay;
   mode.state = new CourseState(d);
+  // `start` maps the course doors to the world's (not run here)
+  const doorOf = (mode as unknown as { doorOf: Map<string, FakeDoor> }).doorOf;
+  (o.doors ?? []).forEach((id, i) => doorOf.set(id, doorList[i]!));
   // the squad as the bay starts (the first step acts on `bayStarted`); each fake guard knows its slot
   const m = mode as unknown as { spawnSlot(id: string): unknown };
   const spawnSlot = m.spawnSlot.bind(mode);
@@ -155,7 +201,7 @@ function rig(d: CourseDef) {
   };
   step();
   const guard = (slot: string): FakeEnemy => enemies.find((e) => e.slot === slot)!;
-  return { mode, st: mode.state, enemies, despawned, respawns, player, remote, guard, step, said, bodies, em };
+  return { mode, st: mode.state, enemies, despawned, respawns, player, remote, guard, step, said, bodies, em, doors: doorList, consoleCalls, cleared };
 }
 
 /** The host's `course` message through the wire to a client mirror: what route-runs read on the client. */
@@ -336,6 +382,38 @@ describe('SA1: a guard on several stations\' lists (fix 1)', () => {
     expect(r.despawned).toContain(copy);
     expect(r.enemies.filter((e) => e.slot === 'gd1')).toHaveLength(1);
     expect(r.guard('gd1')).not.toBe(copy);
+  });
+});
+
+describe('a retry\'s gate doors (fix 3)', () => {
+  it('the retried station\'s gate door is shut and locked again; an earlier station\'s door stays open', () => {
+    const gates: BayDef['gates'] = [
+      { kind: 'pickup', id: 'g-s1', switchId: 'sw1', flag: 'key1', perPlayer: false },
+      { kind: 'pickup', id: 'g-s2', switchId: 'sw2', flag: 'key2', perPlayer: false },
+      { kind: 'lever', id: 'g-d1', switchId: 'sw3', doorId: 'D1' },
+      { kind: 'lever', id: 'g-d2', switchId: 'sw4', doorId: 'D2' },
+    ];
+    const r = rig(def({ gates }, [station(1, { gates: ['g-s1', 'g-d1'] }), station(2, { gates: ['g-s2', 'g-d2'] })]), { doors: ['D1', 'D2'] });
+    const [d1, d2] = r.doors;
+    expect(d1!.anchor.locked).toBe(true);
+    expect(r.st.press('sw3', 0)).toBeNull();
+    r.step();
+    expect(d1!.anchor.locked).toBe(false);
+    d1!.target = 1; // the players open it
+    r.st.setFlag('s1-done');
+    expect(r.st.press('sw4', 0)).toBeNull();
+    r.step();
+    d2!.target = 1;
+    d2!.cracked = true;
+    r.guard('gd2').alerted = true;
+    r.step();
+    expect(r.mode.lastRetry).toEqual({ st: 2, cause: 'seen' });
+    r.step(10);
+    expect(d2!.target).toBe(0);
+    expect(d2!.cracked).toBe(false);
+    expect(d2!.anchor.locked).toBe(true);
+    expect(d1!.target).toBe(1);
+    expect(d1!.anchor.locked).toBe(false);
   });
 });
 
