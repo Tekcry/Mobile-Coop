@@ -42,11 +42,24 @@ files:
   - docs/systems/lighting.md
   - docs/systems/testing-tools.md
   - TESTING.md
-  - changes/feature-map-ready.md
 maps: campusOps, ctcourse, warehouse
 protocol: mr, go
 save: none
 ```
+Overlaps (`node scripts/claims-check.mjs --plan docs/map-ready/PLAN.md`, 2026-10-25 ~19:00):
+- `feature/coop-kit` (Player: `gameState.ts`, `flags.ts`, `protocol.ts`, `coopHost.ts`, `coopClient.ts`; team-move
+  messages), `feature/player-hygiene` (Player: `coopHost.ts`, `coopClient.ts`, `protocol.ts`; protocol none, comments
+  and allocations), `feature/guard-rules` (Guard AI: `flags.ts`, `coopHost.ts`, `e2e-sectorops.mjs`; `bark`, `td`):
+  different functions and messages. S5 adds two message types and a hold branch; it is built after S2 on the then
+  master, and whichever lands second rebases (no shared lines expected). One train may carry several wire members:
+  the train bumps `PROTOCOL_VERSION` once.
+- `feature/test-runner-j20` (`e2e-sectorops.mjs`, `e2e-ctcourse.mjs`, `testing-tools.md`; its S6c and PR-C) and
+  `feature/route-runs-2` (`testing-tools.md`, one new section): only S6 / S7 touch these; they start after those PRs
+  merge or append their parts without editing J20's lines.
+- `flags.ts` and `gameState.ts` are on most plans: one new flag line; S1 / S2 keep their `gameState.ts` changes to
+  `create`, `enter`, the update entry checks and new private members.
+- The changelog fragment `changes/feature-map-ready.md` is a shared file (not claimed).
+
 Wire: `mr` and `go` are new; `snap` is sent during the hold with the clock at 0 (same shape). The train bumps
 `PROTOCOL_VERSION`; no test asserts its number. Save: none (the bake cache key and shape are unchanged).
 
@@ -108,7 +121,7 @@ release); the `bodies`, `shaders`, `probe`, `bake-all` (reading today's `section
   e2e-lib change runs the full set) plus, by hand request, `e2e-sectorops` part 6 and `e2e-lightbake` with
   `mapready=1`; one laptop alone measure run with `?mapready=1` against S1's baseline.
 - Done looks like: flag off, every suite as before; flag on, campus and warehouse at Epic reveal with 0 programs and 0
-  pop-ins in the after-window (guards' first-compile and co-op still open until S3 / S5).
+  pop-ins in the after-window (guards spawned later and co-op stay open until S3 / S5).
 - Flag: `mapReady`.
 
 **S3 Warm what arrives later (Opus 5.5).** The guard body variant warmed per kind on the merged-body path too
@@ -216,5 +229,6 @@ S6 -> S7. S8's plan after S1. Laptop alone runs: after S1 (baseline) and after S
 - The host waiting on a slow client: bounded by the grace; a client that drops during the hold is removed from the
   wait by the existing leave path (`session.ts`); a rejoin never holds.
 - `DIRECT_COVERS` has no campusOps entry (`scripts/e2e-affected.mjs:297-315`), so campus file changes do not reach
-  `e2e-sectorops` by themselves: the lead requests it on S2 / S4 PRs (and tells Test Runner; not claimed here).
+  `e2e-sectorops` by themselves; J20 T5 (`feature/test-runner-j20`) adds it. Until that merges the lead requests
+  `e2e-sectorops` part 6 by hand on S2 / S4 PRs.
 - Q1 (cap) is Michael's: until answered the build uses 45 s behind the dark flag (A2, logged overnight).
