@@ -42,7 +42,7 @@ import { newSeenBody, remoteHeadY, type SeenBody } from '../security/securitySys
 import { CourseFeed } from '../game/course/courseFeed';
 import { infoToHtml, localFlags } from './netShared';
 import { keepSimInBackground } from './bgTicks';
-import { OBJ_CONNECTING, objectiveOnSnap, objectiveOnStall } from './objectiveMirror';
+import { OBJ_CONNECTING, objectiveOnSnap, objectiveOnStall, showMirrorLine } from './objectiveMirror';
 import { hyp3 } from '../core/mathx';
 import { localMoveState } from '../game/localMoveState';
 import { dropBadOpticMove, dropBadWallMove, emptyMoveState, moveChanged } from '../player/moveState';
@@ -97,7 +97,8 @@ export class CoopClient implements NetAttachment {
   private sendT = 0;
   private time = 0;
   private offs: (() => void)[] = [];
-  /** The objective line as shown (the host's, or the connecting / waiting placeholder, objectiveMirror.ts). */
+  /** The mirror's line: the host's objective, or the connecting / waiting notice (objectiveMirror.ts). Shown only
+   *  through `showLine` (hud-guidance B3: a notice on the net-status line, a host objective on the objective line). */
   private obj = OBJ_CONNECTING;
   private info = '';
   /** (coop-fix) A snapshot has arrived, and the seconds since the last one (the "Waiting for host" notice). */
@@ -249,8 +250,10 @@ export class CoopClient implements NetAttachment {
     // (free roam mirrors only the host's wall medkits)
     if (g.opts.mode === 'sandbox') this.mirrorOnly = 'medkitWall';
     // (coop-fix, bug 2) the placeholder is the mirror's value: the first snapshot replaces it, an empty host
-    // objective (course mode sets none) included
-    g.hud.setObjective(this.obj);
+    // objective (course mode sets none) included. (hud-guidance B3, HG9) It shows on the net-status line; the objective
+    // line holds only the host's objective, so the client's own free roam line goes until the first snapshot.
+    g.hud.setObjective('');
+    this.showLine(this.obj);
     // (coop-fix, bug 1) a hidden client page keeps simulating and sending its states
     this.offs.push(keepSimInBackground(g));
     // (marlow-polish) our own round off a bulletproof camera (Sector Ops, Marlow Yard): the host's ricochet sparks and
@@ -501,10 +504,7 @@ export class CoopClient implements NetAttachment {
     this.gotSnap = true;
     this.sinceSnap = 0;
     const obj = objectiveOnSnap(this.obj, m.obj);
-    if (obj !== null) {
-      this.obj = obj;
-      g.hud.setObjective(obj);
-    }
+    if (obj !== null) this.showLine(obj);
     if (m.info !== this.info) {
       this.info = m.info;
       g.hud.setModeInfo(infoToHtml(m.info));
@@ -1063,16 +1063,23 @@ export class CoopClient implements NetAttachment {
     this.g.endSession(end.won, end.subtitle);
   }
 
+  /**
+   * (hud-guidance B3, HG9) Every write of the mirror's line, and the one host-objective write: a connection notice goes
+   * to the net-status line (the objective keeps its text); a host objective clears the notice and goes to the objective
+   * line (the HUD pops it up only on a real change, so a stall ending on the same objective shows nothing new).
+   */
+  private showLine(t: string): void {
+    this.obj = t;
+    showMirrorLine(this.g.hud, t);
+  }
+
   fixedUpdate(dt: number): void {
     this.time += dt;
     this.sendT -= dt;
-    // (coop-fix) snapshots stopped (a stalled or gone host): say so on the objective line until the next one
+    // (coop-fix) snapshots stopped (a stalled or gone host): say so on the net-status line until the next one
     this.sinceSnap += dt;
     const stall = objectiveOnStall(this.obj, this.gotSnap, this.sinceSnap);
-    if (stall !== null) {
-      this.obj = stall;
-      this.g.hud.setObjective(stall);
-    }
+    if (stall !== null) this.showLine(stall);
     // the movement state: a new mode or sub-state (a ladder, a vault) goes out at once, not on the next tick
     const mv = localMoveState(this.g, this.mvNow);
     if (this.feed) {
