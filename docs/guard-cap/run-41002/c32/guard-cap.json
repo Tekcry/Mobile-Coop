@@ -1,0 +1,778 @@
+{
+ "started": "2026-10-24T22:38:25.686Z",
+ "gpu": true,
+ "uncapped": true,
+ "gfx": "epic",
+ "viewport": [
+  1920,
+  1080
+ ],
+ "kind": "grunt",
+ "warm": 5,
+ "warmAsked": 5,
+ "software": false,
+ "secs": 20,
+ "port": 4189,
+ "build": null,
+ "cells": [
+  {
+   "map": "campus",
+   "count": 32,
+   "params": "autostart=campusOps&mode=sector&sectorGuards=0&gfx=epic",
+   "cell": "patrol/facing",
+   "spawn": {
+    "spawned": 32,
+    "alive": 32,
+    "capBefore": 32,
+    "cap": 32,
+    "candidates": 32,
+    "patrols": 29,
+    "inSight": 30,
+    "meanDist": 14.75641927986987,
+    "playerAt": [
+     24,
+     0.020000000000000018,
+     -79
+    ],
+    "yaw": 0
+   },
+   "wrenLoaded": true,
+   "timer": {
+    "wrapped": [
+     "ai.brain",
+     "ai.perceive",
+     "ai.decide",
+     "ai.move",
+     "ai.manager",
+     "ai.torches",
+     "ai.anim",
+     "nav.findPath",
+     "nav.lineClear",
+     "nav.flowField",
+     "light.totalAt",
+     "step.fixed",
+     "step.frame",
+     "ray.*"
+    ],
+    "timerResMs": 0.09999990463256836,
+    "crossOriginIsolated": false
+   },
+   "sim": {
+    "stepClean": {
+     "med": 2.4,
+     "p95": 4.9,
+     "mean": 2.671,
+     "n": 1200
+    },
+    "stepInstrumented": {
+     "med": 1.8,
+     "p95": 4.1,
+     "mean": 2.194,
+     "n": 1200
+    },
+    "buckets": {
+     "step.fixed": {
+      "med": 0.5,
+      "p95": 1.3,
+      "mean": 0.662,
+      "n": 1200
+     },
+     "step.physics": {
+      "med": 0.1,
+      "p95": 0.3,
+      "mean": 0.142,
+      "n": 1200
+     },
+     "step.frame": {
+      "med": 1.1,
+      "p95": 2.6,
+      "mean": 1.382,
+      "n": 1200
+     },
+     "ai.manager": {
+      "med": 0.2,
+      "p95": 0.5,
+      "mean": 0.239,
+      "n": 1200
+     },
+     "ai.brain": {
+      "med": 0.2,
+      "p95": 0.4,
+      "mean": 0.192,
+      "n": 1200
+     },
+     "ai.perceive": {
+      "med": 0,
+      "p95": 0.1,
+      "mean": 0.018,
+      "n": 1200
+     },
+     "ai.decide": {
+      "med": 0,
+      "p95": 0.1,
+      "mean": 0.031,
+      "n": 1200
+     },
+     "ai.move": {
+      "med": 0.1,
+      "p95": 0.3,
+      "mean": 0.101,
+      "n": 1200
+     },
+     "ai.torches": {
+      "med": 0,
+      "p95": 0.1,
+      "mean": 0.018,
+      "n": 1200
+     },
+     "ai.anim": {
+      "med": 0.8,
+      "p95": 1.9,
+      "mean": 1.018,
+      "n": 1200
+     },
+     "nav.findPath": {
+      "med": 0,
+      "p95": 0,
+      "mean": 0,
+      "n": 1200
+     },
+     "nav.lineClear": {
+      "med": 0,
+      "p95": 0.1,
+      "mean": 0.012,
+      "n": 1200
+     },
+     "nav.flowField": {
+      "med": 0,
+      "p95": 0,
+      "mean": 0,
+      "n": 1200
+     },
+     "ray.perceive": {
+      "med": 0,
+      "p95": 0.1,
+      "mean": 0.008,
+      "n": 1200
+     },
+     "ray.torch": {
+      "med": 0,
+      "p95": 0,
+      "mean": 0,
+      "n": 1200
+     },
+     "ray.ai": {
+      "med": 0,
+      "p95": 0,
+      "mean": 0,
+      "n": 1200
+     },
+     "ray.other": {
+      "med": 0.3,
+      "p95": 0.7,
+      "mean": 0.316,
+      "n": 1200
+     },
+     "light.totalAt": {
+      "med": 0,
+      "p95": 0,
+      "mean": 0,
+      "n": 1200
+     }
+    },
+    "callsPerStep": {
+     "step.fixed": 1,
+     "step.physics": 1,
+     "step.frame": 1,
+     "ai.manager": 1,
+     "ai.brain": 32,
+     "ai.perceive": 1.988,
+     "ai.decide": 32,
+     "ai.move": 32,
+     "ai.torches": 1,
+     "ai.anim": 1,
+     "nav.findPath": 0,
+     "nav.lineClear": 21.214,
+     "nav.flowField": 0,
+     "ray.perceive": 2.115,
+     "ray.torch": 0,
+     "ray.ai": 0,
+     "ray.other": 104.246,
+     "light.totalAt": 0
+    },
+    "advancedClean": 20,
+    "advancedInstrumented": 20
+   },
+   "render": {
+    "frames": 1736,
+    "framesWithSim": 1203,
+    "framesNoSim": 533,
+    "simSteps": 1208,
+    "cpuMsPerSimStep": 16.229,
+    "frameMsWithSim": {
+     "med": 12.1,
+     "p95": 17.5,
+     "mean": 12.151,
+     "n": 1203
+    },
+    "frameCpuMsWithSim": {
+     "med": 11.6,
+     "p95": 17,
+     "mean": 12,
+     "n": 1203
+    },
+    "frameMsNoSim": {
+     "med": 9.9,
+     "p95": 14,
+     "mean": 10.35,
+     "n": 533
+    },
+    "frameCpuMsNoSim": {
+     "med": 9,
+     "p95": 14.1,
+     "mean": 9.695,
+     "n": 533
+    },
+    "simAdvanced": 20.133,
+    "realSecs": 20.13,
+    "levelsStart": {
+     "unaware": 32
+    },
+    "frameMs": {
+     "med": 11,
+     "p95": 17,
+     "mean": 11.598,
+     "n": 1736
+    },
+    "fps": 90.9,
+    "frameCpuMs": {
+     "med": 10.7,
+     "p95": 16.6,
+     "mean": 11.293,
+     "n": 1736
+    },
+    "loopSimMsPerStep": {
+     "med": 0.9,
+     "p95": 1.4,
+     "mean": 0.931,
+     "n": 1203
+    },
+    "loopPhysicsMsPerStep": {
+     "med": 0.2,
+     "p95": 0.4,
+     "mean": 0.228,
+     "n": 1203
+    },
+    "renderCpuMs": {
+     "med": 7.8,
+     "p95": 12,
+     "mean": 8.203,
+     "n": 1736
+    },
+    "gpuMs": {
+     "med": 7.587,
+     "p95": 10.499,
+     "mean": 7.91,
+     "n": 884
+    },
+    "gpuTimer": true,
+    "draws": {
+     "med": 380,
+     "p95": 396,
+     "mean": 384.257,
+     "n": 171
+    },
+    "trisM": {
+     "med": 2.657,
+     "p95": 2.882,
+     "mean": 2.709,
+     "n": 171
+    },
+    "shadowPasses": {
+     "med": 1,
+     "p95": 2,
+     "mean": 1.497,
+     "n": 171
+    },
+    "activeMeshes": {
+     "med": 356,
+     "p95": 358,
+     "mean": 356.263,
+     "n": 171
+    },
+    "evalMs": {
+     "med": 3.5,
+     "p95": 4.8,
+     "mean": 3.54,
+     "n": 171
+    },
+    "shadowMapRenders": {
+     "med": 4,
+     "p95": 5,
+     "mean": 4.497,
+     "n": 171
+    },
+    "passes": [
+     [
+      "PostProcessRTT-TAA",
+      143
+     ],
+     [
+      "gBuffer",
+      141
+     ],
+     [
+      "sun_CSMShadowMap",
+      67
+     ],
+     [
+      "charshadow-#_shadowMap",
+      7.8
+     ],
+     [
+      "PostProcessRTT-vertical blur",
+      2
+     ],
+     [
+      "PostProcessRTT-horizontal blur",
+      2
+     ],
+     [
+      "PostProcessRTT-imageProcessing",
+      2
+     ],
+     [
+      "RenderTargetWrapper",
+      1.5
+     ],
+     [
+      "TileMaskTexture",
+      1
+     ],
+     [
+      "PostProcessRTT-SSAOOriginalSceneColor",
+      1
+     ],
+     [
+      "PostProcessRTT-ssao",
+      1
+     ],
+     [
+      "PostProcessRTT-BlurH",
+      1
+     ],
+     [
+      "PostProcessRTT-BlurV",
+      1
+     ],
+     [
+      "PostProcessRTT-ssaoCombine",
+      1
+     ]
+    ],
+    "state": {
+     "alive": 32,
+     "levels": {
+      "unaware": 32
+     },
+     "torchesOn": 0,
+     "torchSlots": 4,
+     "shadowPool": 0,
+     "shadowLit": 0,
+     "rigLights": 4,
+     "meshes": 3312,
+     "skeletons": 35,
+     "renderW": 1920,
+     "renderH": 1080
+    }
+   },
+   "flags": []
+  },
+  {
+   "map": "campus",
+   "count": 32,
+   "params": "autostart=campusOps&mode=sector&sectorGuards=0&gfx=epic",
+   "cell": "alert/facing",
+   "spawn": {
+    "spawned": 32,
+    "alive": 32,
+    "capBefore": 32,
+    "cap": 32,
+    "candidates": 32,
+    "patrols": 29,
+    "inSight": 30,
+    "meanDist": 14.75641927986987,
+    "playerAt": [
+     24,
+     0.020000000000000018,
+     -79
+    ],
+    "yaw": 0
+   },
+   "wrenLoaded": true,
+   "timer": {
+    "wrapped": [
+     "ai.brain",
+     "ai.perceive",
+     "ai.decide",
+     "ai.move",
+     "ai.manager",
+     "ai.torches",
+     "ai.anim",
+     "nav.findPath",
+     "nav.lineClear",
+     "nav.flowField",
+     "light.totalAt",
+     "step.fixed",
+     "step.frame",
+     "ray.*"
+    ],
+    "timerResMs": 0.09999990463256836,
+    "crossOriginIsolated": false
+   },
+   "alerted": 32,
+   "sim": {
+    "stepClean": {
+     "med": 2.3,
+     "p95": 5.3,
+     "mean": 2.785,
+     "n": 1200
+    },
+    "stepInstrumented": {
+     "med": 2.4,
+     "p95": 5.2,
+     "mean": 2.89,
+     "n": 1200
+    },
+    "buckets": {
+     "step.fixed": {
+      "med": 0.7,
+      "p95": 1.6,
+      "mean": 0.828,
+      "n": 1200
+     },
+     "step.physics": {
+      "med": 0.2,
+      "p95": 0.3,
+      "mean": 0.167,
+      "n": 1200
+     },
+     "step.frame": {
+      "med": 1.6,
+      "p95": 3.5,
+      "mean": 1.885,
+      "n": 1200
+     },
+     "ai.manager": {
+      "med": 0.3,
+      "p95": 0.7,
+      "mean": 0.368,
+      "n": 1200
+     },
+     "ai.brain": {
+      "med": 0.2,
+      "p95": 0.6,
+      "mean": 0.283,
+      "n": 1200
+     },
+     "ai.perceive": {
+      "med": 0,
+      "p95": 0.1,
+      "mean": 0.033,
+      "n": 1200
+     },
+     "ai.decide": {
+      "med": 0.1,
+      "p95": 0.2,
+      "mean": 0.079,
+      "n": 1200
+     },
+     "ai.move": {
+      "med": 0.1,
+      "p95": 0.3,
+      "mean": 0.117,
+      "n": 1200
+     },
+     "ai.torches": {
+      "med": 0,
+      "p95": 0.1,
+      "mean": 0.039,
+      "n": 1200
+     },
+     "ai.anim": {
+      "med": 1.1,
+      "p95": 2.5,
+      "mean": 1.336,
+      "n": 1200
+     },
+     "nav.findPath": {
+      "med": 0,
+      "p95": 0,
+      "mean": 0.001,
+      "n": 1200
+     },
+     "nav.lineClear": {
+      "med": 0,
+      "p95": 0,
+      "mean": 0.004,
+      "n": 1200
+     },
+     "nav.flowField": {
+      "med": 0,
+      "p95": 0,
+      "mean": 0,
+      "n": 1200
+     },
+     "ray.perceive": {
+      "med": 0,
+      "p95": 0.1,
+      "mean": 0.017,
+      "n": 1200
+     },
+     "ray.torch": {
+      "med": 0,
+      "p95": 0.1,
+      "mean": 0.021,
+      "n": 1200
+     },
+     "ray.ai": {
+      "med": 0,
+      "p95": 0.1,
+      "mean": 0.015,
+      "n": 1200
+     },
+     "ray.other": {
+      "med": 0.3,
+      "p95": 0.8,
+      "mean": 0.353,
+      "n": 1200
+     },
+     "light.totalAt": {
+      "med": 0,
+      "p95": 0,
+      "mean": 0,
+      "n": 1200
+     }
+    },
+    "callsPerStep": {
+     "step.fixed": 1,
+     "step.physics": 1,
+     "step.frame": 1,
+     "ai.manager": 1,
+     "ai.brain": 32,
+     "ai.perceive": 1.988,
+     "ai.decide": 32,
+     "ai.move": 32,
+     "ai.torches": 1,
+     "ai.anim": 1,
+     "nav.findPath": 0.022,
+     "nav.lineClear": 5.17,
+     "nav.flowField": 0,
+     "ray.perceive": 3.977,
+     "ray.torch": 5,
+     "ray.ai": 2.362,
+     "ray.other": 104.848,
+     "light.totalAt": 0
+    },
+    "advancedClean": 20,
+    "advancedInstrumented": 20
+   },
+   "render": {
+    "frames": 1469,
+    "framesWithSim": 1184,
+    "framesNoSim": 285,
+    "simSteps": 1210,
+    "cpuMsPerSimStep": 15.863,
+    "frameMsWithSim": {
+     "med": 14.2,
+     "p95": 20.4,
+     "mean": 14.243,
+     "n": 1184
+    },
+    "frameCpuMsWithSim": {
+     "med": 13.3,
+     "p95": 19.6,
+     "mean": 13.651,
+     "n": 1184
+    },
+    "frameMsNoSim": {
+     "med": 11.4,
+     "p95": 14.6,
+     "mean": 11.582,
+     "n": 285
+    },
+    "frameCpuMsNoSim": {
+     "med": 9.9,
+     "p95": 16,
+     "mean": 10.64,
+     "n": 285
+    },
+    "simAdvanced": 20.167,
+    "realSecs": 20.158,
+    "levelsStart": {
+     "alert": 32
+    },
+    "frameMs": {
+     "med": 13.1,
+     "p95": 19.9,
+     "mean": 13.727,
+     "n": 1469
+    },
+    "fps": 76.3,
+    "frameCpuMs": {
+     "med": 12.4,
+     "p95": 19.2,
+     "mean": 13.067,
+     "n": 1469
+    },
+    "loopSimMsPerStep": {
+     "med": 1,
+     "p95": 1.7,
+     "mean": 1.09,
+     "n": 1184
+    },
+    "loopPhysicsMsPerStep": {
+     "med": 0.2,
+     "p95": 0.4,
+     "mean": 0.244,
+     "n": 1184
+    },
+    "renderCpuMs": {
+     "med": 8.9,
+     "p95": 14.1,
+     "mean": 9.428,
+     "n": 1469
+    },
+    "gpuMs": {
+     "med": 9.701,
+     "p95": 13.433,
+     "mean": 9.992,
+     "n": 750
+    },
+    "gpuTimer": true,
+    "draws": {
+     "med": 471,
+     "p95": 531,
+     "mean": 465,
+     "n": 178
+    },
+    "trisM": {
+     "med": 3.601,
+     "p95": 4.25,
+     "mean": 3.497,
+     "n": 178
+    },
+    "shadowPasses": {
+     "med": 4,
+     "p95": 6,
+     "mean": 3.927,
+     "n": 178
+    },
+    "activeMeshes": {
+     "med": 433,
+     "p95": 470,
+     "mean": 434.635,
+     "n": 178
+    },
+    "evalMs": {
+     "med": 3.3,
+     "p95": 4.8,
+     "mean": 3.426,
+     "n": 178
+    },
+    "shadowMapRenders": {
+     "med": 7,
+     "p95": 9,
+     "mean": 6.927,
+     "n": 178
+    },
+    "passes": [
+     [
+      "PostProcessRTT-TAA",
+      144.7
+     ],
+     [
+      "gBuffer",
+      142.7
+     ],
+     [
+      "sun_CSMShadowMap",
+      68.4
+     ],
+     [
+      "torchshadow-#_shadowMap",
+      65.4
+     ],
+     [
+      "charshadow-#_shadowMap",
+      15.7
+     ],
+     [
+      "RenderTargetWrapper",
+      3.9
+     ],
+     [
+      "PostProcessRTT-vertical blur",
+      2
+     ],
+     [
+      "PostProcessRTT-horizontal blur",
+      2
+     ],
+     [
+      "PostProcessRTT-imageProcessing",
+      2
+     ],
+     [
+      "TileMaskTexture",
+      1
+     ],
+     [
+      "PostProcessRTT-SSAOOriginalSceneColor",
+      1
+     ],
+     [
+      "PostProcessRTT-ssao",
+      1
+     ],
+     [
+      "PostProcessRTT-BlurH",
+      1
+     ],
+     [
+      "PostProcessRTT-BlurV",
+      1
+     ]
+    ],
+    "state": {
+     "alive": 32,
+     "levels": {
+      "alert": 32
+     },
+     "torchesOn": 4,
+     "torchSlots": 4,
+     "shadowPool": 0,
+     "shadowLit": 0,
+     "rigLights": 4,
+     "meshes": 3312,
+     "skeletons": 35,
+     "renderW": 1920,
+     "renderH": 1080
+    }
+   },
+   "flags": [],
+   "alerts": [
+    32,
+    32,
+    32,
+    32,
+    32
+   ]
+  }
+ ],
+ "errors": [],
+ "flags": [],
+ "version": "4.100.2",
+ "finished": "2026-10-24T22:39:48.454Z",
+ "minutes": 1.4
+}
