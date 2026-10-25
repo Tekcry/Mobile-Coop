@@ -261,8 +261,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Armour (guard-ai S16, campus S4): stand on the data hall floor in front of the NOC window and get seen: the NOC
   pair aim at you but fire no round into the bulletproof glass (no sparks on it); after a moment they move (down to the
   hall, or another spot) or hold. A plain window still lets their rounds through.
-- [ ] Response teams (guard-ai S13, guard-rules S1, Sector Ops, Normal): raise the alarm twice: every guard now wears
-  armour and a helmet. In Saltmarsh Park sections 4 and 5 each alarm's team comes in behind a shield guard; in sections
+- [ ] Response teams (guard-ai S13, guard-rules S1 / S5, Sector Ops, Normal): raise the alarm twice (guard-rules S5: once
+  the first team is in and searching, or a minute later, a guard who sees you again raises the next stage; up to three
+  guard alarms a section, Marlow Yard still one): every guard now wears armour and a helmet. In Saltmarsh Park sections 4 and 5 each alarm's team comes in behind a shield guard; in sections
   1-3, the warehouse and Marlow Yard the team is armed guards only. Hide: after about a minute at your last spot the team
   walks the section point to point (shield first where there is one, the rest close behind, a look round at each,
   torches in the dark), still hunting minutes later; the cameras are as before. A restart drops the gear with the stage.

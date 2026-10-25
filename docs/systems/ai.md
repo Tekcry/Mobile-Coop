@@ -377,6 +377,17 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350), then
   contact call cut first: nothing is owed (only the voice hearers know, and they do not call). A panel alarm settles it;
   `resetAlarm` (Sector load / restart) and `clear` drop it. Sector Ops sets the net's section to the live `SectorDef`
   index (`setSection`). `onAlarm(e, p)` takes `p` null for a radio alarm.
+- Repeat guard alarms (guard-rules S5, D5, A7; bible 5.7 "Each raised alarm adds one level"; `ALARM_REPEAT` in
+  `ai/alarm.ts`: `enabled` true, `max` 3, `rearm` 60 s). `alarmRaised` is sticky for its readers (the carry rule, the
+  alarm's intruder); new raises are gated by `EnemyManager.alarmOpen()` (none raised this load, or the repeat lock open):
+  the panel runner (`assignAlarm`), the panel run itself (`AiContext.alarmOpen`, `Enemy.decide` drops the run when shut),
+  `contactThrough`, the command retry in `radioStep`, `radioAlarm` and `raiseAlarm`. With `alarmRepeat` (false by default:
+  one guard alarm per load, Marlow Yard's `courseMode` and the parked modes; `SectorMode.loadSection` sets it, so Sector
+  Ops and the campaign), `repeatStep` (each update) opens the lock once a living, free member of a response team the last
+  alarm brought (`teams` from `alarmTeam0`) is searching, or `rearm` s after it, while `guardAlarms` < `max`; only a raise
+  the manager made counts (an `alarmRaised` set from outside stays shut). The command call runs again once open (a new
+  contact that gets through). `resetAlarm` clears lock and count. Each repeat raises the Sector Ops stage by one
+  (`SectorMode.onAlarm`; stage 2 brings helmets, guard-rules A3). Undo: `ALARM_REPEAT.enabled` false.
 - Reinforcements (guard-ai S6, M1 "any reinforcements must be aggressive"): `EnemyManager.spawnReinforcement` /
   `joinReinforcement` -> `Enemy.joinAsReinforcement(route)`: `profile` 'aggressive' (the S5 string; `Enemy.behaviour` =
   `BEHAVIOUR[profile]` in `squadRoles.ts`), told by command (`radio(0)`: in combat on the shared LKP the next step, bark
@@ -394,7 +405,8 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350), then
   guard on top of his own; `placeSlot` and `revive` add it to every later guard. Sector Ops calls it on each rise
   (`sectorMode.raised`, camera alarms too) and at each section load with the run's stage (`loadSection`; a restart
   goes back to the section's start stage, so the dropped stage's gear goes with it). Other live maps: the one alarm is
-  stage 1 (no gear). No camera is touched. Teams: each stage's `perStage` reinforcements are `responseTeam` kinds
+  stage 1 (no gear). (guard-rules S5) Sector Ops: each guard alarm brings its own team (one per stage); a member of the
+  newest searching opens the repeat lock (above). No camera is touched. Teams: each stage's `perStage` reinforcements are `responseTeam` kinds
   (an `enforcer` first, helmeted by `joinTeam`, only where the section sets `shieldTeams`: campus S4 / S5, guard-rules
   A4; elsewhere, warehouseOps and the campaign included, armed guards only); `StealthSystems.onAlarm` on live maps sends
   3 armed guards (`RESPONSE.liveTeam`, no shield lead: A14, Marlow Build) with the section's guard routes and posts as

@@ -4,6 +4,8 @@ kind: minor
   guard wears a helmet from the start. On Perfectionist a helmet is never shot off: the first headshot only staggers
   him and the second kills. On Rookie and Normal guards are bare-headed until alarm stage 2.
 - Alarm stage 2 now gives every guard a helmet as well as body armour.
+- In Sector Ops and the campaign, a guard who sees you again after the response team is in can raise the next alarm,
+  up to three in a section; Marlow Yard still raises one.
 - Riot shields lead the alarm response teams only in the later Saltmarsh Park sections (4 and 5). Earlier sections,
   the warehouse and Marlow Yard send armed guards only.
 - Killing a guard dog now counts as a kill (no Perfect, no "No kills") and costs score. Knocking one out with gas
