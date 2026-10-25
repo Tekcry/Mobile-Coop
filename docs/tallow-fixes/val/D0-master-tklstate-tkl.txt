@@ -1,6 +1,5 @@
 ERROR: link w2-pawn-loft -> w2-reading-room (team_throw): gap 4.9 m above the 2.7 m throw
 ERROR: link w2-arcade-roof -> w3-roof (team_throw): gap 4.9 m above the 2.7 m throw
-ERROR: section W2: 1 independent route(s) from entry 'w2-arcade' to exit 'w2-arcade-roof' (need 2 edge-disjoint)
 ERROR: split tgc-leads leg a: no solo link leads into w1-gallery
 WARN:  w1-canal-steps: room_class custom (justify the size in the design doc)
 WARN:  w2-arcade-roof: room_class custom (justify the size in the design doc)
@@ -20,4 +19,4 @@ INFO:  w3-west-wing: pending V6 (no measured values)
 INFO:  w4-shed-three: pending V6 (no measured values)
 INFO:  w4-shed-yard: pending V6 (no measured values)
 
-4 error(s), 8 warning(s).
+3 error(s), 8 warning(s).

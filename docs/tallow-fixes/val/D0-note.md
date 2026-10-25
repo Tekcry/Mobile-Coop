@@ -3,8 +3,9 @@ Owner: Campaign Build. Status: current.
 
 J8 tallow-fixes slice D0 (Night Shift | Cloud Builder 3, 2026-10-26; brief `briefs/campaign-tallow-d0.md` on
 `cloud-queue`). The graph edit follows `docs/tallow-fixes/EGRESS.md` section 1 where it differs from the plan.
-**Two ERRs the plan did not expect stay open** (section 5): both need the lead's ruling; no data fix the plan or EGRESS
-names clears them.
+Two ERRs the plan did not expect came out of D0 (section 5). **ERR 1 is cleared** by the W2 roof slice (branch
+`feature/tallow-d0-w2roof`, 2026-10-26: the west downpipe, EGRESS E11, lead ruling ~10:10). **ERR 2 stays open**: it
+waits on Marlow Build's validator ruling.
 
 ## 1. Refs
 - Base: `feature/tallow-fixes` d286ecd89. Branch `feature/tallow-d0`; the graph commit is d24187e7.
@@ -33,6 +34,7 @@ names clears them.
 | 9 | A11, E5 | TGC split tags and assist; a new `ladder` `w1-canal-steps>w1-gallery`, bolted, at [6.6, 0, 14.4] |
 | 9 | A11 | TKL split tags and assist; time_s on the four TKL leg links (section 4) |
 | 10 | - | One sentence added to `meta.note` (D0, the date, "EGRESS section 1") |
+| 11 | E11 (W2 roof slice, lead ruling ~10:10) | New `pipe` `w2-walkway>w2-arcade-roof` (the west downpipe), route `high`, level_change 3.9, length 36, time_s 6, at [47.5, 4.5, 61.6] (clears ERR 1) |
 
 Step 7's ladder keeps no `height` (no ladder link in the file has one). **No other stair is added** (EGRESS section 3,
 LP picks 2-4). The shutters' `"gap": 0.9`, the Q19 text and every other link and space are unchanged.
@@ -43,7 +45,8 @@ Links 30 and 32 are deleted. Link 31 (the tank-room ladder) becomes 30, and ever
 - the fire escape `w3-roof>w3-east-yard` 35 -> **33**
 - the bulkhead `w3-roof>w3-east-wing` 36 -> **34**
 
-The base had 72 links; the file now has 74. Final 0-based index of every link D0 touched or added:
+The base had 72 links; D0 left 74, and step 11 (E11) appends one: the file now has 75. Final 0-based index of every link
+D0 touched or added:
 
 | Link | Kind | Index |
 | --- | --- | --- |
@@ -65,6 +68,7 @@ The base had 72 links; the file now has 74. Final 0-based index of every link D0
 | `w2-lane-window>w2-clock-loft` (E2, new) | door | 71 |
 | `w4-jetty>w4-canal-ledge` (E4, new) | drop | 72 |
 | `w1-canal-steps>w1-gallery` (E5, new) | ladder | 73 |
+| `w2-walkway>w2-arcade-roof` (E11, new) | pipe | 74 |
 
 J12 matches the long-throw spots by `tallowWharf:<from>><to>`, not by number. The lead tells Marlow the C5 throw is
 now 31.
@@ -106,19 +110,26 @@ Speeds and limits come from master's metrics: legs at 1.3 m/s, reach at 3.0 m/s,
 - TKL: none (the fire-escape line is G3's).
 
 ## 5. Validator runs (`docs/tallow-fixes/val/D0-*.txt`)
-| File | Validator | Graphs | ERR | WARN |
-| --- | --- | --- | --- | --- |
-| `D0-master-map.txt` | master | map | 4 | 8 |
-| `D0-master-map-tgc.txt` | master | map + TGC | 4 | 8 |
-| `D0-master-map-tkl.txt` | master | map + TKL | 4 | 8 |
-| `D0-master-tklstate.txt` | master | map, bulkhead `bolted: true` | 4 | 8 |
-| `D0-master-tklstate-tkl.txt` | master | map (bulkhead bolted) + TKL | 4 | 8 |
-| `D0-mission-validator-map.txt` | mission-validator | map | 3 | 8 |
-| `D0-validator-port-train-map.txt` | validator-port-train | map | 4 | 9 |
-| `D0-validator-port-train-map-tgc.txt` | validator-port-train | map + TGC | 4 | 9 |
-| `D0-validator-port-train-map-tkl.txt` | validator-port-train | map + TKL | 4 | 9 |
+The saved files are the W2 roof slice's reruns (same validator refs, same commands, the graph with E11). Before = D0's
+runs (799364de9); the only line that changed in every file is ERR 1's, gone. WARN and INFO lines are identical.
 
-The scratch TKL-state copy is not committed. `D0-graph.diff` is `git diff d286ecd89 -- graph.json`.
+| File | Validator | Graphs | ERR before -> now | WARN before -> now |
+| --- | --- | --- | --- | --- |
+| `D0-master-map.txt` | master | map | 4 -> 3 | 8 -> 8 |
+| `D0-master-map-tgc.txt` | master | map + TGC | 4 -> 3 | 8 -> 8 |
+| `D0-master-map-tkl.txt` | master | map + TKL | 4 -> 3 | 8 -> 8 |
+| `D0-master-tklstate.txt` | master | map, bulkhead `bolted: true` | 4 -> 3 | 8 -> 8 |
+| `D0-master-tklstate-tkl.txt` | master | map (bulkhead bolted) + TKL | 4 -> 3 | 8 -> 8 |
+| `D0-mission-validator-map.txt` | mission-validator | map | 3 -> 2 | 8 -> 8 |
+| `D0-validator-port-train-map.txt` | validator-port-train | map | 4 -> 3 | 9 -> 9 |
+| `D0-validator-port-train-map-tgc.txt` | validator-port-train | map + TGC | 4 -> 3 | 9 -> 9 |
+| `D0-validator-port-train-map-tkl.txt` | validator-port-train | map + TKL | 4 -> 3 | 9 -> 9 |
+
+The scratch TKL-state copy is not committed. `D0-graph.diff` is `git diff d286ecd89 -- graph.json` (now with E11).
+Today's master (34b96b9c, not saved) prints the same lines as 2a937eb6b on all five master runs, before and after E11.
+
+Remaining ERRs now: the two named long-throw lines (master and train; expected, A22) and ERR 2 (master and train).
+mission-validator: the two throw lines only.
 
 **The expected ERRs (A22).** Every run has exactly the two named lines:
 - `link w2-pawn-loft -> w2-reading-room (team_throw): gap 4.9 m above the 2.7 m throw`
@@ -136,11 +147,17 @@ only)" row, which is not on the train yet: J12's item.
 - `link w2-pawn-loft -> w2-reading-room (door): length 12.4 is off the 0.5 m grid` (E1, link 70)
 - `link w2-lane-window -> w2-clock-loft (door): length 9.8 is off the 0.5 m grid` (E2, link 71)
 
-**mission-validator.** Not 0 ERR: the two named throw lines plus ERR 1 below. It prints no optional-reward line and no
-split check.
+**mission-validator.** Not 0 ERR: the two named throw lines (ERR 1 is cleared). It prints no optional-reward line and
+no split check.
 
-**ERR 1, not cleared:** `section W2: 1 independent route(s) from entry 'w2-arcade' to exit 'w2-arcade-roof' (need 2
-edge-disjoint)` (all 9 runs).
+**ERR 1, cleared (W2 roof slice, step 11):** `section W2: 1 independent route(s) from entry 'w2-arcade' to exit
+'w2-arcade-roof' (need 2 edge-disjoint)` was in all 9 runs. The lead ruled (~10:10) option (b) below: keep E6, no gate
+exception, a real second way up. EGRESS E11 (design in EGRESS section 5; geometry in the G2 brief's step 6b): the west
+downpipe from the walkway, at C3's west landing, up the loft row's south facade to the eaves, `pipe`
+`w2-walkway>w2-arcade-roof` (link 74). W2's two edge-disjoint routes are now arcade -> walkway -> lane-window loft ->
+tank-room ladder -> roof, and arcade -> walkway (by another C3 link) -> downpipe -> roof. It opens no solo bypass (its
+foot is behind C3, 4.5 m over the arcade floor), joins no pair a co-op link joins (no solo twin), and the forced-gate
+check stays clean. The text below is D0's record.
 - Cause: E6 deletes the dormer `window` (link 32). Before D0, W2's two routes to the arcade roof were the hatch and the
   window, two links through one opening in the corner loft. Every other inner W2 path to the roof goes through the
   lane-window loft's one ladder. The C5 links are `spine` and the validator leaves them out of the count.
@@ -169,4 +186,5 @@ edge-disjoint)` (all 9 runs).
 
 ## 6. Tests
 `npx vitest run tests/tallowWharf/ --maxWorkers=2`: 7 files, 143 passed, 0 failed. The graph change breaks no Tallow
-test.
+test. Rerun with E11 (W2 roof slice, below-normal priority): 7 files, 143 passed, 0 failed. The downpipe's own tests
+come with its geometry in G2 (brief step 13); no test reads the graph's link count.
