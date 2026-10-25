@@ -364,7 +364,8 @@ J10 datasheet: numbers only (ROADMAP Decided ~20:50); never commit the file. Pyt
 2. BUILDING / CHECKING:
    - J10 L0 fold DONE on feature/light-realism-l0 3e78d0df2 (tsc fix, report checks/l0-fold-build.md; measure output
      in C:/NightShift/scratch/light-realism/l0-fold-measure/). Opus checker running -> checks/l0-fold-check.md.
-     Next: L1 (S1 car park, Opus) + SIGNOFF.md to Michael (lux grid); note 2 choice before the L2 briefs.
+     L1 brief 1cefe25eb (briefs/L1.md) queued on cloud (27577969e, light-realism-L1, measure runs there). On done:
+     Opus checker, send its 2 laptop requests, SIGNOFF.md to Michael via the orchestrator; note 2 before L2 briefs.
    - map-ready S4: cloud brief map-ready-S4 (7a006dbbe) resumes the WIP 1afb22600 (steps 1-7, code + unit tests);
      the real prebake run (desktop, heavy.lock, size caps) is mine after it is done; then an Opus checker.
      Then W1: S9 (Opus), S1 measure (Sonnet, laptop run); then S2, S10; S8 (cloud) after S1 + S2.
@@ -379,5 +380,5 @@ J10 datasheet: numbers only (ROADMAP Decided ~20:50); never commit the file. Pyt
 3. PLANS: J18 sector-batch (plan check 3 PASS 31e9f22e): B1 / B3 open on cloud-queue; B2 on cloud-queue (7a006dbbe);
    B4 Sonnet after #317 (one Opus checker). When PR A opens tell Campaign Build: B1 and mission-rules-r1 both edit
    sectors.ts:864 / sectorMode.ts:1020; PR A lands first (PLAN section 7).
-Next: checker results (#459, L0 fold); s3-r1 checker; J16 S2 + L1 briefs (agents writing) -> cloud / desktop by type; pick up cloud done briefs within 1 h.
+Next: checker results (#459, L0 fold); s3-r1 checker; J16 S2 brief (agent writing) -> cloud; pick up cloud done briefs within 1 h.
 ```
