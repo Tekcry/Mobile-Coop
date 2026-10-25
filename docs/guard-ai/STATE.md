@@ -1003,23 +1003,19 @@ C:/NightShift/Mobile-Coop-laptop-queue-svc && node scripts/laptop-queue/request.
 laptop-e2e/<set>. Withdraw = delete requests/<id>.json on origin/laptop-queue (plumbing commit, never in the svc
 worktree). Background wait: scratchpad wait-status.sh "<sha>:<context>" ... Laptop auto mode blocks labels: tell the
 orchestrator at train-ready. Walk cap: Guard AI AT CAP (new behaviour dark; rule fixes ship on, G355).
-Open (2026-10-26 ~00:40 SAVE, 5-hour pause till ~04:50, same account; full burn; order J4, J6, J15, J26, J16). Checker statuses: a LONE
+Open (2026-10-26 ~05:40, resumed after the 04:50 reset; full burn; order J4, J6, J15, J26, J16). Checker statuses: a LONE
 `gh api repos/Tekcry/Mobile-Coop/statuses/<sha> -f ...`. Local tsc / vitest builders only while laptop CPU < ~80%.
 File every gate request WITH the head push; post the checker the moment it passes (orchestrator 23:05: #446 missed
 train 106 by 2 min). One affected run per head covers its suites: no duplicate requests.
 1. J4 G327 #438 MERGED (train 105). #414 (T1 look script) still draft: undraft is Michael's (auto mode).
-2. J4 #317 coop4 ships ON (Q16). Master conflict fixed on feature/coop4 (orchestrator 00:20 asked the lead): merges
-   6206c9434 + 8e8d611cd, follow-ups 8094af038, acce9707b (lobby "partner" at cap 2), 603f23a43 (docs, check B fixes) =
-   head 603f23a43. Minimap dots dropped (G339). Check B FIX docs-only, applied (docs/guard-ai/checks/coop4-merge-check-B.md).
-   Check A PASS (coop4-merge-check-A.md); checker posted on 603f23a43; #317 marked ready. affected queued on 603f23a43
-   (20261025T133459). Green -> tell the orchestrator train-ready. Polish -> coop4-pol: snapBudget fake guards `in: 1`,
-   main.ts:332 Co-op card text, duplicate "(coop4 A4)" comment, sectorMode OUT slot, run-e2e.mjs:152 comment.
+2. J4 #317 coop4 603f23a43: TRAIN-READY (checker, affected 24/25 known-flaky ctcourse:4; labelled). Merge check A
+   PASS, B docs FIX applied (docs/guard-ai/checks/coop4-merge-check-A/B.md). Polish -> coop4-pol after it lands:
+   snapBudget fake guards `in: 1`, main.ts:332 Co-op card text, duplicate "(coop4 A4)" comment, sectorMode OUT slot,
+   run-e2e.mjs:152 comment.
 3. J6 #446 MERGED.
-4. J15 PR1 #450 head b718293df (master merged in, docs conflict fixed by hand): merge re-check PASS
-   (docs/guard-ai/checks/guard-rules-pr1-merge-recheck.md), checker posted; MERGEABLE; affected queued on b718293df.
-   Green -> tell the orchestrator train-ready. Never move #450's head before its affected verdict.
-5. J15 PR2 = feature/guard-rules-s5 e18039094 (S5 + PR1 polish, checks A + B PASS). Early run queued:
-   laptop-e2e/rules-pr2-early (20261025T113525). After PR1 merges: merge -s5 into feature/guard-rules, PR2 + affected.
+4. J15 PR1 #450 b718293df: TRAIN-READY (checker, affected 22/22; labelled). A background loop watches for its merge.
+5. J15 PR2 = feature/guard-rules-s5 e18039094 (S5 + PR1 polish, checks A + B PASS). Early run GREEN:
+   laptop-e2e/rules-pr2-early 13/13. After PR1 merges: merge -s5 into feature/guard-rules, PR2 + affected.
    PR body lists the skipped polish (PR1-A2 wire bit, PR1-A4 J17, PR1-B e2e names, S5-A3 walk note) and the merge
    note: mission-engine calls responseTeam without `shield`; keep sectorMode's `s.shieldTeams === true`.
 6. J15 PR3 = feature/guard-rules-f0 48394def2 (~23:55): F0 flags + S4 barks (fix 479b938d2; `saw` appended at 39) +
@@ -1028,15 +1024,19 @@ train 106 by 2 min). One affected run per head covers its suites: no duplicate r
    Polish list: checks/S6-CHECK-A/B.md, PR3-RECHECK-A/B.md polish.
    J15 PR4 = feature/guard-rules-pr4 b111c9aa1 (PR3 + S7 fa848bcbb + S8 c74ad59e8 + S9 e3237a514, fragment, TESTING).
    Checks: S7 A + B, S8 A + B, S9, PR4-RECHECK-A/B all PASS; checker posted on d9c4d0e8c and b111c9aa1. Laptop set
-   laptop-e2e/rules-pr4 queued on d9c4d0e8c (b111c9aa1 is a docs-only delta). PR4 opens after PR3 merges (base
+   laptop-e2e/rules-pr4 GREEN 18/18 on d9c4d0e8c (b111c9aa1 is a docs-only delta). PR4 opens after PR3 merges (base
    master). Polish: e2e-sectorops.mjs:2749 stale comment, both-flags test, lookoutN live count, restartSearch(),
    dead leader enemy.ts:1690, S8 e2e margin 20 m. node_modules: junctions -> guard-ai-s24.
-7. J26 mission hooks: plan PASS (044258624). Every slice starts after J15 PR4 merges: S1a -> S1b; S2 -> S3 -> S4.
-   Campaign Build SENT the PLAN's C1-C7. A9 per-area stages dark: Michael's click at his walk.
+7. J26 mission hooks: plan PASS (044258624). Briefs S1a + S2 on feature/guard-ai-mission-hooks (50dcab309; lead
+   decisions: S1a SPLIT into S1a-1 pure flags + missionOrders.ts + unit, S1a-2 wiring + e2e; S2 keeps NOISY_LIMITS).
+   Full burn, stacked on PR4 (their base): Opus builders S1a-1 (worktree -mission-hooks-s1a1, branch
+   feature/guard-ai-mission-hooks-s1a1) and S2 (-mission-hooks-s2) running from b111c9aa1 + job docs. Then 2 Opus
+   checkers each; S1a-2 from S1a-1's head; S1b after S1a-2; S3 after S2 (PLAN "Slices"). PRs open after PR4 merges.
+   Campaign Build has C1-C7. A9 per-area stages dark: Michael's click at his walk.
 8. Test Runner request (J20 S6b): seed the 5 Math.random sites in src/ai (enemy.ts think cadence x2, enemyManager
    radio delays x2, reconDrone start angle) after J6 lands and PR-C (tests/replayDeterminism.test.ts) is on master.
 9. J16 perception half (Q14 cast shadow = faint cue): plan after Sector Ops' J16 PR. Later: coop4-pol (134f6abe),
    snapBudget headroom, coopHost.ts:589 comment, TODO sectorMode.ts:201.
-Next: wait (background) on #450 / #317 affected, rules-pr2-early, rules-pr3, rules-pr4; green -> tell the orchestrator
-train-ready; then J26 S1a briefs (after PR4).
+Next: #450 merges -> merge -s5 into feature/guard-rules, open PR2 (body per item 5) + affected; S1a-1 / S2 builders ->
+2 Opus checkers each, then S1a-2 and S3 briefs.
 ```
