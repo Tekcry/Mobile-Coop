@@ -1,0 +1,18 @@
+{
+  "id": "20261025T113525-night-shift-guard-ai-e1803909-d038",
+  "sha": "e18039094935c9678f1fbb7093ae85530c84697b",
+  "branch": "feature/guard-rules-s5",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Guard AI Build",
+  "suites": [
+    "e2e-sectorops",
+    "e2e-enemies",
+    "e2e-coop",
+    "e2e-netmove",
+    "e2e-ctcourse"
+  ],
+  "set": "rules-pr2-early",
+  "note": "J15 PR2 early run on -s5 (PR1 + S5 + polish); lower priority than alloc-coop and rules-pr1",
+  "priority": -1
+}
