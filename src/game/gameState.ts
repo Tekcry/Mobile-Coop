@@ -1,6 +1,6 @@
 import { landingRumble } from '../config/rumble';
 import type { App, AppState } from '../core/app';
-import { type AbstractMesh, Color3, type FreeCamera, InstancedMesh, PhysicsRaycastResult, Vector3, type Vector4, type PhysicsEngine, type Scene } from '../core/babylon';
+import { type AbstractMesh, Color3, type Effect, type FreeCamera, InstancedMesh, PhysicsRaycastResult, Vector3, type Vector4, type PhysicsEngine, type Scene } from '../core/babylon';
 import { World } from '../world/world';
 import { disposeSectionBakersSince, sectionBakerMark } from '../voxel/sectionJobs';
 import { flags } from '../core/flags';
@@ -37,7 +37,9 @@ import type { NavGrid } from '../ai/navGrid';
 import { EnemyManager } from '../ai/enemyManager';
 import { warmGuardModels } from '../ai/guardWarm';
 import { liveGuardBodies, type GuardBody } from '../ai/guardBody';
+import { CompileLog, type CompileLogRecord } from '../core/compileLog';
 import { bakeSourceOf, MapReadyStats, type FrameSample, type MapReadyRecord } from '../core/mapReadyStats';
+import { compileOrderOf } from './compileOrder';
 import { MAP_READY_CAP_MS, runMapGate, type MapGateInput, type MapGateProbe, type MapGateResult } from './mapGate';
 import { MIN_LODS } from '../operators/runtime/playerFigure';
 import { LOD_0, LOD_1, LOD_2 } from '../operators/runtime/manifest';
@@ -304,6 +306,8 @@ export type RewardHook = (stats: SessionStats, opts: GameOptions) => Promise<HTM
 const NO_REMOTES: readonly PlayerRef[] = Object.freeze([]);
 /** Gunshot noise radius (m) x the weapon's noise stat; at or below `SUPPRESSED_NOISE` a shot only raises
  *  suspicion; a bullet impact is heard within `IMPACT_NOISE`. */
+/** (map-ready S14) The compile log closes this long after its zero point (ms) whatever is still pending. */
+const COMPILE_LOG_MAX_MS = 150_000;
 /** (LR16-5b) Head points a pendant-bump pass takes (the players and the live guards). */
 const MAX_SWAY_HEADS = 40;
 const SHOT_NOISE = 28;
@@ -952,6 +956,8 @@ export class GameState implements AppState {
       g.readyMats++;
     });
     if (typeof window !== 'undefined') (window as unknown as { __mapReady: MapReadyRecord }).__mapReady = rs.record;
+    // (map-ready S14) the compile log from the same zero point (reads only, flag on or off; `window.__compileLog`)
+    g.compileLogStart(readyWorld);
     if (opts.net) g.net = opts.net.attach(g);
     // (anim-studio) the studio stage: single player only (never offered in a co-op session)
     else if (opts.map.id === STUDIO_MAP_ID)
@@ -2330,6 +2336,8 @@ export class GameState implements AppState {
     // (map-ready S2, A3) the load gate's cap: hit or not, and the step it cut
     const rr = this.readyStats?.record;
     if (rr?.gated && rr.released) ctx.mapReadyCap = rr.capHit ? `hit at ${rr.capStep}` : 'no';
+    // (map-ready S14) the load's shader compiles: count, peak at once, the longest, sum over span
+    if (this.compileLog) ctx.compiles = this.compileLog.summary(performance.now());
     return ctx;
   }
 
@@ -2352,6 +2360,101 @@ export class GameState implements AppState {
   private static readyPrograms(app: App): number {
     const c = (app.engine as unknown as { _compiledEffects?: Record<string, unknown> })._compiledEffects;
     return c ? Object.keys(c).length : 0;
+  }
+
+  /** (map-ready S14) The compile log (`window.__compileLog`; null before `create` makes it), its zero point, the program
+   *  count it last walked at, and the programs still compiling with their keys (one reusable pair of arrays, emptied at
+   *  `finish`: S10 keeps effects across matches, the log holds none once done). */
+  private compileLog: CompileLog | null = null;
+  private compileT0 = 0;
+  private compileSeen = 0;
+  private readonly compilePending: Effect[] = [];
+  private readonly compileKeys: string[] = [];
+
+  /** (map-ready S14) The engine's program cache (cache key -> effect). */
+  private compiledEffects(): Record<string, Effect> | undefined {
+    return (this.app.engine as unknown as { _compiledEffects?: Record<string, Effect> })._compiledEffects;
+  }
+
+  /** (map-ready S14) An effect's shader name: the name string, or the fragment of a `{ vertex, fragment }` name. */
+  private static effectName(e: Effect): string {
+    const n = e.name as unknown;
+    if (typeof n === 'string') return n;
+    const o = n as { fragment?: unknown; fragmentElement?: unknown } | null;
+    const f = o?.fragment ?? o?.fragmentElement;
+    return typeof f === 'string' ? f : '';
+  }
+
+  /** (map-ready S14) The log at `create`, t0 the S1 `world` step: every program already ready is known (never logged), one
+   *  still compiling is logged from 0 (`early`) and watched. */
+  private compileLogStart(t0: number): void {
+    const log = new CompileLog(t0, compileOrderOf(typeof location === 'undefined' ? '' : location.search));
+    this.compileLog = log;
+    this.compileT0 = t0;
+    const c = this.compiledEffects();
+    const keys = c ? Object.keys(c) : [];
+    for (const key of keys) {
+      const e = c![key]!;
+      if (e.isReady()) log.known(key);
+      else {
+        log.seen(key, GameState.effectName(e), typeof e.defines === 'string' ? e.defines : '', t0, true);
+        this.compilePending.push(e);
+        this.compileKeys.push(key);
+      }
+    }
+    this.compileSeen = keys.length;
+    if (typeof window !== 'undefined') (window as unknown as { __compileLog: CompileLogRecord }).__compileLog = log.record;
+  }
+
+  /**
+   * (map-ready S14) Per frame while the log is open: on a frame whose program count changed, the cache's keys are walked
+   * once (load time only) and each new one is logged and watched; each watched effect that is ready, failed (a compile
+   * error, Babylon's fallback gave up) or disposed is logged and dropped (swap-remove). The log closes once nothing is
+   * pending and S1's after-window is done, or `COMPILE_LOG_MAX_MS` after t0, and lets go of every effect. No allocation on
+   * a frame with no new program.
+   */
+  private compilePoll(now: number): void {
+    const log = this.compileLog!;
+    const pend = this.compilePending;
+    const keys = this.compileKeys;
+    if (this.spikeShaders !== this.compileSeen) {
+      this.compileSeen = this.spikeShaders;
+      const c = this.compiledEffects();
+      if (c) {
+        const all = Object.keys(c);
+        const ent = log.record.entries;
+        for (let i = 0; i < all.length; i++) {
+          const key = all[i]!;
+          const e = c[key]!;
+          const n = ent.length;
+          log.seen(key, GameState.effectName(e), typeof e.defines === 'string' ? e.defines : '', now);
+          if (ent.length > n) {
+            pend.push(e);
+            keys.push(key);
+          }
+        }
+      }
+    }
+    for (let i = pend.length - 1; i >= 0; i--) {
+      const e = pend[i]!;
+      let failed: boolean;
+      if (e.isDisposed) failed = true;
+      else if (e.isReady()) failed = false;
+      else if (e.getCompilationError()) failed = true;
+      else continue;
+      log.ready(keys[i]!, now, e.isDisposed ? -1 : (e._fragmentSourceCode?.length ?? -1), failed);
+      const last = pend.length - 1;
+      pend[i] = pend[last]!;
+      keys[i] = keys[last]!;
+      pend.length = last;
+      keys.length = last;
+    }
+    const after = this.readyStats?.record.after.done ?? true;
+    if ((pend.length === 0 && after) || now - this.compileT0 > COMPILE_LOG_MAX_MS) {
+      log.finish();
+      pend.length = 0;
+      keys.length = 0;
+    }
   }
 
   /** (map-ready S1) The reveal (with the flag off, today's `app.setState` -> `enter`): the window's zero point. */
@@ -2878,6 +2981,9 @@ export class GameState implements AppState {
   frameUpdate(dt: number, alpha: number): void {
     if (this.exited) return;
     this.trackSpikes();
+    // (map-ready S14) the compile log (no work once it is done; this runs during S2's hold too: the loop passes 0 dt)
+    const cl = this.compileLog;
+    if (cl && !cl.record.done) this.compilePoll(performance.now());
     // (map-ready S1) the load record's after-reveal window (no polling once it closes)
     const rs = this.readyStats;
     if (rs && rs.record.released && !rs.record.after.done) {
