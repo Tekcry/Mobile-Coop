@@ -168,6 +168,7 @@ files:
   - tests/courseMarks.test.ts
   - scripts/e2e-ctcourse.mjs
   - scripts/e2e-ctcourse/replan/**
+  - scripts/e2e-ctcourse/revive.mjs
   - scripts/run-e2e.mjs
   - scripts/e2e-times.json
   - scripts/e2e-section-rating.mjs
@@ -176,7 +177,8 @@ maps: ctcourse, ctcourseReplan
 protocol: course
 save: none
 ```
-Wire: `course` gains `PackedCourse.st` (the live station), `rs` (retry count) and `rc` (last retry cause), all R1;
+Wire: `course` gains `PackedCourse.st` (the live station), `rs` (retry count), `rt` (the station of the last retry)
+and `rc` (its cause), all R1;
 `start` / `lobby` are unchanged (the host names `ctcourseReplan` in the existing `map` field); the train bumps
 `PROTOCOL_VERSION`. Save: none (`courseRecord` keys bays).
 
@@ -186,7 +188,7 @@ Wire: `course` gains `PackedCourse.st` (the live station), `rs` (retry count) an
   `a3OfficeRange.mjs`. Order: #441 lands first. Set slices A2 / A3 / A6 touch those set files only with guards far
   from the objective lines (their new objective lines go in `replan/<set>.ts`); R2 (the HUD) is cut after #441 is on
   master. Built e2e modules are never edited (the re-plan has its own under `scripts/e2e-ctcourse/replan/`).
-- **feature/hud-guidance (+ -a1..-b1, #447, Campaign):** `courseMode.ts` (removes `blips()` near :1118), `coopHost.ts`,
+- **feature/hud-guidance (+ -a1..-b4, #447, Campaign):** `courseMode.ts` (removes `blips()` near :1118), `coopHost.ts`,
   `scripts/e2e-ctcourse.mjs` (:323 no-minimap assert). Different lines from R1 / F1 / S0; whichever lands second
   resolves a trivial conflict.
 - **#445 / feature/test-runner-j20-* (Test Runner):** `scripts/e2e-ctcourse.mjs` (:362 per-set guard check: every
@@ -214,9 +216,17 @@ Wire: `course` gains `PackedCourse.st` (the live station), `rs` (retry count) an
   in map-ready's warm list when both are on master (a one-line follow-up for whichever lands second).
 - **feature/player-batch-j19 (Player):** `session.ts`, `coopUi.ts`, `protocol.ts` (`lobby` / `start` gain `ff`),
   `coopHost.ts`. R1's `session.ts` line (the room map) and F1's `coopUi.ts` Start check are separate hunks.
-- **claims-check (2026-10-25 ~20:50, master's script; plan checker's rerun ~21:05):** 33 overlaps, all files above
-  plus `flags.ts` one-liners (campus-greybox, char-shadow-meter, guard-ai-mission-hooks, sector-batch, guard-rules) and
-  `coopHost.ts` (player-hygiene, guard-rules, sector-batch); test-runner-j20 (14 branches) and campus-greybox on
+- **feature/mission-rules (+ -r1 / -r2 / -r3, Campaign J7):** `session.ts`, `coopUi.ts`, `coopHost.ts`, wire (`ms.f`
+  gains a fact bit). Its R4 (refuse a campaign start below 2 players, the lobby says why) and R5 (`addSyringes` does
+  nothing in a campaign mission, `coopHost.ts:858` on its branch) touch the same Start check and the same `addSyringes`
+  body as F1. Order: F1 first (small, wave 1, from master); mission-rules R4 / R5 rebase on it and widen F1's checks
+  rather than add second ones: one "needs two players" check (Course, then campaign) and one "no syringe grant outside
+  Sector Ops" rule (Course, then campaign). F1 writes each as one small named check so R4 / R5 extend it in one line.
+  Wire: different message, one train bump.
+- **claims-check (2026-10-25 ~21:23, master's script, `--plan` on this PLAN):** 43 overlaps (41 at plan check 2; the
+  two new are slice branches of campus-greybox and hud-guidance), all files above plus `flags.ts` one-liners
+  (campus-greybox x4, char-shadow-meter x2, guard-ai-mission-hooks, sector-batch, guard-rules x4) and `coopHost.ts`
+  (player-hygiene, guard-rules, sector-batch); mission-rules x4 (above); test-runner-j20 (14 branches) and campus-greybox on
   `scripts/run-e2e.mjs` (S0 adds parts 5-8 to `PARTS` only: a separate hunk); test-runner-j20 on
   `scripts/e2e-ctcourse.mjs`; coop-kit and player-hygiene on `protocol.ts` (R1 touches only `parseCourse`), coop-kit
   on `coopHost.ts` / `flags.ts`. No other job claims a Marlow set
