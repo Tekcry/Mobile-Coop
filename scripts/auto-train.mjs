@@ -953,8 +953,8 @@ function openTrain() {
   const headSubject = api(`repos/{owner}/{repo}/commits/${p.headRefOid}`, '.commit.message | split("\\n")[0]');
   if (headSubject) subjects.push(headSubject.trim());
   // A fix commit on top of a big train pushes its version commit past that cap as well (train 112, 2026-10-26: "no
-  // version commit: rebuild" after a doc-lint fix): read the head's newest commits only when it is still missing.
-  const all = withRecentSubjects(subjects, n, () => api(`repos/{owner}/{repo}/commits?sha=${p.headRefOid}&per_page=30`,
+  // version commit: rebuild" after a doc-lint fix): read the head's newest 100 commits only when it is still missing.
+  const all = withRecentSubjects(subjects, n, () => api(`repos/{owner}/{repo}/commits?sha=${p.headRefOid}&per_page=100`,
     '[.[].commit.message | split("\\n")[0]] | reverse | .[]'));
   subjects.splice(0, subjects.length, ...all);
   const vc = versionFromSubjects(subjects, n);
@@ -1185,7 +1185,7 @@ async function build(n, cands, { rebuildOf } = {}) {
     }
     return { ...base, head, state: 'built', reason: `train ${n} built; waiting for CI and ${LAPTOP_CONTEXT}`, leftOut };
   }
-  if (r.code === 3) return { ...base, head, state: 'failed', reason: `train ${n}: every member left out on conflicts (merge-train exit 3)`, leftOut };
+  if (r.code === 3) return { ...base, head, state: 'failed', reason: `train ${n}: every member left out on conflicts or doc-lint (merge-train exit 3)`, leftOut };
   return { ...base, head, state: 'error', reason: `merge-train build exit ${r.code}: ${r.out.trim().split('\n').slice(-3).join(' | ')}`, leftOut };
 }
 

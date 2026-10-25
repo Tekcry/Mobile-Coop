@@ -15,7 +15,7 @@ import {
   mergeRetryable, retryMerge, mergedTree, treeOf,
   trainNo, bumpVersion, impliedKind, joinTitles, deriveRelease, bumpPackageJson, bumpPackageLock, versionTreeCommit,
   DEPLOY_MARKER, tailPlan, parsePreviewVersion, pagesRoot, mergeOfHead, deployDispatchCmd, deployWaitMin,
-  lintKey, newLintErrors, lintWhy, parseCatFileBatch, docLintAt,
+  lintKey, newLintErrors, lintWhy, parseCatFileBatch, docLintAt, sameLintRules,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/merge-train.mjs';
 // @ts-expect-error plain .mjs process script without types
@@ -867,6 +867,32 @@ describe('merge-train build: doc-lint on the merged tree (audit 2026-10-26)', ()
       expect(added).toHaveLength(1);
       expect(added[0]).toMatchObject({ check: 'sizes', file: 'docs/t.md' });
       expect(added[0].msg).toMatch(/^5 lines, budget 4/);
+    } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+  });
+});
+
+describe('merge-train build: doc-lint only with the same rules as the tree (checker fix 2026-10-26)', () => {
+  it('sameLintRules compares the tree\'s scripts/doc-lint.mjs with the runner\'s copy', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mt-lintrules-'));
+    const git = (...a: string[]): string => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'core.autocrlf=false', ...a],
+      { cwd: dir, encoding: 'utf8' }).trim();
+    try {
+      git('init', '-q', '-b', 'master');
+      fs.mkdirSync(path.join(dir, 'scripts'));
+      fs.writeFileSync(path.join(dir, 'scripts/doc-lint.mjs'), 'export const v = 1;\n');
+      git('add', '.');
+      git('commit', '-q', '-m', 'rules 1');
+      const one = git('rev-parse', 'HEAD');
+      fs.writeFileSync(path.join(dir, 'scripts/doc-lint.mjs'), 'export const v = 2;\n');
+      git('commit', '-q', '-am', 'rules 2');
+      const two = git('rev-parse', 'HEAD');
+      const runner = path.join(dir, 'runner.mjs');
+      fs.writeFileSync(runner, 'export const v = 1;\n');
+      expect(sameLintRules(one, dir, runner)).toBe(true);
+      expect(sameLintRules(two, dir, runner)).toBe(false);
+      git('rm', '-q', 'scripts/doc-lint.mjs');
+      git('commit', '-q', '-m', 'no rules');
+      expect(sameLintRules(git('rev-parse', 'HEAD'), dir, runner)).toBe(false);
     } finally { fs.rmSync(dir, { recursive: true, force: true }); }
   });
 });

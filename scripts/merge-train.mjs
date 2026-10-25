@@ -20,7 +20,8 @@
 // any other conflicting file leaves that branch out (build) or stops the run (release / single, exit 3).
 // Doc-lint (build): after each member merges, scripts/doc-lint.mjs runs on the merged tree (git objects); a member that
 // adds a doc-lint ERROR (e.g. two members together over a doc budget) is left out like a conflict, so CI `lint` cannot
-// fail the train head. A lint that cannot run is logged and skipped, never a stop.
+// fail the train head. A lint that cannot run, or a tree whose scripts/doc-lint.mjs differs from this script's copy
+// (a member changing the rules), is logged and ends the check for the rest of the build, never a stop.
 // The merges are computed on git objects (`git merge-tree`, `git commit-tree`), so --dry-run moves no ref, worktree
 // or remote (it only fetches) and prints what a real run would do.
 // Usage:
@@ -68,7 +69,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { assemble, assembleDir, parseFragment, releaseHeading, summary } from './changelog-assemble.mjs';
 import { fetchOrigin } from './fetch-retry.mjs';
 import { takeTouchLock } from './heavy-lock.mjs';
@@ -819,9 +820,21 @@ export function docLintAt(sha, cwd) {
   return lintDocs({ files, exists, config: { staleTerms: stale, owners, lint }, today: today() });
 }
 
-/** docLintAt that never stops a build: null (logged) when the lint itself fails. */
+/**
+ * True when the tree of `sha` holds the same scripts/doc-lint.mjs as the one this script imports (`runner`): only then
+ * do docLintAt's findings match what CI runs on that tree (a member may change the rules with the docs that need them).
+ */
+export function sameLintRules(sha, cwd, runner = fileURLToPath(new URL('./doc-lint.mjs', import.meta.url))) {
+  const r = exec(['git', 'rev-parse', `${sha}:scripts/doc-lint.mjs`], { cwd });
+  return r.status === 0 && r.out.trim() === run(['git', 'hash-object', runner], { cwd });
+}
+
+/** docLintAt that never stops a build: null (logged) when the tree's doc-lint rules differ or the lint itself fails. */
 function docLintSafe(sha) {
-  try { return docLintAt(sha); } catch (e) { console.warn(`WARNING: doc-lint on ${sha.slice(0, 8)} failed, not checked: ${e.message}`); return null; }
+  try {
+    if (!sameLintRules(sha)) { console.log(`  doc-lint: scripts/doc-lint.mjs differs at ${sha.slice(0, 8)}, not checked from here on`); return null; }
+    return docLintAt(sha);
+  } catch (e) { console.warn(`WARNING: doc-lint on ${sha.slice(0, 8)} failed, not checked from here on: ${e.message}`); return null; }
 }
 
 /** The changelog assembly a real run would write at `sha`, read from git objects (dry runs). */
@@ -1237,7 +1250,7 @@ async function build({ n, version, title, branches, keep, on = null }) {
     const lintAfter = lintBefore ? docLintSafe(m.sha) : null;
     const added = lintAfter ? newLintErrors(lintBefore, lintAfter) : [];
     if (added.length) { const why = lintWhy(added); left.push({ b, why }); console.log(`  LEFT OUT: ${why}`); continue; }
-    if (lintAfter) lintBefore = lintAfter;
+    lintBefore = lintAfter; // null once a lint could not run: later members go unchecked, never judged on a stale base
     head = m.sha; included.push(b); kept.push(b);
   }
   // feature/menu alone is never a train: nothing is pushed and no PR is opened (exit 3, as with no member)
