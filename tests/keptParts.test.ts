@@ -1,8 +1,13 @@
 /**
- * (map-ready S9) The kept parts holder (`src/core/keptParts.ts`): the pure part on fake textures (step 1).
+ * (map-ready S9) The kept parts holder (`src/core/keptParts.ts`): the pure part on fake textures (step 1), then two
+ * create / hand-over / dispose cycles on a NullEngine (step 5): a figure material's texture and a kit GLB are kept
+ * across the release; context loss drops the held textures; flag off is today's blob path and per-load fetch.
  */
-import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { KEPT_TEXTURE_MB, KeptParts, textureBytes, type KeptTex } from '../src/core/keptParts';
+import type { GlbMaterial } from '../src/operators/lab/glb';
 
 /** A fake InternalTexture: counts references and disposes (as Babylon's: released at 0). */
 class FakeTex implements KeptTex {
@@ -173,5 +178,136 @@ describe('KeptParts (pure)', () => {
   it('textureBytes: RGBA8 or KTX2, with the mip chain', () => {
     expect(textureBytes(1024, 1024, false)).toBe(Math.round((1024 * 1024 * 16) / 3));
     expect(textureBytes(1024, 1024, true)).toBe(Math.round((1024 * 1024 * 4) / 3));
+  });
+});
+
+/** A PNG's signature and IHDR (2 x 2): enough for the header read; a NullEngine never decodes it. */
+function tinyPng(): Uint8Array {
+  const b = new Uint8Array(33);
+  b.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52]);
+  const dv = new DataView(b.buffer);
+  dv.setUint32(16, 2);
+  dv.setUint32(20, 2);
+  b[24] = 8;
+  b[25] = 6;
+  return b;
+}
+
+const KIT_GLB = path.resolve(__dirname, '../src/world/kit/assets/facility-kit.glb');
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe('KeptParts on a NullEngine (two match cycles)', () => {
+  async function setup() {
+    const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
+    const B = await import('../src/core/babylon');
+    const { flags } = await import('../src/core/flags');
+    const { kept } = await import('../src/core/keptParts');
+    const fig = await import('../src/operators/runtime/figure');
+    const { KitRender } = await import('../src/world/kit/kitRender');
+    const { LightRegistry } = await import('../src/world/lights');
+    const engine = new NullEngine();
+    // a real engine drops a released internal texture from its cache (thinEngine `_releaseTexture`); the NullEngine's is
+    // a no-op, so without this a released texture would come back from the cache and the hold would prove nothing
+    const cache = engine.getLoadedTexturesCache();
+    (engine as unknown as { _releaseTexture: (t: unknown) => void })._releaseTexture = (t) => {
+      const i = cache.indexOf(t as (typeof cache)[number]);
+      if (i >= 0) cache.splice(i, 1);
+    };
+    const kitBytes = readFileSync(KIT_GLB);
+    const fetched: string[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      fetched.push(url);
+      return new Response(kitBytes.buffer.slice(kitBytes.byteOffset, kitBytes.byteOffset + kitBytes.byteLength) as ArrayBuffer);
+    });
+    fig.forgetModels();
+    const mat: GlbMaterial = { name: 'cloth', base: [1, 1, 1], roughness: 0.8, metallic: 0, emissive: [0, 0, 0], baseTex: { mime: 'image/png', name: 'wren-test-albedo', data: tinyPng() } };
+    /** One match: a figure material, the kit; then App.releaseState's order (hand-over, then the scene's dispose). */
+    async function cycle(keep = true) {
+      const scene = new B.Scene(engine);
+      const p = fig.operatorMaterial(scene, mat, 'wren-test', keep);
+      const tex = p.albedoTexture as InstanceType<typeof B.Texture>;
+      const internal = tex.getInternalTexture();
+      await KitRender.create(scene, { instances: [], doors: [] }, [], new LightRegistry(), () => {});
+      return { scene, tex, internal, release: () => { kept.handOver(scene); scene.dispose(); } };
+    }
+    const was = { flag: flags.mapReady, enabled: kept.enabled };
+    const restore = (): void => {
+      kept.dropTextures();
+      flags.mapReady = was.flag;
+      kept.enabled = was.enabled;
+      fig.forgetModels();
+    };
+    return { engine, flags, kept, fetched, cycle, restore, kitUrl: (await import('../src/world/kit/kitRender')).kitUrl };
+  }
+
+  it('flag on: the second scene gets the same internal texture (reused, nothing decoded) and the kit GLB is fetched once', async () => {
+    const { engine, flags, kept, fetched, cycle, restore, kitUrl } = await setup();
+    try {
+      flags.mapReady = true;
+      kept.enabled = flags.mapReady; // as App's constructor
+      engine.onContextLostObservable.add(() => kept.dropTextures()); // as App's constructor
+      const s0 = { ...kept.stats };
+      const a = await cycle();
+      expect(a.tex.url!.startsWith('data:glb-img:')).toBe(true);
+      expect(kept.stats.texDecoded - s0.texDecoded).toBe(1);
+      expect(kept.stats.filesFetched - s0.filesFetched).toBe(1);
+      a.release();
+      expect(kept.stats.heldTextures).toBe(1);
+      expect(kept.stats.heldMb).toBeGreaterThan(0);
+      // the hold keeps the internal texture alive (and in the engine cache) after the scene's dispose
+      expect(engine.getLoadedTexturesCache()).toContain(a.internal);
+      const decoded = kept.stats.texDecoded;
+      const b = await cycle();
+      expect(b.internal).toBe(a.internal);
+      expect(kept.stats.texReused - s0.texReused).toBeGreaterThan(0);
+      expect(kept.stats.texDecoded).toBe(decoded);
+      expect(kept.stats.filesReused - s0.filesReused).toBe(1);
+      expect(fetched).toEqual([kitUrl()]);
+      b.release();
+      expect(kept.stats.heldTextures).toBe(1);
+      // GPU context lost: every held texture released, and it leaves the engine cache
+      engine.onContextLostObservable.notifyObservers(engine);
+      expect(kept.stats.heldTextures).toBe(0);
+      expect(engine.getLoadedTexturesCache()).not.toContain(a.internal);
+    } finally {
+      restore();
+    }
+  });
+
+  it('flag on, the hero (keep false): the blob path, never held', async () => {
+    const { flags, kept, cycle, restore } = await setup();
+    try {
+      flags.mapReady = true;
+      kept.enabled = true;
+      const a = await cycle(false);
+      expect(a.tex.url!.startsWith('blob:')).toBe(true);
+      a.release();
+      expect(kept.stats.heldTextures).toBe(0);
+    } finally {
+      restore();
+    }
+  });
+
+  it('flag off: no hold, the blob path, the kit fetched per load', async () => {
+    const { engine, flags, kept, fetched, cycle, restore, kitUrl } = await setup();
+    try {
+      flags.mapReady = false;
+      kept.enabled = false;
+      const s0 = { ...kept.stats };
+      const a = await cycle();
+      expect(a.tex.url!.startsWith('blob:')).toBe(true);
+      a.release();
+      expect(engine.getLoadedTexturesCache()).not.toContain(a.internal);
+      const b = await cycle();
+      expect(b.internal).not.toBe(a.internal);
+      b.release();
+      expect(fetched).toEqual([kitUrl(), kitUrl()]);
+      expect(kept.stats).toEqual(s0);
+    } finally {
+      restore();
+    }
   });
 });
