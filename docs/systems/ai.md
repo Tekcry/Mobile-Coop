@@ -38,8 +38,8 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
   - Dogs (G348): no takedown, sleeping gas knocks one out, a dog can be distracted; killing one counts as a kill (no
     Perfect) and costs score (G374), a gassed dog costs nothing (guard-rules M1, A5; Modes below).
     What is built and what is not: `docs/systems/takedowns.md` (Decided direction).
-  - Helmets by difficulty (G350, bible 5.6; built in guard-rules S1, Sector Ops and the campaign only, A1): Realistic and
-    Perfectionist place every human guard helmeted, Perfectionist's helmets never come off (the first headshot is
+  - Helmets by difficulty (G350, bible 5.6; built in guard-rules S1, Sector Ops and the campaign only, A1): Realistic
+    and Perfectionist place every human guard helmeted, Perfectionist's helmets never come off (the first headshot is
     soaked, the second kills, A2); Rookie / Normal are bare-headed until alarm stage 2. Map data never names a helmet
     (A15). Gear below.
   - Friendly fire: a host option, on by default (G141; coop.md).
@@ -235,13 +235,13 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
   Normal), `always` (Realistic), `locked` (Perfectionist). `EnemyManager.useDifficultyHelmets()` takes it into
   `helmetRule` (`SectorMode.start`; `stop` sets it back to `stage`; Marlow Yard and the parked modes never call it).
   `placeSlot` adds the helmet on `always` / `locked` (dogs never) and clears `Enemy.helmetSoaked`; `placeSlot`, `revive`
-  and `joinTeam` set `Enemy.helmetLocked` on `locked`, so every helmet he wears or is given later (stage, shield lead) is
-  locked. `gearHit` with a locked helmet (`GuardGear.helmetLocked`, `GEAR.lockHelmets`): not yet soaked = 0 dealt, no
+  and `joinTeam` set `Enemy.helmetLocked` on `locked`, so every helmet he wears or is given later (stage, shield lead)
+  is locked. `gearHit` with a locked helmet (`GuardGear.helmetLocked`, `GEAR.lockHelmets`): not yet soaked = 0 dealt, no
   knock-off, the 0.9 s stagger, `GearHit.soak` (`applyDamage` sets `helmetSoaked`); soaked = the bare-head result (the
   caller kills), the helmet stays on and the `AL_HELMET` bit never clears. A woken guard keeps lock and soak (`inherit`
   through `setGear`). Co-op: the client's deflect marker (`predictDeflect`) also shows on the killing second headshot
-  (cosmetic; host decides). Undo: `GEAR.lockHelmets` false (A2), `GEAR_BY_STAGE[2].helmet` false (A3).
-  Tests: `tests/helmetRule.test.ts`, `tests/gear.test.ts`; e2e-sectorops S13 block (Realistic: all helmeted at load).
+  (cosmetic; host decides). Undo: `GEAR.lockHelmets` false (A2), `GEAR_BY_STAGE[2].helmet` false (A3). Tests:
+  `tests/helmetRule.test.ts`, `tests/gear.test.ts`; e2e-sectorops S13 block (Realistic: all helmeted at load).
 - Section alert (guard-ai S14, stealth over shooting items 6 and 7, A40 / A41, A70-A76; `ai/sectionAlert.ts` pure:
   `AlertCallLog`, `SectionCounters`, `unitOf`; numbers `MISSING` / `SHOTS` in `ai/gear.ts`). A missed check-in (a
   radio check's miss, one call per check; a talking pair's partner who never came) -> the caller's `missing` call
@@ -397,6 +397,22 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
   contact call cut first: nothing is owed (only the voice hearers know, and they do not call). A panel alarm settles it;
   `resetAlarm` (Sector load / restart) and `clear` drop it. Sector Ops sets the net's section to the live `SectorDef`
   index (`setSection`). `onAlarm(e, p)` takes `p` null for a radio alarm.
+- Repeat guard alarms (guard-rules S5, D5, A7; bible 5.7 "Each raised alarm adds one level"; `ALARM_REPEAT` in
+  `ai/alarm.ts`: `enabled` true, `max` 3, `rearm` 60 s). `alarmRaised` is sticky for its readers (the carry rule, the
+  alarm's intruder); new raises are gated by `EnemyManager.alarmOpen()` (none raised this load, or the repeat lock
+  open): the panel runner (`assignAlarm`), the panel run itself (`AiContext.alarmOpen`, `Enemy.decide` drops the run
+  when shut), `contactThrough`, the command retry in `radioStep`, `radioAlarm` and `raiseAlarm`. With `alarmRepeat`
+  (false by default: one guard alarm per load, Marlow Yard's `courseMode` and the parked modes;
+  `SectorMode.loadSection` sets it, so Sector Ops and the campaign), `repeatStep` (each update) opens the lock while
+  `guardAlarms` < `max` once the last guard alarm's response is in, or `rearm` s after it. In: a living, free member
+  of a team that alarm brought (`teams` from `alarmTeam0` up to `alarmTeamN`, the teams its `onAlarm` made; a later
+  camera or laser stage's team does not count) is searching, not still on his entry route (`Enemy.entering`) and, a
+  device responder (`joinAsResponder`, searching from his spawn), only once he stands at a search spot
+  (`Enemy.atSearchSpot`). Only a raise the manager made counts (an `alarmRaised` set from outside stays shut). The
+  command call runs again once open (a new contact that gets through). `resetAlarm` clears lock and count. Each repeat
+  raises the Sector Ops stage by one (`SectorMode.onAlarm`; stage 2 brings helmets, guard-rules A3). At the stage cap
+  a guard alarm sends no team, and `StealthSystems.onAlarm` shows the plain "ALARM" banner, not "Reinforcements
+  inbound" (`GameMode.alarmQuiet`; Sector Ops: `SectorRun.nextAlarmSends` 0). Undo: `ALARM_REPEAT.enabled` false.
 - Reinforcements (guard-ai S6, M1 "any reinforcements must be aggressive"): `EnemyManager.spawnReinforcement` /
   `joinReinforcement` -> `Enemy.joinAsReinforcement(route)`: `profile` 'aggressive' (the S5 string; `Enemy.behaviour` =
   `BEHAVIOUR[profile]` in `squadRoles.ts`), told by command (`radio(0)`: in combat on the shared LKP the next step, bark
@@ -414,7 +430,8 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
   guard on top of his own; `placeSlot` and `revive` add it to every later guard. Sector Ops calls it on each rise
   (`sectorMode.raised`, camera alarms too) and at each section load with the run's stage (`loadSection`; a restart
   goes back to the section's start stage, so the dropped stage's gear goes with it). Other live maps: the one alarm is
-  stage 1 (no gear). No camera is touched. Teams: each stage's `perStage` reinforcements are `responseTeam` kinds
+  stage 1 (no gear). (guard-rules S5) Sector Ops: each guard alarm brings its own team (one per stage; the repeat lock
+  reads it, above). No camera is touched. Teams: each stage's `perStage` reinforcements are `responseTeam` kinds
   (an `enforcer` first, helmeted by `joinTeam`, only where the section sets `shieldTeams`: campus S4 / S5, guard-rules
   A4; elsewhere, warehouseOps and the campaign included, armed guards only); `StealthSystems.onAlarm` on live maps sends
   3 armed guards (`RESPONSE.liveTeam`, no shield lead: A14, Marlow Build) with the section's guard routes and posts as
@@ -726,9 +743,10 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
   `sfx.radio()` for radio lines.
 
 ## Difficulty (G106)
-- `DIFFICULTY` (`ai/archetypes.ts`): `rookie | normal | realistic | perfectionist` (`DifficultyPreset`; `Difficulty` is the
-  same type): perception, damage, accuracy, hp, reaction, reward, helmets (guard-rules S1: Gear above). `parseDifficulty` reads easy / hard, and an old `custom`
-  or unknown name as Normal. `resolveDifficulty(d)` returns the level's def.
+- `DIFFICULTY` (`ai/archetypes.ts`): `rookie | normal | realistic | perfectionist` (`DifficultyPreset`; `Difficulty` is
+  the same type): perception, damage, accuracy, hp, reaction, reward, helmets (guard-rules S1: Gear above).
+  `parseDifficulty` reads easy / hard, and an old `custom` or unknown name as Normal. `resolveDifficulty(d)` returns the
+  level's def.
 - `GameState` resolves it once at match start (`GameState.diff` = `difficultyDef`) and hands it to `EnemyManager.diff` /
   `AiContext.diff`: every AI read goes through it. `reaction` scales the radio call-in (`callInDelay`), squad radio delays,
   the first-shot settle and the panel raise (`ALARM.holdTime` x reaction). In co-op the host's level runs (the AI is

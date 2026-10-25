@@ -72,6 +72,9 @@ export interface GameMode {
   onPlayerOut?(): void;
   /** The alarm went off; return true when the mode brings its own reinforcements (Hunter doubles the count). */
   onAlarm?(at: Vector3): boolean;
+  /** (guard-rules S5) The next alarm brings no reinforcements (Sector Ops at the stage cap): the alarm banner says
+   *  none are inbound. */
+  alarmQuiet?(): boolean;
   /** An interactable the mode put down was used. */
   onInteract?(it: Interactable): void;
   /** Co-op host: a client reported a verb only it can see (course drills, DECISIONS C10). */
