@@ -27,6 +27,14 @@ last section. Refs re-read: engine d31a6e364 (code unchanged for every file:line
 exception); framework 67464e03 (#372 BRIEF M6). Read-only node runs of master's validator from a `git archive` extract;
 outputs, the variant script and the draft graphs in `C:/NightShift/scratch/campaign/j8-j9-val/fix2/`.
 
+**Fix round 3** (Opus planner, 2026-10-25 ~22:20): answers plan check 3 (`C:/NightShift/scratch/campaign/j8-j9-plan-check3.md`,
+fixes 1-2, polish 1-6) with the lead's ~22:10 rulings (the map-wide A30 withdrawn); the map of fix -> answer is the
+last section. Refs re-read on 5a687e751 (code unchanged for every file:line here): `sectors.ts` (`SectorBolt`,
+`SectorBolts`), `sectorTeamDoors.ts`, `sectorMode.ts` (team doors, keypads), `sectorMission.ts`, `missionDef.ts`,
+`doors.ts:380-393`, `tallowWharfW3.ts`, `tallowWharfSectors.ts`, `w3.test.ts`, `sectors.test.ts`, the TGC / TKL pages
+and BEATs; master `level-validate.mjs` (`mergeGraphs`) and `level-design.md`. One read-only node run (graph link
+indexes, below normal priority); no npm / tsc / vitest.
+
 Scope: FOLDED-PLAN section 4 rows J8 and J9; section 3 breaks 16, 18, 19; Campaign conformance (master
 `docs/conformance-campaign/CONFORMANCE.md`) S7, S9, S10, S16, S22 with detail rows TW2, TW3, TW4, TW14, TW15, TW17, TW18,
 TW19, TW21, TW22, MF18; Player conformance R39 (held shutter invisible to guards). J7 runs first
@@ -81,8 +89,10 @@ the greybox exit (measured validator pass, bot route-runs, 10-minute walk card) 
   reference-game names or assets; characters, story, logos, UI art and the goggle stay original).
 
 ## 1. The 12 level-rule changes (G157, adopted ~18:20) as they bind J8 / J9
-Planned to the adopted wording in `origin/feature/menu:docs/orchestrator/G157-12-changes.md` (Marlow Build writes them
-into level-design.md; until then that file and ROADMAP "Decided" are the source).
+The adopted wording is on master in `docs/level-design.md` (G157 text since 140a22fbb, 18:56; fix round 3, polish 1):
+LP and every brief cite master's numbers directly (3.1 a vantage for two, 3.10 the designed exit, 6.1 the finale seen
+early, 6.2 pacing targets, 6.4 the two-minute test, 5.6 readable machines, 11.11 teamwork minimums, 15 the
+two-player tests, 16.2.7 two staircases). `origin/feature/menu:docs/orchestrator/G157-12-changes.md` is history.
 
 | # | Adopted rule | Tallow today | Where |
 | --- | --- | --- | --- |
@@ -184,6 +194,29 @@ into level-design.md; until then that file and ROADMAP "Decided" are the source)
   z 68.6-69.8 at 8.4, `tallowWharfW2.ts:213-216`) is open at its W2 end and its gate is at the W3 end (x 82,
   `tallowWharfW3.ts:127-128`), so a lone player walks it to within about 1.1 m of the C5 stage (z 64.5-67.5), behind
   a 1.1 m railing he can vault. A28 cages it.
+- **The W3 roof bulkhead** (fix round 3, check-3 fix 1): a stair core (x 112.4-115.2, z 58.6-69.4) standing inside the
+  east wing, two switchback flights, two leaves at one plan point: the foot door (112.5, 0, 68) and the roof door
+  (112.5, 8.4, 68) (`tallowWharfW3.ts:152-153`, the foot built first). Graph link 36 (0-based today; 35 after D0
+  deletes link 30) `w3-roof -> w3-east-wing`, `fire_stair`, not bolted. Both missions enter W3 at its head (the W3
+  start and checkpoint, `tallowWharfSectors.ts:43-44`, `:338`); W3_ROUTES route 1 walks down it
+  (`tallowWharfSectors.ts:277`). It is the crossing Michael signed for Three Grey Coats (TGC SIGNOFF :30-31, BEAT :107
+  / :130, `tallowWharfMissions.ts:23`). In Two-Key Ledger it is a lone B's shortcut from the roof into the east wing,
+  past the yard and the east gate the TKL page gives him (SIGNOFF :22-23, BEAT :43); the lodge and the latched sash
+  already let the yard into the wing without the keypad (`w3.test.ts:221`), and tkl-2 completes only on the keypad
+  (`W3-key0`, with the code), whose item works from either side (`sectorMode.ts:415-416`).
+  - **No per-mission door state exists.** `SectorBolts` starts every bolt shut (`sectors.ts:343-344`) and
+    `SectorTeamDoors.build` fits every bolt (`sectorTeamDoors.ts:87-112`); the only per-mission section data is the
+    guard list (`WHARF_GUARD_MISSIONS`, `tallowWharfSectors.ts:199-202`, through `MissionDef.guards` and
+    `mission.spawns`, `sectorMode.ts:719`); tgc-3's `bolt` is Teale's spook point and J7's planned `boltText` a text
+    line (J7-PLAN R1); mission graphs carry nodes only, and master's validator concatenates graphs
+    (`mergeGraphs`), so a mission graph cannot change a map link's state.
+  - **No map-wide state separates the missions:** the core stands inside the east wing, and the passage (its doors to
+    both wings) and the front hall (a 3 m opening into the east wing) join everything inside, so any roof -> passage
+    walk kept for TGC is a roof -> east wing walk for a lone B.
+  - `Doors.nearest` matches by plan and keeps the first door at a tie (`doors.ts:380-393`), so a bolt at (112.5, 68)
+    finds the foot leaf. The east-wing porter's round (`tallowWharfSectors.ts:155`) passes north of the core, never
+    through the foot door. The wharf e2e moves players by script in W3 (`scripts/e2e-sectorops-wharf.mjs:405-446`)
+    and never walks the stair.
 - **Hide spots** two per section (`W1.ts:172`, `W2.ts:252`, `W3.ts:303`, `W4.ts:207`); none in w3-east-yard or
   w3-east-wing (TW14). **Medkits**: no `medkitWalls` (TW15; `MapLayout.medkitWalls`, `src/world/mapDef.ts:69`, read at
   `src/game/gameState.ts:835`, `:1009`). **Roof ladder**: `b.ladder(72, 66.15, LOFT, ROOF, 0)` up a hatch in the let
@@ -226,8 +259,12 @@ replaces A1; M2 settles A24's approval at two named spots, section 0).
   lightwell drain, `tallowWharfW2.ts:295`; the lane at street level). Undo: drop the two site lengths (the throws go
   back to 3.2 m) and restore the 2.5 m gaps: TW17 reopens (solo-jumpable), so the undo needs another forcing first.
 - **A5 Way backs as Michael's "locked pathway" (fix round 1: enclosed, gate at the approach end).** Each C4 way back is
-  an enclosed iron footbridge (solid sides to the head and a roof, `noLedge`, no top or lip a lone player can stand on or
-  hang from) along a lightwell end (west x ~44-45.5 for the pawn throw, east x ~68.5-70 for the pie throw). Its gate is
+  an enclosed iron footbridge (solid sides to the head and a roof, `noLedge`, no lip a lone player can hang from, no way
+  in but its two ends) along a lightwell end. Its roof is a top a lone player can reach (fix round 3, check-3 fix 2:
+  the west one is a 1.7 m step down from the arcade roof edge), so it is no "no top": near a forced stage it falls
+  under A28's level-and-drop rule (the west bridge by the pawn stage, A28; the east bridge is near no forced stage
+  until PB). The roof stays: an open bridge would let a lone player drop in from the arcade roof on the bridge side of
+  its gate. The bridges sit at west x ~44-45.5 (the pawn throw) and east x ~68.5-70 (the pie throw). Each gate is
   at the **south (approach) end**, bolted on the bridge side: the thrown partner walks back along the bridge and
   unbolts it for the thrower (G292's own example), it stays open (level-design 11.6), the walk is 12 m or less (draft
   9 m: 3 s at `reach_speed_mps` 3.0, under the 15 s reach), and from the south loft it is shut, so the throw stays
@@ -305,8 +342,10 @@ replaces A1; M2 settles A24's approval at two named spots, section 0).
   on the mission-validator for the map graph, each run as the conformance ran them (extracted with git, plain node). The
   one exception (fix round 2: two lines, M2), until J12's long-throw exception lands (`origin/feature/validator-port`
   10b613dd3 A27, slices S7a / S7b): `link w2-pawn-loft -> w2-reading-room (team_throw): gap 4.9 m above the 2.7 m throw`
-  (graph link 28, C4 pawn loft -> reading room) and `link w2-arcade-roof -> w3-roof (team_throw): gap 4.9 m above the
-  2.7 m throw` (link 33, C5 arcade roof -> W3 roof), listed by name in the saved output. Both links carry
+  (`tallowWharf:w2-pawn-loft>w2-reading-room`, C4) and `link w2-arcade-roof -> w3-roof (team_throw): gap 4.9 m above
+  the 2.7 m throw` (`tallowWharf:w2-arcade-roof>w3-roof`, C5), listed by name in the saved output. Fix round 3
+  (polish 2): every section names these two spots by `from>to`, as J12 does; numbers are only today's (28 and 33)
+  and D0's (28 and 32). Both links carry
   `exception: "long_throw"` and `width` 4.9 (J12's cap is the 4.9 m gap, not the 5.8 m throw); once S7a / S7b are in
   the validator D0 / D1 run, they pass as INFO and the gate is 0 ERR with no exception. The pie link 29 is a plain
   2.5 m `team_throw` with no `exception` and no ERR. Link numbers are 0-based on today's graph (master and engine
@@ -333,7 +372,9 @@ replaces A1; M2 settles A24's approval at two named spots, section 0).
   `tallowWharf:w2-arcade-roof>w3-roof`, read by the validator from a link's `exception: "long_throw"` (the earlier
   `throw_dist` link field is dropped: the game's length lives in the layout, the validator needs only the gap). The
   sheet says "a change needs Michael's approval": M2 approves the two spots, and the row's exact wording goes to him on
-  the walk card. Its line "Never change the player to fit a map" is met in spirit: the player's throw is unchanged, the
+  the walk card. J12 A27 reads Michael's ~20:45 pick as the row's approval; Campaign Build tells Marlow Build that J8
+  sends the row's wording to Michael on the walk card, so J12 A27 says the same (M2 approves the two spots, the walk
+  card the wording; fix round 3, polish 3). Its line "Never change the player to fit a map" is met in spirit: the player's throw is unchanged, the
   site carries the length, as a ladder carries its height. Undo: remove the sites from Tallow's layout (one line) and
   the sheet row; A4's undo applies.
 - **A25 The reading room's stair-head door (fix round 1).** The public stair from the arcade ends at a landing door with
@@ -360,18 +401,25 @@ replaces A1; M2 settles A24's approval at two named spots, section 0).
     stage z 72.5: 4.9 m); the north range does not move (the reading room keeps its 6.5 m short side, storage class).
     The arcade roof over the pawn loft (8.4, 3.9 m over the stage) ends at **z 67.4 or less** (4.88 + 0.2 = 5.08 m from
     the stage), the strip to the loft front narrower than `climbDepth` and `noLedge`; or, if LP keeps the roof edge at
-    z 67.6, a 1.9 m screen on it. The A5 west bridge's roof (x 44-45.5, about 3.5 m from the stage) is either out of
-    every solo reach (the arcade roof's screen or step-back stops anyone dropping onto it) or at least its reach + 0.2
-    from the stage: G2's brief picks, the check proves it. Any lower roof over the ground rooms below the cut-back is a
+    z 67.6, a 1.9 m screen on it. The A5 west bridge's roof (x 44-45.5, about 2.2-2.4 m over the 4.5 stage and
+    3.5 m west of it today) is a standable top: the arcade roof edge at z 67.4 is a 1.7 m step down onto it, and G0's
+    check reports it (4.61 m with the margin, the 2.4 m row; fix round 3, check-3 fix 2). G2's brief picks one of the
+    two options the check can prove: **the pawn stage's west edge at about x 50.1 or more** (the bridge roof's east
+    edge x 45.5 + 4.61; LP confirms the landing point stays 0.5 m onto the narrower stage), or **a `noLedge` screen at
+    least 1.9 m over the bridge roof and thinner than `climbDepth`** in the flight between the roof and the stage.
+    "Out of every solo reach" is not an option: the check does not test reachability. Any lower roof over the ground rooms below the cut-back is a
     glazed lightwell roof, `noLedge`, no top.
   - C4 east half (pie loft, x 56-66): keeps z 62-70 and its 2.5 m gap until PB (A13). Its width is then chosen with
     Player Build's plank length: it must beat solo reach by 0.2 m (over 3.56 m level, over 4.84 m unless the edges are
     `noLedge`) and be shorter than the plank.
   - C5: the lane gap widens to 4.9 m on one side, LP picks by the tests: the arcade roof's lane edge steps back to x 77.1
     (thrower x 76.7, landing x 82.5), or the W3 corner-bay roof edge moves east to x 84.4 (stage x 84.4-86.5, landing
-    x 85.0); either way the fire-escape bridge over the lane lengthens to match. **The fire-escape deck becomes a cage**
-    (found in fix round 2, section 2): solid `noLedge` sides from the deck to about 2.2 m and a roof (its top over
-    `mantleMax` above the arcade roof, so nobody climbs onto it), as the A5 bridges; its gate stays at the W3 end and
+    x 85.0); either way the fire-escape bridge over the lane lengthens to match. **The fire-escape deck becomes an
+    open-topped cage** (found in fix round 2, section 2; fix round 3, check-3 fix 2): solid `noLedge` sides at least
+    1.9 m over the deck (over `mantleMax` 1.8) and thinner than `climbDepth` 0.38, and **no roof**. A roof would be a
+    top about 10.6 m high, 1.2 m deep, about 1.1 m from the C5 stage under option 1 (about 2.6 m under option 2), which
+    G0's check reports whatever its reachability; the sides alone block the flight (the block rule above). Nothing
+    new reaches the cage from above (its W2 end is open to the arcade roof anyway). Its gate stays at the W3 end and
     opens from the counting-house side only, so a lone player in the cage reaches nothing (the graph's `door` link
     `w2-arcade-roof -> w3-roof` is unchanged: `bolted`). Under option 1 the runner (about x 75.1) stands inside the x 76 parapet break
     (z 64.5-67.5); LP confirms the run-up is clear of the roof hatch (x 71.4-72.6).
@@ -382,7 +430,9 @@ replaces A1; M2 settles A24's approval at two named spots, section 0).
   becomes `doorIn(b, false, 60, 76.75, LOFT, { locked: true, breachable: false })`, a plain locked door with no
   "Unbolt" item; `W2_BOLTS` slot 2 (the clock door's bolt) leaves the list with a comment line in its place (A29,
   G403: PB puts it back), so slots 3-4 become 2-3 and `sectors.test.ts:469-472` take the new counts and indexes (no
-  mission, e2e or test reads a W2 bolt flag by number, section 2); `W2.doors['w2-clock-door']` stays for PB. If the
+  mission, e2e or test reads a W2 bolt flag by number, section 2); `W2.doors['w2-clock-door']` stays for PB. No saved
+  mission (G147) can carry the old numbers (fix round 3, polish 5): the `missions` flag is off until the walk (A26),
+  so no player save holds a W2 bolt flag before the renumbering ships. If the
   builder finds a locked, non-breachable door still opens to a lone player by any action (a breach, a key), it stops and
   reports (fallback: the doorway walled up, the door kept as dressing). Graph (D0): link 30 `w2-reading-room ->
   w2-clock-loft` is deleted (the validator has no "locked both ways") and the clock loft's `note` says why and that PB
@@ -390,6 +440,58 @@ replaces A1; M2 settles A24's approval at two named spots, section 0).
   respawns there, `sectorMission.ts:163`; the BEAT owner is told, section 13). Test (G2): with every bolt shut and the
   clock door locked, `soloNav` from the pie loft (and from the clock loft) does not reach the reading room. Undo: PB
   restores the clock-side bolt and link 30, only once the plank forces the pie gap.
+- **A30 The roof bulkhead's foot door is bolted in Two-Key Ledger only (fix round 3, check-3 fix 1; lead ruling
+  ~22:10, which withdrew the ~21:40 map-wide bolt: it broke the TGC crossing Michael signed and W3 route 1).**
+  - Story: in Two-Key Ledger the counting house is staffed (clerks on night rates) and the night porter shoots the bolt
+    on the roof stair's foot door at lock-up, so nobody comes in off the roof; its push bar stays on the wing side (an
+    exit from the wing; roof access from inside, 16.2.5). In Three Grey Coats the house is empty (no W3 guards) and the
+    bolt is not shot: the crossing Michael signed ("down the fire escape into the east wing, then the coal chute", TGC
+    SIGNOFF :30-31, BEAT :107 / :130, `tallowWharfMissions.ts:23`) is unchanged.
+  - Purpose: it stops the roof-to-wing shortcut on TKL leg b, so a lone B on the roof takes the yard fire escape and
+    the east gate, as the TKL page says (SIGNOFF :22-23, BEAT :43). It does not make the keypad the only way into the
+    wing (the lodge and the sash stay, `w3.test.ts:221`); tkl-2 still completes only on the keypad with the code.
+  - Why mission-scoped (section 2 "The W3 roof bulkhead"): no per-mission door state exists, and no map-wide state can
+    keep TGC's roof -> wing -> passage walk and stop a lone B. The smallest new state is slice MB, about 60 lines
+    (under the lead's ~80), built on the existing bolt path (no wire change).
+  - **Leaf and side:** the **foot** leaf (112.5, 0, 68; `tallowWharfW3.ts:152`), bolted from the **east-wing side**
+    (`side: [-1, 0]`: the wing is west of the core's x 112.5 wall). The roof leaf (`:153`) stays a plain door, so a lone
+    player who goes down finds the foot shut and walks back up (not stuck). The bolt finds the foot leaf because
+    `Doors.nearest` keeps the first door at a plan tie and the foot is built first; G2's test proves it.
+  - **Field and owners:** MB adds `SectorBolt.missions?: readonly string[]` (the `MissionDef.id`s the bolt is fitted
+    in; absent = every run; an unfitted bolt's door is a plain door: unbolted from the start, no item, no nav closure,
+    and a section restart leaves it so). G3 adds `DOORS['w3-bulkhead-foot'] = [112.5, 0, 68]` (the foot only, so the
+    sectors test's door lookup finds y 0). G2 (the owner of `tallowWharfSectors.ts`, not G3) appends to `W3_BOLTS`
+    `{ at: at2(W3.doors['w3-bulkhead-foot']!), side: [-1, 0], missions: ['twoKeyLedger'] }` (index 4, flag
+    `W3-bolt4`; nothing renumbers, no step reads it).
+  - **Routes (G285 kept, J13 never stuck):** W3_ROUTES route 1 "Bulkhead, passage and the chute" becomes "Lantern,
+    west wing and the chute" (the bulkhead head, the roof south of the lantern sash, the drop onto the gallery ring at
+    4.2, the gallery stair, the west wing, the passage's west door, then the strongroom and the chute as now; the drop
+    leg in `climbs`), so both declared routes walk in both missions and no bot meets the TKL bolt. Route 2's fire-escape
+    points (`[101, 50, 4.2]`, `[108.4, 50]`) move to G3's new half landing and foot beside the east gate (LP's
+    coordinates; G2 writes them once G3 is in its base). Route 1 is then TKL leg a's walk and route 2 leg b's (D0 times
+    the legs from them). TGC's bulkhead crossing stays open in TGC and is proved by G3's TGC test and E8's TGC line,
+    not by a declared route.
+  - **Graph (D0):** link 36 (35 after the link-30 deletion) `w3-roof -> w3-east-wing` stays unbolted (the map's
+    default and TGC's state, so the solo-bypass check sees the wider state) and gains `bolted_in: ["twoKeyLedger"]` (a
+    field master's validator ignores) and a note citing A30. D0 saves a second map + TKL run with that link
+    `bolted: true` (TKL's state; check 3's own run of it: 2 ERR, the two named lines).
+  - **Tests:** G3: `w3.test.ts:216-219` keeps its asserts as the TGC case ("TGC, no bulkhead bolt: the roof reaches
+    the east wing by the bulkhead stair"); a new TKL case shuts the foot (a `SHUT.bulkheadFoot` test door at y 0, not
+    in `ALL_SHUT`) and, to isolate the stair, the lodge's two doors (and the sash if the nav walks it): a lone player on
+    the roof does not reach the east wing; TGC's state (the same set without the foot), he does, so the stair is the
+    roof's way into the wing in TGC and the TKL bolt shuts it. G2: `sectors.test.ts:469` counts
+    become `[3, 7, 5, 2]` (W1 +1 the gallery ladder gate; W2 -1 A29, +2 A5, +1 A25; W3 +1 A30), plus any bolted
+    stair foot LP's egress table adds (LP's brief gives the final counts);
+    the draw-side table (`:436-465`) gains `CORES['w3-bulkhead-core'] = [112.4, 58.6, 115.2, 69.4]` and the W3 row
+    `['w3-east-wing', 'w3-bulkhead-core']`; a new assert: W3 bolt 4 has `missions` exactly `['twoKeyLedger']` (an id
+    in `WHARF_MISSIONS`), no other bolt sets `missions`, and its door is the foot leaf (hinge y 0). MB: its own unit
+    tests. E8: TKL's run sees W3 bolt 4 locked, TGC's run has no W3 bolt 4 and the foot door unlocked.
+  - **EGRESS:** the counting-house row says the foot door is a night bolt on the wing side in TKL (an exit from the
+    wing, no entry from the roof, 16.2.5 roof access from inside), a plain door in TGC; the roof's way down is the
+    yard fire escape in both; no fire exit is bolted against its exit direction.
+  - Undo: remove the `W3_BOLTS` entry, its tests and the graph field (MB's field stays, unused): the bulkhead is a
+    plain door in both missions, TKL's leg-b shortcut returns, the keypad step still needs the code. This undo is also
+    the map-wide fallback if the lead rejects MB (section 15).
 
 ## 4. Claims
 
@@ -413,10 +515,15 @@ files:
   - docs/missions/prototypes/coop-kit/SIGNOFF.md
   - docs/tallow-fixes/**
   - TESTING.md
+  - src/game/sectors.ts
+  - src/game/sectorTeamDoors.ts
+  - src/game/modes/sectorMode.ts
+  - tests/sectorBolt.test.ts
 maps: tallowWharf
 protocol: none
 save: none
 ```
+(The last four are slice MB's only, A30: the `SectorBolt.missions` field, the fit in `build`, one call line.)
 J8 PR T (`feature/tallow-throw`, slice TD, A24):
 ```claims
 files:
@@ -465,12 +572,14 @@ save: none
   knock-out before he talks is a section restart with Teale at his table, not a rule break: Michael's M6, #372
   `docs/missions/BRIEF.md` on framework 67464e03, already in the TGC BEAT :22-25); no rule text there is rewritten.
 - Not claimed: `src/world/lightField.ts`, `src/voxel/lampBake.ts` (Sector Ops lighting; S1 asks before touching, section
-  6), `src/ai/**` (Guard AI), `src/net/**` (A19), `src/game/sectors.ts`, `src/game/modes/sectorMode.ts`,
-  `tallowWharfMissions.ts` (J7), `scripts/level-validate.mjs`, `scripts/mission-validate.mjs`, `docs/level-design.md`,
+  6), `src/ai/**` (Guard AI), `src/net/**` (A19), `src/game/sectors.ts` and `src/game/modes/sectorMode.ts` beyond MB's
+  hunks (A30), `tallowWharfMissions.ts` (J7), `scripts/level-validate.mjs`, `scripts/mission-validate.mjs`, `docs/level-design.md`,
   `docs/design/scale-sheet.md` (Marlow Build: J12, the G157 fold, and TV for A24; the scale sheet's light rows are
   light-realism L5's).
 - Overlaps with J7 (same lead, so never at the same time; section 5 orders them): `tallowWharfSectors.ts`,
-  `tests/tallowWharf/sectors.test.ts` (J7 PR D R3); `scripts/e2e-sectorops-wharf.mjs` (J7 PR E R7, PR F R8);
+  `tests/tallowWharf/sectors.test.ts` (J7 PR D R3); MB's `src/game/sectors.ts` (J7 PR D R3, `checkSectors` only) and
+  `src/game/modes/sectorMode.ts` (J7 PR D R2, PR F R6: MB's one line sits beside R6's mission-HUD lines at
+  `sectorMode.ts:366-369`, so MB's line goes in after J7 PR F, or the lead settles the hunk in the forward merge); `scripts/e2e-sectorops-wharf.mjs` (J7 PR E R7, PR F R8);
   `gameState.ts` (J7 PR F R6: hud-guidance B4's hook, `NetAttachment.objectiveLines` and `GameState.objectiveLines`
   :1244-1252; S1's two `gameState.ts` lines are the arming call and `checkpointReset`, other hunks, after PR F). The kit-flag fold (framework STATE item 7: after Player's coop-kit part 1, the kit branch
   `feature/mission-engine-flg-gb6` folds `coopKit` into Player's `kitMoves` and adds wire kind `stand`, touching
@@ -495,13 +604,17 @@ save: none
     wharf e2e and `TESTING.md` with J7 (ordered, section 5). S1's `gameState.ts` change is one call line; S2's `stealthSystems.ts` change is one new
     private method and one call: the lead tells Player Build (j19) and the orchestrator before PR S opens.
   - Outputs: `C:/NightShift/scratch/campaign/j8-j9-val/fix2/claims-*.txt` (round 1's in the folder above).
+  - Fix round 3: MB's four files (A30) are new to the J8 block and not yet in a claims-check run (desktop CPU at
+    100%). `sectorMode.ts` and `sectors.ts` sit in several open plans (J7, hud-guidance, sector-batch, sector-marks);
+    the lead reruns claims-check on the final block before PR G1 opens and orders MB's hunks with those owners (MB's
+    changes are one field, one fit check and one call line).
 
 ## 5. Branches, PRs and order
 | PR | Branch (base) | Slices | Counted lines (est) | Starts when |
 | --- | --- | --- | --- | --- |
 | T | `feature/tallow-throw` (base `feature/mission-engine` after B0) | TD (TD-a, TD-b), FT | ~250 | TD-a at once (never while the kit-flag fold edits `teamMoves.ts`); TD-b after the fold is merged into the engine |
-| G1 | `feature/tallow-fixes` (base `feature/mission-engine` after J7 PR D is merged into it and B0 / B0b, A20) | LP, D0, G0, G1, G3, FG1 | ~1,030 (+ docs; fix round 2: the level-gap check, the gallery ladder, the TKL route line) | J7 PR D merged |
-| G2 | `feature/tallow-fixes-2` (base PR G1's branch; the lead merges TD-a's branch in before G2 starts) | G2, G4, E8, D1, P1, FG2 | ~1,080 (+ docs; fix round 2: A29, the cage, W3 guard 1) | G2 / G4 with G1 / G3 once TD-a passes its unit checks; E8 after J7 PR F is merged into the engine |
+| G1 | `feature/tallow-fixes` (base `feature/mission-engine` after J7 PR D is merged into it and B0 / B0b, A20) | LP, D0, G0, MB, G1, G3, FG1 | ~1,130 (+ docs; fix round 2: the level-gap check, the gallery ladder, the TKL route line; fix round 3: MB ~60, G3's bulkhead tests ~25, G1's ladder checks ~15) | J7 PR D merged |
+| G2 | `feature/tallow-fixes-2` (base PR G1's branch; the lead merges TD-a's branch in before G2 starts) | G2, G4, E8, D1, P1, FG2 | ~1,100 (+ docs; fix round 2: A29, the cage, W3 guard 1; fix round 3: the A30 bolt, routes and tests ~15, E8's bulkhead line ~6, the cage roof gone) | G2 / G4 with G1 / G3 once TD-a passes its unit checks; E8 after J7 PR F is merged into the engine |
 | S | `feature/tallow-shutters` (base `feature/mission-engine` after J7 PR D; the lead merges the engine in again before S3 / S4) | S1, S2, S3, S4, FS | ~1,000 | S1 / S2 at once (S1 without its `teamController.ts` hunk until the fold, and without its `gameState.ts` line until J7 PR F); S3 after PR G2 merges into the engine; S4 after S3, E8, J7 PR F and the fold |
 - Order on shared engine files (lead answer 6, fix round 1): `teamController.ts`: the kit-flag fold (on
   `feature/mission-engine-flg-gb6`, merged into `feature/mission-engine` by Campaign Build; framework STATE item 7),
@@ -525,13 +638,14 @@ wiring from strict Opus briefs; Haiku chores. Sizes are changed lines counted by
 | B0 / B0b | B0: merge `origin/feature/mission-framework` (#372) into `feature/mission-engine` at **J7 R0** (R0 also takes the optional-objective rewards out of `tallowWharfMissions.ts`, Q19); B0b: the same merge again once TW23 is in the framework branch (skipped if B0 already carries it); cut `feature/tallow-fixes` and `feature/tallow-throw` | lead (Campaign Build) | none | 0 / 0.3 | - | 0 | B0 **done** (925fa3784 + e4eace3bd); B0b when TW23 merges |
 | TD | Per-site throw length (A24): **TD-a** `MapLayout.throwSites` (optional), a pure `throwDistAt(bx, bz, dx, dz)` over a module list the team controller sets, `throwLanding` / `throwLandingOk` take the length (default `TEAM.throwDist`), `checkTeamRequest` uses the site's band; **TD-b** `TeamController` registers the map's sites at start (host and client; cleared on dispose) and `requestThrow` uses the site length for the landing, floor and arc | Opus | TD-a: `src/game/teamMoves.ts` (throw functions only), `src/world/mapDef.ts`, `tests/teamMoves.test.ts`, `tests/throwSites.test.ts` (new); TD-b: `src/game/teamController.ts` (`requestThrow` and the registration) | ~250 / 3 | T | 0 (TD-a) / 2 (TD-b) | B0; TD-b after the kit-flag fold is merged into the engine |
 | LP | Light plan, egress and stairs table, and the four section briefs (coordinates for every change below, the D0 graph's numbers) | Opus | `docs/tallow-fixes/LIGHT.md`, `docs/tallow-fixes/EGRESS.md`, `docs/tallow-fixes/briefs/G{1,2,3,4}.md` | docs / 3.5 | G1 | 0 | B0 (B0b for the SPEC paths) |
-| D0 | Wave-0 graph (check fix 3): the design delta on the map graph before any geometry: the A5 bridges (bolted, length), A25's stair-head bolt, the A6 jetty drop (`time_s`), M2's throw links (28 pawn, 33 lane: width 4.9, `exception: "long_throw"`; 29 pie: plain 2.5, no exception, note citing M2 / G403), A29's clock-door link 30 deleted, the plant ladder link, any added stair (bolted from the approach side), the split / overwatch / assist tags for TGC and TKL (A11) with the proposed defaults (TGC legs and the gallery ladder link, TKL measured legs) for the lead's ruling; validators run and saved before wave 1 | Opus | campaign-map `graph.json`; `docs/tallow-fixes/val/D0-*` | docs / 3 | G1 | 0 | B0b if B0 did not carry TW23 (A20; B0 is done); J7 PR D merged (its TGC / TKL graphs are validated with the map) |
+| D0 | Wave-0 graph (check fix 3): the design delta on the map graph before any geometry: the A5 bridges (bolted, length), A25's stair-head bolt, the A6 jetty drop (`time_s`), M2's throw links (`w2-pawn-loft>w2-reading-room` and `w2-arcade-roof>w3-roof`: width 4.9, `exception: "long_throw"`; `w2-pie-loft>w2-clock-loft`: plain 2.5, no exception, note citing M2 / G403), A29's clock-door link 30 deleted, A30's bulkhead link (unbolted, `bolted_in: ["twoKeyLedger"]`, a second map + TKL run with it bolted), the plant ladder link, any added stair (bolted from the approach side), the split / overwatch / assist tags for TGC and TKL (A11) with the proposed defaults (TGC legs and the gallery ladder link, TKL measured legs) for the lead's ruling; validators run and saved before wave 1 | Opus | campaign-map `graph.json`; `docs/tallow-fixes/val/D0-*` | docs / 3 | G1 | 0 | B0b if B0 did not carry TW23 (A20; B0 is done); J7 PR D merged (its TGC / TKL graphs are validated with the map) |
 | G0 | Shared: night floors (A3); `medkits` on `WharfSection` + `emptySection`; layout `medkitWalls` from the sections; then (after TD-a) `dist?` on `WharfThrow` and layout `throwSites` from the sections' throws that set it; `medkits` optional on `WharfSection` so W1-W4 compile untouched (polish 5); the level-and-drop gap check `soloLevelThreats` (check fix 2) with its unit test | Sonnet | `tallowWharf.ts`, `tallowWharfKit.ts`, `tests/tallowWharf/shell.test.ts`; `tests/tallowWharf/helpers.ts` (the new function only, wave 0; G2 owns the file from wave 1) and `tests/tallowWharf/levelGap.test.ts` (new) | ~350 / 2 | G1 | 0 | B0; its throw-site step after TD-a |
-| G1 | W1: re-light to LP; hide spots; medkit; two vantage spots per encounter; any W1 stair fix from LP's egress table; the gallery ladder at the canal-steps end if the lead rules D0's TGC default (top gate bolted on the gallery side) | Sonnet | `tallowWharfW1.ts`, `tests/tallowWharf/w1.test.ts` | ~310 / 2.2 | G1 | 1 | LP, D0, G0 |
-| G3 | W3: lamp 81 on; re-light; hide spots (east yard, east wing, by every takedown spot); medkit; two vantage spots per encounter; the crane's red lamp seen from the W3 roof; C5 landing side (no lip; if LP puts the C5 widening on the W3 side, the stage moves to x 84.4, A28) and the fire-escape cage's W3 end; the TKL route line if the lead rules D0's TKL default (the yard fire escape's foot beside the east gate); any W3 stair fix from LP's egress table | Sonnet | `tallowWharfW3.ts`, `tests/tallowWharf/w3.test.ts` | ~370 / 2.7 | G1 | 1 | LP, D0, G0 |
-| G2 | W2: C4 pawn and C5 thrower side forced (A4, M2, A28: the west lightwell half 4.9 m, site length 5.8 on those two throws; the pie throw unchanged at 2.5 m, not yet forced); the arcade roof edge over the pawn loft and the fire-escape cage (A28); the clock-mender's door locked both sides (A29); the two enclosed way-back bridges (A5) with `W2_BOLTS` appended and `W2_ROUTES` kept valid; the stair-head door (A25, appended bolt); plant-room roof access (A7); re-light; hide spots; medkit; two vantage spots per encounter; any W2 stair fix from LP's egress table; W3 guard 1's beat (J7 R3 hand-off, polish 3: he lives in the sectors file) | Sonnet (Opus fix round if its checker fails) | `tallowWharfW2.ts`, `tallowWharfSectors.ts` (`W2_BOLTS`, `W2_ROUTES`, W3 guard 1, and the W1 ladder gate's `W1_BOLTS` entry if ruled), `tests/tallowWharf/w2.test.ts`, `tests/tallowWharf/sectors.test.ts`, `tests/tallowWharf/helpers.ts` (`throwCheck` takes the site length), `tests/tallowWharf/shell.test.ts` (the one "exactly two throw sites" line; no other wave-1 slice edits it) | ~680 / 5 | G2 | 1 | LP, D0, G0, TD-a |
+| MB | Mission-scoped bolt (A30): `SectorBolt.missions?: readonly string[]`; `SectorTeamDoors.build(missionId?)` leaves a bolt not fitted in the running mission as a plain door (unbolted, no item, no nav closure) and a restart leaves it so; `sectorMode.ts` passes the bound mission's id (one line); unit tests | Opus | `src/game/sectors.ts` (the field and the unfitted state only), `src/game/sectorTeamDoors.ts` (`build`), `src/game/modes/sectorMode.ts` (the `team.build` call, `:369`), `tests/sectorBolt.test.ts` | ~60 / 1 | G1 | 0 | J7 PR D merged; the `sectorMode.ts` line after J7 PR F or settled by the lead (section 4) |
+| G1 | W1: re-light to LP; hide spots; medkit; two vantage spots per encounter; any W1 stair fix from LP's egress table; the gallery ladder at the canal-steps end (ruled: D0's TGC default), its gate at the top (bolted on the gallery side) only if G1's first test shows a shut top gate neither strands nor ejects the climber, else at the foot inside the cage (fix round 3, polish 4) | Sonnet | `tallowWharfW1.ts`, `tests/tallowWharf/w1.test.ts` | ~325 / 2.3 | G1 | 1 | LP, D0, G0 |
+| G3 | W3: lamp 81 on; re-light; hide spots (east yard, east wing, by every takedown spot); medkit; two vantage spots per encounter; the crane's red lamp seen from the W3 roof; C5 landing side (no lip; if LP puts the C5 widening on the W3 side, the stage moves to x 84.4, A28) and the fire-escape cage's W3 end; the TKL route line (ruled: the yard fire escape's foot beside the east gate); the bulkhead foot's `DOORS` entry and the TGC / TKL bulkhead tests (A30); any W3 stair fix from LP's egress table | Sonnet | `tallowWharfW3.ts`, `tests/tallowWharf/w3.test.ts` | ~395 / 2.9 | G1 | 1 | LP, D0, G0 |
+| G2 | W2: C4 pawn and C5 thrower side forced (A4, M2, A28: the west lightwell half 4.9 m, site length 5.8 on those two throws; the pie throw unchanged at 2.5 m, not yet forced); the arcade roof edge over the pawn loft, the west bridge roof's option and the open-topped fire-escape cage (A28); the clock-mender's door locked both sides (A29); the W3 bulkhead foot bolt fitted in TKL only, `W3_ROUTES` route 1 by the lantern and route 2's fire-escape points (A30, after MB and G3 are in its base); the two enclosed way-back bridges (A5) with `W2_BOLTS` appended and `W2_ROUTES` kept valid; the stair-head door (A25, appended bolt); plant-room roof access (A7); re-light; hide spots; medkit; two vantage spots per encounter; any W2 stair fix from LP's egress table; W3 guard 1's beat (J7 R3 hand-off, polish 3: he lives in the sectors file) | Sonnet (Opus fix round if its checker fails) | `tallowWharfW2.ts`, `tallowWharfSectors.ts` (`W2_BOLTS`, `W2_ROUTES`, W3 guard 1, and the W1 ladder gate's `W1_BOLTS` entry if ruled), `tests/tallowWharf/w2.test.ts`, `tests/tallowWharf/sectors.test.ts`, `tests/tallowWharf/helpers.ts` (`throwCheck` takes the site length), `tests/tallowWharf/shell.test.ts` (the one "exactly two throw sites" line; no other wave-1 slice edits it) | ~695 / 5.2 | G2 | 1 | LP, D0, G0, TD-a; MB and G3 for the A30 lines |
 | G4 | W4: jetty way back (A6); re-light (shed three aisle, the yard cart lines; darkness from stacks and carts); hide spots; medkit; two vantage spots per encounter | Sonnet | `tallowWharfW4.ts`, `tests/tallowWharf/w4.test.ts` | ~250 / 2 | G2 | 1 | LP, D0, G0 |
-| E8 | The wharf e2e follows J8's geometry (throw stage, jetty pull), reading the section exports where it can | Sonnet | `scripts/e2e-sectorops-wharf.mjs` | ~60 / 1 | G2 | 2 | G2, G4, J7 PR F merged |
+| E8 | The wharf e2e follows J8's geometry (throw stage, jetty pull), reading the section exports where it can; the A30 bulkhead line per mission | Sonnet | `scripts/e2e-sectorops-wharf.mjs` | ~66 / 1 | G2 | 2 | G2, G4, J7 PR F merged |
 | D1 | Graph matches the build: counts (A10, no dog text), the W3 checkpoint tag, D0's links re-measured from the built geometry, each space's type and band in its `note`, the meta lighting note, the G157 9 exit-run line; validators re-run to D0's result; output saved | Sonnet | campaign-map `graph.json`; `docs/tallow-fixes/val/D1-*` | docs (+ test lines if a graph test changes) / 1.5 | G2 | 2 | G1-G4 merged |
 | P1 | TW23's SPEC and the sign-off pages corrected; PLAN.svg regenerated beside `PLAN-approved.svg` (the ~18:05 drawing kept); "changes since the drawing" list; TGC / TKL / coop-kit pages: pointer or drawing lines only | Sonnet | `docs/tallowWharf-map/SPEC.md`; campaign-map `SIGNOFF.md`, `PLAN.svg`, `PLAN-approved.svg`; TGC / TKL / coop-kit `SIGNOFF.md` (pointer / drawing lines only) | docs / 2 | G2 | 3 | D1; TW23 in the engine (A20) |
 | FG1 / FG2 | Fragments, `docs/tallow-fixes/STATE.md`, TESTING.md line | Haiku | `changes/feature-tallow-fixes*.md`, STATE, TESTING.md | docs | G1 / G2 | last | the PR's slices |
@@ -565,7 +679,7 @@ goes into D0's graph as a `bolted` link the validator checks. Starting rows (TW2
 | W1 warden's office block (gallery storey over the market) | one enclosed stair (foot bolted from the stair side) + the inspection hatch | a second stair or the reason: default fix in G1, an external iron stair from the gallery office down to the fish-hall side, its foot gate opening from the stair side only (the market boost stays co-op) |
 | W2 south lofts (pawn, pie, lane-window) | the pawnbroker's fire stair; the pie shop's back stair (the lane-window loft reaches it through the pie loft's inner door) | confirm both reach the ground from every south loft; the plant room ladder is plant (16.2.1), not a stair |
 | W2 north range (reading room, clock loft) | the public stair (A25: push bar on the reading-room side) | the second escape: the A5 bridges lead (exit direction, gates opening from the bridge side) to the south lofts' fire stair; LP says whether that meets 16.2.7 or G2 adds an enclosed back stair from the clock loft's east end, its foot door opening from inside only |
-| W3 counting house | the roof bulkhead stair core (east) and the external fire escape on the yard wall (east); the west wing's gallery stair inside the wing | 16.2.7 separation (both main stairs are east, O13): a west stair or the reason; roof access is the bulkhead (16.2.5 met, A7) |
+| W3 counting house | the roof bulkhead stair core (east) and the external fire escape on the yard wall (east); the west wing's gallery stair inside the wing | 16.2.7 separation (both main stairs are east, O13): a west stair or the reason; roof access is the bulkhead (16.2.5 met, A7); the bulkhead's foot door (A30): in TKL a night bolt on the wing side (an exit from the wing, no entry from the roof), in TGC a plain door; the roof's way down is the yard fire escape in both, and no fire exit is bolted against its exit direction |
 | W1 market and fish hall; W4 sheds; the crane | single storey; the crane's leg ladders are plant ladders | n/a |
 
 Provisional space-type map (from the draft band table; LP confirms per space):
@@ -591,6 +705,10 @@ walk, and lists the near-side surfaces its jump tests must cover (fix round 2: b
 above or below each forced stage, for the G0 level-and-drop check and the existing helpers). G2's brief also marks the
 thrower's working spot on the loft floor (polish 8: with a 1.0 m stage and a fixed 5.8 m throw the spot is about 0.6 m
 deep, z ~66.7-67.3; a floor mark, or a deeper stage) and confirms C5's run-up is clear of the roof hatch (polish 9).
+Fix round 3: G2's brief picks the west bridge roof's option (A28: the stage west edge at about x 50.1 or more, or the
+1.9 m screen) and gives the open-topped cage's side heights; G2's and G3's briefs give the same A30 coordinates (the
+foot leaf, W3_ROUTES route 1 by the lantern with its points from `tallowWharfW3.ts:246-257`, route 2's new fire-escape
+points), the final bolt counts, and G1's brief says where the gallery ladder's gate sits (polish 4).
 Done looks like: every Tallow space has a row; no row
 relies on a light left off; every encounter keeps a cover-based shadow route after the re-light, or the row says which
 cut or shot opens it; `EGRESS.md` has every row above filled.
@@ -615,18 +733,20 @@ are unaffected and that TV (below) is asked of it.
 **TV validator and scale sheet (Marlow Build, hand-off; not a J8 slice; fix round 2: unblocked by M2, built as J12
 A27).** Marlow's plan (`origin/feature/validator-port` 10b613dd3, BRIEF A27, PLAN S7a / S7b) does it: a `team_throw`
 link with `exception: "long_throw"` at a spot the new scale-sheet row "Long throw (named spots only)" lists passes a gap
-up to 4.9 m (INFO), any other link keeps the 2.7 m ERR; the spots are exactly Tallow links 28 (`w2-pawn-loft ->
-w2-reading-room`) and 33 (`w2-arcade-roof -> w3-roof`), checked in fix round 2 against the master and engine graphs
-(0-based; both `team_throw`). The cap is the 4.9 m gap, not the 5.8 m throw. The pie link gets no exception. Until S7a /
+up to 4.9 m (INFO), any other link keeps the 2.7 m ERR; the spots are exactly `tallowWharf:w2-pawn-loft>w2-reading-room`
+and `tallowWharf:w2-arcade-roof>w3-roof` (today links 28 and 33, 0-based, both `team_throw`, checked in fix round 2
+against the master and engine graphs; 28 and 32 after D0). The cap is the 4.9 m gap, not the 5.8 m throw. The pie link gets no exception. Until S7a /
 S7b land, the J8 gate's two named exceptions (A22) stand; the row's exact wording goes to Michael with the walk card
 (lead ruling).
 
 **D0 wave-0 graph (Opus; check fixes 3 and 4).** Before any wave-1 geometry, on the campaign-map `graph.json` only
 (A20): the A5 bridges (`door`, `bolted`, width 1.2, length from LP), A25's `bolted` stair head, the A6 jetty `drop`
-(`time_s` 3), M2's throws (links 28 pawn and 33 lane at `width` 4.9 with `exception: "long_throw"` and a note citing M2,
-A24 and J12 A27; link 29 pie stays `width` 2.5, no `exception`, its note "not yet forced: plank bridge later, M2 /
-G403"), A29 (link 30 the clock-mender's door deleted, the clock loft's `note` saying why; the renumbering in the
-saved note), the plant ladder link (A7), any stair LP's egress table adds (bolted from the approach side), and the
+(`time_s` 3), M2's throws (`w2-pawn-loft>w2-reading-room` and `w2-arcade-roof>w3-roof` at `width` 4.9 with
+`exception: "long_throw"` and a note citing M2, A24 and J12 A27; `w2-pie-loft>w2-clock-loft` stays `width` 2.5, no
+`exception`, its note "not yet forced: plank bridge later, M2 / G403"), A29 (link 30 the clock-mender's door deleted,
+the clock loft's `note` saying why; the renumbering in the saved note), A30 (the bulkhead link `w3-roof ->
+w3-east-wing`, 35 after the deletion, stays unbolted with `bolted_in: ["twoKeyLedger"]` and a note; a second map +
+TKL run with it `bolted: true`, saved beside the others), the plant ladder link (A7), any stair LP's egress table adds (bolted from the approach side), and the
 split declarations (A11): `split:<id>:a|b` tags on the leg spaces, `overwatch:<id>` on the overwatch space,
 `assist: "<id>"` on the assist link (`level-validate.mjs` 939-1069). Runs (A22; as D1's block below): map, map + TGC,
 map + TKL on master's validator, the mission-validator on the map, and the same on J12's branch once S7a / S7b exist.
@@ -667,15 +787,18 @@ two named throw-gap lines only, on map, map + TGC and map + TKL).
   leaves the gallery and stair out) + the stacks to the passage's west door (~16.5 m / 1.3 = **12.7 s**) = **22.7 s**;
   b = the fire escape **14 s** + its foot to the gate (~2 m, **1.5 s**) + the gate to the passage's east door (~6.5 m,
   **5.0 s**) = **20.5 s**: 10%. Reach stays under 15 s (14.3 s yard <-> west wing through the front hall; the east
-  gate's real state: the keypad opens with the code B holds, the clerks' hall sash is on the latch). Fallback if the
+  gate's real state: the keypad opens with the code B holds, the clerks' hall sash is on the latch; A30: in TKL the
+  bulkhead foot opens from the wing side only, so B's way down from the roof is the fire escape as timed, and no
+  reach path above uses the bulkhead). Fallback if the
   lead rejects the move: the data-only 25% legs with a J7 role line (A waits on the roof as overwatch until B calls
   "at the gate", then drops), which the validator cannot time: the one split ERR left, explained in the note, and the
   lead takes it to the orchestrator as a gate exception.
 - **Any `time_s` change** is backed by a geometry line in a named brief (G1 / G3) and re-measured by D1; none is a
   free number.
 
-Done looks like: 0 ERR on all runs except the two named `gap 4.9 m above the 2.7 m throw` lines (links 28 and 33)
-until J12's S7a / S7b land; `checkCoop` clean on both splits on the lead's ruled defaults, with each split's worst reach
+Done looks like: 0 ERR on all runs (the TKL-state run with the bulkhead bolted included) except the two named `gap
+4.9 m above the 2.7 m throw` lines (`w2-pawn-loft>w2-reading-room`, `w2-arcade-roof>w3-roof`) until J12's S7a / S7b
+land; `checkCoop` clean on both splits on the lead's ruled defaults, with each split's worst reach
 path and its bolts written in the note; outputs and the graph diff saved under `docs/tallow-fixes/val/D0-*` before
 wave 1 starts; the section briefs quote D0's numbers; the BEAT lines the defaults need sent to J7.
 
@@ -701,19 +824,46 @@ like: `shell.test.ts` asserts the theme floors equal the campus values, `medkitW
 stations, `throwSites` lists exactly the throws that set `dist` (none until G2; G2 then pins it in `shell.test.ts` to
 **exactly two**, the pawn and lane throws, M2), `levelGap.test.ts` green, and every other shell test passes unchanged.
 
+**MB mission-scoped bolt (Opus; A30; fix round 3).** `SectorBolt.missions?: readonly string[]` in `sectors.ts` with a
+doc comment (the `MissionDef.id`s the bolt is fitted in; absent = every run; A30's story). `SectorBolts` gets a way to
+mark a bolt unfitted (its `shut` false, and `rebolt` leaves an unfitted bolt alone). `SectorTeamDoors.build(missionId?:
+string)`: a bolt whose `missions` does not name `missionId` (or any bolt with `missions` when there is no mission) is
+marked unfitted and gets no door lock, no nav closure and no "Unbolt" item, so `reset` never touches it; every other
+bolt is built as today. `sectorMode.ts:369` calls `this.team.build(this.mission?.def.id)` (the mission is bound at
+`:308`, before). MB reads how a client gets its team-door items and locks (`lk`, the `c-` items): if the client also
+builds them, it passes its own bound mission's id; if it only mirrors the host, nothing more; if it needs a wire change,
+it stops and reports (A19). No allocation in a hot path (build time only). Done looks like: `tests/sectorBolt.test.ts`
+(a bolt with `missions: ['m1']`: built for `m1` its door locks with an item and a shut nav closure; built for `m2` or
+with no mission its door stays unlocked, no item, `isShut` false, `boltInfo` leaves it out, and `reset` keeps it so; a
+bolt with no `missions` behaves as today in all three); `tests/sectorBoltPair.test.ts`, `tests/sectorPairGate.test.ts`
+and `tests/tallowWharf/sectors.test.ts` unchanged and green.
+
 **G1 W1 (Sonnet).** Lamps per LP (all `on`, every switch by its door with its visible link); hide spots per A9 (stall
-backs, ice benches); the first-aid box medkit (A8); any W1 stair from `EGRESS.md`. Done looks like: `w1.test.ts`
+backs, ice benches); the first-aid box medkit (A8); any W1 stair from `EGRESS.md`. The gallery ladder (ruled: D0's TGC
+default; fix round 3, polish 4): the market warden's caged iron ladder at the gallery's canal-steps end, the lamp
+trimmer's way up to the gallery lamps. The gallery is an exterior deck over the market, so the ladder is exterior
+climbing on a real street element (level-design 16.2.6), not circulation between a building's storeys, and 16.2.1's
+"ladders only inside plant spaces" does not bind it (A7's own logic, the other way round; LP's `EGRESS.md` W1 row
+confirms the gallery is open to the market, not a room). Its gate: G1's first test
+puts a climber on the ladder with the top gate shut and checks he is neither stranded nor pushed off (he can climb
+back down); if so the gate stays **at the top, bolted on the gallery side** (as ruled); if not, it goes **to the foot,
+inside the cage, bolted on the cage side** (the one on the gallery climbs down to open it: about 3 s more on D0's
+reach path, under 15 s). G1's brief (LP) names the result; the graph link and the walk line are the same either way.
+Done looks like: `w1.test.ts`
 asserts no lamp off, every switch within reach of a door of the space its group lights, a hide spot within the spacing
 of each W1 takedown spot (read from the sectors export), the medkit inside a W1 room and outside every W1 guard's route
 view radius, **two vantage spots per encounter** (market, fish hall: room for two, out of view); a new stair's foot
-gate shut from outside in `soloNav`; if the lead rules D0's TGC default, the gallery ladder (canal-steps end, top gate
-bolted on the gallery side, appended to `W1_BOLTS` by G2 who owns the sectors file): `soloNav` from the canal steps
-and the tea stall does not reach the gallery with the gate shut and does with it open, and `soloJumpThreats` stays
-`[]` for the C1 lip; existing W1 tests unchanged.
+gate shut from outside in `soloNav`; the gallery ladder (canal-steps end, its gate where the first test puts it,
+appended to `W1_BOLTS` by G2 who owns the sectors file): `soloNav` from the canal steps and the tea stall does not reach
+the gallery with the gate shut and does with it open; `soloJumpThreats` and `soloLevelThreats` (extra 0.2) stay `[]`
+for the C1 lip and the gallery edge from the ladder's top, its cage (the hoops and sides: thin, `noLedge`, no standable
+top) and the canal-steps side; existing W1 tests unchanged.
 
 **G2 W2 (Sonnet; heaviest slice).** (1) M2's two long throws forced (A4, A28): the pawn loft cut back to z 67.6 (west
 lightwell half 4.9 m), `THROW_PAWN` and `THROW_LANE` carry `dist: 5.8`, landing edges `noLedge`, the arcade roof's edge
-over the pawn loft at z 67.4 or less (or its 1.9 m screen), the fire-escape deck caged, fall-ins with their way out.
+over the pawn loft at z 67.4 or less (or its 1.9 m screen), the west bridge roof's option (A28: the stage west edge at
+about x 50.1 or more, or a 1.9 m screen), the fire-escape deck caged with no roof (sides at least 1.9 m over the deck,
+thinner than `climbDepth`; A28), fall-ins with their way out.
 `THROW_PIE` is unchanged (2.5 m, no `dist`, the pie loft keeps z 62-70). (2) The clock-mender's door locked both sides
 (A29: `locked: true, breachable: false`, its `W2_BOLTS` slot taken out with a comment, the later slots renumbered).
 (3) The two enclosed way-back bridges (A5): gate at the south (approach) end bolted on the bridge side, sides and roof
@@ -723,15 +873,19 @@ medkit, two vantage spots per encounter, the thrower's spot marked (polish 8). (
 polish 3; he is in `tallowWharfSectors.ts`, the file G2 owns): today a man pacing a 3 m line ([112.5, 46] to
 [109.5, 46]); G2 gives the east-yard watchman a real round inside the yard's walk area (the gate side, the lodge door,
 the fire escape foot), same role and zone, the count unchanged (A10), his `reason` naming it; only after J7 PR D (R3)
-is in the base. Plus the W1 ladder gate's bolt in `W1_BOLTS` if the lead rules D0's TGC default. Done looks like
-(check fixes 1 and 2):
+is in the base. Plus the W1 ladder gate's bolt in `W1_BOLTS` (ruled; its side from G1's gate placement). (7) A30, once
+MB and G3 are in its base: `W3_BOLTS` appends the bulkhead foot `{ at: at2(W3.doors['w3-bulkhead-foot']!), side: [-1,
+0], missions: ['twoKeyLedger'] }`; `W3_ROUTES` route 1 becomes "Lantern, west wing and the chute" and route 2's two
+fire-escape points move to G3's new half landing and foot (A30; `obj` and `climbs` re-indexed). Done looks like
+(check fixes 1 and 2; check-3 fixes 1 and 2):
 - `throwCheck` (`helpers.ts`, taking the site length) passes on the two long-throw stages with `throwLandingOk` at
   5.8, and on the pie stage at the standard 3.2 m; `shell.test.ts` pins `throwSites` to exactly two.
 - G0's `soloLevelThreats` (extra 0.2) is `[]` for the pawn stage and the C5 stage over the whole solid set, and
   `soloTopLandingThreats` / `soloJumpThreats` (extra 0.2) are `[]` for both for the lower tops: every near-side surface
   a lone player reaches is covered (the south loft floors and furniture, the arcade roof at 8.4, the west bridge's roof
-  and sides, the plant room and its tank, the stair-head landing, the caged fire-escape deck and the old bridge
-  landing), each `skip` naming only the far side. Section 2's -3.9 m case (the arcade roof over the pawn stage: 4.88 /
+  and sides, the plant room and its tank, the stair-head landing, the open-topped fire-escape cage (its side tops are
+  thinner than `climbDepth`, so no tops) and the old bridge landing), each `skip` naming only the far side; the west
+  bridge roof passes by the option G2's brief picked (A28). Section 2's -3.9 m case (the arcade roof over the pawn stage: 4.88 /
   5.80 m) is in the test by name.
 - The pie stage's test says "not yet forced (M2, plank later)": it asserts the throw works and that the gap is the
   standard 2.5 m, not that it is forced (PB will).
@@ -744,6 +898,11 @@ is in the base. Plus the W1 ladder gate's bolt in `W1_BOLTS` if the lead rules D
   not reach the roof alone.
 - The ladder sits inside the plant room, no ladder opening is in an occupied room; `sectors.test.ts` (bolt counts and
   indexes after A29, routes, W3 guard 1's round inside the yard) green.
+- A30 in `sectors.test.ts`: the counts (`:469`, `[3, 7, 5, 2]` plus any stair foot LP adds), the draw-side table
+  (`:436-465`: `CORES['w3-bulkhead-core']`, the W3 row `['w3-east-wing', 'w3-bulkhead-core']`, the W1 / W2 rows for
+  the ladder gate, A29, A5 and A25), W3 bolt 4's `missions` exactly `['twoKeyLedger']` (a `WHARF_MISSIONS` id, no other
+  bolt with `missions`) and its door the foot leaf (hinge y 0); both W3 routes pass the room and nav-leg tests
+  (`:275-299`, `:485-502`).
 - Polish 2: the old-rule test `w2.test.ts:292` ("the walkway, lane-window loft, clock loft, roof and stacks are dark
   (no lamp over them)") flips to the LP rows (M1: closed spaces by night fittings, no space dark by design).
 
@@ -755,8 +914,12 @@ starts off" flips to "every lamp starts on"), the hide spots, the medkit, **two 
 crane's red lamp has a clear line from a W3 roof spot (polish 4), `soloLevelThreats` and `soloJumpThreats` /
 `soloTopLandingThreats` (extra 0.2) `[]` for the C5 stage over the whole solid set (the W2-side tops at 8.4 and above
 named, the W3 side skipped as the far side), and the fire-escape cage's W3 end shut to a lone player from the deck.
-If the lead rules D0's TKL default: the yard fire escape runs down east to a foot beside the east gate, and the test
-reads its foot from the build (D1 re-measures the leg).
+The TKL default (ruled): the yard fire escape runs down east to a foot beside the east gate, and the test reads its
+foot from the build (D1 re-measures the leg); LP's coordinates for its half landing and foot are the ones G2 writes
+into route 2. A30 (fix round 3): `DOORS['w3-bulkhead-foot'] = [112.5, 0, 68]` (the foot leaf only, no other change to
+the core or its leaves); `w3.test.ts:216-219` is renamed as the TGC case (its asserts unchanged), and the new TKL case
+of A30 (the foot shut as a test door at y 0, the lodge's two doors and, if the nav walks it, the sash shut to isolate
+the stair: the roof does not reach the east wing; the same set without the foot, it does).
 
 **G4 W4 (Sonnet).** The jetty drop to the canal ledge beside C10 (A6) with no solo way up; the shed three aisle and the
 yard lit per LP with darkness from stacks and carts; hide spots (shed yard two or more, shed three); the shed-office
@@ -765,8 +928,10 @@ medkit. Done looks like: `w4.test.ts` asserts the drop point, the C10 lip still 
 hangable-lip audit extended to the rail gap, the hide spots, the medkit and **two vantage spots per encounter**.
 
 **E8 e2e follows (Sonnet).** `toss` for the pawn throw (`:335`) and `pull` for the jetty (`:465`) take the new points,
-from the section exports when the page can read them, else the numbers from G2 / G4. Done looks like: laptop
-`e2e-sectorops:wharf-tgc` and `:wharf-tkl` green on PR G2's head.
+from the section exports when the page can read them, else the numbers from G2 / G4. A30 (fix round 3): once W3 is
+live, the TKL run asserts `__sector.boltInfo()` has W3 bolt 4 (the bulkhead foot) shut and its door locked; the TGC
+run asserts no W3 bolt 4 in `boltInfo()` and the foot door unlocked (both pages). Done looks like: laptop
+`e2e-sectorops:wharf-tgc` and `:wharf-tkl` green on PR G2's head, the two A30 lines printed.
 
 **D1 graph matches the build (Sonnet; check fix 3: D0 set the design numbers, D1 confirms them).** Counts per space =
 the spawned guards (A10; J7's two former dogs as armed humans, no dog text left); the W3 checkpoint tag on the space the
@@ -784,16 +949,18 @@ node <scratch>/val/mission-validator/scripts/level-validate.mjs <abs map graph>
 ```
 (`docs/design/metrics.json` is generated: if the extract has none, run that ref's `scripts/metrics-gen.mjs` into the
 extract first, as the conformance did.) Plus the same three runs on J12's validator once S7a / S7b exist
-(`origin/feature/validator-port`), where links 28 and 33 pass as `long_throw` INFO. Done looks like: master's
-validator 0 ERR on all three runs (A22's two named throw-gap lines, links 28 and 33, excepted until S7a / S7b land);
-the D0 link renumbering (A29) stated; the mission-validator 0 ERR on the map graph; every WARN justified in the
+(`origin/feature/validator-port`), where `w2-pawn-loft>w2-reading-room` and `w2-arcade-roof>w3-roof` pass as
+`long_throw` INFO; and D0's TKL-state run again (the map graph with the bulkhead link `bolted: true`, A30). Done looks
+like: master's validator 0 ERR on all four runs (A22's two named throw-gap lines excepted until S7a / S7b land); the
+bulkhead link still unbolted with `bolted_in: ["twoKeyLedger"]` (A30); the D0 link renumbering (A29) stated; the mission-validator 0 ERR on the map graph; every WARN justified in the
 SPEC's validator section; outputs saved under `docs/tallow-fixes/val/D1-*` with the refs and the date; `checkCoop`
 clean on the declared splits; the numbers match D0's or the difference is explained.
 
 **P1 pages (Sonnet, from an Opus brief).** SPEC (TW23's `docs/tallowWharf-map/SPEC.md`, A20): palette and lighting line
 (M1, A2, no G279), dogs gone, counts, throws force co-op (Q23, M2: the two long throws; the pie throw "not yet forced,
 plank bridge later"), C2 / C8 real once J9 lands (a dated note until then), the way backs, the stair-head door, the
-clock-mender's locked door (A29), the plant room, the fire-escape cage, medkits and hide spots, the validator section
+clock-mender's locked door (A29), the plant room, the fire-escape cage, the bulkhead foot bolted in TKL only (A30),
+medkits and hide spots, the validator section
 from D1, and TW23's open items J8 closes (O1, O9, O11, O12, O13, O18, O19, O20, O21) marked done. The campaign-map
 SIGNOFF page: the current validator result, armed guards only, the lighting basis, forced throws, the changes since the
 approved drawing (for the walk). The lighting line on both pages says in plain English: "Closed rooms (pie shop, clock
@@ -807,7 +974,11 @@ public stair", BEAT :49-56 that joint questioning happens only if B comes up the
 the reading room's stair door opens only from inside, so the way in is the throw; the one questioning Teale can leave
 quietly by the west lightwell bridge (he opens its gate at the pawn loft end, and it stays open), or down the lit
 stair; once that gate or the stair door is open, the partner can walk in and question Teale with him; the clock
-loft's door is locked tonight." The same line covers the BEAT, which J7 owns: P1 does not edit `BEAT.md`; the lead
+loft's door is locked tonight. The counting-house crossing is as you signed it: down the roof stair into the east
+wing, then the coal chute (in Two-Key Ledger that stair's foot door is bolted from inside, a different night)." (Fix
+round 3, A30.) The TKL pointer line adds: "In Two-Key Ledger the porter bolts the roof stair's foot door at lock-up,
+so the one who does not drop through the lantern goes down the yard fire escape and takes the east gate, as signed."
+The same lines cover the BEATs, which J7 owns: P1 does not edit `BEAT.md`; the lead
 sends the line to J7's owner (section 13). PLAN.svg regenerated (`node scripts/graph-svg.mjs`, the slice's own
 run) and the ~18:05 drawing kept beside it as `PLAN-approved.svg` (polish 6). Done looks like: no page claims a result
 the D1 output does not show; every change since ~18:05 is listed in plain English; the TGC / TKL diffs are pointer or
@@ -864,8 +1035,9 @@ and `:wharf-tkl` green with no SKIP or teleport left for a shutter; the notice l
 
 ## 7. Waves (full burn, file-disjoint)
 - **Wave 0** (B0 at J7 R0; the J8 part after J7 PR D merges): LP (Opus), D0 (Opus, once TW23 is in the engine, A20),
-  TD-a (Opus), G0 (Sonnet; the level-and-drop check and its test now, so G2 and G3 have it in wave 1; its throw-site step after TD-a), S1 (Opus, without its two late hunks), S2 (Opus). Files
-  disjoint (D0 alone owns `graph.json`; TD-a alone `teamMoves.ts` / `mapDef.ts`).
+  TD-a (Opus), G0 (Sonnet; the level-and-drop check and its test now, so G2 and G3 have it in wave 1; its throw-site step after TD-a), MB (Opus; A30; its `sectorMode.ts` line per section 4), S1 (Opus, without its two
+  late hunks), S2 (Opus). Files disjoint (D0 alone owns `graph.json`; TD-a alone `teamMoves.ts` / `mapDef.ts`; MB alone
+  `sectors.ts` / `sectorTeamDoors.ts`).
 - **Wave 1** (after LP, D0 and G0 merge on `feature/tallow-fixes`, D0's outputs saved and its split defaults ruled by the lead): G1, G2, G3, G4 together (one
   section file and its test each; G2 alone owns `tallowWharfSectors.ts`, `sectors.test.ts` and `helpers.ts`; G2 also
   needs TD-a merged in). S1 / S2 keep running.
@@ -874,7 +1046,8 @@ and `:wharf-tkl` green with no SKIP or teleport left for a shutter; the notice l
 - **Wave 4:** S3, once S1 is merged on `feature/tallow-shutters` and PR G2 is merged into the engine and the engine into
   S (polish 3: it waits for PR G2's checker and laptop, so it is not wave 2).
 - **Wave 5:** S4 after S2, S3, E8, J7 PR F and the fold.
-- Fragments and STATE close each PR. Briefs: LP is the brief work for wave 1; TD's detail above is its brief's core;
+- Fragments and STATE close each PR. Briefs: LP is the brief work for wave 1; TD's and MB's details above are their
+  briefs' cores;
   S1 / S2 / G0 briefs are section 16; the lead has the D0, D1, E8, P1, S3 and S4 briefs written by Opus before their
   waves (two to three ahead, RULES "Full burn").
 - CPU: every builder follows the GB-briefs 0.4 CPU rule (wait while the desktop is over 85%, background check, never a
@@ -886,6 +1059,7 @@ and `:wharf-tkl` green with no SKIP or teleport left for a shutter; the notice l
 | TD | `tests/teamMoves.test.ts`, `tests/throwSites.test.ts`, `tests/ctcourse/a5Substation.test.ts`, `tests/ctcourse/a8Strongroom.test.ts`, `tests/ctcourseGreybox.test.ts`, `tests/tallowWharf/w2.test.ts` (unchanged with no sites yet) |
 | D0 | none (docs); the validator runs in its detail, saved |
 | G0 | `tests/tallowWharf/shell.test.ts`, `tests/tallowWharf/levelGap.test.ts` |
+| MB | `tests/sectorBolt.test.ts`, `tests/sectorBoltPair.test.ts`, `tests/sectorPairGate.test.ts`, `tests/tallowWharf/sectors.test.ts` |
 | G1 / G2 / G3 / G4 | its `tests/tallowWharf/w<n>.test.ts` + `tests/tallowWharf/shell.test.ts`; G2 also `tests/tallowWharf/sectors.test.ts` and `tests/throwSites.test.ts` |
 | D1 | `tests/tallowWharf/` (all; a graph-to-code text test may read the graph) + the validator runs above |
 | S1 | `tests/shutterWiring.test.ts`, `tests/kit/shutter.test.ts`, `tests/kit/registry.test.ts`, `tests/kitNet.test.ts`, `tests/tallowWharf/shell.test.ts` |
@@ -900,8 +1074,8 @@ Affected suites (polish 1, master `scripts/e2e-affected.mjs`): `src/world/maps/t
 cover the rest.
 - **PR T:** affected (`src/game/` and `src/world/` as above) plus `e2e-coop e2e-netmove e2e-ctcourse` (the host landing
   check moves; Marlow Yard's throw drills must be unchanged) and `e2e-sectorops:wharf-tgc e2e-sectorops:wharf-tkl`.
-- **PR G1:** affected plus explicitly `e2e-sectorops:wharf-tgc e2e-sectorops:wharf-tkl e2e-sectorops:mission`; and the
-  look videos (section 10).
+- **PR G1:** affected plus explicitly `e2e-sectorops:wharf-tgc e2e-sectorops:wharf-tkl e2e-sectorops:mission`, and
+  (fix round 3, MB's team-door change in `src/game`) `e2e-coop e2e-netmove`; and the look videos (section 10).
 - **PR G2:** the same set (E8 is in it), plus `e2e-coop e2e-netmove` (the site throws run through the co-op request).
 - **PR S:** affected (`src/game/kit/` and `src/game/` as above; `src/world/` as above), the RULES gate for `src/game`
   (`e2e-coop e2e-netmove`, the checker passes only when green), and `e2e-sectorops:wharf-tgc e2e-sectorops:wharf-tkl
@@ -913,7 +1087,8 @@ cover the rest.
   Michael's words, gates, claims, sizes.
 - **PR T** (TD): two independent fresh Opus checkers (the host's landing check in `checkTeamRequest` changes; lead
   ruling fix 1). Player Build is offered one of them through the orchestrator, not blocking.
-- **PR G1** (LP, D0, G0, G1, G3): one fresh Opus checker (the batch fixes hard rule 2 / Q2 / Q3; Sonnet is not enough for
+- **PR G1** (LP, D0, G0, MB, G1, G3): one fresh Opus checker, who also reads MB's team-door wiring (host and client)
+  (the batch fixes hard rule 2 / Q2 / Q3; Sonnet is not enough for
   the lighting judgement).
 - **PR G2** (G2, G4, E8, D1, P1): one fresh Opus checker (forced gates, gate reach, the validator output, the pages
   against D1). A G2 FIX gets its fix round from Opus (RULES).
@@ -923,9 +1098,10 @@ cover the rest.
 - Verdicts as commit statuses on the checked head (`context=checker`, "Opus PASS" / "Opus FIX").
 
 ## 10. Gates
-- **J8 gate (FOLDED):** master's validator 0 ERR (map, map + TGC, map + TKL) and the mission-validator 0 ERR on the map
-  (A22; the two named throw-gap lines, links 28 and 33, excepted until J12's S7a / S7b land; the pie link 29 has no
-  exception), saved under `docs/tallow-fixes/val/`; D0's
+- **J8 gate (FOLDED):** master's validator 0 ERR (map, map + TGC, map + TKL, and map + TKL with the A30 bulkhead link
+  bolted) and the mission-validator 0 ERR on the map (A22; the two named throw-gap lines,
+  `w2-pawn-loft>w2-reading-room` and `w2-arcade-roof>w3-roof`, excepted until J12's S7a / S7b land; the pie link
+  `w2-pie-loft>w2-clock-loft` has no exception), saved under `docs/tallow-fixes/val/`; D0's
   run saved before wave 1 (RULES Intake 5); plan checker PASS; PR T (two), PR G1 and PR G2 checker PASS; laptop sets
   green.
 - **Look videos (RULES "Walk pacing", check fix 11):** PR G1 and PR G2 re-light every section, so each carries a 1-2 min
@@ -973,17 +1149,24 @@ parameter (expected `kitmoves=`; its PR names it).
   bridge gate for the other - accept when neither can be skipped solo, the long throw looks believable, and nobody is
   stuck on either side. Leave out the pie loft gap: it is still the normal short throw and one player can still jump it
   until the plank bridge comes (your pick); its door into the reading room is locked, so jumping it gets you nowhere.
+  One catch until then (fix round 3, polish 6): in Three Grey Coats, after a broken rule Teale moves to the clock loft
+  ("He moves"), and the only way to him is over this pie gap (his door is locked and the east bridge opens only from
+  the clock loft), so that retry can be done by one player alone until the plank bridge comes.
 - The reading room's stair door now only opens from inside (A25): the way in is the throw - accept when that reads as a
   locked library at night.
 - Three Grey Coats, the reading room (changed since the page you signed): the one questioning Teale can now leave
   quietly over the west lightwell bridge, opening its gate, or down the lit stair; once that gate or the stair door is
   open, the partner can walk in and question Teale together - accept when that still feels like the mission you signed.
 - The clock-mender's door is locked tonight (he is out) - accept when the clock loft reads as a locked workshop.
-- If the lead takes D0's defaults: in the night market a caged ladder up to the gallery by the canal steps, its gate
-  bolted at the top (the one on the gallery opens it for the other); in the counting house yard the fire escape comes
-  down beside the east gate - accept when both look like they belong there.
-- The fire-escape bridge over the lane is now a closed cage, its door at the counting-house end - accept when it reads
-  as an escape bridge, not a way round the throw.
+- In the night market a caged ladder up to the gallery by the canal steps, its gate bolted (the one on the gallery
+  opens it for the other); in the counting house yard the fire escape comes down beside the east gate - accept when
+  both look like they belong there.
+- The fire-escape bridge over the lane now has tall solid sides (open above), its door at the counting-house end -
+  accept when it reads as an escape bridge, not a way round the throw.
+- The counting house roof stair (fix round 3, A30): in Two-Key Ledger its door at the bottom is bolted from inside
+  (the porter locks up; staff are in tonight), so whoever does not drop through the lantern goes down the yard fire
+  escape to the east gate; in Three Grey Coats the house is empty, the stair is open, and you cross as on the page you
+  signed - accept when both feel right.
 - The scale-sheet wording for the long throw ("a gap of at most 4.9 m, only at the two named spots") - accept the
   wording, or say how it should read.
 - Shutters: alone it will not open; one holds, the other crawls; a guard facing it comes to look - accept when both
@@ -996,16 +1179,27 @@ parameter (expected `kitmoves=`; its PR names it).
 - **Guard AI Build:** S2 review (one of PR S's two checkers); the route-runs cause record (G1) may add a "shutter"
   cause next to the door notice; G6 waits for J15's `lookouts` and pairs; PB's "guards notice a laid plank" hook (A13).
 - **Marlow Build:** J12 must accept the kit kinds, keep gate reach on throws and pulls, and give spaces a light-type
-  field (D1 uses `note` until then); the G157 level-design text (J8 plans to the adopted wording). TV is unblocked by
-  M2 and is J12 A27 (S7a / S7b: `exception: "long_throw"`, the 4.9 m cap, spots = links 28 and 33, checked); the
-  sheet row's wording goes to Michael on the walk card; tell Marlow that D0 deletes link 30 (A29), so the C5 link
-  becomes 32 (its spots match by name); J12's `plank_bridge` kind (A25) is PB's (A13). Marlow Yard's throw drills are
+  field (D1 uses `note` until then); the G157 level-design text is on master (140a22fbb; J8 cites its numbers,
+  section 1). TV is unblocked by
+  M2 and is J12 A27 (S7a / S7b: `exception: "long_throw"`, the 4.9 m cap, spots `tallowWharf:w2-pawn-loft>w2-reading-room`
+  and `tallowWharf:w2-arcade-roof>w3-roof`, checked); the sheet row's wording goes to Michael on the walk card, and
+  Campaign Build tells Marlow so J12 A27 says the same (M2 approves the spots, the walk card the wording; polish 3);
+  tell Marlow that D0 deletes link 30 (A29), so the C5 link becomes 32 (its spots match by name); J8's graph adds a
+  link field `bolted_in` (A30) that today's validator ignores: J12 may read it later (a mission run treats the link as
+  bolted); J12's `plank_bridge` kind (A25) is PB's (A13). Marlow Yard's throw drills are
   unaffected by TD (no sites; its tests and `e2e-ctcourse` are in PR T's run).
 - **J7 (BEAT owner; same lead, `docs/missions/prototypes/*/BEAT.md`, J7 R1 / PR D):** P1's TGC step-3 line (way in,
   way out, joint questioning, the locked clock door, check fix 3) for the BEAT's roles section; D0's ruled split
   defaults as BEAT lines (TGC: A unbolts the gallery ladder gate for B; TKL: none if the G3 route line is taken, the
   overwatch-wait line if not); Teale's spook point stays in the clock loft (respawn, no walk), and its story line ("he
-  let himself in with the clock-mender's key") is J7's call.
+  let himself in with the clock-mender's key") is J7's call. A30 (fix round 3): TGC's crossing and the comment at
+  `tallowWharfMissions.ts:23` stay as written (no edit); for TKL's BEAT W3 rows, one line if J7 wants it: "the roof
+  stair's foot door is bolted tonight (the porter's lock-up), so B's way down is the yard fire escape". MB's one
+  `sectorMode.ts` line (`team.build(this.mission?.def.id)`) is ordered with J7 R6 (section 4).
+- **Route-runs (J13):** W3's declared routes avoid the bulkhead (route 1 now goes by the lantern, A30), so no bot meets
+  the TKL bolt; when J13 plans from the graph, a link with `bolted_in` counts as bolted in the missions it names. Found
+  in passing: route 2 crosses the east gate, a keypad with TKL's code, so in a TGC run it is shut and the bots take
+  the lodge door beside it (`w3.test.ts:221`); this predates J8.
 - **Player Build:** the plank move's length and seat rules for PB (A13, A28's east-half rule).
 - **Sector Ops Build (light-realism):** LP uses research/bands.md as drafted; ask them for L3-H `tallow.md` or accept LP
   as its stand-in; S1 asks before any `lightField.ts` / `lampBake.ts` edit; L0's `lux-grid.mjs` feeds LM / GBM.
@@ -1030,6 +1224,11 @@ parameter (expected `kitmoves=`; its PR names it).
 - **The pie gap stays solo-jumpable until PB** (M2): a lone player reaches only the clock loft (A29 locks its door);
   after a broken rule Teale respawns there, so the retry route through the pie loft is not yet forced. Flagged on the
   walk card and in its test; PB closes it.
+- **A30 adds engine data** (MB: a mission-scoped bolt in `src/game`): small, but it touches `sectorMode.ts` beside J7
+  R6 and shared Sector Ops files. If the lead or PR G1's checker rejects it, A30's undo is the fallback (no bulkhead
+  bolt: TKL's B may walk the roof stair into the east wing, as the lodge and sash already allow; tkl-2 still needs the
+  keypad with the code). If the bolt's door lookup ever finds the roof leaf (a build-order change), G2's foot-leaf test
+  fails first.
 - **D0's split defaults add geometry** (the gallery ladder, the moved fire escape): the lead rules before wave 1;
   rejected, the fallbacks are written (D0) and the TKL one leaves one split ERR for the orchestrator.
 - **Fall-ins after widening:** the lightwell drain and the lane keep a way out; G2's tests assert it.
@@ -1046,9 +1245,13 @@ parameter (expected `kitmoves=`; its PR names it).
 
 ## 15. Open questions for the lead
 Answered (lead answers below and the fix-round rulings); A1 and A24's one-clicks answered by Michael ~20:45 (M1, M2).
-Open after fix round 2:
-- D0's split defaults (section 6 D0: the TGC gallery ladder and legs, the TKL measured legs and moved fire escape):
-  the lead rules before wave 1.
+Open after fix round 3:
+- D0's split defaults: ruled ~21:40 (both adopted; rulings appendix).
+- **A30's form (new, fix round 3).** The ~22:10 ruling preferred a TKL-only bolt through existing per-mission door
+  data, else the cheapest map-wide alternative that keeps the TGC crossing. No per-mission door state exists, and no
+  map-wide state keeps TGC's crossing and stops a lone B (section 2, A30), so the plan takes the mission-scoped bolt as
+  a new ~60-line Opus slice (MB, PR G1, wave 0), under the ~80-line limit. The lead confirms MB, or takes A30's undo
+  (no bulkhead bolt) as the map-wide fallback, before the wave-0 briefs go out.
 - `EGRESS.md`'s north-range row: is the bridge route to the south lofts' fire stair a second staircase under 16.2.7, or
   does G2 add the clock loft back stair? (LP proposes; Marlow, as the level-design owner, may rule.)
 
@@ -1259,10 +1462,30 @@ J12 A27 (`exception: "long_throw"`, a 4.9 m gap cap) replaces round 1's `throw_d
   question before it). Wave 1 is unblocked by this ruling once the fresh re-check passes.
 - A29 (clock-mender's door locked both sides until the plank): adopted; if the build finds a solo breach, the brief's
   wall-it-up fallback applies with no further ruling.
-- TKL roof bulkhead stair (`w3-roof -> w3-east-wing`, not bolted) letting B skip the east-gate keypad: closed in G3
-  as A30: the bulkhead door is bolted from the east-wing side (push bar inside, so it is an exit from the wing, never
-  a way in from the roof), mirroring A25. D0 / D1 add the `bolted` state to that link; G3's test asserts a lone
-  player on the roof cannot reach the east wing. Not a J7 rule change.
+- TKL roof bulkhead stair (`w3-roof -> w3-east-wing`, not bolted) letting a lone B skip the yard and the east gate
+  (ruling of ~22:10, replacing the ~21:40 map-wide bolt, which broke the TGC crossing Michael signed, TGC SIGNOFF
+  :30-31, and W3 route 1): A30 as rewritten in section 3. The bulkhead's **foot** leaf is bolted from the
+  **east-wing side** in Two-Key Ledger only (the porter's lock-up), through a new mission-scoped bolt field
+  (`SectorBolt.missions`, slice MB, Opus, PR G1, ~60 lines; no per-mission door state existed and no map-wide state
+  keeps TGC's crossing); the `W3_BOLTS` entry is G2's (`tallowWharfSectors.ts`), the foot's `DOORS` entry and the
+  bulkhead tests G3's; W3 route 1 goes by the lantern; the graph link stays unbolted with `bolted_in:
+  ["twoKeyLedger"]`. In Three Grey Coats the stair is a plain door and the signed crossing is unchanged. Not a J7 rule
+  change. Fallback if MB is rejected: no bulkhead bolt (A30's undo).
 - Link renumbering: D0 deletes link 30, so the C5 throw becomes link 32. Campaign Build tells Marlow (J12 matches
   spots by `map:from>to`).
 - PR sizes G1 ~1,030 and G2 ~1,080 lines: accepted (under the ~1.5k cap).
+
+## Fix round 3 (Opus planner, 2026-10-25 ~22:20; plan check 3 and the lead's ~22:10 rulings)
+Later rulings win over earlier text where they differ: the ~21:40 map-wide A30 is withdrawn (rulings appendix, in
+place); A30 in section 3 is the replacement. PR sizes grow to G1 ~1,130 and G2 ~1,100 (both under ~1.5k).
+
+| Check item | Answered in |
+| --- | --- |
+| Fix 1 A30 unbuildable as ruled, breaks route 1, a W3 test and the signed TGC crossing | Section 2 "The W3 roof bulkhead" (leaves, link 36 / 35, no per-mission door state, no map-wide answer); **A30** in section 3 (TKL-only bolt on the foot leaf, wing side; story; purpose; field `SectorBolt.missions`; owners MB / G2 / G3; route 1 by the lantern, route 2's points; graph `bolted_in` + a TKL-state run; tests; EGRESS; undo = map-wide fallback); section 4 claims (MB's files, J7 overlaps, claims-check rerun pending); sections 5, 7, 8, 9 (MB in PR G1, wave 0, Opus, laptop `e2e-coop e2e-netmove`); section 6 MB / G2 / G3 / D0 / E8 rows and details; LP's EGRESS W3 row; D0 TKL leg line; D1 fourth run; P1 TGC and TKL pointer lines; section 10 gate; section 12 walk item; section 13 J7, Marlow and J13 lines; section 14 risk; section 15 (the lead confirms MB or the fallback); rulings appendix; BRIEF A30 |
+| Fix 2 cage roof and west bridge roof vs the level-and-drop check | A28: the cage is open-topped (sides at least 1.9 m over the deck, thinner than `climbDepth`, no roof); the west bridge roof keeps only the provable options (stage west edge at about x 50.1 or more, or a 1.9 m `noLedge` screen); A5: the bridge roofs are reachable tops covered by A28 (the roofs stay, so nobody drops in behind a gate); G2 detail and done line; LP's brief picks; walk item wording; BRIEF A5 / A28 |
+| Polish 1 G157 on master | Section 1 header: master's `level-design.md` numbers (3.1, 3.10, 5.6, 6.1, 6.2, 6.4, 11.11, 15, 16.2.7) |
+| Polish 2 link "33" | A22, TV, D0 row and detail, D1, section 10, section 13: spots named `from>to`; numbers only as "today 28 / 33, after D0 28 / 32" |
+| Polish 3 J12 A27 vs J8 A24 on M2 | A24 and section 13 Marlow line: Campaign Build tells Marlow; M2 approves the spots, the walk card the row's wording |
+| Polish 4 G1 gallery ladder | G1 row and detail: top gate only if a first test shows a shut top gate neither strands nor ejects the climber, else the foot inside the cage; `soloLevelThreats` / `soloJumpThreats` for the gallery edge from the ladder top and cage; 16.2.6 citation (exterior deck, the lamp trimmer's ladder; 16.2.1 does not bind); LP's brief names the result |
+| Polish 5 A29 renumbering | A29: no saved mission (G147) can carry the old numbers (`missions` off until the walk) |
+| Polish 6 pie gap under "He moves" | Section 12 throws item: after a broken rule the only way to Teale is the pie gap, so that retry can be done alone until the plank |
