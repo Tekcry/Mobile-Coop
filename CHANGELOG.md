@@ -1,5 +1,11 @@
 # Changelog
 
+## 4.103.0 - Train 95: Animation tuner clarity (2026-10-25, PR #431; #430)
+- The animation tuner now shows whether each setting changes the motion-captured animation, the hand-made one, or both.
+- It shows what is playing now, for example "Now playing: motion-capture walk", under the tabs and in the Anim Studio.
+- It warns for a few seconds when an edit changes nothing on screen, and says which setting does work instead. Turn this off in More > Panel.
+- The Keys tab has Left leg and Right leg parts, with "foot twist, toes out" and "shin twist" rows for each leg.
+
 ## 4.102.6 - Train 94: Doc guard; Doc hygiene (2026-10-25, PR #429; #400, #425)
 
 ### Doc guard
