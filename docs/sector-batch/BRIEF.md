@@ -7,7 +7,8 @@ from origin/master b81c4945 (train 96). FOLDED-PLAN (origin/feature/menu `docs/o
 J18, "Sector Ops batch: stars fill lower (row 12), Perfect label, menu stars, solo-route data check, door light at 15%,
 visual-gate fixes, warehouseOps S3 crawl duct". Sources: Sector Ops CONFORMANCE M7 M12 M15-M17 L15 L18 V13-V15 V17
 (`docs/conformance-sector-ops/CONFORMANCE.md:121-155`), Guard AI B10 (`docs/conformance-guard-ai/CONFORMANCE.md:60`),
-Player R20 (`docs/conformance-player/CONFORMANCE.md:59`). Depends on J1 (PR #433, `feature/sector-ops-docs`, open).
+Player R20 (`docs/conformance-player/CONFORMANCE.md:59`). Depended on J1 (PR #433, `feature/sector-ops-docs`): merged
+in train 99 (origin/master 01aa415c).
 Gate: affected-e2e + checker. Question: Q20 (answered). Sector Ops is at the walk cap (3 unwalked): new player-facing
 behaviour builds dark behind a flag; rule fixes to shipped features ship as fixes (G355; RULES "Walk pacing").
 
@@ -22,9 +23,13 @@ behaviour builds dark behind a flag; rule fixes to shipped features ship as fixe
 4. Solo-route data check: a test that every Saltmarsh Park section with team doors keeps a declared route past them
    that no team door blocks (M17, G280). Today `checkSectors` checks a bolt's side and a pair gate's switches only
    (`src/game/sectors.ts:548-571`); `SectorRoute` has no solo mark (`:73-78`).
-5. Door light at 15%: a door passes light only past 15% open (L15, G41). Today `DOOR_SHUT` is 0.05
+5. Door light at 15%: one door threshold for light (L15, G41). Most of G41's 15% is built: a stick-driven door under
+   `DOOR.driveShut` 0.15 keeps `open` 0, shut to the body, light and sight (`src/world/doors.ts:51-53`, `drive()` :253;
+   `docs/systems/ai.md:11-13`, `docs/systems/movement.md:30`), and a peek crack never moves `open`
+   (`tests/doors.test.ts:23-31`). Left: the light field's own cut for a swinging leaf, `DOOR_SHUT` 0.05
    (`src/world/lightField.ts:29`), read by the field (`:443`), the bake's shut flags (`src/world/bakedLamps.ts:584`) and
-   the torch shadow set (`src/world/torchShadowSet.ts:191`).
+   the torch shadow set (`src/world/torchShadowSet.ts:191`). At 0.15 it changes only the first 5-15% of an ordinary open
+   or close (about a tenth of a second) and makes the two thresholds one number.
 6. Downed with nobody to revive (M12, Q20): after 30 s the player is out and waits for the next section door; the team
    plays on. Today an operator out restarts the section for everyone (`src/net/coopHost.ts:571-581` ->
    `src/game/modes/sectorMode.ts:1333-1338`).
@@ -101,12 +106,20 @@ G280, G331, G146, G41, G385; RULES "Walk pacing", "A job" (Opus writes `src/net`
 - A9 The check does not judge co-op traversal moves on a route (routes do not mark them); the LD 11.6 lip tests
   (`tests/helpers/soloJumpReach.ts`) and J17's lane tests cover those.
 - A10 Door light only: `DOOR_SHUT` becomes 0.15 for the light field, the bake's shut flags and the torch shadow set
-  (one constant, so the meter, the picture and the torch light agree). Guard sight through a door
-  (`src/ai/doorGate.ts` `DOOR_GATE.pass`) and sound stay as they are: sent to the orchestrator for Guard AI (J15). A
-  peek crack (`DOOR_CRACK.crack` 0.12) now stops light. The thermal ghost's "fully shut" (`src/vfx/thermalGhost.ts:24`,
-  a vision effect) is unchanged. Undo: 0.05.
-- A11 No GPU look run for the door change: only leaves between 5% and 15% open look different; the gate's door rigs
-  shoot shut doors. Undo: a rig run with the leaf at 0.1.
+  (one constant, so the meter, the picture and the torch light agree), equal to `DOOR.driveShut` (a test pins them).
+  The peek crack and the stick-driven door already keep `open` 0 and are unchanged. The only part of G41 not at 15%,
+  sent to the orchestrator for Guard AI (J15): guard sight and the hearing wall ray hit the door's collision body
+  (`SIGHT` / `HEARING` include `G.STATIC`, the door's membership: `src/physics/groups.ts:35-37`, `:61-62`), which goes
+  at the first frame of an ordinary open (`Doors.open`, `src/world/doors.ts:224`), so on a hand or guard open sight and
+  sound pass from 0%, not 15%. `DOOR_GATE.pass` 0.5 (`src/ai/doorGate.ts`) is a guard walking through, not sight, and
+  stays. The thermal ghost's "fully shut" (`src/vfx/thermalGhost.ts:24`, a vision effect) is unchanged. The docs that
+  call the light cut 0.05 or the 15% "not built" are corrected in the same slice: `docs/systems/lighting.md:26-27`,
+  `docs/systems/ai.md:12-13`, `docs/systems/world-and-characters.md:41-47`, and `docs/level-design.md:351-352` (an
+  engine fact in Section 12: CLAUDE.md has the code change update it and list the map decisions that relied on it; the
+  list goes to Marlow Build). Undo: 0.05 and the old doc lines.
+- A11 No GPU look run and no walk item for the door change: only the first 15% of an ordinary swing changes (about a
+  tenth of a second of a hand or guard open or close); a crack and a stick-driven door were already dark, and the
+  gate's door rigs shoot shut doors. Undo: a rig run with the leaf at 0.1.
 - A12 Q20 as built (G385): a downed player not revived within 30 s (`REVIVE_WINDOW`, unchanged) or with no syringe left
   is out; the team plays on; when the connector's cycle completes (its far door unlocks) every out player comes back on
   the connector's checkpoint slots. Everyone else down, or solo, restarts the section as now (G188). Undo: flag off.
@@ -118,9 +131,10 @@ G280, G331, G146, G41, G385; RULES "Walk pacing", "A job" (Opus writes `src/net`
   cycle while he is down outside, so this case needs him inside or out).
 - A15 The out player's HUD reads "OUT - wait for the checkpoint" on the host and the client (the connector is the next
   checkpoint); the camera stays where it is. A spectator view of the team goes on the polish list. Undo: the text.
-- A16 Two PRs: PR A `feature/sector-batch` (slices B1-B3, fixes, one checker) and PR B `feature/sector-batch-out`
-  (slice B4, `src/net`: two Opus checkers and the co-op suites), so the net review never holds the fixes. The later of
-  the two carries `Job-done: sector-batch`. Undo: one PR.
+- A16 Three PRs: PR A `feature/sector-batch` (slices B1-B2, fixes, one checker), PR B `feature/sector-batch-out`
+  (slice B4, `src/net`: two Opus checkers and the co-op suites), so the net review never holds the fixes, and PR C
+  `feature/sector-batch-light` (slice B3, A23, one checker). The last of the three to land carries
+  `Job-done: sector-batch`. Undo: one PR.
 - A17 B4 is built by Opus (RULES "A job": Opus writes `src/net` code) from a strict brief like the Sonnet ones.
 - A18 The visual-gate fixes are a slice of the visual-gate job: branch `feature/sector-batch-vg` cut from
   origin/feature/visual-gate, merged back by the lead, landing with that job's stacked PRs (its A33), not in PR A or B.
@@ -137,3 +151,8 @@ G280, G331, G146, G41, G385; RULES "Walk pacing", "A job" (Opus writes `src/net`
 - A21 The so-corner rig stands on warehouseOps: a test reading the frozen map is not work on it (Q26 holds).
 - A22 The warehouseOps S3 crawl duct (P R20, `src/world/maps/warehouseS3.ts:355-378`) is dropped by Q26 "Freeze it".
   Undo: if Michael unfreezes the map, a duct job (crouch-walk or a short end), Sector Ops.
+- A23 (plan check 1) B3 is cut from origin/master, not from `feature/sector-batch` (b81c4945), and is its own PR C: on
+  b81c4945 the G41 bullet `docs/systems/lighting.md:26-27` sits right above the G45 bullet that #433 changed on master
+  (:28-31, train 99), and a branch from b81c4945 that edits :26-27 conflicts with master (checked with
+  `git merge-file`). The other PR A files have no master change next to B1 / B2's lines. Undo: B3 back into PR A once
+  `feature/sector-batch` is cut again from a master that has #433.
