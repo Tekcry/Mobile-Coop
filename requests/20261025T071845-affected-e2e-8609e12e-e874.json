@@ -1,0 +1,19 @@
+{
+  "id": "20261025T071845-affected-e2e-8609e12e-e874",
+  "sha": "8609e12e6b6e01625173dfa9355405828fb30369",
+  "branch": "feature/marlow-objective-place",
+  "pr": 441,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-ctcourse",
+    "e2e-desktop",
+    "e2e-feedback",
+    "e2e-menus",
+    "e2e-pad",
+    "e2e-park",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #441"
+}
