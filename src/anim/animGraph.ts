@@ -40,7 +40,7 @@ import {
 } from './clips/locomotion';
 import { CLIP_RATE, DROP, GRENADE, LAND, LAND_DEEP, MANTLE, PIVOT, reloadClipFor, START_SHIFT, STEP_UP, STOP_SETTLE, swapClipFor, VAULT, type SwapReach } from './clips/actions'; // (clip-speed, track A) CLIP_RATE
 import { CLIP_BASE, clipSpeed } from './tuneClipSpeed'; // (clip-speed, track A)
-import { airPoseW, CLIMB, CLIMB_UP, CLIMB_UP_TEAM, CRAWL, CRAWL_OUT, HANG, LAND_ABSORB, landDeep, landLight, mantlePlant, PIPE_CLIMB, BRACE, PIPE_INVERTED, PIPE_LEGS_UP, RAPPEL_HANG, ROLL, rollBody, SPLIT_BRACE, splitBreath, VENT_DROP, WALL_KICK, WINDOW_VAULT, type MantlePlantOut, type RollBodyOut, type SplitBreathOut } from './clips/traverse';
+import { airPoseW, CLIMB, CLIMB_UP, CLIMB_UP_CROUCH_K, CLIMB_UP_TEAM, CRAWL, CRAWL_OUT, HANG, LAND_ABSORB, landDeep, landLight, mantlePlant, PIPE_CLIMB, BRACE, PIPE_INVERTED, PIPE_LEGS_UP, RAPPEL_HANG, ROLL, rollBody, SPLIT_BRACE, splitBreath, VENT_DROP, WALL_KICK, WINDOW_VAULT, type MantlePlantOut, type RollBodyOut, type SplitBreathOut } from './clips/traverse';
 import { hyp2 } from '../core/mathx';
 import { emptyActionWeights, type TuneActionWeights } from './tuneMoveRows';
 import { effortSpeed } from './effort';
@@ -56,6 +56,7 @@ import { KEYED_GLIDE_STRAFE } from './clips/keyed/glide_strafe';
 import { KEYED_GLIDE_BACK } from './clips/keyed/glide_back';
 import { studioDriveTargets, type StudioDrive } from './studioDrive';
 import { MOVE_IDS, newGraphPlaying, type GraphPlaying } from './nowPlaying'; // (tuner-clarity S1)
+import { HANG_IDLE_SECONDS, SHIMMY_SPEED, SHIMMY_TRAVEL, STAND_FADE, WREN_TRAV } from './mixamo'; // (mixamo-retarget I2)
 import { bodyMotionBands, bodyMotionStep, KEY_MOTION, newBodyMotion, newBodyMotionIn, scaleKeyedArms, type BodyMotion } from './bodyMotion';
 import { KEYED_SNEAK } from './clips/keyed/sneak';
 import { KEYED_CROUCH_WALK } from './clips/keyed/crouch_walk';
@@ -710,6 +711,15 @@ export class AnimGraph {
   readonly playing: GraphPlaying = newGraphPlaying();
   /** (mixamo-retarget M5) The traversal clip this frame's pose played (null: none), for `playing.trav`. */
   private travNow: Clip | null = null;
+  /** (mixamo-retarget I2) The traversal kind before the current climb-up ('hang' a lip, 'climb' a ladder). */
+  private travFrom: TraverseKind = 'none';
+  /** (I2) The hang: a lip's pendulum seen (a pipe hang's time stays 0), the shimmy's weight and direction (0 left .. 1
+   *  right), the hanging idle's and the shimmy's clocks (0..1). */
+  private hangLip = false;
+  private hangMoveW = 0;
+  private hangDir = 0.5;
+  private hangIdleT = 0;
+  private shimT = 0;
   /** Final pose (after inertialization) and the pre-inertialization source. */
   readonly pose: Pose = newPose();
   private src: Pose = newPose();
@@ -1259,9 +1269,12 @@ export class AnimGraph {
     if (i.traverse !== 'none') {
       // (ct-prototype D+E fix r1) a team climb-up (no ledge grips) keeps the old one-rise clip
       const tc = i.traverse === 'climbUp' && !i.ledgeClimb ? CLIMB_UP_TEAM : TRAVERSE_CLIP[i.traverse];
-      this.travNow = tc; // (mixamo-retarget M5) for `playing.trav` (display only)
-      // cycles (climb, crawl) wrap the cadence clock; committed moves clamp their progress
-      overClip(src, tc, tc.loop ? i.traverseT - Math.floor(i.traverseT) : clamp(i.traverseT, 0, 1), 1);
+      // (mixamo-retarget I2) Wren with a Mixamo capture in the slot plays it (`mixamo.ts`); else the hand-made clip
+      if (!(WREN_TRAV.any && this.wrenReady && this.mixamoTrav(src, i, tc, dt, k))) {
+        this.travNow = tc; // (mixamo-retarget M5) for `playing.trav` (display only)
+        // cycles (climb, crawl) wrap the cadence clock; committed moves clamp their progress
+        overClip(src, tc, tc.loop ? i.traverseT - Math.floor(i.traverseT) : clamp(i.traverseT, 0, 1), 1);
+      }
       this.slot(i.traverse, 1, i.traverseT);
       if (i.traverse === 'mantle') {
         // (anim-n4b, PASS2 row 61) the hands plant on the top edge (`mantlePlant`, put over the hanging hands below) and
@@ -1290,7 +1303,17 @@ export class AnimGraph {
       if ((i.traverse === 'split' || i.traverse === 'pipeInv' || i.traverse === 'rappel') && i.raise > 0) src[CH.grip] = Math.min(1, i.raise * 1.5);
     }
     if (i.traverse !== 'split') this.splitT = 0;
-    this.airT = i.grounded || i.traverse !== 'none' ? 0 : this.airT + dt;
+    // (mixamo-retarget I2) the kind a climb-up started from (a lip hang, a ladder) and the hang's clocks: read only by
+    // `mixamoTrav`, so the hand-made path is unchanged
+    if (i.traverse !== 'climbUp') this.travFrom = i.traverse;
+    if (i.traverse !== 'hang') {
+      this.hangLip = false;
+      this.hangMoveW = 0;
+      this.hangDir = 0.5;
+      this.hangIdleT = 0;
+      this.shimT = 0;
+    }
+    this.airT =i.grounded || i.traverse !== 'none' ? 0 : this.airT + dt;
     // (anim-n4b fix) a fall straight out of a wall-front hold (a ladder, a drainpipe, a hang, ...) keeps the legs under the
     // body; a fall from anything else (a walk off a ledge, a jump) leads with them ('drop' keeps it: the vent drop's lower
     // ends in it, and a walk off a ledge starts grounded)
@@ -2883,6 +2906,72 @@ export class AnimGraph {
     this.mCarry = CF.valid || o.gait.duty !== want;
     this.mDutyGait = o.gait.duty;
     this.mPh = o.gait.phase;
+  }
+
+  /**
+   * (mixamo-retarget I2) A Wren traversal frame from the resolved Mixamo table (`WREN_TRAV`, `mixamo.ts`): plays the
+   * slot's capture (a null slot: its hand-made clip), sets `travNow` and returns true; false when every slot this kind
+   * uses is hand-made (the caller plays `tc` as before). Allocation-free.
+   * - hang: the hanging idle on its own clock, the shimmy left / right over it by the pace along the lip (the direction
+   *   from the pendulum: the hips trail the hands, so a swing to the left is a shimmy to the right); a pipe hang (no
+   *   pendulum) keeps the hand-made clip when moving.
+   * - ladder / vent crawl: the capture on the hand cadence.
+   * - a lip climb-up: the climb to the crouch, then the stand-up end faded in past `CLIMB_UP_CROUCH_K`; a ladder's
+   *   top-out: its capture on the same progress. A drainpipe's or a team climb-up stays hand-made.
+   */
+  private mixamoTrav(src: Pose, i: AnimInput, tc: Clip, dt: number, k: number): boolean {
+    const W = WREN_TRAV;
+    const t = i.traverseT;
+    if (i.traverse === 'hang') {
+      if (W.hangIdle === null && W.shimmyL === null && W.shimmyR === null) return false;
+      const swing = t - Math.floor(t);
+      if (t !== 0) this.hangLip = true;
+      const S = SHIMMY_SPEED;
+      this.hangIdleT = (this.hangIdleT + dt / HANG_IDLE_SECONDS) % 1;
+      this.shimT = (this.shimT + (i.speed * dt) / (SHIMMY_TRAVEL * k)) % 1;
+      this.hangMoveW = approach(this.hangMoveW, i.speed > S.on ? 1 : 0, S.fade, dt);
+      if (this.hangLip && i.speed > S.on && Math.abs(t) > S.swing) this.hangDir = approach(this.hangDir, t < 0 ? 1 : 0, S.dirFade, dt);
+      const mv = this.hangMoveW;
+      const r = this.hangDir;
+      const sl = this.hangLip ? W.shimmyL : null;
+      const sr = this.hangLip ? W.shimmyR : null;
+      // the idle, then left and right over it (sequential blends: their shares come out mv x (1 - r) and mv x r)
+      const b = mv * r;
+      this.hangPart(src, W.hangIdle, this.hangIdleT, swing, 1);
+      this.hangPart(src, sl, this.shimT, swing, b < 1 ? (mv - b) / (1 - b) : 0);
+      this.hangPart(src, sr, this.shimT, swing, b);
+      this.travNow = (mv < 0.5 ? W.hangIdle : r < 0.5 ? sl : sr) ?? tc;
+      return true;
+    }
+    if (i.traverse === 'climb' || i.traverse === 'crawl') {
+      const c = i.traverse === 'climb' ? W.ladder : W.crawl;
+      if (c === null) return false;
+      overClip(src, c, t - Math.floor(t), 1);
+      this.travNow = c;
+      return true;
+    }
+    if (i.traverse !== 'climbUp' || !i.ledgeClimb) return false;
+    const kk = clamp(t, 0, 1);
+    if (this.travFrom === 'climb') {
+      if (W.ladderTop === null) return false;
+      overClip(src, W.ladderTop, kk, 1);
+      this.travNow = W.ladderTop;
+      return true;
+    }
+    if (this.travFrom !== 'hang') return false;
+    const a = W.climbUpCrouch ?? CLIMB_UP;
+    const b = W.climbUpStand ?? CLIMB_UP;
+    if (a === CLIMB_UP && b === CLIMB_UP) return false;
+    overClip(src, a, kk, 1);
+    const sw = b === a ? 0 : smoothstep((kk - CLIMB_UP_CROUCH_K) / STAND_FADE);
+    overClip(src, b, kk, sw);
+    this.travNow = sw > 0.5 ? b : a;
+    return true;
+  }
+
+  /** (I2) One part of the hang at weight `w`: its capture at `t`, or (null) the hand-made HANG on the pendulum. */
+  private hangPart(src: Pose, c: Clip | null, t: number, swing: number, w: number): void {
+    if (w > 0) overClip(src, c ?? HANG, c ? t : swing, w);
   }
 
   /** (anim-bake-1022) This rig's rifle low ready and pistol low ready (`wrenReady` swaps the references, set once). */
