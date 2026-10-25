@@ -14,19 +14,25 @@ not change what a camera sees. Lights matter for guards and the meter only. (cam
 rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security cameras).
 
 ## Decided direction
-- Decided, not built yet (G329, "Real-world levels"): each space type gets a real-world illuminance band
-  from the lighting standards (outdoor car parks AS/NZS 1158.3.1, interiors AS/NZS 1680 / EN 12464); engine light is
-  calibrated to lux once and measured from the bake at greybox exit. Stealth comes only from real gaps (between poles,
+- Decided, not built yet (G329, "Real-world levels"; G368, "Australian standards"): each space type gets a real-world
+  illuminance band from the Australian lighting standards (outdoor car parks AS/NZS 1158.3.1, interiors AS/NZS 1680; EN
+  12464 where they are silent); engine light is calibrated to lux once, Michael approves the band table with the S1
+  car-park light map, and each space is measured from the bake at greybox exit. Stealth comes only from real gaps (between poles,
   under the carport, behind cars, cut circuits, shot lamps), never from leaving lit places unlit; the 40-60% shadow-share
-  target yields to the band. Michael: "car parks are generally well lit". The light-realism job (Sector Ops,
+  target yields to the band. Michael: "car parks are generally well lit". No dark spots from lights left off (G367,
+  "Never"): every fitting works and is on, on every map; a dead fitting (intensity 0, below) is not used to make a
+  dark pocket. The light-realism job (Sector Ops,
   `feature/light-realism`, S1 car park first) builds the calibration; the level rule lives in docs/level-design.md.
 - Decided (G333, "Everywhere"): hardened lit choke points are allowed on campaign and Sector Ops maps:
   un-shootable fixtures and guarded or locked breakers. A route around the choke point always stays. This loosens the
   older "every lit chokepoint can be darkened at least two ways" (docs/level-design.md).
-- Decided, not built yet (G41): a door past 15% open passes light (one threshold for light, sound and sight). Code:
-  `DOOR_SHUT` 0.05 in `world/lightField.ts`.
-- Decided, not built yet (G45): clear glass passes light and sight; frosted glass and blinds pass light only; thermal never
-  sees through glass. No glass rule exists in the light field yet.
+- Built (G41, sector-batch): one 15% door threshold. `DOOR_SHUT` 0.15 in `world/lightField.ts` (the field, the bake's
+  shut flags, the torch shadow set) equals `DOOR.driveShut` (`world/doors.ts`; `tests/doorLight.test.ts` pins it). A
+  peek crack and a stick-driven door under 15% keep `open` 0, so they are shut; guard sight and sound: `ai.md`.
+- Decided, light half built (G45): clear glass passes light and sight; frosted glass and blinds pass light only; thermal never
+  sees through glass. Light half built (bible L15): glass, clear or frosted, is never a light shape
+  (`src/voxel/lightShapes.ts:23-24`), so the light field and the bake pass it. The sight rules (clear glass passes
+  sight; frosted glass and blinds do not) sit with the AI, not in the light field.
 - Built (G100, G101, G102; prototype A5, lr16v, LR16-6): an instant goggle cut (G181: the wheel picks the mode, one
   button toggles it), CT grain (thermal on warm areas only, none in electro), thermal as CT (CT colour ramp; people
   behind closed doors as a dim blue silhouette, below).
@@ -120,7 +126,10 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
 - Fitting models (warehouse-lamps; the LED family since sector-fixes L; Sector Ops only): each section's lamps come from
   room tables (`world/maps/lampRooms.ts` `addLampRooms`; `S1_LAMPS`, `S2_LAMPS`, `S3_LAMPS`): per room one model (`panel`
   flush under a ceiling, `strip` on wires under a roof, `bulkhead` on a wall bracket), one height and a regular grid or
-  row; per fitting [x, z, radius, intensity], intensity 0 a dead fitting (drawn dark, radius 0, never lit). Strips sit
+  row; per fitting [x, z, radius, intensity], intensity 0 a dead fitting (drawn dark, radius 0, never lit). Every light
+  works (G329; Michael 2026-10-25 "Never" to dark spots from lights left off): no map adds a dead fitting, and the
+  light-realism job re-lights the existing ones to the band (FOLDED-PLAN J10; warehouseOps is frozen as built,
+  Michael 2026-10-25). Strips sit
   under the solid roof strips, never under a sheet. `world/lampMount.ts` (pure) measures each mount from the level's boxes
   (wires <= 0.6 m, a panel's gap <= 0.03, a bracket <= 0.35: wall lights stand 0.3 m off the face so the conservative bake
   sees past their wall) and reports any that cut a ceiling, hang in the air or miss a wall; the light never moves.
@@ -156,6 +165,8 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   changes).
 
 ## Per-section lamp bake (section-bake; Saltmarsh Park only)
+Decided, not built yet (G405): the campus lamp bakes ship pre-built with the game instead of baking on the player's PC
+(the map-ready job; `docs/systems/performance.md` "Near-instant loads").
 Brief and decisions SB1-SB14: `docs/sector-redesign/briefs/SECTION-BAKE.md`; build report
 `docs/sector-redesign/checks/section-bake-build.md`.
 - Opt-in by map id (`world/sectionBake.ts` `SECTION_BAKE_MAPS`: campusOps; regions in `world/maps/campusBake.ts`, per
@@ -222,9 +233,10 @@ Rendering only (plan and budget: `docs/archive/lighting-review/LR14-PLAN.md`; bu
 `docs/sector-redesign/checks/lr14-build.md`). As in CT, the lamps nearest the player throw the real shape of a guard,
 the partner, a body or a held weapon; static geometry stays in the baked visibility atlas; every other lamp keeps the
 capsules.
-- `world/charShadowSet.ts` (pure): `CHAR_SHADOW_PRESET` (per shadow tier: off / Low / Medium 0 lamps, High 2 x 512 px,
-  Ultra 3 x 1024, Epic 4 x 1024) into `ShadowSpec.charLamps` / `charTile`; `charShadowSpec(tier, mode)` with the settings
-  override (`'auto' | 'on' | 'off'`; on below High = High's set). `LampSlotPicker`: lit baked lamps whose radius + 3 m
+- `world/charShadowSet.ts` (pure): `CHAR_SHADOW_PRESET` (per shadow tier: Off 0 lamps, Low 1 x 256 px, Medium 1 x 512 px,
+  High 2 x 512 px, Ultra 3 x 1024, Epic 4 x 1024; bible L18, `charShadowSet.ts:46-53`) into `ShadowSpec.charLamps` /
+  `charTile`; `charShadowSpec(tier, mode)` with the settings override (`'auto' | 'on' | 'off'`; on with the tier Off =
+  High's set). `LampSlotPicker`: lit baked lamps whose radius + 3 m
   reaches the nearest focus point (the local player, the camera), nearest first, re-picked at 10 Hz; a held lamp
   competes at 0.75 x its distance, holds its slot 0.5 s at least and stays a candidate 1 m further; a lamp going dark
   lets go on the next frame; slots (atlas tiles) stay with their lamp. `fitCone`: each slot's spot frustum around the

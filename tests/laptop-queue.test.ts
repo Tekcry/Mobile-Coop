@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, trainSoon, releasingTrain, readyOrPending, RELEASE_HOLD_MS, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, nextTrain, fitsBeforeTrain, FIT_SLACK, readyHeads, seenSince, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting } from '../scripts/laptop-queue/lib.mjs';
 
 const spareReq = (min: number, kind: string) => ({ ...req(min, kind, 'spare', 'laptop-queue spare') });
 // @ts-expect-error plain .mjs module without types
@@ -789,28 +789,113 @@ describe('agedAlone', () => {
   });
 });
 
-describe('trainSoon', () => {
-  const lim = { gapMs: 3 * 60_000, buildMaxMs: 20 * 60_000 };
-  it('holds while a train builds, up to buildMaxMs', () => {
-    expect(trainSoon({ building: { n: '61', ageMs: 60_000 } }, lim)).toBe('train 61 building');
-    expect(trainSoon({ building: { n: '61', ageMs: 21 * 60_000 } }, lim)).toBe('');
+describe('nextTrain', () => {
+  const MIN = 60_000;
+  const lim = { buildMaxMs: 20 * MIN, gapMs: 6.5 * MIN, readyLagMs: 3 * MIN, mergeLagMs: 2 * MIN, lateMs: 5 * MIN };
+  const ago = (min: number) => NOW - min * MIN;
+  it('building: held up to buildMaxMs with ETA now, then falls through', () => {
+    expect(nextTrain({ building: { n: '61', ageMs: MIN }, now: NOW }, lim)).toEqual({ why: 'train 61 building', etaMs: NOW, untilMs: NOW + 19 * MIN });
+    expect(nextTrain({ building: { n: '61', ageMs: 21 * MIN }, now: NOW }, lim)).toBeNull();
+    expect(nextTrain({ building: { n: '61', ageMs: 21 * MIN }, lastMerge: { n: '60', atMs: ago(1) }, green: [ago(30)], now: NOW }, lim)?.why).toMatch(/^train 60 released/);
+    // building wins over a releasing train beside it
+    expect(nextTrain({ building: { n: '68', ageMs: 1000 }, releasing: { n: '67', laptopAtMs: ago(1) }, green: [ago(30)], now: NOW }, lim)?.why).toBe('train 68 building');
   });
-  it('holds gapMs after a release only while train-ready PRs wait', () => {
-    expect(trainSoon({ release: { n: '60', ageMs: 60_000 }, candidates: 2 }, lim)).toMatch(/^train 60 released, 2 /);
-    expect(trainSoon({ release: { n: '60', ageMs: 60_000 }, candidates: 0 }, lim)).toBe('');
-    expect(trainSoon({ release: { n: '60', ageMs: 4 * 60_000 }, candidates: 2 }, lim)).toBe('');
-    expect(trainSoon({}, lim)).toBe('');
+  it('no candidates: no hold (releasing and released)', () => {
+    expect(nextTrain({ releasing: { n: '67', laptopAtMs: ago(1) }, now: NOW }, lim)).toBeNull();
+    expect(nextTrain({ lastMerge: { n: '67', atMs: ago(1) }, green: [], running: 0, now: NOW }, lim)).toBeNull();
+    expect(nextTrain({ now: NOW }, lim)).toBeNull();
   });
-  it('releasing: holds up to 10 min after an open train laptop-e2e success while train-ready PRs are next', () => {
-    expect(RELEASE_HOLD_MS).toBe(10 * 60_000);
-    // train 67 success at 22:28:28, an alone claim at 22:28:45 (17 s later) was preempted by train 68 at 22:34
-    expect(trainSoon({ releasing: { n: '67', ageMs: 17_000 }, candidates: 1 }, lim)).toBe('train 67 releasing, 1 train-ready PR(s) next');
-    expect(trainSoon({ releasing: { n: '67', ageMs: 9 * 60_000 }, candidates: 3 }, lim)).toMatch(/^train 67 releasing/);
-    expect(trainSoon({ releasing: { n: '67', ageMs: 10 * 60_000 }, candidates: 3 }, lim)).toBe('');
-    expect(trainSoon({ releasing: { n: '67', ageMs: 60_000 }, candidates: 0 }, lim)).toBe('');
-    expect(trainSoon({ releasing: { n: '67', ageMs: 60_000 }, candidates: 1 }, { ...lim, releaseMs: 30_000 })).toBe('');
-    // building wins (a new train with no version head yet beside a releasing one)
-    expect(trainSoon({ building: { n: '68', ageMs: 1000 }, releasing: { n: '67', ageMs: 1000 }, candidates: 1 }, lim)).toBe('train 68 building');
+  it('releasing: merge = laptop success + 2 min, ETA = merge + 6.5, held to ETA + 5', () => {
+    const n = nextTrain({ releasing: { n: '67', laptopAtMs: ago(1) }, green: [ago(30)], now: NOW }, lim);
+    expect(n).toEqual({ why: 'train 67 releasing, 1 train-ready PR(s) next', etaMs: NOW + 7.5 * MIN, untilMs: NOW + 12.5 * MIN });
+  });
+  it('released: ETA = merge + 6.5 until merge + 11.5; a late green candidate sets ETA = seen + 3; the max of both', () => {
+    expect(nextTrain({ lastMerge: { n: '60', atMs: ago(3) }, green: [ago(30)], now: NOW }, lim)).toEqual({ why: 'train 60 released, 1 train-ready PR(s) waiting', etaMs: NOW + 3.5 * MIN, untilMs: NOW + 8.5 * MIN });
+    expect(nextTrain({ lastMerge: { n: '60', atMs: ago(11.6) }, green: [ago(30)], now: NOW }, lim)).toBeNull();
+    expect(nextTrain({ lastMerge: { n: '60', atMs: ago(20) }, green: [ago(30), ago(1)], now: NOW }, lim)).toEqual({ why: '2 train-ready PR(s) waiting for a train', etaMs: NOW + 2 * MIN, untilMs: NOW + 7 * MIN });
+    // merge + 6.5 = +3.5, seen + 3 = +2.5: the later one
+    expect(nextTrain({ lastMerge: { n: '60', atMs: ago(3) }, green: [ago(0.5)], now: NOW }, lim)?.etaMs).toBe(NOW + 3.5 * MIN);
+    expect(nextTrain({ lastMerge: { n: '60', atMs: ago(5) }, green: [ago(0.5)], now: NOW }, lim)?.etaMs).toBe(NOW + 2.5 * MIN);
+  });
+  it('lateMs 0 ends the hold at ETA', () => {
+    expect(nextTrain({ lastMerge: { n: '60', atMs: ago(6.5) }, green: [ago(30)], now: NOW }, { ...lim, lateMs: 0 })).toBeNull();
+    expect(nextTrain({ lastMerge: { n: '60', atMs: ago(6) }, green: [ago(30)], now: NOW }, { ...lim, lateMs: 0 })?.untilMs).toBe(NOW + 0.5 * MIN);
+  });
+  it('an open train neither building nor releasing (no lastMerge passed): no hold', () => {
+    expect(nextTrain({ green: [ago(1)], running: 2, now: NOW }, lim)).toBeNull();
+  });
+  it('running checks keep a merge hold on but never set or extend the ETA, nor start a hold alone', () => {
+    expect(nextTrain({ lastMerge: { n: '60', atMs: ago(3) }, green: [], running: 1, now: NOW }, lim)).toEqual({ why: 'train 60 released, 1 train-ready PR(s) waiting', etaMs: NOW + 3.5 * MIN, untilMs: NOW + 8.5 * MIN });
+    expect(nextTrain({ lastMerge: { n: '60', atMs: ago(20) }, green: [], running: 1, now: NOW }, lim)).toBeNull();
+    // a running head (seen later than the green one) adds only to the count
+    expect(nextTrain({ lastMerge: { n: '60', atMs: ago(3) }, green: [ago(30)], running: 1, now: NOW }, lim)?.etaMs).toBe(NOW + 3.5 * MIN);
+    // a failed-check candidate counts for nothing
+    const h = readyHeads([{ head: 'x', check: { status: 'COMPLETED', conclusion: 'FAILURE' } }]);
+    expect(nextTrain({ lastMerge: { n: '60', atMs: ago(3) }, green: h.green, running: h.running.length, now: NOW }, lim)).toBeNull();
+  });
+  it('replays trains 102-106 from the log (UTC, 2026-10-24)', () => {
+    const t = (hms: string) => Date.parse(`2026-10-24T${hms}Z`);
+    // train 103: player-b-ffb7f02a claimed 10:46:02, cut 10:47:35
+    expect(nextTrain({ lastMerge: { n: '102', atMs: t('10:40:34') }, green: [t('10:27:00')], now: t('10:46:02') }, lim)?.etaMs).toBe(t('10:47:04'));
+    // train 102: #455 green 10:24:00, claim 10:25:11, head 10:26:54
+    expect(nextTrain({ lastMerge: { n: '101', atMs: t('10:13:42') }, green: [t('10:24:00')], now: t('10:25:11') }, lim)?.etaMs).toBe(t('10:27:00'));
+    // train 104: claim 11:08:41 in the late window: held, nothing fits (ETA already past)
+    const n104 = nextTrain({ lastMerge: { n: '103', atMs: t('11:00:24') }, green: [t('10:50:00')], now: t('11:08:41') }, lim);
+    expect(n104?.etaMs).toBe(t('11:06:54'));
+    expect(fitsBeforeTrain({ kind: 'pr', suites: ['a'] }, { now: t('11:08:41'), etaMs: n104?.etaMs, times: { a: 1 }, prepS: 120 })).toBe(false);
+    // train 106: #464 green 11:44:55, guard-ai claim 11:47:00
+    expect(nextTrain({ lastMerge: { n: '105', atMs: t('11:43:07') }, green: [t('11:44:55')], now: t('11:47:00') }, lim)?.etaMs).toBe(t('11:49:37'));
+  });
+});
+
+describe('fitsBeforeTrain', () => {
+  const times = { 'e2e-a': 4, 'e2e-b': 4, 'e2e-c': 4, s1: 100, s2: 60, s3: 60, s4: 52, s5: 50, s6: 50, s7: 40 };
+  const ctx = { now: NOW, etaMs: NOW + 3.25 * 60_000, times, prepS: 120 };
+  it('a short known pr run fits; long, unknown, alone and full runs do not', () => {
+    expect(FIT_SLACK).toBe(1.2);
+    expect(fitsBeforeTrain({ kind: 'pr', suites: ['e2e-a', 'e2e-b', 'e2e-c'] }, ctx)).toBe(true);
+    expect(fitsBeforeTrain({ kind: 'pr', suites: ['s1', 's2', 's3', 's4', 's5', 's6', 's7'] }, ctx)).toBe(false); // eab8c758, ~206 s
+    expect(fitsBeforeTrain({ kind: 'pr', suites: ['e2e-coop-real:1'] }, ctx)).toBe(false); // no time
+    expect(fitsBeforeTrain({ kind: 'alone', suites: ['e2e-a'] }, ctx)).toBe(false);
+    expect(fitsBeforeTrain({ kind: 'full' }, ctx)).toBe(false);
+    expect(fitsBeforeTrain({ kind: 'pr', suites: ['e2e-a'] }, { ...ctx, etaMs: NOW })).toBe(false); // building
+  });
+  it('jobs (default 2) sets the expected wall', () => {
+    const c = { ...ctx, etaMs: NOW + 200_000, times: { a: 60, b: 60 } };
+    expect(fitsBeforeTrain({ kind: 'pr', suites: ['a', 'b'] }, c)).toBe(true); // 120 + 72 s
+    expect(fitsBeforeTrain({ kind: 'pr', suites: ['a', 'b'], jobs: 1 }, c)).toBe(false); // 120 + 144 s
+  });
+});
+
+describe('train-ready heads', () => {
+  const prs = [
+    { head: 'a', check: { status: 'COMPLETED', conclusion: 'SUCCESS' } },
+    { head: 'b', check: { status: 'IN_PROGRESS', conclusion: '' } },
+    { head: 'c', check: { status: 'QUEUED', conclusion: null } },
+    { head: 'd', check: { status: 'COMPLETED', conclusion: 'FAILURE' } },
+    { head: 'e', check: null },
+  ];
+  it('readyHeads: green / running split, failed and missing checks dropped, heads in a train or master dropped', () => {
+    expect(readyHeads(prs)).toEqual({ green: ['a'], running: ['b', 'c'] });
+    expect(readyHeads(prs, (h: string) => h === 'a' || h === 'c')).toEqual({ green: [], running: ['b'] });
+    // unreadable input (a gh error): empty, so no hold
+    expect(readyHeads(undefined)).toEqual({ green: [], running: [] });
+    expect(readyHeads([])).toEqual({ green: [], running: [] });
+  });
+  it('readyOrPending: green + running count, not the open train members', () => {
+    expect(readyOrPending(prs)).toBe(3);
+    expect(readyOrPending(prs, (h: string) => h === 'a')).toBe(2);
+    expect(readyOrPending([])).toBe(0);
+    expect(readyOrPending(undefined)).toBe(0);
+  });
+  it('seenSince: keeps old times, stamps new heads, drops gone ones, never mutates prev', () => {
+    const prev = { a: 1000, gone: 500 };
+    const out = seenSince(prev, ['a', 'b'], NOW);
+    expect(out).toEqual({ a: 1000, b: NOW });
+    expect(prev).toEqual({ a: 1000, gone: 500 });
+    // after a restart: the persisted object (state.json round trip) keeps the old times
+    expect(seenSince(JSON.parse(JSON.stringify(out)), ['a', 'b'], NOW + 60_000)).toEqual({ a: 1000, b: NOW });
+    expect(seenSince(undefined, [], NOW)).toEqual({});
   });
   it('releasingTrain: the youngest laptop-e2e success among the open heads', () => {
     const at = (min: number) => new Date(NOW - min * 60_000).toISOString();
@@ -819,19 +904,6 @@ describe('trainSoon', () => {
     expect(releasingTrain([{ n: '67', laptop: 'pending', laptopAt: at(1) }, { n: '68', laptop: '', laptopAt: '' }], NOW)).toBeNull();
     expect(releasingTrain([{ n: '67', laptop: 'success', laptopAt: '' }], NOW)).toBeNull(); // no time: no hold
     expect(releasingTrain([], NOW)).toBeNull();
-  });
-  it('readyOrPending: train-ready PRs whose check passed or still runs, not the open train members', () => {
-    const prs = [
-      { head: 'a', check: { status: 'COMPLETED', conclusion: 'SUCCESS' } },
-      { head: 'b', check: { status: 'IN_PROGRESS', conclusion: '' } },
-      { head: 'c', check: { status: 'QUEUED', conclusion: null } },
-      { head: 'd', check: { status: 'COMPLETED', conclusion: 'FAILURE' } },
-      { head: 'e', check: null },
-    ];
-    expect(readyOrPending(prs)).toBe(3);
-    expect(readyOrPending(prs, (h: string) => h === 'a')).toBe(2);
-    expect(readyOrPending([])).toBe(0);
-    expect(readyOrPending(undefined)).toBe(0);
   });
 });
 

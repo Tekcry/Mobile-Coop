@@ -126,11 +126,11 @@ describe('CourseMarks', () => {
 });
 
 describe('courseGrant', () => {
-  it('co-op, all marks: +1 gadget (Undetected) +1 (Bodies hidden, A9), a medkit, a syringe; no alarm step', () => {
-    expect(courseGrant(ALL_MARKS, 0, true, 2, 2, 4)).toEqual({ gadget: 2, syringe: 1, medkit: 1, alarmStep: 0 });
+  it('co-op, all marks: +1 gadget (Undetected) +1 (Bodies hidden, A9), a medkit, no syringe (J14 F1, M3); no alarm step', () => {
+    expect(courseGrant(ALL_MARKS, 0, true, 2, 2, 4)).toEqual({ gadget: 2, syringe: 0, medkit: 1, alarmStep: 0 });
   });
-  it('a synced pair pays a gadget and a syringe more; gadgets capped at the starting carry, syringes at preset + 2', () => {
-    expect(courseGrant(ALL_MARKS, 1, true, 2, 2, 4)).toEqual({ gadget: 3, syringe: 2, medkit: 1, alarmStep: 0 });
+  it('a synced pair pays a gadget more, never a syringe (J14 F1, M3); gadgets capped at the starting carry', () => {
+    expect(courseGrant(ALL_MARKS, 1, true, 2, 2, 4)).toEqual({ gadget: 3, syringe: 0, medkit: 1, alarmStep: 0 });
     expect(courseGrant(ALL_MARKS, 2, true, 2, 4, 2)).toEqual({ gadget: 2, syringe: 0, medkit: 1, alarmStep: 0 });
   });
   it('solo (A7): No alarms gives a medkit instead of a syringe', () => {
@@ -146,9 +146,9 @@ describe('coopRating (S6 fix: co-op means a partner in the match at rating time)
     expect(coopRating(true, 2)).toBe(true);
     expect(coopRating(false, 2)).toBe(false);
   });
-  it('a host alone gets the solo table (medkits, no syringe)', () => {
+  it('a host alone gets the solo table (medkits, no syringe); with a partner the co-op table, still no syringe (J14 F1)', () => {
     expect(courseGrant(ALL_MARKS, 0, coopRating(true, 1), 2, 2, 4)).toEqual({ gadget: 2, syringe: 0, medkit: 2, alarmStep: 0 });
-    expect(courseGrant(ALL_MARKS, 0, coopRating(true, 2), 2, 2, 4)).toEqual({ gadget: 2, syringe: 1, medkit: 1, alarmStep: 0 });
+    expect(courseGrant(ALL_MARKS, 0, coopRating(true, 2), 2, 2, 4)).toEqual({ gadget: 2, syringe: 0, medkit: 1, alarmStep: 0 });
   });
 });
 

@@ -110,6 +110,11 @@ export async function walk(t, n) {
   async function closeDoor(P, cid, what) {
     const i = await doorIndex(cid);
     const aid = await doorAid(cid);
+    // (a8-grille flake, train 106) the door's item is live first: on the step a lock lands, `CourseMode.applyLocks` (in `mode.fixedUpdate`)
+    // turns the item off after `StealthSystems.fixedUpdate` set it from the Q9 rule (open, so usable though locked), and the next step's
+    // `StealthSystems.fixedUpdate` turns it back on; a `use` read between those two host steps (a loaded host frame) got 'disabled'. A door that
+    // stays off is still caught here (the wait times out)
+    await until(P, (id) => window.__app.current.interactables?.items.find((x) => x.id === id)?.enabled === true, `door-${aid}`, 5000, `${what}: the ${P === A ? 'host' : 'client'}'s ${cid} item is live (open, it can be shut by hand)`);
     assert((await use(P, `door-${aid}`)) === 'ok', `${what}: closes ${cid}`);
     await until(A, (i) => window.__app.current.world.doors.list[i].open < 0.1, i, 10000, `${what}: ${cid} shuts (host)`);
     await until(B, (i) => window.__app.current.world.doors.list[i].open < 0.1, i, 15000, `${what}: the client sees ${cid} shut`);

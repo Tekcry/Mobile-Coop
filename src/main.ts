@@ -161,7 +161,8 @@ async function boot(): Promise<void> {
     if (flags.legacy) menu.badge.append(profileBadge(app));
     app.screens.push(menu);
     void app.feedback.all().then((all) => menu.setCounter('feedback', all.length ? `${all.length}` : ''));
-    void starsFor('warehouseOps').then((st) => {
+    // (sector-batch, G328) the counter shows Saltmarsh Park's stars (the Sector Ops map)
+    void starsFor('campusOps').then((st) => {
       sectorStars = starsText(st);
       menu.setCounter('sectorops', sectorStars);
     });
@@ -254,7 +255,7 @@ async function boot(): Promise<void> {
       label: 'Sector Ops',
       order: 10,
       counter: () => sectorStars,
-      ctx: 'Solo or co-op: the Warehouse in sections, each harder than the last. Objective, then exit. Kills optional. A star for each difficulty completed.',
+      ctx: 'Solo or co-op: Saltmarsh Park in sections, each harder than the last. Objective, then exit. Kills optional. A star for each difficulty completed; a harder clear fills the easier stars too.',
       action: () => a.screens.push(new SectorOpsScreen(a, (o) => startGame(o))),
     }),
   );

@@ -18,6 +18,7 @@ __pycache__/
 
 # music render: downloaded CC0 source samples and intermediate WAVs (scripts/music)
 .music-cache
+.prebake-cache
 
 # rendered orchestral audition stems (npm run music:orch rebuilds them from the CC0 samples)
 src/assets/music/orch/
