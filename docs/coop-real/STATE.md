@@ -1,6 +1,7 @@
 # coop-real - STATE
 
 ## Now
+2026-10-25 ~09:00 triage 2 (Opus, running): c1b at 92edc3e5 FAILED 0/3 (laptop logs only; smoke rerun with logs queued as set coop-real-c1b-logs, --pr 388). Desktop repro running now: build + `e2e-coop-real:smoke` on 4189 under heavy2.lock; then :1, :2, fix the harness, queue set coop-real-c1c (--pr 388). No fix committed yet. If cut off: rerun the smoke locally (scratchpad run.sh pattern: lock + CPU gate, E2E_GPU=1, port 4189) and read its log.
 2026-10-25 triage (Opus): probe 6204d95f: no headless mechanism hides or freezes a tab (B1 provisional `spoofHidden`, B2 none; next probe rows minimize / minimize+frozen / Debugger.pause; H1-REPORT "Lifecycle probe"). Smoke / :1 / :2 failures were harness bugs (host boot 120 s autostart wait, mouse look blocked under a held button, door walk, pickRow / trigger presses lost, KBM faceTo creep, stop 3 in the door's clearance), fixed; only mark S2 (as briefed). Rerun queued: set coop-real-c1b.
 2026-10-25 ~00:12: cr-h1 MERGED here (6204d95f: code done, node --check + localTransport vitest pass). Probe + smoke NOT RUN on the
 desktop (CPU 77-100%): queued on the laptop (set cr-h1-probe, e2e-coop-real:probe + :smoke at 6204d95f); its PROBE lines

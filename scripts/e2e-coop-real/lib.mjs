@@ -83,6 +83,56 @@ export function startPump(P) {
   };
 }
 
+/**
+ * (triage 2026-10-25) Page-side, pass-through: log every `__app.screens` push / pop / clear / replace (screen class,
+ * page ms, the co-op controller's inGame / waiting / phase, whether a match runs, three stack frames) in
+ * `window.__scrLog`, so a screen left over a running match says where it came from. Never changes a call.
+ * Laptop / desktop runs at 92edc3e5 / d2f1d940: the client's lobby screen (`coop-screen lobby-screen`) sat over the
+ * running match in some boots (it takes every button edge: ScreenManager.update), so the client's first press-based
+ * step timed out (smoke pickRow "Open door" 3 presses, part 3 leg-up RB, B1 setup `top`); probe 1 / 2 saw the same.
+ */
+const screenTap = () => {
+  const log = (window.__scrLog ??= []);
+  const t0 = performance.now();
+  const hook = () => {
+    const sm = window.__app?.screens;
+    if (!sm || sm.__tap) return !!sm;
+    sm.__tap = true;
+    for (const k of ['push', 'pop', 'clear', 'replace']) {
+      const orig = sm[k];
+      sm[k] = function (...a) {
+        const c = window.__coop;
+        const g = window.__app.current;
+        log.push({
+          k,
+          cls: k === 'push' || k === 'replace' ? (a[0]?.el?.className ?? '?') : (this.top?.el?.className ?? null),
+          ms: Math.round(performance.now() - t0),
+          depth: this.depth,
+          inGame: c?.inGame ?? null,
+          waiting: c?.waiting ?? null,
+          phase: c?.session?.phase ?? null,
+          match: !!g?.net,
+          at: String(new Error().stack ?? '').split('\n').slice(2, 5).map((s) => s.trim().slice(0, 90)).join(' < '),
+        });
+        if (log.length > 40) log.shift();
+        return orig.apply(this, a);
+      };
+    }
+    return true;
+  };
+  if (!hook()) {
+    const iv = setInterval(() => hook() && clearInterval(iv), 10);
+  }
+};
+
+/** The screens over page P's match now, and the tap's log. */
+const screenState = (P) =>
+  P.evaluate(() => {
+    const s = window.__app.screens;
+    const c = window.__coop;
+    return { top: s.top?.el?.className ?? null, depth: s.depth, inGame: c?.inGame ?? null, waiting: c?.waiting ?? null, phase: c?.session?.phase ?? null, log: window.__scrLog ?? null };
+  });
+
 /** Page P is in the ctcourse match (any role). */
 export const inMatch = (P, tag, timeout = LOAD_MS) =>
   until(P, () => window.__app.current?.opts?.mode === 'course' && !!window.__app.current.net && window.__app.current.opts.map?.id === 'ctcourse', null, timeout, `${tag} in the ctcourse match`);
@@ -104,6 +154,9 @@ export async function bootPair(url, { netdrop = 0, hideAutomation = true, realBa
   const bootUrl = url + (url.includes('?') ? '&' : '?') + auto.join('&');
   const { browser, ctx, page: A, errors: eA } = await E.launch({ url: bootUrl, params: rest, viewport, hideAutomation, realBackground, args });
   await until(A, () => window.__coop?.session?.isHost === true, null, 30000, 'first tab hosts');
+  // the screen tap: from the first script on every later page (the client), late on the host (its lobby is up already)
+  await ctx.addInitScript(screenTap);
+  await A.evaluate(`(${screenTap})()`);
   const { page: B, errors: eB } = await E.openPage(ctx, bootUrl, rest);
   const h = { browser, ctx, A, B, eA, eB, url, q, pump: null };
   setSimPages([A, B]);
@@ -118,6 +171,16 @@ export async function bootPair(url, { netdrop = 0, hideAutomation = true, realBa
     h.pump?.stop();
     await browser.close().catch(() => {});
   };
+  // (triage 2026-10-25) both pages in play with nothing over the match (as Michael sees it): a screen still on top after
+  // 8 sim s ends the boot with where it came from (the tap's log) instead of a lost press later. Not a harness skip: the
+  // run fails here, and the log decides game bug (a TRIAGE / KNOWN BUG line by the lead) or harness bug.
+  for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
+    const clear = await until(P, () => !window.__app.screens.top, null, 8000, `${tag}: no screen over the match`).then(() => true, () => false);
+    if (clear) continue;
+    const s = await screenState(P).catch((e) => ({ err: String(e) }));
+    await h.close();
+    throw new Error(`boot: the ${tag} page has "${s.top}" over the running match after 8 sim s (screens ${s.depth}; coop inGame ${s.inGame}, waiting ${s.waiting}, phase ${s.phase}); screen log ${JSON.stringify(s.log)}`);
+  }
   return h;
 }
 
@@ -515,14 +578,47 @@ async function mouseAim(P, tgt, tol, maxS) {
   let moved = 0;
   let regrips = 0;
   const camYP = () => P.evaluate(() => { const c = window.__app.current.player.cam; return [c.yaw, c.pitch]; });
+  // (triage 2026-10-25) the fake pointer lock leaves the cursor inside the viewport: a move past its edge reaches the page
+  // as no event at all (desktop smoke, 100 deg right: 4 moves, 537 px, then nothing; 0.58 rad short), and coming back
+  // in carries the whole way back as movementX. A real pointer lock re-centres the cursor unseen; here the mouse is
+  // lifted and set down in the middle: the back button (Mouse3, unbound; keyboardMouseSource.ts:117-121 takes no action,
+  // the window mouseup handler stops its navigation) held while the cursor goes back. The canvas pointerdown is cancelled
+  // by the engine, so the page gets no `mousemove` (no look) until the button is up (checked in Chromium: pointermove
+  // only, buttons 8, then the next free move carries only its own step).
+  const vp = P.viewportSize() ?? { width: 960, height: 480 };
+  const EDGE = 24;
+  let lifts = 0;
+  const regrip = async () => {
+    const s = await cdp(P);
+    const c = [Math.round(vp.width / 2), Math.round(vp.height / 2)];
+    const ev = (type, x, y, buttons) => s.send('Input.dispatchMouseEvent', { type, x, y, button: 'back', buttons, clickCount: type === 'mouseMoved' ? 0 : 1 });
+    const before = await camYP();
+    const under = await P.evaluate(([x, y]) => document.elementFromPoint(x, y)?.tagName ?? null, pos);
+    await ev('mousePressed', pos[0], pos[1], 8);
+    await ev('mouseMoved', c[0], c[1], 8);
+    await ev('mouseReleased', c[0], c[1], 0);
+    // Playwright's own cursor to the same point (a move of 0 px), so its next move starts from the middle
+    await P.mouse.move(c[0], c[1]);
+    await sleep(60);
+    const after = await camYP();
+    // the lift must not turn the view (a press on an element the engine does not cancel would let the moves through)
+    if (Math.abs(after[0] - before[0]) > 1e-3 || Math.abs(after[1] - before[1]) > 1e-3) console.log(`  (mouse aim: the lift at ${pos.map(Math.round)} over ${under} turned the view by ${(after[0] - before[0]).toFixed(3)}, ${(after[1] - before[1]).toFixed(3)} rad)`);
+    pos = c;
+    lifts++;
+  };
   const step = async (mx, my) => {
+    mx = Math.max(-(vp.width / 2 - EDGE), Math.min(vp.width / 2 - EDGE, mx));
+    my = Math.max(-(vp.height / 2 - EDGE), Math.min(vp.height / 2 - EDGE, my));
+    if (pos[0] + mx < EDGE || pos[0] + mx > vp.width - EDGE || pos[1] + my < EDGE || pos[1] + my > vp.height - EDGE) await regrip();
     const next = [pos[0] + mx, pos[1] + my];
     await P.mouse.move(next[0], next[1], { steps: 2 });
     pos = next;
   };
+  // a cursor left outside the viewport by an earlier aim comes back to the middle first
+  if (pos[0] < EDGE || pos[0] > vp.width - EDGE || pos[1] < EDGE || pos[1] > vp.height - EDGE) await regrip();
   try {
     for (let i = 0; i < 40; i++) {
-      if (Math.abs(e.ey) < tol && Math.abs(e.ep) < tol) return { r: 'ok', ey: +e.ey.toFixed(4), ep: +e.ep.toFixed(4), t: +(e.t - t0).toFixed(2), regrips };
+      if (Math.abs(e.ey) < tol && Math.abs(e.ep) < tol) return { r: 'ok', ey: +e.ey.toFixed(4), ep: +e.ep.toFixed(4), t: +(e.t - t0).toFixed(2), regrips, lifts };
       if (e.t - t0 > maxS) break;
       if (held.length) {
         // a held button blocks the look: let go, turn by the aimed view's error at the plain gain (no aim multiplier once
@@ -563,7 +659,7 @@ async function mouseAim(P, tgt, tol, maxS) {
     mousePos.set(P, pos);
   }
   ms = await P.evaluate(`(${mouseState})()`);
-  return { r: 'timeout', ey: +e.ey.toFixed(4), ep: +e.ep.toFixed(4), t: +(e.t - t0).toFixed(2), why: `look moved on ${moved} move(s); page mouse ${JSON.stringify(ms)}; held ${JSON.stringify(held)}` };
+  return { r: 'timeout', ey: +e.ey.toFixed(4), ep: +e.ep.toFixed(4), t: +(e.t - t0).toFixed(2), why: `look moved on ${moved} move(s), ${lifts} lift(s); page mouse ${JSON.stringify(ms)}; held ${JSON.stringify(held)}` };
 }
 
 /** Rounds the page's own player fired (`PlayerWeapons.shotCount`, the wire's `sc`). */
@@ -645,7 +741,8 @@ export async function pickRow(P, who, re, { timeout = 6000 } = {}) {
       await hold(P, who, 'interact', false);
       if (n >= 3) {
         const rows = await ctxRows(P).catch(() => null);
-        throw new Error(`${e.message.split(' [')[0]} (${n} presses; menu ${JSON.stringify(rows && { state: rows.state, count: rows.count, rows: rows.rows.map((r) => r.label) })})`);
+        const sc = await screenState(P).catch(() => null);
+        throw new Error(`${e.message.split(' [')[0]} (${n} presses; menu ${JSON.stringify(rows && { state: rows.state, count: rows.count, rows: rows.rows.map((r) => r.label) })}; screen over the match ${JSON.stringify(sc?.top ?? null)}${sc?.top ? `, screen log ${JSON.stringify(sc.log?.slice(-6))}` : ''})`);
       }
       await waitHostSim(P, 150);
     }
