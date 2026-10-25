@@ -191,7 +191,7 @@ function pick(all: Record<string, number>): Record<string, number> {
 }
 
 /**
- * Fallow (training bunker, docs/training): a 1950s civil-defence bunker under a hill, fitted out as a two-player
+ * Fallow (training bunker, docs/archive/training): a 1950s civil-defence bunker under a hill, fitted out as a two-player
  * course. Reached by `?autostart=bunker&mode=course` (not listed). One builder per part: Upper (y 16, bunkerUpper),
  * the shaft and reservoir (Plant y 6, bunkerShaft); B5, B6, S6 and A6 (bunkerPlant, BAYS v2 since T5f); Deep (y 0: B7-B9, L9, bunkerDeep).
  */

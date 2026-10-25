@@ -1,6 +1,6 @@
 # Night Shift - music direction
 
-> **REPLACED (2026-10-09) by `docs/audio/music-direction-v2.md`.** Michael did not like the first calm and combat
+> **REPLACED (2026-10-09) by `docs/archive/audio/music-direction-v2.md`.** Michael did not like the first calm and combat
 > states. Kept for history only; where the two disagree, v2 wins. The M1 found-sound library (Section 3) remains v2's
 > found-sound kit.
 

@@ -1,4 +1,5 @@
 # Scale sheet - Night Shift
+Owner: Marlow Build (level validator); a change needs Michael's approval. Status: current.
 
 Measured from the code (2026-10-10; speeds, camera and the co-op kit 2026-10-25). "Derived" = worked out from code numbers, not run in a test. Never change the player to fit a map. This sheet owns every size, speed, time and target `docs/level-design.md` names by its metrics key.
 

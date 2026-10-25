@@ -10,7 +10,7 @@ Pre-production only: design, a dev-only viewer, an offline asset pipeline and mo
 2. Read only the files the step file lists (grep, line ranges). `ART-DIRECTION.md` is the look standard beside SPEC 1.
    `BRIEF.md` is the original prompt; read it when a rule here is unclear. History is in `LOG.md`; do not read it
    whole.
-3. Skip `docs/progress.md` and the phase specs: this run is not a roadmap phase.
+3. Skip `docs/archive/progress.md` and the phase specs: this run is not a roadmap phase.
 4. Authority: Michael (DECISIONS.md, quoted) > ART-DIRECTION.md > BRIEF.md > the bible > SPEC.md > other docs > code.
 5. Stay inside the step: its objective, its files, its checks. Anything else goes into LOG.md as a follow-up.
 

@@ -3,7 +3,7 @@
 > **Superseded on 2026-10-09 by `docs/audio/music-direction-v3.md`.** The V2 engine is paused and archived at the tag
 > `music-v2-archive`. Kept for history; the state logic of Section 7 and the mix rules of Section 10 carry into v3.
 
-Version 2.1 - 2026-10-09 (Stage V1, round 2). Replaces `docs/audio/music-direction.md` (v0.1, kept for history).
+Version 2.1 - 2026-10-09 (Stage V1, round 2). Replaces `docs/archive/audio/music-direction.md` (v0.1, kept for history).
 Brief: `C:\NightShift\bundles\music-direction-v2.md`. Build and staging rules: `docs/archive/prompts/music-spec.md` Section 2.
 Approval: Michael, by ear in the music lab.
 

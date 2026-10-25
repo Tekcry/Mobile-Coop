@@ -1,4 +1,5 @@
 # Robustness rules, conventions and module layout
+Owner: the orchestrator. Status: current.
 Purpose: robustness rules, code conventions and the full module table.
 Design authority: docs/design-bible.md (Section 9). What the game is: docs/VISION.md and docs/DECISIONS.md.
 

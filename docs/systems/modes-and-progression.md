@@ -1,7 +1,8 @@
 # Modes, the course, parked modes and the parked economy
+Owner: the orchestrator. Status: current.
 Purpose: the game modes as built, the Fallow training course, what `?legacy=1` parks, and the parked arsenal / suit /
 HQ economy and cosmetics.
-Design authority: docs/DECISIONS.md (G2, G7, G8, G78, G111, G116, G290, G349, G353, G357), then
+Design authority: docs/DECISIONS.md (G2, G7, G8, G111, G116, G184, G290, G349, G353, G357), then
 docs/design-bible.md (Sections 5.8 and 6).
 
 The decided modes (current rules: docs/DECISIONS.md, the newest entry wins):

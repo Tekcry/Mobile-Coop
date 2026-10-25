@@ -728,7 +728,7 @@ export class CharacterRig {
   readonly toeL: TransformNode;
   readonly toeR: TransformNode;
   /**
-   * (anim-rig) Sling sockets for a slung long gun (docs/anim-rework/RIG.md): `slingBack` on the chest at the left
+   * (anim-rig) Sling sockets for a slung long gun (docs/archive/anim-rework/RIG.md): `slingBack` on the chest at the left
    * shoulder blade (where the sling's rear end anchors on the back plate), `slingHip` on the pelvis at the left hip (the
    * belt's quick-detach sling socket). Rest frames match their parents' (+X right, +Y up, +Z forward); a player rig
    * moves them onto Wren's own kit (playerFigure.ts, WREN_SLING). Nothing is parented to them yet.

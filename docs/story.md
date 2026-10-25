@@ -1,4 +1,5 @@
 # Night Shift - Story and world
+Owner: the orchestrator (it edits; Michael decides, G354). Status: current.
 
 > **Status (2026-10-25).** Maps that exist now: Marlow Yard (co-op training, `ctcourse`), Saltmarsh Park (Sector Ops,
 > `campusOps`). Tallow Wharf, the new small campaign map, is campaign Mission 1 (G340): specced

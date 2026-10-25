@@ -1,4 +1,5 @@
 # Audio
+Owner: the orchestrator. Status: current.
 Purpose: the audio engine, voices and game wiring.
 Design authority: docs/DECISIONS.md (G58-G67), then docs/design-bible.md (Section 5.2).
 

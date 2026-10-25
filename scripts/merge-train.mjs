@@ -38,6 +38,8 @@
 // the subject "Merge origin/<b> into train/<n>", `git push --force origin train/<n>`, then
 // `build <n> <version> "<title>" <all members> --keep` (a --keep over a version commit stops and prints these commands
 // with the sha). --no-test: accepted, does nothing (build runs no vitest).
+// Job-done (doc-guard): a member PR body line `Job-done: <job>` makes the version commit (build and single) move
+// docs/<job>/ to docs/archive/<job>/ and fix the links to it (scripts/job-archive.mjs).
 // --resume: release a train with fix commits after its version commit (package.json at the head must still be
 // <version>, no new changes/*.md). After a merge, `release` closes member PRs
 // whose head is in origin/master with "Merged in <version> (train <n>, #<pr>)".
@@ -67,6 +69,7 @@ import { pathToFileURL } from 'node:url';
 import { assemble, assembleDir, parseFragment, releaseHeading, summary } from './changelog-assemble.mjs';
 import { fetchOrigin } from './fetch-retry.mjs';
 import { takeTouchLock } from './heavy-lock.mjs';
+import { archiveInWorktree, archiveMoves, grepReaders, jobDoneJobs, readersNote, rewriteArchiveLinks } from './job-archive.mjs';
 
 const DRY = process.argv.includes('--dry-run');
 const TRAIN_LOCK_STALE_MIN = 30; // the same staleness as auto-train's tick lock
@@ -423,9 +426,11 @@ export function bumpPackageLock(text, version) {
  * package-lock.json at the release version. Every check a real run needs happens here, before anything is pushed:
  * a malformed fragment throws, nothing to assemble / nothing new throws. `release(assembled)` -> { version, title }
  * picks the final version and title from the first assembly (deriveRelease); `heading(version, title)` -> the
- * assemble opts. -> { sha, tree, version, title, assembled }.
+ * assemble opts. `archive` (jobs named on a member PR's `Job-done: <job>` line, doc-guard): docs/<job>/ moves to
+ * docs/archive/<job>/ (`archiveDate` suffix when taken) and every markdown pointer to it is rewritten; a job with no
+ * docs/<job>/ is skipped. -> { sha, tree, version, title, assembled, archived: [{ job, from, to, files, rewritten }] }.
  */
-export function versionTreeCommit({ head, frags = [], protocol = null, subject, release, opts, cwd }) {
+export function versionTreeCommit({ head, frags = [], protocol = null, subject, release, opts, cwd, archive = [], archiveDate = '' }) {
   const blob = (p) => run(['git', 'cat-file', 'blob', `${head}:${p}`], { raw: true, cwd });
   const ls = exec(['git', 'ls-tree', '--name-only', `${head}:changes`], { cwd });
   const inTree = ls.status === 0 ? ls.out.split('\n').map((x) => x.trim()).filter((x) => x.endsWith('.md') && x.toLowerCase() !== 'readme.md') : [];
@@ -454,10 +459,57 @@ export function versionTreeCommit({ head, frags = [], protocol = null, subject, 
     for (const name of assembled.consumed) {
       if (texts.get(name) == null) run(['git', 'update-index', '--force-remove', name], { env, cwd });
     }
+    const archived = archiveJobs({ head, jobs: archive, date: archiveDate, env, cwd, blob, put });
     const tree = run(['git', 'write-tree'], { env, cwd });
     const sha = run(['git', 'commit-tree', tree, '-p', head, '-m', subject(rel.version), '-m', TRAILER], { cwd });
-    return { sha, tree, version: rel.version, title: rel.title, assembled };
+    return { sha, tree, version: rel.version, title: rel.title, assembled, archived };
   } finally { fs.rmSync(index, { force: true }); }
+}
+
+/**
+ * Job-done archive inside the version commit's index (`env` holds its GIT_INDEX_FILE): each job's docs/<job>/ files
+ * move to docs/archive/<name>/ (same blob and mode; a job that code, tests or config read is skipped, logged), then every markdown file outside docs/archive/ and changes/ that
+ * names the job's folder, and every moved markdown file, gets its links rewritten (scripts/job-archive.mjs).
+ */
+function archiveJobs({ head, jobs, date, env, cwd, blob, put }) {
+  const done = [];
+  if (!jobs.length) return done;
+  const listed = (prefix) => run(['git', 'ls-tree', '-r', '--full-tree', head, '--', `${prefix}/`], { cwd }).split('\n').filter(Boolean)
+    .map((l) => { const [meta, file] = l.split('\t'); const [mode, , sha] = meta.split(' '); return { mode, sha, file }; });
+  const plans = [];
+  for (const job of jobs) {
+    const readers = grepReaders(job, { cwd, rev: head });
+    if (readers.length) { console.log(readersNote(job, readers)); continue; }
+    const entries = listed(`docs/${job}`);
+    const plan = archiveMoves(job, entries.map((e) => e.file), (to) => listed(to).length > 0 || plans.some((p) => p.to === to), date);
+    if (!plan) { console.log(`Job-done: ${job}: no docs/${job}/ on the train head, nothing to archive`); continue; }
+    const byFile = new Map(entries.map((e) => [e.file, e]));
+    for (const m of plan.moves) {
+      const e = byFile.get(m.from);
+      run(['git', 'update-index', '--add', '--cacheinfo', `${e.mode},${e.sha},${m.to}`], { env, cwd });
+      run(['git', 'update-index', '--force-remove', m.from], { env, cwd });
+    }
+    plans.push({ ...plan, job });
+  }
+  if (!plans.length) return done;
+  const moved = new Map(plans.flatMap((p) => p.moves).map((m) => [m.from, m.to]));
+  const grep = exec(['git', 'grep', '-l', '-F', ...plans.flatMap((p) => ['-e', `${p.job}/`]), head, '--', '*.md'], { cwd });
+  const named = grep.status === 0 ? grep.out.split('\n').filter(Boolean).map((l) => l.slice(head.length + 1)) : [];
+  const candidates = new Set([...named, ...[...moved.keys()].filter((f) => f.endsWith('.md'))]);
+  const rewritten = [];
+  for (const file of candidates) {
+    if (!moved.has(file) && (/^docs\/archive\//.test(file) || /^changes\//.test(file) || file === 'CHANGELOG.md')) continue;
+    const text = blob(file);
+    const next = rewriteArchiveLinks(text, file, plans);
+    if (next === text) continue;
+    put(moved.get(file) ?? file, next);
+    rewritten.push(moved.get(file) ?? file);
+  }
+  for (const p of plans) {
+    const r = rewritten.filter((f) => !f.startsWith(`${p.to}/`));
+    done.push({ job: p.job, from: p.from, to: p.to, files: p.moves.length, rewritten: r });
+  }
+  return done;
 }
 
 /** The line every merge-train merge commit body carries: Pages deploys it once, by dispatch, after dev moves. */
@@ -741,7 +793,7 @@ async function waitCi(branch, sha) {
 }
 
 /** The shared version step of build / release (old style) / single: changelog, `npm version`, add, commit, optional push. */
-function versionCommit({ branch, head, checkout, version, title, pr, members, subject, push = true, extraAdd = [] }) {
+function versionCommit({ branch, head, checkout, version, title, pr, members, subject, push = true, extraAdd = [], archive = [] }) {
   const opts = { version, title, date: today(), pr: pr ?? 'NEW', members };
   const heading = releaseHeading(opts.version, opts.title, opts.date, opts.pr, members);
   if (checkout) act(checkout);
@@ -756,8 +808,16 @@ function versionCommit({ branch, head, checkout, version, title, pr, members, su
     console.log(summary(r, `CHANGELOG.md: ${heading}`));
     if (!r.text) throw new Error('nothing new to release: every fragment entry is already in CHANGELOG.md');
   }
+  const moved = [];
+  if (archive.length && DRY) console.log(`  [dry-run] would archive docs/<job>/ for Job-done: ${archive.join(', ')}`);
+  else if (archive.length) {
+    for (const a of archiveInWorktree({ root: run(['git', 'rev-parse', '--show-toplevel']), jobs: archive, date: today() })) {
+      console.log(`archive (Job-done: ${a.job}): ${a.from}/ -> ${a.to}/ in the version commit (${a.files} files; links fixed in ${a.rewritten.length} other docs)`);
+      moved.push(a.to, ...a.rewritten);
+    }
+  }
   act(`npm version ${version} --no-git-tag-version`);
-  act(['git', 'add', '-A', 'CHANGELOG.md', 'changes', 'package.json', 'package-lock.json', ...extraAdd]);
+  act(['git', 'add', '-A', 'CHANGELOG.md', 'changes', 'package.json', 'package-lock.json', ...extraAdd, ...moved]);
   act(['git', 'commit', '-m', subject, '-m', TRAILER]);
   if (push) act(['git', 'push', 'origin', `HEAD:refs/heads/${branch}`]);
   return { sha: DRY ? null : rev('HEAD') };
@@ -980,6 +1040,24 @@ function planFragments(members) {
 }
 
 /**
+ * Read only: the jobs whose docs the version commit archives, from the member PR bodies' `Job-done: <job>` lines
+ * (doc-guard; scripts/job-archive.mjs), printed. A body that cannot be read is logged and skipped (never fatal).
+ */
+function jobsDone(members) {
+  const jobs = [];
+  for (const m of members) {
+    if (!m.pr) continue;
+    const r = exec(['gh', 'pr', 'view', String(m.pr), '--json', 'body', '--jq', '.body']);
+    if (r.status !== 0) { console.warn(`Job-done: could not read #${m.pr}'s body (${r.err.trim().slice(0, 200)}): its docs are not archived`); continue; }
+    for (const job of jobDoneJobs(r.out)) {
+      console.log(`Job-done: ${job} (#${m.pr} ${m.branch})`);
+      if (!jobs.includes(job)) jobs.push(job);
+    }
+  }
+  return jobs;
+}
+
+/**
  * The train PR number: the open one, or a new one (null in a dry run). A stacked build (`base`: { train, sha, version })
  * writes its base marker into the PR body (an open PR's body is edited when its marker differs).
  */
@@ -1103,6 +1181,7 @@ async function build({ n, version, title, branches, keep, on = null }) {
   // only after it. Read only until the push: members, fragments, wire, the open PR (or the number a new one will get).
   const members = trainMembers(head, n);
   const synth = planFragments(members);
+  const archive = jobsDone(members);
   const protocol = planWire(wireCandidates(kept, members), head, base ? base.sha : 'origin/master');
   const baseVersion = base ? base.version : versionAt('origin/master');
   const memberPrs = members.filter((m) => m.pr).map((m) => m.pr);
@@ -1110,7 +1189,7 @@ async function build({ n, version, title, branches, keep, on = null }) {
   const open = openPrInfo(branch);
   const predicted = open ? open.number : predictPrNumber();
   const make = (pr) => versionTreeCommit({
-    head, frags: synth.frags, protocol, subject: (ver) => versionSubject(n, ver),
+    head, frags: synth.frags, protocol, subject: (ver) => versionSubject(n, ver), archive, archiveDate: today(),
     release: (assembled) => deriveRelease({ version, title, baseVersion, planned: branches, merged, assembled }),
     opts: (ver, t) => ({ version: ver, title: `Train ${n}: ${t}`, date: today(), pr: pr ?? 'NEW', members: memberPrs }),
   });
@@ -1126,6 +1205,7 @@ async function build({ n, version, title, branches, keep, on = null }) {
   if (race2) { console.error(race2); return 1; }
   console.log(summary(v.assembled, `CHANGELOG.md: ${releaseHeading(v.version, `Train ${n}: ${v.title}`, today(), predicted ?? 'NEW', memberPrs)}`));
   if (protocol) console.log('src/net/protocol.ts goes into the version commit');
+  for (const a of v.archived) console.log(`archive (Job-done: ${a.job}): ${a.from}/ -> ${a.to}/ in the version commit (${a.files} files; links fixed in ${a.rewritten.length} other docs)`);
   // One push: the version commit (CI and the laptop start on it); no pre-version push for CI to cancel.
   act(['git', 'push', ...(keep ? [] : ['--force']), 'origin', `${v.sha}:refs/heads/${branch}`]);
   clearBuildMarker();
@@ -1292,7 +1372,7 @@ async function single({ branch, version, title }) {
   if (!head) return 3;
   console.log(`PR #${pr} (${branch})`);
   const v = versionCommit({ branch, head, checkout: ['git', 'checkout', '--detach', head], version, title, pr, members: [],
-    subject: `${version}: version at merge (G183)` });
+    subject: `${version}: version at merge (G183)`, archive: jobsDone([{ pr, branch }]) });
   if (v.code) return v.code;
   return ciAndMerge({ branch, sha: v.sha, pr, version });
 }

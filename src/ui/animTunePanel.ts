@@ -363,7 +363,7 @@ function hint(glyphs: (PromptButton | 'DPAD' | 'VIEW' | 'R3' | 'LSTICK')[], word
  * hint strip is reserved space at the bottom (pad glyphs with a pad, keys otherwise). Reset per slider (X, or x), per
  * group and all; Export downloads `anim-tune-<date>.json`; the values save to the tuner's own IndexedDB store.
  *
- * Pad (`TunePadCtl`, map in `docs/anim-tuner/STATE.md` "Pad map"): LB / RB tabs, D-pad rows, A open / pick / edit, B back,
+ * Pad (`TunePadCtl`, map in `docs/archive/anim-tuner/STATE.md` "Pad map"): LB / RB tabs, D-pad rows, A open / pick / edit, B back,
  * X reset row, Y the more menu, View hands the pad to the game (or the free view) and back, Menu closes. With "Pause game
  * while tuning" on (default) the game holds still while the panel has the pad (not in the Anim Studio, where the loop
  * player's Play / Pause rules, nor in co-op). While the pause menu is open the menus get the pad. The barrel marker is a

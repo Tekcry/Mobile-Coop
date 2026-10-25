@@ -1,4 +1,5 @@
 # Task: <Map name> - <one-line pitch>
+<!-- Owner: the orchestrator (template). Status: current. -->
 
 <!-- How to use: copy this file, fill every <...>, delete these comments, paste into Claude Code.
      Sections marked (fixed) stay as written. Sections marked (fill) describe this map.
@@ -115,9 +116,9 @@ section and its way back (11.10, 11.6); Sector Ops, the solo route past it (11.6
 
 ## Phases (fixed)
 `docs/level-design.md` section 14 owns the phases and their gates (validator gate before greybox, one-click sign-off,
-greybox exit with `--require-measured`, route-runs and the walk card); section 13 owns the deliverables, section 15 the
-acceptance tests. Phase 0 also confirms by grep every fact this spec and level-design section 12 rely on and reports how
-to build each element from the engine files only.
+greybox exit with `--require-measured` (V6, not live yet), route-runs and the walk card); section 13 owns the
+deliverables, section 15 the acceptance tests. Phase 0 also confirms by grep every fact this spec and level-design
+section 12 rely on and reports how to build each element from the engine files only.
 
 ## Future recommendations (fixed)
 At the end of the last phase, one paragraph each on systems this map would benefit from (how they would fit the existing

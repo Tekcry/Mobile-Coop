@@ -8,7 +8,7 @@
  * slider id is unique within its section. Defaults are identity (a `mul` 1, an `add` 0).
  *
  * Hot paths read a section's preallocated objects: `eff[group][field]`, or `cur[field]` after `tuneSectionLoad`
- * (a copy loop, no allocation). The API is documented in `docs/anim-tuner/STATE.md` ("Section registry").
+ * (a copy loop, no allocation). The API is documented in `docs/archive/anim-tuner/STATE.md` ("Section registry").
  *
  * (anim-bake-all, BA-A1) `values` holds the tuner's own values (the panel, the save and the export: deltas). `base` holds
  * the generated base table's `sections` key for the section (`animBase.ts`; identity where unset), and `eff` the two

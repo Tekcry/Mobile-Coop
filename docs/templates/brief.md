@@ -1,4 +1,5 @@
 # <job>: brief
+<!-- Owner: the orchestrator (template). Status: current. -->
 
 <!-- How to use: copy to docs/<job>/BRIEF.md, fill every <...>, delete these comments. Gate 1 of the intake
      (docs/systems/session-method.md "Intake"). The plan checker compares the PLAN against the two Michael sections,

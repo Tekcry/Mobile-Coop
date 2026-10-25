@@ -1,4 +1,5 @@
 # Progression and saves
+Owner: the orchestrator. Status: current.
 Purpose: the save schema, migrations, the export format, the settings record and the course record.
 Design authority: docs/design-bible.md (Section 5.11). Saves only go through `src/save` (IndexedDB); `localStorage`
 never holds a save.

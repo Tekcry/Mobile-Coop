@@ -41,7 +41,7 @@ export const WREN_HOLSTER = {
 };
 
 /**
- * (anim-rig, docs/anim-rework/RIG.md) Wren's sling sockets for a slung long gun, game frame, metres:
+ * (anim-rig, docs/archive/anim-rework/RIG.md) Wren's sling sockets for a slung long gun, game frame, metres:
  * - `back`: from her chest joint, on the back plate's surface at the left shoulder blade (measured on her LOD0 and hero:
  *   the back-most chest-skinned vertex at 7.8 cm left, 12.3 cm up, its surface 9.6 cm behind the joint; 4 mm off it),
  *   where a sling's rear end anchors;

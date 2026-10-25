@@ -1,4 +1,5 @@
 # Plan check: prompt and verdict
+<!-- Owner: the orchestrator (template). Status: current. -->
 
 <!-- Gate 3 of the intake (docs/systems/session-method.md "Intake"). The lead starts a FRESH Opus agent (high effort)
      with the prompt below, <job> filled in. The checker writes docs/<job>/PLAN-CHECK.md in the verdict format; the

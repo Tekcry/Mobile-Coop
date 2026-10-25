@@ -1,4 +1,5 @@
 # Account swaps (cheap swaps)
+Owner: the orchestrator. Status: current.
 
 Process audit 2026-10-24, finding 6 (Michael approved ~21:50): swaps were the biggest single cost. Measured over 3 days:
 ~16 swaps, save -> every session up again median ~35 min, 8+ agents / runs lost at cutoffs, dead cloud builders' claims

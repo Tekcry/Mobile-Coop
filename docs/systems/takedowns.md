@@ -1,4 +1,5 @@
 # Takedowns
+Owner: Player Build. Status: current.
 Purpose: takedown kinds, the grab and hostage, and the close strike.
 Design authority: docs/DECISIONS.md (G23, G42, G43, G49, G180, G348), then docs/design-bible.md (Section 5.4).
 
