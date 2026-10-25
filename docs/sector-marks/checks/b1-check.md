@@ -47,3 +47,40 @@ None.
    `../../core` imports (as the brief said; cosmetic).
 3. `src/game/interactables.ts:78` class comment still lists the "extraction beacon" without saying Sector Ops has none;
    one clause would help the next reader.
+
+## Check 2 (independent Opus)
+
+Checker: second fresh Opus (verdict formed before reading Check 1). Head `6dd50e85a13d95a9a23fe235659ba277f59ddd60`
+(= origin/feature/sector-marks = origin/feature/sector-marks-b1), diff `origin/master...HEAD`.
+
+### Verdict: PASS
+
+### What was checked
+- Beacon off in Sector Ops only: `drawsExitBeacon(mode)` is `mode !== 'sector'`; Course (Marlow Yard), Infiltration,
+  Mission, Clear and free roam (`gameState.ts:839`, default `true`) keep it. Host/solo builder `gameState.ts:728` and
+  co-op client `coopClient.ts:247` both pass it.
+- Co-op client: `extract` is not in `ITEM_KINDS` (`protocol.ts:227`, filter `coopHost.ts:1485`), so the host never
+  mirrors exit items; the client line is a consistent guard, not the only path (Check 1's "its mirror loses the beacon"
+  is moot in practice, harmless). No wire change (`protocol.ts` untouched, `NetItem['k']` unchanged), no save change.
+- Exit zone still triggers: `sectorMode.exitStep` uses `inZone` on the zone box, independent of the item's visuals; the
+  `<id>-exit` item is still added and enabled; `setEnabled` / `update` / `remove` / `dispose` handle `light === null`
+  and empty `parts`.
+- Lines: S1 gatehouse, S2 facilities office (unchanged), S3 prototype store, S4 server cage, S5 strongroom; all <= 50
+  chars, under the snapshot `obj` cap (80) and the done-feed line (+7) stays under 60.
+- Regression bite: reverting `drawsExitBeacon`, the empty branch or any of the four labels fails a unit test; the
+  e2e assertion covers a dropped builder argument. `G(fn, arg)` in that suite passes the arg (`e2e-sectorops.mjs:22`).
+- Hot paths: nothing per-frame added; `add` runs at section setup. `campusS4Dress.ts` `Math.hypot` -> `hyp2`
+  (`Math.sqrt(x*x+y*y)`), build-time only, S4 hero log byte-identical per the build report; `campusS4Dress.test` passes.
+- Strict TS: `import type { ModeId }`; typecheck clean.
+
+### Runs
+- `npm run typecheck:fast`: pass.
+- `npx vitest run --maxWorkers=2` campusObjectivePlace, exitBeacon, campusS4Dress, sectors, sectorBolt,
+  sectorItemScope, changesFragments: 7 files, 73 tests passed.
+- e2e: pending laptop queue (`e2e-sectorops` plus the co-op group for the `src/net` line).
+
+### Fix list
+None.
+
+### Polish list
+1. No unit test pins the builder arguments (`gameState.ts:728`, `coopClient.ts:247`); only the e2e assertion does.
