@@ -450,6 +450,13 @@ describe('auto-train: left out on a conflict', () => {
     expect(p.comment).toMatch(/<!-- auto-train:left-out:0123456789abcdef -->$/);
   });
 
+  it('asks for a doc fix, not a conflict fix, when merge-train left the member out on doc-lint', () => {
+    const p = leftOutPlan({ ...base, why: 'doc-lint with master and the members before it: docs/a.md:1 721 lines, budget 720', labels: ['train-ready'] });
+    expect(p.comment).toMatch(/was left out of train 47: doc-lint with master/);
+    expect(p.comment).toMatch(/fix the doc on this branch so it passes doc-lint together with master/);
+    expect(p.comment).not.toMatch(/conflict/);
+  });
+
   it('skips the removal without the label and the comment when this head has one', () => {
     const first = leftOutPlan({ ...base, labels: ['train-ready'] });
     const again = leftOutPlan({ ...base, labels: [], bodies: ['hi', first.comment!] });

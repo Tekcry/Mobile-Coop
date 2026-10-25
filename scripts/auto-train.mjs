@@ -1049,7 +1049,9 @@ function nextN() {
 export function leftOutPlan({ pr, branch, head, n, why, labels = [], bodies = [] }) {
   return memberLabelPlan({ pr, labels, bodies, marker: `<!-- auto-train:left-out:${head} -->`, paragraphs: [
     `Auto-train: \`${branch}\` (${short(head)}) was left out of train ${n}: ${why}.`,
-    `Please fix the conflict with master on this branch (or on train/${n}). The \`${LABEL}\` label has been removed, so this PR no longer joins trains: re-add \`${LABEL}\` once the conflict is fixed and \`check\` is green.`] });
+    why.startsWith('doc-lint')
+      ? `Please fix the doc on this branch so it passes doc-lint together with master and the train's other members (each may pass alone, e.g. a shared doc budget). The \`${LABEL}\` label has been removed, so this PR no longer joins trains: re-add \`${LABEL}\` once it is fixed and \`check\` is green.`
+      : `Please fix the conflict with master on this branch (or on train/${n}). The \`${LABEL}\` label has been removed, so this PR no longer joins trains: re-add \`${LABEL}\` once the conflict is fixed and \`check\` is green.`] });
 }
 
 /** A PR's labels and comment bodies (for leftOutPlan / dropPlan). */
