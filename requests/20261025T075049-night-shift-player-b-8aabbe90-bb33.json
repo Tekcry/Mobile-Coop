@@ -1,0 +1,13 @@
+{
+  "id": "20261025T075049-night-shift-player-b-8aabbe90-bb33",
+  "sha": "8aabbe900138c4807c5ce0f0055c6577b3858dc1",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-offline",
+    "e2e-menus"
+  ],
+  "set": "gm-polish"
+}
