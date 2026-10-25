@@ -1,5 +1,32 @@
 # Changelog
 
+## 4.104.2 - Train 107: Tallow Wharf map spec; Marlow Yard rule fixes; No minimap, compass or blips; Guard AI allocation fixes (2026-10-25, PR #470; #466, #463, #447, #446)
+
+### Guard AI allocation fixes
+- Guards no longer create garbage when they shoot, bite or think: shots, bites and their moves reuse kept
+  values, and the guard manager's half-second checks use plain loops.
+
+### No minimap, compass or blips
+- The minimap, the compass strip and every objective, pickup, partner and enemy dot are gone from every mode (G339,
+  G135): Sector Ops, Marlow Yard, free roam and co-op. The Marlow Yard drill pointer, world pings and the partner's
+  goggle colour stay. The context menu moves up to its CT spot now nothing sits above it.
+- The legacy HQ "Minimap radar" upgrade is gone; saves move to version 10 (an old radar level is dropped, credits are
+  not refunded).
+- Tests: every suite that read the minimap or blips is flipped; Sector Ops, Marlow Yard, free roam and the co-op
+  client now each check that no minimap or compass is on screen.
+
+### Marlow Yard rule fixes
+- Marlow Yard needs two players: the co-op lobby will not start Course mode with one player, on every build, and the
+  lobby says why ("Marlow Yard needs two players").
+- Revives in Marlow Yard stay capped at two: a good set rating no longer gives a syringe, and the rating card never
+  offers one. Gadget charges and medkits are still granted; Sector Ops ratings still give syringes.
+- The A2 Carriage Shed's entry vantage is now checked as out of the deck watchers' view.
+
+### Tallow Wharf map spec
+- Docs: `docs/tallowWharf-map/SPEC.md` is the Tallow Wharf (campaign Mission 1) spec on the map-spec template: Michael's
+  binding words, stairs and exits, guard totals under the 32 cap, co-op routes with the way back per gate, the objective
+  chain, and real-world light bands with a light table for every space (no space dark by design).
+
 ## 4.104.1 - Train 106: Level validator: gate core (2026-10-25, PR #467; #464)
 - Level validator (tooling, no game change): the shared graph helpers move into one library
   (`scripts/level-graph-lib.mjs`) that the level validator, the measure tool and the mission validator all import.

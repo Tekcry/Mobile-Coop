@@ -223,6 +223,8 @@ try {
   assert(visB.info.some((i) => i.inFrustum && i.active), `host avatar in the client camera's view (${JSON.stringify(visB)})`);
   const objIn = await GB(() => window.__app.current.hud.objectiveText);
   assert(!/Connecting to host/.test(objIn), `connecting label gone once in game (${objIn})`);
+  // (G339) the partner dot lived on the minimap: the client draws no minimap or compass
+  assert(await GB(() => !document.querySelector('.hud-minimap, .minimap, .hud-compass')), 'no minimap or compass (G339)');
   const hostSeesClient = await GA(() => { const r = window.__app.current.net.remotes.values().next().value; return r.avatar.rig.root.isEnabled(); });
   assert(hostSeesClient, 'host renders the client avatar');
   // (G135) each player's goggle is their own colour, the same on both screens: the host green (the lens's own), the
