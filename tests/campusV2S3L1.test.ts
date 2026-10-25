@@ -286,7 +286,8 @@ describe('campus v2 S3 L1 (R2a)', () => {
       }
     }
     for (const x of [30, 33.5, 58]) {
-      expect(pieceAt(lSolid, x, 5.0, -0.25, false), `strip ${x}`).toBeDefined();
+      // (s3 join J4) the slot behind the core's north wall is R3's wall now (it runs to the shell), not a strip of ours
+      expect(pieceAt(lSolid, x, 5.0, -0.25, false), `strip ${x}`).toBeUndefined();
       expect(pieceAt(lSolid, x, 5.0, -3, false), `core wall ${x} is R3's`).toBeUndefined();
     }
     const doorXs = [kit.S3_DOORS.hoist[0], kit.S3_DOORS.gown[0], kit.S3_DOORS.storeHatch[0]];

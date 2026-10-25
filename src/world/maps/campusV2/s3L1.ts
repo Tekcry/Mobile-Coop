@@ -231,14 +231,13 @@ export function buildS3L1(b: LevelBuilder): void {
   for (const x of S3_SAMPLE_CASES) bx(b, x - CASE_LEN / 2, x + CASE_LEN / 2, L1, L1 + CASE_H, -7 - T / 2 - CASE_DEEP, -7 - T / 2, STEEL, { noLedge: true });
 
   // ---- 4. the north rooms (D:66-70): partitions 4.5..7.5 at x 21, 37.5 (passThrough), 47 (airlock); at x 30, 33.5 and 58
-  // the cores' walls are R3's, so only the strips from their north walls (z -0.5) to the shell close the slots behind them;
+  // the cores' walls are R3's and run to the shell (s3 join J4: no strips of ours behind them, r3 F2);
   // the store's shelving partition at x 53 (2.4, the aisle gap z -4..-2.8), the board shelf against x 58, the write-up desk
   wall(b, false, 21, -7, 0, L1, C, []);
   wall(b, false, 37.5, -7, 0, L1, C, [doorHole(hingeZ('passThrough'), L1)]);
   doorAt(b, false, 37.5, hingeZ('passThrough'), L1, swingOf('passThrough'));
   wall(b, false, 47, -7, 0, L1, C, [doorHole(hingeZ('airlock'), L1)]);
   doorAt(b, false, 47, hingeZ('airlock'), L1, swingOf('airlock'));
-  for (const [x, z0] of [[S3_BOX.nCore[0], S3_BOX.nCore[3]], [S3_BOX.nCore[2], S3_BOX.nCore[3]], [S3_BOX.eCore[0], S3_BOX.eCore[3]]] as const) wall(b, false, x, z0, 0, L1, C, []);
   bx(b, 53 - T / 2, 53 + T / 2, L1, L1 + 2.4, -7 + T / 2, -4, STEEL, { noLedge: true });
   bx(b, 53 - T / 2, 53 + T / 2, L1, L1 + 2.4, -2.8, -T / 2, STEEL, { noLedge: true });
   bx(b, 57.35 - 0.15, 58 - 0.15, L1, L1 + 1.8, -5.0, -2.6, STEEL, { noLedge: true });
