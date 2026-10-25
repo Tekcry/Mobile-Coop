@@ -13,7 +13,7 @@ import { CourseMode, courseStationParam, inTickZone, retryHook, retryLine, stati
 import { REPLAN_TICKS, type StationHooks, type StationTick } from '../src/game/course/replan/ticks';
 import { RESTART_DELAY } from '../src/config/course';
 import { parseMessage } from '../src/net/protocol';
-import { roomMap } from '../src/net/session';
+import { resumeMap, roomMap } from '../src/net/session';
 import type { GameState } from '../src/game/gameState';
 import type { SecurityConsole } from '../src/game/course/securityRoom';
 
@@ -752,5 +752,12 @@ describe('the room map', () => {
     expect(roomMap('ctcourse', true)).toBe('ctcourseReplan');
     expect(roomMap('warehouse', true)).toBe('warehouse');
     expect(roomMap('ctcourseReplan', false)).toBe('ctcourseReplan');
+  });
+  it('a Resume hosting record on the re-planned yard reopens on the built yard with the flag off (fix 8)', () => {
+    expect(resumeMap('ctcourseReplan', false)).toBe('ctcourse');
+    expect(resumeMap('ctcourseReplan', true)).toBe('ctcourseReplan');
+    expect(resumeMap('ctcourse', true)).toBe('ctcourseReplan');
+    expect(resumeMap('ctcourse', false)).toBe('ctcourse');
+    expect(resumeMap('warehouseOps', false)).toBe('warehouseOps');
   });
 });

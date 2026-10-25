@@ -34,6 +34,14 @@ export function roomMap(map: string, replan = flags.marlowReplan): string {
   return replan && map === 'ctcourse' ? 'ctcourseReplan' : map;
 }
 
+/**
+ * (J14 R1 fix 8) The map a "Resume hosting" record reopens on: a record kept on the re-planned yard falls back to the
+ * built yard when this page has `?marlowreplan=1` off (the re-plan is dark); with the flag on, as `roomMap`.
+ */
+export function resumeMap(map: string, replan = flags.marlowReplan): string {
+  return !replan && map === 'ctcourseReplan' ? 'ctcourse' : roomMap(map, replan);
+}
+
 export interface SessionEvents {
   lobby: { players: PlayerInfo[] };
   start: StartInfo;
