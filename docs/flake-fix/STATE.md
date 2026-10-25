@@ -3,6 +3,26 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 55 (2026-10-25 ~20:32, Orchestrator save at 85%; wins over SAVE 54 where they differ):**
+- Train 99 (899b1b41) laptop 43/43 green (flake e2e-studio). Service pid 12732 healthy, no locks held.
+- TOP PRIORITY (Michael ~20:10, via Orchestrator): Player Build opens the mixamo-retarget PR (feature/mixamo-retarget)
+  ~21:15; its laptop run is e2e-studio + e2e-anim + anim-audit. Run its requests next, ahead of other PR requests
+  (trains still first). The watcher that spots them was session-bound and dies with this session: the next Test
+  Runner re-checks `git grep -l mixamo-retarget origin/laptop-queue -- requests/` (after `git fetch origin
+  laptop-queue`), then RE-FILES each unclaimed mixamo request by hand (Player Build's studio request and the auto
+  affected one): one commit on laptop-queue that deletes requests/<id>.json and adds the same JSON with "id" and file
+  name changed to an early time prefix (e.g. 20261025T000000-<rest of id>). Why: lib pickFrom orders requesters by
+  the oldest request id (sortById), and --priority works only inside one requester. The old file's withdrawal posts a
+  temporary "withdrawn ... (not run)" error; the new run's verdict overwrites it. An aged alone request (over 30 min)
+  still blocks PR starts: Guard AI agreed to withdraw alone-coop4-4p at 21:05 if not started and re-file after the
+  Mixamo verdict. When the Mixamo laptop verdict posts, message the Orchestrator (it releases Guard AI).
+- Stale sweep (Orchestrator ask): all 17 open requests are on their branch head or only docs behind; none withdrawn.
+- J20 queue: j20-parity-pre-1 success (desktop, 1/1). Open: j20-parity-pre-2/3 (b81c4945), j20-s6c (b22bcbc3),
+  j20-pra (0d7eab1e), #445 affected (0eed874e), j20-perf re-filed as ...-5bf9 (the first run failed in 9 s: the step
+  lacked `node scripts/laptop-queue/serve.mjs` around perf.mjs; my request error, not a game failure).
+- No gap work queued: the queue is ~17 requests deep and trains are running (gap-run rule, SAVE 50).
+- Next: Mixamo fast-track (above); then the SAVE 54 Next line (J20 results, S6c fix if red, D-A on PR-C merge).
+
 **Test Runner SAVE 54 (2026-10-25 ~19:15, Orchestrator save at 94%; wins over SAVE 53 where they differ):**
 - Trains 96 and 97 green (43/43 on 97). Service pid 12732 healthy; queue ~21 requests deep, so no gap runs added.
 - J20: every slice built and checked; the full status is the resume block of `docs/test-runner-j20/STATE.md` on
