@@ -11,7 +11,7 @@ const quarantine = JSON.parse(read('scripts/e2e-quarantine.json')) as {
 
 // run-e2e.mjs runs suites on import, so read REQUIRED from its source text.
 const requiredMatch = /const REQUIRED = (\[[^\]]*\])/.exec(read('scripts/run-e2e.mjs'));
-const REQUIRED: string[] = requiredMatch ? JSON.parse(requiredMatch[1].replace(/'/g, '"')) : [];
+const REQUIRED: string[] = requiredMatch ? JSON.parse((requiredMatch[1] ?? "[]").replace(/'/g, '"')) : [];
 
 const backlog = read('docs/backlog.md');
 const flakySection = (() => {
