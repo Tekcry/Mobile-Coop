@@ -65,8 +65,11 @@ unchanged and green; the built A4 keeps its kettle loop and every aisle.
 10. **Lamps (Q2).** Group 49, the back aisle: 3 strips over the back aisle, switch `a4-sw-bulk` at (76.3, 25.8); group 44,
     the dispatch office: 1 ceiling panel, switch `a4-sw-dispatch` (79.4, 38.4) inside it (`MARLOW_CIRCUITS_REPLAN`; the
     lamp counts are the budget). Light spots for both.
-11. **Drill hook (lead fills before opening):** <how a set file declares station 8's loop window and station 10's pair
-    window on the base; R1's auto `drillS` timer would start station 10's 1.5 s on the wicket's push bar>.
+11. **Drill hook (lead decided ~23:10):** no timer starts from a gate opening. Write station 8's loop window and station 10's pair window as runtime code in your
+   own stub `src/game/course/replan/a4Ticks.ts` (R1 created it and registered it in `REPLAN_TICKS` in
+   `src/game/course/replan/ticks.ts`): a `StationTick(h, dt)` that reads `h.live()`, `h.flag(id)`, `h.playersIn(zone)`,
+   `h.now()` and calls `h.retry(n, 'timer' | 'seen')`; allocation-free (no closures or arrays per frame). Edit no other
+   tick file and not `ticks.ts`. Add `a4Ticks.ts` to this brief's file list and unit-test the tick with fake hooks.
 
 ## Lead decisions that touch A4 (j14-wave2-notes)
 - Play order 9, 8, 10 (the base's `checkSetPart` allows n 1-21, not rising).

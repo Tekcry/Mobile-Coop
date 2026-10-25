@@ -6,6 +6,7 @@ Queue copy: cloud-queue `briefs/j14-g-a2.md` (the lead copies this file there).
 
 ## Base and branch
 - base: feature/marlow-replan-base at <sha the lead fills> (S0 + R1 merged, both checker-passed).
+- Lead confirmed (~23:10): pit x 66.0-69.0, wall to wall in z, depth 1.6 m, step irons on the near side only, far edge not climbable; neck closers extended behind the removed deck.
 - new branch: `feature/marlow-replan-g-a2` (desktop worktree `C:/NightShift/Mobile-Coop-marlow-replan-g-a2`).
 - Guard before every write: `test "$(git rev-parse --abbrev-ref HEAD)" = feature/marlow-replan-g-a2`. Commit and push each
   finished step (`git add <files>`, never `-A`). No stash, reset, rebase, merge or force-push.
@@ -78,8 +79,11 @@ The built `ctcourse` stays byte-identical: `tests/ctcourse/a2CarriageShed.test.t
    plus the holding-room line, each naming what and where (#441's rule; at most `COURSE_TEXT_MAX`), no "fail".
 10. **Lamp.** The coat corner: one wall lamp over the coat hooks on circuit 22 (`MARLOW_CIRCUITS_REPLAN` group 22 has
     2 lamps: the built panel plus this one). Its light spot joins `part.lightSpots`.
-11. **Drill hook (lead fills before opening):** <how a set file declares station 4's window and its fail test on the
-    base; R1's auto `drillS` timer starts on the first gate opening and would fail the second crossing>.
+11. **Drill hook (lead decided ~23:10):** no timer starts from a gate opening. Write station 4 (one window per neck crossing; fail = a player inside the neck zone when the lights return) as runtime code in your
+   own stub `src/game/course/replan/a2Ticks.ts` (R1 created it and registered it in `REPLAN_TICKS` in
+   `src/game/course/replan/ticks.ts`): a `StationTick(h, dt)` that reads `h.live()`, `h.flag(id)`, `h.playersIn(zone)`,
+   `h.now()` and calls `h.retry(n, 'timer' | 'seen')`; allocation-free (no closures or arrays per frame). Edit no other
+   tick file and not `ticks.ts`. Add `a2Ticks.ts` to this brief's file list and unit-test the tick with fake hooks.
 
 ## Lead decisions that touch A2 (j14-wave2-notes)
 - Pit x 66.0-69.0 (SA9), not G0's 66.25-69.25 or the SVG's 66.5-69.5; G1 moves the graph boxes after the build.

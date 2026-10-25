@@ -77,9 +77,11 @@ unchanged and green.
    cannot fail).
 10. **Objective lines.** Replace `part.objectives` for A5 in the replan file: one line per station plus the holding-room
     line, each naming what and where (at most `COURSE_TEXT_MAX`), no "fail".
-11. **Drill and beam hook (lead fills before opening):** <how a set file declares station 13's jam window ("the flood is
-    back before `a5-release`") and the beam trip as `seen` on the base; R1's auto `drillS` timer would start on the
-    release gate, the end of the station>.
+11. **Drill hook (lead decided ~23:10):** no timer starts from a gate opening. Write station 13's jam window and the beam trip (a broken beam on station 13 = retry 'seen') as runtime code in your
+   own stub `src/game/course/replan/a5Ticks.ts` (R1 created it and registered it in `REPLAN_TICKS` in
+   `src/game/course/replan/ticks.ts`): a `StationTick(h, dt)` that reads `h.live()`, `h.flag(id)`, `h.playersIn(zone)`,
+   `h.now()` and calls `h.retry(n, 'timer' | 'seen')`; allocation-free (no closures or arrays per frame). Edit no other
+   tick file and not `ticks.ts`. Add `a5Ticks.ts` to this brief's file list and unit-test the tick with fake hooks.
 12. **Fallback answer (lead fills after G-A6's noise test):** <watcher in A5 (default) / moves to A6>.
 
 ## Lead decisions that touch A5 (j14-wave2-notes)

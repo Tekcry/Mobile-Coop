@@ -63,8 +63,11 @@ unchanged and green.
     (118, 67.2) for C2). Confirm from the built geometry which side of `A8_COUNTER_MAIN` (z 65.5-66.24) the staff side and
     the jam spot are, and that the floor partner at (118, 67.2) jams C2 (133.75, 4.4 + mount, 73.0; range 10) for the
     gallery's last 8 m; report the box for G1.
-11. **Drill hook (lead fills before opening):** <how stations 20 and 21 declare their windows on the base; R1's auto
-    `drillS` timer fits 20 and starts 21's 60 s when 21 goes live rather than at the loop's press>.
+11. **Drill hook (lead decided ~23:10):** no timer starts from a gate opening. Write the windows of stations 20 and 21 as runtime code in your
+   own stub `src/game/course/replan/a8Ticks.ts` (R1 created it and registered it in `REPLAN_TICKS` in
+   `src/game/course/replan/ticks.ts`): a `StationTick(h, dt)` that reads `h.live()`, `h.flag(id)`, `h.playersIn(zone)`,
+   `h.now()` and calls `h.retry(n, 'timer' | 'seen')`; allocation-free (no closures or arrays per frame). Edit no other
+   tick file and not `ticks.ts`. Add `a8Ticks.ts` to this brief's file list and unit-test the tick with fake hooks.
 
 ## Lead decisions that touch A8 (j14-wave2-notes)
 - n 18-21 for badge 18; play order as listed; marks by role (A = gallery / office, B = floor).

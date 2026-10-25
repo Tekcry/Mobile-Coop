@@ -6,6 +6,7 @@ Queue copy: cloud-queue `briefs/j14-g-a6.md` (the lead copies this file there).
 
 ## Base and branch
 - base: feature/marlow-replan-base at <sha the lead fills> (S0 + R1 merged, both checker-passed).
+- Lead confirmed (~23:10): the layout in this brief (pit at the cage footprint, covered outfall culvert east to the L6 door, gauge board moved, attendant round north of the culvert, 1.0 x 1.0 m drop opening at x 52-53, z 65-66). Step 1 (noise test) first; report it before the rest.
 - new branch: `feature/marlow-replan-g-a6` (desktop worktree `C:/NightShift/Mobile-Coop-marlow-replan-g-a6`).
 - Guard before every write: `test "$(git rev-parse --abbrev-ref HEAD)" = feature/marlow-replan-g-a6`. Commit and push each
   finished step (`git add <files>`, never `-A`). No stash, reset, rebase, merge or force-push.
