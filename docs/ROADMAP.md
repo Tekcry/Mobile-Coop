@@ -39,6 +39,7 @@ the cap (G355).
 | 14 | Lookouts + paired patrols (G335), helmets by tier (G350), dogs (G348), #360 redone as shadow-in-view (G327, wip/guard-ai-t1-shadow; close #360 when that PR opens, never label it) | Guard AI | Plan checker; two checkers | 4, 6 |
 | 15 | Marlow Yard: downed (G349), drill retry (G361), strict rule late (G357), later sections (G363) | Marlow | Checker | 6 |
 | 16 | guard-ai #360 T1 anim tier + feature/guard-ai-t1-look-script (paused by Michael 13:30 until the row 6 sign-off: then tell Guard AI to resume); coop-real (#388), coop4 (#317: laptop-e2e/coop4-fix7 green on 24ba2e518, held draft; at the row 6 sign-off tell Guard AI to mark it ready + two Opus checkers), gm-flip (#375, after Michael's picks) | Player, Guard AI | As today | 6 |
+| 0c | Anim tuner clarity (Michael ~15:30: "Please update the anim tool with these changes, I can't tell if my changes are working between motion capture or keyed. Must be clear"; ahead of the row 6 sign-off by his instruction): every tab and row says whether it changes the motion-captured or the hand-made animation; a live "now playing" line; a warning when an edit does not change what is playing; Keys tab Legs part with per-key foot / ankle and shin twist | Player | BRIEF, Opus PLAN + plan checker, build, checker, e2e-studio | - |
 | 17 | Flake budget + affected-e2e per head; laptop-queue-5 follow-ups | Test Runner | Plan checker | 5 |
 
 Not ranked yet (process, re-ranked at row 6): overlap slice 4 (scripts/auto-train.mjs;
@@ -48,7 +49,7 @@ Not ranked yet (process, re-ranked at row 6): overlap slice 4 (scripts/auto-trai
 
 ## Inbox
 Michael's new ideas, verbatim, with the time; the orchestrator triages each cron run onto Now, Waiting or Decided.
-- 2026-10-25 ~15:15, Michael (animation tuner, Keys tab): "I can clean up the animation but I can't twist the ankle, only roll and pitch which don't fix it. How do I make it twist?" Also: one key in the walk has a knee flying out sideways. Michael 15:17: "Ankle/shin can't be changed in the key full body tab. Also why is it in the full body tab?" Triage: Player Build, Keys tab: per-key ankle and shin twist rows and a separate Legs part instead of the full body group, and a label on each tab saying whether it changes the motion-captured walk (Michael ~15:25 asked whether the tuner changes mocap) (tool change, after the row 6 sign-off).
+- TRIAGED 15:30 to Now row 0c (Player). 2026-10-25 ~15:15, Michael (animation tuner, Keys tab): "I can clean up the animation but I can't twist the ankle, only roll and pitch which don't fix it. How do I make it twist?" Also: one key in the walk has a knee flying out sideways. Michael 15:17: "Ankle/shin can't be changed in the key full body tab. Also why is it in the full body tab?" Triage: Player Build, Keys tab: per-key ankle and shin twist rows and a separate Legs part instead of the full body group, and a label on each tab saying whether it changes the motion-captured walk (Michael ~15:25 asked whether the tuner changes mocap) (tool change, after the row 6 sign-off).
 
 ## Waiting on Michael
 | Item | Since | Blocks |
