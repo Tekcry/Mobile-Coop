@@ -79,7 +79,8 @@ describe('player-hygiene S4: the selection wheel ring', () => {
     // (the refactor) the same array and slot objects while the shape holds, a new array when it changes
     for (const n of ['shot', 'reload', 'gadgetUsed', 'gadgetZero']) expect(rings[n], n).toBe(rings.open);
     expect(firstSlot.shot).toBe(firstSlot.open);
-    for (const [a, b] of [['gadgetZero', 'gunAdded'], ['gunAdded', 'gunRemoved'], ['gunRemoved', 'gunRenamed'], ['gunRenamed', 'noGuns']]) {
+    const shapes: [string, string][] = [['gadgetZero', 'gunAdded'], ['gunAdded', 'gunRemoved'], ['gunRemoved', 'gunRenamed'], ['gunRenamed', 'noGuns']];
+    for (const [a, b] of shapes) {
       expect(rings[b], `${a} -> ${b}`).not.toBe(rings[a]);
     }
   });
