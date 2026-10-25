@@ -1,4 +1,4 @@
-status: open
+status: claimed Cloud Builder (elegant-rubin) 2026-10-25T22:49Z
 # J13 route-runs, slice R5 (Opus-grade brief): link steps, pad only
 
 Lead: Night Shift | Marlow Build. Plan passed (Opus plan check 3, PASS on 6fab6ef0f). R1-R3 are on master; R4a ships
