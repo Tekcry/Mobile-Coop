@@ -181,6 +181,7 @@ describe('SectorRun', () => {
     expect(r.progress).toBe(0);
     expect(r.downloading).toBe(false);
     expect(r.alarm).toBe(1);
+    expect(r.alarmsRaised).toBe(3); // (sector-batch, G146) a restart puts the stage back, not the alarms raised
     expect(r.checkpoint).toEqual(pose(50));
     // any number of restarts (no lives): the run never fails
     for (let i = 0; i < 10; i++) r.restartSection();
@@ -280,7 +281,7 @@ describe('sector rules', () => {
   });
 
   it('Ghost needs no kills and never spotted', () => {
-    expect(sectorResult({ time: 125, kills: 0, spotted: 0 })).toEqual({ ghost: true, line: 'Time 2:05  ·  Kills 0  ·  Spotted 0  ·  GHOST' });
+    expect(sectorResult({ time: 125, kills: 0, spotted: 0 })).toEqual({ ghost: true, perfect: false, line: 'Time 2:05  ·  Kills 0  ·  Spotted 0  ·  GHOST' });
     expect(sectorResult({ time: 60, kills: 1, spotted: 0 }).ghost).toBe(false);
     expect(sectorResult({ time: 60, kills: 0, spotted: 2 }).ghost).toBe(false);
     expect(fmtTime(59.9)).toBe('0:59');

@@ -709,6 +709,9 @@ export class SectorRun {
   alarm = 0;
   /** The alarm stage when the current section began (a restart goes back to it). */
   alarmAtStart = 0;
+  /** (sector-batch, G146) Alarms raised this op: every `raiseAlarm`, capped stage or not. A section restart does not
+   *  put it back (a kill in a restarted attempt stays on the line too), and nothing lowers it. Perfect needs 0. */
+  alarmsRaised = 0;
   /** Where a restart puts the players (a copy; the defs are never written). */
   readonly checkpoint: Pose = { x: 0, y: 0, z: 0, yaw: 0 };
   /** (coop-rejoin) The partner's (slot 1) point at the checkpoint, when the map gives one (`start2` / `checkpoint2`). */
@@ -787,6 +790,7 @@ export class SectorRun {
   raiseAlarm(): number {
     const a = alarmStep(this.alarm, this.current?.perStage ?? SECTOR.perStage);
     this.alarm = a.stage;
+    this.alarmsRaised++;
     return a.send;
   }
 
@@ -849,6 +853,11 @@ export interface SectorTally {
   kills: number;
   /** Times spotted: guard detections plus camera alarms. */
   spotted: number;
+  /**
+   * (sector-batch, G146) Alarms raised this op (`SectorRun.alarmsRaised`; a restart keeps them, as it keeps kills):
+   * 0 = no alarm. Omitted: no Perfect on the line.
+   */
+  alarms?: number;
   /** (section-rating S2) Each section's marks (bitmask; -1 not rated). Omitted: no marks on the line. */
   marks?: readonly number[];
 }
@@ -858,11 +867,20 @@ export function fmtTime(s: number): string {
   return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
 }
 
-/** The result line: time, kills, times spotted, and "Ghost" when there are none of either (A4). */
-export function sectorResult(t: SectorTally): { ghost: boolean; line: string; marks?: readonly number[] } {
+/**
+ * The result line: time, kills, times spotted, then "PERFECT" (G146: no kills, no alarm; every primary objective is
+ * the op complete, so the line is final at the extraction) and "GHOST" (no kills, never spotted, A4) when earned.
+ */
+export function sectorResult(t: SectorTally): { ghost: boolean; perfect: boolean; line: string; marks?: readonly number[] } {
   const ghost = t.kills === 0 && t.spotted === 0;
-  const line = `Time ${fmtTime(t.time)}  ·  Kills ${t.kills}  ·  Spotted ${t.spotted}${ghost ? '  ·  GHOST' : ''}${marksText(t.marks)}`;
-  return { ghost, line, marks: t.marks };
+  const perfect = t.alarms !== undefined && t.kills === 0 && t.alarms === 0;
+  const line = `Time ${fmtTime(t.time)}  ·  Kills ${t.kills}  ·  Spotted ${t.spotted}${perfect ? '  ·  PERFECT' : ''}${ghost ? '  ·  GHOST' : ''}${marksText(t.marks)}`;
+  return { ghost, perfect, line, marks: t.marks };
+}
+
+/** (sector-batch) The extraction banner's subtitle: "PERFECT", "GHOST", both, or ''. */
+export function resultBadge(r: { readonly ghost: boolean; readonly perfect: boolean }): string {
+  return r.perfect && r.ghost ? 'PERFECT  ·  GHOST' : r.perfect ? 'PERFECT' : r.ghost ? 'GHOST' : '';
 }
 
 /** (section-rating S2) "  ·  Marks 4/4 3/4 -": each section's marks of 4 ("-" not rated); '' when none are given. */
