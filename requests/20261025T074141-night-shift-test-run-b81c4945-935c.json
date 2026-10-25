@@ -1,0 +1,12 @@
+{
+  "id": "20261025T074141-night-shift-test-run-b81c4945-935c",
+  "sha": "b81c4945bc19a337010b3da31d4d206573944e1c",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Test Runner",
+  "suites": [
+    "e2e-darkness"
+  ],
+  "set": "j20-parity-pre-2"
+}
