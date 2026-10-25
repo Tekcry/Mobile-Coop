@@ -154,6 +154,12 @@
         "docs/RULES.md"
       ],
       "allowLine": "\\b(FIXED|CLOSED|fixed in|closed by)\\b"
+    },
+    {
+      "id": "g157-review-pending",
+      "regex": "12 (proposed )?(level[- ]standard |level-rule )?changes[^.]{0,80}(go to Michael|wait for Michael|before the first real mission map)",
+      "why": "Michael adopted the 12 level-standard changes (G157, 2026-10-25 ~18:20); they are in docs/level-design.md",
+      "replacement": "the G157 rules in docs/level-design.md (Michael confirms them on his Tallow Wharf walk)"
     }
   ],
   "resumeScope": [
