@@ -6,7 +6,7 @@
 9295c65). Next after the merge: cleanup (D32 relabels, stowed goggle export, 11c doc fixes,
 carry offsets from Wren's own kit, hero VRAM after photo mode, checker notes in LOG), the Blender placeholder weapons
 (main session's request: rifle with launcher tube and suppressor, suppressed pistol with jammer emitter, knife), then
-Moth (step 12: ask Michael Moth's direction first, D24; Moth's goggle colour vs bible 5.14 amber). Opus 5.5, High.
+Moth (step 12: ask Michael Moth's direction first, D24; Moth's goggle is purple, G196 / D36). Opus 5.5, High.
 **Run style:** unattended (D15), one orchestrator session (D18): implementer, independent Opus checker, up to 3 fix
 rounds, the orchestrator commits. Rules: RULES.md "Step loop", steps/AGENT-PREAMBLE.md.
 
@@ -34,6 +34,6 @@ light Taubin, `support: 'fit'` = an MLS-fitted, lifted support for the abdomen, 
 phone LOD. Gunmetal is a metal (A86: F0 0.15-0.165, roughness 0.60; reads dark grey, satin on bevels only). LOD1 target
 13,600 (A89). Rigid design coordinates are recorded before the map (cbox / mpts input, KC.Frame + Parts.place). Drone pod rear right, medkit right side (A88).
 
-**Open questions for Michael:** Step 11c: what the hip pod holds now the drone is gone (master's open item, ops D25) and whether the medkit pouch, the five-seven holster cavity and the SMG sling socket stay, change or go (LOG.md step 11c). A88 (pod rear right, medkit right side: the left rear has no room). A86 gunmetal look
+**Open questions for Michael:** Step 11c: what the hip pod holds now the drone is gone (master's open item, ops D25) and whether the medkit pouch, the pistol holster cavity and the SMG sling socket stay, change or go (LOG.md step 11c). A88 (pod rear right, medkit right side: the left rear has no room). A86 gunmetal look
 (dark grey, no satin lobe on the buckle's flat faces). Moth's direction (step 12, D24). Integration items for locomotion step 25: upright back carry vs
 A2's diagonal (A36, A39), a slung SMG over the left hip (A41), sidearms anchored at the holster mouth (A62).
