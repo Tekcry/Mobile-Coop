@@ -6,11 +6,11 @@ Owner: the orchestrator; updated at every DECISIONS fold (G344). Read from origi
 ## 1. Pitch
 - Pure Chaos Theory (CT) co-op at its core, with original names, story and art (G1, G5, G6). Michael: "I want the game
   to be pure chaos theory." His decisions below are the only departures.
-- Two operators of the unit NIGHT SHIFT have nine nights to stop SUNDOWN, a staged blackout of Hollowmere
+- Two NIGHT SHIFT operators have nine nights to stop SUNDOWN, a staged blackout of Hollowmere
   (`docs/story.md` 1).
 - Light and shadow is the core: "like a showcase no matter where you look" (G316).
 - Desktop PWA (G12), pad first, then keyboard and mouse (loco D1).
-- The campaign recreates the experience of the CT co-op levels with original maps and story (G3).
+- The campaign recreates the CT co-op levels with original maps and story (G3).
 - Current goal: Marlow Yard, the Sector Ops campus and Tallow Wharf in parallel, each under its own lead, after a
   plan-only conformance review of every map and feature against these docs (G347, G355); order: ROADMAP "Now".
 
@@ -26,14 +26,14 @@ Owner: the orchestrator; updated at every DECISIONS fold (G344). Read from origi
 | Strict rules | Up to 2, signposted, "ghost" is one; a break restarts the section (G290) | None early; one taught late (G357) | As campaign; global, per team or split (G291) |
 | Timers | Soft windows only (G334) | Timed drills allowed (G342) | Soft windows only (G334) |
 | Difficulty | Rookie, Normal, Realistic, Perfectionist; host picks (G106, G131) | As campaign | Fixed per op, stars; a higher clear fills the lower (G331) |
-| Guards | Cap 32 alive (G359); no heavies or dogs (G155) | Normal, armed (G279, G298) | S1-S5: 15 / 18 / 20 / 25 / 26, cap 32 (G328, G332); scale with players (G331); dogs (G348), late armour, riot shields (G297, G307) |
+| Guards | Cap 32 alive (G359); no heavies or dogs (G155) | Normal, armed (G279, G298) | S1-S5: 15 / 18 / 20 / 25 / 26 for 1-2 players, 3-4 add tagged extras (G328, G331, G362); cap 32 (G332); dogs (G348), late armour, riot shields (G297, G307) |
 | Downed | 30 s revive, twice per mission (G126) | As campaign (G349); a checkpoint restart is a full reset (G312) | Revive syringes, no lives (G188) |
 | Light | Real-world lux bands (G329) | Lit, players cut it (G279) | Lit like a real site, lux bands (G297, G329) |
 
 Helmets, campaign and Sector Ops: always on Realistic and Perfectionist, not shot off on Perfectionist; on Rookie and
 Normal only at alarm stages (G350; bible 5.6).
 
-## 3. Michael's overrides of CT (the full list)
+## 3. Every Michael override of CT
 - Revive and encounter checkpoints (G126); partner beacon and world pings (G135); both players extract (G138); the
   perfect rating (G146); any partner rejoins a saved mission (G147).
 - Selection wheel for weapon, gadget and vision on LB hold, no time slow (G181, G192).

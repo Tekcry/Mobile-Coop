@@ -38,13 +38,13 @@ Michael (2026-10-24 ~22:45, G292): "Marlow is a training course and may have dif
 its heavily guided and must teach the players the basics of coop gameplay".
 - Players: two (G308); one co-op run takes 15-20 min (G272).
 - One linear route. The later sections, those after every move of the co-op kit has been taught on its own (6.1),
-  teach split paths and multiple objectives (G292). The route-count rules (3.2, 3.3, 11.2), the gate reach and
+  teach split paths and multiple objectives (G292, G363). The route-count rules (3.2, 3.3, 11.2), the gate reach and
   no-softlock parts of 11.6 and the forced gate (11.10) do not bind: each exercise teaches its move in place.
 - Guidance: its guidance marks and the always-on objective list, which updates per area; no explainer pads (G277,
   G292); no maps, minimap, compass or blip (6.4).
 - Strict rules: none in the early sections; one is taught in a late section (Michael 2026-10-25 ~11:35, "Taught
   late"; 9.3).
-- Timed drills are allowed (6.3, G342). Downed: the campaign rule (9.4).
+- Timed drills are allowed (6.3, G342); a failed drill retries the drill only (G361). Downed: the campaign rule (9.4).
 - Light: lit by default, the players cut it (G279); the dark-vantage, dark-checkpoint and darkness-test rules apply
   once a drill has cut the light (3.1, 3.9, 15).
 - Guards: normal guards, at most 3 per set (4.9, 4.10).
@@ -136,8 +136,8 @@ A level is a linear spine of encounter spaces joined by connectors.
      master yet).
    - [SectorOps] Counts rise with the player count ("Keep scaling", G331); `sector_alive_max` alive per section is a
      ceiling, not a target (G187, G332); room to manoeuvre comes before count (G190). Signed-off counts: S1 15, S2 18,
-     S3 20, S4 25, S5 26 (G328). The sign-off names no player count: the Sector Ops job sets the 1-4 player counts
-     from these and writes them per player count in the graphs.
+     S3 20, S4 25, S5 26 (G328), for two players (G362). One player uses the same counts, with no scale-down; three
+     or four players add the guards tagged for them. The Sector Ops job writes them per player count in the graphs.
    - [Training] A set spawns at most `SET_GUARDS_MAX` 3 guards (12.1); the bands do not bind.
 10. **Archetypes per mode.** [Campaign] No heavies or dogs (G155); armour and helmets come with the alarm stages.
    [SectorOps] Dogs (G297): killing one is penalised; gas knocks one out; no takedown; a dog can be distracted (Michael
@@ -186,8 +186,8 @@ A level is a linear spine of encounter spaces joined by connectors.
    and noise. Soft windows only: predictable windows (shift changes, fixed patrol cycles) signposted in the world; no
    countdown that closes a route (G334, "Soft windows only"). [Training] Timed drills are allowed: "Marlow can use timed
    drills, it must force players into situations as a way of training them" (G342). Each drill's limit is in the
-   graph (`drill_s` on its space) and the objective plan (13), tuned in playtest (G10). A failed drill restarts its
-   section at the section checkpoint (3.9), as a broken strict rule does (9.3).
+   graph (`drill_s` on its space) and the objective plan (13), tuned in playtest (G10). A failed drill retries the
+   drill only: the drill resets in place, with no checkpoint reload (G361).
 4. **Guide without markers.** [Campaign] [SectorOps] Objectives name what and where; the level flows naturally to each
    objective ("Objectives must name what and where, but no map, level design must flow naturally towards each
    objective", G336): landmarks visible from afar, light leading the eye towards the way on, signs and place names,

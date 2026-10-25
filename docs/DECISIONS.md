@@ -1,6 +1,6 @@
 # Night Shift - decisions
 
-Started 2026-10-17 (consolidation run, M26 / M27). Current to G360 (2026-10-25).
+Started 2026-10-17 (consolidation run, M26 / M27). Current to G363 (2026-10-25).
 
 This file is the single source of Michael's current decisions for Night Shift. Authority order: `CLAUDE.md` (G86).
 Every entry below is also written into the bible and, where it changes the summary, `docs/VISION.md`; where the bible
@@ -2015,3 +2015,18 @@ Ops: a ceiling, not a target (G187, G332). (Replaces G187's `MAX_ALIVE = 12` for
 
 **G360. The map-spec template follows the current rules.** Michael (14): "Yes, update it". `docs/templates/map-spec.md`
 is updated to the current rules.
+
+G361-G363 are Michael's native multiple-choice answers to the level-standard follow-ups (2026-10-25 ~11:55), in
+question order (1)-(3).
+
+**G361. A failed Marlow drill retries the drill only.** Michael (1): "Retry the drill only". A failed timed drill in
+Marlow Yard resets in place; there is no checkpoint reload. (Settles how a G342 drill fails; replaces level-design's
+"a failed drill restarts its section".)
+
+**G362. The campus counts are for two players.** Michael (2): "Two players". The signed-off counts S1 15, S2 18, S3 20,
+S4 25, S5 26 (G328) are the two-player counts. One player uses the same counts, with no scale-down; three or four
+players add the guards tagged for them (G331). (Settles the player count G328 left open.)
+
+**G363. Marlow Yard's later sections come after every move is taught.** Michael (3): "After every move taught". The
+later sections, where split paths and multiple objectives are taught (G292), are those after each move of the co-op
+kit has been taught on its own. (Defines G292's "later sections".)

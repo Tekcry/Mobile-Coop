@@ -646,8 +646,9 @@ playground for movement, stealth and gunplay (G185). It runs in its own session,
 - **Dogs (G348):** no takedown (no palm strike, no grab); gas knocks a dog out; a dog can be distracted; killing one
   carries a penalty.
 - **Guards:** as many as realistically possible (G289), 32 alive as the ceiling, not a target (G187, G332). Signed-off
-  counts: S1 15, S2 18, S3 20, S4 25 (the dog included), S5 26 (G328). Guards (tagged by team size), alarm
-  reinforcements and revive syringes scale with the player count (G331).
+  counts: S1 15, S2 18, S3 20, S4 25 (the dog included), S5 26 (G328), for two players (G362): one player uses the
+  same counts; three or four add the guards tagged for them. Guards (tagged by team size), alarm reinforcements and
+  revive syringes scale with the player count (G331).
 - **Difficulty:** fixed levels per op, shown as stars; a clear on tier N fills every star below N, stored in its own
   IndexedDB key (G189, G331). Helmets: 5.6.
 - **Downed:** no lives: revive syringes and checkpoint restarts (G188; 5.9 C6).
@@ -1034,11 +1035,12 @@ spec template) and the standard's phases and gates.
   Tallow Wharf, a new small campaign map (G293, G340).
 - **Marlow Yard** (map `ctcourse`, Course mode; the one owner of its profile, with `docs/level-design.md`'s training
   profile) is the 2-player co-op training course, replacing Fallow (G184, G292): heavily guided and very linear, one
-  route, with split paths and multiple objectives only in its later sections, as teaching (G292). It keeps its guidance
-  marks and an always-on objective list; no explainer pads (G277, G292). No strict rules early; one is taught in a late
-  section (G357). Downed players follow the campaign rule (5.9 C6, G349). Timed drills that force the players into
-  situations are allowed, as training (G342). The
-  final pass rebuilt it freely around co-op scenarios, one co-op run 15-20 min (G272): a believable, luxurious training
+  route, with split paths and multiple objectives only in its later sections (after every move is taught, G363), as
+  teaching (G292). It keeps its guidance marks and an always-on objective list; no explainer pads (G277, G292). No
+  strict rules early; one is taught in a late section (G357). Downed players follow the campaign rule (5.9 C6, G349).
+  Timed drills that force the players into situations are allowed, as training (G342); a failed drill retries the
+  drill only (G361). The final pass rebuilt it freely around co-op scenarios, one co-op run 15-20 min (G272): a
+  believable, luxurious training
   facility, dressed straight after each greybox (G278), with the Marlow Yard audit's shortlist (ceilings, lamp
   fittings, airlocks, dressing, walls to ceilings, paint, lifts, fiction; G225). Lit by default: the players cut the
   light, with mixed zones where they play better; a view-only instructor gallery; normal, armed guards (G279, G298),
