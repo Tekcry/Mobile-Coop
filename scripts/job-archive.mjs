@@ -1,7 +1,10 @@
 // Auto-archive of a finished job's docs (doc-guard, Michael 2026-10-25 ~11:00: "Auto-archive job docs"). A job's final
 // PR carries a line `Job-done: <job>` in its body; the train's version commit (scripts/merge-train.mjs build, on git
 // objects) then moves docs/<job>/ to docs/archive/<job>/ and rewrites the links to it, so the doc lint stays green.
-// Pure helpers only (unit tested in tests/jobArchive.test.ts); merge-train does the git reads and index writes.
+// Pure helpers (unit tested in tests/jobArchive.test.ts): merge-train `build` does the git reads and index writes;
+// archiveInWorktree does the same on disk for merge-train `single` (a lone-PR release).
+import { spawnSync } from 'node:child_process';
+import fs from 'node:fs';
 import path from 'node:path';
 
 /** Folders under docs/ that are never a job's (a Job-done line naming one is ignored). */
@@ -68,4 +71,45 @@ export function rewriteArchiveLinks(text, file, plans) {
     out = out.replace(new RegExp(`(?<![\\w./-])${esc}(?=/|\`|\\s|$|[),.;:])`, 'g'), pl.to);
   }
   return out;
+}
+
+/**
+ * The same archive in a checked-out worktree (merge-train `single`, which commits from a worktree): for each job with
+ * tracked files under docs/<job>/, the markdown files that point at it (outside docs/archive/, changes/ and
+ * CHANGELOG.md) and the moved ones get their links rewritten on disk, then `git mv` moves the folder. Nothing is staged
+ * beyond the moves; the caller adds `rewritten` (and docs/) to its commit.
+ * -> [{ job, from, to, files, rewritten: [paths after the move] }].
+ */
+export function archiveInWorktree({ root, jobs, date }) {
+  const git = (args) => {
+    const r = spawnSync('git', args, { cwd: root, encoding: 'utf8', windowsHide: true, maxBuffer: 64 << 20 });
+    if (r.status !== 0) throw new Error(`git ${args.join(' ')} failed: ${(r.stderr || r.stdout || '').trim()}`);
+    return r.stdout;
+  };
+  const tracked = git(['ls-files', '-z']).split('\0').filter(Boolean);
+  const plans = [];
+  for (const job of jobs) {
+    const plan = archiveMoves(job, tracked, (to) => tracked.some((f) => f.startsWith(`${to}/`)) || plans.some((p) => p.to === to), date);
+    if (plan) plans.push({ ...plan, job });
+  }
+  if (!plans.length) return [];
+  const moved = new Map(plans.flatMap((p) => p.moves).map((m) => [m.from, m.to]));
+  const rewritten = [];
+  for (const file of tracked) {
+    if (!file.endsWith('.md')) continue;
+    if (!moved.has(file) && (/^docs\/archive\//.test(file) || /^changes\//.test(file) || file === 'CHANGELOG.md')) continue;
+    const abs = path.join(root, file);
+    const text = fs.readFileSync(abs, 'utf8');
+    if (!moved.has(file) && !plans.some((p) => text.includes(`${p.job}/`))) continue;
+    const next = rewriteArchiveLinks(text, file, plans);
+    if (next === text) continue;
+    fs.writeFileSync(abs, next);
+    rewritten.push(moved.get(file) ?? file);
+  }
+  for (const p of plans) {
+    fs.mkdirSync(path.join(root, path.posix.dirname(p.to)), { recursive: true });
+    git(['mv', p.from, p.to]);
+  }
+  return plans.map((p) => ({ job: p.job, from: p.from, to: p.to, files: p.moves.length,
+    rewritten: rewritten.filter((f) => !f.startsWith(`${p.to}/`)) }));
 }

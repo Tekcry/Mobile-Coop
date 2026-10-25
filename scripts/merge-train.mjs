@@ -38,6 +38,8 @@
 // the subject "Merge origin/<b> into train/<n>", `git push --force origin train/<n>`, then
 // `build <n> <version> "<title>" <all members> --keep` (a --keep over a version commit stops and prints these commands
 // with the sha). --no-test: accepted, does nothing (build runs no vitest).
+// Job-done (doc-guard): a member PR body line `Job-done: <job>` makes the version commit (build and single) move
+// docs/<job>/ to docs/archive/<job>/ and fix the links to it (scripts/job-archive.mjs).
 // --resume: release a train with fix commits after its version commit (package.json at the head must still be
 // <version>, no new changes/*.md). After a merge, `release` closes member PRs
 // whose head is in origin/master with "Merged in <version> (train <n>, #<pr>)".
@@ -67,7 +69,7 @@ import { pathToFileURL } from 'node:url';
 import { assemble, assembleDir, parseFragment, releaseHeading, summary } from './changelog-assemble.mjs';
 import { fetchOrigin } from './fetch-retry.mjs';
 import { takeTouchLock } from './heavy-lock.mjs';
-import { archiveMoves, jobDoneJobs, rewriteArchiveLinks } from './job-archive.mjs';
+import { archiveInWorktree, archiveMoves, jobDoneJobs, rewriteArchiveLinks } from './job-archive.mjs';
 
 const DRY = process.argv.includes('--dry-run');
 const TRAIN_LOCK_STALE_MIN = 30; // the same staleness as auto-train's tick lock
@@ -789,7 +791,7 @@ async function waitCi(branch, sha) {
 }
 
 /** The shared version step of build / release (old style) / single: changelog, `npm version`, add, commit, optional push. */
-function versionCommit({ branch, head, checkout, version, title, pr, members, subject, push = true, extraAdd = [] }) {
+function versionCommit({ branch, head, checkout, version, title, pr, members, subject, push = true, extraAdd = [], archive = [] }) {
   const opts = { version, title, date: today(), pr: pr ?? 'NEW', members };
   const heading = releaseHeading(opts.version, opts.title, opts.date, opts.pr, members);
   if (checkout) act(checkout);
@@ -804,8 +806,16 @@ function versionCommit({ branch, head, checkout, version, title, pr, members, su
     console.log(summary(r, `CHANGELOG.md: ${heading}`));
     if (!r.text) throw new Error('nothing new to release: every fragment entry is already in CHANGELOG.md');
   }
+  const moved = [];
+  if (archive.length && DRY) console.log(`  [dry-run] would archive docs/<job>/ for Job-done: ${archive.join(', ')}`);
+  else if (archive.length) {
+    for (const a of archiveInWorktree({ root: run(['git', 'rev-parse', '--show-toplevel']), jobs: archive, date: today() })) {
+      console.log(`archive (Job-done: ${a.job}): ${a.from}/ -> ${a.to}/ in the version commit (${a.files} files; links fixed in ${a.rewritten.length} other docs)`);
+      moved.push(a.to, ...a.rewritten);
+    }
+  }
   act(`npm version ${version} --no-git-tag-version`);
-  act(['git', 'add', '-A', 'CHANGELOG.md', 'changes', 'package.json', 'package-lock.json', ...extraAdd]);
+  act(['git', 'add', '-A', 'CHANGELOG.md', 'changes', 'package.json', 'package-lock.json', ...extraAdd, ...moved]);
   act(['git', 'commit', '-m', subject, '-m', TRAILER]);
   if (push) act(['git', 'push', 'origin', `HEAD:refs/heads/${branch}`]);
   return { sha: DRY ? null : rev('HEAD') };
@@ -1360,7 +1370,7 @@ async function single({ branch, version, title }) {
   if (!head) return 3;
   console.log(`PR #${pr} (${branch})`);
   const v = versionCommit({ branch, head, checkout: ['git', 'checkout', '--detach', head], version, title, pr, members: [],
-    subject: `${version}: version at merge (G183)` });
+    subject: `${version}: version at merge (G183)`, archive: jobsDone([{ pr, branch }]) });
   if (v.code) return v.code;
   return ciAndMerge({ branch, sha: v.sha, pr, version });
 }

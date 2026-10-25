@@ -102,3 +102,37 @@ describe('versionTreeCommit archives Job-done docs (real git repo)', () => {
     } finally { fs.rmSync(dir, { recursive: true, force: true }); }
   }, 60_000);
 });
+
+describe('archiveInWorktree (merge-train single, real git repo)', () => {
+  it('moves the folder with git mv and rewrites the links on disk', async () => {
+    // @ts-expect-error plain .mjs script without types
+    const { archiveInWorktree } = await import('../scripts/job-archive.mjs');
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mt-arch-wt-'));
+    const git = (...a: string[]): string => execFileSync('git', ['-c', 'core.autocrlf=false', ...a], { cwd: dir, encoding: 'utf8' }).trim();
+    const write = (f: string, t: string): void => {
+      fs.mkdirSync(path.dirname(path.join(dir, f)), { recursive: true });
+      fs.writeFileSync(path.join(dir, f), t);
+    };
+    try {
+      git('init', '-q', '-b', 'master');
+      git('config', 'user.name', 't'); git('config', 'user.email', 't@t');
+      write('docs/coop4/PLAN.md', '# plan\n[bible](../design-bible.md)\n');
+      write('docs/coop4/STATE.md', '# state\n');
+      write('docs/design-bible.md', 'See `docs/coop4/PLAN.md`.\n');
+      write('README.md', '[s](docs/coop4/STATE.md)\n');
+      write('CHANGELOG.md', 'docs/coop4/PLAN.md\n');
+      git('add', '-A'); git('commit', '-q', '-m', 'head');
+      const done = archiveInWorktree({ root: dir, jobs: ['coop4', 'none'], date: '2026-10-25' });
+      expect(done).toEqual([{ job: 'coop4', from: 'docs/coop4', to: 'docs/archive/coop4', files: 2, rewritten: ['README.md', 'docs/design-bible.md'] }]);
+      git('add', '-A', 'docs/archive/coop4', 'README.md', 'docs/design-bible.md');
+      expect(git('diff', '--cached', '--no-renames', '--name-status').split('\n').sort()).toEqual([
+        'A\tdocs/archive/coop4/PLAN.md', 'A\tdocs/archive/coop4/STATE.md', 'D\tdocs/coop4/PLAN.md', 'D\tdocs/coop4/STATE.md',
+        'M\tREADME.md', 'M\tdocs/design-bible.md']);
+      expect(git('status', '--porcelain', '--untracked-files=all')).not.toMatch(/^\?\?/m);
+      expect(fs.readFileSync(path.join(dir, 'docs/archive/coop4/PLAN.md'), 'utf8')).toBe('# plan\n[bible](../../design-bible.md)\n');
+      expect(fs.readFileSync(path.join(dir, 'README.md'), 'utf8')).toBe('[s](docs/archive/coop4/STATE.md)\n');
+      expect(fs.readFileSync(path.join(dir, 'CHANGELOG.md'), 'utf8')).toBe('docs/coop4/PLAN.md\n');
+      expect(archiveInWorktree({ root: dir, jobs: ['nothing'], date: 'd' })).toEqual([]);
+    } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+  }, 60_000);
+});
