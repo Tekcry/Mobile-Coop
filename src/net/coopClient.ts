@@ -125,9 +125,11 @@ export class CoopClient implements NetAttachment {
   private sec: CtDevices | null = null;
   /** (mission NET) The host's mission as applied here (`mission.runner`; null runner: none). */
   readonly mission = new MissionMirror();
-  /** (mission-rules R6, HG7) The mirrored mission's current step on our objective line, and our team (A9, set per `sector` message). */
+  /** (mission-rules R6, HG7) The mirrored mission's current step on our objective line, and our team (A9). */
   private readonly missionFeed = new MissionFeed();
   private missionViewer: TeamId = 'all';
+  /** (mission-rules R6) A `sector` message came: our team is read again on its next use (`viewer`). */
+  private viewerStale = true;
   /** (mission-rules R6) The host's objective line as its snapshots last carried it (shown while no mission step is). */
   private hostObj = '';
   /** (sector-restart) The section our checkpoint loadout was recorded for (the host's live section only moves on). */
@@ -998,7 +1000,7 @@ export class CoopClient implements NetAttachment {
       if (line) this.g.hud.feedItem(line);
       const mr = this.mission.runner;
       if (mr) {
-        this.missionViewer = missionViewerTeam(mr.def, this.slot(), this.s.players.size);
+        this.viewerStale = true;
         // (mission-rules R6) the host's live section is our runner's section, so its steps open here too (the mirror
         // only applies done and fact bits; without a section no step is ever open on this page)
         const sid = msg.ls !== undefined && msg.ls >= 0 ? this.g.world.map.sectors?.[msg.ls]?.id : undefined;
@@ -1177,7 +1179,8 @@ export class CoopClient implements NetAttachment {
     this.sec?.frame(dt);
     this.card?.update(dt);
     // (mission-rules R6, HG7) the mirrored mission's current step on our objective line, written only when it changes
-    if (this.missionFeed.update(this.missionRunning(), this.missionViewer, this.g.app.settings.get().gameplay.hints)) {
+    const mr = this.missionRunning();
+    if (this.missionFeed.update(mr, mr ? this.viewer() : 'all', this.g.app.settings.get().gameplay.hints)) {
       const obj = this.missionObj();
       if (this.gotSnap && obj !== this.obj) {
         this.obj = obj;
@@ -1380,6 +1383,16 @@ export class CoopClient implements NetAttachment {
     return mr && !mr.finished && mr.section >= 0 ? mr : null;
   }
 
+  /** (mission-rules R6, A9) Our team in the mirrored mission: read again once per `sector` message, not per frame. */
+  private viewer(): TeamId {
+    const mr = this.mission.runner;
+    if (this.viewerStale && mr) {
+      this.missionViewer = missionViewerTeam(mr.def, this.slot(), this.s.players.size);
+      this.viewerStale = false;
+    }
+    return this.missionViewer;
+  }
+
   /** (mission-rules R6) Our objective line: our current mission step, else (none, or no mission) the host's line. */
   private missionObj(): string {
     return (this.missionRunning() && this.missionFeed.text) || this.hostObj;
@@ -1392,7 +1405,7 @@ export class CoopClient implements NetAttachment {
    */
   objectiveLines(): ObjectiveLine[] | null {
     const mr = this.mission.runner;
-    return mr ? missionObjectiveLines(mr, this.missionViewer, this.g.app.settings.get().gameplay.hints) : null;
+    return mr ? missionObjectiveLines(mr, this.viewer(), this.g.app.settings.get().gameplay.hints) : null;
   }
 
   dispose(): void {
