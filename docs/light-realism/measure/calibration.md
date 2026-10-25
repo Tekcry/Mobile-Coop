@@ -80,4 +80,6 @@ enters its 5 lux values in `REFERENCE`, re-runs `npx vitest run tests/lux.test.t
 ## 4. GPU check (the "before" run at the L0 head)
 `scripts/light-realism/shots.mjs` on the laptop queue alone slot: S1 at Low and Epic, meter vs field at the named
 points (a split over 0.02 goes to J11), pixel luma per grid point against bible L5's display targets, pushed to
-`shots/light-realism-s1`. Request and result: `docs/light-realism/checks/l0-build.md` "GPU".
+`shots/light-realism-s1`. Queued 2026-10-25 at 8e20a7a77 as laptop request
+`20261025T092215-night-shift-sector-o-8e20a7a7-af43` (set `light-realism-l0`); result: pending (the
+`laptop-e2e/light-realism-l0` status and the `before-campusOps-s1-*` folder on `shots/light-realism-s1`).
