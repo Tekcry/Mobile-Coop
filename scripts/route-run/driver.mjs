@@ -15,7 +15,8 @@
 // guards back on their fixed patrols, calm), checks the guards (A15), then takes its steps: `walk` (a dead stop when the
 // stuck clock fires: classed by a nav `findPath` probe, a screenshot, then the robot is placed past the link so the run
 // reports every stop), `link` (`walk` and `door` here; every other action through steps.mjs), `objective` (Sector Ops:
-// A at the section's objective until it is done), and logs the run (the R2 log shape, scripts/route-run/report.mjs).
+// A at the section's objective until it is done: tapped, or held down for a hold objective such as a hack), and logs
+// the run (the R2 log shape, scripts/route-run/report.mjs).
 import fs from 'node:fs';
 import path from 'node:path';
 import { stepLimit } from './progress.mjs';
@@ -45,7 +46,7 @@ export const DOOR_OPEN_AT = 0.6;
 export const LOCKED_NEAR_M = 1.5;
 /** A placement lands this far (m) past a link's point, toward the far space's centre. */
 export const PAST_M = 1.2;
-/** The objective's hold limit (s) when the mode gives none: `stepLimit('objective', OBJECTIVE_HOLD_S)`. */
+/** A download's hold (s; the page gives no length): its limit is `stepLimit('objective', null, OBJECTIVE_HOLD_S)`. */
 export const OBJECTIVE_HOLD_S = 30;
 /** The objective is tried this long (game s) from where the robot stands before it walks to the objective's point. */
 export const OBJECTIVE_TRY_S = 1;
@@ -73,8 +74,10 @@ function pageDriver(P, o) {
   const pad = window.__pad;
   const BTN_A = 0;
   const BTN_B = 1;
-  // D-pad up: free in play (no action outside a held context menu), so a tap wakes the pad without doing anything
+  // D-pad up: free in play (no action outside a held context menu), so a tap wakes the pad without doing anything; in a
+  // held context menu up / down move the highlight (`ctxUp` / `ctxDown`)
   const BTN_UP = 12;
+  const BTN_DOWN = 13;
   const IDLE = 0;
   const WALK = 1;
   const HOLD = 2;
@@ -112,6 +115,14 @@ function pageDriver(P, o) {
   let walked = 0;
   let door = null;
   let objIndex = -1;
+  // a hold objective (a hack): its interactable, its hold time (s), A held down for it, when A went up, the last
+  // highlight move in the held context menu
+  let objItem = null;
+  let objHold = 0;
+  let objStarted = false;
+  let aHeld = false;
+  let aRelT = -1e9;
+  let navT = -1e9;
   let wrapped = null;
   let noHurt = false;
 
@@ -136,6 +147,15 @@ function pageDriver(P, o) {
   }
   const now = () => app.current.time - t0;
 
+  /** Sector Ops: the live section's objective interactable (`<section id>-obj`), or null (allocates; once per use). */
+  function objectiveItem(m) {
+    const s = m.run.current;
+    const ints = st().interactables;
+    if (!s || !ints || !ints.items) return null;
+    const id = `${s.id}-obj`;
+    return ints.items.find((i) => i.id === id) ?? null;
+  }
+
   function tap(btn) {
     if (tapLeft > 0) pad.set(tapBtn, 0);
     tapBtn = btn;
@@ -146,6 +166,47 @@ function pageDriver(P, o) {
   function stopStick() {
     pad.axis(0, 0);
     pad.axis(1, 0);
+  }
+
+  /** A held down (a hold objective) or let go; a tap of A still pending is let go first. */
+  function holdA(on, t) {
+    if (tapLeft > 0 && tapBtn === BTN_A) {
+      pad.set(BTN_A, 0);
+      tapLeft = 0;
+      aRelT = t;
+    }
+    if (on === aHeld) return;
+    aHeld = on;
+    pad.set(BTN_A, on ? 1 : 0);
+    if (on) objTapT = t;
+    else aRelT = t;
+  }
+
+  /** A hold objective, each chunk: A stays down while the held context menu's highlight is on the item's row (a door set
+   *  or a guard row may list first: D-pad down / up moves it); with no list, or no item row in it, A goes up and is
+   *  pressed again a second later. The press waits one released step, so the game sees it go down. No allocation. */
+  function holdStep(g, t) {
+    if (!aHeld) {
+      if (t - aRelT >= o.chunk - 1e-9 && t - objTapT > 1) holdA(true, t);
+      return;
+    }
+    const cm = g.ctxMenu;
+    if (cm && cm.state === 'active') {
+      let row = -1;
+      for (let k = 0; k < cm.count; k++) {
+        if (cm.opts[k].kind === 'item') {
+          row = k;
+          break;
+        }
+      }
+      if (row < 0) holdA(false, t);
+      else if (cm.sel !== row && t - navT > 0.15) {
+        tap(cm.sel < row ? BTN_DOWN : BTN_UP);
+        navT = t;
+      }
+      return;
+    }
+    if (t - objTapT > 1) holdA(false, t);
   }
 
   /** (once per enemy manager) Noises into the ring. */
@@ -352,19 +413,25 @@ function pageDriver(P, o) {
     if (mode === OBJECTIVE) {
       const m = window.__sector;
       if (!m || m.run.index !== objIndex || m.run.phase !== 'objective') {
+        holdA(false, t);
         mode = IDLE;
         return 'done';
       }
       if (watch.update(t - t0, 0) === P.WATCH_STEP_TIMEOUT) {
+        holdA(false, t);
         mode = IDLE;
         return 'timeout';
       }
+      // the use started: a download runs; a hold (a hack) fills its interactable's progress
+      if (!objStarted && (objHold > 0 ? objItem !== null && (objItem.progress > 0 || objItem.done === true) : m.run.downloading)) objStarted = true;
       // a try from where the robot stands: the use did not start here
-      if (!m.run.downloading && t >= objTryEnd - 1e-9) {
+      if (!objStarted && t >= objTryEnd - 1e-9) {
+        holdA(false, t);
         mode = IDLE;
         return 'nostart';
       }
-      if (!m.run.downloading && t - objTapT > 3) {
+      if (objHold > 0) holdStep(g, t);
+      else if (!m.run.downloading && t - objTapT > 3) {
         tap(BTN_A);
         objTapT = t;
       }
@@ -523,23 +590,34 @@ function pageDriver(P, o) {
       return 'started';
     },
 
-    /** Sector Ops: the live section's objective point, or null. */
+    /** Sector Ops: the live section's objective point, its kind and its hold (s: the interactable's `holdTime`, e.g. a
+     *  hack's 3 s; 0 for a tap), or null. */
     objectivePoint() {
       const m = window.__sector;
       const ob = m && m.run.current ? m.run.current.objective : null;
-      return ob ? { x: ob.x, y: ob.y ?? 0, z: ob.z, kind: ob.kind ?? null } : null;
+      if (!ob) return null;
+      const it = objectiveItem(m);
+      return { x: ob.x, y: ob.y ?? 0, z: ob.z, kind: ob.kind ?? null, hold: it && it.holdTime > 0 ? it.holdTime : 0 };
     },
 
-    /** Use the objective (A, again every 3 s while it has not started) until the mode says it is done. With `tryS` > 0
-     *  a try: event 'nostart' when the use has not started within `tryS` game seconds. */
+    /** Use the objective until the mode says it is done: a tap of A (again every 3 s while it has not started), or for a
+     *  hold objective (a hack) A held down until the phase changes (`holdStep`). With `tryS` > 0 a try: event 'nostart'
+     *  when the use has not started within `tryS` game seconds (a download not running; a hold not filling its item). */
     objectiveStart(limit, tryS) {
       const g = st();
       const m = window.__sector;
       stopStick();
       if (!m || m.run.phase !== 'objective') return 'none';
       objIndex = m.run.index;
-      tap(BTN_A);
-      objTapT = g.time;
+      objItem = objectiveItem(m);
+      objHold = objItem && objItem.holdTime > 0 ? objItem.holdTime : 0;
+      objStarted = false;
+      if (objHold > 0) {
+        // pressed on the first chunk after at least one released step (`holdStep`)
+        holdA(false, g.time);
+        objTapT = -1e9;
+      } else tap(BTN_A);
+      if (objHold === 0) objTapT = g.time;
       objTryEnd = tryS > 0 ? g.time + tryS : Infinity;
       watch.step(g.time - t0, limit);
       mode = OBJECTIVE;
@@ -896,7 +974,10 @@ async function objectiveStep(ctx, log, step, stop) {
     log.objectives.push({ space: step.space, hold_s: 0, done: false, why: 'no objective hook for this mode (R4a: Sector Ops only)' });
     return;
   }
-  const limit = stepLimit('objective', OBJECTIVE_HOLD_S);
+  // the limit is the objective's own hold + A4's extra: a hold objective's `holdTime` (a hack's 3 s), a download the
+  // fallback hold (the page does not give its length), a tap none (R4a passed the hold as a length: a flat 5 s)
+  const hold = pt.hold > 0 ? pt.hold : pt.kind === 'download' ? OBJECTIVE_HOLD_S : 0;
+  const limit = stepLimit('objective', null, hold);
   // first from where the robot stands (a code route: its stand point pts[obj], e.g. S1's rear window); the walk to the
   // objective's own point only when the use does not start there
   let t0 = await d.call('time');
