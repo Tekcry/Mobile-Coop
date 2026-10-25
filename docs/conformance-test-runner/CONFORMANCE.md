@@ -59,7 +59,7 @@ or a unit test in `npm test` (CI) that fails when the rule breaks. H rows are ga
 | Hard rule | Suite that asserts it today | Gap |
 | --- | --- | --- |
 | 1. Light parity: picture, meter and guard perception agree, character shadows included (G352) | `e2e-darkness` (GPU list; a 50% grey card at field levels 0.12-0.70 on the Warehouse, read as screen luma at Epic, `testing-tools.md:184-189`); `e2e-lightbake` (same bake bytes under min / low / epic, `:182-183`); unit: `tests/ctcourseLight.test.ts`, `campusArtLight.test.ts` (art never shifts a protected point by > 0.02), `lights.test.ts`, `coopPerception.test.ts` | Not on trains (T3). The picture check is Warehouse only; no suite compares the meter and a guard's perceived light with the picture on Marlow Yard or Saltmarsh Park (the per-map parity grid is visual-gate's, G287). H1: character shadows (G352) are not built and have no check (L, a build job; the check comes with it) |
-| 2. Sites lit like real sites; stealth from real gaps and cut lights (G295, G329) | `tests/ctcourseLight.test.ts` (Marlow pools >= 0.60, read floor >= 0.40, dark pockets <= 0.22, a cut circuit <= 0.24, `testing-tools.md:310-313`); `marlowLightingCircuits` / `Levels` / `Schedule` tests; `warehouseS1-S3Light.test.ts`; `e2e-ctcourse` cuts circuits on both pages | H2: no test holds the campus to G329's real-world level per space type (`campusArtLight.test.ts` only checks art against the greybox field); M, Sector Ops with the light tables |
+| 2. Sites lit like real sites; stealth from real gaps and cut lights (G295, G329) | `tests/ctcourseLight.test.ts` (Marlow pools >= 0.60, read floor >= 0.40, dark pockets <= 0.22, a cut circuit <= 0.24, `testing-tools.md:305-306`); `marlowLightingCircuits` / `Levels` / `Schedule` tests; `warehouseS1-S3Light.test.ts`; `e2e-ctcourse` cuts circuits on both pages | H2: no test holds the campus to G329's real-world level per space type (`campusArtLight.test.ts` only checks art against the greybox field); M, Sector Ops with the light tables |
 | 3. A perfect rating is always possible (G146) | `tests/sectors.test.ts:282` (Ghost needs no kills, never spotted); `tests/missions.test.ts:92`; `e2e-sectorops:1` (a Ghost result on warehouseOps, `scripts/e2e-sectorops.mjs:2-3`); `e2e-section-rating` | H3: no ghost run on the live maps: Marlow Yard's "ghost run with every bonus" is not in the suite (`testing-tools.md:297-299`); none on campusOps (`level-design.md:508`); M per map, map leads |
 | 4. No mission forces a kill (G127) | Only indirectly, through the ghost rows above | H4: no check that every primary objective has a non-lethal path (a static check over the sector and set objective defs: no objective whose only completion is a kill); S, Sector Ops / Marlow Build |
 | 5. No maps, minimap, compass or objective blip (G339) | None; `e2e-desktop:286` asserts the minimap is placed | T2 |
@@ -68,3 +68,36 @@ or a unit test in `npm test` (CI) that fails when the rule breaks. H rows are ga
 | 8. Fixed patrols, no randomness that defeats planning; detections explainable (G143) | `src/ai/squadRoles.ts:633` seeded combat RNG (its unit tests); `tests/sectors.test.ts:346` (timed patrol isolation) | H7: no replay check (the same seed and inputs give the same patrol positions and detections); `src/ai/enemyManager.ts:650` radio delays and `src/ai/enemy.ts:389,2336` think cadence still use `Math.random` (the comment at `squadRoles.ts:29` says patrols are free of it: needs a test to hold it); M, Guard AI |
 | 9. As many guards as realistically possible (G289, G190) | `e2e-sectorops:6` (campus section 1 boots with 8 guards alive, `scripts/e2e-sectorops.mjs:1954`); `tests/campusS1-S5.test.ts` (section data); `scripts/guard-cap.mjs` (a tool, not a suite) | H8: "every guard the mode spawns is alive" (`level-design.md:508`) is checked for campus S1 only, not S2-S5 or Marlow Yard; S |
 | 10. Gameplay never reads graphics settings; a guard whose shadow is in view animates at full rate (G327) | `e2e-lightbake` (same bake at every preset); `tests/visionIsolation.test.ts` (vision is render-only); `tests/campusArtRender.test.ts:194` ("gameplay never reads the art"); `tests/laserAlarm.test.ts` | H9: no import-boundary check (`src/ai`, `src/game` rules, `src/player`, `src/net` never import `src/core/quality`, `qualityManager` or `governor`); today `src/game/gameState.ts`, `src/game/benchmark.ts` and `src/player/shoulderCamera.ts` import them, so a check needs an allowlist; S. H10: G327 has no check on master: `tests/animTier.test.ts:28` asserts `ANIM_TIER_OFFSCREEN` = 4 only; the shadow-in-view rule lands with open #360 (Guard AI) and needs its test there; S |
+
+## 3. Flake budget (last 7 days: since 2026-10-18)
+
+Source: `C:/NightShift/scratch/laptop-queue/state.json` (`flakes`, `suiteRuns`, `quarantineStarts`, read 2026-10-25),
+`quarantine.json`, `flake-budget.md`, `log.txt`; `scripts/e2e-quarantine.json`. Budget: 2 flakes in 7 days, the 3rd
+quarantines for 48 h (`lib.mjs:692-697`). Runs come from `suiteRuns`, which only starts on 2026-10-24 (T11), so rates
+read high. "KF fails" = failures printed KNOWN FLAKY in log.txt (never rerun or counted, T10).
+
+| Suite | Runs | Flakes | KF fails | Quarantined | Owner | Expiry (UTC) | Note |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| e2e-coop | 20 | 3 | 4 | auto (started 2026-10-24 13:41) | Player Build | 2026-10-26 13:41 | all 3 flakes one assert ("the host counts the joint read"): a bug, not load (T9); missing from flake-budget.md (T10) |
+| e2e-netmove | 20 | 3 | 0 | auto (started 2026-10-24 18:52) | Player Build | 2026-10-26 18:52 | 2 of 3 "client rolls", 1 "host sees the client climbing the hanging body"; missing from flake-budget.md |
+| e2e-pad | 17 | 0 | 3 | committed (`scripts/e2e-quarantine.json`) | Player Build | 2026-11-07 00:00 | parked; write-up `docs/backlog.md:137`; its failures never count (T10) |
+| e2e-ctcourse:3 | 19 | 2 | 0 | no, at budget (the next flake quarantines) | Marlow Build | - | 2026-10-24 18:48 and 22:03 ("the client's arc clears the top beam") |
+| e2e-ctcourse:1 | 19 | 1 | 0 | no | Marlow Build | - | train/76 |
+| e2e-ctcourse:4 | 19 | 1 | 0 | no | Marlow Build | - | train/32 |
+| e2e-course | 18 | 1 | 0 | no | Marlow Build | - | "host walk tab in the course" |
+| e2e-guard-carry | 18 | 1 | 0 | no | Guard AI Build | - | 2026-10-23 |
+| e2e-stealth-ai | 19 | 1 | 0 | no | Guard AI Build | - | "at most one guard advancing / bounding" (the one-mover fix, #387) |
+| e2e-lightbake | 19 | 1 | 0 | no | Sector Ops Build | - | "smooth Epic with character shadows ... every shader" |
+| e2e-sectorops:1 | 20 | 1 | 0 | no | Sector Ops Build | - | train/37 |
+
+No flakes in the window (runs): smoke 19, e2e-ctcourse:2 19, e2e-sectorops:2-5 19 each, e2e-sectorops:6 20,
+e2e-desktop:1 / :2 / :4 18 each, e2e-levels 18, e2e-section-rating 18, and 17 each for e2e-anchors, e2e-anim, e2e-clip,
+e2e-combat, e2e-ct, e2e-feedback, e2e-gadgets, e2e-menus, e2e-mouse, e2e-move, e2e-offline, e2e-park, e2e-stealth,
+e2e-studio, e2e-tactics, e2e-takedown, e2e-traverse, e2e-tuner-phone, e2e-wall, e2e-weapons-carry. GPU and branch-only
+runs: e2e-darkness 1, e2e-sectorops:mission 2, e2e-coop-real:1 / :2 / :smoke 1 each.
+
+- Expired entries: none (both auto entries and the e2e-pad entry are live).
+- Ownerless entries: none; but 15 REQUIRED suites have no entry in `owners` and would default to the Orchestrator (T12).
+- e2e-coop quarantine ends 2026-10-26 13:41 UTC: from then a failure fails the run again; with the same assert seen 3
+  times it will likely re-quarantine on its next 3 flakes unless T9 is decided or Player Build fixes the test
+  (coop-real, #388 draft).
