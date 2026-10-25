@@ -2960,7 +2960,7 @@ export class GameState implements AppState {
     this.drawShadows();
     this.renderPings(dt);
     this.updateHud();
-    if (this.bench) this.benchFrame();
+    if (this.bench && !this.holding) this.benchFrame(); // map-ready S2: no bench frames while held behind the loading screen
   }
 
   /** Contact shadows: the player, enemies, dummies, the net layer's characters. */
