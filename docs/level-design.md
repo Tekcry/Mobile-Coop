@@ -40,17 +40,24 @@ Campaign missions run on the Sector Ops runtime (`SectorMode`) with two players 
 Michael (2026-10-24 ~22:45, G292): "Marlow is a training course and may have different rules to standard mission, ie
 its heavily guided and must teach the players the basics of coop gameplay".
 - Players: two (G308); one co-op run takes 15-20 min (G272).
-- One linear route. The later sections, those after every move of the co-op kit has been taught on its own (6.1),
-  teach split paths and multiple objectives (G292, G363). The route-count rules (3.2, 3.3, 11.2), the gate reach and
+- One linear route: every section is forced, side routes closed. Michael (2026-10-25 ~16:50): "Close all side routes,
+  force all sections. Only keep a side route when training against enemies later in the training, same design rules as
+  a campaign mission area". Such a late section follows the campaign route rules (3.2, 3.3, 11.2). The later sections,
+  those after every move of the co-op kit has been taught on its own (6.1), teach split paths and multiple objectives
+  (G292, G363). The route-count rules (3.2, 3.3, 11.2), the gate reach and
   no-softlock parts of 11.6 and the forced gate (11.10) do not bind: each exercise teaches its move in place.
 - Guidance: its guidance marks and the always-on objective list, which updates per area; no explainer pads (G277,
   G292); no maps, minimap, compass or blip (6.4).
-- Strict rules: none in the early sections; one is taught in a late section (G357; 9.3).
+- Strict rules: none; every failure is a retry. Michael (2026-10-25 ~16:40): "all are retries in marlow yard, as its a
+  training exercise." (9.3).
 - Timed drills are allowed (6.3, G342); a failed drill retries the drill only (G361). Downed: the campaign rule (9.4).
 - Light: lit by default, the players cut it (G279); the dark-vantage, dark-checkpoint and darkness-test rules apply
   once a drill has cut the light (3.1, 3.9, 15).
-- Guards: normal guards, at most 3 per set (4.9, 4.10).
-- The campaign's built-for-two checks (G157; Campaign profile) do not bind. Michael (2026-10-25 ~16:50): "marlow yard
+- Guards: normal guards, only as many as the set's move or mechanic needs, at most 3 per set (4.9, 4.10). Michael
+  (2026-10-25 ~16:50): "Only the logical amount required to test the specific movement/game mechanic required. Doesn't
+  necessarily always need a guard."
+- The campaign's built-for-two checks (G157; Campaign profile) do not bind, also not in a late section that keeps a
+  side route (there the campaign route rules bind, not the co-op ones). Michael (2026-10-25 ~16:50): "marlow yard
   in particular is an isolated training level which forces training of each individual coop move and coop gameplay,
   and does not need the same checks".
 
@@ -237,8 +244,8 @@ A level is a linear spine of encounter spaces joined by connectors.
 3. **Strict rules.** A mission has up to 2 strict rules, signposted in the briefing and the objective list; "ghost"
    counts as one. Breaking one restarts the section: the team goes back to the section checkpoint (3.9) and the
    mission continues (G290). Killing a civilian or a protected character restarts the section too
-   (G353). [SectorOps] A rule may be global, per team or per split (G291). [Training] None in the
-   early sections; one is taught in a late section (G357).
+   (G353). [SectorOps] A rule may be global, per team or per split (G291). [Training] None: every
+   failure is a retry (Training profile).
 4. **Downed.** [Campaign] [Training] The partner revives a downed player within 30 s, at most twice per mission; past
    that, or with both down, the team restarts at the last checkpoint it reached (3.9; `REVIVE_WINDOW`,
    `REVIVES_PER_MISSION`, `src/game/reviveClock.ts`; G126; Marlow Yard: G349).
