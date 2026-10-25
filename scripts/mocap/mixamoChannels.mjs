@@ -4,6 +4,7 @@
 //
 //   node scripts/mocap/mixamoChannels.mjs            regenerate every module, the rows and CHANNELS.md from the dumps
 //   node scripts/mocap/mixamoChannels.mjs <slug>...  only those clips (the rows and CHANNELS.md still list every module)
+//   --take=<path>  the M2 adapter to load the dumps with (default ./mixamoTake.mjs); --raw=<dir> the dumps' folder
 //
 // The body frame is the game's 1.75 m standard body (src/player/proportions.ts): the take is rebuilt on it by forward
 // kinematics (the take's pelvis path scaled by the leg ratio, then every segment the take's direction at the standard
@@ -17,8 +18,8 @@
 // AttachGrips.cadence; a loop without hand reaches, the hang idle, over its own seconds), in place (the take's travel over
 // the cycle taken out); `chanPath` keyed over the climb-up's progress k (CLIMB_UP, 1.3 s: crouched on top at
 // CLIMB_UP_CROUCH_K, standing at 1), relative to the game's root path at the same k (attachController CLIMB_UP_PATH from a
-// ledge hang, the ladder top-out's rise and step in), time-warped so the take's knee / foot on top lands on the path's
-// top (CLIMB_UP_PATH.k2), its first hand off on CLIMB_UP_HANDS.k0 and its crouch on CLIMB_UP_CROUCH_K.
+// ledge hang, the ladder top-out's rise and step in), time-warped so the take's first hand off lands on CLIMB_UP_HANDS.k0,
+// its foot on top on CLIMB_UP's offGrip rise and its crouch on CLIMB_UP_CROUCH_K (an event out of order is dropped).
 // Keys: each channel reduced to the fewest keys whose monotone cubic (src/anim/curves.ts, re-implemented here) stays
 // within 1 cm / 1 deg of the dense samples.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -51,7 +52,8 @@ export const GAME = {
   hang: { drop: 1.9, out: 0.22, hands: [0, 2.05, 0.22] },
   climbHands: [0, 1.6, 0.25],
   /** attachController CLIMB_UP_PATH, CLIMB_UP_TIME; traverse.ts CLIMB_UP_CROUCH_K; moveState.ts CLIMB_UP_HANDS. */
-  climbUp: { lipDrop: 1.2, k1: 0.2, k2: 0.38, fwd0: 0.33, outK: 0.36, out: 0.12, endIn: 0.45, time: 0.85, crouchK: 0.654, handsK0: 0.475, handsSpan: 0.168 },
+  /** `offGripK`: traverse.ts CLIMB_UP's offGrip rise start (0.56: the hands back to the gun, the foot on top's anchor). */
+  climbUp: { lipDrop: 1.2, k1: 0.2, k2: 0.38, fwd0: 0.33, outK: 0.36, out: 0.12, endIn: 0.45, time: 0.85, crouchK: 0.654, handsK0: 0.475, handsSpan: 0.168, offGripK: 0.56 },
   /** attach.ts CLIMB_STANDOFF, attachController LADDER_TOPOUT_IN / _TIME, the ladder's top-out start (len - 0.55 h). */
   ladder: { standoff: 0.32, topIn: 0.4, rise: 0.55 * 1.75, time: 0.85 },
   /** CROUCH_IDLE's pelvis (traverse.ts CLIMB_UP at CLIMB_UP_CROUCH_K): the crouch's hip height off standing. */
@@ -201,18 +203,31 @@ export function pathTime(k, anchors) {
   return a[a.length - 1].t;
 }
 
+/** The inverse of `pathTime`: the progress k a take time lands on (clamped to the anchors' span). */
+export function pathK(t, anchors) {
+  const a = anchors;
+  if (t <= a[0].t) return a[0].k;
+  for (let i = 1; i < a.length; i++) {
+    if (t <= a[i].t) return a[i - 1].k + ((t - a[i - 1].t) / (a[i].t - a[i - 1].t)) * (a[i].k - a[i - 1].k);
+  }
+  return a[a.length - 1].k;
+}
+
+/** The game progress each climb-up event lands on (PLAN M4): first hand off, foot on top, crouched on top. */
+export const EVENT_K = { release: GAME.climbUp.handsK0, onTop: GAME.climbUp.offGripK, crouch: GAME.climbUp.crouchK };
+
 /**
- * The path anchors from the take's events (s; null when not found): start 0, on top -> CLIMB_UP_PATH.k2, first hand off
- * -> CLIMB_UP_HANDS.k0, crouch -> CLIMB_UP_CROUCH_K, the end -> 1 (or the crouch, for a clip that ends crouched). An
- * event out of order (not after the anchor before it, in take time) is dropped and listed.
+ * The path anchors from the take's events (s; null when not found): start 0, first hand off -> CLIMB_UP_HANDS.k0, foot
+ * on top -> CLIMB_UP's offGrip rise, crouch -> CLIMB_UP_CROUCH_K, the end -> 1 (or the crouch, for a clip that ends
+ * crouched). An event out of order (its take time not after the anchor before it in k) is dropped and listed (the lower
+ * priority goes: on top, then the crouch, then the hand release); a dropped event lands where the warp puts it.
  */
 export function pathAnchors(ev, end, endKind) {
-  const G = GAME.climbUp;
   const want = [
     { name: 'start', t: 0, k: 0 },
-    { name: 'onTop', t: ev.onTop, k: G.k2 },
-    { name: 'release', t: ev.release, k: G.handsK0 },
-    endKind === 'crouch' ? { name: 'crouch', t: end, k: G.crouchK } : { name: 'crouch', t: ev.crouch, k: G.crouchK },
+    { name: 'release', t: ev.release, k: EVENT_K.release },
+    { name: 'onTop', t: ev.onTop, k: EVENT_K.onTop },
+    endKind === 'crouch' ? { name: 'crouch', t: end, k: EVENT_K.crouch } : { name: 'crouch', t: ev.crouch, k: EVENT_K.crouch },
   ];
   if (endKind !== 'crouch') want.push({ name: 'end', t: end, k: 1 });
   // an event not found is left out; out of order, the lower priority goes (the hand release, then the crouch, then on top)
@@ -541,8 +556,10 @@ export function pathChannels(B, recipe) {
     const ch = channelsOf(b.P, b.A, add(roots[i], [resid[0] * wxz, resid[1] * wy, resid[2] * wxz]));
     for (const [k, v] of Object.entries(ch)) (series[k] ??= []).push(v);
   });
+  // every event found, at the progress it lands on (an anchored one exactly on its game constant)
   const events = {};
-  for (const a of anchors) if (a.name !== 'start' && a.name !== 'end') events[a.name] = a.k;
+  const evT = { release: ev.release, onTop: ev.onTop, crouch: recipe.end === 'crouch' ? ev.end : ev.crouch };
+  for (const name of ['release', 'onTop', 'crouch']) if (evT[name] !== null) events[name] = r4(pathK(evT[name], anchors));
   const used = anchors[anchors.length - 1].t;
   const gameS = kEnd * (GAME.climbUp.time / GAME.climbUp.crouchK);
   const gripUnderTop = ev.top - ev.hands0[1];
@@ -554,6 +571,7 @@ export function pathChannels(B, recipe) {
       `events in the take (s from the start used): on top ${fmt(ev.onTop)}, first hand off ${fmt(ev.release)}, crouch ${recipe.end === 'crouch' ? `${ev.end.toFixed(3)} (the end)` : fmt(ev.crouch)}, end ${ev.end.toFixed(3)}`,
       `anchors (take s -> k): ${anchors.map((a) => `${a.name} ${a.t.toFixed(3)} -> ${a.k}`).join(', ')}`,
       ...(dropped.length ? [`dropped: ${dropped.join('; ')}`] : []),
+      `events land on (k; game): ${Object.entries(events).map(([k, v]) => `${k} ${v} (${EVENT_K[k]})`).join(', ')}`,
       `the take's grip ${gripUnderTop.toFixed(3)} m under its top; taken out: height ${resid[1].toFixed(3)} m over k 0-${kTop}, pelvis x ${resid[0].toFixed(3)} / z ${resid[2].toFixed(3)} m over k ${kRel}-${kEnd}`,
     ],
     seconds: used,
@@ -693,11 +711,14 @@ async function main(argv) {
   const rootArg = argv.find((a) => a.startsWith('--root='));
   const root = rootArg ? path.resolve(rootArg.slice(7)) : ROOT;
   const raw = rawArg ? path.resolve(rawArg.slice(6)) : path.join(root, 'build', 'mocap', 'mixamo', 'raw');
+  // the M2 take adapter: this folder's (the job branch), else `--take=<path to mixamoTake.mjs>` (a slice branch without it)
+  const takeArg = argv.find((a) => a.startsWith('--take='));
+  const takeUrl = takeArg ? pathToFileURL(path.resolve(takeArg.slice(7))).href : './mixamoTake.mjs';
   let loadMixamoTake;
   try {
-    ({ loadMixamoTake } = await import('./mixamoTake.mjs'));
+    ({ loadMixamoTake } = await import(takeUrl));
   } catch (e) {
-    console.error(`mixamoChannels: needs the M2 take adapter (scripts/mocap/mixamoTake.mjs): ${e.message}`);
+    console.error(`mixamoChannels: needs the M2 take adapter (scripts/mocap/mixamoTake.mjs, or --take=<path>): ${e.message}`);
     process.exit(2);
   }
   const rows = [], docs = [];

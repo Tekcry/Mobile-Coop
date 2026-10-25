@@ -58,40 +58,42 @@ path, time-warped onto its events. Keys are held within 1 cm / 1 deg of the dens
 
 `Freehang Climb.fbx` -> `src/anim/clips/mixamo/trav_freehang_climb.ts` (`mocap_freehang_climb`), chanPath, Studio loop `trav:ledge`; replaces CLIMB_UP from a free hang, to standing.
 
-- Keys: 786 over 28 channels; largest error 1.00 cm, 1.00 deg (bound 1 cm, 1 deg).
+- Keys: 728 over 28 channels; largest error 1.00 cm, 0.99 deg (bound 1 cm, 1 deg).
 - Clock: climb-up progress k (0..1 over 1.300 s, crouched at 0.654); standing at 1.
-- Events: release at 0.475, crouch at 0.654.
+- Events: release at 0.475, onTop at 0.394, crouch at 0.654.
 - leg scale x1.035; facing turned -2.6 deg.
-- take 0.000-3.867 s used (3.867 s) over 1.300 s of game time (x2.98 speed).
-- events in the take (s from the start used): on top 2.067, first hand off 0.742, crouch 2.708, end 3.867.
-- anchors (take s -> k): start 0.000 -> 0, release 0.742 -> 0.475, crouch 2.708 -> 0.654, end 3.867 -> 1.
-- dropped: onTop (2.067 s, out of order with release 0.742 s).
-- end residual taken out over k 0.475-1: pelvis x -0.136, y -0.097, z 0.234 m.
+- take 0.000-3.700 s used (3.700 s of 3.867) over 1.300 s of game time (x2.85 speed).
+- events in the take (s from the start used): on top 2.067, first hand off 2.492, crouch 2.700, end 3.700.
+- anchors (take s -> k): start 0.000 -> 0, release 2.492 -> 0.475, crouch 2.700 -> 0.654, end 3.700 -> 1.
+- dropped: onTop (2.067 s, out of order with release 2.492 s).
+- events land on (k; game): release 0.475 (0.475), onTop 0.394 (0.56), crouch 0.654 (0.654).
+- the take's grip 0.139 m under its top; taken out: height 0.332 m over k 0-0.38, pelvis x -0.153 / z 0.191 m over k 0.475-1.
 
 ## braced_hang_to_crouch
 
 `Braced Hang To Crouch.fbx` -> `src/anim/clips/mixamo/trav_braced_hang_to_crouch.ts` (`mocap_braced_hang_to_crouch`), chanPath, Studio loop `trav:ledge`; replaces CLIMB_UP to the crouch.
 
-- Keys: 369 over 28 channels; largest error 0.99 cm, 0.98 deg (bound 1 cm, 1 deg).
+- Keys: 341 over 28 channels; largest error 1.00 cm, 0.99 deg (bound 1 cm, 1 deg).
 - Clock: climb-up progress k (0..1 over 1.300 s, crouched at 0.654); the take ends crouched at k 0.654 (held after).
-- Events: release at 0.475, crouch at 0.654.
+- Events: release at 0.475, onTop at 0.4627, crouch at 0.654.
 - leg scale x1.035; facing turned 2.3 deg.
-- take 0.000-1.133 s used (1.133 s) over 0.850 s of game time (x1.33 speed).
-- events in the take (s from the start used): on top 0.658, first hand off 0.192, crouch 1.133 (the end), end 1.133.
-- anchors (take s -> k): start 0.000 -> 0, release 0.192 -> 0.475, crouch 1.133 -> 0.654.
-- dropped: onTop (0.658 s, out of order with release 0.192 s).
-- end residual taken out over k 0.475-0.654: pelvis x 0.096, y 0.000, z -0.253 m.
+- take 0.000-1.133 s used (1.133 s of 1.133) over 0.850 s of game time (x1.33 speed).
+- events in the take (s from the start used): on top 0.625, first hand off 0.642, crouch 1.133 (the end), end 1.133.
+- anchors (take s -> k): start 0.000 -> 0, release 0.642 -> 0.475, crouch 1.133 -> 0.654.
+- dropped: onTop (0.625 s, out of order with release 0.642 s).
+- events land on (k; game): release 0.475 (0.475), onTop 0.4627 (0.56), crouch 0.654 (0.654).
+- the take's grip 0.131 m under its top; taken out: height 0.377 m over k 0-0.38, pelvis x 0.096 / z -0.302 m over k 0.475-0.654.
 
 ## climbing_ladder_to_standing
 
 `Climbing Ladder To Standing.fbx` -> `src/anim/clips/mixamo/trav_climbing_ladder_to_standing.ts` (`mocap_climbing_ladder_to_standing`), chanPath, Studio loop `trav:ladder`; replaces the ladder top-out (CLIMB_UP over LADDER_TOPOUT_TIME).
 
-- Keys: 466 over 28 channels; largest error 0.99 cm, 0.97 deg (bound 1 cm, 1 deg).
+- Keys: 407 over 28 channels; largest error 0.99 cm, 1.00 deg (bound 1 cm, 1 deg).
 - Clock: climb-up progress k (0..1 over 1.300 s, crouched at 0.654); standing at 1.
-- Events: release at 0.475, crouch at 0.654.
+- Events: release at 0.475, onTop at 0.56, crouch at 0.654.
 - leg scale x1.035; facing turned -1.6 deg.
-- take 1.150-4.000 s used (2.850 s) over 1.300 s of game time (x2.19 speed).
-- events in the take (s from the start used): on top 0.550, first hand off 0.458, crouch 0.950, end 2.850.
-- anchors (take s -> k): start 0.000 -> 0, release 0.458 -> 0.475, crouch 0.950 -> 0.654, end 2.850 -> 1.
-- dropped: onTop (0.550 s, out of order with release 0.458 s).
-- end residual taken out over k 0.475-1: pelvis x -0.156, y -0.087, z 0.467 m.
+- take 1.133-3.075 s used (1.942 s of 4.000) over 1.300 s of game time (x1.49 speed).
+- events in the take (s from the start used): on top 0.558, first hand off 0.475, crouch 0.958, end 1.942.
+- anchors (take s -> k): start 0.000 -> 0, release 0.475 -> 0.475, onTop 0.558 -> 0.56, crouch 0.958 -> 0.654, end 1.942 -> 1.
+- events land on (k; game): release 0.475 (0.475), onTop 0.56 (0.56), crouch 0.654 (0.654).
+- the take's grip -0.267 m under its top; taken out: height 0.008 m over k 0-0.38, pelvis x -0.108 / z 0.348 m over k 0.475-1.
