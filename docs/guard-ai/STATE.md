@@ -1014,8 +1014,7 @@ Laptop CPU ~99% while trains run: no local tsc / vitest builders until it drops 
    resolves the 4-file master conflict in the train (coopHost markIntel, protocol 63, coop.md, testing-tools.md) and
    runs e2e-sectorops:7/:8/:9 alone on the train head. Never push to feature/coop4. Polish -> coop4-pol: sectorMode.ts:1434
    OUT slot from RemotePlayer.ref.slot; main.ts:332 text; coopUi.ts:87 roomCap; testing-tools part 9 bullet.
-3. J6 #446 head 97c6338f: re-checks A + B PASS (slices/ALLOC-RECHECK-A/B.md). Gates queued: laptop-e2e/alloc-coop
-   (20261025T090658) + affected (090651). Green -> checker posted, tell orchestrator.
+3. J6 #446 head 97c6338f: TRAIN-READY ~22:51 (affected 4/4, alloc-coop 2/2, checker posted); orchestrator told.
 4. J15 PR1 #450 (feature/guard-rules 211a66d5): check A PASS, B FIX (TESTING.md) applied (docs only). Gates queued:
    laptop-e2e/rules-pr1 on a78d7093 (091057) + affected-e2e on 211a66d5 (091818). #450 CONFLICTS with master in two
    docs (docs/systems/ai.md, takedowns.md), so CI `check` never ran; orchestrator told (train merge by hand). Green ->
