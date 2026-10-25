@@ -3,6 +3,28 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 62 (2026-10-26 ~10:25, Orchestrator save at 78%, swap at ~10:35; session [f1a362]; wins over SAVE 61):**
+- Service pid 37704 healthy, on master 34b96b9c (train 114 released). Queue 17 requests deep: >3 h of session-free
+  work, nothing extra filed. j20-perf alone still NOT re-filed (queue deep; wait for laptop-queue-7 slice F live).
+- #492 (PR-A) all green (check + affected-e2e) with checker PASS on 8a8d000c, but no `checker` status: auto mode
+  blocks my post; asked Michael who posts it (Orchestrator per RULES). Still unlabelled.
+- NEW JOB laptop-queue-7 (feature/laptop-queue-7, worktree C:/NightShift/Mobile-Coop-laptop-queue-7, upstream set):
+  docs/laptop-queue-7/{BRIEF,PLAN,STATE}.md. Opus plan checker PASS after 3 rounds (last: live(P) ignores done claims,
+  32bb10c5). Built: A c27a7b5d (conflict skip), B 5f86d627 (front / green smallest-first), C d588565e (moved train
+  head carry), D 83b356bd (rerun sharding). F (aged alone gap after the next train) was building at the save (Opus).
+  Its STATE resume block has file:line pointers per slice.
+- NEW JOB laptop-queue-8 (feature/laptop-queue-8 477565df, worktree C:/NightShift/Mobile-Coop-laptop-queue-8): seed
+  docs/laptop-queue-8/BRIEF.md only (Michael ~10:12 fixes first; keep queue place; stop a running request on a new
+  head; desktop smallest-first / ~15 min cap / keep suites on preemption; PR-head docs carry;
+  LQ_DESKTOP_CPU_MODE default normal). A1 settled with the Orchestrator: fixes, front, green, arrival.
+- Orchestrator told: G325 label rule gap (docs/ JSON counts as docs-only; it logs it for the watchdog). Marlow's
+  ctcourse:4 quarantine was already lifted.
+- Claude Docs connector off was blocked by auto mode (Michael to switch it off by hand).
+- Next: if slice F has no commit on origin, rerun its Opus builder (PLAN "Slice F"); then slice E (Sonnet: verify
+  laptop-queue-6 across the next train, docs net-zero, header comments, fragment changes/feature-laptop-queue-7.md),
+  then one fresh Opus checker on the PR head, PR to master, tell the Orchestrator. Then laptop-queue-8 Opus PLAN.
+  #492 checker status -> train-ready, then PR-B.
+
 **Test Runner SAVE 61 (2026-10-26 ~09:00, Orchestrator swap save; session [f6b0ef]; wins over SAVE 60):**
 - #492 (PR-A) fresh Opus checker PASS on 8a8d000c (no fixes; 114 unit tests green). Auto mode blocked my own
   `checker` post (Self-Approval); asked Michael whether the Orchestrator posts it. Polish (later): testing-tools.md:106
