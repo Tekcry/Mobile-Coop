@@ -953,10 +953,24 @@ body {
   align-items: center;
   gap: 3px;
 }
+/* (G343) the objective fades in on every update and on a View / O tap, holds ~5 s, fades out (objectivePopup.ts) */
 .hud-objective {
   font-size: 13px;
   font-weight: 700;
   max-width: calc(34 * var(--vw));
+  text-align: center;
+  opacity: 0;
+  transition: opacity var(--obj-fade, 0.4s);
+}
+.hud-objective.show {
+  opacity: 1;
+}
+/* (hud-guidance A7) the co-op connection notice, its own small line under the objective */
+.hud-net-status {
+  font-size: 11px;
+  font-weight: 700;
+  color: #ffd27a;
+  text-shadow: 0 1px 2px #000;
   text-align: center;
 }
 .hud-room {
@@ -975,6 +989,7 @@ body {
 }
 .hud-room:empty,
 .hud-objective:empty,
+.hud-net-status:empty,
 .hud-mode:empty {
   display: none;
 }
@@ -4877,7 +4892,8 @@ body.tune-hide-hud .mouse-capture-hint {
   color: var(--text-hi);
   font-weight: 700;
 }
-.screen.objectives-screen.menu-screen {
+.screen.objectives-screen.menu-screen,
+.screen.notes-screen.menu-screen {
   background:
     linear-gradient(90deg, rgba(3, 5, 6, 0.8) 0%, rgba(3, 5, 6, 0.5) 40%, rgba(3, 5, 6, 0) 68%),
     rgba(3, 5, 6, 0.55);

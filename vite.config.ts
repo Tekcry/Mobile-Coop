@@ -2,6 +2,7 @@ import { execSync } from 'node:child_process';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { kestrelEditor } from './scripts/kestrel/editor-server';
+import { shippedBakes } from './scripts/prebake/emit';
 import { pickBuildSha } from './src/core/buildSha';
 import { PRECACHE_GLOBS, PRECACHE_IGNORES } from './src/pwa/precacheGlobs';
 import { RUNTIME_CACHING } from './src/pwa/runtimeCaching';
@@ -53,6 +54,8 @@ export default defineConfig({
   plugins: [
     // the level editor's endpoints (dev server only; editor.html is never built)
     kestrelEditor(),
+    // (map-ready S4) the prebaked campus lamps as `bakes/*` (scripts/prebake.mjs; never precached, `bakes` runtime rules)
+    shippedBakes(),
     VitePWA({
       // (sw-reload) 'prompt': a new deploy's worker waits (no mid-match reload); src/pwa/pwa.ts activates it on the menu
       registerType: 'prompt',

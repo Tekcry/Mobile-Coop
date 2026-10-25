@@ -33,6 +33,8 @@ export const BUTTON_ACTIONS = [
   'dash',
   /** Goggles (F1a, G181): toggle the vision mode selected on the wheel, on / off (never between modes). */
   'vision',
+  /** (G343) View / Select tap or O: show the current objective ~5 s. */
+  'objective',
   /** Co-op: ping the spot (or the guard) under the crosshair for the team. */
   'ping',
   /** Co-op action (CT, RB / F / PageDown): team moves (leg-up, ledge relay; the partner throw in B4). */

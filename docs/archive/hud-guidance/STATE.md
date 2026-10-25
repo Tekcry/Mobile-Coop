@@ -5,7 +5,7 @@ Owner: Campaign Build. Status: current.
 - Folder `C:/NightShift/Mobile-Coop-hud-guidance`, branch `feature/hud-guidance` (upstream origin), from master
   2148ec969. Guard: `git -C C:/NightShift/Mobile-Coop-hud-guidance branch --show-current` = `feature/hud-guidance`.
 - Jobs: FOLDED-PLAN J3 (PR A, removal) + J3b (PR B, popup); ROADMAP Now row 9. Rule fixes at the cap (G355).
-- Read: `docs/hud-guidance/BRIEF.md` (Michael said / picked, A1-A15), `docs/hud-guidance/PLAN.md` (claims, slices,
+- Read: `docs/archive/hud-guidance/BRIEF.md` (Michael said / picked, A1-A15), `docs/archive/hud-guidance/PLAN.md` (claims, slices,
   strict briefs A1-A3, outlines B1-B5, e2e lists).
 - Status: BRIEF + PLAN written (planner Opus 5.5). Plan check: FIX (3 must-fix,
   `C:/NightShift/scratch/campaign/j3-plan-check.md`), fixed in the PR B parts of the plan. A1 / A3 building.
@@ -28,7 +28,7 @@ Owner: Campaign Build. Status: current.
 - Overlaps: engine branches (`mission-engine-flg-gb6`, `tallow-design-docs`) on `sectorMode.ts` `blips()`; master
   first, engine deletes its gate in its rebase (~15 min). `player-docs-j1` on input-and-loop.md, other hunks.
 - Next: run the Opus plan checker (`docs/templates/plan-check.md`, `node scripts/claims-check.mjs --plan
-  docs/hud-guidance/PLAN.md --name feature/hud-guidance`), then start A1 (Opus) and A3 (Sonnet) in parallel.
+  docs/archive/hud-guidance/PLAN.md --name feature/hud-guidance`), then start A1 (Opus) and A3 (Sonnet) in parallel.
 
 ## Done
 - 2026-10-25 18:15: BRIEF, PLAN, STATE and the changelog fragment written and pushed (planner).

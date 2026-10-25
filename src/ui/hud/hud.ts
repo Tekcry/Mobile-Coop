@@ -8,6 +8,7 @@ import { GadgetWheel } from './gadgetWheel';
 import { PingView } from './pings';
 import { BarkView } from './barks';
 import { ContextMenuView } from './contextMenuView';
+import { OBJECTIVE_POPUP, ObjectivePopup } from './objectivePopup';
 
 export interface HudFrame {
   hp: number;
@@ -48,6 +49,12 @@ export class Hud {
   private ring: SVGCircleElement;
   private dmgWrap: HTMLElement;
   private objective: HTMLElement;
+  /** (G343) When the objective line shows; `objShown` is the `.show` class as set, `objText` the line as written. */
+  private readonly popup = new ObjectivePopup();
+  private objShown = false;
+  private objText = '';
+  /** (hud-guidance A7) The co-op connection notice, its own small line under the objective (empty: hidden). */
+  private netStatus: HTMLElement;
   private modeInfo: HTMLElement;
   private weaponEl!: HTMLElement;
   private roomEl: HTMLElement;
@@ -119,6 +126,8 @@ export class Hud {
     svg.appendChild(this.ring);
     this.dmgWrap = h('div', { class: 'dmg-wrap' });
     this.objective = h('div', { class: 'hud-objective' });
+    this.objective.style.setProperty('--obj-fade', `${OBJECTIVE_POPUP.fadeS}s`);
+    this.netStatus = h('div', { class: 'hud-net-status', attrs: { role: 'status' } });
     this.modeInfo = h('div', { class: 'hud-mode' });
     this.roomEl = h('div', { class: 'hud-room' });
     this.bannerEl = h('div', { class: 'hud-banner' });
@@ -132,7 +141,7 @@ export class Hud {
       this.vignette,
       this.suppressEl,
       vitals,
-      h('div', { class: 'hud-top' }, this.roomEl, this.objective, this.modeInfo),
+      h('div', { class: 'hud-top' }, this.roomEl, this.objective, this.netStatus, this.modeInfo),
       weapon,
       h('div', { class: 'hud-center' }, this.arcs.canvas, this.cross, this.hit, svg, this.dmgWrap),
       this.bannerEl,
@@ -217,6 +226,12 @@ export class Hud {
       this.ammoKey = ak;
       this.ammoT = now;
     }
+    // (G343) the objective popup: the class flips only when the visibility does (the CSS fade runs OBJECTIVE_POPUP.fadeS)
+    const vis = this.popup.visible(now / 1000);
+    if (vis !== this.objShown) {
+      this.objShown = vis;
+      this.objective.classList.toggle('show', vis);
+    }
     const quiet = !this.ammoAlways && now - this.ammoT > 3000;
     this.set('aq', quiet, () => this.weaponEl.classList.toggle('quiet', quiet));
     const rp = Math.round(f.reloadProgress * 50);
@@ -255,8 +270,31 @@ export class Hud {
     return this.objective.textContent ?? '';
   }
 
+  /** (G343, BRIEF A4) A real change of the line shows it for `OBJECTIVE_POPUP.holdS` (restarting the hold if it is up;
+   *  the fade-in plays only when it was hidden); an empty line hides it. */
   setObjective(text: string): void {
-    this.set('obj', text, () => (this.objective.textContent = text));
+    if (text === this.objText) return;
+    this.objText = text;
+    this.objective.textContent = text;
+    if (text) this.popup.show(performance.now() / 1000);
+    else this.popup.hide();
+  }
+
+  /** (G343, BRIEF A5) View / Select or O: shows the current line again for `OBJECTIVE_POPUP.holdS`. An empty line
+   *  (Marlow Yard, Clear) shows nothing. Returns whether it showed. */
+  showObjective(): boolean {
+    if (!this.objText) return false;
+    this.popup.show(performance.now() / 1000);
+    return true;
+  }
+
+  /** (hud-guidance A7) The co-op connection notice ("Connecting to host…"), on its own line; '' hides it. */
+  setNetStatus(text: string): void {
+    if (this.netStatus.textContent !== text) this.netStatus.textContent = text;
+  }
+
+  get netStatusText(): string {
+    return this.netStatus.textContent ?? '';
   }
 
   /** Room tag at the top (close-quarters maps); `cleared` marks it as secured. */

@@ -14,6 +14,7 @@ import type { MapDef } from '../world/mapDef';
 import { Player } from '../player/player';
 import { defaultLook, type AvatarLook } from '../cosmetics/avatarLook';
 import { PauseScreen, type ObjectiveLine } from '../ui/screens/pauseScreen';
+import { FieldNotes } from './fieldNotes';
 import { PauseLook } from '../vfx/pauseLook';
 import { mapLampBeams } from '../vfx/volLights';
 import { DamageRegistry, type Damageable } from './damage';
@@ -186,6 +187,8 @@ export interface NetAttachment {
   onLocalDeath(): boolean;
   /** Host: the session ended (broadcast results). */
   onEnd?(won: boolean, subtitle: string): void;
+  /** (hud-guidance B4, HG8) Client: Field Terminal > Objectives rows; null: none (GameState shows its own). */
+  objectiveLines?(): ObjectiveLine[] | null;
   /** Host: revive every downed player (wave cleared). */
   reviveAll?(): void;
   /** (3.2.0 phase 5) Team-mates for team moves (co-op: everyone; TDM: the same side). */
@@ -512,6 +515,9 @@ export class GameState implements AppState {
   private wallOv: MoveOverride = {};
   static rewardHook: RewardHook | null = null;
   readonly events = new EventBus<GameEvents>();
+  /** (hud-guidance B5, R12, BRIEF A9) Field Terminal > Notes: this match's interrogation lines (solo / host: the `intel`
+   *  event; a co-op client: the host's `feed` events, `coopClient.ts`). A new match is a new GameState: empty. */
+  readonly notes = new FieldNotes();
   private audio: { frame(dt: number): void; dispose(): void } | null = null;
   private localRef: PlayerRef;
   /** (guard-ai S26) The local player's id (his own noises locate him: `EnemyManager.hear`'s `by`). */
@@ -675,6 +681,10 @@ export class GameState implements AppState {
     });
     this.events.on('strike', (e) => {
       if (e.result !== 'miss') app.input.haptic('elbowHit');
+    });
+    // (hud-guidance B5) solo / host: every interrogation's lines (the client's own come from the host as `feed`)
+    this.events.on('intel', (e) => {
+      for (const line of e.lines) this.notes.add(line);
     });
     this.player.onLand = (v) => {
       this.vfx.landDust(this.player.position, Math.min(1.5, v / 8));
@@ -1241,6 +1251,8 @@ export class GameState implements AppState {
 
   /** The mission's objectives and their state for the pause menu (G108). */
   objectiveLines(): ObjectiveLine[] {
+    const own = this.mode?.objectiveLines?.() ?? this.net?.objectiveLines?.();
+    if (own) return own;
     const m = this.mode;
     if (m instanceof InfiltrationMode) {
       const c = m.chain;
@@ -1283,6 +1295,7 @@ export class GameState implements AppState {
         {
           coop: !!this.net,
           objectives: () => this.objectiveLines(),
+          notes: () => this.notes.lines(),
           dof: this.stack.hasDof,
           notice,
           // (marlow-bays items 3-4, A1) host actions in co-op: the client sees them disabled, "Host only"
@@ -1824,6 +1837,9 @@ export class GameState implements AppState {
       this.pause();
       return;
     }
+    // (G343, BRIEF A5) View / O shows the objective again, every mode and both co-op sides; not under the pause or field
+    // menu (co-op runs the sim under it: the line would pop up behind the menu)
+    if (!this.paused && !this.menuOpen && realIn.pressed('objective')) this.hud.showObjective();
     // (tuner-camera) the tuner's free view: the game reads its own input (the orbit's move, the fly demo loop), none of
     // the devices' buttons
     // (anim-studio) the studio's loop player drives the game while it plays a loop

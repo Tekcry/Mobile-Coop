@@ -46,9 +46,12 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] (fog fix) Saltmarsh Park on Epic, then High: the atrium, the S3 hall and the L1 offices read clear across the room;
   ceiling lights glow with a short, faint haze under their shade (no long beams), guard torches still beam, and the
   light meter reads as before.
-- [ ] Sector Ops stars: finish a run on a difficulty; back on the menu that difficulty's star is filled beside Sector Ops
-  and in the op list (best time in the context panel). Co-op Sector Ops: the HUD shows Syringes (2 on Normal); a downed
-  partner is revived until they run out, then a down restarts the section with both players at the room.
+- [ ] Sector Ops stars: finish a run on a difficulty; back on the menu that difficulty's star and every easier one are
+  filled beside Sector Ops (Saltmarsh Park's stars) and in the op list (best time in the context panel). Co-op Sector
+  Ops: the HUD shows Syringes (2 on Normal); a downed partner is revived until they run out, then a down restarts the
+  section with both players at the room.
+- [ ] (sector-batch) Sector Ops result: a run with no kill and no alarm ends "PERFECT" on the result line and the
+  extraction banner (with "GHOST" too when never spotted); an alarm takes Perfect away.
 - [ ] Sector Ops restart: get spotted (alarm, alert music), use some ammo and a gadget, go down. After "Restarting from
   checkpoint" the music fades to silence, the guards are back on their routes unaware, the guns are full (the rifle
   suppressed), the gadgets are back and health is full; a suppressed shot away from the guards alerts nobody.
@@ -428,7 +431,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   Pick "state: idle": she is back in the middle.
 - [ ] Anim Studio motion capture (mixamo-retarget M5): the Loop list has a "Motion capture (CMU): ..." group (walk, jog,
   run, sprint, start, stop, turns, sneak, strafes; Mixamo ones as "Motion capture (Mixamo): ..." once they land, the
-  climbing ones on their props, playing the capture with `?mixamo=1`). Pick "Motion capture (CMU): walk": the Now playing
+  climbing ones on their props: picking one plays that capture there, flag or not; in a match the climbing
+  captures play with `?mixamo=1`). Pick "Motion capture (CMU): walk": the Now playing
   line says "motion-capture (CMU) walk clip"; turn a knee in Joints (walk) or move a foot in Hands & feet: the capture
   follows; Arm swing is greyed (hand-made only) and changes nothing on it, as in the game. Walking in a match: "Now
   playing: motion-capture (CMU) walk". On a ledge, Body > foot reach rows are greyed ("Does nothing in this move").

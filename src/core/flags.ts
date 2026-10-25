@@ -51,6 +51,9 @@ export interface Flags {
   /** (mocap-trial) `?mocap=1` / `?mocap=0`: the mocap locomotion clips on / off for this page, over the stored setting
    *  (Settings > Gameplay > "Mocap locomotion"); null when the page names none. */
   mocap: boolean | null;
+  /** (mixamo-retarget I2) `?mixamo=1` / `?mixamo=0`: the Mixamo traversal captures on Wren (hang, shimmy, climb-up, ladder,
+   *  vent crawl; `src/anim/mixamo.ts`); null when the page names none = off (default OFF until the orchestrator rules). */
+  mixamo: boolean | null;
   /** (guard-render S1) Guards draw as one merged smooth mesh each (`SmoothBody`); `?guardmerge=0`: the parts, for comparisons. */
   guardMerge: boolean;
   /** (guard-models G7, A10) Guards draw as the operator-pipeline figure (`src/ai/guardBody.ts`); `?guardmodels=0` keeps
@@ -70,6 +73,10 @@ export interface Flags {
   /** (sector-redesign perf) Sector Ops guards whose body and shadows cannot reach the screen skip the render
    *  (`sectorGuardFreeze.ts`); `?guardfreeze=0`: off, for comparisons. */
   guardFreeze: boolean;
+  /** (map-ready, `docs/map-ready/PLAN.md`; owner Night Shift | Sector Ops Build; switch-on after Michael's Sector Ops
+   *  and Marlow Yard walks, target 2026-11-01) The loading screen waits for a built and warmed map, the campus lamps
+   *  ship pre-built, the costly parts are kept between matches, the lobby preloads. `?mapready=1` on; default off. */
+  mapReady: boolean;
 }
 
 /** (mocap-trial) An on / off URL value: "1" true, "0" false, anything else (or absent) null. */
@@ -133,6 +140,7 @@ export const flags: Flags = {
   weaponLab: params.get('weaponlab') === '1',
   sectorGuards: /^\d{1,2}$/.test(params.get('sectorGuards') ?? '') ? Number(params.get('sectorGuards')) : null,
   mocap: onOffFlag(params.get('mocap')),
+  mixamo: onOffFlag(params.get('mixamo')),
   guardMerge: params.get('guardmerge') !== '0',
   // (guard-models G7) default off until G8's budget run: `?guardmodels=1` on; G8 makes it `!== '0'`
   guardModels: params.get('guardmodels') === '1',
@@ -141,4 +149,5 @@ export const flags: Flags = {
   animOff: Number(params.get('animoff')) | 0,
   guardSun: params.get('guardsun') !== '0',
   guardFreeze: params.get('guardfreeze') !== '0',
+  mapReady: params.get('mapready') === '1',
 };
