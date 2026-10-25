@@ -1,5 +1,5 @@
 # Mixamo on the co-op kit moves - plan (Marlow Build, Opus planner)
-Owner: Marlow Build. Status: current (plan, fix round 1, check 2 answered; owners' answers settled). Revised 2026-10-26.
+Owner: Marlow Build. Status: current (plan, fix round 1, check 2 answered, G400 per-rig source; owners' answers settled). Revised 2026-10-26.
 Source of truth: docs/mixamo-kit/PLAN.md on origin/feature/mixamo-kit (checks: PLAN-CHECK-1.md; check 2 items 1-6 answered
 here: 1 -> plan 3 "Base" + brief step 0; 2 -> the lead's coop.md commit a9e7cbfa4, verified in step 0; 3 -> plan 2 "Hang
 skip" / "Clear rule" + tests (a), (a2), (i); 4 -> plan 4 "Ownership" + brief step 7; 5 -> brief "Read first"; 6 -> plan 3
@@ -7,7 +7,7 @@ skip" / "Clear rule" + tests (a), (a2), (i); 4 -> plan 4 "Ownership" + brief ste
 
 Goal (Michael ~00:15): "add all mixamo animations in game, i will fine tune as needed. make this priority overnight".
 Change (Michael ~00:25): "update - dont set mixamo moves as default in game, allow toggle between hand made, cmu, and
-mixamo". So: the kit moves play their Mixamo clip only under the Mixamo animation source (Player Build's toggle, default
+mixamo". So: the kit moves play their Mixamo clip only under the Mixamo animation source of the ACTING player (Player Build's toggle, default
 = today's moves); under Hand-made / CMU they play today's kit pose. Each clip is also gated by its `MIXAMO_ON` row.
 
 Heads read: origin/feature/mission-engine 231bdbfbf (origin/feature/kit-mixamo is the same commit, empty: ignored),
@@ -149,16 +149,19 @@ crawl start (interpolation lag carrying a pre-crawl step), it logs the offset as
 (a) additive declarations: the public `readonly kit = newKitShotIn()`, the `RigTargets.keyShot` field and its default 0
 in `emptyTargets`, and the `kitShot` method's own private fields (scratch keyed pose, eased weight, held clip / time);
 (b) ONE `(mixamo-kit)` block straight after the stanceShot call (about :2020 on i3) that calls `kitShot(o)` when
-`this.wrenReady && WREN_KIT.any`, covering both the traverse case and the crawler mix;
+`this.wrenReady && KIT_TABLES[1].any` (some kit row is on; the per-rig source is already in `this.kit`), covering both
+the traverse case and the crawler mix; a rig whose source is not Mixamo has weight 0 and writes nothing;
 (c) the hang skip, in its own commit. Every hunk is commented `(mixamo-kit)`.
 
 **Hang skip (check 1 item 4, check 2 item 3).** Under the Mixamo source, #477's `mixamoTrav` hang branch (animGraph
 :3014) reads the pull partner's `'hang'` with `traverseT` = the haul k as a pendulum swing and the rise speed as a shimmy
-pace. `KitShotIn` = `{ clip, time, weight, mode, move: KitPoseMove | '', role: TeamPoseRole | '' }`. TeamPoser writes
-`move` / `role` only when `WREN_KIT.any`, whatever the phase (local `pullJump` / `pullHang`, and the remote avatar's
-boost + 8 with ph 0, where the phase is `''`). The skip, one condition at the top of `mixamoTrav`, own commit:
-`WREN_KIT.any && this.kit.move === 'pull' && this.kit.role === 'a'` -> return false (the hand-made HANG on both screens).
-With every kit row false (`WREN_KIT.any` false) it never fires: #477's behaviour, bit for bit.
+pace. `KitShotIn` = `{ clip, time, weight, mode, mx: boolean, move: KitPoseMove | '', role: TeamPoseRole | '' }`
+(`mx` = this rig's acting player's source is Mixamo, section 3 "Per-rig source"). TeamPoser writes `mx` / `move` / `role`
+only when this rig's table has a row on (`KIT_TABLES[src].any`), whatever the phase (local `pullJump` / `pullHang`, and
+the remote avatar's boost + 8 with ph 0, where the phase is `''`). The skip, one condition at the top of `mixamoTrav`, own
+commit: `this.kit.mx && this.kit.move === 'pull' && this.kit.role === 'a'` -> return false (the hand-made HANG). With
+every kit row false, or the rig's source not Mixamo, it never fires: #477's behaviour, bit for bit. (#477's own
+`WREN_TRAV` is one global table today; making it follow each rig's source under G400 is Player Build's part.)
 
 **Rig gate (check item 3; Player agreed: lines :2013 / :2422 / :2610 / :2949 only).** In characterRig.ts (all three
 edited lines sit in `applyTargets(t, dt, free)` (:2321), so `ks` is a local and `free` is already a parameter):
@@ -192,17 +195,34 @@ does not hold mixamo-i3, so merging it into feature/mixamo-kit conflicts in Play
 the stack order. Until a Player head holds both i3 and mixamo-on, the slice keeps the one-line stub (below); the merge of
 that head and the stub swap land in the same commit (brief step 8); `MIXAMO.on` (mixamo.ts) true only under
 the Mixamo source; `addMixamoResolver(fn: () => void)` (new in mixamo.ts on feature/mixamo-on) runs at the end of
-`resolveMixamo` on load and every source change. The slice never reads the toggle.
+`resolveMixamo` on load and every source change. The slice never reads the toggle directly.
+
+**Per-rig source (orchestrator 00:55, Q39 / G400).** Each player's animation source rides that player's networked
+animation state (Player Build builds the wire part in src/net with the toggle), so every screen draws a player with the
+OWNER's choice. The kit clip follows the ACTING player's source as received: the local Wren = the local source; a remote
+partner = the source received for that player. Design:
+- Two tables, both resolved once per change by `resolveKit()` (registered with `addMixamoResolver`):
+  `KIT_TABLES: readonly [KitTable, KitTable]`, index 0 = not Mixamo (every pose id null, `any` false: today's pose),
+  index 1 = Mixamo (a pose id's clip when its `MIXAMO_ON` row is on, regardless of the local `MIXAMO.on`, since a remote
+  player may be on Mixamo while this viewer is not). Same objects always.
+- Per rig per frame, in `TeamPoser.begin`: `const src = kitSourceOf(rig)` (0 or 1), then `KIT_TABLES[src]` by index: no
+  allocation, no string compare in the frame.
+- Stub until Player names the per-rig field, ONE line in kitMixamo.ts:
+  `export let kitSourceOf = (_rig: TeamRigIn): 0 | 1 => (MIXAMO.on ? 1 : 0); // STUB (mixamo-kit): Player's per-rig source`
+  It returns the local source for the local rig and for a remote rig too (today's behaviour). A set-up-time test hook
+  `setKitSourceOf(fn)` (called once, never per frame) lets tests give two rigs different sources. The swap = that line
+  reads Player's field (e.g. `rig.animSource === 'mixamo' ? 1 : 0`), plus the optional field on `TeamRigIn`.
 - Rows appended at the END of `MIXAMO_ON` (after the I3 rows): `kneeling_pull_up: true`, `pulling_up_to_a_ledge: true`,
   `lifting_heavy_object: true`, `crawling_prone: true`, and the per-phase keys `kit_pull_offer`, `kit_pull_hang`,
   `kit_shutter_offer`, `kit_shutter_drop`: false. One comment each.
-- `src/anim/kitMixamo.ts`: `WREN_KIT` (same object always; a `KeyedClip | null` per kit pose id, plus `any`), rebuilt by
-  `resolveKit()`: the clip when `MIXAMO.on && MIXAMO_ON[slug]` (and the phase key for an optional phase), else null.
+- `src/anim/kitMixamo.ts`: `KIT_TABLES` (above; each a `KeyedClip | null` per kit pose id, plus `any`), rebuilt by
+  `resolveKit()`: table 1 holds the clip when `MIXAMO_ON[slug]` (and the phase key for an optional phase), else null;
+  table 0 is all null. `kitSourceOf` stub (above).
 - Stub until Player's head lands, ONE line in kitMixamo.ts:
   `const addMixamoResolver = (fn: () => void): void => fn(); // STUB (mixamo-kit): swap for the mixamo.ts export`
   then `addMixamoResolver(resolveKit);`. Until the swap, tests call `resolveKit()` after `setMixamo(...)`. The swap =
   replace the stub line with `import { addMixamoResolver } from './mixamo';`.
-- Wren only: the graph reads `WREN_KIT` by reference only when `WREN_KIT.any && this.wrenReady`; guards never.
+- Wren only: the graph runs its block only when `this.wrenReady && KIT_TABLES[1].any`; guards never.
 
 **Base (check item 1).** New branch `feature/mixamo-kit` in `C:/NightShift/Mobile-Coop-mixamo-kit` (G94): from
 origin/feature/mission-engine 231bdbfbf, merged with origin/feature/mixamo-i3 b932d0311 (mission-engine has no
@@ -250,15 +270,15 @@ own edits (the base merge's coopHost.ts resolution, approved by Campaign, is alr
 **File claims (slice, measured from the merge commit).**
 | File | Change | Lines |
 | --- | --- | --- |
-| src/anim/kitMixamo.ts (new) | `KIT_SHOT`, `WREN_KIT`, `resolveKit`, the stub line, `KitShotIn` / `newKitShotIn`, pure clip-time maps (tau / g / k / distance -> clip time), the gap phase rule | ~240 |
+| src/anim/kitMixamo.ts (new) | `KIT_SHOT`, `KIT_TABLES`, `resolveKit`, the two stub lines (`addMixamoResolver`, `kitSourceOf`) + `setKitSourceOf`, `KitShotIn` / `newKitShotIn`, pure clip-time maps (tau / g / k / distance -> clip time), the gap phase rule | ~240 |
 | src/anim/mixamo.ts | 8 `MIXAMO_ON` rows at the end, a comment each | ~16 |
 | src/anim/clips/team.ts | phase fields, link copies, wire phase derivation, TeamPoser kit writes, gap trend, hold / crawl clocks, hand targets, clear lines, `TeamRigIn.graph?` | ~200 |
 | src/anim/animGraph.ts | declarations, one block, `kitShot()`, the hang skip | ~150 |
 | src/player/characterRig.ts | the four agreed lines (`ks`) | ~12 |
-| tests/kitMixamo.test.ts (new) | (a)-(i) below | ~520 |
+| tests/kitMixamo.test.ts (new) | (a)-(i) and (c2) below | ~560 |
 | tests/teamPose.test.ts | phase fields on the existing cases | ~40 |
 | changes/feature-mixamo-kit.md, docs/mixamo-retarget/KIT-REPORT.md | fragment, A8 readings | ~70 |
-| Total | | ~1,250 |
+| Total | | ~1,300 |
 Not touched: player.ts, moveState.ts, gameState.ts, localMoveState.ts, remoteAvatar.ts, studio.ts, studioStage.ts.
 
 **Tests (`tests/kitMixamo.test.ts`, vitest, headless Wren rig as mixamoStance / mixamoTraverse).**
@@ -277,6 +297,9 @@ Not touched: player.ts, moveState.ts, gameState.ts, localMoveState.ts, remoteAva
   `teamPoseOfWire` + `TEAM_LINK`) and the partner's page give the same (clip, clip time) for the same body to one frame;
   the shutter: a stepwise 20 Hz `s` on the remote page and a 60 Hz gap on the local page give the same phase every frame
   and clip time within one wire step; the crawl: both pages fed the same root path give the same phase.
+- (c2) Per-rig source (G400): with `setKitSourceOf` giving two Wren rigs different sources in one frame (one Mixamo, one
+  not) in the same kit phase, the Mixamo rig draws the clip and the other draws today's pose bit for bit; swapping the
+  two sources swaps the result; the hang skip fires only on the Mixamo rig; still no allocation per frame.
 - (d) Timing kept: root path, capsule, `traverseT`, wire fields and `KIT_POSE_LOCAL` identical with the shot on and off
   over a full pull and a full shutter run.
 - (e) Hang skip: under the Mixamo source the hand-made HANG plays for the local `pullJump` / `pullHang` AND for the remote
@@ -326,26 +349,28 @@ Worktree C:/NightShift/Mobile-Coop-mixamo-kit, branch feature/mixamo-kit. Branch
    Any mismatch or failure: stop and report, fix nothing (no new merge, no rebase, no force push).
    Slice size base = e61e6d6eb: `node scripts/pr-size.mjs --base e61e6d6eb --head HEAD` (docs, *.md, changes/** and
    baked clips not counted), under 1.5k.
-1. src/anim/kitMixamo.ts: KIT_SHOT (plan 2 numbers; holdGap / crawlGap copies; crawlStretch 1.85), WREN_KIT,
-   resolveKit, the ONE stub line + `addMixamoResolver(resolveKit)`, pure clip-time maps, the gap phase rule. Confirm each
+1. src/anim/kitMixamo.ts: KIT_SHOT (plan 2 numbers; holdGap / crawlGap copies; crawlStretch 1.85), KIT_TABLES (index
+   0 not Mixamo, 1 Mixamo), resolveKit, the ONE addMixamoResolver stub line + `addMixamoResolver(resolveKit)`, the ONE
+   `kitSourceOf(rig)` stub line + `setKitSourceOf` test hook (plan 3 "Per-rig source"), pure clip-time maps, the gap
+   phase rule. Confirm each
    segment against the clip keys (frame dump in the test); list changes in the PR body.
 2. src/anim/mixamo.ts: the 8 MIXAMO_ON rows appended at the END. Nothing else there.
 3. src/anim/clips/team.ts (Player's file, agreed): KIT0 code, the phase fields and graph.kit set / clear only (plan 4
-   "Ownership"); small hunks, each commented "(mixamo-kit)"; `KitShotIn` = clip, time, weight, mode, move, role; write
-   move / role only when WREN_KIT.any; the clear rule (plan 2: weight 0 and move / role '' on every begin path and in
+   "Ownership"); small hunks, each commented "(mixamo-kit)"; `KitShotIn` = clip, time, weight, mode, mx, move, role;
+   per rig per frame `KIT_TABLES[kitSourceOf(rig)]` by index; write mx / move / role only when that table's `any`; the clear rule (plan 2: weight 0 and move / role '' on every begin path and in
    end); hand targets only while the shot weight > 0. KIT_POSE_IDS, KIT_POSE_PLACEHOLDER, TeamState and wire names
    unchanged.
 4. src/anim/animGraph.ts (Player's file): (a) additive declarations: public `kit`, `RigTargets.keyShot` + default 0,
    the private `kitShot` method and its private fields; (b) ONE block straight after the stanceShot call (~:2019)
-   calling kitShot(o) under `this.wrenReady && WREN_KIT.any`; kitShot eases its own weight over KIT_SHOT.flip (start,
-   end, phase change, table swap), holding the last clip; no edit to the mxLast trigger. Commit. (c) The hang skip at
-   the top of mixamoTrav (`WREN_KIT.any && this.kit.move === 'pull' && this.kit.role === 'a'` -> return false) in ITS
+   calling kitShot(o) under `this.wrenReady && KIT_TABLES[1].any`; kitShot eases its own weight over KIT_SHOT.flip
+   (start, end, phase change, table swap), holding the last clip; no edit to the mxLast trigger. Commit. (c) The hang
+   skip at the top of mixamoTrav (`this.kit.mx && this.kit.move === 'pull' && this.kit.role === 'a'` -> return false) in ITS
    OWN commit. Every hunk commented "(mixamo-kit)". Fields, no double arguments, no closures, no iterators.
 5. src/player/characterRig.ts (agreed by Player Build for these lines only; all in applyTargets(t, dt, free) :2321):
    :2422 keep `kw`, add `const ks = free ? t.keyShot : 0`; :2610 trunk by `kw * t.keyTrunk + ks`; :2949 arms by
    `(kw > 0 ? t.keyArmW : 0) + ks` with the same gates; :2013 not needed (untouched). The pelvis stays on `kw`. Nothing
    else in src/player.
-6. Tests (a), (a2), (b)-(i) in tests/kitMixamo.test.ts; tests/teamPose.test.ts updates; KIT-REPORT.md with the A8
+6. Tests (a), (a2), (b)-(i), (c2) in tests/kitMixamo.test.ts; tests/teamPose.test.ts updates; KIT-REPORT.md with the A8
    readings; a row goes false only by the plan's "visibly broken" rule, the reading as its comment.
 7. changes/feature-mixamo-kit.md. studio.ts: no edit. If one seems needed, stop and report to the lead. KIT_SHOT stays
    out of the tuner bag. Player's Studio set filter arrives with step 8's merge.
@@ -360,7 +385,7 @@ localMoveState.ts, remoteAvatar.ts, studio.ts, studioStage.ts; read the animatio
 timing, reach, capsule or wire; allocate per frame (hyp2 / hyp3, never Math.hypot); trace CT animation.
 Per sub-step: npm run typecheck:fast; npx vitest run <plan 4 files>. Commit and push each sub-step (path-limited, never
 git add -A), with the Co-Authored-By line the session's reminder gives.
-Done = (a)-(i) green; `npm run build` main chunk size before / after reported; DRAFT PR to master with the body line
+Done = (a)-(i) and (c2) green; `npm run build` main chunk size before / after reported; DRAFT PR to master with the body line
 "Not for the train: Campaign Build merges feature/mixamo-kit into feature/mission-engine after #477 and mixamo-i3 are
 released on master"; the body lists: the catch reach vs the kneeling clip (PULL.catchDrop 1.8 m kept) as a Michael
 tuning item, A1-A7, the rows on / off with readings, the stub swap line, the slice size
@@ -382,7 +407,9 @@ Settled (check item 9):
   on the stacked base now; Campaign merges feature/mixamo-kit into feature/mission-engine after #477 and mixamo-i3 are on
   master; mission-engine does not carry the stack before that. (c) The three base merge resolutions (section 3) are
   approved exactly as written.
-- 5.4 Q39: settled as A5.
+- 5.4 Q39 / G400 (orchestrator 00:55): a player is drawn with the OWNER's source on every screen; the kit clip follows
+  the acting player's source as received (plan 3 "Per-rig source"); Player Build builds the wire part in src/net and
+  names the per-rig field; the `kitSourceOf` stub is swapped in one line then. The old A5 (viewer's own source) is void.
 
 Risks:
 - The ledge take with its rise dropped may look like arm motion over the root path (I2 turned the anchored climb-up
@@ -400,8 +427,9 @@ Assumptions (to the orchestrator for Michael's next look; each undone by a row o
 - A2 the crawl plays at a fixed stretch (`KIT_SHOT.crawlStretch` 1.85, about 2x the capture's speed), the rest as slide.
 - A3 the shutter hold loop runs on each screen's own clock (a sub-second sway offset between screens).
 - A4 the takes' pelvis height is dropped for the holder and the climber (the game's root and crouch stay).
-- A5 a partner is drawn in the VIEWER's own animation source; no wire field. Undo: send the owner's source through
-  src/net (a later job, Player Build with Campaign Build).
+- A5 (replaces the void "viewer's own source"): until Player names the per-rig source field, `kitSourceOf(rig)` returns
+  the local source for every rig, so a remote partner is drawn in this viewer's source (today's behaviour). Undo: the
+  one-line swap to Player's field (G400: the owner's source on every screen).
 - A6 only if the builder finds the remote crawl path does not start at the crawl start: the per-page crawl phase offset.
 - A7 g uses the default hold gap 0.9 m; a shutter whose spec lowers its hold gap would clamp the lift clip early (none
   does today). Undo: carry the device's hold gap to the pose.

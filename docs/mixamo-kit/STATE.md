@@ -22,7 +22,11 @@ Lead: Night Shift | Marlow Build. Worktree C:/NightShift/Mobile-Coop-mixamo-kit,
     declarations + one block after stanceShot + the hang skip in its own commit; team.ts KIT0 code, phase fields,
     graph.kit set / clear, "(mixamo-kit)" comments, off bit-identical, guards unchanged; studio.ts no edit (stop and
     report if one seems needed); MIXAMO_ON rows at the end; the toggle read only through MIXAMO / addMixamoResolver.
-  - Q39: a partner is drawn in the viewer's own animation source (A5).
+  - Q39 / G400 (orchestrator 00:55): every screen draws a player with the OWNER's animation source (it rides that
+    player's networked anim state; Player Build builds the wire part in src/net). The kit clip follows the acting
+    player's source as received: `KIT_TABLES` (0 not Mixamo, 1 Mixamo) resolved once per change, picked per rig per
+    frame by `kitSourceOf(rig)`; a one-line stub returns the local source for every rig until Player names the per-rig
+    field (A5), then a one-line swap. The old "viewer's own source" A5 is void. Test (c2): two rigs, two sources.
 - Toggle: on origin/feature/mixamo-on a9b96fe1a (animSource.ts, addMixamoResolver, Settings > Gameplay > Animation
   source, default CMU). It does not hold mixamo-i3, so it is NOT merged here (conflicts in Player's files); the lead asked
   Player for the stack order. The slice keeps the one-line local addMixamoResolver stub; when Player sends a head holding
