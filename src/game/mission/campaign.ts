@@ -28,6 +28,10 @@ import { objectiveRows, stepLine } from './missionText';
  */
 export const CAMPAIGN = { maxAlive: 32, revives: REVIVES_PER_MISSION, shieldLead: false } as const;
 
+/** (G2 "2 player coop campaign only", G48 "No bot anywhere") A campaign mission's players: exactly this many start it, and
+ *  a campaign room holds this many (the co-op session's `CAMPAIGN_ROOM`). */
+export const CAMPAIGN_PLAYERS = 2;
+
 /** The start refusals (the lobby, the autostart toast). */
 export const CAMPAIGN_PICK_MISSION = 'Pick a campaign mission';
 export const CAMPAIGN_TWO_PLAYERS = 'Campaign missions need exactly two players';
@@ -55,7 +59,7 @@ export function campaignStartBlock(missions: readonly MissionDef[] | undefined, 
   const picked = missionId && missions ? missions.find((m) => m.id === missionId) : undefined;
   if (!isCampaignMap(missions) && !isCampaignMission(picked)) return null;
   if (!isCampaignMission(picked)) return CAMPAIGN_PICK_MISSION;
-  if (players !== 2) return CAMPAIGN_TWO_PLAYERS;
+  if (players !== CAMPAIGN_PLAYERS) return CAMPAIGN_TWO_PLAYERS;
   return null;
 }
 
