@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 2 2026-10-25T10:57:03Z
+status: done feature/campus-greybox-s2 f61240ca7d2065ab99c1ea94a59aff101fba7e12
 # campus-greybox s2 (cloud): Saltmarsh Park v2 greybox lane, data + unit tests
 
 Lead: Night Shift | Sector Ops Build. Job campus-greybox (FOLDED-PLAN J17, ROADMAP Now row 16). Plan checked (checks
@@ -40,3 +40,23 @@ Resume from the branch head (ba9283143: G1-G4, G6a, G5a done and pushed; do not 
 Why option 1: G329 "no lit place left unlit" and guard-ai `lightsOut` reads "a fixture in the room he stands in", so
 each enclosed room needs its own box (Sector Ops Build assumption A-J17-S2-1; undo: drop the new RoomDefs and their
 fittings, option 2 instead).
+
+## Report (Night Shift | Cloud Builder 2, 2026-10-25)
+Resumed from ba928314 (G1-G4, G6a, G5a not redone). Built per the Answer: 4ba3fef0 G5c-0, 3877ede7 G5c, 9781dba58 G6b,
+f61240ca report (`docs/campus-greybox/checks/s2-build.md`, incl. the G5c circuit / switch table and updated sync-node src
+lines for SYNC.md); G5c line added to `changes/feature-campus-greybox-s2.md`.
+- Tests (`--maxWorkers=2`): lane `tests/campusV2S2*.test.ts` 10 files 118/118 (new Rooms 6, Lights 15, Routes 11, Graph 7);
+  flag-off set (campusV2, campusS2, campusS2Dress, campusS2Board, campusRuntimeNav) 69/69; sectorPairGate + sectorItemScope
+  20/20 (S2 co-op items 107 of 128). typecheck:fast and eslint clean. Validator on v2 S1-S5: 0 errors; S2 40 warnings (30
+  before: guard-band warnings now print for all four player counts, plus "unknown tag 'unavoidable'" from the branch script).
+- Lead calls: (1) M8 fails on the plan's guard data: #2, #3, #14, #18 never hold 3 s isolated at their takedown spots;
+  recorded as test exceptions (the test fails when one starts passing), guard data unchanged, cause and candidate fixes
+  in the report; #18's first leg cuts meeting room 1's south wall corner. (2) G3 repair found by campusRuntimeNav: core
+  landings 1.3 / 0.8 m gave no L1-L2 path on the runtime grid (a flight end on a cell centre hit the ramp end cap);
+  changed to 1.4 m near / 0.9 m half (exported constants, door still on the landing, flights 3.3 m, inside NCC): check on
+  the real Havok grid. (3) Rooms nest instead of shrinking parents (each carve leaves an L); `roomAt` smallest-wins gives
+  the intended result. (4) Under Q2 "Never", three of five hide spots and all vantages read lit; the plan's dark targets
+  (`shadow_pct` 0.5) are for V6. (5) S2 now 85 lamps (28 before), 30 switches (7): bake budget untested.
+- Pending PC runs: e2e-sectorops:1..6 on the lane head, flag off; SW-2 part 6 with `?campusv2=2` (S2 asserts need
+  updating: guards per floor [5, 9, 4], CR2 probes, stealth walk points); `level-measure --write` then
+  `--require-measured`; light bake, meter and lamp budget over S2 (GPU); real Havok nav grid at the core flights.
