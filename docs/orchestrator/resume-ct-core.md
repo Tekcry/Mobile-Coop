@@ -11,7 +11,10 @@ Message the orchestrator only at PR open / train-ready / blocked / Michael. Push
 - J1 docs PR #437 OPEN (feature/player-docs-j1, head 4732d28a; a/b/c merged). Fresh Opus checker running: on PASS
   post `checker`; then phase B builds may start. Decisions: src comment fixes (protocol.ts:38, drawState.ts, gadgetSystem.ts:71,
   test path comments) moved to J6 so J1 stays docs only; scale-sheet rope line waits for J24 (descent not built).
-- Opus planners running (plans only): J6 feature/player-hygiene, J19 feature/player-batch-j19, J24 feature/coop-kit
+- J6 PLAN DONE (feature/player-hygiene c72008ad; docs/player-hygiene/): S1 player step (Opus), S2 pad poll (Sonnet),
+  S3 takedown + carry (Opus; land before J15 / J19), S4 wheel (Sonnet) in parallel; S5 partner / net (Opus, two
+  checkers, after #317); S6 comments + hyp3 (Sonnet, after #437). Next (after the CPU hold): fresh Opus plan checker.
+- Opus planners running (plans only): J19 feature/player-batch-j19, J24 feature/coop-kit
   (brief scratch/ctcore/phase-b/PLANNER-COMMON.md). Then a fresh plan checker each, then builds (after J1 is open + PASS).
 - coop-real triage 3 DONE (STATE 30931bcf): harness fixes ffb7f02a (mouse aim lift at the viewport edge; boot logs
   screen pushes, fails if a screen sits over the match) and c2 fc6d52c7 (door rows at 1.0 m; coop-real merged into c2).
