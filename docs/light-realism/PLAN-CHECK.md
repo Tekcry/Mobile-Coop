@@ -1,36 +1,41 @@
-# light-realism: plan check 1
-Checker: Opus 5.5, 2026-10-25 18:43, PLAN at 69c372b52 (branch head 99710755e).
-Verdict: FIX
+# light-realism: plan check 2
+Checker: Opus 5.5, 2026-10-25 19:12, PLAN at c2f9927c7 (branch head c2f9927c7; BRIEF, PLAN, SIGNOFF.md, research/bands.md).
+Verdict: PASS
+
+## Check 1 fix list
+1. Claims block: fixed. Fenced `claims` block (PLAN:45-67) covers every file the slices name; claims-check parses it (brace globs expand, `scripts/glob-match.mjs:5-6`) and runs.
+2. Q3 reference test: fixed. L0 "The reference test" (PLAN:149-170): one real 6 m single-arm column, engine lamp terms (`photoTerm` `lampMath.ts:93`, `LAMP_LEVEL_GAIN` `:41`, both checked on master), 5 ground distances, least-squares fit, RMS pass line, pinned by `tests/lux.test.ts`. The no-download fallback is A13 (BRIEF), shown in plain words on SIGNOFF.md ("the anchors are chosen, not measured"), so Michael's click is made knowing which. This is the A-line handling the RULES allow for a download question; reading a datasheet web page is not a download.
+3. Gate-4 form: fixed. `SIGNOFF.md` follows `docs/templates/signoff.md`: to-scale SVG light map (1 m = 10 px, scale bar, north arrow), before path, 5-line intent check with the lighting unwalked count, ONE question with two options; anchors and category are what "Changes first" leads to.
+4. Done looks like: fixed. L2 per PR (PLAN:239), L3-W (:255), L3-H (:271), L4 (:283), L5 (:294), all measurable.
 
 ## Intent
-- ok: G329 quote (BRIEF:16-18) matches DECISIONS G329 and ROADMAP "Decided" :94 verbatim; G279 quote (BRIEF:19-20) matches G279. Q2 / Q3 / Q26-Q28 option texts (BRIEF:27-36) match FOLDED-PLAN section 2 rows 2-3 and ROADMAP :84-85.
-- ok: every slice serves G329 / Q2 / Q3 (S1 car park first, then every space, pockets on every live map; warehouseOps out by Q26, A1 logged with undo). Marlow, Tallow and campus v2 are hand-offs only (PLAN:162-172), matching FOLDED-PLAN J10 :170 "Marlow for its sets".
-- FINDING: Q3's option text is "after one test that matches the game's brightness to real light units". L0 (PLAN:68-92) does not test against real units: the anchors are chosen from the meter thresholds (BRIEF A2:63-67, bands.md:19-23) and the only lux tie is a moon plausibility line (bands.md:31-36). The L0 GPU check (PLAN:87-89) matches picture to field, not field to lux. This reads "one test" as "one chosen mapping". Fix 2.
-- ok: Q28 baseline. A11 (BRIEF:94-96) lets the S1 click cover later re-baselines; supported by Q3, where Michael picked "together" over the rejected "other places map by map" (FOLDED-PLAN :67). Suggest citing that rejected option in A11 (not a fix).
+- ok: G329 quote (BRIEF:16-18) matches ROADMAP "Decided" :97 verbatim; G279 quote ok. Q2 "Never" and Q3 "Australian standards (Recommended)" option texts (BRIEF:27-32) match FOLDED-PLAN section 2 rows 2-3 (:66-67) and ROADMAP :87. Q26-Q28 as check 1.
+- ok: every slice serves G329 / Q2 / Q3: S1 car park first (L1), then every space (L2), pockets on every live map (L3), band table approved with the light map together (Q3 option text). warehouseOps out by Q26 (A1, later pick, with undo). FOLDED-PLAN J10 :170 scope covered: S L9 (L0, L5), L12 (L2/L5 SPEC lines after #433), L14 (BRIEF/PLAN), V7 (L4 hand-off), M M10 / V5 (L3-H), breaks 20-21.
+- ok: Michael's ~19:00 free-asset rule (ROADMAP :82) does not touch this job (no asset is bundled); downloads still need his OK, and the plan downloads nothing (A4, A13).
 
 ## Gates
-- ok: G355 rule fix at the walk cap, no flag (BRIEF:44-45, A11; FOLDED-PLAN phase B :161). Engine untouched (PLAN:55-57); `src/world/lux.ts` measurement only with a grep test (PLAN:74-75). Raise lamps, never the fill (A7). GPU only on the laptop alone slot (PLAN:61-64). Level standard and scale sheet change only after the click (L5, PLAN:183-189).
-- ok: sign-off sits before any re-light ships. L0 changes no look; L1 waits for the click before train-ready (PLAN:11, :126-128); L2, L3, L5 run after the click (PLAN:12-15). Building L1 before the click is what Q3 asks ("you approve the table and the car-park light map together": the map needs the build).
-- FINDING: the S1 pack is not the gate-4 form. It is `signoff/S1-pack.md` (PLAN:117) with three picks in one click (PLAN:122-125), where session-method Intake 4 and `docs/templates/signoff.md` require a one-page SIGNOFF with ONE decision. The light map is not said to be to scale. Fix 3.
+- ok: rule fix at the walk cap, no flag (G355, A11); engine untouched (PLAN:119-122); `lux.ts` measurement only with a grep test; lamps raised, never the fill (A7, `torches.ts:36` checked); GPU only on the laptop alone slot; level standard and scale sheet change only after the click (L5).
+- ok: sign-off gate. L1 builds the S1 look before the click but holds it off the train until the click (A11, PLAN L1 done line); Q3's option ("you approve the table and the car-park light map together") needs the measured map, so building it first is within his pick. L2, L3, L5 start after the click.
 
 ## Claims
-- claims-check: did not run. "docs/light-realism/PLAN.md has no ```claims block". The prose claims (PLAN:44-66) are not machine-readable and name no file globs.
-- Manual git diff of the job's files against origin/feature/* changed in the last 7 days: feature/coop4 (and coop4-data, -doc, -e2eai, -pol, -ui2) change `tests/campusS1.test.ts` to `tests/campusS5.test.ts`, which L1 and L2-S1..S5 edit (PLAN:104, :138-142). Not on master yet. `docs/sector-redesign/SPEC.md` vs #433 (J1) is already ordered (PLAN:58-60).
+- claims-check: 8 overlaps. char-shadow-meter (`docs/systems/lighting.md`); coop-kit (`scale-sheet.md`, `level-design.md`); guard-rules, guard-rules-s1, guard-rules-s2 (map campusOps); map-ready (`lighting.md`; maps campusOps, warehouse); route-runs-2 (`level-design.md`); sector-marks (map campusOps). All are named and ordered in PLAN "Overlaps and order" (guard-rules-s1/-s2 are guard-rules slice branches, covered by "guard-rules first").
+- No-claims branches (manual `git diff --name-only` vs the claimed files): coop4 and slices (`tests/campusS1-S5.test.ts`), mission-engine / -gb1 / tallow-design-docs (`tests/campusS1.test.ts`), doc-level, doc-polish, player-batch-25, gm-bake-abort (docs). All named in the PLAN. No other branch touches a claimed file.
 
 ## Slices
-- L0 ~1,000 lines (~650 code), ~4 h: ok size; files and checks ok; done looks like ok (PLAN:91-92).
-- L1 ~450 code + ~350 docs, ~4 h: ok; done looks like ok (PLAN:127-128).
-- L2-S1..S5 ~350-600 each: ok size; files and tests ok; no "done looks like" line per PR. Fix 4.
-- L3-W ~250, L3-H ~150 docs: ok size; no "done looks like". Fix 4.
-- L4 ~200: ok size; no "done looks like". Fix 4.
-- L5 ~150 docs: ok; no "done looks like". Fix 4.
-- Flags: none, by A11 (G355 rule fix). ok.
+- L0 ~770 code (+ docs / data), ~4 h: ok.
+- L1 ~450 code + ~350 docs, ~4 h: ok.
+- L2-S1..S5 ~350-600 each (one PR each): ok.
+- L3-W ~250, L3-H ~150 docs: ok.
+- L4 ~200, L5 ~150 docs: ok.
+- Flags: none (A11, G355 rule fix): ok.
 
 ## Walk pacing
-- lighting / Sector Ops: ROADMAP "Waiting on Michael" (origin/feature/menu :56-67) keeps no per-area unwalked count, so lighting's count is not recorded. ok for this PLAN: no slice switches a feature on (rule fixes, G355; FOLDED-PLAN :161), and each look PR carries a video (PLAN:112, :146, :197). The missing count is the orchestrator's, not this PLAN's.
+- Lighting 3 (AT CAP), Sector Ops 3 (AT CAP) (ROADMAP :73-77). ok: every slice is a rule fix to shipped maps (G355), nothing new switched on; each look PR carries a video.
 
-## Fix list (FIX only, ranked)
-1. Add a fenced ```claims block (files: `src/world/lux.ts`, `tests/lux.test.ts`, `scripts/light-realism/**`, `docs/light-realism/**`, `src/world/maps/campusS[1-5].ts`, `src/world/maps/warehouse.ts`, `tests/lampBoxAlign.test.ts`, `tests/campusS*.test.ts`, `tests/campusS2Board.test.ts`, `tests/campusS4NocSight.test.ts`, `tests/warehouseLamps.test.ts`, `tests/parityCards.test.ts`, `scripts/e2e-darkness.mjs`, `docs/level-design.md`, `docs/design/scale-sheet.md`, `docs/systems/lighting.md`, `docs/sector-redesign/SPEC.md`; maps: campusOps, warehouse; protocol: none; save: none). Rerun claims-check. - done looks like: claims-check runs and lists its overlaps; the coop4 overlap on `tests/campusS1-S5.test.ts` is named in the PLAN for the orchestrator to order (for example coop4 first, L1/L2 rebase on it).
-2. Make L0 carry Q3's "one test that matches the game's brightness to real light units". - done looks like: L0 has a reference test in `measure/calibration.md`: one real fitting (published lumen / candela data) modelled with the engine's lamp terms, engine level at 3+ ground distances against the real lux at the same points, and the fit error against the A2 curve. The pack's anchor line cites that result, or says in one line that the anchors are a chosen mapping, not a measured match.
-3. Put the S1 pack in gate-4 form. - done looks like: `docs/light-realism/SIGNOFF.md` from `docs/templates/signoff.md`: one page with a to-scale light map (scale bar), before/after shot paths, a 5-line intent check including the lighting unwalked count, and ONE question (for example "Approve the band table (P11a, anchors 1 lx / 10 lx) and the S1 light map?" / "Changes first"). The anchor and category alternatives are shown on the page as what "Changes first" leads to; heat maps, video and the L5 draft are linked, not inline.
-4. Add a "done looks like" line to L2 (per PR), L3-W, L3-H, L4 and L5. - done looks like: each is measurable. L2-S<N>: `lux-grid --section N` passes every space; `measure/campus-S<N>.md` lists the remaining dark cells with their cause; the brief's route table keeps a gap on every declared route; video path in the PR body. L3-W: every strip live and in band, and e2e-darkness still finds 0.12 and 0.27 points. L3-H: three hand-offs sent and acknowledged. L4: a parity file per map passing `parityCards.test.ts`, handed to J11. L5: the docs PR links the pack click.
+## Polish (does not change the verdict)
+- FOLDED-PLAN J10 also lists T H2 ("no test holds the campus to G329's real-world level per space type", Test Runner CONFORMANCE :63). The band is held by the `lux-grid.mjs` measure and committed write-ups, not by a standing test outside S1 (L2-S1 flips S1 tests to band tests). Name T H2's owner: a band test per section in L2, or a hand-off to J11 / J12, in the PLAN.
+- L4 builds "parity cards per map", which FOLDED-PLAN J11 :171 also lists. Fine as a data hand-off; say in L4 that J11 builds the suite from these files and does not make its own cards.
+- L1's new test "no occupancy cell lies between it and the floor straight below": a 0.8 m arm head toward the bays can sit over a parked car (rows are 4.5 m deep, back to back at z -71.5, `campusS1.ts:136-137`). Word it as "no cell of its own pole or arm".
+- The overlap count line (PLAN "gives 6") now reads 8 (the two guard-rules slice branches).
+- SIGNOFF line 5 could add Sector Ops 3 (AT CAP) beside lighting.
+- If the reference test has no usable page data, the lead may ask Michael by day (with the decision pack) to allow one datasheet download, instead of waiting for the sign-off to show "chosen, not measured".
