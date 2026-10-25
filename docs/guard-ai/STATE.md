@@ -1003,24 +1003,25 @@ C:/NightShift/Mobile-Coop-laptop-queue-svc && node scripts/laptop-queue/request.
 laptop-e2e/<set>. Withdraw = delete requests/<id>.json on origin/laptop-queue (plumbing commit, never in the svc
 worktree). Background wait: scratchpad wait-status.sh "<sha>:<context>" ... Laptop auto mode blocks labels: tell the
 orchestrator at train-ready. Walk cap: Guard AI AT CAP (new behaviour dark; rule fixes ship on, G355).
-Open (2026-10-25 ~20:15; full burn; order J4, J6, J15, J26, J16). Checker statuses: post with a LONE `gh api
-repos/Tekcry/Mobile-Coop/statuses/<sha> -f ...` command (nothing chained, no --jq): it matches the allow rule.
-1. J4 G327 #438 head 8af8ff6a: ALL GATES GREEN (A PASS, B docs fix applied, g327-coop, measure ->
-   slices/T1-SHADOW-REPORT.md, look d6a24987 0 px diff). Orchestrator posted checker ~20:20; watchdog labels.
-   After train-ready: undraft #414.
-2. J4 #317 coop4 (3100d035) ships ON (Q16). Check A PASS, B fix applied. Gates: laptop-e2e/coop4-full2 +
-   alone-coop4-4p (queued). Green -> tell orchestrator (checker: A PASS + B fix round). CONFLICTING with master
-   (protocol.ts): train resolves (keep master PROTOCOL_VERSION + coop4 comment).
-3. J6 #446 head 97c6338f: fix round done (slices/ALLOC-FIX.md on the branch), re-checks A + B PASS
-   (slices/ALLOC-RECHECK-A/B.md). Gate: laptop-e2e/alloc-coop (e2e-coop + e2e-netmove, queued). Green -> tell
-   orchestrator.
-4. J15 PR1 #450 (feature/guard-rules a78d7093 = S1 4e264118 + S2 71cec23d, one fragment; ~950 counted lines).
-   Check A PASS, B FIX (TESTING.md only) applied 211a66d5 (docs only). Gates: laptop-e2e/rules-pr1 on a78d7093
-   (e2e-coop e2e-netmove e2e-ctcourse e2e-takedown) + affected-e2e on 211a66d5. Green -> post checker on the head.
-   PR2 polish: responseTeam shield arg default true (gear.ts:178) -> false; KILL_BASE.dog undo keeps the headshot
-   bonus off (score.ts:17); GearGuard type in campusS4/S5Data redundant. Then PR2 = S5 (alarm), branch from feature/guard-rules
-   after PR1 merges (PLAN "Parallel groups" row 2). Orchestrator: J17 campus S4/S5 data waits for PR1.
-5. Background wait: scratchpad wait-status.sh on the laptop gates (items 2-4).
+Open (SAVE 2026-10-25 ~20:32; full burn; order J4, J6, J15, J26, J16). HOLD: no new alone runs until the
+orchestrator says "Mixamo laptop run done" (Michael's top priority tonight). Checker statuses: post with a LONE
+`gh api repos/Tekcry/Mobile-Coop/statuses/<sha> -f ...` command (nothing chained, no --jq): it matches the allow rule.
+1. J4 G327 #438 head 8af8ff6a: all gates green, orchestrator posted checker ~20:20; watchdog labels. After
+   train-ready: undraft #414.
+2. J4 #317 coop4 (3100d035) ships ON (Q16). Check A PASS, B fix applied. Gates: laptop-e2e/coop4-full2 (queued) +
+   laptop-e2e/alone-alone-coop4-4p (NOTE the doubled name; RUNNING on 4189 since 20:27). Green -> post checker
+   (A PASS + B fix round), tell orchestrator. CONFLICTING with master (protocol.ts): train resolves.
+3. J6 #446 head 97c6338f: re-checks A + B PASS (slices/ALLOC-RECHECK-A/B.md). Gate: laptop-e2e/alloc-coop (queued).
+   Green -> post checker, tell orchestrator.
+4. J15 PR1 #450 (feature/guard-rules 211a66d5): check A PASS, B FIX (TESTING.md) applied (docs only). Gates:
+   laptop-e2e/rules-pr1 on a78d7093 (e2e-coop e2e-netmove e2e-ctcourse e2e-takedown) + affected-e2e on 211a66d5.
+   Green -> post checker on the head, tell orchestrator. PR2 polish: responseTeam shield arg default true
+   (gear.ts:178) -> false; KILL_BASE.dog undo keeps the headshot bonus off (score.ts:17); GearGuard type redundant.
+5. J15 S5 repeat alarms (PR2): Opus builder was RUNNING in C:/NightShift/Mobile-Coop-guard-rules-s5 (branch
+   feature/guard-rules-s5 off feature/guard-rules 211a66d5); pushed through be49ac06 (code, tests, e2e, docs). If cut
+   off: one Opus agent finishes from the head (PLAN "PR2"; tsc, eslint, vitest of the alarm / manager / enemy /
+   sectorMode tests). Then merge into feature/guard-rules AFTER PR1 merges, PR2, 2 Opus checkers, laptop affected
+   + e2e-coop. Next wave: F0 flags (lead) then S4 / S6 (PLAN wave 3).
 6. J26 mission hooks: plan PASS (044258624). Every slice starts after J15 PR4 merges: S1a -> S1b; S2 -> S3 -> S4.
    Campaign Build SENT the PLAN's C1-C7. A9 per-area stages dark: Michael's click at his walk.
 7. Test Runner request (J20 S6b): seed the 5 Math.random sites in src/ai (enemy.ts think cadence x2, enemyManager
@@ -1028,5 +1029,5 @@ repos/Tekcry/Mobile-Coop/statuses/<sha> -f ...` command (nothing chained, no --j
    shrink its allowlist in the same PR.
 8. J16 perception half (Q14 cast shadow = faint cue): plan after Sector Ops' J16 PR.
 9. Later: coop4-pol (134f6abe), snapBudget headroom, coopHost.ts:589 comment, TODO sectorMode.ts:201.
-Next: read PR1 checkers (item 4) and the laptop gates (items 2-4).
+Next: laptop gates (items 2-4), the S5 builder result (item 5).
 ```
