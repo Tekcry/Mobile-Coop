@@ -91,8 +91,10 @@ export const S3_SEC_HATCH: S3Box = [53.5, -17.5, 54.5, -16.5];
  * the x 21 wall face (P9) and the sec room's ladder hatch.
  */
 export const S3_L1_HOLES: readonly S3Box[] = [
-  [S3_BOX.nCore[0] + T / 2, S3_BOX.nCore[1] + T / 2, S3_BOX.nCore[2] - T / 2, S3_BOX.nCore[3] - T / 2],
-  [S3_BOX.eCore[0] + T / 2, S3_BOX.eCore[1] + T / 2, S3_BOX.eCore[2] - T / 2, S3_BOX.eCore[3] - T / 2],
+  // (s3 join J3, r3 F3) the north and east wells run north to -T, inside R3's moved core walls (the old `core[3] - T / 2`,
+  // -0.65, left slab inside the core)
+  [S3_BOX.nCore[0] + T / 2, S3_BOX.nCore[1] + T / 2, S3_BOX.nCore[2] - T / 2, -T],
+  [S3_BOX.eCore[0] + T / 2, S3_BOX.eCore[1] + T / 2, S3_BOX.eCore[2] - T / 2, -T],
   [S3_BOX.hoistHatch[0], S3_BOX.hoistHatch[1], S3_BOX.hoistHatch[2] - T / 2, S3_BOX.hoistHatch[3]],
   S3_SEC_HATCH,
 ];

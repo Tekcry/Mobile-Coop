@@ -148,8 +148,8 @@ describe('campus v2 S3 L1 (R2a)', () => {
     }
     // the holes: the north and east core wells (inside their walls), the hoist hatch to the x 21 wall face (P9), the sec hatch
     expect(l1.S3_L1_HOLES.map((h) => [...h])).toEqual([
-      [30.15, -6.85, 33.35, -0.65],
-      [58.15, -6.85, 61.35, -0.65],
+      [30.15, -6.85, 33.35, -0.3],
+      [58.15, -6.85, 61.35, -0.3],
       [18, -6, 20.85, -3],
       [53.5, -17.5, 54.5, -16.5],
     ]);
