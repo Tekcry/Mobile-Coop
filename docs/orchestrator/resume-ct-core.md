@@ -15,7 +15,15 @@ Message the orchestrator only at PR open / train-ready / blocked / Michael. Push
   (brief scratch/ctcore/phase-b/PLANNER-COMMON.md). Then a fresh plan checker each, then builds (after J1 is open + PASS).
 - Opus triage running on coop-real (#388 c1b, c2 :3). gm-polish e2e-offline laptop rerun requested (set gm-polish).
   #375 gm-flip stays draft until Michael's look picks (Q37 "decide at your walk").
-- gm-look: rebake done 10:47 (3/3 ok); Opus builder measuring, setting LOOK_LIMITS, bundling, crops (feature/gm-look).
+- CPU HOLD (orchestrator ~18:10, desktop 100%): start NO new agents until it says CPU < 80%.
+- J1 #437: checker FIX (2 doc lines) applied by the lead + Moth purple in ART-DIRECTION -> head 16c6cb99. Next (after
+  the CPU hold): a fresh Opus recheck on 4732d28a..16c6cb99, then post `checker`.
+- gm-look (feature/gm-look 1873de49): cloth-through FIXED (skin 141/20/7 -> 14/1/0, crossings 1853 -> 565 LOD0;
+  LOOK_LIMITS set, 9 GLBs bundled, 43/43 tests) BUT a NEW DEFECT: dark rectangular blotches on every outfit (crops
+  scratch/ctcore/gm-look/after-outfits.png). Likely the LOD0 texture-bake cage (bake_guard.py:60, :651, rays ~9 mm)
+  is shorter than the fit push (up to 19 mm, fit :986 runs before the bake :1063). NOT for Michael yet. Next (after the
+  CPU hold): confirm the cause, widen the cage past the push (or bake before the fit), rebake through the hidden task
+  at BelowNormal priority, re-measure, crops. Boots / gloves still clustered from the hero (optional).
 - tuner-clarity-polish (feature/tuner-clarity-polish from master 2148ec96): Sonnet builder (hysteresis, keyToolWarn,
   badge ellipsis, gun-drawn warning); then a checker + PR. #430 SHIPPED in 4.103.0.
 
