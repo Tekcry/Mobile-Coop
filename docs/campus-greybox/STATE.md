@@ -23,7 +23,10 @@
 - Tell Marlow Build (J12): each SW-<N> rewrites `measured` on all five live campus graphs (PLAN 2a J12 row).
 - Open: V6 `--require-measured` not on master (A3: exit waits); P0 PR ~5.5k lines (A4, copies); J15 PR1 not yet open.
 - Marlow's mission-framework adds 2 lines to `campusOps.ts`; P0 kept both spots untouched (`git merge-file` clean).
-Next: lead verifies check-2 fixes; then V2-SEED and S1-S3 lanes (S4 / S5 PRs wait for J15 PR1)
+- 2026-10-25 ~20:55 (new account): check-2 fixes verified, plan accepted at 9f36223c1; V2-SEED done 024c7c172 (byte-equal
+  to signoff 9eb7b9c6). Lanes queued on cloud-queue (014c1750e): briefs/campus-greybox-{s1,s2,s3-r1,s4,s5}.md -> branches
+  feature/campus-greybox-<lane> from 024c7c172 (no TAG, no S2 G5b; S3 r2-r5 queue from r1's frame commit).
+Next: on each done brief: checker on the lane branch + laptop e2e-sectorops part; queue S3 r2-r5 at r1's frame commit
 
 ## Done
 - 2026-10-25 ~20:40 plan check 2 fix round (Opus planner): worktree per parallel branch, S3 sub-lanes r1-r6 / PRs S3-a .. f
