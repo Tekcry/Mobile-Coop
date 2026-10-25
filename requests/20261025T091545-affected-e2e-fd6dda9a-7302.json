@@ -1,0 +1,26 @@
+{
+  "id": "20261025T091545-affected-e2e-fd6dda9a-7302",
+  "sha": "fd6dda9a15069868cf166c054b6f86583298bca1",
+  "branch": "feature/guard-rules",
+  "pr": 450,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anchors",
+    "e2e-coop",
+    "e2e-ctcourse",
+    "e2e-gadgets",
+    "e2e-guard-carry",
+    "e2e-levels",
+    "e2e-netmove",
+    "e2e-park",
+    "e2e-section-rating",
+    "e2e-sectorops",
+    "e2e-stealth-ai",
+    "e2e-tactics",
+    "e2e-takedown",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #450"
+}
