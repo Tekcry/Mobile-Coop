@@ -53,6 +53,24 @@ export function buildWheel(guns: readonly WheelGun[], gadgets: readonly WheelGad
   return out;
 }
 
+/** (player-hygiene S4) Refresh the gun at ring slot `at` in place: false when that slot is not this gun (index and
+ *  name), so the caller rebuilds. */
+export function setWheelGun(ring: WheelSeg[], at: number, index: number, name: string, loaded: number, reserve: number): boolean {
+  const s = ring[at];
+  if (!s || s.kind !== 'gun' || s.index !== index || s.name !== name) return false;
+  s.loaded = loaded;
+  s.reserve = reserve;
+  return true;
+}
+
+/** (player-hygiene S4) The same for a gadget slot (id and name; the count changes in place). */
+export function setWheelGadget(ring: WheelSeg[], at: number, id: GadgetId, name: string, count: number): boolean {
+  const s = ring[at];
+  if (!s || s.kind !== 'gadget' || s.id !== id || s.name !== name) return false;
+  s.count = count;
+  return true;
+}
+
 /** Segment from a direction (x right, y up): 0 at the top, clockwise, `n` equal sectors; -1 inside the dead zone. */
 export function segmentAt(x: number, y: number, n: number, dead = WHEEL_DEAD): number {
   if (n <= 0 || hyp2(x, y) < dead) return -1;
