@@ -47,4 +47,6 @@
 ## I5 (2026-10-26, feature/mixamo-i5, worktree -m2): carry and strike on Wren
 - At the save (00:45 meter cap): done mixamo.ts WREN_CARRY / WREN_STRIKE + rows (kneel_down off: no kneel put down),
   animGraph carryShot / strikeShot (keyed block), strikeBodyAt scale + 1 line in characterRig (strikeCap), new test file.
-- Left: run tests/mixamoCarryStrike.test.ts and the brief's list, set rows from (d), I5-REPORT.md, changes/feature-mixamo-i5.md.
+- Measured: carry walk/idle not visibly broken (rows on); elbow_strike / cross_punch off (hips spin 92 / 55 deg over planted feet,
+  knee 29 / 23 cm out). mixamoCarryStrike 10/10 at 84308c97; mixamoTraverse alloc failed (+128 B, update() size?): gate + shots moved
+  into methods (carryGate / mixamoShots) after it, not yet rerun. Left: rerun the list, I5-REPORT.md, changes/feature-mixamo-i5.md.

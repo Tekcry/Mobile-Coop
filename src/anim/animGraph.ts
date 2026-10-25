@@ -969,6 +969,9 @@ export class AnimGraph {
   private caDt = 0;
   /** (I5) This frame's carry capture weight in the keyed pose; the strike's arc (`melee`), gate and free-hands share. */
   private caW = 0;
+  /** (I5) `carryGate`'s inputs: the keyed target before the carry, the crouch blend. */
+  private caK = 0;
+  private caCk = 0;
   private skArc = -1;
   private skGate = 0;
   private skFw = 0;
@@ -2010,14 +2013,10 @@ export class AnimGraph {
       // (the hoist eases it in, the put down's hand-over out), standing (a crouch keeps the hand-made carry); without one
       // (the flag off) none of this runs
       if (WREN_CARRY.any && this.wrenReady) {
-        const ld = i.cqCarry < 0 ? -i.cqCarry : i.cqCarry;
-        this.caOn = i.cqBody && i.grounded && i.traverse === 'none' && !i.wall ? (ld > 1 ? 1 : ld) * (1 - crouchK) : 0;
-        kT += this.caOn;
-        // (approach written out: no boxed double arguments)
-        if (kT > 1e-4) {
-          const cT = this.caOn / kT;
-          this.caS = cT + (this.caS - cT) * Math.exp(-dt / B.tau);
-        }
+        this.caK = kT;
+        this.caCk = crouchK;
+        this.caDt = dt;
+        kT = this.carryGate(i);
       } else this.caOn = this.caS = 0;
       this.keyW = approach(this.keyW, kT, B.tau, dt);
       o.keyW = this.keyW < 1e-4 ? 0 : this.keyW;
@@ -2056,17 +2055,13 @@ export class AnimGraph {
       // (mixamo-retarget I5) Wren's carry and strike captures over the keyed pose (both null with the flag off: skipped)
       o.strikeCap = 0;
       this.caW = 0;
-      if (this.wrenReady && (this.caS > 0 || WREN_CARRY.any)) {
+      if (this.wrenReady && (this.caS > 0 || this.skW > 0 || WREN_CARRY.any || WREN_STRIKE.clip !== null)) {
         this.caPh = ph;
         this.caDt = dt;
-        this.carryShot(o);
-      }
-      if (this.wrenReady && (WREN_STRIKE.clip !== null || this.skW > 0)) {
-        this.caDt = dt;
         this.skArc = i.melee;
-        this.skGate = (1 - this.kCk) * (1 - dS) * (1 - this.keyWallS) * (1 - this.caS);
+        this.skGate = (1 - this.kCk) * (1 - dS) * (1 - this.keyWallS);
         this.skFw = fw;
-        this.strikeShot(o);
+        this.mixamoShots(o);
       }
       o.keyDrawn = dS;
       o.keyTrunk = 1 - dS * this.raiseS;
@@ -2360,6 +2355,29 @@ export class AnimGraph {
    * the planner's feet keep the body over them. The legs and feet stay the planner's; the hands stay on the carried body
    * (the rig's reach, as before). No allocation.
    */
+  /** (I5) Both shots, fields set by the caller (their own methods: the update stays inside V8's inlining budget). */
+  private mixamoShots(o: RigTargets): void {
+    if (this.caS > 0 || WREN_CARRY.any) this.carryShot(o);
+    if (WREN_STRIKE.clip !== null || this.skW > 0) {
+      this.skGate *= 1 - this.caS;
+      this.strikeShot(o);
+    }
+  }
+
+  /** (I5) The carry's keyed gate: the keyed target `caK` with the body's load added (standing: `caCk` the crouch blend),
+   *  and the carry's eased share of it (`caS`, over `caDt`). */
+  private carryGate(i: AnimInput): number {
+    const ld = i.cqCarry < 0 ? -i.cqCarry : i.cqCarry;
+    this.caOn = i.cqBody && i.grounded && i.traverse === 'none' && !i.wall ? (ld > 1 ? 1 : ld) * (1 - this.caCk) : 0;
+    const kT = this.caK + this.caOn;
+    // (approach written out: no boxed double arguments)
+    if (kT > 1e-4) {
+      const cT = this.caOn / kT;
+      this.caS = cT + (this.caS - cT) * Math.exp(-this.caDt / KEYED_WALK_BAND.tau);
+    }
+    return kT;
+  }
+
   private carryShot(o: RigTargets): void {
     const C = WREN_CARRY;
     const w = o.keyW > 0 ? this.caS : 0;
