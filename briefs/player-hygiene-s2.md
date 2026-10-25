@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 3 2026-10-25T23:01Z
+status: done feature/player-hygiene-s2 d2b3ef89156427386e4cd262b10aef3fcb19eb87
 
 # Brief: player-hygiene S2 - Pad poll makes no per-frame garbage, behaviour bit-identical (Player Build)
 
@@ -215,3 +215,79 @@ on commit 2 three times in a row.
 - Deviations from this brief, each with the reason.
 - Pending PC run: e2e-pad, e2e-mouse, e2e-move, e2e-menus (the affected set for `src/input/`), plus e2e-coop and
   e2e-netmove only if the lead asks.
+
+### Report (Night Shift | Cloud Builder 3, built by an Opus 5.5 agent, 2026-10-25 ~23:55Z)
+Branch `feature/player-hygiene-s2` from 2a937eb6b. No blocker.
+
+**Commits:**
+- Commit 1, 9288ce34: the test and fixture, recorded with `PH_S2_WRITE=1` on unchanged master, then a plain pass
+  (37 / 37).
+- Commit 2, d2b3ef891: the refactor and the fragment.
+- `git diff 9288ce34 HEAD -- tests/` is empty. `git diff --stat 2a937eb6b` lists the six allowed files only.
+
+**What changed:**
+- `src/input/stickMath.ts`:
+  - `RADIAL_OUTER = 0.98` (`:5`).
+  - `applyRadialDeadzoneTo` (`:16`) and `applyCurveTo` (`:49`) write into `out`. The curve form reads `v.x` / `v.y`
+    into locals first, so `out === v` is safe. The old functions are thin wrappers.
+  - The curve exponent is read through `CURVE_EXP_BY`, a Map built from `CURVE_EXP` (`:41`).
+- `src/input/gamepadMapping.ts`:
+  - `mapPad` (`:137`) is a wrapper returning the same keys in the same order.
+  - `PadFrameBuf` (`:150`) holds every action as false, plus `setList` / `setCount` and three stick scratch vectors.
+    `newPadFrame` is at `:161`.
+  - `mapPadInto` (`:191`) clears the actions it set last call, reads in bounds only, and computes `active` from
+    `setCount`.
+- `src/input/gamepadSource.ts`:
+  - `NO_PADS` (`:13`) and `PAD_ACTIONS` (`:17`).
+  - Members `knownOrder`, `seenAt`, `scanN`, `lastTimestamps` (a number array), `snap` and `frame` (`:43-53`).
+  - `pads()` returns the browser list with no copy (`:89`).
+  - `scan(pads)` uses no Set or Map iterator (`:97`).
+  - `poll` reads the list once and uses index loops (`:129`).
+  - A reused snapshot feeds `mapPadInto` (`:187`); `anyPressed` is at `:307`.
+- `changes/feature-player-hygiene-s2.md`: `kind: patch`.
+
+**Readings** (`bytesPerCall`, B per call, before -> after):
+
+| State | Before | After |
+| --- | --- | --- |
+| Poll at rest | 2280 | 15.7 |
+| Poll pushed, fire and aim | 2472 | 15.7 |
+| Poll D-pad down held (repeating) | 2416 | 15.7 |
+| Poll right stick full | 2416 | 15.7 |
+| `mapPad` -> `mapPadInto` alone | 1856 | 0.0 |
+
+- The 15.7 B is the test loop boxing the `now` it passes to `poll`: A1's 16 B allowance. The sampled profile finds no
+  allocation in the three files in any stub state.
+- The real-`InputState` poll (logged only) reads 2848 -> 87.7-119.7.
+
+**Outside allocators (A3, not fixed):**
+- `src/input/inputState.ts:98` makes a `{x, y}` literal, and `:102` makes a Map values iterator: 87.7 B when V8
+  inlines `setMove` into `poll`.
+- When V8 does not inline `setMove`, the reading is 119.7 B: about 32 B more, from the two doubles `poll` passes to it.
+  This clears with J21's `inputState.ts` fix.
+- No ceiling above 16 B is asserted.
+
+**Tests:**
+- The brief's vitest line passes: 7 files, 138 tests (`padPollAlloc` 37, `input` 28, `padBinds` 6, `animTunePad` 11,
+  `opticCoop` 26, `routeRunProgress` 29, `changesFragments` 1).
+- `padPollAlloc` on commit 2 passed three runs in a row with the same readings. I re-ran the brief's line and it
+  passed.
+- `npm run typecheck:fast` exit 0; eslint on the four files clean.
+- The grep check finds two hits, both off the per-poll path: `NAV_DIRS.map` in a member initialiser, and
+  `Object.entries` when `stickMath` loads.
+
+**Deviations** (each needed for 16 B with the test frozen):
+1. **In-bounds reads.** `mapPadInto` reads `p.buttons` / `p.axes` only within their length, for example
+   `i < nb ? (btn[i] ?? 0) : 0`. The value is the same as `?? 0` for any input. Once V8 has seen one out-of-bounds
+   read at a load, it boxes every fractional value loaded there: 80 B per call.
+2. **Curve exponent through a Map.** `CURVE_EXP[curve]` with a varying curve copied its fractional number every call:
+   16 B once two curves had been seen.
+3. **Loops and set-once.**
+   - The three binding loops are one index loop over table, `UI_BINDINGS`, `CTX_BINDINGS`, in that order.
+   - The menu stick sets at most one direction, chosen by a ternary (only one can be true).
+   - The set-once is written inline at four places. A helper at nine call sites ran V8 out of inlining budget, and the
+     doubles passed to `applyAxisDeadzone` boxed.
+4. `PadFrameBuf` also carries the three stick scratch vectors. `PAD_ACTIONS` uses `satisfies readonly
+   ButtonAction[]`. The "Interact always" comment moved to `PAD_ACTIONS`.
+
+**Pending PC run:** e2e-pad, e2e-mouse, e2e-move, e2e-menus (plus e2e-coop and e2e-netmove if the lead asks).
