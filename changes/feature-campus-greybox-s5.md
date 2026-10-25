@@ -18,3 +18,8 @@ kind: patch
   audit desk lamp, archive reading lamp and jetty lantern, a lane lamp, the van's work light, roof walk and bulkhead lamps,
   and fittings with their own switches in the drawing room, back hall, plant room, lobby, archive, back landing and
   service stair (every as-built lamp kept; the strongroom lamp moves 1 m with its room and turns warm).
+- S5-P3 guards and routes: 26 guards (the 24 kept, ten of them moved: the hall walk, the keyholders flanking the open day
+  gate, the audit escort, the door officer, the archive round, the lobby officer and the clocking round down the screens
+  passage; new: an audit officer at the table and a jetty sentry), inside the 32 live cap with the six reinforcements;
+  the three ways in rewritten (the screens passage and the side door; the hall front and the anteroom's hall door; the
+  service stair, the archive, the roof and the light well) with the exit west through the open alcove.
