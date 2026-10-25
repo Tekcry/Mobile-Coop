@@ -389,6 +389,16 @@ describe.skipIf(!MERGED)('R5 on the merged lane (pending lead merge of r1-r4 int
     }
   });
 
+  it('(s3 join) no guard slot or route point stands in a stair core (s3-wstair / s3-nstair / s3-estair, J1)', () => {
+    const cores = S3_ROOMS.filter((r) => ['s3-wstair', 's3-nstair', 's3-estair'].includes(r.id));
+    expect(cores.map((r) => r.id)).toEqual(['s3-wstair', 's3-nstair', 's3-estair']);
+    const inCore = (x: number, z: number): string | undefined => cores.find((r) => x >= r.minX && x <= r.maxX && z >= r.minZ && z <= r.maxZ)?.id;
+    for (const [i, g] of G.entries()) {
+      expect(inCore(g.x, g.z), `#${i + 1} slot (${g.x}, ${g.z})`).toBeUndefined();
+      for (const p of g.route ?? []) expect(inCore(p[0], p[1]), `#${i + 1} route (${p[0]}, ${p[1]})`).toBeUndefined();
+    }
+  });
+
   it('#11 (P4): his cycle by the nav path round the west core is 25-45 s and within 1 s of ~40', () => {
     const c = cycle(G[10]!, (a, q, y) => pathLen([a[0]!, a[1]!, y], [q[0]!, q[1]!, y])!);
     expect(c, `#11 nav cycle ${c}`).not.toBeNull();
