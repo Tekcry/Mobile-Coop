@@ -2,11 +2,11 @@
 
 Owner: Marlow Build. Status: current.
 
-Job J12; scope, Michael's words and assumptions A1-A22: `BRIEF.md`. Refs read 2026-10-25: origin/master 2148ec96;
+Job J12; scope, Michael's words and assumptions A1-A25: `BRIEF.md`. Refs read 2026-10-25: origin/master 2148ec96;
 `feature/level-validator-v6` 8f551e18 (V6), `feature/level-validator-v7` 97873079 (V7), `feature/mission-validator`
 0c62a921 (MV, = mission-validator-dims); Campaign Build's `feature/mission-framework` d93ae66e (`docs/missions/PLAN.md`
-"Validator detail (VAL)"). Line counts below are counted lines (code and tests; `docs/**` excluded, graph JSON
-included there).
+"Validator detail (VAL)"). Line counts below are counted lines, as pr-size counts them (section 1): code and
+tests; `docs/**` (graph JSON included) is not counted.
 
 ## 1. Shape
 
@@ -25,16 +25,30 @@ src/world/levelMeasure.ts         NEW: V6 measurement core (+ way back, + resolv
 scripts/level-measure.mjs         NEW: V6 measure CLI (--write / --check / --doors / --map / --points)
 ```
 
-Four PRs, each under ~1.5k counted lines, each with one Opus checker (FOLDED-PLAN J12 gate):
+Five PRs, each under ~1.5k counted lines, each with one Opus checker (FOLDED-PLAN J12 gate). Counts follow
+`scripts/pr-size.mjs`: added + deleted lines per file (`:87`), so a moved line counts twice (once out, once in);
+`docs/**` (graph JSON included), `*.md` and `changes/**` are not counted (`:17`), nor `tests/fixtures/**/*.json`
+(`:29`); `package.json` and every `tests/*.ts` are.
 
 | PR | Branch (integration) | Slices | Counted lines | Opens when |
 | --- | --- | --- | --- | --- |
-| A gate core | `feature/validator-port` | S0, S3, S6, D-A | ~1,350 | S0, S3, S6 checker PASS |
-| B measure tool | `feature/validator-port-measure` (from origin/master) | S1, S2, D-B | ~1,420 | S1, S2 checker PASS |
-| C training, CI, graphs | `feature/validator-port-train` (from A's head, then merge B) | S4, S5, S7a, S7b, S9, S10, D-C | ~1,030 | A and B merged on master (so C's diff is its own) |
-| D mission re-cut | `feature/validator-port-mission` (from A's head) | S8, D-D | ~1,050 | A merged on master |
+| A gate core | `feature/validator-port` | S0, S3, D-A | ~1,390 (S0 ~930, S3 ~460) | S0, S3 checker PASS |
+| B measure core | `feature/validator-port-measure` (from origin/master) | S1, D-B | ~1,050 | S1 checker PASS |
+| B2 measure CLI, sheet rows | `feature/validator-port-measure-cli` (from B's head; merges S7a's branch) | S2, S7a, D-B2 | ~740 (S2 ~630, S7a ~110) | B merged on master |
+| C training, perfect run, CI, graphs | `feature/validator-port-train` (from A's head after S0; merges A's, B's and B2's branches) | S4, S6, S5, S7b, S9, S10, D-C, I-C | ~1,350 (S4 ~480, S6 ~330, S5 ~270, S7b ~170, S10 ~100, S9 0) | A, B and B2 merged on master (so C's diff is its own) |
+| D mission re-cut | `feature/validator-port-mission` (from A's head; merges C's branch) | S8, D-D, I-D | ~1,060 | C merged on master |
 
-Fallback: if PR B counts over 1.5k after S1's way-back work, S2 becomes its own PR right after S1's.
+S0's ~930: the helper move (master `scripts/level-validate.mjs:27-72` and `:79-256`, ~220 lines) counts ~440 alone;
+then PROFILES and the twelve mode tests ~90, wiring, flag, merge and `linkTime` ~60, the A25 kinds ~40, five stubs
+~45, `levelProfiles` ~200, inline `levelValidate` fixture edits ~40, re-exports ~20. PR B grew past the cap with
+`resolvePoints` (S1 ~1,050: V6's 589 + 220 test lines, way back ~100, resolver ~120, master API fixes ~20) and
+`--points` (S2 ~630: V6's 438, `ways_back` and `--points` ~60, CLI test ~130), so the measure CLI is its own PR (B2),
+and the small S7a rides it. Branch merges between these integration branches are feature-branch merges; none merges
+master.
+
+Fallbacks, each named before it is needed: PR A over 1.5k -> S3 becomes its own PR right after A (it needs only S0).
+PR C over 1.5k -> S6 becomes its own PR right after A (it needs only S0); C and D then merge its branch. PR D over
+1.5k -> the `missionValidate` test cases for the kind lists move to a follow-up PR with Campaign's kind-list pin (A20).
 
 ## 2. Slices
 
@@ -44,26 +58,28 @@ lists every file the slice may touch; no two slices running at once own the same
 
 | Slice | What | Owns (claims) | Lines | Model | Depends on | Tests |
 | --- | --- | --- | --- | --- | --- | --- |
-| S0 | Lib split, PROFILES (Q29 row), module wiring, `--require-measured` flag, mission-node merge, `linkTime` measured | `scripts/level-graph-lib.mjs`, `scripts/level-validate.mjs`, `scripts/level-checks/{measured,training,perfect,engine}.mjs` (stubs), `scripts/mission-validate.mjs` (stub), `tests/levelProfiles.test.ts`, `tests/levelValidate.test.ts`, `docs/level-validator/example.graph.json` | ~560 | Opus | - | `levelValidate`, `levelProfiles` |
-| S1 | Port `levelMeasure.ts` to master; add way-back measure and J13's `resolvePoints` | `src/world/levelMeasure.ts`, `tests/levelMeasure.test.ts` | ~900 | Opus | - | `levelMeasure` |
-| S2 | Port `level-measure.mjs` CLI; write `ways_back`; `--points` | `scripts/level-measure.mjs`, `tests/levelMeasureCli.test.ts` | ~520 | Sonnet | S1's exported API (V6's + `resolvePoints`) | `levelMeasureCli` |
-| S7a | V12 + sheet rows: metrics-gen rejects unknown flags; rows `nav_floor_depth_m`, `ladder_grab_m`, MV's six `mission_*` rows; relay lip derivation (A24) | `scripts/metrics-gen.mjs`, `tests/metricsGen.test.ts`, `docs/design/scale-sheet.md`, `docs/design/metrics.json` | ~70 | Sonnet | - | `metricsGen` |
+| S0 | Lib split, PROFILES (Q29 row), module wiring, `--require-measured` flag, mission-node merge, `linkTime` measured, A25 kinds | `scripts/level-graph-lib.mjs`, `scripts/level-validate.mjs`, `scripts/level-checks/{measured,training,perfect,engine}.mjs` (stubs), `scripts/mission-validate.mjs` (stub), `tests/levelProfiles.test.ts`, `tests/levelValidate.test.ts`, `docs/level-validator/example.graph.json` | ~930 | Opus | - | `levelValidate`, `levelProfiles` |
+| S1 | Port `levelMeasure.ts` to master; add way-back measure and J13's `resolvePoints` | `src/world/levelMeasure.ts`, `tests/levelMeasure.test.ts` | ~1,050 | Opus | - | `levelMeasure` |
+| S2 | Port `level-measure.mjs` CLI; write `ways_back`; `--points` | `scripts/level-measure.mjs`, `tests/levelMeasureCli.test.ts` | ~630 | Sonnet | S1's exported API (V6's + `resolvePoints`) | `levelMeasureCli` |
+| S7a | V12 + sheet rows: metrics-gen rejects unknown flags; rows `nav_floor_depth_m`, `ladder_grab_m`, MV's six `mission_*` rows; relay lip derivation (A24) | `scripts/metrics-gen.mjs`, `tests/metricsGen.test.ts`, `docs/design/scale-sheet.md`, `docs/design/metrics.json` | ~110 | Sonnet | #443 (merged 4.103.3) | `metricsGen` |
 | S3 | `checkMeasured` port with V1 and V2 | `scripts/level-checks/measured.mjs`, `tests/levelMeasured.test.ts`, `docs/validator-port/fragments/S3.md` | ~460 | Opus | S0 | `levelMeasured` |
 | S6 | Ghost / no-kill paths, `requires_kill`, `mark`; T H4 static test | `scripts/level-checks/perfect.mjs`, `tests/levelPerfect.test.ts`, `tests/noForcedKill.test.ts`, `docs/validator-port/fragments/S6.md` | ~330 | Opus | S0 | `levelPerfect`, `noForcedKill` |
-| S4 | Training checks (A8, A9) | `scripts/level-checks/training.mjs`, `tests/levelTraining.test.ts`, `docs/validator-port/fragments/S4.md` | ~420 | Opus | S0 | `levelTraining` |
+| S4 | Training checks (A8, A9, A23) | `scripts/level-checks/training.mjs`, `tests/levelTraining.test.ts`, `docs/validator-port/fragments/S4.md` | ~480 | Opus | S0 | `levelTraining` |
 | S7b | Engine-fact WARNs, rope up-only | `scripts/level-checks/engine.mjs`, `tests/levelEngine.test.ts`, `docs/validator-port/fragments/S7.md` | ~170 | Sonnet | S0, S7a | `levelEngine` |
 | S5 | `validate:levels`, graph-set manifest, count pins | `scripts/level-graphs.mjs`, `docs/level-validator/graph-sets.json`, `package.json`, `tests/levelGraphs.test.ts`, `docs/validator-port/fragments/S5.md` | ~270 | Sonnet | S0 | `levelGraphs` |
-| S8 | Mission-validator re-cut (joint, Campaign reviews) | `scripts/mission-validate.mjs`, `tests/missionValidate.test.ts`, `docs/level-validator/mission-schema.md`, `docs/level-validator/example.mission.json` | ~1,050 | Opus | S0, S6 (helper), S7a (rows) | `missionValidate` |
+| S8 | Mission-validator re-cut (joint, Campaign reviews) | `scripts/mission-validate.mjs`, `tests/missionValidate.test.ts`, `docs/level-validator/mission-schema.md`, `docs/level-validator/example.mission.json` | ~1,060 | Opus | S0, S6 (helper, via C), S7a (rows, via B2) | `missionValidate` |
 | S9 | Marlow Yard graph on `training`, measured, run saved | `docs/marlow-final/graph/ctcourse.json`, `docs/marlow-final/graph/run.txt`, `docs/marlow-final/graph/REPORT.md` | 0 (docs) | Sonnet | S0, S4, S1+S2 | validator + measure runs |
 | S10 | Campus graphs: V6e-1 positions, re-measure, drift test, campus run | `docs/sector-redesign/graph/campusOps-S{1..5}.json`, `docs/level-validator/campus-run/{run.txt,V6-REPORT.md,V6-areas.md}`, `tests/levelMeasureCampus.test.ts` | ~100 | Sonnet | S1+S2, S3 | `levelMeasureCampus` |
-| D-A | Docs for PR A | `docs/level-validator/graph-schema.md`, `docs/level-design.md`, `docs/level-validator/example.graph.json` (V6 fields), `changes/feature-validator-port.md` | docs | Sonnet | S0, S3, S6 | doc lint |
-| D-B | Docs for PR B | `docs/systems/testing-tools.md`, `changes/feature-validator-port-measure.md` | docs | Sonnet | S1, S2 | doc lint |
-| D-C | Docs for PR C | `graph-schema.md`, `level-design.md`, `testing-tools.md`, `changes/feature-validator-port-train.md` | docs | Sonnet | PR C slices, D-A, D-B | doc lint |
+| D-A | Docs for PR A | `docs/level-validator/graph-schema.md`, `docs/level-design.md`, `docs/level-validator/example.graph.json` (V6 fields), `changes/feature-validator-port.md` | docs | Sonnet | S0, S3 | doc lint |
+| D-B | Docs for PR B | `changes/feature-validator-port-measure.md` | docs | Sonnet | S1 | doc lint |
+| D-B2 | Docs for PR B2 | `docs/systems/testing-tools.md` (the measure CLI, `--points`), `changes/feature-validator-port-measure-cli.md` | docs | Sonnet | S2, S7a | doc lint |
+| D-C | Docs for PR C (folds the S4, S5, S6, S7 fragments: `taught_by`, `teach`, `requires_kill`, `mark`) | `graph-schema.md`, `level-design.md`, `testing-tools.md`, `changes/feature-validator-port-train.md` | docs | Sonnet | PR C slices, D-A, D-B2 | doc lint |
 | D-D | Docs for PR D | `graph-schema.md` (mission pointer), `changes/feature-validator-port-mission.md` | docs | Sonnet | S8, D-C if running | doc lint |
 | I-C | Integration chore: rerun every set with `--write`, commit the pinned counts | `docs/level-validator/graph-sets.json`, saved run files | docs | Haiku | all of PR C | `levelGraphs` |
+| I-D | Integration chore: add the mission example set to the manifest, rerun every set with `--write` (mission checks change the counts) | `docs/level-validator/graph-sets.json`, saved run files | docs | Haiku | S8, C's branch merged in | `levelGraphs` |
 
 The docs slices are one at a time on `graph-schema.md`, `level-design.md` and `testing-tools.md`, in the order D-A,
-D-B, D-C, D-D, each from the previous one's head (D-A and D-B touch different files, so they may overlap). Code slices
+D-B2, D-C, D-D, each from the previous one's head (D-A and D-B / D-B2 touch different files, so they may overlap). Code slices
 write their schema text into `docs/validator-port/fragments/<slice>.md`; the docs slice folds it. D-A also writes the
 A25 kinds into graph-schema "Link kinds" and the level-design 11.9 graph-kind list (master `docs/level-design.md:306-313`;
 its "a `bolted` door (unlocked from the far side after a vent or a throw)" becomes `vent_unlock` for the vent, `bolted`
@@ -219,12 +235,18 @@ mission-node merge to S0; `mark` and `requires_kill` to S6; `mission_*` rows to 
 
 ## 5. Waves (full burn)
 
-- **Wave 1, now (4 agents):** S0 (Opus), S1 (Opus), S2 (Sonnet), S7a (Sonnet). S7a cuts from origin/master on its own
-  branch; the lead merges it into `feature/validator-port-train` later.
-- **Wave 2, when S0 is merged into `feature/validator-port` (6 agents):** S3, S6, S4, S8 (Opus); S7b, S5 (Sonnet). S8
-  merges after S6 (it calls `perfectPaths`); S7b after S7a is in its branch.
-- **Wave 3, when S1 + S2 are merged into `feature/validator-port-measure`:** S9 (also needs S4), S10 (Sonnet). D-B.
-- **Docs:** D-A after S3 + S6; D-C after wave 3; D-D after S8; I-C last on PR C.
+- **Wave 1, now (4 agents):** S0 (Opus, from `feature/validator-port`); S1 (Opus, from origin/master, into
+  `feature/validator-port-measure`); S2 (Sonnet, from origin/master against S1's fixed API, section 8; into
+  `feature/validator-port-measure-cli` once that is cut from B's head); S7a (Sonnet, from origin/master on its own
+  branch; into the B2 branch).
+- **Wave 2, when S0 is merged into `feature/validator-port` (6 agents):** S3 (Opus) into A. The lead cuts
+  `feature/validator-port-train` and `feature/validator-port-mission` from A's head; S4, S6 (Opus) and S7b, S5 (Sonnet)
+  go into C's branch, S8 (Opus) into D's. S7b merges once B2's branch (S7a) is merged into C's; S8 merges once C's
+  branch (S6's `perfectPaths`) is merged into D's.
+- **Wave 3, when B's and B2's branches hold S1, S2 and are merged into C's:** S9 (also needs S4), S10 (also S3, via
+  A's branch) (Sonnet).
+- **Docs:** D-A after S3; D-B after S1; D-B2 after S2 + S7a; D-C after wave 3; D-D after S8; I-C last on C; I-D last
+  on D.
 - Opus briefs wave 2 while wave 1 runs (plans and briefs only). Builders that are tsc / vitest only may go to cloud
   builders (`cloud-queue`): S7a, S7b, S5 qualify; S1, S2, S9, S10 need the build and light bake (desktop).
 
@@ -233,7 +255,7 @@ mission-node merge to S0; `mark` and `requires_kill` to S6; `mission_*` rows to 
 - **Every slice:** `npm run typecheck:fast` and `npx vitest run <its test files>` plus `tests/levelValidate.test.ts`
   for any slice that changes what `validate()` reports. Never a full `npm run check`. A wave-2 slice that breaks an
   existing `levelValidate` case stops and reports it; S0's Opus fixes the fixture on `feature/validator-port`.
-- **e2e:** none needed for PRs A, C, D (scripts, tests and docs). PR B adds `src/world/levelMeasure.ts`, so its head
+- **e2e:** none needed for PRs A, B2, C, D (scripts, tests and docs). PR B adds `src/world/levelMeasure.ts`, so its head
   runs the `src/world/` affected-e2e group by itself (e2e-lightbake, e2e-guard-carry, e2e-levels, e2e-anchors,
   e2e-ctcourse); it must be green. No code in the game imports the file.
 - **Validator evidence on each PR:** `npm run validate:levels` exits 0 (PR C onward);
@@ -243,7 +265,7 @@ mission-node merge to S0; `mark` and `requires_kill` to S6; `mission_*` rows to 
   against BRIEF (no Michael-only rule loosened; Q24 / Q29 applied as A7-A9 say), the claims, the counts, the carried
   V6 commits (section 4), and reruns the slice tests. PR D: the Opus checker plus Campaign Build's read of the mission
   schema and kind lists (A20). At most one fix round per slice (Opus).
-- **Finish:** PR body with the changelog fragment; the last PR (C or D, whichever merges last) carries
+- **Finish:** PR body with the changelog fragment; the last PR (D, which opens after C merges) carries
   `Job-done: validator-port`.
 
 ## 7. Seams
@@ -258,8 +280,12 @@ mission-node merge to S0; `mark` and `requires_kill` to S6; `mission_*` rows to 
   until the training profile passes; S9's REPORT maps each ERR to a J14 row. Q24 / Q29 checks are built here (A21).
   Once PR A is on master, J14's graph swaps its stand-in kinds and `move` fields for the A25 kinds and its A3 `bolted`
   door for a `vent_unlock` (its "section A3 has no co-op link" ERR then clears).
+- **Level standard #443** (`feature/level-standard-g157`, merged in 4.103.3): it rewrote the LD training profile
+  (master `docs/level-design.md:39-60`), the 3.2 / 11.2 Training lines (`:95-97`, `:275-277`) and the rule index
+  (`:697-745`), which D-A / D-C also touch. Both are cut after it (it is on master), and A22 is trimmed to what #443
+  left. Its relay row hand-over is A24 (S7a); its "check later" rows are BRIEF Out of scope.
 - **Orchestrator J1 / J2:** J1 fixes LD 13's Marlow folder line; J2 gives Q24 / Q29 G numbers. D-A / D-C touch LD
-  sections 11.9, the training profile, 14, 15 and the rule index only.
+  11.9 (its tag and graph kinds), 14 (3) item (1), the 15 measured line and the rule index only.
 
 ## 8. What J13 route-runs needs from this port
 
@@ -293,6 +319,6 @@ mission-node merge to S0; `mark` and `requires_kill` to S6; `mission_*` rows to 
   is copied.
 - The campus drift test takes ~3 min; it keeps V6's 600 s timeouts. If CI time becomes a problem, the lead moves it
   behind an env switch and the laptop runs it (question for the Test Runner, not assumed).
-- PR B sits near the 1.5k cap: fallback in section 1.
-- Marlow Yard's graph will fail the training profile hard (side routes in A2, A5, A6; splits before `taught_by`; A8 pacing); that is the
-  intent (H6) and J14's work list, not a validator bug.
+- PR A (~1,390) and PR C (~1,350) sit nearest the 1.5k cap: named fallbacks in section 1. PR B is already split (B2).
+- Marlow Yard's graph will fail the training profile hard (side routes in A2, A5, A6; splits before
+  `taught_by`; A8 pacing); that is the intent (H6) and J14's work list, not a validator bug.
