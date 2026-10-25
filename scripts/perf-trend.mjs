@@ -1,4 +1,4 @@
-// Perf trend (locomotion run, docs/locomotion/RULES.md): serves the existing dist/ with `vite preview`, runs
+// Perf trend (locomotion run, docs/archive/locomotion/RULES.md): serves the existing dist/ with `vite preview`, runs
 // scripts/perf.mjs once WITHOUT --budget, prints its output and stops the server. A trend against this machine's own
 // baseline only, never a pass claim. Needs a prior `npm run build`.
 // Usage: node scripts/perf-trend.mjs [extra perf.mjs args, e.g. --json]

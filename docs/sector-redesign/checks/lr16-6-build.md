@@ -2,7 +2,7 @@
 
 Base `origin/feature/sector-redesign-lr16-entry` 6e53e036; branch `feature/sector-redesign-lr16-6`. Authority: G100, G102
 (DECISIONS), G181 (the wheel picks the mode, one button toggles, no flip between modes), bible Vision table and 5.x
-goggle modes, CT measure `docs/locomotion/research/ct-measure-walls-doors-combat-vision.md` s.4 (thermal: "a guard behind a
+goggle modes, CT measure `docs/archive/locomotion/research/ct-measure-walls-doors-combat-vision.md` s.4 (thermal: "a guard behind a
 closed wooden door shows as a dim blue silhouette", low end of the ramp, soft; mode switch an instant cut).
 
 ## Found at the base

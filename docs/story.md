@@ -1,4 +1,11 @@
 # Night Shift - Story and world
+Owner: the orchestrator (it edits; Michael decides, G354). Status: current.
+
+> **Status (2026-10-25).** Maps that exist now: Marlow Yard (co-op training, `ctcourse`), Saltmarsh Park (Sector Ops,
+> `campusOps`). Tallow Wharf, the new small campaign map, is campaign Mission 1 (G340): specced
+> (PR #372, `docs/missions/`), not built yet. Its story is decided with the missions (G354); until then Mission 1 below
+> stays "Dead Line" as written, and "Dead Line" on the Kestrel map is paused (G53). The mission list below is the story
+> plan, not the build order.
 
 Version 2.1 - 2026-10-18. (2.1: two-player campaign with Wren and Moth in the field and Tally and Sexton on the radio
 (G2, G71, G112); no traitor and no player-versus-player finale (G9); text now, voiced later (G82); Wren stays 1.68 m
@@ -141,7 +148,7 @@ Looks and personality only. Both move the same; they differ in look and height (
 
 - **Background:** ex-steeplejack, twenties. Grew up on scaffolding and phone masts. Cheerful, curious, too fond of heights.
 - **The running joke:** Moth is drawn to light. It is a terrible trait in this job.
-- **Look:** lean, rolled sleeves, climbing harness. **Amber goggle light.**
+- **Look:** lean, rolled sleeves, climbing harness. **Purple goggle light** (G196).
 - **Voice:** chatty when it is quiet, quick when it is not.
   - "I can see the whole yard from here. Lovely view. Two guards."
 

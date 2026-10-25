@@ -56,6 +56,7 @@ function handPool(slots: number) {
   const q: { job: LampJob; resolve: (r: LampResult) => void }[] = [];
   const pool = {
     size: slots,
+    cancel: () => false,
     lamps: (job: LampJob) => new Promise<LampResult>((resolve) => q.push({ job, resolve })),
     dispose: () => undefined,
   } as unknown as WorkerPool;
@@ -285,7 +286,7 @@ describe('section bake: parity with the full bake', () => {
   it('a failed worker job is baked inline (never a dark lamp)', async () => {
     const { set, baked } = strip();
     let calls = 0;
-    const pool = { size: 1, lamps: () => (calls++ === 0 ? Promise.reject(new Error('worker died')) : Promise.resolve(null as unknown as LampResult).then(() => { throw new Error('again'); })), dispose: () => undefined } as unknown as WorkerPool;
+    const pool = { size: 1, cancel: () => false, lamps: () => (calls++ === 0 ? Promise.reject(new Error('worker died')) : Promise.resolve(null as unknown as LampResult).then(() => { throw new Error('again'); })), dispose: () => undefined } as unknown as WorkerPool;
     const sb = new SectionBaker({ shapes: set.shapes, lights: baked.lights, lo: set.lo, hi: set.hi, masks: lampSectionMasks(baked.lights, DEF), sections: 3, key: null, pool });
     sb.start();
     await sb.finished;

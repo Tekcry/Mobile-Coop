@@ -441,7 +441,7 @@ const MOVE: Record<MoveClass, MoveTable> = {
  *  stride slips sideways and the rig's head dips up to 11 cm below its mean for ~0.5 s at irregular times (the foot
  *  planner catching up; 52-60 deg at 0.45 m/s, 54-60 at 0.6, 58-60 at 0.75): the fit gives the mean there.
  *  (The rig also takes stride 'velocity' when the held guard's `aimWeight()` is 0.5 or more; the sim gets aim 0 when
- *  held and assumes the calm weight: a follow-up, docs/guard-render/STATE.md "Fix round 3".)
+ *  held and assumes the calm weight: a follow-up, docs/archive/guard-render/STATE.md "Fix round 3".)
  *
  *  After a release (`releaseTakedown`) the held weight `poseW` fades over 0.2 s with the last held pose kept, and
  *  `HELD_MOVE` and the free-move side removal (`sxm`) still apply scaled by it while the guard moves: a known short

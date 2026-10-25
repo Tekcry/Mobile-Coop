@@ -247,11 +247,21 @@ export class BakedLamps implements CharShadowLamps {
   private fadeN = 0;
   /** (section-bake) Per lamp 1 once its cells are in the atlas (null: every lamp was in at load). */
   private readonly have: Uint8Array | null = null;
-  /** (section-bake) Lamps whose atlas tile waits for upload (FIFO), and the head's next z slice. */
+  /** (section-bake) The baker still landing lamps (null: every lamp was in at load). */
+  private readonly baker: SectionBaker | null = null;
+  /** (section-bake) Lamps whose atlas tile waits for upload (a queue: the live section's at its head), per lamp its z slices up. */
   private readonly tileQ: Int32Array;
   private tileHead = 0;
   private tileTail = 0;
-  private tileZ = 0;
+  private readonly tileZ: Int32Array;
+  /** (check B 5) Scratch for reordering the queue on a live change. */
+  private readonly tileTmp: Int32Array;
+  /** (check B 2) `uploadTile` returned false once: no more sub-uploads; whole re-uploads only for the live section and once at the end. */
+  private tileFailed = false;
+  /** (check B 2) A whole-atlas re-upload waits for the next frame (landing batches before it ride along). */
+  private atlasDue = false;
+  /** The baker's last batch has arrived. */
+  private bakeDone = false;
   /** (section-bake) Tile slabs uploaded with `texSubImage3D` / whole-atlas fallbacks (tests, the build report). */
   tileUploads = 0;
   atlasReuploads = 0;
@@ -304,6 +314,8 @@ export class BakedLamps implements CharShadowLamps {
     this.fadeT0 = new Float64Array(nL);
     this.fadeList = new Int32Array(nL);
     this.tileQ = new Int32Array(nL);
+    this.tileZ = new Int32Array(nL);
+    this.tileTmp = new Int32Array(nL);
     const sb = sectionBakerOf(r);
     this.visAt = sb ? sb.at : null;
     if (sb) {
@@ -313,7 +325,9 @@ export class BakedLamps implements CharShadowLamps {
         this.fade[i] = have[i]!;
       }
       this.have = have;
+      this.baker = sb;
       sb.onLand((ls, k) => this.landed(ls, k, sb));
+      sb.onLive(() => this.liveChanged(sb));
     }
     // (lr-tex3d) within the GPU's real 3D texture size: past it the upload fails and every lamp reads 0 on screen
     const atlas = fitLampAtlas(r.boxes, max3DTextureSize(scene.getEngine()));
@@ -486,7 +500,7 @@ export class BakedLamps implements CharShadowLamps {
       else dirty = true;
     }
     // (section-bake) lamps landing in the background: their atlas tiles (a byte budget a frame), then their fade-in
-    if ((this.tileTail > this.tileHead || this.fadeN > 0) && this.stepLanding()) dirty = true;
+    if ((this.atlasDue || (this.tileTail > this.tileHead && !this.tileFailed) || this.fadeN > 0) && this.stepLanding()) dirty = true;
     const nc = this.capsules ? Math.min(MAX_CAPSULES, this.capsules(this.capA, this.capB, MAX_CAPSULES)) : 0;
     if (this.volume) {
       // (the first few capsules: the operator and the guards nearest the camera)
@@ -718,16 +732,17 @@ export class BakedLamps implements CharShadowLamps {
   /**
    * (section-bake) Lamps `ls[0 .. k)` landed in the bake (a promise callback between frames, never per frame): their
    * door lists (from their visibility, as the light field's) and door texels, their atlas tiles. A lamp of the live
-   * section is uploaded now and lit at once (light parity: the meter already reads it); any other is queued (a byte
-   * budget a frame) and fades in once its tile is up (SB8, rendering only: its light reaches no point of the live
-   * section). The colours and door texels go up with the next frame's whole upload.
+   * section is lit at once (light parity: the meter already reads it): during the load its tile goes up now; once the
+   * match plays it goes to the head of the tile queue (check B 4: the byte budget a frame, no whole-tile spike). Any
+   * other lamp is queued and fades in once its tile is up (SB8, rendering only: its light reaches no point of the live
+   * section). Without sub-uploads (check B 2) only the live section's landings and the last batch re-upload the whole
+   * atlas (once, on the next frame). The colours and door texels go up with the next frame's whole upload.
    */
   private landed(ls: Int32Array, k: number, sb: SectionBaker): void {
     const have = this.have;
     if (!have) return;
     const seen = bakeVisSampler(this.r);
     let any = false;
-    let whole = false;
     for (let j = 0; j < k; j++) {
       const i = ls[j]!;
       if (i < 0 || i >= have.length || have[i]) continue;
@@ -737,16 +752,70 @@ export class BakedLamps implements CharShadowLamps {
       this.writeLampDoors(i);
       if (sb.plan.liveMember(i)) {
         this.fade[i] = 1;
-        if (!whole && !this.uploadTile(i, 0, this.boxes[i * BOX_STRIDE + 5]!)) whole = true;
+        if (this.tileFailed) this.atlasDue = true;
+        else if (sb.playing) this.queueFirst(i);
+        else if (!this.uploadTile(i, 0, this.boxes[i * BOX_STRIDE + 5]!)) {
+          this.tileFailed = true;
+          this.atlasDue = true;
+        }
       } else {
         this.fade[i] = 0;
         this.tileQ[this.tileTail++] = i;
       }
     }
+    if (sb.plan.done) {
+      this.bakeDone = true;
+      // (check B 2) the one whole re-upload the background lamps waited for
+      if (this.tileFailed) this.atlasDue = true;
+    }
     if (!any) return;
-    if (whole) this.reuploadAtlas();
     // (the colours and the door texels: one whole upload on the next frame)
     this.version = -1;
+  }
+
+  /** (check B 4) Lamp `i`'s tile to the head of the queue (before a head part-way up: its slices are kept per lamp). */
+  private queueFirst(i: number): void {
+    if (this.tileHead > 0) this.tileQ[--this.tileHead] = i;
+    else {
+      this.tileQ.copyWithin(1, 0, this.tileTail);
+      this.tileQ[0] = i;
+      this.tileTail++;
+    }
+  }
+
+  /**
+   * (check B 5) The live section changed (the host's `loadSection`, the client's `ls`): its lamps still fading snap to
+   * full, its lamps still queued go to the queue head at full colour (picture = meter as soon as their tiles are up).
+   */
+  private liveChanged(sb: SectionBaker): void {
+    if (!this.have) return;
+    let any = false;
+    for (let j = 0; j < this.fadeN; ) {
+      const i = this.fadeList[j]!;
+      if (sb.plan.liveMember(i)) {
+        this.fade[i] = 1;
+        this.fadeList[j] = this.fadeList[--this.fadeN]!;
+        any = true;
+      } else j++;
+    }
+    // (a stable partition of the queue: the live section's lamps first)
+    const Q = this.tileQ;
+    const T = this.tileTmp;
+    let a = 0;
+    for (let q = this.tileHead; q < this.tileTail; q++) {
+      const i = Q[q]!;
+      if (!sb.plan.liveMember(i)) continue;
+      T[a++] = i;
+      this.fade[i] = 1;
+      any = true;
+    }
+    if (a > 0) {
+      for (let q = this.tileHead; q < this.tileTail; q++) if (!sb.plan.liveMember(Q[q]!)) T[a++] = Q[q]!;
+      for (let q = 0; q < a; q++) Q[this.tileHead + q] = T[q]!;
+      if (this.tileFailed) this.atlasDue = true;
+    }
+    // (the colours: one whole upload on the next frame)
+    if (any) this.version = -1;
   }
 
   /** (section-bake) Lamp `i`'s door ids into its t6 texel and its second door texel (as the constructor writes them). */
@@ -757,34 +826,44 @@ export class BakedLamps implements CharShadowLamps {
     for (let k = DOORS_PER_LAMP; k < ns; k++) this.buf[(this.door2Base + i) * 4 + k - DOORS_PER_LAMP] = this.lampDoors[i * ns + k]! + 1;
   }
 
-  /** (section-bake) Per frame while lamps land: up to `TILE_BUDGET` bytes of queued tiles, then the fades. No allocation. */
+  /**
+   * (section-bake) Per frame while lamps land: a whole-atlas re-upload when one is due (check B 2), else up to
+   * `TILE_BUDGET` bytes of queued tiles; then the fades. True when colours changed. No allocation.
+   */
   private stepLanding(): boolean {
     const now = performance.now();
+    let wrote = false;
+    if (this.atlasDue) {
+      this.atlasDue = false;
+      this.reuploadAtlas();
+      // (every landed lamp's cells are in now: the queue empties)
+      for (let q = this.tileHead; q < this.tileTail; q++) if (this.tileUp(this.tileQ[q]!, now)) wrote = true;
+      this.tileHead = this.tileTail;
+    }
     let budget = TILE_BUDGET;
     const B = this.boxes;
-    while (this.tileTail > this.tileHead && budget > 0) {
+    while (!this.tileFailed && this.tileTail > this.tileHead && budget > 0) {
       const i = this.tileQ[this.tileHead]!;
       const nx = B[i * BOX_STRIDE + 3]!;
       const ny = B[i * BOX_STRIDE + 4]!;
       const nz = B[i * BOX_STRIDE + 5]!;
-      const z1 = Math.min(nz, this.tileZ + slabDepth(nx, ny, budget));
-      if (!this.uploadTile(i, this.tileZ, z1)) {
-        // (no sub-upload: the whole atlas once, every queued lamp with it)
-        this.reuploadAtlas();
-        for (let q = this.tileHead; q < this.tileTail; q++) this.startFade(this.tileQ[q]!, now);
-        this.tileHead = this.tileTail;
-        this.tileZ = 0;
+      const z0 = this.tileZ[i]!;
+      const z1 = Math.min(nz, z0 + slabDepth(nx, ny, budget));
+      if (!this.uploadTile(i, z0, z1)) {
+        // (check B 2: no sub-upload) one whole re-upload now if the live section or the finished bake needs it, else at
+        // the end; never one per landing batch
+        this.tileFailed = true;
+        if (this.bakeDone || this.queuedLive()) this.atlasDue = true;
         break;
       }
-      budget -= (z1 - this.tileZ) * nx * ny;
-      this.tileZ = z1;
+      budget -= (z1 - z0) * nx * ny;
+      this.tileZ[i] = z1;
       if (z1 >= nz) {
         this.tileHead++;
-        this.tileZ = 0;
-        this.startFade(i, now);
+        if (this.tileUp(i, now)) wrote = true;
       }
     }
-    if (this.fadeN === 0) return false;
+    if (this.fadeN === 0) return wrote;
     for (let j = 0; j < this.fadeN; ) {
       const i = this.fadeList[j]!;
       const f = Math.min(1, Math.max(0, (now - this.fadeT0[i]!) / LAND_FADE_MS));
@@ -794,6 +873,26 @@ export class BakedLamps implements CharShadowLamps {
       else j++;
     }
     return true;
+  }
+
+  /** Lamp `i`'s tile is up: a live-section lamp is in full at once (check B 5), any other fades in. True: a colour written. */
+  private tileUp(i: number, now: number): boolean {
+    if (this.baker?.plan.liveMember(i)) {
+      if (this.fade[i] === 1) return false;
+      this.fade[i] = 1;
+      this.writeColour(i);
+      return true;
+    }
+    this.startFade(i, now);
+    return false;
+  }
+
+  /** A queued lamp of the live section (check B 2: such a lamp cannot wait for the end). */
+  private queuedLive(): boolean {
+    const sb = this.baker;
+    if (!sb) return false;
+    for (let q = this.tileHead; q < this.tileTail; q++) if (sb.plan.liveMember(this.tileQ[q]!)) return true;
+    return false;
   }
 
   private startFade(i: number, now: number): void {

@@ -216,12 +216,24 @@ export async function openPage(ctx, url = 'http://localhost:4173/', params = '')
     }).catch(() => {});
   }
   // autostart: the match itself (the level builds before it starts)
+  // (e2e-boot) a `?net=local` co-op autostart (course / sector, `autoLocalCourse`): the first page hosts the room and its
+  // match starts only once a second page joins, which a suite opens after this returns, so the wait ends as soon as the
+  // page hosts alone in the lobby (it sat out the whole 120 s before: every co-op course boot). A joining page still
+  // waits for its match; single-player pages (no co-op session) are unchanged.
   if (/(^|&)autostart=/.test(params)) {
-    await timed('match', () => page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 120000 }).catch(() => {}));
+    const why = await timed('match', () => page.waitForFunction(() => {
+      if (window.__app?.current?.player) return 'match';
+      const s = window.__coop?.session;
+      return s?.isHost && s.phase === 'lobby' && s.players.size < 2 ? 'lobby' : false;
+    }, null, { timeout: 120000 }).then((h) => h.jsonValue()).catch(() => 'timeout'));
+    if (why === 'lobby') return { page, errors };
     // (section-bake, SB12) a map baking its lamps per section (campusOps on a cold cache): the match starts once the
     // live section is in and the rest lands in the background; suites drive sections in sim time, so wait for all of it
     // (what the load waited for before). No-op on every other map.
-    await timed('match', () => page.waitForFunction(() => { const s = window.__app?.current?.world?.lightBake?.sections; return !s || s.done || s.disposed; }, null, { timeout: 240000, polling: 250 }).catch(() => {}));
+    // (section-bake robust, check B 10) a timeout is logged: a suite then runs on a half-baked campus and says so
+    await timed('match', () => page.waitForFunction(() => { const s = window.__app?.current?.world?.lightBake?.sections; return !s || s.done || s.disposed; }, null, { timeout: 240000, polling: 250 }).catch((e) => {
+      console.warn(`[e2e-lib] section bake wait timed out or failed (240 s cap): ${String(e?.message ?? e).split('\n')[0]}; the run goes on with lamps still landing`);
+    }));
     warmed = false;
     if (PROFILE) prof.bake += await page.evaluate(() => { const w = window.__app?.current?.world; return w?.lightInfo?.().ms ?? 0; }).catch(() => 0);
   }

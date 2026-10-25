@@ -1,12 +1,14 @@
 // Laptop queue request CLI (docs/laptop-queue/PLAN.md): adds requests/<id>.json to the laptop-queue branch with git
 // plumbing only (temp index, no checkout), never touching the working tree, the worktree index or HEAD. Prints the id.
 //   node scripts/laptop-queue/request.mjs --sha <ref> [--pr N] [--set name] [--jobs N] [--requester "<title>"]
-//     (--suites "a b c" | --affected [--wide] | --full | --alone --step "<cmd>" [--step ...] [--env K=V ...]) [--note ".."] [--branch x] [--dry-run]
+//     (--suites "a b c" (or "a,b,c"; unknown names refused) | --affected [--wide] | --full | --alone --step "<cmd>" [--step ...] [--env K=V ...]) [--note ".."] [--branch x] [--dry-run]
 // --affected [--wide]: the suites come from scripts/e2e-affected.mjs (DIRECT tier, --wide the cross-area set) for the
 // committed diff from the merge-base with origin/master to --sha; a diff that reaches no browser suite is refused.
 // --train-rerun (with --pr N and --suites; auto-train, --requester auto-train): a train's failed suites rerun on the
 // laptop at train priority; "trainRerun": true, kind pr. Context laptop-e2e/<set> (no --set: laptop-e2e/rerun-<suites>).
 // A pass also posts laptop-e2e success on the sha.
+// --priority N: "priority": N (integer, default 0): among the same requester's open requests a higher one runs first
+// (else oldest first), e.g. a request a train-ready PR waits on; it never moves the request ahead of other requesters.
 // --pin: "pin": true, never superseded (A/B and baseline runs kept on purpose; queue-audit skips them too).
 // --dry-run: builds the commit but pushes nothing; prints the sha it would push and the JSON.
 import { execFileSync } from 'node:child_process';
@@ -14,8 +16,7 @@ import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { requestId, requestProblem } from './lib.mjs';
-import { selectSuites, DIRECT_COVERS, WIDE_COVERS } from '../e2e-affected.mjs';
+import { affectedSuites, knownSuites, pickBranch, requestId, requestProblem, splitSuites } from './lib.mjs';
 
 const argv = process.argv.slice(2);
 const opts = { step: [], env: [] };
@@ -37,7 +38,7 @@ const git = (args, { env = {}, input, soft = false } = {}) => {
   }
 };
 
-if (!opts.sha) { console.error('usage: request.mjs --sha <ref> (--suites "a b" | --affected [--wide] | --full | --alone --step "<cmd>") [--pr N] [--set s] [--jobs N] [--requester t] [--note t] [--pin] [--dry-run]'); process.exit(1); }
+if (!opts.sha) { console.error('usage: request.mjs --sha <ref> (--suites "a b" | --affected [--wide] | --full | --alone --step "<cmd>") [--pr N] [--set s] [--jobs N] [--requester t] [--note t] [--pin] [--priority N] [--dry-run]'); process.exit(1); }
 
 if (opts.affected && (opts.suites || opts.full || opts.alone || opts['train-rerun'])) { console.error('--affected replaces --suites (no --full / --alone / --train-rerun)'); process.exit(1); }
 if (opts.wide && !opts.affected) { console.error('--wide needs --affected'); process.exit(1); }
@@ -52,23 +53,38 @@ const sha = (isRef && !opts.sha.startsWith('origin/') ? resolve(`origin/${opts.s
 if (!sha) { console.error(`cannot resolve ${opts.sha}`); process.exit(1); }
 
 /** --affected: the suites for the committed diff from the merge-base with origin/master to sha. */
-function affectedSuites() {
-  const mb = git(['merge-base', 'origin/master', sha], { soft: true });
-  if (!mb) { console.error(`--affected: no merge-base between origin/master and ${sha}`); process.exit(1); }
-  const files = git(['diff', '--name-only', '--no-renames', mb, sha]).split('\n').map((f) => f.trim()).filter(Boolean);
-  const suites = selectSuites(files, opts.wide ? WIDE_COVERS : DIRECT_COVERS);
+function prSuites() {
+  // lib affectedSuites: the same selection the service's affected pass makes for every PR head
+  const got = affectedSuites((args) => git(args), sha, { wide: Boolean(opts.wide) });
+  if (!got) { console.error(`--affected: no merge-base between origin/master and ${sha} (or git diff failed)`); process.exit(1); }
+  const { files, suites } = got;
   console.error(`affected${opts.wide ? ' (wide)' : ''}: ${files.length} changed file(s), ${suites.length} suite(s): ${suites.join(' ') || '-'}`);
   if (!suites.length) { console.error('--affected: no browser suite reached (docs / unit tests only): nothing to request'); process.exit(1); }
   return suites;
 }
 
-const branch = opts.branch ?? (isRef ? opts.sha.replace(/^origin\//, '') : opts.sha === 'HEAD' ? git(['rev-parse', '--abbrev-ref', 'HEAD'], { soft: true }) : '');
+// branch and pr filled by default, so a failure comment reaches the right PR (lib pickBranch)
+const headBranch = git(['rev-parse', '--abbrev-ref', 'HEAD'], { soft: true });
+const remoteLines = (args) => (isRef ? [] : git(['branch', '-r', ...args, sha], { soft: true }).split('\n'));
+const branch = opts.branch ?? pickBranch({
+  ref: isRef ? opts.sha : '',
+  onMaster: !isRef && (() => { try { git(['merge-base', '--is-ancestor', sha, 'origin/master']); return true; } catch { return false; } })(),
+  headBranch,
+  headIsSha: git(['rev-parse', 'HEAD'], { soft: true }) === sha,
+  pointsAt: remoteLines(['--points-at']),
+  containing: remoteLines(['--contains']),
+});
+const prFor = (b) => {
+  try { return Number(execFileSync('gh', ['pr', 'list', '--head', b, '--state', 'open', '--json', 'number', '--jq', '.[0].number // empty'], { encoding: 'utf8', windowsHide: true, timeout: 30_000 }).trim()) || null; } catch { return null; }
+};
+const pr = opts.pr ? Number(opts.pr) : branch ? prFor(branch) : null;
 const requester = opts.requester ?? 'unknown';
 // 4 random hex so two requests in the same second never collide
 const id = `${requestId(Date.now(), requester, sha)}-${randomBytes(2).toString('hex')}`;
 const kind = opts.alone ? 'alone' : opts.full ? 'full' : 'pr';
-const req = { id, sha, branch, pr: opts.pr ? Number(opts.pr) : null, kind, requester };
-if (kind === 'pr') req.suites = opts.affected ? affectedSuites() : String(opts.suites ?? '').split(/\s+/).filter(Boolean);
+const req = { id, sha, branch, pr, kind, requester };
+// --suites "a b" or "a,b" (lib splitSuites)
+if (kind === 'pr') req.suites = opts.affected ? prSuites() : splitSuites(opts.suites);
 if (opts['train-rerun']) req.trainRerun = true;
 if (kind === 'alone') {
   req.steps = opts.step;
@@ -78,7 +94,12 @@ if (opts.jobs) req.jobs = Number(opts.jobs);
 if (opts.set) req.set = opts.set;
 if (opts.note) req.note = opts.note;
 if (opts.pin) req.pin = true;
-const problem = requestProblem(req);
+if (opts.priority !== undefined) req.priority = Number(opts.priority);
+// suite names checked against the sha's own scripts/ (lib knownSuites; --full-tree: also from a subdirectory); an
+// unreadable listing refuses a pr request rather than skip the check
+const tree = kind === 'pr' ? git(['ls-tree', '--full-tree', '--name-only', sha, 'scripts/'], { soft: true }).split('\n').filter(Boolean) : [];
+if (kind === 'pr' && !tree.length) { console.error(`bad request: cannot list scripts/ at ${sha} to check the suite names`); process.exit(1); }
+const problem = requestProblem(req, kind === 'pr' ? { known: knownSuites(tree) } : {});
 if (problem) { console.error(`bad request: ${problem}`); process.exit(1); }
 const json = `${JSON.stringify(req, null, 2)}\n`;
 

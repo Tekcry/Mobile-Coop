@@ -1,5 +1,416 @@
 # Changelog
 
+## 4.103.0 - Train 95: Animation tuner clarity (2026-10-25, PR #431; #430)
+- The animation tuner now shows whether each setting changes the motion-captured animation, the hand-made one, or both.
+- It shows what is playing now, for example "Now playing: motion-capture walk", under the tabs and in the Anim Studio.
+- It warns for a few seconds when an edit changes nothing on screen, and says which setting does work instead. Turn this off in More > Panel.
+- The Keys tab has Left leg and Right leg parts, with "foot twist, toes out" and "shin twist" rows for each leg.
+
+## 4.102.6 - Train 94: Doc guard; Doc hygiene (2026-10-25, PR #429; #400, #425)
+
+### Doc guard
+- `npm run lint` also runs the doc lint (`scripts/doc-lint.mjs`, so CI's `lint` and `check` run it): stale terms
+  (`docs/stale-terms.json`), G citations (missing or replaced entries cited as current), broken links and repo paths,
+  key rules restated outside their owner file (`docs/doc-owners.json`), size budgets, and appended "Note 2026-" lines
+  in the design bible. Errors fail CI; warnings print.
+- A job's final PR carries a `Job-done: <job>` line; the train's version commit then moves `docs/<job>/` to
+  `docs/archive/<job>/` and fixes the links to it.
+- `scripts/prune-merged.mjs` lists (and with `--apply` removes) idle merged worktrees and merged branches older than
+  7 days; `scripts/prune-task.ps1` registers it as a weekly task.
+- `docs/RULES.md` "Docs": the doc map, one home per rule, folds rewrite in place, the drift audit, doc lint, the weekly
+  prune and `Job-done:`.
+
+### Doc hygiene
+- `docs/RULES.md`: every resume block ends with one `Next:` line; the signed-off plan is the only plan (superseded plan
+  files are archived the same day); a short orchestrator tidy-up daily and after each release; updates to Michael in
+  plain English and brief dot points.
+
+## 4.102.5 - Train 93: Co-op lamp guard and guard bake abort polish (2026-10-25, PR #428; #427)
+- In co-op (Marlow Yard and Sector Ops), a client's round at a lamp that reaches the host in the frame after a pause
+  menu restart, before the host has noted the restart, is dropped quietly too. No wire change.
+- Tools: when the offline guard bake (`scripts/operators/guard-bake.mjs`) stops a stage, the ABORT line now names the
+  first lost job and its cause: a spawn error (ENOENT, EPERM, ...), exit 0xC0000142, or a quick failure with an empty
+  log.
+
+## 4.102.4 - Train 92: Conformance review: Guard AI (plan only); Saltmarsh Park section bake: clean shutdown of light-bake workers; Conformance review: Sector Ops (plan only); +3 more (2026-10-25, PR #426; #423, #421, #420, #419, #417, #416)
+
+### Conformance review: Campaign (plan only)
+- Docs: plan-only conformance review of Tallow Wharf, the mission framework / engine and the campaign rules against
+  VISION, RULES, level-design and DECISIONS (`docs/conformance-campaign/CONFORMANCE.md`). No game change.
+
+### Conformance review: Guard AI (plan only)
+- Docs: Guard AI conformance review against VISION, RULES, the bible and level-design: gap table with fix sizes,
+  what conforms, and archetypes per map (`docs/conformance-guard-ai/CONFORMANCE.md`; plan only, G355).
+
+### Conformance review: Marlow (plan only)
+- Docs: `docs/conformance-marlow/CONFORMANCE.md`, the Marlow Build conformance review (G355): a gap table for Marlow
+  Yard (map, mode, HUD guidance), the level validator, the bot route-runs and the guard cap against VISION, the level
+  design standard, the bible, RULES "Intake" and G292-G363, plus the items that conform. Plan only: no src, test, map,
+  script or config change.
+
+### Conformance review: Player (plan only)
+- Docs: Player Build conformance review of movement, animation, takedowns, the co-op player and guard models against
+  VISION, the bible, level-design and DECISIONS (`docs/conformance-player/CONFORMANCE.md`; plan only, G355).
+
+### Conformance review: Sector Ops (plan only)
+- Docs: `docs/conformance-sector-ops/CONFORMANCE.md`, the Sector Ops conformance review (G355): a gap table for
+  Saltmarsh Park S1-S5, the old warehouseOps map, the Sector Ops mode rules and stars, lighting on every map and the
+  visual gate against VISION, level-design, the bible and the G entries, the items that conform and a per-map
+  lighting line. Plan only: no src, test, map, script or config change.
+
+### Saltmarsh Park section bake: clean shutdown of light-bake workers
+- Leaving a match mid-bake now ends every light-bake job, the running ones included, instead of leaving some waiting.
+- If a replacement light-bake worker cannot start, the bake carries on one worker short instead of failing.
+- A lamp that takes over a minute in a worker is noted once in the log.
+
+## 4.102.3 - Train 91: Tooling audit B fixes (2026-10-25, PR #424; #412)
+- Auto-train pacing reads the laptop queue as it is (`requests/` and `claims/`, one GraphQL call): busy while a request
+  has no claim yet (under 12 h old) or a claim is open (under 3 h old). The old read looked for `pending/` / `running*`
+  markers the branch never had, so every tick read idle and pacing never waited.
+- Auto-train self-updates its checkout (fast-forward only, clean tree) right after each release as well as on idle
+  ticks, before the next train is built; back-to-back trains had left it at train 80 with master at 86.
+- `swap.mjs` save check reads the laptop slot locks (`heavy-4189.lock`, `heavy-4192.lock`) and any other
+  `heavy*.lock` beside `heavy.lock` / `heavy2.lock`; a dead pid in any of them is an item.
+- Affected e2e requests leave out the GPU-only and legacy suites (`affectedGateSuites`; the runner's GPU / LEGACY
+  lists now live in `scripts/e2e-affected.mjs`), so affected-e2e never runs or gates on them.
+- Dead scripts moved to `scripts/archive/` (no package script, workflow, live script or scheduled task used them):
+  `ghost-strip`, `menu-shots3/4/5`, `menu-boot-time`, `camera-cue-shots`, `nv-shots`, `sector-fixes-c-shots`,
+  `wheel-shots`, `laptop-runner.ps1`; doc paths updated.
+
+## 4.102.2 - Train 90: Laptop queue: suite names checked at request time, confirm rerun before a guessed auto-drop, spare work when idle (2026-10-25, PR #415; #408)
+### Changed
+- Laptop queue: `request.mjs --suites` takes names split by spaces or commas, and refuses an unknown suite name at request time (checked against the sha's `scripts/`; `name:N` parts by their base name) instead of letting it reach the runner as a false failure.
+- Auto train: when a train's own laptop failure maps to no member (a tier 2-3 guess), it first reruns the failing suites once on the same head; a member is dropped only if that rerun fails too.
+- Laptop queue: after 5 idle minutes (`LQ_SPARE_IDLE_MIN`, 0 = off) the laptop queues one spare job from `docs/laptop-queue/spare-jobs.json` on the master head (full e2e, e2e-coop x5, guard-cap ctcourse 24 / campusops 32, campusOps perf), round-robin, one at a time, each once per master sha. A spare job never starts while a real request is open and stops (done, not rerun) as soon as a train or a real request arrives.
+
+## 4.102.1 - Train 89: Conformance review: Test Runner (plan only) (2026-10-25, PR #413; #410)
+- Docs: `docs/conformance-test-runner/CONFORMANCE.md`, the Test Runner conformance review (G355): a gap table for the
+  suites, the affected-e2e tiers and the laptop queue against RULES, testing-tools, VISION 4-5 and level-design 15,
+  the hard rule to suite map, the 7-day flake budget and the items that conform. Plan only: no script, test, queue or
+  config change.
+
+## 4.102.0 - Train 88: Docs: level standard per mode, archive sweep, re-audit fixes G344-G363; Stealth pays: client intel (2026-10-25, PR #411; #407, #389)
+
+### Stealth pays: client intel
+- Co-op: the client can interrogate any guard the host says still has intel (revived guards, after a rejoin, and
+  Sector Ops guards once their slots carry intel), and a guard the host interrogated no longer offers INTERROGATE on the client. Wire change: an
+  optional `EnemyState.in` flag (absent for guards without intel).
+
+### Level standard per mode
+- Level standard (`docs/level-design.md`) now states its rules per mode: every rule is tagged [All] / [Campaign] /
+  [SectorOps] / [Training], with a profile per mode and a rule index (rule, modes, metrics key, validator check,
+  owner). Campaign sections each force a co-op traversal move with a way back; Sector Ops keeps solo routes past team
+  doors; Marlow Yard is a guided linear course with timed drills. Guards as many as realistically possible (Sector Ops
+  32 alive ceiling), real-world light bands replace the shadow share, up to 2 strict rules with section restart,
+  objectives name what and where with no maps, measured validator pass and bot route-runs at greybox exit.
+- Level validator: `meta.mode` campaign / sector / training profiles (forced co-op gate and gate reach, no softlock and
+  the alive ceiling, no route counts for training), the co-op kit kinds (`team_throw`, `team_hang`, `team_pull`, `shutter`) and `bolted` doors, shadow share as INFO. The scale sheet gets
+  `sector_alive_max` and a light-band placeholder; the uploaded stealth skill is reference only.
+
+### Level standard re-audit fixes
+- Level standard (`docs/level-design.md`): campaign missions run on the Sector Ops runtime with a 32 alive ceiling;
+  engine facts rewritten from the code (five speeds, no sprint, silent bands, guard sight above, doors, camera); one
+  checkpoint rule and a downed rule per mode; Marlow Yard's training rules (timed drills, strict rules taught late,
+  campaign downed rule, 15-20 min); security devices with a security register; unavoidable guards in Sector Ops;
+  helmets and dogs per the 2026-10-25 answers; killing a civilian restarts the section; history cut, profiles point
+  to the rules.
+- Level validator: the alive ceiling also checks campaign maps; co-op kit size bands (pull-up, relay, rope, throw,
+  shutter) from new scale-sheet rows; no softlock reads bolted doors one way; `drill_s` (training only) and the
+  `unavoidable` tag. The scale sheet gets the current camera, silent speeds, an interim light rule and patrol timing.
+- The level-validator job's STATE / BRIEF / PLAN / V1-check / V6-PLAN moved to `docs/archive/level-validator/`.
+
+### Process docs polish (doc-clarity re-audit, slice P)
+- Docs: one authority order list in CLAUDE.md (ROADMAP "Decided" right after Michael); RULES owns "assume and log"
+  overnight, the train-ready rule (who labels, the stuck `affected-e2e` case), stale locks, the laptop queue order, CI's
+  four jobs, cloud sessions running unit tests only, the weekly branch clean-up and a walk cap that limits switch-on
+  only; the subagent preamble reads VISION plus RULES "A job" and "Test tiers" and gains a "Cloud sessions" section;
+  swaps, deploy, auto-train (self-update), watchdog and testing-tools (task guard allowlist) match the code; the
+  map-spec, walk-card, brief and plan-check templates follow the current rules.
+
+### Systems docs re-audit polish
+- Docs: the systems docs and TESTING.md follow the current decisions: the held pistol jammer (G152), complementary
+  kits fixed per mission (G134, G153), real-world draw times (G243), CT's team moves (G180), ping on R3 / middle
+  mouse and goggles on D-pad left, dogs (G348), Marlow Yard downed and strict rules (G349, G357), civilian kills
+  restart the section (G353), helmets, the objective popup and no maps point to their bible owners, character
+  shadows for the meter and guards (G352, not built yet); links point at docs/archive/ for moved job folders.
+
+### Finished job docs archived
+- Docs: 93 finished job folders moved from `docs/` to `docs/archive/<name>/` (names kept, nothing deleted), so
+  `docs/` holds only the core docs and the live jobs (39 entries, was 132). Links and backticked paths in live docs now point at
+  the archive paths.
+- Dev shot scripts and the camera-reach table writer default their output to the archived folders.
+
+## 4.101.2 - Train 87: Co-op lamp shots: no stale round after a restart (2026-10-25, PR #409; #384)
+- In co-op (Marlow Yard and Sector Ops), a client's round at a lamp fired just before a set or section restart no
+  longer shoots that lamp out in the fresh run. No wire change.
+
+## 4.101.1 - Train 86: Laptop queue: dead-pid slot locks, watchdog allowlist, affected-e2e never stuck; Guard AI: one-mover fix; Saltmarsh Park section bake: stuck workers replaced (2026-10-25, PR #406; #403, #387, #385)
+
+### Guard AI: one-mover fix
+- Guard AI: a guard still walking to his reporter or overwatch cover is no longer made the flank while the point is
+  on his own bound, so only one of point and flank is ever on the move at a time (the one-mover rule; e2e-stealth-ai
+  'squad roles' was red on 4.100.2). Undo: `ONE_MOVER.roles` false in `src/ai/squadRoles.ts`.
+
+### Saltmarsh Park section bake: stuck workers replaced
+- A light-bake worker that stops answering is now shut down and replaced when its lamp gives up on it, so the rest of
+  the bake keeps every worker instead of running one short. A silently dead worker holds the load about 90 s at worst
+  (the earlier note said about 85 s; the 5 s check counts on both tries).
+
+### Laptop queue: dead-pid slot locks, watchdog allowlist, affected-e2e never stuck
+- Slot locks: `scripts/heavy-lock.mjs` `parseLock` reads the laptop queue service's own line
+  (`laptop-queue | <label> <sha> pid <n> | <iso>`, no host: this machine) as well as the heavy-lock line, so a slot lock
+  left by a killed service is broken at the desktop gate (and by `heavy-lock.mjs take` / `check`) once its pid is dead.
+  A lock with no pid is still never broken automatically (2026-10-25: pid 4484 held heavy.lock / heavy2.lock 10+ min).
+- Task guard: "NightShift watchdog" is on the allowlist (`TASK_ALLOW` in `scripts/laptop-queue/lib.mjs`); its .vbs in
+  `C:\NightShift\scratch` no longer gets it disabled.
+- affected-e2e: a duplicate affected request hands affected-e2e over to the surviving affected request (pending "handed
+  over to <id>") or posts success when it repeats a recent pass, and is never retired against another requester's run;
+  a supersede on the same sha hands over instead of posting error; an affected request or laptop rerun withdrawn before
+  it ran posts error "withdrawn by the requester (not run)"; a head whose affected-e2e is pending with no open, claimed
+  or running affected request is requested again.
+
+## 4.101.0 - Train 85: Design bible rewritten to today's game; decisions fold G324-G343; Rules in one place; Guard AI polish batch 2; Co-op e2e boot wait (2026-10-25, PR #405; #396, #394, #377, #373)
+
+### Design bible rewritten to today's game; decisions fold G324-G343
+- docs/design-bible.md: rewritten in place to the current decisions (G1-G343): three modes and player counts
+  (campaign and Marlow Yard 2, Sector Ops 1-4), refining allowed, up to 2 strict rules with section restart, no maps,
+  minimap, compass or objective blip in any mode, objectives that fade in and out (View / Select or O), real-world
+  light levels (L17), hardened choke points with a route around, Sector Ops as one current block (Saltmarsh Park
+  S1-S5, signed-off counts, scaling, stars, helmets by difficulty), the same helmet rule in the campaign, Tallow Wharf
+  as campaign Mission 1, Marlow Yard timed drills, G180's team moves, rope and medkits, Marlow Yard as the training
+  course (Fallow parked), one owner for the revive rule (5.9 C6), the work order and open list; dated notes folded into
+  the text.
+- docs/DECISIONS.md: the 2026-10-25 roadmap decisions folded in as G324-G343; "Replaced by" notes on 46 superseded
+  entries; the one-page vision replaced by a pointer to docs/VISION.md; G291 says Sector Ops is 1-4 players.
+
+### Rules in one place
+- Process rules move from `CLAUDE.md` into `docs/RULES.md`, read from origin/master at every session start; `CLAUDE.md`
+  is now a short, stable stub (what Night Shift is, read RULES.md and VISION.md from master, the authority order, the
+  code hard rules). The module map and doc index move to `docs/INDEX.md`.
+- One owner per rule: one train-ready definition (CI `check` + `checker` + `affected-e2e`, labelled by the watchdog),
+  desktop CPU gates as the queue really runs them, a 1-minute auto-train tick, swaps (a save, fresh sessions at a swap,
+  resume after a same-account reset); testing-tools owns the flaky rule; session-method, agent-preamble and auto-train
+  point to RULES.md instead of restating it.
+- The laptop queue's first build plan is archived (`docs/archive/laptop-queue-PLAN-2026-10-23.md`).
+
+### Co-op e2e boot wait
+- e2e: `launch` / `openPage` (`scripts/e2e-lib.mjs`) no longer wait 120 s for the match on the page that hosts a
+  `?net=local&autostart=...&mode=course|sector` room: that match starts only when the second page joins, so the wait
+  ends once the page hosts alone in the lobby. Saves about 2 minutes per boot in e2e-ctcourse (each of its 4 parts),
+  e2e-course (the walk URL) and e2e-bunker.
+
+### Guard AI polish batch 2
+- Guard AI polish: a guard sent to a noise behind a locked door he cannot get through now walks to the nearest point
+  he can reach and looks from there, instead of standing where he was (A184).
+- Guard AI polish: several guards searching who hear the same step now give one "I heard something." between them,
+  not one each in the same moment (A185).
+- Guard AI polish: a guard covering from behind a high wall while a mate moves up holds his peek spot, so his
+  covering fire starts from where he can see (A186).
+- Guard AI polish: guards searching the same spot no longer all walk to your last known position and look there; the
+  first does, once, and the rest take their search points at once; if he is taken down before he gets there, a mate
+  goes instead (A188).
+- Guard AI polish (co-op): a guard who goes alert on a call about one player while he sees the other calls that
+  player in once (A187). A calm guard who sees one player far off and the other clearly lit right in front of him
+  notices the near one at once (A190).
+- Guard AI polish: a flank walk may bend further round your cover before it is dropped (A189). A responder who goes
+  back to searching a device room no longer says "Clear." first (A191).
+- Guard AI polish (code health): armour cover checks go to the best cover spots first (A192); a guard in cover with
+  nothing to go on stays in cover (A194); new test for the recon drone's sight.
+
+## 4.100.9 - Train 84: Docs: system docs match the current rules (2026-10-25, PR #401; #395)
+- Docs (doc-clarity, systems slice): the system docs, TESTING.md, the backlog and the research digests now state the
+  current rules. Player counts per mode (campaign and Marlow Yard 2, Sector Ops 1-4); Sector Ops is the five-section
+  Saltmarsh Park campus; section restart and up to 2 strict rules; no maps, minimap, compass or blip; stars fill every
+  tier below a clear; guard caps, per-mode archetypes, helmets by difficulty, lookouts and paired patrols; real-world
+  light bands and hardened choke points; the objective fade with View / O (decided). The CT movement rules G210 / G227 replaced are marked replaced. The research
+  digests, docs/ct-prototype/ and docs/progress.md carry history banners; docs/story.md gets a status note.
+
+## 4.100.8 - Train 83: One-page game vision (2026-10-25, PR #399; #393)
+- docs/VISION.md: a one-page vision every session reads first: the pitch, the three modes (campaign, Marlow Yard,
+  Sector Ops) side by side, Michael's overrides of pure CT, ten hard design rules, build gates, what is never in the
+  game, each line citing its G entry or ROADMAP Decided time.
+
+## 4.100.7 - Train 82: Decisions fold G283-G323 (2026-10-25, PR #397; #386)
+- docs/DECISIONS.md: roadmap decisions of 2026-10-24 ~15:10 to ~23:46 folded in as G283-G294 (idle-lead rule, level
+  validator and standard extras, train speed-ups, test jobs, process audit, mission rules and prototypes, Marlow Yard
+  and campaign co-op traversal, guard off-screen animation tier).
+- docs/DECISIONS.md: the archived roadmap decisions of 2026-10-23 ~01:08 to ~21:08 not yet recorded folded in as
+  G295-G323 (Sector Ops redesign, Guard AI, models and pacing, stealth over shooting, Sector Ops 4 players, guard
+  models, lighting, release and pipeline speed-ups, moving lights).
+- docs/design-bible.md: dated notes for most of G283-G323; the voxel retirement lines in 5.14 and 5.16 now cite G282.
+
+## 4.100.6 - Train 81: Sector Ops polish 3 (2026-10-25, PR #392; #379)
+- Light bake: when the moon bake fails while a section bake still waits on its cache read, no section baker starts
+  afterwards (it used to start one that nobody stopped).
+- Vol lights: `writeVolLights` writes slot `i` and returns `n` (one counter, not two); the wiring guard test reads its
+  sources relative to the test file and names what to do when its regex stops matching.
+
+## 4.100.5 - Train 80: pr-size loads its script from the base branch (2026-10-25, PR #391; #378)
+- CI: the `pr-size` job runs `scripts/pr-size.mjs` (and `glob-match.mjs`) as taken from the base branch, so PR
+  branches cut before 4.100.0, which lack the script, no longer fail `check` with "Cannot find module".
+
+## 4.100.4 - Train 79: Laptop queue: dead-pid heavy.lock broken at the desktop gate, "CI running" in the auto-train status (2026-10-25, PR #390; #374)
+### Changed
+- Laptop queue: the desktop slot gate logs the slot lock's holder once per change ("4191 held by heavy.lock: <text>") and breaks a lock whose pid is dead on this host when its text is unchanged on a second read (logged; a lock with no pid or a live pid is respected). A train's slot-lock wait breaks such a lock too.
+- Auto train: the status and log say "CI running" (was "CI missing" or "CI pending") while a CI run for the head has no conclusion yet; "CI missing" only when the head has no CI run or check at all.
+- Requests fill `branch` and `pr` by default (the asked ref; nothing for a sha already on master; the requester's checkout when the sha is its head; else the one remote work branch at or containing it, and its open PR), so failure comments reach the right PR and queue audits can see each request's branch.
+
+## 4.100.3 - Train 78: Guard bake: stop on a lost console (2026-10-25, PR #383; #380)
+- Tools: the offline guard bake (`scripts/operators/guard-bake.mjs`) stops a stage at the first job whose launch dies
+  with a lost console (exit 0xC0000142, or a failure under 2 s with no output), waits for running jobs, prints
+  "ABORT: console lost, restart the bake detached" and exits 5 without pushing, instead of failing every remaining job.
+
+## 4.100.2 - Train 76: Co-op Course mode: client lamp shots (walk bug S2); Laptop queue: visual-gate after green trains (2026-10-25, PR #381; #371, #367)
+
+### Co-op Course mode: client lamp shots (walk bug S2)
+- Marlow Yard co-op: the client's round through a lamp now shoots it out on the host with the same checks as Sector
+  Ops (draw, weapon, rate, origin, the lamp first on the ray, a clear line), and both pages see it dark (the client
+  from the host's next `course` message, with the host's sparks cue, not on a join or rejoin); a course restart brings
+  it back. No wire change.
+- Co-op lamp shots (Sector Ops and Course mode): a client's repeat round at a lamp the host already has out is
+  dropped quietly instead of counting as a violation.
+
+### Laptop queue: visual-gate after green trains
+- Laptop queue: after a green train whose head has `scripts/e2e-visual.mjs`, the service frees the second slot and
+  runs the picture gate on the first, posting a `visual-gate` status (clean / flags / error) that never holds a release.
+- A flagged run comments on the train PR with the gate's table, thumbnail links and the accept command; the desktop
+  lane posts "skipped", and `LQ_VISUAL=0` turns the step off (`docs/laptop-queue/visual-gate.md`).
+
+## 4.100.1 - Train 75: lightField allocation test deterministic in CI; Saltmarsh Park section bake: live lamps first (2026-10-25, PR #376; #369, #361)
+
+### Saltmarsh Park section bake: live lamps first
+- A lamp of the section you are in whose bake failed twice now bakes at once during play instead of waiting for every
+  other lamp, so that spot is no longer dark for the rest of the background bake. Lamps elsewhere still wait for the
+  workers to go idle, or bake as soon as their section goes live. A stuck second try now gives up after 20 s, so a
+  silently dead worker holds the load about 85 s at worst instead of about 125 s.
+
+### lightField allocation test deterministic in CI
+#### Changed
+- `tests/lightField.test.ts` "allocation-free under a loop": bodyLevel is judged against the run's own levelAt
+  (2 x levelAt + 56 B) instead of an absolute 144 B. About 1 CI run in 15 (Node 22) reads exactly 173.2 B for the
+  whole process (normal 126.8), so the old limit failed train/71 and PR #361 on code that never touched it. A vector,
+  object or closure per query is still caught (an injected object in totalInto read 296.9 B against 169.6).
+
+## 4.100.0 - Train 74: Laptop queue: release hold, desktop failures rechecked on the laptop, faster release poll; Co-op interrogation read under host load; Guard AI polish batch; Intake gates and the PR size cap (2026-10-25, PR #370; #366, #365, #363, #351)
+
+### Guard AI polish batch
+- Guard AI polish: a guard picks cover by the walk, not the straight line (A167). Up to 3 candidates are tried; a
+  cover a mate holds is skipped and one behind a long detour (over 1.5 x the straight line + 3 m) is passed over, so
+  he no longer walks the long way round to cover he cannot fight from, or freezes on a mate's cover. A failed open-wait
+  pick retries every 3 s.
+- Guard AI polish: a device responder who hears a noise goes back to searching the device room after the look,
+  instead of standing still.
+- Guard AI polish: a circuit cut twice inside 60 s, or one whose reset walk never finished (the walker knocked out, the
+  alarm, the 30 s give-up), is found and relit again after 20 s instead of staying dark for good (A168).
+- Guard AI polish: a guard in cover with the player out of sight judges his cover against where he last knew the
+  player was, not the player's real position, so he no longer pops up into an upright strafe and re-picks cover.
+- Guard AI polish (co-op): a guard with no intruder of his own heads for what he himself sensed, not for the partner
+  nobody told him about (A165). A guard hunting one player who sees the other calls him in once, so that fight gets a
+  reporter (A166).
+- Guard AI polish: the search plan hands out new points on each rebuild and never re-looks the last known position
+  as its second point; heard spots no longer skip a search point; search points snap to the right floor; a clamped
+  plan point is not counted as searched.
+- Guard AI polish: one-mover rule counts only a trip to the role's own cover (fixes a squad e2e flake); a fighter who
+  hears the other player keeps hearing his own target; two intruder groups are never sent to the same free cover; a
+  blinded calm guard no longer turns to or reports noises.
+- Guard AI polish: overwatch suppress rechecks its line each episode and counts crates as blocking, so no rounds go
+  into a wall or a crate; a stale advance after an open-wait pick no longer churns cover / chase.
+- Guard AI polish (co-op): first shots at a newly picked target use a fresh aim settle; a dog in a fight follows a
+  partner he can smell.
+- Guard AI polish: a calm guard with two players in view keeps looking at the one he picked until the other is seen
+  clearly better (25%, A169), instead of switching every think.
+- Guard AI polish: a still-locked door forced open opens its doorway on the guards' nav grid at once, not one update
+  late.
+- Guard AI polish: an alerted reinforcement with no valid intruder binds on the next call or sighting, not to an alarm
+  slot with no position (A182).
+- Guard AI polish (code health): fewer allocations and cheaper checks in `pickCover`, `consoleStep`, `boardStep` and
+  the per-step manager loops; new tests for the locked-door open, the calm target hold and the sight-ray miss.
+
+### Intake gates and the PR size cap
+- Intake gates (process audit 2026-10-24): BRIEF splits "Michael said" from "Michael picked", PLAN carries a claims
+  block, a fresh Opus plan checker runs before build, maps and looks get a one-page sign-off, and slices stay at
+  ~1.5k lines or ~4 h with unfinished work dark behind a flag (`docs/systems/session-method.md` "Intake").
+- Templates: `docs/templates/brief.md`, `plan.md`, `plan-check.md`, `signoff.md`, `walk-card.md` (walk pacing: at most 3
+  unwalked features per area, a 10-minute risk-ranked walk card per release).
+- CI: a `pr-size` job inside `check` fails a PR over 1500 counted changed lines (generated assets, snapshots,
+  lockfiles and docs not counted) unless it has the `big-pr` label; train and docs-only PRs are exempt
+  (`scripts/pr-size.mjs`).
+- `scripts/claims-check.mjs` reports overlapping file globs, maps, wire and save claims between open job PLANs.
+
+### Co-op interrogation read under host load
+- Fix: co-op: a client's interrogation read is no longer lost when the host frame rate dips. The host counted the end
+  only when one of its frames caught the read's last 0.3 s; it now counts any seen read whose bit drops while the hold
+  goes on, and forgets it when the hold ends (the e2e-coop joint interrogation flake at x0.3 host speed).
+- Tests: `interrogationEnded` cases for a read whose tail fell between host frames (ph 0.4 straight to the bit dropped).
+
+### Laptop queue: release hold, desktop failures rechecked on the laptop, faster release poll
+#### Changed
+- Laptop queue: for up to 10 min after an open train's laptop-e2e success (while train-ready PRs not in it have a green or running check) no new request is claimed, aged alone requests included, so the next train is not preempting a fresh alone run; train reruns still start (`LQ_RELEASE_HOLD_MIN`).
+- Laptop queue: a desktop PR run whose suites fail posts pending "desktop FAIL <suites> (cpu N%), laptop rerun queued" (plus "; desktop cpu>90%" when its median CPU was over 90) and queues a laptop-only rerun of the failed suites; the laptop's verdict is final.
+- Auto train: the fast poll runs every 30 s (was 60) once the train's laptop-e2e pending status is older than its expected wall (the laptop's "expect ~N s", else 10 min), so a release follows the laptop verdict within a minute.
+- Laptop queue: the desktop CPU gates leave out processes at BelowNormal or Idle priority (a background Blender bake no longer holds the desktop slots); the wait reason shows the gated and the total load.
+- Laptop queue: a superseded laptop rerun closes the desktop's "desktop FAIL ..., laptop rerun queued" pending status.
+- Merge train: `git fetch` takes only the branches each step reads and retries up to 5 times when another worktree's fetch holds a ref lock (also auto-train's self-update).
+- Laptop queue: each requester's oldest open request runs first (was newest), unless one of its requests has a higher `--priority N` (request.mjs); the order between requesters is unchanged.
+
+## 4.99.1 - Train 73: Watchdog: deterministic pipeline alerts (2026-10-25, PR #368; #350)
+- Pipeline: `scripts/watchdog.mjs tick` (every 2 min via `scripts/watchdog-task.ps1` from the self-updating checkout
+  `C:/NightShift/Mobile-Coop-watchdog-live`) writes `C:/NightShift/scratch/watch-status.json`: dead or stale heavy
+  locks, orphaned e2e runners, CONFLICTING / re-committed / red `train-ready` PRs, PRs ready for the label, release-tail
+  gaps (dev behind, missing tag, merged members still open: alert only), a stale `/preview/`, auto-train health,
+  laptop-queue claims and requests, stuck cloud-queue claims. Fixes are opt-in per check (`--fix locks,labels,...`).
+- Label convention: `train-ready` only on CI `check` green + a `checker` commit status success + `affected-e2e`
+  success (required unless opted out: `no-affected-e2e` label or `WATCHDOG_REQUIRE_AFFECTED=0`). See `docs/systems/watchdog.md`.
+
+## 4.99.0 - Train 72: Auto affected-e2e and flake budget; Swap tools; Rulebook: current rules only (process audit 2026-10-24) (2026-10-24, PR #364; #356, #349, #347)
+
+### Rulebook: current rules only (process audit 2026-10-24)
+- CLAUDE.md "Sessions" rewritten as one current rulebook (~150 lines): no dated layers, every contradiction resolved
+  to Michael's newest decision. New rules: no-refining rule lifted, walk cap 3 per area plus a walk card per release,
+  one-click visual sign-off before map greybox / art / big look changes, a plan checker before building, PRs under
+  ~1.5k lines or ~4 h with unfinished work dark behind an owned flag, agents commit each sub-step, checkers post a
+  `checker` commit status, leads never merge master, rules read from origin/master only.
+- `docs/systems/agent-preamble.md` matches it. The old text is kept verbatim in
+  `docs/process-audit/rules-history-2026-10-24.md`.
+
+### Auto affected-e2e and flake budget
+#### Changed
+- Laptop queue: every open PR head gets an automatic affected-e2e run (the suites its change drives) and an `affected-e2e` commit status; a newer head supersedes the older request.
+- Flake budget and quarantine replace "flake stands": a suite may flake 2 times in 7 days, the next flake quarantines it for 48 h with an owner; quarantined suites always run and print KNOWN FLAKY. `scripts/e2e-quarantine.json` holds the committed list (e2e-pad) and the suite owners; PR comments carry a flake-rate table when a run flaked.
+
+### Swap tools
+- Swap gate `scripts/swap.mjs`: `save` / `status` scan every worktree on the machine (uncommitted, unpushed, detached
+  local-only commits; merged and stale-debris worktrees skipped), the heavy locks with pid liveness, the laptop queue and
+  the auto-train status, and end with `SAFE` or `NOT SAFE: <n> items` (`C:/NightShift/scratch/swap-status.json`);
+  `save --commit-wip` commits dirty job worktrees as WIP and pushes their branches (never protected branches, never force).
+- `swap.mjs prune --dry-run|--yes` removes clean worktrees of branches merged into origin/master (branches kept).
+- `scripts/cloud-queue-expire.mjs` reopens cloud briefs whose claim missed its 30-min heartbeat for 90 min with no push
+  to the brief's branch; the cloud-queue README text for the heartbeat is in `docs/cloud-queue-README.patch.md`.
+- The swap procedure as commands, with targets (cap to every session up under 10 min): `docs/systems/swaps.md`.
+
+## 4.98.3 - Train 70: Release path hardening (2026-10-24, PR #359; #353)
+- merge-train: the release title, minor / patch kind and CHANGELOG heading come from the members actually merged
+  into `train/<n>` (a left-out member no longer names the release; the version follows the merged fragments).
+- merge-train build: the version commit is built and the CHANGELOG assembled on git objects first (fragment format,
+  empty train, nothing new, docs-only train); only a valid train is pushed, once, and its PR opened after the push.
+- merge-train release / repair: the tail (tag, dev, member PRs, deploy) is idempotent; `release` of a merged train and
+  the new `merge-train repair` (latest released version) redo only what is missing.
+- Pages: one deploy per release, dispatched after dev moves with the tested head; lint and vitest are skipped when the
+  live tree is that head's tree; each slot gets `version.json` and merge-train waits up to ~20 min, then prints
+  whether `/preview/` serves the release (`PREVIEW: OK | STALE | UNKNOWN`).
+- merge-train: `build 063` is train 63; a non-stacked build reusing a train PR drops a stale base marker.
+
+## 4.98.2 - Train 69: Saltmarsh Park fog fix wiring test (2026-10-24, PR #358; #357)
+- Tests: a test now guards the wiring of the Saltmarsh Park fog fix (the map's lamp-beam setting reaching the
+  volumetric light pass), so dropping it fails CI. No player-visible change.
+
+## 4.98.1 - Train 68: Saltmarsh Park section bake hardening (2026-10-24, PR #355; #354)
+- Saltmarsh Park's per-section lamp bake is sturdier: a lamp whose bake fails is retried once on the worker pool, then
+  on the main thread only while no worker job runs (one lamp per task, so frames keep running), and a job stuck past
+  60 s counts as failed instead of hanging the load. A failed lamp is never cached, so the next load bakes it again. A
+  failed map load no longer leaks bake workers, finished batches no longer re-upload the whole light atlas, and lamps
+  of the live section jump to the front of the queue. Picture, light meter and guards read the same light as before.
+
 ## 4.98.0 - Train 67: Level validator: connectivity graph, validator, metrics JSON, scale-sheet room table, level standard; Auto-train drops the failing member and rebuilds at once (2026-10-24, PR #352; #346, #343)
 
 ### Auto-train drops the failing member and rebuilds at once

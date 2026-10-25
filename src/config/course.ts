@@ -1,6 +1,6 @@
 /**
  * Course framework numbers (training bunker, pure). The course's own tuning lives here; the movement, enemy, weapon,
- * perception and light tables never change for the course map (docs/training/RULES.md).
+ * perception and light tables never change for the course map (docs/archive/training/RULES.md).
  */
 
 /** Seconds an airlock takes to cycle once both players stand on its pad (automatic, R6) (TUNE). */

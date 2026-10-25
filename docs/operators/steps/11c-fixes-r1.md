@@ -15,13 +15,13 @@ none of master's 57 deleted files came back; no operators file was dropped. The 
    Done: both defaults are 4189, the comment and README say `E2E_GPU=1 E2E_PORT=4189`, STATE.md drops the stale
    conflict sentence (if the 11d rewrite has not already). Old LOG / RUNBOOK / BRIEF mentions stay as history.
 
-2. **LOG "Step 11c" Checks: citation is ambiguous.** `docs/consolidation/PR-BODY.md:48` lists only e2e-kestrel
+2. **LOG "Step 11c" Checks: citation is ambiguous.** `docs/archive/consolidation/PR-BODY.md:48` lists only e2e-kestrel
    ("camera rays along the tour") and e2e-camera-bounds (level U). e2e-editor is listed as a Kestrel-owned
-   pre-existing failure only in `docs/consolidation/AGENT-PREAMBLE.md:42`; the LOG's bare "AGENT-PREAMBLE.md 42" reads
+   pre-existing failure only in `docs/archive/consolidation/AGENT-PREAMBLE.md:42`; the LOG's bare "AGENT-PREAMBLE.md 42" reads
    as the operators preamble. Also the characterRig line says "+590 / -249"; `git diff --shortstat a804c48^1
    a804c48^2 -- src/player/characterRig.ts` gives +448 / -142.
-   Done: the LOG cites `docs/consolidation/PR-BODY.md` 48 (kestrel, camera-bounds) and
-   `docs/consolidation/AGENT-PREAMBLE.md` 42 (editor, kestrel, camera-bounds) and gives +448 / -142.
+   Done: the LOG cites `docs/archive/consolidation/PR-BODY.md` 48 (kestrel, camera-bounds) and
+   `docs/archive/consolidation/AGENT-PREAMBLE.md` 42 (editor, kestrel, camera-bounds) and gives +448 / -142.
 
 3. **LOG "depends on deleted systems" list is incomplete.** Missing from it:
    - Item 1 / 2 files: `tests/operatorLab.test.ts:196,211,215,218` (close-up expectations that include `medPouch`);

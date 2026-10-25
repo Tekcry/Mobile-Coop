@@ -1,5 +1,5 @@
 /**
- * (camera-range) The reach scan behind docs/camera-range/MEASURE.md and `cameraReach.test.ts`: every camera of every
+ * (camera-range) The reach scan behind docs/archive/camera-range/MEASURE.md and `cameraReach.test.ts`: every camera of every
  * live map, built with the map's own pieces (`LevelBuilder`, `SightWorld` as the sector checks use), swept over its whole
  * pan. A head (standing 1.6 m, crouched 1.05 m over the feet, `remoteHeadY`) is "picked up" where it is in the frame
  * (`inFrame` with the camera's pitch and range), the lens has a clear line to it, the body stands free, and the rate is

@@ -728,7 +728,7 @@ export class CharacterRig {
   readonly toeL: TransformNode;
   readonly toeR: TransformNode;
   /**
-   * (anim-rig) Sling sockets for a slung long gun (docs/anim-rework/RIG.md): `slingBack` on the chest at the left
+   * (anim-rig) Sling sockets for a slung long gun (docs/archive/anim-rework/RIG.md): `slingBack` on the chest at the left
    * shoulder blade (where the sling's rear end anchors on the back plate), `slingHip` on the pelvis at the left hip (the
    * belt's quick-detach sling socket). Rest frames match their parents' (+X right, +Y up, +Z forward); a player rig
    * moves them onto Wren's own kit (playerFigure.ts, WREN_SLING). Nothing is parented to them yet.
@@ -3470,6 +3470,8 @@ export class CharacterRig {
    * knee moves to the plant's circle on the raw knee's side (`plantKnee`), the hip and the shin turned by the shortest
    * arcs onto it and back onto the plant, the foot keeps its planted world rotation turned by the ankle delta, the toe
    * takes its delta; raw and planted are slerped per joint by that weight. Zero deltas leave a side untouched.
+   * (tuner-clarity S2) The ankle delta includes its yaw (the foot twist); the shin twist turns the shin about its bone
+   * after the knee delta, and on a planted leg it also turns the planted foot about the shin (the ankle stays put).
    * No allocation.
    */
   private keyedLegDeltas(kq: KeyedPose, kw: number): void {
@@ -3496,7 +3498,15 @@ export class CharacterRig {
       hip.rotationQuaternion!.multiplyInPlace(kT);
       Quaternion.RotationYawPitchRollToRef(0, d[b + KD.knee]! * kw, 0, kT);
       knee.rotationQuaternion!.multiplyInPlace(kT);
-      Quaternion.RotationYawPitchRollToRef(0, d[b + KD.anklePitch]! * kw, d[b + KD.ankleRoll]! * kw, ldD);
+      // (tuner-clarity S2) the shin twist about the bone AFTER the knee delta (knee *= Rx(knee) * Ry(twist): the ankle
+      // point stays on the bone); 0 skips the multiply, so an old-channels-only leg is bit for bit as before
+      const tw = d[b + KD.shinTwist]! * kw;
+      if (tw !== 0) {
+        Quaternion.RotationYawPitchRollToRef(tw, 0, 0, kT);
+        knee.rotationQuaternion!.multiplyInPlace(kT);
+      }
+      // (S2) the ankle yaw (+ 0: a -0 delta passes the old literal 0)
+      Quaternion.RotationYawPitchRollToRef(d[b + KD.ankleYaw]! * kw + 0, d[b + KD.anklePitch]! * kw, d[b + KD.ankleRoll]! * kw, ldD);
       ankle.rotationQuaternion!.multiplyInPlace(ldD);
       Quaternion.RotationYawPitchRollToRef(0, d[b + KD.toe]! * kw, 0, kT);
       toe.rotationQuaternion!.multiplyInPlace(kT);
@@ -3542,6 +3552,13 @@ export class CharacterRig {
       Quaternion.FromUnitVectorsToRef(ldKr, ldV, kF);
       kF.multiplyToRef(knee.absoluteRotationQuaternion, tmpQ3);
       this.setWorldRot(knee, hip, tmpQ3);
+      // (tuner-clarity S2) the shin twist folds into the foot: its planted rotation turned about the shin's bone axis
+      // (the re-solved knee's y, as the raw twist turns it), so the toe turns on the floor and the ankle stays put
+      if (tw !== 0) {
+        ldX.set(0, 1, 0).rotateByQuaternionToRef(tmpQ3, ldX);
+        Quaternion.RotationAxisToRef(ldX, tw, kF);
+        kF.multiplyToRef(ldF0, ldF0);
+      }
       // the foot: its planted world rotation turned by the ankle delta (the ankle stays on the plant)
       ldF0.multiplyToRef(ldD, tmpQ3);
       this.setWorldRot(ankle, knee, tmpQ3);

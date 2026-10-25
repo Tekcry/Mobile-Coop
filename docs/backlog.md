@@ -1,8 +1,8 @@
 # Backlog (feedback inbox)
 
 Every piece of feedback lands here with where it goes. Michael decides scope; Claude adds items, never silently drops
-them. When an item ships, mark it done with the job and version. Jobs and their order: `docs/progress.md`. Anything
-that is not in Chaos Theory does not get built (G1).
+them. When an item ships, mark it done with the job and version. Jobs and their order: `docs/ROADMAP.md` (on
+origin/feature/menu). CT is the default; Michael's decisions override it (docs/VISION.md, docs/DECISIONS.md).
 
 Format: `N. Item - destination - status`.
 
@@ -13,7 +13,6 @@ Format: `N. Item - destination - status`.
 5. **Ghost copy of the operator on Epic. CLOSED by voxel-retire (2026-10-23): the voxel body code is gone.** A second copy of the operator's voxel body, its level-of-detail mesh `player-vox-lod` (`src/voxel/voxelBody.ts`), can draw beside the real one; detail in `docs/archive/progress-phases.md` ("Noted fixes"). Destination: graphics fix batch (Michael: "don't do it yet").
 6. **Voice test, a later idea (G82).** Generate the Mission 1 opening three ways: the browser's built-in speech, a free open-source voice model run on this PC, a paid AI voice service; Michael picks by ear. Until then radio and subtitles are text. Write all radio lines short and voice-ready. Original voices only: never clone or imitate a real actor. Destination: unscheduled.
 7. **Epic misses its design targets on the RTX 4090 laptop.** Main thread about 4.3 ms against 3 ms, frame spikes. The goals are rewritten to the laptop's numbers (G14). Destination: graphics fix batch.
-8. **Epic's level material (voxMat) uses 15 of 16 texture units.** Any new texture breaks it. Plan texture atlases before the CC0 desktop textures. Destination: before the CC0 texture work.
 9. **Skin shader D3D warning X4576 (dynamically indexed array).** Makes it recompile slowly, a likely hitch when guards first appear. Destination: graphics fix batch.
 12. **Benchmark at 7680x2067 (RTX 4090 Laptop, v3.5.0, 2026-10-09, `sbd-feedback-2026-10-09.html`).** Low 120 fps (1% low 79), Medium 77 (19), High 64 (29), Ultra 48 (14), Epic 45 (10, worst spike 227 ms, main thread p95 6.8 ms). Data for item 7. Destination: graphics fix batch.
 13. **Thermal vision as CT (G102).** CT's colour ramp (cold background deep blue to purple; heat blue, green, yellow, orange to red at the torso), soft blurred edges, no fine texture, a tube vignette; people behind closed doors as a dim silhouette. Original art only. Destination: the CT prototype.
@@ -22,7 +21,7 @@ Format: `N. Item - destination - status`.
 23. **Ring airfoil** (`docs/systems/ct-toolkit.md` 3.8). CT's gadget set is settled by the CT co-op research (G76).
 24. **Knife** (`docs/systems/ct-toolkit.md` 3.10: knife takedown and cutting). Its role is settled by the CT co-op research (G76).
 25. **A30 must judge fire stairs per building** (`rooms[].building`). Today A30 compares floor heights only, so a fire stair in one building counts as serving a level of the other (`docs/kestrel/schema.md` section 6). Destination: Kestrel tools, when Kestrel resumes (G53).
-27. **FIXED (gl-warning-fix, docs/gl-warning-fix/REPORT.md).** **GPU-only GL warning on RT + TAAU + Panini (2026-10-21, Menu Notes GPU run).** e2e-desktop under `E2E_GPU=1` fails "ray traced + TAAU + Panini render without console errors" on master d537cbd8 and #58 alike: repeated "GL_INVALID_VALUE: glGetProgramiv: Program object expected" (ANGLE D3D11 only; software GL passes). Something queries a deleted program on that path. Fix the query, or let that assert ignore the warning if it is harmless.
+27. **FIXED (gl-warning-fix, docs/archive/gl-warning-fix/REPORT.md).** **GPU-only GL warning on RT + TAAU + Panini (2026-10-21, Menu Notes GPU run).** e2e-desktop under `E2E_GPU=1` fails "ray traced + TAAU + Panini render without console errors" on master d537cbd8 and #58 alike: repeated "GL_INVALID_VALUE: glGetProgramiv: Program object expected" (ANGLE D3D11 only; software GL passes). Something queries a deleted program on that path. Fix the query, or let that assert ignore the warning if it is harmless.
 26. **Phone is launch-only and untested (G182).** A phone opens the game on the minimum settings with the UI scaled to its screen and a Bluetooth pad as the input; no touch controls, no phone checks or tests, no device runs. Destination: none (testing only).
 28. **Gameplay reads the rig pose (log only, havok-stall 2026-10-21; for later review).** Not graphics state, but gameplay
     tied to the animation: the guard's perception eye comes from `rig.headNode` (`src/ai/enemy.ts:1779-1781`), the
@@ -30,12 +29,12 @@ Format: `N. Item - destination - status`.
     pose too. An animation change can move what a guard sees or where a shot lands. No change made; review whether these
     should read the gameplay root (controller position, crouch, lean) instead. Destination: unscheduled.
 29. **DONE (anim-bake-all, 2026-10-22): every tuner slider bakes.** The sliders below bake into the base table's generic
-    `sections` key (`docs/anim-tuner/BAKE.md`, "The generic table"), strideMul per moving state; a shared target whose
+    `sections` key (`docs/archive/anim-tuner/BAKE.md`, "The generic table"), strideMul per moving state; a shared target whose
     groups differ bakes per state; BAKE_MANUAL holds the Joints mirror lock only. Still open (a later job): the remote
     partner reading the move sections (it needs the role on the wire), and the Body root offsets on the partner and
     puppets (BAKE.md, Body base, "Open"). The list as it was:
     **Tuner sliders that do not bake yet (rule: every slider the tuner shows must bake; anim-bake-targets, 2026-10-22).**
-    The bake reports these "manual" (`src/anim/tuneBakeTable.ts` BAKE_MANUAL; `docs/anim-tuner/BAKE.md`). Each needs
+    The bake reports these "manual" (`src/anim/tuneBakeTable.ts` BAKE_MANUAL; `docs/archive/anim-tuner/BAKE.md`). Each needs
     a code target (usually a per-state default every rig reads). Destination: unscheduled (a later bake-targets job).
     - Body strideMul: one shared target (MOVEMENT step lengths); bakes only when all 13 moving states agree, otherwise
       "manual: shared target". Needs a per-state stride table.
@@ -72,13 +71,14 @@ Format: `N. Item - destination - status`.
 
 ## Flaky e2e suites
 
-`scripts/run-e2e.mjs` has these in `KNOWN_FLAKY`: they always run, a failure is printed "KNOWN FLAKY" and does not fail
-the run, a failure in any other suite does. Remove a suite from that list when it is fixed. Rerun a suspect alone
+`scripts/e2e-quarantine.json` lists the quarantined suites (owner, expiry, reason; the flake budget in
+`docs/systems/testing-tools.md`): they always run, a failure is printed "KNOWN FLAKY" and does not fail the run until
+the expiry, a failure in any other suite does. Remove the entry when the test is fixed. Rerun a suspect alone
 (`E2E_PORT=4191 node scripts/run-e2e.mjs e2e-coop`) before reading anything into one failure.
 
 Process audit (2026-10-19, approved by Michael; `docs/process-audit/REPORT.md` section 2): the co-op suites are fixed
 by their own desktop job (the likely shared cause: wall-clock waits against a sim slower than real time on software
-GL); the rest are parked, not fixed. Co-op test fix (2026-10-19, `docs/coop-tests/`): the cause confirmed and fixed
+GL); the rest are parked, not fixed. Co-op test fix (2026-10-19, `docs/archive/coop-tests/`): the cause confirmed and fixed
 (sim-clock waits), plus stale test numbers (the walk-off crouch, the medkit heal) and a crouch race; e2e-coop,
 e2e-netmove and e2e-ctcourse passed 3 solo rounds and 2 full runs on the laptop. `KNOWN_FLAKY` is e2e-pad only.
 
@@ -110,7 +110,7 @@ e2e-netmove and e2e-ctcourse passed 3 solo rounds and 2 full runs on the laptop.
     `teamLog` (e2e-net-lib) now adds those gates (wall core, door peek and door open active, pistol aim asked, the
     current weapon class, carrying), so the next failure says why.
 
-- **e2e-menus "stall" at (tuner-camera) on the desktop (fixed in the test, havok-stall 2026-10-21; `docs/havok-stall/REPORT.md`)** -
+- **e2e-menus "stall" at (tuner-camera) on the desktop (fixed in the test, havok-stall 2026-10-21; `docs/archive/havok-stall/REPORT.md`)** -
   the full suite failed 5 of 5 on the desktop (i7-7700K, software GL) right after "tuner: Menu closes it and the game
   runs". It was not a hang: the runner killed the suite at its 600 s limit (`E2E_SUITE_TIMEOUT`), and at `E2E_JOBS=1`
   the runner streams the output and drops its "KILLED" line, so it looked like one. The match page ran at about 1.5
@@ -125,16 +125,16 @@ e2e-netmove and e2e-ctcourse passed 3 solo rounds and 2 full runs on the laptop.
   run on the manual clock and each seeds `Math.random` (7919): 3 solo runs gave 15.5, 10.25 and 15.5 s (the rest of the
   spread is the world state when the manual clock takes over). Not on `KNOWN_FLAKY`; remove this entry after a few
   clean full runs.
-- **e2e-coop** (fixed 2026-10-19, `docs/coop-tests/`; off the list) - failed 1 of 4 full serial runs, about 1 of 5 alone (2026-10-09). Failure: "client grabs a host guard from behind": the match's guards re-alert after the steps before and the picked guard turns to face the client, so the offer becomes the front takedown. Kept fix: the picked guard's `update` is switched off (a statue) from the pick until the grab is held. **The statue covers the netcode only; guard perception and turning in co-op are not tested by this step.** Open: "client strike denied" (pre-existing; wait until the client strike can start and assert `begin()` returns true).
+- **e2e-coop** (fixed 2026-10-19, `docs/archive/coop-tests/`; off the list) - failed 1 of 4 full serial runs, about 1 of 5 alone (2026-10-09). Failure: "client grabs a host guard from behind": the match's guards re-alert after the steps before and the picked guard turns to face the client, so the offer becomes the front takedown. Kept fix: the picked guard's `update` is switched off (a statue) from the pick until the grab is held. **The statue covers the netcode only; guard perception and turning in co-op are not tested by this step.** Open: "client strike denied" (pre-existing; wait until the client strike can start and assert `begin()` returns true).
 - **e2e-menus** (2026-10-21, not a hang; not in `KNOWN_FLAKY`): on the desktop the suite was killed at the 600 s suite
   limit at its "(tuner-camera)" step (the runner prints no KILLED line at `E2E_JOBS=1`, so it looked like a stall).
-  Cause (job havok-stall, `docs/havok-stall/REPORT.md`): software GL there runs the page at 1-4 fps, and that block
-  waited 360 rendered frames; the Havok stacks in `docs/anim-joints/J2-STALL.md` were snapshots of slow frames, not a
+  Cause (job havok-stall, `docs/archive/havok-stall/REPORT.md`): software GL there runs the page at 1-4 fps, and that block
+  waited 360 rendered frames; the Havok stacks in `docs/archive/anim-joints/J2-STALL.md` were snapshots of slow frames, not a
   spin. Fixed on `feature/havok-stall` (sim-time waits, the idle menu page blanked: 312 s alone). The laptop passes it.
 - **e2e-darkness** (moved to the GPU list: it reads final pixels) - failed on an idle machine in the Epic look (the driver compiles the probe card's shaders for seconds after first draw). Fixed in the test: wait for `scene.isReady()` and filter the driver's "glGetProgramiv: Program object expected" warning. Kept in the list until it has run clean for a few full runs.
-- **e2e-netmove** (fixed 2026-10-19, `docs/coop-tests/`: sim-clock waits, the walk-off un-crouch; off the list) - timing failures under load: "ladder after a climb: host mode ground" (fixed in the test), "timed out waiting for host braces" (host frames 307-418 ms with other suites running; passed serially), and once "Execution context was destroyed", suspected to be the app reloading when a service worker activates externally (`src/pwa`). Blocking service workers in the test contexts makes every suite's "no console errors" check fail; not fixed.
+- **e2e-netmove** (fixed 2026-10-19, `docs/archive/coop-tests/`: sim-clock waits, the walk-off un-crouch; off the list) - timing failures under load: "ladder after a climb: host mode ground" (fixed in the test), "timed out waiting for host braces" (host frames 307-418 ms with other suites running; passed serially), and once "Execution context was destroyed", suspected to be the app reloading when a service worker activates externally (`src/pwa`). Blocking service workers in the test contexts makes every suite's "no console errors" check fail; not fixed.
 - **e2e-weapons-carry** (off the list 2026-10-19: two clean full runs) - failed once (reason not captured), passed in every other run. Next step if it recurs: read `test-results/e2e/e2e-weapons-carry.log`.
-- **e2e-pad** (stays required, trimmed; still KNOWN FLAKY, parked) - (marlow-bays item 29, 2026-10-22) tuner v3 phase 1 raised the warehouse wait to 120 s; phase 2 adds the "no on-screen pause button in pad play" check and passed solo (2026-10-22); still KNOWN FLAKY until a clean full-run set - failed once, passed on rerun (cause not investigated). Laptop full run 2 of the co-op test fix (2026-10-19, 4.6.3): "ASSERT: A then B binds B (G22), warned on both rows ({"rows":"","cap":false,"screen":false})" in the remap section: the Controls screen was not open; full run 1 and the solo runs passed. Test speed (2026-10-20, `docs/test-speed/`): the causes were load timing, fixed in
+- **e2e-pad** (stays required, trimmed; still KNOWN FLAKY, parked) - (marlow-bays item 29, 2026-10-22) tuner v3 phase 1 raised the warehouse wait to 120 s; phase 2 adds the "no on-screen pause button in pad play" check and passed solo (2026-10-22); still KNOWN FLAKY until a clean full-run set - failed once, passed on rerun (cause not investigated). Laptop full run 2 of the co-op test fix (2026-10-19, 4.6.3): "ASSERT: A then B binds B (G22), warned on both rows ({"rows":"","cap":false,"screen":false})" in the remap section: the Controls screen was not open; full run 1 and the solo runs passed. Test speed (2026-10-20, `docs/archive/test-speed/`): the causes were load timing, fixed in
   the test: a 3-frame hold let the menu's real-time nav repeat step twice (now one input poll), the remap B landed with
   no capture listening, and fixed pauses before reading the connect toast and the locked row's toast (now condition
   waits). Still on `KNOWN_FLAKY` until it has run clean in more full runs; see the test-speed STATE "Runs".
@@ -159,6 +159,7 @@ e2e-netmove and e2e-ctcourse passed 3 solo rounds and 2 full runs on the laptop.
 
 ## Done
 
+8. **Epic's level material (voxMat) uses 15 of 16 texture units** - void: the voxel render path and `voxMat` are removed (G282).
 3. **Desktop blur** - fixed 2026-10-09 (3.6.0): depth of field read its paused depth pass as "at the lens"; now not aiming is fully sharp (`vfx/dofAperture.ts`).
 4. **Holstered unless aiming, no hip fire, a strike on the fire button** - built in the locomotion run; now G21 (holstered rules) and G42 (palm strike); timings retuned in the CT prototype.
 10, 17, 18, 19, 20. **Night vision look, glare, smear, fade, desktop darkness** - built in the Step 4b fix rounds 1-5 (2026-10-09), approved by Michael.

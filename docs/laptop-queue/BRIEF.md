@@ -30,7 +30,7 @@ Guard AI Build on the same machine; posting statuses and comments only on Tekcry
   by `scripts/laptop-queue/request.mjs` (no checkout, retry on a rejected push). Chosen over a gh-polled source: works
   for branches with no PR and for measurements, and the desktop sessions already push.
 - A2: the service is Node (`scripts/laptop-queue/service.mjs`), not PowerShell, so the pure parts have Vitest tests.
-  `scripts/laptop-runner.ps1` stays for manual runs during the overlap.
+  `scripts/archive/laptop-runner.ps1` stays for manual runs during the overlap.
 - A3: the service's state (claimed / done ids, times, flakes) lives in `C:/NightShift/scratch/laptop-queue/`, not in
   git; GitHub statuses are the shared record.
 - A4: shard = 2 bins by longest-first greedy on the weights; each slot runs its bin at `E2E_JOBS=3` (6 browsers

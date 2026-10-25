@@ -1,7 +1,7 @@
 # Robustness rules, conventions and module layout
+Owner: the orchestrator. Status: current.
 Purpose: robustness rules, code conventions and the full module table.
-Design authority: docs/design-bible.md (Section 9). What the game is: CLAUDE.md and docs/DECISIONS.md ("The vision in
-one page").
+Design authority: docs/design-bible.md (Section 9). What the game is: docs/VISION.md and docs/DECISIONS.md.
 
 ## Robustness rules
 - `startGame` calls `App.releaseState()` (exit + free the scene, and empty the engine's shader cache with
@@ -26,8 +26,8 @@ one page").
 - Pure logic (maths, validation, migrations) stays free of Babylon and the DOM so it is unit-testable in node.
 - Strict TS (`noUncheckedIndexedAccess`, `verbatimModuleSyntax`: `import type`). Babylon only through
   `src/core/babylon.ts`. Single player never imports `src/net` statically.
-- Every job updates `CHANGELOG.md` (under "Unreleased" until Michael merges, G93), TESTING.md when the desktop
-  checklist changes, and the system docs it touches.
+- Every job adds one changelog fragment, `changes/<branch-with-dashes>.md` (`changes/README.md`; never edits
+  `CHANGELOG.md`), updates TESTING.md when the desktop checklist changes, and the system docs it touches.
 
 ## Hot paths
 - Hot paths must not allocate (no closures, iterators or temporary vectors in AI / nav / anim loops; `for` with an
@@ -47,10 +47,10 @@ one page").
 | `cover/` | Cover data for enemy AI and level build (coverData, corners); back-to-wall reuses it |
 | `weapons/` | Data-driven weapons, hitscan + pooled projectiles, recoil / spread, grenades, `WeaponCarry` |
 | `ai/` | Enemy brains, grid navmesh + A*, `perception`, `alertState`, `patrol` (pure), archetypes, the enemy recon drone |
-| `world/` | Level builder, map builders (`maps/`: Warehouse, Proving Grounds, Kestrel, the Fallow bunker, courselab, seclab; the 2.x maps parked in `maps/parked.ts`, not imported), rooms, anchors, doors, lights, light rig, surfaces, menu stage |
+| `world/` | Level builder, map builders (`maps/`: Marlow Yard `ctcourse`, Saltmarsh Park `campusOps`, the old Sector Ops `warehouseOps`, Warehouse, Proving Grounds, Kestrel, the Fallow bunker, courselab, seclab; the 2.x maps parked in `maps/parked.ts`, not imported), rooms, anchors, doors, lights, light rig, surfaces, menu stage |
 | `voxel/` | Light bakes (the folder name is history): lamp bake and light volume, moon / sky bake, canonical light shapes, the bake worker pool |
 | `vfx/` | Pooled effects, post stack, TAAU, weather, vision looks |
-| `security/` | Kestrel's security system (cameras, panels); owned by the Kestrel job |
+| `security/` | The security system (cameras, panels), first built for Kestrel (paused, G53); Sector Ops and Marlow Yard use cameras and panels through `game/ctDevices.ts` |
 | `editor/`, `dev/` | The Kestrel level editor (dev only, never in `dist/`) and its bridge |
 | `net/` | Optional co-op: transports (Trystero / BroadcastChannel), protocol validation, session / lobby, host + client sims, lobby UI |
 | `progression/`, `cosmetics/` | XP / levels / credits maths, unlocks, upgrades, suit / HQ; avatar catalogue and procedural camos (parked behind `?legacy=1`) |

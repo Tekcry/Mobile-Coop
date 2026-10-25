@@ -50,17 +50,17 @@ docs/menu-ui/BIBLE-PROPOSALS.md; only MD1 edits CLAUDE.md (step 01, one line).
 
 ## 5. Documentation
 - Step 0 adds one line under the CLAUDE.md title on `feature/menu-ui`: "On branch feature/menu-ui, follow
-  docs/menu-ui/RULES.md and resume from docs/menu-ui/STATE.md (brief: docs/menu-ui/BRIEF.md)." Remove it in the finish.
+  docs/archive/menu-ui/RULES.md and resume from docs/menu-ui/STATE.md (brief: docs/menu-ui/BRIEF.md)." Remove it in the finish.
 - STATE.md under 120 lines: Current, Next, Blocked, pauses, baselines. LOG.md: one entry per step.
 - Step files are standalone and at most 80 lines; the plan may split a step that grows past about 20 decisions.
 - Every step updates CHANGELOG.md (one minor version for the whole run, set in step 01), TESTING.md (phone and
-  desktop checklist lines), docs/systems/ui.md and input-and-loop.md where touched, and docs/progress.md at block ends.
+  desktop checklist lines), docs/systems/ui.md and input-and-loop.md where touched, and docs/archive/progress.md at block ends.
 
 ## 6. Method
 - Step 0: environment check (`npm ci` if needed, `npm run check`, `npm run build && npm run e2e:quick`), record the
   baselines in STATE.md, run `E2E_GPU=1 node scripts/perf.mjs --budget` once for the perf baseline.
 - Then for each step NN in PLAN.md:
-  1. Implement: one subagent; its prompt is the step file plus "Read CLAUDE.md and docs/menu-ui/RULES.md first. Do
+  1. Implement: one subagent; its prompt is the step file plus "Read CLAUDE.md and docs/archive/menu-ui/RULES.md first. Do
      only this step. Run npm run check and npm run e2e:quick before finishing (plus the suites the step names).
      Return: files changed, check results with numbers, anything left undone. Do not commit."
   2. Check: a fresh subagent that did not implement reads the step file, SPEC.md sections it names and the diff,

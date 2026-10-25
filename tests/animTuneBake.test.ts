@@ -519,7 +519,7 @@ describe('anim-bake refusals (nothing written)', () => {
 });
 
 describe('anim-bake-targets: Michael\'s 13 values that were manual (the literal 2026-10-22 entries)', () => {
-  // the literal export entries (docs/anim-tuner/exports/anim-tune-2026-10-22.json), version 2
+  // the literal export entries (docs/archive/anim-tuner/exports/anim-tune-2026-10-22.json), version 2
   const LITERAL = {
     magic: 'night-shift-anim-tune',
     version: 2,

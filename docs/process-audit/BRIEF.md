@@ -27,7 +27,7 @@ Write `docs/process-audit/REPORT.md` and stop. Michael approves it, through the 
 2. **Known flaky and failing suites.** Find the cause of each one, by reading the code and the logs only, with no
    runs:
    - e2e-coop, e2e-netmove and e2e-ctcourse all fail alone on master bd59f32. Evidence: in
-     `docs/anim-cleanup/STATE.md` and PR #12's body; the orchestrator can send the logs.
+     `docs/archive/anim-cleanup/STATE.md` and PR #12's body; the orchestrator can send the logs.
    - Plus e2e-darkness, e2e-weapons-carry, e2e-pad, e2e-foley and e2e-bunker, and e2e-kestrel and e2e-camera-bounds
      (they fail on master).
    Co-op suites get a fix plan (the fix job runs on the desktop after Phase 2). Suites outside the training level
@@ -40,8 +40,8 @@ Write `docs/process-audit/REPORT.md` and stop. Michael approves it, through the 
    - `docs/systems/session-method.md`
    - `docs/ROADMAP.md` (the machines and merge rules)
    - `docs/orchestrator/STATE.md`
-   - per-job RULES / STATE / BRIEF files (`docs/locomotion`, `docs/kestrel`, `docs/anim-cleanup`, `docs/ct-prototype`,
-     `docs/goggle`, `docs/operators`, `docs/menu-ui`)
+   - per-job RULES / STATE / BRIEF files (`docs/archive/locomotion`, `docs/kestrel`, `docs/archive/anim-cleanup`, `docs/ct-prototype`,
+     `docs/archive/goggle`, `docs/operators`, `docs/menu-ui`)
 
    Propose one set of rules and one per-job file format, and say what to retire. Name every contradiction. The known
    ones:

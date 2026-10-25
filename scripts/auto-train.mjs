@@ -32,7 +32,8 @@
 // --preview-next (with --dry-run only): ignore an open train and show the build the next tick without one would make.
 // Fast poll: a tick that ends waiting (pending, laptop-rerun, holding) keeps its lock and runs the step again every
 // AUTO_TRAIN_FAST_POLL_S (60) s up to AUTO_TRAIN_FAST_POLL_MAX_MIN (4) min from its start, stopping on any state
-// change; --once and --dry-run never poll.
+// change; --once and --dry-run never poll. Every AUTO_TRAIN_FAST_POLL_LATE_S (30) s instead once the open train's
+// laptop-e2e pending status is older than its expected wall ("expect ~N s" in it, else LAPTOP_EXPECT_MIN 10 min).
 // Release is `merge-train release ... --head <the tested head> --no-fallback` (pinned; never the old-style path); a
 // train without a version commit is state "error" ("rebuild"). merge-train build runs no vitest (CI's `test` does).
 // A failed rebuild after release exit 3 is recorded (`rebuildFailed`) and skipped until the train head or master moves.
@@ -48,6 +49,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fetchWithRetry } from './fetch-retry.mjs';
 import { takeTouchLock } from './heavy-lock.mjs';
 import { coverFolders, DIRECT_COVERS, suiteSetFor } from './e2e-affected.mjs';
 
@@ -221,6 +223,22 @@ export function checkWaitReason(rollup, name = 'check', siblings = CHECK_SIBLING
 }
 
 /**
+ * Waste audit 2026-10-25 (the status said "CI missing" while CI ran): the CI word for a status / reason line.
+ * ciState(), but 'running' while CI is still working toward `name` (checkWaitReason: `name` queued / in progress, any
+ * other check run or status without a conclusion yet, or the sibling jobs green and `name` not created yet); 'missing'
+ * stays only when the head has no check run or status at all (or nothing is running and `name` never appeared), and
+ * 'pending' only for a lone cancelled / skipped `name` with nothing else going. Our own statuses (laptop-e2e*,
+ * auto-train/*, checker) are not CI and never make it 'running'. decide() reads success / failure only.
+ */
+export function ciLabel(rollup, name = 'check') {
+  const s = ciState(rollup, name);
+  if (s === 'success' || s === 'failure') return s;
+  const ci = (rollup ?? []).filter((r) => r?.__typename !== 'StatusContext' || !isOwnContext(r.context));
+  return checkWaitReason(ci, name) ? 'running' : s;
+}
+const isOwnContext = (c) => String(c).startsWith(LAPTOP_CONTEXT) || String(c).startsWith('auto-train/') || c === 'checker';
+
+/**
  * Audit 2 item 1: hold the build while a train-ready PR's `check` is still running, so it rides this train.
  * `waiting` = [{ pr, branch, head, why }] (train-ready PRs whose check is not success, `why` = checkWaitReason, null
  * when not running); `firstSeen` = { [head]: ISO } from the last status (`checkWait`). Each head waits at most `waitMin`
@@ -277,27 +295,47 @@ export function laptopMissing({ ci, laptop, ciGreenAt: greenAt, now, thresholdMi
   return waitMin >= thresholdMin ? Math.floor(waitMin) : null;
 }
 
-/** Laptop queue tree paths (origin/laptop-queue) -> 'idle' | 'busy': busy while any pending request JSON or running marker exists. */
-export function laptopQueueState(paths) {
-  const busy = paths.some((p) => {
-    const segs = p.split('/');
-    const base = segs[segs.length - 1].toLowerCase();
-    const dirs = segs.slice(0, -1).map((s) => s.toLowerCase());
-    if (dirs.includes('running') || base.startsWith('running')) return true;
-    return base.endsWith('.json') && (dirs.includes('pending') || base.startsWith('pending'));
+/** Hours after which an unclaimed request no longer counts as queued (a bad request is never claimed). */
+export const QUEUE_REQUEST_STALE_H = 12;
+/** Hours after which an open claim no longer counts as running (the service's LQ_CLAIM_MAX_H: a dead worker's). */
+export const QUEUE_CLAIM_STALE_H = 3;
+
+/** Request id `YYYYMMDDTHHMMSS-...` (UTC, laptop-queue lib requestId) -> ms, or NaN. */
+const requestIdTime = (id) => {
+  const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/.exec(id);
+  return m ? Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]) : NaN;
+};
+
+/**
+ * Laptop queue (origin/laptop-queue) -> 'idle' | 'busy'. `paths` = the branch's file paths (requests/<id>.json,
+ * claims/<id>.json, alerts/...); `claims` = { [id]: { worker, at, done } } claim texts parsed. Busy while a request has
+ * no claim yet (queued, under QUEUE_REQUEST_STALE_H old) or a claim is open (running: not done, `at` under
+ * QUEUE_CLAIM_STALE_H old). Every finished request (run, superseded, duplicate, withdrawn) gets a done claim.
+ */
+export function laptopQueueState(paths, { claims = {}, now = Date.now() } = {}) {
+  const ids = (dir) => paths.filter((p) => p.startsWith(`${dir}/`) && p.endsWith('.json')).map((p) => p.slice(dir.length + 1, -5));
+  const claimed = new Set(ids('claims'));
+  const queued = ids('requests').some((id) => {
+    if (claimed.has(id)) return false;
+    const t = requestIdTime(id);
+    return !(now - t >= QUEUE_REQUEST_STALE_H * 3600_000);
   });
-  return busy ? 'busy' : 'idle';
+  const running = Object.values(claims).some((c) => c && c.done === false && now - Date.parse(c.at) < QUEUE_CLAIM_STALE_H * 3600_000);
+  return queued || running ? 'busy' : 'idle';
 }
 
 /**
- * Self-update of the checkout the scripts run from, on an idle tick: { action: 'none' | 'update' | 'skip', reason }.
- * Updates (a detached checkout of origin/master) only when HEAD differs from it and the working tree is clean.
+ * Self-update of the checkout the scripts run from, on an idle tick or right after a release: { action: 'none' |
+ * 'update' | 'skip', reason }. Updates (a detached checkout of origin/master) only when HEAD differs from it, the
+ * working tree is clean and the move is a fast-forward (`ff` = HEAD is an ancestor of origin/master; undefined = not
+ * checked). `when` names the trigger in the log line.
  */
-export function selfUpdatePlan({ head, master, dirty }) {
+export function selfUpdatePlan({ head, master, dirty, ff, when = '' }) {
   if (!head || !master) return { action: 'skip', reason: 'self-update skipped: could not read HEAD or origin/master' };
   if (head === master) return { action: 'none', reason: `up to date at ${head.slice(0, 8)}` };
   if (dirty) return { action: 'skip', reason: `self-update skipped: the working tree is not clean (HEAD ${head.slice(0, 8)}, origin/master ${master.slice(0, 8)})` };
-  return { action: 'update', reason: `self-updated to ${master.slice(0, 8)}` };
+  if (ff === false) return { action: 'skip', reason: `self-update skipped: origin/master ${master.slice(0, 8)} is not a fast-forward of HEAD ${head.slice(0, 8)}` };
+  return { action: 'update', reason: `self-updated to ${master.slice(0, 8)}${when ? ` (${when})` : ''}` };
 }
 
 /** Local calendar day key (YYYY-MM-DD) of a time in ms. */
@@ -337,10 +375,12 @@ export function decide({ train, candidates = [], paceReason = null, now = Date.n
     // A desktop failure whose laptop rerun passed on this head (`laptop-e2e/train<n>-rerun` success in the head's
     // combined status) is releasable: Orchestrator, "treat a laptop pass as releasable". On master's request.mjs the
     // rerun posts only that context, never `laptop-e2e` success, so without this the train would wait forever.
-    const rerunSuites = train.laptop.state === 'failure' && train.rerun?.state === 'success' ? desktopFailSuites(train.laptop.description) : null;
+    // a confirm rerun (confirmPlan; `train.confirm` = its suites, from the status's rerun record) releases the same way,
+    // so a lost laptop-e2e success post never leaves the train waiting
+    const rerunSuites = train.laptop.state === 'failure' && train.rerun?.state === 'success' ? desktopFailSuites(train.laptop.description) ?? (train.confirm?.length ? train.confirm : null) : null;
     if (rerunSuites?.length && train.ci === 'success') {
       return { state: 'releasing', action: 'release', rerunRelease: rerunSuites,
-        reason: `${t}: CI green and the laptop rerun of ${rerunSuites.join(',')} passed (${rerunContext(train.n)} success on ${short(train.head)}; desktop ${LAPTOP_CONTEXT} failure)` };
+        reason: `${t}: CI green and the laptop rerun of ${rerunSuites.join(',')} passed (${rerunContext(train.n)} success on ${short(train.head)}; ${train.confirm?.length && !desktopFailSuites(train.laptop.description) ? 'confirm rerun of a laptop' : 'desktop'} ${LAPTOP_CONTEXT} failure)` };
     }
     if (train.laptop.state === 'failure') {
       return { state: 'failed', action: 'none', reason: `${t}: ${LAPTOP_CONTEXT} failed on ${short(train.head)}${train.laptop.description ? ` (${train.laptop.description})` : ''}` };
@@ -498,14 +538,41 @@ export function rerunPlan(train, prev, { now = Date.now(), staleMin = RERUN_STAL
 }
 
 /** request.mjs arguments of the rerun (scripts/laptop-queue/request.mjs; `--train-rerun` runs it right after trains). */
-export const rerunArgs = ({ sha, suites, pr, set }) => ['--sha', sha, '--suites', suites.join(' '), '--pr', String(pr), '--set', set,
-  '--requester', 'auto-train', '--train-rerun'];
+export const rerunArgs = ({ sha, suites, pr, set, confirm = false }) => ['--sha', sha, '--suites', suites.join(' '), '--pr', String(pr), '--set', set,
+  '--requester', 'auto-train', '--train-rerun', ...(confirm ? ['--note', 'confirm rerun'] : [])];
 
 // ---- fast poll (audit 2 item 3): a waiting tick re-checks every minute instead of waiting for the next 5-min run ----
 
 /** Seconds between fast polls (AUTO_TRAIN_FAST_POLL_S) and the window from the tick's start (AUTO_TRAIN_FAST_POLL_MAX_MIN). */
 export const FAST_POLL_S = 60;
 export const FAST_POLL_MAX_MIN = 4;
+/**
+ * Seconds between fast polls once the train's laptop-e2e pending status is older than its expected wall (laptopLate;
+ * AUTO_TRAIN_FAST_POLL_LATE_S): the verdict is due, so a release waits under a minute for it (Orchestrator waste audit
+ * 2026-10-24: release lag was 1.3-2.7 min at 60 s).
+ */
+export const FAST_POLL_LATE_S = 30;
+/** Minutes a train's laptop run is expected to take when its pending status names no "expect ~N s" (laptopLate). */
+export const LAPTOP_EXPECT_MIN = 10;
+
+/** When the newest status of `context` went pending (ms), or null when it is not pending or its time is unreadable. */
+export function pendingSince(combined, context) {
+  const list = (combined?.statuses ?? []).filter((s) => s.context === context)
+    .sort((a, b) => (Date.parse(b.updated_at || b.created_at || '') || 0) - (Date.parse(a.updated_at || a.created_at || '') || 0));
+  if (!list.length || String(list[0].state).toLowerCase() !== 'pending') return null;
+  return Date.parse(list[0].updated_at || list[0].created_at || '') || null;
+}
+
+/**
+ * True when the laptop's pending verdict is due: `since` (pendingSince) is older than the expected wall, the laptop
+ * service's "expect ~N s" in the description (the heaviest shard, posted when the suites start) or `defaultMin`.
+ */
+export function laptopLate({ since, description = '', now, defaultMin = LAPTOP_EXPECT_MIN }) {
+  if (!since) return false;
+  const m = /expect ~(\d+) s/.exec(String(description));
+  const expectMs = m ? Number(m[1]) * 1000 : defaultMin * 60_000;
+  return now - since > expectMs;
+}
 /** The waiting states a tick keeps polling: an open train waiting on CI / the laptop / a laptop rerun, or the build hold. */
 export const FAST_POLL_STATES = ['pending', 'laptop-rerun', 'holding'];
 
@@ -514,19 +581,21 @@ export const FAST_POLL_STATES = ['pending', 'laptop-rerun', 'holding'];
  * opts { pollS, maxMin, once, dry, prevState } (`prevState` = the state before this step, null on the first one).
  * Polls only in a waiting state (FAST_POLL_STATES), never under --once or --dry-run, stops on any state change, and
  * only while the next poll starts within `maxMin` of the tick's start (4: done before the next 5-min task run).
+ * `late` (laptopLate: the laptop verdict is past its expected wall) polls every `lateS` s instead, when shorter.
  * -> { poll, delayMs, reason }.
  */
-export function fastPollPlan(state, startedAt, now, { pollS = FAST_POLL_S, maxMin = FAST_POLL_MAX_MIN, once = false, dry = false, prevState = null } = {}) {
+export function fastPollPlan(state, startedAt, now, { pollS = FAST_POLL_S, maxMin = FAST_POLL_MAX_MIN, once = false, dry = false, prevState = null, late = false, lateS = FAST_POLL_LATE_S } = {}) {
   const no = (reason) => ({ poll: false, delayMs: 0, reason });
   if (once) return no('--once');
   if (dry) return no('dry run');
   if (!(pollS > 0) || !(maxMin > 0)) return no('fast poll off');
   if (prevState != null && state !== prevState) return no(`state changed (${prevState} -> ${state})`);
   if (!FAST_POLL_STATES.includes(state)) return no(`${state} is not a waiting state`);
-  const delayMs = pollS * 1000;
+  const s = late && lateS > 0 && lateS < pollS ? lateS : pollS;
+  const delayMs = s * 1000;
   const at = now + delayMs - startedAt;
   if (at > maxMin * 60_000) return no(`fast poll window over (${maxMin} min)`);
-  return { poll: true, delayMs, reason: `${state}: polling again in ${pollS} s (${Math.round(at / 1000)} s into the tick, up to ${maxMin} min)` };
+  return { poll: true, delayMs, reason: `${state}: polling again in ${s} s${s !== pollS ? ' (laptop verdict due)' : ''} (${Math.round(at / 1000)} s into the tick, up to ${maxMin} min)` };
 }
 
 /** True when every path is documentation (Markdown anywhere or under docs/). */
@@ -569,7 +638,8 @@ export function autoDropCase(train, d, rp) {
   if (d?.state !== 'failed' || train.laptop?.state !== 'failure' || train.ci === 'failure' || train.vitest === 'failure') return null;
   // a desktop failure whose FAIL list is cut (no laptop rerun was possible) stays "failed" for the orchestrator
   if (desktopFailSuites(train.laptop.description) !== null) return null;
-  return { failing: failSuites(train.laptop.description), reason: d.reason };
+  // confirm: the train's own first failure; a guessed drop (tier 2-3) waits for one rerun first (confirmPlan)
+  return { failing: failSuites(train.laptop.description), reason: d.reason, confirm: true };
 }
 
 /** At most this many failing suites (distinct, parts as their suite) are auto-dropped; more is master / the machine, not a member. */
@@ -643,6 +713,40 @@ export function pickDrops(members, failing, { map = DIRECT_COVERS } = {}) {
   return { drops: [{ pr: x.m.pr, branch: x.m.branch, suite: x.suite, tier: 3 }], reason: `no member maps to ${fails.join(',')}; #${x.m.pr}: ${why}` };
 }
 
+/**
+ * Confirm before a guess (laptop-queue-5): the train's own laptop failure whose drop is a guess (every pick tier 2-3: no
+ * member maps to the failing suite) first reruns the failing suites once on the same head (request.mjs --train-rerun,
+ * set train<n>-rerun, recorded as `rerun` like a desktop rerun); only a failed rerun drops, a pass posts laptop-e2e
+ * success and the train releases. -> null (drop now: a tier-1 pick, or the rerun failed) or a rerunPlan-shaped
+ * { action: 'request' | 'wait' | 'none', state, reason, suites, set } (+ `requestFailed`).
+ */
+export function confirmPlan(train, prev, drops, failing, { now = Date.now(), staleMin = RERUN_STALE_MIN } = {}) {
+  if (!train || !drops?.length || drops.some((x) => x.tier === 1)) return null;
+  const t = `train ${train.n}`;
+  const set = rerunSet(train.n);
+  const rec = prev?.rerun && prev.rerun.head === train.head ? prev.rerun : null;
+  const suites = rec?.suites ?? [...new Set(failing ?? [])];
+  if (!rec) {
+    const failed = prev?.rerunRequestFailed && prev.rerunRequestFailed.head === train.head ? prev.rerunRequestFailed : null;
+    const tries = failed ? Number(failed.count) || 1 : 0;
+    if (tries >= RERUN_REQUEST_MAX) {
+      return { action: 'none', state: 'rerun-request-failed', suites, set, requestFailed: failed,
+        reason: `${t}: the confirm rerun request of ${suites.join(',')} on ${short(train.head)} failed ${tries} times (last: exit ${failed.exit}: ${failed.why}); not retried` };
+    }
+    return { action: 'request', state: 'laptop-rerun', suites, set, confirm: true, ...(failed ? { requestFailed: failed } : {}),
+      reason: `${t}: no member maps to ${suites.join(',')}: one confirm rerun (${set}) on ${short(train.head)} before a drop${tries ? `, try ${tries + 1}/${RERUN_REQUEST_MAX}` : ''}` };
+  }
+  const r = train.rerun ?? { state: 'missing', description: '' };
+  if (r.state === 'failure') return null;
+  const ageMin = (now - Date.parse(rec.at)) / 60_000;
+  if (r.state !== 'success' && ageMin >= staleMin) {
+    return { action: 'none', state: 'rerun-stale', suites, set,
+      reason: `${t}: confirm rerun ${rec.id} of ${suites.join(',')} on ${short(train.head)}: no ${rerunContext(train.n)} verdict ${Math.floor(ageMin)} min after the request` };
+  }
+  return { action: 'wait', state: 'laptop-rerun', suites, set,
+    reason: `${t}: confirm rerun ${rec.id} of ${suites.join(',')} on ${short(train.head)} ${r.state === 'missing' ? 'queued' : r.state}${r.state === 'success' ? ' (releases once CI is green)' : ''}` };
+}
+
 /** The `gh pr edit` argv dropping LABEL (null without it) and the comment (null when one with `marker` exists). */
 function memberLabelPlan({ pr, labels = [], bodies = [], marker, paragraphs }) {
   const comment = bodies.some((b) => String(b).includes(marker)) ? null : [...paragraphs, marker].join('\n\n');
@@ -692,6 +796,7 @@ const RERUN_STALE = envMin('AUTO_TRAIN_RERUN_STALE_MIN', RERUN_STALE_MIN);
 const CHECK_WAIT = envMin('AUTO_TRAIN_CHECK_WAIT_MIN', CHECK_WAIT_MIN);
 const POLL_S = envMin('AUTO_TRAIN_FAST_POLL_S', FAST_POLL_S);
 const POLL_MAX_MIN = envMin('AUTO_TRAIN_FAST_POLL_MAX_MIN', FAST_POLL_MAX_MIN);
+const POLL_LATE_S = envMin('AUTO_TRAIN_FAST_POLL_LATE_S', FAST_POLL_LATE_S);
 let CWD = 'C:/NightShift/Mobile-Coop-train';
 let LOCK_TEXT = null; // our tick lock's text, handed to merge-train (AUTO_TRAIN_LOCK_TEXT) so it runs under it
 
@@ -717,15 +822,22 @@ function execHere(cmd) {
   return { status: r.status ?? -1, out: r.stdout ?? '', err: r.stderr ?? '' };
 }
 
-/** Idle tick (no train open, nothing building): moves this checkout to origin/master so the next tick runs current scripts. */
-function selfUpdate() {
+/**
+ * Idle tick (no train open, nothing building) or right after a release (the train merged, the next not built yet):
+ * fast-forwards this checkout to origin/master so the next tick runs current scripts. Never between a train's build
+ * and its release. Audit 2026-10-25: back-to-back trains never had an idle tick, the checkout sat at train 80 with
+ * master at 86.
+ */
+function selfUpdate(when = 'idle') {
   try {
-    if (DRY) { log('  [dry-run] would self-update this checkout to origin/master when idle'); return; }
-    if (execHere(['git', 'fetch', '-q', 'origin']).status !== 0) { log('self-update skipped: git fetch failed'); return; }
+    if (DRY) { log(`  [dry-run] would self-update this checkout to origin/master (${when})`); return; }
+    // only master is read; narrow + lock-race retry (fetch-retry.mjs: another worktree's fetch holds a ref lock)
+    if (fetchWithRetry(execHere, ['master'], { log }).status !== 0) { log('self-update skipped: git fetch failed'); return; }
     const head = execHere(['git', 'rev-parse', 'HEAD']).out.trim();
     const master = execHere(['git', 'rev-parse', 'origin/master']).out.trim();
     const dirty = execHere(['git', 'status', '--porcelain']).out.trim() !== '';
-    const plan = selfUpdatePlan({ head, master, dirty });
+    const ff = head && master ? execHere(['git', 'merge-base', '--is-ancestor', head, master]).status === 0 : undefined;
+    const plan = selfUpdatePlan({ head, master, dirty, ff, when });
     if (plan.action === 'update') {
       const r = execHere(['git', 'checkout', '-q', '--detach', 'origin/master']);
       log(r.status === 0 ? plan.reason : `self-update failed: ${r.err.trim().slice(-300)}`);
@@ -850,9 +962,10 @@ function openTrain() {
     versionCommit: !!vc,
     resume: !!vc && vc.index < subjects.length - 1,
     members: membersFromSubjects(subjects, n),
-    ci: ciState(p.statusCheckRollup, 'check'),
+    ci: ciLabel(p.statusCheckRollup, 'check'),
     ciGreenAt: ciGreenAt(p.statusCheckRollup, combined, 'check'),
     laptop: contextStatus(combined, LAPTOP_CONTEXT),
+    laptopSince: pendingSince(combined, LAPTOP_CONTEXT),
     rerun: contextStatus(combined, rerunContext(n)),
     vitest: contextStatus(combined, VITEST_CONTEXT).state,
     ageMin: (Date.now() - since) / 60_000,
@@ -873,7 +986,7 @@ function candidates(labelExists) {
       const ci = ciState(p.statusCheckRollup, 'check');
       if (ci !== 'success') {
         const why = checkWaitReason(p.statusCheckRollup, 'check');
-        log(`  #${p.number} ${p.headRefName}: check ${ci}, not a candidate${why ? ` (CI still running: ${why})` : ''}`);
+        log(`  #${p.number} ${p.headRefName}: check ${ciLabel(p.statusCheckRollup, 'check')}, not a candidate${why ? ` (CI still running: ${why})` : ''}`);
         waiting.push({ pr: p.number, branch: p.headRefName, head: p.headRefOid, why });
         continue;
       }
@@ -906,10 +1019,20 @@ function releaseTimes() {
     .filter((p) => /^train\/\d+$/.test(p.headRefName)).map((p) => Date.parse(p.mergedAt)).filter(Boolean);
 }
 
-/** 'idle' | 'busy' from origin/laptop-queue, or null when that branch does not exist. */
+/** 'idle' | 'busy' from origin/laptop-queue (request names and claim texts, one GraphQL read), or null when that branch does not exist. */
 function laptopQueue() {
-  const t = api('repos/{owner}/{repo}/git/trees/laptop-queue?recursive=1', '[.tree[] | select(.type == "blob") | .path]');
-  return t == null ? null : laptopQueueState(JSON.parse(t));
+  const q = 'query($owner:String!,$name:String!){repository(owner:$owner,name:$name){ref(qualifiedName:"refs/heads/laptop-queue"){name}'
+    + ' req:object(expression:"laptop-queue:requests"){... on Tree{entries{name}}}'
+    + ' cl:object(expression:"laptop-queue:claims"){... on Tree{entries{name object{... on Blob{text}}}}}}}';
+  const r = exec(['gh', 'api', 'graphql', '-F', 'owner={owner}', '-F', 'name={repo}', '-f', `query=${q}`, '--jq',
+    '.data.repository | {ref: (.ref != null), requests: [.req.entries[]?.name], claims: [.cl.entries[]? | {name, text: .object.text}]}']);
+  if (r.status !== 0) throw new Error(`gh api graphql (laptop queue): ${(r.err || r.out).trim().slice(-400)}`);
+  const d = JSON.parse(r.out);
+  if (!d.ref) return null;
+  const claims = {};
+  for (const c of d.claims) { try { claims[c.name.replace(/\.json$/, '')] = JSON.parse(c.text); } catch { /* unreadable claim */ } }
+  const paths = [...d.requests.map((n) => `requests/${n}`), ...d.claims.map((c) => `claims/${c.name}`)];
+  return laptopQueueState(paths, { claims, now: Date.now() });
 }
 
 function nextN() {
@@ -981,7 +1104,7 @@ function labeledAt(pr) {
  * the remaining train-ready PRs in this tick (pacing skipped: the failed train already passed it). Anything it cannot
  * work out (no failing suite, an unreadable diff, nothing to drop) keeps the old state "failed" for the orchestrator.
  */
-async function autoDrop(t, o, labelExists, base, c) {
+async function autoDrop(t, o, labelExists, base, c, prev) {
   const left = (why) => { log(`autodrop: ${why}: left for the orchestrator`); return { ...base, state: 'failed', reason: `${c.reason}; autodrop: ${why}, left for the orchestrator` }; };
   const asserts = failureAsserts(prLabelsBodies(t.pr).bodies, t.head);
   const failing = c.failing.length ? c.failing : Object.keys(asserts);
@@ -999,6 +1122,9 @@ async function autoDrop(t, o, labelExists, base, c) {
   }
   const pick = pickDrops(members, failing);
   if (!pick.drops.length) return left(pick.reason);
+  // a guessed drop (tier 2-3) on the train's own first failure waits for one confirm rerun (confirmPlan)
+  const cp = c.confirm ? confirmPlan(t, prev, pick.drops, failing, { now: Date.now(), staleMin: RERUN_STALE }) : null;
+  if (cp) return rerunStep(t, { ...cp, reason: `${cp.reason} (${pick.reason})` }, base);
   log(`autodrop: train ${t.n} failed ${failing.join(',')}: ${pick.reason}`);
   for (const d of pick.drops) {
     const m = members.find((x) => x.pr === d.pr);
@@ -1090,6 +1216,8 @@ async function step(o) {
     const next = await noTrain(o, labelExists, ad ? { exclude: ad.dropped.map((x) => x.branch), afterDrop: true } : {});
     return ad ? { ...next, dropped: ad.dropped, closedTrain: ad.closedTrain, dropReason: ad.dropReason } : next;
   }
+  // a confirm rerun recorded for this head lets decide() release on its pass (confirmPlan)
+  if (prev?.rerun?.confirm && prev.rerun.head === t.head) t.confirm = prev.rerun.suites;
   const d = decide({ train: t, laptopMissingMin: LAPTOP_MISSING });
   log(`train ${t.n} #${t.pr} ${short(t.head)} ${t.version ?? '?'}: CI ${t.ci}, laptop ${t.laptop.state}${t.laptop.description ? ` (${t.laptop.description})` : ''}, age ${Math.round(t.ageMin)} min -> ${d.state}: ${d.reason}`);
   // The rerun record rides along in every status of the same head, so that head never requests twice; the last
@@ -1100,9 +1228,11 @@ async function step(o) {
   const rp = d.action === 'release' ? null : rerunPlan(t, prev, { now: Date.now(), staleMin: RERUN_STALE });
   // a laptop failure (or a failed laptop rerun) drops the culprit and rebuilds at once; --no-autodrop: wait as before
   const drop = o.noAutodrop ? null : autoDropCase(t, d, rp);
-  if (drop) return autoDrop(t, o, labelExists, base, drop);
+  if (drop) return autoDrop(t, o, labelExists, base, drop, prev);
   if (rp) return rerunStep(t, rp, base);
-  if (d.action !== 'release') return { ...base, state: d.state, reason: d.reason, ...(d.waitingMin != null ? { waitingMin: d.waitingMin } : {}) };
+  // the laptop verdict is past its expected wall: the fast poll goes to POLL_LATE_S (laptopLate)
+  const late = d.state === 'pending' && laptopLate({ since: t.laptopSince, description: t.laptop.description, now: Date.now() });
+  if (d.action !== 'release') return { ...base, state: d.state, reason: d.reason, ...(d.waitingMin != null ? { waitingMin: d.waitingMin } : {}), ...(late ? { laptopLate: true } : {}) };
   const master = exec(['git', 'ls-remote', 'origin', 'refs/heads/master']).out.split('\t')[0].trim() || null;
   if (rebuildSkip(prev, t.head, master)) {
     log(`skip: ${prev.reason} (train head and master unchanged)`);
@@ -1113,6 +1243,8 @@ async function step(o) {
   if (r.code === 0) {
     const onRerun = d.rerunRelease ? `released on the laptop rerun of ${d.rerunRelease.join(',')}` : '';
     log(`RELEASED train ${t.n} as ${t.version}${onRerun ? `: ${onRerun}` : ''}`);
+    // between trains: the next one is built (and later released) by the merge-train.mjs of the new master
+    selfUpdate(`after releasing train ${t.n}`);
     const next = await noTrain(o, labelExists);
     return { ...next, released: `${t.version} (train ${t.n}${onRerun ? `, ${onRerun}` : ''})` };
   }
@@ -1142,7 +1274,7 @@ async function step(o) {
 function rerunStep(t, rp, base) {
   log(`laptop rerun: ${rp.reason}`);
   if (rp.action !== 'request') return { ...base, state: rp.state, reason: rp.reason, ...(rp.requestFailed ? { rerunRequestFailed: rp.requestFailed } : {}) };
-  const cmd = ['node', path.join(HERE, 'laptop-queue', 'request.mjs'), ...rerunArgs({ sha: t.head, suites: rp.suites, pr: t.pr, set: rp.set })];
+  const cmd = ['node', path.join(HERE, 'laptop-queue', 'request.mjs'), ...rerunArgs({ sha: t.head, suites: rp.suites, pr: t.pr, set: rp.set, confirm: Boolean(rp.confirm) })];
   if (DRY) { log(`  [dry-run] would run (cwd ${CWD}): ${show(cmd)}`); return { ...base, state: rp.state, reason: `${rp.reason} (dry run)` }; }
   log(`  > (cwd ${CWD}) ${show(cmd)}`);
   const r = exec(cmd);
@@ -1154,7 +1286,7 @@ function rerunStep(t, rp, base) {
     return { ...base, state: rp.state, reason: `${rp.reason}; request failed (exit ${r.status}): ${why}; ${count < RERUN_REQUEST_MAX ? 'retry next tick' : 'no more retries'} (${count}/${RERUN_REQUEST_MAX})`,
       rerunRequestFailed: { head: t.head, exit: r.status, why, count } };
   }
-  const rerun = { head: t.head, id, suites: rp.suites, set: rp.set, at: new Date().toISOString() };
+  const rerun = { head: t.head, id, suites: rp.suites, set: rp.set, at: new Date().toISOString(), ...(rp.confirm ? { confirm: true } : {}) };
   return { ...base, state: rp.state, reason: `train ${t.n}: laptop rerun ${id} of ${rp.suites.join(',')} queued (${rp.set})`, rerun };
 }
 
@@ -1190,7 +1322,7 @@ async function main(argv) {
     // audit 2 item 3: a waiting tick keeps its lock and re-checks every POLL_S s up to POLL_MAX_MIN from its start,
     // stopping at once on a state change (the step already acted on it: release, build, ...); status written each poll
     for (let prevState = null; ;) {
-      const fp = fastPollPlan(status.state, startedAt, Date.now(), { pollS: POLL_S, maxMin: POLL_MAX_MIN, once: !!o.once, dry: DRY, prevState });
+      const fp = fastPollPlan(status.state, startedAt, Date.now(), { pollS: POLL_S, maxMin: POLL_MAX_MIN, once: !!o.once, dry: DRY, prevState, late: !!status.laptopLate, lateS: POLL_LATE_S });
       if (!fp.poll) { if (prevState != null || FAST_POLL_STATES.includes(status.state)) log(`fast poll: stop (${fp.reason})`); break; }
       log(`fast poll: ${fp.reason}`);
       await new Promise((r) => setTimeout(r, fp.delayMs));

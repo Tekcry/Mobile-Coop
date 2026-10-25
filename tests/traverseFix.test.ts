@@ -118,7 +118,7 @@ describe('(traverse-fix 3) the rifle sling draw clears the trunk', () => {
 // Measured in the game (proving ledge, Wren, arm 0.54 m): the grips hold the hands at weight 1 until k 0.38, but the
 // shoulders rise out of reach from k 0.31 (0.60 m over the lip at 0.32, 0.92 m at 0.39: the CLIMB_UP clip's torso is
 // near upright while the knee comes on), so the palms leave the lip as the knee comes on whatever the grip weight. The
-// fix is in the mocap clip (src/anim/clips/traverse.ts CLIMB_UP), outside this job: docs/traverse-fix/REPORT.md item 2.
+// fix is in the mocap clip (src/anim/clips/traverse.ts CLIMB_UP), outside this job: docs/archive/traverse-fix/REPORT.md item 2.
 // Headless check (NullEngine rig, the clip alone): the shoulder over the root is 1.27 m at k 0.21, 0.94 at 0.30 and
 // 0.84 from 0.33 to 0.48 (hips 0.41); with CLIMB_UP_PATH's root (top - 0.50 m at 0.30, - 0.23 at 0.33, - 0.04 at 0.36,
 // on the top at 0.38) that is 0.44, 0.61, 0.80, 0.84 m over the lip. Neither the grips (targets only) nor the root path

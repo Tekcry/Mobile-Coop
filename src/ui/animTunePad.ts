@@ -17,7 +17,7 @@ import { NavRepeater } from '../input/navRepeat';
  *
  * Modes: `off` (panel closed), `tuner` (the pad drives the panel), `game` (the pad plays). After opening, closing or
  * switching, every press is swallowed until all buttons are up (`quiet`), so the press that opened the panel never selects
- * and the B that backs out never crouches. The map is in `docs/anim-tuner/STATE.md` ("Pad map").
+ * and the B that backs out never crouches. The map is in `docs/archive/anim-tuner/STATE.md` ("Pad map").
  */
 export type TunePadMode = 'off' | 'tuner' | 'game';
 

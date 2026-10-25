@@ -1,16 +1,28 @@
 # Light model, baked lamps and vision rendering
+Owner: Sector Ops Build (lighting on every map). Status: current.
 Purpose: the gameplay light registry and light field, desktop baked lamps, darkness, night vision, thermal and electro
 rendering, and the lamp light volume kept for the level editor.
-Design authority: docs/DECISIONS.md (G41, G45, G47, G73, G100-G102), then docs/design-bible.md (Section 5.1).
+Design authority: docs/DECISIONS.md (G41, G45, G47, G73, G101, G102, G181, G352), then docs/design-bible.md
+(Section 5.1).
 
 Light parity (bible 5.1): what the player sees, the light meter and guard perception agree. Gameplay reads only the light
-field (collision, the light bake, the noise model), never the render state.
+field (collision, the light bake, the noise model), never the render state. One gap is decided but not built yet:
+character shadows (G352, Parity below).
 Security cameras are outside the light model (marlow-jammer, Michael M3): each has its own IR illuminator, so inside its
 range and cone it reads every body at `CAMERA.irLight` 1 (fully lit); lamps, jammed or shot lamps and dark corners do
 not change what a camera sees. Lights matter for guards and the meter only. (camera-range) Only distance thins a camera's
 rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security cameras).
 
 ## Decided direction
+- Decided, not built yet (G329, "Real-world levels"): each space type gets a real-world illuminance band
+  from the lighting standards (outdoor car parks AS/NZS 1158.3.1, interiors AS/NZS 1680 / EN 12464); engine light is
+  calibrated to lux once and measured from the bake at greybox exit. Stealth comes only from real gaps (between poles,
+  under the carport, behind cars, cut circuits, shot lamps), never from leaving lit places unlit; the 40-60% shadow-share
+  target yields to the band. Michael: "car parks are generally well lit". The light-realism job (Sector Ops,
+  `feature/light-realism`, S1 car park first) builds the calibration; the level rule lives in docs/level-design.md.
+- Decided (G333, "Everywhere"): hardened lit choke points are allowed on campaign and Sector Ops maps:
+  un-shootable fixtures and guarded or locked breakers. A route around the choke point always stays. This loosens the
+  older "every lit chokepoint can be darkened at least two ways" (docs/level-design.md).
 - Decided, not built yet (G41): a door past 15% open passes light (one threshold for light, sound and sight). Code:
   `DOOR_SHUT` 0.05 in `world/lightField.ts`.
 - Decided, not built yet (G45): clear glass passes light and sight; frosted glass and blinds pass light only; thermal never
@@ -18,8 +30,9 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
 - Built (G100, G101, G102; prototype A5, lr16v, LR16-6): an instant goggle cut (G181: the wheel picks the mode, one
   button toggles it), CT grain (thermal on warm areas only, none in electro), thermal as CT (CT colour ramp; people
   behind closed doors as a dim blue silhouette, below).
-- Decided, not built yet (G69, G73): an original goggle (no three-lens look); a dim glow on the brow with vision off, a full
-  glow over the eyes with vision on. Code: `player/goggleGlow.ts` lights the current lenses always.
+- Parked (G195, refines G69): Wren keeps her current goggle; the goggle redesign is parked, only the stowed-on-brow
+  export remains (cleanup, G161). Until then the goggle stays over the eyes and only the glow follows G73 (dim with
+  vision off, full with vision on). Code: `player/goggleGlow.ts` lights the current lenses always.
 - Decided (G47): the parity test, long lamps and motion lights keep their plans and are sorted out when built.
 
 ## Light model (3.6: one light function)
@@ -32,7 +45,9 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   - contact-hardening penumbra in the bake: `voxel/lampBake.ts` (LR16e)
   - one-bounce fill in the ambient grid's G channel: `voxel/lampBounce.ts`, `world/bounceGrid.ts` (LR16-1)
   - torch shadow atlas: `world/torchShadows.ts`, `world/torchShadowSet.ts` (LR16t)
-  - character shadows on every tier: `world/charShadows.ts`, `world/charShadowSet.ts` (LR16-7 / LR16f / LR16-3)
+  - character shadows on every shadow tier but Off: one lamp (the nearest) on Low and Medium, 2 / 3 / 4 on High /
+    Ultra / Epic (`CHAR_SHADOW_PRESET`; bible L18's "2-4 at High+" is the multi-lamp part); Off keeps the capsules:
+    `world/charShadows.ts`, `world/charShadowSet.ts` (LR16-7 / LR16f / LR16-3)
 - `world/lampMath.ts` (pure): one light model (LR16a, Michael 2026-10-23 ~18:12 "Disable returning to original lighting
   system, focus on only the one new system"). Baked lamps: the photometric falloff `photoFalloff` (inverse square from
   3 m, `PHOTO`, windowed to 0 at the reach = radius x 1.6; `LightRegistry.add` scales fixed lamps' radius once,
@@ -40,8 +55,8 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   cut at the outer angle). Flashlights: the linear `lampTerm`. `bakedLamps.ts` builds its GLSL from `LAMP_MATH_GLSL`
   and the same constants (`LAMP_CONE_COS`, `LAMP_EXP`, `SPOT_EXP`; `LIGHT_GAIN` 1.6 is rendering only,
   `LAMP_LEVEL_GAIN` 1.2 gameplay only). `moonLight(theme)`: the moon's gameplay share of `lightLevel`. `?gfx=min` keeps Babylon's linear
-  real lights for the picture (the field is photometric). History: `docs/lighting-review/PROPOSAL.md` section 7 (LR13),
-  numbers in `docs/sector-redesign/checks/light-measure.md`; tests `tests/lampFalloff.test.ts`.
+  real lights for the picture (the field is photometric). History: `docs/archive/lighting-review/PROPOSAL.md` section 7
+  (LR13), numbers in `docs/sector-redesign/checks/light-measure.md`; tests `tests/lampFalloff.test.ts`.
 - (shadow audit; always on since LR16a) `world/shadowAccuracy.ts`: the field reads the ambient fill trilinearly as the
   shaders do; each lamp's door list skips doorways the lamp cannot see (`doorSeen`, `bakeVisSampler`; field and shaders
   build the one list); the light rig sets the game's PBR materials (figures, weapons) to the standard falloff so
@@ -158,6 +173,18 @@ Brief and decisions SB1-SB14: `docs/sector-redesign/briefs/SECTION-BAKE.md`; bui
 - Parity: per-lamp bytes are independent of the job, so the field at any point of the live section equals the full
   bake's (`tests/sectionBake.test.ts`, exact at random points; the joined result byte-identical). The joined result is
   cached under the full key at the next section change or the match's end (SB14: no mid-play clone).
+- Failures (section-bake robust, `docs/sector-redesign/checks/section-bake-robust.md`): a worker error or a job in flight
+  past `JOB_CAP_MS` (60 s: a worker that died silently) is tried once more on the pool (that retry capped at
+  `JOB_RETRY_CAP_MS`, 20 s), then baked inline, one lamp per task. A job past its cap is cancelled on the pool; a running
+  one's worker is terminated and replaced, so the pool keeps its size (if the replacement cannot start, the pool runs one
+  short); the first capped first try is logged once with its elapsed ms (bake5). Once the match plays, an inline lamp of the live
+  section bakes at once even while pool jobs run; any other inline lamp waits until the pool is idle or `setLive`
+  makes its section live (bake3). A lamp that fails every way lands dark for
+  this match only: logged once, and the result is never cached. A load that throws after the bake started
+  (`World.create`) stops its bakers (`disposeSectionBakersSince`). During play a live-section landing goes to the head of
+  the tile queue (budgeted); `setLive` snaps the new live section's fading and queued lamps to full and moves their
+  tiles first. Without `texSubImage3D` the whole atlas goes up for live-section landings and once at the end, never
+  per background batch.
 
 ## Moving lights: flicker and stutter (LR16-5, Michael M13)
 - `world/lampFlicker.ts` (pure): a fire's multiplier (value noise 0.75..1, a few Hz) and a failing tube's stutter
@@ -191,7 +218,7 @@ Brief and decisions SB1-SB14: `docs/sector-redesign/briefs/SECTION-BAKE.md`; bui
 - The character-shadow picker holds a swinging lamp's slot and re-renders its map every frame (`moving`).
 
 ## Character silhouette shadows (LR14, sector-redesign charshadow)
-Rendering only (plan and budget: `docs/lighting-review/LR14-PLAN.md`; build report:
+Rendering only (plan and budget: `docs/archive/lighting-review/LR14-PLAN.md`; build report:
 `docs/sector-redesign/checks/lr14-build.md`). As in CT, the lamps nearest the player throw the real shape of a guard,
 the partner, a body or a held weapon; static geometry stays in the baked visibility atlas; every other lamp keeps the
 capsules.
@@ -212,13 +239,14 @@ capsules.
   N.L, a lamp whose t7 names a slot multiplies `nsCharShadow` (normal offset 2 cm + 0.4% of the distance, Babylon's shadow
   metric, 2 x 2 bilinear PCF on texelFetch, bias 3 cm, floor 0.15 as the capsules'); its capsule list keeps only the
   characters its map does not hold (a partial fit). A fresh pick draws capsules until its map has been copied once.
-- Budget: one texture per lit shader while on. The voxel level's micro-detail shader (`?voxels=1`) is full at 16 with
-  its one flashlight shadow, so that path keeps the capsules (`World.applyQuality`). Without WebGL2 float or half-float
-  targets the capsules stay.
+- Budget: one texture per lit shader while on. Without WebGL2 float or half-float targets the capsules stay. (The voxel
+  render path and `?voxels=1` are removed, G282.)
 - Parity: the meter and guard perception never had character shadows (capsules were render-only too) and still have
-  none. The darkness curve's input (`nsLampRaw`) is unchanged. On screen a mapped lamp's term drops to 0.15 inside a
-  silhouette, now also from casters the capsules lacked (partner, bodies, weapons, poses) and on a body's own limbs;
-  the meter reads that lamp in full there (`lr14-build.md`, parity note).
+  none. Decided, not built yet (G352, replaces G315's render-only shadows and the bible's old L11): light parity holds
+  for character shadows, so the meter and guard perception read the real-time character shadows the picture shows (a
+  build job). The darkness curve's input (`nsLampRaw`) is unchanged. On screen a mapped lamp's term drops to 0.15
+  inside a silhouette, now also from casters the capsules lacked (partner, bodies, weapons, poses) and on a body's own
+  limbs; the meter reads that lamp in full there (`lr14-build.md`, parity note).
 - Co-op: each machine uses its own setting and its own nearest lamps; no wire change.
 - Tests: `tests/charShadowSet.test.ts`; `scripts/e2e-lightbake.mjs` (smooth Epic: on, 4 slots, `LAMP_CSHADOW`
   compiled, maps copied, every shader <= 16 textures with the guards alerted).
@@ -233,7 +261,9 @@ change.
   `LAMP_VOLUME`: two taps, N.L against the direction, capsule shadows from `VOL_CAPS` 4 nearest characters.
 - Its darkness parameters are `DARK_STANDARD` (gamma-space standard materials).
 
-## Darkness is dark (3.6, bible L5 / L7)
+## The darkness curve (3.6, bible L5 / L7)
+- How bright a space is comes from its lamps and the real-world band for its type ("Decided direction"); the curve only
+  decides how a level of light renders, so a lit car park reads lit and dark reads dark where the real gaps are.
 - Rendering only. `world/darkCurve.ts` (pure): `curve(s) = s x g x w(g s)`, `w(x) = floor + (top - floor) / (1 + (centre /
   x)^steep)`, from a pixel's summed static level `s` (fill + baked moon + baked lamps, as `LightField` sums them) to the
   level it renders with; `g` the night-vision gain. `DARK_DESKTOP` (linear PBR, then the tone map's toe and the sRGB
@@ -281,9 +311,10 @@ change.
   (the night-vision smear; `e2e-darkness` checks a turning camera reads as moving). Per-frame code must not call
   `getViewMatrix` / `getTransformationMatrix` / `getDirection*` / `getWorldMatrix` on the active camera before the scene
   renders.
-- The switch (G100): an instant cut. `VisionState` has no flip; the first frame drawn after the button or a wheel pick is
-  the new mode (`e2e-darkness` thermal leg). A change of mode on screen flashes the HUD label for 1.5 s; the goggle sound
-  plays on on / off only (G181). Wren's goggle moving to the eyes is the figure's (`figure.setVision`), not the picture's.
+- The switch (G181; G100 before it): an instant cut. `VisionState` has no flip; the first frame drawn after the button
+  or a wheel pick is the new mode (`e2e-darkness` thermal leg). A change of mode on screen flashes the HUD label for 1.5
+  s; the goggle sound plays on on / off only (G181). Wren's goggle moving to the eyes is the figure's
+  (`figure.setVision`), not the picture's.
 
 ## Thermal and electro (locomotion step 14)
 - `vfx/visionLook.ts` (pure, GLSL `VISION_GLSL`): a `vk` branch in the cinematic post pass (1 thermal, 2 electro). No new

@@ -2,7 +2,7 @@
 
 Branch feature/ct-research, code = master 4.0.0 (6f81c83), checked 2026-10-18. Read-only inventory: what the game can do
 today, so the prototype plan reuses it instead of rebuilding. Sources: docs/systems/*.md and
-docs/locomotion/PROTOTYPE-PLAN.md, with the key claims checked in `src/` (file paths below).
+docs/archive/locomotion/PROTOTYPE-PLAN.md, with the key claims checked in `src/` (file paths below).
 
 Status words:
 - **Co-op**: exists and works with two players (host + client), with an e2e suite.

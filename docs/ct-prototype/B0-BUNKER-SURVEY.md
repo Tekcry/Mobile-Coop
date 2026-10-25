@@ -1,6 +1,6 @@
 # B0 - bunker survey (read-only, 2026-10-18)
 
-Goal (G179, G180): the Fallow bunker rebuilt as CT's co-op training level on the pure-CT moves, played start to finish by two players. Sources read: FEEL-PLAN phase 2, levels digest 2.1 and 3.1, moves digest 1.0-1.8, 1.14, 1.17, 2.2-2.3, 2.15, DECISIONS G57, G78-G80, G117, G126, G130, G138, G151, G152, G155, G179, G180, docs/training (BAYS, FEATURES, STATE, DECISIONS, RULES), `src/world/maps/bunker*.ts`, `src/game/course`, the team and net code, the e2e suites.
+Goal (G179, G180): the Fallow bunker rebuilt as CT's co-op training level on the pure-CT moves, played start to finish by two players. Sources read: FEEL-PLAN phase 2, levels digest 2.1 and 3.1, moves digest 1.0-1.8, 1.14, 1.17, 2.2-2.3, 2.15, DECISIONS G57, G78-G80, G117, G126, G130, G138, G151, G152, G155, G179, G180, docs/archive/training (BAYS, FEATURES, STATE, DECISIONS, RULES), `src/world/maps/bunker*.ts`, `src/game/course`, the team and net code, the e2e suites.
 
 ## 1. CT's co-op training
 

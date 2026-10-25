@@ -14,7 +14,7 @@
  * left in the tuner; `allowShared` instead bakes a single changed group into the shared value and warns); manual: no code
  * target (a pure option, the Joints mirror lock); Keys (the key JSONs via the apply-tune functions, then a rebake per
  * clip); already baked (the ledger: this group and slider were baked before at this same value, in this export or an
- * earlier one); skipped (no bake rule: a slider this build does not know). `docs/anim-tuner/BAKE.md`.
+ * earlier one); skipped (no bake rule: a slider this build does not know). `docs/archive/anim-tuner/BAKE.md`.
  */
 import { applyKeyEdits, editedClips, KEY_FIELDS, keyEditPlan, keyEditRow, keyFileText, keyMetaText, keyMirrorOn, keyWrittenFull, parseKeyGroup, parseKeyMirror, type KeyFile } from './tuneKeysFile'; // (item 25, track A) keyEditPlan, keyEditRow, keyWrittenFull
 import { KEY_TIME_ID, KEY_TIME_MAX } from './tuneKeysTime';

@@ -4,7 +4,8 @@ Desktop only (G12): pad first, then keyboard and mouse. One current checklist pl
 on the build under test: the live game, the one chosen preview (G85) or a local `npm run dev`. F3 (or `?debug=1`) shows
 the debug overlay. Tick each item; note anything off in Pause > Report feedback.
 
-Items marked (CT prototype) describe today's movement, which the CT prototype replaces; the prototype job rewrites them.
+Items marked (CT prototype) describe today's movement as built. CT movement values are not build targets: CT movement
+references are ignored (G210) and Michael tunes movement himself (G227), so test what is built, never a CT target.
 Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-version lists:
 [docs/archive/testing-history.md](docs/archive/testing-history.md) (3.0.0 to the consolidation) and
 [docs/archive/TESTING-pre-3.0.md](docs/archive/TESTING-pre-3.0.md).
@@ -23,13 +24,16 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 - [ ] Every menu works by pad alone: the stick and d-pad move the focus ring, A selects, B goes back, LB / RB switch
   tabs, sliders and choices change with left / right. Prompts show the pad's glyphs (Xbox letters or PlayStation shapes).
 - [ ] The main menu shows Sector Ops, Co-op, Loadout, Settings and Feedback (Missions, Training and Free roam only with
-  `?legacy=1`). Sector Ops opens the op list (the Warehouse with four stars), then its briefing: the sectors listed,
-  Difficulty (Rookie, Normal, Realistic, Perfectionist, no sliders), Weather, Start.
-- [ ] Sector Ops: three sections. Each objective unlocks the connector room's door; standing in the room shuts it behind
-  you, the next section loads and the far door opens. The extraction shows time, kills, times spotted and GHOST when
-  there were none. Being seen raises ALARM STAGE and more guards come. Going down restarts the section at the room.
-- [ ] Sector Ops Warehouse with night vision off: each section's routes and objective read by lamp light, with dark
-  pockets between; sections 2 and 3 each offer three routes (`docs/warehouse-s23/WALK.md`). Every lamp is an LED
+  `?legacy=1`). Sector Ops opens the op list (Saltmarsh Park and the old Warehouse op, four stars each), then its
+  briefing: the sectors listed, Difficulty (Rookie, Normal, Realistic, Perfectionist, no sliders), Weather, Start.
+- [ ] Sector Ops on Saltmarsh Park (`campusOps`): five sections, S1 gatehouse and car park, S2 HQ atrium, S3 labs, S4
+  data hall, S5 Old House. Each objective unlocks the connector room's door; standing in the room shuts it behind you,
+  the next section loads and the far door opens. The extraction shows time, kills, times spotted and GHOST when there
+  were none. Being seen raises ALARM STAGE and more guards come. Going down restarts the section at the room. Solo
+  finishes it (team doors keep a solo route, G280).
+- [ ] (legacy map) Sector Ops Warehouse (`warehouseOps`, three sections) with night vision off: each section's routes
+  and objective read by lamp light, with dark
+  pockets between; sections 2 and 3 each offer three routes (`docs/archive/warehouse-s23/WALK.md`). Every lamp is an LED
   fitting (sector-fixes L): a flush panel under a room ceiling, a strip on short wires under the roof, a slim bulkhead on
   a wall bracket; a room's fittings share one height on a regular grid or row (some dark, over the pockets), none stands
   on the roof or near a climbing pipe, ladder or duct (the yard drainpipe's lamp is 1 m beside it); none floats or pokes
@@ -214,6 +218,16 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   the open (they crouch, then take cover within ~3 s); the covering guard fires at your last spot only where he has a
   clear line (no rounds into a wall); the caller throws no grenade while he is on the radio. Trip a camera or a laser:
   every guard in the section draws his gun and none holsters while the alarm stage holds.
+- [ ] Guard AI polish (Sector Ops): break sight on a group next to a wall: no guard walks a long way round to cover
+  behind it, none freezes in the open (A2). Trip a device, then make a noise near its responder: after his look he
+  searches the device room again (A1). Cut a breaker, let a guard relight it, cut it again inside a minute: after the
+  light check it is relit, never dark for good (B1). Co-op: a guard who only heard player 1 never walks to player 2;
+  hunted by one guard, show him player 2: one radio call names player 2 (A3 / A4).
+- [ ] Guard AI polish 2 (Sector Ops): make a noise behind a locked door a guard cannot open: he walks to the near side
+  of it, looks about 4 s and stands down, not 20 s on the spot (A184; Marlow A7 cage). Make one noise with three guards searching: one "I heard
+  something." line, all three still go (A185). Break sight with a squad: the covering guard behind a high wall steps to
+  his edge and fires at your last spot while a mate moves up (A186). Three guards searching after a fight: one looks
+  at your last known spot once, the others go to their search points at once (A188).
 - [ ] Report, then attack (guard-ai walk 4.82 items 2 and 6, Marlow Yard): get spotted by the station 2 guard and break
   line of sight: he takes cover and radios it in, then (call done, a few seconds with no sight of you) leaves cover and
   moves up on where he last saw you, still in the fight, and searches from there; he does not sit in cover and go
@@ -284,7 +298,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   seen, he fires only once drawn; calm again, he holsters after about 15 s. A high-security post, and every guard once
   the alarm is up, stays at low ready. Co-op (A126): on the client the same guard is holstered, draws and holsters
   with the host (a moment behind), never stuck at low ready.
-- [ ] View tap switches the goggles; a guard's footsteps and your own sound right with the music in every alert state.
+- [ ] D-pad left (N) turns the goggles on and off; a guard's footsteps and your own sound right with the music in every alert state.
 - [ ] Night vision in a dark room: green, readable with grey steps, no flat murk; Wren and the guards are shaped and not
   glowing white; lamps and fixtures glow, lit walls do not. The goggle frame is wide and thin (almost the whole screen
   clear, a soft dark band only at the edges and corners).
@@ -351,7 +365,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   "wide ranges" doubles every range; typing a number in a row's field applies on Enter; the search box filters rows.
 - [ ] Animation tuner Weight (anim-weight): every Weight slider at its default leaves the walk, jog, run, crouch and
   drawn movement exactly as before; momentum sliders change the local player only (time to speed, stop, turn rate),
-  the lean / bank / plant / spring / anticipation sliders change the pose only (docs/anim-tuner/WEIGHT.md).
+  the lean / bank / plant / spring / anticipation sliders change the pose only (docs/archive/anim-tuner/WEIGHT.md).
 - [ ] Animation tuner Clip speed (clip-speed): the Clip speed tab works by pad like the others; each slider shows
   "today: ... s at 1". Rifle draw speed 2: LT draws the rifle in half the time and it fires as soon as it is up; 0.5:
   twice as slow and it cannot fire until it is up. Rifle / Pistol holster (one row each), swap (LB), grenade throw and Every clip speed change their
@@ -511,8 +525,9 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 
 ### Keyboard and mouse
 - [ ] A click captures the mouse (it never fires); W A S D move, the mouse looks, the wheel or = / - change the gear.
-- [ ] RMB aims, LMB fires, C crouches, Space backs to a wall, E traverses, F uses, R reloads, X / Q swap, G gadget, Tab
-  wheel, N goggles, Z ping, V shoulder swap; Esc pauses and Resume re-captures.
+- [ ] RMB aims, LMB fires, C crouches, Space jumps, Caps Lock backs to a wall, E uses, F is the co-op action, R reloads,
+  X draws / holsters, T / Q swap, Z knocks out, G gadget, Tab wheel, N goggles, middle mouse pings, V shoulder swap;
+  Esc or P pauses and Resume re-captures.
 - [ ] Settings > Mouse & Keyboard: rebind a key, a conflict warns, Esc cancels a capture.
 - [ ] (marlow-bays slice T) Animation tuner (Pause > Animation tuner, or the Anim Studio): the cursor stays free; drag
   the scene with the left button to turn the camera, the wheel zooms, sliders and lists click; no shot fires. F4 (or the
@@ -690,8 +705,8 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
 ### Checks
 - [ ] A job that adds or changes a map: the map's graph passes `node scripts/level-validate.mjs <graph.json>` with 0 errors
   and every WARN is justified in the design doc (before greybox).
-- [ ] `npm run check` passes; `npm run e2e` passes once on the PR head (the PR tier, CLAUDE.md "Sessions"; known-flaky
-  suites excepted; `E2E_SUITE_TIMEOUT=900` on the 8-thread desktop); a job that touches visuals or rendering runs
+- [ ] CI `check` passes and the PR's suites pass on the laptop queue on the PR head (the PR tier, `docs/RULES.md`;
+  known-flaky suites excepted); a job that touches visuals or rendering runs
   `npm run e2e:gpu` and the perf checks on Michael's PC, or lists them as "pending PC run".
 - [ ] A suite that stops with no error at `E2E_JOBS=1` may have been killed at the suite limit (the streamed output
   drops the KILLED line): check its time before reading a hang into it (havok-stall).

@@ -31,6 +31,29 @@ describe('heavy-lock text', () => {
     expect(isStale('Marlow Build | marlow-final | 18:48', { host: HOST, alive: () => false })).toBe(false);
   });
 
+  it('parses the laptop queue service line too (no host: this machine), 2026-10-25 pid 4484', () => {
+    const q = 'laptop-queue | 20261025T104000-affected-e2e-d0f574cb-c404 d0f574cb pid 4484 | 2026-10-25T10:40:00.000Z';
+    expect(parseLock(q)).toEqual({ pid: 4484, host: null });
+    expect(parseLock(`${q}\n`)).toEqual({ pid: 4484, host: null });
+    expect(parseLock('laptop-queue | train 83 e610098c pid 77 | 2026-10-25T10:52:00.000Z')).toEqual({ pid: 77, host: null });
+    expect(parseLock('laptop-queue | request 1a2b3c4d | 2026-10-25T00:20:00.000Z')).toEqual({ pid: null, host: null });
+    // only the service's own prefix: another writer's "pid n | iso" line (no host) is not read
+    expect(parseLock('auto-train | pid 7 | 2026-10-24T10:00:00.000Z')).toEqual({ pid: null, host: null });
+    expect(isStale(q, { host: HOST, alive: () => false })).toBe(true);
+    expect(isStale(q, { host: 'laptop', alive: () => false })).toBe(true);
+    expect(isStale(q, { host: HOST, alive: () => true })).toBe(false);
+    expect(isStale('laptop-queue | request 1a2b3c4d | 2026-10-25T00:20:00.000Z', { host: HOST, alive: () => false })).toBe(false);
+  });
+
+  it('take breaks a dead service line and respects a live one', async () => {
+    await withDir((lock) => {
+      fs.writeFileSync(lock, 'laptop-queue | r1 d0f574cb pid 4484 | 2026-10-25T10:40:00.000Z\n');
+      expect(tryTake(lock, 'mine', { host: HOST, alive: () => true, log: quiet })).toEqual({ taken: false, holder: 'laptop-queue | r1 d0f574cb pid 4484 | 2026-10-25T10:40:00.000Z' });
+      expect(tryTake(lock, 'mine', { host: HOST, alive: () => false, log: quiet }).taken).toBe(true);
+      expect(fs.readFileSync(lock, 'utf8')).toBe('mine');
+    });
+  });
+
   it('pidAlive: this process yes, an unused pid no', () => {
     expect(pidAlive(process.pid)).toBe(true);
     expect(pidAlive(2 ** 22 + 12_345)).toBe(false);

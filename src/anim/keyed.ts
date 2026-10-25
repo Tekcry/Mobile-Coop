@@ -19,10 +19,12 @@
  *   pitch: - bends the toes up), the FK weight (1, 0..1: 0 the foot planner's IK leg as without the channel, 1 the clip's FK leg). A clip
  *   without one samples identity / 0 (the rig is untouched). (S4) Per-key edits (`keyOff`) reach them: `clav` turned on
  *   top in the chest frame, `fing` added, the FK weight added (clips with `leg` only).
- * - (anim-skeleton S4; optional) `legd` (14, `KD`): per side L then R (7 each) deltas on the foot planner's solved IK leg,
+ * - (anim-skeleton S4; optional) `legd` (18, `KD`): per side L then R (9 each) deltas on the foot planner's solved IK leg,
  *   rad in the rig's local frames (each joint's own node: x the hinge, y along the bone, z forward; the rig's
  *   `RotationYawPitchRoll` order): hip pitch, yaw, roll, knee (+ bends the shin back), ankle pitch, roll, toe (the toe
- *   roll's sense). The rig turns a swinging leg by them and re-solves a planted one onto its plant with them folded in.
+ *   roll's sense), (tuner-clarity S2) ankle yaw (the foot about the ankle's y) and shin twist (the shin about its bone,
+ *   after the knee delta). The rig turns a swinging leg by them and re-solves a planted one onto its plant with them
+ *   folded in (the shin twist then turns the foot about the shin).
  *   The key files' `legX.d` degrees are anatomical (the same sense on both sides): `LEGD_SIGN` converts. A clip without
  *   it samples 0 (the rig is untouched).
  * - (mocap-trial; optional) `feet` (10, `KF`): per side L then R the ankle in the ROOT frame (x right, y up, z forward,
@@ -58,7 +60,7 @@ export interface KeyedClipDef {
   clav?: readonly number[];
   fing?: readonly number[];
   leg?: readonly number[];
-  /** (anim-skeleton S4) Optional leg deltas on the IK legs (14 per frame, `KD`). */
+  /** (anim-skeleton S4) Optional leg deltas on the IK legs (`KEYED_LEGD` = 18 per frame, `KD`). */
   legd?: readonly number[];
   /** (mocap-trial) Optional clip feet (10 per frame, `KF`) and the root's travel over one cycle (1.75 m units). */
   feet?: readonly number[];
@@ -169,7 +171,7 @@ export interface KeyedOffsets {
   readonly fing: Float32Array;
   readonly fingMean: Float32Array;
   fingOn: number;
-  /** (S4) The leg deltas (14 a frame, `KD`, rad, rig frame), added to the clip's. */
+  /** (S4) The leg deltas (`KEYED_LEGD` = 18 a frame, `KD`, rad, rig frame), added to the clip's. */
   readonly legd: Float32Array;
   readonly legdMean: Float32Array;
   legdOn: number;
@@ -249,10 +251,13 @@ export const KL = { hip: 0, knee: 4, ankle: 5, toe: 9, w: 10 } as const;
 const LEG_Q = [KL.hip, KL.ankle, KEYED_LEG_SIDE + KL.hip, KEYED_LEG_SIDE + KL.ankle] as const;
 const LEG_S = [KL.knee, KL.toe, KEYED_LEG_SIDE + KL.knee, KEYED_LEG_SIDE + KL.toe] as const;
 const LEG_W = [KL.w, KEYED_LEG_SIDE + KL.w] as const;
-/** (anim-skeleton S4) The leg delta channel: 7 a side (L then R), slots in one side (`KD`), rad in the rig frame. */
-export const KEYED_LEGD = 14;
-export const KEYED_LEGD_SIDE = 7;
-export const KD = { hipPitch: 0, hipYaw: 1, hipRoll: 2, knee: 3, anklePitch: 4, ankleRoll: 5, toe: 6 } as const;
+/**
+ * (anim-skeleton S4) The leg delta channel: 9 a side (L then R), slots in one side (`KD`), rad in the rig frame.
+ * (tuner-clarity S2) 7 -> 9 a side, the ankle yaw and the shin twist appended (no clip carried `legd` before).
+ */
+export const KEYED_LEGD = 18;
+export const KEYED_LEGD_SIDE = 9;
+export const KD = { hipPitch: 0, hipYaw: 1, hipRoll: 2, knee: 3, anklePitch: 4, ankleRoll: 5, toe: 6, ankleYaw: 7, shinTwist: 8 } as const;
 /** (mocap-trial) The clip feet channel: 5 a side (L then R), slots in one side (`KF`). */
 export const KEYED_FEET = 10;
 export const KEYED_FEET_SIDE = 5;
@@ -271,18 +276,19 @@ export function layerMul(k: number, s: number): number {
   return s === 1 ? k : 1 + (k - 1) * s;
 }
 /** (S4) The key files' `legX.d` fields in `KD` order (degrees, anatomical: the same sense on both sides). */
-export const LEGD_FIELDS = ['hipPitch', 'hipYaw', 'hipRoll', 'knee', 'anklePitch', 'ankleRoll', 'toe'] as const;
+export const LEGD_FIELDS = ['hipPitch', 'hipYaw', 'hipRoll', 'knee', 'anklePitch', 'ankleRoll', 'toe', 'ankleYaw', 'shinTwist'] as const;
 /**
  * (S4) Key degrees -> the rig's channel (times pi / 180), per side [L, R] in `KD` order: hip pitch + the thigh forward,
  * hip yaw + the knee turned out, hip roll + the thigh out, knee + bent, ankle pitch + the toes up, ankle roll + the sole
- * in, toe + up. key_clip.py `LEGD_SIGN` is the same table.
+ * in, toe + up; (tuner-clarity S2) ankle yaw + the toes out, shin twist + the shin turned out (the toes out with it),
+ * both checked on the rig by tests/keyLegTwist.test.ts. key_clip.py `LEGD_SIGN` is the same table.
  */
 export const LEGD_SIGN: readonly (readonly number[])[] = [
-  [-1, -1, -1, 1, -1, 1, -1],
-  [-1, 1, 1, 1, -1, -1, -1],
+  [-1, -1, -1, 1, -1, 1, -1, -1, -1],
+  [-1, 1, 1, 1, -1, -1, -1, 1, 1],
 ];
-/** (S4) The rig-frame slots a left / right mirror negates (yaw and roll about the reflected axes). */
-const LEGD_NEG = [KD.hipYaw, KD.hipRoll, KD.ankleRoll] as const;
+/** (S4) The rig-frame slots a left / right mirror negates (yaw and roll about the reflected axes; S2 the two twists). */
+const LEGD_NEG = [KD.hipYaw, KD.hipRoll, KD.ankleRoll, KD.ankleYaw, KD.shinTwist] as const;
 
 /** Quaternions (x y z w) at identity, `n` floats. */
 function idQ(n: number): Float64Array {
@@ -571,7 +577,7 @@ const OW = new Float64Array(KEYED_WRIST);
 const OP = new Float64Array(KEYED_PEL);
 const OX = new Float64Array(KEYED_SH);
 // (anim-skeleton S4) one of the finger / leg delta / leg weight offsets
-const OF = new Float64Array(KEYED_FING);
+const OF = new Float64Array(Math.max(KEYED_FING, KEYED_LEGD));
 
 const isId = (o: Float64Array, s: number): boolean => o[s] === 0 && o[s + 1] === 0 && o[s + 2] === 0 && o[s + 3] === 1;
 

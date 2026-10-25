@@ -6,7 +6,7 @@ import { glass, led, pit, slabWithHoles } from './bunkerUpper';
 
 /**
  * Fallow, the shaft and reservoir (y 6), BAYS v2 (T5e): B3 The Intake, airlock A3, B4 The Cistern, airlock A4
- * (docs/training/BAYS.md sections 0, B3, B4). Every coordinate below is a BAYS local coordinate; `plantAt` / the
+ * (docs/archive/training/BAYS.md sections 0, B3, B4). Every coordinate below is a BAYS local coordinate; `plantAt` / the
  * per-bay `X` / `Z` / `Y` add the bay's offset and floor (BAYS 0.1; A4's floor is the outlet platform, A32).
  *
  * One shared course (R3). B3 is one line up the shaft and down again: G1 -> riser slot -> G2 -> WJ1 -> G3 -> WJ2 ->

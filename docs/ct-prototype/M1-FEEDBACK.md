@@ -14,7 +14,7 @@ Overall: "it's on the right track".
    merge.
 2. Crouched sneak near enemies: at the slow crouched speeds, when a guard is near, the crouch walk changes to a tense
    variant: on the toes, careful placement, exaggerated balance (arms out / body sway as the footage shows). Check the
-   footage catalogue (docs/locomotion/research/ct-footage-catalogue.md) for clips that show it and measure: trigger
+   footage catalogue (docs/archive/locomotion/research/ct-footage-catalogue.md) for clips that show it and measure: trigger
    distance or condition (guard nearby, aware or not), which speeds, transition time. Posture work, so it is built on
    Wren. Remotes must show it too (a MoveState flag if it is not derivable from data both ends have).
 
@@ -24,4 +24,4 @@ Overall: "it's on the right track".
 
 What it changes: in turns and tight walking circles the hips and legs follow the upper body so the feet never cross or
 clip and the stance never looks awkward. Area A1 (body / anim graph). Before any code change, review the CT footage
-evidence (docs/locomotion/research/ct-footage-catalogue.md, ct-measure-turns.md) and bring the findings to Michael.
+evidence (docs/archive/locomotion/research/ct-footage-catalogue.md, ct-measure-turns.md) and bring the findings to Michael.

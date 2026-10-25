@@ -8,8 +8,9 @@
  * reads 0 (as the bake reads it). The legs stay the foot planner's (rig gap R3).
  * (anim-skeleton S4) Appended on every keyed clip: per arm the clavicle `clav` (pitch, yaw, roll; deg), per hand
  * `handX.<finger>` curl (fingers.ts units) and spread (deg), per leg the deltas on the IK leg `legX.d` (hip pitch / yaw /
- * roll, knee, ankle pitch / roll, toe; deg, anatomical) and the FK weight `legX.w` (shown on `legs` clips only). The bake
- * (key_clip.py) opts a clip into the matching channel as soon as one of these is non-zero.
+ * roll, knee, ankle pitch / roll, toe; (tuner-clarity S2) ankle yaw, shin twist; deg, anatomical) and the FK weight
+ * `legX.w` (shown on `legs` clips only). The bake (key_clip.py) opts a clip into the matching channel as soon as one of
+ * these is non-zero.
  * Registry groups `key.<clip>.<key index>` (a mirrored clip: indexes 0 .. 2n-1, the second half the mirrored keys, used
  * only with its Mirror box off) and `key.<clip>.mirror` (the Mirror box, slider `mirror`: 1 on, 0 off); slider ids are
  * `KEY_FIELDS[].id`.
@@ -47,8 +48,14 @@ export interface KeyField {
 
 /** (anim-skeleton S4) The fingers of a key's `handL` / `handR` (key_clip.py `FINGER_NAMES`). */
 export const KEY_FINGERS = ['thumb', 'index', 'middle', 'ring', 'little'] as const;
-/** (S4) A leg's `d` deltas on the IK leg (src/anim/keyed.ts `LEGD_FIELDS`, the same order). */
-export const KEY_LEGD = ['hipPitch', 'hipYaw', 'hipRoll', 'knee', 'anklePitch', 'ankleRoll', 'toe'] as const;
+/**
+ * (S4) A leg's `d` deltas on the IK leg (src/anim/keyed.ts `LEGD_FIELDS`, the same order). (tuner-clarity S2) The ankle
+ * yaw and the shin twist appended: their slider ids come after every older field (`KEY_LEGD_S4` = the first 7 keep
+ * their old loop and indexes).
+ */
+export const KEY_LEGD = ['hipPitch', 'hipYaw', 'hipRoll', 'knee', 'anklePitch', 'ankleRoll', 'toe', 'ankleYaw', 'shinTwist'] as const;
+/** (tuner-clarity S2) The count of the S4 leg delta fields (laid out before the FK weight; the twists after the legs). */
+export const KEY_LEGD_S4 = 7;
 export type KeySub = '' | 'wrist' | 'sh' | 'clav' | 'd' | (typeof KEY_FINGERS)[number];
 /** (S4) The finger curl slider (fingers.ts units, + closes) and the FK leg weight slider. */
 export const KEY_RANGE_CURL = { min: -1, max: 1, step: 0.01 } as const;
@@ -102,11 +109,32 @@ function fields(): KeyField[] {
       out.push({ id: `${seg}_${fn}Spread`, label: `${side} ${fn} spread (+ away from the middle finger)`, seg, field: 'spread', sub: fn, wrist: false, unit: 'deg', min: -KEY_RANGE_SPREAD, max: KEY_RANGE_SPREAD, step: KEY_RANGE.step });
     }
   }
-  const LEGD_WORD = { hipPitch: '+ thigh forward', hipYaw: '+ knee out', hipRoll: '+ thigh out', knee: '+ bent', anklePitch: '+ toes up', ankleRoll: '+ sole in', toe: '+ up' } as const;
+  const LEGD_WORD = {
+    hipPitch: '+ thigh forward',
+    hipYaw: '+ knee out',
+    hipRoll: '+ thigh out',
+    knee: '+ bent',
+    anklePitch: '+ toes up',
+    ankleRoll: '+ sole in',
+    toe: '+ up',
+    ankleYaw: '+ toes out',
+    shinTwist: '+ shin turned out',
+  } as const;
   for (const side of ['L', 'R'] as const) {
     const seg = `leg${side}`;
-    for (const f of KEY_LEGD) deg(`${seg}_${f}`, `${side} leg ${f} delta (${LEGD_WORD[f]}; a planted foot stays on its plant)`, seg, f, 'd');
+    for (let i = 0; i < KEY_LEGD_S4; i++) {
+      const f = KEY_LEGD[i]!;
+      deg(`${seg}_${f}`, `${side} leg ${f} delta (${LEGD_WORD[f]}; a planted foot stays on its plant)`, seg, f, 'd');
+    }
     out.push({ id: `${seg}_w`, label: `${side} leg FK weight (FK-leg clips only, KEY_CLIPS legs; 0 the planner's IK leg, 1 the key's FK leg)`, seg, field: 'w', sub: '', wrist: false, unit: '', min: KEY_RANGE_W.min, max: KEY_RANGE_W.max, step: KEY_RANGE_W.step });
+  }
+  // (tuner-clarity S2) appended after every older field (older indexes unchanged): the foot twist and the shin twist
+  for (const side of ['L', 'R'] as const) {
+    const seg = `leg${side}`;
+    for (let i = KEY_LEGD_S4; i < KEY_LEGD.length; i++) {
+      const f = KEY_LEGD[i]!;
+      deg(`${seg}_${f}`, `${side} leg ${f} delta (${LEGD_WORD[f]}; a planted foot stays on its plant)`, seg, f, 'd');
+    }
   }
   return out;
 }

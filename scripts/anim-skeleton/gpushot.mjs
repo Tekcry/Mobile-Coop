@@ -4,14 +4,14 @@
 //   2. holstered, hands free: a clavicle shrug (left) and push (right), per-finger curls and spreads, the goggle 2 cm up;
 //   3. the same pose with every S2 input back at zero (reference).
 // Inputs go through the rig's own slots (`rig.clavIn`, `rig.fingerClip`) and the goggle copy (`rig.goggleOff`, set just
-// before the figure reads it); no game code reads them. Writes docs/anim-skeleton/s2/*.webp (< 400 KB each).
+// before the figure reads it); no game code reads them. Writes docs/archive/anim-skeleton/s2/*.webp (< 400 KB each).
 //   node scripts/anim-skeleton/gpushot.mjs            (needs a prior `npm run build`)
 import { spawn, spawnSync } from 'node:child_process';
 import { mkdirSync, statSync, writeFileSync } from 'node:fs';
 import { launch, waitOperator } from '../e2e-lib.mjs';
 
 const PORT = 4189;
-const OUT = 'docs/anim-skeleton/s2';
+const OUT = 'docs/archive/anim-skeleton/s2';
 mkdirSync(OUT, { recursive: true });
 const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--port', String(PORT), '--strictPort', '--host', '127.0.0.1'], { windowsHide: true, stdio: 'ignore' });
 const kill = () => {

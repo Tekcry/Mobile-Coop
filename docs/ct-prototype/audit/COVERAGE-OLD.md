@@ -1,6 +1,6 @@
 # Coverage check: old catalogue (A1-L1) vs the six area audits
 
-Scope: `docs/locomotion/research/ct-footage-catalogue.md` as corrected by `docs/ct-prototype/FOOTAGE-CATALOGUE.md` Part 2 (lines 690-end, per-clip corrections, every "Missed" move, action menu notes). Text only, no images or video opened.
+Scope: `docs/archive/locomotion/research/ct-footage-catalogue.md` as corrected by `docs/ct-prototype/FOOTAGE-CATALOGUE.md` Part 2 (lines 690-end, per-clip corrections, every "Missed" move, action menu notes). Text only, no images or video opened.
 Audit files read in full (2026-10-20 00:37): LOC = AUDIT-LOCOMOTION (38 rows; it was still being edited, rows 21-38 appeared during this check), CAM = AUDIT-CAMERA (18), AIM = AUDIT-AIM (19), WALLS = AUDIT-WALLS (30), TRAV = AUDIT-TRAVERSAL (22), MENU = AUDIT-ACTIONMENU (10).
 Clip names are HHMMSS (old clips of 2026-10-17). Times are tile times (+-1 s) as in the catalogue.
 

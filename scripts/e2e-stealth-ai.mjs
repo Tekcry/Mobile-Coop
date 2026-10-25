@@ -2743,7 +2743,7 @@ try {
             // one role bound at a time: a point or flank on his way to his role's cover (the open wait's own pick is not a bound)
             if ((name === 'point' || name === 'flank') && e.state === 'seekCover') {
               mvStrict++;
-              if (e.coverIdx === e['roleCover']) mv++;
+              if (e.roleBound) mv++;
             }
             // the overwatch's line to his spot, as `suppressLkp` casts it (muzzle -> hunt spot + 1.1 m, static geometry)
             let blocked = false;

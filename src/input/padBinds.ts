@@ -2,7 +2,7 @@
  * (locomotion step 18, D7; CT prototype A3, G96) Controller bindings (pure, unit-tested). Every remappable pad verb has up
  * to two buttons (W3C standard-mapping indices). The sticks, the triggers' analog aim / fire and the menu buttons
  * (`UI_BINDINGS`) stay fixed; LT / RT as plain buttons can take another verb (the conflict check then names Aim / Fire).
- * The defaults are `GAME_BINDINGS` (docs/anim-rework/BRIEF.md section 1): A interact / context (doors, takedown; every
+ * The defaults are `GAME_BINDINGS` (docs/archive/anim-rework/BRIEF.md section 1): A interact / context (doors, takedown; every
  * weapon state, Michael 14:55 "Interact always"), B crouch, Y jump / traverse, X holster / draw (tap) and reload (held while drawn), LT
  * aim (held; fixed), RT fire while aiming, holstered or holding a guard tap knockout / hold kill (fixed), L3
  * back-to-wall (not aiming) / swap shoulder (aiming), R3 zoom (aiming, scoped), RB co-op action (CT's Black), LB
