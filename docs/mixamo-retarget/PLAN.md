@@ -26,22 +26,40 @@ Owner: Player Build. Status: current (2026-10-25; plan check PASS WITH FIXES on 
   Studio lists the keyed clips (`studio.ts:154-198`), not the captures.
 - Guards: `keyedOk` off (`characterRig.ts:1841`), pinned by `tests/mocapGuards.test.ts`.
 
-## Clip map (CLIP-LIST.md -> what it replaces, owner of the hook)
-| Clip (slug) | Output (emit kind) | Replaces (A8: only if it measures as well or better) | Slice |
-| --- | --- | --- | --- |
-| hanging_idle | channel clip, loop | `HANG` (traverse.ts:23), hands stay on the grips by the rig's IK | I2 |
-| braced_hang_shimmy | channel clip, cycle on `traverseT` | the ledge shimmy (HANG over the cadence) | I2 |
-| freehang_climb | channel clip, progress on the climb-up path | `CLIMB_UP` (traverse.ts:366) from a free hang | I2 |
-| braced_hang_to_crouch | channel clip, progress on the climb-up path | `CLIMB_UP` to the crouch (`CLIMB_UP_CROUCH_K`) | I2 |
-| climbing_ladder | channel clip, cycle on the rung cadence | `CLIMB` (traverse.ts:57) | I2 |
-| crawling | channel clip, cycle | `CRAWL` (traverse.ts:122); also the `crawlUnder` placeholder | I2 / hand-off |
-| crouch_to_stand, stand_to_crouch | keyed timed one-shot | the procedural stance change (min 0.3 / 0.25 s, bible 5.12.2 #6) | I3 |
-| crouched_walking | keyed gait cycle + feet | `MOCAP_CROUCH_WALK` (CMU 136_09) only if better; else Studio only | I1 |
-| standing_idle | keyed non-gait loop | `KEYED_IDLE` (Wren); guards later (G1) | I1 / G1 |
-| pulling, lifting | keyed timed one-shots | team pull (`pullHaul`) / shutter lift (`shutterLift`) placeholders | hand-off |
-| carry, kneel_down | keyed gait cycle / timed one-shot | the body carry walk, J19's put-down (R11) | hand-off |
-| punch | keyed timed one-shot | the knock-out strike (`strikeBody.ts`, J19 S1) | hand-off |
-Files may land with other names: M1 slugs whatever is in the folder and M3's recipe maps slugs to rows by title words.
+## Clip map (the 21 files in `C:/NightShift/scratch/mixamo/clips/`, 2026-10-25 19:00-19:12)
+All FBX Binary, Without Skin, 30 fps, no keyframe reduction, In Place unticked; a 65-bone `mixamorig` skeleton, no mesh,
+one action each, all 21 sha256-distinct; exported on Mixamo's auto-rig of Wren's own hero mesh (BRIEF A5). Slug rule
+(M1): the file name without `.fbx` and without any `(...)` note (kept as the recipe's note), lower case, every run of
+non-letters / digits -> `_`, trimmed; the clip is `mocap_<slug>` in `src/anim/clips/mixamo/<slug>.ts` (keyed) or
+`trav_<slug>.ts` (channel). Emit kinds: `gait` / `loop` / `timed` (M3, keyed), `chanLoop` / `chanPath` (M4, channel).
+
+| # | File | Slug | Emit kind | Replaces (A8: only if it measures as well or better) | Slice |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Hanging Idle.fbx | hanging_idle | chanLoop (in place) | `HANG` (traverse.ts:23); hands on the grips by the rig's IK | I2 |
+| 2 | Braced Hang Shimmy Left.fbx | braced_hang_shimmy_left | chanLoop on `traverseT` | the ledge shimmy to the left (HANG over the cadence) | I2 |
+| 2 | Braced Hang Shimmy Right.fbx | braced_hang_shimmy_right | chanLoop on `traverseT` | the ledge shimmy to the right | I2 |
+| 3 | Freehang Climb.fbx | freehang_climb | chanPath (to standing) | `CLIMB_UP` (traverse.ts:366) from a free hang, the stand-up end | I2 |
+| 4 | Braced Hang To Crouch.fbx | braced_hang_to_crouch | chanPath (to `CLIMB_UP_CROUCH_K`) | `CLIMB_UP` to the crouch | I2 |
+| 5 | Climbing Ladder.fbx | climbing_ladder | chanLoop on the rung cadence | `CLIMB` (traverse.ts:57) | I2 |
+| 5 | Climbing Ladder To Standing.fbx | climbing_ladder_to_standing | chanPath (the ladder top-out, `LADDER_TOPOUT_TIME`) | the ladder top exit | I2 |
+| 6 | Crouch To Stand.fbx | crouch_to_stand | timed | the procedural stand-up (min 0.3 s) | I3 |
+| 7 | Stand To Crouch.fbx | stand_to_crouch | timed | the procedural crouch-down (min 0.25 s) | I3 |
+| 8 | Crouched Walking.fbx | crouched_walking | gait (feet) | `MOCAP_CROUCH_WALK` (CMU 136_09); else Studio only | I1 |
+| 9 | Crawling Hands And Knees.fbx | crawling_hands_and_knees | chanLoop | `CRAWL` (traverse.ts:122, the vent crawl) | I2 |
+| 9 | Crawling Prone.fbx | crawling_prone | keyed `gait` (travel z) | the `crawlUnder` placeholder (shutter) | hand-off (Campaign) |
+| 10 | Kneeling Pull Up (partner haul).fbx | kneeling_pull_up | timed | team pull, the hauler (`pullHaul`) | hand-off (Campaign / Marlow) |
+| 10 | Pulling Up To A Ledge.fbx | pulling_up_to_a_ledge | timed | team pull, the climber's side (`pullScramble`) | hand-off (Campaign / Marlow) |
+| 11 | Lifting Heavy Object (shutter).fbx | lifting_heavy_object | timed | shutter lift / hold (`shutterLift`) | hand-off (Campaign / Marlow) |
+| 12 | Carry Body Walking.fbx | carry_body_walking | gait (feet) | the body carry walk (cqGait carry layer) | hand-off (J19) |
+| 12 | Carry Body Idle.fbx | carry_body_idle | loop (in place) | the body carry standing | hand-off (J19) |
+| 13 | Kneel Down (lay body).fbx | kneel_down | timed | J19's put-down (R11, about 1.6 s) | hand-off (J19) |
+| 14 | Elbow Strike.fbx | elbow_strike | timed | the knock-out strike (`strikeBody.ts`, J19 S1) | hand-off (J19) |
+| 14 | Cross Punch.fbx | cross_punch | timed | the palm / knock-out strike alternative | hand-off (J19) |
+| 15 | Standing Idle.fbx | standing_idle | loop (in place) | `KEYED_IDLE` (Wren); guards later (G1) | I1 / G1 |
+
+M3 checks whether the two shimmies are mirrors of each other (one played mirrored would halve the data); both are kept
+either way. A file added later gets its row from the recipe's title words; an unknown file is dumped and listed in
+`CLIPS.md` as "no recipe", never emitted.
 
 ## Slices
 Model per RULES: Opus for anim / engine code and the pipeline maths; Sonnet only from strict Opus briefs (data,
@@ -55,13 +73,14 @@ rotation `W · R · W⁻¹`, where `R = pose_bone.matrix @ bone.matrix_local.inv
 armature object's world matrix (the importer's 0.01 scale and axis turn taken out of the rotation, kept for positions).
 The rest pose's bone heads (world). Tails are not written: the FBX importer guesses them, so every segment end is the
 child bone's head (M2). The scene fps and frame range. `scripts/mocap/mixamo.mjs` (driver): lists
-`C:/NightShift/scratch/mixamo/clips/*.fbx` (or `MIXAMO_DIR`), whatever the file names; slug = lower-case title with `_`;
+`C:/NightShift/scratch/mixamo/clips/*.fbx` (or `MIXAMO_DIR`), whatever the file names (spaces, parentheses: passed as
+one argument each, never through a shell string); slug by the Clip map rule, unique or the run stops;
 sha256 per file; skips a file whose dump is newer with the same hash; runs Blender through `findBlender()` from
 `scripts/operators/blender.mjs` (read only) as `cmd /c start "" /B /BELOWNORMAL /WAIT <blender> -b --factory-startup
 -noaudio --python-exit-code 1 --python ...`; writes `build/mocap/mixamo/raw/<slug>.json` and
 `build/mocap/mixamo/manifest.json`. The lead wraps the run in `heavy-lock take ... && node scripts/mocap/mixamo.mjs ...;
-heavy-lock release ...` (one shell command). Test: `tests/mixamoDriver.test.ts` (slugging, manifest, skip logic;
-Blender mocked). Depends: nothing. Parallel with M2, M5, M6.
+heavy-lock release ...` (one shell command). Test: `tests/mixamoDriver.test.ts` (the 21 real file names slug to the
+Clip map's slugs, manifest, skip logic; Blender mocked). Depends: nothing. Parallel with M2, M5, M6.
 
 **M2 Bone map, take adapter, retarget options (Opus, ~600).** `scripts/mocap/mixamoMap.mjs` (pure): `MIXAMO_MAP` from
 `mixamorig<N>:` names to the CMU-named slots `retarget.mjs` reads (Hips->root, Spine1->upperback, Spine2->thorax,
@@ -78,7 +97,9 @@ fall out of the keyed `arm` points (the rig aims its own arm bones). `scripts/mo
 `loadMixamoTake(slug)` returning the `loadTake` shape (`skel` with `bones` dir / length / `metres`, `parent`, `pos` /
 `quat` maps, `frames`, `fps` 120, `dead`, `zeros`): Blender Z-up to the game frame (+X right, +Y up, +Z forward,
 left-handed), the facing measured from the rest pose (hip line and toe direction, not assumed), floor from the 5th
-percentile of the lowest foot point, 30 -> 120 fps (A3), in-place detection (A4).
+percentile of the lowest foot point, 30 -> 120 fps (A3), in-place detection (A4). The rest pose is measured from each
+file, never assumed (A5: the files are on Mixamo's auto-rig of Wren's mesh, not Y Bot); the report lists each file's
+rest segment lengths against Wren's bind and the leg scale (expected near 1).
 `retarget.mjs`: an injected loader and source string that pass through (`buildSlot(rig, pick, choice, suffix, takeInfo,
 { load, licence })` hands `load` to its own `retargetTake(rig, take, { load })` call), and an in-place loop option
 (`{ inPlace: true }`: the root fixed at the start pose's ground point and heading, no travel yaw, for idle / hang loops
@@ -94,11 +115,12 @@ here and in M1 together). Parallel with M1.
 **M3 Keyed emitter for Mixamo (Opus, ~800).** `scripts/mocap/data/mixamo-clips.json` (the recipe per slug: emit kind,
 target, trim seconds or "auto", travel `z` / `+x` / `-x` / none, channels to keep) and `scripts/mocap/mixamoEmit.mjs`.
 Emit kinds:
-- `gait` (crouched walking, carry): `analyzeTake` events through the injected loader, then `buildSlot` + `emitCycle`
+- `gait` (crouched_walking, carry_body_walking, crawling_prone): `analyzeTake` events through the injected loader, then `buildSlot` + `emitCycle`
   as CMU (strike-warped, clip feet, `duty`).
-- `loop` (standing idle): a non-gait loop, not strike-warped: `buildSlot` with `inPlace`, the loop seamed over its own
+- `loop` (standing_idle, carry_body_idle): a non-gait loop, not strike-warped: `buildSlot` with `inPlace`, the loop seamed over its own
   period, sampled at even phases (48 frames), no `feet` (the planner keeps the feet), written through `moduleSource`.
-- `timed` (stance changes, punch, kneel down, pulling, lifting): a generic one-shot by progress over its own seconds,
+- `timed` (crouch_to_stand, stand_to_crouch, elbow_strike, cross_punch, kneel_down, kneeling_pull_up,
+  pulling_up_to_a_ledge, lifting_heavy_object): a generic one-shot by progress over its own seconds,
   trimmed to its moving span (joint speed over a threshold, 0.1 s margin), root as the take's own path with its heading
   taken out progressively (in place when A4 detects it), at `ONESHOT_FPS` 40 like the CMU one-shots, plus its seconds
   constant.
@@ -116,11 +138,13 @@ Depends: M2 (code), M5 (the table and markers), M1 run (real clips). Parallel wi
 **M4 Channel-clip emitter for traversal (Opus, ~750).** `scripts/mocap/mixamoChannels.mjs`: the retargeted Wren
 intermediate -> a `makeClip` module (`src/anim/clip.ts` `ClipDef`, the channels `traverse.ts` keys: `hLX..hRZ` and
 `fLY / fLZ ...` hand and foot targets in the root frame at 1.75 m, `pelY`, `pelZ`, `pelPitch`, `pelRoll`, `spPitch`,
-`hdPitch`, `width`, `grip` / `offGrip`), keys reduced to a curve with an error bound (1 cm, 1 deg). Clocks: loops
-(hang, shimmy, ladder, crawl) on the `traverseT` cadence of the clip they replace. Climb-ups: the game moves the root
+`hdPitch`, `width`, `grip` / `offGrip`), keys reduced to a curve with an error bound (1 cm, 1 deg). Clocks: `chanLoop`
+(hanging_idle, the two shimmies, climbing_ladder, crawling_hands_and_knees) on the `traverseT` cadence of the clip they
+replace. `chanPath` (freehang_climb, braced_hang_to_crouch, climbing_ladder_to_standing): the game moves the root
 along `CLIMB_UP_PATH` (attachController.ts `:114`, `CLIMB_UP_STAND` `:109`), so each take is re-expressed relative to that
 game root path at the same progress (take pose minus the game root at progress k), and time-warped so the take's hand
-release, foot on top and crouch land on `CLIMB_UP_HANDS`, `offGrip` and `CLIMB_UP_CROUCH_K`. Hands and feet stay on the
+release, foot on top and crouch land on `CLIMB_UP_HANDS`, `offGrip` and `CLIMB_UP_CROUCH_K` (the ladder top-out the
+same way over `LADDER_TOPOUT_TIME`, attachController.ts `:541`). Hands and feet stay on the
 anchors through the rig's `reachL/R` / `plantL/R` (the clip's hand channels are the fallback, as today). No
 `src/player` edit. Output `src/anim/clips/mixamo/trav_<slug>.ts`; source rows in its own marker block of
 `mocapSources.ts` (`// @mixamo-trav-begin` / `-end`). Tests: `tests/mixamoChannels.test.ts` (key reduction bound, clock
@@ -147,9 +171,11 @@ a short Studio look video (the motion-capture group, labels, a row moved). Depen
 Mixamo rows as M3 / M4 land). Parallel with M1, M2.
 
 **M6 Credits (Sonnet from a strict Opus brief, ~80).** `docs/art-credits.md`: the free-asset rule's header text
-(Michael ~19:00) and a "Motion capture (Mixamo)" table: one row per bundled clip: repo path, the Mixamo title, source
-URL `https://www.mixamo.com/`, author "Adobe (Mixamo)", licence (A11: the FAQ sentence, date read), date added, used
-by. Raw files: "not in the repo (`C:/NightShift/scratch/mixamo/clips/`)". `.gitignore`: a comment line that raw Mixamo
+(Michael ~19:00) and a "Motion capture (Mixamo)" section opening with the orchestrator's credits line, verbatim:
+"Animations from Mixamo (mixamo.com, Adobe), royalty-free for commercial use; retargeted onto the game's own rigs; raw
+files not redistributed." Then a table, one row per bundled clip: repo path, the Mixamo title (the file name as
+downloaded), source URL `https://www.mixamo.com/`, author "Adobe (Mixamo)", licence (A11: the FAQ sentence, date read),
+date added, used by. Raw files: "not in the repo (`C:/NightShift/scratch/mixamo/clips/`)". `.gitignore`: a comment line that raw Mixamo
 files never enter the repo (they are outside it already). Lands before or with the first PR that commits a clip.
 Depends: M3 / M4 slug list. Parallel.
 

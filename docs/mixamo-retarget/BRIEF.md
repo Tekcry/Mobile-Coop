@@ -62,8 +62,11 @@ tunable in the Anim Studio and the anim tuner exactly as the CMU clips are, labe
 - **A4 In Place off.** Every clip is downloaded with In Place unticked; the pipeline takes the travel from the hips
   (the CMU way). A clip that arrives in place is detected (hips travel under 5 cm) and treated as on-the-spot. Undo: none
   needed (detection, not a setting).
-- **A5 One skeleton.** All clips come from the default Mixamo character (Y Bot); the bone map accepts any
-  `mixamorig<N>:` prefix and checks the bone set, so another character still converts if its bones match. Undo: none.
+- **A5 One skeleton (deviation from CLIP-LIST).** The 21 files were exported on Mixamo's auto-rig of Wren's own hero
+  mesh (Michael uploaded it), not Y Bot: the same 65-bone `mixamorig` names, proportions close to Wren's. Only the
+  skeleton motion is used (no mesh in the files). M2 still measures each file's rest pose and leg scale, never assumes
+  them; the bone map accepts any `mixamorig<N>:` prefix and checks the bone set. Undo: re-export on Y Bot; the pipeline
+  is the same.
 - **A6 Spine chain.** Mixamo has three spine bones, Wren two: Wren `spine` follows `Spine1`, `chest` follows `Spine2`,
   `Spine`'s share goes to the pelvis-to-spine segment through the rest correction; the checker's direction error
   (`retargetDirErrDeg`) must stay under 8 deg, else the slice switches to aiming the segment at the measured joint
@@ -83,9 +86,9 @@ tunable in the Anim Studio and the anim tuner exactly as the CMU clips are, labe
   The Standing Idle on guards is its own late slice behind its own flag, updating that test and the guard fixtures on
   purpose, with the Guard AI lead told first. Undo: its flag off.
 - **A11 Licence record.** Adobe's Mixamo FAQ (helpx.adobe.com/creative-cloud/faq/mixamo-faq.html) refused an automated
-  read (403); the credits slice copies its licence sentence by hand from the page and records the date read. Until then
-  the credits row says "royalty-free for commercial use in games per Adobe's Mixamo FAQ; raw files not redistributed".
-  Undo: none.
+  read (403); the credits slice copies its licence sentence by hand from the page and records the date read. The
+  section opens with the orchestrator's line, verbatim: "Animations from Mixamo (mixamo.com, Adobe), royalty-free for
+  commercial use; retargeted onto the game's own rigs; raw files not redistributed." Undo: none.
 
 ## Polish list
 (empty)

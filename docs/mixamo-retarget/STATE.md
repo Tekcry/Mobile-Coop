@@ -7,8 +7,9 @@
   applied (bone end points, W·R·W⁻¹, loader pass-through, in-place loops, emit kinds, climb-up path warp, Wren-only
   traversal swap, traversal source tag and tunable rows, marker blocks, A1 flag default OFF at the walk cap, tests /
   videos, hand-off owners).
-- Waiting: the downloads in `C:/NightShift/scratch/mixamo/clips/` (empty at 19:10); the desktop CPU cap (no Blender
-  until the orchestrator lifts it); the orchestrator's walk-cap ruling (A1).
+- Downloads in: 21 FBX in `C:/NightShift/scratch/mixamo/clips/` (19:00-19:12, all sha256-distinct, on Mixamo's
+  auto-rig of Wren's mesh: BRIEF A5); file -> slug -> emit kind in PLAN "Clip map".
+- Waiting: the desktop CPU cap (no Blender until the orchestrator lifts it); the orchestrator's walk-cap ruling (A1).
 - Key pointers: CMU pipeline `scripts/mocap/retarget.mjs:26` (MAP), `:112` (retargetTake), `:338` (buildSlot, 120 fps
   constants), `emit.mjs:209` / `:314` / `:383`; loader shape `asfamc.mjs:156`; format `docs/mocap-trial/CLIP-FORMAT.md`;
   runtime sets `src/anim/mocap.ts:127-191`; traversal table `src/anim/animGraph.ts:680`, `:1258`; idle `:2141`; label
