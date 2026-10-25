@@ -100,6 +100,9 @@ export interface SectorGuard extends SquadSlot {
   pair?: number;
   /** A far guard that may sleep (sector-redesign A64). Data only: guard-render shipped no reader (A99). */
   dormant?: boolean;
+  /** (guard-ai S12) Gear he wears from the start (`GuardSlotTags.gear`, read by `placeSlot`). (guard-rules S1, A15)
+   *  Only `armour` passes `checkSectorGuards`: helmets come from the difficulty and the alarm stage (G350). */
+  gear?: GearTag;
 }
 
 export interface SectorDef {
@@ -122,12 +125,18 @@ export interface SectorDef {
   noisy?: NoisySource[];
   /** (guard-ai) Reinforcement entry points and run-in routes; none = `reinforce`. */
   entries?: ReinforceEntry[];
-  /** (guard-ai S11) Gear every guard of this section wears from the start (helmet / armour / both); none = no gear. */
+  /** (guard-ai S11) Gear every guard of this section wears from the start; none = no gear. (guard-rules S1, A15) Only
+   *  `armour` passes `checkSectorGuards` (late armour, G307 (13)); helmets come from the difficulty and the stage. */
   gear?: GearTag;
   /** (guard-ai S11) Sweep points the response teams walk, overriding the section's route points and posts. */
   sweep?: readonly (readonly [number, number])[];
   /** Guards each alarm stage sends in here (A3): armed guards (`SECTOR_REINFORCE_KIND`, no heavies, G155). */
   perStage: number;
+  /**
+   * (guard-rules S1, A4, G307 (3)) The response teams are led by a riot-shield guard (`responseTeam`'s `shield`). Default
+   * false: armed guards only (S1-S3, warehouseOps; the campaign must never set it, M2). Campus S4 and S5 set it.
+   */
+  shieldTeams?: boolean;
   /**
    * (sector-redesign G20, M10) How many dogs the section may have (default 0: none). Every dog needs a `handler`.
    * Sector Ops only (M10 "Include guard dogs"); G155 (no dogs) still holds for the co-op missions elsewhere.
@@ -577,14 +586,19 @@ export const SECTOR_REINFORCE_KIND = 'grunt' as const;
 /**
  * (sector-redesign G3 / G20) A section's guard list against the Sector Ops rules (empty when fine): every human guard
  * carries a gun (M1 "they should all have weapons": no melee-only kinds such as the runner), no heavies (G155), at most
- * `dogs` dogs (default 0), and each dog names a handler: another guard of the section, armed and human.
+ * `dogs` dogs (default 0), and each dog names a handler: another guard of the section, armed and human. (guard-rules
+ * S1) No placed riot-shield guard (`enforcer`: shields only lead alarm response teams, G307 (3)), and no `helmet` /
+ * `both` gear tag on a slot or the section (helmets come from the difficulty and the alarm stage, G350, A15).
  */
 export function checkSectorGuards(d: SectorDef): string[] {
   const out: string[] = [];
   let dogs = 0;
+  if (d.gear === 'helmet' || d.gear === 'both') out.push(`${d.id}: section gear '${d.gear}' names a helmet (helmets come from difficulty and stage, G350)`);
   d.guards.forEach((g, k) => {
     const def = ENEMIES[g.kind];
     if (g.kind === 'heavy') out.push(`${d.id}: guard ${k} is a heavy (G155)`);
+    if (g.kind === 'enforcer') out.push(`${d.id}: guard ${k} is a riot shield (only in alert response teams, G307)`);
+    if (g.gear === 'helmet' || g.gear === 'both') out.push(`${d.id}: guard ${k} gear '${g.gear}' names a helmet (helmets come from difficulty and stage, G350)`);
     if (def.quadruped) {
       dogs++;
       const h = g.handler === undefined ? undefined : d.guards[g.handler];

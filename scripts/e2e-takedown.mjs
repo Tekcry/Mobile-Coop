@@ -2,7 +2,7 @@
 // calm guard), (G5, Michael 08:10) one context menu row per takedown (a knockout; RT held is the lethal strike, anim-rework S1), the attacker aligned within 5 cm, interrupted by
 // damage, from above (a drop off the mezzanine), from below (hanging at the mezzanine lip),
 // through a window; 3.2.0: the grab (walk, sidearm, human shield, knock out, kill, shove), drop attacks
-// from a pipe and a split, an inverted choke. `node scripts/e2e-takedown.mjs [url] [--only=name]`
+// from a pipe and a split, an inverted choke; (G348) none on a dog. `node scripts/e2e-takedown.mjs [url] [--only=name]`
 import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
@@ -186,6 +186,26 @@ try {
     });
     assert(r.offer === 'front' && r.down && r.ko, `one takedown knocks out a helmeted, armoured guard (${JSON.stringify(r)})`);
     assert(r.helmet && r.armour, `the takedown never touches his gear (${JSON.stringify(r)})`);
+  });
+
+  // (guard-rules S2, G348) no takedown of any kind on a dog: behind one, no prompt, no menu row, the press does nothing
+  await scen('dog: no takedown', async () => {
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      t.tp(2, 0, -2.2, 0);
+      const d = g.enemyMgr.spawn('dog', new t.V(2, 0, -1), false, 0);
+      d.update = () => {};
+      t.step(0.4);
+      const offer = g.takedown.offer?.plan.kind ?? null;
+      const prompt = document.querySelector('.wp-takedown.show') !== null;
+      const rows = g.ctxMenu.opts.slice(0, g.ctxMenu.count).map((o) => o.label).join(' / ');
+      t.press();
+      t.step(1.0);
+      return { offer, prompt, rows, active: g.takedown.active !== null, up: d.alive };
+    });
+    assert(r.offer === null && !r.prompt && !/Takedown|Grab/i.test(r.rows), `behind a dog: no takedown offer, prompt or menu row (${r.offer}, prompt ${r.prompt}, rows ${r.rows})`);
+    assert(!r.active && r.up, `the press starts nothing, the dog stays up (${JSON.stringify(r)})`);
   });
 
   await scen('grab', async () => {

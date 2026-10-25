@@ -196,12 +196,13 @@ Plan and rules: `docs/sector-redesign/briefs/ART-PLAN.md`; builds: `docs/sector-
     droneOp and officer (clear) rarely wear any. Small kit: `radio`, `pouch_belt`, `holster_thigh`, `flashlight_mount`, some fixed per
     kind (grunt radio and torch mount, officer radio, droneOp belt), the rest picked from the seed.
   - Gear pieces and the gameplay bits (A5, A14): the gear shows only what stops a round. `Enemy.helmet` /
-    `Enemy.armour` (`GEAR_BY_STAGE`: armour at alarm stage 2, helmet too at 3; response teams) are the wire bits
+    `Enemy.armour` (`GEAR_BY_STAGE`: armour and helmet from alarm stage 2, guard-rules S1 A3; response teams;
+    helmets by difficulty: Realistic and Perfectionist from the start, Perfectionist's never shot off, G350) are the wire bits
     `AL_HELMET` / `AL_ARMOUR`. `applyGear(variant, helmet, armour, plated, kind, out)` turns them into the visible
     piece set: helmet bit -> `helmet_std` (heavy and enforcer: `helmet_heavy`), which hides the hair cap and the
     headwear except the balaclava and headset; armour bit -> `vest_soft`; `plate_heavy` always on heavy and enforcer
     (both `plated`); the enforcer's `shield_riot` is its own GLB skinned on the figure's skeleton (`ai/guardShield.ts`).
-    The seed never adds a helmet or armour the gameplay does not have. A knocked-off helmet (first head hit) hides
+    The seed never adds a helmet or armour the gameplay does not have. A knocked-off helmet (first head hit; never on Perfectionist) hides
     through the mask and drops as `helmet_std`'s own mesh in the guard's helmet colour (`ai/helmetDrops.ts`,
     `guardHelmet.ts`, A6); the cap or hair shows again. Carried and fresh bodies keep the guard's seed and gear
     (`ai/body.ts`).

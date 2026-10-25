@@ -3654,13 +3654,15 @@ if (want(1)) {
 // (guard-ai S13, stealth over shooting items 3, 4, 11; A37-A39) Response teams. Section 1 with its loaded guards, the
 // live panel off, the cameras held (their own clock: this checks the stage changes none of them), the player far off in
 // the dark (no damage), a last known position set in the section. Three alarms by the mode's own path (`onAlarm`):
-// stage 2 -> every living guard wears armour, stage 3 -> a helmet too; each stage's team leads with a shield guard
-// (`enforcer`, helmeted), perStage strong; the camera count and states never change. Then hide: after the search of the
+// stage 2 -> every living guard wears armour and a helmet (guard-rules S1, A3), stage 3 the same; each stage's team is
+// armed guards only, perStage strong (guard-rules S1, A4: warehouseOps sets no `shieldTeams`, so no shield lead; test
+// upkeep for a code default, no map edit: warehouseOps stays frozen, Q26); the camera count and states never change.
+// Then hide: after the search of the
 // last known position (`ALERT.searchTime`) the first team sweeps (it switches to the sweep and looks at sweep points),
 // and at 120 s every member is still hunting (searching or in combat), none calm. Sim-time steps only; Math.random
 // seeded (as e2e-stealth-ai 'lkp').
 if (want(1)) {
-  console.log('sector ops: response teams: stage gear, shield-led teams, the sweep after the search (guard-ai S13)');
+  console.log('sector ops: response teams: stage gear, armed teams, the sweep after the search (guard-ai S13, guard-rules S1)');
   await run(PARAMS, async ({ G, sim }) => {
     await G(() => { const g = window.__app.current; g.target.damageMul = 0; if (g.security) g.security.fixedUpdate = () => {}; if (window.__ctdev) window.__ctdev.fixedUpdate = () => {}; });
     await sim(0.5);
@@ -3703,7 +3705,7 @@ if (want(1)) {
       m.onAlarm();
       step(0.6);
       out.stage2 = m.run.alarm;
-      out.armour2 = living().map((e) => e.armour);
+      out.armour2 = living().map((e) => e.armour && e.helmet);
       m.onAlarm();
       step(0.6);
       out.stage3 = m.run.alarm;
@@ -3712,7 +3714,6 @@ if (want(1)) {
       out.raised3 = em.alarmRaised;
       out.both3 = living().map((e) => e.helmet && e.armour);
       out.teams = em.teams.map((t) => t.members.map((e) => e.def.kind));
-      out.shieldHelmet = em.teams.map((t) => t.members[0]?.helmet === true);
       out.camN = ct.cams.length;
       out.camSame = cams() === cam0.s;
       out.ctAlarm = ct.alarm;
@@ -3720,15 +3721,14 @@ if (want(1)) {
       return out;
     }, S[0].obj);
     // (the warehouse sections set no `gear` default and no slot tags: only the stage gives armour)
-    assert(r.stage1 === r.stage0 + 1 && r.gear1.every(([, a]) => !a), `S13: stage 1 brings a team, no stage armour yet (${JSON.stringify(r.gear1)})`);
+    assert(r.stage1 === r.stage0 + 1 && r.gear1.every(([h, a]) => !h && !a), `S13: stage 1 brings a team, no stage armour or helmet yet (Normal: bare-headed until stage 2, guard-rules A1) (${JSON.stringify(r.gear1)})`);
     // (guard-ai S27, A164) a stage without the guards' own alarm (`em.alarmRaised` false: the camera / laser case) ends the
     // calm area: every guard of the live section has his weapon drawn within 2 s (none holstered 0.6 s on)
     assert(r.carryN > 0 && r.holst0 > 0 && !r.raised0, `S27: the section's guards start calm, some holstered, no guard alarm (${r.holst0} of ${r.carryN} holstered, alarmRaised ${r.raised0})`);
     assert(!r.raised3 && r.holst1 === 0 && r.drawn3.length === r.carryN && r.drawn3.every(Boolean), `S27: after the stage rise (the guards' own alarm still ${r.raised3 ? 'raised' : 'off'}) none is holstered 0.6 s on (${r.holst1}) and all ${r.carryN} have the weapon drawn within 2 s (${r.drawn3})`);
-    assert(r.stage2 === r.stage0 + 2 && r.armour2.every(Boolean), `S13: stage 2: every living guard wears armour (${r.armour2})`);
+    assert(r.stage2 === r.stage0 + 2 && r.armour2.every(Boolean), `S13: stage 2: every living guard wears armour and a helmet (guard-rules A3) (${r.armour2})`);
     assert(r.stage3 === r.stage0 + 3 && r.both3.every(Boolean), `S13: stage 3: every living guard wears armour and a helmet (${r.both3})`);
-    assert(r.teams.length === 3 && r.teams.every((t) => t[0] === 'enforcer' && t.length === r.perStage && t.slice(1).every((k) => k === 'grunt')), `S13: each stage's team leads with a shield guard, perStage ${r.perStage} strong (${JSON.stringify(r.teams)})`);
-    assert(r.shieldHelmet.every(Boolean), `S13: the shield guard always wears a helmet (${r.shieldHelmet})`);
+    assert(r.teams.length === 3 && r.teams.every((t) => t.length === r.perStage && t.every((k) => k === 'grunt')), `S13: each stage's team is armed guards only (no shield lead without shieldTeams, guard-rules A4), perStage ${r.perStage} strong (${JSON.stringify(r.teams)})`);
     assert(r.camN === r.cam0 && r.camSame && r.ctAlarm === r.stage3, `S13: no camera added, woken or retuned across the stages (${r.cam0} -> ${r.camN}, same states ${r.camSame}; devices show stage ${r.ctAlarm})`);
     // hide: 10 s chunks to 120 s after the first alarm, the first team watched
     let w = null;
@@ -3778,7 +3778,23 @@ if (want(1)) {
     assert(w.count > 0 && w.firstSweep >= searchT, `S13: the team sweeps only after its search of the last known position (${searchT} s; first sweep at ${w.firstSweep} s, ${w.count} points)`);
     assert(w.looked >= 1 && w.moved > 2, `S13: the team moves between sweep points (looked at ${w.looked}, skipped ${w.skipped}, the leader moved ${w.moved.toFixed(1)} m; switches ${w.switches})`);
     assert(w.t >= 120 && w.lv.every((l) => l === 'searching' || l === 'alert' || l === 'down') && !w.lv.includes('cooldown') && !w.lv.includes('unaware'), `S13: still hunting at ${w.t} s, none calm (${w.lv})`);
-    assert(w.lead === 'enforcer', `S13: the shield guard still first in the team (${w.lead})`);
+    assert(w.lead === 'grunt', `S13: an armed guard first in the team (no shield lead, guard-rules A4) (${w.lead})`);
+  });
+
+  // (guard-rules S1, A1, G350) Realistic: every human guard of the live section starts helmeted (Rookie / Normal start
+  // bare-headed: the S13 block above, Normal, reads no helmet before stage 2)
+  console.log('sector ops: Realistic, every guard helmeted at the start (guard-rules S1)');
+  await run(PARAMS + '&difficulty=realistic', async ({ G, sim }) => {
+    await G(() => { const g = window.__app.current; g.target.damageMul = 0; });
+    await sim(0.5);
+    const r = await G(() => {
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const humans = em.enemies.filter((e) => e.alive && !e.def.quadruped);
+      return { diff: g.opts.difficulty, stage: window.__sector.run.alarm, rule: em.helmetRule, n: humans.length, helmets: humans.map((e) => e.helmet), locked: humans.map((e) => e.helmetLocked) };
+    });
+    assert(r.diff === 'realistic' && r.rule === 'always' && r.stage === 0, `Realistic page, helmet rule always, stage 0 (${JSON.stringify(r)})`);
+    assert(r.n > 0 && r.helmets.every(Boolean) && !r.locked.some(Boolean), `Realistic: every human guard starts helmeted, none locked (${JSON.stringify(r)})`);
   });
 }
 

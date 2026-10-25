@@ -18,9 +18,11 @@ Design authority: docs/DECISIONS.md (G23, G42, G43, G155, G180, G348), then docs
   numbers are starting values Michael tunes by hand (G356). Decided, not built yet (G396, "About 1.4 s"): recovery
   about 1.4 s (code: `STRIKE` recovery 0.6 s).
 - Dogs (G348, Sector Ops): no takedown of any kind; sleeping gas knocks a dog out; a dog can be distracted; killing one
-  counts as a kill (no Perfect) and costs score (G374). Built: no palm strike (`strikeController.ts`), no grab or hang-down take (`def.quadruped`), gas
-  knocks out every enemy, dogs too (`GadgetSystem`). Not built yet: the other takedowns (behind, side, drop and the
-  rest) still reach a dog; no dog-kill penalty.
+  carries a penalty. Built: no palm strike (`strikeController.ts`); no takedown offer of any kind, the co-op team
+  takedown too (`TakedownController.find` skips `def.quadruped`; puppets carry it, so clients too), and the co-op host
+  denies a client's `td` start on a dog (`coopHost.ts` `onTakedown`); gas knocks out every enemy, dogs too
+  (`GadgetSystem`). The penalty (guard-rules S1, Michael Q9, G374): a killed dog counts as a kill (no Perfect) and
+  costs score (`game/modes/score.ts`); a gassed one costs nothing.
 - G52's dedicated dual takedown is gone (G180): CT's double takedown is two ordinary takedowns timed together. The
   host counts each pair within `DUAL_WINDOW` 1.5 s (`StealthRating.duals`, `dualTakedown` event;
   `game/dualTakedown.ts`) as section-rating's input (spare 12).
@@ -32,7 +34,7 @@ Design authority: docs/DECISIONS.md (G23, G42, G43, G155, G180, G348), then docs
   / `overCover` / `above` / `below` / `window` / `drop` / `inverted`) + aligned attacker spot, facing, approach (with
   `arc`), strike, optional `victimTo`; `approachPoint`; `lethalFromHold`. Drop and inverted takedowns from attached
   states: `docs/systems/movement.md`.
-- `game/takedownController.ts`: each fixed step (after traversal) finds the offer (enemies within 5 m, the
+- `game/takedownController.ts`: each fixed step (after traversal) finds the offer (enemies within 5 m, never a dog, the
   nearest 3 tried, one line of sight ray each; attacker state from traversal / window hint / back-to-wall) and shows the
   `takedown` world prompt; the interact press starts it (`holding` decides lethal after `lethalHold`). `grabRule`
   (`ai/archetypes.ts`) makes a frontal enforcer impossible; a heavy gets no rule today ('ok': `takedownController.ts`

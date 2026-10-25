@@ -18,7 +18,7 @@ import { rayOccluder } from '../world/shadowAccuracy';
 import { beamReach, type BeamHit } from '../world/torches';
 import { ALARM_CALL, CommandCall, nearestPanel, type AlarmPanel } from './alarm';
 import { hyp2, hyp3 } from '../core/mathx';
-import { ARCHETYPE, type DifficultyDef } from './archetypes';
+import { ARCHETYPE, type DifficultyDef, type HelmetRule } from './archetypes';
 import { ALERT } from './alertState';
 import { ReconDrone } from './reconDrone';
 import { COMBAT_HEAR, HEARING, ambientDb, combatHearAct, effectiveReach, hearTier, wallMatters, WALL_FACTOR, type HearTier, type NoisySource } from './hearing';
@@ -490,6 +490,9 @@ export class EnemyManager {
    *  gear (`stageGear`): every guard placed (`placeSlot`) or woken (`revive`) gets it on top of his own. */
   alarmStage = 0;
   readonly alarmGear: GuardGear = { helmet: false, armour: false };
+  /** (guard-rules S1, A1, G350) The helmet rule in force: `stage` (today's: helmets only from the alarm stage) unless
+   *  the mode calls `useDifficultyHelmets` (Sector Ops and the campaign), which takes the difficulty's. */
+  helmetRule: HelmetRule = 'stage';
   /** (guard-ai S13, items 3 and 11, A38, A39) The response teams of the live section, in the order the alarms brought
    *  them (the index is the sweep's start offset); cleared with the guards (`clear`: a section unload or restart). */
   readonly teams: SweepTeam<Enemy>[] = [];
@@ -1028,7 +1031,7 @@ export class EnemyManager {
 
   /**
    * (guard-ai S13, item 4, A37) The alarm stage is now `stage` (Sector Ops: a rise, a section load, a restart). Its gear
-   * (`GEAR_BY_STAGE`: stage 2 armour, stage 3 armour and helmet) goes to every guard placed or woken from now on, and
+   * (`GEAR_BY_STAGE`: stage 2 and 3 armour and helmet, guard-rules A3) goes to every guard placed or woken from now on, and
    * with `now` at once to every living guard (the live section: Sector Ops loads one at a time), on top of the gear he
    * has. No camera is touched (the cameras are `CtDevices`'; item 4 "dont add cameras").
    */
@@ -1038,6 +1041,29 @@ export class EnemyManager {
     if (!now) return;
     const list = this.enemies;
     for (let i = 0; i < list.length; i++) if (list[i]!.alive) this.giveStageGear(list[i]!);
+  }
+
+  /**
+   * (guard-rules S1, A1, G350, BRIEF M4) Helmets by difficulty from now on (`DifficultyDef.helmets`): Realistic and
+   * Perfectionist place every human guard helmeted, Perfectionist's helmets locked (never shot off, A2); Rookie / Normal
+   * keep the stage rule. `SectorMode.start` calls it (off elsewhere: Marlow Yard and the parked modes keep their gear).
+   * Undo for a mode: do not call it. `on` false: back to the stage rule.
+   */
+  useDifficultyHelmets(on = true): void {
+    this.helmetRule = on ? this.diff.helmets : 'stage';
+  }
+
+  /** (guard-rules S1) The difficulty's helmet on a human guard: `always` / `locked` add one when `give` (a placement);
+   *  every guard placed, woken or joined to a team gets the lock on `locked`, so any helmet he wears or is given later
+   *  (the stage, the shield lead) is locked. A dog wears nothing. */
+  private ruleHelmet(e: Enemy, give: boolean): void {
+    if (e.def.quadruped) return;
+    const r = this.helmetRule;
+    e.helmetLocked = r === 'locked';
+    if (!give || r === 'stage' || e.helmet) return;
+    this.gearB.helmet = true;
+    this.gearB.armour = e.armour;
+    e.setGear(this.gearB);
   }
 
   /** (guard-ai S13) The stage's gear on top of his own (nothing to give: his gear is left as it is). */
@@ -1093,6 +1119,8 @@ export class EnemyManager {
       this.gearB.armour = e.armour;
       e.setGear(this.gearB);
     }
+    // (guard-rules S1, A2) on Perfectionist his helmet is locked too
+    this.ruleHelmet(e, false);
   }
 
   /**
@@ -1650,6 +1678,8 @@ export class EnemyManager {
     }
     // (guard-ai S13, A37) the alarm stage's gear on top of what he went down in
     this.giveStageGear(e);
+    // (guard-rules S1, A2) the lock by difficulty (a helmet shot off before the knockout stays off; a soak is kept)
+    this.ruleHelmet(e, false);
     this.enemies.push(e);
     this.removeBody(b);
     e.searchAt(e.pos.x, e.pos.z, null);
@@ -2011,7 +2041,8 @@ export class EnemyManager {
    * caller (desk), alarm runner (supervisor), light checker (rover first). `reason` is stored.
    *
    * (guard-ai S12) His gear: the slot's `gear` tag merged with the section default `sectionGear` (`SectorDef.gear`);
-   * neither = no gear (Marlow Yard and the early sections are unchanged).
+   * neither = no gear (Marlow Yard and the early sections are unchanged). (guard-rules S1) Then the difficulty's helmet
+   * (`useDifficultyHelmets`: Realistic / Perfectionist helmeted, Perfectionist locked) and a fresh soak.
    */
   placeSlot(
     e: Enemy,
@@ -2027,6 +2058,9 @@ export class EnemyManager {
     // (guard-ai S13, A37) and the alarm stage's gear on top (a later spawn: next section, a restart at a carried stage,
     // a reinforcement)
     this.giveStageGear(e);
+    // (guard-rules S1, A1, A2) the difficulty's helmet and lock; a placed guard's locked helmet has soaked nothing yet
+    e.helmetSoaked = false;
+    this.ruleHelmet(e, true);
     // (guard-ai S8, A25) the squad-roles profile: a posted guard holds and watches (never point / flank), an aggressive
     // slot bounds first
     e.tacticsProfile = slot.post ? P_POST : slot.profile === 'aggressive' ? P_AGGRESSIVE : P_STANDARD;
