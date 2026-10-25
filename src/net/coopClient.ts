@@ -18,7 +18,8 @@ import type { HitInfo } from '../game/damage';
 import { Interactables, KIND_COLOR, type Interactable } from '../game/interactables';
 import { CRATE_DARK, applyCrateEvent } from '../game/crateLedger';
 import type { NetSession } from './session';
-import { BARK_CAM, BARK_TEXT, DROP_BODY_ID, gaitWire, motionWire, PF, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, wirePlayerState } from './protocol';
+import { animSourceWire, BARK_CAM, BARK_TEXT, DROP_BODY_ID, gaitWire, motionWire, PF, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, wirePlayerState } from './protocol';
+import { ANIM_SOURCE } from '../anim/animSource'; // (mixamo-retarget Source wire)
 import { CT } from '../config/movement';
 import { CLIENT_INTERP_DELAY, ClockSync, sendClock } from './interp';
 import type { CKind } from '../game/committedMoves';
@@ -1098,9 +1099,10 @@ export class CoopClient implements NetAttachment {
     const sentAt = sendClock(this.sentWall, this.sentSim, performance.now() / 1000, this.time);
     this.sentWall = sentAt;
     this.sentSim = this.time;
-    const gw: { gph?: number; qs?: number; hs?: number; mo?: number; mt?: number; ax?: number; az?: number } = {};
+    const gw: { gph?: number; qs?: number; hs?: number; mo?: number; mt?: number; ax?: number; az?: number; an?: number } = {};
     gaitWire(c.motion.phase, c.ct, c.stopEaseT, c.stopHold, c.holdSpeed, CT.stopEase, CT.stopBlend, gw);
     motionWire(c.override?.kinematic ? null : c.motion.state, c.motion.stateT, c.motion.ax, c.motion.az, gw);
+    animSourceWire(ANIM_SOURCE.source, gw); // (mixamo-retarget Source wire, G400) our Animation source: every partner draws us with it
     this.s.toHost({
       t: 'pstate',
       s: wirePlayerState({

@@ -23,7 +23,7 @@ import type { World } from '../world/world';
 import type { Vfx } from '../vfx/vfx';
 import type { Ballistics } from '../weapons/ballistics';
 import { ExtrapBlend, sampleSpeed, SnapshotBuffer } from './interp';
-import { MOTION_WIRE, PF, type PlayerInfo, type PlayerState } from './protocol';
+import { animSourceOf, MOTION_WIRE, PF, type PlayerInfo, type PlayerState } from './protocol';
 import { hyp2 } from '../core/mathx';
 import { AttachGrips } from '../player/attachGrips';
 import { easeInOut, wrapPi, type MotionState } from '../anim/motion';
@@ -330,6 +330,9 @@ export class RemoteAvatar {
   update(dt: number, renderTime: number): void {
     const s = this.buf.sample(renderTime);
     if (!s) return;
+    // (mixamo-retarget Source wire, G400) drawn with the owner's Animation source (no field: CMU); the graph re-picks its
+    // clip tables only when it changes
+    this.rig.graph.animSource = animSourceOf(s.state.an);
     if (!this.placed) {
       this.placed = true;
       this.justPlaced = true;

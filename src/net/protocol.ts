@@ -16,6 +16,7 @@ import type { SectorNetExtra, SectorRatingWire } from '../game/sectors';
 import { LAMP_BITS, LAMP_CHARS, LAMP_MAX, type LampWire } from './lampSync';
 import { SWAY } from '../world/lampSway';
 import type { MotionState } from '../anim/motion';
+import type { AnimSource } from '../anim/animSource';
 
 /** The wire version. Only this line holds it; tests read it. `scripts/merge-train.mjs build` bumps it once per train with a wire change (history: CHANGELOG, docs/systems/coop.md). */
 export const PROTOCOL_VERSION = 63;
@@ -93,6 +94,25 @@ export interface PlayerState {
    *  fire as the owner's (derived from the measured velocity they came ~0.1 s late, or not at all). */
   ax?: number;
   az?: number;
+  /** (mixamo-retarget Source wire, G400) The owner's Animation source (`ANIM_SOURCE_WIRE` index, 2 bits: 0 Hand-made,
+   *  2 Mixamo); absent: CMU (the default, and a sender from before the field). Every screen draws the owner with it. */
+  an?: number;
+}
+
+/** (mixamo-retarget Source wire) `PlayerState.an`: the Animation sources by index (fixed order: the wire's). */
+export const ANIM_SOURCE_WIRE: readonly AnimSource[] = ['hand', 'cmu', 'mixamo'];
+/** The source no field means (the default; an older sender). */
+const ANIM_SOURCE_WIRE_NONE: AnimSource = 'cmu';
+
+/** (Source wire) The owner's source for the wire (pure): its index, or no field for the default (CMU). */
+export function animSourceWire(s: AnimSource, out: { an?: number }): void {
+  const i = ANIM_SOURCE_WIRE.indexOf(s);
+  if (i >= 0 && s !== ANIM_SOURCE_WIRE_NONE) out.an = i;
+}
+
+/** (Source wire) A received state's source: its field, or CMU when it has none (an older sender). No allocation. */
+export function animSourceOf(an: number | undefined): AnimSource {
+  return (an !== undefined ? ANIM_SOURCE_WIRE[an] : undefined) ?? ANIM_SOURCE_WIRE_NONE;
 }
 
 /** (afp AF6) `PlayerState.mo`: the motion driver states by index. */
@@ -404,6 +424,8 @@ function playerState(v: unknown): PlayerState | null {
     ...(num(v.mo, 0, MOTION_WIRE.length - 1) !== null && num(v.mt, 0, 60) !== null ? { mo: Math.floor(num(v.mo, 0, MOTION_WIRE.length - 1)!), mt: num(v.mt, 0, 60)! } : {}),
     ...(num(v.ax, -100, 100) !== null && num(v.az, -100, 100) !== null ? { ax: num(v.ax, -100, 100)!, az: num(v.az, -100, 100)! } : {}),
     ...(v.mv !== undefined && sanitizeMoveState(v.mv) ? { mv: sanitizeMoveState(v.mv)! } : {}),
+    // (Source wire) an integer index of a source, else dropped (CMU)
+    ...(typeof v.an === 'number' && Number.isInteger(v.an) && v.an >= 0 && v.an < ANIM_SOURCE_WIRE.length ? { an: v.an } : {}),
   };
 }
 
