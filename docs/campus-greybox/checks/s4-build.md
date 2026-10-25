@@ -151,3 +151,53 @@ G4.4 console lamp joins it). Undo: none needed.
 cone-blocker path and the leash margin), so battCC / ccUps are not asserted in the cone.
 **Findings for the lead:** the graph `s4-batt` note still says the east rack row is "z 21.0..26.5" (plan text, P1 built 23.5).
 **Pending PC run:** `e2e-sectorops:1` .. `:6` (default flags).
+
+## G4.4 NOC block: fire stair, roof hatch, escape, rooflight, lights (D:31-35, C16-C20)
+
+**Files:** `s4.ts`, `s4Dress.ts`, `tests/campusV2S4.test.ts`, `tests/campusV2S4Lights.test.ts`, the graph, the fragment, this
+report. (`s4Data.ts` needed nothing: the nav seed is in `s4.ts`.)
+
+**Built (s4.ts lines):**
+- C16 stair: `S4_FLIGHT` -> `S4_FLIGHTS` (two flights as the brief's literal, :91); NOC slab one rect minus the well x 0..4.2,
+  z 45.1..47.85 via `slabCut` (S5's `subtract` / `slab(rect, top, holes)` copied as private `subtract` / `cutRect` / `slabCut`,
+  :419-445), mid landing, spine, three rails (:587-592), `b.stairs` x 2 (:593). Nav seed (4.85, 3.6, 45.75) (:222).
+- C17 roof slab = one rect x -10..34, z 16..48 minus the riser hatch, the NOC hatch and the rooflight (:490); hatch ladder and
+  three rails (:601-605) - see A1.
+- C19 rooflight pane `b.box(2, 7.275, 44.5, 4, 0.05, 2, GLASS_COLOR, 0, 0, true, false)`, `glass = 'clear'`, noLedge, overhead (:607-611).
+- C18 escape: wall x 8 with two holes (:614), secNc `doorAt(8, 43.5, 0, 1)` (:616), escape door (8, 45.5, 3.6) swing -1 (:617),
+  platform, four rails (:619-623), ladder `b.ladder(9.55, 45.5, 0, S4_NOC, -PI / 2)` (:624). `S4_DOORS.secNc = [8, 43.5]`,
+  `nocEscape = [8, 45.5]` (:80-82).
+- Lights: `console` (-2.0, 2.4, 44.6) r 3.6 i 0.8 `WARM` cone down w 0.3 group 77 (:328); `nc` x3 at (11.75 / 19.25 / 26.75, 3.5, 45) r 5
+  i 0.8 cone 1.2 w 0.4 group 140 (:329); switch (21.2, 0, 42.3) yaw 0 on 140 (:254). The as-built NOC and security room lamps
+  all stay; the window-seat lamp is not built (0.5 rule 2). The NOC switch (6.0, 3.6, 47.85) stays: 1.15 m from the hatch
+  ladder (6.95, 47.2) (0.65 m from the brief's literal (6.6, 47.6)).
+
+**Dress (s4Dress.ts):** hero log with the flag on: NOC video wall now lands on the west wall (-3.85, 3.6, 45.0) (the east wall has
+no 3 m run left beside the escape door; fallback candidates added); NOC desk 1 at (-1.3, 3.6, 46.0); **NOC desk 2 omitted** (no
+candidate passes the keepouts); security room desk (-0.5, 0, 46.9); the rest as G4.2. The NOC desk candidates now skip the
+stair well and the hatch ladder's foot (before the filter desk 1 landed over the well at (0.1, 3.6, 45.6)). No skin moved.
+
+**Sync nodes:** none built or moved (desk-sec4 (-2.8, 44.6) unmoved; the side door is now (8, 43.5)).
+
+**Graph:** `s4-sec`, `s4-noc`, `s4-nc`, `s4-deck` and the `s4-sec -> s4-noc`, `s4-noc -> s4-deck`, `s4-noc -> s4-nc`,
+`s4-sec -> s4-nc` link notes -> "BUILT G4.4 (...)", with "(A19: as-built lamps kept)" on the light lines.
+
+**Tests:** `tests/campusV2S4.test.ts` 11 -> 15 (fire stair: risers, goings, 2R + G, slope rule, the stair path, headroom over 100+
+flight cells; the NOC is no dead end: hatch ladder, escape, stair, rails, roof slab holes; bolt point clear; rooflight and the
+sight line, and blocked when the pane is solid), `tests/campusV2S4Lights.test.ts` 2 -> 4 (console lamp warm on 77; corridor lamps on
+140 with one switch within 1.5 m of ncDoor on nav; every S4 lamp on, lit, shootable, electric, from `S4_LIGHTS`). Slice set:
+8 files, 113 / 113; typecheck clean.
+
+**Assumptions:**
+- **A1 (deviation from the literal, undo: one edit)** The brief's NOC hatch ladder `b.ladder(6.6, 47.6, S4_NOC, S4_DECK, 0)` faces
+  north: its top step-off is z 48.05, inside the deck screen (z 47.85..48.15, 2.0 high), and the brief's rails close the other three
+  sides (west, south, east), so nothing could climb out. Built instead: `b.ladder(6.95, 47.2, S4_NOC, S4_DECK, PI / 2)` (S1's
+  hatch-ladder rule turned east: base 0.25 m inside the east rim, facing it, top 0.45 m past it, exit onto the deck at x 7.4+), and the
+  east rail x 7.2..7.3 is two pieces (z 46.6..46.95 and 47.45..47.8) leaving the 0.5 m ladder gap (as R1's landing rail). The graph
+  note already put the ladder at z 47.2. Undo: the literal ladder and the unbroken rail, plus a cut in the screen for the exit.
+- NOC desk / video wall hero candidates (above): dress only.
+**Deviations:** A1 only.
+**Findings for the lead:** A1 (the plan's hatch sits 0.05 m off the deck screen, so the plan's "rails on three sides" has no exit;
+if the lead wants the north exit the screen needs a gap); NOC desk 2 is omitted by the kit; `F:monitorWall` moved to the west wall.
+**Pending PC run:** `e2e-sectorops:1` .. `:6` (default flags); E2E-1 / E2E-2 (v2): the hatch ladder, the escape ladder and the
+fire stair climb, the nav of the dog-leg flights, the deck exit.

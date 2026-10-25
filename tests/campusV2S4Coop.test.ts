@@ -28,7 +28,7 @@ async function loadCampus(v2: readonly number[]) {
 }
 
 const m = await loadCampus([4]);
-const { S4_BASKET, S4_BOX, S4_COOP_LIPS, S4_FLIGHT } = m.s4;
+const { S4_BASKET, S4_BOX, S4_COOP_LIPS, S4_FLIGHTS } = m.s4;
 const b: LB = new m.LevelBuilder();
 const lay = m.buildCampus(b, { dress: false });
 const FOOT = { x0: -10, x1: 40, z0: 16, z1: 48 };
@@ -61,7 +61,7 @@ function flightH(f: { cx: number; cz: number; w: number; len: number; rise: numb
   if (Math.abs(across) > f.w / 2 || Math.abs(along) > f.len / 2) return Number.NaN;
   return f.y0 + (f.rise * (along + f.len / 2)) / f.len;
 }
-const FLIGHTS = [S4_FLIGHT];
+const FLIGHTS = [...S4_FLIGHTS];
 
 /** An analytic layered nav grid over a rectangle (the live S4 test's raster): blockers, fences, cylinders, the flights, ladder links. */
 function analyticNav(rect: readonly [number, number, number, number], cell = 0.5): NavGrid {

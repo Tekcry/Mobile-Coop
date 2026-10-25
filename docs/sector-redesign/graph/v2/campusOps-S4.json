@@ -295,7 +295,7 @@
       "guards": {
         "2": 2
       },
-      "note": "PLAN. x -10..34, z 16..48, y 7.3 (S4_DECK). Light: the four 1.5 m chiller task lights -> four pole floods 5 m over the deck at (-3, 24), (8, 36), (20, 24), (24, 38) (r 7.5, ~700 of 1408 m2: shadow 0.5, pending V6); the three ways on (plant ladder top (34, 23), riser hatch (32.2, 43.2), NOC hatch (6.6, 47.2)) and the NOC rooflight stay dark (8.3-16 m from a flood). New: NOC roof access hatch 1.2 x 1.2 at x 6.0..7.2, z 46.6..47.8 with rails on three sides; NOC rooflight (fixed wired glass) x 0..4, z 43.5..45.5. Vantage: the dark riser hatch, sees 0.8 (chillers 2.0 hide some). Guards #13 deck patrol, #24 chiller watch (new)."
+      "note": "BUILT G4.4 (NOC roof hatch x 6.0..7.2, z 46.6..47.8 s4.ts:490, rails s4.ts:602-605; rooflight s4.ts:607-611) (A19: as-built lamps kept; the deck pole floods land in G4.5). x -10..34, z 16..48, y 7.3 (S4_DECK). Light: the four 1.5 m chiller task lights -> four pole floods 5 m over the deck at (-3, 24), (8, 36), (20, 24), (24, 38) (r 7.5, ~700 of 1408 m2: shadow 0.5, pending V6); the three ways on (plant ladder top (34, 23), riser hatch (32.2, 43.2), NOC hatch (6.6, 47.2)) and the NOC rooflight stay dark (8.3-16 m from a flood). New: NOC roof access hatch 1.2 x 1.2 at x 6.0..7.2, z 46.6..47.8 with rails on three sides; NOC rooflight (fixed wired glass) x 0..4, z 43.5..45.5. Vantage: the dark riser hatch, sees 0.8 (chillers 2.0 hide some). Guards #13 deck patrol, #24 chiller watch (new)."
     },
     {
       "id": "s4-noc",
@@ -328,7 +328,7 @@
       "guards": {
         "2": 2
       },
-      "note": "PLAN. x -4..8, z 42..48, y 3.6 (S4_NOC); 3.4 clear (WARN: security_room 3.0; length 12 over max 11, WARN). V5f-3: Track A now walks it and it holds guards, so it is an encounter again (was utility, dead end). Fixes the dead end: roof hatch ladder to the deck (6.6, 47.2) and an escape door in its east wall (8, 45.5, y 3.6) onto a 1.2 x 1.2 platform with a caged ladder down into the north corridor (9.4, 45.5) (a staffed mezzanine needs a second exit). Light: one lamp at (1.0, 6.4, 43.6) over the window pair (pool r 4.2, ~40 of 72 m2: shadow 0.45, pending V6), the east end (stair head, hatch, escape door) dark. Vantage: the deck rooflight x 0..4, z 43.5..45.5 (dark), looking down, sees 0.75 (V6). Overwatch for split s4r: the armoured window sees the hall floor and the cage front. Guards #14 duty officer Dunmore (Code Relay target, west seat x 1.0, seat placard), #15 Pryce (decoy, east seat x 3.0). sync-s4-noc: the NOC console release."
+      "note": "BUILT G4.4 (stair top landing s4.ts:587-593; roof hatch and ladder s4.ts:601-605, ASSUMPTION A1: the ladder is on the hatch's east rim (6.95, 47.2) facing +x, the east rail leaves a 0.5 m gap, because a north-facing ladder would step off into the deck screen; rooflight s4.ts:490, :607-611; escape door (8, 45.5, 3.6), platform and ladder s4.ts:614-624) (A19: as-built lamps kept, the east lamp (5, 6.4, 45) stays; the window-seat lamp (1.0, 6.4, 43.6) is not built). x -4..8, z 42..48, y 3.6 (S4_NOC); 3.4 clear (WARN: security_room 3.0; length 12 over max 11, WARN). V5f-3: Track A now walks it and it holds guards, so it is an encounter again (was utility, dead end). Fixes the dead end: roof hatch ladder to the deck (6.6, 47.2) and an escape door in its east wall (8, 45.5, y 3.6) onto a 1.2 x 1.2 platform with a caged ladder down into the north corridor (9.4, 45.5) (a staffed mezzanine needs a second exit). Light: one lamp at (1.0, 6.4, 43.6) over the window pair (pool r 4.2, ~40 of 72 m2: shadow 0.45, pending V6), the east end (stair head, hatch, escape door) dark. Vantage: the deck rooflight x 0..4, z 43.5..45.5 (dark), looking down, sees 0.75 (V6). Overwatch for split s4r: the armoured window sees the hall floor and the cage front. Guards #14 duty officer Dunmore (Code Relay target, west seat x 1.0, seat placard), #15 Pryce (decoy, east seat x 3.0). sync-s4-noc: the NOC console release."
     },
     {
       "id": "s4-nc",
@@ -350,7 +350,7 @@
       ],
       "tension": 2,
       "tags": [],
-      "note": "PLAN. x 8..30.5, z 42..48 (on the grid now). secNc moves to (8, 43.5) to clear the escape ladder foot (9.4, 45.5). Dark (no lamp). Width 6 over the corridor max 4 and ceiling 7.0: WARNs, as built. Guard #16 tour (dormant) counted here in the note. Dunmore's spook bolt point (Marlow A11) at (28, 45.8) by the riser door: kept clear (the escape ladder foot is at x 9.4)."
+      "note": "BUILT G4.4 (secNc (8, 43.5) s4.ts:616; escape ladder foot (9.55, 45.5) s4.ts:624; three corridor lamps S4_LIGHTS.nc s4.ts:329 on circuit nc 140, switch (21.2, 0, 42.3) s4.ts:254; bolt point (28, 45.8) kept clear, tested) (the plan's dark corridor reads 'lit; dark once the players cut nc 140', S4.md 0.5 rule 4). x 8..30.5, z 42..48 (on the grid now). secNc moves to (8, 43.5) to clear the escape ladder foot (9.4, 45.5). Dark (no lamp). Width 6 over the corridor max 4 and ceiling 7.0: WARNs, as built. Guard #16 tour (dormant) counted here in the note. Dunmore's spook bolt point (Marlow A11) at (28, 45.8) by the riser door: kept clear (the escape ladder foot is at x 9.4)."
     },
     {
       "id": "s4-sec",
@@ -383,7 +383,7 @@
       "guards": {
         "2": 3
       },
-      "note": "PLAN. x -4..8, z 42..48; 3.4 to the NOC slab (WARN: security_room 3.0; length 12 over 11, WARN). V5f-3: Track A now walks it with two guards, so encounter again (was utility). NOC stair rebuilt as a dog-leg fire stair 1.3 wide, 2 x 11 risers (0.165 / 0.28), mid landing x 0..1.4 at y 1.8, flights on z 46.7..48 and 45.4..46.7 between x 1.4 and 4.2, foot at x 4.2..5.5, z 46.7..48, top landing x 4.2..5.5, z 45.4..46.7 (slab hole x 0..4.2, z 45.4..48). New door to the UPS room (-4, 46.5); the operator console shortened to z 43.2..45.6, alarm-sec4 moves to (-3.85, 43.0). Light: the two room lamps -> one warm 2.4 m console lamp at (-2.0, 44.6) (pool r 3.6, ~36 of 72 m2: shadow 0.5, pending V6). Vantage: the dark mid landing of the stair, sees 0.8. Duty roster (lead-s4-roster) on the west wall at (-3.85, 45.2). Split s4r leg a (Relay at sync-s4-desk). Guards #5 operator, #6 site supervisor (armour), #25 night runner (new: back-and-forth desk (0, 43.2) <-> side door (7, 43.5), 30 s, carries the log up to the NOC)."
+      "note": "BUILT G4.4 (fire stair S4_FLIGHTS s4.ts:91, slab well and landing s4.ts:587-593, rails :590-592; console lamp S4_LIGHTS.console s4.ts:328 warm, group sec 77; side door secNc (8, 43.5) s4.ts:616; nav seed s4.ts:222) (A19: as-built lamps kept, the two room lamps stay beside the console lamp). x -4..8, z 42..48; 3.4 to the NOC slab (WARN: security_room 3.0; length 12 over 11, WARN). V5f-3: Track A now walks it with two guards, so encounter again (was utility). NOC stair rebuilt as a dog-leg fire stair 1.3 wide, 2 x 11 risers (0.165 / 0.28), mid landing x 0..1.4 at y 1.8, flights on z 46.7..48 and 45.4..46.7 between x 1.4 and 4.2, foot at x 4.2..5.5, z 46.7..48, top landing x 4.2..5.5, z 45.4..46.7 (slab hole x 0..4.2, z 45.4..48). New door to the UPS room (-4, 46.5); the operator console shortened to z 43.2..45.6, alarm-sec4 moves to (-3.85, 43.0). Light: the two room lamps -> one warm 2.4 m console lamp at (-2.0, 44.6) (pool r 3.6, ~36 of 72 m2: shadow 0.5, pending V6). Vantage: the dark mid landing of the stair, sees 0.8. Duty roster (lead-s4-roster) on the west wall at (-3.85, 45.2). Split s4r leg a (Relay at sync-s4-desk). Guards #5 operator, #6 site supervisor (armour), #25 night runner (new: back-and-forth desk (0, 43.2) <-> side door (7, 43.5), 30 s, carries the log up to the NOC)."
     },
     {
       "id": "s4-hall",
@@ -702,7 +702,8 @@
       "width": 1.2,
       "height": 2.1,
       "reason": "Side door between the security room and the north corridor (secNc, moved to (8, 43.5) to clear the escape ladder)",
-      "length": 17.5
+      "length": 17.5,
+      "note": "BUILT G4.4 (secNc (8, 43.5) s4.ts:616)."
     },
     {
       "from": "s4-nc",
@@ -732,7 +733,7 @@
       "width": 1.3,
       "level_change": 3.6,
       "reason": "The NOC's staff stair rebuilt as a dog-leg fire stair: 1.3 wide, 2 x 11 risers 0.165 / 0.28, mid landing 1.3 (was one 1.2 m flight of 20)",
-      "note": "time_s: the walk (13 m) at 1.3 m/s plus 3.6 s of rise.",
+      "note": "BUILT G4.4 (s4.ts:91, :587-593). time_s: the walk (13 m) at 1.3 m/s plus 3.6 s of rise.",
       "length": 13,
       "time_s": 13
     },
@@ -743,7 +744,7 @@
       "route": "loud",
       "level_change": 3.7,
       "reason": "NOC roof access hatch (x 6.0..7.2, z 46.6..47.8) with a caged ladder from the mezzanine to the plant deck; Track A drops in on the staffed NOC here",
-      "note": "time_s: 1 s per metre of ladder plus the walk.",
+      "note": "BUILT G4.4 (s4.ts:601-605; A1: the ladder is on the hatch's east rim). time_s: 1 s per metre of ladder plus the walk.",
       "length": 21,
       "time_s": 20
     },
@@ -754,7 +755,7 @@
       "route": "shadow",
       "level_change": 3.6,
       "reason": "NOC escape door (8, 45.5, y 3.6) onto a 1.2 x 1.2 platform and a caged ladder down to the dark north corridor (9.4, 45.5): the mezzanine's second means of escape",
-      "note": "time_s: 1 s per metre of ladder plus the walk.",
+      "note": "BUILT G4.4 (s4.ts:614-624; the ladder foot is at (9.55, 45.5)). time_s: 1 s per metre of ladder plus the walk.",
       "length": 17,
       "time_s": 17
     },

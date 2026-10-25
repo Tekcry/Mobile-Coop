@@ -1,5 +1,6 @@
 // (campus-greybox, v2 lane S4) Copied from `campusS4.ts` at P0; the S4 lane's greybox. Built only when `flags.campusV2` names 4.
 import { Vector3 } from '../../../core/babylon';
+import { GLASS_COLOR } from '../../levelBuilder';
 import type { LevelBuilder } from '../../levelBuilder';
 import type { RoomDef } from '../../rooms';
 import type { MapLayout } from '../../mapDef';
@@ -37,6 +38,8 @@ const CAGE = '#6b727a';
 const CRATE = '#7a6a4a';
 const PLANT = '#6a7580';
 const WHITE: [number, number, number] = [1, 0.97, 0.92];
+/** S1's sodium triple (`campusS1.ts:25`): the warm console lamp. */
+const WARM: [number, number, number] = [1, 0.72, 0.38];
 
 /** The roof slab's underside and top (the hall's clear height; the top is the plant deck). */
 export const S4_ROOF = 7.0;
@@ -73,12 +76,22 @@ export const S4_DOORS = {
   ccUps: [-5.5, 31] as [number, number],
   secDoor: [2, 42] as [number, number],
   ncDoor: [20, 42] as [number, number],
-  secNc: [8, 45] as [number, number],
+  /** (G4.4 C18) the security room's side door, moved north to clear the escape ladder's foot. */
+  secNc: [8, 43.5] as [number, number],
+  /** (G4.4 C18) the NOC's escape door (floor 3.6) onto the platform over the north corridor. */
+  nocEscape: [8, 45.5] as [number, number],
   yardGate: [37.5, 16] as [number, number],
 } as const;
 
-/** The NOC's straight flight (`LevelBuilder.stairs` arguments; yaw PI / 2 rises toward +x: x -1.2 at 0 to x 5.2 at 3.6). */
-export const S4_FLIGHT = { cx: 2.0, cz: 47.2, w: 1.2, len: 6.4, rise: 3.6, yaw: PI / 2, y0: 0, steps: 20 } as const;
+/**
+ * (G4.4 C16, D:31) The NOC's dog-leg fire stair, 0.3 m south of the drawing (P3): `LevelBuilder.stairs` arguments. Flight 1
+ * rises west from the foot (x 4.2, G) to the mid landing (x 1.4, 1.8); flight 2 rises east from it to the NOC slab (x 4.2,
+ * 3.6). Risers 1.8 / 11 = 0.164, goings 2.8 / 10 = 0.28.
+ */
+export const S4_FLIGHTS = [
+  { cx: 2.8, cz: 47.15, w: 1.3, len: 2.8, rise: 1.8, yaw: -PI / 2, y0: 0, steps: 11 }, // flight 1, rises west
+  { cx: 2.8, cz: 45.75, w: 1.3, len: 2.8, rise: 1.8, yaw: PI / 2, y0: 1.8, steps: 11 }, // flight 2, rises east
+] as const;
 
 /** The pods' west x (each x0..x0 + 3.6, z 24..32): P1-P5. The hot-aisle centres are x0 + 1.8. */
 export const S4_PODS: readonly number[] = [-1.0, 4.6, 10.2, 22.2, 27.8];
@@ -205,6 +218,8 @@ export const S4_NAV_SEEDS: Vector3[] = [
   new Vector3(20, S4_DECK, 36),
   // (G4.2) the return-air plenum (a player space: the 1.5 m grilles keep guards out, under the 1.7 headroom)
   new Vector3(5, 3.2, 19),
+  // (G4.4) the fire stair's top landing on the NOC slab
+  new Vector3(4.85, S4_NOC, 45.75),
 ];
 
 /** Where a carried body can be hidden: the battery room's SW corner, the UPS room's north end, the north corridor's east end, the compound's NE corner, the hall's NW corner. */
@@ -235,6 +250,8 @@ export const S4_SWITCHES: NonNullable<MapLayout['switches']> = [
   { pos: new Vector3(-4.15, 0, 37.0), yaw: -PI / 2, group: S4_GROUPS.ups },
   // (G4.3 C12, derived) inside hallBatt (-4, 25) on its latch side, 0.6 m past the opening, 0.15 off the wall face
   { pos: new Vector3(-4.3, 0, 26.2), yaw: -PI / 2, group: S4_GROUPS.batt },
+  // (G4.4, 0.5 rule 4, derived) the north corridor's circuit: inside ncDoor (20, 42) on its latch side
+  { pos: new Vector3(21.2, 0, 42.3), yaw: 0, group: S4_GROUPS.nc },
 ];
 
 /** Section 4's rooms (HUD tags; no squads). Stacked rooms carry their storey (`minY` / `maxY`); none overlap (the lobby and hall are cut round the mantrap and the cage). */
@@ -306,6 +323,10 @@ export const S4_LIGHTS = {
   dockBoard: [{ x: 16, y: 2.4, z: 21.5, r: 3.6, i: 0.8, group: S4_GROUPS.dock, cone: DOWN, w: 0.3 }],
   // ---- added (G4.3): the battery room's hydrogen-rated fitting (C12, D:27; a 2.4 m lamp, r 1.5 x 2.4), circuit batt 142
   batt: [{ x: -7, y: 2.4, z: 24, r: 3.6, i: 0.8, group: S4_GROUPS.batt, cone: DOWN, w: 0.3 }],
+  // ---- added (G4.4): the warm console lamp over the desk (C20, D:35 / D:60; a 2.4 m lamp, r 3.6, on the security circuit),
+  // the north corridor's three fittings (0.5 rule 4; S2 G5c values; derived: n = ceil(22.5 / 8) = 3 evenly on the centre line)
+  console: [{ x: -2.0, y: 2.4, z: 44.6, r: 3.6, i: 0.8, group: S4_GROUPS.sec, cone: DOWN, w: 0.3, color: WARM }],
+  nc: [11.75, 19.25, 26.75].map((x) => ({ x, y: 3.5, z: 45, r: 5, i: 0.8, group: S4_GROUPS.nc, cone: makeCone(0, -1, 0, 1.2), w: 0.4 })),
 } satisfies Record<string, readonly S4Lamp[]>;
 
 /** A visible lamp fitting (the glowing box), a real registry light, from an `S4_LIGHTS` entry. */
@@ -394,6 +415,40 @@ function slab(b: LevelBuilder, x0: number, x1: number, z0: number, z1: number, t
   bx(b, x0, x1, top - 0.2, top, z0, z1, color, { overhead: true, noLedge: true });
 }
 
+/** A plan rectangle [x0, x1, z0, z1]. */
+type Rect = [number, number, number, number];
+
+/** (G4.4, S5's helper) `r` minus `h` as up to four rectangles. */
+function subtract(r: Rect, h: Rect): Rect[] {
+  if (h[1] <= r[0] || h[0] >= r[1] || h[3] <= r[2] || h[2] >= r[3]) return [r];
+  const out: Rect[] = [];
+  if (h[0] > r[0]) out.push([r[0], h[0], r[2], r[3]]);
+  if (h[1] < r[1]) out.push([h[1], r[1], r[2], r[3]]);
+  const x0 = Math.max(r[0], h[0]);
+  const x1 = Math.min(r[1], h[1]);
+  if (h[2] > r[2]) out.push([x0, x1, r[2], h[2]]);
+  if (h[3] < r[3]) out.push([x0, x1, h[3], r[3]]);
+  return out;
+}
+
+/** (G4.4) A rectangle minus its holes, as the pieces a slab is built from. */
+function cutRect(rect: Rect, holes: readonly Rect[]): Rect[] {
+  let pieces: Rect[] = [rect];
+  for (const h of holes) pieces = pieces.flatMap((r) => subtract(r, h));
+  return pieces.filter((r) => r[1] - r[0] > 0.01 && r[3] - r[2] > 0.01);
+}
+
+/** (G4.4, S5's `slab(rect, top, holes)`) A floor slab (0.2 thick, top at `top`) over `rect` minus `holes`, overhead and noLedge. */
+function slabCut(b: LevelBuilder, rect: Rect, top: number, holes: readonly Rect[], color = SLAB): void {
+  for (const r of cutRect(rect, holes)) slab(b, r[0], r[1], r[2], r[3], top, color);
+}
+
+/** (G4.4 C17) The NOC roof hatch in the deck, and (C19) the NOC rooflight over the console's west half. */
+const NOC_HATCH: Rect = [6.0, 7.2, 46.6, 47.8];
+const ROOFLIGHT: Rect = [0, 4, 43.5, 45.5];
+/** (G4.4 C16) The stair well in the NOC slab: both flights and the mid landing. */
+const STAIR_WELL: Rect = [0, 4.2, 45.1, 47.85];
+
 /** A steel guard rail (0.1 thick, 1.1 high) on a floor at `y`, noLedge. */
 function rail(b: LevelBuilder, x0: number, x1: number, z0: number, z1: number, y: number): void {
   bx(b, x0, x1, y, y + 1.1, z0, z1, STEEL, { noLedge: true });
@@ -430,12 +485,9 @@ export function buildCampusS4(b: LevelBuilder): void {
   doorAt(b, false, -10, 29, 0, 1);
   doorAt(b, false, 34, 19, 0, -1);
   doorAt(b, false, 34, 30, 0, -1);
-  // the roof slab (7.0-7.3) with the riser's roof hatch cut out
+  // (G4.4 C17 / C19) the roof slab (7.0-7.3) as one rect minus the riser's roof hatch, the NOC roof hatch and the NOC rooflight
   const [hx0, hz0, hx1, hz1] = S4_BOX.hatch;
-  bx(b, -10, 34, R, D, 16, hz0, ROOF, { overhead: true, noLedge: true });
-  bx(b, -10, hx0, R, D, hz0, hz1, ROOF, { overhead: true, noLedge: true });
-  bx(b, hx1, 34, R, D, hz0, hz1, ROOF, { overhead: true, noLedge: true });
-  bx(b, -10, 34, R, D, hz1, 48, ROOF, { overhead: true, noLedge: true });
+  for (const r of cutRect([-10, 34, 16, 48], [[hx0, hx1, hz0, hz1], NOC_HATCH, ROOFLIGHT])) bx(b, r[0], r[1], R, D, r[2], r[3], ROOF, { overhead: true, noLedge: true });
 
   // ---- the dock (x 14..34, z 16..22): west wall with the goods door into the lobby, two crate stacks, the roller door's dressing
   // (G4.2 C9, D:24) the return-air grille 1.5 x 1.5 at y 4.4..5.9 into the plenum (z 19.5..21.0)
@@ -530,21 +582,46 @@ export function buildCampusS4(b: LevelBuilder): void {
   const [cx0, cz0, cx1, cz1] = S4_BOX.crac;
   bx(b, cx0, cx1, 0, 2.0, cz0, cz1, PLANT, { noLedge: true });
 
-  // ---- the security room (x -4..8, z 42..48; the NOC's slab over it) and the NOC (3.6..7.0): the one stair, a hole for it, rails
-  const f = S4_FLIGHT;
-  slab(b, -4, 8, 42, 46.6, S4_NOC);
-  slab(b, -4, 8, 47.8, 48, S4_NOC);
-  slab(b, -4, f.cx - f.len / 2, 46.6, 47.8, S4_NOC);
-  slab(b, f.cx + f.len / 2, 8, 46.6, 47.8, S4_NOC);
-  rail(b, f.cx - f.len / 2 - 0.1, f.cx + f.len / 2, 46.5, 46.6, S4_NOC);
-  rail(b, f.cx - f.len / 2 - 0.1, f.cx - f.len / 2, 46.6, 47.8, S4_NOC);
-  b.stairs(f.cx, f.cz, f.w, f.len, f.rise, f.steps, STEEL, f.yaw, f.y0);
+  // ---- the security room (x -4..8, z 42..48; the NOC's slab over it) and the NOC (3.6..7.0)
+  // (G4.4 C16, D:31) the dog-leg fire stair: one slab rect minus the well, the mid landing, the spine, the three rails
+  slabCut(b, [-4, 8, 42, 48], S4_NOC, [STAIR_WELL]);
+  bx(b, 0, 1.4, 1.6, 1.8, 45.1, 47.85, STEEL, { noLedge: true });
+  bx(b, 1.4, 4.2, 0, 4.7, 46.4, 46.5, WALL_DARK, { noLedge: true });
+  rail(b, -0.1, 0, 45.1, 47.85, S4_NOC);
+  rail(b, 0, 4.2, 45.0, 45.1, S4_NOC);
+  rail(b, 4.2, 4.3, 46.5, 47.85, S4_NOC);
+  for (const f of S4_FLIGHTS) b.stairs(f.cx, f.cz, f.w, f.len, f.rise, f.steps, STEEL, f.yaw, f.y0);
   bx(b, -3.9, -3.3, 0, 0.75, 43.2, 45.6, DESK); // (G4.3 C15) the console stops at the UPS door's swing
-  // the security room / north corridor partition (x 8, the side door) and the corridor / riser partition (x 30.6, kp-deck)
-  wall(b, false, 8, 42, 48, 0, R, [doorHole(45, 0)], P);
+  // (G4.4 C17, D:32) the NOC roof hatch x 6.0..7.2, z 46.6..47.8 (cut in the roof slab above): the ladder to the deck, rails on
+  // three sides (the north side is the deck screen B:478, 0.05 m from the hatch rim). ASSUMPTION A1: the brief's ladder
+  // `b.ladder(6.6, 47.6, S4_NOC, S4_DECK, 0)` faces north and steps off at z 48.05, inside that screen (z 47.85..48.15, 2.0
+  // high), so no climber lands. The ladder is built on the east rim instead (S1's hatch-ladder rule turned east: base 0.25 m
+  // inside the rim, facing it, the top 0.45 m past it) and the east rail leaves the 0.5 m ladder gap z 46.95..47.45 (as R1's
+  // landing rail). Undo: the brief's literal ladder and the unbroken east rail, and a cut in the screen for the exit.
+  b.ladder(6.95, 47.2, S4_NOC, D, PI / 2);
+  rail(b, 5.9, 6.0, 46.6, 47.8, D);
+  rail(b, 5.9, 7.3, 46.5, 46.6, D);
+  rail(b, 7.2, 7.3, 46.6, 46.95, D);
+  rail(b, 7.2, 7.3, 47.45, 47.8, D);
+  // (G4.4 C19, D:34) the NOC rooflight x 0..4, z 43.5..45.5: fixed wired glass flush with the deck (clear: sight and light pass)
+  b.box(2, 7.275, 44.5, 4, 0.05, 2, GLASS_COLOR, 0, 0, true, false);
+  const rl = b.boxes[b.boxes.length - 1]!;
+  rl.glass = 'clear';
+  rl.noLedge = true;
+  rl.overhead = true;
+  // the security room / north corridor partition (x 8: the side door, and (G4.4 C18, D:33) the NOC escape door at 3.6 onto a
+  // platform and a caged ladder down to the corridor) and the corridor / riser partition (x 30.6, kp-deck)
+  wall(b, false, 8, 42, 48, 0, R, [doorHole(43.5, 0), doorHole(45.5, S4_NOC)], P);
   wall(b, false, 30.6, 42, 48, 0, R, [doorHole(45, 0)], P);
-  doorAt(b, false, 8, 45, 0, 1);
+  doorAt(b, false, 8, 43.5, 0, 1);
+  doorAt(b, false, 8, 45.5, S4_NOC, -1); // opens into the NOC (P4)
   doorAt(b, false, 30.6, 45, 0, 1);
+  bx(b, 8.1, 9.3, 3.4, 3.6, 44.9, 46.1, STEEL, { noLedge: true });
+  rail(b, 8.1, 9.3, 46.0, 46.1, S4_NOC);
+  rail(b, 8.1, 9.3, 44.9, 45.0, S4_NOC);
+  rail(b, 9.2, 9.3, 44.9, 45.2, S4_NOC);
+  rail(b, 9.2, 9.3, 45.8, 46.1, S4_NOC);
+  b.ladder(9.55, 45.5, 0, S4_NOC, -PI / 2); // (P5) 0.25 m off the platform edge; the ladder gap z 45.2..45.8
 
   // ---- the riser: the basket landing (4.0-4.4) with a rail on its north edge but the ladder gap, R1 up from the floor, R2 up to the deck hatch
   const [lx0, lz0, lx1, lz1] = S4_BOX.landing;

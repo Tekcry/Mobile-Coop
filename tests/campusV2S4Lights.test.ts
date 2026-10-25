@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { BoxPiece, LevelBuilder as LB } from '../src/world/levelBuilder';
 import { NavGrid, type NavBlocker, type NavSample } from '../src/ai/navGrid';
 import { hyp2 } from '../src/core/mathx';
+import { lampReach } from '../src/world/lampMath';
 
 const PI = Math.PI;
 
@@ -123,5 +124,37 @@ describe('G4.3 ess board and battery lamp (D:27, C12)', () => {
     expect(nearNav(sw[0]!.pos.x, sw[0]!.pos.z, 0), 'battery switch on nav').toBe(true);
     expect(hyp2(sw[0]!.pos.x - S4_DOORS.hallBatt[0], sw[0]!.pos.z - S4_DOORS.hallBatt[1])).toBeLessThanOrEqual(1.5);
     expect(lay.switches!.some((s) => s.group === 142)).toBe(true);
+  });
+});
+
+describe('G4.4 console lamp and north corridor lights (D:35, 0.5 rule 4)', () => {
+  it('G4.4 console lamp: (-2.0, 2.4, 44.6) warm (1, 0.72, 0.38) on 77; the as-built NOC and security room lamps stay', () => {
+    const c = s4Lights.find((q) => q.x === -2.0 && q.y === 2.4 && q.z === 44.6)!;
+    expect(c).toBeTruthy();
+    expect(c.group).toBe(77);
+    expect(c.color).toEqual([1, 0.72, 0.38]);
+    expect(c.intensity).toBe(0.8);
+    expect(c.cone).not.toBeNull();
+    for (const [x, y, z, g] of [[0, 6.4, 45, 76], [5, 6.4, 45, 76], [0, 3.1, 44.5, 77], [5, 3.1, 44.5, 77]] as const) {
+      expect(s4Lights.some((q) => q.x === x && q.y === y && q.z === z && q.group === g), `kept (${x}, ${y}, ${z})`).toBe(true);
+    }
+  });
+
+  it('G4.4 north corridor: three lamps (11.75 / 19.25 / 26.75, 3.5, 45) on 140, one switch within 1.5 m of ncDoor on nav; every S4 lamp on, lit, shootable, electric and from S4_LIGHTS', () => {
+    const nc = s4Lights.filter((q) => q.group === 140);
+    expect(nc.map((q) => [q.x, q.y, q.z]).sort((p, q) => p[0]! - q[0]!)).toEqual([[11.75, 3.5, 45], [19.25, 3.5, 45], [26.75, 3.5, 45]]);
+    for (const l of nc) expect(l.radius).toBeCloseTo(lampReach(5));
+    const sw = S4_SWITCHES.filter((s) => s.group === 140);
+    expect(sw.length).toBe(1);
+    expect([sw[0]!.pos.x, sw[0]!.pos.z]).toEqual([21.2, 42.3]);
+    expect(sw[0]!.yaw).toBeCloseTo(0);
+    expect(nearNav(21.2, 42.3, 0), 'corridor switch on nav').toBe(true);
+    expect(hyp2(sw[0]!.pos.x - S4_DOORS.ncDoor[0], sw[0]!.pos.z - S4_DOORS.ncDoor[1])).toBeLessThanOrEqual(1.5);
+    const all = Object.values(S4_LIGHTS).flat();
+    expect(s4Lights.length).toBe(all.length);
+    for (const l of s4Lights) {
+      expect(all.some((q) => q.x === l.x && q.y === l.y && q.z === l.z && q.group === l.group && q.i === l.intensity), `light ${l.id}`).toBe(true);
+      expect(l.on && l.intensity > 0 && l.destructible && l.electric, `light ${l.id}`).toBe(true);
+    }
   });
 });
