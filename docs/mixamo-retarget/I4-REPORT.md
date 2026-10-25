@@ -54,8 +54,10 @@ pose holds the arms wide, 22-26 cm in the raw take itself, not the facing); the 
 elbows but stay under the bone-step cap: on by the new rule.
 
 ## Tests
-- See the final run in STATE.md "## I4" / the job lead's message (typecheck:fast, eslint on touched files, the brief's
-  vitest list).
+- typecheck:fast clean; eslint on the touched TS files clean (the .mjs scripts are eslint-ignored). vitest: mixamoSwitch,
+  mixamoStance, mixamoTraverse, mocapSwitch, mocapCrouch, crouchPops, crouchEntryRig, mocapGuards, animSkeletonIdentity,
+  mixamoDriver, mixamoEmit, mixamoTake, mocapSources, changesFragments: 94 passed, 2 skipped (stance and emit fixes rerun:
+  9/9, 10/10). Stance tests keep I1 rows off in `shotsOn`; the mid-change count allows the 4 frames under the 1e-4 skip.
 
 ## Deviations
 - The yaw correction turns the trunk only (legs keep their world rotations, the head its gaze): turning the whole body

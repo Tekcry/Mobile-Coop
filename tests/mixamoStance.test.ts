@@ -39,8 +39,11 @@ afterEach(() => {
 
 const DT = 1 / 60;
 
-/** Both rows on (the shots themselves, whatever ships). */
+/** Both rows on (the shots themselves, whatever ships); I1's idle and crouch walk rows off (I4 ships them on: they would
+ *  move the still and settled frames these tests compare). */
 function shotsOn(): void {
+  MIXAMO_ON.standing_idle = false;
+  MIXAMO_ON.crouched_walking = false;
   MIXAMO_ON.stand_to_crouch = true;
   MIXAMO_ON.crouch_to_stand = true;
   setMixamo(true);
@@ -192,6 +195,8 @@ describe('mixamo I3 (a): off is bit-identical', () => {
     expect(differ(base.all, runGraph(STILL).all)).toBe(0);
     MIXAMO_ON.stand_to_crouch = false;
     MIXAMO_ON.crouch_to_stand = false;
+    MIXAMO_ON.standing_idle = false;
+    MIXAMO_ON.crouched_walking = false;
     setMixamo(true);
     expect(WREN_STANCE.down).toBeNull();
     expect(WREN_STANCE.up).toBeNull();
@@ -226,7 +231,8 @@ describe('mixamo I3 (b): on', () => {
     const mid = (f: number): boolean => off.crouch[f]! > 0 && off.crouch[f]! < 1;
     const nMid = off.crouch.filter((c) => c > 0 && c < 1).length;
     expect(nMid).toBe(changeFrames(MOVEMENT.crouchTime) - 1 + changeFrames(MOVEMENT.standTime) - 1);
-    expect(differ(off.keyed, on.keyed, mid)).toBeGreaterThanOrEqual(nMid - 2);
+    // (I4) the edge fade 0.4: the first and last mid frame of each change weigh under the shot's 1e-4 skip
+    expect(differ(off.keyed, on.keyed, mid)).toBeGreaterThanOrEqual(nMid - 4);
     expect(differ(off.keyed, on.keyed, (f) => !mid(f))).toBe(0);
   }, 120_000);
 
