@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 3 2026-10-25T22:46Z
+status: blocked 2 unexpected master ERRs need a lead ruling: W2 has 1 route to the arcade roof once E6 deletes the dormer window; split tgc-leads leg a has no solo entry (master 2d9ad6f7 walks split legs on soloArcsOf, so the bolted E5 ladder no longer counts) - all else built and pushed 799364de9
 
 # campaign J8 D0: wave-0 graph for Tallow Wharf (Opus 5.5)
 
@@ -154,3 +154,33 @@ origin/feature/validator-port-s7b origin/feature/validator-port-train`; if the t
 
 ## Report (append below, then set line 1 to `status: done feature/tallow-d0 <sha>`)
 ERR / WARN counts per run with the file names, the renumbering, the split numbers, deviations, open items for the lead.
+
+### Report (Night Shift | Cloud Builder 3, 2026-10-25 ~22:53Z)
+**Built in full; blocked on two ERRs the plan did not expect** (details, causes and options:
+`docs/tallow-fixes/val/D0-note.md` section 5). Branch `feature/tallow-d0` from d286ecd89: d24187e7 the graph,
+799364de9 saved runs, `D0-graph.diff`, `D0-note.md`.
+- Validators: master 2a937eb6b, mission-validator 0c62a921f, validator-port-train fede9015e (S7b ebb58a113 is in it).
+- Counts: master map, map + TGC, map + TKL, TKL-state, TKL-state + TKL: 4 ERR / 8 WARN each. mission-validator map:
+  3 / 8. validator-port-train map, + TGC, + TKL: 4 / 9 each.
+- ERRs: the two named throw-gap lines (A22) on every run, plus:
+  1. `section W2: 1 independent route(s) from entry 'w2-arcade' to exit 'w2-arcade-roof' (need 2 edge-disjoint)` (all
+     runs). E6 deletes the dormer `window`; the hatch and the window were W2's two "routes" to the roof, through one
+     opening. Options: keep the window (undoes E6), a second roof access (G2 geometry, a new LP row), or a gate exception.
+  2. `split tgc-leads leg a: no solo link leads into w1-gallery` (master and train). The plan modelled the splits at
+     4e5e9959 (`arcsOf`, bolts ignored); master 2d9ad6f7 times split legs on `soloArcsOf`, so the bolted E5 ladder
+     gives leg a no solo entry. With the ladder unbolted (scratch diagnostic) the split is clean but a solo-twin ERR
+     appears on the canal-steps boost: no data-only answer. Options: the split check takes a co-op link from the fork
+     as the leg's entry (validator change), re-chosen legs (J7 BEAT change), or a gate exception.
+- The train does not pass the long throws as INFO: its `metrics.json` has no `sizes.throw_long` (the scale sheet's Long
+  throw row is not on the train), so it WARNs and keeps the two gap ERRs. J12's item.
+- WARNs: the 6 known, plus 2 from EGRESS lengths: E1 link 70 `length 12.4` and E2 link 71 `length 9.8` off the 0.5 m
+  grid. mission-validator prints no optional-reward line.
+- Renumbering: 30 and 32 deleted; tank ladder 31 -> 30, C5 throw 33 -> 31, fire escape 35 -> 33, bulkhead 36 -> 34;
+  new links E1 70, E2 71, E4 72, E5 73 (74 links).
+- Splits: TKL legs a 22.7 s / b 20.5 s, 10%, worst reach 9.5 s (east yard, on the graph), no ERR or WARN on any run.
+  TGC worst reach on the real bolts 12.7 s from the office (about 15.7 s the first time, A climbing down the cage to
+  open the foot door; LP pick 1). From the tea stall there is no solo way up until A opens it. BEAT line for J7 (TGC):
+  "A climbs down inside the ladder cage and unbolts its foot door for B"; TKL none.
+- Tests: `npx vitest run tests/tallowWharf/ --maxWorkers=2` 7 files, 143 passed. No tsc (docs only).
+- Deviations: A7's ladder link drops `height` (no ladder link in the file has one); the E1 / E2 reasons end
+  "(EGRESS E1 / E2)". No doc-lint script exists on this base.

@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 3 2026-10-25T22:46Z
+status: done feature/tallow-mb 57679530d4f00e0ffe4c240c7f8935e3b2f4d17e
 
 # campaign J8 MB: mission-scoped bolt (A30) (Opus 5.5)
 
@@ -85,3 +85,29 @@ missions it is fitted in. About 60 lines; no wire change.
 ## Report (append below, then set line 1 to `status: done feature/tallow-mb <sha>`)
 Fields and methods added, the client finding (step 5), the mission-step finding (step 6), test counts, check results,
 deviations, "pending PC run" for the laptop suites.
+
+### Report (Night Shift | Cloud Builder 3, 2026-10-25 ~22:53Z)
+Built on `feature/tallow-mb` from c2802450a: d84ea358, 784efc1f, 57679530d. Only the four files, +211 / -5;
+`sectorMode.ts` changes by one line (`:371` `this.team.build(this.mission?.def.id);`).
+- Added: `SectorBolt.missions?: readonly string[]` (doc comment as the brief). `SectorBolts.fitted: boolean[][]`
+  (made in the constructor, all true), `isFitted(sec, k)` (not named in the brief; part of the unfitted state),
+  `unfit(sec, k)` (shut and fitted false; a bad index ignored). `rebolt` skips an unfitted bolt. `use` / `press`
+  unchanged: an unfitted bolt is not shut, so they return false / 'shut'. `SectorTeamDoors.build(missionId?)`: a bolt
+  with `missions` not naming `missionId` (or no mission) gets `unfit` only: no door lookup, no `closeDoor`, no item,
+  not in `boltIts`. Fitted bolts and pair gates built exactly as before; build time only, no per-frame allocation.
+- Step 5 (client): nothing needed, no wire change. A co-op client never builds team doors (`gameState.ts:695`: the
+  puppet gets no mode; `w.mode` is set only in the non-puppet branch, `:729-737`). The client mirrors the host's
+  items (`coopClient.ts:570-622`) and locks as `lk` (`coopClient.ts:1035-1040`, from host `sectorMode.ts:1385-1386`);
+  an unfitted bolt has no item and an unlocked door.
+- Step 6 (mission flag): no step, save or rating reads it. `sectorMission.ts:263` registers `<id>-bolt<k>` through
+  `addPoll` (`:292-293`), which drops a flag no step reads; no mission definition reads a `-bolt` flag
+  (`tallowWharfMissions.ts`, `campusMissionTest.ts`); `missionWire`, `ruleTracker`, `src/save` and section rating do
+  not read bolts. `boltOpen` (`:674`) would read an unfitted bolt as drawn, but only for polled flags. Other readers:
+  the test view `sectorMode.ts:1434` shows it as not shut; `sectorStage.ts:131` keeps bolt doors out of stage lockdown
+  fitted or not.
+- Tests: `tests/sectorBolt.test.ts` 20 (8 new in `describe('mission-scoped bolt (J8 A30)')`, existing unchanged); the
+  brief's vitest line 4 files, 85 passed. `npm run typecheck:fast` clean; eslint on the four files 0 problems.
+- Deviations: the new tests use a small fake `ints` (as `tests/helpers/teamDoorRig.ts`; a real `Interactables.add`
+  needs a scene) plus fake doors, nav (records closures) and players, all in the test file; `teamDoorRig.ts` not used
+  (it calls `build()` with no mission and is outside the file list).
+- Pending PC run: laptop `e2e-coop e2e-netmove e2e-sectorops:wharf-tgc e2e-sectorops:wharf-tkl e2e-sectorops:mission`.
