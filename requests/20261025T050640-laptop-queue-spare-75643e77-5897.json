@@ -1,0 +1,18 @@
+{
+  "id": "20261025T050640-laptop-queue-spare-75643e77-5897",
+  "sha": "75643e774025cd7ee571b9aa8c7a611d3d81c4b9",
+  "branch": "",
+  "pr": null,
+  "kind": "alone",
+  "requester": "laptop-queue spare",
+  "set": "spare-coop-soak",
+  "note": "spare work 2: spare-coop-soak",
+  "steps": [
+    "node scripts/run-e2e.mjs e2e-coop",
+    "node scripts/run-e2e.mjs e2e-coop",
+    "node scripts/run-e2e.mjs e2e-coop",
+    "node scripts/run-e2e.mjs e2e-coop",
+    "node scripts/run-e2e.mjs e2e-coop"
+  ],
+  "env": {}
+}
