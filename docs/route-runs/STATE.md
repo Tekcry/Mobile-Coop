@@ -32,13 +32,18 @@ Owner: Marlow Build. Status: current.
 - Plan check 3 PASS on 6fab6ef0f (C:/NightShift/scratch/marlow/j13-plan-check-3.md, ~20:25). Wave 1 building at the 20:30 save: R1 (Opus) feature/route-runs-r1, R2 (Sonnet) feature/route-runs-r2, R3 (Opus) feature/route-runs-r3, each from origin/master with its own PR. R4c polish: calm the guard and reset the alarm on a push past.
 - Wave 1 PRs (~22:00): #455 R1 (642130383), #453 R2 (af9fe150c), #456 R3 (ea2578417), all checker Opus PASS
   (C:/NightShift/scratch/marlow/j13-wave1-check.md + Recheck), affected success; train-ready after CI test. Open polish:
-  R1 P2/P3, R2 P4, R3 P2 (report). R4a waits for R1 + R3 on master.
+  R1 P2/P3, R2 P4, R3 P2 (report). All three MERGED (trains 102 / 103).
+- R4a briefed ~22:55 on cloud-queue `briefs/route-runs-r4a.md` (base master 57a02d4ef, branch feature/route-runs-r4a;
+  keeps the caller's `?campusv2=N` on every page). Sector Ops' campus v2 greybox exit (docs/campus-greybox/EXIT.md on
+  feature/campus-greybox) waits on R4a / R4b / R5 / R6 and J12 `--require-measured` + `level-measure --flags`.
+  J14 R1 also adds `?course=station:<n>` and `stationRetry(n, cause)`; downed and pause restarts clear retryOff.
 - Seams for R4c / R5 (lead notes): J14 R1 hooks (PLAN origin/feature/marlow-replan 0934d5999+): `window.__course.restarts`,
   `lastRetry = { st, cause } | null`, host-only `__course.retryOff(n)` cleared by ANY bay restart (re-apply after a
   downed restart); causes seen/caught -> seen, timer -> timer, out/down/pause restart -> other. J12 S0: plank_bridge,
   deadweight, vent_unlock are two-way gates (lib `TWO_WAY_GATES`); R1 `plan.mjs:142` has its own set (pair_gate, shutter)
   - import the lib set when J12 PR A is on master (R5 or a small R1 follow-up).
-- Next: watch the three PRs to release; brief R4a (Opus) to start from master once R1 + R3 are released.
+- Next: R4a done (cloud) -> Opus checker, PR, laptop `--alone` selftest + campus S1 code-route run (PLAN R4a checks);
+  then R4b, R5, R6 (Sector Ops' campus v2 exit waits on them) as cloud briefs where tsc / vitest only.
 
 ## Done
 - 2026-10-25 ~20:40-21:00 Fix round 2 (Opus planner): BRIEF Q7 fix 4fac34ba8, PLAN Q7 fix 73c8fb67e, polish
