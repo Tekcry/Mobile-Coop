@@ -1,0 +1,19 @@
+{
+  "id": "20261025T005232-affected-e2e-b2f8a48f-2e40",
+  "sha": "b2f8a48fae663fcec2c75604c279825696f57a95",
+  "branch": "feature/doc-polish",
+  "pr": 404,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anim",
+    "e2e-combat",
+    "e2e-darkness",
+    "e2e-desktop",
+    "e2e-lightbake",
+    "e2e-move",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #404"
+}
