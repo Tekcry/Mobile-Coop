@@ -468,7 +468,7 @@ back, A15). Roof: walk, chimney stacks, stair bulkhead.
 | 15 | Boardroom post | officer | Post | Board papers laid out for 08:00 | - |
 | 16-17 | CEO suite pair | officer + grunt | Talking post at the suite door | The CEO's safe and laptop | Each other |
 | 18 | Archive patrol | grunt | Loop through the stacks, ~42 s | Archive round | Isolation in the dark stacks |
-| 19 | Roof marksman | grunt (rifle) | Sweep from the roof walk over the lake approach | Overwatch for the response team | Sees the terrace and jetty path |
+| 19 | Roof marksman | grunt (rifle) | Sweep from the roof walk over the lake approach | Overwatch for the response team | Sees the terrace and jetty path. A lookout post (leash 1 m, guard-rules S9, A9), read with `?lookouts=1` |
 | 20 | Terrace gate post | grunt | Post at the terrace gate | Lake-side door | Overlaps the terrace dog team |
 | 21 | Service wing patrol | grunt | Loop kitchen, plant, back door, ~38 s | Service round | Answers the garden board |
 | 22 | Colonnade arrival officer | officer | Post at the C4 end | Checks anyone from the data hall | Entry pinch |
