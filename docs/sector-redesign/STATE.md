@@ -366,7 +366,7 @@ J10 datasheet: numbers only (ROADMAP Decided ~20:50); never commit the file. Pyt
      in C:/NightShift/scratch/light-realism/l0-fold-measure/). Opus PASS 067ddea30 (status on 1cefe25eb; 5 polish items in checks/l0-fold-check.md, for L1 / L2).
      L1 brief 1cefe25eb (briefs/L1.md) queued on cloud (27577969e, light-realism-L1, measure runs there). On done:
      Opus checker, send its 2 laptop requests, SIGNOFF.md to Michael via the orchestrator; note 2 before L2 briefs.
-   - map-ready S4: cloud brief map-ready-S4 (7a006dbbe) resumes the WIP 1afb22600 (steps 1-7, code + unit tests);
+   - map-ready S4: cloud brief map-ready-S4 resumes the WIP d42ddb80b (1-3 + 4-6 started; steps 1-7, unit tests);
      the real prebake run (desktop, heavy.lock, size caps) is mine after it is done; then an Opus checker.
      Then W1: S9 (Opus), S1 measure (Sonnet, laptop run); then S2, S10; S8 (cloud) after S1 + S2.
    - J16 job branch c9b14bf1c (S3 + A1 fix + briefs S2.md, S3b.md). S2 (PR A2) and S3b-1 queued on cloud (b37bff865);
@@ -379,6 +379,8 @@ J10 datasheet: numbers only (ROADMAP Decided ~20:50); never commit the file. Pyt
      s3-r2..r5 queued from the frame (r3 closes the core slots + core rooms, A-J17-S3-2/3; door pairs as signed,
      A-J17-S3-1); s5 open. On each done: checker, laptop e2e-sectorops part; r6 after r5 + lead merge of r1-r4.
      Log A-J17-S2-1, A-J17-S3-1..3 in docs/campus-greybox/STATE.md at the next lead commit there.
+   - Campus v1 walk DROPPED (Michael ~22:25 "Drop old, walk new"): he walks v2 S1-S5 at greybox exit. Opus agent
+     writing docs/campus-greybox/EXIT.md (validator + route-runs + walk card inputs) on feature/campus-greybox.
 3. PLANS: J18 sector-batch (plan check 3 PASS 31e9f22e): B1 / B3 open on cloud-queue; B2 on cloud-queue (7a006dbbe);
    B4 Sonnet after #317 (one Opus checker). When PR A opens tell Campaign Build: B1 and mission-rules-r1 both edit
    sectors.ts:864 / sectorMode.ts:1020; PR A lands first (PLAN section 7).
