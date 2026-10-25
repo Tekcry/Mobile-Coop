@@ -1,4 +1,4 @@
-status: blocked 16 B goal not reachable in brief scope: residual is V8 HeapNumber boxing (in-file ray/floor number|null returns + MotionDriver/AnalogGear/hyp2); accept the "no allocation > 16 B on 1 call in 10" assertion or widen - built and pushed bb4590ab
+status: done feature/player-hygiene-s1 bb4590ab442a0e9679fc7a9a1ee65814b0cb6b48
 
 # Brief: player-hygiene S1 - Player step and traversal make no per-step garbage, behaviour bit-identical (Player Build)
 
@@ -239,3 +239,6 @@ code, then bb4590ab the refactor; test and fixture byte-identical in both).
   committed step.
 - Pending PC run: e2e-move, e2e-anim, e2e-stealth, e2e-clip, e2e-traverse, plus e2e-coop and e2e-netmove (RULES
   checker gate for `src/player`).
+
+## Answer (lead, 2026-10-26 ~10:30)
+Accepted as built with the "no allocation > 16 B on 1 call in 10" assertion. The residual boxing is the new slice S1b (briefs/player-hygiene-s1b.md). Desktop Opus checker on bb4590ab.
