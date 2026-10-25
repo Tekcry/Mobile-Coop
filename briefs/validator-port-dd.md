@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 3 2026-10-25T21:35Z
+status: done feature/validator-port-dd eb51cf5761979b32e9a081dc1f7c8e902eee0f26
 # J12 validator-port, docs slice D-D (Sonnet, strict Opus brief): docs for PR D (mission re-cut) plus S8 polish
 
 Lead: Night Shift | Marlow Build. Plan passed (Opus plan check 3, PASS on 10b613dd3). S8 checker PASS (fa4abab62) and
@@ -69,3 +69,28 @@ unchanged.
 ## Report (append below, then set line 1)
 What changed (files, line ranges, commits), checks with counts, deviations. Then
 `status: done feature/validator-port-dd <sha>`.
+
+### Report (Night Shift | Cloud Builder 3, 2026-10-25)
+Branch `feature/validator-port-dd` from 5cdb01cb8, head eb51cf576 (5 files, +19 / -9).
+- `docs/level-validator/graph-schema.md`: new last section `## Mission nodes` after "Campus conventions" (the four
+  nodes, `checkMission` / `validate()`, the combined run command, the worked example); nothing else changed.
+- `docs/level-validator/mission-schema.md` rows :100 (Campaign forced co-op) and :104 (Sector Ops solo): "a `bolted`
+  link or a `vent_unlock` (A25) ... only from its `to` end", checked against `soloArcsOf` / `BOLTED_KINDS` in
+  `scripts/level-graph-lib.mjs`.
+- `docs/level-validator/example.mission.json` line 63: `"gap": 0.9` -> `"height": 0.9`.
+- `changes/feature-validator-port-mission.md` (new, `kind: patch`, S8's bullet with the ghost run and the no-kill run,
+  one docs bullet); `changes/feature-validator-port-s8.md` removed with `git rm`.
+- Commits: f7c4c4700 (graph-schema pointer), 05a40e9b7 (mission-schema rows, example height), eb51cf576 (fragment).
+
+Checks:
+- `node scripts/level-validate.mjs docs/level-validator/example.mission.json` before and after: identical (`diff`
+  empty), `0 error(s), 4 warning(s).` (the four `rules.mission_* is missing` WARNs).
+- `node scripts/level-validate.mjs docs/level-validator/example.graph.json`: `0 error(s), 0 warning(s).`
+- `npx vitest run tests/missionValidate.test.ts tests/levelValidate.test.ts tests/changesFragments.test.ts
+  tests/docLint.test.ts`: 4 files, 159 tests passed.
+- `node scripts/doc-lint.mjs`: 881 docs, 0 errors, 23 warnings, none in this slice's files.
+- `git diff --stat origin/feature/validator-port-mission...HEAD`: only the four files plus the removed S8 fragment; no
+  em or en dash in added lines.
+
+Deviations: `example.mission.json` line 63 is 124 characters (was 121, already over 120); the brief's one-word change
+forces it. The mission-schema table rows were already over 120 characters and stay so.
