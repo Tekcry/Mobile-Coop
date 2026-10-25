@@ -5,7 +5,7 @@ Owner: Orchestrator. 2026-10-25 ~14:45 Sydney. Plan only: the sign-off for Micha
 is folded here first (J0). Already folded: Marlow's checker round (c7bcdc4e5: M13, M14) and Sector Ops' (aca518a59:
 C14-C16).
 Inputs (`docs/conformance-<lead>/CONFORMANCE.md`): Test Runner (master), Player (#416, 4a819e6a), Marlow (#417,
-c7bcdc4e5), Campaign (#419, 6b2b8635), Sector Ops (#420, aca518a59), Guard AI (#423, d5f76240). Source tags: P = Player,
+c7bcdc4e5), Campaign (#419, 6b2b8635), Sector Ops (#420, aca518a59), Guard AI (#423, fc3f3feb: B16 added). Source tags: P = Player,
 M = Marlow, C = Campaign, S = Sector Ops, G = Guard AI, T = Test Runner, then the lead's row id (P H9 = Player row H9).
 Counts are at the leads' summary-row level; a merged row keeps every source tag.
 
@@ -173,7 +173,7 @@ switch-on of new features follows the walk cap.
 | J13 | Route-runs: BRIEF, Opus PLAN, plan checker, harness; per-detection cause log | Marlow (+ Guard AI cause record) | break 26; M M9, G C5 | J12 | plan checker | Q7 |
 | **C** | **Rule gaps** | | | | | |
 | J14 | Marlow Yard: revive cap 2, solo start blocked, A2 vantage test, drill-mark guard; LD 13 deliverables (objective and lead plan with `drill_s`, security register); then the M13 re-plan (one-page to-scale plan, 5-line intent check, validator pass, Michael's one click: RULES Intake 5) before strict rules, route closures, guard counts, split after every move; new exercises dark | Marlow | break 23; M M1-M8 M12 M13 M14 V7 V8, P R35 R36, T T6 (ctcourse half: Marlow Yard anchors in e2e-anchors, with Player Build) | J5; J12 | checker + e2e-ctcourse; M13 sign-off before M2 / M4-M6 | Yes: M13 one click; Q5, Q11, Q24, Q25, Q29 |
-| J15 | Guard rules: helmets by difficulty (Perfectionist locked; S4 / S5 data), stage-2 helmets, no dog takedowns, dog penalty and release, lookouts, paired-patrol check, posted pairs, repeat alarms, placed-shield check, barks by cause | Guard AI (+ Player takedowns, Sector Ops data) | P R1-R5, S M8-M10, G A3-A5 B2-B8 B13 C4 D5 | J1 | Opus plan; two checkers | Q9, Q13 |
+| J15 | Guard rules: riot-shield response held to later sections (G B16, bible 5.7; Guard AI fix head fc3f3feb), helmets by difficulty (Perfectionist locked; S4 / S5 data), stage-2 helmets, no dog takedowns, dog penalty and release, lookouts, paired-patrol check, posted pairs, repeat alarms, placed-shield check, barks by cause | Guard AI (+ Player takedowns, Sector Ops data) | P R1-R5, S M8-M10, G A3-A5 B2-B8 B13 C4 D5 | J1 | Opus plan; two checkers | Q9, Q13 |
 | J16 | Character shadows read by meter and guards (one fixed lamp set; G 1d split, Sector Ops PR first) | Sector Ops, then Guard AI, Player | break 4; S V9 | J10 | Opus plan; two checkers | Q14 |
 | J17 | Campus greybox v2 (row 9): signed-off counts, 3-4 player tags, graph keys 1-4, guard totals, unavoidable tags, splits / assist / overwatch, Rule index errors, S5 cap; section 15 acceptance tests for campusOps | Sector Ops (+ Guard AI tag) | break 27; S C2-C10 C14-C16, G A2 B14, M V9, T T6 (campusOps half) | J4; J12 for exit | validator; measured pass at exit | Q10, Q21, Q26 |
 | J18 | Sector Ops batch: stars fill lower (row 12), Perfect label, menu stars, solo-route data check, door light at 15%, visual-gate fixes, warehouseOps S3 crawl duct | Sector Ops | S M7 M12 M15-M17 L15 L18 V13-V15 V17, G B10, P R20 | J1 | affected-e2e + checker | Q20 |
