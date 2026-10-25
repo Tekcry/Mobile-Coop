@@ -1000,10 +1000,10 @@ C:/NightShift/Mobile-Coop-laptop-queue-svc && node scripts/laptop-queue/request.
 laptop-e2e/<set>; background wait loop. Laptop auto mode blocks labels: tell the orchestrator at train-ready.
 DOCS-FIRST HOLD (G346, G355): no new game work until Michael signs off the folded plan (ROADMAP Now row 6);
 finished PRs may ship.
-Open (save 2026-10-25 ~14:00):
-1. Conformance review PR #423 DONE (feature/conformance-guard-ai, head fc3f3feb): checker PASS (CHECK.md, fix round
-   1 applied), 40 gaps, 7 hard-rule breaks, 9 Michael questions (CONFORMANCE.md 1e). Orchestrator told; it labels and
-   folds it into ROADMAP row 6. Next work only after Michael signs off row 6.
+Open (save 2026-10-25 ~16:35, booted on the laptop, holding):
+1. Conformance review PR #423 MERGED (head fc3f3feb): checker PASS (CHECK.md, fix round
+   1 applied), 40 gaps, 7 hard-rule breaks, 9 Michael questions (CONFORMANCE.md 1e), folded into
+   docs/orchestrator/FOLDED-PLAN.md. HOLD until the orchestrator messages at the row 6 sign-off.
 2. #360 PAUSED to row 6 (Michael 13:30). Head 155d68a3 (look script split out to draft #414,
    feature/guard-ai-t1-look-script). Draft; requests withdrawn. Resume: measure + look as --alone requests (sets
    t1-shadow-measure / t1-shadow-look2, quote "&" queries for cmd.exe), T1-SHADOW-REPORT.md, 2 Opus checkers.
