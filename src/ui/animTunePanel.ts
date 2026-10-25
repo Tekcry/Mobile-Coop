@@ -94,6 +94,7 @@ import {
   KEYS_MOCAP_NOTE,
   MOCAP_BOX_LABEL,
   REACH_NOW_BANDS,
+  REACH_NOW_HYST,
   REACH_TITLES,
   REACH_WORDS,
   editWarning,
@@ -630,6 +631,9 @@ export class AnimTunePanel {
   /** What plays now as `tunerReach.ts` reads it (one object, mutated each frame) and the band last applied to the badges. */
   private readonly reachNow: ReachNow = { state: null, mocapShare: 0, switchOn: false };
   private reachBand = -1;
+  /** The live band's last side (`REACH_NOW_HYST`): share high (from 0.9, until under 0.88) / low (to 0.1, until over 0.12). */
+  private reachHi = false;
+  private reachLo = false;
   /** The edit warning: the header strip, the strip under the edited row, its timer, the text shown, the More > Panel box. */
   private warnEl: HTMLDivElement;
   private rowWarnEl: HTMLDivElement;
@@ -2214,7 +2218,8 @@ export class AnimTunePanel {
     const sel = p && p.section === 'keys' ? p.id : '';
     const st = kt.state();
     const id = st.tool === 'wave' ? st.chan : sel || st.chan;
-    if (!id) return;
+    // no row selected and the tool's channel '' or "all": no field to name, so no warning (not the trunk's)
+    if (!id || id === 'all') return;
     const row = sec.rows.querySelector<HTMLElement>(`input[data-id="${globalThis.CSS.escape(id)}"]`)?.closest<HTMLElement>('.tt-row') ?? null;
     this.editWarn(sec, id, row);
   }
@@ -3554,7 +3559,12 @@ export class AnimTunePanel {
     n.mocapShare = NOW_PLAYING.mocap;
     n.switchOn = LOCO.mocap;
     const share = n.switchOn ? n.mocapShare : 0;
-    const band = (share >= REACH_NOW_BANDS.capture ? 1 : share <= REACH_NOW_BANDS.handMade ? 2 : 0) | ((n.switchOn ? 1 : 0) << 2) | (((BODY_GROUPS as readonly string[]).indexOf(body) + 1) << 3);
+    // hysteresis (REACH_NOW_HYST): a share hovering at a band's edge does not flip the badges at every crossing
+    const hi = this.reachHi ? share >= REACH_NOW_BANDS.capture - REACH_NOW_HYST : share >= REACH_NOW_BANDS.capture;
+    const lo = this.reachLo ? share <= REACH_NOW_BANDS.handMade + REACH_NOW_HYST : share <= REACH_NOW_BANDS.handMade;
+    this.reachHi = hi;
+    this.reachLo = lo;
+    const band = (hi ? 1 : lo ? 2 : 0) | ((n.switchOn ? 1 : 0) << 2) | (((BODY_GROUPS as readonly string[]).indexOf(body) + 1) << 3);
     if (band === this.reachBand) return;
     this.reachBand = band;
     for (const s of this.sections) this.applyEffect(s);

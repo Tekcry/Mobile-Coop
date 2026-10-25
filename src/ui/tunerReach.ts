@@ -282,6 +282,9 @@ export interface ReachNow {
 /** The capture's share at or over which a hand-made-only row is "Not playing now", at or under which a capture-only one. */
 export const REACH_NOW_BANDS = { capture: 0.9, handMade: 0.1 } as const;
 
+/** The live band's hysteresis: leave the 0.9 band only under 0.88, leave the 0.1 band only over 0.12 (the panel's `syncReach`). */
+export const REACH_NOW_HYST = 0.02;
+
 function shareOf(now: ReachNow): number {
   return now.switchOn ? now.mocapShare : 0;
 }
