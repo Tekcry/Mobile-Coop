@@ -3,7 +3,6 @@ import type { Enemy } from '../../ai/enemy';
 import type { HitInfo } from '../damage';
 import type { GameState } from '../gameState';
 import type { GameMode } from './gameMode';
-import type { Blip } from '../../ui/hud/minimap';
 import type { Interactable } from '../interactables';
 import type { DoorState } from '../../world/doors';
 import { CourseState, type CourseEvent } from '../course/courseState';
@@ -1117,10 +1116,6 @@ export class CourseMode implements GameMode {
     this.hud.update(st, 0);
     this.hud.setStatus(st.airlockStatus());
     drawMarker(this.g, st, this.layout!, 0);
-  }
-
-  blips(): Blip[] {
-    return [];
   }
 
   dispose(): void {

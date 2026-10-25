@@ -204,7 +204,7 @@ body {
   margin-top: 2px;
 }
 /* Settings > Show FPS overlay: a one-line banner, the critical numbers only. (wheel-ui) Flush in the bottom left corner,
-   which nothing in play uses (the top one covered the compass and the top HUD on a phone; the weapon panel is bottom
+   which nothing in play uses (the top one covered the top HUD on a phone; the weapon panel is bottom
    right; menu legends sit higher). */
 .debug-overlay.compact {
   top: auto;
@@ -953,57 +953,6 @@ body {
   align-items: center;
   gap: 3px;
 }
-.hud-compass {
-  position: relative;
-  width: min(300px, calc(34 * var(--vw)));
-  height: 22px;
-  overflow: hidden;
-  background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.35) 20%, rgba(0, 0, 0, 0.35) 80%, transparent);
-  border-radius: 4px;
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 15%, #000 85%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 15%, #000 85%, transparent);
-}
-.compass-strip,
-.compass-marks {
-  position: absolute;
-  left: 50%;
-  top: 0;
-  height: 100%;
-}
-.ctick {
-  position: absolute;
-  top: 3px;
-  transform: translateX(-50%);
-  font-size: 10px;
-  color: rgba(255, 255, 255, 0.55);
-}
-.ctick.major {
-  font-size: 12px;
-  font-weight: 800;
-  color: #fff;
-}
-.cmark {
-  position: absolute;
-  top: 2px;
-  width: 0;
-  height: 0;
-  margin-left: -6px;
-  border-left: 6px solid transparent;
-  border-right: 6px solid transparent;
-  border-top: 9px solid var(--focus);
-}
-.cmark.edge {
-  opacity: 0.5;
-}
-.compass-caret {
-  position: absolute;
-  left: 50%;
-  bottom: 0;
-  width: 2px;
-  height: 6px;
-  margin-left: -1px;
-  background: var(--accent);
-}
 .hud-objective {
   font-size: 13px;
   font-weight: 700;
@@ -1041,17 +990,6 @@ body {
 }
 .hud-mode b {
   color: var(--text);
-}
-.hud-minimap {
-  position: absolute;
-  top: calc(var(--sat) + 8px);
-  right: calc(var(--sar) + 10px);
-}
-.minimap {
-  display: block;
-  border-radius: 50%;
-  width: min(120px, calc(26 * var(--vh))) !important;
-  height: min(120px, calc(26 * var(--vh))) !important;
 }
 .hud-weapon {
   position: absolute;
@@ -1277,10 +1215,10 @@ body {
   display: flex;
 }
 /* (G5, AUDIT-ACTIONMENU rows 5-6) the CT context menu, top right. CT's fractions of the frame (starting values):
-   right edge 3.0 % W, width 27.6 % W, header 3.2 % H tall from 10.7 % H (pushed under the minimap when it would
-   overlap), 0.4 % H gap, options box padding 1.15 % H, row pitch 3.34 % H, cap height 2.0 % H (Barlow Condensed:
-   cap ~0.7 em, so 2.86 % H type), text inset 1.2-1.3 % W, the highlight 2.9 % H tall, inset 0.4 % W. The look is
-   our own: steel borders, a corner-tick frame, corner ticks on the highlight (not a bracket glyph). */
+   right edge 3.0 % W, width 27.6 % W, header 3.2 % H tall from 10.7 % H, 0.4 % H gap, options box padding 1.15 % H,
+   row pitch 3.34 % H, cap height 2.0 % H (Barlow Condensed: cap ~0.7 em, so 2.86 % H type), text inset 1.2-1.3 % W,
+   the highlight 2.9 % H tall, inset 0.4 % W. The look is our own: steel borders, a corner-tick frame, corner ticks on
+   the highlight (not a bracket glyph). */
 .hud-ctx {
   --ctx-line: rgba(150, 178, 196, 0.62);
   --ctx-dim: rgba(150, 178, 196, 0.3);
@@ -1288,7 +1226,7 @@ body {
   --ctx-fill: rgba(8, 11, 14, 0.62);
   position: absolute;
   right: calc(var(--sar) + 3 * var(--vw));
-  top: max(calc(10.7 * var(--vh)), calc(var(--sat) + 18px + min(120px, calc(26 * var(--vh)))));
+  top: calc(10.7 * var(--vh));
   width: calc(27.6 * var(--vw));
   display: none;
   flex-direction: column;
@@ -2338,7 +2276,6 @@ body {
 .hud > .hud-vitals,
 .hud > .hud-weapon,
 .hud > .hud-top,
-.hud > .hud-minimap,
 .hud > .hud-feed,
 .hud > .hud-interact,
 .hud > .hud-subtitle {
@@ -3289,7 +3226,6 @@ body {
 :root .hud > .hud-vitals,
 :root .hud > .hud-weapon,
 :root .hud > .hud-top,
-:root .hud > .hud-minimap,
 :root .hud > .hud-feed,
 :root .hud > .hud-interact,
 :root .hud > .hud-subtitle {
