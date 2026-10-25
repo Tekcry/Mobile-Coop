@@ -1,0 +1,23 @@
+{
+  "id": "20261025T100220-affected-e2e-6dd50e85-d9d5",
+  "sha": "6dd50e85a13d95a9a23fe235659ba277f59ddd60",
+  "branch": "feature/sector-marks",
+  "pr": 457,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anchors",
+    "e2e-coop",
+    "e2e-ctcourse",
+    "e2e-gadgets",
+    "e2e-levels",
+    "e2e-netmove",
+    "e2e-park",
+    "e2e-sectorops",
+    "e2e-tactics",
+    "e2e-takedown",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #457"
+}
