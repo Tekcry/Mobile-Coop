@@ -18,7 +18,7 @@ scripts/level-graph-lib.mjs       NEW: collector, index, arcs / adjacency / reac
 scripts/level-checks/measured.mjs NEW: checkMeasured (V6d port, V1 INFO shadow, V2 presence gate)
 scripts/level-checks/training.mjs NEW: taught_by / teach, one route before taught_by, late side routes (Q24, Q29)
 scripts/level-checks/perfect.mjs  NEW: ghost and no-kill paths, requires_kill, mark (VISION 4 rules 3-5)
-scripts/level-checks/engine.mjs   NEW: engine-fact WARNs (V10), rope up-only
+scripts/level-checks/engine.mjs   NEW: engine-fact WARNs (V10: nav floor)
 scripts/mission-validate.mjs      NEW: checkMission (MV re-cut, joint with Campaign Build)
 scripts/level-graphs.mjs          NEW: npm run validate:levels over docs/level-validator/graph-sets.json
 src/world/levelMeasure.ts         NEW: V6 measurement core (+ way back, + resolvePoints for J13)
@@ -35,7 +35,7 @@ Five PRs, each under ~1.5k counted lines, each with one Opus checker (FOLDED-PLA
 | A gate core | `feature/validator-port` | S0, S3, D-A | ~1,390 (S0 ~930, S3 ~460) | S0, S3 checker PASS |
 | B measure core | `feature/validator-port-measure` (from origin/master) | S1, D-B | ~1,050 | S1 checker PASS |
 | B2 measure CLI, sheet rows | `feature/validator-port-measure-cli` (from B's head; merges S7a's branch) | S2, S7a, D-B2 | ~790 (S2 ~680, S7a ~110) | B merged on master |
-| C training, perfect run, CI, graphs | `feature/validator-port-train` (from A's head after S0; merges A's, B's and B2's branches) | S4, S6, S5, S7b, S9, S10, D-C, I-C | ~1,400 (S4 ~530, S6 ~330, S5 ~270, S7b ~170, S10 ~100, S9 0) | A, B and B2 merged on master (so C's diff is its own) |
+| C training, perfect run, CI, graphs | `feature/validator-port-train` (from A's head after S0; merges A's, B's and B2's branches) | S4, S6, S5, S7b, S9, S10, D-C, I-C | ~1,330 (S4 ~530, S6 ~330, S5 ~270, S7b ~100, S10 ~100, S9 0) | A, B and B2 merged on master (so C's diff is its own) |
 | D mission re-cut | `feature/validator-port-mission` (from A's head; merges C's branch) | S8, D-D, I-D | ~1,060 | C merged on master |
 
 S0's ~930: the helper move (master `scripts/level-validate.mjs:27-72` and `:79-256`, ~220 lines) counts ~440 alone;
@@ -102,11 +102,11 @@ lists every file the slice may touch; no two slices running at once own the same
 | S0 | Lib split, PROFILES (Q29 row), module wiring, `--require-measured` flag, mission-node merge, `linkTime` measured, A25 kinds | `scripts/level-graph-lib.mjs`, `scripts/level-validate.mjs`, `scripts/level-checks/{measured,training,perfect,engine}.mjs` (stubs), `scripts/mission-validate.mjs` (stub), `tests/levelProfiles.test.ts`, `tests/levelValidate.test.ts`, `docs/level-validator/example.graph.json` | ~930 | Opus | - | `levelValidate`, `levelProfiles` |
 | S1 | Port `levelMeasure.ts` to master; add way-back measure and J13's `resolvePoints` | `src/world/levelMeasure.ts`, `tests/levelMeasure.test.ts` | ~1,050 | Opus | - | `levelMeasure` |
 | S2 | Port `level-measure.mjs` CLI; write `ways_back`; `--points`; `--flags` (J17) | `scripts/level-measure.mjs`, `tests/levelMeasureCli.test.ts` | ~680 | Sonnet | S1's exported API (V6's + `resolvePoints`) | `levelMeasureCli` |
-| S7a | V12 + sheet rows: metrics-gen rejects unknown flags; rows `nav_floor_depth_m`, `ladder_grab_m`, MV's six `mission_*` rows; relay lip derivation (A24) | `scripts/metrics-gen.mjs`, `tests/metricsGen.test.ts`, `docs/design/scale-sheet.md`, `docs/design/metrics.json` | ~110 | Sonnet | #443 (merged 4.103.3) | `metricsGen` |
+| S7a | V12 + sheet rows: metrics-gen rejects unknown flags; row `nav_floor_depth_m`, MV's six `mission_*` rows; relay lip derivation (A24) | `scripts/metrics-gen.mjs`, `tests/metricsGen.test.ts`, `docs/design/scale-sheet.md`, `docs/design/metrics.json` | ~110 | Sonnet | #443 (merged 4.103.3) | `metricsGen` |
 | S3 | `checkMeasured` port with V1 and V2 | `scripts/level-checks/measured.mjs`, `tests/levelMeasured.test.ts`, `docs/validator-port/fragments/S3.md` | ~460 | Opus | S0 | `levelMeasured` |
 | S6 | Ghost / no-kill paths, `requires_kill`, `mark`; T H4 static test | `scripts/level-checks/perfect.mjs`, `tests/levelPerfect.test.ts`, `tests/noForcedKill.test.ts`, `docs/validator-port/fragments/S6.md` | ~330 | Opus | S0 | `levelPerfect`, `noForcedKill` |
 | S4 | Training checks (A8, A9, A23, A26) | `scripts/level-checks/training.mjs`, `tests/levelTraining.test.ts`, `docs/validator-port/fragments/S4.md` | ~530 | Opus | S0 | `levelTraining` |
-| S7b | Engine-fact WARNs, rope up-only | `scripts/level-checks/engine.mjs`, `tests/levelEngine.test.ts`, `docs/validator-port/fragments/S7.md` | ~170 | Sonnet | S0, S7a | `levelEngine` |
+| S7b | Engine-fact WARN (nav floor) | `scripts/level-checks/engine.mjs`, `tests/levelEngine.test.ts`, `docs/validator-port/fragments/S7.md` | ~100 | Sonnet | S0, S7a | `levelEngine` |
 | S5 | `validate:levels`, graph-set manifest, count pins | `scripts/level-graphs.mjs`, `docs/level-validator/graph-sets.json`, `package.json`, `tests/levelGraphs.test.ts`, `docs/validator-port/fragments/S5.md` | ~270 | Sonnet | S0 | `levelGraphs` |
 | S8 | Mission-validator re-cut (joint, Campaign reviews) | `scripts/mission-validate.mjs`, `tests/missionValidate.test.ts`, `docs/level-validator/mission-schema.md`, `docs/level-validator/example.mission.json` | ~1,060 | Opus | S0, S6 (helper, via C), S7a (rows, via B2) | `missionValidate` |
 | S9 | Marlow Yard graph on `training`, measured, run saved | `docs/marlow-final/graph/ctcourse.json`, `docs/marlow-final/graph/run.txt`, `docs/marlow-final/graph/REPORT.md` | 0 (docs) | Sonnet | S0, S4, S1+S2 | validator + measure runs |
@@ -122,9 +122,12 @@ lists every file the slice may touch; no two slices running at once own the same
 The docs slices are one at a time on `graph-schema.md`, `level-design.md` and `testing-tools.md`, in the order D-A,
 D-B2, D-C, D-D, each from the previous one's head (D-A and D-B / D-B2 touch different files, so they may overlap). Code
 slices write their schema text into `docs/validator-port/fragments/<slice>.md`; the docs slice folds it. D-A also writes
-the A25 kinds into graph-schema "Link kinds" and the level-design 11.9 graph-kind list (master
-`docs/level-design.md:306-313`; its "a `bolted` door (unlocked from the far side after a vent or a throw)" becomes
-`vent_unlock` for the vent, `bolted` staying for the throw), cited to ROADMAP Decided ~18:05 and Q25.
+all six A25 kinds into graph-schema "Link kinds" (the validator accepts them; the five move kinds marked "no size band
+yet: the band row comes with the move's coop-kit PR"), cited to ROADMAP Decided ~18:05 and Q25, and only `vent_unlock`
+into the level-design 11.9 graph-kind list (master `docs/level-design.md:306-313`; its "a `bolted` door (unlocked from
+the far side after a vent or a throw)" becomes `vent_unlock` for the vent, `bolted` staying for the throw), cited to
+Q25. The five move kinds and their bands enter LD 11.9 and the scale sheet with each coop-kit PR (A25; section 7 "Seam
+with J24").
 
 ## 3. Slice detail ("done looks like")
 
@@ -182,18 +185,20 @@ key exits 2; repeatable; the test sets an existing key and refuses a made-up one
 
 **S7a (Sonnet).** `scripts/metrics-gen.mjs:211-227`: any argument other than `--check` prints the usage and exits 2,
 nothing written (A13). Scale sheet section 8 gains `nav_floor_depth_m` 1.5 (source: the nav sampler casts down to y -2,
-`src/ai/navBuild.ts:32-34`; LD 12.1) and `ladder_grab_m` 4.1 (`TEAM.ladderGrab`, `src/config/movement.ts:464`; G57 4.5 not
-built); the six `mission_*` rows copied from MV 0c62a921 `docs/design/scale-sheet.md`. Relay lip (A24, after #443,
-merged in 4.103.3): the section 3 row (`scale-sheet.md:56`) states the derived ceiling, `TEAM.relayMax` 4.6
-(`src/config/movement.ts:476`, `src/game/teamMoves.ts:64`) + `HANG.drop` 1.9 (`src/world/anchors.ts:219`) = 6.5 m,
-and keeps the band's number 4.3 - 4.6 until Michael answers (STATE open question); on his yes the row becomes
-4.3 - 6.5 and `metrics.json` is regenerated in the same change. The new rows' approval is the folded plan's J12 row
-(A12); the relay number is not. Regenerate `metrics.json`. No `kit` block (A12). S7a rides PR B2; PRs C and D get its
-rows by merging B2's branch (C) and C's branch (D). Done:
-`metricsGen` green with a `--help` / `--chek` case (exit 2, file untouched), the new keys, and a relay pin
-(`sizes.hang_lip[1]` <= `TEAM.relayMax` + `HANG.drop`, both imported from the code); in the same test file a case runs
-`validate()` (master `scripts/level-validate.mjs`; S0 keeps its signature) on a one-link fixture with the
-band from `metrics.json`: a `team_hang` lip at the band's top passes, 0.1 m above it ERRs (true for either answer).
+`src/ai/navBuild.ts:32-34`; LD 12.1); no `ladder_grab_m` row (A12: a `human_ladder` lip stays on the "Co-op lip" row,
+`TEAM.boostMax` 4.5, the band coop-kit A2 keeps); the six `mission_*` rows copied from MV 0c62a921
+`docs/design/scale-sheet.md`. Sheet rows 57 (rope) and the five move bands are coop-kit's (A12, A25): S7a does not
+touch them. Relay lip (A24, after #443, merged in 4.103.3): the section 3 row (`scale-sheet.md:56`) states the derived
+ceiling, `TEAM.relayMax` 4.6 (`src/config/movement.ts:476`, `src/game/teamMoves.ts:64`) + `HANG.drop` 1.9
+(`src/world/anchors.ts:219`) = 6.5 m, as the physical ceiling only, and keeps the band 4.3 - 4.6: Michael picked "Keep
+4.6 m (Recommended)" (~20:20, BRIEF "Michael picked"). The rewording also answers coop-kit A5's report (row 56 calls the
+relay's feet height a lip height). The new rows' approval is the folded plan's J12 row (A12) and, for the relay text,
+Michael's ~20:20 pick. Regenerate `metrics.json` (`sizes.hang_lip` stays [4.3, 4.6]). No `kit` block (A12). S7a rides
+PR B2; PRs C and D get its rows by merging B2's branch (C) and C's branch (D). Done: `metricsGen` green with a
+`--help` / `--chek` case (exit 2, file untouched), the new keys, and a relay pin (`sizes.hang_lip[1]` <=
+`TEAM.relayMax` + `HANG.drop`, both imported from the code); in the same test file a case runs `validate()` (master
+`scripts/level-validate.mjs`; S0 keeps its signature) on a one-link fixture with the band from `metrics.json`: a
+`team_hang` lip at 4.6 passes, 4.7 ERRs.
 
 **S3 (Opus).** `measured.mjs` = V6's `checkMeasured` (v6 8f551e18 `scripts/level-validate.mjs:977-1075`) with: shadow
 share and its drift INFO (A4, V1); the presence gate of A5 (V2): encounter spaces, splits (`a_s`, `b_s`, `reach_s`;
@@ -236,9 +241,12 @@ floor; A7's and A8's splits are one node each). J14's graph (origin/feature/marl
 `taught_by: "A6"`) in a temp copy: no side-route ERR in A1-A7, A8 counted 2 routes so A9 runs on it. Both expectations
 are A26's hand count.
 
-**S7b (Sonnet).** `engine.mjs` per A12, reading `rules.nav_floor_depth_m` and `rules.ladder_grab_m` through
-`collector.num` (a missing key: one WARN, check skipped). Done: green; v7 ctcourse's three `human_ladder` links are
-judged against 4.1.
+**S7b (Sonnet).** `engine.mjs` per A12: the nav-floor WARN, reading `rules.nav_floor_depth_m` through `collector.num`
+(a missing key: one WARN, check skipped). No rope direction check and no human-ladder check (A12, seam with J24).
+Tests: the nav-floor WARN (an encounter space at storey -2, a guarded space at -1.6, a plain space at -2 with no
+guards: no WARN); a `team_rope` from storey 1 down to storey 0 inside the `rope_span` band gives no ERR (rope both
+ways); no test imports `TEAM.ladderGrab`. Done: green; v7 ctcourse's three `human_ladder` links get only master's
+co-op lip check (`sizes.coop_lip`).
 
 **S5 (Sonnet).** `graph-sets.json`: `[{ "name", "files": [...], "flags": [...], "errors", "warns", "run": "<path>" }]`
 for the example, campus S1-S5 (files in order), Marlow Yard. `scripts/level-graphs.mjs`: imports `validate` and
@@ -345,6 +353,23 @@ mission-node merge to S0; `mark` and `requires_kill` to S6; `mission_*` rows to 
   until the training profile passes; S9's REPORT maps each ERR to a J14 row. Q24 / Q29 checks are built here (A21).
   Once PR A is on master, J14's graph swaps its stand-in kinds and `move` fields for the A25 kinds and its A3 `bolted`
   door for a `vent_unlock` (its "section A3 has no co-op link" ERR then clears).
+- **Seam with J24 coop-kit** (Player Build; origin/feature/coop-kit 34cfcad25 PLAN and BRIEF; lead decisions
+  2026-10-25, plan-check fix round 2: J12 adopts coop-kit's side on all three points, A12 and A25):
+  - (a) Rope both ways: coop-kit A1 builds the rappel and rewrites sheet row 57 to "climb up or rappel down" (G293
+    "rope brace / descent"). J12 has no up-only rope check (S7b). For coop-kit: the row must keep its leading "2.2 - 6.0 m
+    climb" text, which `scripts/metrics-gen.mjs:110` parses into `sizes.rope_span` (regex `^<n> - <n> m climb`);
+    otherwise metrics-gen loses the key and the rope band check prints a missing-metric line.
+  - (b) Human ladder: coop-kit B1 deletes `TEAM.ladderGrab` and closes LD open item 1 (its A2: one band from
+    `TEAM.boostMax` 4.5). J12 adds no `ladder_grab_m` row and no human-ladder WARN; a `human_ladder` lip stays on master's
+    co-op lip check (`sizes.coop_lip`, sheet "Co-op lip" row, `TEAM.boostMax`, `src/config/movement.ts:459`). No J12
+    test reads `TEAM.ladderGrab`, so B1's grep finds none of J12's.
+  - (c) The five new moves: each coop-kit part 2 PR carries its sheet band row and its LD 11.9 graph kind (coop-kit PLAN
+    :256-258), reviewed by Marlow Build. J12 accepts the kinds now (S0) with one INFO each and adds no band number; D-A
+    names them in graph-schema only. When a band row lands, Marlow Build adds the `metrics-gen` key and the
+    `checkDimensions` case in a follow-up validator change (not J12; its row format must suit a `metrics-gen` regex, as
+    the existing section 3 rows do).
+  - Files: both jobs claim `scale-sheet.md` and `level-design.md`, on different rows (section 7 "Claims overlaps"). J12's
+    S7a rewords row 56 (relay, A24), which answers coop-kit A5's report.
 - **Level standard #443** (`feature/level-standard-g157`, merged in 4.103.3): it rewrote the LD training profile
   (master `docs/level-design.md:39-60`), the 3.2 / 11.2 Training lines (`:95-97`, `:275-277`) and the rule index
   (`:697-745`), which D-A / D-C also touch. Both are cut after it (it is on master), and A22 is trimmed to what #443
@@ -418,6 +443,6 @@ mission-node merge to S0; `mark` and `requires_kill` to S6; `mission_*` rows to 
   is copied.
 - The campus drift test takes ~3 min; it keeps V6's 600 s timeouts. If CI time becomes a problem, the lead moves it
   behind an env switch and the laptop runs it (question for the Test Runner, not assumed).
-- PR A (~1,390) and PR C (~1,400) sit nearest the 1.5k cap: named fallbacks in section 1. PR B is already split (B2).
+- PR A (~1,390) and PR C (~1,330) sit nearest the 1.5k cap: named fallbacks in section 1. PR B is already split (B2).
 - Marlow Yard's graph will fail the training profile hard (side routes in A1-A5, A26; splits before
   `taught_by`; A8 pacing); that is the intent (H6) and J14's work list, not a validator bug.

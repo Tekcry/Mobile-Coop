@@ -135,16 +135,25 @@ Authority order: `CLAUDE.md` on origin/master; Michael's answers above win over 
   back to ERR, or drop `perfect.mjs` from `validate()`.
 - **A11 Ghost = no loud link.** G146's "no alarms" has no graph field; the loud route (force, LD 3.2) is the nearest
   fact. Undo: a `raises_alarm` link field read instead of `route: loud`.
-- **A12 Engine facts from the sheet (V10).** Two new scale-sheet section 8 rows: `nav_floor_depth_m` 1.5 (written as a
-  positive depth, since the sheet parser reads a leading `-` as a range) and `ladder_grab_m` 4.1 (`TEAM.ladderGrab`,
-  `src/config/movement.ts:464`). WARN a space below storey -1.5 m that is an encounter space or has guards (off the
-  guards' nav grid, LD 12.1); WARN a `human_ladder` lip above 4.1 m (LD open item 1: G57 not built). ERR a `team_rope`
-  whose `to` storey is below its `from` (sheet section 3: "a climb up only, no descent"; from mission-validator
-  VAL-DIMS). Mission-validator's hand-kept `kit` block in metrics.json is dropped: master's `checkDimensions` already
-  reads the kit bands from sheet section 3. Approval: the sheet changes only with Michael's approval
-  (`docs/design/scale-sheet.md:2`); these rows and MV's `mission_*` rows (S7a) are the signed-off folded plan's J12
-  row ("engine-fact WARNs", "mission-validator re-cut"; FOLDED-PLAN line 172, V10), which he approved. The relay
-  number (A24) is not covered by it. Undo: delete the rows and the module.
+- **A12 Engine facts from the sheet (V10).** One new scale-sheet section 8 row: `nav_floor_depth_m` 1.5 (written as a
+  positive depth, since the sheet parser reads a leading `-` as a range). WARN a space below storey -1.5 m that is an
+  encounter space or has guards (off the guards' nav grid, LD 12.1). Mission-validator's hand-kept `kit` block in
+  metrics.json is dropped: master's `checkDimensions` already reads the kit bands from sheet section 3. Approval: the
+  sheet changes only with Michael's approval (`docs/design/scale-sheet.md:2`); this row and MV's `mission_*` rows (S7a)
+  are the signed-off folded plan's J12 row ("engine-fact WARNs", "mission-validator re-cut"; FOLDED-PLAN line 172,
+  V10), which he approved. The relay number (A24) is not covered by it. Seam with J24 coop-kit (lead decisions
+  2026-10-25, plan-check fix round 2, adopting coop-kit's side; PLAN section 7):
+  - Rope links go both ways (G293 "rope brace / descent"; coop-kit A1 builds the rappel and rewrites sheet row 57 to
+    "climb up or rappel down"). J12 has no up-only rope check: a `team_rope` whose `to` storey is below its `from` is
+    valid, and master's `rope_span` band check (`checkDimensions`, both ways) stays as it is. MV's VAL-DIMS rope ERR is
+    not carried.
+  - No human-ladder row of J12's own. A `human_ladder` lip is judged by master's `checkDimensions` against the sheet's
+    "Co-op lip" row (`sizes.coop_lip` 4.3 - 4.5, sheet section 3), whose top is `TEAM.boostMax` 4.5
+    (`src/config/movement.ts:459`): the one band coop-kit keeps (its A2: the shoulder stand reaches a grip at most
+    `TEAM.boostMax` over the base's floor; its B1 deletes `TEAM.ladderGrab`, which nothing on master reads, and closes
+    LD open item 1). No J12 row, check or test reads `TEAM.ladderGrab`.
+  Undo: delete the row and the module (the rope and ladder lines: restore the up-only ERR and a `ladder_grab_m` row,
+  against G293 and coop-kit A2).
 - **A24 Relay lip ceiling derived, number left to Michael (#443 hand-over, lead decision 2026-10-25, plan-check fix
   round 1).** #443 (merged in 4.103.3) left the sheet's Relay lip row (`docs/design/scale-sheet.md:56`, `sizes.hang_lip`
   4.3 - 4.6, read by `scripts/metrics-gen.mjs:109`) for J12 to derive. `TEAM.relayMax` 4.6
@@ -212,11 +221,16 @@ Authority order: `CLAUDE.md` on origin/master; Michael's answers above win over 
   (`vent_unlock` those of `door`); `plank_bridge`, `deadweight` and `vent_unlock` stay open both ways once passed (as
   `pair_gate` / `shutter`); `vent_unlock` is the door the crawler opens from its `to` side (the vent is its own `duct`
   link), so a solo arc runs only from its `to` end, as a `bolted` link; `drop_catch` is one-way by default (as `drop`);
-  `chimney_pair` climbs both ways; `swing_pass` is one-way only when the graph says so (as `team_throw`). No size band
-  yet: none of the five moves is built (J14 BRIEF A3), so `checkDimensions` prints one INFO per new kind used and checks
-  nothing more (`vent_unlock` gets the door rows); each move's co-op job adds its scale-sheet section 3 row (Michael
-  approves sheet changes) and its `checkDimensions` case when the move lands. A kind does not imply `teach` (A8); the
-  map still writes it. Undo: drop the six names from the sets (J14 keeps its stand-ins).
+  `chimney_pair` climbs both ways; `swing_pass` is one-way only when the graph says so (as `team_throw`). Bands (lead
+  decision 2026-10-25, plan-check fix round 2, adopting coop-kit's side): J12 adds no band number for the five moves.
+  Each coop-kit part 2 PR carries its own scale-sheet section 3 band row and its level-design 11.9 graph kind as doc
+  lines, which Marlow Build reviews (coop-kit PLAN :256-258, its A12; Michael approves sheet rows). Until a kind's row
+  exists, `checkDimensions` prints one INFO per kind used ("<kind>: no size band yet; the scale-sheet row comes with the
+  move's coop-kit PR") and checks nothing more (`vent_unlock` gets the door rows). When a row lands, Marlow Build adds
+  its `metrics-gen` key and `checkDimensions` case as a follow-up validator change (Marlow Build's later validator job,
+  not J12). J12's docs name the kinds where the validator needs them: graph-schema "Link kinds" lists all six (D-A); LD
+  11.9 gains only `vent_unlock` (Q25), and the five move kinds enter 11.9 with their coop-kit PRs. A kind does not
+  imply `teach` (A8); the map still writes it. Undo: drop the six names from the sets (J14 keeps its stand-ins).
 - **A26 What counts as a side route (lead decision 2026-10-25, plan-check fix round 2; Q24).** A8 and A9 count a
   section's routes on its interior. They do not count link-disjoint paths from entry to exit: every Marlow section ends
   in a holding room behind one airlock door, so that count is 1 in every section of both Marlow graphs (v7 REPORT
