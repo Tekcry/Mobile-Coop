@@ -32,14 +32,14 @@ Five PRs, each under ~1.5k counted lines, each with one Opus checker (FOLDED-PLA
 
 | PR | Branch (integration) | Slices | Counted lines | Opens when |
 | --- | --- | --- | --- | --- |
-| A gate core | `feature/validator-port` | S0, S3, D-A | ~1,390 (S0 ~930, S3 ~460) | S0, S3 checker PASS |
+| A gate core | `feature/validator-port` | S0, S3, D-A | ~1,430 (S0 ~970, S3 ~460) | S0, S3 checker PASS |
 | B measure core | `feature/validator-port-measure` (from origin/master) | S1, D-B | ~1,050 | S1 checker PASS |
 | B2 measure CLI, sheet rows | `feature/validator-port-measure-cli` (from B's head; merges S7a's branch) | S2, S7a, D-B2 | ~810 (S2 ~680, S7a ~130) | B merged on master |
 | C training, perfect run, CI, graphs | `feature/validator-port-train` (from A's head after S0; merges A's, B's and B2's branches) | S4, S6, S5, S7b, S9, S10, D-C, I-C | ~1,410 (S4 ~530, S6 ~330, S5 ~270, S7b ~180, S10 ~100, S9 0) | A, B and B2 merged on master (so C's diff is its own) |
 | D mission re-cut | `feature/validator-port-mission` (from A's head; merges C's branch) | S8, D-D, I-D | ~1,060 | C merged on master |
 
-S0's ~930: the helper move (master `scripts/level-validate.mjs:27-72` and `:79-256`, ~220 lines) counts ~440 alone;
-then PROFILES and the twelve mode tests ~90, wiring, flag, merge and `linkTime` ~60, the A25 kinds ~40, five stubs
+S0's ~970: the helper move (master `scripts/level-validate.mjs:27-72` and `:79-273`, ~240 lines with `mergeGraphs`
+`:252-273`) counts ~480 alone; then PROFILES and the twelve mode tests ~90, wiring, flag, merge and `linkTime` ~60, the A25 kinds ~40, five stubs
 ~45, `levelProfiles` ~200, inline `levelValidate` fixture edits ~40, re-exports ~20. PR B grew past the cap with
 `resolvePoints` (S1 ~1,050: V6's 589 + 220 test lines, way back ~100, resolver ~120, master API fixes ~20) and
 `--points` (S2 ~680: V6's 438, `ways_back` and `--points` ~60, `--flags` ~50, CLI test ~130), so the measure CLI is its own PR (B2),
@@ -99,7 +99,7 @@ lists every file the slice may touch; no two slices running at once own the same
 
 | Slice | What | Owns (claims) | Lines | Model | Depends on | Tests |
 | --- | --- | --- | --- | --- | --- | --- |
-| S0 | Lib split, PROFILES (Q29 row), module wiring, `--require-measured` flag, mission-node merge, `linkTime` measured, A25 kinds | `scripts/level-graph-lib.mjs`, `scripts/level-validate.mjs`, `scripts/level-checks/{measured,training,perfect,engine}.mjs` (stubs), `scripts/mission-validate.mjs` (stub), `tests/levelProfiles.test.ts`, `tests/levelValidate.test.ts`, `docs/level-validator/example.graph.json` | ~930 | Opus | - | `levelValidate`, `levelProfiles` |
+| S0 | Lib split, PROFILES (Q29 row), module wiring, `--require-measured` flag, mission-node merge, `linkTime` measured, A25 kinds | `scripts/level-graph-lib.mjs`, `scripts/level-validate.mjs`, `scripts/level-checks/{measured,training,perfect,engine}.mjs` (stubs), `scripts/mission-validate.mjs` (stub), `tests/levelProfiles.test.ts`, `tests/levelValidate.test.ts`, `docs/level-validator/example.graph.json` | ~970 | Opus | - | `levelValidate`, `levelProfiles` |
 | S1 | Port `levelMeasure.ts` to master; add way-back measure and J13's `resolvePoints` | `src/world/levelMeasure.ts`, `tests/levelMeasure.test.ts` | ~1,050 | Opus | - | `levelMeasure` |
 | S2 | Port `level-measure.mjs` CLI; write `ways_back`; `--points`; `--flags` (J17) | `scripts/level-measure.mjs`, `tests/levelMeasureCli.test.ts` | ~680 | Sonnet | S1's exported API (V6's + `resolvePoints`) | `levelMeasureCli` |
 | S7a | V12 + sheet rows: metrics-gen rejects unknown flags; row `nav_floor_depth_m`, MV's six `mission_*` rows; relay lip derivation (A24); long-throw row (A27) | `scripts/metrics-gen.mjs`, `tests/metricsGen.test.ts`, `docs/design/scale-sheet.md`, `docs/design/metrics.json` | ~130 | Sonnet | #443 (merged 4.103.3) | `metricsGen` |
@@ -133,8 +133,9 @@ with J24").
 
 **S0 (Opus).** Move the shared helpers of `level-validate.mjs` (`collector`, `index`, `arcsOf`, `adjacency`, `adjOf`,
 `reachable`, `edgeDisjointPaths`, `soloArcsOf`, `linkTime`, `enters` / `leaves` / `otherEnd`, `isOneWay`, `hasTag`,
-`fmt`, `linkName`, the kind sets, `SPLIT_TAG`, `OVERWATCH_TAG`) to `scripts/level-graph-lib.mjs`; `level-validate.mjs`
-imports and re-exports every name it exports today (tests unchanged). Add `PROFILES` (campaign / sector / training) and
+`fmt`, `linkName`, the kind sets, `SPLIT_TAG`, `OVERWATCH_TAG`, and `mergeGraphs` with its comment, master `:252-273`)
+to `scripts/level-graph-lib.mjs`; `level-validate.mjs` imports and re-exports every name it exports today (tests
+unchanged), so `mergeGraphs` imports from either file (J13 imports it from the lib, section 8). Add `PROFILES` (campaign / sector / training) and
 read it in place of each `meta.mode` test (master `scripts/level-validate.mjs:59-61`, `:66`, `:291-293`, `:313-316`,
 `:561-562`, `:663`, `:750`, `:807`, `:849`, `:860`, `:870`, `:913`); the training row turns co-op coverage off, solo
 twins to INFO (A7, Q29; master `:883-899`, `:913`) and the ghost path to INFO (A10). The six new kinds of A25 join the
@@ -449,8 +450,10 @@ mission-node merge to S0; `mark` and `requires_kill` to S6; `mission_*` rows to 
   and S0 keeps no mode test on them.
 - **Expected times:** each link's `measured.time_s` / `path_m` and `meta.measured.geom` (refuse a stale graph before a
   run).
-- **Graph helpers:** `scripts/level-validate.mjs` keeps exporting `mergeGraphs`, `COOP_KINDS`, `LINK_KINDS`, `isOneWay`
-  (J13 item (2); S0 re-exports them from the lib), so the harness never copies graph code.
+- **Graph helpers:** S0 moves `mergeGraphs`, `COOP_KINDS`, `LINK_KINDS` and `isOneWay` into
+  `scripts/level-graph-lib.mjs` (J13 item (2); route-runs-2 05e59b6d2 PLAN :25-26, :60, :304 (2) import them, with
+  `index` and the arcs, from the lib once S0 is on master; the lib exports those too), and `scripts/level-validate.mjs`
+  keeps exporting all four (re-exports), so the harness never copies graph code and either import path works.
 - **Side routes counted one way (A26).** J13 counts a training section's routes as J12 does (J13 BRIEF :56 "as J12
   counts them"; its PLAN :72 "2+ routes"): it imports `sectionRoutes(graph, section)` from
   `scripts/level-checks/training.mjs` (S4) and has no count of its own, so a late section the validator calls a side
@@ -462,6 +465,6 @@ mission-node merge to S0; `mark` and `requires_kill` to S6; `mission_*` rows to 
   is copied.
 - The campus drift test takes ~3 min; it keeps V6's 600 s timeouts. If CI time becomes a problem, the lead moves it
   behind an env switch and the laptop runs it (question for the Test Runner, not assumed).
-- PR A (~1,390) and PR C (~1,410) sit nearest the 1.5k cap: named fallbacks in section 1. PR B is already split (B2).
+- PR A (~1,430) and PR C (~1,410) sit nearest the 1.5k cap: named fallbacks in section 1. PR B is already split (B2).
 - Marlow Yard's graph will fail the training profile hard (side routes in A1-A5, A26; splits before
   `taught_by`; A8 pacing); that is the intent (H6) and J14's work list, not a validator bug.
