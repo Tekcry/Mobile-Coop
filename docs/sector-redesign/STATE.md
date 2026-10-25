@@ -352,8 +352,8 @@ then git worktree remove --force. Train-ready = message + `gh pr edit <n> --add-
 ```
 Night Shift | Sector Ops Build: RESUME (2026-10-25 ~22:15, after the 21:41 swap).
 git fetch; RULES + VISION from origin/master; BOOT.md "Sector Ops Build" on origin/feature/menu. Full burn within CPU:
-no new builder agents while desktop CPU > 80% (it sat at 100% 21:45-22:15); read-only checkers / docs agents run with a
-CPU gate on their one test file. Marlow goes first on laptop + desktop CPU. Plan: FOLDED-PLAN + ROADMAP Decided.
+builder slices that need only tsc + single vitest go to cloud-queue (orchestrator, Michael ~22:10); desktop keeps
+planning / briefs / checkers (CPU-gated test file), AI / net / anim code needing a look, GPU / Blender / e2e. Marlow goes first on laptop + desktop CPU. Plan: FOLDED-PLAN + ROADMAP Decided.
 Order: Guard AI J15 guard-rules PR1 (#450) lands before any J17 lane PR (S1-S5) still carrying P0 / S4-S5 data.
 J10 datasheet: numbers only (ROADMAP Decided ~20:50); never commit the file. Python is not installed: scripts in node.
 1. PRs (watchdog labels train-ready when green; Opus triage on any laptop failure):
@@ -365,8 +365,8 @@ J10 datasheet: numbers only (ROADMAP Decided ~20:50); never commit the file. Pyt
    - J10 L0 fold DONE on feature/light-realism-l0 3e78d0df2 (tsc fix, report checks/l0-fold-build.md; measure output
      in C:/NightShift/scratch/light-realism/l0-fold-measure/). Opus checker running -> checks/l0-fold-check.md.
      Next: L1 (S1 car park, Opus) + SIGNOFF.md to Michael (lux grid); note 2 choice before the L2 briefs.
-   - map-ready S4 WIP 1afb22600 on feature/map-ready-s4 (steps 1-3 untested; NOT cloud-safe). Relaunch an Opus builder
-     from that head when CPU < 80% (brief docs/map-ready/briefs/S4.md; report checks/s4-build.md), then a checker.
+   - map-ready S4: cloud brief map-ready-S4 (7a006dbbe) resumes the WIP 1afb22600 (steps 1-7, code + unit tests);
+     the real prebake run (desktop, heavy.lock, size caps) is mine after it is done; then an Opus checker.
      Then W1: S9 (Opus), S1 measure (Sonnet, laptop run); then S2, S10; S8 (cloud) after S1 + S2.
    - J16 job branch d39a40af1 (S3 + A1 fix). Next: S2 (Opus) = PR A2; then S3b (cap / fix the 5264 B 4-player fill
      allocation, checks/s1-s3-check.md).
@@ -376,8 +376,8 @@ J10 datasheet: numbers only (ROADMAP Decided ~20:50); never commit the file. Pyt
      s3-r2..r5 queued from the frame (r3 closes the core slots + core rooms, A-J17-S3-2/3; door pairs as signed,
      A-J17-S3-1); s5 open. On each done: checker, laptop e2e-sectorops part; r6 after r5 + lead merge of r1-r4.
      Log A-J17-S2-1, A-J17-S3-1..3 in docs/campus-greybox/STATE.md at the next lead commit there.
-3. PLANS: J18 sector-batch (plan check 3 PASS 31e9f22e): B1 / B3 open on cloud-queue; B2 Sonnet (desktop, CPU < 80%);
+3. PLANS: J18 sector-batch (plan check 3 PASS 31e9f22e): B1 / B3 open on cloud-queue; B2 on cloud-queue (7a006dbbe);
    B4 Sonnet after #317 (one Opus checker). When PR A opens tell Campaign Build: B1 and mission-rules-r1 both edit
    sectors.ts:864 / sectorMode.ts:1020; PR A lands first (PLAN section 7).
-Next: checker results (#459, L0 fold); s3-r1 checker; S4 builder when CPU < 80%; pick up cloud done briefs within 1 h.
+Next: checker results (#459, L0 fold); s3-r1 checker; J16 S2 + L1 briefs (agents writing) -> cloud / desktop by type; pick up cloud done briefs within 1 h.
 ```
