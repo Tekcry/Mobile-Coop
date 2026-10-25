@@ -50,6 +50,10 @@ Detail: ROADMAP "Now" (rewritten ~12:35) and HANDOFF "State at the switch"; this
 - Every save prints the orchestrator prompt (PROMPTS.md section 1), even when no swap is planned (Michael ~23:20).
 - List running orchestrator checkers / fix agents in each save block; the next orchestrator relaunches them first
   (23:05 rule).
+- Tooling follow-up (20:58 audit): set the train-building no-new-claims gate as soon as a train-ready candidate exists
+  during a release (train 101 waited 17 min behind 2 lead claims); kill a queue run when no suite finishes in ~15 min
+  (#317 hung slot 4192 65 min, 0/22); desktop CPU gate: lead sub-steps at BelowNormal or let one slot start when the
+  other is idle; watchdog misreads re-filed T000001 ids as old.
 - Tooling follow-up (13:35 audit, next tooling PR after #412): merge-train release returns after merge + tag + dev move and leaves the deploy watch to later ticks (~6 min per train lost); auto-train retries gh once inside a tick instead of ending in error; #412 pacing must not count alone requests as busy.
 - Auto-train pacing OFF since 15:35 (task re-registered with `--min-interval 0`): laptopQueueState counted the desktop's claims as "laptop busy" and held train 93 17 min with the laptop idle. Fix in the next tooling PR: count only `worker === 'laptop'` claims, then restore the default. Label only PRs that merge cleanly with master (a docs conflict: hand-merge it in the train).
 - A conflict only in docs/** or *.md never keeps a PR out of a train: resolve it in the train worktree (keep both sides).
