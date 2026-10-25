@@ -207,9 +207,10 @@ and `at: 'retry:<station id>:timer'` (assumption SA2). No line says "failed".
 | 18d | `a8-locks` | Caught in the vault lobby. Back to the office console and the lobby. | The cameras came back. Loop them again from the office console. |
 
 ## 7. Start marks and their space boxes
-graph.json has no `area` boxes yet (G0 adds them). Each mark is checked against a box drawn from the set constants on
-origin/master (sources below); G0 compares its boxes with these, and a mark outside a G0 box moves to the nearest grid
-point inside it. All 42 marks are on the 0.5 m grid, inside their box and inside the set's `SET_BOX`.
+Each mark is checked against its graph space's `area` box (G0, 7bc609ba2; rechecked at the D1 check, J14 wave 2). All 42
+marks are on the 0.5 m grid, inside their G0 box and inside the set's `SET_BOX`. The boxes below are G0's; the source
+column is D1's first box from the set constants (G0 agreed within 0.4 m). A new space's box changes with the built
+geometry at G1 (A2 pit, A5 trench: SA9, SA10).
 
 | n | Mark | x | z | y | yaw | Space | In box |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -258,28 +259,28 @@ point inside it. All 42 marks are on the 0.5 m grid, inside their box and inside
 
 | Space | Box [minX, minZ, maxX, maxZ] | y | Source |
 | --- | --- | --- | --- |
-| `a1-apron` | [6, 2.25, 11.7, 19.75] | 0 | `a1Gate.ts:10` apron x 6-11.7; `SET_BOX.a1Gate` z 2-20 less the 0.25 m wall faces |
+| `a1-apron` | [6.15, 2.25, 11.7, 19.75] | 0 | `a1Gate.ts:10` apron x 6-11.7; `SET_BOX.a1Gate` z 2-20 less the 0.25 m wall faces |
 | `a1-walltop` | [11.7, 2.25, 12.3, 19.75] | 4.4 | `A1_WALL` near 11.7 / far 12.3, lip 4.4 (`a1Gate.ts:54`) |
-| `a2-stores` | [28.25, 5.25, 33, 17.5] | 0 | shell face 28.25 (`a2CarriageShed.ts:104`); new roller-door wall x 33 and cabin line z 5.25 (`replan-plan.svg`); staging face z 17.5 (`A2_DECK.z`) |
+| `a2-stores` | [28.25, 5.1, 33, 17.5] | 0 | shell face 28.25 (`a2CarriageShed.ts:104`); new roller-door wall x 33 and cabin line z 5.25 (`replan-plan.svg`); staging face z 17.5 (`A2_DECK.z`) |
 | `a2-cabin` | [28.25, 1.1, 31.9, 4.9] | 0 | `A2_CABIN` x 28-32, z 1-5, 0.2 m walls; plant face z 1.1 (`a2CarriageShed.ts:101-103`) |
-| `a2-lane` | [36, 11.3, 46, 13.7] | 0 | `A2_RAKES[0]` x 36-46; roads 2 / 3 at z 10 / 15 less `VAN.half` 1.3 (`a2CarriageShed.ts:93-95`) |
-| `a2-east` | [65.5, 0.25, 66.5, 19.75] | 0 | pit west edge x 66.5 (`replan-plan.svg` rect x 499.5 px), graph size 1 m |
-| `a3-west-lobby` | [76.25, 0.25, 79.5, 12.75] | 0 | `SET_BOX.a3OfficeRange` x 76, `A3_LOBBY_WALL_X` 79.5 (`a3OfficeRange.ts:105`) |
-| `a3-corridor` | [79.5, 9, 97, 12.5] | 0 | `A3_HALL.box` (`a3OfficeRange.ts:77-83`) |
+| `a2-lane` | [33, 11.3, 46, 13.7] | 0 | `A2_RAKES[0]` x 36-46; roads 2 / 3 at z 10 / 15 less `VAN.half` 1.3 (`a2CarriageShed.ts:93-95`) |
+| `a2-east` | [65.25, 0.25, 66.25, 19.25] + [56, 11.3, 65.25, 13.7] | 0 | pit west edge x 66.5 (`replan-plan.svg` rect x 499.5 px), graph size 1 m; G0 put the pit at x 66.25-69.25, SA9 at 66.0-69.0 (G-A2 builds one, G1 matches) |
+| `a3-west-lobby` | [76.25, 0.25, 79.35, 12.75] | 0 | `SET_BOX.a3OfficeRange` x 76, `A3_LOBBY_WALL_X` 79.5 (`a3OfficeRange.ts:105`) |
+| `a3-corridor` | [79.5, 9, 97, 12.5] + [87.55, 8, 88.95, 9] | 0 | `A3_HALL.box` (`a3OfficeRange.ts:77-83`) |
 | `a4-secroom` | [100.25, 13.25, 106.35, 19.35] | 0 | `A4_ROOM` inner faces (`a4GoodsShed.ts:81`) |
-| `a4-dock` | [76.25, 24.25, 85.75, 47.75] | 0 | `A4_FLOOR` x0 / z0 / z1 (`a4GoodsShed.ts:79`), graph size 9.5 m east |
-| `a5-gap` | [68.35, 30, 69.75, 36] | 0 | L4 outer face 69.75 (`HOLD_BOX.L4`), the 1.4 m gap (PLAN A19), L4 z 30-36 |
-| `a5-apron-east` | [67, 24.25, 68, 47.75] | 0 | trench east edge x 67 (`replan-plan.svg` rect x 478.5-503 px), new wall face ~68.05 at the 1.4 m gap |
-| `a5-apron` | [58.15, 24.25, 63.5, 47.75] | 0 | `A5_WALL.near` 58.15 (`a5Substation.ts:106`), trench west edge x 63.5 (`replan-plan.svg`) |
-| `a5-lee` | [54, 33, 57.85, 39] | 0 | `A5_WALL.far` 57.85, `A5_LANDING` (56, 36) (`a5Substation.ts:90`, `:106`), graph size 3.5 x 6 |
-| `a6-sump` | [48.2, 54.25, 57.8, 58] | 0 | `A6_SUMP` (`a6PumpHouse.ts:117`) |
+| `a4-dock` | [76.25, 24.25, 86, 37.9] + [82.7, 37.9, 86, 44.1] + [76.25, 44.1, 86, 47.75] | 0 | `A4_FLOOR` x0 / z0 / z1 (`a4GoodsShed.ts:79`), graph size 9.5 m east |
+| `a5-gap` | [68.35, 30.25, 69.75, 35.75] | 0 | L4 outer face 69.75 (`HOLD_BOX.L4`), the 1.4 m gap (PLAN A19), L4 z 30-36 |
+| `a5-apron-east` | [67, 24.25, 67.85, 47.75] | 0 | trench east edge x 67 (`replan-plan.svg` rect x 478.5-503 px), new wall face 67.85 at the 1.4 m gap; [65.85, 24.25, 67.85, 47.75] after the trench shift (SA10) |
+| `a5-apron` | [58.15, 24.25, 63.5, 47.75] | 0 | `A5_WALL.near` 58.15 (`a5Substation.ts:106`), trench west edge x 63.5 (`replan-plan.svg`); x1 62.35 after the trench shift (SA10) |
+| `a5-lee` | [54.35, 34.5, 57.85, 40.5] | 0 | `A5_WALL.far` 57.85, `A5_LANDING` (56, 36) (`a5Substation.ts:90`, `:106`), graph size 3.5 x 6 |
+| `a6-sump` | [48.2, 54.25, 57.8, 57.85] | 0 | `A6_SUMP` (`a6PumpHouse.ts:117`) |
 | `a6-bridge` | [49, 61.6, 54, 69.6] | 4.4 | `A6_BRIDGE`, deck 4.4 (`a6PumpHouse.ts:106-107`) |
-| `a6-pit` | [49.4, 62, 53.6, 66.2] | -1.6 | `A6_CAGE` footprint (`a6PumpHouse.ts:108`), sunk 1.6 m (PLAN section 2) |
+| `a6-pit` | [49.55, 62.15, 53.45, 66.05] | -1.6 | `A6_CAGE` footprint (`a6PumpHouse.ts:108`), sunk 1.6 m (PLAN section 2) |
 | `a7-lobby` | [70.25, 55.95, 75.85, 65.85] | 0 | `a7DataHall.ts:9` entry lobby |
-| `a8-vestibule` | [106.25, 56, 109, 75] | 0 | `A8_RETURN` (`a8Strongroom.ts:166`) |
-| `a8-board` | [106.25, 75, 133.85, 77.75] | 0 | `A8_NORTH` (`a8Strongroom.ts:167`), under the gallery |
-| `a8-office` | [134.25, 71.65, 143.75, 77.75] | 4.4 | `a8Strongroom.ts:16` office x 134-144, z 71.4-78, faces 0.25 in |
-| `a8-lobby-outer` | [134.15, 56.15, 140, 67.85] | 0 | `a8Strongroom.ts:20` vault lobby, beam curtain x 140 |
+| `a8-vestibule` | [106.25, 56.2, 108.8, 75] | 0 | `A8_RETURN` (`a8Strongroom.ts:166`) |
+| `a8-board` | [106.25, 75.2, 133.85, 77.75] | 0 | `A8_NORTH` (`a8Strongroom.ts:167`), under the gallery |
+| `a8-office` | [134.15, 71.55, 143.85, 77.75] | 4.4 | `a8Strongroom.ts:16` office x 134-144, z 71.4-78, faces 0.25 in |
+| `a8-lobby-outer` | [134.15, 56.15, 139.85, 67.85] | 0 | `a8Strongroom.ts:20` vault lobby, beam curtain x 140 |
 
 ## 8. New done flags
 Each is a pass zone the set slice adds (`PassZone`, `src/game/passZones.ts`): `any` = one player is enough, else both.
@@ -406,9 +407,7 @@ rule (a heavy landing retries the station).
   needs a drop opening under the bridge's rail (PLAN risk: the cage move).
 
 **Deviations**
-- `replan-plan.svg` still labels A5 "1 guard" and A7 "1 guard, 2 cameras"; they predate the 12-guard pick (A5 2, A7 2).
-  Not edited here (D1 writes only this file).
-- graph.json has no `area` boxes yet; the marks are checked against set-constant boxes (section 7) until G0 lands.
-- graph `a5-gap` is 1 m (size [1, 6, 6]); this sheet uses Michael's 1.4 m.
+- graph `a5-gap` `size` is still 1 m ([1, 6, 6]; its G0 `area` is 1.4 m); this sheet uses Michael's 1.4 m. G1 fixes the
+  size.
 - PLAN A23 puts every `drill_s` into `drillS`; stations 7 and 17 do not take it (SA6).
 - Badge 18 has four rows, `n` 18-21 (SA4).
