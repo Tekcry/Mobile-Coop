@@ -86,9 +86,9 @@ Warehouse, 10 guards (`STEALTH=1`: unaware and perceiving). Options: `docs/syste
   the canvas stays native and the scene renders at the scale.
 - Awake guards: `MAX_ALIVE` 12 for Marlow Yard; Sector Ops and the campaign cap at 32 alive, a ceiling (G187, G289,
   G359).
-- Guard anim tiers (`src/ai/animTier.ts`, `animTierView.ts`): a guard's rig solves every `ANIM_TIER_OFFSCREEN` th (8)
-  frame when no local camera drew him and (guard-cap T1-SHADOW, A195) no shadow of his can be in a view (the render
-  freeze's `guardFrustum`: the moon capsule, lamp, torch and character-atlas shadow volumes, frustum only); every 2nd
-  past 22 m; else, pinned or within 4 m of a player every frame. `?animtier=0` off, `?animshadow=0` camera only,
-  `?animoff=N` the off-screen period (A/B). Saving at tier 8 with the shadow rule: pending the laptop measure
-  (`docs/guard-ai/slices/T1-SHADOW-REPORT.md`; `scripts/guard-cap.mjs` anim tally).
+- Guard anim tiers (`src/ai/animTier.ts`, `animTierView.ts`; G327, A195): pinned or within 4 m of a player, every
+  frame; else, not drawn by any local camera and no shadow of his can be in a view (the render freeze's
+  `guardFrustum`: the moon capsule, lamp, torch and character-atlas shadow volumes, frustum only), every
+  `ANIM_TIER_OFFSCREEN` th (8) frame; past 22 m, every 2nd; else every frame. `?animtier=0` off, `?animshadow=0` camera
+  only, `?animoff=N` the off-screen period (N >= 2; A/B). Saving at tier 8 with the shadow rule: pending the laptop
+  measure (`scripts/guard-cap.mjs` anim tally).

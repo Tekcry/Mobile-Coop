@@ -190,7 +190,7 @@ Default buttons: `docs/systems/input-and-loop.md`, "Binding table". Older per-ve
   its real silhouette on the floor and walls (arms, legs, crouch), steady as you walk between lamps; at Medium (or
   Graphics > Character shadows Off) the soft capsule shadows return.
 - [ ] Guard shadow in view (guard-cap T1-SHADOW, A195): Marlow, a guard just out of view under a lamp, his shadow in
-  view: his shadow's feet do not step or slide (`&animshadow=0` shows the old 1/8 rate).
+  view: his shadow's feet do not step or slide (`&animshadow=0` shows the camera-only 1/8 rate).
 - [ ] Guard alerts (guard-ai S1-S3, Sector Ops): a thrown bottle sends one guard over while the others only turn; shoot
   a lamp with guards near and one or two check it and go back calm. Get spotted: the spotter shouts "Contact!" (guards
   within a few metres join at once), about 2.5 s later radios it in, then the rest of the section joins one by one,
