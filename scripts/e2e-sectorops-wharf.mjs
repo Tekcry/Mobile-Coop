@@ -191,7 +191,10 @@ async function run(id) {
   const fact = (f) => GA((f) => window.__mission.runner.hasFlag(f), f);
   const doneBits = () => GA(() => window.__mission.runner.doneBits);
   const slotAlive = (k) => GA((k) => !!window.__sector['slotEnemy'][k]?.alive, k);
-  const SEC = await GA(() => window.__app.current.world.map.sectors.map((s) => ({
+  /** The run sections of the host's map, read once the match is on (`readSec` after `startMode`: before it the host page's
+   *  `__app.current` is the menu backdrop, whose map has no `sectors`). */
+  let SEC = [];
+  const readSec = () => GA(() => window.__app.current.world.map.sectors.map((s) => ({
     id: s.id,
     start: s.start,
     start2: s.start2 ?? null,
@@ -280,6 +283,7 @@ async function run(id) {
 
   try {
     await startMode([A, B], 'sector', 'tallowWharf');
+    SEC = await readSec();
     // the host's setup (as e2e-sectorops-mission): guards frozen (never ?sectorGuards=: it would drop Teale, the decoys, the clerk)
     await GA(() => {
       const g = window.__app.current;
@@ -427,8 +431,8 @@ async function run(id) {
       await until(A, () => { const m = window.__mission; return (m.runner.doneBits >> m.runner.def.steps.findIndex((s) => s.id === 'tkl-2')) & 1; }, null, 8000, 'tkl-2 is done again');
       // tkl-3: both strongroom keys inside the 1.0 s window, the host's turn and the client's in one host evaluate
       const pg = SEC[2].pair;
-      await moveHost(pg.a.at[0], pg.a.at[1], PI);
-      await moveClient(pg.b.at[0], pg.b.at[1], PI);
+      await moveHost(pg.a[0], pg.a[1], PI);
+      await moveClient(pg.b[0], pg.b[1], PI);
       await GA(() => {
         const g = window.__app.current;
         const t = window.__sector.team;
