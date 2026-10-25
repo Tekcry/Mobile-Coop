@@ -166,6 +166,29 @@ describe('route-run report', () => {
     expect(() => merge([])).toThrow();
   });
 
+  it('keeps every part of the training run and counts only those parts toward the Marlow time', () => {
+    const full = (section: string, time_s: number): Obj => run({ id: 'full', section, kind: null, covers: [], time_s });
+    const side = run({ id: 'A3-shadow', section: 'A3', kind: 'shadow', covers: [['a3_yard', 'shadow']], time_s: 200 });
+    const parts = [
+      { ...header(), runs: [full('A1', 300)] },
+      { ...header(), runs: [full('A2', 350)] },
+      { ...header(), runs: [full('A3', 400), side] },
+    ];
+    const merged = merge(parts);
+    expect(merged.runs.filter((r: Obj) => r.id === 'full').map((r: Obj) => r.section)).toEqual(['A1', 'A2', 'A3']);
+    expect(merged.runs).toHaveLength(4);
+    const { json, markdown } = buildReport(merged);
+    expect(json.summary.runTime_s).toBe(1250);
+    const line = m9(markdown);
+    // 300 + 350 + 400 = 1050 s; the 200 s side run would push it over the band.
+    expect(line).toContain('M9 run time: 17:30 in total (walked 17:30, held 0:00), inside the 15-20 min target');
+    expect(line).toContain('1 side route run is not counted');
+    // A rerun of one section replaces only that section's part.
+    const rerun = buildReport(merge([...parts, { ...header(), runs: [full('A2', 380)] }]));
+    expect(rerun.json.runs.filter((r: Obj) => r.id === 'full').map((r: Obj) => r.time_s)).toEqual([300, 380, 400]);
+    expect(m9(rerun.markdown)).toContain('M9 run time: 18:00 in total');
+  });
+
   it('names both drill stubs and the retry on the M9 line', () => {
     const log = {
       ...header(),

@@ -166,6 +166,11 @@ function slowSteps(run) {
   return seen;
 }
 const pushPasts = (run) => run.restarts.filter((x) => x.then === 'pushed-past');
+/**
+ * A part of the training run (M9). R1 plans it as one run (`id: 'full'`, kind null) cut into per-section parts. The
+ * side runs R1 adds after `taught_by`, and every campaign run, carry a route kind, so they never count toward M9.
+ */
+const isTrainingPart = (run) => !ROUTE_KINDS.includes(run.kind);
 const holdOf = (run) =>
   run.stubs.reduce((a, s) => a + s.hold_s, 0) + run.drills.reduce((a, d) => a + d.hold_s, 0);
 
@@ -230,8 +235,9 @@ export function jsonText(json) {
 
 /**
  * Join per-section run logs into one log. Parts must agree on map, mode, sha and version
- * (else it throws: parts from different builds are not one report). A run id in two parts keeps the later part's
- * run (a rerun of one section). The date is the latest; the header otherwise comes from the first part.
+ * (else it throws: parts from different builds are not one report). Runs match on (id, section): the training run
+ * (R1's `full`) comes back as one part per section and every part is kept; the same id and section in two parts keeps
+ * the later one (a rerun of that section). The date is the latest; the header otherwise comes from the first part.
  */
 export function merge(parts) {
   const list = arr(parts).filter((p) => p && typeof p === 'object');
@@ -247,7 +253,8 @@ export function merge(parts) {
   const runs = [];
   for (const p of list) {
     for (const r of arr(p.runs)) {
-      const at = r.id === null || r.id === undefined ? -1 : runs.findIndex((x) => x.id === r.id);
+      const sec = r.section ?? null;
+      const at = r.id === null || r.id === undefined ? -1 : runs.findIndex((x) => x.id === r.id && (x.section ?? null) === sec);
       if (at >= 0) runs[at] = r;
       else runs.push(r);
     }
@@ -394,8 +401,9 @@ function restartCause(x) {
 }
 
 function m9Line(json) {
-  const runs = json.runs;
-  const total = json.summary.runTime_s;
+  // BRIEF M9: the training run's total, summed over its per-section parts. Side route runs are left out.
+  const runs = json.runs.filter(isTrainingPart);
+  const total = round1(runs.reduce((a, r) => a + (r.time_s ?? 0), 0));
   const holds = round1(runs.reduce((a, r) => a + (r.time_s === null ? 0 : holdOf(r)), 0));
   const walk = round1(Math.max(0, total - holds));
   const [lo, hi] = M9_BAND_S;
@@ -404,7 +412,9 @@ function m9Line(json) {
   const bits = [
     `M9 run time: ${formatTime(total)} in total (walked ${formatTime(walk)}, held ${formatTime(holds)}), ${band} the 15-20 min target (${lo}-${hi} s)`,
   ];
-  if (noTime) bits[0] += `; ${plural(noTime, 'run has', 'runs have')} no valid time and ${noTime === 1 ? 'is' : 'are'} left out`;
+  if (noTime) bits[0] += `; ${plural(noTime, 'part has', 'parts have')} no valid time and ${noTime === 1 ? 'is' : 'are'} left out`;
+  const side = json.runs.length - runs.length;
+  if (side) bits[0] += `; ${plural(side, 'side route run is', 'side route runs are')} not counted`;
   bits[0] += '. A lower bound, report only';
 
   const drills = [];
@@ -489,7 +499,10 @@ function renderMarkdown(json) {
     out.push('- Two robots walked every run (the tool does two players only).', '');
   }
 
-  if (isCourse(json)) out.push('## Marlow time', '', m9Line(json), '');
+  if (isCourse(json)) {
+    const line = json.runs.some(isTrainingPart) ? m9Line(json) : 'M9 run time: the log has no whole-course run, so there is no Marlow time.';
+    out.push('## Marlow time', '', line, '');
+  }
 
   out.push('## Walk card', '');
   for (const r of json.runs) out.push(`- ${walkCardLine(r)}`);
