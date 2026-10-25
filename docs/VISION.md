@@ -22,14 +22,14 @@ decision wins.
 | Maps | Marlow Yard prologue, then Mission 1 Tallow Wharf (G340, G371) | `ctcourse` | `campusOps` Saltmarsh Park S1-S5 (G328); `warehouseOps`, the old map, frozen (G390) |
 | Prototypes | Three Grey Coats, Two-Key Ledger (G291, G402) | - | Split Shift, Code Relay (G291, G402) |
 | Co-op need | A forced co-op traversal move every section (G292) | Forces each co-op move in turn; no coverage checks (G392) | Team doors with a solo route (G280) |
-| Routes | Spine between sections, loops inside, 2+ per section (G285) | 1 forced route; side routes only for late enemy training (G388) | 2-3 routes, parallel objectives (G190, G291) |
+| Routes | Spine between sections, loops inside, 2+ per section (G285) | 1 forced route; splits late; side routes only for late enemy training (G292, G388) | 2-3 routes, parallel objectives (G190, G291) |
 | Guidance | In-world only; hint layer off by default (G290) | Guidance marks and the objective list (G292) | As campaign |
 | Strict rules | Up to 2, signposted, "ghost" is one; a break restarts the section (G290) | None: every failure is a retry (G370) | As campaign; global, per team or split (G291) |
 | Timers | Soft windows only (G334) | Timed drills allowed (G342) | Soft windows only (G334) |
 | Difficulty | Rookie, Normal, Realistic, Perfectionist; host picks (G106, G131) | As campaign | Fixed per op, stars; a higher clear fills the lower (G331) |
 | Guards | Cap 32 alive (G359); no heavies or dogs (G155) | Armed; only what each lesson needs (G298, G376) | S1-S5: 15 / 18 / 20 / 25 / 26 for 1-2 players, 3-4 add tagged extras (G328, G331, G362); cap 32 (G332); dogs (G348), late armour, riot shields (G297, G307) |
-| Downed | 30 s revive, twice per mission (G126) | As campaign (G349); a checkpoint restart is a full reset (G312) | Syringes, no lives; unreached 30 s: dead till the next section door (G188, G385) |
-| Light | Real-world lux bands, Australian standards (G329, G368) | Lit, players cut it (G279) | As campaign (G297) |
+| Downed | 30 s revive, twice per mission (G126) | As campaign (G349); a checkpoint restart is a full reset (G312) | Syringes; unreached 30 s: dead till the next section door (G188, G385) |
+| Light | Real-world lux bands, AS/NZS (G329, G368) | Lit, players cut it (G279) | As campaign (G297) |
 
 Helmets (campaign, Sector Ops): always on Realistic and Perfectionist, unshootable on Perfectionist; at alarm stages
 below (G350).

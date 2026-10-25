@@ -1061,20 +1061,21 @@ spec template) and the standard's phases and gates.
   Tallow Wharf, a new small campaign map (G293, G340).
 - **Marlow Yard** (map `ctcourse`, Course mode; the one owner of its profile, with `docs/level-design.md`'s training
   profile) is the 2-player co-op training course, replacing Fallow (G184, G292), and the campaign's training prologue
-  before Mission 1 (G371): heavily guided and very linear. Side routes are closed and every section is forced; a side
-  route stays only in the later enemy-training areas (after every move is taught, G363), built to the campaign's
-  mission-area rules (G388). Each exercise forces the one co-op move it teaches, so the campaign's co-op coverage checks
-  do not bind it (G392); the shutter hold and the vent unlock are taught where the yard gives them a reason (G389). Each
-  set has only the guards its exercise needs, sometimes none (G376). It keeps its guidance marks (the next-drill pointer
-  included, G383) and an always-on objective list; no explainer pads (G277, G292). No strict rule, fail or send-back:
-  every failure is a retry (G370). Downed players follow the campaign rule (5.9 C6, G349). Timed drills that force the
-  players into situations are allowed, as training (G342); a failed drill retries the drill only (G361). The final pass
-  rebuilt it freely around co-op scenarios, one co-op run 15-20 min (G272): a believable, luxurious training facility,
-  dressed straight after each greybox (G278), with the Marlow Yard audit's shortlist (ceilings, lamp fittings, airlocks,
-  dressing, walls to ceilings, paint, lifts, fiction; G225). Lit by default, every light working (G367): the players cut
-  the light, with mixed zones where they play better; a view-only instructor gallery; normal, armed guards (G279, G298),
-  one of whom can be interrogated (G206). A checkpoint restart is a full reset (guards, bodies, cameras, doors); the S3
-  hallway camera is bulletproof (G312).
+  before Mission 1 (G371): heavily guided and very linear, one route: side routes are closed and every section is forced
+  (G388). Split paths and multiple objectives come only in its later sections, after every move is taught (G292, G363),
+  where a side route may stay for training against enemies, built to the campaign's mission-area rules (G388). Each
+  exercise forces the one co-op move it teaches, so the campaign's co-op coverage checks do not bind it (G392); the
+  shutter hold and the vent unlock are taught where the yard gives them a reason (G389). Each set has only the guards
+  its exercise needs, sometimes none (G376). It keeps its guidance marks (the next-drill pointer included, G383) and an
+  always-on objective list; no explainer pads (G277, G292). No strict rule, fail or send-back: every failure is a retry
+  (G370). Downed players follow the campaign rule (5.9 C6, G349). Timed drills that force the players into situations
+  are allowed, as training (G342); a failed drill retries the drill only (G361). The final pass rebuilt it freely around
+  co-op scenarios, one co-op run 15-20 min (G272): a believable, luxurious training facility, dressed straight after
+  each greybox (G278), with the Marlow Yard audit's shortlist (ceilings, lamp fittings, airlocks, dressing, walls to
+  ceilings, paint, lifts, fiction; G225). Lit by default, every light working (G367): the players cut the light, with
+  mixed zones where they play better; a view-only instructor gallery; normal, armed guards (G279, G298), one of whom can
+  be interrogated (G206). A checkpoint restart is a full reset (guards, bodies, cameras, doors); the S3 hallway camera
+  is bulletproof (G312).
 - **Sector Ops' Saltmarsh Park** (5.8): five sections S1-S5, signed off 2026-10-25 (G328).
 - **The Fallow bunker** is parked behind `?legacy=1` (Section 6). Its anti-stuck resets (G80) and training D41's linear
   rules (G117) bind only the bunker.
