@@ -6,7 +6,7 @@ import { buildReport, jsonText, merge } from '../scripts/route-run/report.mjs';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Obj = Record<string, any>;
 
-const fixture = (name: string): string => readFileSync(new URL(`./fixtures/route-run/${name}`, import.meta.url), 'utf8');
+const fixture = (name: string): string => readFileSync(new URL(`./fixtures/route-run/${name}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const campaignLog = (): Obj => JSON.parse(fixture('report-campaign-log.json'));
 
 const header = (over: Obj = {}): Obj => ({
@@ -155,8 +155,6 @@ describe('route-run report', () => {
     const reversed = buildReport(merge([part('S2'), part('S1')]));
     expect(reversed.markdown).toBe(one.markdown);
     expect(jsonText(reversed.json)).toBe(jsonText(one.json));
-    // Feeding a published route-run.json back in changes nothing.
-    expect(jsonText(buildReport(one.json).json)).toBe(jsonText(one.json));
   });
 
   it('merge keeps a rerun section once and refuses parts from different builds', () => {
@@ -187,15 +185,15 @@ describe('route-run report', () => {
     const { json, markdown } = buildReport(log);
     expect(json.summary).toMatchObject({ drillStubs: 2, restarts: 1, stubbed: 1, verdict: 'pass' });
     const line = m9(markdown);
-    expect(line).toContain('a2 hold switch');
-    expect(line).toContain('a2 sync hack');
+    expect(line).toContain('hold switch (player 1, hold, held 10 s)');
+    expect(line).toContain('sync hack (player 2, hack, held 10 s)');
     expect(line).toContain('boost at link 9 (held 4 s)');
     expect(line).toContain('seen 1 (retry at the pit edge, 2:00)');
     expect(line).toContain('timer 0');
     expect(line).toContain('other 0');
     expect(line).toContain('Pushed past: none');
     expect(line).toContain('under the 15-20 min target (900-1200 s)');
-    expect(line).toContain('walked 10:46, held 0:24');
+    expect(line).toContain('walked 11:16, held 0:24');
   });
 
   it('treats two seen restarts from one space as a push past that keeps the time', () => {

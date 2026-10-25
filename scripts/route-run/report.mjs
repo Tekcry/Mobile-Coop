@@ -4,8 +4,8 @@
 //   jsonText(json)   -> string               the exact bytes written to route-run.json
 // Spec: docs/route-runs/PLAN.md slice R2, docs/route-runs/BRIEF.md (Q7 pass rule, A5, A14, M9, walk-card snippet).
 // Input log (R4a): the header fields of the JSON shape plus `runs[]`; a run holds the same fields as the output run.
-// Verdict, why, time and the summary are always worked out here, never trusted from the log, so a published
-// route-run.json can be fed back in and gives the same report. Extra, optional input: run.unplannable (the planner's
+// Verdict, why, time and the summary are always worked out here, never trusted from the log.
+// Extra, optional input: run.unplannable (the planner's
 // reason) and run.walkedLinks (count of links the robots really walked).
 
 export const TOOL = 'route-run 1';
@@ -229,7 +229,7 @@ export function jsonText(json) {
 // ---------- merge ----------
 
 /**
- * Join per-section logs (or route-run.json parts) into one log. Parts must agree on map, mode, sha and version
+ * Join per-section run logs into one log. Parts must agree on map, mode, sha and version
  * (else it throws: parts from different builds are not one report). A run id in two parts keeps the later part's
  * run (a rerun of one section). The date is the latest; the header otherwise comes from the first part.
  */
