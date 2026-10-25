@@ -279,7 +279,9 @@ describe('validator-port S0: lib seams, merge, flag, link times, modules', () =>
     const example = path.join(ROOT, 'docs/level-validator/example.graph.json');
     // the example has no measured values yet: 2 encounter spaces, split hall, 5 campaign way backs (S3, BRIEF A5)
     expect(run([example, '--require-measured'], { log: (s: string) => { lines.push(s); }, root: ROOT })).toBe(1);
-    expect(lines.filter((s) => s.startsWith('ERROR:'))).toHaveLength(8);
+    const errs = lines.filter((s) => s.startsWith('ERROR:'));
+    expect(errs).toHaveLength(8);
+    expect(errs.filter((s) => !s.includes('--require-measured'))).toEqual([]);
   });
 
   it('linkTime: measured path_m / speed first (A6), else time_s, else a walked length; null path_m falls through', () => {

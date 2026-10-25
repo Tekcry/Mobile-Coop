@@ -6,9 +6,10 @@
 // from its declared target WARNs (the design doc is out of date); for the shadow share that drift is INFO too.
 // Splits (`meta.measured.splits.<id>`): ERR a measured leg (`a_s`, `b_s`) over `split_max_s` or legs apart by more than
 // `split_parity_pct`, ERR a reach over `reach_max_s`. Campaign way backs (`meta.measured.ways_back`, one per co-op
-// link, level-design 11.6): ERR a measured way back over `reach_max_s` where the core gate reach judges the link. A
-// `null` reach or way back (a move the nav grid does not model) is a WARN to justify in the design doc; the declared
-// time is still checked by the core (lead answer L2).
+// link, level-design 11.6; a two-way gate is its own way back, so only its presence counts): ERR a measured way back
+// over `reach_max_s`. A `null` reach or way back (a move the nav grid does not model) is a WARN to justify in the design
+// doc; the declared time is still checked by the core (lead answer L2). Multi-file maps: `mergeGraphs` combines each
+// file's `meta.measured`.
 // Presence: an encounter space with no `measured` is INFO "pending V6"; under `--require-measured` (the greybox gate,
 // V2, A5) it is an ERR, and so is a declared split with no measured `a_s`, `b_s` and `reach_s` and a campaign co-op
 // link with no measured way back.
@@ -155,6 +156,11 @@ export function checkMeasured(graph, metrics, { requireMeasured = false } = {}) 
         if (requireMeasured) c.err(`${name}: no measured way back (meta.measured.ways_back; --require-measured)`);
         continue;
       }
+      // A passed two-way gate stays open, so it is its own way back (the core gate reach skips it too): presence only.
+      if (TWO_WAY_GATES.has(l.kind)) {
+        if (w.back_s !== null) numAt(w, 'back_s', `${name} way back`);
+        continue;
+      }
       if (w.back_s === null) {
         const why = typeof w.why === 'string' && w.why ? ` (${w.why})` : '';
         c.warn(`${name}: measured way back is null${why}; the declared way back is checked (justify it in the design doc)`);
@@ -165,8 +171,6 @@ export function checkMeasured(graph, metrics, { requireMeasured = false } = {}) 
         if (requireMeasured) c.err(`${name}: no measured way back time (--require-measured)`);
         continue;
       }
-      // A passed two-way gate stays open, so it is its own way back (the core gate reach skips it too).
-      if (TWO_WAY_GATES.has(l.kind)) continue;
       const max = c.num('rules.reach_max_s', 'the measured way back check');
       if (max !== undefined && back > max + EPS) {
         c.err(`${name}: measured way back from ${l.to} to ${l.from} ${fmtS(back)} s, over the ${fmt(max)} s revive reach`);

@@ -423,6 +423,45 @@ describe('level-checks/measured: the presence gate and measured splits (V2, A5)'
     expect(r.errors).toEqual([]);
     expect(r.warns).toEqual(['link b-vault -> b-out (team_throw): measured way back is null (no nav path from every b-out floor cell to b-vault); the declared way back is checked (justify it in the design doc)']);
     expect(check(g, METRICS, true).errors).toEqual([]);
+    // a two-way gate is its own way back: a null there is no WARN (its entry still counts for presence)
+    for (const w of back) if (w.kind === 'pair_gate') w.back_s = null;
+    expect(only(g, true).warns).toEqual([expect.stringContaining('link b-vault -> b-out (team_throw): measured way back is null')]);
+  });
+
+  it('a multi-file map (S2 layout: each file its own splits and way backs) is measured as one merged graph', () => {
+    const g = campaignMeasured();
+    const back = waysBack(g);
+    const cut = (sec: string, own: Link[]): Graph => ({
+      meta: { ...g.meta, sections: [sec], measured: { tool: 'level-measure 1', geom: 'g', splits: sec === 'S2' ? splits(g) : {},
+        ways_back: back.filter((w) => own.some((l) => l.from === w.from && l.to === w.to && l.kind === w.kind)) } },
+      spaces: g.spaces.filter((s) => s.section === sec), links: own,
+    });
+    const files = [cut('S1', g.links.slice(0, 9)), cut('S2', g.links.slice(9))];
+    expect((files[1]!.meta.measured as { ways_back: unknown[] }).ways_back).toHaveLength(3);
+    const merged = mergeGraphs(files) as Graph;
+    expect(merged.meta.measured).toEqual({ tool: 'level-measure 1', geom: 'g', splits: splits(g), ways_back: back });
+    // only file 2 measured: its block is the map's
+    expect(mergeGraphs([{ ...files[0], meta: { ...files[0]!.meta, measured: null } }, files[1]]).meta.measured).toBe(files[1]!.meta.measured);
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'level-measured-files-'));
+    try {
+      const paths = files.map((f, i) => {
+        const p = path.join(dir, `S${i + 1}.json`);
+        fs.writeFileSync(p, JSON.stringify(f));
+        return p;
+      });
+      const lines: string[] = [];
+      const log = (x: string): void => { lines.push(x); };
+      expect(run([...paths, '--require-measured'], { log, root: ROOT })).toBe(0);
+      expect(lines.filter((l) => l.startsWith('ERROR:'))).toEqual([]);
+      // a too-long way back owned by file 2 still ERRs
+      for (const w of (files[1]!.meta.measured as { ways_back: WayBack[] }).ways_back) if (w.kind === 'coop_boost') w.back_s = 16.4;
+      fs.writeFileSync(paths[1]!, JSON.stringify(files[1]));
+      lines.length = 0;
+      expect(run([...paths, '--require-measured'], { log, root: ROOT })).toBe(1);
+      expect(lines.filter((l) => l.startsWith('ERROR:'))).toEqual(['ERROR: link b-vault -> b-walk (coop_boost): measured way back from b-walk to b-vault 16.4 s, over the 15 s revive reach']);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('a way back naming no co-op link WARNs; a bad entry or list ERRs; non-campaign maps need none', () => {

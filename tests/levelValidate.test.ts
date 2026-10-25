@@ -949,7 +949,7 @@ describe('level-validate: merge and CLI', () => {
       };
       const ok = cli(write(base()));
       expect(ok.status).toBe(0);
-      expect(ok.out.trim().split('\n').pop()).toBe('0 error(s), 0 warning(s).');
+      expect(ok.out.split('\n').filter((l) => l && !(l.startsWith('INFO:') && l.includes('pending V6')))).toEqual(['0 error(s), 0 warning(s).']);
       const bad = base();
       link(bad, 'b-hall', 'b-dock', 'door').width = 0.9;
       const fail = cli(write(bad));
@@ -996,7 +996,7 @@ describe('level-validate: merge and CLI', () => {
       const okPath = path.join(dir, 'ok.json');
       fs.writeFileSync(okPath, JSON.stringify(base()));
       expect(run([okPath, '--metrics', metricsPath], { log, root: ROOT })).toBe(0);
-      expect(lines.filter((l) => !l.startsWith('INFO:'))).toEqual(['\n0 error(s), 0 warning(s).']);
+      expect(lines.filter((l) => !(l.startsWith('INFO:') && l.includes('pending V6')))).toEqual(['\n0 error(s), 0 warning(s).']);
 
       expect(run([], { log, root: ROOT })).toBe(2);
       expect(run([path.join(dir, 'missing.json')], { log, root: ROOT })).toBe(2);
