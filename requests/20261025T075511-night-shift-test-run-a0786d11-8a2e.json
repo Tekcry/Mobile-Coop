@@ -1,0 +1,13 @@
+{
+  "id": "20261025T075511-night-shift-test-run-a0786d11-8a2e",
+  "sha": "a0786d117ecfcafb01a1c5a10160aacfa342af65",
+  "branch": "feature/test-runner-j20-pra",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Test Runner",
+  "suites": [
+    "smoke",
+    "e2e-move"
+  ],
+  "set": "j20-pra"
+}
