@@ -42,10 +42,10 @@ its heavily guided and must teach the players the basics of coop gameplay".
 - Players: two (G308); one co-op run takes 15-20 min (G272).
 - One linear route: every section is forced, side routes closed. Michael (2026-10-25 ~16:50): "Close all side routes,
   force all sections. Only keep a side route when training against enemies later in the training, same design rules as
-  a campaign mission area". Such a late section follows the campaign route rules (3.2, 3.3, 11.2). The later sections,
-  those after every move of the co-op kit has been taught on its own (6.1), teach split paths and multiple objectives
-  (G292, G363). The route-count rules (3.2, 3.3, 11.2), the gate reach and
-  no-softlock parts of 11.6 and the forced gate (11.10) do not bind: each exercise teaches its move in place.
+  a campaign mission area". The later sections, those after every move of the co-op kit has been taught on its own
+  (6.1), teach split paths and multiple objectives (G292, G363). A late section that trains against enemies and keeps
+  a side route follows the campaign route rules (3.2, 3.3, 11.2); outside such a section they do not bind. The gate
+  reach and no-softlock parts of 11.6 and the forced gate (11.10) do not bind: each exercise teaches its move in place.
 - Guidance: its guidance marks and the always-on objective list, which updates per area; no explainer pads (G277,
   G292); no maps, minimap, compass or blip (6.4).
 - Strict rules: none; every failure is a retry. Michael (2026-10-25 ~16:40): "all are retries in marlow yard, as its a
@@ -56,10 +56,8 @@ its heavily guided and must teach the players the basics of coop gameplay".
 - Guards: normal guards, only as many as the set's move or mechanic needs, at most 3 per set (4.9, 4.10). Michael
   (2026-10-25 ~16:50): "Only the logical amount required to test the specific movement/game mechanic required. Doesn't
   necessarily always need a guard."
-- The campaign's built-for-two checks (G157; Campaign profile) do not bind, also not in a late section that keeps a
-  side route (there the campaign route rules bind, not the co-op ones). Michael (2026-10-25 ~16:50): "marlow yard
-  in particular is an isolated training level which forces training of each individual coop move and coop gameplay,
-  and does not need the same checks".
+- The campaign's built-for-two checks (G157; Campaign profile) are tagged [Campaign], so they do not bind here, also
+  not in a late section that keeps a side route (there the campaign route rules bind, not the co-op ones).
 
 ## 1. The player fantasy [All]
 The player is a predator, not prey: a stealth operative who reads a space, makes a plan, executes it and improvises
@@ -94,7 +92,9 @@ A level is a linear spine of encounter spaces joined by connectors.
 2. **Three routes plus a secret.** [Campaign] [SectorOps] Each guarded space has a shadow route (patience, timing), a
    high route (movement skill) and a loud route (force, fastest). At least half of the guarded spaces also have a
    secret route that rewards exploring (a crawlspace, a shaft, a back room). No route is strictly best: each trades
-   speed, risk and reward. [Training] One route; split paths only in the later sections, as teaching (G292).
+   speed, risk and reward. [Training] One route; split paths only in the later sections, as teaching (G292). A late
+   section that trains against enemies may keep a side route; it then follows the campaign route rules (Michael
+   2026-10-25 ~16:50; Training profile).
 3. **Rejoin at a pinch point.** All routes through a space rejoin at its exit before the next space. No route skips a
    space. [Campaign] [SectorOps] Between entry and exit the routes cross at least once: they share a room or junction
    where a player can switch route (checked per section). (G284.)
@@ -117,8 +117,7 @@ A level is a linear spine of encounter spaces joined by connectors.
    restarts the section there (9.3). An objective at the end of a space is placed the same way. [Training] Out of
    every guard's view; dark only once a drill has cut the light.
 10. **Designed exit.** [Campaign] Both players must reach the exit to finish (G138). The run from the last objective to
-   the exit takes under about 2 minutes, or takes a different route for at least half of the way back, never a plain
-   retrace (G157).
+   the exit takes under 2 minutes, or takes a different route for at least half of the way back (G157).
 
 ## 4. Guards [All]
 1. **Jobs, not lines.** Every guard does something someone would really do there at that hour (rounds, gauge
@@ -153,7 +152,9 @@ A level is a linear spine of encounter spaces joined by connectors.
      ceiling, not a target (G187, G332); room to manoeuvre comes before count (G190). Signed-off counts: S1 15, S2 18,
      S3 20, S4 25, S5 26 (G328), for two players (G362). One player uses the same counts, with no scale-down; three
      or four players add the guards tagged for them. The Sector Ops job writes them per player count in the graphs.
-   - [Training] A set spawns at most `SET_GUARDS_MAX` 3 guards (12.1); the bands do not bind.
+   - [Training] The "as many as realistically possible" lead above does not bind: a set has only as many guards as its
+     move or mechanic needs, possibly none, at most `SET_GUARDS_MAX` 3 (12.1; Michael 2026-10-25 ~16:50, Training
+     profile); the bands do not bind.
 10. **Archetypes per mode.** [Campaign] No heavies or dogs (G155); armour comes with the alarm stages. [SectorOps] Dogs
    (G297): killing one is penalised; gas knocks one out; no takedown; a dog can be distracted (G348). Riot shields only
    in alarm response teams; heavier armour in later sections (G307).
@@ -271,7 +272,9 @@ declared in the graph before geometry and measured in greybox: a map whose measu
    one continuous level, `levels-digest.md`). Every path from insertion to exfil passes every section in order, and two
    sections join by one spine connector. No route skips a section. Check: `checkSpine`. [Campaign] [SectorOps] Inside a
    section, at least 2 independent (edge-disjoint) routes join its entry to its exit, so the pair can split up, loop
-   and re-hide (3.3, 3.4). Check: `checkRedundancy`. [Training] One route (G292).
+   and re-hide (3.3, 3.4). Check: `checkRedundancy`. [Training] One route (G292), except a late section that trains
+   against enemies and keeps a side route: it follows the campaign route rules (Michael 2026-10-25 ~16:50; Training
+   profile).
 3. **Splits are short and even.** [All] A split is a stretch where the partners take different legs and meet again at a
    defined merge point (CT research: no separation without a merge point). Each leg takes at most `split_max_s` at the
    stealth pace `split_speed_mps` (crouched sneak), and the two legs' times are within `split_parity_pct` of each other.
@@ -316,9 +319,9 @@ declared in the graph before geometry and measured in greybox: a map whose measu
 11. **Teamwork minimums.** [Campaign] Each mission sets a minimum count for each kind of teamwork and meets it: a door
    or shutter held, a boost or climb, one partner covering the other, and a split that ends in a joint action at its
    merge point. The map spec sizes each minimum to the map (G157). Splits keep the stricter `split_max_s` limit of
-   11.3. Nobody waits more than about 60 s for the partner (a playtest target), and the players swap roles: neither is
-   always the one who boosts or holds. Joint actions are forgiving (a timing window, not a frame), work with pings
-   alone (G135), and a failed one raises the alarm, never kills. Check: design doc (co-op plan).
+   11.3. Nobody waits more than 60 s for the partner, and the players swap roles: neither is always the one who boosts
+   or holds. Joint actions are forgiving (a timing window, not a frame), work with pings alone (G135), and a failed one
+   raises the alarm, never kills. Check: design doc (co-op plan).
 
 ## 12. Engine constraints (re-confirm per map) [All]
 State on 2026-10-25. Every number is a starting value tuned after the CT prototype (DECISIONS G10). Tuning tables
@@ -506,7 +509,7 @@ each.
 - Did the player understand every detection?
 - Did the players find every objective from its text and the level alone?
 - At every blocked route, did the players see or work out a way past within about 2 minutes (6.4)?
-- [Campaign] Did the pacing meet its minute targets (6.2), and did either partner wait more than about 60 s (11.11)?
+- [Campaign] Did the pacing meet its minute targets (6.2), and did either partner wait more than 60 s (11.11)?
 - Was every toy used at least once across sessions?
 - Did the level feel like the building it claims to be?
 
