@@ -51,4 +51,7 @@ Lead: Night Shift | Marlow Build. Worktree C:/NightShift/Mobile-Coop-mixamo-kit,
 - Step 2: the 8 MIXAMO_ON rows at the end of mixamo.ts (4 takes true, 4 optional phases false).
 - Step 4 (a)+(b) first (team.ts needs `AnimGraph.kit` to typecheck): animGraph.ts declarations (public `kit`,
   `RigTargets.keyShot` + default 0, kitShot fields), the one block after stanceShot, `kitShot()`. KIT_SHOT.jump 0.05 added.
-Next: step 3 team.ts, then 4 (c) the hang skip, 5 characterRig.ts, 6 tests.
+- Step 3: team.ts: TeamPoseIn / TEAM_LINK `kit` / `kt`, local and wire phase derivation, `TeamRigIn.graph?`, TeamPoser
+  kitShot (clear on every begin path and in end; move / role whenever KIT_TABLES[1].any; per-rig table; gap trend, hold
+  and crawl clocks; bar / wrist / catch hands eased over KIT_SHOT.flip, only while the shot is on).
+Next: 4 (c) the hang skip, 5 characterRig.ts, 6 tests.

@@ -25,6 +25,8 @@ import { TEAM } from '../../config/movement';
 import { hyp2 } from '../../core/mathx';
 import { HANG_HEAD } from '../../game/teamMoves';
 import type { TraverseKind } from '../animGraph';
+// (mixamo-kit) the kit moves' Mixamo shots (docs/mixamo-kit/PLAN.md)
+import { clearKitShot, KIT_PULL, KIT_SHOT, KIT_TABLES, kitGapTrend, kitShotTime, kitShutterPhase, kitSourceOf, type KitShotIn } from '../kitMixamo';
 
 /** (mission KIT0) + the co-op kit's 'pull' (pull-up, KIT-PULL) and 'shutter' (hold shutter / crawl under, KIT-SHUT). */
 export type TeamPoseMove = 'boost' | 'throw' | 'hang' | 'rope' | 'pull' | 'shutter';
@@ -102,10 +104,14 @@ export interface TeamPoseIn {
   lz: number;
   /** (KIT0) Shutter: the opening's height under the shutter's edge (m; the holder's `MoveState.s`); NaN = unknown. */
   gap: number;
+  /** (mixamo-kit) The kit phase this rig plays ('' none) and its clock (kitMixamo.ts `kitClipTime`: the pull's tau / k;
+   *  the shutter holder's phase and the crawl's distance are TeamPoser's, from the gap and the root). */
+  kit: KitPoseId | '';
+  kt: number;
 }
 
 export function newTeamPoseIn(): TeamPoseIn {
-  return { move: '', role: '', k: -1, px: NaN, py: NaN, pz: NaN, pyaw: NaN, depth: TEAM.hangStart, lx: NaN, ly: NaN, lz: NaN, gap: NaN };
+  return { move: '', role: '', k: -1, px: NaN, py: NaN, pz: NaN, pyaw: NaN, depth: TEAM.hangStart, lx: NaN, ly: NaN, lz: NaN, gap: NaN, kit: '', kt: 0 };
 }
 
 /** The local player's team pose input: GameState writes it every frame from the team controller, `Player` poses its
@@ -120,6 +126,8 @@ export function clearTeamPoseIn(i: TeamPoseIn): TeamPoseIn {
   i.depth = TEAM.hangStart;
   i.lx = i.ly = i.lz = NaN;
   i.gap = NaN;
+  i.kit = ''; // (mixamo-kit)
+  i.kt = 0;
   return i;
 }
 
@@ -357,6 +365,8 @@ export function teamPoseOfState(state: string, t: number, out: TeamPoseIn): Team
   let role: TeamPoseRole | '' = '';
   let k = -1;
   let gap = NaN;
+  let kit: KitPoseId | '' = ''; // (mixamo-kit)
+  let kt = 0;
   switch (state) {
     case 'offer':
       move = 'boost';
@@ -423,6 +433,10 @@ export function teamPoseOfState(state: string, t: number, out: TeamPoseIn): Team
         role = kp.role;
         k = KIT_POSE_LOCAL.k;
         gap = KIT_POSE_LOCAL.gap;
+        // (mixamo-kit) the phase is the state; its clock: the holder's catch / haul tau (s), the partner's k
+        kit = kp.id;
+        const kk = k > 0 ? k : 0;
+        kt = kit === 'pullCatch' ? kk * KIT_PULL.catchClose : kit === 'pullHaul' ? kk * (KIT_PULL.haul + KIT_PULL.scramble) : kk;
       }
     }
   }
@@ -430,6 +444,8 @@ export function teamPoseOfState(state: string, t: number, out: TeamPoseIn): Team
   out.role = role;
   out.k = k;
   out.gap = gap;
+  out.kit = kit;
+  out.kt = kt;
   return out;
 }
 
@@ -439,7 +455,7 @@ export function teamPoseOfState(state: string, t: number, out: TeamPoseIn): Team
  * the wire. `linger` keeps a leg-up / throw clock running a moment after it ends on this page (the partner's avatar is
  * drawn a little in the past: its move ends later).
  */
-export const TEAM_LINK = { partner: '', move: '' as TeamPoseMove | '', role: '' as TeamPoseRole | '', k: -1, x: 0, y: 0, z: 0, yaw: 0, depth: TEAM.hangStart as number, lx: NaN, ly: NaN, lz: NaN, gap: NaN, linger: 0 };
+export const TEAM_LINK = { partner: '', move: '' as TeamPoseMove | '', role: '' as TeamPoseRole | '', k: -1, x: 0, y: 0, z: 0, yaw: 0, depth: TEAM.hangStart as number, lx: NaN, ly: NaN, lz: NaN, gap: NaN, linger: 0, kit: '' as KitPoseId | '', kt: 0 }; // (mixamo-kit) + kit / kt
 
 const LINGER = 0.5;
 
@@ -462,6 +478,8 @@ export function teamLinkFrame(dt: number, partner: string, i: TeamPoseIn, x: num
     L.lz = i.lz;
     L.gap = i.gap;
     L.linger = LINGER;
+    L.kit = i.kit; // (mixamo-kit)
+    L.kt = i.kt;
     return;
   }
   if (L.linger > 0 && (L.move === 'boost' || L.move === 'throw') && L.k >= 0) {
@@ -475,6 +493,8 @@ export function teamLinkFrame(dt: number, partner: string, i: TeamPoseIn, x: num
   L.k = -1;
   L.gap = NaN;
   L.linger = 0;
+  L.kit = ''; // (mixamo-kit)
+  L.kt = 0;
 }
 
 /** The ROPE / HANG / THROW sub bits of the `brace` and `boost` wire modes (game/teamMoves: THROW_SUB 1, HANG_SUB 2, ROPE_SUB 4;
@@ -508,6 +528,18 @@ export function teamPoseOfWire(mode: string, sub: number, s: number, ph: number,
       out.ly = L.ly;
       out.lz = L.lz;
     }
+    // (mixamo-kit) the remote pull holder's phase from the linked local climber's (tau on its clock), else the offer
+    if (out.move === 'pull') {
+      const lk = L.k > 0 ? L.k : 0;
+      const on = linked && L.move === 'pull' && L.role === 'a';
+      if (on && L.kit === 'pullJump') {
+        out.kit = 'pullCatch';
+        out.kt = lk * KIT_PULL.landT;
+      } else if (on && (L.kit === 'pullHang' || L.kit === 'pullScramble')) {
+        out.kit = 'pullHaul';
+        out.kt = L.kit === 'pullHang' ? lk * KIT_PULL.haul : KIT_PULL.haul + lk * KIT_PULL.scramble;
+      } else out.kit = 'pullOffer';
+    }
     return out;
   }
   if (mode === 'boost' && sub & (SUB_PULL | SUB_SHUTTER)) {
@@ -523,6 +555,13 @@ export function teamPoseOfWire(mode: string, sub: number, s: number, ph: number,
       out.pz = L.z;
       out.pyaw = L.yaw;
       out.gap = L.gap;
+    }
+    // (mixamo-kit) the remote partner's phase from the wire alone: the scramble's ph (0 through the jump and the hang:
+    // today's hang), the crawl
+    if (out.move === 'shutter') out.kit = 'crawlUnder';
+    else if (ph > 0) {
+      out.kit = 'pullScramble';
+      out.kt = ph;
     }
     return out;
   }
@@ -565,6 +604,8 @@ export interface TeamRigIn {
   plantR: Target;
   root: { position: { x: number; y: number; z: number }; rotation: { y: number } };
   height: number;
+  /** (mixamo-kit) The rig's graph: TeamPoser writes its kit shot (a CharacterRig's `graph`; absent: no shot). */
+  graph?: { readonly kit: KitShotIn };
 }
 /** The RigPose fields the team pose writes. */
 export interface TeamRigPose {
@@ -610,6 +651,24 @@ export class TeamPoser {
   private bFace = NaN;
   private hands = false;
   private foot = false;
+  /** (mixamo-kit) The kit shot: this frame's phase ('' none), the clock since it began (s), the shutter gap seen last and
+   *  its trend, the crawl's distance (m at 1.75 m) and last root, the shot's eased share of the hands (KIT_SHOT.flip), and
+   *  the hand targets' point / right axis / weight (fields: `kitHand` takes the side only). */
+  private kxId: KitPoseId | '' = '';
+  private kxT = 0;
+  private kxGap = 0;
+  private kxTrend = 0;
+  private kxD = 0;
+  private kxX = 0;
+  private kxZ = 0;
+  private kxS = 0;
+  private khX = 0;
+  private khY = 0;
+  private khZ = 0;
+  private khRX = 0;
+  private khRZ = 0;
+  private khW = 0;
+  private khK = 1;
 
   /**
    * (N4b train-8 fix) A jump (the Anim Studio's paused scrub): the weight straight to where `i` wants it (1 on, 0 off),
@@ -621,6 +680,9 @@ export class TeamPoser {
   }
 
   begin(dt: number, i: TeamPoseIn, p: TeamRigPose, rig: TeamRigIn): void {
+    // (mixamo-kit) the clear rule: no shot, no source, no move until this frame writes them
+    const G = rig.graph;
+    if (G !== undefined) clearKitShot(G.kit);
     this.hands = false;
     this.foot = false;
     const on = i.move !== '' && i.role !== '';
@@ -635,6 +697,7 @@ export class TeamPoser {
       this.move = '';
       this.role = '';
       this.yawOff = 0;
+      this.kitOff(); // (mixamo-kit)
       return;
     }
     this.t += dt;
@@ -648,6 +711,131 @@ export class TeamPoser {
       if (on) this.poseA(i, root.position.x, root.position.y, root.position.z, root.rotation.y, hk);
       this.applyA(rig);
     }
+    // (mixamo-kit) a kit move's shot over the pose (no graph or no kit move: the kit state reset, the hands as before)
+    if (on && G !== undefined && (i.move === 'pull' || i.move === 'shutter')) this.kitShot(dt, i, rig, G.kit, hk);
+    else this.kitEnd(dt, rig, hk);
+  }
+
+  /** (mixamo-kit) The pose gone (weight 0): the phase, the shutter trend and the hands' share reset. */
+  private kitOff(): void {
+    this.kxId = '';
+    this.kxGap = 0;
+    this.kxTrend = 0;
+    this.kxS = 0;
+    this.khW = 0;
+  }
+
+  /** (mixamo-kit) No kit move this frame while the pose eases out: the phase and the trend reset, the kit hands (role B)
+   *  eased back to the placeholder's over KIT_SHOT.flip (as the graph's shot fades). */
+  private kitEnd(dt: number, rig: TeamRigIn, hk: number): void {
+    this.kxId = '';
+    this.kxGap = 0;
+    this.kxTrend = 0;
+    if (this.role !== 'b') this.kxS = 0;
+    if (this.kxS <= 0) return;
+    this.kxS = Math.max(0, this.kxS - dt / KIT_SHOT.flip);
+    if (this.kxS <= 0) return;
+    this.khK = hk;
+    this.kitHand(rig.reachL, -1);
+    this.kitHand(rig.reachR, 1);
+    this.hands = true;
+  }
+
+  /**
+   * (mixamo-kit, PLAN 2) A kit move's shot into the graph's `kit`: the move / role whenever a kit row is on (the hang
+   * skip), the take of this rig's source (`KIT_TABLES[kitSourceOf(rig)]`) at its phase's clip time with the eased team
+   * weight. The phase: the shutter holder's from the gap and its trend, else the input's; its clock: the shutter offer /
+   * hold s since the phase began, the lift / drop the gap over the hold gap, the crawl the distance since it began (m at
+   * 1.75 m), else the input's. The hands (role B, only while the shot is on): palms on the bar through the lift and hold,
+   * on the partner's wrists through the haul, no IK through the catch (the take's reach), eased in and out over
+   * KIT_SHOT.flip from the placeholder's targets. No allocation.
+   */
+  private kitShot(dt: number, i: TeamPoseIn, rig: TeamRigIn, K: KitShotIn, hk: number): void {
+    const root = rig.root.position;
+    let id: KitPoseId | '' = i.kit;
+    if (i.move === 'shutter' && i.role === 'b') {
+      this.kxTrend = kitGapTrend(i.gap, this.kxGap, this.kxTrend);
+      this.kxGap = i.gap > 0 ? i.gap : 0;
+      id = kitShutterPhase(i.gap, this.kxTrend);
+    }
+    if (id !== this.kxId) {
+      this.kxId = id;
+      this.kxT = 0;
+      this.kxD = 0;
+    } else {
+      this.kxT += dt;
+      this.kxD += hyp2(root.x - this.kxX, root.z - this.kxZ) / hk;
+    }
+    this.kxX = root.x;
+    this.kxZ = root.z;
+    if (!KIT_TABLES[1].any) return;
+    K.move = i.move === 'pull' ? 'pull' : 'shutter';
+    K.role = i.role;
+    const src = kitSourceOf(rig);
+    K.mx = src === 1;
+    const c = id === '' ? null : KIT_TABLES[src][id];
+    let handOn = false;
+    if (c !== null && id !== '') {
+      const g = (i.gap > 0 ? i.gap : 0) / KIT_SHOT.holdGap;
+      const kt = id === 'shutterOffer' || id === 'shutterHold' ? this.kxT : id === 'shutterLift' || id === 'shutterDrop' ? g : id === 'crawlUnder' ? this.kxD : i.kt;
+      K.clip = c;
+      K.time = kitShotTime(id, kt);
+      K.mode = id === 'crawlUnder' ? 'loop' : 'shot';
+      K.weight = this.w;
+      handOn = i.role === 'b' && (id === 'pullCatch' || id === 'pullHaul' || id === 'shutterLift' || id === 'shutterHold');
+    }
+    if (i.role !== 'b') return;
+    const st = dt / KIT_SHOT.flip;
+    this.kxS = handOn ? Math.min(1, this.kxS + st) : Math.max(0, this.kxS - st);
+    if (handOn) {
+      // this frame's kit hand point (world) and weight; the catch: no IK (the take's reach)
+      const yaw = rig.root.rotation.y;
+      const sy = Math.sin(yaw);
+      const cy = Math.cos(yaw);
+      this.khRX = cy;
+      this.khRZ = -sy;
+      let want = 0;
+      if (id === 'shutterLift' || id === 'shutterHold') {
+        this.khX = root.x + sy * KIT_SHOT.holdSpot;
+        this.khY = root.y + (i.gap > 0 ? i.gap : 0);
+        this.khZ = root.z + cy * KIT_SHOT.holdSpot;
+        want = KIT_SHOT.barHandW;
+      } else if (id === 'pullHaul' && Number.isFinite(i.px) && Number.isFinite(i.py) && Number.isFinite(i.pz)) {
+        this.khX = i.px;
+        this.khY = i.py + KIT_SHOT.wristUp * hk;
+        this.khZ = i.pz;
+        want = KIT_SHOT.haulHandW;
+      }
+      this.khW = want > this.khW ? Math.min(want, this.khW + st) : Math.max(want, this.khW - st);
+    }
+    if (this.kxS <= 0) return;
+    this.khK = hk;
+    this.kitHand(rig.reachL, -1);
+    this.kitHand(rig.reachR, 1);
+    this.hands = true;
+  }
+
+  /** (mixamo-kit) One palm (`side` -1 left, 1 right) from the placeholder's target toward the kit hand point by the shot's
+   *  share, its weight toward the kit hand weight x the team weight. */
+  private kitHand(t: Target, side: number): void {
+    const s = this.kxS;
+    const h = side * HAND_HALF * this.khK;
+    const x = this.khX + this.khRX * h;
+    const z = this.khZ + this.khRZ * h;
+    const w = this.khW * this.w;
+    if (!this.hands) {
+      t.ax = t.ay = t.az = t.rad = t.hook = 0;
+      t.cx = t.cy = t.cz = undefined;
+      t.x = x;
+      t.y = this.khY;
+      t.z = z;
+      t.w = w * s;
+      return;
+    }
+    t.x += (x - t.x) * s;
+    t.y += (this.khY - t.y) * s;
+    t.z += (z - t.z) * s;
+    t.w += (w - t.w) * s;
   }
 
   /** Role B's pose this frame (B frame), the turn to the partner eased. */
@@ -809,6 +997,8 @@ export class TeamPoser {
 
   /** After `rig.animate`: the reach / plant weights this pose set back to 0 (the next frame sets them again). */
   end(rig: TeamRigIn): void {
+    const G = rig.graph; // (mixamo-kit) the clear rule: the shot off between frames
+    if (G !== undefined) clearKitShot(G.kit);
     if (this.hands) {
       rig.reachL.w = 0;
       rig.reachR.w = 0;
