@@ -1,0 +1,456 @@
+/**
+ * (J14 R1) The station retry runtime of the re-planned Marlow Yard: the live station (advanced by each done flag), a
+ * station retry (seen / caught / timer) that resets only that station and puts both players on its marks, the downed bay
+ * restart (out / down) as a full reset, route-runs' hooks (`restarts`, `lastRetry`, `retryOff`) on host and client
+ * through the wire, `?course=station:<n>`, the room map and the built yard left as it was.
+ */
+import { describe, expect, it } from 'vitest';
+import { Vector3 } from '../src/core/babylon';
+import { validateCourse, type BayDef, type CourseDef, type CourseKnownIds, type CourseLayout } from '../src/game/course/courseDef';
+import { CourseState } from '../src/game/course/courseState';
+import type { StationDef } from '../src/game/course/stationDef';
+import { CourseMode, courseStationParam, retryHook, retryLine, stationSlots } from '../src/game/modes/courseMode';
+import { RESTART_DELAY } from '../src/config/course';
+import { parseMessage } from '../src/net/protocol';
+import { roomMap } from '../src/net/session';
+import type { GameState } from '../src/game/gameState';
+
+const DT = 0.1;
+
+function station(n: number, o: Partial<StationDef> = {}): StationDef {
+  return {
+    n,
+    id: `s${n}`,
+    lesson: 'boost',
+    marks: [
+      { x: 10 * n, z: 5, y: 0, yaw: 0 },
+      { x: 10 * n + 1, z: 5, y: 0, yaw: Math.PI },
+    ],
+    retry: 'station',
+    guards: [`gd${n}`],
+    gates: [`g-s${n}`],
+    doneFlag: `s${n}-done`,
+    ...o,
+  };
+}
+
+/** One bay (start -> end) of two stations, each with its own guard and pickup gate. */
+function def(o: Partial<BayDef> = {}, stations: StationDef[] | null = [station(1), station(2)]): CourseDef {
+  return {
+    id: 'unit',
+    airlocks: [],
+    externalFlags: ['s1-done', 's2-done', 's8-done', 's9-done'],
+    bays: [
+      {
+        id: 'B1',
+        entry: 'start',
+        exit: 'end',
+        squad: ['gd1', 'gd2'],
+        gates: [
+          { kind: 'pickup', id: 'g-s1', switchId: 'sw1', flag: 'key1', perPlayer: false },
+          { kind: 'pickup', id: 'g-s2', switchId: 'sw2', flag: 'key2', perPlayer: false },
+        ],
+        radio: [
+          { at: 'retry:s2', text: 'Seen at two. Back to the crates.' },
+          { at: 'retry:s2:timer', text: 'Out of time at two. Back to the crates.' },
+        ],
+        drills: [{ id: 'dr-crouch', verb: 'crouch', who: 'both', text: 'Crouch.', marker: { x: 0, y: 0, z: 0 } }],
+        elements: [],
+        ...(stations ? { stations } : {}),
+        ...o,
+      },
+    ],
+  };
+}
+
+const KNOWN: CourseKnownIds = { doors: [], switches: ['sw1', 'sw2'], holds: [], anchors: [], groups: [] };
+
+interface FakeEnemy {
+  slot: string;
+  alive: boolean;
+  alerted: boolean;
+  passive: boolean;
+  setPatrol(): void;
+}
+
+/** A CourseMode on a stub GameState: enough for its fixed step, squad, restart and respawn paths (no Babylon scene). */
+function rig(d: CourseDef) {
+  const enemies: FakeEnemy[] = [];
+  const despawned: FakeEnemy[] = [];
+  const respawns: { x: number; y: number; z: number }[] = [];
+  const said: string[] = [];
+  const lay: CourseLayout = {
+    def: d,
+    doors: {},
+    devices: {},
+    squads: { gd1: { kind: 'grunt', x: 1, z: 1, yaw: 0 }, gd2: { kind: 'grunt', x: 2, z: 2, yaw: 0 } },
+  };
+  let spawning = '';
+  const em = {
+    stealth: true,
+    enemies,
+    get anyAlerted() {
+      return enemies.some((e) => e.alive && e.alerted);
+    },
+    spawn: () => {
+      const e: FakeEnemy = { slot: spawning, alive: true, alerted: false, passive: false, setPatrol: () => undefined };
+      enemies.push(e);
+      return e;
+    },
+    despawn: (e: FakeEnemy) => {
+      despawned.push(e);
+      const k = enemies.indexOf(e);
+      if (k >= 0) enemies.splice(k, 1);
+    },
+    resetMemory: () => (enemies.length = 0),
+    placeSlot: () => undefined,
+  };
+  const player = { position: new Vector3(0, 0, 0), alive: true, cam: { yaw: 0 } };
+  const remote = { id: 'peer-2', feet: new Vector3(1, 0, 0), target: { alive: true } };
+  const g = {
+    player,
+    remotePlayers: () => [remote],
+    style: { detections: 0 },
+    enemyMgr: em,
+    takedown: { active: false, reset: () => undefined },
+    net: null,
+    grenades: { clear: () => undefined },
+    gadgets: { clearWorld: () => undefined },
+    checkpointReset: () => undefined,
+    security: null,
+    scheduleRespawn: (at: Vector3) => respawns.push({ x: at.x, y: at.y, z: at.z }),
+    world: {
+      doors: { list: [] },
+      level: { lights: { lights: [], version: 0 } },
+      layout: { course: lay, playerSpawns: [{ pos: new Vector3(-5, 0, 0), yaw: 0 }, { pos: new Vector3(-4, 0, 0), yaw: 0 }] },
+    },
+    traversal: { attachCtl: { disabled: new Set<number>() } },
+    hud: { banner: () => undefined, barks: { say: (_who: string, line: string) => said.push(line) } },
+    app: { toasts: { show: () => undefined } },
+  } as unknown as GameState;
+  const mode = new CourseMode(g);
+  mode.layout = lay;
+  mode.state = new CourseState(d);
+  // the squad as the bay starts (the first step acts on `bayStarted`); each fake guard knows its slot
+  const m = mode as unknown as { spawnSlot(id: string): unknown };
+  const spawnSlot = m.spawnSlot.bind(mode);
+  m.spawnSlot = (id: string) => {
+    spawning = id;
+    return spawnSlot(id);
+  };
+  const step = (n = 1): void => {
+    for (let i = 0; i < n; i++) mode.fixedUpdate(DT);
+  };
+  step();
+  const guard = (slot: string): FakeEnemy => enemies.find((e) => e.slot === slot)!;
+  return { mode, st: mode.state, enemies, despawned, respawns, player, remote, guard, step, said };
+}
+
+/** The host's `course` message through the wire to a client mirror: what route-runs read on the client. */
+function clientView(st: CourseState) {
+  const m = parseMessage({ t: 'course', s: st.pack(), lights: { groups: [], dead: [] }, locks: [], anchors: [] });
+  if (m?.t !== 'course') throw new Error('not course');
+  return { hook: retryHook(m.s), s: m.s };
+}
+
+describe('the live station', () => {
+  it('starts at the bay\'s first station and moves on with each done flag (per player too)', () => {
+    const st = new CourseState(def());
+    expect(st.hasStations).toBe(true);
+    expect(st.station()).toBe(1);
+    st.setFlag('s1-done');
+    expect(st.station()).toBe(2);
+    st.setFlag('s2-done@2');
+    expect(st.station()).toBe(0);
+    expect(st.liveStation()).toBeNull();
+  });
+  it('follows the bay\'s play order, not the badge order (A4 is 9, 8, 10)', () => {
+    const st = new CourseState(def({}, [station(9), station(8)]));
+    expect(st.station()).toBe(9);
+    st.setFlag('s9-done');
+    expect(st.station()).toBe(8);
+  });
+  it('?course=station:<n> starts at that station with the bay\'s earlier stations done', () => {
+    expect(courseStationParam('?autostart=ctcourseReplan&course=station:13')).toBe(13);
+    expect(courseStationParam('?course=all')).toBe(0);
+    expect(courseStationParam('?course=station:x')).toBe(0);
+    const st = new CourseState(def({}, [station(9), station(8)]));
+    expect(st.startStation(8)).toBe(true);
+    expect(st.station()).toBe(8);
+    expect(st.hasFlag('s9-done')).toBe(true);
+    expect(st.startStation(5)).toBe(false);
+  });
+});
+
+describe('a station retry (seen)', () => {
+  it('a guard alert in station 2: both players on station 2\'s marks, station 1 still done, its downed guard still down', () => {
+    const r = rig(def());
+    const { st, mode } = r;
+    const gd1 = r.guard('gd1');
+    gd1.alive = false; // dealt with at station 1
+    st.setFlag('s1-done');
+    expect(st.press('sw2', 0)).toBeNull();
+    expect(st.hasShared('key2')).toBe(true);
+    const gd2 = r.guard('gd2');
+    gd2.alerted = true;
+    r.step();
+    expect(mode.restarts).toBe(1);
+    expect(mode.lastRetry).toEqual({ st: 2, cause: 'seen' });
+    // only station 2 reset: its gate's flag gone, station 1 done, station 2 live again
+    expect(st.hasShared('key2')).toBe(false);
+    expect(st.isGateOpen('g-s2')).toBe(false);
+    expect(st.hasFlag('s1-done')).toBe(true);
+    expect(st.station()).toBe(2);
+    // the downed station 1 guard stays as left; station 2's guard is back fresh on his slot
+    expect(r.enemies).toContain(gd1);
+    expect(gd1.alive).toBe(false);
+    expect(r.despawned).toEqual([gd2]);
+    expect(r.guard('gd2')).not.toBe(gd2);
+    expect(r.guard('gd2').alerted).toBe(false);
+    // P1 has role A in the bay (no claim, the swap rule): the host respawns on A's mark, the partner on B's
+    expect(r.respawns.at(-1)).toEqual({ x: 20, y: 0, z: 5 });
+    expect(mode.checkpointSpawns()).toEqual([
+      { x: 20, y: 0, z: 5, yaw: 0 },
+      { x: 21, y: 0, z: 5, yaw: Math.PI },
+    ]);
+    expect(r.said.at(-1)).toBe('LANTERN: Seen at two. Back to the crates.');
+  });
+  it('a retry also resets an unlisted guard in combat (else the retries chain)', () => {
+    const r = rig(def({}, [station(1, { guards: [] }), station(2, { guards: ['gd2'] })]));
+    const gd1 = r.guard('gd1');
+    gd1.alerted = true;
+    r.step();
+    expect(r.mode.lastRetry).toEqual({ st: 1, cause: 'seen' });
+    expect(r.despawned).toContain(gd1);
+    expect(r.guard('gd1').alerted).toBe(false);
+    // the spotted hold, then nothing more fires
+    r.step(30);
+    expect(r.mode.restarts).toBe(1);
+  });
+  it('a camera\'s full detection is a seen retry (A22); a station with retry none never retries', () => {
+    const r = rig(def());
+    r.st.setFlag('s1-done');
+    r.mode.cameraFull();
+    r.step();
+    expect(r.mode.lastRetry).toEqual({ st: 2, cause: 'seen' });
+    const n = rig(def({}, [station(1, { retry: 'none' })]));
+    n.guard('gd1').alerted = true;
+    n.mode.cameraFull();
+    n.step(5);
+    expect(n.mode.restarts).toBe(0);
+    expect(n.respawns).toHaveLength(0);
+  });
+  it('the marks are the respawn points only while the retry places the players; then the start slots again', () => {
+    const r = rig(def());
+    r.st.setFlag('s1-done');
+    r.guard('gd2').alerted = true;
+    r.step();
+    expect(r.mode.checkpointSpawns()[0]).toMatchObject({ x: 20, z: 5 });
+    r.step(25);
+    expect(r.mode.checkpointSpawns()[0]).toMatchObject({ x: -5, z: 0 });
+    expect(r.mode.checkpointPos().x).toBe(-5);
+  });
+  it('the marks follow the roles: role A (P2 by a claim) takes marks[0]', () => {
+    const s = station(2);
+    expect(stationSlots(s, 0).map((p) => p.x)).toEqual([20, 21]);
+    expect(stationSlots(s, 1).map((p) => p.x)).toEqual([21, 20]);
+  });
+});
+
+describe('a caught station (A8) and a drill window', () => {
+  it('ignores 1.5 s of combat and retries at 2 s (CAUGHT_HOLD)', () => {
+    const r = rig(def({}, [station(1), station(2, { retry: 'caught' })]));
+    r.st.setFlag('s1-done');
+    r.guard('gd2').alerted = true;
+    r.step(15);
+    expect(r.mode.restarts).toBe(0);
+    r.step(5);
+    expect(r.mode.restarts).toBe(1);
+    expect(r.mode.lastRetry).toEqual({ st: 2, cause: 'caught' });
+    expect(r.respawns.at(-1)).toEqual({ x: 20, y: 0, z: 5 });
+  });
+  it('a camera alone never retries a caught station', () => {
+    const r = rig(def({}, [station(1, { retry: 'caught' })]));
+    r.mode.cameraFull();
+    r.step(30);
+    expect(r.mode.restarts).toBe(0);
+  });
+  it('a drill window ending (the set code\'s timer call) retries in place, at the station\'s own marks', () => {
+    const r = rig(def({}, [station(1), station(2, { drillS: 15 })]));
+    r.st.setFlag('s1-done');
+    expect(r.mode.stationRetry(1, 'timer')).toBe(false); // not the live station
+    expect(r.mode.stationRetry(2, 'timer')).toBe(true);
+    r.step();
+    expect(r.mode.lastRetry).toEqual({ st: 2, cause: 'timer' });
+    expect(r.respawns.at(-1)).toEqual({ x: 20, y: 0, z: 5 });
+    expect(r.said.at(-1)).toBe('LANTERN: Out of time at two. Back to the crates.');
+    expect(r.st.checkpoint).toBe('start');
+    expect(retryLine([], 's2', 'seen')).toBeNull();
+    expect(retryLine([{ at: 'retry:s2', text: 'x' }], 's2', 'timer')).toBe('x');
+  });
+});
+
+describe('route-runs hooks: restarts and lastRetry on host and client', () => {
+  it('seen, caught and timer each raise restarts by one; the client reads the same through the wire', () => {
+    const r = rig(def({}, [station(1), station(2, { retry: 'caught' })]));
+    const { mode, st } = r;
+    expect(mode.lastRetry).toBeNull();
+    expect(clientView(st).hook).toEqual({ restarts: 0, lastRetry: null });
+    st.setFlag('s1-done');
+    // A station-kind retry first (station 2 as 'station'), then caught, then timer
+    (st.liveStation() as { retry: string }).retry = 'station';
+    r.guard('gd2').alerted = true;
+    r.step();
+    const causes: string[] = [mode.lastRetry!.cause];
+    expect(mode.restarts).toBe(1);
+    expect(clientView(st).hook).toEqual({ restarts: mode.restarts, lastRetry: mode.lastRetry });
+    (st.liveStation() as { retry: string }).retry = 'caught';
+    r.step(15);
+    r.guard('gd2').alerted = true;
+    r.step(25);
+    causes.push(mode.lastRetry!.cause);
+    expect(mode.restarts).toBe(2);
+    expect(clientView(st).hook).toEqual({ restarts: mode.restarts, lastRetry: mode.lastRetry });
+    r.step(20);
+    expect(mode.stationRetry(2, 'timer')).toBe(true);
+    r.step();
+    causes.push(mode.lastRetry!.cause);
+    expect(causes).toEqual(['seen', 'caught', 'timer']);
+    const c = clientView(st);
+    expect(c.hook).toEqual({ restarts: 3, lastRetry: { st: 2, cause: 'timer' } });
+    // the client's state mirror carries the same live station, count and last retry
+    const mirror = new CourseState(def({}, [station(1), station(2, { retry: 'caught' })]));
+    mirror.apply(c.s);
+    expect(mirror.station()).toBe(2);
+    expect(mirror.restarts).toBe(3);
+    expect(mirror.lastRetry).toEqual(mode.lastRetry);
+  });
+  it('parseCourse clamps the new fields; an older host sends none', () => {
+    const m = parseMessage({ t: 'course', s: { st: 99, rs: -3, rt: 2.4, rc: 'bogus' }, lights: {} });
+    if (m?.t !== 'course') throw new Error('not course');
+    expect([m.s.st, m.s.rs, m.s.rt, m.s.rc]).toEqual([64, 0, 2, '']);
+    const old = parseMessage({ t: 'course', s: {}, lights: {} });
+    if (old?.t !== 'course') throw new Error('not course');
+    expect(retryHook(old.s)).toEqual({ restarts: 0, lastRetry: null });
+  });
+});
+
+describe('downed: the bay restarts from its holding room (level-design 9.4, G312)', () => {
+  it('one player out in station 2 (partner up): a full reset, station 1 undone, cause out', () => {
+    const r = rig(def());
+    r.st.setFlag('s1-done');
+    expect(r.st.station()).toBe(2);
+    r.remote.target.alive = false;
+    r.mode.onPlayerDeath();
+    r.step(Math.ceil((RESTART_DELAY + 0.2) / DT));
+    expect(r.mode.restarts).toBe(1);
+    expect(r.mode.lastRetry).toEqual({ st: 2, cause: 'out' });
+    expect(r.st.station()).toBe(1);
+    expect(r.st.hasFlag('s1-done')).toBe(false);
+    // the restart lands at the checkpoint, never on a station mark
+    expect(r.respawns.at(-1)).toEqual({ x: -5, y: 0, z: 0 });
+    expect(r.mode.checkpointSpawns()[0]).toMatchObject({ x: -5 });
+  });
+  it('both down after station 2: the same, cause down', () => {
+    const r = rig(def());
+    r.st.setFlag('s1-done');
+    r.st.setFlag('s2-done');
+    r.player.alive = false;
+    r.remote.target.alive = false;
+    r.step(Math.ceil((RESTART_DELAY + 0.2) / DT));
+    expect(r.mode.restarts).toBe(1);
+    expect(r.mode.lastRetry).toEqual({ st: 0, cause: 'down' });
+    expect(r.st.station()).toBe(1);
+  });
+});
+
+describe('retryOff (J13 R4c)', () => {
+  it('after retryOff(2) an alert in station 2 does not retry; any bay restart turns it back on', () => {
+    const r = rig(def());
+    r.st.setFlag('s1-done');
+    expect(r.mode.retryOff(5)).toBe(false);
+    expect(r.mode.retryOff(2)).toBe(true);
+    r.guard('gd2').alerted = true;
+    r.step(10);
+    expect(r.mode.restarts).toBe(0);
+    expect(r.respawns).toHaveLength(0);
+    expect(r.mode.stationRetry(2, 'timer')).toBe(false);
+    // the pause menu's restart: not counted (polish 3), but it turns station 2's retry back on
+    expect(r.mode.restartCheckpoint()).toBe(true);
+    r.step(20);
+    expect(r.mode.restarts).toBe(0);
+    expect(r.st.isRetryOff(2)).toBe(false);
+    r.st.setFlag('s1-done');
+    r.guard('gd2').alerted = true;
+    r.step();
+    expect(r.mode.restarts).toBe(1);
+    expect(r.mode.lastRetry).toEqual({ st: 2, cause: 'seen' });
+  });
+});
+
+describe('the drill pointer and the built yard', () => {
+  it('a station retry leaves the drill pointer as built: ticked drills stay, the next drill unchanged', () => {
+    const r = rig(def());
+    r.st.tick(0, 'crouch');
+    const before = [r.st.nextDrill(0), r.st.nextDrill(1)];
+    expect(before[0]).toBeNull();
+    expect(before[1]?.id).toBe('dr-crouch');
+    r.guard('gd1').alerted = true;
+    r.step();
+    expect(r.mode.restarts).toBe(1);
+    expect([r.st.nextDrill(0), r.st.nextDrill(1)]).toEqual(before);
+    expect(r.st.drillTicks('dr-crouch', 0)).toBe(1);
+  });
+  it('the built yard (no stations): spotFail still restarts the set and every bay restart counts as before', () => {
+    const r = rig(def({ spotFail: 'Spotted. Back to the start of the set.' }, null));
+    expect(r.st.hasStations).toBe(false);
+    expect(r.st.station()).toBe(0);
+    r.guard('gd1').alerted = true;
+    r.step();
+    expect(r.mode.restarts).toBe(1);
+    expect(r.st.restarts).toBe(0);
+    expect(r.mode.lastRetry).toBeNull();
+    expect(r.said.at(-1)).toBe('LANTERN: Spotted. Back to the start of the set.');
+    r.step(20);
+    r.mode.restartCheckpoint();
+    r.step();
+    expect(r.mode.restarts).toBe(2);
+    expect(r.st.pack()).toMatchObject({ st: 0, rs: 0, rt: 0, rc: '' });
+  });
+  it('a bay with stations never runs spotFail (the station rule replaces it)', () => {
+    const r = rig(def({ spotFail: 'Spotted. Back to the start of the set.' }));
+    r.guard('gd1').alerted = true;
+    r.step();
+    expect(r.mode.lastRetry).toEqual({ st: 1, cause: 'seen' });
+    expect(r.said).not.toContain('LANTERN: Spotted. Back to the start of the set.');
+  });
+});
+
+describe('validateCourse: stations', () => {
+  const bad = (s: Partial<StationDef>, msg: RegExp, o: Partial<BayDef> = {}): void => {
+    expect(() => validateCourse(def(o, [station(1), station(2, s)]), KNOWN)).toThrow(msg);
+  };
+  it('a good course passes; stations may run out of n order and name devices in gates', () => {
+    expect(() => validateCourse(def({}, [station(9, { guards: [], gates: [] }), station(8, { guards: ['gd2'], gates: ['g-s2', 'cam-x'] })]), KNOWN)).not.toThrow();
+  });
+  it('names the bad station', () => {
+    bad({ n: 1 }, /duplicate station number/);
+    bad({ n: 0 }, /not a whole number/);
+    bad({ id: 's1' }, /duplicate station id/);
+    bad({ retry: 'often' as StationDef['retry'] }, /station retry/);
+    bad({ drillS: 0 }, /drillS/);
+    bad({ guards: ['nobody'] }, /not in B1's squad/);
+    bad({ standIn: 'g-none' }, /stand-in gate/);
+    bad({ doneFlag: 'never' }, /done flag 'never' is never set/);
+    bad({ marks: [{ x: Number.NaN, z: 0, y: 0, yaw: 0 }, { x: 0, z: 0, y: 0, yaw: 0 }] }, /finite/);
+  });
+});
+
+describe('the room map', () => {
+  it('the flag off leaves the room on ctcourse; on, Marlow Yard opens the re-planned yard; other maps as picked', () => {
+    expect(roomMap('ctcourse', false)).toBe('ctcourse');
+    expect(roomMap('ctcourse', true)).toBe('ctcourseReplan');
+    expect(roomMap('warehouse', true)).toBe('warehouse');
+    expect(roomMap('ctcourseReplan', false)).toBe('ctcourseReplan');
+  });
+});

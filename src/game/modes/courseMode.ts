@@ -512,6 +512,8 @@ export class CourseMode implements GameMode {
     st.restart();
     // (marlow-final) hold the pass zones now: the next step's device update runs before `handle` sees `bayRestart`
     this.ct?.holdZones(2);
+    // (J14 R1) and the spotted / station rule: the old squad, still alerted, is only dropped at that `handle`
+    this.spotHold = SPOT_HOLD;
     return true;
   }
 
