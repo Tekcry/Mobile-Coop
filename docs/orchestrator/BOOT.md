@@ -1,7 +1,7 @@
 # Boot (per session title)
 
 Every boot line in PROMPTS.md ends here. Read the common start, then only your own title's section. Rules are
-CLAUDE.md "Sessions" on origin/master (`git show origin/master:CLAUDE.md`), never a branch copy. Owner of this file:
+docs/RULES.md on origin/master (`git show origin/master:docs/RULES.md`), and the game in docs/VISION.md, never a branch copy. Owner of this file:
 the orchestrator; a lead whose resume location changes tells it in its next message.
 
 ## Common start (every job session)
@@ -9,12 +9,11 @@ the orchestrator; a lead whose resume location changes tells it in its next mess
 2. Read your resume block (the place your section names). It is at most ~40 lines; follow its file:line pointers only.
 3. Read only the ROADMAP entries your resume block names (`git show origin/feature/menu:docs/ROADMAP.md | grep ...`),
    plus your row in ROADMAP "Now" and your area's walk-cap count in "Waiting on Michael".
-4. Locks: a `heavy.lock` / `heavy2.lock` naming you with no live process of yours is stale: release it. Never delete
-   another session's lock.
+4. Locks: a lock whose pid is dead on this host is stale and the next take breaks it (heavy-lock, the queue service); a lock with no pid is never broken automatically: ask its owner (docs/RULES.md "Machines").
 5. Turn off unused connectors (Gmail, Google Drive, Fergus) and plugins.
 6. Carry on from the resume block's "Now", top down.
 
-Rules pointers (CLAUDE.md "Sessions"): Intake (plan checker, visual sign-off, level validator); Walk pacing (cap 3);
+Rules pointers (docs/RULES.md): Intake (plan checker, visual sign-off, level validator); Walk pacing (cap 3);
 A job (model split, agents commit each sub-step, PRs under ~1.5k lines / ~4 h, flags with owner + switch-on date,
 `checker` commit status, never merge master); Getting to master (train-ready label); Test tiers; Machines (laptop
 queue requests, locks); Swaps and context; Talking to Michael. Message "Night Shift | Orchestrator" only at PR open /
@@ -23,15 +22,14 @@ train-ready / blocked / needs Michael.
 ## Orchestrator
 - Opus 5.5, high, desktop. Worktree C:/NightShift/Mobile-Coop-menu, branch feature/menu (`git pull`).
 - Resume: HANDOFF.md "State at the switch", then STATE.md ("Now", "Known", "How Michael works").
-- First: check `C:/NightShift/heavy.lock` / `heavy2.lock` (no live node / dead pid = stale: ask Michael before deleting
-  another session's lock); stop tail / grep watchers older than the swap (STATE "Known"); recreate the cron with STATE
+- First: check `C:/NightShift/heavy.lock` / `heavy2.lock` (a lock whose pid is dead on this host is stale and the next take breaks it (heavy-lock, the queue service); a lock with no pid is never broken automatically: ask its owner (docs/RULES.md "Machines")); stop tail / grep watchers older than the swap (STATE "Known"); recreate the cron with STATE
   "Cron prompt"; `get_usage`; read `C:/NightShift/scratch/auto-train-status.json` and act on failed / stale / error;
   reopen any cloud-queue brief still claimed by an old Cloud Builder.
 - Then print boot lines 2-7 from PROMPTS.md in one message (title, model, effort, machine each), as the last thing in
   that message, and check ListAgents that all come up under their titles.
 - Standing work: ROADMAP (Inbox triage, Now ranking, Waiting with ages, walk-cap counts, Decided today only), walk card
   per release, bottleneck audits (cron), daily fold of Decided into docs/DECISIONS.md (docs PR to master), the four
-  process-audit packages (ROADMAP Now 3-6).
+  doc-clarity / doc-guard follow-ups (ROADMAP Now 2a / 2b).
 
 ## Player Build
 - Opus 5.5, high, desktop.
@@ -63,7 +61,7 @@ train-ready / blocked / needs Michael.
   (the last fenced block there points to it).
 - First: check the laptop queue service (task NightShift-laptop-queue, log C:/NightShift/scratch/laptop-queue/), the
   laptop locks and runs left from the old account. If two Test Runner sessions show in ListAgents, close the older one.
-- Area: the laptop queue (trains first and alone, then PR requests, then slot-alone measures right after a release),
+- Area: the laptop queue (trains, then train reruns, then PR requests, then alone runs (RULES "Machines")),
   flakes (owner fixes, flake budget job next), guard render. Guard AI shares the laptop: keep CPU under ~80%. Verdicts
   are GitHub statuses / PR comments; message the orchestrator only on a train failure or when blocked.
 

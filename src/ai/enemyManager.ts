@@ -3355,6 +3355,8 @@ export class EnemyManager {
       inp.inCover[n] = e.state === 'inCover' && e.coverIdx >= 0 ? 1 : 0;
       inp.profile[n] = e.tacticsProfile;
       inp.coverIdx[n] = e.coverIdx;
+      // (one-mover triage) on his way (any role's bound): `assignRoles` never pairs two of them as point and flank
+      inp.bound[n] = e.state === 'seekCover' && (!POLISH_B.roleTrip || e.roleBound) ? 1 : 0;
       n++;
     }
     if (n < TACTICS.minGroup) {
@@ -3392,13 +3394,14 @@ export class EnemyManager {
     // one of point and flank on the move at a time: the one already on its way finishes first. (guard-ai polish B2) On
     // its way = a role bound (`roleBound`: the walk `boundTo` started, until he stops), not this tick's role cover (it
     // is re-picked for the last ~2 m of a bound); a held point's open-wait pick (another cover) does not lift the
-    // flank's hold
+    // flank's hold. (one-mover triage) `inp.bound` is that flag; `assignRoles` never makes both of them ones on their way,
+    // so a hold always has the other one to hold
     const pt = out.point;
     const fl = out.flank;
     const ptTrip = pt >= 0 && who[pt]!.state === 'seekCover';
     const flTrip = fl >= 0 && who[fl]!.state === 'seekCover';
-    const ptGoing = ptTrip && (!POLISH_B.roleTrip || who[pt]!.roleBound);
-    const flGoing = flTrip && (!POLISH_B.roleTrip || who[fl]!.roleBound);
+    const ptGoing = pt >= 0 && inp.bound[pt] === 1;
+    const flGoing = fl >= 0 && inp.bound[fl] === 1;
     if (pt >= 0 && fl >= 0 && inp.profile[pt] !== P_AGGRESSIVE && inp.profile[fl] !== P_AGGRESSIVE) {
       if (flGoing && !ptGoing) out.moving[pt] = 0;
       if (ptGoing && !flGoing) out.moving[fl] = 0;

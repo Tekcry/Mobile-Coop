@@ -1,5 +1,30 @@
 # Changelog
 
+## 4.101.1 - Train 86: Laptop queue: dead-pid slot locks, watchdog allowlist, affected-e2e never stuck; Guard AI: one-mover fix; Saltmarsh Park section bake: stuck workers replaced (2026-10-25, PR #406; #403, #387, #385)
+
+### Guard AI: one-mover fix
+- Guard AI: a guard still walking to his reporter or overwatch cover is no longer made the flank while the point is
+  on his own bound, so only one of point and flank is ever on the move at a time (the one-mover rule; e2e-stealth-ai
+  'squad roles' was red on 4.100.2). Undo: `ONE_MOVER.roles` false in `src/ai/squadRoles.ts`.
+
+### Saltmarsh Park section bake: stuck workers replaced
+- A light-bake worker that stops answering is now shut down and replaced when its lamp gives up on it, so the rest of
+  the bake keeps every worker instead of running one short. A silently dead worker holds the load about 90 s at worst
+  (the earlier note said about 85 s; the 5 s check counts on both tries).
+
+### Laptop queue: dead-pid slot locks, watchdog allowlist, affected-e2e never stuck
+- Slot locks: `scripts/heavy-lock.mjs` `parseLock` reads the laptop queue service's own line
+  (`laptop-queue | <label> <sha> pid <n> | <iso>`, no host: this machine) as well as the heavy-lock line, so a slot lock
+  left by a killed service is broken at the desktop gate (and by `heavy-lock.mjs take` / `check`) once its pid is dead.
+  A lock with no pid is still never broken automatically (2026-10-25: pid 4484 held heavy.lock / heavy2.lock 10+ min).
+- Task guard: "NightShift watchdog" is on the allowlist (`TASK_ALLOW` in `scripts/laptop-queue/lib.mjs`); its .vbs in
+  `C:\NightShift\scratch` no longer gets it disabled.
+- affected-e2e: a duplicate affected request hands affected-e2e over to the surviving affected request (pending "handed
+  over to <id>") or posts success when it repeats a recent pass, and is never retired against another requester's run;
+  a supersede on the same sha hands over instead of posting error; an affected request or laptop rerun withdrawn before
+  it ran posts error "withdrawn by the requester (not run)"; a head whose affected-e2e is pending with no open, claimed
+  or running affected request is requested again.
+
 ## 4.101.0 - Train 85: Design bible rewritten to today's game; decisions fold G324-G343; Rules in one place; Guard AI polish batch 2; Co-op e2e boot wait (2026-10-25, PR #405; #396, #394, #377, #373)
 
 ### Design bible rewritten to today's game; decisions fold G324-G343

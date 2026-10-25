@@ -14,7 +14,7 @@
  * cached. Every running baker is listed, so a load that fails after the bake started can stop it
  * (`disposeSectionBakersSince`).
  */
-import { bakeLamps, BOX_STRIDE, LAMP_STRIDE, type LampResult } from './lampBake';
+import { bakeLamps, BOX_STRIDE, LAMP_STRIDE, type LampJob, type LampResult } from './lampBake';
 import { saveLamps } from './lampJobs';
 import { WorkerPool } from './workerPool';
 import { joinBounce, lampLayout, SectionPlan, type BouncePart } from '../world/sectionBake';
@@ -28,7 +28,10 @@ export type LiveListener = (live: number) => void;
 const FLUSH_LAMPS = 8;
 /** (section-bake robust) A worker job in flight longer than this counts as failed (a worker that died without `onerror`). */
 export const JOB_CAP_MS = 60_000;
-/** (bake3) The pool retry's shorter cap: a silently dead worker holds the load ~85 s at worst, not ~125 s. */
+/**
+ * (bake3) The pool retry's shorter cap: a silently dead worker holds the load ~90 s at worst (the first try's 60 s plus
+ * up to one 5 s check, then the retry's 20 s plus up to one check), not ~130 s. (bake4) Never longer than the first try's cap.
+ */
 export const JOB_RETRY_CAP_MS = 20_000;
 /** How often the in-flight jobs are checked against `JOB_CAP_MS`. */
 const STALL_CHECK_MS = 5_000;
@@ -111,6 +114,8 @@ export class SectionBaker {
   private readonly jobT0: Float64Array;
   private readonly token: Int32Array;
   private readonly tries: Uint8Array;
+  /** (bake4) Per lamp its current pool job (null: none), so a job past its cap can be cancelled on the pool. */
+  private readonly jobs: (LampJob | null)[];
   /** (check B 3) Lamps waiting for an inline bake (FIFO; held while playing until the pool is idle, live-section lamps excepted). */
   private readonly inlineQ: Int32Array;
   private inlineHead = 0;
@@ -146,6 +151,7 @@ export class SectionBaker {
     this.jobT0 = new Float64Array(n);
     this.token = new Int32Array(n);
     this.tries = new Uint8Array(n);
+    this.jobs = new Array<LampJob | null>(n).fill(null);
     this.inlineQ = new Int32Array(n);
     this.finished = new Promise<void>((r) => {
       this.finish = () => r();
@@ -221,14 +227,23 @@ export class SectionBaker {
   /**
    * (check B 3) A job in flight past the cap (default `JOB_CAP_MS`; bake3: a retry `JOB_RETRY_CAP_MS`) counts as failed:
    * tried again on the pool, then inline. Called by a timer while the bake runs (tests call it with a clock of their own).
+   * (bake4) The retry's cap never exceeds the first try's (a `capMs` under 20 s bounds both), and the stalled job is
+   * cancelled on the pool: its hung worker is terminated and replaced, so the pool keeps its full size.
    */
   checkStalled(now = performance.now()): void {
     if (this.disposed || this.done) return;
     const cap0 = this.inp.capMs ?? JOB_CAP_MS;
+    const capR = Math.min(cap0, JOB_RETRY_CAP_MS);
     const T = this.jobT0;
     for (let i = 0; i < T.length; i++) {
-      const cap = this.tries[i] === 1 ? JOB_RETRY_CAP_MS : cap0;
-      if (T[i]! > 0 && now - T[i]! > cap) this.failed1(i, new Error(`job in flight over ${cap} ms`));
+      const cap = this.tries[i] === 1 ? capR : cap0;
+      if (T[i]! > 0 && now - T[i]! > cap) {
+        const job = this.jobs[i];
+        this.jobs[i] = null;
+        // (its rejection is dropped by the token: `failed1` below starts the retry or bumps the token first)
+        if (job && this.pool) this.pool.cancel(job);
+        this.failed1(i, new Error(`job in flight over ${cap} ms`));
+      }
     }
   }
 
@@ -268,7 +283,8 @@ export class SectionBaker {
     this.token[i] = tok;
     this.jobT0[i] = performance.now();
     const L = this.inp.lights;
-    const job = { kind: 'lamps' as const, id: i, shapes: this.inp.shapes.slice(), lights: L.slice(i * LAMP_STRIDE, (i + 1) * LAMP_STRIDE), lo: this.inp.lo, hi: this.inp.hi };
+    const job: LampJob = { kind: 'lamps', id: i, shapes: this.inp.shapes.slice(), lights: L.slice(i * LAMP_STRIDE, (i + 1) * LAMP_STRIDE), lo: this.inp.lo, hi: this.inp.hi };
+    this.jobs[i] = job;
     pool.lamps(job).then(
       (r) => this.landed(i, r),
       (e: unknown) => {
@@ -279,6 +295,7 @@ export class SectionBaker {
 
   /** Lamp `i`'s pool job is over (landed, or handed to the inline bake). */
   private endJob(i: number): void {
+    this.jobs[i] = null;
     if (this.jobT0[i]! > 0) {
       this.jobT0[i] = 0;
       this.poolJobs--;
