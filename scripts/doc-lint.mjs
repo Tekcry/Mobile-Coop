@@ -382,11 +382,17 @@ export function lintDocs({ files, exists, config, today }) {
  * Only for docs another PR or the orchestrator fixes; a new stale line anywhere else still fails.
  */
 export function applyKnown(findings, known) {
-  return findings.map((f) => {
+  const used = new Set();
+  const out = findings.map((f) => {
     if (f.level !== 'ERROR') return f;
     const k = known.find((x) => x.check === f.check && x.file === f.file && (!x.match || f.msg.includes(x.match)));
+    if (k) used.add(k);
     return k ? { ...f, level: 'WARN', msg: `${f.msg} [known stale: ${k.note}]` } : f;
   });
+  for (const k of known) {
+    if (!used.has(k)) out.push(finding('WARN', 'known', k.file, 1, `docs/doc-lint.json known entry (${k.check}${k.match ? ` "${k.match}"` : ''}) no longer matches: remove it`));
+  }
+  return out;
 }
 
 /** Counts per level and check: { ERROR: { check: n }, WARN: { ... } }. */

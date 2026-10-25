@@ -161,6 +161,8 @@ describe('bible notes and known stale', () => {
       { level: 'ERROR', check: 'citations', file: 'docs/a.md', line: 2, msg: 'G9 is not in docs/DECISIONS.md' }];
     const out: F[] = applyKnown(f, [{ check: 'citations', file: 'docs/a.md', match: 'G4 is replaced', note: 'bible pass' }]);
     expect(out.map((x) => x.level)).toEqual(['WARN', 'ERROR']);
+    const stale: F[] = applyKnown([], [{ check: 'links', file: 'docs/b.md', note: 'x' }]);
+    expect(stale).toMatchObject([{ level: 'WARN', check: 'known', file: 'docs/b.md' }]);
     expect(out[0]!.msg).toContain('known stale: bible pass');
   });
 });
