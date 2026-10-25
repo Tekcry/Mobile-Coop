@@ -16,6 +16,9 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   stopped", done 00:07). heavy.lock is on the desktop: Orchestrator to confirm it is free.
 - Next queue PR (laptop-queue-7, from the 23:57 audit): skip affected requests on CONFLICTING PRs; smallest-first among
   PRs whose check + checker are green; check laptop-queue-6 holds claims across the next train.
+  Also (05:10): a train head that moves after its laptop run (train 111: a docs-only CI fix on the version commit) is
+  never run (pendingTrains needs the "version at merge" subject) and auto-train sits in "laptop missing": rerun it or
+  count a docs-only delta as covered. Carrying the status by hand is blocked by auto mode (CI bypass).
 - 00:40: #477 new head 9be7701f: Player's co-op set re-filed as 000013; the service skipped its auto affected run
   ("no merge-base ... not fetched"), so I filed it by hand and re-filed as 000014 (a late auto duplicate ...133515-b70c
   withdrawn). 000011 (old head 21728ba6) is retired by superseded(). Next free prefix: 000015.
@@ -39,7 +42,9 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   junction to -laptop-queue-4): train ETA hold + fit rule so a predictable train never cuts a PR run (waste audits
   21:57 / 23:05). BRIEF + PLAN 473eed7df, Opus plan checker PASS after 1 fix round. Opus builder was running at the
   save (no PR yet). Next: builder result -> fresh Opus checker -> PR (CI check is the gate) -> tell Orchestrator.
-- Still waiting: #445 affected f3e4c511 (20261025T113341-...-8aae) and j20-s6c on 259bbe55 (105350-82df), both queued.
+- 04:55 resume: Mixamo queue empty (i4 ran green). Campaign wharf logs at laptop-queue 4110e0ffa
+  (logs/campaign-wharf/). Train 111 = PR-C: CI doc-size fix and release by the Orchestrator.
+- Was waiting: #445 affected f3e4c511 (20261025T113341-...-8aae) and j20-s6c on 259bbe55 (105350-82df), both queued.
 - j20-perf alone NOT re-filed: queue too deep (an aged alone blocks PR starts after 30 min). Its JSON is on the
   desktop (C:/NightShift/scratch/orchestrator/j20-perf-request.json); re-file when the queue is quiet.
 - Next: laptop-queue-6 build / check / PR; #445 and j20-s6c verdicts; then SAVE 57 Next line (PR-C merge -> D-A docs,
