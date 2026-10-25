@@ -493,11 +493,12 @@ Area: Marlow Yard, level validator, route-runs, guard cap, level standard (docs/
 Row 6 SIGNED OFF: no hold. Plan = origin/feature/menu docs/orchestrator/FOLDED-PLAN.md (Marlow: J1, J5, J12, J13, J14, J21); ROADMAP "Decided" overrides it.
 Marlow first (Michael ~20:50): Marlow laptop requests first, desktop CPU priority; walk-ready Tue 27 Oct evening, kit stations 29 Oct. Tell the orchestrator each time requests are filed.
 Michael ~21:42: Marlow Yard needs 2 players everywhere. Michael ~22:10: desktop load to the cloud - new tsc + vitest-only builder slices go to cloud-queue briefs; desktop keeps Opus plans / checks, src/net / AI code, GPU / e2e. All node work at BelowNormal, one at a time.
-State at the ~22:45 save (agents die at a swap: read each head's `checker` status and the report in C:/NightShift/scratch/marlow/; rerun a check whose report is missing):
-- PRs: #441 J5 + #460 J12 B in train 104. #463 J14 F1 (Marlow Yard needs two players): checkers PASS, laptop affected + rating running. #464 J12 A (gate core): checker carried, affected should pass at once.
-- J12 validator-port: resume block in docs/validator-port/STATE.md on origin/feature/validator-port.
-- J14 Marlow Yard re-plan: resume block in docs/marlow-replan/STATE.md on origin/feature/marlow-replan (+ C:/NightShift/scratch/marlow/j14-wave2-notes.md).
-- J13 route-runs: docs/route-runs/STATE.md on origin/feature/route-runs-2 (R1-R3 merged; R4a on cloud-queue ~22:55). R1 J14 hooks: also `?course=station:<n>`, `stationRetry(n, cause)`; downed and pause restarts clear retryOff.
-- J21 guard cap: docs/guard-cap/STATE.md. Gate closed: #438, #317, #375 open; then C1.
-Next: after the J14 walk-ready path (S0, R1, F1, set slices), J13 R4a -> R4b / R5 / R6 next (Sector Ops campus v2 exit waits on them); follow each job STATE "Next" line.
+State at ~23:15 (new account ~22:50; agents die at a swap: read each head's `checker` status and the report in C:/NightShift/scratch/marlow/; rerun a check whose report is missing):
+- PRs: #441 J5 + #460 J12 B merged (train 104). #464 J12 A in train 106. #468 J12 B2 (measure CLI) opened ~23:10, checker carried. #463 J14 F1: checkers PASS, rating PASS, affected running on desktop slot 4192 (stale "withdrawn" affected-e2e error; live request requester affected-e2e).
+- J14: S0 fix round done (e8869dc15), recheck -> j14-s0-check-2.md. R1 merged S0 tip (3cfa27d74), Opus fix round (items in j14-wave2-notes.md + r1-check-a/b) -> r1-fix-report.md, then both R1 checkers again.
+- J12: S3 fix round done (d2c2e4deb), recheck -> j12-s3-check-2.md; S5 (cloud, 3a590aa61) check -> j12-s5-check.md; S7b claimed by Cloud Builder 3; S4 / S6 / S8 / D-A / D-B2 open on cloud-queue. Resume block docs/validator-port/STATE.md on origin/feature/validator-port.
+- J14 resume block: docs/marlow-replan/STATE.md on origin/feature/marlow-replan (+ C:/NightShift/scratch/marlow/j14-wave2-notes.md).
+- J13 route-runs: docs/route-runs/STATE.md on origin/feature/route-runs-2 (R4a open on cloud-queue; R4b / R5 briefs being written to docs/route-runs/briefs/).
+- J21 guard cap: docs/guard-cap/STATE.md. Gate closed: #317, #375 open; then C1.
+Next: S0 + R1 PASS -> merge into feature/marlow-replan-base, fill its sha into the seven set briefs, post them on cloud-queue, open PRs 1 / 2; J12 S3 PASS -> PR A2, S5 PASS -> merge into C; J13 R4a done -> check, PR.
 ```
