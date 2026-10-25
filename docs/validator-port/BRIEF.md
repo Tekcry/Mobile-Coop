@@ -107,17 +107,19 @@ Authority order: `CLAUDE.md` on origin/master; Michael's answers above win over 
 - **A8 Training checks, Q24 + G292 + G363 (validator half of V8).** New `meta.taught_by`: the section in which the last
   co-op kit move is taught on its own (ERR missing on a `training` map). New `teach`: a link field `teach: "<move>"` or
   a space tag `teach:<move>`, free text from the map's teach list, so moves with no link kind (jam relay, console loop,
-  synced takedown, V7) count. In every section up to and including `taught_by`: ERR 2+ edge-disjoint routes from entry
-  to exit (a side route; routes counted as A23 says), ERR a `split:` tag, ERR no `teach` element, ERR a `teach` element
+  synced takedown, V7) count. In every section up to and including `taught_by`: ERR 2+ routes (a side route; routes
+  counted on the section's interior as A26 says, split legs merged as A23 says), ERR a `split:` tag, ERR no `teach`
+  element, ERR a `teach` element
   that some entry-to-exit path avoids (the section is not forced). Undo: WARN instead of ERR, or drop the module from
   `validate()`.
-- **A9 Late Marlow sections, Q24.** After `taught_by`, a section with 2+ routes (counted as A23 says) must hold a
+- **A9 Late Marlow sections, Q24.** After `taught_by`, a section with 2+ routes (counted as A26 says) must hold a
   guarded encounter space (a side route only "when training against enemies"), else ERR; such a section runs the
   campaign route rules on itself (three approaches of two kinds with shadow / high / loud on its guarded spaces, routes
-  cross, 2 edge-disjoint routes) as ERR ("same design rules as a campaign mission area"). Splits are allowed there
-  (G292). Undo: WARN, or only routes cross (lead answer L1).
+  cross, two routes) as ERR ("same design rules as a campaign mission area"). Its "two routes" is the A26 count (2+), not
+  `checkRedundancy`'s entry-to-exit link-disjoint count, which the section's single airlock doors would hold at 1.
+  Splits are allowed there (G292). Undo: WARN, or only routes cross (lead answer L1).
 - **A23 A split's two legs are one route (lead decision 2026-10-25, plan-check fix round 1).** Before A8 / A9 count a
-  section's routes, every space tagged `split:<id>:a` or `split:<id>:b` is merged into one node per split `<id>`, so a
+  section's routes (A26), every space tagged `split:<id>:a` or `split:<id>:b` is merged into one node per split `<id>`, so a
   declared split is one route, not a side route. A late section whose only second way is a split needs no guard and gets
   no campaign route rules (G292: "until later sections where it teaches multiple objectives/split paths"; Q11: "Doesn't
   necessarily always need a guard"); a split plus a real side route counts 2 routes and A9 applies. Before `taught_by`
@@ -215,6 +217,33 @@ Authority order: `CLAUDE.md` on origin/master; Michael's answers above win over 
   nothing more (`vent_unlock` gets the door rows); each move's co-op job adds its scale-sheet section 3 row (Michael
   approves sheet changes) and its `checkDimensions` case when the move lands. A kind does not imply `teach` (A8); the
   map still writes it. Undo: drop the six names from the sets (J14 keeps its stand-ins).
+- **A26 What counts as a side route (lead decision 2026-10-25, plan-check fix round 2; Q24).** A8 and A9 count a
+  section's routes on its interior. They do not count link-disjoint paths from entry to exit: every Marlow section ends
+  in a holding room behind one airlock door, so that count is 1 in every section of both Marlow graphs (v7 REPORT
+  `docs/level-validator/marlow-run/REPORT.md:51-52`) and Q24's check would pass everything. The count:
+  1. Take the section's spaces and the links with both ends in it (no `spine` link).
+  2. Merge each split's leg spaces into one node (A23).
+  3. Each link is a step `from` -> `to`, and also `to` -> `from` unless it is one-way (`isOneWay`). Steps between the
+     same two spaces in the same direction count once: links between the same two spaces are one doorway, whatever
+     their route labels or kinds (two `opening`s, or a boost and a human ladder up the same wall). A step inside one
+     merged split node is dropped.
+  4. Routes = the distinct paths from the section's `entry` space to its `exit` space that never enter a space twice.
+     A section has a side route when routes >= 2. The count stops at 10 ("10+").
+  - So a drop back beside a boost up, or a one-way door back to the foot of a climb, is not a second route: using it
+    means entering a space again. A loop that leaves the route and comes back to the same space (an objective detour) is
+    one route. The entry and exit doors do not cap the count, because the paths need not be link-disjoint.
+  - Checked by hand on both Marlow graphs (script run 2026-10-25, the J12 lead's scratch). v7 `ctcourse.json`
+    (97873079): A1 2 (the door to the yard, or over the wall top), A2 2 (the neck, or the staging), A3 3 (the corridor,
+    or through the offices), A4 3 once split `a4` is merged (aisle 2, straight to the dock, or the mezzanine), A5 2 (inner
+    to trench direct, or through the switchroom), A6 1 (its four floor-to-gallery links are one step; the objective loop
+    floor > gallery > bridge > cage > floor comes back to the floor), A7 1, A8 1 (split `a8` holds the hall, the gallery
+    and the office). J14's re-plan `docs/marlow-replan/graph.json` (origin/feature/marlow-replan 2ede492b4): A1-A7 1
+    each (A1's boost and relay up the wall are one step, and its drops and one-way yard door lead back into spaces
+    already entered; A3's duct and door are one step; A7's split is one node); A8 2 (from `a8-hall` into split `a8`
+    straight in, or boosted up to `a8-gallery-west` first), so A8 Strongroom keeps its side route and A9 applies to it.
+  - Campaign and Sector Ops maps keep `checkRedundancy`'s entry-to-exit count (M3) unchanged. J13 counts routes the
+    same way by importing S4's function (PLAN section 8).
+  - Undo: count entry-to-exit link-disjoint paths again (`edgeDisjointPaths`, master `scripts/level-validate.mjs:175`).
 
 ## Lead answers (Marlow Build, 2026-10-25 ~19:00)
 None of these loosens a Michael-only rule; each settles a reading of his words.

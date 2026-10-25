@@ -2,7 +2,7 @@
 
 Owner: Marlow Build. Status: current.
 
-Job J12; scope, Michael's words and assumptions A1-A25: `BRIEF.md`. Refs read 2026-10-25: origin/master 2148ec96;
+Job J12; scope, Michael's words and assumptions A1-A26: `BRIEF.md`. Refs read 2026-10-25: origin/master 2148ec96;
 `feature/level-validator-v6` 8f551e18 (V6), `feature/level-validator-v7` 97873079 (V7), `feature/mission-validator`
 0c62a921 (MV, = mission-validator-dims); Campaign Build's `feature/mission-framework` d93ae66e (`docs/missions/PLAN.md`
 "Validator detail (VAL)"). Line counts below are counted lines, as pr-size counts them (section 1): code and
@@ -35,7 +35,7 @@ Five PRs, each under ~1.5k counted lines, each with one Opus checker (FOLDED-PLA
 | A gate core | `feature/validator-port` | S0, S3, D-A | ~1,390 (S0 ~930, S3 ~460) | S0, S3 checker PASS |
 | B measure core | `feature/validator-port-measure` (from origin/master) | S1, D-B | ~1,050 | S1 checker PASS |
 | B2 measure CLI, sheet rows | `feature/validator-port-measure-cli` (from B's head; merges S7a's branch) | S2, S7a, D-B2 | ~740 (S2 ~630, S7a ~110) | B merged on master |
-| C training, perfect run, CI, graphs | `feature/validator-port-train` (from A's head after S0; merges A's, B's and B2's branches) | S4, S6, S5, S7b, S9, S10, D-C, I-C | ~1,350 (S4 ~480, S6 ~330, S5 ~270, S7b ~170, S10 ~100, S9 0) | A, B and B2 merged on master (so C's diff is its own) |
+| C training, perfect run, CI, graphs | `feature/validator-port-train` (from A's head after S0; merges A's, B's and B2's branches) | S4, S6, S5, S7b, S9, S10, D-C, I-C | ~1,400 (S4 ~530, S6 ~330, S5 ~270, S7b ~170, S10 ~100, S9 0) | A, B and B2 merged on master (so C's diff is its own) |
 | D mission re-cut | `feature/validator-port-mission` (from A's head; merges C's branch) | S8, D-D, I-D | ~1,060 | C merged on master |
 
 S0's ~930: the helper move (master `scripts/level-validate.mjs:27-72` and `:79-256`, ~220 lines) counts ~440 alone;
@@ -64,7 +64,7 @@ lists every file the slice may touch; no two slices running at once own the same
 | S7a | V12 + sheet rows: metrics-gen rejects unknown flags; rows `nav_floor_depth_m`, `ladder_grab_m`, MV's six `mission_*` rows; relay lip derivation (A24) | `scripts/metrics-gen.mjs`, `tests/metricsGen.test.ts`, `docs/design/scale-sheet.md`, `docs/design/metrics.json` | ~110 | Sonnet | #443 (merged 4.103.3) | `metricsGen` |
 | S3 | `checkMeasured` port with V1 and V2 | `scripts/level-checks/measured.mjs`, `tests/levelMeasured.test.ts`, `docs/validator-port/fragments/S3.md` | ~460 | Opus | S0 | `levelMeasured` |
 | S6 | Ghost / no-kill paths, `requires_kill`, `mark`; T H4 static test | `scripts/level-checks/perfect.mjs`, `tests/levelPerfect.test.ts`, `tests/noForcedKill.test.ts`, `docs/validator-port/fragments/S6.md` | ~330 | Opus | S0 | `levelPerfect`, `noForcedKill` |
-| S4 | Training checks (A8, A9, A23) | `scripts/level-checks/training.mjs`, `tests/levelTraining.test.ts`, `docs/validator-port/fragments/S4.md` | ~480 | Opus | S0 | `levelTraining` |
+| S4 | Training checks (A8, A9, A23, A26) | `scripts/level-checks/training.mjs`, `tests/levelTraining.test.ts`, `docs/validator-port/fragments/S4.md` | ~530 | Opus | S0 | `levelTraining` |
 | S7b | Engine-fact WARNs, rope up-only | `scripts/level-checks/engine.mjs`, `tests/levelEngine.test.ts`, `docs/validator-port/fragments/S7.md` | ~170 | Sonnet | S0, S7a | `levelEngine` |
 | S5 | `validate:levels`, graph-set manifest, count pins | `scripts/level-graphs.mjs`, `docs/level-validator/graph-sets.json`, `package.json`, `tests/levelGraphs.test.ts`, `docs/validator-port/fragments/S5.md` | ~270 | Sonnet | S0 | `levelGraphs` |
 | S8 | Mission-validator re-cut (joint, Campaign reviews) | `scripts/mission-validate.mjs`, `tests/missionValidate.test.ts`, `docs/level-validator/mission-schema.md`, `docs/level-validator/example.mission.json` | ~1,060 | Opus | S0, S6 (helper, via C), S7a (rows, via B2) | `missionValidate` |
@@ -166,16 +166,30 @@ prints INFO; a `requires_kill`-only objective ERRs on every mode, `training` inc
 ERRs, on a training fixture is an INFO count.
 
 **S4 (Opus).** `training.mjs` per A8 / A9: `meta.taught_by` (ERR missing or not in `meta.sections` on `training`; ERR
-present on another mode), `teach` (link string field or `teach:<move>` space tag), per-section edge-disjoint count with
-`edgeDisjointPaths` after merging each split's leg spaces into one node (A23), the choke test (every entry-to-exit
-path passes the element: remove it and the exit is unreachable), `split:` tags before `taught_by`, late side routes
-with the campaign route rules reused from core (`checkEncounters` / `checkRedundancy` logic called per section through
-the lib, not copied). Test cases (A23): a late section whose only second way is a split, no guard: no ERR; a late
-section with a split plus a real side route and no guard: ERR; the same with a guarded encounter space: the campaign
-route rules run. Done: green; the v7 ctcourse graph run in a temp copy with `mode: training` and `taught_by: "A7"`
-shows the side-route ERRs in A2, A5, A6 and the `split:` ERRs for splits `a4` and `a7`; A8 (after `taught_by`, one
-route once split `a8` is merged) gets neither. v7 REPORT "Interior redundancy": A1, A3, A4, A8 have one route; A7's
-second way is split `a7` (`a7-hall` split:a7:a; `a7-corridor`, `a7-pod` split:a7:b), not a side route.
+present on another mode), `teach` (link string field or `teach:<move>` space tag), the route count of A26 as an exported
+`sectionRoutes(graph, section)` returning `{ count, paths }` (paths as space-id lists, split legs merged per A23, count
+capped at 10; ~60 lines, a depth-first walk over the section's steps, not `edgeDisjointPaths`), the choke test (every
+entry-to-exit path passes the element: remove it and the exit is unreachable), `split:` tags before `taught_by`, late
+side routes with the campaign route rules. How S4 runs those rules, not copying them: it imports `checkEncounters` from
+`scripts/level-validate.mjs` (a function-declaration import cycle with `validate()` is safe in ESM: neither module
+calls the other at load) and runs it on a one-section subgraph (`meta` with `mode: "campaign"` and `sections: [sec]`,
+the section's spaces, its interior links), keeping only the route-rule lines (the approach count, the approach kinds,
+"no <kind> approach", "routes never cross"); the "two routes" rule is `sectionRoutes` >= 2 (A9), not
+`checkRedundancy`. S4 adds no export to `level-validate.mjs`; a test runs the subgraph call on a fixture that breaks
+each kept rule, so a reworded core message fails S4's test instead of passing silently. Test cases, one per A26 shape:
+two `opening`s and a boost plus a human ladder between the same two spaces: 1 route; a boost up and a drop back
+between two spaces, and J14's A1 shape (boost up, drop on into the yard, one-way door from the yard back to the
+apron): 1 route; single entry and exit airlock doors around a two-way loop inside (v7 A2 shape): 2 routes, ERR before
+`taught_by`; a loop off one space that comes back to it (v7 A6 objective loop): 1 route; J14's A8 shape after
+`taught_by`: 2 routes, ERR without a guarded encounter space, the campaign route rules with one. Cases for A23: a late
+section whose only second way is a split, no guard: no ERR; a late section with a split plus a real side route and no
+guard: ERR; the same with a guarded encounter space: the campaign route rules run. Done: green; the v7 ctcourse graph
+run in a temp copy with `mode: training` and `taught_by: "A7"` shows side-route ERRs in A1 (2 routes), A2 (2), A3
+(3), A4 (3, split `a4` merged), A5 (2) and the `split:` ERRs for splits `a4` and `a7`; A6, A7 and A8 count 1 route
+each and get no side-route ERR (A6's four floor-to-gallery links are one step and its objective loop returns to the
+floor; A7's and A8's splits are one node each). J14's graph (origin/feature/marlow-replan 2ede492b4, its own
+`taught_by: "A6"`) in a temp copy: no side-route ERR in A1-A7, A8 counted 2 routes so A9 runs on it. Both expectations
+are A26's hand count.
 
 **S7b (Sonnet).** `engine.mjs` per A12, reading `rules.nav_floor_depth_m` and `rules.ladder_grab_m` through
 `collector.num` (a missing key: one WARN, check skipped). Done: green; v7 ctcourse's three `human_ladder` links are
@@ -318,6 +332,10 @@ mission-node merge to S0; `mark` and `requires_kill` to S6; `mission_*` rows to 
   run).
 - **Graph helpers:** `scripts/level-validate.mjs` keeps exporting `mergeGraphs`, `COOP_KINDS`, `LINK_KINDS`, `isOneWay`
   (J13 item (2); S0 re-exports them from the lib), so the harness never copies graph code.
+- **Side routes counted one way (A26).** J13 counts a training section's routes as J12 does (J13 BRIEF :56 "as J12
+  counts them"; its PLAN :72 "2+ routes"): it imports `sectionRoutes(graph, section)` from
+  `scripts/level-checks/training.mjs` (S4) and has no count of its own, so a late section the validator calls a side
+  route section is the one the harness covers. J12 does not edit route-runs files; the lead tells J13.
 
 ## 9. Risks
 
@@ -325,6 +343,6 @@ mission-node merge to S0; `mark` and `requires_kill` to S6; `mission_*` rows to 
   is copied.
 - The campus drift test takes ~3 min; it keeps V6's 600 s timeouts. If CI time becomes a problem, the lead moves it
   behind an env switch and the laptop runs it (question for the Test Runner, not assumed).
-- PR A (~1,390) and PR C (~1,350) sit nearest the 1.5k cap: named fallbacks in section 1. PR B is already split (B2).
-- Marlow Yard's graph will fail the training profile hard (side routes in A2, A5, A6; splits before
+- PR A (~1,390) and PR C (~1,400) sit nearest the 1.5k cap: named fallbacks in section 1. PR B is already split (B2).
+- Marlow Yard's graph will fail the training profile hard (side routes in A1-A5, A26; splits before
   `taught_by`; A8 pacing); that is the intent (H6) and J14's work list, not a validator bug.
