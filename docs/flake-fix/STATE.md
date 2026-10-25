@@ -9,7 +9,11 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
 - Conformance doc fixes (T15-T21, T23) on docs/conformance-test-runner-fixes 7fefd8a9 (worktree
   -conformance-docs). PR #422 CLOSED on Michael's "plan comes first" (13:53): reopen only when the Orchestrator says
   the folded plan is signed off, then a fresh Opus checker. Hold: only the test queue moves until then.
-- #400 affected-e2e error (withdrawn 13:39); PR CONFLICTING. Asked the Orchestrator whether to re-request it.
+- #400: the Orchestrator re-requested affected-e2e at 13:40 (...-fcb2, 27 suites, claimed): run it on that head; the
+  conflict is resolved in its train. Train 91 (#424) next on the laptop at the 14:03 save.
+- Next: read the six SAVE 49 run folders (scratch/laptop-queue/runs/<id>/) and send flake rates to owners; push
+  guard-cap r4102-* to feature/guard-cap-results run-4102/; triage any red train at once (Opus); reopen #422 only
+  after the Orchestrator's plan sign-off.
 
 **Test Runner SAVE 49 (2026-10-25 ~13:50, before the ~14:05 cap; wins over SAVE 48 where they differ):**
 - Master 4.102.1 39668c06 (train 89 released). Train 90 (#408 laptop-queue-5, head 65b4ed26) on the laptop at 13:40.
