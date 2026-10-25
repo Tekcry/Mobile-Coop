@@ -13,6 +13,12 @@
 - Polish left (S1-S3 checker): `ReachNow` has no gun-drawn flag (a holstered row edited while she walks drawn gives no
   warning); idle Body / Joints rows tag "Both" though idle is mostly hand-made; a studio mocap_ clip's text says
   motion capture while `playing().mocap` is 0.
+- Polish left (S4+S5 checker, PASS on a404bfc9; held so the running e2e is not restarted; do it in a fix round or the
+  next batch): e2e-studio `waitPlay('motion-capture walk')` unanchored (`'^Now playing: motion-capture walk$'` or wait
+  on `playing().mocap >= 0.9`); `syncReach` band has no hysteresis (~0.02); `keyToolWarn` with no row falls back to the
+  trunk words; the badge can be cut off by the name's ellipsis on narrow widths; ui.md ~130 "Not playing now" wording
+  (A11), ~132 tag is "Hand-made" and only part notes exist, ~140 parts show "Left leg" / "Right leg" (no "(key)",
+  also testing-tools.md ~343), ~141 + the fragment say "ankle twist" but the row is "Foot twist (toes out)", ~142 rewrap.
 - pr-size: 2355 counted before S4 (tests ~1.3k); S2 is not separable any more (S3 / S4 use its leg rows): ask the
   orchestrator for `big-pr` at PR open.
 - Gates: plan checker PASS before build; Opus builds src/anim; checker per batch; laptop queue e2e-studio and
