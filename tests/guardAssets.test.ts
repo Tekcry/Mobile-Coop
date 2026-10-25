@@ -442,10 +442,12 @@ describe.skipIf(present.length === 0)('bundled guard files (PLAN section 5)', ()
   // gm-look: every outfit on its base, per LOD, in the bind pose (tests/helpers/guardClothCheck.ts). Skin through the
   // cloth = body triangles (above the soles, which never show) with the outfit right behind them and none in front: the
   // G10a sheet's runner elbows. Cloth through cloth = outfit triangles cutting through another outfit triangle: the
-  // G10a hem shards (the LODs were decimated from the two-sided hero, then clustered). Measured on the G10a bake
-  // (bf8fdfeb), worst outfit per LOD: skin 268 / 93 / 24 above the soles (lean work elbows 134 at LOD0), crossings
-  // 1853 / 1326 / 496; the gm-look bake: see LOOK_LIMITS.
-  const LOOK_LIMITS = { skin: [40, 20, 10], crossings: [150, 120, 60] } as const;
+  // G10a hem shards (the LODs were decimated from the two-sided hero, then clustered). Worst outfit per LOD on the
+  // G10a bake (bf8fdfeb): skin 141 / 20 / 7 (lean work, 119 at the elbows), crossings 1853 / 1326 / 496 (average
+  // uniform_jacket). The gm-look bake (bake/guard-models 4071580d): skin 14 / 1 / 0 (lean uniform_rolled), crossings
+  // 565 / 280 / 195; most of what is left is the boots and gloves (decimated from the hero and clustered at 10-13 mm,
+  // ~100 and ~60 self-crossings each at LOD0), the sewn shirt / trousers / jacket are down to 18-44 each.
+  const LOOK_LIMITS = { skin: [16, 3, 2], crossings: [600, 300, 210] } as const;
   const SOLE_Y = 0.1; // body triangles below this are the soles inside the boots
   const outfitIds = new Set(KIT.pieces.filter((p) => p.kind === 'outfit').map((p) => p.id));
   it('outfits: no skin through the cloth, no cloth cutting through cloth (gm-look)', () => {
