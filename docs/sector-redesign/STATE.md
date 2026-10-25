@@ -369,8 +369,9 @@ J10 datasheet: numbers only (ROADMAP Decided ~20:50); never commit the file. Pyt
    - map-ready S4: cloud brief map-ready-S4 (7a006dbbe) resumes the WIP 1afb22600 (steps 1-7, code + unit tests);
      the real prebake run (desktop, heavy.lock, size caps) is mine after it is done; then an Opus checker.
      Then W1: S9 (Opus), S1 measure (Sonnet, laptop run); then S2, S10; S8 (cloud) after S1 + S2.
-   - J16 job branch d39a40af1 (S3 + A1 fix). Next: S2 (Opus) = PR A2; then S3b (cap / fix the 5264 B 4-player fill
-     allocation, checks/s1-s3-check.md).
+   - J16 job branch c9b14bf1c (S3 + A1 fix + briefs S2.md, S3b.md). S2 (PR A2) and S3b-1 queued on cloud (b37bff865);
+     on done: merge into the job branch, Opus checker each, S3b-2 (gameState wiring, ~35 lines) after S2; A2 requests
+     e2e-coop + e2e-netmove on top of affected-e2e.
    - J17 campus-greybox on cloud-queue (dac8958d9): s1, s4 reopened (branches carry partial work: s1 24ec1bc71 G5,
      s4 8bd64d268 G4.2); s2 reopened with my Answer (G5c option 1: re-cut L2 / MR rooms, A-J17-S2-1), resumes at
      G5c-0 from ba9283143; s3-r1 DONE 5d7da838c (frame 3a8c6893a) -> needs a checker + laptop e2e-sectorops part;
@@ -380,5 +381,5 @@ J10 datasheet: numbers only (ROADMAP Decided ~20:50); never commit the file. Pyt
 3. PLANS: J18 sector-batch (plan check 3 PASS 31e9f22e): B1 / B3 open on cloud-queue; B2 on cloud-queue (7a006dbbe);
    B4 Sonnet after #317 (one Opus checker). When PR A opens tell Campaign Build: B1 and mission-rules-r1 both edit
    sectors.ts:864 / sectorMode.ts:1020; PR A lands first (PLAN section 7).
-Next: checker results (#459, L0 fold); s3-r1 checker; J16 S2 brief (agent writing) -> cloud; pick up cloud done briefs within 1 h.
+Next: checker results (#459, L0 fold); s3-r1 checker;  pick up cloud done briefs within 1 h.
 ```
