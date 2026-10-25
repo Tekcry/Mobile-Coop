@@ -1003,20 +1003,22 @@ C:/NightShift/Mobile-Coop-laptop-queue-svc && node scripts/laptop-queue/request.
 laptop-e2e/<set>. Withdraw = delete requests/<id>.json on origin/laptop-queue (plumbing commit, never in the svc
 worktree). Background wait: scratchpad wait-status.sh "<sha>:<context>" ... Laptop auto mode blocks labels: tell the
 orchestrator at train-ready. Walk cap: Guard AI AT CAP (new behaviour dark; rule fixes ship on, G355).
-Open (2026-10-26 ~00:15, new session after a swap; full burn; order J4, J6, J15, J26, J16). Checker statuses: a LONE
+Open (2026-10-26 ~00:40 SAVE, 5-hour pause till ~04:50, same account; full burn; order J4, J6, J15, J26, J16). Checker statuses: a LONE
 `gh api repos/Tekcry/Mobile-Coop/statuses/<sha> -f ...`. Local tsc / vitest builders only while laptop CPU < ~80%.
 File every gate request WITH the head push; post the checker the moment it passes (orchestrator 23:05: #446 missed
 train 106 by 2 min). One affected run per head covers its suites: no duplicate requests.
 1. J4 G327 #438 MERGED (train 105). #414 (T1 look script) still draft: undraft is Michael's (auto mode).
-2. J4 #317 coop4 ships ON (Q16). Master conflict fixed on feature/coop4 (orchestrator 00:20 asked the lead to):
-   merges 6206c9434 + 8e8d611cd, follow-ups 8094af038, acce9707b (lobby "partner" at cap 2) = head acce9707b. Minimap
-   dots dropped (G339). PR set to draft by the orchestrator; 2 Opus merge checkers running. PASS -> checker status,
-   `gh pr ready 317`, affected runs by itself. Polish -> coop4-pol: sectorMode OUT slot from RemotePlayer.ref.slot;
-   main.ts:332 text; run-e2e.mjs:152 comment `:1`-`:5`; testing-tools part 9 bullet.
+2. J4 #317 coop4 ships ON (Q16). Master conflict fixed on feature/coop4 (orchestrator 00:20 asked the lead): merges
+   6206c9434 + 8e8d611cd, follow-ups 8094af038, acce9707b (lobby "partner" at cap 2), 603f23a43 (docs, check B fixes) =
+   head 603f23a43. Minimap dots dropped (G339). Check B FIX docs-only, applied (docs/guard-ai/checks/coop4-merge-check-B.md).
+   Check A (src/net) was running at the pause: rerun a fresh Opus check A on 603f23a43 (scope: the merge's src/net
+   resolution against both parents, PROTOCOL_VERSION 64 kept, markIntel before snapEnemyState). A + B PASS -> checker
+   status, `gh pr ready 317` (still draft). affected queued on 603f23a43 (20261025T133459). Polish -> coop4-pol:
+   sectorMode OUT slot from RemotePlayer.ref.slot; main.ts:332 text; run-e2e.mjs:152 comment `:1`-`:5`.
 3. J6 #446 MERGED.
-4. J15 PR1 #450: affected on 211a66d56 GREEN (22/22). Master merged in to fix the docs conflict (4d09af5c4, ai.md +
-   takedowns.md by hand; b718293df lint wording) = head b718293df; 1 Opus merge re-check running. PASS -> checker on
-   b718293df; affected runs by itself; tell the orchestrator at train-ready.
+4. J15 PR1 #450 head b718293df (master merged in, docs conflict fixed by hand): merge re-check PASS
+   (docs/guard-ai/checks/guard-rules-pr1-merge-recheck.md), checker posted; MERGEABLE; affected queued on b718293df.
+   Green -> tell the orchestrator train-ready. Never move #450's head before its affected verdict.
 5. J15 PR2 = feature/guard-rules-s5 e18039094 (S5 + PR1 polish, checks A + B PASS). Early run queued:
    laptop-e2e/rules-pr2-early (20261025T113525). After PR1 merges: merge -s5 into feature/guard-rules, PR2 + affected.
    PR body lists the skipped polish (PR1-A2 wire bit, PR1-A4 J17, PR1-B e2e names, S5-A3 walk note) and the merge
@@ -1036,6 +1038,6 @@ train 106 by 2 min). One affected run per head covers its suites: no duplicate r
    radio delays x2, reconDrone start angle) after J6 lands and PR-C (tests/replayDeterminism.test.ts) is on master.
 9. J16 perception half (Q14 cast shadow = faint cue): plan after Sector Ops' J16 PR. Later: coop4-pol (134f6abe),
    snapBudget headroom, coopHost.ts:589 comment, TODO sectorMode.ts:201.
-Next: coop4 merge checks -> ready #317; #450 re-check -> checker; background wait on rules-pr2-early, rules-pr3,
-rules-pr4, #450 affected (scratchpad wait-status.sh polls a sha:context list). Then J26 S1a plan briefs (after PR4).
+Next: coop4 check A on 603f23a43 -> checker + ready #317; wait (background) on #450 / #317 affected, rules-pr2-early,
+rules-pr3, rules-pr4; train-ready -> tell the orchestrator; then J26 S1a briefs (after PR4).
 ```
