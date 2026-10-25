@@ -22,7 +22,7 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
 - Pause 00:54 to 04:50 (5-hour cap, Orchestrator SAVE 00:35). Queue ~24 requests deep plus spare jobs: enough
   session-free work, nothing extra filed. Mixamo requests filed during the pause are NOT re-filed: do it first on resume.
 - Laptop C:/NightShift/Mobile-Coop sits on feature/training-bunker (gone) with a local edit to src/world/bakedLamps.ts
-  (not mine; RULES: it should stay on master). Ask the Orchestrator whose it is before touching it.
+  (an old lighting / training-bunker job). Orchestrator ~00:50: leave it exactly as it is (on Michael's command list).
 - Still waiting: #445 affected f3e4c511 and j20-s6c 259bbe55 (both queued).
 - Next: on resume, re-file any new Mixamo request (git grep -il mixamo origin/laptop-queue -- requests/), read the #445
   and j20-s6c verdicts, then SAVE 58 Next line (PR-C merge -> D-A docs, PR-A, PR-B, j20-parity-pre-2), laptop-queue-7.
