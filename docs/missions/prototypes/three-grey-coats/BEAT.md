@@ -19,7 +19,7 @@ Grab the wrong man and the right one is gone before the decoy hits the floor.
   (W2 clock-mender's back loft) with his info. The restart keeps the spook, so the retry is a new route, not a replay.
   Engine note for EN2: `restore(section)` keeps the `tgc-spooked` flag (PLAN 3 resets section facts; this is the one
   exception). Michael picked this (2026-10-25 ~18:05, "He moves (Recommended)"), so there is no put-him-back fallback.
-- **Teale knocked out before he talks** (BRIEF A24, assumed after Michael's ~18:05 pick): he is the mission's
+- **Teale knocked out before he talks** (Michael ~20:25, "Restart the section (Recommended)"; BRIEF M6): he is the mission's
   protected character, so this restarts the section from its checkpoint with Teale still at his table (G353; Michael
   ~11:20: "Section restart"); it is not a rule break. A courier who is down cannot talk, so without the restart the
   mission would stall. Knock-outs are allowed on anyone else, and on Teale once step 3 is done.
