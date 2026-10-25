@@ -29,6 +29,8 @@ Owner: Marlow Build. Status: current.
   R1, R2 and R3 builders in parallel and send PLAN "G1" to Guard AI.
 
 ## Done
+- 2026-10-25 ~19:10 Fix round 1 (Opus planner) in progress on the plan check of 32b709dc (6 items + polish): none
+  done yet; left 1-6 and polish. Lead's item 6 decision: keep `resolvePoints` (J12 S1/S2), links keyed by merged index.
 - 2026-10-25 ~17:30-18:00 Opus planner: read RULES, VISION, agent preamble, G330 / G289 / G272 / G48, ROADMAP Decided,
   FOLDED-PLAN, conformance rows, level-design 14-15, graph schema (master and V6), e2e and AI code; wrote BRIEF
   (251d064cd) and PLAN (9b48a1132 + claims note); rewrote this STATE.
