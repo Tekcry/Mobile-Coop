@@ -176,7 +176,8 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350), then
   `spotCall` (urgent, so it follows his own "Huh?") and reports a `noise` incident at his stimulus (`stimX` / `stimZ`,
   the floor the lowest walkable layer under it) with no perceivers, so the board sends the best-placed calm free guard
   within `INCIDENT.callR` 25 m (its usual pick: path length weighted by officer, caution, role and zone). It is a
-  radioed sighting, not a sound, for the guard sheet and J13's cause log. At most every `LOOKOUT.callCd` 20 s per lookout (per awareness key, kept over a revive); coordinated modes only; host only, no wire.
+  radioed sighting, not a sound, for the guard sheet and J13's cause log. At most every `LOOKOUT.callCd` 20 s per
+  lookout (per awareness key, kept over a revive); coordinated modes only; host only, no wire.
   Map authors (M3): a lookout on a vent route stands where he overlooks the vent run or its exit. The first is S5's
   roof marksman (S9). Tests: `tests/lookout.test.ts`; e2e: e2e-sectorops part 1 "lookouts (guard-rules S7)".
   The sector tags: next entry (S5b). Map data: `MapLayout.guardAi` (zones, `noisy`, entries, squads) and
