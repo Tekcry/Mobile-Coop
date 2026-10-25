@@ -297,8 +297,8 @@ describe('S2-G5c the fittings (rule step 2)', () => {
       expect(got.length, c.id).toBe(7);
       const dir = c.near === 'N' ? -1 : 1;
       const nearZ = c.near === 'N' ? c.z1 : c.z0;
-      const nearMid = nearZ + dir * 0.65;
-      const farMid = nearZ + dir * (c.z1 - c.z0 - 0.4);
+      const nearMid = nearZ + dir * (S2.NEAR_D / 2);
+      const farMid = nearZ + dir * (c.z1 - c.z0 - S2.FAR_D / 2);
       const tops: [number, number][] = [[0, nearMid], [2.2, farMid], [4.4, nearMid], [6.4, farMid], [8.4, nearMid], [10.4, farMid], [12.3, nearMid]];
       got.forEach((l, k) => {
         const [top, z] = tops[k]!;

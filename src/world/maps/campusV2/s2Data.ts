@@ -148,24 +148,31 @@ export const S2_SECTOR: SectorDef = {
     { door: [-2.5, -16], a: { at: [-3.1, -16.8], yaw: -PI / 2 }, b: { at: [-1.9, -9.9], yaw: PI / 2 } }, // sync-s2-pairdoor (pg-brg, two players, Q21)
     { door: [-33, -4], a: { at: [-34.8, -4.6], yaw: PI }, b: { at: [-31.2, -4.6], yaw: PI } }, // pg-exec (two players, Q21)
   ],
+  // (S2-G6b, M8) the three routes on the v2 doors, at the as-built offset of 1.2 m each side of a door centre: the facilities door
+  // (-4, -1) z -2.2 / 0.2, the comms door (-2.5, -7.5) x -3.7 / -1.3, the landing's north door (1, -10.5) z -9.3 / -11.7; a route through a
+  // keypad door assumes the code (the e2e teleports)
   routes: [
     {
-      // stealth (solo): C1, the post room, the SW fire stair, the dark L1 open plan along the north side, the east wing door, the facilities door, the BMS terminal; out by the bridge landing
+      // stealth (solo): C1, the post room, the SW fire stair, the L1 open plan east of the mail-lift hole and along the north strip (z -1.5,
+      // clear of meeting room 3's glass front), in by the west keypad door (-7.5, 3), the terminal, out by the wing door (-4, -1), the wing, the
+      // comms room, its door into the landing (facing K2), the bridge landing
       name: 'The post room, the SW stair and the north open plan',
-      pts: [[-20, -32], [-20, -28.5], [-26, -27.5], [-33, -27], [-38.4, -24.5], [-38.4, -23], [-40.7, -23], [-40.7, -23, 4.4], [-37.5, -23, 4.4], [-33, -17, 4.4], [-32, -8, 4.4], [-29, -1, 4.4], [-20, 0.8, 4.4], [-12, 0.8, 4.4], [-9.5, -3, 4.4], [-6.2, -3, 4.4], [-4, -1.2, 4.4], [-4, 1.2, 4.4], [-6.5, 2.9, 4.4], [-4, 1.2, 4.4], [-4, -1.2, 4.4], [-4, -9, 4.4], [1, -11.2, 4.4], [1, -12.8, 4.4], [2.5, -14, 4.4], [6, -14, 4.4]],
-      obj: 18,
+      pts: [[-20, -32], [-20, -28.5], [-26, -27.5], [-33, -27], [-38.4, -24.5], [-38.4, -23], [-40.7, -23], [-40.7, -23, 4.4], [-37.5, -23, 4.4], [-31.4, -20.5, 4.4], [-31.4, -8, 4.4], [-29, -1, 4.4], [-20, -1.5, 4.4], [-12, -1.5, 4.4], [-8.7, 3, 4.4], [-6.3, 3, 4.4], [-6.5, 2.9, 4.4], [-4, 0.2, 4.4], [-4, -2.2, 4.4], [-3.7, -7.5, 4.4], [-1.3, -7.5, 4.4], [1, -9.3, 4.4], [1, -11.7, 4.4], [2.5, -14, 4.4], [6, -14, 4.4]],
+      obj: 16,
     },
     {
-      // high (solo): the SW stair to the bulkhead, the roof past the atrium roof light, the NE bulkhead down to the L1 landing, the facilities door
+      // high (solo): the SW stair to the bulkhead, the roof past the atrium roof light, the NE bulkhead down to the L1 wing hall, the
+      // facilities office by its wing door, then the stealth way out
       name: 'The SW bulkhead, the roof and the NE bulkhead',
-      pts: [[-20, -32], [-20, -28.5], [-26, -27.5], [-33, -27], [-38.4, -24.5], [-38.4, -23], [-40.7, -23], [-40.7, -23, 12.3], [-38.6, -23, 12.3], [-33, -26, 12.3], [-12, -26, 12.3], [-5, -18, 12.3], [-4, -6, 12.3], [1.5, -1.2, 12.3], [1.5, 0.6, 12.3], [1.5, 0.6, 4.4], [1.5, -1.2, 4.4], [-4, -1.2, 4.4], [-4, 1.2, 4.4], [-6.5, 2.9, 4.4], [-4, 1.2, 4.4], [-4, -1.2, 4.4], [-4, -9, 4.4], [1, -11.2, 4.4], [1, -12.8, 4.4], [2.5, -14, 4.4], [6, -14, 4.4]],
-      obj: 19,
+      pts: [[-20, -32], [-20, -28.5], [-26, -27.5], [-33, -27], [-38.4, -24.5], [-38.4, -23], [-40.7, -23], [-40.7, -23, 12.3], [-38.6, -23, 12.3], [-33, -26, 12.3], [-12, -26, 12.3], [-5, -18, 12.3], [-4, -6, 12.3], [1.5, -1.2, 12.3], [1.5, 0.6, 12.3], [1.5, 0.6, 4.4], [1.5, -1.2, 4.4], [-1.5, -3, 4.4], [-4, -2.2, 4.4], [-4, 0.2, 4.4], [-6.5, 2.9, 4.4], [-4, 0.2, 4.4], [-4, -2.2, 4.4], [-3.7, -7.5, 4.4], [-1.3, -7.5, 4.4], [1, -9.3, 4.4], [1, -11.7, 4.4], [2.5, -14, 4.4], [6, -14, 4.4]],
+      obj: 20,
     },
     {
-      // loud: the turnstile gate, the feature stair to the L1 south strip, the east wing's south door, the wing corridor north to the facilities door
+      // loud: the turnstile gate, the feature stair (two flights and the mid landing) to the L1 south strip, along the strip to the east
+      // wing's south door (-7.5, -21), the wing hall north to the facilities door, then the stealth way out
       name: 'The turnstiles, the feature stair and the east wing',
-      pts: [[-20, -32], [-20, -28.5], [-20, -24.4], [-20, -22.2], [-18, -12.5], [-18, -20.5, 4.4], [-12, -21, 4.4], [-9, -21, 4.4], [-6, -21, 4.4], [-5, -12, 4.4], [-4, -3, 4.4], [-4, -1.2, 4.4], [-4, 1.2, 4.4], [-6.5, 2.9, 4.4], [-4, 1.2, 4.4], [-4, -1.2, 4.4], [-4, -9, 4.4], [1, -11.2, 4.4], [1, -12.8, 4.4], [2.5, -14, 4.4], [6, -14, 4.4]],
-      obj: 13,
+      pts: [[-20, -32], [-20, -28.5], [-20, -24.4], [-20, -22.2], [-18, -9], [-18, -14.1, 2.2], [-18, -19.4, 4.4], [-12, -20.4, 4.4], [-9, -20.4, 4.4], [-6, -21, 4.4], [-5, -12, 4.4], [-4, -3.5, 4.4], [-4, -2.2, 4.4], [-4, 0.2, 4.4], [-6.5, 2.9, 4.4], [-4, 0.2, 4.4], [-4, -2.2, 4.4], [-3.7, -7.5, 4.4], [-1.3, -7.5, 4.4], [1, -9.3, 4.4], [1, -11.7, 4.4], [2.5, -14, 4.4], [6, -14, 4.4]],
+      obj: 14,
     },
   ],
 };
