@@ -270,6 +270,11 @@ export const COVER_DETOUR = { k: 1.5, add: 3, flankK: 2.5 };
 /** (polish A2, A167) The best this many covers are tried in order (one a mate holds, no path or a detour: the next).
  *  Undo: 1. */
 export const COVER_TRIES = 3;
+/** (guard-rules S4, A8) Why his last rise into suspicious / investigating happened (`Enemy.riseCause`): none (a board
+ *  task, a light, a body, a search call), sight (`seenAt` this calm moment) or sound (a heard noise, no sight). */
+export const RISE_NONE = 0;
+export const RISE_SIGHT = 1;
+export const RISE_SOUND = 2;
 /** (polish A2, A167) The open wait's failed cover pick is tried again once per `SQUAD.openWait`, and while the group
  *  holds him (`roleMoving` false) it never lands on his own role cover. Undo: false (one try, any cover). */
 const COVER_RETRY = true;
@@ -464,6 +469,22 @@ export class Enemy implements Damageable {
   private stimulus: P2 = [0, 0];
   private hasStimulus = false;
   private heard = false;
+  /** (guard-rules S4, A8) Since he was last calm: a sight above the leak (`seenAt`) / a heard noise. */
+  private sawMoment = false;
+  private heardMoment = false;
+  /** (guard-rules S4, A8) Why his last rise into suspicious / investigating happened (`RISE_*`); kept after calm.
+   *  Readers: S7's lookout radio, J13's cause log. */
+  riseCause = RISE_NONE;
+  /** (guard-rules S4, A8) Bumped on every rise into suspicious / investigating (S7 compares it with its last copy;
+   *  J13's cause log). */
+  riseN = 0;
+  /** (guard-rules S4, A8) Where his last stimulus came from (x / z; read-only, no copy). */
+  get stimX(): number {
+    return this.stimulus[0];
+  }
+  get stimZ(): number {
+    return this.stimulus[1];
+  }
   /** (guard-ai S1) Seconds left looking towards a sound he was not sent to (`hearTurn`): stands and faces it. */
   private turnT = 0;
   /** (guard-ai S2) The incident this guard was sent to by the board (its id), -1 none; cleared when he is back
@@ -1236,7 +1257,7 @@ export class Enemy implements Damageable {
     this.heardT = 0;
     if (!mayBark || this.hearBarkT < COMBAT_HEAR.bark) return false;
     this.hearBarkT = 0;
-    this.bark('investigate');
+    this.bark('heard');
     return true;
   }
 
@@ -2060,8 +2081,13 @@ export class Enemy implements Damageable {
     // (polish A1) a device responder calm again goes back to the device's search (below); (polish2 A191) then quietly
     const resume = RESPONDER_RESUME && this.responder && from === 'investigating' && (to === 'cooldown' || to === 'unaware') && this.alive && !this.taken;
     const quiet = RESUME_QUIET && resume;
+    // (guard-rules S4, A8) the rise's cause: a seen player never "heard" (the bark below follows it)
+    if (to === 'suspicious' || to === 'investigating') {
+      this.riseCause = this.sawMoment ? RISE_SIGHT : this.heardMoment ? RISE_SOUND : RISE_NONE;
+      this.riseN++;
+    }
     if (to === 'suspicious') this.bark('suspicious');
-    else if (to === 'investigating') this.bark('investigate');
+    else if (to === 'investigating') this.bark(this.riseCause === RISE_SOUND ? 'heard' : 'investigate');
     // (guard-ai S3) told by a shout or the radio: he answers, he did not see anyone
     else if (to === 'alert') this.bark(this.alertIn.called && this.netOn ? 'joining' : 'contact');
     else if (to === 'searching' && from === 'alert') this.bark(this.def.kind === 'officer' ? 'search' : 'lost');
@@ -2087,6 +2113,9 @@ export class Enemy implements Damageable {
       this.hunt = -1;
       this.pendingHunt = -1;
       this.calledMask = 0;
+      // (guard-rules S4, A8) the next calm moment starts clean (`riseCause` / `riseN` kept)
+      this.sawMoment = false;
+      this.heardMoment = false;
     }
     if (to === 'alert') {
       // (guard-ai S24, A146) his intruder: the one he sees (his own sight wins; reported now, so his contact call carries
@@ -2625,6 +2654,11 @@ export class Enemy implements Damageable {
     i.searchFor = searchSpec(this.searchKind).time;
     // (guard-ai walk 4.82 item 2) moving up on the last known position: he keeps the fight until he gets there
     i.closing = this.closingIn && this.alerted && !this.los;
+    // (guard-rules S4, A8) what this calm moment rests on: sight (the game's `seenAt`) wins over a sound
+    if (!this.alerted) {
+      if (seen) this.sawMoment = true;
+      if (this.heard) this.heardMoment = true;
+    }
     const from = this.aware.level;
     if (this.aware.step(dt, i)) this.onLevel(from, this.aware.level);
     // in combat without sight: arriving at the last known position with nothing there starts the search

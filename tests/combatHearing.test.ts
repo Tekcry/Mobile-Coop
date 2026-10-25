@@ -261,7 +261,7 @@ describe('EnemyManager.hear in a fight and a search (guard-ai S26)', () => {
     const sp = spotOf(g1);
     expect(Math.hypot(sp[0] - 0, sp[1] - 6)).toBeLessThanOrEqual(Math.SQRT1_2 + 1e-6);
     expect([g1.onPlan, g1.heardAt, (g1 as unknown as { rush: boolean }).rush]).toEqual([false, 0, false]);
-    expect(g1.bark).toHaveBeenCalledWith('investigate');
+    expect(g1.bark).toHaveBeenCalledWith('heard');
     expect(plan.claimOf(g1.num)).toBe(-1);
     // the slot moved to the step: the plan is reset at once (claims dropped)
     expect([em.lkpOf(s)!.x, em.lkpOf(s)!.z]).toEqual([0, 6]);
@@ -641,7 +641,7 @@ describe('(polish2 A185) one "I heard something." per noise', () => {
         const sp = spotOf(g);
         expect(Math.hypot(sp[0] - 0, sp[1] - 3)).toBeLessThanOrEqual(Math.SQRT1_2 + 1e-6);
         expect(g.heardAt).toBe(0);
-        barks += (g.bark as ReturnType<typeof vi.fn>).mock.calls.filter((c) => c[0] === 'investigate').length;
+        barks += (g.bark as ReturnType<typeof vi.fn>).mock.calls.filter((c) => c[0] === 'heard').length;
       }
       expect(barks).toBe(on ? 1 : 3);
       // the next noise 2 s on: the speaker is still in his own throttle (`COMBAT_HEAR.bark`), the next searcher says it
@@ -649,7 +649,7 @@ describe('(polish2 A185) one "I heard something." per noise', () => {
         for (const g of gs) (g as unknown as { heardT: number }).heardT = 99;
         em.hear(at(0, 4), STEP, 'noise', null, null);
         let again = 0;
-        for (const g of gs) again += (g.bark as ReturnType<typeof vi.fn>).mock.calls.filter((c) => c[0] === 'investigate').length;
+        for (const g of gs) again += (g.bark as ReturnType<typeof vi.fn>).mock.calls.filter((c) => c[0] === 'heard').length;
         expect(again).toBe(2);
         expect((gs[0]!.bark as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1);
       }
