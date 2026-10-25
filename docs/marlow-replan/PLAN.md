@@ -270,21 +270,42 @@ shows the next station's mark as built (Q18) and a drill-mark guard test pins it
   e2e-section-rating) + the co-op group (protocol).
 - Done looks like: in a unit course of two stations, a guard alert in station 2 puts both players at station 2's marks
   with station 1 still done and station 1's downed guard still down; a `caught` bay ignores a 1.5 s combat and retries
-  at 2 s; a drill window ending retries in place; the built `ctcourse` behaves as today (its tests unchanged).
+  at 2 s; a drill window ending retries in place; a player going out in station 2 (`onPlayerOut`, F1) retries station 2
+  with both back on its marks; the built `ctcourse` behaves as today (its tests unchanged).
 - Flag: `marlowReplan` (only `ctcourseReplan` carries stations). Depends on: S0's first commit (`stationDef.ts`).
 
 **F1 Live rule fixes (Opus; PR 3; two Opus checkers: src/net).** Fixes to the shipped yard, allowed at the walk cap
 (G355; A21): the revive cap stays 2 in Course mode (`coopHost.addSyringes` ignores course grants, :834-837; gadget and
 medkit grants kept; M3 / R35); one player out no longer restarts the bay, only both down does (G349 campaign rule;
 :568-581); Host Start needs 2 players in Course mode unless `?course=solo` (`coopUi.ts:628-635`, R36); the host's room
-map is `ctcourseReplan` when `flags.marlowReplan` (`session.ts:64`); the A2 entry vantage joins the sight test (M8,
-`tests/ctcourse/a2CarriageShed.test.ts:1366-1371`).
-- Files: `src/net/coopHost.ts`, `src/net/coopUi.ts`, `src/net/session.ts`, `tests/courseRuleFixes.test.ts` (new),
-  `tests/ctcourse/a2CarriageShed.test.ts`, `changes/feature-marlow-replan-f1.md`. Est. 350.
-- Checks: vitest on those; grep `scripts/` for e2e that rely on one-out restarts or the syringe cap
-  (`scripts/e2e-ctcourse/revive.mjs`) and update them in the same PR; laptop: co-op group + affected-e2e.
+map is `ctcourseReplan` when `flags.marlowReplan` (`session.ts:64`); the A2 entry vantage joins the sight test (M8, `tests/ctcourse/a2CarriageShed.test.ts:1366-1371`).
+- **How the out player comes back ("out until the next checkpoint", G126 / G349).** Every Marlow airlock needs both
+  players inside (`courseState.ts:1155-1162`, `need()` = 2) and every station is a co-op move, so the survivor alone
+  could not move on. The fix: while one partner is out, the bay's exit airlock cycles with the one living player.
+  `CourseState` gains `out: [boolean, boolean]` and `setOut(p, on)`; `need()` returns 1 when `solo` or the other player
+  is out (a pair gate still needs two: the survivor waits at a pair gate only on the re-plan, below). In course mode
+  `goOut` (:568-581) calls `setOut(p, true)` instead of `onPlayerDeath()`, then `g.mode.onPlayerOut?.()` (a no-op on
+  `CourseMode` until R1). When the airlock seals, the checkpoint advances as on any seal and the host respawns the out
+  player inside it, at their slot of `checkpointSpawns()` (`courseMode.ts:896-900`; the client through the existing
+  respawn path, `CoopHost.onRespawn` :1897), and clears `out`. Any respawn of the out player (a seal, a bay restart, a
+  station retry) clears `out`. Revives used stay used (the cap is per mission). The survivor going down too = both down:
+  the bay restarts from its holding room as today (G312).
+- **On `ctcourseReplan` (R1's part, not F1's):** R1 adds `CourseMode.onPlayerOut()`: on a bay with stations, a player
+  going out starts that station's retry after `SPOT_HOLD` (cause `out`), and the out player respawns at the station
+  retry's marks with the survivor, so an untimed co-op station never strands the survivor. On a bay without stations
+  it does nothing (F1's airlock rule holds).
+- **File split with R1:** F1 owns only the `out` field, `setOut()` and the body of `need()` in `courseState.ts`; R1 never
+  edits those lines and F1 edits nothing else in that file (hunk ownership, as S0 / R1 below).
+- Files: `src/net/coopHost.ts`, `src/net/coopUi.ts`, `src/net/session.ts`, `src/game/course/courseState.ts` (the hunk
+  above only),
+  `tests/courseRuleFixes.test.ts` (new), `tests/ctcourse/a2CarriageShed.test.ts`, `changes/feature-marlow-replan-f1.md`.
+  Est. 400.
+- Checks: vitest on those plus `tests/course.test.ts`; grep `scripts/` for e2e that rely on one-out restarts or the
+  syringe cap (`scripts/e2e-ctcourse/revive.mjs`) and update them in the same PR; laptop: co-op group + affected-e2e.
 - Done looks like: three ratings later the cap is still 2; one player out with the partner up keeps the bay running;
-  a lone host cannot Start Marlow Yard; the flag off leaves the room on `ctcourse`.
+  `tests/courseRuleFixes.test.ts` has the case "P2 out, P1 steps on the airlock pad, it cycles, P2 respawns in the
+  airlock with the checkpoint advanced" (and P2's `out` cleared); a second case "P2 out, P1 goes down: both down, the
+  bay restarts from its holding room"; a lone host cannot Start Marlow Yard; the flag off leaves the room on `ctcourse`.
 - Flag: none (rule fixes), except the map choice reads `marlowReplan`.
 
 **Set slices (Sonnet greybox from strict Opus briefs; one checker per batch of three).** Each: guards round the
