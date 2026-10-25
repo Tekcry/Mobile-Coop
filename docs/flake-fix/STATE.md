@@ -3,6 +3,17 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 61 (2026-10-26 ~09:00, Orchestrator swap save; session [f6b0ef]; wins over SAVE 60):**
+- #492 (PR-A) fresh Opus checker PASS on 8a8d000c (no fixes; 114 unit tests green). Auto mode blocked my own
+  `checker` post (Self-Approval); asked Michael whether the Orchestrator posts it. Polish (later): testing-tools.md:106
+  "gates on neither" -> "none of them"; "Every LEGACY and GPU suite" -> "LEGACY, AUDIO and GPU".
+- Train 112 rerun GREEN 42/43 (e2e-pad known flaky) on 546a2286, all CI green, but #491 still OPEN at ~09:00:
+  auto-train may not see the moved head's rerun (laptop-queue-7 item); Orchestrator told.
+- Orchestrator is building feature/train-doclint (doc-lint per member at train build), so lint fixes stop moving
+  train heads; laptop-queue-7 keeps the other head-move cases.
+- Claude Docs connector off. All Test Runner worktrees clean and pushed. Queue 4 requests deep + spare jobs.
+- Next: #492 checker status -> train-ready; then SAVE 60 Next line (PR-B, laptop-queue-7, j20-perf).
+
 **Test Runner SAVE 60 (2026-10-26 ~08:45, new account; session [f6b0ef]; wins over SAVE 59):**
 - Service pid 37704 healthy (task NightShift-laptop-queue running). Old Test Runner [3394f7] offline, nothing to close.
 - Train 111 (PR-C #445) released 05:59. Conformance review long done (#410, #432, #444).
