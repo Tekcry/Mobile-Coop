@@ -55,6 +55,7 @@ import { KEYED_READY_STANCE } from './clips/keyed/ready_stance';
 import { KEYED_GLIDE_FWD } from './clips/keyed/glide_fwd';
 import { KEYED_GLIDE_STRAFE } from './clips/keyed/glide_strafe';
 import { STANCE_SHOT, WREN_STANCE } from './mixamo'; // (mixamo-retarget I3) Wren's stance shots
+import { KIT_SHOT, KIT_TABLES, newKitShotIn, type KitShotIn } from './kitMixamo'; // (mixamo-kit) the co-op kit's shot
 import { KEYED_GLIDE_BACK } from './clips/keyed/glide_back';
 import { studioDriveTargets, type StudioDrive } from './studioDrive';
 import { MOVE_IDS, newGraphPlaying, type GraphPlaying } from './nowPlaying'; // (tuner-clarity S1)
@@ -376,6 +377,9 @@ export interface RigTargets {
   /** (anim-natural-n2) The body motion layer (`bodyMotion.ts`): Wren rigs on foot only, all 0 on every other rig.
    *  (mocap-trial) Scaled on the mocap share by MOCAP_LAYERS (`motionTrunk` ... `motionArmCap`). */
   motion: BodyMotion;
+  /** (mixamo-kit) The co-op kit shot's weight on a free body (traverse or air: the holder's brace, the climber's
+   *  climb-up): the rig applies the keyed trunk, neck, head and arms by it (the pelvis stays on `keyW`). 0 on foot. */
+  keyShot: number;
 }
 
 export function emptyTargets(): RigTargets {
@@ -419,6 +423,7 @@ export function emptyTargets(): RigTargets {
     keyStrafe: 0,
     clipFeet: { valid: false, on: false, f: new Float64Array(KEYED_FEET) },
     motion: newBodyMotion(),
+    keyShot: 0, // (mixamo-kit)
   };
 }
 
@@ -952,6 +957,22 @@ export class AnimGraph {
   private snDt = 0;
   private readonly kSn = newKeyedPose();
   private readonly kSn2 = newKeyedPose();
+  /** (mixamo-kit) The co-op kit's shot for this rig: `TeamPoser` (clips/team.ts) writes it before `rig.animate`
+   *  (kitMixamo.ts `KitShotIn`); `kitShot` samples it. */
+  readonly kit: KitShotIn = newKitShotIn();
+  /** (mixamo-kit) `kitShot`'s state: its eased weight, the take / progress / loop it shows (held while it fades out), the
+   *  cross-fade from the pose held at a jump in progress (0..1; 1 settled), this frame's dt and whether the body is free
+   *  (traverse or air: the shot replaces the keyed pose, by `keyShot`; on foot it mixes over it), and two scratch poses
+   *  (the sample, the held pose). Fields: no boxed double arguments. */
+  private kxW = 0;
+  private kxClip: KeyedClip | null = null;
+  private kxTime = 0;
+  private kxLoop = false;
+  private kxFade = 1;
+  private kxDt = 0;
+  private kxFree = false;
+  private readonly kKx = newKeyedPose();
+  private readonly kKx2 = newKeyedPose();
   /** (anim-rework S5) The eased wall share of the keyed weight and the wall keyed set (wallKeyed.ts). */
   private keyWallS = 0;
   /** (S5 round 2) The wall slide's pelvis twist cut this frame (WALL_KEYS.slideYawCut x the slide x the wall share). */
@@ -2018,6 +2039,13 @@ export class AnimGraph {
         this.snW = o.keyW > 0 && loco + still > 1e-4 ? (still / (loco + still)) * (1 - dS) * (1 - this.keyWallS) : 0;
         this.stanceShot(o);
       }
+      // (mixamo-kit) the co-op kit's Mixamo shot (kitMixamo.ts; TeamPoser writes `kit`): a free body (the holder's brace,
+      // the climber's climb-up) takes it by `keyShot`, a crawler mixes it over the keyed pose; no kit row on: skipped
+      if (this.wrenReady && KIT_TABLES[1].any) {
+        this.kxDt = dt;
+        this.kxFree = !i.grounded || i.traverse !== 'none';
+        this.kitShot(o);
+      }
       o.keyDrawn = dS;
       o.keyTrunk = 1 - dS * this.raiseS;
       if (dS > 1e-4) this.keyedDrawnSet(ph, es, locoD + stillD > 1e-4 ? stillD / (locoD + stillD) : 0, dS, pose, o);
@@ -2296,6 +2324,57 @@ export class AnimGraph {
     const pelY = o.keyed.pel[1]!;
     mixKeyed(o.keyed, this.kSn, w, o.keyed, false);
     o.keyed.pel[1] = pelY;
+  }
+
+  /**
+   * (mixamo-kit, docs/mixamo-kit/PLAN.md 2) The co-op kit's shot (`kit`: TeamPoser's take, progress and weight for this
+   * rig). Its own weight eases over KIT_SHOT.flip at a start, an end and a source flip, holding the last take and progress
+   * while it fades out (a new take while the old one shows waits for the old to fade); a jump in progress (a phase
+   * change, a relink) cross-fades from the pose last shown over the same time. A free body takes the take whole into the
+   * keyed pose and `keyShot` = the weight (the rig applies its trunk, neck, head and arms; the pelvis stays the game's);
+   * on foot (the crawler) it mixes over the keyed pose by the weight, its pelvis height included. Weight 0: nothing
+   * sampled or written but `keyShot` 0. No allocation.
+   */
+  private kitShot(o: RigTargets): void {
+    const K = this.kit;
+    const c = K.weight > 0 ? K.clip : null;
+    let target = 0;
+    if (c !== null && (c === this.kxClip || this.kxW <= 0)) {
+      if (c === this.kxClip && this.kxW > 0) {
+        let d = K.time - this.kxTime;
+        if (K.mode === 'loop') d -= Math.round(d);
+        if ((d < 0 ? -d : d) > KIT_SHOT.jump) {
+          mixKeyed(this.kKx, this.kKx, 0, this.kKx2);
+          this.kxFade = 0;
+        }
+      }
+      this.kxClip = c;
+      this.kxTime = K.time;
+      this.kxLoop = K.mode === 'loop';
+      target = K.weight;
+    }
+    const st = this.kxDt / KIT_SHOT.flip;
+    const w0 = this.kxW;
+    this.kxW = target > w0 ? Math.min(target, w0 + st) : Math.max(target, w0 - st);
+    if (this.kxFade < 1) this.kxFade = Math.min(1, this.kxFade + st);
+    const cl = this.kxClip;
+    if (this.kxW <= 1e-4 || cl === null) {
+      this.kxW = 0;
+      if (target === 0) this.kxClip = null;
+      o.keyShot = 0;
+      return;
+    }
+    // a one-shot's progress 1 is its last frame (sampleKeyed wraps phase 1 to the first frame)
+    const t = this.kxTime;
+    sampleKeyed(cl, this.kxLoop ? t : (t * (cl.frames - 1)) / cl.frames, 1, this.kKx);
+    if (this.kxFade < 1) mixKeyed(this.kKx2, this.kKx, this.kxFade, this.kKx);
+    if (this.kxFree) {
+      mixKeyed(this.kKx, this.kKx, 0, o.keyed);
+      o.keyShot = this.kxW;
+    } else {
+      mixKeyed(o.keyed, this.kKx, this.kxW, o.keyed, false);
+      o.keyShot = 0;
+    }
   }
 
   /**

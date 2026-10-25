@@ -49,4 +49,6 @@ Lead: Night Shift | Marlow Build. Worktree C:/NightShift/Mobile-Coop-mixamo-kit,
   setKitSourceOf, KitShotIn, kitClipTime / kitShotTime, the gap trend and phase rule). KitShotIn `time` is the take's
   progress 0..1 (the crawl: its cycle phase); kitClipTime gives the table's seconds.
 - Step 2: the 8 MIXAMO_ON rows at the end of mixamo.ts (4 takes true, 4 optional phases false).
-Next: step 3 team.ts, then, animGraph.ts, characterRig.ts, tests.
+- Step 4 (a)+(b) first (team.ts needs `AnimGraph.kit` to typecheck): animGraph.ts declarations (public `kit`,
+  `RigTargets.keyShot` + default 0, kitShot fields), the one block after stanceShot, `kitShot()`. KIT_SHOT.jump 0.05 added.
+Next: step 3 team.ts, then 4 (c) the hang skip, 5 characterRig.ts, 6 tests.

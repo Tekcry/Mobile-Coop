@@ -35,7 +35,8 @@ import type { KitPoseId, KitPoseMove, TeamPoseRole, TeamRigIn } from './clips/te
  *   kit move at load and closes an import cycle back here; the test asserts them equal), `holdSpot` of `SHUTTER.holdSpot`.
  * - `gapEps`: a gap under this is shut (the offer). `crawlCycle`: the crawl take's travel a cycle (m at 1.75 m);
  *   `crawlStretch`: the take played over that much more ground (~2x its speed at the 0.85 m/s kinematic crawl).
- * - `flip`: the graph's own weight ease (s) at a start, an end, a jump in clip time or a source flip.
+ * - `flip`: the graph's own weight ease (s) at a start, an end, a jump in clip time or a source flip; `jump`: a step in
+ *   the shot's progress (or loop phase) over this in a frame is a jump (a phase change, a relink): cross-faded over `flip`.
  * - `barHandW` / `haulHandW`: the IK weight of the palms on the shutter's bar / on the partner's wrists; `wristUp` the
  *   partner's wrists over its root while hauled (m at 1.75 m).
  */
@@ -62,6 +63,7 @@ export const KIT_SHOT = {
   crawlCycle: 0.54,
   crawlStretch: 1.85,
   flip: 0.1,
+  jump: 0.05,
   barHandW: 1,
   haulHandW: 0.8,
   wristUp: 1.5,
