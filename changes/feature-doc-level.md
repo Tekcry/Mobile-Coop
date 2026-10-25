@@ -7,5 +7,5 @@ kind: patch
   32 alive ceiling), real-world light bands replace the shadow share, up to 2 strict rules with section restart,
   objectives name what and where with no maps, measured validator pass and bot route-runs at greybox exit.
 - Level validator: `meta.mode` campaign / sector / training profiles (forced co-op gate and gate reach, no softlock and
-  the alive ceiling, no route counts for training), a `coop_throw` kind, shadow share as INFO. The scale sheet gets
+  the alive ceiling, no route counts for training), the co-op kit kinds (`team_throw`, `team_hang`, `team_pull`, `shutter`) and `bolted` doors, shadow share as INFO. The scale sheet gets
   `sector_alive_max` and a light-band placeholder; the uploaded stealth skill is reference only.

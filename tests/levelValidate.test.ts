@@ -20,7 +20,7 @@ interface Space {
 }
 interface Link {
   from: string; to: string; kind: string; route: string; width?: number; height?: number; length?: number;
-  time_s?: number; level_change?: number; shared?: boolean; one_way?: boolean; assist?: string;
+  time_s?: number; level_change?: number; shared?: boolean; one_way?: boolean; assist?: string; bolted?: boolean;
 }
 interface Graph { meta: { map: string; name: string; mode: string; players: number[]; sections: string[] }; spaces: Space[]; links: Link[] }
 type Metrics = Record<string, unknown> & { sizes: Record<string, unknown>; rules: Record<string, unknown>; rooms: Record<string, Record<string, unknown>> };
@@ -102,7 +102,7 @@ const campaignBase = (): Graph => {
   g.links = g.links.filter((l) => !(l.from === 'b-vault' && l.to === 'b-out'));
   g.links.push(
     ln('b-vault', 'b-out', 'pair_gate', 'shadow', { ...DOOR, length: 18 }),
-    ln('b-vault', 'b-out', 'coop_throw', 'loud', { width: 3, length: 18, time_s: 4 }),
+    ln('b-vault', 'b-out', 'team_throw', 'loud', { width: 2.5, length: 18, time_s: 4 }),
   );
   return g;
 };
@@ -703,7 +703,7 @@ describe('level-validate: mode profiles (level-design "Modes and tags")', () => 
     link(none, 'a-gate', 'a-roof', 'ladder').one_way = true;
     expectErr(check(none), 'link a-court -> a-roof (coop_boost): no solo way back from a-roof to a-court');
     // The throw's way back is the team door it opened.
-    expect(check(campaignBase()).errors.filter((e) => e.includes('coop_throw'))).toEqual([]);
+    expect(check(campaignBase()).errors.filter((e) => e.includes('team_throw'))).toEqual([]);
     // Sector Ops runs no softlock instead: no gate-reach line.
     const sector = campaignBase();
     sector.meta.mode = 'sector';
@@ -718,11 +718,53 @@ describe('level-validate: mode profiles (level-design "Modes and tags")', () => 
     expect(check(g).errors).toEqual([]);
   });
 
-  it('coop_throw is a co-op kind (no softlock on Sector Ops, coverage)', () => {
+  it('team_throw is a co-op kind (no softlock on Sector Ops, coverage)', () => {
     const g = base();
     g.spaces.push(sp('a-ledge', 'S1', 'reward', 'storage', [4, 4, 3], 2, ['reward']));
-    g.links.push(ln('a-court', 'a-ledge', 'coop_throw', 'high', { width: 3, length: 6, time_s: 4 }));
-    expectErr(check(g), 'a-ledge: reached only through co-op links (coop_throw)');
+    g.links.push(ln('a-court', 'a-ledge', 'team_throw', 'high', { width: 2.5, length: 6, time_s: 4 }));
+    expectErr(check(g), 'a-ledge: reached only through co-op links (team_throw)');
+  });
+
+  it('bolted: one player opens it only from its to end (forced gate, solo twin); unbolted it stays open (gate reach)', () => {
+    // S2 by a bolted fire door: the thrown partner unbolts it from the yard side; solo play cannot open it from the hall.
+    // It replaces the team door; unbolted, it is also the throw's way back (gate reach).
+    const g = campaignBase();
+    drop(g, 'b-vault', 'b-out', 'pair_gate');
+    g.links.push(ln('b-vault', 'b-out', 'door', 'shadow', { ...DOOR, length: 18, bolted: true }));
+    expect(check(g).errors).toEqual([]);
+    // Beside a team door it twins the team door from the far side, where one player can open it.
+    const t = campaignBase();
+    t.links.push(ln('b-vault', 'b-out', 'door', 'shadow', { ...DOOR, length: 18, bolted: true }));
+    expectErr(check(t), 'link b-vault -> b-out (pair_gate) (b-out -> b-vault) has a solo twin: link b-vault -> b-out (door)');
+    // Bolted the other way round, the near side opens it: no forced gate in S2.
+    const h = campaignBase();
+    h.links.push(ln('b-out', 'b-vault', 'door', 'shadow', { ...DOOR, length: 18, bolted: true }));
+    expectErr(check(h), "section S2: exit 'b-out' is reached from entry 'b-hall' by solo links alone");
+    expectErr(checkStructure({ ...g, links: [...g.links, ln('b-vault', 'b-out', 'door', 'shadow', { ...DOOR, bolted: 'yes' as unknown as boolean })] }) as Report,
+      'bolted must be true or false');
+  });
+
+  it('shutter: a co-op kind judged both ways, its own way back, door minimum width', () => {
+    const g = campaignBase();
+    drop(g, 'b-vault', 'b-out', 'pair_gate');
+    g.links.push(ln('b-vault', 'b-out', 'shutter', 'shadow', { width: 1.2, length: 18, time_s: 8 }));
+    expect(check(g).errors).toEqual([]);
+    g.links.push(ln('b-out', 'b-vault', 'door', 'shadow', { ...DOOR, length: 18, one_way: true }));
+    expectErr(check(g), 'link b-vault -> b-out (shutter) (b-out -> b-vault) has a solo twin');
+    const h = campaignBase();
+    h.links.push(ln('b-vault', 'b-out', 'shutter', 'shadow', { width: 0.8, length: 18, time_s: 8 }));
+    expectErr(check(h), 'link b-vault -> b-out (shutter): width 0.8 m below 1 m');
+  });
+
+  it('campaign: a section whose entry is its exit has no forced gate (ERR); other modes WARN', () => {
+    const g = campaignBase();
+    space(g, 'b-hall').tags = ['entry', 'exit'];
+    space(g, 'b-out').tags = ['exfil'];
+    link(g, 'a-hut', 'b-hall', 'corridor');
+    expectErr(checkRedundancy(g) as Report, "section S2: entry and exit are the same space 'b-hall', so no forced co-op gate stands between them");
+    g.meta.mode = 'sector';
+    expect((checkRedundancy(g) as Report).errors).toEqual([]);
+    expectWarn(checkRedundancy(g) as Report, "section S2: entry and exit are the same space 'b-hall'");
   });
 
   it('training: one route is fine (no route-count, redundancy, softlock or gate checks); guard bands are INFO', () => {

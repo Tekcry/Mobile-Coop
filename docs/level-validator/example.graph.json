@@ -74,8 +74,8 @@
       "length": 22.5, "reason": "Goods-in doors from reception, under the hall's camera" },
     { "from": "s2-lobby", "to": "s2-hall", "kind": "duct", "route": "secret", "width": 1.2, "height": 1.5,
       "length": 22.5, "reason": "Return-air duct from the reception plant cupboard into the hall" },
-    { "from": "s2-hall", "to": "s2-yard", "kind": "coop_throw", "route": "loud", "width": 3.0, "length": 21,
-      "time_s": 10, "reason": "Dock edge over the 3 m levelling pit to the yard wall: one partner throws the other across (forced co-op gate)" },
+    { "from": "s2-hall", "to": "s2-yard", "kind": "team_throw", "route": "loud", "width": 2.5, "length": 21,
+      "time_s": 10, "reason": "Dock edge over the 2.5 m levelling pit to the yard wall: one partner throws the other across (forced co-op gate)" },
     { "from": "s2-hall", "to": "s2-yard", "kind": "pair_gate", "route": "shadow", "width": 1.2, "height": 2.1,
       "length": 21, "reason": "Fire exit at the hall's dark west end, chained outside: the thrown partner cuts the chain for the other" }
   ]

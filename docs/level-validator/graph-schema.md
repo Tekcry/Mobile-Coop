@@ -91,6 +91,7 @@ spaces are two links. Links are two-way unless `one_way` is set or the kind is `
 | `level_change` | m | for any height change | Height climbed or dropped (positive number) | ERR in the step band, over 0.40 up to 0.45; `wall_jump` <= 3.8 solo reach; co-op lip band 4.3-4.5; drop above the safe-drop height |
 | `shared` | bool | no | Both partners move through together | ERR `width` < 2.0 |
 | `one_way` | bool | no | Passable only `from` -> `to` | reach, redundancy, approaches (counted only at `to`), dead ends (a way out only at `from`) |
+| `bolted` | bool | no | Bolted on its `to` side: one player opens it only from there (a door the partner unbolts after a co-op move, such as a vent or a throw). Two players: a normal way. Unbolted, it stays open both ways | ERR not a bool; forced gate and solo twins: one player uses it only `to` -> `from`; gate reach: open both ways |
 | `assist` | split id | no | On the link of one leg that the other leg's action opens, darkens or disables; `reason` names the action and where it is done | checkCoop: ERR a split with no assist |
 | `reason` | string | no (expected on every link) | One-line real-world reason (level-design 16.9 element register) | not checked; the register row lives in the design doc |
 | `note`, `measured` | | no | As on spaces | |
@@ -119,8 +120,11 @@ walking speed (climbs, crawls, co-op moves) carry `time_s` on any split leg or r
 | `split_jump` | no | `width` 1.2-1.95 between faces, `height` >= 3.6 |
 | `coop_boost` | **yes** | lip `level_change` 4.3-4.5 (`TEAM.boostMax` 4.5) |
 | `human_ladder` | **yes** | lip `level_change` 4.3-4.5 (ladder grab 4.1 until G57) |
-| `pair_gate` | **yes** | a team door (pair gate / pair bolt, CR5 / CR6), a shutter or door one partner holds, a door unlocked from the far side after a vent or a throw: `door` sizes; opens only with both players (lead decision 1); once opened it stays open (the gate's way back) |
-| `coop_throw` | **yes** | throw the partner over a gap (kit, G293): `width` = the gap; needs `time_s`; no size band until the move is built |
+| `pair_gate` | **yes** | a team door (pair gate / pair bolt, CR5 / CR6): `door` sizes; opens only with both players (lead decision 1); once passed it stays open (its own way back); judged both ways for a solo twin |
+| `team_throw` | **yes** | throw over a gap (kit, G293; built: `TEAM.throwDist` 3.2, `src/config/movement.ts:483`, `src/game/teamController.ts:74`): `width` = the gap, at most 2.7 m (`throwDist` less a 0.5 m landing margin; checked by mission-validator's kit limits); needs `time_s` |
+| `team_hang` | **yes** | human ladder / hang-down relay (climb the hanging partner): `level_change` = the climb; needs `time_s` |
+| `team_pull` | **yes** | pull-up: catch a jumping partner at a lip and haul: `level_change` = the lip; needs `time_s` |
+| `shutter` | **yes** | hold a shutter or door: one lifts and holds, the other crawls under: `width` required, ERR below the door minimum; stays open once passed; judged both ways for a solo twin, like `pair_gate` |
 | `team_rope` | **yes** | the two-person rope (G180 over G110, CR7): `level_change` = the climb; needs `time_s` (lead decision 2) |
 | `rappel` | no | one way down (`RAPPEL`, `src/config/movement.ts:370`); `level_change` = the descent; needs `time_s` (lead decision 2) |
 
@@ -156,11 +160,12 @@ No zipline. The core schema's "no rope (G110)" line is out of date: G180 restore
 - **Reach (checkReach).** Every space, every `objective` and `exfil` is reachable from `start` over all links (ERR).
   Then per mode (level-design 11.6): `sector`, no softlock: every space a co-op link reaches is also reachable without
   co-op links (ERR), so a downed or solo player is never stranded (G280). `campaign`, gate reach: every co-op link has
-  a way back from its `to` to its `from` over solo links (an opened `pair_gate` counts) within `reach_max_s` at
+  a way back from its `to` to its `from` over solo links (a passed `pair_gate` or `shutter` and an unbolted door count) within `reach_max_s` at
   `reach_speed_mps` (`time_s`, else `length` / speed) (ERR none or too slow; WARN when only links with no `time_s` make
   it). `training`: neither. Solo completability is not checked (A1; G2, G50).
 - **Forced co-op gate (checkRedundancy, `campaign`).** In each section, the solo links inside it (no co-op kind, no
-  `spine`) must not join its `entry` to its `exit` (ERR: "every campaign section forces a co-op traversal move", G292).
+  `spine`; a `bolted` link only from its `to` end) must not join its `entry` to its `exit` (ERR: "every campaign section
+  forces a co-op traversal move", G292). A campaign section whose `entry` is its `exit` has no room for a gate (ERR).
 - **Spine (checkSpine).** Each `spine` link joins consecutive sections (ERR otherwise); removing any section's spaces
   disconnects `start` from `exfil` (ERR: a route skips a section). Loops live inside sections.
 - **Encounter spaces (checkEncounters).** Approaches = links other than `spine` that can enter the space (a one-way
@@ -179,13 +184,14 @@ No zipline. The core schema's "no rope (G110)" line is out of date: G180 restore
   space of leg a to any of leg b, `time_s` else `length` / 3.0, ERR above 15 s. It is measured from every space of one
   leg to the nearest space of the other leg (the worst such space counts), not to every point of the other leg as
   level-design 11.6 could be read: legs up to 117 m long cannot all lie within 45 m of each other.
-- **Co-op coverage.** A co-op link (`coop_boost`, `human_ladder`, `coop_throw`, `pair_gate`, `team_rope`) touches at least half of
+- **Co-op coverage.** A co-op link (`coop_boost`, `human_ladder`, `pair_gate`, `team_rope`, `team_throw`, `team_hang`,
+  `team_pull`, `shutter`) touches at least half of
   the encounter spaces (ERR) and at least one space in every section (ERR).
 - **Solo twins (checkCoop).** A co-op link is a solo twin when one player can make the same move: a solo link from its
   `from` to its `to`, or a solo path there that does not pass the target, on the co-op link's own `route` and no
   longer than its `length` (a longer solo route, or one on another route kind, is the no-softlock alternative; a direct
   solo link with no `length`, or beside a co-op link with none, counts). The move runs `from` -> `to` (a climb's foot
-  to its top); a two-way `pair_gate` is judged both ways. ERR on a `campaign` map (two players only, G2); WARN on
+  to its top); a two-way `pair_gate` or `shutter` is judged both ways; a `bolted` link twins only from its `to` end. ERR on a `campaign` map (two players only, G2); WARN on
   Sector Ops (G185: solo completes; G280: team doors stay two-player) and on `training`. The message names both links
   (campus CR7: the `team_rope` beside the `drop`).
 - **Pacing (checkPacing).** Over the spine order of spaces; see `tension`.

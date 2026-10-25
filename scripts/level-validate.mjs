@@ -27,9 +27,14 @@ export const SPACE_TYPES = new Set(['encounter', 'connector', 'hub', 'safe_room'
   'utility', 'stair_core', 'duct']);
 export const LINK_KINDS = new Set(['door', 'double_door', 'opening', 'roller_door', 'corridor', 'fire_stair',
   'open_stair', 'ladder', 'duct', 'tunnel', 'window', 'hatch', 'ledge', 'pipe', 'drop', 'wall_jump', 'split_jump',
-  'coop_boost', 'human_ladder', 'coop_throw', 'pair_gate', 'team_rope', 'rappel']);
-/** Kinds that need two players (graph-schema "Link kinds" + lead decisions 1-2; `coop_throw`: the kit, G293). */
-export const COOP_KINDS = new Set(['coop_boost', 'human_ladder', 'coop_throw', 'pair_gate', 'team_rope']);
+  'coop_boost', 'human_ladder', 'pair_gate', 'team_rope', 'rappel', 'team_throw', 'team_hang', 'team_pull', 'shutter']);
+/** Kinds that need two players (graph-schema "Link kinds" + lead decisions 1-2; the kit moves team_throw, team_hang,
+ *  team_pull, shutter: G293, mission-framework A17). */
+export const COOP_KINDS = new Set(['coop_boost', 'human_ladder', 'pair_gate', 'team_rope', 'team_throw', 'team_hang',
+  'team_pull', 'shutter']);
+/** Co-op kinds a pair moves through both ways and that stay open once passed (a team door, a held shutter): judged both
+ *  ways for a solo twin; their own way back for gate reach. */
+const TWO_WAY_GATES = new Set(['pair_gate', 'shutter']);
 /** One way unless the link sets `one_way: false`. */
 const ONE_WAY_KINDS = new Set(['drop', 'rappel']);
 /** Kinds walked at the metrics speeds; every other kind (climb, crawl, shimmy, co-op move) needs `time_s` on a timed
@@ -38,11 +43,12 @@ const WALK_KINDS = new Set(['door', 'double_door', 'opening', 'roller_door', 'co
   'tunnel', 'pair_gate']);
 /** Kinds whose `width` / `height` are required (graph-schema: openings, passages, stairs, ducts). */
 const NEEDS_WIDTH = new Set(['door', 'double_door', 'opening', 'roller_door', 'corridor', 'fire_stair', 'open_stair',
-  'duct', 'tunnel', 'pair_gate', 'split_jump']);
+  'duct', 'tunnel', 'pair_gate', 'split_jump', 'shutter']);
 const NEEDS_HEIGHT = new Set(['door', 'double_door', 'opening', 'roller_door', 'corridor', 'duct', 'tunnel',
   'pair_gate', 'split_jump']);
 /** Climbs and drops carry the height they cover. */
-const NEEDS_LEVEL = new Set(['ladder', 'drop', 'wall_jump', 'coop_boost', 'human_ladder', 'team_rope', 'rappel']);
+const NEEDS_LEVEL = new Set(['ladder', 'drop', 'wall_jump', 'coop_boost', 'human_ladder', 'team_rope', 'rappel',
+  'team_hang', 'team_pull']);
 /** Widths on the 0.5 m grid: room-scale passages. Door, stair and duct widths are sheet sizes (1.2, 1.3, 2.4), not
  *  grid steps, so they are checked by their kind rule only. */
 const GRID_WIDTH_KINDS = new Set(['corridor', 'opening', 'roller_door']);
@@ -211,6 +217,19 @@ function index(graph) {
   return { meta, spaces, links, byId, sections, secIndex, start, exfils };
 }
 
+/** Solo arcs: no co-op kind, and a `bolted` link only from its `to` end (one player at its near side cannot open it). */
+const soloArcsOf = (links, keep = () => true) => arcsOf(links, (l) => !COOP_KINDS.has(l.kind) && keep(l))
+  .filter((a) => !(a.link.bolted === true && a.from === a.link.from));
+/** Map<space id, arcs> from a list of arcs. */
+function adjOf(arcs) {
+  const adj = new Map();
+  for (const a of arcs) {
+    if (!adj.has(a.from)) adj.set(a.from, []);
+    adj.get(a.from).push(a);
+  }
+  return adj;
+}
+
 /** Seconds for one link: `time_s`, else `length` / speed for a walked kind; untimed otherwise (lead decision 5). */
 function linkTime(l, speed) {
   if (typeof l.time_s === 'number') return { t: l.time_s, untimed: false };
@@ -319,6 +338,7 @@ export function checkStructure(graph) {
         c.err(`${name}: ${k} must be a number >= 0`);
       }
     }
+    if (l?.bolted !== undefined && typeof l.bolted !== 'boolean') c.err(`${name}: bolted must be true or false`);
   });
   const starts = spaces.filter((s) => hasTag(s, 'start'));
   if (starts.length !== 1) c.err(`start: needs exactly one space tagged 'start' (has ${starts.length})`);
@@ -421,6 +441,9 @@ export function checkDimensions(graph, metrics) {
         if (height !== undefined && hMax !== undefined && height > hMax + EPS) c.err(`${name}: height ${fmt(height)} m above ${fmt(hMax)} m`);
         break;
       }
+      case 'shutter':
+        below(width, 'sizes.door_min_w', 'width');
+        break;
       case 'double_door': {
         const r = c.range('sizes.door_double_w', 'the double door width check');
         if (width !== undefined && r && width < r[0] - EPS) c.err(`${name}: width ${fmt(width)} m below ${fmt(r[0])} m`);
@@ -526,16 +549,17 @@ export function checkReach(graph, metrics = null) {
 }
 
 /** Campaign gate reach (level-design 11.6, 11.10): every co-op move `from` -> `to` has a way back `to` -> `from`
- *  over solo links (an opened `pair_gate` stays open, so it is its own way back and counts on other paths) within
+ *  over solo links (an unbolted door, a passed `pair_gate` or `shutter` stay open, so a gate door is its own way back) within
  *  `reach_max_s` at `reach_speed_mps`: a partner downed on either side of the gate is reached. Links with no time are
  *  left out first; when only they make the reach, that is a WARN (add time_s). With no metrics only the way back is
  *  checked. */
 function gateReach(c, links) {
-  const back = adjacency(links, (l) => !COOP_KINDS.has(l.kind) || l.kind === 'pair_gate');
+  // Once both have crossed, an unbolted door and a passed team door or shutter stay open both ways.
+  const back = adjacency(links, (l) => !COOP_KINDS.has(l.kind) || TWO_WAY_GATES.has(l.kind));
   const speed = c.num('rules.reach_speed_mps', 'the gate reach check');
   const max = c.num('rules.reach_max_s', 'the gate reach check');
   for (const l of links) {
-    if (!COOP_KINDS.has(l.kind) || l.kind === 'pair_gate') continue;
+    if (!COOP_KINDS.has(l.kind) || TWO_WAY_GATES.has(l.kind)) continue;
     const name = linkName(l);
     if (!reachable(back, l.to).has(l.from)) {
       c.err(`${name}: no solo way back from ${l.to} to ${l.from}; a partner downed below the gate cannot be reached (add a drop, a ladder kicked down or a door that stays open)`);
@@ -778,13 +802,17 @@ export function checkRedundancy(graph) {
     const entry = entries[0].id;
     const exit = exits[0].id;
     if (entry === exit) {
-      c.warn(`section ${sec}: entry and exit are the same space '${entry}'; route redundancy not checked`);
+      if (meta.mode === 'campaign') {
+        c.err(`section ${sec}: entry and exit are the same space '${entry}', so no forced co-op gate stands between them (campaign: a forced co-op gate per section, level-design 11.10)`);
+      } else {
+        c.warn(`section ${sec}: entry and exit are the same space '${entry}'; route redundancy not checked`);
+      }
       continue;
     }
     const inner = links.filter((l) => l.route !== 'spine' && byId.get(l.from).section === sec && byId.get(l.to).section === sec);
     // Campaign (level-design 11.10, G292): every section forces a co-op traversal move; solo links alone never join its
     // entry to its exit.
-    if (meta.mode === 'campaign' && reachable(adjacency(inner, (l) => !COOP_KINDS.has(l.kind)), entry).has(exit)) {
+    if (meta.mode === 'campaign' && reachable(adjOf(soloArcsOf(inner)), entry).has(exit)) {
       c.err(`section ${sec}: exit '${exit}' is reached from entry '${entry}' by solo links alone (campaign: a forced co-op gate per section, level-design 11.10)`);
     }
     if (!routes) continue;
@@ -820,11 +848,11 @@ export function checkCoop(graph, metrics) {
   // it. A longer solo route, or one on another route kind (G280's solo bypass past a guard), is the no-softlock
   // alternative, not a twin. Lengths prove the detour: a direct solo link with no `length` (or beside a co-op link
   // with none) is a twin; a multi-link path uses only links with `length`. The co-op move runs from -> to (a climb's
-  // foot to its top); a two-way pair_gate is judged both ways. ERR on a campaign map (two players only, G2); WARN on
+  // foot to its top); a two-way pair_gate or shutter is judged both ways; a bolted link twins only from its `to` end. ERR on a campaign map (two players only, G2); WARN on
   // Sector Ops, where solo play completes (G185) but team doors stay two-player (G280), and on training.
   const twinAdj = new Map();
   const soloOn = (route) => {
-    if (!twinAdj.has(route)) twinAdj.set(route, adjacency(links, (l) => !COOP_KINDS.has(l.kind) && l.route === route));
+    if (!twinAdj.has(route)) twinAdj.set(route, adjOf(soloArcsOf(links, (l) => l.route === route)));
     return twinAdj.get(route);
   };
   const sayTwin = meta.mode === 'campaign' ? c.err : c.warn;
@@ -833,7 +861,7 @@ export function checkCoop(graph, metrics) {
     const adj = soloOn(l.route);
     const coopLen = typeof l.length === 'number' ? l.length : undefined;
     const moves = [[l.from, l.to]];
-    if (l.kind === 'pair_gate' && !isOneWay(l)) moves.push([l.to, l.from]);
+    if (TWO_WAY_GATES.has(l.kind) && !isOneWay(l)) moves.push([l.to, l.from]);
     for (const [x, y] of moves) {
       const direct = (adj.get(x) ?? []).find((a) => a.to === y
         && (coopLen === undefined || typeof a.link.length !== 'number' || a.link.length <= coopLen + EPS));

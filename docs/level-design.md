@@ -11,7 +11,7 @@ Every rule names the modes it binds: **[All]**, **[Campaign]**, **[SectorOps]** 
 heading covers every rule under it; a rule's own tag replaces it. A map's graph names its mode in `meta.mode`
 (`campaign`, `sector`, `training`) and the validator runs that mode's profile (rule index at the end).
 
-### Campaign profile (Infiltration mode; Mission 1 is Tallow Wharf, Michael 2026-10-25 ~10:45)
+### Campaign profile (Infiltration mode; Mission 1 is Tallow Wharf, G340)
 - Exactly two players; it cannot be completed solo; no bot (G2, G50, G253). (11.1)
 - Every section has at least one forced co-op gate: its exit cannot be reached from its entry by solo moves, and each
   gate has a solo way back so a downed partner is reached within the revive reach (11.6, 11.10; Michael 2026-10-24
@@ -39,7 +39,7 @@ heading covers every rule under it; a rule's own tag replaces it. A map's graph 
   nor do the forced-gate and no-softlock rules (11.6, 11.10): it teaches each co-op move in place.
 - Keeps its guidance marks and the always-on objective list (G292); no maps, minimap, compass or blip (6.4).
 - Timed drills allowed: "Marlow can use timed drills, it must force players into situations as a way of training them"
-  (Michael 2026-10-25 ~10:45; 6.3).
+  (G342; 6.3).
 - Lit by default, the players cut it (G279); normal guards, few per set (4.9).
 
 ## 1. The player fantasy [All]
@@ -120,8 +120,8 @@ A level is a linear spine of encounter spaces joined by connectors.
      S3 20, S4 25, S5 26 (G328).
    - [Training] A set spawns at most `SET_GUARDS_MAX` 3 guards (12.1); the bands do not bind.
 10. **Archetypes per mode.** [Campaign] No heavies or dogs (G155); armour and helmets come with the alarm stages, and by
-   difficulty: harder difficulties always have helmets, on the hardest a helmet cannot be shot off (G338; for the
-   campaign Michael 2026-10-25 ~10:45, "Same rule"). [SectorOps] Dogs (G297); riot shields only in alarm response
+   difficulty: harder difficulties always have helmets, on the hardest a helmet cannot be shot off (G338; the campaign
+   too, G341, "Same rule"). [SectorOps] Dogs (G297); riot shields only in alarm response
    teams, heavier armour in later sections (G307); helmets by difficulty as above. [Training] Normal guards (G279).
 
 ## 5. Light and sound [All]
@@ -152,13 +152,13 @@ A level is a linear spine of encounter spaces joined by connectors.
 3. **The player sets the pace.** [Campaign] [SectorOps] No forced timers in stealth. Pressure comes from guards, light
    and noise. Soft windows only: predictable windows (shift changes, fixed patrol cycles) signposted in the world; no
    countdown that closes a route (G334, "Soft windows only"). [Training] Timed drills are allowed: "Marlow can use timed
-   drills, it must force players into situations as a way of training them" (Michael 2026-10-25 ~10:45).
+   drills, it must force players into situations as a way of training them" (G342).
 4. **Guide without markers.** [Campaign] [SectorOps] Objectives name what and where; the level flows naturally to each
    objective ("Objectives must name what and where, but no map, level design must flow naturally towards each
    objective", G336): landmarks visible from afar, light leading the eye towards the way on, signs and place names,
    sightlines into the next space. The objective is a short, plain English line; it fades in and out in game, shows
-   on every update, and a tap on View (Select) on the pad or O on the keyboard shows it for about 5 s (Michael
-   2026-10-25 ~10:45). No markers or waypoints (G290); no maps, minimap, compass or objective blip in any mode (G336,
+   on every update, and a tap on View (Select) on the pad or O on the keyboard shows it for about 5 s
+   (G343). No markers or waypoints (G290); no maps, minimap, compass or objective blip in any mode (G336,
    G339); an optional hint layer, off by default (G290). [Training] Marlow Yard keeps its guidance marks and the
    always-on objective list (G292).
 
@@ -233,8 +233,9 @@ before geometry and measured in greybox: a map whose measured value misses its t
    pull-up, hold a shutter or door, rope brace / descent (CT's two-person rope, G180), vent unlock for the partner, plus
    new creative moves (Michael: "Any other creative coop ideas"); and the dual takedown. A move the game does not have
    yet is built by its co-op job before a map relies on it. Graph kinds: `coop_boost` (boost), `human_ladder` (human
-   ladder, pull-up), `coop_throw` (throw over a gap), `pair_gate` (hold a shutter or door, a door unlocked from the far
-   side after a vent or a throw), `team_rope` (rope). Co-op routes are in at least half of the encounter spaces and in
+   ladder), `team_pull` (pull-up), `team_hang` (hang-down relay), `team_throw` (throw over a gap, built:
+   `TEAM.throwDist`), `shutter` (hold a shutter or door), `pair_gate` (team door), a `bolted` door (unlocked from
+   the far side after a vent or a throw), `team_rope` (rope). Co-op routes are in at least half of the encounter spaces and in
    every section. Check: `checkCoop` (coverage).
 10. **A forced co-op gate per section.** [Campaign] Every section forces a co-op traversal move with no solo bypass:
    the section's exit cannot be reached from its entry by solo links alone (Michael 2026-10-24 ~22:45: "must have forced
@@ -309,11 +310,19 @@ one, it leaves this list (its history is in git and `docs/archive/maps/`).
 - Hearing (guard-ai S1): one guard walks over per noise and loud gunfire is combat only close in (a quarter of its
   reach). Map decisions that relied on "a loud shot alerts every guard within 28 m": the Sector Ops suppressed-shot spot
   check (`e2e-sectorops`, its control now fires from beside the guard). No map spec relies on everyone walking over.
+- Kestrel's maps are paused (G53; campaign Mission 1 is Tallow Wharf, G340): its facts sheet
+  (`docs/kestrel/00-facts.md`; F18 lists the old six gears), time budget and sensor rules rely on the old speeds,
+  silent gears and camera; they are refreshed if Kestrel resumes.
+- The Fallow bunker (parked behind `?legacy=1`): its drills and every jump and reach are re-checked when it is rebuilt
+  on the CT moves (G79).
 
 ## 13. Required design deliverables (templates) [All]
 This section owns the per-map deliverables (the design bible points here). Phases 1 and 2 of every map produce them in
 the map's own docs folder (one folder per map, G55; for example `docs/sector-redesign/` for the campus,
-`docs/ct-prototype/` for Marlow Yard): `<map>-design.md` and `plans/*.svg`.
+`docs/ct-prototype/` for Marlow Yard): `<map>-design.md` and `plans/*.svg`. Each item is [All] unless tagged.
+
+**Map spec** (Phase 0): the map's spec, started from `docs/templates/map-spec.md` and saved verbatim; it names the
+map's mode, and may tighten this standard but loosens it only with Michael's written approval.
 
 **Connectivity graph** (first, before any geometry and before the floor plans; G284). One JSON file per map,
 `<map>.graph.json` (it may be split one file per section), in the format of `docs/level-validator/graph-schema.md`:
@@ -341,6 +350,27 @@ facing, lit pools, dark areas, loud floors hatched, vantages, objectives, co-op 
 | Who | [SectorOps] Which team or split does it, and how one solo player does it |
 | Rules | The mission's strict rules (9.3) and where each is signposted |
 | Windows | Any soft window it uses (6.3) and how the world signposts it |
+
+**Light plan** (one per space): every lamp with its fitting and owner (16.8.1), its switch or circuit group, the space
+type and its light band (5.5), the dark pockets the real gaps make (between poles, under carports, behind cars), and
+which route each light change opens or closes (a switch, a breaker, a shot lamp, the jammer; hardened chokepoints and
+the route around them, 5.2). [Training] Lit by default, the drills cut it (G279).
+
+**Sound plan** (one per space): ambient zones (`ambientZone` per storey, 12.1) and what masks a noise there, loud and
+quiet floors with their real finish (5.3, 16.8.3), and where a quiet and a loud version of the same action sit side by
+side.
+
+**Checkpoint plan**: one encounter checkpoint before each encounter space (3.9), on a floor, in the dark, out of every
+guard's view, so replay loss is about 10 minutes at most (G126); where a broken strict rule restarts each section
+(9.3). [SectorOps] The revive syringe and checkpoint spots (G188).
+
+**Co-op plan** (one per space): the co-op routes and their graph kinds (11.9), splits with their legs, overwatch and
+assist (11.3-11.5), the downed-partner reach (11.6) and the dual-takedown pairs. [Campaign] Each section's forced co-op
+gate and its way back (11.10, 11.6). [SectorOps] The solo route past each team door (G280) and how a team of 1-4
+splits the objectives. [Training] The move each exercise teaches and its drill.
+
+**Medkit and civilian plan**: the wall medkit stations (G98; where each is and why a real one is there) and every
+civilian (who works there at night, where, and why), with what a civilian sees and does.
 
 **Space sheet** (one per encounter space)
 | Field | Content |
