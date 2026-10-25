@@ -102,7 +102,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pidAlive, staleName } from '../heavy-lock.mjs';
-import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, trainSoon, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, REPEAT_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting } from './lib.mjs';
+import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, trainSoon, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, markReport, perfStep, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, REPEAT_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting } from './lib.mjs';
 import { visualPlan, visualEnv, visualVerdict, visualComment, VISUAL_CONTEXT, VISUAL_SUITE, VISUAL_SH_TIMEOUT_MS } from './visual.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
@@ -460,11 +460,11 @@ function affectedPass() {
         affectedSeen.add(n.sha);
         continue;
       }
-      const r = affectedRequest({ now: Date.now(), ...n, suites: got.suites, suffix: randomBytes(2).toString('hex') });
-      if (DRY) { log(`dry-run: ${tag}: would enqueue ${r.id}: ${got.files.length} file(s), ${got.suites.join(' ')}`); continue; }
+      const r = affectedRequest({ now: Date.now(), ...n, suites: got.suites, report: got.report, suffix: randomBytes(2).toString('hex') });
+      if (DRY) { log(`dry-run: ${tag}: would enqueue ${r.id}: ${got.files.length} file(s), ${got.suites.join(' ')}${got.report.length ? ` (report only: ${got.report.join(' ')})` : ''}`); continue; }
       if (!pushFile(`requests/${r.id}.json`, `${JSON.stringify(r, null, 2)}\n`, `request ${r.id}`)) { log(`${tag}: request push failed, retried next affected pass`); continue; }
       affectedSeen.add(n.sha);
-      log(`${tag}: enqueued ${r.id}: ${got.files.length} file(s), ${got.suites.join(' ')}`);
+      log(`${tag}: enqueued ${r.id}: ${got.files.length} file(s), ${got.suites.join(' ')}${got.report.length ? ` (report only: ${got.report.join(' ')})` : ''}`);
       postStatus(n.sha, 'pending', AFFECTED_CTX, `queued: ${got.suites.length} suite(s), laptop-e2e/affected`);
     }
   } catch (e) { log(`affected pass failed: ${String(e.message).split('\n')[0]}`); }
@@ -806,11 +806,15 @@ async function prepare(port, sha, logFile, stop, ctl) {
   return (await sh('npm run build', { cwd, logFile, ctl })) === 0 ? 'ok' : 'build';
 }
 
-/** One run-e2e call on a slot; returns the parsed run plus its exit code and the last 40 lines of its output. */
-async function e2e(port, suites, jobs, logFile, ctl, { env: extra = {}, timeoutMs } = {}) {
+/**
+ * One run-e2e call on a slot; returns the parsed run plus its exit code and the last 40 lines of its output. report
+ * (J20 T4): suites run after `suites` with E2E_REPORT naming them, so run-e2e prints them REPORT ONLY.
+ */
+async function e2e(port, suites, jobs, logFile, ctl, { env: extra = {}, timeoutMs, report = [] } = {}) {
   freePort(port);
-  const env = { E2E_PORT: port, E2E_JOBS: String(jobs), E2E_GPU: '1', E2E_SUITE_TIMEOUT: '900', E2E_QUARANTINE_FILE: file('quarantine.json'), ...extra };
-  const code = await sh(`node scripts/run-e2e.mjs ${suites.join(' ')}`, { cwd: SLOTS[port].dir, env, logFile, ctl, ...(timeoutMs ? { timeoutMs } : {}) });
+  const rep = (report ?? []).filter((s) => !suites.includes(s));
+  const env = { E2E_PORT: port, E2E_JOBS: String(jobs), E2E_GPU: '1', E2E_SUITE_TIMEOUT: '900', E2E_QUARANTINE_FILE: file('quarantine.json'), ...(rep.length ? { E2E_REPORT: rep.join(' ') } : {}), ...extra };
+  const code = await sh(`node scripts/run-e2e.mjs ${[...suites, ...rep].join(' ')}`, { cwd: SLOTS[port].dir, env, logFile, ctl, ...(timeoutMs ? { timeoutMs } : {}) });
   freePort(port);
   const text = fs.readFileSync(logFile, 'utf8').split(/^\$ node scripts\/run-e2e.mjs /m).pop() ?? '';
   return { ...parseRun(text), code, tail40: failureExcerpt(text).tail40 };
@@ -1228,7 +1232,11 @@ async function runRequest(r, port) {
           yieldedSteps = true;
           return;
         }
-        const line = step.startsWith('serve ') ? `node scripts/laptop-queue/serve.mjs ${step.slice(6)}` : step;
+        // (J20 T14 S) a perf step enforces its budgets unless it says --no-budget (lib perfStep)
+        const base = step.startsWith('serve ') ? `node scripts/laptop-queue/serve.mjs ${step.slice(6)}` : step;
+        const line = perfStep(base);
+        if (line !== base) log(`${r.id}: step ${i + 1} runs as: ${line}`);
+        else if (/--no-budget/.test(step)) log(`${r.id}: step ${i + 1} is a measure-only perf run (--no-budget)`);
         freePort(ports[0]);
         const code = await sh(line, { cwd: SLOTS[ports[0]].dir, env: { ...r.env, E2E_PORT: ports[0], E2E_GPU: '1' }, logFile: path.join(runDir, `step${i + 1}.log`), ctl });
         if (code === 0) okSteps++;
@@ -1245,20 +1253,24 @@ async function runRequest(r, port) {
     }
     const list = r.kind === 'full' ? cmd('node', ['scripts/run-e2e.mjs', '--list'], { cwd: SLOTS[port].dir }).split('\n').map((x) => x.trim()).filter(Boolean) : r.suites;
     const jobs = DESKTOP || r.trainRerun ? 1 : r.jobs ?? (r.kind === 'full' ? 3 : 2); // a train rerun: E2E_JOBS=1, unsharded
+    // (J20 T4) an affected request's LEGACY / AUDIO suites run after the gate ones, REPORT ONLY
+    const report = r.kind === 'pr' && Array.isArray(r.report) ? r.report.filter((s) => typeof s === 'string' && s && !list.includes(s)) : [];
+    const all = [...list, ...report];
     const t0 = Date.now();
     started = true;
-    progress = () => runProgress(list, times, jobs, Date.now() - t0);
-    const run = await e2e(port, list, jobs, path.join(runDir, `${port}.log`), ctl);
+    progress = () => runProgress(all, times, jobs, Date.now() - t0);
+    const run = await e2e(port, list, jobs, path.join(runDir, `${port}.log`), ctl, { report });
     if (ctl.why) return cutEnd();
     // same completeness rule as a train shard; at least the listed suites (a named suite may expand into parts)
-    if (!runComplete(run, list.length)) {
-      log(`${r.id}: run incomplete (exit ${run.code}, ${run.suites.length}/${list.length} suites, summary ${run.complete ? 'seen' : 'missing'})`);
+    if (!runComplete(run, all.length)) {
+      log(`${r.id}: run incomplete (exit ${run.code}, ${run.suites.length}/${all.length} suites, summary ${run.complete ? 'seen' : 'missing'})`);
       verdict('failure', `slot ${port} gave no result`);
-      if (r.pr) postComment(r.pr, `${ctx} failed on ${r.sha.slice(0, 8)} (${job.ref}): slot ${port} gave no result (exit ${run.code}, ${run.suites.length}/${list.length} suites).\nLog on the ${WORKER}: ${path.join(runDir, `${port}.log`)}\n\`\`\`\n${capTail(run.tail40 || '(empty log)', 8_000)}\n\`\`\``);
+      if (r.pr) postComment(r.pr, `${ctx} failed on ${r.sha.slice(0, 8)} (${job.ref}): slot ${port} gave no result (exit ${run.code}, ${run.suites.length}/${all.length} suites).\nLog on the ${WORKER}: ${path.join(runDir, `${port}.log`)}\n\`\`\`\n${capTail(run.tail40 || '(empty log)', 8_000)}\n\`\`\``);
       state.done[r.id] = { result: 'incomplete', date: new Date().toISOString() };
       return;
     }
-    const result = { suites: run.suites, wall: 0, flakes: [] };
+    // (J20 T4, BRIEF A2) report rows never fail the request, also for an affected request queued before J20 (lib markReport)
+    const result = { suites: markReport(r, run.suites), wall: 0, flakes: [] };
     // a request reruns on its own locked slot and worktree (its sha), never on another slot
     result.flakes = await rerunFlakes(result, {}, job, runDir, port, ctl);
     if (ctl.why) return cutEnd();
@@ -1271,7 +1283,9 @@ async function runRequest(r, port) {
     if (DESKTOP && bad.length) {
       const rr = laptopRerunRequest(r, bad, { now: Date.now(), suffix: randomBytes(2).toString('hex') });
       const desc = desktopFailDesc(bad, median(cpuSamples));
-      if (DRY) log(`dry-run: ${r.id}: would queue the laptop rerun ${rr.id} (${bad.join(' ')}): ${desc}`);
+      // null: no gate suite left to rerun (J20 item a; markReport already made report-only rows pass, so this is a guard)
+      if (!rr) log(`${r.id}: no gate suite left to rerun on the laptop (${bad.join(' ')}), the desktop failure stands`);
+      else if (DRY) log(`dry-run: ${r.id}: would queue the laptop rerun ${rr.id} (${bad.join(' ')}): ${desc}`);
       else if (pushFile(`requests/${rr.id}.json`, `${JSON.stringify(rr, null, 2)}\n`, `request ${rr.id}`)) {
         handedOff = desc;
         rerunId = rr.id;
