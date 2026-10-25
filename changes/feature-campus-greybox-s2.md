@@ -15,3 +15,5 @@ kind: patch
 - S2-G4: L2 and roof: office A's second door, office B's side door into the east wing, a larger board room with two doors,
   the roof plant room rebuilt (4.0 m walls) with a floor hatch and a cat ladder down to L2, and a window-cleaning davit whose
   rope ends on the sunshade by the facilities window.
+- S2-G6a: 18 guards (was 12): new cafe, atrium-stair, west-plan, north-plan torch, relief and L2 north-strip rounds; the
+  bridge officer moves to face the comms door; the mailroom and L2 lift guards are awake.

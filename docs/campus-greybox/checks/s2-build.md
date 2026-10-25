@@ -199,3 +199,31 @@ Findings for the lead:
   door at z -3.2 or start the board room wall at x -7.3; both change a plan position, so left as drawn.
 
 Pending PC run: e2e-sectorops parts 1-6 on the S2-b head (flag off).
+
+## S2-G6a - 18 guards (data and pure tests)
+
+Built on the lane branch after G4 (one builder, so no G6a worktree and no merge step). Files: `src/world/maps/campusV2/s2Data.ts`
+(the `S2_GUARDS` array only), `tests/campusV2S2Guards.test.ts`.
+
+Built: `s2Data.ts:23-89` `S2_GUARDS`, 18 entries in the order #1-#14, #18-#21 (index 0-17; each number in its comment):
+- As built: #1-#7, #9; #10 and #12 lose `dormant`.
+- #8 (7): route (-4, -1.5) -> (2.2, -6.5) -> (-4, -14.5) (Q2 corner stop), waits [3, 7, 3], faces as built [0, PI / 2, PI],
+  takedown (2.2, -6.5). 44.4 s.
+- #11 (10) K2: post (1.5, 4.4, -15.8), yaw 0, leash 5, guards c2-door, takedown (1.5, -16.5).
+- #13 (12): (-20, 2) <-> (-2, 2), [4, 4], takedown (-2, 2), 44.4 s. #14 (13): BA12 sweep (-19, -8.5) <-> (-17, -8.5),
+  waits [12, 12], faces [PI - 1.05, PI + 1.05], takedown (-18, -8.5), 28.3 s. #18 (14): (-38, -21) -> (-33, -16) -> (-32, -8),
+  [4, 4, 4], takedown (-32, -8), 41.7 s. #19 (15): (-39, -1.5) <-> (-22, -1.5) (Q2), [4, 4], takedown (-39, -1.5), 44.4 s.
+  #20 (16): (1.2, -2.7) <-> (-4.5, -2.2), [7, 7] (Q2), takedown (1.2, -2.7), 26.2 s. #21 (17): (-27, -1.5) <-> (-9, -1.5)
+  (Q2), [4, 4], takedown (-9, -1.5), 44.4 s.
+- BA11: new guards' first yaw faces their second route point; `faces` only on #14 (BA12). Squads 0 G, 1 east wing, 2 L1
+  plan, 3 L2. Role / zone / reason from the `D:255-273` table (zones: cafe, atrium, l1-west, l1-north, wing, l2-north).
+- #19's torch (AS14) is the archetype's flashlight: no data field.
+- 18 + 3 x 2 = 24 <= 32. Reinforce points unchanged.
+
+Tests: `tests/campusV2S2Guards.test.ts` 7 / 7 pass (kinds / guns, `checkSectorGuards` [], floors, squads, posts #1 / #11 /
+#12, none dormant, the D-table slots and BA11 / BA12, every cycle 25-45 s with the brief's values, the pair loop, the cap).
+All lane tests 64 / 64; flag-off set 69 / 69. Typecheck and eslint clean.
+
+Assumptions: Q2 defaults, BA11, BA12 as the brief. New:
+- **A-G6a-1** #8 keeps his as-built `faces` [0, PI / 2, PI] (his stops are the same three jobs: the facilities door, the
+  panel, the pair-door corner); BA11's "faces only where the plan gives one" is read for the new guards. Undo: drop `faces`.
