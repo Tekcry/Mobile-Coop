@@ -141,3 +141,12 @@ Status per entry: kept, CHANGED (with the answer that changed it) or REPLACED (n
   second carries the other's change: if #317 lands first, the lead moves its tag rows into `campusS1Data.ts` ..
   `campusS3Data.ts` and copies them into the v2 data files before P0 trains (the equality test needs copies = live).
   Undo: none.
+- **A24 S5 CR7 hoist door is a pair gate** (new; `briefs/S5.md` P1). The signed page says "the hoist door becomes a pair bolt".
+  An E3 pair bolt draws only while the partner pushes the leaf from the far side of the door (`sectors.ts` `partnerAtDoor`), and
+  the far side of the hoist door is the open light well 4.2 m down, so nobody could open it. A pair gate (two key switches in
+  the archive, 6.5 m apart, 1.0 s) keeps the page's intent: two players only, never one (G280). Undo: a pair bolt once the
+  engine allows a same-side partner.
+- **A25 S5 CR7 way down is the hang-drop, not a rappel anchor** (new; `briefs/S5.md` P2). The rappel reach (0.9 m) has no door
+  test (`anchors.ts:762-768`), so an anchor on the hoist sill could be used through the shut door. Behind the pair gate the
+  4.2 m drop is under the 4.5 m safe drop; the way back up stays the two-person rope. Undo: add the anchor when the engine's
+  rappel query checks doors.
