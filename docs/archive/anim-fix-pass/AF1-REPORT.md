@@ -78,7 +78,7 @@ everywhere. Twist at lift: jog 13-14, run 7-11 (before 9-14), sprint 5-7 deg (be
   crouchEntryRig 1, keyedCrouch 8, posture 9, animFixPass 1: all pass.
 - `npx tsc --noEmit -p .` clean; eslint on animGraph.ts and mocapRunFeet.test.ts clean (emit.mjs is eslint-ignored).
 - e2e (desktop lane 2, port 4192, E2E_GPU=1, E2E_JOBS=1, fresh build at 8206f867): e2e-anim ok (48 s, incl. the turn feet rows), e2e-clip ok (12 s).
-- After sheets (GPU, port 4189, same commands as before/README.md, P1 rows only): docs/anim-fix-pass/after-af1/ on-walkturn, on-jog, on-run, on-run-back, on-sprint. on-run-back vs before: the planted feet sit slightly wider of the midline at 0.40-0.45 s (before: on / across it); the change is small at a glance, the numbers above carry it. OFF sheets and P2-P4 sheets not redone (untouched by AF1).
+- After sheets (GPU, port 4189, same commands as before/README.md, P1 rows only): docs/archive/anim-fix-pass/after-af1/ on-walkturn, on-jog, on-run, on-run-back, on-sprint. on-run-back vs before: the planted feet sit slightly wider of the midline at 0.40-0.45 s (before: on / across it); the change is small at a glance, the numbers above carry it. OFF sheets and P2-P4 sheets not redone (untouched by AF1).
 
 ## Open items
 - CT flicks (90 / 180 deg at 6.1-7.85 rad/s, outside the plan's bars): the planted foot still reads across the hip

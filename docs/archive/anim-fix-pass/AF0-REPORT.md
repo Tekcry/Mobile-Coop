@@ -4,7 +4,7 @@
 - `tests/helpers/afpMeasure.ts` (new): the harness. One exported function per measure, JSDoc'd, all taking a `Rec`
   (mocapMeasure) and, where a `Rec` lacks the data, a `Probe` (keepElbowOut state, gun segment, kneel, stick).
 - `tests/animFixPass.test.ts` (new): report-only (always passes; only with `AFP_WRITE_NUMBERS=1` since 4.84.0); runs the AF0 scenario set and writes
-  `docs/anim-fix-pass/before/numbers.md` (committed).
+  `docs/archive/anim-fix-pass/before/numbers.md` (committed).
 - `tests/helpers/mocapStrafe.ts`: `aimRun` gains `opts` (`weight` pistol 0.7, `wall` drawn crouched back-to-wall slide), the
   stick's `crouch`, the kneel rule (`KNEEL_STILL`, playerController), `R.yaw` = the visual yaw; new `CROUCH_PLANS`
   (crouched steady, stop-go, flips through the dead zone, wall slide, wall reversal) = polish 7's plan entries. Defaults
@@ -26,7 +26,7 @@
   mean, p2p, per-frame step, per-cycle spread), `kneelSummary` (episodes, side changes, kneel frames within 0.4 s of a stick flip).
 - Sets: `gaitScenarios`, `crouchScenarios`, `strafeScenarios`, `wallScenarios`, `measureAll(run, sg)` -> flat `Measures`.
 
-## Headline before numbers (mocap ON, 60 Hz; full table docs/anim-fix-pass/before/numbers.md)
+## Headline before numbers (mocap ON, 60 Hz; full table docs/archive/anim-fix-pass/before/numbers.md)
 - Feet, planted-ankle offset (cm, < -0.5 crossed): jog 3.0 turn 4 rad/s L/R ankle 8.0 / -1.2 and 0.2 / 6.4; run 4.0 turn 4 R: 0.4 / 7.9
   with feet gap -2.4 cm (crossed); sprint 5.0 0.2-1.2 on the left foot (< +2 cm bar); walk turn control 2.5 rad/s gap -0.7..-1.3.
   Passing gap: run 4.0 straight 13.0, turns 11.4-13.6; sprint 9.5-10.6. Plant max: walk 0.47 s, jog 0.15, run 0.10, sprint 0.08.

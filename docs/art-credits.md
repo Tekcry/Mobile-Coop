@@ -18,13 +18,13 @@ proportions) is listed under "Reference data" and kept out of the repo.
 
 ## Motion capture (CMU exception, mocap-trial)
 
-The one non-CC0 data source: Michael's exception for CMU motion capture only (docs/mocap-trial/BRIEF.md, 2026-10-22).
+The one non-CC0 data source: Michael's exception for CMU motion capture only (docs/archive/mocap-trial/BRIEF.md, 2026-10-22).
 Raw takes stay out of git (`.mocap-cache/`, gitignored); only clips converted onto Wren are committed and bundled.
 Every take used, with its seconds: `docs/mocap-trial/SOURCES.md`.
 
 | Files (repo path) | What it is | Source (URL) | Terms | Date added | Used by |
 | --- | --- | --- | --- | --- | --- |
-| `src/anim/clips/mocap/` (converted by `scripts/mocap/` from ASF/AMC takes of subjects 16, 69, 127 and 136) | Locomotion clips: walk, jog, run, walking 90 deg turns, start, stop, turn on the spot; the crouched sneak (136_09, mocap-trial-2); the sprint (127_07, mocap-trial-2); the aimed strafe (69_59 left / 69_56 right, mocap-trial-2) | http://mocap.cs.cmu.edu/ (CMU Graphics Lab Motion Capture Database) | "This data is free for use in research projects. You may include this data in commercially-sold products, but you may not resell this data directly, even in converted form." | 2026-10-22 | The "Mocap locomotion" switch (default on) |
+| `src/anim/clips/mocap/` (converted by `scripts/mocap/` from ASF/AMC takes of subjects 16, 69, 127 and 136) | Locomotion clips: walk, jog, run, walking 90 deg turns, start, stop, turn on the spot; the crouched sneak (136_09, mocap-trial-2); the sprint (127_07, mocap-trial-2); the aimed strafe (69_59 left / 69_56 right, mocap-trial-2) | http://mocap.cs.cmu.edu/ (CMU Graphics Lab Motion Capture Database) | "This data is free for use in research projects. You may include this data in commercially-sold products, but you may not resell this data directly, even in converted form." | 2026-10-22 | Locomotion: the player's only path (the animation tuner's More > Panel box is the dev rollback) |
 
 Acknowledgement (as the database asks): "The data used in this project was obtained from mocap.cs.cmu.edu. The database
 was created with funding from NSF EIA-0196217."
