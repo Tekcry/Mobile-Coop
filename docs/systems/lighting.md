@@ -14,11 +14,14 @@ not change what a camera sees. Lights matter for guards and the meter only. (cam
 rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security cameras).
 
 ## Decided direction
-- Decided, not built yet (G329, "Real-world levels"): each space type gets a real-world illuminance band
-  from the lighting standards (outdoor car parks AS/NZS 1158.3.1, interiors AS/NZS 1680 / EN 12464); engine light is
-  calibrated to lux once and measured from the bake at greybox exit. Stealth comes only from real gaps (between poles,
+- Decided, not built yet (G329, "Real-world levels"; G368, "Australian standards"): each space type gets a real-world
+  illuminance band from the Australian lighting standards (outdoor car parks AS/NZS 1158.3.1, interiors AS/NZS 1680; EN
+  12464 where they are silent); engine light is calibrated to lux once, Michael approves the band table with the S1
+  car-park light map, and each space is measured from the bake at greybox exit. Stealth comes only from real gaps (between poles,
   under the carport, behind cars, cut circuits, shot lamps), never from leaving lit places unlit; the 40-60% shadow-share
-  target yields to the band. Michael: "car parks are generally well lit". The light-realism job (Sector Ops,
+  target yields to the band. Michael: "car parks are generally well lit". No dark spots from lights left off (G367,
+  "Never"): every fitting works and is on, on every map; a dead fitting (intensity 0, below) is not used to make a
+  dark pocket. The light-realism job (Sector Ops,
   `feature/light-realism`, S1 car park first) builds the calibration; the level rule lives in docs/level-design.md.
 - Decided (G333, "Everywhere"): hardened lit choke points are allowed on campaign and Sector Ops maps:
   un-shootable fixtures and guarded or locked breakers. A route around the choke point always stays. This loosens the

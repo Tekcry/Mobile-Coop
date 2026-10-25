@@ -327,7 +327,8 @@ Plan and rules: `docs/sector-redesign/briefs/ART-PLAN.md`; builds: `docs/sector-
   swinging leg's knee pole stays nearer the pelvis forward (`KNEE_SWING_SHARE`). The idle's head scan reaches the
   head through `RigTargets.keyScan` (added to the world-stabilised head yaw: the camera aim and look still drive it). Remotes pose the same from MoveState (speed, crouch, the graph's own
   clock); no wire change.
-- (mocap-trial) Mocap locomotion switch (`anim/mocap.ts`; `?mocap=0/1`, then the tuner's More > Panel box for that page;
+- (mocap-trial) Mocap locomotion switch, a developer rollback only: players get mocap only (G399) (`anim/mocap.ts`;
+  `?mocap=0/1`, then the tuner's More > Panel box for that page;
   ON otherwise: anim-fix-pass AF5 removed the Settings row and a stored `gameplay.mocapLoco: false` no longer sticks,
   core/app.ts; the switch is per machine and drives the co-op partner's copy on this machine too): `LOCO.set` picks the clip set the standing holstered
   speed set samples (`speedSet`: the hand-keyed `HAND_KEYED_SET` or `MOCAP_SET`, `anim/clips/mocap/*` in the keyed format;

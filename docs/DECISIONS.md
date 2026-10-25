@@ -2124,7 +2124,7 @@ per-player LKP; with G139.)
 
 **G381. 4-player Sector Ops goes live when it ships.** Michael (Q16): "Live now" (not the recommended "Merge behind a
 switch, on after the campus walk"). #317 coop4 ships switched on, with no off switch. (For this one feature, overrides
-the flag-until-walked rule of `CLAUDE.md` and the walk-cap switch-on of G288 and G355; with G308.)
+the switch-on after Michael's walk, `docs/RULES.md` "Walk pacing" (G288, G355); with G308.)
 
 **G382. An off-screen guard whose shadow is in view animates like an on-screen guard.** Michael (Q17): "Like on screen
 (Recommended)" (option: "Like an on-screen guard"). (Settles the rate of G327.)

@@ -47,7 +47,7 @@ and the orchestrator fixes VISION.
   approval. An engine-fact change in level-design Section 12 updates it and lists the map decisions that relied on it.
 - Desktop only (G12), pad first, then keyboard and mouse (loco D1, bible P7; tests run as a desktop, G13): no phone or
   touch work, except that a phone can launch the game for testing on the minimum settings and menus / HUD fit an iPad
-  (G182); the Kestrel editor keeps its phone launcher with no new work (G15). Removed and parked systems (bible
-  Section 6) get no new work; nothing is drawn as voxels. Story is text radio and subtitles, every line written so it
-  can be voiced later (G82).
+  (G182), and menu taps and touch look in play stay (G395); the Kestrel editor keeps its phone launcher with no new work
+  (G15). Removed and parked systems (bible Section 6) get no new work; nothing is drawn as voxels. Story is text radio
+  and subtitles, every line written so it can be voiced later (G82).
 - Unfinished work ships dark behind its flag in `src/core/flags.ts`.

@@ -1,7 +1,7 @@
 # Stealth AI, enemy archetypes and modes
 Owner: Guard AI Build. Status: current.
 Purpose: perception, alert states, enemy behaviour, archetypes, difficulty, the navigation grid and the game-mode hooks.
-Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350), then docs/design-bible.md (Section 5.7).
+Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374, G377-G380, G382), then docs/design-bible.md (Section 5.7).
 
 ## Decided direction
 - Decided, built (G41; ct-prototype A3, F1b door-4): guards close doors behind them on a calm patrol and notice any door
@@ -24,10 +24,12 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350), then
   realistically possible" (G289, G254), limited by the guard-cap perf floor and passable routes; room to manoeuvre
   beats count (G190). Per-space bands are info; the validator WARNs only below them (G289).
 - Decided (G42, G155, G297, G307): every human guard can be palm-struck; dogs cannot. Per mode:
-  - Campaign co-op missions: no heavy or dog archetypes; armour comes with the alarm stages (G155, "Adopt CT's way").
+  - Campaign co-op missions: no heavy or dog archetypes; armour comes with the alarm stages (G155, "Adopt CT's way");
+    alarm teams are armed guards only, no riot shields (G377).
   - Sector Ops: guard dogs (G297); later sections add body armour (torso shots only stagger), riot shields only in
     alert response teams, and armour per alarm stage (G307).
-  - Dogs (G348): no takedown, sleeping gas knocks one out, a dog can be distracted, killing one carries a penalty.
+  - Dogs (G348): no takedown, sleeping gas knocks one out, a dog can be distracted; killing one counts as a kill (no
+    Perfect) and costs score (G374).
     What is built and what is not: `docs/systems/takedowns.md` (Decided direction).
   - Helmets by difficulty: the rule is in bible 5.6 (G350). Not built yet: helmets come from a slot tag, a section
     default or the alarm stage (`ai/gear.ts` `GEAR_BY_STAGE`), never from the difficulty.
@@ -36,12 +38,15 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350), then
 - Decided (G11, G180, G335): of the movement run's AI ideas (guards relight lamps, paired searches, eavesdropping and
   the rest) only those CT has survive, with one exception: Michael "Add both" (G335) - static
   lookouts on some high routes (pipes, catwalks, vents) and paired patrols that check on each other. G44 (poor sight
-  above) stays the base rule; a lookout is the deliberate exception on its route. Guard AI plans it first; not built
-  yet.
-- Decided (G327, "Yes, shadow in view = seen"): a guard whose shadow falls in view animates at full rate
-  (`animTierView.ts`; replaces G294's assumption). Not built yet: shadow passes do not count as seen.
+  above) stays the base rule; a lookout is the deliberate exception on its route; a vent lookout stands where he
+  overlooks the vent run or its exit, not in the vent (G378). Guard AI plans it first; not built yet.
+- Decided (G327, "Yes, shadow in view = seen"; G382, "Like on screen"): a guard whose shadow falls in view animates
+  like an on-screen guard (`animTierView.ts`; replaces G294's assumption). Not built yet: shadow passes do not count as seen.
 - Decided, not built yet (G352): guard perception reads the players' real-time character shadows, as the picture
-  shows them (light parity; `docs/systems/lighting.md`). Today guards read only the light field.
+  shows them (light parity; `docs/systems/lighting.md`), and a player's cast shadow in a guard's view gives him a
+  faint cue, a small rise in suspicion, never a sighting on its own (G379). Today guards read only the light field.
+- Decided, built (G380, "Yes, each player"): guards keep a last known position per player (guard-ai S24, "Two
+  intruders" below).
 - Decided (G47): the light parity test, long lamps and motion lights are sorted out when built.
 
 ## Stealth AI (2.0 phase 3a)

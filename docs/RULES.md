@@ -68,12 +68,12 @@ Michael sends it verbatim to the orchestrator, which adds it to the ROADMAP Inbo
 
 **Walk pacing** (G288). At most 3 unwalked features per area (Player / animation, Marlow Yard, Sector Ops, Guard AI,
 lighting); ROADMAP "Waiting on Michael" keeps the count. The cap limits switch-on only: at the cap no new feature in
-that area is switched on until Michael walks some, while signed-off builds go on dark behind their flags, and fixes
-to shipped features (rule fixes such as G339's compass / blip) are allowed (G355).
-Every release gets a 10-minute walk card from the orchestrator: risk-ranked, one acceptance line per item, look videos
-for animation and lighting (each such PR carries a 1-2 min video path in its body). A flagged feature is switched on
-when Michael accepts it. A lead with no PLAN slice left starts the next roadmap feature in its area with
-an Opus plan; the orchestrator assigns it (G283).
+that area is switched on until Michael walks some, while signed-off builds go on dark behind their flags, and fixes to
+shipped features (rule fixes such as G339's compass / blip) are allowed (G355). Every release gets a 10-minute walk card
+from the orchestrator: risk-ranked, one acceptance line per item, look videos for animation and lighting (each such PR
+carries a 1-2 min video path in its body). A flagged feature is switched on when Michael accepts it, or when he says so
+(4-player Sector Ops, G381). A lead with no PLAN slice left starts the next roadmap feature in its area with an Opus
+plan; the orchestrator assigns it (G283).
 
 **A job.**
 - Branch `feature/<job>` from origin/master in `C:/NightShift/Mobile-Coop-<job>` (G94). The plain folder

@@ -229,7 +229,8 @@ Still standing:
   CT's 55.7 deg vertical; Michael "Match CT (86)"; `camV` 1 moves a saved 75 to 86 and the pad's vertical look 0.8 to
   1.0), Hor+. Passing through an open doorway (within 1 m of its plane and inside its width, moving across it at 0.3 m/s
   or more: `world/camSpaces.ts` `doorPassing`) the boom pushes in to 0.8 m over 0.4 s and returns over 0.7 s once
-  through or stopped (CT 110818, prototype).
+  through or stopped (CT 110818, prototype). Decided, not removed yet (G397, "Pull-back only"): the doorway push-in
+  goes; the open / tight boom stays.
 - (tuner-camera) Live camera tuning per camera state: the animation tuner's Camera section (`docs/archive/anim-tuner/CAMERA.md`);
   identity at default, the collision still applies; gameplay reads `ShoulderCamera.gamePos`.
 - Wall and low-space safety (CAM): sphere casts head -> pivot -> shoulder -> camera, up / down probes, low-space framing,

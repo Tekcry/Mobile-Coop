@@ -5,7 +5,8 @@ Design authority: docs/DECISIONS.md (G16-G24, G96, G210, G227), then docs/design
 
 Desktop only: pad first, then keyboard and mouse (loco D1, G12). No touch movement or combat (M21).
 
-Game touch (marlow-bays item 29, Michael's scope "Menus + camera"; `input/touchLook.ts` pure, wired in
+Game touch (marlow-bays item 29, Michael's scope "Menus + camera"; menu taps and touch look are a recorded exception to
+desktop only, G395; `input/touchLook.ts` pure, wired in
 `InputManager`; e2e: `e2e-menus` "game touch"):
 - Every menu and the pause menu take a tap (FocusNav items are buttons: a tap is a click), the Back legend too.
 - In play one finger dragged on the game view looks around (`TouchLook`, `TOUCH_LOOK_RAD_PER_PX` x the mouse
@@ -191,7 +192,8 @@ Edit the table and the code together.
   rows and in a summary, and saved (A71).
 - Capture: 5 s timeout; keyboard Esc cancels, Backspace clears; pad binds on release, B held `CAPTURE_CANCEL_HOLD` 1 s or
   Esc cancels (G22 changes this), Y on a slot clears. Reset per device with a confirm.
-- Hold / toggle in `Settings.gameplay`: `crouchToggle` (default toggle), `sprintHold` (unused since the CT prototype M1: no sprint; no
+- Hold / toggle (G398, "Plain holds only"): every plain hold action gets a hold or toggle setting; a button whose tap
+  and hold do different things, and the aim (G214), get none. In `Settings.gameplay`: `crouchToggle` (default toggle), `sprintHold` (unused since the CT prototype M1: no sprint; no
   row since anim-rework S1), `wallToggle` (default toggle), `grabToggle` (default toggle; hold: letting go knocks out, A70). `access.holdToggle`
   (held interactions) is separate. Nothing in `src/net` reads bindings or these settings.
 - In-game pad prompts read the bindings (`verbPromptHtml`, `padButtons` set by `App.applyKeyLabels`).

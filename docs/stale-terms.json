@@ -130,6 +130,60 @@
         "docs/RULES.md"
       ],
       "allowLine": "\\b(FIXED|CLOSED|fixed in|closed by)\\b"
+    },
+    {
+      "id": "marlow-strict-late",
+      "regex": "taught late|one (strict rule )?(is )?taught in a late section|teaches one in a late section",
+      "why": "Marlow Yard has no strict rules: every failure is a retry (G370, replaces G357)",
+      "replacement": "no fail or send-back in Marlow Yard; every failure is a retry"
+    },
+    {
+      "id": "dark-by-design",
+      "regex": "dark[- ]by[- ]design|darkness is where nobody works",
+      "why": "no dark spots from lights left off, on any map (G367)",
+      "replacement": "every light works; darkness from cover, cut power and shot lamps"
+    },
+    {
+      "id": "mocap-player-switch",
+      "regex": "hand-keyed set behind the switch|mocap on by default|on by default once checked",
+      "why": "players get mocap only; the hand-keyed set is a developer rollback (G399)",
+      "replacement": "mocap only, no player switch"
+    },
+    {
+      "id": "partner-no-bandwidth",
+      "regex": "with no extra bandwidth",
+      "why": "small partner animation fields may go over the wire (G400)",
+      "replacement": "MoveState plus small animation fields"
+    },
+    {
+      "id": "lkp-per-player-open",
+      "regex": "whether the LKP becomes per player",
+      "why": "guards keep a last known position per player (G380)",
+      "replacement": "an LKP per player"
+    },
+    {
+      "id": "every-hold-toggle",
+      "regex": "every hold action gets a hold or toggle|hold or toggle for every hold action",
+      "why": "toggles for plain holds only (G398)",
+      "replacement": "every plain hold action"
+    },
+    {
+      "id": "dog-kill-penalty-vague",
+      "regex": "killing one (carries a penalty|is penalised)",
+      "why": "a dog kill counts as a kill and costs score (G374)",
+      "replacement": "counts as a kill (no Perfect) and costs score"
+    },
+    {
+      "id": "camera-never-adjusts",
+      "regex": "camera never moves or adjusts by itself",
+      "why": "the open-space pull-back stays (G397)",
+      "replacement": "never swings or recentres by itself; the boom eases open / tight"
+    },
+    {
+      "id": "one-touch-exception",
+      "regex": "the one touch exception",
+      "why": "menu taps and touch look in play are also an exception (G395)",
+      "replacement": "name both exceptions"
     }
   ],
   "resumeScope": [
