@@ -196,10 +196,27 @@ export const S2_ROOMS: RoomDef[] = [
   { id: 'l1comms', name: 'Comms Room', minX: -2.5, maxX: 4, minZ: -10.5, maxZ: -4.5, minY: 4.4, maxY: 8.4 },
   { id: 'l1landing', name: 'Bridge Landing', minX: -2.5, maxX: 4, minZ: -17.5, maxZ: -10.5, minY: 4.4, maxY: 8.4 },
   { id: 'l1semeet', name: 'South-east Meeting Room', minX: -7.5, maxX: 4, minZ: -30, maxZ: -23, minY: 4.4, maxY: 8.4 },
+  // (S2-G5c-0, A-J17-S2-1) every enclosed L1 meeting room is its own room (G329 "no lit place left unlit"; guard-ai `lightsOut`
+  // reads "a fixture in the room he stands in"). Boxes from the PG areas. They nest in l1sw / l1north: `roomAt` takes the
+  // smallest box, so a point in a meeting room is the meeting room's and the open plan keeps the rest
+  { id: 's2-l1-mr1', name: 'Meeting Room 1', minX: -44, maxX: -35.5, minZ: -20, maxZ: -14, minY: 4.4, maxY: 8.4 },
+  { id: 's2-l1-mr2', name: 'Meeting Room 2', minX: -44, maxX: -34, minZ: 0, maxZ: 6, minY: 4.4, maxY: 8.4 },
+  { id: 's2-l1-mr3', name: 'Meeting Room 3', minX: -26, maxX: -16, minZ: 0, maxZ: 6, minY: 4.4, maxY: 8.4 },
   { id: 'l2sw', name: 'L2 West Gallery', minX: -44, maxX: -26, minZ: -30, maxZ: 6, minY: 8.4, maxY: 12.3 },
   { id: 'l2north', name: 'L2 Offices', minX: -26, maxX: -7.5, minZ: -30, maxZ: 6, minY: 8.4, maxY: 12.3 },
   { id: 'l2wing', name: 'L2 East Wing', minX: -7.5, maxX: 4, minZ: -30, maxZ: 6, minY: 8.4, maxY: 12.3 },
+  // (S2-G5c-0, A-J17-S2-1) the L2 enclosed rooms and the L2 balcony strips (twins of l1west / l1south / l1east); nested in
+  // l2sw / l2north / l2wing the same way (smallest box wins)
+  { id: 's2-l2-exec', name: 'Executive Suite', minX: -44, maxX: -30, minZ: -4, maxZ: 6, minY: 8.4, maxY: 12.3 },
+  { id: 's2-l2-offa', name: 'Office A', minX: -28.5, maxX: -13, minZ: -30, maxZ: -22.5, minY: 8.4, maxY: 12.3 },
+  { id: 's2-l2-offb', name: 'Office B', minX: -13, maxX: -7.5, minZ: -30, maxZ: -22.5, minY: 8.4, maxY: 12.3 },
+  { id: 's2-l2-board', name: 'Board Room', minX: -7.5, maxX: -0.2, minZ: -2.5, maxZ: 6, minY: 8.4, maxY: 12.3 },
+  { id: 's2-l2-west', name: 'L2 West Balcony', minX: -30, maxX: -26, minZ: -22.5, maxZ: -4, minY: 8.4, maxY: 12.3 },
+  { id: 's2-l2-south', name: 'L2 South Balcony', minX: -26, maxX: -7.5, minZ: -22.5, maxZ: -18.5, minY: 8.4, maxY: 12.3 },
+  { id: 's2-l2-east', name: 'L2 East Balcony', minX: -11.5, maxX: -7.5, minZ: -18.5, maxZ: -4, minY: 8.4, maxY: 12.3 },
   { id: 'roof', name: 'Roof', minX: -44, maxX: 4, minZ: -30, maxZ: 6, minY: 12.3 },
+  // the roof plant room (`ROOF_PLANT`, walls 4.0 + the roof box): inside the open roof's box
+  { id: 's2-roof-plant', name: 'Roof Plant Room', minX: -20.5, maxX: -12, minZ: 0, maxZ: 6, minY: 12.3, maxY: 16.5 },
 ].map((r) => ({ ...r, squad: [] }));
 
 /** The G cafe tables (x, z), 1.0 x 0.75 x 1.0. (S2-G2, BA10) the two by the CR2 nose moved from x -13 to -14.5: the

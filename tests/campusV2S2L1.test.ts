@@ -151,7 +151,8 @@ describe('S2-G3 the L1 RoomDefs (C17, BA2)', () => {
       l1east: [-11.5, -7.5, -18.5, -4], l1north: [-30, -7.5, -4, 6], l1fac: [-7.5, -0.2, -1, 6], l1ne: [-0.2, 4, -1, 6], l1wing: [-7.5, -2.5, -23, -1], l1wingn: [-2.5, 4, -4.5, -1],
       l1wings: [-2.5, 4, -23, -17.5], l1comms: [-2.5, 4, -10.5, -4.5], l1landing: [-2.5, 4, -17.5, -10.5], l1semeet: [-7.5, 4, -30, -23],
     };
-    const l1 = rooms.filter((r) => r.minY === L1);
+    // (G5c-0) the three meeting rooms are RoomDefs of their own, nested in l1sw / l1north (tested in campusV2S2Rooms.test.ts)
+    const l1 = rooms.filter((r) => r.minY === L1 && !r.id.startsWith('s2-l1-mr'));
     expect(l1.map((r) => r.id).sort()).toEqual(Object.keys(want).sort());
     for (const r of l1) {
       expect([r.minX, r.maxX, r.minZ, r.maxZ], r.id).toEqual(want[r.id]);

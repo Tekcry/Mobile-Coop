@@ -45,6 +45,19 @@ export const S2_ART_TAGS: Record<string, ArtTag> = {
   l2sw: 'office-open',
   l2north: 'office-cell',
   l2wing: 'office-open',
+  // (S2-G5c-0) the new rooms take their L1 twins' tags: meeting rooms and offices 'office-cell', strips 'office-open', the board
+  // room 'office-cell', the roof plant room 'plant'
+  's2-l1-mr1': 'office-cell',
+  's2-l1-mr2': 'office-cell',
+  's2-l1-mr3': 'office-cell',
+  's2-l2-exec': 'office-cell',
+  's2-l2-offa': 'office-cell',
+  's2-l2-offb': 'office-cell',
+  's2-l2-board': 'office-cell',
+  's2-l2-west': 'office-open',
+  's2-l2-south': 'office-open',
+  's2-l2-east': 'office-open',
+  's2-roof-plant': 'plant',
 };
 
 /** The H2 piece ids (hero_s2.py, `BUILDERS` order). */
