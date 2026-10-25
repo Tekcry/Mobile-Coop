@@ -39,8 +39,9 @@ Bases `average`, `lean`, `broad`. Heads `average-1`..`-4`, `lean-1`..`-4`, `broa
 Changes against PLAN section 4, and why:
 - Enforcer: `plate_heavy`, not `vest_soft` (lead correction). He is `plated: true` in `enemies.json`, so by A5 what
   stops a round is what is drawn.
-- Sniper and officer also list `helmet_std` as gameplay gear. `GEAR_BY_STAGE[3]` (`src/ai/gear.ts`) gives every guard a
-  helmet, and A5 says a helmet that stops a round must be drawn.
+- Sniper and officer also list `helmet_std` as gameplay gear. `GEAR_BY_STAGE[2]` and `[3]` (`src/ai/gear.ts`; stage 2 since
+  guard-rules S1, A3) give every guard a helmet, Realistic and Perfectionist helmet every human guard from the start
+  (guard-rules S1, G350), and A5 says a helmet that stops a round must be drawn.
 - `helmetPiece` / `armourPiece` per kind name the piece that `Enemy.helmet` / `Enemy.armour` (`AL_HELMET` /
   `AL_ARMOUR`) show. Heavy and enforcer: `helmet_heavy` and `plate_heavy`.
 - Strict A5 (lead ruling, P1 fix): every helmet, `helmet_heavy` too, is drawn only while the gameplay helmet bit
@@ -289,8 +290,10 @@ baked.
 
 ## 12. Open items for later slices
 - Settled (lead, P1 fix): heavy and enforcer `helmet_heavy` is `gameplayGear`, shown only while `Enemy.helmet` (strict
-  A5), like every helmet. `Enemy.helmet` is true by alarm stage or response role, so a calm heavy shows the balaclava
-  and plate without the visor helmet.
+  A5), like every helmet. `Enemy.helmet` is true by alarm stage (2 and 3), response role or difficulty (Realistic and
+  Perfectionist in Sector Ops and the campaign: every human guard from the start, guard-rules S1, G350), so a calm
+  heavy on Rookie / Normal shows the balaclava and plate without the visor helmet. A Perfectionist helmet is never
+  shot off (`Enemy.helmetLocked`), so it never drops.
 - `applyGear` with `plated` (or `armour`) shows the kind's `armourPiece` (plate_heavy for heavy and enforcer), not
   plate_heavy on `plated` alone.
 - Officer trousers follow the jacket colour (one `uniform` slot). Splitting them needs a sixth slot (a `gvis` value per

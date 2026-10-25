@@ -53,9 +53,10 @@ Camera needs 0.62 + 0.16 = 0.78 m from the spine to a wall on the shoulder side,
 | Co-op lip | 4.3 - 4.5 m, above the solo wall jump (section 1); one band for the boost and the human ladder (level-design 11.8, 12.2 G57; `TEAM.boostMax` 4.5, `config/movement.ts:459`) |
 | Split-jump gap | 1.2 - 1.95 m between faces, faces at least 3.6 m tall (level-design 12.1: split gaps are found from these automatically) |
 | Pull-up lip | 4.3 - 4.5 m over the catcher's floor, the co-op lip band (`PULL.min` - `max` = `WALL_JUMP.maxUp` 3.8 + 0.5 and `TEAM.boostMax` 4.5; the pull-up kit move is on the mission-framework branch, not on master yet). Graph kind `team_pull` |
-| Relay lip | 4.3 - 4.6 m over the climber's floor, the validator's design band until the validator port (J12) derives the true lip ceiling from the hang depth. `TEAM.relayMax` 4.6 (`config/movement.ts:476`) is not a lip height: it caps how high the hanging partner's feet (root) may sit over the climber's floor (`game/teamMoves.ts:63-64`). Graph kind `team_hang` |
+| Relay lip | 4.3 - 4.6 m over the climber's floor, the validator's design band (Michael picked "Keep 4.6 m (Recommended)", 2026-10-25 ~20:20). `TEAM.relayMax` 4.6 (`config/movement.ts:476`) is not a lip height: it caps how high the hanging partner's feet (root) may sit over the climber's floor (`game/teamMoves.ts:64`). A ledge hanger's feet are `HANG.drop` 1.9 m under the lip (`world/anchors.ts:219`), so the physical lip ceiling is 4.6 + 1.9 = 6.5 m; that ceiling is stated only, the band stays 4.3 - 4.6 m. Graph kind `team_hang` |
 | Two-person rope | 2.2 - 6.0 m climb from the climber's floor to the holder's edge (`TEAM.ropeMin` - `ropeMax`, `config/movement.ts:513-514`); a climb up only, no descent. Graph kind `team_rope` |
 | Throw gap | at most 2.7 m: the runner lands `TEAM.throwDist` 3.2 m past the thrower (`config/movement.ts:483`), less a 0.5 m landing margin. Graph kind `team_throw` |
+| Long throw (named spots only) | at most 4.9 m gap, crossed by a 5.8 m throw (Michael 2026-10-25 ~20:45, "Mix of both"); only on a `team_throw` link marked `exception: "long_throw"` at these spots: `tallowWharf:w2-pawn-loft>w2-reading-room`, `tallowWharf:w2-arcade-roof>w3-roof` (Campaign Build's picks). Every other throw keeps the Throw gap row; a new spot is a sheet change. Graph kind `team_throw` |
 | Held shutter | 0.9 m crawl gap under the held shutter (`SHUTTER.holdGap`; the shutter kit move is on the mission-framework branch, not on master yet); the doorway follows the door rows. Graph kind `shutter` |
 | Low cover | 1.2 m high hides a crouched player; a 1.0 m rail does not |
 | Curb or step | 0.15 - 0.40 m; never between 0.40 and 0.45 (player and nav disagree) |
@@ -162,6 +163,13 @@ Added 2026-10-24 (Michael, changes M2 and M4). The speeds, times and targets the
 | `guards_late` | 6 - 10 | guards | the same in the second half of the spine; WARN below the low end only (level-design 4.9) |
 | `sector_alive_max` | 32 | guards | Sector Ops: the most guards alive at once, a ceiling per section and player count, not a target (`SECTOR.maxAlive`, `src/game/sectors.ts:508`; G187); level-design 4.9 |
 | `safe_drop_m` | 4.5 | m | a drop above this ends in a heavy landing with a recovery (`LANDING.heavy`, `src/player/movement.ts:168`); no fall damage, so the validator only warns |
+| `nav_floor_depth_m` | 1.5 | m | deepest floor under storey 0 the guards' nav grid is trusted to reach: the nav sampler casts down to y -2 (`src/ai/navBuild.ts:32-34`); written as a positive depth (a leading `-` reads as a range). An encounter space or a space with guards deeper than this WARNs (level-design 12.1) |
+| `mission_steps` | 3 - 6 | steps | steps per mission, per team track (a team's steps plus the shared ones); MISSION-DESIGN-AUDIT-2026-10-24 section 4 "Mission = 3-6 steps" (Michael 2026-10-24 ~22:12, mission-framework PLAN VAL) |
+| `mission_step_min` | 2 - 5 | min | planned play time of one step (`minutes` on each objective); audit section 4 "Each step 2-5 min" |
+| `mission_total_min` | 10 - 30 | min | a mission's planned length (`mission.budget`): its required steps at least the low end, every step including the optional one at most the high end; audit section 4 "10-30 min" |
+| `mission_rules_max` | 2 | rules | strict rules a team carries (mission scope plus its own team scope; ghost counts as one); Michael decision 2, 2026-10-24 ~22:12 (lifts G125's one-rule cap) |
+| `sector_parallel_min` | 2 | objectives | Sector Ops: objectives of team a and team b that run at the same time (neither waits on the other); audit section 4 "2-3 parallel objectives" |
+| `sector_syncs_min` | 2 | sync nodes | Sector Ops: sync nodes per mission and per mission section (BRIEF A16: "2+ sync nodes" per campus section); audit section 4 |
 
 Vantage and line-of-sight numbers are declared targets in the graph and are measured in greybox (M4); a map fails if the measurement misses the target. Shadow share is measured too but only reported (INFO); the light band (section 9) is the light target.
 

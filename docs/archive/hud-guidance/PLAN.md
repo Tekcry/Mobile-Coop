@@ -1,7 +1,7 @@
 # hud-guidance: plan
 Owner: Campaign Build. Status: current.
 
-Lead: Night Shift | Campaign Build. Planner: Opus 5.5, master 2148ec969. Brief: `docs/hud-guidance/BRIEF.md`.
+Lead: Night Shift | Campaign Build. Planner: Opus 5.5, master 2148ec969. Brief: `docs/archive/hud-guidance/BRIEF.md`.
 Sources: FOLDED-PLAN J3 / J3b (origin/feature/menu), `docs/conformance-campaign/CONFORMANCE.md` Part C (HG1-HG9, the
 removal inventory, "Tests that assert the old behaviour"), Player R12 / R24 / H9, Sector Ops M1 / M2 / M5 / M6, Marlow
 H2, Test Runner T2. Every file:line below was re-read on master 2148ec969 (the review read 829a9332; most lines held,
@@ -54,9 +54,13 @@ files:
   - scripts/e2e-sectorops.mjs
   - scripts/e2e-ctcourse.mjs
   - scripts/e2e-coop.mjs
+  - scripts/e2e-takedown.mjs
+  - scripts/e2e-menus.mjs
+  - scripts/e2e-coop-gpu.mjs
   - scripts/e2e-pad.mjs
   - scripts/e2e-mouse.mjs
   - docs/systems/ui.md
+  - docs/systems/coop.md
   - docs/systems/input-and-loop.md
   - docs/systems/testing-tools.md
   - TESTING.md
@@ -74,7 +78,7 @@ save: hq.radar (removed; SAVE_VERSION 9 -> 10)
   (Campaign's own engine line) touch `gameState.ts`, `sectorMode.ts`, `coopClient.ts`, `coopHost.ts`;
   `origin/feature/player-docs-j1` touches `docs/systems/input-and-loop.md` in other hunks (row 139 is not in it). Order:
   master lands first (CONFORMANCE 1d item 1); the engine rebase cost is below.
-- `node scripts/claims-check.mjs --plan docs/hud-guidance/PLAN.md --name feature/hud-guidance` (18:20): 4 file-level
+- `node scripts/claims-check.mjs --plan docs/archive/hud-guidance/PLAN.md --name feature/hud-guidance` (18:20): 4 file-level
   overlaps, all in other hunks of shared files, for the orchestrator to order:
   - `feature/guard-rules`: `sectorMode.ts` (helmets at start, ~:951), `coopHost.ts` (`start` deny ~:892),
     `e2e-sectorops.mjs` (S13 block :3583-3660). Ours: `blips()` :1355, B4's new method; A3 / B4 add lines near the
@@ -193,13 +197,18 @@ the net-status line; the objective line only ever holds the host's objective.
 lists every section's objective and exit, done / current / to do, for every player: solo, the host and each co-op
 client (G343 "the menu keeps the full list"; Sector Ops is 1-4 players, G308).
 - Files: `src/game/sectorObjectives.ts` (new, pure, Babylon-free: the row builder and the client's list mirror),
-  `src/game/modes/gameMode.ts` (optional `objectiveLines?(): ObjectiveLine[]`), `src/game/modes/sectorMode.ts`,
-  `src/game/gameState.ts` (`NetAttachment` `:177` gets `objectiveLines?()`; `objectiveLines` `:1255-1263` asks the mode,
-  then the net attachment), `src/net/coopClient.ts` (feeds the mirror from `msg.ls` `:988-995` and the host's objective
+  `src/game/modes/gameMode.ts` (optional `objectiveLines?(): ObjectiveLine[] | null`), `src/game/modes/sectorMode.ts`,
+  `src/game/gameState.ts` (`NetAttachment` `:176` gets `objectiveLines?(): ObjectiveLine[] | null`; `objectiveLines`
+  `:1243` asks the mode, then the net attachment), `src/net/coopClient.ts` (feeds the mirror from `msg.ls` `:988-995` and the host's objective
   text), `src/ui/screens/pauseScreen.ts` (comment `:11` cites G343), `tests/sectorObjectives.test.ts` (new),
   `scripts/e2e-sectorops.mjs` (part 1: host and client list checks), `docs/systems/testing-tools.md` (the
   e2e-sectorops line `:235`). Est. 210 lines. After B1 and B3 (shares `gameState.ts` with B1 and the client's objective
   write with B3): merge order B1 -> B3 -> B4.
+- The hook is the merge point with the mission engine (J7 PR F, R6; "Engine rebase cost" below): B4 writes the three
+  declarations exactly as the strict brief B4 gives them (the same text is in the engine's J7 PLAN section 7, so the
+  two branches add identical hunks), and puts `SectorMode.objectiveLines()` and `CoopClient.objectiveLines()`
+  immediately above each class's `dispose()`. B4 lands on this branch before J7's R6 starts, or R6 builds against
+  these names as this branch writes them.
 - Checks: `npm run typecheck:fast`; `npx vitest run tests/sectorObjectives.test.ts tests/coopFix.test.ts`; `node --check
   scripts/e2e-sectorops.mjs`; e2e-sectorops:1, e2e-coop on the PR head. Two independent Opus checkers (`src/net`).
 - Done looks like: in section 2 the list shows section 1's objective and exit Done, section 2's objective Current, the
@@ -210,7 +219,9 @@ client (G343 "the menu keeps the full list"; Sector Ops is 1-4 players, G308).
   notes to the pause menu), `src/ui/screens/pauseScreen.ts` (Notes row + read-only screen), `src/net/coopClient.ts`
   (`case 'feed'` `:861-865` adds the text), `tests/fieldNotes.test.ts` (new), `scripts/e2e-takedown.mjs` or
   `scripts/e2e-sectorops.mjs` (one check after an existing interrogation; add the file to the claims when picked).
-  Est. 220 lines. After B1 and B4 (shares `gameState.ts`, `pauseScreen.ts`).
+  Picked: `e2e-takedown` `grab-interrogate-intel` (the real interrogation, solo: Pause > Notes lists its lines); neither
+  suite interrogates on a client, so `e2e-coop`'s intel relay (`:985`) asserts the notes on host and client, and
+  `e2e-menus` gets the new pause row list and "No notes yet". Est. 220 lines. After B1 and B4 (shares `gameState.ts`, `pauseScreen.ts`).
 - Checks: `npm run typecheck:fast`; `npx vitest run tests/fieldNotes.test.ts`; e2e-coop (client notes), the suite
   picked.
 - Done looks like: after an interrogation, Field Terminal > Notes lists its lines on both screens; a new match starts
@@ -249,8 +260,27 @@ PR B total ~900-1000 lines. If it passes ~1.4k after B4, B5 moves to its own PR 
   ally `blips()` methods (no conflict expected; recheck at the rebase). `gameState.ts` engine hunks are the `TeamKind`
   rename at :70 / :200 (no overlap).
 - After PR B the engine's HG7 work feeds `Hud.setObjective` (its viewer's current row) and calls nothing new for the
-  tap (B1's read covers every mode); its always-on `missionHud` hides in game and its rows go to the field menu through
-  the B4 hook (`GameMode.objectiveLines`). That is J7's work; this job only fixes the calls' names.
+  tap (B1's read covers every mode); its always-on `missionHud` goes and its rows go to the field menu through the B4
+  hook. That is J7's work (engine J7 PLAN on `feature/mission-engine`, `docs/missions/slices/J7-PLAN.md` section 7,
+  slice R6 in its PR F):
+  - **B4's hook is the merge point.** J7 adds the mission's lines only through `GameMode.objectiveLines` (host:
+    `SectorMode.objectiveLines()`) and `NetAttachment.objectiveLines` (client: `CoopClient.objectiveLines()`), with B4's
+    exact declarations; it never names a `missionLines()` and never edits `GameState.objectiveLines()` its own way. In
+    both methods the mission branch comes first, then B4's Sector Ops rows, so a mission run shows mission rows, never
+    sector rows (HG8). When PR B and the engine's PR C meet on master, the declarations are identical hunks; the two
+    method bodies (both written immediately above `dispose()`) are joined by hand as "mission lines while a mission
+    runs, else B4's rows".
+  - **J7 adds `Hud.setObjectiveHint(text: string | null)`** (a small line right after the objective, class
+    `hud-objective hud-objective-hint`, created on first use, so this job's `:144` / `:159` edits are untouched) and
+    **the rules-line and hint rows of Field Terminal > Objectives** (`ObjectiveLine` gains `note?: true` and `hint?:
+    string` after `current`; `ObjectivesScreen` shows a note row with the counter "Rule" and adds the hint to the row's
+    desc). This job adds neither. B4 edits only the `:11` comment of `pauseScreen.ts` and B5 adds the Notes row further
+    down: separate hunks. At the PR B / PR C merge the hint fades with the popup by one line beside B1's visibility
+    toggle in `Hud.frame` (`this.objHint?.classList.toggle('show', vis)`); without it the hint stays hidden under
+    B1's `.hud-objective` CSS, never stuck on.
+  - **Order.** B4 lands on `feature/hud-guidance-b` before J7's R6 starts, or R6 builds against B4's names as written
+    in the strict brief B4 here. If B4's code has to differ from that text, B4's code wins and the Campaign Build lead
+    fixes R6 to match before PR F's checkers.
 - The engine adds its own no-minimap line to `e2e-sectorops-mission.mjs` when it lands (A13).
 
 ## Strict slice briefs (first three)
@@ -423,6 +453,22 @@ verbatim in each suite through that suite's page-eval helper:
     or rejoin past section 1 then lands on the right row.
   - `GameState.objectiveLines()`: `this.mode?.objectiveLines?.()`, then `this.net?.objectiveLines?.()` when non-null,
     then the Infiltration chain, then the current line. Pause menu only, not a hot path.
+  - The hook's exact text (the engine's J7 R6 adds the same lines, so the hunks are identical; change them only with
+    the Campaign Build lead):
+    - `gameMode.ts`, after `import type { SlotPoint } from '../spawnSlots';` (:7):
+      `import type { ObjectiveLine } from '../../ui/screens/pauseScreen';`; in `GameMode`, after
+      `restartCheckpoint?(): boolean;` (:97):
+      `/** (hud-guidance B4, G343 / HG8) Field Terminal > Objectives rows; null: none here (GameState asks the net layer). */`
+      `objectiveLines?(): ObjectiveLine[] | null;`
+    - `gameState.ts` `NetAttachment`, after `onEnd?(won: boolean, subtitle: string): void;` (:188):
+      `/** (hud-guidance B4, HG8) Client: Field Terminal > Objectives rows; null: none (GameState shows its own). */`
+      `objectiveLines?(): ObjectiveLine[] | null;`
+    - `GameState.objectiveLines()` (:1243), its first two lines:
+      `const own = this.mode?.objectiveLines?.() ?? this.net?.objectiveLines?.();` `if (own) return own;`, then
+      today's branches unchanged.
+    - `SectorMode.objectiveLines()` and `CoopClient.objectiveLines()` sit immediately above each class's `dispose()`
+      (sectorMode.ts:1393, coopClient.ts:1319), so the engine's mission branch meets them as a visible conflict, never
+      a silent second method; the joined body is "mission lines while a mission runs, else these rows".
   - vitest `tests/sectorObjectives.test.ts`: host rows per phase; client late join at section 2; the connector window
     with two sections sharing an exit label (no false exit row); the download percent; a restart from the exit step;
     `ls` -1 ignored; the op end (all Done); no sector data -> `null`; the objective arriving before the first section

@@ -535,8 +535,8 @@ const MASTER_BASE: Record<string, { count: number; hash: string }> = {
   'campus s1': { count: 8, hash: 'cb0b2fb8' },
   'campus s2': { count: 12, hash: 'ddcfab59' },
   'campus s3': { count: 16, hash: '80096eec' },
-  'campus s4': { count: 20, hash: '59969eec' },
-  'campus s5': { count: 24, hash: '1494aabf' },
+  'campus s4': { count: 20, hash: 'a9a014c3' }, // 4.106.0: guard-rules A15 gear (was 59969eec)
+  'campus s5': { count: 24, hash: 'e1372a37' }, // 4.106.0: guard-rules A15 gear (was 1494aabf)
   'warehouse service': { count: 8, hash: '710a29b7' },
   'warehouse racking': { count: 8, hash: '7f6c84f6' },
   'warehouse floor': { count: 9, hash: 'db3f95a3' },

@@ -144,9 +144,14 @@ over the wire so a partner looks exact on every screen (G400); remotes still pos
   over 1 m snaps with no speed spike): `holdAt`'s speed, the hostage's gait, holds steady below 60 fps.
 - (marlow-bays item 2) Course items: the host's own press passes `'local'` (`gameState.ts`); `courseUser` reads it as
   P1, a client's peer id as P2 (it read `'local'` as P2, so a host unbolting alone was tested on the client's feet).
-- Objective line (coop-fix, `net/objectiveMirror.ts`): the client shows "Connecting to host…" until the first
-  snapshot, which always replaces it (an empty course-mode objective included), and "Waiting for host…" after 2 s
-  without one, until the next. The host seeds its copy from the HUD when it hooks it (Free Roam sets it earlier).
+- Objective and net-status lines (coop-fix, hud-guidance B3 / HG9, `net/objectiveMirror.ts`): the client shows
+  "Connecting to host…" on the net-status line (`Hud.setNetStatus`) until the first snapshot, and "Waiting for host…"
+  there after 2 s without one, until the next; the objective line only ever holds the host's objective (a snapshot's
+  line clears the notice, an empty course-mode objective included). Every write goes through `CoopClient.showLine`.
+  The host seeds its copy from the HUD when it hooks it (Free Roam sets it earlier).
+- (hud-guidance B5, A9) Field Terminal > Notes: the host fills `GameState.notes` from its `intel` event (its own and a
+  client's interrogations); a client adds every `feed` event's text (the same relay, plus Sector Ops keypad radio
+  lines): no wire change.
 - `CoopHost`: remote players (`RemotePlayer` = Damageable + split hit volumes from the sim body model, rig-pose-fix S1:
   `PlayerHitVolumes` on `playerBody(wireBodyIn(accepted state))`, the client's own model, headshots x1.3 and legs x0.75 as
   the local player's + PlayerRef), 15 Hz snapshots, event queue, enemy
@@ -256,6 +261,39 @@ snapshot to everyone. Join, leave, late join and rejoin work in any slot.
   `SYNC_WINDOW`, any pair (`SyncedDetector` over `PLAYER_SLOTS`). One operator out (no syringe left, or the revive window
   gone): with 1-2 players the section restarts for everyone; with 3-4 the operator is OUT until the next connector or
   the extraction (OUT below).
+
+### coop4 e2e parts
+`e2e-sectorops` parts 7-9 are named only, never in a full, quick or affected run; each runs alone in a laptop slot
+(`PART_TIMEOUT` 1800 s; 3+ pages load under `LOAD_MS_4`, `E2E_LOAD_MS=240000`).
+- Part 9 (campusOps, 3 pages): slot 2 goes OUT, the section goes on, the connector cycles with slots 0 and
+  1, and slot 2 comes back beside the host (M1 b).
+- Parts 7 and 8 are Sector Ops with 3-4 players: "four pages" means four pages of one headless browser over
+  `?net=local` (`hostAndJoin(url, 4)`, the host's page and three joiners, each driven by its own pad or teleports; every page
+  but the one in front is stepped by `pumpPages`). Run each alone: `E2E_GPU=1 E2E_LOAD_MS=240000 E2E_PORT=<port> node
+  scripts/run-e2e.mjs e2e-sectorops:7` (or `:8`). A hook a build lacks prints `SKIP: <hook> missing` and is listed at the end
+  of the part; a failed leg prints every page's team log and the next leg still runs.
+  - Part 7, `campusOps`, 4 pages: all load with the device mirror, one host and three clients; slots 0-3 are distinct and
+    agree on every page's lobby list; each page sees 3 avatars; the beacon of each rig and avatar equals its slot, all four
+    different; spawns at least 0.9 m apart at the start and after a checkpoint restart; the guard count at team 4 is the base
+    list plus the `minPlayers` tags (alive + pending), at the start, after the restart and in the pair-gate section; slot 2's
+    wall switch darkens its lamps on all 4 pages and the light under it agrees; slot 3's jam of a camera is `sec.j[3]` on the
+    host and latched on every client; each slot uses the weapons crate once; slot 1 downed and revived by slot 3 with the
+    syringe pool at preset + 2 (Normal 4, one used); the connector does not cycle with 3 inside and cycles with 4, door locks
+    mirrored; the S4 pair gate opened by slots 2 and 3 while 0 and 1 stand more than 3 m away.
+  - Part 8, `warehouseOps` (`sectorGuards=4`), 3 pages then a late 4th: slot 2 drops (`__coop.leave()`) and rejoins from
+    "Rejoin <code>" into slot 2 with the same beacon colour, placed at the checkpoint on its slot (within 3.2 m); a 4th page late-joins the running op into
+    slot 3 and stands within 3.2 m of the checkpoint with a loadout, every page sees 3 avatars; pairs 0+1 (leg-up) and 2+3
+    (partner throw) are both approved with no denial (the overlap is logged and `CoopHost.teamActive` read, not asserted);
+    two climbers on one busy brace: one is served, the other is denied `taken`.
+  - `?players=N` (`flags.players`, 2-4, clamped; dev and tests): the same-device autostart room (`?net=local&autostart=<map>&mode=sector`)
+    waits for N players before it starts (default 2). The parts above use `hostAndJoin`, not this flag; it is for the 4-tab
+    check in TESTING.md.
+- `e2e-coop` "lobby caps" block (one page, then up to 3): a new room is Campaign and
+  its lobby shows 2 seats, 1 open, with "Marlow Yard needs two players. Share the code to invite your partner."; a 2nd
+  page fills it (2 seats, none
+  open); a 3rd page is refused with "Room full" naming 2 players; the host switches the room to Free Roam (4 seats) so a 3rd
+  page joins, then to Campaign: Start is blocked with "Too many players for this mode (2)" and does nothing; then to Sector
+  Ops: every page shows 4 seats, 1 open, and 3 ready players start the match.
 
 ## Co-op sync
 - Guard torches (coop-torches, protocol 25): enemy `al` = alert level (bits 0-1) + `AL_SEIZED` 4 + `AL_TORCH` 8

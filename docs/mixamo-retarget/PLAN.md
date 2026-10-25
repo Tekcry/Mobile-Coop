@@ -257,9 +257,10 @@ clip in `src/anim/mixamo.ts`; owner Player Build; switch-on date in the PR body 
 - Files (edited): `scripts/mocap/retarget.mjs` (loader injection + in-place loop option; CMU output byte-identical),
   `scripts/mocap/analyze.mjs` (loader injection only), `src/core/flags.ts` (one flag), `src/anim/animGraph.ts` (idle,
   crouch walk, Wren traversal table, stance, `GraphPlaying.trav`: I1-I3), `src/anim/mocap.ts` (crouch-walk slot, I1),
-  `src/anim/nowPlaying.ts`, `src/anim/studio.ts`, `src/anim/studioTraversal.ts`, `src/ui/tunerReach.ts` (only if a
-  probed row or the note changes), `tests/mocapGuards.test.ts` (I2 pin, G1), `tests/tunerReachProbe.test.ts`,
-  `tests/nowPlaying.test.ts`, `tests/animStudio.test.ts`, `docs/art-credits.md`, `TESTING.md` (one line: the Studio's
+  `src/anim/nowPlaying.ts`, `src/anim/studio.ts`, `src/anim/studioTraversal.ts`, `src/game/studioStage.ts` (the
+  Studio's capture pick, I2), `src/ui/tunerReach.ts` (only if a probed row or the note changes),
+  `tests/mocapGuards.test.ts` (I2 pin, G1), `tests/climbHands.test.ts` (I2: with the flag on),
+  `tests/tunerReachProbe.test.ts`, `tests/nowPlaying.test.ts`, `tests/animStudio.test.ts`, `docs/art-credits.md`, `TESTING.md` (one line: the Studio's
   motion-capture group and `?mixamo=1`), `.gitignore` (comment). Read only: `scripts/operators/blender.mjs`,
   `scripts/operators/export-joints.mjs`, `src/anim/keyed.ts`, `src/anim/clip.ts`, `src/player/attachController.ts`.
 - Not touched: `src/player/*`, `src/anim/clips/team.ts`, kit clips, `src/game/*` carry / takedown code (hand-offs),
