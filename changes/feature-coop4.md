@@ -30,7 +30,7 @@ kind: minor
 - Team moves (TM): a player offering a move serves one partner at a time. A second player trying the same brace, rope,
   hang-down, throw or relay is denied with "Your partner is busy with someone else". Two pairs can run moves at the same time.
 - Teammate colours (H1): the partner beacon is blue for slot 0, red for slot 1, amber for slot 2 and violet for slot 3.
-  Minimap teammate dots use the same colours. Slots 0 and 1 look as before.
+  Slots 0 and 1 look as before.
 - Lobby (L1): the lobby shows one seat per player the mode takes (Sector Ops 4, Campaign 2). Start is blocked with "Too many
   players for this mode (2)" if a room with 3 players is switched to Campaign. A refused player sees "Room full" with the
   room's real cap. The host line now says to invite your teammates. `?players=2..4` (dev and tests) makes the same-device

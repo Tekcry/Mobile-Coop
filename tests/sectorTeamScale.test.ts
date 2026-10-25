@@ -168,6 +168,8 @@ function sector(defs: SectorDef[], players: PlayerRef[], teamSize?: () => number
     hud: { banner: vi.fn() },
     stats: { score: 0 },
     stealth: { setLiveAlarms: vi.fn() },
+    // (section-bake SB10) `loadSection` sets the bake's live section; no bake here
+    world: { lightBake: null },
     playerRefsInto: (o: PlayerRef[]) => {
       o.length = 0;
       for (const p of players) o.push(p);

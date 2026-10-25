@@ -593,8 +593,8 @@ export class CoopHost implements NetAttachment {
     this.rejoining.delete(id);
     this.teamClear(id);
     // (coop4, Guard AI AI1) the guards forget this intruder's slot (the same id rejoining gets its slot and last known
-    // position back); optional until feature/guard-ai-coop4 lands
-    (this.g.enemyMgr as { intruderLeft?(id: string): void } | null)?.intruderLeft?.(id);
+    // position back)
+    this.g.enemyMgr?.intruderLeft(id);
     this.bluffs.delete(id);
     if (r.held) this.g.hud.setNetNotice(null);
     this.dropRevive(id);
