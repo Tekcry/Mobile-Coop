@@ -72,6 +72,19 @@ export const MOCAP_SOURCES: Readonly<Record<string, MocapSource>> = {
   mocap_strafe_l: { source: CMU, title: 'aimed strafe left (subject 69)', take: '69_59, 4.625-5.625 s', credit: CMU_CREDIT, studio: { kind: 'keyed', body: 'aim', cycle: 1.0, drawn: true, aim: true } },
   mocap_strafe_r: { source: CMU, title: 'aimed strafe right (subject 69)', take: '69_56, 1.317-2.275 s', credit: CMU_CREDIT, studio: { kind: 'keyed', body: 'aim', cycle: 0.958, move: 'side', drawn: true, aim: true } },
   // @mixamo-keyed-begin (M3, scripts/mocap/mixamoEmit.mjs: one row per src/anim/clips/mixamo/<slug>.ts; generated, do not edit)
+  mocap_carry_body_idle: { source: 'mixamo', title: 'Carry Body Idle', take: 'Carry Body Idle.fbx', credit: MIXAMO_CREDIT, studio: { kind: 'keyed', body: 'carry', cycle: 10 } },
+  mocap_carry_body_walking: { source: 'mixamo', title: 'Carry Body Walking', take: 'Carry Body Walking.fbx', credit: MIXAMO_CREDIT, studio: { kind: 'keyed', body: 'carry', cycle: 2.867, move: 'fwd', circle: true } },
+  mocap_crawling_prone: { source: 'mixamo', title: 'Crawling Prone', take: 'Crawling Prone.fbx', credit: MIXAMO_CREDIT, studio: { kind: 'keyed', body: 'crawl', cycle: 2.333, move: 'fwd' } },
+  mocap_cross_punch: { source: 'mixamo', title: 'Cross Punch', take: 'Cross Punch.fbx', credit: MIXAMO_CREDIT, studio: { kind: 'keyed', body: 'idle', cycle: 0.867 } },
+  mocap_crouch_to_stand: { source: 'mixamo', title: 'Crouch To Stand', take: 'Crouch To Stand.fbx', credit: MIXAMO_CREDIT, studio: { kind: 'keyed', body: 'crouchIdle', cycle: 2.167 } },
+  mocap_crouched_walking: { source: 'mixamo', title: 'Crouched Walking', take: 'Crouched Walking.fbx', credit: MIXAMO_CREDIT, studio: { kind: 'keyed', body: 'sneak', cycle: 1.133, move: 'fwd', crouch: true, circle: true } },
+  mocap_elbow_strike: { source: 'mixamo', title: 'Elbow Strike', take: 'Elbow Strike.fbx', credit: MIXAMO_CREDIT, studio: { kind: 'keyed', body: 'idle', cycle: 1.667 } },
+  mocap_kneel_down: { source: 'mixamo', title: 'Kneel Down', take: 'Kneel Down (lay body).fbx', credit: MIXAMO_CREDIT, studio: { kind: 'keyed', body: 'carry', cycle: 2.117 } },
+  mocap_kneeling_pull_up: { source: 'mixamo', title: 'Kneeling Pull Up', take: 'Kneeling Pull Up (partner haul).fbx', credit: MIXAMO_CREDIT, studio: { kind: 'keyed', body: 'crouchIdle', cycle: 4.483 } },
+  mocap_lifting_heavy_object: { source: 'mixamo', title: 'Lifting Heavy Object', take: 'Lifting Heavy Object (shutter).fbx', credit: MIXAMO_CREDIT, studio: { kind: 'keyed', body: 'idle', cycle: 9.617 } },
+  mocap_pulling_up_to_a_ledge: { source: 'mixamo', title: 'Pulling Up To A Ledge', take: 'Pulling Up To A Ledge.fbx', credit: MIXAMO_CREDIT, studio: { kind: 'keyed', body: 'ledge', cycle: 3.817 } },
+  mocap_stand_to_crouch: { source: 'mixamo', title: 'Stand To Crouch', take: 'Stand To Crouch.fbx', credit: MIXAMO_CREDIT, studio: { kind: 'keyed', body: 'crouchIdle', cycle: 2.583 } },
+  mocap_standing_idle: { source: 'mixamo', title: 'Standing Idle', take: 'Standing Idle.fbx', credit: MIXAMO_CREDIT, studio: { kind: 'keyed', body: 'idle', cycle: 6 } },
   // @mixamo-keyed-end
   // @mixamo-trav-begin (M4, scripts/mocap/mixamoChannels.mjs: one row per src/anim/clips/mixamo/trav_<slug>.ts; generated, do not edit)
   // @mixamo-trav-end
