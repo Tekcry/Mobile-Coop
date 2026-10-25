@@ -126,6 +126,9 @@ dressing item for the lead (fix round 1 report, polish left).
 | passage at the shutter (22, 0, 59) | 67 | 0.14 | >= 0.79 (corridor band) | 1.0 |
 | passage between fittings by the hall wall (25, 0, 58.5) | 67 | 0.14 | >= 0.60 (the escape route stays in the lit band) | 0.80 |
 
+The S lane's west end (12.5, 0, 15) reads 0.35, under the public band's 2 lx point minimum (0.38): it is the edge of the
+dark west strip by design (the shadow route's way in), not a check row.
+
 ### Darkest real spot, W1
 The stall-back aisle at (22, 0, 28) (0.25 with groups 60 and 61: cover from both back walls, moon only), on the shadow
 route.
