@@ -1008,9 +1008,9 @@ Open (2026-10-26 ~09:50, after the swap; full burn; order J4, J6, J15, J26, J16)
 File every gate request WITH the head push; post the checker the moment it passes (orchestrator 23:05: #446 missed
 train 106 by 2 min). One affected run per head covers its suites: no duplicate requests.
 1. J4 G327 #438 MERGED (train 105). #414 (T1 look script) still draft: undraft is Michael's (auto mode).
-2. J4 #317 coop4: master 4.106.0 merged f720d29e3 (conflicts fixed); merge 2 check A PASS (docs/coop4/checks/
-   merge2-check-A.md, head e52d0fb76); check B RUNNING (-> merge2-check-B.md, posts checker if A + B PASS); affected
-   queued (laptop backlog). Then tell the orchestrator train-ready. Polish -> coop4-pol after it lands: snapBudget fake guards
+2. J4 #317 coop4: master 4.106.0 merged f720d29e3; merge 2 checks A + B PASS, checker posted on head 3c06444f8
+   (polish: no unit test of shieldTeams with coop4 multi-team on S4/S5). Waiting CI + affected; then tell the
+   orchestrator train-ready. Polish -> coop4-pol after it lands: snapBudget fake guards
    `in: 1`, main.ts:332 Co-op card text, duplicate "(coop4 A4)" comment, sectorMode OUT slot, run-e2e.mjs:152 comment.
 3. J6 #446 MERGED.
 4. J15 PR1 #450 b718293df: in train 112 (#491, laptop rerun at 08:30).
@@ -1026,8 +1026,12 @@ train 106 by 2 min). One affected run per head covers its suites: no duplicate r
    split, all proposals taken) on feature/guard-ai-mission-hooks. S2 DONE -s2 77d6f45b2. S1a-1 DONE -s1a1 1b15384e4
    (polish re-check PASS, checker posted on 5db49d2ec). S3a DONE -s3a c9a065477 (areaAlarms.ts; checks A + B PASS,
    checker posted). S1a-2 DONE -s1a2 e138b2a7e (checks A + B + fix re-check PASS, checker posted); laptop
-   mh-s1a2-early on 2b9947b9 trimmed to e2e-stealth-ai (queue audit). S1b builder RUNNING in -s1b (from e138b2a7e).
-   Lead ruling: the order walk is not `turning` (A5). Then S1b checks A + B, S3b, S4. Polish: S1a-1 recheck list (add doc :240, NaN guard :427 z, A3 / A4 / B7 / B8); S3a ago Float32 ->
+   mh-s1a2-early on 2b9947b9 trimmed to e2e-stealth-ai (queue audit). S1b BUILT -s1b 9f81055a1 (+1068 / -40, 191
+   unit pass); Opus checks A + B RUNNING (-> checks/S1b-CHECK-A/B.md; lead posts nothing, checker status via agent);
+   laptop mh-s1b-early (e2e-stealth-ai) queued. S1b report: ai.md "Mission orders" lines (groups, followGap +
+   FOLLOW_SLACK, leader end ends group, checkMissionOrders same-name warnings) to fold; limits: one pend tag per slot,
+   late 2nd event waits full joinWait, no catch-up pace (polish). Lead ruling: the order walk is not `turning` (A5).
+   Then S3b, S4. Polish: S1a-1 recheck list (add doc :240, NaN guard :427 z, A3 / A4 / B7 / B8); S3a ago Float32 ->
    Float64 (areaAlarms.ts:73), header :9-10 wording, out-of-range tests. Campaign Build has C1-C7. A9 dark.
 8. Test Runner request (J20 S6b): seed the 5 Math.random sites in src/ai (enemy.ts think cadence x2, enemyManager
    radio delays x2, reconDrone start angle) after J6 lands and PR-C (tests/replayDeterminism.test.ts) is on master.
