@@ -31,6 +31,10 @@ ROADMAP "Decided" on origin/feature/menu (2026-10-25), then DECISIONS:
 - G359: the campaign caps at 32 alive, a ceiling, not a target. G290: up to 2 strict rules, signposted; breaking one
   restarts the section. G334: soft windows only. G336 / G339: no map screens, direction aids, objective markers or
   position dots; objectives name what and where. G126: 30 s revive, twice per mission.
+- Teale knocked out before he talks (~20:25): "Restart the section (Recommended)", Teale at his table, not a rule
+  break; a kill before he talks still breaks the rule and he moves (~18:05).
+- Tallow Wharf (~20:45): forced-throw gaps "Mix of both" (a plank bridge or a 5.8 m throw over a 4.9 m gap, per
+  spot); closed rooms "Yes, night lights only (Recommended)".
 - G157 (~18:20, "Adopt all as recommended"): the 12 changes, now in level-design 3.1, 3.10, 4.11, 5.6, 6.1, 6.2, 6.4,
   8.4, 11.11, 13, 15, 16.2.7, 16.3.6, 16.6.5. Michael confirms them on his Tallow walk.
 
@@ -377,8 +381,9 @@ runs out and the team restarts at its last checkpoint (9.4). Whether 11.6's "eit
   - `threeGreyCoats`, "Three Grey Coats" (`three-grey-coats/graph.json`, BEAT.md): insertion `w1-canal-steps`;
     sections W1-W4 (W3 is a crossing with no step); brief: the BEAT's briefing text (Pell's weekly cipher goes by hand,
     three couriers in one grey coat); strict rule `namedTarget` (1): "Rule - question only Pell's courier." in the
-    briefing and the objective list; breaking it restarts W2 with Teale moved to the clock-mender's loft (Michael
-    ~18:05 "He moves"); knocking out or killing Teale before he talks restarts the section (G353).
+    briefing and the objective list; breaking it (questioning Fenn or Garrow, or killing Teale before he talks)
+    restarts W2 with Teale moved to the clock-mender's loft (Michael ~18:05 "He moves"); knocking Teale out before he
+    talks restarts the section with Teale at his table, not a rule break (Michael ~20:25, BRIEF M6, G353).
   - `twoKeyLedger`, "Two-Key Ledger" (`two-key-ledger/graph.json`, BEAT.md): insertion `w2-arcade`; sections W2-W4;
     brief: the ledger in Gaunt & Lisle's strongroom, two keys turned at once; strict rule `noKills` (1): "Rule - no
     kills." in the briefing and the objective list; a kill restarts the section.
