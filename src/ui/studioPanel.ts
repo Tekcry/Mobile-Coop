@@ -71,6 +71,8 @@ export class StudioPanel {
   private readonly keyedOut: LoopKeyed = { on: false, other: '' };
   private shown = false;
   private nextRead = 0;
+  /** (tuner-clarity S4) The Now playing line (the panel sets its text: one computation, shown in both places). */
+  private readonly playingEl: HTMLDivElement;
 
   constructor(kit: PanelKit, private readonly api: StudioPanelApi) {
     const el = (this.el = document.createElement('div'));
@@ -83,6 +85,9 @@ export class StudioPanel {
     const note = document.createElement('div');
     note.className = 'tt-note';
     note.textContent = 'Pick a loop: its sliders show in the other tabs. Pairs play both roles on one clock.';
+    // (tuner-clarity S4) the Now playing line, the same text as the panel's header
+    const playing = (this.playingEl = document.createElement('div'));
+    playing.className = 'studio-playing tt-note';
     // the loop list (labels on the options; value = the entry id)
     const b1 = kit.bar();
     this.entrySel = kit.sel(b1, 'Loop', STUDIO_ENTRIES.map((e) => e.id), (v) => this.pickEntry(v), 'st:entry', 'studio-entry');
@@ -196,7 +201,7 @@ export class StudioPanel {
       l.append('Stage light', r, this.stageVal);
       b7.append(l);
     }
-    el.append(h, note, b1, b4, b5, b7);
+    el.append(h, note, playing, b1, b4, b5, b7);
     // (test hook) e2e and the console drive the studio through this
     (window as unknown as { __studio: unknown }).__studio = {
       state: () => ({ ...STUDIO }),
@@ -236,10 +241,17 @@ export class StudioPanel {
       keyedState: () => ({ checked: this.keyedBox.checked, disabled: this.keyedBox.disabled, entry: STUDIO.entry }),
       // (T1a) the playback bar's readout and whether it shows
       readout: () => ({ text: this.readout.textContent ?? '', shown: !this.bar.hidden }),
+      // (tuner-clarity S4) the Loop player's Now playing line
+      playing: () => this.playingEl.textContent ?? '',
       // (item 29 phase 2) the view aids and the foot slide line
       aids: () => ({ skeleton: STUDIO.skeleton, feet: STUDIO.feet, onion: STUDIO.onion, inMore: !!this.aids.closest('.anim-tune-more') }),
       slide: () => ({ text: this.slideLine.textContent ?? '', shown: !this.slideLine.hidden, warn: this.slideLine.classList.contains('warn') }),
     };
+  }
+
+  /** (tuner-clarity S4) The Now playing text (the panel's one computation). */
+  setPlaying(text: string): void {
+    if (this.playingEl.textContent !== text) this.playingEl.textContent = text;
   }
 
   /** Show or hide the section with the studio (and on showing, the controls from the state). */
