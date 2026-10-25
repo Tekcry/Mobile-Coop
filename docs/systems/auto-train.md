@@ -134,7 +134,8 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
   request id over 12 h old no longer counts, a bad request is never claimed) or a claim is open (`"done": false`,
   `at` under 3 h old: a request or train head running); idle otherwise (every finished, superseded, duplicate or
   withdrawn request has a done claim). No such branch: the interval alone paces. (Audit 2026-10-25: the old read
-  looked for `pending/` and `running*` markers the branch never had, so 483 ticks in a row read idle, 0 waits.)
+  looked for `pending/` and `running*` markers the branch never had, so 483 ticks in a row read idle, 0 waits; the
+  "Optional, for pacing" line under "What the laptop queue service provides" still names that old layout.)
 
 ## What the orchestrator does
 - `failed`: drop the culprit (remove its `train-ready` label, close the train PR; the next tick builds a new train
@@ -160,9 +161,8 @@ Script: `scripts/auto-train.mjs` (pure helpers tested in `tests/autoTrain.test.t
   (`laptop-e2e/train<n>-rerun` here). The desktop worker
   prefixes its own `laptop-e2e` descriptions with `desktop: ` (`scripts/laptop-queue/service.mjs`; the failed suites
   follow `FAIL:` as in `lib.mjs describe`).
-- Optional, for pacing: `origin/laptop-queue` with one `requests/<id>.json` per request and a `claims/<id>.json`
-  (`{ worker, pid, at, done }`) once a worker takes it (`claims/<train sha>.json` for a train run), `done: true` when
-  finished.
+- Optional, for pacing: `origin/laptop-queue` with one JSON file per pending request under `pending/` and a `running*`
+  marker while a run is going; removed or moved out of `pending/` when done.
 - `visual-gate` (the laptop's picture gate after a green train, `docs/laptop-queue/visual-gate.md`) is never read: a flag never holds a release (visual-gate BRIEF A1).
 
 ## Rules it keeps
