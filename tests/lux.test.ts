@@ -136,7 +136,7 @@ describe('reference test (Q3, A13): calibrate.ts against calibration.md', () => 
       const rows = [...realSide.matchAll(/^\| (\d+) m \| ([\d.]+) \| ([\d.]+) \| ([\d.]+) \|/gm)];
       expect(rows.map((m) => Number(m[1]))).toEqual([...DISTANCES]);
       rows.forEach((m, i) => {
-        expect(Number(m[2])).toBe(REFERENCE.lux[i]);
+        expect(Number(m[2])).toBe(REFERENCE!.lux[i]);
         expect(Math.abs(Number(m[4]) - cal.fit!.points[i]!.engineLevel)).toBeLessThanOrEqual(0.005);
       });
     }
