@@ -381,6 +381,9 @@ describe('S2-G1 kept items, ids and the dressing', () => {
     const m0 = await loadCampus([]);
     const b0 = new m0.LevelBuilder();
     const live = run(m0, b0, m0.buildCampus(b0, { dress: false }));
-    expect(v2log.filter((l) => !live.includes(l))).toEqual([]);
+    // a line names greybox boxes by index, which moves with every piece added before it: compared without the index
+    const norm = (l: string): string => l.replace(/box \d+/g, 'box #');
+    const known = new Set(live.map(norm));
+    expect(v2log.filter((l) => !known.has(norm(l)))).toEqual([]);
   }, 120_000);
 });
