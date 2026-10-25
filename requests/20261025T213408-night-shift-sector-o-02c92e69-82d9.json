@@ -1,0 +1,14 @@
+{
+  "id": "20261025T213408-night-shift-sector-o-02c92e69-82d9",
+  "sha": "02c92e6908d5ad28ebfb3f8e850c00250929d31f",
+  "branch": "feature/light-realism-l1",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-sectorops:1",
+    "e2e-sectorops:6"
+  ],
+  "set": "light-realism-l1-e2e",
+  "note": "L1 test fix after triage"
+}
