@@ -190,8 +190,8 @@ Mode: campaign. The mode's profile in `docs/level-design.md` ("Modes and tags") 
   - Steps that need two people: the strongroom's two keys, a wing apart (TKL step 3).
   - Weak spots and their story reasons: the east gate code is the firm's founding year, on the brass plate ("Old firms
     never change a code they're proud of", TKL); the clerks' hall sash is left on the latch for the stove fumes; the
-    fish hall shutter's winding gear is broken and shed two's chain gear is seized; the old coal hole plate by the lodge;
-    the service runs (ice-melt drain, cellar coal passage, heating duct, coal chute, lane culvert).
+    fish hall shutter's winding gear is broken and shed two's chain gear is seized; the old coal hole plate by the
+    lodge; the service runs (ice-melt drain, cellar coal passage, heating duct, coal chute, lane culvert).
   - Alarm chain: opening the strongroom rings the tell-tale bell in the lodge and sends the porter (about 60 s, TKL
     twist). Who else is called and how long they take: Phase 2 (O16).
 
@@ -236,8 +236,8 @@ Phase 2 (O17).
    the heating duct. Key posts, the strongroom between them (TKL steps 2-3).
 9. **W3 passage, chute, coal yard (choke), cartway** -> W4 back lane.
 10. **W4 shed yard** (0, 6: the yard watchman loop, the dog handler and, in the dog's place, a second armed yard
-    patrol (A6), the crane watchman post, Pell's 2 minders from the TGC twist): loud the lane gate; secret the culvert; high the crane leg ladder;
-    shadow the quay ladder.
+    patrol (A6), the crane watchman post, Pell's 2 minders from the TGC twist): loud the lane gate; secret the
+    culvert; high the crane leg ladder; shadow the quay ladder.
 11. **W4 shed three** (0, 6: the bond tally clerk, static; the customs locker posted at the loading door; 2 dockers
     stacking, a talking pair; a docker on the hand truck, back-and-forth; the shed foreman, a loop through both aisles):
     high the boost through the lane-side clerestory; loud the yard door and the loading door; shadow the fire door from
