@@ -14,7 +14,7 @@ P13, P15-P17), with the cloud-queue brief's changes (G329; one provisional block
 `src/world/maps/campusV2/s3Lights.ts`:
 - `S3_LIGHTS` :54, one block (PROVISIONAL, `TODO(light-realism)`, engine values x1); `buildS3Lights` :155 builds every
   lamp from it and nowhere else, then the four laser emitter boxes (S3:462-465) and the block fill 0.14 (S3:480; the
-  cores' 0.30 is R3's). 33 fittings: 5 high bays (3.3 points; r 12, i 0.9, cone down 1.15, w 0.7), 3 corridor
+  cores' 0.30 is R3's). 32 fittings: 5 high bays (3.3 points; r 12, i 0.9, cone down 1.15, w 0.7), 3 corridor
   downlights + the goal lamp at the hatch (P12) + the gowning night light (r 4, no cone, w 0.4) on `view` (B2), 3
   burn-in task lights, 2 dock lamps (desk, roller door; P13), the write-up and sec lamps, 2 control consoles and the
   sign-out board lamp on `ctl`, the chiller bay and the plant north passage on `plant`, and J17: the gas-cage bulkhead
