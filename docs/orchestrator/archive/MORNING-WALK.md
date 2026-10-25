@@ -6,7 +6,7 @@ poorly above you + no reload mid-match after a deploy, 4.66.0 guards hear by ran
 rest turn and stay). Mocap batch 1 (pops, crouch walk, sprint) lands this morning as its own PR, still OFF by default.
 First, two chores for you: restart Night Shift | Character Build on the laptop (it dropped at ~04:58; prompt in
 docs/orchestrator/HANDOFF.md section 5), and clear Menu Notes (context 40%; resume block in docs/marlow-final/STATE.md).
-Decisions to review (applied overnight, each with its undo): docs/orchestrator/MORNING-REVIEW.md.
+Decisions to review (applied overnight, each with its undo): docs/orchestrator/archive/MORNING-REVIEW.md.
 Notes: Pause > Report feedback. "Waiting N" = docs/ROADMAP.md "Waiting on Michael" item N. Routes:
 - Marlow solo: Co-op > Host a room > Mode Campaign > Start mission (the host may start alone).
 - Two windows: A: Co-op > Host a room (Room: Public). B: Co-op > Browse rooms > pick it > Ready. A: Start mission.

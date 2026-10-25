@@ -4,7 +4,7 @@ Rules: docs/RULES.md on origin/master: "A job." (Full burn bullet), "Machines.",
 Sonnet strict briefs / data checks. No desktop e2e: laptop queue (C:/NightShift/scratch/ctcore/lq/request.mjs --sha <full>
 --suites "..." | --alone --step "..."); results = GitHub statuses laptop-e2e/<set>; desktop-worker logs in
 C:/NightShift/scratch/laptop-queue-desktop/runs/<request id>/.
-Walk cap 3 (ROADMAP Decided ~21:50): no new animation features until Michael walks AF0-AF6; every anim PR carries a ~1-2 min look video path in its body. Checker PASS -> `gh api repos/Tekcry/Mobile-Coop/statuses/<sha> -f state=success -f context=checker -f description="Opus PASS"`.
+Walk cap, checker status, train-ready and locks: RULES "Walk pacing" (the cap limits switch-on only, G355), "A job.", "Getting to master", "Machines". Docs-first hold (G346, G355): conformance review first (BOOT.md common start); finished PRs may ship. Every anim PR carries a ~1-2 min look video path in its body.
 Message the orchestrator only at PR open / train-ready / blocked / Michael. Push this file with push-resume.sh.
 
 ## Now (2026-10-25 ~09:05 SAVE before the 100% swap; meter resets 13:10. All branches pushed. Laptop queued: player-batch-25, gm-polish, coop-real-c2 (:3), coop-real-c1b-logs (smoke), client-intel. Cloud-queue open: player-gm-polish-p2, player-batch-25-polish. Agents at the save: coop-real triage, gm-look (bake), client-intel checkers A/B: on resume read their reports / branch heads, not their transcripts.)
@@ -35,13 +35,13 @@ Message the orchestrator only at PR open / train-ready / blocked / Michael. Push
 
 ## Resume prompt
 ```
-Night Shift | Player Build: RESUME after the account swap. Model Opus, effort medium. set_session_title "self" ->
-"Night Shift | Player Build". Read CLAUDE.md (origin/master "Sessions"), then docs/orchestrator/resume-ct-core.md on
+Night Shift | Player Build: RESUME after the account swap. Model Opus 5.5, effort high (BOOT.md). set_session_title "self" ->
+"Night Shift | Player Build". Read docs/RULES.md and docs/VISION.md (origin/master), then docs/orchestrator/resume-ct-core.md on
 origin/feature/menu (git fetch; git show origin/feature/menu:docs/orchestrator/resume-ct-core.md). Copy it to
-C:/NightShift/scratch/ctcore/resume-ct-core.md and push updates with scratch/ctcore/push-resume.sh. A heavy.lock /
-heavy2.lock naming Player Build with no node / bash process of ours is stale: delete it. Turn off unused connectors.
-Message "Night Shift | Orchestrator" only at PR open / train-ready / blocked / Michael needed. Work "Now" top down:
-check each laptop status listed, label green PRs train-ready. e2e always E2E_GPU=1.
+C:/NightShift/scratch/ctcore/resume-ct-core.md and push updates with scratch/ctcore/push-resume.sh. Locks: RULES "Machines". Turn off unused connectors.
+Message "Night Shift | Orchestrator" only at PR open / train-ready / blocked / Michael needed. First the conformance
+review (BOOT.md common start); then work "Now" top down: check each laptop status listed, label per RULES "Getting to
+master". e2e always E2E_GPU=1.
 ```
 
 ## History
