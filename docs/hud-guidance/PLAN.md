@@ -17,6 +17,7 @@ files:
   - src/game/gameState.ts
   - src/game/pickups.ts
   - src/game/fieldNotes.ts
+  - src/game/sectorObjectives.ts
   - src/game/modes/gameMode.ts
   - src/game/modes/sectorMode.ts
   - src/game/modes/infiltrationMode.ts
@@ -41,10 +42,12 @@ files:
   - tests/save.test.ts
   - tests/objectivePopup.test.ts
   - tests/fieldNotes.test.ts
+  - tests/sectorObjectives.test.ts
   - tests/input.test.ts
   - tests/padBinds.test.ts
   - tests/keybinds.test.ts
   - tests/animTunePad.test.ts
+  - tests/settings.test.ts
   - tests/coopFix.test.ts
   - scripts/e2e-desktop.mjs
   - scripts/e2e-clear.mjs
@@ -52,15 +55,17 @@ files:
   - scripts/e2e-ctcourse.mjs
   - scripts/e2e-coop.mjs
   - scripts/e2e-pad.mjs
+  - scripts/e2e-mouse.mjs
   - docs/systems/ui.md
   - docs/systems/input-and-loop.md
+  - docs/systems/testing-tools.md
   - TESTING.md
 maps: none
 protocol: none
 save: hq.radar (removed; SAVE_VERSION 9 -> 10)
 ```
-- Wire: no message, field or parser changes (`src/net/protocol.ts` untouched). PR A (slice A1) and PR B (slices B3, B5)
-  edit files under `src/net/`, which `scripts/merge-train.mjs` `wirePaths` counts as wire paths: the train bumps
+- Wire: no message, field or parser changes (`src/net/protocol.ts` untouched). PR A (slice A1) and PR B (slices B3, B4,
+  B5) edit files under `src/net/`, which `scripts/merge-train.mjs` `wirePaths` counts as wire paths: the train bumps
   `PROTOCOL_VERSION` once by itself (RULES "Definition of done"); no manual bump, no test asserts the number. Both PRs
   get two independent Opus checkers (RULES "A job": `src/net` PRs).
 - Save: `hq.radar` leaves `HqLevels`; `SAVE_VERSION` 9 -> 10 with a migration and a literal v9 save test (A2). No other
@@ -85,9 +90,9 @@ save: hq.radar (removed; SAVE_VERSION 9 -> 10)
 - **PR A (J3, `feature/hud-guidance`, ~520 changed lines):** HG1 minimap, HG2 compass and its marks, HG3 every blip
   producer and the `Blip` type, HG4 HQ radar (+ save v10), the test flips, a no-minimap / no-compass check per mode,
   the context menu up to 10.7 % H, `docs/systems/ui.md` and `TESTING.md`. Slices A1, A2, A3.
-- **PR B (J3b, `feature/hud-guidance-b`, cut from PR A's head, draft until PR A is released, ~900 changed lines):** HG5
-  the popup, HG6 View / O, HG9 the co-op notice off the objective line, Sector Ops M6 the full list in the field menu,
-  Player R12 the interrogation notes there. Slices B1-B5.
+- **PR B (J3b, `feature/hud-guidance-b`, cut from PR A's head, draft until PR A is released, ~950 changed lines):** HG5
+  the popup, HG6 View / O, HG9 the co-op notice off the objective line, Sector Ops M6 the full list in the field menu
+  (host and co-op clients), Player R12 the interrogation notes there. Slices B1-B5.
 - Changelog: PR A `changes/feature-hud-guidance.md` `kind: patch` (a rule fix, G355). PR B
   `changes/feature-hud-guidance-b.md` `kind: minor` (new player-facing UI: the popup and its button). The train takes
   minor if any member is minor.
@@ -106,6 +111,12 @@ Computed with `selectSuites` / `affectedGateSuites` from `scripts/e2e-affected.m
   host" to leave the objective; after B3 it never shows there).
 - `e2e-coop` + `e2e-netmove` are already in both lists through `src/net` (the RULES checker gate for `src/game` /
   `src/player` is met by the affected run itself).
+- PR B's new e2e checks (RULES "Definition of done": a new player-facing system extends the suite that owns its area):
+  - `e2e-sectorops:1` (B1): the popup shows on a new objective, is gone ~5 s later with the text kept, O brings it back.
+    (B4): the field menu's full list on the host and on the co-op client page.
+  - `e2e-pad` (B2): `[8, 'objective']` in the pad verb table; a View tap shows the popup and leaves the goggles alone.
+  - `e2e-mouse` (B2): `['KeyO', 'objective']` in the keyboard verb table.
+  - All three are already in the PR B gate (`src/input`, `src/game`, `src/ui`).
 
 ## Slices
 Sizes are changed lines (code + tests), docs not counted. Builders follow RULES "A job" (G302): Opus for engine,
@@ -146,21 +157,28 @@ line per mode suite, the docs.
 action and its read in the game loop; a net-status line for B3.
 - Files: `src/ui/hud/objectivePopup.ts` (new, Babylon-free), `src/ui/hud/hud.ts`, `src/styles.css`,
   `src/input/actions.ts` (add `'objective'` to `BUTTON_ACTIONS`), `src/game/gameState.ts` (the tap read),
-  `tests/objectivePopup.test.ts` (new). Est. 230 lines.
-- Checks: `npm run typecheck:fast`; `npx vitest run tests/objectivePopup.test.ts tests/input.test.ts`.
+  `tests/objectivePopup.test.ts` (new), `scripts/e2e-sectorops.mjs` (part 1: the popup check). Est. 260 lines.
+- Checks: `npm run typecheck:fast`; `npx vitest run tests/objectivePopup.test.ts tests/input.test.ts`; `node --check
+  scripts/e2e-sectorops.mjs`; e2e-sectorops:1 on the PR head (laptop queue).
 - Done looks like: in Sector Ops the line fades in on each new objective and on a press of `objective`, holds 5 s,
-  fades out; its text stays in the DOM (`hud.objectiveText` unchanged); no allocation added to `Hud.update`.
+  fades out; its text stays in the DOM (`hud.objectiveText` unchanged); no allocation added to `Hud.update`; a press
+  while a menu is open does nothing; e2e-sectorops:1 proves show, fade and O.
 - Flag: none (A3).
 
 **B2 Bind View and O (Sonnet).** HG6: the pad verb and the key, the binding table.
 - Files: `src/input/padBinds.ts`, `src/input/gamepadMapping.ts`, `src/input/keyBindings.ts`, `tests/input.test.ts`,
-  `tests/padBinds.test.ts`, `tests/keybinds.test.ts`, `tests/animTunePad.test.ts`, `docs/systems/input-and-loop.md`
-  (row 139, `:16` header comment if it names the device). Est. 110 lines. Parallel with B1 (B1 owns `actions.ts`; B2
-  compiles once B1's one-line action lands: branch B2 from B1's first commit, or the lead adds the action line first).
+  `tests/padBinds.test.ts`, `tests/keybinds.test.ts`, `tests/animTunePad.test.ts`, `tests/settings.test.ts` (the
+  `device` alias), `scripts/e2e-pad.mjs`, `scripts/e2e-mouse.mjs`, `docs/systems/input-and-loop.md` (row 139, `:16`
+  header comment if it names the device), `docs/systems/testing-tools.md` (`:155`, `:161`). Est. 140 lines. Parallel
+  with B1 (B1 owns `actions.ts`; B2 compiles once B1's one-line action lands: branch B2 from B1's first commit, or the
+  lead adds the action line first). The e2e-pad View check needs B1's popup: it runs on the PR head.
 - Checks: `npm run typecheck:fast`; `npx vitest run tests/input.test.ts tests/padBinds.test.ts tests/keybinds.test.ts
-  tests/animTunePad.test.ts tests/settings.test.ts`.
+  tests/animTunePad.test.ts tests/settings.test.ts`; `node --check` on both scripts; e2e-pad and e2e-mouse on the PR
+  head (laptop queue).
 - Done looks like: Settings > Controls lists "Show objective (tap)" on View and on O; no conflict warning on either; a
-  stored `device` bind carries over; the binding table test is green.
+  stored `device` bind carries over; the binding table test is green; e2e-pad shows a View tap brings the popup up and
+  leaves the goggles alone (D-pad left / N keep the goggles); both verb tables carry the new verb;
+  `docs/systems/testing-tools.md` no longer says View toggles the goggles.
 
 **B3 Co-op notice off the objective line (Opus, `src/net`).** HG9: "Connecting to host…" / "Waiting for host…" go to
 the net-status line; the objective line only ever holds the host's objective.
@@ -171,16 +189,21 @@ the net-status line; the objective line only ever holds the host's objective.
 - Done looks like: a joining client shows the notice on its own line until the first snapshot, then the host's
   objective pops up; a stalled host shows "Waiting for host…" on that line while the objective keeps its text.
 
-**B4 Sector Ops full list in the field menu (Sonnet).** M6 / HG8 (master part): Field Terminal > Objectives lists
-every section's objective and exit, done / current / to do.
-- Files: `src/game/modes/gameMode.ts` (optional `objectiveLines?(): ObjectiveLine[]`), `src/game/modes/sectorMode.ts`,
-  `src/game/gameState.ts` (`objectiveLines` `:1255-1263` asks the mode first), `src/ui/screens/pauseScreen.ts`
-  (comment `:11` cites G343), `scripts/e2e-sectorops.mjs` (one pause-list check). Est. 110 lines. After B1 (shares
-  `gameState.ts`; run in B1's branch after it, or merge order B1 -> B4).
-- Checks: `npm run typecheck:fast`; a vitest on the pure row builder (in `tests/objectivePopup.test.ts` or a new
-  `tests/sectorObjectiveLines.test.ts`, then add it to the claims); e2e-sectorops.
+**B4 Sector Ops full list in the field menu (Opus, `src/net`).** M6 / HG8 (master part): Field Terminal > Objectives
+lists every section's objective and exit, done / current / to do, for every player: solo, the host and each co-op
+client (G343 "the menu keeps the full list"; Sector Ops is 1-4 players, G308).
+- Files: `src/game/sectorObjectives.ts` (new, pure, Babylon-free: the row builder and the client's list mirror),
+  `src/game/modes/gameMode.ts` (optional `objectiveLines?(): ObjectiveLine[]`), `src/game/modes/sectorMode.ts`,
+  `src/game/gameState.ts` (`NetAttachment` `:177` gets `objectiveLines?()`; `objectiveLines` `:1255-1263` asks the mode,
+  then the net attachment), `src/net/coopClient.ts` (feeds the mirror from `msg.ls` `:988-995` and the host's objective
+  text), `src/ui/screens/pauseScreen.ts` (comment `:11` cites G343), `tests/sectorObjectives.test.ts` (new),
+  `scripts/e2e-sectorops.mjs` (part 1: host and client list checks), `docs/systems/testing-tools.md` (the
+  e2e-sectorops line `:235`). Est. 210 lines. After B1 and B3 (shares `gameState.ts` with B1 and the client's objective
+  write with B3): merge order B1 -> B3 -> B4.
+- Checks: `npm run typecheck:fast`; `npx vitest run tests/sectorObjectives.test.ts tests/coopFix.test.ts`; `node --check
+  scripts/e2e-sectorops.mjs`; e2e-sectorops:1, e2e-coop on the PR head. Two independent Opus checkers (`src/net`).
 - Done looks like: in section 2 the list shows section 1's objective and exit Done, section 2's objective Current, the
-  rest To do (A8).
+  rest To do, on the host page and on the client page alike (A8); no wire change (`protocol.ts` untouched).
 
 **B5 Interrogation notes in the field menu (Opus, `src/net`).** R12: a Notes row lists this match's interrogation lines.
 - Files: `src/game/fieldNotes.ts` (new, pure: capped list, dedupe), `src/game/gameState.ts` (subscribe to `intel`; hand
@@ -193,7 +216,7 @@ every section's objective and exit, done / current / to do.
 - Done looks like: after an interrogation, Field Terminal > Notes lists its lines on both screens; a new match starts
   empty (A9).
 
-PR B total ~750-900 lines. If it passes ~1.4k after B4, B5 moves to its own PR C on `feature/hud-guidance-c`.
+PR B total ~900-1000 lines. If it passes ~1.4k after B4, B5 moves to its own PR C on `feature/hud-guidance-c`.
 
 ## Flags (dark until accepted)
 | Flag | Default | Owner | Switch-on date | Switches on when |
@@ -206,7 +229,8 @@ PR B total ~750-900 lines. If it passes ~1.4k after B4, B5 moves to its own PR C
   HQ page has no radar; an old save loads. The world pings, the partner's goggle colour and the Marlow drill pointer
   are still there.
 - PR B: each new objective fades in at the top for about 5 s, then fades; a tap of View (pad) or O (keyboard) brings it
-  back for about 5 s; holding does nothing more; Field Terminal > Objectives shows the whole list in Sector Ops; Field
+  back for about 5 s; holding does nothing more; the goggles stay on D-pad left / N; Field Terminal > Objectives shows
+  the whole list in Sector Ops for every player, co-op clients too; Field
   Terminal > Notes shows what guards told you; a joining co-op player sees "Connecting to host…" on its own small line,
   never as the objective.
 
@@ -215,8 +239,8 @@ PR B total ~750-900 lines. If it passes ~1.4k after B4, B5 moves to its own PR C
   shows it again - accept when it reads well and never stays stuck on.
 - Play > Co-op > Marlow Yard (two tabs): no minimap or partner dot; the drill pointer still shows - accept when nothing
   else marks the way.
-- Pause > Field Terminal > Objectives / Notes in Sector Ops: the full list, and the lines from an interrogation - accept
-  when both are readable by pad.
+- Pause > Field Terminal > Objectives / Notes in Sector Ops (solo, then two tabs): the full list on both tabs, and the
+  lines from an interrogation - accept when both are readable by pad.
 
 ## Engine rebase cost (HG3, master first)
 - `origin/feature/mission-engine` @00b6cde9 and `mission-engine-flg-gb6` @302b70af8 edit `sectorMode.ts` `blips()`
@@ -336,31 +360,81 @@ verbatim in each suite through that suite's page-eval helper:
   `setNetStatus(text)` / `get netStatusText()`. CSS: `.hud-objective` opacity 0 with `transition: opacity
   var(--obj-fade)`, `.hud-objective.show` opacity 1; `.hud-net-status` small, under the objective, `:empty` hidden.
   `actions.ts`: `'objective'` with the doc comment "(G343) View / Select tap or O: show the current objective ~5 s".
-  `gameState.fixedUpdate` after the pause read (:1834-1838): `if (realIn.pressed('objective')) this.hud.showObjective();`
-  (every mode, solo and both co-op sides). vitest: show on update, on tap, re-tap restarts the hold, hidden after
-  `holdS`, empty line never shows.
+  `gameState.fixedUpdate` after the pause read (:1834-1838): `if (!this.paused && !this.menuOpen &&
+  realIn.pressed('objective')) this.hud.showObjective();` (every mode, solo and both co-op sides; in co-op the sim runs
+  under the field menu, so without the guard a press there would pop the line up behind the menu). vitest: show on
+  update, on tap, re-tap restarts the hold, hidden after `holdS`, empty line never shows.
+  e2e `scripts/e2e-sectorops.mjs`, part 1 (`if (want(1))` `:56`, the first `run` `:58`; it must run under
+  `--part=1`): once, when section 1's objective is done and the exit label replaces it (the loop `:73-113`), assert
+  `.hud-objective.show` is on within 1 s; wait real time (`page.waitForFunction`, up to 8 s, not `sim`: the popup reads
+  `performance.now()`) for `.show` off, with `hud.objectiveText` unchanged and non-empty; press O (key down, a step,
+  key up) and assert `.show` on again within 1 s. Read the class after a step so `Hud.update` has run. Messages cite
+  G343. Section 1 only (each wait costs real seconds).
 - **B2 (Sonnet).** `padBinds.ts`: id `device` -> `objective`, label "Show objective (tap)", `actions: ['objective']`,
   default `PAD.SELECT`; header comment "View show objective (tap)"; `sanitizePadBinds` reads `r.objective ?? r.device`
   for the new id (A6). `gamepadMapping.ts`: `[PAD.SELECT, 'objective']` in `GAME_BINDINGS`, comment updated.
   `keyBindings.ts`: `BindId` + `{ id: 'objective', label: 'Show objective (tap)', actions: ['objective'], defaults:
   ['KeyO'] }` before `pause`. Doc row 139: "Show objective | `objective` | View (tap) | Create / Minus | `objective` (O) |
   G343, G351: shows the current objective, what and where, for about 5 s; held does nothing more (G24)". Tests: the
-  table test, a `device` alias test, `KeyO` / View raise no conflict, and in `animTunePad.test.ts` a View press the
-  tuner consumes does not reach the game actions.
+  table test, `KeyO` / View raise no conflict, and in `animTunePad.test.ts` a View press the tuner consumes does not
+  reach the game actions. The `device` alias test goes in `tests/settings.test.ts`, whose old pad saves at `:165` and
+  `:193` store `device: [8]`: assert the loaded binds have `objective: [8]` and no `device`.
+  The binding (G343): View tap = show the objective; the goggles stay on D-pad left (`[PAD.LEFT, 'vision']`
+  `gamepadMapping.ts:79`) and N; View held does nothing (G24). Only docs disagree: `docs/systems/testing-tools.md:155`
+  "View tap goggles / View held leaves the goggles untouched" becomes "D-pad left toggles the goggles; View tap shows
+  the objective and leaves the goggles untouched (G343)"; `:161` (e2e-mouse) adds "O raises the objective verb".
+  e2e: `scripts/e2e-pad.mjs` `PADV` (`:657`) gets `[8, 'objective']`; after the D-pad left goggles check (`:278`, the
+  warehouse sandbox match: its line is the free roam one, `gameState.ts:853`; if `hud.objectiveText` is empty, set one
+  with `hud.setObjective`), wait real time (up to 8 s) for `.hud-objective.show` off, tap View (`__pad.set(8, 1)`, ~150 ms, `set(8, 0)`), then assert
+  `.show` on within 1 s and `vision.mode` unchanged: "View tap shows the objective, goggles untouched (G343)".
+  `scripts/e2e-mouse.mjs` `KBM` (`:171-175`) gets `['KeyO', 'objective']`.
+  Doc lint: any new docs line that names the minimap, compass or blips keeps a "no" / "removed" word beside it
+  (`docs/stale-terms.json` `allowLine`), or `tests/docLint.test.ts` fails.
 - **B3 (Opus, `src/net`).** `objectiveMirror.ts`: `export function isNetNotice(t: string): boolean` (the two notices).
   `coopClient.ts`: keep `private obj = OBJ_CONNECTING;` (coopFix.test.ts:80 reads it); every display write goes through
   one private method: a notice -> `hud.setNetStatus(t)`; a host objective -> `hud.setNetStatus('')` then
   `hud.setObjective(t)`. e2e: the "connecting label gone" checks also assert `hud.netStatusText === ''`.
-- **B4 (Sonnet).** A pure `sectorObjectiveLines(defs, index, phase)` builder (two rows per section: objective, exit
-  label) feeding `SectorMode.objectiveLines()`; `GameState.objectiveLines()` returns `this.mode?.objectiveLines?.()`
-  first, then the Infiltration chain, then the current line.
+- **B4 (Opus, `src/net`).** `src/game/sectorObjectives.ts` (pure; type imports `SectorDef`, `SectorPhase`,
+  `ObjectiveLine`; `exitZone` from `sectors.ts:539`):
+  - `sectorObjectiveLines(defs, index, phase)`: two rows per section (the objective label, then `exitZone(def).label`);
+    `phase` `'objective'` makes the objective row Current, `'connector'` / `'extract'` the exit row, `'done'` marks every
+    row Done; rows before Current are Done, after it To do. `SectorMode.objectiveLines()` calls it with `run.index`,
+    `run.phase`.
+  - `class SectorListMirror` (the client; four fields, no wire change): `live = -1`; `sawObj`, `exit`, `done` false.
+    - `onLive(ls)`: from `msg.ls` beside `ct.setLive` (`coopClient.ts:995`). `ls < 0` (between a connector's unload and
+      load) is ignored; a new `ls` sets `live`, clears `sawObj`, `exit` and `done`. `msg.ls` is the host's `ct.liveSection`
+      (`sectorMode.ts:1347`), set in `loadSection` (`:678-684`).
+    - `onText(t)`: only the host's objective text (B3's display method; never a notice). Strip a trailing ` NN%` (the
+      download, `sectorMode.ts:1292`). `t` = the live section's objective label: `sawObj = true`, `exit = false` (this
+      also covers a checkpoint restart from the exit step). Else `t` = its exit label and `sawObj`: `exit = true`.
+      Else `t === ''` while `exit` on the last section: `done = true` (the op ended, `sectorMode.ts:1002`). Anything
+      else: no change.
+    - `lines(defs)`: `null` while `live < 0` or `defs` is empty (GameState then shows today's line); else
+      `sectorObjectiveLines(defs, live, done ? 'done' : exit ? 'connector' : 'objective')`.
+    - Why `sawObj`: from the connector's load to its far door (`sectorMode.ts:854-866`) `ls` is already the next section
+      while the host's line still names the old exit; two sections can share an exit label, so the exit row only goes
+      Current after the new section's objective has been seen. In that few-second window the new section's objective
+      row is Current, which is right enough (the section is loaded).
+  - `coopClient.ts`: in Sector Ops (`g.opts.mode === 'sector'`, `:188`) one `SectorListMirror`; `onText` from the one
+    host-objective write B3 adds; `objectiveLines()` on the attachment returns
+    `this.list?.lines(this.g.world.map.sectors ?? []) ?? null`. A late join or rejoin past section 1 works the same (its first `ls` and objective arrive together).
+  - `GameState.objectiveLines()`: `this.mode?.objectiveLines?.()`, then `this.net?.objectiveLines?.()` when non-null,
+    then the Infiltration chain, then the current line. Pause menu only, not a hot path.
+  - vitest `tests/sectorObjectives.test.ts`: host rows per phase; client late join at section 2; the connector window
+    with two sections sharing an exit label (no false exit row); the download percent; a restart from the exit step;
+    `ls` -1 ignored; the op end (all Done); no sector data -> `null`.
+  - e2e `scripts/e2e-sectorops.mjs` part 1, the co-op block "co-op client mirrors the live section" (`:751-`): after the
+    connector (section 2 live on the client), `window.__app.current.objectiveLines()` on the client page lists section
+    1's objective and exit Done and section 2's objective Current, and matches the host page's labels and states.
+  - `docs/systems/testing-tools.md:235` (e2e-sectorops) adds "the objective popup (shows on a new objective, gone after
+    ~5 s, O brings it back) and the field menu's full list on host and client".
 - **B5 (Opus, `src/net`).** `FieldNotes` (cap 24 lines, a repeat line kept once); `GameState.notes`, filled from the
   `intel` event (solo / host) and from `case 'feed'` on the client; `PauseOpts.notes?: () => readonly string[]` and a
   "Notes" row after Objectives with a read-only screen ("No notes yet" when empty).
 
 ## Risks and open questions
-- Popup timing reads `performance.now()` (wall clock, like the ammo fade); e2e waits up to 8 s real time for the fade.
-  If a suite fast-forwards with `sim()`, assert `.show` on and wait for it off by real time, not sim time.
+- Popup timing reads `performance.now()` (wall clock, like the ammo fade); the B1 and B2 e2e checks wait up to 8 s
+  real time for the fade. Suites that fast-forward with `sim()` assert `.show` on and wait for it off by real time.
 - `.hud-top` gets shorter without the compass; the gadget wheel measures it (`gadgetWheel.ts:107`, `:200-201`). e2e-pad
   covers the wheel; a moved wheel is expected and fine.
 - Sector Ops section start shows the banner (2.6 s, objective as its subtitle) and the popup together: polish list.
@@ -368,3 +442,14 @@ verbatim in each suite through that suite's page-eval helper:
   campus only, so those two popups may never name a place: flagged to the orchestrator.
 - The HUD frame object is still built per frame (`gameState.ts:3597`); PR A removes the per-frame blip arrays, spreads
   and the compass `forEach` closure, but the frame literal is J6 hygiene.
+
+## Polish list (plan check 2026-10-25, not blocking)
+A1 / A3 are already being built from their briefs, so these go to their checkers and the PR A fix round, not the briefs.
+- A3, `e2e-desktop`: `.hud-weapon` may be hidden or zero-width when holstered, so `wp <= W - 640 + 1` can pass
+  trivially. Also assert `wp > inset`, or measure `.hud-vitals` and `.hud-weapon` together.
+- A1: `Grenades.positions()` (`grenades.ts:80`) has no caller after A1 (its only user was `gameState.ts:3631`). Delete it
+  (one more file in the claims).
+- A4: the download percent keeps the popup on while it climbs, unlike CONFORMANCE HG9's strip-the-suffix idea. A
+  starting value; the walk line "never stays stuck on" judges it.
+- The section-start banner and the popup together (Risks above).
+- e2e-sectorops runs on warehouseOps, not Saltmarsh Park: fine, the HUD is shared; the walk item covers Saltmarsh.

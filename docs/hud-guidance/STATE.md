@@ -7,11 +7,13 @@ Owner: Campaign Build. Status: current.
 - Jobs: FOLDED-PLAN J3 (PR A, removal) + J3b (PR B, popup); ROADMAP Now row 9. Rule fixes at the cap (G355).
 - Read: `docs/hud-guidance/BRIEF.md` (Michael said / picked, A1-A15), `docs/hud-guidance/PLAN.md` (claims, slices,
   strict briefs A1-A3, outlines B1-B5, e2e lists).
-- Status: BRIEF + PLAN written (planner Opus 5.5). Plan checker not run yet. No src, test or script change yet.
+- Status: BRIEF + PLAN written (planner Opus 5.5). Plan check: FIX (3 must-fix,
+  `C:/NightShift/scratch/campaign/j3-plan-check.md`), fixed in the PR B parts of the plan. A1 / A3 building.
 - PR A slices: A1 Opus (src removal; `src/net` touched, no message change), A2 Sonnet (HQ radar, save v10; starts from
   A1's head), A3 Sonnet (e2e flips + no-minimap per mode; parallel with A1).
 - PR B (`feature/hud-guidance-b` from PR A's head, draft until A releases): B1 Opus popup, B2 Sonnet binds, B3 Opus
-  net notice, B4 Sonnet Sector Ops list, B5 Opus notes.
+  net notice, B4 Opus Sector Ops list (host and co-op client; `src/net`, two Opus checkers), B5 Opus notes. Order
+  B1 -> B3 -> B4 -> B5; B2 beside B1.
 - Key pointers (master 2148ec969):
   - Minimap: `src/ui/hud/minimap.ts:1-107`; HUD slot `src/ui/hud/hud.ts:86, :152, :160, :175-177`.
   - Compass: `hud.ts:32-38, :57-58, :131-143, :159, :257-271`; CSS `src/styles.css:956-1006`.
@@ -30,6 +32,8 @@ Owner: Campaign Build. Status: current.
 
 ## Done
 - 2026-10-25 18:15: BRIEF, PLAN, STATE and the changelog fragment written and pushed (planner).
+- 2026-10-25: plan check FIX; fix round (planner): popup and View / O e2e (B1, B2), the View binding doc note (B2),
+  the co-op client's full list (B4 now Opus, A8).
 
 ## History
 - 2026-10-25: job opened from FOLDED-PLAN J3 / J3b after the ~17:00 sign-off.

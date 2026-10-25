@@ -58,14 +58,21 @@ menu keeps the full list and the interrogation notes; the co-op connection notic
   fade-in only plays when the line was hidden. Undo: key the trigger on the line with the trailing percent stripped
   (CONFORMANCE HG9) in `src/ui/hud/objectivePopup.ts`.
 - A5: View / O fires on the press; holding does nothing more (G24). An empty line (Marlow Yard, Clear) shows nothing.
-  The animation tuner keeps View while it is open (dev only) and its consumed press never reaches the game. Undo: n/a.
+  A press while the pause or field menu is open does nothing (in co-op the match runs under the menu).
+  The animation tuner keeps View while it is open (dev only) and its consumed press never reaches the game. The goggles
+  stay on D-pad left and N, as built; View was free in play (G343 gave it the objective).
+  `docs/systems/testing-tools.md:155` still says "View tap goggles": stale, rewritten in B2 and proven by an e2e-pad
+  check. Undo: n/a.
 - A6: The pad verb `device` ("Mission device (not in yet)") is renamed `objective`; a saved `device` bind carries over
   in `sanitizePadBinds`. Undo: keep the id `device` with the new action.
 - A7: The co-op connection notice ("Connecting to host…", "Waiting for host…") moves to its own small line under the
   objective (`.hud-net-status`), shown while set. Not CT HUD: a system notice. Undo: route it back to `setObjective` in
   `src/net/coopClient.ts`.
-- A8: The field menu's full list in Sector Ops: every section's objective and exit, in order, done / current / to do. A
-  co-op client whose mode has no section state keeps today's one current line. Undo: drop `SectorMode.objectiveLines`.
+- A8: The field menu's full list in Sector Ops: every section's objective and exit, in order, done / current / to do,
+  for every player (G343 "the menu keeps the full list"; Sector Ops is 1-4 players, G308). A co-op client builds it
+  with no wire change from what it already has: the host's live section (`msg.ls`), the map's section data and the
+  host's objective line (which row is current). Until its first section message a client shows today's one current
+  line. Undo: drop `SectorMode.objectiveLines` and the client's list mirror.
 - A9: Interrogation notes: a "Notes" row in the field menu lists this match's interrogation lines (solo / host from the
   `intel` event; the client from the host's `feed` events, which also carry Sector Ops keypad radio lines: no wire
   change). Undo: drop the row; a later wire flag can tag intel lines.
