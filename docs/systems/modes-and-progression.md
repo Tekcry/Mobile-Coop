@@ -7,7 +7,7 @@ docs/design-bible.md (Sections 5.8 and 6).
 The decided modes (current rules: docs/DECISIONS.md, the newest entry wins):
 - Campaign: exactly 2 players, cannot be completed solo, no bot (G2, G253); every section forces a co-op traversal move
   with no solo bypass (G292, G293). Campaign Mission 1 is Tallow Wharf, the new small campaign map, with the first
-  prototypes Three Grey Coats and Two-Key Ledger (G293; 2026-10-25 ~10:45; the mission-framework job); Kestrel is
+  prototypes Three Grey Coats and Two-Key Ledger (G293, G340; the mission-framework job); Kestrel is
   paused (G53). The campaign mission framework is not built yet: today's missions run in
   Infiltration.
 - Marlow Yard (`ctcourse`, Course mode): the 2-player co-op training course; guided and linear, it keeps its guidance
@@ -59,8 +59,8 @@ and the old solo Training mode are deleted (G8, G12, G116; deletion logs in docs
   2026-10-25; coop4).
 - The map is `campusOps`, Saltmarsh Park (`?autostart=campusOps&mode=sector`; `world/maps/campusOps.ts`, sections in
   `campusSectors.ts`, `campusS1.ts`..`campusS5.ts`): five sections, S1 gatehouse and car park, S2 HQ atrium, S3 labs,
-  S4 data hall, S5 Old House (G295, G297). Guard counts signed off 2026-10-25 ~08:50: S1 15, S2 18, S3 20, S4 per its
-  sign-off, S5 26; 32 alive is a ceiling, not a target (G187), and room to manoeuvre comes first (G190).
+  S4 data hall, S5 Old House (G295, G297). Guard counts signed off (G328): S1 15, S2 18, S3 20, S4 25,
+  S5 26, for two players (G362); 32 alive is a ceiling, not a target (G187), and room to manoeuvre comes first (G190).
 - The old map `warehouseOps` stays selectable (G298; `?autostart=warehouseOps&mode=sector`;
   `world/maps/warehouseOps.ts`: `buildWarehouse(b, opts)` with the openings between sections walled, the connector
   rooms and the M8 pieces; data in `world/maps/warehouseSectors.ts`: sections, guards with their `takedownSpot`, routes,
@@ -77,7 +77,7 @@ and the old solo Training mode are deleted (G8, G12, G116; deletion logs in docs
   "Unbolt" (`Interactable.side`); using it unlocks the door for both. A section restart bolts its doors again.
   Pure: `SectorBolts`, `onBoltSide`, `boltItemId` / `boltById`. Test hooks: `__sector.boltInfo()`,
   `__sector.useBolt(sec, k)`, `debug().bolts`.
-- Difficulty stars (M7, A11, G189): fixed difficulty levels per op, one star each. Decided 2026-10-25, not built yet:
+- Difficulty stars (M7, A11, G189): fixed difficulty levels per op, one star each. Decided (G331), not built yet:
   a clear on tier N fills every star below N too (Michael: "Completing a higher difficulty also considers the lower
   tiers completed also"); as built only the cleared tier's star fills. `save/sectorRecord.ts`, kv key `sector:ops`
   (per op id: the presets completed and the best time per preset; no profile change, no SAVE_VERSION bump). The

@@ -208,7 +208,7 @@ No zipline. The core schema's "no rope (G110)" line is out of date: G180 restore
 - **Guard counts.** Per encounter space and player count: WARN below the early / late band (`training`: INFO), no upper
   limit (Michael 2026-10-24: as many as realistically possible, bounded by the guard-cap perf floor). `sector` and
   `campaign` (the campaign runs on the Sector Ops runtime): per section and player count, the spaces' counts sum to at
-  most `sector_alive_max` (ERR; G187; campaign: Michael 2026-10-25 ~11:35, "32 alive"). The training spawn cap
+  most `sector_alive_max` (ERR; G187; campaign: G359). The training spawn cap
   (`SET_GUARDS_MAX` 3 per set, level-design 12.1) is checked against the guard sheets.
 - **Unavoidable guards (checkEncounters).** A space tagged `unavoidable` must stand on every way (two players, all
   links) from its section's `entry` to the section's `exit` or objectives; WARN when they are reached around it, or when

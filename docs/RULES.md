@@ -50,21 +50,21 @@ Michael sends it verbatim to the orchestrator, which adds it to the ROADMAP Inbo
 2. `BRIEF.md` keeps "Michael said" (verbatim quotes) apart from "Michael picked" (the option text he chose), then
    assumed decisions A1, A2, ... with how to undo each. An assumption that would loosen a Michael-only rule (hard
    rules, the level standard, scope, perf) is a one-click question to him by day; overnight it is assumed and logged
-   (an A entry with how to undo it, sent to the orchestrator for Michael's next look) and the work carries on (ROADMAP
-   Decided 2026-10-25 ~11:35 (12), "Assume and log"). This is the only statement of the rule; other docs point here.
+   (an A entry with how to undo it, sent to the orchestrator for Michael's next look) and the work carries on (G358,
+   "Assume and log"). This is the only statement of the rule; other docs point here.
 3. An Opus `PLAN.md` with its claims: files, maps, wire and save paths, slices, sizes.
 4. A fresh Opus plan checker (intent against Michael's words, gates, the claims) passes it before any build.
 5. Maps and looks: before greybox or art on a map, or a big look change, Michael approves a one-page to-scale plan plus
    a 5-line intent check with one click (native multiple choice) (G288). A new map or map re-plan also passes the level
    validator (connectivity graph, `docs/level-design.md`) before greybox. At greybox exit a measured validator pass
    (`scripts/level-validate.mjs`, V6 `--require-measured`) and the bot route-runs are required, then a 10-minute walk
-   card for Michael (G289; ROADMAP Decided 2026-10-25 ~09:05).
+   card for Michael (G289, G330).
 6. Build (below). Templates and commands for each step: `docs/systems/session-method.md`.
 
 **Walk pacing** (G288). At most 3 unwalked features per area (Player / animation, Marlow Yard, Sector Ops, Guard AI,
 lighting); ROADMAP "Waiting on Michael" keeps the count. The cap limits switch-on only: at the cap no new feature in
 that area is switched on until Michael walks some, while signed-off builds go on dark behind their flags, and fixes
-to shipped features (rule fixes such as G339's compass / blip) are allowed (ROADMAP Decided 2026-10-25 ~11:35 (9)).
+to shipped features (rule fixes such as G339's compass / blip) are allowed (G355).
 Every release gets a 10-minute walk card from the orchestrator: risk-ranked, one acceptance line per item, look videos
 for animation and lighting (each such PR carries a 1-2 min video path in its body). A flagged feature is switched on
 when Michael accepts it. A lead with no PLAN slice left starts the next roadmap feature in its area with
@@ -114,7 +114,7 @@ an Opus plan; the orchestrator assigns it (G283).
   `no-affected-e2e` label waives the e2e part for one PR.
 - Who labels: the watchdog task (`--fix labels`) adds `train-ready` when all three hold and (`--fix prs`) removes it
   when a check turns red or when commits land after the label that touch more than docs, `*.md`, `changes/`
-  fragments or CHANGELOG with no new `checker` success on the new head (ROADMAP Decided 2026-10-25 ~08:45). Until the
+  fragments or CHANGELOG with no new `checker` success on the new head (G325). Until the
   watchdog task runs, the orchestrator labels and unlabels by the same rule each cron run. When auto mode blocks a lead
   from posting its checker's verdict, the orchestrator posts the `checker` status for it.
 - Stuck `affected-e2e`: a head whose `affected-e2e` stays pending with no live request behind it (the request was
@@ -209,8 +209,8 @@ rules.
 (master, through the pointer branch `dev`) and `/ct/` (through the pointer branch `ct-movement`); `dev` and
 `ct-movement` are not work branches. Detail: `docs/systems/deploy.md`. Weekly, the orchestrator deletes branches fully
 merged into master and older than 7 days, logging the list, and prunes clean merged worktrees in the same pass;
-unmerged branches are never touched, and any other branch deletion is Michael's call (ROADMAP Decided 2026-10-25
-~11:00, "Yes, weekly").
+unmerged branches are never touched, and any other branch deletion is Michael's call (G345,
+"Yes, weekly").
 
 ## Commands
 - `npm run dev` - dev server (never from an agent)

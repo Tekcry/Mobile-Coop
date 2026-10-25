@@ -12,13 +12,13 @@ not change what a camera sees. Lights matter for guards and the meter only. (cam
 rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security cameras).
 
 ## Decided direction
-- Decided, not built yet (2026-10-25 ~09:05, "Real-world levels"): each space type gets a real-world illuminance band
+- Decided, not built yet (G329, "Real-world levels"): each space type gets a real-world illuminance band
   from the lighting standards (outdoor car parks AS/NZS 1158.3.1, interiors AS/NZS 1680 / EN 12464); engine light is
   calibrated to lux once and measured from the bake at greybox exit. Stealth comes only from real gaps (between poles,
   under the carport, behind cars, cut circuits, shot lamps), never from leaving lit places unlit; the 40-60% shadow-share
   target yields to the band. Michael: "car parks are generally well lit". The light-realism job (Sector Ops,
   `feature/light-realism`, S1 car park first) builds the calibration; the level rule lives in docs/level-design.md.
-- Decided (2026-10-25 ~09:45, "Everywhere"): hardened lit choke points are allowed on campaign and Sector Ops maps:
+- Decided (G333, "Everywhere"): hardened lit choke points are allowed on campaign and Sector Ops maps:
   un-shootable fixtures and guarded or locked breakers. A route around the choke point always stays. This loosens the
   older "every lit chokepoint can be darkened at least two ways" (docs/level-design.md).
 - Decided, not built yet (G41): a door past 15% open passes light (one threshold for light, sound and sight). Code:

@@ -42,8 +42,7 @@ its heavily guided and must teach the players the basics of coop gameplay".
   no-softlock parts of 11.6 and the forced gate (11.10) do not bind: each exercise teaches its move in place.
 - Guidance: its guidance marks and the always-on objective list, which updates per area; no explainer pads (G277,
   G292); no maps, minimap, compass or blip (6.4).
-- Strict rules: none in the early sections; one is taught in a late section (Michael 2026-10-25 ~11:35, "Taught
-  late"; 9.3).
+- Strict rules: none in the early sections; one is taught in a late section (G357; 9.3).
 - Timed drills are allowed (6.3, G342); a failed drill retries the drill only (G361). Downed: the campaign rule (9.4).
 - Light: lit by default, the players cut it (G279); the dark-vantage, dark-checkpoint and darkness-test rules apply
   once a drill has cut the light (3.1, 3.9, 15).
@@ -131,20 +130,19 @@ A level is a linear spine of encounter spaces joined by connectors.
    alive ceiling (12.1) and by every route staying passable. The per-space bands `guards_early` / `guards_late` (first
    or second half of the spine) are a floor, not a ceiling: below the band warns, there is no upper band. The graph
    records the count per player count.
-   - [Campaign] At most `sector_alive_max` (32) alive per section, a ceiling, not a target (Michael 2026-10-25 ~11:35,
-     "32 alive"). Each mission spawns only its own sections and guards (its guard list, mission-framework EN4, not on
-     master yet).
+   - [Campaign] At most `sector_alive_max` (32) alive per section, a ceiling, not a target (G359). Each mission spawns
+     only its own sections and guards (its guard list, mission-framework EN4, not on master yet).
    - [SectorOps] Counts rise with the player count ("Keep scaling", G331); `sector_alive_max` alive per section is a
      ceiling, not a target (G187, G332); room to manoeuvre comes before count (G190). Signed-off counts: S1 15, S2 18,
      S3 20, S4 25, S5 26 (G328), for two players (G362). One player uses the same counts, with no scale-down; three
      or four players add the guards tagged for them. The Sector Ops job writes them per player count in the graphs.
    - [Training] A set spawns at most `SET_GUARDS_MAX` 3 guards (12.1); the bands do not bind.
-10. **Archetypes per mode.** [Campaign] No heavies or dogs (G155); armour and helmets come with the alarm stages.
-   [SectorOps] Dogs (G297): killing one is penalised; gas knocks one out; no takedown; a dog can be distracted (Michael
-   2026-10-25 ~11:35). Riot shields only in alarm response teams; heavier armour in later sections (G307). [Campaign]
-   [SectorOps] Helmets by difficulty (G338, G341): on Realistic and Perfectionist every guard has one, and on
-   Perfectionist it cannot be shot off; on Rookie and Normal helmets come only with the alarm stages (Michael
-   2026-10-25 ~11:35, "Realistic + Perfectionist"). [Training] Normal guards (G279).
+10. **Archetypes per mode.** [Campaign] No heavies or dogs (G155); armour comes with the alarm stages; helmets by
+   difficulty (G341, G350). [SectorOps] Dogs (G297): killing one is penalised; gas knocks one out; no takedown; a dog
+   can be distracted (G348). Riot shields only in alarm response teams; heavier armour in later sections (G307).
+   [Campaign] [SectorOps] Helmets by difficulty (G338, G341): on Realistic and Perfectionist every guard has one, and on
+   Perfectionist it cannot be shot off; on Rookie and Normal helmets come only with the alarm stages (G350). [Training]
+   Normal guards (G279).
 11. **Security devices have reasons.** Every camera, laser, keypad and alarm panel protects something named and sits
    where a real site would put one: "why would they be there in that location, what are they protecting" (G295). Each
    has a row in the map's security register (13). [SectorOps] Security grows section by section: cameras, lasers,
@@ -158,10 +156,9 @@ A level is a linear spine of encounter spaces joined by connectors.
 1. **Every lit pool has a visible source** (a lamp, a tube, a floodlight, moonlight through a window) with an owner
    and a real fitting, and a switch where a real one would be, by a door. An unswitchable lamp has a real reason (a
    photocell, an emergency circuit, a vandal cage). Darkness is where nobody works at night.
-2. **Every lit chokepoint** can be avoided at least one way and darkened at least two ways (a switch, a breaker,
-   shooting the fixture, the held pistol jammer G152). [Campaign] [SectorOps] Instead of the two ways, a chokepoint may
-   be hardened (an un-shootable fixture, a guarded or locked breaker) when a route goes around it (G333,
-   "Everywhere").
+2. **Every lit chokepoint** can be avoided at least one way and has two ways to darken it, or [Campaign] [SectorOps]
+   hardened with a route around (G333). The ways to darken: a switch, a breaker, shooting the fixture, the held pistol
+   jammer (G152). Hardened means an un-shootable fixture or a guarded or locked breaker.
 3. **Sound comes from materials.** Loud floors (metal, grating, chequer plate, gravel, glass) and quiet floors (carpet,
    linoleum) come from the room's real finish, are placed on purpose, look different, and put a quiet and a loud
    version of the same action side by side (an open window beside a glazed one, a door opened or bashed, a vent
@@ -215,12 +212,12 @@ A level is a linear spine of encounter spaces joined by connectors.
 2. Failure is a new situation, not a reload: running, hiding and fighting are all real options after a detection.
 3. **Strict rules.** A mission has up to 2 strict rules, signposted in the briefing and the objective list; "ghost"
    counts as one. Breaking one restarts the section: the team goes back to the section checkpoint (3.9) and the
-   mission continues (G290). Killing a civilian or a protected character restarts the section too (Michael 2026-10-25
-   ~11:35, "Section restart"). [SectorOps] A rule may be global, per team or per split (G291). [Training] None in the
-   early sections; one is taught in a late section (Michael 2026-10-25 ~11:35, "Taught late").
+   mission continues (G290). Killing a civilian or a protected character restarts the section too
+   (G353). [SectorOps] A rule may be global, per team or per split (G291). [Training] None in the
+   early sections; one is taught in a late section (G357).
 4. **Downed.** [Campaign] [Training] The partner revives a downed player within 30 s, at most twice per mission; past
    that, or with both down, the team restarts at the last checkpoint it reached (3.9; `REVIVE_WINDOW`,
-   `REVIVES_PER_MISSION`, `src/game/reviveClock.ts`; G126; Marlow Yard: Michael 2026-10-25 ~11:35, "Campaign rule").
+   `REVIVES_PER_MISSION`, `src/game/reviveClock.ts`; G126; Marlow Yard: G349).
    [SectorOps] No lives: a partner revives with a revive syringe, counted per op by difficulty (`SECTOR.syringes`,
    `src/game/sectors.ts:510`) and growing with the player count (G331); both down, or solo, restarts at the section
    checkpoint (3.9, G188).
@@ -484,11 +481,11 @@ Open (G157): before the first real mission map, Tallow Wharf, the 12 proposed ch
    runs it as an audit; the campus (Sector Ops) is its first run.
 3. **Build** (one storey or area per phase, no guards): geometry, anchors, lights, zones, surfaces, doors, windows, hide
    spots; `scripts/plan-svg.mjs` renders the built level to compare with the approved plans.
-   **Greybox exit gate**: (1) a measured validator pass (V6, not live yet: the measuring step and the validator's
-   `--require-measured` flag are planned, Michael 2026-10-24 ~22:00, "Yes, require it", G289 (2); until V6 lands the
-   greybox exit waits for it); (2) bot route-runs: a scripted run walks every declared route (shadow, high, loud)
-   against live guards, logging time, detections and dead stops (the route-runs job, Marlow Build; G330, "Bot
-   route-runs + your walk"); (3) a 10-minute walk card for Michael.
+   **Greybox exit gate**: (1) a measured validator pass (V6, open: the measuring step and the validator's
+   `--require-measured` flag; the plan until V6 lands is `docs/archive/level-validator/V6-PLAN.md`; G289 (2), "Yes,
+   require it"; until V6 lands the greybox exit waits for it); (2) bot route-runs: a scripted run walks every declared
+   route (shadow, high, loud) against live guards, logging time, detections and dead stops (the route-runs job, Marlow
+   Build; G330, "Bot route-runs + your walk"); (3) a 10-minute walk card for Michael.
 4. **Guards and mission**.
 5. **Dressing, readability and verification**.
 

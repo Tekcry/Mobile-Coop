@@ -62,7 +62,7 @@ const routeRules = (meta) => meta.mode !== 'training';
 const PLAIN_TAGS = new Set(['start', 'exfil', 'objective', 'checkpoint', 'reward', 'entry', 'exit', 'sync_pair',
   'unavoidable']);
 /** Modes whose guards spawn on the Sector Ops runtime under its alive ceiling: Sector Ops and the campaign (campaign
- *  missions run on `SectorMode`, mission-framework A6; Michael 2026-10-25 ~11:35: "32 alive"). */
+ *  missions run on `SectorMode`, mission-framework A6; G359). */
 const ALIVE_CEILING_MODES = new Set(['sector', 'campaign']);
 const SPLIT_TAG = /^split:(.+):(a|b)$/;
 const OVERWATCH_TAG = /^overwatch:(.+)$/;
@@ -744,7 +744,7 @@ export function checkEncounters(graph, metrics) {
       }
     }
   }
-  // Alive ceiling (G187, G332; the campaign runs on the same runtime, Michael 2026-10-25 ~11:35 "32 alive"): per
+  // Alive ceiling (G187, G332; the campaign runs on the same runtime, G359): per
   // section and player count, the encounter spaces' counts (each at the largest key not above that count) sum to at
   // most `sector_alive_max`.
   if (ALIVE_CEILING_MODES.has(meta.mode)) {

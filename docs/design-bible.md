@@ -284,9 +284,9 @@ Implementation: `docs/systems/lighting.md`.
 - **L10 - Co-op.** Light state (on / off / destroyed / disrupted) is host-authoritative and synced. Clients re-mix the
   lighting locally.
 - **L11 - Character shadows count (G352).** Light parity holds for character shadows: where a character's real-time
-  shadow (L18) darkens the picture, the meter and guard perception read the same darkness. Like all gameplay light it
-  must not depend on the graphics preset (L2). Not built yet: today the meter and guards ignore character shadows
-  (G315's render-only model), a build job.
+  shadow (L18) darkens the picture, the meter and guard perception read the same darkness. Gameplay reads character
+  shadows from one fixed lamp set whatever the graphics preset (L2); the picture may show fewer lamps' shadows (L18).
+  Not built yet: today the meter and guards ignore character shadows (G315's render-only model), a build job.
 - **L12 - Doors.** Closed doors block light, on screen and in gameplay. Opening or closing a door updates the lighting
   like a switch.
 - **L13 - Cost.** No per-frame per-lamp loops in gameplay. Re-mixing on a light change is a one-off of a few
@@ -1118,8 +1118,7 @@ definition of done) and `docs/systems/session-method.md` (the job lead's loop). 
   strict briefs; Haiku does chores (G302, replaces G88 and G158); full burn until Michael says to slow down (G304,
   G324) with lean messaging and batch checkers (G305); two checkers on AI and `src/net`, cloud builders, plans 2-3
   slices ahead, high effort for leads (G319).
-- **Overnight loosenings:** a proposed loosening of a rule, including one only Michael may change, is applied overnight
-  as an assumed decision, logged for his review with its undo (G301, G358).
+- **Overnight loosenings:** the rule is in `docs/RULES.md` (Intake, step 2; G301, G358).
 - **Pipeline:** the laptop queue, fixed swap prompts, automatic suite selection and fully automatic rolling trains; no
   e2e on the desktop except the overflow lane (G318, G321, G322); release-speed (G317); the watchdog adds
   `train-ready` once CI, checker and affected e2e are green (G325).

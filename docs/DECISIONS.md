@@ -791,7 +791,8 @@ move. Michael: "Anywhere with room" (chat, 2026-10-18; replaces G81.)
 
 **G152. Held pistol jammer.** The pistol's jammer is held on one light, camera or laser; its charge drains and the player
 must stand still. It replaces the thrown EMP gadget. Michael: "Yes, held jammer" (chat, 2026-10-18; replaces the EMP
-gadget; sharpens G76's disruptor.)
+gadget; sharpens G76's disruptor.) (Narrowed by marlow-jammer J1, Michael 2026-10-21 items 7 and 8,
+`docs/archive/marlow-jammer/BRIEF.md`: one jam lasts at most 5 s, then a 5 s cooldown; `src/game/jammer.ts`.)
 
 **G153. Kits fixed per mission.** Each mission issues the pair complementary kits (G134); players do not choose a
 loadout. Michael: "Fixed per mission" (chat, 2026-10-18; replaces G105.)
@@ -1692,14 +1693,14 @@ heavy usage (desktop e2e and merge PRs)". Desktop agents capped so CPU stays und
 session); the heavy.lock desktop lane runs single GPU suites under 80% CPU; PRs outside src/net / protocol / save enter
 trains on CI plus at most two area suites; stacked series share a train; trains at 3+ ready or a 2-hour wait. (Replaces
 G246's 2+ trigger; its train trigger and desktop lane are replaced by G318.)
-
 **G307. Reward stealth over shooting as sections get harder.** (Helmet rule (2) narrowed by G338 and G350, 2026-10-25:
-Realistic and Perfectionist always have helmets, Perfectionist's cannot be shot off; below that the first headshot
-still knocks a helmet off.) Michael (2026-10-23 ~10:10, native multiple choice in Character Build, relayed): theme "reward stealth over
-shooting as sections get harder". (1) bulletproof cameras in later sections (shots only ricochet; jam, cut power or slip
-the sweep; early sections keep shootable cameras); (2) no instant headshot kills later (a helmet: the first headshot
-knocks it off and staggers, the second kills; takedowns stay one move); (3) riot-shield enemies only in alert response
-teams; (4) alarms escalate (armour / helmets and a response team per stage; "dont add cameras, that doesnt make sense");
+Realistic and Perfectionist always have helmets, Perfectionist's cannot be shot off; below Perfectionist the first
+headshot still knocks a helmet off.) Michael (2026-10-23 ~10:10, native multiple choice in Character Build, relayed):
+theme "reward stealth over shooting as sections get harder". (1) bulletproof cameras in later sections (shots only
+ricochet; jam, cut power or slip the sweep; early sections keep shootable cameras); (2) no instant headshot kills later
+(a helmet: the first headshot knocks it off and staggers, the second kills; takedowns stay one move); (3) riot-shield
+enemies only in alert response teams; (4) alarms escalate (armour / helmets and a response team per stage; "dont add
+cameras, that doesnt make sense");
 (5) a section rating (undetected / no kills / no alarms / bodies hidden) with real rewards; (6) missed patrol check-ins
 and found bodies raise alert; (7) gunfire alerts the section, limited suppressor ammo, no ammo inside a section and one
 refill between sections: ~10:20 "there should be ammo refill inbetween sections for now, but none within sections. and

@@ -35,11 +35,11 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350), then
   - Friendly fire: a host option, on by default (G141; coop.md).
 - Decided (G106, built): CT's fixed difficulty levels; no sliders, no alarm-tolerance setting.
 - Decided (G11, G180, G335): of the movement run's AI ideas (guards relight lamps, paired searches, eavesdropping and
-  the rest) only those CT has survive, with one exception: Michael "Add both" (G335, 2026-10-25 ~09:45) - static
+  the rest) only those CT has survive, with one exception: Michael "Add both" (G335) - static
   lookouts on some high routes (pipes, catwalks, vents) and paired patrols that check on each other. G44 (poor sight
   above) stays the base rule; a lookout is the deliberate exception on its route. Guard AI plans it first; not built
   yet.
-- Decided (2026-10-25 ~08:50, "Yes, shadow in view = seen"): a guard whose shadow falls in view animates at full rate
+- Decided (G327, "Yes, shadow in view = seen"): a guard whose shadow falls in view animates at full rate
   (`animTierView.ts`; replaces G294's assumption). Not built yet: shadow passes do not count as seen.
 - Decided, not built yet (G352): guard perception reads the players' real-time character shadows, as the picture
   shows them (light parity; `docs/systems/lighting.md`). Today guards read only the light field.

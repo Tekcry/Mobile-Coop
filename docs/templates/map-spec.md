@@ -19,11 +19,11 @@ its graph sets `meta.mode` to the same value.
 - This work builds a map, its missions as data for the mission engine, tests, dev scripts and docs. It adds no new game
   systems: no new movement, co-op moves, AI behaviour, takedown kinds, interactable kinds, net messages, HUD elements,
   input bindings or mode logic.
-- Missions use the mission engine (`src/game/mission/`, `missionDef.ts`; the mission-framework job,
-  `docs/missions/PLAN.md`): sections, objective steps, parallel team tracks and strict rules are `MissionDef` data. An
-  objective step or rule kind the engine lacks, or a co-op move the kit lacks (`docs/level-design.md` 11.9), is built
-  by the mission-framework or co-op job first, never in this map job. A map that starts before the engine is on master
-  asks the orchestrator.
+- Missions use the mission engine (`src/game/mission/`, `missionDef.ts`, on feature/mission-engine until it merges; the
+  mission-framework job, `docs/missions/PLAN.md`): sections, objective steps, parallel team tracks and strict rules are
+  `MissionDef` data. An objective step or rule kind the engine lacks, or a co-op move the kit lacks
+  (`docs/level-design.md` 11.9), is built by the mission-framework or co-op job first, never in this map job. A map that
+  starts before the engine is on master asks the orchestrator.
 - TypeScript you write: `src/world/maps/<map-id>.ts` (one file per section when it is large), its registration in
   `src/world/maps/index.ts` and `src/world/maps/listed.ts`, its sectors and missions
   (`src/world/maps/<map-id>Sectors.ts`, `<map-id>Missions.ts`), an exported constant of the map's co-op lips, unit

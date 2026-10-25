@@ -3,8 +3,9 @@ Purpose: the HUD, menus, the screen stack, display handling, feedback, photo mod
 Design authority: docs/DECISIONS.md (G77, G107, G108, G113, G336, G339, G343, G351), then
 docs/design-bible.md (Section 5.10).
 
-Desktop only (G12): pad first, then keyboard and mouse. Menus follow the menu style plan (`docs/menu-ui/SPEC.md`, G77)
-and are rebuilt after the prototype (G113); only the in-game HUD follows CT's layout (G77).
+Desktop only (G12), pad first (loco D1), then keyboard and mouse. Menus follow the menu style plan
+(`docs/menu-ui/SPEC.md`, G77) and are rebuilt after the prototype (G113); only the in-game HUD follows CT's layout
+(G77).
 What follows is the UI as built today; "decided, not built yet" marks where the decisions differ.
 
 ## HUD

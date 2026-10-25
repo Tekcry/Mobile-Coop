@@ -796,7 +796,7 @@ describe('level-validate: mode profiles (level-design "Modes and tags")', () => 
     expectErr(check(g), 'section S2: 40 guards at 3 players', 'section S2: 40 guards at 4 players');
     g.meta.players = [2, 5];
     expectErr(checkStructure(g) as Report, 'Sector Ops is 1-4 players');
-    // The campaign runs on the Sector Ops runtime: the same ceiling (Michael 2026-10-25 ~11:35, "32 alive").
+    // The campaign runs on the Sector Ops runtime: the same ceiling (G359).
     const c = campaignBase();
     space(c, 'b-vault').guards = { 2: 32 };
     expect(check(c).errors).toEqual([]);
