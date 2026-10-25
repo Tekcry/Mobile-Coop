@@ -10,6 +10,8 @@ import { flags } from '../../../src/core/flags';
 import { layoutKnownIds, registeredBayCount, validateCourse } from '../../../src/game/course/courseDef';
 import type { StationDef } from '../../../src/game/course/stationDef';
 import { LevelBuilder } from '../../../src/world/levelBuilder';
+import { applyMapFlicker, FLICKER_STUTTER } from '../../../src/world/lampFlicker';
+import { applyMapSway } from '../../../src/world/lampSway';
 import { MARLOW_CIRCUITS, MARLOW_CIRCUITS_REPLAN, MARLOW_POCKETS, MARLOW_POCKETS_REPLAN, MARLOW_TIMED, circuitOf, marlowCourseGroups, validateMarlowCircuits } from '../../../src/world/lighting/marlowCircuits';
 import { buildCtcourse, ctcourse, ctcourseReplan, LIGHT_SPOTS, lightSpotsReplan, replanLoad, SPOT_FAIL } from '../../../src/world/maps/ctcourse';
 import { getMap, MAPS } from '../../../src/world/maps';
@@ -182,5 +184,26 @@ describe('Marlow re-plan circuits (J14 S0, A20: every light works)', () => {
     const g = replan.layout.course!.groups;
     for (const k of ['a4-bulk', 'a6-sump', 'a4-dispatch', 'a8-vestibule', 'a8-west']) expect(g?.[k], k).toBeDefined();
     expect(built.layout.course!.groups?.['a4-bulk']).toBeUndefined();
+  });
+});
+
+describe('Marlow re-plan lamps (J14 S0 check fix 3): the same stutter tube, swinging pendants and flicker seed as ctcourse', () => {
+  it('both layouts resolve the same tube and pendant light ids and the same flicker seed', () => {
+    const lamps = (m: typeof ctcourse) => {
+      const b = new LevelBuilder();
+      m.build(b, 1);
+      const tube = applyMapFlicker(b.lights, m.id, 7);
+      const sway = applyMapSway(b, m.id);
+      return { tube, seed: b.lights.flickerSeed, sway: sway ? [...sway.ids] : [], at: (id: number) => b.lights.lights[id]!, stutter: b.lights.flickerMode(tube) };
+    };
+    const a = lamps(ctcourse);
+    const r = lamps(ctcourseReplan);
+    expect(a.tube).toBeGreaterThanOrEqual(0);
+    expect(r.tube).toBe(a.tube);
+    expect(r.stutter).toBe(FLICKER_STUTTER);
+    expect([r.at(r.tube).x, r.at(r.tube).y, r.at(r.tube).z]).toEqual([a.at(a.tube).x, a.at(a.tube).y, a.at(a.tube).z]);
+    expect(r.seed).toBe(a.seed);
+    expect(a.sway.length).toBeGreaterThanOrEqual(4);
+    expect(r.sway).toEqual(a.sway);
   });
 });
