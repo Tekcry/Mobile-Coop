@@ -65,9 +65,9 @@ No live map places a heavy, runner, sniper, drone operator or enforcer.
 - ai.md on archetypes, dogs and helmets (Decided direction) matches the code and says what is not built: `docs/systems/ai.md:25-34`, with `docs/systems/takedowns.md:17-20`.
 
 ### Notes
-- Owners: B1, B7, B11, B12 Campaign; B3, B10, B14 Sector Ops (B9 too, if Michael picks option 2); B4 Player; B2, B5, B6, B8, B13, B15 Guard AI.
+- Owners: B1, B7, B11, B12 Campaign; B3, B10, B14 Sector Ops (B9 too, if Michael picks option 2); B4 Player; B2, B5, B6, B8, B13, B15, B16 Guard AI (B16 data: Sector Ops).
 - Guard counts in the table are below the signed-off S1-S5 counts (G328); Part A (A1) owns that.
-- Riot shields from S1: bible 5.7 (`docs/design-bible.md:570`) lists riot shields under "Later Sector Ops sections", level-design 4.10 has no section limit, and the code sends a shield guard from S1. The Sector Ops lead should confirm which reading holds.
+- Riot shields from S1: bible 5.7 (`docs/design-bible.md:570`) lists riot shields under "Later Sector Ops sections", level-design 4.10 has no section limit, and the code sends a shield guard from S1. The bible outranks level-design: folded as gap B16 in CONFORMANCE.md 1b (Guard AI path `RESPONSE.shieldLead`, `src/ai/gear.ts:38,162`; Sector Ops sets the section).
 - Not verified: whether `sectorMode.onEnemyKilled` (`src/game/modes/sectorMode.ts:1311-1316`) counts a kill the players did not make (a held guard shot by guards, `src/ai/enemy.ts:3744`; a guard grenade) against No kills. The campaign rule tracker attributes kills by slot (ME `ruleTracker.ts:7`).
 - Not verified: whether a knocked-out Tallow Wharf target can still be interrogated (B11 covers the kill only).
 - The co-op client takedown path for dogs (`src/net/enemyPuppet.ts`) was not read; B4's fix must cover the host check.

@@ -1,4 +1,6 @@
-Verdict: FIX (one blocking item, F1; the rest is accurate and folds as is once F1 is added). Lead fix round 1: F1 added (section 2, #387), recommendations 2-5 and every cosmetic item applied; re-check below.
+Verdict: PASS on 4c55947f (re-check round 1: F1 fixed; three tidy items left for the fold, non-blocking; first verdict on d5f76240 was FIX)
+
+Lead fix round 1: F1 added (section 2, #387), recommendations 2-5 and every cosmetic item applied; re-check below.
 
 # Checker: Conformance review, Guard AI (PR #423, head d5f76240)
 
@@ -72,3 +74,29 @@ base), ME = 00b6cde9c, C4 = 24ba2e51, MF = origin/feature/mission-framework. PR 
 - Brief scope files not cited: `guardShield.ts`, `helmetDrops.ts`, `guardHelmet.ts`, `dogModel.ts` (render only) and
   `dogHead.ts` (the dog's head hit volume from the sim, which supports "AI reads no graphics state"). One line in
   section 2 closes the file list.
+
+## Re-check round 1 (head 4c55947f)
+Scope: only `git diff d5f76240 4c55947f` (CONFORMANCE.md, the four parts, CHECK.md). Every new or changed file:line was
+re-found on 829a9332 (ME on 00b6cde9c).
+
+Fixed:
+- F1 (#387): section 2 line added; `src/ai/squadRoles.ts:25,383,620` and `tests/oneMover.test.ts` hold. Blocking item closed.
+- D4: rule cell now G2 / VISION 2 Players row with the G292 reason; the reason holds (ME forced co-op moves in
+  `tallowWharfW1.ts:14`, `tallowWharfW2.ts:12`, `tallowWharfW3.ts:15`); `sectorMission.ts:323-325` holds. Stays in 1c: fine.
+- A4: row and part A now name the squad radio check (`enemyManager.ts:2255`, `ai.md:164-175`); accurate; size unchanged.
+- B16 (new, 1b): `docs/design-bible.md:570`, `src/ai/gear.ts:38,162`, `src/game/modes/sectorMode.ts:951` hold. Totals
+  re-counted: 40 IDs (1a 7, 1b 23, 1c 10); 23 S, 13 M, 4 L; 7 hard-rule rows; Q1-Q9.
+- Section 2 new lines: `src/ai/guardAiData.ts:94` (`reason`), `src/ai/enemyManager.ts:2849`, `src/ai/bodies.ts:32-48`
+  (`bodyNotice` by distance, angle, light), `src/ai/searchArea.ts:53-78` (bounded radius, dark / cover score),
+  `src/ai/enemy.ts:237-239`, `src/ai/guardShield.ts:7-8`, `helmetDrops.ts:1-5`, `guardHelmet.ts:1-7`: all hold.
+- Cosmetic fixes: `guardAiData.ts:110`, `enemyManager.ts:2849`, `pairWhyNot`, bible `:288`, 595 behind 829a9332, #360
+  head 155d68a31, `campusS5Data.ts:33-75`, the full `tallowWharfMissions.ts` path: all applied and correct.
+- No em or en dashes; no reference-game names in the changed text.
+
+Tidy before the fold (non-blocking: the gap table already carries B16, so the fold picks it up):
+1. Section 3 per-map table still reads "Conforms" for `campusOps` S1-S3 with "shield + grunt per stage"
+   (CONFORMANCE.md:145-147) and warehouseOps "as S1" (:150); add B16 there.
+2. Stale "confirm" notes now superseded by B16: CONFORMANCE.md:158-159 ("Riot shields from S1 ... confirm") and
+   `parts/B-archetypes.md:70`.
+3. B16 has no row in `parts/B-archetypes.md` (the parts "win on detail"; part B still totals 15) and is missing from its
+   owner list (`:68`); add the row (Guard AI code, Sector Ops data).

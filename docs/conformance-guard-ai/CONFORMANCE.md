@@ -142,12 +142,12 @@ response teams only, late armour, helmets by difficulty. Full table with file:li
 | Map / section | Placed | Gear | Response | vs allowed |
 | --- | --- | --- | --- | --- |
 | `ctcourse` (Marlow Yard) | 13 grunt, 1 officer | none | none | Conforms |
-| `campusOps` S1 | 4 grunt, 4 officer | none | shield + grunt per stage | Conforms; B2; count short (A1) |
-| `campusOps` S2 | 6 grunt, 6 officer | none | as S1 | Conforms; B2; A1 |
-| `campusOps` S3 | 8 grunt, 8 officer | none | as S1 | Conforms; B2; A1 |
+| `campusOps` S1 | 4 grunt, 4 officer | none | shield + grunt per stage | Shield lead from S1 (B16); B2; count short (A1) |
+| `campusOps` S2 | 6 grunt, 6 officer | none | as S1 | B16; B2; A1 |
+| `campusOps` S3 | 8 grunt, 8 officer | none | as S1 | B16; B2; A1 |
 | `campusOps` S4 | 10 grunt, 9 officer, 1 dog | section helmet; helmet + armour tags | as S1; dog release stub (B6) | Dog and armour conform; B3; A1 |
 | `campusOps` S5 | 14 grunt, 8 officer, 2 dogs | as S4 | as S4 | as S4 |
-| `warehouseOps` 1-3 | 5+3, 6+2, 6+3 grunt + officer | none | as S1 | Q9 (B9) |
+| `warehouseOps` 1-3 | 5+3, 6+2, 6+3 grunt + officer | none | as S1 | Q9 (B9); B16 |
 | Tallow Wharf W1-W2 (ME) | 9 and 10 grunt | none | shield + grunt per stage | B7; B12 (W2 staff) |
 | Tallow Wharf W3-W4 (ME) | 9 grunt + 1 dog, 11 grunt + 1 dog | none | as W1 | Dogs not allowed (B1); B7; B12 |
 
@@ -155,8 +155,8 @@ No live map places a heavy, runner, sniper, drone operator or placed riot shield
 
 ## Notes for other leads
 - Sector Ops: `docs/systems/lighting.md:221` says Low / Medium have 0 character-shadow lamps, code and `:46` say 1.
-  Bible P1 "any preset agree" vs L11 "fewer lamps' shadows" needs one wording once C1 is built. Riot shields from S1
-  (code) vs bible 5.7 "later sections": confirm.
+  Bible P1 "any preset agree" vs L11 "fewer lamps' shadows" needs one wording once C1 is built.
+  Riot shields from S1: now gap B16 (bible 5.7 wins); Sector Ops sets which section is "later".
 - Campaign: Tallow Wharf uses Sector Ops' syringe revive instead of 30 s twice (G126); ME `sectorMission.ts:150`
   one-chance `fail` vs section restart (G290, G353).
 - Not verified: whether Sector Ops' No kills counts kills the players did not make; Tallow Wharf cameras; the co-op
