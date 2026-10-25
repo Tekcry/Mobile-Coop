@@ -202,6 +202,12 @@
       "regex": "No external art|Only CC0 files are allowed|no external (art|audio)|External art files, except",
       "why": "any free asset whose licence allows commercial sale is allowed, credited (G407)",
       "replacement": "free assets with a commercial-sale licence, credited"
+    },
+    {
+      "id": "cc0-only-samples",
+      "regex": "\\bCC0 only\\b|only if it is CC0|CC0 files only",
+      "why": "samples and other assets: any licence that allows commercial sale (G407)",
+      "replacement": "free assets whose licence allows commercial sale"
     }
   ],
   "resumeScope": [

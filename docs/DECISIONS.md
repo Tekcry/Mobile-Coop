@@ -104,8 +104,8 @@ merge" (PLAT-01), "Delete now" (PLAT-03, LEVEL-07), "Delete completely" (COOP-05
 **G13. Tests run as a desktop.** Automatic tests switch from phone emulation to desktop with controller, keyboard and
 mouse when the phone code goes, which is in this merge (G12). Michael: "When phone code goes" (PLAT-02, 2026-10-17.)
 
-**G14. Performance goals set to the laptop's numbers.** The performance goals are rewritten to today's target-laptop
-numbers. Michael: "Lower the goals" (PLAT-04, 2026-10-17.)
+**G14. Performance goals set to the laptop's numbers.** (Extended by G369, 2026-10-25: 32 guards at 60 fps.) The
+performance goals are rewritten to today's target-laptop numbers. Michael: "Lower the goals" (PLAT-04, 2026-10-17.)
 
 **G15. Editor phone launcher kept, no new work.** The level editor keeps its phone launcher as a dev tool, with no new
 phone work. Michael: "Keep, no new work" (PLAT-05, 2026-10-17.)
