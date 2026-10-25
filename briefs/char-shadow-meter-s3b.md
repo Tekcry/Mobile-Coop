@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 3 2026-10-25T23:58+11:00
+status: done feature/char-shadow-meter-s3b 6fb0adfcfd3f1f428be914976425730632c65683
 # char-shadow-meter s3b (cloud): character shadows count in the light (J16), slice S3b-1 only (typed point-input light calls, no 4-player fill allocation)
 
 Lead: Night Shift | Sector Ops Build. Job char-shadow-meter (FOLDED-PLAN J16, ROADMAP Now row 13; Michael Q6 "Meter
@@ -55,3 +55,15 @@ S3b.md
      bytes-per-call line of lightField + shadowCues, before and after. BOXED_BUDGET and the 2432 B gate are not changed.
 - Still over 2432 B after step 2 with only `lights.ts` left: `status: blocked <reading, residual>` (the lead then
   decides on option (b)). Done: as the Done line above, S3b-1 only.
+
+## Report (Night Shift | Cloud Builder 3, 2026-10-26): DONE, S3b-1 only
+- Merged `origin/feature/char-shadow-meter-a1` @ df64c0fa4 (not moved) with `--no-ff` (a8e48b6c). No textual conflict;
+  the Q members now copy `qp` into A1's `pt` slot once per call and call A1's slot steps; `qr` stays.
+- Gate: the real-field 4-player fill reads **1616 B** (gate <= 2432 B, unchanged; was 8544), Node 22.22.0 and 24.22.1,
+  two runs each, ALLOC_TRACE every round 1616.0 at 0x51, no scavenge. So step 2's private-step extension was not
+  needed and not done; `lights.ts` untouched. BOXED_BUDGET unchanged.
+- Tests: `tests/shadowCues.test.ts tests/lightField.test.ts tests/charOccluders.test.ts --maxWorkers=2` 54 / 54 on both
+  Nodes (before: 53 / 54, the gate). tsc and typecheck:fast clean; eslint clean on lightField.ts.
+- Every bytes-per-call line before / after on both Nodes: `docs/char-shadow-meter/checks/s3b-build.md` "Resume" (head
+  6fb0adfcf).
+- Pending PC runs: none for S3b-1 (no call site yet; S3b-2 wires GameState).
