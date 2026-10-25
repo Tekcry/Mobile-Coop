@@ -1,0 +1,14 @@
+{
+  "id": "20261025T100040-night-shift-campaign-d4c01de7-2bc6",
+  "sha": "d4c01de780f003342f6cba9bc065ddb55267e9fb",
+  "branch": "feature/hud-guidance-b3",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Campaign Build",
+  "suites": [
+    "e2e-coop",
+    "e2e-netmove",
+    "e2e-ctcourse"
+  ],
+  "set": "hg-b3"
+}
