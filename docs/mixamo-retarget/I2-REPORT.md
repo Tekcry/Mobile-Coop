@@ -7,10 +7,14 @@ Owner: mixamo-retarget lead. Status: current (branch feature/mixamo-i2).
   `SHIMMY_TRAVEL`, `SHIMMY_SPEED`, `STAND_FADE` :76), `MIXAMO_KEEP` (:91, the pelvis offset kept hand-made: palms on the
   grips), the resolved table `WREN_TRAV` (:99) rebuilt once per change by `resolveMixamo` (:104), `setMixamo` (:123),
   `setMixamoStudio` (:129), `mixamoStudioEntry` (:138).
-- `src/anim/animGraph.ts:1274-1279`: Wren (`wrenReady`) with a filled slot plays `mixamoTrav` (:2927), else the
-  hand-made `TRAVERSE_CLIP` as before; `:1310-1318` the climb-up's origin and the hang clocks. `mixamoTrav` passes no
-  double across a call (`mxDt` / `mxT` / `mxW` fields, `mxOver` :3022, `keepSave` / `keepApply` :3035-3045), so the
-  capture path allocates no more than the hand-made path (a call the graph does not inline boxes each double, 16 B).
+- `src/anim/animGraph.ts:1274-1286`: Wren (`wrenReady`) with a filled slot plays `mixamoTrav` (:2933), else the
+  hand-made `TRAVERSE_CLIP` as before; a capture giving way to a hand-made clip inside the traverse state, or the
+  reverse, triggers the inertializer as a state change does (`mxLast` :3028; flag off no capture plays, no trigger):
+  the still hang's capture to the hand-made climb-up jumped fLPitch 0.73 rad (now 0.09; hand-made 0.40), the hand-made
+  ladder to the top-out capture hdPitch 0.92 (now 0.24; hand-made 0.25). `:1314-1324` the climb-up's origin and the
+  hang clocks. `mixamoTrav` passes no double across a call (`mxDt` / `mxT` / `mxW` fields, `mxOver` :3030,
+  `keepSave` / `keepApply` :3043-3053), so the capture path allocates no more than the hand-made path (a call the graph
+  does not inline boxes each double, 16 B).
 - `src/anim/studio.ts:13,280`, `src/game/studioStage.ts:466`: picking a capture loop in the Anim Studio plays it on the
   Studio's Wren whatever the flag says; the loop's text says when a capture stays hand-made in matches.
 - `TESTING.md`: the `?mixamo=1` line.
@@ -43,9 +47,13 @@ The rule: a capture whose palms or soles miss more than the hand-made clip, that
 rather than take a hand-made fix.
 
 ## Tests
-- `tests/mixamoTraverse.test.ts` (10): flag and table, Studio pick, off bit-identical after on / pick and clear, guard
+- `tests/mixamoTraverse.test.ts` (12): flag and table, Studio pick, off bit-identical after on / pick and clear, guard
   graph identical with the flag on, slots by MIXAMO_ON (and every capture with all let on), no pop at the stand-up fade
-  or shimmy turn, bytes a frame (hang 1312 vs hand-made 1328, climb-up 1312 vs 1312), anchor errors above.
+  or shimmy turn, the capture / hand-made switch inertialized (graph channels; rig joints on the first exit frame:
+  climb-up 4.1 cm vs hand-made 9.5, top-out 15.6 vs 15.7), bytes a frame (both paths warmed, 5 alternating rounds,
+  medians: hang moving 1664 vs hand-made 2368, hang still 1305 vs 1737, climb-up 1305 vs 1401-1417; 3 runs in a row
+  alike), the vent crawl (capture joints 13.8 cm a frame vs 0.5: off; as shipped the hand-made crawl joint for joint),
+  anchor errors above.
 - `tests/mocapGuards.test.ts`: a guard's hang, shimmy, ledge climb-up, ladder, top-out and crawl bit-identical with the
   flag on (grunt, heavy, officer); control: Wren moves with it on.
 - `tests/climbHands.test.ts`: every check with the flag off and on.
