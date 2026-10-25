@@ -113,3 +113,41 @@ the grille walls; the plenum (cover, hatch open, runtime-nav isolation); the bas
   basket B1 into it.
 
 **Pending PC run:** `e2e-sectorops:1` .. `:6` (default flags); E2E-1 (v2): the CR8 / CR8-west climbs engage.
+
+## G4.3 West strip: battery room, colonnade, UPS room, ess board (D:27-30, C12-C15)
+
+Resumed by a second cloud builder (Sonnet) at 8bd64d26; the slice-set at that head was 7 files, 102 / 102, before any edit.
+
+**Files:** `s4.ts`, `s4Data.ts`, `tests/campusV2S4.test.ts`, `tests/campusV2S4Lights.test.ts` (new), the graph, the fragment,
+this report. `s4Dress.ts` unchanged (no skinned box moved: the battery rows and UPS cabinets keep their centres).
+
+**Built (s4.ts lines):**
+- C13 / C14 colonnade z 27.5..31: walls `wall(b, true, 27.5, ... doorHole(-8.5))` and `wall(b, true, 31, ... doorHole(-5.5))`
+  (:481-482), battCC `doorAt(true, 27.5, -8.5, 0, -1)` (:483), ccUps `doorAt(true, 31, -5.5, 0, 1)` (:484), slab
+  `slab(b, -10, -4, 27.5, 31, 3.2)` (:485). `S4_DOORS.battCC = [-8.5, 27.5]`, `ccUps = [-5.5, 31]` (:72-73);
+  `S4_BOX.battery = [-10, 16, -4, 27.5]`, `ups = [-10, 31, -4, 48]`.
+- hallCC walled: the `doorHole(29)` and its `doorAt` gone (:472-473); `S4_DOORS.hallCC` removed.
+- C15 staff door UPS -> security room: `doorHole(46.5)` in the hall west wall and `doorAt(false, -4, 46.5, 0, 1)` (:473, :478);
+  `S4_DOORS.upsSec = [-4, 46.5]` (:68); console z 43.2..45.6 (:542).
+- Light (C12): `S4_LIGHTS.batt` (-7, 2.4, 24) r 3.6 i 0.8 cone down w 0.3, group `batt 142` (:308; `S4_GROUPS` gains `nc 140`,
+  `riser 141`, `batt 142`, :51). Switch (-4.3, 0, 26.2) yaw -PI / 2 (:237, derived).
+- Ess board `S4_BOARDS` second entry (-5.5, 0, 27.3) yaw PI groups [76, 77] window 25 (:188), `// sync-s4-ess-board`;
+  `// sync-s4-yard-board` on the first (:186).
+- Rooms: `s4-batt` z 16..27.5, `s4-cc` z 27.5..31 maxY 3.1, `s4-ups` z 31..48 (:249-251).
+
+**Data (s4Data.ts):** #19 K3 (-8.8, 30.0) yaw PI / 2, takedown (-9.3, 30.0), post as built (:72); alarm-sec4 (-3.85, 43.0) (:161).
+
+**Sync nodes:** ess board (sync-s4-ess-board) `s4.ts:188`; yard board (sync-s4-yard-board) `s4.ts:186` (unmoved).
+
+**Graph:** `s4-batt`, `s4-cc`, `s4-ups` and the `s4-batt -> s4-cc`, `s4-cc -> s4-ups`, `s4-ups -> s4-sec` link notes -> "BUILT G4.3 (...)".
+
+**Tests:** `tests/campusV2S4.test.ts` 8 -> 11 (colonnade; UPS door, console, alarm; K3 cone with #19 at (-8.8, 30.0)),
+`tests/campusV2S4Lights.test.ts` 2 / 2 (ess board [76, 77] 25 s on nav, switching 76 + 77 darkens exactly the group-76 / 77
+lamps; battery lamp on 142 with one switch within 1.5 m of hallBatt). Slice set: 8 files, 107 / 107; typecheck clean.
+
+**Assumptions:** the ess-board lamp check reads "the NOC and security room lamps" as every S4 lamp on groups 76 / 77 (so the
+G4.4 console lamp joins it). Undo: none needed.
+**Deviations:** the T4 K3 case also asserts the three colonnade doors sit inside the cone; not ported (the brief lists only the
+cone-blocker path and the leash margin), so battCC / ccUps are not asserted in the cone.
+**Findings for the lead:** the graph `s4-batt` note still says the east rack row is "z 21.0..26.5" (plan text, P1 built 23.5).
+**Pending PC run:** `e2e-sectorops:1` .. `:6` (default flags).

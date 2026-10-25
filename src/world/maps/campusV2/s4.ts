@@ -47,8 +47,8 @@ export const S4_NOC = 3.6;
 export const S4_BASKET = 4.4;
 const DOOR_H = 2.1;
 
-/** The lamp circuits of section 4 (S1 40-49, S2 50-58, S3 60-67, S5 takes 80-89). */
-export const S4_GROUPS = { cold1: 70, cold2: 71, cold3: 72, lobby: 73, dock: 74, yard: 75, noc: 76, sec: 77, ups: 78, deck: 79 } as const;
+/** The lamp circuits of section 4 (S1 40-49, S2 50-58, S3 60-67, S5 takes 80-89; the J17 band 140-149: nc 140, riser 141, batt 142). */
+export const S4_GROUPS = { cold1: 70, cold2: 71, cold3: 72, lobby: 73, dock: 74, yard: 75, noc: 76, sec: 77, ups: 78, deck: 79, nc: 140, riser: 141, batt: 142 } as const;
 
 /** The doors the sector data and the tests find by centre [x, z] (`Doors.nearest`, plan only). */
 export const S4_DOORS = {
@@ -63,13 +63,14 @@ export const S4_DOORS = {
   dockWest: [14, 17.5] as [number, number],
   dockEast: [34, 19] as [number, number],
   hallBatt: [-4, 25] as [number, number],
-  hallCC: [-4, 29] as [number, number],
   hallUps: [-4, 38] as [number, number],
+  /** (G4.3 C15) the staff door from the UPS room into the security room. */
+  upsSec: [-4, 46.5] as [number, number],
   hallEast: [34, 30] as [number, number],
   mantrapOuter: [8, 20.5] as [number, number],
   mantrapInner: [9.5, 22] as [number, number],
-  battCC: [-7, 27.8] as [number, number],
-  ccUps: [-7, 30.2] as [number, number],
+  battCC: [-8.5, 27.5] as [number, number],
+  ccUps: [-5.5, 31] as [number, number],
   secDoor: [2, 42] as [number, number],
   ncDoor: [20, 42] as [number, number],
   secNc: [8, 45] as [number, number],
@@ -88,8 +89,8 @@ export const S4_BOX = {
   yard: [34, 16, 40, 48] as const,
   hall: [-4, 22, 34, 42] as const,
   dock: [14, 16, 34, 22] as const,
-  battery: [-10, 16, -4, 27.8] as const,
-  ups: [-10, 30.2, -4, 48] as const,
+  battery: [-10, 16, -4, 27.5] as const,
+  ups: [-10, 31, -4, 48] as const,
   sec: [-4, 42, 8, 48] as const,
   nc: [8, 42, 30.6, 48] as const,
   riser: [30.6, 42, 34, 48] as const,
@@ -181,7 +182,11 @@ export const S4_PANEL_NEAR: Record<string, readonly (readonly [number, number, n
 };
 
 /** The compound board: a timed isolator (window 20) in the dock that cuts the yard floods (A90). */
-export const S4_BOARDS: BoardDef[] = [{ pos: new Vector3(33.85, 0, 20.8), yaw: -PI / 2, groups: [S4_GROUPS.yard], window: 20 }];
+export const S4_BOARDS: BoardDef[] = [
+  { pos: new Vector3(33.85, 0, 20.8), yaw: -PI / 2, groups: [S4_GROUPS.yard], window: 20 }, // sync-s4-yard-board
+  // (G4.3 C12, D:27, SY:41) the essential-lighting board on the battery room's side of the colonnade wall: the NOC and security room lamps, 25 s
+  { pos: new Vector3(-5.5, 0, 27.3), yaw: PI, groups: [S4_GROUPS.noc, S4_GROUPS.sec], window: 25 }, // sync-s4-ess-board
+];
 
 /** Nav seeds: the dock, the service corridor, the hall, the battery room, the UPS room, the security room, the NOC, the north corridor, the riser, the compound, a basket, the landing, the deck. */
 export const S4_NAV_SEEDS: Vector3[] = [
@@ -228,6 +233,8 @@ export const S4_SWITCHES: NonNullable<MapLayout['switches']> = [
   { pos: new Vector3(6.0, S4_NOC, 47.85), yaw: PI, group: S4_GROUPS.noc },
   { pos: new Vector3(2.8, 0, 42.15), yaw: 0, group: S4_GROUPS.sec },
   { pos: new Vector3(-4.15, 0, 37.0), yaw: -PI / 2, group: S4_GROUPS.ups },
+  // (G4.3 C12, derived) inside hallBatt (-4, 25) on its latch side, 0.6 m past the opening, 0.15 off the wall face
+  { pos: new Vector3(-4.3, 0, 26.2), yaw: -PI / 2, group: S4_GROUPS.batt },
 ];
 
 /** Section 4's rooms (HUD tags; no squads). Stacked rooms carry their storey (`minY` / `maxY`); none overlap (the lobby and hall are cut round the mantrap and the cage). */
@@ -239,9 +246,9 @@ export const S4_ROOMS: RoomDef[] = [
   { id: 's4-lobby-a', name: 'Goods-in Lobby', minX: 11, maxX: 14, minZ: 19, maxZ: 22, maxY: 3.1 },
   { id: 's4-mantrap', name: 'Mantrap', minX: 8, maxX: 11, minZ: 19, maxZ: 22, maxY: 3.1 },
   { id: 's4-plenum', name: 'Return-air Plenum', minX: -4, maxX: 14, minZ: 16, maxZ: 22, minY: 3.1, maxY: 7.2 },
-  { id: 's4-batt', name: 'Battery Room', minX: -10, maxX: -4, minZ: 16, maxZ: 27.8, maxY: 7.2 },
-  { id: 's4-cc', name: 'Colonnade Corridor', minX: -10, maxX: -4, minZ: 27.8, maxZ: 30.2, maxY: 7.2 },
-  { id: 's4-ups', name: 'UPS Room', minX: -10, maxX: -4, minZ: 30.2, maxZ: 48, maxY: 7.2 },
+  { id: 's4-batt', name: 'Battery Room', minX: -10, maxX: -4, minZ: 16, maxZ: 27.5, maxY: 7.2 },
+  { id: 's4-cc', name: 'Colonnade Corridor', minX: -10, maxX: -4, minZ: 27.5, maxZ: 31, maxY: 3.1 },
+  { id: 's4-ups', name: 'UPS Room', minX: -10, maxX: -4, minZ: 31, maxZ: 48, maxY: 7.2 },
   { id: 's4-hall', name: 'Data Hall', minX: -4, maxX: 34, minZ: 22, maxZ: 34, maxY: 7.2 },
   { id: 's4-hall-w', name: 'Data Hall', minX: -4, maxX: 14, minZ: 34, maxZ: 40, maxY: 7.2 },
   { id: 's4-hall-e', name: 'Data Hall', minX: 22, maxX: 34, minZ: 34, maxZ: 40, maxY: 7.2 },
@@ -297,6 +304,8 @@ export const S4_LIGHTS = {
   lobbyN: [2.0, 6.5].map((x) => ({ x, y: 2.8, z: 21.2, r: 4.2, i: 0.8, group: S4_GROUPS.lobby, cone: makeCone(0, -1, 0, 1.15), w: 0.4 })),
   mantrap: [{ x: 9.5, y: 2.9, z: 20.5, r: 3, i: 0.8, group: S4_GROUPS.lobby, cone: DOWN, w: 0.3 }],
   dockBoard: [{ x: 16, y: 2.4, z: 21.5, r: 3.6, i: 0.8, group: S4_GROUPS.dock, cone: DOWN, w: 0.3 }],
+  // ---- added (G4.3): the battery room's hydrogen-rated fitting (C12, D:27; a 2.4 m lamp, r 1.5 x 2.4), circuit batt 142
+  batt: [{ x: -7, y: 2.4, z: 24, r: 3.6, i: 0.8, group: S4_GROUPS.batt, cone: DOWN, w: 0.3 }],
 } satisfies Record<string, readonly S4Lamp[]>;
 
 /** A visible lamp fitting (the glowing box), a real registry light, from an `S4_LIGHTS` entry. */
@@ -461,16 +470,19 @@ export function buildCampusS4(b: LevelBuilder): void {
 
   // ---- the west side: the hall's west wall (x -4, doors to the service corridor, the battery room, the colonnade, the UPS room)
   // (G4.2 C9, D:24) the return-air grille 1.5 x 1.5 at y 4.4..5.9 (z 19.5..21.0) from the battery room into the plenum
-  wall(b, false, -4, 15.85, 48.15, 0, R, [doorHole(18.5, 0), [19.5, 21.0, 4.4, 5.9], doorHole(25, 0), doorHole(29, 0), doorHole(38, 0)]);
+  // (G4.3 C14, D:28) the colonnade door hallCC (-4, 29) is walled up
+  wall(b, false, -4, 15.85, 48.15, 0, R, [doorHole(18.5, 0), [19.5, 21.0, 4.4, 5.9], doorHole(25, 0), doorHole(38, 0), doorHole(46.5, 0)]);
   doorAt(b, false, -4, 18.5, 0, 1); // (G4.1, C6) kpBatt 1.5 m off the corner
   doorAt(b, false, -4, 25, 0, -1);
-  doorAt(b, false, -4, 29, 0, -1);
   doorAt(b, false, -4, 38, 0, -1);
-  // the battery room (x -10..-4, z 16..27.8), the colonnade corridor (27.8..30.2), the UPS room (30.2..48)
-  wall(b, true, 27.8, -10, -4, 0, R, [doorHole(-7, 0)], P);
-  wall(b, true, 30.2, -10, -4, 0, R, [doorHole(-7, 0)], P);
-  doorAt(b, true, 27.8, -7, 0, 1);
-  doorAt(b, true, 30.2, -7, 0, 1);
+  doorAt(b, false, -4, 46.5, 0, 1); // (G4.3 C15, D:30) the staff door from the UPS room into the security room (opens into it)
+  // (G4.3 C13 / C14, D:28-29) the battery room (x -10..-4, z 16..27.5), the colonnade corridor (27.5..31, 3.3 clear, a 3.0
+  // slab over it), the UPS room (31..48); battCC (-8.5, 27.5) opens north into the colonnade (P2), ccUps (-5.5, 31) into it
+  wall(b, true, 27.5, -10, -4, 0, R, [doorHole(-8.5, 0)], P);
+  wall(b, true, 31, -10, -4, 0, R, [doorHole(-5.5, 0)], P);
+  doorAt(b, true, 27.5, -8.5, 0, -1);
+  doorAt(b, true, 31, -5.5, 0, 1);
+  slab(b, -10, -4, 27.5, 31, 3.2);
   // (G4.2 C11, D:26) the battery racks 2.0 high, noLedge (CR8-west rules 2-3)
   for (const [x0, z0, x1, z1] of S4_BOX.batteryRacks) bx(b, x0, x1, 0, 2.0, z0, z1, RACK, { noLedge: true });
   // (G4.2 CR8, D:24) the sill strips under the two side grilles (y 0..4.4, z 19.5..21.0) lose noLedge: a lip at 4.4 on both faces
@@ -527,7 +539,7 @@ export function buildCampusS4(b: LevelBuilder): void {
   rail(b, f.cx - f.len / 2 - 0.1, f.cx + f.len / 2, 46.5, 46.6, S4_NOC);
   rail(b, f.cx - f.len / 2 - 0.1, f.cx - f.len / 2, 46.6, 47.8, S4_NOC);
   b.stairs(f.cx, f.cz, f.w, f.len, f.rise, f.steps, STEEL, f.yaw, f.y0);
-  bx(b, -3.9, -3.3, 0, 0.75, 43.2, 46.0, DESK);
+  bx(b, -3.9, -3.3, 0, 0.75, 43.2, 45.6, DESK); // (G4.3 C15) the console stops at the UPS door's swing
   // the security room / north corridor partition (x 8, the side door) and the corridor / riser partition (x 30.6, kp-deck)
   wall(b, false, 8, 42, 48, 0, R, [doorHole(45, 0)], P);
   wall(b, false, 30.6, 42, 48, 0, R, [doorHole(45, 0)], P);

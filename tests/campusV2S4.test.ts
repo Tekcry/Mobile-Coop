@@ -8,6 +8,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { BoxPiece, LevelBuilder as LB } from '../src/world/levelBuilder';
 import { NavGrid, type NavBlocker, type NavSample } from '../src/ai/navGrid';
 import { hyp2 } from '../src/core/mathx';
+import { PERCEPTION } from '../src/ai/perception';
 import { lampReach } from '../src/world/lampMath';
 import { LevelBuilder as LiveBuilder } from '../src/world/levelBuilder';
 import { buildCampusS4 as buildLiveS4 } from '../src/world/maps/campusS4';
@@ -268,6 +269,104 @@ describe('G4.1 south band (D:16-23, C1-C8)', () => {
     expect(g4).toMatchObject({ x: 1.3, z: 20.1, yaw: PI / 2, takedownSpot: [0.8, 20.1] });
     expect(m.s4Data.S4_ARMOURED.find((a) => a.id === 'arm-mantrap')!.at).toEqual([9.5, 22]);
     expect(m.s4Data.S4_ARMOURED.find((a) => a.id === 'arm-mantrap')!.bypass.at).toEqual([-4, 18.5]);
+  });
+});
+
+describe('G4.3 west strip (D:27-30, C12-C15)', () => {
+  /** A door anchor's opening centre in plan. */
+  const centre = (d: (typeof b.anchors.doors)[number]): [number, number] => [d.hinge.x + (Math.sin(d.yaw) * d.width) / 2, d.hinge.z + (Math.cos(d.yaw) * d.width) / 2];
+
+  it('G4.3 colonnade z 27.5..31: 3.3 clear between the wall faces, a 3.0-3.2 slab over it, battCC and ccUps 3.0 m apart in x, no door at (-4, 29), no two doors within 2.0 m across it', () => {
+    // the two walls (P 0.2) at x -7: faces z 27.6 and 30.9
+    const south = solid.find((p) => x0(p) <= -7 && x1(p) >= -7 && Math.abs(z0(p) - 27.4) < 1e-6 && top(p) > 6);
+    const north = solid.find((p) => x0(p) <= -7 && x1(p) >= -7 && Math.abs(z1(p) - 31.1) < 1e-6 && top(p) > 6);
+    expect(south, 'south wall z 27.5').toBeTruthy();
+    expect(north, 'north wall z 31').toBeTruthy();
+    expect(z1(south!)).toBeCloseTo(27.6);
+    expect(z0(north!)).toBeCloseTo(30.9);
+    expect(z0(north!) - z1(south!)).toBeCloseTo(3.3);
+    const slab = findBox([-10, -4, 3.0, 3.2, 27.5, 31]);
+    expect(slab?.overhead).toBe(true);
+    expect(S4_DOORS.battCC).toEqual([-8.5, 27.5]);
+    expect(S4_DOORS.ccUps).toEqual([-5.5, 31]);
+    expect(S4_DOORS.ccUps[0] - S4_DOORS.battCC[0]).toBeCloseTo(3.0);
+    expect(S4_DOORS).not.toHaveProperty('hallCC');
+    expect(doorAt(-8.5, 27.5), 'battCC').toBeTruthy();
+    expect(doorAt(-5.5, 31), 'ccUps').toBeTruthy();
+    // battCC opens north into the colonnade (P2), ccUps into it (south)
+    expect(doorAt(-8.5, 27.5)!.swing).toBe(-1);
+    expect(doorAt(-5.5, 31)!.swing).toBe(1);
+    // hallCC is walled: no door anchor within 0.6 m of (-4, 29), the wall is solid there up to the roof
+    expect(b.anchors.doors.filter((d) => d.hinge.y < 0.05).every((d) => hyp2(...centre(d).map((v, k) => v - [-4, 29][k]!) as [number, number]) > 0.6)).toBe(true);
+    expect(inRect(-4.05, -3.95, 28.9, 29.1, 0, 2.1).length).toBeGreaterThan(0);
+    // no two door centres within 2.0 m facing each other across the colonnade (one on z 27.5, one on z 31), nor the C4 near door and a colonnade door
+    const ds = b.anchors.doors.filter((d) => d.hinge.y < 0.05 && centre(d)[0] < -4 && centre(d)[0] > -10.1 && centre(d)[1] > 27 && centre(d)[1] < 31.5).map(centre);
+    expect(ds.length).toBe(3);
+    for (let i = 0; i < ds.length; i++) for (let j = i + 1; j < ds.length; j++) expect(hyp2(ds[i]![0] - ds[j]![0], ds[i]![1] - ds[j]![1]), `doors ${i}/${j}`).toBeGreaterThanOrEqual(2.0);
+    // the S4 box list and the rooms follow
+    expect(m.s4.S4_BOX.battery).toEqual([-10, 16, -4, 27.5]);
+    expect(m.s4.S4_BOX.ups).toEqual([-10, 31, -4, 48]);
+    const room = (id: string) => S4_ROOMS.find((r) => r.id === id)!;
+    expect(room('s4-batt')).toMatchObject({ minZ: 16, maxZ: 27.5 });
+    expect(room('s4-cc')).toMatchObject({ minZ: 27.5, maxZ: 31, maxY: 3.1 });
+    expect(room('s4-ups')).toMatchObject({ minZ: 31, maxZ: 48 });
+  });
+
+  it('G4.3 UPS door and console: the door anchor at (-4, 46.5) on floor 0 opens into the security room; the console box z 43.2..45.6; alarm-sec4 at (-3.85, 43.0)', () => {
+    const d = doorAt(-4, 46.5)!;
+    expect(d).toBeTruthy();
+    expect(d.hinge.x).toBeCloseTo(-4);
+    expect(d.hinge.z).toBeCloseTo(45.9);
+    expect(d.swing).toBe(1);
+    expect(S4_DOORS.upsSec).toEqual([-4, 46.5]);
+    expect(findBox([-3.9, -3.3, 0, 0.75, 43.2, 45.6])).toBeTruthy();
+    // the leaf (1.2 into +x) sweeps x -4..-2.8: the console (x -3.9..-3.3) ends at z 45.6, where the leaf's hinge side starts
+    expect(inRect(-4, -2.8, 45.9, 47.1, 0, 2.1).filter((p) => !(top(p) > 6)).map((p) => [p.c, p.s])).toEqual([]);
+    const alarm = lay.alarms!.filter((a) => a.section === 3).find((a) => Math.abs(a.pos.x + 3.85) < 1e-6);
+    expect(alarm).toBeTruthy();
+    expect(alarm!.pos.z).toBeCloseTo(43.0);
+    expect(nearNav(-3.85, 43.0, 0)).toBe(true);
+  });
+
+  it('G4.3 K3 (M12): #19 at (-8.8, 30.0); with his cone as a nav blocker no path from the start to the cell 0.6 m east of the C4 near door, without it one; the leash edge is >= 1 m beyond the door cell', () => {
+    const post = S4.guards[18]!;
+    expect(post).toMatchObject({ x: -8.8, z: 30.0, yaw: PI / 2, takedownSpot: [-9.3, 30.0], role: 'posted', zone: 'c4' });
+    expect(post.post).toEqual({ leash: 5, guards: 'c4-gate' });
+    const door = S4_DOORS.c4Near;
+    const from: [number, number] = [S4.start.x, S4.start.z];
+    const to: [number, number] = [door[0] + 0.6, door[1]];
+    expect(nav.findPath(from, to, 1e7, 0, 0)).not.toBeNull();
+    const fx = Math.sin(post.yaw);
+    const fz = Math.cos(post.yaw);
+    const inCone = (x: number, z: number): boolean => {
+      const dx = x - post.x;
+      const dz = z - post.z;
+      const dd = hyp2(dx, dz);
+      if (dd < 1e-6) return true;
+      const ang = Math.acos(Math.max(-1, Math.min(1, (dx * fx + dz * fz) / dd)));
+      return (dd <= PERCEPTION.focusRange && ang <= PERCEPTION.focusHalf) || (dd <= PERCEPTION.periphRange && ang <= PERCEPTION.periphHalf);
+    };
+    const doorCell = nav.center(nav.cellOf(door[0], door[1], 0));
+    expect(inCone(doorCell[0], doorCell[1]), 'the C4 door cell is not in the cone').toBe(false);
+    expect(post.post!.leash - hyp2(doorCell[0] - post.x, doorCell[1] - post.z)).toBeGreaterThanOrEqual(1);
+    const blocked: number[] = [];
+    for (let i = 0; i < nav.walk.length; i++) {
+      if (!nav.walk[i]) continue;
+      if (Math.abs(nav.height[i]!) > 1.7) continue;
+      const [x, z] = nav.center(i % nav.cols);
+      if (inCone(x, z)) {
+        blocked.push(i);
+        nav.walk[i] = 0;
+      }
+    }
+    try {
+      expect(blocked.length).toBeGreaterThan(50);
+      expect(nav.findPath(from, to, 1e7, 0, 0)).toBeNull();
+    } finally {
+      for (const i of blocked) nav.walk[i] = 1;
+    }
+    expect(nav.findPath(from, to, 1e7, 0, 0)).not.toBeNull();
+    expect(door[0]).toBeLessThan(post.x);
   });
 });
 

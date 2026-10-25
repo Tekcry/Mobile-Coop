@@ -211,7 +211,7 @@
       "guards": {
         "2": 1
       },
-      "note": "BUILT G4.2 (racks s4.ts:116, :475: 2.0 noLedge, east row z 21.0..23.5, P1; kpBatt s4.ts:464-465 G4.1). x -10..-4, z 16..27.5 (was 27.8: the colonnade corridor widens). Ceiling 7.0 to the roof (WARN: plant_room 4-6). kpBatt moves to (-4, 18.5) (1.5 m off the corner; code on the dock board). Battery racks raised 1.2 -> 2.0 and noLedge (the CR8 lip rule: nothing solo-standable within 4 m); the east row shortened to z 21.0..26.5 so the boost spot under the grille (-4.8, 20.2) is clear. One hydrogen-rated 2.4 m lamp over the monitor panel at (-7, 24) (pool r 3.6, ~35 of 69 m2: shadow 0.5, pending V6; was fully dark). New: the essential lighting board (sync-s4-ess-board) at (-5.5, 27.3). battCC moves to (-8.5, 27.5). Vantage: the dark kpBatt doorway, sees 0.8 (racks 2.0 hide the far aisle). Guard #12 battery checker (route through battCC / ccUps)."
+      "note": "BUILT G4.3 (batt lamp s4.ts:308 (-7, 2.4, 24) r 3.6 on circuit batt 142, switch s4.ts:237 (-4.3, 0, 26.2); ess board s4.ts:188 (-5.5, 0, 27.3) groups 76 + 77, 25 s; wall z 27.5 s4.ts:481, battCC s4.ts:483; hallCC walled s4.ts:472-473; room s4.ts:249). BUILT G4.2 (racks s4.ts:116, :475: 2.0 noLedge, east row z 21.0..23.5, P1; kpBatt s4.ts:464-465 G4.1). x -10..-4, z 16..27.5 (was 27.8: the colonnade corridor widens). Ceiling 7.0 to the roof (WARN: plant_room 4-6). kpBatt moves to (-4, 18.5) (1.5 m off the corner; code on the dock board). Battery racks raised 1.2 -> 2.0 and noLedge (the CR8 lip rule: nothing solo-standable within 4 m); the east row shortened to z 21.0..26.5 so the boost spot under the grille (-4.8, 20.2) is clear. One hydrogen-rated 2.4 m lamp over the monitor panel at (-7, 24) (pool r 3.6, ~35 of 69 m2: shadow 0.5, pending V6; was fully dark). New: the essential lighting board (sync-s4-ess-board) at (-5.5, 27.3). battCC moves to (-8.5, 27.5). Vantage: the dark kpBatt doorway, sees 0.8 (racks 2.0 hide the far aisle). Guard #12 battery checker (route through battCC / ccUps)."
     },
     {
       "id": "s4-yard",
@@ -438,7 +438,7 @@
       ],
       "tension": 2,
       "tags": [],
-      "note": "PLAN. x -10..-4, z 31..48 (was 30.2: the colonnade widens). ccUps moves to (-5.5, 31); new door to the security room (-4, 46.5). Ceiling 7.0 (WARN). Rejoin space of split s4r. #12 crosses it (counted in s4-batt, as V5f)."
+      "note": "BUILT G4.3 (ccUps s4.ts:484; the staff door to the security room s4.ts:478, S4_DOORS.upsSec (-4, 46.5); console z 43.2..45.6 s4.ts:542; alarm-sec4 s4Data.ts:161 (-3.85, 43.0); room s4.ts:251). x -10..-4, z 31..48 (was 30.2: the colonnade widens). ccUps moves to (-5.5, 31); new door to the security room (-4, 46.5). Ceiling 7.0 (WARN). Rejoin space of split s4r. #12 crosses it (counted in s4-batt, as V5f)."
     },
     {
       "id": "s4-baskets",
@@ -508,7 +508,7 @@
       "tags": [
         "exit"
       ],
-      "note": "PLAN. Widened: x -10..-4, z 27.5..31 (box 3.5, clear 3.3; was 2.4 / 2.2), with a 3.0 ceiling slab (3.0-3.2). Doors: C4 near (-10, 29) unchanged; battCC (-8.5, 27.5) and ccUps (-5.5, 31), 3.0 m offset; hallCC walled up, so no two doors face each other. Guard #19 (K3) re-posted at (-8.8, 30.0) facing east, leash 5, guards c4-gate (the choke), counted in the note."
+      "note": "BUILT G4.3 (walls s4.ts:481-482, slab s4.ts:485; battCC s4.ts:483, ccUps s4.ts:484; room s4.ts:250 maxY 3.1; #19 s4Data.ts:72 at (-8.8, 30.0), takedown (-9.3, 30.0)). Widened: x -10..-4, z 27.5..31 (box 3.5, clear 3.3; was 2.4 / 2.2), with a 3.0 ceiling slab (3.0-3.2). Doors: C4 near (-10, 29) unchanged; battCC (-8.5, 27.5) and ccUps (-5.5, 31), 3.0 m offset; hallCC walled up, so no two doors face each other. Guard #19 (K3) re-posted at (-8.8, 30.0) facing east, leash 5, guards c4-gate (the choke), counted in the note."
     }
   ],
   "links": [
@@ -639,7 +639,8 @@
       "width": 1.2,
       "height": 2.1,
       "reason": "Battery room door into the colonnade corridor (battCC, moved to (-8.5, 27.5)), under the K3 sentry's eyes",
-      "length": 8
+      "length": 8,
+      "note": "BUILT G4.3 (battCC s4.ts:483, swing -1 into the colonnade, P2)."
     },
     {
       "from": "s4-cc",
@@ -649,7 +650,8 @@
       "width": 1.2,
       "height": 2.1,
       "reason": "Colonnade corridor door into the UPS room (ccUps, moved to (-5.5, 31)), 3.0 m off battCC",
-      "length": 11
+      "length": 11,
+      "note": "BUILT G4.3 (ccUps s4.ts:484)."
     },
     {
       "from": "s4-ups",
@@ -669,7 +671,8 @@
       "width": 1.2,
       "height": 2.1,
       "reason": "New staff door from the UPS room into the security room (-4, 46.5), behind the UPS cabinets: Track A's way out",
-      "length": 14
+      "length": 14,
+      "note": "BUILT G4.3 (s4.ts:478, opens into the security room)."
     },
     {
       "from": "s4-hall",
