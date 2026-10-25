@@ -5,7 +5,7 @@
   moves, show what is playing now, warn on edits that change nothing, and give the Keys tab a Legs part with ankle /
   shin twist (BRIEF.md goal 1-5, A1-A7). ROADMAP Now row 0c; runs during the docs-first hold by Michael's instruction.
 - Branch feature/tuner-clarity, worktree C:/NightShift/Mobile-Coop-tuner-clarity, from origin/master f24ebbf6a.
-- Step: S1 (af2b6c75), S2 (2e09dda8), S3 (9c0cecce) built and merged: job head 28275784 (tsc clean). Running: Opus
+- STOPPED at the usage limit (~16:40): S4 builder and the S1-S3 checker were stopped; S4 WIP pushed on feature/tuner-clarity-s4 (unchecked); RERUN a fresh S1-S3 checker and resume S4 from its branch head. Was running: Opus
   checker on S1-S3 (report to the lead, no status yet); S4 Sonnet builder in C:/NightShift/Mobile-Coop-tuner-clarity-s4
   (feature/tuner-clarity-s4) from the strict brief C:/NightShift/scratch/ctcore/tuner-clarity/S4-BRIEF.md (slice reports
   S1-REPORT.md / S2-REPORT.md beside it). Worktrees junction node_modules to this one; builders use plain tsc.
