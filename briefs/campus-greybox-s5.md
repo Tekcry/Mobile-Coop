@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-25T23:00:48+11:00
 # campus-greybox s5 (cloud): Saltmarsh Park v2 greybox lane, data + unit tests
 
 Lead: Night Shift | Sector Ops Build. Job campus-greybox (FOLDED-PLAN J17, ROADMAP Now row 16). Plan checked (checks
