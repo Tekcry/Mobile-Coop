@@ -1,11 +1,11 @@
-status: blocked waiting for campus-greybox-s3-r5 done (the lead sets open)
+status: open
 # campus-greybox s3 join (cloud): merge r1-r4 into r5, apply the join list J1-J6
 
 Lead: Night Shift | Sector Ops Build. Job campus-greybox (J17). `docs/campus-greybox/briefs/S3.md` section 2: "the lead
 merges r1-r4 into r5 before R5's nav tests"; the lead hands that merge to this brief. Sub-lanes r1-r4 each passed their
 checker (r1 Sonnet PASS; r2-r4 Opus PASS 2026-10-25 ~23:20, one checker, join list below).
 
-- Base: `origin/feature/campus-greybox-s3-r5` at its done head (the r5 brief's `status: done` line). Branch: keep
+- Base: `origin/feature/campus-greybox-s3-r5` @ fc49d3547fe87367034745f66f9037ba6b99e120 (r5 done). Branch: keep
   building on `feature/campus-greybox-s3-r5` (push to it only). Guard:
   `test "$(git rev-parse --abbrev-ref HEAD)" = feature/campus-greybox-s3-r5`.
 - Merge, in this order, with `git merge --no-ff` (never master, never rebase): `origin/feature/campus-greybox-s3-r1` @
