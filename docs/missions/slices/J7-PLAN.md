@@ -25,7 +25,7 @@ S12, S19, MF15, MF21, HG7, HG8, 1d item 2, Part B; Michael's answers in ROADMAP 
 | G126 | "30-second revive, 2 per mission" | campaign revive cap 2, not syringes |
 | G2 | "2 player coop campaign only, unable to be completed solo." | exactly two players at a campaign start |
 | G145 + G353 | "Protected until their role is done." + (7) "Section restart" | the interrogation target down before his step restarts the section; no softlock |
-| TGC ~18:05 | "He moves (Recommended)" (after a broken rule W2 restarts with Teale in the clock-mender's loft) | Teale killed or knocked out before tgc-3 = the named-target rule's break, counted, and it spooks him: the restart puts him at his bolt point; tgc-3's line then names the loft (A2, A18) |
+| TGC ~18:05 | "He moves (Recommended)" (after a broken rule W2 restarts with Teale in the clock-mender's loft) | after the rule's break (a decoy read) the restart puts Teale at his bolt point and tgc-3's line names the loft (A18); a Teale kill or knock-out before tgc-3 is not a rule break: the signed page (#372 BEAT.md:22-25, SIGNOFF.md:42-43) makes it a protected-character section restart, uncounted, no move, Teale back at his table (A2) |
 | Q8 | "None on Mission 1 (Recommended)" | no civilians; protected = the interrogation target only (A1); a decoy knock-out never restarts |
 | Q12 | "No, armed only (Recommended)" | no riot-shield lead in a campaign mission |
 | Q19 | "None (Recommended)" | no optional rewards, no section-rating grants in the campaign |
@@ -110,14 +110,14 @@ time touch one file.
 | Id | What | Model | Files owned | Est lines / h | PR | Group | Depends |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | R0 | Cut `feature/mission-rules` from origin/feature/mission-engine 8f40303f (the FLG fix f8b06637 is in; nothing to push); commit `docs/mission-rules/{BRIEF,PLAN}.md` | lead (no agent) | `docs/mission-rules/{BRIEF,PLAN}.md` | 0 / 0.1 | - | - | plan checker PASS |
-| R1 | Rules core: drop `oneChance` / `window`; the interrogation target down before his step restarts the section (a covered step: the named-target rule's break, counted, he moves; else a built-in break); the moved line (`boltText`, spook fact); campaign optional objectives carry no reward; Tallow mission data (tgc-2 place, rewards out, tgc-3 moved line) | Opus | `src/game/mission/{missionDef,missionRunner,ruleTracker,missionText,sectorMission}.ts`; `src/world/maps/tallowWharfMissions.ts`; TGC / TKL `graph.json` + `BEAT.md`; `tests/mission/{missionDef,missionRunner,ruleTracker,missionText,sectorMission}.test.ts` (+ `missionWire.test.ts` only if a fact case breaks) | ~600 / 4.5 | D | P1 | R0 |
+| R1 | Rules core: drop `oneChance` / `window`; the interrogation target down before his step restarts the section (a built-in protected restart: uncounted, no move); the moved line after a decoy read (`boltText`, spook fact); campaign optional objectives carry no reward; Tallow mission data (tgc-2 place, rewards out, tgc-3 moved line) | Opus | `src/game/mission/{missionDef,missionRunner,ruleTracker,missionText,sectorMission}.ts`; `src/world/maps/tallowWharfMissions.ts`; TGC / TKL `graph.json` + `BEAT.md`; `tests/mission/{missionDef,missionRunner,ruleTracker,missionText,sectorMission}.test.ts` (+ `missionWire.test.ts` only if a fact case breaks) | ~600 / 4.5 | D | P1 | R0 |
 | R2 | Campaign profile: `campaign.ts` (cap 32, revives 2, no shield lead, no grants, the start gate, the section line); SectorMode uses it (cap, response kinds, zero grants, mission banner); solo campaign refusal in `main.ts`'s autostart branch | Opus | `src/game/mission/campaign.ts` (new); `src/game/modes/sectorMode.ts`; `src/main.ts`; `tests/mission/campaign.test.ts` (new) | ~350 / 3 | D | P1 | R0 |
 | R3 | Dogs out of Tallow (two armed humans on the same posts); W1 sector label with a place; mode-aware guard check (`checkSectors(..., 'campaign')` rejects quadrupeds and `dogs > 0`) | Sonnet | `src/world/maps/tallowWharfSectors.ts`; `src/game/sectors.ts` (`checkSectors`, `checkSectorGuards` only); `tests/tallowWharf/sectors.test.ts`; `tests/campaignGuards.test.ts` (new) | ~200 / 1.5 | D | P1 | R0 |
 | FD | PR D docs: fragment, job STATE, `docs/missions/BRIEF.md` A10 / A12 and `docs/missions/PLAN.md` :37 / :78 / :217 (only what #372's 26969f6a did not already rewrite: take #372's lines verbatim), TESTING.md line | Haiku | `changes/feature-mission-rules.md`, `docs/mission-rules/STATE.md`, `docs/missions/{BRIEF,PLAN}.md`, `TESTING.md` | docs | D | after P1 | R1-R3 |
 | R4 | Exactly two players: session refuses a campaign start unless 2 are in the room, before the phase changes; campaign room capacity 2 (holds after coop4); the lobby shows why | Opus | `src/net/session.ts`; `src/net/coopUi.ts`; `tests/campaignSession.test.ts` (new); `tests/missionNet3.test.ts` (the Tallow cases that start alone or with no mission) | ~300 / 3 | E | P2 | R1, R2 merged on PR D's branch |
 | R5 | Campaign revives: cap `CAMPAIGN.revives` (2) at every difficulty, window 30 s; `addSyringes` does nothing in a campaign mission | Opus | `src/net/coopHost.ts` (constructor :203, `addSyringes` :858); `tests/campaignRevives.test.ts` (new) | ~150 / 1.5 | E | P2 | R2 merged |
 | R6 | Popup feed and field-menu list (HG7, HG8): `missionFeed.ts` (with `missionViewerTeam` moved in); the always-on mission list removed (host and client); the current objective on the objective line; the full list (rules line + steps) in the field menu; hint via J3b's optional `setObjectiveHint` | Opus | `src/game/mission/missionFeed.ts` (new); `src/game/modes/sectorMode.ts`; `src/net/coopClient.ts`; `src/game/gameState.ts` (`objectiveLines`, `NetAttachment`); delete `src/ui/hud/missionHud.ts`, `src/ui/hud/missionHudMount.ts`, `tests/missionHud.test.ts`, `tests/mission/missionHudMount.test.ts`; `tests/mission/missionFeed.test.ts` (new) | ~800 incl. ~390 deleted / 4 | F | P2 | R1, R2 merged (sectorMode, missionText settled) |
-| R7 | PR E e2e: Teale knocked out before tgc-3 breaks the rule, W2 restarts with Teale at his bolt point and the moved line on host and client; a decoy knock-out restarts nothing; a host alone cannot start (the lobby stays `lobby`, the match starts once the client is in); `revivesLeft` is 2 on Realistic; no dog spawned; the W3 banner on TGC is not the ledger line | Sonnet | `scripts/e2e-sectorops-wharf.mjs` | ~220 / 2 | E | after P2 | R4, R5 (and PR D) |
+| R7 | PR E e2e: Teale knocked out before tgc-3 restarts W2 with Teale back at his table and no break counted; a decoy read breaks the rule and W2 restarts with Teale at his bolt point and the moved line on host and client; a decoy knock-out restarts nothing; a host alone cannot start (the lobby stays `lobby`, the match starts once the client is in); `revivesLeft` is 2 on Realistic; no dog spawned; the W3 banner on TGC is not the ledger line | Sonnet | `scripts/e2e-sectorops-wharf.mjs` | ~220 / 2 | E | after P2 | R4, R5 (and PR D) |
 | FE | PR E docs (fragment, STATE, `docs/systems/coop.md` campaign start line) | Haiku | `changes/feature-mission-rules-net.md`, STATE, `docs/systems/coop.md` | docs | E | after R7 | R7 |
 | R8 | PR F e2e flips: `.mission-hud` asserts become "objective line = the step text" (the moved line after R7's restart) and "the field menu lists the rules line and the steps" (`e2e-sectorops-mission.mjs` :45-52, wharf `clientHud` :260) | Sonnet | `scripts/e2e-sectorops-mission.mjs`; `scripts/e2e-sectorops-wharf.mjs` | ~150 / 1.5 | F | after R6, R7 | R6, R7 |
 | FF | PR F docs (fragment, STATE, `docs/systems/ui.md` mission lines, the J3b interface note) | Haiku | `changes/feature-mission-rules-hud.md`, STATE, `docs/systems/ui.md` | docs | F | after R8 | R8 |
@@ -135,24 +135,28 @@ Opus checkers on its final head (section 4). One fix round each.
 `MissionRule.step` comment (:76) says namedTarget only, `seconds` (:78-79) goes, `checkMission`'s window branch
 (:326-329) goes. RuleTracker: `RULE_END` (:36), `outcome` RULE_END, `ended` (:84-85), `endsOnRestart` (:97, :116-118),
 `onFail` (:255-262), the window read (:286-290) and the end branch (:292-299) go; every break returns `RULE_RESTART`.
-Header comments (:1-16) rewritten. New `onTargetDown(step)` (the named-target rule on that step breaks, as a decoy read
-does) and `onProtected()` (A3's built-in, uncounted break). SectorMission: `fail` (:158, binding :643),
+Header comments (:1-16) rewritten. New `onProtected()` (A2 / A3: the built-in protected restart, not a rule break,
+uncounted). SectorMission: `fail` (:158, binding :643),
 `MISSION_FAILED_TITLE` (:176), `hasOneChance` (:216, :273), `pendEnd` (:221, :352, :472-474, :547-550), the one-chance
 block of `restarted()` (:359-362) go; a restart it did not ask for only restores state (the pending team if one waits).
 New protected check in `tick` (allocation-free; reuses `targetSec` / `targetK`, :261-271): an interrogate step's target
-down (`!alive || ko`) while the step is not done is, with a `namedTarget` rule on the step, that rule's break plus the
-spook (`runner.spookStep = step`), else `onProtected()`. No `MissionDef.protects` list (A1: decoys and everyone else may
-be knocked out). The moved line (A18): `MissionStep.boltText`; `spookFact(step)` = `<step id>-spooked`, a fact after the
+down (`!alive || ko`) while the step is not done calls `onProtected()`: a section restart from the checkpoint with the
+SECTION RESTART banner and `PROTECTED_LINE`, never a rule break (no `breaks` +1, `kept` untouched, no rule break line)
+and no spook (a KO neither sets nor clears `spookStep`: an earlier decoy read's move stays, else he is back at his
+table). No `MissionDef.protects` list (A1: decoys and everyone else may be knocked out). The moved line (A18, after a
+decoy read only): `MissionStep.boltText`; `spookFact(step)` = `<step id>-spooked`, a fact after the
 `gives` facts (`factsOf`), registered as a runner flag (missionRunner.ts:143-144, one line), kept on restore, set by
 `spook()` (:593-603) while `spookStep` names the step; `objectiveRows` / `stepLine` show `boltText` while it is held, so
 the host and a client (fact bits in `ms.f`) show the same line. Campaign `optional.reward` is an error (Q19);
 `optional: { reward?: RewardKind }`. Tallow: tgc-2 text names both places (88 characters), `tgc-opt` / `tkl-opt` lose
 their rewards, tgc-3 gets its `boltText` (74). Brief in section 11.
 - Done looks like: no `oneChance` / `window` / `RULE_END` / `MISSION_FAILED` / `fail(` left in `src/` (git grep); Teale
-  killed or knocked out before tgc-3 -> RULE BROKEN with "Named target broken. Back to the section checkpoint.",
-  `breaks` 1, `kept(SCOPE_MISSION)` bit 0 clear, W2 restarts after the hold, the respawned Teale is bolted to
-  [65, 4.5, 76.75], tgc-3 open, its row reads the clock-mender's back loft (host runner and a client runner fed the
-  host's wire); after tgc-3 he is fair game; a decoy knocked out -> nothing; `npx vitest run tests/mission/
+  killed or knocked out before tgc-3 -> SECTION RESTART with "The man you need is down. Back to the section
+  checkpoint.", `breaks` 0, `kept(SCOPE_MISSION)` bit 0 still set, W2 restarts after the hold, Teale respawns at his
+  table (not bolted), tgc-3 open with its reading-room line; a decoy read -> RULE BROKEN with "Named target broken. Back
+  to the section checkpoint.", `breaks` 1, bit 0 clear, the respawned Teale bolted to [65, 4.5, 76.75], tgc-3's row
+  reads the clock-mender's back loft (host runner and a client runner fed the host's wire); after tgc-3 he is fair game;
+  a decoy knocked out -> nothing; `npx vitest run tests/mission/
   tests/tallowWharf/ tests/missionNet.test.ts tests/missionNet3.test.ts tests/missionFlags.test.ts` green; typecheck
   clean.
 
@@ -227,11 +231,14 @@ objective text is ignored while a mission mirror runs, the mount (:128, :225-230
   when a step changes (no per-frame rewrite: `hud.objectiveText` stable across frames); the download percent still
   shows on a mission's download section.
 
-**R7 / R8 e2e (Sonnet).** R7 adds to `scripts/e2e-sectorops-wharf.mjs`: (TGC W2) a host knock-out of Teale (W2:6)
-before tgc-3 -> RULE BROKEN, W2 restarts (`mission.ruleRestarts` +1, `breaks` 1, the "Named target broken" line, tgc-3
-open), Teale (alive, not knocked out) stands within 1 m of the bolt point [65, 4.5, 76.75], and the mission row on host
-and client reads "Take the grey coat with the black umbrella in the clock-mender's back loft"; a knock-out of decoy Fenn
-(W2:7) changes no `ruleRestarts` and no `breaks`; (both) no live guard of kind `dog`; the host alone (before the client
+**R7 / R8 e2e (Sonnet).** R7 adds to `scripts/e2e-sectorops-wharf.mjs`: (TGC W2, in this order) a knock-out of decoy Fenn
+(W2:7) changes no `ruleRestarts` and no `breaks`; a host knock-out of Teale (W2:6) before tgc-3 -> SECTION RESTART, W2
+restarts (`mission.ruleRestarts` +1, `breaks` still 0, `spook` -1, the "man you need is down" line, tgc-3 open), Teale
+(alive, not knocked out) back at his reading-room table, more than 5 m from the bolt point, and the mission row still the
+reading-room line; then a decoy read of Garrow (W2:8, through the suite's interrogation hook or `__mission.intel` with
+his Enemy id) -> RULE BROKEN, W2 restarts (`breaks` 1, the "Named target broken" line, tgc-3 open), Teale stands within
+1 m of the bolt point [65, 4.5, 76.75], and the mission row on host and client reads "Take the grey coat with the black
+umbrella in the clock-mender's back loft"; (both) no live guard of kind `dog`; the host alone (before the client
 joins) cannot start: `session.startMatch()` returns null, `session.phase === 'lobby'`, the Start button shows the
 blocked text, and the match then starts on its own once the client is in (the rest of the suite runs on it);
 `net.revivesLeft()` is 2 with the lobby on Realistic; the W3 banner on TGC does not contain "ledger". R8 flips the HUD
@@ -280,14 +287,16 @@ with fewer or more than two. Default players see no change.
 ## 6. Acceptance (per PR)
 
 - **PR D:** no rule kind can end a mission or time a step (unit tests; `git grep oneChance\|RULE_END origin/<head> --
-  src` empty); the interrogation target down before his step restarts the section (TGC: counted as the rule's break,
-  Teale moves to the clock-mender's back loft and tgc-3 says so); a decoy knock-out restarts nothing; after the step he
+  src` empty); the interrogation target down before his step restarts the section (TGC: a protected restart, not a
+  rule break, Teale back at his table); a decoy read breaks the rule and Teale moves to the clock-mender's back loft,
+  and tgc-3 says so; a decoy knock-out restarts nothing; after the step he
   is fair game; Tallow spawns no dog and fails the campaign guard check if one is added; a campaign run caps at 32,
   sends no shield lead and grants nothing at connectors; the W3 / W4 banners on the wrong mission are gone; solo
   `?autostart=tallowWharf&mode=sector&missions=1` is refused; every listed laptop suite green; Sector Ops unchanged.
 - **PR E:** a campaign mission starts only with exactly two, and a blocked start leaves the room in the lobby; the room
-  holds two; revives are 2 at every difficulty and never topped up; the wharf e2e walks the Teale break, the move and
-  the moved line on host and client; laptop co-op group and mission suites green; two Opus checkers PASS.
+  holds two; revives are 2 at every difficulty and never topped up; the wharf e2e walks the Teale knock-out restart (no
+  move, no break counted), then the rule's break, the move and the moved line on host and client; laptop co-op group
+  and mission suites green; two Opus checkers PASS.
 - **PR F:** no always-on mission list; the objective line carries the current step (the moved line included) on host
   and client; the field menu holds the rules line and every step; nothing rewrites the objective line per frame; suites
   green; two Opus checkers PASS. The J3b interface (section 7) is written into `docs/systems/ui.md`.
@@ -315,8 +324,9 @@ J7 owns the engine side; J3b owns `hud.ts`, `pauseScreen.ts`, `src/input/**` and
 ## 8. Assumptions
 
 A1-A19, each with its undo, are in `docs/mission-rules/BRIEF.md` (the only copy). The ones the fix round changed or
-added: A1 (protected = the interrogation target only; no `protects` list), A2 (a covered target down = the rule's break,
-counted, and he moves), A3 (the uncounted built-in break only where no rule covers the step), A9 (the solo refusal sits
+added: A1 (protected = the interrogation target only; no `protects` list), A2 (the target down before his step = a
+protected section restart, not a rule break, no move; lead decision on #372's signed TGC page), A3 (how that restart
+stays out of the rule counts), A9 (the solo refusal sits
 behind FLG's gate), A11 / A17 (J8 owns geometry, lights and the pages; R1 starts the TGC / TKL docs from #372's copy),
 A18 (the moved line and its fact bit), A19 (a blocked start stays in the lobby).
 
@@ -327,9 +337,8 @@ A18 (the moved line and its fact bit), A19 (a blocked start stays in the lobby).
   lighting re-base; gate reach ERRs; hide spots, medkit stations, encounter checkpoints; the campaign-map SPEC / graph /
   SIGNOFF dog and count text; the TGC / TKL SIGNOFF wording. J9: the shutters (so the perfect-run e2e, MF20, waits on
   J9). Nothing in J7 moves geometry.
-- **Needs Michael:** nothing blocks. Logged for his next look: A2 (Teale down before he talks counts as the rule's break
-  and he moves; the signed BEAT lists it as a protected restart beside the rule) and A4 (the two kinds go for Sector
-  Ops missions too).
+- **Needs Michael:** nothing blocks. Logged for his next look: A4 (the two kinds go for Sector Ops missions
+  too).
 - **Hand-offs:** J12 (Marlow) drops the validator kinds (A15) and lets the mission validator pass tgc-3's new
   `boltText` field as it passes `bolt` (a non-validator field). Guard AI: G B1 / B7 / B11 / D4 close through R3 / R2 / R1
   / R4; J15's `shieldFrom` must leave a campaign override in SectorMode intact; TKL's porter reaction ("Hears and
@@ -393,8 +402,11 @@ Michael's pick "He moves (Recommended)"); the five owned source files in full.
 Why: G290 (a broken rule restarts the section, the mission continues), G334 (soft windows only: no countdown) and G353
 (killing a protected character restarts the section; G145 protects story people until their role is done). Today
 `oneChance` can end a mission, `window` is a countdown, and killing or knocking out Teale (W2:6) before tgc-3 leaves
-the step open forever (softlock). Michael approved Three Grey Coats with "He moves": after a broken rule W2 restarts
-with Teale in the clock-mender's back loft, and the objective lines name the places. Decoys (Fenn W2:7, Garrow W2:8)
+the step open forever (softlock). Michael's signed TGC page (#372 ab90a071, BEAT.md:22-25, SIGNOFF.md:42-43) makes a
+Teale knock-out or kill before he talks a protected-character section restart (G353), listed apart from the strict
+rule: it is not a rule break and he does not move (A2). "He moves" applies only after a broken rule (a decoy read): W2
+restarts with Teale in the clock-mender's back loft, and the objective lines name the places (A18). Decoys
+(Fenn W2:7, Garrow W2:8)
 and everyone else may be knocked out (Q8 "None on Mission 1"; TGC BEAT "Knock-outs are allowed on anyone else").
 
 Do:
@@ -407,9 +419,8 @@ Do:
    on an interrogate step with a `bolt`, 1-`MISSION.textMax` characters. Export `spookFact(s: MissionStep): string`
    (`${s.id}-spooked`) and make `factsOf` (:405) append `spookFact(s)` for every interrogate step with a `bolt`, after
    all the `gives` (so existing fact bits keep their order); `checkMission`: `factsOf(d).length <=
-   MISSION.stepsWireMax`. Export a setup-time helper `protectedTargets(d): { step: number; rule: number }[]`: every
-   interrogate step with a `target`, `rule` = the index of the `namedTarget` rule whose `step` is that step's id, else -1.
-   No `protects` list (A1).
+   MISSION.stepsWireMax`. No `protects` list (A1): the protected people are the interrogate steps' `target`s, which
+   SectorMission already parses (`targetSec` / `targetK`).
 2. `missionRunner.ts:144`: register every fact as a flag, `this.factFlag = Int32Array.from(this.facts.map((f) =>
    add(f)))` (before `nf` is read at :145, so the arrays are sized with it), so a fact no condition reads (the spook fact)
    still has a flag, rides `factBits` / `applyWire` and can be `keepOnRestore`d. Nothing else in the file changes.
@@ -421,26 +432,27 @@ Do:
    so in the comment). The header (:1-6) says it.
 4. `ruleTracker.ts`: delete `RULE_END` (:36), `ended` (:84-85), `endsOnRestart` (:97, :116-118), `onFail` (:255-262), the
    window read (:286-290) and the end branch (:292-299); `outcome` is RULE_OK or RULE_RESTART; `line = breakLine(r)`;
-   rewrite the header (:1-16) without one-chance / window. Add `onTargetDown(step: number): void` =
-   `this.hitRules('namedTarget', TEAM_BOTH, step)` (doc: "the target of a named-target step is down before he talks: the
-   rule breaks as a decoy read would, for the rule's own scope"). Add `protectedBreaks = 0`, a private pending flag and
-   `onProtected(): void` (ignored while the mission scope is held or `tripped`); in `update()`, before the rules loop, a
+   rewrite the header (:1-16) without one-chance / window, and say a protected restart is not a rule break. Add
+   `protectedBreaks = 0`, a private pending flag and `onProtected(): void` (ignored while the mission scope is held
+   or `tripped`); in `update()`, before the rules loop, a
    pending protected break sets `tripped`, `lastRule = -1`, `outcome = RULE_RESTART`, `line = PROTECTED_LINE`,
    `protectedBreaks++` and returns RULE_RESTART (it does not touch `breaks`, `broken[]` or `kept`). `resetSection` clears
    the pending break. `restartTeam` is undefined when `lastRule < 0` (everyone).
 5. `sectorMission.ts`: delete `fail` from `SectorMissionHost` (:158) and the binding (:643), `MISSION_FAILED_TITLE`
    (:176), `hasOneChance` (:216, :273), `pendEnd` and every use (:221, :352, :472-474, :547-550), the one-chance block of
-   `restarted()` (:359-362); `broke()` (:544) always shows `RULE_BROKEN_TITLE`; `over` is set only by the extraction.
-   Update the header (:16-21: the restart, the spook and the protected break). Constructor (:260-273): build
-   `protRule` (Int32Array per step, -1 default) from `protectedTargets(def)`, and `spookFlag` (string per step, '' when
-   none, built once from `spookFact`); call `this.runner.keepOnRestore(spookFlag[i])` for each. Confirm the spook fact is
+   `restarted()` (:359-362); `broke()` (:544) shows `RULE_BROKEN_TITLE` for a rule's break and a new exported
+   `SECTION_RESTART_TITLE = 'SECTION RESTART'` when `tracker.lastRule < 0` (the protected restart); `over` is set only by
+   the extraction. Update the header (:16-21: the restart, the spook after a decoy read, the protected restart).
+   Constructor (:260-273): build `spookFlag` (string per step, '' when none, built once from `spookFact`); call
+   `this.runner.keepOnRestore(spookFlag[i])` for each. Confirm the spook fact is
    not in `reads`, so it is never polled as a code (:255-258). `spook()` (:593): when `spookStep >= 0` and its fact is
    not held, `this.runner.setFlag(this.spookFlag[st]!)` first (once; before the section-live check). Protected check in
    `tick()` (:463), after `this.spook()` and the exit / extraction block, before `tracker.update` (:506): loop the steps;
    skip unless `targetK[i] >= 0`, `targetSec[i] === host.index()` and `!runner.isDone(i)`;
-   `const e = host.slotGuard(targetK[i])`; a non-null `e` with `!e.alive || e.ko`: if `protRule[i] >= 0`,
-   `runner.spookStep = i` and `tracker.onTargetDown(i)`, else `tracker.onProtected()`; then stop the loop. No
-   allocation in the loop. `kill()` and `intel()` stay as they are.
+   `const e = host.slotGuard(targetK[i])`; a non-null `e` with `!e.alive || e.ko` calls `tracker.onProtected()` and
+   stops the loop. It never touches `spookStep` (a knock-out neither moves him nor undoes an earlier decoy read's move)
+   and never hits the named-target rule. No allocation in the loop. `kill()` and `intel()` stay as they are (the decoy
+   read in `intel()` is the only path that spooks).
 6. `tallowWharfMissions.ts`: tgc-2 `text` (:57) = `Which grey coat is Pell's? The warden's gallery office, the tea stall by
    the canal steps` (88); `tgc-opt` and `tkl-opt` `optional: {}`; tgc-3 `boltText: "Take the grey coat with the black
    umbrella in the clock-mender's back loft"` (74) with a comment citing Michael's ~18:05 pick "He moves" and G336.
@@ -448,25 +460,27 @@ Do:
    origin/feature/mission-framework:<path> > <path>`, ab90a071: it already has `"optional": {}` and the Q19 reward
    lines), then add only: TGC `graph.json` tgc-2 `text` as step 6 and tgc-3 `"boltText"` (same string); TGC `BEAT.md`
    the step 2 objective-list line (as tgc-2), under "Breaking it" one line "After the move tgc-3 reads: Take the grey
-   coat with the black umbrella in the clock-mender's back loft", the engine note's flag name `tgc-3-spooked` (the step's
-   spook fact, kept on restore), and on the "Teale knocked out or killed before he talks" bullet one sentence: "The
-   engine counts it as the rule's break and he moves, as after a decoy read (J7 A2)". TKL: nothing beyond #372's copy.
+   coat with the black umbrella in the clock-mender's back loft", and the engine note's flag name `tgc-3-spooked` (the
+   step's
+   spook fact, kept on restore). Leave the "Teale knocked out or killed before he talks" bullet as #372 has it (the
+   engine follows it: a protected restart, no move). TKL: nothing beyond #372's copy.
    `tests/tallowWharf/sectors.test.ts` must pass unchanged (text, optional reward and rules compare).
 8. Tests:
    - `ruleTracker.test.ts`: delete the window case (:129) and the one-chance cases (:196-210), drop `RULE_END` from the
-     import (:4); add `onTargetDown` (the step's named-target rule breaks once: `breaks` 1, `brokenCount` 1, `kept` bit
-     clear, its line; another step's rule untouched; ignored while held) and `onProtected` (RULE_RESTART once;
+     import (:4); add `onProtected` (RULE_RESTART once;
      `PROTECTED_LINE`; `lastRule` -1; `breaks` and `kept` unchanged; ignored while held; cleared by `resetSection`;
      `restartTeam` undefined).
    - `sectorMission.test.ts`: drop `MISSION_FAILED_TITLE` (:5), the one-chance case (:433-437) and any fake `fail`; add
-     with a fake host on THREE_GREY_COATS: Teale knocked out before tgc-3 -> banner RULE BROKEN, the line said, `breaks`
-     1, `tracker.kept(SCOPE_MISSION)` bit 0 clear, restart after `MISSION_RESTART_HOLD`, `restarted()` then the next
-     tick bolts the respawned Teale (the fake host's `bolt` called with [65, 4.5, 76.75]), tgc-3 open, its
-     `objectiveRows` text the `boltText`; killed -> the same; killed after tgc-3 is done -> nothing; Fenn or Garrow
-     knocked out -> no break, no restart; a bolt (the spooked target despawned and respawned) -> no break; `slotGuard`
-     null -> no break; Teale knocked out in the same tick his intel completes the step -> no break; a test def with an
-     interrogate step and no rule -> `onProtected`'s uncounted break (`breaks` 0, `PROTECTED_LINE`, no spook); a restart
-     the adapter did not ask for only restores; the spook fact survives the restore.
+     with a fake host on THREE_GREY_COATS: Teale knocked out before tgc-3 -> banner SECTION RESTART, `PROTECTED_LINE`
+     said, `breaks` 0, `tracker.kept(SCOPE_MISSION)` bit 0 still set, `spookStep` -1, restart after
+     `MISSION_RESTART_HOLD`, after `restarted()` and the next tick the fake host's `bolt` is never called (Teale back at
+     his table), tgc-3 open with its reading-room text; killed -> the same; killed after tgc-3 is done -> nothing; a
+     decoy read (Garrow) -> banner RULE BROKEN, "Named target broken. ..." said, `breaks` 1, bit 0 clear, restart, the
+     next tick bolts the respawned Teale (`bolt` called with [65, 4.5, 76.75]), tgc-3's `objectiveRows` text the
+     `boltText`; a decoy read, then Teale knocked out at the bolt point -> a protected restart (`breaks` stays 1) and the
+     move kept (bolted again); Fenn or Garrow knocked out -> no break, no restart; a bolt (the spooked target despawned
+     and respawned) -> no break; `slotGuard` null -> no break; Teale knocked out in the same tick his intel completes the
+     step -> no break; a restart the adapter did not ask for only restores; the spook fact survives the restore.
    - `missionRunner.test.ts`: a fact no condition reads (the spook fact) is in `facts`, `factBits` and `applyWire`, and a
      `keepOnRestore` flag survives `restore`; the existing fact cases keep their bit order.
    - `missionDef.test.ts` (:134): `oneChance` and `window` are unknown kinds; `boltText` checks (non-interrogate, no
@@ -599,7 +613,8 @@ Done looks like: the checks green; `git grep -n "'dog'" -- src/world/maps/tallow
   section's first required step from the def. Filter by the viewer's team for Sector Ops.
 - J7 row says "(+ Guard AI check)": have Guard AI look at R3's check, or say the PR D checker covers it.
 - TGC break line: BEAT's "Wrong man. Pell's courier has bolted. Back to the arcade, both of you." vs the generic
-  "Named target broken. ..."; an optional per-rule line (it would not fit the Teale knock-out case as written).
+  "Named target broken. ..."; an optional per-rule line. Likewise a named line for the protected restart
+  ("Teale is down. Back to the arcade.") instead of the generic `PROTECTED_LINE`.
 - A9: the solo refusal is `mode=sector` only; name the path Michael uses for his "walk the map once built" (two tabs
   over `?net=local`, or a dev switch) so it is not blocked.
 - HG7 / HG8 (R6, PR F) are not in the signed J7 row (J3b holds C S11 "field-menu full list"); CONFORMANCE 1d puts them in

@@ -66,15 +66,17 @@ after J1; gate "two Opus checkers (`src/net`)"; question Q12 (default no). The f
   Nobody else: decoys and every other guard may be knocked out (TGC BEAT: "Knock-outs are allowed on anyone else"), and
   killed under the mission's own rules. No `MissionDef.protects` list (no mission needs one now; J25 civilians bring
   their own). TKL protects nobody (no interrogate step). Undo: add a `protects` list when a mission names more people.
-- **A2** A protected target killed or knocked out before his step is done, on a step a `namedTarget` rule covers, is
-  that rule's break, counted like a decoy read (`breaks` +1, its `kept` bit cleared, the rule's break line), and it
-  spooks him: the restart puts him unalerted at his bolt point (TGC: Teale in the clock-mender's back loft, "He moves").
-  Read from the TGC sign-off and the plan checker. The signed BEAT lists the Teale knock-out beside the rule as a
-  protected restart, so Michael sees this on his next look. Undo: route it to the uncounted break (A3) and keep the
-  spook.
-- **A3** A protected target down on a step no strict rule covers: a built-in break, not one of the 2 strict rules
-  (CONFORMANCE MF6): it does not count in `rb`, `kept()` or `brokenCount`; line "The man you need is down. Back to the
-  section checkpoint."; banner RULE BROKEN; no spook. No current mission has such a step. Undo: count it in `breaks`.
+- **A2** A protected target killed or knocked out before his step is done restarts the section from its checkpoint
+  (G353, Michael ~11:20 "Section restart"). It is not a rule break, even on a step a `namedTarget` rule covers, and it
+  does not spook him: TGC's Teale respawns at his table. Michael's signed TGC page (#372 ab90a071, BEAT.md:22-25,
+  SIGNOFF.md:42-43) lists the knock-out as a protected-character restart apart from the strict rule, and "He moves"
+  (SIGNOFF option 1) applies only "after a broken rule" (a decoy read; A18). A knock-out never clears an earlier decoy
+  read's move. Lead decision on the plan check's reading; matches the lead's earlier assumption in
+  `docs/missions/STATE.md`. Undo: add the move in the TGC BEAT (the knock-out then sets `spookStep` as a decoy read
+  does).
+- **A3** The protected restart is built in, not one of the 2 strict rules (CONFORMANCE MF6): it does not count in `rb`,
+  `kept()` or `brokenCount`; line "The man you need is down. Back to the section checkpoint."; banner SECTION RESTART
+  (not RULE BROKEN, since no rule broke); no spook. Undo: count it in `breaks`, or show RULE BROKEN.
 - **A4** `oneChance` and `window` go for every mission mode, not only the campaign (G290 and G334 are general; Code
   Relay's re-askable code fits, ~18:05). Logged for Michael's next look. Undo: restore both kinds for `mode: 'sector'`
   from git history (EN1 / EN2 commits).
@@ -114,8 +116,9 @@ after J1; gate "two Opus checkers (`src/net`)"; question Q12 (default no). The f
   `tests/tallowWharf/sectors.test.ts` compares them character for character). R1 starts each of the four files from
   #372's copy (origin/feature/mission-framework ab90a071, which already dropped the Q19 rewards) and adds only its own
   lines, so PR C's later merge of #372 stays clean. The SIGNOFF pages are J8's. Undo: revert the changed fields.
-- **A18** After the move the step names his new place: `MissionStep.boltText` (TGC tgc-3: "Take the grey coat with the
-  black umbrella in the clock-mender's back loft", 74 characters) shows while the step's spook fact
+- **A18** After the move (a decoy read only; a knock-out never moves him, A2) the step names his new place:
+  `MissionStep.boltText` (TGC tgc-3: "Take the grey coat with the black umbrella in the clock-mender's back loft", 74
+  characters) shows while the step's spook fact
   (`<step id>-spooked`, kept on restore) is held. The client learns it from the wire's fact bits (`ms.f`, one more bit
   after the `gives` facts): no message shape change. Undo: drop `boltText` and the spook fact (the line keeps the
   reading room).
