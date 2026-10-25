@@ -33,7 +33,7 @@ Undo: `back` 0, MOCAP_CROUCH_POSE `{ lean: 0, drop: 0, sway: 1 }`, walk `lean` 0
 - Outside the row, needed: tests/fixtures/anim-skeleton-identity.json and -motion-off.json re-captured
   (`ANIM_SKELETON_CAPTURE=1`): only `state:crouchWalk` and `partner:moves` changed (the switch-off crouch walk is
   meant to change: KEYED_CROUCH_POSE, CROUCH_STEP).
-- docs/anim-fix-pass/after-af3/: numbers.md (the AF0 table at this commit; its title still reads "before"), on-crouchwalk,
+- docs/archive/anim-fix-pass/after-af3/: numbers.md (the AF0 table at this commit; its title still reads "before"), on-crouchwalk,
   on-crouchidle, on-sneak, off-crouchwalk sheets (before/README.md commands, GPU, port 4189).
 - changes/feature-afp-af3.md.
 

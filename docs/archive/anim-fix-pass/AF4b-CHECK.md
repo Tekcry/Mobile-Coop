@@ -6,7 +6,7 @@ No blocking findings. Base origin/feature/anim-fix-pass e1cafbe1.
 
 ## Review
 - Files (`git diff origin/feature/anim-fix-pass...HEAD`): src/anim/animGraph.ts, tests/crouchStrafe.test.ts,
-  docs/anim-fix-pass/AF4b-REPORT.md, docs/anim-fix-pass/after-af4b/ (numbers.md + 4 sheets), changes/feature-afp-af4b.md.
+  docs/archive/anim-fix-pass/AF4b-REPORT.md, docs/archive/anim-fix-pass/after-af4b/ (numbers.md + 4 sheets), changes/feature-afp-af4b.md.
   All inside the PLAN row. No characterRig.ts change. Untracked zz* repro files not committed.
 - Cause 1 (kneel side) landed: animGraph.ts:1171, off the wall and armed the knee is the gun hand's (`i.hand`), not the
   planner lead; wall rule unchanged; holstered keeps the lead rule (free movement squats instead). `i.hand` / `i.armed`
