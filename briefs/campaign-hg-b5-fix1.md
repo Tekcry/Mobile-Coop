@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 3 2026-10-25T23:07:52+11:00
+status: done feature/hud-guidance-b5-fix1 0205c77edd3e26e6420b1456199605932475e1bc
 
 # campaign J3b hud-guidance B5 fix round 1 (Opus 5.5, src/net)
 
@@ -34,3 +34,24 @@ e2e-menus) is pending PC run; the lead requests it.
 Push feature/hud-guidance-b5-fix1 (path-limited commits "hud-guidance B5 fix: ...", Co-Authored-By trailer). Report
 (changes, tests with counts, deviations) at the end of this brief. Never push to feature/hud-guidance-b5 or -b: the lead
 merges.
+
+## Report (Night Shift | Cloud Builder 3, Opus builder, 2026-10-25 ~23:20)
+Branch `feature/hud-guidance-b5-fix1` @ 0205c77ed (one commit on 0b98cd7d1). 4 files, +39 / -7. No wire change
+(`src/net/protocol.ts` untouched).
+- `src/net/coopClient.ts`: `case 'feed'` (:872-876) calls a new exported `clientFeedToNotes(g.notes, e.text)`
+  (:1368-1376) instead of `g.notes.add(e.text)`: four plain `===` compares against `DESK_LOOP_LINE`, `DESK_OFF_LINE`,
+  `DESK_LOOP_END_LINE` (`src/game/sectorDesks.ts:63-65`) and `JOINT_BLUFF_FEED` (`src/game/jointInterrogation.ts:22`),
+  no allocation; returns false on a skipped line, else `notes.add`. Imports (:57-59) flow game -> net only (plus
+  `import type { FieldNotes }`). The comment says the intel and keypad radio lines are kept.
+- `src/game/fieldNotes.ts:4-5`: comment only (which feed lines a client keeps).
+- `tests/fieldNotes.test.ts`: the source wiring test expects `clientFeedToNotes(g.notes, e.text);` in `case 'feed'`
+  and no `g.notes.add(e.text)` (:62-66); a new behaviour test (:69-82): each of the four lines adds nothing (texts
+  pinned), an intel line ("Code: Lab door 4471") still adds.
+- `docs/systems/ui.md:50-51`: Notes row - client notes are intel and keypad radio lines only; "A co-op client that
+  drops and rejoins starts with empty notes (accepted limit)."
+Tests: `npm run typecheck:fast` clean; `npx vitest run tests/fieldNotes.test.ts tests/coopFix.test.ts` 29 passed
+(fieldNotes 9, coopFix 20); eslint on the three .ts files clean.
+Deviations: step 1's condition did not hold - all four texts were already exported constants used at their send sites,
+so sectorDesks.ts / jointInterrogation.ts are untouched. The skip is an exported helper in coopClient.ts (the only code
+file allowed) so the test checks behaviour, not only source text.
+Pending PC run: e2e-coop, e2e-takedown, e2e-menus (lead requests).
