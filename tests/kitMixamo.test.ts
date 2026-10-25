@@ -221,10 +221,7 @@ interface Out {
 }
 
 /** `each`: called before frame k's begin (a source flip mid-move). */
-interface RunOpts {
-  wren?: boolean;
-  each?: (k: number) => void;
-}
+interface RunOpts { wren?: boolean; each?: (k: number) => void }
 
 async function run(frames: readonly F[], o: RunOpts = {}): Promise<Out> {
   const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
@@ -254,14 +251,7 @@ async function run(frames: readonly F[], o: RunOpts = {}): Promise<Out> {
       o.each?.(k);
       rig.root.position.set(f.x, f.y, f.z);
       rig.root.rotation.y = f.yaw;
-      pose.speed = f.speed;
-      pose.localZ = f.speed > 0 ? 1 : 0;
-      pose.grounded = f.grounded;
-      pose.crouch = f.crouch;
-      pose.traverse = f.trav;
-      pose.traverseT = f.travT;
-      pose.bend = pose.bendDrop = pose.sway = 0;
-      pose.stride = 'facing';
+      Object.assign(pose, { speed: f.speed, localZ: f.speed > 0 ? 1 : 0, grounded: f.grounded, crouch: f.crouch, traverse: f.trav, traverseT: f.travT, bend: 0, bendDrop: 0, sway: 0, stride: 'facing' });
       fillIn(f, tin);
       poser.begin(DT, tin, pose as TeamRigPose, rig);
       out.shotW.push(rig.graph.kit.clip !== null ? rig.graph.kit.weight : 0);
@@ -309,11 +299,8 @@ async function run(frames: readonly F[], o: RunOpts = {}): Promise<Out> {
   return out;
 }
 
-function differ(a: readonly string[], b: readonly string[]): number {
-  let n = Math.abs(a.length - b.length);
-  for (let k = 0; k < Math.min(a.length, b.length); k++) if (a[k] !== b[k]) n++;
-  return n;
-}
+/** Frames whose hashes differ (any length difference counts). */
+const differ = (a: readonly string[], b: readonly string[]): number => Math.abs(a.length - b.length) + a.filter((x, k) => k < b.length && x !== b[k]).length;
 
 /** The largest joint step a frame (cm, the body less its root) and the largest velocity change a frame (cm/frame). */
 function steps(R: Out, from = 1, to = R.hash.length): { step: number; pop: number; at: number; joint: string } {
@@ -353,9 +340,7 @@ function wrenGraph(trav: TraverseKind = 'brace'): { g: AnimGraph; i: AnimInput }
 
 // ---- a fake rig for the poser alone (as tests/teamPose.test.ts) ----
 
-interface FakeRig extends TeamRigIn {
-  graph: { kit: KitShotIn };
-}
+interface FakeRig extends TeamRigIn { graph: { kit: KitShotIn } }
 function fakeRig(): FakeRig {
   return { reachL: { x: 0, y: 0, z: 0, w: 0 }, reachR: { x: 0, y: 0, z: 0, w: 0 }, plantR: { x: 0, y: 0, z: 0, w: 0 }, root: { position: { x: 0, y: 0, z: 0 }, rotation: { y: 0 } }, height: 1.75, graph: { kit: newKitShotIn() } };
 }
@@ -552,14 +537,8 @@ describe('mixamo-kit (b): on, each pose id plays its take at the table time', ()
   it('the poser writes each mapped id\'s take and progress (Mixamo source); Hand writes none', () => {
     setMixamo(true);
     rows(true);
-    const local: readonly (readonly [() => F[], readonly KitPoseId[]])[] = [
-      [() => holderPull(false), ['pullCatch', 'pullHaul']],
-      [() => holderShutter(false), ['shutterLift', 'shutterHold']],
-      [() => climberPull(false), ['pullScramble']],
-      [() => crawler(false), ['crawlUnder']],
-    ];
-    for (const [make, ids] of local) {
-      const fs = make();
+    const local: readonly (readonly [F[], readonly KitPoseId[]])[] = [[holderPull(false), ['pullCatch', 'pullHaul']], [holderShutter(false), ['shutterLift', 'shutterHold']], [climberPull(false), ['pullScramble']], [crawler(false), ['crawlUnder']]];
+    for (const [fs, ids] of local) {
       const R = poserRun(fs);
       for (const id of ids) {
         const ks = fs.map((f, k) => (f.state === id && !(id.startsWith('shutter') && !(f.gap > KIT_SHOT.gapEps)) ? k : -1)).filter((k) => k >= 0);

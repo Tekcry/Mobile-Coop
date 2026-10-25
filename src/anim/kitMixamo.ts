@@ -55,10 +55,9 @@ export const KIT_SHOT = {
  * imported for the same reason as the shutter's; built from the same constants: the jump's apex `LEAP.vy / 18`, the catch
  * band 0.15 m; the test asserts them equal).
  */
-const KIT_GRAV = 18;
-const KIT_APEX = LEAP.vy / KIT_GRAV;
+const KIT_APEX = LEAP.vy / 18;
 export const KIT_PULL = {
-  catchClose: KIT_APEX + Math.sqrt((2 * 0.15) / KIT_GRAV),
+  catchClose: KIT_APEX + Math.sqrt((2 * 0.15) / 18),
   landT: 2 * KIT_APEX,
   haul: TEAM.hangPull,
   scramble: TEAM.ropeTop,
@@ -73,18 +72,14 @@ const emptyTable = (): KitTable => ({ any: false, pullOffer: null, pullCatch: nu
 export const KIT_TABLES: readonly [KitTable, KitTable] = [emptyTable(), emptyTable()];
 
 /** Each kit pose id's take (`MIXAMO_ON` slug) and its optional phase row ('' none), or null (no clip: the jump). */
+const PULL_T = 'kneeling_pull_up';
+const LEDGE_T = 'pulling_up_to_a_ledge';
+const LIFT_T = 'lifting_heavy_object';
 const KIT_ROWS: Readonly<Record<KitPoseId, { readonly slug: string; readonly key: string } | null>> = {
-  pullOffer: { slug: 'kneeling_pull_up', key: 'kit_pull_offer' },
-  pullCatch: { slug: 'kneeling_pull_up', key: '' },
-  pullHaul: { slug: 'kneeling_pull_up', key: '' },
-  pullJump: null,
-  pullHang: { slug: 'pulling_up_to_a_ledge', key: 'kit_pull_hang' },
-  pullScramble: { slug: 'pulling_up_to_a_ledge', key: '' },
-  shutterOffer: { slug: 'lifting_heavy_object', key: 'kit_shutter_offer' },
-  shutterLift: { slug: 'lifting_heavy_object', key: '' },
-  shutterHold: { slug: 'lifting_heavy_object', key: '' },
-  shutterDrop: { slug: 'lifting_heavy_object', key: 'kit_shutter_drop' },
-  crawlUnder: { slug: 'crawling_prone', key: '' },
+  pullOffer: { slug: PULL_T, key: 'kit_pull_offer' }, pullCatch: { slug: PULL_T, key: '' }, pullHaul: { slug: PULL_T, key: '' },
+  pullJump: null, pullHang: { slug: LEDGE_T, key: 'kit_pull_hang' }, pullScramble: { slug: LEDGE_T, key: '' },
+  shutterOffer: { slug: LIFT_T, key: 'kit_shutter_offer' }, shutterLift: { slug: LIFT_T, key: '' }, shutterHold: { slug: LIFT_T, key: '' },
+  shutterDrop: { slug: LIFT_T, key: 'kit_shutter_drop' }, crawlUnder: { slug: 'crawling_prone', key: '' },
 };
 
 const KIT_CLIPS: Readonly<Record<string, KeyedClip | null>> = {
