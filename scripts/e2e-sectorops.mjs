@@ -90,6 +90,21 @@ await run(PARAMS, async ({ page, G, sim }) => {
     await sim(0.3);
     const ph = await G(() => window.__sector.debug());
     assert(ph.phase === (last ? 'extract' : 'connector'), `section ${i + 1} (${s.id}): the ${s.kind} opens the connector or the extraction (${ph.phase})`);
+    if (i === 0) {
+      // (G343, hud-guidance B1) the objective popup: the exit line fades in when section 1's objective is done, is gone
+      // after the hold (real time: the popup reads performance.now(), not the sim) with its text kept, and O brings it
+      // back. Section 1 only (each wait costs real seconds).
+      const shown = () => page.waitForFunction(() => !!document.querySelector('.hud-objective.show'), null, { timeout: 1000 }).then(() => true, () => false);
+      const line = await G(() => window.__app.current.hud.objectiveText);
+      assert(line.length > 0 && (await shown()), `section 1: the new objective pops up ("${line}") (G343)`);
+      const gone = await page.waitForFunction(() => !document.querySelector('.hud-objective.show'), null, { timeout: 8000 }).then(() => true, () => false);
+      const kept = await G(() => window.__app.current.hud.objectiveText);
+      assert(gone && kept === line, `section 1: the popup fades after its hold, the line kept ("${kept}") (G343)`);
+      await page.keyboard.down('KeyO');
+      await sim(0.1);
+      await page.keyboard.up('KeyO');
+      assert(await shown(), 'section 1: O shows the objective again (G343)');
+    }
     if (last) {
       await tp(G, (s.exit[0] + s.exit[2]) / 2, 0, (s.exit[1] + s.exit[3]) / 2);
       await sim(1);
