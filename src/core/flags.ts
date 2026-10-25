@@ -73,6 +73,17 @@ export interface Flags {
   /** (guard-rules S8, A12) Alarm stage dogs leave the heel for the last known position. `?dogrelease=1`. DEFAULT OFF
    *  until walk item 7 (owner Guard AI Build, switch-on target 2026-10-29). */
   dogRelease: boolean;
+  /** (guard-ai-mission-hooks S1a, A14, D7) Mission orders: a mission event sends the tagged guard on a calm walk or a
+   *  breaker reset (`EnemyManager.missionOrder`). `?missionorders=1`. DEFAULT OFF until Michael's prototype walk (owner
+   *  Night Shift | Guard AI Build; switch-on date set by the orchestrator; needs S1a + S1b passed, C1-C3 and C7 on
+   *  master, the three twists accepted). */
+  missionOrders: boolean;
+  /** (guard-ai-mission-hooks, A9, A14, D6) Per-area alarm stages under the shared site stage (S3). `?areaalarms=1`.
+   *  DEFAULT OFF until Michael's click on Q1 at the prototype walk (walk card); owner Night Shift | Guard AI Build. */
+  areaAlarms: boolean;
+  /** (guard-ai-mission-hooks, A11, A14, D8) Noise zones: power-linked noisy sources; off = map `noisy` data is ignored
+   *  (S4). `?noisezones=1`. DEFAULT OFF until the walk after map data lands; owner Night Shift | Guard AI Build. */
+  noiseZones: boolean;
 }
 
 /** (mocap-trial) An on / off URL value: "1" true, "0" false, anything else (or absent) null. */
@@ -146,4 +157,8 @@ export const flags: Flags = {
   guardPairs: params.get('guardpairs') === '1',
   lookouts: params.get('lookouts') === '1',
   dogRelease: params.get('dogrelease') === '1',
+  // (guard-ai-mission-hooks S1a) dark until their walk items are accepted (PLAN "Flags"): `=1` turns each on
+  missionOrders: params.get('missionorders') === '1',
+  areaAlarms: params.get('areaalarms') === '1',
+  noiseZones: params.get('noisezones') === '1',
 };
