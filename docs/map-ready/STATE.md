@@ -33,7 +33,12 @@ Owner: Night Shift | Sector Ops Build. Status: current.
   (`coopHost.ts:1701`); #317 sets `capacity('sector')` to `SECTOR_MAX` 4 and `session.cap` / `startMatch` slots.
 - Logged for Michael's next look: A14, A15 (48 MB cap; an over-cap re-plan is a new A-line), A16 (live), A17.
 
-Next: briefs in `docs/map-ready/briefs/` (W0 flag line first, then W1 S1 / S4 / S9; S2, S10, S8 ready); log the brief-level plan fixes (W0, S4, S9 headers)
+- S4 (2026-10-26 ~00:20): cloud build 0e216f4af, Opus PASS (map-ready-s4-check.md). Desktop prebake (heavy.lock,
+  PREBAKE_THREADS=4): campusOps 134 lamps, 5 files, 5.54 MB gz (s0 4.95 MB / 52 lamps, s1 0.18, s2 0.17, s3 0.19, s4 0.04),
+  cold 114.5 s, warm 8.5 s (cached); caps 16 / 48 MB pass; no sw precache entry; PREBAKE=0 ships no bakes; dist sw tests
+  11 / 11. W1 S1 + S9 on cloud (briefs map-ready-S1 / -S9).
+
+Next: S4 PR (CI build-check seconds + sizes into the PR), laptop affected + e2e-sectorops part 6; S1 / S9 checkers on done; then S2, S10; S8
 
 ## Done
 - 2026-10-25: worktree and branch; research `research/start-path.md` (93c63a70); BRIEF (adaa8274); PLAN (cd4eb116);
