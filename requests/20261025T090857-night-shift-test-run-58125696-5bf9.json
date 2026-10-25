@@ -1,0 +1,17 @@
+{
+  "id": "20261025T090857-night-shift-test-run-58125696-5bf9",
+  "sha": "58125696b0694047730e43bb02c6a6aa7f3e19d7",
+  "branch": "feature/test-runner-j20-s5",
+  "pr": null,
+  "kind": "alone",
+  "requester": "Night Shift | Test Runner",
+  "steps": [
+    "node scripts/laptop-queue/serve.mjs scripts/perf.mjs http://127.0.0.1:4189/ --json --budget"
+  ],
+  "env": {
+    "MAP": "campusOps",
+    "MODE": "sector"
+  },
+  "set": "j20-perf",
+  "note": "J20 S5 perf (rerun: first request lacked serve.mjs)"
+}
