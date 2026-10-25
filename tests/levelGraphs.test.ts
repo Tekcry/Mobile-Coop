@@ -50,7 +50,8 @@ describe('graph-sets manifest', () => {
       const lines: string[] = [];
       runValidateCli([...set.files, ...set.flags], { log: (l: string) => lines.push(l), root: ROOT });
       expect(result.text).toBe(`${lines.join('\n')}\n`);
-      expect(fs.readFileSync(path.join(ROOT, set.run), 'utf8')).toBe(result.text);
+      // a Windows checkout (core.autocrlf) gives the saved .txt CRLF line ends
+      expect(fs.readFileSync(path.join(ROOT, set.run), 'utf8').replace(/\r\n/g, '\n')).toBe(result.text);
     });
   });
 });
