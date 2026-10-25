@@ -35,9 +35,8 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350, G374,
   - Sector Ops: guard dogs (G297); later sections add body armour (torso shots only stagger), riot shields only in
     alert response teams of the later sections (S4 / S5: `SectorDef.shieldTeams`, guard-rules A4), and armour per
     alarm stage (G307). The campaign's and Marlow Yard's teams are armed guards only (guard-rules M2, A13, A14).
-  - Dogs (G348): no takedown, sleeping gas knocks one out, a dog can be distracted, killing one carries a penalty: a
-    dog kill counts as a kill (no Perfect) and costs score (G374), a gassed dog costs nothing (guard-rules M1, A5;
-    Modes below).
+  - Dogs (G348): no takedown, sleeping gas knocks one out, a dog can be distracted; killing one counts as a kill (no
+    Perfect) and costs score (G374), a gassed dog costs nothing (guard-rules M1, A5; Modes below).
     What is built and what is not: `docs/systems/takedowns.md` (Decided direction).
   - Helmets by difficulty (G350, bible 5.6; built in guard-rules S1, Sector Ops and the campaign only, A1): Realistic and
     Perfectionist place every human guard helmeted, Perfectionist's helmets never come off (the first headshot is
