@@ -13,7 +13,8 @@ orchestrator; a lead whose resume location changes tells it in its next message.
 4. The folded plan is signed off (ROADMAP Now row 6, 2026-10-25 ~17:00) and the conformance reviews are done: go
    straight to your resume block's `Next:` line. Do not reopen the review or re-check its worktree.
 5. Walk cap, train-ready and locks: RULES "Walk pacing" (the cap limits switch-on only, G355), "Getting to master",
-   "Machines"; never restate them in a resume block. Turn off unused connectors (Gmail, Google Drive, Fergus).
+   "Machines"; never restate them in a resume block. Turn off unused connectors (Gmail, Google Drive, Fergus, Claude Docs,
+   visualize: set_session_connector_enabled false; Michael 2026-10-26, token saving).
 
 Message "Night Shift | Orchestrator" only at PR open / train-ready / blocked / needs Michael.
 
