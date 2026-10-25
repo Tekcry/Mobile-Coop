@@ -1,6 +1,31 @@
 # mission-framework - STATE
 
-## RESUME 2026-10-25 ~19:15 save (Night Shift | Campaign Build; read this block first, older blocks are history)
+## RESUME 2026-10-25 ~20:50 SAVE (Night Shift | Campaign Build; read this block first, older blocks are history)
+Process: RULES + VISION from origin/master; start steps BOOT.md "Campaign Build" (origin/feature/menu). Plan: ROADMAP
+"Now" + FOLDED-PLAN J-rows; Michael's "Decided" answers win. Desktop CPU often 80-100%: at most 2 builders; planners /
+checkers read-only. Reports, briefs, checks: C:/NightShift/scratch/campaign/. Rerun any agent below with no report.
+Michael ~20:25-20:45: Teale knock-out before he talks = section restart at his table (#372 BRIEF M6); closed Tallow
+rooms night-lit only (tallow-fixes BRIEF M1); throw gaps "Mix of both" (M2: C4 pawn -> reading room and C5 arcade
+roof -> W3 roof = 5.8 m throw over 4.9 m; C4 pie -> clock loft = plank bridge after Player's kit move).
+1. #372 (this branch, 67464e03 + STATE; train-ready + big-pr). Polish: coop-kit SIGNOFF.md:30 blank line.
+2. Engine origin/feature/mission-engine 6df8f334 = engine + #372 merged (B0) + Q19 rewards out (e4eace3b, tsc + 49
+   tests green) + J8 BRIEF picks. GB6 wharf e2e test-bug fix on feature/mission-engine-gb6fix dc2aa9c8 (gb6-triage.md),
+   laptop set mission-gb6fix queued: green -> merge into the engine; red further in -> Opus fix round.
+3. J3 PR A #447 (ececda7e): checker PASS x2, waits on affected-e2e -> train-ready -> message the orchestrator.
+4. J3b PR B feature/hud-guidance-b cac9a0a7 = A fix + B1 + B2; B1 + B2 checker PASS (hg-b12-check.md; polish ui.md:32-33,
+   e2e-pad press(), CONFORMANCE HG5 / HG6). Next B3 (Opus, src/net, two checkers) -> B4 -> B5.
+5. J7 mission-rules: plan PASS (j7-plan-check3.md). R0 done (e4eace3b). RUNNING: docs step on feature/mission-rules
+   (Sonnet; WIP 0c3ba017: docs/mission-rules/{PLAN,BRIEF}.md + M6 polish); R1 rules core (Opus) on
+   feature/mission-rules-r1 (worktree -mission-rules-r1, report j7-r1-report.md; brief = J7-PLAN section 11 R1).
+   Next R2 (Opus) + R3 (Sonnet), PLAN section 2 waves.
+6. J8 / J9 Tallow: plan fix round 1 on the engine (95521ef0); RUNNING re-check (j8-j9-plan-check2.md; told about M1 /
+   M2). Next: fix round for M2 (three 5.8 m sites -> two; pie spot waits for the plank), then builders per waves.
+7. TW23 Tallow SPEC: feature/tallow-spec d42d1596 (stacked on #372): PR after #372 merges.
+8. Known gaps: mission-validator optional-without-reward + boltText (J12, Marlow); validator throw-gap row for the two
+   5.8 m spots (Marlow, orchestrator told).
+Next: check the three running agents' reports; B3 when CPU allows; gb6fix and #447 results.
+
+## OLD RESUME 2026-10-25 ~19:15 save (history) (Night Shift | Campaign Build; read this block first, older blocks are history)
 Process: RULES + VISION from origin/master; start steps BOOT.md "Campaign Build" (origin/feature/menu). Plan: ROADMAP
 "Now" + FOLDED-PLAN J-rows; Michael's "Decided" answers win. Desktop builder cap: 2 at once (orchestrator ~18:50) until
 it says CPU < 80%. New rule ~19:00: free assets with commercial-sale licences allowed, credited (orchestrator msg).
