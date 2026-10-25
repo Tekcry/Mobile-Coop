@@ -1,0 +1,16 @@
+{
+  "id": "20261025T015836-affected-e2e-2e8419ae-2189",
+  "sha": "2e8419ae2808be426996bb9e61a174cf1f3dce7f",
+  "branch": "fix/tooling-audit-b",
+  "pr": 412,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anim",
+    "e2e-combat",
+    "e2e-move",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #412"
+}
