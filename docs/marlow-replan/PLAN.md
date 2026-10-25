@@ -404,6 +404,10 @@ deletion (likely over 1.5k: split per set pair or the orchestrator's `big-pr` la
 | `kitMoves` ids `plankBridge`, `deadweight`, `chimneyPair`, `swingPass`, `dropCatch` (Player's flag) | off | Night Shift \| Player Build | Player's dates (2-4 days after Campaign's kit PR) | that move's slice and its KS slice on master, its walk item accepted; until then the station's stand-in is open |
 
 ## Order and waves
+- **Marlow first (Michael picked "Marlow first (Recommended)", ~20:50, ROADMAP Decided):** right after the Mixamo PR's
+  laptop run, Marlow Build's laptop requests go first in the queue and Marlow gets desktop CPU priority; Sector Ops and
+  Campaign keep building behind it. Target: walk-ready Tue 27 Oct evening (S0, R1, F1, the set slices, R2, G1 gates),
+  co-op kit stations (KS1-KS5) 29 Oct.
 - **Wave 1, now (parallel, no shared files or hunks):** D1 (Opus, docs), G0 (Sonnet, docs: `graph.json` /
   `validate-run.txt`), S0 (Sonnet), F1 (Opus, from master, needs nothing from S0: ships first); R1 (Opus) branches from
   S0's first pushed commit (`stationDef.ts`, the flag, `SetPart.bay.stations`, the `ctcourse.ts` mapping, the `BayDef`
