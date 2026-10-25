@@ -491,7 +491,7 @@ Course Ready's prep notes: origin/feature/marlow-bays docs/marlow-final-prep/ (M
 Night Shift | Marlow Build (Opus 5.5 high, desktop). Rules: docs/RULES.md + docs/VISION.md from origin/master; boot: docs/orchestrator/BOOT.md "Marlow Build" (origin/feature/menu).
 Area: Marlow Yard, level validator, route-runs, guard cap. Campaign work (mission-framework #372, Tallow Wharf, ROADMAP rows 0b / 7 / 8, review 2b) belongs to Campaign Build since 2026-10-25 ~12:50.
 HOLD (G346, G355): docs first. Until Michael signs off the folded plan (ROADMAP Now row 6): no new game work; finished PRs may ship.
-JOB NOW = conformance review: PR #417 OPEN (feature/conformance-marlow f2adb09d, worktree C:/NightShift/Mobile-Coop-conformance-marlow, docs/conformance-marlow/CONFORMANCE.md, orchestrator told 13:43). Opus checker running at the save; report C:/Users/Micha/AppData/Local/Temp/claude/C--NightShift/91f49aa8-28e1-4b5f-9fd1-7a853c62b311/scratchpad/check-417.md. If cut off: check the `checker` status on the head; if none, rerun one fresh Opus checker (re-find every file:line, citations, missed scope), fix round if FIX, then wait for train-ready. Next after sign-off: section 3 order (H7 V6 port first).
+JOB NOW = conformance review: PR #417 OPEN (feature/conformance-marlow, worktree C:/NightShift/Mobile-Coop-conformance-marlow). Checker 1 FIX (13 items) on f2adb09d; fix round pushed c7bcdc4e (adds M13 G288 sign-off, M14 LD 13 deliverables); fresh Opus re-checker running at the 14:03 save (report scratchpad check-417b.md). If cut off: read the `checker` status on the PR head; none -> rerun one fresh Opus checker on the fix diff f2adb09d..head. HOLD (orchestrator 13:53, Michael "plan comes first"): no doc-fix slices, no cloud briefs, no game code until the orchestrator says the folded plan is signed off.
 Other jobs (resume from their STATE, only after the hold lifts unless they are finished PRs):
 - level-validator: V0-V5 merged (#346). V6 (--require-measured) on origin/feature/level-validator-v6 8f551e18, 20 commits, no PR yet: docs/level-validator/STATE.md there.
 - route-runs (G330): origin/feature/route-runs docs/route-runs/STATE.md (plan WIP, no BRIEF / PLAN yet).
@@ -501,4 +501,5 @@ Shipped (nothing owed): #291 LR16-M, #299, #310, #311, #346.
 Open for Michael: joint interrogation A1 / A2; W5 A2 re-walk; restart shuts doors locked at set start (assumed); solo no-alarms reward = medkit heal.
 Polish list (after Michael playtests): A8 rail glass sliver; A2 top rail 0.02 over posts; A7 cabinet dressing; A2 wait (41,12.5) sight margin; device alarm stage carries across sets.
 Process (walk cap, train-ready, locks, laptop requests): RULES "Walk pacing", "Getting to master", "Machines". Message the orchestrator only at PR open / train-ready / blocked / needs Michael.
+Next: #417 checker PASS -> tell the orchestrator "train-ready" (the watchdog labels it); then hold. On sign-off: CONFORMANCE.md section 3 order (H7 V6 port first).
 ```
