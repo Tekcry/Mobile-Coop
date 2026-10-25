@@ -29,7 +29,8 @@ export const CHUNK_S = 0.05;
 export const POLL_S = 0.1;
 /** Game seconds one `page.evaluate` runs before handing back to Node (the page stays responsive). */
 export const EVAL_S = 2;
-/** After a restart: the respawn (0.3 s) and the spawn protection (2 s, then `damageMul` 1) run out first. */
+/** After a restart: the respawn (0.3 s) runs out first (its spawn protection's 2 s timer is real time: `tick` keeps
+ *  `damageMul` 0 every chunk after `noDamage`). */
 export const SETTLE_S = 2.4;
 /** A placement settles this long (game s). */
 export const PLACE_SETTLE_S = 0.2;
@@ -109,6 +110,7 @@ function pageDriver(P, o) {
   let door = null;
   let objIndex = -1;
   let wrapped = null;
+  let noHurt = false;
 
   const st = () => app.current;
 
@@ -382,6 +384,9 @@ function pageDriver(P, o) {
       while (g.time < end - 1e-9) {
         ev = pre(g);
         if (ev !== '') break;
+        // every chunk: the respawn's spawn protection turns damage back on by a real-time timer (2 real s), which
+        // fires between evaluates
+        if (noHurt && g.target) g.target.damageMul = 0;
         loop.stepHeadless(o.chunk);
         post(g);
       }
@@ -431,8 +436,9 @@ function pageDriver(P, o) {
       return { index: m.run.index, id: s ? s.id : null };
     },
 
-    /** (after the settle) No damage: the robots never fight and cannot be hurt. */
+    /** (after the settle) No damage: the robots never fight and cannot be hurt (from now on, re-set every chunk). */
     noDamage() {
+      noHurt = true;
       st().target.damageMul = 0;
     },
 

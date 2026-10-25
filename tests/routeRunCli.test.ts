@@ -412,6 +412,8 @@ describe('route-run in-page driver against a fake game (Node vm, no browser)', (
               p.z += dz * speed * dt;
             }
             game.time += dt;
+            // (any step the robot could be hurt in)
+            if (game.target.damageMul !== 0) game.hurtable = true;
             connectorHold(dt);
           },
         },
@@ -555,6 +557,13 @@ describe('route-run in-page driver against a fake game (Node vm, no browser)', (
     expect(pressed).toContain(12);
     rr.noDamage();
     expect(game.target.damageMul).toBe(0);
+    // the respawn's real-time timer (gameState: setTimeout(() => damageMul = 1, 2000)) fires between evaluates
+    game.target.damageMul = 1;
+    game.hurtable = false;
+    rr.holdStart(1);
+    rr.tick(1);
+    expect(game.target.damageMul).toBe(0);
+    expect(game.hurtable).toBe(false);
     expect(rr.guards()).toEqual({ spawned: 1, alive: 1 });
     rr.begin();
     rr.place(4, 0, 6, 1);
