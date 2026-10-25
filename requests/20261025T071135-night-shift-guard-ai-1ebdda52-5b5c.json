@@ -1,0 +1,17 @@
+{
+  "id": "20261025T071135-night-shift-guard-ai-1ebdda52-5b5c",
+  "sha": "1ebdda529b767addd46608c83f72e0db772dd104",
+  "branch": "feature/guard-ai-g327",
+  "pr": 438,
+  "kind": "alone",
+  "requester": "Night Shift | Guard AI Build",
+  "steps": [
+    "node scripts/guard-cap.mjs --maps=sectorops,campusops --counts=24,32 --cells=patrol,away,alert --warm=5 --secs=10 --out=C:/NightShift/scratch/guard-cap/g327-measure/a-tier8",
+    "node scripts/guard-cap.mjs --maps=sectorops,campusops --counts=24,32 --cells=patrol,away,alert --warm=5 --secs=10 --query=animtier=0 --out=C:/NightShift/scratch/guard-cap/g327-measure/b-tier0",
+    "node scripts/guard-cap.mjs --maps=sectorops,campusops --counts=24,32 --cells=patrol,away,alert --warm=5 --secs=10 --query=animshadow=0 --out=C:/NightShift/scratch/guard-cap/g327-measure/c-shadow0",
+    "node scripts/guard-cap.mjs --maps=sectorops,campusops --counts=24,32 --cells=patrol,away,alert --warm=5 --secs=10 --out=C:/NightShift/scratch/guard-cap/g327-measure/d-tier8-repeat"
+  ],
+  "env": {},
+  "set": "g327-measure",
+  "note": "G327 A/B: tier 8 + shadow rule vs animtier=0 vs animshadow=0, base repeated last for noise"
+}
