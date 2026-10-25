@@ -155,13 +155,13 @@ behind a VPN adapter).
   Defaults, a locked row, the remap capture, and a device switch that moves no element (within 0.5 px).
 - `e2e-pad` controller-only navigation through every menu with a fake Gamepad API pad; in a match D-pad up / down
   change no speed (anim-rework S1), the weapon states (X tap low ready / holster, LT held aims, A3 no fire at low ready,
-  X held reloads, the sling draw from LT), D-pad left tap vs hold (wheel), View tap goggles / View held leaves the goggles untouched; the analogue speed (stick 50 / 80 / 100 %), the internal cap, rumble;
+  X held reloads, the sling draw from LT), D-pad left tap vs hold (wheel); D-pad left toggles the goggles; View tap shows the objective and leaves the goggles untouched (G343); the analogue speed (stick 50 / 80 / 100 %), the internal cap, rumble;
   the pad verb table (every default button raises its action); remap capture (B held until the capture ends); a pad
   disconnect falls back to keyboard and mouse; the Difficulty row by d-pad (fixed levels). (Process audit: the palm
   strike, wall, door menu and edge verb sections went to their system suites.)
 - `e2e-mouse` mouse capture: a click captures (never fires), look, RMB held aims and LMB fires, let go low ready (no
   fire), X holsters, the wheel and = / - change no speed, W / Shift + W / Alt + W walk / run / creep, T swaps, Esc pauses,
-  Resume re-captures; the keyboard verb table; N toggles vision; Controls remap. (Process audit: the palm strike, wall
+  Resume re-captures; the keyboard verb table (O raises the objective verb); N toggles vision; Controls remap. (Process audit: the palm strike, wall
   medkit, wall, difficulty, edge verb, door menu and loadout sections went to their system suites.)
 - `e2e-move` (`gear=none`: no cap) every named speed at its stick point both stances, half stick, the cap kept through stances, zero
   velocity on the release step, planted feet < 2 cm on a stop, the stop holds its stride (aiming lets go; crouched: no
@@ -244,7 +244,8 @@ behind a VPN adapter).
   reached only through the connector). Step 3 and the fix round add: the star saved at the extraction and shown filled
   in the op list; a guard (AI on) running section 2's own alarm panel, the stage rising through the panel, and again
   after a restart; a two-page `?net=local` pair (the client mirrors the live section's devices, door locks and the
-  syringes line, then section 2 after the connector). The quick map picks it for the Sector Ops files, `src/net/`,
+  syringes line, then section 2 after the connector); the objective popup (shows on a new objective, gone after ~5 s, O
+  brings it back) and the field menu's full list on host and client (hud-guidance B1, B4). The quick map picks it for the Sector Ops files, `src/net/`,
   `src/security/`, `src/save/sectorRecord` and the op list screen. `SECTOR_SHOTS=<dir>` adds three layout shots
   (software GL). (sector-fixes-r RE) It runs as six jobs, `e2e-sectorops:1` to `:6` (`--part=N`; named alone its parts
   still run as parallel jobs): part 1 is everything above; part 2 (solo, the loop stepped at 120 Hz) checks slice R's
