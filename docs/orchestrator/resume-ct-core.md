@@ -1,53 +1,27 @@
-# Resume - Night Shift | Player Build (2026-10-25 ~13:55 local; older log: history at the end)
+# Resume - Night Shift | Player Build (2026-10-25 ~18:20 SAVE; older log: history at the end)
 
 Rules: docs/RULES.md on origin/master: "A job." (Full burn bullet), "Machines.", "Swaps and context.". Opus builds / checks anim, net, AI;
 Sonnet strict briefs / data checks. No desktop e2e: laptop queue (C:/NightShift/scratch/ctcore/lq/request.mjs --sha <full>
 --suites "..." | --alone --step "..."); results = GitHub statuses laptop-e2e/<set>; desktop-worker logs in
 C:/NightShift/scratch/laptop-queue-desktop/runs/<request id>/.
-Walk cap, checker status, train-ready and locks: RULES "Walk pacing" (the cap limits switch-on only, G355), "A job.", "Getting to master", "Machines". Docs-first hold (G346, G355): conformance review first (BOOT.md common start); finished PRs may ship. Every anim PR carries a ~1-2 min look video path in its body.
+Walk cap, checker status, train-ready and locks: RULES "Walk pacing" (the cap limits switch-on only, G355), "A job.", "Getting to master", "Machines". Every anim PR carries a ~1-2 min look video path in its body.
 Message the orchestrator only at PR open / train-ready / blocked / Michael. Push this file with push-resume.sh.
 
-## Phase B (row 6 SIGNED OFF ~17:00; hold lifted, full burn; plan: FOLDED-PLAN.md + ROADMAP Decided Q34-Q39)
-- J1 docs PR #437 OPEN (feature/player-docs-j1, head 4732d28a; a/b/c merged). Fresh Opus checker running: on PASS
-  post `checker`; then phase B builds may start. Decisions: src comment fixes (protocol.ts:38, drawState.ts, gadgetSystem.ts:71,
-  test path comments) moved to J6 so J1 stays docs only; scale-sheet rope line waits for J24 (descent not built).
-- J6 PLAN DONE (feature/player-hygiene c72008ad; docs/player-hygiene/): S1 player step (Opus), S2 pad poll (Sonnet),
-  S3 takedown + carry (Opus; land before J15 / J19), S4 wheel (Sonnet) in parallel; S5 partner / net (Opus, two
-  checkers, after #317); S6 comments + hyp3 (Sonnet, after #437). Next (after the CPU hold): fresh Opus plan checker.
-- Opus planners running (plans only): J19 feature/player-batch-j19, J24 feature/coop-kit
-  (brief scratch/ctcore/phase-b/PLANNER-COMMON.md). Then a fresh plan checker each, then builds (after J1 is open + PASS).
-- coop-real triage 3 DONE (STATE 30931bcf): harness fixes ffb7f02a (mouse aim lift at the viewport edge; boot logs
-  screen pushes, fails if a screen sits over the match) and c2 fc6d52c7 (door rows at 1.0 m; coop-real merged into c2).
-  Reruns queued: laptop-e2e/coop-real-c1c (ffb7f02a), coop-real-c2b (fc6d52c7). A boot fail naming the lobby screen
-  gives the cause: if a game path, T1 line + KNOWN BUG mark. gm-polish e2e-offline laptop rerun requested (set gm-polish).
-  #375 gm-flip stays draft until Michael's look picks (Q37 "decide at your walk").
-- CPU HOLD (orchestrator ~18:10, desktop 100%): start NO new agents until it says CPU < 80%.
-- J1 #437: checker FIX (2 doc lines) applied by the lead + Moth purple in ART-DIRECTION -> head 16c6cb99. Next (after
-  the CPU hold): a fresh Opus recheck on 4732d28a..16c6cb99, then post `checker`.
-- gm-look (feature/gm-look 1873de49): cloth-through FIXED (skin 141/20/7 -> 14/1/0, crossings 1853 -> 565 LOD0;
-  LOOK_LIMITS set, 9 GLBs bundled, 43/43 tests) BUT a NEW DEFECT: dark rectangular blotches on every outfit (crops
-  scratch/ctcore/gm-look/after-outfits.png). Likely the LOD0 texture-bake cage (bake_guard.py:60, :651, rays ~9 mm)
-  is shorter than the fit push (up to 19 mm, fit :986 runs before the bake :1063). NOT for Michael yet. Next (after the
-  CPU hold): confirm the cause, widen the cage past the push (or bake before the fit), rebake through the hidden task
-  at BelowNormal priority, re-measure, crops. Boots / gloves still clustered from the hero (optional).
-- tuner-clarity-polish PR #440 OPEN (head 83a30ea8; built, 82 tests / tsc / build). Next (after the CPU hold): fresh
-  Opus checker (Opus: src/ui hot path + reach logic), post `checker`, message the orchestrator. #430 SHIPPED 4.103.0.
-
-## Now (2026-10-25 ~16:40, new account; resumed 16:33)
+## Now (2026-10-25 ~18:20 SAVE at the 5-hour meter; row 6 SIGNED OFF ~17:00, full burn; plan FOLDED-PLAN.md + ROADMAP Decided Q34-Q39)
+CPU HOLD (orchestrator ~18:10, desktop 100%): start NO new agents until it says CPU < 80%. All worktrees pushed.
 | Job | Branch (worktree C:/NightShift/Mobile-Coop-<x>) | Head | Next |
 | --- | --- | --- | --- |
-| tuner-clarity (ROADMAP Now 0c, ahead of the hold by Michael) | feature/tuner-clarity (Mobile-Coop-tuner-clarity) | f0bdc14d | PR #430 open, `big-pr` (orchestrator). S1-S5 Opus PASS; affected 8/8 green on a404bfc9 and 47af68ea; e2e-coop + e2e-netmove 2/2 on dc151427. 17:35 TRAIN-READY on f0bdc14d (CI check, checker, affected-e2e 8/8 all green; label fix 'foot twist, toes out' after CI caught brackets); orchestrator told. Next: watch the train; if it drops #430, Opus triage (G319). Code polish left for the next batch (STATE: syncReach hysteresis, keyToolWarn fallback, badge ellipsis). e2e-coop + e2e-netmove requested (set tuner-clarity-coop on dc151427, code-identical); affected-e2e by itself. `big-pr` asked of the orchestrator (2.7k counted). Job STATE: docs/tuner-clarity/STATE.md. |
-| Conformance review PR #416 | - | - | MERGED. HOLD (Michael 13:53 "plan comes first") until the orchestrator says resume after row 6 sign-off. |
-| player-doc-fixes (stopped) | feature/player-doc-fixes (Mobile-Coop-player-doc-fixes) | 71ba10e1 | WIP, unreviewed, no PR: 2 operators docs (H6 names, S7). Resume after sign-off: S1-S9 + H6 per CONFORMANCE.md 1c (bible / DECISIONS rows are the orchestrator's fold). |
-| #380, #384, #373, #389 | - | - | MERGED (train 88 and before). |
-| player-batch-25 PR #427 | - | - | MERGED (polish left: fragment name lacks -r2; "spawn spawn" cause text when no e.code). |
-| gm-flip PR #375 | feature/gm-flip | a76fa924 | DRAFT (orchestrator, ~14:05, Michael OK 13:40) so it is not re-queued. After Michael's look picks: `gh pr ready 375` (triggers a fresh affected-e2e). Base 675 commits behind master. |
-| gm-polish | feature/gm-polish (from gm-flip) | 7945363b | checker PASS; laptop-e2e/gm-polish FAILURE on the desktop worker (e2e-offline 1/2, 2026-10-24 23:25Z): needs an Opus triage (G319) or a laptop rerun. PR after #375. |
-| gm-look | feature/gm-look (from gm-flip) | 6a5237f2 | Bake via hidden scheduled task "NightShift gm-look bake" (logs scratch/ctcore/gm-look/bake/); read run.log; STATE gm-look entry steps 1-7. Its cloth assert counts triangles, not bible 5.12.2's 2 cm (conformance note). |
-| coop-real (draft PR #388) | feature/coop-real | 80b9a0ad | c1b 0/3; triage agent from the old account is gone: restart an Opus triage (use --pr 388). |
-| coop-real C2 part 3 | feature/coop-real-c2 | d2f1d940 | laptop-e2e/coop-real-c2 FAILURE (e2e-coop-real:3 0/1, desktop 2026-10-24 22:37Z); merge into coop-real after the triage lands, then K1. |
+| J1 docs PR #437 | feature/player-docs-j1 | 16c6cb99 | Checker FIX (2 doc lines) applied + Moth purple. Fresh Opus recheck on 4732d28a..16c6cb99, post `checker`, tell the orchestrator. Src comment fixes moved to J6; scale-sheet rope line waits for J24. |
+| tuner-clarity-polish PR #440 | feature/tuner-clarity-polish | 83a30ea8 | Built (82 tests, tsc, build). Fresh Opus checker, post `checker`, tell the orchestrator. (#430 SHIPPED 4.103.0.) |
+| J6 player-hygiene | feature/player-hygiene | c72008ad | PLAN done (docs/player-hygiene/). Fresh Opus plan checker, then S1 (Opus) S2 (Sonnet) S3 (Opus, land before J15 / J19) S4 (Sonnet) in parallel; S5 after #317; S6 after #437. |
+| J19 player-batch-j19 | feature/player-batch-j19 | c8764773 | WIP plan (Opus planner was running at the save). If its BRIEF / PLAN are incomplete, restart a planner from scratch/ctcore/phase-b/PLANNER-COMMON.md + the J19 rows (R6-R11 R13 R14 R16-R19 R21-R23 R25-R31 R33 R38, Q34-Q39). Then plan checker. |
+| J24 coop-kit | feature/coop-kit | 34cfcad2 | Planner committed BRIEF / PLAN; it also got the 5 new moves (Deadweight, Drop Catch, Chimney Pair, Swing Pass, Plank Bridge; SIGNOFF at origin/feature/mission-framework docs/missions/prototypes/coop-kit/SIGNOFF.md): check they are in the PLAN, else add a part 2. Then plan checker. |
+| gm-look | feature/gm-look | 1873de49 | Cloth-through FIXED (skin 141/20/7 -> 14/1/0; LOOK_LIMITS; 9 GLBs bundled) BUT NEW dark blotches on every outfit (scratch/ctcore/gm-look/after-outfits.png): likely LOD0 bake cage (bake_guard.py:60, :651, ~9 mm) shorter than the fit push (19 mm; fit :986 before bake :1063). Not for Michael. Fix, rebake via the hidden task at BelowNormal, re-measure, crops. |
+| coop-real draft #388 / c2 | feature/coop-real ffb7f02a, feature/coop-real-c2 fc6d52c7 | - | Triage 3 harness fixes (STATE 30931bcf). Verdicts: laptop-e2e/coop-real-c1c, coop-real-c2b. A boot fail naming the lobby screen gives the cause (game path -> T1 + KNOWN BUG). Then merge c2 into coop-real, K1. |
+| gm-polish | feature/gm-polish | 7945363b | e2e-offline laptop rerun requested (set gm-polish); PR after #375. |
+| gm-flip #375 | feature/gm-flip | a76fa924 | DRAFT until Michael's look picks (Q37 "decide at your walk"); then `gh pr ready 375`. |
 
-Next: tuner-clarity first (STATE.md); everything else HOLD (Michael 13:53 "plan comes first"). On the orchestrator's resume after row 6 sign-off: work its folded plan for the Player rows of #416 (S1-S9 docs on feature/player-doc-fixes first), then the jobs above top down (gm-polish triage, coop-real triage, #375 `gh pr ready` after the look picks).
+Next: on the CPU OK, the two checkers (#437, #440) and the J6 plan checker first; then J6 S1-S4 builders; J19 / J24 plan checkers; gm-look cage fix + rebake.
 
 ## Open
 - e2e-coop quarantine is ours until 2026-10-26 (Test Runner 08:45): soak 5/5 alone on 3be7d1a2; one fail at JOBS=3 sharded (laptop scratch/laptop-queue/runs/20261024T173702-night-shift-test-run-3be7d1a2-b1fd/4189.log L821-921) "co-op on the guards": host holds its guard in front of the client (0.38 m). Load-only so far; soak-coop-41002 x5 queued on master 833db92e behind train 78. Repeats -> fix in the next batch PR (player-batch-25 or later).
