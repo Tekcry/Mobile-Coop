@@ -67,3 +67,21 @@ built breaker walk.
 - D9: on a co-op client `ambientAt` needs the live mask refreshed (the client does not tick the AI).
 - The order's bark: use J15 S4's bark-by-cause once it lands; J15 S6 posted pairs: say what an ordered guard's partner
   does.
+
+## Re-check (fix round)
+Checked: BRIEF / PLAN at 5244584c6. Verdict: **FIX (1 item, a one-line edit; no further check round needed once it
+lands)**. Items 2, 3, 5, 6, 7, 8 and 10 are done. Item 1 is done (polish below). Item 9 is done: S1a ~1,220 and S1b
+~590 are both under the cap. Item 4 is done apart from R1. Nothing else broke: the claims list the new test files,
+S2's files (`hearing.ts`, `guardAiData.ts` and their tests) do not overlap S1b's, S1a only reads `hearing.ts`, and
+`e2e-stealth-ai.mjs` and `enemyManager.ts` stay serial (S1a -> S1b -> S3 -> S4).
+- **R1. S1a's start gate is one J15 PR too early.** S1a starts "after J15 PR3", but J15 PR4 (S7 `placeSlot` in
+  `enemyManager.ts`, S8 `enemy.ts` and `e2e-stealth-ai.mjs`) edits the same files, and S1a reads PR4's `post.lookout`
+  (A7, `checkMissionOrders`), which does not exist before PR4. Done looks like: "S1a starts on the head after J15 PR4
+  merges" in "Order with J15" and the Slices order line, so every J26 slice follows all of J15 (lead decision 4).
+
+Polish (re-check):
+- C2 says the bell is "1.6 m" from the porter's post. (118.5, 50) to (117, 48) is 2.5 m.
+- The watchman's dog (W3 slot 1, a melee guard) is in the bell's reach (~7 m). `hear()` runs a melee guard's own rule
+  (`e.hear`, which can send a dog charging). S1a should give every bystander, the dog included, only `hearTurn`.
+- `noiseZones` reads `breakers.isOff` in its own branch. Console groups (`isConsoleGroup`, `enemyManager.ts:676`) need
+  the same routing there, or `validateNoisy` should reject a console group.
