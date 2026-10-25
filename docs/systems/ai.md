@@ -16,13 +16,18 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350), then
   deg, easing to 0.6 by -75 deg. `instantDetect` needs the body within +22 deg. Not applied in combat (`alerted`) or to
   dogs; the close-range felt term (1.8 m, moving) is unchanged. The light meter is untouched (a view limit, not light).
   Numbers are Night Shift's own: the CT research is silent on looking up.
-- Decided, not built yet (G45): clear glass passes light and sight; frosted glass and blinds pass light only.
+- Decided, built (G45, E2): clear glass passes light and sight; frosted glass passes light only (`G.GLASS_FROSTED` is in
+  `MASK.SIGHT`, `physics/groups.ts`; armoured clear glass still sees). Every pane is a wall to hearing (`MASK.HEARING`).
 - Decided, not built yet (G40): the two slowest standing and the three slowest crouched speeds are silent (code:
   `NOISE_QUIET`, `docs/systems/movement.md`); level rules and sensor rules are re-checked with it.
-- Decided, built (G46, G187, G254): guard counts are measured per mode. `MAX_ALIVE` 12 stays for the other modes;
-  Sector Ops has its own cap, 32 alive (`SECTOR.maxAlive`), a ceiling, not a target. Michael wants "as many guards as
+- Decided, built (G46, G187, G254): guard counts are measured per mode. Caps alive, each a ceiling, not a target:
+  Sector Ops 32 (`SECTOR.maxAlive`, `game/sectors.ts`; G332); the campaign 32 (G359; set by the mission engine, not on
+  master yet); Marlow Yard and the other modes 12 (`MAX_ALIVE`, `ai/enemyManager.ts`). Michael wants "as many guards as
   realistically possible" (G289, G254), limited by the guard-cap perf floor and passable routes; room to manoeuvre
   beats count (G190). Per-space bands are info; the validator WARNs only below them (G289).
+- Decided, not built yet (G328, G362): Saltmarsh Park S1-S5 hold 15 / 18 / 20 / 25 / 26 guards for 1-2 players; 3-4
+  players add the tagged extras inside the cap. The live `campusOps` data holds 8 / 12 / 16 / 20 / 24 and has no
+  tagged extras (campus greybox v2, FOLDED-PLAN J17).
 - Decided (G42, G155, G297, G307): every human guard can be palm-struck; dogs cannot. Per mode:
   - Campaign co-op missions: no heavy or dog archetypes; armour comes with the alarm stages (G155, "Adopt CT's way").
   - Sector Ops: guard dogs (G297); later sections add body armour (torso shots only stagger), riot shields only in
@@ -36,18 +41,23 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350), then
 - Decided (G11, G180, G335): of the movement run's AI ideas (guards relight lamps, paired searches, eavesdropping and
   the rest) only those CT has survive, with one exception: Michael "Add both" (G335) - static
   lookouts on some high routes (pipes, catwalks, vents) and paired patrols that check on each other. G44 (poor sight
-  above) stays the base rule; a lookout is the deliberate exception on its route. Guard AI plans it first; not built
-  yet.
+  above) stays the base rule; a lookout is the deliberate exception on its route; a vent lookout stands where he
+  overlooks the vent run or its exit (ROADMAP Decided 2026-10-25 ~16:50, Q13). Built: talking pairs on a timed loop
+  that meet, and search when the partner is missing at the meeting (guard-ai S10, "Talking pairs" below), plus the
+  squad radio checks. Not built yet (job guard-rules, FOLDED-PLAN J15): lookouts, a partner check while the pair walks
+  between meetings, and posted (static) pairs (`pairWhyNot` skips them).
 - Decided (G327, "Yes, shadow in view = seen"): a guard whose shadow falls in view animates at full rate
   (`animTierView.ts`; replaces G294's assumption). Not built yet: shadow passes do not count as seen.
 - Decided, not built yet (G352): guard perception reads the players' real-time character shadows, as the picture
-  shows them (light parity; `docs/systems/lighting.md`). Today guards read only the light field.
+  shows them (light parity; `docs/systems/lighting.md`). Today guards read only the light field. A player's cast
+  shadow is a faint cue to a guard, not a sighting (ROADMAP Decided 2026-10-25 ~16:50, Q14; planned in FOLDED-PLAN
+  J16).
 - Decided (G47): the light parity test, long lamps and motion lights are sorted out when built.
 
 ## Stealth AI (2.0 phase 3a)
 - `ai/perception.ts` (pure, `PERCEPTION`): `sightRate` = rate x (1 - d / range)^1.5 x field (55 deg focus, 25 m;
   peripheral 100 deg, 12 m, x0.35) x `lightFactor` (`visibilityFromLight`^2) x stance x `motionFactor` x exposure
-  (fraction of chest / head / hips in line of sight) x state sensitivity, plus a close-range term (2.2 m, moving), capped at
+  (fraction of chest / head / hips in line of sight) x state sensitivity, plus a close-range term (1.8 m, moving), capped at
   `maxRate`; `instantDetect` (point blank, lit, in focus); `stepMeter` (rises by what exceeds `leak`, holds `hold`, drains
   `decay`); `noiseSuspicion(dist, radius)`; `losClear` (one `MASK.SIGHT` ray, clear when nothing is hit nearer than
   the point less the slack) casts through `Ballistics.hitDistance` when it has it, without allocating (guard-ai R1; the
@@ -272,11 +282,13 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350), then
   combat; `tacticsProfile` (`placeSlot`: `P_POST` with a post, `P_AGGRESSIVE` for an aggressive slot, else `P_STANDARD`;
   kept by `Enemy.inherit`) weights cover-first (standard 0.85) and the roles (`P_POST` never point or flank). A
   high-security post never takes a role cover outside his leash (`Enemy.setRole` drops it; A18, A25).
-- `EnemyManager.stealth` (on in Hunter, Mission and Infiltration; off in Free Roam): one last known position per
-  intruder (guard-ai S24, below; `lkp` / `lkpValid` / `sightT` mirror the freshest one: solo reads them as before),
+- `EnemyManager.stealth` (on in Sector Ops, Marlow Yard (`course`), Hunter, Mission and Infiltration; off in Free
+  Roam): one last known position per intruder, kept per player (G139; ROADMAP Decided 2026-10-25 ~16:50, Q15) (guard-ai S24, below; `lkp` / `lkpValid` / `sightT` mirror the freshest one: solo reads them as before),
   sightings by alerted enemies and located gunfire, a flow field per intruder (never the real position), arriving with
   nothing there starts the search; `callAlert` radios within `RADIO` 22 m in the parked modes (a radioed alert does
-  not relay; the live modes use the radio net above); `sightT`, `hunting`, `huntingOf(slot)`.
+  not relay; the live modes use the radio net above); `sightT`, `hunting`, `huntingOf(slot)`. A downed player is not
+  perceived and never finished off: the perception pass skips a target that is not `alive` (`Enemy` perceive; G126,
+  G349).
 - HUD: `ui/hud/awareness.ts` arcs round the crosshair (only for enemies `inSight` or within `ARC_NEAR` 2.5 m),
   `Hud.setLight` meter; `vfx/lkpGhost.ts` (thin-instanced silhouette) shown at the LKP while hunted unseen
   (`GameState.updateStealthHud`).
@@ -351,7 +363,9 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350), then
   per torch) stops the beam at geometry.
 - Alarms: `ai/alarm.ts` (pure) panels from `MapLayout.alarms`; `assignAlarm` (2 Hz) sends the nearest alerted enemy to work
   it `ALARM.holdTime` -> `onAlarm` -> reinforcements (`reinforce`, at the `MapLayout.reinforce` point furthest from the
-  player). The player disables a panel with a hold.
+  player). The player disables a panel with a hold. One guard alarm per match; Sector Ops one per section load
+  (`EnemyManager.raiseAlarm`, `alarmRaised`, cleared by `resetAlarm` on a section load or restart). Bible 5.7 lets each
+  alarm add a level: repeat alarms are job guard-rules (FOLDED-PLAN J15).
 - Alarm by radio (guard-ai S6, design 7, M4; `CommandCall` in `ai/alarm.ts` pure, `EnemyManager.command`; stealth rules
   and coordinated modes only, as panels). A `contact` call that gets through (`sink.completed`) owes the alarm
   (`contactThrough`): the officer in the caller's voice range (alive, free), else the caller, else the next guard in the
@@ -722,10 +736,11 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350), then
 - Brains (`ai/enemy.ts`) think at ~4 Hz (line of sight rays staggered) and act every fixed step: walk when they can see
   the target, run only to contact / between covers; suppressive fire at the last known position, blind fire in some hide
   phases; cover choice weighted by `coverQuality`. Chasing enemies entering a new room unseen pause 0.7 s at the threshold.
-- `EnemyManager` caps awake enemies (12, `MAX_ALIVE` in `src/ai/enemyManager.ts`) and ragdolls (`BUDGET.maxRagdolls`).
+- `EnemyManager` caps awake enemies (`MAX_ALIVE` 12 in `src/ai/enemyManager.ts`; Sector Ops and the campaign 32, the cap
+  per mode in "Decided direction" above) and ragdolls (`BUDGET.maxRagdolls`).
 
 ## Modes
-- Modes implement `GameMode` (`game/modes/`; `ModeId` = `sandbox | mission | clear | infiltration | course`); `GameState`
+- Modes implement `GameMode` (`game/modes/`; `ModeId` = `sandbox | mission | clear | infiltration | course | sector`); `GameState`
   owns world, player, combat, AI, pickups and interactables and calls mode hooks. `GameState.endSession` shows results;
   `GameState.rewardHook` lets progression add rewards. Modes and the campaign: `docs/systems/modes-and-progression.md`.
 - Hunter (`clear`, `game/modes/clearMode.ts`; parked behind `?legacy=1`, G7): each tagged room's squad spawns unalerted
@@ -733,14 +748,16 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350), then
   later, nearest rooms first, never within 7 m. The HUD shows only "Enemies left N" (`RoomClearTracker.hostilesLeft`).
   Going down shows "DOWN" (three tries). The last hostile down completes the operation (`operationComplete` event,
   banner, slow beat, letterbox; one "Operation complete" reward line).
-- `?autostart=<mapId>&mode=<sandbox|mission|clear|infiltration|course>` boots straight into a match (`mode=hunter` is an
+- `?autostart=<mapId>&mode=<sandbox|mission|clear|infiltration|course|sector>` boots straight into a match (`mode=hunter` is an
   alias of `clear`; dev and tests).
 - Sector Ops guard rules (sector-redesign slice 0): `checkSectorGuards` (`game/sectors.ts`, run by `checkSectors`)
   fails a human guard with no gun (no runners, M1), a heavy (G155), more dogs than the section's `dogs` (default 0, M10)
-  and a dog without a `handler` (an armed human guard of the section). Alarm reinforcements spawn as
-  `SECTOR_REINFORCE_KIND` (grunt), `perStage` per stage, aggressive at the section's entries (guard-ai S6). `SectorGuard` also carries optional `squad`, `zone`, `role`,
-  `reason`, `pair` for guard-ai (not read yet; `docs/sector-redesign/research/ENGINE.md` section 7). Sector Ops still
-  joins no squads, so radio checks do not run there.
+  and a dog without a `handler` (an armed human guard of the section). Alarm reinforcements: `perStage` per stage at
+  the stage's response route, else the section's entries (guard-ai S6), as a response team: a riot-shield guard first,
+  the rest `SECTOR_REINFORCE_KIND` grunts (`responseTeam`, `sectorMode.ts`; S13 "Response teams" above). Bible 5.7
+  keeps riot shields to later sections: job guard-rules (FOLDED-PLAN J15, Guard AI B16). The `SectorGuard` tags
+  (`squad`, `handler`, `zone`, `role`, `reason`, `pair`) are read by `placeSlot` ("Sector tags" and "Talking pairs"
+  above), so Sector Ops squads run radio checks.
 - Palm strike (G42): `strikeTargetable` (`game/elbowStrike.ts`) keeps dogs out of the strike's pick and its contact
   (solo, host and a client's strike on the host). Dogs carry no flashlight (G201; it still holds after the G295
   redesign; `carriesTorch`).
