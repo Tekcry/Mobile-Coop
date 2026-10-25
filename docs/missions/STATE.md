@@ -1,7 +1,7 @@
 # mission-framework - STATE
 
 
-## RESUME 2026-10-25 ~23:15 (Night Shift | Campaign Build, new account; read this block first, older blocks are history)
+## RESUME 2026-10-25 ~23:30 SAVE (Night Shift | Campaign Build; read this block first, older blocks are history)
 Process: RULES + VISION from origin/master; BOOT.md "Campaign Build" (origin/feature/menu). Plan: ROADMAP "Now" +
 FOLDED-PLAN J-rows. Desktop CPU 100%: tsc / vitest builder slices go to cloud-queue; local checks only through
 `node C:/NightShift/scratch/ctcore/low.mjs "<cmd>"` (BelowNormal). Notes / reports: C:/NightShift/scratch/campaign/
@@ -16,7 +16,8 @@ FOLDED-PLAN J-rows. Desktop CPU 100%: tsc / vitest builder slices go to cloud-qu
 6. Engine gb6fix dc2aa9c8 laptop set mission-gb6fix queued; hg-b3 / hg-b4 queued.
 7. Tallow wave 0: cloud briefs campaign-tallow-tda, -g0, -s2 open; MB / D0 held (scratch cq/; D0 waits for LP + PR D).
    LP builder (Opus, docs) on feature/tallow-fixes-lp (tallow-lp-report.md). Rulings ~23:30 in lead-notes.md.
-Next: act on R6 checks, wave-0 report, cloud briefs done, laptop verdicts; B0b merge once #466 releases.
+Next: LP report (rerun LP if tallow-lp-report.md says running with no commits on -lp); cloud briefs done -> fresh
+Opus checkers; laptop verdicts; B0b merge once #466 releases; PR D green -> engine, push MB brief.
 
 ## OLD RESUME 2026-10-25 ~22:45 SAVE (history) (Night Shift | Campaign Build; read this block first, older blocks are history)
 Process: RULES + VISION from origin/master; start steps BOOT.md "Campaign Build" (origin/feature/menu). Plan: ROADMAP
