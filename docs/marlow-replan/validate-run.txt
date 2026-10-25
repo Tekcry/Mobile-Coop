@@ -143,3 +143,8 @@ G0 (area boxes, link at; graph.json 8d69eb34f): 2 error(s), 78 warning(s), the s
 validator does not read `area` or link `at` (they are V6 fields, validator-port measure), so no new note, WARN or ERROR comes from them.
 Counts before and after G0: 2 ERROR, 78 WARN, 8 INFO. The two ERRORs are the known co-op-coverage ones (3 of 8 encounter spaces, A3 has no
 co-op link), unchanged. The boxes are first read by the V6 measure in the validator port (G1 gates).
+
+G0 check fix (Sonnet check C:/NightShift/scratch/marlow/j14-g0-check.md): link `at` moved for the a3 duct (79.5, 9.6) and
+the a5 throw (58, 34.5); `at` restored on a8-vestibule > a8-hall (108.8, 68.25) and the a8 public stair (131.1, 67.3).
+Accepted deviation: the two a5-apron-east > a5-apron links sit mid-trench (no shared edge until G-A5 moves the trench
+~1.1 m west). Master's validator does not read `at`: output unchanged.
