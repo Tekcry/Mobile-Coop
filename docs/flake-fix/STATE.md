@@ -3,6 +3,13 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 52 (2026-10-25 ~16:35, new session [080d32]; wins over SAVE 51 where they differ):**
+- Master 4.x 75643e77 (train 94, #429). Trains 93 and 94 green on both slots. Service pid 12732 on 75643e77, queue
+  empty, spare guard-cap runs passing. camera-bounds clean rerun 2b79 on c85f1e5e: 31/31.
+- Hold unchanged: ROADMAP row 6 sign-off not given. No open PR train-ready, no train pending.
+- Next: on the Orchestrator's row 6 sign-off, reopen #422 (fresh Opus checker), add the camera-bounds backlog note and
+  the laptopRerunRequest gate fix; triage any red train at once (Opus).
+
 **Test Runner SAVE 51 (2026-10-25 ~15:40, before the ~16:10 cap; wins over SAVE 50 where they differ):**
 - Master f24ebbf6a. Train 93 on the laptop; a hand-built train with #400 + #425 next. Nothing of mine queued; all worktrees
   clean and pushed. Hold: plan first (doc fixes on docs/conformance-test-runner-fixes 7fefd8a9, #422 closed).
