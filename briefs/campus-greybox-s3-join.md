@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 3 2026-10-26T00:48+11:00
 # campus-greybox s3 join (cloud): merge r1-r4 into r5, apply the join list J1-J6
 
 Lead: Night Shift | Sector Ops Build. Job campus-greybox (J17). `docs/campus-greybox/briefs/S3.md` section 2: "the lead
