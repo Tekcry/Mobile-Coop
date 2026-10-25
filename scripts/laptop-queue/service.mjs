@@ -95,7 +95,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pidAlive, staleName } from '../heavy-lock.mjs';
-import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, trainSoon, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest } from './lib.mjs';
+import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, trainSoon, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting } from './lib.mjs';
 import { visualPlan, visualEnv, visualVerdict, visualComment, VISUAL_CONTEXT, VISUAL_SUITE, VISUAL_SH_TIMEOUT_MS } from './visual.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
@@ -256,6 +256,9 @@ function listRequests() {
   openListed = out;
   return out;
 }
+
+/** A real request this worker could run waits (lib realWaiting on the last listing; the desktop counts only pr work it takes). */
+const realOpenNow = (listed = openListed) => realWaiting(DESKTOP ? listed.filter((r) => r.kind === 'pr' && !r.trainRerun && !r.laptopRerun) : listed, claimed);
 
 // ---------- claims (laptop-queue branch) ----------
 
@@ -1066,21 +1069,21 @@ async function runRequest(r, port) {
     }
     const trains = trainsNow();
     const others = [...activeReqs.values()].filter((a) => a.id !== r.id);
-    const why = cutShort(r, { withdrawn: withdrawnIds.has(r.id), trains, started, others, startedAt, now: Date.now(), progress: progress() });
+    const why = cutShort(r, { withdrawn: withdrawnIds.has(r.id), trains, started, others, startedAt, now: Date.now(), progress: progress(), realOpen: spare && realOpenNow() });
     if (why && !ctl.why) { ctl.by = trains[0] ?? null; cut(ctl, why); }
   }, 5_000);
   const stop = () => Boolean(ctl.why) || Boolean(yielded ??= yieldTo(r, false, trainsNow()));
   let posted = false;
   const spare = r.requester === SPARE_REQUESTER;
-  // spare work yielding or cut by a train is done, never queued again (laptop-queue-5)
-  const spareDone = (n) => {
-    log(`${r.id}: spare work stopped for train ${n}: done, not queued again`);
-    if (posted) postStatus(r.sha, 'error', ctx, `stopped for train ${n} (spare work, not rerun)`);
+  // spare work yielding or cut by a train or a waiting real request is done, never queued again (laptop-queue-5)
+  const spareDone = (by) => {
+    log(`${r.id}: spare work stopped for ${by}: done, not queued again`);
+    if (posted) postStatus(r.sha, 'error', ctx, `stopped for ${by} (spare work, not rerun)`);
     state.done[r.id] = { result: 'spare-cut', date: new Date().toISOString() };
     if (state.aloneSteps) delete state.aloneSteps[r.id];
   };
   const giveBack = () => {
-    if (spare) return spareDone(yielded.n);
+    if (spare) return spareDone(`train ${yielded.n}`);
     log(`${r.id}: yields to train ${yielded.n}`);
     if (posted) postStatus(r.sha, 'pending', ctx, `queued, yielded to train ${yielded.n}`);
     writeClaims([r.id], 'release', `release ${r.id} (yields to train ${yielded.n})`);
@@ -1095,7 +1098,7 @@ async function runRequest(r, port) {
       return;
     }
     const n = ctl.by?.n ?? '?';
-    if (spare) return spareDone(n);
+    if (spare) return spareDone(ctl.why === 'real' ? 'a waiting real request' : `train ${n}`);
     log(`${r.id}: preempted by train ${n}, queued again${r.kind === 'alone' ? ' (head of the alone queue)' : ''}`);
     if (r.kind === 'alone') preemptedAlone.add(r.id);
     if (posted) postStatus(r.sha, 'pending', ctx, `queued, preempted by train ${n}`);
@@ -1146,6 +1149,7 @@ async function runRequest(r, port) {
         // between steps: a pending train head takes the slots; the finished steps are kept for the rerun
         const tr = i > from ? trainsNow()[0] : null;
         if (tr && spare) { ctl.by = tr; ctl.why = 'train'; return cutEnd(); }
+        if (spare && realOpenNow()) { ctl.why = 'real'; return cutEnd(); }
         if (tr) {
           (state.aloneSteps ??= {})[r.id] = { sha: r.sha, n: r.steps.length, done: i, ok: okSteps, date: new Date().toISOString() };
           log(`${r.id}: yields to train ${tr.n} after step ${i}/${r.steps.length}, queued again (head of the alone queue)`);
@@ -1399,7 +1403,8 @@ async function pass() {
   const requests = listRequests().filter((r) => !claimed.has(r.id));
   const dt = DESKTOP ? desktopTrains() : null;
   for (const id of preemptedAlone) if (!requests.some((r) => r.id === id)) preemptedAlone.delete(id); // done or withdrawn
-  const queue = { trains: DESKTOP ? dt.trains : pendingTrains().filter((t) => !claimed.has(t.sha)), requests, front: preemptedAlone };
+  // realOpen: a real request on the full listing (before the hold filters below) keeps a spare from starting (lib pick)
+  const queue = { trains: DESKTOP ? dt.trains : pendingTrains().filter((t) => !claimed.has(t.sha)), requests, front: preemptedAlone, realOpen: realOpenNow(requests) };
   pendingNow = queue.trains; // runs still before their suites / steps yield to these
   // done marks first: a claim (which tells the desktop the laptop is on claims) never lands before them
   if (!syncDone() && !DRY) { log('done claims not pushed: no new requests this pass (trains need a claim push too)'); queue.requests = []; }

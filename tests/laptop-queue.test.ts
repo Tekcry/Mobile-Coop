@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, pickBranch, supersedeStatuses, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, trainSoon, releasingTrain, readyOrPending, RELEASE_HOLD_MS, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, pickBranch, supersedeStatuses, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, trainSoon, releasingTrain, readyOrPending, RELEASE_HOLD_MS, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting } from '../scripts/laptop-queue/lib.mjs';
 
 const spareReq = (min: number, kind: string) => ({ ...req(min, kind, 'spare', 'laptop-queue spare') });
 // @ts-expect-error plain .mjs module without types
@@ -1192,5 +1192,35 @@ describe('spare work never holds a train or jumps a real request', () => {
     expect(pick({ trains: [t], requests: [spare] }, NOW, slots(false, false))).toEqual({ kind: 'train', train: t });
     const sp = spareReq(40, 'full');
     expect(pick({ trains: [], requests: [sp] }, NOW, slots(true, false))).toEqual({ kind: 'request', request: sp, slot: '4192' });
+  });
+  it('realWaiting: an unclaimed non-spare request on the listing (held or not) counts; spare and claimed ones do not', () => {
+    const spare = spareReq(10, 'full');
+    const lead = req(5, 'alone', 'lead');
+    expect(realWaiting([spare])).toBe(false);
+    expect(realWaiting([spare, lead])).toBe(true);
+    expect(realWaiting([spare, lead], new Set([lead.id]))).toBe(false); // already running here
+    expect(realWaiting([])).toBe(false);
+    expect(realWaiting(undefined)).toBe(false);
+  });
+  it('cutShort: a waiting real request stops a spare run whatever its kind, age or progress; never a real run', () => {
+    for (const kind of ['pr', 'full', 'alone']) {
+      const r = { kind, requester: SPARE_REQUESTER };
+      expect(cutShort(r, { realOpen: true, started: true, progress: 0.99, startedAt: NOW - 60 * 60_000, now: NOW })).toBe('real');
+      expect(cutShort(r, { realOpen: true, started: false })).toBe('real');
+      expect(cutShort(r, { realOpen: false, started: true })).toBe('');
+      expect(cutShort(r, { realOpen: true, trains: [t], started: true })).toBe('train');
+      expect(cutShort(r, { realOpen: true, withdrawn: true })).toBe('withdrawn');
+    }
+    expect(cutShort({ kind: 'full', requester: 'lead' }, { realOpen: true, started: true })).toBe('');
+  });
+  it('pick: no spare starts while a real request is listed, even one the hold filters removed (queue.realOpen)', () => {
+    const sp = spareReq(40, 'alone');
+    const held = req(5, 'alone', 'lead'); // listed, then dropped by the aloneHold / aloneSoon filter
+    const listed = [sp, held];
+    const queue = { trains: [], requests: [sp], realOpen: realWaiting(listed) };
+    expect(pick(queue, NOW, slots(false, false))).toBeNull();
+    expect(pick({ ...queue, requests: [spareReq(40, 'full')] }, NOW, slots(true, false))).toBeNull();
+    // nothing real listed: the spare starts as before
+    expect(pick({ trains: [], requests: [sp], realOpen: realWaiting([sp]) }, NOW, slots(false, false))).toEqual({ kind: 'alone', request: sp });
   });
 });

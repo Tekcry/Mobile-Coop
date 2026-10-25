@@ -134,10 +134,13 @@ train for `LQ_SPARE_IDLE_MIN` (default 5; 0 = off) minutes, it pushes the next j
 head, requester `laptop-queue spare`, no branch or PR (lib `spareRequest`). Never while a spare request is open,
 claimed or running on either worker; never a set already queued on that sha (`state.spare: { last, n, ran: { sha:
 [sets] } }`, lib `spareRecord`; a new master sha starts over). Any request or train arriving takes priority as usual
-(spare jobs are plain full / alone requests, picked only when nothing else can be: lib `pick`). Not idle while a
+(spare jobs are plain full / alone requests, picked only when nothing else can be: lib `pick`). No spare job starts
+while any real (non-spare) request is open on the branch and unclaimed, counted on the full listing before the alone
+hold filters, so a held real request counts too (lib `realWaiting`, pick `queue.realOpen`). Not idle while a
 train builds or releases (trainSoon), an open train lacks its laptop pass (aloneHold) or green train-ready PRs wait
-(aloneSoon). A pending train head stops a running spare job at once whatever its kind, age or progress (lib
-`cutShort`); it is done (`spare-cut`), never queued again. The list: `spare-full` (full e2e), `spare-coop-soak` (e2e-coop x5),
+(aloneSoon). A pending train head, or a real request waiting on the branch (`realWaiting`), stops a running spare job at
+once whatever its kind, age or progress (lib `cutShort`, 'train' / 'real'; also checked between alone steps); it is done
+(`spare-cut`), never queued again. The list: `spare-full` (full e2e), `spare-coop-soak` (e2e-coop x5),
 `spare-guard-cap` (ctcourse 24 + campusops 32 guards, patrol / alert, `--secs=20`, out
 `C:/NightShift/scratch/guard-cap/spare-<sha8>-<n>/<map>`), `spare-perf-campusops` (`serve scripts/perf.mjs ...
 --desktop --json`, `MAP=campusOps MODE=sector`). Edit the JSON to change it; `tests/laptop-queue.test.ts` checks each

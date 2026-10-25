@@ -244,12 +244,14 @@ export function gatedCpu({ total, bgMs, elapsedMs, cores }) {
  * newer #360 / #363 requests jump its #317 request for 70 min while that PR waited for train-ready. A laptop rerun
  * keeps its place by its id time. priority only orders one requester's own requests, never across requesters.
  * The auto affected-e2e requests queue one requester per branch (queueRequester), so PRs take turns with the leads.
- * Spare work (SPARE_REQUESTER) is picked only when no other request is open: never aged, never at the front.
+ * Spare work (SPARE_REQUESTER) is picked only when no other request is open: never aged, never at the front. The
+ * service also sets queue.realOpen (lib realWaiting on the full listing, before its alone hold filters) so a real
+ * request it holds back still keeps a spare from starting.
  */
 export function pick(queue, now, slots) {
   const all = [...queue.requests].sort(sortById);
   const real = all.filter((r) => r.requester !== SPARE_REQUESTER);
-  if (real.length || !all.length || queue.trains.length) return pickFrom({ ...queue, requests: real }, now, slots);
+  if (real.length || queue.realOpen || !all.length || queue.trains.length) return pickFrom({ ...queue, requests: real }, now, slots);
   return pickFrom({ trains: [], requests: all, front: new Set() }, -Infinity, slots); // spare only: nothing ages
 }
 
@@ -498,16 +500,19 @@ export function yieldTo(r, started, trains) {
  * started under ALONE_PREEMPT_MIN ago (startedAt, now; Orchestrator 2026-10-24 ~21:05 after train 64 went to the
  * desktop behind a 4-min-old guard-cap run): it is killed and queued again at the head of the alone queue. A pr run at
  * or past PREEMPT_MAX_PROGRESS of its expected wall (progress, lib runProgress; unknown = NaN cuts as before) finishes.
+ * A spare run (SPARE_REQUESTER) is cut by any pending train ('train') or any waiting real request ('real', realOpen).
  */
 export const ALONE_PREEMPT_MIN = 10;
 /** A pr run this far through its expected wall (runProgress) finishes instead (Orchestrator audit 2026-10-24: a coop4 run cut at 15/15 shards). */
 export const PREEMPT_MAX_PROGRESS = 0.8;
 const preemptible = (r) => r?.kind === 'pr' && !r.trainRerun;
 const youngAlone = (r, startedAt, now) => r?.kind === 'alone' && Number.isFinite(startedAt) && now - startedAt < ALONE_PREEMPT_MIN * 60_000;
-export function cutShort(r, { withdrawn = false, trains = [], started = false, others = [], startedAt = NaN, now = NaN, progress = NaN } = {}) {
+export function cutShort(r, { withdrawn = false, trains = [], started = false, others = [], startedAt = NaN, now = NaN, progress = NaN, realOpen = false } = {}) {
   if (withdrawn) return 'withdrawn';
-  // spare work (laptop-queue-5) never holds a train: cut whatever its kind, age or progress (the service marks it done)
+  // spare work (laptop-queue-5) never holds a train or a real request: cut whatever its kind, age or progress (the
+  // service marks it done); realOpen = a non-spare request waits on the branch (lib realWaiting)
   if (r?.requester === SPARE_REQUESTER && (trains ?? []).length) return 'train';
+  if (r?.requester === SPARE_REQUESTER && realOpen) return 'real';
   const mayCut = (preemptible(r) && !(progress >= PREEMPT_MAX_PROGRESS)) || youngAlone(r, startedAt, now);
   if (started && mayCut && (trains ?? []).length && (others ?? []).every(preemptible)) return 'train';
   return '';
@@ -1038,6 +1043,15 @@ export function spareRequest({ now, job, sha, n, suffix }) {
   if (r.kind === 'alone') { r.steps = (job.steps ?? []).map(fill); r.env = { ...(job.env ?? {}) }; }
   if (job.jobs) r.jobs = job.jobs;
   return r;
+}
+
+/**
+ * Whether a real (non-spare) request waits: one in `listed` (the open requests of the branch listing, before any hold
+ * filter) that this worker has not claimed (`claimedIds`, a Set). While one does, no spare job starts (pick
+ * queue.realOpen) and a running one stops (cutShort realOpen): spare work never blocks real work.
+ */
+export function realWaiting(listed, claimedIds = new Set()) {
+  return (listed ?? []).some((r) => r && r.requester !== SPARE_REQUESTER && !claimedIds.has(r.id));
 }
 
 /** state.spare after queueing job `index` on `sha`: only that sha's sets are kept (an older sha never blocks again). */
