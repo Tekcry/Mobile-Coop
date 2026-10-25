@@ -1,0 +1,170 @@
+# validator-port - brief
+
+Owner: Marlow Build. Status: current.
+
+Job J12 of the signed-off folded plan (`docs/orchestrator/FOLDED-PLAN.md` section 4 on origin/feature/menu; ROADMAP
+Now row 14). Lead: Night Shift | Marlow Build. Branch `feature/validator-port` in
+`C:/NightShift/Mobile-Coop-validator-port`, cut from origin/master 2148ec96 (4.103.0). Plan: `PLAN.md`; live state:
+`STATE.md` (the one live validator STATE, Marlow conformance V11).
+
+## The ask
+One level validator on master that can pass a map at greybox exit, built by porting the three stale validator branches
+onto master's mode-profile validator (#407) instead of merging them. Covers FOLDED-PLAN breaks 24 and 25 and
+conformance rows M H6, H7, V1, V2, V4, V6, V10, V11, V12 and T H4 (`docs/conformance-marlow/CONFORMANCE.md`,
+`docs/conformance-test-runner/CONFORMANCE.md:65`); the validator half of M V7 and V8 (their map half stays in J14).
+
+In scope:
+1. V6 measurement on master: `src/world/levelMeasure.ts`, `scripts/level-measure.mjs`, `--require-measured`
+   (`feature/level-validator-v6` 8f551e18, 20 commits, no PR). Shadow share is INFO, never ERR (G329, V1). Under
+   `--require-measured` every declared split leg and every campaign way back with no measured time is an ERR (V2).
+2. The mission-validator re-cut (`feature/mission-validator` 0c62a921) onto the ported validator, jointly with
+   Campaign Build: ghost, no-kill and marker checks (VISION 4 rules 3-5).
+3. The Marlow Yard graph (`feature/level-validator-v7` 97873079 `docs/marlow-final/graph/ctcourse.json`) on the
+   `training` profile, run output saved with the map docs (H6). The training profile follows Q29 and Q24 (below).
+4. Engine-fact WARNs from the scale sheet, no constants in the script (V10); metrics-gen rejects unknown flags (V12).
+5. The validator in CI: `npm run validate:levels` plus a vitest pinning the counts of every committed graph set (V6).
+6. One live STATE (V11): `docs/validator-port/STATE.md`.
+
+Out of scope (owner): the route-run pass rule and harness (J13, Q7); the lux band check (J10 fills scale sheet 9,
+then plugs into the measured checks, M V5); Marlow Yard map fixes and its re-plan (J14); the campus v2 graphs and the
+Sector Ops player-count WARN (J17, M V9); Tallow Wharf's graph fixes (J8); the old warehouse map (frozen, Q26).
+
+## Michael said (verbatim, binding)
+- 2026-10-24 ~22:45 (G292): "Marlow is a training course and may have different rules to standard mission, ie its
+  heavily guided and must teach the players the basics of coop gameplay. All campaign missions are strictly coop and
+  cannot be completed solo, must have forced coop traversal to proceed [...]. Marlow should be very linear, 1 route
+  (until later sections where it teaches multiple objectives/split paths for players to help each other)".
+- 2026-10-24 ~22:00 (G289 (3)): "I would prefer having as many guards as realistically possible to make it
+  challenging."
+- G363 (2026-10-25): "After every move taught" (Marlow's later sections come after every co-op kit move is taught).
+- 2026-10-25 ~16:40, folded plan Q5: "all are retries in marlow yard, as its a training exercise."
+- 2026-10-25 ~16:40, Q6: "coop lobby. Marlow Yard is mission 1, which is training"; asked if Tallow becomes Mission 2:
+  "Tallow stays Mission 1".
+- 2026-10-25 ~16:50, Q11: "Only the logical amount required to test the specific movement/game mechanic required.
+  Doesn't necessarily always need a guard."
+- 2026-10-25 ~16:50, Q24: "Close all side routes, force all sections. Only keep a side route when training against
+  enemies later in the training, same design rules as a campaign mission area".
+- 2026-10-25 ~16:50, Q25: "Wherever they slot into the training yard logically".
+- 2026-10-25 ~16:50, Q29: "marlow yard in particular is an isolated training level which forces training of each
+  individual coop move and coop gameplay, and does not need the same checks".
+
+## Michael picked (option text, native multiple choice)
+- 2026-10-24 ~22:00 (G289 (2)): "Yes, require it" (a measured validator pass at greybox exit).
+- 2026-10-25 ~09:05 (G329): "Real-world levels" (the 40-60% shadow share yields to the real-world light band).
+- 2026-10-25 ~09:05 (G330): "Bot route-runs + your walk".
+- 2026-10-25 ~16:40, Q2: "Never" ("every light works; darkness only from cover, cut circuits and shot lamps").
+- 2026-10-25 ~16:40, Q3: "Australian standards (Recommended)".
+- 2026-10-25 ~16:40, Q7: "Never stuck (Recommended)" ("Pass = it never gets stuck; the times it was seen go on your walk
+  card"). J13's rule; this job supplies the positions it walks (PLAN section 8).
+- 2026-10-25 ~16:50, Q26: "Freeze it" (no more work on `warehouseOps`).
+
+## Recorded decisions this job follows
+G2 (campaign two players), G57 (human ladder 4.5 m, decided, not built: code 4.1), G127 (no mission forces a kill),
+G146 (perfect = no kills, no alarms, every primary objective), G285 (b) (every number from the metrics generated from
+the scale sheet, none in the script) and (d) (declared targets measured in greybox, a miss fails), G290 / G339 (no
+markers in the campaign and Sector Ops; Marlow keeps its guidance marks), G334 (soft windows only outside Marlow).
+Authority order: `CLAUDE.md` on origin/master; Michael's answers above win over FOLDED-PLAN where they differ.
+
+## Assumed decisions (logged; each says how to undo it)
+- **A1 Port, not merge.** V6, V7 and mission-validator are re-applied by hand onto master's mode-profile validator,
+  new files taken whole from their branch tips and fixed for master's APIs (PLAN section 4). The stale branches stay
+  on origin, unmerged; STATE marks them superseded once the port lands. Undo: merge the branch by hand (it conflicts
+  in level-design.md, graph-schema.md, level-validate.mjs and levelValidate.test.ts).
+- **A2 Check modules.** Shared graph helpers move from `scripts/level-validate.mjs` to `scripts/level-graph-lib.mjs`;
+  new checks live in `scripts/level-checks/{measured,training,perfect,engine}.mjs`, so slices run in parallel without
+  sharing a file. `level-validate.mjs` stays the CLI and keeps every current export (tests unchanged). Undo: move the
+  modules back inline (pure move).
+- **A3 One profile table.** A `PROFILES` object in the lib (per mode: route rules, coverage, solo-twin severity, gate
+  reach, no softlock, alive ceiling, drills, marks) replaces the scattered `meta.mode` tests. Undo: inline the tests.
+- **A4 Shadow share is INFO everywhere (V1, G329).** A measured `shadow_pct` outside 0.4-0.6 and its drift from the
+  declared value print INFO. Measured vantage, LOS break, split legs and reach keep ERR on a miss (G285 (d)). Undo:
+  one severity in `measured.mjs`.
+- **A5 The presence gate (V2).** Under `--require-measured`: ERR an encounter space with no `measured` (as V6); ERR a
+  declared split with no `meta.measured.splits.<id>` holding `a_s`, `b_s` and `reach_s`; ERR a measured leg over
+  `split_max_s` or legs apart by more than `split_parity_pct`; ERR a campaign co-op link with no measured way back
+  (`meta.measured.ways_back`). A `null` reach or way back (only moves the nav grid does not model) is a WARN to justify
+  in the design doc, and the declared time is then checked as today (ERR over `reach_max_s`). Undo: make null an ERR
+  (question L2).
+- **A6 Measured times feed the time checks.** Split legs, partner reach and gate reach use a link's `measured.path_m` /
+  speed when present, else `time_s`, else `length` / speed (V6 used `measured.time_s` and re-timed for reach; same
+  numbers). Undo: drop the measured branch in `linkTime`.
+- **A7 Training profile, Q29.** On `training` maps the co-op coverage check (half of the encounter spaces, every
+  section) does not run and a solo twin is INFO (WARN today). Already off on master and kept off: route counts, routes
+  cross, two routes per section, gate reach, no softlock, forced gate. Still run: structure, dimensions, reach from
+  start, spine, dead ends, vantage, LOS break, splits with overwatch / assist / partner reach, pacing, `drill_s`, guard
+  bands as INFO (a set may have no guard, Q11). Undo: the training row of `PROFILES`.
+- **A8 Training checks, Q24 + G292 + G363 (validator half of V8).** New `meta.taught_by`: the section in which the last
+  co-op kit move is taught on its own (ERR missing on a `training` map). New `teach`: a link field `teach: "<move>"` or
+  a space tag `teach:<move>`, free text from the map's teach list, so moves with no link kind (jam relay, console loop,
+  synced takedown, V7) count. In every section up to and including `taught_by`: ERR 2+ edge-disjoint routes from entry
+  to exit (a side route), ERR a `split:` tag, ERR no `teach` element, ERR a `teach` element that some entry-to-exit path
+  avoids (the section is not forced). Undo: WARN instead of ERR, or drop the module from `validate()`.
+- **A9 Late Marlow sections, Q24.** After `taught_by`, a section with 2+ routes must hold a guarded encounter space
+  (a side route only "when training against enemies"), else ERR; such a section runs the campaign route rules on itself
+  (three approaches of two kinds with shadow / high / loud on its guarded spaces, routes cross, 2 edge-disjoint routes)
+  as ERR ("same design rules as a campaign mission area"). Splits are allowed there (G292). Undo: WARN, or only routes
+  cross (question L1).
+- **A10 Perfect-run and marker checks on every map (VISION 4 rules 3-5).** New link field `requires_kill` (bool). In
+  every mode: ERR when no ghost path (no `loud` link, no `requires_kill` link) leads from `start` to every `objective`
+  space and on to `exfil` (Sector Ops, which needs no exfil: to the last section's `exit`); ERR when no no-kill path (no
+  `requires_kill` link) does. `mark` on a space or link: ERR on `campaign` and `sector`, INFO count on `training`. A
+  mission graph runs the same paths over the mission's primary objectives (mission-validate reuses the helper). Undo:
+  drop `perfect.mjs` from `validate()`.
+- **A11 Ghost = no loud link.** G146's "no alarms" has no graph field; the loud route (force, LD 3.2) is the nearest
+  fact. Undo: a `raises_alarm` link field read instead of `route: loud`.
+- **A12 Engine facts from the sheet (V10).** Two new scale-sheet section 8 rows: `nav_floor_depth_m` 1.5 (written as a
+  positive depth, since the sheet parser reads a leading `-` as a range) and `ladder_grab_m` 4.1 (`TEAM.ladderGrab`,
+  `src/config/movement.ts:464`). WARN a space below storey -1.5 m that is an encounter space or has guards (off the
+  guards' nav grid, LD 12.1); WARN a `human_ladder` lip above 4.1 m (LD open item 1: G57 not built). ERR a `team_rope`
+  whose `to` storey is below its `from` (sheet section 3: "a climb up only, no descent"; from mission-validator
+  VAL-DIMS). Mission-validator's hand-kept `kit` block in metrics.json is dropped: master's `checkDimensions` already
+  reads the kit bands from sheet section 3. Undo: delete the rows and the module.
+- **A13 metrics-gen flags (V12).** Any argument other than `--check` (including `--help`) prints the usage and exits 2,
+  writing nothing, as level-validate does. Undo: one `if`.
+- **A14 Validator in CI (V6).** `docs/level-validator/graph-sets.json` lists every committed graph set (files, flags,
+  expected error and warning counts, saved run path): the worked example, the campus S1-S5, Marlow Yard, and, when
+  they reach master, the mission example (PR D) and Tallow Wharf (#372). `npm run validate:levels`
+  (`scripts/level-graphs.mjs`) runs them and exits 1 when a count differs; `--write` rewrites the saved runs and counts.
+  `tests/levelGraphs.test.ts` pins the same counts, so CI runs it through `npm test` (no workflow change). The frozen
+  `warehouseOps` has no graph and is not listed (Q26). Undo: delete the manifest, script and test.
+- **A15 Saved runs live with each map.** Campus: `docs/level-validator/campus-run/run.txt` (its current home). Marlow
+  Yard: `docs/marlow-final/graph/run.txt` and `REPORT.md` (the map folder; LD 13's folder line is J1's fix). The
+  examples keep counts only. Undo: move the paths in the manifest.
+- **A16 Marlow graph as built.** v7's `ctcourse.json` (55 spaces, 85 links, `area` and `at` on all) moves onto master
+  with `mode: training`, `taught_by` and `teach` elements as built (SPEC per-set "teach" lines), and is measured with
+  `level-measure --write`. Its ERRs are J14's map fixes. J14 re-plans Marlow Yard (M13), so this graph is "as built
+  4.103" and will be rewritten. Undo: drop the set from the manifest.
+- **A17 Campus graphs carry V6's positions.** V6e-1's `area`, `vantage.at` and link `at` are re-applied to master's v1
+  campus graphs (unchanged on master since V6's base) and re-measured on master (the light bake changed since V6, so
+  the `geom` hashes change). The measure tool then runs on a second map and the campus drift test has data. J17's v2
+  graphs replace these files and must carry `area`. Undo: revert the five graph files and drop the drift test.
+- **A18 `levelMeasure.ts` stays in `src/world/`** (as V6; J13 imports it). The game never imports it, so no flag. It
+  triggers the `src/world/` affected-e2e group on PR B by itself; that group must be green. Undo: move it to
+  `tests/helpers/` and repoint the CLI.
+- **A19 Mission re-cut contents.** Taken from 0c62a921: `mission-validate.mjs`, `mission-schema.md`,
+  `example.mission.json`, `missionValidate.test.ts`, the mission-node merge, the `mission_*` sheet rows. Dropped: its
+  training-profile and kit changes (superseded by A7-A9, A12). `RULE_KINDS` loses `oneChance` and `window` (G334; J7
+  drops them from the engine). A mission node on a `training` map stays ERR (Marlow keeps its course objectives) until
+  J22 settles how Marlow Yard joins the campaign list (Q6). Undo: restore the kinds; question L3.
+- **A20 Seam with Campaign Build.** Marlow Build builds the re-cut and owns `level-validate.mjs`, the lib, the check
+  modules and `mission-validate.mjs` code; Campaign Build owns the mission contract (`mission-schema.md` fields and the
+  step / rule / sync kind lists, which mirror its engine types) and reviews PR D. Interface: `checkMission(graph,
+  metrics)` called from `validate()` on the merged `mission`, `objectives`, `rules` and `syncs` nodes. When the engine
+  is on master, Campaign adds a vitest pinning the kind lists to its types. Undo: hand `mission-validate.mjs` to
+  Campaign Build.
+- **A21 V7 / V8 split.** FOLDED-PLAN lists V7 and V8 under J14. Their validator half (A7-A9) is built here, as the
+  lead's J12 brief says; J14 writes `taught_by` / `teach` into the re-planned graph and fixes the map. Undo: move S4 to
+  J14.
+- **A22 Standard text.** level-design.md changes with Michael's recorded answers (authority 1): 11.9 coverage becomes
+  [Campaign] [SectorOps] (Q29); the training profile gains Q24 and `taught_by`; 14 (3) item (1) and the 15 measured line
+  become live with their commands; the rule index gains the new checks. Cited as ROADMAP Decided 2026-10-25 ~16:50 Q24
+  / Q29 until J2 gives them G numbers. No other rule changes. Undo: revert the docs slice.
+
+## Questions for the lead
+None of these loosens a Michael-only rule as assumed; each is where a reading of his words could.
+- **L1 (A9).** Q24 "same design rules as a campaign mission area": the full campaign route rules (rule of three, routes
+  cross, two routes) on late Marlow sections that keep a side route (assumed), or only routes cross and rejoin?
+- **L2 (A5).** A `null` measured reach or way back: WARN to justify with the declared time still checked (assumed, as
+  CONFORMANCE V2), or ERR (the strictest reading of LD 15)?
+- **L3 (A19).** Keep "a mission node on a training map is an ERR" until J22 decides how Marlow Yard sits in the
+  campaign list (Q6: "Marlow Yard is mission 1, which is training"; Tallow stays Mission 1)?
