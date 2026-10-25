@@ -3091,6 +3091,9 @@ export class AnimGraph {
    *   top-out: its capture on the same progress. A drainpipe's or a team climb-up stays hand-made.
    */
   private mixamoTrav(src: Pose, i: AnimInput, tc: Clip): boolean {
+    // (mixamo-kit) the pull-up partner keeps the hand-made clips (the haul's k is no pendulum, its rise no shimmy pace):
+    // gated on a kit row, not this rig's source (WREN_TRAV is the viewer's table: a CMU partner on a Mixamo screen too)
+    if (KIT_TABLES[1].any && this.kit.move === 'pull' && this.kit.role === 'a') return false;
     const W = WREN_TRAV;
     const t = i.traverseT;
     const dt = this.mxDt;

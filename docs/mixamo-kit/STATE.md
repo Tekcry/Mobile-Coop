@@ -54,4 +54,5 @@ Lead: Night Shift | Marlow Build. Worktree C:/NightShift/Mobile-Coop-mixamo-kit,
 - Step 3: team.ts: TeamPoseIn / TEAM_LINK `kit` / `kt`, local and wire phase derivation, `TeamRigIn.graph?`, TeamPoser
   kitShot (clear on every begin path and in end; move / role whenever KIT_TABLES[1].any; per-rig table; gap trend, hold
   and crawl clocks; bar / wrist / catch hands eased over KIT_SHOT.flip, only while the shot is on).
-Next: 4 (c) the hang skip, 5 characterRig.ts, 6 tests.
+- Step 4 (c): the hang skip at the top of mixamoTrav (KIT_TABLES[1].any && kit.move pull && role a), own commit.
+Next: 5 characterRig.ts, 6 tests.
