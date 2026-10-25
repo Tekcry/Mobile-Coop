@@ -37,7 +37,7 @@ Signed off by Michael 2026-10-25 ~18:05 (his pick is at the bottom).
 5. What it costs: paper only until you pick. After that: the map greybox, a synced key-turn device, Guard AI
    adds one reaction (a bell sends the porter to it), the mission engine handles the section restart. Validator: 0
    errors; 6 warnings, all the map's own (5 custom room sizes, the coal chute's 1.2 m crouch width), none from the
-   mission.
+   mission; since Q19 the optional has no reward, so the validator gives 1 error until it is updated to match.
 
 ## The decision
 Q: Approve Two-Key Ledger as specced?

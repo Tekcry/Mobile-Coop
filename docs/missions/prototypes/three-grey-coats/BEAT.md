@@ -14,12 +14,15 @@ Grab the wrong man and the right one is gone before the decoy hits the floor.
 - **Rule:** question only Pell's courier (target `tgc-teale`, decoys `tgc-fenn`, `tgc-garrow`).
 - **Briefing line:** "Rule: question only Pell's courier. The wrong one warns him, and he runs."
 - **Objective-list line** (under the title, all mission): "Rule - question only Pell's courier."
-- **Breaking it:** interrogating a decoy, or killing Teale before he talks, breaks the rule: LANTERN's line, then
+- **Breaking it:** interrogating a decoy breaks the rule: LANTERN's line, then
   section restart at that section's checkpoint (M1). Per A11 Teale is despawned and respawns unalerted at his bolt point
   (W2 clock-mender's back loft) with his info. The restart keeps the spook, so the retry is a new route, not a replay.
   Engine note for EN2: `restore(section)` keeps the `tgc-spooked` flag (PLAN 3 resets section facts; this is the one
   exception). Michael picked this (2026-10-25 ~18:05, "He moves (Recommended)"), so there is no put-him-back fallback.
-- Knock-outs are allowed on anyone except Teale before step 3 is done (a knocked-out courier cannot talk).
+- **Teale knocked out or killed before he talks:** he is the mission's protected character, so this restarts the
+  section from its checkpoint (G353; Michael ~11:20: "Section restart"). A
+  courier who is down cannot talk, so without the restart the mission would stall. Knock-outs are allowed on anyone
+  else, and on Teale once step 3 is done.
 
 ## Beat chart (5 steps, 19 min)
 | # | Sec | Min | Kind | Objective-list line | In-world lead | Forced co-op move (section) | New mechanic | Intel -> exploit |

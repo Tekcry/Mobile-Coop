@@ -99,7 +99,7 @@ cd C:/NightShift/Mobile-Coop-<...> && git diff 92d0205d $SPLIT -- <file list> > 
 | PR | Line 1 / kind | Entries (one bullet each) |
 | --- | --- | --- |
 | C1 | `# Missions: core` / minor | Mission definitions and the step runner (steps, intel -> exploit facts, section snapshots), dark; new flags `missions` and `coopKit` (owner Marlow Build, off). |
-| C2 | `# Missions: rules and objective list` / minor | Mission rules (ghost, no kills, no alarms, named target, one chance ...) on section rating's marks; the objective list HUD; Settings > Gameplay > Hints (with `?missions=1`). |
+| C2 | `# Missions: rules and objective list` / minor | Mission rules (ghost, no kills, no alarms, named target ...) on section rating's marks, each break restarting the section; the objective list HUD; Settings > Gameplay > Hints (with `?missions=1`). |
 | C3 | `# Missions: Sector Ops wiring` / minor | `?missions=1&mission=<id>` runs a mission on a Sector Ops map: a broken rule restarts the section from its checkpoint, a wrong interrogation spooks the target, missions start at their own section with their own guards; the campus test mission. |
 | C4 | `# Co-op kit: move registry` / minor | Kit plumbing for new co-op moves (registry, per-tick hook, pose ids), behind `?coopkit=1`. |
 | C5 | `# Co-op kit: pull-up` / minor | The pull-up: catch a jumping partner at a 4.3-4.5 m lip and haul them up (placeholder poses), behind `?coopkit=1`. |

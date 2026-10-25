@@ -30,12 +30,12 @@ export interface MissionStep {
   gives?: string; needs?: string;                 // intel -> exploit: a fact flag (a code, a route, which target); exploit opens only with it
   target?: string; decoys?: string[]; bolt?: [number, number, number];   // interrogate: named guard (SectorGuard slot), wrong ones spook him to `bolt`
   item?: string; site?: string;                   // carry / plant: the item id and the place it goes (plant-not-take)
-  window?: number; soloWindow?: number;           // sync: both halves within `window` s; one player alone gets `soloWindow` (named in the briefing)
+  window?: number; soloWindow?: number;           // sync: both halves within `window` s (solo: `soloWindow`, named in the briefing); a miss resets the step to try again, never a fail (G334)
   twist?: boolean;
   optional?: { reward?: 'gadget' | 'syringe' | 'medkit' };  // Sector Ops only, paid through section-rating's Grant (sectionRating.ts:94); campaign: none (Q19)
 }
-export type RuleKind = 'ghost' | 'noKills' | 'noAlarms' | 'noBodies' | 'namedTarget' | 'noGadgets' | 'plantNotTake' | 'oneChance' | 'window';
-export interface MissionRule { kind: RuleKind; scope: 'mission' | 'a' | 'b'; text: string; step?: string; seconds?: number }
+export type RuleKind = 'ghost' | 'noKills' | 'noAlarms' | 'noBodies' | 'namedTarget' | 'noGadgets' | 'plantNotTake';
+export interface MissionRule { kind: RuleKind; scope: 'mission' | 'a' | 'b'; text: string; step?: string }   // every break restarts the section (G290)
 export interface MissionTrack { team: 'a' | 'b'; zones: string[]; boxes: [number, number, number, number][] }  // SectorGuard.zone (sectors.ts:93) + plan boxes
 export interface MissionDef {
   id: string; mode: 'campaign' | 'sector'; players: number[];      // campaign [2]; Sector Ops [1,2,3,4] (A1)
@@ -69,20 +69,29 @@ export function checkMission(d: MissionDef, guards: ReadonlySet<string>): string
   test, per track); an alarm or body found by the position of the device / body in a track's boxes, else against both.
   Other rules: `gadget` event (gameEvents.ts:32) + `onRemoteGadget` (gameMode.ts:93) for no gadgets; `intel` event
   (gameEvents.ts:7) gains `eid` (intelReveal.ts:9, :26; callers takedownController.ts:477-480, coopHost.ts:1727-1728) for
-  named target; interactable use for plant-not-take; the step clock for a named window.
+  named target; interactable use for plant-not-take. No rule runs on a clock: time windows are soft only (G334), so
+  there is no window rule and no seconds countdown.
 - **Section restart on a broken rule**: the host says the rule's line (radio) and calls `SectorMode.restartSection()`
   (sectorMode.ts:1158; Marlow's `spotFail` precedent courseMode.ts:585-599). It already resets: objective / connector /
   alarm stage (`SectorRun.restartSection` sectors.ts:800), team doors and pair gates, section codes (`rekey`), guards and
   their memory, loadout, gadgets in the world, crates, cameras, lamps and doors, the rating counters (`freshCounters`;
   a restart never re-rates). Added: `runner.restore(section)`, tracker reset, a 2 s hold (courseMode.ts:100 `SPOT_HOLD`
-  pattern) so a rule cannot fire again before both players respawn. `oneChance` (opt-in) ends the mission instead (A12).
+  pattern) so a rule cannot fire again before both players respawn. No rule ends the mission: G339 voided A12's
+  one-chance and window kinds, so every strict-rule break restarts the section (G290).
+- **Protected characters**: knocking out or killing a named character the mission needs (an interrogation target
+  before he talks) restarts the section the same way (G353; Michael ~11:20: "Section restart"), so a mission can
+  never stall.
+- **Code to bring in line**: the engine branch (feature/mission-engine) was built before G339 and Q19 and still has the
+  `oneChance` / `window` rule kinds, the blip reader and a required reward on optional steps (the wharf missions carry
+  a gadget and a syringe). The code changes follow these docs (ROADMAP Now 7-8).
 - **Spook** (A11): interrogating a decoy despawns the real target and respawns him unalerted at `bolt` with his info
   (enemyManager.ts:1705 `despawn`, :1864 `spawn`; no src/ai change). With the `namedTarget` rule a decoy read also breaks it.
 - **Extraction**: the `extract` step is `SectorRun`'s extract phase (sectors.ts:777-782: every living player holds the zone).
 - **Objective list HUD** (`src/ui/hud/missionHud.ts`, text from `missionText.ts`): rows per team ("Team A - Ghost: reach
-  the second-floor records room"), the rules line under the title, done rows ticked; no compass / minimap objective
-  blip while a mission runs (sectorMode.ts:1355-1357 returns [] ; A10). Hint line under the current row only when
-  `gameplay.hints` (new, default false; settings.ts:98 type, :161 default, :375 sanitize; settingsScreen.ts:156 row in
+  the second-floor records room"), the rules line under the title, done rows ticked. There is no minimap, compass or
+  objective blip in any mode (G339, A10 void); the list's place names are the only guidance (G336). Hint line
+  under the current row only when `gameplay.hints` (new, default false; settings.ts:98 type, :161 default, :375
+  sanitize; settingsScreen.ts:156 row in
   Gameplay, :213 reset). Marlow's `courseMarkers` drill marker (courseMode.ts:85-98) is untouched (M1).
 - **Co-op sync, host-authoritative**: the `sector` message (protocol.ts:322, parse `sectorExtra` :649) gains optional
   `ms?: MissionWire` = `{ id, st: number[] (done bits per team), f: number (facts bits), rb: number (rule-break counter),
@@ -139,7 +148,7 @@ engine, kit, campaign map greybox). Two slices never share a file at the same ti
 | Id | What | Model | Files owned | Gate / tests | Est | Depends |
 | --- | --- | --- | --- | --- | --- | --- |
 | EN1 | Engine core: types, runner, rule tracker, text, wire pack | Opus | `src/game/mission/{missionDef,missionRunner,ruleTracker,missionText,missionWire}.ts`; `tests/mission/*.test.ts` (one per file) | `npx vitest run tests/mission/`, `typecheck:fast` | 4 h | - |
-| EN2 | Sector Ops wiring: adapter, restart on rule break, spook, intel `eid`, blips, test mission | Opus | `src/game/mission/sectorMission.ts`; `src/game/modes/sectorMode.ts` (hooks only: :341-350, :775-807, :1158, :1311, :1343, :1355); `src/game/gameEvents.ts`; `src/game/intelReveal.ts`; `src/game/takedownController.ts`; `src/world/mapDef.ts`; `src/game/sectors.ts` (`SectorNetExtra.ms?` :894); `src/world/maps/campusMissionTest.ts` (2-section test mission on S1-S2); `src/world/maps/campusOps.ts:86`; `tests/mission/sectorMission.test.ts`; e2e part `mission` in e2e-sectorops (new file `scripts/e2e-sectorops-mission.mjs`, `scripts/run-e2e.mjs:50`) | vitest file + `tests/sectorRestart.test.ts`, `tests/sectorRatingHost.test.ts`; laptop: e2e-sectorops:1-6 + mission part, e2e-section-rating, e2e-ctcourse:1-4 | 5 h | EN1 |
+| EN2 | Sector Ops wiring: adapter, restart on rule break, spook, intel `eid`, test mission (no blip: G339 removes it in every mode) | Opus | `src/game/mission/sectorMission.ts`; `src/game/modes/sectorMode.ts` (hooks only: :341-350, :775-807, :1158, :1311, :1343); `src/game/gameEvents.ts`; `src/game/intelReveal.ts`; `src/game/takedownController.ts`; `src/world/mapDef.ts`; `src/game/sectors.ts` (`SectorNetExtra.ms?` :894); `src/world/maps/campusMissionTest.ts` (2-section test mission on S1-S2); `src/world/maps/campusOps.ts:86`; `tests/mission/sectorMission.test.ts`; e2e part `mission` in e2e-sectorops (new file `scripts/e2e-sectorops-mission.mjs`, `scripts/run-e2e.mjs:50`) | vitest file + `tests/sectorRestart.test.ts`, `tests/sectorRatingHost.test.ts`; laptop: e2e-sectorops:1-6 + mission part, e2e-section-rating, e2e-ctcourse:1-4 | 5 h | EN1 |
 | EN3 | Objective list HUD + hint setting | Sonnet (strict brief) | `src/ui/hud/missionHud.ts`; `src/core/settings.ts`; `src/ui/screens/settingsScreen.ts`; `tests/settings.test.ts`, `tests/settingsCover.test.ts` | vitest 2 files; laptop: e2e-menus | 2 h | EN1 |
 | KIT0 | Kit plumbing: new TeamKind ids, a move registry so each move lives in its own file, kit device hook | Opus | `src/game/teamMoves.ts:12`; `src/game/teamController.ts:199-280`; `src/game/kit/registry.ts`; `src/anim/clips/team.ts:29` (ids only, agreed with Player Build); `tests/kit/registry.test.ts` | vitest; `tests/hangDownNet.test.ts` stays green | 2 h | - |
 | KIT-PULL | Pull-up move (host rule, timing, landing) | Opus | `src/game/kit/pullUp.ts`; `tests/kit/pullUp.test.ts` | vitest; e2e-coop after NET | 4 h | KIT0 |
@@ -188,7 +197,8 @@ house (east and west wings, strongroom), W4 wharf sheds (extraction); about 120 
 campusSectors.ts:306), S2 HQ atrium and offices (campusS2.ts, campusSectors.ts:354), S3 Lab block (campusS3.ts,
 campusSectors.ts:399), S4 Data hall (campusS4.ts, campusS4Data.ts:172), S5 The Old House (campusS5.ts, campusS5Data.ts:163).
 Split Shift = S2 (Team Ghost L1-L2 offices, Team Shadow G-floor plant / breaker power cut); Code Relay = S4 (code from a
-named NOC officer, cage keypad, 30 s window named in the briefing). SS / CR writers read Sector Ops' pages
+named NOC officer, cage keypad; the release lasts 30 s and can be asked for again, a soft window with no hard
+countdown, G334; Michael 2026-10-25 ~18:05: "Approve, code re-askable (Recommended)"). SS / CR writers read Sector Ops' pages
 (`origin/feature/sector-redesign-signoff:docs/sector-redesign/signoff/`, `graph/plan/campusOps-S<N>.json`) and send room or
 node needs to "Night Shift | Sector Ops Build" through the lead.
 
@@ -218,6 +228,6 @@ node needs to "Night Shift | Sector Ops Build" through the lead.
   end, the greybox PR waits for it, the rest of PR C does not.
 - Sector Ops' sign-off may rename campus spaces: SS / CR graphs reference ids from their plan graphs and are re-run then.
 - New kit moves use placeholder clips until Player Build's clips land; the e2e asserts states, not poses.
-- Open: Code Relay S4 or S5 (A14); one-chance opt-in UI (a briefing toggle, later); whether a Sector Ops optional
+- Open: whether a Sector Ops optional
   objective keeps its reward across a restart (planned: no, the section's work resets).
 - Assumed decisions A6-A18 are in BRIEF.md with how to undo each.

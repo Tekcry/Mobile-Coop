@@ -59,13 +59,13 @@ These override the brief where they differ (decision 3's "Marlow's stripes go" i
 - A9 Teams: slots 0 and 2 = Team A, 1 and 3 = Team B; with 2-3 players one each (the third joins A); solo carries both.
   Attribution: kills, knock-outs, gadgets, interrogations by player slot; ghost by the alerted guard's track zone;
   alarms and found bodies by position in a track's boxes, else against both teams. Undo: mission-scope rules only.
-- A10 The hint layer is text only (`gameplay.hints`, default off, Settings > Gameplay). While a mission runs the Sector
-  Ops compass / minimap objective blip is off, hints on or not. Marlow's course markers are unchanged. Undo: hints on
-  also shows the blip.
+- A10 The hint layer is text only (`gameplay.hints`, default off, Settings > Gameplay). The minimap, compass and
+  objective blip are removed in every mode (G339, which voids the rest of A10), hints on or not. Marlow's course
+  markers are unchanged.
 - A11 Spook: a decoy's interrogation despawns the real target and respawns him unalerted at an authored bolt point with
   his info (no Guard AI change); with the named-target rule it also breaks the rule. Undo: spook = alerted search.
-- A12 Breaking the opt-in one-chance rule ends the mission; a named window running out restarts the section. Undo:
-  one-chance as a restart.
+- A12 Replaced (G339): there is no one-chance rule and no window rule. Every strict-rule break restarts the section
+  (G290), and time windows are soft only, with no countdown that closes a route (G334).
 - A13 Three branches: `feature/mission-framework` (docs, specs, graph-svg; PR A), `feature/mission-validator` stacked on
   `feature/level-validator-v6` (PR B, same train as V6), `feature/mission-engine` (engine, kit, wharf greybox; PR C).
   Undo: one branch and one PR.

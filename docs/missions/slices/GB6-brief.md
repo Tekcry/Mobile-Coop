@@ -82,7 +82,8 @@ Two co-op runs on `tallowWharf`, host + client over `?net=local`, `E2E_GPU=1` (t
   then `A.waitForSelector('.results-screen', { timeout: 15000 })` and `.results-title` is `VICTORY`.
 - After each section: `const hb = M.runner.doneBits` on the host; `until(B, (b) => window.__app.current.net.mission.runner?.doneBits === b, hb, 8000, 'client mirrors the steps')`
   (coopClient.ts:126); once per run: the client's `.mission-hud` is shown with at least one `.mh-row` (coopClient.ts:221-227).
-- Host checks once per run: `window.__sector.blips().length === 0` (no objective blip, A10).
+- No blip check: G339 removes the minimap, compass and objective blip in every mode, so the run asserts nothing about
+  them.
 - A move helper failure prints `teamLog(A)` and `teamLog(B)` (e2e-net-lib.mjs:265) before rethrowing.
 - Exit: `process.exit(failed || consoleErrors ? 1 : 0)`; console problems listed as in e2e-sectorops-mission.mjs:124.
 
@@ -110,7 +111,7 @@ Two co-op runs on `tallowWharf`, host + client over `?net=local`, `E2E_GPU=1` (t
 ## 5. The missions, step by step (host page unless said; `sim` = `waitSim(ms)`)
 **Three Grey Coats** (steps tgc-1, tgc-2, tgc-3, tgc-opt, tgc-4, tgc-5; tallowWharfMissions.ts:28-113)
 1. Start: `dbg().index === 0`, `mission.id === 'threeGreyCoats'`, `mission.section === 0`; client within 2 m of W1
-   `start2` (8.5, 0, 10) (section 0: no NET3 needed). Blips 0; client HUD rows.
+   `start2` (8.5, 0, 10) (section 0: no NET3 needed). Client HUD rows.
 2. W1 move (4). tgc-1: host to (22, 0.1, 41), `sim(1500)` -> `fact('tgc-1')` and `stepDone('tgc-1')`. tgc-2: host on the
    gallery at (3.6, 4.6, 50.6) yaw -PI/2, use `c-sintel-0-1` (tally book); host to (18.75, 0.1, 7.75), `sim(5000)`
    (tea-stall talk, talkers W1:7, 8 alive) -> `stepDone('tgc-2')`, `fact('tgc-courier')`. `dbg().phase === 'connector'`.

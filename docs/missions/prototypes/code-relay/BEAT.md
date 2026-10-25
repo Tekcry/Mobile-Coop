@@ -11,8 +11,10 @@ device that is still planned, not built.
 ## Premise
 Orrin's build and signing logs for the Tidewater controllers sit on one terminal in a mesh cage on the data-hall floor
 (the section objective as built: a 10 s download that opens C4). Tonight the terminal will not run a download without a
-release code from the NOC, and a release lives 30 seconds. Only the duty NOC officer can issue one. One team goes over
-the roof to the NOC and makes the right man issue it; the other waits in the cage to use it before it dies.
+release code from the NOC, and a release lasts 30 seconds. Only the duty NOC officer can issue one. One team goes over
+the roof to the NOC and makes the right man issue it; the other waits in the cage to use it in time. A release that
+runs out is no loss: Relay asks the duty officer for another (a soft window, no hard countdown, G334; Michael
+2026-10-25 ~18:05: "Approve, code re-askable (Recommended)").
 
 ## Teams and solo (A9)
 - **Team Relay = Team A** (slots 0 and 2): track A, high / north: the generator compound, plant ladder, roof deck, cable
@@ -23,7 +25,8 @@ the roof to the NOC and makes the right man issue it; the other waits in the cag
   roster gives 1A's answer; in by the compound's cable-pull door on the dock code, the riser and the north corridor),
   2B (the front gate, now that the desk loop has the cage camera), 3A, 3B, 4, 5 (about 27 min with the optional, rated
   lower; the roof is skipped). The simultaneous beat (Relay issues, Vault enters within 30 s) has a named solo fallback
-  in the briefing: alone, the duty officer issues a maintenance release instead, good for 90 seconds.
+  in the briefing: alone, the duty officer issues a maintenance release instead, good for 90 seconds, and it can be
+  asked for again too.
 
 ## Rules (2: mission 1, Relay 1; each team and a solo player carry at most 2, Michael's cap)
 | Scope | Rule | Briefing line | Objective-list line |
@@ -39,8 +42,9 @@ the roof to the NOC and makes the right man issue it; the other waits in the cag
 - **Breaking one (M1):** LANTERN's line, then section restart from the C3 checkpoint. A mission rule (an alarm) sends
   both teams back. A team rule sends that team back; its S4 steps and facts reopen, the other team's done steps stay
   (`runner.restore` per team; EN2: today `restartSection`, sectorMode.ts:1158, resets the section for everyone).
-  Questioning Pryce spooks Dunmore (A11: he respawns unalerted at the bolt point) and breaks Relay's rule; knocking
-  Dunmore out before he talks breaks it too (no release is possible). Knock-outs are allowed on everyone else.
+  Questioning Pryce spooks Dunmore (A11: he respawns unalerted at the bolt point) and breaks Relay's rule. Knocking
+  out or killing Dunmore before the logs are out sends Relay back the same way (G353: he is the protected character,
+  and a release that runs out has to be asked for again). Knock-outs are allowed on everyone else.
 
 ## Beat chart (per team 5 steps incl. the twist and extraction; co-op ~17 min, solo ~27 min)
 | # | Team | Campus space | Min | Objective-list line (no markers) | In-world lead | Sync node -> opens for the other team | Gives / needs | Hint (off by default) |
@@ -49,8 +53,8 @@ the roof to the NOC and makes the right man issue it; the other waits in the cag
 | 1B | Vault | s4-dock | 2 | Read the dock board for the door codes, between the dock pair's trips | The board line "plant doors 2208, battery room the same" (:202), lit by its own lamp (16, 2.4, 21.5), the dock's west half dark | **sync-s4-dockboard** (code_source, built): the code opens kp-batt for Vault and kp-deck (the riser door) for Relay | gives `s4-codes` | "The board is at the west end of the dock, by the goods door into the lobby." |
 | 2A | Relay | s4-deck -> s4-baskets -> s4-riser -> s4-nc -> s4-sec | 4 | Down the cable riser to the north corridor; loop the hall cameras at the security desk | The riser hatch the deck patrol covers; the desk under its warm console lamp (the operator #5, :46, sits at it; the night runner #25 walks desk to side door, ~30 s) | **sync-s4-desk** (camera_loop, built `desk-sec4` :165): loop (30 s), then off until a restart: cam-cage, cam-mantrap, cam-dock4. Opens the cage front for Vault | needs `s4-codes` (kp-deck) | "The side door is behind the operator. The runner uses it every thirty seconds." |
 | 2B | Vault | s4-lobby (goods lane) -> s4-batt -> s4-hall -> s4-cage | 4 | Through the dark battery room to the cage; get inside and wait at the terminal | The keyholder (#9, :52) at the front gate under cam-cage, the second keyholder (#22) circling the cage (~40 s); #9's line "Nobody runs that terminal without a NOC release" | - (rear dual-custody gate: two Vault players press together; one player uses the front gate after sync-s4-desk) | needs `s4-codes` (kp-batt) | "Cold aisles are the dark way. The second keyholder circles the cage. Time him." |
-| 3A | Relay | s4-sec -> s4-noc | 3 | Up to the NOC; make the duty officer issue a cage release | `s4-noc-duty` + Dunmore's seat placard at the window (pending); Pryce sits beside him | **sync-s4-noc** (code_source): the release goes to the cage terminal; Vault has 30 s (solo 90 s) | needs `s4-noc-duty`; gives `s4-release` (new mechanic: named interrogation) | "Two at the window. Deal with the other one first, quietly. Then ask the right one." |
-| 3B | Vault | s4-cage | 3 | Enter the release at the cage terminal and pull the build and signing logs | Relay's call; the terminal screen turns from red to the release prompt | **sync-s4-cagekp** (code_sink): the 10 s download (:180) opens C4 for everyone | needs `s4-release` (new mechanic: relayed code window) | "Be at the terminal before Relay asks. Thirty seconds is not long." |
+| 3A | Relay | s4-sec -> s4-noc | 3 | Up to the NOC; make the duty officer issue a cage release | `s4-noc-duty` + Dunmore's seat placard at the window (pending); Pryce sits beside him | **sync-s4-noc** (code_source): the release goes to the cage terminal; Vault has 30 s (solo 90 s); if it runs out, Relay asks Dunmore again | needs `s4-noc-duty`; gives `s4-release` (new mechanic: named interrogation) | "Two at the window. Deal with the other one first, quietly. Then ask the right one." |
+| 3B | Vault | s4-cage | 3 | Enter the release at the cage terminal and pull the build and signing logs | Relay's call; the terminal screen turns from red to the release prompt | **sync-s4-cagekp** (code_sink): the 10 s download (:180) opens C4 for everyone | needs `s4-release` (new mechanic: relayed code window; a lapsed release turns the screen red again, nothing restarts) | "Be at the terminal before Relay asks. Thirty seconds is not long." |
 | 4 | Both | s4-noc (window) + s4-hall -> s4-cage | 2 | **Twist:** keep the cage clear: the release has called the mobile supervisor | Relay sees the hall from the NOC window (armoured glass, the section's vantage) and calls him | - | - | "He comes up the west aisle, then east to the cage front. Relay can see all of it." |
 | 5 | All | s4-hall -> s4-ups -> s4-cc | 3 | Everyone out through the UPS room and down the colonnade | The colonnade sentry (K3, #19, :69) posted at the C4 door | - | - | "UPS room: hall's north-west corner. The colonnade sentry faces east, into the corridor." |
 - **Twist (4):** the release posts to the site log; the mobile supervisor (#20, :71, body armour) leaves the west aisle for
@@ -83,6 +87,7 @@ sent back to C3 by a restart crosses the dock and the hall again; the mission do
 - SEXTON (after 1A): "Dunmore. West seat. The other one's Pryce. Leave Pryce's opinions out of it."
 - TALLY (after 2A): "Cage camera's looping. Then it's off. Nobody's watching the cage but you."
 - LANTERN (3A, release issued): "Release is live, Vault. Thirty seconds. Go."
+- TALLY (release ran out): "Release has lapsed. Relay, ask him for another. Politely."
 - SEXTON (twist): "Supervisor's off the west aisle, heading for the cage. Twenty metres."
 - LANTERN (after 3B): "Logs are out. Colonnade, everyone. Quietly."
 - LANTERN (rule broken, Relay): "Wrong man. He's warned Dunmore. Back to the dock, Relay."
@@ -96,7 +101,7 @@ sent back to C3 by a restart crosses the dock and the hall again; the mission do
 | sync-s4-desk | camera_loop | s4-sec | `desk-sec4` at (-2.8, 44.6), cams cage / mantrap / dock4 (built) | `campusS4Data.ts:165` | s4-nc: the side door (8, 43.5) |
 | kp-riser | code_sink for `s4-codes` | s4-yard -> s4-riser | the compound's cable-pull door (34, 46.5), plant-doors code: a lone Relay player's way up (pending) | S4 C22 | s4-dock: the board |
 | sync-s4-noc | code_source | s4-noc | the NOC console release, issued by interrogating #14 | planned | s4-deck: #13's radio stop (12..30, 36); s4-sec: duty roster by the desk |
-| sync-s4-cagekp | code_sink | s4-cage | release prompt on the cage terminal (18, 0, 38.3); window 30 s, solo 90 s | planned | s4-hall: the keyholder's line at the front gate (18, 33) |
+| sync-s4-cagekp | code_sink | s4-cage | release prompt on the cage terminal (18, 0, 38.3); window 30 s, solo 90 s, re-askable | planned | s4-hall: the keyholder's line at the front gate (18, 33) |
 | lead-s4-deckradio | intel (overheard) | s4-deck | #13's radio line, grants `s4-noc-duty` | planned | - |
 | lead-s4-roster | intel (document) | s4-sec | duty roster beside the desk, grants `s4-noc-duty` (solo's lead) | planned | - |
 | NOC seat placard | landmark | s4-noc | name strip on Dunmore's west seat (x 1.0) | planned | - |
@@ -135,7 +140,8 @@ sent back to C3 by a restart crosses the dock and the hall again; the mission do
 - Id change kept from the first pass: `s4-svc` is part of `s4-lobby` (its goods lane), so 2B runs dock, lobby, battery
   room, hall, cage.
 - MissionDef fields kept in the graph for EN2: cr-3a has `target` #14 Dunmore, `decoys` #15 Pryce and `bolt`
-  (28, 0, 45.8). cr-3b has `window` 30 and `soloWindow` 90. Tracks: Relay owns the roof deck by height (y >= 7.3, EN2).
+  (28, 0, 45.8). cr-3b has `window` 30 and `soloWindow` 90; a lapsed window only re-opens the ask (Relay questions Dunmore
+  again for a new release), never a restart (G334). Tracks: Relay owns the roof deck by height (y >= 7.3, EN2).
 - Validator (mission-validator 0c62a921, the five plan graphs at 7c021f01 + this file; the same on 4ea5d26bf at
   fe3ef35f): 0 errors, 120 warnings: 119
   campus-own (the run without a mission gives 0 / 119), 0 mission errors, 1 mission warning:

@@ -38,13 +38,15 @@ Signed off by Michael 2026-10-25 ~18:05 (his pick is at the bottom).
    - **Optional (W2, 2 min):** read Pell's courier rota in the pawnbroker's loft. No reward (campaign optional
      objectives give none, Michael's Q19 "None (Recommended)"); the rota names the nights.
 4. Rule (1, the whole mission): "Rule - question only Pell's courier." It is the last line of the briefing and sits
-   under the title in the objective list. Questioning a decoy (Fenn or Garrow), or killing Teale before he talks,
-   breaks it. LANTERN says the line, and the team goes back to the arcade checkpoint. Teale is now unalerted in the
-   clock-mender's back loft, so the retry needs a new route. No markers: the objective lines name the places, and the
-   hint layer is off by default.
+   under the title in the objective list. Questioning a decoy (Fenn or Garrow) breaks it. LANTERN says the line, and
+   the team goes back to the arcade checkpoint. Teale is now unalerted in the clock-mender's back loft, so the retry
+   needs a new route. Knocking out or killing Teale before he talks also restarts the section (a protected character,
+   G353), so the mission can never get stuck. No markers: the objective lines name the places, and the hint layer is
+   off by default.
 5. What it costs: paper only until you pick. After that, the mission is wired into the wharf greybox (the guards and
    missions slice), and the section restart needs one engine exception: it has to remember that Teale was spooked.
-   Validator: 0 errors, 6 warnings, all on the map's own custom-size spaces (BEAT.md Graph notes).
+   Validator: 0 errors, 6 warnings, all on the map's own custom-size spaces (BEAT.md Graph notes); since Q19 the
+   optional has no reward, so the validator gives 1 error until it is updated to match.
 
 ## The decision
 Q: Approve Three Grey Coats as specced?
