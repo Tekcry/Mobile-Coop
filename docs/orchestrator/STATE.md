@@ -32,6 +32,13 @@ Detail: ROADMAP "Now" (rewritten ~12:35) and HANDOFF "State at the switch"; this
   owner the same run. J20 release order: #445 PR-C, then PR-A, then PR-B (Job-done).
 - Over Remote Control the app refuses start_session and proposal cards (2026-10-25 18:30): Michael types "start the
   leads" in the desktop app, or pastes PROMPTS.md lines 2-5 there.
+- Posting `checker` (or `train-ready`): run `gh api repos/Tekcry/Mobile-Coop/statuses/<sha> ...` as a lone command;
+  the user settings allow rule matches it, while a command chained with `;` / `&&` goes to the auto-mode filter and is
+  blocked as self-approval (2026-10-25 ~20:12). Tell leads the same.
+- Laptop SSH link (2026-10-25 ~20:00, Michael picked "Yes, guide me"): desktop key ~/.ssh/id_ed25519 (MICHAEL-PC);
+  laptop ALIENWARE-X16 user Micha, 192.168.1.249; Michael ran the OpenSSH Server install as admin. Once
+  `Test-NetConnection ALIENWARE-X16 -Port 22` passes and Michael adds the SSH connection in the desktop app, start
+  Guard AI and Test Runner there with start_session (target ssh) at each swap instead of printing their boot lines.
 - On Windows a "stopped" background runner can survive: `taskkill /T /F` on its PID and confirm the tree is gone.
 - After a release CI failure: fix on train/<n>, wait for CI, then
   `node scripts/merge-train.mjs release <n> <version> "<title>" --resume`.
