@@ -263,7 +263,7 @@ describe('Marlow re-plan A8: the stations (STATIONS.md section 3)', () => {
     expect(sheet.map((s) => s.drillS)).toEqual([undefined, undefined, 25, 60]);
     // the windows are the set's own: 25 s the night circuit's timed cut, 60 s the console's loop
     expect(def.bays[7]!.gates.find((g) => g.id === 'g-a8-night')).toMatchObject({ kind: 'isolator', seconds: 25 });
-    expect(course.consoles.find((c) => c.id === 'a8-console')).toMatchObject({ seconds: 60 });
+    expect((course.consoles ?? []).find((c) => c.id === 'a8-console')).toMatchObject({ seconds: 60 });
   });
 
   it('every mark is on the 0.5 m grid, inside its graph space and the set, with standing room (a body of radius 0.3) on a floor at its height; A stands at 4.4 on the office floor for 19-21', () => {
