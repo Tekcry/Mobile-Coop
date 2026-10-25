@@ -1,0 +1,13 @@
+{
+  "id": "20261025T105350-night-shift-test-run-259bbe55-82df",
+  "sha": "259bbe5591ec5054ca9991c25cfbbf3d4ba15f6e",
+  "branch": "feature/test-runner-j20-s6c",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Test Runner",
+  "suites": [
+    "e2e-sectorops:6",
+    "e2e-ctcourse"
+  ],
+  "set": "j20-s6c"
+}
