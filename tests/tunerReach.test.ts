@@ -198,6 +198,9 @@ describe('tuner clarity: the reach table', () => {
     expect(editWarning('keys', keyGroupId('walk', 1), 'handL_indexCurl', cap)).toContain(WORKS_INSTEAD.fingers);
     // Body arm swing on the capture: nothing works there, the switch does
     expect(editWarning('body', 'walk', 'armSwingMul', cap)).toContain('turn Motion capture off in More > Panel');
+    // knee lift and foot track: the Joints leg rows do reach the capture
+    expect(editWarning('body', 'walk', 'kneeLiftMul', cap)).toContain(WORKS_INSTEAD.legLift);
+    expect(editWarning('body', 'walk', 'trackMul', cap)).not.toContain(WORKS_INSTEAD.none);
     expect(editWarning('weight', 'weight.walk', 'plantDrop', cap)).toContain('hand-made walk only');
     expect(editWarning('step', 'step.walk', 'lift', cap)).toContain('Motion capture places the steps now');
     expect(editWarning('hand', 'hand.rifle.walk', 'handLFwd', cap)).toContain('gun in hand');

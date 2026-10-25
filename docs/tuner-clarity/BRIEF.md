@@ -51,7 +51,9 @@ Nothing yet (no multiple-choice question asked for this job).
 - A9. (planner) The Keys tab gets one part per leg plus the finger parts, so nothing keyed sits under "Whole body".
   Undo: regroup in `tunerTarget.ts keyRow`.
 - A10. (planner) Rows for moves with no motion-capture take say "Hand-made"; camera and gear rows get no tag.
-- A11. (planner) "Not playing now" marks only rows tied to a body state that is not the one playing.
+- A11. (planner) "Not playing now" marks a row only when its own state plays the other way (a hand-made-only row
+  while motion capture plays it, a capture-only row while the hand-made move plays); a row of a state that is not
+  playing keeps its tag and its edit raises the warning instead. Undo: `rowNow` in `src/ui/tunerReach.ts`.
 - A12. (planner) The More > Panel "Mocap locomotion" box keeps its behaviour and gets a plain label ("Motion capture for walk, jog, run, sneak and aimed strafe (off = hand-made)"). Undo: the old string.
 
 ## Gates

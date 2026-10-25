@@ -412,6 +412,8 @@ export const WORKS_INSTEAD = {
   legs: 'Body > Joints, Left / Right ankle turn (or the thigh and knee rows), or Hands & feet, foot forward / out',
   /** Stepping on the capture. */
   steps: 'Hands & feet, foot forward / up / out',
+  /** Body knee lift and foot track: the Joints leg rows do reach the capture. */
+  legLift: 'Body > Joints: the thigh and knee rows',
   /** Body arm swing, shoulder twist, lean, elbows out; Weight hip drop: nothing changes them on the capture. */
   none: 'Nothing changes this on motion capture: turn Motion capture off in More > Panel to see it',
 } as const;
@@ -457,5 +459,8 @@ export function editWarning(section: string, group: string, id: string, now: Rea
   if (section === 'keys') return `${head} Keys change the hand-made ${move} only. To change it now: ${WORKS_INSTEAD[keysFamily(id)]}.`;
   if (rowDrawn(section, group)) return `${head} This row is for her with a gun in hand. Draw a gun to see it.`;
   if (section === 'step') return `${head} Motion capture places the steps now. To move her feet on it: ${WORKS_INSTEAD.steps}.`;
+  if (id === 'kneeLiftMul' || id === 'trackMul') {
+    return `${head} This slider changes the hand-made ${move} only. To change it now: ${WORKS_INSTEAD.legLift}.`;
+  }
   return `${head} This slider changes the hand-made ${move} only. ${WORKS_INSTEAD.none}.`;
 }
