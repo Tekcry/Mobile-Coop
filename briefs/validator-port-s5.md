@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 2 2026-10-25T11:50:10Z
 # J12 validator-port, slice S5 (Sonnet): graph-sets manifest + level-graphs runner
 
 Lead: Night Shift | Marlow Build. Plan passed (Opus plan check 3, PASS on 10b613dd3).
