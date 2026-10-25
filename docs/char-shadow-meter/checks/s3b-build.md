@@ -5,9 +5,51 @@ Builder: Night Shift | Cloud Builder 1 (Opus), 2026-10-25, to `docs/char-shadow-
 the lead's, after S2). Base `origin/feature/char-shadow-meter` c9b14bf1; branch `feature/char-shadow-meter-s3b`. Unit tests
 only (tsc and single vitest files, `--maxWorkers=2`); every e2e / GPU leg is a pending PC run.
 
-**Result: BLOCKED at step 2's allocation gate.** One 4-player fill with the real field reads **8544 B** against the
+**Result (resumed 2026-10-26, Night Shift | Cloud Builder 3): gate PASSED after the lead's answer.** The A1 merge brings
+the real-field 4-player fill to **1616 B** against **<= 2432 B** (gate and `BOXED_BUDGET` unchanged), on Node 22 and
+Node 24; 54 / 54 green. Section "Resume: option (a)" below; the first run's blocked report is kept under it.
+
+**First run (Cloud Builder 1): BLOCKED at step 2's allocation gate.** One 4-player fill with the real field reads **8544 B** against the
 brief's **<= 2432 B**. Per the brief ("A reading over it: stop and report with ALLOC_TRACE=1, do not loosen") the gate
 is unchanged and the step stops here. The cause is inside `LightField`, not at the cue's call boundary (below).
+
+## Resume: option (a), the A1 merge (lead's answer 2026-10-26 ~00:10)
+
+**Step 1, merge** (a8e48b6c): `git merge --no-ff origin/feature/char-shadow-meter-a1`; rev-parse df64c0fa4 as the answer
+named (not moved). Git merged `src/world/lightField.ts` with no textual conflict, but the Q members still called the
+old double-argument steps; resolved by keeping A1's slots: `sourcesQ` and `sourceQ` copy `qp` into `pt` once per call,
+then run `sourcesInto` / `sourceAt`'s steps (`moonInto()`, `columnInto()`, `lampInto(i)`, `dynTermInto(i, occluded)`);
+`totalQ` unchanged (`totalInto` at `qp`); `qr` stays. The merge also brings `checks/a1-node22-fix.md`.
+
+**Step 2, the gate:** 1616 B per fill, under 2432 B, so the private-step extension (`levelInto`, `dynamicInto`,
+`totalInto`, `bounceInto`, `res` into a slot) was not needed and not done; `lightField.ts` has no further change and
+`src/world/lights.ts` is untouched. `ALLOC_TRACE=1`: every round 1616.0 at 0x51 (Turbofan), 25 rounds, no scavenge; the
+control 1648.0 throughout. The residual (~101 boxes a fill, ~21 B a field call) was not bisected; by A1's report the
+likely carriers are `totalInto` / `levelInto` / `dynamicInto`'s double arguments on the `totalQ` path and
+`lights.lightTerm`'s returned double.
+
+**Step 3, readings** (`tests/shadowCues.test.ts tests/lightField.test.ts tests/charOccluders.test.ts --maxWorkers=2`,
+`npx -y node@<v> node_modules/vitest/vitest.mjs run ... --reporter=verbose`, two runs each; this container's default
+Node is 22.22.0, so "default" and "as CI" are the same runs; Node 24.22.1 added as A1 did). Before = 9b906182, after =
+a8e48b6c. Runs identical except where two values are given.
+
+| bytes-per line | Before, Node 22 | Before, Node 24 | After, Node 22 | After, Node 24 |
+| --- | --- | --- | --- | --- |
+| ShadowCues.fill, fake field (control 32.0) | 0.0 | 0.0 | 0.0 | 0.0 |
+| ShadowCues.fill, real LightField (gate <= 2432) | **8544.0** (control 8576.0) | **8544.0** (8576.0) | **1616.0** (1648.0) | **1616.0** (1648.0) |
+| transmitQ / transmitInto / capsuleTransmit | 0.0 / 0.0 / 0.0 (control 224.0) | 0.0 / 0.0 / 0.0 (240.0) | 0.0 / 0.0 / 0.0 (224.0) | 0.0 / 0.0 / 0.0 (240.0) |
+| levelAt | 64.4 | 56.8 | 16.0 | 16.0 |
+| bodyLevel (limit) | 155.6 / 126.8 (184.8) | 112.0 (169.6) | 61.6 (88.0) | 32.8 (88.0) |
+| control with a vector | 288.4 | 296.8 | 240.0 | 256.0 |
+| totalAt with a contract (none) | 58.4 (57.2) | 66.8 (64.8) | 16.4 (16.4) | 16.4 (16.4) |
+| bodyLevel with a contract (none) | 113.2 (112.0) | 128.4 (126.8) | 32.8 (32.8) | 32.8 (32.8) |
+| sourcesInto | 58.4 / 58.8 | 67.2 | 0.0 | 0.0 |
+| sourceAt | 23.2 | 25.6 | 0.0 | 0.0 |
+| control (contract scene) | 282.5 | 306.8 | 240.4 | 256.4 |
+| Tests | 53 / 54 (the gate) | 53 / 54 (the gate) | 54 / 54 | 54 / 54 |
+
+Other checks: `npx tsc --noEmit -p .` and `npm run typecheck:fast` clean; `npx eslint src/world/lightField.ts` clean.
+The 500-point Q bit-equality case and every existing lightField / charOccluders / shadowCues case pass unchanged.
 
 ## Step 1: Q members (a1619bac) - done
 
@@ -29,7 +71,7 @@ Existing readings on this tree (`lightField.test.ts`, unchanged cases): `levelAt
 control 288.4`; with a contract `totalAt 66.8 (none 64.8), bodyLevel 128.4 (none 126.8), sourcesInto 67.2, sourceAt 25.6;
 control 290.8`.
 
-## Step 2: shadowCues through the Q path (this commit) - built, gate fails
+## Step 2: shadowCues through the Q path (9b906182) - built, gate failed (passes after the A1 merge, above)
 
 **Files:** `src/world/shadowCues.ts` (`CueField` is now `{ qp, qr, sourcesQ, sourceQ, totalQ }`; the three call sites
 write `qp[0..2]`, call, read `qr[0]`), `tests/shadowCues.test.ts` (`FakeField` and the spy gain the Q members over
@@ -68,7 +110,7 @@ take `x, y, z` as double arguments and are called many times per query; in this 
 call boxes there, and the Q path adds a little (a `qr[0]` store of `this.res`). 76 x ~112 B = the 8.5 KB reading. The
 check's 5264 B came from a smaller scene (fewer columns and members per point).
 
-## What reaching the gate needs (for the lead)
+## What reaching the gate needed (first run; the lead chose option (a), above)
 - The zero-boxing option has to reach the private steps: pass the point through typed slots (as `CharOccluders.q` /
   `pushLv`) into `moonInto`, `lampInto`, `columnInto`, `dynTermInto`, `levelInto`, `dynamicInto`, `totalInto`, `triInto`,
   `bounceInto` (or Q twins of each), with `res` moved to a typed slot. That rewrites existing `lightField.ts` lines, so it
@@ -78,5 +120,5 @@ check's 5264 B came from a smaller scene (fewer columns and members per point).
 - Either is the lead's call; nothing here was loosened.
 
 ## Pending PC runs
-None for S3b-1 (no game call site yet: S3b-2 wires `GameState`). At PR B: affected-e2e plus `e2e-coop,e2e-netmove` with
+None for S3b-1 (resume: still none; no e2e or GPU leg applies to the merge) (no game call site yet: S3b-2 wires `GameState`). At PR B: affected-e2e plus `e2e-coop,e2e-netmove` with
 S4's suites (the brief's laptop line).
