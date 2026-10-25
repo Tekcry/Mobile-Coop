@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.104.1 - Train 106: Level validator: gate core (2026-10-25, PR #467; #464)
+- Level validator (tooling, no game change): the shared graph helpers move into one library
+  (`scripts/level-graph-lib.mjs`) that the level validator, the measure tool and the mission validator all import.
+  Each map mode (campaign, training, Sector Ops) now has its own rule profile, with empty check modules ready for the
+  measured, training, perfect-run and engine checks that follow. The new co-op kit moves (plank bridge, deadweight,
+  vent unlock, chimney pair, swing pass, drop catch) are known link kinds, and `teach:<move>` space tags are accepted.
+  Validator output on every map is unchanged.
+
 ## 4.104.0 - Train 105: Guard anim tier: off-screen every 8th frame (guard-cap T1) (2026-10-25, PR #465; #438)
 - A guard drawn in no local view now solves his animation every 8th frame (was every 4th); the far tier (every 2nd),
   the 4 m near-player rule, takedowns, holds, emotes, climbs and the frozen tier are unchanged, and the skipped time is
