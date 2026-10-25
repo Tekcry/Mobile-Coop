@@ -280,6 +280,16 @@ async function openDoor(h, P, who, cid, tag) {
   const d = await L.read(h.A, pgCourseDoor, cid);
   L.assert(!!d, `${tag}: the ${cid} door exists on the host`);
   if (d.target === 1) return d;
+  // (triage 2026-10-25) the door rows come only within 1.6 m of the door's centre, facing it (gameState.ts
+  // doorMenuCandidate); a stand point 1.4 m off with a 0.3 m walk tolerance left the host 1.6-1.7 m off L1-near on the
+  // desktop run ("rows: []"): step in to 1.0 m on the actor's side, along the axis it is furthest off, first
+  const m = await L.me(P);
+  const dx = m.x - d.cx;
+  const dz = m.z - d.cz;
+  if (Math.hypot(dx, dz) > 1.25) {
+    const stand = Math.abs(dx) >= Math.abs(dz) ? [d.cx + Math.sign(dx) * 1.0, d.cz] : [d.cx, d.cz + Math.sign(dz) * 1.0];
+    await L.walkTo(P, who, stand, { tol: 0.2, maxS: 6, creep: 1.5, what: `${tag}: ${who} steps up to ${cid}` });
+  }
   await L.aimAt(P, who, [d.cx, 1.2, d.cz], { tol: 0.05, maxS: 4 }).catch((e) => console.log(`  (${tag}: ${String(e.message).split('\n')[0]}; trying the row as it faces)`));
   await L.pickRow(P, who, /^Open door$/);
   const got = await ok(L.until(h.A, pgDoorTarget, [d.i, 1], MS, `${tag}: ${cid} opens on the host`));
@@ -372,7 +382,9 @@ async function toA2(h) {
 /** 2 m by the client's stick toward an open spot of its area (L1 or the A2 entry), then the host's copy within 0.5 m. */
 async function walk2m(h, tag) {
   const c = await L.read(h.B, pgClient);
-  const spots = c.x < A2_X0 ? [[26.6, 11.0], [23.4, 11.0], [25.0, 12.6]] : [[33.5, 12.5], [30.5, 11.0], [36.0, 12.5]];
+  // (triage 2026-10-25) a client still in the yard (west of L1's near door: the route stopped there) walks on the yard
+  // line it came in by, not into L1 through a closed door (desktop run: "stuck at 21.43, 11.98")
+  const spots = c.x < L1_BOX[0] ? [[16.0, 12.3], [18.0, 12.4], [14.6, 12.2]] : c.x < A2_X0 ? [[26.6, 11.0], [23.4, 11.0], [25.0, 12.6]] : [[33.5, 12.5], [30.5, 11.0], [36.0, 12.5]];
   const s = spots.find((p) => Math.hypot(p[0] - c.x, p[1] - c.z) >= 2.3) ?? spots[0];
   const d = Math.hypot(s[0] - c.x, s[1] - c.z);
   const to = [c.x + ((s[0] - c.x) * 2) / d, c.z + ((s[1] - c.z) * 2) / d];
@@ -388,7 +400,7 @@ async function walk2m(h, tag) {
 async function doorRow(h, tag) {
   const d = await L.read(h.A, pgCourseDoor, 'L1-far');
   const c = await L.read(h.B, pgClient);
-  const stand = c.x < A2_X0 ? [d.cx - 1.4, d.cz] : [d.cx + 1.4, d.cz];
+  const stand = c.x < A2_X0 ? [d.cx - 1.0, d.cz] : [d.cx + 1.0, d.cz];
   await L.walkTo(h.B, 'pad', stand, { tol: 0.3, maxS: 12, what: `${tag}: the client walks to L1's far door` });
   await L.aimAt(h.B, 'pad', [d.cx, 1.2, d.cz], { tol: 0.05, maxS: 4 }).catch((e) => console.log(`  (${tag}: ${String(e.message).split('\n')[0]})`));
   const t0 = (await L.read(h.A, pgCourseDoor, 'L1-far')).target;
