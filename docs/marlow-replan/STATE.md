@@ -39,7 +39,7 @@ Owner: Marlow Build. Status: current.
 - Blocks elsewhere: Player coop-kit part 2 + `kitMoves` (KS1-KS5); Guard AI board-noticed hook (KS5); J12 PR A / S2 /
   S4 / D-A and J13 R6 / R8 for G1's gates.
 - Marlow Yard is AT CAP: everything but F1 ships dark behind `marlowReplan` (target walk-ready Tue 27 Oct evening).
-- Next: S0 + R1 PASS -> merge both into feature/marlow-replan-base, fill its sha into the seven briefs, post them on
+- Next: (~23:15) S0 and R1 fix rounds were running (see j14-wave2-notes.md last entry). S0 + R1 PASS -> merge both into feature/marlow-replan-base, fill its sha into the seven briefs, post them on
   cloud-queue (tsc + vitest only; Michael ~22:10 desktop load to cloud); PRs 1 / 2 open; rerun any missing check.
 
 ## Done
