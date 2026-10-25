@@ -261,18 +261,24 @@ export class LightField {
     if (b && b.moonLight > 0) {
       this.moonInto(x, y, z);
       const m = b.moonLight * this.res;
-      if (m > 0) n = pushSource(ids, lv, n, max, -1, m);
+      if (m > 0) {
+        this.res = m;
+        n = this.pushRes(ids, lv, n, max, -1);
+      }
     }
     const cn = this.columnInto(x, y, z);
     for (let s = 0; s < cn; s++) {
       const L = this.colLv[s]!;
-      if (L >= CHAR_LIGHT.minLevel && this.inLampSet(s, cn)) n = pushSource(ids, lv, n, max, this.ids[this.colLamp[s]!]!, L);
+      if (L >= CHAR_LIGHT.minLevel && this.inLampSet(s, cn)) {
+        this.res = L;
+        n = this.pushRes(ids, lv, n, max, this.ids[this.colLamp[s]!]!);
+      }
     }
     const ls = this.reg.lights;
     for (let i = 0; i < ls.length; i++) {
       if (i < this.isBaked.length && this.isBaked[i]) continue;
       this.dynTermInto(i, x, y, z, occluded);
-      if (this.res > 0) n = pushSource(ids, lv, n, max, i, this.res);
+      if (this.res > 0) n = this.pushRes(ids, lv, n, max, i);
     }
     return n;
   }
@@ -357,6 +363,25 @@ export class LightField {
       if (M >= CHAR_LIGHT.minLevel && (M > L || (M === L && k < s))) rank++;
     }
     return rank < cap;
+  }
+
+  /** (char-shadow-meter) Insert (id, `res`) into the strongest-first lists of `n` entries, keeping at most `max` (ties:
+   *  the earlier member first); returns the new count. (The level comes in `res`: no double crosses the call.) */
+  private pushRes(ids: Int32Array, lv: Float32Array, n: number, max: number, id: number): number {
+    const level = this.res;
+    let j = n < max ? n : max;
+    // (a member no stronger than the last kept one when full: dropped)
+    if (j === max && !(level > lv[max - 1]!)) return n;
+    while (j > 0 && level > lv[j - 1]!) {
+      if (j < max) {
+        ids[j] = ids[j - 1]!;
+        lv[j] = lv[j - 1]!;
+      }
+      j--;
+    }
+    ids[j] = id;
+    lv[j] = level;
+    return n < max ? n + 1 : max;
   }
 
   /** (char-shadow-meter) Baked lamp `i`'s position now (a swinging pendant's offset applied, as `lampInto`) into
@@ -630,24 +655,6 @@ export class LightField {
     const s = px * ux + pz * uz;
     return s >= 0 && s <= a.width && py >= a.hinge.y && py <= a.hinge.y + a.height;
   }
-}
-
-/** (char-shadow-meter) Insert (id, level) into the strongest-first lists of `n` entries, keeping at most `max` (ties:
- *  the earlier member first); returns the new count. */
-function pushSource(ids: Int32Array, lv: Float32Array, n: number, max: number, id: number, level: number): number {
-  let j = n < max ? n : max;
-  // (a member weaker than the last kept one when full: dropped)
-  if (j === max && !(level > lv[max - 1]!)) return n;
-  while (j > 0 && level > lv[j - 1]!) {
-    if (j < max) {
-      ids[j] = ids[j - 1]!;
-      lv[j] = lv[j - 1]!;
-    }
-    j--;
-  }
-  ids[j] = id;
-  lv[j] = level;
-  return n < max ? n + 1 : max;
 }
 
 /**
