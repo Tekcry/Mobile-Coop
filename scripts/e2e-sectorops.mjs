@@ -207,8 +207,9 @@ await run(PARAMS, async ({ page, G, sim }) => {
 
 // (fix round, checker item 1) the AI on in section 2: a guard forced alerted runs to the live section's alarm panel (the
 // only one working) and the stage rises through the panel (not a direct onAlarm call); after a restart the panel and
-// the alarm are armed again and a second panel alarm works.
-console.log('sector ops: a guard raises the live section\'s alarm panel, again after a restart');
+// the alarm are armed again and a second panel alarm works. (guard-rules S5, A7) Before the restart, a second guard
+// alarm once the first one's response is in brings the next stage (Sector Ops repeats guard alarms).
+console.log('sector ops: a guard raises the live section\'s alarm panel, a second guard alarm adds a stage, again after a restart');
 await run(PARAMS, async ({ page, G, sim }) => {
   await G(() => { const g = window.__app.current; g.target.damageMul = 0; if (g.security) g.security.fixedUpdate = () => {}; if (window.__ctdev) window.__ctdev.fixedUpdate = () => {}; });
   await sim(0.5);
@@ -222,10 +223,12 @@ await run(PARAMS, async ({ page, G, sim }) => {
   const panels = () => G(() => window.__app.current.enemyMgr.alarms.map((p) => ({ id: p.id, s: p.section, off: p.disabled })));
   const p1 = await panels();
   assert(p1.length === 3 && p1.every((p) => (p.s === 1 ? !p.off : p.off)), `only section 2's panel works (${JSON.stringify(p1)})`);
-  const panelAlarm = async (tag) => {
+  // (guard-rules S5, A7) `again`: a repeat guard alarm (one is raised this load, `alarmRaised` stays set; the repeat lock
+  // is open); the count of guard alarms (`guardAlarms`) tells the raise
+  const panelAlarm = async (tag, again = false) => {
     const st0 = await G(() => window.__sector.debug().stage);
-    const raised0 = await G(() => window.__app.current.enemyMgr.alarmRaised);
-    assert(raised0 === false, `${tag}: the panel alarm is armed`);
+    const a0 = await G(() => { const em = window.__app.current.enemyMgr; return { raised: em.alarmRaised, open: em.alarmOpen(), n: em.guardAlarms }; });
+    assert(a0.open && a0.raised === again, `${tag}: the panel alarm is armed (${JSON.stringify(a0)})`);
     // the guard nearest the live panel is forced alerted (the e2e-stealth-ai way)
     await G(() => {
       const em = window.__app.current.enemyMgr;
@@ -274,7 +277,7 @@ await run(PARAMS, async ({ page, G, sim }) => {
     for (let k = 0; k < 80 && !raised; k++) {
       await sim(0.5);
       await hush();
-      raised = await G(() => window.__app.current.enemyMgr.alarmRaised);
+      raised = (await G(() => window.__app.current.enemyMgr.guardAlarms)) > a0.n;
     }
     const d = await G(() => window.__sector.debug());
     // (guard-ai S6 stack merge) the stage rises through the panel, not the radio command call (S6: a contact call that
@@ -282,8 +285,24 @@ await run(PARAMS, async ({ page, G, sim }) => {
     const by = await G(() => window.__app.current.enemyMgr.alarmBy);
     assert(raised && d.stage === st0 + 1, `${tag}: the panel raises the alarm stage (${st0} -> ${d.stage}, raised ${raised}; calls cut ${JSON.stringify(cutBy)})`);
     assert(by === 'panel', `${tag}: raised by the panel, not the radio (alarmBy '${by}'; calls cut ${JSON.stringify(cutBy)})`);
+    return d.stage;
   };
-  await panelAlarm('section 2');
+  const st1 = await panelAlarm('section 2');
+  // (guard-rules S5, A7, bible 5.7 "Each raised alarm adds one level") Sector Ops repeats guard alarms: right after the
+  // first the lock is shut (its response is not in); once it opens (here by its `rearm` time, standing in for the team
+  // searching; both are unit-tested in tests/alarmRepeat.test.ts) a second guard alarm brings the next stage, and at
+  // stage 2 every living human guard wears armour and a helmet (guard-rules S1, A3)
+  const lk = await G(() => { const em = window.__app.current.enemyMgr; return { repeat: em.alarmRepeat, open: em.alarmOpen(), n: em.guardAlarms, max: em.alarmRepeatTable.max }; });
+  assert(lk.repeat && !lk.open && lk.n === 1 && lk.max === 3, `section 2: repeats on, the lock shut after the first guard alarm (${JSON.stringify(lk)})`);
+  await G(() => { const em = window.__app.current.enemyMgr; em.repeatStep(em.alarmRepeatTable.rearm); });
+  const st2 = await panelAlarm('section 2, the second guard alarm', true);
+  const s2 = await G(() => {
+    const em = window.__app.current.enemyMgr;
+    const gs = em.enemies.filter((e) => e.alive && !e.def.quadruped);
+    return { raised: em.alarmRaised, n: em.guardAlarms, open: em.alarmOpen(), all: gs.length, bare: gs.filter((e) => !e.helmet || !e.armour).map((e) => e.id) };
+  });
+  assert(st2 === st1 + 1 && s2.raised && s2.n === 2 && !s2.open, `section 2: the second guard alarm adds a stage (${st1} -> ${st2}; ${JSON.stringify(s2)})`);
+  assert(st2 < 2 || (s2.all > 0 && s2.bare.length === 0), `section 2: at stage ${st2} every living human guard wears armour and a helmet (${JSON.stringify(s2)})`);
   // (marlow-bays item 3) the restart from the pause menu: "Restart at checkpoint", a confirm opening on Stay, then Restart
   await G(() => window.__app.current.pause());
   await frames(page, 3);
