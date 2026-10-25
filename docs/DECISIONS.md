@@ -1,21 +1,22 @@
 # Night Shift - decisions
 
-Started 2026-10-17 (consolidation run, M26 / M27). Current to G343 (2026-10-25).
+Started 2026-10-17 (consolidation run, M26 / M27). Current to G360 (2026-10-25).
 
-This file is the single source of Michael's current decisions for Night Shift. Authority order: Michael > this file >
-`docs/design-bible.md` > job and map docs > code. Every entry below is also written into the bible; where the bible and
-this file disagree, this file wins until the bible is fixed.
+This file is the single source of Michael's current decisions for Night Shift. Authority order: `CLAUDE.md` (G86).
+Every entry below is also written into the bible and, where it changes the summary, `docs/VISION.md`; where the bible
+and this file disagree, this file wins until the bible is fixed.
 
 How entries are numbered:
 - G1, G2, ... are new global numbers, used from now on. The orchestrator folds ROADMAP "Decided" in daily with the next
-  free G numbers (CLAUDE.md "Sessions").
+  free G numbers (`docs/RULES.md` "Sessions"), rewriting DECISIONS, the bible and VISION together (G344).
 - A replaced entry keeps its original text and gets a "(Replaced by Gxxx, date)" note on its heading or first line, so
-  the newest entry always wins and the trail stays readable.
-- Old job numbers are cited in brackets with their run prefix, because the runs reused the same letters: loco (docs/locomotion/DECISIONS.md: D1-D11, M1-M27, A0-A89), training (docs/training/DECISIONS.md: D1-D50, A1-A77, C1-C10), ops (feature/operators docs/operators/DECISIONS.md: D1-D33; current ones recorded as G123 and G161-G176), menu (docs/menu-ui/DECISIONS.md: MD1-MD20), audio (AS1-AS18 in the audit), kestrel (docs/kestrel/progress.md "Decisions by Michael" and ASK rows).
+  the newest entry always wins and the trail stays readable; an entry that still holds in part gets "(Narrowed by
+  Gxxx)" instead.
+- Old job numbers are cited in brackets with their run prefix, because the runs reused the same letters: loco (docs/archive/locomotion/DECISIONS.md: D1-D11, M1-M27, A0-A89), training (docs/archive/training/DECISIONS.md: D1-D50, A1-A77, C1-C10), ops (feature/operators docs/operators/DECISIONS.md: D1-D33; current ones recorded as G123 and G161-G176), menu (docs/menu-ui/DECISIONS.md: MD1-MD20), audio (AS1-AS18 in the audit), kestrel (docs/kestrel/progress.md "Decisions by Michael" and ASK rows).
 - Question ids (VIS-01, FU-04, ...) are the vision-check page questions of 2026-10-17; "chat N" is Michael's Nth native
   multiple-choice answer in chat the same day; "directive" is his written directive the same day.
 
-The old run decision files (docs/locomotion/DECISIONS.md, docs/training/DECISIONS.md, the kestrel progress decisions,
+The old run decision files (docs/archive/locomotion/DECISIONS.md, docs/archive/training/DECISIONS.md, the kestrel progress decisions,
 docs/menu-ui/DECISIONS.md and the audio progress logs) are history. They point here.
 
 Each entry: the decision as a rule, then Michael's words quoted verbatim (his picked option label, his own note, or his
@@ -23,17 +24,8 @@ chat words), then the source and what it replaces.
 
 ## The vision
 
-`docs/VISION.md` is the one-page summary of today's game (modes, Michael's overrides of CT, the hard design rules). In
-five lines:
-- Pure Chaos Theory co-op stealth with original names, story and art; Michael's recorded decisions are the only
-  departures (G1, G5, G6; for example revive and encounter checkpoints, world pings, both players extract, the perfect
-  rating, any partner rejoins: G126, G135, G138, G146, G147). Light and shadow is the core (G316).
-- Campaign: exactly 2 players, never solo, every section forces a co-op traversal move (G2, G292). Marlow Yard: the
-  guided 2-player training course (G292, G308). Sector Ops: Saltmarsh Park, 1-4 players, solo always possible (G308).
-- No maps, markers or minimap; objectives name what and where (G290, G336, G339). Up to 2 strict rules, breaking one
-  restarts the section (G290).
-- Sites are lit like real sites; players make the shadows (G329). As many guards as realistically possible (G289).
-- Desktop only, pad first (G12). Refining is allowed, paced by the walk cap and the one-click sign-off (G288).
+`docs/VISION.md` is the one-page summary of today's game (pitch, modes, Michael's overrides of CT, the hard rules). Read
+it first; this file holds the reasons and the trail.
 
 ## Decisions by area
 
@@ -44,7 +36,8 @@ exist. CT behaviour, measured from Michael's footage and the research, overrides
 "I want the game to be pure chaos theory. Anything that isn't a part of the original chaos theory shouldn't exist."
 (directive, 2026-10-17; extends loco M20 from movement to the whole game; replaces bible pillars and sections where they
 differ.)
-(Replaced by G126, G135, G138, G146, G147 where they differ from CT, 2026-10-18.)
+(Narrowed by G126, G135, G138, G146, G147, 2026-10-18, and by every later decision of Michael's that departs from CT:
+`docs/VISION.md` section 3. Pure CT stays the default.)
 
 **G2. Two-player co-op campaign only.** (Replaced for Sector Ops by G308, 2026-10-23: Sector Ops is 1-4 players with
 solo play; the campaign stays exactly 2.) The campaign is played by exactly two players and cannot be completed solo.
@@ -147,6 +140,8 @@ menu. There is no stealth / kill selector. Michael: "CT grab menu" (chat 34, 202
 CTRL-10 return.) See G116.
 
 ### Movement and camera
+
+The numbers in G25-G36 are starting values: Michael tunes them by hand (G356).
 
 **G25. Turning as the footage shows.** On-the-spot turns are a tight walking circle; run reversals are one smooth turn of
 about 0.4 s; no planted pivot. Michael: "The footage" with the note "Pure CT" (MOVE-01, 2026-10-17; replaces loco M20 Q7's
@@ -325,7 +320,8 @@ approves audio AS2, AS3, AS10, AS14, AS16 and AU7.)
 and weapons later from the same pipeline; voxels only as the way the world is drawn. Michael: "Realistic everywhere"
 (ART-02, 2026-10-17.)
 
-**G69. Original goggle, swapped soon.** No three-lens look: a small job swaps in a simple original goggle, and the menu
+**G69. Original goggle, swapped soon.** (Swap narrowed by G195, 2026-10-19: Wren keeps her current goggle, the redesign
+is parked; the no three-lens rule and the original menu symbol stand.) No three-lens look: a small job swaps in a simple original goggle, and the menu
 uses an original symbol. Michael: "Original goggle" and "Soon" (chat 17 and ART-03, 2026-10-17; consistent with ops D19,
 D20.)
 
@@ -360,8 +356,8 @@ settles WEAP-01 and WEAP-12; replaces bible 5.6's arsenal and its disruptor / ja
 
 ### UI and HUD
 
-**G77. Menus Arkham Knight style; the in-game HUD follows CT.** The menus keep the Arkham Knight style menu plan
-(feature/menu-ui-spec); only the in-game HUD follows CT's layout. Michael: "Keep Arkham plan" (chat 25, 2026-10-17.)
+**G77. Menus keep their style plan; the in-game HUD follows CT.** The menus keep the menu style plan
+(feature/menu-ui-spec, `docs/menu-ui/SPEC.md`); only the in-game HUD follows CT's layout. Michael: "Keep Arkham plan" (chat 25, 2026-10-17.)
 
 ### Training
 
@@ -369,10 +365,11 @@ settles WEAP-01 and WEAP-12; replaces bible 5.6's arsenal and its disruptor / ja
 2026-10-24: Marlow Yard is the training course; Fallow is parked.) The Fallow bunker is kept as the co-op tutorial
 although CT has none. Michael: "Keep it" (chat 3, 2026-10-17.)
 
-**G79. The bunker is rebuilt after the prototype.** Its drills are rebuilt on the CT moves and every jump and reach is
+**G79. The bunker is rebuilt after the prototype.** (Parked with the Fallow bunker by G184 / G292, 2026-10-24: Marlow
+Yard replaced it; binds only the parked bunker.) Its drills are rebuilt on the CT moves and every jump and reach is
 re-checked. Michael: "After the prototype" (chat 21 / TRAIN-02, 2026-10-17; replaces training D15 and D50.)
 
-**G80. Bunker anti-stuck resets kept.** Windows re-glaze, one-way turnstiles, lamps re-lamp and knocked-out role-players
+**G80. Bunker anti-stuck resets kept.** (Parked with the Fallow bunker by G184 / G292, 2026-10-24.) Windows re-glaze, one-way turnstiles, lamps re-lamp and knocked-out role-players
 are replaced after 10-30 s. Michael: "Keep the resets" (chat 22 / TRAIN-11, 2026-10-17; approves training A54, A61, A62.)
 
 **G81. Boosts only at marked spots.** Two-player boosts work only at marked spots, as CT's co-op spots do. Michael:
@@ -409,7 +406,8 @@ the orchestrator method; older ways (the bible's Opus / Sonnet loop, Kestrel's p
 
 **G88. Helper models.** The strongest model (Opus) builds and checks; a lighter model only for mechanical chores.
 Michael: "Opus, light for chores" (chat 14 / PROC-04, 2026-10-17; replaces the bible's Sonnet-builds rule.)
-(Replaced by G158 for prototype work, 2026-10-18.)
+(Replaced by G158 for prototype work, 2026-10-18, then by G302, 2026-10-23: Opus plans and checks, Sonnet builds from
+strict briefs, Haiku does chores.)
 
 **G89. One decisions file.** docs/DECISIONS.md holds Michael's decisions; old job files stay as history and point to it;
 each job adds Michael's new decisions when it merges. Michael: "One decisions file" (chat 15 / PROC-06, 2026-10-17.)
@@ -418,7 +416,7 @@ each job adds Michael's new decisions when it merges. Michael: "One decisions fi
 prototype, then the rest); phase numbers stay only as chapter names. Michael: "Ordered job list" (chat 16 / PROC-07,
 2026-10-17; replaces the Phase 0-7 status table.)
 
-**G91. Old docs archived.** The retired maps' design docs and map data and the Blacklist-era docs move to the archive
+**G91. Old docs archived.** The retired maps' design docs and map data and the docs of the old cover-shooter direction move to the archive
 folder; their tests are deleted with the code. Michael: "Archive the docs" (chat 18 / PROC-12, 2026-10-17.)
 
 **G92. Short current checklist.** TESTING.md becomes one desktop checklist plus a release checklist; old lists are
@@ -635,7 +633,7 @@ Void, and what voided them:
 ## Unclear items, answered (U1-U10)
 
 The DECISIONS draft listed ten unclear items. Michael answered them in chat on 2026-10-17 (native multiple-choice;
-verbatim in docs/consolidation/chat-answers.md, last section). U1, U3, U4, U5, U9 and U10 are applied in the entries they
+verbatim in docs/archive/consolidation/chat-answers.md, last section). U1, U3, U4, U5, U9 and U10 are applied in the entries they
 touch (G75, G24, G111, G49, G11, G76); the new rules are below.
 
 **G114. The name ban covers names, not the title or Michael's quotes.** Character, gear and organisation names from the
@@ -649,7 +647,7 @@ merge, each in its own commit. Michael: "In this merge" (U10, 2026-10-17.)
 **G116. Emotes and the old solo Training mode are deleted in this merge.** Michael: "Delete both" (U3 / U4, 2026-10-17;
 replaces CTRL-10's "Unbind until return"; with G111 the Fallow course is the only training.)
 
-**G117. Training D41 binds only the bunker.** Its linear, unavoidable map rules apply to the Fallow bunker; campaign maps
+**G117. Training D41 binds only the bunker.** (Parked with the Fallow bunker by G184 / G292, 2026-10-24.) Its linear, unavoidable map rules apply to the Fallow bunker; campaign maps
 follow the CT co-op research (G3). Michael: "CT research replaces it" (U6, 2026-10-17.)
 
 **G118. The bible waits for Kestrel's Mission 1 size.** (Replaced by G340, 2026-10-25: Tallow Wharf is campaign Mission
@@ -670,7 +668,7 @@ missions are planned (STORY-04, G9). Michael: "With the missions" (2026-10-18.)
 **G121. Stale branches deleted after the merge.** Once Michael merges the consolidation PR, Claude deletes dev,
 feature/exchange-map, feature/kestrel, feature/footsteps, feature/weapon-audio, ct-movement, playtest/combined and the
 claude/new-session-* branches; feature/ct-locomotion and feature/training-bunker stay until nothing is left on them.
-Michael: "Yes, after merge" (2026-10-18; the go-ahead docs/locomotion/CONSOLIDATE.md asks for.)
+Michael: "Yes, after merge" (2026-10-18; the go-ahead docs/archive/locomotion/CONSOLIDATE.md asks for.)
 
 **G122. Michael brings his own CT co-op research.** Michael already ran a comprehensive research task outside the game
 and git; he brings it in after the merge, and the research job starts from it. Michael: "I've already run a comprehensive
@@ -763,7 +761,8 @@ Patrols stay fixed. Michael: "Some per run." (D-20 research session, R-16, 2026-
 **G144. Lit windows are systemic.** A lit window exposes anyone in it, from either side; dark rooms hide. Michael:
 "Systemic." (D-21 research session, R-20, 2026-10-18; consistent with G45.)
 
-**G145. Story-critical characters are protected until their role is done.** Killing one earlier fails the mission, with
+**G145. Story-critical characters are protected until their role is done.** (Mission fail replaced by G353, 2026-10-25:
+killing one restarts the section.) Killing one earlier fails the mission, with
 a clear warning first. Michael: "Protected until their role is done." (D-22 research session, R-17, 2026-10-18.)
 
 **G146. Perfect rating.** 100% means no kills, no alarms and every primary objective; optional objectives are a bonus.
@@ -800,8 +799,8 @@ loadout. Michael: "Fixed per mission" (chat, 2026-10-18; replaces G105.)
 **G154. Digests only on master.** Master gets the scrubbed research digests; the raw research files are kept only as the
 tag `archive/ct-research-raw`. Michael: "Digests only" (chat, 2026-10-18; G6 holds.)
 
-**G155. No heavies or dogs in co-op missions.** (Narrowed to campaign missions by G297 / G307: Sector Ops has dogs, late
-body armour and riot shields; helmets by difficulty, G338.) As in CT, co-op missions have no heavy or dog archetypes;
+**G155. No heavies or dogs in co-op missions.** (Narrowed to campaign missions by G297 / G307: Sector Ops has dogs
+(G348), late body armour and riot shields. Helmets go by difficulty in both modes: G338, G341, G350.) As in CT, co-op missions have no heavy or dog archetypes;
 armour and helmets come with the alarm stages. Michael: "Adopt CT's way" (chat, 2026-10-18; replaces G42's heavies and
 dogs exception and the heavies part of G49.)
 
@@ -875,7 +874,7 @@ and "they must hold up when used up close in menu animations" (2026-10-15, ops D
 **G164. Faces fully covered.** Fitted balaclava or hood plus goggles; no visible face or skin. Michael: "fully covered,
 full stealth gear (fitted balaclava/hood plus goggles). No visible face or skin." (2026-10-15, ops D4.)
 
-**G165. Splinter Cell inspired, original in every shape.** Michael: "I am expecting splinter cell inspired models that
+**G165. Inspired by the reference series, original in every shape.** Michael: "I am expecting splinter cell inspired models that
 are original" (2026-10-15, ops D5; the no-IP rule stands.)
 
 **G166. Each operator has their own size; hit boxes follow the body.** Skeleton, hit volumes and light sample heights
@@ -936,7 +935,7 @@ gameplay never reads it. Michael, asked whether Wren (1.68 m) should hang 7.6 cm
 underbarrel launcher and suppressor, suppressed pistol with a jammer emitter, knife) and Wren's hands sit on them: palm on
 the grip, fingers round it, the support hand on the launcher tube, a believable stance. Michael: "I'd rather the character
 holds the gun properly. Make sure they line up and are believable at minimum. Stance must look believable also."
-(2026-10-19, weapons job; docs/weapons/DECISIONS.md A8-A11.)
+(2026-10-19, weapons job; docs/archive/weapons/DECISIONS.md A8-A11.)
 
 **G178. The rifle is carried where it can be drawn and put away quickly.** Holstered, the rifle hangs from Wren's back
 plate mount (not floating) and the pistol sits in her thigh holster; holding and holstering look believable at a
@@ -978,10 +977,10 @@ session, 2026-10-18.) It settles the research findings listed above for Michael 
 - G11: the five ideas CT has stay (guards relight lamps and investigate dead lights, paired searches, eavesdropping,
   lock picking with a noise cost, adaptive music); the four it does not have go.
 
-**G181. Selection wheel for weapons, gadgets and vision mode.** A Blacklist-style selection menu picks the weapon, the
+**G181. Selection wheel for weapons, gadgets and vision mode.** A selection wheel (not CT's) picks the weapon, the
 gadget and the vision mode; one button only turns the selected vision mode on and off (the goggle flip plays only on
 on / off, never between modes). No time slow while it is open. This one menu is Michael's exception to G1 and to the
-"Blacklist systems are history" rule. Michael: "incorporate blacklist style menu that allows selection of weapons,
+rule that the old cover-shooter systems are history. Michael: "incorporate blacklist style menu that allows selection of weapons,
 gadgets, and vision mode. Single button only toggles that one vision selected." (native multiple choice, core feel
 session, 2026-10-18); "no time slow" relayed from the main session (2026-10-19). Assumed placement (feel A1): the menu
 on LB hold, LB tap switches weapon, the vision toggle on D-pad left. (Replaces G100's cycle order and the goggle part
@@ -1007,14 +1006,15 @@ and preview builds carry the master version they were last merged with, and the 
 fact in merge order (#5 4.1.0, #7 4.2.0, #6 4.2.1, #8 4.3.0, #9 4.4.0, #10 4.4.1, #12 4.5.0, #13 4.6.0, #11 4.6.1).
 CLAUDE.md's "one minor version per phase" line is updated in the process audit.
 
-**G184. The prototype menu: Sector Ops and Co-op.** Michael (2026-10-19, Sector Ops M1, M4): the main menu offers only
+**G184. The prototype menu: Sector Ops and Co-op.** (Narrowed by G292 and G340, 2026-10-24 / 25: Marlow Yard is the
+training course, not the campaign; campaign Mission 1 is Tallow Wharf.) Michael (2026-10-19, Sector Ops M1, M4): the main menu offers only
 Sector Ops and Co-op, plus Loadout, Settings and Feedback; Missions, Training and Free Roam stay behind `?legacy=1`.
 Co-op is the campaign, which for now is the training bunker, Marlow Yard (`ctcourse`, Course mode); the host can switch
-the co-op match to Sector Ops. The mode is called Sector Ops, never by a Splinter Cell name.
+the co-op match to Sector Ops. The mode is called Sector Ops, never by a reference-game name.
 
 **G185. Sector Ops is Michael's playground.** (Replaced in part by G295-G297, G308 and G309: a new campus map, 1-4
-players, full detail art, not prototype effort.) Michael (2026-10-19, M2, M3): an original take on Conviction's Deniable
-Ops at Chaos Theory pace, solo or co-op, for testing movement and gunplay without a partner. The Warehouse is expanded
+players, full detail art, not prototype effort.) Michael (2026-10-19, M2, M3): an original take on a later reference
+game's co-op ops mode at Chaos Theory pace, solo or co-op, for testing movement and gunplay without a partner. The Warehouse is expanded
 into sections of rising difficulty with cameras and lasers. A section is done by its objective, then its exit; kills are
 optional, so a ghost run is always possible. Prototype effort only.
 
@@ -1024,7 +1024,8 @@ section and unload the last, so each section can hold as many guards as the budg
 the existing Warehouse (service entrance, racking aisles, factory floor with the mezzanine and offices); the courtyard,
 annex and roof come after Michael has played it. Research and a plan came first (M5b).
 
-**G187. Guard counts are measured, per mode.** Michael (2026-10-19, M6): aim for 20-25 patrolling guards per section,
+**G187. Guard counts are measured, per mode.** (Narrowed: per-section counts by G289 and G328; the campaign caps at 32
+alive by G359, so `MAX_ALIVE = 12` stays for Marlow Yard only; the 32 ceiling stands, G332.) Michael (2026-10-19, M6): aim for 20-25 patrolling guards per section,
 then measure on the PC. `MAX_ALIVE = 12` stays for the other modes; Sector Ops has its own cap (32, the ceiling, not a
 target). The PC perf run with full counts sets the number.
 
@@ -1144,7 +1145,7 @@ later drops the CT movement references.)
 getting worse. Can you ignore CT movement references." Analogue speed from the stick (no speed toggle); LT held aims;
 three states, holstered / low ready / aiming; X tap holsters; RT tap knocks out, RT hold kills; traversal auto-holsters
 and returns to the state. Every movement animation is reworked to a real-world trained-operator standard
-(docs/anim-rework/BRIEF.md). G1 (pure CT) still holds for the rest of the game (BRIEF). (Replaces the footage reference of
+(docs/archive/anim-rework/BRIEF.md). G1 (pure CT) still holds for the rest of the game (BRIEF). (Replaces the footage reference of
 G197, G199, G202, G208 ("keyed with the footage as reference") and G209, the speed rocker (loco M25 (7)) and bible 5.12's
 CT-footage line; refines G21.)
 
@@ -1224,12 +1225,12 @@ completion, then campaign level. Movement still needs work which is top priority
 revisit later"; (2026-10-21 ~06:40): "Exclude warehouse rebuild and park it for now. We'll continue to use the
 existing." The co-op training bunker comes first, then the first campaign level, with movement top priority; the G201
 rebuild is parked and the current Sector Ops warehouse stays
-(docs/reviews/warehouse-layout-review.md). The guard AI and model review (docs/reviews/guards-review.md) is not
+(docs/archive/reviews/warehouse-layout-review.md). The guard AI and model review (docs/archive/reviews/guards-review.md) is not
 scheduled.
 
 **G225. Marlow Yard bunker pass: the full audit shortlist.** (Light level replaced by G279, 2026-10-23, and G329,
 2026-10-25: lit by default, real-world bands.) Michael (2026-10-20 ~23:40; paraphrased): the full shortlist of
-docs/reviews/marlow-yard-audit.md (ceilings, lamp fittings, airlocks, dressing, walls to ceilings, paint, lifts,
+docs/archive/reviews/marlow-yard-audit.md (ceilings, lamp fittings, airlocks, dressing, walls to ceilings, paint, lifts,
 fiction); keep the open floor at 0.30 (the open floor's light level, just over the 0.28 shadow line).
 
 **G226. Tuner v2: a stage to pose the body and the gun.** Michael (2026-10-21 ~00:20): "I want freedom to manipulate
@@ -1251,11 +1252,11 @@ JSON, wider ranges (double-range toggle, typed values), a bake script (export in
 (hand / foot IK weight). Copy state to state is not wanted.
 
 **G229. Three animation tracks at once.** Michael (2026-10-21 16:10; paraphrased): three animation tracks run in
-parallel (A tuner tools in Course Ready, B joint bake in CT Core, C skeleton in Menu Notes; docs/marlow-bays/BRIEF.md
+parallel (A tuner tools in Course Ready, B joint bake in CT Core, C skeleton in Menu Notes; docs/archive/marlow-bays/BRIEF.md
 "Tracks"); bays B + M run in a cloud session; the jammer / hallway slice J comes later.
 
 **G230. The desktop is the main test machine.** Michael (2026-10-21 16:40): "i dont care about usage on the desktop, i
-use the laptop." The desktop runs full e2e at full power (E2E_JOBS=2); the laptop is overflow only (CLAUDE.md
+use the laptop." The desktop runs full e2e at full power (E2E_JOBS=2); the laptop is overflow only (`docs/RULES.md`
 "Machines"). (Replaced by G259's laptop main.)
 
 **G231. The laptop is a full second test slot.** (Replaced by G259, 2026-10-22: the laptop is the main test machine.)
@@ -1264,14 +1265,14 @@ laptop is a full second test slot (Normal priority, E2E_JOBS=2, any job lead's r
 
 **G232. Phone layout for the tuner only.** Michael (2026-10-21 ~19:00): "Is it difficult to do a fast ui adjustment for
 phones only? Touch input and controller will be used." He chose "Yes, tuner only": the animation tuner and Anim Studio
-get a phone layout (touch + pad), an exception to M21; the game stays desktop-only (docs/marlow-bays/BRIEF.md item 26).
+get a phone layout (touch + pad), an exception to M21; the game stays desktop-only (docs/archive/marlow-bays/BRIEF.md item 26).
 
 **G233. Focus on animations, gameplay and the bunker.** Michael (2026-10-21 ~19:20): "We'll focus on fine tuning the
 animations, gameplay, and bunker for now." Dev tools and the level editor move to Later.
 
 **G234. A prototype server browser on spare capacity.** Michael (2026-10-21 ~19:50): "Yes add it to the pipeline. It
 can proceed as low priority whenever there is spare capacity. Must be prototype only, quick and fast to build." Public /
-Private rooms listed through the existing Nostr relays; no quick match, no TURN, no server (docs/marlow-bays/BRIEF.md
+Private rooms listed through the existing Nostr relays; no quick match, no TURN, no server (docs/archive/marlow-bays/BRIEF.md
 item 28, Bays Cloud after rejoin).
 
 **G235. Never hit the 5-hour limit; trim to animation.** (Replaced by G281 and G304: full burn to 100%.) Michael
@@ -1297,19 +1298,19 @@ paused by 99%.
 **G238. Sector Ops fixes on spare capacity.** Michael (2026-10-22 ~01:40): his list (warehouse lights, LED fittings,
 camera range and pitch, a subtle grid, lasers in one vision mode and alarm-only, laser power panels, a security room,
 wheel default goggles, more co-op routes); "Priority is still animations right now but any spare capacity can be used as
-you see fit." Job sector-fixes (docs/sector-fixes/BRIEF.md), spare capacity.
+you see fit." Job sector-fixes (docs/archive/sector-fixes/BRIEF.md), spare capacity.
 
 **G239. A full natural pass over every animation.** Michael (2026-10-22 ~09:00): "All movements must move naturally with
 twisting/swaying/balancing hands... The feet also need to get fixed... I want you to do a full pass over all animations
 and I will fine tune. Pulling any weapons out also should be believable, and there's a random stop animation when
-taking out the weapons". Job anim-natural (docs/anim-natural/BRIEF.md): N0 audit, N1 feet and N2 body motion (CT Core),
+taking out the weapons". Job anim-natural (docs/archive/anim-natural/BRIEF.md): N0 audit, N1 feet and N2 body motion (CT Core),
 N3 weapons (Menu Notes), N4 the rest. Top priority.
 
 **G240. Cameras see in the dark.** Michael (2026-10-22 ~09:05): "Cameras should still work in the dark." Every security
 camera sees in the dark (IR) on every map, Sector Ops included; light still matters for guards and the meter.
 
 **G241. Full speed on the weekly; swap accounts at ~98%.** (Replaced by the current swap rule: swap at 100% of the meter
-that caps first, CLAUDE.md "Swaps and context" / docs/RULES.md.) Michael (2026-10-22 ~09:20; weekly at 61%, rising
+that caps first, `docs/RULES.md` "Swaps and context".) Michael (2026-10-22 ~09:20; weekly at 61%, rising
 ~5.5%/h): chose "Full speed, swap account": work keeps going, and at weekly ~98% everything is saved and handed off to
 another account with docs/orchestrator/HANDOFF.md (prompts one at a time, as on 2026-10-21).
 
@@ -1322,8 +1323,8 @@ times with sources set the defaults; the tuner gains a baked per-clip speed slid
 per-key timing) (Menu Notes N3).
 
 **G244. Tuner and test-only PRs skip the full e2e.** Michael (2026-10-22 ~10:40, N0 answers): "Yes, tuner/tests only".
-A PR that touches only the tuner / Anim Studio or tests merges on CI plus the suites it touches, no full e2e (CLAUDE.md
-test tiers).
+A PR that touches only the tuner / Anim Studio or tests merges on CI plus the suites it touches, no full e2e
+(`docs/RULES.md` "Test tiers").
 
 **G245. All sessions stay on Opus.** (Replaced by G302, 2026-10-23: the Opus / Sonnet / Haiku split.) Michael
 (2026-10-22 ~11:15; offered Sonnet for the test runner and light reviewers
@@ -1331,7 +1332,7 @@ to stretch the 5-hour window): chose "Keep all Opus". Sessions pause at 97% unti
 
 **G246. Merge trains: batch when two or more are ready.** (Replaced by G306 and G318, 2026-10-23: rolling automatic
 trains.) Michael (2026-10-22 ~11:25; asked whether to batch updates into larger ones tested once): chose "Batch when 2+
-ready" (CLAUDE.md test tiers, STATE "Merge procedure").
+ready" (`docs/RULES.md` "Test tiers", STATE "Merge procedure").
 
 **G247. A train merges as one PR with one version.** Michael (2026-10-22 ~11:40): chose "One PR per batch". (Refines
 G246.)
@@ -1340,7 +1341,7 @@ G246.)
 (Character Build; test-only tier): e2e-stealth-ai peek head, e2e-netmove client assists, e2e-mouse capture,
 e2e-ctcourse station 4.
 
-**G249. Full burn of the weekly tokens.** Michael (2026-10-22 ~13:30, new account): "using this account, i want to use
+**G249. Full burn of the weekly tokens.** (Thresholds replaced by G281, then G304, 2026-10-23: full burn to 100%.) Michael (2026-10-22 ~13:30, new account): "using this account, i want to use
 all available weekly tokens before the reset. make sure each 5 hour token window hits 99%". All sessions run at full
 speed with parallel agents; the orchestrator resumes them after every 5-hour reset; the 97 / 98 / 99% thresholds stay
 (STATE "Pacing").
@@ -1378,7 +1379,7 @@ chest 1.5 deg; Gun tuner recoilMul).
 and clean worktrees; dirty or in-use ones kept). #67 S2b walk: "Close it" (superseded by the tuner bakes, N1, N2).
 
 **G259. The laptop is the main test machine, on its GPU.** Michael (2026-10-22 ~17:50; the laptop's CPU / GPU are far
-stronger): chose "Laptop main" and "Yes, laptop GPU" (CLAUDE.md "Main test machine"). (Replaces G230.)
+stronger): chose "Laptop main" and "Yes, laptop GPU" (`docs/RULES.md` "Machines"). (Replaces G230.)
 
 **G260. Rule review: the orchestrator's picks.** Michael (2026-10-22 ~18:00): chose "Your picks": (1) checker-passed
 PRs go straight into trains, src/net / protocol / save PRs keep their area suites; (2) a docs / CHANGELOG / fragments /
@@ -1396,7 +1397,7 @@ while he used it): "Finish train 7 only"; asked whether it may then run the job 
 contact ~0.38 s): chose "Faster arm": the knockout timing stays and the strike animation reaches contact then.
 
 **G263. GPU for any test that benefits; question the rules.** Michael (2026-10-22 ~20:30): "use gpu on any tests that
-would benefit" (CLAUDE.md "GPU for logic e2e"). "Make sure you question rules and ask me if needed, you should be
+would benefit" (`docs/RULES.md` "Test tiers"). "Make sure you question rules and ask me if needed, you should be
 picking up these things earlier".
 
 **G264. Mocap trial with CMU locomotion, behind a toggle.** (Default off replaced by G298, 2026-10-23: mocap on by
@@ -1415,7 +1416,7 @@ kicks.
 **G266. Warehouse redesign after Marlow Yard; all loosenings approved.** (Replaced by G295, 2026-10-23: the campus
 redesign.) Michael (2026-10-22 ~21:20): warehouse-redesign restarts "After Marlow Yard" (finished and walked); its 15
 level-standard loosenings L1-L15
-(docs/warehouse-redesign/SPEC.md on feature/warehouse-redesign): "Approve all". (Restarts the rebuild G224 parked.)
+(docs/archive/warehouse-redesign/SPEC.md on feature/warehouse-redesign): "Approve all". (Restarts the rebuild G224 parked.)
 
 **G267. R section 2 gets another co-op route.** Michael (2026-10-22 ~21:20; one co-op route left after two proved
 solo-reachable): "Add another", before R merges.
@@ -1433,7 +1434,7 @@ suite times hold (within ~15%), no new load failures, and CPU stays under ~90% o
 slot; the netmove compare moves to sim time. (Keeps the G269 trial setup.)
 
 **G271. Mocap locomotion, as captured.** Michael (2026-10-22 ~23:20, after the side-by-side sheets and videos,
-feature/mocap-sheets-real docs/mocap-trial/sheets/): "Mocap, as captured". The capture is kept as recorded, not bent to
+feature/mocap-sheets-real docs/archive/mocap-trial/sheets/): "Mocap, as captured". The capture is kept as recorded, not bent to
 the old limits (walk pelvis bob 5.5-6.6 cm vs bible D2 4 cm, walk knee-out 3.5 cm, run wrist swing 24 cm vs his 85 cm
 hand-keyed tune); checkers report those as notes, not fails. Fix rounds still fix pops and slides. Applies to the mocap
 locomotion behind the G264 toggle. (Overrides the bible D2 limits for mocap clips.)
@@ -1475,8 +1476,8 @@ accepts ~3-5 h rework if his walk changes the layout); "make it a believable tra
 potential real level scenarios. Ensure lighting is sufficient, review the rule if needed. This facility should also be
 very expensive, and should adopt a design that is luxurious (LED strips, glass panel where an "instructor" can watch you
 train throughout the course, sliding doors, any suggestions you have, these do not have to be in the level, only giving
-examples) again you can ask me questions if needed". The no-detail-art rule (CLAUDE.md "Current goal") is lifted for
-marlow-final only. Art comes from a reusable kit built by in-repo Blender scripts (headless, CC0 textures only); any
+examples) again you can ask me questions if needed". The no-detail-art rule (the 2026-10-19 "Current goal", lifted for
+every map by G288) is lifted for marlow-final only. Art comes from a reusable kit built by in-repo Blender scripts (headless, CC0 textures only); any
 loosening of the light rules goes to Michael as a proposal in the spec, never applied. (Extends G272.)
 
 **G279. Marlow Yard: lit, the players cut it; a view-only gallery; normal guards.** Michael (2026-10-23 ~00:45,
@@ -1493,7 +1494,8 @@ bounds for players. Guards stay normal guards; a prototype guard avatar replacem
 together; solo play keeps a working route past them. Course Ready builds it in feature/sector-fixes-r2. (The co-op
 routes of G238.)
 
-**G281. Pacing: hit the 5-hour limit as fast as possible.** Michael (2026-10-23 ~01:05; replaces the ~00:35 stop at
+**G281. Pacing: hit the 5-hour limit as fast as possible.** (Replaced by G302 and G304, 2026-10-23: full burn to 100%
+with the model split.) Michael (2026-10-23 ~01:05; replaces the ~00:35 stop at
 97%): "I want to hit the 5 hour token limit as fast as possible. Can you push as hard as possible. I will reset as soon as
 you hit it." Every session runs at full speed to 100% with parallel agents; WIP is pushed after every agent hand-back, so
 a cutoff loses only the step in flight (docs/orchestrator/STATE.md "Pacing"). (Replaces the 97% and 99% stops of G245
@@ -1542,7 +1544,8 @@ accepted by Michael or by the orchestrator citing his words. Player Build builds
 (real client inputs, no state pokes, background tab, rejoin, E2E_NETSIM=typical), then its fixes. Test jobs, not
 refining.
 
-**G288. Process audit: four fix packages, refining allowed, walk pacing, one-click sign-off.** Michael (2026-10-24
+**G288. Process audit: four fix packages, refining allowed, walk pacing, one-click sign-off.** (Walk cap narrowed by
+G355, 2026-10-25: it limits switching features on, not building them.) Michael (2026-10-24
 ~21:50, native multiple choice on `docs/orchestrator/PROCESS-AUDIT-2026-10-24.md`): (1) all four fix packages start
 (watchdog and release path, one rulebook and lean docs, cheap swaps, intake gates and small PRs); (2) the "no refining
 until Michael playtests the core loop" rule is lifted; (3) "Cap 3 + walk card": at most 3 unwalked features per area (a
@@ -1564,7 +1567,7 @@ choice on `docs/orchestrator/MISSION-DESIGN-AUDIT-2026-10-24.md`): (1) breaking 
 (the team goes back to that section's checkpoint, the mission continues); (2) up to 2 strict rules per mission,
 signposted in the briefing and the objective list, "ghost" counting as one; (3) no markers plus an optional hint layer
 (off by default); guidance is in-world only (objective text names places, leads, light language, landmarks). (Replaces
-G125's "at most one hard rule"; Marlow Yard's guidance is settled by G292.)
+G125's "at most one hard rule"; Marlow Yard's guidance is settled by G292, its strict rules by G357.)
 
 **G291. Mission modes and the first prototypes.** Michael (2026-10-24, the same evening and ~22:12): campaign missions
 are 2-player co-op only with strict rules; Sector Ops is 1-4 player co-op (G308; solo always possible, G280) with
@@ -1618,7 +1621,7 @@ morning); the camera-range cut and the lighting rule review on "All maps" (one e
 proposal for Michael).
 
 **G297. Sector Ops: a corporate research campus, 30-45 min, up to 24 guards, dogs.** (Guard count replaced by G289 and
-G328, 2026-10-25: signed-off counts per section, 32 alive ceiling.) Michael (2026-10-23 ~01:20): setting "Corporate
+G328, 2026-10-25: signed-off counts per section, 32 alive ceiling; how dogs are handled: G348.) Michael (2026-10-23 ~01:20): setting "Corporate
 research campus"; one co-op run "30-45 min"; guards "up to 24, each section should gradually get harder with more guards
 and more security."; security "Include guard dogs" (cameras, lasers, alarm panels, keypads, then dogs and armed
 response). Lighting, the orchestrator's reading of his G295 words: lit like a real site, players cut lights to make
@@ -1631,7 +1634,7 @@ campus is a new Sector Ops map, the warehouse stays selectable); mocap "On by de
 clips pass their checker, the hand-keyed set behind the switch. (Replaces G264's default off.)
 
 **G299. Guard AI: realistic hearing, caution, investigation and teamwork.** Michael (2026-10-23 ~01:30; job guard-ai,
-plan base `docs/reviews/guards-review.md`): "also note that right now every guard hears when things break or someone
+plan base `docs/archive/reviews/guards-review.md`): "also note that right now every guard hears when things break or someone
 gets shot which is unrealistic. if they are within range they should hear it, depending on whether they are near
 something noisey, and if they see a guard get killed or find one dead/knocked out they should wake them up (if knocked
 out), report them dead, and become cautious. the only way to clear the cautious guards should be to eliminate any that
@@ -1652,8 +1655,9 @@ radio "Own section, staggered" (voice range first, then that section over a few 
 ~01:37: "cameras should also see dead or knocked out guards, and report to other nearby guards to investigate if so."
 (Applies G299.)
 
-**G301. Overnight: proposed rule loosenings applied, logged and undoable; finished big jobs merge.** Michael
-(2026-10-23 ~01:42; lighting LR1-LR12 `docs/lighting-review/PROPOSAL.md`, marlow-final P1-P17, sector-redesign
+**G301. Overnight: proposed rule loosenings applied, logged and undoable; finished big jobs merge.** (Extended to rules
+only Michael may change by G358.) Michael
+(2026-10-23 ~01:42; lighting LR1-LR12 `docs/archive/lighting-review/PROPOSAL.md`, marlow-final P1-P17, sector-redesign
 P1-P10): "Apply, logged and undoable": builders use them as assumed decisions, each listed for his morning review with
 its undo. Big jobs finished overnight (Marlow Yard, Sector Ops campus, Guard AI) that pass their tests: "Merge to
 master" (next train, `/preview/`).
@@ -1689,8 +1693,9 @@ session); the heavy.lock desktop lane runs single GPU suites under 80% CPU; PRs 
 trains on CI plus at most two area suites; stacked series share a train; trains at 3+ ready or a 2-hour wait. (Replaces
 G246's 2+ trigger; its train trigger and desktop lane are replaced by G318.)
 
-**G307. Reward stealth over shooting as sections get harder.** (Helmet rule (2) replaced by G338, 2026-10-25: helmets by
-difficulty.) Michael (2026-10-23 ~10:10, native multiple choice in Character Build, relayed): theme "reward stealth over
+**G307. Reward stealth over shooting as sections get harder.** (Helmet rule (2) narrowed by G338 and G350, 2026-10-25:
+Realistic and Perfectionist always have helmets, Perfectionist's cannot be shot off; below that the first headshot
+still knocks a helmet off.) Michael (2026-10-23 ~10:10, native multiple choice in Character Build, relayed): theme "reward stealth over
 shooting as sections get harder". (1) bulletproof cameras in later sections (shots only ricochet; jam, cut power or slip
 the sweep; early sections keep shootable cameras); (2) no instant headshot kills later (a helmet: the first headshot
 knocks it off and staggers, the second kills; takedowns stay one move); (3) riot-shield enemies only in alert response
@@ -1742,7 +1747,7 @@ cameras, doors); the S3 hallway camera bulletproof. Lighting "not realistic": li
 accessible via main menu. animation tuner in game menu as is".
 
 **G314. Realistic lamp falloff: try it first; a shadow parity audit.** Michael (2026-10-23 ~14:35, native multiple
-choice on LR13, `docs/lighting-review/PROPOSAL.md` section 7): "Try it first": inverse-square lamp falloff (level at
+choice on LR13, `docs/archive/lighting-review/PROPOSAL.md` section 7): "Try it first": inverse-square lamp falloff (level at
 3 m, smooth to 0 at 1.6x radius) behind an in-game settings toggle, default off; the meter, guard perception and the
 picture switch together (light parity). ~14:45: "Audit + parity fixes": one Opus audit of shadow-edge parity, moving
 occluders (doors, shutters, crates, bodies) updating the bake, and unshadowed flashlights and lamps lighting through
@@ -1752,7 +1757,8 @@ walls; fix what fails; penumbra width and one-bounce fill go on the polish list.
 character shadow maps where ours used capsule blobs): "yes i want to include this system now as its one of the main
 focus of the game". Slice LR14: the 2-4 lamps nearest the players get real-time character shadow maps in one shared
 atlas (WebGL2, inside the 16-texture cap); static geometry stays baked; other lamps keep capsules; render only (meter
-and perception keep their model, the parity effect logged); on at High+ presets, capsules at Low / Medium, plus a
+and perception keep their model, the parity effect logged; replaced by G352: the meter and guards read character
+shadows); on at High+ presets, capsules at Low / Medium, plus a
 settings toggle; a GPU and perf run before the train.
 
 **G316. One lighting system on every map: realistic, diffused, a showcase.** Michael (2026-10-23 ~18:08, after 4.78.0):
@@ -1897,7 +1903,8 @@ replaced entries marked, one owner per process rule) and D (the level standard p
 approved; "Once this has been completed, I want another audit run and review the rules/vision/level design and anything
 to make sure the vision is clear."
 
-**G338. Helmets by difficulty.** (Campaign part settled by G341, 2026-10-25: the same rule.) Michael (2026-10-25
+**G338. Helmets by difficulty.** (Campaign part settled by G341, 2026-10-25: the same rule; "harder" and "hardest"
+named by G350.) Michael (2026-10-25
 ~09:45): "Keep CT way" (G155); then, asked again after the docs audit about G307's first-headshot helmet (~10:20): "Base
 it off difficulty, harder difficulties always have helmets, and hardest difficulty you can't shoot the helmet off."
 Asked for Sector Ops. Assumed for the campaign, undoable: CT's alarm-stage helmets (G155) plus the same difficulty rule.
@@ -1914,7 +1921,7 @@ Tallow Wharf is already specced to today's rules (the 2026-10-24 mission researc
 chose "Tallow Wharf". Tallow Wharf, the new small campaign map of G293, is campaign Mission 1; Kestrel stays paused
 (G53). (Replaces G118's wait for Kestrel's Mission 1 size and the deferred LEVEL-01.)
 
-**G341. Campaign helmets: the same rule as Sector Ops.** Michael (2026-10-25 ~10:45): "Same rule": harder difficulties
+**G341. Campaign helmets: the same rule as Sector Ops.** (Difficulties named by G350.) Michael (2026-10-25 ~10:45): "Same rule": harder difficulties
 always have helmets and on the hardest the helmet cannot be shot off; on the easier difficulties helmets come with CT's
 alarm stages (G155). (Settles the campaign part of G338, no longer an assumption.)
 
@@ -1928,3 +1935,83 @@ temporarily? Should also should up when updating objective"; binding "View (Sele
 CT's Back) or O (keyboard) shows the current objective for ~5 s, and it also shows on every objective update. Each
 objective is a short, plain English line. Owner: menu / HUD (to assign). (Replaces G108's "objectives live in the menu"
 as the only place; the menu keeps the full list.)
+
+**G344. Doc drift prevention: doc lint in CI, auto-archive, fold rewrites in place, frequent drift audits.** Michael
+(2026-10-25 ~11:00, native multiple choice): "how do we prevent this from happening again? Documentation going stale,
+duplicate information, redundant information, old branches etc"; he picked "Doc lint in CI" (`scripts/doc-lint.mjs` in
+`npm run check`: a stale-term list, replaced G numbers cited as current, broken links, key numbers outside their owner
+file, size budgets, an owner / status header per doc), "Auto-archive job docs" (a released job's `docs/<job>/` moves to
+`docs/archive/` in the train) and "Fold rewrites in place" (the daily fold updates DECISIONS, the bible and VISION
+together; checkers fail appended notes and missed owner files), and wrote "I would like to carry out drift audit more
+often to prevent straying from vision." Assumed, undoable: an Opus drift audit daily with the fold and after every batch
+of Michael's decisions, on top of doc lint in CI.
+
+**G345. Merged branches pruned weekly.** Michael (2026-10-25 ~11:00, the same question): "Yes, weekly". The
+orchestrator deletes branches fully merged into master and older than 7 days, weekly, and logs the list; unmerged
+branches are never touched; clean merged worktrees are pruned in the same pass. (Extends G258.)
+
+**G346. Docs first; finished game PRs ship.** Michael (2026-10-25 ~11:05): "Full 100% burn completing these tasks. I
+want to use the 5 hour limit before it runs out, but I don't want to proceed with game updates until this documentation
+and clarity is fixed moving forward". On the six finished, checked game PRs (#373, #377, #384, #385, #387, #389), native
+multiple choice: "Let finished ones ship" (they train when green; only new game work waits). Leads stay unbooted until
+the doc PRs land, the re-audit is fixed and the forward plan is agreed (G355).
+
+G347-G360 are Michael's native multiple-choice answers to the doc re-audit questions (2026-10-25 ~11:20-11:35), in
+question order (1)-(14).
+
+**G347. The current goal: all three in parallel.** Michael (1): "All three in parallel". Marlow Yard, the Sector Ops
+campus and Tallow Wharf each move under their own lead, after the conformance review of G355 (`docs/VISION.md` section
+1). (Replaces the bible's Marlow Yard first goal.)
+
+**G348. Sector Ops dogs.** Michael (2): "Penalty for killing, can be knocked out with gas, no takedown, or can be
+distracted". A dog cannot be taken down (no palm strike, no grab); gas knocks it out; it can be distracted; killing one
+carries a penalty. (Settles how G297's dogs are handled; with G42.)
+
+**G349. Marlow Yard downed: the campaign rule.** Michael (3): "Campaign rule". A downed player in Marlow Yard can be
+revived within 30 s, at most twice; both down reloads the checkpoint (G126). A Marlow Yard checkpoint restart stays a
+full reset (G312).
+
+**G350. Helmets: Realistic and Perfectionist always.** Michael (4), asked which difficulties are the "harder" ones of
+G338 / G341: "Realistic + Perfectionist". On Realistic and Perfectionist every guard has a helmet; on Perfectionist it
+cannot be shot off; on Rookie and Normal helmets come only with the alarm stages (G155). The same in the campaign and
+Sector Ops (G341). (Names the difficulties of G338 and G341.)
+
+**G351. The objective popup shows what and where.** Michael (5): "What and where". The objective that fades in (G343)
+names what to do and where. (Applies G336 to G343.)
+
+**G352. Character shadows count for the meter and guards.** Michael (6): "Meter and guards read them". Light parity holds
+for character shadows: the meter and guard perception read the real-time character shadows the picture shows. A build
+job; not built yet. (Replaces G315's render-only character shadows and the bible's old L11, "characters do not occlude
+gameplay light".)
+
+**G353. Killing a civilian or a protected character restarts the section.** Michael (7): "Section restart". (Replaces
+G145's mission fail and the bible's "killing a civilian fails the mission".)
+
+**G354. Tallow Wharf's story is decided with the missions.** Michael (8): "Decide with missions". `docs/story.md` keeps
+its Mission 1 plan (Dead Line) as written, with a status line, until then. (With G120 and STORY-03 / STORY-04.)
+
+**G355. A conformance review before new game work; the walk cap limits switch-on only.** Michael (9), on the walk cap:
+"What do you recommend? All current maps/features should be revised once documentation work has been completed"; the
+recommendation adopted, "Yes (Recommended)": once the doc PRs are on master, each lead runs a plan-only conformance
+review of every map / feature in its area against VISION, RULES and level-design (a gap list with fix sizes); the
+orchestrator folds them into the forward plan for Michael; then signed-off builds (campus greybox, Tallow Wharf) resume
+dark behind flags; the walk cap limits switch-on only; rule fixes to shipped features (for example G339's compass and
+blip) are fixes, allowed at the cap. (Narrows G288's walk cap.)
+
+**G356. CT footage numbers are starting values.** Michael (10): "Starting values". The numbers in G25-G36 are starting
+values; Michael tunes them by hand. (With G10 and G227.)
+
+**G357. Marlow Yard teaches strict rules late.** Michael (11): "Taught late". Marlow Yard has no strict rules in its
+early sections; one strict rule is taught in a late section. (Settles Marlow Yard's strict rules, left open by G290 and
+G292.)
+
+**G358. Overnight loosening of a Michael-only rule: assume and log.** Michael (12): "Assume and log". Overnight, a
+loosening of a rule only Michael may change is applied as an assumed decision and logged for his review with its undo.
+(Extends G301.)
+
+**G359. The campaign caps at 32 alive.** Michael (13): "32 alive, but also research how many guards are normally active
+in splinter cell series missions and tell me" (research running). The campaign caps at 32 alive guards, like Sector
+Ops: a ceiling, not a target (G187, G332). (Replaces G187's `MAX_ALIVE = 12` for the campaign.)
+
+**G360. The map-spec template follows the current rules.** Michael (14): "Yes, update it". `docs/templates/map-spec.md`
+is updated to the current rules.
