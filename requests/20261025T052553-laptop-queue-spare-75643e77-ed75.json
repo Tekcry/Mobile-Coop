@@ -1,0 +1,15 @@
+{
+  "id": "20261025T052553-laptop-queue-spare-75643e77-ed75",
+  "sha": "75643e774025cd7ee571b9aa8c7a611d3d81c4b9",
+  "branch": "",
+  "pr": null,
+  "kind": "alone",
+  "requester": "laptop-queue spare",
+  "set": "spare-guard-cap",
+  "note": "spare work 3: spare-guard-cap",
+  "steps": [
+    "node scripts/guard-cap.mjs --maps=ctcourse --counts=24 --cells=patrol,alert --secs=20 --out=C:/NightShift/scratch/guard-cap/spare-75643e77-3/ctcourse",
+    "node scripts/guard-cap.mjs --maps=campusops --counts=32 --cells=patrol,alert --secs=20 --out=C:/NightShift/scratch/guard-cap/spare-75643e77-3/campusops"
+  ],
+  "env": {}
+}
