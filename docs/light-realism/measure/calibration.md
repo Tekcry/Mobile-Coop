@@ -95,12 +95,40 @@ the night floor by 9-12 m. One intensity cannot fit both ends. For L1: a real P1
 so the engine columns need closer spacing, more reach or a cone tipped toward the bays to spread like a real one (map
 data, not the curve); the A2 anchors are not changed by this test.
 
-## 4. GPU check (the "before" run at the L0 head; still pending)
-`scripts/light-realism/shots.mjs` on the laptop queue alone slot: S1 at Low and Epic, meter vs field at the named
-points (a split over 0.02 goes to J11), pixel luma per grid point against bible L5's display targets, pushed to
-`shots/light-realism-s1`. Queued 2026-10-25 at 8e20a7a77 as laptop request
-`20261025T092215-night-shift-sector-o-8e20a7a7-af43` (set `light-realism-l0`); result: pending (the
-`laptop-e2e/light-realism-l0` status and the `before-campusOps-s1-*` folder on `shots/light-realism-s1`).
+## 4. GPU check (the "before" run at the L0 head)
+`scripts/light-realism/shots.mjs` on the laptop queue alone slot (laptop request
+`20261025T092215-night-shift-sector-o-8e20a7a7-af43`, set `light-realism-l0`, at 8e20a7a77): S1 at Low and Epic on an
+RTX 4090 Laptop GPU (ANGLE D3D11), 1280 x 720, 2,278 grid points over 11 spaces, 12 named meter points, 5 views and a
+30 s Epic fly-through. Files: branch `shots/light-realism-s1`, folder `before-campusOps-s1-2026-10-25-10-18/` (10 PNGs,
+`flythrough-epic.webm`, `shots.json`). Neither run logged a page error.
+
+Meter against field (the light meter's reading against the field at the same point; a split over 0.02 goes to J11
+through the lead, not fixed here):
+- Low: **1** split over 0.02, at "far east" (5, -60): meter 0.283, field 0.262 at body height, split **+0.021**.
+- Epic: none; the worst is the same point, +0.019. Every other named point splits by 0.008 or less ("under column"
+  -0.008, "south edge" +0.001, the rest 0).
+
+Bible L5 display targets per view (luma of the open-ground spots within 0.03 of each target level; **advisory**: the
+ground is not the grey card the targets are set on, `shots.mjs` reports and never fails them). Cell = mean luma (spots);
+"in" = inside the target's band, "out" = outside.
+
+| View | Preset | 0.12: 0-0.04 | 0.27: 0-0.09 | 0.40: 0.12-0.35 | 0.70: 0.45-1 |
+| --- | --- | --- | --- | --- | --- |
+| wide-sw | Low | 0.028 (112) in | 0.039 (907) in | 0.068 (29) out | 0.065 (8) out |
+| wide-sw | Epic | 0.020 (112) in | 0.033 (907) in | 0.070 (29) out | 0.061 (8) out |
+| overhead-s | Low | 0.030 (113) in | 0.026 (897) in | 0.071 (34) out | 0.084 (10) out |
+| overhead-s | Epic | 0.031 (113) in | 0.027 (897) in | 0.076 (34) out | 0.084 (10) out |
+| row-z53 | Low | 0.038 (87) in | 0.036 (774) in | 0.026 (26) out | 0.022 (5) out |
+| row-z53 | Epic | 0.033 (87) in | 0.029 (774) in | 0.024 (26) out | 0.022 (5) out |
+| aisle-e | Low | 0.019 (79) in | 0.029 (554) in | 0.030 (17) out | 0.023 (4) out |
+| aisle-e | Epic | 0.015 (79) in | 0.027 (554) in | 0.029 (17) out | 0.023 (4) out |
+| forecourt-w | Low | 0.051 (30) out | 0.035 (327) in | 0.099 (32) out | 0.104 (10) out |
+| forecourt-w | Epic | 0.057 (30) out | 0.037 (327) in | 0.100 (32) out | 0.102 (10) out |
+
+Read: the dark levels (0.12, 0.27) land in their bands in every car-park view; the lit levels (0.40, 0.70) read far
+under their bands everywhere (luma 0.02-0.10 against 0.12 and 0.45 minimums): the before picture is darker than the
+bible's display targets wherever a lamp lights the ground, on both presets alike. Few spots sit at those levels (4-34
+per view), which is the "before" car park's shortage of lit ground. The after run (L1 step 7) repeats this table.
 
 ## 5. Lamps add in lux (L0 check, lead note 1; BRIEF A14)
 The engine adds lamps in level and the curve is a log, so a summed level read on the curve over-reads overlaps. The
