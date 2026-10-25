@@ -4,6 +4,8 @@
 //     (--suites "a b c" (or "a,b,c"; unknown names refused) | --affected [--wide] | --full | --alone --step "<cmd>" [--step ...] [--env K=V ...]) [--note ".."] [--branch x] [--dry-run]
 // --affected [--wide]: the suites come from scripts/e2e-affected.mjs (DIRECT tier, --wide the cross-area set) for the
 // committed diff from the merge-base with origin/master to --sha; a diff that reaches no browser suite is refused.
+// The LEGACY / AUDIO suites it reaches go in "report" (run after the others, REPORT ONLY: J20 T4); the wire rule reads
+// src/net/protocol.ts at --sha (J20 T1).
 // --train-rerun (with --pr N and --suites; auto-train, --requester auto-train): a train's failed suites rerun on the
 // laptop at train priority; "trainRerun": true, kind pr. Context laptop-e2e/<set> (no --set: laptop-e2e/rerun-<suites>).
 // A pass also posts laptop-e2e success on the sha.
@@ -52,15 +54,15 @@ const resolve = (ref) => git(['rev-parse', '--verify', '-q', `${ref}^{commit}`],
 const sha = (isRef && !opts.sha.startsWith('origin/') ? resolve(`origin/${opts.sha}`) : '') || resolve(opts.sha);
 if (!sha) { console.error(`cannot resolve ${opts.sha}`); process.exit(1); }
 
-/** --affected: the suites for the committed diff from the merge-base with origin/master to sha. */
+/** --affected: { suites, report } for the committed diff from the merge-base with origin/master to sha. */
 function prSuites() {
   // lib affectedSuites: the same selection the service's affected pass makes for every PR head
   const got = affectedSuites((args) => git(args), sha, { wide: Boolean(opts.wide) });
   if (!got) { console.error(`--affected: no merge-base between origin/master and ${sha} (or git diff failed)`); process.exit(1); }
-  const { files, suites } = got;
-  console.error(`affected${opts.wide ? ' (wide)' : ''}: ${files.length} changed file(s), ${suites.length} suite(s): ${suites.join(' ') || '-'}`);
+  const { files, suites, report } = got;
+  console.error(`affected${opts.wide ? ' (wide)' : ''}: ${files.length} changed file(s), ${suites.length} suite(s): ${suites.join(' ') || '-'}${report.length ? `; report only: ${report.join(' ')}` : ''}`);
   if (!suites.length) { console.error('--affected: no browser suite reached (docs / unit tests only): nothing to request'); process.exit(1); }
-  return suites;
+  return { suites, report };
 }
 
 // branch and pr filled by default, so a failure comment reaches the right PR (lib pickBranch)
@@ -84,7 +86,11 @@ const id = `${requestId(Date.now(), requester, sha)}-${randomBytes(2).toString('
 const kind = opts.alone ? 'alone' : opts.full ? 'full' : 'pr';
 const req = { id, sha, branch, pr, kind, requester };
 // --suites "a b" or "a,b" (lib splitSuites)
-if (kind === 'pr') req.suites = opts.affected ? prSuites() : splitSuites(opts.suites);
+if (kind === 'pr' && opts.affected) {
+  const { suites, report } = prSuites();
+  req.suites = suites;
+  if (report.length) req.report = report;
+} else if (kind === 'pr') req.suites = splitSuites(opts.suites);
 if (opts['train-rerun']) req.trainRerun = true;
 if (kind === 'alone') {
   req.steps = opts.step;
