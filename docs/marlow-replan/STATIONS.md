@@ -14,7 +14,7 @@ is a retry (Q5, G370); two players everywhere (Michael ~21:42, PLAN F1); chimney
 - **Yaw.** Radians, 0 faces +z (north), PI/2 faces +x (east), PI faces -z, -PI/2 faces -x (`types.ts` `SwitchDef`,
   `SPAWNS`).
 - **Marks.** `marks[0]` is role A's, `marks[1]` role B's: the bay's role claim (`BayDef.roles`), P1 / P2 when no claim
-  (assumption S3). A split station puts the two marks on the two legs.
+  (assumption SA3). A split station puts the two marks on the two legs.
 - **Ids.** `*` marks an id this sheet adds; the set slice creates it in `replan/<set>.ts`. The rest exist on master.
 - **Retry kinds** (`StationDef.retry`). `none`: no guard, camera or drill reaches the station, nothing can fail.
   `station` (A1-A7): a guard in combat on a player, a camera's full detection of a player, or the drill window failing
@@ -23,7 +23,7 @@ is a retry (Q5, G370); two players everywhere (Michael ~21:42, PLAN F1); chimney
   window failing, retries the step (PLAN A14). Downed is the campaign rule, unchanged: past the revives, one out or both
   down restarts the bay from its holding room (level-design 9.4, G312).
 - **Play order.** Stations go live in the order of each bay's `stations` array; `n` is the badge on `replan-plan.svg`.
-  Only A4 differs from badge order (section 4). A8's badge 18 is four retry steps, `n` 18-21 (assumption S4).
+  Only A4 differs from badge order (section 4). A8's badge 18 is four retry steps, `n` 18-21 (assumption SA4).
 
 ## 2. The stations
 | n | Badge | Bay | id | Lesson (`teach:`) | Graph space | Retry | drillS | Done flag | Kit / stand-in |
@@ -55,7 +55,7 @@ is a retry (Q5, G370); two players everywhere (Michael ~21:42, PLAN F1); chimney
 
 ## 3. StationDef rows (copy per set)
 Each block is one set's `SetPart.bay.stations`, in play order. `guards` and `gates` are what a retry of that station
-resets (the reset rule: assumption S1); a stand-in gate is also in `gates`.
+resets (the reset rule: assumption SA1); a stand-in gate is also in `gates`.
 
 ```ts
 // A1: replan/a1Gate.ts
@@ -154,7 +154,7 @@ const a8StrongroomStations: StationDef[] = [
   taken or slipped first); its done flag is both players under the pinned grille in the back aisle. Station 8 then
   starts in the security room again: take the officer if he is still up, press the console, cross to the dock inside
   the 60 s loop. Station 10 is the synced takedown at the dispatch desk. The bay's `stations` array is `[9, 8, 10]`, so
-  S0's `checkSetPart` must not require `n` to rise inside a bay (assumption S7).
+  S0's `checkSetPart` must not require `n` to rise inside a bay (assumption SA7).
 - **A8: four steps on badge 18,** in the order the set forces them (the built objective chain, `a8Strongroom.ts:551-596`):
   18a the leg-up split and the gallery run under C2 on the floor partner's jam, to the office door; 18b the officer and
   the console (the 60 s loop starts); 18c the lighting board, 25 s of dark to slip the grille; 18d the throw over the
@@ -163,24 +163,24 @@ const a8StrongroomStations: StationDef[] = [
 
 ## 5. Drill windows (every graph space with `drill_s`)
 `StationDef` has only `drillS`. What opens a window and what fails it differs by drill, so R1 needs the rule below
-(open question Q2). "Gate window": the timed gate in the station's `gates` (an isolator's dark, a console's loop);
+(open question OQ2). "Gate window": the timed gate in the station's `gates` (an isolator's dark, a console's loop);
 "pair window": from the first of two to the second; "jam window": a jammer held on the named lamp or camera.
 
 | Graph space | drill_s | Station | `drillS` | Window opens | Fails (-> retry) when | Note |
 | --- | --- | --- | --- | --- | --- | --- |
 | `a2-neck` | 15 | 4 | 15 | gate window: `g-a2-neck` dark (a press on `a2-iso-1` or `a2-iso-2`) | the dark ends with a player in the neck (x 46-56, z 0.3-19.7) | two crossings, one window each; the 3 s re-arm between |
-| `a3-corridor` | 6.5 | 7 | - | jam window on `cam-a3-hall` (5 s held + 1.5 s reboot) | the camera's full detection (a `seen` retry) | not set: the camera judges each hop; a doneFlag test would fail after the first hop (S6) |
+| `a3-corridor` | 6.5 | 7 | - | jam window on `cam-a3-hall` (5 s held + 1.5 s reboot) | the camera's full detection (a `seen` retry) | not set: the camera judges each hop; a doneFlag test would fail after the first hop (SA6) |
 | `a4-main-aisle` | 60 | 8 | 60 | gate window: `g-a4-console` loop | the loop ends before `a4-west` | the console re-arms at once on the retry (it is in `gates`) |
 | `a4-dock` | 1.5 | 10 | 1.5 | pair window: the first knock-out of `a4-dock1` / `a4-dock2` | the second loader is not down 1.5 s later (`SYNC_WINDOW`, `sectionRating.ts:24`) | one man taken alone retries, the pair reset at the desk |
-| `a5-inner` | 9 | 13 | 9 | jam window on the kiosk flood (group 52; 5 s held + 4 s off) | the flood is back before `a5-release` | a beam broken also retries (Q4) |
-| `a7-pod` | 1.5 | 17 | - | the scanner pair `sc-a7` (`a7-t1` / `a7-t2`) | a miss resets the terminals in place, no retry | not set: REPLAN A7 "Hack missed: the terminals reset" (Michael-approved) wins over PLAN A23 (S6) |
+| `a5-inner` | 9 | 13 | 9 | jam window on the kiosk flood (group 52; 5 s held + 4 s off) | the flood is back before `a5-release` | a beam broken also retries (OQ4) |
+| `a7-pod` | 1.5 | 17 | - | the scanner pair `sc-a7` (`a7-t1` / `a7-t2`) | a miss resets the terminals in place, no retry | not set: REPLAN A7 "Hack missed: the terminals reset" (Michael-approved) wins over PLAN A23 (SA6) |
 | `a8-board` | 25 | 18c | 25 | gate window: `g-a8-night` dark (a press on `a8-board`) | the dark ends before `a8-grille-in` (the grille relocks) | |
 | `a8-lobby-inner` | 60 | 18d | 60 | gate window: `g-a8-console` loop (pressed in 18b, or again after a retry) | the loop ends before `a8-sync`; if 18d goes live after the loop has ended, it fails at once | the retry puts A back at the console, which re-arms at once |
 
 ## 6. LANTERN's retry lines
 Plain, short, what and where (G343, G351); at most 90 characters (`COURSE_TEXT_MAX`). A `seen` / `caught` line plays for
 a guard or camera, a `timer` line for a drill window. Keyed in the set's `bay.radio` as `at: 'retry:<station id>'`
-and `at: 'retry:<station id>:timer'` (assumption S2). No line says "failed".
+and `at: 'retry:<station id>:timer'` (assumption SA2). No line says "failed".
 
 | n | id | Seen / caught | Timer |
 | --- | --- | --- | --- |
@@ -291,7 +291,7 @@ The other done flags exist on master: `a2-east`, `a3-far` (its zone loses `hall`
 | `a1-top1` | [11.7, 2.3, 12.3, 19.7] | 4.4 | any | one player on the wall top (the boost) |
 | `a1-top` | [11.7, 2.3, 12.3, 19.7] | 4.4 | both | both players on the wall top (the ladder) |
 | `a2-lane` | [36, 11.3, 46, 13.7] | 0 | both | both in the road 2 / 3 lane, under the shutter |
-| `a2-across` | [69, 8.5, 69.75, 11.5] | 0 | both | both on the pit's far side at the L2 door (needs the pit at x 66-69, assumption S9) |
+| `a2-across` | [69, 8.5, 69.75, 11.5] | 0 | both | both on the pit's far side at the L2 door (needs the pit at x 66-69, assumption SA9) |
 | `a3-fire` | [79.6, 9.2, 82, 12.3] | 0 | both | both through the fire door, west of the camera's 14 m |
 | `a4-grille` | [98.5, 24.3, 104.5, 27.2] | 0 | both | both under the lift grille, in the back aisle |
 | `a4-wicket` | [76.3, 33, 78, 36] | 0 | both | both at the dock wicket, past the loaders |
@@ -301,3 +301,112 @@ The other done flags exist on master: `a2-east`, `a3-far` (its zone loses `hall`
 | `a8-office-in` | [134.25, 75.5, 136, 77.75] | 4.4 | any | one player inside the security office door |
 | `a8-grille-in` | [134.3, 60.5, 136, 63.5] | 0 | any | one player through the public grille |
 
+## 9. Security register
+LD 4.11 and 13: every camera and beam with what it protects and why a real site has it there; every guard with the
+lesson that needs his eyes or ears (Q11). A1, A2 and A6 have no camera or beam. Camera `facing` is in degrees, 0 north,
+90 east (`CameraDevice`).
+
+**Cameras and beams**
+| id | Set | Device and place | Protects | Why it is there | Beaten by | Stations |
+| --- | --- | --- | --- | --- | --- | --- |
+| `cam-a3-hall` | A3 | IR ceiling camera at (96.6, 2.8, 10.75), facing west, range 14, armoured (`ARMOURED_FROM_SET`) | the office corridor to the east lift lobby | the landlord's out-of-hours CCTV on the floor's only corridor | the jam relay (5 s jam, 1.5 s reboot); the services crawl and the fire door sit past its 14 m | 6, 7 |
+| `cam-a4-c1` | A4 | wall camera (111.5, 39.8), facing 270, range 14, on the loop flag `a4-loop` | the main aisle's east half | warehouse CCTV down the main aisle | the 60 s console loop | 8 |
+| `cam-a4-c2` | A4 | mezzanine-face camera (96.75, 43.6), facing 180, range 14, `a4-loop` | the cross aisle | the one aisle between the rack runs | the loop; the grille and back aisle (z 24-27) are 16 m out, so station 9 is out of its range | 8 |
+| `cam-a4-c3` | A4 | camera over the wicket (76.4, 33.0), facing 90, range 14, `a4-loop` | the dock, the loaders' desk, the main aisle's west end | dock CCTV over the yard door | the loop; the crouch spots behind the pallet stacks (SA12) | 8, 10 |
+| `laser-a5` | A5 | three IR beams at 0.35 / 0.9 / 1.45 m across the 6 m cable gateway (x 58, z 33-39) | the inner zone | a substation's perimeter detection at its vehicle gateway | the throw over them; switched off for good by the far-side release `sw-a5-release` | 13 |
+| `a7-cam1` | A7 | wall camera (86.5, 71.5), facing 195, range 12, short aim | the front aisle's north mouth, the cage's north apron | colocation CCTV on the client's cage | the technicians' rounds; the rack-light panel cut | 17 |
+| `a7-cam2` | A7 | camera at the corridor's east end (99.6, 54.0), sweep 220-320, range 14 | the plant corridor and the pod door | the plant corridor's CCTV | slip the sweep in the cooling units' lees | 17 |
+| `a8-cam1` | A8 | south-wall camera (120.0, 50.4), facing 0, range 14, `a8-loop` | the public floor south of the counters | bank CCTV over the public floor | the office loop; the counters' cover | 18a-18d |
+| `a8-cam2` | A8 | east-wall camera at gallery level (133.75, 73.0), facing 323, range 10, `a8-loop` | the gallery's last 8 m and the office door | the security office's own door camera | the floor partner's jam from the counters (118.0, 67.2) | 18a |
+| `a8-cam3` | A8 | lobby camera (134.45, 56.45), facing 45, range 14, `a8-loop` | both time locks, the throw spot, the beam curtain | vault lobby CCTV | the office loop | 18d |
+| `laser-a8` | A8 | the beam curtain at x 140 across the vault lobby | the inner lobby and time lock two | the vault company's last layer | the throw; off on `a8-sync` | 18d |
+
+**Guards: 12** (Michael ~20:40 "12, add two (Recommended)"; PLAN section 2 "Guards per lesson")
+| id | Set | Post or round | Stations | Why the lesson needs him |
+| --- | --- | --- | --- | --- |
+| `a2-shunter` | A2 | post (51, 10) in the neck, facing east down it (graph, svg; the built post faces west: G-A2 turns him), round to the east end (66, 7.5) and back (`A2_SHUNTER_ROUTE`) | 3, 4, 5 | his eyes on the lit neck make the 15 s dark necessary; he notices a board left in the light at the pit (plank) |
+| `a4-officer` | A4 | seated at the monitors (104.8, 17.6), facing north | 9, 8 | the console loops only with him down (`SecurityConsole.guard`); he is in the room both stations start in |
+| `a4-dock1` | A4 | the dispatch desk (80.0, 34.4), facing south | 8, 10 | the synced takedown: taken alone, his partner sees |
+| `a4-dock2` | A4 | the dispatch desk (80.0, 31.6), facing north; the kettle loop is removed, so he stays | 8, 10 | as `a4-dock1` |
+| `a5-patrol` | A5 | round kiosk (47.9, 33.4), pen 1 (41.3, 31.0), (47.0, 34.6), the landing side (56.5, 37.6) (`A5_PATROL_ROUTE`) | 13 | the throw lands on his round |
+| `a5-watcher`* | A5 | static beside the release kiosk, about (46.5, 32.0), facing east down the floodlit strip (G-A5 sets the exact post) | 13 | **extra guard 1.** With the patrol alone the strip is unwatched for part of his round, so the pair could wait him out and skip the floodlight jam; the watcher makes the jam necessary ("Seen in the floodlight: retry from behind the transformer"). Graph `a5-inner` guards 2 |
+| `a6-attendant` | A6 | gauge round from the desk (61.5, 67.1) to pump 3 (48.2, 61.0) and back (`A6_ATTENDANT_ROUTE`) | 14, 15, 16 | his eyes on the loading edge and the bridge; his ears on the 6 m landing (the drop catch) |
+| `a7-tech` | A7 | round rows 1-2 (`A7_TECH_ROUTE`) | 17 | the hall leg's threat, covered from the pod through the mesh |
+| `a7-tech2`* | A7 | round from the hall's east side across the pod approach and back, spawned in the hall, in view of the hall leg through the cage mesh (G-A1A7 draws the route) | 17 | **extra guard 2.** With only the hall leg guarded, "covering each other" worked one way; now each partner covers the other. Counted on `a7-hall` (guards 2); `a7-pod` stays a quiet connector with no guard (LD 3.8) |
+| `a8-night1` | A8 | post at the night desk (128.5, 71.6), head turns | 18a-18d | the graduation: mission rules in the banking hall |
+| `a8-night2` | A8 | round desk, stair foot, grille, south-east floor, counters' east end (`A8_N2_ROUTE`) | 18a-18d | as `a8-night1`; his grille stop times the board drill |
+| `a8-officer` | A8 | seated at the console (142.9, 74.7, y 4.4), his back to the door | 18a-18d | the office console loops only with him down |
+
+Per set: A1 0, A2 1, A3 0, A4 3, A5 2, A6 1, A7 2, A8 3 = 12. Ordinary armed guards, no alarm team (BRIEF A12). Not a
+guard: the A1 checker `a1-checker` stays seated, passive, blind and deaf (BRIEF A11; he stays in A1's `bay.squad` so
+`e2e-coop.mjs:2057-2110` keeps working, and on no station's list). Removed from the built yard: `a2-watch-w`,
+`a2-watch-e`, `a3-cleaner`. A4 and A8 sit at the training cap of 3 (`SET_GUARDS_MAX`).
+
+**Station 16 fallback (BRIEF A6, PLAN section 2).** If G-A6's unit test shows a 6 m landing's noise does not reach the
+attendant's round, the A5 watcher moves to A6 as a listener at the pit side, `a6-listener` (A5 1, A6 2, still 12):
+station 13's `guards` lose `a5-watcher` and station 16's become `['a6-attendant', 'a6-listener']`. G-A5 and G-A6 agree it
+with the lead before either builds its guards. Only if a listener there cannot hear it either does station 16 get a
+rule (a heavy landing retries the station).
+
+## 10. Assumptions, open questions, deviations
+**Assumptions** (logged, each with its undo)
+- **SA1 Reset rule.** A retry of station n resets each guard on n's `guards` list that was knocked out, alerted or moved
+  since n went live (a guard dealt with at an earlier station stays as left, PLAN A17; this is why a guard may sit on
+  several stations' lists), plus any guard holding combat on a player at that moment, listed or not, so the cause of a
+  retry never repeats it. Undo: reset the listed guards only, and list every guard that can see a station's ground.
+- **SA2 Line keys.** A station's lines are `bay.radio` rows at `retry:<station id>` and `retry:<station id>:timer`. Undo:
+  a `say` field on the station (an S0 fix).
+- **SA3 Marks by role.** `marks[0]` goes to role A, `marks[1]` to role B (the bay's role claim; P1 / P2 without one).
+  Undo: by player slot, as the airlock spawns (`AirlockDef.spawns`).
+- **SA4 A8 as four stations.** Badge 18 is four `StationDef`s, `n` 18-21, so each step retries at its own marks (PLAN
+  section 2: "retries that step"). Undo: one station 18 at the vestibule marks (every A8 retry goes back to the start).
+- **SA5 Station 13's marks.** A (the thrower) on the throw mark, B at the landing in the lee: Michael's approved line is
+  "Seen in the floodlight: retry from behind the transformer". `?course=station:13` therefore starts B past the beams.
+  Undo: both on the apron at the throw mark (59.0 / 60.0, 36.0).
+- **SA6 No `drillS` on 7 and 17.** Station 7's 6.5 s is the jam's own length and the camera judges each hop; station
+  17's 1.5 s is the scanner pair's window, which resets the terminals in place (REPLAN A7, Michael-approved). Undo:
+  set them and give R1 a per-hop / per-try success test.
+- **SA7 A4 play order 9, 8, 10** (section 4). Undo: move the grille past the console press (graph change).
+- **SA8 Done flags are places.** Twelve new pass zones (section 8); the set slices build them. Undo: per-station flags set
+  by the mode.
+- **SA9 A2 pit at x 66.0-69.0.** The drawing's 66.5-69.5 leaves 0.25 m before the L2 door's wall; at 66.0-69.0 (still
+  3 m) the far landing is 0.75 m and `a2-across` fits. The near-side marks (x 65.5, in the road 2 / 3 van gap) fit
+  both. Undo: keep 66.5-69.5 and make `a2-across` the L2 door seal.
+- **SA10 A5 gap and wall.** The gap is closed at z 30 and 36 (graph size 6 m) and 1.4 m clear (A19): the new wall's east
+  face at x 68.35, the apron's east strip x 67.0-68.0. Undo: 1 m (A19's undo); marks at x 69.0 still fit, 0.25 m off the
+  wall.
+- **SA11 New ids and kinds.** `g-a2-shutter` (hold, door `A2-shutter`); `g-a2-walkway` (stand-in, door `A2-walkway`);
+  `g-a3-fire` (bolt, door `A3-fire`, push bar on the corridor side); `g-a4-grille` (the deadweight grille, KS1's hookup)
+  and `g-a4-grille-motor` (stand-in: the motor button); `g-a5-wicket` and `g-a5-footbridge` (stand-ins, doors
+  `A5-wicket`, `A5-footbridge`); `g-a5-plates` (the trench plates, laid from the west side); `g-a6-edge` (the gallery's
+  self-closing edge gate); `g-a6-pit-ladder` (stand-in: `anchorLock` on the cage ladder `a6-pit-ladder`); squads
+  `a5-watcher`, `a7-tech2` (fallback `a6-listener`). Undo: rename in the set slice and here together.
+- **SA12 Station 10 and C3.** C3 watches the loaders' desk, so the takedown lands inside the loop. The marks are the
+  crouch spots behind the two pallet stacks (`A4_SPOT_N` / `A4_SPOT_S` on the grid), about 40-48 degrees off C3's axis;
+  G-A4 checks they sit outside its sweep with the loop off, else narrows C3's sweep to the wicket line. Undo: marks
+  at the main aisle's west end (85.5, 37.0 / 38.0).
+- **SA13 No-fail stations.** 1, 2, 11 and 12 have no guard, camera or drill. G-A5 gives the cable trench a way out (step
+  irons at its ends), so a fall is a walk back, never a soft-lock. Station 15: a hanger who lets go before the key drops
+  into the pit and walks out by the cage's push-bar door (graph `a6-pit` -> `a6-floor`); no retry needed.
+
+**Open questions for the lead** (assumed as above meanwhile; none blocks a set slice)
+- **OQ1 (R1)** The reset rule SA1. Without its "any guard in combat" part, a guard who caused a retry but is not on that
+  station's list stays in combat and the retries repeat.
+- **OQ2 (R1, S0)** Drill windows (section 5): `StationDef` has only `drillS`. R1 needs each drill's window source (gate,
+  pair, jam) and fail test; station 4's "a player in the neck when the lights return" is the one a done flag cannot
+  express. Suggested: a per-station constant in `replan/<set>.ts`, or an S0 fix adding `drill?: { kind, id, zone? }`.
+- **OQ3 (S0)** `checkSetPart` and the `stationDef.ts` comment ("1-18") must allow `n` 18-21 (SA4) and a bay whose array is
+  not in `n` order (A4, SA7).
+- **OQ4 (R1)** A trip of a station's listed beam (`laser-a5` on station 13) is a `seen` retry (graph `a5-inner`: "Breaking
+  a beam also retries").
+- **OQ5 (R1)** Marks by role (SA3) or by player slot.
+- **OQ6 (G-A6)** Station 16's drop must land in the pit: the 0.55 m gland hole is too small for a body, so the drive pit
+  needs a drop opening under the bridge's rail (PLAN risk: the cage move).
+
+**Deviations**
+- `replan-plan.svg` still labels A5 "1 guard" and A7 "1 guard, 2 cameras"; they predate the 12-guard pick (A5 2, A7 2).
+  Not edited here (D1 writes only this file).
+- graph.json has no `area` boxes yet; the marks are checked against set-constant boxes (section 7) until G0 lands.
+- graph `a5-gap` is 1 m (size [1, 6, 6]); this sheet uses Michael's 1.4 m.
+- PLAN A23 puts every `drill_s` into `drillS`; stations 7 and 17 do not take it (SA6).
+- Badge 18 has four rows, `n` 18-21 (SA4).
