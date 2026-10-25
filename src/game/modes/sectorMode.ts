@@ -102,6 +102,8 @@ export function setOnRated(fn: typeof onRated): void {
 }
 import { crateItemId } from '../crateLedger';
 import type { SlotPoint } from '../spawnSlots';
+import { sectorObjectiveLines } from '../sectorObjectives';
+import type { ObjectiveLine } from '../../ui/screens/pauseScreen';
 import {
   DESK_HOLD,
   DESK_ITEM_Y,
@@ -1388,6 +1390,12 @@ export class SectorMode implements GameMode {
       crates: this.g.crates?.debug() ?? [],
       ...this.result(),
     };
+  }
+
+  /** (hud-guidance B4, G343 / HG8) Field Terminal > Objectives: every section's objective and exit, done / current / to
+   *  do (solo and the co-op host; a client mirrors them, `SectorListMirror`). */
+  objectiveLines(): ObjectiveLine[] | null {
+    return this.run.defs.length ? sectorObjectiveLines(this.run.defs, this.run.index, this.run.phase) : null;
   }
 
   dispose(): void {

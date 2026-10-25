@@ -241,7 +241,8 @@ behind a VPN adapter).
   reached only through the connector). Step 3 and the fix round add: the star saved at the extraction and shown filled
   in the op list; a guard (AI on) running section 2's own alarm panel, the stage rising through the panel, and again
   after a restart; a two-page `?net=local` pair (the client mirrors the live section's devices, door locks and the
-  syringes line, then section 2 after the connector). The quick map picks it for the Sector Ops files, `src/net/`,
+  syringes line, then section 2 after the connector); the objective popup (shows on a new objective, gone after ~5 s, O
+  brings it back) and the field menu's full list on host and client (hud-guidance B1, B4). The quick map picks it for the Sector Ops files, `src/net/`,
   `src/security/`, `src/save/sectorRecord` and the op list screen. `SECTOR_SHOTS=<dir>` adds three layout shots
   (software GL). (sector-fixes-r RE) It runs as six jobs, `e2e-sectorops:1` to `:6` (`--part=N`; named alone its parts
   still run as parallel jobs): part 1 is everything above; part 2 (solo, the loop stepped at 120 Hz) checks slice R's

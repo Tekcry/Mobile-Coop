@@ -57,6 +57,8 @@ import { stampKeptBodies } from './keptBodies';
 import { DESK_NONE, deskItemId, deskModeOf } from '../game/sectorDesks';
 import { placeSlot, startSlotPoints } from '../game/spawnPlace';
 import type { SlotPoint } from '../game/spawnSlots';
+import { SectorListMirror } from '../game/sectorObjectives';
+import type { ObjectiveLine } from '../ui/screens/pauseScreen';
 
 const SEND_HZ = 20;
 /** (afp AF6) `CLIENT_INTERP_DELAY` (interp.ts; was 0.12). */
@@ -115,6 +117,8 @@ export class CoopClient implements NetAttachment {
   private readonly crateSpent = new Set<string>();
   /** Sector Ops: the client's mirror of the cameras and lasers. */
   private sec: CtDevices | null = null;
+  /** (hud-guidance B4, HG8) Sector Ops: the field menu's full list, from the host's live section and objective line. */
+  private list: SectorListMirror | null = null;
   /** (sector-restart) The section our checkpoint loadout was recorded for (the host's live section only moves on). */
   private kitSection = 0;
   /** (section-rating S3) The host's last section rating as the HUD card shows it (null before the first). */
@@ -190,6 +194,7 @@ export class CoopClient implements NetAttachment {
       const ct = new CtDevices(g, 'client', { say: () => undefined, record: () => undefined, dirty: () => undefined });
       this.sec = ct;
       g.ctDev = ct;
+      this.list = new SectorListMirror(g.world.map.sectors ?? []);
       // (sector-restart, M9) our loadout as section 1 begins: a checkpoint restart gives it back
       g.weapons.markCheckpoint();
       // (slice L) the host's lamps (`lamps`); our lamp rounds go to the host below
@@ -992,6 +997,7 @@ export class CoopClient implements NetAttachment {
     if (msg.ls !== undefined && msg.ls >= 0) this.g.world.lightBake?.sections?.setLive(msg.ls);
     if (ct) {
       if (msg.ls !== undefined && msg.ls !== ct.liveSection) ct.setLive(msg.ls);
+      if (msg.ls !== undefined) this.list?.onLive(msg.ls);
       if (msg.dn) ct.applyDestroyed(msg.dn);
       if (msg.sec) ct.apply(msg.sec);
     }
@@ -1070,7 +1076,8 @@ export class CoopClient implements NetAttachment {
    */
   private showLine(t: string): void {
     this.obj = t;
-    showMirrorLine(this.g.hud, t);
+    // (hud-guidance B4) the host's objective also tells the field menu's list which row is current
+    if (showMirrorLine(this.g.hud, t)) this.list?.onText(t);
   }
 
   fixedUpdate(dt: number): void {
@@ -1321,6 +1328,12 @@ export class CoopClient implements NetAttachment {
   shadows(b: BlobShadows): void {
     for (const a of this.avatars.values()) b.add(a.pos.x, a.pos.y, a.pos.z, 0.42);
     for (const p of this.puppetList) if (p.alive) b.add(p.pos.x, p.pos.y, p.pos.z, 0.4 * p.def.scale);
+  }
+
+  /** (hud-guidance B4, G343 / HG8) Field Terminal > Objectives in Sector Ops: the host's rows as this client mirrors
+   *  them; null elsewhere or before the host's first section number (GameState then shows its own line). */
+  objectiveLines(): ObjectiveLine[] | null {
+    return this.list?.lines() ?? null;
   }
 
   dispose(): void {

@@ -945,6 +945,19 @@ console.log('sector ops: co-op client mirrors the live section');
     await until(A, () => window.__sector.debug().index === 1, null, 20000, 'both inside: the connector cycles into section 2');
     await until(B, () => window.__ctdev.debug().live === 1, null, 15000, 'the client knows section 2 is live');
     assert(await devOk(B, 1), `the client: section 2's devices are live, section 1's off (${JSON.stringify(await GB(() => window.__ctdev.debug().cams.map((c) => [c.id, c.live, c.mode])))})`);
+    // (hud-guidance B4, G343 / A8) Field Terminal > Objectives keeps the full list on both pages: in section 2,
+    // section 1's objective and exit Done, section 2's objective Current, the rest To do; the client's rows are the host's
+    {
+      const rows = (P) => P.evaluate(() => JSON.stringify(window.__app.current.objectiveLines().map((o) => [o.label, o.done ? 'done' : o.current ? 'current' : 'todo'])));
+      const want = await GA(() => JSON.stringify(window.__app.current.world.map.sectors.flatMap((s, i) => [
+        [s.objective.label, i === 0 ? 'done' : i === 1 ? 'current' : 'todo'],
+        [(s.connector ?? s.extract).label, i === 0 ? 'done' : 'todo'],
+      ])));
+      const host = await rows(A);
+      assert(host === want, `the host's field menu lists every section, section 2's objective current (G343): ${host} (want ${want})`);
+      const ok = await until(B, (w) => JSON.stringify(window.__app.current.objectiveLines().map((o) => [o.label, o.done ? 'done' : o.current ? 'current' : 'todo'])) === w, want, 10000, 'the client\'s field menu list').then(() => true, () => false);
+      assert(ok, `the client's field menu lists the host's rows (G343, A8): ${await rows(B)} (want ${want})`);
+    }
     const lk1 = await locks();
     assert(lk1 !== lk0, `the cycle changed the host's door locks (${lk0} -> ${lk1})`);
     await until(B, (k) => window.__app.current.world.doors.list.filter((d) => d.anchor.locked).map((d) => d.index).join(',') === k, lk1, 15000, 'the client mirrors the unlocked far door');
