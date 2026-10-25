@@ -350,32 +350,30 @@ then git worktree remove --force. Train-ready = message + `gh pr edit <n> --add-
 
 ## Resume prompt
 ```
-Night Shift | Sector Ops Build: RESUME (SAVE 2026-10-25 ~20:35, 5-hour meter).
+Night Shift | Sector Ops Build: RESUME (2026-10-25 ~21:15, new account after the ~20:45 swap).
 git fetch; RULES + VISION from origin/master; BOOT.md "Sector Ops Build" on origin/feature/menu. Full burn within CPU:
-2 builder agents per lead (tsc / single vitest only); docs agents not counted. Plan: FOLDED-PLAN + ROADMAP Decided.
+2 builder agents per lead (tsc / single vitest only), none while desktop CPU > 90%; docs agents not counted. Marlow
+goes first on laptop + desktop CPU (orchestrator ~20:55). Plan: FOLDED-PLAN + ROADMAP Decided.
 Order: Guard AI J15 guard-rules PR1 lands on master before any J17 lane PR (S1-S5) still carrying P0 / S4-S5 data.
-Michael ~20:05: map-ready Q3 option 1 (keep costly parts, level built at Start), Q1 cap 20 s. ~20:50: J10 "Yes, one
-datasheet" (one free IES file, data only, credited in docs/art-credits.md, pick noted in J10 BRIEF).
-1. BUILDING (check branch heads + docs/<job>/checks/*.md; relaunch any cut-off builder from its last commit):
-   - J16 char-shadow-meter S1 (Opus) on feature/char-shadow-meter (interface b3e70c165; WIP e93bf00e5). Next: Opus
-     checker on S1, then S2 (Opus) on the job branch.
-   - J16 S3 (Opus) on feature/char-shadow-meter-s3, worktree -char-shadow-meter-s3, from b3e70c165 (shadowCues.ts +
-     test). Then lead merges it into the job branch; S3b after S2.
-   - J10 light-realism L0 DONE 2253553bd ("chosen, not measured"; GPU before-run queued 20261025T092215-...-af43).
-     Opus checker running -> checks/l0-check.md + checker status. Datasheet agent: C:/NightShift/scratch/light-datasheet/
-     REPORT.md (RAB ALEDS3T; lux 32.1, 53.9, 47.7, 25.4, 11.2 at 0-12 m). Site terms bar commercial use of the
-     file: asked Michael (via orchestrator ~20:40) "numbers only" vs "find a fully free one"; commit REFERENCE only on yes. Next: fold REFERENCE into calibrate.ts (+ art-credits,
-     BRIEF pick) with any L0 fix, then L1 + SIGNOFF.md to Michael.
-   - J5 sector-marks B1 on cloud-queue (briefs/sector-marks-B1.md -> feature/sector-marks-b1). On done: checker, ff
-     feature/sector-marks, PR.
-2. PLANS:
-   - map-ready ACCEPTED by the lead at 049c099bc (checks 1-3 + final fixes verified). Brief writer for W1 (+2-3 ahead)
-     running -> docs/map-ready/briefs/. Next: start W1 builders (cloud-safe ones to cloud-queue).
-   - J17 campus-greybox ACCEPTED by the lead at 9f36223c1 (check-2 fixes verified; Marlow told about SW re-measure).
-     Next: V2-SEED (lead copies the five plan graphs to graph/v2/), then S1-S3 lanes in own worktrees (cloud-safe
-     ones to cloud-queue); every lane PR carrying P0 trains after Guard AI J15 PR1.
-   - J18 sector-batch: fix round 1 done 83b4d43a4 (B3 = own PR C; flag above sectorGuards); check 2 running ->
-     PLAN-CHECK-2.md. PASS: B1 / B3 to cloud-queue, B2 Sonnet, B4 Opus (src/net, two checkers).
-3. #433 merged (train 99). Test Runner J20: e2e-darkness is the train parity check until J11 cards.
-Next: read each agent's report / branch, start checkers on finished slices, keep 2 builders running.
+Michael ~20:05: map-ready Q3 option 1, Q1 cap 20 s. J10 datasheet ~21:00: "Yes, numbers only (Recommended)": use the
+5 ground readings (0/3/6/9/12 m: 32.1, 53.9, 47.7, 25.4, 11.2 lux, RAB ALEDS3T,
+C:/NightShift/scratch/light-datasheet/REPORT.md); never commit or ship the file; credit the source.
+1. PRs:
+   - #457 J5 sector-marks (Job-done): Opus x2 PASS on 159653796; waits CI check + affected-e2e (laptop). Watchdog labels.
+2. BUILDING / CHECKING (read each branch head + docs/<job>/checks/*.md; relaunch any cut-off agent from its last commit):
+   - J16 char-shadow-meter: S1 done da057345c (job branch), S3 done a88b998df (feature/char-shadow-meter-s3). Batch
+     checker -> checks/s1-s3-check.md. Next: S2 (Opus) on the job branch when CPU allows; lead merges S3 into the job
+     branch; S3b after S2. S1 ~1.2k lines: PR A may split (checker advises).
+   - J10 light-realism L0 2253553bd on feature/light-realism-l0: Opus checker -> checks/l0-check.md. Next: one Opus
+     builder: L0 fixes + fold the 5 readings into calibrate.ts (REFERENCE), art-credits line (source URL, "numbers
+     only, file not committed"), BRIEF pick; then L1 + SIGNOFF.md to Michael.
+   - J17 campus-greybox: V2-SEED 024c7c172; lanes on cloud-queue (briefs/campus-greybox-{s1,s2,s3-r1,s4,s5}.md). On
+     done: checker + laptop e2e-sectorops part; queue S3 r2-r5 from r1's frame commit.
+3. PLANS:
+   - map-ready: brief writer -> docs/map-ready/briefs/ (W1 = S1, S4, S9 + 2-3 ahead). Next: W1 builders (cloud-safe
+     ones to cloud-queue).
+   - J18 sector-batch: check 2 FIX (B4 duplicates coop4's out-and-wait: re-plan on #317's APIs behind sectorOutWait;
+     overlaps 42 incl. mission-rules-r1 on B1's lines). Fix round 2 running. Then check 3; PASS: B1 / B3 cloud, B2
+     Sonnet, B4 Opus after #317 (two checkers).
+Next: read each agent's report / branch, start checkers on finished slices, keep 2 builders running when CPU < 90%.
 ```
