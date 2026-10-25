@@ -10,6 +10,7 @@ origin/master 2148ec96 unless a branch is named.
 | L0 | One lux calibration: the curve module, the reference test against a real fitting (Q3), a per-map lux grid tool, the GPU shots tool, the write-up | ~1,150 | Opus | plan checker | Opus checker; GPU "before" shots |
 | L1 | S1 car park: fix the light point, add the missing column row, tune to the band, re-bake, measure; the one-page `SIGNOFF.md` | ~450 code + ~350 docs | Opus | L0 | Opus checker + laptop suites; **Michael's click on SIGNOFF.md** before train-ready |
 | L2 | S1's other spaces, then S2, S3, S4, S5 to their bands, with their dark pockets (one PR each) | ~300-700 each | Opus briefs, Sonnet builds | L1 click (L2-S1 also after L1 merges) | Opus checker per batch + laptop suites |
+| L2-V2 | Campus v2 (J17): measure each v2 section (`lux-grid` with `?campusv2=N`) and set its PROVISIONAL `S<N>_LIGHTS` block to the bands before that section's greybox exit (campus-greybox BRIEF A29) | ~200-400 each | Opus briefs, Sonnet builds | the L2-S<N> brief for the same section; the J17 lane merged | Opus checker per batch + laptop suites |
 | L3 | Dark pockets on the other live maps: base warehouse (W); hand-offs to Marlow, Campaign and campus v2 (H) | W ~250; H ~150 docs | W Sonnet; H Opus | L1 click | W Opus checker + `--affected --wide` |
 | L4 | Parity cards per map for the every-release check (Q27), handed to J11 | ~200 | Sonnet from an Opus brief | L2 measures | Opus checker |
 | L5 | Docs: level-design 5.5, scale sheet 9, lighting.md, SPEC band lines | ~150 | Opus | L1 click | docs checker |
@@ -242,6 +243,13 @@ reachable board, a shootable lamp), so every lit chokepoint still has two ways t
   every route in the brief's route table still has at least one gap (occluder, reachable board or shootable lamp),
   each named with its coordinates; the section's tests and e2e green (e2e-darkness included); the look video path in
   the PR body.
+- **L2-V2 (campus v2, added 2026-10-25 ~23:10, campus-greybox BRIEF A29).** ROADMAP Decided ~09:05 measures light from
+  the bake at greybox exit, and Michael walks v2 S1-S5 at exit (~22:25). The v2 lamp blocks
+  (`src/world/maps/campusV2/s<N>*.ts` `S<N>_LIGHTS`, J17 lanes) are PROVISIONAL (campus-greybox A19). Per section, after
+  its L2-S<N> brief sets the bands and its J17 lane has merged into feature/campus-greybox: one Opus brief reuses the
+  L2-S<N> space table on the v2 rooms, Sonnet sets the v2 block, `lux-grid.mjs --map campusOps --section <N>` runs with
+  `?campusv2=<N>` (laptop GPU), and the v2 `spaces` rows go beside the v1 rows. Exit for section N waits for its pass
+  (campus-greybox EXIT.md section 3). Same done line as L2-S<N>.
 
 ## L3 - dark pockets on the other live maps
 - **L3-W, base warehouse (Sonnet from an Opus brief, ~250)**: only 14 strips are lights (`warehouse.ts:27-31`
