@@ -97,11 +97,11 @@ into `syncs`, `syncs` before `sync` within a file.
 | Pacifist run: the same over no `requires_kill` link | ERR |
 | A `rules[]` node on a `training` map (A19, Q5) | ERR |
 | Choke node per mission section (the objectives' sections, or `mission.sections` when it lists them; sections the mission does not use are skipped): a space (not entry / exit) or a link that every entry -> exit route passes | WARN (pulls against the two-route rule and Sector Ops' two tracks; justify) |
-| Campaign forced co-op (M3): in every section, with no co-op link and `bolted` links only from their far side, the entry does not reach the exit (no solo twin is checkCoop's ERR) | ERR |
+| Campaign forced co-op (M3): in every section, with no co-op link and a `bolted` link or a `vent_unlock` (A25) opened only from its `to` end, the entry does not reach the exit (no solo twin is checkCoop's ERR) | ERR |
 | Sector Ops parallel objectives: required team a and team b steps that neither waits on, at least `sector_parallel_min` (2) | ERR |
 | Sector Ops sync nodes in the mission's sections: at least `sector_syncs_min` (2) | ERR; WARN a mission section with fewer (A16 promises 2+ per section) |
 | A `code_sink` with no `code_source` in its section; a `sync` step whose space holds no sync node | ERR |
-| Sector Ops solo (players include 1): every objective and sync node reachable by one player from the start (no co-op link; `bolted` only from the far side; a `pair_gate` touching a space with a `pair_door` sync that has `solo` passes) | ERR |
+| Sector Ops solo (players include 1): every objective and sync node reachable by one player from the start (no co-op link; a `bolted` link or a `vent_unlock` (A25) only from its `to` end; a `pair_gate` touching a space with a `pair_door` sync that has `solo` passes) | ERR |
 
 Not checked here (rule of three, dead-end payoff, no solo twin, co-op coverage) are the map checks of
 `level-validate.mjs`, which run on the same graph. Forced co-op and the other campaign checks need the mission node: a
