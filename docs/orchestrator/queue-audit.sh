@@ -4,7 +4,7 @@
 # Flags each open request (no done claim) on origin/laptop-queue:
 #   STALE   its own branch (the request's "branch", else the sha's sole non-master holder) has since changed non-test files: withdraw it
 #   DUP     an older request from the same requester + set + branch (or PR) with overlapping suites: keep the newest only
-#   BIG     more than 2 suites on a PR whose diff vs master does not touch src/net (CLAUDE.md "Fewer per-PR runs")
+#   BIG     more than 2 suites on a PR whose diff vs master does not touch src/net (docs/RULES.md "Test tiers")
 #   CLAIM   claimed more than 90 min ago and not done (stuck claim)
 # A request with "pin": true (deliberate old-sha A/B run) is never flagged STALE or DUP.
 # Fast path (queue-audit: batch reads, under 10 s): every request and claim blob is read in ONE `git cat-file --batch`

@@ -1,13 +1,12 @@
 # Night Shift - roadmap
 
-Owned by the orchestrator (the only editor). Rules: CLAUDE.md "Sessions" on origin/master. Sections: Now (one ranked
+Owned by the orchestrator (the only editor). Rules: docs/RULES.md on origin/master. Sections: Now (one ranked
 queue), Inbox (Michael's new ideas, untriaged), Waiting on Michael, Decided (today only), Done (last 10 releases).
 History: `docs/orchestrator/archive/` (ROADMAP-history.md: the old Waiting / Now / Next / Later and the full Done
 table; ROADMAP-decided-history.md: Decided before 2026-10-24).
 
-Goal (CLAUDE.md "Current goal"): a fully functional 2-player co-op training level (Marlow Yard) with Wren, all co-op
-moves, lights and shadows, pure CT except Michael's decisions. Refining is allowed (no-refining rule lifted 2026-10-24
-~21:50), paced by the walk cap (3 unwalked features per area) and gated by the one-click visual sign-off.
+Goal: docs/VISION.md section 1 (Marlow Yard, Sector Ops campus and Tallow Wharf in parallel, each under its own lead,
+after a conformance review of every map and feature against the new docs; G347, G355).
 
 Last rewritten: 2026-10-24 ~22:15 Sydney; Now / Decided refreshed ~23:30 (master 4.98.1, train 68 #354; trains 69 #358
 and 70 #359 open).
