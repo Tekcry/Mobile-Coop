@@ -292,8 +292,8 @@ One row per LD 15 line; every row runs with the section's flag on. "Lane" = the 
 4. Section 7 rows green for the section.
 5. Walk card line for the orchestrator: `?campusv2=<N>` on `/preview/`, what to try, risks; in co-op every player opens
    the same `?campusv2=<N>` link (BRIEF A9; the layout is not on the wire, `src/core/flags.ts:70`: a client on another
-   link sees v1 walls under v2 guards). Offered within the walk cap (A10). Suggested offer order: S2 and S4 (the
-   missions), then S1, S5, S3.
+   link sees v1 walls under v2 guards). One card for S1-S5 (A10, Michael ~22:25), each line with the start-at-section
+   link (A28). Light measured first (A29). Order and blockers: `EXIT.md`.
 
 ## 9. Switch-on (SW-<N>, lead, after Michael accepts the walk)
 

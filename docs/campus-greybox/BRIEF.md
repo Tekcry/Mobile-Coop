@@ -88,9 +88,9 @@ Status per entry: kept, CHANGED (with the answer that changed it) or REPLACED (n
   come from #317 (J4), mission wiring from J26. Undo: if Michael picks the Split Shift page's "solo line" over Q21 (PLAN
   "Needs Michael" 1), restore ENG-1 from `briefs/S2.md` section 7 (kept there, marked dormant).
 - **A9 `?campusv2=1,3` works in production builds** (kept). Undo: read it only under `import.meta.env.DEV`.
-- **A10 Walk cap** (kept). Each section is +1 unwalked campus feature; at most 3 offered at a time; Sector Ops is AT CAP
-  (ROADMAP "Waiting on Michael"), so builds go on dark and switch-on waits for walks (RULES "Walk pacing"). Undo: count the
-  campus as one feature (ask Michael).
+- **A10 Walk** (rewritten 2026-10-25 ~22:40). Michael ~22:25 "Drop old, walk new": the v1 walk is dropped and he walks
+  v2 S1-S5 at greybox exit (all five on one card, not 3 at a time). Builds go on dark; switch-on waits for his walk
+  (RULES "Walk pacing"). Exit inputs: `EXIT.md`. Undo: none (Michael's pick).
 - **A11 Live assets stay live** (kept). Undo: none needed.
 - **A12 Live tests stay live** (kept). v2 tests live in `tests/campusV2S<N>*.test.ts`; the SW-<N> PR retires the live
   section tests and updates `tests/sectorGuardTags.test.ts` (PLAN "Switch-on"). Undo: none needed.
@@ -187,3 +187,10 @@ Status per entry: kept, CHANGED (with the answer that changed it) or REPLACED (n
   into `campusV2/s4Data.ts` / `s5Data.ts` (copies = live). The S4 / S5 lanes write no `'helmet'` and use `'armour'` where
   their briefs say `'both'`. guard-rules S9 (its PR4) puts `post: { leash: 1, lookout: true }` on the live S5 roof
   marksman; the S5 lane (S5-b) or, if PR4 lands later, SW-5 carries it to the v2 roof marksman. Undo: none (an order).
+- **A28 Start-at-section link for the walk** (new 2026-10-25 ~22:40, Sector Ops Build). A 10-minute card cannot reach
+  S3-S5 from the menu (play starts at S1). A dev / test URL argument that starts a campusOps run at section N (with
+  `?campusv2=N`) is planned as a small lane before EXIT; it reads only URL data, never a save. Undo: Michael plays through
+  from S1 (a longer card).
+- **A29 Exit waits for the v2 light measure** (new 2026-10-25 ~22:40). ROADMAP Decided ~09:05 measures light from the bake
+  at greybox exit; the v2 lamp blocks are PROVISIONAL (A19) and J10 L1 / L2 light the v1 files. So J10 also measures each
+  v2 section (`lux-grid` with `?campusv2=N`) and sets its lamps before that section's EXIT. Undo: none (higher source).
