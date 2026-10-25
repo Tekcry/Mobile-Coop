@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 2 2026-10-25T13:57Z
+status: done feature/tallow-s2 3cc71857898bde2be354fe6eea68ee44826c241e
 
 # campaign J9 S2: guards notice a held shutter (Opus 5.5)
 
@@ -85,3 +85,30 @@ conformance R39 (`git show origin/master:docs/conformance-player/CONFORMANCE.md 
 ## Report (append below, then set line 1 to `status: done feature/tallow-s2 <sha>`)
 What changed, the host-only finding, which test seam you used, test counts, check results, deviations, "pending PC
 run" for the laptop suites.
+
+### Report (Night Shift | Cloud Builder 2, 2026-10-25)
+feature/tallow-s2 from e3798754, three `tallow S2:` commits, head 3cc71857.
+- `src/game/kit/shutter.ts`: `ShutterDevice.noticed` (:119), `newShutterDevice` sets -1 (:163); `shutterNoticedBy`
+  (:305: `visible`, `hyp2` plan distance to `shutterNoticePoint` within 9 m, `|d.y - ey| <= 1.5`, the door rule's
+  facing test; a module-level scratch point); `resetShutter` (:320: open 0, 'closed', rate 0, user '', visible false,
+  openFor 0, noticed -1; `opens` kept).
+- `src/game/stealthSystems.ts`: one import; `private shutterNoticeT` (:84); `noticeOpenShutters` (:659, comment cites
+  G41, R39, A17, A18; reuses `noticeA` / `noticeB`); `this.noticeOpenShutters(1 / 60)` unconditional right after the
+  door notice in `fixedUpdate` (:702); `shutterNoticeT = 0` in `resetForRestart` (:537). The door notice path is
+  untouched.
+- Host-only finding: no gate needed. A co-op client never builds `StealthSystems`: `gameState.ts:547` `puppet =
+  opts.net?.role === 'client'`; the puppet branch (:695) builds none; `w.stealth = new StealthSystems(...)` (:739) only
+  in `else if (opts.mode !== 'sandbox')` (:700); `this.stealth?.fixedUpdate` (:1989) is a no-op there (as the door
+  notice).
+- Test seam: a real `StealthSystems` on a fake `g` (no doors, empty layout, `team.devices.list`, stub
+  `ballistics.clear`) and a fake `em` with stub guards, driven through the real `fixedUpdate` (no exported pure loop).
+- Tests: `tests/shutterNotice.test.ts` 12 (new: the brief's list, plus eye / notice point values, alerted / dead /
+  facing-away skipped, the clock reset on restart; removing the `fixedUpdate` call fails 5), `tests/kit/shutter.test.ts`
+  23 and `tests/kit/registry.test.ts` 17 unchanged: 52 / 52. typecheck:fast clean; eslint (3 files) clean.
+- No allocation: with no kit devices the method returns after one length check; otherwise index loops only over
+  preallocated state; the per-opening memory is the device's `noticed` number. Nothing grows or allocates per tick.
+- Deviations: (1) the length check comes before the countdown, so the clock counts only while the level has kit
+  devices; (2) `shutter.ts` header :23-25 ("the Guard AI hook ... not wired here") is now stale, left (not in the
+  owned lines) for the lead; (3) `tests/kit/shutter.test.ts` not edited.
+- Pending PC run: laptop `e2e-coop e2e-netmove e2e-ctcourse` (door notice unchanged, A7 data hall); after S3 / S4,
+  `e2e-sectorops:wharf-tgc e2e-sectorops:wharf-tkl`.
