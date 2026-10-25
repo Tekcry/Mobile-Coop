@@ -19,8 +19,9 @@ FOLDED-PLAN J-rows. Desktop CPU ~80-100%: tsc / vitest builder slices go to clou
    orchestrator told. Polish list in lead-notes.
 7. Laptop: gb6fix dc2aa9c8 (desktop FAIL at cpu 100%, laptop rerun queued), hg-b4 e72c8eab running; hg-b3 PASS.
 8. Tallow wave 0: cloud briefs tallow-tda / -g0 / -s2 open; MB / D0 held. LP DONE 4dac78cce (picks 9-12 accepted, lead-notes);
-   Opus LP checker running (tallow-lp-check.md). PASS + PR D in engine -> cut tallow-fixes, merge LP, push D0 brief.
-Next: read tallow-lp-check.md (rerun the LP checker if missing); laptop verdicts j7-prd / j7-pre / gb6fix / hg-b4 / #482 affected; PR D green -> engine, cut tallow-fixes, merge LP, push MB / D0 briefs; cloud r6-polish / r8 done -> checkers; mixamo-kit merge after #477 + i3 release.
+   LP check FIX (6 items); LP fix round 1 (Opus, docs) running on -lp (report "Fix round 1" in tallow-lp-report.md),
+   then a fresh re-check. PASS + PR D in engine -> cut tallow-fixes, merge LP, push D0 brief.
+Next: LP fix round 1 (rerun if tallow-lp-report.md has no done "Fix round 1"), then re-check; laptop verdicts j7-prd / j7-pre / gb6fix / hg-b4 / #482 affected; PR D green -> engine, cut tallow-fixes, merge LP, push MB / D0 briefs; cloud r6-polish / r8 done -> checkers; mixamo-kit merge after #477 + i3 release.
 
 ## OLD RESUME 2026-10-25 ~23:30 SAVE (history) (Night Shift | Campaign Build; read this block first, older blocks are history)
 Process: RULES + VISION from origin/master; BOOT.md "Campaign Build" (origin/feature/menu). Plan: ROADMAP "Now" +
