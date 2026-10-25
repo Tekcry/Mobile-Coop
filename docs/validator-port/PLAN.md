@@ -224,13 +224,13 @@ hand onto master's version.
 | 3271ab1d | V6a schema additions (`area`, `vantage.at`, link `at`, `measured`) | D-A (graph-schema "Schema additions"), D-A example graph |
 | fbf18eb7 | V6d `checkMeasured`, `--require-measured` | S3 (check), S0 (flag, `validate` option, `linkTime`) |
 | 9dda0917 | V6b measurement core | S1 |
-| 44ad33e5 | V6c CLI, greybox exit text | S2 (CLI), S5 (`package.json`), D-B (testing-tools), D-A (LD 14 / 15) |
+| 44ad33e5 | V6c CLI, greybox exit text | S2 (CLI), S5 (`package.json`), D-B2 (testing-tools), D-A (LD 14 / 15) |
 | a1bc1e57 | V6e-1 campus areas, vantage points, link openings | S10 |
 | 425c4e20 | V6e-2 campus run, drift test, V6 report | S10 |
 | 0410023e | fix: target ERRs on encounters only, reach re-times `path_m`, untimed drop / ladder, `--check` tolerances | S3, S0 (`linkTime`), S1, S2 |
 | 2ab1fe18 | fix: guard band docs, tolerances, bake time, drop / ladder null | guard band text already on master (#346); rest S1, S2 |
 | c9e520ed | fix: a drop / ladder timed only through its own nav link kind | S1 |
-| 8f551e18 | campus re-measure, report counts, changelog | S10 (re-measured on master), D-A / D-B fragments |
+| 8f551e18 | campus re-measure, report counts, changelog | S10 (re-measured on master), D-A / D-B / D-B2 fragments |
 | 9f6f75de, 4d662953, 2ad8c1e5, ed619326, f71c5bdc, 220596bc | merges | nothing |
 | ca040c57, 4ccb6aea | stale STATE lines | nothing (this STATE replaces them, V11) |
 
@@ -241,9 +241,10 @@ mission-node merge to S0; `mark` and `requires_kill` to S6; `mission_*` rows to 
 ## 5. Waves (full burn)
 
 - **Wave 1, now (4 agents):** S0 (Opus, from `feature/validator-port`); S1 (Opus, from origin/master, into
-  `feature/validator-port-measure`); S2 (Sonnet, from origin/master against S1's fixed API, section 8; into
-  `feature/validator-port-measure-cli` once that is cut from B's head); S7a (Sonnet, from origin/master on its own
-  branch; into the B2 branch).
+  `feature/validator-port-measure`); S2 (Sonnet, from S1's slice branch once S1 has pushed its first sub-step, the
+  whole-file take of V6's `levelMeasure.ts`; it codes `--points` against the `resolvePoints` signature fixed in
+  section 8 and merges S1's branch again before its last test run; into `feature/validator-port-measure-cli` once that
+  is cut from B's head); S7a (Sonnet, from origin/master on its own branch; into the B2 branch).
 - **Wave 2, when S0 is merged into `feature/validator-port` (6 agents):** S3 (Opus) into A. The lead cuts
   `feature/validator-port-train` and `feature/validator-port-mission` from A's head; S4, S6 (Opus) and S7b, S5 (Sonnet)
   go into C's branch, S8 (Opus) into D's. S7b merges once B2's branch (S7a) is merged into C's; S8 merges once C's
