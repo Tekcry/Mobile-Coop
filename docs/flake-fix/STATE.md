@@ -3,6 +3,19 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 49 (2026-10-25 ~13:50, before the ~14:05 cap; wins over SAVE 48 where they differ):**
+- Master 4.102.1 39668c06 (train 89 released). Train 90 (#408 laptop-queue-5, head 65b4ed26) on the laptop at 13:40.
+  #408 `checker` post was blocked for both me and the Orchestrator (auto mode); the Orchestrator asked Michael.
+  After #408 merges the service self-updates when idle (worktree -laptop-queue-svc, detached; never move it by hand).
+- Queued 13:45 for the gap, all pinned on 39668c06, requester Test Runner (after train 90 and the 8 Sector Ops
+  visual-proof alones): ...-d9b8 full-4102-r1, ...-5966 soak-flaky-4102 (e2e-coop + e2e-pad x3), ...-484e
+  flake-repeat-4102 (e2e-course e2e-netmove e2e-ctcourse x3), ...-222f perf-campus-x3-4102 (serve.mjs, MAP campusOps),
+  ...-cabc guard-cap-4102 (-> scratch/guard-cap/r4102-campus / r4102-so), ...-2158 full-4102-r2.
+- On resume: read scratch/laptop-queue/runs/<id>/ for each. Flake rates to owners (e2e-coop / e2e-pad / netmove Player
+  Build; course / ctcourse Marlow); guard-cap -> feature/guard-cap-results docs/guard-cap/run-4102/; perf medians into
+  the guard-render PLAN2 note (compare SAVE 47 fb83: p50 8.3 ms, allocations over budget). Then keep the queue fed.
+- Open from SAVE 47: guard-cap C2 still gated (#317 coop4 open, C1, Guard AI shadow rule).
+
 **Test Runner SAVE 48 (2026-10-25 ~13:30, after the 13:10 reset; wins over SAVE 47 where they differ):**
 - Master 4.102.0 829a9332 (train 88). Laptop service pid 69240 runs C:/NightShift/Mobile-Coop-laptop-queue-svc on
   829a9332 (= master). Train 89 6b885643 (#410 conformance, 4.102.1) laptop 42/43 PASS (known flaky e2e-pad), done 13:24.
