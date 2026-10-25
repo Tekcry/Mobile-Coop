@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 2 2026-10-25T13:57Z
 # campus-greybox A28 (cloud): start-at-section dev link
 
 Lead: Night Shift | Sector Ops Build. Job campus-greybox (J17, BRIEF A28).

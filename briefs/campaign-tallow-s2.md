@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 2 2026-10-25T13:57Z
 
 # campaign J9 S2: guards notice a held shutter (Opus 5.5)
 
