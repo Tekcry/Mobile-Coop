@@ -48,7 +48,7 @@ Not ranked yet (process, re-ranked at row 6): overlap slice 4 (scripts/auto-trai
 
 ## Inbox
 Michael's new ideas, verbatim, with the time; the orchestrator triages each cron run onto Now, Waiting or Decided.
-- (empty)
+- 2026-10-25 ~15:15, Michael (animation tuner, Keys tab): "I can clean up the animation but I can't twist the ankle, only roll and pitch which don't fix it. How do I make it twist?" Also: one key in the walk has a knee flying out sideways. Triage: Player Build, a per-key ankle twist row in the Keys tab (tool change, after the row 6 sign-off).
 
 ## Waiting on Michael
 | Item | Since | Blocks |
