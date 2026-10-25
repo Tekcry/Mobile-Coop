@@ -1003,7 +1003,7 @@ C:/NightShift/Mobile-Coop-laptop-queue-svc && node scripts/laptop-queue/request.
 laptop-e2e/<set>. Withdraw = delete requests/<id>.json on origin/laptop-queue (plumbing commit, never in the svc
 worktree). Background wait: scratchpad wait-status.sh "<sha>:<context>" ... Laptop auto mode blocks labels: tell the
 orchestrator at train-ready. Walk cap: Guard AI AT CAP (new behaviour dark; rule fixes ship on, G355).
-Open (2026-10-26 ~05:40, resumed after the 04:50 reset; full burn; order J4, J6, J15, J26, J16). Checker statuses: a LONE
+Open (2026-10-26 ~05:30 SAVE, pause till ~09:50, same account; full burn; order J4, J6, J15, J26, J16). Checker statuses: a LONE
 `gh api repos/Tekcry/Mobile-Coop/statuses/<sha> -f ...`. Local tsc / vitest builders only while laptop CPU < ~80%.
 File every gate request WITH the head push; post the checker the moment it passes (orchestrator 23:05: #446 missed
 train 106 by 2 min). One affected run per head covers its suites: no duplicate requests.
@@ -1027,16 +1027,18 @@ train 106 by 2 min). One affected run per head covers its suites: no duplicate r
    laptop-e2e/rules-pr4 GREEN 18/18 on d9c4d0e8c (b111c9aa1 is a docs-only delta). PR4 opens after PR3 merges (base
    master). Polish: e2e-sectorops.mjs:2749 stale comment, both-flags test, lookoutN live count, restartSearch(),
    dead leader enemy.ts:1690, S8 e2e margin 20 m. node_modules: junctions -> guard-ai-s24.
-7. J26 mission hooks: plan PASS (044258624). Briefs S1a + S2 on feature/guard-ai-mission-hooks (50dcab309; lead
-   decisions: S1a SPLIT into S1a-1 pure flags + missionOrders.ts + unit, S1a-2 wiring + e2e; S2 keeps NOISY_LIMITS).
-   Full burn, stacked on PR4 (their base): Opus builders S1a-1 (worktree -mission-hooks-s1a1, branch
-   feature/guard-ai-mission-hooks-s1a1) and S2 (-mission-hooks-s2) running from b111c9aa1 + job docs. Then 2 Opus
-   checkers each; S1a-2 from S1a-1's head; S1b after S1a-2; S3 after S2 (PLAN "Slices"). PRs open after PR4 merges.
+7. J26 mission hooks (stacked on PR4 b111c9aa1; PRs open after PR4 merges). Briefs on feature/guard-ai-mission-hooks
+   (S1a split: S1a-1 pure / S1a-2 wiring; S2 keeps NOISY_LIMITS). S2 DONE: feature/guard-ai-mission-hooks-s2 77d6f45b2
+   (checks A + B PASS, ai.md hearing line, checker posted). S1a-1 DONE: -s1a1 26633b6f5 (checks A + B PASS, checker
+   posted); an Opus polish round was running at the pause (NaN leg guard, cause only on a drop, start yaw, add never
+   revives a dropped guard, fail return, tests): check its pushed commits on -s1a1; if unfinished, rerun from
+   checks/S1a-1-CHECK-A/B.md. Then S1a-2 (wiring + e2e, Opus) from -s1a1's head per S1a-BRIEF + the checks' "For
+   S1a-2". A brief writer was writing S1b / S3 / S4 briefs on feature/guard-ai-mission-hooks: check for its commit.
    Campaign Build has C1-C7. A9 per-area stages dark: Michael's click at his walk.
 8. Test Runner request (J20 S6b): seed the 5 Math.random sites in src/ai (enemy.ts think cadence x2, enemyManager
    radio delays x2, reconDrone start angle) after J6 lands and PR-C (tests/replayDeterminism.test.ts) is on master.
 9. J16 perception half (Q14 cast shadow = faint cue): plan after Sector Ops' J16 PR. Later: coop4-pol (134f6abe),
    snapBudget headroom, coopHost.ts:589 comment, TODO sectorMode.ts:201.
-Next: #450 merges -> merge -s5 into feature/guard-rules, open PR2 (body per item 5) + affected; S1a-1 / S2 builders ->
-2 Opus checkers each, then S1a-2 and S3 briefs.
+Next: #317 / #450 ride the train after 4.105.3; after #450 merges: -s5 into feature/guard-rules, PR2 + affected.
+J26: finish S1a-1 polish -> S1a-2 builder; S1b / S3 / S4 briefs.
 ```
