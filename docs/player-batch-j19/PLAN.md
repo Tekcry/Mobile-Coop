@@ -232,8 +232,8 @@ Rules for every row:
   they keep no clip off.
 - Any other source (or the row off) is byte-identical to today's move: a test pins it.
 - Co-op: remotes pose from `MoveState` (`strike` / `putDown` `ph`) and the carry mirror (`RemoteAvatar.carryLoad`), so
-  a partner plays the same move as the owner with no extra J19 field (G400); which source a partner's remote uses must
-  match the owner's, and how that reaches the wire is the toggle owner's (J19 adds no field).
+  a partner plays the same move as the owner with no extra J19 field (G400); a partner's remote is drawn in the
+  viewer's own animation source, no wire field (the toggle owner's assumption; undo: send the owner's source).
 
 ## Slices
 Each slice is one PR to master. Parallel slices never share a file (the claims above split per slice). Waves: W1 (S2,
@@ -337,7 +337,7 @@ R11, Mixamo carry and kneel.**
   (`?putdown=1`), owner and partner screens side by side, each filmed on the default source and on Mixamo
   (`?anim=mixamo` once the toggle lands).
 - Done looks like: a guard hears a carrier's steps at 2.5 m; no crouch with a body up; with `?putdown=1` "Put down"
-  lays the body quietly, host and client, and the partner sees the same kneel and the body lowered, not dropped.
+  lays the body quietly, host and client, and the partner sees the same move, in the viewer's source, and the body lowered, not dropped.
 - Flag: R10 none (rule fix); R11 `putDown` (dark); the Mixamo clips under the animation-source setting (the
   Mixamo lead's).
 
