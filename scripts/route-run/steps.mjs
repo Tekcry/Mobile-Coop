@@ -287,9 +287,7 @@ class StepMachine {
     this.since = 0;
     this.begun = false;
     this.arrived = false;
-    this.x0 = 0;
     this.y0 = 0;
-    this.z0 = 0;
     this.prog = null;
     this.sx = 0;
     this.sz = 0;
@@ -321,9 +319,7 @@ class StepMachine {
 
   begin(r, t) {
     this.begun = true;
-    this.x0 = r.x;
     this.y0 = r.y;
-    this.z0 = r.z;
     const s = this.geo.stand;
     this.sx = s ? s[0] : r.x;
     this.sz = s ? s[2] : r.z;
@@ -515,11 +511,12 @@ export class DropStep extends StepMachine {
   }
 }
 
-/** Window (e2e-traverse:415-431): at the frame until the vault is offered, Y; done grounded past the sill. A glazed
- *  window shatters as the robot goes through (loud): that is the route. */
+/** Window (e2e-traverse:415-431): at the frame until the vault is offered (the vault prompt, or the traversal's
+ *  `vault` offer), Y; done grounded past the sill. A glazed window shatters as the robot goes through (loud): that is
+ *  the route. */
 export class WindowStep extends StepMachine {
   offered(r) {
-    return !!r.prompt || (r.hint !== null && r.hint.startsWith('window:'));
+    return !!r.prompt || r.geo === 'vault';
   }
 
   across(r) {
@@ -558,7 +555,7 @@ export class WindowStep extends StepMachine {
  *  floor (or past the hatch when it joins one storey). Never offered by the limit: `step-timeout`. */
 export class HatchStep extends WindowStep {
   offered(r) {
-    return r.hint !== null || !!r.prompt;
+    return r.hint !== null || !!r.prompt || (r.geo != null && r.geo !== 'drop');
   }
 
   across(r) {
@@ -731,7 +728,7 @@ function stepPage() {
   // the one reading, refilled every poll (the fields scripts/e2e-traverse.mjs `info()` reads)
   const R = {
     t: 0, x: 0, y: 0, z: 0, yaw: 0, camYaw: 0, grounded: false, crouched: false, attached: false, kind: null, phase: null, s: 0,
-    hintKind: null, hintEntry: null, prompt: null, dropPrompt: null, vent: -1, tkind: null,
+    hintKind: null, hintEntry: null, prompt: null, dropPrompt: null, vent: -1, tkind: null, geo: null,
   };
   let down = 0;
 
@@ -764,6 +761,9 @@ function stepPage() {
     R.dropPrompt = w ? w.label('drop') || null : null;
     R.vent = ac && ac.vent ? ac.vent.progress : -1;
     R.tkind = tr ? tr.kind ?? null : null;
+    // the traversal's own offer (a vault, a window vault, a step, a drop: e2e-traverse `info().geo`), set every probe in
+    // the fixed step; the HUD labels above follow the rendered frames
+    R.geo = tr && tr.hint ? tr.hint.kind : null;
     return R;
   }
 

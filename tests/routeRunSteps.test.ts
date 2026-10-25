@@ -25,7 +25,7 @@ const DT = S.STEP_POLL_S as number;
 class World {
   x: number; y: number; z: number;
   grounded = true; attached = false; kind: string | null = null; phase: string | null = null;
-  hint: string | null = null; prompt: string | null = null; tkind: string | null = 'none'; vent = -1;
+  hint: string | null = null; prompt: string | null = null; tkind: string | null = 'none'; vent = -1; geo: string | null = null;
   t = 0; speed = 1.2; sx = 0; sy = 0; freeze = false;
   presses: number[][] = []; holds: number[][] = [];
   rule: (w: World, o: Obj, dt: number) => void;
@@ -34,7 +34,7 @@ class World {
     this.rule = rule;
   }
   read(): Obj {
-    return { t: this.t, x: this.x, y: this.y, z: this.z, yaw: 0, camYaw: 0, grounded: this.grounded, crouched: true, attached: this.attached, kind: this.kind, phase: this.phase, s: 0, hint: this.hint, prompt: this.prompt, dropPrompt: null, vent: this.vent, tkind: this.tkind };
+    return { t: this.t, x: this.x, y: this.y, z: this.z, yaw: 0, camYaw: 0, grounded: this.grounded, crouched: true, attached: this.attached, kind: this.kind, phase: this.phase, s: 0, hint: this.hint, prompt: this.prompt, dropPrompt: null, vent: this.vent, tkind: this.tkind, geo: this.geo };
   }
   apply(o: Obj, dt: number) {
     this.sx = o.stick[0];
@@ -243,6 +243,17 @@ describe('route-run R5 step machines (scripted readings)', () => {
     expect(res?.outcome).toBe('walked');
     expect(w.z).toBeGreaterThan(S.PAST_SIDE_M);
     expect(w.presses.flat().filter((b) => b === S.BTN.Y)).toHaveLength(1);
+  });
+
+  it('window: the traversal vault offer alone (no HUD label yet) is the offer', () => {
+    const rule = (w: World, o: Obj) => {
+      windowRule(w, o);
+      w.geo = w.prompt ? 'vault' : null;
+      w.prompt = null;
+    };
+    const m = mk('window', { index: 2, kind: 'window', action: 'window', at: [0, 0, -3], past: [0, 0, 1.2], limit_s: 8 }, { kind: 'window', ...WINDOW, open: false });
+    const { res } = sim(m, new World([0, 0, -3], rule));
+    expect(res?.outcome).toBe('walked');
   });
 
   it('window: the near side from the from space, whichever side the link point sits', () => {
@@ -490,7 +501,7 @@ describe('route-run R5 page reader (Node vm, no browser)', () => {
     const game: Obj = {
       time: 0,
       player: { position: { x: 1, y: 2, z: 3 }, cam: { yaw: 0.5 }, controller: { yaw: 1, grounded: true, crouched: true } },
-      traversal: { kind: 'none', attachCtl: { active: false, m: { anchor: null, phase: 'off', s: 0 }, hint: { anchor: { kind: 'ladder' }, entry: 'bottom' }, lower: null, vent: null } },
+      traversal: { kind: 'none', hint: { kind: 'vault' }, attachCtl: { active: false, m: { anchor: null, phase: 'off', s: 0 }, hint: { anchor: { kind: 'ladder' }, entry: 'bottom' }, lower: null, vent: null } },
       hud: { world: { label: (k: string) => (k === 'vault' ? 'Climb' : '') } },
       world: { level: { anchors: { ladders: [{ id: 5, base: { x: 0, y: 0, z: 0 }, top: { x: 0, y: 4, z: 0.4 }, facing: 0 }, { id: 6, base: { x: 50, y: 0, z: 0 }, top: { x: 50, y: 4, z: 0 }, facing: 0 }], windows: [], ducts: [{ id: 2, path: [{ x: 1, y: 0, z: 0 }, { x: 4, y: 0, z: 4 }], entry: { pos: { x: 1, y: 0, z: 0 }, nx: 0, nz: -1, where: 'wall' }, exit: { pos: { x: 4, y: 0, z: 4 }, nx: 0, nz: 1, where: 'ceiling' } }], rappels: [] } } },
     };
@@ -518,7 +529,7 @@ describe('route-run R5 page reader (Node vm, no browser)', () => {
   it('reads the e2e-traverse fields into one reading; a press is down for one poll, a hold stays', async () => {
     const f = fakePage();
     const r = S.withHint(await call(f.page, 'begin', 0.1));
-    expect(r).toMatchObject({ t: 0.1, x: 1, y: 2, z: 3, yaw: 1, camYaw: 0.5, grounded: true, attached: false, kind: null, hint: 'ladder:bottom', prompt: 'Climb', dropPrompt: null, vent: -1, tkind: 'none' });
+    expect(r).toMatchObject({ t: 0.1, x: 1, y: 2, z: 3, yaw: 1, camYaw: 0.5, grounded: true, attached: false, kind: null, hint: 'ladder:bottom', prompt: 'Climb', dropPrompt: null, vent: -1, tkind: 'none', geo: 'vault' });
     await call(f.page, 'poll', 0, 1, 1 << 3, 1 << 0, 0.1);
     // during the advance: Y and A down, the stick forward (pad axis 1 is +down)
     expect(f.seen.at(-1)).toBe('step 0.1 Y1 A1 ax-1');
