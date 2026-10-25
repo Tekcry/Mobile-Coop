@@ -31,10 +31,15 @@
   freehang_climb stand-up end fading in past CLIMB_UP_CROUCH_K; the flag-off run timed out at 120 s under CPU load.
 - Left: fix or switch off freehang_climb, changes/feature-mixamo-i2.md, I2-REPORT.md, merge origin/feature/mixamo-retarget.
 
-## I3 at the save (2026-10-25, feature/mixamo-i3)
-- Done: branch on I1 c9a0f263; merged origin/feature/mixamo-i2 28566cd0 (crawl row off, I1 rows kept): 75209e04.
-- Read: brief, PLAN I3, A1/A2/A8, I1/I2 reports, keyed block. Player MOVEMENT crouch / stand times are 0.22 / 0.22 s.
-- Plan: sampleKeyed wraps a one-shot at phase 1, so progress maps to p x (N-1)/N (last frame exact); members renamed
-  kSn / sn* (kSt / st* are the strafe's).
-- Left: WREN_STANCE + STANCE_SHOT in mixamo.ts, the shot in the keyed block, tests/mixamoStance.test.ts (a-e, A8),
-  MIXAMO_ON rows from the readings, changes/feature-mixamo-i3.md, I3-REPORT.md, final merge of I1 / I2.
+## I2 fix round at the save
+- Done (28566cd0c): crawl capture off in MIXAMO_ON (M4 yaw wrap: joints 13.8 cm a frame vs 0.5), crawl check, report and changelog.
+- Done (this commit, not yet full-suite run): capture <-> hand-made switch inside traverse inertialized (animGraph mxLast); switch-frame tests (graph and rig).
+- Done (this commit): allocation test warmed and alternating over 5 rounds, medians; 3 runs in a row pass (hang moving 1664 vs 2368, still 1305 vs 1737, climb-up 1305 vs 1401-1417).
+- Left: I2-REPORT bytes and test list, PLAN Claims (studioStage.ts, climbHands.test.ts), full vitest list run (climbHands, mocapGuards, identity, mocapSwitch).
+
+## I3 (2026-10-25, feature/mixamo-i3): built
+- Done: WREN_STANCE / STANCE_SHOT (mixamo.ts), stanceShot in the keyed block (animGraph.ts), tests/mixamoStance.test.ts
+  9/9, I3-REPORT.md, changes/feature-mixamo-i3.md; merged I2 28566cd0 and 1f1ad42b.
+- MIXAMO_ON stand_to_crouch / crouch_to_stand both off (A8): over the 0.22 s stance the takes jump the joints 20.2 / 11.3 cm
+  a frame (e2e-anim limit 7.5, hand-made 6.5 / 6.4); Studio only.
+- Left: laptop run (affected-e2e src/anim, e2e-anim, e2e-move, e2e-stealth, anim-audit).

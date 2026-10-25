@@ -55,7 +55,7 @@ pop 20.1 / 15.5 cm, stand-to-crouch bone step 27.0 deg.
   one boxed double: the graph passes doubles to `sampleKeyed` / `mixKeyed` as its other keyed sets do).
 - Run: `npm run typecheck:fast` clean; eslint on the three files clean; the brief's 10 vitest files (mixamoStance,
   mixamoSwitch, mixamoTraverse, mocapSwitch, mocapCrouch, crouchPops, crouchEntryRig, mocapGuards, animSkeletonIdentity,
-  changesFragments): 63 passed, 1 skipped.
+  changesFragments): 64 passed, 1 skipped (after the 1f1ad42b merge).
 - Pending laptop run: `affected-e2e` for `src/anim`, `e2e-anim`, `e2e-move`, `e2e-stealth`, `anim-audit`; no look video
   while both rows are off.
 
@@ -67,7 +67,8 @@ pop 20.1 / 15.5 cm, stand-to-crouch bone step 27.0 deg.
 - The shot is mixed right after `keyedSet` (before the drawn set), so the drawn set mixes over it by its share.
 - Added the e2e-anim stand <-> crouch velocity pop (`CROUCH_POP`) to the A8 measures: it is the e2e check these
   changes face, and the one both captures fail.
-- Merged origin/feature/mixamo-i2 28566cd0 (I2's fix round: crawl row off) with I1's rows kept (one conflict in
+- Merged origin/feature/mixamo-i2 28566cd0 (I2's fix round: crawl row off) and 1f1ad42b (traverse inertializer, docs; STATE.md
+  conflict only), I1's rows kept (one conflict in
   `MIXAMO_ON`).
 
 ## Open
