@@ -11,3 +11,10 @@ kind: patch
   shelving, a plan chest and a rooflight with a hatch and ladder; the cage moves over the shaft; a cleaning ladder in the
   light well; a flue ladder and hatch from the plant room and a smoke hatch to the low roof; a gutter kerb and a roof
   coping for co-op boosts; a west rappel over the garden; 1.2 m hedges and balustrade; every lamp in one `S5_LIGHTS` block.
+- S5-P2 devices and light: the hoist door onto the light well is a two-player pair gate (two key switches in the archive),
+  the way down a hang-drop; the cage pair gate, the shaft beams and their panel move with the shaft; a house lighting board
+  on the back landing (cuts the anteroom and the hall wall lamps for 45 s) and the garden board moves with the kitchen wall
+  (30 s); the archive keypad moves to the landing side; the hall camera moves to the south wall; lamps added: a warm
+  audit desk lamp, archive reading lamp and jetty lantern, a lane lamp, the van's work light, roof walk and bulkhead lamps,
+  and fittings with their own switches in the drawing room, back hall, plant room, lobby, archive, back landing and
+  service stair (every as-built lamp kept; the strongroom lamp moves 1 m with its room and turns warm).

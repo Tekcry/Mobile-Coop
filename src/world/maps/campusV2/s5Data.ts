@@ -28,6 +28,7 @@ const LOOP = { period: 44, leave: [3, 25], t0: 0 };
 /** A section guard with its per-slot gear tag (`SquadSlot` has no `gear` field on this branch; the guard-ai wiring reads it off the slot as `GuardSlotTags.gear`, so the tag rides here until the type gains it). */
 type GearGuard = SectorGuard & { gear?: GearTag };
 
+// sync-s5-fob reserved: Penhale (#29) not posted; a mission that arms it posts her in place of #18 at (-42.2, 4.2, 39.5)
 /**
  * Section 5's guards (24; the brief's table: officer = pistolSd, grunt = rifle, enforcer = pistolSd + shield, dog). Dormant
  * (A64 / A99, data only): the response team's standing three (#1-#3) and the boardroom officer (#15). The values the brief left open (the
@@ -127,8 +128,9 @@ export const S5_ROUTES: SectorDef['routes'] = [
  * boathouse path. All bulletproof and thermal (E8, A95 / A96): beat them with the jammer or the routes round.
  */
 export const S5_CAMERAS: SecurityData['devices'] = [
-  // on the hall's east wall, facing the front door and the stair foot; the back-corridor door beside it is out of frame
-  { id: 'cam-hall', kind: 'camera', level: 'ground', at: [-38.2, 25.0], y: 3.2, aim: 6, range: 10, facing: 225, reason: 'S5: the front door and the stair foot (the insurer wants the entrance covered)', section: 4, bulletproof: true, thermal: true },
+  // (P2, G15, D:33) moved to the hall's south wall (the old east wall is now the screen), facing the front door and the
+  // stair foot (derived facing); the screens passage is behind it
+  { id: 'cam-hall', kind: 'camera', level: 'ground', at: [-39, 18.2], y: 3.2, aim: 6, range: 10, facing: 280, reason: 'S5: the front door and the stair foot (the insurer wants the entrance covered)', section: 4, bulletproof: true, thermal: true },
   // on the gallery's east wall: the archive's gallery door; the kp-arch back door is on the other side
   { id: 'cam-gallery', kind: 'camera', level: 's5-l1', at: [-38.2, 26.0], y: 2.6, aim: 5, range: 9, facing: 340, reason: "S5: the archive's gallery door (the records room)", section: 4, bulletproof: true, thermal: true },
   // over the terrace gate, facing the lawn: the boathouse path under the trees is outside it
@@ -154,7 +156,8 @@ export const S5_AMMO_CRATE = { x: -17.2, y: 0, z: 27.0, yaw: 0, section: 4 };
 /** The alarm panels of section 5: alarm-ctl (control room west wall), alarm-ante (the anteroom's east wall), alarm-ter (the terrace, by the house's north wall). */
 export const S5_ALARMS: { at: [number, number]; yaw: number; section: number; y?: number }[] = [
   { at: [-55.85, 26.5], yaw: PI / 2, section: 4 },
-  { at: [-40.15, 34.6], yaw: -PI / 2, section: 4 },
+  // (P2, G4, D:22) on the grown anteroom's east wall (x -37), north of the side door
+  { at: [-37.15, 36.5], yaw: -PI / 2, section: 4 },
   { at: [-44.8, 44.15], yaw: 0, section: 4 },
 ];
 
@@ -181,13 +184,21 @@ export const S5_SECTOR: SectorDef = {
   perStage: 2,
   dogs: 2,
   routes: S5_ROUTES,
-  keypads: [{ at: [-38, 41.0], code: 's5-arch' }],
+  // sync-s5-kparch (SY:51): kp-arch, the archive's keypad door from the back landing (P2, L1: moved to (-38, 35.5, 4.2))
+  keypads: [{ at: [-38, 35.5], code: 's5-arch' }],
+  // sync-s5-rota (SY:50): the rota board in the kitchen grants the kp-arch code
   intel: [{ kind: 'board', grants: 's5-arch', line: 'Rota board: archive keypad 1960 until Monday.', at: [-26.15, 1.5, 37.0], yaw: -PI / 2 }],
-  pairGates: [{ door: [-41, 38.6], a: { at: [-40.0, 34.45], y: Y1, yaw: PI }, b: { at: [-45.85, 42.0], y: Y1, yaw: PI / 2 }, window: 1.0 }],
+  pairGates: [
+    // CR6 pg-arch (P2, L2): the cage's west face over the moved shaft; key b as built (D:40's point is in the new shelving, P5)
+    { door: [-41.5, 39.6], a: { at: [-39.0, 37.8], y: Y1, yaw: PI }, b: { at: [-45.85, 42.0], y: Y1, yaw: PI / 2 }, window: 1.0 },
+    // CR7 pg-hoist: two players open the hoist door onto the light well; one alone never (G280)
+    { door: [-46, 36], a: { at: [-45.85, 38.4], y: Y1, yaw: PI / 2 }, b: { at: [-44.0, 32.15], y: Y1, yaw: 0 }, window: 1.0 },
+  ],
   stageActions: [
     { stage: 1, responseRoute: [[-50.8, 26.0], [-47, 27], [-43, 30.5]], releaseDogs: true },
     { stage: 2, lightsFull: [81, 84], lockDoors: [[-56, 40]] },
-    { stage: 3, lightsFull: [80, 88], lockDoors: [[-38, 33.5]] },
+    // (P2) the anteroom's side door from the back hall (GR link s5-back -> s5-ante)
+    { stage: 3, lightsFull: [80, 88], lockDoors: [[-37, 34]] },
   ],
 };
 
