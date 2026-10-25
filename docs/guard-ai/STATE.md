@@ -1031,5 +1031,6 @@ reports gates. Checker statuses: a LONE `gh api repos/Tekcry/Mobile-Coop/statuse
    shrink its allowlist in the same PR.
 8. J16 perception half (Q14 cast shadow = faint cue): plan after Sector Ops' J16 PR.
 9. Later: coop4-pol (134f6abe), snapBudget headroom, coopHost.ts:589 comment, TODO sectorMode.ts:201.
-Next: push feature/guard-ai and -s5 once gh login is fixed; laptop gates (items 1-4).
+Next: FIRST push local commits (feature/guard-ai: coop4 release checks a7653ca7f + this STATE; feature/guard-rules-s5:
+S5 checks a09495007) once the laptop gh login is fixed (gh auth login + gh auth setup-git); then laptop gates 1-4.
 ```
