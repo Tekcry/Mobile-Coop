@@ -111,14 +111,11 @@ describe('mixamo I2: the switch and the resolved Wren table', () => {
     setMixamo(true);
     expect(WREN_TRAV.any).toBe(true);
     for (const [slug, r] of Object.entries(MIXAMO_TRAV)) expect(WREN_TRAV[r.slot], slug).toBe(MIXAMO_ON[slug] ? r.clip : null);
-    const was = MIXAMO_ON.crawling_hands_and_knees === true;
-    MIXAMO_ON.crawling_hands_and_knees = false;
-    try {
-      setMixamo(true);
-      expect(WREN_TRAV.crawl).toBeNull();
-    } finally {
-      MIXAMO_ON.crawling_hands_and_knees = was;
-    }
+    // (the afterEach puts MIXAMO_ON back)
+    expect(WREN_TRAV.hangIdle).not.toBeNull();
+    MIXAMO_ON.hanging_idle = false;
+    setMixamo(true);
+    expect(WREN_TRAV.hangIdle).toBeNull();
   });
 
   it('the Studio pick: a capture loop plays its capture with the flag off, any other entry clears it', () => {
@@ -384,6 +381,81 @@ async function reach(state: State): Promise<Reach> {
   }
   return out;
 }
+
+/** The vent crawl on Wren's rig (headless, its cadence 0.01 a frame) with the switch as it stands: the joints' world
+ *  positions every frame past a 60-frame warm-up, the largest joint step a frame and the largest change of step (a pop). */
+async function crawlJoints(): Promise<{ pos: number[]; step: number; pop: number }> {
+  const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
+  const { Scene } = await import('../src/core/babylon');
+  const { PartLibrary } = await import('../src/world/partLibrary');
+  const { defaultLook } = await import('../src/cosmetics/avatarLook');
+  const { operatorRig } = await import('../src/operators/runtime/playerFigure');
+  const scene = new Scene(new NullEngine());
+  const lib = new PartLibrary(scene);
+  const op = operatorRig(scene, (s, h, sl) => lib.instance(s, h, sl), defaultLook(), 'mixamo-i2-crawl');
+  const rig = op.rig;
+  const pose: RigPose = { speed: 0.6, localX: 0, localZ: 1, grounded: false, crouch: 0, aimPitch: 0, aim: 0, kick: 0, armed: false, traverse: 'crawl', traverseT: 0 };
+  const joints = [rig.hips, rig.torso, rig.neck, rig.headNode, rig.shoulderL, rig.shoulderR, rig.wristL, rig.wristR, rig.kneeL, rig.kneeR, rig.ankleL, rig.ankleR];
+  const J = joints.length;
+  const pos: number[] = [];
+  let step = 0;
+  let pop = 0;
+  // seeded as runGraph (the graph's idle fidgets), so two runs compare bit for bit
+  const random = Math.random;
+  let seed = 4242;
+  Math.random = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
+  try {
+    for (let n = 0; n < 240; n++) {
+      pose.traverseT = (n * 0.01) % 1;
+      rig.animate(DT, pose);
+      if (n < 60) continue;
+      const f = pos.length / (J * 3);
+      for (const j of joints) {
+        const q = j.computeWorldMatrix(true).getTranslation();
+        pos.push(q.x, q.y, q.z);
+      }
+      for (let j = 0; j < J && f >= 1; j++) {
+        let d2 = 0;
+        let p2 = 0;
+        for (let a = 0; a < 3; a++) {
+          const c = (f * J + j) * 3 + a;
+          const d = pos[c]! - pos[c - J * 3]!;
+          d2 += d * d;
+          if (f >= 2) p2 += (d - (pos[c - J * 3]! - pos[c - J * 6]!)) ** 2;
+        }
+        step = Math.max(step, Math.sqrt(d2));
+        pop = Math.max(pop, Math.sqrt(p2));
+      }
+    }
+  } finally {
+    Math.random = random;
+    op.figure.dispose();
+    rig.dispose();
+    scene.dispose();
+  }
+  return { pos, step, pop };
+}
+
+describe('mixamo I2: the vent crawl (headless, Wren rig)', () => {
+  it('the crawl capture jumps the joints far past the hand-made crawl (its yaw wraps round -pi), so MIXAMO_ON keeps it off', async () => {
+    const hand = await crawlJoints();
+    // with every capture let on, the capture plays
+    allOn();
+    setMixamo(true);
+    const cap = await crawlJoints();
+    // as shipped with the flag on: the hand-made crawl, joint for joint
+    Object.assign(MIXAMO_ON, ON0);
+    setMixamo(true);
+    const shipped = await crawlJoints();
+    const near = cap.step <= hand.step * 2 + 0.01 && cap.pop <= hand.pop * 2 + 0.01;
+    console.info(`(mixamo I2) vent crawl joint step a frame: capture ${(cap.step * 100).toFixed(1)} cm, pop ${(cap.pop * 100).toFixed(1)} cm (hand-made ${(hand.step * 100).toFixed(1)} / ${(hand.pop * 100).toFixed(1)}); near the hand-made: ${near}`);
+    expect(hand.step).toBeGreaterThan(0);
+    expect(differ(cap.pos, hand.pos)).toBeGreaterThan(0);
+    // a capture that pops past the hand-made crawl stays out of matches (the slice rule)
+    if (!near) expect(MIXAMO_ON.crawling_hands_and_knees).toBe(false);
+    if (!MIXAMO_ON.crawling_hands_and_knees) expect(differ(shipped.pos, hand.pos)).toBe(0);
+  }, 300_000);
+});
 
 describe('mixamo I2: hands and feet on the anchors (headless, Wren rig)', () => {
   const STATES: State[] = ['hang', 'shimmyR', 'shimmyL', 'ladder', 'climbUp', 'topOut'];

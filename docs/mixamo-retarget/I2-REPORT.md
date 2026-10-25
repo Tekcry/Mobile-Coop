@@ -27,7 +27,7 @@ Palms: rig.gripError 3 frames after a grip lands. Soles: the ankle's drift while
 | braced_hang_to_crouch | 29.3 / 0.35 cm | 0.00 / 0.00 cm | trunk near upright as the knee comes on |
 | freehang_climb (stand-up end) | 0.35 / 0.35 cm | 0.00 / 0.00 cm | climbHands: trunk 20 cm a frame (limit 9.6), wrists 9.9 cm velocity change (limit 3); fade 0.2 / 0.3 of k no better |
 | climbing_ladder_to_standing | 7.0 / 11.8 cm (4.2 after the ladder capture) | 0.00 / 0.00 cm | neither meets 1 cm; the capture is closer |
-| crawling_hands_and_knees | not measured (no vent crawl state in the harness) | | |
+| crawling_hands_and_knees | not measured (no vent crawl state in the harness) | | joints 13.8 cm a frame, 24.9 cm pops (hand-made 0.5 / 0.1): its spYaw wraps round -pi (keys -4.72 to -1.42 rad), the shoulder line flips; crawlOut starts 4.6 rad of spYaw away |
 
 ## MIXAMO_ON
 | Capture | In matches | Why |
@@ -38,8 +38,9 @@ Palms: rig.gripError 3 frames after a grip lands. Soles: the ankle's drift while
 | freehang_climb | off | stand-up end pops (the take ~4x faster, M4) |
 | climbing_ladder | off | soles 38 cm vs 32 on held plants; keeping the hand-made foot lift puts the palms 5-6 cm off |
 | climbing_ladder_to_standing | on | palms 7.0 cm against the hand-made 11.8 (better, not 1 cm) |
-| crawling_hands_and_knees | on | no anchor measure yet (gap below) |
-The rule: a capture whose palms or soles miss more than the hand-made clip stays off rather than take a hand-made fix.
+| crawling_hands_and_knees | off | the M4 yaw wrap: the joints jump 13.8 cm a frame (hand-made 0.5), the shoulder line flips (gap below) |
+The rule: a capture whose palms or soles miss more than the hand-made clip, that pops more, or that is unmeasured stays off
+rather than take a hand-made fix.
 
 ## Tests
 - `tests/mixamoTraverse.test.ts` (10): flag and table, Studio pick, off bit-identical after on / pick and clear, guard
@@ -55,7 +56,9 @@ The rule: a capture whose palms or soles miss more than the hand-made clip stays
 ## Known gaps
 - The ladder sole measure is weak: on both clips the ankle sits 46-49 cm above its held plant in the harness (the rig's
   climb foot cap), so the drift compares the clips' foot lift, not contact. e2e-traverse checks the plant targets only.
-- The vent crawl has no hand / knee anchor measure; it plays on the hand cadence with the hand-made pelvis offset.
+- The vent crawl capture: M4 to fix its yaw wrap (spYaw keys -4.72 to -1.42 rad, unwrapped round -pi; the shoulder line
+  flips and the joints jump 13.8 cm a frame), then a hand / knee anchor measure (no vent crawl state in the harness)
+  before it can play in matches.
 - The ladder top-out misses its grips by 4-7 cm (hand-made 11.8): neither meets bible 5.12.2 #2.
 - With braced_hang_to_crouch and freehang_climb off, the lip climb-up is hand-made in matches; a retimed stand-up end
   (M4) could bring freehang_climb back.
