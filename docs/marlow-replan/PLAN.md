@@ -550,6 +550,12 @@ start with one player once F1 is live, on either yard).
 - **A24** New per-set code in `ctcourseSets/replan/<set>.ts`; set files only get guards. Undo: n/a (layout of code).
 - **A25** The re-plan's e2e = `e2e-ctcourse` parts 5-8 (same suite, so DIRECT_COVERS needs no change). Undo: its own
   suite name.
+- **A26** (Q5 / G370, lead 2026-10-26 after the A1 / A7 set check) A1 never traps the pair: while station 1 or 2 is live
+  (wicket shut, `a1-top` not set), a player on the yard floor with nobody on or climbing the wall for 5 s
+  (`A1_TRAP_GRACE`, `src/game/course/replan/a1Ticks.ts`) retries the live station with the new cause `other` (the only
+  cause a `retry: 'none'` station takes; R4c and the route-runs read it as other), both back at its marks with LANTERN's
+  `retry:<id>:other` line. Stations 1-2 stay `retry: 'none'`. Branch feature/marlow-replan-a1-retry. Undo: empty
+  `a1Tick` and drop the two radio rows.
 
 **Assume and log (RULES Intake step 2), for the orchestrator to put to Michael:** BRIEF A3 (new-move stations open as
 moves ship, Q29), A5 (pull-up counted with the human ladder, Q29), A7 (A8 keeps 3 guards under campaign-area route
