@@ -1,0 +1,18 @@
+{
+  "id": "20261025T133447-night-shift-player-b-a3c424b7-1c04",
+  "sha": "a3c424b7a21c7510da8dd01a05e06f7ed15728c5",
+  "branch": "feature/mixamo-i4",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-anim",
+    "e2e-move",
+    "e2e-stealth",
+    "anim-audit",
+    "e2e-clip"
+  ],
+  "set": "mixamo-i4",
+  "note": "Mixamo top priority; I4 (holds I1+I3), default identity",
+  "priority": 1
+}
