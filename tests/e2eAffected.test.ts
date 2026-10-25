@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { selectSuites as selectUntyped, suitesForFile as fileUntyped, QUICK_COVERS, DIRECT_COVERS, WIDE_COVERS, CORE } from '../scripts/e2e-affected.mjs';
+import { selectSuites as selectUntyped, suitesForFile as fileUntyped, QUICK_COVERS, DIRECT_COVERS, WIDE_COVERS, CORE, LEGACY, GPU, affectedGateSuites } from '../scripts/e2e-affected.mjs';
 
 type Covers = Record<string, string[]>;
 const select = selectUntyped as (files: string[], map?: Covers) => string[];
@@ -274,5 +274,37 @@ describe('--affected --wide: the cross-area readers', () => {
     expect(forFile('src/net/coopUi.ts', wide)).toEqual(wide['src/net/coopUi']);
     expect(forFile('src/ui/tuner/tunerMouse.ts', wide)).toEqual(wide['src/ui/tuner']);
     expect(forFile('src/game/modes/courseMode.ts')).toEqual(direct['src/game/modes/courseMode.ts']);
+  });
+});
+
+describe('affected requests skip GPU and legacy suites (testing-tools: GPU never, legacy REPORT ONLY)', () => {
+  const gate = affectedGateSuites as (s: string[]) => string[];
+  it('drops every GPU-only and LEGACY suite, whole or as a part, and keeps the rest in order', () => {
+    // PR #400's affected request (2026-10-25) named these beside the required suites
+    const req = ['anim-audit', 'e2e-anchors', 'e2e-bunker', 'e2e-camera-bounds', 'e2e-coop-gpu', 'e2e-darkness', 'e2e-desktop', 'e2e-lightbake', 'e2e-security', 'smoke'];
+    expect(gate(req)).toEqual(['anim-audit', 'e2e-anchors', 'e2e-desktop', 'e2e-lightbake', 'smoke']);
+    expect(gate(['e2e-desktop:3', 'e2e-desktop:1', 'e2e-wall:flanker', 'e2e-wall', 'e2e-bunker:1'])).toEqual(['e2e-desktop:1', 'e2e-wall']);
+    for (const s of [...(LEGACY as string[]), ...(GPU as string[])]) expect(gate([s, 'smoke']), s).toEqual(['smoke']);
+    expect(gate([])).toEqual([]);
+  });
+  it('the lamp files no longer gate an affected request on e2e-darkness (GPU) or e2e-security (legacy)', () => {
+    const picked = select(['src/world/lightBake.ts'], wide);
+    expect(picked).toEqual(expect.arrayContaining(['e2e-darkness']));
+    const got = gate(picked);
+    expect(got).not.toContain('e2e-darkness');
+    expect(got).not.toContain('e2e-security');
+    expect(got).toContain('e2e-lightbake');
+  });
+});
+
+describe('laptop-queue lib affectedSuites applies the gate (the service affected pass and request.mjs --affected)', () => {
+  it('a Fallow / lamp change requests no legacy or GPU suite', async () => {
+    // @ts-expect-error plain .mjs process script without types
+    const { affectedSuites } = await import('../scripts/laptop-queue/lib.mjs');
+    const run = (files: string) => (args: string[]) => (args[0] === 'merge-base' ? 'b'.repeat(40) : files);
+    const got = affectedSuites(run('src/world/maps/bunker.ts\nsrc/world/lightBake.ts\n'), 'a'.repeat(40), { wide: true });
+    expect(got.suites).toContain('smoke');
+    expect(got.suites).toContain('e2e-lightbake');
+    for (const s of ['e2e-bunker', 'e2e-darkness', 'e2e-security', 'e2e-coop-gpu']) expect(got.suites).not.toContain(s);
   });
 });

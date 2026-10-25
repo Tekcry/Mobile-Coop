@@ -62,4 +62,4 @@ keyboard) and 09 (co-op root, connecting, lobby, errors); the step files stay th
 ## Results
 - `npm run check`: lint 0 errors, tests and build pass (new `tests/osk.test.ts`).
 - e2e on port 4191 (software GL, machine heavily loaded; the first parallel run timed out on page loads): smoke, e2e-park pass; e2e-coop, e2e-menus (hold-right timing failed only under load) and e2e-course pass rerun alone. e2e-netmove and e2e-bunker (KNOWN FLAKY) get past the lobby and join flow and fail inside the match (host braces; partner teleport solidity), which the menu change does not touch; not rerun further.
-- Shots: `docs/menu-ui/shots/slice3-coop-root.png`, `slice3-join-osk.png`, `slice3-lobby-host.png`, `slice3-lobby-client.png`, `slice3-error-dialog.png` (`scripts/menu-shots3.mjs` runs only these; `menu-shots.mjs` also has the block).
+- Shots: `docs/menu-ui/shots/slice3-coop-root.png`, `slice3-join-osk.png`, `slice3-lobby-host.png`, `slice3-lobby-client.png`, `slice3-error-dialog.png` (`scripts/archive/menu-shots3.mjs` runs only these; `menu-shots.mjs` also has the block).

@@ -1,4 +1,4 @@
-# ghost-fix - diagnosis (2026-10-20, code read only; GPU strips pending: `scripts/ghost-strip.mjs`)
+# ghost-fix - diagnosis (2026-10-20, code read only; GPU strips pending: `scripts/archive/ghost-strip.mjs`)
 
 Michael: "The graphics have also had ghosting too, set to epic preset" ... "I think it was when aiming/holstering".
 
@@ -69,8 +69,8 @@ No change needed in `src/player`, `src/anim`, `src/ui`. (`src/ui/screens/photoMo
 photo camera while the game is frozen: harmless.)
 
 ## Evidence script
-`scripts/ghost-strip.mjs` (written, not run: the desktop lock belonged to another job, no node_modules in this folder).
-`E2E_GPU=1 E2E_PORT=4189 timeout 600 node scripts/ghost-strip.mjs docs/ghost-fix/shots before epic` (and `... before
+`scripts/archive/ghost-strip.mjs` (written, not run: the desktop lock belonged to another job, no node_modules in this folder).
+`E2E_GPU=1 E2E_PORT=4189 timeout 600 node scripts/archive/ghost-strip.mjs docs/ghost-fix/shots before epic` (and `... before
 high` as the FXAA control). It boots `?autostart=proving&mode=sandbox&gfx=<preset>`, stops the render loop and steps
 frame by frame (sim, frame update, render: `GameLoop.frame` order), reads the canvas back after each render (no HUD in
 it), and writes per-frame PNGs plus one contact sheet per strip: `draw` (aim from holstered, camera still), `aimpan`

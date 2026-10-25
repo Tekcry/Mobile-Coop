@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   bumpVersion, ciGreenAt, ciState, contextStatus, decide, desktopFailSuites, docsOnly, fragmentInfo, fragmentPath, joinTitles, laptopMissing, laptopQueueState, membersFromSubjects,
@@ -204,13 +206,25 @@ describe('auto-train: pacing', () => {
     expect(pacing({ now, releases: [now - 30 * 60 * MIN], maxPerDay: 1 })).toBeNull();
   });
 
-  it('reads the laptop queue tree: busy on a pending request JSON or a running marker', () => {
-    expect(laptopQueueState([])).toBe('idle');
-    expect(laptopQueueState(['README.md', 'done/2026-10-23-a.json'])).toBe('idle');
-    expect(laptopQueueState(['pending/2026-10-23-a.json'])).toBe('busy');
-    expect(laptopQueueState(['queue/pending/x.json'])).toBe('busy');
-    expect(laptopQueueState(['running.json'])).toBe('busy');
-    expect(laptopQueueState(['running/4191.txt'])).toBe('busy');
+  it('reads the laptop queue branch: busy on an unclaimed request or an open claim (requests/, claims/, alerts/)', () => {
+    const T = Date.UTC(2026, 9, 25, 2, 0, 0);
+    const id = '20261025T013649-affected-e2e-d5ccca5a-f205';
+    const done = { worker: 'laptop', at: '2026-10-25T01:40:00.000Z', done: true };
+    expect(laptopQueueState([], { now: T })).toBe('idle');
+    expect(laptopQueueState(['alerts/20261024T220717Z-desktop-tasks.json', 'README.md'], { now: T })).toBe('idle');
+    // queued: the request has no claim yet (auto-train.log: 483 idle ticks, 0 waits before this read requests/)
+    expect(laptopQueueState([`requests/${id}.json`], { now: T })).toBe('busy');
+    // finished (run, superseded, duplicate, withdrawn: all done claims)
+    expect(laptopQueueState([`requests/${id}.json`, `claims/${id}.json`], { claims: { [id]: done }, now: T })).toBe('idle');
+    // running: an open claim of a request or a train head
+    expect(laptopQueueState([`requests/${id}.json`, `claims/${id}.json`], { claims: { [id]: { ...done, done: false } }, now: T })).toBe('busy');
+    expect(laptopQueueState([`claims/${'a'.repeat(40)}.json`], { claims: { ['a'.repeat(40)]: { ...done, done: false } }, now: T })).toBe('busy');
+    // stale: a dead worker's open claim (over 3 h) or a never-claimed bad request (over 12 h) stop counting
+    expect(laptopQueueState([`claims/${id}.json`], { claims: { [id]: { ...done, done: false, at: '2026-10-24T22:00:00.000Z' } }, now: T })).toBe('idle');
+    expect(laptopQueueState(['requests/20261024T120000-bad-a-12345678-0000.json'], { now: T })).toBe('idle');
+    expect(laptopQueueState(['requests/20261024T215933-night-shift-sector-o-62d80c02-f7c4.json'], { now: T })).toBe('busy');
+    // a busy queue holds the build until the interval; idle builds at once
+    expect(pacing({ now: T, releases: [T - 10 * MIN], queue: laptopQueueState([`requests/${id}.json`], { now: T }) })).toMatch(/laptop queue busy/);
   });
 });
 
@@ -565,6 +579,22 @@ describe('auto-train: idle self-update', () => {
   it('skips when a sha could not be read', () => {
     expect(selfUpdatePlan({ head: '', master: B, dirty: false }).action).toBe('skip');
     expect(selfUpdatePlan({ head: A, master: '', dirty: false }).action).toBe('skip');
+  });
+  it('fast-forward only: skips when origin/master is not ahead of HEAD', () => {
+    const p = selfUpdatePlan({ head: A, master: B, dirty: false, ff: false });
+    expect(p.action).toBe('skip');
+    expect(p.reason).toContain('not a fast-forward');
+    expect(selfUpdatePlan({ head: A, master: B, dirty: false, ff: true, when: 'after releasing train 86' }))
+      .toEqual({ action: 'update', reason: 'self-updated to bbbbbbbb (after releasing train 86)' });
+  });
+  it('also runs right after a release, before the next build (back-to-back trains never had an idle tick)', () => {
+    const src = fs.readFileSync(path.resolve('scripts/auto-train.mjs'), 'utf8');
+    const rel = src.indexOf('log(`RELEASED train');
+    const upd = src.indexOf('selfUpdate(`after releasing train', rel);
+    const next = src.indexOf('await noTrain(o, labelExists)', rel);
+    expect(rel).toBeGreaterThan(0);
+    expect(upd).toBeGreaterThan(rel);
+    expect(upd).toBeLessThan(next);
   });
   it('only an idle decision triggers it: building and open-train decisions are never idle', () => {
     const cands = [{ branch: 'f/a', pr: 1, head: 'h', fragment: null }];

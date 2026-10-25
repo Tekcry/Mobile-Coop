@@ -84,7 +84,7 @@ which the falloff over the camera's own range models. These are starting values 
 - `tests/ctcourseLight.test.ts`: the dark-hallway runner uses cam-s3's range (still caught, at bay x 7.3).
 - `tests/editor/security.test.ts`: the editor's coverage points inside 12 m.
 - `scripts/e2e-security.mjs`: the lab spots inside the 12 m zones (strip 9 m, dark spot (7.5, 2.5) with the lamps out,
-  pan pad 7.5 m). `scripts/camera-cue-shots.mjs`: spots within each camera's own range. `e2e-ctcourse` and
+  pan pad 7.5 m). `scripts/archive/camera-cue-shots.mjs`: spots within each camera's own range. `e2e-ctcourse` and
   `e2e-sectorops` need no change (their spots are inside the zones; times in MEASURE / above). Not run here (laptop).
 
 ## level-design.md Section 12

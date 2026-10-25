@@ -31,7 +31,7 @@ sheet-s12b-* vs master sheet-before-* (65bfe6f2), Epic pair sent to Michael. e2e
 - Slice 1 notes: grain 0.06 (G101 "grain as in CT", about 1% then); the fill cap also dims props; NV_BULB 2.5 -> 8.
 - Slice 2 notes: the settings vignette stacks on the frame (corners about 0.2 with it on); tests/goggleFrame.test.ts
   reads the shader line `goggleShade(ge)` as text.
-- Scratch: C:/NightShift/Mobile-Coop-nv-pass-before (detached master 65bfe6f2; its untracked scripts/nv-shots.mjs checks the served build, node_modules junction) for before shots;
+- Scratch: C:/NightShift/Mobile-Coop-nv-pass-before (detached master 65bfe6f2; its untracked scripts/archive/nv-shots.mjs checks the served build, node_modules junction) for before shots;
   remove at the job end (`cmd //c rmdir` the junction first, then `git worktree remove --force`). `.nv-ready` at the
   worktree root is a local flag (excluded from git).
 
@@ -60,7 +60,7 @@ sheet-s12b-* vs master sheet-before-* (65bfe6f2), Epic pair sent to Michael. e2e
   slice 2 (one screen-shaped goggle frame for every mode: clear area 44% -> 89% at 16:9, corners 0.06 -> 0.3, thin rim)
   built, 75c37d42.
 - 2026-10-20: worktree `C:/NightShift/Mobile-Coop-nv-pass` (feature/nv-pass from cf73f8b5, 4.14.0), BRIEF / PLAN /
-  SURVEY / STATE; `scripts/nv-shots.mjs`, `docs/nv-pass/nv-gpu.sh`.
+  SURVEY / STATE; `scripts/archive/nv-shots.mjs`, `docs/nv-pass/nv-gpu.sh`.
 
 ## Resume prompt
 ```

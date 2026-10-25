@@ -1,5 +1,5 @@
-// slice 4 shots only: missions, briefing, issued kit, free roam. node scripts/menu-shots4.mjs [outDir]
-import { launch, frames } from './e2e-lib.mjs';
+// slice 4 shots only: missions, briefing, issued kit, free roam. node scripts/archive/menu-shots4.mjs [outDir]
+import { launch, frames } from '../e2e-lib.mjs';
 import { mkdirSync } from 'node:fs';
 
 const out = process.argv[2] ?? 'docs/menu-ui/shots';

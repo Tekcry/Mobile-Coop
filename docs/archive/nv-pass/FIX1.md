@@ -40,7 +40,7 @@ min vs Medium: s1-bay min 57.9 is 68% of Medium's 84.9, just under the 70% asked
   < 224), the min model (lit rooms in band, NV >= off)).
 - Changed: `src/vfx/nightBloom.ts` (measure, reduce and ease passes; `exposure`, `exposureBand`),
   `src/vfx/cinematicPost.ts` (`exposureSampler`, `expo`, `EXPOSURE_GLSL`), `src/vfx/nightVision.ts` (`postLift` 3),
-  `scripts/nv-shots.mjs`, `scripts/e2e-darkness.mjs`, `docs/nv-pass/nv-gpu.sh`.
+  `scripts/archive/nv-shots.mjs`, `scripts/e2e-darkness.mjs`, `docs/nv-pass/nv-gpu.sh`.
 - `tests/__snapshots__/visionIsolation.test.ts.snap` shows as modified: vitest rewrote it with LF line endings. Its
   content is unchanged and `git diff` is empty.
 

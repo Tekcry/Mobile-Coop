@@ -4,9 +4,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
-  classifyWorktree, commitWip, countStates, dirtyAge, hasUnmerged, keptIgnored, linkHops, lockState, nodeModulesTargets, norm, opInProgress, parseArgs, parseLockHolder,
+  classifyWorktree, commitWip, countStates, dirtyAge, hasUnmerged, heavyLockFiles, keptIgnored, linkHops, lockState, nodeModulesTargets, norm, opInProgress, parseArgs, parseLockHolder,
   parsePorcelain, parseStatusEntries, parseStatusZ, probeInUse, protectedBranch, pruneBlocker, pruneCandidates, readDirty, resolveClones, safeVerdict,
-  scanAll, secretPath, stagePaths, summarizeQueue, wipAllowed, wipCommit, wipGuard,
+  scanAll, scanLocks, secretPath, stagePaths, summarizeQueue, wipAllowed, wipCommit, wipGuard,
   // @ts-expect-error plain .mjs process script without types
 } from '../scripts/swap.mjs';
 import {
@@ -108,6 +108,24 @@ describe('locks', () => {
     expect(lockState('x | t | pid 2 | host lap', { host: 'desk', alive })).toBe('elsewhere');
     expect(lockState('x | t | pid 2 | host desk', { host: 'desk', alive })).toBe('stale');
     expect(lockState('x | t', { host: 'desk', alive })).toBe('unknown');
+  });
+  it('checks the laptop slot locks (heavy-4189.lock, heavy-4192.lock) beside the desktop ones, plus any other heavy*.lock', () => {
+    const names = (r: string[]): string[] => r.map((f) => path.basename(f));
+    expect(names(heavyLockFiles('C:/NightShift'))).toEqual(['heavy.lock', 'heavy2.lock', 'heavy-4189.lock', 'heavy-4192.lock']);
+    expect(names(heavyLockFiles('C:/NightShift', ['heavy-4189.lock', 'heavy-4190.lock', 'auto-train.lock', 'x.txt'])))
+      .toEqual(['heavy.lock', 'heavy2.lock', 'heavy-4189.lock', 'heavy-4192.lock', 'heavy-4190.lock']);
+  });
+  it('a dead pid in a laptop slot lock (service format) is a stale lock item', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'swap-locks-'));
+    try {
+      // a pid far above any live one: dead on this host
+      fs.writeFileSync(path.join(root, 'heavy-4189.lock'), 'laptop-queue | 20261025T013649-affected-e2e-d5ccca5a-f205 d5ccca5a pid 999999 | 2026-10-25T01:44:38.179Z\n');
+      const locks = await scanLocks({ root, scratch: root });
+      const l = locks.find((x: { path: string }) => path.basename(x.path) === 'heavy-4189.lock');
+      expect(l).toMatchObject({ pid: 999999, state: 'stale' });
+      expect(locks.find((x: { path: string }) => path.basename(x.path) === 'heavy-4192.lock')?.state).toBe('free');
+      expect(safeVerdict([], locks).items.some((i: string) => i.includes('heavy-4189.lock'))).toBe(true);
+    } finally { fs.rmSync(root, { recursive: true, force: true }); }
   });
 });
 

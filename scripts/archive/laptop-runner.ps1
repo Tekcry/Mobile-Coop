@@ -1,7 +1,7 @@
 # The laptop test runner (CLAUDE.md "The laptop is the test runner"): one request at a time in
 # C:\NightShift\Mobile-Coop-testrun, detached at the commit, with the laptop heavy.lock (waits while another run holds
 # it), port 4191, headless, BelowNormal with -Low.
-#   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/laptop-runner.ps1 -Label <name> -Commit <sha> -Steps "build;e2e-coop;e2e-netmove" -Low
+#   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/archive/laptop-runner.ps1 -Label <name> -Commit <sha> -Steps "build;e2e-coop;e2e-netmove" -Low
 # Steps run in order, separated by ';': check | build | full (npm run e2e) | suite names separated by spaces (one
 # run-e2e call). A failed check or build skips the rest; a failed suite does not. npm ci only when package-lock.json
 # changed beyond its version lines. Env: RUN_JOBS (E2E_JOBS, default 1), RUN_TIMEOUT (E2E_SUITE_TIMEOUT s, default 900).

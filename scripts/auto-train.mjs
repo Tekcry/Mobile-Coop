@@ -295,27 +295,47 @@ export function laptopMissing({ ci, laptop, ciGreenAt: greenAt, now, thresholdMi
   return waitMin >= thresholdMin ? Math.floor(waitMin) : null;
 }
 
-/** Laptop queue tree paths (origin/laptop-queue) -> 'idle' | 'busy': busy while any pending request JSON or running marker exists. */
-export function laptopQueueState(paths) {
-  const busy = paths.some((p) => {
-    const segs = p.split('/');
-    const base = segs[segs.length - 1].toLowerCase();
-    const dirs = segs.slice(0, -1).map((s) => s.toLowerCase());
-    if (dirs.includes('running') || base.startsWith('running')) return true;
-    return base.endsWith('.json') && (dirs.includes('pending') || base.startsWith('pending'));
+/** Hours after which an unclaimed request no longer counts as queued (a bad request is never claimed). */
+export const QUEUE_REQUEST_STALE_H = 12;
+/** Hours after which an open claim no longer counts as running (the service's LQ_CLAIM_MAX_H: a dead worker's). */
+export const QUEUE_CLAIM_STALE_H = 3;
+
+/** Request id `YYYYMMDDTHHMMSS-...` (UTC, laptop-queue lib requestId) -> ms, or NaN. */
+const requestIdTime = (id) => {
+  const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/.exec(id);
+  return m ? Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]) : NaN;
+};
+
+/**
+ * Laptop queue (origin/laptop-queue) -> 'idle' | 'busy'. `paths` = the branch's file paths (requests/<id>.json,
+ * claims/<id>.json, alerts/...); `claims` = { [id]: { worker, at, done } } claim texts parsed. Busy while a request has
+ * no claim yet (queued, under QUEUE_REQUEST_STALE_H old) or a claim is open (running: not done, `at` under
+ * QUEUE_CLAIM_STALE_H old). Every finished request (run, superseded, duplicate, withdrawn) gets a done claim.
+ */
+export function laptopQueueState(paths, { claims = {}, now = Date.now() } = {}) {
+  const ids = (dir) => paths.filter((p) => p.startsWith(`${dir}/`) && p.endsWith('.json')).map((p) => p.slice(dir.length + 1, -5));
+  const claimed = new Set(ids('claims'));
+  const queued = ids('requests').some((id) => {
+    if (claimed.has(id)) return false;
+    const t = requestIdTime(id);
+    return !(now - t >= QUEUE_REQUEST_STALE_H * 3600_000);
   });
-  return busy ? 'busy' : 'idle';
+  const running = Object.values(claims).some((c) => c && c.done === false && now - Date.parse(c.at) < QUEUE_CLAIM_STALE_H * 3600_000);
+  return queued || running ? 'busy' : 'idle';
 }
 
 /**
- * Self-update of the checkout the scripts run from, on an idle tick: { action: 'none' | 'update' | 'skip', reason }.
- * Updates (a detached checkout of origin/master) only when HEAD differs from it and the working tree is clean.
+ * Self-update of the checkout the scripts run from, on an idle tick or right after a release: { action: 'none' |
+ * 'update' | 'skip', reason }. Updates (a detached checkout of origin/master) only when HEAD differs from it, the
+ * working tree is clean and the move is a fast-forward (`ff` = HEAD is an ancestor of origin/master; undefined = not
+ * checked). `when` names the trigger in the log line.
  */
-export function selfUpdatePlan({ head, master, dirty }) {
+export function selfUpdatePlan({ head, master, dirty, ff, when = '' }) {
   if (!head || !master) return { action: 'skip', reason: 'self-update skipped: could not read HEAD or origin/master' };
   if (head === master) return { action: 'none', reason: `up to date at ${head.slice(0, 8)}` };
   if (dirty) return { action: 'skip', reason: `self-update skipped: the working tree is not clean (HEAD ${head.slice(0, 8)}, origin/master ${master.slice(0, 8)})` };
-  return { action: 'update', reason: `self-updated to ${master.slice(0, 8)}` };
+  if (ff === false) return { action: 'skip', reason: `self-update skipped: origin/master ${master.slice(0, 8)} is not a fast-forward of HEAD ${head.slice(0, 8)}` };
+  return { action: 'update', reason: `self-updated to ${master.slice(0, 8)}${when ? ` (${when})` : ''}` };
 }
 
 /** Local calendar day key (YYYY-MM-DD) of a time in ms. */
@@ -802,16 +822,22 @@ function execHere(cmd) {
   return { status: r.status ?? -1, out: r.stdout ?? '', err: r.stderr ?? '' };
 }
 
-/** Idle tick (no train open, nothing building): moves this checkout to origin/master so the next tick runs current scripts. */
-function selfUpdate() {
+/**
+ * Idle tick (no train open, nothing building) or right after a release (the train merged, the next not built yet):
+ * fast-forwards this checkout to origin/master so the next tick runs current scripts. Never between a train's build
+ * and its release. Audit 2026-10-25: back-to-back trains never had an idle tick, the checkout sat at train 80 with
+ * master at 86.
+ */
+function selfUpdate(when = 'idle') {
   try {
-    if (DRY) { log('  [dry-run] would self-update this checkout to origin/master when idle'); return; }
+    if (DRY) { log(`  [dry-run] would self-update this checkout to origin/master (${when})`); return; }
     // only master is read; narrow + lock-race retry (fetch-retry.mjs: another worktree's fetch holds a ref lock)
     if (fetchWithRetry(execHere, ['master'], { log }).status !== 0) { log('self-update skipped: git fetch failed'); return; }
     const head = execHere(['git', 'rev-parse', 'HEAD']).out.trim();
     const master = execHere(['git', 'rev-parse', 'origin/master']).out.trim();
     const dirty = execHere(['git', 'status', '--porcelain']).out.trim() !== '';
-    const plan = selfUpdatePlan({ head, master, dirty });
+    const ff = head && master ? execHere(['git', 'merge-base', '--is-ancestor', head, master]).status === 0 : undefined;
+    const plan = selfUpdatePlan({ head, master, dirty, ff, when });
     if (plan.action === 'update') {
       const r = execHere(['git', 'checkout', '-q', '--detach', 'origin/master']);
       log(r.status === 0 ? plan.reason : `self-update failed: ${r.err.trim().slice(-300)}`);
@@ -993,10 +1019,20 @@ function releaseTimes() {
     .filter((p) => /^train\/\d+$/.test(p.headRefName)).map((p) => Date.parse(p.mergedAt)).filter(Boolean);
 }
 
-/** 'idle' | 'busy' from origin/laptop-queue, or null when that branch does not exist. */
+/** 'idle' | 'busy' from origin/laptop-queue (request names and claim texts, one GraphQL read), or null when that branch does not exist. */
 function laptopQueue() {
-  const t = api('repos/{owner}/{repo}/git/trees/laptop-queue?recursive=1', '[.tree[] | select(.type == "blob") | .path]');
-  return t == null ? null : laptopQueueState(JSON.parse(t));
+  const q = 'query($owner:String!,$name:String!){repository(owner:$owner,name:$name){ref(qualifiedName:"refs/heads/laptop-queue"){name}'
+    + ' req:object(expression:"laptop-queue:requests"){... on Tree{entries{name}}}'
+    + ' cl:object(expression:"laptop-queue:claims"){... on Tree{entries{name object{... on Blob{text}}}}}}}';
+  const r = exec(['gh', 'api', 'graphql', '-F', 'owner={owner}', '-F', 'name={repo}', '-f', `query=${q}`, '--jq',
+    '.data.repository | {ref: (.ref != null), requests: [.req.entries[]?.name], claims: [.cl.entries[]? | {name, text: .object.text}]}']);
+  if (r.status !== 0) throw new Error(`gh api graphql (laptop queue): ${(r.err || r.out).trim().slice(-400)}`);
+  const d = JSON.parse(r.out);
+  if (!d.ref) return null;
+  const claims = {};
+  for (const c of d.claims) { try { claims[c.name.replace(/\.json$/, '')] = JSON.parse(c.text); } catch { /* unreadable claim */ } }
+  const paths = [...d.requests.map((n) => `requests/${n}`), ...d.claims.map((c) => `claims/${c.name}`)];
+  return laptopQueueState(paths, { claims, now: Date.now() });
 }
 
 function nextN() {
@@ -1207,6 +1243,8 @@ async function step(o) {
   if (r.code === 0) {
     const onRerun = d.rerunRelease ? `released on the laptop rerun of ${d.rerunRelease.join(',')}` : '';
     log(`RELEASED train ${t.n} as ${t.version}${onRerun ? `: ${onRerun}` : ''}`);
+    // between trains: the next one is built (and later released) by the merge-train.mjs of the new master
+    selfUpdate(`after releasing train ${t.n}`);
     const next = await noTrain(o, labelExists);
     return { ...next, released: `${t.version} (train ${t.n}${onRerun ? `, ${onRerun}` : ''})` };
   }

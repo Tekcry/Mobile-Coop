@@ -6,7 +6,7 @@ is unknown. Files touched: src/security/{camera, cameraCue, data, securityView}.
 src/config/security.ts, src/game/{ctDevices, jammer}.ts (jammer.ts is shared with slice J, feature/marlow-jammer:
 reconcile on resume), src/world/{mapDef, maps/ctcourse, maps/warehouseSectors}.ts, docs/systems/gadgets.md,
 scripts/e2e-ctcourse.mjs, tests/{cameraCue, jammer}.test.ts, new tests/laserAlarm.test.ts and
-scripts/sector-fixes-c-shots.mjs. Resume: a fresh implementer reads the diff against 591c68bc, runs check and the
+scripts/archive/sector-fixes-c-shots.mjs. Resume: a fresh implementer reads the diff against 591c68bc, runs check and the
 camera / laser suites, finishes the BRIEF slice C list, then a checker.
 
 Update (orchestrator, 2026-10-22): slice J merged as 4.48.0 (#101, PROTOCOL_VERSION 26). On resume, merge master
@@ -53,7 +53,7 @@ host, course alarm stat up, health unchanged; jammed: no break). Run `e2e-ctcour
 mirrored on the client), `e2e-security` (seclab cameras, no `aim`: unchanged), `e2e-coop`, `e2e-netmove`, plus `e2e:quick`.
 
 GPU: rerun the after shots on this head and the sheet (port 4189):
-`E2E_GPU=1 E2E_PORT=4189 timeout 900 node scripts/sector-fixes-c-shots.mjs docs/sector-fixes/c after`, then `... sheet`.
+`E2E_GPU=1 E2E_PORT=4189 timeout 900 node scripts/archive/sector-fixes-c-shots.mjs docs/sector-fixes/c after`, then `... sheet`.
 The 4.48-era sheet already shows the subtle grid, pitched frames and NV-only beams; worth an extra NV shot reached via
 electro -> night to confirm the glow fix.
 

@@ -2,8 +2,8 @@
 // Menu UI screenshots for review (menu-ui slices 1 and 2): node scripts/menu-shots.mjs [outDir]
 // Needs a server on E2E_PORT (default 4173) serving dist/, e.g. `node node_modules/vite/bin/vite.js preview --port 4191
 // --strictPort --host 127.0.0.1`. 1920 x 1080 PNGs. Software GL is a layout check, not a visual quality result.
-import { launch, frames } from './e2e-lib.mjs';
-import { hostAndJoin } from './e2e-net-lib.mjs';
+import { launch, frames } from '../e2e-lib.mjs';
+import { hostAndJoin } from '../e2e-net-lib.mjs';
 import { mkdirSync } from 'node:fs';
 
 const out = process.argv[2] ?? 'docs/menu-ui/shots';

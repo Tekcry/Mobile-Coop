@@ -2,11 +2,11 @@
 // one headless browser per map; each camera is shot over its shoulder at mid-sweep (vision off and electro), each laser
 // from the side (vision off and night vision). Output: <dir>/<tag>-<map>-<item>-<view>.webp (640 x 320). `sheet` mode
 // puts <dir>/before-* beside <dir>/after-* into <dir>/sheet.webp. Needs `npm run build`. GPU: E2E_GPU=1 on port 4189.
-// Usage: E2E_GPU=1 E2E_PORT=4189 timeout 900 node scripts/sector-fixes-c-shots.mjs docs/archive/sector-fixes/c before
-//        E2E_GPU=1 E2E_PORT=4189 timeout 300 node scripts/sector-fixes-c-shots.mjs docs/archive/sector-fixes/c sheet
+// Usage: E2E_GPU=1 E2E_PORT=4189 timeout 900 node scripts/archive/sector-fixes-c-shots.mjs docs/archive/sector-fixes/c before
+//        E2E_GPU=1 E2E_PORT=4189 timeout 300 node scripts/archive/sector-fixes-c-shots.mjs docs/archive/sector-fixes/c sheet
 import { spawn } from 'node:child_process';
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { launch } from './e2e-lib.mjs';
+import { launch } from '../e2e-lib.mjs';
 
 const [dir = 'docs/archive/sector-fixes/c', tag = 'before'] = process.argv.slice(2);
 const PORT = Number(process.env.E2E_PORT ?? 4189);

@@ -20,14 +20,14 @@ freeport
 if [ ! -f "$OUT/.before-verified" ]; then
   rm -f "$OUT"/*-before-*.png
   (cd "$B" && rm -rf dist && timeout 600 npm run build >/dev/null 2>&1) || { echo "before build failed"; exit 1; }
-  (cd "$B" && E2E_GPU=1 E2E_PORT=4189 timeout 1500 node scripts/nv-shots.mjs "$OUT" before epic,medium,min > "$OUT/.before.log" 2>&1); RC=$?
+  (cd "$B" && E2E_GPU=1 E2E_PORT=4189 timeout 1500 node scripts/archive/nv-shots.mjs "$OUT" before epic,medium,min > "$OUT/.before.log" 2>&1); RC=$?
   grep -iv "\.png$" "$OUT/.before.log" | tail -10
   [ "$RC" = 0 ] || { echo "before shots failed ($RC)"; exit 1; }
   touch "$OUT/.before-verified"; echo "before done $(date '+%H:%M')"; freeport
 fi
 while [ ! -f "$A/.nv-ready" ]; do echo "waiting for .nv-ready $(date +%H:%M)"; rm -f "$LOCK"; sleep 60; while [ -f "$LOCK" ]; do sleep 30; done; echo "Night Shift | Menu Notes Build | nv-pass GPU after shots | $(date "+%Y-%m-%d %H:%M")" > "$LOCK"; done
 (cd "$A" && rm -rf dist && timeout 600 npm run build > "$OUT/.after-build.log" 2>&1) || { grep -i "error" "$OUT/.after-build.log" | head -10; echo "after build failed"; exit 1; }
-(cd "$A" && E2E_GPU=1 E2E_PORT=4189 timeout 1500 node scripts/nv-shots.mjs "$OUT" "$SUF" epic,medium,min > "$OUT/.after.log" 2>&1); RC=$?
+(cd "$A" && E2E_GPU=1 E2E_PORT=4189 timeout 1500 node scripts/archive/nv-shots.mjs "$OUT" "$SUF" epic,medium,min > "$OUT/.after.log" 2>&1); RC=$?
 grep -iv "\.png$" "$OUT/.after.log" | tail -10
 [ "$RC" = 0 ] || { echo "after shots failed ($RC)"; exit 1; }
 echo "after done $(date '+%H:%M')"; freeport

@@ -38,7 +38,8 @@ node scripts/swap.mjs save --commit-wip
   `*.pem`, `*.key`, `*.p12`, `*.pfx`, `id_rsa*`, `*credentials*`, `*secret*`, `.npmrc`, `*.token`, any path segment) or a
   new, modified, renamed or copied file is over 10 MB, or the WIP commit would be over 50 MB. A rejected push (the branch moved on
   origin) stays an item: fetch and merge in that worktree by hand.
-- Also printed (not items): heavy.lock / heavy2.lock / auto-train.lock holders with pid liveness, laptop-queue requests
+- Also printed (not items): heavy.lock / heavy2.lock (desktop slots), heavy-4189.lock / heavy-4192.lock (laptop slots), any
+  other `heavy*.lock` under `--root`, and auto-train.lock: holders with pid liveness (a dead pid is the item above), laptop-queue requests
   queued and claimed (per worker; `--machine laptop` or env `SWAP_MACHINE` / `LQ_WORKER` marks this machine's), and the
   auto-train status line. Check that the next ~2 hours of runs are queued.
 - Every clone is scanned: with no `--repo`, each folder under `--root` is resolved to its clone (`git rev-parse

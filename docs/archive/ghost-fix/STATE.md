@@ -8,7 +8,7 @@ Fixed; PR to master (patch). Waiting for its test tier.
   depth-of-field ray called `getDirection` on the camera before the render, so Babylon saw a moving camera as still and
   TAA never reset its history while aiming; and the TAA history had no clamp, so fast arms and guns left copies.
 - Fix: `gameState.ts` uses the camera's own `forward` (no matrix read before the render); `postStack.ts`
-  `taa.clampHistory = true`. GPU strips at Epic (`scripts/ghost-strip.mjs`): before, 17 draw frames moving but seen as
+  `taa.clampHistory = true`. GPU strips at Epic (`scripts/archive/ghost-strip.mjs`): before, 17 draw frames moving but seen as
   still (`-m`) and heavy trails; after, every moving frame seen as moving (`Mm`), no trails. Contact sheets in
   `shots/` (per-frame PNGs left out of git, 329 MB). `npm run check` passed.
 
