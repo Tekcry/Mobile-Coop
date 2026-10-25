@@ -25,7 +25,7 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
   older "every lit chokepoint can be darkened at least two ways" (docs/level-design.md).
 - Decided, not built yet (G41): a door past 15% open passes light (one threshold for light, sound and sight). Code:
   `DOOR_SHUT` 0.05 in `world/lightField.ts`.
-- Decided, not built yet (G45): clear glass passes light and sight; frosted glass and blinds pass light only; thermal never
+- Decided, light half built (G45): clear glass passes light and sight; frosted glass and blinds pass light only; thermal never
   sees through glass. Light half built (bible L15): glass, clear or frosted, is never a light shape
   (`src/voxel/lightShapes.ts:23-24`), so the light field and the bake pass it. The sight rules (clear glass passes
   sight; frosted glass and blinds do not) sit with the AI, not in the light field.
