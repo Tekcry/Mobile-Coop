@@ -18,17 +18,42 @@ export const LEGACY = ['e2e-progression', 'e2e-cosmetics', 'e2e-clear', 'e2e-bun
 // e2e-desktop:3 = the Epic renderer booting in a match; e2e-coop-gpu = the host drawn on the joiner at High / Epic (menu flow)
 export const GPU = ['e2e-darkness', 'e2e-desktop:3', 'e2e-coop-gpu'];
 
+// REPORT ONLY too: the audio suites (moved here from scripts/run-e2e.mjs; S2 switches its import).
+export const AUDIO = ['e2e-music', 'e2e-score', 'e2e-foley', 'e2e-weapon-audio'];
+
 /**
- * The suites an affected request runs (laptop-queue lib affectedSuites: the service's affected pass and request.mjs
- * --affected): `suites` without the GPU-only and LEGACY suites, whole or as a part (docs/systems/testing-tools.md: GPU
- * suites never, legacy REPORT ONLY). A request's suites run by name, where nothing is REPORT ONLY, so left in they ran
- * and gated affected-e2e (audit 2026-10-25: PR #400's request named e2e-coop-gpu, e2e-darkness, e2e-bunker, ...). A
- * part list entry (e2e-desktop:3, e2e-wall:flanker) drops only that part token; the whole suite stays (its named run
- * expands to the non-GPU parts).
+ * The suites an affected request runs as a gate (laptop-queue lib affectedSuites: the service's affected pass and
+ * request.mjs --affected): `suites` without the GPU-only, LEGACY and AUDIO suites, whole or as a part
+ * (docs/systems/testing-tools.md: GPU suites never, legacy and audio REPORT ONLY). A request's suites run by name, where
+ * nothing is REPORT ONLY, so left in they ran and gated affected-e2e (audit 2026-10-25: PR #400's request named
+ * e2e-coop-gpu, e2e-darkness, e2e-bunker, ...). A part list entry (e2e-desktop:3, e2e-wall:flanker) drops only that part
+ * token; the whole suite stays (its named run expands to the non-GPU parts). `affectedReportSuites` is the other half.
  */
 export function affectedGateSuites(suites) {
-  const off = new Set([...LEGACY, ...GPU]);
+  const off = new Set([...LEGACY, ...GPU, ...AUDIO]);
   return (suites ?? []).filter((s) => !off.has(s) && !(s.includes(':') && off.has(s.split(':')[0])));
+}
+
+/** The entries of `suites` that are LEGACY or AUDIO (whole or part token, the gate's rule): they run REPORT ONLY. GPU never (BRIEF A1). */
+export function affectedReportSuites(suites) {
+  const rep = new Set([...LEGACY, ...AUDIO]);
+  const gpu = new Set(GPU);
+  return (suites ?? []).filter((s) => !gpu.has(s) && !(s.includes(':') && gpu.has(s.split(':')[0])) && (rep.has(s) || (s.includes(':') && rep.has(s.split(':')[0]))));
+}
+
+/** Paths of the wire: `src/net/` plus every `../x/y` import of protocol.ts as `src/x/y.ts` (a trailing "/" is a folder). */
+export function wirePaths(protocolTs) {
+  const out = ['src/net/'];
+  for (const m of protocolTs.matchAll(/\bfrom\s+'\.\.\/([^']+)'/g)) {
+    const p = `src/${m[1]}.ts`;
+    if (!out.includes(p)) out.push(p);
+  }
+  return out;
+}
+
+/** True when any changed file is a wire path. */
+export function touchesWire(files, paths) {
+  return files.some((f) => paths.some((p) => (p.endsWith('/') ? f.startsWith(p) : f === p)));
 }
 
 // (process audit) CORE leaves out the input suites (the slowest); `src/input/` and `src/ui/` still pick them.
@@ -190,6 +215,7 @@ export const WIDE_COVERS = {
   'src/world/maps/bunker': ['e2e-course', 'e2e-bunker'],
   'src/world/maps/warehouse.ts': ['e2e-ct-warehouse', 'e2e-lightbake', 'e2e-guard-carry', 'e2e-levels', 'e2e-anchors', 'e2e-ctcourse'],
   'src/world/maps/warehouseDress': ['e2e-ct-warehouse', 'e2e-lightbake', 'e2e-guard-carry', 'e2e-levels', 'e2e-anchors', 'e2e-ctcourse'],
+  'src/world/maps/campus': ['e2e-sectorops', 'e2e-lightbake', 'e2e-guard-carry', 'e2e-levels', 'e2e-anchors', 'e2e-ctcourse'],
   'src/world/maps/ctcourse.ts': ['e2e-ctcourse', 'e2e-section-rating'],
   // (marlow-final 0d) the Marlow Yard set parts, facility and greybox helpers: e2e-ctcourse, and e2e-section-rating (rates A2-A8)
   'src/world/maps/ctcourseSets/': ['e2e-ctcourse', 'e2e-section-rating'],
@@ -226,7 +252,7 @@ export const WIDE_COVERS = {
 // A path under `src/` not listed here runs smoke + CORE. The first matching prefix wins.
 const GAME = ['e2e-gadgets', 'e2e-tactics', 'e2e-takedown', 'e2e-park'];
 const LIGHT = ['e2e-lightbake', 'e2e-desktop', 'e2e-darkness'];
-const COOP = ['e2e-coop', 'e2e-netmove', 'e2e-ctcourse'];
+export const COOP = ['e2e-coop', 'e2e-netmove', 'e2e-ctcourse'];
 export const DIRECT_COVERS = {
   // the studio and tuner files: their own suites (the tuner / Anim Studio test tier), not their folder's
   'src/anim/studio': ['e2e-studio', 'e2e-anim'],
@@ -306,6 +332,8 @@ export const DIRECT_COVERS = {
   // the Warehouse map itself: its routes suite (legacy) and the usual world suites
   'src/world/maps/warehouse.ts': ['e2e-ct-warehouse', 'e2e-levels', 'e2e-anchors'],
   'src/world/maps/warehouseDress': ['e2e-ct-warehouse', 'e2e-levels', 'e2e-anchors'],
+  // (J20 T5) Saltmarsh Park: its suite is e2e-sectorops part 6
+  'src/world/maps/campus': ['e2e-sectorops:6', 'e2e-levels', 'e2e-anchors'],
   // the lamp files: the bake suite, the desktop renderer and the GPU darkness read-back (dropped outside --gpu)
   'src/world/light': LIGHT,
   'src/world/lamp': LIGHT,
@@ -381,6 +409,13 @@ export function selectSuites(files, map = DIRECT_COVERS) {
     for (const s of hit) picked.add(s);
   }
   return [...picked].filter((s) => !s.includes(':') || !picked.has(s.split(':')[0])).sort();
+}
+
+/** `suites` plus the co-op group when a changed file is on the wire (protocol.ts text `protocolTs`, non-empty); sorted unique, a whole suite absorbs its parts. Pure. */
+export function withWireSuites(suites, files, protocolTs) {
+  if (typeof protocolTs !== 'string' || !protocolTs || !touchesWire(files, wirePaths(protocolTs))) return suites;
+  const all = new Set([...suites, ...COOP]);
+  return [...all].filter((s) => !s.includes(':') || !all.has(s.split(':')[0])).sort();
 }
 
 // ---- auto-train's auto-drop (scripts/auto-train.mjs pickDrops): which suites a train member reaches ----
