@@ -1,0 +1,19 @@
+{
+  "id": "20261025T182339-night-shift-player-b-278de01c-f80c",
+  "sha": "278de01c2e7ecd881b270e9f76730dd90e792ee2",
+  "branch": "feature/mixamo-i5",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-anim",
+    "e2e-weapons-carry",
+    "anim-audit",
+    "e2e-combat",
+    "e2e-coop",
+    "e2e-netmove"
+  ],
+  "set": "mixamo-i5",
+  "note": "Mixamo top priority; I5 carry/strike, one characterRig line: co-op gate",
+  "priority": 1
+}
