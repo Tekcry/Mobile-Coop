@@ -26,7 +26,9 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
 - Decided, not built yet (G41): a door past 15% open passes light (one threshold for light, sound and sight). Code:
   `DOOR_SHUT` 0.05 in `world/lightField.ts`.
 - Decided, not built yet (G45): clear glass passes light and sight; frosted glass and blinds pass light only; thermal never
-  sees through glass. No glass rule exists in the light field yet.
+  sees through glass. Light half built (bible L15): glass, clear or frosted, is never a light shape
+  (`src/voxel/lightShapes.ts:23-24`), so the light field and the bake pass it. The sight rules (clear glass passes
+  sight; frosted glass and blinds do not) sit with the AI, not in the light field.
 - Built (G100, G101, G102; prototype A5, lr16v, LR16-6): an instant goggle cut (G181: the wheel picks the mode, one
   button toggles it), CT grain (thermal on warm areas only, none in electro), thermal as CT (CT colour ramp; people
   behind closed doors as a dim blue silhouette, below).
@@ -120,7 +122,9 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
 - Fitting models (warehouse-lamps; the LED family since sector-fixes L; Sector Ops only): each section's lamps come from
   room tables (`world/maps/lampRooms.ts` `addLampRooms`; `S1_LAMPS`, `S2_LAMPS`, `S3_LAMPS`): per room one model (`panel`
   flush under a ceiling, `strip` on wires under a roof, `bulkhead` on a wall bracket), one height and a regular grid or
-  row; per fitting [x, z, radius, intensity], intensity 0 a dead fitting (drawn dark, radius 0, never lit). Strips sit
+  row; per fitting [x, z, radius, intensity], intensity 0 a dead fitting (drawn dark, radius 0, never lit; G329 bars leaving
+  lit places unlit, so dead fittings are not a way to make dark pockets; open question L5, dead fittings over dark
+  pockets, waits for Michael). Strips sit
   under the solid roof strips, never under a sheet. `world/lampMount.ts` (pure) measures each mount from the level's boxes
   (wires <= 0.6 m, a panel's gap <= 0.03, a bracket <= 0.35: wall lights stand 0.3 m off the face so the conservative bake
   sees past their wall) and reports any that cut a ceiling, hang in the air or miss a wall; the light never moves.
@@ -222,9 +226,10 @@ Rendering only (plan and budget: `docs/archive/lighting-review/LR14-PLAN.md`; bu
 `docs/sector-redesign/checks/lr14-build.md`). As in CT, the lamps nearest the player throw the real shape of a guard,
 the partner, a body or a held weapon; static geometry stays in the baked visibility atlas; every other lamp keeps the
 capsules.
-- `world/charShadowSet.ts` (pure): `CHAR_SHADOW_PRESET` (per shadow tier: off / Low / Medium 0 lamps, High 2 x 512 px,
-  Ultra 3 x 1024, Epic 4 x 1024) into `ShadowSpec.charLamps` / `charTile`; `charShadowSpec(tier, mode)` with the settings
-  override (`'auto' | 'on' | 'off'`; on below High = High's set). `LampSlotPicker`: lit baked lamps whose radius + 3 m
+- `world/charShadowSet.ts` (pure): `CHAR_SHADOW_PRESET` (per shadow tier: Off 0 lamps, Low 1 x 256 px, Medium 1 x 512 px,
+  High 2 x 512 px, Ultra 3 x 1024, Epic 4 x 1024; bible L18, `charShadowSet.ts:46-53`) into `ShadowSpec.charLamps` /
+  `charTile`; `charShadowSpec(tier, mode)` with the settings override (`'auto' | 'on' | 'off'`; on with the tier Off =
+  High's set). `LampSlotPicker`: lit baked lamps whose radius + 3 m
   reaches the nearest focus point (the local player, the camera), nearest first, re-picked at 10 Hz; a held lamp
   competes at 0.75 x its distance, holds its slot 0.5 s at least and stays a candidate 1 m further; a lamp going dark
   lets go on the next frame; slots (atlas tiles) stay with their lamp. `fitCone`: each slot's spot frustum around the
