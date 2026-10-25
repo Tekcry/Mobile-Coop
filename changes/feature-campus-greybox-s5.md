@@ -24,5 +24,5 @@ kind: patch
   the three ways in rewritten (the screens passage and the side door; the hall front and the anteroom's hall door; the
   service stair, the archive, the roof and the light well) with the exit west through the open alcove.
 - S5-P4 co-op and checks: three co-op boost lips (the low roof's gutter kerb from the lawn, the roof's coping from the low
-  roof, the smoke hatch's kerb from the kitchen), each out of reach of a solo jump; unit tests for the lips, the
+  roof, the smoke hatch's kerb from the kitchen), each out of reach of a solo jump and climbable once reached (not only hung from); unit tests for the lips, the
   two-player hoist door, the keyholders' choke, the map graph (guards counted on every player key) and the screen count.

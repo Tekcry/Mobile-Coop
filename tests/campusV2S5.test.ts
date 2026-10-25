@@ -373,19 +373,20 @@ describe('S5 v2 P1 L1 (y 4.2)', () => {
 
 describe('S5 v2 P1 roof and low roof', () => {
   it('P1 roof and low roof: the coping 0.2 at x -32, z 30..33; the parapet elsewhere 1.1; the gutter kerb 0.2 on z 44; both hatch holes; the rim gate and the cleaning ladder; the west rappel; the bulkhead\'s two clear panes', () => {
-    const cop = findBox([-32.15, -31.85, S5_ROOF, S5_ROOF + 0.2, 30, 33])!;
+    // (fix 1) the three co-op lip pieces are 0.40 deep, the lip faces kept
+    const cop = findBox([-32.25, -31.85, S5_ROOF, S5_ROOF + 0.2, 30, 33])!;
     expect(cop).toBeTruthy();
     expect(cop.noLedge).toBeFalsy();
     for (const [a, c] of [[18, 30], [33, 44]] as const) expect(findBox([-32.2, -32, S5_ROOF, S5_ROOF + 1.1, a, c])?.noLedge, `parapet z ${a}`).toBe(true);
     expect(inRect(-32.25, -31.8, 30, 33, S5_ROOF + 0.25, S5_ROOF + 1.2)).toEqual([]);
-    const kerb = findBox([-32, -26, S5_L1, S5_L1 + 0.2, 43.85, 44.15])!;
+    const kerb = findBox([-32, -26, S5_L1, S5_L1 + 0.2, 43.75, 44.15])!;
     expect(kerb).toBeTruthy();
     expect(kerb.noLedge).toBeFalsy();
     expect(inRect(-31.8, -26.25, 43.75, 44.2, S5_L1 + 0.25, S5_L1 + 1.2)).toEqual([]);
     // the low roof's two hatch holes; the smoke hatch's kerb (west piece a ledge, the others noLedge)
     expect(inRect(-27.6, -26.4, 18.9, 20.1, S5_L1 - 0.15, S5_L1 + 0.1)).toEqual([]);
     expect(inRect(-28.6, -27.4, 41.4, 42.6, S5_L1 - 0.15, S5_L1 + 0.3)).toEqual([]);
-    expect(findBox([-28.7, -28.6, S5_L1, S5_L1 + 0.2, 41.3, 42.7])?.noLedge).toBeFalsy();
+    expect(findBox([-29.0, -28.6, S5_L1, S5_L1 + 0.2, 41.3, 42.7])?.noLedge).toBeFalsy();
     const rim = inRect(-28.75, -27.25, 41.25, 42.75, S5_L1 + 0.01, S5_L1 + 0.3);
     expect(rim.length).toBe(4);
     expect(rim.filter((p) => !p.noLedge).length).toBe(1);

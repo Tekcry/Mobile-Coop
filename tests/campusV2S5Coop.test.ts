@@ -14,6 +14,7 @@ import type { BoxPiece, LevelBuilder as LB } from '../src/world/levelBuilder';
 import { NavGrid, type NavBlocker, type NavSample } from '../src/ai/navGrid';
 import { HANG, LEDGE, closestOn, generateLedges, reach, suppressLedgesNear } from '../src/world/anchors';
 import { PERCEPTION } from '../src/ai/perception';
+import { MOVEMENT } from '../src/config/movement';
 import { LANDING_NOISE_RADIUS } from '../src/config/noise';
 import { hyp2, hyp3 } from '../src/core/mathx';
 import { SightWorld } from '../src/game/sectorCheck';
@@ -158,9 +159,10 @@ const gapTo = (l: Lip, p: BoxPiece): number => {
 /** The lip's own piece: the box whose face carries the lip, its top at the lip (0.2 kerb or coping). */
 const PIECES: Record<string, readonly number[]> = {
   // [x0, x1, y0, y1, z0, z1]
-  'CR8-s5': [-32, -26, 4.2, 4.4, 43.85, 44.15],
-  'CR9-s5': [-32.15, -31.85, 8.4, 8.6, 30, 33],
-  'CR10-s5': [-28.7, -28.6, 4.2, 4.4, 41.3, 42.7],
+  // (fix 1) each 0.40 deep, the lip face kept
+  'CR8-s5': [-32, -26, 4.2, 4.4, 43.75, 44.15],
+  'CR9-s5': [-32.25, -31.85, 8.4, 8.6, 30, 33],
+  'CR10-s5': [-29.0, -28.6, 4.2, 4.4, 41.3, 42.7],
 };
 const pieceOf = (l: Lip): BoxPiece => solid.find((p) => [x0(p), x1(p), bottom(p), top(p), z0(p), z1(p)].every((v, k) => Math.abs(v - PIECES[l.id]![k]!) < 1e-3))!;
 /** On the lip's boost side (the side its normal points to). */
@@ -256,12 +258,36 @@ describe('P4 the co-op lips CR8-s5, CR9-s5, CR10-s5 (D:167-188)', () => {
     });
   }
 
+  it('fix 1: each lip climbs, not only hangs: its ledge has canClimbUp (the piece 0.40 deep >= LEDGE.climbDepth) and the body fits 0.6 m inside the lip at lip + 0.05 (climbRoom)', () => {
+    const inside: Record<string, readonly [number, number]> = { 'CR8-s5': [-27.5, 43.55], 'CR9-s5': [-32.45, 31.5], 'CR10-s5': [-29.2, 42.0] };
+    for (const l of S5_COOP_LIPS) {
+      const e = lipLedges(l)[0];
+      expect(e, `${l.id} ledge`).toBeTruthy();
+      expect(e!.canClimbUp, `${l.id} canClimbUp`).toBe(true);
+      // the stand point 0.6 m in from the lip, against its normal (CR8 z 43.55, CR9 x -32.45, CR10 x -29.2)
+      const [cx, cz] = inside[l.id]!;
+      expect(l.lip.n.x !== 0 ? cx : cz).toBeCloseTo((l.lip.n.x !== 0 ? l.lip.x : l.lip.z0) - 0.6 * (l.lip.n.x || l.lip.n.z), 6);
+      const r = MOVEMENT.radius;
+      expect(inRect(cx - r, cx + r, cz - r, cz + r, l.lip.y + 0.05, l.lip.y + 0.05 + MOVEMENT.standHeight).map((p) => [p.c, p.s]), `${l.id} climb room`).toEqual([]);
+    }
+  });
+
   it('CR10-s5: the smoke hatch is open from the kitchen floor to the sky (1.2 x 1.2), the boost spot under it', () => {
     const [hx0, hz0, hx1, hz1] = S5_BOX.smokeHatch;
     expect(inRect(hx0, hx1, hz0, hz1, 0.3, 6.2).map((p) => [p.c, p.s])).toEqual([]);
     const l = lipOf('CR10-s5');
     expect(l.boost.x > hx0 && l.boost.x < hx1 && l.boost.z > hz0 && l.boost.z < hz1).toBe(true);
   });
+
+  /** A ledge's true drop: its top over the highest surface (box top or stair ramp) under the point 0.4 m out from its middle. */
+  const trueDrop = (e: (typeof ledges)[number]): number => {
+    const x = (e.a.x + e.b.x) / 2 + e.nx * 0.4;
+    const z = (e.a.z + e.b.z) / 2 + e.nz * 0.4;
+    let floor = 0;
+    for (const p of solid) if (x > x0(p) && x < x1(p) && z > z0(p) && z < z1(p) && top(p) < e.top - 0.1 && top(p) > floor) floor = top(p);
+    for (const h of rampAt(x, z)) if (h < e.top - 0.1 && h > floor) floor = h;
+    return e.top - floor;
+  };
 
   it('exactly one canHang ledge per lip, and none elsewhere on the kerbs, the coping and the hatch rims', () => {
     for (const l of S5_COOP_LIPS) expect(lipLedges(l).length, `${l.id} canHang ledges`).toBe(1);
@@ -275,19 +301,10 @@ describe('P4 the co-op lips CR8-s5, CR9-s5, CR10-s5 (D:167-188)', () => {
       [-27.8, -26.2, 18.7, 20.3, 4.2],
       [-46.0, -44.5, 32.2, 35.6, 8.4],
     ];
-    const extra = ledges.filter((e) => e.canHang && !own.has(e) && zones.some(([ax, bx, az, bz, t]) => Math.abs(e.top - t) < 0.05 && Math.min(e.a.x, e.b.x) >= ax && Math.max(e.a.x, e.b.x) <= bx && Math.min(e.a.z, e.b.z) >= az && Math.max(e.a.z, e.b.z) <= bz));
+    // (fix 1) a lip piece's back face (a 0.2 drop to its roof) is no lip: counted by the true drop, as the LD 11.8 test does
+    const extra = ledges.filter((e) => e.canHang && !own.has(e) && trueDrop(e) > 1.9 && zones.some(([ax, bx, az, bz, t]) => Math.abs(e.top - t) < 0.05 && Math.min(e.a.x, e.b.x) >= ax && Math.max(e.a.x, e.b.x) <= bx && Math.min(e.a.z, e.b.z) >= az && Math.max(e.a.z, e.b.z) <= bz));
     expect(extra.map((e) => [e.a, e.b, e.top])).toEqual([]);
   });
-
-  /** A ledge's true drop: its top over the highest surface (box top or stair ramp) under the point 0.4 m out from its middle. */
-  const trueDrop = (e: (typeof ledges)[number]): number => {
-    const x = (e.a.x + e.b.x) / 2 + e.nx * 0.4;
-    const z = (e.a.z + e.b.z) / 2 + e.nz * 0.4;
-    let floor = 0;
-    for (const p of solid) if (x > x0(p) && x < x1(p) && z > z0(p) && z < z1(p) && top(p) < e.top - 0.1 && top(p) > floor) floor = top(p);
-    for (const h of rampAt(x, z)) if (h < e.top - 0.1 && h > floor) floor = h;
-    return e.top - floor;
-  };
 
   it('LD 11.8 unplanned lips: every canHang ledge with a drop of 2.6-4.6 m in the footprint is CR8-s5, CR9-s5, CR10-s5 or on a solo-reached surface; the low roof, garden walls, boathouse, van and chimneys stay noLedge', () => {
     const own = new Map(S5_COOP_LIPS.flatMap((l) => lipLedges(l).map((e) => [e, l.id] as const)));
