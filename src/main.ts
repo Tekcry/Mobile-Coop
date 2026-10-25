@@ -14,6 +14,7 @@ import { campaignUnlocked, showEconomy } from './core/legacy';
 import { loadRejoin } from './core/rejoin';
 import { MenuState } from './world/menuScene';
 import { gateLimits } from './world/menuGate';
+import { readyCapMs } from './game/mapGate';
 import { IGNITE_S } from './world/menuShots';
 import { MainMenuScreen } from './ui/screens/mainMenu';
 import { TitleScreen } from './ui/screens/titleScreen';
@@ -394,10 +395,18 @@ async function boot(): Promise<void> {
     // (the last match / the menu stage freed first: never two matches in memory; nothing may hold the menu)
     app.onAvatarStyle = null;
     app.releaseState();
+    const gen = bootGen;
     void GameState.create(app, opts, cbOverride ?? { quit: goToMenu, restart: () => startGame({ ...base, seed: base.seed + 1 }), missions: () => openMissions(), briefing: (id) => openMissions(id) })
       .then((st) => {
         app.setState(st);
         app.crashLog?.stage(`in ${what}`);
+        // (map-ready S2) the state is held behind the boot screen: the load gate (`mapGate.ts`) releases it, then the boot
+        // screen goes (`finally`). Never rejects.
+        if (flags.mapReady)
+          return st.runGate((p, text) => {
+            if (gen === bootGen) setBoot(0.5 + 0.5 * p, text);
+          }, readyCapMs(location.search));
+        return undefined;
       })
       .catch((e: unknown) => {
         console.error(e);
@@ -409,7 +418,10 @@ async function boot(): Promise<void> {
         if (cbOverride) cbOverride.quit();
         else goToMenu();
       })
-      .finally(() => document.getElementById('boot')?.classList.add('done'));
+      // (map-ready S2: a newer load owns the boot screen once this one's gate was closed by it)
+      .finally(() => {
+        if (!flags.mapReady || gen === bootGen) document.getElementById('boot')?.classList.add('done');
+      });
   };
 
   // (3.1.4: every run in its own match, its settings set before the map loads - a change mid-match is not what a run
