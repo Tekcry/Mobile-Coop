@@ -200,6 +200,9 @@ export class LightField {
   /** (char-shadow-meter) Scratch: the point's column lamps (bake indices) and their terms (`columnInto`). */
   private readonly colLamp = new Int32Array(LAMP_GRID_SLOTS);
   private readonly colLv = new Float64Array(LAMP_GRID_SLOTS);
+  /** (char-shadow-meter) Scratch: the member level `pushRes` inserts. A typed-array slot, not `res`: CI's V8 boxed
+   *  each extra `res` store in `sourcesInto` (90.8 B a query against 58.8 locally); a typed-array store never boxes. */
+  private readonly pushLv = new Float64Array(1);
 
   /** Static light at a point: ambient + moon + the baked lamps (closed doors applied). 0..1. */
   levelAt(x: number, y: number, z: number): number {
@@ -262,7 +265,7 @@ export class LightField {
       this.moonInto(x, y, z);
       const m = b.moonLight * this.res;
       if (m > 0) {
-        this.res = m;
+        this.pushLv[0] = m;
         n = this.pushRes(ids, lv, n, max, -1);
       }
     }
@@ -270,7 +273,7 @@ export class LightField {
     for (let s = 0; s < cn; s++) {
       const L = this.colLv[s]!;
       if (L >= CHAR_LIGHT.minLevel && this.inLampSet(s, cn)) {
-        this.res = L;
+        this.pushLv[0] = L;
         n = this.pushRes(ids, lv, n, max, this.ids[this.colLamp[s]!]!);
       }
     }
@@ -278,7 +281,10 @@ export class LightField {
     for (let i = 0; i < ls.length; i++) {
       if (i < this.isBaked.length && this.isBaked[i]) continue;
       this.dynTermInto(i, x, y, z, occluded);
-      if (this.res > 0) n = this.pushRes(ids, lv, n, max, i);
+      if (this.res > 0) {
+        this.pushLv[0] = this.res;
+        n = this.pushRes(ids, lv, n, max, i);
+      }
     }
     return n;
   }
@@ -365,10 +371,10 @@ export class LightField {
     return rank < cap;
   }
 
-  /** (char-shadow-meter) Insert (id, `res`) into the strongest-first lists of `n` entries, keeping at most `max` (ties:
-   *  the earlier member first); returns the new count. (The level comes in `res`: no double crosses the call.) */
+  /** (char-shadow-meter) Insert (id, `pushLv[0]`) into the strongest-first lists of `n` entries, keeping at most `max`
+   *  (ties: the earlier member first); returns the new count. (No double crosses the call.) */
   private pushRes(ids: Int32Array, lv: Float32Array, n: number, max: number, id: number): number {
-    const level = this.res;
+    const level = this.pushLv[0]!;
     let j = n < max ? n : max;
     // (a member no stronger than the last kept one when full: dropped)
     if (j === max && !(level > lv[max - 1]!)) return n;
