@@ -56,7 +56,22 @@ export const DAVIT = { x: -4, z: 5.8, length: 7.9 } as const;
 export const S2_FOOT = { x0: -44, x1: 4, z0: -30, z1: 6 } as const;
 
 /** The lamp circuits (switch groups) of section 2 (the SPEC's `s2-atrium` ... are ids; the registry's groups are numbers). */
-export const S2_GROUPS = { atrium: 50, l1Bal: 51, l2Bal: 52, kitchen: 54, facilities: 55, l1Cor: 56, l2Cor: 57, gCor: 58 } as const;
+/** (S2-G5a, BA5) `landing` 53: the K2 landing downlight's own switched circuit. */
+export const S2_GROUPS = { atrium: 50, l1Bal: 51, l2Bal: 52, landing: 53, kitchen: 54, facilities: 55, l1Cor: 56, l2Cor: 57, gCor: 58 } as const;
+
+/**
+ * (S2-G5c, Q2 "Never", briefs/S2.md 5c) One switched circuit per room that held no lit fitting (the rule's step 3): numbered from 100 in
+ * `S2_ROOMS` order (S2's range is 100-139, job PLAN section 2). Every room not listed already holds a lit as-built fitting (the
+ * balcony strips by 51 / 52, the facilities office, the wing, the landing, the kitchen, the L2 gallery, the foyer, the mail room) or is
+ * the open roof (exterior: no fitting hangs there).
+ */
+export const S2_ROOM_GROUPS: Readonly<Record<string, number>> = {
+  post: 100, lift: 101, store: 102, hallne: 103, plant: 104,
+  l1sw: 105, l1project: 106, l1ne: 107, l1wingn: 108, l1wings: 109, l1comms: 110, l1semeet: 111, 's2-l1-mr1': 112, 's2-l1-mr2': 113, 's2-l1-mr3': 114,
+  l2wing: 115, 's2-l2-exec': 116, 's2-l2-offa': 117, 's2-l2-offb': 118, 's2-l2-board': 119, 's2-roof-plant': 120,
+};
+/** (S2-G5c step 4) The fire stairs' riser circuits: the next free numbers after the rooms'. */
+export const S2_CORE_GROUPS: Readonly<Record<string, number>> = { sw: 121, ne: 122 };
 
 /** The doors the sector data finds by centre (`Doors.nearest`): [x, z]. */
 export const S2_DOORS = {
@@ -195,10 +210,27 @@ export const S2_ROOMS: RoomDef[] = [
   { id: 'l1comms', name: 'Comms Room', minX: -2.5, maxX: 4, minZ: -10.5, maxZ: -4.5, minY: 4.4, maxY: 8.4 },
   { id: 'l1landing', name: 'Bridge Landing', minX: -2.5, maxX: 4, minZ: -17.5, maxZ: -10.5, minY: 4.4, maxY: 8.4 },
   { id: 'l1semeet', name: 'South-east Meeting Room', minX: -7.5, maxX: 4, minZ: -30, maxZ: -23, minY: 4.4, maxY: 8.4 },
+  // (S2-G5c-0, A-J17-S2-1) every enclosed L1 meeting room is its own room (G329 "no lit place left unlit"; guard-ai `lightsOut`
+  // reads "a fixture in the room he stands in"). Boxes from the PG areas. They nest in l1sw / l1north: `roomAt` takes the
+  // smallest box, so a point in a meeting room is the meeting room's and the open plan keeps the rest
+  { id: 's2-l1-mr1', name: 'Meeting Room 1', minX: -44, maxX: -35.5, minZ: -20, maxZ: -14, minY: 4.4, maxY: 8.4 },
+  { id: 's2-l1-mr2', name: 'Meeting Room 2', minX: -44, maxX: -34, minZ: 0, maxZ: 6, minY: 4.4, maxY: 8.4 },
+  { id: 's2-l1-mr3', name: 'Meeting Room 3', minX: -26, maxX: -16, minZ: 0, maxZ: 6, minY: 4.4, maxY: 8.4 },
   { id: 'l2sw', name: 'L2 West Gallery', minX: -44, maxX: -26, minZ: -30, maxZ: 6, minY: 8.4, maxY: 12.3 },
   { id: 'l2north', name: 'L2 Offices', minX: -26, maxX: -7.5, minZ: -30, maxZ: 6, minY: 8.4, maxY: 12.3 },
   { id: 'l2wing', name: 'L2 East Wing', minX: -7.5, maxX: 4, minZ: -30, maxZ: 6, minY: 8.4, maxY: 12.3 },
+  // (S2-G5c-0, A-J17-S2-1) the L2 enclosed rooms and the L2 balcony strips (twins of l1west / l1south / l1east); nested in
+  // l2sw / l2north / l2wing the same way (smallest box wins)
+  { id: 's2-l2-exec', name: 'Executive Suite', minX: -44, maxX: -30, minZ: -4, maxZ: 6, minY: 8.4, maxY: 12.3 },
+  { id: 's2-l2-offa', name: 'Office A', minX: -28.5, maxX: -13, minZ: -30, maxZ: -22.5, minY: 8.4, maxY: 12.3 },
+  { id: 's2-l2-offb', name: 'Office B', minX: -13, maxX: -7.5, minZ: -30, maxZ: -22.5, minY: 8.4, maxY: 12.3 },
+  { id: 's2-l2-board', name: 'Board Room', minX: -7.5, maxX: -0.2, minZ: -2.5, maxZ: 6, minY: 8.4, maxY: 12.3 },
+  { id: 's2-l2-west', name: 'L2 West Balcony', minX: -30, maxX: -26, minZ: -22.5, maxZ: -4, minY: 8.4, maxY: 12.3 },
+  { id: 's2-l2-south', name: 'L2 South Balcony', minX: -26, maxX: -7.5, minZ: -22.5, maxZ: -18.5, minY: 8.4, maxY: 12.3 },
+  { id: 's2-l2-east', name: 'L2 East Balcony', minX: -11.5, maxX: -7.5, minZ: -18.5, maxZ: -4, minY: 8.4, maxY: 12.3 },
   { id: 'roof', name: 'Roof', minX: -44, maxX: 4, minZ: -30, maxZ: 6, minY: 12.3 },
+  // the roof plant room (`ROOF_PLANT`, walls 4.0 + the roof box): inside the open roof's box
+  { id: 's2-roof-plant', name: 'Roof Plant Room', minX: -20.5, maxX: -12, minZ: 0, maxZ: 6, minY: 12.3, maxY: 16.5 },
 ].map((r) => ({ ...r, squad: [] }));
 
 /** The G cafe tables (x, z), 1.0 x 0.75 x 1.0. (S2-G2, BA10) the two by the CR2 nose moved from x -13 to -14.5: the
@@ -234,6 +266,40 @@ export const S2_SWITCHES: NonNullable<MapLayout['switches']> = [
   { pos: new Vector3(-27.7, 4.4, -24.4), yaw: PI / 2, group: S2_GROUPS.kitchen },
   // (S2-G3) moved from z -0.5 with the facilities south wall (z 0 -> -1): the hall side, the same offset
   { pos: new Vector3(-5.6, 4.4, -1.5), yaw: PI, group: S2_GROUPS.l1Cor },
+  // (S2-G5a, BA5) the K2 landing downlight's switch: 1.6 m off the landing's north door, 0.4 off the wall face, facing into the landing
+  { pos: new Vector3(2.6, 4.4, -11.0), yaw: PI, group: S2_GROUPS.landing },
+  // ---- (S2-G5c step 3) one switch per new room circuit, inside the room by its main door: 0.4 m off the wall face, 0.6 m past the
+  // door opening's edge on the side away from the hinge (the hinge is at the opening's low end), at the door's floor, facing into the room
+  { pos: new Vector3(-30.5, 0, -25.8), yaw: -PI / 2, group: S2_ROOM_GROUPS.post! },
+  { pos: new Vector3(-30.5, 0, -6.8), yaw: -PI / 2, group: S2_ROOM_GROUPS.lift! },
+  { pos: new Vector3(-30.5, 0, 2.2), yaw: -PI / 2, group: S2_ROOM_GROUPS.store! },
+  // the open NE lobby: by the NE core's ground-floor door
+  { pos: new Vector3(2.7, 0, -0.6), yaw: PI, group: S2_ROOM_GROUPS.hallne! },
+  { pos: new Vector3(-7.5, 0, -24.8), yaw: PI / 2, group: S2_ROOM_GROUPS.plant! },
+  // the L1 open plan west: by the SW core's L1 door
+  { pos: new Vector3(-38.8, 4.4, -21.8), yaw: PI / 2, group: S2_ROOM_GROUPS.l1sw! },
+  { pos: new Vector3(-15.8, 4.4, -23.0), yaw: PI, group: S2_ROOM_GROUPS.l1project! },
+  // the NE stair lobby: the hinge side of the core's door (the away side holds the l1Bal switch 0.3 m off), 0.2 m along the wall
+  // off the x -0.1 wall's margin (A-G5c-3)
+  { pos: new Vector3(0.5, 4.4, -0.6), yaw: PI, group: S2_ROOM_GROUPS.l1ne! },
+  // the door-less hall pieces (the wing's north and south ends): on the nearest wall of the room
+  { pos: new Vector3(2.7, 4.4, -4.0), yaw: 0, group: S2_ROOM_GROUPS.l1wingn! },
+  { pos: new Vector3(-1.5, 4.4, -18.0), yaw: PI, group: S2_ROOM_GROUPS.l1wings! },
+  { pos: new Vector3(-2.0, 4.4, -6.3), yaw: PI / 2, group: S2_ROOM_GROUPS.l1comms! },
+  { pos: new Vector3(-3.3, 4.4, -23.5), yaw: PI, group: S2_ROOM_GROUPS.l1semeet! },
+  { pos: new Vector3(-38.8, 4.4, -14.5), yaw: PI, group: S2_ROOM_GROUPS['s2-l1-mr1']! },
+  { pos: new Vector3(-34.5, 4.4, 4.2), yaw: -PI / 2, group: S2_ROOM_GROUPS['s2-l1-mr2']! },
+  { pos: new Vector3(-16.5, 4.4, 4.2), yaw: -PI / 2, group: S2_ROOM_GROUPS['s2-l1-mr3']! },
+  // the L2 wing hall: by the NE core's L2 door (hinge side, 0.2 m along the wall, as L1)
+  { pos: new Vector3(0.5, 8.4, -0.6), yaw: PI, group: S2_ROOM_GROUPS.l2wing! },
+  { pos: new Vector3(-30.5, 8.4, 2.2), yaw: -PI / 2, group: S2_ROOM_GROUPS['s2-l2-exec']! },
+  { pos: new Vector3(-18.8, 8.4, -23.0), yaw: PI, group: S2_ROOM_GROUPS['s2-l2-offa']! },
+  { pos: new Vector3(-8.8, 8.4, -23.0), yaw: PI, group: S2_ROOM_GROUPS['s2-l2-offb']! },
+  { pos: new Vector3(-2.8, 8.4, -2.0), yaw: 0, group: S2_ROOM_GROUPS['s2-l2-board']! },
+  { pos: new Vector3(-14.8, 12.3, 0.5), yaw: 0, group: S2_ROOM_GROUPS['s2-roof-plant']! },
+  // (step 4) the riser circuits, inside each core by its ground-floor door (the hinge side: the far side of the SW door is outside the core)
+  { pos: new Vector3(-39.8, 0, -24.2), yaw: -PI / 2, group: S2_CORE_GROUPS.sw! },
+  { pos: new Vector3(0.5, 0, 0.4), yaw: 0, group: S2_CORE_GROUPS.ne! }, // 0.2 m along the wall off the x -0.1 wall's margin (A-G5c-3)
 ];
 
 /**
@@ -241,7 +307,12 @@ export const S2_SWITCHES: NonNullable<MapLayout['switches']> = [
  * reception downlight), on the foyer's east wall. Lure #1: he sees his own room go dark, walks to the board and
  * switches it back (guard-ai LR16-4, #255); taken down at the board, the atrium stays dark.
  */
-export const S2_BOARDS: BoardDef[] = [{ pos: new Vector3(-8.4, 0, -28.5), yaw: -PI / 2, groups: [S2_GROUPS.atrium] }];
+export const S2_BOARDS: BoardDef[] = [
+  { pos: new Vector3(-8.4, 0, -28.5), yaw: -PI / 2, groups: [S2_GROUPS.atrium] }, // sync-s2-atrium (the reception board, as built)
+  // (S2-G5a, C5, `S2-detail.md:180`) the east-wing breaker on the plant room's switchgear, facing west: a held cut (no
+  // `window`) of the facilities lamp (55) and the wing corridor downlights (56)
+  { pos: new Vector3(0.3, 0, -22), yaw: -PI / 2, groups: [S2_GROUPS.facilities, S2_GROUPS.l1Cor] }, // sync-s2-power
+];
 
 /** One S2 lamp fitting: its role (`S2_LIGHTS`), position, radius, intensity, circuit, colour, an optional downward cone
  *  (dx, dy, dz, angle) and the fitting's width. */
@@ -260,6 +331,26 @@ export interface S2Lamp {
 
 /** The balcony downlight's cone (straight down, 1.2 rad). */
 const DOWN: readonly [number, number, number, number] = [0, -1, 0, 1.2];
+
+/** (S2-G5c) A room's fittings (the balcony downlight spec, r 5, i 0.8, cone 1.2, w 0.4) on its circuit at height y: the points are (x, z). */
+function fit(room: string, y: number, pts: readonly (readonly [number, number])[]): S2Lamp[] {
+  const group = S2_ROOM_GROUPS[room]!;
+  return pts.map(([x, z]) => ({ role: `room:${room}`, x, y, z, r: 5, i: 0.8, group, colour: WHITE, cone: DOWN, w: 0.4 }));
+}
+
+/** (S2-G5c step 4) A fire stair core's landing lights: the ground-floor door landing, then the six landing slabs bottom to top (half
+ *  landing at the far end, near landing at the door end, per storey), each at landing + 2.4 (the roof landing's 14.7 is 14.6: the
+ *  bulkhead roof's underside is 14.7); r 4, i 0.7, no cone, w 0.3, on the core's riser circuit. */
+function coreFit(c: Core): S2Lamp[] {
+  const dir = c.near === 'N' ? -1 : 1;
+  const nearZ = c.near === 'N' ? c.z1 : c.z0;
+  const cx = (c.x0 + c.x1) / 2;
+  const nearMid = nearZ + dir * (NEAR_D / 2);
+  const farMid = nearZ + dir * (c.z1 - c.z0 - FAR_D / 2);
+  const group = S2_CORE_GROUPS[c.id]!;
+  const tops: [number, number][] = [[0, nearMid], [2.2, farMid], [4.4, nearMid], [6.4, farMid], [8.4, nearMid], [10.4, farMid], [12.3, nearMid]];
+  return tops.map(([top, z]) => ({ role: `core:${c.id}`, x: cx, y: Math.min(top + 2.4, BULKHEAD_TOP - 0.3), z, r: 4, i: 0.7, group, colour: WHITE, w: 0.3 }));
+}
 
 /**
  * (S2-G2, lead note 2026-10-25 ~09:05, briefs/S2.md 0.6) Every S2 lamp, in one block: provisional, light-realism retunes.
@@ -282,9 +373,45 @@ export const S2_LIGHTS: readonly S2Lamp[] = [
   { role: 'kitchen', x: -25, y: 7.9, z: -26, r: 5, i: 0.9, group: S2_GROUPS.kitchen, colour: WHITE, w: 0.6 },
   { role: 'facilities', x: -4, y: 7.9, z: 3, r: 6, i: 0.9, group: S2_GROUPS.facilities, colour: COOL, w: 0.6 },
   // one night lamp per corridor (0.25)
-  { role: 'l1-corridor', x: -3, y: 7.9, z: -1.5, r: 8, i: 0.25, group: S2_GROUPS.l1Cor, colour: WHITE, w: 0.4 },
+  // (S2-G5a, BA4, C11) the wing corridor's two downlights (56, patrolled white cones), 1.0 m into the hall from the facilities
+  // door and the landing's west door; they replace the as-built night lamp (-3, 7.9, -1.5)
+  { role: 'wing', x: -4, y: 7.9, z: -2.0, r: 5, i: 0.8, group: S2_GROUPS.l1Cor, colour: WHITE, cone: DOWN, w: 0.4 },
+  { role: 'wing', x: -3.5, y: 7.9, z: -16.0, r: 5, i: 0.8, group: S2_GROUPS.l1Cor, colour: WHITE, cone: DOWN, w: 0.4 },
+  // (S2-G5a, BA5) the K2 landing downlight (53, switched by the landing's north door)
+  { role: 'landing', x: 1.5, y: 7.9, z: -15.8, r: 5, i: 0.8, group: S2_GROUPS.landing, colour: WHITE, cone: DOWN, w: 0.4 },
   { role: 'l2-corridor', x: -35, y: 11.9, z: -9, r: 8, i: 0.25, group: S2_GROUPS.l2Cor, colour: WHITE, w: 0.4 },
   { role: 'g-corridor', x: -28, y: 3.9, z: -14, r: 8, i: 0.25, group: S2_GROUPS.gCor, colour: WHITE, w: 0.4 },
+  // (S2-G5a, BA6) the goods-door bulkhead over the mail room's goods door (#12), on the G corridor circuit, unswitched
+  { role: 'goods', x: -43.6, y: 2.6, z: -16, r: 5, i: 0.8, group: S2_GROUPS.gCor, colour: WHITE, cone: DOWN, w: 0.4 },
+  // ---- (S2-G5c, Q2 "Never") every room without a lit fitting gets its own switched circuit (`S2_ROOM_GROUPS`). PROVISIONAL (J10
+  // retunes): n = ceil(L / 8) fittings along the box's long axis, evenly spaced on its centre line, the balcony downlight's values.
+  // A room holding a core, the lift block or a nested child cuts its box to the free rectangle first (A-G5c-2); y is the floor + 3.5
+  // (G 3.9, L1 7.9, L2 11.9, the roof plant room 15.9). TODO(light-realism): calibration replaces these values.
+  ...fit('post', 3.9, [[-34.6, -27.5], [-34.6, -22.5]]),
+  ...fit('lift', 3.9, [[-38.25, -8], [-32.75, -8]]),
+  ...fit('store', 3.9, [[-40.5, 1], [-33.5, 1]]),
+  ...fit('hallne', 3.9, [[-4.1, -1.5], [-4.1, 3.5]]),
+  ...fit('plant', 3.9, [[-2, -26.75], [-2, -20.25], [-2, -13.75], [-2, -7.25]]),
+  ...fit('l1sw', 7.9, [[-31.4, -26.25], [-31.4, -18.75], [-31.4, -11.25], [-31.4, -3.75]]),
+  ...fit('l1project', 7.9, [[-17.625, -26.25], [-10.875, -26.25]]),
+  ...fit('l1ne', 7.9, [[1.9, -0.6]]),
+  ...fit('l1wingn', 7.9, [[0.75, -2.75]]),
+  ...fit('l1wings', 7.9, [[0.75, -20.25]]),
+  ...fit('l1comms', 7.9, [[0.75, -7.5]]),
+  ...fit('l1semeet', 7.9, [[-4.625, -26.5], [1.125, -26.5]]),
+  ...fit('s2-l1-mr1', 7.9, [[-41.875, -17], [-37.625, -17]]),
+  ...fit('s2-l1-mr2', 7.9, [[-41.5, 3], [-36.5, 3]]),
+  ...fit('s2-l1-mr3', 7.9, [[-23.5, 3], [-18.5, 3]]),
+  ...fit('l2wing', 11.9, [[-1.75, -26.5625], [-1.75, -19.6875], [-1.75, -12.8125], [-1.75, -5.9375]]),
+  ...fit('s2-l2-exec', 11.9, [[-40.5, 1], [-33.5, 1]]),
+  ...fit('s2-l2-offa', 11.9, [[-24.625, -26.25], [-16.875, -26.25]]),
+  ...fit('s2-l2-offb', 11.9, [[-10.25, -26.25]]),
+  ...fit('s2-l2-board', 11.9, [[-3.85, -0.375], [-3.85, 3.875]]),
+  ...fit('s2-roof-plant', 15.9, [[-18.375, 3], [-14.125, 3]]),
+  // (S2-G5c step 4) the fire stairs' riser circuits: one fitting per landing (the ground-floor door landing and the six landing
+  // slabs: the floors' near landings and the half landings, A-G5c-5) at landing + 2.4, r 4, i 0.7, no cone, w 0.3
+  ...coreFit(SW_CORE),
+  ...coreFit(NE_CORE),
 ];
 
 /** The atrium pendants (x, z) at y 9.0 (from `S2_LIGHTS`). */
@@ -562,6 +689,8 @@ export function buildCampusS2(b: LevelBuilder): void {
   furn(b, -42.5, 3, 1.4, 1.8, 3.0, STEEL);
   // post room: sorting table; (S2-G1, BA15) the two post cages on the north wall
   furn(b, -35, -26, 3.0, 0.9, 1.0);
+  // (S2-G5a, BA16) the post-room note on the sorting table: a visual box, no collision ('Plant log - cage 3 for facilities')
+  b.box(-35, 0.91, -26, 0.3, 0.02, 0.2, '#e8e2d0', 0, 0, false); // lead for sync-s2-plantlog
   for (const [x, z] of POST_CAGES) furn(b, x, z, 2.2, 1.8, 0.9, STEEL);
   // (S2-G1, C16, BA8) the mail-lift shaft: walls on the N, E and S faces (centre lines 0.1 outside the clear box, G to
   // 4.4), the service ladder inside the east face, and at L1 a 1.1 rail round the hole (see the S2-G1 report: the rail

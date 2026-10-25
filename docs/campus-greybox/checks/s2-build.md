@@ -199,3 +199,102 @@ Findings for the lead:
   door at z -3.2 or start the board room wall at x -7.3; both change a plan position, so left as drawn.
 
 Pending PC run: e2e-sectorops parts 1-6 on the S2-b head (flag off).
+
+## S2-G6a - 18 guards (data and pure tests)
+
+Built on the lane branch after G4 (one builder, so no G6a worktree and no merge step). Files: `src/world/maps/campusV2/s2Data.ts`
+(the `S2_GUARDS` array only), `tests/campusV2S2Guards.test.ts`.
+
+Built: `s2Data.ts:23-89` `S2_GUARDS`, 18 entries in the order #1-#14, #18-#21 (index 0-17; each number in its comment):
+- As built: #1-#7, #9; #10 and #12 lose `dormant`.
+- #8 (7): route (-4, -1.5) -> (2.2, -6.5) -> (-4, -14.5) (Q2 corner stop), waits [3, 7, 3], faces as built [0, PI / 2, PI],
+  takedown (2.2, -6.5). 44.4 s.
+- #11 (10) K2: post (1.5, 4.4, -15.8), yaw 0, leash 5, guards c2-door, takedown (1.5, -16.5).
+- #13 (12): (-20, 2) <-> (-2, 2), [4, 4], takedown (-2, 2), 44.4 s. #14 (13): BA12 sweep (-19, -8.5) <-> (-17, -8.5),
+  waits [12, 12], faces [PI - 1.05, PI + 1.05], takedown (-18, -8.5), 28.3 s. #18 (14): (-38, -21) -> (-33, -16) -> (-32, -8),
+  [4, 4, 4], takedown (-32, -8), 41.7 s. #19 (15): (-39, -1.5) <-> (-22, -1.5) (Q2), [4, 4], takedown (-39, -1.5), 44.4 s.
+  #20 (16): (1.2, -2.7) <-> (-4.5, -2.2), [7, 7] (Q2), takedown (1.2, -2.7), 26.2 s. #21 (17): (-27, -1.5) <-> (-9, -1.5)
+  (Q2), [4, 4], takedown (-9, -1.5), 44.4 s.
+- BA11: new guards' first yaw faces their second route point; `faces` only on #14 (BA12). Squads 0 G, 1 east wing, 2 L1
+  plan, 3 L2. Role / zone / reason from the `D:255-273` table (zones: cafe, atrium, l1-west, l1-north, wing, l2-north).
+- #19's torch (AS14) is the archetype's flashlight: no data field.
+- 18 + 3 x 2 = 24 <= 32. Reinforce points unchanged.
+
+Tests: `tests/campusV2S2Guards.test.ts` 7 / 7 pass (kinds / guns, `checkSectorGuards` [], floors, squads, posts #1 / #11 /
+#12, none dormant, the D-table slots and BA11 / BA12, every cycle 25-45 s with the brief's values, the pair loop, the cap).
+All lane tests 64 / 64; flag-off set 69 / 69. Typecheck and eslint clean.
+
+Assumptions: Q2 defaults, BA11, BA12 as the brief. New:
+- **A-G6a-1** #8 keeps his as-built `faces` [0, PI / 2, PI] (his stops are the same three jobs: the facilities door, the
+  panel, the pair-door corner); BA11's "faces only where the plan gives one" is read for the new guards. Undo: drop `faces`.
+
+## S2-G5a - devices and circuits (Split Shift, data only)
+
+Files: `src/world/maps/campusV2/s2.ts`, `s2Data.ts`, `tests/campusV2S2Devices.test.ts`. No engine file.
+
+Sync-node src lines (for the lead's `SYNC.md`):
+| Sync id | src | Data |
+| --- | --- | --- |
+| sync-s2-comms | `src/world/maps/campusV2/s2Data.ts:104` | `S2_DESKS` desk-comms2 at (3.6, 4.4, -6.5), yaw -PI / 2, cam-turnstile / cam-lift / cam-bridge, operator 7 (#8) |
+| sync-s2-power | `src/world/maps/campusV2/s2.ts:251` | `S2_BOARDS[1]` (0.3, 0, -22), yaw -PI / 2, groups [55, 56], no window |
+| sync-s2-atrium | `src/world/maps/campusV2/s2.ts:248` | `S2_BOARDS[0]` (-8.4, 0, -28.5), group 50 (as built, not renamed) |
+| sync-s2-kpfac (kp-fac) | `src/world/maps/campusV2/s2Data.ts:138-139` | keypads (-4, -1) and (-7.5, 3), code s2-fac-code (Q1 default) |
+| sync-s2-kitchen | `src/world/maps/campusV2/s2Data.ts:143` | overhear box [-32, -27, -30, -25] on 4.4, talkers [4, 5], grants s2-fac-code |
+| sync-s2-plantlog | `src/world/maps/campusV2/s2Data.ts:145` | board (-41.5, 0, -18.5), yaw 0, grants s2-board; lead: the post-room note `s2.ts:581` |
+| sync-s2-pairdoor (pg-brg) | `src/world/maps/campusV2/s2Data.ts:148` | door (-2.5, -16), a (-3.1, -16.8) yaw -PI / 2, b (-1.9, -9.9) yaw PI / 2, two players |
+| pg-exec | `src/world/maps/campusV2/s2Data.ts:149` | door (-33, -4) (L2), a (-34.8, -4.6), b (-31.2, -4.6), yaw PI, two players |
+
+Built:
+- Lights in `S2_LIGHTS`: BA4 the wing downlights (-4, 7.9, -2.0) and (-3.5, 7.9, -16.0) on 56 (`s2.ts:295-296`), replacing the
+  as-built night lamp (-3, 7.9, -1.5); BA5 `S2_GROUPS.landing = 53` (`s2.ts:60`), the landing downlight (1.5, 7.9, -15.8)
+  (`s2.ts:298`) and its switch (2.6, 4.4, -11.0) yaw PI (`s2.ts:239`); BA6 the goods-door bulkhead (-43.6, 2.6, -16) on 58,
+  unswitched (`s2.ts:302`). The facilities lamp (55) and the reception downlight (50) are unchanged. Balcony spec for all
+  four (r 5, i 0.8, cone 1.2, w 0.4).
+- BA16 the post-room note `s2.ts:581`: a visual box 0.3 x 0.02 x 0.2 at (-35, 0.91, -26), no collision.
+- Intel lines (BA13): 'Kitchen: the facilities keypad code, overheard.' (48 chars) and 'Plant log: east-wing breaker, plant
+  room switchgear.' (52 chars).
+- The objective comment no longer says EW5 is unbuilt (`s2Data.ts:121`).
+
+Tests: `tests/campusV2S2Devices.test.ts` 15 / 15 pass (`checkSectors` [] with the map security, no `soloWindow` / `window` /
+key `y`; the switchgear cut darkens exactly the facilities lamp and the two wing downlights; BA4-BA6; every keypad and gate
+finds its door with the `Doors.nearest` rule (DOOR_FIND 1.2) on its floor; every sync id in a `//` comment on its data
+line and the graph's `syncs` ids equal SYNC.md's S2 rows; one `it` per SYNC.md device; the note; the S2 live item count
+under `MAX_ITEMS`; switches and boards on the nav). `tests/sectorPairGate.test.ts` and `tests/sectorItemScope.test.ts`
+pass (flag off). All lane tests 79 / 79; flag-off set 69 / 69. Typecheck and eslint clean.
+
+The plant log's read: the point (-41.5, 0, -18.5) is inside cage 3 (as built); the "Read" item's reach is the default
+1.8 m in plan (`Interactables.nearest`) and the aisle cell (-41.5, -17.25) is walkable 1.25 m off: it reads. Not moved.
+
+Assumptions: Q1, BA4, BA5, BA6, BA13, BA16 as the brief; Q21 (no `soloWindow`). None new.
+
+Findings for the lead: none.
+
+## S2-G5c - BLOCKED (not built), and S2-G6b (not started)
+
+**Block.** G5c's rule ("every `S2_ROOMS` box (after G4) with no lit fitting inside it", step 1) names room boxes that the
+brief's own `S2_ROOMS` does not hold after G1-G4, and applied to the boxes that do exist it gives a result the brief says it
+must not:
+- The exceptions name "their L2 twins" of the strips, "the void", "the mail-lift shaft" and "the three core boxes": none
+  is a RoomDef (BA1 / BA2 re-cut only G and L1; G4 re-cuts no L2 room; S2 has two cores).
+- The coverage list wants MR1-MR3, offices A and B, the board room, the roof plant room and the L2 open plan lit. MR1-MR3
+  sit inside l1sw / l1north (BA2), the offices and the exec suite inside l2north / l2sw, the board room inside l2wing, the
+  roof plant room inside `roof`.
+- Literal result on today's 26 boxes: lit by G5c would be post, lift, store, hallne, plant (G), l1sw, l1project, l1ne,
+  l1wingn, l1wings, l1comms, l1semeet, l2wing and `roof`; skipped as already lit: mail (BA6), foyer, l1kitchen, the three
+  L1 strips, l1north (its two north balcony downlights at z -2.8), l1fac, l1wing, l1landing, l2sw (the L2 night lamp and a
+  balcony lamp), l2north (balcony lamps). So MR3, the exec suite, offices A and B and the roof plant room stay dark, and
+  the `roof` box (the open roof) gets six fittings hanging at 15.8 m in the air, two of them over the void.
+- Fixing it by adding RoomDefs (MR1-MR3, L2 strips / offices / exec / board room, roof plant room, void, shaft, cores)
+  changes `S2_ROOMS` (HUD rooms, guard-ai `lightsOut` "a fixture in the room he stands in") and needs `S2_ART_TAGS` in
+  `s2Dress.ts`, which is not a G5c file, and box values for the L2 split that the brief does not give.
+
+Options for the lead (each is one data edit):
+1. Re-cut L2 like L1 (boxes from the PG areas: `s2-l2-exec`, `-offa`, `-offb`, `-board`, `-wing`, `s2-roof-plant`, plus
+   L2 strip twins of l1west / l1south / l1east and an l2north for the north strip), add MR1-MR3 boxes carved out of
+   l1sw / l1north, tag them in `s2Dress.ts`, then run G5c's rule unchanged on the new list (exclude `roof` as exterior).
+2. Keep `S2_ROOMS`, run G5c on its boxes, exclude `roof` (exterior), and add one fitting per named enclosed room that the
+   rule misses (MR3, exec suite, offices A / B, roof plant room) at its PG area's centre line.
+3. Keep `S2_ROOMS` and run the rule literally (the floating roof fittings and the dark MR3 / offices stand).
+
+G6b is not started: it follows G5c in the brief's order (section 8; its "light at vantages" test reads the final light
+set), so the lane stops here as the caller's rules say.
