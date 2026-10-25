@@ -18,8 +18,9 @@ roof -> W3 roof = 5.8 m throw over 4.9 m; C4 pie -> clock loft = plank bridge af
    (Sonnet; WIP 0c3ba017: docs/mission-rules/{PLAN,BRIEF}.md + M6 polish); R1 rules core (Opus) on
    feature/mission-rules-r1 (worktree -mission-rules-r1, report j7-r1-report.md; brief = J7-PLAN section 11 R1).
    Next R2 (Opus) + R3 (Sonnet), PLAN section 2 waves.
-6. J8 / J9 Tallow: plan fix round 1 on the engine (95521ef0); RUNNING re-check (j8-j9-plan-check2.md; told about M1 /
-   M2). Next: fix round for M2 (three 5.8 m sites -> two; pie spot waits for the plank), then builders per waves.
+6. J8 / J9 Tallow: re-check FIX (j8-j9-plan-check2.md: fold M1 / M2, pie-gap bypass, level-and-drop reach check, TGC
+   stair walk line, D0 split defaults). RUNNING fix round 2 (Opus, report j8-j9-fix2-report.md; lead rulings in it:
+   clock-mender door bolted both sides until the plank, flag date 2026-10-27). Then a fresh re-check, then builders.
 7. TW23 Tallow SPEC: feature/tallow-spec d42d1596 (stacked on #372): PR after #372 merges.
 8. Known gaps: mission-validator optional-without-reward + boltText (J12, Marlow); validator throw-gap row for the two
    5.8 m spots (Marlow, orchestrator told).
