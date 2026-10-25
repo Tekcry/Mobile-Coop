@@ -46,18 +46,19 @@ tunable in the Anim Studio and the anim tuner exactly as the CMU clips are, labe
 - No wire, save or `PROTOCOL_VERSION` change: clips are picked locally from the pose state; remotes pose from `MoveState`.
 
 ## Assumed decisions (each with its undo)
-- **A1 Approval and the walk cap.** Michael's ~19:05 words are his acceptance of every clip Player Build downloads and
-  implements: a clip that measures better than the one it replaces (PLAN "Switch-on") is switched on by default in its
-  slice, after the checker and the look video, without waiting for a walk. RULES "Walk pacing" counts unwalked
-  switch-ons; this is logged for the orchestrator as Michael's explicit approval, and every switched-on clip still gets
-  a walk-card line and a 1-2 min look video. Undo: set the clip's entry in `MIXAMO_ON` (`src/anim/mixamo.ts`) to false,
-  or `?mixamo=0` for a page.
+- **A1 Approval and the walk cap.** Michael's ~19:05 words approve every clip Player Build downloads and implements
+  (no approval round). Player / animation is AT CAP (ROADMAP:73), and RULES "Walk pacing" limits switch-on, so until
+  the orchestrator rules on whether his words lift the cap for this set: each I slice lands its passing clips with their
+  `MIXAMO_ON` entries (`src/anim/mixamo.ts`) true, while the `mixamo` flag (`src/core/flags.ts`) defaults OFF; the whole
+  Mixamo set counts as ONE walk-card feature; the first default-on (the flag's default to true) follows the
+  orchestrator's ruling, with a walk-card line and the look videos. Undo: the flag's default back to false (or
+  `?mixamo=0` for a page); one clip: its `MIXAMO_ON` entry to false.
 - **A2 One rollback.** Mixamo clips that replace locomotion clips also follow the existing "Mocap locomotion" setting
   (off = hand-made, as for CMU). Traversal, stance and idle clips follow only the `mixamo` flag. Undo: drop the
   `LOCO.mocap` term from the Mixamo gates in `src/anim/mixamo.ts`.
 - **A3 Frame rate.** Downloaded at 30 fps as listed; the adapter resamples to the pipeline's 120 fps (quaternion slerp,
-  position cubic) so `retarget.mjs` / `emit.mjs` keep their constants; the clips come out at 60 fps / 48-frame cycles as
-  the CMU ones. Undo: ask Michael for 60 fps downloads and set `MIXAMO_FPS` in `scripts/mocap/mixamoMap.mjs`.
+  position cubic) so `retarget.mjs` / `emit.mjs` keep their constants; as the CMU clips, cycles come out at 60 fps /
+  48 frames and one-shots at 40 fps (`emit.mjs` `ONESHOT_FPS`). Undo: ask Michael for 60 fps downloads and set `MIXAMO_FPS` in `scripts/mocap/mixamoMap.mjs`.
 - **A4 In Place off.** Every clip is downloaded with In Place unticked; the pipeline takes the travel from the hips
   (the CMU way). A clip that arrives in place is detected (hips travel under 5 cm) and treated as on-the-spot. Undo: none
   needed (detection, not a setting).
@@ -74,9 +75,10 @@ tunable in the Anim Studio and the anim tuner exactly as the CMU clips are, labe
 - **A8 What it replaces.** Each clip replaces the hand-made clip named in PLAN "Clip map" only when it measures at least
   as well on the audit (foot slide, continuity, clipping, range of motion); otherwise it ships in the Studio only and the
   hand-made clip stays. Undo: per clip in `MIXAMO_ON`.
-- **A9 Owned elsewhere.** Clips for moves whose game code another job owns (team pull / shutter lift / crawl under,
-  body carry and put-down, the knock-out strike) are converted, bundled and shown in the Studio by this job; wiring them
-  into those moves is handed to the owning job with a note (PLAN "Hand-offs"). Undo: none (no edit of their files).
+- **A9 Owned elsewhere.** Clips for moves whose game code another job owns (team pull / shutter lift / crawl under:
+  Campaign Build's mission-framework and Marlow; body carry, put-down and the knock-out strike: J19, Player's own batch)
+  are converted, bundled and shown in the Studio by this job; wiring them is a row in the owner's PLAN / STATE through
+  the orchestrator (PLAN "Hand-offs"). Undo: none (no edit of their files).
 - **A10 Guards.** Guards never play keyed sets today (`AnimInput.keyedOk` off, pinned by `tests/mocapGuards.test.ts`).
   The Standing Idle on guards is its own late slice behind its own flag, updating that test and the guard fixtures on
   purpose, with the Guard AI lead told first. Undo: its flag off.
