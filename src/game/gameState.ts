@@ -36,6 +36,9 @@ import { holdNoisePulse } from '../config/noise';
 import type { NavGrid } from '../ai/navGrid';
 import { EnemyManager } from '../ai/enemyManager';
 import { warmGuardModels } from '../ai/guardWarm';
+import { liveGuardBodies, type GuardBody } from '../ai/guardBody';
+import { bakeSourceOf, MapReadyStats, type FrameSample, type MapReadyRecord } from '../core/mapReadyStats';
+import { sectionBakeFor } from '../world/sectionBake';
 import type { PlayerRef } from '../ai/enemy';
 import type { Difficulty } from '../ai/enemyDefs';
 import { resolveDifficulty, type DifficultyDef } from '../ai/archetypes';
@@ -921,6 +924,9 @@ export class GameState implements AppState {
     // (section-bake robust, check A P8) a load that throws after its lamp bake started (no GameState to dispose it): the
     // bake's workers stop here
     const bakers = sectionBakerMark();
+    // (map-ready S1) the load record's start: the clock and the programs compiled so far
+    const readyT0 = performance.now();
+    const readyP0 = GameState.readyPrograms(app);
     let world: World;
     try {
       world = await World.create(app.engine, opts.map, { seed: opts.seed, detail: q.minimal ? undefined : q.features.detail, cheap: plain });
@@ -928,7 +934,17 @@ export class GameState implements AppState {
       disposeSectionBakersSince(bakers);
       throw e;
     }
+    const readyWorld = performance.now();
     const g = new GameState(app, world, opts, cb);
+    // (map-ready S1) the load record (counter reads only; `window.__mapReady`)
+    const rs = new MapReadyStats(opts.map.id, opts.mode, false, readyT0, readyP0);
+    g.readyStats = rs;
+    rs.step('world', readyWorld);
+    rs.setBake(bakeSourceOf(undefined, !!sectionBakeFor(opts.map.id), !!world.lightBake?.sections), world.lightBake?.ms ?? -1);
+    g.scene.onNewMaterialAddedObservable.add(() => {
+      g.readyMats++;
+    });
+    if (typeof window !== 'undefined') (window as unknown as { __mapReady: MapReadyRecord }).__mapReady = rs.record;
     if (opts.net) g.net = opts.net.attach(g);
     // (anim-studio) the studio stage: single player only (never offered in a co-op session)
     else if (opts.map.id === STUDIO_MAP_ID)
@@ -975,6 +991,7 @@ export class GameState implements AppState {
     ]);
     // (SB14) from here the bake's cache write waits for a section change or the match's end (no mid-play hitch)
     sb?.markPlaying();
+    rs.step('create', performance.now());
     return g;
   }
 
@@ -1162,6 +1179,7 @@ export class GameState implements AppState {
   }
 
   enter(): void {
+    this.readyReveal();
     this.audio = attachGameAudio(this.app, this);
     this.app.input.setGameplayActive(true);
     this.mode?.start();
@@ -2279,7 +2297,81 @@ export class GameState implements AppState {
     if (this.net) ctx.net = this.puppet ? 'co-op client' : 'co-op host';
     if (this.enemyMgr) ctx.enemies = `${this.enemyMgr.enemies.filter((e) => e.alive).length} alive${this.enemyMgr.anyAlerted ? ', alerted' : ''}`;
     ctx.spikes = this.spikes.summary();
+    if (this.readyStats) ctx.mapReady = this.readyStats.summary();
     return ctx;
+  }
+
+  /** (map-ready S1) The load record (`window.__mapReady`; null before `create` makes it). */
+  private readyStats: MapReadyStats | null = null;
+  /** (map-ready S1) Materials added to the scene (one observer, added in `create`). */
+  private readyMats = 0;
+  /** (map-ready S1) Body / weapon / guard mesh swaps seen (the load record's pop-ins). */
+  private readyPop = 0;
+  /** (map-ready S1) The last seen operator LOD (`player.figure.current`), each weapon slot's `meshPending` (1 / 0). */
+  private readyFigure = -1;
+  private readonly readyWeapons = new Uint8Array(16);
+  /** (map-ready S1) Guard bodies already shown (each counts once), and the scene's live list once it exists. */
+  private readonly readyGuards = new WeakSet<GuardBody>();
+  private readyGuardList: readonly GuardBody[] | null = null;
+  /** (map-ready S1) The one reusable frame sample. */
+  private readonly readySample: FrameSample = { programs: 0, landings: 0, tileUploads: 0, materials: 0, popIns: 0 };
+
+  /** (map-ready S1) Programs the engine has compiled so far (once per load, at its start). */
+  private static readyPrograms(app: App): number {
+    const c = (app.engine as unknown as { _compiledEffects?: Record<string, unknown> })._compiledEffects;
+    return c ? Object.keys(c).length : 0;
+  }
+
+  /** (map-ready S1) The reveal (with the flag off, today's `app.setState` -> `enter`): the window's zero point. */
+  private readyReveal(): void {
+    const rs = this.readyStats;
+    if (!rs || rs.record.released) return;
+    this.readyPoll();
+    // (once per match) the program count now; later frames reuse `spikeShaders`
+    this.readySample.programs = GameState.readyPrograms(this.app);
+    const mem = (performance as { memory?: { usedJSHeapSize: number } }).memory;
+    rs.reveal(performance.now(), this.readySample, mem ? mem.usedJSHeapSize / (1024 * 1024) : -1);
+  }
+
+  /** (map-ready S1) Fill the frame sample: counter reads and the pop-in watch. No allocation once the lists exist. */
+  private readyPoll(): void {
+    const s = this.readySample;
+    s.programs = this.spikeShaders;
+    const lamps = this.world.lamps;
+    s.landings = lamps ? lamps.landings : 0;
+    s.tileUploads = lamps ? lamps.tileUploads : 0;
+    s.materials = this.readyMats;
+    // the operator body: a LOD swap after the first one loaded
+    const fig = this.player.figure.current;
+    if (fig !== this.readyFigure) {
+      if (this.readyFigure >= 0) this.readyPop++;
+      this.readyFigure = fig;
+    }
+    // a weapon model's baked mesh arriving (pending -> not)
+    const slots = this.weapons.slots;
+    const ws = this.readyWeapons;
+    for (let i = 0; i < slots.length && i < ws.length; i++) {
+      const p = slots[i]!.model.meshPending ? 1 : 0;
+      if (ws[i] && !p) this.readyPop++;
+      ws[i] = p;
+    }
+    // a guard body shown (each once); guard bodies exist only with the guard models
+    if (flags.guardModels) {
+      let gl = this.readyGuardList;
+      if (!gl) {
+        const l = liveGuardBodies(this.scene);
+        if (l.length) gl = this.readyGuardList = l;
+      }
+      if (gl)
+        for (let i = 0; i < gl.length; i++) {
+          const b = gl[i]!;
+          if (b.shown && !this.readyGuards.has(b)) {
+            this.readyGuards.add(b);
+            this.readyPop++;
+          }
+        }
+    }
+    s.popIns = this.readyPop;
   }
 
   /** 3.3: long frames this match (or this benchmark run) and what was happening around each. */
@@ -2527,6 +2619,12 @@ export class GameState implements AppState {
   frameUpdate(dt: number, alpha: number): void {
     if (this.exited) return;
     this.trackSpikes();
+    // (map-ready S1) the load record's after-reveal window (no polling once it closes)
+    const rs = this.readyStats;
+    if (rs && rs.record.released && !rs.record.after.done) {
+      this.readyPoll();
+      rs.frame(performance.now(), this.readySample);
+    }
     if (this.photo) {
       // frozen: only the lights follow the free camera
       // (tuner-camera fix) the photo camera is the game view meanwhile (gameplay reads gamePos)
