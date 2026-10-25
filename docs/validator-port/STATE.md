@@ -37,6 +37,7 @@ Next: plan checker on BRIEF + PLAN head; on PASS write the S0, S1, S2, S7a brief
 wave 1.
 
 ## Done
+- 2026-10-25 WIP fix round 1 (plan check on cd0a5f68, FIX): items 1-5 and P1-P9 all left; reading sources done.
 - 2026-10-25: BRIEF.md (0ecde9a9) and PLAN.md (ad9b40f8) written by the Opus planner; STATE.md (this file).
 
 ## History
