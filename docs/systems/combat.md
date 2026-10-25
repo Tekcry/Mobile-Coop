@@ -1,23 +1,30 @@
 # Combat
 Purpose: weapon data, firing, the draw, the CT kit and health.
-Design authority: docs/DECISIONS.md (G16, G20, G21, G76, G98, G103-G105), then docs/design-bible.md (Section 5.6).
+Design authority: docs/DECISIONS.md (G16, G20, G21, G76, G98, G104, G152, G153, G243), then
+docs/design-bible.md (Section 5.6).
 
 ## Decided direction
-- Decided (G76, G115, built): the CT kit only: one rifle and one pistol (code: `rifle` and `pistolSd`); the knife is part of
-  the kit. Every other gun is deleted (docs/archive/consolidation/deleted-guns.md).
-- Decided, not built yet (G76): the rifle's attachments are a sniper, a shotgun and a launcher; the pistol carries a light /
-  electronics disruptor (spec: `docs/systems/ct-toolkit.md` 3.5); the knife's role and the attachment set are settled by
-  the CT co-op research. No attachment mode, disruptor or knife exists in code; the rifle keeps the legacy progression
-  attachments (red dot, 4x scope, suppressor, compensator, grip, laser, magazines).
-- Decided, not built yet (G103): CT draw timings, about 0.6 s (pistol) and 0.75 s (rifle) to raise, 0.5-0.6 s to lower.
-  Code: (CT prototype G2, footage wins, AUDIT-AIM rows 1 / 2 / 7) rifle 0.3 s draw with the raise running from the press
-  (about 0.55 s to settled, muzzle up at the shoulder, no chest hold), pistol 0.5 s, holster 0.15 s (CT instant), carry
-  lower 0.2 s. Recoil (row 11): no visible flip (weapon flip 0.02 rad per kick, rifle recoilPitch 0.6, no shot shake).
+- Decided (G76, G115, built): the CT kit only: one rifle and one pistol (code: `rifle` and `pistolSd`); the knife is part
+  of the kit. Every other gun is deleted (docs/archive/consolidation/deleted-guns.md).
+- Decided, not built yet (G76): the rifle's attachments are a sniper, a shotgun and a launcher; the knife's role and the
+  attachment set are settled by the CT co-op research. No attachment mode or knife verb exists in code (the knife is
+  drawn on Wren only, `weapons/knifeModel.ts`); the rifle keeps the legacy progression attachments (red dot, 4x scope,
+  suppressor, compensator, grip, laser, magazines).
+- Built (G152): the pistol's held jammer, one camera, laser or lamp at a time while the player stands still
+  (`game/jammer.ts`; `docs/systems/gadgets.md`, Held pistol jammer). It replaced the pistol "disruptor" shot.
+- Built (G243, replaces G103's CT draw timings): real-world draw times with sources
+  (`docs/archive/anim-natural/n3/DRAW-TIMES.md`): pistol 0.75 s, rifle 1.1 s to raise; holster pistol 0.9 s, rifle
+  1.0 s; a traversal or busy move holsters in 0.15 s (`weapons/drawState.ts`). The aim camera still blends in from low
+  ready over the older 0.3 s (rifle) / 0.5 s (pistol). The tuner's Clip speed sliders scale each draw
+  (`anim/tuneClipSpeed.ts`).
+- Recoil (CT prototype G2, AUDIT-AIM row 11): no visible flip (weapon flip 0.02 rad per kick, rifle recoilPitch 0.6, no
+  shot shake).
   (anim-n3b) Wren's body takes a per-shot kick (`anim/recoil.ts`, visual only: the camera and the aim do not move): rifle
   about 3 cm back at the hands, 1.1 deg muzzle rise, 1.5 deg chest; pistol 1.8 cm up, 3.6 deg flip; settled in 0.3 s.
   Tuner: Gun `recoilMul`. Guards keep the CT prototype G2 values.
 - Decided, not built yet (G104): normal aiming has no zoom; the marksman (sniper) attachment's scope has hold breath.
-- Decided, not built yet (G105): loadouts are Stealth / Assault / Recommended. Code: Silent / Flash / Loud.
+- Decided, not built yet (G153, replaces G105's loadouts): each mission issues the pair fixed, complementary kits
+  (G134); players do not choose a loadout. Code: the loadout screen and the Silent / Flash / Loud presets.
 - Decided and built (G16): no aim assist on any input. The pad's aim assist code and its `gamepad.aimAssist` setting are
   gone; an old stored value is dropped when settings load (`sanitizeSettings`).
 - Decided (G20, G98): health comes back only at wall medkit stations; no carried medkits, no kit count (built). Stations in
