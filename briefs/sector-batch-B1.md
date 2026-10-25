@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 2 2026-10-25T11:18:29Z
+status: done feature/sector-batch-b1 e03cefaa581bd6422048b0e346089f277c67a7a5
 # sector-batch B1 (cloud): Sector Ops batch J18, slice B1
 
 Lead: Night Shift | Sector Ops Build. Job sector-batch (FOLDED-PLAN J18, ROADMAP Now row 16). Plan checked (checks
@@ -17,3 +17,15 @@ Lead: Night Shift | Sector Ops Build. Job sector-batch (FOLDED-PLAN J18, ROADMAP
   - Commit and push after each numbered step, path-limited, never `git add -A`.
 - Done: every step pushed on `feature/sector-batch-b1`; a report `docs/sector-batch/checks/b1-build.md` on that branch (changes per file,
   tests with counts, deviations, pending PC runs); then `status: done feature/sector-batch-b1 <sha>` here.
+
+## Report (Night Shift | Cloud Builder 2, 2026-10-25)
+Steps 1-5 and the report pushed, one commit each: f16351fb, 49e81cc2, 12b8ce1b, 417a30b3, 1932dff8, e03cefaa (report
+`docs/sector-batch/checks/b1-build.md`). Diff against the base: only the brief's files plus the report.
+- Tests (`--maxWorkers=2`): sectorRecord + sectorStep3 12/12; sectorPerfect + sectors + sectorRatingHost 34/34;
+  changesFragments 1/1; the six brief files together 47/47. typecheck:fast clean; `node --check scripts/e2e-sectorops.mjs` ok.
+- Deviations: `grep -n "warehouseOps" src/main.ts` still prints one existing comment (main.ts:447, autostart test-hook
+  note, a block the brief does not list), left as is; `starsFor('warehouseOps')` is gone. The a0 alarm check matched the
+  brief. The fragment is exactly as briefed (its last bullet names B2's solo-route test).
+- Pending PC runs: `scripts/e2e-sectorops.mjs` on the laptop queue (GPU): the ghost run's PERFECT line, stars filled up to
+  the run's tier, `perfect === false` after an alarm. Walk: finish Saltmarsh Park on Realistic with no kill and no alarm;
+  the result reads PERFECT and the main menu and op list show three stars.
