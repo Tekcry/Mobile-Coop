@@ -3,6 +3,23 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 58 (2026-10-25 ~23:30, Orchestrator save at 69%; session [cc496b]; wins over SAVE 57):**
+- Service pid 12732 healthy. Trains 106 (42/43, flake e2e-ctcourse:4) and 107 (43/43) green. Queue 18 requests deep
+  at the save: no gap / spare runs added.
+- Mixamo #452: 3754df04 affected 7/7, then new head b2454e56 re-filed as 000010 and green 7/7 (23:14). Orchestrator
+  told. Rule now (Orchestrator 23:05): no renames, priority field only.
+- e2e-ctcourse:4 quarantined BY HAND in scratch/laptop-queue/quarantine.json to 2026-10-27T12:10Z, owner Marlow Build
+  (A8 pass 2 grille assert; Marlow told). Not in state.quarantineStarts: apply the 14-day repeat rule by hand.
+- NEW JOB laptop-queue-6 (feature/laptop-queue-6, worktree C:/NightShift/Mobile-Coop-laptop-queue-6, node_modules
+  junction to -laptop-queue-4): train ETA hold + fit rule so a predictable train never cuts a PR run (waste audits
+  21:57 / 23:05). BRIEF + PLAN 473eed7df, Opus plan checker PASS after 1 fix round. Opus builder was running at the
+  save (no PR yet). Next: builder result -> fresh Opus checker -> PR (CI check is the gate) -> tell Orchestrator.
+- Still waiting: #445 affected f3e4c511 (20261025T113341-...-8aae) and j20-s6c on 259bbe55 (105350-82df), both queued.
+- j20-perf alone NOT re-filed: queue too deep (an aged alone blocks PR starts after 30 min). Its JSON is on the
+  desktop (C:/NightShift/scratch/orchestrator/j20-perf-request.json); re-file when the queue is quiet.
+- Next: laptop-queue-6 build / check / PR; #445 and j20-s6c verdicts; then SAVE 57 Next line (PR-C merge -> D-A docs,
+  PR-A, PR-B, j20-parity-pre-2).
+
 **Test Runner SAVE 57 (2026-10-25 ~22:40, Orchestrator save; session [55e15e]; wins over SAVE 56):**
 - Laptop GitHub login works again; SAVE 56's three branches pushed; BOOT swap note removed by the Orchestrator.
 - Service pid 12732 healthy. Trains 103 and 104 done; train 105 running at the save. All Test Runner worktrees clean
