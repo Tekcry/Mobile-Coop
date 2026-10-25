@@ -211,11 +211,11 @@ function cmd(exe, args, { cwd = HERE, soft = false, input, env } = {}) {
 const git = (args, opts) => cmd('git', args, opts);
 const gh = (args, opts) => cmd('gh', args, opts);
 
-/** Posts a commit status (dry run: prints the gh command). */
+/** Posts a commit status (dry run: prints the gh command); true when posted (or a dry run), false when the post failed. */
 function postStatus(sha, status, context, description) {
   const args = ['api', `repos/${REPO}/statuses/${sha}`, '-f', `state=${status}`, '-f', `context=${context}`, '-f', `description=${description}`];
-  if (DRY) { log(`dry-run: gh ${args.join(' ')}`); return; }
-  try { gh(args); log(`status ${context} ${status} on ${sha.slice(0, 8)}: ${description}`); } catch (e) { log(`status post failed: ${String(e.message).split('\n')[0]}`); }
+  if (DRY) { log(`dry-run: gh ${args.join(' ')}`); return true; }
+  try { gh(args); log(`status ${context} ${status} on ${sha.slice(0, 8)}: ${description}`); return true; } catch (e) { log(`status post failed: ${String(e.message).split('\n')[0]}`); return false; }
 }
 
 const COMMENT_MAX = 60_000;
@@ -656,7 +656,7 @@ function trainChain(sha, n) {
 
 /** The changed files from a to b (git diff --name-only), or null on a git error. */
 function filesBetween(a, b) {
-  try { return git(['diff', '--name-only', a, b]).split('\n').map((x) => x.trim()).filter(Boolean); } catch { return null; }
+  try { return git(['diff', '--no-renames', '--name-only', a, b]).split('\n').map((x) => x.trim()).filter(Boolean); } catch { return null; }
 }
 
 /** A commit's laptop-e2e state ('' when none); throws on a gh error. */
@@ -691,13 +691,14 @@ function carryMoved(sha, n, chain) {
   // a dead run (restart, crash, lost final post) is not live: H never waits on it for good (claimBlocks is true for
   // any done claim, so a done claim with a lost final post must not count)
   const live = (p) => {
-    if (claimed.has(p)) return true;
+    if (runningTrains.has(p)) return true; // running here (claimed stays set after a run ends: checker FIX 1)
     const c = parseClaim(git(['show', `origin/laptop-queue:claims/${p}.json`], { soft: true }));
     return !!c && !c.done && claimBlocks(c, WORKER, now, CLAIM_MAX_MS);
   };
   const r = carryFrom(rows, (c) => filesBetween(c, sha), live);
   if (r?.from) {
-    postStatus(sha, 'success', 'laptop-e2e', carryDesc(r.from));
+    // a failed post records nothing: the next pass carries again (state.trains would skip H for good)
+    if (!postStatus(sha, 'success', 'laptop-e2e', carryDesc(r.from))) return 'skip';
     bumpTrainEnd(n);
     state.trains[sha] = { result: 'carried', from: r.from, date: new Date().toISOString() };
     saveState();
@@ -836,7 +837,7 @@ function carryOnto(train) {
   let st;
   try { st = laptopState(head); } catch (e) { log(`train ${train.n} ${head.slice(0, 8)}: status read failed, no carry: ${String(e.message).split('\n')[0]}`); return; }
   if (st !== '') return;
-  postStatus(head, 'success', 'laptop-e2e', carryDesc(train.sha));
+  if (!postStatus(head, 'success', 'laptop-e2e', carryDesc(train.sha))) return; // nothing recorded: pendingTrains carries it
   bumpTrainEnd(train.n);
   state.trains[head] = { result: 'carried', from: train.sha, date: new Date().toISOString() };
   log(`train ${train.n} ${head.slice(0, 8)}: carried from ${train.sha.slice(0, 8)}, docs-only delta`);
@@ -871,6 +872,17 @@ function cut(ctl, why) {
   if (ctl.why) return;
   ctl.why = why;
   if (ctl.child) cmd('taskkill', ['/pid', String(ctl.child.pid), '/t', '/f'], { soft: true });
+}
+
+/**
+ * Promise.all over a multi-slot run's children: when one rejects, every ctl is cut at once (no live child keeps a
+ * worktree whose lock the finally frees), and the first error is thrown once all have settled (checker FIX b).
+ */
+async function settleAll(promises, ctls) {
+  const res = await Promise.allSettled(promises.map((p) => p.catch((e) => { for (const c of ctls) cut(c, 'error'); throw e; })));
+  const bad = res.find((x) => x.status === 'rejected');
+  if (bad) throw bad.reason;
+  return res.map((x) => x.value);
 }
 
 /** Kills whatever listens on the port (a server left by a killed run). */
@@ -1176,7 +1188,7 @@ async function runTrain(train, ports = PORTS) {
     }
     if (voided) return closedEnd();
     postStatus(train.sha, 'pending', 'laptop-e2e', `${DESKTOP ? 'desktop: ' : ''}${ports.length > 1 ? 'sharded' : 'unsharded on'} ${ports.join('+')}`);
-    const prep = await Promise.all(ports.map((p) => prepare(p, train.sha, path.join(runDir, `${p}.log`), undefined, ctls[p])));
+    const prep = await settleAll(ports.map((p) => prepare(p, train.sha, path.join(runDir, `${p}.log`), undefined, ctls[p])), Object.values(ctls));
     if (voided) return closedEnd();
     if (prep.includes('fetch')) {
       // not a verdict: the pending status is now unclaimed (stale) and the next pass picks the train again
@@ -1199,7 +1211,7 @@ async function runTrain(train, ports = PORTS) {
     const expS = Math.max(...bins.filter((b) => b.suites.length).map((b) => expectedWallS(b.suites, times, TRAIN_JOBS)));
     if (Number.isFinite(expS)) postStatus(train.sha, 'pending', 'laptop-e2e', `${DESKTOP ? 'desktop: ' : ''}${ports.length > 1 ? 'sharded' : 'unsharded on'} ${ports.join('+')}, expect ~${Math.round(expS)} s`);
     const t0 = Date.now();
-    const runs = await Promise.all(ports.map((p, i) => e2e(p, bins[i].suites, TRAIN_JOBS, path.join(runDir, `${p}.log`), ctls[p])));
+    const runs = await settleAll(ports.map((p, i) => e2e(p, bins[i].suites, TRAIN_JOBS, path.join(runDir, `${p}.log`), ctls[p])), Object.values(ctls));
     if (voided) return closedEnd();
     const prNumber = Number(gh(['pr', 'list', '-R', REPO, '--head', `train/${train.n}`, '--json', 'number', '--jq', '.[0].number'], { soft: true })) || 0;
     // a shard that died before its summary (or lost suites) is a failure, never a partial success
@@ -1378,7 +1390,7 @@ async function runRequest(r, port, pair = null) {
     let prep;
     if (r.kind !== 'alone' && ports.length > 1) {
       const tried = [...ports];
-      const preps = await Promise.all(tried.map((p) => prepare(p, r.sha, path.join(runDir, `prepare-${p}.log`), stop, ctls[p])));
+      const preps = await settleAll(tried.map((p) => prepare(p, r.sha, path.join(runDir, `prepare-${p}.log`), stop, ctls[p])), Object.values(ctls));
       const yielding = preps.includes('yield');
       const good = tried.filter((p, i) => preps[i] === 'ok');
       // one slot prepared: the other goes back to the queue; none: today's one-slot failure path (fetch: not a verdict)
@@ -1450,7 +1462,7 @@ async function runRequest(r, port, pair = null) {
     const t0 = Date.now();
     started = true;
     progress = () => runProgress(list, times, jobs, Date.now() - t0);
-    const runs = await Promise.all(ports.map((p, i) => e2e(p, bins[i].suites, jobs, path.join(runDir, `${p}.log`), split ? ctls[p] : ctl)));
+    const runs = await settleAll(ports.map((p, i) => e2e(p, bins[i].suites, jobs, path.join(runDir, `${p}.log`), split ? ctls[p] : ctl)), Object.values(ctls));
     if (ctl.why) return cutEnd();
     // same completeness rule as a train shard, per slot; at least the listed suites (a named suite may expand into parts)
     const broken = ports.findIndex((p, i) => !runComplete(runs[i], bins[i].suites.length));
@@ -1528,6 +1540,10 @@ function dispatch(p) {
   const ports = p.ports ?? (p.kind === 'alone' ? PORTS : [p.slot]); // p.ports: a sharded train rerun (both slots)
   if (DRY) { log(`dry-run: would run ${p.request.id} (${p.request.kind}, ${p.request.suites ?? p.request.steps ?? 'full'}) on ${ports.join('+')}`); return Promise.resolve(); }
   activeReqs.set(p.request.id, p.request);
+  // busy before the call: runRequest's synchronous start may free a slot it does not use (busy[p] = null), which the
+  // marking after the call must not undo (checker FIX a)
+  const mark = Promise.resolve();
+  ports.forEach((x) => { busy[x] = mark; });
   const run = runRequest(p.request, p.slot ?? PORTS[0], p.ports).catch((e) => {
     log(`${p.request.id} service error: ${e.stack ?? e.message}`);
     postStatus(p.request.sha, 'error', contextName(p.request.kind, p.request.set, p.request.suites, p.request.trainRerun), 'service error, see log');
@@ -1535,7 +1551,7 @@ function dispatch(p) {
     writeClaims([p.request.id], 'release', `release ${p.request.id}`);
     claimed.delete(p.request.id);
   }).finally(() => activeReqs.delete(p.request.id));
-  ports.forEach((x) => { busy[x] = run; });
+  ports.forEach((x) => { if (busy[x] === mark) busy[x] = run; });
   return run;
 }
 

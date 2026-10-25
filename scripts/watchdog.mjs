@@ -597,7 +597,7 @@ function gather(o) {
         if (!p.labeled) continue;
         p.docsOnlyFrom = new Set();
         for (const from of new Set([st.labelHeads?.[p.number], p.labelHead].filter((x) => x && x !== p.head))) {
-          const d = exec(['git', 'diff', '--name-only', from, p.head]);
+          const d = exec(['git', 'diff', '--no-renames', '--name-only', from, p.head]);
           if (d.status === 0 && docsOnlyFiles(d.out.split('\n').map((x) => x.trim()).filter(Boolean))) p.docsOnlyFrom.add(from);
         }
       }

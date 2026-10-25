@@ -567,10 +567,10 @@ tested sha. No message per verdict. Slots, job counts and the desktop's gates: `
   the JSON and pushes nothing. An `--alone` step may start with `serve ` (runs `scripts/laptop-queue/serve.mjs`).
 - Order: trains (an `origin/train/<n>` head with no `laptop-e2e` status; both slots, sharded by suite times; a head whose
   `auto-train/*` status is failure or error is skipped), then train reruns, then pr / full requests (one slot): front
-  branches (`LQ_FRONT_BRANCHES`), green PRs smallest first (`LQ_GREEN_FIRST`; the oldest non-front request over
-  `LQ_GREEN_MAX_WAIT_MIN` (30) first), then arrival order; a head conflicting with master gets no affected run; then
-  alone-measurements (both slots; over 30 min (`ALONE_AGE_MIN`) ahead of pr work). A train head that moves:
-  `docs/systems/auto-train.md` "What the laptop queue service provides".
+  branches (`LQ_FRONT_BRANCHES`; no wait bound, by design: Michael's Mixamo priority), green PRs smallest first
+  (`LQ_GREEN_FIRST`; the oldest non-front request over `LQ_GREEN_MAX_WAIT_MIN` (30) first), then arrival order; a head
+  conflicting with master gets no affected run; then alone-measurements (both slots; over 30 min (`ALONE_AGE_MIN`) ahead
+  of pr work). A train head that moves: `docs/systems/auto-train.md` "What the laptop queue service provides".
 - Train reruns (2026-10-24, auto-train): `request.mjs --train-rerun --pr N --suites "a b" --requester auto-train` writes
   `"trainRerun": true` (kind pr). It runs right after trains, before every other request and alone run, never held by
   the alone hold, at `E2E_JOBS=1`, sharded over both slots when free (`LQ_RERUN_SHARD`), else one (never the desktop).
