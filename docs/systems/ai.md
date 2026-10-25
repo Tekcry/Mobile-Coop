@@ -200,10 +200,11 @@ Design authority: docs/DECISIONS.md (G40-G47, G49, G106, G335, G348, G350), then
   with `releaseDogs` (campus S4 stage 2, S5 stage 1) lets the live section's free dogs off the heel
   (`SectorStageRun.raise` -> `dogs`, `SectorMode.releaseDogs`, `Enemy.releaseHeel`): each hurries to the shared last
   known position (none: its handler) and searches it, then heels again; a dog already searching starts over round the
-  release spot; a section start at a carried stage does not release (S8-a). Host only. `zone`: a secure zone
-  (`isSecureZone`: 'secure' or a word 'sec') gives the guard a circle (`zoneRadius`: post leash, else 8 m / route
-  reach + 2) in the board's view (`GuardView.setTags`): inside it he counts as a perceiver and ranks first (x
-  `TAGS.secureFirst` 0.25); after a search
+  release spot; a section start at a carried stage does not release (S8-a); a dog still waiting in the fill queue at the
+  raise is not released once it spawns; a camera or laser alarm with no shared position sends the dogs to search round
+  their handlers (S8-d). Host only. `zone`: a secure zone (`isSecureZone`: 'secure' or a word 'sec') gives the guard a
+  circle (`zoneRadius`: post leash, else 8 m / route reach + 2) in the board's view (`GuardView.setTags`): inside it
+  he counts as a perceiver and ranks first (x `TAGS.secureFirst` 0.25); after a search
   every guard walks back to his own post / route (the walker; no new code). `role` (on the guard `Enemy.job`, the word, and `roleFlags`, `ROLE_CLASS`; `Enemy.role` is S8's numeric combat role): the
   alarm runner (`alarmRunMul`: supervisor 0.1, officer 0.25), the board's score (`roleSendMul`: supervisor sends
   someone x1.6; a light: rover x0.8, fixed post x1.5). `reason` stored (`Enemy.reason`); `pair` stored
