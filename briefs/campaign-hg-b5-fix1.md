@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 3 2026-10-25T23:07:52+11:00
 
 # campaign J3b hud-guidance B5 fix round 1 (Opus 5.5, src/net)
 
