@@ -1,0 +1,14 @@
+{
+  "id": "20261025T224228-night-shift-campaign-c2802450-84ca",
+  "sha": "c2802450a0ff71a03a7fb44d2d6fc203e25984e1",
+  "branch": "feature/mission-rules",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Campaign Build",
+  "suites": [
+    "e2e-sectorops:wharf-tgc",
+    "e2e-sectorops:wharf-tkl"
+  ],
+  "set": "j7-prd",
+  "note": "trimmed to 2 wharf suites (orchestrator: queue backed up); covers gb6fix2 820101ecd"
+}
