@@ -8,11 +8,11 @@ import type { WeaponId } from '../weapons/weaponDefs';
 import { REJOIN_HOLD_S } from '../core/rejoin';
 import { MAPS } from '../world/maps';
 import type { MissionDef } from '../game/mission/missionDef';
-import { campaignStartBlock, isCampaignMap, isCampaignMission } from '../game/mission/campaign';
+import { CAMPAIGN_PLAYERS, campaignStartBlock, isCampaignMap, isCampaignMission } from '../game/mission/campaign';
 
 /** (mission-rules R4, G2 "2 player coop campaign only", G48 "No bot anywhere") A campaign room holds exactly two,
  *  whatever the mode's `capacity()` (coop4 takes Sector Ops to 4; a campaign room stays 2). */
-export const CAMPAIGN_ROOM = 2;
+export const CAMPAIGN_ROOM = CAMPAIGN_PLAYERS;
 
 export interface LocalProfile {
   name: string;
@@ -100,6 +100,8 @@ export class NetSession {
   private holdTimer: ReturnType<typeof setInterval> | null = null;
   /** (R2) Client: refused by a full room; that room's lobbies are no longer ours to take. */
   private refused = false;
+  /** (PR E fix) Host: removes the pending auto start's listeners (`startWhenUnblocked`); null when none is pending. */
+  private autoOff: (() => void) | null = null;
 
   constructor(
     readonly transport: Transport,
@@ -348,6 +350,9 @@ export class NetSession {
 
   setSettings(mode: NetMode, map: string, difficulty: Difficulty, mission = this.mission, weather = this.weather): void {
     if (!this.isHost) return;
+    // (PR E fix) another mode, map or mission is a new match, not the one the auto start resumes (a block it lifts, such
+    // as a switch off the campaign, would otherwise start it alone at once)
+    if (mode !== this.mode || map !== this.map || (mode === 'infiltration' ? mission : '') !== this.mission) this.cancelAutoStart();
     this.mode = mode;
     this.map = map;
     this.difficulty = difficulty;
@@ -411,6 +416,47 @@ export class NetSession {
     return this.start;
   }
 
+  /**
+   * (PR E fix, host) Start the match on our own, once, as soon as the room can: on a lobby change in the lobby phase
+   * with `blocked()` null and the room not over capacity, `startMatch` on the next task (after the lobby handler that
+   * announced the change). No ready check: it is for a room whose players were mid-match ("Resume hosting": the
+   * waiting partner has no Ready button). Mode-agnostic: the caller passes the start block that holds it now. Gone once
+   * a match starts (by any route), on another mode / map / mission (`setSettings`), on `cancelAutoStart` and on `leave`;
+   * a check that fails when the task runs (the partner dropped again) leaves it pending for the next lobby change.
+   */
+  startWhenUnblocked(blocked: () => string | null): void {
+    if (!this.isHost || this.closed) return;
+    this.cancelAutoStart();
+    let queued = false;
+    const ready = (): boolean => !this.closed && this.phase === 'lobby' && !this.overCapacity && blocked() === null;
+    const offLobby = this.events.on('lobby', () => {
+      if (queued || !ready()) return;
+      queued = true;
+      setTimeout(() => {
+        queued = false;
+        if (this.autoOff === off && ready()) this.startMatch();
+      }, 0);
+    });
+    const offStart = this.events.on('start', () => this.cancelAutoStart());
+    const off = (): void => {
+      offLobby();
+      offStart();
+    };
+    this.autoOff = off;
+  }
+
+  /** (PR E fix) An auto start is pending (`startWhenUnblocked`). */
+  get autoStarting(): boolean {
+    return this.autoOff !== null;
+  }
+
+  /** (PR E fix) Drop the pending auto start, if any. */
+  cancelAutoStart(): void {
+    const off = this.autoOff;
+    this.autoOff = null;
+    off?.();
+  }
+
   /** Back to the lobby after a match (host). */
   backToLobby(): void {
     this.phase = 'lobby';
@@ -425,6 +471,7 @@ export class NetSession {
     if (this.closed) return;
     if (this.isHost) this.send({ t: 'bye', reason });
     this.closed = true;
+    this.cancelAutoStart();
     if (this.holdTimer) clearInterval(this.holdTimer);
     await this.transport.leave().catch(() => {});
     this.events.clear();
