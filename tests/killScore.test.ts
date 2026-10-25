@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SectorMode } from '../src/game/modes/sectorMode';
-import { killScore } from '../src/game/modes/score';
+import { KILL_BASE, killScore } from '../src/game/modes/score';
 import { NO_KILLS, SyncedDetector, newSectionStats, rateSection } from '../src/game/rating/sectionRating';
 import { ENEMIES, type EnemyKind } from '../src/ai/enemyDefs';
 import type { Enemy } from '../src/ai/enemy';
@@ -62,5 +62,24 @@ describe('dog kill score (guard-rules S1, A5)', () => {
       expect(killScore(k, true, 2, false)).toBe(killScore(k, true, 2));
       expect(killScore(k, false, 2)).toBeGreaterThan(0);
     }
+  });
+
+  it('the undo (`KILL_BASE.dog` back to 120) fully restores the old dog score, the headshot bonus included', () => {
+    const old = (headshot: boolean, tier: number) => Math.round(120 * (headshot ? 1.5 : 1) * (1 + (tier - 1) * 0.1));
+    const saved = KILL_BASE.dog;
+    try {
+      KILL_BASE.dog = 120;
+      for (const tier of [1, 2, 3]) {
+        for (const headshot of [false, true]) {
+          expect(killScore('dog', headshot, tier)).toBe(old(headshot, tier));
+          expect(killScore('dog', headshot, tier, false)).toBe(old(headshot, tier));
+        }
+      }
+    } finally {
+      KILL_BASE.dog = saved;
+    }
+    // today's negative base: no headshot bonus on a killed dog, the knock-out keeps it
+    expect(killScore('dog', true, 2)).toBe(killScore('dog', false, 2));
+    expect(killScore('dog', true, 2, false)).toBe(old(true, 2));
   });
 });
