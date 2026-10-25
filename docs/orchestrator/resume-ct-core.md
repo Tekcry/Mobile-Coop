@@ -1,5 +1,9 @@
-# Resume - Night Shift | Player Build (2026-10-26 ~05:30 SAVE; caps ~05:35, resume ~09:53; older log: history at the end)
-At resume: all agents died at the cap. Restart from branch heads + STATE "at the save" notes; re-run any checker that did not report (I5 278de01c, I6 cccb7b45).
+# Resume - Night Shift | Player Build (2026-10-26 ~08:50, after the 08:25 swap; older log: history at the end)
+At resume: restart agents from branch heads + STATE "at the save" notes. Live at 08:50 (all Opus): toggle checker (delta a9b96fe1..4286b721), wire finisher (-m3: tsc/eslint, WIRE-REPORT, override gap), I2b builder (-mixamo-retarget), I9 builder (-m5: merge I6, I7 rest, dump 123 under heavy lock), I6 merge of #485 head (-m4).
+- 08:40 merges of #485's head cc52565b (STATE-only conflict, trees identical, verdicts carry): toggle b0e0a4d5 (new worktree C:/NightShift/Mobile-Coop-mixamo-on), I5 4c86c611 -> PR #493 (base feature/mixamo-i4). I6 has code conflicts (agent above). Wire must merge the toggle b0e0a4d5 next (STATE-only expected).
+- Checker statuses: auto mode blocks my `gh api .../statuses`; the orchestrator posts them (RULES). Owed: I5 4c86c611 (PASS carried).
+- J6 S1 (bb4590ab, cloud blocked: residual 16 B HeapNumber boxing): lead call = accept its "no alloc > 16 B on 1 call in 10" assertion for S1 (768 -> 304 B walk), new slice S1b for out-param ray / floor + MotionDriver / AnalogGear / hyp2. Opus checker + laptop when CPU < 80% (100% at 08:45).
+- Look videos: no recorder exists (no script on master); I5 PR says pending, Michael tunes in Anim Studio.
 
 Rules: docs/RULES.md on origin/master: "A job." (Full burn bullet), "Machines.", "Swaps and context.". Opus builds / checks anim, net, AI;
 Sonnet strict briefs / data checks. No desktop e2e: laptop queue (scripts/laptop-queue/request.mjs from origin/master, run in C:/NightShift/Mobile-Coop; old scratch/ctcore/lq copy lacks splitSuites; --sha <full>
