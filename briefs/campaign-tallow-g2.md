@@ -4,6 +4,19 @@ status: claimed Cloud Builder (elegant-rubin) 2026-10-25T23:24Z
 
 Released 2026-10-26 ~11:25 by the lead (Night Shift | Campaign Build). Base: origin/feature/tallow-fixes-2 at 24964a624385464d9465c4b643b80fa3bd34ebe7 = feature/tallow-fixes (LP, G0, D0, MB) + the W2 roof slice (E11 + this brief's amendment) + G1 + G3 + feature/tallow-throw (TD-a + TD-b): every input your steps 11 and 12 need is in. 239 tests green on the base (tests/tallowWharf/, throwSites, sectorBolt). The G1 / G3 / D0 checkers are still running on their own branches; a fix from them reaches you by the lead's merge, not yours. New branch: feature/tallow-fixes-g2 (cut from that sha). Cloud: skip the desktop worktree path and its guard; guard on the branch name only (`test "$(git rev-parse --abbrev-ref HEAD)" = feature/tallow-fixes-g2`), per agent-preamble "Cloud sessions". The CPU wait rule does not apply in the cloud. Attribution line for commits: `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`. Known on this base: the validator's ERR `split tgc-leads leg a` is expected (Marlow J12 A28 validator change pending) and the two named throw-gap ERRs (A22); none is yours. No e2e (pending PC run). The report goes below in this file, then line 1 becomes `status: done feature/tallow-fixes-g2 <sha>` (or `status: blocked <why>`).
 
+**LEAD NOTE 2026-10-26 ~10:45 (read before step 1; it widens your file list).** The D0 checker found two things:
+1. **Step 0b, the throw sites (G0's "after TD-a" step was never built).** Your file list gains
+   `src/world/maps/tallowWharfKit.ts` (only `WharfThrow.dist?: number`, with a doc comment: "the throw length at this
+   named spot, m (A24); unset = TEAM.throwDist") and `src/world/maps/tallowWharf.ts` (only one new layout field in
+   `build()`): `throwSites: SECTIONS.flatMap((s) => s.throws).filter((t) => t.dist !== undefined).map((t) => { ... })`
+   giving `{ x: thrower.x, z: thrower.z, dx, dz, dist }` with (dx, dz) the unit direction runner -> thrower (use
+   `hyp2`, never `Math.hypot`). It is built inside `build()`, so each build returns a new array (the team controller
+   clears sites by identity). In `tallowWharfW2.ts` set `dist: 5.8` on THROW_PAWN and THROW_LANE only (A24, M2; the pie
+   throw stays at the standard). `shell.test.ts`: `throwSites` lists exactly two (pawn, lane) with those numbers, and
+   two builds give two different arrays. Commit it first, prefix `tallow G2 step 0b:`.
+2. **Step 13's `throwCheck` third argument is optional** (`sites ... = null`), as written there now: the three existing
+   `throwCheck(solid, throwOf)` calls in `shell.test.ts` must compile unchanged (tsconfig includes `tests`).
+
 # Brief G2: W2 forced throws, way-back bridges, egress, re-light, and the sectors data (Sonnet 5.5)
 Owner: Campaign Build. Status: current.
 
@@ -282,12 +295,12 @@ tell the lead.
 `tests/tallowWharf/helpers.ts`: `throwCheck` takes the throw length the game uses (lead add-on 2026-10-26; TD-b,
 `feature/tallow-throw` 6c4219cd2: `requestThrow` lands the site's length at a map throw site, else `TEAM.throwDist`
 3.2). Without this the replica stays at 3.2 m and refuses C4 and C5 once Tallow has sites. New signature
-`throwCheck(solid, t, sites: readonly ThrowSite[] | null)` (`ThrowSite` from `src/world/mapDef`); in it, as
+`throwCheck(solid, t, sites: readonly ThrowSite[] | null = null)` (optional: `shell.test.ts`'s three existing `throwCheck(solid, throwOf)` calls compile unchanged) (`ThrowSite` from `src/world/mapDef`); in it, as
 `requestThrow` does: the direction first, `throwLanding(runner.x, runner.z, thrower.x, thrower.z, 0, out)`; then
 `setThrowSites(sites)`, `dist = throwDistAt(thrower.x, thrower.z, out.dx, out.dz)` and `setThrowSites(null)` in a
 `finally` (TD-a's module list; a test has no controller); then `throwLanding(..., out, dist)` and `throwLandingOk(...,
 dist)`. `ThrowReport` gains `dist: number`. Callers pass `builtWharf().layout.throwSites ?? null` (G0's throw-site step
-builds the list from the throws that set `dist`; if your base has no `layout.throwSites`, stop and tell the lead).
+builds the list from the throws that set `dist`; your base has no `layout.throwSites` yet: build it in step 0b, the lead note at the top).
 Nothing else in the file changes.
 
 `tests/tallowWharf/w2.test.ts`:
