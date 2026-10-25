@@ -98,8 +98,11 @@ export const S2_CAMERAS: SecurityData['devices'] = [
   { id: 'cam-bridge', kind: 'camera', level: 'l1', at: [3.7, -13], y: 3.0, aim: 6, range: 9, facing: 270, reason: "S2: the bridge door and landing (the lab block's only link)", section: 1 },
 ];
 
-/** Section 2's security desks (none yet). */
-export const S2_DESKS: SecurityDesk[] = [];
+/** Section 2's security desks. */
+export const S2_DESKS: SecurityDesk[] = [
+  // (S2-G5a, `S2-detail.md:179`) the CCTV patch panel on the comms room's cabinet wall; operator #8 (index 7) at his panel stop (2.2, -6.5)
+  { id: 'desk-comms2', section: 1, at: [3.6, -6.5], y: 4.4, yaw: -PI / 2, cameras: ['cam-turnstile', 'cam-lift', 'cam-bridge'], operator: 7 }, // sync-s2-comms
+];
 
 /** Section 2's alarm panels: alarm-rcp on the foyer's east wall by the reception, alarm-brg on the bridge landing's east wall by the card door (both beside posted guards). */
 export const S2_ALARMS: CampusAlarm[] = [
@@ -115,7 +118,7 @@ export const S2_SECTOR: SectorDef = {
   // weapons crate (E9): C1 west wall, strip into the room
   crate: { at: [-22.2, 0, -32], yaw: PI / 2 },
   // hack (3 s) the BMS terminal on the desk in the facilities office (L1 NE): the lab block's door codes and the lighting schedule; opens C2.
-  // (EW5 keypads are not built: the office door, kp-fac, is a plain door, and the code beat is cut.)
+  // (S2-G5a) the office's two doors are keypad doors (kp-fac): the code is overheard at the kitchen door
   objective: { kind: 'hack', label: 'Hack the BMS terminal in the facilities office', x: -6.5, y: 4.4, z: 4.3, yaw: 0 },
   connector: {
     label: 'Over the glazed bridge to the labs',
@@ -130,6 +133,21 @@ export const S2_SECTOR: SectorDef = {
   reinforce: [[-40, -16.5], [-36, -7]],
   perStage: 2,
   dogs: 0,
+  // (S2-G5a) the Split Shift devices ("Approve as drawn"): data only (EW5 keypads, intel, E3 pair gates; `sectors.ts`)
+  keypads: [
+    { at: [-4, -1], code: 's2-fac-code' }, // sync-s2-kpfac (kp-fac): the wing door
+    { at: [-7.5, 3], code: 's2-fac-code' }, // sync-s2-kpfac (kp-fac): the west door from the north plan (Q1 default: both)
+  ],
+  intel: [
+    // the overhear: a 2 x 2 box outside the kitchen west door (-31, -26), the coffee pair #5 / #6 talking (BA13 line)
+    { kind: 'overhear', grants: 's2-fac-code', line: 'Kitchen: the facilities keypad code, overheard.', box: [-32, -27, -30, -25], floorY: 4.4, talkers: [4, 5] }, // sync-s2-kitchen
+    // the plant log in parcel cage 3 (-41.5, 0, -18.5), read from the aisle north of it (BA13 line)
+    { kind: 'board', grants: 's2-board', line: 'Plant log: east-wing breaker, plant room switchgear.', at: [-41.5, 0, -18.5], yaw: 0 }, // sync-s2-plantlog
+  ],
+  pairGates: [
+    { door: [-2.5, -16], a: { at: [-3.1, -16.8], yaw: -PI / 2 }, b: { at: [-1.9, -9.9], yaw: PI / 2 } }, // sync-s2-pairdoor (pg-brg, two players, Q21)
+    { door: [-33, -4], a: { at: [-34.8, -4.6], yaw: PI }, b: { at: [-31.2, -4.6], yaw: PI } }, // pg-exec (two players, Q21)
+  ],
   routes: [
     {
       // stealth (solo): C1, the post room, the SW fire stair, the dark L1 open plan along the north side, the east wing door, the facilities door, the BMS terminal; out by the bridge landing

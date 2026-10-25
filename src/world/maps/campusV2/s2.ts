@@ -56,7 +56,8 @@ export const DAVIT = { x: -4, z: 5.8, length: 7.9 } as const;
 export const S2_FOOT = { x0: -44, x1: 4, z0: -30, z1: 6 } as const;
 
 /** The lamp circuits (switch groups) of section 2 (the SPEC's `s2-atrium` ... are ids; the registry's groups are numbers). */
-export const S2_GROUPS = { atrium: 50, l1Bal: 51, l2Bal: 52, kitchen: 54, facilities: 55, l1Cor: 56, l2Cor: 57, gCor: 58 } as const;
+/** (S2-G5a, BA5) `landing` 53: the K2 landing downlight's own switched circuit. */
+export const S2_GROUPS = { atrium: 50, l1Bal: 51, l2Bal: 52, landing: 53, kitchen: 54, facilities: 55, l1Cor: 56, l2Cor: 57, gCor: 58 } as const;
 
 /** The doors the sector data finds by centre (`Doors.nearest`): [x, z]. */
 export const S2_DOORS = {
@@ -234,6 +235,8 @@ export const S2_SWITCHES: NonNullable<MapLayout['switches']> = [
   { pos: new Vector3(-27.7, 4.4, -24.4), yaw: PI / 2, group: S2_GROUPS.kitchen },
   // (S2-G3) moved from z -0.5 with the facilities south wall (z 0 -> -1): the hall side, the same offset
   { pos: new Vector3(-5.6, 4.4, -1.5), yaw: PI, group: S2_GROUPS.l1Cor },
+  // (S2-G5a, BA5) the K2 landing downlight's switch: 1.6 m off the landing's north door, 0.4 off the wall face, facing into the landing
+  { pos: new Vector3(2.6, 4.4, -11.0), yaw: PI, group: S2_GROUPS.landing },
 ];
 
 /**
@@ -241,7 +244,12 @@ export const S2_SWITCHES: NonNullable<MapLayout['switches']> = [
  * reception downlight), on the foyer's east wall. Lure #1: he sees his own room go dark, walks to the board and
  * switches it back (guard-ai LR16-4, #255); taken down at the board, the atrium stays dark.
  */
-export const S2_BOARDS: BoardDef[] = [{ pos: new Vector3(-8.4, 0, -28.5), yaw: -PI / 2, groups: [S2_GROUPS.atrium] }];
+export const S2_BOARDS: BoardDef[] = [
+  { pos: new Vector3(-8.4, 0, -28.5), yaw: -PI / 2, groups: [S2_GROUPS.atrium] }, // sync-s2-atrium (the reception board, as built)
+  // (S2-G5a, C5, `S2-detail.md:180`) the east-wing breaker on the plant room's switchgear, facing west: a held cut (no
+  // `window`) of the facilities lamp (55) and the wing corridor downlights (56)
+  { pos: new Vector3(0.3, 0, -22), yaw: -PI / 2, groups: [S2_GROUPS.facilities, S2_GROUPS.l1Cor] }, // sync-s2-power
+];
 
 /** One S2 lamp fitting: its role (`S2_LIGHTS`), position, radius, intensity, circuit, colour, an optional downward cone
  *  (dx, dy, dz, angle) and the fitting's width. */
@@ -282,9 +290,16 @@ export const S2_LIGHTS: readonly S2Lamp[] = [
   { role: 'kitchen', x: -25, y: 7.9, z: -26, r: 5, i: 0.9, group: S2_GROUPS.kitchen, colour: WHITE, w: 0.6 },
   { role: 'facilities', x: -4, y: 7.9, z: 3, r: 6, i: 0.9, group: S2_GROUPS.facilities, colour: COOL, w: 0.6 },
   // one night lamp per corridor (0.25)
-  { role: 'l1-corridor', x: -3, y: 7.9, z: -1.5, r: 8, i: 0.25, group: S2_GROUPS.l1Cor, colour: WHITE, w: 0.4 },
+  // (S2-G5a, BA4, C11) the wing corridor's two downlights (56, patrolled white cones), 1.0 m into the hall from the facilities
+  // door and the landing's west door; they replace the as-built night lamp (-3, 7.9, -1.5)
+  { role: 'wing', x: -4, y: 7.9, z: -2.0, r: 5, i: 0.8, group: S2_GROUPS.l1Cor, colour: WHITE, cone: DOWN, w: 0.4 },
+  { role: 'wing', x: -3.5, y: 7.9, z: -16.0, r: 5, i: 0.8, group: S2_GROUPS.l1Cor, colour: WHITE, cone: DOWN, w: 0.4 },
+  // (S2-G5a, BA5) the K2 landing downlight (53, switched by the landing's north door)
+  { role: 'landing', x: 1.5, y: 7.9, z: -15.8, r: 5, i: 0.8, group: S2_GROUPS.landing, colour: WHITE, cone: DOWN, w: 0.4 },
   { role: 'l2-corridor', x: -35, y: 11.9, z: -9, r: 8, i: 0.25, group: S2_GROUPS.l2Cor, colour: WHITE, w: 0.4 },
   { role: 'g-corridor', x: -28, y: 3.9, z: -14, r: 8, i: 0.25, group: S2_GROUPS.gCor, colour: WHITE, w: 0.4 },
+  // (S2-G5a, BA6) the goods-door bulkhead over the mail room's goods door (#12), on the G corridor circuit, unswitched
+  { role: 'goods', x: -43.6, y: 2.6, z: -16, r: 5, i: 0.8, group: S2_GROUPS.gCor, colour: WHITE, cone: DOWN, w: 0.4 },
 ];
 
 /** The atrium pendants (x, z) at y 9.0 (from `S2_LIGHTS`). */
@@ -562,6 +577,8 @@ export function buildCampusS2(b: LevelBuilder): void {
   furn(b, -42.5, 3, 1.4, 1.8, 3.0, STEEL);
   // post room: sorting table; (S2-G1, BA15) the two post cages on the north wall
   furn(b, -35, -26, 3.0, 0.9, 1.0);
+  // (S2-G5a, BA16) the post-room note on the sorting table: a visual box, no collision ('Plant log - cage 3 for facilities')
+  b.box(-35, 0.91, -26, 0.3, 0.02, 0.2, '#e8e2d0', 0, 0, false); // lead for sync-s2-plantlog
   for (const [x, z] of POST_CAGES) furn(b, x, z, 2.2, 1.8, 0.9, STEEL);
   // (S2-G1, C16, BA8) the mail-lift shaft: walls on the N, E and S faces (centre lines 0.1 outside the clear box, G to
   // 4.4), the service ladder inside the east face, and at L1 a 1.1 rail round the hole (see the S2-G1 report: the rail

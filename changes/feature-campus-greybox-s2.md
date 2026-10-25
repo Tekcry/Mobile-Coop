@@ -17,3 +17,6 @@ kind: patch
   rope ends on the sunshade by the facilities window.
 - S2-G6a: 18 guards (was 12): new cafe, atrium-stair, west-plan, north-plan torch, relief and L2 north-strip rounds; the
   bridge officer moves to face the comms door; the mailroom and L2 lift guards are awake.
+- S2-G5a: the Split Shift devices as data: the comms room CCTV patch panel, the plant room breaker for the east wing
+  lights, keypads on both facilities office doors (the code is overheard at the kitchen), the plant log in the mail room,
+  and two-player key doors at the bridge landing and the executive suite; wing, landing and goods-door downlights.

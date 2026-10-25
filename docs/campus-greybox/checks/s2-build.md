@@ -227,3 +227,44 @@ All lane tests 64 / 64; flag-off set 69 / 69. Typecheck and eslint clean.
 Assumptions: Q2 defaults, BA11, BA12 as the brief. New:
 - **A-G6a-1** #8 keeps his as-built `faces` [0, PI / 2, PI] (his stops are the same three jobs: the facilities door, the
   panel, the pair-door corner); BA11's "faces only where the plan gives one" is read for the new guards. Undo: drop `faces`.
+
+## S2-G5a - devices and circuits (Split Shift, data only)
+
+Files: `src/world/maps/campusV2/s2.ts`, `s2Data.ts`, `tests/campusV2S2Devices.test.ts`. No engine file.
+
+Sync-node src lines (for the lead's `SYNC.md`):
+| Sync id | src | Data |
+| --- | --- | --- |
+| sync-s2-comms | `src/world/maps/campusV2/s2Data.ts:104` | `S2_DESKS` desk-comms2 at (3.6, 4.4, -6.5), yaw -PI / 2, cam-turnstile / cam-lift / cam-bridge, operator 7 (#8) |
+| sync-s2-power | `src/world/maps/campusV2/s2.ts:251` | `S2_BOARDS[1]` (0.3, 0, -22), yaw -PI / 2, groups [55, 56], no window |
+| sync-s2-atrium | `src/world/maps/campusV2/s2.ts:248` | `S2_BOARDS[0]` (-8.4, 0, -28.5), group 50 (as built, not renamed) |
+| sync-s2-kpfac (kp-fac) | `src/world/maps/campusV2/s2Data.ts:138-139` | keypads (-4, -1) and (-7.5, 3), code s2-fac-code (Q1 default) |
+| sync-s2-kitchen | `src/world/maps/campusV2/s2Data.ts:143` | overhear box [-32, -27, -30, -25] on 4.4, talkers [4, 5], grants s2-fac-code |
+| sync-s2-plantlog | `src/world/maps/campusV2/s2Data.ts:145` | board (-41.5, 0, -18.5), yaw 0, grants s2-board; lead: the post-room note `s2.ts:581` |
+| sync-s2-pairdoor (pg-brg) | `src/world/maps/campusV2/s2Data.ts:148` | door (-2.5, -16), a (-3.1, -16.8) yaw -PI / 2, b (-1.9, -9.9) yaw PI / 2, two players |
+| pg-exec | `src/world/maps/campusV2/s2Data.ts:149` | door (-33, -4) (L2), a (-34.8, -4.6), b (-31.2, -4.6), yaw PI, two players |
+
+Built:
+- Lights in `S2_LIGHTS`: BA4 the wing downlights (-4, 7.9, -2.0) and (-3.5, 7.9, -16.0) on 56 (`s2.ts:295-296`), replacing the
+  as-built night lamp (-3, 7.9, -1.5); BA5 `S2_GROUPS.landing = 53` (`s2.ts:60`), the landing downlight (1.5, 7.9, -15.8)
+  (`s2.ts:298`) and its switch (2.6, 4.4, -11.0) yaw PI (`s2.ts:239`); BA6 the goods-door bulkhead (-43.6, 2.6, -16) on 58,
+  unswitched (`s2.ts:302`). The facilities lamp (55) and the reception downlight (50) are unchanged. Balcony spec for all
+  four (r 5, i 0.8, cone 1.2, w 0.4).
+- BA16 the post-room note `s2.ts:581`: a visual box 0.3 x 0.02 x 0.2 at (-35, 0.91, -26), no collision.
+- Intel lines (BA13): 'Kitchen: the facilities keypad code, overheard.' (48 chars) and 'Plant log: east-wing breaker, plant
+  room switchgear.' (52 chars).
+- The objective comment no longer says EW5 is unbuilt (`s2Data.ts:121`).
+
+Tests: `tests/campusV2S2Devices.test.ts` 15 / 15 pass (`checkSectors` [] with the map security, no `soloWindow` / `window` /
+key `y`; the switchgear cut darkens exactly the facilities lamp and the two wing downlights; BA4-BA6; every keypad and gate
+finds its door with the `Doors.nearest` rule (DOOR_FIND 1.2) on its floor; every sync id in a `//` comment on its data
+line and the graph's `syncs` ids equal SYNC.md's S2 rows; one `it` per SYNC.md device; the note; the S2 live item count
+under `MAX_ITEMS`; switches and boards on the nav). `tests/sectorPairGate.test.ts` and `tests/sectorItemScope.test.ts`
+pass (flag off). All lane tests 79 / 79; flag-off set 69 / 69. Typecheck and eslint clean.
+
+The plant log's read: the point (-41.5, 0, -18.5) is inside cage 3 (as built); the "Read" item's reach is the default
+1.8 m in plan (`Interactables.nearest`) and the aisle cell (-41.5, -17.25) is walkable 1.25 m off: it reads. Not moved.
+
+Assumptions: Q1, BA4, BA5, BA6, BA13, BA16 as the brief; Q21 (no `soloWindow`). None new.
+
+Findings for the lead: none.
