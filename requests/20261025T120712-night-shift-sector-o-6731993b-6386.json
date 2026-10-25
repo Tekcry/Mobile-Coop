@@ -1,0 +1,13 @@
+{
+  "id": "20261025T120712-night-shift-sector-o-6731993b-6386",
+  "sha": "6731993b046af47e470eb90060186d8c17a498a2",
+  "branch": "feature/campus-greybox-s1",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-sectorops"
+  ],
+  "set": "campus-s1",
+  "note": "J17 lane S1 v2 greybox, flag off"
+}
