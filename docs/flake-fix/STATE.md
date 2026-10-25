@@ -28,8 +28,11 @@ ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Buil
   (an old lighting / training-bunker job). Orchestrator ~00:50: leave it exactly as it is (on Michael's command list).
 - ~00:55: #445 affected f3e4c511 GREEN 11/11 and j20-s6c 259bbe55 GREEN 5/5: PR-C #445 is train-ready (check +
   checker + affected-e2e); confirm the label and its train on resume.
-- Next: on resume, re-file any new Mixamo request (git grep -il mixamo origin/laptop-queue -- requests/), read the #445
-  and j20-s6c verdicts, then SAVE 58 Next line (PR-C merge -> D-A docs, PR-A, PR-B, j20-parity-pre-2), laptop-queue-7.
+- 05:30 pause to ~09:50: train111-rerun (20261025T180919-auto-train-ec890005-f381, 43 suites, JOBS=1 on 4189 since
+  05:17) releases train 111 (PR-C) by itself on success. Spare jobs fill idle slots; nothing extra filed.
+- Next: on resume, re-file new Mixamo requests (prefix 000015), check train 111 released (else read the rerun's
+  failures), then D-A docs on PR-A (testing-tools.md is AT its 720-line budget: D-A must net zero lines), open PR-A;
+  then PR-B (D-B), j20-parity-pre-2, laptop-queue-7.
 
 **Test Runner SAVE 58 (2026-10-25 ~23:30, Orchestrator save at 69%; session [cc496b]; wins over SAVE 57):**
 - Service pid 12732 healthy. Trains 106 (42/43, flake e2e-ctcourse:4) and 107 (43/43) green. Queue 18 requests deep
