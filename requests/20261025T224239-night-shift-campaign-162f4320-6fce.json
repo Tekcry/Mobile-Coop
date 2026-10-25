@@ -1,0 +1,14 @@
+{
+  "id": "20261025T224239-night-shift-campaign-162f4320-6fce",
+  "sha": "162f43204a51bcecb884edfc9adb20a7fea6dd73",
+  "branch": "feature/mission-rules-net",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Campaign Build",
+  "suites": [
+    "e2e-sectorops:wharf-tgc",
+    "e2e-sectorops:wharf-tkl"
+  ],
+  "set": "j7-pre",
+  "note": "trimmed to 2 wharf suites (orchestrator); coop group via affected-e2e at PR open"
+}
