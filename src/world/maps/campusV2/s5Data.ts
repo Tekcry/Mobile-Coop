@@ -4,7 +4,7 @@ import type { SecurityData } from '../../../security/data';
 import type { GearTag } from '../../../ai/gear';
 import type { ArmourPiece } from '../campusS4Data';
 import type { CampusSectionParts } from '../campusParts';
-import { buildCampusS5, S5_BOARDS, S5_BOX, S5_DOORS, S5_HIDESPOTS, S5_LASERS, S5_NAV_SEEDS, S5_PANELS, S5_ROOMS, S5_SWITCHES } from './s5';
+import { buildCampusS5, S5_BOARDS, S5_BOX, S5_COOP_LIPS, S5_DOORS, S5_HIDESPOTS, S5_LASERS, S5_NAV_SEEDS, S5_PANELS, S5_ROOMS, S5_SWITCHES } from './s5';
 import { dressS5, HERO_S5, S5_ART_TAGS } from './s5Dress';
 
 const PI = Math.PI;
@@ -212,7 +212,7 @@ export const S5_SECTOR: SectorDef = {
   ],
 };
 
-/** (campus-greybox P0) Section 5's parts for the map (`campusSections.ts`). No co-op lips yet; the chimney stacks feed the art pass. */
+/** (campus-greybox P0) Section 5's parts for the map (`campusSections.ts`); (P4) the co-op lips CR8-s5, CR9-s5, CR10-s5; the chimney stacks feed the art pass. */
 export const S5_PARTS: CampusSectionParts = {
   build: buildCampusS5,
   spawns: [],
@@ -229,7 +229,7 @@ export const S5_PARTS: CampusSectionParts = {
   desks: [],
   levels: { 's5-l1': 4.2 },
   alarms: S5_ALARMS,
-  coopLips: [],
+  coopLips: S5_COOP_LIPS,
   dress: dressS5,
   artTags: S5_ART_TAGS,
   hero: HERO_S5,

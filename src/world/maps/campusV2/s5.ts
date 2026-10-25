@@ -8,6 +8,7 @@ import type { LaserPanelDef } from '../../../game/laserPanels';
 import type { BoardDef } from '../../../game/isolators';
 import { makeCone } from '../../lights';
 import { hyp2 } from '../../../core/mathx';
+import type { CoopLip } from '../campusS1';
 
 /**
  * Saltmarsh Park (`campusOps`) section 5 - the Old House and the extraction (`docs/sector-redesign/briefs/SLICE5.md`,
@@ -162,6 +163,44 @@ export const S5_BOX = {
 
 /** The hoist door's sill over the well (CR7): the rope's edge, 4.2 over the well floor. */
 export const S5_ROPE_EDGE = { x: -46.15, z: 36.0, y: 4.2, n: { x: -1, z: 0 }, floor: 0 } as const;
+
+/**
+ * (P4, D:167-188) The co-op-only lips of section 5: CR8-s5 the low roof's 0.2 gutter kerb over the lawn (a boost from the
+ * lawn 1.5 m east of the kitchen back door, P11), CR9-s5 the roof's 0.2 coping over the low roof (a boost from the low roof),
+ * CR10-s5 the smoke hatch's west kerb over the kitchen (a boost from the floor under the hatch). Each lip is 4.4 over its
+ * boost floor with no solo stand-on in reach. The campus list `CAMPUS_COOP_LIPS` is built once in `campusLips.ts`.
+ */
+export const S5_COOP_LIPS: readonly CoopLip[] = [
+  {
+    id: 'CR8-s5',
+    section: 4,
+    lip: { x: -27.5, z0: 44.15, z1: 44.15, y: 4.4, n: { x: 0, z: 1 } },
+    top: { x0: -32, x1: -26, z0: 18, z1: 44, top: 4.2 },
+    boost: { floor: 0, x: -27.5, z: 44.75 },
+    solo: 'the plant-room flue ladder, or the service stair to the roof and the coping drop',
+  },
+  {
+    id: 'CR9-s5',
+    section: 4,
+    lip: { x: -31.85, z0: 30, z1: 33, y: 8.6, n: { x: 1, z: 0 } },
+    top: { x0: -56, x1: -32, z0: 18, z1: 44, top: 8.4 },
+    boost: { floor: 4.2, x: -31.25, z: 31.5 },
+    solo: 'the service stair to the roof bulkhead',
+  },
+  {
+    id: 'CR10-s5',
+    section: 4,
+    lip: { x: -28.6, z0: 41.4, z1: 42.6, y: 4.4, n: { x: 1, z: 0 } },
+    top: { x0: -32, x1: -26, z0: 18, z1: 44, top: 4.2 },
+    boost: { floor: 0, x: -28.0, z: 42.0 },
+    solo: 'the plant-room flue ladder to the low roof',
+  },
+];
+
+/** (P4, job A17) The true plan segment of the x-running co-op lip (`S5_COOP_LIPS` writes it point-style). */
+export const S5_LIP_SEGMENTS: Record<string, { a: [number, number]; b: [number, number] }> = {
+  'CR8-s5': { a: [-32, 44.15], b: [-26, 44.15] },
+};
 
 /** One stair flight as `LevelBuilder.stairs` takes it (centre, width, length, rise, yaw, base height). */
 export interface Flight {
