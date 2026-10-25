@@ -2,7 +2,7 @@
 // section 4 "R2"). Sources: D = `S3-detail.md`, P45 = `S3-plan-4.5.svg` (sector-redesign-signoff 7c021f01); S3 = the
 // as-built `campusS3.ts` (6c3f4a87). The cores (their walls, landings, doors nStairL1 / eStairL1 / wStairL1 / staff) are
 // R3's (`s3Stairs.ts`), the shell and G R1's (`s3Shell.ts`), the lamps, lasers and panels R4's (`s3Lights.ts`).
-import type { Vector3 } from '../../../core/babylon';
+import { Vector3 } from '../../../core/babylon';
 import type { LevelBuilder } from '../../levelBuilder';
 import type { MapLayout } from '../../mapDef';
 import type { RoomDef } from '../../rooms';
@@ -31,12 +31,44 @@ import {
   type S3DoorId,
 } from './s3Kit';
 
-/** The L1 rooms (HUD tags; no squads; minY 4.5). */
-export const S3_ROOMS_L1: RoomDef[] = [];
-/** The L1 nav seeds (and the walkway, gallery and chamber roof). */
-export const S3_NAV_SEEDS_L1: Vector3[] = [];
-/** The L1 hide spots. */
-export const S3_HIDESPOTS_L1: NonNullable<MapLayout['hideSpots']> = [];
+/**
+ * The L1 rooms (HUD tags; no squads; minY 4.5; ids are the graph's, 7c021f01; R2b step 10): the bridge landing, the viewing
+ * corridor, the east lobby, the five north rooms and the security room. The walkway, the gallery, the chamber roof and the
+ * void are no rooms (as built). Names as built where the room was there (S3:118-128).
+ */
+export const S3_ROOMS_L1: RoomDef[] = [
+  { id: 's3-c2', name: 'Bridge Landing', minX: 10, maxX: 14, minZ: -30, maxZ: -11 },
+  { id: 's3-view', name: 'Viewing Corridor', minX: 10, maxX: 52, minZ: -11, maxZ: -7 },
+  { id: 's3-east', name: 'East Lobby', minX: 52, maxX: 64, minZ: -11, maxZ: -7 },
+  { id: 's3-hoist', name: 'Goods Landing', minX: 10, maxX: 21, minZ: -7, maxZ: 0 },
+  { id: 's3-writeup', name: 'Write-up Office', minX: 21, maxX: 30, minZ: -7, maxZ: 0 },
+  { id: 's3-gown', name: 'Gowning Room', minX: 33.5, maxX: 37.5, minZ: -7, maxZ: 0 },
+  { id: 's3-clean', name: 'Clean Room', minX: 37.5, maxX: 47, minZ: -7, maxZ: 0 },
+  { id: 's3-store', name: 'Prototype Store', minX: 47, maxX: 58, minZ: -7, maxZ: 0 },
+  { id: 's3-sec', name: 'Lab Security Room', minX: 53, maxX: 64, minZ: -18, maxZ: -11 },
+].map((r) => ({ ...r, minY: S3_L1, squad: [] }));
+
+/**
+ * The L1 nav seeds (derived: box middles; R2b step 11): the landing, the corridor, the east lobby, the five north rooms, the
+ * sec room, the walkway (6.0), the gallery and the chamber roof (4.4).
+ */
+export const S3_NAV_SEEDS_L1: Vector3[] = [
+  new Vector3(12, S3_L1, -20),
+  new Vector3(30, S3_L1, -9),
+  new Vector3(58, S3_L1, -9),
+  new Vector3(15, S3_L1, -3.5),
+  new Vector3(25.5, S3_L1, -2),
+  new Vector3(35.5, S3_L1, -3.5),
+  new Vector3(42, S3_L1, -3.5),
+  new Vector3(50, S3_L1, -3.5),
+  new Vector3(60, S3_L1, -14.5),
+  new Vector3(30, 6.0, -29.1),
+  new Vector3(36, S3_L1, -11.75),
+  new Vector3(33, S3_BOX.chamberTop, -18),
+];
+
+/** The L1 hide spots (derived): the goods landing's NW corner. */
+export const S3_HIDESPOTS_L1: NonNullable<MapLayout['hideSpots']> = [{ pos: new Vector3(11, S3_L1, -1.0) }];
 
 /** A door's hinge along its wall: the centre less half a single door (`doorAt`, brief 3.2). */
 const hingeX = (id: S3DoorId): number => S3_DOORS[id][0] - DOOR_W / 2;
@@ -84,8 +116,30 @@ export const S3_SEC_COUNTERS: readonly { box: S3Box; top: number }[] = [
   { box: [62.4, -12.2, 63.85, -11.65], top: 0.9 },
 ];
 
+/** The gallery's bridge plate onto the chamber roof (D:73): 3.0 wide centred on the spur (x 31.5..34.5, derived), one 0.5
+ *  grid cell long (SS 8 `grid_m`, derived), lying on the 4.4 roof with its top at the spur's 4.5 (the step 4.5 -> 4.4 at
+ *  its far end). */
+export const S3_BRIDGE_PLATE: S3Box = [31.5, -14.5, 34.5, -14];
+
+/** The walkway's caged ladders from the hall floor (GR:513, GR:523), facing the walkway (south). */
+export const S3_WALKWAY_LADDERS: readonly (readonly [number, number])[] = [
+  [18, -28.2],
+  [51, -28.2],
+];
+
+/** The goods racking against the goods landing's north wall (x 18.5..21, 2.4 high, noLedge; derived), 0.65 deep as the
+ *  as-built store shelf (S3:455), to the x 21 wall face. */
+export const S3_RACKING: S3Box = [18.5, -0.15 - 0.65, 21 - T / 2, -0.15];
+
+/** The maintenance hatch (1.0 x 1.0) in the 7.5 ceiling at (20.5, -1) (D:66) and the store's lift-out ceiling tile hole
+ *  (1.2 x 1.2, the duct width SS 3, derived) at (49.5, -3) (D:70): the void deck's only holes. */
+export const S3_VOID_HOLES: readonly S3Box[] = [
+  [20, -1.5, 21, -0.5],
+  [48.9, -3.6, 50.1, -2.4],
+];
+
 /** A floor slab over `r` (top `top`, 0.2 thick) with rectangular holes: cut into strips between the holes' x edges. */
-function slabCut(b: LevelBuilder, r: S3Box, top: number, holes: readonly S3Box[]): void {
+function slabCut(b: LevelBuilder, r: S3Box, top: number, holes: readonly S3Box[], deck: (b: LevelBuilder, x0: number, x1: number, z0: number, z1: number, top: number) => void = slab): void {
   const [x0, z0, x1, z1] = r;
   const cuts = new Set<number>([x0, x1]);
   for (const h of holes) for (const x of [h[0], h[2]]) if (x > x0 && x < x1) cuts.add(x);
@@ -97,10 +151,10 @@ function slabCut(b: LevelBuilder, r: S3Box, top: number, holes: readonly S3Box[]
     over.sort((u, v) => u[0] - v[0]);
     let z = z0;
     for (const [u, v] of over) {
-      if (u > z + 1e-6) slab(b, p, q, z, u, top);
+      if (u > z + 1e-6) deck(b, p, q, z, u, top);
       z = Math.max(z, v);
     }
-    if (z1 > z + 1e-6) slab(b, p, q, z, z1, top);
+    if (z1 > z + 1e-6) deck(b, p, q, z, z1, top);
   }
 }
 
@@ -108,6 +162,7 @@ function slabCut(b: LevelBuilder, r: S3Box, top: number, holes: readonly S3Box[]
 function ceiling(b: LevelBuilder, x0: number, x1: number, z0: number, z1: number): void {
   bx(b, x0, x1, S3_CEIL_TOP - 0.1, S3_CEIL_TOP, z0, z1, PANEL_WHITE, { overhead: true, noLedge: true });
 }
+const ceilingDeck = (b: LevelBuilder, x0: number, x1: number, z0: number, z1: number): void => ceiling(b, x0, x1, z0, z1);
 
 /** The L1 slabs, rooms, glass, gallery, walkway, hoist hatch, void and ceilings. */
 export function buildS3L1(b: LevelBuilder): void {
@@ -199,4 +254,64 @@ export function buildS3L1(b: LevelBuilder): void {
   rail(b, hhx0 - 0.1, hhx0, hhz0, hhz1, L1);
   rail(b, hhx1, hhx1 + 0.1, hhz0, hhz1, L1);
   b.ladder((hhx0 + hhx1) / 2, (hhz0 + hhz1) / 2, 0, L1, 0);
+
+  // ---- R2b 6. the escape gallery (D:73): its deck and spur at 4.5, the bridge plate onto the chamber roof, rails on every
+  // open edge as S3:413-418 but the plate end; at x 44 the sprung drop gate (a 1.2 gate 1.1 high, opening out over the
+  // drop, the rest of the end railed): one way down, nothing on the hall floor to climb it by
+  const [gx0, gz0, gx1, gz1] = S3_BOX.gallery;
+  const [spx0, spz0, spx1, spz1] = S3_BOX.spur;
+  const GT = S3_BOX.galleryTop;
+  slab(b, gx0, gx1, gz0, gz1, GT, STEEL);
+  slab(b, spx0, spx1, spz0, spz1, GT, STEEL);
+  const [bpx0, bpz0, bpx1, bpz1] = S3_BRIDGE_PLATE;
+  bx(b, bpx0, bpx1, S3_BOX.chamberTop, GT, bpz0, bpz1, STEEL, { noLedge: true });
+  rail(b, gx0, spx0, gz0, gz0 + 0.1, GT);
+  rail(b, spx1, gx1, gz0, gz0 + 0.1, GT);
+  rail(b, gx0, gx0 + 0.1, gz0, gz1, GT);
+  rail(b, spx0, spx0 + 0.1, spz0, spz1, GT);
+  rail(b, spx1 - 0.1, spx1, spz0, spz1, GT);
+  b.door(gx1, GT, gz0, 1.2, 0, { height: 1.1, swing: 1 });
+  rail(b, gx1 - 0.1, gx1, gz0 + 1.2, gz1, GT);
+
+  // ---- 7. the crane walkway (D:63): the 1.5 deck at 6.0 from x 14, its north-edge rail but 0.5 each side of a ladder (as
+  // built S3:401; from the glass face x 14.15, clear of the walkway door's frame), the caged ladders from the hall floor with the cage hoops of S3:404 (0.3 behind the ladder line)
+  const [wkx0, wkz0, wkx1, wkz1] = S3_BOX.walkway;
+  const WT = S3_BOX.walkwayTop;
+  slab(b, wkx0, wkx1, wkz0, wkz1, WT, STEEL);
+  rail(b, wkx0 + T / 2, 17.5, wkz1 - 0.1, wkz1, WT);
+  rail(b, 18.5, 50.5, wkz1 - 0.1, wkz1, WT);
+  for (const [x, z] of S3_WALKWAY_LADDERS) {
+    b.ladder(x, z, 0, WT, PI);
+    for (const y of [2.4, 3.4, 4.4, 5.4]) b.box(x, y, z + 0.3, 0.9, 0.04, 0.04, STEEL, 0, 0, false);
+  }
+
+  // ---- 8. the hoist hatch (D:66, P9): the hole to the x 21 wall face (in the slab, step 1), 1.1 rails on its north and
+  // south edges, the west edge the loading gate (its bar swung up, no collision: the CR3b lip stays clear), no ladder. The
+  // maintenance hatch in the ceiling at (20.5, -1): the goods racking against the north wall, the ladder fixed beside it on
+  // the x 21 wall face, climbing east out of the hatch onto the void deck (derived)
+  const [hhhx0, hhhz0, , hhhz1] = S3_BOX.hoistHatch;
+  const hhhx1 = S3_BOX.hoistHatch[2] - T / 2;
+  rail(b, hhhx0, hhhx1, hhhz0 - 0.1, hhhz0, L1);
+  rail(b, hhhx0, hhhx1, hhhz1, hhhz1 + 0.1, L1);
+  b.box(hhhx0, L1 + 1.1, hhhz0 - 0.05, 0.08, 2.2, 0.08, STEEL, 0, 0, false);
+  const [rkx0, rkz0, rkx1, rkz1] = S3_RACKING;
+  bx(b, rkx0, rkx1, L1, L1 + 2.4, rkz0, rkz1, STEEL, { noLedge: true });
+  const [mh] = S3_VOID_HOLES;
+  b.ladder(rkx1 - 0.45, (mh![1] + mh![3]) / 2, L1, C, PI / 2);
+
+  // ---- 9. the ceilings and the void (D:75, AS5, P19): a suspended ceiling deck (top 7.5, 0.1) over the corridor, the east
+  // lobby, the goods landing and the sec room (the landing's is step 2); over x 20..58 it is the walkable void deck (P10)
+  // but the north core (its lid is R3's, P11), with the maintenance hatch and the store's tile hole; the lifted tile lies
+  // beside its hole; the plenum wall z -7 from 7.5 to 9.0 seals the corridor plenum from the void
+  ceiling(b, 10, 64, -11, -7);
+  ceiling(b, S3_BOX.sec[0], S3_BOX.sec[2], S3_BOX.sec[1], S3_BOX.sec[3]);
+  ceiling(b, 10, S3_BOX.voidDeck[0], -7, 0);
+  const [vx0, vz0, vx1, vz1] = S3_BOX.voidDeck;
+  slabCut(b, [vx0, vz0, S3_BOX.nCore[0], vz1], C, S3_VOID_HOLES, ceilingDeck);
+  slabCut(b, [S3_BOX.nCore[2], vz0, vx1, vz1], C, S3_VOID_HOLES, ceilingDeck);
+  const [, tz0, tx1, tz1] = S3_VOID_HOLES[1]!;
+  b.box(tx1 + 0.6, C + 0.01, (tz0 + tz1) / 2, 1.2, 0.02, 1.2, PANEL_WHITE, 0, 0, false);
+  wall(b, true, -7, 10, S3_BOX.nCore[0], C, R, []);
+  wall(b, true, -7, S3_BOX.nCore[2], S3_BOX.eCore[0], C, R, []);
+  wall(b, true, -7, S3_BOX.eCore[2], 64, C, R, []);
 }
