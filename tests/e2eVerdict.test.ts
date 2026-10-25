@@ -10,7 +10,7 @@ const reportSet = reportSetUntyped as (env: Record<string, string | undefined>) 
 const isReport = isReportUntyped as (s: string, set: Set<string>) => boolean;
 
 const q = new Set(['e2e-pad', 'e2e-sectorops:6']);
-const opts: Opts = { report: (s) => s === 'e2e-foley', quarantined: (s) => q.has(s) || q.has(s.split(':')[0]) };
+const opts: Opts = { report: (s) => s === 'e2e-foley', quarantined: (s) => q.has(s) || q.has(s.split(':')[0] ?? '') };
 const names = (rs: R[]) => rs.map((r) => r.s);
 
 describe('e2e-verdict classify (J20 T8, BRIEF A3)', () => {
