@@ -56,9 +56,9 @@ Lead: Night Shift | Marlow Build. Planner: Opus 5.5, master 94e72b1cd (4.103.3).
   needs no flag. With the flag off nothing changes: `ctcourse` builds byte-identical (the built `GREY` checksums are
   the proof). At switch-on, slice C1 points `ctcourse` at the re-plan and deletes the built branches.
 - **Where the code goes (A24).** New per-set code (geometry, closers, stations, stand-ins, lamps) lives in new files
-  `src/world/maps/ctcourseSets/replan/<set>.ts`, called at the end of each set builder when `replan` is set; the set
-  files only gain small `if (!opts.replan)` guards round the pieces the re-plan removes (the A2 deck, the A6 staff
-  stair, the extra guards, the A4 kettle loop). Built variant and #441's lines stay untouched.
+  `src/world/maps/ctcourseSets/replan/<set>.ts`, called from `ctcourse.ts` right after each set builder when `replan` is
+  set; the set files only gain small `if (!opts.replan)` guards round the pieces the re-plan removes (the A2 deck, the
+  A6 staff stair, the extra guards, the A4 kettle loop). Built variant and #441's lines stay untouched.
 - **Bays and stations (lead note 2).** Bays stay one per set: `PackedCourse.bay`, `courseBay` / "Start at bay N",
   the holding-room checkpoints and `?course=all` keep meaning A1-A8. The 18 numbered steps are **stations** inside the
   bays: `BayDef.stations` (`courseDef.ts`, from `SetPart.bay.stations`), each with its global number `n` 1-18; the
@@ -210,10 +210,12 @@ Wire: `course` gains `PackedCourse.st` (the live station), `rs` (retry count) an
   in map-ready's warm list when both are on master (a one-line follow-up for whichever lands second).
 - **feature/player-batch-j19 (Player):** `session.ts`, `coopUi.ts`, `protocol.ts` (`lobby` / `start` gain `ff`),
   `coopHost.ts`. R1's `session.ts` line (the room map) and F1's `coopUi.ts` Start check are separate hunks.
-- **claims-check (2026-10-25 ~20:50, master's script):** 32 overlaps, all files above plus `flags.ts` one-liners
-  (campus-greybox, char-shadow-meter, guard-ai-mission-hooks, sector-batch, guard-rules) and `coopHost.ts`
-  (player-hygiene, guard-rules, sector-batch); test-runner-j20 (14 branches) on `scripts/run-e2e.mjs` and
-  `scripts/e2e-ctcourse.mjs`; coop-kit on `protocol.ts` / `coopHost.ts` / `flags.ts`. No other job claims a Marlow set
+- **claims-check (2026-10-25 ~20:50, master's script; plan checker's rerun ~21:05):** 33 overlaps, all files above
+  plus `flags.ts` one-liners (campus-greybox, char-shadow-meter, guard-ai-mission-hooks, sector-batch, guard-rules) and
+  `coopHost.ts` (player-hygiene, guard-rules, sector-batch); test-runner-j20 (14 branches) and campus-greybox on
+  `scripts/run-e2e.mjs` (S0 adds parts 5-8 to `PARTS` only: a separate hunk); test-runner-j20 on
+  `scripts/e2e-ctcourse.mjs`; coop-kit and player-hygiene on `protocol.ts` (R1 touches only `parseCourse`), coop-kit
+  on `coopHost.ts` / `flags.ts`. No other job claims a Marlow set
   file, `ctcourseSets/replan/**`, `src/game/course/**` or the map `ctcourseReplan`.
 
 ## Slices and PRs
@@ -246,13 +248,16 @@ Flag: none.
 built with `{ replan: true }`, its own `registerCourse`); `SET_BUILDERS` take `(b, kit, opts)`; `SetPart.bay.stations`
 (`types.ts`, `checkSetPart` checks station numbers, marks inside the set box, guards in the squad); the new
 `src/game/course/stationDef.ts` (section 2, verbatim); eight stub files `replan/<set>.ts` (a no-op `replan<Set>(b, kit,
-part)` plus empty `FLOOR_HOLES`); `facility.ts` cuts the site slab round every set's `FLOOR_HOLES` on the replan variant
-(a `slabWithHoles` helper in `ctcourseGreybox.ts`, from `bunkerUpper.ts:207`); `marlowCircuits.ts` replan circuits
-(49 and 69 live, new groups for the A8 vestibule / west bays and the A4 dispatch office); test harness: the light test
-takes `CTLIGHT_VARIANT=replan` and writes `tests/ctcourse/replan/<set>.light.json`; e2e: `PARTS` gains `5`-`8`
-(`scripts/run-e2e.mjs:45-48`), `e2e-ctcourse.mjs` parts 5-8 boot `ctcourseReplan` and walk the modules in
-`scripts/e2e-ctcourse/replan/` (stubs re-export the built ones until each set slice replaces its own), part budgets in
-`scripts/e2e-times.json`.
+part)` plus empty `FLOOR_HOLES`), each called from `ctcourse.ts` right after its set builder when `replan` is set (S0
+does not edit the set files; the set slices add only their `if (!opts.replan)` guards there); `facility.ts` cuts the
+site slab round every set's `FLOOR_HOLES` on the replan variant (a `slabWithHoles` helper in `ctcourseGreybox.ts`, from
+`bunkerUpper.ts:207`); `marlowCircuits.ts` replan circuits (49 and 69 live, new groups for the A8 vestibule / west bays
+and the A4 dispatch office); test harness: the light test takes `CTLIGHT_VARIANT=replan` and writes
+`tests/ctcourse/replan/<set>.light.json`; e2e: `PARTS` gains `5`-`8` (`scripts/run-e2e.mjs:45-48`), `e2e-ctcourse.mjs`
+parts 5-8 boot `ctcourseReplan` and walk the modules in `scripts/e2e-ctcourse/replan/` (stubs re-export the built ones
+until each set slice replaces its own), part budgets in `scripts/e2e-times.json`: S0 sets the final budgets for parts
+5-8 (each built pair's budget plus 30 s for the station retries); the set slices never edit `e2e-times.json`, and a part
+that runs over gets one serial follow-up from the lead.
 - **First commit (the seam with R1, pushed before anything else):** `src/game/course/stationDef.ts` (verbatim), the
   flag in `flags.ts`, `SetPart.bay.stations` in `types.ts`, the `stations: p.bay.stations` line in the bay merge
   (`ctcourse.ts:100-110`) and the one optional line `stations?: readonly StationDef[];` in `BayDef`
@@ -295,6 +300,11 @@ shows the next station's mark as built (Q18) and a drill-mark guard test pins it
   `window.__course` is the `CourseMode` (`courseMode.ts:292`), so `CourseMode.restarts` and `lastRetry` are getters on
   the state. Client: the mirror object (`courseMode.ts:1362`) gains `restarts: w.s.rs` and `lastRetry: { st: w.s.st,
   cause: w.s.rc }`, so the harness reads the same hook on host and client. No new event, no save.
+- **`src/net` rule:** `st`, `rs` and `rc` are parsed in `src/net/protocol.ts` (`parseCourse`) only, as plain fields; no
+  new static import from `src/game` into `src/net` (CLAUDE.md co-op rule; `import type` only if a type is needed).
+- **Respawn points:** `checkpointSpawns()` returns the station's two marks only while a station retry is placing the
+  players (host and a client rejoining during it); otherwise it returns the checkpoint airlock's slots as today, so a
+  rejoin, a seal or a both-down restart never lands on a station mark.
 - Files: `src/game/course/{courseDef,courseState,spotFail,courseWire}.ts` (`courseState.ts` except F1's hunks),
   `src/game/modes/courseMode.ts`, `src/net/protocol.ts`, `src/net/session.ts` (the room-map line),
   `tests/courseStation.test.ts` (new), `tests/spotFail.test.ts`, `tests/course.test.ts`,
@@ -307,8 +317,11 @@ shows the next station's mark as built (Q18) and a drill-mark guard test pins it
   at 2 s; a drill window ending retries in place; a player going out in station 2 (`onPlayerOut`, F1) retries station 2
   with both back on its marks; each of those retries raises `window.__course.restarts` by one on host and client with
   `lastRetry.cause` `seen`, `caught`, `timer` and `out` in turn (unit test in `tests/courseStation.test.ts`: the count
-  and cause through `pack()` -> `parseCourse` -> the client mirror object); the built `ctcourse` behaves as today (its
-  tests unchanged); the flag off leaves the room on `ctcourse`.
+  and cause through `pack()` -> `parseCourse` -> the client mirror object); both down after station 2 restarts the bay
+  from its holding room, a full reset with station 1 undone (A17, G312; `restarts` +1, cause `down`);
+  `checkpointSpawns()` returns station marks only during a station retry (a rejoining client then too) and the airlock
+  slots otherwise; the built `ctcourse` behaves as today (its tests unchanged); the flag off leaves the room on
+  `ctcourse`.
 - Flag: `marlowReplan` (only `ctcourseReplan` carries stations). Depends on: S0's first commit (`stationDef.ts`, the
   flag, `SetPart.bay.stations`, the `ctcourse.ts` mapping, the `BayDef` line).
 
@@ -443,6 +456,9 @@ deletion (likely over 1.5k: split per set pair or the orchestrator's `big-pr` la
 - A5 and A6 new spaces (wall gap, trench, drive pit): accept when they read as real places and the stand-in crossings
   are obvious until each new move is on.
 - Lamps: A4 back aisle, A6 sump, A8 vestibule all working - accept when no dark corner comes from a dead light.
+- F1 (live on the built yard, so before the re-plan walk): a lone host can no longer Start Marlow Yard (Michael walked
+  4.82.0 solo) - it needs a partner, or `?course=solo` on the host page. With a partner: let one go out (no revives
+  left) - accept when the survivor carries on, the exit airlock cycles with one, and the partner is back inside it.
 
 ## Assumed decisions (A13+, each with its undo)
 - **A13** `meta.taught_by` is "A6" (the set where drop catch, the last kit move, is taught alone, J12 BRIEF A8), so
@@ -484,7 +500,9 @@ deletion (likely over 1.5k: split per set pair or the orchestrator's `big-pr` la
 
 **Assume and log (RULES Intake step 2), for the orchestrator to put to Michael:** BRIEF A3 (new-move stations open as
 moves ship, Q29), A5 (pull-up counted with the human ladder, Q29), A7 (A8 keeps 3 guards under campaign-area route
-rules, Q24). A15 (12 guards) and A19 (chimney 1.4 m) answered by Michael ~20:40.
+rules, Q24); PLAN A20 (the built yard keeps its dead-light pockets until switch-on; the re-light is on
+`ctcourseReplan` only), so J10 ("no dead-light dark spots anywhere", Q2) knows the built yard waits for switch-on. A15
+(12 guards) and A19 (chimney 1.4 m) answered by Michael ~20:40.
 
 ## Risks and open questions
 - **Blocks on other leads:** Player Build's coop-kit part 2 (K0-K5b) for KS1-KS5, itself waiting on Campaign Build's
