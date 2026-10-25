@@ -145,7 +145,7 @@ the pistol. Live only while hanging settled (`TeamController.hangActs`); lowerin
   (knockout), held (`STANCE.rtHold`) the neck snap (lethal); KBM LMB the same, Z the choke (`GameState`, before the
   takedown step, `grabTriggerPick`). The ordinary takedown run with kind `hangDown` (`HANG_GRAB.strike` 0.6 s; the guard
   pulled to the hold point; no elbow arc, `pose.melee` -1, no kill tail; the hands on his neck by the takedown's reach
-  IK). The hang ending mid-way ends it as decided (a knockout when not yet decided). The elbow strike never runs from the
+  IK). The hang ending mid-way ends it as decided (a knockout when not yet decided). The palm strike never runs from the
   hang.
 - The pistol (A6): hanging, LT draws the sidearm one-handed (never the rifle) with the inverted pipe's aim
   (`Player.attachAim` inverted, the `PIPE` band and spread, the aim yaw the chest's: the facing + PI) and the camera
@@ -163,7 +163,7 @@ The close strike of G42 / G155; this is the build.
   Target: the nearest live, unseized guard in reach and cone; none is a whiff. Movement capped to gear 1; the body turns
   to the target at the press.
 - `resolveStrike` always returns KO: any side, aware or not, heavy or not; no stagger. A guard in reach and cone is
-  knocked out through `Enemy.knockOut` with kind `melee` (`takedown: 'strike'`); the local player's RT held (the
+  knocked out through `Enemy.knockOut` with kind `melee` (`takedown: 'strike'`); the local player's RT / LMB held (the
   lethal strike) kills through `killOutright`. A dog is never a target (`strikeTargetable`). Event `strike {result}`.
 - Solo and the co-op host start it at once; a client asks the host (`cmove`, kind `strike`, the only committed-move kind).
   Contact is resolved only where the guards live, at t0 + 0.08 s, re-checking reach and cone.

@@ -58,9 +58,9 @@ Still standing:
   goes from `turnSlowFrom` 3.0 to `turnSlowTo` 4.0 m/s, angular acceleration `CT.turnAccel` 300. There is no planted
   pivot and no turn on the spot: the stick held on the spot walks a tight circle, a reversal is one smooth turn with
   the pace dipping through it (`CT.turnDip` 0.55), and at the slowest speed only, a stick pulled behind by over 135 deg
-  walks backwards at `CT.backSpeed` 0.5 m/s. (`MOVEMENT.pivotTime` / `pivotMinSpeed` belong to the older non-CT rule
-  that guards use.) States `move` / `stop` / `idle`; `RigPose.restX` from `ctStopDistance()`. Aim, draw, strike, crouch
-  and jump stay instant. `RigPose.quickStop` = `CT.stopBlend` 0.12 s (`FootPlanner.setDown`), then at most one closing
+  walks backwards at `CT.backSpeed` 0.5 m/s. (`MOVEMENT.pivotTime` 0.3 / `pivotMinSpeed` 1.5 are the non-CT rule the
+  player runs under an override; guards run it on `ENEMY_MOTION`'s own pivot.) States `move` / `stop` / `idle`;
+  `RigPose.restX` from `ctStopDistance()`. Aim, draw, strike, crouch and jump stay instant. `RigPose.quickStop` = `CT.stopBlend` 0.12 s (`FootPlanner.setDown`), then at most one closing
   step. `StickRelease` (`speedGears.ts`) keeps a springing-back stick's deflection so the stop is from the full pace.
   Acceleration lean 0.012 rad per m/s^2, capped 0.09 rad (`animGraph.ts` `LEAN_GAIN`, `LEAN_MAX`). Remotes (D8):
   `anim/motionDerive.ts` derives acceleration and `move` / `stop` / `idle` from measured velocity (no wire field).
@@ -264,7 +264,7 @@ Still standing:
   the body at `EDGE_MARGIN` (WALL_SUB edgeL / edgeR).
 - Leave: the context press again (toggle) or letting go of it (hold; `gameplay.wallToggle`), aiming, the `dash` action
   (nothing binds it), jump or another traversal, an attach, a takedown, a team move, death. A stick pulled away does
-  not leave (`wallController.ts:524`); only a stick entry (off by default, `WALL.stickEntry`) leaves on a released
+  not leave (`wallController.ts:528`); only a stick entry (off by default, `WALL.stickEntry`) leaves on a released
   stick.
 - Facing and pose: the capsule faces out (gameplay, camera, AI); the posed body (visual yaw, local and remote alike):
   - standing (G6, AUDIT-WALLS row 3, 051917 @ 14-18): square to the wall in a semi-crouch (`WALL_STANCE.pelYStand` -0.08 m),
