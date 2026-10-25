@@ -1017,11 +1017,11 @@ orchestrator says "Mixamo laptop run done" (Michael's top priority tonight). Che
    laptop-e2e/rules-pr1 on a78d7093 (e2e-coop e2e-netmove e2e-ctcourse e2e-takedown) + affected-e2e on 211a66d5.
    Green -> post checker on the head, tell orchestrator. PR2 polish: responseTeam shield arg default true
    (gear.ts:178) -> false; KILL_BASE.dog undo keeps the headshot bonus off (score.ts:17); GearGuard type redundant.
-5. J15 S5 repeat alarms (PR2): Opus builder was RUNNING in C:/NightShift/Mobile-Coop-guard-rules-s5 (branch
-   feature/guard-rules-s5 off feature/guard-rules 211a66d5); pushed through be49ac06 (code, tests, e2e, docs). If cut
-   off: one Opus agent finishes from the head (PLAN "PR2"; tsc, eslint, vitest of the alarm / manager / enemy /
-   sectorMode tests). Then merge into feature/guard-rules AFTER PR1 merges, PR2, 2 Opus checkers, laptop affected
-   + e2e-coop. Next wave: F0 flags (lead) then S4 / S6 (PLAN wave 3).
+5. J15 S5 repeat alarms (PR2): DONE be49ac06 on feature/guard-rules-s5 (off feature/guard-rules 211a66d5; 11 files
+   +497/-22; tsc / eslint / 63 vitest files green; e2e block not run). Lock opens only after a manager raise
+   (guardAlarms > 0). Next: 2 Opus checkers on `git diff 211a66d5..be49ac06` now (no wait for PR1); after PR1
+   merges, merge -s5 into feature/guard-rules, PR2, laptop affected + e2e-coop + e2e-ctcourse. Then wave 3: F0
+   flags (lead) then S4 / S6.
 6. J26 mission hooks: plan PASS (044258624). Every slice starts after J15 PR4 merges: S1a -> S1b; S2 -> S3 -> S4.
    Campaign Build SENT the PLAN's C1-C7. A9 per-area stages dark: Michael's click at his walk.
 7. Test Runner request (J20 S6b): seed the 5 Math.random sites in src/ai (enemy.ts think cadence x2, enemyManager
@@ -1029,5 +1029,5 @@ orchestrator says "Mixamo laptop run done" (Michael's top priority tonight). Che
    shrink its allowlist in the same PR.
 8. J16 perception half (Q14 cast shadow = faint cue): plan after Sector Ops' J16 PR.
 9. Later: coop4-pol (134f6abe), snapBudget headroom, coopHost.ts:589 comment, TODO sectorMode.ts:201.
-Next: laptop gates (items 2-4), the S5 builder result (item 5).
+Next: laptop gates (items 2-4); start the S5 checkers (item 5).
 ```
