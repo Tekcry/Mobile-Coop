@@ -1,0 +1,13 @@
+{
+  "id": "20261025T225359-night-shift-sector-o-5dceab9b-37f2",
+  "sha": "5dceab9bce0e3d2b80aadd7987ec811f4cf37afa",
+  "branch": "feature/light-realism-l1",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Sector Ops Build",
+  "suites": [
+    "e2e-sectorops:1"
+  ],
+  "set": "light-realism-l1-e2e",
+  "note": "L1 triage 2: client lane shot from 3 m"
+}
