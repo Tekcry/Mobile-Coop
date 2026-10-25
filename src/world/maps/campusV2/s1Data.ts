@@ -44,6 +44,8 @@ export const S1_LIGHTS: S1Lights = {
   },
   // (G3, A25) the bike shelter lamp (the smoke shelter's values), its own circuit
   bikes: { x: -7, y: 2.2, z: -52, r: 3, i: 0.5, colour: SODIUM, group: S1_GROUPS.bikes, cone: null, w: 0.2 },
+  // (G5, D:133) the smoking shelter's warm lamp, its own circuit (colour and intensity A6)
+  smoke: { x: 8, y: 2.2, z: -48.5, r: 3, i: 0.5, colour: SODIUM, group: S1_GROUPS.smoke, cone: null, w: 0.2 },
 };
 /** The lists `s1.ts` re-exports (the dress and the tests read them by these names). */
 export const PARK_COLUMNS_W = S1_LIGHTS.columnsW;
@@ -103,10 +105,12 @@ export const S1_GUARDS: SectorGuard[] = [
   // 5 the doorman (K1, M12): posted under the canopy at the C1 badge door, facing south onto the walkway
   { kind: 'officer', x: -20, z: -35, yaw: PI, takedownSpot: [-20, -34.7], post: { leash: 5, guards: 'c1-door' }, role: 'posted', zone: 'c1', squad: 2, reason: 'Badge check at the only staff door' },
   // 6 the smoker: on his break in the smoking shelter, facing the car park
-  { kind: 'grunt', x: 8, z: -48.5, yaw: PI, takedownSpot: [8, -47.6], role: 'smoker', zone: 'smoking', squad: 2, reason: 'On his break; he can see the car park from the shelter' },
+  { kind: 'grunt', x: 8, z: -48.5, yaw: PI, takedownSpot: [8, -47.6], role: 'smoker', zone: 'smoking', squad: 2, pair: 14, reason: 'On his break; he can see the car park from the shelter' },
   // 7 (G4, D:245) the fence patrol: the west palisade <-> the bin corner, 4 s stops, 44.4 s; dark at the bin corner; comes to
   // the feeder board if it is cut (his straight leg crosses the bin screen: his path goes round its open south side, R3)
-  { kind: 'grunt', x: -38, z: -64, yaw: 0, route: [[-38, -64], [-38, -46]], waits: [4, 4], faces: [PI, 0], takedownSpot: [-38, -46], role: 'patrol', zone: 'perimeter', squad: 3, reason: 'Fence-line check after the break-ins' },
+  // (G6, M8) his takedown spot moved from the bin-corner stop (-38, -46), seen by the storeman #12 (0 s isolated), to the south stop's
+  // north side (-38, -62.5, 1.5 m behind him, within CHECK_SPOT): 5.75 s unseen, tested on his own route
+  { kind: 'grunt', x: -38, z: -64, yaw: 0, route: [[-38, -64], [-38, -46]], waits: [4, 4], faces: [PI, 0], takedownSpot: [-38, -62.5], role: 'patrol', zone: 'perimeter', squad: 3, reason: 'Fence-line check after the break-ins' },
   // 8 (G4, D:103, D:246) the delivery sentry: a sweep at the goods door, +-60 degrees, 12 s each way; his stops at z -42.1, clear
   // of the door's swing (H10)
   { kind: 'grunt', x: -34, z: -42.1, yaw: PI - 1.05, route: [[-34, -42.1], [-32, -42.1]], waits: [12, 12], faces: [PI - 1.05, PI + 1.05], takedownSpot: [-33, -42.7], role: 'sentry', zone: 'dock', squad: 3, reason: 'Waits for the courier with a cage trolley' },
@@ -116,6 +120,14 @@ export const S1_GUARDS: SectorGuard[] = [
   { kind: 'officer', x: -12, z: -66, yaw: PI / 2, route: [[-12, -66], [4, -66]], waits: [4, 4], takedownSpot: [4, -66], role: 'patrol', zone: 'carpark', squad: 1, reason: 'Walks the rows by the gate where the courier parks' },
   // 12 (G4, D:247) the storeman: the goods door <-> the bin screen mouth, 6 s stops, 25.4 s; alone at the bin mouth
   { kind: 'grunt', x: -31, z: -42.6, yaw: PI, route: [[-31, -42.6], [-34, -48.5]], waits: [6, 6], takedownSpot: [-34, -48.5], role: 'patrol', zone: 'dock', squad: 3, reason: 'Storeman: stages the cage trolley for the 03:00 courier' },
+  // 13 (G5, D:249) the walkway patrol: the drop-off walkway, 4 s stops, 40.3 s; dark at the east end by the lockers
+  { kind: 'grunt', x: -24, z: -43, yaw: PI / 2, route: [[-24, -43], [-8, -43]], waits: [4, 4], takedownSpot: [-8, -43], role: 'patrol', zone: 'forecourt', squad: 2, reason: 'Walks the drop-off walkway' },
+  // 14 (G5, D:250) the courier escort: posted at the kerb facing the car park; his takedown spot 0.5 m behind him (A7)
+  { kind: 'officer', x: -18, z: -46.6, yaw: PI, takedownSpot: [-18, -46.1], role: 'escort', zone: 'forecourt', squad: 2, reason: 'Meets the 03:00 courier at the drop-off' },
+  // 15 (G5, D:253) the north-east fence patrol: 5 s stops, 42.3 s; dark at the NE corner
+  { kind: 'grunt', x: 24, z: -54, yaw: 0, route: [[24, -54], [24, -38]], waits: [5, 5], takedownSpot: [24, -38], role: 'patrol', zone: 'perimeter', squad: 4, reason: 'East fence-line check' },
+  // 16 (G5, D:252) the second smoker, #6's talking pair: the shelter front <-> the ash bin, 12.5 s stops (A20), 30.3 s
+  { kind: 'officer', x: 7, z: -50.8, yaw: -PI / 2, route: [[7, -50.8], [4.5, -50.8]], waits: [12.5, 12.5], takedownSpot: [4.5, -50.8], role: 'smoker', zone: 'smoking', squad: 2, pair: 5, reason: 'On his break with the smoker' },
 ];
 
 /** Section 1's cameras (range 8-12, `aim` on the protected floor point, a `reason`); live only in their own section. */
@@ -158,25 +170,27 @@ export const S1_SECTOR: SectorDef = {
   reinforce: [[11, -79], [-33, -41]],
   perStage: 2,
   dogs: 0,
+  // (G6, D:147, SVG:537-544) the three polylines, each from the start through the objective (within 4 m) into C1
   routes: [
     {
-      // stealth (solo): the verge, the rear window, the dark east fence, behind the smoking shelter, the facade planters, the doorman from the east
+      // track B (SVG:537): the verge, the rear window, the dark east fence, behind the smoking shelter, the facade planters, the doorman from the east
       name: 'The verge, the rear window and the east side',
-      pts: [[24, -79], [22.2, -76.2], [21, -70], [21, -58], [24, -52], [8, -45.2], [2, -37.2], [-12.8, -37.2], [-18.5, -35.1], [-20, -34], [-20, -32]],
+      pts: [[24, -79], [21, -76], [23, -70], [23, -55], [22, -46], [12, -45.6], [4, -45.8], [0, -37.2], [-12, -37.2], [-18.6, -35.3], [-20, -34], [-20, -32]],
       obj: 1,
     },
     {
-      // shadow (made): the feeder board cuts the west half, the bin store, the delivery yard, the doorman from the west
-      name: 'The feeder board, the bin store and the yard',
-      pts: [[24, -79], [22.2, -76.2], [21, -70], [21, -64.5], [-30, -64.5], [-35.2, -64.5], [-35.2, -52], [-31.8, -48], [-31, -53], [-28.5, -50.5], [-26.8, -44], [-28, -41.5], [-24.5, -41.2], [-23.2, -36.5], [-21.6, -35.1], [-20, -34], [-20, -32]],
+      // shadow (SVG:538, then the as-built tail SEC:340): the south footway, the west margin, the yard board, the doorman from the west
+      name: 'The south footway, the west margin and the yard board',
+      pts: [[24, -79], [21, -76], [22, -73], [10, -79], [-10, -79.2], [-38.6, -78], [-38.6, -55], [-37, -51], [-33, -46], [-29.5, -41.2], [-24.5, -41.2], [-23.2, -36.5], [-21.6, -35.1], [-20, -34], [-20, -32]],
       obj: 1,
     },
     {
-      // high (solo): the yard's caged ladder, the plant roof, the canopy (overwatch), the drop at its east lip, the doorman from the east
-      name: 'The caged ladder, the plant roof and the canopy',
-      pts: [[24, -79], [22.2, -76.2], [21, -70], [21, -64.5], [-30, -64.5], [-28.5, -50.5], [-26.8, -44], [-30.5, -41.3], [-38, -41.3], [-38, -38.5, 4.4], [-30, -37, 4.4], [-20, -37.5, 4.4], [-15, -36, 4.4], [-13, -37], [-18.6, -35.1], [-20, -34], [-20, -32]],
+      // track A (the as-built lead-in SEC:346, then SVG:539): the caged ladder, the plant roof, the canopy hatch drop behind the doorman
+      name: 'The caged ladder, the plant roof and the canopy hatch',
+      pts: [[24, -79], [21, -76], [21, -70], [21, -64.5], [-30, -64.5], [-28.5, -50.5], [-26.8, -44], [-29.5, -41.2], [-38, -41.3], [-38, -39.2, 4.4], [-33, -37, 4.4], [-20, -37.5, 4.4], [-20, -35.9], [-20, -34], [-20, -32]],
       obj: 1,
-      climbs: [8, 12],
+      // the caged ladder (leg 8) and the hatch drop (leg 11, A65)
+      climbs: [8, 11],
     },
   ],
 };

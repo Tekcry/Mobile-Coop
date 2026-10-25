@@ -243,3 +243,151 @@ typecheck and eslint clean.
 R1 (13+) is likely at G6.
 
 **Pending PC runs (G4).** e2e-sectorops:1..6 (`E2E_GPU=1`, default flags).
+
+## G5 Forecourt, lawn, pavilion (D:308)
+
+**Files:** `s1.ts`, `s1Data.ts`, `tests/campusV2S1.test.ts`, `tests/campusV2S1Screen.test.ts`, graph. `s1Dress.ts` unchanged
+(the build dresses; the bench K1 at (8, -47.6) is refused by K1 as before, no new refusal with the lamp or the switch).
+
+**Geometry (s1.ts).** Pavilion east block split (D:121-122): `box(-11, 2.2, -32, 10, 4.4, 4)` x -16..-6 noLedge with the
+pavilion group (:435); `box(-1, 2.2, -32, 10, 4.4, 4)` x -6..4 not noLedge (:443), `b.noLedge(4, -32, 0.5)`, `b.noLedge(-1,
+-30, 0.5)` (:444-445). Trees `pillar(0, -44, 0.3, 5)`, `pillar(16, -40, 0.3, 5)` (:413-414); grit bins `block(-24, -48, 0.8, 1.2,
+0.8)`, `block(-10, -47.5, ...)` (:415-416; colour a greybox choice). Planters, kerb, bollards and the smoking shelter unchanged.
+
+**Lights.** `S1_GROUPS.smoke = 45` (s1.ts:28). `S1_LIGHTS.smoke` (s1Data.ts:48): (8, 2.2, -48.5) r 3 i 0.5 SODIUM w 0.2 (A6),
+drawn at s1.ts:410; switch (6.2, 0, -49.8) yaw PI/2 (s1.ts:166, A19). Lit S1 lamps: **32**. CR1 boost point (-13.5, 0.9,
+-38): analytic level **0.140** (only the 0.14 standby fill; no lamp reaches it), logged, no assert (L6).
+
+**Co-op lip CR1-east** (s1.ts:108-117) as the brief, after CR1-yard; `S1_LIP_SEGMENTS['CR1-east']` (:122). `S1_COOP_LIPS`
+order CR1, CR1-south, CR1-yard, CR1-east.
+
+**Guards (s1Data.ts).** #5 unchanged. #6 (:108) `pair: 14`. #13 (:122, index 11) grunt (-24, -43) <-> (-8, -43); #14 (:124,
+index 12) officer post (-18, -46.6) yaw PI, takedown (-18, -46.1) (A7); #15 (:126, index 13) grunt (24, -54) <-> (24, -38);
+#16 (:128, index 14) officer (7, -50.8) <-> (4.5, -50.8), waits 12.5 / 12.5 (A20), `pair: 5`. Cycles 40.3 / post / 42.3 / 30.3 s.
+
+**Graph.** `s1-forecourt` -> "BUILT G5 (s1.ts:412-416, s1Data.ts:122-124; C7)"; `s1-lawn` -> "BUILT G5 (s1.ts:410-414, :166,
+s1Data.ts:108, :126-128; C7, C8)"; `s1-pavilion` -> "BUILT G5 (s1.ts:434-445, CR1-east :108-117; C6)".
+
+**Tests.** `tests/campusV2S1.test.ts` 37 (G5 +6: CR1-east rules 1-5; pavilion ledges (only CR1-east hangs, x -6..3.6);
+every S1 lip (order, CR1 / CR1-south point-style jump, landing, headroom, rule 2, rule 3; CR1 and CR1-south still hang);
+smoke circuit and the boost level; K1 choke cone; #13-#16 and the #6 / #16 pair). Screen test reworked (below). Slice
+set (7 files): **115 passed, 1 expected fail (the R1 screen cap), 0 failed**; typecheck and eslint clean.
+
+**Deviations.**
+- D-G5-1 CR1-east rule 5 (headroom to 6.3) is checked over the lip's hangable run x -6..3.65: the G1 pavilion screen (x
+  3.65..3.75, z -34..-30, y 4.4..6.8, a brief coordinate) stands at the segment's east end and ends the lip there, so over the
+  last 0.35 m of `S1_LIP_SEGMENTS['CR1-east']` it is "above the lip". No geometry change.
+- D-G5-2 (R1, finding F7) The screen cap fails with all 15 guards: the worst S1 point is the car park's south aisle
+  **(-8.25, 0, -72.25), which sees all 15** (#1, #2, #3, #4, #5, #6, #7, #8, #9, #11, #12, #13, #14, #15, #16); 109 grid points
+  see 13 or more (histogram 13: 80, 14: 21, 15: 8). D:257's estimate (~11, on the pavilion top) does not hold: the open car
+  park sees the whole section, the gatehouse officers through the new glazing. Per the brief nothing was moved (#11's
+  fallback has no coordinates). The cap test is `it.fails` (the suite stays green while R1 is open; it turns red once the
+  count reaches the cap, then becomes a plain `it`), and a plain test asserts it is measured over 15 guards. **Lead call.**
+
+**Pending PC runs (G5).** e2e-sectorops:1..6 (`E2E_GPU=1`, default flags).
+
+## G6 Data, routes, rooms, final tests, graph pass (D:309)
+
+**Commits.** G6a `08fae689` (rooms, art tags, routes, hide spots, #7, final unit tests), G6b `1a24178f` (graph pass, sync and
+graph test files), G6c (this report, the changelog fragment).
+
+**Files:** `s1.ts`, `s1Data.ts`, `s1Dress.ts`, `tests/campusV2S1.test.ts`, `tests/campusV2S1Screen.test.ts` (header comment
+only), `tests/campusV2S1Sync.test.ts` (new), `tests/campusV2S1Graph.test.ts` (new),
+`docs/sector-redesign/graph/v2/campusOps-S1.json`, `changes/feature-campus-greybox-s1.md`, this report.
+
+**Rooms (s1.ts:48-67, D:136-140).** `S1_ROOMS` is the brief's 14 (verge, gatehouse maxY 3.2, gateroof minY 3.2, lane, apron (the
+lane's name), park maxY 2.9, carport minY 2.9, dyard, plantroom maxY 4, plantroof minY 4, forecourt, lawn, pavilion minY 4, c1
+maxY 4); the bins, bikes and smoke rooms are gone; no squads; none overlap (A21). `S1_ART_TAGS` (s1Dress.ts:16-31) names every
+room id (the brief's table, A21). The canopy top (y 4.4, x -26..-14) has no room of its own in D:136-140: the forecourt box
+(no y bounds) holds it (HUD tag only).
+
+**Routes (s1Data.ts:173-195, D:147).** The brief's three polylines exactly (track B; the shadow route with the as-built tail;
+track A with `climbs: [8, 11]`). No point moved: every point and every walked leg is on the nav grid, each leg has an
+`analyticNav` path within 2.5 x + 6, and every walked leg has a runtime-nav path at budget 60000.
+
+**Remaining data.** `S1_HIDESPOTS` (s1.ts:149-158) the final seven in the brief's order (the plant room (-38, -36) before the
+carport (-25, -62); same set as G5). `reinforce`, `perStage`, spawns, start, crate, objective, connector and nav seeds
+unchanged. Cycles (formula): #2 41.7, #3 / #4 42 (loop), #7 44.4, #8 28.0, #9 30.8, #11 42.2, #12 25.4, #13 40.3, #15 42.3,
+#16 30.3 s; posts #1, #5, #6, #14.
+
+**Dress (s1Dress.ts).** The new south-footway route (SVG:538, (22, -73) -> (10, -79) -> (-10, -79.2)) runs through the
+barrier / gate end of the south palisade; the kit's K1 route keepout now refuses two heroes, both put in `S1_OMITTED` with rule
+K1 (s1Dress.ts:145-146): `H1:intercomPost` (12.6, -79.3) and `K:siteSign` (6.8, -79.0). Left out, not moved. `S1_OMITTED` now
+has 6 entries.
+
+**Tests.** `tests/campusV2S1.test.ts` **49** (G6 +12): guard count 15 (kinds, guns, `checkSectorGuards` [], `checkSectors` [], 21 <=
+maxAlive, none dormant); cycles; pairs and operator; M8 isolation (below); routes (start / objective / C1 end, on nav, climbs);
+route legs (analytic nav); runtime nav; hide spots; rooms (14, no overlap, art tags, a room check at ten points); rule 6 (every
+1.9-4.2 ground box noLedge except the van body); dark by reason; lights (32 lit, all from `S1_LIGHTS`, destructible and
+electric, none off or dead, floors, the PROVISIONAL / TODO header). `tests/campusV2S1Sync.test.ts` **5** (node ids and fields,
+the 13 space ids, desk-gate and yard-board device positions and circuits, guard keys 15 / 15 / 15 / 15 with `meta`, no PLAN left).
+`tests/campusV2S1Graph.test.ts` **4** (every space has walkable ground on its storey, door links have their door anchors and the
+two window links their windows; light at 5 vantages and 7 hide spots logged, dark asserted only where no fitting is within its
+`r`; solo path start -> objective -> C1 with the four co-op tops blocked, no locked door but C1's two). `tests/campusV2S1Screen
+.test.ts` 2 (the 15-guard measurement and the R1 `it.fails`). Run set, one command, `--maxWorkers=2`: `campusV2S1`,
+`campusV2S1Screen`, `campusV2S1Sync`, `campusV2S1Graph`, `campusS1`, `campusS1Dress`, `campusRuntimeNav`, `campusV2`,
+`changesFragments`: **9 files, 137 passed, 0 failed** (one of the 137 is the expected-fail R1 cap test: 136 plain passes + 1
+`it.fails`). Per file: V2S1 49, V2S1Screen 2, V2S1Sync 5, V2S1Graph 4, campusS1 51, campusS1Dress 13, campusRuntimeNav 3,
+campusV2 9, changesFragments 1. `npm run typecheck:fast` and eslint on the owned files clean. v1 tests green (v2 stays dark).
+
+**Graph pass.** Notes: every S1 space note starts "BUILT G<n> (file:line)" with the final line numbers of `s1.ts` / `s1Data.ts`
+(the G1-G5 refs had drifted as the files grew: all refreshed); the 12 link notes that read "PLAN" now read BUILT G2 / G3 / G4 /
+G5 with their s1.ts lines; the plant roof note's "PLAN (C1)" W parapet sentence is "BUILT G1". `s1-canopy` (unchanged by the
+lane) reads "BUILT (unchanged by the lane; ...)". Declared targets stay "DECLARED TARGETS, measured in greybox (V6)". `meta.players`
+[1, 2, 3, 4] (already), `meta.sections` ["S1", "S2", "S3", "S4", "S5"]; `s1-forecourt` tags `["exit", "unavoidable"]` with "K1 #5 at
+C1 (LD 4.12, G303)" in its note; guard keys 15 / 15 / 15 / 15 (gatehouse, car park, yard, forecourt, lawn 3 each). Ids, links and
+`syncs` unchanged. Three descriptive edits to match the Q2 "Never" and A9 decisions (not in the brief's three edits): the
+gatehouse note's "ceiling tube off at night" now says the tube is lit on the gate circuit; the car park note's and the carport
+function's "LED strip on a 01:00 timer" now say the four downlights run on the car park's two circuits (A9). Undo: restore the
+three phrases.
+
+**Validator.** `node scripts/level-validate.mjs graph/v2/campusOps-S1.json ... S5.json` (the branch's script): **0 errors**, no ERROR
+line naming an `s1-` space or section S1 (nor any other). S1 warnings: 7 `room_class custom` (verge, gateroof, lane, carport,
+plantroof, pavilion, canopy), 1 car-park ceiling (12 m outside 2.4-3.3), 12 opening widths: exactly the kinds of D:280-286. The
+branch's script predates the `unavoidable` tag and adds one "unknown tag 'unavoidable'" warning on `s1-forecourt`; **master's script**
+(`origin/master:scripts/level-validate.mjs` @ d6a04cee, +249 lines, run from a scratch copy outside the repo) knows it: 0 errors and the
+same S1 warning set (7 + 1 + 12, no new kind, no unavoidable warning, so no way round the doorman). No other lane's line is an S1 problem.
+
+**Sync-device lines (for the lead's SYNC.md and the graph `syncs[].src`).** All ids and positions match SYNC.md 7c021f01 (SY:9-10).
+- `sync-s1-gate-desk`: desk-gate `s1Data.ts:142` (at [18.8, -73.2], cam-gate / cam-walk, operator 1); operator #2 `s1Data.ts:71`; cameras
+  `s1Data.ts:136` (cam-gate), `:138` (cam-walk); the gate switch (15.7, 0, -72.8) `s1.ts:170`; alarm panel `s1Data.ts:145`.
+- `sync-s1-yard-board`: the `fore` switch (-29.5, 0, -40.3) `s1.ts:169` (8 bollards + dock lamp); the `canopy` breaker (-29.0, 0, -40.3)
+  `s1.ts:172` (4 downlights); the circuit chart (lead) `s1.ts:506`; the lamps: bollards, dock and canopy rows in `S1_LIGHTS`
+  (`s1Data.ts:28`, `:32`, `:30`).
+
+**Assumptions.** None new in G6 beyond those logged (A21 rooms and tags).
+
+**Deviations.**
+- D-G6-1 (M8, finding F8) #7's takedown spot moved from the bin-corner stop (-38, -46) to (-38, -62.5) (1.5 m behind him at his south stop, within
+  `CHECK_SPOT`, on his route): the brief allows a spot move along his own route. At (-38, -46) he was seen at all times by the
+  storeman #12 (0 s isolated); at (-38, -62.5) he holds 5.75 s. The plan said "isolation stop at the bin corner" (D:245); the
+  graph's `s1-dyard` note still says the bin corner. Undo: restore `takedownSpot: [-38, -46]` and drop #7 from the passes list in
+  the test.
+- D-G6-2 (finding F8) The M8 test is not the brief's plain "all but the dual-takedown pairs": six guards fail it with no spot along
+  their own routes that helps (run length, longest unseen run at the spot over 180 s): **#5 0 s, #8 0 s, #9 0.5 s, #12 0 s, #13 0 s, #14
+  0 s**. #7, #11 (7.5 s) and #15 (8.25 s) pass; #6 and #16 (13.75 s) pass although exempt. The test records the failing set exactly
+  (`FINDING = [5, 8, 9, 12, 13, 14]`) so the suite stays green and any change shows red. Who sees them at the spot (a guard
+  route point within 15 m with a clear eye-height line): #5 by #13, #14; #8 by #7, #12, #13; #9 by #1, #2, #11; #12 by #7, #8, #13;
+  #13 by #5, #14, #16; #14 by #5, #8, #12, #13. A design call for the lead (fewer overlapping routes, a screen, or a lure rule);
+  nothing else was moved.
+- D-G6-3 (R1, finding F7, unchanged) the screen cap stays an `it.fails` (worst point (-8.25, 0, -72.25) sees all 15; 109 grid points see
+  13 or more); #11 was not moved (no coordinates). The lead's call.
+- D-G6-4 "dark by reason" and "graph light" use the lamps' nominal `r` for "a fitting reaches it": the photometric falloff has no
+  hard edge, `lampReach` is far larger and would mark every point as reached. The bin corner stands inside the park-W columns' `r`
+  (spill, D:105) and the plant roof inside the dock lamp's (the slab is the occluder), so neither is asserted dark; the hide spot
+  (-38, -50.4) reads 0.183 and the plant room 0.140 (both under `LIGHT.shadow` 0.28).
+- D-G6-5 the verge's lane-flood spill: the lane flood (9, 6, -66, r 12) does not reach the verge's `r` (15.1 m to (24, -68)); the verge
+  and the plant room are asserted dark (0.140).
+
+**Findings for the lead.**
+- F8 M8 isolation: #5, #8, #9, #12, #13, #14 have no 3 s unseen moment (D-G6-2). The doorman #5 was isolated in v1 (8 guards); the
+  walkway patrol #13 and the escort #14 now overlap him in open ground. Seen-by lists above.
+- F9 the dress refuses two gate-end heroes (the intercom post and the site sign) by the K1 route keepout of the south-footway route
+  (SVG:538 runs through the barrier end). If the art should stay, the route's first leg must move off the barrier (a lead call).
+- F10 S1 has no unit-test-visible solo gap: the solo path start -> objective -> C1 exists with every co-op top blocked.
+- F11 the branch's `level-validate.mjs` does not know the `unavoidable` tag (a warning only); master's does.
+
+**Pending PC runs (G6; the whole lane).** `e2e-sectorops:1` .. `:6` (`E2E_GPU=1`, default flags: v2 stays dark, part 6 still asserts
+8 guards); the validator with `--require-measured` once V6 lands (EXIT-1, the lead's); the PC walk items F1, F2 (west palisade
+perch from a bin; a condenser jump over the south palisade); the light-realism calibration (R6); the V6 measured declared
+targets (shadow, vantage, los, time_s) and #7's walked cycle (R3). No GPU, screenshot or level-measure leg was run.

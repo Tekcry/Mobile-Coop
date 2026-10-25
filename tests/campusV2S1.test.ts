@@ -10,13 +10,17 @@ import { NavGrid, type NavBlocker, type NavSample } from '../src/ai/navGrid';
 import { hyp2 } from '../src/core/mathx';
 import { lampReach } from '../src/world/lampMath';
 import { soloJumpThreats, soloTopLandingThreats, MANTLE } from './helpers/soloJumpReach';
-import { LEDGE, generateLedges, suppressLedgesNear, type Ledge } from '../src/world/anchors';
+import { HANG, LEDGE, generateLedges, suppressLedgesNear, type Ledge } from '../src/world/anchors';
+import { PERCEPTION } from '../src/ai/perception';
 import { MOVEMENT } from '../src/config/movement';
 import { ENEMIES } from '../src/ai/enemyDefs';
 import { PATROL } from '../src/ai/patrol';
 import { LIGHT, contribution } from '../src/world/lights';
-import { CHECK_PATROL_PACE, CHECK_SPOT, distToGuard } from '../src/game/sectorCheck';
-import { checkSectors, inZone, type SectorGuard } from '../src/game/sectors';
+import { CHECK_ISOLATION, CHECK_PATROL_PACE, CHECK_SPOT, SightWorld, distToGuard, isolatedInTime, longestIsolation, type CheckGuard } from '../src/game/sectorCheck';
+import { SECTOR, checkSectorGuards, checkSectors, exitZone, inZone, type SectorGuard } from '../src/game/sectors';
+import { inRoom } from '../src/world/rooms';
+import { runtimeNav } from './helpers/runtimeNav';
+import { readFileSync } from 'node:fs';
 import { DESK_POST_RADIUS } from '../src/game/sectorDesks';
 
 vi.resetModules();
@@ -27,8 +31,9 @@ const { campusOps } = await import('../src/world/maps/campusOps');
 const { CAMPUS_PARTS, CAMPUS_V2_PARTS } = await import('../src/world/maps/campusSections');
 const { CAMPUS_SECTORS, CAMPUS_SECURITY } = await import('../src/world/maps/campusSectors');
 const { CAMPUS_COOP_LIPS } = await import('../src/world/maps/campusLips');
-const { s1Lamps, S1_DOORS, S1_GROUPS, S1_HIDESPOTS, S1_LIP_SEGMENTS, PARK_COLUMNS_E, PARK_COLUMNS_W, BOLLARD_XS, CANOPY_LAMPS, C1_BOX } = await import('../src/world/maps/campusV2/s1');
-const { S1_LIGHTS } = await import('../src/world/maps/campusV2/s1Data');
+const { S1_ROOMS, s1Lamps, S1_DOORS, S1_GROUPS, S1_HIDESPOTS, S1_LIP_SEGMENTS, PARK_COLUMNS_E, PARK_COLUMNS_W, BOLLARD_XS, CANOPY_LAMPS, C1_BOX } = await import('../src/world/maps/campusV2/s1');
+const { S1_LIGHTS, S1_DESKS } = await import('../src/world/maps/campusV2/s1Data');
+const { S1_ART_TAGS } = await import('../src/world/maps/campusV2/s1Dress');
 
 const b = new LevelBuilder();
 const lay = campusOps.build(b, 0);
@@ -117,7 +122,7 @@ function analyticNav(rect: readonly [number, number, number, number], o: { cell?
 /** The lit lamps in S1's plan box (x -40..26, z -80..-30). */
 const litS1 = () => b.lights.lights.filter((l) => l.intensity > 0 && l.x >= -40 && l.x <= 26 && l.z >= -80 && l.z <= -30);
 /** The lit S1 lamp count after the slices built so far (lead note (3)). */
-const S1_LIT_NOW = 31;
+const S1_LIT_NOW = 32;
 /** The ledges the level build makes (`LevelBuilder.build`: generated from the box tops, lips off the play area dropped, the
  *  map's `noLedge` points applied). */
 function builtLedges(): Ledge[] {
@@ -185,8 +190,8 @@ function guardChecks(n: number, want: number | null): void {
 const covers = (p: BoxPiece, x: number, y: number, z: number): boolean => Math.abs(x - p.c[0]) <= p.s[0] / 2 && Math.abs(y - p.c[1]) <= p.s[1] / 2 && Math.abs(z - p.c[2]) <= p.s[2] / 2;
 /** A segment co-op lip against a solo player (LD 11.8 rules 1-5): the jump and landing helpers (0.5 m margin), rule 2
  *  (nothing solo-standable 1.2 or higher within 4 m in plan), rule 3 (no box 0.6-1.7 high within 1 m of the wall below), rule
- *  5 (headroom over the lip to `head`). Returns the failures. */
-function segmentLipFailures(id: string, head: number): string[] {
+ *  5 (headroom over the lip to `head`, over `headX` when given: the lip's hangable run). Returns the failures. */
+function segmentLipFailures(id: string, head: number, headX?: readonly [number, number]): string[] {
   const lip = CAMPUS_COOP_LIPS.find((l) => l.id === id)!;
   const seg = S1_LIP_SEGMENTS[id]!;
   const g = { y: lip.lip.y, a: { x: seg.a[0], z: seg.a[1] }, b: { x: seg.b[0], z: seg.b[1] }, n: lip.lip.n };
@@ -208,7 +213,8 @@ function segmentLipFailures(id: string, head: number): string[] {
     if (outer && p.c[0] + p.s[0] / 2 > x0 && p.c[0] - p.s[0] / 2 < x1 && t >= 0.6 && t <= 1.7 && p.c[1] - p.s[1] / 2 < 0.05) out.push(`rule 3: ${p.c} top ${t}`);
     // rule 5: headroom
     const zIn = n < 0 ? [zl - 0.9, zl + 0.4] : [zl - 0.4, zl + 0.9];
-    if (p.c[0] + p.s[0] / 2 > x0 && p.c[0] - p.s[0] / 2 < x1 && p.c[2] + p.s[2] / 2 > zIn[0]! && p.c[2] - p.s[2] / 2 < zIn[1]! && t > lip.lip.y + 0.1 && p.c[1] - p.s[1] / 2 < head) out.push(`rule 5: ${p.c} ${p.s}`);
+    const [h0, h1] = headX ?? [x0, x1];
+    if (p.c[0] + p.s[0] / 2 > h0 && p.c[0] - p.s[0] / 2 < h1 && p.c[2] + p.s[2] / 2 > zIn[0]! && p.c[2] - p.s[2] / 2 < zIn[1]! && t > lip.lip.y + 0.1 && p.c[1] - p.s[1] / 2 < head) out.push(`rule 5: ${p.c} ${p.s}`);
   }
   return out;
 }
@@ -654,5 +660,390 @@ describe('G4 service yard and plant room (S1-detail C4, C5)', () => {
       expect(S1_HIDESPOTS.some((h) => near(h.pos.x, x) && near(h.pos.z, z))).toBe(true);
       expect(onNav(x, z), `hide (${x}, ${z})`).toBe(true);
     }
+  });
+});
+
+describe('G5 forecourt, lawn, pavilion (S1-detail C6, C7)', () => {
+  const lips = (): string[] => CAMPUS_COOP_LIPS.filter((l) => l.section === 0).map((l) => l.id);
+
+  it('G5 CR1-east against a solo player (rules 1-5): helpers [], nothing standable >= 1.2 within 4 m, planters >= 1.0 m off, headroom to 6.3', () => {
+    // (D-G5-1) headroom over the hangable run x -6..3.65: the G1 pavilion screen (x 3.65..3.75, y 4.4..6.8) ends the lip there
+    expect(segmentLipFailures('CR1-east', 6.3, [-6, 3.65])).toEqual([]);
+    // the planters (0.7) stay 1.2 m off the facade (D:123)
+    const planters = solid.filter((p) => near(p.s[1], 0.7) && near(p.c[2], -35.6));
+    expect(planters.length).toBe(3);
+    for (const p of planters) expect(-34 - (p.c[2] + p.s[2] / 2)).toBeGreaterThanOrEqual(1.0);
+    const cr = CAMPUS_COOP_LIPS.find((l) => l.id === 'CR1-east')!;
+    expect(onNav(cr.boost.x, cr.boost.z)).toBe(true);
+    expect(S1_LIP_SEGMENTS['CR1-east']).toEqual({ a: [-6, -34], b: [4, -34] });
+    // the trees and the lockers are far off (D:123: trees 10 m, lockers 15 m)
+    expect(hyp2(0 - 0, -44 + 34)).toBeGreaterThanOrEqual(10);
+    expect(-34 - -49).toBeGreaterThanOrEqual(15);
+  });
+
+  it('G5 ledges on the pavilion: only the CR1-east lip hangs on the east block', () => {
+    const east = ledges.filter((l) => l.canHang && near(l.top, 4.4, 1e-3) && Math.min(l.a.x, l.b.x) >= -16.01 && Math.max(l.a.x, l.b.x) <= 4.01 && Math.min(l.a.z, l.b.z) >= -34.01 && Math.max(l.a.z, l.b.z) <= -29.99);
+    const lip = east.filter((l) => near(l.a.z, -34, 1e-3) && near(l.b.z, -34, 1e-3));
+    expect(lip.length).toBe(1);
+    // x -6..4 minus the screen's cut at x 3.7 (and the generator's 0.2 sampling at the ends, D-G4-1)
+    expect(Math.min(lip[0]!.a.x, lip[0]!.b.x)).toBeLessThanOrEqual(-6 + LEDGE.sample + 1e-3);
+    expect(Math.max(lip[0]!.a.x, lip[0]!.b.x)).toBeGreaterThanOrEqual(3.6 - LEDGE.sample - 1e-3);
+    expect(Math.max(lip[0]!.a.x, lip[0]!.b.x)).toBeLessThanOrEqual(4 + 1e-3);
+    expect(east.filter((l) => !lip.includes(l)).map((l) => [l.a, l.b])).toEqual([]);
+    const west = boxWith([-11, 2.2, -32], [10, 4.4, 4])!;
+    expect(west.noLedge).toBe(true);
+    expect(boxWith([-1, 2.2, -32], [10, 4.4, 4])!.noLedge).toBeFalsy();
+  });
+
+  it('G5 every S1 lip (CR1, CR1-south, CR1-yard, CR1-east): data and solo checks; CAMPUS_COOP_LIPS in that order', () => {
+    expect(lips()).toEqual(['CR1', 'CR1-south', 'CR1-yard', 'CR1-east']);
+    for (const l of CAMPUS_COOP_LIPS.filter((q) => q.section === 0)) {
+      expect(l.lip.y - l.boost.floor, l.id).toBeGreaterThanOrEqual(4.3);
+      expect(l.lip.y - l.boost.floor, l.id).toBeLessThanOrEqual(4.5);
+      expect(onNav(l.boost.x, l.boost.z), `${l.id} boost`).toBe(true);
+    }
+    // CR1 and CR1-south point-style, as tests/campusS1.test.ts:334-389
+    const cr1 = CAMPUS_COOP_LIPS.find((l) => l.id === 'CR1')!;
+    expect(cr1.lip).toMatchObject({ x: -14, z0: -40, z1: -34, y: 4.4 });
+    expect(cr1.boost).toEqual({ floor: 0, x: -13.5, z: -38 });
+    for (const id of ['CR1', 'CR1-south']) {
+      const l = CAMPUS_COOP_LIPS.find((q) => q.id === id)!;
+      const g = { y: l.lip.y, a: { x: l.lip.x, z: l.lip.z0 }, b: { x: l.lip.x, z: l.lip.z1 }, n: l.lip.n };
+      expect(soloJumpThreats(solid, g, () => false, 0.5), id).toEqual([]);
+      expect(soloTopLandingThreats(solid, l.top, () => false, 0.5), id).toEqual([]);
+    }
+    // CR1 headroom (rule 5) over its face
+    const l = cr1.lip;
+    const x0 = l.x - (0.45 + HANG.out);
+    const x1 = l.x + 0.4;
+    expect(solid.filter((p) => p.c[0] + p.s[0] / 2 > x0 && p.c[0] - p.s[0] / 2 < x1 && p.c[2] + p.s[2] / 2 > l.z0 && p.c[2] - p.s[2] / 2 < l.z1 && top(p) > l.y + 0.1 && p.c[1] - p.s[1] / 2 < 6.2).map((p) => p.c)).toEqual([]);
+    // rule 2 for CR1 / CR1-south: nothing solo-standable >= 1.2 within 4 m in plan
+    for (const id of ['CR1', 'CR1-south']) {
+      const q = CAMPUS_COOP_LIPS.find((r) => r.id === id)!.lip;
+      const bad = solid.filter((p) => {
+        const t = top(p);
+        if (t < 1.2 || t >= q.y - 0.05) return false;
+        if (Math.min(p.s[0], p.s[2]) < LEDGE.climbDepth) return false;
+        if (p.noLedge && t > MANTLE) return false;
+        const gx = Math.max(0, Math.abs(p.c[0] - q.x) - p.s[0] / 2);
+        const gz = Math.max(0, Math.max(q.z0 - (p.c[2] + p.s[2] / 2), p.c[2] - p.s[2] / 2 - q.z1));
+        return hyp2(gx, gz) <= 4;
+      });
+      expect(bad.map((p) => [p.c, p.s]), id).toEqual([]);
+    }
+    // rule 3: nothing under the canopy east and south edges
+    const under = solid.filter((p) => {
+      const t = top(p);
+      const bottom = p.c[1] - p.s[1] / 2;
+      if (t < 0.3 || bottom > 4.1 || t > 4.19) return false;
+      const eastEdge = p.c[0] + p.s[0] / 2 > -15 && p.c[0] - p.s[0] / 2 < -13 && p.c[2] + p.s[2] / 2 > -40.8 && p.c[2] - p.s[2] / 2 < -34.3;
+      const southEdge = p.c[0] + p.s[0] / 2 > -25.8 && p.c[0] - p.s[0] / 2 < -14.2 && p.c[2] + p.s[2] / 2 > -41 && p.c[2] - p.s[2] / 2 < -39;
+      return eastEdge || southEdge;
+    });
+    expect(under.map((p) => [p.c, p.s])).toEqual([]);
+    // the canopy's CR1 and CR1-south lips still hang (A28-cloud's point is 1.45 m off them)
+    expect(ledges.some((q) => q.canHang && near(q.top, 4.4, 1e-3) && near(q.a.x, -14, 1e-3) && near(q.b.x, -14, 1e-3))).toBe(true);
+    expect(ledges.some((q) => q.canHang && near(q.top, 4.4, 1e-3) && near(q.a.z, -40, 1e-3) && near(q.b.z, -40, 1e-3) && q.a.x > -26.01 && q.a.x < -13.99)).toBe(true);
+  });
+
+  it('G5 lights: the smoke circuit (45) one lamp at (8, 2.2, -48.5) r 3 and one switch; the CR1 boost level logged', () => {
+    const sm = b.lights.lights.filter((l) => l.group === S1_GROUPS.smoke);
+    expect(S1_GROUPS.smoke).toBe(45);
+    expect(sm.length).toBe(1);
+    expect([sm[0]!.x, sm[0]!.y, sm[0]!.z]).toEqual([8, 2.2, -48.5]);
+    expect(sm[0]!.radius).toBeCloseTo(lampReach(3));
+    expect(sm[0]!.on && sm[0]!.destructible && sm[0]!.electric).toBe(true);
+    expect(lay.switches!.filter((q) => q.group === S1_GROUPS.smoke).map((q) => [q.pos.x, q.pos.z])).toEqual([[6.2, -49.8]]);
+    // (L6) no dark assert at the CR1 boost point: J10 lights the forecourt to its band, the boost gets a real gap
+    const cr1 = CAMPUS_COOP_LIPS.find((l) => l.id === 'CR1')!;
+    // eslint-disable-next-line no-console
+    if (process.env.CAMPUS_PRINT) console.log(`G5 CR1 boost (${cr1.boost.x}, 0.9, ${cr1.boost.z}): level ${levelAt(cr1.boost.x, 0.9, cr1.boost.z).toFixed(3)} (shadow ${LIGHT.shadow})`);
+  });
+
+  it('G5 K1 doorman choke: with #5\'s cone blocked no path verge -> C1 near door; without it one exists', () => {
+    const post = guard(5);
+    const from: [number, number] = [S1.start.x, S1.start.z];
+    const to: [number, number] = [S1_DOORS.c1Near[0], S1_DOORS.c1Near[1]];
+    expect(nav.findPath(from, to, 1e6, 0, 0)).not.toBeNull();
+    const fx = Math.sin(post.yaw);
+    const fz = Math.cos(post.yaw);
+    const inCone = (x: number, z: number): boolean => {
+      const dx = x - post.x;
+      const dz = z - post.z;
+      const d = hyp2(dx, dz);
+      if (d < 1e-6) return true;
+      const ang = Math.acos(Math.max(-1, Math.min(1, (dx * fx + dz * fz) / d)));
+      return (d <= PERCEPTION.focusRange && ang <= PERCEPTION.focusHalf) || (d <= PERCEPTION.periphRange && ang <= PERCEPTION.periphHalf);
+    };
+    const blocked: number[] = [];
+    for (let i = 0; i < nav.walk.length; i++) {
+      if (!nav.walk[i]) continue;
+      if (Math.abs(nav.height[i]! - 0) > 1.7) continue;
+      const [x, z] = nav.center(i % nav.cols);
+      if (inCone(x, z)) {
+        blocked.push(i);
+        nav.walk[i] = 0;
+      }
+    }
+    try {
+      expect(blocked.length).toBeGreaterThan(50);
+      expect(nav.findPath(from, to, 1e6, 0, 0)).toBeNull();
+      expect(nav.isWalkable(nav.cellOf(post.x, post.z + 0.75, 0))).toBe(true);
+    } finally {
+      for (const i of blocked) nav.walk[i] = 1;
+    }
+    expect(nav.findPath(from, to, 1e6, 0, 0)).not.toBeNull();
+  });
+
+  it('G5 #13, #14, #15, #16 on nav, cycles 25-45 s; #6 / #16 pair indices 14 / 5; the grit bins and trees', () => {
+    guardChecks(13, 40.3);
+    guardChecks(14, null);
+    guardChecks(15, 42.3);
+    guardChecks(16, 30.3);
+    expect(guard(6).pair).toBe(14);
+    expect(guard(16).pair).toBe(5);
+    expect(G[14]).toBe(guard(16));
+    expect(G[5]).toBe(guard(6));
+    for (const [x, z] of [[-24, -48], [-10, -47.5]]) expect(boxWith([x!, 0.6, z!], [0.8, 1.2, 0.8]), `grit bin (${x}, ${z})`).toBeTruthy();
+    for (const [x, z] of [[0, -44], [16, -40]]) expect(b.cylinders.some((c) => near(c.c[0], x!) && near(c.c[2], z!) && near(c.r, 0.3) && near(c.h, 5)), `tree (${x}, ${z})`).toBe(true);
+  });
+});
+
+describe('G6 data, routes, rooms, final tests (S1-detail D:136-140, D:147, D:239-257)', () => {
+  it('G6 guard count 15: kinds, guns, valid data, 15 + alarm reinforcements within maxAlive, none dormant', () => {
+    expect(G.length).toBe(15);
+    expect(G.map((g) => g.kind)).toEqual(['officer', 'officer', 'grunt', 'officer', 'officer', 'grunt', 'grunt', 'grunt', 'officer', 'officer', 'grunt', 'grunt', 'officer', 'grunt', 'officer']);
+    expect(G.map((g) => ENEMIES[g.kind].gun)).toEqual(['pistolSd', 'pistolSd', 'rifle', 'pistolSd', 'pistolSd', 'rifle', 'rifle', 'rifle', 'pistolSd', 'pistolSd', 'rifle', 'rifle', 'pistolSd', 'rifle', 'pistolSd']);
+    expect(checkSectorGuards(S1)).toEqual([]);
+    expect(checkSectors(CAMPUS_SECTORS)).toEqual([]);
+    expect(S1.dogs ?? 0).toBe(0);
+    expect(S1.perStage).toBe(2);
+    expect(S1.guards.length + SECTOR.alarmMax * S1.perStage).toBe(21);
+    expect(S1.guards.length + SECTOR.alarmMax * S1.perStage).toBeLessThanOrEqual(SECTOR.maxAlive);
+    for (const [i, g] of G.entries()) {
+      expect((g as { dormant?: unknown }).dormant, `guard ${i}`).toBeUndefined();
+      expect(g.role, `guard ${i} role`).toBeTruthy();
+      expect(g.zone, `guard ${i} zone`).toBeTruthy();
+      expect(g.reason && g.reason.length > 8, `guard ${i} reason`).toBe(true);
+      expect(hyp2(g.x - S1.start.x, g.z - S1.start.z), `guard ${i} from the start`).toBeGreaterThanOrEqual(7);
+    }
+  });
+
+  it('G6 cycles: every patrol 25-45 s by the formula; the posts are #1, #5, #6, #14 only; the planned values to 0.1 s', () => {
+    const posts: number[] = [];
+    const out = new Map<number, number>();
+    for (let n = 1; n <= 16; n++) {
+      if (n === 10) continue;
+      const c = cycle(guard(n));
+      if (c === null) {
+        posts.push(n);
+        continue;
+      }
+      out.set(n, c);
+      expect(c, `#${n} cycle`).toBeGreaterThanOrEqual(25);
+      expect(c, `#${n} cycle`).toBeLessThanOrEqual(45);
+    }
+    expect(posts).toEqual([1, 5, 6, 14]);
+    const want: [number, number][] = [[2, 41.7], [3, 42], [4, 42], [7, 44.4], [8, 28.0], [9, 30.8], [11, 42.2], [12, 25.4], [13, 40.3], [15, 42.3], [16, 30.3]];
+    for (const [n, c] of want) expect(out.get(n)!, `#${n}`).toBeCloseTo(c, 1);
+    // eslint-disable-next-line no-console
+    if (process.env.CAMPUS_PRINT) console.log(`G6 cycles ${[...out.entries()].map(([n, c]) => `#${n} ${c.toFixed(1)}`).join(', ')}`);
+  });
+
+  it('G6 pairs and operator: #3 / #4 pair 3 / 2 on one loop clock; #6 / #16 pair 14 / 5; desk operator 1 is #2 (CCTV)', () => {
+    expect(guard(3).pair).toBe(3);
+    expect(guard(4).pair).toBe(2);
+    expect(guard(3).loop).toEqual(guard(4).loop);
+    expect(guard(6).pair).toBe(14);
+    expect(guard(16).pair).toBe(5);
+    expect(S1_DESKS.length).toBe(1);
+    expect(S1_DESKS[0]!.operator).toBe(1);
+    expect(G[S1_DESKS[0]!.operator!]).toBe(guard(2));
+    expect(guard(2).role).toBe('cctv');
+    expect(G[4]!.role).toBe('posted');
+    expect(G[4]!.post).toEqual({ leash: 5, guards: 'c1-door' });
+  });
+
+  it('G6 M8 isolation: #7 and the rest of the loners hold their 3 s; the dual-takedown pairs #1-#4, #6, #16 are exempt; the recorded design findings (F8) are exactly #5, #8, #9, #12, #13, #14', () => {
+    const world = new SightWorld(b.boxes, b.cylinders);
+    const timed: CheckGuard[] = S1.guards.map((g) => {
+      const speed = ENEMIES[g.kind].walkSpeed * (g.loop ? 1 : CHECK_PATROL_PACE);
+      return { x: g.x, z: g.z, route: g.route as readonly (readonly [number, number])[] | undefined, wait: g.wait, waits: g.waits, speed, loop: g.loop };
+    });
+    const rows = S1.guards.map((g, i) => ({ n: i < 9 ? i + 1 : i + 2, run: longestIsolation(world, timed, i, 15, g.takedownSpot), ok: isolatedInTime(world, timed, i, g.takedownSpot) }));
+    // eslint-disable-next-line no-console
+    if (process.env.CAMPUS_PRINT) console.log(rows.map((r) => `#${r.n} ${r.run}s ${r.ok ? 'ok' : 'NOT isolated'}`).join('\n'));
+    // D:214: the pairs are each other's overlap partner, their takedowns come by a lure; every other guard must have his
+    // isolation moment. Not so for #5, #8, #9, #12, #13, #14 (F8 in s1-build.md: 0 s, #9 0.5 s; no spot along their own routes
+    // is unseen): the section's 15 guards in the open see each other. Recorded here so a change turns the test red: when the
+    // lead moves a route or a post and one of these gains 3 s, drop it from FINDING.
+    const FINDING = [5, 8, 9, 12, 13, 14];
+    const must = rows.filter((r) => ![1, 2, 3, 4, 6, 16].includes(r.n));
+    expect(must.filter((r) => !r.ok).map((r) => r.n)).toEqual(FINDING);
+    for (const r of must) if (FINDING.includes(r.n)) expect(r.run, `#${r.n}`).toBeLessThan(CHECK_ISOLATION);
+    expect(must.filter((r) => r.ok).map((r) => r.n)).toEqual([7, 11, 15]);
+    expect(CHECK_ISOLATION).toBe(3);
+  });
+
+  it('G6 routes: three, each from the start through the objective (4 m) into C1; every point on nav; the climbs are the ladder and the hatch drop', () => {
+    expect(S1.routes.length).toBe(3);
+    expect(S1.routes.map((r) => r.name)).toEqual([
+      'The verge, the rear window and the east side',
+      'The south footway, the west margin and the yard board',
+      'The caged ladder, the plant roof and the canopy hatch',
+    ]);
+    const exit = exitZone(S1)!;
+    for (const r of S1.routes) {
+      const first = r.pts[0]!;
+      const at = r.pts[r.obj]!;
+      const last = r.pts[r.pts.length - 1]!;
+      expect(hyp2(first[0] - S1.start.x, first[1] - S1.start.z), r.name).toBeLessThan(0.5);
+      expect(hyp2(at[0] - S1.objective.x, at[1] - S1.objective.z), r.name).toBeLessThanOrEqual(SECTOR.downloadRange);
+      expect(inZone(exit, last[0], last[2] ?? 0, last[1]), r.name).toBe(true);
+      r.pts.forEach((p, i) => expect(onNav(p[0], p[1], p[2] ?? 0), `${r.name} point ${i} (${p})`).toBe(true));
+    }
+    expect(new Set(S1.routes.map((r) => JSON.stringify(r.pts))).size).toBe(3);
+    expect(S1.routes[2]!.climbs).toEqual([8, 11]);
+    expect(S1.routes[0]!.climbs).toBeUndefined();
+    expect(S1.routes[1]!.climbs).toBeUndefined();
+    expect(S1.reinforce).toEqual([[11, -79], [-33, -41]]);
+    for (const [x, z] of S1.reinforce) expect(onNav(x, z), `reinforce (${x}, ${z})`).toBe(true);
+    // the ladder leg climbs the caged ladder at (-38, -40.4); the drop leg is the canopy hatch (A65)
+    expect(b.anchors.ladders.some((l) => near(l.base.x, -38) && near(l.top.y, 4.4))).toBe(true);
+  });
+
+  it('G6 routes: every walked leg has an analyticNav path within 2.5 x its length + 6', () => {
+    for (const r of S1.routes) {
+      for (let i = 0; i + 1 < r.pts.length; i++) {
+        if ((r.climbs ?? []).includes(i)) continue;
+        const a = r.pts[i]!;
+        const c = r.pts[i + 1]!;
+        const path = nav.findPath([a[0], a[1]], [c[0], c[1]], 100000, a[2] ?? 0, c[2] ?? 0);
+        expect(path, `${r.name} leg ${i}: ${a} -> ${c}`).not.toBeNull();
+        let len = 0;
+        let q: [number, number] = [a[0], a[1]];
+        for (const w of path!) {
+          len += hyp2(w[0] - q[0], w[1] - q[1]);
+          q = [w[0], w[1]];
+        }
+        expect(len, `${r.name} leg ${i} detour`).toBeLessThanOrEqual(hyp2(c[0] - a[0], c[1] - a[1]) * 2.5 + 6);
+      }
+    }
+    // the ladder leg of the high route: the ground reaches the plant roof by the ladder link
+    const up = nav.findPath([-38, -41.3], [-38, -39.2], 100000, 0, 4.4);
+    expect(up).not.toBeNull();
+    expect(up!.some((w) => w.link?.kind === 'ladder')).toBe(true);
+  });
+
+  it('G6 runtime nav: every walked leg of the three v2 routes has a path on the guards\' runtime grid (the e2e\'s budget 60000)', () => {
+    const rn = runtimeNav(b, lay.playerSpawns[0]!.pos, campusOps.navLayers ?? 3, lay.navSeeds ?? []);
+    const fails: string[] = [];
+    for (const r of S1.routes) {
+      for (let i = 0; i + 1 < r.pts.length; i++) {
+        if ((r.climbs ?? []).includes(i)) continue;
+        const a = r.pts[i]!;
+        const c = r.pts[i + 1]!;
+        if (!rn.findPath([a[0], a[1]], [c[0], c[1]], 60000, a[2] ?? 0, c[2] ?? 0)) fails.push(`${r.name} leg ${i} ${JSON.stringify([a, c])}`);
+      }
+    }
+    expect(fails).toEqual([]);
+  });
+
+  it('G6 hide spots: the final seven, all on nav', () => {
+    expect(S1_HIDESPOTS.map((h) => [h.pos.x, h.pos.z])).toEqual([[-38, -50.4], [-33.4, -60.75], [24.2, -68], [-7, -51.2], [9.3, -48.2], [-38, -36], [-25, -62]]);
+    expect(lay.hideSpots!.filter((h) => h.pos.z < -32).length).toBeGreaterThanOrEqual(7);
+    for (const h of S1_HIDESPOTS) expect(onNav(h.pos.x, h.pos.z), `hide (${h.pos.x}, ${h.pos.z})`).toBe(true);
+  });
+
+  it('G6 rooms: the 14 rooms, none overlap, no squad, every id has an art tag, start / objective / C1 each in their room', () => {
+    expect(S1_ROOMS.map((r) => r.id)).toEqual(['verge', 'gatehouse', 'gateroof', 'lane', 'apron', 'park', 'carport', 'dyard', 'plantroom', 'plantroof', 'forecourt', 'lawn', 'pavilion', 'c1']);
+    expect(S1_ROOMS.every((r) => (r.squad ?? []).length === 0)).toBe(true);
+    for (let i = 0; i < S1_ROOMS.length; i++) {
+      for (let j = i + 1; j < S1_ROOMS.length; j++) {
+        const a = S1_ROOMS[i]!;
+        const c = S1_ROOMS[j]!;
+        const ox = Math.min(a.maxX, c.maxX) - Math.max(a.minX, c.minX);
+        const oz = Math.min(a.maxZ, c.maxZ) - Math.max(a.minZ, c.minZ);
+        const oy = Math.min(a.maxY ?? Infinity, c.maxY ?? Infinity) - Math.max(a.minY ?? -Infinity, c.minY ?? -Infinity);
+        expect(ox > 0.01 && oz > 0.01 && oy > 0.01, `${a.id} overlaps ${c.id}`).toBe(false);
+      }
+    }
+    for (const r of S1_ROOMS) expect(S1_ART_TAGS[r.id], `art tag of ${r.id}`).toBeTruthy();
+    expect(Object.keys(S1_ART_TAGS).sort()).toEqual(S1_ROOMS.map((r) => r.id).sort());
+    // the pieces of S1 stand in the room the plan names
+    const roomOf = (x: number, z: number, y = 0): string[] => S1_ROOMS.filter((r) => inRoom(r, x, z, 0, y)).map((r) => r.id);
+    expect(roomOf(S1.start.x, S1.start.z)).toEqual(['verge']);
+    expect(roomOf(S1.objective.x, S1.objective.z)).toEqual(['gatehouse']);
+    expect(roomOf(17, -76, 3.3)).toEqual(['gateroof']);
+    expect(roomOf(-20, -32)).toEqual(['c1']);
+    expect(roomOf(-30, -64)).toEqual(['park']);
+    expect(roomOf(-12, -58, 3.0)).toEqual(['carport']);
+    expect(roomOf(-36, -36)).toEqual(['plantroom']);
+    expect(roomOf(-36, -36, 4.4)).toEqual(['plantroof']);
+    // the canopy top (y 4.4) has no room of its own in D:136-140: the forecourt box (no y bounds) holds it
+    expect(roomOf(-20, -37, 4.4)).toEqual(['forecourt']);
+    expect(roomOf(-20, -32, 4.4)).toEqual(['pavilion']);
+  });
+
+  it('G6 rule 6: boxes 1.9-4.2 high standing on the ground in S1 are noLedge, except the planned van body', () => {
+    const van = (p: BoxPiece): boolean => near(p.c[0], -26.2) && near(p.c[1], 1.2) && near(p.c[2], -60.25) && near(p.s[1], 2.4);
+    const bad: string[] = [];
+    let n = 0;
+    for (const p of solid) {
+      const h = p.s[1];
+      if (h < 1.9 || h > 4.2 || p.c[2] < -80 || p.c[2] > -30 || p.c[0] < -45 || p.c[0] > 30) continue;
+      if (p.c[1] - p.s[1] / 2 > 0.01) continue;
+      if (van(p)) continue;
+      n++;
+      if (!p.noLedge) bad.push(`${JSON.stringify(p.c)} ${JSON.stringify(p.s)}`);
+    }
+    expect(n).toBeGreaterThan(10);
+    expect(bad).toEqual([]);
+    expect(solid.some(van)).toBe(true);
+  });
+
+  it('G6 dark by reason: no lit lamp on the verge, in the bin corner, on any roof top or in the plant room', () => {
+    const lit = litS1();
+    const where: string[] = [];
+    for (const l of lit) {
+      const at = `lamp ${l.id} (${l.x}, ${l.y}, ${l.z})`;
+      if (l.x >= 20 && l.x <= 26 && l.z >= -80 && l.z <= -54) where.push(`${at} on the verge`);
+      if (l.x >= -40 && l.x <= -35 && l.z >= -54 && l.z <= -49) where.push(`${at} in the bin corner`);
+      if (l.x >= 13.5 && l.x <= 20 && l.z >= -79 && l.z <= -72.5 && l.y >= 3.3) where.push(`${at} on the gatehouse roof`);
+      if (l.x >= -40 && l.x <= 3.7 && l.z >= -40 && l.z <= -30 && l.y >= 4.3) where.push(`${at} on the plant roof / pavilion / canopy`);
+      if (l.x >= -24 && l.x <= 0 && l.z >= -63 && l.z <= -54 && l.y >= 3) where.push(`${at} on the carport roof`);
+      if (l.x >= -40 && l.x <= -26 && l.z >= -40 && l.z <= -33 && l.y < 4) where.push(`${at} in the plant room`);
+    }
+    expect(where).toEqual([]);
+  });
+
+  it('G6 lights: 32 lit lamps, all from S1_LIGHTS, destructible and electric, no fitting off or dead; none below its as-built intensity; the block carries the PROVISIONAL / TODO(light-realism) header', () => {
+    const lit = litS1();
+    const lamps = s1Lamps(S1_LIGHTS);
+    expect(lit.length).toBe(32);
+    expect(lamps.length).toBe(32);
+    for (const l of lit) {
+      const m = lamps.find((q) => near(q.x, l.x) && near(q.y, l.y) && near(q.z, l.z) && near(q.i, l.intensity) && q.group === l.group);
+      expect(m, `lamp ${l.id} (${l.x}, ${l.y}, ${l.z}) is not in S1_LIGHTS`).toBeTruthy();
+      expect(l.destructible, `lamp ${l.id} destructible`).toBe(true);
+      expect(l.electric, `lamp ${l.id} electric`).toBe(true);
+      expect(l.destroyed, `lamp ${l.id} dead`).toBeFalsy();
+    }
+    // no S1 fitting is built off: every S1 lamp of the registry (lit or not) is lit
+    const all = b.lights.lights.filter((l) => l.x >= -40 && l.x <= 26 && l.z >= -80 && l.z <= -30);
+    expect(all.filter((l) => !(l.intensity > 0)).map((l) => l.id)).toEqual([]);
+    // the as-built intensities (B:214-314) are the floor: columns 0.9, bollards 0.5, canopy 0.85, dock 0.8, lane flood 0.8, gate tube 0.9
+    const floor: [number, number][] = [[S1_LIGHTS.column.i, 0.9], [S1_LIGHTS.bollards.i, 0.5], [S1_LIGHTS.canopy.i, 0.85], [S1_LIGHTS.dock.i, 0.8], [S1_LIGHTS.laneFlood.i, 0.8], [S1_LIGHTS.gate.i, 0.9]];
+    for (const [got, asBuilt] of floor) expect(got).toBeGreaterThanOrEqual(asBuilt);
+    // the lane flood is a photocell lamp: electric, on its own circuit, no switch
+    const lane = lit.find((l) => l.group === S1_GROUPS.lane)!;
+    expect(lane).toBeTruthy();
+    expect(lane.electric).toBe(true);
+    expect(lay.switches!.some((sw) => sw.group === S1_GROUPS.lane)).toBe(false);
+    // the header
+    const src = readFileSync(new URL('../src/world/maps/campusV2/s1Data.ts', import.meta.url), 'utf8');
+    expect(src).toContain('// PROVISIONAL - light-realism retunes these (docs/light-realism/PLAN.md, AS/NZS 1158.3.1).');
+    expect(src).toContain('// TODO(light-realism): replace with calibrated values.');
+    expect(src.indexOf('PROVISIONAL - light-realism')).toBeLessThan(src.indexOf('export const S1_LIGHTS'));
   });
 });

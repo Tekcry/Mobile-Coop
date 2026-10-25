@@ -25,7 +25,7 @@ const PLANTER = '#5d6b4a';
 const CAR_COLOURS = ['#6f7b86', '#8c3b3b', '#d8d8d8', '#2e3b52', '#4a5d4a', '#a89a7a', '#3a3a3d'] as const;
 
 /** The lamp circuits (switch groups) of section 1 (the SPEC names them `s1-park-w` ... as ids; the registry's groups are numbers). */
-export const S1_GROUPS = { parkW: 40, parkE: 41, fore: 42, gate: 43, canopy: 44, lane: 49, bikes: 46 } as const;
+export const S1_GROUPS = { parkW: 40, parkE: 41, fore: 42, gate: 43, canopy: 44, lane: 49, bikes: 46, smoke: 45 } as const;
 
 /** The doors the sector data finds by centre (`Doors.nearest`): [x, z]. */
 export const S1_DOORS = {
@@ -44,19 +44,27 @@ export const C1_GAP: readonly [number, number] = [-20.6, -19.4];
 /** (SPEC "Map structure decision") C1: the staff entrance vestibule, a 3.0 high connector. */
 export const C1_BOX = [-24, -34, -16, -30] as const;
 
-/** Section 1's rooms (HUD tags; no squads: the mode spawns the guards from the sector data). Plan boxes; none overlap. */
+/**
+ * Section 1's rooms (HUD tags; no squads: the mode spawns the guards from the sector data). Plan boxes (G6, D:136-140); none
+ * overlap: the roof rooms carry `minY` and the rooms under them `maxY` (A21). The bins, bikes and smoke rooms of the live S1 are
+ * gone (D:140, AS7).
+ */
 export const S1_ROOMS: RoomDef[] = [
-  { id: 'verge', name: 'Marsh Verge', minX: 20, maxX: 26, minZ: -80, maxZ: -56 },
-  { id: 'gatehouse', name: 'Gatehouse', minX: 14, maxX: 20, minZ: -79, maxZ: -73 },
-  { id: 'lane', name: 'Barrier Lane', minX: 8, maxX: 14, minZ: -80, maxZ: -60 },
-  { id: 'park', name: 'Staff Car Park', minX: -36, maxX: 6, minZ: -76, maxZ: -52 },
-  { id: 'bins', name: 'Bin Store', minX: -40, maxX: -30, minZ: -52, maxZ: -45 },
-  { id: 'bikes', name: 'Bike Shelter', minX: -10, maxX: 0, minZ: -50, maxZ: -46 },
-  { id: 'smoke', name: 'Smoking Shelter', minX: 6, maxX: 10, minZ: -50, maxZ: -47 },
-  { id: 'dyard', name: 'Delivery Yard', minX: -40, maxX: -26, minZ: -45, maxZ: -40 },
-  { id: 'forecourt', name: 'Forecourt', minX: -26, maxX: 6, minZ: -46, maxZ: -34 },
+  { id: 'verge', name: 'Marsh Verge', minX: 20, maxX: 26, minZ: -80, maxZ: -54 },
+  { id: 'gatehouse', name: 'Gatehouse', minX: 13.5, maxX: 20, minZ: -79, maxZ: -72.5, maxY: 3.2 },
+  { id: 'gateroof', name: 'Gatehouse Roof', minX: 13.5, maxX: 20, minZ: -79, maxZ: -72.5, minY: 3.2 },
+  { id: 'lane', name: 'Barrier Lane', minX: 6, maxX: 13.5, minZ: -80, maxZ: -54 },
+  // the apron is one graph space with the lane (s1-lane): the same name
+  { id: 'apron', name: 'Barrier Lane', minX: 13.5, maxX: 20, minZ: -72.5, maxZ: -54 },
+  { id: 'park', name: 'Staff Car Park', minX: -40, maxX: 6, minZ: -80, maxZ: -54, maxY: 2.9 },
+  { id: 'carport', name: 'Carport Roof', minX: -24, maxX: 0, minZ: -63, maxZ: -54, minY: 2.9 },
+  { id: 'dyard', name: 'Service Yard', minX: -40, maxX: -26, minZ: -54, maxZ: -40 },
+  { id: 'plantroom', name: 'Plant Room', minX: -40, maxX: -26, minZ: -40, maxZ: -33, maxY: 4 },
   { id: 'plantroof', name: 'Plant Roof', minX: -40, maxX: -26, minZ: -40, maxZ: -34, minY: 4 },
-  { id: 'c1', name: 'Staff Entrance', minX: -24, maxX: -16, minZ: -34, maxZ: -30 },
+  { id: 'forecourt', name: 'Forecourt', minX: -26, maxX: -6, minZ: -54, maxZ: -34 },
+  { id: 'lawn', name: 'Staff Lawn', minX: -6, maxX: 26, minZ: -54, maxZ: -34 },
+  { id: 'pavilion', name: 'Pavilion Roof', minX: -40, maxX: 3.7, minZ: -34, maxZ: -30, minY: 4 },
+  { id: 'c1', name: 'Staff Entrance', minX: -24, maxX: -16, minZ: -34, maxZ: -30, maxY: 4 },
 ].map((r) => ({ ...r, squad: [] }));
 
 /**
@@ -105,11 +113,21 @@ export const S1_COOP_LIPS: readonly CoopLip[] = [
     boost: { floor: 0, x: -29, z: -40.6 },
     solo: 'the caged ladder, or the plant room roof hatch',
   },
+  // (G5, C6) the pavilion east block's south face over the lawn's facade planters (x -6..4; written point-style, A17)
+  {
+    id: 'CR1-east',
+    section: 0,
+    lip: { x: 0, z0: -34, z1: -34, y: 4.4, n: { x: 0, z: -1 } },
+    top: { x0: -6, x1: 4, z0: -34, z1: -30, top: 4.4 },
+    boost: { floor: 0, x: 0, z: -34.6 },
+    solo: 'the plant-roof ladder and the pavilion walk',
+  },
 ];
 
 /** (campus-greybox A17) The true plan segments of the x-running co-op lips (`S1_COOP_LIPS` writes them point-style). */
 export const S1_LIP_SEGMENTS: Record<string, { a: [number, number]; b: [number, number] }> = {
   'CR1-yard': { a: [-31, -40], b: [-27, -40] },
+  'CR1-east': { a: [-6, -34], b: [4, -34] },
 };
 
 /** Player spawns on the marsh verge, just inside the cut fence panel (24, -80). */
@@ -126,16 +144,18 @@ export const S1_NAV_SEEDS: Vector3[] = [new Vector3(24, 0, -79), new Vector3(-33
 export const S1_PICKUPS: NonNullable<MapLayout['pickups']> = [];
 
 /** Where a carried body can be hidden: the bin store, between the cars, the verge reeds, the bike shelter, the smoking
- *  shelter's end; (G3, D:148) the cars' and the bike shelter's moved with them, the carport's west end added. */
+ *  shelter's end; (G3, D:148) the cars' and the bike shelter's moved with them, the carport's west end added; (G6) the final
+ *  seven, in the brief's order. */
 export const S1_HIDESPOTS: NonNullable<MapLayout['hideSpots']> = [
   { pos: new Vector3(-38, 0, -50.4) },
   { pos: new Vector3(-33.4, 0, -60.75) },
   { pos: new Vector3(24.2, 0, -68) },
   { pos: new Vector3(-7, 0, -51.2) },
   { pos: new Vector3(9.3, 0, -48.2) },
-  { pos: new Vector3(-25, 0, -62) },
   // (G4, D:115) the plant room
   { pos: new Vector3(-38, 0, -36) },
+  // (G3) the carport's west end
+  { pos: new Vector3(-25, 0, -62) },
 ];
 
 /**
@@ -152,6 +172,8 @@ export const S1_SWITCHES: NonNullable<MapLayout['switches']> = [
   { pos: new Vector3(-29.0, 0, -40.3), yaw: PI, group: S1_GROUPS.canopy },
   // (G3, A25) the bike shelter lamp's switch on its north-west post
   { pos: new Vector3(-11.65, 0, -50.4), yaw: PI / 2, group: S1_GROUPS.bikes },
+  // (G5, A19) the smoking shelter lamp's switch on the west panel's inner face at its open end
+  { pos: new Vector3(6.2, 0, -49.8), yaw: PI / 2, group: S1_GROUPS.smoke },
 ];
 
 /** The 14 parked cars: [row, bay] (4 rows x 15 bays of 2.8 m from x -36, rows 4.5 m deep with a 6 m aisle between R2 and R3);
@@ -221,6 +243,8 @@ export interface S1Lights {
   carport: { pts: readonly (readonly [number, number, number])[]; y: number; r: number; i: number; colour: S1Colour; cone: S1Cone | null; w: number };
   /** (G3) The bike shelter lamp (its own circuit). */
   bikes: S1Lamp;
+  /** (G5) The smoking shelter's warm lamp (its own circuit). */
+  smoke: S1Lamp;
 }
 
 /** Every lamp of the block as single fittings, in draw order (the tests match the registry against it). */
@@ -235,7 +259,7 @@ export function s1Lamps(L: S1Lights): S1Lamp[] {
   out.push(L.dock);
   const cp = L.carport;
   for (const [x, z, group] of cp.pts) out.push({ x, y: cp.y, z, r: cp.r, i: cp.i, colour: cp.colour, group, cone: cp.cone, w: cp.w });
-  out.push(L.bikes);
+  out.push(L.bikes, L.smoke);
   return out;
 }
 
@@ -392,6 +416,14 @@ export function buildCampusS1(b: LevelBuilder, L: S1Lights): void {
   b.box(6.05, 1.1, -48.5, 0.1, 2.2, 3, STEEL);
   b.box(9.95, 1.1, -49.25, 0.1, 2.2, 4.5, STEEL); // (A68) the east panel runs 1.5 m longer to the south (z -51.5), hiding #6 from the verge
   b.mark(k0, { noLedge: true });
+  // (G5, D:133) the shelter's warm lamp on its own circuit (A6); the switch on the west panel's inner face at its open end (A19)
+  lamp(b, L.smoke);
+
+  // ---- (G5, C7) the lawn's two trees (verge-tree size) and the forecourt's two grit bins 1.2 (low cover)
+  b.pillar(0, -44, 0.3, 5, '#4a3a2a');
+  b.pillar(16, -40, 0.3, 5, '#4a3a2a');
+  b.block(-24, -48, 0.8, 1.2, 0.8, '#b8902a');
+  b.block(-10, -47.5, 0.8, 1.2, 0.8, '#b8902a');
 
   // ---- the forecourt (-26..6, -46..-34): the drop-off kerb, planters along the facade (E10), bollards on the s1-fore circuit (E11)
   b.box(-20, 0.075, -46.15, 12, 0.15, 0.3, KERB);
@@ -409,13 +441,18 @@ export function buildCampusS1(b: LevelBuilder, L: S1Lights): void {
   b.box(-34, 2.2, -31.5, 20, 4.4, 3, WALL_DARK);
   b.box(-42, 2.2, -33.5, 4, 4.4, 1, WALL_DARK);
   b.box(-25, 2.2, -33.5, 2, 4.4, 1, WALL_DARK);
-  b.box(-6, 2.2, -32, 20, 4.4, 4, WALL_DARK);
+  // (G5, C6) the east block split at x -6: only its east half (x -6..4) keeps a ledge (CR1-east, below)
+  b.box(-11, 2.2, -32, 10, 4.4, 4, WALL_DARK);
   // C1 (-24..-16, -34..-30, 3.0): the near door (-20, -34) in its south wall, its roof the pavilion's 4.4 top
   b.wallX(-34, -24, -16, [[C1_GAP[0], C1_GAP[1]]], 3.0, WALL, T);
   head(b, -20, -34, 1.2, 2.1, 3.0, true);
   b.box(-20, 3.7, -32, 8, 1.4, 4, WALL_DARK);
   b.mark(p0, { noLedge: true });
   b.boxes[b.boxes.length - 1]!.overhead = true;
+  // (G5) the east block's east half x -6..4: its south face is the CR1-east lip; its east end and north edge do not hang
+  b.box(-1, 2.2, -32, 10, 4.4, 4, WALL_DARK);
+  b.noLedge(4, -32, 0.5);
+  b.noLedge(-1, -30, 0.5);
   b.door(C1_GAP[0], 0, -34, 1.2, PI / 2, { swing: -1, locked: true, breachable: false });
   // the far door (-20, -30) in the S2 south wall (the wall and its head are `campusOps`'s shell, its gap is `C1_GAP`)
   b.door(C1_GAP[0], 0, -30, 1.2, PI / 2, { swing: 1, locked: true, breachable: false });
