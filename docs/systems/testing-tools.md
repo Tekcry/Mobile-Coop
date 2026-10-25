@@ -176,7 +176,7 @@ behind a VPN adapter).
   drift / sprint FOV (CT prototype) / stick-look bounds, 60 / 120 / 144 / 165 / 240 Hz parity
   (anim-metrics) plus the anti-crab metrics per gait (knee separation, planted track, knee over ankle, slide, elbow
   wing; report-only until `CRAB_GATES` turns a gait on; `CRAB_JSON=1` prints them as JSON; `CRAB_STATES=1` adds the walk sub-states at speeds 1-3;
-  `docs/anim-rework/METRICS.md`). The same metrics show live in the debug overlay (F3)
+  `docs/archive/anim-rework/METRICS.md`). The same metrics show live in the debug overlay (F3)
 - `e2e-lightbake` the Warehouse under `?gfx=min`, `?gfx=low` and `?gfx=epic` bakes the same canonical shapes and the
   same lamp / moon / ambient bytes (cache keys and a content hash from `World.lightInfo()`); Epic draws the bake
 - `e2e-darkness` (GPU list) display brightness targets (bible L5): on the Warehouse a matte 50% grey card (`World.addLightProbe`)
@@ -405,7 +405,7 @@ behind a VPN adapter).
   to every `?net=local` page (coop.md). Report mode, never a gate: `assert` prints `NETSIM FAIL - <check>` and carries
   on, and the suite ends with `NETSIM REPORT (<preset>): N check(s) failed`. Every page runs a probe: `NETSIM-POP` for
   a remote root step more than 25 cm beyond a 7 m/s pace in one frame (host teleport grace excluded), and `NETSIM-STAT`
-  every 5 s. `E2E_NETSIM=off` runs the same probe on a clean network (the baseline). Results: docs/locomotion/LOG.md
+  every 5 s. `E2E_NETSIM=off` runs the same probe on a clean network (the baseline). Results: docs/archive/locomotion/LOG.md
   "20b".
 
 ## Helper scripts
@@ -442,7 +442,7 @@ behind a VPN adapter).
   (anim-bake) bakes an animation tuner export into the code defaults: `--dry-run` prints the diff and the table and
   writes nothing; a real run writes the source files, the key JSONs (Keys) and the ledger `src/anim/tuneBakeLog.json`,
   then prints the key clips' rebake commands (Blender is never run). Shared targets, refusals and the mapping:
-  `docs/anim-tuner/BAKE.md`. Pure logic in `src/anim/tuneBake.ts` (tests: `tests/animTuneBake.test.ts`, on temp copies).
+  `docs/archive/anim-tuner/BAKE.md`. Pure logic in `src/anim/tuneBake.ts` (tests: `tests/animTuneBake.test.ts`, on temp copies).
 - `node scripts/plan-svg.mjs [mapId]` top-down plan SVGs of a built map, one per storey (default `bunker`; output in
   `test-results/training/`, never committed)
 - `node scripts/anim-audit.mjs [url] [--local | --remote] [--quick] [--only=<scenario>] [--out=dir] [--shots]
@@ -469,7 +469,7 @@ behind a VPN adapter).
     recordings. Report mode exits 0 unless the harness errors; `--strict` exits 1 on any fail. `--compare=<file>` lists
     regressions against a baseline (worse than max(10%, the noise tolerance) or a new fail; remote `poseError`, 60 Hz
     `pops`, `pairAlign` and `lodSkip` gated against the baseline's noise band, the rest report-only); like modes only.
-    `--band=<baseline.json>` keeps both runs' worst and spread. Committed baseline: `docs/locomotion/audit/anim-baseline.json`.
+    `--band=<baseline.json>` keeps both runs' worst and spread. Committed baseline: `docs/archive/locomotion/audit/anim-baseline.json`.
   - Serves `dist/` itself when no url is given and nothing is up on 4173. `--shots` is PC only (`E2E_GPU=1`). In
     `run-e2e` it is the REPORT entry; the quick map runs it (`--quick`) for `src/anim/`, `src/player/`, `src/net/` and
     `scripts/e2e-net-lib.mjs`.
