@@ -106,7 +106,7 @@ const a5SubstationStations: StationDef[] = [
     marks: [{ x: 69.0, z: 32.0, y: 0, yaw: -Math.PI / 2 }, { x: 69.0, z: 34.0, y: 0, yaw: -Math.PI / 2 }],
     guards: [], gates: ['g-a5-wicket'] },
   { n: 12, id: 'a5-swing', lesson: 'swing_pass', retry: 'none', doneFlag: 'a5-apron-w', kit: 'swingPass', standIn: 'g-a5-footbridge',
-    marks: [{ x: 67.5, z: 33.0, y: 0, yaw: -Math.PI / 2 }, { x: 67.5, z: 34.5, y: 0, yaw: -Math.PI / 2 }],
+    marks: [{ x: 67.0, z: 33.0, y: 0, yaw: -Math.PI / 2 }, { x: 67.0, z: 34.5, y: 0, yaw: -Math.PI / 2 }],
     guards: [], gates: ['g-a5-footbridge', 'g-a5-plates'] },
   { n: 13, id: 'a5-throw', lesson: 'throw', retry: 'station', doneFlag: 'a5-release', drillS: 9,
     marks: [{ x: 59.0, z: 36.0, y: 0, yaw: -Math.PI / 2 }, { x: 56.0, z: 36.0, y: 0, yaw: -Math.PI / 2 }],
@@ -235,8 +235,8 @@ point inside it. All 42 marks are on the 0.5 m grid, inside their box and inside
 | 10 | B | 79.5 | 29.5 | 0 | 0 | `a4-dock` | yes |
 | 11 | A | 69.0 | 32.0 | 0 | -PI/2 | `a5-gap` | yes |
 | 11 | B | 69.0 | 34.0 | 0 | -PI/2 | `a5-gap` | yes |
-| 12 | A | 67.5 | 33.0 | 0 | -PI/2 | `a5-apron-east` | yes |
-| 12 | B | 67.5 | 34.5 | 0 | -PI/2 | `a5-apron-east` | yes |
+| 12 | A | 67.0 | 33.0 | 0 | -PI/2 | `a5-apron-east` | yes |
+| 12 | B | 67.0 | 34.5 | 0 | -PI/2 | `a5-apron-east` | yes |
 | 13 | A | 59.0 | 36.0 | 0 | -PI/2 | `a5-apron` | yes |
 | 13 | B | 56.0 | 36.0 | 0 | -PI/2 | `a5-lee` | yes |
 | 14 | A | 51.0 | 56.5 | 0 | 0 | `a6-sump` | yes |
@@ -295,9 +295,9 @@ The other done flags exist on master: `a2-east`, `a3-far` (its zone loses `hall`
 | `a3-fire` | [79.6, 9.2, 82, 12.3] | 0 | both | both through the fire door, west of the camera's 14 m |
 | `a4-grille` | [98.5, 24.3, 104.5, 27.2] | 0 | both | both under the lift grille, in the back aisle |
 | `a4-wicket` | [76.3, 33, 78, 36] | 0 | both | both at the dock wicket, past the loaders |
-| `a5-apron-e` | [67, 24.3, 68, 47.7] | 0 | both | both down the wall's inside ladder |
-| `a5-apron-w` | [58.2, 24.3, 63.5, 47.7] | 0 | both | both across the cable trench |
-| `a6-pit` | [49.4, 62, 53.6, 66.2] | -1.6 | both | both in the drive pit |
+| `a5-apron-e` | [65.85, 24.3, 67.85, 47.7] | 0 | both | both down the wall's inside ladder (2 m strip after the trench shift, SA10) |
+| `a5-apron-w` | [58.2, 24.3, 62.35, 47.7] | 0 | both | both across the cable trench (trench x 62.35-65.85, SA10) |
+| `a6-pit` | [49.55, 62.15, 53.45, 66.05] | -1.6 | both | both in the drive pit (G0's `a6-pit` box) |
 | `a8-office-in` | [134.25, 75.5, 136, 77.75] | 4.4 | any | one player inside the security office door |
 | `a8-grille-in` | [134.3, 60.5, 136, 63.5] | 0 | any | one player through the public grille |
 
@@ -372,9 +372,11 @@ rule (a heavy landing retries the station).
 - **SA9 A2 pit at x 66.0-69.0.** The drawing's 66.5-69.5 leaves 0.25 m before the L2 door's wall; at 66.0-69.0 (still
   3 m) the far landing is 0.75 m and `a2-across` fits. The near-side marks (x 65.5, in the road 2 / 3 van gap) fit
   both. Undo: keep 66.5-69.5 and make `a2-across` the L2 door seal.
-- **SA10 A5 gap and wall.** The gap is closed at z 30 and 36 (graph size 6 m) and 1.4 m clear (A19): the new wall's east
-  face at x 68.35, the apron's east strip x 67.0-68.0. Undo: 1 m (A19's undo); marks at x 69.0 still fit, 0.25 m off the
-  wall.
+- **SA10 A5 gap and wall.** The gap is closed at z 30 and 36 (graph size 6 m) and 1.4 m clear (A19): the new wall x
+  67.85-68.35 (east face 68.35). The 1.4 m gap left the apron's east strip only 0.85 m (G0, 82ea0134d), so the 3.5 m
+  trench moves 1.15 m west to x 62.35-65.85 (lead, J14 wave 2): east strip x 65.85-67.85 (2 m), west strip x
+  58.15-62.35; station 12's marks at x 67.0, 0.85 m off the wall face (graph `area` follows at G1). Undo: 1 m gap (A19's
+  undo) and the trench back at x 63.5-67; marks at x 69.0 still fit, 0.25 m off the wall.
 - **SA11 New ids and kinds.** `g-a2-shutter` (hold, door `A2-shutter`); `g-a2-walkway` (stand-in, door `A2-walkway`);
   `g-a3-fire` (bolt, door `A3-fire`, push bar on the corridor side); `g-a4-grille` (the deadweight grille, KS1's hookup)
   and `g-a4-grille-motor` (stand-in: the motor button); `g-a5-wicket` and `g-a5-footbridge` (stand-ins, doors
