@@ -76,7 +76,7 @@ export const A4_HOARDS: readonly { id: string; box: readonly [number, number, nu
 
 /** Group 49's strips over the back aisle (between the old dead fittings at x 94 / 98 / 102 / 106) and group 44's office panel. */
 export const A4_BULK_STRIPS: readonly number[] = [96, 100, 104];
-export const A4_BULK = { y: 5.6, z: 25.8, radius: 5, intensity: 0.26 } as const;
+export const A4_BULK = { y: 5.6, z: 25.8, radius: 5, intensity: 0.38 } as const;
 export const A4_DISPATCH_PANEL = { x: 79.3, y: 2.84, z: 41.0, radius: 5, intensity: 0.21 } as const;
 /** The two switches the re-plan places (each within 1 m of its `MARLOW_CIRCUITS_REPLAN` spot): the back aisle's on the south wall west
  *  of the grille (on the one route, out of C2's 14 m), the office's on the pier inside its door. */
