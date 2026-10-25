@@ -25,6 +25,8 @@ Message "Night Shift | Orchestrator" only at PR open / train-ready / blocked / n
 - First: check `C:/NightShift/heavy.lock` / `heavy2.lock` (RULES "Machines"); stop tail / grep watchers older than the swap (STATE
   "Known"); recreate the cron from STATE "Cron prompt"; `get_usage`; read `C:/NightShift/scratch/auto-train-status.json`
   and act on failed / stale / error; reopen any cloud-queue brief still claimed by an old Cloud Builder.
+- Before starting anything (Michael 2026-10-26 ~08:50): list_sessions and ListAgents, and start or ask for only the
+  titles not already live (sessions and cloud builders can survive a swap); message the live ones to resume instead.
 - Then START the four desktop leads (Player, Marlow, Sector Ops, Campaign; PROMPTS.md lines 2-5) and one Cloud Builder
   (line 8) yourself with start_session (initiation user_asked: Michael ~12:50, "automate as much as possible"), each
   with its boot line as the prompt; give Michael only the two laptop boot lines (Guard AI, Test Runner; lines 6-7) in
