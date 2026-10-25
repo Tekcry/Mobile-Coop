@@ -1,6 +1,6 @@
 # Part C - perception, light parity, character shadows, gameplay vs graphics, anim tier, cameras
 
-Read at origin/master 829a9332 (4.102.0); #360 at origin/feature/guard-ai-t1-anim-tier 53ac2c9bc; WIP at
+Read at origin/master 829a9332 (4.102.0); #360 at origin/feature/guard-ai-t1-anim-tier 53ac2c9bc (now 155d68a31: the look script moved to draft #414); WIP at
 origin/wip/guard-ai-t1-shadow e285501c4; ROADMAP from origin/feature/menu.
 
 ### Gaps
@@ -46,7 +46,7 @@ origin/wip/guard-ai-t1-shadow e285501c4; ROADMAP from origin/feature/menu.
 ### Notes
 
 - G327 says "full rate"; bible 5.7 says "counts as seen". With the #360 rule a shadow-seen guard past 22 m solves every 2nd frame, as an on-screen far guard does (`src/ai/animTier.ts:66`). Read as "counts as seen"; flag if Michael meant every frame.
-- Bible P1 test ("any graphics preset ... agree", `docs/design-bible.md:85`) vs L11 ("the picture may show fewer lamps' shadows", `:286`): doc-vs-doc tension for Sector Ops / orchestrator to word once C1 is built.
+- Bible P1 test ("any graphics preset ... agree", `docs/design-bible.md:85`) vs L11 ("the picture may show fewer lamps' shadows", `:288`): doc-vs-doc tension for Sector Ops / orchestrator to word once C1 is built.
 - `docs/systems/lighting.md:221` says Low / Medium have 0 character-shadow lamps; code and `lighting.md:46` say 1 (`src/world/charShadowSet.ts:47-50`). Sector Ops doc fix.
 - G222 electro ink is white, not red (`src/security/cameraCue.ts:39-44`): electro's post remaps colour, so red vanished; spirit kept. Flag only.
 - Co-op for C1: guard perception is host only; each client's meter uses its own character positions, so a few cm of lag differ. The C1 plan should state the tolerance.

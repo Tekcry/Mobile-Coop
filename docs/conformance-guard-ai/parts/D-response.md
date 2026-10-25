@@ -19,7 +19,7 @@ Base: origin/master 829a9332 (4.102.0). "ME" = read on origin/feature/mission-en
 | D11 | `docs/systems/ai.md` stale for modes and alarms | CLAUDE.md authority (systems docs follow code) | `docs/systems/ai.md:276` "stealth (on in Hunter, Mission and Infiltration; off in Free Roam)" misses course and sector (`courseMode.ts:68`, `sectorMode.ts:315`); `:727` `ModeId` and `:735` autostart list miss `sector` (`src/game/modes/gameMode.ts:11`); `:353-355` alarms omit the once-per-section-load rule (`enemyManager.ts:807-811`); no line says a downed player is not perceived (`enemy.ts:2394-2396`) | Stale or missing text | S | No |
 
 ### #317 coop4 readiness
-- State: OPEN, draft, label `big-pr`, head 24ba2e51, GitHub `mergeable` CONFLICTING; 73 commits ahead, 606 behind master (merge base
+- State: OPEN, draft, label `big-pr`, head 24ba2e51, GitHub `mergeable` CONFLICTING; 73 commits ahead, 595 behind the review base 829a9332 (merge base
   d91d0e00, 4.95.0). Statuses on the head: only `laptop-e2e/coop4-fix7` success ("desktop: 1/1 pass, 388 s"). The full regular set
   (14/14) and the alone set are recorded on the older head 3f1c946f (C4 `docs/coop4/STATE.md` "Now"), before the 4.95.0 master merge
   1b04e5bd and the AI6 e2e fixes.

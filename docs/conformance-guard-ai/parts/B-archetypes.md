@@ -58,7 +58,7 @@ No live map places a heavy, runner, sniper, drone operator or enforcer.
 - Below Perfectionist the first headshot knocks a helmet off and staggers (G307 as narrowed by G350): `src/ai/gear.ts:138-143`.
 - Dogs, no palm strike or grab (G42, G348): `src/game/elbowStrike.ts:64-66`, `src/game/takedownController.ts:228`.
 - Dogs, gas knocks one out (G348): `src/game/gadgetSystem.ts:400-413` (no dog exclusion).
-- Dogs can be distracted (G348): a dog (melee kind) walks to a noise or lure - `src/ai/enemyManager.ts:2850`.
+- Dogs can be distracted (G348): a dog (melee kind) walks to a noise or lure - `src/ai/enemyManager.ts:2849`.
 - Difficulty reaches the AI from four fixed levels (G106, G131): `src/ai/archetypes.ts:170-193` -> `src/game/gameState.ts:627` -> `src/ai/enemyManager.ts:553`; Sector Ops records a star per level (`src/game/modes/sectorMode.ts:1010`; fill: B10).
 - No mission forces a kill (VISION rule 4, G127): helmets, armour and shields ignore takedowns, gas and sleep bolts (`src/ai/gear.ts:6-7,137`; a sleep bolt knocks out before the shield check, `src/ai/enemy.ts:2157-2160` vs `:2169`); an enforcer can be taken from behind (`src/ai/archetypes.ts:104-110`); K1-K4 unavoidable guards all have takedown spots (`src/world/maps/campusSectors.ts:70`).
 - Perfect rating possible (VISION rule 3, G146): a knockout is not a kill in the section rating - `src/game/modes/sectorMode.ts:1314-1320`, `src/game/rating/sectionRating.ts:83`.

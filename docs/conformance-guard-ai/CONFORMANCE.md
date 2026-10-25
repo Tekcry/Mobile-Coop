@@ -4,13 +4,13 @@ Owner: Night Shift | Guard AI Build. Brief: `docs/orchestrator/review-briefs/gua
 Base: origin/master 829a9332 (4.102.0). Plan only (G355): no src, test, map, script or config change.
 Tallow Wharf read on origin/feature/mission-engine 00b6cde9 ("ME:"); #317 on origin/feature/coop4 24ba2e51 ("C4:").
 
-Status: DRAFT for the checker. 39 gaps: 7 hard-rule breaks, 9 Michael questions. Full rows (every file:line, the fix
+Status: checker fix round 1 (CHECK.md). 40 gaps: 7 hard-rule breaks, 9 Michael questions. Full rows (every file:line, the fix
 detail and the evidence) are in the four parts: `parts/A-patrols.md` (patrols, lookouts, pairs, density),
 `parts/B-archetypes.md` (archetypes, helmets, dogs, kills), `parts/C-perception.md` (light, shadows, anim tier,
 cameras), `parts/D-response.md` (hearing, radio, alarms, co-op, #317). This file is the folded table; the parts win
 on detail.
 
-Sizes: S under 2 h, M 2-6 h, L over 6 h or its own job. Totals: 22 S, 13 M, 4 L.
+Sizes: S under 2 h, M 2-6 h, L over 6 h or its own job. Totals: 23 S, 13 M, 4 L.
 
 ## 1. Gap table
 
@@ -18,12 +18,12 @@ Sizes: S under 2 h, M 2-6 h, L over 6 h or its own job. Totals: 22 S, 13 M, 4 L.
 | ID | Item | Rule | Current state | Gap / fix | Size | Owner | Michael? |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | C1 | Guards do not read character shadows | VISION 4.1; G352; bible P1, 5.1 L11; CLAUDE.md "one lighting system" | Shadows render only (`src/world/charShadows.ts:8`, `src/world/torchShadows.ts:12`); light field has no character term (`src/world/lightField.ts:229-249`); perception reads `p.light` (`src/ai/enemy.ts:2447`) | Sim-only character occluder feed, bodies and `fieldLight` read the same field, lamp set per sample point (never the camera or preset), tests. Split in 1d | L (own job, ROADMAP row 11) | Sector Ops (meter), Guard AI (perception), Player (operator volumes) | No (C3 shapes it) |
-| C2 | Off-view guard with shadow in view animates at 1/4 rate | VISION 4.10; G327; ROADMAP Decided 2026-10-25 ~08:50 | master: seen = camera pass only (`src/ai/animTierView.ts:89`, `src/ai/animTier.ts:65`). Built on #360's branch (31b3353da), 396 commits behind; measure not run | Finish #360 (paused to row 6): measure + look, report, two checkers, train merge | M | Guard AI | No |
+| C2 | Off-view guard with shadow in view animates at 1/4 rate | VISION 4.10; G327; ROADMAP Decided 2026-10-25 ~08:50 | master: seen = camera pass only (`src/ai/animTierView.ts:89`, `src/ai/animTier.ts:65`). Built on #360's branch (31b3353da; head now 155d68a31, look script split to draft #414), 396 commits behind; measure not run; paused to row 6 (Michael 13:30) | Finish #360 (paused to row 6): measure + look, report, two checkers, train merge | M | Guard AI | No |
 | B1 | Tallow Wharf places two dogs | CLAUDE.md "never loosen" level-design; level-design 4.10 [Campaign]; G155 | ME: `src/world/maps/tallowWharfSectors.ts:148,168`, `dogs: 1` `:366,:390`; `checkSectorGuards` not mode-aware (`src/game/sectors.ts:581-597`) | Replace with human posts before SPEC sign-off; mode-aware guard check rejects campaign dogs | S | Campaign (data), Guard AI (check) | No |
 | D1 | Guard shots and bites allocate | CLAUDE.md hot paths; `docs/systems/conventions.md:31-34` | `src/ai/enemy.ts:3721-3740` (2 `new Vector3`, chained math, `for...of`), `:3178-3187` (clones) | Scratch vectors, index loop | S | Guard AI | No |
 | D2 | Manager tick closures and temp arrays | as D1 | `src/ai/enemyManager.ts:3499` (`some` closure), `:3533-3536` (filter + map), `:695` (`for...of` per ring point) | Index loops, reused buffer | S | Guard AI | No |
 | D3 | #317 switches 4-player Sector Ops on live | CLAUDE.md "ships dark behind its flag"; G355; G308 | C4: `src/net/protocol.ts:42-44` `capacity('sector')` 4, no gating flag (`src/core/flags.ts:51-52` is dev only) | `coop4` flag, default off, holds the cap at 2 | S | Guard AI (#317) | Yes, Q7 |
-| A1 | Campus guard counts below signed-off counts | VISION 4.9; G328, G332, G362 | S1-S5 hold 8 / 12 / 16 / 20 / 24 (`src/world/maps/campusSectors.ts:33-216`, `campusS4Data.ts:35-71`, `campusS5Data.ts:33-74`) vs 15 / 18 / 20 / 25 / 26 | Data only; AI already allows 26 under 32 (`src/game/sectors.ts:508`) | L | Sector Ops (campus greybox, row 9) | No |
+| A1 | Campus guard counts below signed-off counts | VISION 4.9; G328, G332, G362 | S1-S5 hold 8 / 12 / 16 / 20 / 24 (`src/world/maps/campusSectors.ts:33-216`, `campusS4Data.ts:35-71`, `campusS5Data.ts:33-75`) vs 15 / 18 / 20 / 25 / 26 | Data only; AI already allows 26 under 32 (`src/game/sectors.ts:508`) | L | Sector Ops (campus greybox, row 9) | No |
 
 ### 1b. Other gaps, Guard AI owned
 | ID | Item | Rule | Current state | Gap / fix | Size | Michael? |
@@ -31,8 +31,8 @@ Sizes: S under 2 h, M 2-6 h, L over 6 h or its own job. Totals: 22 S, 13 M, 4 L.
 | A3 | No lookout type on high routes | G335; Decided 2026-10-25 ~09:45 (6); level-design 3.6, 4.2 | `PostDef` has no lookout (`src/ai/posts.ts:20-29`); S5 roof marksman has no post and may be sent off the roof (`posts.ts:91-93`) | Plan first (G335), then a perched post that radios and turns, never leaves; maps place them | L | Yes, Q1 |
 | B12 | Civilians not built | bible 5.7; G353; level-design 13 | No civilian kind (`src/ai/enemyDefs.ts:7-8`); Tallow Wharf staff are armed grunts (ME `tallowWharfSectors.ts:86,96`) | Unarmed kind that flees and raises the alarm; kill = section restart; co-op; tests | L | Yes, Q5 |
 | A2 | No tag for 3-4 player extra guards | G331, G362 | `SectorGuard` / `GuardSlotTags` untagged (`src/game/sectors.ts:81-102`, `src/ai/guardAiData.ts:84-104`); `sectorMode` spawns all (`src/game/modes/sectorMode.ts:704-705`) | Tag, load filter, cap check at 32, tests; data from Sector Ops | M | No |
-| A4 | Pairs check on each other once per loop | G335; level-design 4.2, 4.4 | Missing-partner check only in the meeting window (`src/ai/pairs.ts:31-32,317-338`) | Walk-together partner check (out of sight N s -> look) in the G335 plan | M | No |
-| A5 | Posted (static) pairs never build | G335; level-design 4.2 | `buildPair` skips non-loop pairs (`src/ai/enemyManager.ts:2135-2141`); all 4 Tallow Wharf pairs posted (ME `tallowWharfSectors.ts:114-178`) | Posted-pair mode in `PairMeet`; test covers non-route pairs | M | No |
+| A4 | Pairs check on each other once per loop | G335; level-design 4.2, 4.4 | The pair's own missing-partner check runs only in the meeting window (`src/ai/pairs.ts:31-32,317-338`); between windows only the squad radio check (about every 40 s, `src/ai/enemyManager.ts:2255`; `docs/systems/ai.md:164-175`) or bodies / sight evidence catch a missing partner | Walk-together partner check (out of sight N s -> look) in the G335 plan | M | No |
+| A5 | Posted (static) pairs never build | G335; level-design 4.2 | `buildPair` skips non-loop pairs (`pairWhyNot`, `src/ai/enemyManager.ts:2135-2141`); all 4 Tallow Wharf pairs posted (ME `tallowWharfSectors.ts:114-178`) | Posted-pair mode in `PairMeet`; test covers non-route pairs | M | No |
 | B2 | Helmets by difficulty not built | G338, G341, G350; bible 5.6 | Gear from slot tag, section and stage only (`src/ai/enemyManager.ts:2012-2015`, `src/ai/gear.ts:30-35`); `DifficultyDef` has no helmet rule (`src/ai/archetypes.ts:176-193`); helmet always knocks off (`gear.ts:138-143`) | Realistic+ always helmeted, Perfectionist locked; host and puppet; tests per tier | M | No |
 | B6 | Dog release at an alarm stage is a stub | G297; level-design 4.11 | `src/game/sectorStage.ts:35-38,261-262` records `dogsReleased`; nothing reads it | Release off heel to last seen, then search; host and client | M | No |
 | C5 | No per-detection cause record | bible P5; VISION 4.8; G330 | Count only (`src/ui/screens/resultsScreen.ts:13`), debug line (`src/game/gameState.ts:762`) | Fixed-size cause record per detection, overlay + route-run log | M | No |
@@ -44,6 +44,7 @@ Sizes: S under 2 h, M 2-6 h, L over 6 h or its own job. Totals: 22 S, 13 M, 4 L.
 | C4 | Bark says "I heard something." after a sighting | bible P5; VISION 4.8 | `src/ai/enemy.ts:2044-2045`, `src/ai/barks.ts:56,191-193` | Line sets by cause (append-only `BARK_EVENTS`) | S | No |
 | B8 | Alarm-stage helmet at stage 3, bible says 2 | bible 5.7; G155, G350 | `src/ai/gear.ts:29-35` | Helmet at stage 2, test | S | No |
 | B13 | Sector guard check accepts a placed riot shield | G307 (3); level-design 4.10 | `src/game/sectors.ts:581-597`; `tests/sectors.test.ts:248` | Enforcer rule in `checkSectorGuards`, flip test | S | No |
+| B16 | Riot-shield response lead from S1 | bible 5.7 riot shields under "Later Sector Ops sections" (`docs/design-bible.md:570`); G307 (3); bible outranks level-design 4.10 (no section limit) | `RESPONSE.shieldLead` always true (`src/ai/gear.ts:38,162`), used in every section (`src/game/modes/sectorMode.ts:951`) | Shield lead only from the section the bible means by "later" (a per-section `shieldFrom` on the response def, Sector Ops sets the data); test | S | No |
 | D10 | Per-player LKP built, bible says open | bible 5.9 C5 (`docs/design-bible.md:680,1199`); G139 | `src/ai/intruders.ts:1-18` | Record the decision | S | Yes, Q8 |
 | C6 | #360 pointers stale | ROADMAP row 14; G327 | #360 body / HELD comment; `docs/guard-ai/BRIEF.md:630-634` (A183) | Retitle or replace #360, close A183, row 14 pointer -> feature/guard-ai-t1-anim-tier | S | No |
 | A6, B15, C7, D11 | `docs/systems/ai.md` stale | systems docs follow code | `ai.md:37-41` (G335 "not built"), `:21-22,724` (no G359), `:740-742` (tags "not read"), `:18` (G45 glass), `:51` (2.2 vs 1.8 m), `:276,727,735` (modes), `:353-355` (alarm rule); `src/game/sectors.ts:84-90` comments | One doc pass | S | No |
@@ -51,7 +52,7 @@ Sizes: S under 2 h, M 2-6 h, L over 6 h or its own job. Totals: 22 S, 13 M, 4 L.
 ### 1c. Gaps owned by other leads (found here)
 | ID | Item | Rule | Current state | Fix | Size | Owner | Michael? |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| D4 | Campaign room takes 1-4 once #317 lands | G2; VISION 4.7 | ME: campaign runs in sector mode (`src/world/maps/index.ts:17`); `players: [2]` data only (`src/game/mission/missionDef.ts:185`) | Room cap from the mission, not the net mode | M | Campaign + Guard AI (#317) | No |
+| D4 | Campaign room takes 1-4 once #317 lands | G2; VISION 2 Players row (not a 4.7 break today: the forced co-op moves, G292, still stop a solo finish) | ME: campaign runs in sector mode (`src/world/maps/index.ts:17`); `players: [2]` data only (`src/game/mission/missionDef.ts:185`); a mission already starts for one player (`src/game/mission/sectorMission.ts:323-325`) | Room cap from the mission, not the net mode | M | Campaign + Guard AI (#317) | No |
 | D8 | No map defines noisy sources | G299; bible P2, 5.2 S2 | Masking built (`src/ai/hearing.ts:67-86`), no `noisy` on any map; no switch link; bible's `noiseZones` not in code | Sources per map, switch link, bible field name | M | Map leads (data), Guard AI (switch link) | No |
 | D9 | Sound meter has no ambient marker | bible 5.2 S4; G61 | `src/game/gameState.ts:3460`, `src/ui/hud/hud.ts:336-349` | Marker from `ambientDb` at the player | M | HUD (to assign) | No |
 | B4 | Dogs can still be taken down | G348; bible 5.4, 5.8 | `src/game/takedownController.ts:342` (hang-down only excluded), `src/game/gameState.ts:1437-1438`; `scripts/e2e-enemies.mjs:226` asserts it | `find` null for a quadruped (co-op assist too); flip the e2e | S | Player | No |
@@ -59,7 +60,7 @@ Sizes: S under 2 h, M 2-6 h, L over 6 h or its own job. Totals: 22 S, 13 M, 4 L.
 | B10 | Higher star clear does not fill lower | G331 | `src/save/sectorRecord.ts:52-54` | Fill every preset at or below (ROADMAP row 12) | S | Sector Ops | No |
 | B14 | Campus graphs lack `unavoidable` tags | level-design 4.12; G303 | K1-K4 placed; no tag in `docs/sector-redesign/graph/campusOps-S*.json` | Tag S1, S2, S4, S5 | S | Sector Ops | No |
 | B7 | Campaign response teams lead with a riot shield | G155; level-design 4.10 | ME: `sectorMode.ts:973`, `perStage: 2` (`tallowWharfSectors.ts:321`) | Per Q6 | S | Campaign | Yes, Q6 |
-| B11 | Killing the interrogation target strands `tgc-3` | G353, G145 | ME: `tallowWharfMissions.ts:73`, `missionRunner.ts:418-431` | Protected until done; death = section restart | S | Campaign | No |
+| B11 | Killing the interrogation target strands `tgc-3` | G353, G145 | ME: `src/world/maps/tallowWharfMissions.ts:73`, `missionRunner.ts:418-431` | Protected until done; death = section restart | S | Campaign | No |
 | B9 | warehouseOps has no dogs or late armour | VISION 2 vs level-design profile | `src/world/maps/warehouseSectors.ts:40-180` | Per Q9 | S | Sector Ops | Yes, Q9 |
 
 ### 1d. G352 owner split (agreed proposal, for Sector Ops to confirm)
@@ -87,7 +88,7 @@ Sizes: S under 2 h, M 2-6 h, L over 6 h or its own job. Totals: 22 S, 13 M, 4 L.
 | Q9 | B9 | Must the old warehouseOps map get dogs and late armour? | (1) No, the rule is the campus's (2) Yes, a dog and late armour |
 
 ### 1f. #317 coop4 readiness (for ROADMAP row 16)
-- Draft, `big-pr`, head 24ba2e51, CONFLICTING, 606 commits behind master. Only status on the head:
+- Draft, `big-pr`, head 24ba2e51, CONFLICTING, 595 commits behind the review base 829a9332. Only status on the head:
   `laptop-e2e/coop4-fix7` success (AI6 block, 1/1). Full regular and alone sets were green on 3f1c946f, before the
   4.95.0 master merge.
 - G308: Marlow Yard stays 2 (C4 `protocol.ts:40,44`), Sector Ops 4 (`:42,44`). Campaign breaks through D4.
@@ -109,7 +110,7 @@ Sizes: S under 2 h, M 2-6 h, L over 6 h or its own job. Totals: 22 S, 13 M, 4 L.
 - Spacing and isolation (G190): `tests/campusS1.test.ts:560-575`.
 - No heavies in the campaign or Sector Ops (G155): `src/game/sectors.ts:586`.
 - Every guard armed (G298): `src/game/sectors.ts:593`; Marlow Yard normal armed guards, no response team (G279): `src/game/stealthSystems.ts:588`.
-- Sector Ops dogs with handlers (G348): `src/world/maps/campusS4Data.ts:39`, `src/game/sectors.ts:587-591`; gas knocks a dog out `src/game/gadgetSystem.ts:400-413`; dogs can be distracted `src/ai/enemyManager.ts:2850`.
+- Sector Ops dogs with handlers (G348): `src/world/maps/campusS4Data.ts:39`, `src/game/sectors.ts:587-591`; gas knocks a dog out `src/game/gadgetSystem.ts:400-413`; dogs can be distracted `src/ai/enemyManager.ts:2849`.
 - Riot shields only in Sector Ops response teams; late armour S4 / S5 only (G307): `src/ai/gear.ts:162`, `campusS4Data.ts:47`.
 - No mission forces a kill (VISION 4.4, G127): shields / armour / helmets ignore takedowns, gas and sleep bolts `src/ai/gear.ts:6-7,137`; unavoidable K1-K4 have takedown spots `src/world/maps/campusSectors.ts:70`.
 - Perfect rating possible (VISION 4.3, G146): a knockout is not a kill `src/game/rating/sectionRating.ts:83`; "alarm" is one rated state `:84`.
@@ -127,6 +128,11 @@ Sizes: S under 2 h, M 2-6 h, L over 6 h or its own job. Totals: 22 S, 13 M, 4 L.
 - Team doors are walls for guards (G280): `src/ai/lockedDoors.ts:36-39`.
 - `src/ai` never imports `src/net`; no `Math.hypot` in `src/ai` (CLAUDE.md): grep empty.
 - No bot partner (G48): grep of `src/ai`, `src/game/modes` empty.
+- #387 one-mover fix (open in the brief; merged 2026-10-25, 4.101.1): a walker is never made flank beside a bounding point, so one guard moves at a time (fixed patrols and readable fights, bible 5.7) - `src/ai/squadRoles.ts:25,383,620`, `tests/oneMover.test.ts`.
+- Level-design 4.1 (jobs, a reason at each stop): slots carry a `reason` tag for the guard sheet - `src/ai/guardAiData.ts:94`; the jobs themselves are map data (map owners).
+- Level-design 4.5-4.8 (overlapping coverage, lure destinations, bodies, survivable searches): the AI provides the mechanisms - lures send guards to the noise (`src/ai/enemyManager.ts:2849`), patrols find bodies by distance, angle and light (`src/ai/bodies.ts:32-48`), searches are bounded and score light and cover (`src/ai/searchArea.ts:53-78`); meeting each rule per space is map data checked by the level validator (Marlow) and the guard sheets (map owners).
+- Level-design 5.5 (real light bands): guards read the baked light field, so a lit band reads lit for them (C1 aside) - `src/ai/enemy.ts:237-239`; the bands themselves are light-realism (Sector Ops, ROADMAP row 10).
+- Scope files with no gap: `src/ai/guardShield.ts` (render only; the block reads the guard's yaw, `:7-8`), `helmetDrops.ts` and `guardHelmet.ts` (the dropped-helmet clue and its mesh, `helmetDrops.ts:1-5`, `guardHelmet.ts:1-7`); `dogModel.ts` is render only; `dogHead.ts` gives the dog's head hit volume from the sim (AI reads no graphics state).
 
 ## 3. Per map: archetypes present vs allowed
 Allowed (VISION 2, level-design 4.10): Training - normal armed guards. Campaign - no heavies or dogs; armour and
