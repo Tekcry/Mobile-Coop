@@ -1,0 +1,13 @@
+{
+  "id": "20261025T065835-night-shift-player-b-7945363b-6240",
+  "sha": "7945363baec47297f7ca0d4eecf7b408c75d2cdd",
+  "branch": "",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "e2e-offline"
+  ],
+  "set": "gm-polish",
+  "note": "rerun of a desktop-worker failure (RULES: desktop red never final)"
+}
