@@ -1,0 +1,26 @@
+{
+  "id": "20261025T122432-affected-e2e-e8869dc1-77a4",
+  "sha": "e8869dc158070d507a97590c7b84368213d5d408",
+  "branch": "feature/marlow-replan-s0",
+  "pr": 473,
+  "kind": "pr",
+  "requester": "affected-e2e",
+  "suites": [
+    "e2e-anchors",
+    "e2e-anim",
+    "e2e-combat",
+    "e2e-course",
+    "e2e-ctcourse",
+    "e2e-desktop",
+    "e2e-gadgets",
+    "e2e-levels",
+    "e2e-lightbake",
+    "e2e-move",
+    "e2e-park",
+    "e2e-tactics",
+    "e2e-takedown",
+    "smoke"
+  ],
+  "set": "affected",
+  "note": "auto affected-e2e, PR #473"
+}
