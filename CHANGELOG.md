@@ -1,5 +1,16 @@
 # Changelog
 
+## 4.103.8 - Train 103: Route-runs: progress, stuck and steering math; Route-run report; Mission framework: specs and sign-off pages, graph-svg (2026-10-25, PR #461; #456, #453, #372)
+
+### Route-run report
+- Route-runs R2: `scripts/route-run/report.mjs` turns a robot run log into `route-run.json` and a plain-English `REPORT.md` with walk-card lines and the Marlow time line; tooling and tests only, no game change.
+
+### Route-runs: progress, stuck and steering math
+- Route-runs (J13 R3): the test robots' pure math in `scripts/route-run/progress.mjs`: progress along the planned
+  path (one storey at a time), the stuck watch (under 0.5 m in 8 s while walking; per-step time limits), the pad stick
+  and pace that give the crouched sneak speed from `docs/design/metrics.json`, the partner's trail point, which guard
+  level changes count as a detection or a notice, and the inferred cause of each. Tooling only.
+
 ## 4.103.7 - Train 102: Route-runs: route planner; Mission framework: specs and sign-off pages, graph-svg (2026-10-25, PR #458; #455, #372)
 - Route-runs (J13 R1): a route planner for the robot test runs. From a map's connectivity graph and its points table it
   picks the fewest runs that walk every declared approach (shadow, high, loud) of every guarded space, plus the one
