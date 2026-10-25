@@ -101,3 +101,31 @@ runs: e2e-darkness 1, e2e-sectorops:mission 2, e2e-coop-real:1 / :2 / :smoke 1 e
 - e2e-coop quarantine ends 2026-10-26 13:41 UTC: from then a failure fails the run again; with the same assert seen 3
   times it will likely re-quarantine on its next 3 flakes unless T9 is decided or Player Build fixes the test
   (coop-real, #388 draft).
+
+## 4. Checked, conforms
+
+- Runner timeout: a suite past `E2E_SUITE_TIMEOUT` is killed with its browser tree and fails (`run-e2e.mjs:216-231`); the queue runs at 900 s (`service.mjs:725`), as `testing-tools.md:43-44`.
+- Runner headless guard: `E2E_HEADED=1` under the runner exits with an error (`run-e2e.mjs:194-196`; `e2e-lib.mjs:30-34`), `RULES.md:178` (the doc wording is T18).
+- `--gpu` refuses without `E2E_GPU=1` (`run-e2e.mjs:78-81`), `testing-tools.md:70`.
+- REQUIRED / LEGACY / AUDIO / GPU / REPORT lists (`run-e2e.mjs:35-45`) match `testing-tools.md:61-71` (apart from T19).
+- Slowest-first pool from `e2e-times.json`, unknown suites at the median (`run-e2e.mjs:182-193`), `testing-tools.md:30-31` (freshness is T20).
+- Quarantine read from the committed file plus `E2E_QUARANTINE_FILE`, a quarantined suite always runs (`run-e2e.mjs:54-67,251-253`), `testing-tools.md:584-591` (timeouts are T8).
+- DIRECT rules for `src/player`, `src/anim`, `src/game`, `src/ai`, `src/weapons`, `src/net`, `src/save`, the studio and tuner files, the lamp files and the Marlow Yard sets (`e2e-affected.mjs:204-315`) match `testing-tools.md:90-106` (apart from T1 and T5); selection is pure and tested (`tests/e2eAffected.test.ts`).
+- Docs only: `docs/**`, `*.md`, `changes/**`, `tests/**` reach no suite (`e2e-affected.mjs:326`), so `affected-e2e` passes at once (`lib.mjs:874-890`, `service.mjs:405-412`), `RULES.md:138`.
+- The `src/player` / `src/game` co-op checker gate is documented as a manual request (`RULES.md:140`) and DIRECT does not add the group there (`e2e-affected.mjs:251,267`): consistent.
+- Queue order (`lib.mjs:224-249`): trains, a lower train's rerun, train reruns, an alone request over `ALONE_AGE_MIN` 30 min (`:12`, `:256-262`), pr / full by requester arrival, other alone runs on idle slots, `RULES.md:152-157`.
+- Job counts: trains `LQ_TRAIN_JOBS` 3 (`service.mjs:113`), pr 2, full 3, train rerun and desktop 1 (`service.mjs:1119`), `RULES.md:154-156`.
+- Every queue run is `E2E_GPU=1` (`service.mjs:725`, alone steps `:1105`), `RULES.md:144`.
+- Desktop gates: backlog `LQ_DESKTOP_BACKLOG` (`service.mjs:109`), CPU 80% per slot (`:110`) on `gatedCpu` with below-Normal work left out (`lib.mjs:196-205`), slot lock and dir first (`lib.mjs:123-127`), `heavy.lock` on 4191 and `heavy2.lock` on 4192 (`service.mjs:102-103`), `RULES.md:161-168`.
+- Laptop slot locks `heavy-4189.lock` / `heavy-4192.lock` with the manual-lock wait (`service.mjs:106-107`, `:640-700`), `testing-tools.md:547-548`.
+- Flake rule: a failed non-quarantined suite reruns once alone, a pass is a flake (`service.mjs:745-763`); `FLAKE_BUDGET` 2 in `FLAKE_BUDGET_DAYS` 7, 48 h auto quarantine with an owner and expiry (`lib.mjs:692-697,748-756`); only flakes after the last auto start count (`lib.mjs:727-746`), `testing-tools.md:592-599` (T9-T11 are the gaps).
+- Affected pass skips: drafts, `train/*`, the `no-affected-e2e` label, heads with a live affected request (`lib.mjs:893-911`); the verdict goes on `laptop-e2e/affected` and `affected-e2e` (`service.mjs:807-817,995`), `RULES.md:112-114`; #403 adds the stuck-pending re-request (`0d15f47b lib.mjs:914-929`).
+- `heavy-lock.mjs`: `take` with `--pid`, the Git Bash `winpid` note, a dead pid on this host is stale and broken, a no-pid line never (`scripts/heavy-lock.mjs:2-14,23-40`); #403 reads the queue's own line (`0d15f47b heavy-lock.mjs:30-52`), `RULES.md:173-176`.
+- Hidden and headless tasks: `install-task.ps1:24` and `one-shot-task.ps1:17` run `-WindowStyle Hidden -NonInteractive`; child processes `windowsHide` (`run-e2e.mjs:165,209`, `service.mjs:172,581`), `RULES.md:178-180`.
+- Task guard allowlist in code (`service.mjs:328-329`; `lib.mjs:842` after #403), `testing-tools.md:565-579`.
+- Train-ready inputs: `affected-e2e` on every head the pass reaches, `no-affected-e2e` waiver (`lib.mjs:857`), `RULES.md:111-114`.
+- Committed quarantine entry e2e-pad has owner, expiry and a write-up (`scripts/e2e-quarantine.json`, `docs/backlog.md:137`), `testing-tools.md:589-591`.
+- `tests/` (vitest) runs in CI `check` (`RULES.md:221-224`); queue code is unit-tested (`tests/laptop-queue.test.ts`, `tests/heavyLock.test.ts`, `tests/e2eAffected.test.ts`).
+- Changelog fragments and versions (G183): the queue and runner code never edit `CHANGELOG.md` or the version; the train build does (`scripts/merge-train.mjs:6-7`), `RULES.md:263-266`.
+- Main is the only base (G83): the queue tests detached shas and PR heads against `origin/master` (`lib.mjs:874-890`; `LQ_FOLLOW` default origin/master, `service.mjs:6`).
+- Auto-train and the watchdog (G286, G325): out of this review's scope beyond the queue's inputs above (their own owners).
