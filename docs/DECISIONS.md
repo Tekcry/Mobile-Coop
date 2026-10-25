@@ -11,11 +11,11 @@ How entries are numbered:
   free G numbers (CLAUDE.md "Sessions").
 - A replaced entry keeps its original text and gets a "(Replaced by Gxxx, date)" note on its heading or first line, so
   the newest entry always wins and the trail stays readable.
-- Old job numbers are cited in brackets with their run prefix, because the runs reused the same letters: loco (docs/locomotion/DECISIONS.md: D1-D11, M1-M27, A0-A89), training (docs/training/DECISIONS.md: D1-D50, A1-A77, C1-C10), ops (feature/operators docs/operators/DECISIONS.md: D1-D33; current ones recorded as G123 and G161-G176), menu (docs/menu-ui/DECISIONS.md: MD1-MD20), audio (AS1-AS18 in the audit), kestrel (docs/kestrel/progress.md "Decisions by Michael" and ASK rows).
+- Old job numbers are cited in brackets with their run prefix, because the runs reused the same letters: loco (docs/archive/locomotion/DECISIONS.md: D1-D11, M1-M27, A0-A89), training (docs/archive/training/DECISIONS.md: D1-D50, A1-A77, C1-C10), ops (feature/operators docs/operators/DECISIONS.md: D1-D33; current ones recorded as G123 and G161-G176), menu (docs/menu-ui/DECISIONS.md: MD1-MD20), audio (AS1-AS18 in the audit), kestrel (docs/kestrel/progress.md "Decisions by Michael" and ASK rows).
 - Question ids (VIS-01, FU-04, ...) are the vision-check page questions of 2026-10-17; "chat N" is Michael's Nth native
   multiple-choice answer in chat the same day; "directive" is his written directive the same day.
 
-The old run decision files (docs/locomotion/DECISIONS.md, docs/training/DECISIONS.md, the kestrel progress decisions,
+The old run decision files (docs/archive/locomotion/DECISIONS.md, docs/archive/training/DECISIONS.md, the kestrel progress decisions,
 docs/menu-ui/DECISIONS.md and the audio progress logs) are history. They point here.
 
 Each entry: the decision as a rule, then Michael's words quoted verbatim (his picked option label, his own note, or his
@@ -635,7 +635,7 @@ Void, and what voided them:
 ## Unclear items, answered (U1-U10)
 
 The DECISIONS draft listed ten unclear items. Michael answered them in chat on 2026-10-17 (native multiple-choice;
-verbatim in docs/consolidation/chat-answers.md, last section). U1, U3, U4, U5, U9 and U10 are applied in the entries they
+verbatim in docs/archive/consolidation/chat-answers.md, last section). U1, U3, U4, U5, U9 and U10 are applied in the entries they
 touch (G75, G24, G111, G49, G11, G76); the new rules are below.
 
 **G114. The name ban covers names, not the title or Michael's quotes.** Character, gear and organisation names from the
@@ -670,7 +670,7 @@ missions are planned (STORY-04, G9). Michael: "With the missions" (2026-10-18.)
 **G121. Stale branches deleted after the merge.** Once Michael merges the consolidation PR, Claude deletes dev,
 feature/exchange-map, feature/kestrel, feature/footsteps, feature/weapon-audio, ct-movement, playtest/combined and the
 claude/new-session-* branches; feature/ct-locomotion and feature/training-bunker stay until nothing is left on them.
-Michael: "Yes, after merge" (2026-10-18; the go-ahead docs/locomotion/CONSOLIDATE.md asks for.)
+Michael: "Yes, after merge" (2026-10-18; the go-ahead docs/archive/locomotion/CONSOLIDATE.md asks for.)
 
 **G122. Michael brings his own CT co-op research.** Michael already ran a comprehensive research task outside the game
 and git; he brings it in after the merge, and the research job starts from it. Michael: "I've already run a comprehensive
@@ -936,7 +936,7 @@ gameplay never reads it. Michael, asked whether Wren (1.68 m) should hang 7.6 cm
 underbarrel launcher and suppressor, suppressed pistol with a jammer emitter, knife) and Wren's hands sit on them: palm on
 the grip, fingers round it, the support hand on the launcher tube, a believable stance. Michael: "I'd rather the character
 holds the gun properly. Make sure they line up and are believable at minimum. Stance must look believable also."
-(2026-10-19, weapons job; docs/weapons/DECISIONS.md A8-A11.)
+(2026-10-19, weapons job; docs/archive/weapons/DECISIONS.md A8-A11.)
 
 **G178. The rifle is carried where it can be drawn and put away quickly.** Holstered, the rifle hangs from Wren's back
 plate mount (not floating) and the pistol sits in her thigh holster; holding and holstering look believable at a
@@ -1144,7 +1144,7 @@ later drops the CT movement references.)
 getting worse. Can you ignore CT movement references." Analogue speed from the stick (no speed toggle); LT held aims;
 three states, holstered / low ready / aiming; X tap holsters; RT tap knocks out, RT hold kills; traversal auto-holsters
 and returns to the state. Every movement animation is reworked to a real-world trained-operator standard
-(docs/anim-rework/BRIEF.md). G1 (pure CT) still holds for the rest of the game (BRIEF). (Replaces the footage reference of
+(docs/archive/anim-rework/BRIEF.md). G1 (pure CT) still holds for the rest of the game (BRIEF). (Replaces the footage reference of
 G197, G199, G202, G208 ("keyed with the footage as reference") and G209, the speed rocker (loco M25 (7)) and bible 5.12's
 CT-footage line; refines G21.)
 
@@ -1224,12 +1224,12 @@ completion, then campaign level. Movement still needs work which is top priority
 revisit later"; (2026-10-21 ~06:40): "Exclude warehouse rebuild and park it for now. We'll continue to use the
 existing." The co-op training bunker comes first, then the first campaign level, with movement top priority; the G201
 rebuild is parked and the current Sector Ops warehouse stays
-(docs/reviews/warehouse-layout-review.md). The guard AI and model review (docs/reviews/guards-review.md) is not
+(docs/archive/reviews/warehouse-layout-review.md). The guard AI and model review (docs/archive/reviews/guards-review.md) is not
 scheduled.
 
 **G225. Marlow Yard bunker pass: the full audit shortlist.** (Light level replaced by G279, 2026-10-23, and G329,
 2026-10-25: lit by default, real-world bands.) Michael (2026-10-20 ~23:40; paraphrased): the full shortlist of
-docs/reviews/marlow-yard-audit.md (ceilings, lamp fittings, airlocks, dressing, walls to ceilings, paint, lifts,
+docs/archive/reviews/marlow-yard-audit.md (ceilings, lamp fittings, airlocks, dressing, walls to ceilings, paint, lifts,
 fiction); keep the open floor at 0.30 (the open floor's light level, just over the 0.28 shadow line).
 
 **G226. Tuner v2: a stage to pose the body and the gun.** Michael (2026-10-21 ~00:20): "I want freedom to manipulate
@@ -1251,7 +1251,7 @@ JSON, wider ranges (double-range toggle, typed values), a bake script (export in
 (hand / foot IK weight). Copy state to state is not wanted.
 
 **G229. Three animation tracks at once.** Michael (2026-10-21 16:10; paraphrased): three animation tracks run in
-parallel (A tuner tools in Course Ready, B joint bake in CT Core, C skeleton in Menu Notes; docs/marlow-bays/BRIEF.md
+parallel (A tuner tools in Course Ready, B joint bake in CT Core, C skeleton in Menu Notes; docs/archive/marlow-bays/BRIEF.md
 "Tracks"); bays B + M run in a cloud session; the jammer / hallway slice J comes later.
 
 **G230. The desktop is the main test machine.** Michael (2026-10-21 16:40): "i dont care about usage on the desktop, i
@@ -1264,14 +1264,14 @@ laptop is a full second test slot (Normal priority, E2E_JOBS=2, any job lead's r
 
 **G232. Phone layout for the tuner only.** Michael (2026-10-21 ~19:00): "Is it difficult to do a fast ui adjustment for
 phones only? Touch input and controller will be used." He chose "Yes, tuner only": the animation tuner and Anim Studio
-get a phone layout (touch + pad), an exception to M21; the game stays desktop-only (docs/marlow-bays/BRIEF.md item 26).
+get a phone layout (touch + pad), an exception to M21; the game stays desktop-only (docs/archive/marlow-bays/BRIEF.md item 26).
 
 **G233. Focus on animations, gameplay and the bunker.** Michael (2026-10-21 ~19:20): "We'll focus on fine tuning the
 animations, gameplay, and bunker for now." Dev tools and the level editor move to Later.
 
 **G234. A prototype server browser on spare capacity.** Michael (2026-10-21 ~19:50): "Yes add it to the pipeline. It
 can proceed as low priority whenever there is spare capacity. Must be prototype only, quick and fast to build." Public /
-Private rooms listed through the existing Nostr relays; no quick match, no TURN, no server (docs/marlow-bays/BRIEF.md
+Private rooms listed through the existing Nostr relays; no quick match, no TURN, no server (docs/archive/marlow-bays/BRIEF.md
 item 28, Bays Cloud after rejoin).
 
 **G235. Never hit the 5-hour limit; trim to animation.** (Replaced by G281 and G304: full burn to 100%.) Michael
@@ -1297,12 +1297,12 @@ paused by 99%.
 **G238. Sector Ops fixes on spare capacity.** Michael (2026-10-22 ~01:40): his list (warehouse lights, LED fittings,
 camera range and pitch, a subtle grid, lasers in one vision mode and alarm-only, laser power panels, a security room,
 wheel default goggles, more co-op routes); "Priority is still animations right now but any spare capacity can be used as
-you see fit." Job sector-fixes (docs/sector-fixes/BRIEF.md), spare capacity.
+you see fit." Job sector-fixes (docs/archive/sector-fixes/BRIEF.md), spare capacity.
 
 **G239. A full natural pass over every animation.** Michael (2026-10-22 ~09:00): "All movements must move naturally with
 twisting/swaying/balancing hands... The feet also need to get fixed... I want you to do a full pass over all animations
 and I will fine tune. Pulling any weapons out also should be believable, and there's a random stop animation when
-taking out the weapons". Job anim-natural (docs/anim-natural/BRIEF.md): N0 audit, N1 feet and N2 body motion (CT Core),
+taking out the weapons". Job anim-natural (docs/archive/anim-natural/BRIEF.md): N0 audit, N1 feet and N2 body motion (CT Core),
 N3 weapons (Menu Notes), N4 the rest. Top priority.
 
 **G240. Cameras see in the dark.** Michael (2026-10-22 ~09:05): "Cameras should still work in the dark." Every security
@@ -1415,7 +1415,7 @@ kicks.
 **G266. Warehouse redesign after Marlow Yard; all loosenings approved.** (Replaced by G295, 2026-10-23: the campus
 redesign.) Michael (2026-10-22 ~21:20): warehouse-redesign restarts "After Marlow Yard" (finished and walked); its 15
 level-standard loosenings L1-L15
-(docs/warehouse-redesign/SPEC.md on feature/warehouse-redesign): "Approve all". (Restarts the rebuild G224 parked.)
+(docs/archive/warehouse-redesign/SPEC.md on feature/warehouse-redesign): "Approve all". (Restarts the rebuild G224 parked.)
 
 **G267. R section 2 gets another co-op route.** Michael (2026-10-22 ~21:20; one co-op route left after two proved
 solo-reachable): "Add another", before R merges.
@@ -1433,7 +1433,7 @@ suite times hold (within ~15%), no new load failures, and CPU stays under ~90% o
 slot; the netmove compare moves to sim time. (Keeps the G269 trial setup.)
 
 **G271. Mocap locomotion, as captured.** Michael (2026-10-22 ~23:20, after the side-by-side sheets and videos,
-feature/mocap-sheets-real docs/mocap-trial/sheets/): "Mocap, as captured". The capture is kept as recorded, not bent to
+feature/mocap-sheets-real docs/archive/mocap-trial/sheets/): "Mocap, as captured". The capture is kept as recorded, not bent to
 the old limits (walk pelvis bob 5.5-6.6 cm vs bible D2 4 cm, walk knee-out 3.5 cm, run wrist swing 24 cm vs his 85 cm
 hand-keyed tune); checkers report those as notes, not fails. Fix rounds still fix pops and slides. Applies to the mocap
 locomotion behind the G264 toggle. (Overrides the bible D2 limits for mocap clips.)
@@ -1631,7 +1631,7 @@ campus is a new Sector Ops map, the warehouse stays selectable); mocap "On by de
 clips pass their checker, the hand-keyed set behind the switch. (Replaces G264's default off.)
 
 **G299. Guard AI: realistic hearing, caution, investigation and teamwork.** Michael (2026-10-23 ~01:30; job guard-ai,
-plan base `docs/reviews/guards-review.md`): "also note that right now every guard hears when things break or someone
+plan base `docs/archive/reviews/guards-review.md`): "also note that right now every guard hears when things break or someone
 gets shot which is unrealistic. if they are within range they should hear it, depending on whether they are near
 something noisey, and if they see a guard get killed or find one dead/knocked out they should wake them up (if knocked
 out), report them dead, and become cautious. the only way to clear the cautious guards should be to eliminate any that
@@ -1653,7 +1653,7 @@ radio "Own section, staggered" (voice range first, then that section over a few 
 (Applies G299.)
 
 **G301. Overnight: proposed rule loosenings applied, logged and undoable; finished big jobs merge.** Michael
-(2026-10-23 ~01:42; lighting LR1-LR12 `docs/lighting-review/PROPOSAL.md`, marlow-final P1-P17, sector-redesign
+(2026-10-23 ~01:42; lighting LR1-LR12 `docs/archive/lighting-review/PROPOSAL.md`, marlow-final P1-P17, sector-redesign
 P1-P10): "Apply, logged and undoable": builders use them as assumed decisions, each listed for his morning review with
 its undo. Big jobs finished overnight (Marlow Yard, Sector Ops campus, Guard AI) that pass their tests: "Merge to
 master" (next train, `/preview/`).
@@ -1742,7 +1742,7 @@ cameras, doors); the S3 hallway camera bulletproof. Lighting "not realistic": li
 accessible via main menu. animation tuner in game menu as is".
 
 **G314. Realistic lamp falloff: try it first; a shadow parity audit.** Michael (2026-10-23 ~14:35, native multiple
-choice on LR13, `docs/lighting-review/PROPOSAL.md` section 7): "Try it first": inverse-square lamp falloff (level at
+choice on LR13, `docs/archive/lighting-review/PROPOSAL.md` section 7): "Try it first": inverse-square lamp falloff (level at
 3 m, smooth to 0 at 1.6x radius) behind an in-game settings toggle, default off; the meter, guard perception and the
 picture switch together (light parity). ~14:45: "Audit + parity fixes": one Opus audit of shadow-edge parity, moving
 occluders (doors, shutters, crates, bodies) updating the bake, and unshadowed flashlights and lamps lighting through

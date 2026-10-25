@@ -345,9 +345,9 @@ Implementation: `docs/systems/audio.md`.
 
 ### 5.3 Movement, stances, camera and traversal (P4)
 
-CT movement was first measured from Michael's footage (loco M19, M20, M23, M25; research in `docs/locomotion/`); G210 drops
+CT movement was first measured from Michael's footage (loco M19, M20, M23, M25; research in `docs/archive/locomotion/`); G210 drops
 that reference. Implementation: `docs/systems/movement.md`. All numbers are starting values (Section 0). All
-movement and its animations follow a real-world trained-operator standard (G210, docs/anim-rework/BRIEF.md). Michael
+movement and its animations follow a real-world trained-operator standard (G210, docs/archive/anim-rework/BRIEF.md). Michael
 fine-tunes movement himself as needed; movement slices and research are off (G227, replaces G150's tune-until-sign-off).
 
 **Stances:** standing and crouched only. No prone and no solo rope climb (G110); CT's two-person rope, where the
@@ -496,7 +496,7 @@ Implementation: `docs/systems/combat.md`.
 - Swapping while holstered picks the gun the next aim draws; a swap button works while aiming; grenades and gadgets work
   holstered.
 - **Draw timings (G103; real-world times, Michael 2026-10-22 "Research what is believable and realistic",
-  docs/anim-natural/n3/DRAW-TIMES.md):** draw to low ready 0.75 s (pistol) and 1.1 s (rifle, off the back); holster
+  docs/archive/anim-natural/n3/DRAW-TIMES.md):** draw to low ready 0.75 s (pistol) and 1.1 s (rifle, off the back); holster
   0.9 s (pistol) and 1.0 s (rifle). The tuner's Draw multipliers and the per-clip speed slider fine-tune them.
 - Releasing aim never cancels a reload (loco M4, A43).
 
@@ -835,7 +835,7 @@ out, and ragdoll hand-offs with no snap.
 `scripts/anim-audit.mjs` drives every state and transition headlessly, local and remote, and records against 5.12.2 and
 the 5.17 D2 limits: joint velocity peaks, pelvis jumps, foot and hand slide, clipping, range-of-motion violations, balance
 and action durations. Every new or changed clip passes it before it is committed. The audit inventory and its history are
-in `docs/locomotion/`.
+in `docs/archive/locomotion/`.
 
 ### 5.13 Health and damage
 
@@ -912,7 +912,7 @@ Mission 8 has no traitor and no player-versus-player finale (G9). The finale is 
 
 ### 5.17 Locomotion rules still in force
 
-From the locomotion run (loco D1-D8, 2026-10-13; `docs/locomotion/DECISIONS.md`, history). D3, D4, D5, D6 are history;
+From the locomotion run (loco D1-D8, 2026-10-13; `docs/archive/locomotion/DECISIONS.md`, history). D3, D4, D5, D6 are history;
 what survives of D5 is G30 (5.3).
 
 #### D1 Controls
@@ -958,7 +958,7 @@ Every feature works smoothly in co-op (2 players; up to 4 in Sector Ops), to 5.9
 
 ## 6. Out of scope
 
-**Removed** (code deleted; logs in `docs/consolidation/deleted-*.md`; history in the git log and `docs/archive/`):
+**Removed** (code deleted; logs in `docs/archive/consolidation/deleted-*.md`; history in the git log and `docs/archive/`):
 
 - Blacklist systems: snap cover, cover glide, cover-to-cover, blind fire over cover; Mark & Execute; sonar; the Ghost /
   Panther / Assault tracker and cash; the regenerating shield.
@@ -997,7 +997,7 @@ Every feature works smoothly in co-op (2 players; up to 4 in Sector Ops), to 5.9
 - The old Mission mode.
 - Credits, XP-gated unlocks, shop, suit upgrades, HQ, challenges, weapon mastery; camos, outfits, appearance editing.
 - The drone operator guard archetype (not placed in maps).
-- The Fallow bunker (map `bunker`, `docs/training/`), the old co-op tutorial; Marlow Yard replaced it (G184, G292).
+- The Fallow bunker (map `bunker`, `docs/archive/training/`), the old co-op tutorial; Marlow Yard replaced it (G184, G292).
 - Parked maps (Embassy, Mansion, Port, Refinery, Dust Depot). The Warehouse stays selectable as the old Sector Ops map
   (G298).
 
