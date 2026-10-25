@@ -21,6 +21,7 @@ import {
   type SectorDef,
 } from '../src/game/sectors';
 import { DIFFICULTIES } from '../src/ai/archetypes';
+import type { GearTag } from '../src/ai/gear';
 import { MAX_ENEMIES } from '../src/net/protocol';
 import { WAREHOUSE_OPS_LASERS, WAREHOUSE_OPS_SECURITY, WAREHOUSE_SECTORS } from '../src/world/maps/warehouseSectors';
 import { warehouseOps } from '../src/world/maps/warehouseOps';
@@ -244,8 +245,9 @@ describe('sector rules', () => {
   it('(sector-redesign G3 / G20) guards: everyone armed, no heavies, dogs only by the section allowance and with a handler', () => {
     const g = (kind: SectorDef['guards'][number]['kind'], handler?: number): SectorDef['guards'][number] => ({ kind, x: 0, z: 0, yaw: 0, takedownSpot: [0, 0], ...(handler !== undefined ? { handler } : {}) });
     const sec = (guards: SectorDef['guards'], dogs?: number): SectorDef => ({ ...def('s', 0, true), guards, ...(dogs !== undefined ? { dogs } : {}) });
-    // every armed kind passes
-    for (const k of ['grunt', 'officer', 'enforcer', 'sniper', 'droneOp'] as const) expect(checkSectorGuards(sec([g(k)])), k).toEqual([]);
+    // every armed kind passes but the riot shield (guard-rules S1: shields only lead alert response teams, G307 (3))
+    for (const k of ['grunt', 'officer', 'sniper', 'droneOp'] as const) expect(checkSectorGuards(sec([g(k)])), k).toEqual([]);
+    expect(checkSectorGuards(sec([g('grunt'), g('enforcer')]))).toEqual(['s: guard 1 is a riot shield (only in alert response teams, G307)']);
     // M1: no melee-only guards; G155: no heavies
     expect(checkSectorGuards(sec([g('runner')]))).toEqual(['s: guard 0 (runner) carries no gun (M1)']);
     expect(checkSectorGuards(sec([g('heavy')]))).toEqual(['s: guard 0 is a heavy (G155)']);
@@ -263,6 +265,19 @@ describe('sector rules', () => {
     expect(SECTOR_REINFORCE_KIND).toBe('grunt');
     expect(ENEMIES[SECTOR_REINFORCE_KIND].weapon).toBeTruthy();
     expect(ENEMIES[SECTOR_REINFORCE_KIND].melee).toBeNull();
+  });
+
+  it('(guard-rules S1, A15) gear tags: a helmet never comes from data (slot or section); armour passes', () => {
+    const g = (gear?: GearTag): SectorDef['guards'][number] => ({ kind: 'grunt', x: 0, z: 0, yaw: 0, takedownSpot: [0, 0], ...(gear ? { gear } : {}) });
+    const sec = (guards: SectorDef['guards'], gear?: GearTag): SectorDef => ({ ...def('s', 0, true), guards, ...(gear ? { gear } : {}) });
+    expect(checkSectorGuards(sec([g('helmet')]))).toEqual(["s: guard 0 gear 'helmet' names a helmet (helmets come from difficulty and stage, G350)"]);
+    expect(checkSectorGuards(sec([g(), g('both')]))).toEqual(["s: guard 1 gear 'both' names a helmet (helmets come from difficulty and stage, G350)"]);
+    expect(checkSectorGuards(sec([g()], 'helmet'))).toEqual(["s: section gear 'helmet' names a helmet (helmets come from difficulty and stage, G350)"]);
+    expect(checkSectorGuards(sec([g()], 'both'))).toEqual(["s: section gear 'both' names a helmet (helmets come from difficulty and stage, G350)"]);
+    expect(checkSectorGuards(sec([g('armour'), g()], 'armour'))).toEqual([]);
+    expect(checkSectorGuards(sec([g(), g()]))).toEqual([]);
+    // checkSectors runs it on every section
+    expect(checkSectors([sec([g('helmet')])])).toContain("s: guard 0 gear 'helmet' names a helmet (helmets come from difficulty and stage, G350)");
   });
 
   it('alarm stages cap and send reinforcements per stage (the section perStage)', () => {

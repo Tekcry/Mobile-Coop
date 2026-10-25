@@ -70,7 +70,7 @@ import { MAX_INTRUDERS, mayBeSeen, PERCEIVE, perceiveOrder, pickTarget, TARGETS 
 import { COOP4, INTRUDERS, slotOf } from './intruders';
 
 /** (guard-ai S12) Scratch for `gearHit` (one hit at a time; the damage path allocates nothing for gear). */
-const GEAR_OUT: GearHit = { mult: 1, knockOff: false, stagger: 0 };
+const GEAR_OUT: GearHit = { mult: 1, knockOff: false, stagger: 0, soak: false };
 
 /** (guard-ai S23) Per-player perception scratch (`Enemy.perceive`, index = `players()`'s): perceive runs one guard at a
  *  time, so one set serves every guard (no per-guard arrays, nothing allocated per think). Float64 keeps the solo
@@ -844,6 +844,11 @@ export class Enemy implements Damageable {
   helmet = false;
   /** He wears body armour (bullets to the body deal no damage, a stagger at most every `GEAR.staggerCd` s). */
   armour = false;
+  /** (guard-rules S1, A2) His helmet cannot be shot off (Perfectionist; `EnemyManager` sets it at place, revive and
+   *  team join): the first headshot is soaked, the second kills, the helmet stays on (`gearHit`). */
+  helmetLocked = false;
+  /** (guard-rules S1, A2) His locked helmet has soaked its one headshot (kept by a woken guard; a place resets it). */
+  helmetSoaked = false;
   /** Seconds since his last stagger (the vest's stagger cooldown); large at spawn so the first vest hit staggers. */
   sinceStagger = 1e9;
   /** The placeholder gear parts (A45), built once on first use and toggled: the helmet on his head node, the plates. */
@@ -857,6 +862,9 @@ export class Enemy implements Damageable {
   setGear(g: GuardGear): void {
     this.helmet = !this.dog && g.helmet === true;
     this.armour = !this.dog && g.armour === true;
+    // (guard-rules S1, A2) the lock and the soak travel with the gear when it names them (a woken guard's `inherit`)
+    if (g.helmetLocked !== undefined) this.helmetLocked = !this.dog && g.helmetLocked;
+    if (g.helmetSoaked !== undefined) this.helmetSoaked = g.helmetSoaked;
     this.showGear();
   }
 
@@ -1078,7 +1086,8 @@ export class Enemy implements Damageable {
     this.walker.tick(downFor);
     this.walker.rejoin(this.pos.x, this.pos.z);
     this.setCaution(0);
-    // (guard-ai S12) his gear as it was when he went down (a helmet shot off stays off)
+    // (guard-ai S12) his gear as it was when he went down (a helmet shot off stays off); (guard-rules S1, A2) a locked
+    // helmet stays locked and keeps its soak
     this.setGear(o);
     // (guard-ai S24) a woken guard knows no intruder
     this.hunt = -1;
@@ -2185,6 +2194,8 @@ export class Enemy implements Damageable {
     if (kind !== 'heavy' && h.kind === 'bullet' && (this.helmet || this.armour)) {
       const g = gearHit(h.part, h.kind, false, this, this.sinceStagger, GEAR_OUT);
       if (g.knockOff) this.knockHelmetOff(h);
+      // (guard-rules S1, A2) a locked helmet took its one headshot: it stays on, the next headshot kills
+      if (g.soak) this.helmetSoaked = true;
       if (g.mult <= 0) return this.deflect(h, g.stagger);
       mult *= g.mult;
       gearStagger = g.stagger;

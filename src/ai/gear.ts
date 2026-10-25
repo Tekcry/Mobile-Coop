@@ -14,27 +14,37 @@ import type { HitInfo, HitPart } from '../game/damage';
 import type { EnemyKind } from './enemyDefs';
 import { COOP4 } from './intruders';
 
-/** Gear numbers: a helmet soaks `helmetHits` head hits; stagger (s) on a knock-off / a vest hit (vest at most every `staggerCd` s); `armourMult` = damage multiplier of a vest-stopped body hit. */
-export const GEAR = { helmetHits: 1, helmetStagger: 0.9, armourStagger: 0.5, staggerCd: 1.5, armourMult: 0 } as const;
+/** Gear numbers: a helmet soaks `helmetHits` head hits; stagger (s) on a knock-off / a vest hit (vest at most every `staggerCd` s); `armourMult` = damage multiplier of a vest-stopped body hit.
+ *  (guard-rules S1, A2, G350) `lockHelmets`: a locked helmet (`GuardGear.helmetLocked`, Perfectionist) is never shot off;
+ *  it soaks the first headshot (a stagger, no knock-off) and the second headshot kills (G307 (2)). Undo: false (a locked
+ *  helmet comes off on the first headshot, as on Realistic). */
+export const GEAR = { helmetHits: 1, helmetStagger: 0.9, armourStagger: 0.5, staggerCd: 1.5, armourMult: 0, lockHelmets: true } as const;
 
-/** The gear a tag names (`GuardSlotTags.gear`, `SectorDef.gear`). */
+/** The gear a tag names (`GuardSlotTags.gear`, `SectorDef.gear`). (guard-rules S1, A15) Sector Ops data may only name
+ *  `armour` (late armour, G307 (13)): helmets come from the difficulty and the alarm stage (`checkSectorGuards`). */
 export type GearTag = 'helmet' | 'armour' | 'both';
 
 /** What one guard wears. */
 export interface GuardGear {
   helmet: boolean;
   armour: boolean;
+  /** (guard-rules S1, A2) His helmet cannot be shot off (Perfectionist); absent = unchanged by `setGear`. */
+  helmetLocked?: boolean;
+  /** (guard-rules S1, A2) His locked helmet has soaked its one headshot (the next kills); absent = unchanged. */
+  helmetSoaked?: boolean;
 }
 
-/** Gear every guard gets by alarm stage (index = stage 0..3): none, none, armour, armour + helmet (CT's order). */
+/** Gear every guard gets by alarm stage (index = stage 0..3): none, none, armour + helmet, armour + helmet.
+ *  (guard-rules S1, A3) Stage 2 gives the helmet too (bible 5.7 "Level 2: more guards wear helmets and armour"); undo:
+ *  `GEAR_BY_STAGE[2].helmet` false (CT's order: armour at 2, the helmet at 3). */
 export const GEAR_BY_STAGE: readonly GuardGear[] = [
   { helmet: false, armour: false },
   { helmet: false, armour: false },
-  { helmet: false, armour: true },
+  { helmet: true, armour: true },
   { helmet: true, armour: true },
 ];
 
-/** Response team shape: the shield guard leads and always wears a helmet; `liveTeam` = shield + 2 guards outside Sector Ops. */
+/** Response team shape: the shield guard leads (`responseTeam`'s `shield`; Sector Ops: `SectorDef.shieldTeams`) and always wears a helmet; `liveTeam` = shield + 2 guards outside Sector Ops. */
 export const RESPONSE = { shieldLead: true, shieldHelmet: true, liveTeam: 3 } as const;
 
 /** Sweep numbers: thin route / post points to one per `thin` m, look `dwell` s at each, followers stack `gap` m behind the leader.
@@ -116,17 +126,21 @@ export function stageGear(stage: number, out: GuardGear): GuardGear {
   return out;
 }
 
-/** What gear does to one hit: damage multiplier (1 = unchanged), helmet knocked off, stagger seconds (0 = none). */
+/** What gear does to one hit: damage multiplier (1 = unchanged), helmet knocked off, stagger seconds (0 = none), and
+ *  (guard-rules S1) `soak`: a locked helmet took its one headshot (the caller records `helmetSoaked`). */
 export interface GearHit {
   mult: number;
   knockOff: boolean;
   stagger: number;
+  soak: boolean;
 }
 
 /**
  * How `gear` changes one hit into `out`. Only a lethal bullet is affected (melee, explosions and `nonLethal` sleep bolts
  * are not). Head + helmet: no damage, the helmet comes off, stagger `helmetStagger` (always: the knock-off is its own
- * event). Head, no helmet: unchanged (the caller kills as before). Body + armour: no damage (`armourMult`), stagger
+ * event). (guard-rules S1, A2) Head + locked helmet (`helmetLocked`, `GEAR.lockHelmets`): not yet soaked = no damage, no
+ * knock-off, stagger `helmetStagger`, `soak`; soaked = the bare-head result (the caller kills), the helmet stays on.
+ * Head, no helmet: unchanged (the caller kills as before). Body + armour: no damage (`armourMult`), stagger
  * `armourStagger` only when `sinceStagger` (s since his last stagger) is at least `staggerCd`. Body, no armour: unchanged.
  * Returns `out`.
  */
@@ -134,9 +148,16 @@ export function gearHit(part: HitPart, kind: HitInfo['kind'], nonLethal: boolean
   out.mult = 1;
   out.knockOff = false;
   out.stagger = 0;
+  out.soak = false;
   if (kind !== 'bullet' || nonLethal) return out;
   if (part === 'head') {
-    if (gear.helmet) {
+    if (gear.helmet && gear.helmetLocked === true && GEAR.lockHelmets) {
+      if (gear.helmetSoaked !== true) {
+        out.mult = 0;
+        out.stagger = GEAR.helmetStagger;
+        out.soak = true;
+      }
+    } else if (gear.helmet) {
       out.mult = 0;
       out.knockOff = true;
       out.stagger = GEAR.helmetStagger;
@@ -150,16 +171,18 @@ export function gearHit(part: HitPart, kind: HitInfo['kind'], nonLethal: boolean
 
 /**
  * The response team for alarm stage `stage` into `out` (kinds): `perStage` guards, a shield guard (`enforcer`) first when
- * `RESPONSE.shieldLead`, the rest `grunt`. Stage < 1 or `perStage` < 1 = no team (`out` emptied). Returns the count.
+ * `shield` (default `RESPONSE.shieldLead`: Marlow Yard's live team, A14), the rest `grunt`. (guard-rules S1, A4, M2)
+ * Sector Ops passes `SectorDef.shieldTeams` (S4 / S5 only; the campaign never). Stage < 1 or `perStage` < 1 = no team
+ * (`out` emptied). Returns the count.
  */
-export function responseTeam(stage: number, perStage: number, out: EnemyKind[]): number {
+export function responseTeam(stage: number, perStage: number, out: EnemyKind[], shield: boolean = RESPONSE.shieldLead): number {
   if (!(stage >= 1) || !(perStage >= 1)) {
     out.length = 0;
     return 0;
   }
   const n = Math.floor(perStage);
   out.length = n;
-  for (let i = 0; i < n; i++) out[i] = i === 0 && RESPONSE.shieldLead ? 'enforcer' : 'grunt';
+  for (let i = 0; i < n; i++) out[i] = i === 0 && shield ? 'enforcer' : 'grunt';
   return n;
 }
 
