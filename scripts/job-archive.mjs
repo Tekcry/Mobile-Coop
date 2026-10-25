@@ -8,7 +8,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 /** Folders under docs/ that are never a job's (a Job-done line naming one is ignored). */
-export const NOT_JOBS = new Set(['archive', 'systems', 'templates', 'orchestrator', 'design', 'research', 'reviews', 'prompts', 'audio']);
+// kestrel, level-validator and mocap-trial hold data that code and tests read (docs/kestrel/kestrel.campus.blocks.json,
+// docs/level-validator/example.graph.json, scripts/mocap/takesdoc.mjs).
+export const NOT_JOBS = new Set(['archive', 'systems', 'templates', 'orchestrator', 'design', 'research', 'reviews', 'prompts', 'audio',
+  'kestrel', 'level-validator', 'mocap-trial']);
 
 /** The jobs a PR body names on `Job-done: <job>` lines (case-insensitive key, backticks allowed), deduplicated. */
 export function jobDoneJobs(body) {
@@ -33,6 +36,29 @@ export function archiveMoves(job, files, taken, date) {
   for (let k = 1; taken(to); k++) to = `docs/archive/${job}-${date}${k > 1 ? `-${k}` : ''}`;
   return { from, to, moves: inside.map((f) => ({ from: f, to: `${to}${f.slice(from.length)}` })) };
 }
+
+/** Of git grep's `hits` (repo paths naming docs/<job>), the ones that pin the folder: not markdown, not inside it. */
+export function codeReaders(job, hits) {
+  return [...new Set(hits)].filter((f) => !/\.md$/i.test(f) && !f.startsWith(`docs/${job}/`));
+}
+
+/**
+ * Code, tests or config that name docs/<job> (git grep at `rev`, or the worktree when `rev` is null; run in `cwd`).
+ * A job they read is never archived. -> the reader paths (empty: safe to move).
+ */
+export function grepReaders(job, { cwd, rev = null }) {
+  const esc = job.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const args = ['grep', '-l', '-E', '-e', `docs/${esc}([/'"\`]|$)`, ...(rev ? [rev] : []), '--', '.', ':(exclude)*.md'];
+  const r = spawnSync('git', args, { cwd, encoding: 'utf8', windowsHide: true, maxBuffer: 64 << 20 });
+  if (r.status === 1) return [];
+  if (r.status !== 0) throw new Error(`git grep for docs/${job} failed: ${(r.stderr || '').trim()}`);
+  const hits = r.stdout.split('\n').filter(Boolean).map((l) => (rev ? l.slice(rev.length + 1) : l));
+  return codeReaders(job, hits);
+}
+
+/** "not archived, read by a, b, ..." for the log. */
+export const readersNote = (job, readers) =>
+  `Job-done: ${job}: not archived, code / tests / config read docs/${job}: ${readers.slice(0, 5).join(', ')}${readers.length > 5 ? `, +${readers.length - 5} more` : ''}`;
 
 /** `p` (a repo path) after the moves (`plans`: archiveMoves results), or `p` itself. */
 export function movedPath(p, plans) {
@@ -75,8 +101,9 @@ export function rewriteArchiveLinks(text, file, plans) {
 
 /**
  * The same archive in a checked-out worktree (merge-train `single`, which commits from a worktree): for each job with
- * tracked files under docs/<job>/, the markdown files that point at it (outside docs/archive/, changes/ and
- * CHANGELOG.md) and the moved ones get their links rewritten on disk, then `git mv` moves the folder. Nothing is staged
+ * tracked files under docs/<job>/ and no code, test or config reading it (grepReaders), the markdown files that point
+ * at it (outside docs/archive/, changes/ and CHANGELOG.md) and the moved ones get their links rewritten on disk, then
+ * `git mv` moves the folder. Nothing is staged
  * beyond the moves; the caller adds `rewritten` (and docs/) to its commit.
  * -> [{ job, from, to, files, rewritten: [paths after the move] }].
  */
@@ -89,6 +116,8 @@ export function archiveInWorktree({ root, jobs, date }) {
   const tracked = git(['ls-files', '-z']).split('\0').filter(Boolean);
   const plans = [];
   for (const job of jobs) {
+    const readers = grepReaders(job, { cwd: root });
+    if (readers.length) { console.log(readersNote(job, readers)); continue; }
     const plan = archiveMoves(job, tracked, (to) => tracked.some((f) => f.startsWith(`${to}/`)) || plans.some((p) => p.to === to), date);
     if (plan) plans.push({ ...plan, job });
   }

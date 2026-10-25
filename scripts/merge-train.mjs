@@ -69,7 +69,7 @@ import { pathToFileURL } from 'node:url';
 import { assemble, assembleDir, parseFragment, releaseHeading, summary } from './changelog-assemble.mjs';
 import { fetchOrigin } from './fetch-retry.mjs';
 import { takeTouchLock } from './heavy-lock.mjs';
-import { archiveInWorktree, archiveMoves, jobDoneJobs, rewriteArchiveLinks } from './job-archive.mjs';
+import { archiveInWorktree, archiveMoves, grepReaders, jobDoneJobs, readersNote, rewriteArchiveLinks } from './job-archive.mjs';
 
 const DRY = process.argv.includes('--dry-run');
 const TRAIN_LOCK_STALE_MIN = 30; // the same staleness as auto-train's tick lock
@@ -468,7 +468,7 @@ export function versionTreeCommit({ head, frags = [], protocol = null, subject, 
 
 /**
  * Job-done archive inside the version commit's index (`env` holds its GIT_INDEX_FILE): each job's docs/<job>/ files
- * move to docs/archive/<name>/ (same blob and mode), then every markdown file outside docs/archive/ and changes/ that
+ * move to docs/archive/<name>/ (same blob and mode; a job that code, tests or config read is skipped, logged), then every markdown file outside docs/archive/ and changes/ that
  * names the job's folder, and every moved markdown file, gets its links rewritten (scripts/job-archive.mjs).
  */
 function archiveJobs({ head, jobs, date, env, cwd, blob, put }) {
@@ -478,6 +478,8 @@ function archiveJobs({ head, jobs, date, env, cwd, blob, put }) {
     .map((l) => { const [meta, file] = l.split('\t'); const [mode, , sha] = meta.split(' '); return { mode, sha, file }; });
   const plans = [];
   for (const job of jobs) {
+    const readers = grepReaders(job, { cwd, rev: head });
+    if (readers.length) { console.log(readersNote(job, readers)); continue; }
     const entries = listed(`docs/${job}`);
     const plan = archiveMoves(job, entries.map((e) => e.file), (to) => listed(to).length > 0 || plans.some((p) => p.to === to), date);
     if (!plan) { console.log(`Job-done: ${job}: no docs/${job}/ on the train head, nothing to archive`); continue; }

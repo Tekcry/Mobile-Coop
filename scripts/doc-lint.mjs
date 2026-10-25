@@ -223,13 +223,14 @@ export const resolves = (p, exists) => exists(p) || (!/\.[a-z0-9]+$/i.test(p) &&
  * (docs/orchestrator/** on feature/menu). Backticked paths are skipped on a line that names another branch
  * (`origin/<b>`, "on feature/..."), an external URL, a git-ignored or generated path, a planned file ("new", "planned")
  * or a removed one ("removed", "gone", "was"). A module path without an extension (`src/save/ratingRecord`) resolves to
- * .ts / .tsx / .mjs / .js / .json / .md. `level` per scope: `errorScope` globs give ERROR, other files in `scope` WARN.
+ * .ts / .tsx / .mjs / .js / .json / .md. `errorScope` globs give ERROR; other files in `scope` and `warnScope` ones
+ * (history: DECISIONS) give WARN.
  */
 export function checkLinks(files, exists, cfg) {
   const out = [];
   for (const [file, text] of files) {
     if (!matchAny(file, cfg.scope ?? ['**/*.md']) || matchAny(file, cfg.skip ?? [])) continue;
-    const level = matchAny(file, cfg.errorScope ?? ['**']) ? 'ERROR' : 'WARN';
+    const level = matchAny(file, cfg.errorScope ?? ['**']) && !matchAny(file, cfg.warnScope ?? []) ? 'ERROR' : 'WARN';
     const { lines, fenced } = splitLines(text);
     for (let i = 0; i < lines.length; i++) {
       if (fenced[i]) continue;

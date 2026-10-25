@@ -60,6 +60,9 @@
       "docs/systems/**",
       "docs/templates/**"
     ],
+    "warnScope": [
+      "docs/DECISIONS.md"
+    ],
     "skip": [],
     "offBranch": [
       "docs/orchestrator/**",

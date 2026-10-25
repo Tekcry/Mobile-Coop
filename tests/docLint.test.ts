@@ -93,7 +93,7 @@ describe('citations', () => {
 
 describe('links', () => {
   const exists = has(['docs/VISION.md', 'docs/systems', 'src/save/ratingRecord.ts', 'scripts/a.mjs']);
-  const cfg = { scope: ['docs/**'], errorScope: ['docs/*.md'], offBranch: ['docs/orchestrator/**'] };
+  const cfg = { scope: ['docs/**'], errorScope: ['docs/*.md'], warnScope: ['docs/DECISIONS.md'], offBranch: ['docs/orchestrator/**'] };
   it('resolves link targets relative to the file', () => {
     expect(linkPath('docs/systems/ai.md', '../VISION.md#x')).toBe('docs/VISION.md');
     expect(linkPath('docs/a.md', 'https://x.y')).toBeNull();
@@ -116,8 +116,8 @@ describe('links', () => {
       'on origin/feature/menu: `docs/x/Y.md`',
       'the voxel body was removed (`src/voxel/body.ts`)',
     ].join('\n');
-    const out: F[] = checkLinks(map({ 'docs/a.md': text, 'docs/job/PLAN.md': '[m](NONE.md)' }), exists, cfg);
-    expect(out.map((f) => `${f.level} ${f.file}:${f.line}`)).toEqual(['ERROR docs/a.md:1', 'ERROR docs/a.md:2', 'WARN docs/job/PLAN.md:1']);
+    const out: F[] = checkLinks(map({ 'docs/a.md': text, 'docs/job/PLAN.md': '[m](NONE.md)', 'docs/DECISIONS.md': '`scripts/old.mjs`' }), exists, cfg);
+    expect(out.map((f) => `${f.level} ${f.file}:${f.line}`)).toEqual(['ERROR docs/a.md:1', 'ERROR docs/a.md:2', 'WARN docs/job/PLAN.md:1', 'WARN docs/DECISIONS.md:1']);
     expect(out[1]!.msg).toContain('scripts/gone.mjs');
   });
 });
