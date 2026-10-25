@@ -64,7 +64,7 @@ export const S3_NAV_SEEDS_L1: Vector3[] = [
   new Vector3(60, S3_L1, -14.5),
   new Vector3(30, 6.0, -29.1),
   new Vector3(36, S3_L1, -11.75),
-  new Vector3(33, S3_BOX.chamberTop, -18),
+  new Vector3(32, S3_BOX.chamberTop, -18),
 ];
 
 /** The L1 hide spots (derived): the goods landing's NW corner. */
