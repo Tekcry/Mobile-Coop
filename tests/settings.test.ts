@@ -173,6 +173,9 @@ describe('settings: the A3 D-pad layout (F7, playtest 2 "D pad left and right is
     expect(s.pad.throwCam).toEqual([PAD.RIGHT]);
     expect(s.pad.crouch).toEqual([PAD.B]);
     expect(s.padV).toBe(3);
+    // (A6, G343) the stored `device: [8]` (View) is the show-objective bind now, and `device` is not written back
+    expect(s.pad.objective).toEqual([8]);
+    expect(s.pad).not.toHaveProperty('device');
   });
   it('keeps a verb the player remapped, and never migrates the D-pad of a padV 2 save again', () => {
     const custom = sanitizeSettings({ ...structuredClone(A3_SAVE), pad: { ...A3_SAVE.pad, vision: [PAD.RB] } });
@@ -203,6 +206,8 @@ describe('settings: the analogue speed and weapon state layout (anim-rework S1, 
     expect(s.pad).not.toHaveProperty('gearUp');
     expect(s.pad.draw).toEqual([PAD.X]);
     expect(s.pad.vision).toEqual([PAD.LEFT]);
+    expect(s.pad.objective).toEqual([8]);
+    expect(s.pad).not.toHaveProperty('device');
     expect(s.keys).not.toHaveProperty('speedUp');
     expect(s.keys).not.toHaveProperty('speedDown');
     expect(s.keys.wall).toEqual(['CapsLock']);

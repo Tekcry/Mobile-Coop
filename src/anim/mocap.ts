@@ -33,6 +33,7 @@ import { MOCAP_CROUCH_WALK } from './clips/mocap/crouch_walk';
 import { MOCAP_SPRINT } from './clips/mocap/sprint';
 import { MOCAP_STRAFE_L } from './clips/mocap/strafe_l';
 import { MOCAP_STRAFE_R } from './clips/mocap/strafe_r';
+import { noteMoveSources } from './nowPlaying';
 
 /**
  * Per-layer scales for the mocap set (one table; the job lead tunes them once the real clips land). Each scales a
@@ -192,6 +193,9 @@ export const MOCAP_SET: LocoClipSet = {
   strafeR: MOCAP_STRAFE_R,
 };
 
+// (mixamo-retarget M5) the line's sources before the first switch (the mocap set is the only one with captures)
+noteMoveSources(MOCAP_SET);
+
 /** Any slot filled (the graph runs `MocapSlots` only then). */
 export function hasSlots(S: LocoClipSet): boolean {
   return S.turnInPlace !== null || S.turnMoveL !== null || S.turnMoveR !== null || S.start !== null || S.stop !== null;
@@ -208,6 +212,7 @@ export function setMocapLocomotion(on: boolean): void {
   LOCO.mocap = on;
   LOCO.set = on ? MOCAP_SET : HAND_KEYED_SET;
   LOCO.slots = hasSlots(LOCO.set);
+  noteMoveSources(LOCO.set); // (mixamo-retarget M5) the Now playing line's source per move (CMU / Mixamo)
 }
 
 /**

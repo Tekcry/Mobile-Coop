@@ -661,7 +661,7 @@ export function trainHold(heads) {
 }
 
 /**
- * The open train about to be released, for trainSoon's releasing case: of heads ([{ n, laptop, laptopAt }], laptopAt =
+ * The open train about to be released, for nextTrain's releasing case: of heads ([{ n, laptop, laptopAt }], laptopAt =
  * the laptop-e2e status' updated_at), the one whose laptop-e2e success is youngest, as { n, ageMs }; null when none
  * has a success with a readable time.
  */
@@ -675,38 +675,79 @@ export function releasingTrain(heads, now) {
   return best;
 }
 
-/** How long a released-to-be train (laptop-e2e success, PR still open) holds new claims (trainSoon releasing). */
-export const RELEASE_HOLD_MS = 10 * 60_000;
-
 /**
- * Train-ready PRs counted by the releasing hold: prs = [{ head, check: { status, conclusion } | null }] (the `check` run
- * of gh's statusCheckRollup); a check that passed or is still running (status not COMPLETED) counts, a failed or
- * missing one does not, nor a head inTrain(head) says the open train already carries (its members keep the label).
+ * Train-ready PR heads split by their `check` run: prs = [{ head, check: { status, conclusion } | null }] (gh's
+ * statusCheckRollup); green = check passed, running = check not completed; a failed or missing check counts for
+ * nothing, nor a head inTrain(head) says an open train or origin/master already carries (members keep the label until
+ * the release tail closes them). { green: [heads], running: [heads] }, new arrays.
  */
-export function readyOrPending(prs, inTrain = () => false) {
-  return (prs ?? []).filter((p) => {
+export function readyHeads(prs, inTrain = () => false) {
+  const out = { green: [], running: [] };
+  for (const p of Array.isArray(prs) ? prs : []) {
     const c = p?.check;
-    if (!c || inTrain(p.head)) return false;
-    return String(c.conclusion ?? '').toUpperCase() === 'SUCCESS' || (Boolean(c.status) && String(c.status).toUpperCase() !== 'COMPLETED');
-  }).length;
+    if (!c || !p.head || inTrain(p.head)) continue;
+    if (String(c.conclusion ?? '').toUpperCase() === 'SUCCESS') out.green.push(p.head);
+    else if (Boolean(c.status) && String(c.status).toUpperCase() !== 'COMPLETED') out.running.push(p.head);
+  }
+  return out;
+}
+
+/** Train-ready PRs whose check passed or still runs, not the open train members (readyHeads green + running). */
+export function readyOrPending(prs, inTrain = () => false) {
+  const h = readyHeads(prs, inTrain);
+  return h.green.length + h.running.length;
 }
 
 /**
- * Why the laptop should start no new non-train work now because a train is about to need both slots, or '' (Orchestrator
- * audit 2026-10-24: the laptop claimed an alone run 51 s before train 60's build began, so the train waited ~4.5 min).
- * building = an open train PR whose head is not its version commit yet ({ n, ageMs }; merge-train opens the PR before it
- * pushes the version commit), held while younger than buildMaxMs; release = the newest merged train PR ({ n, ageMs }),
- * held for gapMs after it while candidates (open train-ready PRs with a green check) > 0, the next build being due.
- * releasing = an open train PR whose laptop-e2e is success ({ n, ageMs from that status' updated_at }): auto-train
- * releases it and builds the next one within minutes, so every new claim is held for releaseMs while candidates
- * (here: train-ready PRs not in the train whose check is green OR still running, readyOrPending) > 0 (Orchestrator
- * waste audit 2026-10-24: an alone run claimed 17 s after train 67's laptop-e2e success was preempted by train 68).
+ * First-seen-green times (state.trainReady): head -> ms. prev's time stays for a head still green, a new green head gets
+ * now, a head no longer green is dropped. New object; prev is not changed.
  */
-export function trainSoon({ building = null, releasing = null, release = null, candidates = 0 } = {}, { gapMs, buildMaxMs, releaseMs = RELEASE_HOLD_MS }) {
-  if (building && building.ageMs < buildMaxMs) return `train ${building.n} building`;
-  if (releasing && releasing.ageMs < releaseMs && candidates > 0) return `train ${releasing.n} releasing, ${candidates} train-ready PR(s) next`;
-  if (release && release.ageMs < gapMs && candidates > 0) return `train ${release.n} released, ${candidates} train-ready PR(s) waiting`;
-  return '';
+export function seenSince(prev, greenHeads, now) {
+  const out = {};
+  for (const h of greenHeads ?? []) out[h] = Number.isFinite(prev?.[h]) ? prev[h] : now;
+  return out;
+}
+
+/** A run fits before the next train when prep + FIT_SLACK x its expected wall ends by the ETA (fitsBeforeTrain). */
+export const FIT_SLACK = 1.2;
+
+/**
+ * When the next train is due, so the laptop starts only runs that end before it (laptop-queue-6; trains 102-106 cut 6
+ * PR runs claimed after the old 3-min gap: merge-train release waits ~5 min for the deploy, then builds). null, or
+ * { why, etaMs, untilMs }: the hold lasts until untilMs.
+ * building = an open train PR without its version head ({ n, ageMs }): held while younger than buildMaxMs, ETA = now.
+ * releasing = an open train with its laptop-e2e success ({ n, laptopAtMs }): merge = laptopAtMs + mergeLagMs.
+ * lastMerge = the newest merged train ({ n, atMs }), passed only while no train PR is open. green = the green
+ * candidates' first-seen-green times (ms), running = candidates whose check still runs (a count).
+ * With a merge and green or running candidates: ETA = max(merge + gapMs, newest green + readyLagMs); running heads keep
+ * the hold on but never set or extend the ETA. Merge long past: green candidates alone give ETA = newest + readyLagMs
+ * (auto-train builds only on green). The hold ends at ETA + lateMs (auto-train's pacing may wait).
+ */
+export function nextTrain({ building = null, releasing = null, lastMerge = null, green = [], running = 0, now } = {}, { buildMaxMs, gapMs, readyLagMs, mergeLagMs, lateMs }) {
+  if (building && building.ageMs < buildMaxMs) return { why: `train ${building.n} building`, etaMs: now, untilMs: now - building.ageMs + buildMaxMs };
+  const anchor = releasing ? { n: releasing.n, atMs: releasing.laptopAtMs + mergeLagMs } : lastMerge;
+  const k = green.length + (Number(running) || 0);
+  if (!anchor || !Number.isFinite(anchor.atMs) || k === 0) return null;
+  const readyEta = green.length ? Math.max(...green) + readyLagMs : -Infinity;
+  const etaMs = Math.max(anchor.atMs + gapMs, readyEta);
+  if (now < etaMs + lateMs) {
+    const why = releasing ? `train ${anchor.n} releasing, ${k} train-ready PR(s) next`
+      : now < anchor.atMs + gapMs + lateMs ? `train ${anchor.n} released, ${k} train-ready PR(s) waiting`
+        : `${green.length} train-ready PR(s) waiting for a train`; // merge long past: a newly green PR (train 102)
+    return { why, etaMs, untilMs: etaMs + lateMs };
+  }
+  return null;
+}
+
+/**
+ * Whether request r may start under nextTrain's hold: a pr run (not alone / full) whose expected wall is known
+ * (expectedWallS over r.jobs ?? 2 jobs) and whose prep (prepS) + FIT_SLACK x wall ends by etaMs. A fitted run an early
+ * train catches falls to cutShort's 80% rule.
+ */
+export function fitsBeforeTrain(r, { now, etaMs, times, prepS }) {
+  if (r?.kind !== 'pr') return false;
+  const wallS = expectedWallS(r.suites, times, r.jobs ?? 2);
+  return Number.isFinite(wallS) && now + (prepS + FIT_SLACK * wallS) * 1000 <= etaMs;
 }
 
 /**

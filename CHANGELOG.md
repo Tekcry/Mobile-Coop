@@ -1,5 +1,153 @@
 # Changelog
 
+## 4.106.1 - Train 113: Trains: doc-lint left-outs; a fix commit no longer hides the version commit (2026-10-26, PR #497; #495)
+- Train build: `merge-train build` runs doc-lint on the merged tree after each member and leaves out a member that
+  adds a doc-lint error (for example two members together over a doc budget), with a comment asking its lead to fix
+  the doc; the rest of the train ships instead of the whole train failing CI `lint`.
+- Auto-train: a fix commit on top of a train of over 100 commits no longer hides its version commit ("no version
+  commit: rebuild", train 112); the head's newest commits are read when it is missing.
+
+## 4.106.0 - Train 112: Guard rules; Objective pop-up, objective list and Notes; Saltmarsh Park lamp light ships pre-built (dark); Marlow batch fixes; Mixamo traversal captures on Wren (dark); Doors: one 15% light threshold; +1 more (2026-10-26, PR #491; #483, #482, #477, #474, #471, #469, #450)
+
+### Guard rules
+- Helmets follow the difficulty in Sector Ops (and the campaign, which runs on it): on Realistic and Perfectionist every
+  guard wears a helmet from the start. On Perfectionist a helmet is never shot off: the first headshot only staggers
+  him and the second kills. On Rookie and Normal guards are bare-headed until alarm stage 2.
+- Alarm stage 2 now gives every guard a helmet as well as body armour.
+- Riot shields lead the alarm response teams only in the later Saltmarsh Park sections (4 and 5). Earlier sections,
+  the warehouse and Marlow Yard send armed guards only.
+- Killing a guard dog now counts as a kill (no Perfect, no "No kills") and costs score. Knocking one out with gas
+  still scores as a knockout.
+- Sector Ops data checks reject a riot shield guard placed on the map and any helmet named in map data: helmets come
+  from the difficulty and the alarm stage. Saltmarsh Park sections 4 and 5 keep their body armour.
+- Dogs can no longer be taken down in any way (behind, side, drop, from a ledge, the co-op team takedown); in co-op
+  the host also refuses a takedown on a dog. Sleeping gas still knocks a dog out.
+
+### Objective pop-up, objective list and Notes
+- A tap of View (pad) or O (keyboard) shows the current objective for a few seconds; it also shows whenever the
+  objective changes (G343).
+- Sector Ops: Pause > Objectives lists the full objective list for the operation, on the host and the co-op client
+  (G343).
+- Pause > Notes: the lines learned from interrogations this match, newest focused, "No notes yet" when empty. A co-op
+  client keeps the intel and keypad radio lines only; a client that drops and rejoins starts with empty notes.
+- Co-op: connection notices no longer take over the objective line; they show on their own status line.
+- Tests: e2e-sectorops, e2e-pad, e2e-mouse, e2e-coop, e2e-takedown and e2e-menus check the pop-up, the binds, the
+  objective list and the Notes screen.
+
+### Saltmarsh Park lamp light ships pre-built (dark)
+- Loading: the campus lamp light is now baked once when the game is built and shipped with it (5 files, 5.5 MB), so a
+  player's PC no longer bakes it at the start of a match. Off by default (`?mapready=1`, flag `mapReady`) until the
+  Sector Ops and Marlow Yard walks land; any mismatch falls back to the PC bake as before.
+- Tests: the shipped light matches the PC bake byte for byte; a stale, missing or damaged file is never used.
+
+### Marlow batch fixes
+- e2e-ctcourse A8 pass 2: the close by hand of the relocked grille waits until the door's item is live on the host, so
+  a `use` read between the two host steps of a relock no longer reads 'disabled' (train 106 flake; docs/backlog.md
+  "Flaky e2e suites").
+
+### Mixamo traversal captures on Wren (dark)
+- Behind `?mixamo=1` (off by default): Wren's ledge hang plays the Mixamo hanging idle, the shimmy left / right by the
+  way she moves along the lip, and the ladder top-out its capture; guards and team climb-ups keep the hand-made clips.
+  On the hang and the shimmies the palms stay on their grips as on the hand-made clip; the top-out misses its grips by
+  7 cm (the hand-made clip by 11.8).
+- The ladder climb, both lip climb-up captures and the vent crawl stay hand-made in matches for now (they took the hands
+  or feet off their holds, or popped); the Anim Studio still plays every traversal capture on its loop and says which
+  ones stay hand-made.
+
+### Doors: one 15% light threshold
+- Light: a door opened or closed by hand now stops lamp light until it is past 15% open, the same line a slowly
+  pushed door already used (it was 5%); the light meter, the picture and torch light agree.
+
+### Sector Ops: stars fill lower, Perfect, Saltmarsh Park stars on the menu
+- Sector Ops: clearing an op on a harder difficulty now fills every easier star too (old records included).
+- Sector Ops: a run with no kills and no alarm is marked PERFECT on the result line and the extraction banner.
+- Main menu: the stars beside Sector Ops are Saltmarsh Park's, and its line names Saltmarsh Park.
+- Tests: a data check that every Saltmarsh Park section with team doors keeps a route past them for a solo player.
+
+## 4.105.3 - Train 111: Test Runner batch (J20), PR-C: quarantine and hard-rule checks (2026-10-26, PR #486; #445)
+- Every REQUIRED e2e suite has an owner in `scripts/e2e-quarantine.json`, and `tests/e2eQuarantine.test.ts` checks the
+  file (owners, complete entries, ISO expiry, each quarantined suite written up in `docs/backlog.md`).
+- New unit tests for three hard rules: no route timer in Sector Ops (rule 6), the graphics import boundary (rule 10)
+  and patrol and detection replay under a poisoned `Math.random` (rule 8).
+- `e2e-sectorops` part 6 checks every spawned guard is alive at start on Saltmarsh Park sections 2-5, and `e2e-ctcourse`
+  checks every guard is alive at each Marlow Yard set (rule 9).
+
+## 4.105.2 - Train 110: Validator port B2: measure CLI, scale sheet rows and strict metrics-gen; Level validator docs (2026-10-26, PR #484; #480, #479)
+
+### Validator port B2: measure CLI, scale sheet rows and strict metrics-gen
+- `scripts/level-measure.mjs` (run as `node scripts/level-measure.mjs <graph.json> ...`): measures a map's greybox
+  (floor shadow, vantage, LOS break, split legs and partner reach, link times) and writes it back as `measured`. The
+  files of one map are merged, measured once, and each file gets only its own spaces and links, so cross-file links get
+  times and a second `--write` of the same values changes no byte; a campaign graph also gets `meta.measured.ways_back`.
+  `--check` exits 1 on a target miss or a drift; `--points <out.json>` writes the resolved points for one map per call
+  (with `--check`, not `--write`); `--flags <key>=<value>[,<value>]` sets a `flags` key by its current type (a text key
+  such as `mode` is not checked against its allowed values; an unknown key exits 2). Documented in
+  `docs/systems/testing-tools.md` "Measure CLI".
+- `scripts/metrics-gen.mjs` prints its usage and exits 2 on any argument but `--check` (`--help` included), writing
+  nothing.
+- Scale sheet section 3: the Relay lip row states the physical lip ceiling, `TEAM.relayMax` 4.6 + `HANG.drop` 1.9 =
+  6.5 m, and keeps the 4.3 - 4.6 m band (Michael picked "Keep 4.6 m"); a new "Long throw (named spots only)" row (gap at
+  most 4.9 m at two named Tallow Wharf spots) is read into `sizes.throw_long`.
+- Scale sheet section 8: `nav_floor_depth_m` 1.5 and the mission-validator rows (`mission_steps`, `mission_step_min`,
+  `mission_total_min`, `mission_rules_max`, `sector_parallel_min`, `sector_syncs_min`); `metrics.json` regenerated.
+
+### Level validator docs
+- Level validator docs: the graph schema now describes the measured values, the new area and opening-point fields and
+  all six new co-op link kinds, and the level standard's co-op kit list names the vent unlock door.
+
+## 4.105.1 - Train 109: Laptop queue: hold PR runs until the next train (2026-10-25, PR #478; #475)
+- The laptop queue predicts when the next train arrives (from the last release's deploy wait or a newly green
+  train-ready PR) and holds new PR runs until then, so trains stop cutting runs they let start.
+- Under that hold only runs that fit before the next train start (known expected time, 120 s prep, 1.2 x slack).
+
+## 4.105.0 - Train 108: Level validator: measured checks; Mixamo motion capture in the Anim Studio (2026-10-25, PR #476; #472, #452)
+
+### Mixamo motion capture in the Anim Studio
+- 21 Mixamo motion-capture moves on Wren's rig, listed in Main menu > Anim Studio (dev) > "Motion capture" as
+  "Motion capture (Mixamo): <name>" and tunable there like the CMU captures (Body > Joints, Hands & feet, Limb reach):
+  idle, crouched walk, stance changes, carry, crawl, strikes, kneel, team pull, lift, hang, shimmy, ladder, climb-ups.
+- The Now playing line names the capture source ("motion-capture (CMU) walk"); one source table for every capture.
+- Offline pipeline: headless Blender dump of the downloaded takes, Mixamo bone map onto Wren (spine and chest checked
+  under 8 degrees on every take), keyed and traversal clip emitters; CMU clips unchanged. Credits in
+  `docs/art-credits.md`. In-game use comes in later PRs behind the `mixamo` flag.
+
+### Level validator: measured checks
+- Level validator (tooling, no game change): the validator now checks a map's greybox measurements against the scale
+  sheet. A measured view of an encounter space that is too small, or a broken line of sight that lasts too long, is an
+  error; a measured shadow share outside 40-60% is only information, since the real-world light band is the target.
+  Split paths are checked for leg time, for both legs taking about the same time, and for how quickly one partner can
+  reach the other; on campaign maps, each co-op move's way back for the partner is checked against the revive reach.
+- With `--require-measured` (the greybox exit gate) every encounter space, every split and every campaign co-op way
+  back must have measured values. A move the nav grid cannot time is a warning to justify in the design doc, and its
+  hand-written time is still checked. Maps without measurements yet print "pending V6" notes and pass as before.
+
+## 4.104.2 - Train 107: Tallow Wharf map spec; Marlow Yard rule fixes; No minimap, compass or blips; Guard AI allocation fixes (2026-10-25, PR #470; #466, #463, #447, #446)
+
+### Guard AI allocation fixes
+- Guards no longer create garbage when they shoot, bite or think: shots, bites and their moves reuse kept
+  values, and the guard manager's half-second checks use plain loops.
+
+### No minimap, compass or blips
+- The minimap, the compass strip and every objective, pickup, partner and enemy dot are gone from every mode (G339,
+  G135): Sector Ops, Marlow Yard, free roam and co-op. The Marlow Yard drill pointer, world pings and the partner's
+  goggle colour stay. The context menu moves up to its CT spot now nothing sits above it.
+- The legacy HQ "Minimap radar" upgrade is gone; saves move to version 10 (an old radar level is dropped, credits are
+  not refunded).
+- Tests: every suite that read the minimap or blips is flipped; Sector Ops, Marlow Yard, free roam and the co-op
+  client now each check that no minimap or compass is on screen.
+
+### Marlow Yard rule fixes
+- Marlow Yard needs two players: the co-op lobby will not start Course mode with one player, on every build, and the
+  lobby says why ("Marlow Yard needs two players").
+- Revives in Marlow Yard stay capped at two: a good set rating no longer gives a syringe, and the rating card never
+  offers one. Gadget charges and medkits are still granted; Sector Ops ratings still give syringes.
+- The A2 Carriage Shed's entry vantage is now checked as out of the deck watchers' view.
+
+### Tallow Wharf map spec
+- Docs: `docs/tallowWharf-map/SPEC.md` is the Tallow Wharf (campaign Mission 1) spec on the map-spec template: Michael's
+  binding words, stairs and exits, guard totals under the 32 cap, co-op routes with the way back per gate, the objective
+  chain, and real-world light bands with a light table for every space (no space dark by design).
+
 ## 4.104.1 - Train 106: Level validator: gate core (2026-10-25, PR #467; #464)
 - Level validator (tooling, no game change): the shared graph helpers move into one library
   (`scripts/level-graph-lib.mjs`) that the level validator, the measure tool and the mission validator all import.

@@ -19,8 +19,7 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   stations (G20, G98).
 - (CT prototype G5) The context action menu, top right (`ui/hud/contextMenuView.ts`, `.hud-ctx` in styles.css): a
   header box (INTERACT, or BACK TO GAME while A is held) over the options box, inside a dim corner-tick frame. CT's
-  fractions of the frame: right edge 3.0 % W, width 27.6 % W, header 3.2 % H tall from 10.7 % H (as built it is pushed
-  under the minimap where they would overlap; the minimap goes, below), 0.4 % H gap, rows 3.34 % H apart, cap height 2.0 % H, uppercase Barlow
+  fractions of the frame: right edge 3.0 % W, width 27.6 % W, header 3.2 % H tall from 10.7 % H, 0.4 % H gap, rows 3.34 % H apart, cap height 2.0 % H, uppercase Barlow
   Condensed. Our own look: steel borders, the highlight a thin outline with bright corner ticks (no fill), a fill line
   on a hold row. It writes the DOM only when `ContextMenu.version` changes. Logic: `docs/systems/input-and-loop.md`.
 - Speed gear pips (`hud.setGear(gear, changes, max)`, shown `GEARS.pipsShow` 1.5 s after a change). Decided, not built
@@ -32,9 +31,8 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   marks and always-on list (G277, G292; below).
 - Decided, not built yet (G343, G351): the popup and its binding (View has no action yet, `input/padBinds.ts`; O is
   unbound). As built the HUD shows the objective line at the top (`Hud.setObjective`, `.hud-objective`).
-- Decided, not built yet (G339): as built the HUD still draws the compass strip with its markers (`ui/hud/hud.ts`)
-  and the minimap (`ui/hud/minimap.ts`, `GameState.minimap`); removing them is a rule fix, allowed at the walk cap
-  (G355). The menu / briefing owner is named at the next plan. Do not add a map, a waypoint or a marker to any mode.
+- Built (G339, hud-guidance PR A): no minimap, compass or blip in any mode; the Marlow drill marker and world pings
+  stay (G292, G135). Do not add a map, a waypoint or a marker to any mode.
 
 ## Menus and screens
 - Every menu is a `Screen` on the `ScreenManager` stack. `FocusNav` is shared: any element with `data-focus` is
@@ -46,7 +44,11 @@ What follows is the UI as built today; "decided, not built yet" marks where the 
   `InputManager.applyModeClass`) show the pad's glyphs whenever a pad is the last device used. The binding table:
   `docs/systems/input-and-loop.md`.
 - Menus register entries via `MainMenuScreen.entries` and settings tabs via `extraSettingsTabs`.
-- Pause menu (`PauseScreen`, the field terminal): Resume, Objectives, (marlow-bays items 3-4) Restart at checkpoint
+- Pause menu (`PauseScreen`, the field terminal): Resume, Objectives, (hud-guidance B5, R12) Notes (`NotesScreen`,
+  read only: this match's interrogation lines from `GameState.notes`, a `FieldNotes` list of at most 24, a repeat kept
+  once, oldest first with the newest focused, "No notes yet" when empty; a co-op client's come from the host's `feed`
+  events, intel and keypad radio lines only. A co-op client that drops and rejoins starts with empty notes (accepted
+  limit)), (marlow-bays items 3-4) Restart at checkpoint
   (Sector Ops and the course, `GameMode.restartCheckpoint`: the same clean retry as everyone down) and, in co-op,
   Return to lobby (`SessionCallbacks.lobby`: the host's `backToLobby`, every client follows), then Settings, Report
   feedback, the dev rows and Quit to menu. Both confirm in a `Dialog` that opens on Stay. In co-op they are host

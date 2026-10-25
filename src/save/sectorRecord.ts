@@ -1,7 +1,7 @@
 /**
  * The Sector Ops record (feature/sector-ops M7, A11): difficulty stars per op. One kv record `sector:ops` in IndexedDB,
  * through src/save: per op id (the map id, e.g. `warehouseOps`) the difficulty presets the op was completed on and the
- * best time per preset. The op selector shows a filled star per completed preset. Sanitised on read. A new key in the
+ * best time per preset. The op selector shows a filled star per completed preset. (G331: a harder clear fills the easier stars too, on read in `starsOf`.) Sanitised on read. A new key in the
  * existing `kv` store: no profile shape change, so no SAVE_VERSION bump (the C9 precedent, `courseRecord.ts`).
  */
 import { dbGet, dbPut } from './db';
@@ -64,10 +64,16 @@ export function starsText(stars: readonly boolean[]): string {
   return s;
 }
 
-/** The op's stars in DIFFICULTIES order (rookie, normal, realistic, perfectionist): true = completed on it. */
+/**
+ * The op's stars in DIFFICULTIES order (rookie, normal, realistic, perfectionist): true = completed on it or on a
+ * harder tier (G331: "Completing a higher difficulty also considers the lower tiers completed also"). Derived on read
+ * from the hardest tier in `done`, so an old save gets the fill too; `done` and the best times stay as cleared.
+ */
 export function starsOf(rec: SectorRecord, opId: string): boolean[] {
   const e = rec.ops[opId];
-  return DIFFICULTIES.map((p) => !!e && e.done.includes(p));
+  let top = -1;
+  if (e) for (const p of e.done) top = Math.max(top, DIFFICULTIES.indexOf(p));
+  return DIFFICULTIES.map((_p, i) => i <= top);
 }
 
 export async function loadSectorRecord(): Promise<SectorRecord> {

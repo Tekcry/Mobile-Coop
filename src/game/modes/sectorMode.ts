@@ -6,7 +6,6 @@ import type { GameState } from '../gameState';
 import type { GameMode } from './gameMode';
 import type { Interactable } from '../interactables';
 import { ITEM_SCOPE_OFF } from '../itemScope';
-import type { Blip } from '../../ui/hud/minimap';
 import type { DoorState } from '../../world/doors';
 import type { SquadSlot } from '../../world/rooms';
 import { flags } from '../../core/flags';
@@ -37,6 +36,7 @@ import {
   exitZone,
   intelItemId,
   keypadItemId,
+  resultBadge,
   inDoorway,
   inZone,
   sectorInfoHtml,
@@ -104,6 +104,8 @@ export function setOnRated(fn: typeof onRated): void {
 import { crateItemId } from '../crateLedger';
 import type { SlotPoint } from '../spawnSlots';
 import { applySectorStart, practiceLine, sectorStartIndex } from '../sectorStart';
+import { sectorObjectiveLines } from '../sectorObjectives';
+import type { ObjectiveLine } from '../../ui/screens/pauseScreen';
 import {
   DESK_HOLD,
   DESK_ITEM_Y,
@@ -317,6 +319,9 @@ export class SectorMode implements GameMode {
     const g = this.g;
     const em = g.enemyMgr!;
     em.stealth = true;
+    // (guard-rules S1, A1, G350) helmets by difficulty: Realistic / Perfectionist every guard helmeted, Perfectionist's
+    // never shot off; Rookie / Normal from the alarm stage only
+    em.useDifficultyHelmets();
     // M6: the per-mode live cap (a section's guards plus its reinforcements)
     this.prevMaxAlive = em.maxAlive;
     em.maxAlive = SECTOR.maxAlive;
@@ -978,7 +983,8 @@ export class SectorMode implements GameMode {
     // (guard-ai S13, items 3 and 11, A38) the stage's response team: a shield guard first, the rest armed guards (the
     // same count, so the live cap holds); it sweeps the section after its search (the section's sweep list, else its
     // route points and posts). Made with the first guard that has a slot (none: no team).
-    const nt = responseTeam(stage, send, this.teamKinds);
+    // (guard-rules S1, A4, M2) the shield lead only where the section asks (`shieldTeams`: campus S4 / S5)
+    const nt = responseTeam(stage, send, this.teamKinds, s.shieldTeams === true);
     let team: SweepTeam<Enemy> | null = null;
     let n = 0;
     for (let i = 0; i < send; i++) {
@@ -1038,16 +1044,17 @@ export class SectorMode implements GameMode {
     g.events.emit('operationComplete', {});
     // M7: the op's star for this difficulty (and the best time), solo or the co-op host; never on a practice run (A28)
     if (!this.practiceFrom) void markCompleted(g.world.map.id, g.opts.difficulty ?? 'normal', this.t);
-    g.hud.banner('SECTORS CLEAR', this.result().ghost ? 'GHOST' : '', 2600);
+    g.hud.banner('SECTORS CLEAR', resultBadge(this.result()), 2600);
     g.slowBeat(0.4, 0.5);
     g.letterbox(2.6);
     this.endT = 2.6;
   }
 
-  /** Lethal kills (knock-outs are not kills, A4) and times spotted (guard detections plus camera alarms). */
+  /** Lethal kills (knock-outs are not kills, A4), times spotted (guard detections plus camera alarms) and the
+   *  alarms raised (Perfect, G146). */
   result(): ReturnType<typeof sectorResult> {
     const g = this.g;
-    return sectorResult({ time: this.t, kills: Math.max(0, g.stats.kills - g.stats.knockouts), spotted: g.style.detections + this.camAlarms, marks: this.run.marks });
+    return sectorResult({ time: this.t, kills: Math.max(0, g.stats.kills - g.stats.knockouts), spotted: g.style.detections + this.camAlarms, alarms: this.run.alarmsRaised, marks: this.run.marks });
   }
 
   /**
@@ -1340,7 +1347,8 @@ export class SectorMode implements GameMode {
   }
 
   onEnemyKilled(e: Enemy, h: HitInfo): void {
-    this.g.stats.score += killScore(e.def.kind, h.part === 'head', 2);
+    // (guard-rules S1, A5) a killed dog costs score; a gassed one (`e.ko`) scores as before
+    this.g.stats.score += killScore(e.def.kind, h.part === 'head', 2, !e.ko);
     // (section-rating S2) a knock-out is not a kill (A2); two by two players within SYNC_WINDOW are synced (A6)
     const st = this.secStats;
     st.bodiesMade++;
@@ -1383,12 +1391,6 @@ export class SectorMode implements GameMode {
     this.ct?.onRemoteJam(tgt, eye);
   }
 
-  blips(): Blip[] {
-    const out: Blip[] = [];
-    for (const it of this.its) if (it.enabled && !it.done) out.push({ x: it.pos.x, z: it.pos.z, kind: 'objective' });
-    return out;
-  }
-
   /** Test view (`window.__sector.debug()`). */
   debug(): Record<string, unknown> {
     const s = this.run.current;
@@ -1428,6 +1430,12 @@ export class SectorMode implements GameMode {
     };
   }
 
+  /** (hud-guidance B4, G343 / HG8) Field Terminal > Objectives: every section's objective and exit, done / current / to
+   *  do (solo and the co-op host; a client mirrors them, `SectorListMirror`). */
+  objectiveLines(): ObjectiveLine[] | null {
+    return this.run.defs.length ? sectorObjectiveLines(this.run.defs, this.run.index, this.run.phase) : null;
+  }
+
   dispose(): void {
     this.freeze?.dispose();
     this.freeze = null;
@@ -1438,6 +1446,7 @@ export class SectorMode implements GameMode {
     this.pending.length = 0;
     const em = this.g.enemyMgr;
     if (em && this.prevMaxAlive >= 0) em.maxAlive = this.prevMaxAlive;
+    em?.useDifficultyHelmets(false);
     const w = window as unknown as { __sector?: SectorMode; __sectionRating?: SectionRatingHook };
     if (w.__sector === this) delete w.__sector;
     if (w.__sectionRating === this.hook) delete w.__sectionRating;

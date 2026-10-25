@@ -26,8 +26,9 @@ rate: its falloff runs over its own range (`docs/systems/gadgets.md`, Security c
 - Decided (G333, "Everywhere"): hardened lit choke points are allowed on campaign and Sector Ops maps:
   un-shootable fixtures and guarded or locked breakers. A route around the choke point always stays. This loosens the
   older "every lit chokepoint can be darkened at least two ways" (docs/level-design.md).
-- Decided, not built yet (G41): a door past 15% open passes light (one threshold for light, sound and sight). Code:
-  `DOOR_SHUT` 0.05 in `world/lightField.ts`.
+- Built (G41, sector-batch): one 15% door threshold. `DOOR_SHUT` 0.15 in `world/lightField.ts` (the field, the bake's
+  shut flags, the torch shadow set) equals `DOOR.driveShut` (`world/doors.ts`; `tests/doorLight.test.ts` pins it). A
+  peek crack and a stick-driven door under 15% keep `open` 0, so they are shut; guard sight and sound: `ai.md`.
 - Decided, light half built (G45): clear glass passes light and sight; frosted glass and blinds pass light only; thermal never
   sees through glass. Light half built (bible L15): glass, clear or frosted, is never a light shape
   (`src/voxel/lightShapes.ts:23-24`), so the light field and the bake pass it. The sight rules (clear glass passes

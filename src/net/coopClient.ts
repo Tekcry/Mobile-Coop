@@ -1,7 +1,6 @@
 import { Vector3 } from '../core/babylon';
 import type { GameState, NetAttachment } from '../game/gameState';
 import type { TakedownVictim } from '../game/takedownController';
-import type { Blip } from '../ui/hud/minimap';
 import type { BlobShadows } from '../vfx/blobShadows';
 import { Body, deathLieOn } from '../ai/body';
 import { newLie } from '../ai/bodyLie';
@@ -43,7 +42,7 @@ import { newSeenBody, remoteHeadY, type SeenBody } from '../security/securitySys
 import { CourseFeed } from '../game/course/courseFeed';
 import { infoToHtml, localFlags } from './netShared';
 import { keepSimInBackground } from './bgTicks';
-import { OBJ_CONNECTING, objectiveOnSnap, objectiveOnStall } from './objectiveMirror';
+import { OBJ_CONNECTING, objectiveOnSnap, objectiveOnStall, showMirrorLine } from './objectiveMirror';
 import { hyp3 } from '../core/mathx';
 import { localMoveState } from '../game/localMoveState';
 import { dropBadOpticMove, dropBadWallMove, emptyMoveState, moveChanged } from '../player/moveState';
@@ -55,10 +54,14 @@ import { barkLine, BARK_EVENTS, RADIO_BARKS } from '../ai/barks';
 import { HelmetDrops } from '../ai/helmetDrops';
 import { DeflectLedger } from './puppetGear';
 import { stampKeptBodies } from './keptBodies';
-import { DESK_NONE, deskItemId, deskModeOf } from '../game/sectorDesks';
+import { DESK_LOOP_END_LINE, DESK_LOOP_LINE, DESK_NONE, DESK_OFF_LINE, deskItemId, deskModeOf } from '../game/sectorDesks';
+import { JOINT_BLUFF_FEED } from '../game/jointInterrogation';
+import type { FieldNotes } from '../game/fieldNotes';
 import { placeSlot, startSlotPoints } from '../game/spawnPlace';
 import { practiceFromRh } from '../game/sectorStart';
 import type { SlotPoint } from '../game/spawnSlots';
+import { SectorListMirror } from '../game/sectorObjectives';
+import type { ObjectiveLine } from '../ui/screens/pauseScreen';
 
 const SEND_HZ = 20;
 /** (afp AF6) `CLIENT_INTERP_DELAY` (interp.ts; was 0.12). */
@@ -99,7 +102,8 @@ export class CoopClient implements NetAttachment {
   private sendT = 0;
   private time = 0;
   private offs: (() => void)[] = [];
-  /** The objective line as shown (the host's, or the connecting / waiting placeholder, objectiveMirror.ts). */
+  /** The mirror's line: the host's objective, or the connecting / waiting notice (objectiveMirror.ts). Shown only
+   *  through `showLine` (hud-guidance B3: a notice on the net-status line, a host objective on the objective line). */
   private obj = OBJ_CONNECTING;
   private info = '';
   /** (coop-fix) A snapshot has arrived, and the seconds since the last one (the "Waiting for host" notice). */
@@ -116,6 +120,8 @@ export class CoopClient implements NetAttachment {
   private readonly crateSpent = new Set<string>();
   /** Sector Ops: the client's mirror of the cameras and lasers. */
   private sec: CtDevices | null = null;
+  /** (hud-guidance B4, HG8) Sector Ops: the field menu's full list, from the host's live section and objective line. */
+  private list: SectorListMirror | null = null;
   /** (sector-restart) The section our checkpoint loadout was recorded for (the host's live section only moves on). */
   private kitSection = 0;
   /** (section-rating S3) The host's last section rating as the HUD card shows it (null before the first). */
@@ -193,6 +199,7 @@ export class CoopClient implements NetAttachment {
       const ct = new CtDevices(g, 'client', { say: () => undefined, record: () => undefined, dirty: () => undefined });
       this.sec = ct;
       g.ctDev = ct;
+      this.list = new SectorListMirror(g.world.map.sectors ?? []);
       // (sector-restart, M9) our loadout as section 1 begins: a checkpoint restart gives it back
       g.weapons.markCheckpoint();
       // (slice L) the host's lamps (`lamps`); our lamp rounds go to the host below
@@ -253,8 +260,10 @@ export class CoopClient implements NetAttachment {
     // (free roam mirrors only the host's wall medkits)
     if (g.opts.mode === 'sandbox') this.mirrorOnly = 'medkitWall';
     // (coop-fix, bug 2) the placeholder is the mirror's value: the first snapshot replaces it, an empty host
-    // objective (course mode sets none) included
-    g.hud.setObjective(this.obj);
+    // objective (course mode sets none) included. (hud-guidance B3, HG9) It shows on the net-status line; the objective
+    // line holds only the host's objective, so the client's own free roam line goes until the first snapshot.
+    g.hud.setObjective('');
+    this.showLine(this.obj);
     // (coop-fix, bug 1) a hidden client page keeps simulating and sending its states
     this.offs.push(keepSimInBackground(g));
     // (marlow-polish) our own round off a bulletproof camera (Sector Ops, Marlow Yard): the host's ricochet sparks and
@@ -505,10 +514,7 @@ export class CoopClient implements NetAttachment {
     this.gotSnap = true;
     this.sinceSnap = 0;
     const obj = objectiveOnSnap(this.obj, m.obj);
-    if (obj !== null) {
-      this.obj = obj;
-      g.hud.setObjective(obj);
-    }
+    if (obj !== null) this.showLine(obj);
     if (m.info !== this.info) {
       this.info = m.info;
       g.hud.setModeInfo(infoToHtml(m.info));
@@ -866,6 +872,9 @@ export class CoopClient implements NetAttachment {
         // shows it in its feed (`revealIntel`); a bark alone left the client's feed without it
         g.hud.barks.say('lantern', e.text, true);
         g.hud.feedItem(e.text);
+        // (hud-guidance B5, BRIEF A9) and in Field Terminal > Notes: the intel and keypad radio lines only; the host's
+        // other radio lines (camera desk, bluff) ride `feed` too and stay out, as on the host (A15: no radio log)
+        clientFeedToNotes(g.notes, e.text);
         break;
       case 'pickup':
         if (e.player !== me) break;
@@ -998,6 +1007,7 @@ export class CoopClient implements NetAttachment {
     if (msg.ls !== undefined && msg.ls >= 0) this.g.world.lightBake?.sections?.setLive(msg.ls);
     if (ct) {
       if (msg.ls !== undefined && msg.ls !== ct.liveSection) ct.setLive(msg.ls);
+      if (msg.ls !== undefined) this.list?.onLive(msg.ls);
       if (msg.dn) ct.applyDestroyed(msg.dn);
       if (msg.sec) ct.apply(msg.sec);
     }
@@ -1070,16 +1080,24 @@ export class CoopClient implements NetAttachment {
     this.g.endSession(end.won, end.subtitle);
   }
 
+  /**
+   * (hud-guidance B3, HG9) Every write of the mirror's line, and the one host-objective write: a connection notice goes
+   * to the net-status line (the objective keeps its text); a host objective clears the notice and goes to the objective
+   * line (the HUD pops it up only on a real change, so a stall ending on the same objective shows nothing new).
+   */
+  private showLine(t: string): void {
+    this.obj = t;
+    // (hud-guidance B4) the host's objective also tells the field menu's list which row is current
+    if (showMirrorLine(this.g.hud, t)) this.list?.onText(t);
+  }
+
   fixedUpdate(dt: number): void {
     this.time += dt;
     this.sendT -= dt;
-    // (coop-fix) snapshots stopped (a stalled or gone host): say so on the objective line until the next one
+    // (coop-fix) snapshots stopped (a stalled or gone host): say so on the net-status line until the next one
     this.sinceSnap += dt;
     const stall = objectiveOnStall(this.obj, this.gotSnap, this.sinceSnap);
-    if (stall !== null) {
-      this.obj = stall;
-      this.g.hud.setObjective(stall);
-    }
+    if (stall !== null) this.showLine(stall);
     // the movement state: a new mode or sub-state (a ladder, a vault) goes out at once, not on the next tick
     const mv = localMoveState(this.g, this.mvNow);
     if (this.feed) {
@@ -1323,10 +1341,10 @@ export class CoopClient implements NetAttachment {
     for (const p of this.puppetList) if (p.alive) b.add(p.pos.x, p.pos.y, p.pos.z, 0.4 * p.def.scale);
   }
 
-  blips(): Blip[] {
-    const out: Blip[] = [];
-    for (const a of this.avatars.values()) out.push({ x: a.pos.x, z: a.pos.z, kind: 'ally' });
-    return out;
+  /** (hud-guidance B4, G343 / HG8) Field Terminal > Objectives in Sector Ops: the host's rows as this client mirrors
+   *  them; null elsewhere or before the host's first section number (GameState then shows its own line). */
+  objectiveLines(): ObjectiveLine[] | null {
+    return this.list?.lines() ?? null;
   }
 
   dispose(): void {
@@ -1351,6 +1369,15 @@ export class CoopClient implements NetAttachment {
     this.g.explosions.onLocalBlast = null;
     this.g.gadgets.onLocal = null;
   }
+}
+
+/** (hud-guidance B5 fix, BRIEF A9 / A15) A host `feed` line into the client's Field Terminal > Notes. Kept: the
+ *  interrogation intel and the keypad radio lines (the host's notes hold those). Skipped: the other `radioLine` texts
+ *  the host's notes never get (camera desk loop / off / loop ended, the joint bluff). Plain compares, no allocation.
+ *  Returns true when the line was added. */
+export function clientFeedToNotes(notes: FieldNotes, text: string): boolean {
+  if (text === DESK_LOOP_LINE || text === DESK_OFF_LINE || text === DESK_LOOP_END_LINE || text === JOINT_BLUFF_FEED) return false;
+  return notes.add(text);
 }
 
 /** (coop-real F1b, S2) Does a client send its lamp rounds (`shot` at `lt-<id>`) to the host in this mode? Sector Ops and
