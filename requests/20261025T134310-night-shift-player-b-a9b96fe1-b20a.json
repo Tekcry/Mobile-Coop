@@ -1,0 +1,19 @@
+{
+  "id": "20261025T134310-night-shift-player-b-a9b96fe1-b20a",
+  "sha": "a9b96fe1aadd2892708fd793cdaef8e1dc5dd9a2",
+  "branch": "feature/mixamo-on",
+  "pr": null,
+  "kind": "pr",
+  "requester": "Night Shift | Player Build",
+  "suites": [
+    "smoke",
+    "e2e-menus",
+    "e2e-studio",
+    "e2e-anim",
+    "e2e-move",
+    "e2e-tuner-phone"
+  ],
+  "set": "mixamo-toggle",
+  "note": "Mixamo top priority; Animation source toggle, default identity",
+  "priority": 1
+}
