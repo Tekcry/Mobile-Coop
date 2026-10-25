@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error plain .mjs process script without types
-import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, nextTrain, fitsBeforeTrain, FIT_SLACK, readyHeads, seenSince, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, conflictRetire, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, docsOnlyFiles, isVersionHead, versionAt, carryFiles, carryFrom, carryDesc } from '../scripts/laptop-queue/lib.mjs';
+import { assertKey, pickBranch, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, TASK_ALLOW, cpuTotalPct, backgroundCpuMs, gatedCpu, trainHold, capTail, claimBlocks, contextName, desktopGate, desktopSlotGate, describe as describeRun, failureExcerpt, idTime, lockChanged, mergeTimes, parseClaim, parseRun, pick, requestId, requestProblem, runComplete, shard, superseded, suiteSection, trainBuildFailed, workerActivity, desktopTrainGate, staleTasks, dupKey, duplicates, yieldTo, rerunPassed, buildMarker, pruneDone, cutShort, agedAlone, ALONE_AGE_MIN, holdClears, slotLockDecision, nextTrain, fitsBeforeTrain, FIT_SLACK, readyHeads, seenSince, releasingTrain, readyOrPending, median, desktopFailDesc, laptopRerunRequest, DESKTOP_HOT_CPU, expectedWallS, suiteParts, manualLocks, sortTrains, trainBelow, rerunTrain, trainsUnderMarker, voidMisses, VOID_MISSES, ALONE_PREEMPT_MIN, PREEMPT_MAX_PROGRESS, runProgress, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, AFFECTED_SKIP_LABEL, queueRequester, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, conflictRetire, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, suiteOwner, DEFAULT_OWNER, FLAKE_BUDGET, QUARANTINE_TTL_MS, splitSuites, knownSuites, unknownSuites, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting, docsOnlyFiles, isVersionHead, versionAt, carryFiles, carryFrom, carryDesc } from '../scripts/laptop-queue/lib.mjs';
 // @ts-expect-error plain .mjs process script without types
 import { docsOnlyFiles as watchdogDocsOnly } from '../scripts/watchdog.mjs';
 
@@ -1197,6 +1197,43 @@ describe('train reruns', () => {
     const rr = { ...rerun(10), sha: 'a'.repeat(40) };
     expect(superseded([plain, rr], () => true).size).toBe(0);
     expect(duplicates([plain, rr], [], NOW, 3600_000).size).toBe(0);
+  });
+  // laptop-queue-7 A10: a train rerun shards across both slots when the laptop is free
+  it('shards across both slots when both are idle, it is the only open rerun and the service marked it', () => {
+    const rr = rerun(1);
+    const q = { trains: [], requests: [req(30, 'pr', 'p'), rr], shardRerun: new Set([rr.id]) };
+    expect(pick(q, NOW, slots(false, false))).toEqual({ kind: 'request', request: rr, slot: '4189', ports: ['4189', '4192'] });
+  });
+  it('one slot busy: starts on the free slot at once, no waiting for the second', () => {
+    const rr = rerun(1);
+    const q = { trains: [], requests: [rr], shardRerun: new Set([rr.id]) };
+    expect(pick(q, NOW, slots(true, false))).toEqual({ kind: 'request', request: rr, slot: '4192' });
+    expect(pick(q, NOW, slots(false, true))).toEqual({ kind: 'request', request: rr, slot: '4189' });
+  });
+  it('two open reruns: one slot each, no shard', () => {
+    const a = rerun(20, 'a');
+    const b = rerun(5, 'b');
+    const q = { trains: [], requests: [a, b], shardRerun: new Set([a.id, b.id]) };
+    expect(pick(q, NOW, slots(false, false))).toEqual({ kind: 'request', request: a, slot: '4189' });
+    expect(pick({ ...q, requests: [b] }, NOW, slots(true, false))).toEqual({ kind: 'request', request: b, slot: '4192' });
+  });
+  it('a pending train goes first; an early rerun under it runs on one slot, never sharded', () => {
+    const rr = rerun(1);
+    expect(pick({ trains: [train], requests: [rr], shardRerun: new Set([rr.id]) }, NOW, slots(false, false))).toEqual({ kind: 'train', train });
+    const early = { ...rerun(2, 'e'), set: 'train30-rerun' };
+    expect(pick({ trains: [train], requests: [early], shardRerun: new Set([early.id]) }, NOW, slots(false, false))).toEqual({ kind: 'request', request: early, slot: '4189' });
+  });
+  it('shardRerun absent or without the id: today\'s one-slot pick', () => {
+    const rr = rerun(1);
+    expect(pick({ trains: [], requests: [rr] }, NOW, slots(false, false))).toEqual({ kind: 'request', request: rr, slot: '4189' });
+    expect(pick({ trains: [], requests: [rr], shardRerun: new Set() }, NOW, slots(false, false))).toEqual({ kind: 'request', request: rr, slot: '4189' });
+  });
+  it('suiteParts expands a suite into its times parts and keeps parts and unknown names', () => {
+    const times = { 'e2e-desktop:1': 60, 'e2e-desktop:2': 50, 'e2e-coop': 40 };
+    expect(suiteParts(['e2e-desktop', 'e2e-coop', 'e2e-new'], times)).toEqual(['e2e-desktop:1', 'e2e-desktop:2', 'e2e-coop', 'e2e-new']);
+    expect(suiteParts(['e2e-desktop:2'], times)).toEqual(['e2e-desktop:2']);
+    expect(suiteParts(['e2e-coop'], {})).toEqual(['e2e-coop']);
+    expect(suiteParts(['e2e-coop'], times).length).toBe(1); // one part: the service never marks it for a shard
   });
 });
 

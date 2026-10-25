@@ -104,7 +104,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { pidAlive, staleName } from '../heavy-lock.mjs';
-import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, nextTrain, fitsBeforeTrain, releasingTrain, readyHeads, seenSince, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, conflictRetire, versionAt, isVersionHead, carryFiles, carryFrom, carryDesc, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting } from './lib.mjs';
+import { ALONE_AGE_MIN, agedAlone, assertKey, holdClears, manualLocks, slotLockDecision, nextTrain, fitsBeforeTrain, releasingTrain, readyHeads, seenSince, median, desktopFailDesc, laptopRerunRequest, supersedeStatuses, duplicateStatuses, withdrawnStatuses, vanishedRequests, buildMarker, cutShort, trainHold, capTail, claimBlocks, describe, desktopSlotGate, desktopTrainGate, cpuTotalPct, backgroundCpuMs, gatedCpu, dupKey, duplicates, failureExcerpt, lockChanged, mergeTimes, parseClaim, parseRun, pick, pruneDone, requestProblem, contextName, rerunPassed, runComplete, shard, staleTasks, superseded, suiteSection, trainBuildFailed, TASK_ALLOW as TASK_ALLOW_BASE, workerActivity, yieldTo, sortTrains, trainsUnderMarker, voidMisses, VOID_MISSES, runProgress, expectedWallS, suiteParts, aloneSoon, AFFECTED_REQUESTER, AFFECTED_CTX, affectedSuites, affectedNeeds, affectedRequest, prBoard, greenIds, isFront, conflictRetire, versionAt, isVersionHead, carryFiles, carryFrom, carryDesc, conflictStatuses, autoQuarantine, countRuns, flakeBudget, flakeSummary, quarantined, FLAKE_BUDGET_DAYS, SPARE_REQUESTER, spareNext, spareRecord, spareRequest, realWaiting } from './lib.mjs';
 import { visualPlan, visualEnv, visualVerdict, visualComment, VISUAL_CONTEXT, VISUAL_SUITE, VISUAL_SH_TIMEOUT_MS } from './visual.mjs';
 
 const REPO = 'Tekcry/Mobile-Coop';
@@ -150,6 +150,7 @@ const GREEN_MAX_WAIT_MS = Number(process.env.LQ_GREEN_MAX_WAIT_MIN ?? 30) * 60_0
 const AFFECTED_MAX_AGE_MS = Number(process.env.LQ_AFFECTED_MAX_AGE_H ?? 24) * 3600_000; // older PR heads get no auto request (0 = no limit)
 const TRAIN_CARRY = process.env.LQ_TRAIN_CARRY !== '0'; // 0 = a moved train head always runs (lib carryFrom; BRIEF A7, A8)
 const TRAIN_CARRY_DEPTH = Number(process.env.LQ_TRAIN_CARRY_DEPTH ?? 20); // first-parent commits walked back to the version commit
+const RERUN_SHARD = process.env.LQ_RERUN_SHARD !== '0'; // 0 = a train rerun runs on one slot (lib pick queue.shardRerun; BRIEF A10)
 const argv = process.argv.slice(2);
 const ONCE = argv.includes('--once');
 const DRY = argv.includes('--dry-run');
@@ -1235,20 +1236,39 @@ async function runVisual(train, ports, locks, ctl, runDir, prNumber, trainOk) {
   log(`train ${train.n} ${train.sha.slice(0, 8)}: visual-gate ${v.state}: ${v.description}`);
 }
 
-async function runRequest(r, port) {
+async function runRequest(r, port, pair = null) {
   const runDir = path.join(STATE_DIR, 'runs', r.id);
   const ctx = contextName(r.kind, r.set, r.suites, r.trainRerun);
   // an auto affected request (lib AFFECTED_REQUESTER) posts each verdict on affected-e2e too (the PR head's own check)
   const verdictCtx = r.requester === AFFECTED_REQUESTER ? [ctx, AFFECTED_CTX] : [ctx];
   const verdict = (st, desc) => { for (const c of verdictCtx) postStatus(r.sha, st, c, desc); };
   const job = { sha: r.sha, ref: r.branch || r.sha.slice(0, 8) };
-  log(`${r.id}: ${r.kind} on ${port}`);
-  const ports = r.kind === 'alone' ? PORTS : [port];
+  log(`${r.id}: ${r.kind} on ${(pair ?? [port]).join('+')}`);
+  let ports = r.kind === 'alone' ? PORTS : [port];
   const locks = {};
   // yield: a pending train head takes the slot back until the suites / steps start (lib yieldTo)
   let yielded = null;
   // cut short: withdrawn at any point, or (a pr request in its suites) preempted by a pending train (lib cutShort)
   const ctl = { child: null, why: '', by: null };
+  // laptop-queue-7 A10: a train rerun lib pick put on both slots (pair) runs its parts split over them at E2E_JOBS=1,
+  // one ctl per slot (a cut kills both trees); a slot that fails its lock or prepare goes back to the queue and every
+  // part runs on the other slot alone, as a one-slot rerun
+  const ctls = { [port]: ctl };
+  if (pair?.length > 1) {
+    const two = r.kind === 'pr' && r.trainRerun && shard(suiteParts(r.suites, times), times, pair.length).every((b) => b.suites.length);
+    if (two) { ports = [...pair]; for (const p of pair) ctls[p] ??= { child: null, why: '', by: null }; }
+    else for (const p of pair) if (p !== port) busy[p] = null; // nothing to split: the other slot takes queue work again
+  }
+  const dropSlot = (p, why) => {
+    if (locks[p]) releaseLock(p, locks[p]);
+    locks[p] = null;
+    freePort(p);
+    busy[p] = null; // takes queue work again (dispatch marked it busy with this run)
+    ports = ports.filter((x) => x !== p);
+    port = ports[0];
+    log(`${r.id}: ${p} ${why}, rerun on ${port} alone`);
+    if (posted) postStatus(r.sha, 'pending', ctx, 'running');
+  };
   let started = false;
   let startedAt = NaN; // an alone run's steps start: under ALONE_PREEMPT_MIN a pending train still cuts it (lib cutShort)
   let yieldedSteps = false; // an alone run gave the slots to a train between steps (not done)
@@ -1268,7 +1288,7 @@ async function runRequest(r, port) {
     const trains = trainsNow();
     const others = [...activeReqs.values()].filter((a) => a.id !== r.id);
     const why = cutShort(r, { withdrawn: withdrawnIds.has(r.id), trains, started, others, startedAt, now: Date.now(), progress: progress(), realOpen: spare && realOpenNow() });
-    if (why && !ctl.why) { ctl.by = trains[0] ?? null; cut(ctl, why); }
+    if (why && !ctl.why) { ctl.by = trains[0] ?? null; for (const c of Object.values(ctls)) cut(c, why); }
   }, 5_000);
   const stop = () => Boolean(ctl.why) || Boolean(yielded ??= yieldTo(r, false, trainsNow()));
   let posted = false;
@@ -1304,8 +1324,14 @@ async function runRequest(r, port) {
     claimed.delete(r.id);
   };
   try {
+    if (r.kind !== 'alone' && ports.length > 1) {
+      // a sharded rerun never waits for its second slot: one try each; none taken: wait on the picked slot, as today
+      for (const p of ports) locks[p] = await takeLock(p, r.id, r.sha, { once: true });
+      const held = ports.filter((p) => locks[p]);
+      for (const p of [...ports]) if (!locks[p] && (held.length || p !== port)) dropSlot(p, 'lock held');
+    }
     for (const p of ports) {
-      locks[p] = await takeLock(p, r.id, r.sha, { stop });
+      locks[p] ||= await takeLock(p, r.id, r.sha, { stop });
       if (!locks[p] || stop()) return ctl.why ? cutEnd() : giveBack();
     }
     // fresh `at`: a long lock wait never looks like a dead worker; if the other worker took it over meanwhile, back off
@@ -1314,9 +1340,18 @@ async function runRequest(r, port) {
       claimed.delete(r.id);
       return;
     }
-    postStatus(r.sha, 'pending', ctx, 'running');
+    postStatus(r.sha, 'pending', ctx, r.kind !== 'alone' && ports.length > 1 ? `rerun sharded on ${ports.join('+')}` : 'running');
     posted = true;
-    const prep = await prepare(ports[0], r.sha, path.join(runDir, 'prepare.log'), stop, ctl);
+    let prep;
+    if (r.kind !== 'alone' && ports.length > 1) {
+      const tried = [...ports];
+      const preps = await Promise.all(tried.map((p) => prepare(p, r.sha, path.join(runDir, `prepare-${p}.log`), stop, ctls[p])));
+      const yielding = preps.includes('yield');
+      const good = tried.filter((p, i) => preps[i] === 'ok');
+      // one slot prepared: the other goes back to the queue; none: today's one-slot failure path (fetch: not a verdict)
+      if (good.length && !yielding && !ctl.why) tried.forEach((p, i) => { if (preps[i] !== 'ok') dropSlot(p, `prepare ${preps[i]}`); });
+      prep = good.length && !yielding ? 'ok' : ['yield', 'fetch'].find((x) => preps.includes(x)) ?? preps[0];
+    } else prep = await prepare(ports[0], r.sha, path.join(runDir, 'prepare.log'), stop, ctl);
     if (ctl.why) return cutEnd();
     if (prep === 'yield' || (prep === 'ok' && stop())) return ctl.why ? cutEnd() : giveBack();
     if (prep === 'fetch') {
@@ -1374,23 +1409,31 @@ async function runRequest(r, port) {
       return;
     }
     const list = r.kind === 'full' ? cmd('node', ['scripts/run-e2e.mjs', '--list'], { cwd: SLOTS[port].dir }).split('\n').map((x) => x.trim()).filter(Boolean) : r.suites;
-    const jobs = DESKTOP || r.trainRerun ? 1 : r.jobs ?? (r.kind === 'full' ? 3 : 2); // a train rerun: E2E_JOBS=1, unsharded
+    // a train rerun: E2E_JOBS=1 per slot; split over both slots when pick gave it both (laptop-queue-7 A10), else one
+    const jobs = DESKTOP || r.trainRerun ? 1 : r.jobs ?? (r.kind === 'full' ? 3 : 2);
+    const split = ports.length > 1;
+    const bins = split ? shard(suiteParts(list, times), times, ports.length) : [{ suites: list }];
+    if (split) bins.forEach((b, i) => log(`${r.id}: bin ${ports[i]}: ${b.suites.length} parts, weight ${Math.round(b.weight)} s`));
     const t0 = Date.now();
     started = true;
     progress = () => runProgress(list, times, jobs, Date.now() - t0);
-    const run = await e2e(port, list, jobs, path.join(runDir, `${port}.log`), ctl);
+    const runs = await Promise.all(ports.map((p, i) => e2e(p, bins[i].suites, jobs, path.join(runDir, `${p}.log`), split ? ctls[p] : ctl)));
     if (ctl.why) return cutEnd();
-    // same completeness rule as a train shard; at least the listed suites (a named suite may expand into parts)
-    if (!runComplete(run, list.length)) {
-      log(`${r.id}: run incomplete (exit ${run.code}, ${run.suites.length}/${list.length} suites, summary ${run.complete ? 'seen' : 'missing'})`);
-      verdict('failure', `slot ${port} gave no result`);
-      if (r.pr) postComment(r.pr, `${ctx} failed on ${r.sha.slice(0, 8)} (${job.ref}): slot ${port} gave no result (exit ${run.code}, ${run.suites.length}/${list.length} suites).\nLog on the ${WORKER}: ${path.join(runDir, `${port}.log`)}\n\`\`\`\n${capTail(run.tail40 || '(empty log)', 8_000)}\n\`\`\``);
+    // same completeness rule as a train shard, per slot; at least the listed suites (a named suite may expand into parts)
+    const broken = ports.findIndex((p, i) => !runComplete(runs[i], bins[i].suites.length));
+    if (broken >= 0) {
+      const [bp, run, n] = [ports[broken], runs[broken], bins[broken].suites.length];
+      log(`${r.id}: run incomplete${split ? ` on ${bp}` : ''} (exit ${run.code}, ${run.suites.length}/${n} suites, summary ${run.complete ? 'seen' : 'missing'})`);
+      verdict('failure', `slot ${bp} gave no result`);
+      if (r.pr) postComment(r.pr, `${ctx} failed on ${r.sha.slice(0, 8)} (${job.ref}): slot ${bp} gave no result (exit ${run.code}, ${run.suites.length}/${n} suites).\nLog on the ${WORKER}: ${path.join(runDir, `${bp}.log`)}\n\`\`\`\n${capTail(run.tail40 || '(empty log)', 8_000)}\n\`\`\``);
       state.done[r.id] = { result: 'incomplete', date: new Date().toISOString() };
       return;
     }
-    const result = { suites: run.suites, wall: 0, flakes: [] };
-    // a request reruns on its own locked slot and worktree (its sha), never on another slot
-    result.flakes = await rerunFlakes(result, {}, job, runDir, port, ctl);
+    const slotOf = {};
+    if (split) runs.forEach((x, i) => x.suites.forEach((s) => { slotOf[s.s] = ports[i]; }));
+    const result = { suites: runs.flatMap((x) => x.suites), wall: 0, flakes: [] };
+    // a request reruns on its own locked slot(s) and worktree (its sha): a sharded rerun's suite on the slot that ran it
+    result.flakes = await rerunFlakes(result, slotOf, job, runDir, port, ctl);
     if (ctl.why) return cutEnd();
     result.wall = (Date.now() - t0) / 1000;
     // desktop: failed suites go to the laptop (a laptop-only request, lib laptopRerunRequest), whose verdict is final;
@@ -1445,10 +1488,10 @@ function dispatch(p) {
     return run;
   }
   claimed.add(p.request.id);
-  const ports = p.kind === 'alone' ? PORTS : [p.slot];
+  const ports = p.ports ?? (p.kind === 'alone' ? PORTS : [p.slot]); // p.ports: a sharded train rerun (both slots)
   if (DRY) { log(`dry-run: would run ${p.request.id} (${p.request.kind}, ${p.request.suites ?? p.request.steps ?? 'full'}) on ${ports.join('+')}`); return Promise.resolve(); }
   activeReqs.set(p.request.id, p.request);
-  const run = runRequest(p.request, p.slot ?? PORTS[0]).catch((e) => {
+  const run = runRequest(p.request, p.slot ?? PORTS[0], p.ports).catch((e) => {
     log(`${p.request.id} service error: ${e.stack ?? e.message}`);
     postStatus(p.request.sha, 'error', contextName(p.request.kind, p.request.set, p.request.suites, p.request.trainRerun), 'service error, see log');
     if (p.request.requester === AFFECTED_REQUESTER) postStatus(p.request.sha, 'error', AFFECTED_CTX, 'service error, see log');
@@ -1730,6 +1773,8 @@ async function pass() {
     const key = `${frontIds.join(',')}|${[...green].sort().join(',')}`;
     if (key !== orderLogged) { orderLogged = key; if (frontIds.length || green.size) log(`order: front ${frontIds.length}, green ${green.size} (smallest first)`); }
   }
+  // laptop-queue-7 A10: an open train rerun whose suites expand to 2+ parts may shard across both slots (lib pick)
+  if (!DESKTOP && RERUN_SHARD) queue.shardRerun = new Set(queue.requests.filter((r) => r.trainRerun && suiteParts(r.suites, times).length >= 2).map((r) => r.id));
   let started = false;
   for (let i = 0; i < 4 && !started; i++) {
     const slots = PORTS.map((port) => ({ port, busy: Boolean(busy[port] || virtual[port]) }));
@@ -1748,7 +1793,7 @@ async function pass() {
     }
     const run = dispatch(p);
     if (DESKTOP) started = true;
-    if (DRY) (p.kind === 'request' ? [p.slot] : PORTS).forEach((x) => { virtual[x] = true; });
+    if (DRY) (p.kind === 'request' ? p.ports ?? [p.slot] : PORTS).forEach((x) => { virtual[x] = true; });
     else run.finally(() => PORTS.forEach((x) => { if (busy[x] === run) busy[x] = null; }));
   }
   if (DRY && !previewed && !DESKTOP) { log('dry-run: no train pending; shard preview of the current list:'); await planTrain(); }

@@ -255,7 +255,7 @@ export function greenIds(requests, board) {
 /**
  * What to start next. queue = { trains: [{ sha, n }], requests: [request] }, slots = [{ port, busy }].
  * Returns { kind: 'train', train } or { kind: 'alone', request } (both need BOTH slots idle), { kind: 'request',
- * request, slot } (one free slot), or null. The lowest pending train wins and, while a slot is busy, blocks all new work
+ * request, slot } (one free slot; a sharded train rerun adds `ports`, both slots), or null. The lowest pending train wins and, while a slot is busy, blocks all new work
  * so the slots drain (preemption); only a rerun of a LOWER train (rerunTrain) goes before it, on one free slot (overlap
  * plan section 3: train N's rerun never waits behind N+1's full run). A train rerun (trainRerun, oldest first) comes next, on one free slot, ahead of every other
  * request and alone run. An alone request over ALONE_AGE_MIN old blocks pr / full work the same way (never starved).
@@ -295,7 +295,13 @@ function pickFrom(queue, now, slots) {
     return bothIdle ? { kind: 'train', train: front } : null;
   }
   const rerun = reqs.find((r) => r.trainRerun);
-  if (rerun) return idle[0] ? { kind: 'request', request: rerun, slot: idle[0].port } : null;
+  if (rerun && !idle[0]) return null;
+  // laptop-queue-7 A10: the only open train rerun shards across both slots when both are idle and the service marked it
+  // (queue.shardRerun: LQ_RERUN_SHARD on, its suites expand to 2+ parts); else one free slot at once, as before
+  if (rerun && bothIdle && idle.length > 1 && queue.shardRerun?.has(rerun.id) && reqs.filter((r) => r.trainRerun).length === 1) {
+    return { kind: 'request', request: rerun, slot: idle[0].port, ports: idle.map((s) => s.port) };
+  }
+  if (rerun) return { kind: 'request', request: rerun, slot: idle[0].port };
   const front = queue.front ?? new Set();
   const alone = reqs.filter((r) => r.kind === 'alone').sort((a, b) => Number(front.has(b.id)) - Number(front.has(a.id)));
   const aged = alone.find((r) => front.has(r.id)) ?? agedAlone(alone, now);
@@ -394,20 +400,28 @@ export function runProgress(suites, times, jobs, elapsedMs) {
 }
 
 /**
+ * The parts a suite list runs as: a named suite with parts in times.json (e2e-desktop -> e2e-desktop:1..4, the keys
+ * times.json holds) expands to them; any other name (a part, a suite without parts, an unknown one) stays as given.
+ * expectedWallS and the train rerun shard (laptop-queue-7 A10) read it.
+ */
+export function suiteParts(suites, times) {
+  const keys = Object.keys(times ?? {});
+  return (suites ?? []).flatMap((s) => {
+    const own = keys.filter((k) => k.startsWith(`${s}:`));
+    return own.length ? own : [s];
+  });
+}
+
+/**
  * A run's expected wall in s: the heaviest of `jobs` bins of its suites by times.json weight (runProgress's
  * denominator; a train posts it per shard as "expect ~N s" for auto-train's late poll). NaN when unknown.
  */
 export function expectedWallS(suites, times, jobs) {
   if (!(suites ?? []).length || !Object.keys(times ?? {}).length) return NaN;
-  // a named suite runs as its parts (e2e-desktop -> e2e-desktop:1..4, the keys times.json holds); a suite with no time
-  // at all makes the estimate unknown (NaN: cut as before), never a 1 s guess (checker FIX)
-  const parts = [];
-  for (const s of suites) {
-    const own = Object.keys(times).filter((k) => k.startsWith(`${s}:`));
-    if (own.length) parts.push(...own);
-    else if (Number.isFinite(times[s])) parts.push(s);
-    else return NaN;
-  }
+  // a suite with no time at all makes the estimate unknown (NaN: cut as before), never a 1 s guess (checker FIX)
+  const keys = Object.keys(times);
+  if (suites.some((s) => !Number.isFinite(times[s]) && !keys.some((k) => k.startsWith(`${s}:`)))) return NaN;
+  const parts = suiteParts(suites, times);
   const bins = shard(parts, times, Math.max(1, Number(jobs) || 1));
   const wallS = Math.max(...bins.map((b) => b.weight));
   return wallS > 0 ? wallS : NaN;

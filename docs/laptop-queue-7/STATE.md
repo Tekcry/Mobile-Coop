@@ -28,4 +28,10 @@ moved-head call :753, openTrainHeads Map :760, followsTrain :772, voidHeads :791
 PR body note (PLAN Risks): no src/ or e2e read of a docs/ .md file; only offline scripts/kestrel/p03b-*-check-*.mjs read
 docs/kestrel/*.md (not laptop suites).
 
-Next: slice D (train rerun sharding; Opus).
+Slice D done: lib.mjs pickFrom rerun shard branch :301 (returns ports both), suiteParts :407 (expectedWallS calls it);
+service.mjs env RERUN_SHARD :153, runRequest(r, port, pair) :1239 (ctls per slot, dropSlot :1262 = lock / prepare
+fallback to the other slot alone, "rerun sharded on" :1343, bins split :1414), dispatch p.ports :1491, pass()
+queue.shardRerun :1777. Tests: 6 new in "train reruns" :1202. Vitest 249 pass, typecheck:fast clean. Header comment
+:22 (reruns "on one slot") left for slice E's header pass.
+
+Next: slice F (aged alone after the coming train; Opus).
