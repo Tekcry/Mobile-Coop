@@ -1,6 +1,10 @@
 # laptop-queue - state
 
 ## Now (2026-10-24, laptop-queue batch, local commits, not pushed)
+- 2026-10-25: laptop-queue-6 (feature/laptop-queue-6): the train hold predicts the next train (lib `nextTrain`, ETA
+  from the merge + 6.5 min or a newly green candidate + 3 min, late window 5 min) and lets only pr runs that fit
+  before it start (lib `fitsBeforeTrain`); replaces `trainSoon` / `LQ_RELEASE_HOLD_MIN`. Rules: testing-tools.md
+  "Train soon"; resume: docs/laptop-queue-6/STATE.md.
 - 2026-10-25: laptop-queue-5 (feature/laptop-queue-5, worktree C:/NightShift/Mobile-Coop-laptop-queue-5, stacked on
   feature/laptop-queue-4 head 283daf5d, PR #374), three fixes:
   - request.mjs `--suites` splits on spaces / commas (lib `splitSuites`); unknown names refused at request time

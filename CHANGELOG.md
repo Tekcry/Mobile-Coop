@@ -1,5 +1,10 @@
 # Changelog
 
+## 4.105.1 - Train 109: Laptop queue: hold PR runs until the next train (2026-10-25, PR #478; #475)
+- The laptop queue predicts when the next train arrives (from the last release's deploy wait or a newly green
+  train-ready PR) and holds new PR runs until then, so trains stop cutting runs they let start.
+- Under that hold only runs that fit before the next train start (known expected time, 120 s prep, 1.2 x slack).
+
 ## 4.105.0 - Train 108: Level validator: measured checks; Mixamo motion capture in the Anim Studio (2026-10-25, PR #476; #472, #452)
 
 ### Mixamo motion capture in the Anim Studio
