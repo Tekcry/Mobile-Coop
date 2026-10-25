@@ -1000,22 +1000,27 @@ C:/NightShift/Mobile-Coop-laptop-queue-svc && node scripts/laptop-queue/request.
 laptop-e2e/<set>; background wait loop. Laptop auto mode blocks labels: tell the orchestrator at train-ready.
 DOCS-FIRST HOLD (G346, G355): no new game work until Michael signs off the folded plan (ROADMAP Now row 6);
 finished PRs may ship.
-Open (save 2026-10-25 ~18:30; row 6 SIGNED OFF ~17:00, hold lifted, full burn; order J1 -> J4, J15, J6, J16):
-1. J1 docs PR #435 (feature/guard-ai-docs-j1, worktree -guard-ai-docs-j1): checker FIX 1 applied, PASS posted on
-   398d5f05. Waits for watchdog label / train.
-2. J4 G327 PR #438 (feature/guard-ai-g327 = #360 + master merge; #360 CLOSED): 2 Opus checkers running (commit as
-   slices/G327-CHECK-A/B.md); laptop alone measure set g327-measure (agent writes slices/T1-SHADOW-REPORT.md).
-3. J4 #317 coop4 READY, ships ON (Q16). D4 room cap hook 0837f147 (NetSession.roomCap / cap). Laptop sets coop4-full
-   + alone-coop4-4p queued on 0837f147; 2 Opus checkers -> docs/coop4/checks/release-check-A/B.md. Master conflicts
-   (protocol.ts, coopHost.ts, coop.md, testing-tools.md) resolved train-side by hand.
-4. J6 src/ai allocations (D1, D2): Opus builder on feature/guard-ai-alloc (worktree -guard-ai-alloc); then PR + 2 checkers.
-5. J15 guard-rules: Opus planner -> docs/guard-rules/BRIEF.md + PLAN.md on feature/guard-rules (worktree -guard-rules);
-   then plan checker, builders. Answers: Q9 dog kill = kill + lose score, Q12 no campaign riot shields, Q13 vent
-   lookout overlooks the run / exit; helmets Realistic + Perfectionist, Perfectionist locked.
-6. Next plans: J16 perception half (Q14 cast shadow = a faint cue; after Sector Ops' J16 PR); J26 mission guard
-   reactions (Michael signed #372 pages ~18:05): Two-Key Ledger bell sends the porter, Split Shift facilities officer
-   to the plant room and back with reception, Code Relay release calls the supervisor to the cage (BEAT.md on
-   feature/mission-framework; em.missionOrder over Enemy.sendTo enemy.ts:1260 / resetBreaker :1407).
-7. Later: feature/coop4-pol (134f6abe) alone 7-9 set, snapBudget headroom, comment coopHost.ts:589, TODO
-   sectorMode.ts:201. Sector Ops: lighting.md:28 restates the G45 glass rule (J1 checker polish 7).
+Open (SAVE 2026-10-25 ~18:20; row 6 SIGNED OFF ~17:00, full burn; order J1 -> J4, J15, J6, J16, J26):
+1. J1 #435 (feature/guard-ai-docs-j1): checker PASS posted on 398d5f05. Waits for watchdog label / train.
+2. J4 G327 #438 (feature/guard-ai-g327, worktree -guard-ai-g327; #360 CLOSED): check A PASS, check B FIX docs applied
+   5e42c152 (slices/G327-CHECK-A/B.md). Gates before posting `checker` success: laptop-e2e/g327-coop (e2e-coop +
+   e2e-netmove on 5e42c152), the alone measure laptop-e2e/g327-measure (on 1ebdda52; an agent was writing
+   slices/T1-SHADOW-REPORT.md: if missing, read the run log in C:/NightShift/scratch/laptop-queue/runs/ and write it),
+   then the GPU look rerun with #414's script (alone request, set g327-look). All green -> post checker status, tell
+   the orchestrator train-ready.
+3. J4 #317 coop4 READY, ships ON (Q16). D4 hook 0837f147. Check A PASS (docs/guard-ai/checks/coop4-release-check-A.md,
+   train merge notes 1-9 for the orchestrator). Check B: rerun if no report in docs/guard-ai/checks/. Laptop
+   coop4-full + alone-coop4-4p on 0837f147. Both checkers + both sets green -> post checker, tell the orchestrator.
+4. J6 src/ai allocations (D1, D2): Opus builder on feature/guard-ai-alloc (worktree -guard-ai-alloc); if cut off,
+   restart it from the branch head; then PR + 2 Opus checkers.
+5. J15 guard-rules: plan on feature/guard-rules (WIP 376d883f; worktree -guard-rules): finish BRIEF / PLAN, Opus plan
+   checker, builders. Answers: Q9 dog kill = kill + lose score, Q12 no campaign riot shields, Q13 vent lookout overlooks
+   the run / exit; helmets Realistic + Perfectionist, Perfectionist locked.
+6. J26 mission guard hooks plan on feature/guard-ai-mission-hooks (worktree -guard-ai-mission-hooks; Michael signed
+   #372 pages ~18:05): bell sends the porter (Two-Key Ledger), plant room walk + reception (Split Shift), release calls
+   the supervisor to the cage (Code Relay); BEAT.md on feature/mission-framework.
+7. J16 perception half (Q14 cast shadow = a faint cue): plan after Sector Ops' J16 PR.
+8. Later: coop4-pol (134f6abe), snapBudget headroom, coopHost.ts:589 comment, TODO sectorMode.ts:201; Sector Ops:
+   lighting.md:28 restates the G45 glass rule.
+Next: read agent results (J6, J15, J26, coop4 check B, g327 measure), then the gates in items 2-3.
 ```
