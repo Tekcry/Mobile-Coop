@@ -1,4 +1,4 @@
-status: blocked base not set: waits for R4a PASS (lead fills Base, then sets status: open)
+status: open
 # J13 route-runs, slice R4b (Opus-grade brief): the robot pair on ?net=local
 
 Lead: Night Shift | Marlow Build. Plan passed (Opus plan check 3, PASS on 6fab6ef0f). R1-R3 are on master; R4a is the
@@ -6,7 +6,7 @@ one-page harness this slice doubles. Sector Ops' campus v2 greybox exit waits on
 Builder: Opus (PLAN R4b). Recommended home: **local** (desktop worktree `C:/NightShift/Mobile-Coop-route-runs-r4b`),
 not cloud: see "Cloud or local" at the end.
 
-- Base: R4a's done branch head (lead fills on R4a PASS): `feature/route-runs-r4a` @ `<sha>`. If R4a has merged by the
+- Base: R4a's done branch head (lead fills on R4a PASS): `feature/route-runs-r4a` @ `ee27da535a734a5ca2b271cbc6b6243d15ded0b4` (PR #499; checker PASS after fix round 1). If R4a has merged by the
   time this starts, origin/master at or after that merge.
 - New branch: `feature/route-runs-r4b`. Push every sub-step.
 - Read first: `docs/systems/agent-preamble.md` (origin/master), then the spec on `origin/feature/route-runs-2`:
@@ -154,3 +154,9 @@ host seeing the client after a teleport, the follower trailing a networked avata
 of that shows in tsc or vitest; the pure part is about a quarter of the slice, and each fault is found only by a page
 run. Build it on the desktop with the laptop selftest in the loop. A cloud build is possible (pure parts tested, every
 page check pending PC run) but would likely need a full local fix round.
+
+## Added by the lead (2026-10-26, R4a recheck)
+- Fix before any S2 run: S2's objective is a 3 s hold (`src/world/maps/campusSectors.ts:363`) and a tap cannot finish it
+  (`src/game/gameState.ts:1348-1365`), so R4a's objective step ends stuck at `scripts/route-run/driver.mjs:921`. Hold A
+  for an objective whose def says hold (read the hold time from the objective, not a constant); taps stay for the rest.
+  Checker report: C:/NightShift/scratch/marlow/j13-r4a-check-2.md.
