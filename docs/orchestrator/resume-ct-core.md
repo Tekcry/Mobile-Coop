@@ -13,7 +13,10 @@ Message the orchestrator only at PR open / train-ready / blocked / Michael. Push
   test path comments) moved to J6 so J1 stays docs only; scale-sheet rope line waits for J24 (descent not built).
 - Opus planners running (plans only): J6 feature/player-hygiene, J19 feature/player-batch-j19, J24 feature/coop-kit
   (brief scratch/ctcore/phase-b/PLANNER-COMMON.md). Then a fresh plan checker each, then builds (after J1 is open + PASS).
-- Opus triage running on coop-real (#388 c1b, c2 :3). gm-polish e2e-offline laptop rerun requested (set gm-polish).
+- coop-real triage 3 DONE (STATE 30931bcf): harness fixes ffb7f02a (mouse aim lift at the viewport edge; boot logs
+  screen pushes, fails if a screen sits over the match) and c2 fc6d52c7 (door rows at 1.0 m; coop-real merged into c2).
+  Reruns queued: laptop-e2e/coop-real-c1c (ffb7f02a), coop-real-c2b (fc6d52c7). A boot fail naming the lobby screen
+  gives the cause: if a game path, T1 line + KNOWN BUG mark. gm-polish e2e-offline laptop rerun requested (set gm-polish).
   #375 gm-flip stays draft until Michael's look picks (Q37 "decide at your walk").
 - CPU HOLD (orchestrator ~18:10, desktop 100%): start NO new agents until it says CPU < 80%.
 - J1 #437: checker FIX (2 doc lines) applied by the lead + Moth purple in ART-DIRECTION -> head 16c6cb99. Next (after
