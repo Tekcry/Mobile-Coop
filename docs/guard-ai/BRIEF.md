@@ -2,7 +2,7 @@
 
 Branch `feature/guard-ai`, folder `C:/NightShift/Mobile-Coop-guard-ai`, cut from master ffade187 (4.64.0) with
 `origin/feature/g44-above` merged (#169, guards see poorly above, green, train 16). Started 2026-10-23 ~02:00 Sydney.
-Plan base: `docs/reviews/guards-review.md` on `origin/feature/menu` (the 2026-10-20 review: noise reaches every guard,
+Plan base: `docs/archive/reviews/guards-review.md` on `origin/feature/menu` (the 2026-10-20 review: noise reaches every guard,
 all walk over, aimless patrols, speeds backwards).
 
 ## Michael's words (verbatim, ROADMAP "Decided", 2026-10-23)

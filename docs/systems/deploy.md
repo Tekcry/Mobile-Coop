@@ -1,7 +1,7 @@
 # Branches and deploy
 Purpose: how branches map to the GitHub Pages site and how a release is made.
-Rules: `docs/DECISIONS.md` G83 (master is the only base), G85 (previews), G183 (version numbers at each merge);
-`docs/RULES.md` (who merges).
+Rules: `docs/DECISIONS.md` G83 (master is the only base), G179 (the `/ct/` preview), G183 (version numbers at each
+merge); `docs/RULES.md` (who merges).
 
 ## Branches
 - Master is the live game and the only base. Every job works on its own branch `feature/<job>`, cut from master, in
@@ -15,8 +15,9 @@ Rules: `docs/DECISIONS.md` G83 (master is the only base), G85 (previews), G183 (
   are the pointer branches for two preview slots (below). Branch deletion: `docs/RULES.md` "Branches and previews".
 
 ## Pages slots
-- What exists (process audit, 2026-10-19; G85's "one chosen preview" in its current form): `deploy.yml` runs on the
-  default branch (also on `workflow_run` of `preview.yml`) and builds the live game at `/<repo>/`, plus:
+- What exists (process audit, 2026-10-19; G85's "one chosen preview", replaced by G179 and the `/preview/` slot):
+  `deploy.yml` runs on the default branch (also on `workflow_run` of `preview.yml`) and builds the live game at
+  `/<repo>/`, plus:
   - `dev` at `/<repo>/preview/` (`VITE_PREVIEW=1`): `scripts/merge-train.mjs` moves it to the merge commit after each
     release and dispatches the deploy (below);
   - `ct-movement` at `/<repo>/ct/` (`VITE_PREVIEW_ID=ct`): the active prototype branch, moved by that job after each

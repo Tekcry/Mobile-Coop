@@ -4,7 +4,7 @@ The rules for sessions, jobs, intake, walk pacing, machines, merges and the test
 from origin/master). This page is the how-to of the loop a **job lead** (the session running one job) follows (G87):
 templates, commands and roles. Where it seems to disagree with `docs/RULES.md`, RULES.md wins and this page is fixed.
 
-## Prototype first (G4, G87)
+## Build only what is needed (G87, G288)
 - Build only the basics needed to make the feature work and test it: no hours of tuning on things that may not be used.
 - Michael plays or looks at it and decides; numbers are starting values until then (G10).
 - For a look decision, render options in scratch first and let Michael pick, then build the pick.

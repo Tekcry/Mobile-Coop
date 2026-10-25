@@ -137,9 +137,9 @@ A level is a linear spine of encounter spaces joined by connectors.
      S3 20, S4 25, S5 26 (G328), for two players (G362). One player uses the same counts, with no scale-down; three
      or four players add the guards tagged for them. The Sector Ops job writes them per player count in the graphs.
    - [Training] A set spawns at most `SET_GUARDS_MAX` 3 guards (12.1); the bands do not bind.
-10. **Archetypes per mode.** [Campaign] No heavies or dogs (G155); armour comes with the alarm stages; helmets by
-   difficulty (G341, G350). [SectorOps] Dogs (G297): killing one is penalised; gas knocks one out; no takedown; a dog
-   can be distracted (G348). Riot shields only in alarm response teams; heavier armour in later sections (G307).
+10. **Archetypes per mode.** [Campaign] No heavies or dogs (G155); armour comes with the alarm stages. [SectorOps] Dogs
+   (G297): killing one is penalised; gas knocks one out; no takedown; a dog can be distracted (G348). Riot shields only
+   in alarm response teams; heavier armour in later sections (G307).
    [Campaign] [SectorOps] Helmets by difficulty (G338, G341): on Realistic and Perfectionist every guard has one, and on
    Perfectionist it cannot be shot off; on Rookie and Normal helmets come only with the alarm stages (G350). [Training]
    Normal guards (G279).

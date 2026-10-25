@@ -1693,6 +1693,7 @@ heavy usage (desktop e2e and merge PRs)". Desktop agents capped so CPU stays und
 session); the heavy.lock desktop lane runs single GPU suites under 80% CPU; PRs outside src/net / protocol / save enter
 trains on CI plus at most two area suites; stacked series share a train; trains at 3+ ready or a 2-hour wait. (Replaces
 G246's 2+ trigger; its train trigger and desktop lane are replaced by G318.)
+
 **G307. Reward stealth over shooting as sections get harder.** (Helmet rule (2) narrowed by G338 and G350, 2026-10-25:
 Realistic and Perfectionist always have helmets, Perfectionist's cannot be shot off; below Perfectionist the first
 headshot still knocks a helmet off.) Michael (2026-10-23 ~10:10, native multiple choice in Character Build, relayed):

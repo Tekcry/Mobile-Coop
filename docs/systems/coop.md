@@ -350,8 +350,7 @@ camera and rumble stay local; partners never pass through each other (loco D8, G
   (2 m) apart and either faster than `SNAP_SPEED` (25 m/s) or, across a gap over `SNAP_GAP` (0.3 s), further than
   max(`SNAP_MIN`, sqrt(2) x |v| x gap) from where the velocity before the gap would carry the partner. The blocker parks
   for 3 frames when the shown feet jump more than 0.6 m between syncs.
-- Graphics never change gameplay: each player keeps their own graphics settings and FOV (fog on every preset,
-  `tests/losParity.test.ts`).
+- Graphics never change gameplay: each player keeps their own graphics settings and FOV (fog on every preset).
 - Remote animation audit: `node scripts/anim-audit.mjs --remote` (testing-tools.md).
 
 ## Training course wire (`course`)

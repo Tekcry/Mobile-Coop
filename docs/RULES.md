@@ -219,12 +219,12 @@ unmerged branches are never touched, and any other branch deletion is Michael's 
 - One home per rule: each rule lives in one file; every other doc links to it and never restates it
   (`docs/doc-owners.json` names the homes of the key numbers).
 - Folds rewrite in place (G344): one PR updates DECISIONS, the bible and VISION together, plus the owner file of every
-  rule it changes. A replaced sentence is rewritten, never followed by an appended "Note <date>"; the old wording goes into
-  `docs/stale-terms.json`. The fold's checker fails appended notes and missed owner files.
+  rule it changes. A replaced sentence is rewritten, never followed by an appended "Note <date>"; the old wording goes
+  into `docs/stale-terms.json`. The fold's checker fails appended notes and missed owner files.
 - Drift audit (G344, "I would like to carry out drift audit more often to prevent straying from vision"): an Opus
   audit the orchestrator runs daily with the fold and after every batch of Michael decisions. It reads VISION, the
-  bible, RULES and the open BRIEF / PLAN files against DECISIONS and ROADMAP "Decided"; each drift is fixed in place in the
-  fold PR or becomes a ROADMAP item.
+  bible, RULES and the open BRIEF / PLAN files against DECISIONS and ROADMAP "Decided"; each drift is fixed in place in
+  the fold PR or becomes a ROADMAP item.
 - Doc lint in CI: `npm run lint` runs `scripts/doc-lint.mjs` (stale terms, G citations, links and repo paths, restated
   rules, size budgets, appended bible notes); errors fail `check`, warnings print. `docs/doc-lint.json` holds the
   budgets and the `known` stale lines in orchestrator-owned files (the fix removes its entry).

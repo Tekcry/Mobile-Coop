@@ -101,11 +101,11 @@ Budgets: performance.md.
   height. Cost per pixel over step 14: +4 taps electro, +2 night, thermal unchanged; no texture, no target. Perception,
   the light meter and the wire never read any of it (`tests/visionIsolation.test.ts`). Decided, not built yet: the
   goggle modes are night, thermal and electro (G99), switched by an instant cut in CT's order (thermal, electro, night,
-  off; no flip, G100); grain as in CT (G101); thermal follows CT's colour ramp and shows people behind closed doors as a
-  dim silhouette (G102). The passes ahead of tone mapping (TAA, SSAO2,
-  SSR, ray-traced reflections, motion blur, the volumetric pass, `taauPass`) hold linear light in half float when the
-  GPU can render it (`PostStack.hdr`, Phase 1 Step 4b fix round 5): in 8 bits the darkness curve's dark band drew
-  contour bands and blocky speckle.
+  off; G100; the wheel picks the mode and the flip plays only on on / off, G181); grain as in CT (G101); thermal follows
+  CT's colour ramp and shows people behind closed doors as a dim silhouette (G102). The passes ahead of tone mapping
+  (TAA, SSAO2, SSR, ray-traced reflections, motion blur, the volumetric pass, `taauPass`) hold linear light in half
+  float when the GPU can render it (`PostStack.hdr`, Phase 1 Step 4b fix round 5): in 8 bits the darkness curve's dark
+  band drew contour bands and blocky speckle.
 - Materials (3.0): `world/surfaceAtlas.ts` `SurfaceAtlas` - two GPU `ProceduralTexture` atlases (4 x 4 tiles, periodic
   GLSL: `detail` rgb albedo variation + a roughness, `normal` rg normal + b height + a cavity) for `SURFACE_KINDS`
   (`SURFACE_PARAMS`: metres per tile, metallic, bump); drawn once, `setSize` by the Textures tier (`TEXTURE_SIZE`

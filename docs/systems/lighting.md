@@ -1,7 +1,8 @@
 # Light model, baked lamps and vision rendering
 Purpose: the gameplay light registry and light field, desktop baked lamps, darkness, night vision, thermal and electro
 rendering, and the lamp light volume kept for the level editor.
-Design authority: docs/DECISIONS.md (G41, G45, G47, G73, G100-G102, G352), then docs/design-bible.md (Section 5.1).
+Design authority: docs/DECISIONS.md (G41, G45, G47, G73, G101, G102, G181, G352), then docs/design-bible.md
+(Section 5.1).
 
 Light parity (bible 5.1): what the player sees, the light meter and guard perception agree. Gameplay reads only the light
 field (collision, the light bake, the noise model), never the render state. One gap is decided but not built yet:
@@ -307,9 +308,10 @@ change.
   (the night-vision smear; `e2e-darkness` checks a turning camera reads as moving). Per-frame code must not call
   `getViewMatrix` / `getTransformationMatrix` / `getDirection*` / `getWorldMatrix` on the active camera before the scene
   renders.
-- The switch (G100): an instant cut. `VisionState` has no flip; the first frame drawn after the button or a wheel pick is
-  the new mode (`e2e-darkness` thermal leg). A change of mode on screen flashes the HUD label for 1.5 s; the goggle sound
-  plays on on / off only (G181). Wren's goggle moving to the eyes is the figure's (`figure.setVision`), not the picture's.
+- The switch (G181; G100 before it): an instant cut. `VisionState` has no flip; the first frame drawn after the button
+  or a wheel pick is the new mode (`e2e-darkness` thermal leg). A change of mode on screen flashes the HUD label for 1.5
+  s; the goggle sound plays on on / off only (G181). Wren's goggle moving to the eyes is the figure's
+  (`figure.setVision`), not the picture's.
 
 ## Thermal and electro (locomotion step 14)
 - `vfx/visionLook.ts` (pure, GLSL `VISION_GLSL`): a `vk` branch in the cinematic post pass (1 thermal, 2 electro). No new
