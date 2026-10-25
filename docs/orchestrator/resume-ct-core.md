@@ -1,7 +1,7 @@
 # Resume - Night Shift | Player Build (2026-10-25 ~20:50 after the account swap; older log: history at the end)
 
 Rules: docs/RULES.md on origin/master: "A job." (Full burn bullet), "Machines.", "Swaps and context.". Opus builds / checks anim, net, AI;
-Sonnet strict briefs / data checks. No desktop e2e: laptop queue (C:/NightShift/scratch/ctcore/lq/request.mjs --sha <full>
+Sonnet strict briefs / data checks. No desktop e2e: laptop queue (scripts/laptop-queue/request.mjs from origin/master, run in C:/NightShift/Mobile-Coop; old scratch/ctcore/lq copy lacks splitSuites; --sha <full>
 --suites "..." | --alone --step "..."); results = GitHub statuses laptop-e2e/<set>; desktop-worker logs in
 C:/NightShift/scratch/laptop-queue-desktop/runs/<request id>/.
 Walk cap, checker status, train-ready and locks: RULES "Walk pacing" (the cap limits switch-on only, G355), "A job.", "Getting to master", "Machines". Every anim PR carries a ~1-2 min look video path in its body.
