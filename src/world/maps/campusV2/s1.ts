@@ -23,8 +23,6 @@ const DESK = '#8a6a4c';
 const BIN = '#2f5a3c';
 const PLANTER = '#5d6b4a';
 const CAR_COLOURS = ['#6f7b86', '#8c3b3b', '#d8d8d8', '#2e3b52', '#4a5d4a', '#a89a7a', '#3a3a3d'] as const;
-const SODIUM: [number, number, number] = [1, 0.72, 0.38];
-const WHITE: [number, number, number] = [1, 0.95, 0.88];
 
 /** The lamp circuits (switch groups) of section 1 (the SPEC names them `s1-park-w` ... as ids; the registry's groups are numbers). */
 export const S1_GROUPS = { parkW: 40, parkE: 41, fore: 42, gate: 43, canopy: 44, lane: 49 } as const;
@@ -144,31 +142,87 @@ const CARS: readonly (readonly [number, number])[] = [
   [3, 4], [3, 8], [3, 12],
 ];
 
-/** The car-park columns: x, z of each (west circuit 8, east circuit 6). */
-export const PARK_COLUMNS_W: readonly (readonly [number, number])[] = [[-34, -62], [-28, -62], [-22, -62], [-16, -62], [-34, -53], [-28, -53], [-22, -53], [-16, -53]];
-export const PARK_COLUMNS_E: readonly (readonly [number, number])[] = [[-10, -62], [-4, -62], [2, -62], [-10, -53], [-4, -53], [2, -53]];
-/** The forecourt bollards (x at z -45.5). */
-export const BOLLARD_XS: readonly number[] = [-28, -24, -20, -16, -12, -8, -4, 0];
-/** The canopy downlights. */
-export const CANOPY_LAMPS: readonly (readonly [number, number])[] = [[-23, -38], [-18.5, -38], [-23, -35.6], [-18.5, -35.6]];
+/** (campus-greybox S1 G1) The lamp lists live in the one light block `S1_LIGHTS` (`s1Data.ts`); these names re-export its
+ *  lists. `s1Data.ts` is the entry of the S1 modules (`campusSections.ts` imports it first), so the cycle is safe. */
+export { PARK_COLUMNS_W, PARK_COLUMNS_E, BOLLARD_XS, CANOPY_LAMPS } from './s1Data';
 
-/** A visible lamp fitting (no model: the glowing box), a real registry light. */
-function lamp(b: LevelBuilder, x: number, y: number, z: number, o: { r: number; i: number; group: number; colour: [number, number, number]; cone?: ReturnType<typeof makeCone> | null; w?: number }): void {
-  const w = o.w ?? 0.5;
+/** A light colour (linear RGB) and a cone as `makeCone`'s arguments (direction x, y, z, outer angle). */
+export type S1Colour = readonly [number, number, number];
+export type S1Cone = readonly [number, number, number, number];
+/** One lamp fitting of the light block. */
+export interface S1Lamp {
+  x: number;
+  y: number;
+  z: number;
+  r: number;
+  i: number;
+  colour: S1Colour;
+  group: number;
+  cone: S1Cone | null;
+  /** Fixture width (the glowing box). */
+  w: number;
+}
+/** A row of like fittings at plan points (one spec, many points). */
+export interface S1LampRow {
+  pts: readonly (readonly [number, number])[];
+  y: number;
+  r: number;
+  i: number;
+  colour: S1Colour;
+  group: number;
+  cone: S1Cone | null;
+  w: number;
+}
+/**
+ * (campus-greybox S1 G1) Every S1 lamp (position, height, radius, intensity, colour, cone, circuit) in one block: `S1_LIGHTS`
+ * in `s1Data.ts`, passed to `buildCampusS1` (`S1_PARTS.build`), so light-realism retunes it without touching the geometry.
+ */
+export interface S1Lights {
+  /** The car-park columns: pillar height / radius, the lamp spec, the west and east circuits' points. */
+  columnsW: readonly (readonly [number, number])[];
+  columnsE: readonly (readonly [number, number])[];
+  column: { pillarH: number; pillarR: number; y: number; r: number; i: number; colour: S1Colour; cone: S1Cone | null; w: number; groupW: number; groupE: number };
+  /** The forecourt light bollards: x list at one z, the post and the lamp. */
+  bollards: { xs: readonly number[]; z: number; postH: number; postR: number; y: number; r: number; i: number; colour: S1Colour; group: number; w: number };
+  /** The entrance canopy downlights. */
+  canopy: S1LampRow;
+  /** The plant room's dock lamp over the goods door. */
+  dock: S1Lamp;
+  /** The barrier lane floodlight on its pole (photocell: no switch, shot only). */
+  laneFlood: S1Lamp & { poleH: number; poleR: number };
+  /** The gatehouse ceiling tube. */
+  gate: S1Lamp;
+}
+
+/** Every lamp of the block as single fittings, in draw order (the tests match the registry against it). */
+export function s1Lamps(L: S1Lights): S1Lamp[] {
+  const c = L.column;
+  const out: S1Lamp[] = [L.gate, L.laneFlood];
+  for (const [x, z] of L.columnsW) out.push({ x, y: c.y, z, r: c.r, i: c.i, colour: c.colour, group: c.groupW, cone: c.cone, w: c.w });
+  for (const [x, z] of L.columnsE) out.push({ x, y: c.y, z, r: c.r, i: c.i, colour: c.colour, group: c.groupE, cone: c.cone, w: c.w });
+  const o = L.bollards;
+  for (const x of o.xs) out.push({ x, y: o.y, z: o.z, r: o.r, i: o.i, colour: o.colour, group: o.group, cone: null, w: o.w });
+  for (const [x, z] of L.canopy.pts) out.push({ ...L.canopy, x, z });
+  out.push(L.dock);
+  return out;
+}
+
+/** A visible lamp fitting (no model: the glowing box), a real registry light, from a light-block entry. */
+function lamp(b: LevelBuilder, l: S1Lamp): void {
   b.light({
-    kind: o.cone ? 'spot' : 'lamp',
-    x,
-    y,
-    z,
-    radius: o.r,
-    intensity: o.i,
-    color: o.colour,
-    cone: o.cone ?? null,
-    group: o.group,
+    kind: l.cone ? 'spot' : 'lamp',
+    x: l.x,
+    y: l.y,
+    z: l.z,
+    radius: l.r,
+    intensity: l.i,
+    color: [l.colour[0], l.colour[1], l.colour[2]],
+    cone: l.cone ? makeCone(l.cone[0], l.cone[1], l.cone[2], l.cone[3]) : null,
+    group: l.group,
     on: true,
     destructible: true,
     electric: true,
-    fixture: { sx: w, sy: 0.1, sz: w / 2, oy: 0 },
+    fixture: { sx: l.w, sy: 0.1, sz: l.w / 2, oy: 0 },
   });
 }
 
@@ -178,16 +232,28 @@ function head(b: LevelBuilder, cx: number, cz: number, w: number, y0: number, y1
   b.boxes[b.boxes.length - 1]!.overhead = true;
 }
 
-/** Everything of section 1: walls, the canopy and plant roof, cars, shelters, fences, lamps, the ladder and the doors. */
-export function buildCampusS1(b: LevelBuilder): void {
-  // ---- perimeter weldmesh 2.4 (E3): south with the gate (x 8..14) and the cut panel (E1, x 23.4..24.6), east, west, north-east
-  b.fence(-40, -80, 8, -80, 2.4);
-  b.fence(14, -80, 23.4, -80, 2.4);
-  b.fence(24.6, -80, 26, -80, 2.4);
-  b.fence(26, -80, 26, -34, 2.4);
-  b.fence(-40, -80, -40, -52, 2.4);
-  b.fence(-40, -45, -40, -40, 2.4);
-  b.fence(4, -34, 26, -34, 2.4);
+/** Everything of section 1: walls, the canopy and plant roof, cars, shelters, the palisade, lamps, the ladder and the doors.
+ *  `L` is the light block (`S1_LIGHTS`, `s1Data.ts`): every lamp, column pillar and lamp post is drawn from it. */
+export function buildCampusS1(b: LevelBuilder, L: S1Lights): void {
+  // ---- (campus-greybox G1, S1-detail C1) the perimeter: an anti-climb steel palisade 2.4 high, 0.1 thick, noLedge, as boxes
+  // (no fence anchors in S1): south z -80 (the closed sliding gate leaf x 8..14 and the re-hung cut panel x 23.4..24.6 are
+  // their own pieces), east x 26, west x -40, north-east z -34
+  const f0 = b.boxes.length;
+  b.box(-16, 1.2, -80, 48, 2.4, 0.1, STEEL); // x -40..8
+  b.box(11, 1.2, -80, 6, 2.4, 0.1, STEEL); // the sliding gate leaf, closed (a static piece, A1)
+  b.box(18.7, 1.2, -80, 9.4, 2.4, 0.1, STEEL); // x 14..23.4
+  b.box(24, 1.2, -80, 1.2, 2.4, 0.1, STEEL); // the anglers' cut panel, re-hung behind the crew
+  b.box(25.3, 1.2, -80, 1.4, 2.4, 0.1, STEEL); // x 24.6..26
+  b.box(26, 1.2, -57, 0.1, 2.4, 46, STEEL); // east, z -80..-34
+  b.box(-40, 1.2, -60, 0.1, 2.4, 40, STEEL); // west, z -80..-40
+  b.box(15, 1.2, -34, 22, 2.4, 0.1, STEEL); // north-east, x 4..26
+  // roof-edge screens 2.4: the gatehouse roof's south edge, the plant roof's west edge (replaces its 1.1 parapet), the
+  // pavilion top's two ends
+  b.box(16.75, 4.5, -79, 6.5, 2.4, 0.1, STEEL);
+  b.box(-40, 5.6, -37, 0.1, 2.4, 6, STEEL);
+  b.box(-40, 5.6, -32, 0.1, 2.4, 4, STEEL);
+  b.box(3.7, 5.6, -32, 0.1, 2.4, 4, STEEL);
+  b.mark(f0, { noLedge: true });
 
   // ---- the gatehouse (14..20, -79..-73): roof 3.3, door north (17, -73), reception window west, rear window east (20, -76)
   const g0 = b.boxes.length;
@@ -212,15 +278,15 @@ export function buildCampusS1(b: LevelBuilder): void {
   b.block(19.35, -76, 0.9, 0.75, 1.6, DESK);
   b.block(18.4, -78.55, 1.6, 0.9, 0.6, STEEL);
   // the gatehouse lamp (switch by its door: lure #1) and an off-circuit fitting nowhere: the interior is one circuit
-  lamp(b, 17, 2.9, -76, { r: 5.5, i: 0.9, group: S1_GROUPS.gate, colour: WHITE, w: 0.6 });
+  lamp(b, L.gate);
 
   // ---- the barrier lane (8..14, -80..-60): rising-arm barrier at z -77 (the arm is down, visual), the island with cam-gate
   b.block(11, -77, 1.0, 1.0, 2.4, KERB);
   b.box(12.75, 1.0, -77, 2.5, 0.08, 0.1, '#d8c24a', 0, 0, false);
   b.pillar(11, -77.9, 0.07, 3.0, STEEL);
   // the lane floodlight on its pole (photocell: no switch, shot only)
-  b.pillar(9, -66, 0.15, 6.0, STEEL);
-  lamp(b, 9, 6.0, -66, { r: 12, i: 0.8, group: S1_GROUPS.lane, colour: SODIUM, cone: makeCone(0, -1, 0, 1.15), w: 0.6 });
+  b.pillar(L.laneFlood.x, L.laneFlood.z, L.laneFlood.poleR, L.laneFlood.poleH, STEEL);
+  lamp(b, L.laneFlood);
 
   // ---- the marsh verge (20..26, -80..-56): dark, reeds (visual) and two trees
   b.pillar(22.5, -66, 0.3, 5, '#4a3a2a');
@@ -228,18 +294,16 @@ export function buildCampusS1(b: LevelBuilder): void {
 
   // ---- the staff car park (-36..6, -76..-52): 14 parked cars (roofs 1.5), column lamps 6.0 on two circuits (E5, E6, E11)
   CARS.forEach(([row, bay], k) => b.box(bayX(bay), 0.75, ROW_Z[row]!, 1.8, 1.5, 4.2, CAR_COLOURS[k % CAR_COLOURS.length]!));
-  const cone = makeCone(0, -1, 0, 1.15);
-  for (const [x, z] of PARK_COLUMNS_W) {
-    b.pillar(x, z, 0.15, 6.0, STEEL);
-    lamp(b, x, 6.0, z, { r: 12, i: 0.9, group: S1_GROUPS.parkW, colour: SODIUM, cone, w: 0.6 });
-  }
-  for (const [x, z] of PARK_COLUMNS_E) {
-    b.pillar(x, z, 0.15, 6.0, STEEL);
-    lamp(b, x, 6.0, z, { r: 12, i: 0.9, group: S1_GROUPS.parkE, colour: SODIUM, cone, w: 0.6 });
+  const col = L.column;
+  for (const [pts, group] of [[L.columnsW, col.groupW], [L.columnsE, col.groupE]] as const) {
+    for (const [x, z] of pts) {
+      b.pillar(x, z, col.pillarR, col.pillarH, STEEL);
+      lamp(b, { x, y: col.y, z, r: col.r, i: col.i, colour: col.colour, group, cone: col.cone, w: col.w });
+    }
   }
 
   // ---- the bin store (-40..-30, -52..-45): walls 3.0, open top and open to the south (E4); the feeder pillar's board (E5)
-  b.wallZ(-40, -52, -45, [], 3.0, WALL_DARK, T);
+  // (G1, C1) the west wall is gone: no wall jump onto the perimeter
   b.wallX(-45, -40, -30, [], 3.0, WALL_DARK, T);
   b.wallZ(-30, -52, -45, [], 3.0, WALL_DARK, T);
   b.block(-38.2, -48.2, 1.4, 1.2, 1.1, BIN);
@@ -252,7 +316,7 @@ export function buildCampusS1(b: LevelBuilder): void {
   b.box(-5, 2.3, -48, 10, 0.2, 4, ROOF);
   b.mark(s0, { noLedge: true });
   for (const [x, z] of [[-9.8, -49.8], [-0.2, -49.8], [-9.8, -46.2], [-0.2, -46.2]] as const) b.pillar(x, z, 0.08, 2.2, STEEL);
-  b.light({ kind: 'lamp', x: -5, y: 2.2, z: -48, radius: 0, intensity: 0, color: WHITE, group: -1, on: false, destructible: false, electric: false, fixture: { sx: 0.6, sy: 0.1, sz: 0.3, oy: 0 } });
+  b.light({ kind: 'lamp', x: -5, y: 2.2, z: -48, radius: 0, intensity: 0, color: [1, 0.95, 0.88], group: -1, on: false, destructible: false, electric: false, fixture: { sx: 0.6, sy: 0.1, sz: 0.3, oy: 0 } });
 
   // ---- the smoking shelter (6..10, -50..-47): roof 2.4, back panel north, panels W and E, open to the car park
   const k0 = b.boxes.length;
@@ -265,9 +329,10 @@ export function buildCampusS1(b: LevelBuilder): void {
   // ---- the forecourt (-26..6, -46..-34): the drop-off kerb, planters along the facade (E10), bollards on the s1-fore circuit (E11)
   b.box(-20, 0.075, -46.15, 12, 0.15, 0.3, KERB);
   for (const x of [-11, -7, -3]) b.block(x, -35.6, 2.4, 0.7, 0.8, PLANTER);
-  for (const x of BOLLARD_XS) {
-    b.pillar(x, -45.5, 0.08, 0.9, STEEL);
-    lamp(b, x, 0.85, -45.5, { r: 4.5, i: 0.5, group: S1_GROUPS.fore, colour: SODIUM, w: 0.2 });
+  const bo = L.bollards;
+  for (const x of bo.xs) {
+    b.pillar(x, bo.z, bo.postR, bo.postH, STEEL);
+    lamp(b, { x, y: bo.y, z: bo.z, r: bo.r, i: bo.i, colour: bo.colour, group: bo.group, cone: null, w: bo.w });
   }
 
   // ---- the HQ entrance pavilion (z -34..-30, 4.4): solid blocks west and east of C1, the vestibule between them
@@ -290,7 +355,7 @@ export function buildCampusS1(b: LevelBuilder): void {
   for (const [x, z, w, d] of [[-23.3, -37, 5.4, 6], [-16.7, -37, 5.4, 6], [-20, -38.2, 1.2, 3.6], [-20, -34.65, 1.2, 1.3]] as const) b.box(x, 4.3, z, w, 0.2, d, '#9aa3a8');
   b.mark(c0, { overhead: true });
   for (const [x, z] of [[-25.5, -39.5], [-14.5, -39.5], [-25.5, -34.6], [-14.5, -34.6]] as const) b.pillar(x, z, 0.15, 4.2, STEEL);
-  for (const [x, z] of CANOPY_LAMPS) lamp(b, x, 4.1, z, { r: 4.5, i: 0.85, group: S1_GROUPS.canopy, colour: WHITE, cone: makeCone(0, -1, 0, 1.0), w: 0.5 });
+  for (const [x, z] of L.canopy.pts) lamp(b, { ...L.canopy, x, z });
 
   // ---- the HQ ground-floor plant room (-40..-26, -40..-34) and its roof 4.4 (E9): walls 4.2, parapets 1.1 on its S and W edges
   const r0 = b.boxes.length;
@@ -304,7 +369,7 @@ export function buildCampusS1(b: LevelBuilder): void {
   const q0 = b.boxes.length;
   b.box(-39.3, 4.95, -39.85, 1.4, 1.1, T, WALL_DARK); // S parapet, the ladder gap x -38.6 .. -37.4
   b.box(-31.7, 4.95, -39.85, 11.4, 1.1, T, WALL_DARK);
-  b.box(-39.85, 4.95, -37, T, 1.1, 5.7, WALL_DARK); // W parapet
+  // (G1) the W parapet is the 2.4 roof screen (perimeter, above)
   b.mark(q0, { noLedge: true });
   // the caged ladder from the delivery yard (-38, -41) to the plant roof (E9)
   b.ladder(-38, -40.4, 0, 4.4, 0);
@@ -312,7 +377,7 @@ export function buildCampusS1(b: LevelBuilder): void {
 
   // ---- the delivery yard (-40..-26, -45..-40): the cage trolley (cover), the dock lamp on the s1-fore circuit
   b.block(-30.5, -44, 1.0, 1.2, 0.8, STEEL);
-  lamp(b, -33, 2.7, -40.4, { r: 5, i: 0.8, group: S1_GROUPS.fore, colour: WHITE, cone: makeCone(0, -0.8, -0.6, 1.0), w: 0.4 });
+  lamp(b, L.dock);
 
   // ---- ambient (SPEC lighting rules, LR7): the whole section at the standby fill 0.14 (true dark with a circuit cut, the
   // verge, bin lane, bike shelter and the roofs by reason); C1 is a transit space at 0.30

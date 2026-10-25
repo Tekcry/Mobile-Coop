@@ -3,10 +3,42 @@ import type { SectorDef, SectorGuard } from '../../../game/sectors';
 import type { SecurityDesk } from '../../../game/sectorDesks';
 import type { SecurityData } from '../../../security/data';
 import type { CampusAlarm, CampusSectionParts } from '../campusParts';
-import { buildCampusS1, C1_BOX, S1_COOP_LIPS, S1_DOORS, S1_HIDESPOTS, S1_NAV_SEEDS, S1_PICKUPS, S1_ROOMS, S1_SPAWNS, S1_SWITCHES } from './s1';
+import { buildCampusS1, C1_BOX, S1_COOP_LIPS, S1_DOORS, S1_GROUPS, S1_HIDESPOTS, S1_NAV_SEEDS, S1_PICKUPS, S1_ROOMS, S1_SPAWNS, S1_SWITCHES, type S1Colour, type S1Lights } from './s1';
 import { dressS1, HERO_S1, S1_ART_TAGS } from './s1Dress';
 
 const PI = Math.PI;
+
+// PROVISIONAL - light-realism retunes these (docs/light-realism/PLAN.md, AS/NZS 1158.3.1).
+// TODO(light-realism): replace with calibrated values.
+/** The warm sodium and the cool white of S1's fittings (linear RGB). */
+export const SODIUM: S1Colour = [1, 0.72, 0.38];
+export const WHITE: S1Colour = [1, 0.95, 0.88];
+/**
+ * (campus-greybox S1 G1) Every S1 lamp in one block (lead note, Michael ~09:05 "Real-world levels"; job BRIEF A19): position,
+ * height, radius, intensity, colour, cone and circuit. `buildCampusS1` draws every lamp, column pillar and lamp post from it
+ * (`S1_PARTS.build`), so light-realism's calibration retunes this block only. Today's engine values (the as-built S1, B:214-314).
+ */
+export const S1_LIGHTS: S1Lights = {
+  // the car-park columns (6.0 pillars, sodium cones) on the feeder pillar's two circuits
+  columnsW: [[-34, -62], [-28, -62], [-22, -62], [-16, -62], [-34, -53], [-28, -53], [-22, -53], [-16, -53]],
+  columnsE: [[-10, -62], [-4, -62], [2, -62], [-10, -53], [-4, -53], [2, -53]],
+  column: { pillarH: 6.0, pillarR: 0.15, y: 6.0, r: 12, i: 0.9, colour: SODIUM, cone: [0, -1, 0, 1.15], w: 0.6, groupW: S1_GROUPS.parkW, groupE: S1_GROUPS.parkE },
+  // the forecourt light bollards on the yard board's circuit
+  bollards: { xs: [-28, -24, -20, -16, -12, -8, -4, 0], z: -45.5, postH: 0.9, postR: 0.08, y: 0.85, r: 4.5, i: 0.5, colour: SODIUM, group: S1_GROUPS.fore, w: 0.2 },
+  // the entrance canopy downlights (A65: the east pair at x -18.5)
+  canopy: { pts: [[-23, -38], [-18.5, -38], [-23, -35.6], [-18.5, -35.6]], y: 4.1, r: 4.5, i: 0.85, colour: WHITE, group: S1_GROUPS.canopy, cone: [0, -1, 0, 1.0], w: 0.5 },
+  // the dock lamp over the plant room's goods door, on the yard board
+  dock: { x: -33, y: 2.7, z: -40.4, r: 5, i: 0.8, colour: WHITE, group: S1_GROUPS.fore, cone: [0, -0.8, -0.6, 1.0], w: 0.4 },
+  // the lane floodlight (photocell: no switch, shot only)
+  laneFlood: { x: 9, y: 6.0, z: -66, r: 12, i: 0.8, colour: SODIUM, group: S1_GROUPS.lane, cone: [0, -1, 0, 1.15], w: 0.6, poleH: 6.0, poleR: 0.15 },
+  // the gatehouse ceiling tube (switch by its door)
+  gate: { x: 17, y: 2.9, z: -76, r: 5.5, i: 0.9, colour: WHITE, group: S1_GROUPS.gate, cone: null, w: 0.6 },
+};
+/** The lists `s1.ts` re-exports (the dress and the tests read them by these names). */
+export const PARK_COLUMNS_W = S1_LIGHTS.columnsW;
+export const PARK_COLUMNS_E = S1_LIGHTS.columnsE;
+export const BOLLARD_XS = S1_LIGHTS.bollards.xs;
+export const CANOPY_LAMPS = S1_LIGHTS.canopy.pts;
 
 /*
  * Section 1 data (the gatehouse, car park and forecourt; `docs/sector-redesign/SPEC.md` "S1"), moved out of
@@ -128,7 +160,7 @@ export const S1_SECTOR: SectorDef = {
 
 /** (campus-greybox P0) Section 1's parts for the map (`campusSections.ts`). */
 export const S1_PARTS: CampusSectionParts = {
-  build: buildCampusS1,
+  build: (b) => buildCampusS1(b, S1_LIGHTS),
   spawns: S1_SPAWNS,
   pickups: S1_PICKUPS,
   hideSpots: S1_HIDESPOTS,
@@ -151,4 +183,4 @@ export const S1_PARTS: CampusSectionParts = {
 
 /** (campus-greybox) True while this v2 section is still an exact copy of the live one (`tests/campusV2.test.ts`
  *  checks it equals v1); the lane sets it false with its first layout change. */
-export const S1_V2_COPY = true;
+export const S1_V2_COPY = false;
