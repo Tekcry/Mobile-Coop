@@ -1,4 +1,4 @@
-status: claimed Night Shift | Cloud Builder 3 2026-10-26T00:40+11:00
+status: done feature/mission-rules-r6-polish cd4ffa79464f79110ee174f5ed35938099716f8d
 
 # campaign J7 R6 polish: merged-head check + the two checkers' polish (Opus 5.5)
 
@@ -41,3 +41,31 @@ save change.
 Push feature/mission-rules-r6-polish (commits "mission-rules R6 polish: ...", trailer "Co-Authored-By: Claude Opus 5.5
 <noreply@anthropic.com>"); report at the end of this brief: step 1 counts, each item with file:line, tests with counts,
 deviations.
+
+## Report (Night Shift | Cloud Builder 3, 2026-10-26)
+Branch `feature/mission-rules-r6-polish` from d6a5f5b6b (as briefed; origin/feature/mission-rules-hud has since moved
+to 3aa144a2 with PR E fix1 + R7: session.ts, coopUi.ts, campaign.ts, campaignSession.test.ts, the wharf e2e, none of
+this branch's files). Head cd4ffa79464f79110ee174f5ed35938099716f8d, one commit, 6 files +189 / -14.
+- **Step 1 (merged head, before any edit):** `npm run typecheck:fast` clean; the six-path vitest set **153 / 153** in 13
+  files. No R4 / R5 x R6 merge fault, so no merge-fix commit.
+- **Step 2:**
+  1. `sectorMode.ts:820-825`: `setup`'s mission branch resets the feed (`this.feed.reset()`), so a restart
+     mid-download writes the step line again on the next `frameUpdate`; `:1342-1355`: the percent goes on the line only
+     when the feed's step is the one the section objective completes (`missionStepReads(step, '<section>-obj')`), and only
+     when the whole percent changes (`dlPct`, `:282-283`; the old line built a string every tick). No mission, or no
+     current step: `<label> NN%` as before.
+  2. `missionFeed.ts:79-93`: the kept text needs the same runner (`same`); helpers `missionStepReads` (`:125`) and
+     `stepWithPercent` (`:133`), both allocation-free.
+  3. `coopClient.ts:1399-1407` (`missionObj`): the host's line when it is our step plus " NN%", else our step line.
+  4. `coopClient.ts:1004-1008`: the comment on the two connector windows.
+  5. `hud.ts:319`: the hint's `fontSize` 10.5px (the objective is 13px in `.hud-objective`), doc comment says why.
+  6. `tests/missionNet.test.ts:122`: a bare client (R6's lazily read viewer; class fields set by hand, `g.opts.mode` and
+     `clock` for the getters) gets a `sector` message with `ls` 0: S1's steps open, `frameUpdate` puts Team B's current
+     step ("Meet at the stair") over the host's snapshot line; the host's "<step> 45%" is kept; the same message again
+     changes nothing (version and HUD writes unchanged).
+- **Tests:** `tests/mission/missionFeed.test.ts` +4 (another runner's step rebuilt; reset rewrites; the two helpers); the
+  "another runner" case fails with the old reuse line (checked). Step 1 set on the head **158 / 158** (13 files);
+  typecheck:fast clean; eslint clean on the six files.
+- **Deviations:** item 1 has no `SectorMode` unit test (its test files are not in the brief's list): the feed reset is
+  covered at the feed level; the restart-mid-download line is an e2e check, pending PC run. No wire, protocol or save
+  change; no changelog fragment (not in the file list).
