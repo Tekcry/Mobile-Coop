@@ -889,7 +889,8 @@ export class CoopHost implements NetAttachment {
     }
     const held = this.seized.get(e.id);
     if (m.ph === 'start') {
-      if (!r.alive || (held && held.by !== r.id) || (!held && e.taken) || (r.ref.spotted && e.level === 'alert') || hyp2(e.pos.x - r.feet.x, e.pos.z - r.feet.z) > TD_REACH) {
+      // (G348) never a dog, whatever the client offered
+      if (!r.alive || e.def.quadruped || (held && held.by !== r.id) || (!held && e.taken) || (r.ref.spotted && e.level === 'alert') || hyp2(e.pos.x - r.feet.x, e.pos.z - r.feet.z) > TD_REACH) {
         deny();
         return;
       }
