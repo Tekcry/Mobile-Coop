@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 3 2026-10-26T00:40+11:00
 
 # campaign J7 R6 polish: merged-head check + the two checkers' polish (Opus 5.5)
 
