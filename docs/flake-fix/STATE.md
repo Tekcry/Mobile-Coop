@@ -3,6 +3,22 @@
 **Done (2026-10-22):** PR #117 merged as 4.54.1 (6c2d50a4, ~15:20). Proven on 2b05f423 (check + netmove, mouse,
 ctcourse, stealth-ai twice at JOBS=2). This file now also carries Character Build's resume (the last fenced block).
 
+**Test Runner SAVE 47 (2026-10-25 ~12:25, session [7154dc]; wins over SAVE 46 where they differ). Docs-first hold
+(G346): tests, queue and docs only.**
+- Master 4.101.1 12ea181a (train 86 green 43/43, 579 s: #403 dead-pid locks + #387 + #385). Service pid 61444 was on
+  6a0b9560 at 12:20 (self-updates when idle): confirm it and the desktop worker run >= 12ea181a.
+- Laptop root C:/NightShift/CLAUDE.md written (Michael approved in session, 12:15).
+- #408 feature/laptop-queue-5 e53c71ba open to master: Opus checker 2 PASS (198/198 vitest). Auto mode blocks me
+  posting `checker`; the Orchestrator re-checks, posts and labels. Polish notes in the PR body.
+- Conformance review (brief origin/feature/menu docs/orchestrator/review-briefs/test-runner.md): Opus agent on
+  feature/conformance-test-runner (worktree -conformance-test-runner), docs from origin/feature/doc-final (#407).
+  On resume: if no PR yet, finish it; then a fresh Opus checker, message the Orchestrator the PR number.
+- SAVE 46 gap runs all read: e2e-coop soak 8/8 + e2e-pad 3/3 clean (Player Build was offline: rates here),
+  e2e:gpu pass, guard-cap 41002 + 41003 pushed (feature/guard-cap-results 30071616, run-41002/ run-41003/).
+  perf campusOps x3 (fb83, 833db92e): rendered p50 8.3 ms, cpuP95 6.6-8.6, all 3 over allocations budget, 1 also
+  frame pacing (p99 15.2); top allocators havok fromWireType ~2.2 MB/s, raycast via cast ~2.0 MB/s -> conformance gap
+  for Player / Sector Ops. c55f / 10bf / 40a4 never ran (no run folder): requeue on master if still wanted.
+
 **Test Runner SAVE 46 (2026-10-25 ~09:00, before the ~09:10 cap, reset 13:10; wins over SAVE 45 where they differ):**
 - Master 4.100.3 6c3f4a87 (train 78 green 43/43). #374 re-labelled train-ready by the Orchestrator (head 283daf5d).
 - Queued for the gap (pinned, on 6c3f4a87): ...-c55f full-41003, ...-10bf full-41003-r2, ...-bcd3 gpu-41003
