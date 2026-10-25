@@ -1,5 +1,5 @@
 # mixamo-retarget M2 - report
-Owner: Player Build (M2 builder, Opus). Status: done (2026-10-25). Branch `feature/mixamo-retarget-m2`. Plan: `PLAN.md` M2.
+Owner: Player Build (M2 builder, Opus). Status: done, fix round done (2026-10-25). Branch `feature/mixamo-retarget-m2`. Plan: `PLAN.md` M2.
 
 ## Built
 - `scripts/mocap/mixamoMap.mjs` (pure): `MIXAMO_MAP` (slot -> rotation bone, end bone, parent slot, kind), `MIXAMO_TO_SLOT`,
@@ -23,7 +23,10 @@ Owner: Player Build (M2 builder, Opus). Status: done (2026-10-25). Branch `featu
   Shoulder head), `l/r<finger>0` (Hand -> finger 1 head). Zero-length `hub` slots `lowerneck` and `l/rwrist` exist because
   analyze.mjs reads those CMU names. `l/rfingers` and `l/rthumb` are aliases of the middle finger and thumb first
   joints. Every name retarget.mjs and analyze.mjs read is present, so neither needed more than the loader injection.
-- **Spine (A6)** as the plan: `upperback` = Spine1, `thorax` = Spine2, `lowerback` = Spine (chain only).
+- **Spine (A6), corrected in the fix round:** matched by rest height. Wren `spine` (spine -> chest joint) = Mixamo `Spine`
+  (`upperback`: Spine head -> Spine1 head); Wren `chest` (chest -> neck joint) = Spine1 + Spine2 (`thorax`, a blend slot:
+  Spine1 head -> Neck head); `lowerback` a hub; neck as the plan (`upperneck` = Neck -> Head head). The plan's
+  Spine1 / Spine2 split was one bone high (see "Fix round").
 - **Required bones:** the 22 non-end bones of Mixamo's no-finger skeleton. Fingers are optional per finger (dropped,
   listed in `report.missingFingers`; `lfingers` / `lthumb` become hubs). End bones are optional with fallbacks along
   the parent segment (`extend`: toe 0.6 x the foot, head 1.7 x the neck, distal finger 1 x the middle phalanx, hand 0.4
@@ -62,7 +65,7 @@ this report. Edited: `scripts/mocap/retarget.mjs` (+26 / -8 lines), `scripts/moc
 - this report (head after it is in the final message)
 
 ## Tests and results
-- `npx vitest run tests/mixamoMap.test.ts tests/mixamoTake.test.ts`: 17 passed, 1 skipped (the CMU regression, no raw
+- (Original round; the fix-round results are under "Fix round".) `npx vitest run tests/mixamoMap.test.ts tests/mixamoTake.test.ts`: 17 passed, 1 skipped (the CMU regression, no raw
   CMU take on this machine; every `.mocap-cache` in `C:/NightShift` is empty).
   - Map (7): 65-bone coverage; every Wren joint the retarget drives mapped to the plan's bone (A6 split); every segment
     ends at the plan's child head; every CMU name retarget / analyze read exists, parents first; prefixes `mixamorig:`,
@@ -87,9 +90,11 @@ this report. Edited: `scripts/mocap/retarget.mjs` (+26 / -8 lines), `scripts/moc
   were byte-identical (JSON). The vitest regression also ran green against that take before it was deleted.
 
 ## Open items
-- **Real files:** nothing here has seen an M1 dump yet (Blender capped). First run: `node scripts/mocap/mixamoTake.mjs`
-  over all 21 dumps; check `fkErrMm` (expect < 0.5 mm), `facing.hipToeDeg`, `leg.scale` (A5: near 1), the segment
-  ratios, and `retargetDirErrDeg` < 8 deg on the spine (A6; else the slice's fallback to aiming at joint positions).
+- **Real files:** run over all 21 dumps in the fix round (table under "Fix round"): selfCheck OK, `fkErrMm` <= 0.04,
+  `hipToeDeg` 1.6, `leg.scale` 0.993, every Wren segment within 0.01 deg of the Mixamo heads.
+- **`retargetDirErrDeg` is not the A6 gate.** retarget.mjs compares Wren against the take's own slot tips (the same
+  data), so it reads ~0 whatever the map. The gate is `mixamoDirCheck` (`node scripts/mocap/mixamoTake.mjs`); M3
+  should put its numbers in CLIPS.md's direction error column.
 - **Hang clips:** the feet floor puts dangling feet at y = 0; M4 should load the hangs and climbs with `floor: 'zero'`
   (or ignore the height) and decide its clock from the grips.
 - **`inPlace` is opt-in:** M3 / M4 recipes pass `inPlace: take.inPlace` (or force it per clip). Mixamo loops repeat
@@ -106,3 +111,75 @@ this report. Edited: `scripts/mocap/retarget.mjs` (+26 / -8 lines), `scripts/moc
   action's range, not the scene default.
 - `world` and `scale` are not used by M2 (heads and rotations are already world), but keep them for checks.
 - Nothing else: names with any `mixamorig<N>:` prefix, Z up, 5 decimals and sign-continuous `w, x, y, z` all fit.
+
+## Fix round (2026-10-25, checker FIX on 55b45b82)
+Checker item: the spine was one bone off (Wren spine on Spine1, chest on Spine2, Spine folded into the pelvis), and the A6
+direction gate compared a thing with itself, so it never caught it. Commits: `ea5f6965` (the cut-off builder's WIP),
+`be16ce8e` (code + tests), this report.
+
+**Map (mixamoMap.mjs).** Rest heights above the hips / pelvis (standing_idle; Wren bind): Mixamo Spine 0.096, Spine1 0.208,
+Spine2 0.336, Neck 0.480 m; Wren spine 0.130, chest 0.255, neck 0.543 m. So Wren spine = `Spine` (`upperback`, Spine ->
+Spine1 heads) and Wren chest = Spine1 -> Neck heads (`thorax`). Two bones bend inside the chest, so `thorax` is a
+**blend slot**: it turns with the Spine1 / Spine2 slerp at 0.5 (the twist), swung by the smallest arc so its rest span
+lands on the posed Spine1 -> Neck span: its direction is exact at every frame. A rigid slot cannot follow a span that
+bends, so its tip misses the real Neck head by the change in span length (`report.stretchMm`, worst 16.4 mm on
+lifting_heavy_object); the shoulder slots hang off that tip, so the take's shoulder points carry up to that much. Wren's
+retarget uses rotations only (and the hip joints, off the root), so Wren is not affected.
+The WIP had also moved Wren's neck onto Neck + a third of the Head bone and dropped the toes from the facing; both are
+outside the checker's item and the plan, so both were put back (neck = Neck -> Head head, facing from hips + toes).
+
+**Direction check (mixamoTake.mjs `mixamoDirCheck(rig, dump)`).** The take goes through `retargetTake` (the real path
+onto Wren); at every source frame (the 120 fps frame on it), each of Wren's 15 driven segments (joint -> SEG_END child,
+its world rotation on its bind segment) is measured against the Mixamo segment `WREN_SPANS` names: child head minus
+head from the dump's own `pos`, in the game frame. Only the frame change is shared with the slots. Limit 8 deg
+(`DIR_LIMIT_DEG`); the CLI prints it per clip and exits 1 over it. To prove it can fail, the same check was run with
+the old map patched in (the old column; it reproduces the checker's 40 deg on lifting_heavy_object).
+
+| Clip | Max, all 15 segments (deg) | Spine | Chest | Neck | Old map: spine / chest (deg) | Blend stretch (mm) |
+| --- | --- | --- | --- | --- | --- | --- |
+| braced_hang_shimmy_left | 0.01 | 0.01 | 0.00 | 0.01 | 16.85 / 7.93 | 2.9 |
+| braced_hang_shimmy_right | 0.01 | 0.01 | 0.00 | 0.01 | 16.75 / 7.88 | 2.9 |
+| braced_hang_to_crouch | 0.01 | 0.01 | 0.00 | 0.01 | 17.36 / 8.16 | 3.1 |
+| carry_body_idle | 0.01 | 0.01 | 0.00 | 0.01 | 2.61 / 1.23 | 0.1 |
+| carry_body_walking | 0.01 | 0.01 | 0.00 | 0.01 | 3.93 / 1.85 | 0.2 |
+| climbing_ladder | 0.01 | 0.01 | 0.00 | 0.01 | 12.53 / 5.89 | 1.6 |
+| climbing_ladder_to_standing | 0.01 | 0.01 | 0.00 | 0.01 | 22.36 / 10.51 | 5.2 |
+| crawling_hands_and_knees | 0.01 | 0.01 | 0.00 | 0.01 | 12.09 / 5.68 | 1.5 |
+| crawling_prone | 0.01 | 0.01 | 0.00 | 0.01 | 10.63 / 5.29 | 1.3 |
+| cross_punch | 0.01 | 0.01 | 0.00 | 0.01 | 4.38 / 2.04 | 0.2 |
+| crouched_walking | 0.01 | 0.01 | 0.00 | 0.01 | 4.12 / 1.96 | 0.2 |
+| crouch_to_stand | 0.01 | 0.01 | 0.00 | 0.01 | 16.66 / 7.83 | 2.9 |
+| elbow_strike | 0.01 | 0.01 | 0.00 | 0.01 | 7.54 / 3.50 | 0.6 |
+| freehang_climb | 0.01 | 0.01 | 0.00 | 0.01 | 23.78 / 11.18 | 5.8 |
+| hanging_idle | 0.01 | 0.01 | 0.00 | 0.01 | 0.43 / 0.21 | 0.0 |
+| kneeling_pull_up | 0.01 | 0.01 | 0.00 | 0.01 | 17.46 / 8.99 | 3.8 |
+| kneel_down | 0.01 | 0.01 | 0.00 | 0.01 | 28.55 / 13.42 | 8.4 |
+| lifting_heavy_object | 0.01 | 0.01 | 0.00 | 0.01 | 40.04 / 18.79 | 16.4 |
+| pulling_up_to_a_ledge | 0.01 | 0.01 | 0.00 | 0.01 | 8.60 / 3.99 | 0.7 |
+| standing_idle | 0.01 | 0.01 | 0.00 | 0.01 | 4.00 / 1.88 | 0.2 |
+| stand_to_crouch | 0.01 | 0.01 | 0.00 | 0.01 | 34.19 / 16.06 | 12.0 |
+
+The 0.01 deg left is the dump's 5-decimal rounding. Arms and legs were 0.01 deg under both maps (they never used the
+spine slots). All 21: selfCheck OK, `fkErrMm` 0.02-0.04, facing -0.8 deg (hips + toes, `hipToeDeg` 1.6), leg scale 0.993.
+
+**Tests.** `tests/mixamoMap.test.ts`: spine / chest / neck slots and end heads; `WREN_SPANS` covers every driven segment
+(a bone and its descendant, the same two heads as the slot); a blend slot's chain is checked (a re-parented Neck or
+Spine2 is an error). `tests/mixamoTake.test.ts`: the T-pose and walk segment checks now on Spine -> Spine1 and
+Spine1 -> Neck; new **bent-spine test** (a synthetic lift: Spine, Spine1, Spine2 each bent by a different amount with a
+side lean and a twist, under a turned armature): `mixamoDirCheck` < 0.5 deg on every segment; with the old map patched
+in, spine > 30 deg and chest > 8 deg (both flagged), limbs still < 0.5 deg; the walk and a 60 fps dump < 0.5 deg.
+Results: `npx vitest run tests/mixamoMap.test.ts tests/mixamoTake.test.ts` 19 passed, 1 skipped (the CMU regression: no
+raw CMU take in `.mocap-cache` on this machine); `npm run typecheck:fast` clean; `node scripts/mocap/mixamoTake.mjs`
+exit 0 on all 21.
+
+**CMU output.** `retarget.mjs` and `analyze.mjs` are unchanged since the checked head 55b45b82 (`git diff` empty), and the
+CMU path imports nothing from the Mixamo files, so CMU output stays byte-identical (the original round's old-vs-new byte
+check still holds).
+
+**Open.**
+- Neck proportions: Wren's neck segment is 15 cm, Mixamo's Neck bone 7 cm, so Wren's head joint sits about 8 cm further
+  up the neck line than Mixamo's Head joint. Wren's neck follows the Neck bone's direction (A6 met), so on a strong nod
+  Wren's head pivots a little low. If it shows in Studio, the WIP's Neck + Head blend (Neck -> a third up the Head
+  bone, in `ea5f6965`) is the fix.
+- The blend stretch (shoulder points up to 16 mm off on the deepest lift) matters only if M3's `clav` channel reads
+  shoulder positions; from rotations it does not.
