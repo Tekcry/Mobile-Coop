@@ -1,5 +1,9 @@
 # Changelog
 
+## 4.101.2 - Train 87: Co-op lamp shots: no stale round after a restart (2026-10-25, PR #409; #384)
+- In co-op (Marlow Yard and Sector Ops), a client's round at a lamp fired just before a set or section restart no
+  longer shoots that lamp out in the fresh run. No wire change.
+
 ## 4.101.1 - Train 86: Laptop queue: dead-pid slot locks, watchdog allowlist, affected-e2e never stuck; Guard AI: one-mover fix; Saltmarsh Park section bake: stuck workers replaced (2026-10-25, PR #406; #403, #387, #385)
 
 ### Guard AI: one-mover fix
