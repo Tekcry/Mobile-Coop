@@ -2239,7 +2239,7 @@ console.log('lobby caps: slots by mode, Start blocked over the cap, Room full, M
     const r1 = await rows(LA);
     assert(r1.all === 2 && r1.empty === 1, `lobby caps: Campaign lobby with one player shows 2 slots, 1 open (${JSON.stringify(r1)})`);
     const st1 = await LG(() => document.querySelector('.lobby-screen .lobby-status')?.textContent ?? '');
-    assert(st1 === 'Marlow Yard needs two players. Share the code to invite your teammates.', `lobby caps: host status line (${st1})`);
+    assert(st1 === 'Marlow Yard needs two players. Share the code to invite your partner.', `lobby caps: host status line (${st1})`);
 
     // a 2nd page joins: Marlow's lobby for 2 is full, no open slot
     const LB = await joinPage();

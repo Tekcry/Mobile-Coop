@@ -513,7 +513,7 @@ class LobbyScreen extends MenuScreen {
     const cap = s.cap;
     if (!s.hostId) this.status.textContent = 'Connecting to host…';
     else if (s.overCapacity) this.status.textContent = `${MODE_OPTS.find((m) => m.value === s.mode)?.label} takes ${cap} players - pick another mode or wait for someone to leave.`;
-    else if (s.isHost) this.status.textContent = ps.length < 2 ? `${courseStartBlock(s.mode, ps.length) ? `${COURSE_TWO_PLAYERS}. ` : ''}Share the code to invite your teammates.` : s.allReady ? 'Everyone is ready.' : 'Waiting for players to ready up.';
+    else if (s.isHost) this.status.textContent = ps.length < 2 ? `${courseStartBlock(s.mode, ps.length) ? `${COURSE_TWO_PLAYERS}. ` : ''}Share the code to invite your ${cap > 2 ? 'teammates' : 'partner'}.` : s.allReady ? 'Everyone is ready.' : 'Waiting for players to ready up.';
     else this.status.textContent = s.phase === 'playing' ? 'Match in progress - joining…' : 'Waiting for the host to start.';
   }
 
