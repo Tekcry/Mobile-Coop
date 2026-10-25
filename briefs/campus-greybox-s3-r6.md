@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 2 2026-10-25T17:53Z
 # campus-greybox s3-r6 (cloud): R6 co-op lips, nav reach, v2 graph + R7 dressing re-run
 
 Lead: Night Shift | Sector Ops Build. Job campus-greybox (J17). Starts only after the join brief
