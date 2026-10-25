@@ -1,7 +1,7 @@
 # tallow-shutters (J9): brief
 Owner: Night Shift | Campaign Build. Status: current (job doc).
 
-Lead: Night Shift | Campaign Build. Started: 2026-10-25 ~19:00 (plan), fix round 1 ~20:30. Base: `feature/mission-engine`
+Lead: Night Shift | Campaign Build. Started: 2026-10-25 ~19:00 (plan), fix round 1 ~20:30, fix round 2 ~21:30. Base: `feature/mission-engine`
 after J7 PR D (stacked on #372; reaches master through the PR C split). Plan: `docs/missions/slices/J8-J9-PLAN.md` (J9's
 part: slices S1-S4, FS; the draft for `docs/tallow-shutters/PLAN.md`; shared with J8, `docs/tallow-fixes/`).
 
@@ -30,8 +30,8 @@ shutter back down.
   G41, G44, G143 (every detection explainable); G292.
 - Areas touched and their unwalked count: Tallow, dark behind `missions`; the lift is offered only with `coopKit` (folding
   into Player's `kitMoves`).
-- Flag: `missions` (`?missions=1`), owner Night Shift | Campaign Build, switch-on date 2026-11-01 (after Michael's Tallow
-  walk; J8 A26).
+- Flag: `missions` (`?missions=1`), owner Night Shift | Campaign Build, switch-on date 2026-10-27 (after Michael's Tallow
+  walk; J8 A26, as `flags.ts:68`).
 
 ## Answers (M) and assumptions (A)
 No M answers yet. Assumptions (numbers shared with the J8 plan, section 3):
@@ -48,7 +48,7 @@ No M answers yet. Assumptions (numbers shared with the J8 plan, section 3):
   remove the reset call.
 
 ## Questions for Michael (one click each, asked by day)
-None. (J8's A1 and A24 questions do not block J9.)
+None. (J8's A1 and A24 questions were answered ~20:45, M1 / M2; neither touches J9.)
 
 ## Sign-off needed
 No: the shutters are on the approved drawing (C2, C8).
