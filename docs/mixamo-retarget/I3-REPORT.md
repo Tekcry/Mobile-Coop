@@ -6,9 +6,9 @@ Owner: mixamo-retarget lead. Status: current (branch feature/mixamo-i3).
   below); `resolveMixamoStance()` called as one line at the end of `resolveMixamo` (:147); the I3 block (:204-229):
   `WREN_STANCE` (the same object always), `STANCE_SHOT { edge: 0.15, flip: 0.08 }`, `resolveMixamoStance` (flag and row
   only, A2). The block sits above the load-time `setMixamo` line (`WREN_STANCE` must exist when it first resolves).
-- `src/anim/animGraph.ts:57` own import line; `:942-955` the member group (`snDir`, `snOld`, `snPrev`, `snFlip`, `snK`,
-  `snW`, `snDt`, poses `kSn` / `kSn2`); `:2007-2014` the call after `keyedSet` (Wren with a shot only, else skipped);
-  `:2241-2296` `stanceShot`. None of I1's or I2's lines touched.
+- `src/anim/animGraph.ts:57` own import line; `:942-954` the member group (`snDir`, `snOld`, `snPrev`, `snFlip`, `snK`,
+  `snW`, `snDt`, poses `kSn` / `kSn2`); `:2013-2021` the call after `keyedSet` (Wren with a shot only, else skipped);
+  `:2247-2299` `stanceShot`. None of I1's or I2's lines touched.
 - `tests/mixamoStance.test.ts` (new, 9 tests), `changes/feature-mixamo-i3.md`.
 
 ## How it plays
