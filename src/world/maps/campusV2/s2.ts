@@ -33,7 +33,6 @@ const STEEL = '#55606a';
 const SLAB = '#7f8588';
 const ROOF = '#4a4f55';
 const DESK = '#8a6a4c';
-const PLANTER = '#5d6b4a';
 const STAIR = '#8d9296';
 const GLASS = '#9fb8c4';
 const WHITE: [number, number, number] = [1, 0.95, 0.88];
@@ -42,8 +41,9 @@ const DOOR_H = 2.1;
 
 /** The floors' walking heights: G, L1, L2, roof. */
 export const S2_FLOORS = [0, 4.4, 8.4, 12.3] as const;
-/** The atrium void (x0, x1, z0, z1): open from the G floor to the roof light at 13.2. */
-export const S2_VOID = { x0: -26, x1: -10, z0: -20, z1: -4 } as const;
+/** The atrium void (x0, x1, z0, z1): open from the G floor to the roof light at 13.2. (S2-G2, C2, `S2-detail.md:74`) 14.5 x
+ *  14.5, so the L1 / L2 south and east strips are 3.9 m clear (were 2.45). */
+export const S2_VOID = { x0: -26, x1: -11.5, z0: -18.5, z1: -4 } as const;
 /** The building's footprint. */
 export const S2_FOOT = { x0: -44, x1: 4, z0: -30, z1: 6 } as const;
 
@@ -146,15 +146,16 @@ export const S2_FLIGHTS: readonly Flight[] = [...coreFlights(SW_CORE), ...coreFl
 export const MAIL_SHAFT = { x0: -34, x1: -32.8, z0: -19.5, z1: -18 } as const;
 
 /**
- * (SPEC "Campus-wide rules", CR2) The L1 slab nose over the dark cafe: x -10, z -11..-5, 4.4 over the G floor (a leg-up and a
- * human ladder). The top is the slab's east strip behind the gap (x -10..-7.5). Solo bypass: the SW fire stair.
+ * (SPEC "Campus-wide rules", CR2) The L1 slab nose over the dark cafe, 4.4 over the G floor (a leg-up and a human ladder).
+ * (S2-G2, C4, `S2-detail.md:75`) Re-cut with the void: x -11.5, z -11..-5 (a 6 m gap in the east balustrade), the planter
+ * removed; the top is the 3.9 m east strip behind the gap (x -11.5..-7.5), flat. Solo bypass: the SW fire stair.
  */
 export const CR2: CoopLip = {
   id: 'CR2',
   section: 1,
-  lip: { x: -10, z0: -11, z1: -5, y: 4.4, n: { x: -1, z: 0 } },
-  top: { x0: -10, x1: -7.5, z0: -11, z1: -5, top: 4.4 },
-  boost: { floor: 0, x: -10.6, z: -8 },
+  lip: { x: -11.5, z0: -11, z1: -5, y: 4.4, n: { x: -1, z: 0 } },
+  top: { x0: -11.5, x1: -7.5, z0: -11, z1: -5, top: 4.4 },
+  boost: { floor: 0, x: -12.1, z: -8 },
   solo: 'the SW fire stair (post room, stairs, the L1 open plan)',
 };
 export const S2_COOP_LIPS: readonly CoopLip[] = [CR2];
@@ -179,6 +180,10 @@ export const S2_ROOMS: RoomDef[] = [
   { id: 'l2wing', name: 'L2 East Wing', minX: -7.5, maxX: 4, minZ: -30, maxZ: 6, minY: 8.4, maxY: 12.3 },
   { id: 'roof', name: 'Roof', minX: -44, maxX: 4, minZ: -30, maxZ: 6, minY: 12.3 },
 ].map((r) => ({ ...r, squad: [] }));
+
+/** The G cafe tables (x, z), 1.0 x 0.75 x 1.0. (S2-G2, BA10) the two by the CR2 nose moved from x -13 to -14.5: the
+ *  as-built 3.0 m offset from the lip kept. */
+export const CAFE_TABLES: readonly (readonly [number, number])[] = [[-14.5, -9], [-14.5, -6.5], [-22.5, -9.5]];
 
 /** Player-reach spots: carried bodies can be hidden in the plant room, the NW store, the print room and the board room. */
 export const S2_HIDESPOTS: NonNullable<MapLayout['hideSpots']> = [
@@ -217,24 +222,68 @@ export const S2_SWITCHES: NonNullable<MapLayout['switches']> = [
  */
 export const S2_BOARDS: BoardDef[] = [{ pos: new Vector3(-8.4, 0, -28.5), yaw: -PI / 2, groups: [S2_GROUPS.atrium] }];
 
-/** The atrium pendants (x, z) at y 9.0 over the south half of the void (the cafe in the north half stays unlit). */
-export const PENDANTS: readonly (readonly [number, number])[] = [[-22, -17], [-18, -17], [-14, -17]];
-/** The L1 and L2 balcony downlights along the void's edges (x, z). */
-export const BALCONY_LAMPS: readonly (readonly [number, number])[] = [[-22, -2.8], [-14, -2.8], [-27.2, -12], [-8.8, -12], [-22, -21.2], [-14, -21.2]];
+/** One S2 lamp fitting: its role (`S2_LIGHTS`), position, radius, intensity, circuit, colour, an optional downward cone
+ *  (dx, dy, dz, angle) and the fitting's width. */
+export interface S2Lamp {
+  readonly role: string;
+  readonly x: number;
+  readonly y: number;
+  readonly z: number;
+  readonly r: number;
+  readonly i: number;
+  readonly group: number;
+  readonly colour: readonly [number, number, number];
+  readonly cone?: readonly [number, number, number, number];
+  readonly w?: number;
+}
 
-/** A visible lamp fitting (no model: the glowing box), a real registry light. */
-function lamp(b: LevelBuilder, x: number, y: number, z: number, o: { r: number; i: number; group: number; colour: [number, number, number]; cone?: ReturnType<typeof makeCone> | null; w?: number }): void {
-  const w = o.w ?? 0.5;
+/** The balcony downlight's cone (straight down, 1.2 rad). */
+const DOWN: readonly [number, number, number, number] = [0, -1, 0, 1.2];
+
+/**
+ * (S2-G2, lead note 2026-10-25 ~09:05, briefs/S2.md 0.6) Every S2 lamp, in one block: provisional, light-realism retunes.
+ * `buildCampusS2` builds every lamp from this block and from nowhere else. No fitting is built off or dead (Q2 "Never").
+ * TODO(light-realism): calibration replaces these values (today's engine values x1).
+ */
+export const S2_LIGHTS: readonly S2Lamp[] = [
+  // the atrium pendants at y 9.0 over the south half of the void (the landmark), on the atrium board (50)
+  { role: 'pendant', x: -22, y: 9.0, z: -17, r: 12, i: 1.35, group: S2_GROUPS.atrium, colour: WHITE, w: 0.7 },
+  { role: 'pendant', x: -18, y: 9.0, z: -17, r: 12, i: 1.35, group: S2_GROUPS.atrium, colour: WHITE, w: 0.7 },
+  { role: 'pendant', x: -14, y: 9.0, z: -17, r: 12, i: 1.35, group: S2_GROUPS.atrium, colour: WHITE, w: 0.7 },
+  // the balcony downlights along the void's edges: the six as built plus (-18, -21.2) and (-10, -21.2) (BA3), on L1 (y 7.9, 51) and L2 (y 11.9, 52)
+  ...([[-22, -2.8], [-14, -2.8], [-27.2, -12], [-8.8, -12], [-22, -21.2], [-14, -21.2], [-18, -21.2], [-10, -21.2]] as const).flatMap(([x, z]): S2Lamp[] => [
+    { role: 'l1-balcony', x, y: 7.9, z, r: 5, i: 0.8, group: S2_GROUPS.l1Bal, colour: WHITE, cone: DOWN, w: 0.4 },
+    { role: 'l2-balcony', x, y: 11.9, z, r: 5, i: 0.8, group: S2_GROUPS.l2Bal, colour: WHITE, cone: DOWN, w: 0.4 },
+  ]),
+  // the reception downlight is on the panel's circuit: from the desk the pendants hang above the L1 slab line (no sight
+  // line), so #1 notices the panel by his own room going dark (guard-ai lightsOut: a fixture in the room he stands in)
+  { role: 'reception', x: -20, y: 3.9, z: -26.5, r: 6, i: 0.9, group: S2_GROUPS.atrium, colour: WHITE, w: 0.6 },
+  { role: 'kitchen', x: -25, y: 7.9, z: -26, r: 5, i: 0.9, group: S2_GROUPS.kitchen, colour: WHITE, w: 0.6 },
+  { role: 'facilities', x: -4, y: 7.9, z: 3, r: 6, i: 0.9, group: S2_GROUPS.facilities, colour: COOL, w: 0.6 },
+  // one night lamp per corridor (0.25)
+  { role: 'l1-corridor', x: -3, y: 7.9, z: -1.5, r: 8, i: 0.25, group: S2_GROUPS.l1Cor, colour: WHITE, w: 0.4 },
+  { role: 'l2-corridor', x: -35, y: 11.9, z: -9, r: 8, i: 0.25, group: S2_GROUPS.l2Cor, colour: WHITE, w: 0.4 },
+  { role: 'g-corridor', x: -28, y: 3.9, z: -14, r: 8, i: 0.25, group: S2_GROUPS.gCor, colour: WHITE, w: 0.4 },
+];
+
+/** The atrium pendants (x, z) at y 9.0 (from `S2_LIGHTS`). */
+export const PENDANTS: readonly (readonly [number, number])[] = S2_LIGHTS.filter((l) => l.role === 'pendant').map((l) => [l.x, l.z] as const);
+/** The balcony downlights (x, z), the same eight on L1 and L2 (from `S2_LIGHTS`). */
+export const BALCONY_LAMPS: readonly (readonly [number, number])[] = S2_LIGHTS.filter((l) => l.role === 'l1-balcony').map((l) => [l.x, l.z] as const);
+
+/** A visible lamp fitting (no model: the glowing box), a real registry light, from an `S2_LIGHTS` entry. */
+function lamp(b: LevelBuilder, l: S2Lamp): void {
+  const w = l.w ?? 0.5;
   b.light({
-    kind: o.cone ? 'spot' : 'lamp',
-    x,
-    y,
-    z,
-    radius: o.r,
-    intensity: o.i,
-    color: o.colour,
-    cone: o.cone ?? null,
-    group: o.group,
+    kind: l.cone ? 'spot' : 'lamp',
+    x: l.x,
+    y: l.y,
+    z: l.z,
+    radius: l.r,
+    intensity: l.i,
+    color: [l.colour[0], l.colour[1], l.colour[2]],
+    cone: l.cone ? makeCone(l.cone[0], l.cone[1], l.cone[2], l.cone[3]) : null,
+    group: l.group,
     on: true,
     destructible: true,
     electric: true,
@@ -336,6 +385,14 @@ function furn(b: LevelBuilder, x: number, z: number, w: number, h: number, d: nu
   if (h >= 1.8) b.boxes[b.boxes.length - 1]!.noLedge = true;
 }
 
+/** (S2-G2) Glass balustrade runs (x0, x1, z0, z1 centre lines: one of the pairs equal), 1.1 high, 0.1 thick, on floor `y`, noLedge. */
+function balustrade(b: LevelBuilder, y: number, runs: readonly (readonly [number, number, number, number])[]): void {
+  const i0 = b.boxes.length;
+  const h = 1.1;
+  for (const [x0, x1, z0, z1] of runs) b.box((x0 + x1) / 2, y + h / 2, (z0 + z1) / 2, Math.max(0.1, x1 - x0), h, Math.max(0.1, z1 - z0), GLASS);
+  b.mark(i0, { noLedge: true });
+}
+
 /** One fire stair core: walls with the door at every floor and the roof bulkhead, the flights, the half and near landings, the bulkhead roof. */
 function buildCore(b: LevelBuilder, c: Core): void {
   const [fx0, fx1, fz0, fz1] = coreFoot(c);
@@ -393,7 +450,7 @@ export function buildCampusS2(b: LevelBuilder): void {
   doorIn(b, false, X0, -16, F0, { locked: true, breachable: false });
 
   // ---- slabs: L1 (the lip piece at the cafe, CR2, keeps its ledge), L2, the roof (the void's rim stands on it)
-  const lip: Rect = [-10, -6, -11, -5];
+  const lip: Rect = [-11.5, -6, -11, -5];
   const shaft: Rect = [MAIL_SHAFT.x0, MAIL_SHAFT.x1, MAIL_SHAFT.z0, MAIL_SHAFT.z1];
   slab(b, [X0, X1, Z0, Z1], F1, [V, swFoot, neFoot, lip, shaft], 0.4);
   slab(b, [lip[0], lip[1], lip[2], lip[3]], F1, [], 0.4, SLAB, true);
@@ -464,7 +521,7 @@ export function buildCampusS2(b: LevelBuilder): void {
   // G furniture: the reception desk (faces the turnstiles), the cafe counter and tables (0.75), mail cages, the plant room's switchgear
   furn(b, -20, -27.1, 6, 1.1, 0.8);
   furn(b, -19, -5.6, 6, 1.1, 0.6);
-  for (const [x, z] of [[-13, -9], [-13, -6.5], [-22.5, -9.5]] as const) furn(b, x, z, 1.0, 0.75, 1.0);
+  for (const [x, z] of CAFE_TABLES) furn(b, x, z, 1.0, 0.75, 1.0);
   for (const [x, z] of [[-41.5, -13.5], [-38, -13.5], [-41.5, -18.5]] as const) furn(b, x, z, 2.2, 1.8, 0.9, STEEL);
   furn(b, 1.5, -10, 2.4, 1.8, 1.0, STEEL);
   furn(b, 1.5, -22, 2.4, 1.8, 1.0, STEEL);
@@ -537,21 +594,16 @@ export function buildCampusS2(b: LevelBuilder): void {
   furn(b, 2.9, -4.8, 2.4, 1.8, 0.8, STEEL, A1);
   furn(b, -6.5, 4.3, 3, 0.75, 0.9, DESK, A1);
   furn(b, -2.2, 5.3, 1.0, 1.0, 0.8, STEEL, A1);
-  // the planter behind the CR2 gap: flush with the balustrade line, 0.5 back from the nose so the lip's headroom stays clear
-  furn(b, -9.0, -8, 0.6, 0.45, 6.0, PLANTER, A1);
-  // the L1 balustrade (1.1, glass) round the void: the south side has the feature stair's opening; the east side the CR2 gap (z -11.3..-4.7)
-  {
-    const i0 = b.boxes.length;
-    const h = 1.1;
-    const y = A1 + h / 2;
-    b.box(-26.1, y, -12, 0.1, h, 16, GLASS);
-    b.box(-10.1, y, -15.65, 0.1, h, 8.7, GLASS);
-    b.box(-10.1, y, -4.35, 0.1, h, 0.7, GLASS);
-    b.box(-18, y, -4.1, 16, h, 0.1, GLASS);
-    b.box(-22.6, y, -19.9, 6.8, h, 0.1, GLASS);
-    b.box(-13.4, y, -19.9, 6.8, h, 0.1, GLASS);
-    b.mark(i0, { noLedge: true });
-  }
+  // (S2-G2, C4) the CR2 planter is removed; (C2) the L1 balustrade (1.1 glass, 0.1 thick) round the 14.5 m void: the south
+  // side has the feature stair's head gap (x -19.2..-16.8), the east side the CR2 gap (z -11..-5, 6 m)
+  balustrade(b, A1, [
+    [-26.1, -26.1, -18.5, -4],
+    [-26, -11.5, -4.1, -4.1],
+    [-26, -19.2, -18.4, -18.4],
+    [-16.8, -11.6, -18.4, -18.4],
+    [-11.6, -11.6, -18.4, -11],
+    [-11.6, -11.6, -5, -4],
+  ]);
 
   // ---- L2 (floor 8.4, partitions up to 12.0)
   const A2 = F2;
@@ -575,16 +627,13 @@ export function buildCampusS2(b: LevelBuilder): void {
   // L2 furniture
   for (const [x, z] of [[-34, 3], [-36, 1], [-16, 3.5], [-12, 3.5], [-33, -25.5]] as const) furn(b, x, z, 1.6, 0.75, 0.8, DESK, A2);
   furn(b, -38, 3, 4, 0.75, 1.4, DESK, A2);
-  {
-    const i0 = b.boxes.length;
-    const h = 1.1;
-    const y = A2 + h / 2;
-    b.box(-26.1, y, -12, 0.1, h, 16, GLASS);
-    b.box(-10.1, y, -12, 0.1, h, 16, GLASS);
-    b.box(-18, y, -4.1, 16, h, 0.1, GLASS);
-    b.box(-18, y, -19.9, 16, h, 0.1, GLASS);
-    b.mark(i0, { noLedge: true });
-  }
+  // (S2-G2, C2) the L2 balustrade: as L1 with no gap (no stair and no lip at L2; the L2 drawing's stair gap is a copy slip, LD 16.5.3)
+  balustrade(b, A2, [
+    [-26.1, -26.1, -18.5, -4],
+    [-26, -11.5, -4.1, -4.1],
+    [-26, -11.5, -18.4, -18.4],
+    [-11.6, -11.6, -18.5, -4],
+  ]);
 
   // ---- roof: parapet 1.1 on the edge, the roof light's rim round the void (0.9 over the roof, top 13.2) and its lid (glass: visual only), the plant room
   {
@@ -595,14 +644,15 @@ export function buildCampusS2(b: LevelBuilder): void {
     b.box((X0 + X1) / 2, py, Z1 - 0.1, X1 - X0, ph, 0.2, WALL_DARK);
     b.box(X0 + 0.1, py, (Z0 + Z1) / 2, 0.2, ph, Z1 - Z0, WALL_DARK);
     b.box(X1 - 0.1, py, (Z0 + Z1) / 2, 0.2, ph, Z1 - Z0, WALL_DARK);
+    // (S2-G2, C2, `S2-detail.md:94`) the rim follows the void: outer box x -26.4..-11.1, z -18.9..-3.6, 0.9 high (to 13.2), 0.4 thick
     const rh = 13.2 - FR;
     const ry = FR + rh / 2;
-    b.box(-18, ry, -20.2, 16.8, rh, 0.4, WALL_DARK);
-    b.box(-18, ry, -3.8, 16.8, rh, 0.4, WALL_DARK);
-    b.box(-26.2, ry, -12, 0.4, rh, 16, WALL_DARK);
-    b.box(-9.8, ry, -12, 0.4, rh, 16, WALL_DARK);
+    b.box(-18.75, ry, -18.7, 15.3, rh, 0.4, WALL_DARK);
+    b.box(-18.75, ry, -3.8, 15.3, rh, 0.4, WALL_DARK);
+    b.box(-26.2, ry, -11.25, 0.4, rh, 14.5, WALL_DARK);
+    b.box(-11.3, ry, -11.25, 0.4, rh, 14.5, WALL_DARK);
     b.mark(i0, { noLedge: true });
-    b.box(-18, 13.2, -12, 16, 0.1, 16, '#6c8da0', 0, 0, false);
+    b.box(-18.75, 13.2, -11.25, 14.5, 0.1, 14.5, '#6c8da0', 0, 0, false);
     // the roof plant room (x -20..-12, z 0..4.5, 2.6 high), door south
     const j0 = b.boxes.length;
     wall(b, true, 0, -20, -12, [gc(-16)], FR, FR + 2.6, P, WALL_DARK);
@@ -629,21 +679,8 @@ export function buildCampusS2(b: LevelBuilder): void {
     doorIn(b, false, X1, -14, F1);
   }
 
-  // ---- lamps (SPEC "Lighting"): pendants over the south half of the void, balcony downlights on L1 and L2, the reception, the kitchen,
-  // the facilities office, and one night lamp per corridor (0.25); dark by reason: open plan, meeting rooms, stairs, comms, roof
-  for (const [x, z] of PENDANTS) lamp(b, x, 9.0, z, { r: 12, i: 1.35, group: S2_GROUPS.atrium, colour: WHITE, w: 0.7 });
-  for (const [x, z] of BALCONY_LAMPS) {
-    lamp(b, x, 7.9, z, { r: 5, i: 0.8, group: S2_GROUPS.l1Bal, colour: WHITE, cone: makeCone(0, -1, 0, 1.2), w: 0.4 });
-    lamp(b, x, 11.9, z, { r: 5, i: 0.8, group: S2_GROUPS.l2Bal, colour: WHITE, cone: makeCone(0, -1, 0, 1.2), w: 0.4 });
-  }
-  // the reception downlight is on the panel's circuit: from the desk the pendants hang above the L1 slab line (no sight
-  // line), so #1 notices the panel by his own room going dark (guard-ai lightsOut: a fixture in the room he stands in)
-  lamp(b, -20, 3.9, -26.5, { r: 6, i: 0.9, group: S2_GROUPS.atrium, colour: WHITE, w: 0.6 });
-  lamp(b, -25, 7.9, -26, { r: 5, i: 0.9, group: S2_GROUPS.kitchen, colour: WHITE, w: 0.6 });
-  lamp(b, -4, 7.9, 3, { r: 6, i: 0.9, group: S2_GROUPS.facilities, colour: COOL, w: 0.6 });
-  lamp(b, -3, 7.9, -1.5, { r: 8, i: 0.25, group: S2_GROUPS.l1Cor, colour: WHITE, w: 0.4 });
-  lamp(b, -35, 11.9, -9, { r: 8, i: 0.25, group: S2_GROUPS.l2Cor, colour: WHITE, w: 0.4 });
-  lamp(b, -28, 3.9, -14, { r: 8, i: 0.25, group: S2_GROUPS.gCor, colour: WHITE, w: 0.4 });
+  // ---- lamps (SPEC "Lighting"): every one from the `S2_LIGHTS` block
+  for (const l of S2_LIGHTS) lamp(b, l);
 
   // ---- ambient (SPEC lighting rules, LR7): the whole building at the standby fill 0.14; the fire stairs and C2 are transit spaces at 0.30
   b.ambientZone(X0, X1, Z0, Z1, 0.14, -1, 13.6);

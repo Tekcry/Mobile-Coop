@@ -58,3 +58,47 @@ Deviations:
 Findings for the lead: none beyond D-G1-1.
 
 Pending PC run: e2e-sectorops parts 1-6 on the lane PR head (S2-a), flag off.
+
+## S2-G2 - void and rings
+
+Files: `src/world/maps/campusV2/s2.ts`, `s2Dress.ts`, `tests/campusV2S2Void.test.ts`.
+
+Built (file:line at the G2 commit):
+- C2 void: `s2.ts:46` `S2_VOID` x -26..-11.5, z -18.5..-4; the L1, L2 and roof slab holes follow (`s2.ts:453-457`).
+- Balustrades: helper `s2.ts:389`; L1 `s2.ts:599-606` (west x -26.1 z -18.5..-4; north z -4.1 x -26..-11.5; south z -18.4
+  x -26..-19.2 and -16.8..-11.6; east x -11.6 z -18.4..-11 and -5..-4); L2 `s2.ts:631-636` (one piece per side, east
+  z -18.5..-4). 1.1 glass-coloured boxes, 0.1 thick, noLedge (the as-built form). Strips measured wall face to
+  balustrade face: south 3.95 (z -22.4..-18.45), east 3.95 (x -11.55..-7.6) on L1 and L2.
+- C4 CR2: lip piece `s2.ts:453` `[-11.5, -6, -11, -5]` (ledge kept); `CR2` `s2.ts:152-160` (lip x -11.5, z -11..-5, y 4.4;
+  top x -11.5..-7.5; boost (-12.1, 0, -8); id, section, solo text unchanged); the planter removed; BA10 `CAFE_TABLES`
+  `s2.ts:186` (the two tables by the nose at x -14.5), built `s2.ts:524`; dress `s2Dress.ts:201` reads `CAFE_TABLES`, the
+  'CR2 planter' skin dropped (`s2Dress.ts:221`).
+- Roof light rim `s2.ts:647-655`: south z -18.7 and north z -3.8 (x -26.4..-11.1), west x -26.2 and east x -11.3
+  (z -18.5..-4), 0.9 high to 13.2, 0.4 thick, noLedge; the lid a visual box at (-18.75, 13.2, -11.25), 14.5 x 0.1 x 14.5.
+- Pendants unchanged at (-22 / -18 / -14, 9.0, -17).
+- `S2_LIGHTS` `s2.ts:248` (lead note 0.6): every S2 lamp in one block, header "provisional, light-realism retunes" and the
+  `TODO(light-realism)` marker; `buildCampusS2` builds lamps only from it (`s2.ts:683`). `PENDANTS` / `BALCONY_LAMPS` are
+  read from the block. BA3: 8 balcony downlights per circuit (the six as built plus (-18, -21.2) and (-10, -21.2)) on 51
+  (y 7.9) and 52 (y 11.9). Values today's engine values x1.
+
+Numbers: void 14.5 x 14.5 (`D:74`); strips 3.9 (`D:74`, SS:39 3.0 floor); lip 4.4 inside 4.3-4.5 (SS:49); rim (`D:94`).
+
+Tests: `tests/campusV2S2Void.test.ts` 19 / 19 pass (void clear, rim, pendants, L1 / L2 balustrades and gaps, strips >= 3.9,
+CR2 in the v2 lip list, ledge only on the lip, no solo jump or top landing (0.5 m margin), headroom, rule 2, rule 3,
+rule 6, boost spot dark, stair >= 5.3 m from the lip, 8 lamps per balcony circuit, every lamp from `S2_LIGHTS`, dress log
+gains no line). G1 tests 17 / 17 still pass. Flag-off set 69 / 69. Typecheck and eslint clean.
+
+Assumptions: BA3, BA10 as the brief. New:
+- **A-G2-1** "The void is clear of collision from G + 0.1 to 13.2" is read as: nothing but the feature stair's own pieces
+  (its landing and rails), the G furniture 1.2 high or lower (the cafe counter and tables, the barrier) and the
+  balustrades by their 0.1 thickness. The live test's version of this check was vacuous. Undo: none (a test reading).
+
+Findings for the lead:
+- **F-G2-1** The balustrade centre lines the brief gives (north z -4.1, south z -18.4, east x -11.6) lie 0.05-0.15 inside
+  the void plan, so those three runs hang just off the slab edge, as the as-built L1 / L2 runs did (z -4.1, -19.9,
+  x -10.1). Harmless for collision; the strips measure 3.95 to the balustrade face.
+- **F-G2-2** AS11's 5.3 m is the flights' edge (x -16.8) to the lip; the east rail's centre line (x -16.75) is 5.25 m and
+  its outer face 5.2 m off. Rule 2 is unaffected (a 0.1 rail is under `LEDGE.climbDepth`).
+
+Pending PC run: e2e-sectorops parts 1-6 on the S2-a head (flag off); the v2 CR2 probes are e2e-sectorops `:2264-2267`
+(v1 numbers, for SW-2).

@@ -14,7 +14,7 @@ import { overlapsGreybox } from '../../campusArt/keepouts';
 import heroReport from '../../campusArt/assets/hero-s2.json';
 import { CAMPUS_LOOK } from '../../campusArt/campusKit';
 import { PROP_LOOK } from '../../props/facilityProps';
-import { S2_GROUPS } from './s2';
+import { CAFE_TABLES, S2_GROUPS } from './s2';
 
 export const S2_ART_TAGS: Record<string, ArtTag> = {
   post: 'mailroom',
@@ -198,7 +198,7 @@ export function dressS2(d: CampusDresser): void {
   });
   attempt('cafe counter', () => void d.skinRow('H2:cafeCounter', at(-19, 0.55, -5.6), true, -1, { why: 'cafe counter skin (the cafe side)' }));
   attempt('cafe tables', () => {
-    for (const [x, z] of [[-13, -9], [-13, -6.5], [-22.5, -9.5]] as const) d.skin('K:cafeTable', at(x, 0.375, z), 0, { why: 'cafe table skin' });
+    for (const [x, z] of CAFE_TABLES) d.skin('K:cafeTable', at(x, 0.375, z), 0, { why: 'cafe table skin' });
   });
   attempt('mail cages', () => {
     for (const [x, z] of [[-41.5, -13.5], [-38, -13.5], [-41.5, -18.5]] as const) d.skin('H2:mailCage', at(x, 0.9, z), 0, { why: 'mail cage skin' });
@@ -218,8 +218,7 @@ export function dressS2(d: CampusDresser): void {
   attempt('L1 kitchen counter', () => void d.skinRow('H2:kitchenCounter', at(-25, 4.95, -29.4), true, 1, { why: 'breakout kitchen run skin (K kitchenRun is 0.9 high, the counter 1.1: L3)' }));
   attempt('L1 BMS desk', () => void d.skin('H2:bmsDesk', at(-6.5, 4.775, 4.3), PI, { why: 'facilities desk skin (operator side south)' }));
   attempt('L2 board table', () => void d.skin('K:boardTable', at(-38, 8.775, 3), 0, { why: 'L2 board table skin' }));
-  // the CR2 planter: 0 cm proud on its -x face (the lip's headroom side), planting no higher than the box top
-  attempt('CR2 planter', () => void d.skinRow('H2:balconyPlanter', at(-9.0, 4.625, -8), false, 1, { why: 'balcony planter skin, flush with the box (the CR2 lip headroom)' }));
+  // (S2-G2, C4) the CR2 planter is removed from the greybox: no skin
 
   // ---- heroes: the atrium and reception
   place(d, 'logoWall', 'H2:logoWall', [[-25.5, F0, -29.84, 0]], 'visual', 'the brand wall behind reception');
