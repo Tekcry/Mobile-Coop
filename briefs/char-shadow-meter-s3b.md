@@ -1,4 +1,4 @@
-status: open
+status: claimed Night Shift | Cloud Builder 1 2026-10-25T23:25:30+11:00
 # char-shadow-meter s3b (cloud): character shadows count in the light (J16), slice S3b-1 only (typed point-input light calls, no 4-player fill allocation)
 
 Lead: Night Shift | Sector Ops Build. Job char-shadow-meter (FOLDED-PLAN J16, ROADMAP Now row 13; Michael Q6 "Meter
